@@ -28,6 +28,7 @@ import { STEWARD, type StewardMonthDay, type StewardWindow } from './rules-stewa
 import { fieldSowingTargets } from './simulate-plan';
 import { fieldCells, planCentre, takenTiles, villageTerritory } from './steward-land';
 import { extraSteps } from './steward-extras';
+import { needSteps } from './steward-needs';
 import {
   cellRuns,
   dwellingTiles,
@@ -139,6 +140,8 @@ function decideDay(
   };
   // hlad dne pro příští den správce (Nouze, jen když hlad roste)
   if (state.steward) state.steward.lastHunger = state.starvationDays ?? 0;
+  // krok 2a – nouze: obilí od sousedů, když hrozí hlad, a lov, když zvěř škodí (steward-needs.ts)
+  needSteps(state, ctx);
   fieldStep(state, ctx);
   dwellingStep(state, ctx);
   extraSteps(state, ctx);
@@ -327,6 +330,22 @@ function asOf(state: VillageState, day: number): VillageState {
 function replaceState(target: VillageState, source: VillageState): void {
   for (const key of Object.keys(target)) if (!(key in source)) Reflect.deleteProperty(target, key);
   Object.assign(target, source);
+}
+
+/**
+ * Akce správce, která není stavba (mutuje stav – výprava za obilím): akce hráče `act` v den
+ * správce na vsi dopočítané do něj (`asOf`), vyšlapanost cest napřed do stavu (`flushWear`) jako
+ * u `startStewardBuild`; `lastDay` dopočtu zůstane.
+ */
+export function stewardAction(
+  state: VillageState,
+  day: number,
+  act: (asOfDay: VillageState) => VillageState,
+): void {
+  if (state.roads?.wear) flushWear(state.roads.wear);
+  const lastDay = state.lastDay;
+  replaceState(state, act(asOf(state, day)));
+  state.lastDay = lastDay;
 }
 
 /**

@@ -107,6 +107,9 @@ a smysl přebytkům (obilí, sýr, maso, klády po mýcení) – jen se surovina
   v ceně, za kterou je soused bere (po zlém roce kraje nižší). Obchod hráče se sousedy dál nabízí
   krávy nad chovný pár – o tom rozhoduje hráč. Půjčka osiva
   od pána – otevřená otázka (s vazalstvím).
+- **Obilí od správce** (Martin 8. 11. 2026: „A“ – [správce](steward.md), Obilí a lov v nouzi):
+  správce vsi pošle výpravu za obilím touž akcí jako hráč, jen když zásoby do žní nestačí; platí
+  hřivnami, keramikou, uhlím a kládami, jídlem ani dobytkem ne.
 
 ## Jen společné suroviny
 

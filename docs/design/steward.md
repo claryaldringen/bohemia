@@ -40,9 +40,10 @@ postavit, vylepšit nebo může vesnici úplně vystěhovat a založit jinde.**�
   Clauda): stejné kontroly umístění, cena předem (`BUILD_COSTS`), stejná práce.
 - **Ne-cíl (teď):** nástupnictví náhodou bez pozvaného hráče – až s pozvánkami (Martin 30. 10. 2026), seniorát a rodové panství (fáze 4), NPC vojvodové cizích rodů a sousedé se
   simulací.
-- **Ne-cíl (první verze, návrh Clauda):** výpravy za obchodem (`startExpedition`), velký lov rodu
-  (`declareHunt`), přestěhování domácnosti hráčem vybrané, odchod vybraných obydlí bez syna –
-  nejsou stavby; viz Otevřené otázky.
+- **Ne-cíl (první verze, návrh Clauda):** přestěhování domácnosti hráčem vybrané, odchod
+  vybraných obydlí bez syna – nejsou stavby; viz Otevřené otázky. Výpravy za obchodem
+  (`startExpedition`) a lov navíc (`declareHunt`) správce dělá **jen v nouzi** (Martin 8. 11. 2026:
+  „A“) – obchod ani lov mimo nouzi ne; viz Obilí a lov v nouzi.
 - **Anti-cíl:** správce, který **ví budoucnost** – seed počasí, rozpis pohrom, náhodu dne. Zná jen
   to, co by věděl zkušený hráč: krajinu, kroniku, počasí, které už je vidět (`revealedWeather`),
   a četnosti z pravidel (návrh Clauda).
@@ -269,6 +270,9 @@ svého druhu (pole a čtverce po blocích) a všechny čerpají ze stejného roz
    a je syn, který smí vést; nebo ves
    v pasti osiva hladoví (viz Odchod syna – upřesnění, Past osiva). Jen **31. 8.** – po žních,
    před plánem osevu 1. 9., takže mateřská ves plánuje osev už pro menší počet lidí.
+   2a. **Nouze – obilí a lov** (Martin 8. 11. 2026: „A“) – výprava za obilím, když zásoby do žní
+   nestačí, a lov navíc, když zvěř škodí na polích (viz Obilí a lov v nouzi). Každý den správce,
+   před stavbami. Nestaví – rozpočet práce nebere.
 3. **Pole** – pole v oběhu pod cílem polí; další blok čtverců z plánu. Louka a křoviny 1. 9. až 28. 2. a 15. 6. až 31. 7. (mimo setí a žně – práce je volná), les 1. 10. až 31. 1.
 4. **Obydlí nebo dílna** – `waitingHouseholds > 0`: jedna stavba na čekající rodinu; dílna místo
    obydlí, když má vyšší hodnotu (níž). Celý rok.
@@ -380,6 +384,42 @@ Kroky 3 a 4 (`domain/village/steward.ts` – `stewardDay`):
   s plným pokrytím nástroji, jen s uhlířem; uhlíř: kovářovo ušetření minus práce dvou domácností;
   tesař zatím 0 (až s voly a vozy). Bez nástrojů ušetří plné pokrytí ≈ 39 % polní práce, takže
   uhlíř vyjde kladně od 6 obydlí, kovář s uhlířem od 3; hrnčíř (ztráty 10 % → 5 %) až od 21 obydlí.
+
+### Obilí a lov v nouzi (Martin 8. 11. 2026; pravidla návrh Clauda – `STEWARD` v `rules-steward.ts`, `steward-needs.ts`)
+
+Martin 8. 11. 2026 k otázce 3 (Výpravy za obchodem a velký lov rodu): „A“ – **obojí, ale jen
+v nouzi: obilí kupuje, jen když hrozí hlad, a na lov vyrazí, jen když zvěř škodí na polích.**
+Správce jedná **stejnými akcemi jako hráč** – výprava za obchodem (`tradeQuote` +
+`startExpedition`, [obchod](trade.md)) a lov navíc (`canDeclareHunt` + `declareHunt`,
+[zvěř](wildlife.md) – Lov rodu: Kdy) – se stejnými kontrolami. Krok 2a, každý den správce, před
+stavbami; rozhoduje jen ze stavu vsi a dne, bez náhody.
+
+- **Kdy hrozí hlad:** z výhledu zásob do žní, ze kterého správce počítá režim a pojistku
+  (`fieldSowingTargets` – osivo, které na setí čeká, se nejí): potřeba z pole do příští sklizně
+  i se ztrátami skladováním bez zásob, které ves smí sníst (obilí, snopy, luštěniny), chybí aspoň
+  o `STEWARD.grainMinKg` (25 kg – náklad jednoho nosiče, `TRADE.porterKg`).
+- **Komu:** sousedovi, který obilí nabízí (obilnáři), s hotovou zemskou stezkou a bez výpravy na
+  cestě; z nich tomu, kdo přinese nejvíc obilí (při shodě méně práce, pak pořadí směrů).
+- **Kolik:** jen co chybí, nejvýš co soused letos ještě má; za přeplatek posledního kusu platby
+  vezme obilí navíc (jako nákup osiva – [pole](fields.md), Osivo pro ves bez zásob). Výprava nese
+  nejvýš `STEWARD.grainPorterShare` (polovinu) dospělých vsi jako nosiče – jinak správce nákup
+  úměrně zmenší; ostatní drží práci vsi. Ves, která neunese ani kládu (2 dospělí → 1 nosič, kláda
+  potřebuje 2), nic nekoupí.
+- **Čím platí:** `STEWARD.grainPayment` v pořadí hřivny → keramika → uhlí → klády – zboží, které
+  ves nejí a bez kterého hospodaří (jako nákup osiva: jídlem ani dobytkem neplatí), napřed
+  s nejvyšší hodnotou na kg nákladu, ať je výprava nejmenší; jen co soused shání a co letos ještě
+  vezme. Obilnáři shánějí vždy klády, takže ves s kládami platí skoro vždy. Nemá-li čím, nekoupí.
+- **Nejvýš jedna výprava naráz** – správce nevyšle výpravu, dokud je jakákoli výprava za obchodem
+  na cestě (i hráčova; zásilky dávek pánovi se nepočítají).
+- **Kdy zvěř škodí:** v měsících škod (červen–srpen, `FIELD_DAMAGE.windowMonths`) je škoda zvěře
+  a vran na polích letos nebo loni aspoň `STEWARD.huntDamageShare` (10 %) roční potřeby obilí
+  z pole – stejný práh jako noční hlídka dílu (`FIELD_GUARD.night.threat`); lov je další stupeň
+  obrany polí. Loňská škoda platí od 1. 6. (zkušený hráč ví, že zvěř chodí na tatáž pole); letošní
+  sama by se na práh dostala až koncem léta.
+- **Lov:** lov navíc na zítřek, jen když ho pravidla dovolí (`canDeclareHunt` – mimo hájení,
+  aspoň 3 dny od minulého, cvičící rodina a lovci); správce rozhoduje jednou za `everyDays` (10)
+  dní, takže loví nejvýš jednou za 10 dní a vždy jen jeden lov naráz. Cíl lovu volí pravidla lovu
+  (prasata a jeleni, vlci při škodách na dobytku).
 
 ### Ostatní stavby – upřesnění (návrh Clauda – `STEWARD` v `rules-steward.ts`, `steward-extras.ts`)
 
@@ -1073,6 +1113,7 @@ kód, který se pak zahřeje, stojí ≈ 3× víc než zahřátý).
 | Měření: využití oběhu = 1 − odpočatá půda ladem, vracení přílohu ≤ 24 %, založení a vzdálenost dílů jen info            | návrh Clauda (2. 11. 2026)                                           |
 | Měření: čas správce na hodinách CPU vlákna; akce staveb kopírují stav přes `cloneState`                                 | návrh Clauda (2. 11. 2026)                                           |
 | Posvátná místa podle návratnosti: přínos štěstí k práci vsi za horizont režimu (Růst 25, Obnova 5) proti ceně stavby    | návrh Clauda (2. 11. 2026)                                           |
+| Obchod a lov jen v nouzi: obilí výpravou, když hrozí hlad, lov navíc, když zvěř škodí na polích – akcemi hráče          | Martin (8. 11. 2026: „A“), pravidla návrh Clauda                     |
 
 ## Otevřené otázky
 
@@ -1082,8 +1123,10 @@ kód, který se pak zahřeje, stojí ≈ 3× víc než zahřátý).
 2. **Odchod bez syna** – ves přerostla, ale syn, který smí vést, není (nebo bude za ≥ 2 roky).
    Návrh Clauda: správce počká a ves srovná hlad; alternativa – odchod nejbližších obydlí
    (vojvodou nejstarší muž rodu mezi nimi) jako hráč.
-3. **Výpravy za obchodem a velký lov rodu** – v první verzi je správce nedělá (nejsou stavby).
+3. ~~**Výpravy za obchodem a velký lov rodu**~~ – v první verzi je správce nedělá (nejsou stavby).
    Chce je Martin v další verzi (nákup obilí v hladovém roce, lov prasat na polích)?
+   **Rozhodnuto** – Martin 8. 11. 2026: „A“ (obojí, ale jen v nouzi – obilí kupuje, jen když
+   hrozí hlad, a na lov vyrazí, jen když zvěř škodí na polích); pravidla v Obilí a lov v nouzi.
 4. ~~**Tady, nebo na nové mapě**~~ – uzavřeno: vždy nová mapa (Martin 1. 11. 2026: „Jedna ves,
    jedna mapa“).
 5. ~~**Vsi na téže mapě**~~ – odpadá (jedna ves, jedna mapa – Martin 1. 11. 2026); výsledek

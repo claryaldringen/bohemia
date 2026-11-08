@@ -262,6 +262,8 @@ kde to nestačí.
   medvěda se nic nemění) a **nejvýš jednou za 3 dny**; lovců je nejvýš tolik, kolik jich je
   zdravých a bez práce v nejbližším kroku dne. Mimo zimu den lovu chybí v hlídce, výcviku
   a práci odešlých synů ve vsi – to je cena hráčova rozhodnutí. Kalendářní lov hráč nevypíná.
+  Správce vsi vyhlásí lov navíc touž akcí, jen když zvěř škodí na polích (Martin 8. 11. 2026:
+  „A“ – [správce](steward.md), Obilí a lov v nouzi).
 - **Letní hlídka:** červen–říjen v bloku jízdy (výš) – menší úlovky, hlavně menší škody.
 - **Výcvik:** den lovu se počítá jako výcvik (6 h): jezdec **jízda 3 h a luk 3 h**, pěší **luk 2 h
   a boj 4 h** (oštěp); kůň se cvičí jako při jízdě. Odešlým synům lov zpomalí úbytek dovedností.

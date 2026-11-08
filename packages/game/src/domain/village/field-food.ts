@@ -138,6 +138,12 @@ export interface SowingTargets {
   needKg: number;
   /** Zásoby z pole, které zbudou k příští sklizni (kg obilí). */
   leftKg: number;
+  /**
+   * Kolik zásob z pole do příští sklizně chybí (kg obilí): potřeba z pole do sklizně i se ztrátami
+   * bez zásob, které ves smí sníst (bez osiva, které na setí čeká), a bez luštěnin nad strop;
+   * 0 = vystačí (správce – Obilí v nouzi).
+   */
+  shortKg: number;
   /** Pojistka – zásoba z pole, která má zbýt před další sklizní (kg obilí). */
   bufferKg: number;
   /** Zásoby z pole, které má ves mít po příští sklizni – rok spotřeby a cílová zásoba (kg obilí). */
@@ -214,6 +220,11 @@ export function sowingTargets(
       seedAheadKg,
   );
   const left = storesLeft(eatenStock, need, years, loss) + legumeEnergy(legumesLeftKg);
+  // co do sklizně chybí: potřeba do ní i se ztrátami bez všeho, co ves smí sníst
+  const short = Math.max(
+    0,
+    storesNeeded(0, need, years, loss) - eatenStock - legumeEnergy(legumesLeftKg),
+  );
   // paměť hladu: po krutém roce 10 let pojistka 0,75 (disasters.md – Dopady, Zásoby a pojistka)
   const buffer = bufferKg(
     yearlyAfter,
@@ -239,6 +250,7 @@ export function sowingTargets(
     energyFloorKg: Math.min(targetKg, needAfter),
     needKg: needAfter,
     leftKg: left,
+    shortKg: short,
     bufferKg: buffer,
     afterHarvestKg: afterHarvest,
   };
