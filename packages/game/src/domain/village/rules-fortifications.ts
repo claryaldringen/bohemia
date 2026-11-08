@@ -324,10 +324,12 @@ export const FORTIFICATIONS = {
    * Obrana bez násobku (Obrana bez násobku 1; návrh Clauda): obránců na m ochozu 1 na 5 m, bránu
    * brání 2, hod na 15 m s polovinou účinku každé 4 s, kámen u paty na 3 m každé 2 s, shození
    * žebříku (s lezcem třetina, prázdný polovina), pád 20 zranění, lezec bojuje na půl síly,
-   * žebříky nejméně 1 m od sebe, pohyb po ochozu poloviční.
+   * žebříky nejméně 1 m od sebe, pohyb po ochozu poloviční. Obsazení (Obrana bez násobku 6; plán
+   * hradeb Úloha 12): stanoviště 1 m za čarou hradby – na ochozu a koruně, nebo na zemi za stěnou.
    */
   defense: {
     perDefenderM: 5,
+    postInsideM: 1,
     gateMen: 2,
     throwM: 15,
     throwFactor: 0.5,

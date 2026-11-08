@@ -6,7 +6,16 @@ import { stepCampaign } from '../campaign';
 import type { CampaignMap, CampaignState, CampaignWorld } from '../campaign-types';
 import { WAR } from '../rules-war';
 import { campaign, flat, MEADOW, member, SUMMER, world } from './campaign-fixtures';
-import { attacker, battle, defender, field, fighter, palisade, run } from './battle-fixtures';
+import {
+  attacker,
+  battle,
+  defender,
+  field,
+  fighter,
+  fortOf,
+  palisade,
+  run,
+} from './battle-fixtures';
 
 // Boj muž po muži (war.md – Boj, Ztráty; fortifications.md – Obrana, Prolomení).
 
@@ -167,16 +176,29 @@ describe('útok na palisádu (fortifications.md – Obrana, Prolomení)', () => 
     expect(hours).toBeLessThan(24.1);
   });
 
-  // násobek zrušen 8. 11. 2026 (dřív „násobek 3 – šíp ubere třetinu“): šíp ubere plný poloviční
-  // zásah; nový los střelby – mistr luku (dovednost 100), ať na 45 m trefuje dost často
-  it('obránce za palisádou dostane plný poloviční zásah šípem', () => {
-    const fort = palisade(false);
-    const f = field([fort]);
-    const inside = { x: 0, z: -25 };
-    const out = { x: 0, z: -70 };
+  // plán hradeb Úloha 12 (fortifications.md – Obrana bez násobku 2): přes palisádu bez ochozu šíp
+  // nejde – za kůly není vidět (dřív test „obránce za palisádou dostane plný poloviční zásah“)
+  it('obránce za palisádou bez ochozu šípem zasáhnout nejde', () => {
+    const f = field([palisade(false)]);
     const b = battle({
-      attackers: [attacker(0, out, { line: true, strength: 2, bowSkill: 100 })],
-      defenders: [defender(1, inside, { atHouseOnly: true, strength: 0.1 })],
+      attackers: [attacker(0, { x: 0, z: -70 }, { line: true, strength: 2, bowSkill: 100 })],
+      defenders: [defender(1, { x: 0, z: -25 }, { atHouseOnly: true, strength: 0.1 })],
+      orders: { 0: 'hold-place' },
+    });
+    const hits = hitsOn(b, 'd:1');
+    run(b, f, 400, hits.track);
+    expect(hits.hits).toEqual([]);
+  });
+
+  // násobek zrušen 8. 11. 2026 (dřív „násobek 3 – šíp ubere třetinu“): šíp ubere plný poloviční
+  // zásah; obránce na ochozu kryje předprseň (0,25 m²) – mistr luku (dovednost 100) na 41 m
+  it('obránce na ochozu dostane plný poloviční zásah šípem', () => {
+    const f = field([fortOf('walkway')]);
+    const b = battle({
+      attackers: [attacker(0, { x: 0, z: -70 }, { line: true, strength: 2, bowSkill: 100 })],
+      defenders: [
+        defender(1, { x: 0, z: -29 }, { atHouseOnly: true, strength: 0.1, onWall: true }),
+      ],
       orders: { 0: 'hold-place' },
     });
     const hits = hitsOn(b, 'd:1');

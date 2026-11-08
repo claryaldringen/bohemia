@@ -322,13 +322,14 @@ group, order, at)` – před bitvou kdykoli, v boji jen na doslech (jinak false)
   vnější události – Ú6.10.
 - **Střelba podle dovednosti** – `domain/war/aim.ts` (fortifications.md – Střelba a viditelná
   plocha; Martin 8. 11. 2026): `spreadRadiusM(dovednost, d)` = `(2 − 1,5 × dovednost ÷ 100) × d ÷ 30`
-  (mistr 0,5 m na 30 m, nováček 2 m); `poseOf(f, field, b)` – lezec na žebříku a přes plot
-  `climbing` (`onLadder`), jinak `standing` (ochoz a podkop doplní Úlohy 12 a 14 plánu hradeb), `visibleAreaM2` 0,85 / 0,25 / 0,85 / 0;
+  (mistr 0,5 m na 30 m, nováček 2 m); `poseOf(f, field, b, zespodu = true)` – lezec na žebříku
+  a přes plot `climbing` (`onLadder`), obránce na ochozu (`Fighter.onWall`) proti ráně přes hradbu
+  `parapet`, jinak `standing` (podkop doplní Úloha 14 plánu hradeb), `visibleAreaM2` 0,85 / 0,25 / 0,85 / 0;
   `shotCandidates` – všichni na nohou obou stran (ne `down` ani `fled`) se středem v kruhu kolem cíle,
   v pořadí bojovníků, bez střelce; `shotChance` = Σ ploch ÷ π r² (nejvýš 1); `shotHit(kandidáti, r,
 roll, pick)` – zásah, když `roll` < šance, zasažený váhou podle plochy. `bowShot(střelec, cíl,
-bojovníci, pose, rng)` – dovednost `Fighter.bowSkill` (muž rodu z `CampaignMember.bowSkill` /
-  `Defender.bowSkill`; chybí = vesničan 20); **v kruhu žádný viditelný nepřítel → nestřílí**
+bojovníci, pose, rng, dovednost?)` – dovednost `Fighter.bowSkill` (muž rodu z `CampaignMember.bowSkill` /
+  `Defender.bowSkill`; chybí = vesničan 20; hod z ochozu pevně 20); **v kruhu žádný viditelný nepřítel → nestřílí**
   (`{ fired: false }`, cooldown zůstane, žádný los), jinak dva losy taktu (`roll`, `pick`) – šíp smí
   trefit vlastního. `CampaignMember.bowSkill` nastaví `launchCampaign` (`bowSkillOf` muže rodu);
   starší tažení ho nemají.
@@ -393,6 +394,55 @@ null)` v `orders.ts` – před bitvou kdykoli, v boji na doslech velitele jako `
   obránce padne; shození 1 : 3, pád −20 k patě; 1 m mezi žebříky; únava 0,85 → za 120 taktů
   zpět; bitva se žebříky po 1 / 7 / 40 přes JSON = vcelku); přípravky `fortOf`, `forestSouth`.
 
+## Obránci na hradbě (hradby Ú12)
+
+fortifications.md – Obrana bez násobku 2, 3, 6; Střelba a viditelná plocha. Logika
+v `domain/war/wall-defense.ts`, `battle.ts`, `stance.ts` a `defenders.ts` jen volají. Čísla
+`FORTIFICATIONS.defense` (`perDefenderM` 5, `gateMen` 2, `postInsideM` 1, `throwM` 15,
+`throwSeconds` 4, `footStoneM` 3, `walkwayPace` 0,5).
+
+- **Stav** – `Defender.post?` / `Fighter.post?` (stanoviště na hradbě, nebo záloha ve středu
+  opevnění; chybí = obránce domu) a `onWall?` (stojí na ochozu či koruně – `true`, jinak chybí);
+  `openBattle` je převezme. Staré boje beze změny.
+- **Rozestavění** – `planDefense`: muži v útočišti (bez vzdaných) dostanou `wallPosts([opevnění],
+počet)` po řadě podle id: napřed brány po 2 (± ¼ šířky brány od středu), věže doplní Úloha 19,
+  zbytek po obvodu podle délky – mezi branami v mezerách podle délky mezery (brány jsou kotvy),
+  bez bran rovnoměrně; nejvýš ⌊obvod ÷ 5⌋ mimo brány, kdo nedostane, je záloha ve středu. Obvod =
+  stěny bitvy (čáry úseků a tětivy rohů); stanoviště 1 m za čarou hradby; `onWall` =
+  `crownAt` (do 1,25 m od čáry hradby s korunou – `walkway`, `crib`, `chamber`; druh v místě
+  `wallKindAt` přes kusy dílu s branou). 300 m se 2 branami a 20 muži: 4 u bran, 16 po ≈ obvod ÷ 18 (≈ 16 m).
+- **Obsazení** – `occupied(opevnění, místo, bojovníci)`: obránce na nohou do 2,5 m, který nestojí
+  víc než 0,5 m před čarou hradby. Neobsazeným místem lezec vyleze bez boje (`guardOf` v `ladders.ts`).
+- **Plán obránce se stanovištěm** – `defenderPlan(f, ctx, wall)` → `wallDefenderPlan`: (1) útočník
+  ve stavu `fight` uvnitř obvodu (`withinWalls`), bez stěny mezi, v dohledu, do 40 m od stanoviště
+  nebo útočí na něj – boj jako u domů (vodítko 40 m od stanoviště), a nedosáhne-li odsud, sleze
+  z ochozu; (2) rána zblízka přes hradbu (lezec, muž u paty); (3) posila (`reinforceTarget`) – na
+  místě nebo cestou; (4) na místě střela či hod odsud; (5) zpět na stanoviště. `walkTo`: podél
+  hradby (střed cesty do 2 m od čáry) zůstane na ochozu polovičním tempem (`stepToward` × 0,5), přes
+  nádvoří sleze a jde po zemi plným; na místě s korunou na ochoz vystoupí.
+- **Posily** – `reinforceTarget(f, w)` čte přidělení taktu (`assign`, jednou za takt v `WallWorld`):
+  místa = žebříky s lezcem ve fázi `lean` / `up` / `over` / `down` (1 útočník) a rozdělané průlomy
+  s prolamujícími (`breachAt`), v pořadí stavu; na místě zůstanou obránci, kteří tam jsou (nejvýš
+  počet útočníků), chybějící doplní nejbližší volní obránci téhož opevnění (nejbližší střed) podle
+  času cesty – volný = se stanovištěm, neřízený, ne u žádného místa, nebojuje zblízka (`aim` do 3 m).
+  Stanoviště posily = 1 m za čarou hradby u místa.
+- **Rány přes hradbu** – `battle.ts` `strikeOf(f, t, w)`: druh podle vzdálenosti `strikeReach`
+  (zblízka 3 m; luk 20–60 m, kdo má luk; z ochozu hod do 15 m – i muž rodu pod 20 m, návrh Clauda),
+  pak každá stěna na úsečce mezi nimi (`crosses`, druh `lineWall` – `WallLine.along` přes
+  `wallKindAt`, jednou za takt) musí ránu pustit: `canStrikeAcross(hradba, od, na, melee | ranged)`
+  – bez hradby a plot ano, palisáda bez ochozu ne, hradba s korunou z ochozu dolů zblízka do 3 m
+  a ven na dálku, zespodu jen na dálku na obránce na ochozu (`parapet`), jinak ne. Lezec nahoře na
+  hradbě (`onWallTop` – na vrcholu žebříku) za hradbou není. Hod: `bowShot` s dovedností 20,
+  poloviční zásah, cooldown `throwSeconds`; kámen k patě je rána zblízka (plný zásah, los 1 : 1).
+  Rána přes hradbu (`across`) dá obránci na ochozu pózu `parapet`. Útočník, který na cíl nedosáhne,
+  jde k němu (`approach` – průchod, žebřík, prolomení).
+- **Testy** – `__tests__/wall-defense.test.ts` (300 m obvodu a 20 mužů, strop 1 na 5 m, koruna
+  podle druhu, obsazení, lezec neobsazeným úsekem bez boje, posila k žebříku po ochozu ½ tempa
+  a za palisádou plným, přes nádvoří po zemi, za útočníkem uvnitř sleze a zase vystoupí, tabulka přes hradbu, hod a kameny, předprseň 0,25,
+  luk z ochozu ano a přes palisádu ne, kameny na prolamujícího, Review Focus 5, bitva po 1 / 7 / 40
+  přes JSON = vcelku); `battle.test.ts` – obránce za palisádou šípem ne, na ochozu poloviční zásah;
+  `stance.test.ts` – muži v útočišti obsadí hradbu.
+
 ## Bariéra dopočtu a dny nájezdu (Ú6.7)
 
 Plán 2026-11-03 – rozhodnutí 13, Úloha 6.7. Ves čeká jen na tažení u sebe, tažení jen na ves ke dni
@@ -456,7 +506,8 @@ návrat za 1 den), `WAR.surrenderRatio`, `WAR.pitFoundChance`.
 - `domain/war/stance.ts` – `planDefense` se zavolá **jednou při otevření boje** (`campaignBattle`):
   1. s opevněním s plochou jdou **všichni** přítomní lidé a dobytek napřed do útočiště – nejbližší
      opevnění, doběh tempem vojska, brány se zavřou, jakmile je první útočník do 30 m (takt
-     `gateCloseTick`), `refugeAdmit` rozhodne, kdo se vejde. Muži uvnitř bojují u středu opevnění,
+     `gateCloseTick`), `refugeAdmit` rozhodne, kdo se vejde. Muži uvnitř obsadí hradbu
+     (`wallPosts` – [Obránci na hradbě](#obránci-na-hradbě-hradby-ú12)), zbytek je záloha ve středu,
      ženy a starší nebojují. Postoj `surrender`: skupina uvnitř se nevzdá, dokud žádný útočník
      v dohledu nestojí uvnitř obvodu (`attackerInsideFort` – `fortsContaining`); pak
      `fortSurrenders` = přesila 1,5× jako u domů (`isOverpowered`);

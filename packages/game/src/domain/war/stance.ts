@@ -15,6 +15,7 @@ import type { Pos } from './march-grid';
 import { dist2 } from './orders';
 import { TICKS_PER_SECOND } from './ticks';
 import { WAR } from './rules-war';
+import { crownAt, wallPosts } from './wall-defense';
 
 // Postoje vsi před bojem (war.md – Obránci – postoje a útěk; fortifications.md – Postoje vsi
 // s opevněním, Útočiště). Vesničané spatří vojsko dřív, než dojde k boji, a podle postoje se
@@ -89,11 +90,11 @@ function gateCloseTick(bf: BattleFort, attackers: readonly Sighted[]): number {
 
 /**
  * Rozdělení vsi podle postoje. Útočiště (je-li opevnění s plochou): všichni přítomní lidé a dobytek
- * se tam vydají; kdo stihne doběhnout před zavřením brány a vejde se, je uvnitř (muži se brání ve
- * středu opevnění, ostatní nebojují). Kdo zůstal venku, jedná skupina domů podle postoje: bránit se
- * u domů; vzdát se při přesile (útočníků víc než 1,5× mužů skupiny, jezdec za dva), jinak bránit;
- * raději utéct do nejbližšího lesa s dobytkem – bez lesa jako „vzdát se při přesile“. Poslední muž
- * rodu doma se nevzdá, vždy uteče.
+ * se tam vydají; kdo stihne doběhnout před zavřením brány a vejde se, je uvnitř (muži obsadí
+ * hradbu – `wallPosts`, zbytek je záloha ve středu; ostatní nebojují). Kdo zůstal venku, jedná
+ * skupina domů podle postoje: bránit se u domů; vzdát se při přesile (útočníků víc než 1,5× mužů
+ * skupiny, jezdec za dva), jinak bránit; raději utéct do nejbližšího lesa s dobytkem – bez lesa
+ * jako „vzdát se při přesile“. Poslední muž rodu doma se nevzdá, vždy uteče.
  */
 export function planDefense(input: StanceInput): StancePlan {
   const { state, day, stance, attackers, field } = input;
@@ -133,7 +134,7 @@ export function planDefense(input: StanceInput): StancePlan {
     livestockRefuge: none(),
     livestockForest: none(),
   };
-  const inRefuge = new Map<number, Pos>();
+  const inRefuge = new Map<number, BattleFort>();
 
   // --- útočiště: nejbližší opevnění s plochou ---
   const forts = field.forts
@@ -179,7 +180,7 @@ export function planDefense(input: StanceInput): StancePlan {
         .filter((a) => a.kind === 'adult' || a.kind === 'child')
         .reduce((n, a) => n + a.count, 0);
       const early = order.filter((o) => o.tick <= close).slice(0, admittedPeople);
-      for (const o of early) inRefuge.set(o.p.id, fort.bf.center);
+      for (const o of early) inRefuge.set(o.p.id, fort.bf);
       for (const a of result.admitted) {
         if (a.kind === 'adult' || a.kind === 'child') continue;
         shelter.livestockRefuge[a.kind as HerdSpecies] += a.count;
@@ -196,21 +197,34 @@ export function planDefense(input: StanceInput): StancePlan {
 
   // --- kdo zůstal venku: po skupinách domů ---
   const fighters: Defender[] = [];
-  // za opevněním se bojuje u středu; při postoji „vzdát se“ se skupina uvnitř vzdá, až když útočník
+  // za opevněním muži obsadí hradbu (`wallPosts` – brány po 2, pak obvod po 5 m), kdo stanoviště
+  // nedostane, je záloha ve středu; při postoji „vzdát se“ se skupina uvnitř vzdá, až když útočník
   // stojí uvnitř obvodu a je přesila 1,5× jako u domů (poslední muž rodu se nevzdá, brání se)
-  const insideMen = new Map<Pos, Defender[]>();
-  for (const [personId, pos] of inRefuge) {
+  const insideMen = new Map<BattleFort, Defender[]>();
+  for (const [personId, bf] of inRefuge) {
     const d = fighterOf.get(personId);
-    if (d && !d.atHouseOnly) insideMen.set(pos, [...(insideMen.get(pos) ?? []), d]);
+    if (d && !d.atHouseOnly) insideMen.set(bf, [...(insideMen.get(bf) ?? []), d]);
   }
-  for (const [pos, men] of insideMen) {
+  for (const [bf, men] of insideMen) {
     const gives =
       stance === 'surrender' &&
-      fortSurrenders(attackers, men.length, attackerInsideFort(field, pos, attackers));
+      fortSurrenders(attackers, men.length, attackerInsideFort(field, bf.center, attackers));
+    const staying: Defender[] = [];
     for (const d of men) {
       if (gives && !d.lastLine) shelter.surrendered.push(d.personId);
-      else fighters.push({ ...d, pos: { ...pos } });
+      else staying.push(d);
     }
+    const posts = wallPosts([bf], staying.length);
+    staying.forEach((d, i) => {
+      const post = posts[i] ?? bf.center;
+      const onWall = posts[i] !== undefined && crownAt([bf], post, day);
+      fighters.push({
+        ...d,
+        pos: { ...post },
+        post: { ...post },
+        ...(onWall ? { onWall: true as const } : {}),
+      });
+    });
   }
   const outside = people.filter((p) => !inRefuge.has(p.id));
   const groupIds = [...new Set(outside.map((p) => p.group))].sort((a, b) => a - b);

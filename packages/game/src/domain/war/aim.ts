@@ -15,15 +15,19 @@ import { WAR } from './rules-war';
 export type TargetPose = 'standing' | 'parapet' | 'climbing' | 'underground';
 
 /**
- * Poloha muže na bojišti pro střelbu: lezec na žebříku a přes plot (`ladders.ts`), jinak stojí.
- * Obránce na ochozu a kopáče v podkopu doplní Úlohy 12 a 14 plánu hradeb. `b` – žebříky boje.
+ * Poloha muže na bojišti pro střelbu: lezec na žebříku a přes plot (`ladders.ts`), obránce na
+ * ochozu a koruně (`Fighter.onWall`) kryje předprseň – jen proti střele a hodu zespodu, přes hradbu
+ * (`below`; zevnitř opevnění je vidět celý). Kopáče v podkopu doplní Úloha 14 plánu hradeb.
+ * `b` – žebříky boje.
  */
 export function poseOf(
   f: Fighter,
   _field: BattleField,
   b: Pick<BattleState, 'ladders'> = {},
+  below = true,
 ): TargetPose {
-  return onLadder(f, b) ? 'climbing' : 'standing';
+  if (onLadder(f, b)) return 'climbing';
+  return f.onWall && below ? 'parapet' : 'standing';
 }
 
 /** Viditelná plocha cíle v m² (stojící 0,85, za předprsní 0,25, lezec 0,85, v podkopu 0). */
@@ -107,8 +111,9 @@ export type BowShot = { fired: false } | { fired: true; hit: string | null };
 
 /**
  * Výstřel lukem na `target`: kruh rozptylu podle dovednosti luku střelce (chybí – jako vesničan
- * 20) a vzdálenosti, v něm všichni na nohou. Nestřílí, když v kruhu není vidět žádný nepřítel
- * (rána zůstane na další takt). Jinak dva losy ze seedu – zda šíp trefí a koho.
+ * 20; hod z ochozu `skill` – pevně jako vesničan) a vzdálenosti, v něm všichni na nohou. Nestřílí,
+ * když v kruhu není vidět žádný nepřítel (rána zůstane na další takt). Jinak dva losy ze seedu –
+ * zda šíp trefí a koho.
  */
 export function bowShot(
   shooter: Fighter,
@@ -116,9 +121,9 @@ export function bowShot(
   fighters: readonly Fighter[],
   pose: (f: Fighter) => TargetPose,
   rng: Random,
+  skill: number = shooter.bowSkill ?? WAR.combat.aim.villagerSkill,
 ): BowShot {
   const distanceM = Math.sqrt(dist2(shooter.pos, target.pos));
-  const skill = shooter.bowSkill ?? WAR.combat.aim.villagerSkill;
   const radiusM = spreadRadiusM(skill, distanceM);
   const candidates = shotCandidates(target.pos, radiusM, fighters, shooter, pose);
   if (!candidates.some((c) => c.side !== shooter.side && c.areaM2 > 0)) return { fired: false };
