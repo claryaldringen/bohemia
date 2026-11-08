@@ -1,5 +1,7 @@
 import {
   ABANDON_FOUNDING,
+  FORT_SECTION_GONE,
+  rerouteTarget,
   HORSES,
   AGE,
   CARTS,
@@ -26,6 +28,7 @@ import {
   type PartYearWork,
   type RoadGrade,
   type RoadKind,
+  type WallKind,
   type RoadUpgradeOption,
   type SacredBuildingKind,
   type TileCell,
@@ -678,6 +681,15 @@ type SelectionKinds =
       gate: VillageFortGate;
       /** Cesta hráče, která branou vede (klik ji vybere); bez cesty null. */
       road: { id: number; segment: number; roadKind: RoadKind } | null;
+      /**
+       * Zbořené úseky u brány, které jde postavit jinudy (demolition.md – Rozhodnutí): díl úseku
+       * (`segment` pro server) a hradba nového úseku (`rerouteTarget`); úsek za branou první.
+       */
+      reroutes?: { segment: number; target: WallKind }[];
+      /** Na opevnění se staví – úsek jinudy počká (nový tvar přečísluje díly). */
+      busy?: boolean;
+      /** U hradby se bojuje (`VillageView.fortContested`) – úsek jinudy počká. */
+      contested?: boolean;
     } & FortPanelBase)
   | ({
       /**
@@ -1223,11 +1235,25 @@ function fortificationDetails(
     segment === null
       ? undefined
       : view?.roads.find((r) => r.id === segment || r.segments.includes(segment));
+  // úsek za branou a před ní – jen celý zbořený (zboření hlásí, že úsek už je zbořený)
+  const at0 = fort.sections.findIndex((s) => s.gateSegment === target.segment);
+  const around =
+    at0 < 0
+      ? []
+      : [...new Set([at0, (at0 - 1 + fort.sections.length) % fort.sections.length])].map(
+          (k) => fort.sections[k]!,
+        );
+  const reroutes = around
+    .filter((s) => s.demolish.blocked === FORT_SECTION_GONE)
+    .map((s) => ({ segment: s.segments[0]!, target: rerouteTarget(inScene, target.segment) }));
   return {
     kind: 'fortification-gate',
     ...base,
     gate,
     road: road && segment !== null ? { id: road.id, segment, roadKind: road.roadKind } : null,
+    reroutes,
+    busy: fort.progress !== undefined,
+    ...(view?.fortContested ? { contested: true } : {}),
   };
 }
 

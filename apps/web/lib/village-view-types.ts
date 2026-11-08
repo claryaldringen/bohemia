@@ -501,6 +501,11 @@ export interface VillageView {
   roads: VillageRoad[];
   /** Opevnění pro panel výběru (fortifications.md – Rozhraní); ves bez opevnění bez údaje. */
   fortifications?: VillageFortification[];
+  /**
+   * U hradby se bojuje – cizí vojsko dnes na mapě vsi (`raidHiding`): úsek jinudy počká
+   * (demolition.md – Rozhodnutí; tažení a zprávy ve schránce ověří až server). Chybí – ne.
+   */
+  fortContested?: true;
   /** Dřevo vsi pro cenu u kurzoru – klády a stromy ke kácení (`villageStock`); bez údaje 0. */
   woodSupply?: number;
   /**

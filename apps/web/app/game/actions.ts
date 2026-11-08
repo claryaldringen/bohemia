@@ -102,6 +102,7 @@ import {
   upgradeFortificationForPlayer,
   addFortificationGateForPlayer,
   demolishFortificationSectionForPlayer,
+  rerouteFortificationSectionForPlayer,
   placeSacredForPlayer,
   placeThreshingFloorForPlayer,
   placeQuarryForPlayer,
@@ -155,6 +156,7 @@ import {
   parseUpgradeFortificationInput,
   parseAddFortificationGateInput,
   parseDemolishFortificationSectionInput,
+  parseRerouteFortificationSectionInput,
   parsePlaceSacredInput,
   parsePlaceThreshingFloorInput,
   parseOrderQuarryingInput,
@@ -529,6 +531,18 @@ export async function demolishFortificationSection(input: unknown): Promise<Vill
     input,
     parseDemolishFortificationSectionInput,
     demolishFortificationSectionForPlayer,
+  );
+}
+
+/**
+ * Úsek od brány k bráně jinudy (demolition.md – Rozhodnutí): `{ villageId, fortificationId,
+ * segment, points, target }` – díl ve zbořeném úseku, body nové trasy mezi branami a hradba.
+ */
+export async function rerouteFortificationSection(input: unknown): Promise<VillageActionResult> {
+  return villageAction(
+    input,
+    parseRerouteFortificationSectionInput,
+    rerouteFortificationSectionForPlayer,
   );
 }
 

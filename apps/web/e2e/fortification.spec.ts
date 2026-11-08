@@ -8,6 +8,7 @@ import {
   outlineOf,
   proposeFortification,
   startFortification,
+  startSectionDemolition,
   villageFortifications,
   type Landscape,
   type Road,
@@ -529,4 +530,119 @@ test('brána, úsek a celé opevnění – klik na bránu, klik zvýrazní úsek
     await page.waitForTimeout(800);
     await page.screenshot({ path: `${shot}-gap.png`, clip });
   }
+});
+
+test('úsek jinudy – brána u zbořeného úseku nabídne Postavit jinudy, tah bodu ven, kladivo založí staveniště', async ({
+  page,
+}) => {
+  test.setTimeout(300_000);
+  const { settlementId, state, home, landscape } = await villageWithRoad(page, 'jinudy');
+  // hotový polský plot z návrhu kolem vsi (brány na cestě), delší úsek zbořený – jádro jako po
+  // dnech práce vsi
+  const proposal = proposeFortification(
+    state,
+    state.lastDay,
+    landscape,
+    obstaclesOf(landscape),
+    'fence',
+    { x: home[0], z: home[1] },
+  );
+  const started = startFortification(state, state.lastDay, landscape, obstaclesOf(landscape), {
+    points: proposal.points,
+    kind: 'fence',
+  });
+  if (!started.ok) throw new Error(started.reason);
+  const built = started.state;
+  built.constructions = built.constructions.filter((c) => c.kind !== 'fortification');
+  const fort = villageFortifications(built)[0]!;
+  for (const seg of fort.segments) {
+    seg.builtDay = built.lastDay;
+    seg.state = 1;
+  }
+  const section = fortSections(fort).reduce((a, b) =>
+    b.segments.length > a.segments.length ? b : a,
+  );
+  const demolished = startSectionDemolition(built, built.lastDay, landscape, {
+    fortificationId: fort.id,
+    segment: section.segments[1]!,
+  });
+  if (!demolished.ok) throw new Error(demolished.reason);
+  const now = demolished.state;
+  const work = now.constructions.find((x) => x.kind === 'fortification')!;
+  work.done = work.cost;
+  finishFortification(now, work, now.lastDay);
+  now.constructions = now.constructions.filter((x) => x.id !== work.id);
+  await writeVillageState(settlementId, now);
+  await pollVillage(page);
+
+  // zbořený úsek je mezera (klik ho nevybere) – Postavit jinudy nese brána u něj
+  const panel = page.getByTestId('selection-panel');
+  const mids = fortSegments(outlineOf(landscape, fort)!).map((x): Pt => [x.mid[0], x.mid[1]]);
+  const c = centroid(mids);
+  const gate = fort.gates.find((g) => g.segment === section.gateSegment)!;
+  const toC = Math.hypot(c[0] - gate.x, c[1] - gate.z);
+  const gateSpot: Pt = [
+    gate.x + ((c[0] - gate.x) / toC) * 0.4,
+    gate.z + ((c[1] - gate.z) / toC) * 0.4,
+  ];
+  await closeUp(page, gateSpot);
+  await expect
+    .poll(
+      async () => {
+        const screen = await screenOf(page, gateSpot);
+        await page.mouse.move(screen.x + 2, screen.y);
+        await page.mouse.click(screen.x, screen.y);
+        return panel.getAttribute('data-kind', { timeout: 500 }).catch(() => null);
+      },
+      { timeout: 30_000 },
+    )
+    .toBe('fortification-gate');
+  const reroute = panel.getByTestId('fort-reroute');
+  await expect(reroute).toBeEnabled();
+  await reroute.click();
+
+  // editor trasy: konce v okrajích bran, mezi nimi body úseku – prostřední 6 m ven
+  await page.mouse.move(640, 360);
+  await page.mouse.move(650, 365);
+  await expect.poll(async () => (await fortPoints(page)).length).toBeGreaterThanOrEqual(3);
+  const route = await fortPoints(page);
+  const pick = Math.floor(route.length / 2);
+  const from = route[pick]!;
+  const len = Math.hypot(from[0] - c[0], from[1] - c[1]);
+  const out: Pt = [from[0] + ((from[0] - c[0]) / len) * 6, from[1] + ((from[1] - c[1]) / len) * 6];
+  await closeUp(page, from);
+  await drag(page, from, out);
+  await expect
+    .poll(async () => {
+      const moved = (await fortPoints(page))[pick];
+      return moved ? Math.hypot(moved[0] - out[0], moved[1] - out[1]) : Infinity;
+    })
+    .toBeLessThan(2);
+  // konce zůstaly v branách
+  const after = await fortPoints(page);
+  expect(after[0]).toEqual(route[0]);
+  expect(after.at(-1)).toEqual(route.at(-1));
+  await expect(page.getByTestId('fort-confirm')).toHaveAttribute('aria-disabled', 'false');
+  await page.getByTestId('fort-confirm').click();
+
+  // nové staveniště: stavba úseku na plot po nové trase, brány na místě
+  await expect
+    .poll(
+      async () =>
+        (await villageState(settlementId)).constructions.find((x) => x.kind === 'fortification')
+          ?.fortWork ?? null,
+      { timeout: 20_000 },
+    )
+    .toBe('upgrade');
+  const saved = await villageState(settlementId);
+  const c2 = saved.constructions.find((x) => x.kind === 'fortification')!;
+  expect(c2.fortTarget).toBe('fence');
+  const next = villageFortifications(saved)[0]!;
+  expect(next.points).not.toEqual(fort.points);
+  expect(next.gates).toHaveLength(2);
+  const whole = c2.fortSegments!.filter((w) => w.part === undefined);
+  expect(whole.length).toBeGreaterThan(0);
+  for (const w of whole) expect(next.segments[w.index]!.demolishedDay).toBeDefined();
+  await expect(page.getByTestId('fort-confirm')).toHaveCount(0);
+  await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
 });
