@@ -144,6 +144,27 @@ na serveru i v prohlížeči.
 Čísla (návrh Clauda, do spuštění se ladí měřením `measure-skeleton`): řeka ≈ 1 mapa z 9, stezka
 ≈ 1 z 12, brod ≈ 1 ze 100–150, bez kostry ≈ 4 z 5 (Otevřené otázky 2).
 
+**Změřeno** (`npx tsx packages/game/scripts/measure-skeleton.ts`, seedy 1, 2, 3, 3 × 200 × 200
+map, 8. 11. 2026, po doladění šířek řek – strop povodí 12 000):
+
+| Druh výřezu                  | Cíl návrhu     | Změřeno           |
+| ---------------------------- | -------------- | ----------------- |
+| řeka                         | ≈ 1 z 9        | 11,04 % (1 z 9)   |
+| stezka                       | ≈ 1 z 12       | 8,41 % (1 z 12)   |
+| řeka i stezka                | –              | 0,87 % (1 z 115)  |
+| brod (`seatSlot === 'ford'`) | ≈ 1 ze 100–150 | 0,55 % (1 z 182)  |
+| soutok řek                   | –              | 0,05 % (1 z 2143) |
+| pramen                       | –              | 0,05 % (1 z 1967) |
+| křižovatka (3 a více stezek) | –              | 0,17 % (1 z 571)  |
+| suchá mapa                   | ≈ 4 z 5        | 81,43 %           |
+| čas na výřez (s mezipamětí)  | –              | ≈ 110 µs          |
+
+Kolem 1000 náhodných středů na seed (3000 celkem) je mezi políčky prstenců 3–4 aspoň jedno místo:
+řeka 74,9 %, stezka 67,2 %, **brod 23,1 %** (nad hranicí 10 % – `placeSeat` brod najde zhruba
+u každého čtvrtého sídla; návrh počítá s „každým pátým až desátým“, je to tedy o něco víc).
+Brod na mapu vychází o ≈ 20 % vzácněji než cíl (1 z 182 oproti 1 ze 100–150) – k posouzení
+Martinem, čísla se nemění.
+
 **Místa pro sídlo hráče** – upřesňuje premium-landscapes.md (Jak hra vybírá: „ostatní typy
 kdekoli“ → jen na suchých mapách):
 
