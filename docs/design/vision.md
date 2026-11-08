@@ -116,7 +116,9 @@ Mechaniky probereme postupně. Zatím nerozhodnuto:
 8. **Válka, diplomacie a sňatky** mezi rody hráčů – válka je návrh ke schválení
    ([válka](war.md)); obchod mezi hráči jednáním rozhodnut 2. 11. 2026, sňatky v další verzi
    (Martin – [vazalství](vassalage.md)).
-9. **Mapa** – historické Čechy? Jak velká a jak podrobná?
+9. **Mapa** – zčásti rozhodnuto 8. 11. 2026 (Martin): „Zatím to nechme jako vymyšlený svět.
+   Umožní nám to dát všem hráčům víceméně stejné podmínky.“ Otevřené: velikost a hranice světa,
+   navazování sousedních map ([rešerše](research/2026-11-08-world-map.md)).
 10. ~~**Pozdní příchozí**~~ – rozhodnuto 7. 11. 2026 (Martin): začíná stavbou vsi; s pozvánkou
     vazal, jinak si vybere pána z nejmenších rodů nad sebou, nebo začne svobodný u své jazykové
     skupiny ([vstup do světa](newcomers.md)).
