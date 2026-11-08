@@ -1007,3 +1007,34 @@ jsou v `lib/premium-view.ts` (`PREMIUM_TEXTS`, `premiumIntroNotice`); portréty 
 - **Testy:** `application/__tests__/structure-use.test.ts` (Opustit → Vrátit, opuštěné Zbourat,
   dvojklik Zbourat, dvorec), `StructureUseButtons.behavior.test.tsx`, e2e `village.spec.ts` –
   „hráč zboří obydlí – lidé bydlí dočasně jinde – a opustí a vrátí ohradu“.
+
+## Panel Kronika (absence.md – Návrat, `hud/ChroniclePanel.tsx`, `lib/chronicle-view.ts`)
+
+Martin 8. 11. 2026: „může si přece sám zobrazit panel s notifikacemi a kroniku“ – rozhraní nad
+existující kronikou vsi (`state.chronicle`, nejvýš `CHRONICLE_MAX_EVENTS` = 500 zápisů), žádná
+nová pravidla (návrh Clauda).
+
+- **Lišta:** kniha `icons/house/chronicle.svg` (`chronicle-toggle`, popisek „Kronika“) vlevo od
+  praporu rodu; bez vsi nebo u vymřelé vsi chybí. Bez klávesy – jako panely rodu a války (klávesa
+  je jen F10 nabídky). Panel leží vpravo nahoře jako panely rodu a války a střídá se s nimi
+  i s nabídkou: otevření kroniky je zavře (`closeOthers`), otevření jiného zavře kroniku
+  (`othersOpen` – úprava stavu při vykreslení v `hooks/use-chronicle.ts`). Esc a křížek zavřou.
+- **Data na vyžádání:** server action `getChronicle({ villageId, before? })` →
+  `chronicleForPlayer` (`lib/village.ts` – `context` bez práva, tedy kdo smí vidět pohled na ves:
+  vlastní ves, ves rodu, spravovaná ves) → `chroniclePage` ze stavu dopočítaného jako pohled.
+  Pohled na ves dál nese jen posledních `CHRONICLE_LENGTH` = 8 zápisů (upozornění).
+  Zápisy rodu (válka, jednání – `chronicleHouses`) jdou do kroniky vsi vojvody – panel je ukáže
+  u ní; kronika rodu zvlášť není.
+- **Stránka** (`chroniclePage`): zápisy seřazené podle dne (zápis ze schránky může přijít
+  s dřívějším dnem), nejnovější první, seskupené po herních letech (`ChronicleYearView` – nadpis
+  roku, u zápisu den a měsíc „12. března“, text z `chronicleText`); bere **celé roky**, dokud nemá
+  aspoň `CHRONICLE_PAGE_ENTRIES` = 40 zápisů. `olderThan` = rok, před kterým se ptá další
+  stránka (tlačítko `chronicle-older` – dvojitá šipka, popisek „Starší zápisy“); null = starší
+  nejsou. `lost` – kronika je plná a zápis o založení vsi už v ní není: na konci „Starší zápisy se
+  nedochovaly.“
+- **Obnova:** `useChronicle` načte první stránku při otevření, při jiné vsi a když v pohledu
+  přibude zápis (`latest` = nejnovější zápis `VillageView.chronicle`); `mergeNewest` nahradí roky
+  nové stránky a starší načtené roky ponechá, `appendOlder` připojí starší stránku.
+- **Testy:** `lib/__tests__/chronicle-view.test.ts` (seskupení, pořadí, stránkování, spojování),
+  `hud/__tests__/ChroniclePanel.behavior.test.tsx`, `hooks/__tests__/use-chronicle.behavior.test.tsx`,
+  e2e `village.spec.ts` – „panel Kronika“ (zápis o založení vsi, střídání s panelem rodu, Esc).

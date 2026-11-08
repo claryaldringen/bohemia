@@ -109,6 +109,7 @@ import { ownMapsAround } from './departure-view';
 import type { LeaveVillageInput } from './village-input';
 import { lineEndView } from './line-end-view';
 import { panelOptionsOf, type PanelAsk, type PanelOptions } from './panel-options';
+import { chroniclePage, type ChronicleAsk, type ChroniclePage } from './chronicle-view';
 import { villageListItem, type VillageListItem } from './village-list';
 import { buildVillageView, type VillageView } from './village-view';
 
@@ -344,6 +345,26 @@ export function panelOptionsForPlayer(
     const current = full.find((v) => v.id === ctx.villageId);
     if (!current) return { error: NO_VILLAGE };
     return panelOptionsOf(current.state, ctx.landscape, ctx.day, ask);
+  });
+}
+
+/**
+ * Stránka kroniky vsi `villageId` (panel Kronika – chronicle-view.ts): vidět ji smí, kdo smí vidět
+ * pohled na ves (`context` bez práva), ze stavu dopočítaného do dneška jako pohled.
+ */
+export function chronicleForPlayer(
+  playerId: string,
+  villageId: string,
+  ask: ChronicleAsk,
+): Promise<ChroniclePage | { error: string }> {
+  return withVillageCache(async () => {
+    const ctx = await context(playerId, villageId);
+    if (!ctx.ok) return { error: ctx.error };
+    const status = await dynastyOfPlayer(ctx.playerId, ctx.day, ctx.villageId);
+    const full = (status.villages as readonly DynastyVillage[]).filter(isFullVillage);
+    const current = full.find((v) => v.id === ctx.villageId);
+    if (!current) return { error: NO_VILLAGE };
+    return chroniclePage(current.state.chronicle, current.name, ask);
   });
 }
 

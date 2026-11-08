@@ -614,7 +614,7 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   zvlášť), založení domácnosti, svatba ve vsi (vdova, ženich se přiženil), nevěsta a ženich
   z okolí, dcera vdaná pryč, dokončení stavby,
   rozhodnutí obyvatel o přestavbě a vymření vsi.
-  Po návratu ji hráč uvidí jako první.
+  Po návratu ji hráč otevře sám panelem Kronika (kniha v liště).
 - Kronika drží **posledních 500 událostí**, starší se zahazují (návrh Clauda – stav vsi za
   1000 let jinak roste bez konce; simulace kroniku nečte, takže na průběh vsi to nemá vliv).
 
@@ -791,7 +791,9 @@ hladu po ≈ 6 letech, osetá plocha ÷ pole a zásoby ÷ potřeba po 20. roce.
   umírají hlady (jen nejvyšší stupeň – Hlad a vymření), že byla svatba a že přišla nevěsta či
   ženich z okolí (fakt, ne rada).
 - Obrazovka porážky, když hráči vymřou všechny vsi (Hlad a vymření).
-- Kronika zůstává v datech vsi, v rozhraní zatím není.
+- **Panel Kronika** (implementováno, návrh Clauda – Martin 8. 11. 2026: „může si přece sám
+  zobrazit panel s notifikacemi a kroniku“, [nepřítomnost](absence.md)): kniha v liště otevře
+  zápisy kroniky zobrazené vsi od nejnovějších, po herních letech, starší roky po stránkách.
 
 ## Navazuje
 
