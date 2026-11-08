@@ -5,3 +5,4 @@ export * from './invite';
 export * from './lord-offer';
 export * from './cluster-placement';
 export * from './languages';
+export * from './skeleton';

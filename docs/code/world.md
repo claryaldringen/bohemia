@@ -30,6 +30,47 @@ začátku svého dne, zápis zvedá verzi vsi) – `docs/code/village-core.md`, 
   jen živé rody hráčů s nejmenším počtem vsí ≥ 2; stejný jazyk první, uvnitř skupiny pořadí
   z `deriveSeed(seed, houseId)`; prázdná nabídka = `[]` (newcomers.md – Nabídka pánů).
 
+## Kostra světa
+
+Řeky a dálkové stezky, které navazují přes mapy sousedů (návrh `docs/design/world-skeleton.md`,
+plán `docs/superpowers/plans/2026-11-08-world-skeleton.md`). Kostra je **čistá funkce seedu světa
+a souřadnic políčka** – nic z databáze, výsledek nezávisí na pořadí dotazů ani na tom, kolik
+světa existuje. Obě složky `skeleton/` patří do deterministické vrstvy ESLintu (počítá server
+i prohlížeč). Zatím jen řeky (Úloha 1); stezky a místa kostry přidá Úloha 2.
+
+- **Výřez mapy** (`domain/landscape/skeleton/types.ts`): `SkeletonSlice` = `world: 1`, body řek
+  (`SkeletonRiverPort` – strana `MapSide`, `at` 24–103 ze 128, `widthM`, `flow` `in`/`out`)
+  a body stezek, seřazené N, E, S, W a podle `at` (`comparePorts`). Suchá mapa = `null`.
+  `skeletonKey(slice)` – stabilní řetězec (`''` pro null) pro mezipaměti krajin a zlatý otisk.
+- **Čísla** jen v `SKELETON` (`domain/world/skeleton/rules-skeleton.ts`) – hustotu kostry
+  (Otevřené otázky 2) mění jen ona.
+- **Hash** (`hash.ts`): `cellHash(base, salt, x, y)` (uint32, `Math.imul`, posuny, xor, sčítání),
+  `cellUnit` v [0, 1). Základ `skeletonBase(worldSeed)` = `deriveSeed(worldSeed, 'skeleton')`,
+  každá veličina má vlastní sůl (`SKELETON_SALT` – nové soli jen přidávat).
+- **Odvodnění** (`drainage.ts`): `drainTarget` – na jih, nebo bokem (E/W) jen k sousedovi
+  s nižším číslem klidu (sůl `calm`), takže nevznikne kruh. Bokem `lateralShare · (1 ± b)`, sklon
+  `b` z hodnotového šumu s vlnou `biasWavelength` (bilineárně se smoothstep). `upstreamSize` –
+  povodí procházením proti proudu zásobníkem, stop na `upstreamCap`; políčko se známým povodím
+  přičte celé (povodí sousedů se nepřekrývají), takže výsledek je min(povodí, strop) bez ohledu
+  na mezipaměť. `riverWidthM` – šířka podle `widths`, null pod `minUpstream`.
+- **Mezipaměť** `createSkeletonCache(worldSeed)` – odtoky a povodí podle číselného klíče políčka
+  (souřadnice v ±2^24), jen zrychluje; nese seed a dotaz s jiným seedem světa skončí `RangeError`.
+  Po 2 milionech položek se vyprázdní. Bez předané mezipaměti si dotaz udělá vlastní.
+- **Body na okraji** (`ports.ts`): `sideTowards(from, to)` (sever = +y), `riverPortAt(worldSeed, a, b)`
+  – hash hrany (`edgeUnit`, symetrický v a, b, hrana ve sloupci a v řádku má vlastní sůl) →
+  `portFromUnit` 24–103.
+- **Výřez** (`slice.ts`): `skeletonSlice(worldSeed, cell, cache?)` – vtok od souseda s řekou, který
+  sem odtéká (sever, východ, západ), výtok do `drainTarget`, když políčkem teče řeka; šířka bodu =
+  šířka horního políčka hrany (obě mapy se shodnou, po proudu řeka jen sílí).
+- **Testy** (`world/skeleton/__tests__/`): sled odtoku se nevrací, povodí po proudu neklesá,
+  sousedé se shodnou na každé hraně okna 64 × 64, výřez sám = výřez po 4000 jiných dotazech,
+  hustota řek 8–14 % (okno 200 × 200), zlatý otisk řek (okno 32 × 32, seed 20270101 – po ostrém
+  spuštění se nesmí změnit).
+- **Měření** (8. 11. 2026, okno 1000 × 1000, seedy 1, 2, 3, 7, 20270101): řeka 11,7–12,1 % map
+  (≈ 1 z 8,5), z toho 58 % rovně ze S na J, soutok i pramen ≈ 0,05 %; šířky výtoku 25 m 14 %,
+  30 m 9 %, 35 m 11 %, 40 m 7 %, 45 m ≈ 60 %. Okno 1000 × 1000 od severu ≈ 1,4 s, samostatný výřez
+  bez mezipaměti nejvýš ≈ 1,4 ms.
+
 ## Vstup nováčka (odříznutá krajina, výběr pána)
 
 Pravidla: `docs/design/newcomers.md`. Use-casy v `application/newcomers.ts`.
