@@ -214,4 +214,64 @@ export const FORTIFICATIONS = {
   raidLoss: { men: 20, kgPerMan: 25, adultShare: 0.1 },
   /** Útočiště správce: lidé a dobytek vsi + 20 % (Správce – Hrozba; návrh Clauda). */
   stewardRefugeMargin: 0.2,
+  /**
+   * Přechod hradby (Hradby a obrana – Přechod hradby; návrh Clauda podle Martina 8. 11. 2026):
+   * práce v mužohodinách (brána plotu a závora valu 0, plot 2, brána palisády 12, brány roštové
+   * a komorové 24, palisáda 96), oheň otepi + hoření (brána 8 + 4 h, palisáda 16 + 8 h, 2
+   * přikládají, otepi do 100 m, dál úměrně), odkopat palisádu 80, podkop roštové 480 a komorové 720
+   * (1,5 ×; pod zemí po pětině), zasypat val 80 a vodní příkop 48, žebřík 4. Pohyb jednoho muže
+   * ve skutečných sekundách; únava po valu 0,85 a návrat za 120 taktů.
+   */
+  assault: {
+    maxMen: 4,
+    manHours: {
+      cutFence: 2,
+      cutGate: { fence: 0, palisade: 12, walkway: 12, crib: 24, chamber: 24 },
+      cutPalisade: 96,
+      dig: 80,
+      mine: { crib: 480, chamber: 720 },
+      fillRampart: 80,
+      fillMoat: 48,
+      ladder: 4,
+    },
+    burn: {
+      gate: { fuelManHours: 8, burnHours: 4 },
+      palisade: { fuelManHours: 16, burnHours: 8 },
+      lighters: 2,
+      fuelM: 100,
+    },
+    undergroundShare: 0.2,
+    climbSeconds: {
+      fence: 2,
+      lean: 2,
+      up: { palisade: 4, walkway: 4, crib: 5, chamber: 6 },
+      overLadder: 4,
+      down: { palisade: 4, walkway: 2, crib: 3, chamber: 3 },
+    },
+    rampartSlowdown: 3,
+    rampartFatigue: 0.15,
+    fatigueTicks: 120,
+  },
+  /** Vodní příkop v zimě zamrzne (Přechod hradby – S valem; návrh Clauda): měsíce 12, 1, 2. */
+  moat: { frozenMonths: [12, 1, 2] as readonly number[] },
+  /**
+   * Obrana bez násobku (Obrana bez násobku 1; návrh Clauda): obránců na m ochozu 1 na 5 m, bránu
+   * brání 2, hod na 15 m s polovinou účinku každé 4 s, kámen u paty na 3 m každé 2 s, shození
+   * žebříku (s lezcem třetina, prázdný polovina), pád 20 zranění, lezec bojuje na půl síly,
+   * žebříky nejméně 1 m od sebe, pohyb po ochozu poloviční.
+   */
+  defense: {
+    perDefenderM: 5,
+    gateMen: 2,
+    throwM: 15,
+    throwFactor: 0.5,
+    throwSeconds: 4,
+    footStoneM: 3,
+    footStoneSeconds: 2,
+    push: { withClimber: 1 / 3, empty: 1 / 2 },
+    fallDamage: 20,
+    climberStrength: 0.5,
+    ladderGapM: 1,
+    walkwayPace: 0.5,
+  },
 } as const;

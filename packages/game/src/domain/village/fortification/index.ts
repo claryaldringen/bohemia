@@ -23,3 +23,4 @@ export * from './defense';
 export * from './refuge';
 export * from './breach';
 export * from './threat';
+export * from './assault';
