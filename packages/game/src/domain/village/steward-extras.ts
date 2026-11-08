@@ -348,10 +348,9 @@ function teamPenValue(state: VillageState, ctx: StewardContext): boolean {
 /** Chybí ovoce: roční plocha sadů a jabloní u cest dá méně jablek než plná potřeba stravy. */
 function fruitShortfallKg(state: VillageState, ctx: StewardContext): number {
   const needKg = (yearlyFoodNeed(state, ctx.day) * DIET.fruitShare) / APPLE_FOOD_VALUE;
-  const orchardKg = villageOrchards(state).reduce(
-    (sum, o) => sum + (orchardAreaM2(o) / 10_000) * ORCHARD.fullYieldKgPerHa,
-    0,
-  );
+  const orchardKg = villageOrchards(state)
+    .filter((o) => o.disusedDay === undefined)
+    .reduce((sum, o) => sum + (orchardAreaM2(o) / 10_000) * ORCHARD.fullYieldKgPerHa, 0);
   const later = ctx.day + ORCHARD.fullYieldYear * DAYS_PER_YEAR;
   const roadKg = villageRoadApples(state).reduce((sum, a) => sum + roadAppleYieldKg(a, later), 0);
   return needKg - orchardKg - roadKg;

@@ -364,6 +364,8 @@ type SelectionKinds =
       planting: number | null;
       /** Výsadba čeká na okno (jaro, podzim). */
       plantingWaits: boolean;
+      /** Opustit, zbourat, vrátit (demolition.md). */
+      use?: StructureUseView;
     }
   | {
       /** Čtverec sadu (klik na sad – orchard.md, Co hráč vidí). Id sadu a čtverec. */
@@ -381,6 +383,8 @@ type SelectionKinds =
       /** V obnově – staré stromy čekají na skácení, nebo se sází znovu (orchard.md – Obnova sadu). */
       renewal: boolean;
       walkM: number;
+      /** Opustit, zbourat, vrátit celý sad (demolition.md). */
+      use?: StructureUseView;
     }
   | {
       kind: 'sacred-oak';
@@ -1009,10 +1013,18 @@ function selectionKinds(
   if (target.kind === 'field-part') return fieldPartDetails(view, scene, target);
   if (target.kind === 'orchard-square') {
     if (!selectedOrchardSquare(scene, target)) return null;
-    const square = view?.orchards
-      .find((o) => o.id === target.id)
-      ?.cells.find((c) => c.cell.x === target.cell.x && c.cell.y === target.cell.y);
-    return square ? { kind: 'orchard-square', id: target.id, ...square } : null;
+    const orchard = view?.orchards.find((o) => o.id === target.id);
+    const square = orchard?.cells.find(
+      (c) => c.cell.x === target.cell.x && c.cell.y === target.cell.y,
+    );
+    return square
+      ? {
+          kind: 'orchard-square',
+          id: target.id,
+          ...square,
+          ...(orchard?.use ? { use: orchard.use } : {}),
+        }
+      : null;
   }
   if (target.kind === 'pen') return penDetails(view, target.id);
   if (target.kind === 'kiln') {
@@ -1071,6 +1083,7 @@ function selectionKinds(
       expectedYieldKg: orchard.expectedYieldKg,
       planting: orchard.planting,
       plantingWaits: orchard.plantingWaits,
+      ...(orchard.use ? { use: orchard.use } : {}),
     };
   }
   const field = view?.fields.find((f) => f.id === target.id);

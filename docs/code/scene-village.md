@@ -920,6 +920,12 @@ funkce jsou v `apps/web/lib/demolition-view.ts` (`demolitionLooks`, `demolitionS
   svatyně i ohrada nesou `condition` z `structureCondition(wear, …)` (a `abandoned` u modly a
   svatyně) a scéna volí stupeň rozpadu z `structure-decay.ts`; vyklizené obydlí chátrá přes
   `condition` a `inhabited: false` (`dwelling-decay.ts`). Hranice stupňů jsou beze změny.
+- **Humno (Ú7):** bourané humno je záznam `SceneThreshingFloor` s `built: false`, `progress = 1 − průběh`,
+  `demolition` a `id` = id stavby bourání (stejný trik jako obydlí); renderer humna i `floorPhase`
+  fáze staveniště bez změny, práce vesničanů jde na `threshingFloorSite`. Pohled
+  (`threshingFloorsOf`) pak nese stejné id a `use.demolishing`, takže jde bourání zrušit. Opuštěné
+  humno nemlátí a nemá hromadu zrna. **Jáma a sad:** pro bourání bez vlastní animace (sad zmizí
+  po dokončení, jáma také); opuštěná jáma se kreslí jako prázdná (`fill` 0, `visiblePits`).
 - **Chování na začátku:** při průběhu 0 (práce ještě nezačala) je stavba hned celé staveniště
   (`progress` 1) – rozdíl proti hotovému modelu je jen v dílech staveniště, ne v tvaru.
 - Test: `apps/web/lib/__tests__/demolition-view.test.ts`.

@@ -324,7 +324,13 @@ export function SelectionPanel({
   }
   // Opustit / Zbourat / Vrátit (demolition.md – Rozhraní) u obydlí, ohrady, modly a svatyně
   const structureUse =
-    details.kind === 'dwelling' || details.kind === 'pen' || details.kind === 'sacred'
+    details.kind === 'dwelling' ||
+    details.kind === 'pen' ||
+    details.kind === 'sacred' ||
+    details.kind === 'threshing-floor' ||
+    details.kind === 'grain-pit' ||
+    details.kind === 'orchard' ||
+    details.kind === 'orchard-square'
       ? details.use
       : undefined;
   // Panel roste s obsahem (w-max) do mezí `hud-selection` (globals.css – mezi minimapou a mřížkou

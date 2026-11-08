@@ -323,7 +323,7 @@ export function sceneVillage(
   });
   const penned = pens.reduce((sum, pen) => sum + pen.cows, 0);
   const herds = summary.livestock.herds;
-  const threshingFloors = sceneThreshingFloors(state, constructions, day);
+  const threshingFloors = sceneThreshingFloors(state, constructions, day, demolishing);
   // divoká zvěř (wildlife.md – Ve scéně) – hejna vran podle osetých ha
   const sownHa =
     fields.reduce(
@@ -399,18 +399,31 @@ function sceneThreshingFloors(
   state: VillageState,
   constructions: readonly ConstructionSummary[],
   day: number,
+  demolishing: ReadonlyMap<string, { site: number; progress: number }> = new Map(),
 ): SceneThreshingFloor[] {
   const floors = state.threshingFloors ?? [];
-  const builtCount = floors.filter((f) => f.builtDay !== null).length;
+  const builtCount = floors.filter((f) => f.builtDay !== null && f.disusedDay === undefined).length;
   const shares = state.labor?.shares ?? [];
   // vymlácené zrno čeká na humnech na uložení do jam – rovným dílem
   const queueKg = builtCount > 0 ? (state.grainPitWork?.queueKg ?? 0) / builtCount : 0;
   const grainKg = Math.round(queueKg / 10) * 10;
   return floors.map((f) => {
+    // bourané humno je staveniště pozpátku pod id stavby bourání (demolition-view.ts)
+    const demolition = demolishing.get(demolitionKey('threshing-floor', f.id));
+    if (demolition) {
+      return {
+        id: demolition.site,
+        position: f.position,
+        built: false,
+        progress: demolitionSiteProgress(demolition.progress),
+        demolition: demolition.progress,
+      };
+    }
     const built = f.builtDay !== null;
     const straw = threshingFloorStraw(f.builtDay, day);
     const threshing =
       built &&
+      f.disusedDay === undefined &&
       shares.some(
         (s) =>
           s.activity === 'thresh' &&
@@ -425,7 +438,7 @@ function sceneThreshingFloors(
       progress: built ? 1 : (constructions.find((c) => c.id === f.id)?.buildProgress ?? 0),
       ...(built && straw > 0 ? { straw } : {}),
       ...(threshing ? { threshing: true as const } : {}),
-      ...(built && grainKg > 0 ? { grainKg } : {}),
+      ...(built && f.disusedDay === undefined && grainKg > 0 ? { grainKg } : {}),
     };
   });
 }

@@ -73,7 +73,9 @@ function kindWork(state: Pick<VillageState, 'sheaves'>, kind: SheafKind): number
 
 /** Počet hotových humen – na nich se mlátí (production-chains.md – Humno). */
 export function builtThreshingFloorCount(state: Pick<VillageState, 'threshingFloors'>): number {
-  return (state.threshingFloors ?? []).filter((f) => f.builtDay !== null).length;
+  return (state.threshingFloors ?? []).filter(
+    (f) => f.builtDay !== null && f.disusedDay === undefined,
+  ).length;
 }
 
 /**

@@ -940,6 +940,8 @@ export interface VillageOrchard {
   planting: number | null;
   /** Výsadba čeká na okno – sází se jen na jaře a na podzim (orchard.md). */
   plantingWaits: boolean;
+  /** Opustit, zbourat, vrátit (demolition.md). */
+  use?: StructureUseView;
 }
 
 export const DAYS_PER_YEAR = 365.25;
@@ -960,6 +962,8 @@ export interface VillageThreshingFloor {
   sheavesKg: number;
   /** Dnes se na humně mlátí (rozdělení práce dne). */
   threshingToday: boolean;
+  /** Opustit, zbourat, vrátit (demolition.md); rozestavěné humno údaj nemá. */
+  use?: StructureUseView;
 }
 
 export interface VillageThreshing {

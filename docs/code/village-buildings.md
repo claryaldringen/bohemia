@@ -359,3 +359,44 @@ správce Ú6), `demolitionOf` (v `disused.ts`, kvůli cyklům), `demolitionNeed`
 - **Návrh Clauda:** klády ohrady se počítají z `PEN.trees` bez ohledu na počet čtverců; obydlí,
   kde by při dokončení ještě někdo bydlel (nemělo by nastat), se znovu vystěhuje, a nejde-li to,
   zůstane stát. Web zatím jen jméno „Bourání“ a text kroniky, panely a scéna dál Ú10 a Ú11.
+
+## Humno, obilná jáma a sad – opuštění, bourání a chátrání
+
+[demolition.md](../design/demolition.md) – Rozhodnutí (Martin 8. 11. 2026). `ThreshingFloor`,
+`GrainPit` a `Orchard` mají volitelný `disusedDay`; `UsableStructure` jim přidal druhy
+`'threshing-floor' | 'grain-pit' | 'orchard'`. `structure-use.ts` je zná v `targetOf`,
+`disuseBlock`, `beginDisuse` (`beginFarmDisuse`) a `restoreStructure`; `demolition.ts` v ceně,
+umístění a dokončení.
+
+- **Humno.** Opuštěné ani bourané humno se nepočítá do kapacity výmlatu ani do bodů svozu snopů
+  (`builtThreshingFloors`, `builtThreshingFloorCount` – oboje bez `disusedDay`); vesnice, která
+  nemá žádné humno v provozu, mlátí nouzově na udusané zemi jako dřív. **Zarůstání trávou:**
+  `ABANDONMENT.overgrowYears['threshing-floor']` = 10. Rok bez výmlatu = rok chátrání, výmlat
+  chátrání vynuluje (návrh Clauda – jako louka a pastva u zarůstání). Evidence: `threshed`
+  (výmlat označí `markThreshed` na konci práce dne – jedno humno zvládne
+  `THRESHING.floorManDaysPerDay`, mlátí se na prvních humnech, nadbytečné humno zůstane bez výmlatu
+  a chátrá), `idleSince` (den, od kterého se nemlátí). Roční kontrola 1. 11. (`abandonmentCheck`)
+  `threshed` smaže a podle něj `idleSince` vynuluje, nebo ho nastaví (`max(builtDay, den − rok)`);
+  humno dostavěné za poslední rok nechátrá. Opuštění nastaví `idleSince` na den pokynu (pokud už
+  dřív nechátralo), takže opuštěné humno zaroste do 10 let od pokynu. Denní krok
+  (`abandonmentDay`) humno po 10 letech odstraní bez zříceniny a zapíše `structure-overgrown`.
+  Vrátit humno smaže `disusedDay` i `idleSince` (návrh Clauda: bez opravy, tráva ustoupí
+  s prvním výmlatem). Bourání: `HUMNO.laborManDays` × `DEMOLITION.laborShare`, klády 0.
+- **Obilná jáma.** Opustit jámu **vyprázdní** (`grainKg = 0`, `state: 'empty'`, bez `filledDay`):
+  zrno je pak zásoba mimo jámy (`looseGrainKg` roste), `storesKg` se nemění. Opuštěná jáma se
+  neplní (`pitLoads` bere jen prázdné jámy bez `disusedDay`) a po
+  `ABANDONMENT.overgrowYears['grain-pit']` = 5 letech od pokynu se zasype (`settleGrainPits`,
+  `pitOvergrown`, `structure-overgrown`). Bourání: `GRAIN_PITS.digManDays` × `laborShare`, klády 0,
+  po dokončení jáma zmizí. Návrh Clauda: zavřená jáma ve scéně a v pohledu není vidět (Martin 20. 10. 2026), opuštěná jáma je ale vidět a jde vrátit nebo zbourat (`grain-pit-view.ts`,
+  `visiblePits`).
+- **Sad.** Opuštěný sad se neošetřuje ani nesklízí (`startWork` jeho čtverce vynechá,
+  `orchardExpectedYieldKg` = 0, správce ho do výhledu ovoce nezapočítá) a neobnovuje
+  (`renewOrchards`); stromy dožijí stářím (`retireOrchards` v 60. roce sadu čtverec vrátí v louku)
+  a louka zarůstá lesem podle fields.md. Opustit i zbourat jde sad jen bez rozestavěné výsadby
+  nebo obnovy (`STRUCTURE_BUSY` – návrh Clauda; obnovu zakládá ves sama, hráč počká nebo ji zruší).
+  **Zbourat = vykácet bez klád** (Martin: „C“): cena `ORCHARD.plantingPerHa × ha × laborShare`,
+  sad s celou plochou zmizí. Vrátit smaže jen `disusedDay` – ošetřování a sklizeň jedou dál,
+  stromy se nevysazují znovu.
+- **Neřešeno (návrh Clauda, otázka pro Martina):** „neuspořádaný les s převahou jabloní“ opuštěného
+  sadu zatím dělá jen běžné zarůstání louky; vlastní růst nových stromů mezi starými (a jejich
+  podoba ve scéně) není.

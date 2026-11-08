@@ -141,6 +141,8 @@ export function nextHarvestSeason(day: number): number {
  * příští (orchard.md – panel sadu: odhad úrody).
  */
 export function orchardExpectedYieldKg(orchard: Orchard, day: number): number {
+  // opuštěný sad se nesklízí (demolition.md – Rozhodnutí)
+  if (orchard.disusedDay !== undefined) return 0;
   return orchard.squares.reduce((sum, s) => sum + squareExpectedYieldKg(s, day), 0);
 }
 
@@ -450,7 +452,10 @@ export function applesAfterHail(state: Pick<VillageState, 'disasters'>, day: num
  * sad na strom); bez potřebné práce žádnou.
  */
 function startWork(state: VillageState, day: number, task: OrchardWork['task']): void {
-  const squares = villageOrchards(state).flatMap((o) => o.squares);
+  // opuštěný sad se neošetřuje ani nesklízí (demolition.md – Rozhodnutí)
+  const squares = villageOrchards(state)
+    .filter((o) => o.disusedDay === undefined)
+    .flatMap((o) => o.squares);
   const apples = state.roads?.apples ?? [];
   const required =
     squares.reduce(
@@ -599,7 +604,7 @@ function renewOrchards(state: VillageState, day: number): ChronicleEvent[] {
   const season = orchardSeason(day);
   const events: ChronicleEvent[] = [];
   for (const orchard of orchards) {
-    if (orchard.renewedSeason === season) continue;
+    if (orchard.renewedSeason === season || orchard.disusedDay !== undefined) continue;
     if (state.constructions.some((c) => c.kind === 'orchard' && c.orchardId === orchard.id)) {
       continue;
     }

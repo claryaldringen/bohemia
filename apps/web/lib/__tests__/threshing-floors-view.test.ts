@@ -34,6 +34,8 @@ describe('humna v pohledu na ves', () => {
       progress: 1,
       sheavesKg: 3200,
       threshingToday: true,
+      // Opustit / Zbourat (demolition.md)
+      use: expect.objectContaining({ structure: 'threshing-floor', id: 7, state: 'in-use' }),
     });
     s.labor = { day: DAY, shares: [] } as never;
     expect(threshingFloorsOf(s, []).threshingFloors![0]!.threshingToday).toBe(false);

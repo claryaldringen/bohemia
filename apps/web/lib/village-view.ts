@@ -491,6 +491,7 @@ export function buildVillageView(
         expectedYieldKg: o.expectedYieldKg,
         planting: planting ? planting.progress : null,
         plantingWaits: planting !== undefined && waits,
+        ...structureUseOf(state, summary, { structure: 'orchard', id: o.id }, day),
       };
     }),
     pens: penViews(state, day, summary),
@@ -498,7 +499,7 @@ export function buildVillageView(
     ...oxenViewOf(summary),
     ...horsesViewOf(state, day),
     ...threshingOf(state, day),
-    ...threshingFloorsOf(state, summary.constructions),
+    ...threshingFloorsOf(state, summary.constructions, day),
     roads: roadViews(state, landscape, day, summary),
     ...fortificationsOf(state, landscape, day, obstacles),
     scene: {
@@ -514,7 +515,7 @@ export function buildVillageView(
     ...weatherField(state, day),
     ...dugSitesField(state, day),
     ...kilnsField(state, day),
-    ...grainPitsField(state, day),
+    ...grainPitsField(state, day, summary),
     ...junctionsField(state, day),
   };
 }

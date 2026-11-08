@@ -7,7 +7,16 @@ import { vacateDwelling } from './displaced';
 import { PEN } from './oxen';
 import { occupants } from './people';
 import { returnConstructionWood } from './relocation';
-import { DEMOLITION, DWELLING_TREES, SACRED_BUILDINGS, workshopTrees } from './rules';
+import { orchardAreaM2, orchardSquareCenter } from './orchard';
+import {
+  DEMOLITION,
+  DWELLING_TREES,
+  GRAIN_PITS,
+  HUMNO,
+  ORCHARD,
+  SACRED_BUILDINGS,
+  workshopTrees,
+} from './rules';
 import {
   MANOR_STAYS,
   STRUCTURE_MISSING,
@@ -48,22 +57,42 @@ function buildPrice(target: Target): { laborManDays: number; trees: number } {
     };
   }
   if (target.structure === 'pen') return { laborManDays: PEN.laborManDays, trees: PEN.trees };
+  // humno, jáma a sad nedávají klády (Martin 8. 11. 2026: vykácený sad žádné klády – „C“)
+  if (target.structure === 'threshing-floor') return { laborManDays: HUMNO.laborManDays, trees: 0 };
+  if (target.structure === 'grain-pit') return { laborManDays: GRAIN_PITS.digManDays, trees: 0 };
+  if (target.structure === 'orchard') {
+    return {
+      laborManDays: (ORCHARD.plantingPerHa * orchardAreaM2(target.item)) / 10_000,
+      trees: 0,
+    };
+  }
   const spec = SACRED_BUILDINGS[target.structure];
   return { laborManDays: spec.laborManDays, trees: spec.oaks };
 }
 
 /** Stav stavby 0–1 v den `day` (obydlí `condition`, ostatní chátrání). */
 function conditionOf(target: Target, day: number): number {
-  return target.structure === 'dwelling'
-    ? Math.max(0, Math.min(1, target.item.condition))
-    : structureCondition(target.item.wear, target.structure, day);
+  if (target.structure === 'dwelling') return Math.max(0, Math.min(1, target.item.condition));
+  if (
+    target.structure === 'threshing-floor' ||
+    target.structure === 'grain-pit' ||
+    target.structure === 'orchard'
+  ) {
+    return 1;
+  }
+  return structureCondition(target.item.wear, target.structure, day);
 }
 
 /** Kde stavba stojí (pro hromadu klád a místo práce). */
 function placeOf(target: Target): { x: number; z: number } {
-  return target.structure === 'pen'
-    ? { x: target.item.x, z: target.item.z }
-    : { x: target.item.position.x, z: target.item.position.z };
+  if (target.structure === 'pen' || target.structure === 'grain-pit') {
+    return { x: target.item.x, z: target.item.z };
+  }
+  if (target.structure === 'orchard') {
+    const first = target.item.squares[0];
+    return first ? orchardSquareCenter(target.item, first) : { x: 0, z: 0 };
+  }
+  return { x: target.item.position.x, z: target.item.position.z };
 }
 
 /**
@@ -176,6 +205,14 @@ export function finishDemolition(
       (k) => !((k.kind === 'pen' || k.kind === 'ard') && k.penId === ref.id),
     );
     next.pens = (next.pens ?? []).filter((p) => p.id !== ref.id);
+  } else if (target.structure === 'threshing-floor') {
+    next.threshingFloors = (next.threshingFloors ?? []).filter((f) => f.id !== ref.id);
+    if (next.threshingFloors.length === 0) delete next.threshingFloors;
+  } else if (target.structure === 'grain-pit') {
+    next.grainPits = (next.grainPits ?? []).filter((p) => p.id !== ref.id);
+  } else if (target.structure === 'orchard') {
+    next.orchards = (next.orchards ?? []).filter((o) => o.id !== ref.id);
+    if (next.orchards.length === 0) delete next.orchards;
   } else {
     next.sacredBuildings = (next.sacredBuildings ?? []).filter((b) => b.id !== ref.id);
   }

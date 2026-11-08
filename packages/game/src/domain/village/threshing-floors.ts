@@ -1,7 +1,7 @@
 import { obstacleChangesAt } from './obstacles';
 import { threshingFloorEntrance } from './paths/entrances';
 import { rectangleCorners, type Point } from './polygon';
-import { FELLING_MAN_DAYS_PER_TREE, HUMNO } from './rules';
+import { FELLING_MAN_DAYS_PER_TREE, HUMNO, THRESHING } from './rules';
 import type { Construction, Position, ThreshingFloor, VillageState } from './types';
 import {
   claimedObstacles,
@@ -23,11 +23,25 @@ export function villageThreshingFloors(
   return state.threshingFloors ?? [];
 }
 
-/** Hotová humna – na nich se mlátí. */
+/** Hotová humna v provozu – na nich se mlátí (opuštěné ani bouřané ne – demolition.md). */
 export function builtThreshingFloors(
   state: Pick<VillageState, 'threshingFloors'>,
 ): ThreshingFloor[] {
-  return villageThreshingFloors(state).filter((f) => f.builtDay !== null);
+  return villageThreshingFloors(state).filter(
+    (f) => f.builtDay !== null && f.disusedDay === undefined,
+  );
+}
+
+/**
+ * Výmlat dne označí humna, na kterých se mlátilo (mutuje stav; demolition.md – Chátrání humna):
+ * práci na humnech `floorManDays` zvládne jedno humno THRESHING.floorManDaysPerDay za den, mlátí se
+ * na prvních humnech v pořadí – nadbytečné humno zůstane bez výmlatu a chátrá. Roční kontrola
+ * označení smaže.
+ */
+export function markThreshed(state: VillageState, floorManDays: number): void {
+  if (floorManDays <= 0) return;
+  const used = Math.ceil(floorManDays / THRESHING.floorManDaysPerDay - 1e-9);
+  for (const f of builtThreshingFloors(state).slice(0, Math.max(1, used))) f.threshed = true;
 }
 
 /** Půdorys humna ve světě – obdélník HUMNO.sizeM natočený jako obydlí. */

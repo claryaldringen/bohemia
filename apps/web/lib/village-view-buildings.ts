@@ -41,7 +41,12 @@ import {
   herdsOverRoom,
   threshingStatus,
 } from '@bohemia/game';
-import { demolitionKey, demolitionLooks, demolitionSiteProgress } from './demolition-view';
+import {
+  demolitionKey,
+  demolitionLooks,
+  demolitionSiteProgress,
+  roundDemolition,
+} from './demolition-view';
 import { fruitVisible, treeGrowth } from './orchard-look';
 
 import { sacredOakGrowth } from './sacred-look';
@@ -157,6 +162,7 @@ export function threshingOf(state: VillageState, day: number): { threshing?: Vil
 export function threshingFloorsOf(
   state: VillageState,
   constructions: readonly ConstructionSummary[],
+  day: number = state.lastDay,
 ): { threshingFloors?: VillageThreshingFloor[] } {
   const floors = state.threshingFloors ?? [];
   if (floors.length === 0) return {};
@@ -166,13 +172,27 @@ export function threshingFloorsOf(
   return {
     threshingFloors: floors.map((f) => {
       const built = f.builtDay !== null;
+      const use = structureUseOf(
+        state,
+        { constructions: [...constructions] },
+        { structure: 'threshing-floor', id: f.id },
+        day,
+      );
+      // bourané humno je staveniště pozpátku pod id stavby bourání (demolition-view.ts)
+      const demolition = use.use?.demolishing;
       return {
-        id: f.id,
-        built,
-        progress: built ? 1 : (constructions.find((c) => c.id === f.id)?.buildProgress ?? 0),
+        id: demolition ? demolition.constructionId : f.id,
+        built: built && !demolition,
+        progress: demolition
+          ? demolitionSiteProgress(roundDemolition(demolition.progress))
+          : built
+            ? 1
+            : (constructions.find((c) => c.id === f.id)?.buildProgress ?? 0),
         sheavesKg,
+        ...use,
         threshingToday:
           built &&
+          f.disusedDay === undefined &&
           shares.some(
             (s) =>
               s.activity === 'thresh' &&

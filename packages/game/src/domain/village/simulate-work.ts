@@ -69,7 +69,7 @@ import { fireFighting } from './firefighting';
 import { raidHiding } from './raid-day';
 import { morningWater, ploughWindowsToday, villagersToday } from './morning-water';
 import { surplusFieldDay, surplusWantsTeam } from './surplus-fields';
-import { threshingFloorHaulPoints } from './threshing-floors';
+import { markThreshed, threshingFloorHaulPoints } from './threshing-floors';
 import { grainPitTask, workGrainPits } from './grain-pits';
 import { chooseGrainPitSite } from './grain-pit-site';
 import {
@@ -782,6 +782,8 @@ export function work(
       workOrchards(state, amount);
     }
   });
+  // humna, na kterých se dnes mlátilo, nechátrají (demolition.md – Chátrání humna)
+  markThreshed(state, threshing.floor);
   // uhlí a ruda vozem (crafts.md – Uhlí a ruda kováře): sedlák jede z práce vsi – vozy v pořadí
   // přednosti, dokud na sedláka práce vsi zbyla; co vůz nepřiveze, donesou pěšky
   const smithCarts = paySmithCarts(jobs, allocation.carting);
