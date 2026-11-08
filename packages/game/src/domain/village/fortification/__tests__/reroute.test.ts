@@ -205,6 +205,25 @@ describe('úsek od brány k bráně jinudy – tvar', () => {
     expect(fort.segments[endGate]!.demolishedAfterGate).toBeUndefined();
   });
 
+  it('kus dílu brány s vlastní hradbou mimo úsek zůstane, kus do úseku se postaví znovu', () => {
+    const s = demolishedMiddle();
+    const old = fortOf(s);
+    const gateSeg = old.segments[old.gates[1]!.segment]!;
+    // kus před bránou patří úseku A (vlastní hradba), kus za ní staré trase zbořeného úseku
+    gateSeg.beforeGate = { kind: 'fence', builtDay: DAY - 7, state: 0.9 };
+    gateSeg.afterGate = { kind: 'fence', builtDay: DAY - 9, state: 0.8 };
+    const { fort, gateSegment } = reroute(s, routeOut(old, old.gates[1]!.segment, 10));
+    const moved = fort.segments[gateSegment]!;
+    expect(moved.beforeGate).toEqual({ kind: 'fence', builtDay: DAY - 7, state: 0.9 });
+    expect(moved.afterGate).toBeUndefined();
+    expect(moved.demolishedAfterGate).toBeDefined();
+    // díly bez brány kusy nemají
+    const gates = new Set(fort.gates.map((g) => g.segment));
+    for (const seg of fort.segments.filter((x) => !gates.has(x.index))) {
+      expect(seg.beforeGate ?? seg.afterGate ?? seg.demolishedBeforeGate).toBeUndefined();
+    }
+  });
+
   it('brány zůstanou na místě i s věží', () => {
     const s = demolishedMiddle();
     const old = fortOf(s);

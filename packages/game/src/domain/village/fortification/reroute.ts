@@ -3,6 +3,7 @@ import { FORTIFICATIONS } from '../rules-fortifications';
 import type { GridGeometry } from '../square-grid';
 import { fortOutlineOf } from './convert';
 import { selfCrossing } from './curve';
+import { gatePartView } from './gate-parts';
 import { gateAt, type FortGate } from './gates';
 import { segmentBuilt, segmentWall } from './life';
 import { fortificationOutline, outlinePointAt, type FortOutline } from './outline';
@@ -65,12 +66,20 @@ function shapeAt(shapes: readonly FortSegmentShape[], s: number): FortSegmentSha
   return found;
 }
 
-/** Je kus dílu zbořený (celý díl, nebo jeho část u brány)? */
-function pieceGone(seg: FortSegment, part: 'before' | 'after' | undefined): boolean {
-  if (seg.demolishedDay !== undefined) return true;
-  if (part === 'before') return seg.demolishedBeforeGate !== undefined;
-  if (part === 'after') return seg.demolishedAfterGate !== undefined;
-  return false;
+/** Stojí kus dílu (celý díl, nebo jeho kus u brány s vlastními vrstvami – `gatePartView`)? */
+function pieceStands(seg: FortSegment, part: 'before' | 'after' | undefined): boolean {
+  const view = part === undefined ? seg : gatePartView(seg, part);
+  return segmentBuilt(view) && view.demolishedDay === undefined;
+}
+
+/** Díl bez brány z dílu `seg` – kusy u brány pryč (díl má vrstvy kusu `part`, je-li dán). */
+function withoutGate(seg: FortSegment, part: 'before' | 'after' | undefined): FortSegment {
+  const copy = part === undefined ? { ...seg } : gatePartView(seg, part);
+  delete copy.demolishedBeforeGate;
+  delete copy.demolishedAfterGate;
+  delete copy.beforeGate;
+  delete copy.afterGate;
+  return copy;
 }
 
 /**
@@ -104,9 +113,7 @@ export function rerouteFortification(
   // jinudy jen úsek, ve kterém nic nestojí
   for (const piece of sectionPieces(oldLengths, fort.gates, section.gateSegment)) {
     const seg = fort.segments.find((s) => s.index === piece.index);
-    if (seg && segmentBuilt(seg) && !pieceGone(seg, piece.part)) {
-      return { reason: FORT_SECTION_STANDS };
-    }
+    if (seg && pieceStands(seg, piece.part)) return { reason: FORT_SECTION_STANDS };
   }
   // brána na konci úseku – střed o půl brány za koncem úseku
   const endM = span.fromM + span.lengthM;
@@ -188,21 +195,22 @@ export function rerouteFortification(
       return { index: shape.index, builtDay: null, state: 0, demolishedDay: day };
     }
     let nearest: FortSegment | undefined;
+    let along = 0;
     let distance = Infinity;
     for (const s of oldShapes) {
       if (oldInner.has(s.index)) continue;
-      const d = nearestOnPath(s.path, shape.mid[0], shape.mid[1]).distance;
-      if (d < distance - EPSILON_M) {
-        distance = d;
+      const hit = nearestOnPath(s.path, shape.mid[0], shape.mid[1]);
+      if (hit.distance < distance - EPSILON_M) {
+        distance = hit.distance;
+        along = hit.along;
         nearest = oldSeg(s.index);
       }
     }
     if (!nearest) return { index: shape.index, builtDay: null, state: 0, demolishedDay: day };
-    const copy: FortSegment = { ...nearest, index: shape.index };
-    // díl bez brány nemá kusy před bránou a za ní
-    delete copy.demolishedBeforeGate;
-    delete copy.demolishedAfterGate;
-    return copy;
+    // střed na starém dílu s branou – hradba kusu na té straně brány, kde střed leží
+    const near = fort.gates.find((g) => g.segment === nearest.index);
+    const part = near ? (along < near.offsetM ? 'before' : 'after') : undefined;
+    return { ...withoutGate(nearest, part), index: shape.index };
   });
   const gates = moved.map((m) => m.gate).sort((a, b) => a.segment - b.segment);
   // kusy dílů s branou do nového úseku jsou mezera, kratší kus (pahýl) se nepočítá
@@ -213,10 +221,13 @@ export function rerouteFortification(
   );
   const startPiece = pieces.some((p) => p.index === segA && p.part === 'after');
   const endPiece = pieces.some((p) => p.index === segB && p.part === 'before');
+  // vlastní vrstvy kusu do úseku patřily staré trase – kus se postaví znovu
   const first = segments[segA]!;
+  delete first.afterGate;
   if (startPiece) first.demolishedAfterGate ??= day;
   else delete first.demolishedAfterGate;
   const last = segments[segB]!;
+  delete last.beforeGate;
   if (endPiece) last.demolishedBeforeGate ??= day;
   else delete last.demolishedBeforeGate;
   const next: Fortification = {

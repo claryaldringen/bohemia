@@ -625,7 +625,9 @@ Hráč bude bourat, pokud zjistí, že potřebuje vést část hradby jinudy.“
   ležela (i kusy před bránou a za ní); díly mezi branami nového úseku jsou mezera
   (`builtDay: null`, `state: 0`, `demolishedDay: day`) a kusy dílů bran do úseku taky
   (`demolishedAfterGate` / `demolishedBeforeGate`, pahýl pod 5 cm ne); ostatní díly převezmou stav
-  dílu staré křivky mimo úsek, na kterém leží jejich střed (bez kusů u brány – díl nemá bránu).
+  dílu staré křivky mimo úsek, na kterém leží jejich střed (bez kusů u brány – díl nemá bránu;
+  ze starého dílu s branou hradbu kusu na straně středu – `gatePartView`); vlastní vrstvy kusu
+  dílu brány do nového úseku (`afterGate` / `beforeGate`) patřily staré trase a zmizí.
   Převod podle středu je přibližný: krajní díly sousedních úseků se mohou posunout o kus dílu.
 - **Stavba** – `startSectionReroute(state, day, landscape, obstacles, { fortificationId, segment,
 points, target: WallKind }, walk?)`: jen když na opevnění nic neběží (`FORT_BUSY` – nový tvar
