@@ -1,13 +1,15 @@
 import {
   battleForts,
+  isCampaignParticipant,
   warSceneView,
   type BattleFort,
   type BattleSide,
   type CampaignState,
   type Pos,
+  type WarSceneBuilding,
   type WarSceneView,
 } from '../domain/war';
-import type { GridCell } from '../domain/village/world-grid';
+import { sameCell, type GridCell } from '../domain/village/world-grid';
 import { sightGrid, type SightGridCache } from './campaign-view';
 import type { CampaignCells, CampaignRepository } from './campaigns';
 import type { SettlementRepository } from './settlements';
@@ -18,10 +20,14 @@ import type { VillageRepository } from './villages';
 // může napadnout cizí. Obránce tažení nevede ani v něm nemá muže, vidí ho tedy jen očima své vsi
 // (domy a obránci na nohou) – stejná mlha války jako `campaignView`.
 
-/** Oči napadené vsi (domy) a opevnění bojiště v jednom herním dni. */
+/**
+ * Napadená ves v jednom herním dni: oči obránce (domy), domy pro útočníka (scéna z nich ukáže jen
+ * objevené) a opevnění bojiště.
+ */
 export interface WarSceneDefender {
   eyes: Pos[];
   forts: BattleFort[];
+  buildings: WarSceneBuilding[];
 }
 
 /**
@@ -73,10 +79,44 @@ export async function warSceneFor(
   for (const id of await deps.campaigns.activeOf(input.playerId)) {
     const point = await deps.campaigns.checkpoint(id);
     if (!point || !present(point.state, cell)) continue;
-    const view = await viewOn(deps, point.state, cell, 'attack', { eyes: [], forts: [] });
+    const view = await viewOn(deps, point.state, cell, 'attack', {
+      eyes: [],
+      forts: [],
+      buildings: [],
+    });
     if (view) views.push(view);
   }
   return views.find((v) => v.battle !== null) ?? views[0] ?? null;
+}
+
+/**
+ * Válka na mapě `cell` z pohledu útočníka – účastníka tažení `campaignId` (vůdce i vazal ve službě;
+ * war.md – Ve scéně: mlha války na cizí mapě): celé vojsko tažení, obránci jen v dohledu jeho mužů
+ * na nohou, z cílové vsi jen objevené domy a hradby. Žádné akce nad cizí vsí – jen pohled.
+ * null – hráč tažení nezná, tažení skončilo, nebo na mapě vojsko nestojí (scéna se vrátí domů).
+ */
+export async function warSceneOnMap(
+  deps: WarSceneDeps,
+  input: { playerId: string; campaignId: string; cell: GridCell },
+): Promise<WarSceneView | null> {
+  const point = await deps.campaigns.checkpoint(input.campaignId);
+  if (!point || !isCampaignParticipant(point.state, input.playerId)) return null;
+  const state = point.state;
+  const cell: GridCell = { x: input.cell.x, y: input.cell.y };
+  if (state.phase === 'done' || state.phase === 'disbanded' || !present(state, cell)) return null;
+  const onTarget = sameCell(state.target.cell, cell);
+  const target = onTarget ? await defenderOf(deps, state.target.villageId, cell, state.day) : null;
+  // dohled v lese jako v pohledu na tažení – mřížka mapy cíle jen při boji
+  const grid =
+    onTarget && state.battle?.outcome === 'ongoing' ? await sightGrid(deps, state) : null;
+  return warSceneView(state, {
+    cell,
+    side: 'attack',
+    grid,
+    eyes: [],
+    forts: target?.forts ?? [],
+    buildings: target?.buildings ?? [],
+  });
 }
 
 /** Je vojsko tažení na mapě – skupina na ní stojí, nebo tu běží boj. */
@@ -116,6 +156,11 @@ async function defenderOf(
   const fortifications = village.state.fortifications ?? [];
   const defender: WarSceneDefender = {
     eyes: village.state.dwellings.map((d) => ({ x: d.position.x, z: d.position.z })),
+    buildings: village.state.dwellings.map((d) => ({
+      id: d.id,
+      type: d.type,
+      position: { x: d.position.x, z: d.position.z, rotation: d.position.rotation },
+    })),
     forts:
       fortifications.length > 0
         ? battleForts((await deps.cells.mapOf(cell)).landscape, fortifications)

@@ -1,6 +1,8 @@
 import 'server-only';
 import {
   warSceneFor,
+  warSceneOnMap,
+  type GridCell,
   type MarchGrid,
   type WarSceneDefender,
   type WarSceneView,
@@ -17,21 +19,34 @@ const SIGHT_GRIDS = new LruCache<string, MarchGrid>(4);
 /** Domy a opevnění napadených vsí po herních dnech – stav vsi se nečte při každém dotazu. */
 const DEFENDERS = new LruCache<string, WarSceneDefender>(16);
 
+function warSceneDeps(): Parameters<typeof warSceneFor>[0] {
+  const deps = gameDeps();
+  return {
+    settlements: deps.settlements,
+    villages: deps.villages,
+    campaigns: deps.campaigns,
+    cells: campaignCells(),
+    grids: SIGHT_GRIDS,
+    defenders: DEFENDERS,
+  };
+}
+
 /** Válka na mapě sídla hráče, kterou vidí ve scéně; null = žádná (nebo sídlo není jeho). */
 export function warSceneForPlayer(
   playerId: string,
   settlementId: string,
 ): Promise<WarSceneView | null> {
-  const deps = gameDeps();
-  return warSceneFor(
-    {
-      settlements: deps.settlements,
-      villages: deps.villages,
-      campaigns: deps.campaigns,
-      cells: campaignCells(),
-      grids: SIGHT_GRIDS,
-      defenders: DEFENDERS,
-    },
-    { playerId, settlementId },
-  );
+  return warSceneFor(warSceneDeps(), { playerId, settlementId });
+}
+
+/**
+ * Válka na cizí mapě `cell` z pohledu útočníka – účastníka tažení (mlha války); null = hráč tažení
+ * nezná, nebo na mapě jeho vojsko nestojí.
+ */
+export function warSceneOnMapForPlayer(
+  playerId: string,
+  campaignId: string,
+  cell: GridCell,
+): Promise<WarSceneView | null> {
+  return warSceneOnMap(warSceneDeps(), { playerId, campaignId, cell });
 }

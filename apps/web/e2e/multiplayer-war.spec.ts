@@ -662,3 +662,169 @@ test('nájezd na ves s palisádou s ochozem: obránci na hradbě, útočníci p�
   }
   await Promise.all(ctxs.map((ctx) => ctx.close()));
 });
+
+// Cizí mapa ve scéně (war.md – Ve scéně – cizí mapa): útočník A přepne z mapy tažení 3D scénu na
+// mapu napadené vsi B – vojsko ve scéně s mlhou války, z vsi B jen objevený dům; když vojsko z mapy
+// odejde, scéna se vrátí na vlastní ves (a vojsko ukáže tam). Bez workeru – stav tažení se jen čte.
+test('útočník sleduje vojsko ve 3D na mapě napadené vsi, po odchodu vojska zpět na ves', async ({
+  browser,
+}) => {
+  test.setTimeout(240_000);
+  await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
+  const ctxs = await Promise.all([browser.newContext(), browser.newContext()]);
+  for (const ctx of ctxs) await useUniqueClientIp(ctx);
+  const [a, b] = (await Promise.all(ctxs.map((ctx) => ctx.newPage()))) as [Page, Page];
+  for (const page of [a, b]) await page.setViewportSize({ width: 1280, height: 720 });
+  const { email: emailA, seat: seatA } = await newPlayer(a, 'cizia');
+  const spotsA = villageSpots(seatA.landscape);
+  await found(a, spotsA.dwelling, 'Bořivoj');
+  const { email: emailB, seat: seatB } = await newPlayer(b, 'cizib');
+  const spotsB = villageSpots(seatB.landscape);
+  await found(b, spotsB.dwelling, 'Dalibor');
+  await ctxs[1]!.close();
+  const [idA, idB] = [await houseIdOf(emailA), await houseIdOf(emailB)];
+  const [placeA, placeB] = [await placeOf(seatA.settlementId), await placeOf(seatB.settlementId)];
+  const [playerA] = await query<{ id: string }>(`SELECT id FROM "user" WHERE email = $1`, [emailA]);
+  const stateB = withBuiltFirstDwelling(await villageState(seatB.settlementId));
+  await writeVillageState(seatB.settlementId, stateB);
+  const stateA = withBuiltFirstDwelling(await villageState(seatA.settlementId));
+  await writeVillageState(seatA.settlementId, stateA);
+  const today = Math.max(stateA.lastDay, stateB.lastDay);
+  const [war] = await query<{ id: string }>(
+    `INSERT INTO war (house_low, house_high, how, started_at, started_day, last_clash_day)
+     VALUES (LEAST($1::uuid, $2::uuid), GREATEST($1::uuid, $2::uuid), 'ambush', now(), $3, $3)
+     RETURNING id`,
+    [idA, idB, today],
+  );
+
+  // vojsko A stojí u vsi B a dům vsi už objevilo
+  const lord = stateA.people[0]!;
+  const world = resolveWorldClock(E2E_ENV);
+  const tick = tickOfMs(Date.now(), world);
+  const man = (personId: number, line: boolean): CampaignMember => ({
+    ref: { villageId: placeA.villageId, personId },
+    playerId: playerA!.id,
+    line,
+    mounted: false,
+    forced: false,
+    strength: line ? 2 : 0.4,
+    health: 100,
+    vigor: 1,
+    wounded: false,
+    group: 0,
+    status: 'active',
+  });
+  const home = { x: spotsA.dwelling.x, z: spotsA.dwelling.z };
+  const at = { x: spotsB.dwelling.x + 40, z: spotsB.dwelling.z };
+  const campaignId = randomUUID();
+  const base = newCampaign(
+    {
+      id: campaignId,
+      warId: war!.id,
+      seed: 13,
+      tick,
+      playerId: playerA!.id,
+      leaderName: 'Bořivoj',
+      commander: { villageId: placeA.villageId, personId: lord.id },
+      deputy: null,
+      assembly: { villageId: placeA.villageId, cell: placeA.cell, pos: home, name: 'Lhota' },
+      target: { villageId: placeB.villageId, cell: placeB.cell, pos: at, name: 'Kněžice' },
+      members: [man(lord.id, true), man(lord.id + 100_000, false), man(lord.id + 100_001, false)],
+      foodKg: 50,
+      liveCommand: true,
+    },
+    world,
+  );
+  const onMap = (cell: { x: number; y: number }, pos: { x: number; z: number }): CampaignState => ({
+    ...base,
+    phase: 'marching',
+    presenceTick: tick,
+    discovered: [stateB.dwellings[0]!.id],
+    groups: base.groups.map((g) => ({
+      ...g,
+      cell: { ...cell },
+      pos: { ...pos },
+      goal: { cell: { ...cell }, pos: { ...pos } },
+      route: [],
+      leg: null,
+      arrived: true,
+    })),
+  });
+  await query(`UPDATE campaign SET status = 'done' WHERE status = 'active'`, []);
+  await query(
+    `INSERT INTO campaign (id, war_id, player_id, status, created_at)
+     VALUES ($1, $2, $3, 'active', now())`,
+    [campaignId, war!.id, playerA!.id],
+  );
+  await query(
+    `INSERT INTO campaign_checkpoint (campaign_id, tick, state) VALUES ($1, $2, $3::jsonb)`,
+    [campaignId, tick, JSON.stringify(onMap(placeB.cell, at))],
+  );
+
+  try {
+    // dvorec → panel Vojsko → běžící tažení → mapa tažení → oko (Ve scéně)
+    await pollVillage(a);
+    await a.keyboard.press('r');
+    const panel = a.getByTestId('selection-panel');
+    await expect
+      .poll(
+        async () => {
+          const point = await a.evaluate(
+            (p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z),
+            spotsA.dwelling,
+          );
+          if (!point) return null;
+          await a.mouse.move(point.x - 3, point.y);
+          await a.mouse.click(point.x, point.y);
+          return panel.getByTestId('manor-upgrades').count();
+        },
+        { timeout: 30_000 },
+      )
+      .toBe(1);
+    await panel.getByTestId('manor-army').click();
+    await a.getByTestId('army-campaign').click();
+    const watch = a.getByTestId('campaign-watch');
+    await expect(watch).toBeEnabled({ timeout: 20_000 });
+    await watch.click();
+
+    // scéna cizí mapy: krajina políčka B, vojsko A (mlha války), objevený dům vsi B
+    const foreign = a.getByTestId('foreign-scene');
+    await expect(foreign).toHaveAttribute('data-cell', `${placeB.cell.x},${placeB.cell.y}`);
+    const canvas = foreign.locator('canvas[data-scene]');
+    await expect(canvas).toHaveAttribute('data-scene-ready', 'true', { timeout: 60_000 });
+    await expect(canvas).toHaveAttribute('data-war-men', '3', { timeout: 30_000 });
+    await expect
+      .poll(
+        () =>
+          a.evaluate(() =>
+            window.__bohemiaE2E!.armyStats!()
+              .filter((m) => m.name.startsWith('army-man'))
+              .reduce((n, m) => n + m.count, 0),
+          ),
+        { timeout: 60_000 },
+      )
+      .toBeGreaterThan(0);
+    // rozhraní vsi tu není – jen návrat a mapa tažení (živé vedení)
+    await expect(a.getByTestId('selection-panel')).toHaveCount(0);
+    await expect(foreign.getByTestId('campaign-map')).toBeVisible();
+    await expect(foreign.getByTestId('campaign-watch')).toHaveAttribute('aria-pressed', 'true');
+    if (process.env.WAR_SHOT_DIR) {
+      await a.mouse.move(640, 300);
+      await a.waitForTimeout(2_000);
+      await a.screenshot({ path: `${process.env.WAR_SHOT_DIR}/cizi-mapa.png` });
+    }
+
+    // vojsko odejde domů – scéna se vrátí na ves A a ukáže ho tam (bez mlhy)
+    await query(`UPDATE campaign_checkpoint SET state = $2::jsonb WHERE campaign_id = $1`, [
+      campaignId,
+      JSON.stringify({ ...onMap(placeA.cell, home), phase: 'returning', returnReason: 'arrived' }),
+    ]);
+    await expect(foreign).toHaveCount(0, { timeout: 30_000 });
+    await expect(a.locator('canvas[data-scene]')).toHaveAttribute('data-war-men', '3', {
+      timeout: 60_000,
+    });
+  } finally {
+    await query(`UPDATE campaign SET status = 'done' WHERE id = $1`, [campaignId]);
+    await Promise.all(ctxs.map((ctx) => ctx.close().catch(() => {})));
+  }
+});
