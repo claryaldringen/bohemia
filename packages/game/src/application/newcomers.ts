@@ -12,6 +12,7 @@ import {
 import type { House, HouseRepository } from './houses';
 import { openNegotiation, type NegotiateDeps } from './negotiate';
 import { houseName, noticeHouse } from './negotiation-chronicle';
+import type { PlayerLock } from './locks';
 import type { NegotiationRecord, NegotiationTx } from './negotiations';
 import type { WorldCell } from './settlements';
 import { publicHouseOf, type WorldDirectory } from './world-directory';
@@ -125,6 +126,9 @@ export type NewcomerDeps = NegotiateDeps & {
   /** Seed světa – z něj a id účtu pevné pořadí nabídky a los. */
   worldSeed: number;
 };
+
+/** Závislosti úlohy světa (los po týdnu): navíc zámek hráče, pod kterým los umisťuje. */
+export type NewcomerWorldDeps = NewcomerDeps & { locks: PlayerLock };
 
 const fail = (reason: string): { ok: false; reason: string } => ({ ok: false, reason });
 
@@ -497,7 +501,7 @@ export async function closeNewcomerRequests(
  * s přijetím pánem rozhodne podmíněné umístění – vyhraje jeden.
  */
 export async function expireNewcomerWaits(
-  deps: NewcomerDeps,
+  deps: NewcomerWorldDeps,
   input: { now: Date; today: number },
 ): Promise<void> {
   // chyba jednoho rodu (např. souběžný zápis do mřížky) nepřeruší kolo – vyhodí se až na konci
@@ -505,7 +509,10 @@ export async function expireNewcomerWaits(
   for (const house of await deps.houses.waitingNewcomers()) {
     if (input.now.getTime() < newcomerLotAt(house).getTime()) continue;
     try {
-      await drawNewcomerLot(deps, house, input);
+      // pod zámkem hráče jako `startFreeForPlayer` / `foundVillageForPlayer` na webu: los přesídlí
+      // sídlo, takže se nesmí potkat se zakládáním vsi téhož hráče (zámek hráče → transakce)
+      const lot = (): Promise<void> => drawNewcomerLot(deps, house, input);
+      await (house.playerId === null ? lot() : deps.locks.run(house.playerId, lot));
     } catch (error) {
       failure ??= error;
     }

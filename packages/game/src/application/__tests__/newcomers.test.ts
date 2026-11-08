@@ -29,7 +29,7 @@ import {
   newcomerStatus,
   requestLords,
   startFree,
-  type NewcomerDeps,
+  type NewcomerWorldDeps,
 } from '../newcomers';
 import { targetSettlement } from '../new-village';
 import type { VillageRecord, VillageRepository } from '../villages';
@@ -37,6 +37,7 @@ import type { DirectoryEntry } from '../world-directory';
 import { InMemoryHouses } from './in-memory-houses';
 import { InMemoryNegotiations } from './in-memory-negotiations';
 import { InMemoryNotices } from './in-memory-notices';
+import { InMemoryPlayerLock } from './in-memory-locks';
 import { InMemoryPlacement } from './in-memory-placement';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryVassalages } from './in-memory-vassalages';
@@ -52,7 +53,7 @@ async function setup(
   language: LanguageGroup = 'cs',
   extraLords = 0,
 ): Promise<{
-  deps: NewcomerDeps;
+  deps: NewcomerWorldDeps;
   houses: InMemoryHouses;
   settlements: InMemorySettlements;
   vassalages: InMemoryVassalages;
@@ -139,7 +140,14 @@ async function setup(
     inbox: { post: () => Promise.resolve(null), pending: () => Promise.resolve([]) },
   };
   return {
-    deps: { houses, negotiations, villages, worldDirectory: directory, worldSeed: 4242 },
+    deps: {
+      houses,
+      negotiations,
+      villages,
+      worldDirectory: directory,
+      worldSeed: 4242,
+      locks: new InMemoryPlayerLock(),
+    },
     houses,
     settlements,
     vassalages,
@@ -567,6 +575,39 @@ describe('odchod syna × umístění (newcomers.md)', () => {
 });
 
 describe('expireNewcomerWaits', () => {
+  it('los běží pod zámkem hráče nováčka (jako startFree a založení vsi na webu)', async () => {
+    const s = await setup();
+    const held: string[] = [];
+    let inside = false;
+    const lock = new InMemoryPlayerLock();
+    const run = lock.run.bind(lock);
+    s.deps.locks = {
+      run: (playerId, fn) => {
+        held.push(playerId);
+        return run(playerId, async () => {
+          inside = true;
+          try {
+            return await fn();
+          } finally {
+            inside = false;
+          }
+        });
+      },
+      tryRun: lock.tryRun.bind(lock),
+    };
+    const place = s.negotiations.transaction.bind(s.negotiations);
+    let placedInsideLock = false;
+    s.negotiations.transaction = (fn) => {
+      placedInsideLock = inside;
+      return place(fn);
+    };
+    const late = new Date(NOW.getTime() + NEWCOMERS.waitDays * DAY_MS);
+    await expireNewcomerWaits(s.deps, { now: late, today: TODAY });
+    expect(held).toEqual(['player-n']);
+    expect(placedInsideLock).toBe(true);
+    expect((await s.houses.byId(s.ids.n!))?.placedAt).toEqual(late);
+  });
+
   it('los nevybere rod, který mezi čtením žádostí a losem odmítl', async () => {
     const s = await setup();
     await requestLords(s.deps, { playerId: 'player-n', houseIds: [s.ids.a!], now: NOW, today: 1 });

@@ -24,7 +24,7 @@ vstupní bod (composition root) jako web – žádná herní logika, jen plánov
   `pauseMs`, při `idle` spánek `nextWakeMs` (drží-li tažení vsi – `WorldStep.held` – nejvýš
   `HELD_WAKE_MS` = 250 ms, viz Přednostní vsi); souhrn do logu jednou za minutu; chyba kola ani jednoho
   hráče smyčku nezastaví. Hodiny, spánek i krok se v testech nahrazují (`LoopDeps`). Mezi koly pouští
-  `runWorldTasks` (kredity nástupnictví, `world.md`; obnova zásilek, Odvody, války, nováčci; jídlo
+  `runWorldTasks` (kredity nástupnictví, `world.md`; obnova zásilek, Odvody, války, nováčci – los po týdnu pod zámkem hráče; jídlo
   domény po žních `sendDomainFood` – `vassalage.md`, Jídlo domény – krok světa; člen `domainFood`
   skládá `main.ts`: `loadVillage` s dopočtem do dneška a uložením, `gameDeps.domainFood`, mapa
   pokusů `attempts` drží proces) nejvýš jednou za minutu (`WORLD_TASKS_MS`, podle
