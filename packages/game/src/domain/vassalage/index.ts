@@ -11,3 +11,4 @@ export * from './guests';
 export * from './ennoble';
 export * from './escheat';
 export * from './domain-food';
+export * from './domain-allocation';
