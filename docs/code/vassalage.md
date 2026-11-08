@@ -238,13 +238,19 @@ nenaroste), Svolání správce **před** `lapseSummons`, pak `expireNegotiations
   jako `answerLevy` (zásilky, kronika, neplnění při míň). Pánovi jde `levy-sent` se `steward: true`,
   vazalovi `levy-steward` (`lordName`, `kind`, `parts`, `arrivesDay`). `LevyDialogView.stewardDay` →
   přesýpací hodiny v `LevyDialog` (`levy-<dialog>-wait`) s datem.
+  Selže-li odeslání chybou, která se sama nespraví (vše kromě `SHIPMENT_RACE` z `shipments.ts`
+  a už uzavřeného dialogu), odpoví správce prázdně – „nic neodvedl“ = neplnění; dohoda, která už
+  neplatí (bez výhledu nebo `LEVY_ENDED`), dialog zahodí (`lapse`); souběh se zkusí příští kolo.
 - **Svolání** – `answerAbsentSummons(deps, { today })` (`summons.ts`): otevřená svolání hráčů od
   `summonsStewardDay(dialog)` (`SummonsBody.openedDay` + lhůta; starší svolání bez `openedDay` od
   1. 1. roku dialogu). Válka musí trvat, vazalství také (jinak nic – propadne `lapseSummons`). Dopočet
         vsí rodu, `serviceMenOf` (muži rodu doma a zdraví, nejzdatnější první), prvních `men` →
         `dispatchSummons` se `steward` (v těle odpovědi `steward: true`, pánovi `summons-sent` se
         `steward`), vazalovi `summons-steward` (`name` = pán, `men`). NPC svolání zůstávají na
-        `answerNpcSummons`. `SummonsDialogView.stewardDay` → datum v popisku rohu svolání.
+        `answerNpcSummons`. Skončilá dohoda svolání zahodí (`lapse`); cílová ves, která nepřijímá
+        (`canReceive` – zanikla, nemá sídlo), = správce nikoho nepošle → neplnění; selže-li `sendMen` až
+        po zapsané odpovědi, zapíše se neplnění. `SummonsDialogView.stewardDay` → datum v popisku rohu
+        svolání.
 - **Jednání** – `expireNegotiations(deps, { now, today })` (`negotiation-expiry.ts`): port
   `NegotiationRepository.allOpen()` (adaptér: `status = 'open'`, nejstarší první), herní den kola
   přes `dayOf` (`worldDayOf`). Bez žádostí nováčka (`newcomer`). V transakci `getForUpdate` – jen

@@ -10,7 +10,7 @@ import { chronicleHouses, houseName, type NegotiationVillages } from './negotiat
 import type { NoticeRepository } from './notices';
 import { findPlayerVillage } from './player-villages';
 import type { SettlementRepository } from './settlements';
-import { sendMen, type ShipmentDeps } from './shipments';
+import { canReceive, sendMen, type ShipmentDeps } from './shipments';
 import type { StewardshipRepository } from './stewardships';
 import type { Vassalage, VassalageRepository } from './vassalages';
 import type { VillageRepository } from './villages';
@@ -474,7 +474,9 @@ export async function answerNpcSummons(
  * domluvený počet nejzdatnějších mužů rodu, kteří jsou doma a zdraví (`lineCandidates` ve vsích
  * rodu dopočítaných do dneška – předvyplnění dialogu, jako NPC rod). Nemá-li jich tolik, pošle
  * všechny a míň = neplnění; své vazaly správce nesvolává. Po konci války nic – svolání propadne
- * (`lapseSummons`). NPC svolání splní vstupní bod hned (`answerNpcSummons`). Odpověď hráče do lhůty
+ * (`lapseSummons`); skončilá dohoda svolání zahodí. Zanikla-li cílová ves (chyba, která se sama
+ * nespraví), uzavře se svolání jako „nikoho neposlal“ = neplnění. NPC svolání splní vstupní bod
+ * hned (`answerNpcSummons`). Odpověď hráče do lhůty
  * má přednost (podmíněné `answer`). Vazal dostane `summons-steward`. Vrací počet odpovědí správce.
  */
 export async function answerAbsentSummons(
@@ -490,20 +492,35 @@ export async function answerAbsentSummons(
     const war = await deps.wars.activeBetween(body.warHouses[0], body.warHouses[1]);
     if (war?.id !== body.warId) continue;
     const v = await deps.vassalages.byId(body.vassalageId);
-    if (!v || v.endedAt !== null) continue;
+    if (!v || v.endedAt !== null) {
+      // dohoda skončila – svolání zmizí, ať se nezkouší každou minutu
+      await deps.dialogs.lapse(dialog.id);
+      continue;
+    }
     for (const settlement of await deps.settlements.listActive(vassal.playerId)) {
       for (const village of await deps.villages.listBySettlement(settlement.id)) {
         await deps.prepareVillage(village.id, input.today);
       }
     }
-    const men = await serviceMenOf(deps, { playerId: vassal.playerId, today: input.today });
+    // cílová ves zanikla (nebo nemá sídlo) – chyba, která se sama nespraví: uzavřít jako
+    // „nikoho neposlal“ = neplnění
+    const reachable = await canReceive(deps.shipments, body.targetVillageId);
+    const men = reachable
+      ? await serviceMenOf(deps, { playerId: vassal.playerId, today: input.today })
+      : [];
     const byVillage = refsByVillage(men.slice(0, body.men).map((m) => m.ref));
     const result = await dispatchSummons(
       deps,
       { dialog, body, vassal, vassalage: v, byVillage, message: '', steward: true },
       input.today,
     );
-    if (!result.ok) continue;
+    if (!result.ok) {
+      // odpověď je zapsaná, ale muži neodešli – neplnění (opakovat nejde, dialog je uzavřený)
+      if (result.reason !== SUMMONS_REASONS.answered) {
+        await deps.vassalages.addBreach(v.id, 'summons', input.today);
+      }
+      continue;
+    }
     answered++;
     const lord = await deps.houses.byId(body.lordHouseId);
     await deps.notices.post({

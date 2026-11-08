@@ -482,4 +482,18 @@ describe('správce za nepřítomného vazala (absence.md)', () => {
     expect(await answerAbsentSummons(v.deps, { today: DAY + 100 })).toBe(0);
     expect(await lapseSummons(v.deps, { today: DAY + 100 })).toBe(1);
   });
+
+  it('cílová ves zanikla: svolání se uzavře jako neplnění, druhé kolo nic', async () => {
+    const w = await world();
+    const dialogId = await summon(w);
+    const row = w.dialogs.rows.find((d) => d.id === dialogId)!;
+    row.body = { ...row.body, targetVillageId: 'zanikla-ves' };
+    expect(await answerAbsentSummons(w.deps, { today: DAY + 40 })).toBe(1);
+    expect((await w.dialogs.byId(dialogId))!.status).toBe('answered');
+    const home = (await w.villages.find(w.vassalVillage))!.state;
+    expect(home.people.filter((p) => p.away?.kind === 'service')).toHaveLength(0);
+    expect(w.vassalages.breachLog.map((b) => b.kind)).toEqual(['summons']);
+    expect(await answerAbsentSummons(w.deps, { today: DAY + 41 })).toBe(0);
+    expect(w.vassalages.breachLog).toHaveLength(1);
+  });
 });

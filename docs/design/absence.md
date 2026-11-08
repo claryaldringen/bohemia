@@ -53,6 +53,9 @@ hráče). Podrobnosti a lhůty jsou návrh Clauda (`ABSENT_VASSAL` v `rules-abse
   ([nováčci](newcomers.md)).
 - **Kdo dřív:** vše hlídá krok světa (worker) podle herního dne, ne podle toho, kdo je online.
   Hráč, který odpoví do lhůty, má přednost – odpověď uzavře dialog podmíněně, druhá neprojde.
+- **Když správce nemůže** (návrh Clauda): selže-li odvod nebo svolání důvodem, který se sám
+  nespraví (pán nemá cílovou ves, ves zanikla), uzavře se dialog jako „nic neodvedl / nikoho
+  neposlal“ – neplnění, bez opakování; přechodná chyba (souběh) se zkusí v příštím kroku světa.
 - **Co hráč vidí:** v dialogu Odvody přesýpací hodiny s datem, kdy odvede správce; u Svolání
   datum v popisku rohu. Po lhůtě upozornění „Správce za tebe poslal …“; pán vidí u odvodu i mužů
   „za nepřítomného … správce“.

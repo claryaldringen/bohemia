@@ -401,4 +401,22 @@ describe('správce za nepřítomného vazala (absence.md)', () => {
     expect(w.shipments.rows).toHaveLength(1);
     expect(w.notices.notices.filter((n) => n.kind === 'levy-steward')).toHaveLength(0);
   });
+
+  it('chyba, která se sama nespraví (cílová ves zanikla): uzavře se jako neplnění, druhé kolo nic', async () => {
+    const w = await world();
+    w.vassalages.vassalages[0]!.terms = {
+      tribute: bundle({ logs: 10 }),
+      targetVillageId: 'zanikla-ves',
+    };
+    await openAnnualDialogs(w.deps, { today: NOV_1 });
+    expect(await answerAbsentLevies(w.deps, { today: due })).toBe(1);
+    expect(w.dialogs.rows[0]!.status).toBe('answered');
+    expect(w.shipments.rows).toHaveLength(0);
+    expect(w.vassalages.breachLog).toEqual([{ id: w.vassalageId, kind: 'levy', day: due }]);
+    expect(w.notices.notices.find((n) => n.kind === 'levy-steward')!.payload).toMatchObject({
+      parts: [{ good: 'logs', sent: 0, agreed: 10 }],
+    });
+    expect(await answerAbsentLevies(w.deps, { today: due + 1 })).toBe(0);
+    expect(w.vassalages.breachLog).toHaveLength(1);
+  });
 });
