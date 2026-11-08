@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { checkBand } from '../../band';
 import { BandFailureError, generateAcceptedLandscape } from '../../generate';
 import { CURRENT_LAYER_VERSIONS, type LayerVersions } from '../../types';
-import type { SkeletonRiverPort, SkeletonSlice } from '../types';
+import type { SkeletonRiverPort, SkeletonSlice, SkeletonTrailPort } from '../types';
 
 const port = (
   side: SkeletonRiverPort['side'],
@@ -16,12 +16,23 @@ const port = (
 
 const slice = (...rivers: SkeletonRiverPort[]): SkeletonSlice => ({ world: 1, rivers, trails: [] });
 
+const trail = (side: SkeletonTrailPort['side'], at: number): SkeletonTrailPort => ({ side, at });
+
 /** Výřezy s řekou jako v testu koryt (`river-course.test.ts`). */
 export const SKELETON_BAND_CASES = {
   rovně: slice(port('N', 60, 35, 'in'), port('S', 70, 35, 'out')),
   ohyb: slice(port('S', 90, 30, 'out'), port('W', 40, 30, 'in')),
   soutok: slice(port('N', 50, 40, 'in'), port('E', 64, 25, 'in'), port('S', 80, 45, 'out')),
   pramen: slice(port('S', 64, 25, 'out')),
+  // Stezky (Úloha 6): kolem vsi, křižovatka, konec a brod přes řeku.
+  stezka: { world: 1, rivers: [], trails: [trail('E', 40), trail('W', 90)] },
+  křižovatka: { world: 1, rivers: [], trails: [trail('W', 40), trail('E', 90), trail('N', 60)] },
+  konec: { world: 1, rivers: [], trails: [trail('W', 60)] },
+  brod: {
+    world: 1,
+    rivers: [port('N', 60, 35, 'in'), port('S', 70, 35, 'out')],
+    trails: [trail('W', 40), trail('E', 90)],
+  },
 } as const satisfies Record<string, SkeletonSlice>;
 
 export type SkeletonBandCase = keyof typeof SKELETON_BAND_CASES;
@@ -68,7 +79,7 @@ export function describeSkeletonBands(cases: readonly SkeletonBandCase[]): void 
           expect(accepted.length / SEEDS.length).toBeGreaterThanOrEqual(PASS_SHARE);
           for (const o of accepted) {
             expect(o.band).toEqual({ ok: true, failures: [] });
-            expect(o.rivers).toBe(Math.max(1, inflows));
+            expect(o.rivers).toBe(s.rivers.length === 0 ? 0 : Math.max(1, inflows));
           }
         },
         CASE_TIMEOUT_MS,

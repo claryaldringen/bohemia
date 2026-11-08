@@ -1,5 +1,6 @@
 import { distanceToMask, maxStep } from './grid';
 import { checkPremium } from './premium/check';
+import { checkSkeleton } from './skeleton/check';
 import { portTile } from './skeleton/ports-map';
 import { SURFACE_CODES, type Landscape, type LayerVersions } from './types';
 
@@ -191,6 +192,9 @@ export function checkBand(
   if (failures.length === 0) {
     const premium = checkPremium(l);
     if (!premium.ok) failures.push(`premium-${premium.reason}`);
+    // Kontrola kostry (řeka, stezka, odstup od vsi) – také až u pokusu, který jinak prošel.
+    const skeleton = checkSkeleton(l);
+    if (skeleton !== null) failures.push(`skeleton-${skeleton}`);
   }
   return { ok: failures.length === 0, failures };
 }

@@ -211,3 +211,19 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   4 výřezů × 2 seedy) a pásmo `skeleton-band.ts` (300 seedů, ≥ 95 % do `MAX_ATTEMPTS`;
   `skeleton-band-river.test.ts`, `skeleton-band-junction.test.ts`). Měření:
   `measure-landscapes.ts 30 --skeleton straight|corner|junction|source|trail|ford`.
+  **Stezka kostry na mapě** (Úloha 6; `skeleton/route.ts`, `features.ts`, `check.ts`, jen
+  det-math): `skeletonRoute(l)` – od každého bodu stezky (`portTile`) nejlevnější cesta
+  (`routeLeg`, cena `trailCellCost`) k jednomu bodu obejití vsi (`villageBypass`, 13 políček ≈ 195 m
+  od vsi, zkouší se bokem ke směru od každého bodu stezky); ves ≥ 11 políček, voda řeky
+  neprůchozí a souš do `SKELETON_ROUTE.bankCells` (1,5) od ní taky, kromě **brodu** (políčka do
+  `šířka + 1,5` od mělkých bodů osy – `shallow`) a prvních 4 políček od okraje; potok mapy se
+  přebrodí s příplatkem 6 ×. Úseky se vyhladí (2 průchody), první bod se přisune na okraj mapy,
+  každý musí vést ≥ 150 m od vsi. `SkeletonRoute { legs, ends, fords }` – `fords` = mělčiny,
+  kterými trasa opravdu vede. Dva body = stezka kolem vsi, víc = křižovatka (`crossroads`, větve
+  se potkají v bodě obejití), jeden = konec stezky (`trailEnd`). `skeletonFeaturesOf(l)`
+  (`WeakMap`, počítá z `transferPrecision`) vrací `SkeletonFeatures`, null bez výřezu.
+  `checkSkeleton(l)` → `'river' | 'route' | 'village' | null` (`check.ts`): každý bod řeky je
+  u začátku či konce některé osy, trasa existuje a končí do 15 m od políček bodů stezky na
+  okraji, řeka ani stezka nevedou do 120 m od vsi. `checkBand` ji volá až u pokusu, který jinak
+  prošel (selhání `skeleton-<důvod>`). Testy `skeleton/__tests__/route.test.ts`,
+  `skeleton-band-trail.test.ts` (stezka, křižovatka, konec, brod; 300 seedů).
