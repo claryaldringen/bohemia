@@ -3,7 +3,7 @@
 import { assignRiders, NO_RIDERS, trainHorsesDay } from './horse-riders';
 import { isUnshod } from './horse-shoeing-term';
 import { horsePens, isGrainHorse, penHorses } from './horses';
-import { currentLord, isDynastyTracked, isLineMan, lineMen } from './dynasty';
+import { currentLord, isDynastyTracked, isElite, isLineMan, lineMen } from './dynasty';
 import { harvestHandsDay } from './harvest-hands';
 import { huntToday } from './hunt-party';
 import { householdHead } from './households';
@@ -26,17 +26,26 @@ type LordView = Pick<
 export interface LordFamily {
   /** Hlava dvorce. */
   lord: Person | null;
-  /** Vojvoda a jeho potomci po meči v dvorci od 7 let – cvičí. */
+  /**
+   * Vojvoda a jeho potomci po meči v dvorci od 7 let – cvičí; za nimi muži rodu od 7 let v domech
+   * elity (`eliteHomes`).
+   */
   trainees: Person[];
-  /** Žena vojvody, dcery, snachy a vnučky – jen domácnost dvorce. */
+  /** Žena vojvody, dcery, snachy a vnučky – jen domácnost dvorce a domů elity. */
   household: Person[];
-  /** Zbytek dvorce (zeť, ženich, chlapci pod 7 let) – pracují jako dosud. */
+  /** Zbytek dvorce a domů elity (zeť, ženich, chlapci pod 7 let) – pracují jako dosud. */
   others: Person[];
   /**
    * Vedlejší manželky vojvody mimo dvorec (lord.md – Rod vojvody, Manželky – Práce) – vedou svou
    * domácnost, k rodině patří, jejich děti ne. Jen ves s rodem.
    */
   wivesApart: Person[];
+  /**
+   * Domy elity (hillfort.md – Elita): obydlí mimo dvorec bez dílny, kde bydlí elitní muž od
+   * `AGE.fertile` let (`isElite`) – v rodině se chovají jako dvorec. Od nejnižšího id; ves bez
+   * rodu a rodina bez vojvody `[]`.
+   */
+  eliteHomes: number[];
 }
 
 /** Rodina bez vojvody – nikdo necvičí. */
@@ -46,6 +55,7 @@ const NO_FAMILY: LordFamily = {
   household: [],
   others: [],
   wivesApart: [],
+  eliteHomes: [],
 };
 
 type Hours = { bow: number; combat: number; riding: number };
@@ -85,7 +95,7 @@ export function lordFamily(state: LordView, day: number): LordFamily {
     else if (p.sex === 'female' && lord.spouseId === p.id) household.push(p);
     else others.push(p);
   }
-  return { lord, trainees, household, others, wivesApart: [] };
+  return { lord, trainees, household, others, wivesApart: [], eliteHomes: [] };
 }
 
 /**
@@ -95,7 +105,10 @@ export function lordFamily(state: LordView, day: number): LordFamily {
  * domácnost: manželky vojvody v dvorci, matka nezletilého vojvody (i vdaná), dcery mužů rodu
  * (i dřívějších vojvodů) a ženy mužů rodu z dvorce (snachy). Vedlejší manželky mimo dvorec jsou
  * `wivesApart`. Ostatní (zeť, vdovy po dřívějším vojvodovi, chlapci pod 7 let) pracují. Vojvoda mimo dvorec nebo
- * bez vojvody – nikdo (dvorec bez vojvody necvičí).
+ * bez vojvody – nikdo (dvorec bez vojvody necvičí). Domy elity (`eliteHomes`) se třídí jako dvorec
+ * (hillfort.md – Elita, Martin 8. 11. 2026: „stejné pravidlo jako rodina ve dvorci“): cvičí muži
+ * rodu od 7 let v tom domě (i synové vedlejších manželek elitního muže, dokud neodejdou), ženy
+ * a dcery mužů rodu vedou domácnost, ostatní pracují – návrh Clauda.
  */
 function dynastyFamily(state: LordView, manor: number | null, day: number): LordFamily {
   const lord = currentLord(state);
@@ -122,7 +135,42 @@ function dynastyFamily(state: LordView, manor: number | null, day: number): Lord
     else if (p.id === lord.motherId && minor) household.push(p);
     else others.push(p);
   }
-  return { lord, trainees, household, others, wivesApart };
+  const eliteHomes = eliteHomesOf(state, manor, wivesApart, day);
+  if (eliteHomes.length > 0) {
+    const homes = new Set(eliteHomes);
+    for (const p of state.people) {
+      if (!homes.has(p.dwellingId)) continue;
+      if (isLineMan(p) && ageYears(p.bornDay, day) >= AGE.olderChild) trainees.push(p);
+      else if (p.sex !== 'female') others.push(p);
+      else if (p.spouseId !== undefined && fathers.has(p.spouseId)) household.push(p);
+      else if (p.fatherId !== undefined && fathers.has(p.fatherId)) household.push(p);
+      else others.push(p);
+    }
+  }
+  return { lord, trainees, household, others, wivesApart, eliteHomes };
+}
+
+/**
+ * Domy elity (hillfort.md – Elita): obydlí mimo dvorec, kde bydlí elitní muž od `AGE.fertile` let
+ * (`isElite` – po sňatku ve vlastním domě). Obydlí s dílnou ne – dílna má přednost, muž dělá
+ * řemeslo; dům vedlejší manželky vojvody (`wivesApart`) také ne – ten kryje ona (návrh Clauda).
+ * Od nejnižšího id.
+ */
+function eliteHomesOf(
+  state: LordView,
+  manor: number,
+  wivesApart: readonly Person[],
+  day: number,
+): number[] {
+  const apart = new Set(wivesApart.map((w) => w.dwellingId));
+  const homes = new Set<number>();
+  for (const p of state.people) {
+    if (p.dwellingId === manor || apart.has(p.dwellingId) || homes.has(p.dwellingId)) continue;
+    if (!isElite(state, p) || ageYears(p.bornDay, day) < AGE.fertile) continue;
+    if (state.dwellings.find((d) => d.id === p.dwellingId)?.workshop) continue;
+    homes.add(p.dwellingId);
+  }
+  return [...homes].sort((a, b) => a - b);
 }
 
 /**
@@ -272,12 +320,17 @@ export function lordApartIds(
 }
 
 /**
- * Obydlí, jejichž denní minimum kryje cvičící rodina (`manorLabor`) a ves ho nepočítá – dvorec
- * a domy vedlejších manželek vojvody (lord.md – Rod vojvody, Manželky – Práce).
+ * Obydlí, jejichž denní minimum kryje cvičící rodina (`manorLabor`) a ves ho nepočítá – dvorec,
+ * domy vedlejších manželek vojvody (lord.md – Rod vojvody, Manželky – Práce) a domy elity
+ * (hillfort.md – Elita).
  */
 export function familyHomes(family: LordFamily | null): ReadonlySet<number> {
   if (!family?.lord) return new Set();
-  return new Set([family.lord.dwellingId, ...family.wivesApart.map((w) => w.dwellingId)]);
+  return new Set([
+    family.lord.dwellingId,
+    ...family.wivesApart.map((w) => w.dwellingId),
+    ...family.eliteHomes,
+  ]);
 }
 
 /** Id cvičících z rodiny, která cvičí (vojvodovi synové nepasou – lord.md, Den rodiny). */
@@ -320,7 +373,8 @@ export interface ManorLabor {
  * Práce dvorce, když rodina cvičí (lord.md – Den rodiny; jako `workshopLabor` dílen): denní
  * minimum celé domácnosti dvorce (s chůzí pro vodu) kryjí napřed starší dvorce, zbytek dospělí
  * rodiny – ženy, a co nestačí, muži mimo výcvik (návrh Clauda; výcvik se tím nezkrátí). Minimum
- * domů vedlejších manželek vojvody (`wivesApart`) kryjí stejně ony, nekryté platí ves. Co ženám
+ * domů vedlejších manželek vojvody (`wivesApart`) kryjí stejně ony, nekryté platí ves. Dům elity
+ * (`eliteHomes`, hillfort.md – Elita) kryje své minimum jako dvorec jeho lidé z rodiny. Co ženám
  * zbude, je domácí výroba dvorce a do práce vsi nejde (Martin 23. 10. 2026: „Jen domácnost“).
  * Na poli (hlad – `state.lord.field`) dají všichni dospělí rodiny vše po minimu. Ve žňový den
  * (`harvestHandsDay`) dají cvičící muži `freeMen` na žeň a výmlat. Jinak s potřebným
@@ -345,10 +399,26 @@ export function manorLabor(
       dailyMinPerHousehold(potteryCoverage) + waterFetchingLabor(members.length, walk);
     return adultDailyMin(minimum, elders, productivity);
   };
-  const need = homeNeed(manor);
-  const capacity = labor([...family.household, ...family.trainees]);
-  const menCapacity = labor(family.trainees);
-  const manorMin = Math.min(need, capacity);
+  // dvorec a domy elity (hillfort.md – Elita: „stejné pravidlo jako rodina ve dvorci“) – každý dům
+  // kryje své minimum lidmi rodiny z toho domu, napřed ženy, pak muži; ke dvorci patří, kdo nebydlí
+  // v domě elity (pořadí lidí zachované – samotný dvorec vyjde bit po bitu jako dřív)
+  const eliteHomes = new Set(family.eliteHomes);
+  let need = 0;
+  let homesMin = 0;
+  let homesFree = 0;
+  let freeMen = 0;
+  for (const home of [manor, ...family.eliteHomes]) {
+    const inHome = (p: Person): boolean =>
+      home === manor ? !eliteHomes.has(p.dwellingId) : p.dwellingId === home;
+    const homeMin = homeNeed(home);
+    const trainees = family.trainees.filter(inHome);
+    const capacity = labor([...family.household.filter(inHome), ...trainees]);
+    const covered = Math.min(homeMin, capacity);
+    need += homeMin;
+    homesMin += covered;
+    homesFree += capacity - covered;
+    freeMen += Math.min(capacity - covered, labor(trainees));
+  }
   // domy vedlejších manželek vojvody (lord.md – Rod vojvody, Manželky – Práce): minimum kryjí ony,
   // co nestačí, platí ves; co jim zbude, je domácí výroba – na pole jen při hladu
   let apartNeed = 0;
@@ -361,10 +431,8 @@ export function manorLabor(
     apartMin += Math.min(homeMin, wives);
     apartFree += Math.max(0, wives - homeMin);
   }
-  const dailyMin = manorMin + apartMin;
-  const manorFree = capacity - manorMin;
-  const free = manorFree + apartFree;
-  const freeMen = Math.min(manorFree, menCapacity);
+  const dailyMin = homesMin + apartMin;
+  const free = homesFree + apartFree;
   const hunger = state.lord?.field?.reason === 'hunger';
   const field = hunger ? free : 0;
   // ve žňový den jdou cvičící muži na žeň a výmlat (Martin 24. 10. 2026: „Dílny i vojvodova

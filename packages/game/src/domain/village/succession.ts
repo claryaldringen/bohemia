@@ -1,7 +1,7 @@
 // Nástupnictví rodu vojvody (lord.md – Rod vojvody: Nástupnictví; Martin 24. 10. 2026 – „Nejstarší
 // syn se vrátí“, nástupcem syn hlavní manželky): kdo nastoupí po smrti vojvody a kdo se s ním
 // stěhuje do dvorce. Bez náhody – pořadí dává věk a id. Ves bez rodu – nic.
-import { currentLord, isDynastyTracked, lineMen, mainWifeOf, wivesOf } from './dynasty';
+import { currentLord, isDynastyTracked, lineMen, mainWifeOf, markElite, wivesOf } from './dynasty';
 import { ensureMainWives } from './dynasty-wives';
 import { parentIndex } from './kinship';
 import { villageManorId } from './manor';
@@ -139,8 +139,11 @@ export function succeedLord(state: VillageState, day: number): ChronicleEvent[] 
 /**
  * Krok dne rodu po `populationDay` (simulate.ts): muž, kterému dnes zemřela hlavní manželka, má
  * novou (`ensureMainWives`), a po smrti vojvody nastoupí nástupce (`succeedLord`). Jména a příznaky
- * dnes narozených dává `markNewborn` už při porodu. Ves bez rodu – nic. Mutuje stav.
+ * dnes narozených dává `markNewborn` už při porodu; elitu (hillfort.md – Elita) pak `markElite` –
+ * až po nástupnictví, aby nový vojvoda označil své syny týž den. Ves bez rodu – nic. Mutuje stav.
  */
 export function dynastyDay(state: VillageState, day: number): ChronicleEvent[] {
-  return [...ensureMainWives(state, day), ...succeedLord(state, day)];
+  const events = [...ensureMainWives(state, day), ...succeedLord(state, day)];
+  markElite(state);
+  return events;
 }
