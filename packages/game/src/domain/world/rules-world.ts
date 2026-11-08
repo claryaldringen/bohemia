@@ -7,6 +7,12 @@ export const WORLD = {
   invitedGap: 2,
   /** Dny cesty na políčko vzdálenosti, tam i zpět (vassalage.md – Doprava a cílová ves). */
   travelDaysPerCell: 2,
+  /**
+   * Pojistka hledání místa s podmínkou políčka (suchá políčka, místo kostry – world-skeleton.md –
+   * Hustota a stejné podmínky): nejvýš tolik prstenců za posledním obsazeným políčkem. Suchých map
+   * je ≈ 4 z 5, takže se hledání v praxi zastaví o pár prstenců dál.
+   */
+  searchRings: 64,
 } as const;
 
 /** Nabídka pánů nováčkovi (newcomers.md – Nabídka pánů). */

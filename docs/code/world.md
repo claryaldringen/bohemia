@@ -19,6 +19,10 @@ začátku svého dne, zápis zvedá verzi vsi) – `docs/code/village-core.md`, 
   se zachová. `PlacementRequest` `independent` nese volitelné `sameLanguage` (mapy rodů stejného
   jazyka; prázdné/chybějící = střed světa, hledá se nejblíž kterékoli z nich). `placeNewPlayer` je
   `placeCluster` s jednou buňkou. Čísla: `WORLD`, `NEWCOMERS` (`rules-world.ts`).
+  Volitelná **podmínka políčka** `placeCluster(…, cellOk)` (odříznutý shluk jen na suchá políčka
+  kostry – `isDry(skeletonSlice(…))`, Úloha 13): ověří se až po odstupu všech buněk, s pamětí na
+  políčko; vhodné může být až za obsazenými políčky, proto se hledá dál – nejvýš
+  `WORLD.searchRings` (64) prstenců za stropem, pak výjimka. Bez `cellOk` stejná cesta kódu jako dřív.
   Test odstupu jde přes množinu obsazených políček (číselný klíč buňky), takže jedna kontrola
   buňky stojí O(gap²) místo průchodu všemi obsazenými; pořadí prstenců a cílů se nezměnilo, výsledek
   je bit po bitu stejný (`__tests__/placement-equivalence.test.ts` drží starou lineární verzi
@@ -26,6 +30,19 @@ začátku svého dne, zápis zvedá verzi vsi) – `docs/code/village-core.md`, 
   Měření (`npx tsx packages/game/scripts/measure-placement.ts`, 100 nováčků + 20 shluků, stará → nová,
   řídký / hustý svět): 1 000 buněk 149 → 29 / 173 → 42 ms; 5 000 buněk 309 → 44 / 2 360 → 153 ms;
   20 000 buněk 799 → 173 / 35 019 → 656 ms (8. 11. 2026, vytížený stroj, jen relativně).
+- **Místo a typ sídla** (`domain/world/seat-placement.ts` – `placeSeat`, world-skeleton.md –
+  Hustota a stejné podmínky): `placeSeat({ occupied, request, slotOf, counts, seed, owned?, exclude? })`
+  vrátí `{ cell, type }`. Volná políčka dává `freeCellsByRing` (`placement.ts` – pořadí prstenců
+  a cílů jako `placeCluster`, každé políčko jednou s poloměrem k nejbližšímu cíli). R0 = první
+  prstenec s volným políčkem (`exclude` R0 neposouvá); kandidáti = volná políčka R0 … R0 +
+  `SKELETON.seat.slackRings` mimo `exclude`, jejichž `slotOf` není null; žádný → okno o prstenec
+  dál (pak celý první prstenec s kandidátem). Typy = sjednocení `SLOT_TYPES` kandidátů (`'dry'` =
+  15 typů bez kostry, `river` = splavná řeka a soutok, `ford` = vyvýšenina nad brodem, `trail` =
+  horský průsmyk); `owned` mezi nimi → ten, jinak `choosePremiumType(seed, counts, nabízené)`
+  (`allowed` omezí výběr, shoda v pořadí katalogu; bez `allowed` výsledek jako dřív). Políčko =
+  první kandidát s typem. `slotOf` (výřez kostry, ≈ 110 µs) se volá jen pro volná políčka okna.
+  Nikde místo → `RangeError` po `WORLD.searchRings` prstencích za stropem. Do Úlohy 10
+  (`SKELETON_PREMIUM_SLOTS`) drží `SLOT_TYPES` typy kostry samo; test porovná s lokální mapou.
 - **Nabídka pánů** (`domain/world/lord-offer.ts`): `lordOffer(candidates, { language, seed })` –
   jen živé rody hráčů s nejmenším počtem vsí ≥ 2; stejný jazyk první, uvnitř skupiny pořadí
   z `deriveSeed(seed, houseId)`; prázdná nabídka = `[]` (newcomers.md – Nabídka pánů).

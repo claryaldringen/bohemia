@@ -44,6 +44,37 @@ function placementTargets(request: PlacementRequest): readonly GridCell[] {
     : [SEAT_CELL];
 }
 
+/** Odstup od cizích map podle žádosti (vassalage.md – Místo na mapě světa). */
+function placementGap(request: PlacementRequest): number {
+  return request.kind === 'invited' ? WORLD.invitedGap : WORLD.independentGap;
+}
+
+/** Strop hledání: prstenec, který vždy přesáhne všechna obsazená políčka + odstup. */
+function searchLimit(
+  occupied: readonly OccupiedCell[],
+  targets: readonly GridCell[],
+  gap: number,
+): number {
+  let limit = gap;
+  for (const t of targets)
+    for (const o of occupied) limit = Math.max(limit, cellDistance(t, o.cell) + gap);
+  return limit;
+}
+
+/** Podmínka políčka s pamětí – každé políčko se ověří nejvýš jednou. */
+function memoized(cellOk: (cell: GridCell) => boolean): (x: number, y: number) => boolean {
+  const known = new Map<number, boolean>();
+  return (x, y) => {
+    const key = cellKey(x, y);
+    let ok = known.get(key);
+    if (ok === undefined) {
+      ok = cellOk({ x, y });
+      known.set(key, ok);
+    }
+    return ok;
+  };
+}
+
 /** Číselný klíč políčka (souřadnice do ±2^25). */
 function cellKey(x: number, y: number): number {
   return (x + 33554432) * 67108864 + (y + 33554432);
@@ -67,27 +98,29 @@ function isBlocked(keys: ReadonlySet<number>, x: number, y: number, gap: number)
 /**
  * Nejbližší posun shluku vsí (místní souřadnice, první = sídlo), kde mají všechny buňky shluku
  * odstup aspoň `gap` od cizích políček. Hledá po prstencích kolem cílů (víc cílů = nejblíž
- * kterémukoli) a zachovává vzájemnou polohu buněk (newcomers.md – Odříznutá krajina).
+ * kterémukoli) a zachovává vzájemnou polohu buněk (newcomers.md – Odříznutá krajina). S `cellOk`
+ * musí podmínku splnit každá buňka shluku (odříznutý shluk jen na suchá políčka kostry).
  */
 export function placeCluster(
   occupied: readonly OccupiedCell[],
   cluster: readonly GridCell[],
   request: PlacementRequest,
+  cellOk?: (cell: GridCell) => boolean,
 ): { offset: GridCell; cells: GridCell[] } {
   const first = cluster[0];
   if (!first) throw new Error('Prázdný shluk vsí');
   const targets = placementTargets(request);
-  const gap: number = request.kind === 'invited' ? WORLD.invitedGap : WORLD.independentGap;
+  const gap = placementGap(request);
   const local = cluster.map((c) => ({ x: c.x - first.x, y: c.y - first.y }));
-  // Strop hledání: dost velký, aby prstenec vždy přesáhl všechna obsazená políčka + odstup.
-  let limit = gap;
-  for (const t of targets)
-    for (const o of occupied) limit = Math.max(limit, cellDistance(t, o.cell) + gap);
   const extent = local.reduce((m, l) => Math.max(m, cellDistance(l, { x: 0, y: 0 })), 0);
-  limit += extent;
+  const limit = searchLimit(occupied, targets, gap) + extent;
+  // S podmínkou políčka (jen suchá políčka kostry – world-skeleton.md – Hustota a stejné podmínky)
+  // může být vhodné až za obsazenými políčky: hledá se dál, nejvýš `WORLD.searchRings` prstenců.
+  const ok = cellOk ? memoized(cellOk) : null;
+  const maxRadius = ok ? limit + WORLD.searchRings : limit;
   // Obsazená políčka v množině; zakázané je to do `gap - 1` kroků od obsazeného.
   const keys = occupiedKeys(occupied);
-  for (let radius = 0; radius <= limit; radius++) {
+  for (let radius = 0; radius <= maxRadius; radius++) {
     for (const target of targets) {
       for (const seat of ringCells(target, radius)) {
         let fits = true;
@@ -97,13 +130,50 @@ export function placeCluster(
             break;
           }
         }
+        // Podmínka políčka (drahá – výřez kostry) až po odstupu všech buněk.
+        if (fits && ok)
+          for (const l of local) {
+            if (!ok(seat.x + l.x, seat.y + l.y)) {
+              fits = false;
+              break;
+            }
+          }
         if (fits)
           return { offset: seat, cells: local.map((l) => ({ x: seat.x + l.x, y: seat.y + l.y })) };
       }
     }
   }
-  // Nedosažitelné: na prstenci `limit` je vždy volno.
+  // Bez podmínky nedosažitelné: na prstenci `limit` je vždy volno.
   throw new Error('Nenalezeno volné políčko mřížky světa');
+}
+
+/**
+ * Volná políčka (odstup podle žádosti) po prstencích kolem cílů žádosti v pořadí `placeCluster`,
+ * každé jednou, s poloměrem = vzdálenost k nejbližšímu cíli. Za prstencem, na kterém je vždy
+ * volno, pokračuje ještě `extraRings` prstenců (`placeSeat` – políčko musí mít i místo kostry).
+ */
+export function* freeCellsByRing(
+  occupied: readonly OccupiedCell[],
+  request: PlacementRequest,
+  extraRings: number,
+): Generator<{ cell: GridCell; radius: number }> {
+  const targets = placementTargets(request);
+  const gap = placementGap(request);
+  const maxRadius = searchLimit(occupied, targets, gap) + extraRings;
+  const keys = occupiedKeys(occupied);
+  const seen = new Set<number>();
+  for (let radius = 0; radius <= maxRadius; radius++) {
+    for (const target of targets) {
+      for (const cell of ringCells(target, radius)) {
+        if (isBlocked(keys, cell.x, cell.y, gap)) continue;
+        const key = cellKey(cell.x, cell.y);
+        // Políčko blíž jinému cíli už prošlo na menším prstenci.
+        if (seen.has(key)) continue;
+        seen.add(key);
+        yield { cell, radius };
+      }
+    }
+  }
 }
 
 /** Nejbližší volné políčko od cíle, které je od všech obsazených aspoň `gap` daleko. */
