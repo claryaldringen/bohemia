@@ -7,8 +7,8 @@ import {
   TICKS_PER_SECOND,
   WAR,
   FORTIFICATIONS,
+  battleWallsOf,
   climbTicks,
-  crossingLayers,
   type BattleBreach,
   type BattleFort,
   type BattleGroup,
@@ -20,6 +20,9 @@ import {
   type GroupOrder,
   type Pos,
   type WallKind,
+  type WarSceneBreach,
+  type WarSceneFighter,
+  type WarSceneWall,
 } from '@bohemia/game';
 import { CHAMBER, CRIB, RAMPART, STAKE_HEIGHT_M, WALKWAY } from './fortification-layout';
 
@@ -59,14 +62,21 @@ export type SceneLadder = Pick<
 
 /**
  * Hradba úseku na bojišti pro scénu: lomená čára úseku, stojící hradba (null – mezera, průlom,
- * holý val) a výška valu pod ní (0–1, 0 – bez valu). Výšky lezců a obránců na ochozu.
+ * holý val) a výška valu pod ní (0–1, 0 – bez valu). Výšky lezců a obránců na ochozu. Počítá ji
+ * jádro (`battleWallsOf`) – i server pro scénu napadené vsi (`WarSceneView`).
  */
-export interface SceneWall {
-  fort: number;
-  segment: number;
-  path: Pos[];
-  kind: WallKind | null;
-  rampart: number;
+export type SceneWall = WarSceneWall;
+
+/**
+ * Boj, ze kterého se skládá snímek scény: celý stav jádra (`BattleState` – ukázka Bitva), nebo
+ * to, co z boje smí hráč vidět (`WarSceneBattle` – server, mlha války).
+ */
+export interface SceneBattleSource extends Pick<BattleState, 'ticks' | 'outcome'> {
+  fighters: readonly WarSceneFighter[];
+  groups: readonly Pick<BattleGroup, 'side' | 'id' | 'order' | 'broken'>[];
+  closedGates: readonly string[];
+  breaches: readonly WarSceneBreach[];
+  ladders?: readonly NonNullable<BattleState['ladders']>[number][];
 }
 
 /** Skupina v boji pro scénu (jádro – `BattleGroup`). */
@@ -118,7 +128,7 @@ export interface SceneMarch {
  * Boj z jádra pro scénu (kopie – stav jádra se taktem mění na místě). `walls` – hradby bojiště
  * (`battleWalls`), jednou za boj; bez nich se lezci a obránci zvednou jako u palisády bez valu.
  */
-export function sceneBattle(b: BattleState, walls: readonly SceneWall[] = []): SceneBattle {
+export function sceneBattle(b: SceneBattleSource, walls: readonly SceneWall[] = []): SceneBattle {
   return {
     ticks: b.ticks,
     outcome: b.outcome,
@@ -185,22 +195,7 @@ export function sceneBattle(b: BattleState, walls: readonly SceneWall[] = []): S
  * stojící hradba v den boje a výška valu. Pořadí opevnění jako na bojišti.
  */
 export function battleWalls(forts: readonly BattleFort[], day: number): SceneWall[] {
-  return forts.flatMap((bf, fort) =>
-    bf.shapes.flatMap((shape) => {
-      const seg = bf.fort.segments.find((s) => s.index === shape.index);
-      if (!seg) return [];
-      const layers = crossingLayers(bf.fort, seg, day, false);
-      return [
-        {
-          fort,
-          segment: shape.index,
-          path: shape.path.map(([x, z]) => ({ x, z })),
-          kind: layers.wall?.kind ?? null,
-          rampart: layers.rampart?.height ?? 0,
-        },
-      ];
-    }),
-  );
+  return battleWallsOf(forts, day);
 }
 
 /** Pochod z jádra pro scénu: směr skupiny podle úseku pochodu (stojí – k cíli, jinak na sever). */

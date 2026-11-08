@@ -29,6 +29,8 @@ export interface E2EHooks {
     /** Naplánované skupiny (první stanoviště) – modely se načtou až se zvěří v záběru. */
     groups: { species: string; x: number; z: number }[];
   };
+  /** Meshe vojska, které scéna kreslí, a počty instancí (war.md – Ve scéně – napojení na hru). */
+  armyStats?: () => { name: string; count: number }[];
   /** Posune kameru nad bod krajiny (x, z) – zvěř bývá u lesa mimo výchozí záběr. */
   moveCameraTo?: (x: number, z: number) => void;
   /** Pošle požadavek na trasy vozů tím samým routerem jako hra (Web Worker, jinak hlavní vlákno). */

@@ -879,6 +879,10 @@ export class LandscapeScene {
    */
   setWar(war: SceneWar | null): void {
     this.war = war;
+    // kolik mužů scéna dostala (boj – bojovníci, pochod – muži skupin) – pro e2e
+    const men = war ? (war.battle?.fighters.length ?? 0) + (war.march?.members.length ?? 0) : 0;
+    if (men > 0) this.canvas.dataset.warMen = String(men);
+    else delete this.canvas.dataset.warMen;
     if (
       this.army?.set(war, Date.now(), !!this.reducedMotion?.matches, this.rtsCamera?.camera ?? null)
     ) {

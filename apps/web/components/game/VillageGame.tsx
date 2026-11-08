@@ -118,6 +118,8 @@ import { PanelOptionsContext, type PanelOptionsSource } from '@/hooks/use-panel-
 import type { PanelAsk, PanelOptions } from '@/lib/panel-options';
 import { usePlacement } from '@/hooks/use-placement';
 import { usePolling } from '@/hooks/use-polling';
+import { useWarScene } from '@/hooks/use-war-scene';
+import { sceneWarOf } from '@/lib/war-scene-view';
 import { authClient } from '@/lib/auth-client';
 import {
   buildItem,
@@ -605,6 +607,12 @@ export function VillageGame({
     newcomerPhase.current = phase;
   }, [newcomer, village]);
   const gameOver = view?.gameOver === true;
+  // Válka na mapě sídla ve scéně (war.md – Ve scéně – napojení na hru): napadená ves i vlastní
+  // vojsko na mapě; co je vidět, rozhodl server (mlha války), scéna jen kreslí.
+  const warScene = useWarScene(settlementId, scene !== null && !gameOver);
+  useEffect(() => {
+    scene?.setWar(sceneWarOf(warScene, world));
+  }, [scene, warScene, world]);
   // Po konci hry je přes všechno obrazovka porážky – nabídka se neukáže.
   const menuShown = menuOpen && !gameOver;
 
@@ -830,7 +838,9 @@ export function VillageGame({
     setE2EHook('slaughterMeshes', () => scene.slaughterMeshes());
     setE2EHook('wildAnimals', () => scene.wildAnimals());
     setE2EHook('moveCameraTo', (x, z) => scene.moveCameraTo(x, z));
+    setE2EHook('armyStats', () => scene.armyStats());
     return () => {
+      setE2EHook('armyStats', undefined);
       setE2EHook('projectToScreen', undefined);
       setE2EHook('slaughterMeshes', undefined);
       setE2EHook('wildAnimals', undefined);
