@@ -25,8 +25,9 @@ vstupní bod (composition root) jako web – žádná herní logika, jen plánov
   `HELD_WAKE_MS` = 250 ms, viz Přednostní vsi); souhrn do logu jednou za minutu; chyba kola ani jednoho
   hráče smyčku nezastaví. Hodiny, spánek i krok se v testech nahrazují (`LoopDeps`). Mezi koly pouští
   `runWorldTasks` (kredity nástupnictví, `world.md`; obnova zásilek, Odvody, války, nováčci; jídlo
-  domény po žních `sendDomainFood` – `vassalage.md`, Jídlo domény – krok světa, člen `domainFood`
-  worker zatím nepředává – hradiště, úloha 8) nejvýš jednou za minutu (`WORLD_TASKS_MS`, podle
+  domény po žních `sendDomainFood` – `vassalage.md`, Jídlo domény – krok světa; člen `domainFood`
+  skládá `main.ts`: `loadVillage` s dopočtem do dneška a uložením, `gameDeps.domainFood`, mapa
+  pokusů `attempts` drží proces) nejvýš jednou za minutu (`WORLD_TASKS_MS`, podle
   hodin `deps.now`); jejich chyba kolo nezastaví.
 - `src/campaign-loop.ts` – `runCampaignLoop(deps, { campaignMs }, signal)`: **smyčka tažení**
   vedle smyčky vsí (`main.ts` je pouští spolu přes `Promise.all`, signál ukončí obě). Kolo

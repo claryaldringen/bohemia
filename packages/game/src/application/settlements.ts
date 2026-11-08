@@ -68,6 +68,11 @@ export interface SettlementRepository {
   /** Aktivní sídla hráče – sídelní první, pak podle založení. */
   listActive(ownerId: string): Promise<Settlement[]>;
   /**
+   * Držitelé s aspoň dvěma aktivními sídly bez čekajícího převodu (sídla jako `listActive`) –
+   * jedno sídlo = jedna ves; seřazení podle id (krok světa jídla domény, hillfort.md).
+   */
+  ownersWithManyActive(): Promise<string[]>;
+  /**
    * Odloží sídlo do archivu (restart hry): přestane být aktivní i sídelní, data zůstanou.
    * True, když ho archivovalo tohle volání; už archivované nebo neznámé → false.
    */
@@ -115,19 +120,6 @@ export interface SettlementRepository {
    * držitele (odúmrť, postoupení); hráč bez typu null.
    */
   lastPremiumType(playerId: string): Promise<PremiumType | null>;
-}
-
-/**
- * Port: držitelé domén – kdo drží víc vsí (krok světa jídla domény, hillfort.md – Jídlo domény).
- * Zatím zvlášť od `SettlementRepository`: implementuje ho úložiště sídel v paměti a adaptér DB
- * přibude v Úloze 8 plánu hradiště (pak se smí přesunout do `SettlementRepository`).
- */
-export interface SettlementOwners {
-  /**
-   * Držitelé s aspoň dvěma aktivními sídly bez čekajícího převodu (sídla jako `listActive`) –
-   * jedno sídlo = jedna ves; seřazení podle id.
-   */
-  ownersWithManyActive(): Promise<string[]>;
 }
 
 /** Port: zdroj nových seedů krajiny – náhoda přichází zvenku, doména je deterministická. */

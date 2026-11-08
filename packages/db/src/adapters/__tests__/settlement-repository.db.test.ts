@@ -223,6 +223,35 @@ describe('createSettlementRepository', () => {
     expect(await repository.lastPremiumType('nikdo')).toBeNull();
   });
 
+  it('ownersWithManyActive: držitel s 1, 2 a archivovaným sídlem, čekající převod nepočítá', async () => {
+    for (const id of ['hrac-2', 'hrac-3', 'pan']) await addPlayer(id);
+    // hrac-1: dvě aktivní; hrac-2: jedna; hrac-3: dvě, jedno archivované
+    await createdSeat();
+    await repository.create({ ...base, landscapeSeed: 2, worldCell: { x: 1, y: 0 } });
+    await createdSeat({ ...base, ownerId: 'hrac-2', worldCell: { x: 0, y: 5 } });
+    await createdSeat({ ...base, ownerId: 'hrac-3', worldCell: { x: 0, y: 7 } });
+    const archived = await repository.create({
+      ...base,
+      ownerId: 'hrac-3',
+      landscapeSeed: 3,
+      worldCell: { x: 1, y: 7 },
+    });
+    // hrac-3 má dvě aktivní sídla, hrac-1 také
+    expect(await repository.ownersWithManyActive()).toEqual(['hrac-1', 'hrac-3']);
+    await repository.archive(archived!.id);
+    expect(await repository.ownersWithManyActive()).toEqual(['hrac-1']);
+    // druhé sídlo hrac-3 s čekajícím převodem pánovi se nepočítá ani jemu, ani pánovi
+    const second = await repository.create({
+      ...base,
+      ownerId: 'hrac-3',
+      landscapeSeed: 4,
+      worldCell: { x: 2, y: 7 },
+    });
+    expect(await repository.ownersWithManyActive()).toEqual(['hrac-1', 'hrac-3']);
+    expect(await repository.transferHolder(second!.id, 'hrac-3', 'pan')).toBe(true);
+    expect(await repository.ownersWithManyActive()).toEqual(['hrac-1']);
+  });
+
   it('lastPremiumType i z archivovaného a převedeného sídla; počty typů po hráčích', async () => {
     await addPlayer('hrac-2');
     await addPlayer('pan');

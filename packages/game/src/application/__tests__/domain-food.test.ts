@@ -306,6 +306,29 @@ describe('sendDomainFood', () => {
     expect(sleeping.loaded).toEqual([]);
   });
 
+  it('(g) dárce, který po dopočtu nevyjde, se zkusí znovu nejdřív další herní den', async () => {
+    const w = await world([village(OCT_2, RICH), village(OCT_2, POOR)]);
+    const attempts = new Map<string, number>();
+    w.deps.attempts = attempts;
+    let calls = 0;
+    w.deps.loadVillage = async () => {
+      calls += 1;
+      return null; // ves se nenačetla
+    };
+    await sendDomainFood(w.deps, { today: OCT_2 });
+    expect(calls).toBeGreaterThan(0);
+    expect(w.rounds.rows).toEqual([]);
+    expect(attempts.size).toBeGreaterThan(0);
+    expect([...new Set(attempts.values())]).toEqual([OCT_2]);
+    // další minuta téhož herního dne – bez dopočtu
+    const before = calls;
+    await sendDomainFood(w.deps, { today: OCT_2 });
+    expect(calls).toBe(before);
+    // další herní den se zkusí znovu
+    await sendDomainFood(w.deps, { today: OCT_2 + 1 });
+    expect(calls).toBeGreaterThan(before);
+  });
+
   it('ves s jídlem na cestě, které potřebu kryje, nic nedostane', async () => {
     const w = await world([village(OCT_2, RICH), village(OCT_2, POOR), village(OCT_2, RICH)]);
     const [a, b, c] = w.ids as [string, string, string];

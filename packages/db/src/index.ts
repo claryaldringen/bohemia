@@ -9,6 +9,7 @@ export {
   createAccountLanguages,
   createAccountProviders,
   createShipmentRepository,
+  createDomainFoodRepository,
   createDialogRepository,
   createDisputeRepository,
   createPrisonerRepository,

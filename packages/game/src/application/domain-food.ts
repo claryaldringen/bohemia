@@ -20,7 +20,7 @@ import {
   type VillageState,
 } from '../domain/village';
 import { cellDistance } from '../domain/world/placement';
-import type { SettlementOwners, SettlementRepository, WorldCell } from './settlements';
+import type { SettlementRepository, WorldCell } from './settlements';
 import { sendShipment, settlementCell, type ShipmentDeps } from './shipments';
 import type { VillageRecord, VillageRepository } from './villages';
 
@@ -63,12 +63,19 @@ export interface DomainFoodRepository {
 }
 
 export interface DomainFoodDeps {
-  settlements: Pick<SettlementRepository, 'listActive'> & SettlementOwners;
+  settlements: Pick<SettlementRepository, 'listActive' | 'ownersWithManyActive'>;
   villages: Pick<VillageRepository, 'stampsOf' | 'digestsOf'>;
   /** Dopočet vsi do dneška a její záznam (composition root jako `prepareVillage` Odvodů). */
   loadVillage: (villageId: string, today: number) => Promise<VillageRecord | null>;
   shipments: ShipmentDeps;
   rounds: DomainFoodRepository;
+  /**
+   * Pokusy o rozdělení, které nevyšly (dárce po dopočtu není připravený, ves se nenačetla): ves →
+   * herní den pokusu. Takový dárce se zkusí znovu nejdřív další herní den (návrh Clauda, Úloha 8)
+   * – krok běží 1× za minutu (≈ 86 s je herní den), ale dopočet všech vsí domény je drahý. Worker
+   * drží mapu po celý běh; po restartu se zkusí jednou znovu. Bez mapy (testy) se neomezuje.
+   */
+  attempts?: Map<string, number>;
   /** Odmítnutá dodávka (po pádu a dalším dni ves tolik nemá…); výchozí `console.warn`. */
   log?: (message: string) => void;
 }
@@ -136,7 +143,9 @@ async function ownerRound(
     .map((d) => d.id);
   if (ready.length === 0) return;
   const decided = await deps.rounds.decided(ready, year);
-  const donors = ready.filter((id) => !decided.has(id)).sort(byId);
+  const donors = ready
+    .filter((id) => !decided.has(id) && (deps.attempts?.get(id) ?? -1) < today)
+    .sort(byId);
   if (donors.length === 0) return;
 
   const cells = new Map(settlements.map((s) => [s.id, settlementCell(s)]));
@@ -150,7 +159,11 @@ async function ownerRound(
 
   for (const donorId of donors) {
     const donor = domain.get(donorId);
-    if (!donor || !canGive(donor.record.state, today, year)) continue;
+    if (!donor || !canGive(donor.record.state, today, year)) {
+      // nevyšlo – žádný zápis plánu, jen pokus; další pokus nejdřív další herní den
+      deps.attempts?.set(donorId, today);
+      continue;
+    }
     const recipients: { villageId: string; needKg: number; cells: number }[] = [];
     for (const id of order) {
       const village = domain.get(id)!;
