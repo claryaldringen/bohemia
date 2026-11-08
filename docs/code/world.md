@@ -19,6 +19,13 @@ začátku svého dne, zápis zvedá verzi vsi) – `docs/code/village-core.md`, 
   se zachová. `PlacementRequest` `independent` nese volitelné `sameLanguage` (mapy rodů stejného
   jazyka; prázdné/chybějící = střed světa, hledá se nejblíž kterékoli z nich). `placeNewPlayer` je
   `placeCluster` s jednou buňkou. Čísla: `WORLD`, `NEWCOMERS` (`rules-world.ts`).
+  Test odstupu jde přes množinu obsazených políček (číselný klíč buňky), takže jedna kontrola
+  buňky stojí O(gap²) místo průchodu všemi obsazenými; pořadí prstenců a cílů se nezměnilo, výsledek
+  je bit po bitu stejný (`__tests__/placement-equivalence.test.ts` drží starou lineární verzi
+  v `placement-reference.ts`). Zbývá lineární cena sestavení množiny a stropu hledání (O(N) na volání).
+  Měření (`npx tsx packages/game/scripts/measure-placement.ts`, 100 nováčků + 20 shluků, stará → nová,
+  řídký / hustý svět): 1 000 buněk 149 → 29 / 173 → 42 ms; 5 000 buněk 309 → 44 / 2 360 → 153 ms;
+  20 000 buněk 799 → 173 / 35 019 → 656 ms (8. 11. 2026, vytížený stroj, jen relativně).
 - **Nabídka pánů** (`domain/world/lord-offer.ts`): `lordOffer(candidates, { language, seed })` –
   jen živé rody hráčů s nejmenším počtem vsí ≥ 2; stejný jazyk první, uvnitř skupiny pořadí
   z `deriveSeed(seed, houseId)`; prázdná nabídka = `[]` (newcomers.md – Nabídka pánů).
