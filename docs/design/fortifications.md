@@ -372,10 +372,22 @@ Vše kromě Martinových životností je návrh Clauda.
   s ochozem 0,2 + 0,5; roštová 0,3 + 0,55; komorová 0,35 + 0,55; val přidá 0,05 + 0,1.
   **Přínos za rok** = H × ztráta nájezdu × ochrana; horizont nejvýš životnost druhu (roštová 30,
   komorová 50 let); cena = stavba + údržba za horizont.
+- **Vodní příkop** přidá pasivní ochranu **0,1** (návrh Clauda – doladit měřením nájezdů NPC, jen
+  na pokyn).
+- **Měřítko přínosu 0,06** (návrh Clauda – doladit měřením nájezdů NPC, jen na pokyn): přínos se
+  násobí 0,06. S hrozbou 1 (nájezd každý rok) a dnešní ztrátou nájezdu – u typické vsi 60 lidí
+  ≈ 5 800 čd, u vsi 150 lidí ≈ 14 000 čd, hlavně dobytek – by se plnou ochranou vyplatila palisáda
+  i malé vsi s dvěma domy. S měřítkem na typických vsích (polovina dospělých, kráva na 6 lidí,
+  obvod správce 600 m u 60 lidí a 900 m u 150 lidí, Růst) platí Martinovy cíle: ves 60 lidí
+  nepostaví nic, ves 150 lidí palisádu (ochoz, val i hradby by jí vyšly hůř), roštová a komorová
+  se nevyplatí ani jí.
 - Ochrana se doladí **měřením nájezdů NPC** na vsi s hradbou (jen na pokyn), aby platily Martinovy
   cíle: plot se nevyplatí, palisáda jen velké vsi pod stropem mapy, hradby běžná ves ne.
 - Správce staví nový druh, vylepšení, ochoz, doplnění valu i vodní příkop – vždy celý obvod;
-  klešťovou bránu a věž v první verzi jen hráč (návrh Clauda).
+  klešťovou bránu a věž v první verzi jen hráč (návrh Clauda). Plán s víc kroky staví po etapách
+  (návrh Clauda): napřed val, nebo hradbu (ochoz jen z palisády, jinak napřed palisáda), pak val
+  pod hradbu, nakonec příkop – ten jen, když voda dosáhne do celého obvodu. Cena = stavba z dnešního
+  stavu (kácení a lámání, co chybí na hromadě) + přírůstek údržby za horizont.
 
 ### Rozhraní a scéna
 
@@ -423,7 +435,7 @@ Vše kromě Martinových životností je návrh Clauda.
 | Životnost                   | roštová 30 let, komorová 50 let, věž 20 let                                                            | návrh Clauda                  |
 | Údržba na 100 m ročně       | plot 1, palisáda 1, ochoz +1, val 2, roštová 5, komorová 5 čd                                          | návrh Clauda                  |
 | Přestavba hradby            | roštová a komorová ⅓ ceny, kámen zůstane                                                               | návrh Clauda                  |
-| Ochrana pro správce         | pasivní + aktivní × obsazenost (výchozí v Správce)                                                     | návrh Clauda                  |
+| Ochrana pro správce         | pasivní + aktivní × obsazenost (Správce); příkop 0,1; měřítko 0,06 – doladit měřením nájezdů NPC       | návrh Clauda                  |
 
 ### Střelba a viditelná plocha (Martin 8. 11. 2026)
 
@@ -769,7 +781,8 @@ a každý signál slábne s poločasem **10 herních let** (≈ 3,7 skutečného
   15, palisáda 20 let; od 8. 11. 2026 i roštová 30, komorová 50 let).
 - **Druh:** správce spočte přínos × horizont − cena pro plot, palisádu, val, val s plotem a val
   s palisádou (od 8. 11. 2026 i palisádu s ochozem, roštovou a komorovou hradbu, doplnění valu
-  a vodní příkop) a postaví nejlepší kladný; u stojícího opevnění počítá jen rozdíl vylepšení.
+  a vodní příkop – [Hradby a obrana – Správce](#správce)) a postaví nejlepší kladný; u stojícího
+  opevnění počítá jen rozdíl vylepšení.
 - **Obvod správce:** stejný návrh jako pro hráče – nejkratší hladký obvod kolem jádra vsi (Obvod);
   útočiště musí pojmout lidi a dobytek vsi + 20 % na růst, jinak správce zvětší odstup po 5 m
   (návrh Clauda). Brány jen samy na cestách.

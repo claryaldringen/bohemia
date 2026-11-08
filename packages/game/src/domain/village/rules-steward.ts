@@ -189,7 +189,8 @@ export const STEWARD = {
   /**
    * 9a. Opevnění podle hrozby (fortifications.md – Správce; návrh Clauda 5. 11. 2026): horizont
    * přínosu jako u posvátných míst – v Růstu generace (25 let), v Obnově 5 let, v Nouzi se
-   * nestaví; nejvýš životnost druhu (plot 15, palisáda 20 let).
+   * nestaví; nejvýš životnost nové hradby (plot 15, palisáda 20, roštová 30, komorová 50 let – Hradby
+   * a obrana, Správce).
    */
   fortPaybackYears: { emergency: 0, recovery: 5, growth: 25 } as Readonly<
     Record<StewardMode, number>

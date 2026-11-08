@@ -1,77 +1,115 @@
 import { tileOfWorldPoint, type Landscape, type ObstacleLayer } from '../landscape';
-import { fortificationCost } from './fortification';
+import {
+  fortificationCost,
+  fortOccupancy,
+  fortSections,
+  layerBuilt,
+  moatSegments,
+  segmentRampart,
+  upgradeBase,
+  wallRank,
+  type FortCost,
+} from './fortification';
 import { stewardFortificationProposal } from './fortification-proposal';
 import type { Point } from './polygon';
 import { outlineOf, villageFortifications } from './fortifications';
-import { laborPerDay } from './people';
+import { isFertile, laborPerDay } from './people';
 import { FORTIFICATIONS } from './rules-fortifications';
 import { TRADE_GOOD_VALUES } from './rules-trade';
 import { STEWARD } from './rules-steward';
 import { fieldCells, fieldCellValue, planCentre } from './steward-land';
 import type { StewardMode } from './steward';
-import type { FortKind, FortTop, VillageState, WallKind } from './types';
+import { stoneOnHand } from './stone';
+import type { FortKind, Fortification, VillageState, WallKind } from './types';
 import { woodLogs, wholeLogs } from './wood';
 
-// Opevnění podle hrozby (fortifications.md – Správce, Hrozba; steward.md – Rozhodovací pořadí,
-// krok 9a): hodnota druhu proti ceně a obvod, který správce nakreslí kolem lidí, zásob a dobytka.
-// Čisté funkce nad stavem vsi – krok dne a rozpočet práce jsou v `steward-extras.ts`.
+// Opevnění podle hrozby (fortifications.md – Hradby a obrana, Správce; Hrozba; steward.md –
+// Rozhodovací pořadí, krok 9a): ochrana plánu proti ceně a obvod, který správce nakreslí kolem
+// lidí, zásob a dobytka. Martin 8. 11. 2026: „To, že vesnice hradbu nepostaví, je spíš věcí správce
+// – prostě usoudí, že se mu nevyplatí.“ Čisté funkce nad stavem vsi – krok dne a rozpočet práce
+// jsou v `steward-extras.ts`.
 
 const DAYS_PER_YEAR = 365;
 
-/** Druh, který správce porovnává – val s nástavbou je jeden druh (staví se po etapách). */
-export type FortPlan = 'fence' | 'palisade' | 'rampart' | 'rampart-fence' | 'rampart-palisade';
+/**
+ * Plán opevnění správce (Hradby a obrana – Správce): hradba (nebo žádná), val s příkopem a vodní
+ * příkop – vždy celý obvod. Vodní příkop jen s valem.
+ */
+export interface FortPlan {
+  wall: WallKind | null;
+  rampart: boolean;
+  water: boolean;
+}
 
-/** Vstup `fortValue`: délka obvodu (m), kg obilí na člověkoden, odkud se vylepšuje a horizont (roky). */
+/** Ves bez opevnění. */
+export const NO_FORT: FortPlan = { wall: null, rampart: false, water: false };
+
+/**
+ * Vstup `fortValue`: délka obvodu (m), kg obilí na člověkoden, odkud se vylepšuje (null = nové
+ * opevnění), horizont (roky – údržba za horizont) a muži 16–44 (obsazenost).
+ */
 export interface FortValueInput {
   lengthM: number;
   kgPerManDay: number;
-  /** Už stojící druh (rozdíl vylepšení); chybí = nové opevnění. */
-  from?: FortPlan | null;
-  /** Horizont přínosu v letech (údržba valu za horizont). */
+  from: FortPlan | null;
   years: number;
+  men: number;
 }
 
-/** Násobek obrany druhu (Obrana – tabulka násobků). */
-export function planMultiplier(plan: FortPlan): number {
-  const m = FORTIFICATIONS.multiplier;
-  switch (plan) {
-    case 'fence':
-      return m.fence;
-    case 'palisade':
-      return m.palisade;
-    case 'rampart':
-      return m.rampart;
-    case 'rampart-fence':
-      return m.rampartFence;
-    case 'rampart-palisade':
-      return m.rampartPalisade;
-  }
-}
-
-/** Základ stavby druhu: val s nástavbou začíná valem. */
-export function planBase(plan: FortPlan): FortKind {
-  return plan === 'fence' || plan === 'palisade' ? plan : 'rampart';
-}
-
-/** Nástavba druhu (jen val s plotem nebo palisádou). */
-export function planTop(plan: FortPlan): FortTop | null {
-  return plan === 'rampart-fence' ? 'fence' : plan === 'rampart-palisade' ? 'palisade' : null;
-}
-
-/** Životnost druhu v letech (plot 15, palisáda 20; holý val nehnije – Infinity jen v porovnání). */
-export function planLifeYears(plan: FortPlan): number {
-  if (plan === 'fence' || plan === 'rampart-fence') return FORTIFICATIONS.lifeYears.fence;
-  if (plan === 'palisade' || plan === 'rampart-palisade') return FORTIFICATIONS.lifeYears.palisade;
-  return Number.MAX_SAFE_INTEGER;
+/** Stejný plán? */
+export function samePlan(a: FortPlan, b: FortPlan): boolean {
+  return a.wall === b.wall && a.rampart === b.rampart && a.water === b.water;
 }
 
 /**
- * Druh opevnění, které ves má (druh + hotová nástavba). Vyšší stupně hradby než palisáda správce
- * zatím počítá jako palisádu (ochranu druhu přidá další úloha – Hradby a obrana, Správce).
+ * Ochrana plánu (Hradby a obrana – Správce): podíl ztráty nájezdu, který opevnění ušetří =
+ * Σ (pasivní + aktivní × obsazenost) hradby a valu, vodní příkop přidá pasivní
+ * `protectionMoat`; nejvýš 1.
  */
-export function planOf(kind: FortKind, top: FortTop | undefined): FortPlan {
-  if (kind !== 'rampart') return kind === 'fence' ? 'fence' : 'palisade';
-  return top === undefined ? 'rampart' : top === 'fence' ? 'rampart-fence' : 'rampart-palisade';
+export function planProtection(plan: FortPlan, occupancy: number): number {
+  const p = FORTIFICATIONS.protection;
+  const occ = Math.min(1, Math.max(0, occupancy));
+  let sum = 0;
+  if (plan.wall !== null) sum += p[plan.wall].passive + p[plan.wall].active * occ;
+  if (plan.rampart) {
+    sum += p.rampart.passive + p.rampart.active * occ;
+    if (plan.water) sum += FORTIFICATIONS.protectionMoat;
+  }
+  return Math.min(1, sum);
+}
+
+/** Údržba plánu v čd na 100 m ročně (Hradby a obrana – Životnost a údržba): hradba a val zvlášť. */
+export function planUpkeepPer100M(plan: FortPlan): number {
+  const u = FORTIFICATIONS.upkeepPer100MYear;
+  return (plan.wall !== null ? u[plan.wall] : 0) + (plan.rampart ? u.rampart : 0);
+}
+
+/** Muži 16–44 let – obránci, kteří obsadí hradbu (Hradby a obrana – Správce, obsazenost). */
+export function fortDefenders(state: VillageState, day: number): number {
+  let men = 0;
+  for (const p of state.people) if (p.sex === 'male' && isFertile(p, day)) men++;
+  return men;
+}
+
+/**
+ * Plán, který stojí na opevnění `fort` (Hradby a obrana – Správce): nejnižší hradba dílů (díl bez
+ * hradby – holý val či mezera – null), val jen když ho má dostavěný každý díl, vodní příkop jen
+ * když je napuštěný v celém obvodu.
+ */
+export function fortPlanOf(fort: Fortification): FortPlan {
+  let wall: WallKind | null | undefined;
+  let rampart = fort.segments.length > 0;
+  let water = rampart;
+  for (const seg of fort.segments) {
+    const base = upgradeBase(fort, seg);
+    const w = base.kind === 'wall' ? base.wall : null;
+    if (wall === undefined) wall = w;
+    else if (wall !== null) wall = w === null || wallRank(w) < wallRank(wall) ? w : wall;
+    const r = seg.demolishedDay === undefined ? segmentRampart(fort, seg) : null;
+    if (!layerBuilt(r)) rampart = false;
+    if (!r?.water) water = false;
+  }
+  return { wall: wall ?? null, rampart, water: rampart && water };
 }
 
 /**
@@ -92,41 +130,36 @@ export function raidLossManDays(state: VillageState, day: number, kgPerManDay: n
 }
 
 /**
- * Cena stavby druhu `plan` z druhu `from` (fortifications.md – Hradby a obrana, Cena): práce bez
- * kácení (`fortificationCost`) + kácení chybějících klád za `pileSaves.logManDays` na strom –
- * cena komplet, z hromady o kládu levněji.
+ * Cena stavby plánu `plan` z plánu `from` (fortifications.md – Hradby a obrana, Cena): práce bez
+ * kácení a lámání (`fortificationCost` – vylepšení cenu cílového stupně, ochoz jen přístavbu,
+ * hradba na valu jako samotná), val, strouha vodního příkopu (¼ čd na 1 m) + kácení chybějících
+ * klád a lámání chybějícího kamene (1 čd na kládu a m³) – cena komplet, z hromady levněji.
  */
-function planCost(
-  state: VillageState,
-  plan: FortPlan,
-  from: FortPlan | null,
-  lengthM: number,
-): number {
-  const parts: { labor: number; wood: number }[] = [];
-  const add = (kind: FortKind, wallFrom: WallKind | null = null): void => {
-    const c = fortificationCost(kind, lengthM, wallFrom);
-    parts.push({ labor: c.laborManDays, wood: c.logs });
+function planCost(state: VillageState, plan: FortPlan, from: FortPlan, lengthM: number): number {
+  let labor = 0;
+  let logs = 0;
+  let stone = 0;
+  const add = (c: FortCost): void => {
+    labor += c.laborManDays;
+    logs += c.logs;
+    stone += c.stoneM3;
   };
-  const top = planTop(plan);
-  if (from === null) {
-    add(planBase(plan));
-    if (top) add(top);
-  } else if (from === 'fence') {
-    add('palisade', 'fence');
-  } else if (top) {
-    add(top);
+  if (plan.wall !== null && plan.wall !== from.wall) {
+    add(fortificationCost(plan.wall, lengthM, from.wall));
   }
-  const labor = parts.reduce((s, p) => s + p.labor, 0);
-  const wood = parts.reduce((s, p) => s + p.wood, 0);
-  const fell = Math.max(0, wood - wholeLogs(woodLogs(state))) * FORTIFICATIONS.pileSaves.logManDays;
-  return labor + fell;
+  if (plan.rampart && !from.rampart) add(fortificationCost('rampart', lengthM));
+  if (plan.water && !from.water) labor += FORTIFICATIONS.moat.manDaysPerM * lengthM;
+  const saves = FORTIFICATIONS.pileSaves;
+  const fell = Math.max(0, logs - wholeLogs(woodLogs(state))) * saves.logManDays;
+  const quarry = Math.max(0, stone - stoneOnHand(state)) * saves.stoneManDaysPerM3;
+  return labor + fell + quarry;
 }
 
 /**
- * Hodnota druhu `plan` pro hrozbu `threat` (fortifications.md – Správce): `gain` = přínos za rok
- * v člověkodnech (`H × ztráta nájezdu × (1 ÷ dnešní násobek − 1 ÷ nový násobek)`, bez opevnění
- * násobek 1), `cost` = práce stavby a kácení chybějících klád, u valu k tomu údržba za horizont.
- * Správce staví, když `gain × horizont − cost > 0`.
+ * Hodnota plánu `plan` pro hrozbu `threat` (fortifications.md – Hradby a obrana, Správce):
+ * `gain` = přínos za rok v člověkodnech = H × ztráta nájezdu × `protectionScale` × (ochrana plánu
+ * − ochrana dneška) s obsazeností `fortOccupancy(muži, délka)`; `cost` = stavba (`planCost`)
+ * + přírůstek údržby za horizont. Správce staví, když `gain × horizont − cost > 0`.
  */
 export function fortValue(
   state: VillageState,
@@ -135,17 +168,17 @@ export function fortValue(
   threat: number,
   input: FortValueInput,
 ): { gain: number; cost: number } {
-  const from = input.from ?? null;
-  const before = from === null ? 1 : planMultiplier(from);
+  const from = input.from ?? NO_FORT;
+  const occupancy = fortOccupancy(input.men, input.lengthM);
   const gain =
     threat *
     raidLossManDays(state, day, input.kgPerManDay) *
-    Math.max(0, 1 / before - 1 / planMultiplier(plan));
-  let cost = planCost(state, plan, from, input.lengthM);
-  if (from === null && planBase(plan) === 'rampart') {
-    cost += (FORTIFICATIONS.rampartUpkeep.manDaysPer100MYear * input.lengthM * input.years) / 100;
-  }
-  return { gain, cost };
+    FORTIFICATIONS.protectionScale *
+    Math.max(0, planProtection(plan, occupancy) - planProtection(from, occupancy));
+  const upkeep =
+    (Math.max(0, planUpkeepPer100M(plan) - planUpkeepPer100M(from)) * input.lengthM * input.years) /
+    100;
+  return { gain, cost: planCost(state, plan, from, input.lengthM) + upkeep };
 }
 
 /** Kg čisté úrody na člověkoden v okolí vsi (`squareValue` políček kolem středu; mapa bez polí → záloha). */
@@ -175,9 +208,39 @@ export function stewardKgPerManDay(
   return n > 0 ? sum / n : STEWARD.fortKgPerManDayFallback;
 }
 
-/** Štítek režimu pro horizont (Nouze 0). */
-export function fortHorizonYears(plan: FortPlan, mode: StewardMode): number {
-  return Math.min(STEWARD.fortPaybackYears[mode], planLifeYears(plan));
+/**
+ * Horizont přínosu v letech (Hradby a obrana – Správce): podle režimu (Růst 25, Obnova 5, Nouze 0),
+ * nejvýš životnost hradby, kterou plán staví (plot 15, palisáda 20, roštová 30, komorová 50 let);
+ * val a vodní příkop nehnijí.
+ */
+export function fortHorizonYears(plan: FortPlan, from: FortPlan | null, mode: StewardMode): number {
+  const payback = STEWARD.fortPaybackYears[mode];
+  if (plan.wall === null || plan.wall === (from?.wall ?? null)) return payback;
+  return Math.min(payback, FORTIFICATIONS.lifeYears[plan.wall]);
+}
+
+/**
+ * Úsek, jehož příkop správce napustí dál (Hradby a obrana – Správce, vždy celý obvod): voda musí
+ * dosáhnout do všech dílů (`moatSegments` po úsecích), jinak null; vrátí díl úseku, který má ještě
+ * suché díly, nebo null, když je napuštěné všechno.
+ */
+export function stewardMoatSection(
+  landscape: Landscape,
+  fort: Fortification,
+): { segment: number } | null {
+  const wet = new Set<number>();
+  let next: number | null = null;
+  for (const section of fortSections(fort)) {
+    const first = section.segments[0];
+    if (first === undefined) continue;
+    for (const index of moatSegments(landscape, fort, first)) {
+      wet.add(index);
+      const seg = fort.segments.find((s) => s.index === index);
+      if (next === null && seg?.moatDay === undefined) next = first;
+    }
+  }
+  if (fort.segments.some((s) => !wet.has(s.index)) || next === null) return null;
+  return { segment: next };
 }
 
 // --- obvod ------------------------------------------------------------------------------

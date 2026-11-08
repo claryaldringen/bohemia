@@ -14,6 +14,7 @@ import {
   hullOffsetPoints,
   villageThreat,
 } from '../fortification';
+import { fortOccupancy } from '../fortification/assault';
 import { fortificationCore } from '../fortification-proposal';
 import { pointInPolygon } from '../polygon';
 import { FORTIFICATIONS } from '../rules-fortifications';
@@ -24,19 +25,26 @@ import { STEWARD } from '../rules-steward';
 import { advanceVillage } from '../simulate';
 import { fortificationStep, extraSteps } from '../steward-extras';
 import {
+  fortDefenders,
+  fortHorizonYears,
+  fortPlanOf,
   fortValue,
+  NO_FORT,
+  planProtection,
   refugeNeedM2,
   stewardFortificationFor,
   stewardKgPerManDay,
+  type FortPlan,
 } from '../steward-fortification';
 import { planSettlement } from '../steward-plan';
 import { newSteward } from '../steward-state';
 import type { StewardContext, StewardMode } from '../steward';
 import type { StewardOutlook } from '../steward-outlook';
-import type { ThreatSignal, VillageState } from '../types';
+import type { Person, ThreatSignal, VillageState, WallKind } from '../types';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
-// Krok Opevnění správce (fortifications.md – Správce, Hrozba; steward.md – Rozhodovací pořadí).
+// Krok Opevnění správce (fortifications.md – Hradby a obrana, Správce; Hrozba; steward.md –
+// Rozhodovací pořadí). Od 8. 11. 2026 ochrana druhu místo násobku (plán hradeb, Úloha 15).
 
 const YEAR = 365;
 const landscape = generateLandscape(1, CURRENT_LAYER_VERSIONS);
@@ -105,8 +113,18 @@ describe('steward-fortification – opevnění podle hrozby', () => {
     return s;
   }
 
+  /**
+   * Ves s hrozbou nájezdu a stádem 12 krav navíc – ztráta nájezdu ≈ 6 000 čd, aby se palisáda
+   * vyplatila (malé vsi bez dobytka se opevnění nevyplatí – Martinovy cíle 8. 11. 2026).
+   */
+  const rich = (s: VillageState): VillageState => {
+    const herds = s.livestock!.herds;
+    s.livestock = { ...s.livestock!, herds: { ...herds, cow: herds.cow + 12 } };
+    return s;
+  };
+
   const threatened = (kind: ThreatSignal['kind'] = 'raid-here'): VillageState => {
-    const s = structuredClone(grown);
+    const s = rich(structuredClone(grown));
     s.threats = [{ kind, day }];
     return s;
   };
@@ -147,19 +165,23 @@ describe('steward-fortification – opevnění podle hrozby', () => {
   it('nejlepší druh má kladnou hodnotu přínos × horizont − cena; slabší hrozba druh zmenší', () => {
     const s = threatened();
     const kg = stewardKgPerManDay(s, landscape, obstacles);
-    const length = stewardFortificationFor(s, landscape, obstacles, day, 'fence')!.lengthM;
-    const input = { lengthM: length, kgPerManDay: kg, years: 25 };
-    const fence = fortValue(s, day, 'fence', 1, input);
-    const palisade = fortValue(s, day, 'palisade', 1, input);
-    expect(fence.gain * 25 - fence.cost).toBeGreaterThan(0);
-    // palisáda přinese víc (násobek 2 proti 1,25) a stojí víc
+    const length = stewardFortificationFor(s, landscape, obstacles, day, 'palisade')!.lengthM;
+    const men = fortDefenders(s, day);
+    const input = { lengthM: length, kgPerManDay: kg, years: 20, men, from: null };
+    const plan = (wall: WallKind): FortPlan => ({ ...NO_FORT, wall });
+    const fence = fortValue(s, day, plan('fence'), 1, input);
+    const palisade = fortValue(s, day, plan('palisade'), 1, input);
+    expect(palisade.gain * 20 - palisade.cost).toBeGreaterThan(0);
+    // palisáda chrání víc (0,2 + 0,2 × obsazenost proti 0,1 × obsazenost) a stojí víc
     expect(palisade.gain).toBeGreaterThan(fence.gain);
     expect(palisade.cost).toBeGreaterThan(fence.cost);
+    // plot se nevyplatí (Martin 8. 11. 2026)
+    expect(fence.gain * 15 - fence.cost).toBeLessThan(0);
     // hrozba 0,001: přínos nepokryje cenu
-    const weak = fortValue(s, day, 'fence', 0.001, input);
-    expect(weak.gain * 25 - weak.cost).toBeLessThan(0);
-    // vylepšení plotu na palisádu počítá jen rozdíl násobků
-    const up = fortValue(s, day, 'palisade', 1, { ...input, from: 'fence' });
+    const weak = fortValue(s, day, plan('palisade'), 0.001, input);
+    expect(weak.gain * 20 - weak.cost).toBeLessThan(0);
+    // vylepšení plotu na palisádu počítá jen rozdíl ochrany
+    const up = fortValue(s, day, plan('palisade'), 1, { ...input, from: plan('fence') });
     expect(up.gain).toBeCloseTo(palisade.gain - fence.gain, 9);
   });
 
@@ -235,7 +257,7 @@ describe('steward-fortification – opevnění podle hrozby', () => {
     expect(JSON.stringify(player.fortifications)).toBe(before);
   });
 
-  it('vlastní plot správce se vylepší na palisádu jen s přínosem rozdílu násobků', () => {
+  it('vlastní plot správce se vylepší na palisádu jen s přínosem rozdílu ochrany', () => {
     const s = threatened();
     fortificationStep(s, ctxOf(day));
     const fort = s.fortifications![0]!;
@@ -248,7 +270,31 @@ describe('steward-fortification – opevnění podle hrozby', () => {
     expect(s.fortifications).toHaveLength(1);
     const upgrade = s.constructions.find((c) => c.kind === 'fortification');
     expect(upgrade?.fortWork).toBe('upgrade');
+    expect(upgrade?.fortTarget).toBe('palisade');
     expect(upgrade?.fortificationId).toBe(fort.id);
+  });
+
+  it('k vlastní palisádě doplní val s příkopem, když se vyplatí (velká ztráta nájezdu)', () => {
+    const s = threatened();
+    s.livestock!.herds.cow += 40;
+    fortificationStep(s, ctxOf(day));
+    const fort = s.fortifications![0]!;
+    // dostavěná palisáda bez valu (druh vynutíme)
+    fort.kind = 'palisade';
+    delete fort.top;
+    for (const seg of fort.segments) {
+      seg.builtDay = 0;
+      delete seg.kind;
+      delete seg.top;
+      delete seg.topBuiltDay;
+    }
+    s.constructions = s.constructions.filter((c) => c.kind !== 'fortification');
+    expect(fortPlanOf(fort)).toEqual({ wall: 'palisade', rampart: false, water: false });
+    fortificationStep(s, ctxOf(day + STEWARD.everyDays));
+    const c = s.constructions.find((x) => x.kind === 'fortification');
+    expect(c?.fortWork).toBe('rampart');
+    expect(c?.fortificationId).toBe(fort.id);
+    expect(s.steward!.built).toContain(c!.id);
   });
 
   it('schránka: threat-signal se zapíše, zdvojí se jen jednou a válka dostane konec', () => {
@@ -274,7 +320,8 @@ describe('steward-fortification – opevnění podle hrozby', () => {
   });
 
   it('po kouscích (1, 3, 10 dní) stejně jako vcelku', { timeout: 120_000 }, () => {
-    const start = advanceVillage(structuredClone(grown), day - 1, obstacles, landscape);
+    // stádo navíc až po dopočtu – ves by přebytek dobytka nad místo v ohradách prodala
+    const start = rich(advanceVillage(structuredClone(grown), day - 1, obstacles, landscape));
     start.threats = [{ kind: 'raid-here', day: start.lastDay }];
     // rozpočet práce nebrání (jinak by stavbu zablokovaly rozdělané stavby)
     start.commonLaborHistory = Array.from({ length: 30 }, () => 5000);
@@ -289,5 +336,116 @@ describe('steward-fortification – opevnění podle hrozby', () => {
     expect(forts(whole)).toEqual(['build']);
     expect(JSON.stringify(step(1))).toBe(JSON.stringify(whole));
     expect(JSON.stringify(step(3))).toBe(JSON.stringify(whole));
+  });
+});
+
+describe('ochrana druhu – Martinovy cíle (fortifications.md – Hradby a obrana, Správce)', () => {
+  // Typické vsi (návrh Clauda): polovina dospělých (30 let), polovina dětí (5 let), muži půlka
+  // lidí; dobytek kráva na 6 lidí a 2 ovce na krávu, zásoby nad kořistí 20 mužů, bez klád a kamene
+  // na hromadě, 2 kg obilí na člověkoden. Obvod správce kolem celého jádra vsi (obydlí s pozemky,
+  // ohrady, humna) – 60 lidí 600 m, 150 lidí 900 m. Hrozba 1, Růst (horizont 25 let).
+  const DAY = dayOn(520, 10, 5);
+  const kg = 2;
+
+  function village(people: number, cows: number, lengthM: number) {
+    const base = foundVillage({ seed: 7, day: DAY, dwellingPosition: { x: 0, z: 0, rotation: 0 } });
+    const template = base.people[0]!;
+    const list: Person[] = Array.from({ length: people }, (_, i) => ({
+      ...template,
+      id: 1000 + i,
+      sex: i % 2 === 0 ? 'male' : 'female',
+      bornDay: DAY - (i < people / 2 ? 30 : 5) * YEAR,
+    }));
+    const state: VillageState = {
+      ...base,
+      people: list,
+      storesKg: 2000,
+      woodLogs: 0,
+      livestock: {
+        herds: { cow: cows, pig: 0, sheep: 2 * cows, goat: 0 },
+        young: { cow: 0, pig: 0, sheep: 0, goat: 0 },
+      },
+    };
+    const men = fortDefenders(state, DAY);
+    return { state, men, lengthM };
+  }
+
+  /** Hodnota nového plánu: přínos × horizont − cena. */
+  function value(v: ReturnType<typeof village>, plan: FortPlan): number {
+    const years = fortHorizonYears(plan, null, 'growth');
+    const { gain, cost } = fortValue(v.state, DAY, plan, 1, {
+      lengthM: v.lengthM,
+      kgPerManDay: kg,
+      from: null,
+      years,
+      men: v.men,
+    });
+    return gain * years - cost;
+  }
+
+  const WALLS: (WallKind | null)[] = [null, 'fence', 'palisade', 'walkway', 'crib', 'chamber'];
+  const plans = (): FortPlan[] =>
+    WALLS.flatMap((wall) =>
+      [false, true].map((rampart) => ({ wall, rampart, water: false })),
+    ).filter((p) => p.wall !== null || p.rampart);
+
+  it('obsazenost: 20 mužů na 400 m = 0,25; 100 mužů víc než 1 nedá', () => {
+    expect(fortOccupancy(20, 400)).toBeCloseTo(0.25, 9);
+    expect(fortOccupancy(100, 400)).toBe(1);
+  });
+
+  it('ochrana = pasivní + aktivní × obsazenost, val a vodní příkop přidají', () => {
+    expect(planProtection({ wall: 'fence', rampart: false, water: false }, 0.25)).toBeCloseTo(
+      0.025,
+      9,
+    );
+    expect(planProtection({ wall: 'walkway', rampart: false, water: false }, 0.5)).toBeCloseTo(
+      0.45,
+      9,
+    );
+    expect(planProtection({ wall: 'palisade', rampart: true, water: true }, 0)).toBeCloseTo(
+      0.35,
+      9,
+    );
+    expect(planProtection({ wall: 'chamber', rampart: true, water: true }, 1)).toBe(1);
+    expect(planProtection(NO_FORT, 1)).toBe(0);
+  });
+
+  it('ves 60 lidí: nevyplatí se plot, palisáda, val ani hradby', () => {
+    const v = village(60, 10, 600);
+    expect(v.men).toBe(15);
+    for (const plan of plans()) expect(value(v, plan), JSON.stringify(plan)).toBeLessThan(0);
+  });
+
+  it('ves 150 lidí blízko stropu: vyplatí se palisáda (s ochozem), roštová a komorová ne', () => {
+    const v = village(150, 25, 900);
+    const ranked = plans()
+      .map((plan) => ({ plan, value: value(v, plan) }))
+      .sort((a, b) => b.value - a.value);
+    const best = ranked[0]!;
+    expect(best.value).toBeGreaterThan(0);
+    expect(['palisade', 'walkway']).toContain(best.plan.wall);
+    for (const r of ranked) {
+      if (r.plan.wall === 'crib' || r.plan.wall === 'chamber') expect(r.value).toBeLessThan(0);
+    }
+  });
+
+  it('plán stojícího opevnění: nejnižší hradba dílů, val jen dostavěný všude', () => {
+    const fort = {
+      id: 1,
+      kind: 'rampart' as const,
+      top: 'palisade' as const,
+      points: [],
+      gates: [],
+      segments: [
+        { index: 0, builtDay: 1, topBuiltDay: 2 },
+        { index: 1, builtDay: 1, topBuiltDay: 2, top: 'walkway' as const },
+      ],
+    } as unknown as Parameters<typeof fortPlanOf>[0];
+    expect(fortPlanOf(fort)).toEqual({ wall: 'palisade', rampart: true, water: false });
+    fort.segments[0]!.topBuiltDay = null;
+    expect(fortPlanOf(fort)).toEqual({ wall: null, rampart: true, water: false });
+    fort.segments[1]!.builtDay = null;
+    expect(fortPlanOf(fort).rampart).toBe(false);
   });
 });

@@ -628,8 +628,8 @@ men, hours)` (nejvýš 4 muži). Práh vzdání s násobkem (`surrenderThreshold
 - **Odchylky od plánu:** funkce navíc berou `geo`; `refugeAdmit` bere kapacitu, ne opevnění;
   `closedGates` je množina indexů úseků; pozice jsou `{ x, z }`. Čísla navíc v `FORTIFICATIONS`:
   `refuge.carryKgAdult/Child` (`rampartHeightBonus`, `surrenderOddsPerDefender`
-  a `defenderKnowsPlace` zrušeny s násobkem 8. 11. 2026; `multiplier` zbývá jen pro odhad správce
-  `planMultiplier`, než ho nahradí ochrana druhu – Úloha 15 plánu hradeb).
+  a `defenderKnowsPlace` zrušeny s násobkem 8. 11. 2026; `multiplier` zrušen i v odhadu správce –
+  nahradila ho ochrana druhu `protection`, viz Správce a hrozba).
 
 ## Přechod hradby (`assault.ts`)
 
@@ -670,4 +670,5 @@ men, hours)` (nejvýš 4 muži). Práh vzdání s násobkem (`surrenderThreshold
 
 - `fortification/threat.ts`: `villageThreat(signals, day)`, `threatWeight`, `pruneThreats`, `halfLifeFactor` (poločas bez `Math.pow`); `ThreatSignal` (`fortification/types.ts`) žije ve `VillageState.threats`, zapisuje ho schránka (`threat-signal`). Čísla `FORTIFICATIONS.threat` / `raidLoss` / `stewardRefugeMargin`, horizonty `STEWARD.fortPaybackYears`.
 - Rozhodování a útočiště správce: `steward-fortification.ts`, krok `fortificationStep` v `steward-extras.ts` – podrobnosti `docs/code/village-steward.md` (Opevnění podle hrozby).
+- **Ochrana druhu místo násobku** (fortifications.md – Hradby a obrana, Správce; Úloha 15): `FortPlan = { wall: WallKind | null; rampart; water }` (vždy celý obvod), `planProtection(plan, obsazenost)` = Σ (pasivní + aktivní × obsazenost) hradby a valu + `protectionMoat` za vodní příkop (nejvýš 1), obsazenost `fortOccupancy(fortDefenders(state, day), délka)` (muži 16–44 × 5 m ÷ délka). `fortValue(state, day, plan, threat, { lengthM, kgPerManDay, from, years, men })` → `gain = H × raidLossManDays × protectionScale × (ochrana plánu − ochrana dneška)`, `cost = stavba (planCost: fortificationCost hradby z dnešní, val, strouha ¼ čd na 1 m, kácení chybějících klád a lámání chybějícího kamene 1 čd) + přírůstek údržby (upkeepPer100MYear) × horizont`. Horizont `fortHorizonYears(plan, from, režim)` = Růst 25 / Obnova 5 let, nejvýš životnost nové hradby (val a voda nehnijí). `fortPlanOf(fort)` – nejnižší hradba dílů, val jen dostavěný všude, voda jen v celém obvodu. Čísla `FORTIFICATIONS.protection`, `protectionMoat` (0,1) a `protectionScale` (0,06 – srovná přínos s Martinovými cíli při hrozbě 1 a ztrátě nájezdu v tisících čd) jsou návrh Clauda – **doladit měřením nájezdů NPC (jen na pokyn)**. Testy cílů (`steward-fortification.test.ts` – typická ves 60 lidí na 600 m nic, 150 lidí na 900 m palisáda, roštová a komorová ne).
 - **Obvod správce** `stewardFortificationFor(state, landscape, obstacles, day, kind)` → `{ points, lengthM }` – návrh kolem celého jádra vsi (`stewardFortificationProposal`), odstup po 5 m, dokud návrh neprojde kontrolou a útočiště nepojme lidi a dobytek + 20 %; záměr `{ kind: 'fortification', points, fortKind }`.

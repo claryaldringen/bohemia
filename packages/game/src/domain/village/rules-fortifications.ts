@@ -13,17 +13,33 @@ export interface FortCostPer100M {
 
 export const FORTIFICATIONS = {
   /**
-   * Násobek opevnění (Druhy; Martin 3. 11. 2026): plot 1,25, palisáda 2, val 1,5, val s plotem 2,
-   * val s palisádou 3. **V boji zrušen 8. 11. 2026** (Obrana bez násobku) – zbývá jen v odhadu
-   * přínosu správce (`planMultiplier`), než ho nahradí ochrana druhu (plán hradeb, Úloha 15).
+   * Ochrana druhu pro správce (Hradby a obrana – Správce; návrh Clauda – nahrazuje násobek, zrušený
+   * 8. 11. 2026): podíl ztráty nájezdu, který opevnění ušetří = pasivní + aktivní × obsazenost
+   * (`fortOccupancy`). Plot 0 + 0,1, palisáda 0,2 + 0,2, s ochozem 0,2 + 0,5, roštová 0,3 + 0,55,
+   * komorová 0,35 + 0,55; val s příkopem přidá 0,05 + 0,1. Doladit měřením nájezdů NPC (jen na
+   * pokyn).
    */
-  multiplier: {
-    fence: 1.25,
-    palisade: 2,
-    rampart: 1.5,
-    rampartFence: 2,
-    rampartPalisade: 3,
-  },
+  protection: {
+    fence: { passive: 0, active: 0.1 },
+    palisade: { passive: 0.2, active: 0.2 },
+    walkway: { passive: 0.2, active: 0.5 },
+    crib: { passive: 0.3, active: 0.55 },
+    chamber: { passive: 0.35, active: 0.55 },
+    rampart: { passive: 0.05, active: 0.1 },
+  } satisfies Record<WallKind | 'rampart', { passive: number; active: number }>,
+  /**
+   * Vodní příkop přidá pasivní ochranu 0,1 (Hradby a obrana – Správce; návrh Clauda – návrh číslo
+   * nedává, doladit měřením nájezdů NPC, jen na pokyn).
+   */
+  protectionMoat: 0.1,
+  /**
+   * Měřítko přínosu ochrany v odhadu správce (Hradby a obrana – Správce; návrh Clauda – návrh číslo
+   * nedává): s hrozbou 1 (nájezd každý rok) a ztrátou nájezdu v tisících čd (dobytek, kořist,
+   * lidé) by se plnou ochranou vyplatila palisáda i malé vsi. 0,06 splní Martinovy cíle (8. 11.
+   * 2026) na typických vsích – plot se nevyplatí, palisáda jen vsi ≈ 150 lidí, roštová a komorová
+   * běžné vsi ne. Doladit měřením nájezdů NPC (jen na pokyn).
+   */
+  protectionScale: 0.06,
   /**
    * Cena komplet na 100 m obvodu – včetně kácení a odvozu (Hradby a obrana – Cena; Martin 8. 11.
    * 2026): plot 35 čd + 15 klád (20 čd + kácení, Martin 3. 11.), palisáda 300 čd + 70 klád,
