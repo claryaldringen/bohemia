@@ -510,15 +510,15 @@ describe('buildVillageView', () => {
       people: { children: 2, adults: 2, elders: 0 },
       fullHousehold: false,
     });
-    // obydlí nemá kdo osídlit (zakladatelé si staví vlastní zemnici) ani z čeho ho postavit
-    // (krajina testu nemá stromy, klády nejsou) – pole a hřbitov jdou
+    // obydlí nemá z čeho postavit (krajina testu nemá stromy, klády nejsou); lidi k osídlení
+    // nechce (demolition.md) – pole a hřbitov jdou; dílny lidi k osídlení dál chtějí
     const noSettlers = { resource: 'settlers', amount: 1, missing: 1 };
     expect(view.build).toEqual({
       zemnice: {
         laborManDays: 60,
         perHa: false,
         perSquare: false,
-        upfront: [{ resource: 'wood', amount: 7, missing: 7 }, noSettlers],
+        upfront: [{ resource: 'wood', amount: 7, missing: 7 }],
         blocked: null,
         affordable: false,
       },
@@ -526,7 +526,7 @@ describe('buildVillageView', () => {
         laborManDays: 220,
         perHa: false,
         perSquare: false,
-        upfront: [{ resource: 'wood', amount: 18, missing: 18 }, noSettlers],
+        upfront: [{ resource: 'wood', amount: 18, missing: 18 }],
         blocked: null,
         affordable: false,
       },
@@ -687,7 +687,7 @@ describe('buildVillageView', () => {
     expect(view.constructionsStalled).toBe(false);
   });
 
-  it('plná domácnost se 4 dospělými dá lidi k osídlení – obydlí jde stavět', () => {
+  it('plná domácnost se 4 dospělými je plná – obydlí jde stavět', () => {
     const s = settled();
     for (const [i, years] of [20, 19].entries()) {
       s.people.push({ id: 90 + i, bornDay: DAY - Math.ceil(years * 365.25), dwellingId: 1 });
@@ -700,10 +700,7 @@ describe('buildVillageView', () => {
       laborManDays: 220,
       perHa: false,
       perSquare: false,
-      upfront: [
-        { resource: 'wood', amount: 18, missing: 0 },
-        { resource: 'settlers', amount: 1, missing: 0 },
-      ],
+      upfront: [{ resource: 'wood', amount: 18, missing: 0 }],
       blocked: null,
       affordable: true,
     });

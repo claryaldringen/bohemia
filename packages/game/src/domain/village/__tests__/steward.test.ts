@@ -9,7 +9,7 @@ import {
   tileCenterWorld,
 } from '../../landscape';
 import { foundVillage } from '../actions';
-import { applyBuildIntent, NO_SETTLERS, type BuildIntent } from '../build-intent';
+import { applyBuildIntent, NO_PLOT, type BuildIntent } from '../build-intent';
 import { bufferFill } from '../field-food';
 import { NO_CRAFTS } from '../productivity';
 import { waitingHouseholds } from '../households';
@@ -358,10 +358,14 @@ describe('den správce – veto a cena předem', () => {
       type: 'zemnice',
       position: { x: c.x, z: c.z, rotation: 0 },
     };
-    // bez čekající rodiny nemá dům kdo osídlit – jako u hráče
+    // odmítnutí nezmění stav: polozemnice bez pozemku (lidi k osídlení obydlí od 8. 11. 2026
+    // nechce – rozhodnutí o stavbě dál drží `waitingHouseholds`, ne cena)
     const lone = withBuiltFirstDwelling(village(SEPT));
     const before = structuredClone(lone);
-    expect(startStewardBuild(lone, at, intent)).toEqual({ ok: false, reason: NO_SETTLERS });
+    expect(startStewardBuild(lone, at, { ...intent, type: 'polozemnice' })).toEqual({
+      ok: false,
+      reason: NO_PLOT,
+    });
     expect(lone).toEqual(before);
     // s čekající rodinou projde; stav = výsledek akce (žádný klíč navíc ani chybějící)
     const s = waitingVillage(SEPT);

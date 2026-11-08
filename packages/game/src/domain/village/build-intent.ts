@@ -342,7 +342,7 @@ function buildDwelling(
 ): BuildResult {
   const { affordable, missing } = buildAffordability(state, intent.type, obstacles);
   if (!affordable) {
-    const reason = missing.settlers ? NO_SETTLERS : missing.wood ? NO_WOOD : CANNOT_AFFORD;
+    const reason = missing.wood ? NO_WOOD : CANNOT_AFFORD;
     return { ok: false, reason };
   }
   const site = dwellingSite(

@@ -17,6 +17,7 @@ import {
   UNKNOWN_DIRECTION,
   type BuildIntent,
 } from '../build-intent';
+import { availableSettlers } from '../households';
 import { TRAIL_BLOCKED } from '../trail';
 import type { Direction8, Position, Road, RoadGrade, VillageState } from '../types';
 import { WAGON_LOOP } from '../wagon-road';
@@ -89,9 +90,22 @@ describe('applyBuildIntent – obydlí', () => {
     );
   });
 
-  it('bez lidí k osídlení a polozemnici bez pozemku odmítne', () => {
+  it('bez lidí k osídlení zemnici postaví – po dostavění zůstane prázdná', () => {
+    const state = settled();
+    expect(availableSettlers(state, state.lastDay)).toBe(0);
+    const result = apply(state, { kind: 'dwelling', type: 'zemnice', position: at(-80, -50) });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const building = result.state.constructions.find((c) => c.kind === 'dwelling');
+    expect(building).toMatchObject({ dwellingType: 'zemnice' });
+    expect(building?.relocates).toBeUndefined();
+    expect(building?.dwellingId).toBeNull();
+    // nikdo k nastěhování: nová domácnost nevzniká, počet lidí se nemění
+    expect(result.state.people).toEqual(state.people);
+  });
+
+  it('polozemnici bez pozemku odmítne', () => {
     const intent: BuildIntent = { kind: 'dwelling', type: 'zemnice', position: at(-80, -50) };
-    expect(apply(settled(), intent)).toEqual({ ok: false, reason: NO_SETTLERS });
     expect(apply(withCouple(settled()), { ...intent, type: 'polozemnice' })).toEqual({
       ok: false,
       reason: NO_PLOT,

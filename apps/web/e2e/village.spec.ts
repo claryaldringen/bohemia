@@ -332,26 +332,25 @@ test('psaní jména vojvody nespouští zkratky hry a mimo pole nejde založit v
   await expect(panel).toBeVisible();
 });
 
-test('obydlí jde stavět, jen když je kým ho osadit – pole kdykoli', async ({ page }) => {
+test('obydlí jde stavět i bez lidí k osídlení – pole kdykoli', async ({ page }) => {
   const { seat: s } = await newPlayer(page, 'stavby');
   const spots = villageSpots(s.landscape);
   await found(page, spots.dwelling);
   const grid = page.getByTestId('build-grid');
   const polozemnice = grid.getByRole('button', { name: 'Polozemnice' });
 
-  // Lidé k osídlení nejsou: tlačítko zašedlé, v popisku chybějící lidé červeně, zkratka nic.
-  await expect(polozemnice).toBeDisabled();
-  await expect(grid.getByRole('button', { name: 'Zemnice', exact: true })).toBeDisabled();
+  // Lidé k osídlení nejsou, ale obydlí je dostupné (cena předem je jen dřevo, demolition.md);
+  // v popisku nejsou lidé k osídlení vůbec.
+  await expect(polozemnice).toBeEnabled();
+  await expect(grid.getByRole('button', { name: 'Zemnice', exact: true })).toBeEnabled();
   await polozemnice.hover();
-  const settlers = grid
-    .getByRole('listitem')
-    .filter({ has: page.getByRole('button', { name: 'Polozemnice' }) })
-    .locator('[data-resource="settlers"]');
-  await expect(settlers).toBeVisible();
-  await expect(settlers).toHaveAttribute('data-missing', 'true');
+  await expect(
+    grid
+      .getByRole('listitem')
+      .filter({ has: page.getByRole('button', { name: 'Polozemnice' }) })
+      .locator('[data-resource="settlers"]'),
+  ).toHaveCount(0);
   await page.mouse.move(10, 300);
-  await page.keyboard.press('x');
-  await expect(polozemnice).toHaveAttribute('aria-pressed', 'false');
 
   // Pole klávesovou zkratkou C, kdykoli po založení.
   await page.keyboard.press('c');
@@ -359,17 +358,9 @@ test('obydlí jde stavět, jen když je kým ho osadit – pole kdykoli', async 
   await confirmPlacement(page, { kind: 'squares', cells: spots.cells });
   await expect.poll(async () => (await villageState(s.settlementId)).fields.length).toBe(1);
 
-  // Zemnice dostavěná (R pak vrací pohled na první obydlí, ne na místo vsi) a její zakladatelé
-  // dospělí a jeden dospělý navíc – z domácnosti smí odejít jediná rodina (Lidé k osídlení,
-  // kinship.md: pár, který dům nedrží, smí odejít kdykoli), tedy jedno nové obydlí.
+  // Zemnice dostavěná (R pak vrací pohled na první obydlí, ne na místo vsi); zakladatelé zůstanou
+  // děti, takže nikdo k osídlení nevznikne.
   const full = withBuiltFirstDwelling(await villageState(s.settlementId));
-  const adultBorn = full.lastDay - Math.ceil(16 * 365.25);
-  for (const person of full.people) person.bornDay = Math.min(person.bornDay, adultBorn);
-  full.people.push({
-    id: full.nextId++,
-    bornDay: adultBorn,
-    dwellingId: full.people[0]!.dwellingId,
-  });
   await writeVillageState(s.settlementId, full);
   await pollVillage(page);
   // Pohled vsi už vidí dostavěné obydlí – R teprve pak vrací pohled na něj.
@@ -429,8 +420,8 @@ test('obydlí jde stavět, jen když je kým ho osadit – pole kdykoli', async 
       return state.constructions.filter((c) => c.kind === 'dwelling').map((c) => c.dwellingType);
     })
     .toEqual(['polozemnice']);
-  // Jediný pár čeká na rozestavěnou polozemnici – další obydlí zase nejde.
-  await expect(polozemnice).toBeDisabled();
+  // Lidí k osídlení je dál nula, a přesto obydlí nezašedne – prázdné se dostaví a počká.
+  await expect(polozemnice).toBeEnabled();
   await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
 });
 

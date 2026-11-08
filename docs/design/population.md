@@ -514,18 +514,17 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   předem nestojí (práce se platí postupně) – mechanismus je připravený pro dřevo a kámen
   (`packages/game/src/domain/village/costs.ts`).
 - **Lidé k osídlení** (Martin, 17. 10. 2026: „Také mi to nabízí stavbu obytných budov, i když je
-  nemám kým osadit.“): obydlí (zemnice, polozemnice a později řemeslné dílny) jde začít, jen
-  když je kým ho osadit. Je to další položka ceny předem ve stejném mechanismu jako suroviny,
-  ne skryté pravidlo: **lidé k osídlení** = možné nové domácnosti – rodiny ženatých synů, které
-  se mohou oddělit (z jakéhokoli domu – Martin, 19. 10. 2026), a svobodní nejstarší synové plných
-  domů (viz Po dokončení,
-  [kinship.md](kinship.md)) –, minus prázdná obydlí, minus rozestavěná nová obydlí – každé už
-  jednu domácnost čeká. Obydlí stojí jednu domácnost k osídlení;
-  stavba ji jen zamluví, nikoho neodebírá. Když lidé k osídlení nejsou, tlačítko obydlí je
-  zašedlé, nejde spustit ani zkratkou a v popisku jsou chybějící lidé k osídlení červeně (jako
-  v 0 A.D., bez dalšího textu); server stavbu odmítne („Nové obydlí nemá kdo osídlit.“). Pole
-  jdou vždy. První zemnici při založení vsi osídlí sami zakladatelé – před založením je vždy
-  k dispozici.
+  nemám kým osadit.“; **od 8. 11. 2026 už nejsou cenou předem obydlí** – Martin: „A“, viz
+  [demolition.md](demolition.md) – Rozhodnutí): **lidé k osídlení** = možné nové domácnosti –
+  rodiny ženatých synů, které se mohou oddělit (z jakéhokoli domu – Martin, 19. 10. 2026),
+  a svobodní nejstarší synové plných domů (viz Po dokončení, [kinship.md](kinship.md)) –, minus
+  prázdná obydlí, minus rozestavěná nová obydlí – každé už jednu domácnost čeká. Obydlí (zemnice,
+  polozemnice) jde postavit **i bez nich**: je-li ve vsi rodina k oddělení, stavba ji zamluví
+  a nastěhuje se jako dřív; jinak dům po dostavění zůstane prázdný, dokud se do něj někdo
+  nenastěhuje. Tlačítko obydlí tedy zašedne jen kvůli dřevu. **Řemeslné dílny** zatím lidi
+  k osídlení dál chtějí jako cenu předem (zašedlé tlačítko, popisek červeně, server odmítne
+  „Nové obydlí nemá kdo osídlit.“) – zda i ony, je otevřená otázka (demolition.md). Pole jdou
+  vždy. První zemnici při založení vsi osídlí sami zakladatelé.
 - **Cena:** člověkodny ze společné práce vsi (dřevo viz Zjednodušení). Stavba roste den po dni
   podle toho, kolik společné práce přitéká; hráč vidí postup.
 - **Po dokončení** nové obydlí osídlí **rodina ženatého syna** – muž, jeho žena a jejich svobodné
@@ -810,88 +809,88 @@ hladu po ≈ 6 letech, osetá plocha ÷ pole a zásoby ÷ potřeba po 20. roce.
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                           | Kdo                                        |
-| ------------------------------------------------------------------------------------ | ------------------------------------------ |
-| Ves jako zásobárna aktiv: jídlo, voda, dřevo a hlavně lidé / člověkohodiny           | Martin                                     |
-| Start: 4 lidé v jedné zemnici, hráč vybere místo                                     | Martin                                     |
-| První zemnici si osadníci postaví sami, průběh stavby je vidět                       | Martin (17. 10. 2026)                      |
-| Dost jídla → populace roste; cílem je efektivní výroba jídla                         | Martin                                     |
-| Obydlí zatím zemnice a polozemnice                                                   | Martin                                     |
-| Obydlí se umisťuje volně (půdorys) na dost rovné zemi; překážky a les zdraží         | Martin                                     |
-| Pole jsou samostatná a společná pro celou ves                                        | Martin                                     |
-| Vlastní modely obydlí: omazané stěny, slámové došky; Millennium A.D. ne              | Martin                                     |
-| Nová obydlí vždy staví hráč; plná domácnost → nová domácnost v novém obydlí          | Martin                                     |
-| Hráč staví kdy chce (bez odemčení plnou domácností), ves zakládá zemnicí             | Martin (17. 10. 2026)                      |
-| Odemčení surovinami předem – bez nich je tlačítko stavby zašedlé                     | Martin (17. 10. 2026)                      |
-| Obydlí jen, když je kým ho osadit (lidé k osídlení jako cena předem)                 | Martin (17. 10. 2026)                      |
-| Obydlí chátrají, opravy rostou; přestavbu (i na lepší) rozhodují obyvatelé           | Martin                                     |
-| Bez staveb ves přestane růst, ale nerozpadne se (hlad ji ale zabít může)             | návrh Clauda, Martin potvrdil              |
-| Přestavba vždy na lepší obydlí, pokud jsou suroviny; typ nové stavby hráč            | Martin                                     |
-| „Má na to“ podle ročního průměru společné práce a dřeva (ne posledních 30 dní)       | Martin – hlášení chyby 18. 10. 2026        |
-| Hájení: prvních 30 herních let vsi přeje štěstí; žádní příchozí z okolí              | Martin                                     |
-| Lidé umírají hlady, ves může vymřít; bez vsí hráč začíná znovu                       | Martin (18. 10. 2026)                      |
-| Nahromaděný hlad, prahy 20 / 12 dní, smrt bez jídla do 60 / 45 dní                   | návrh Clauda                               |
-| Hlad přibývá pod 90 % přídělu, od 90 % ubývá; v hájení den pod prahem                | návrh Clauda                               |
-| Restart: staré sídlo do archivu, nové sídelní sídlo s novou krajinou                 | návrh Clauda                               |
-| Začít znovu jde i se živou vsí – z nabídky hry (F10), po potvrzení                   | Martin (18. 10. 2026)                      |
-| Podoba hájení: dospělí neumírají, poloviční dětská úmrtnost                          | návrh Clauda                               |
-| Kapacity 6 / 8, ceny 60 / 220 člověkodní (roční období / rok), životnosti            | návrh Clauda                               |
-| Porodnost, úmrtnost, opravy až polovina příspěvku domácnosti                         | návrh Clauda                               |
-| Dospělí umírají 2 % ročně (dřív 1,5 %)                                               | Martin – oprava podle rešerše 17. 10. 2026 |
-| Porody od 16 let; dospělý pro práci, odemčení a domácnost zůstává 14–44              | Martin – oprava podle rešerše 17. 10. 2026 |
-| Životnost zemnice ≈ 18 let (dřív ≈ 15); opravy na konci dál 15 čd ročně              | Martin – oprava podle rešerše 17. 10. 2026 |
-| Startovní dospívající 12 a 13 let zůstávají                                          | Martin (17. 10. 2026)                      |
-| ~~Stěhuje se pár z plné domácnosti se 4 dospělými; dva nejmladší~~                   | návrh Clauda                               |
-| Rozpad domácnosti, prázdná obydlí čekají na plnou domácnost                          | návrh Clauda                               |
-| Přeplněná domácnost s dospělými dětmi osídlí úplně prázdné obydlí                    | Martin (18. 10. 2026)                      |
-| ~~Dospělé děti = 14–44 kromě dvou nejstarších od 14; všechny, nejvýš kapacita~~      | návrh Clauda                               |
-| ~~Aspoň dva (jednotlivci z různých domácností spolu)~~; zbytek se nesmí rozpadnout   | návrh Clauda                               |
-| ~~Nejdřív mladý pár, pak dospělé děti~~; lidé k osídlení počítají obojí              | návrh Clauda                               |
-| U neplodných rodičů (oba 45+) zůstává nejstarší dospělé dítě doma jako dědic         | Martin (18. 10. 2026)                      |
-| Sňatky mezi domy – svobodní 16–44 ze dvou domů se vezmou                             | Martin (18. 10. 2026)                      |
-| ~~Stěhuje se, komu se dům nerozpadne; jinak do víc míst, mladší; na volné místo~~    | návrh Clauda                               |
-| ~~Svobodní od nejstaršího, protějšek další v pořadí~~; denně v kroku 6               | návrh Clauda                               |
-| Nejstarší dítě z přeplněného domu smí odejít do nového domu samo                     | Martin (18. 10. 2026)                      |
-| Prázdný (i nový) dům obsadí i plná domácnost – svobodný syn i z plného domu          | Martin (18. 10. 2026)                      |
-| ~~Novou domácnost (i lidi k osídlení) dává jen plná nebo přeplněná domácnost~~       | návrh Clauda (podle Martinových pravidel)  |
-| Samo jen od 16 let, až po párech; osamělý 16–44 se nerozpadá (svobodný)              | návrh Clauda                               |
-| ~~Svatba nikdy nepřeplní dům~~ – s rodinami do plného domu smí (kinship.md)          | návrh Clauda                               |
-| Příbuzenství a pohlaví – rodiny, sňatky ve vsi a s okolím ([kinship.md](kinship.md)) | Martin (18. 10. 2026)                      |
-| Novou domácnost zakládá ženatý syn, nejstarší dědí, svobodný nejstarší syn smí sám   | návrh Clauda, Martin schválil              |
-| Rozpad k příbuzným (syn, dcera, sourozenec); domácnost drží člověk 16–44             | návrh Clauda                               |
-| Neobydlené budovy chátrají rychleji                                                  | Martin (18. 10. 2026)                      |
-| Prázdná zemnice zanikne za ≈ 5 let, polozemnice za ≈ 8 let (úbytek navíc)            | návrh Clauda                               |
-| Obyvatelé bez jmen (~~a pohlaví~~), náhoda ze seedu, kronika                         | návrh Clauda                               |
-| Dřevo zatím v ceně práce                                                             | návrh Clauda (dočasné)                     |
-| Polozemnice na pozemku = políčko pole s polským plotem, dům uprostřed / v rohu       | Martin, 18. 10. 2026                       |
-| Rohy polského plotu zakulacené; výběr polozemnice označí celý pozemek                | Martin, 18. 10. 2026                       |
-| Starší polozemnice dostanou pozemek při načtení, jinak při přestavbě do 50 m         | Martin, 18. 10. 2026                       |
-| Vchod k brance vpředu, [ a ] přepínají variantu, rovno jen pod domem                 | návrh Clauda                               |
-| Obydlí jde stavět na pole a do sadu – pole a sad se zmenší o plochu domu             | Martin, 18. 10. 2026                       |
-| Pozemek bere celý čtverec, obydlí bez pozemku průnik vyklízené plochy                | návrh Clauda                               |
-| Díl či čtverec pod 20 % políčka zmizí; zbytek pole či sadu se nedělí                 | návrh Clauda                               |
-| Úroda, práce a založení úměrně ploše; plocha se po zániku domu nevrací               | návrh Clauda                               |
-| Přestavba obyvatel si pozemek na poli ani v sadu nevezme; hřbitov dál ne             | návrh Clauda                               |
-| Dům se viditelně rozpadá, jako se staví – stupně podle stavu prázdného domu          | Martin, 18. 10. 2026                       |
-| Obydlený dům nechátrá (obyvatelé ho opravují), chátrá jen prázdný                    | Martin, 18. 10. 2026                       |
-| Nedodělek oprav obydleného domu se neodkládá; znovu osídlený dům ukázat celý         | návrh Clauda                               |
-| Stupně 70 / 45 / 20 %, jejich podoba; plot a záhony od propadající se střechy        | návrh Clauda                               |
-| Zbytek jámy po zaniklém obydlí ≈ 10 let zarůstá; stavba přes něj ho odstraní         | návrh Clauda                               |
-| Vdova se vdává co nejdřív, nejlépe ve vsi; populace má co nejvíc růst                | Martin (19. 10. 2026)                      |
-| Ženatý pár, který dům nedrží, smí odejít do nového domu kdykoli                      | Martin (19. 10. 2026), návrh Clauda        |
-| Porody podle věku ženy (přirozená plodnost × 0,85), rozestup 21 / 9 měsíců           | návrh Clauda (19. 10. 2026)                |
-| Ženich z okolí (k vdově 50 % ročně), pryč 20 %; „Rodina čeká na dům“                 | návrh Clauda (19. 10. 2026)                |
-| Obydlí (i ostatní stavby) smí do lesa – les se vyklučí                               | Martin, 19. 10. 2026                       |
-| Les pod stavbou za sazbu lesa jako díl pole, pařezy v ní; v lese i pruh 4 m          | návrh Clauda                               |
-| Obyvatelé sami les nevyklučí; stavba na poli v lese za les neplatí                   | návrh Clauda                               |
-| Upozornění na hlad ve stupních: šetří jídlem (90–100 %), hladoví (pod 90 %), umírají | Martin (19. 10. 2026)                      |
-| Jen nejvyšší stupeň, ohlásí se při zhoršení; „šetří jídlem“ mírně jako zpráva        | návrh Clauda                               |
-| Práce: stavby mají přednost před polem navíc; opravy obydlí až po stavbách           | Martin, 19. 10. 2026                       |
-| Zvířata (dojení, péče – ženy; pasení – výrostci) a domácí výroba bokem, mimo práci   | Martin, 19. 10. 2026                       |
-| Výrostci 7–13 let jen pasou, mimo práci vsi; jejich počet omezuje stáda              | Martin, 19. 10. 2026 (mimo práci – Claude) |
-| Starší jen na denní minimum své domácnosti (0,5 čd), přebytek propadne               | návrh Clauda                               |
-| Pro vodu se chodí vždy k nejbližší vodě a chůze se počítá do práce                   | Martin, 19. 10. 2026                       |
-| Přirážka minima za vodu nad 100 m chůze: 0,4 cesty na člověka, 1 m/s, den 10 h       | návrh Clauda                               |
-| Branka ani vchod nového obydlí nesmí vést do cizího pozemku („Ano, zakaž to“)        | Martin, 19. 10. 2026                       |
-| Branku blokuje obydlí, modla, svatyně, hřbitov, ohrada, voda; stavba ji nezataraší   | návrh Clauda                               |
-| Varianty rozměrů obydlí a dílen (plocha, poměr stěn, výška ±10 %)                    | Martin, GitHub #1                          |
+| Rozhodnutí                                                                                   | Kdo                                        |
+| -------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Ves jako zásobárna aktiv: jídlo, voda, dřevo a hlavně lidé / člověkohodiny                   | Martin                                     |
+| Start: 4 lidé v jedné zemnici, hráč vybere místo                                             | Martin                                     |
+| První zemnici si osadníci postaví sami, průběh stavby je vidět                               | Martin (17. 10. 2026)                      |
+| Dost jídla → populace roste; cílem je efektivní výroba jídla                                 | Martin                                     |
+| Obydlí zatím zemnice a polozemnice                                                           | Martin                                     |
+| Obydlí se umisťuje volně (půdorys) na dost rovné zemi; překážky a les zdraží                 | Martin                                     |
+| Pole jsou samostatná a společná pro celou ves                                                | Martin                                     |
+| Vlastní modely obydlí: omazané stěny, slámové došky; Millennium A.D. ne                      | Martin                                     |
+| Nová obydlí vždy staví hráč; plná domácnost → nová domácnost v novém obydlí                  | Martin                                     |
+| Hráč staví kdy chce (bez odemčení plnou domácností), ves zakládá zemnicí                     | Martin (17. 10. 2026)                      |
+| Odemčení surovinami předem – bez nich je tlačítko stavby zašedlé                             | Martin (17. 10. 2026)                      |
+| ~~Obydlí jen, když je kým ho osadit~~; od 8. 11. 2026 i bez lidí k osídlení (dílny zatím ne) | Martin (17. 10., zrušeno 8. 11. 2026)      |
+| Obydlí chátrají, opravy rostou; přestavbu (i na lepší) rozhodují obyvatelé                   | Martin                                     |
+| Bez staveb ves přestane růst, ale nerozpadne se (hlad ji ale zabít může)                     | návrh Clauda, Martin potvrdil              |
+| Přestavba vždy na lepší obydlí, pokud jsou suroviny; typ nové stavby hráč                    | Martin                                     |
+| „Má na to“ podle ročního průměru společné práce a dřeva (ne posledních 30 dní)               | Martin – hlášení chyby 18. 10. 2026        |
+| Hájení: prvních 30 herních let vsi přeje štěstí; žádní příchozí z okolí                      | Martin                                     |
+| Lidé umírají hlady, ves může vymřít; bez vsí hráč začíná znovu                               | Martin (18. 10. 2026)                      |
+| Nahromaděný hlad, prahy 20 / 12 dní, smrt bez jídla do 60 / 45 dní                           | návrh Clauda                               |
+| Hlad přibývá pod 90 % přídělu, od 90 % ubývá; v hájení den pod prahem                        | návrh Clauda                               |
+| Restart: staré sídlo do archivu, nové sídelní sídlo s novou krajinou                         | návrh Clauda                               |
+| Začít znovu jde i se živou vsí – z nabídky hry (F10), po potvrzení                           | Martin (18. 10. 2026)                      |
+| Podoba hájení: dospělí neumírají, poloviční dětská úmrtnost                                  | návrh Clauda                               |
+| Kapacity 6 / 8, ceny 60 / 220 člověkodní (roční období / rok), životnosti                    | návrh Clauda                               |
+| Porodnost, úmrtnost, opravy až polovina příspěvku domácnosti                                 | návrh Clauda                               |
+| Dospělí umírají 2 % ročně (dřív 1,5 %)                                                       | Martin – oprava podle rešerše 17. 10. 2026 |
+| Porody od 16 let; dospělý pro práci, odemčení a domácnost zůstává 14–44                      | Martin – oprava podle rešerše 17. 10. 2026 |
+| Životnost zemnice ≈ 18 let (dřív ≈ 15); opravy na konci dál 15 čd ročně                      | Martin – oprava podle rešerše 17. 10. 2026 |
+| Startovní dospívající 12 a 13 let zůstávají                                                  | Martin (17. 10. 2026)                      |
+| ~~Stěhuje se pár z plné domácnosti se 4 dospělými; dva nejmladší~~                           | návrh Clauda                               |
+| Rozpad domácnosti, prázdná obydlí čekají na plnou domácnost                                  | návrh Clauda                               |
+| Přeplněná domácnost s dospělými dětmi osídlí úplně prázdné obydlí                            | Martin (18. 10. 2026)                      |
+| ~~Dospělé děti = 14–44 kromě dvou nejstarších od 14; všechny, nejvýš kapacita~~              | návrh Clauda                               |
+| ~~Aspoň dva (jednotlivci z různých domácností spolu)~~; zbytek se nesmí rozpadnout           | návrh Clauda                               |
+| ~~Nejdřív mladý pár, pak dospělé děti~~; lidé k osídlení počítají obojí                      | návrh Clauda                               |
+| U neplodných rodičů (oba 45+) zůstává nejstarší dospělé dítě doma jako dědic                 | Martin (18. 10. 2026)                      |
+| Sňatky mezi domy – svobodní 16–44 ze dvou domů se vezmou                                     | Martin (18. 10. 2026)                      |
+| ~~Stěhuje se, komu se dům nerozpadne; jinak do víc míst, mladší; na volné místo~~            | návrh Clauda                               |
+| ~~Svobodní od nejstaršího, protějšek další v pořadí~~; denně v kroku 6                       | návrh Clauda                               |
+| Nejstarší dítě z přeplněného domu smí odejít do nového domu samo                             | Martin (18. 10. 2026)                      |
+| Prázdný (i nový) dům obsadí i plná domácnost – svobodný syn i z plného domu                  | Martin (18. 10. 2026)                      |
+| ~~Novou domácnost (i lidi k osídlení) dává jen plná nebo přeplněná domácnost~~               | návrh Clauda (podle Martinových pravidel)  |
+| Samo jen od 16 let, až po párech; osamělý 16–44 se nerozpadá (svobodný)                      | návrh Clauda                               |
+| ~~Svatba nikdy nepřeplní dům~~ – s rodinami do plného domu smí (kinship.md)                  | návrh Clauda                               |
+| Příbuzenství a pohlaví – rodiny, sňatky ve vsi a s okolím ([kinship.md](kinship.md))         | Martin (18. 10. 2026)                      |
+| Novou domácnost zakládá ženatý syn, nejstarší dědí, svobodný nejstarší syn smí sám           | návrh Clauda, Martin schválil              |
+| Rozpad k příbuzným (syn, dcera, sourozenec); domácnost drží člověk 16–44                     | návrh Clauda                               |
+| Neobydlené budovy chátrají rychleji                                                          | Martin (18. 10. 2026)                      |
+| Prázdná zemnice zanikne za ≈ 5 let, polozemnice za ≈ 8 let (úbytek navíc)                    | návrh Clauda                               |
+| Obyvatelé bez jmen (~~a pohlaví~~), náhoda ze seedu, kronika                                 | návrh Clauda                               |
+| Dřevo zatím v ceně práce                                                                     | návrh Clauda (dočasné)                     |
+| Polozemnice na pozemku = políčko pole s polským plotem, dům uprostřed / v rohu               | Martin, 18. 10. 2026                       |
+| Rohy polského plotu zakulacené; výběr polozemnice označí celý pozemek                        | Martin, 18. 10. 2026                       |
+| Starší polozemnice dostanou pozemek při načtení, jinak při přestavbě do 50 m                 | Martin, 18. 10. 2026                       |
+| Vchod k brance vpředu, [ a ] přepínají variantu, rovno jen pod domem                         | návrh Clauda                               |
+| Obydlí jde stavět na pole a do sadu – pole a sad se zmenší o plochu domu                     | Martin, 18. 10. 2026                       |
+| Pozemek bere celý čtverec, obydlí bez pozemku průnik vyklízené plochy                        | návrh Clauda                               |
+| Díl či čtverec pod 20 % políčka zmizí; zbytek pole či sadu se nedělí                         | návrh Clauda                               |
+| Úroda, práce a založení úměrně ploše; plocha se po zániku domu nevrací                       | návrh Clauda                               |
+| Přestavba obyvatel si pozemek na poli ani v sadu nevezme; hřbitov dál ne                     | návrh Clauda                               |
+| Dům se viditelně rozpadá, jako se staví – stupně podle stavu prázdného domu                  | Martin, 18. 10. 2026                       |
+| Obydlený dům nechátrá (obyvatelé ho opravují), chátrá jen prázdný                            | Martin, 18. 10. 2026                       |
+| Nedodělek oprav obydleného domu se neodkládá; znovu osídlený dům ukázat celý                 | návrh Clauda                               |
+| Stupně 70 / 45 / 20 %, jejich podoba; plot a záhony od propadající se střechy                | návrh Clauda                               |
+| Zbytek jámy po zaniklém obydlí ≈ 10 let zarůstá; stavba přes něj ho odstraní                 | návrh Clauda                               |
+| Vdova se vdává co nejdřív, nejlépe ve vsi; populace má co nejvíc růst                        | Martin (19. 10. 2026)                      |
+| Ženatý pár, který dům nedrží, smí odejít do nového domu kdykoli                              | Martin (19. 10. 2026), návrh Clauda        |
+| Porody podle věku ženy (přirozená plodnost × 0,85), rozestup 21 / 9 měsíců                   | návrh Clauda (19. 10. 2026)                |
+| Ženich z okolí (k vdově 50 % ročně), pryč 20 %; „Rodina čeká na dům“                         | návrh Clauda (19. 10. 2026)                |
+| Obydlí (i ostatní stavby) smí do lesa – les se vyklučí                                       | Martin, 19. 10. 2026                       |
+| Les pod stavbou za sazbu lesa jako díl pole, pařezy v ní; v lese i pruh 4 m                  | návrh Clauda                               |
+| Obyvatelé sami les nevyklučí; stavba na poli v lese za les neplatí                           | návrh Clauda                               |
+| Upozornění na hlad ve stupních: šetří jídlem (90–100 %), hladoví (pod 90 %), umírají         | Martin (19. 10. 2026)                      |
+| Jen nejvyšší stupeň, ohlásí se při zhoršení; „šetří jídlem“ mírně jako zpráva                | návrh Clauda                               |
+| Práce: stavby mají přednost před polem navíc; opravy obydlí až po stavbách                   | Martin, 19. 10. 2026                       |
+| Zvířata (dojení, péče – ženy; pasení – výrostci) a domácí výroba bokem, mimo práci           | Martin, 19. 10. 2026                       |
+| Výrostci 7–13 let jen pasou, mimo práci vsi; jejich počet omezuje stáda                      | Martin, 19. 10. 2026 (mimo práci – Claude) |
+| Starší jen na denní minimum své domácnosti (0,5 čd), přebytek propadne                       | návrh Clauda                               |
+| Pro vodu se chodí vždy k nejbližší vodě a chůze se počítá do práce                           | Martin, 19. 10. 2026                       |
+| Přirážka minima za vodu nad 100 m chůze: 0,4 cesty na člověka, 1 m/s, den 10 h               | návrh Clauda                               |
+| Branka ani vchod nového obydlí nesmí vést do cizího pozemku („Ano, zakaž to“)                | Martin, 19. 10. 2026                       |
+| Branku blokuje obydlí, modla, svatyně, hřbitov, ohrada, voda; stavba ji nezataraší           | návrh Clauda                               |
+| Varianty rozměrů obydlí a dílen (plocha, poměr stěn, výška ±10 %)                            | Martin, GitHub #1                          |
