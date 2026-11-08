@@ -182,7 +182,11 @@ hráč)`) a rod s `house.placed_at` null. Pozvaný je na mapě hned (`placed_at`
   odříznutému bez `newcomerSince`. **Týden:** `expireNewcomerWaits` v `runWorldTasks` (worker) –
   `waitingNewcomers` = všechny odříznuté rody; po `NEWCOMERS.waitDays` od první žádosti los
   `deriveSeed(accountSeed, 'lot')` mezi živými neodmítnutými (seřazenými podle id), jinak svobodný;
-  rod bez žádosti týden od založení (`newcomerLotAt`) začne svobodný.
+  rod bez žádosti týden od založení (`newcomerLotAt`) začne svobodný. **Los běží celý pod zámkem
+  hráče** (`NewcomerWorldDeps.locks.run`, jako `startFreeForPlayer` a `foundVillageForPlayer` na
+  webu; pořadí zámek hráče → transakce umisťování) – přesídlení sídla (Svobodný i los s pánem) se
+  tak nepotká se zakládáním vsi téhož hráče; zámek drží jen los jednoho rodu, chyba rodu kolo
+  nepřeruší.
 - **Panel rodu odříznutého:** adresář ho nezná, proto `WorldDirectory.isolatedEntriesOf` (sídlo
   v místní mřížce) – vlastní rod v panelu a nováček v žádosti u pána. `HousePanelData.isolated`,
   `inviteReason` (`INVITE_NEEDS_PLACEMENT`), `PanelNegotiation.newcomer`; `NewcomerRequest.lordName`.

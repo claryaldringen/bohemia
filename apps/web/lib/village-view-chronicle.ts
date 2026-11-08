@@ -489,6 +489,15 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'line-birth':
       return 'Vojvodovi se narodil syn.';
     case 'line-named':
+      if (event.house) {
+        const afterText = {
+          grandfather: ' po dědovi',
+          uncle: ' po strýci',
+          'great-grandfather': ' po pradědovi',
+          kinsman: ' po předkovi',
+        };
+        return `Syn dostal jméno ${event.name}${event.after ? afterText[event.after] : ''}.`;
+      }
       return event.who === 'lord'
         ? `Vojvoda dostal jméno – ${event.name}.`
         : event.who === 'son'
@@ -536,6 +545,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
           return `Dohoda odmítnuta – ${event.actor} a ${event.other}.`;
         case 'withdrawn':
           return `Návrh dohody stažen – ${event.actor} a ${event.other}.`;
+        case 'expired':
+          return `Návrh dohody vypršel bez odpovědi – ${event.actor} a ${event.other}.`;
         case 'terms-accepted':
           return `Nové podmínky dohody přijaty – ${event.actor} a ${event.other}.`;
         case 'aid-gift':

@@ -224,6 +224,46 @@ corveeHands }[]`);
   dohody `PanelAgreement.levyYears` (otevřený dialog Odvody k vazalství – `dialogs.openFor(vazalství, 'levy')`; null =
   nečeká), z toho přesýpací hodiny u vazala v panelu pána a pečeť v liště.
 
+## Správce za nepřítomného hráče (absence.md – Povinnosti vazala, když hráč nehraje)
+
+Lhůty `ABSENT_VASSAL` (`domain/vassalage/rules-absence.ts`): Odvody 60 dní od 1. 11., Svolání 30 dní
+od svolání, jednání 365 dní od posledního kola. Vše jsou úlohy světa v `runWorldTasks` (worker):
+`stewards: { levies: LevyDeps; summons: SummonsDeps }` (`prepareVillage` = `loadVillage` s dopočtem
+a uložením) a `negotiationExpiry`. Pořadí: Odvody správce **před** `openAnnualDialogs` (loňský dialog
+nenaroste), Svolání správce **před** `lapseSummons`, pak `expireNegotiations`.
+
+- **Odvody** – `answerAbsentLevies(deps, { today })` (`annual-levies.ts`): otevřené dialogy
+  `levy` / `repay` / `tribute-send` (`openOfKind`) od dne `levyStewardDay(dialog)` (1. 11. roku
+  dialogu + lhůta). Po hráčích: dopočet všech vsí rodu do dneška, pak po dialogu znovu výhled
+  (`dialogViews` se `spareSplit` – jako `suggestSplit`, ale z každého zboží nejvýš součet přebytků
+  vsí, `domain/vassalage/levy.ts`) a odpověď `answerDialog(..., steward = true)` – stejná cesta
+  jako `answerLevy` (zásilky, kronika, neplnění při míň). Pánovi jde `levy-sent` se `steward: true`,
+  vazalovi `levy-steward` (`lordName`, `kind`, `parts`, `arrivesDay`). `LevyDialogView.stewardDay` →
+  přesýpací hodiny v `LevyDialog` (`levy-<dialog>-wait`) s datem.
+  Selže-li odeslání chybou, která se sama nespraví (vše kromě `SHIPMENT_RACE` z `shipments.ts`
+  a už uzavřeného dialogu), odpoví správce prázdně – „nic neodvedl“ = neplnění; dohoda, která už
+  neplatí (bez výhledu nebo `LEVY_ENDED`), dialog zahodí (`lapse`); souběh se zkusí příští kolo.
+- **Svolání** – `answerAbsentSummons(deps, { today })` (`summons.ts`): otevřená svolání hráčů od
+  `summonsStewardDay(dialog)` (`SummonsBody.openedDay` + lhůta; starší svolání bez `openedDay` od
+  1. 1. roku dialogu). Válka musí trvat, vazalství také (jinak nic – propadne `lapseSummons`). Dopočet
+        vsí rodu, `serviceMenOf` (muži rodu doma a zdraví, nejzdatnější první), prvních `men` →
+        `dispatchSummons` se `steward` (v těle odpovědi `steward: true`, pánovi `summons-sent` se
+        `steward`), vazalovi `summons-steward` (`name` = pán, `men`). NPC svolání zůstávají na
+        `answerNpcSummons`. Skončilá dohoda svolání zahodí (`lapse`); cílová ves, která nepřijímá
+        (`canReceive` – zanikla, nemá sídlo), = správce nikoho nepošle → neplnění; selže-li `sendMen` až
+        po zapsané odpovědi, zapíše se neplnění. `SummonsDialogView.stewardDay` → datum v popisku rohu
+        svolání.
+- **Jednání** – `expireNegotiations(deps, { now, today })` (`negotiation-expiry.ts`): port
+  `NegotiationRepository.allOpen()` (adaptér: `status = 'open'`, nejstarší první), herní den kola
+  přes `dayOf` (`worldDayOf`). Bez žádostí nováčka (`newcomer`). V transakci `getForUpdate` – jen
+  když je pořád otevřené a bez nového kola – `setStatus('expired')` (nový stav v
+  `StoredNegotiationStatus`, sloupec je text – bez migrace; `domainOf` ho bere jako skončené),
+  upozornění `negotiation-expired` oběma; po transakci kronika `negotiation` krok `expired`
+  (`actor` = autor posledního kola). Pauza po odmítnutí se nezapisuje.
+- **Testy:** `annual-levies.test.ts` a `summons.test.ts` (blok „správce za nepřítomného vazala“ –
+  lhůta, přednost hráče, míň = neplnění, konec války), `negotiation-expiry.test.ts`, `levy.test.ts`
+  (`spareSplit`), db `negotiation-repository.db.test.ts` (`allOpen`, `expired`).
+
 ## Lidé a robota (`domain/vassalage/guests.ts`, `application/shipments.ts` – `sendCorvee`, úloha 4.5)
 
 Pravidla: vassalage.md – Lidé a robota; nepřítomní a hosté v simulaci: [village-core.md](village-core.md)

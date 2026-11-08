@@ -29,6 +29,8 @@ export type PlayerNoticeKind =
   | 'negotiation-accepted'
   | 'negotiation-rejected'
   | 'negotiation-withdrawn'
+  /** Návrh bez odpovědi vypršel po lhůtě (absence.md) – oběma stranám, `name` = druhá strana. */
+  | 'negotiation-expired'
   /**
    * Vazalství vypovězeno (úloha 4.2) – dostane ho celý strom kolem obou stran. Payload jen veřejné:
    * `{ lordHouseId, vassalHouseId, lordName, vassalName, byHouseId }`; druhá strana má navíc
@@ -37,11 +39,17 @@ export type PlayerNoticeKind =
   | 'vassalage-renounced'
   /**
    * Roční Odvody (úloha 4.4): pánovi dorazí odvod – payload `{ vassalName, parts, arrivesDay,
-   * years, message? }` (`parts` = `LevyPart[]`, jen odeslané řádky).
+   * years, message?, steward? }` (`parts` = `LevyPart[]`, jen odeslané řádky; `steward` – za
+   * nepřítomného vazala odvedl správce, absence.md).
    */
   | 'levy-sent'
   /** Vazalovi se otevřel dialog Odvody – payload `{ lordName, years }`. */
   | 'levy-pending'
+  /**
+   * Za nepřítomného hráče odvedl Odvody po lhůtě správce (absence.md) – payload `{ lordName, kind,
+   * parts, arrivesDay }` (`kind` = `levy` / `repay` / `tribute-send`).
+   */
+  | 'levy-steward'
   /** Spor (vassalage.md – Mír a spory): pánovi dorazila žaloba – payload `{ disputeId, name, otherName }`. */
   | 'complaint-filed'
   /** Obžalovaný se vyjádřil – payload `{ disputeId, name }`. */
@@ -65,11 +73,14 @@ export type PlayerNoticeKind =
   | 'passage-answered'
   /**
    * Svolání (vassalage.md – Svolání): `summons-open` – pán svolává, `{ name }`; `summons-sent` –
-   * vazal poslal muže, `{ name, men, message }`; `summons-lapsed` – nepřišel, `{ name }`.
+   * vazal poslal muže, `{ name, men, message, steward? }`; `summons-lapsed` – nepřišel, `{ name }`;
+   * `summons-steward` – za nepřítomného hráče poslal muže po lhůtě správce (absence.md),
+   * `{ name, men }` (`name` = pán).
    */
   | 'summons-open'
   | 'summons-sent'
   | 'summons-lapsed'
+  | 'summons-steward'
   /**
    * Ochrana pánem (vassalage.md – Ochrana vojskem): `protection-requested` – vazal žádá,
    * `{ name, villageId, villageName, message }`; `protection-sent` – pán poslal muže, `{ name, men }`;

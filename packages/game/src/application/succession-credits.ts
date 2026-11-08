@@ -1,6 +1,12 @@
 import { INVITES } from '../domain/world';
-import { expireNewcomerWaits, type NewcomerDeps } from './newcomers';
-import { openAnnualDialogs, type AnnualLevyDeps } from './annual-levies';
+import { expireNewcomerWaits, type NewcomerWorldDeps } from './newcomers';
+import {
+  answerAbsentLevies,
+  openAnnualDialogs,
+  type AnnualLevyDeps,
+  type LevyDeps,
+} from './annual-levies';
+import { expireNegotiations, type ExpireNegotiationsDeps } from './negotiation-expiry';
 import type { ActivityRepository } from './activity';
 import type { HouseRepository } from './houses';
 import type { InviteRepository } from './invites';
@@ -13,7 +19,7 @@ import {
 } from './declare-war';
 import { sendDomainFood, type DomainFoodDeps } from './domain-food';
 import { reconcileShipments, type ShipmentDeps } from './shipments';
-import { lapseSummons } from './summons';
+import { answerAbsentSummons, lapseSummons, type SummonsDeps } from './summons';
 
 /** Port kreditů nástupnictví bez losu (vassalage.md – Pozvaný jako vazal). */
 export interface SuccessionCreditRepository {
@@ -70,15 +76,24 @@ export type WorldTaskDeps = SuccessionCreditDeps & {
   /** Svolání bez odpovědi propadne s koncem války (vassalage.md – Svolání). */
   summons?: Parameters<typeof lapseSummons>[0];
   /** Nováček po týdnu čekání dostane pána losem, nebo začne svobodný (newcomers.md). */
-  newcomers?: NewcomerDeps;
+  newcomers?: NewcomerWorldDeps;
   /** Jídlo domény po žních (hillfort.md – Jídlo domény): vsi držitele si rozdělí přebytek. */
   domainFood?: DomainFoodDeps;
+  /**
+   * Za nepřítomného hráče jedná po lhůtě formální správce (absence.md – Povinnosti vazala, když
+   * hráč nehraje): odvede roční Odvody a pošle muže na Svolání.
+   */
+  stewards?: { levies: LevyDeps; summons: SummonsDeps };
+  /** Návrh v jednání bez odpovědi vyprší po lhůtě (absence.md). */
+  negotiationExpiry?: ExpireNegotiationsDeps;
 };
 
 /**
  * Úlohy světa, které worker pouští jednou za minutu mezi koly: kredity nástupnictví, obnova
  * zásilek po pádu (`reconcileShipments`), jídlo domény po žních (`sendDomainFood` – po obnově
- * zásilek, ať vidí, co je na cestě) a konec týdne čekání nováčků (`expireNewcomerWaits`).
+ * zásilek, ať vidí, co je na cestě), správce za nepřítomné (Odvody před otevřením nového roku,
+ * ať loňský dialog nenaroste; Svolání před propadnutím s koncem války), vypršení jednání a konec
+ * týdne čekání nováčků (`expireNewcomerWaits`).
  */
 export async function runWorldTasks(
   deps: WorldTaskDeps,
@@ -87,11 +102,14 @@ export async function runWorldTasks(
   await grantSuccessionCredits(deps, input);
   if (deps.shipments) await reconcileShipments(deps.shipments, input.today);
   if (deps.domainFood) await sendDomainFood(deps.domainFood, { today: input.today });
+  if (deps.stewards) await answerAbsentLevies(deps.stewards.levies, { today: input.today });
   if (deps.levies) await openAnnualDialogs(deps.levies, { today: input.today });
   if (deps.wars) {
     await quietWars(deps.wars, input);
     await notifyProtectionEnding(deps.wars, input);
   }
+  if (deps.stewards) await answerAbsentSummons(deps.stewards.summons, { today: input.today });
   if (deps.summons) await lapseSummons(deps.summons, input);
+  if (deps.negotiationExpiry) await expireNegotiations(deps.negotiationExpiry, input);
   if (deps.newcomers) await expireNewcomerWaits(deps.newcomers, input);
 }

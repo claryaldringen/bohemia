@@ -1,6 +1,6 @@
 // Stezka kostry prémiové krajiny (premium-landscapes.md – Kostra světa; Vyvýšenina nad brodem
 // s obchodní stezkou, Horský průsmyk s obchodní stezkou): hotová dálková cesta od počátku.
-import type { Landscape, ObstacleLayer } from '../landscape';
+import { skeletonFeaturesOf, type Landscape, type ObstacleLayer } from '../landscape';
 import { cloneState } from './clone';
 import { addTrailRoads, roadLengthM } from './paths/roads';
 import { trailTerrain } from './paths/terrain';
@@ -46,31 +46,58 @@ function routeHalves(line: readonly RoadPoint[], origin: RoadPoint): RoadPoint[]
 }
 
 /**
+ * Větve stezky kostry krajiny od vsi ven se směrem každé: prémiová krajina s prvkem `route`
+ * (brod, průsmyk, premium 1 i 2) jde po ose prvku, mapa se stezkou kostry (lidský hráč) po
+ * úsecích `skeletonFeaturesOf(l).route` – směr dává strana mapy, kde úsek končí (křižovatka =
+ * 3 směry, konec stezky = 1). Krajina bez stezky (suchá mapa, NPC) nemá nic.
+ */
+function routeBranches(
+  landscape: Landscape,
+  origin: RoadPoint,
+): { direction: Direction8; points: RoadPoint[] }[] {
+  const line = premiumSites(landscape, 'route')[0]?.line;
+  if (line && line.length >= 2) {
+    return routeHalves(
+      line.map(([x, z]) => ({ x, z })),
+      origin,
+    ).map((half) => ({ direction: directionTo(origin, half[half.length - 1]!), points: half }));
+  }
+  const route = skeletonFeaturesOf(landscape)?.route;
+  if (!route) return [];
+  const branches: { direction: Direction8; points: RoadPoint[] }[] = [];
+  route.legs.forEach((leg, i) => {
+    const side = route.ends[i]?.side;
+    if (!side || leg.length < 2) return;
+    // úsek vede od okraje k vsi, stezka od vsi ven
+    branches.push({ direction: side, points: leg.map(([x, z]) => ({ x, z })).reverse() });
+  });
+  return branches;
+}
+
+/**
  * Stezka kostry pro novou ves (premium-landscapes.md – Kostra světa: „Stezka kostry je hotová
  * dálková cesta od počátku … obchod se sousedy v obou jejích směrech jde hned, jako po hotové
- * zemské stezce – bez stavby“): osa prvku `route` (brod, průsmyk) se uloží jako pevné cesty
- * (`addTrailRoads`), úseky dostanou stupeň hotové zemské stezky (upravená cesta, hať a lávka přes
- * mokřinu a brod) a průsek lesem bez klád (`cutRoadSwath` – stezka nevede pod korunami) a ves má
- * hotovou zemskou stezku v obou směrech, kam osa vede (`Trail.builtDay` = den založení). Vrátí
- * kopii; krajina bez prvku `route` nebo ves, která už stezku má, beze změny.
+ * zemské stezce – bez stavby“): osa stezky (prvek `route` prémiové krajiny nebo trasa kostry
+ * světa na mapě lidského hráče) se uloží jako pevné cesty (`addTrailRoads`), úseky dostanou
+ * stupeň hotové zemské stezky (upravená cesta, hať a lávka přes mokřinu a brod) a průsek lesem
+ * bez klád (`cutRoadSwath` – stezka nevede pod korunami) a ves má hotovou zemskou stezku v každém
+ * směru, kam osa vede (`Trail.builtDay` = den založení). Vrátí kopii; krajina bez stezky nebo ves,
+ * která už stezku má, beze změny.
  */
-export function withPremiumRoute(
+export function withSkeletonRoute(
   state: VillageState,
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
   day: number,
 ): VillageState {
-  const line = premiumSites(landscape, 'route')[0]?.line;
   const origin = villageOrigin(state);
-  if (!line || line.length < 2 || !origin || villageTrails(state).length > 0) return state;
+  if (!origin || villageTrails(state).length > 0) return state;
+  const branches = routeBranches(landscape, origin);
+  if (branches.length === 0) return state;
   const next = cloneState(state);
   const terrain = trailTerrain(landscape, obstacles);
   const seen = new Set<Direction8>();
-  for (const half of routeHalves(
-    line.map(([x, z]) => ({ x, z })),
-    origin,
-  )) {
-    const direction = directionTo(origin, half[half.length - 1]!);
+  for (const { direction, points: half } of branches) {
     if (seen.has(direction)) continue;
     seen.add(direction);
     const ids = addTrailRoads(next, half, day, landscape, obstacles, terrain);

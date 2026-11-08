@@ -16,10 +16,12 @@ import {
   sectionOf,
   sectionPieces,
   busySegments,
+  completeGateWork,
   completeUpgrade,
   gatePartView,
   pieceBusy,
   storeGatePart,
+  dropGateWork,
   finishMoatFill,
   layerBuilt,
   revertRampartAddition,
@@ -285,6 +287,8 @@ export interface FortWorkInput {
   center: RoadPoint;
   clearedIds: readonly number[];
   clearedTrees: number;
+  /** Práce na bráně (`fortWork` `gate`): úsek brány a úroveň; jinak chybí. */
+  fortGate?: Construction['fortGate'];
 }
 
 /**
@@ -349,6 +353,7 @@ export function pushWork(
     ...(wood.trees > 0 ? { wood } : {}),
     fortificationId: input.fortificationId,
     fortWork: input.work,
+    ...(input.fortGate ? { fortGate: { ...input.fortGate } } : {}),
     fortSegments: segments,
     ...(stone.fromPile > 0 ? { stoneFromPile: stone.fromPile } : {}),
   });
@@ -843,6 +848,11 @@ export function workFortification(state: VillageState, c: Construction, day: num
     // obnova valu nemá úseky k dokončení – výška se vrátí s koncem stavby (`finishFortification`);
     // vodní příkop se napustí naráz, až je strouha hotová (`finishMoatFill`)
     if (c.fortWork === 'restore' || c.fortWork === 'moat') continue;
+    // klešťová brána nebo věž – den dokončení brány, díl se nemění (`completeGateWork`)
+    if (c.fortWork === 'gate') {
+      completeGateWork(fort, c, day);
+      continue;
+    }
     const s = fort.segments.find((x) => x.index === w.index);
     if (!s || segmentDone(fort, s, c, w.part)) continue;
     if (c.fortWork === 'demolish' || c.fortWork === 'level') {
@@ -967,6 +977,11 @@ export function dropFortificationWork(next: VillageState, c: Construction): void
     return;
   }
   if (c.fortWork === 'moat') return;
+  // nedostavěná klešťová brána či věž zmizí, brána je jako dřív (`dropGateWork`)
+  if (c.fortWork === 'gate') {
+    dropGateWork(fort, c);
+    return;
+  }
   if (c.fortWork === 'build' && fort.segments.every((s) => !segmentBuilt(s))) {
     next.fortifications = forts.filter((f) => f.id !== fort.id);
     return;

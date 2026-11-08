@@ -1,5 +1,6 @@
 export * from './macro';
 export * from './rules-vassalage';
+export * from './rules-absence';
 export * from './spare';
 export * from './transport';
 export * from './tree';

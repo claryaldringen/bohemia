@@ -48,13 +48,17 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   konce úseku v pásu kraje mapy ve směru nejblíž paprsku (±`TRAIL.wideConeDeg`), stupeň z cesty,
   práce 0. Bez spojení zmizelá id jen vypadnou (`dropGoneTrailPieces`). Vlkov: stezka na sever
   412 → 619 → 370 → 372 → 631 → 547; jih a východ spojení nemají (mezera u kraje, opuštěný kus).
-- **Stezka kostry prémiové krajiny** (premium-landscapes.md – Kostra světa; brod, průsmyk):
-  `withPremiumRoute` (`premium-route.ts`, volá ho `foundedState`) – osa prvku `route` od místa
+- **Stezka kostry – každá mapa lidského hráče** (premium-landscapes.md – Kostra světa; brod,
+  průsmyk, Úloha 14 plánu kostry): `withSkeletonRoute` (`premium-route.ts`, volá ho `foundedState`) – osa prvku `route` od místa
   nejblíž vsi k oběma krajům mapy jako pevné cesty (`addTrailRoads`), stupeň hotové stezky
   (`upgradePieces` – upravená, hať a lávka, i přes brod), průsek lesem bez klád (`cutRoadSwath`)
   a hotová stezka (`Trail.builtDay` = den založení) ve směru každého konce (`DIRECTION_VECTORS`
   – nejbližší paprsek) – obchod se sousedy oběma směry hned. Návrh Clauda: upravená cesta místo
   vyšlapané (vyšlapaná bez provozu zaroste a „hotová zemská stezka“ je upravená).
+  Zdroj větví: prvek `route` prémiové krajiny (brod, průsmyk), jinak úseky `skeletonFeaturesOf(l).route`
+  mapy se stezkou kostry (od okraje k bodu obejití vsi, obrácené od vsi ven; směr = strana mapy,
+  kde úsek končí: průchod 2 směry, křižovatka 3, konec stezky 1). Suchá mapa a ves syna (NPC mapa
+  bez kostry, Martin 8. 11. 2026) stezku nemají – stav je bit po bitu dnešní.
 
 - **Sousedé a obchod** (trade.md – Sousedé, Obchod; `neighbours.ts`, `trade.ts`): `neighbourOf(seed,
 směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, pastevci, lesní ves,

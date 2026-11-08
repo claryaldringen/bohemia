@@ -2,6 +2,7 @@
 // syn se vrátí“, nástupcem syn hlavní manželky): kdo nastoupí po smrti vojvody a kdo se s ním
 // stěhuje do dvorce. Bez náhody – pořadí dává věk a id. Ves bez rodu – nic.
 import { currentLord, isDynastyTracked, lineMen, mainWifeOf, markElite, wivesOf } from './dynasty';
+import { nameWaitingSons } from './dynasty-kin-names';
 import { ensureMainWives } from './dynasty-wives';
 import { parentIndex } from './kinship';
 import { villageManorId } from './manor';
@@ -143,7 +144,11 @@ export function succeedLord(state: VillageState, day: number): ChronicleEvent[] 
  * až po nástupnictví, aby nový vojvoda označil své syny týž den. Ves bez rodu – nic. Mutuje stav.
  */
 export function dynastyDay(state: VillageState, day: number): ChronicleEvent[] {
-  const events = [...ensureMainWives(state, day), ...succeedLord(state, day)];
+  const events = [
+    ...ensureMainWives(state, day),
+    ...succeedLord(state, day),
+    ...nameWaitingSons(state, day),
+  ];
   markElite(state);
   return events;
 }

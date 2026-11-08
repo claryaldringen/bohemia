@@ -294,6 +294,13 @@ dřevěná věž nad samotnou branou.**“ Výklad níž Martin schválil („An
   zapalují, dál vidí a dostřelí. Návrh Clauda: nejvýš 4 obránci, dohled 250 m (jinak 150 m), luk
   do 80 m (jinak 60 m), kryt jako ochoz; **cena** 120 čd komplet + 30 klád; hoří s branou.
 - Bránu plotu ani val bez hradby vylepšit nejde („od palisády výše“).
+- **Implementováno 8. 11. 2026** (plán hradeb, Úloha 13 – doména a use-case; bitva, scéna
+  a rozhraní později). Návrh Clauda k provedení: ulička jde kolmo na tětivu brány od vnitřního
+  okraje pásu, ramena jsou široká jako pás palisády s ochozem (5,5 m); místo za branou = ulička
+  s rameny 12 m dovnitř bez staveb, vody, skalního výchozu a posvátného dubu (pole, sad a les vsi
+  smí – ramena je vezmou jako široká hradba); ramena blokují pěšiny od zahájení stavby; věž jen
+  na hotové klešťové bráně; dožilá věž bez dřeva chátrá a po 5 letech (jako hradba) spadne;
+  ramena nestárnou zvlášť – patří k dílu brány.
 
 ### Cena
 

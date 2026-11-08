@@ -82,7 +82,10 @@ export interface BirdFlock {
   birds: BirdMember[];
 }
 
-/** Stanice podél řeky mají vlastní čísla (los hejna) – nesdílí ho se stanicemi potoka. */
+/**
+ * Stanice podél řek mají vlastní čísla (los hejna) – nesdílí ho se stanicemi potoka ani mezi
+ * sebou: k-tá řeka (`RenderSurface.rivers`) začíná na (k + 1) × RIVER_STATION_BASE.
+ */
 const RIVER_STATION_BASE = 1_000_000;
 /** Ryby: krok hledání podél osy potoka (m) a nejvýš tolik hejn. */
 const FISH_STEP_M = 10;
@@ -183,15 +186,15 @@ export function fishSchools(surface: RenderSurface): FishSchool[] {
   const stream = surface.stream;
   const depthAt = (x: number, z: number, near: StreamSample): number =>
     near.level - surface.heightAt(x, z);
-  // stanice podél potoka a podél řeky prémiové krajiny (vlastní čísla – jiný los)
+  // stanice podél potoka a podél každé řeky – kostry i prémie (vlastní čísla – jiný los)
   const stations = [
     ...streamStations(stream, FISH_STEP_M),
-    ...(surface.river
-      ? streamStations(surface.river, FISH_STEP_M).map((station) => ({
-          ...station,
-          index: station.index + RIVER_STATION_BASE,
-        }))
-      : []),
+    ...surface.rivers.flatMap((river, k) =>
+      streamStations(river, FISH_STEP_M).map((station) => ({
+        ...station,
+        index: station.index + (k + 1) * RIVER_STATION_BASE,
+      })),
+    ),
   ];
   const candidates = stations
     .map((station) => {

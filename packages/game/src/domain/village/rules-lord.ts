@@ -101,3 +101,12 @@ export const ARMS_CAPS = { home: 50, hunt: 70, war: 100 } as const;
 
 /** Zdroj výcviku, podle kterého platí strop z `ARMS_CAPS`. */
 export type ArmsSource = keyof typeof ARMS_CAPS;
+
+/**
+ * absence.md – Jména synů (Martin 8. 11. 2026): syn muže rodu, kterému hráč do tolika dní od
+ * narození nedá jméno (jeden herní rok), dostane jméno obvyklé v rodě.
+ */
+export const SON_NAME_GRACE_DAYS = 365;
+
+/** absence.md – Jména synů (návrh Clauda): kolik jmen zemřelých mužů rodu si rod pamatuje. */
+export const DECEASED_NAMES_MAX = 40;

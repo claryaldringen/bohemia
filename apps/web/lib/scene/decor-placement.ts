@@ -60,22 +60,28 @@ function hash(x: number, y: number, k: number): number {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-/** Stanice podél řeky mají vlastní čísla (hash) – shluky nesdílí vzor se stanicemi potoka. */
+/**
+ * Stanice podél řek mají vlastní čísla (hash) – shluky nesdílí vzor se stanicemi potoka ani
+ * mezi sebou: k-tá řeka (`riverCenterlines`) začíná na (k + 1) × RIVER_STATION_BASE.
+ */
 const RIVER_STATION_BASE = 1_000_000;
 
 /**
  * Ozdoby vody jako v generátoru 0 A.D.: rákos a orobinec ve shlucích na kraji koryta, lekníny
  * na hladině, kmeny spadlé do klidné vody a balvany v korytě pod skalní stěnou (terén 2) –
- * deterministicky. Jen vzhled, žádné překážky. `stream` = dotazy na vodu (potok i řeka – osa
- * vod), stanice jdou po ose potoka a s řekou prémiové krajiny (`river`) i po ní.
+ * deterministicky. Jen vzhled, žádné překážky. `stream` = dotazy na vodu (potok i řeky – osa
+ * vod), stanice jdou po ose potoka a po ose každé řeky (`rivers` – hlavní tok kostry, přítoky,
+ * řeka prémie). Jediná řeka (prémie 1) má stanice jako dřív.
  */
 export function decorPlacements(
   l: Landscape,
   stream: StreamCenterline,
-  river: StreamCenterline | null = null,
+  rivers: readonly StreamCenterline[] = [],
 ): DecorPlacement[] {
   const placements = axisDecor(l, stream, stream, 0);
-  if (river) placements.push(...axisDecor(l, stream, river, RIVER_STATION_BASE));
+  rivers.forEach((river, k) => {
+    placements.push(...axisDecor(l, stream, river, (k + 1) * RIVER_STATION_BASE));
+  });
   return placements;
 }
 

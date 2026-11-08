@@ -48,6 +48,9 @@ const SAVE_ATTEMPTS = 5;
 /** Dostatečně vzdálený den pro „všechny nespotřebované události“ – konec světa (vejde se do DB). */
 const FAR_DAY = TOTAL_GAME_DAYS;
 
+/** Souběh se zápisem vsi (verze řádku) – přechodná chyba, zkusit znovu (absence.md – správce). */
+export const SHIPMENT_RACE = 'Ves se mezitím změnila, zkus to znovu.';
+
 /** Řádek zásilky (tabulka `shipment`). */
 export interface ShipmentRecord {
   id: string;
@@ -99,6 +102,15 @@ export type SendShipmentResult =
 /** Ves se nesimuluje – nic neposílá ani nepřijímá. */
 function sleeps(record: VillageRecord | null): boolean {
   return record === null || isVillageExtinct(record.state) || isVillageAbandoned(record.state);
+}
+
+/** Smí ves `villageId` přijímat zásilky a lidi – existuje, nezanikla a má sídlo? */
+export async function canReceive(
+  deps: Pick<ShipmentDeps, 'villages' | 'settlements'>,
+  villageId: string,
+): Promise<boolean> {
+  const to = await deps.villages.find(villageId);
+  return !sleeps(to) && (await placeOf(deps, to!)) !== null;
 }
 
 /** Směr prvního kroku z políčka `from` k `to` (stejné políčko – sever). */
@@ -235,7 +247,7 @@ async function sendLocked(
     await post(deps, record);
     return { ok: true, shipmentId: record.id, arrivesDay: record.arrivesDay };
   }
-  return { ok: false, reason: 'Ves se mezitím změnila, zkus to znovu.' };
+  return { ok: false, reason: SHIPMENT_RACE };
 }
 
 function doneResult(record: ShipmentRecord): SendShipmentResult {
@@ -438,7 +450,7 @@ async function sendCorveeLocked(
     await postGuests(deps, to!.id, arrivesDay, from!, input.refId, sent.guests);
     return { ok: true, arrivesDay };
   }
-  return { ok: false, reason: 'Ves se mezitím změnila, zkus to znovu.' };
+  return { ok: false, reason: SHIPMENT_RACE };
 }
 
 /**
@@ -540,7 +552,7 @@ async function sendMenLocked(
     await postGuests(deps, to!.id, arrivesDay, from!, input.refId, guests);
     return { ok: true, arrivesDay };
   }
-  return { ok: false, reason: 'Ves se mezitím změnila, zkus to znovu.' };
+  return { ok: false, reason: SHIPMENT_RACE };
 }
 
 /** Událost `guests-arrive` do schránky hostitele (druhý zápis téhož `ref` se zahodí). */

@@ -9,6 +9,7 @@ import {
   serviceMenOf,
   summonVassals,
   summonsBody,
+  summonsStewardDay,
   type PersonRef,
   type SummonsDeps,
   type WorldCell,
@@ -37,6 +38,8 @@ export interface SummonsDialogView {
   targetName: string;
   men: number;
   days: number;
+  /** Herní den, kdy za hráče pošle domluvené muže správce (absence.md). */
+  stewardDay?: number;
   candidates: SummonsManView[];
 }
 
@@ -95,6 +98,7 @@ export async function summonsDialogsForPlayer(playerId: string): Promise<Summons
       targetName: target?.name ?? '',
       men: body.men,
       days: body.days,
+      stewardDay: summonsStewardDay(dialog),
       candidates,
     });
   }

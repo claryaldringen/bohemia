@@ -233,13 +233,20 @@ export function nameLineMan(
 ): { ok: true; state: VillageState } | { ok: false; reason: string } {
   const man = state.people.find((p) => p.id === personId);
   if (!man || !isLineMan(man)) return { ok: false, reason: NOT_LINE_MAN };
-  if (man.name !== undefined) return { ok: false, reason: ALREADY_NAMED };
+  // jméno od rodu (absence.md – Jména synů) smí hráč jednou přepsat, jméno od hráče je trvalé
+  if (man.name !== undefined && man.nameByHouse !== true) {
+    return { ok: false, reason: ALREADY_NAMED };
+  }
   const isLord = state.dynasty?.lordId === personId;
   const check = checkPersonName(name, isLord ? LORD_NAME_MISSING : SON_NAME_MISSING);
   if (!check.ok) return { ok: false, reason: check.reason ?? NOT_LINE_MAN };
   const normalized = normalizePersonName(name);
   const next = cloneState(state);
-  for (const p of next.people) if (p.id === personId) p.name = normalized;
+  for (const p of next.people) {
+    if (p.id !== personId) continue;
+    p.name = normalized;
+    delete p.nameByHouse;
+  }
   for (const lord of next.dynasty?.lords ?? []) if (lord.id === personId) lord.name = normalized;
   // kronika říká, koho se jméno týká (vojvoda, nebo syn vojvody – lord.md, Kde se jméno ukazuje)
   const who = isLord ? 'lord' : man.fatherId === state.dynasty?.lordId ? 'son' : undefined;

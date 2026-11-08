@@ -202,7 +202,9 @@ describe('odchod mladšího syna po pohřbu', () => {
     expect(w.deps.villages.records.size).toBe(2);
   });
 
-  it('syn bez jména: bez jména v panelu odmítne a pending zůstane, s jménem odejde', async () => {
+  it('syn bez jména déle než rok: jméno mu dal rod (absence.md), odejde s ním', async () => {
+    // změněné očekávání jen proto, že syn v testu zůstal přes rok bez jména – dřív ho panel
+    // odmítl, teď mu jméno po roce přidělí rod
     const w = await afterFuneral({ named: false });
     const input = {
       playerId: PLAYER,
@@ -210,13 +212,10 @@ describe('odchod mladšího syna po pohřbu', () => {
       direction: 'E' as const,
       today: TODAY + 5,
     };
-    const bad = await choosePlayerDeparture(w.deps, input);
-    expect(bad.ok).toBe(false);
-    expect(w.house.pendingDeparture).not.toBeNull();
-    const ok = await choosePlayerDeparture(w.deps, { ...input, sonName: 'Svatoslav' });
+    const ok = await choosePlayerDeparture(w.deps, input);
     if (!ok.ok) throw new Error(ok.reason);
     expect(ok.from.state.chronicle).toContainEqual(
-      expect.objectContaining({ kind: 'son-left-village', name: 'Svatoslav' }),
+      expect.objectContaining({ kind: 'son-left-village', name: expect.any(String) }),
     );
   });
 

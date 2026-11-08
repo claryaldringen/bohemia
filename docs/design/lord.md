@@ -478,7 +478,9 @@ Clauda.
 - **Jméno se neskloňuje** – stejně jako jméno vsi ([postavy](villagers.md)); texty stavějí jméno
   do 1. pádu („Svatba – Bořivoj“).
 - **Jméno je trvalé** – po potvrzení nejde změnit (návrh Clauda; Martin 24. 10. 2026 nechal bez
-  odpovědi): hráč se nepřepíše a kronika drží jedno jméno.
+  odpovědi): hráč se nepřepíše a kronika drží jedno jméno. Výjimka: syn, kterého hráč do roku
+  nepojmenoval, dostane jméno obvyklé v rodě a hráč ho smí jednou přepsat ([absence](absence.md) –
+  Jména synů).
 
 ### Kde se jméno zadává (výjimka z „bez popisků“: textové pole)
 

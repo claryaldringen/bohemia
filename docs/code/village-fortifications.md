@@ -449,6 +449,60 @@ příkop), Cena. Scéna valu vně a vody je Úloha 18 – zatím kreslí díl ja
   (`application/fortification-rampart.ts`); tlačítka a server actions – Úloha 17. Testy
   `fortification/__tests__/rampart-addition.test.ts` a `moat.test.ts`.
 
+## Klešťová brána a věž (`fortification-gate.ts`, `fortification/pincer.ts`)
+
+Plán hradeb Úloha 13; fortifications.md – Hradby a obrana, Brány, Životnost a údržba. Bitva
+s uličkou a věží je Úloha 19, scéna ramen a věže Úloha 18, tlačítka Úloha 17.
+
+- **Stav brány** (`FortGate`): `pincerDay` a `towerDay` – den dokončení, `null` = staví se, chybí =
+  bez vylepšení; `towerExtraAgeDays` – stárnutí věže navíc za nedodělanou údržbu.
+- **Geometrie** (`pincer.ts`, jen sčítání a odmocnina): osa brány = střed tětivy (`gateChord`),
+  směr dovnitř jako otvor brány ve stěnách – ulička jde kolmo na tětivu, ne podél skutečné cesty
+  (návrh Clauda). `pincerArms` – dva obdélníky ramen `pincerGate.alleyWidthM` (4 m) od sebe, od
+  vnitřního okraje pásu `alleyLengthM` (12 m) dovnitř, každé široké jako pás palisády s ochozem
+  (5,5 m); `pincerAlley` – ulička mezi nimi; `pincerSpace` – ulička i s rameny `clearM` (12 m)
+  dovnitř. Vnitřní okraj pásu = pás blokujícího dílu (`fortBlockingSegments` – druh, u valu vně
+  `inM`).
+- **Kontrola** (`checkGateUpgrade`, pro rozhraní `gateUpgrade(state, landscape, input)` ke dni
+  `state.lastDay` – cena `FortCost`, nebo `{ reason }`): brána na dílu (`FORT_UNKNOWN`), hradba dílu
+  aspoň palisáda – plot ani holý val ne (`FORT_GATE_LOW` „Bránu jde vylepšit až u palisády.“), díl
+  bez běžící stavby (`FORT_BUSY`), dostavěná a stojící hradba (`FORT_GATE_DOWN` „Brána nestojí.“).
+  Klešťová jen jednou (`FORT_PINCER_DONE` „Brána už je klešťová.“) a s místem za branou
+  (`pincerRoom` → `FORT_GATE_NO_ROOM` „Za branou není místo.“): `pincerSpace` v krajině, bez vody,
+  staveb (`checkFootprintFree` – pole, sad a les vsi smí, vlastní pás opevnění se nepočítá),
+  skalního výchozu a posvátného dubu či háje. Věž: `FORT_TOWER_DONE` „Brána už věž má.“ (i
+  rozestavěná), jen na stojící klešťové bráně (`FORT_TOWER_NO_PINCER` „Věž stojí jen na klešťové
+  bráně.“).
+- **Cena**: klešťová = `fortificationCost(pincerArmKind(hradba), pincerGate.wallM)` – 24 m hradby
+  druhu dílu s ochozem (plot a palisáda → palisáda s ochozem: ≈ 108 čd komplet + 19,2 klády;
+  roštová a komorová svůj druh i s kamenem); věž `towerCost` = 120 čd komplet − 30 čd za klády
+  z hromady + 30 klád.
+- **Zahájení** (`startGateUpgrade(state, day, landscape, obstacles, input, walk?)`): klešťová –
+  ramena vezmou díly polí a sadů (`giveWayToBuilding`), překážky pod rameny osadníci odstraní,
+  `pincerDay: null`; věž `towerDay: null`. Stavba `fortWork: 'gate'`, `fortGate: { segment, level }`,
+  jeden díl – díl brány (`pushWork` s `fortGate`; klády a kámen se hledají od brány). Díl brány je
+  tím zabraný (`busySegments`). Správce ani jedno nestaví.
+- **Dokončení a zrušení** (`completeGateWork`, `dropGateWork` z `workFortification`
+  a `dropFortificationWork`): den dokončení dostane brána, díl se nemění; zrušená nedostavěná
+  klešťová brána či věž zmizí (`null` → chybí), zrušená přestavba věže nechá starou věž.
+- **Stěny** (`walls.ts` – `pincerWalls` po hlavní smyčce): u brány blokujícího dílu s `pincerDay`
+  (i `null` – blokuje od zahájení, `pincerBlocks`) přidá ramena do `walls` a uličku do `gates`
+  (průchod až k vratům na vnitřním konci); objížďka vně se nemění. `fortLayoutKey` přidá u takové
+  brány `:p` (jen u ní – klíče beze změny). Pochod (`march-grid.ts`) ramena dostane jen s otevřenými
+  branami – zavřené brány a ulička v bitvě jsou Úloha 19.
+- **Přechod** (`assault.ts` – `crossingLayers`): `gatePincerStands` (hotová klešťová) a
+  `gateTowerStands` (hotová věž, dožilá bez přestavby jen do `decayYears` – pak spadne; návrh
+  Clauda).
+- **Životnost a údržba věže** (`decay.ts`): `decideFortRebuilds` po přestavbách dílů zavolá
+  `decideTowerRebuilds` – věž za `tower.lifeYears` (20 let, `gateTowerIsOld` i se stárnutím navíc)
+  na dílu bez stavby přestaví obyvatelé plnou cenou (`fortWork: 'gate'`, úroveň `tower`), jen když je
+  dřevo; stará věž stojí, dokud se nedostaví nová (pak `towerExtraAgeDays` zmizí). `fortUpkeep`
+  přičte za každou hotovou věž (díl bez stavby) `tower.upkeepManDaysYear` (1 čd ročně); nedodělek
+  ji postarší jako hradbu. Ramena klešťové brány nestárnou zvlášť – patří k dílu brány (návrh
+  Clauda).
+- **Akce**: use-case `upgradeFortificationGate` (`application/upgrade-fortification-gate.ts`).
+  Testy `fortification/__tests__/gate-upgrade.test.ts`.
+
 ## Úseky pro hráče a zboření (`sections.ts`, `fortifications.ts`; demolition.md – Opevnění)
 
 - **`fortSections(fort)`** → `FortSection { segments, gateSegment }[]` – úsek pro hráče = díl

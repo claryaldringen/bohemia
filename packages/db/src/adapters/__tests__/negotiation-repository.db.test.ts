@@ -161,6 +161,25 @@ describe('NegotiationRepository (db)', () => {
     expect(second).not.toBeNull();
   });
 
+  it('allOpen vrátí jen otevřená jednání s koly; vypršelé (expired) už ne', async () => {
+    const [a, b, c] = ids as [string, string, string];
+    const ab = await negotiations.transaction((tx) =>
+      tx.open({ initiatorHouseId: a, recipientHouseId: b, round: round(a) }),
+    );
+    const ac = await negotiations.transaction((tx) =>
+      tx.open({ initiatorHouseId: a, recipientHouseId: c, round: round(a) }),
+    );
+    const open = await negotiations.allOpen();
+    expect(open.map((n) => n.id).sort()).toEqual([ab?.id, ac?.id].sort());
+    expect(open[0]?.rounds).toHaveLength(1);
+    expect(
+      await negotiations.transaction((tx) => tx.setStatus(ab?.id ?? '', 'expired', 1, NOW)),
+    ).toBe(true);
+    expect((await negotiations.allOpen()).map((n) => n.id)).toEqual([ac?.id]);
+    const expired = await negotiations.transaction((tx) => tx.getForUpdate(ab?.id ?? ''));
+    expect(expired).toMatchObject({ status: 'expired', version: 2 });
+  });
+
   it('blokování a poslední odmítnutí se čtou ve správném směru', async () => {
     const [a, b, c] = ids as [string, string, string];
     await negotiations.transaction(async (tx) => {

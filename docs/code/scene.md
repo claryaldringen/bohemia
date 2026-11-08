@@ -436,9 +436,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 
 - **Prémiové krajiny ve scéně** (landscape.md – Prémiové krajiny ve scéně): řeka jde stejnou
   cestou jako potok – `RenderSurface.stream` = `watersCenterline` (body osy potoka),
-  `RenderSurface.river` = osa řeky (stanice rákosu, leknínů, ryb a zvuk – `decorPlacements(l,
-stream, river)`, `fishSchools`, `AmbientEnvironment.river`), výšková síť přes
-  `nearestWaterPair` s hlubším korytem řeky (`RIVER_DEPTH_M`). Shader hladiny počítá led jen při
+  `RenderSurface.river` = všechny řeky dohromady (`riverCenterline`, dotazy na koryto),
+  `RenderSurface.rivers` = osa každé řeky zvlášť (`riverCenterlines` – stanice rákosu, leknínů,
+  ryb a zvuk: `decorPlacements(l, stream, rivers)`, `fishSchools`, `AmbientEnvironment.rivers`),
+  výšková síť přes `nearestWaterPair` s hlubším korytem řeky (`RIVER_DEPTH_M`). Shader hladiny počítá led jen při
   `seasonB.w > 0` (v létě stejný výsledek, voda o ≈ 45 % levnější – řeka ji nezdraží). Prvky
   typu kreslí `premium-sites.ts` (`PremiumSites`, v `setLandscape`) z čistých funkcí
   `premium-sites-layout.ts`: obtisky (`premiumDecals` – náplav, rudiště, hliniště, slanisko, lom,
@@ -458,3 +459,20 @@ stream, river)`, `fishSchools`, `AmbientEnvironment.river`), výšková síť p�
   Výběr prvku kliknutím: `pickPremiumSite` (`premium-picking.ts`) v `pickTarget` až po
   `pickVillageTarget` (nic ze vsi pod kurzorem) – cíl `premium-site` (typ, druh, pořadí prvku),
   obrys výběru nekreslí (web-ui.md – Prémiová krajina v rozhraní).
+
+- **Řeky kostry světa ve scéně** (landscape.md – Kostra světa na mapě): voda, koryto, břehy
+  a hladina berou všechny toky přes osu vod (`watersCenterline`, `riverCenterline` – hlavní tok,
+  přítoky, potok), stanice podél vody jdou po každé řece zvlášť (`RenderSurface.rivers`): k-tá
+  řeka má čísla stanic od (k + 1) × `RIVER_STATION_BASE` (rákos, lekníny, ryby – vlastní los),
+  zvuk vody bere nejhlasitější tok. Řeka prémie 1 je jediná řeka – ozdoby, ryby i zvuk jako dřív.
+  Ústí: přítok končí v ose hlavního toku a potok mapy ve vodě řeky na její hladině (generátor –
+  `planMapStream`, konec osy potoka se prodlouží o políčko do řeky), hladina je bez schodu; konce
+  řeky kostry uvnitř mapy (pramen, ústí přítoku) se neprodlužují (`edgeEnds`). Náhled
+  `/dev/landscape?skeleton=straight|corner|junction|source|trail|ford|crossroads` (výřezy jako
+  testy pásma kostry, `app/dev/landscape/dev-skeleton.ts`; s výřezem jen prémie na svém místě
+  kostry – `premium: 2`, seed bez přijatého pokusu = krajina přesně ze seedu): překryv trasy
+  stezky kostry (`skeletonOverlay` – úseky `skeletonFeaturesOf(l).route` a kroužky brodů,
+  tlačítko **Stezka kostry**, zapnuté; prvek prémie `route` na kostře táž čára – `premiumOverlay`
+  ho nekreslí), pohled na místo kostry (`skeletonFocus` – brod trasy, ústí přítoku, pramen;
+  tlačítko **Místo kostry**). E2e `e2e/skeleton-scene.spec.ts` (jen s `SKELETON_SCENE_DEV_URL`,
+  `SKELETON_SCENE_SHOTS` = snímky): každý výřez se načte bez chyby konzole.
