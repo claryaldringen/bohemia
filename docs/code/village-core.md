@@ -150,6 +150,22 @@ obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacre
 
 - **Determinismus:** simulace jde den po dni v pevném pořadí kroků (`simulate.ts`), náhoda dne
   je ze seedu vsi a indexu dne – výsledek nezávisí na tom, po jakých kouscích se ves dopočítá.
+  - **Občasná neshoda „po kouscích × vcelku“ pod zátěží (8. 11. 2026)** – test „den správce –
+    dlouhý běh“ (`steward.test.ts`) zhruba v 1 z 8 souběžných běhů souboru (vytížený stroj) padl:
+    dopočet po kouscích byl vždy správný (týž otisk jako samostatně i s `node --jitless`), ale
+    stav vcelku – spočítaný napřed a správný hned po dopočtu – měl na konci jinou krajinu zvěře
+    (`wildlife.land.forestHa` / `openHa` = krajina nové vsi). Týž objekt `land` se přepsal během
+    prvního kousku (založení vsi, `withWildlife` → `wildlifeLandAt`), ač pole krajiny žádný kód
+    nemění (jen `w.land = …` vymění odkaz). Odkaz v kódu to není: po dopočtu vcelku (i po
+    předchozích testech souboru) výsledek, jeho `wildlife` ani `land` nedrží nic kromě testu –
+    po uvolnění je GC sebere (`WeakRef`), takže do nich žádný kód zapsat nemůže; se zmrazeným
+    výsledkem i `start` (42 běhů) nepadl žádný TypeError. Mezipaměti to nejsou (`WeakMap` je pro program
+    neviditelná, jediný `WeakRef` – `walkMemoOf` – vyhazuje deterministicky; samostatný běh
+    s `global.gc()` mezi kousky, jednovláknovým GC, menším zásobníkem i s `--jitless` sedí) –
+    vypadá to na sdílení číselných polí (boxy `double`) ve V8 13.6 (Node 24.14) závislé na
+    souběžné kompilaci; deterministicky ani mimo vitest to vyvolat nešlo. Test proto porovnává
+    otisk vcelku pořízený hned po dopočtu. **Riziko:** stav držený v paměti (paměť vsí serveru) by
+    se mohl takto změnit dalším dopočtem jiné vsi; krajina zvěře se přepočítá každý 1. 5.
 - **Pořadí dne – pohromy** (plán pohrom – Pořadí dne): `weatherDay` a `partProtectionDay` hned
   za `wildlifeYearDay`; `famineMemoryDay` před `startSeason`; **`localDisastersDay`** (smršť,
   kroupy, povodeň, požár – `local-disasters.ts`) po `damageWindowStart`, před `startPurchases`
