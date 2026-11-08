@@ -29,6 +29,8 @@ import { segmentIsGap } from '../defense';
 import { segmentWall } from '../life';
 import { outlineBend } from '../outline';
 import { fortRuns } from '../runs';
+import { gatePartView } from '../gate-parts';
+import { sectionPieces, type SectionPiece } from '../section-spans';
 import { sectionOf } from '../sections';
 import { fortSegments } from '../segments';
 import { fortBlockingSegments } from '../walls';
@@ -101,19 +103,41 @@ function twoSections(kind: FortKind, corners: FortKind = 'chamber'): VillageStat
 }
 
 /**
- * Díly úseků A (od první brány) a B (od druhé) a jejich díly mezi branami (`a`, `b` bez dílů
- * s branou – díl s branou vylepšení úseku zvedne, až bude hradba po obou stranách brány stejná).
+ * Úseky A (od první brány) a B (od druhé): celé díly mezi branami (`a`, `b`) a kusy úseku
+ * (`pa`, `pb` – celé díly a z dílů s branou kus od okraje brány do úseku; `sectionPieces`).
  */
 function sections(s: VillageState): {
   a: readonly number[];
   b: readonly number[];
+  pa: readonly SectionPiece[];
+  pb: readonly SectionPiece[];
   gates: number[];
 } {
   const fort = fortOf(s);
   const gates = [...fort.gates].map((g) => g.segment);
   const inner = (g: number) => sectionOf(fort, g)!.segments.filter((i) => !gates.includes(i));
-  return { a: inner(gates[0]!), b: inner(gates[1]!), gates };
+  const lengths = shapesOf(s).map((x) => x.lengthM);
+  const pieces = (g: number) => sectionPieces(lengths, fort.gates, g);
+  return {
+    a: inner(gates[0]!),
+    b: inner(gates[1]!),
+    pa: pieces(gates[0]!),
+    pb: pieces(gates[1]!),
+    gates,
+  };
 }
+
+/** Hradba kusu `part` dílu `index` s branou (`gatePartView`). */
+const partWall = (s: VillageState, index: number, part: 'before' | 'after') => {
+  const fort = fortOf(s);
+  return segmentWall(
+    fort,
+    gatePartView(
+      fort.segments.find((x) => x.index === index)!,
+      part,
+    ),
+  )?.kind;
+};
 
 function ok(r: { ok: true; state: VillageState } | { ok: false; reason: string }): VillageState {
   if (!r.ok) throw new Error(r.reason);
@@ -130,17 +154,18 @@ function finish(s: VillageState, c: Construction, day = DAY + 10): void {
 const upgrade = (s: VillageState, segment: number | null, target: WallKind, day = DAY) =>
   startSectionUpgrade(s, day, landscape, EMPTY, { fortificationId: fortOf(s).id, segment, target });
 
-/** Cena dílů `indices` vylepšených na `target` ze stojící `from` (null – nové). */
+/** Cena dílů či kusů `items` vylepšených na `target` ze stojící `from` (null – nové). */
 function costOf(
   s: VillageState,
-  indices: readonly number[],
+  items: readonly (number | SectionPiece)[],
   target: WallKind,
   from: WallKind | null,
 ) {
   const shapes = shapesOf(s);
-  return indices.reduce(
+  return items.reduce(
     (sum, i) => {
-      const c = fortificationCost(target, shapes[i]!.lengthM, from);
+      const length = typeof i === 'number' ? shapes[i]!.lengthM : i.lengthM;
+      const c = fortificationCost(target, length, from);
       return {
         labor: sum.labor + c.laborManDays,
         logs: sum.logs + c.logs,
@@ -152,43 +177,52 @@ function costOf(
 }
 
 describe('vylepšení po úsecích', () => {
-  it('plot se 2 branami – úsek A na palisádu, B zůstane plot; po obou je celé palisáda', () => {
+  it('plot se 2 branami – úsek A na palisádu po okraj bran, B zůstane plot; po obou je celé palisáda', () => {
     const s = twoSections('fence');
-    const { a, b, gates } = sections(s);
+    const { a, b, pa, pb, gates } = sections(s);
+    const key = (w: { index: number; part?: string }) => `${w.index}${w.part ?? ''}`;
     const next = ok(upgrade(s, a[0]!, 'palisade'));
     const c = works(next)[0]!;
     expect(c).toMatchObject({ fortWork: 'upgrade', fortTarget: 'palisade' });
-    expect(c.fortSegments!.map((w) => w.index).sort((x, y) => x - y)).toEqual(
-      [...a].sort((x, y) => x - y),
-    );
+    // úsek přesně mezi okraji bran – celé díly a z dílů s branou kus na straně úseku
+    expect(c.fortSegments!.map(key).sort()).toEqual(pa.map(key).sort());
+    expect(pa.filter((p) => p.part !== undefined).length).toBe(2);
     // plot nic nevrací – cena palisády za délku úseku (klády z hromady, bez kácení)
-    expect(c.cost).toBeCloseTo(costOf(s, a, 'palisade', 'fence').labor, 6);
+    expect(c.cost).toBeCloseTo(costOf(s, pa, 'palisade', 'fence').labor, 6);
     // stará hradba stojí a brání, dokud díl není hotový
     expect(wallOf(next, a[0]!)).toBe('fence');
     finish(next, c);
     for (const i of a) expect(wallOf(next, i)).toBe('palisade');
     for (const i of b) expect(wallOf(next, i)).toBe('fence');
-    // brány zůstanou plotem, dokud hradba po obou stranách není palisáda
+    // kusy dílů bran na straně A palisáda až k okraji brány, na straně B a brána plot
+    for (const p of pa.filter((x) => x.part !== undefined)) {
+      expect(partWall(next, p.index, p.part!)).toBe('palisade');
+    }
+    for (const p of pb.filter((x) => x.part !== undefined)) {
+      expect(partWall(next, p.index, p.part!)).toBe('fence');
+    }
     for (const g of gates) expect(wallOf(next, g)).toBe('fence');
     expect(fortOf(next).kind).toBe('fence');
     const both = ok(upgrade(next, b[0]!, 'palisade'));
     const second = works(both)[0]!;
-    expect(second.fortSegments!.map((w) => w.index).sort((x, y) => x - y)).toEqual(
-      [...b, ...gates].sort((x, y) => x - y),
-    );
+    expect(second.fortSegments!.map(key).sort()).toEqual(pb.map(key).sort());
     finish(both, second);
-    // plot, který je celý palisádou, je palisáda – přepisy dílů zmizí
+    // obě strany brány palisáda – brána ji převezme; plot, který je celý palisádou, je palisáda
+    for (const g of gates) expect(wallOf(both, g)).toBe('palisade');
     expect(fortOf(both).kind).toBe('palisade');
     expect(fortOf(both).segments.every((x) => x.kind === undefined)).toBe(true);
+    expect(
+      fortOf(both).segments.every((x) => x.beforeGate === undefined && x.afterGate === undefined),
+    ).toBe(true);
   });
 
   it('palisáda → komorová za cenu komorové (skok o víc stupňů), stará palisáda stojí do konce', () => {
     const s = twoSections('palisade');
-    const { a } = sections(s);
+    const { a, pa } = sections(s);
     const next = ok(upgrade(s, a[0]!, 'chamber', DAY_830));
     const c = works(next)[0]!;
-    const want = costOf(s, a, 'chamber', 'palisade');
-    expect(want).toEqual(costOf(s, a, 'chamber', null));
+    const want = costOf(s, pa, 'chamber', 'palisade');
+    expect(want).toEqual(costOf(s, pa, 'chamber', null));
     expect(c.cost).toBeCloseTo(want.labor, 6);
     expect(next.stoneM3).toBeCloseTo(20000 - want.stone, 6);
     expect(next.woodLogs).toBe(20000 - Math.ceil(want.logs - 1e-9));
@@ -204,11 +238,11 @@ describe('vylepšení po úsecích', () => {
 
   it('palisáda → ochoz za 150 čd + 10 klád na 100 m, den palisády zůstane (přístavba)', () => {
     const s = twoSections('palisade');
-    const { a } = sections(s);
+    const { a, pa } = sections(s);
     const next = ok(upgrade(s, a[0]!, 'walkway'));
     const c = works(next)[0]!;
-    const want = costOf(s, a, 'walkway', 'palisade');
-    const len = a.reduce((sum, i) => sum + shapesOf(s)[i]!.lengthM, 0);
+    const want = costOf(s, pa, 'walkway', 'palisade');
+    const len = pa.reduce((sum, p) => sum + p.lengthM, 0);
     expect(want.logs).toBeCloseTo((10 * len) / 100, 6);
     expect(c.cost).toBeCloseTo(want.labor, 6);
     finish(next, c);
@@ -220,7 +254,7 @@ describe('vylepšení po úsecích', () => {
 
   it('ochoz jen na stojící palisádu – plot ani mezera rovnou na ochoz nejdou (Martin 8. 11.)', () => {
     const s = twoSections('fence');
-    const { a } = sections(s);
+    const { a, pa } = sections(s);
     expect(upgrade(s, a[0]!, 'walkway')).toEqual({ ok: false, reason: FORT_WALKWAY_NEW });
     const options = sectionUpgrades(s, DAY, landscape, EMPTY, {
       fortificationId: fortOf(s).id,
@@ -233,7 +267,7 @@ describe('vylepšení po úsecích', () => {
       ['chamber', FORT_WALL_YEAR('chamber')],
     ]);
     // nabídka palisády ukazuje práci bez kácení a klády
-    const palisade = costOf(s, a, 'palisade', 'fence');
+    const palisade = costOf(s, pa, 'palisade', 'fence');
     expect(options[0]!.laborManDays).toBeCloseTo(palisade.labor, 6);
     expect(options[0]!.logs).toBeCloseTo(palisade.logs, 6);
   });
@@ -249,7 +283,7 @@ describe('vylepšení po úsecích', () => {
 
   it('val – úsek A nástavba plot, úsek B roštová; holý val nabízí všechny stupně', () => {
     const s = twoSections('rampart');
-    const { a, b } = sections(s);
+    const { a, b, pb } = sections(s);
     const options = sectionUpgrades(s, DAY_830, landscape, EMPTY, {
       fortificationId: fortOf(s).id,
       segment: a[0]!,
@@ -268,7 +302,7 @@ describe('vylepšení po úsecích', () => {
     const [ca, cb] = works(next);
     expect(ca).toMatchObject({ fortWork: 'top', fortTarget: 'fence' });
     expect(cb).toMatchObject({ fortWork: 'top', fortTarget: 'crib' });
-    expect(cb!.cost).toBeCloseTo(costOf(s, b, 'crib', null).labor, 6);
+    expect(cb!.cost).toBeCloseTo(costOf(s, pb, 'crib', null).labor, 6);
     finish(next, ca!, DAY_830 + 1);
     finish(next, cb!, DAY_830 + 2);
     const fort = fortOf(next);
@@ -293,7 +327,7 @@ describe('vylepšení po úsecích', () => {
     expect(gaps.length).toBeGreaterThan(0);
     const next = ok(upgrade(razed, a[1]!, 'palisade'));
     const c = works(next)[0]!;
-    // zbořené díly za cenu nové palisády, kusy dílů bran u okraje brány postaví znovu svůj druh
+    // zbořené díly i kusy dílů bran po okraj brány za cenu nové palisády (hradba je hradba)
     expect(c.fortSegments!.some((w) => w.part !== undefined)).toBe(true);
     const whole = c.fortSegments!.filter((w) => w.part === undefined).map((w) => w.index);
     const gapIdx = gaps.map((x) => x.index);
@@ -324,6 +358,7 @@ describe('vylepšení po úsecích', () => {
         (x) => x.demolishedBeforeGate !== undefined || x.demolishedAfterGate !== undefined,
       ),
     ).toBe(false);
+    for (const w of parts) expect(partWall(next, w.index, w.part!)).toBe('palisade');
   });
 
   it('víc staveb na opevnění – jedna na díl: vylepšit A a bourat B, druhá stavba na A neprojde', () => {
@@ -360,7 +395,11 @@ describe('vylepšení po úsecích', () => {
     workFortification(next, c, DAY + 2);
     const cancelled = cancelConstruction(next, DAY + 3, c.id, landscape);
     expect(works(cancelled)).toEqual([]);
-    expect(wallOf(cancelled, first.index)).toBe('palisade');
+    expect(
+      first.part === undefined
+        ? wallOf(cancelled, first.index)
+        : partWall(cancelled, first.index, first.part),
+    ).toBe('palisade');
     const others = a.filter((i) => i !== first.index);
     for (const i of others) expect(wallOf(cancelled, i)).toBe('fence');
   });

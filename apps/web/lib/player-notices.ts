@@ -33,9 +33,11 @@ export function noticePanel(kind: PlayerNoticeKind): NoticePanel | null {
     case 'negotiation-accepted':
     case 'negotiation-rejected':
     case 'negotiation-withdrawn':
+    case 'negotiation-expired':
     case 'blocked':
     case 'vassalage-renounced':
     case 'levy-sent':
+    case 'levy-steward':
     case 'complaint-filed':
     case 'complaint-answered':
     case 'judgment-given':
@@ -46,6 +48,7 @@ export function noticePanel(kind: PlayerNoticeKind): NoticePanel | null {
     case 'passage-answered':
     case 'summons-sent':
     case 'summons-lapsed':
+    case 'summons-steward':
     case 'protection-requested':
     case 'protection-sent':
     case 'protection-recalled':
@@ -136,6 +139,8 @@ function textOf(n: PlayerNotice): string {
       return `${otherName(n.payload)} odmítl tvůj návrh.`;
     case 'negotiation-withdrawn':
       return `${otherName(n.payload)} stáhl svůj návrh.`;
+    case 'negotiation-expired':
+      return `Návrh dohody vypršel bez odpovědi – ${otherName(n.payload)}.`;
     case 'blocked':
       return `${otherName(n.payload)} tě zablokoval.`;
     case 'complaint-filed':
@@ -157,9 +162,13 @@ function textOf(n: PlayerNotice): string {
     case 'summons-open':
       return `${otherName(n.payload)} svolává.`;
     case 'summons-sent':
-      return `${otherName(n.payload)} poslal ${menText(n.payload.men)}.`;
+      return n.payload.steward === true
+        ? `${otherName(n.payload)}: za nepřítomného poslal správce ${menText(n.payload.men)}.`
+        : `${otherName(n.payload)} poslal ${menText(n.payload.men)}.`;
     case 'summons-lapsed':
       return `${otherName(n.payload)} nepřišel do války.`;
+    case 'summons-steward':
+      return `Správce za tebe poslal ${menText(n.payload.men)} na svolání – ${otherName(n.payload)}.`;
     case 'protection-requested':
       return `${otherName(n.payload)} žádá o ochranu.`;
     case 'protection-sent':
@@ -205,10 +214,25 @@ function textOf(n: PlayerNotice): string {
             : 'odvod';
       const short =
         n.payload.trade === true && n.payload.short === true ? ' Míň, než bylo domluveno.' : '';
+      const steward = n.payload.steward === true ? ' Za nepřítomného odvedl správce.' : '';
       return (
-        `${vassal} ti posílá ${noun}${what === '' ? ' – tentokrát nic' : `: ${what}`}.${when}${short}` +
+        `${vassal} ti posílá ${noun}${what === '' ? ' – tentokrát nic' : `: ${what}`}.${when}${short}${steward}` +
         (message === null ? '' : ` Vzkaz: „${message}“`)
       );
+    }
+    case 'levy-steward': {
+      const lord = stringOf(n.payload.lordName) ?? 'pánovi';
+      const parts = Array.isArray(n.payload.parts) ? (n.payload.parts as LevyPart[]) : [];
+      const sent = parts.filter((p) => p.sent > 0);
+      const what = sent.map((p) => `${p.sent} ${LEVY_UNITS[p.good] ?? p.good}`).join(', ');
+      const noun =
+        n.payload.kind === 'repay'
+          ? 'splátku půjčky'
+          : n.payload.kind === 'tribute-send'
+            ? 'zboží z míru'
+            : 'odvod';
+      const short = parts.some((p) => p.sent < p.agreed) ? ' Míň, než bylo domluveno.' : '';
+      return `Správce za tebe poslal ${noun} – ${lord}${what === '' ? ': tentokrát nic' : `: ${what}`}.${short}`;
     }
     case 'player-succession': {
       const dead = stringOf(n.payload.deadName) ?? 'Tvůj muž';

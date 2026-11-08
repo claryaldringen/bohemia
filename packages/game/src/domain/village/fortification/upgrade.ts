@@ -1,4 +1,13 @@
 import type { WallKind } from '../types';
+import {
+  gatePartView,
+  GATE_PARTS,
+  gonePartDay,
+  ownGatePart,
+  settleGateParts,
+  storeGatePart,
+  type GatePart,
+} from './gate-parts';
 import { layerBuilt, segmentKind, segmentRampart, segmentWall, WALL_ORDER } from './life';
 import type { FortSegment, Fortification } from './types';
 
@@ -44,18 +53,16 @@ export function upgradeOnRampart(base: UpgradeBase): boolean {
 }
 
 /**
- * Je díl hotový pro vylepšení na `target`: celý díl – stojí na něm hradba `target`; kus dílu
- * s branou (`part`) – kus už není mezera.
+ * Je díl hotový pro vylepšení na `target` – stojí na něm (na kusu dílu s branou `part`) hradba
+ * `target`?
  */
 export function upgradeDone(
   fort: Pick<Fortification, 'kind' | 'top' | 'rampartHeight'>,
   seg: FortSegment,
   target: WallKind,
-  part?: 'before' | 'after',
+  part?: GatePart,
 ): boolean {
-  if (part === 'before') return seg.demolishedBeforeGate === undefined;
-  if (part === 'after') return seg.demolishedAfterGate === undefined;
-  const base = upgradeBase(fort, seg);
+  const base = upgradeBase(fort, part === undefined ? seg : gatePartView(seg, part));
   return base.kind === 'wall' && base.wall === target;
 }
 
@@ -69,22 +76,21 @@ function setWallKind(fort: Pick<Fortification, 'kind'>, seg: FortSegment, kind: 
  * Práce vylepšení došla na díl (mutuje díl): stojí na něm hradba `target`. Mezera dostane hradbu
  * bez valu (den dokončení, plný stav, už není zbořená); na valu nástavba (`top`, `topBuiltDay`);
  * hradba bez valu nový druh a den. Ochoz je přístavba – palisáda drží svůj den i stav (stáří kůlů
- * běží dál). Průlom dílu vylepšení zavře. Kus dílu s branou (`part`) přestane být mezerou – druh
- * dílu s branou se nemění.
+ * běží dál). Průlom dílu vylepšení zavře. Kus dílu s branou (`part`) totéž jen na svém kusu –
+ * vlastní vrstvy kusu (`storeGatePart`), brána a druhý kus stojí (Martin 8. 11. 2026: „Hradba je
+ * hradba, brána je brána.“).
  */
 export function completeUpgrade(
   fort: Pick<Fortification, 'kind' | 'top' | 'rampartHeight'>,
   seg: FortSegment,
   target: WallKind,
   day: number,
-  part?: 'before' | 'after',
+  part?: GatePart,
 ): void {
-  if (part === 'before') {
-    delete seg.demolishedBeforeGate;
-    return;
-  }
-  if (part === 'after') {
-    delete seg.demolishedAfterGate;
+  if (part !== undefined) {
+    const view = gatePartView(seg, part);
+    completeUpgrade(fort, view, target, day);
+    storeGatePart(fort, seg, part, view);
     return;
   }
   const base = upgradeBase(fort, seg);
@@ -129,7 +135,15 @@ export function completeUpgrade(
  */
 export function settleUpgrade(fort: Fortification): void {
   const kinds = new Set(
-    fort.segments.filter((s) => s.demolishedDay === undefined).map((s) => segmentKind(fort, s)),
+    fort.segments
+      .filter((s) => s.demolishedDay === undefined)
+      .flatMap((s) => [
+        segmentKind(fort, s),
+        // kusy dílů s branou s vlastní hradbou
+        ...GATE_PARTS.filter(
+          (p) => ownGatePart(s, p) !== undefined && gonePartDay(s, p) === undefined,
+        ).map((p) => segmentKind(fort, gatePartView(s, p))),
+      ]),
   );
   if (kinds.size !== 1) return;
   const kind = [...kinds][0]!;
@@ -147,4 +161,5 @@ export function settleUpgrade(fort: Fortification): void {
       delete s.topBuiltDay;
     }
   }
+  for (const s of fort.segments) settleGateParts(fort, s);
 }

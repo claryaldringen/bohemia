@@ -10,6 +10,12 @@ import {
   FORT_BUSY,
   fortSections,
   fortSegments,
+  gatePartView,
+  GATE_PARTS,
+  ownGatePart,
+  partKey,
+  sectionPieces,
+  type SectionPiece,
   fortificationCost,
   layerBuilt,
   outlineOf,
@@ -92,6 +98,13 @@ export interface SceneFortSegment {
    * Martin 8. 11. 2026); chybí – úsek se nestaví, platí `SceneFortification.work`.
    */
   work?: FortBuildWork;
+  /**
+   * Vzhled kusu dílu s branou před bránou, má-li kus vlastní hradbu (`FortSegment.beforeGate`)
+   * nebo vlastní stavbu; chybí – kus vypadá jako díl.
+   */
+  before?: SceneFortSegment;
+  /** Totéž pro kus za bránou. */
+  after?: SceneFortSegment;
 }
 
 /** Cena práce pro tlačítko panelu – člověkodny a klády. */
@@ -225,19 +238,22 @@ function yearsSince(builtDay: number | null | undefined, day: number): number | 
  * druhém (`workFortification`).
  */
 export function fortSegmentProgress(
-  c: Pick<Construction, 'done' | 'wood' | 'fortSegments'>,
+  c: Pick<Construction, 'done' | 'wood' | 'fortSegments' | 'fortWork'>,
+  parts?: Map<string, number>,
 ): Map<number, number> {
   const progress = new Map<number, number>();
   let start = woodFellingCost(c.wood);
   for (const w of c.fortSegments ?? []) {
-    // kus dílu s branou se rozebírá bez průběhu – zbytek dílu stojí celý (demolition.md)
+    const p = w.cost > 0 ? (c.done - start) / w.cost : c.done >= start ? 1 : 0;
+    start += w.cost;
+    // kus dílu s branou: zboření bez průběhu – zbytek dílu stojí celý (demolition.md); stavba
+    // na kusu (vylepšení po okraj brány) průběh kusu do `parts`
     if (w.part !== undefined) {
-      start += w.cost;
+      const down = c.fortWork === 'demolish' || c.fortWork === 'level';
+      if (parts && !down) parts.set(partKey(w.index, w.part), Math.min(1, Math.max(0, p)));
       continue;
     }
-    const p = w.cost > 0 ? (c.done - start) / w.cost : c.done >= start ? 1 : 0;
     progress.set(w.index, Math.min(1, Math.max(0, p)));
-    start += w.cost;
   }
   return progress;
 }
@@ -284,21 +300,36 @@ export function sceneFortifications(
     );
     const site = sites[0];
     const bySegment = new Map<number, { progress: number; work: FortBuildWork }>();
+    const byPart = new Map<string, { progress: number; work: FortBuildWork }>();
     for (const c of sites) {
-      for (const [index, p] of fortSegmentProgress(c)) {
+      const parts = new Map<string, number>();
+      for (const [index, p] of fortSegmentProgress(c, parts)) {
         if (!bySegment.has(index))
           bySegment.set(index, { progress: p, work: c.fortWork ?? 'build' });
       }
+      for (const [k, p] of parts) {
+        if (!byPart.has(k)) byPart.set(k, { progress: p, work: c.fortWork ?? 'build' });
+      }
     }
+    const lookOf = (
+      s: FortSegment | undefined,
+      p: { progress: number; work: FortBuildWork } | undefined,
+    ): SceneFortSegment => ({
+      age: yearsSince(s?.builtDay, day),
+      ...(s && 'topBuiltDay' in s ? { topAge: yearsSince(s.topBuiltDay, day) } : {}),
+      ...(p !== undefined ? { progress: p.progress } : {}),
+      ...(p !== undefined && sites.length > 1 ? { work: p.work } : {}),
+    });
     const looks = fortSegments(outline).map((shape): SceneFortSegment => {
       const s = fort.segments.find((x) => x.index === shape.index);
-      const p = bySegment.get(shape.index);
-      return {
-        age: yearsSince(s?.builtDay, day),
-        ...(s && 'topBuiltDay' in s ? { topAge: yearsSince(s.topBuiltDay, day) } : {}),
-        ...(p !== undefined ? { progress: p.progress } : {}),
-        ...(p !== undefined && sites.length > 1 ? { work: p.work } : {}),
-      };
+      const look = lookOf(s, bySegment.get(shape.index));
+      // kus dílu s branou s vlastní hradbou nebo stavbou – vlastní vzhled (stáří, průběh)
+      for (const part of GATE_PARTS) {
+        const p = byPart.get(partKey(shape.index, part));
+        if (!s || (ownGatePart(s, part) === undefined && p === undefined)) continue;
+        look[part] = lookOf(gatePartView(s, part), p);
+      }
+      return look;
     });
     result.push(
       sceneFortification(fort, outline, looks, {
@@ -366,9 +397,20 @@ function partBuiltDay(fort: Fortification, s: FortSegment): number | null {
   return segmentRampart(fort, s)?.builtDay ?? segmentWall(fort, s)?.builtDay ?? null;
 }
 
-/** Stav dílů `indices` opevnění ke dni `day` pro panel úseku. */
-function partsState(fort: Fortification, indices: readonly number[], day: number): FortPartsState {
-  const parts = fort.segments.filter((s) => indices.includes(s.index));
+/**
+ * Stav kusů úseku ke dni `day` pro panel úseku – celé díly a z dílů s branou jen kus úseku
+ * (`sectionPieces`, `gatePartView`; hradba je hradba, brána je brána).
+ */
+function partsState(
+  fort: Fortification,
+  pieces: readonly SectionPiece[],
+  day: number,
+): FortPartsState {
+  const parts = pieces.flatMap((p) => {
+    const s = fort.segments.find((x) => x.index === p.index);
+    if (!s) return [];
+    return [p.part === undefined ? s : gatePartView(s, p.part)];
+  });
   const built = parts.filter((s) => segmentBuilt(s) && s.demolishedDay === undefined);
   const oldest = Math.min(...built.map((s) => partBuiltDay(fort, s) ?? day));
   return {
@@ -431,18 +473,33 @@ export function fortificationViews(
       refugeCattle: places.cattle,
       sections: fortSections(fort).map((section) => {
         const span = spans.find((x) => x.gateSegment === section.gateSegment);
-        // stavba na dílech úseku (každý úsek zvlášť – Martin 8. 11. 2026)
+        const found = sectionPieces(
+          shapes.map((x) => x.lengthM),
+          fort.gates,
+          section.gateSegment,
+        );
+        const pieces: SectionPiece[] =
+          found.length > 0
+            ? found
+            : (span?.segments ?? section.segments).map((index) => ({ index, lengthM: 0 }));
+        // stavba na kusech úseku (každý úsek zvlášť – Martin 8. 11. 2026; kus dílu s branou zvlášť)
         const own = state.constructions.find(
           (c) =>
             c.kind === 'fortification' &&
             c.fortificationId === fort.id &&
-            (c.fortSegments ?? []).some((w) => section.segments.includes(w.index)),
+            (c.fortSegments ?? []).some((w) =>
+              pieces.some(
+                (p) =>
+                  p.index === w.index &&
+                  (p.part === undefined || w.part === undefined || p.part === w.part),
+              ),
+            ),
         );
         return {
           segments: [...section.segments],
           gateSegment: section.gateSegment,
           lengthM: span?.lengthM ?? 0,
-          ...partsState(fort, span?.segments ?? section.segments, day),
+          ...partsState(fort, pieces, day),
           demolish: demolishOption(state, landscape, fort.id, section.segments[0]!),
           ...(own
             ? {

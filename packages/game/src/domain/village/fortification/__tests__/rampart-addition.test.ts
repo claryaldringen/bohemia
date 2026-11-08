@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { gatePartView } from '../gate-parts';
+import { sectionPieces, type SectionPiece } from '../section-spans';
 import { dayIndexOf } from '../../../calendar';
 import { packObstacles } from '../../../landscape';
 import { MARCH_RAMPART, MARCH_WALL, marchCellAt, marchGrid } from '../../../war/march-grid';
@@ -91,6 +93,13 @@ function sectionA(s: VillageState): number[] {
   return sectionOf(fort, gates[0]!)!.segments.filter((i) => !gates.includes(i));
 }
 
+/** Kusy úseku A přesně mezi okraji bran (`sectionPieces`). */
+function piecesA(s: VillageState): SectionPiece[] {
+  const fort = fortOf(s);
+  const lengths = shapesOf(s).map((x) => x.lengthM);
+  return sectionPieces(lengths, fort.gates, fort.gates[0]!.segment);
+}
+
 function ok(r: { ok: true; state: VillageState } | { ok: false; reason: string }): VillageState {
   if (!r.ok) throw new Error(r.reason);
   return r.state;
@@ -120,13 +129,14 @@ describe('val pod stojící hradbou (Hradby a obrana – Druhy)', () => {
     const next = ok(addRampart(s, a[0]!));
     const c = works(next)[0]!;
     expect(c.fortWork).toBe('rampart');
-    // jen díly úseku A (díl s branou čeká, až bude val po obou stranách brány)
-    expect(c.fortSegments!.map((w) => w.index).sort((x, y) => x - y)).toEqual(
-      [...a].sort((x, y) => x - y),
-    );
-    const shapes = shapesOf(s);
-    const labor = a.reduce(
-      (sum, i) => sum + fortificationCost('rampart', shapes[i]!.lengthM).laborManDays,
+    // úsek A přesně po okraj bran – celé díly a kusy dílů s branou (Martin 8. 11. 2026: „Hradba je
+    // hradba, brána je brána.“)
+    const pieces = piecesA(s);
+    const key = (w: { index: number; part?: string }): string => `${w.index}${w.part ?? ''}`;
+    expect(pieces.some((p) => p.part !== undefined)).toBe(true);
+    expect(c.fortSegments!.map(key).sort()).toEqual(pieces.map(key).sort());
+    const labor = pieces.reduce(
+      (sum, p) => sum + fortificationCost('rampart', p.lengthM).laborManDays,
       0,
     );
     expect(c.cost).toBeCloseTo(labor);
@@ -164,6 +174,15 @@ describe('val pod stojící hradbou (Hradby a obrana – Druhy)', () => {
         outside: true,
       });
       expect(segmentWall(fortOf(next), seg)).toEqual({ kind: 'palisade', builtDay: DAY, state: 1 });
+    }
+    // kusy dílů s branou na straně A mají val, brána ne
+    for (const p of pieces.filter((x) => x.part !== undefined)) {
+      const seg = segOf(next, p.index);
+      expect(segmentRampart(fortOf(next), gatePartView(seg, p.part!))).toMatchObject({
+        builtDay: DAY + 10,
+        outside: true,
+      });
+      expect(segmentRampart(fortOf(next), seg)).toBeNull();
     }
     // opevnění zůstane palisádou (val vně není val na křivce)
     expect(fortOf(next).kind).toBe('palisade');
@@ -227,7 +246,9 @@ describe('val pod stojící hradbou (Hradby a obrana – Druhy)', () => {
     const cancelled = cancelConstruction(next, DAY + 3, c.id, landscape);
     expect(works(cancelled)).toEqual([]);
     const fort = fortOf(cancelled);
-    expect(segmentRampart(fort, segOf(cancelled, first.index))).toMatchObject({
+    const firstSeg = segOf(cancelled, first.index);
+    const firstView = first.part === undefined ? firstSeg : gatePartView(firstSeg, first.part);
+    expect(segmentRampart(fort, firstView)).toMatchObject({
       builtDay: DAY + 2,
       outside: true,
     });

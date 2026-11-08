@@ -32,6 +32,7 @@ import type {
 import { villageWoods } from '../woods';
 import {
   fortBlockingSegments,
+  type FortPartBand,
   fortRunningWork,
   fortWalls,
   type FortWorkRef,
@@ -408,6 +409,12 @@ export function pathFortificationsOf(
  * blokování nemění – dokončení úseku klíč nezmění (Martin 6. 11. 2026). Ves bez opevnění null –
  * klíče vsí bez opevnění se nemění.
  */
+/** Klíč pásu kusu dílu s branou (`FortBlockingSegment.parts`) – druh a val vně; neblokuje `-`. */
+function partBandKey(p: FortPartBand | null): string {
+  if (p === null) return '-';
+  return `${p.kind}${p.outside === undefined ? '' : `o${p.outside.outM}/${p.outside.inM}`}`;
+}
+
 export function fortLayoutKey(
   state: Pick<VillageState, 'fortifications'> & { readonly constructions: readonly FortWorkRef[] },
 ): string | null {
@@ -425,7 +432,11 @@ export function fortLayoutKey(
           (s) =>
             `${s.index}:${s.kind}${s.gone === undefined ? '' : `:${s.gone}`}${
               // val vně hradby – pás sahá ven a dovnitř podle hradby (jen u něj, klíče beze změny)
-              s.outside === undefined ? '' : `:o${s.outside.outM}/${s.outside.inM}`
+              (s.outside === undefined ? '' : `:o${s.outside.outM}/${s.outside.inM}`) +
+              // kusy dílu s branou s vlastní hradbou (jen u nich, klíče beze změny)
+              (s.parts === undefined
+                ? ''
+                : `:${partBandKey(s.parts.before)}/${partBandKey(s.parts.after)}`)
             }`,
         )
         .join(','),

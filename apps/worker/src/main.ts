@@ -77,6 +77,44 @@ async function main(): Promise<void> {
     );
   };
 
+  // herní den okamžiku (tribut z míru, kola jednání)
+  const dayOfAt = (at: Date): number => {
+    const day = worldDayOf(at.getTime(), currentWorld());
+    return day.ok ? day.day : 0;
+  };
+  const worldShipments = {
+    shipments: gameDeps.shipments,
+    villages: gameDeps.villages,
+    settlements: gameDeps.settlements,
+    locks,
+    now: () => new Date(),
+  };
+  // správce za nepřítomného hráče (absence.md): Odvody a Svolání po lhůtě, vsi dopočítá do dneška
+  const stewards = {
+    levies: {
+      dialogs: gameDeps.dialogs,
+      vassalages: gameDeps.vassalages,
+      houses: gameDeps.houses,
+      notices: gameDeps.notices,
+      villages: gameDeps.villages,
+      loans: gameDeps.loans,
+      shipments: worldShipments,
+      prepareVillage: loadDomainVillage,
+    },
+    summons: {
+      dialogs: gameDeps.dialogs,
+      vassalages: gameDeps.vassalages,
+      houses: gameDeps.houses,
+      wars: gameDeps.wars,
+      notices: gameDeps.notices,
+      villages: gameDeps.villages,
+      settlements: gameDeps.settlements,
+      shipments: worldShipments,
+      stewardships: gameDeps.stewardships,
+      prepareVillage: loadDomainVillage,
+    },
+  };
+
   const loop: LoopDeps = {
     world: currentWorld,
     worldDay: (nowMs, world) => {
@@ -123,19 +161,17 @@ async function main(): Promise<void> {
             loans: gameDeps.loans,
             tributes: {
               peaceTributes: () => gameDeps.negotiations.peaceTributes(),
-              dayOf: (at) => {
-                const day = worldDayOf(at.getTime(), currentWorld());
-                return day.ok ? day.day : 0;
-              },
+              dayOf: dayOfAt,
             },
           },
-          shipments: {
-            shipments: gameDeps.shipments,
+          stewards,
+          negotiationExpiry: {
+            negotiations: gameDeps.negotiations,
+            houses: gameDeps.houses,
             villages: gameDeps.villages,
-            settlements: gameDeps.settlements,
-            locks,
-            now: () => new Date(),
+            dayOf: dayOfAt,
           },
+          shipments: worldShipments,
           domainFood: {
             settlements: gameDeps.settlements,
             villages: gameDeps.villages,

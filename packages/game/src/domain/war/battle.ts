@@ -3,6 +3,10 @@ import {
   breachStart,
   breachStep,
   breachWork,
+  gatePartView,
+  hasGateParts,
+  wallSpotSegment,
+  type GatePart,
   fortOutlineOf,
   fortSegments,
   layerBuilt,
@@ -413,16 +417,20 @@ function wallsOf(forts: readonly BattleFort[], closed: ReadonlySet<string>, day:
         lines.push({ ax: a.x, az: a.z, bx: e.x, bz: e.z, segment: shape.index });
       };
       const seg = bf.fort.segments.find((s) => s.index === shape.index);
-      if (!seg || !blocks(bf.fort, seg, day)) {
+      const gate = bf.fort.gates.find((g) => g.segment === shape.index);
+      // díl s branou s kusy s vlastní hradbou blokuje po kusech (brána je brána)
+      const split = gate !== undefined && seg !== undefined && hasGateParts(seg);
+      const stands = (part: GatePart): boolean =>
+        split ? blocks(bf.fort, gatePartView(seg, part), day) : true;
+      if (!seg || (split ? !stands('before') && !stands('after') : !blocks(bf.fort, seg, day))) {
         openings.push(opening(mid));
         return;
       }
       const key = `${fi}:${shape.index}`;
-      const gate = bf.fort.gates.find((g) => g.segment === shape.index);
       if (gate && !closed.has(key)) {
         const half = FORTIFICATIONS.gate.widthM / 2;
-        part(0, gate.offsetM - half);
-        part(gate.offsetM + half, l.length);
+        if (stands('before')) part(0, gate.offsetM - half);
+        if (stands('after')) part(gate.offsetM + half, l.length);
         openings.push(opening({ x: gate.x, z: gate.z }));
       } else {
         part(0, l.length);
@@ -454,7 +462,7 @@ function wallsOf(forts: readonly BattleFort[], closed: ReadonlySet<string>, day:
         segment: shape.index,
         spot: 'wall',
         at: shift(at(wallT), 1),
-        work: breachWork(bf.fort, seg, 'wall'),
+        work: breachWork(bf.fort, wallSpotSegment(bf.fort.gates, seg, l.length), 'wall'),
       });
     });
     walls.lines.push(lines);

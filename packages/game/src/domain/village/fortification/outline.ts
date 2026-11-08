@@ -142,12 +142,18 @@ export function outlineBend(
   outline: FortOutline,
   reachM: number,
   only?: ReadonlySet<number>,
+  ranges?: readonly (readonly [number, number])[],
 ): CurveBend {
   let best: CurveBend = { radiusM: Infinity, at: outline.polyline[0] ?? [0, 0] };
-  // jen body lomené čáry v dílech `only` (vylepšení úseku – ohyb cílové hradby jen tam)
+  // jen body lomené čáry v dílech `only` (vylepšení úseku – ohyb cílové hradby jen tam), s `ranges`
+  // jen body v těchto kusech obvodu (m od začátku dílu 0 – kus dílu s branou bez brány)
   const inside = only ? pointsOfSegments(outline, only) : null;
   outline.polyline.forEach((b, k) => {
     if (inside && !inside.has(k)) return;
+    const at = outline.stations[k]!;
+    if (ranges && !ranges.some(([from, to]) => at >= from - EPSILON_M && at <= to + EPSILON_M)) {
+      return;
+    }
     const s = outline.stations[k]!;
     const a = outlinePointAt(outline, s - reachM);
     const c = outlinePointAt(outline, s + reachM);

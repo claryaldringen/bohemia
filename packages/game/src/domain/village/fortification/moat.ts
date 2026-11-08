@@ -1,4 +1,5 @@
 import { heightAtWorld, SURFACE_CODES, type Landscape } from '../../landscape';
+import { gatePartView, GATE_PARTS, gonePartDay, ownGatePart } from './gate-parts';
 import type { Point } from '../polygon';
 import { FORTIFICATIONS } from '../rules-fortifications';
 import type { GridGeometry } from '../square-grid';
@@ -227,7 +228,13 @@ export function finishMoatFill(
 ): void {
   for (const w of c.fortSegments ?? []) {
     const seg = fort.segments.find((s) => s.index === w.index);
-    if (!seg || seg.demolishedDay !== undefined || !layerBuilt(segmentRampart(fort, seg))) continue;
-    seg.moatDay ??= day;
+    if (!seg || seg.demolishedDay !== undefined) continue;
+    if (layerBuilt(segmentRampart(fort, seg))) seg.moatDay ??= day;
+    // kus dílu s branou s vlastním valem (hradba je hradba, brána je brána)
+    for (const part of GATE_PARTS) {
+      const own = ownGatePart(seg, part);
+      if (!own || gonePartDay(seg, part) !== undefined) continue;
+      if (layerBuilt(segmentRampart(fort, gatePartView(seg, part)))) own.moatDay ??= day;
+    }
   }
 }

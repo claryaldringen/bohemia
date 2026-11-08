@@ -36,6 +36,35 @@ podmínek:
   (stejně jako NPC rod – `answerNpcSummons`).
 - **Nová jednání** čekají na hráče; bez odpovědi do lhůty vyprší (návrh Clauda: 1 herní rok).
 
+**Implementováno 8. 11. 2026** (kód: [vazalství](../code/vassalage.md) – Správce za nepřítomného
+hráče). Podrobnosti a lhůty jsou návrh Clauda (`ABSENT_VASSAL` v `rules-absence.ts`):
+
+| Co                  | Lhůta                                    | Skutečný čas | Co udělá správce / svět                                                                  |
+| ------------------- | ---------------------------------------- | ------------ | ---------------------------------------------------------------------------------------- |
+| Roční Odvody 1. 11. | do konce roku – 60 dní (31. 12.)         | ≈ 1,4 h      | odvede domluvené, u každé vsi nejvýš přebytek (co ves může postrádat); míň = neplnění    |
+| Svolání             | 30 herních dní od svolání                | ≈ 43 min     | pošle domluvený počet nejzdatnějších mužů rodu, kteří jsou doma a zdraví; míň = neplnění |
+| Návrh v jednání     | 1 herní rok (365 dní) od posledního kola | ≈ 8 h 46 min | jednání vyprší – obě strany dostanou upozornění, kronika obou rodů                       |
+
+- **Kdo jedná:** ve hře se to ukazuje jako „správce“ – formální správce rodu (nejstarší syn od 16
+  let, jinak vojvoda); kterou osobu to je, se nepočítá, rod jedná vždy, dokud žije.
+- **Roční Odvody** zahrnují i řádek splátky půjčky a tribut z míru – oba chodí 1. 11. ve stejném
+  dialogu (návrh Clauda). Správce posílá předvyplněné rozdělení po vsích, ale u každé vsi nejvýš
+  její přebytek – pojistku jídla a osiva na 2 roky nesáhne. Vsi se před odpovědí dopočítají do
+  dneška (i uspané). Protože správce odpoví do konce roku, dialog už další 1. 11. nenaroste.
+- **Svolání:** správce své vazaly nesvolává (vazal vazala); po konci války nejedná – svolání
+  propadne jako dřív. Svolání NPC rodu splní server hned, jako dosud.
+- **Jednání:** vypršení není odmítnutí – pauza po odmítnutí se nezapisuje a nový návrh smí kdokoli
+  poslat hned. Žádost odříznutého nováčka o pána nevyprší – má vlastní týden a los
+  ([nováčci](newcomers.md)).
+- **Kdo dřív:** vše hlídá krok světa (worker) podle herního dne, ne podle toho, kdo je online.
+  Hráč, který odpoví do lhůty, má přednost – odpověď uzavře dialog podmíněně, druhá neprojde.
+- **Když správce nemůže** (návrh Clauda): selže-li odvod nebo svolání důvodem, který se sám
+  nespraví (pán nemá cílovou ves, ves zanikla), uzavře se dialog jako „nic neodvedl / nikoho
+  neposlal“ – neplnění, bez opakování; přechodná chyba (souběh) se zkusí v příštím kroku světa.
+- **Co hráč vidí:** v dialogu Odvody přesýpací hodiny s datem, kdy odvede správce; u Svolání
+  datum v popisku rohu. Po lhůtě upozornění „Správce za tebe poslal …“; pán vidí u odvodu i mužů
+  „za nepřítomného … správce“.
+
 ## Návrat
 
 Žádné zvláštní shrnutí – Martin 8. 11. 2026: „Ne, může si přece sám zobrazit panel s notifikacemi

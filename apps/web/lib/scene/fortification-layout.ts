@@ -2,7 +2,16 @@
 // brány, val s příkopem a staveniště po úsecích. Tvar obvodu (úseky – rovná část a oblouk rohu)
 // je z jádra (`SceneFortification.shapes`); vše ostatní se odvozuje pevně z id opevnění a indexu
 // úseku, takže se při každém kreslení vyjde stejně. Souřadnice světa scény v metrech (x, z).
-import { FORTIFICATIONS, segmentRampart, segmentWall, type WallKind } from '@bohemia/game';
+import {
+  FORTIFICATIONS,
+  gatePartAt,
+  gatePartView,
+  hasGateParts,
+  segmentRampart,
+  segmentWall,
+  type GatePart,
+  type WallKind,
+} from '@bohemia/game';
 import type { SceneFortification, SceneFortSegment } from '../fort-view';
 import {
   FORT_SITE_DONE,
@@ -468,6 +477,24 @@ export function inGoneGatePart(
   );
 }
 
+/**
+ * Leží bod `s` obvodu v kusu dílu `segment` s branou, jehož vlastní hradba stojí bez valu
+ * (`gatePartView` – srovnaný val postavený znovu vylepšením úseku)? Násep ani příkop tam není.
+ */
+function withoutRampartPart(
+  fort: Pick<SceneFortification, 'segments' | 'gates' | 'kind' | 'top' | 'rampartHeight'>,
+  starts: readonly number[],
+  segment: number,
+  s: number,
+): boolean {
+  const seg = fort.segments.find((x) => x.index === segment);
+  if (!seg || !hasGateParts(seg)) return false;
+  const gate = fort.gates.find((g) => g.segment === segment);
+  if (!gate) return false;
+  const part = gatePartAt((starts[segment] ?? 0) + gate.offsetM, s);
+  return segmentRampart(fort, gatePartView(seg, part)) === null;
+}
+
 /** Pevné číslo 0–1 z celých čísel (bez náhody – stejné při každém kreslení). */
 export function hash01(a: number, b: number, c: number): number {
   let h =
@@ -499,9 +526,18 @@ export interface SegmentBuild {
  * a palisáda u země, na valu nástavba (`demolish`), val sám se srovnává (`level`). Vrstvy dílu
  * z jádra (`segmentWall`, `segmentRampart`) – `top: 'none'` je val bez nástavby.
  */
-export function segmentBuild(fort: SceneFortification, index: number): SegmentBuild {
-  const segment = fort.segments.find((s) => s.index === index);
-  const look: SceneFortSegment = fort.looks[index] ?? { age: null };
+export function segmentBuild(
+  fort: SceneFortification,
+  index: number,
+  part?: GatePart,
+): SegmentBuild {
+  const whole = fort.segments.find((s) => s.index === index);
+  // kus dílu s branou – vlastní hradba kusu (`gatePartView`) a jeho vzhled (`SceneFortSegment`)
+  const segment = whole && part !== undefined ? gatePartView(whole, part) : whole;
+  const wholeLook: SceneFortSegment = fort.looks[index] ?? { age: null };
+  const look: SceneFortSegment =
+    (part === 'before' ? wholeLook.before : part === 'after' ? wholeLook.after : undefined) ??
+    wholeLook;
   const state = segment?.state ?? 1;
   const breached = segment?.breachedDay !== undefined;
   const progress = look.progress;
@@ -554,6 +590,43 @@ export function segmentBuild(fort: SceneFortification, index: number): SegmentBu
   if (work === 'upgrade' && layer === 'fence' && progress !== undefined && progress > 0)
     result.upgrade = { phase: fortSitePhase('palisade', progress) };
   return result;
+}
+
+/** Co stojí po obvodu – díl, u dílu s branou s kusy s vlastní hradbou kus podle polohy. */
+export interface FortBuilds {
+  /** Co stojí v místě `s` obvodu (m od začátku dílu 0) dílu `segment`. */
+  at: (segment: number, s: number) => SegmentBuild | undefined;
+  /** Všechno, co na opevnění stojí (díly i kusy) – zda se má vrstva kreslit vůbec. */
+  all: SegmentBuild[];
+}
+
+/**
+ * Co stojí po obvodu (`segmentBuild`): díl s branou, jehož kus má vlastní hradbu nebo vlastní
+ * vzhled (stavba kusu), se čte po kusech – před středem brány kus před ní, za ním kus za ní
+ * (hradba je hradba, brána je brána – Martin 8. 11. 2026).
+ */
+export function fortBuilds(fort: SceneFortification): FortBuilds {
+  const { starts } = segmentStarts(fort.shapes);
+  const whole = fort.shapes.map((s) => segmentBuild(fort, s.index));
+  const parts = new Map<number, { gateM: number; before: SegmentBuild; after: SegmentBuild }>();
+  for (const gate of fort.gates) {
+    const seg = fort.segments.find((x) => x.index === gate.segment);
+    const look = fort.looks[gate.segment];
+    if (!seg || (!hasGateParts(seg) && !look?.before && !look?.after)) continue;
+    parts.set(gate.segment, {
+      gateM: (starts[gate.segment] ?? 0) + gate.offsetM,
+      before: segmentBuild(fort, gate.segment, 'before'),
+      after: segmentBuild(fort, gate.segment, 'after'),
+    });
+  }
+  return {
+    at: (segment, s) => {
+      const split = parts.get(segment);
+      if (!split) return whole[segment];
+      return gatePartAt(split.gateM, s) === 'before' ? split.before : split.after;
+    },
+    all: [...whole, ...[...parts.values()].flatMap((x) => [x.before, x.after])],
+  };
 }
 
 /** Barva dřeva podle stáří: čerstvé hnědé (1, 1, 1) → šedé a tmavé ke konci životnosti. */
@@ -654,14 +727,14 @@ export function palisadeLayout(fort: SceneFortification, crown: CrownLift): Pali
   const line = insetLine(fort, layerLine(fort, 'palisade'), 1 / STAKES_PER_M);
   const { starts, length } = segmentStarts(fort.shapes);
   const gates = gatePositions(fort);
-  const builds = fort.shapes.map((s) => segmentBuild(fort, s.index));
+  const builds = fortBuilds(fort);
   const stakes: FortInstance[] = [];
   const trench: [number, number, number, number][] = [];
   const gap = FORT_GATE_M / 2 + 0.12;
   line.forEach((p, k) => {
     if (gates.some((g) => loopDistance(p.s, g, length) < gap)) return;
     if (inGoneGatePart(fort, starts, p.segment, p.s)) return;
-    const b = builds[p.segment]!;
+    const b = builds.at(p.segment, p.s)!;
     const u = along(fort, starts, p);
     let phase: FortSitePhase | null = null;
     let age = 0;
@@ -742,10 +815,10 @@ export function wallCoreAt(
 ): (p: { s: number; segment: number }) => WallCore | null {
   const { starts, length } = segmentStarts(fort.shapes);
   const gates = gatePositions(fort);
-  const builds = fort.shapes.map((s) => segmentBuild(fort, s.index));
+  const builds = fortBuilds(fort);
   const kinds = ['walkway', 'crib', 'chamber'] as const;
   return (p) => {
-    const b = builds[p.segment];
+    const b = builds.at(p.segment, p.s);
     if (!b) return null;
     const kind = kinds.find((k) => wallOf(b, k) && !(k === 'walkway' && fort.kind === 'rampart'));
     if (!kind) return null;
@@ -785,7 +858,7 @@ function offsetPoint(p: LinePoint, d: number): [number, number] {
 /** Přípravy pro díly hradby po čáře: úseky, brány a zda díl o poloviční délce `half` padne do brány. */
 function wallContext(fort: SceneFortification): {
   starts: number[];
-  builds: SegmentBuild[];
+  builds: FortBuilds;
   blocked: (p: LinePoint, half: number) => boolean;
   u: (p: LinePoint) => number;
   /** Díl chybí – za životností řídne (stav úseku), v průlomu (uprostřed úseku) není. */
@@ -793,7 +866,7 @@ function wallContext(fort: SceneFortification): {
 } {
   const { starts, length } = segmentStarts(fort.shapes);
   const gates = gatePositions(fort);
-  const builds = fort.shapes.map((s) => segmentBuild(fort, s.index));
+  const builds = fortBuilds(fort);
   const u = (p: LinePoint): number => along(fort, starts, p);
   return {
     starts,
@@ -817,7 +890,7 @@ function wallContext(fort: SceneFortification): {
  */
 export function walkwayLayout(fort: SceneFortification, crown: CrownLift): FortInstance[] {
   const ctx = wallContext(fort);
-  if (!ctx.builds.some((b) => wallOf(b, 'walkway'))) return [];
+  if (!ctx.builds.all.some((b) => wallOf(b, 'walkway'))) return [];
   const stakes = layerLine(fort, 'walkway');
   const looks = fort.kind === 'rampart' ? rampartLooks(fort) : null;
   /** Zem pod dílem `rel` m za kůly: koruna valu (svah), jinak násyp ochozu. */
@@ -829,7 +902,7 @@ export function walkwayLayout(fort: SceneFortification, crown: CrownLift): FortI
   const out: FortInstance[] = [];
   const stepsDone = new Set<number>();
   line.forEach((p, k) => {
-    const b = ctx.builds[p.segment]!;
+    const b = ctx.builds.at(p.segment, p.s)!;
     const wall = wallOf(b, 'walkway');
     if (!wall || ctx.blocked(p, WALKWAY.plankM / 2)) return;
     const u = ctx.u(p);
@@ -892,7 +965,7 @@ function parapets(
   const line = insetLine(fort, wallBase(fort) + rel, PARAPET_M);
   const out: FortInstance[] = [];
   line.forEach((p, k) => {
-    const b = ctx.builds[p.segment]!;
+    const b = ctx.builds.at(p.segment, p.s)!;
     const wall = wallOf(b, kind);
     if (!wall || wall.phase !== FORT_SITE_DONE || ctx.blocked(p, PARAPET_M / 2)) return;
     if (ctx.missing(b, p, k, 41)) return;
@@ -922,7 +995,7 @@ function stoneFace(
   const line = insetLine(fort, layerLine(fort, kind), step);
   const out: FortInstance[] = [];
   line.forEach((p, k) => {
-    const b = ctx.builds[p.segment]!;
+    const b = ctx.builds.at(p.segment, p.s)!;
     const wall = wallOf(b, kind);
     if (!wall || ctx.blocked(p, step / 2)) return;
     const rise = wall.phase.earth;
@@ -954,12 +1027,12 @@ function stoneFace(
  */
 export function cribLayout(fort: SceneFortification, crown: CrownLift): FortInstance[] {
   const ctx = wallContext(fort);
-  if (!ctx.builds.some((b) => wallOf(b, 'crib'))) return [];
+  if (!ctx.builds.all.some((b) => wallOf(b, 'crib'))) return [];
   const base = wallBase(fort);
   const out = stoneFace(fort, ctx, 'crib', crown);
   const line = insetLine(fort, base + CRIB.crossAtM[0], CRIB.logStepM);
   line.forEach((p, k) => {
-    const b = ctx.builds[p.segment]!;
+    const b = ctx.builds.at(p.segment, p.s)!;
     const wall = wallOf(b, 'crib');
     if (!wall || ctx.blocked(p, 1) || ctx.missing(b, p, k, 61)) return;
     const height = CRIB.heightM * wall.phase.earth;
@@ -1006,13 +1079,13 @@ export function cribLayout(fort: SceneFortification, crown: CrownLift): FortInst
  */
 export function chamberLayout(fort: SceneFortification, crown: CrownLift): FortInstance[] {
   const ctx = wallContext(fort);
-  if (!ctx.builds.some((b) => wallOf(b, 'chamber'))) return [];
+  if (!ctx.builds.all.some((b) => wallOf(b, 'chamber'))) return [];
   const base = wallBase(fort);
   const out = stoneFace(fort, ctx, 'chamber', crown);
   const center = (CHAMBER.faceM + CHAMBER.bandM) / 2;
   const line = insetLine(fort, base + center, CHAMBER.boxM);
   line.forEach((p, k) => {
-    const b = ctx.builds[p.segment]!;
+    const b = ctx.builds.at(p.segment, p.s)!;
     const wall = wallOf(b, 'chamber');
     if (!wall || ctx.blocked(p, CHAMBER.boxM / 2)) return;
     if (ctx.u(p) >= wall.phase.posts || ctx.missing(b, p, k, 71)) return;
@@ -1067,7 +1140,7 @@ export function fortStakingLines(fort: SceneFortification): [number, number][][]
       : [layerLine(fort, work === 'upgrade' ? 'palisade' : fort.kind)];
   const { starts, length } = segmentStarts(fort.shapes);
   const gates = gatePositions(fort);
-  const builds = fort.shapes.map((s) => segmentBuild(fort, s.index));
+  const builds = fortBuilds(fort);
   const half = FORT_GATE_M / 2;
   const lines: [number, number][][] = [];
   for (const d of offsets) {
@@ -1076,7 +1149,7 @@ export function fortStakingLines(fort: SceneFortification): [number, number][][]
       (p) =>
         !gates.some((g) => loopDistance(p.s, g, length) < half) &&
         !inGoneGatePart(fort, starts, p.segment, p.s) &&
-        markedOut(fort, builds[p.segment]!, along(fort, starts, p)),
+        markedOut(fort, builds.at(p.segment, p.s)!, along(fort, starts, p)),
     );
     // souvislé vytyčené kusy obvodu; kus přes začátek čáry se spojí s posledním
     const runs: [number, number][][] = [];
@@ -1112,7 +1185,7 @@ export function fortFenceStage(fort: SceneFortification, crown: CrownLift): Fenc
   const line = insetLine(fort, layerLine(fort, 'fence'), FORT_FENCE.postStep);
   const { starts, length } = segmentStarts(fort.shapes);
   const gates = gatePositions(fort);
-  const builds = fort.shapes.map((s) => segmentBuild(fort, s.index));
+  const builds = fortBuilds(fort);
   const half = FORT_GATE_M / 2;
   const posts: FencePost[] = [];
   /** Kolik výšek větví smí vést od kůlu dál (podle úseku), –1 = kůl za mezerou brány. */
@@ -1128,7 +1201,7 @@ export function fortFenceStage(fort: SceneFortification, crown: CrownLift): Fenc
       levels.push(-1);
       return;
     }
-    const b = builds[p.segment]!;
+    const b = builds.at(p.segment, p.s)!;
     const fence = b.ground?.layer === 'fence' ? b.ground : b.top?.layer === 'fence' ? b.top : null;
     if (!fence) {
       levels.push(-1);
@@ -1181,7 +1254,10 @@ export function fortFenceStage(fort: SceneFortification, crown: CrownLift): Fenc
     const pb = posts[b]!;
     const lift = (lifts[a]! + lifts[b]!) / 2;
     for (let level = 0; level < count; level++) {
-      if (hash01(fort.id, k * 16 + level, 11) < (1 - (builds[line[k]!.segment]?.state ?? 1)) * 1.15)
+      if (
+        hash01(fort.id, k * 16 + level, 11) <
+        (1 - (builds.at(line[k]!.segment, line[k]!.s)?.state ?? 1)) * 1.15
+      )
         continue;
       const side = (k + level) % 2 === 0 ? 1 : -1;
       rails.push({
@@ -1346,6 +1422,8 @@ export function rampartAt(
   const start = starts[k]!;
   const end = start + (fort.shapes[k]?.lengthM ?? 0);
   if (inGoneGatePart(fort, starts, k, s)) return { height: 0, round: 0, grass: 0 };
+  // kus dílu s branou s vlastní hradbou bez valu (srovnaný val postavený znovu jako hradba)
+  if (withoutRampartPart(fort, starts, k, s)) return { height: 0, round: 0, grass: 0 };
   const blend = 1.5;
   let other: RampartLook | null = null;
   let w = 0;

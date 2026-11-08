@@ -2,10 +2,11 @@ import type { Point } from '../polygon';
 import { FORTIFICATIONS } from '../rules-fortifications';
 import type { GridGeometry } from '../square-grid';
 import { fortOutlineOf, type FortShapeSource } from './convert';
+import { gatePartView, GATE_PARTS, hasGateParts } from './gate-parts';
 import { segmentBuilt, segmentKind, segmentWall } from './life';
 import { runOn, runTarget, type FortRuns, type FortSegmentRun } from './runs';
 import { runEnd, type FortOutline } from './outline';
-import type { FortSegment, Fortification } from './types';
+import type { FortGatePart, FortSegment, Fortification } from './types';
 
 // Pás opevnění (fortifications.md – Obvod): leží uvnitř obvodu podél křivky, křivka je jeho vnější
 // okraj. Pás každého kusu lomené čáry je čtyřúhelník kus × šířka pásu dovnitř (plocha vpravo od
@@ -207,6 +208,10 @@ export interface BandFortification extends FortShapeSource {
     readonly kind?: FortSegment['kind'];
     readonly top?: FortSegment['top'];
     readonly rampartOutside?: true;
+    readonly demolishedBeforeGate?: number;
+    readonly demolishedAfterGate?: number;
+    readonly beforeGate?: FortGatePart;
+    readonly afterGate?: FortGatePart;
   }[];
 }
 
@@ -258,11 +263,26 @@ export function fortificationBand(
     const taken =
       building === true || run !== null || (segmentBuilt(s) && s.demolishedDay === undefined);
     if (!taken) continue;
-    const width = bandWidthOf(fort, outline, s, run);
+    let width = bandWidthOf(fort, outline, s, run);
     // val vně hradby sahá přes křivku ven (mezera stavěná znovu ne – staví se hradba bez valu)
     const gapRebuilt =
       (!segmentBuilt(s) || s.demolishedDay !== undefined) && runTarget(run) !== null;
-    const out = gapRebuilt ? 0 : segmentBand(fort, s).outM;
+    let out = gapRebuilt ? 0 : segmentBand(fort, s).outM;
+    // díl s branou: kus s vlastní hradbou nebo prací – pás dílu podle nejširšího kusu
+    if (building !== true && building !== false) {
+      for (const part of GATE_PARTS) {
+        const own = runOn(building, s.index, part);
+        if (own === run && !hasGateParts(s)) continue;
+        const view = gatePartView(s, part);
+        if (own === run && view.demolishedDay !== undefined) continue;
+        width = Math.max(width, bandWidthOf(fort, outline, view, own));
+        const rebuilt =
+          (!segmentBuilt(view) || view.demolishedDay !== undefined) && runTarget(own) !== null;
+        if (!rebuilt && view.demolishedDay === undefined) {
+          out = Math.max(out, segmentBand(fort, view).outM);
+        }
+      }
+    }
     for (const p of spanPieces(outline, -out, width, s.index)) pieces.push(p.corners);
   }
   return pieces;

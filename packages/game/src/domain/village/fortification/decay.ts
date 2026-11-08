@@ -28,6 +28,14 @@ import {
   segmentState,
   segmentWall,
 } from './life';
+import {
+  gatePartLengthM,
+  gatePartView,
+  GATE_PARTS,
+  gonePartDay,
+  ownGatePart,
+  type GatePart,
+} from './gate-parts';
 import { busySegments } from './runs';
 import { fortSegments } from './segments';
 
@@ -43,17 +51,50 @@ const EPSILON = 1e-9;
 /** Geometrie krajiny, ze které se počítá délka úseků. */
 type Geometry = Pick<Landscape, 'size' | 'cellSizeM'>;
 
+/** Kus k přestavbě – celý díl, nebo kus dílu s branou s vlastní hradbou (`part`). */
+interface DuePiece {
+  index: number;
+  part?: GatePart;
+}
+
+/** Kusy dílu s branou s vlastní hradbou, které stojí (ne zbořené se sousedním úsekem). */
+function ownParts(fort: Fortification, s: FortSegment): GatePart[] {
+  if (!fort.gates.some((g) => g.segment === s.index)) return [];
+  return GATE_PARTS.filter(
+    (p) => ownGatePart(s, p) !== undefined && gonePartDay(s, p) === undefined,
+  );
+}
+
 /**
- * Úseky, které obyvatelé přestaví: průlom a dožilá hradba (i na valu). Zbořený díl ne – hráč ho
- * zbořil (demolition.md – Opevnění).
+ * Délka kusu (m): kus dílu s branou podle brány, celý díl bez kusů s vlastní hradbou (ty se
+ * přestavují a udržují zvlášť).
  */
-function dueSegments(fort: Fortification, day: number, busy: ReadonlySet<number>): number[] {
-  const breached: number[] = [];
-  const old: number[] = [];
+function pieceLength(fort: Fortification, s: FortSegment, length: number, part?: GatePart): number {
+  const gate = fort.gates.find((g) => g.segment === s.index);
+  if (!gate) return length;
+  if (part !== undefined) return gatePartLengthM(length, gate.offsetM, part);
+  let rest = length;
+  for (const p of ownParts(fort, s)) rest -= gatePartLengthM(length, gate.offsetM, p);
+  return Math.max(0, rest);
+}
+
+/**
+ * Úseky, které obyvatelé přestaví: průlom a dožilá hradba (i na valu) – i kus dílu s branou
+ * s vlastní hradbou zvlášť. Zbořený díl ne – hráč ho zbořil (demolition.md – Opevnění).
+ */
+function dueSegments(fort: Fortification, day: number, busy: ReadonlySet<number>): DuePiece[] {
+  const breached: DuePiece[] = [];
+  const old: DuePiece[] = [];
   for (const s of fort.segments) {
     if (!segmentBuilt(s) || s.demolishedDay !== undefined || busy.has(s.index)) continue;
-    if (s.breachedDay !== undefined) breached.push(s.index);
-    else if (segmentIsOld(fort, s, day)) old.push(s.index);
+    if (s.breachedDay !== undefined) {
+      breached.push({ index: s.index });
+      continue;
+    }
+    if (segmentIsOld(fort, s, day)) old.push({ index: s.index });
+    for (const part of ownParts(fort, s)) {
+      if (segmentIsOld(fort, gatePartView(s, part), day)) old.push({ index: s.index, part });
+    }
   }
   return [...breached, ...old];
 }
@@ -102,32 +143,45 @@ export function decideFortRebuilds(
         s.state !== value
       )
         s.state = value;
+      // kus dílu s branou s vlastní hradbou chátrá po svém
+      if (!segmentBuilt(s) || s.breachedDay !== undefined || s.demolishedDay !== undefined)
+        continue;
+      for (const part of ownParts(fort, s)) {
+        const own = ownGatePart(s, part)!;
+        const next = segmentState(fort, gatePartView(s, part), day);
+        if (own.state !== next) own.state = next;
+      }
     }
     if (fort.segments.every((s) => busy.has(s.index))) continue;
     const lengths = builtLengths(geo, fort);
     if (!lengths) continue;
     const outline = outlineOf(geo, fort);
     if (!outline) continue;
-    const due = new Set(dueSegments(fort, day, busy));
+    const due = dueSegments(fort, day, busy);
     const height = fort.rampartHeight ?? 1;
     const restore =
       fort.kind === 'rampart' && height < FORTIFICATIONS.rampartUpkeep.renewBelowHeight;
-    if (due.size === 0 && !restore) continue;
+    if (due.length === 0 && !restore) continue;
     const anchor = villageAnchor(state);
     const order = fortWorkOrder(lengths.size, fort.gates, anchor);
     let plan: { segments: FortSegmentWork[]; wood: number };
     let kind: 'rebuild' | 'restore';
-    if (due.size > 0) {
+    if (due.length > 0) {
       kind = 'rebuild';
-      // průlom napřed, pak ostatní v pořadí práce od brány
+      // průlom napřed, pak ostatní v pořadí práce od brány (celý díl před kusy u brány)
       const isBreach = (i: number): boolean =>
         fort.segments.find((s) => s.index === i)?.breachedDay !== undefined;
-      const picked = order.filter((i) => due.has(i));
-      const indices = [...picked.filter(isBreach), ...picked.filter((i) => !isBreach(i))];
+      const picked = order.flatMap((i) => due.filter((d) => d.index === i));
+      const pieces = [
+        ...picked.filter((d) => isBreach(d.index)),
+        ...picked.filter((d) => !isBreach(d.index)),
+      ];
       plan = { segments: [], wood: 0 };
-      for (const index of indices) {
-        const seg = fort.segments.find((s) => s.index === index)!;
-        const length = lengths.get(index) ?? 0;
+      for (const { index, part } of pieces) {
+        const whole = fort.segments.find((s) => s.index === index)!;
+        // kus dílu s branou s vlastní hradbou se přestavuje po svém (`gatePartView`)
+        const seg = part === undefined ? whole : gatePartView(whole, part);
+        const length = pieceLength(fort, whole, lengths.get(index) ?? 0, part);
         // přestavba hradby na valu – val sám stojí dál; průlom valu se staví celý
         const top = segmentRampart(fort, seg) !== null && seg.breachedDay === undefined;
         // dožilá hradba: cena podle druhu (ochoz = palisáda + fošny, roštová a komorová třetina
@@ -139,7 +193,7 @@ export function decideFortRebuilds(
             ? fortificationRebuildCost(wallKind, length)
             : fortificationCost(segmentKind(fort, seg), length);
         plan.wood += cost.logs;
-        plan.segments.push({ index, cost: cost.laborManDays });
+        plan.segments.push({ index, ...(part ? { part } : {}), cost: cost.laborManDays });
       }
     } else {
       kind = 'restore';
@@ -212,21 +266,44 @@ export function fortUpkeep(
       fort.segments.map((s) => s.index),
     );
     let need = 0;
-    const aging: { seg: FortSegment; need: number }[] = [];
+    const aging: { layers: { extraAgeDays?: number }; need: number }[] = [];
     let rampartNeed = 0;
     for (const s of fort.segments) {
       if (busy.has(s.index) || s.demolishedDay !== undefined) continue;
-      const hundreds = (lengths.get(s.index) ?? 0) / 100;
-      const perDay = (kind: FortKind): number =>
-        (hundreds * FORTIFICATIONS.upkeepPer100MYear[kind]) / FORT_DAYS_PER_YEAR;
+      const length = lengths.get(s.index) ?? 0;
+      const perDay = (kind: FortKind, m: number): number =>
+        ((m / 100) * FORTIFICATIONS.upkeepPer100MYear[kind]) / FORT_DAYS_PER_YEAR;
+      // průlom čeká na přestavbu, shnilá hradba na nule už nemá co udržovat; kus dílu s branou
+      // s vlastní hradbou a valem se udržuje po svém
+      const parts = ownParts(fort, s);
       // srovnaný val se neudržuje
-      if (layerBuilt(segmentRampart(fort, s))) rampartNeed += perDay('rampart');
-      // průlom čeká na přestavbu, shnilá hradba na nule už nemá co udržovat
-      const wall = segmentWall(fort, s);
-      if (wall && wall.builtDay !== null && s.breachedDay === undefined && (s.state ?? 1) > 0) {
-        const wallNeed = perDay(wall.kind);
-        aging.push({ seg: s, need: wallNeed });
-        need += wallNeed;
+      const wholeM = parts.length > 0 ? pieceLength(fort, s, length) : length;
+      if (layerBuilt(segmentRampart(fort, s))) rampartNeed += perDay('rampart', wholeM);
+      for (const part of parts) {
+        if (layerBuilt(segmentRampart(fort, gatePartView(s, part)))) {
+          rampartNeed += perDay('rampart', pieceLength(fort, s, length, part));
+        }
+      }
+      const pieces: { layers: { extraAgeDays?: number }; view: FortSegment; m: number }[] = [
+        { layers: s, view: s, m: parts.length > 0 ? pieceLength(fort, s, length) : length },
+        ...parts.map((part) => ({
+          layers: ownGatePart(s, part)!,
+          view: gatePartView(s, part),
+          m: pieceLength(fort, s, length, part),
+        })),
+      ];
+      for (const { layers, view, m } of pieces) {
+        const wall = segmentWall(fort, view);
+        if (
+          wall &&
+          wall.builtDay !== null &&
+          s.breachedDay === undefined &&
+          (view.state ?? 1) > 0
+        ) {
+          const wallNeed = perDay(wall.kind, m);
+          aging.push({ layers, need: wallNeed });
+          need += wallNeed;
+        }
       }
     }
     need += rampartNeed;
@@ -239,7 +316,7 @@ export function fortUpkeep(
     used += given;
     const shortfall = (need - given) / need;
     if (shortfall <= EPSILON) continue;
-    for (const { seg } of aging) seg.extraAgeDays = (seg.extraAgeDays ?? 0) + shortfall;
+    for (const { layers } of aging) layers.extraAgeDays = (layers.extraAgeDays ?? 0) + shortfall;
     for (const g of towers) g.towerExtraAgeDays = (g.towerExtraAgeDays ?? 0) + shortfall;
     if (rampartNeed > EPSILON) {
       const { years, height } = FORTIFICATIONS.rampartNeglect;

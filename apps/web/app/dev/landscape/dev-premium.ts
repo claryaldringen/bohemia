@@ -1,4 +1,10 @@
-import { PREMIUM_TYPES, premiumFeaturesOf, type Landscape, type PremiumType } from '@bohemia/game';
+import {
+  PREMIUM_TYPES,
+  premiumFeaturesOf,
+  skeletonFeaturesOf,
+  type Landscape,
+  type PremiumType,
+} from '@bohemia/game';
 import { PREMIUM_COLORS } from '@/lib/minimap';
 import type { HoldingsOverlaySector } from '@/lib/scene/holdings-overlay';
 import type { Point } from '@/lib/scene/village-layout';
@@ -16,13 +22,18 @@ export function parsePremium(value: string | undefined): PremiumType | undefined
 /** Poloměr kroužku místa (m) – brod, přístaviště, pramen, sedlo… */
 const POINT_RING_M = 9;
 
-/** Překryv prvků krajiny v barvách minimapy (`PREMIUM_COLORS`); průměrná krajina prázdný. */
+/**
+ * Překryv prvků krajiny v barvách minimapy (`PREMIUM_COLORS`); průměrná krajina prázdný. Na mapě
+ * se stezkou kostry je prvek `route` (brod, průsmyk) táž trasa – kreslí ji `skeletonOverlay`.
+ */
 export function premiumOverlay(l: Landscape): HoldingsOverlaySector[] {
   const features = premiumFeaturesOf(l);
   if (!features) return [];
+  const skeletonRoute = !!skeletonFeaturesOf(l)?.route;
   return features.sites.flatMap((site): HoldingsOverlaySector[] => {
     // řeka je voda ve scéně – bez překryvu
     if (site.kind === 'river') return [];
+    if (site.kind === 'route' && skeletonRoute) return [];
     const [r, g, b] = PREMIUM_COLORS[site.kind];
     const color = [r / 255, g / 255, b / 255] as const;
     const sectors: HoldingsOverlaySector[] = [];

@@ -6,11 +6,16 @@ import {
   fortSegments,
   layerBuilt,
   moatSegments,
+  gatePartView,
+  pieceBusy,
   sectionOf,
+  sectionPieces,
   segmentRampart,
   segmentWall,
   startRampartOn,
+  storeGatePart,
   type FortSection,
+  type GatePart,
 } from './fortification';
 import {
   FORT_BUSY,
@@ -70,39 +75,51 @@ function canAddRampart(fort: Fortification, seg: FortSegment): boolean {
   );
 }
 
+/** Kus doplnění valu – celý díl, nebo kus dílu s branou (`gatePartView`). */
+interface RampartPiece {
+  index: number;
+  part?: GatePart;
+  lengthM: number;
+  /** Díl, jak vypadá kus (celý díl – díl sám). */
+  view: FortSegment;
+  /** Kus obvodu (m od začátku dílu 0) – ohyb valu jen tam. */
+  range: [number, number];
+}
+
 /**
- * Díly, které doplnění valu úseku `section` (null – celé opevnění) dostane: díly úseku bez dílů
- * s branou, které val smějí dostat (`canAddRampart`); díl s branou na kraji úseku, až bude val po
- * obou stranách brány – jako vylepšení po úsecích (fortification-upgrade.ts).
+ * Kusy úseku `section` (null – všech úseků), které val dostanou: hradba úseku přesně mezi okraji
+ * bran (`sectionPieces` – celé díly a z dílů s branou kus od okraje brány do úseku; Martin
+ * 8. 11. 2026: „Hradba je hradba, brána je brána.“), jen kusy, které val smějí dostat
+ * (`canAddRampart`). Brána sama val nedostane – převezme ho, až ho budou mít obě strany brány
+ * (`storeGatePart`).
  */
-function rampartIndices(fort: Fortification, section: FortSection | null): number[] {
-  const n = fort.segments.length;
-  const gateSegs = new Set(fort.gates.map((g) => g.segment));
-  const segOf = (i: number): FortSegment | undefined => fort.segments.find((s) => s.index === i);
-  const inner = new Set(
-    section
-      ? section.segments.filter((i) => !gateSegs.has(i) || gateSegs.size === 0)
-      : fort.segments.map((s) => s.index),
-  );
-  const can = (i: number): boolean => {
-    const seg = segOf(i);
-    return seg !== undefined && canAddRampart(fort, seg);
-  };
-  // díl bude mít val – už ho má, nebo ho doplnění úseku přidá
-  const willHave = (i: number): boolean => {
-    const seg = segOf(i);
-    if (!seg) return false;
-    return segmentRampart(fort, seg) !== null || (inner.has(i) && can(i));
-  };
-  const indices = [...inner].filter(can);
-  if (section) {
-    const last = section.segments[section.segments.length - 1]!;
-    for (const g of new Set([section.segments[0]!, (last + 1) % n])) {
-      if (!gateSegs.has(g) || inner.has(g) || !can(g)) continue;
-      if (willHave((g - 1 + n) % n) && willHave((g + 1) % n)) indices.push(g);
+function rampartPieces(
+  fort: Fortification,
+  shapes: readonly { startM: number; lengthM: number }[],
+  section: FortSection | null,
+): RampartPiece[] {
+  const lengths = shapes.map((x) => x.lengthM);
+  const gateSegs = [...new Set(fort.gates.map((g) => g.segment))];
+  const sections = section ? [section.gateSegment] : gateSegs.length > 0 ? gateSegs : [null];
+  const result: RampartPiece[] = [];
+  for (const gateSegment of sections) {
+    for (const piece of sectionPieces(lengths, fort.gates, gateSegment)) {
+      const seg = fort.segments.find((s) => s.index === piece.index);
+      if (!seg) continue;
+      const view = piece.part === undefined ? seg : gatePartView(seg, piece.part);
+      if (!canAddRampart(fort, view)) continue;
+      const start = shapes[piece.index]?.startM ?? 0;
+      const end = start + (lengths[piece.index] ?? 0);
+      result.push({
+        index: piece.index,
+        ...(piece.part ? { part: piece.part } : {}),
+        lengthM: piece.lengthM,
+        view,
+        range: piece.part === 'after' ? [end - piece.lengthM, end] : [start, start + piece.lengthM],
+      });
     }
   }
-  return indices;
+  return result;
 }
 
 /** Pás dílu s valem vně hradby: 7 m ven, dovnitř šířka hradby, nejméně 3 m. */
@@ -138,8 +155,9 @@ export function startRampartAddition(
   if (!outline) return { ok: false, reason: FORT_UNKNOWN };
   const section = input.segment === null ? null : sectionOf(fort, input.segment);
   if (input.segment !== null && !section) return { ok: false, reason: FORT_UNKNOWN };
-  const indices = rampartIndices(fort, section);
-  if (indices.length === 0) {
+  const shapes = fortSegments(outline);
+  const pieces = rampartPieces(fort, shapes, section);
+  if (pieces.length === 0) {
     const scope = section ? section.segments : fort.segments.map((s) => s.index);
     const has = scope.some((i) => {
       const seg = fort.segments.find((s) => s.index === i);
@@ -147,21 +165,15 @@ export function startRampartAddition(
     });
     return { ok: false, reason: has ? FORT_RAMPART_DONE : FORT_RAMPART_NO_WALL };
   }
-  const busy = busySegments(
-    state.constructions,
-    fort.id,
-    fort.segments.map((s) => s.index),
-  );
-  if (indices.some((i) => busy.has(i))) return { ok: false, reason: FORT_BUSY };
+  // jedna stavba na díl, kusy dílu s branou zvlášť (Martin 8. 11. 2026 – „B“)
+  const busy = pieceBusy(state.constructions, fort.id);
+  if (pieces.some((p) => busy(p.index, p.part))) return { ok: false, reason: FORT_BUSY };
   const only = new Map<number, FortBandSpan>();
-  for (const i of indices)
-    only.set(
-      i,
-      outsideSpan(
-        fort,
-        fort.segments.find((s) => s.index === i)!,
-      ),
-    );
+  for (const p of pieces) {
+    const span = outsideSpan(fort, p.view);
+    const was = only.get(p.index);
+    only.set(p.index, was && was.inM > span.inM ? was : span);
+  }
   const village = placementVillageOf(state, day);
   const check = checkFortificationPlacement(
     landscape,
@@ -170,25 +182,36 @@ export function startRampartAddition(
     outline.points,
     'rampart',
     only,
+    pieces.map((p) => p.range),
   );
   if (!check.ok) return { ok: false, reason: check.reason ?? 'Sem val nepatří.' };
-  const shapes = fortSegments(outline);
   const rank = new Map(
     fortWorkOrder(shapes.length, fort.gates, villageAnchor(state)).map((index, k) => [index, k]),
   );
-  const ordered = [...indices].sort((a, b) => (rank.get(a) ?? 0) - (rank.get(b) ?? 0));
-  const segments: FortSegmentWork[] = ordered.map((index) => ({
-    index,
-    cost: fortificationCost('rampart', shapes[index]?.lengthM ?? 0).laborManDays,
+  const order = (p: RampartPiece): number =>
+    p.part === undefined ? 0 : p.part === 'before' ? 1 : 2;
+  const ordered = [...pieces].sort(
+    (a, b) => (rank.get(a.index) ?? 0) - (rank.get(b.index) ?? 0) || order(a) - order(b),
+  );
+  const segments: FortSegmentWork[] = ordered.map((p) => ({
+    index: p.index,
+    ...(p.part ? { part: p.part } : {}),
+    cost: fortificationCost('rampart', p.lengthM).laborManDays,
   }));
   const next = cloneState(state);
   giveWayToBuilding(next, day, check.takenLand, 'fortification');
   const nextFort = villageFortifications(next).find((f) => f.id === fort.id)!;
-  for (const index of ordered)
-    startRampartOn(
-      nextFort,
-      nextFort.segments.find((s) => s.index === index)!,
-    );
+  for (const p of ordered) {
+    const seg = nextFort.segments.find((s) => s.index === p.index)!;
+    if (p.part === undefined) {
+      startRampartOn(nextFort, seg);
+      continue;
+    }
+    // kus dílu s branou – val jen pod hradbou kusu, brána a druhý kus beze změny
+    const view = gatePartView(seg, p.part);
+    startRampartOn(nextFort, view);
+    storeGatePart(nextFort, seg, p.part, view);
+  }
   const missing = pushWork(
     next,
     day,
