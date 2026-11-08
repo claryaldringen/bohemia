@@ -3,6 +3,7 @@ import {
   BANK_REACH_M,
   nearestWaterPair,
   riverCenterline,
+  riverCenterlines,
   streamCenterline,
   watersCenterline,
   type StreamCenterline,
@@ -72,8 +73,16 @@ export interface RenderSurface {
    * potoka. Krajina bez řeky = osa potoka.
    */
   stream: StreamCenterline;
-  /** Osa řeky prémiové krajiny (stanice podél řeky – rákos, ryby, zvuk), jinak null. */
+  /**
+   * Všechny řeky dohromady (`riverCenterline` – řeky kostry i řeka prémie) pro dotazy na koryto;
+   * `points` jsou body první řeky. Krajina bez řeky null.
+   */
   river: StreamCenterline | null;
+  /**
+   * Osa každé řeky zvlášť (`riverCenterlines` – hlavní tok kostry, přítoky, řeka prémie) – stanice
+   * podél řek (rákos, ryby, zvuk) jdou po každé z nich. Krajina bez řeky [].
+   */
+  rivers: readonly StreamCenterline[];
   /** Světové souřadnice bodu sítě. */
   position(v: number): { x: number; z: number };
   /** Výška terénu (m) kdekoli – bilineárně mezi body sítě. */
@@ -123,7 +132,8 @@ export function buildRenderSurface(l: Landscape): RenderSurface {
     const bottom = h(i0, j0 + 1) + (h(i0 + 1, j0 + 1) - h(i0, j0 + 1)) * ti;
     return top + (bottom - top) * tj;
   };
-  return { resolution, heights, waterLevel, stream, river, position, heightAt };
+  const rivers = riverCenterlines(l);
+  return { resolution, heights, waterLevel, stream, river, rivers, position, heightAt };
 }
 
 /**

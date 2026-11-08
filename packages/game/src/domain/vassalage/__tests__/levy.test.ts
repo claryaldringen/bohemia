@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { bundle } from './shipment-fixtures';
-import { flattenBundle, scaleBundle, suggestSplit } from '../levy';
+import { flattenBundle, scaleBundle, spareSplit, suggestSplit } from '../levy';
 
 describe('rozdělení Odvodů po vsích', () => {
   it('rozdělí podle přebytku, součet dá domluvené', () => {
@@ -26,5 +26,16 @@ describe('rozdělení Odvodů po vsích', () => {
   it('scaleBundle násobí všechny řádky', () => {
     const scaled = scaleBundle(bundle({ grainKg: 10, horses: 1 }), 3);
     expect(flattenBundle(scaled)).toMatchObject({ grainKg: 30, horses: 3, logs: 0 });
+  });
+
+  it('spareSplit (správce) nepošle z žádné vsi víc, než může postrádat', () => {
+    const split = spareSplit(bundle({ grainKg: 500, logs: 3 }), [
+      { id: 'a', spare: bundle({ grainKg: 120.55, logs: 10 }) },
+      { id: 'b', spare: bundle({ grainKg: 80 }) },
+    ]);
+    expect(flattenBundle(split.a!).grainKg).toBeLessThanOrEqual(120.55);
+    expect(flattenBundle(split.b!).grainKg).toBeLessThanOrEqual(80);
+    expect(flattenBundle(split.a!).grainKg + flattenBundle(split.b!).grainKg).toBeCloseTo(200.5);
+    expect(flattenBundle(split.a!).logs).toBe(3);
   });
 });

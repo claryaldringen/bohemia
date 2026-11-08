@@ -1,7 +1,12 @@
 'use server';
 
 import { NOT_PLAYER_VILLAGE } from '@bohemia/game';
-import { chooseLanguageForPlayer, gameDeps, restartGameForPlayer } from '@/lib/game';
+import {
+  chooseLanguageForPlayer,
+  gameDeps,
+  notePlayerActive,
+  restartGameForPlayer,
+} from '@/lib/game';
 import {
   NOTICE_BATCH,
   wantsPlayerNotices,
@@ -181,7 +186,10 @@ const INVALID_INPUT = 'Neplatný požadavek.';
 
 async function playerId(): Promise<string | null> {
   const session = await getSession();
-  return session?.user.id ?? null;
+  const id = session?.user.id ?? null;
+  // hráč s otevřenou hrou je aktivní – jeho vsi neusnou (absence.md – Zátěž serveru)
+  if (id !== null) await notePlayerActive(id);
+  return id;
 }
 
 /** Volba jazyka skupiny před založením vsi (účty přes Google – newcomers.md); chyba česky. */

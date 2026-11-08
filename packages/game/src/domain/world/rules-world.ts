@@ -37,3 +37,12 @@ export const INVITES = {
   /** Pozvaný „začal hrát“ po tolika různých skutečných dnech ve hře (úloha 1.9). */
   playedDays: 3,
 } as const;
+
+/** Uspání vsí nečinných hráčů (absence.md – Zátěž serveru). */
+export const ABSENCE = {
+  /**
+   * Hráč, který nehraje déle než tolik skutečných dnů, má vsi uspané: worker je průběžně
+   * nepočítá a dopočítají se, až se jich něco dotkne (Martin 8. 11. 2026: „A“; 3 dny – návrh Clauda).
+   */
+  sleepDays: 3,
+} as const;

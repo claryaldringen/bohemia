@@ -653,6 +653,8 @@ today })` – jen muži rodu schopní služby z vlastních vsí, podmíněné `a
   svolání – `forDialogId`) = `addBreach('summons')`; `summons-sent` pánovi. `lapseSummons` (úloha
   světa ve `runWorldTasks.summons`, worker) – otevřené svolání po konci války `lapse` → neplnění,
   kronika obou rodů `no-show` „Ctibor nepřišel do války.“, `summons-lapsed`.
+  Bez odpovědi do 30 herních dní pošle muže správce – `answerAbsentSummons` (úloha světa před
+  `lapseSummons`; `vassalage.md` – Správce za nepřítomného hráče).
 - **Ochrana pánem** – `application/protection.ts`: `requestProtection(deps, { playerId,
 vassalageId, villageId, message, today })` (vazal, vlastní ves – upozornění
   `protection-requested` pánovi), `sendProtection(deps, { playerId, vassalageId, villageId, men,

@@ -86,8 +86,9 @@ vylepšit jen celé.
   vylepšení](fortifications.md#druhy-a-postup-vylepšení) (návrh). Implementováno 8. 11. 2026
   (plán hradeb, Úloha 8 – nahrazuje Úlohu 9 plánu bourání): úsek mezi branami na vyšší stupeň,
   zbořený úsek znovu za cenu nové; na opevnění smí běžet víc staveb, jedna na díl (Martin 8. 11.
-  2026 – „B“); díl s branou se zvedne, až hradba po obou stranách brány bude mít aspoň cílový
-  stupeň (návrh Clauda).
+  2026 – „B“); vylepšení sahá jako zboření přesně po okraj brány (Martin 8. 11. 2026: „Hradba je
+  hradba, brána je brána.“) – kus dílu s branou na straně úseku dostane cílovou hradbu, brána
+  a kus za ní zůstanou.
 - **Zbořit:** jako bourání stavby – čtvrtina práce, polovina klád × stav. U valu s plotem nebo
   palisádou se zboří jen dřevo, val zůstane; další Zbořit srovná val (čtvrtina jeho práce).
   Zbořený úsek je **mezera** – průchod jako průlom ([opevnění](fortifications.md) – Prolomení).

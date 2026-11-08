@@ -356,7 +356,7 @@ describe('zboření valu', () => {
 });
 
 describe('stavba zboření', () => {
-  it('na opevnění běží jen jedna stavba; úsek jen s branou nejde zbořit', () => {
+  it('na úseku běží jen jedna stavba, sousední úsek za branou zvlášť; úsek jen s branou nejde zbořit', () => {
     const s = threeSections('palisade');
     const fort = fortOf(s);
     const gateSeg = fort.gates[1]!.segment;
@@ -368,9 +368,16 @@ describe('stavba zboření', () => {
     expect(
       startSectionDemolition(r.state, DAY, landscape, {
         fortificationId: fort.id,
-        segment: fort.gates[2]!.segment,
+        segment: gateSeg + 1,
       }),
     ).toEqual({ ok: false, reason: FORT_BUSY });
+    // sousední úsek za branou – kus dílu s branou na své straně, stavby se nesrazí (Martin 8. 11.)
+    expect(
+      startSectionDemolition(r.state, DAY, landscape, {
+        fortificationId: fort.id,
+        segment: fort.gates[2]!.segment,
+      }).ok,
+    ).toBe(true);
     // brána hned za branou: úsek jen z kusů dílů bran, od okraje po okraj brány
     const adjacent = withGate(s, (gateSeg + 1) % fort.segments.length);
     const between = sectionDemolition(adjacent, landscape, {
