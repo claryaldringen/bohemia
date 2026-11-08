@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { foundVillage, startNewDwelling, startReplacement } from '../actions';
-import { buildAffordability } from '../costs';
 import { availableSettlers } from '../households';
 import { occupants } from '../people';
 import {
@@ -102,7 +101,6 @@ describe('startReplacement', () => {
   it('cena předem je jen dřevo – lidi k osídlení nechce ani běžné obydlí', () => {
     const s = settled();
     for (const type of ['zemnice', 'polozemnice'] as const) {
-      expect(buildAffordability(s, type).missing.settlers).toBeUndefined();
       expect(replacementAffordability(s, type)).toEqual({ affordable: true, missing: {} });
     }
   });

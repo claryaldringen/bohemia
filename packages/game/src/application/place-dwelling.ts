@@ -9,7 +9,7 @@ import { updateLivingVillage } from './update-village';
 import type { VillageRepository, VillageResult } from './villages';
 
 // důvody odmítnutí žijí v doméně (build-intent.ts) – use-case je dál exportuje pro web a testy
-export { BAD_PLOT, CANNOT_AFFORD, NO_PLOT, NO_SETTLERS, NO_WOOD } from '../domain/village';
+export { BAD_PLOT, CANNOT_AFFORD, NO_PLOT, NO_WOOD } from '../domain/village';
 
 export interface PlaceDwellingInput {
   /** Ves (id), ve které hráč jedná – její sídlo dává krajinu `landscape`. */
@@ -25,8 +25,8 @@ export interface PlaceDwellingInput {
 }
 
 /**
- * Hráč zahájí stavbu nového obydlí – kdykoli, když je kým ho osadit a ves má suroviny a dřevo
- * předem (ves se nejdřív dopočítá do dneška). Pravidlo stavby je doménové `applyBuildIntent`.
+ * Hráč zahájí stavbu nového obydlí – kdykoli, když ves má dřevo předem (i bez lidí k osídlení –
+ * demolition.md) (ves se nejdřív dopočítá do dneška). Pravidlo stavby je doménové `applyBuildIntent`.
  */
 export function placeDwelling(
   deps: { villages: VillageRepository },

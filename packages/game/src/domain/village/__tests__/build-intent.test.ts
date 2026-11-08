@@ -9,7 +9,6 @@ import {
   NO_PLOT,
   NO_WOOD,
   UNKNOWN_CRAFT,
-  NO_SETTLERS,
   REPLACEMENT_BLOCKED,
   NO_ROAD,
   NO_UPGRADE,
@@ -156,10 +155,9 @@ describe('applyBuildIntent – dílna', () => {
     );
   });
 
-  it('bez mladého páru odmítne', () => {
-    expect(apply(settled(), { kind: 'workshop', craft: 'potter', position: at(-80, -50) })).toEqual(
-      { ok: false, reason: NO_SETTLERS },
-    );
+  it('bez mladého páru ji postaví taky – lidi k osídlení nechce (demolition.md)', () => {
+    const result = apply(settled(), { kind: 'workshop', craft: 'potter', position: at(-80, -50) });
+    expect(result.ok).toBe(true);
   });
 });
 

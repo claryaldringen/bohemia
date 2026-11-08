@@ -218,7 +218,8 @@ export function possibleNewHouseholds(state: VillageState, day: number): number 
 }
 
 /**
- * Lidé k osídlení nového obydlí (population.md – Odemčení, Lidé k osídlení): možné nové
+ * Lidé k osídlení nového obydlí nebo dílny (population.md – Lidé k osídlení; cenou předem už nejsou,
+ * jen určují, kdy správce staví a kolik rodin čeká – demolition.md): možné nové
  * domácnosti (`possibleNewHouseholds`) minus prázdná obydlí a rozestavěná nová obydlí – na každé
  * už jedna domácnost čeká. První zemnice zakladatelů (stavba s `dwellingId`) ani nový dům stěhující
  * se domácnosti (`relocates`, migration.md) nikoho nečeká – osídlí je sami. Může vyjít záporně

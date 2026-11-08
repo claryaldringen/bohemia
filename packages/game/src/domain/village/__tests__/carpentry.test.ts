@@ -134,14 +134,14 @@ function polozemnice(day: number, cost = 200): Construction {
 }
 
 describe('dílna tesaře (wagons.md – Tesař)', () => {
-  it('polozemnice + 30 % práce i dřeva, jedna domácnost k osídlení', () => {
+  it('polozemnice + 30 % práce i dřeva, bez lidí k osídlení', () => {
     expect(CRAFT_BASE.carpenter).toBe('polozemnice');
     expect(workshopCost('carpenter')).toBe(286);
     expect(workshopTrees('carpenter')).toBe(23);
     expect(BUILD_COSTS.carpenter).toEqual({
       laborManDays: 286,
       perHa: false,
-      upfront: { wood: 23, settlers: 1 },
+      upfront: { wood: 23 },
     });
   });
 

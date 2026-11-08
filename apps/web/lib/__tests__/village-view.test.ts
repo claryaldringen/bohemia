@@ -511,8 +511,7 @@ describe('buildVillageView', () => {
       fullHousehold: false,
     });
     // obydlí nemá z čeho postavit (krajina testu nemá stromy, klády nejsou); lidi k osídlení
-    // nechce (demolition.md) – pole a hřbitov jdou; dílny lidi k osídlení dál chtějí
-    const noSettlers = { resource: 'settlers', amount: 1, missing: 1 };
+    // nechce ani obydlí, ani dílna (demolition.md) – pole a hřbitov jdou
     expect(view.build).toEqual({
       zemnice: {
         laborManDays: 60,
@@ -550,12 +549,12 @@ describe('buildVillageView', () => {
         blocked: null,
         affordable: false,
       },
-      // řemeslné dílny – obydlí + 30 % práce i dřeva, mladý pár k osídlení (crafts.md)
+      // řemeslné dílny – obydlí + 30 % práce i dřeva, dřevo předem (crafts.md)
       potter: {
         laborManDays: 286,
         perHa: false,
         perSquare: false,
-        upfront: [{ resource: 'wood', amount: 23, missing: 23 }, noSettlers],
+        upfront: [{ resource: 'wood', amount: 23, missing: 23 }],
         blocked: null,
         affordable: false,
       },
@@ -563,7 +562,7 @@ describe('buildVillageView', () => {
         laborManDays: 286,
         perHa: false,
         perSquare: false,
-        upfront: [{ resource: 'wood', amount: 23, missing: 23 }, noSettlers],
+        upfront: [{ resource: 'wood', amount: 23, missing: 23 }],
         blocked: null,
         affordable: false,
       },
@@ -572,7 +571,7 @@ describe('buildVillageView', () => {
         laborManDays: 60,
         perHa: false,
         perSquare: false,
-        upfront: [{ resource: 'wood', amount: 7, missing: 7 }, noSettlers],
+        upfront: [{ resource: 'wood', amount: 7, missing: 7 }],
         blocked: null,
         affordable: false,
       },
@@ -581,7 +580,7 @@ describe('buildVillageView', () => {
         laborManDays: 286,
         perHa: false,
         perSquare: false,
-        upfront: [{ resource: 'wood', amount: 23, missing: 23 }, noSettlers],
+        upfront: [{ resource: 'wood', amount: 23, missing: 23 }],
         blocked: null,
         affordable: false,
       },

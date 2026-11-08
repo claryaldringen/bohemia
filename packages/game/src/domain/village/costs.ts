@@ -1,5 +1,4 @@
 import type { ObstacleLayer } from '../landscape';
-import { availableSettlers } from './households';
 import { PEN } from './oxen';
 import { NO_CRAFTS, foundingCostPerHa } from './productivity';
 import {
@@ -53,9 +52,9 @@ export type BuildKind =
  * z přeplněného domu, kteří se do nového obydlí nastěhují – kinship.md). Lidi stavba neodebírá, jen je zamluví – rozestavěné
  * obydlí snižuje počet volných.
  */
-export type StockResource = 'grain' | 'wood' | 'oaks' | 'settlers';
+export type StockResource = 'grain' | 'wood' | 'oaks';
 
-export const STOCK_RESOURCES: readonly StockResource[] = ['grain', 'wood', 'oaks', 'settlers'];
+export const STOCK_RESOURCES: readonly StockResource[] = ['grain', 'wood', 'oaks'];
 
 /** Množství surovin (jen uvedené suroviny). */
 export type ResourceAmounts = Partial<Record<StockResource, number>>;
@@ -78,7 +77,7 @@ function workshopBuildCost(craft: Craft): BuildCost {
   return {
     laborManDays: workshopCost(craft),
     perHa: false,
-    upfront: { wood: workshopTrees(craft), settlers: 1 },
+    upfront: { wood: workshopTrees(craft) },
   };
 }
 
@@ -184,7 +183,6 @@ export function villageStock(
     grain: state.storesKg,
     wood: woodSupply(state, obstacles),
     oaks: oakSupply(state, obstacles),
-    settlers: Math.max(0, availableSettlers(state, state.lastDay)),
   };
 }
 

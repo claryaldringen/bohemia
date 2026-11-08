@@ -65,8 +65,6 @@ import { startWagonRoad } from './wagon-road';
 
 /** Ves nemá suroviny, které stavba stojí předem (population.md – Odemčení). */
 export const CANNOT_AFFORD = 'Na tuhle stavbu ves nemá suroviny.';
-/** Nové obydlí nemá kdo osídlit – žádná domácnost nemá mladý pár navíc (population.md – Odemčení). */
-export const NO_SETTLERS = 'Nové obydlí nemá kdo osídlit.';
 /** Klády na hromadě ani dospělé stromy sídla na stavbu nestačí (forest.md – Stavby a kácení). */
 export const NO_WOOD = 'Na stavbu chybí dřevo – klády ani stromy ke kácení nestačí.';
 /** Polozemnice se staví na pozemku – políčku krajiny (population.md – Umístění obydlí). */
@@ -451,7 +449,7 @@ function buildWorkshop(
   if (!CRAFTS.includes(intent.craft)) return { ok: false, reason: UNKNOWN_CRAFT };
   const { affordable, missing } = buildAffordability(state, intent.craft, obstacles);
   if (!affordable) {
-    const reason = missing.settlers ? NO_SETTLERS : missing.wood ? NO_WOOD : CANNOT_AFFORD;
+    const reason = missing.wood ? NO_WOOD : CANNOT_AFFORD;
     return { ok: false, reason };
   }
   const village = placementVillageOf(state, day);
