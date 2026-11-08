@@ -485,6 +485,10 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
 
 ### Nové obydlí (rozhoduje hráč)
 
+- **Vystěhovaná domácnost má přednost** (demolition.md – Obydlí): obyvatelé opuštěného nebo
+  zbouraného obydlí bydlí dočasně v cizích obydlích a do nového (nebo vráceného prázdného) obydlí
+  se nastěhují jako první, před rodinou ženatého syna. Počítá se jako dům, který čeká
+  („Rodina čeká na dům“).
 - O každé nové stavbě rozhoduje hráč (Martin) – vybere typ a místo (viz Umístění obydlí).
 - **Hráč staví kdy chce** (Martin, 17. 10. 2026: „Hráč sám rozhodne kdy a co bude stavět, jako
   v každé RTS.“) – kdy začne, rozhoduje hráč; brání mu jen to, co stavba potřebuje předem

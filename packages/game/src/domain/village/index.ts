@@ -84,6 +84,15 @@ export * from './steward-plan';
 export * from './steward';
 export * from './rules-steward';
 export * from './households';
+export {
+  displacedCount,
+  lodgingShortfall,
+  noRoomReason,
+  pruneDisplaced,
+  rehouseDisplaced,
+  vacateDwelling,
+  freePlaces as freeDwellingPlaces,
+} from './displaced';
 export * from './marriage';
 export * from './extinction';
 export * from './cemetery';

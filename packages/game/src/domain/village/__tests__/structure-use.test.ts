@@ -8,7 +8,6 @@ import { sacredHappiness } from '../sacred';
 import { decayEmptyDwellings } from '../simulate-build';
 import {
   ALREADY_DISUSED,
-  DWELLING_OCCUPIED,
   MANOR_STAYS,
   NOT_DISUSED,
   STRUCTURE_BUSY,
@@ -151,7 +150,8 @@ describe('Opustit', () => {
     ];
     const reason = (structure: 'dwelling' | 'pen', id: number): string | null =>
       disuseBlock(s, { structure, id });
-    expect(reason('dwelling', 1)).toBe(DWELLING_OCCUPIED);
+    // obydlí s lidmi jde opustit, když se obyvatelé vejdou jinam (displaced.test.ts)
+    expect(reason('dwelling', 1)).toBeNull();
     expect(reason('dwelling', 2)).toBe(MANOR_STAYS);
     expect(reason('dwelling', 99)).toBe(STRUCTURE_MISSING);
     expect(reason('pen', 2)).toBe(STRUCTURE_UNFINISHED);

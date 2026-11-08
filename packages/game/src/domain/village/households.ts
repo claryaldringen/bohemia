@@ -1,3 +1,4 @@
+import { displacedCount, pruneDisplaced, rehouseDisplaced, withoutDisplaced } from './displaced';
 import { isDisused } from './disused';
 // Domácnosti po rodinách (kinship.md – Domácnosti; population.md – Nové obydlí, Martin 17.–18. 10.
 // 2026: „plná domácnost → nová domácnost v novém obydlí“, „Pokud už jsou rodiče neplodní, tak ano,
@@ -170,6 +171,8 @@ function moveIn(
  * rodu `leavingFamilies`); vrací, jestli se někdo nastěhoval (mutuje stav).
  */
 export function settleNewDwelling(state: VillageState, day: number, dwellingId: number): boolean {
+  // vystěhovaná domácnost má přednost (demolition.md – Obydlí s obyvateli)
+  if (rehouseDisplaced(state, day, dwellingId)) return true;
   const family = settlingFamilies(state, day)[0];
   if (!family) return false;
   moveIn(state, day, family.people, dwellingId);
@@ -182,6 +185,7 @@ export function settleNewDwelling(state: VillageState, day: number, dwellingId: 
  * po prvním kole, aby rodina měla přednost.
  */
 export function occupyEmptyDwellings(state: VillageState, day: number): void {
+  pruneDisplaced(state);
   const empty = (): Dwelling[] => {
     const occupied = new Set(state.people.map((p) => p.dwellingId));
     // opuštěné obydlí se neosídlí (demolition.md – Opuštění)
@@ -229,7 +233,9 @@ export function availableSettlers(state: VillageState, day: number): number {
     (d) => occupants(state, d.id).length === 0 && !isDisused(d),
   ).length;
   // ves z doby před příbuzenstvím se počítá, jako by už měla pohlaví a manžele (`withKinship`)
-  return possibleNewHouseholds(withKinship(state, day), day) - building - empty;
+  // dočasně ubytovaní hostitele nezakládají rodinu; jejich domácnost čeká na dům (+ displacedCount)
+  const settlers = possibleNewHouseholds(withKinship(withoutDisplaced(state), day), day);
+  return settlers + displacedCount(state) - building - empty;
 }
 
 /**

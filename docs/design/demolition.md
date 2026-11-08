@@ -117,3 +117,8 @@ vylepšit jen celé.
   zůstane prázdný, dokud se do něj někdo nenastěhuje – typicky obyvatelé zbouraného nebo
   opuštěného domu (návrh Clauda). Lidé k osídlení tak přestávají být cenou předem obydlí
   (`BUILD_COSTS` – `settlers`).
+- **Dočasně ubytovaní jsou členy hostitelského domu** (návrh Clauda, otázka 5 plánu): mají
+  `dwellingId` hostitele, takže v simulaci pracují, jedí a počítají se do kapacity tam; jako vlastní
+  domácnost platí jen pro pořadí nastěhování (`VillageState.displaced`). Do prázdného obydlí v provozu
+  se celá domácnost přestěhuje rovnou (i přeplněná, bez záznamu). Hostitel s cizími ubytovanými smí
+  být opuštěn, vejdou-li se všichni; cizí si drží svůj záznam s novým hostitelem. Dvorec nehostí.
