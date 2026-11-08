@@ -366,6 +366,15 @@ export function parsePlaceThreshingFloorInput(value: unknown): { position: Posit
   return position !== null ? { position } : null;
 }
 
+/** Vstup lámání do zásoby `{ outcropId, m3 }` (celá čísla, m³ kladné), jinak null. */
+export function parseOrderQuarryingInput(value: unknown): { outcropId: number; m3: number } | null {
+  if (!isRecord(value)) return null;
+  const { outcropId, m3 } = value;
+  if (typeof outcropId !== 'number' || !Number.isSafeInteger(outcropId)) return null;
+  if (typeof m3 !== 'number' || !Number.isSafeInteger(m3) || m3 <= 0) return null;
+  return { outcropId, m3 };
+}
+
 /** Vstup stavby řemeslné dílny `{ craft, position }`, jinak null. */
 export function parsePlaceWorkshopInput(
   value: unknown,

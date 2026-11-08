@@ -186,8 +186,28 @@ stoneManDaysPerM3: 1 }`. Ceny plotu a palisády komplet – Cena.
   (`{ id, x, z, m3, road? }`, podmnožina zásoby) a `nextStoneStackId?` – vlastní čítač, ne `nextId`
   (jinak by se posunula id ostatních věcí a zlaté otisky). `stoneOnHand(state)`, `takeStone(state,
 m3, at)` – z hromad od nejbližší k `at` (při shodě menší id), prázdná hromada zmizí, zbytek ze
-  zásoby bez hromady; `quarryNear(obstacles, at)` – nejbližší skalní výchoz na mapě sídla
-  `{ x, z, distanceM }`, bez výchozu null. Zdroje kamene zatím nejsou (Úloha 4).
+  zásoby bez hromady; `addStone(state, m3, at | null)` – hromada u cesty jako klády
+  (`logPilePlace`, spojení do `LOG_PILES.joinM`, null = u cesty nejblíž dvorci – `logArrivalPoint`);
+  `quarryNear(obstacles, at)` – nejbližší skalní výchoz na mapě sídla `{ x, z, distanceM }`, bez
+  výchozu null. Kámen přibývá jen z lomu – Lom a kámen níž.
+- **Lom a kámen** (`quarry.ts`, `rules-stone.ts` – `STONE`; fortifications.md – Kámen):
+  `VillageState.quarries?: Quarry[]` (`{ outcropId, x, z, rotation, builtDay }`, jen dostavěné;
+  id lomu = id výchozu, na výchozu jeden). `outcropAt(obstacles, at)` – výchoz pod bodem (kruh
+  `OUTCROP_RADIUS_M × velikost` + `STONE.pickSlackM`); `checkQuarryPlacement(village, obstacles,
+at)` → `QUARRY_NO_OUTCROP` / `QUARRY_TAKEN` (i rozestavěný – `Construction.quarryOutcrop`,
+  v prohlížeči `PlacementVillage.quarries`); `startQuarry` (záměr stavby `{ kind: 'quarry' }`,
+  `BuildKind` `quarry`, stavba `quarry` za `STONE.quarryLaborManDays` = 20 čd, poloha = střed
+  výchozu), dostavění `finishQuarry`. `nearestQuarry(state, at)`, `quarryManDaysPerM3(d)` =
+  `STONE.quarryManDaysPerM3` (1,4) × `distanceFactor(d)`. Zásoba: `orderQuarrying(state, day,
+outcropId, m3)` (celé m³ v `STONE.stockOrderM3`, bez lomu `QUARRY_MISSING`) → stavba
+  `quarrying` (`stoneOrderM3`) za m³ × 1,4 × `distanceFactor` od lomu k `logArrivalPoint`; hotová
+  složí kámen `addStone(…, null)`. Zrušení (`returnConstructionStone` v `cancelConstruction`):
+  lámání složí nalámaný podíl (`done / cost`), hradba vrátí `stoneFromPile × (1 − done / cost)`.
+  Use-casy `placeQuarry`, `orderStoneQuarrying` (právo `build`). Web: katalog (zkratka L, ikona
+  `public/icons/build/lom.svg`), umisťování `quarry` (značka 6 × 6 m), scéna `stone-piles.ts`
+  - `stone-pile-layout.ts` (díly `stone-pile-a/b` ze `siege.glb`, vylomená stěna – kvádr),
+    výběr lomu (klik do 4 m) s tlačítky „nalámat 10 / 50 m³“ (`selection/quarry.tsx`), horní lišta
+    `village-stone` (ikona `public/icons/resources/stone.svg`).
 
 ## Stav vsi (Ú5.2)
 
@@ -231,12 +251,13 @@ m3, at)` – z hromad od nejbližší k `at` (při shodě menší id), prázdná
   a kámen**: klády celé stavby (součet nahoru na celé) z hromady, zbytek vyhradí mezi nejbližšími
   stromy k těžišti plochy (`planWoodFrom` s `fellManDaysPerTree: pileSaves.logManDays` – strom
   opevnění za 1 čd × `distanceFactor`, ne obecné 2 čd); chybí → `FORT_NO_WOOD`. Kámen
-  `fortStonePlan`: napřed z hromad (`stoneOnHand`, `takeStone` od nejbližší k těžišti), zbytek
-  z lomu v nejbližším skalním výchozu (`quarryNear`) za `stoneManDaysPerM3` × m³ × `distanceFactor`
-  vzdušné vzdálenosti; bez výchozu → `FORT_NO_STONE(chybí)`, stav se nemění. Lámání se rozpočítá
+  `fortStonePlan(state, need, at)`: napřed z hromad (`stoneOnHand`, `takeStone` od nejbližší
+  k těžišti; stavba si pamatuje `stoneFromPile`), zbytek na zakázku v nejbližším dostavěném lomu
+  vsi (`nearestQuarry`) za `quarryManDaysPerM3` × m³ (1,4 čd × `distanceFactor` vzdušné
+  vzdálenosti); bez lomu → `FORT_NO_STONE(chybí)` („Chybí N m³ kamene. Ves nemá lom.“), stav se
+  nemění – výchoz na mapě bez stavby lomu nestačí. Lámání se rozpočítá
   do práce úseků podle jejich kamene (`fortSegments[].cost` – úsek je hotový i s kamenem; pořadí
-  práce ani `workFortification` se nemění). Bez vrstvy překážek (testy) se láme jako u blízkého
-  lomu. Práce se nečeká. Cena překážek pásu se k práci nepřičítá – cena je jen podle délky (návrh
+  práce ani `workFortification` se nemění). Práce se nečeká. Cena překážek pásu se k práci nepřičítá – cena je jen podle délky (návrh
   Clauda). Rozdělaná stavba drží uloženou `cost` a `fortSegments` – ceny komplet ji nepřecení.
 - **Pořadí úseků** `fortWorkOrder(count, gates, anchor)` – od úseku brány nejblíž kotvě (při shodě
   menší úsek) po směru hodin, uložené v `fortSegments` stavby (pozdější dvorec pořadí nezmění).

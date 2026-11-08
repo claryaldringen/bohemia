@@ -341,7 +341,7 @@ function fortificationsOf(
   const fortifications = fortificationViews(state, landscape, day, woodSupply);
   return {
     woodSupply,
-    stoneSupply: fortStoneSupply(state, obstacles),
+    stoneSupply: fortStoneSupply(state),
     ...(fortifications.length > 0 ? { fortifications } : {}),
   };
 }

@@ -94,5 +94,5 @@ export const FORT_WALKWAY_NEW = 'Palisáda s ochozem vzniká jen vylepšením pa
 
 /** Kolik kamene chybí – celé m³ nahoru. */
 export function FORT_NO_STONE(m3: number): string {
-  return `Chybí ${Math.ceil(m3 - 1e-9)} m³ kamene.`;
+  return `Chybí ${Math.ceil(m3 - 1e-9)} m³ kamene. Ves nemá lom.`;
 }

@@ -47,6 +47,7 @@ export * from './upgrade-fortification';
 export * from './add-fortification-gate';
 export * from './demolish-fortification-section';
 export * from './place-threshing-floor';
+export * from './quarry';
 export * from './upgrade-road';
 export * from './build-wagon-road';
 export * from './build-trail';

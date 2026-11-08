@@ -182,6 +182,8 @@ function finishedText(kind: ConstructionKind, craft?: Craft, wagon?: boolean): s
   if (kind === 'road-apples') return 'Jabloně podél cesty jsou vysazené.';
   if (kind === 'threshing-floor') return 'Humno je dostavěné – dá se na něm mlátit.';
   if (kind === 'fortification') return 'Opevnění je dostavěné.';
+  if (kind === 'quarry') return 'Lom je otevřený – dá se v něm lámat kámen.';
+  if (kind === 'quarrying') return 'Kámen je nalámaný a leží na hromadě u cesty.';
   return 'Pole je založené – dá se osévat.';
 }
 
@@ -196,6 +198,8 @@ function cancelledText(kind: ConstructionKind, craft?: Craft): string {
   if (kind === 'threshing-floor') return 'Stavba humna se zrušila.';
   if (kind === 'field') return 'Zakládání pole se zrušilo.';
   if (kind === 'fortification') return 'Stavba opevnění se zrušila – hotové úseky stojí.';
+  if (kind === 'quarry') return 'Stavba lomu se zrušila.';
+  if (kind === 'quarrying') return 'Lámání kamene se zrušilo – co se nalámalo, leží na hromadě.';
   return 'Stavba se zrušila.';
 }
 

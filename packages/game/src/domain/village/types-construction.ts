@@ -45,7 +45,11 @@ export type ConstructionKind =
    * Bourání stavby (demolition.md – Bourání): společná práce vsi, po dokončení stavba zmizí a dá
    * klády na hromadu u cesty – co se bourá, říká `demolition`.
    */
-  | 'demolition';
+  | 'demolition'
+  /** Lom na skalním výchozu `quarryOutcrop` (fortifications.md – Kámen) – poloha v `position`. */
+  | 'quarry'
+  /** Lámání `stoneOrderM3` m³ kamene do zásoby v lomu `quarryOutcrop` (fortifications.md – Kámen). */
+  | 'quarrying';
 /**
  * Co může vzít půdu poli (fields.md – Pole jako krajina; Martin 18. 10. 2026): obydlí (i dílna),
  * sad, hřbitov, ohrada, modla, svatyně, jabloně u cesty a stromy u cesty – cokoli kromě pole.
@@ -188,6 +192,14 @@ export interface Construction {
    * hromadu u cesty nejblíž (`addLogs`). U ostatních staveb chybí.
    */
   fortLogsAt?: { x: number; z: number };
+  /**
+   * Lom (fortifications.md – Kámen): stavba lomu (`quarry`) a lámání do zásoby (`quarrying`) –
+   * id skalního výchozu, na kterém lom stojí; lámání nese i množství (m³).
+   */
+  quarryOutcrop?: number;
+  stoneOrderM3?: number;
+  /** Kámen, který stavba hradby vzala z hromad (m³) – zrušení vrátí nezabudovaný podíl. */
+  stoneFromPile?: number;
 }
 /**
  * Oprava stavby (abandonment.md – Oprava): druh a id stavby (modla a svatyně – id stavby,

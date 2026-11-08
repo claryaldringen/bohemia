@@ -47,6 +47,7 @@ import { houseFireKey, houseFireKind, houseFires } from './house-fire';
 import { gameDayAt } from './smoke-schedule';
 import { FelledTrees } from './felled-trees';
 import { LogPile } from './log-pile';
+import { StonePiles } from './stone-piles';
 import { sameClearing, villageClearedForest, type ClearedForest } from './cleared-forest';
 import { createForestCanopy, type ForestCanopy } from './forest-canopy';
 import type { ScenePerfStats } from './perf-stats';
@@ -263,6 +264,7 @@ export class LandscapeScene {
   /** Pařezy a nálet po pokácených stromech. */
   private felled: FelledTrees | null = null;
   private logPile: LogPile | null = null;
+  private stonePiles: StonePiles | null = null;
   private clearingSlash: ClearingSlash | null = null;
   /** Ohně pálení paseky na hromadách větví (clearing-fire-renderer.ts). */
   private clearingFire: ClearingFireRenderer | null = null;
@@ -484,6 +486,19 @@ export class LandscapeScene {
       addShadowCaster: (mesh) => {
         if (this.shadows) this.shadows.addCaster(mesh);
         else this.pendingCasters.push(mesh);
+      },
+    });
+    // hromady kamení u cest a lomy na výchozech (fortifications.md – Kámen)
+    this.stonePiles?.dispose();
+    this.stonePiles = new StonePiles(this.scene, {
+      groundHeight,
+      addShadowCaster: (mesh) => {
+        if (this.shadows) this.shadows.addCaster(mesh);
+        else this.pendingCasters.push(mesh);
+      },
+      onAsyncChange: () => {
+        this.shadows?.refresh();
+        this.renderWhenReady();
       },
     });
     // hromady větví na pasece a ohořelé zbytky na spálenině (forest.md – Klučení lesa pro pole)
@@ -1677,7 +1692,9 @@ export class LandscapeScene {
           tornadoTrunks(this.villageState.tornado),
         ) ?? false)
       : false;
-    const piles = this.logPile?.update(this.villageState, changes) ?? false;
+    const logPiles = this.logPile?.update(this.villageState, changes) ?? false;
+    const stonePiles = this.stonePiles?.update(this.villageState) ?? false;
+    const piles = logPiles || stonePiles;
     const slash = this.clearingSlash?.update(this.villageState) ?? false;
     const fires = this.updateClearingFires();
     const burning = this.updateHouseFires();

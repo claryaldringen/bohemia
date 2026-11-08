@@ -391,7 +391,7 @@ describe('cena komplet a nové druhy (Hradby a obrana – Cena, Druhy)', () => {
     ).toEqual({ ok: false, reason: FORT_WALKWAY_NEW });
   });
 
-  it('roštová bez kamene a bez výchozu chybí kámen; s výchozem projde a práce obsahuje lámání', () => {
+  it('roštová bez kamene a bez lomu chybí kámen; s lomem projde a práce obsahuje lámání', () => {
     const len = lengthOf('crib');
     const need = (100 * len) / 100;
     const s = village(1000, ROSTOVA);
@@ -400,24 +400,38 @@ describe('cena komplet a nové druhy (Hradby a obrana – Cena, Druhy)', () => {
       ok: false,
       reason: FORT_NO_STONE(need),
     });
-    expect(FORT_NO_STONE(99.2)).toBe('Chybí 100 m³ kamene.');
+    expect(FORT_NO_STONE(99.2)).toBe('Chybí 100 m³ kamene. Ves nemá lom.');
     // část kamene na hromadě – chybí jen zbytek
     const some = withStone(village(1000, ROSTOVA), 40);
     expect(startFortification(some, some.lastDay, landscape, EMPTY, input)).toEqual({
       ok: false,
       reason: FORT_NO_STONE(need - 40),
     });
-    // lom: 40 m³ z hromady, zbytek se láme za 1 čd na m³ × vzdálenost k výchozu
-    const quarried = ok(startFortification(some, some.lastDay, landscape, quarryLayer, input));
+    // výchoz na mapě bez postaveného lomu nestačí (Martin 8. 11. 2026 – „Musíme zavést lom.“)
+    expect(startFortification(some, some.lastDay, landscape, quarryLayer, input)).toEqual({
+      ok: false,
+      reason: FORT_NO_STONE(need - 40),
+    });
+    // lom: 40 m³ z hromady, zbytek se láme za 1,4 čd na m³ × vzdálenost k lomu
+    const withQuarry = structuredClone(some);
+    withQuarry.quarries = [{ outcropId: 1, ...QUARRY, rotation: 0, builtDay: 0 }];
+    const quarried = ok(
+      startFortification(withQuarry, withQuarry.lastDay, landscape, quarryLayer, input),
+    );
     const c = fortWork(quarried);
     const factor = distanceFactor(fromCenter('crib', QUARRY));
     expect(factor).toBeGreaterThan(1);
-    expect(c.cost).toBeCloseTo((620 * len) / 100 + (need - 40) * factor, 6);
+    expect(c.cost).toBeCloseTo((620 * len) / 100 + (need - 40) * 1.4 * factor, 6);
     expect(quarried.stoneM3).toBeUndefined();
     expect(quarried.stoneStacks).toBeUndefined();
+    expect(c.stoneFromPile).toBe(40);
     // lámání je v práci úseků podle jejich kamene – úseky dohromady = celá práce
     const segments = c.fortSegments!.reduce((sum, w) => sum + w.cost, 0);
     expect(segments).toBeCloseTo(c.cost, 6);
+    // zrušení hned vrátí kámen z hromad na hromadu (nic se ještě nezabudovalo)
+    const cancelled = cancelConstruction(quarried, quarried.lastDay, c.id);
+    expect(cancelled.stoneM3).toBeCloseTo(40, 9);
+    expect(cancelled.stoneStacks).toHaveLength(1);
   });
 
   it('rozdělané vylepšení plotu ze staré vsi se dostaví za uloženou cenu (Review Focus 3)', () => {

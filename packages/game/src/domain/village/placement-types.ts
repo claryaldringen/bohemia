@@ -66,7 +66,11 @@ export interface PlacementVillage {
     readonly plainShape?: boolean;
     /** Stavba opevnění (fortifications.md) – opevnění, které se staví. */
     readonly fortificationId?: number;
+    /** Stavba lomu (fortifications.md – Kámen) – výchoz, na kterém lom vzniká. */
+    readonly quarryOutcrop?: number;
   }[];
+  /** Lomy vsi na skalních výchozech (fortifications.md – Kámen); chybí = žádný. */
+  readonly quarries?: readonly { readonly outcropId: number }[];
   /**
    * Opevnění vsi (fortifications.md – Obvod) – pás zabírá místo jiným stavbám (hotové úseky
    * a celý obvod, dokud se staví – `fortificationBand`). Chybí = žádné.

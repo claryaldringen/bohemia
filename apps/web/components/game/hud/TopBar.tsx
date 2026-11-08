@@ -70,7 +70,7 @@ function Resource({
     <Tooltip content={name}>
       <span data-hud-block className="flex h-8 items-center gap-1 px-1.5" tabIndex={0}>
         <img
-          src={`/icons/resources/${icon}.png`}
+          src={`/icons/resources/${icon.includes('.') ? icon : `${icon}.png`}`}
           alt=""
           width={26}
           height={26}
@@ -662,6 +662,11 @@ export function TopBar({
           <Resource icon="wood" name="Klády na hromadách" testId="village-wood">
             {formatInteger(view.woodLogs)}
           </Resource>
+          {view.stoneSupply && (view.stoneSupply.m3 >= 0.5 || view.stoneSupply.quarry) && (
+            <Resource icon="stone.svg" name="Kámen na hromadách (m³)" testId="village-stone">
+              {formatInteger(view.stoneSupply.m3)}
+            </Resource>
+          )}
           {view.crafts.present && <CraftStocks crafts={view.crafts} />}
           <Resource icon="labor" name={<LaborTooltip lord={view.lord} />} testId="village-labor">
             {formatDecimal(Math.max(0, view.commonLaborPerDay), 1)}

@@ -643,6 +643,16 @@ type SelectionKinds =
        */
       kind: 'threshing-floor';
     } & VillageThreshingFloor)
+  | {
+      /**
+       * Lom na skalním výchozu (fortifications.md – Kámen): rozestavěný (`constructionId`),
+       * nebo hotový – kámen na hromadách vsi (m³) a lámání do zásoby.
+       */
+      kind: 'quarry';
+      outcropId: number;
+      constructionId?: number;
+      stoneM3: number;
+    }
   | ({
       /**
        * Celé opevnění včetně bran (dvojklik – fortifications.md, Rozhraní): druh, délka obvodu,
@@ -874,6 +884,10 @@ function cancellableConstruction(
       return details.building !== null ? among((c) => c.id === details.id) : undefined;
     case 'threshing-floor':
       return details.built ? undefined : among((c) => c.id === details.id);
+    case 'quarry':
+      return details.constructionId === undefined
+        ? undefined
+        : among((c) => c.id === details.constructionId);
     case 'fortification':
     case 'fortification-section':
       return details.constructionId === undefined
@@ -1061,6 +1075,16 @@ function selectionKinds(
     if (!inScene) return null;
     const kiln = view?.kilns?.find((k) => k.id === target.id);
     return kiln ? { kind: 'kiln', ...kiln } : null;
+  }
+  if (target.kind === 'quarry') {
+    const quarry = scene.quarries?.find((q) => q.outcropId === target.id);
+    if (!quarry) return null;
+    return {
+      kind: 'quarry',
+      outcropId: quarry.outcropId,
+      ...(quarry.constructionId !== undefined ? { constructionId: quarry.constructionId } : {}),
+      stoneM3: view?.stoneSupply?.m3 ?? 0,
+    };
   }
   if (target.kind === 'threshing-floor') {
     if (!scene.threshingFloors?.some((f) => f.id === target.id)) return null;

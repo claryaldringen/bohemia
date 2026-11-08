@@ -144,11 +144,11 @@ describe('opevnění v katalogu staveb', () => {
     expect(fortVariantsBlocked(dayIndexOf({ year: 830, month: 1, day: 1 }))).toEqual({});
   });
 
-  it('roštová bez kamene a lomu „Chybí N m³ kamene.“; s kamenem či lomem cena i s kamenem', () => {
+  it('roštová bez kamene a lomu „Chybí N m³ kamene. Ves nemá lom.“; s kamenem či lomem cena i s kamenem', () => {
     const points = circle(25);
     const none = item.check(landscape, village, points, 'crib', { woodSupply: 9999 });
     expect(none.check.ok).toBe(false);
-    expect(none.check.reason).toMatch(/^Chybí \d+ m³ kamene\.$/);
+    expect(none.check.reason).toMatch(/^Chybí \d+ m³ kamene\. Ves nemá lom\.$/);
     expect(none.cost).toBeNull();
     const quarry = item.check(landscape, village, points, 'crib', {
       woodSupply: 9999,

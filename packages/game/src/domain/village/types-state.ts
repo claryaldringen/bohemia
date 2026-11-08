@@ -99,6 +99,20 @@ export interface StoneStack {
   road?: { x: number; z: number };
 }
 
+/**
+ * Lom na skalním výchozu (fortifications.md – Hradby a obrana, Kámen; Martin 8. 11. 2026) –
+ * dostavěný; kámen se v něm láme na zakázku (`quarry.ts`). Na výchozu nejvýš jeden lom.
+ */
+export interface Quarry {
+  /** Id skalního výchozu ve vrstvě překážek – zároveň id lomu. */
+  outcropId: number;
+  /** Střed výchozu (m, svět) a natočení značky lomu (rad). */
+  x: number;
+  z: number;
+  rotation: number;
+  builtDay: number;
+}
+
 /** Postoj vsi: bránit se (stěna štítů), vzdát se při přesile (bílá vlajka), raději utéct (stromy). */
 export type DefenseStance = 'defend' | 'surrender' | 'flee';
 
@@ -220,6 +234,8 @@ export interface VillageState {
   stoneStacks?: StoneStack[];
   /** Id další hromady kamene (`StoneStack.id`); chybí = 1. */
   nextStoneStackId?: number;
+  /** Dostavěné lomy vsi (`quarry.ts`). Chybí = žádný. */
+  quarries?: Quarry[];
   /**
    * Rozdělení práce posledního odsimulovaného dne (labor-report.ts) – pro zobrazení; simulace ho
    * čte jen přes síť pěšin (kam se chodí – vzdálenost chůze dílů, paths.md). U vsí uložených
