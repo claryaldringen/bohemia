@@ -238,6 +238,11 @@ export interface Pen {
   obstacles?: number[];
   /** Chátrání ohrady bez zvířat, kam nikdo nechodí (abandonment.md); chybí = celá. */
   wear?: StructureWear;
+  /**
+   * Den pokynu „Opustit“ (demolition.md – Opuštění): od něj se stavba nepoužívá, ale stojí. Chybí =
+   * stavba se používá. Vrátit stavbu = záznam smazat.
+   */
+  disusedDay?: number;
 }
 
 /**

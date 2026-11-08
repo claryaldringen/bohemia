@@ -148,6 +148,15 @@ export const HUMNO = {
   maxHeightDiffM: 1,
 } as const;
 
+// demolition.md – Čísla (návrh Clauda, schváleno Martinem 8. 11. 2026): bourání stavby stojí
+// `laborShare` práce její stavby, dá `logShare` jejích klád podle stavu (floor(logShare × klády ×
+// stav 0–1)); zbourání valu opevnění stojí `rampartLaborShare` práce jeho stavby.
+export const DEMOLITION = {
+  laborShare: 0.25,
+  logShare: 0.5,
+  rampartLaborShare: 0.25,
+} as const;
+
 // abandonment.md – Chátrání (Martin 18. 10. 2026: „stavby, kam nikdo nechodí, budou postupně
 // chátrat a rozpadnou se“; čísla návrh Clauda podle rešerše research/2026-10-18-abandonment.md):
 // opuštěná stavba spadne za `fallYears` let od plného stavu – modla (dubový kůl Ø 0,5 m v zemi)

@@ -3,7 +3,7 @@
 
 import type { ConstructionKind, LandTaker } from './types-construction';
 import type { Craft } from './types-crafts';
-import type { AbandonedStructure, Crop, TileCell } from './types-land';
+import type { AbandonedStructure, Crop, TileCell, UsableStructure } from './types-land';
 import type { HerdSpecies } from './types-livestock';
 import type { AwayKind, DwellingType } from './types-people';
 import type { HuntKills } from './types-wildlife';
@@ -481,6 +481,11 @@ export type ChronicleEvent = { day: number } & (
    * svatyně se rozpadla, plot hřbitova se rozpadl, ohrada se rozpadla – id stavby.
    */
   | { kind: 'structure-fell'; structure: AbandonedStructure; id: number }
+  /**
+   * Hráč nebo správce stavbu opustil, nebo opuštěnou vrátil (demolition.md – Opuštění): obydlí,
+   * ohrada, modla nebo svatyně – id stavby.
+   */
+  | { kind: 'structure-abandoned' | 'structure-restored'; structure: UsableStructure; id: number }
   /**
    * Vesničané opravili stavbu, ke které se zase chodí (abandonment.md – Oprava): modlu, svatyni,
    * plot hřbitova (i spadlý postavili znovu) nebo ohradu – id stavby.

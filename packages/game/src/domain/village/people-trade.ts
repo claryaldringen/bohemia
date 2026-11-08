@@ -1,3 +1,4 @@
+import { isDisused } from './disused';
 // Výměna lidí se sousedem (docs/design/trade.md – Výměna lidí; Martin 19. 10. 2026: „Se sousedem
 // půjde vyměnit i lidi... např. když on jich bude mít moc a nebude je moci uživit, může jich pár
 // vyměnit s námi za nějaké suroviny a opačně.“, „Mohou se stěhovat celé rodiny i jen dospělí.
@@ -351,7 +352,7 @@ export function newcomerProfiles(
  */
 export function newcomerHome(state: VillageState, family: boolean): number | undefined {
   const occupied = new Set(state.people.map((p) => p.dwellingId));
-  const byId = [...state.dwellings].sort((a, b) => a.id - b.id);
+  const byId = state.dwellings.filter((d) => !isDisused(d)).sort((a, b) => a.id - b.id);
   if (family) {
     const empty = byId.find((d) => !occupied.has(d.id) && d.workshop === undefined);
     if (empty) return empty.id;

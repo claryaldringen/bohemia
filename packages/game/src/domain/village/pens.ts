@@ -1,3 +1,4 @@
+import { isDisused } from './disused';
 import { HOMESTEAD_HERD, OXEN, PEN_GRACE, PEN_PLACES_PER_SQUARE, PEN_SQUARES } from './rules';
 import { sameGrid } from './square-grid';
 import type {
@@ -188,7 +189,8 @@ export function penOccupancy(state: Pick<VillageState, 'pens' | 'livestock'>): M
   if (herds) {
     for (const s of ['sheep', 'goat', 'pig', 'cow'] as const) left[s] = Math.round(herds[s]);
   }
-  const pens = [...(state.pens ?? [])].sort((a, b) => a.id - b.id);
+  // opuštěná ohrada stádo nedrží (demolition.md – Opuštění)
+  const pens = [...(state.pens ?? [])].filter((p) => !isDisused(p)).sort((a, b) => a.id - b.id);
   for (const pen of pens) {
     const species = penSpecies(pen);
     if (species === 'team') {

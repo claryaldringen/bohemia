@@ -1,5 +1,6 @@
 import type { Landscape } from '../landscape';
 import { villageCemeteries } from './cemetery';
+import { isDisused } from './disused';
 import { dwellingShape, type ShapedDwelling } from './dwelling-shape';
 import { villagePens } from './oxen';
 import { penOccupancy } from './pens';
@@ -161,8 +162,10 @@ export function abandonmentCheck(
   const fresh = (builtDay: number | null): boolean =>
     builtDay !== null && day - builtDay < ABANDONMENT.graceDays;
   const visited = (key: string): boolean => (visits.get(key) ?? 0) > 0;
+  // nepoužívaná stavba (demolition.md – Opuštění) chátrá dál bez ohledu na provoz a bez opravy –
+  // vrátí ji jen hráč (`restoreStructure`)
   for (const b of state.sacredBuildings ?? []) {
-    const on = visited(visitKey(b.kind, b.id)) || fresh(b.builtDay);
+    const on = !isDisused(b) && (visited(visitKey(b.kind, b.id)) || fresh(b.builtDay));
     setWear(b, 'wear', nextWear(b.wear, b.kind, day, on));
     keepRepaired(state, day, { structure: b.kind, id: b.id }, b.wear, on);
   }
@@ -175,7 +178,8 @@ export function abandonmentCheck(
   const stocked = stockedPenIds(state);
   for (const p of villagePens(state)) {
     if (p.builtDay === null) continue;
-    const on = stocked.has(p.id) || visited(visitKey('pen', p.id)) || fresh(p.builtDay);
+    const on =
+      !isDisused(p) && (stocked.has(p.id) || visited(visitKey('pen', p.id)) || fresh(p.builtDay));
     setWear(p, 'wear', nextWear(p.wear, 'pen', day, on));
     keepRepaired(state, day, { structure: 'pen', id: p.id }, p.wear, on);
   }
