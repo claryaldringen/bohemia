@@ -18,13 +18,16 @@ export const DIRECTION_NAMES: Record<
   NW: { short: 'SZ', name: 'severozápad', arrow: '↖', from: 'ze severozápadu' },
 };
 
+/** Jednotka zboží v obchodu – kilogramy, kusy, nebo krychlové metry (kámen). */
+export type TradeUnit = 'kg' | 'ks' | 'm³';
+
 /**
- * Zboží – název, jednotka (kg nebo kusy) a ikona v `public/icons/resources/`; 2. pád množného
+ * Zboží – název, jednotka (kg, kusy nebo m³) a ikona v `public/icons/resources/`; 2. pád množného
  * čísla pro věty kroniky („kg obilí“).
  */
 export const TRADE_GOOD_NAMES: Record<
   TradeGood,
-  { name: string; genitive: string; unit: 'kg' | 'ks'; icon: string }
+  { name: string; genitive: string; unit: TradeUnit; icon: string }
 > = {
   grain: { name: 'Obilí', genitive: 'obilí', unit: 'kg', icon: 'food' },
   meat: { name: 'Maso', genitive: 'masa', unit: 'kg', icon: 'meat' },
@@ -57,8 +60,8 @@ export const TRADE_GOOD_NAMES: Record<
   pottery: { name: 'Keramika', genitive: 'keramiky', unit: 'kg', icon: 'pottery' },
   ironBars: { name: 'Hřivny', genitive: 'hřiven', unit: 'kg', icon: 'iron-bars' },
   charcoal: { name: 'Uhlí', genitive: 'uhlí', unit: 'kg', icon: 'charcoal' },
-  // kámen v m³ (trade.md – Kámen); jednotka obchodu je „ks“ = celé m³
-  stone: { name: 'Kámen', genitive: 'kamene', unit: 'ks', icon: 'stone' },
+  // kámen v celých m³ (trade.md – Kámen)
+  stone: { name: 'Kámen', genitive: 'kamene', unit: 'm³', icon: 'stone' },
 };
 
 /**
@@ -88,13 +91,14 @@ function plural(n: number, one: string, few: string, many: string): string {
 
 /**
  * Kolik soused ještě vezme nebo má, ve 4. pádě s jednotkou (popisek řádku obchodu): „1 500 kg“,
- * „4 kusy“, „1 rodinu“, „2 muže“, „1 ženu“.
+ * „4 kusy“, „3 m³“, „1 rodinu“, „2 muže“, „1 ženu“.
  */
-export function tradeAmountText(n: number, unit: 'kg' | 'ks' | PeopleKind): string {
+export function tradeAmountText(n: number, unit: TradeUnit | PeopleKind): string {
   const count = formatInteger(n);
   switch (unit) {
     case 'kg':
-      return `${count} kg`;
+    case 'm³':
+      return `${count} ${unit}`;
     case 'ks':
       return `${count} ${plural(n, 'kus', 'kusy', 'kusů')}`;
     case 'family':

@@ -39,7 +39,7 @@ import { Tooltip } from './Tooltip';
 // (menší ikona vola – musí se vycvičit) a vycvičených volů; popisek řekne, kolik se jich vejde do
 // ohrady.
 
-/** Ikona zboží s množstvím (kg nebo kusy) a názvem v popisku. */
+/** Ikona zboží s množstvím (kg, kusy nebo m³) a názvem v popisku. */
 function Good({ good, amount }: { good: TradeGood; amount: number }): ReactElement {
   const { name, unit, icon } = TRADE_GOOD_NAMES[good];
   return (
@@ -47,7 +47,7 @@ function Good({ good, amount }: { good: TradeGood; amount: number }): ReactEleme
       <span className="flex items-center gap-1 whitespace-nowrap tabular-nums" tabIndex={0}>
         <img src={`/icons/resources/${icon}.png`} alt="" width={20} height={20} />
         {formatInteger(amount)}
-        {unit === 'kg' ? ' kg' : ''}
+        {unit === 'ks' ? '' : ` ${unit}`}
       </span>
     </Tooltip>
   );
