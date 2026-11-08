@@ -44,6 +44,7 @@ function parseBundle(input: unknown): MacroBundle | null {
     num(cattle.trainedOxen),
     num(raw.horses),
     num(raw.logs),
+    num(raw.stoneM3 ?? 0),
     num(people.families),
     num(people.men),
     num(people.women),
@@ -58,6 +59,7 @@ function parseBundle(input: unknown): MacroBundle | null {
     trainedOxen,
     horses,
     logs,
+    stoneM3,
     families,
     men,
     women,
@@ -69,6 +71,7 @@ function parseBundle(input: unknown): MacroBundle | null {
     cattle: { cows: cows!, youngOxen: youngOxen!, trainedOxen: trainedOxen! },
     horses: horses!,
     logs: logs!,
+    stoneM3: stoneM3!,
     people: { families: families!, men: men!, women: women! },
     laborDays: laborDays!,
   };
@@ -80,6 +83,7 @@ const BUNDLE_KEYS = [
   'cattle',
   'horses',
   'logs',
+  'stoneM3',
   'people',
   'laborDays',
 ] as const;
@@ -283,15 +287,17 @@ function parseGoods(input: unknown): MacroGoods | null {
     num(cattle.trainedOxen),
     num(raw.horses),
     num(raw.logs),
+    num(raw.stoneM3 ?? 0),
   ];
   if (fields.some((f) => f === null)) return null;
-  const [grainKg, hayKg, cows, youngOxen, trainedOxen, horses, logs] = fields as number[];
+  const [grainKg, hayKg, cows, youngOxen, trainedOxen, horses, logs, stoneM3] = fields as number[];
   return {
     grainKg: grainKg!,
     hayKg: hayKg!,
     cattle: { cows: cows!, youngOxen: youngOxen!, trainedOxen: trainedOxen! },
     horses: horses!,
     logs: logs!,
+    stoneM3: stoneM3!,
   };
 }
 

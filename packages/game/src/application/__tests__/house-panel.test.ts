@@ -367,6 +367,7 @@ describe('housePanel', () => {
         people: {} as never,
         laborDays: 0,
         logs: 0,
+        stoneM3: 0,
       },
     });
 

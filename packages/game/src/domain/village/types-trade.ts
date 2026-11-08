@@ -37,7 +37,8 @@ export type TradeGood =
   | 'logs'
   | 'pottery'
   | 'ironBars'
-  | 'charcoal';
+  | 'charcoal'
+  | 'stone';
 
 /**
  * Zboží v povaze souseda (NEIGHBOURS.kinds): zboží obchodu, nebo dobytek vcelku (`cattle`) – ten
@@ -226,6 +227,8 @@ export interface ShipmentManifest {
   cattle: Record<CattleGood, number>;
   horses: number;
   people: TradePeople;
+  /** Kámen (m³); starší zásilky ho nemají. */
+  stoneM3?: number;
 }
 
 /**
@@ -252,6 +255,8 @@ export interface ShipmentBody {
   grainKg: number;
   hayKg: number;
   logs: number;
+  /** Kámen (m³); zásilky z doby před kamenem ho nemají. */
+  stoneM3?: number;
   cattle: Record<CattleGood, number>;
   horses: TradedHorse[];
   /** Skupiny lidí s původními údaji (id patří vsi odesílatele). */

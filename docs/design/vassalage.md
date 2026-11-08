@@ -213,8 +213,16 @@ tím, že nabídku vazala odsouhlasí, nebo dá protinabídku – bez jeho souhl
   např. nástroje a keramiku si nakupuje každý sám.**“ Výčet: „**Makrokomodity – obilí, seno,
   dobytek, koně, klády, lidé, práce.**“
 - **Obilí** a **seno** (kg), **dobytek** (kusy po druzích jako v [obchodě](trade.md) – Dobytek ve
-  třech druzích), **koně** (kusy), **klády** (kusy), **lidé** (muži, ženy, celé rodiny – Lidé
+  třech druzích), **koně** (kusy), **klády** (kusy), **kámen** (m³), **lidé** (muži, ženy, celé rodiny – Lidé
   a robota), **práce** (člověkodni – robota).
+- **Kámen** (m³; Martin 8. 11. 2026: „**kámen může být komoditou v obchodě nebo ve vazalském
+  tributu**“, [hradby](fortifications.md) – Kámen; podrobnosti návrh Clauda): přebytek vsi je
+  kámen na hromadách kamení (rozestavěné hradby si ho vzaly při zahájení). **Doprava jen vozem** –
+  1 m³ lomového kamene váží ≈ 2 500 kg, nosič ho neunese, honák ho nežene; mez dopravy je celkový
+  náklad vozů ÷ 2 500 kg, celé m³ (dvoukolák 400 kg = 0,16 m³ na jízdu, čtyřkolák 0,32 m³; za
+  listopad se vůz otočí víckrát, takže ves bez vozu kámen nepošle vůbec). Zásilka kámen veze
+  vozkou a pomocníkem na každý započatý náklad čtyřkoláku. V cílové vsi se kámen složí na hromadu
+  u cesty (`addStone`). Splátka počítá m³ za 60 kg obilí.
 - **Ne:** luštěniny (Martin: „ne“) ani mikrokomodity – nástroje, keramika, uhlí, ruda, hlína,
   maso, sýr; ani hřivny (nejsou ve výčtu – návrh Clauda).
 - Rozdělení na makro- a mikrokomodity zatím platí pro vazalství a obchod mezi hráči; obchod se

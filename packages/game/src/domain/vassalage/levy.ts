@@ -1,4 +1,4 @@
-import type { MacroBundle } from './macro';
+import { stoneOf, type MacroBundle } from './macro';
 
 // Roční Odvody (vassalage.md – Roční dialog 1. 11.): svazek `MacroBundle` jako ploché řádky pro
 // porovnání „domluveno × odvedeno“, zápis do kroniky a rozdělení po vsích.
@@ -12,6 +12,7 @@ export const LEVY_GOODS = [
   'trainedOxen',
   'horses',
   'logs',
+  'stoneM3',
   'families',
   'men',
   'women',
@@ -46,6 +47,7 @@ export function flattenBundle(b: MacroBundle): LevyAmounts {
     trainedOxen: b.cattle.trainedOxen,
     horses: b.horses,
     logs: b.logs,
+    stoneM3: stoneOf(b),
     families: b.people.families,
     men: b.people.men,
     women: b.people.women,
@@ -61,6 +63,7 @@ export function bundleOfAmounts(a: LevyAmounts): MacroBundle {
     cattle: { cows: a.cows, youngOxen: a.youngOxen, trainedOxen: a.trainedOxen },
     horses: a.horses,
     logs: a.logs,
+    stoneM3: a.stoneM3 ?? 0,
     people: { families: a.families, men: a.men, women: a.women },
     laborDays: a.laborDays,
   };

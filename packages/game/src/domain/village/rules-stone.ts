@@ -4,11 +4,11 @@
 
 export const STONE = {
   /**
-   * Lámání a dovoz 1 m³ kamene z lomu (Kámen; rešerše – lámání a vození ≈ 1,4 čd na m³): čd
+   * Lámání a dovoz 1 m³ kamene z lomu (Kámen; Martin 8. 11. 2026: hradba je „komplet“ a kámen z hromady z ní ušetří právě 1 čd na m³, proto lámání 1 čd na m³): čd
    * × příplatek za vzdálenost (`distanceFactor`) od lomu k místu, kam se kámen veze – ke
    * středu stavby hradby, do zásoby k hromadě u dvorce.
    */
-  quarryManDaysPerM3: 1.4,
+  quarryManDaysPerM3: 1,
   /** Stavba lomu (Kámen; návrh Clauda): ≈ 20 čd – odkrýt skálu a cestu k ní, bez dřeva. */
   quarryLaborManDays: 20,
   /**

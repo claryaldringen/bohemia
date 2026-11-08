@@ -201,9 +201,9 @@ at)` → `QUARRY_NO_OUTCROP` / `QUARRY_TAKEN` (i rozestavěný – `Construction
   v prohlížeči `PlacementVillage.quarries`); `startQuarry` (záměr stavby `{ kind: 'quarry' }`,
   `BuildKind` `quarry`, stavba `quarry` za `STONE.quarryLaborManDays` = 20 čd, poloha = střed
   výchozu), dostavění `finishQuarry`. `nearestQuarry(state, at)`, `quarryManDaysPerM3(d)` =
-  `STONE.quarryManDaysPerM3` (1,4) × `distanceFactor(d)`. Zásoba: `orderQuarrying(state, day,
+  `STONE.quarryManDaysPerM3` (1) × `distanceFactor(d)`. Zásoba: `orderQuarrying(state, day,
 outcropId, m3)` (celé m³ v `STONE.stockOrderM3`, bez lomu `QUARRY_MISSING`) → stavba
-  `quarrying` (`stoneOrderM3`) za m³ × 1,4 × `distanceFactor` od lomu k `logArrivalPoint`; hotová
+  `quarrying` (`stoneOrderM3`) za m³ × 1 × `distanceFactor` od lomu k `logArrivalPoint`; hotová
   složí kámen `addStone(…, null)`. Zrušení (`returnConstructionStone` v `cancelConstruction`):
   lámání složí nalámaný podíl (`done / cost`), hradba vrátí `stoneFromPile × (1 − done / cost)`.
   Use-casy `placeQuarry`, `orderStoneQuarrying` (právo `build`). Web: katalog (zkratka L, ikona
@@ -256,7 +256,7 @@ outcropId, m3)` (celé m³ v `STONE.stockOrderM3`, bez lomu `QUARRY_MISSING`) �
   opevnění za 1 čd × `distanceFactor`, ne obecné 2 čd); chybí → `FORT_NO_WOOD`. Kámen
   `fortStonePlan(state, need, at)`: napřed z hromad (`stoneOnHand`, `takeStone` od nejbližší
   k těžišti; stavba si pamatuje `stoneFromPile`), zbytek na zakázku v nejbližším dostavěném lomu
-  vsi (`nearestQuarry`) za `quarryManDaysPerM3` × m³ (1,4 čd × `distanceFactor` vzdušné
+  vsi (`nearestQuarry`) za `quarryManDaysPerM3` × m³ (1 čd × `distanceFactor` vzdušné
   vzdálenosti); bez lomu → `FORT_NO_STONE(chybí)` („Chybí N m³ kamene. Ves nemá lom.“), stav se
   nemění – výchoz na mapě bez stavby lomu nestačí. Lámání se rozpočítá
   do práce úseků podle jejich kamene (`fortSegments[].cost` – úsek je hotový i s kamenem; pořadí

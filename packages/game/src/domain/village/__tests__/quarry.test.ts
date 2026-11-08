@@ -117,7 +117,7 @@ describe('lom na skalním výchozu', () => {
     const c = ordered.constructions.find((x) => x.kind === 'quarrying')!;
     const to = logArrivalPoint(built);
     const d = Math.hypot(OUTCROP.x - to.x, OUTCROP.z - to.z);
-    expect(c.cost).toBeCloseTo(10 * 1.4 * distanceFactor(d), 9);
+    expect(c.cost).toBeCloseTo(10 * distanceFactor(d), 9);
     const done = until(ordered, (x) => !x.constructions.some((k) => k.kind === 'quarrying'));
     expect(stoneOnHand(done)).toBeCloseTo(10, 9);
     expect(done.stoneStacks).toHaveLength(1);

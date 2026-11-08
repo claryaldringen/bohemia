@@ -25,6 +25,7 @@ const NO_BUNDLE = {
   cattle: { cows: 0, youngOxen: 0, trainedOxen: 0 },
   horses: 0,
   logs: 0,
+  stoneM3: 0,
   people: { families: 0, men: 0, women: 0 },
   laborDays: 0,
   hayKg: 0,

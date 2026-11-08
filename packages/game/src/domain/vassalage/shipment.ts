@@ -4,8 +4,10 @@ import { villageHayKg } from '../village/hay';
 import { addHorses, horsesForSale, horsesToSell, removeHorses } from '../village/horse-trade';
 import { removePeople } from '../village/kinship';
 import { ensureLivestock, LIVESTOCK } from '../village/livestock';
+import { logArrivalPoint } from '../village/log-piles';
 import { CATTLE_GOODS, HORSE_GOODS } from '../village/neighbours';
 import { emigrantGroups, emigrantList, newcomerHome, peopleCount } from '../village/people-trade';
+import { addStone, stoneOnHand, takeStone } from '../village/stone';
 import { rehomePeople } from '../village/transfer-people';
 import type {
   CattleGood,
@@ -19,7 +21,7 @@ import type {
 } from '../village/types';
 import { addLogs, takeLogs, woodLogs } from '../village/wood';
 import { OPPOSITE } from '../village/world-grid';
-import type { MacroBundle } from './macro';
+import { stoneOf, type MacroBundle } from './macro';
 import { VASSALAGE } from './rules-vassalage';
 import { transportLimit } from './transport';
 
@@ -51,6 +53,7 @@ function manifestOf(bundle: MacroBundle): ShipmentManifest {
     grainKg: bundle.grainKg,
     hayKg: bundle.hayKg,
     logs: bundle.logs,
+    ...(stoneOf(bundle) > 0 ? { stoneM3: stoneOf(bundle) } : {}),
     cattle: { ...bundle.cattle },
     horses: bundle.horses,
     people: { ...bundle.people },
@@ -63,6 +66,7 @@ function manifestOfBody(body: ShipmentBody): ShipmentManifest {
     grainKg: body.grainKg,
     hayKg: body.hayKg,
     logs: body.logs,
+    ...((body.stoneM3 ?? 0) > 0 ? { stoneM3: body.stoneM3 } : {}),
     cattle: { ...body.cattle },
     horses: body.horses.length,
     people: {
@@ -78,11 +82,16 @@ function carriers(bundle: MacroBundle): number {
   const t = VASSALAGE.transport;
   const kg = Math.ceil((bundle.grainKg + bundle.hayKg) / t.porterKg - EPSILON);
   const logs = bundle.logs * t.logCarriers;
+  // kámen jede vozem: na každý započatý náklad největšího vozu vozka a pomocník (`cartCrew`)
+  const stoneLoads = Math.ceil(
+    (stoneOf(bundle) * t.stoneKgPerM3) / t.cartKg['four-wheel'] - EPSILON,
+  );
+  const stone = stoneLoads * t.cartCrew;
   const heads = CATTLE_GOODS.reduce((n, g) => n + bundle.cattle[g], 0);
   const drovers =
     Math.ceil(heads / t.headsPerDrover - EPSILON) +
     Math.ceil(bundle.horses / t.horsesPerDrover - EPSILON);
-  return Math.max(1, kg + logs + drovers);
+  return Math.max(1, kg + logs + stone + drovers);
 }
 
 /** Zboží zásilky v tvaru obchodu (scéna: co karavana nese a kolik dobytka žene). */
@@ -90,6 +99,7 @@ function sceneGoods(bundle: MacroBundle): TradeGoods {
   const out: TradeGoods = {};
   if (bundle.grainKg > 0) out.grain = bundle.grainKg;
   if (bundle.logs > 0) out.logs = bundle.logs;
+  if (stoneOf(bundle) > 0) out.stone = stoneOf(bundle);
   for (const g of CATTLE_GOODS) if (bundle.cattle[g] > 0) out[g] = bundle.cattle[g];
   return out;
 }
@@ -105,6 +115,7 @@ function shortage(state: VillageState, day: number, bundle: MacroBundle): string
     bundle.grainKg,
     bundle.hayKg,
     bundle.logs,
+    stoneOf(bundle),
     bundle.horses,
     bundle.people.families,
     bundle.people.men,
@@ -114,9 +125,11 @@ function shortage(state: VillageState, day: number, bundle: MacroBundle): string
   if (values.some((v) => !Number.isFinite(v) || v < 0)) return 'Zásilka má záporné množství.';
   if (values.every((v) => v === 0)) return 'Zásilka je prázdná.';
   if (bundle.logs !== Math.floor(bundle.logs)) return 'Klády se vezou po celých kusech.';
+  if (stoneOf(bundle) !== Math.floor(stoneOf(bundle))) return 'Kámen se vozí po celých m³.';
   if (bundle.grainKg > state.storesKg + EPSILON) return 'Ves tolik obilí nemá.';
   if (bundle.hayKg > villageHayKg(state) + EPSILON) return 'Ves tolik sena nemá.';
   if (bundle.logs > woodLogs(state) + EPSILON) return 'Ves tolik klád nemá.';
+  if (stoneOf(bundle) > stoneOnHand(state) + EPSILON) return 'Ves tolik kamene nemá.';
   for (const good of CATTLE_GOODS) {
     if (bundle.cattle[good] > haveCattle(state, good, day)) return 'Ves tolik dobytka nedá.';
   }
@@ -148,6 +161,7 @@ function overTransport(
   if (bundle.grainKg > limit.grainKg + EPSILON) return 'Obilí je víc, než ves unese.';
   if (bundle.hayKg > limit.hayKg + EPSILON) return 'Sena je víc, než ves unese.';
   if (bundle.logs > limit.logs) return 'Klád je víc, než ves odveze.';
+  if (stoneOf(bundle) > limit.stoneM3) return 'Kamene je víc, než ves odveze.';
   if (CATTLE_GOODS.some((g) => bundle.cattle[g] > limit.cattle[g])) {
     return 'Dobytka je víc, než ves dožene.';
   }
@@ -192,6 +206,7 @@ export function dispatchShipment(
   next.storesKg = Math.max(0, next.storesKg - bundle.grainKg);
   if (bundle.hayKg > 0 && next.hay) next.hay.kg = Math.max(0, next.hay.kg - bundle.hayKg);
   if (bundle.logs > 0) takeLogs(next, bundle.logs);
+  if (stoneOf(bundle) > 0) takeStone(next, stoneOf(bundle), logArrivalPoint(next));
   for (const good of CATTLE_GOODS) removeCattle(next, good, bundle.cattle[good], day);
   // koně: kdo je v prodeji, v pořadí druhů (hříbata, klisny, jezdečtí koně)
   const horses: TradedHorse[] = [];
@@ -261,6 +276,7 @@ export function dispatchShipment(
     grainKg: bundle.grainKg,
     hayKg: bundle.hayKg,
     logs: bundle.logs,
+    ...(stoneOf(bundle) > 0 ? { stoneM3: stoneOf(bundle) } : {}),
     cattle: { ...bundle.cattle },
     horses,
     groups: groups.map((g) => ({ kind: g.kind, people: structuredClone(g.people) })),
@@ -286,6 +302,7 @@ export function receiveShipment(
     hay.kg += body.hayKg;
   }
   addLogs(state, body.logs, null);
+  addStone(state, body.stoneM3 ?? 0, null);
   if (body.domain) {
     // jídlo domény: dobytek je hned poražen a snězen (jako na dobytčích trzích), do stád nejde
     const heads = CATTLE_GOODS.reduce((n, g) => n + body.cattle[g], 0);

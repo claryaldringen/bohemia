@@ -22,6 +22,7 @@ import type {
   TradePeople,
   VillageState,
 } from '../village/types';
+import { stoneOnHand } from '../village/stone';
 import { woodLogs } from '../village/wood';
 import type { MacroSpare } from './macro';
 import { VASSALAGE } from './rules-vassalage';
@@ -131,8 +132,17 @@ function laborDaysSpare(state: VillageState): number {
 }
 
 /**
+ * Kámen: celé m³ na hromadách kamení (návrh Clauda). Rozestavěné hradby si kámen vzaly z hromad
+ * hned při zahájení (`fortStonePlan`) a lámání na zakázku běží v jejich ceně, takže nad potřebu
+ * rozestavěných staveb je prostě všechno, co leží na hromadách.
+ */
+function stoneSpare(state: VillageState): number {
+  return Math.max(0, Math.floor(stoneOnHand(state) + EPSILON));
+}
+
+/**
  * Kolik ves v den `day` může ročně postrádat, aniž by ji to položilo (vassalage.md – Výhled):
- * obilí, seno, dobytek, koně a klády (celá hromada – pojistka na ně není) nad pojistku, lidé
+ * obilí, seno, dobytek, koně, klády a kámen (celá hromada – pojistka na ně není) nad pojistku, lidé
  * a robota. Bez dopravy – tu přidá `houseSpare`. Vstupní stav nemění.
  */
 export function villageSpare(state: VillageState, day: number): MacroSpare {
@@ -144,6 +154,7 @@ export function villageSpare(state: VillageState, day: number): MacroSpare {
     cattle: cattleSpare(state, day),
     horses: horsesSpare(state, day),
     logs: Math.max(0, Math.floor(woodLogs(state) + EPSILON)),
+    stoneM3: stoneSpare(state),
     people: peopleSpare(state, day, outlook),
     laborDays: laborDaysSpare(state),
   };

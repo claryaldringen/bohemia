@@ -1,5 +1,5 @@
 import { CATTLE_GOODS } from '../village/neighbours';
-import type { MacroBundle } from './macro';
+import { stoneOf, type MacroBundle } from './macro';
 import { VASSALAGE } from './rules-vassalage';
 
 /**
@@ -37,7 +37,7 @@ const isCount = (n: number, max: number): boolean => inRange(n, max) && Number.i
 
 /** Je svazek v mezích (kg nezáporné, kusy a lidé celá čísla) a něco obsahuje? */
 export function checkBundle(b: MacroBundle): string | null {
-  const heads = [...CATTLE_GOODS.map((g) => b.cattle[g]), b.horses, b.logs];
+  const heads = [...CATTLE_GOODS.map((g) => b.cattle[g]), b.horses, b.logs, stoneOf(b)];
   const people = [b.people.families, b.people.men, b.people.women];
   const ok =
     inRange(b.grainKg, L.maxKg) &&

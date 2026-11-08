@@ -412,7 +412,7 @@ describe('cena komplet a nové druhy (Hradby a obrana – Cena, Druhy)', () => {
       ok: false,
       reason: FORT_NO_STONE(need - 40),
     });
-    // lom: 40 m³ z hromady, zbytek se láme za 1,4 čd na m³ × vzdálenost k lomu
+    // lom: 40 m³ z hromady, zbytek se láme za 1 čd na m³ × vzdálenost k lomu
     const withQuarry = structuredClone(some);
     withQuarry.quarries = [{ outcropId: 1, ...QUARRY, rotation: 0, builtDay: 0 }];
     const quarried = ok(
@@ -421,7 +421,7 @@ describe('cena komplet a nové druhy (Hradby a obrana – Cena, Druhy)', () => {
     const c = fortWork(quarried);
     const factor = distanceFactor(fromCenter('crib', QUARRY));
     expect(factor).toBeGreaterThan(1);
-    expect(c.cost).toBeCloseTo((620 * len) / 100 + (need - 40) * 1.4 * factor, 6);
+    expect(c.cost).toBeCloseTo((620 * len) / 100 + (need - 40) * 1 * factor, 6);
     expect(quarried.stoneM3).toBeUndefined();
     expect(quarried.stoneStacks).toBeUndefined();
     expect(c.stoneFromPile).toBe(40);
