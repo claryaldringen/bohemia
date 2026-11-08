@@ -225,15 +225,28 @@ kdekoli“ → jen na suchých mapách):
      tak daleko nedostane – např. W 24 → S 24 –, přijme přítok ve svém nejhlubším místě, jinak by
      výřez nešel – návrh Clauda); pramen začíná uvnitř mapy, 40 políček od
      výtoku (podél strany ± 12 ze seedu). Tok vtéká a vytéká kolmo k okraji (rovný úsek
-     6 políček). Tvar koryta, meandry, 1–2 brody (ne do 8 políček od soutoku), hloubka a niva jako
+     6 políček). Tvar koryta, 1–2 brody (ne do 8 políček od soutoku), hloubka a niva jako
      dnešní řeka (`RIVER` v `premium/river.ts`), šířka plynule od šířky vtoku k šířce výtoku,
-     podél toku ± 10 %, v bodech okraje přesně (návrh Clauda, čísla v `SKELETON_MAP`);
+     podél toku ± 10 %, v bodech okraje přesně (návrh Clauda, čísla v `SKELETON_MAP`).
+     Martin 8. 11. 2026: „řeka musí co nejvíce meandrovat a být co nejpřirozenější“ – proto
+     (návrh Clauda):
+     - **meandry** výraznější než u řeky prémie – amplituda 3–5 políček (když by se tok sám
+       dotkl, 65 %, 35 %, nakonec rovně) a dlouhá vlna úměrná šířce toku (asi 10–14 šířek; vlna
+       `RIVER.wave` patří řece 45 m, užší tok má oblouky kratší, nejvýš o 45 %) – i přítok
+       meandruje jako hlavní tok;
+     - **soutok pod ostrým úhlem po proudu:** přítok se posledních 10 políček (150 m) stočí po
+       proudu a vlévá se rovně pod úhlem 35–50° (ze seedu) k ose hlavního toku, o průmět
+       přiblížení níž po proudu, než k ní dovedla trasa (ne blíž okraji než 20 políček); brod
+       hlavního toku je od soutoku aspoň 8 + 10 políček;
+     - **pramen:** řeka bez vtoku začíná v šířce potoka mapy (15 m), který do ní ústí, a k výtoku
+       se plynule rozšíří na šířku výřezu (mez `RIVER.width.minM` 25 m tu neplatí);
   3. **potok mapy je přítok:** teče od okraje mapy (ne do 20 políček od bodu řeky) do řeky; na mapě
      s pramenem je potok počátkem řeky. Potok tedy zůstává, jen nevytéká za okraj;
   4. místo pro vesnici jako dnes u potoka a navíc aspoň 300 m od osy řeky
      (`RIVER.villageMinCells`);
   5. skály u potoka, vegetace a úrodnost jako dnes; stezka (je-li) přes brod řeky tam, kudy ji
-     výřez vede.
+     výřez vede – rovně napříč řekou přes střed mělčiny (kolmo na osu, pás přechodu do 2,5 políčka
+     za břeh; mělčina leží na stezce – návrh Clauda).
 - **Body na okraji platí přesně:** osa řeky i stezky končí v bodě výřezu (na políčko), šířka řeky
   v bodě je šířka výřezu. Výšky terénu na okraji nenavazují (šev) – hráč vidí vždy jednu mapu.
 - **Pásmo srovnatelnosti:** mapa s řekou musí projít **celým** pásmem (`band.ts`) včetně horních
