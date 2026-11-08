@@ -331,6 +331,16 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   nevidím: návrh Clauda – (a) hrubší body objížďky stěn (`DETOUR_STEP_M` 5 → 10 m, graf 210 →
   ≈ 110 bodů – objížďky ±1–2 m, nová verze tras) nebo (b) přepočet mapy tras po změně stavby až
   další den ráno jednou za týden (ne hned) – obojí mění výsledek, proto jen na pokyn.
+  **Kolo 3 (Martin 8. 11. 2026, volba „B“ – objížďka po 10 m):** body objížďky vně obvodu hradeb po
+  10 m místo po 5 m (`DETOUR_STEP_M`, `fortification/walls.ts`) – graf objížďky je zhruba o třetinu
+  menší (testovací palisáda 4 × 4 čtverce 47 → 33 bodů, malý čtverec 23 → 20); vesničané obcházejí
+  palisádu o kus méně přesně, výsledek vsí s opevněním se mění, vsi bez opevnění ne. Samotných
+  10 m protnulo zeď na rozích (test „bez pěšiny na straně cíle“ padal), proto návrh Claudea:
+  zhušťování jen tam, kde to hrana potřebuje – kde úsečka mezi sousedními body řízne stěnu, vloží se
+  bod doprostřed (půlí se až na ≈ 2,5 m) a před každou bránu se bod klade vždy. Větší odstup u
+  ostrých míst jsem nezvolil: odsouvá bod od zdi a zhoršuje objížďku, zhušťování je jednodušší a
+  nechává běžné rovné úseky řídké. Čas roku Vlkova: změří se (měření na zatíženém stroji
+  nic neříkalo).
   Souběžné požadavky téhož hráče dopočet nezdvojují: web je řadí do fronty (`apps/web/lib/exclusive.ts`,
   web-ui.md – Jeden dopočet vsí naráz), druhý jen dopočte zbytek do svého dne.
 
