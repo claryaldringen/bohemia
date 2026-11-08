@@ -354,6 +354,11 @@ jen z konkrétních modulů; kreslí se jen při změně.
 
 ### Úloha 9: Výřez u sídla, krajina políčka a vsi synů (≈ 120 kroků)
 
+> **Změna 8. 11. 2026 (Martin – otázka 3 návrhu):** „NPC budou mít normální mapy. Prémiové jen lidští
+> hráči.“ Ves syna (NPC vojvody) se umisťuje **jen na mapu bez kostry** – nejbližší suchou, stejně
+> jako odříznutý nováček; výřez s řekou nebo stezkou nedostane. Kroky níž, které počítají s výřezem
+> u vsi syna, uprav podle toho (a totéž v Úloze 14).
+
 **Files:**
 
 - Modify: `packages/db/src/schema/settlement.ts` (`skeleton: jsonb('skeleton').$type<SkeletonSlice | null>()`),
