@@ -214,6 +214,7 @@ test('jednání: nabídka, protinávrh, přijetí; odmítnutí s pauzou; blokov�
   if (NEGOTIATION_SCREENSHOT) await b.screenshot({ path: NEGOTIATION_SCREENSHOT });
   await cardB.getByTestId('negotiation-counter').click();
   await send(panelB, 'Souhlasím, ale pamatuj na mě');
+  await expect(panelB.getByTestId('house-negotiation')).toHaveAttribute('data-my-turn', 'false');
 
   // A přijme protinávrh → B má A v pánech, A má B ve vazalech
   const panelA2 = await reopenHousePanel(a);
@@ -230,6 +231,8 @@ test('jednání: nabídka, protinávrh, přijetí; odmítnutí s pauzou; blokov�
   const barA3 = await pickPlayer(panelA3, idC);
   await barA3.getByTestId('house-offer').click();
   await send(panelA3, 'Přidej se');
+  // panel rodu si stav načte jen při otevření – C ho otevře, až je nabídka uložená (jako u B)
+  await expect(panelA3.getByTestId('house-negotiation')).toHaveAttribute('data-my-turn', 'false');
   const panelC = await reopenHousePanel(c);
   await expect(panelC.getByTestId('house-negotiation')).toHaveAttribute('data-my-turn', 'true');
   await panelC.getByTestId('negotiation-reject').click();
@@ -246,6 +249,8 @@ test('jednání: nabídka, protinávrh, přijetí; odmítnutí s pauzou; blokov�
   const panelC2 = await reopenHousePanel(c);
   const barC = await pickPlayer(panelC2, idA);
   await barC.getByTestId('house-block').click();
+  // blokování je uložené, až ho panel C ukáže (lišta se po kliknutí zavře – vybrat znovu)
+  await expect((await pickPlayer(panelC2, idA)).getByTestId('house-unblock')).toBeVisible();
   const panelA5 = await reopenHousePanel(a);
   const barA5 = await pickPlayer(panelA5, idC);
   await expect(barA5.getByTestId('house-offer')).toHaveAttribute('data-reason', 'Zablokoval tě.');
@@ -256,6 +261,7 @@ test('jednání: nabídka, protinávrh, přijetí; odmítnutí s pauzou; blokov�
   const barC2 = await pickPlayer(panelC3, idA);
   await expect(barC2.getByTestId('house-block')).toHaveCount(0);
   await barC2.getByTestId('house-unblock').click();
+  await expect((await pickPlayer(panelC3, idA)).getByTestId('house-block')).toBeVisible();
   const panelA6 = await reopenHousePanel(a);
   const barA6 = await pickPlayer(panelA6, idC);
   await expect(barA6.getByTestId('house-request')).not.toHaveAttribute(
