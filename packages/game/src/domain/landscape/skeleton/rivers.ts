@@ -65,12 +65,13 @@ interface ShapedCourse {
  * a brody, vodní políčka, dno klesající po proudu a údolí s nivou `floodplainCells`. Přítok ústí
  * přesně do osy hlavního toku a jeho dno nekončí pod dnem hlavního toku v soutoku. Mění terén na
  * místě (výšky, voda) a vrací ho s osami řek (`rivers`); výšky znovu od nejnižšího políčka.
+ * `singleFord` – každý tok jen s jedním brodem (vyvýšenina nad brodem, prémie na kostře).
  */
 export function carveRiverCourses(
   terrain: Terrain,
   plans: readonly RiverCoursePlan[],
   seed: number,
-  options: { readonly floodplainCells: number },
+  options: { readonly floodplainCells: number; readonly singleFord?: boolean },
 ): Terrain {
   if (plans.length === 0) return terrain;
   const { size } = terrain;
@@ -107,10 +108,16 @@ export function carveRiverCourses(
       samples = shapeChannel(base, { ...look, amplitude: 0 }, size, room, 0, profile);
     }
     const ends = plan.joins === null ? junctions : [plan.cells.at(-1)!];
-    const fords = chooseFords(samples, random, (j) =>
-      ends.every(
-        (c) => length2(samples[j]!.x - c.x, samples[j]!.y - c.y) >= SKELETON_MAP.fordJunctionCells,
-      ),
+    const fords = chooseFords(
+      samples,
+      random,
+      (j) =>
+        ends.every(
+          (c) =>
+            length2(samples[j]!.x - c.x, samples[j]!.y - c.y) >= SKELETON_MAP.fordJunctionCells,
+        ),
+      null,
+      options.singleFord === true ? 1 : 2,
     );
     placeFords(samples, fords);
     // Vlastní voda toku – voda hlavního toku (a co už je vodou) zůstane, jak je.

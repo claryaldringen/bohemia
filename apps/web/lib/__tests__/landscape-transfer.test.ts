@@ -286,8 +286,19 @@ describe('přenos mapy z kostry světa – víc řek a výřez', () => {
       ],
       trails: [],
     };
-    for (const type of ['navigable-river', 'confluence'] as const) {
-      const premium = generateLandscape(1, PREMIUM2, type, river);
+    const trails = [
+      { side: 'W', at: 40 },
+      { side: 'E', at: 90 },
+    ] as const;
+    const ford: SkeletonSlice = { ...river, trails };
+    const trail: SkeletonSlice = { world: 1, rivers: [], trails };
+    for (const [type, slice] of [
+      ['navigable-river', river],
+      ['confluence', river],
+      ['ford-hill', ford],
+      ['mountain-pass', trail],
+    ] as const) {
+      const premium = generateLandscape(1, PREMIUM2, type, slice);
       const features = premiumFeaturesOf(premium);
       expect(features?.type).toBe(type);
       const decoded = decodeLandscape(encodeLandscape(premium));

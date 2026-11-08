@@ -2,6 +2,7 @@ import { length2, scatterHash } from '../det-math';
 import { distanceToMask } from '../grid';
 import { deriveSeed } from '../random';
 import { buildRelief } from '../relief';
+import { skeletonRoute } from '../skeleton/route';
 import { streamCenterline, streamStations } from '../stream-geometry';
 import type { Terrain } from '../terrain';
 import { promontoriesOf, SURFACE_CODES, type Landscape, type StreamPoint } from '../types';
@@ -12,6 +13,7 @@ import {
   addConfluence,
   addSideRiver,
   addSkeletonConfluence,
+  addSkeletonFordHill,
   landRegion,
   NAVIGABLE_FLOODPLAIN_CELLS,
   RIVER,
@@ -23,6 +25,7 @@ import {
   lineToEdges,
   onBorder,
   routeLeg,
+  skeletonRouteSite,
   smoothLine,
   trailCellCost,
   VILLAGE_ROUTE,
@@ -368,10 +371,47 @@ const skeletonConfluence = {
   },
 } satisfies PremiumPass;
 
+/**
+ * Vyvýšenina nad brodem na kostře: řeka kostry s jediným brodem (terén mapy z kostry znovu se
+ * `singleFord`), takže stezka kostry řeku přejde právě jím, a ostrožna nad ním
+ * (`addSkeletonFordHill`). Prvky řeka a brod, ostrožna a stezka kostry (`skeletonRoute`, ne vlastní
+ * stezka) – jen když trasa opravdu vede brodem pod ostrožnou.
+ */
+const skeletonFordHill = {
+  skeletonTerrainOptions: { singleFord: true },
+  terrain(terrain: Terrain, ctx: PremiumPassContext): Terrain {
+    return addSkeletonFordHill(terrain, riverSeed(ctx));
+  },
+  sites({ landscape }: { landscape: Landscape }): readonly PremiumSite[] | null {
+    const river = skeletonRiver(landscape);
+    const sites = riverSites(landscape, river);
+    const hill = promontorySite(landscape, 'ford-hill');
+    const route = skeletonRoute(landscape);
+    if (!river || !sites || !hill || !route) return null;
+    // Brod pod vyvýšeninou – nejblíž ostrožně; trasa jím musí vést.
+    const ford = fordCenters(river)
+      .map((k) => streamPointWorld(landscape, river[k]!))
+      .reduce<WorldPoint | null>(
+        (best, p) =>
+          !best ||
+          length2(p[0] - hill.x, p[1] - hill.z) < length2(best[0] - hill.x, best[1] - hill.z)
+            ? p
+            : best,
+        null,
+      );
+    const crossed =
+      ford !== null &&
+      route.fords.some(([x, z]) => length2(x - ford[0], z - ford[1]) <= landscape.cellSizeM);
+    const trail = skeletonRouteSite(route);
+    return crossed && trail ? [...sites, hill, trail] : null;
+  },
+} satisfies PremiumPass;
+
 /** Průchody typů vody na kostře (prémiový průchod 2). */
 export const SKELETON_WATER_PASSES = {
   'navigable-river': skeletonNavigableRiver,
   confluence: skeletonConfluence,
+  'ford-hill': skeletonFordHill,
 } satisfies Partial<Record<PremiumType, PremiumPass>>;
 
 // ── Zlatonosný potok ─────────────────────────────────────────────────────────────────────────

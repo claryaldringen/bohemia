@@ -253,8 +253,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   suché mapě s průchodem stejným jako 1. `assertPremiumSlot(type, version, slice)` (volá ho
   generátor hned na začátku): průchod 1 jen bez výřezu, průchod 2 jen typ na svém místě, jinak
   `RangeError`. `premiumPassOf(type, version)` – typy kostry ve verzi 2 z `SKELETON_PREMIUM_PASSES`
-  (zatím `SKELETON_WATER_PASSES`; brod a průsmyk přijdou s Úlohou 11 – do té doby průchod nemají
-  a pásmem neprojdou), `hasPremiumPass(type, version = 1)`. `premiumFeaturesOf` verzi bere z krajiny:
+  (`SKELETON_WATER_PASSES` – řeka, soutok, brod; `SKELETON_RELIEF_PASSES` – průsmyk),
+  `hasPremiumPass(type, version = 1)`. `premiumFeaturesOf` verzi bere z krajiny:
   s výřezem 2, bez něj 1 (verze 1 výřez nemá, ostatní typy mají v obou verzích stejný průchod).
   `PremiumPassContext.skeleton` (výřez nebo null); `PremiumPass.skeletonTerrainOptions` – terén
   mapy z kostry se generuje znovu ze seedu terénu pokusu a výřezu s nimi (`passTerrain` →
@@ -265,11 +265,32 @@ NAVIGABLE_FLOODPLAIN_CELLS }` (rovná niva 4 políčka), prvky řeka a brody hla
   s výškou `CONFLUENCE.heightM` nad hladinou řeky v soutoku – na ose mezi směrem proti proudu
   potoka a proti proudu řeky od ústí potoka (když se tam nevejde, po proudu řeky), první místo
   ≥ 3,4 políčka od vody, ≥ 28 políček od vsi (`spurClearOfVillage`), mimo okraj a jiné ostrožny;
-  řeka a potok se nemění, jen dostanou stěny u ostrožny. Prvky řeka, brody, `confluence` (konec
-  potoka) a ostrožna. Krajina nese `skeleton`, `rivers` a `premium`, `river` nemá. `enterGame`
+  řeka a potok se nemění, jen dostanou stěny u ostrožny (společné `addSkeletonSpur`). Prvky řeka,
+  brody, `confluence` (konec potoka) a ostrožna. **Vyvýšenina nad brodem** (Úloha 11):
+  `skeletonTerrainOptions: { singleFord: true }` – terén z kostry znovu s jediným brodem na řece
+  (`carveRiverCourses` → `chooseFords(…, maxCount 1)`; los počtu brodů proběhne stejně, brod vyjde
+  jako první ze dvou), takže stezka kostry řeku přejde právě jím. `addSkeletonFordHill`
+  (`premium/river.ts`) přidá ostrožnu `SPUR` s výškou `FORD_HILL.heightM` nad hladinou brodu: střed
+  `FORD_HILL.alongCells` od brodu podél osy (po proudu i proti), na břehu, kde se vejde (jako
+  `planFordHill` – okraj, voda, potok ≥ 9 políček, jiné části řeky, ≥ 28 políček od vsi, jiné
+  ostrožny), nejvýš nad brodem (+ náhoda). Prvky řeka a brod, ostrožna a `route` = stezka kostry
+  (`skeletonRouteSite` v `premium/route.ts` – oba úseky `skeletonRoute` jako jedna čára od okraje
+  k okraji); jen když trasa vede brodem nejblíž ostrožně (do 1 políčka). **Horský průsmyk**
+  (Úloha 11): `skeletonPassPlan(input, slice)` (`premium/relief.ts`) – strana pohoří = strana bodu
+  stezky dál od vsi (`PASS_SIDE`: S 0, N 1, W 2, E 3), sedlo `t = at` naproti bodu, hřbety jako
+  `passPlan` (`waterGapCells`, `maxRidgeCells`), navíc až k rohu mapy a ne do `flankCells`
+  k jinému bodu stezky na téže straně; oba ≥ `minRidgeCells`, pohoří ≥ `villageMinCells` od vsi,
+  jinak null (pokus neprojde). Terén `sculptPass` jako průchod 1 (`fertilityAverageMean`). Prvky
+  `skeletonMountainPassSites`: sedlo (`passSite` – oba hřbety ≥ `minRiseM`, sdílené s průchodem 1)
+  a `route` = stezka kostry, která musí vést do `MOUNTAIN_PASS.routeSaddleCells` (2) od sedla. Krajina nese `skeleton`, `rivers` a `premium`, `river` nemá. `enterGame`
   ukládá do Úlohy 13 dál průchod 1 (sídlo zatím bez výřezu). Testy
   `premium/__tests__/skeleton-river-types.test.ts` (niva, přístaviště, ostrožna, zlatý otisk
-  průchodu 1 – `PREMIUM1_GOLDEN` všech typů, `RangeError`) a pásmo `skeleton-type-band.ts`
+  průchodu 1 – `PREMIUM1_GOLDEN` všech typů, `RangeError`), `skeleton-trail-types.test.ts`
+  (jediný brod na trase, ostrožna ≥ 15 m nad brodem, sedlo do 2 políček od trasy, hřbety ≥ 60 m,
+  konce trasy v bodech výřezu – stezka E–W i N–S) a pásmo `skeleton-type-band.ts`
   (`skeleton-river-band.test.ts` – 2 typy × výřez rovně a ohyb, 300 seedů: projde 300/300,
-  napoprvé splavná 62 / 80 %, soutok 47 / 65 %, mapa bez prémie 64 / 81 %). Měření:
+  napoprvé splavná 62 / 80 %, soutok 47 / 65 %, mapa bez prémie 64 / 81 %;
+  `skeleton-trail-band.test.ts` – brod na výřezu brod, průsmyk na výřezu stezka: napoprvé brod
+  61 % (mapa bez prémie 64 %), průsmyk 55 % (94 %) – průsmyk nejčastěji neprojde, když potok
+  ústí na stranu pohoří nebo je ves blízko). Měření:
   `measure-landscapes.ts 200 navigable-river --skeleton straight`.

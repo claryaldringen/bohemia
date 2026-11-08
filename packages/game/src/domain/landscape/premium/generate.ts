@@ -8,7 +8,7 @@ import type { Terrain, TerrainOptions } from '../terrain';
 import type { Landscape, LayerVersions } from '../types';
 import { PREMIUM_TYPES } from './catalog';
 import { DEPOSIT_PASSES } from './deposits';
-import { RELIEF_PASSES } from './relief';
+import { RELIEF_PASSES, SKELETON_RELIEF_PASSES } from './relief';
 import { SOIL_FOREST_PASSES } from './soil-forest';
 import { SKELETON_WATER_PASSES, WATER_PASSES } from './water';
 import {
@@ -144,11 +144,12 @@ const PREMIUM_PASSES: Partial<Record<PremiumType, PremiumPass>> = {
 };
 
 /**
- * Průchody typů kostry ve verzi 2 (prémie na kostře) – řeku a stezku berou z výřezu. Typ kostry,
- * který tu ještě není, průchod ve verzi 2 nemá (krajina průměrná, kontrolou typu neprojde).
+ * Průchody typů kostry ve verzi 2 (prémie na kostře) – řeku a stezku berou z výřezu: splavná
+ * řeka, soutok a vyvýšenina nad brodem (`water.ts`), horský průsmyk (`relief.ts`).
  */
 const SKELETON_PREMIUM_PASSES: Partial<Record<PremiumType, PremiumPass>> = {
   ...SKELETON_WATER_PASSES,
+  ...SKELETON_RELIEF_PASSES,
 };
 
 const KNOWN_TYPES: ReadonlySet<string> = new Set(PREMIUM_TYPES);

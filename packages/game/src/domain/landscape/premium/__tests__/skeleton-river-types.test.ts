@@ -324,9 +324,10 @@ describe('průchod 1 beze změny – zlatý otisk', () => {
 });
 
 describe('typ a výřez si musí odpovídat', () => {
-  it('průchod 2 má typy řeky na kostře; brod a průsmyk přijdou s Úlohou 11', () => {
-    expect(hasPremiumPass('navigable-river', PREMIUM_LAYER_VERSION)).toBe(true);
-    expect(hasPremiumPass('confluence', PREMIUM_LAYER_VERSION)).toBe(true);
+  it('průchod 2 má všechny typy kostry (řeka, soutok, brod, průsmyk)', () => {
+    for (const type of Object.keys(SKELETON_PREMIUM_SLOTS) as PremiumType[]) {
+      expect(hasPremiumPass(type, PREMIUM_LAYER_VERSION), type).toBe(true);
+    }
     expect(SKELETON_PREMIUM_SLOTS).toEqual({
       'navigable-river': 'river',
       confluence: 'river',

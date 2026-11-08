@@ -461,15 +461,17 @@ export function placeFords(samples: ChannelSample[], centers: readonly number[])
 /**
  * Body osy pro brody: 1–2 v prostřední části toku (`fordSpan`), druhý aspoň `fordSpacing` délky
  * od prvního, mimo zakázané úseky (`allowed`). První může být předem dán (brod pod vyvýšeninou).
+ * `maxCount` 1 = jediný brod (los počtu proběhne stejně, první brod vyjde jako se dvěma).
  */
 export function chooseFords(
   samples: readonly ChannelSample[],
   random: Random,
   allowed: (k: number) => boolean,
   first: number | null = null,
+  maxCount: 1 | 2 = 2,
 ): number[] {
   const total = samples.at(-1)!.s;
-  const count = random.next() < 0.5 ? 1 : 2;
+  const count = Math.min(maxCount, random.next() < 0.5 ? 1 : 2);
   const candidates = samples
     .map((p, k) => ({ k, s: p.s }))
     .filter(
@@ -1450,10 +1452,7 @@ export function addSkeletonConfluence(terrain: Terrain, seed: number): Terrain {
       const clear =
         edge >= SPUR.halfLength + SPUR.ridgeLength &&
         spurClearOfVillage(p, terrain) &&
-        (terrain.promontories ?? []).every(
-          (q) =>
-            cellDistance(p, q.center) >= promontoryRadius(q) + SPUR.halfLength + SPUR.halfWidth,
-        );
+        clearOfPromontories(terrain, p);
       return clear ? { center: p, dir } : null;
     }
     return null;
@@ -1463,16 +1462,123 @@ export function addSkeletonConfluence(terrain: Terrain, seed: number): Terrain {
     center(directionAlong(river, junction, -8)) ?? center(directionAlong(river, junction, 8));
   if (!placed) return terrain;
   const reference = river[junction]!.level;
-  const spur: SpurPlan = {
+  return addSkeletonSpur(terrain, {
     kind: 'confluence',
     center: placed.center,
     dir: placed.dir,
     top: reference + heightM,
     reference,
-  };
+  });
+}
+
+/**
+ * Ostrožna na mapě z kostry: tvar do terénu, stěny u řek a potoka (osy se nemění) a popis do dat
+ * krajiny. Mění terén na místě.
+ */
+function addSkeletonSpur(terrain: Terrain, spur: SpurPlan): Terrain {
   sculptSpur(terrain, terrain.water, spur);
   terrain.rivers = terrain.rivers!.map((course) => withSpurBanks(terrain, course, [spur]));
-  terrain.stream = withSpurBanks(terrain, stream, [spur]);
+  terrain.stream = withSpurBanks(terrain, terrain.stream, [spur]);
   terrain.promontories = [...(terrain.promontories ?? []), describeSpur(terrain, spur)];
   return terrain;
+}
+
+/** Leží ostrožna `center` (políčka) mimo jiné ostrožny krajiny? */
+function clearOfPromontories(terrain: Terrain, center: Cell): boolean {
+  return (terrain.promontories ?? []).every(
+    (q) => cellDistance(center, q.center) >= promontoryRadius(q) + SPUR.halfLength + SPUR.halfWidth,
+  );
+}
+
+// ── Vyvýšenina nad brodem na kostře (premium: 2) ─────────────────────────────────────────────
+
+/** Středy brodů osy – prostřední body souvislých mělčin (jako prvky brodů v `water.ts`). */
+function fordCentersOf(course: readonly StreamPoint[]): number[] {
+  const centers: number[] = [];
+  let start = -1;
+  course.forEach((p, k) => {
+    if (p.shallow && start < 0) start = k;
+    if ((!p.shallow || k === course.length - 1) && start >= 0) {
+      centers.push(Math.round((start + (p.shallow ? k : k - 1)) / 2));
+      start = -1;
+    }
+  });
+  return centers;
+}
+
+/**
+ * Vyvýšenina nad brodem na kostře (world-skeleton.md – Mapa z kostry, prémie na kostře): řeka
+ * kostry má jediný brod (`SkeletonTerrainOptions.singleFord`), kterým stezka kostry řeku přejde,
+ * a průchod přidá ostrožnu `SPUR` s výškou `FORD_HILL.heightM` nad hladinou brodu. Střed leží
+ * `FORD_HILL.alongCells` od brodu podél řeky (po proudu i proti němu) na tom břehu, kde se vejde –
+ * souš mimo okraj mapy, potok, jiné části řeky, rovinu vsi a jiné ostrožny; ze všech míst tam, kde
+ * je terén nejvýš nad brodem (jako `planFordHill`). Řeka ani potok se nemění, jen dostanou stěny
+ * u ostrožny. Mění terén na místě; když se ostrožna nevejde, vrací terén beze změny (pokus
+ * neprojde kontrolou typu).
+ */
+export function addSkeletonFordHill(terrain: Terrain, seed: number): Terrain {
+  const river = terrain.rivers?.[0];
+  if (!river || river.length < 2) return terrain;
+  const fords = fordCentersOf(river);
+  if (fords.length !== 1) return terrain;
+  const ford = fords[0]!;
+  const random = createRandom(seed);
+  const heightM = range(random, FORD_HILL.heightM);
+  const { size, heights, stream } = terrain;
+  const s: number[] = [0];
+  for (let k = 1; k < river.length; k++) s.push(s[k - 1]! + cellDistance(river[k]!, river[k - 1]!));
+  const waterDistance = distanceToMask(terrain.water, size);
+  const margin = SPUR.halfLength + M.mapMargin;
+  const fits = (center: Cell, k: number): boolean => {
+    if (
+      center.x < margin ||
+      center.y < margin ||
+      center.x > size - 1 - margin ||
+      center.y > size - 1 - margin
+    ) {
+      return false;
+    }
+    // Plocha na souši, dál od potoka a jiných částí řeky (jen tento břeh), za rovinou vsi.
+    if (waterDistance[cellIndex(center, size)]! < SPUR.halfLength + SPUR.bankGap - 0.5)
+      return false;
+    const streamGap = stream.some(
+      (q) =>
+        cellDistance(q, center) - Math.max(q.halfWidthLeft, q.halfWidthRight) < SPUR.halfLength + 6,
+    );
+    if (streamGap || !spurClearOfVillage(center, terrain)) return false;
+    if (
+      river.some(
+        (q, j) => Math.abs(s[j]! - s[k]!) > 12 && cellDistance(q, center) < SPUR.halfLength + 6,
+      )
+    ) {
+      return false;
+    }
+    return clearOfPromontories(terrain, center);
+  };
+  let best: { center: Cell; dir: Cell; score: number } | null = null;
+  for (const along of [FORD_HILL.alongCells, -FORD_HILL.alongCells]) {
+    const k = s.findIndex((v) => v >= s[ford]! + along);
+    if (k < 0) continue;
+    const p = river[k]!;
+    const { tx, ty } = tangentAt(river, k);
+    for (const side of [1, -1] as const) {
+      const half = side > 0 ? p.halfWidthLeft : p.halfWidthRight;
+      const dir = { x: -ty * side, y: tx * side };
+      const d = half + SPUR.bankGap + SPUR.halfLength;
+      const center = { x: p.x + dir.x * d, y: p.y + dir.y * d };
+      if (!fits(center, k)) continue;
+      const score =
+        heightAt(heights, size, center) - heightAt(heights, size, river[ford]!) + random.next() * 2;
+      if (!best || score > best.score) best = { center, dir, score };
+    }
+  }
+  if (!best) return terrain;
+  const reference = river[ford]!.level;
+  return addSkeletonSpur(terrain, {
+    kind: 'ford-hill',
+    center: best.center,
+    dir: best.dir,
+    top: reference + heightM,
+    reference,
+  });
 }

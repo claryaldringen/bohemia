@@ -247,9 +247,13 @@ kdekoli“ → jen na suchých mapách):
   - **splavná řeka** – široká niva (4 políčka) na straně vsi a přístaviště;
   - **soutok** – ostrožna mezi řekou a potokem nad jejich soutokem (v klínu proti proudu řeky;
     když se tam nevejde – voda, okraj mapy, rovina vsi –, v klínu po proudu; návrh Clauda);
-  - **vyvýšenina nad brodem** – ostrožna 16–20 m nad brodem, kudy kostra vede stezku;
+  - **vyvýšenina nad brodem** – ostrožna 16–20 m nad brodem, kudy kostra vede stezku; řeka má
+    na takové mapě jen jeden brod, takže stezka vede právě pod ostrožnou (průměrná mapa z kostry
+    jich má 1–2), ostrožna stojí kus od brodu podél řeky na tom břehu, kde se vejde (návrh Clauda);
   - **horský průsmyk** – hřbet se sedlem napříč stezkou u okraje, kudy stezka vstupuje, ves na
-    druhé straně hřbetu.
+    druhé straně hřbetu. Stezka vstupuje bodem dál od vsi, sedlo leží naproti němu a hřbety
+    smí až k rohu mapy, ne však k jinému bodu stezky na téže straně (návrh Clauda); když se
+    pohoří nevejde (potok, ves blízko), pokus neprojde a generátor zkusí další.
 
   Ostatní typy se v `premium: 2` nemění (jen suché mapy).
 

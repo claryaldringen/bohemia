@@ -1,6 +1,9 @@
 import { detCos, detSin, length2, smoothstep } from '../det-math';
 import { distanceToMask } from '../grid';
 import { createRandom, deriveSeed, type Random } from '../random';
+import { portTile } from '../skeleton/ports-map';
+import { skeletonRoute } from '../skeleton/route';
+import type { MapSide, SkeletonSlice } from '../skeleton/types';
 import type { Terrain } from '../terrain';
 import {
   CELL_SIZE_M,
@@ -20,12 +23,13 @@ import {
   lineToEdges,
   onBorder,
   routeLeg,
+  skeletonRouteSite,
   smoothLine,
   trailCellCost,
   VILLAGE_ROUTE,
   villageBypass,
 } from './route';
-import type { PremiumSite } from './types';
+import type { PremiumSite, PremiumType } from './types';
 
 // Prémiové typy reliéfu (premium-landscapes.md – Typy krajin): horský průsmyk se stezkou,
 // posvátná hora a přirozená pevnost. Průsmyk a hora mění terén (jen server při generování);
@@ -193,6 +197,8 @@ export const MOUNTAIN_PASS = {
   endCells: 8,
   /** Kontrola typu: oba hřbety aspoň tolik nad sedlem (m). */
   minRiseM: 60,
+  /** Průsmyk na kostře: stezka kostry vede do tolika políček od sedla. */
+  routeSaddleCells: 2,
 } as const;
 
 /** Strana mapy, podél které vede pohoří: 0 nahoře (y = 0), 1 dole, 2 vlevo (x = 0), 3 vpravo. */
@@ -371,6 +377,19 @@ function passRoute(l: Landscape, plan: PassPlan): WorldPoint[] | null {
 export function mountainPassSites(l: Landscape): PremiumSite[] | null {
   const plan = passPlan(planInputOf(l));
   if (!plan) return null;
+  const pass = passSite(l, plan);
+  if (!pass) return null;
+  const route = passRoute(l, plan);
+  if (!route) return null;
+  const middle = route[Math.floor(route.length / 2)]!;
+  return [pass, { kind: 'route', x: middle[0], z: middle[1], line: route }];
+}
+
+/**
+ * Sedlo jako prvek typu (s osou hřebene obou hřbetů) – jen když jsou oba hřbety aspoň
+ * `minRiseM` nad sedlem, jinak null.
+ */
+function passSite(l: Landscape, plan: PassPlan): PremiumSite | null {
   const { size, heights } = l;
   const s = crestCell(plan.side, plan.t, size);
   const saddleHeight = heights[s.y * size + s.x]!;
@@ -386,21 +405,15 @@ export function mountainPassSites(l: Landscape): PremiumSite[] | null {
     }
     if (top - saddleHeight < MOUNTAIN_PASS.minRiseM) return null;
   }
-  const route = passRoute(l, plan);
-  if (!route) return null;
   const a = crestCell(plan.side, plan.t - plan.before, size);
   const b = crestCell(plan.side, plan.t + plan.after, size);
   const [x, z] = cellPointWorld(l, s.x, s.y);
-  const middle = route[Math.floor(route.length / 2)]!;
-  return [
-    {
-      kind: 'pass',
-      x,
-      z,
-      line: [cellPointWorld(l, a.x, a.y), [x, z], cellPointWorld(l, b.x, b.y)],
-    },
-    { kind: 'route', x: middle[0], z: middle[1], line: route },
-  ];
+  return {
+    kind: 'pass',
+    x,
+    z,
+    line: [cellPointWorld(l, a.x, a.y), [x, z], cellPointWorld(l, b.x, b.y)],
+  };
 }
 
 const mountainPass = {
@@ -414,6 +427,87 @@ const mountainPass = {
     return mountainPassSites(landscape);
   },
 } satisfies PremiumPass;
+
+// ── Horský průsmyk na kostře (premium: 2) ────────────────────────────────────────────────────
+
+/** Strana pohoří u strany mapy – sever = +y = poslední řádek políček (`portTile`). */
+const PASS_SIDE: Readonly<Record<MapSide, Side>> = { S: 0, N: 1, W: 2, E: 3 };
+
+/**
+ * Průsmyk na kostře (world-skeleton.md – Mapa z kostry, prémie na kostře): hřeben podél strany
+ * mapy, kterou stezka kostry vstupuje – z bodů stezky ten dál od vsi (shoda – první ve výřezu) –,
+ * sedlo naproti bodu stezky, takže stezka jde od okraje přímo přes sedlo a ves leží na druhé
+ * straně hřbetu. Hřbety na obě strany sedla jako `passPlan` (do `waterGapCells` od vody, nejvýš
+ * `maxRidgeCells`), navíc až k rohu mapy (hřbet za okraj nepokračuje) a ne blíž než `flankCells`
+ * k jinému bodu stezky na téže straně; oba aspoň `minRidgeCells` a pohoří za loukami vsi
+ * (`villageMinCells`). Čistá funkce vody, místa vsi a výřezu; null = výřez bez stezky, s řekou,
+ * nebo se pohoří nevejde.
+ */
+export function skeletonPassPlan(input: PlanInput, slice: SkeletonSlice): PassPlan | null {
+  if (slice.rivers.length > 0 || slice.trails.length === 0) return null;
+  const { size, water, villageSite: village } = input;
+  const P = MOUNTAIN_PASS;
+  const distance = (t: { readonly side: MapSide; readonly at: number }): number => {
+    const tile = portTile(t.side, t.at, size);
+    return length2(tile.x - village.x, tile.y - village.y);
+  };
+  let entry = slice.trails[0]!;
+  for (const trail of slice.trails) if (distance(trail) > distance(entry)) entry = trail;
+  const side = PASS_SIDE[entry.side];
+  const t = entry.at;
+  const others = slice.trails
+    .filter((trail) => trail !== entry && trail.side === entry.side)
+    .map((trail) => trail.at);
+  const waterDistance = distanceToMask(water, size);
+  const dry = (u: number): boolean => {
+    if (u < 0 || u > size - 1 || others.some((at) => Math.abs(at - u) < P.flankCells)) return false;
+    const c = crestCell(side, u, size);
+    return waterDistance[c.y * size + c.x]! >= P.waterGapCells;
+  };
+  if (!dry(t)) return null;
+  let before = 0;
+  while (before < P.maxRidgeCells && dry(t - before - 1)) before++;
+  let after = 0;
+  while (after < P.maxRidgeCells && dry(t + after + 1)) after++;
+  if (before < P.minRidgeCells || after < P.minRidgeCells) return null;
+  const villageAlong = side < 2 ? village.x : village.y;
+  const villageAcross = crestCoordinates(side, village.x, village.y, size).across;
+  const nearestAlong = Math.min(t + after, Math.max(t - before, villageAlong));
+  if (length2(nearestAlong - villageAlong, villageAcross) < P.villageMinCells) return null;
+  return { side, t, before, after };
+}
+
+/**
+ * Prvky průsmyku na kostře: sedlo (oba hřbety aspoň `minRiseM` nad ním) a stezka kostry
+ * (`skeletonRoute`, ne vlastní stezka), která vede do `routeSaddleCells` od sedla.
+ */
+export function skeletonMountainPassSites(l: Landscape): PremiumSite[] | null {
+  const plan = l.skeleton ? skeletonPassPlan(planInputOf(l), l.skeleton) : null;
+  const pass = plan ? passSite(l, plan) : null;
+  const route = pass ? skeletonRoute(l) : null;
+  const trail = route ? skeletonRouteSite(route) : null;
+  if (!pass || !trail) return null;
+  const saddle = { x: pass.x, z: pass.z };
+  if (lineKeepsAway(trail.line!, saddle, MOUNTAIN_PASS.routeSaddleCells * l.cellSizeM)) return null;
+  return [pass, trail];
+}
+
+const skeletonMountainPass = {
+  fertilityAverageMean: true,
+  terrain(terrain: Terrain, ctx: PremiumPassContext): Terrain {
+    const plan = ctx.skeleton ? skeletonPassPlan(planInputOfTerrain(terrain), ctx.skeleton) : null;
+    if (plan) sculptPass(terrain, plan, createRandom(deriveSeed(ctx.seed, 'mountain-pass')));
+    return terrain;
+  },
+  sites({ landscape }: { landscape: Landscape }): readonly PremiumSite[] | null {
+    return skeletonMountainPassSites(landscape);
+  },
+} satisfies PremiumPass;
+
+/** Průchody typů reliéfu na kostře (prémiový průchod 2). */
+export const SKELETON_RELIEF_PASSES = {
+  'mountain-pass': skeletonMountainPass,
+} satisfies Partial<Record<PremiumType, PremiumPass>>;
 
 // ── Posvátná hora ────────────────────────────────────────────────────────────────────────────
 
