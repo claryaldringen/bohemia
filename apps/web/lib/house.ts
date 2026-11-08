@@ -118,7 +118,11 @@ export async function newcomerStatusForPlayer(playerId: string): Promise<Newcome
 export async function startFreeForPlayer(playerId: string): Promise<NegotiationActionResult> {
   const today = await playerToday(playerId);
   if (!today.ok) return { error: today.error };
-  const result = await startFree(gameDeps(), { playerId, now: new Date(), today: today.day });
+  // pod zámkem hráče: svobodný bez vsi se přesídlí (nová krajina) – souběžné založení vsi
+  // (`foundVillageForPlayer`, týž zámek) proběhne celé před ním, nebo po něm s novou krajinou
+  const result = await exclusivePlayer(getPlayerLock(), playerId, () =>
+    startFree(gameDeps(), { playerId, now: new Date(), today: today.day }),
+  );
   return result.ok ? { ok: true } : { error: result.reason };
 }
 
@@ -155,7 +159,10 @@ export async function answerNegotiationForPlayer(
     case 'reject':
       return outcome(await rejectNegotiation(deps, base));
     case 'withdraw':
-      return outcome(await withdrawNegotiation(deps, base));
+      // stažení žádosti nováčka = Svobodný (přesídlení) – pod zámkem hráče jako `startFreeForPlayer`
+      return outcome(
+        await exclusivePlayer(getPlayerLock(), playerId, () => withdrawNegotiation(deps, base)),
+      );
     case 'counter':
       return outcome(
         await counterNegotiation(deps, { ...base, items: input.items, message: input.message }),

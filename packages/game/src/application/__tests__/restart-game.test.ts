@@ -275,7 +275,7 @@ describe('restartGame', () => {
     expect(result.settlement).toMatchObject({
       isSeat: true,
       premiumType: 'iron-ore',
-      layerVersions: { ...CURRENT_LAYER_VERSIONS, premium: 1 },
+      layerVersions: { ...CURRENT_LAYER_VERSIONS, premium: 2 },
     });
     expect(result.landscape.premium).toBe('iron-ore');
     expect(asked.every((p) => p === 'iron-ore')).toBe(true);

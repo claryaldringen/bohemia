@@ -224,6 +224,13 @@ describe('createSettlementRepository', () => {
     expect(await repository.findSeat('hrac-1')).toEqual(created);
     const other = await repository.create({ ...base, worldCell: { x: 1, y: 0 } });
     expect(other?.premiumType).toBeNull();
+    // typ sídla, na kterém ještě nestojí ves, hráči nepatří (odříznutý nováček před přesídlením)
+    expect(await repository.lastPremiumType('hrac-1')).toBeNull();
+    await db.insert(schema.village).values({
+      settlementId: created.id,
+      name: 'Ves',
+      state: {} as never,
+    });
     expect(await repository.lastPremiumType('hrac-1')).toBe('salt-spring');
     expect(await repository.lastPremiumType('nikdo')).toBeNull();
   });

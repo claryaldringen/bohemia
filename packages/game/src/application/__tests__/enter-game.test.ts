@@ -6,11 +6,10 @@ import {
   generateLandscape,
   generateLandscapeAttempt,
   INITIAL_LAYER_VERSIONS,
-  PREMIUM_TYPES,
 } from '../../domain/landscape';
 import { landscapeHash } from '../../domain/landscape/__tests__/landscape-checks';
 import { enterGame } from '../enter-game';
-import { isolatedLandscapeSeed } from '../../domain/world';
+import { isolatedLandscapeSeed, SLOT_TYPES } from '../../domain/world';
 import type { LandscapeSource } from '../settlements';
 import { InMemoryHouses } from './in-memory-houses';
 import { InMemorySettlements } from './in-memory-settlements';
@@ -20,8 +19,8 @@ const ORIGIN = { x: 0, y: 0 };
 
 const NOW = new Date('2026-11-05T12:00:00Z');
 
-/** Verze vrstev prémiového sídelního sídla. */
-const PREMIUM_VERSIONS = { ...CURRENT_LAYER_VERSIONS, premium: 1 } as const;
+/** Verze vrstev prémiového sídelního sídla (odříznuté – suchá mapa bez `skeleton`). */
+const PREMIUM_VERSIONS = { ...CURRENT_LAYER_VERSIONS, premium: 2 } as const;
 
 describe('enterGame', () => {
   it('rod dostane jazyk účtu, bez portu češtinu', async () => {
@@ -52,7 +51,10 @@ describe('enterGame', () => {
       'hrac-1',
     );
     const seed = isolatedLandscapeSeed(WORLD_SEED, 'hrac-1');
-    const premium = choosePremiumType(seed, {});
+    // krajina vzniká dřív než místo ve světě – suchá, typ jen z 15 bez kostry (world-skeleton.md)
+    const premium = choosePremiumType(seed, {}, SLOT_TYPES.dry);
+    expect(SLOT_TYPES.dry).toContain(settlement.premiumType);
+    expect(settlement.skeleton ?? null).toBeNull();
     expect(settlement).toMatchObject({
       ownerId: 'hrac-1',
       isSeat: true,
@@ -299,7 +301,7 @@ describe('enterGame', () => {
     expect(landscapeHash(again.landscape)).toBe(landscapeHash(first.landscape));
   });
 
-  it('typy se rozdělí rovnoměrně – 19 odříznutých nováčků dostane 19 různých typů', async () => {
+  it('typy se rozdělí rovnoměrně – 15 odříznutých nováčků dostane 15 různých typů bez kostry', async () => {
     const deps = {
       settlements: new InMemorySettlements(),
       worldSeed: WORLD_SEED,
@@ -307,14 +309,14 @@ describe('enterGame', () => {
       now: () => NOW,
     };
     const types = new Set<string>();
-    for (let i = 0; i < PREMIUM_TYPES.length; i++) {
+    for (let i = 0; i < SLOT_TYPES.dry.length; i++) {
       const { settlement, landscape } = await enterGame(deps, `hrac-${i}`);
       expect(landscape.premium).toBe(settlement.premiumType);
       types.add(settlement.premiumType ?? 'průměrná');
     }
-    expect([...types].sort()).toEqual([...PREMIUM_TYPES].sort());
+    expect([...types].sort()).toEqual([...SLOT_TYPES.dry].sort());
     expect(Object.values(await deps.settlements.premiumTypeCounts())).toEqual(
-      PREMIUM_TYPES.map(() => 1),
+      SLOT_TYPES.dry.map(() => 1),
     );
   }, 120_000);
 });

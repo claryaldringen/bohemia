@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { cellDistance, INVITES, WORLD } from '../../domain/world';
+import { CURRENT_LAYER_VERSIONS, SKELETON_LAYER_VERSION } from '../../domain/landscape';
+import {
+  cellDistance,
+  INVITES,
+  ringCells,
+  seatSlot,
+  skeletonSlice,
+  SLOT_TYPES,
+  WORLD,
+} from '../../domain/world';
+import { seatSkeleton } from '../world-seat';
 import { enterGame, type EnterGameDeps } from '../enter-game';
 import { enterPlaced } from './placed-player';
 import { grantSuccessionCredits, runWorldTasks } from '../succession-credits';
@@ -102,6 +112,44 @@ describe('enterGame s pozvánkou', () => {
     // do prohlížeče pána jde jen veřejné id rodu, ne id účtu pozvaného
     expect(s.notices.notices[0]!.payload).toEqual({ houseId: hostHouse!.id });
   });
+
+  it('pozvaný dostane místo a typ podle kostry – typ kostry na místě kostry, s výřezem políčka', async () => {
+    const s = setup();
+    // typy bez kostry už ve světě jsou (odříznutí hráči mimo mapu) – nejméně zastoupený je typ kostry
+    for (const [i, type] of SLOT_TYPES.dry.entries()) {
+      await s.settlements.createSeat({
+        ownerId: `jiny-${i}`,
+        landscapeSeed: 1,
+        layerVersions: { ...CURRENT_LAYER_VERSIONS, premium: 2 },
+        premiumType: type,
+        localCell: { x: 0, y: 0 },
+      });
+    }
+    // pán tam, kde je v prstencích 2–3 kolem něj řeka (kandidáti pozvaného)
+    const skeleton = seatSkeleton(4242);
+    let lordCell = { x: 0, y: 0 };
+    for (let x = 0; x < 200; x += 7) {
+      lordCell = { x, y: 0 };
+      const near = [2, 3].flatMap((r) => ringCells(lordCell, r));
+      if (near.some((c) => skeleton.slotOf(c) === 'river')) break;
+    }
+    await enterPlaced(s.deps, 'pan', lordCell);
+    await inviteFor(s, 'pan', 'host');
+    const { settlement, landscape } = await enterGame(s.deps, 'host');
+    const cell = settlement.worldCell!;
+    const slice = skeletonSlice(4242, cell);
+    const slot = seatSlot(slice);
+    expect(slot).not.toBe('dry');
+    expect(SLOT_TYPES[slot!]).toContain(settlement.premiumType);
+    expect(settlement.skeleton).toEqual(slice);
+    expect(settlement.layerVersions).toEqual({
+      ...CURRENT_LAYER_VERSIONS,
+      premium: 2,
+      skeleton: SKELETON_LAYER_VERSION,
+    });
+    expect(landscape.premium).toBe(settlement.premiumType);
+    expect(cellDistance(cell, lordCell)).toBeLessThanOrEqual(3);
+  }, 120_000);
 
   it('kód je jednorázový a opakovaný vstup nic nezdvojí', async () => {
     const s = setup();
