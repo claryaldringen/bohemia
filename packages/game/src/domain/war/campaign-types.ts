@@ -62,7 +62,7 @@ export type GroupOrder = 'follow-leader' | 'attack-all' | 'hold-place';
 /**
  * Postup přes hradbu, který skupině zvolil hráč (fortifications.md – Přechod hradby; Martin
  * 8. 11. 2026 – „ano“, volí hráč rozkazem skupině). Bez volby – i u NPC – nejrychlejší postup
- * místa. Boj zatím zná žebřík a sekání (oheň, odkop a podkop – Úloha 14 plánu hradeb).
+ * místa. Postup prolomení platí, nabízí-li ho místo (jinak nejrychlejší – `battle.ts`).
  */
 export type GroupAssault = Exclude<AssaultMethod, 'open' | 'climb'>;
 

@@ -3,7 +3,7 @@ import { village, kin } from '../../village/__tests__/kin-fixtures';
 import type { Dwelling } from '../../village/types';
 import { hitDamage, type BattleState } from '../battle';
 import { stepCampaign } from '../campaign';
-import type { CampaignMap, CampaignState, CampaignWorld } from '../campaign-types';
+import type { CampaignMap, CampaignState, CampaignWorld, GroupAssault } from '../campaign-types';
 import { WAR } from '../rules-war';
 import { campaign, flat, MEADOW, member, SUMMER, world } from './campaign-fixtures';
 import {
@@ -143,12 +143,13 @@ describe('poslední muž rodu doma (war.md – Ztráty)', () => {
 
 describe('útok na palisádu (fortifications.md – Obrana, Prolomení)', () => {
   /** Herní hodiny práce na průlomu – od první práce do průlomu. */
-  function breachHours(gate: boolean): { hours: number; b: BattleState } {
+  function breachHours(gate: boolean, assault?: GroupAssault): { hours: number; b: BattleState } {
     const f = field([palisade(gate)]);
     const b = battle({
       attackers: Array.from({ length: 4 }, (_, i) => attacker(i, { x: 0, z: -100 })),
       defenders: [defender(1, { x: 0, z: 0 }, { atHouseOnly: true, strength: 0.1 })],
     });
+    if (assault) b.groups[0]!.assault = assault;
     let first = -1;
     let done = -1;
     run(b, f, 3000, (t) => {
@@ -169,8 +170,9 @@ describe('útok na palisádu (fortifications.md – Obrana, Prolomení)', () => 
     expect(b.outcome).toBe('attackers');
   });
 
+  // plán hradeb Úloha 14: bez lesa je nejrychlejší odkopat (20 h) – test si sekání vynutí rozkazem
   it('palisáda mimo bránu se 4 muži ≈ 1 den', () => {
-    const { hours, b } = breachHours(false);
+    const { hours, b } = breachHours(false, 'cut');
     expect(b.breaches.map((x) => x.spot)).toEqual(['wall']);
     expect(hours).toBeGreaterThan(23.9);
     expect(hours).toBeLessThan(24.1);

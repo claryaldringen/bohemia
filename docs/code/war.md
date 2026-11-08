@@ -294,12 +294,12 @@ group, order, at)` – před bitvou kdykoli, v boji jen na doslech (jinak false)
   `home` – dům, nebo kde útočník vstoupil, `state` `fight` | `breach` | `flee` | `fled` | `down`,
   `cooldown`, `aim`, `controlled` / `chosen` / `goal`, `route` průchodem, `breachAt`, `fleeTo`,
   `killed`), `groups` (`BattleGroup` – rozkaz, `holdAt`, `entered`, `broken`), `commander`,
-  `deputy`, `closedGates` `<opevnění>:<úsek>`, `breaches` (`BattleBreach` – místo, `at`,
-  `BreachProgress`), `outcome` `ongoing` | `attackers` | `defenders` | `withdrawn`. `openBattle`
+  `deputy`, `closedGates` `<opevnění>:<úsek>`, `breaches` (`BattleBreach` – místo, `at`, postup,
+  fáze, `BreachProgress` – viz Prolomení v boji), `outcome` `ongoing` | `attackers` | `defenders` | `withdrawn`. `openBattle`
   (útočníci u skupin, obránci u domů), `battleTick(b, field, rng)` mění `b` na místě:
   brány do 30 m od útočníka se zavřou → stěny taktu → bod zlomu (padlí a ranění ÷ `entered`,
   30 % útok, 45 % obrana; velitel neuteče sám) → muži v pevném pořadí (plán, krok) → práce na
-  průlomech (`breachStep`, nejvýš 4 na místo, `hoursPerTick` z `ticks.ts`) → rány (cooldown 8 / 16
+  průlomech (`breachWorkStep`, nejvýš 4 na místo, `hoursPerTick` z `ticks.ts`) → rány (cooldown 8 / 16
   taktů; zblízka los 1 : 1, šíp `bowShot` z `aim.ts` – viz Střelba podle dovednosti;
   `hitDamage(síla, luk)` = `10 × síla`, luk polovina – **násobek obrany zrušen 8. 11. 2026**, i u
   domu) se sečtou a použijí až po všech – kdo padne, v tomto taktu ještě udeřil → výsledek (útočníci bez bojujících = `defenders`; obránci bez bojujících
@@ -311,8 +311,8 @@ group, order, at)` – před bitvou kdykoli, v boji jen na doslech (jinak false)
   které stojí (ne holý val, ne mezera, prolomený úsek = `breachedDay` dne boje), s výřezem otevřené
   brány a tětivou rohu. Pohyb stěnu neprojde (sklouzne podél), luk i dosah zblízka (3 m) přes ni
   ano. Útočník, kterému k cíli vadí stěna, jde nejbližším průchodem (`route` – 3 m před a za ním;
-  když se zavře, cesta neplatí); bez průchodu prolamuje – místo s nejméně zbývající prací, pak
-  nejbližší (brána / zeď uprostřed úseku, `breachWork`), prolamující nebojují, průlom je mezera.
+  když se zavře, cesta neplatí); bez průchodu hradbu přejde nebo prolomí nejrychlejším postupem
+  (Prolomení v boji), prolamující nebojují, průlom je mezera.
 - **Tažení** – `campaign.ts`: `raidTick` – první takt `campaignBattle` (muži na nohou na mapě cíle
   v šiku po pěti; obránci z `villageAt(cíl, den)`; ves není na mapě cíle → bez obránců),
   pak `battleTick` s `tickRandom(seed, tick, 'battle')`, `syncMembers` (zdraví, `fallen`,
@@ -362,14 +362,17 @@ hodiny prolomení)`; jinak prolamuje jako dosud. Úsek z `WallLine.segment`, dru
   plot). Palisáda a hradba → žebřík: volný žebřík opevnění blíž než les vezme, jinak (bez nesení)
   jde k nejbližší buňce `MARCH_FOREST` a vyrábí `ladderMakeTicks` = ⌈4 ÷ hodin taktu⌉ = 58
   taktů; bez lesa prolamuje. Bez volby (i NPC) nejrychlejší: 4 h výroby + chůze les a zpět +
-  takty přechodu proti zbývající práci nejlepšího místa ÷ 4 muži (brána palisády 3 h → sekání,
-  palisáda 24 h → žebřík). Zevnitř ven se neleze.
+  takty přechodu proti hodinám nejlepšího místa a postupu s muži skupiny (`chooseSpot` – brána
+  palisády 3 h → sekání; osamělý muž u palisády → žebřík, čtyři → oheň 12 h). Zevnitř ven se
+  neleze. Přes napuštěný vodní příkop jen zasypaným kusem (`ClimbWorld.moatFilled`, vrchol
+  žebříku do 2 m od středu pruhu – `FighterClimb.near`); dokud není, prolamuje – zasype.
 - **Rozkaz hráče** (Martin 8. 11. 2026 – „ano“, volí hráč rozkazem skupině) – `GroupAssault`
   (`campaign-types.ts`: postupy bez `open` a `climb`) v `CampaignGroup.assault?` a
   `BattleGroup.assault?` (`campaign.ts` předá do boje); `setGroupAssault(stav, skupina, volba |
 null)` v `orders.ts` – před bitvou kdykoli, v boji na doslech velitele jako `setGroupOrder`.
-  Boj zná `ladder` (žebříky i tam, kde je sekání rychlejší) a `cut` (prolamuje, plot nepřeleze);
-  oheň, odkop a podkop doplní Úloha 14 – do té doby jako bez volby. Rozhraní – Úloha 17.
+  `ladder` = žebříky i tam, kde je prolomení rychlejší; `cut`, `burn`, `dig`, `mine` = prolamuje
+  tímto postupem, nabízí-li ho místo (plot při `cut` nepřeleze), jinak jako bez volby (Prolomení
+  v boji). Rozhraní – Úloha 17.
 - **Takt přechodu** – `climbStep`: `make` (do lesa, pak takty výroby), `carry` (místo
   `ladderSpot` – průmět na úsek, po metru na obě strany, nejméně 1 m od žebříků opevnění; žebřík
   se založí a nese), `lean` 8, `up` 16 / 20 / 24 (na nule nahoře na `top`), `over` 16 (jen
@@ -393,6 +396,48 @@ null)` v `orders.ts` – před bitvou kdykoli, v boji na doslech velitele jako `
   žebřík, brána sekání; bez lesa prolamuje; rozkaz `cut` a `ladder`; lezec na půl síly a každá rána
   obránce padne; shození 1 : 3, pád −20 k patě; 1 m mezi žebříky; únava 0,85 → za 120 taktů
   zpět; bitva se žebříky po 1 / 7 / 40 přes JSON = vcelku); přípravky `fortOf`, `forestSouth`.
+
+## Prolomení v boji – oheň, sekání, kopání, podkop, zasypání (hradby Ú14)
+
+fortifications.md – Přechod hradby (Oheň, Podkop, S valem), Obrana bez násobku 1. Pravidla
+z `assault.ts` (`crossingLayers`, `assaultSteps`, `assaultHours`, `mineUnderground`), boj v
+`battle.ts`; `fortification/breach.ts`, `breachManHours` a `rampartAssaultPace` jsou pryč.
+
+- **Místa** (`wallsOf`) – brána (1 m před vraty) a zeď (uprostřed úseku, u dílu s branou čtvrtina
+  od kraje – `wallSpotSegment`); `Spot.steps` = postupy prolomení místa (`cut`, `burn`, `dig`,
+  `mine`; žebřík jen jako `ladder` s `fill: 'moat'` – zasypat příkop pro žebříky).
+- **Volba** (`chooseSpot(w, opevnění, odkud, volba skupiny, muži)`) – nejméně hodin
+  (`assaultHours` s muži skupiny v boji, nejvýš 4; rozdělaný průlom – zbývajících, `breachHoursLeft`),
+  pak nejblíž, pak klíč; nejvýš 4 prolamující na místo. Oheň jen s otepi: nejbližší buňka
+  `MARCH_FOREST` (`nearestForestOf`, vzdálenost se pamatuje na mřížku a místo) nebo hromada klád vsi
+  (`BattleField.fuel` – `campaign.ts` `fuelOf`, `logStacks` s kládami); keře zatím ne. Bez valu
+  vyhraje oheň (12 h), s valem odkopání (20 h; oheň napřed zasypat val 20 h), bez otepí odkopání.
+- **`BattleBreach`** – `method` (`cut` | `burn` | `dig` | `mine` | `ladder`), `phase` (`fill` →
+  `fuel` → `burn` → `work` → `done`), `need` (mužohodiny fází: zasypat, otepi × max(1, vzdálenost ÷
+  100 m), hoření × 2 přikládající, práce), `progress` (`done` a `required` = součet fází,
+  `breached`), `moat?` (`MoatFill` – pruh zasypání). Fáze plyne z `progress.done` (`syncPhase`);
+  `advanceBreach` – zasypat, otepi a práce nejvýš 4 muži, hoří nejvýš 2 přikládající (bez mužů
+  oheň stojí); po zasypání vodního příkopu takt končí. Hotový `ladder` průlom nedělá. Průlom
+  uložený dřív (bez `need`) se v taktu převede na sekání (`upgradeBreaches`).
+- **Vodní příkop** – `moatStrip`: zasypávající stojí na prvním suchém bodu ven od hradby (po metru,
+  nejvýš 40 m), pruh 4 m (`FORTIFICATIONS.breach.widthM`) sahá stejně daleko dovnitř. Po zasypání
+  je voda v pruhu průchozí jako suchý příkop (`march-grid.ts` – `moatFillPace`, `rampartPace(1)`;
+  mřížka se nemění, `Walls.fills` z `moatFills(b)`), muži přejdou k hradbě. Zamrzlý příkop
+  (prosinec až únor) je suchý už v mřížce (`fortCells`) a v `crossingLayers` – bez zasypání.
+  Žebříky jdou zasypaným pruhem (vrchol do 2 m od jeho středu).
+- **Podkop** – po pětině práce (`mineUnderground`) má kopáč u místa `Fighter.underground` (nastaví
+  `breachWorkStep` každý takt): `canAttack` ho vyloučí (nikdo na něj nemíří ani nebije), `poseOf`
+  = `'underground'` (plocha 0). Zřícení = průlom 4 m.
+- **Po boji** – `campaign.ts` `breachesOf`: `fortification-breach` nese `segments`, `burned?`
+  (průlom ohněm) a `gatesBurned?` (vypálená brána). `applyFortificationBreach`: `burnedDay` (scéna
+  – ohořelý průlom), vypálená brána smaže `towerDay` (věž shořela; klešťová zůstává). Přestavba
+  a zboření dílu `burnedDay` smažou.
+- **Testy** – `__tests__/breach.test.ts` (palisáda oheň 4 + 8 h, s valem napřed 20 h, brána 6 h,
+  otepi ze 200 m 2×; volba oheň / odkopání / bez otepí; podkop roštové 120 h, pod zemí od 96
+  mužohodin a lučištník je nezasáhne; vodní příkop v létě 12 h + 20 h, v lednu bez zasypání; věž
+  shoří s branou; po kouscích 1 / 7 / 40 s ohněm, příkopem a podkopem = vcelku). `battle.test.ts`
+  „palisáda mimo bránu ≈ 1 den“ a bitva se žebříky po kouscích (`ladders.test.ts`) si postup
+  vynutí rozkazem – bez lesa je nejrychlejší odkopat, šest mužů by palisádu vypálilo.
 
 ## Obránci na hradbě (hradby Ú12)
 

@@ -6,6 +6,7 @@ import {
   wallSpotSegment,
   fatigueFactor,
   rampartFatigue,
+  type AssaultMethod,
   type FortSegmentShape,
 } from '../village/fortification';
 import { FORTIFICATIONS } from '../village/rules-fortifications';
@@ -50,6 +51,11 @@ export interface FighterClimb {
   segment: number;
   /** Kam jde: les (`make`), pata žebříku nebo místo u plotu (`carry`). */
   at: Pos | null;
+  /**
+   * Přes vodní příkop: vrchol žebříku nejvýš 2 m od tohoto bodu čáry hradby (zasypaný kus –
+   * `ClimbWorld.moatFilled`); jinak chybí.
+   */
+  near?: Pos;
 }
 
 /** Žebřík u hradby. */
@@ -74,6 +80,8 @@ const AT_M = 1.5;
 const FOOT_M = 1;
 /** Obránce bojuje s lezcem a shazuje žebřík do 2,5 m od vrcholu (polovina 5 m obsazení). */
 const REACH_M = D.perDefenderM / 2;
+/** Žebřík přes zasypaný kus vodního příkopu – nejvýš půl šířky průlomu od jeho středu. */
+const FILL_M = FORTIFICATIONS.breach.widthM / 2;
 
 /** Lezec je na žebříku (vylézá, přetahuje, slézá po vnitřním žebříku) – ne na zemi. */
 export function onLadder(f: Fighter, b: Pick<BattleState, 'ladders'>): boolean {
@@ -135,20 +143,21 @@ function project(line: FortSegmentShape['line'], from: Pos): number {
 
 /**
  * Vrchol žebříku na úseku `segment` nejblíž `from`, nejméně 1 m od ostatních žebříků opevnění –
- * po metru na obě strany; null, když se na úsek už nevejde.
+ * po metru na obě strany, nejvýš `maxOffM` od `from`; null, když se na úsek už nevejde.
  */
 export function ladderSpot(
   bf: BattleFort,
   segment: number,
   from: Pos,
   taken: readonly BattleLadder[],
+  maxOffM = Infinity,
 ): Pos | null {
   const shape = bf.shapes.find((s) => s.index === segment);
   if (!shape) return null;
   const l = shape.line;
   const t0 = project(l, from);
   const gap2 = D.ladderGapM * D.ladderGapM - 1e-9;
-  for (let k = 0; k <= l.length; k++) {
+  for (let k = 0; k <= l.length && k * D.ladderGapM <= maxOffM + 1e-9; k++) {
     for (const t of k === 0 ? [t0] : [t0 - k * D.ladderGapM, t0 + k * D.ladderGapM]) {
       if (t < 0 || t > l.length) continue;
       const p = { x: l.x + l.dx * t, z: l.z + l.dz * t };
@@ -169,7 +178,7 @@ export function pushLadder(withClimber: boolean, rng: Random): boolean {
 const forestCache = new WeakMap<MarchGrid, Pos[]>();
 
 /** Nejbližší střed buňky lesa (stejně jako `nearestForest`), středy lesa jednou na mřížku. */
-function nearestForestOf(grid: MarchGrid, from: Pos): Pos | null {
+export function nearestForestOf(grid: MarchGrid, from: Pos): Pos | null {
   let centers = forestCache.get(grid);
   if (!centers) {
     centers = [];
@@ -190,12 +199,22 @@ function nearestForestOf(grid: MarchGrid, from: Pos): Pos | null {
   return best;
 }
 
-/** Druh hradby úseku, který jde přelézt (plot) nebo vylézt po žebříku; jinak null. */
+/**
+ * Druh hradby úseku, který jde přelézt (plot) nebo vylézt po žebříku; postupy místa a zda přechod
+ * čeká na zasypání vodního příkopu (`moat`); jinak null.
+ */
 function wallKindOf(
   bf: BattleFort,
   segment: number,
   day: number,
-): { kind: WallKind; rampart: number | null; climb: boolean; ladder: boolean } | null {
+): {
+  kind: WallKind;
+  rampart: number | null;
+  climb: boolean;
+  ladder: boolean;
+  moat: boolean;
+  methods: AssaultMethod[];
+} | null {
   const whole = bf.fort.segments.find((s) => s.index === segment);
   if (!whole) return null;
   // díl s branou – hradba kusu u místa prolomení (`wallSpotSegment`)
@@ -209,6 +228,8 @@ function wallKindOf(
     rampart: layers.rampart?.height ?? null,
     climb: steps.some((s) => s.method === 'climb'),
     ladder: steps.some((s) => s.method === 'ladder'),
+    moat: steps.some((s) => s.fill === 'moat'),
+    methods: steps.map((s) => s.method),
   };
 }
 
@@ -227,6 +248,11 @@ export interface ClimbWorld {
   walk: (f: Fighter, to: Pos) => boolean;
   /** Má opevnění průchod (brána, mezera, průlom)? */
   hasOpening: (fort: number) => boolean;
+  /**
+   * Nejbližší zasypaný kus vodního příkopu opevnění k bodu – úsek a bod na čáře hradby; žádný null
+   * (zasypání – `battle.ts`).
+   */
+  moatFilled: (fort: number, from: Pos) => { segment: number; at: Pos } | null;
 }
 
 function ladderOf(b: BattleState, key: string | null): BattleLadder | undefined {
@@ -245,26 +271,39 @@ function begin(f: Fighter, climb: FighterClimb): void {
 /**
  * Útočník narazil na stěnu úseku `segment` bez průchodu: začne hradbu přecházet, je-li to jeho
  * postup – plot přeleze (2 s), na palisádu a hradbu jde po žebříku (volný vezme, jinak vyrobí
- * v nejbližším lese). Postup volí rozkaz skupiny (`assault`), bez něj nejrychlejší – žebřík proti
- * nejlepšímu místu prolomení (`breachHours`, hodin se 4 muži; null = místo nemá volno). Vrací, zda
- * začal; jinak prolamuje jako dosud.
+ * v nejbližším lese). Postup volí rozkaz skupiny (`assault`; prolomení, nabízí-li ho místo), bez
+ * něj nejrychlejší – žebřík proti nejlepšímu místu prolomení (`breachHours`, hodin se 4 muži; null
+ * = místo nemá volno). Přes vodní příkop jen zasypaným kusem (`moatFilled`), dokud není, prolamuje
+ * – zasype. Vrací, zda začal; jinak prolamuje.
  */
 export function startCrossing(
   f: Fighter,
   fort: number,
-  segment: number,
+  hitSegment: number,
   choice: GroupAssault | undefined,
   breachHours: number | null,
   cw: ClimbWorld,
 ): boolean {
   const bf = cw.forts[fort];
-  if (!bf || choice === 'cut') return false;
-  const wall = wallKindOf(bf, segment, cw.field.day);
+  if (!bf) return false;
+  let segment = hitSegment;
+  let wall = wallKindOf(bf, segment, cw.field.day);
   if (!wall) return false;
+  if (choice !== undefined && choice !== 'ladder' && wall.methods.includes(choice)) return false;
+  let near: Pos | null = null;
+  if (wall.moat) {
+    // vodní příkop – žebříky jen zasypaným kusem (fortifications.md – Přechod hradby – S valem)
+    const filled = cw.moatFilled(fort, f.pos);
+    if (!filled) return false;
+    segment = filled.segment;
+    near = filled.at;
+    wall = wallKindOf(bf, segment, cw.field.day);
+    if (!wall || (!wall.ladder && !wall.climb)) return false;
+  }
   const shape = bf.shapes.find((s) => s.index === segment)!;
   const n = outward(bf, shape.line);
   const top = (() => {
-    const t = project(shape.line, f.pos);
+    const t = project(shape.line, near ?? f.pos);
     return { x: shape.line.x + shape.line.dx * t, z: shape.line.z + shape.line.dz * t };
   })();
   // jen zvenku – zevnitř ven se neleze
@@ -281,6 +320,7 @@ export function startCrossing(
       (l) =>
         l.fort === fort &&
         l.climber === null &&
+        (near === null || dist2(l.top, near) <= FILL_M * FILL_M + 1e-9) &&
         (forest === null || dist2(f.pos, l.foot) <= dist2(f.pos, forest)),
     )
     .sort((p, q) => dist2(f.pos, p.foot) - dist2(f.pos, q.foot) || (p.key < q.key ? -1 : 1))[0];
@@ -306,7 +346,15 @@ export function startCrossing(
     return true;
   }
   if (f.ladder) {
-    begin(f, { ladder: null, phase: 'carry', ticks: 0, fort, segment, at: null });
+    begin(f, {
+      ladder: null,
+      phase: 'carry',
+      ticks: 0,
+      fort,
+      segment,
+      at: null,
+      ...(near ? { near } : {}),
+    });
     return true;
   }
   begin(f, {
@@ -316,6 +364,7 @@ export function startCrossing(
     fort,
     segment,
     at: { ...forest! },
+    ...(near ? { near } : {}),
   });
   return true;
 }
@@ -396,7 +445,9 @@ export function climbStep(f: Fighter, cw: ClimbWorld): void {
       }
       let l = ladderOf(cw.b, c.ladder);
       if (!l) {
-        const top = ladderSpot(bf, c.segment, f.pos, cw.b.ladders ?? []);
+        const top = c.near
+          ? ladderSpot(bf, c.segment, c.near, cw.b.ladders ?? [], FILL_M)
+          : ladderSpot(bf, c.segment, f.pos, cw.b.ladders ?? []);
         if (!top) return;
         const ladders = (cw.b.ladders ??= []);
         let k = ladders.length;

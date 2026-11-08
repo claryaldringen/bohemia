@@ -246,14 +246,10 @@ export const FORTIFICATIONS = {
   /** Brány se zavřou, když je první útočník do 30 m od brány (Obrana; návrh Clauda). */
   gatesCloseWithinM: 30,
   /**
-   * Prolomení v mužohodinách (Prolomení; návrh Clauda podle Martina 3. 11. 2026): brána plotu
-   * (i závora ve valu) 0, plot mimo bránu 2, brána palisády 12, palisáda mimo bránu 96.
+   * Průlom je 4 m široký (Prolomení; návrh Clauda) – i zasypaný kus vodního příkopu; práce
+   * a nejvýš 4 muži na místo jsou v `assault` (Přechod hradby).
    */
-  breachManHours: { fenceGate: 0, fence: 2, palisadeGate: 12, palisade: 96 },
-  /** Na jedno místo prolomení nejvýš 4 muži, průlom 4 m (Prolomení; návrh Clauda). */
-  breach: { maxMen: 4, widthM: 4 },
-  /** Val útokem – čtvrtinové tempo přes pás (Prolomení; návrh Clauda). */
-  rampartAssaultPace: 0.25,
+  breach: { widthM: 4 },
   /**
    * Hrozba vsi (Správce – Hrozba; návrh Clauda): váhy signálů (nájezd na ves 1, nájezd na jinou
    * ves rodu do 3 políček 0,5, cizí vojsko 0,3, válka s nepřítelem do 5 políček 0,5), poločas
