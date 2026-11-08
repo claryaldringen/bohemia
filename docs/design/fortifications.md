@@ -105,12 +105,18 @@ roštová ≈ 7 m, komorová ≈ 8 m, komory po 5–6 m).
 
 ### Kámen
 
-- Martin 8. 11. 2026 – kámen je **nová surovina** z kamenů odklizených z polí a staveb a ze skal
-  („A“): „**I roštová hradba měla plentu z nasucho vyskládaných kamenů.**“
+- Martin 8. 11. 2026 – kámen je **nová surovina** („A“; zdroj upřesněn níž – jen lom): „**I roštová hradba měla plentu z nasucho vyskládaných kamenů.**“
 - **Spotřeba na 100 m** (návrh Clauda): roštová **100 m³** (plenta nasucho ≈ 2 m vysoká, 0,5 m
   silná), komorová **320 m³** (čelní zeď 4 × 0,8 m – rešerše).
-- Odkud kámen, kolik dá kámen z pole, balvan a skála a jak vypadá hromada kamene – samostatný
-  krátký návrh suroviny (návrh Clauda); tady jen spotřeba.
+- **Lom** (Martin 8. 11. 2026): „**Kámen z pole je na to nevhodný. Musíme zavést lom.**“ – lom
+  vzniká **jen na skalním výchozu** mapy („Na skalním výchozu“) a láme se **na zakázku** („A“):
+  kámen se nalámá, když ho potřebuje rozestavěná hradba (lámání 1,4 čd na m³ a dovoz podle
+  vzdálenosti, jako kácení stromů pro stavby). **Kámen je komodita** – „s tím, že kámen může být
+  komoditou v obchodě nebo ve vazalském tributu“ (Martin): obchod se sousedy, dávky vazalů
+  (makrokomodita) a jídlo/zásoby domény ho mohou přivézt; ves bez skály ho tak získá jinde.
+- Podrobnosti (návrh Clauda): lom je stavba na výchozu (≈ 20 čd, bez dřeva); kromě zakázky
+  hradby smí hráč zadat „nalámat do zásoby N m³“ (pro obchod a dávky); nalámaný či dovezený kámen
+  leží na hromadách kamení u cesty (jako klády); kámen nehnije.
 
 ### Obrana bez násobku
 
