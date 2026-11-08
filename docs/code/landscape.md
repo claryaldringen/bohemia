@@ -329,4 +329,5 @@ NAVIGABLE_FLOODPLAIN_CELLS }` (rovná niva 4 políčka), prvky řeka a brody hla
   `skeleton-trail-band.test.ts` – brod na výřezu brod, průsmyk na výřezu stezka: napoprvé brod
   61 % (mapa bez prémie 64 %), průsmyk 55 % (94 %) – průsmyk nejčastěji neprojde, když potok
   ústí na stranu pohoří nebo je ves blízko). Měření:
-  `measure-landscapes.ts 200 navigable-river --skeleton straight`.
+  `measure-landscapes.ts 200 navigable-river --skeleton straight`. Závěrečné měření všech výřezů
+  (300 seedů, 8. 11. 2026) je v `docs/design/world-skeleton.md` – Výsledky měření generátoru.

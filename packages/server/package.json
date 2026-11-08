@@ -10,6 +10,7 @@
     }
   },
   "scripts": {
+    "skeleton-check": "tsx scripts/skeleton-check.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format:check": "prettier --check . --ignore-path ../../.gitignore",
