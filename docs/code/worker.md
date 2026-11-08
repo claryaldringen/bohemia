@@ -161,7 +161,10 @@ akce do 0,5 s**“ splní malý souhrn vsi ve sloupci `village.digest` (migrace
   s číslem osoby, jménem a dnem narození (`PublicLineMan`); souhrn verze 1 se nepoužije
   (`isCurrentDigest`) a ves ho dostane při dalším uložení. Co závisí na dni pohledu
   (odhalené počasí roku), se počítá až v pohledu ze vstupů – položka přepínače je táž i pro dnešek
-  o pár dní po dni vsi. `VILLAGE_DIGEST_VERSION` = tvar; jiný tvar se nepoužije.
+  o pár dní po dni vsi. Od verze 4 (8. 11. 2026, hradiště) i `domainReadyYear` (rok, kdy je ves po výmlatu a smí dát jídlo domény –
+  `domainFoodReadyYear`, jinak null) a `food` (`{ growsKg, needsKg }` z `villageFoodBalance`, bez lidí nebo
+  pole null); souhrn verze 3 se nepoužije a ves ho dostane při dalším uložení – migrace netřeba.
+  `VILLAGE_DIGEST_VERSION` = tvar; jiný tvar se nepoužije.
 - **Kdo ho píše:** adaptér (`createVillageRepository` – `create`, `add`, `addOnce`, `save`) ze
   stavu přes `villageDigest` (0,01 ms), s `digest_version` = nová `version`. Generovaný sloupec
   zvolen nebyl: pravidla hladu, výmlatu a mužů rodu jsou v jádru (TS) a v SQL by se musela
