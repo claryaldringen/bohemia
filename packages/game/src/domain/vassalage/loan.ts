@@ -39,7 +39,7 @@ export function isAidLine(item: { kind: string }): item is AidLine {
 }
 
 export const AID_REASONS = {
-  badBundle: 'Pomoc smí být jen obilí, seno, dobytek, koně a klády.',
+  badBundle: 'Pomoc smí být jen obilí, seno, dobytek, koně, klády a kámen.',
   badSchedule: 'Splátkový kalendář musí mít roky po sobě rostoucí a zboží v mezích.',
   mixed: 'Jednání o pomoci nesmí obsahovat jiné řádky.',
   oneAnswer: 'Odpověď na žádost je buď dar, nebo půjčka.',
