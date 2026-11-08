@@ -4,7 +4,9 @@
 // „útočit na vše“, lučištník s pěšími „držet místo“) proti mužům u domů. Brána se před útočníky
 // zavře, pěší ji prolomí sekerami a vniknou dovnitř; padlí leží, ranění sedí u domů. Druhý krok –
 // útěk vsi: lidé se zásobami k lesu, vojsko přijde hloučky a odežene stádo. Mlha války
-// z pohledu útočníka.
+// z pohledu útočníka. Třetí krok – útok na hradbu (plán hradeb Úloha 21): palisáda s ochozem,
+// obránci na ochozu házejí kameny a oštěpy, jedna skupina nese žebříky (ukázka je přinese
+// rovnou – v boji je muži vyrobí v lese), druhá nanosí otepi z dříví vsi k patě a zapálí ji.
 import {
   OFFICIAL_WORLD,
   addGate,
@@ -31,21 +33,29 @@ import {
   type Pos,
 } from '@bohemia/game';
 import { sceneFortification, type SceneFortification } from '@/lib/fort-view';
-import { battleFortifications, sceneBattle, type SceneMarch } from '@/lib/scene/army';
+import {
+  battleFortifications,
+  battleWalls,
+  sceneBattle,
+  type SceneMarch,
+  type SceneWall,
+} from '@/lib/scene/army';
 import type { SceneWar } from '@/lib/scene/army-renderer';
 import { planFlight, type FleeingPerson } from '@/lib/scene/villager-plan';
 import type { SceneVillage } from '@/lib/village-view';
 
-export type BattleDemoStage = 'fight' | 'flight';
+export type BattleDemoStage = 'fight' | 'flight' | 'walls';
 export const BATTLE_DEMO_STAGES: Record<BattleDemoStage, string> = {
   fight: 'boj u brány',
   flight: 'útěk vsi',
+  walls: 'útok na hradbu',
 };
 
-/** Další krok ukázky: vypnuto → boj u brány → útěk vsi → vypnuto. */
+/** Další krok ukázky: vypnuto → boj u brány → útěk vsi → útok na hradbu → vypnuto. */
 export function nextBattleDemo(stage: BattleDemoStage | null): BattleDemoStage | null {
   if (stage === null) return 'fight';
   if (stage === 'fight') return 'flight';
+  if (stage === 'flight') return 'walls';
   return null;
 }
 
@@ -70,12 +80,20 @@ export interface BattleDemo {
   endMs: number | null;
   /** Útěk: lidé ukázky, les a kam vojsko jde. */
   flight: SceneWar['flight'];
+  /** Hradby bojiště pro scénu (výšky lezců a obránců na ochozu) – jednou za ukázku. */
+  walls: SceneWall[];
   forest: Pos;
   homes: Pos[];
 }
 
-/** Palisáda kolem místa vsi s branou na jižní straně (jádro – plocha, obvod a brány). */
-function palisade(l: Landscape): { fort: Fortification; gate: Pos; outline: FortOutline } | null {
+/**
+ * Palisáda kolem místa vsi s branou na jižní straně (jádro – plocha, obvod a brány); útok na
+ * hradbu – palisáda s ochozem.
+ */
+function palisade(
+  l: Landscape,
+  kind: 'palisade' | 'walkway',
+): { fort: Fortification; gate: Pos; outline: FortOutline } | null {
   const site = l.villageSite;
   const cells = [];
   for (let y = site.y - HALF_CELLS; y < site.y + HALF_CELLS; y++) {
@@ -94,7 +112,7 @@ function palisade(l: Landscape): { fort: Fortification; gate: Pos; outline: Fort
     fort: {
       id: FORT_ID,
       points: outline.points,
-      kind: 'palisade',
+      kind,
       segments: fortSegments(outline).map((s) => ({ index: s.index, builtDay: 0, state: 1 })),
       gates,
     },
@@ -111,7 +129,7 @@ export function createBattleDemo(
   day: number,
   nowMs: number,
 ): BattleDemo | null {
-  const made = palisade(l);
+  const made = palisade(l, stage === 'walls' ? 'walkway' : 'palisade');
   if (!made) return null;
   const { fort, gate, outline } = made;
   const site = tileCenterWorld(l, l.villageSite.x, l.villageSite.y);
@@ -120,12 +138,15 @@ export function createBattleDemo(
     fortifications: [fort],
   };
   const grid = marchGrid(l, obstaclesOf(l), state, { day });
+  // útok na hradbu: dříví vsi (hromada klád) na otepi kousek před jižní hradbou
+  const fuel = stage === 'walls' ? [{ x: gate.x - 30, z: gate.z - 30 }] : undefined;
   const field: BattleField = {
     grid,
     geo: l,
     forts: battleForts(l, [fort]),
     day,
     hoursPerTick: hoursPerTick(OFFICIAL_WORLD),
+    ...(fuel ? { fuel } : {}),
   };
   const sceneFort = sceneFortification(
     fort,
@@ -155,6 +176,7 @@ export function createBattleDemo(
     startMs: nowMs,
     endMs: null,
     flight: null,
+    walls: battleWalls(field.forts, day),
     forest,
     homes,
   };
@@ -164,7 +186,16 @@ export function createBattleDemo(
       { id: i * 3 + 1, home, kind: 'man', child: false, carries: true },
       { id: i * 3 + 2, home, kind: 'woman', child: false, carries: i % 2 === 0 },
     ]);
-    return { ...base, field: null, flight: { walks: planFlight(people, forest), startMs: nowMs } };
+    return {
+      ...base,
+      field: null,
+      walls: [],
+      flight: { walks: planFlight(people, forest), startMs: nowMs },
+    };
+  }
+  if (stage === 'walls') {
+    const posts = southPosts(base.walls, field.forts[0]?.center ?? site, 12);
+    return { ...base, battle: wallAssault(gate, homes, posts) };
   }
   const start = { x: gate.x, z: gate.z - START_M };
   const attackers: BattleAttacker[] = [];
@@ -224,6 +255,97 @@ export function createBattleDemo(
     liveCommand: false,
   });
   return { ...base, battle };
+}
+
+/** Útočníci před hradbou: tolik m jižně od brány. */
+const WALL_START_M = 45;
+
+/** Stanoviště na ochozu (ukázka – jako `wallPosts` jádra): po 5 m 1 m za čarou, nejjižnější. */
+function southPosts(walls: readonly SceneWall[], center: Pos, count: number): Pos[] {
+  const posts: Pos[] = [];
+  for (const w of walls) {
+    // po lomené čáře úseku – další stanoviště vždy po 5 m délky
+    let next = 2.5;
+    let walked = 0;
+    for (let i = 0; i + 1 < w.path.length; i++) {
+      const a = w.path[i]!;
+      const b = w.path[i + 1]!;
+      const len = Math.hypot(b.x - a.x, b.z - a.z);
+      for (; next < walked + len; next += 5) {
+        const u = (next - walked) / len;
+        const p = { x: a.x + (b.x - a.x) * u, z: a.z + (b.z - a.z) * u };
+        const k = Math.hypot(center.x - p.x, center.z - p.z) || 1;
+        posts.push({ x: p.x + (center.x - p.x) / k, z: p.z + (center.z - p.z) / k });
+      }
+      walked += len;
+    }
+  }
+  return posts.sort((p, q) => p.z - q.z).slice(0, count);
+}
+
+/**
+ * Útok na palisádu s ochozem: skupina se žebříky (přinesla je – `Fighter.ladder`) západně od
+ * brány, skupina s ohněm východně (postup skupině – `BattleGroup.assault`); obránci ze šesti domů
+ * obsadí ochoz (`wall-defense.ts`).
+ */
+function wallAssault(gate: Pos, homes: readonly Pos[], posts: readonly Pos[]): BattleState {
+  const attackers: BattleAttacker[] = [];
+  const add = (group: number, line: boolean, dx: number, dz: number): void => {
+    attackers.push({
+      member: attackers.length,
+      group,
+      line,
+      mounted: false,
+      strength: line ? 1 : 0.5,
+      health: 100,
+      pos: { x: gate.x + dx, z: gate.z - WALL_START_M + dz },
+    });
+  };
+  // skupina 0 – žebříky (velitel a šest pěších), skupina 1 – oheň (muž rodu a pět pěších)
+  add(0, true, -24, 0);
+  for (let i = 0; i < 6; i++) add(0, false, -28 + (i % 3) * 3, -3 - Math.floor(i / 3) * 2);
+  add(1, true, 24, 0);
+  for (let i = 0; i < 5; i++) add(1, false, 20 + (i % 3) * 3, -3 - Math.floor(i / 3) * 2);
+  const defenders: Defender[] = homes.slice(0, 6).flatMap((home, i) => [
+    {
+      personId: i * 2 + 1,
+      pos: home,
+      houseGroup: 0,
+      strength: i === 0 ? 1 : 0.5,
+      line: i === 0,
+      bow: i === 0,
+      atHouseOnly: false,
+      lastLine: i === 0,
+      ...(posts[i * 2] ? { post: posts[i * 2]! } : {}),
+    },
+    {
+      personId: i * 2 + 2,
+      pos: home,
+      houseGroup: 0,
+      strength: 0.4,
+      line: false,
+      bow: false,
+      atHouseOnly: false,
+      lastLine: false,
+      ...(posts[i * 2 + 1] ? { post: posts[i * 2 + 1]! } : {}),
+    },
+  ]);
+  const battle = openBattle({
+    attackers,
+    defenders,
+    groups: [
+      { id: 0, order: 'attack-all', holdAt: null },
+      { id: 1, order: 'attack-all', holdAt: null },
+    ],
+    commander: 0,
+    deputy: 7,
+    liveCommand: false,
+  });
+  for (const g of battle.groups) {
+    if (g.side === 'attack') g.assault = g.id === 0 ? 'ladder' : 'burn';
+  }
+  for (const f of battle.fighters) if (f.side === 'attack' && f.group === 0) f.ladder = true;
+  return battle;
 }
 
 /** Jeden takt boje ukázky (jádro – `battleTick`); po konci boje nic. Vrátí, jestli boj běží. */
@@ -291,7 +413,7 @@ export function battleDemoWar(demo: BattleDemo, nowMs: number): SceneWar {
     return { battle: null, march, flight: demo.flight, herd, fog: null, dayEndMs: null };
   }
   return {
-    battle: demo.battle ? sceneBattle(demo.battle) : null,
+    battle: demo.battle ? sceneBattle(demo.battle, demo.walls) : null,
     march: null,
     flight: null,
     herd: null,
@@ -308,7 +430,7 @@ export function withBattleDemo(
 ): SceneVillage {
   if (!demo?.fort) return village;
   const forts = demo.battle
-    ? battleFortifications([demo.fort], sceneBattle(demo.battle), day)
+    ? battleFortifications([demo.fort], sceneBattle(demo.battle, demo.walls), day)
     : demo.stage === 'flight'
       ? [{ ...demo.fort, gatesClosed: true as const }]
       : [demo.fort];

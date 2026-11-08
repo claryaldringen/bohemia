@@ -522,6 +522,8 @@ export interface SegmentBuild {
   /** Stav úseku 0–1 (chátrání za životností – mezery). */
   state: number;
   breached: boolean;
+  /** Průlom ohněm (`burnedDay`) – ohořelé pahýly kůlů a brána (do přestavby). */
+  burned: boolean;
 }
 
 /**
@@ -557,6 +559,7 @@ export function segmentBuild(
     rampart: null,
     state,
     breached,
+    burned: breached && segment?.burnedDay !== undefined,
   };
   if (segment?.demolishedDay !== undefined) return result;
   /** Kolik z dílu ještě stojí při zboření `work` (1 − průběh); null – díl se tak nebourá. */
@@ -702,6 +705,20 @@ function stake(
   };
 }
 
+/** Ohořelé dřevo – násobek barvy dřeva (fortifications.md – Přechod hradby – Oheň: ohořelý průlom). */
+export const CHARRED_TINT: [number, number, number] = [0.2, 0.17, 0.15];
+
+/** Ohořelý pahýl kůlu: nízký (≈ čtvrtina až polovina), černý, skoro svislý. */
+function charred(inst: FortInstance, k: number): FortInstance {
+  const h = (salt: number): number => hash01(k, 31, salt);
+  return {
+    ...inst,
+    scaleY: 0.22 + 0.33 * h(1),
+    lean: [inst.lean[0] * 0.5, inst.lean[1] * 0.5],
+    color: CHARRED_TINT,
+  };
+}
+
 /** Kus pásu, kde se prolomilo (fortifications.md – Prolomení: průlom 4 m uprostřed úseku). */
 function inBreach(u: number, lengthM: number): boolean {
   return Math.abs(u - 0.5) * lengthM < FORTIFICATIONS.breach.widthM / 2;
@@ -769,7 +786,10 @@ export function palisadeLayout(fort: SceneFortification, crown: CrownLift): Pali
     if (hash01(fort.id, k, 9) < (1 - b.state) * 0.92) return;
     const fallen = b.breached && inBreach(u, fort.shapes[p.segment]!.lengthM);
     if (fallen && hash01(fort.id, k, 10) < 0.4) return;
-    stakes.push(stake(fort, p, k, age, crown(p.s), fallen, layer));
+    // průlom ohněm – ohořelé pahýly místo vyvrácených kůlů
+    if (fallen && b.burned)
+      stakes.push(charred(stake(fort, p, k, age, crown(p.s), false, layer), k));
+    else stakes.push(stake(fort, p, k, age, crown(p.s), fallen, layer));
   });
   return { stakes, trench };
 }
@@ -1373,18 +1393,28 @@ export function fortGateInstances(fort: SceneFortification): FortInstance[] {
       let dir: [number, number] = open ? [nx, nz] : [-tx * side, -tz * side];
       let lean: readonly [number, number] = [0, 0];
       if (broken) {
-        // rozsekaná brána: křídla vyvrácená ven a zkřivená
+        // rozsekaná brána: křídla vyvrácená ven a zkřivená; vypálená – obě ohořelá na zemi
         dir = [
           -tx * side + nx * 0.5 * (h(side + 2) - 0.5),
           -tz * side + nz * 0.5 * (h(side + 2) - 0.5),
         ];
-        const fall = side < 0 ? 5 : 0.5 + h(7);
+        const fall = side < 0 || b.burned ? 5 : 0.5 + h(7);
         lean = [-nx * fall, -nz * fall];
       }
+      const color = b.burned ? CHARRED_TINT : base.color;
       if (leaves)
-        out.push({ ...base, part: leafPart, x: hx, z: hz, yaw: yawOf(dir[0], dir[1]), lean });
+        out.push({
+          ...base,
+          color,
+          part: leafPart,
+          x: hx,
+          z: hz,
+          yaw: yawOf(dir[0], dir[1]),
+          lean,
+        });
     }
-    if (layer !== 'fence')
+    // vypálená brána – trám shořel
+    if (layer !== 'fence' && !b.burned)
       out.push({
         ...base,
         part: 'gate-beam',

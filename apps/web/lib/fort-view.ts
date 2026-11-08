@@ -110,6 +110,15 @@ export interface SceneFortification extends Pick<
    * vylepšení nemá.
    */
   gateLooks?: SceneFortGate[];
+  /**
+   * Zasypávané kusy vodního příkopu v boji (scene/army.ts – `battleFortifications`): pruh od
+   * zasypávajících k hradbě a podíl zasypání 0–1; chybí – žádný.
+   */
+  moatFills?: readonly {
+    from: { x: number; z: number };
+    to: { x: number; z: number };
+    share: number;
+  }[];
 }
 
 /**

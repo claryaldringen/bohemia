@@ -5,8 +5,9 @@
 // a výplň komor jako sítě podél obvodu (rampart-mesh.ts), prořez terénu
 // pod příkopem (pit-cut.ts) a vytyčení nehotových úseků kolíky a provázkem jako u ostatních
 // stavenišť (staking.ts). Vodní příkop – hladina (PBR s oparem), v zimě led (`setSeason`);
-// klešťová brána a věž nad vraty jako díly modelu. Rozmístění počítá fortification-layout.ts;
-// kreslí se jen při změně.
+// klešťová brána a věž nad vraty jako díly modelu. V boji ohořelý průlom (`burnedDay` – černé
+// pahýly kůlů, spadlá ohořelá vrata) a zasypávaný kus vodního příkopu (`moatFills`). Rozmístění
+// počítá fortification-layout.ts; kreslí se jen při změně.
 import type { Material } from '@babylonjs/core/Materials/material';
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
@@ -38,6 +39,7 @@ import { loadModelParts, setStaticInstances, type ModelInstance } from './instan
 import type { PitCuts } from './pit-cut';
 import { applyGammaFog } from './gamma-fog';
 import {
+  moatFillMeshData,
   moatWaterMeshData,
   rampartMeshData,
   trenchMeshData,
@@ -219,6 +221,15 @@ export class FortificationRenderer {
       false,
     );
     if (water) meshes.push(water);
+    // zasypávaný kus vodního příkopu v boji – pruh čerstvé hlíny přes vodu k hradbě
+    if (fort.moatFills && fort.moatFills.length > 0) {
+      const fill = this.mesh(
+        `village-fort-fill-${fort.id}`,
+        moatFillMeshData(fort.moatFills, rim),
+        this.context.earthMaterial(),
+      );
+      if (fill) meshes.push(fill);
+    }
     // násyp ochozu, jádro roštové a výplň komorové hradby
     meshes.push(...this.earthMeshes('fort-core', fort.id, wallCoreMeshData(fort, rim)));
     if (palisade.trench.length > 0) {

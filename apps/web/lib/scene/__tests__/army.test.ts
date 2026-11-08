@@ -60,6 +60,8 @@ function snapshot(fighters: SceneFighter[], ticks = 1): SceneBattle {
     groups: [{ side: 'attack', id: 0, order: 'attack-all', broken: false }],
     closedGates: [],
     breaches: [],
+    ladders: [],
+    walls: [],
   };
 }
 
@@ -235,8 +237,12 @@ describe('postavy boje', () => {
             segment: 1,
             spot: 'gate',
             at: { x: 0, z: 0 },
+            method: 'cut',
+            phase: 'done',
             progress: 1,
             breached: true,
+            fuel: 1,
+            fill: 1,
           },
         ],
       },

@@ -1,17 +1,37 @@
 // Boj ve scéně (war.md – Ve scéně – Boj): šípy letí od střelce k cíli po oblouku, srážka zblízka
-// zvíří prach, padlí leží do konce dne. Bez Babylonu – rány se poznají ze dvou po sobě jdoucích
-// snímků boje (jádro nastaví `cooldown` na plný interval v taktu rány); kreslí army-renderer.ts.
-import { TICKS_PER_SECOND, WAR, type Pos } from '@bohemia/game';
-import { BOW_TICKS, MELEE_TICKS, type SceneBattle } from './army';
+// zvíří prach, padlí leží do konce dne; z ochozu letí hozené kameny a oštěpy a kameny padají
+// k patě hradby (fortifications.md – Obrana bez násobku 3). Bez Babylonu – rány se poznají ze dvou
+// po sobě jdoucích snímků boje (jádro nastaví `cooldown` na plný interval v taktu rány), zásah
+// z úbytku zdraví; kreslí army-renderer.ts.
+import { FORTIFICATIONS, TICKS_PER_SECOND, WAR, type Pos } from '@bohemia/game';
+import {
+  BOW_TICKS,
+  MELEE_TICKS,
+  THROW_TICKS,
+  climberPose,
+  wallStandLift,
+  type SceneBattle,
+  type SceneFighter,
+} from './army';
 
-/** Výstřel lukem: odkud, kam a kdy (s, čas scény). */
+/** Co letí: šíp, hozený kámen, oštěp. */
+export type MissileKind = 'arrow' | 'stone' | 'javelin';
+
+/** Výstřel či hod: odkud, kam a kdy (s, čas scény); zvednutí konců nad terén (ochoz, žebřík). */
 export interface Shot {
   key: string;
+  /** Chybí – šíp. */
+  kind?: MissileKind;
   from: Pos;
   to: Pos;
   startS: number;
   /** Délka letu (s). */
   flightS: number;
+  /** Zvednutí střelce a zasaženého nad terén (m); chybí – 0. */
+  fromLift?: number;
+  toLift?: number;
+  /** Mimo – dopadne na zem za cílem (konec letu u země, ne v rameni). */
+  miss?: true;
 }
 
 /** Srážka zblízka – prach mezi muži. */
@@ -23,17 +43,38 @@ export interface Clash {
 
 /** Rychlost šípu (m/s, návrh Clauda – 40–60 m za ≈ 1 s). */
 export const ARROW_M_S = 45;
-/** Výška oblouku šípu jako podíl vzdálenosti. */
-const ARROW_ARC = 0.12;
+/** Let hozeného kamene a oštěpu z ochozu (do 15 m) a kamene k patě (s, návrh Clauda). */
+export const THROW_FLIGHT_S = 0.5;
+/** Výška oblouku jako podíl vzdálenosti – šíp, hod (kámen a oštěp letí výš). */
+const ARC: Record<MissileKind, number> = { arrow: 0.12, stone: 0.25, javelin: 0.2 };
 /** Výška ramene střelce a cíle (m). */
 const SHOULDER_M = 1.5;
 /** Jak dlouho se prach srážky zvedá (s). */
 export const DUST_S = 0.7;
+/** Šíp mimo dopadne tolik m za cílem. */
+const MISS_PAST_M = 2.5;
+/** Zasažený jiný muž (kruh rozptylu – aim.ts) nejvýš tolik m od cíle. */
+const SPREAD_REACH_M = 8;
+
+/** Zvednutí muže nad terén ve snímku: lezec na žebříku, obránce na ochozu, jinak 0. */
+function liftOf(b: SceneBattle, f: SceneFighter): number {
+  if (f.state === 'climb' && f.climb) return climberPose(b, f, f.climb.ticks)?.lift ?? 0;
+  return f.onWall ? wallStandLift(b.walls, f.pos) : 0;
+}
+
+/** Hod z ochozu – kámen, nebo oštěp; muž je střídá podle hodu (návrh Clauda). */
+function throwKind(id: string, ticks: number): MissileKind {
+  let h = Math.floor(ticks / THROW_TICKS);
+  for (let i = 0; i < id.length; i++) h += id.charCodeAt(i);
+  return h % 2 === 0 ? 'stone' : 'javelin';
+}
 
 /**
  * Rány taktu `cur` (po snímku `prev`): muž v boji s cílem, kterému jádro právě nastavilo plný
- * interval rány – na 20–60 m lukem (šíp), zblízka srážka. Bez předchozího snímku nic (rány
- * nejsou poznat). `nowS` je okamžik, kdy snímek přišel.
+ * interval rány – na 20–60 m lukem (šíp), z ochozu hod kamenem či oštěpem do 15 m, z ochozu
+ * k patě hradby kámen (do 3 m), jinak zblízka srážka (lezce na žebříku bez prachu). Šíp a hod
+ * letí k tomu, komu ubylo zdraví (cíl, nebo jiný muž v kruhu rozptylu – kruh se nekreslí); nikomu
+ * – dopadne za cíl. Bez předchozího snímku nic (rány nejsou poznat). `nowS` – kdy snímek přišel.
  */
 export function strikesOf(
   prev: SceneBattle | null,
@@ -45,39 +86,82 @@ export function strikesOf(
   if (!prev || cur.ticks <= prev.ticks) return { shots, clashes };
   const before = new Map(prev.fighters.map((f) => [f.id, f]));
   const byId = new Map(cur.fighters.map((f) => [f.id, f]));
+  const hurt = cur.fighters.filter((f) => {
+    const was = before.get(f.id);
+    return was !== undefined && f.health < was.health;
+  });
   const c = WAR.combat;
+  const footM = FORTIFICATIONS.defense.footStoneM;
+  /** Kam střela letí: k zasaženému (cíl, nebo nejbližší zraněný u cíle), jinak za cíl na zem. */
+  const flight = (
+    f: SceneFighter,
+    t: SceneFighter,
+    kind: MissileKind,
+    flightS: (d: number) => number,
+  ): Shot => {
+    const hit = hurt.includes(t)
+      ? t
+      : hurt
+          .filter((h) => h.id !== f.id)
+          .map((h) => ({ h, d2: (h.pos.x - t.pos.x) ** 2 + (h.pos.z - t.pos.z) ** 2 }))
+          .filter((x) => x.d2 <= SPREAD_REACH_M * SPREAD_REACH_M)
+          .sort((a, b) => a.d2 - b.d2)[0]?.h;
+    const dx = t.pos.x - f.pos.x;
+    const dz = t.pos.z - f.pos.z;
+    const l = Math.hypot(dx, dz) || 1;
+    const to = hit
+      ? { x: hit.pos.x, z: hit.pos.z }
+      : { x: t.pos.x + (dx / l) * MISS_PAST_M, z: t.pos.z + (dz / l) * MISS_PAST_M };
+    const d = Math.hypot(to.x - f.pos.x, to.z - f.pos.z);
+    const fromLift = liftOf(cur, f);
+    const toLift = hit ? liftOf(cur, hit) : 0;
+    return {
+      key: `${f.id}@${cur.ticks}`,
+      ...(kind === 'arrow' ? {} : { kind }),
+      from: { x: f.pos.x, z: f.pos.z },
+      to,
+      startS: nowS,
+      flightS: flightS(d),
+      ...(fromLift > 0 ? { fromLift } : {}),
+      ...(toLift > 0 ? { toLift } : {}),
+      ...(hit ? {} : { miss: true as const }),
+    };
+  };
   for (const f of cur.fighters) {
-    if (f.state !== 'fight' || f.aim === null) continue;
+    const fighting = f.state === 'fight' || (f.state === 'climb' && f.aim !== null);
+    if (!fighting || f.aim === null) continue;
     const t = byId.get(f.aim);
     const was = before.get(f.id);
     if (!t || !was) continue;
     // nový interval rány: cooldown se v taktu rány nastaví na plno (dřív menší)
     const d = Math.hypot(t.pos.x - f.pos.x, t.pos.z - f.pos.z);
-    if (f.cooldown === BOW_TICKS && was.cooldown < BOW_TICKS && f.bow && d >= c.bowMinM) {
-      shots.push({
-        key: `${f.id}@${cur.ticks}`,
-        from: { x: f.pos.x, z: f.pos.z },
-        to: { x: t.pos.x, z: t.pos.z },
-        startS: nowS,
-        flightS: d / ARROW_M_S,
-      });
-    } else if (f.cooldown === MELEE_TICKS && was.cooldown < MELEE_TICKS && d <= c.meleeM + 0.5) {
-      clashes.push({
-        key: `${f.id}@${cur.ticks}`,
-        at: { x: (f.pos.x + t.pos.x) / 2, z: (f.pos.z + t.pos.z) / 2 },
-        startS: nowS,
-      });
+    const fresh = (full: number): boolean => f.cooldown === full && was.cooldown < full;
+    if (f.bow && fresh(BOW_TICKS) && d >= c.bowMinM) {
+      shots.push(flight(f, t, 'arrow', (x) => x / ARROW_M_S));
+    } else if (f.onWall && fresh(THROW_TICKS) && d > c.meleeM) {
+      shots.push(flight(f, t, throwKind(f.id, cur.ticks), () => THROW_FLIGHT_S));
+    } else if (fresh(MELEE_TICKS) && d <= c.meleeM + 0.5) {
+      if (f.onWall && t.state !== 'climb' && !t.onWall && d <= footM + 0.5) {
+        // z ochozu kámen k patě hradby – padá dolů na muže u paty
+        shots.push(flight(f, t, 'stone', () => THROW_FLIGHT_S));
+      } else if (t.state !== 'climb' && f.state !== 'climb') {
+        clashes.push({
+          key: `${f.id}@${cur.ticks}`,
+          at: { x: (f.pos.x + t.pos.x) / 2, z: (f.pos.z + t.pos.z) / 2 },
+          startS: nowS,
+        });
+      }
     }
   }
   return { shots, clashes };
 }
 
-/** Šíp v letu: poloha (y nad terénem u střelce) a směr; po dopadu null. */
+/** Šíp, kámen či oštěp v letu: poloha (y nad terénem) a směr; po dopadu null. */
 export interface ArrowPose {
   /** Podíl letu 0–1. */
   u: number;
   x: number;
-  /** Výška nad přímkou mezi rameny (m) – renderer přičte terén. */
+  /** Výška nad terénem pod spojnicí (m) – renderer přičte terén. */
   y: number;
   z: number;
   dx: number;
@@ -85,17 +169,22 @@ export interface ArrowPose {
   dz: number;
 }
 
-/** Šíp v okamžiku `nowS` – parabola nad spojnicí střelce a cíle; mimo let null. */
+/**
+ * Střela v okamžiku `nowS` – parabola nad spojnicí ramene střelce (na ochozu výš) a zasaženého
+ * (mimo – země za cílem); mimo let null.
+ */
 export function arrowAt(shot: Shot, nowS: number): ArrowPose | null {
   const u = (nowS - shot.startS) / shot.flightS;
   if (u < 0 || u > 1) return null;
   const dx = shot.to.x - shot.from.x;
   const dz = shot.to.z - shot.from.z;
   const d = Math.hypot(dx, dz);
-  const h = d * ARROW_ARC;
-  // y = 4 h u (1 − u), sklon dy/du = 4 h (1 − 2u)
-  const y = SHOULDER_M + 4 * h * u * (1 - u);
-  const slope = 4 * h * (1 - 2 * u);
+  const h = d * ARC[shot.kind ?? 'arrow'];
+  const y0 = SHOULDER_M + (shot.fromLift ?? 0);
+  const y1 = (shot.miss ? 0 : SHOULDER_M) + (shot.toLift ?? 0);
+  // y = y0 + (y1 − y0) u + 4 h u (1 − u), sklon dy/du = (y1 − y0) + 4 h (1 − 2u)
+  const y = y0 + (y1 - y0) * u + 4 * h * u * (1 - u);
+  const slope = y1 - y0 + 4 * h * (1 - 2 * u);
   const l = Math.hypot(d, slope) || 1;
   return {
     u,

@@ -2,15 +2,16 @@ import { mkdirSync } from 'node:fs';
 import { test, expect } from '@playwright/test';
 
 // Ukázka Bitva ve scéně (war.md – Ve scéně) na vývojové ukázce /dev/landscape: boj taktem jádra
-// u palisády – postavy vojska, koně jezdců rodu, ikony rozkazů skupin a mlha války se objeví,
-// po vypnutí ukázky vše zmizí a draw cally se vrátí. Ukázka v produkčním buildu e2e testů není
+// u palisády – postavy vojska, koně jezdců rodu, ikony rozkazů skupin a mlha války se objeví;
+// útok na hradbu (plán hradeb Úloha 21) – žebříky u palisády s ochozem, otepi a oheň u paty,
+// obránci na ochozu; po vypnutí ukázky vše zmizí a draw cally se vrátí. Ukázka v produkčním buildu e2e testů není
 // (404) – test běží jen s `BATTLE_DEV_URL` (adresa vývojového serveru, např.
 // http://localhost:3020), jinak se přeskočí. `BATTLE_SHOTS=<složka>` uloží menší snímek.
 const DEV_URL = process.env.BATTLE_DEV_URL;
 const SHOTS_DIR = process.env.BATTLE_SHOTS;
 
 test.skip(!DEV_URL, 'vyžaduje vývojový server (BATTLE_DEV_URL)');
-test.describe.configure({ timeout: 300_000 });
+test.describe.configure({ timeout: 480_000 });
 test.use({ viewport: { width: 1280, height: 800 } });
 
 interface DevScene {
@@ -92,6 +93,41 @@ test('Bitva: vojsko s koňmi a rozkazy, boj taktem jádra, po vypnutí nic naví
     .poll(async () => (await stats())['army-woman'] ?? 0, { timeout: 30_000 })
     .toBeGreaterThan(0);
 
+  // útok na hradbu: žebříky se opřou o palisádu s ochozem, otepi u paty a oheň
+  await page.getByTestId('dev-battle').click();
+  await expect(page.getByTestId('dev-battle')).toHaveText('Bitva: útok na hradbu');
+  await page.evaluate(() => {
+    (window as unknown as DevWindow).__bohemiaDev!.scene.rtsCamera.camera.radius = 60;
+  });
+  await expect
+    .poll(async () => (await stats())['army-ladder-5'] ?? 0, { timeout: 90_000 })
+    .toBeGreaterThan(0);
+  await page.waitForTimeout(2500);
+  const shot = async (name: string): Promise<void> => {
+    if (!SHOTS_DIR) return;
+    await page.screenshot({
+      path: `${SHOTS_DIR}/${name}.jpg`,
+      clip: CLIP,
+      type: 'jpeg',
+      quality: 70,
+    });
+  };
+  await shot('ladders');
+  // otepi u paty – nanosí se a hoří (deset na místo), pak vyhoří a zbude ohořelý průlom
+  await expect
+    .poll(async () => (await stats())['army-fagot'] ?? 0, { timeout: 90_000 })
+    .toBeGreaterThan(0);
+  await expect.poll(async () => (await stats())['army-fagot'] ?? 0, { timeout: 90_000 }).toBe(10);
+  await page.waitForTimeout(3000);
+  await shot('fire');
+  const walls = await stats();
+  // vyhořelé místo otepi ztratí (další místo je může zrovna nanášet)
+  await expect
+    .poll(async () => (await stats())['army-fagot'] ?? 0, { timeout: 120_000 })
+    .not.toBe(10);
+  await page.waitForTimeout(1500);
+  await shot('burned');
+
   // vypnuto – nic z války nezůstane
   await page.getByTestId('dev-battle').click();
   await expect(page.getByTestId('dev-battle')).toHaveText('Bitva');
@@ -100,7 +136,7 @@ test('Bitva: vojsko s koňmi a rozkazy, boj taktem jádra, po vypnutí nic naví
   const after = await drawCalls();
   test.info().annotations.push({
     type: 'battle',
-    description: `draw cally: před ${before}, s bitvou ${during}, po vypnutí ${after}; instance ${JSON.stringify(fight)}`,
+    description: `draw cally: před ${before}, s bitvou ${during}, po vypnutí ${after}; instance ${JSON.stringify(fight)}; hradba ${JSON.stringify(walls)}`,
   });
   expect(errors).toEqual([]);
 });

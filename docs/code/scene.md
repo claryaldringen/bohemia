@@ -432,7 +432,43 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   2 rozkazy, šípy, prach a mlha = **8 draw callů**, ≈ 123 k trojúhelníků (muž 3 102, kůň 1 666,
   závoj 51 k); bez války 0. Ukázka **Bitva** na `/dev/landscape` (`dev-battle.ts`) běží
   skutečným `battleTick` (palisáda 6 × 6 čtverců s branou na jihu, dvě skupiny útočníků proti
-  mužům u domů), druhý krok útěk vsi; e2e `e2e/battle-scene.spec.ts` (jen s `BATTLE_DEV_URL`).
+  mužům u domů), druhý krok útěk vsi, třetí útok na hradbu; e2e `e2e/battle-scene.spec.ts` (jen
+  s `BATTLE_DEV_URL`).
+- **Boj u hradby** (fortifications.md – Hradby a obrana, Ve scéně; plán hradeb Úloha 21; `army.ts`,
+  `battle-fx.ts`, kreslí `army-renderer.ts`): `sceneBattle(b, walls)` nese žebříky (`ladders` –
+  `BattleLadder`), lezce (`Fighter.climb` – fáze a zbývající takty), `onWall`, `underground`,
+  nesený žebřík (`ladder`) a průlomy s `method`, `phase`, `moat` a podíly `fuel` / `fill`; `walls`
+  (`battleWalls(forts, day)` – lomená čára úseku, stojící hradba z `crossingLayers` a výška valu)
+  jednou za boj. **Výšky** (`WALL_STAND_M`, `LADDER_TOP_M`): obránce na ochozu stojí na fošnách
+  (`WALKWAY.deckM` 2 m), na roštové a komorové na koruně (3 / 4 m), na valu navíc
+  `RAMPART.heightM × výška valu` (`wallStandLift` – nejbližší čára hradby do 6 m); vrchol
+  žebříku na špičkách kůlů (3,5 m), u roštové a komorové na předprsni (+1 m). **Lezec**
+  (`climberPose`): jádro ho drží u paty a po fázi `up` na vrcholu – scéna ho zvedá po žebříku
+  podílem fáze (v půli 5 m žebříku 2,5 m), nahoře stojí na koruně (na palisádě bez ochozu visí
+  1,3 m pod špičkami), slézá dovnitř po vnitřním žebříku; přes plot jen přeskočí. Takty fáze
+  plynule mezi snímky. **Žebříky** (`ladderPoses`, díly `ladder-5` / `ladder-7` ze
+  `siege.glb` podle délky od paty k vrcholu): opřený, ležící u paty ven od hradby, opíraný se
+  zvedá s fází `lean`, přetažený vnitřní a nesený na rameni (1,35 m, podél chůze); příčky napříč
+  (natočení `atan2(−x, −z)` před nakloněním). **Klipy** (`fighterClip` + místo průlomu): sekat
+  `fell`, zasypat / odkopat / podkopat `hoe`, nanosit otepi `carry-wood` a u paty `build`,
+  přikládat `seed`; lezec v lese `fell`, nese `carry-wood`, opírá `pitch`, leze `build`, nahoře
+  bojuje; hod z ochozu `spear-thrust`. Kopáč v podkopu (`underground`) se nekreslí. **Otepi**
+  (`breachFagots`, díl `fagot`): nanosí se podle `fuel` – až 10 ve dvou vrstvách podél paty vně,
+  leží, dokud hoří; **oheň** (`breachFires` – fáze `burn`) sprity ohně pálení paseky
+  (`ClearingFireRenderer` s druhem `battle-fire`: hoří naplno, 6 ohňů × 16 spritů, hromada × 1,4
+  podél hradby); **jáma podkopu** (`minePits`, `army-pit` – tmavý kotouč) roste do pětiny práce.
+  **Hody** (`strikesOf`): z ochozu hod do 15 m (`THROW_TICKS`, kámen či oštěp střídavě,
+  `army-stone`, `army-javelin`) a kámen k patě (do 3 m, místo srážky) letí 0,5 s
+  (`THROW_FLIGHT_S`) po oblouku z výšky ochozu; souboj s lezcem na žebříku bez prachu. Šíp i hod
+  letí k tomu, komu v taktu ubylo zdraví (cíl, nebo nejbližší zraněný do 8 m od cíle – kruh
+  rozptylu ze serveru se nekreslí); nikomu – dopadne 2,5 m za cíl na zem (`miss`).
+  **Opevnění** (`battleFortifications`): průlom ohněm nese `burnedDay` – ohořelé pahýly kůlů
+  (`CHARRED_TINT`, ¼–½ výšky) a spadlá ohořelá vrata bez trámu (fortification-layout.ts);
+  zasypávaný vodní příkop `moatFills` – pruh čerstvé hlíny 4 m od zasypávajících k hradbě,
+  hladina zásypu stoupá ode dna podle `fill` (`moatFillMeshData`, fortification-renderer.ts).
+  Ukázka **útok na hradbu** (`dev-battle.ts`): palisáda s ochozem, obránci se stanovišti po 5 m
+  na jižní straně, skupina se žebříky (přinesla je – `Fighter.ladder`) a skupina s ohněm (dříví
+  vsi 40 m před hradbou – `BattleField.fuel`); test `__tests__/dev-battle-walls.test.ts`.
 
 - **Prémiové krajiny ve scéně** (landscape.md – Prémiové krajiny ve scéně): řeka jde stejnou
   cestou jako potok – `RenderSurface.stream` = `watersCenterline` (body osy potoka),

@@ -266,6 +266,58 @@ export function trenchMeshData(
   return out;
 }
 
+/** Zasypávaný pruh vodního příkopu – šířka (průlom 4 m) a hloubka bočnic pod hladinou zásypu. */
+const MOAT_FILL = { widthM: 4, sideM: 2.5 } as const;
+
+/**
+ * Zasypávaný kus vodního příkopu v boji (fortifications.md – Přechod hradby – S valem; jádro –
+ * `BattleBreach.moat`): pruh čerstvé hlíny 4 m od zasypávajících k hradbě, hladina zásypu stoupá
+ * ode dna příkopu k okraji podle podílu `share`; bočnice dolů zakryjí vodu a stěny příkopu.
+ */
+export function moatFillMeshData(
+  fills: readonly { from: { x: number; z: number }; to: { x: number; z: number }; share: number }[],
+  rim: HeightFn,
+): MeshArrays {
+  const out = emptyArrays();
+  const half = MOAT_FILL.widthM / 2;
+  for (const f of fills) {
+    const dx = f.to.x - f.from.x;
+    const dz = f.to.z - f.from.z;
+    const len = Math.hypot(dx, dz);
+    if (len < 1e-6) continue;
+    const nx = (-dz / len) * half;
+    const nz = (dx / len) * half;
+    const below = RAMPART.ditchDepthM * (1 - Math.min(1, Math.max(0, f.share)));
+    const corners = [
+      [f.from.x + nx, f.from.z + nz],
+      [f.from.x - nx, f.from.z - nz],
+      [f.to.x + nx, f.to.z + nz],
+      [f.to.x - nx, f.to.z - nz],
+    ] as const;
+    const top = corners.map(([x, z]) => rim(x, z) + 0.02 - below);
+    const quad = (pts: readonly (readonly [number, number, number])[], shade: number): void => {
+      const base = out.positions.length / 3;
+      for (const [x, y, z] of pts) {
+        out.positions.push(x, y, z);
+        out.colors.push(0.42 * shade, 0.34 * shade, 0.26 * shade, 1);
+        out.uvs.push(x * 0.25, z * 0.25);
+      }
+      out.indices.push(base, base + 2, base + 3, base, base + 3, base + 1);
+      out.indices.push(base, base + 3, base + 2, base, base + 1, base + 3);
+    };
+    const p = (i: number, dy = 0): readonly [number, number, number] => [
+      corners[i]![0],
+      top[i]! + dy,
+      corners[i]![1],
+    ];
+    quad([p(0), p(1), p(2), p(3)], 1);
+    // bočnice podél pruhu – svah zásypu do vody
+    quad([p(0), p(0, -MOAT_FILL.sideM), p(2), p(2, -MOAT_FILL.sideM)], 0.8);
+    quad([p(1), p(1, -MOAT_FILL.sideM), p(3), p(3, -MOAT_FILL.sideM)], 0.8);
+  }
+  return out;
+}
+
 /** Počet trojúhelníků sítě (měření scény). */
 export function triangleCount(arrays: MeshArrays): number {
   return arrays.indices.length / 3;
