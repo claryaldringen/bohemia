@@ -26,6 +26,7 @@ import {
   type Position,
   type Road,
   type TileCell,
+  startDemolition,
   type VillageState,
 } from '@bohemia/game';
 import { openGameMenu, useUniqueClientIp } from './helpers';
@@ -734,6 +735,48 @@ test('pole v lese ve fázi pálení – panel dílu ukáže oheň', async ({ pag
   const flag = panel.getByTestId('selection-clearing');
   await expect(flag).toHaveAttribute('src', '/icons/resources/fire.png');
   await expect(flag).toHaveAttribute('alt', 'Pálí se paseka');
+});
+
+test('bouraná a opuštěná stavba ve scéně – lešení rozebírání se nakreslí bez chyby', async ({
+  page,
+}) => {
+  test.setTimeout(300_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const { seat: s } = await newPlayer(page, 'bourani');
+  const spots = villageSpots(s.landscape);
+  await found(page, spots.dwelling);
+
+  // Prázdná zemnice a opuštěná modla; zemnice se ze společné práce bourá z poloviny.
+  const state = withBuiltFirstDwelling(await villageState(s.settlementId));
+  const [empty, shrine] = freeHomes(s.landscape, spots.dwelling, [spots.dwelling], 2);
+  const emptyId = state.nextId++;
+  state.dwellings.push({
+    id: emptyId,
+    type: 'zemnice',
+    builtDay: state.lastDay - 3000,
+    condition: 0.6,
+    position: empty!,
+  });
+  state.sacredBuildings = [
+    {
+      id: state.nextId++,
+      kind: 'idol',
+      position: shrine!,
+      builtDay: state.lastDay - 700,
+      disusedDay: state.lastDay - 20,
+      wear: { condition: 0.5, abandonedDay: state.lastDay - 20 },
+    },
+  ];
+  startDemolition(state, state.lastDay, { structure: 'dwelling', id: emptyId });
+  const demolition = state.constructions.find((c) => c.kind === 'demolition')!;
+  demolition.done = demolition.cost * 0.5;
+  await writeVillageState(s.settlementId, state);
+  await pollVillage(page);
+  await expect(readyScene(page)).toBeVisible({ timeout: 150_000 });
+  await page.waitForTimeout(3000);
+  await page.screenshot({ path: test.info().outputPath('demolition-scene.png'), scale: 'css' });
+  expect(errors).toEqual([]);
 });
 
 test('porážka ve scéně – mršina a kozlina se nakreslí a jsou připravené ke kreslení', async ({

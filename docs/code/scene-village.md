@@ -895,3 +895,32 @@ Data `SceneVillage.tornado` (den, síla, stopa, prvních pár dní vývraty) –
   ořez pomůže, až je ves mimo záběr. Val stejného obvodu 8,3 k trojúhelníků ve 2 sítích, plot
   nepřidá žádný draw call (sdílené instance pleteného plotu). Les a dekorace krajiny pro
   srovnání: 0,1–1,5 M trojúhelníků a 41–86 draw callů podle odstupu.
+
+## Rozebírání a opuštěné stavby ve scéně (demolition.md – Rozhraní; Ú11)
+
+Scéna nemá nové modely – **rozebírání = fáze staveniště pozpátku** (návrh Clauda). Pomocné čisté
+funkce jsou v `apps/web/lib/demolition-view.ts` (`demolitionLooks`, `demolitionSiteProgress`).
+
+- **Zdroj:** stavba `Construction` druhu `demolition` (`demolition.structure/id`); průběh je
+  `buildProgress` z `summary.constructions` (po setinách – scéna se přestaví jen při změně).
+- **Obydlí a modla/svatyně:** bouraná stavba se ve scéně nahradí **záznamem staveniště** s
+  `built: false`, `progress = 1 − průběh`, `demolition` (průběh) a **`id` = id stavby bourání** (ne
+  stavby). Kreslí ji tedy existující cesta staveniště (`constructionState(kind, progress)`,
+  `dwellingKey` po 2 %, `sacredBuildingKey`) a práce vesničanů (`LaborTarget { kind: 'site', id }`
+  z `labor-report.ts`) najde dům v `ctx.houses` bez změny `villager-plan-sites.ts`.
+  `sceneVillage` (obydlí) a `sceneSacred` (modla, svatyně) v `village-view-scene.ts` a
+  `village-view-buildings.ts`.
+- **Ohrada:** `ScenePen` zůstává (`built: true`, zvířata a stoh pryč), nese `demolition` a
+  `demolitionSite`. `scenePenViews` dá `PenView.progress = 1 − demolition` (max 0,999) – `penStage`
+  ubírá plot po fázích stavby; v `villager-plan-cast.ts` je ohrada `House` s `id = demolitionSite`
+  a `built: false`, takže bouračka stojí kolem plotu jako na staveništi.
+- **Kreslí se jen při změně:** klíče (`dwellingKey`, `sacredBuildingKey`, klíč ohrady) nesou
+  průběh po 2 % (ohrada po 0,25 %); bez změny klíče se nic nepřestaví a `needsRender` se nesáhne.
+- **Opuštěné stavby** (`disusedDay`, `wear.abandonedDay`) nepotřebují nic nového: modla a
+  svatyně i ohrada nesou `condition` z `structureCondition(wear, …)` (a `abandoned` u modly a
+  svatyně) a scéna volí stupeň rozpadu z `structure-decay.ts`; vyklizené obydlí chátrá přes
+  `condition` a `inhabited: false` (`dwelling-decay.ts`). Hranice stupňů jsou beze změny.
+- **Chování na začátku:** při průběhu 0 (práce ještě nezačala) je stavba hned celé staveniště
+  (`progress` 1) – rozdíl proti hotovému modelu je jen v dílech staveniště, ne v tvaru.
+- Test: `apps/web/lib/__tests__/demolition-view.test.ts`.
+
