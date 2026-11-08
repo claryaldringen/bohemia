@@ -1,5 +1,5 @@
 // Opevnění pro rozhraní (fortifications.md – Rozhraní): scéna dostane tvar (obrys a pás po
-// úsecích) a údaje pro panel výběru – délku, stav, brány, útočiště, násobek, průběh stavby
+// úsecích) a údaje pro panel výběru – délku, stav, brány, útočiště, průběh stavby
 // a vylepšení s důvodem, proč nejdou. Vše se odvozuje z jádra (`fortification/`), nic se tu
 // nepočítá znovu; tvar umí spočítat i prohlížeč (náhled při kreslení) ze stejných funkcí.
 
@@ -16,10 +16,8 @@ import {
   sectionDemolition,
   segmentBuilt,
   segmentIsOld,
-  segmentMultiplier,
   segmentRampart,
   segmentState,
-  segmentStands,
   segmentWall,
   villageFortifications,
   villageStock,
@@ -170,8 +168,6 @@ export interface VillageFortification {
   /** Útočiště – lidé a dobytek (kusy skotu) podle plochy uvnitř (fortifications.md – Útočiště). */
   refugePeople: number;
   refugeCattle: number;
-  /** Násobek obrany nejslabšího stojícího úseku (1 = žádná obrana). */
-  multiplier: number;
   /** Průběh stavby 0–1 a co se staví; chybí – nic se nestaví. */
   progress?: number;
   work?: FortBuildWork;
@@ -372,8 +368,8 @@ export function refugePlaces(innerAreaM2: number): { people: number; cattle: num
 
 /**
  * Opevnění vsi pro panel výběru (`VillageView.fortifications`): délka, stav, brány, útočiště,
- * násobek, průběh stavby a vylepšení s cenou a důvodem, proč nejdou (fortifications.md –
- * Rozhraní). Bez opevnění nic.
+ * průběh stavby a vylepšení s cenou a důvodem, proč nejdou (fortifications.md – Rozhraní). Bez
+ * opevnění nic.
  */
 export function fortificationViews(
   state: VillageState,
@@ -394,7 +390,6 @@ export function fortificationViews(
       (c) => c.kind === 'fortification' && c.fortificationId === fort.id,
     );
     const built = fort.segments.filter((s) => segmentBuilt(s));
-    const standing = fort.segments.filter((s) => segmentStands(fort, s));
     const weakest =
       built.length === 0 ? 1 : Math.min(...built.map((s) => segmentState(fort, s, day)));
     const places = refugePlaces(outline.innerAreaM2);
@@ -434,10 +429,6 @@ export function fortificationViews(
               : null,
           };
         }),
-      multiplier:
-        standing.length === 0
-          ? 1
-          : Math.min(...standing.map((s) => segmentMultiplier(fort, s, day))),
       ...(work
         ? {
             progress: work.cost > 0 ? Math.min(1, work.done / work.cost) : 1,

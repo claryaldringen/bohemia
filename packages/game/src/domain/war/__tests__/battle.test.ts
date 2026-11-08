@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { defenderMultiplier } from '../../village/fortification';
 import { village, kin } from '../../village/__tests__/kin-fixtures';
 import type { Dwelling } from '../../village/types';
 import { hitDamage, type BattleState } from '../battle';
@@ -7,7 +6,7 @@ import { stepCampaign } from '../campaign';
 import type { CampaignMap, CampaignState, CampaignWorld } from '../campaign-types';
 import { WAR } from '../rules-war';
 import { campaign, flat, MEADOW, member, SUMMER, world } from './campaign-fixtures';
-import { attacker, battle, DAY, defender, field, fighter, palisade, run } from './battle-fixtures';
+import { attacker, battle, defender, field, fighter, palisade, run } from './battle-fixtures';
 
 // Boj muž po muži (war.md – Boj, Ztráty; fortifications.md – Obrana, Prolomení).
 
@@ -33,12 +32,15 @@ function hitsOn(
 
 describe('souboj mužů (war.md – Boj – Souboj mužů)', () => {
   it('příklad: muž rodu se silou 2 srazí vesničana 0,4 pěti ranami, vesničan jeho pětadvaceti', () => {
-    expect(Math.ceil(WAR.combat.health / hitDamage(2, 1, false))).toBe(5);
-    expect(Math.ceil(WAR.combat.health / hitDamage(0.4, 1, false))).toBe(25);
-    expect(hitDamage(2, 1, true)).toBe(10);
+    // násobek zrušen 8. 11. 2026 – `hitDamage` už nebere násobek (dřív 1), čísla stejná
+    expect(Math.ceil(WAR.combat.health / hitDamage(2, false))).toBe(5);
+    expect(Math.ceil(WAR.combat.health / hitDamage(0.4, false))).toBe(25);
+    expect(hitDamage(2, true)).toBe(10);
   });
 
-  it('v boji: zblízka po 2 s, obránce u domu ÷ 1,5, los, zda rána padne', () => {
+  // násobek zrušen 8. 11. 2026 (Martin „a“ – i u domu): obránce u domu dostane plný zásah – pět ran
+  // místo osmi (dřív 20 ÷ 1,5)
+  it('v boji: zblízka po 2 s, obránce u domu plný zásah, los, zda rána padne', () => {
     const f = field();
     const b = battle({
       attackers: [attacker(0, { x: 2, z: 0 }, { line: true, strength: 2 })],
@@ -52,15 +54,15 @@ describe('souboj mužů (war.md – Boj – Souboj mužů)', () => {
     });
     expect(b.outcome).toBe('attackers');
     expect(fighter(b, 'd:1').state).toBe('down');
-    // u domu 20 ÷ 1,5 – osm ran místo pěti
-    for (const h of onDefender.hits.slice(0, -1)) expect(h).toBeCloseTo(20 / 1.5, 6);
-    expect(onDefender.hits).toHaveLength(8);
+    // u domu plný zásah 20 – pět ran
+    for (const h of onDefender.hits) expect(h).toBeCloseTo(20, 6);
+    expect(onDefender.hits).toHaveLength(5);
     for (const h of onAttacker.hits) expect(h).toBeCloseTo(4, 6);
     // rány jen v taktu po 8 (2 s), část jich nepadne
     for (let i = 1; i < onDefender.ticks.length; i++) {
       expect((onDefender.ticks[i]! - onDefender.ticks[0]!) % 8).toBe(0);
     }
-    expect(onDefender.ticks.at(-1)! - onDefender.ticks[0]!).toBeGreaterThan(7 * 8);
+    expect(onDefender.ticks.at(-1)! - onDefender.ticks[0]!).toBeGreaterThan(4 * 8);
   });
 });
 
@@ -165,22 +167,64 @@ describe('útok na palisádu (fortifications.md – Obrana, Prolomení)', () => 
     expect(hours).toBeLessThan(24.1);
   });
 
-  it('obránce za palisádou má násobek 3 – šíp ubere třetinu', () => {
+  // násobek zrušen 8. 11. 2026 (dřív „násobek 3 – šíp ubere třetinu“): šíp ubere plný poloviční
+  // zásah; nový los střelby – mistr luku (dovednost 100), ať na 45 m trefuje dost často
+  it('obránce za palisádou dostane plný poloviční zásah šípem', () => {
     const fort = palisade(false);
     const f = field([fort]);
     const inside = { x: 0, z: -25 };
     const out = { x: 0, z: -70 };
-    const mult = defenderMultiplier(f.geo, [fort], inside, out, DAY);
-    expect(mult).toBeCloseTo(3, 2);
     const b = battle({
-      attackers: [attacker(0, out, { line: true, strength: 2 })],
+      attackers: [attacker(0, out, { line: true, strength: 2, bowSkill: 100 })],
       defenders: [defender(1, inside, { atHouseOnly: true, strength: 0.1 })],
       orders: { 0: 'hold-place' },
     });
     const hits = hitsOn(b, 'd:1');
     run(b, f, 400, hits.track);
     expect(hits.hits.length).toBeGreaterThan(0);
-    for (const h of hits.hits) expect(h).toBeCloseTo(hitDamage(2, mult, true), 6);
+    for (const h of hits.hits) expect(h).toBeCloseTo(hitDamage(2, true), 6);
+  });
+});
+
+describe('střelba podle dovednosti (fortifications.md – Střelba a viditelná plocha)', () => {
+  it('šíp do hloučku smí trefit vlastního (Review Focus 5)', () => {
+    // mistr luku na 40 m: kruh 0,67 m – v něm obránce a útočníkův vlastní muž, který s ním bojuje
+    const f = field();
+    const b = battle({
+      attackers: [
+        attacker(0, { x: 0, z: -40 }, { line: true, strength: 2, bowSkill: 100 }),
+        attacker(1, { x: 0.4, z: 0 }, { group: 1 }),
+      ],
+      defenders: [defender(1, { x: 0, z: 0 }, { atHouseOnly: true, strength: 0.01 })],
+      orders: { 0: 'hold-place', 1: 'hold-place' },
+    });
+    const own = hitsOn(b, 'a:1');
+    const foe = hitsOn(b, 'd:1');
+    run(b, f, 400, (t) => {
+      own.track(t);
+      foe.track(t);
+    });
+    const arrow = hitDamage(2, true);
+    // šíp (10) trefil vlastního i obránce; zblízka obránce ubírá jen 0,1
+    expect(own.hits.some((h) => h >= arrow - 1e-6)).toBe(true);
+    expect(foe.hits.some((h) => h >= arrow - 1e-6)).toBe(true);
+  });
+
+  it('nováček trefí na 60 m zřídka, mistr často', () => {
+    const shots = (skill: number): number => {
+      const f = field();
+      const b = battle({
+        attackers: [attacker(0, { x: 0, z: -60 }, { line: true, strength: 2, bowSkill: skill })],
+        defenders: [defender(1, { x: 0, z: 0 }, { atHouseOnly: true, strength: 0.01 })],
+        orders: { 0: 'hold-place' },
+      });
+      const hits = hitsOn(b, 'd:1');
+      run(b, f, 16 * 40, hits.track);
+      return hits.hits.length;
+    };
+    // 40 výstřelů: nováček (šance 0,85 ÷ 16 π ≈ 1,7 %) skoro nic, mistr (≈ 27 %) kolem deseti
+    expect(shots(0)).toBeLessThan(4);
+    expect(shots(100)).toBeGreaterThan(5);
   });
 });
 

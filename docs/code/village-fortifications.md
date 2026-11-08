@@ -258,7 +258,7 @@ part?, lengthM }[]` – kusy dílů téhož úseku: celé díly mezi branami a z
   (jen díly bran; brána a zbytek dílu stojí, kus je mezera; volitelné, starší vsi beze změny);
   `top` – nástavba dílu, když se liší od `Fortification.top` (`'none'` = zbořená nástavba).
   **`segmentTop(fort, seg)`** (`life.ts`) = `seg.top ?? fort.top`, `'none'` → null – čtou ji
-  `rotting` (stáří nástavby), `segmentMultiplier`, `breachWork`, `fortCells` (march-grid),
+  `rotting` (stáří nástavby), `breachWork`, `fortCells` (march-grid),
   `blocks` (battle) a cena přestavby nástavby (`decay.ts`). **`segmentIsOpen(seg)`** – díl bez stěny
   (nedostavěný, prolomený, zbořený); používá ho `segmentStands` a `segmentIsGap` (defense.ts).
   Bez nových údajů bit po bitu jako dřív (`fortification-paths`, válečné testy beze změny).
@@ -321,8 +321,8 @@ part?, lengthM }[]` – kusy dílů téhož úseku: celé díly mezi branami a z
   (`fortificationDetails`): `fortification` = celé (`VillageFortification`), `fortification-section`
   = úsek + průběh stavby a id stavby (zrušení), `fortification-gate` = brána + cesta branou
   (`nearestRoad` do půl šířky brány od středu brány → `view.roads`, druh a id cesty). Panely
-  (`hud/selection/fortification.tsx`): `FortificationBody` – délka obvodu, stav, brány, násobek,
-  útočiště, průběh, vylepšení celého opevnění, Přidat bránu; `FortSectionBody` – délka úseku
+  (`hud/selection/fortification.tsx`): `FortificationBody` – délka obvodu, stav, brány
+  (násobek zrušen 8. 11. 2026), útočiště, průběh, vylepšení celého opevnění, Přidat bránu; `FortSectionBody` – délka úseku
   (`selection-fort-section-length`), díly hotové / všechny, stav nejslabšího dílu (oranžově za
   životností), stáří nejstaršího dílu, průběh, ikona Zbořit (`fort-demolish`; popisek „Zbořit úsek“
   / „Zbořit nástavbu úseku“ / „Srovnat val úseku“, práce a klády `+N` zpět, nebo důvod červeně),
@@ -376,26 +376,25 @@ part?, lengthM }[]` – kusy dílů téhož úseku: celé díly mezi branami a z
 Čistá doména pro válku (F6), nic ji zatím nevolá; soubory `fortification/{defense,refuge,breach}.ts`,
 testy `__tests__/defense.test.ts`. Funkce berou `geo` (`GridGeometry`) jako ostatní.
 
-- **`defense.ts`** – `segmentMultiplier(fort, seg, day)`: plot / palisáda `1 + (m − 1) × stav`, val
-  `v × (1 + (m ÷ 1,5 − 1) × stav nástavby)`, `v = 1 + 0,5 × rampartHeight`; nástavba, která na
-  úseku ještě nestojí (`topBuiltDay` chybí), se nepočítá. Mezera (`segmentIsGap`: nedostavěný,
-  prolomený, plot / palisáda shnilé na 0) = 1. `defenderMultiplier(geo, forts, defender, attacker,
-day)`: obránce uvnitř plochy → `1,5 × násobek` nejbližšího úseku (u mezery slabší ze sousedů),
-  jinak 1,5; útočník v ploše dál než šířka pásu od nejbližšího úseku = uvnitř, opevnění nepočítá
-  (v pásu je „v bráně / průlomu / na valu“, tedy násobek platí). `fortGaps(geo, fort, day,
-closedGates)` – otevřené brány (`closedGates` = indexy úseků se zavřenou bránou), `gap` a `breach`
-  (4 m).
+- **`defense.ts`** – **násobek obrany zrušen 8. 11. 2026** (fortifications.md – Obrana bez násobku;
+  `segmentMultiplier` a `defenderMultiplier` pryč). Mezera `segmentIsGap` (nedostavěný, prolomený,
+  plot / palisáda shnilé na 0). `fortsContaining(geo, forts, body)` – pro každý bod pořadí
+  opevnění, uvnitř jehož obvodu (křivky) leží, jinak null; obvod každého opevnění jednou (vzdání
+  za opevněním a NPC velitel – `docs/code/war.md`). `fortGaps(geo, fort, day, closedGates)` –
+  otevřené brány (`closedGates` = indexy úseků se zavřenou bránou), `gap` a `breach` (4 m).
 - **`refuge.ts`** – `refugeCapacity(geo, fort)` = `innerAreaM2`; `refugeAdmit(capacityM2, arrivals,
 gateCloseTick)` (bere plochu místo opevnění): příchozí po zavření brány venku; ostatní podle
   přednosti lidé → koně a voli → skot → drobný dobytek (uvnitř skupiny podle taktu příchodu);
   `homeInside` lidé nic nenesou, zvenku 25 / 10 kg (`carriedKg`).
 - **`breach.ts`** – `breachWork(fort, seg, 'gate' | 'wall')` (0 / 2 / 12 / 96; val podle nástavby,
   holý val 0), `breachPace` (val `rampartAssaultPace` = 0,25), `breachStart`, `breachStep(progress,
-men, hours)` (nejvýš 4 muži), `surrenderThreshold(defenders, fortMultiplier)` (útočníků musí být
-  _víc_ než výsledek: 20 obránců za palisádou → 60, vzdání při 61).
+men, hours)` (nejvýš 4 muži). Práh vzdání s násobkem (`surrenderThreshold`) je od 8. 11. 2026
+  pryč – za opevněním se skupina nevzdá, dokud útočník nestojí uvnitř obvodu (`war/stance.ts`).
 - **Odchylky od plánu:** funkce navíc berou `geo`; `refugeAdmit` bere kapacitu, ne opevnění;
   `closedGates` je množina indexů úseků; pozice jsou `{ x, z }`. Čísla navíc v `FORTIFICATIONS`:
-  `refuge.carryKgAdult/Child`, `rampartHeightBonus`, `surrenderOddsPerDefender`.
+  `refuge.carryKgAdult/Child` (`rampartHeightBonus`, `surrenderOddsPerDefender`
+  a `defenderKnowsPlace` zrušeny s násobkem 8. 11. 2026; `multiplier` zbývá jen pro odhad správce
+  `planMultiplier`, než ho nahradí ochrana druhu – Úloha 15 plánu hradeb).
 
 ## Akce
 

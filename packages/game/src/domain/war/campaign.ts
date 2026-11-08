@@ -677,6 +677,7 @@ function campaignBattle(s: CampaignState, ctx: TickContext, field: BattleField):
       line: m.line,
       mounted: m.mounted,
       strength: m.strength * m.vigor,
+      ...(m.bowSkill !== undefined ? { bowSkill: m.bowSkill } : {}),
       health: m.health,
       pos: { x: g.pos.x + ((k % 5) - 2) * 2, z: g.pos.z + Math.floor(k / 5) * 2 },
     };

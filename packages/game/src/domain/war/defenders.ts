@@ -15,7 +15,7 @@ import {
   type PlanContext,
 } from './orders';
 import { WAR } from './rules-war';
-import { lineManStrength, villagerStrength } from './strength';
+import { bowSkillOf, lineManStrength, villagerStrength } from './strength';
 
 // Obránci vsi (war.md – Boj – Dům od domu, Síla; Ztráty – Poslední muž rodu doma): kdo ves brání,
 // jakou silou a u kterého domu. Domy blíž než 40 m od sebe tvoří skupinu domů – její obránci se
@@ -33,6 +33,8 @@ export interface Defender {
   /** Muž rodu – bojuje i lukem (war.md – Boj: luk mají jen muži rodu). */
   line: boolean;
   bow: boolean;
+  /** Dovednost luku muže rodu (`ArmsSkills.bow`) – kruh rozptylu (`aim.ts`); jinak chybí. */
+  bowSkill?: number;
   /** Ženy, starší a chlapci 14–15 let brání jen svůj dům. */
   atHouseOnly: boolean;
   /** Poslední muž rodu doma – neklesne pod 10 zdraví, nevzdá se a vždy uteče. */
@@ -129,6 +131,7 @@ export function defenderRoster(
       strength,
       line,
       bow: line,
+      ...(line ? { bowSkill: bowSkillOf(p) } : {}),
       atHouseOnly: !line && !man,
       lastLine: line && lastLine,
     });
@@ -143,6 +146,7 @@ export function defenderRoster(
       strength: lineManStrength(g.person, null),
       line: true,
       bow: true,
+      bowSkill: bowSkillOf(g.person),
       atHouseOnly: false,
       lastLine: false,
       guest: true,

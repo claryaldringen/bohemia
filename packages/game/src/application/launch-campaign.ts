@@ -3,7 +3,7 @@ import { villageHappiness } from '../domain/village/happiness';
 import { sendAway } from '../domain/vassalage';
 import { isAway } from '../domain/village/people';
 import type { VillageState } from '../domain/village/types';
-import { newCampaign, tickOfMs, WAR, type CampaignMember } from '../domain/war';
+import { bowSkillOf, newCampaign, tickOfMs, WAR, type CampaignMember } from '../domain/war';
 import { houseName } from './negotiation-chronicle';
 import { startWarByAttack, type WarDeps } from './declare-war';
 import { queueCampaignIntent, type CampaignRepository } from './campaigns';
@@ -125,6 +125,7 @@ function membersOf(
       forced: m.forced,
       ...(m.kin && m.forced ? { kin: true as const } : {}),
       strength: m.strength,
+      ...(m.line ? { bowSkill: bowSkillOf(m.person) } : {}),
       health: WAR.combat.health,
       vigor: 1,
       wounded: false,

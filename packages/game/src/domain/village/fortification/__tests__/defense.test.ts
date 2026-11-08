@@ -4,15 +4,15 @@ import {
   breachStart,
   breachStep,
   breachWork,
-  defenderMultiplier,
   fortGaps,
   fortificationArea,
   areaOutline,
   fortSegments,
+  fortHasWall,
+  fortsContaining,
   refugeAdmit,
   refugeCapacity,
-  segmentMultiplier,
-  surrenderThreshold,
+  segmentIsGap,
   type Arrival,
 } from '..';
 import type { Fortification } from '../types';
@@ -20,7 +20,6 @@ import type { Fortification } from '../types';
 // Obrana, útočiště a prolomení (fortifications.md – Obrana, Útočiště, Prolomení).
 
 const GEO = { size: 128, cellSizeM: 15 };
-const YEAR = 365;
 
 /** Opevnění 4 × 4 čtverce kolem středu (svět −30…30 m), úseky hotové ve dni 0. */
 function fort(kind: FortKind, top?: FortTop, extra: Partial<Fortification> = {}): Fortification {
@@ -51,60 +50,28 @@ const seg0 = (f: Fortification): Fortification['segments'][number] => f.segments
 const inside = { x: 0, z: 25 };
 const outside = { x: 0, z: 80 };
 
-describe('násobky opevnění', () => {
-  const rows: [string, Fortification, number][] = [
-    ['plot', fort('fence'), 1.875],
-    ['palisáda', fort('palisade'), 3],
-    ['val', fort('rampart'), 2.25],
-    ['val s plotem', fort('rampart', 'fence'), 3],
-    ['val s palisádou', fort('rampart', 'palisade'), 4.5],
-  ];
-  it.each(rows)('%s – obránce uvnitř proti útočníkovi vně', (_n, f, expected) => {
-    expect(defenderMultiplier(GEO, [f], inside, outside, NOW)).toBeCloseTo(expected, 9);
-    expect(segmentMultiplier(f, seg0(f), NOW) * 1.5).toBeCloseTo(expected, 9);
-  });
-
-  it('útočník uvnitř obvodu: jen 1,5 u domu', () => {
-    expect(defenderMultiplier(GEO, [fort('palisade')], inside, { x: 2, z: 2 }, NOW)).toBe(1.5);
-  });
-
-  it('obránce mimo opevnění: 1,5', () => {
-    expect(defenderMultiplier(GEO, [fort('palisade')], outside, inside, NOW)).toBe(1.5);
-  });
-
-  it('shnilá palisáda na valu = holý val 1,5', () => {
-    const f = fort('rampart', 'palisade');
-    expect(segmentMultiplier(f, seg0(f), NOW + 25 * YEAR)).toBeCloseTo(1.5, 9);
-  });
-
-  it('snížený val (výška 0,5) s palisádou 2,5; bez nástavby holý val 1,25', () => {
-    const f = fort('rampart', 'palisade', { rampartHeight: 0.5 });
-    expect(segmentMultiplier(f, seg0(f), NOW)).toBeCloseTo(2.5, 9);
-    const bare = fort('rampart', undefined, { rampartHeight: 0.5 });
-    expect(segmentMultiplier(bare, seg0(bare), NOW)).toBeCloseTo(1.25, 9);
-  });
-
-  it('plot v polovině chátrání: 1 + 0,25 × 0,5', () => {
-    const f = fort('fence');
-    expect(segmentMultiplier(f, seg0(f), 17.5 * YEAR)).toBeCloseTo(1.125, 9);
-  });
-
-  it('mezera má násobek 1, obránce u ní bere slabší ze sousedů', () => {
+// Násobek obrany zrušen 8. 11. 2026 (fortifications.md – Obrana bez násobku; Martin: „Násobek obrany
+// je píčovina.“) – testy násobků (tabulka, „zná místo“ 1,5, výška valu, chátrání, mezera s násobkem
+// 1 a slabší soused) jsou pryč; zůstává mezera a nově kdo stojí uvnitř obvodu.
+describe('mezery a obvod (Obrana bez násobku)', () => {
+  it('průlom je mezera, stojící úsek ne', () => {
     const f = fort('palisade');
     f.segments[0] = { ...seg0(f), breachedDay: 3 };
-    expect(segmentMultiplier(f, seg0(f), NOW)).toBe(1);
-    const area = fortificationArea(f.cells!, null, GEO);
-    if ('error' in area) throw new Error(area.error);
-    const s = fortSegments(areaOutline(area, 'palisade'))[0]!;
-    const mid = s.line.length / 2;
-    // těsně uvnitř středu mezery (směr dovnitř = doprava od směru úseku)
-    const d = {
-      x: s.line.x + s.line.dx * mid + s.line.dz * 3,
-      z: s.line.z + s.line.dz * mid - s.line.dx * 3,
-    };
-    expect(defenderMultiplier(GEO, [f], d, outside, NOW)).toBeCloseTo(3, 9);
-    f.segments[1] = { ...f.segments[1]!, breachedDay: 3 };
-    expect(defenderMultiplier(GEO, [f], d, outside, NOW)).toBeCloseTo(1.5, 9);
+    expect(segmentIsGap(f, seg0(f), NOW)).toBe(true);
+    expect(segmentIsGap(f, f.segments[1]!, NOW)).toBe(false);
+  });
+
+  it('kdo stojí uvnitř obvodu: pořadí opevnění, mimo null', () => {
+    const f = fort('palisade');
+    expect(fortsContaining(GEO, [f], [inside, outside])).toEqual([0, null]);
+    expect(fortsContaining(GEO, [], [inside])).toEqual([null]);
+  });
+
+  it('za opevněním se dá schovat, jen když stojí aspoň jeden úsek', () => {
+    const f = fort('palisade');
+    expect(fortHasWall(f, NOW)).toBe(true);
+    const planned = { ...f, segments: f.segments.map((x) => ({ ...x, builtDay: null })) };
+    expect(fortHasWall(planned, NOW)).toBe(false);
   });
 
   it('mezery: otevřená brána a průlom; zavřená brána mezera není', () => {
@@ -179,12 +146,5 @@ describe('prolomení', () => {
     expect(breachStep(breachStart(96), 5, 23).breached).toBe(false);
     expect(breachStep(breachStart(96), 5, 23).done).toBe(92);
     expect(breachStart(0).breached).toBe(true);
-  });
-
-  it('20 obránců za palisádou se vzdá až při 61 útočnících', () => {
-    const limit = surrenderThreshold(20, 2);
-    expect(limit).toBe(60);
-    expect(60 > limit).toBe(false);
-    expect(61 > limit).toBe(true);
   });
 });

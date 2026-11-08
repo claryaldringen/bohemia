@@ -12,6 +12,7 @@ export * from './muster';
 export * from './supplies';
 export * from './desertion';
 export * from './battle';
+export * from './aim';
 export * from './defenders';
 export * from './flight';
 export * from './stance';

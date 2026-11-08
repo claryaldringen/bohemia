@@ -1,5 +1,4 @@
-import { defenderMultiplier } from '../village/fortification';
-import { FORTIFICATIONS } from '../village/rules-fortifications';
+import { fortHasWall, fortsContaining } from '../village/fortification';
 import type { BattleState, Fighter } from './battle';
 import type {
   CampaignGroup,
@@ -9,7 +8,6 @@ import type {
   CampaignWorld,
   IntentBody,
 } from './campaign-types';
-import type { Pos } from './march-grid';
 import { dist2, inFight, nearest } from './orders';
 import { lootCapacity } from './raid-apply';
 import { WAR } from './rules-war';
@@ -126,11 +124,12 @@ function marchIntents(s: CampaignState): IntentBody[] {
 }
 
 /**
- * Nájezd (war.md – Velení; fortifications.md – Postoje vsi s opevněním): velitel napadá skupiny domů
- * od nejslabší v dohledu (síla obránců × násobek obrany – u domu 1,5, za opevněním 1,5 × násobek
- * opevnění). Nemá-li vojsko aspoň 1,5 × sílu ani nejslabší z nich, nenapadne: stojí-li všichni
- * obránci za opevněním, vezme, co je venku (`plunder`), jinak se obrátí (návrh Clauda). Nevidí-li
- * nikoho, jde k nejbližším obráncům (ví, kde ves stojí).
+ * Nájezd (war.md – Velení; fortifications.md – Obrana bez násobku): velitel napadá skupiny domů
+ * od nejslabší v dohledu (součet sil obránců – násobek obrany zrušen 8. 11. 2026). Nemá-li vojsko
+ * aspoň 1,5 × sílu ani nejslabší z nich, nenapadne: stojí-li všichni obránci uvnitř obvodu
+ * opevnění, ve kterém velitel není, vezme, co je venku (`plunder`), jinak se obrátí (návrh
+ * Clauda). Přechod hradby (napadne, trvá-li nejvýš 1 herní den) přidá Úloha 20 plánu hradeb.
+ * Nevidí-li nikoho, jde k nejbližším obráncům (ví, kde ves stojí).
  */
 function raidIntents(s: CampaignState, world: CampaignWorld): IntentBody[] {
   const b = s.battle;
@@ -150,9 +149,8 @@ function raidIntents(s: CampaignState, world: CampaignWorld): IntentBody[] {
     if (goal && dist2(goal, near.pos) <= REGOAL_M * REGOAL_M) return [];
     return [{ kind: 'march', to: { cell: { ...s.target.cell }, pos: { ...near.pos } } }];
   }
-  const mult = multiplierOf(s, world, leader.pos);
   const power = new Map<number, number>();
-  for (const f of foes) power.set(f.group, (power.get(f.group) ?? 0) + f.strength * mult(f));
+  for (const f of foes) power.set(f.group, (power.get(f.group) ?? 0) + f.strength);
   let weakest: number | null = null;
   for (const g of [...new Set(seen.map((f) => f.group))].sort((x, y) => x - y)) {
     if (weakest === null || power.get(g)! < power.get(weakest)! - 1e-9) weakest = g;
@@ -165,25 +163,30 @@ function raidIntents(s: CampaignState, world: CampaignWorld): IntentBody[] {
     )!;
     return [{ kind: 'strike', target: target.id }];
   }
-  const home = FORTIFICATIONS.defenderKnowsPlace;
-  const fortified = foes.every((f) => mult(f) > home + 1e-9);
-  return fortified ? [{ kind: 'plunder' }] : [{ kind: 'turn-back', reason: 'order' }];
+  return behindWalls(s, world, leader, foes)
+    ? [{ kind: 'plunder' }]
+    : [{ kind: 'turn-back', reason: 'order' }];
 }
 
-/** Násobek obrany obránce vůči veliteli (opevnění cílové vsi v den taktu; jeden výpočet na muže). */
-function multiplierOf(s: CampaignState, world: CampaignWorld, from: Pos): (f: Fighter) => number {
+/**
+ * Stojí všichni obránci uvnitř obvodu opevnění cílové vsi s aspoň jedním stojícím úsekem (v den
+ * taktu), ve kterém velitel není? Obvod každého opevnění se spočítá jednou.
+ */
+function behindWalls(
+  s: CampaignState,
+  world: CampaignWorld,
+  leader: Fighter,
+  foes: readonly Fighter[],
+): boolean {
   const map = world.landscapeOf(s.target.cell);
-  const onMap = map?.villageIds.includes(s.target.villageId) === true;
-  const forts = onMap ? (world.villageAt(s.target.villageId, s.day)?.fortifications ?? []) : [];
-  const cache = new Map<string, number>();
-  return (f) => {
-    let m = cache.get(f.id);
-    if (m === undefined) {
-      m = map
-        ? defenderMultiplier(map.landscape, forts, f.pos, from, s.day)
-        : FORTIFICATIONS.defenderKnowsPlace;
-      cache.set(f.id, m);
-    }
-    return m;
-  };
+  if (!map || !map.villageIds.includes(s.target.villageId)) return false;
+  const forts = (world.villageAt(s.target.villageId, s.day)?.fortifications ?? []).filter((f) =>
+    fortHasWall(f, s.day),
+  );
+  if (forts.length === 0) return false;
+  const [mine, ...theirs] = fortsContaining(map.landscape, forts, [
+    leader.pos,
+    ...foes.map((f) => f.pos),
+  ]);
+  return theirs.every((fort) => fort !== null && fort !== undefined && fort !== mine);
 }

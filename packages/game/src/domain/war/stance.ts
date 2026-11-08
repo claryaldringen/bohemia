@@ -1,8 +1,8 @@
 import {
-  defenderMultiplier,
+  fortHasWall,
+  fortsContaining,
   refugeAdmit,
   refugeCapacity,
-  surrenderThreshold,
 } from '../village/fortification';
 import type { Arrival } from '../village/fortification';
 import { FORTIFICATIONS } from '../village/rules-fortifications';
@@ -196,16 +196,17 @@ export function planDefense(input: StanceInput): StancePlan {
 
   // --- kdo zůstal venku: po skupinách domů ---
   const fighters: Defender[] = [];
-  // za opevněním se bojuje u středu; při postoji „vzdát se“ se skupina uvnitř vzdá, je-li přesila
-  // větší než 1,5 × obránců × násobek opevnění (poslední muž rodu se nevzdá, brání se)
+  // za opevněním se bojuje u středu; při postoji „vzdát se“ se skupina uvnitř vzdá, až když útočník
+  // stojí uvnitř obvodu a je přesila 1,5× jako u domů (poslední muž rodu se nevzdá, brání se)
   const insideMen = new Map<Pos, Defender[]>();
   for (const [personId, pos] of inRefuge) {
     const d = fighterOf.get(personId);
     if (d && !d.atHouseOnly) insideMen.set(pos, [...(insideMen.get(pos) ?? []), d]);
   }
   for (const [pos, men] of insideMen) {
-    const mult = fortMultiplierAt(field, pos, attackers[0]?.pos ?? { x: pos.x + 1000, z: pos.z });
-    const gives = stance === 'surrender' && fortSurrenders(attackers, men.length, mult);
+    const gives =
+      stance === 'surrender' &&
+      fortSurrenders(attackers, men.length, attackerInsideFort(field, pos, attackers));
     for (const d of men) {
       if (gives && !d.lastLine) shelter.surrendered.push(d.personId);
       else fighters.push({ ...d, pos: { ...pos } });
@@ -255,27 +256,30 @@ export function planDefense(input: StanceInput): StancePlan {
   return { fighters, shelter };
 }
 
-/** Násobek opevnění (bez 1,5 domácího prostředí), jak ho čte práh vzdání za opevněním. */
-export function fortMultiplierAt(field: BattleField, at: Pos, from: Pos): number {
-  return (
-    defenderMultiplier(
-      field.geo,
-      field.forts.map((x) => x.fort),
-      at,
-      from,
-      field.day,
-    ) / FORTIFICATIONS.defenderKnowsPlace
-  );
+/**
+ * Stojí některý útočník v dohledu uvnitř obvodu opevnění, ve kterém je bod `at` (obránci za
+ * opevněním)? Bod mimo opevnění, které má aspoň jeden stojící úsek – true (hradba nechrání).
+ */
+export function attackerInsideFort(
+  field: BattleField,
+  at: Pos,
+  attackers: readonly Sighted[],
+): boolean {
+  const forts = field.forts.map((x) => x.fort).filter((f) => fortHasWall(f, field.day));
+  const [fort, ...inside] = fortsContaining(field.geo, forts, [at, ...attackers.map((a) => a.pos)]);
+  if (fort === null || fort === undefined) return true;
+  return inside.includes(fort);
 }
 
 /**
- * Vzdá se skupina za opevněním? Útočníků v dohledu víc než 1,5 × obránců × násobek opevnění
- * (`surrenderThreshold`; jezdec za dva).
+ * Vzdá se skupina za opevněním (fortifications.md – Obrana bez násobku, návrh Clauda)? Nevzdá se,
+ * dokud žádný útočník nestojí uvnitř obvodu; pak jako u domů – útočníků v dohledu víc než
+ * 1,5 × obránců (jezdec za dva).
  */
 export function fortSurrenders(
   attackers: readonly Sighted[],
   defenders: number,
-  fortMultiplier: number,
+  attackerInside: boolean,
 ): boolean {
-  return isOverpowered(attackers, defenders, surrenderThreshold(defenders, fortMultiplier));
+  return attackerInside && isOverpowered(attackers, defenders);
 }

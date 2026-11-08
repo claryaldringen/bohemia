@@ -57,8 +57,3 @@ export function breachStep(progress: BreachProgress, men: number, hours: number)
   const done = Math.min(progress.required, progress.done + workers * hours);
   return { done, required: progress.required, breached: done >= progress.required - 1e-9 };
 }
-
-/** Přesila, při které se skupina za opevněním vzdá: 1,5 × obránci × násobek opevnění. */
-export function surrenderThreshold(defenders: number, fortMultiplier: number): number {
-  return FORTIFICATIONS.surrenderOddsPerDefender * defenders * fortMultiplier;
-}

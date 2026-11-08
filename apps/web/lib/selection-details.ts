@@ -646,7 +646,7 @@ type SelectionKinds =
   | ({
       /**
        * Celé opevnění včetně bran (dvojklik – fortifications.md, Rozhraní): druh, délka obvodu,
-       * stav, brány, útočiště, násobek obrany, průběh stavby a vylepšení celého opevnění.
+       * stav, brány, útočiště, průběh stavby a vylepšení celého opevnění.
        */
       kind: 'fortification';
     } & VillageFortification)

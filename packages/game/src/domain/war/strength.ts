@@ -11,6 +11,14 @@ export function militaryExperience(arms: Pick<ArmsSkills, 'bow' | 'combat'> | un
 }
 
 /**
+ * Dovednost luku muže rodu 0–100 pro kruh rozptylu (fortifications.md – Střelba a viditelná plocha):
+ * luk podle dovednosti luku muže rodu; bez dovedností 0.
+ */
+export function bowSkillOf(person: Pick<Person, 'arms'>): number {
+  return person.arms?.bow ?? 0;
+}
+
+/**
  * Síla muže rodu: pěšky `1 + 2 × zkušenost ÷ 100` (1–3), na koni navíc
  * `× (1 + 0,5 × jízda na koni ÷ 100)` – jízda na koni je `riderPower` (jízda × (0,4 + 0,6 × výcvik
  * koně)); nejvýš 3 × 1,5 = 4,5.

@@ -818,7 +818,7 @@ Návrh: [fortifications.md – Rozhraní](../design/fortifications.md); jádro a
   opevněním ani zabraný pás).
 - **Panel** (`SelectionDetails` druh `fortification` = `VillageFortification` z
   `fortificationViews`): ikona druhu, délka, stav nejslabšího úseku (oranžově, má-li úseky za
-  životností), brány, násobek obrany (štít), útočiště (lidé, dobytek), průběh stavby (zrušení přes
+  životností), brány, ~~násobek obrany (štít)~~ (zrušen 8. 11. 2026), útočiště (lidé, dobytek), průběh stavby (zrušení přes
   `cancelConstructionId`). Příkazy: „Vylepšit na palisádu“ (plot), „Postavit na valu plot“ /
   „… palisádu“ (val) – zašedlé s důvodem v popisku (`Chybí N klád.`, `Stavba už běží.`, `Na valu se
 staví až na hotovém.`, `Val už nástavbu má.`), ikona brány (`aria-pressed`) zapne režim klikání na

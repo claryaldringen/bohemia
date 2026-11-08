@@ -3,7 +3,6 @@ import {
   breachStart,
   breachStep,
   breachWork,
-  defenderMultiplier,
   fortOutlineOf,
   fortSegments,
   layerBuilt,
@@ -16,6 +15,7 @@ import {
 import type { Fortification, FortSegment } from '../village/fortification/types';
 import { FORTIFICATIONS } from '../village/rules-fortifications';
 import type { GridGeometry } from '../village/square-grid';
+import { bowShot, poseOf } from './aim';
 import type { GroupOrder } from './campaign-types';
 import { defenderPlan, type Defender } from './defenders';
 import { nearestForest } from './flight';
@@ -36,8 +36,9 @@ import type { ShelterReport } from './stance';
 import { TICKS_PER_SECOND } from './ticks';
 
 // Boj muž po muži (war.md – Boj; fortifications.md – Obrana, Prolomení): po taktech ve skutečném
-// čase, každý muž zvlášť – zdraví 100, zásah `10 × síla ÷ násobek obrany`, luk na 20–60 m
-// poloviční zásah ≈ každé 4 s, zblízka plný ≈ každé 2 s, zda rána padne, určí los taktu. Na nule
+// čase, každý muž zvlášť – zdraví 100, zásah `10 × síla` (bez násobku obrany – 8. 11. 2026), luk na
+// 20–60 m poloviční zásah ≈ každé 4 s, zblízka plný ≈ každé 2 s; zda rána zblízka padne, určí los
+// taktu 1 : 1, šíp podle dovednosti střelce a viditelné plochy v kruhu rozptylu (`aim.ts`). Na nule
 // padlý, nebo raněný; skupina uteče při bodu zlomu podle počtu; velitel sám neuteče; poslední muž
 // rodu doma neklesne pod 10 zdraví a vždy uteče. Opevnění: stěny úseků jsou úsečky, kterými se
 // neprojde – jen branou, mezerou nebo průlomem; prolamující nebojují. Stav je JSON, takt čte jen
@@ -60,6 +61,8 @@ export interface Fighter {
   group: number;
   line: boolean;
   bow: boolean;
+  /** Dovednost luku 0–100 (muž rodu – `ArmsSkills.bow`); chybí – jako vesničan (`aim.ts`). */
+  bowSkill?: number;
   mounted: boolean;
   /** Síla v boji (u útočníka × podíl síly po mrazu). */
   strength: number;
@@ -161,6 +164,8 @@ export interface BattleAttacker {
   line: boolean;
   mounted: boolean;
   strength: number;
+  /** Dovednost luku muže rodu (`CampaignMember.bowSkill`); chybí – jako vesničan. */
+  bowSkill?: number;
   health: number;
   pos: Pos;
 }
@@ -179,10 +184,10 @@ export interface NewBattle {
   shelter?: ShelterReport;
 }
 
-/** Zásah `10 × síla ÷ násobek obrany`, luk polovina (war.md – Boj – Souboj mužů). */
-export function hitDamage(strength: number, multiplier: number, bow: boolean): number {
+/** Zásah `10 × síla`, luk polovina (war.md – Boj – Souboj mužů; násobek obrany zrušen 8. 11. 2026). */
+export function hitDamage(strength: number, bow: boolean): number {
   const c = WAR.combat;
-  return (c.hitPerStrength * strength * (bow ? c.bowFactor : 1)) / multiplier;
+  return c.hitPerStrength * strength * (bow ? c.bowFactor : 1);
 }
 
 /** Opevnění vsi s tvarem úseků pro bojiště. */
@@ -227,6 +232,7 @@ export function openBattle(input: NewBattle): BattleState {
       group: a.group,
       line: a.line,
       bow: a.line,
+      ...(a.bowSkill !== undefined ? { bowSkill: a.bowSkill } : {}),
       mounted: a.mounted,
       strength: a.strength,
       health: a.health,
@@ -247,6 +253,7 @@ export function openBattle(input: NewBattle): BattleState {
       group: d.houseGroup,
       line: d.line,
       bow: d.bow,
+      ...(d.bowSkill !== undefined ? { bowSkill: d.bowSkill } : {}),
       mounted: false,
       strength: d.strength,
       health: WAR.combat.health,
@@ -730,8 +737,9 @@ function takeHit(t: Fighter, damage: number, w: TickWorld, rng: Random): void {
 
 /**
  * Jeden takt boje (war.md – Boj). Mění `b` na místě (volající má kopii taktu). Pořadí: brány,
- * bod zlomu, pohyb mužů v pevném pořadí, práce na průlomech, rány (los, zda padne, v pořadí mužů;
- * zásahy se sečtou a použijí až po všech ranách – kdo padne, v tomto taktu ještě udeřil), výsledek.
+ * bod zlomu, pohyb mužů v pevném pořadí, práce na průlomech, rány (los, zda padne, v pořadí mužů –
+ * zblízka 1 : 1, šíp podle `bowShot`; zásahy se sečtou a použijí až po všech ranách – kdo padne,
+ * v tomto taktu ještě udeřil), výsledek.
  */
 export function battleTick(b: BattleState, field: BattleField, rng: Random): void {
   if (b.outcome !== 'ongoing') return;
@@ -781,6 +789,7 @@ export function battleTick(b: BattleState, field: BattleField, rng: Random): voi
     }
   }
   breachWorkStep(w);
+  const pose = (x: Fighter): ReturnType<typeof poseOf> => poseOf(x, field);
   const damage = new Map<string, number>();
   for (const f of b.fighters) {
     if (f.state !== 'fight' || f.aim === null || f.cooldown > 0) continue;
@@ -788,19 +797,19 @@ export function battleTick(b: BattleState, field: BattleField, rng: Random): voi
     if (!t || !canAttack(f, t, true)) continue;
     const kind = strikeKind(f, t);
     if (kind === null) continue;
-    f.cooldown = kind === 'bow' ? BOW_TICKS : MELEE_TICKS;
-    if (rng.next() >= WAR.combat.hitChance) continue;
-    const mult =
-      t.side === 'defend'
-        ? defenderMultiplier(
-            field.geo,
-            forts.map((x) => x.fort),
-            t.pos,
-            f.pos,
-            field.day,
-          )
-        : 1;
-    damage.set(t.id, (damage.get(t.id) ?? 0) + hitDamage(f.strength, mult, kind === 'bow'));
+    let hit: string | null;
+    if (kind === 'bow') {
+      // v kruhu jen vlastní – nestřílí a ránu si nechá na další takt
+      const shot = bowShot(f, t, b.fighters, pose, rng);
+      if (!shot.fired) continue;
+      f.cooldown = BOW_TICKS;
+      hit = shot.hit;
+    } else {
+      f.cooldown = MELEE_TICKS;
+      hit = rng.next() < WAR.combat.hitChance ? t.id : null;
+    }
+    if (hit === null) continue;
+    damage.set(hit, (damage.get(hit) ?? 0) + hitDamage(f.strength, kind === 'bow'));
   }
   for (const t of b.fighters) {
     const d = damage.get(t.id);

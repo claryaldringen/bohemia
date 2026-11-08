@@ -215,11 +215,20 @@ describe('postoje s opevněním (fortifications.md – Postoje vsi s opevněním
     },
   );
 
-  it('vzdát se za opevněním: 5 mužů za palisádou se vzdá až nad 1,5 × 5 × 2 = 15', () => {
-    const at = (n: number): ReturnType<typeof planDefense> =>
-      plan(near(), 'surrender', foes(n, { x: 0, z: -800 }), true);
-    expect(at(15).fighters).toHaveLength(5);
-    expect(at(16).shelter.surrendered).toHaveLength(5);
+  // násobek zrušen 8. 11. 2026 (dřív „vzdá se až nad 1,5 × 5 × 2 = 15“): za opevněním se skupina
+  // nevzdá, dokud útočník nestojí uvnitř obvodu; pak přesila 1,5× jako u domů
+  it('vzdát se za opevněním: 5 za palisádou se před 20 útočníky venku nevzdá, s útočníkem uvnitř ano', () => {
+    const outside = foes(20, { x: 0, z: -800 });
+    expect(plan(near(), 'surrender', outside, true).fighters).toHaveLength(5);
+    expect(plan(near(), 'surrender', foes(200, { x: 0, z: -800 }), true).fighters).toHaveLength(5);
+    // jeden z dvaceti už stojí uvnitř obvodu – posel ohlásil vojsko předem, všichni jsou v útočišti
+    const inside = [...foes(19, { x: 0, z: -800 }), { pos: { x: 0, z: 10 }, mounted: false }];
+    const r = plan(near(), 'surrender', inside, true, true, true);
+    expect(r.shelter.refuge).toHaveLength(6);
+    expect(r.shelter.surrendered).toEqual([1, 2, 3, 4, 5]);
+    // 7 útočníků uvnitř není přesila nad 1,5 × 5
+    const few = [...foes(6, { x: 0, z: -800 }), { pos: { x: 0, z: 10 }, mounted: false }];
+    expect(plan(near(), 'surrender', few, true, true, true).fighters).toHaveLength(5);
   });
 
   it('kdo nestihne doběhnout před zavřením brány, jedná u domů podle postoje', () => {

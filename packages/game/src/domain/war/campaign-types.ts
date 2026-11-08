@@ -35,6 +35,11 @@ export interface CampaignMember {
   forced: boolean;
   /** Síla při vyslání (`lineManStrength`, `villagerStrength`). */
   strength: number;
+  /**
+   * Dovednost luku muže rodu při vyslání (`bowSkillOf`) – kruh rozptylu střelby (`aim.ts`); u
+   * vesničanů a starších stavů chybí (jako vesničan).
+   */
+  bowSkill?: number;
   /** Zdraví 0–100 (`WAR.combat.health`). */
   health: number;
   /** Podíl plné síly 0–1 (mráz – `frostDay`). */

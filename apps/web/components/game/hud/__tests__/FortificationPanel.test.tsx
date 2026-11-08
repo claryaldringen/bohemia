@@ -26,7 +26,6 @@ const fort = (over: Partial<Omit<Fort, 'kind'>> = {}): Fort => ({
   gates: 2,
   refugePeople: 336,
   refugeCattle: 168,
-  multiplier: 1.25,
   sections: [],
   gateViews: [],
   ...over,
@@ -69,14 +68,15 @@ const button = (html: string, id: string): string | undefined =>
   new RegExp(`<button[^>]*data-testid="${id}"[^>]*>`).exec(html)?.[0];
 
 describe('SelectionPanel – opevnění', () => {
-  it('ukáže délku, stav, brány, útočiště a násobek jen ikonami s čísly', () => {
+  // násobek obrany zrušen 8. 11. 2026 – panel ho už neukazuje (dřív „… a násobek“ s 1,25)
+  it('ukáže délku, stav, brány a útočiště jen ikonami s čísly, násobek ne', () => {
     const html = render(fort());
     expect(html).toMatch(/data-testid="selection-fort-length"[^>]*>238 m</);
     expect(html).toMatch(/data-testid="selection-fort-state"[^>]*>.*100 %/);
     expect(html).toMatch(/data-testid="selection-fort-gates"[^>]*>2</);
     expect(html).toMatch(/data-testid="selection-fort-refuge-people"[^>]*>336</);
     expect(html).toMatch(/data-testid="selection-fort-refuge-cattle"[^>]*>168</);
-    expect(html).toMatch(/data-testid="selection-fort-multiplier"[^>]*>1,25</);
+    expect(html).not.toContain('selection-fort-multiplier');
     expect(html).not.toContain('data-old');
   });
 
@@ -92,7 +92,6 @@ describe('SelectionPanel – opevnění', () => {
     const html = render(
       fort({
         fortKind: 'rampart',
-        multiplier: 1.5,
         tops: [
           { top: 'fence', option: { cost: COST, blocked: null } },
           { top: 'palisade', option: { cost: COST, blocked: null } },

@@ -7,7 +7,7 @@ import type { FortKind, FortTop } from '@bohemia/game';
 import type { SelectionDetails } from '@/lib/selection-details';
 import type { FortDemolishOption, FortWorkOption } from '@/lib/fort-view';
 import type { VillageTarget } from '@/lib/scene/village-picking';
-import { formatDecimal, formatInteger, formatPercent } from '@/lib/village-format';
+import { formatInteger, formatPercent } from '@/lib/village-format';
 import { ROAD_KIND_NAMES } from '@/lib/village-view';
 import { useRightDenied } from '../rights';
 import { Tooltip } from '../Tooltip';
@@ -224,7 +224,8 @@ function WorkBar({
 
 /**
  * Celé opevnění včetně bran (dvojklik – Martin 8. 11. 2026): délka obvodu, stav nejslabšího
- * úseku, brány, násobek obrany, útočiště, průběh stavby a vylepšení celého opevnění.
+ * úseku, brány, útočiště, průběh stavby a vylepšení celého opevnění (násobek obrany zrušen
+ * 8. 11. 2026 – panel úseku ho nahradí ikonami postupů útočníka, Úloha 17 plánu hradeb).
  */
 export function FortificationBody({
   details,
@@ -266,13 +267,6 @@ export function FortificationBody({
           </Stat>
           <Stat src={FORT_GATE_ICON} name="Brány" testId="selection-fort-gates">
             {details.gates}
-          </Stat>
-          <Stat
-            src="/icons/house/shield.svg"
-            name="Násobek obrany"
-            testId="selection-fort-multiplier"
-          >
-            {formatDecimal(details.multiplier, 2)}
           </Stat>
         </div>
         <div className={ROW}>
