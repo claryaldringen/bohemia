@@ -86,7 +86,14 @@ z dovezeného jídla a její muži rodu se věnují výcviku místo pole.
   obilí (návrh Clauda – nový odhad nevzniká).
 - **Kolik dá ves:** jen svůj přebytek – výhled přebytku vsi z vazalství
   ([vazalství](vassalage.md) – Výhled přebytku), tedy nad vlastní stravu, osivo a pojistku (návrh
-  Clauda).
+  Clauda; Martin 8. 11. 2026: „Ohledně obilí ano“).
+- **Co se veze: obilí a dobytek** (Martin 8. 11. 2026: „Ať vsi posílají i dobytek“) – dobytek jen
+  nad chovné jádro stáda. **Seno ne:** „je objemné a špatně se převáží. Navíc hradiště ho zase
+  tolik nepotřebuje – max. pro válečné koně družiny, pokud by to nedokázala pořešit vlastní
+  produkcí.“ (Martin)
+- **Dovezený dobytek se hned porazí a sní** (Martin: „Dobytek, který se do hradiště přivede, je
+  v podstatě ihned poražen a snězen, jak to bývalo obvyklé na dobytčích trzích“) – přijde
+  rovnou do zásob masa vsi, do stád se nepřidá.
 - **Rovnoměrně** (Martin): chybí-li víc, než doména má, dostane každá potřebná ves stejný podíl
   toho, co jí chybí (návrh Clauda).
 - **Doprava jako dávky** (Martin – „A“): nosiči a vozy z dávající vsi, cesta trvá dny podle
