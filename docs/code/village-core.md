@@ -391,6 +391,26 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
      Souběžné požadavky téhož hráče dopočet nezdvojují: web je řadí do fronty (`apps/web/lib/exclusive.ts`,
      web-ui.md – Jeden dopočet vsí naráz), druhý jen dopočte zbytek do svého dne.
 
+  **Kolo 5 (8. 11. 2026, mění výsledek):** Martin k [rešerši modelů pěšin](../design/research/2026-11-08-trail-models.md)
+  – otázka 1 „Ano“, 2 „A“, 3 „a“, 4 „a“ (zatím ne). Síť pěšin **„pole z domu“** – v kole
+  domácnosti po sobě (`householdOrder`), každá jedno Dijkstrovo hledání z brány ke všem svým cílům
+  (`routeHome` v `network-search.ts`), šlape se po domácnosti, dvě kola, cíle v jiné souvislé
+  oblasti vyřazené předem (`passableAreas`), bez A*; pochůzky dál s pěšinou souseda
+  (`ErrandTrail`, `GOAL_SLACK`). Stávající vsi bez převodu – nové trasy s příštím přepočtem
+  (`WALK_VERSION` beze změny). **Přepočet mapy tras 1. dne dalšího měsíce**
+  (`refreshWalkDistancesSteps` – mimo 1. den jen převážení obsazenosti; hned jen ves bez platných
+  tras a oprava / přestavba cest s `now`). `PASSES` zůstává 2. Stálá síť Vlkova (stav 8. 11.):
+  2,1–2,4 s → 0,42–0,66 s (≈ 4×, zátěž 74–92), délka viditelných pěšin 3 092 → 3 104 m, objížďka
+  1,379 → 1,378 (max 3,51), rozdíl 4 / 5 buněk z 709, žádná dál než 1 buňku (Jaccard 0,99); bez
+  cest a vyšlapanosti (čistý vznik) 3 152 → 3 156 m, objížďka 1,266 → 1,261, 102 / 104 buněk
+  jinde, 19 / 21 dál než 1 buňku (Jaccard 0,75). Přepočtů za rok 9 → 6 (vždy 1. den měsíce –
+  června, listopadu, ledna, března, dubna a května). Rok Vlkova třikrát střídavě před / po (stroj
+  silně vytížený, zátěž 92–147): 48,5 / 49,7 / 20,3 s → 26,9 / 27,6 / 10,7 s, CPU 25,4–28,3 →
+  15,5–18,2 s, cykly 80,3–85,0 → 49,6–56,1 mld. (≈ −37 %). Otisk roku `5b5fccae7d5b` →
+  `195f6d4995db` – týž po dnech, vcelku i po 10, 31 a 37 dnech. **Cíl < 10 s** na nevytíženém
+  stroji nejspíš splněn (nejlepší běh 10,7 s při zátěži 92); jedno kolo (návrh b) zůstává
+  v záloze.
+
 - **Čísla** pravidel jsou jen v `rules*.ts` (u každého odkaz na sekci návrhu); změna čísla = i
   text v návrhu. Kalibrace: `measure-village.ts` nasimuluje stovky vsí a vypíše cíle z Kalibrace
   obou dokumentů s OK / MIMO (`--quick` = 50 vsí na denní ladění, `200 60` závěrečné ověření,

@@ -367,17 +367,49 @@ describe('trasy jen při změně mapy (paths.md – Stálé trasy, pravidlo 5)',
     expect(cellsOf(s.routes!.list)).toEqual(cellsOf(routes.list));
   }, 30_000);
 
-  it('umístění pole a obydlí mění klíč hned (i v půli měsíce) a trasy se hledají znovu', () => {
+  it('umístění pole a obydlí mění klíč hned, trasy se hledají až 1. dne dalšího měsíce (Martin 8. 11. 2026)', () => {
     const s = advanceVillage(withField(), DAY + 3, null, LANDSCAPE);
+    const routes = s.routes!;
+    const key = routeMapKey(s, DAY + 4);
     const part = s.parts.find((p) => p.cell)!;
     s.parts.push({ ...part, id: 999, cell: { x: 12, y: 8 } });
+    expect(routeMapKey(s, DAY + 4)).not.toBe(key);
+    // v půli měsíce se chodí po staré mapě – trasy ani otisk se nemění
     refreshWalkDistances(s, DAY + 4, LANDSCAPE, null);
-    expect(s.routes!.day).toBe(DAY + 4);
+    expect(s.routes).toBe(routes);
+    expect(s.walkLayoutKey).toBe(routes.key);
     const house = s.dwellings[0]!;
     s.dwellings.push({ ...house, id: 998, position: { x: -30, z: -55, rotation: 0 } });
     refreshWalkDistances(s, DAY + 5, LANDSCAPE, null);
-    expect(s.routes!.day).toBe(DAY + 5);
+    expect(s.routes!.day).toBe(routes.day);
+    expect(cellsOf(s.routes!.list)).toEqual(cellsOf(routes.list));
+    // 1. dne dalšího měsíce za obě změny najednou
+    refreshWalkDistances(s, JULY, LANDSCAPE, null);
+    expect(s.routes!.day).toBe(JULY);
+    expect(s.routes!.key).not.toBe(routes.key);
+    expect(s.routes!.list.some((r) => r.from === 'd:998')).toBe(true);
+    // oprava a přestavba cest (`now`) přepočítají hned
+    s.parts.push({ ...part, id: 997, cell: { x: 14, y: 8 } });
+    refreshWalkDistances(s, JULY + 3, LANDSCAPE, null, true);
+    expect(s.routes!.day).toBe(JULY + 3);
   }, 30_000);
+
+  it('změna mapy v půli měsíce – dopočet po kouscích (i s hranicí kousku na 1. dni) dá tytéž trasy', () => {
+    const start = advanceVillage(withField(), DAY + 9, null, LANDSCAPE);
+    const house = start.dwellings[0]!;
+    start.dwellings.push({ ...house, id: 998, position: { x: -30, z: -55, rotation: 0 } });
+    const end = JULY + 6;
+    const whole = advanceVillage(start, end, null, LANDSCAPE);
+    // přepočet 1. dne měsíce – ne v den změny ani na hranici kousku
+    expect(whole.routes!.day).toBe(JULY);
+    expect(whole.routes!.list.some((r) => r.from === 'd:998')).toBe(true);
+    for (const stops of [[JULY - 1, JULY], [JULY], [DAY + 20, JULY + 1], [JULY - 1, JULY + 2]]) {
+      let s = start;
+      for (const day of [...stops, end]) s = advanceVillage(s, day, null, LANDSCAPE);
+      expect(s.routes, `kousky do ${stops.join(', ')}`).toEqual(whole.routes);
+      expect(s.walkLayoutKey).toBe(whole.walkLayoutKey);
+    }
+  }, 120_000);
 
   it('pokácený strom se do mapy tras promítne až 1. 11.', () => {
     const s = advanceVillage(withField(), DAY + 3, null, LANDSCAPE);
@@ -464,7 +496,10 @@ describe('trasy jen při změně mapy (paths.md – Stálé trasy, pravidlo 5)',
       },
     ];
     expect(routeMapKey(s, DAY + 3)).not.toBe(key);
+    // v půli měsíce stará mapa, trasa k jámě 1. dne dalšího měsíce (Martin 8. 11. 2026)
     refreshWalkDistances(s, DAY + 4, LANDSCAPE, null);
+    expect(s.routes!.list.some((r) => r.to === 'grain-pit:7')).toBe(false);
+    refreshWalkDistances(s, JULY, LANDSCAPE, null);
     expect(s.routes!.list.some((r) => r.to === 'grain-pit:7')).toBe(true);
   }, 30_000);
 
@@ -479,7 +514,8 @@ describe('trasy jen při změně mapy (paths.md – Stálé trasy, pravidlo 5)',
       position: { ...first.position, x: first.position.x + 14 },
     });
     delete s.dwellings[1]!.plot;
-    refreshWalkDistances(s, DAY + 4, LANDSCAPE, null);
+    // nové obydlí do mapy hned (`now`) – jinak až 1. dne dalšího měsíce
+    refreshWalkDistances(s, DAY + 4, LANDSCAPE, null, true);
     const routes = s.routes!;
     const from99 = (list: readonly StoredRoute[]): StoredRoute[] =>
       list.filter((r) => r.from === 'd:99');
@@ -521,7 +557,8 @@ describe('trasy jen při změně mapy (paths.md – Stálé trasy, pravidlo 5)',
         filledDay: DAY + 1,
       },
     ];
-    refreshWalkDistances(s, DAY + 4, LANDSCAPE, null);
+    // nová jáma do mapy hned (`now`) – jinak až 1. dne dalšího měsíce
+    refreshWalkDistances(s, DAY + 4, LANDSCAPE, null, true);
     const routes = s.routes!;
     const toPit = (list: readonly StoredRoute[]): StoredRoute[] =>
       list.filter((r) => r.to === 'grain-pit:7');

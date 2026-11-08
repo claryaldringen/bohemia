@@ -6,9 +6,10 @@
 // kousek navíc, ať zavedená místa pěšinu mají.
 // Trasy hledá Dijkstra na hrubé mřížce (path-terrain.ts + domy, pole a překážky vsi). Provoz se
 // sčítá po buňkách, z něj síla pěšiny; pak se trasy hledají znovu se slevou na vyšlapané buňky
-// (aktivní chodci) – lidé dají přednost vyšlapané pěšině a trasy se slijí do sítě. Ke společnému
-// cíli (pole, sad, staveniště…) jde každá domácnost zvlášť, nejvytíženější první, a další se
-// k čerstvě vyšlapané pěšině přidá – žádné souběžné pěšiny vedle sebe (Martin). Po pevné cestě
+// (aktivní chodci) – lidé dají přednost vyšlapané pěšině a trasy se slijí do sítě. Domácnosti jdou
+// po sobě, nejvytíženější první, každá jedním hledáním z brány ke všem svým cílům najednou („pole
+// z domu“ – Martin 8. 11. 2026), a další se k čerstvě vyšlapaným pěšinám přidá – žádné souběžné
+// pěšiny vedle sebe (Martin). Po pevné cestě
 // (roads.md) se jde jako po plné pěšině, takže se k ní trasy stahují – a bez ohledu na to, na čem
 // leží (pole, sad, les, svah – Martin, 19. 10. 2026). Výsledek jsou vyhlazené lomené čáry se
 // silou v bodech.
@@ -36,6 +37,7 @@ import {
   type RouteRecord,
   type SearchState,
   type Traffic,
+  householdOrder,
   routeAllSteps,
   smoothTraffic,
   trodden,
@@ -134,7 +136,7 @@ export function* computePathNetworkSteps(
   };
   const homes = households(v, grid, buildings);
   if (homes.length === 0) return input.keepRoutes ? { ...empty, routes: [] } : empty;
-  // nejvytíženější skupiny první – vyšlapou kmen, ke kterému se přidají ostatní
+  // skupiny od nejvytíženější – pořadí tras domácnosti (vyšlapou se v něm)
   const groups = [
     ...errandGroups(input.annual ?? false, v, grid, homes),
     ...tripGroups(input, grid, homes, buildings).filter((g) => !input.stable || g.to !== PASTURE),
@@ -148,7 +150,7 @@ export function* computePathNetworkSteps(
     run: 0,
     parent: new Int32Array(all),
     heap: new PathHeap(),
-    sinks: new Uint8Array(all),
+    areas: null,
   };
   // pevné cesty: od začátku jako plná pěšina (sleva), síla buňky nikdy pod ni neklesne;
   // vyšlapanost stejně (paths.md – Slévání): vyšlapaná pěšina zlevní trasu od prvního kola
@@ -173,6 +175,8 @@ export function* computePathNetworkSteps(
   let smooth: Float32Array = new Float32Array(all);
   const errands = new Map<number, PathErrands>();
   const records: RouteRecord[] | null = input.keepRoutes ? [] : null;
+  // pořadí domácností z vah před prvním kolem (kolo váhy pochůzek mění) – stejné v obou kolech
+  const order = householdOrder(groups, homes);
   for (let pass = 0; pass < PASSES; pass++) {
     if (pass > 0) {
       for (let c = 0; c < all; c++) {
@@ -187,6 +191,7 @@ export function* computePathNetworkSteps(
       costs,
       homes,
       groups,
+      order,
       state,
       last ? errands : null,
       last ? records : null,

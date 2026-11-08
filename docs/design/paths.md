@@ -147,10 +147,20 @@ Beze změny proti dřívějšku (Martin 18.–19. 10. 2026, čísla návrh Claud
   (`ROAD_BAND_CELLS`) a smí úhlopříčkou z buňky cesty na buňku cesty (Vlkov 23. 10. 2026 – šikmá
   cesta lesem nebyla sjízdná). Trasa chodce po šikmé cestě lesem nebo polem nesmí spadnout mimo
   ni – ověří Úloha 2, jinak týž pás.
-- **Slévání:** domácnosti jdou ke společnému cíli zvlášť, nejvytíženější první; čerstvě
-  prošlapané buňky a vyšlapanost zlevní (až 1,3×), takže se další trasy přidají ke kmeni –
-  souběžné pěšiny nevznikají (Martin 18. 10. 2026: „Pokud už cesta vede tím směrem, lidé by měli
-  použít tu, ne si prošlapat vlastní souběžnou.“). Dvě kola jako dřív.
+- **Slévání:** ~~domácnosti jdou ke společnému cíli zvlášť, nejvytíženější první~~ – od 8. 11. 2026
+  **„pole z domu“**: domácnosti po sobě, nejvytíženější první (součet cest za den ke všem cílům,
+  návštěva sousedů vytíží obě domácnosti dvojice, při shodě nižší index – návrh Clauda), **každá
+  najednou ke všem svým cílům** – jedno hledání z brány, konec trasy je nejlevnější buňka cíle (při
+  shodě vyšší index); pak se všechny její trasy vyšlapou a další domácnost se přidá k pěšinám těch
+  před ní (Martin 8. 11. 2026 k [rešerši modelů](research/2026-11-08-trail-models.md): „Ano“).
+  Trasy jednoho domu se neslévají šlapáním, ale sdílejí kmen ze stromu nejkratších cest. Pochůzka
+  (voda, dřevo) skončí u nejbližšího místa, nebo na pěšině souseda k místu, je-li nejvýš o 30 %
+  dražší (`GOAL_SLACK`). Cíl v jiné souvislé oblasti než brána (za plotem bez branky, za vodou) se
+  předem vyřadí. Čerstvě prošlapané buňky a vyšlapanost zlevní (až 1,3×), takže se další trasy
+  přidají ke kmeni – souběžné pěšiny nevznikají (Martin 18. 10. 2026: „Pokud už cesta vede tím
+  směrem, lidé by měli použít tu, ne si prošlapat vlastní souběžnou.“). Dvě kola jako dřív (Martin 8. 11. 2026 – jedno kolo zatím ne). Model vzniku pěšin (vyšlapanost, sleva po pěšině, zvyk 1,25)
+  se nemění; stávající vsi dostanou nové trasy až s příštím přepočtem, žádný jednorázový převod
+  (Martin 8. 11. 2026: „A“).
 
 ### Kdy se trasy počítají a co se ukládá
 
@@ -159,6 +169,10 @@ Beze změny proti dřívějšku (Martin 18.–19. 10. 2026, čísla návrh Claud
   (`walkStageKey`)~~ – od 25. 10. 2026 jen geometrie, stadia ne; lidé a stáda jen převáží cesty
   za den ([Stálé trasy](#stálé-trasy-25-10-2026), pravidlo 5). Nově i když se změní pevné cesty
   měsíční kontrolou. Výsledek nezávisí na kouscích dopočtu (rozhodují dny změn, ne kousky).
+  **Od 8. 11. 2026 jednou za měsíc:** změna mapy tras během měsíce se jen projeví v klíči
+  a přepočet proběhne 1. dne dalšího měsíce – najednou za všechny změny; vesničané do té doby
+  chodí po staré mapě (Martin 8. 11. 2026: „a“). Hned jen ves bez platných tras (nová, starší
+  uložení) a oprava či přestavba cest.
 - **Uložení (návrh Clauda):** `VillageState.routes` – den výpočtu, otisk rozložení a seznam tras:
   odkud (vchod obydlí nebo stavby), kam (cíl – `field:<id>`, `water`, `wood`, `cemetery:<id>`,
   `edge:<směr>`…), účel, cesty za den (setiny) a **buňky trasy** jako řetězový kód (počáteční
@@ -298,7 +312,9 @@ změně stadia hledaly znovu (měření 25. 10. 2026: hledání tras vozů 67 % 
    cesty) je nejvyšší z buňky bodu a sousedních a provoz nové cesty (`trafficAt`) se bere z pásu ± 1 buňky, každá trasa jednou.
    Vlkov: 825 políček 7,5 m (4,4 kB) → po převodu 3 300 buněk (16,4 kB); se stálými trasami po
    1 500 dnech (co nevede trasou, zaroste) 350 buněk (2,2 kB).
-5. **Přepočet jen při změně mapy tras.** Trasy se hledají znovu, jen když se změní:
+5. **Přepočet jen při změně mapy tras** – od 8. 11. 2026 až 1. dne měsíce po změně (Martin 8. 11.
+   2026: „a“ – změny měsíce najednou, do té doby stará mapa). Trasy se hledají znovu, jen když se
+   změní:
    - **mapa tras** (ceny buněk pro chůzi a vůz) – umístění nebo zrušení stavby či pole hráčem,
      spadnutí stavby, zarostení dílu (roční krok), pokácené stromy mimo umístěné plochy (jednou za
      rok k 1. 11. – mapa bere pařezy k poslednímu 1. 11., ne den po dni) a **opravdu jiná síť cest**:
@@ -1503,6 +1519,10 @@ cest v2), ne tichá oprava.
 | Jednorázová přestavba sítě, varianta A – vylepšení se přenesou                                           | Martin       |
 | Přestavba: vyšlapanost za rok, 4 průchody, přenos 60 % do 4 m, kusy stezek se vrátí                      | návrh Clauda |
 | Stálé trasy: průměr ceny pole místo stadia, přepočet jen se změnou mapy; i výpočet v paměti              | Martin       |
+| Síť pěšin „pole z domu“ – každá domácnost najednou ke všem cílům, po sobě, dvě kola (8. 11. 2026)        | Martin       |
+| Stávající vsi bez převodu – nové trasy s příštím přepočtem (8. 11. 2026)                                 | Martin       |
+| Přepočet mapy tras 1. dne měsíce po změně, do té doby stará mapa (8. 11. 2026)                           | Martin       |
+| Pořadí domácností: návštěva sousedů vytíží obě; pochůzka na pěšinu souseda do +30 % (`GOAL_SLACK`)       | návrh Clauda |
 | Pole i stavba do mapy tras od umístění; měsíční kontrola mění mapu jen se změnou sítě cest               | Martin       |
 | Cena pole pro vůz 4, čtyřkolák stejně jako dvoukolák; vůz přes pole úrodu nepošlape (herní zjednodušení) | Martin       |
 | Pole chůze 0,6, vůz 0,25; remízy podle indexu buňky; vyšlapanost 3,75 m bez sousedů                      | návrh Clauda |

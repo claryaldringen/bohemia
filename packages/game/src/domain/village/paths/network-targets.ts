@@ -93,19 +93,15 @@ export interface TripGroup {
    */
   nearCost?: number;
   /**
-   * Pochůzka: buňky míst (1 = sem se chodí) a po prvním kole, jak daleko smí hledání každé
-   * domácnosti (cena) – další kola hledají každé domácnosti zvlášť od brány k nejbližšímu místu
-   * podle cen se slevou, aby se trasy sousedů mohly slít.
+   * Pochůzka po prvním kole: jak daleko smí hledání každé domácnosti (cena, ERRAND_REACH) – další
+   * kola hledají nejbližší místo podle cen se slevou, aby se trasy sousedů mohly slít.
    */
-  marks?: Uint8Array;
   reach?: number[];
   /**
    * Pochůzka s `nearCost`: podíl cest, který domácnosti po prvním kole zbyl (`weights` = váha ×
    * podíl) – trasa si ho nese, aby se dala převážit bez hledání (`StoredRoute.scale`).
    */
   scale?: number[];
-  /** Místo, ke kterému domácnost došla v prvním kole – směr pro A* dalších hledání. */
-  goals?: number[];
   /** Stavba, jejíž provoz se počítá do `PathNetwork.visits` (`<druh>:<id>`). */
   visit?: string;
   /** Klíč cíle trasy (`StoredRoute.to` – jako klíč práce: `field:<id>`, `water`, `d:<id>`…). */
@@ -590,8 +586,8 @@ export function tripGroups(
  * domácnost k nejbližšímu místu. Cest za den: voda podle lidí v domácnosti – vždy, k nejbližší vodě
  * v okně bez ohledu na vzdálenost a naplno (paths.md – Pochůzky pro vodu; Martin, 19. 10. 2026:
  * „Ale vesničané tam přece musí chodit nějak pro vodu a musí jim to zabírat čas.“), dřevo na
- * domácnost (v zimní půlce roku víc) nejvýš ERRAND_MAX_COST, dál méně často. Hledá se od všech
- * míst najednou k branám.
+ * domácnost (v zimní půlce roku víc) nejvýš ERRAND_MAX_COST, dál méně často. Konec trasy je
+ * nejbližší místo z brány domácnosti (`routeAllSteps`).
  */
 export function errandGroups(
   annual: boolean,
@@ -616,21 +612,14 @@ export function errandGroups(
       ? WOOD_TRIPS.winter
       : WOOD_TRIPS.summer;
   const groups: TripGroup[] = [];
-  const marksOf = (cells: readonly number[]): Uint8Array => {
-    const marks = new Uint8Array(all);
-    for (const c of cells) marks[c] = 1;
-    return marks;
-  };
   if (water.length > 0) {
     groups.push({
       to: 'water',
       purpose: 'water',
       errand: 'water',
-      marks: marksOf(water),
       sources: water,
       weights: homes.map((h) => WATER_TRIPS_PER_PERSON * h.size * h.age),
       maxCost: Infinity,
-      goals: nearestByAir(grid, water, homes),
     });
   }
   if (wood.length > 0) {
@@ -638,12 +627,10 @@ export function errandGroups(
       to: 'wood',
       purpose: 'wood',
       errand: 'wood',
-      marks: marksOf(wood),
       sources: wood,
       weights: homes.map((h) => woodTrips * h.age),
       maxCost: ERRAND_MAX_COST,
       nearCost: ERRAND_NEAR_COST,
-      goals: nearestByAir(grid, wood, homes),
     });
   }
   return groups;
@@ -670,22 +657,6 @@ function nearestOfKind(
         }
       }
     });
-    return best;
-  });
-}
-
-/** Nejbližší místo pochůzky každé domácnosti vzdušnou čarou (−1 = žádné) – směr pro A*. */
-function nearestByAir(grid: Grid, cells: readonly number[], homes: readonly Household[]): number[] {
-  return homes.map((h) => {
-    let best = -1;
-    let bestD = Infinity;
-    for (const c of cells) {
-      const d = length2(cellX(grid, c) - h.x, cellZ(grid, c) - h.z);
-      if (d < bestD) {
-        best = c;
-        bestD = d;
-      }
-    }
     return best;
   });
 }

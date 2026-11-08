@@ -294,7 +294,10 @@ export interface PathNetworkInput {
   wear?: ReadonlyMap<number, number>;
 }
 
-/** Kola hledání: první trasy (každá další se přidá k už vyšlapaným) a jedno kolo se slevou z prvního. */
+/**
+ * Kola hledání: první trasy (každá domácnost se přidá k pěšinám těch před ní) a jedno kolo se
+ * slevou z prvního (Martin 8. 11. 2026 – jedno kolo zatím ne).
+ */
 export const PASSES = 2;
 
 /** Obilná jáma: pěšina vede k buňkám do tolika metrů od středu jámy. */
@@ -451,14 +454,8 @@ export const SMOOTH_PASSES = 3;
 export const SQRT2 = Math.SQRT2;
 
 /**
- * Váha odhadu A* pochůzek (násobek vzdušné čáry k místu z prvního kola) – pod nejlevnější cenou
- * chůze po vyšlapané pěšině, hledání se tak drží směru a neprochází celé okolí.
- */
-export const A_STAR_WEIGHT = 0.5;
-
-/**
- * Pochůzka přijme místo nebo pěšinu souseda, i když je až o tolik dražší než nejlepší (vážené
- * hledání – jen pro vzhled); hledání tak skončí brzy.
+ * Pochůzka (voda, dřevo) přijme místo nebo pěšinu souseda k místu, i když je až o tolik dražší než
+ * lepší konec dál od brány – domácnost se přidá k vyšlapané pěšině poblíž (jen pro vzhled sítě).
  */
 export const GOAL_SLACK = 1.3;
 
