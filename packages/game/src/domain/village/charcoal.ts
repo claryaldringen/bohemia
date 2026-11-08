@@ -718,7 +718,7 @@ export function workBurner(
       worked = 'felling';
       if (kiln.done + EPSILON >= clearing.cost) {
         recordClearedObstacles(state, clearing.ids, day);
-        addLogs(state, clearing.logs);
+        addLogs(state, clearing.logs, kiln.site);
         delete kiln.clearing;
         kiln.done = 0;
       }

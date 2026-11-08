@@ -11,6 +11,7 @@ import {
   clearingStage,
   clearingWorkOrder,
   fellDueTrees,
+  partCenter,
 } from './forest-clearing';
 import { finishArd, finishPen } from './oxen';
 import { recordClearedObstacles } from './obstacles';
@@ -61,7 +62,7 @@ import { forestBonusUntil, occupiedDwellings } from './simulate-plan';
 export function decayEmptyDwellings(state: VillageState, day: number, occupied: Set<number>): void {
   state.constructions = state.constructions.filter((c) => {
     const abandoned = c.kind === 'rebuild' && c.dwellingId !== null && !occupied.has(c.dwellingId);
-    if (abandoned && c.wood) addLogs(state, c.wood.fromPile);
+    if (abandoned && c.wood) addLogs(state, c.wood.fromPile, c.position);
     return !abandoned;
   });
   const gone = new Set<number>();
@@ -310,7 +311,7 @@ export function foundPart(state: VillageState, day: number, part: FieldPart): vo
     delete part.obstacles;
   }
   if (part.trees) {
-    addLogs(state, logsFromClearedTrees(part.trees));
+    addLogs(state, logsFromClearedTrees(part.trees), partCenter(state, part), part.fieldId);
     delete part.trees;
   }
   // pole vymýtilo les vsi na čtverci (fields.md – Les vsi) – stromy zmizely s překážkami
@@ -505,7 +506,7 @@ export function finishCemetery(state: VillageState, day: number, c: Construction
       : cemetery.squares.filter((s) => s.constructionId === undefined);
   for (const square of finished) {
     if (square.trees) {
-      addLogs(state, logsFromClearedTrees(square.trees));
+      addLogs(state, logsFromClearedTrees(square.trees), square);
       delete square.trees;
     }
     if (!square.obstacles) continue;

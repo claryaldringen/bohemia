@@ -11,7 +11,7 @@ import { BURN_WINDOWS, FOREST_CLEARING } from './rules-fields';
 import { squareCenter } from './square-grid';
 import { fieldGridOf } from './squares';
 import type { ClearingStage, FieldPart, VillageState } from './types';
-import { addLogs, addStackLogs, logsFromClearedTrees } from './wood';
+import { addLogs, logsFromClearedTrees } from './wood';
 
 const EPSILON = 1e-9;
 const M2_PER_HA = 10_000;
@@ -93,6 +93,17 @@ export function burnFromDay(part: Pick<FieldPart, 'clearing'>): number | null {
 }
 
 /**
+ * Střed čtverce dílu ve světě (m) – místo kácení pro hromadu klád (`addLogs`); díl bez políčka
+ * (kalibrace bez krajiny) null.
+ */
+export function partCenter(
+  state: Pick<VillageState, 'fields'>,
+  part: Pick<FieldPart, 'cell' | 'fieldId'>,
+): { x: number; z: number } | null {
+  return part.cell ? squareCenter(GEOMETRY, fieldGridOf(state, part.fieldId), part.cell) : null;
+}
+
+/**
  * Je kácení dílu hotové? Práce kácení odvedená (i se zaokrouhlením) – poslední strom padl.
  */
 function fellingDone(part: Pick<FieldPart, 'clearing' | 'foundingCost' | 'foundingDone'>): boolean {
@@ -103,7 +114,8 @@ function fellingDone(part: Pick<FieldPart, 'clearing' | 'foundingCost' | 'foundi
  * Pokácí stromy dílu, na které došla práce kácení (mutuje stav; forest.md – Klučení lesa pro
  * pole – postup, bod 1): jedno `fellTrees` za díl a den, po každém stromu zůstane pařez. Strom,
  * který mezitím padl jinak (dřevo stavby, uhlíř) nebo zmizel, se přeskočí bez klády; dospělé
- * stromy dají klády na hromadu u lesa pole (kotva = střed čtverce dílu). Jakmile je kácení hotové, padnou všechny zbylé stromy a začne schnutí (`felledDay`).
+ * stromy dají klády na hromadu pole u cesty nejblíž čtverci dílu, na kterém padl první z nich
+ * (bez cesty v dosahu u čtverce – `addLogs`). Jakmile je kácení hotové, padnou všechny zbylé stromy a začne schnutí (`felledDay`).
  */
 export function fellDueTrees(state: VillageState, part: FieldPart, day: number): void {
   const clearing = part.clearing;
@@ -125,12 +137,7 @@ export function fellDueTrees(state: VillageState, part: FieldPart, day: number):
     }
     const logs = logsFromClearedTrees(falling.filter((t) => t.log).length);
     if (logs > 0) {
-      if (part.cell) {
-        const anchor = squareCenter(GEOMETRY, fieldGridOf(state, part.fieldId), part.cell);
-        addStackLogs(state, part.fieldId, anchor, logs);
-      } else {
-        addLogs(state, logs);
-      }
+      addLogs(state, logs, partCenter(state, part), part.fieldId);
     }
     clearing.felled = due;
   }

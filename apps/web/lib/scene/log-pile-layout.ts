@@ -1,7 +1,8 @@
-// Hromada klád u vsi (forest.md – Mýcení a hromada klád) bez Babylonu: kde leží a jak jsou klády
-// složené. Vesničané ji založí u obydlí nejblíž lesu na volném místě vedle něj (návrh Clauda);
-// kláda = jeden velký strom. Hromada roste s mýcením a ubývá, jak se staví. Hromady klád u lesa
-// (forest.md – Klučení lesa pro pole – postup) leží u paseky, ze které klády jsou.
+// Hromady klád (forest.md – Mýcení a hromada klád) bez Babylonu: kde leží a jak jsou klády
+// složené; kláda = jeden velký strom. Místo hromady určí jádro při jejím vzniku (`LogStack` – u cesty
+// nejblíž místu kácení, bez cesty v dosahu u místa kácení), scéna k němu najde volné místo.
+// Bývalá hromada u vsi (převod starých vsí) a klády bez hromady (ves před převodem) leží u obydlí
+// nejblíž lesu na volném místě vedle něj jako dřív (návrh Clauda).
 import {
   dwellingClearing,
   dwellingShape,
@@ -49,10 +50,10 @@ export const PILE_DEPTH_M = LOG_LENGTH_M + 0.6;
 const SITE_GAP_M = 1.5;
 /** Volno kolem hromady bez překážek (m). */
 const FREE_MARGIN_M = 0.4;
-/** Hromada klád u lesa: nejdál od kotvy (m) a volno kolem ní bez stromů (m). */
+/** Hromada klád (`LogStack`): nejdál od kotvy (m) a volno kolem ní bez stromů (m). */
 export const STACK_REACH_M = 20;
 const STACK_MARGIN_M = 0.3;
-/** Odstup hromady u lesa od osy pevné cesty (m). */
+/** Odstup hromady (`LogStack`) od osy pevné cesty (m) – jádro ji klade dál (`LOG_PILES.roadSideM`). */
 const ROAD_CLEAR_M = 3;
 /**
  * Co hromadě klád u lesa nepřekáží: pařezy, keře a drobné kameny (klády leží mezi nimi) – stojící
@@ -170,8 +171,9 @@ export function pileToWorld(site: LogPileSite, lx: number, lz: number): Point {
 }
 
 /**
- * Kde leží hromada klád: u obydlí (i rozestavěného) nejblíž okraji lesa (při shodě menší id), na
- * prvním volném místě vedle něj – po stranách, za ním a pak dál. Volné = v krajině, ne ve vodě,
+ * Kde leží hromada klád u obydlí: u obydlí `homeId` (převedená hromada u vsi – `LogStack.dwellingId`),
+ * bez něj u obydlí (i rozestavěného) nejblíž okraji lesa (při shodě menší id), na prvním volném
+ * místě vedle něj – po stranách, za ním a pak dál. Volné = v krajině, ne ve vodě,
  * na poli ani hřbitově, mimo vyklizenou plochu jiných obydlí a bez stojících překážek (stromy,
  * kameny, keře). Bez obydlí nebo bez volného místa null – hromada se pak nekreslí (nikdy ne do
  * vody ani na pole).
@@ -181,16 +183,23 @@ export function logPileSite(
   village: SceneVillage,
   layer: ObstacleLayer,
   changes: ObstacleChanges,
+  homeId: number | null = null,
 ): LogPileSite | null {
   const dwellings = village.dwellings;
   if (dwellings.length === 0) return null;
   let home = dwellings[0]!;
-  let best = Infinity;
-  for (const d of dwellings) {
-    const distance = forestEdgeDistanceM(landscape, d.position.x, d.position.z);
-    if (distance < best || (distance === best && d.id < home.id)) {
-      best = distance;
-      home = d;
+  if (homeId !== null) {
+    const fixed = dwellings.find((d) => d.id === homeId);
+    if (!fixed) return null;
+    home = fixed;
+  } else {
+    let best = Infinity;
+    for (const d of dwellings) {
+      const distance = forestEdgeDistanceM(landscape, d.position.x, d.position.z);
+      if (distance < best || (distance === best && d.id < home.id)) {
+        best = distance;
+        home = d;
+      }
     }
   }
   // půdorys podle varianty rozměrů domu (population.md – Varianty rozměrů)
@@ -232,9 +241,10 @@ export function logPileSite(
 }
 
 /**
- * Kde leží hromada klád u lesa (forest.md – Klučení lesa pro pole – postup): na volném místě do
- * STACK_REACH_M od kotvy (střed čtverce, na kterém padl první dospělý strom) – po kružnicích od
- * kotvy ven, pro všechny hranice, a když se nevejdou, pro méně hranic. Volné = v krajině, ne ve
+ * Kde leží hromada klád (forest.md – Mýcení a hromada klád): hromada u cesty (`anchor.road`) nejdřív
+ * přesně na kotvě, čely klád k cestě; jinak na volném místě do STACK_REACH_M od kotvy (u cesty
+ * místo vedle ní, bez cesty místo kácení) – po kružnicích od kotvy ven, pro všechny hranice,
+ * a když se nevejdou, pro méně hranic. Volné = v krajině, ne ve
  * vodě, na dílech polí ani hřbitovech, na cestách ani u obydlí, bez stojících stromů (pařezy,
  * keře a kameny nevadí). Předchozí místo `previous`, které je pořád volné, zůstane – hromada
  * neskáče, když okolo padají stromy. Bez místa null – hromada se nekreslí.
@@ -244,7 +254,7 @@ export function logStackSite(
   village: SceneVillage,
   layer: ObstacleLayer,
   changes: ObstacleChanges,
-  anchor: { x: number; z: number },
+  anchor: { x: number; z: number; road?: { x: number; z: number } | undefined },
   previous: LogPileSite | null = null,
   occupied: readonly (readonly Point[])[] = [],
 ): LogPileSite | null {
@@ -256,6 +266,14 @@ export function logStackSite(
     dense: true,
   };
   if (previous && isFree(landscape, village, layer, changes, previous, options)) return previous;
+  if (anchor.road) {
+    // klády míří čely k cestě – místní osa z od cesty ke kotvě
+    const rotation = Math.atan2(anchor.x - anchor.road.x, anchor.z - anchor.road.z);
+    for (let stacks = MAX_STACKS; stacks >= 1; stacks--) {
+      const site: LogPileSite = { x: anchor.x, z: anchor.z, rotation, stacks };
+      if (isFree(landscape, village, layer, changes, site, options)) return site;
+    }
+  }
   for (let stacks = MAX_STACKS; stacks >= 1; stacks--) {
     for (let r = 2.5; r <= STACK_REACH_M; r += 2.5) {
       const steps = Math.max(8, Math.round((2 * Math.PI * r) / 2.5));

@@ -482,12 +482,8 @@ export interface VillageView {
   fortifications?: VillageFortification[];
   /** Dřevo vsi pro cenu u kurzoru – klády a stromy ke kácení (`villageStock`); bez údaje 0. */
   woodSupply?: number;
-  /** Všechny klády vsi v kusech – u vsi i na hromadách u lesa (forest.md). */
+  /** Všechny klády vsi v kusech – na všech hromadách (forest.md – Mýcení a hromada klád). */
   woodLogs: number;
-  /** Z toho klády na hromadách u lesa; bez hromady u lesa bez údaje. */
-  woodLogsForest?: number;
-  /** Z toho klády na hromadě u vsi (`pileLogs`); vždy s `woodLogsForest`. */
-  woodLogsPile?: number;
   /** Řemesla – zásoby uhlí, nástrojů a keramiky, pokrytí a dílny (crafts.md). */
   crafts: VillageCrafts;
   storesMonths: number;

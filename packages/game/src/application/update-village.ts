@@ -19,6 +19,7 @@ import {
   withPenGrace,
   withoutTrampledParts,
   withForestClearing,
+  withRoadLogPiles,
   withHorsePenStock,
   withPenSpecies,
   withOxen,
@@ -318,7 +319,9 @@ export async function updateVillage(
     // – Obilné jámy)
     const pitted = withGrainPits(base, landscape, obstacles);
     // rozestavěné díly v lese dostanou fáze klučení (forest.md – Klučení lesa pro pole, Starší vsi)
-    const attached = withForestClearing(pitted, obstacles);
+    // dřívější hromada klád u vsi se stane hromadou na svém dnešním místě (forest.md – Mýcení
+    // a hromada klád, Starší vsi)
+    const attached = withRoadLogPiles(withForestClearing(pitted, obstacles), landscape);
     if (
       attached.forestClearingFailed !== undefined &&
       record.state.forestClearingFailed === undefined

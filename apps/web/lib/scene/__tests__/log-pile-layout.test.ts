@@ -105,6 +105,16 @@ describe('logPileSite', () => {
     }
   });
 
+  it('bývalá hromada u vsi leží u svého obydlí, i když jiné je blíž lesu', () => {
+    const home = dwelling(1, -100, 0);
+    const near = dwelling(2, 60, 0);
+    const village: SceneVillage = { dwellings: [home, near], fields: [] };
+    const site = logPileSite(landscape, village, empty, NO_OBSTACLE_CHANGES, 1)!;
+    expect(Math.hypot(site.x - home.position.x, site.z - home.position.z)).toBeLessThan(10);
+    // obydlí zaniklo – hromada u něj už neleží (scéna ji hledá od místa z jádra)
+    expect(logPileSite(landscape, village, empty, NO_OBSTACLE_CHANGES, 9)).toBeNull();
+  });
+
   it('vyhne se poli a stromům – jde na další volné místo', () => {
     const home = dwelling(1, 0, 0);
     const village: SceneVillage = { dwellings: [home], fields: [] };
@@ -201,6 +211,34 @@ describe('logStackSite – hromada klád u lesa (forest.md – Klučení lesa pr
       expect(fields[0]!.parts.some((p) => p.cell.x === tx && p.cell.y === ty)).toBe(false);
     }
     expect(logStackSite(landscape, village, empty, NO_OBSTACLE_CHANGES, anchor)).toEqual(site);
+  });
+
+  it('hromada u cesty leží přesně na místě z jádra, čely klád k cestě', () => {
+    // cesta podél z = 0 v louce; místo z jádra 6 m severně od osy
+    const road = { x: -50, z: 0 };
+    const roadside = {
+      ...village,
+      fields: [],
+      roads: [
+        {
+          id: 1,
+          points: [
+            { x: -100, z: 0 },
+            { x: 0, z: 0 },
+          ],
+          grade: 'trodden' as const,
+        },
+      ],
+    } as SceneVillage;
+    const site = logStackSite(landscape, roadside, empty, NO_OBSTACLE_CHANGES, {
+      x: -50,
+      z: 6,
+      road,
+    })!;
+    expect(site).toMatchObject({ x: -50, z: 6, stacks: 3 });
+    // místní osa z (podél klád) míří od cesty ke kotvě
+    expect(Math.sin(site.rotation)).toBeCloseTo(0, 9);
+    expect(Math.cos(site.rotation)).toBeCloseTo(1, 9);
   });
 
   it('hromady klád se nepřekrývají – druhá se vyhne půdorysu první', () => {

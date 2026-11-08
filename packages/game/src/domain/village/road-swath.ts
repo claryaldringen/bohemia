@@ -209,7 +209,9 @@ export function cutRoadSwath(
     state.felledTrees = [...(state.felledTrees ?? []), ...tally.felled.map((id) => ({ id, day }))];
   }
   keepClear(state, [...tally.felled, ...tally.kept]);
-  if (options.logs) addLogs(state, logsFromClearedTrees(tally.trees));
+  // klády k cestě u prostředku průseku (forest.md – Mýcení a hromada klád)
+  const middle = road.points[road.points.length >> 1] ?? null;
+  if (options.logs) addLogs(state, logsFromClearedTrees(tally.trees), middle);
   road.swath = true;
   return tally;
 }

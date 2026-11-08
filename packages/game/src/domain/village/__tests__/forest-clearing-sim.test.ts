@@ -9,10 +9,16 @@ import {
 } from '../../landscape';
 import { foundField, foundVillage } from '../actions';
 import { fieldPartLooks } from '../field-progress';
-import { clearingFellCost, clearingStage, isSmoldering, treesDue } from '../forest-clearing';
+import {
+  clearingFellCost,
+  clearingStage,
+  isSmoldering,
+  partCenter,
+  treesDue,
+} from '../forest-clearing';
 import { obstacleChangesAt } from '../obstacles';
 import { fieldPartsFromCells, placementVillageOf } from '../placement';
-import { FOREST_CLEARING } from '../rules';
+import { FOREST_CLEARING, LOG_PILES } from '../rules';
 import { advanceVillage } from '../simulate';
 import { build, constructionNeed, foundingIndex, invest } from '../simulate-build';
 import { squareCenter } from '../square-grid';
@@ -212,6 +218,49 @@ describe('klučení po fázích v simulaci', () => {
       expect(JSON.stringify(s)).toBe(JSON.stringify(whole));
     }
     expect(JSON.stringify(daily(start, to).end)).toBe(JSON.stringify(whole));
+  });
+
+  it('hromada pole u cesty nejblíž místu kácení – po kouscích stejně jako najednou', () => {
+    const start = withForestField(OCTOBER, block(6, 8, 4, 2));
+    // cesta 45 m od středu čtverce (8, 8) – čtverce lesa pole jsou do 60 m od ní
+    const corner = partCenter(
+      start,
+      start.parts.find((p) => p.cell?.x === 8 && p.cell.y === 8)!,
+    )!;
+    const roadZ = corner.z + 45;
+    start.roads = {
+      nextId: 2,
+      roads: [
+        {
+          id: 1,
+          points: [
+            { x: corner.x - 200, z: roadZ },
+            { x: corner.x + 200, z: roadZ },
+          ],
+          bornDay: 0,
+          grade: 'trodden',
+          traffic: [],
+          spots: [],
+        },
+      ],
+      trees: [],
+      labor: { from: 0, days: 0, shares: [] },
+    };
+    const to = OCTOBER + 60;
+    const whole = advanceVillage(start, to, layer);
+    const stacks = whole.logStacks ?? [];
+    expect(stacks).toHaveLength(1);
+    const stack = stacks[0]!;
+    expect(stack.road?.z).toBe(roadZ);
+    expect(stack.z).toBe(roadZ - LOG_PILES.roadSideM);
+    // u čtverce, na kterém padl první dospělý strom (kraj lesa nejblíž vsi – x = 8)
+    expect(stack.x).toBe(corner.x);
+    for (const step of [5, 23]) {
+      let s = start;
+      for (let day = OCTOBER + step; day < to; day += step) s = advanceVillage(s, day, layer);
+      s = advanceVillage(s, to, layer);
+      expect(JSON.stringify(s)).toBe(JSON.stringify(whole));
+    }
   });
 });
 

@@ -128,10 +128,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   tmavá a menší než kupa, `ASH_SPREAD`, ať pod hořící hromadou nepůsobí jako světlý talíř),
   thin instances (pozice, normála, barva + matice = 7 vertex bufferů), PBR s `applyGammaFog`
   a sněhem; přestaví se jen při změně `clearingHeapsKey` (díly s pasekou či spáleninou,
-  vzhled, hotové pruhy). Kupa větví vrhá stín, popel ne. **Hromady klád u lesa** –
-  `SceneVillage.logStacks` kreslí `LogPile` stejnou sítí kmenů jako hromadu u vsi (nejvýš
-  MAX_SHOWN_LOGS na hromadu); místo `logStackSite` (`log-pile-layout.ts`) do STACK_REACH_M od
-  kotvy po kružnicích ven, mimo díly polí, hřbitovy, vodu, cesty a obydlí, bez stojících
+  vzhled, hotové pruhy). Kupa větví vrhá stín, popel ne. **Hromady klád** (u cesty
+  i u místa kácení – forest.md, Mýcení a hromada klád) – `SceneVillage.logStacks` kreslí
+  `LogPile` stejnou sítí kmenů (nejvýš MAX_SHOWN_LOGS na hromadu); místo `logStackSite`
+  (`log-pile-layout.ts`): hromada u cesty (`road`) nejdřív přesně na místě z jádra, čely klád
+  k cestě (`atan2` od bodu osy ke kotvě), jinak do STACK_REACH_M od kotvy po kružnicích ven, mimo díly polí, hřbitovy, vodu, cesty a obydlí, bez stojících
   stromů (pařezy, keře a kameny nevadí), pro 3 hranice, jinak méně (`LogPileSite.stacks`);
   předchozí volné místo zůstane (hromada neskáče) a místo se nehledá znovu při každém pokáceném
   stromu – hromadě bez místa jen po každých `RETRY_REMOVED` pokácených; hromady se navzájem

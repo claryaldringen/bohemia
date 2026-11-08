@@ -524,7 +524,7 @@ Forest.md – Klučení lesa pro pole. Panel dílu (`selection/fields.tsx`, `Cle
 kácení = ikona `wood` s počtem stromů, které zbývá pokácet, schnutí = `hourglass` s datem pálení
 v popisku („pálí se od 1. března 500“), pálení = `fire` (`resources/fire.png`, render
 `icons.py fire`, CC0). Panel pole (`ClearingCounts`): počty čtverců v jednotlivých fázích, jen
-běžící. Horní lišta: popisek klád `woodName` – „u vsi N, u lesa M“, když leží hromada u lesa.
+běžící. Horní lišta: popisek klád „Klády na hromadách“ – celá zásoba (hromady u vsi a u lesa se od 8. 11. 2026 nerozlišují – forest.md, Mýcení a hromada klád).
 Kurzor při malování pole (`fieldCost` v `build-items.ts`, `PlacementCost.burn`, `CursorReason`):
 ikona ohně s počtem čtverců lesa, které se vykácí a vypálí. Ukázky `/dev/panels?panel=pole`,
 `pole-dil-kaceni`, `pole-dil-schne`, `pole-dil-pali`.
