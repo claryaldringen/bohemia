@@ -128,7 +128,7 @@ import { nextPollDelayMs } from '@/lib/village-polling';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import { structureGridAt, type CellSquare } from '@/lib/scene/field-cells';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
-import { wholeTarget, type VillageTarget } from '@/lib/scene/village-picking';
+import { fortTargetId, wholeTarget, type VillageTarget } from '@/lib/scene/village-picking';
 import { DIRECTION_NAMES } from '@/lib/trade-names';
 import {
   allDwellingsTarget,
@@ -748,7 +748,8 @@ export function VillageGame({
   // levé kliknutí do krajiny přidá bránu, pravé a Esc zruší; změna výběru režim vypne.
   const [gateFort, setGateFort] = useState<number | null>(null);
   useEffect(() => {
-    if (gateFort !== null && !(selected?.kind === 'fortification' && selected.id === gateFort)) {
+    // úsek, brána i celé opevnění – režim brány drží, dokud je vybrané totéž opevnění
+    if (gateFort !== null && fortTargetId(selected) !== gateFort) {
       setGateFort(null);
     }
   }, [gateFort, selected]);

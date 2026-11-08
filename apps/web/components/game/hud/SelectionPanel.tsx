@@ -43,7 +43,15 @@ import {
 import { WildlifeBody } from './selection/wildlife';
 import { PremiumSiteBody } from './selection/premium';
 import { PREMIUM_TEXTS } from '@/lib/premium-view';
-import { FORT_ICONS, FORT_NAMES, FortificationBody } from './selection/fortification';
+import {
+  FORT_GATE_ICON,
+  FORT_GATE_NAMES,
+  FORT_ICONS,
+  FORT_NAMES,
+  FortGateBody,
+  FortSectionBody,
+  FortificationBody,
+} from './selection/fortification';
 import { WILDLIFE_LABELS } from '@/lib/wildlife-view';
 import { Oaks, OakAge, SACRED_ICONS, SacredBody } from './selection/sacred';
 import {
@@ -197,10 +205,30 @@ export function SelectionPanel({
         details={details}
         gateMode={gateFort === details.id}
         onWork={onFortWork}
+        onGateMode={onGateMode}
+      />
+    );
+  } else if (details.kind === 'fortification-section') {
+    // úsek mezi branami – portrét druhu, popisek „Úsek“ (fortifications.md – Rozhraní, Úseky)
+    portrait = (
+      <Portrait
+        icon={FORT_ICONS[details.fortKind]}
+        name={`${FORT_NAMES[details.fortKind]} – úsek`}
+        dir="resources"
+      />
+    );
+    body = (
+      <FortSectionBody
+        key={`${details.id}-${details.section.segments[0] ?? 0}`}
+        details={details}
+        gateMode={gateFort === details.id}
         onDemolish={onFortDemolish}
         onGateMode={onGateMode}
       />
     );
+  } else if (details.kind === 'fortification-gate') {
+    portrait = <Portrait icon="" src={FORT_GATE_ICON} name={FORT_GATE_NAMES[details.fortKind]} />;
+    body = <FortGateBody details={details} onSelectTarget={onSelectTarget} />;
   } else if (details.kind === 'grain-pit') {
     portrait = <Portrait icon="obilna-jama" name="Obilná jáma" />;
     body = <GrainPitBody details={details} />;

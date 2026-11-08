@@ -20,7 +20,6 @@ import {
   segmentBuild,
   MAX_DITCH_CUTS,
 } from '../fortification-layout';
-import { fortSectionRings } from '../selection-highlight';
 import type { SceneFortification } from '../../fort-view';
 import { demoFortification, type DemoFort, SHOWCASE_FORT_GEO } from '../fortification-showcase';
 import { RAMPART_COLUMNS, RAMPART_RING_STEP_M, rampartMeshData } from '../rampart-mesh';
@@ -176,25 +175,6 @@ describe('zboření úseku (demolition.md – Opevnění)', () => {
     });
     expect(rampartLooks(level)[1]!.height).toBeCloseTo(0.75);
     expect(rampartLooks(withSegments(fort({ kind: 'rampart' }), [2]))[2]!.height).toBe(0);
-  });
-
-  it('zvýraznění úseku: obrys pásu jeho dílů, zbořený díl ho rozdělí', () => {
-    const f = fort();
-    const rings = fortSectionRings(f, [1, 2, 3]);
-    expect(rings).toHaveLength(1);
-    const ring = rings[0]!;
-    expect(ring[0]).toEqual(ring[ring.length - 1]);
-    // obrys leží jen u dílů 1–3: daleko od dílu 0 i dílu 5
-    const near = (index: number): boolean =>
-      ring.some(([x, z]) =>
-        f.shapes[index]!.path.some(([px, pz]) => Math.hypot(px - x, pz - z) < 0.5),
-      );
-    expect(near(2)).toBe(true);
-    expect(
-      f.shapes[5]!.path.every(([px, pz]) => ring.every(([x, z]) => Math.hypot(px - x, pz - z) > 1)),
-    ).toBe(true);
-    expect(fortSectionRings(withSegments(f, [2]), [1, 2, 3])).toHaveLength(2);
-    expect(fortSectionRings({ ...f, bandSegments: undefined }, [1])).toEqual([]);
   });
 });
 

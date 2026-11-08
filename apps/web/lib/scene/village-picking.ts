@@ -15,6 +15,15 @@ import { scenePenSquares, type SceneVillage } from '../village-view';
 import { nearestJunction } from './junction-shape';
 import type { WildlifeSpecies } from '../wildlife-view';
 import { footprintRect, pointInPolygon, type Point } from './village-layout';
+import {
+  FORT_GATE_HALF_M,
+  fortPerimeter,
+  fortSectionSpans,
+  gateCenterM,
+  loopDistanceM,
+  perimeterPosition,
+  spanAt,
+} from '../fort-sections';
 
 // Výběr obydlí, polí, sadů a hřbitovů kliknutím do scény – čisté funkce bez Babylonu (paprsek
 // z kamery dodá scéna jako čísla).
@@ -72,10 +81,20 @@ export type VillageTarget =
    */
   | { kind: 'grain-pit'; id: number }
   /**
-   * Opevnění (id opevnění – fortifications.md, Rozhraní): klik na jeho pás kolem plochy; `segment`
-   * – díl nejblíž kliku (demolition.md – Opevnění: panel ukáže úsek mezi branami s tímto dílem).
+   * Celé opevnění včetně bran (id opevnění – fortifications.md, Rozhraní): dvojklik na obvod, jako
+   * celé pole (Martin 8. 11. 2026).
    */
-  | { kind: 'fortification'; id: number; segment: number }
+  | { kind: 'fortification'; id: number }
+  /**
+   * Úsek opevnění mezi branami (fortifications.md, Rozhraní – Úseky): klik na pás kolem plochy;
+   * `segment` – první díl úseku jádra (díl brány na začátku úseku, bez brány 0 – `fortSections`).
+   */
+  | { kind: 'fortification-section'; id: number; segment: number }
+  /**
+   * Brána opevnění (fortifications.md – Brány): klik do dosahu brány jako na křižovatku (Martin
+   * 8. 11. 2026) – má přednost před úsekem; `segment` – díl, ve kterém brána stojí.
+   */
+  | { kind: 'fortification-gate'; id: number; segment: number }
   /** Humno (id humna = id stavby – production-chains.md, Humno): klik na mlatovou plochu. */
   | { kind: 'threshing-floor'; id: number }
   /**
@@ -284,8 +303,8 @@ export function pickVillageTarget(
   // opevnění – pás kolem plochy (hotový i rozestavěný obvod) a kousek podél okraje (pás je úzký);
   // zbořený díl je mezera (demolition.md – Opevnění) – nevybere se
   for (const f of village.forts ?? []) {
-    const segment = fortSegmentAt(f, ground);
-    if (segment !== null) return { kind: 'fortification', id: f.id, segment };
+    const target = fortTargetAt(f, ground);
+    if (target !== null) return target;
   }
   const cell = options.cellOf(ground.x, ground.z);
   if (!cell) return null;
@@ -337,7 +356,69 @@ function copyCell(cell: TileCell): TileCell {
 export function wholeTarget(target: VillageTarget): VillageTarget {
   if (target.kind === 'field-part') return { kind: 'field', id: target.id };
   if (target.kind === 'orchard-square') return { kind: 'orchard', id: target.id };
+  // úsek či brána → celé opevnění včetně bran (Martin 8. 11. 2026 – „tak jak je to u polí“)
+  if (target.kind === 'fortification-section' || target.kind === 'fortification-gate') {
+    return { kind: 'fortification', id: target.id };
+  }
   return target;
+}
+
+/** Id opevnění vybraného celé, po úseku, nebo bránou; jiný výběr null. */
+export function fortTargetId(target: VillageTarget | null): number | null {
+  if (
+    target?.kind === 'fortification' ||
+    target?.kind === 'fortification-section' ||
+    target?.kind === 'fortification-gate'
+  ) {
+    return target.id;
+  }
+  return null;
+}
+
+/** Brána: zásah do tolika metrů za její okraj po obvodu (brána je 4 m – fortifications.md, Brány). */
+export const FORT_GATE_PICK_MARGIN_M = 0.75;
+
+type SceneFort = NonNullable<SceneVillage['forts']>[number];
+
+/**
+ * Výběr opevnění pod bodem `ground` (fortifications.md – Rozhraní): brána, když bod leží na pásu
+ * (nebo těsně u okraje) do `FORT_GATE_PICK_MARGIN_M` za okrajem brány po obvodu – má přednost
+ * jako křižovatka před cestou; jinak úsek mezi branami, ve kterém bod leží po obvodu (ne úsek
+ * dílu – brána leží uvnitř dílu). Zbořený díl je mezera, mimo opevnění null.
+ */
+export function fortTargetAt(
+  fort: SceneFort,
+  ground: { x: number; z: number },
+): VillageTarget | null {
+  const segment = fortSegmentAt(fort, ground);
+  if (segment === null) return null;
+  const lengths = fort.shapes.map((x) => x.lengthM);
+  const perimeter = fortPerimeter(lengths);
+  const at = perimeterPosition(fort.shapes, ground);
+  if (!at || perimeter.total <= 0) {
+    return { kind: 'fortification-section', id: fort.id, segment: sectionStart(fort, segment) };
+  }
+  let gate: { segment: number; d: number } | null = null;
+  for (const g of fort.gates) {
+    const d = loopDistanceM(at.s, gateCenterM(perimeter, g), perimeter.total);
+    if (d <= FORT_GATE_HALF_M + FORT_GATE_PICK_MARGIN_M && (!gate || d < gate.d)) {
+      gate = { segment: g.segment, d };
+    }
+  }
+  if (gate) return { kind: 'fortification-gate', id: fort.id, segment: gate.segment };
+  const span = spanAt(fortSectionSpans(lengths, fort.gates), at.s, perimeter.total);
+  return {
+    kind: 'fortification-section',
+    id: fort.id,
+    segment: span ? (span.gateSegment ?? 0) : sectionStart(fort, segment),
+  };
+}
+
+/** První díl úseku jádra s dílem `segment` (díl brány na začátku, bez brány 0). */
+function sectionStart(fort: SceneFort, segment: number): number {
+  const starts = [...new Set(fort.gates.map((g) => g.segment))].sort((a, b) => a - b);
+  if (starts.length === 0) return 0;
+  return [...starts].reverse().find((g) => g <= segment) ?? starts[starts.length - 1]!;
 }
 
 /** Díl pole vybraný ve scéně (čtverec v mřížce pole), nebo undefined. */
@@ -364,10 +445,7 @@ export function selectedOrchardSquare(
  * Díl opevnění pod bodem `ground` (`FortSegmentShape.index`): kus pásu, ve kterém bod leží, jinak
  * díl s okrajem nejblíž bodu do `FORT_PICK_M`; zbořený díl ne. Mimo opevnění null.
  */
-export function fortSegmentAt(
-  fort: NonNullable<SceneVillage['forts']>[number],
-  ground: { x: number; z: number },
-): number | null {
+export function fortSegmentAt(fort: SceneFort, ground: { x: number; z: number }): number | null {
   const gone = new Set(
     fort.segments.filter((s) => s.demolishedDay !== undefined).map((s) => s.index),
   );
@@ -482,8 +560,13 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
   if (target.kind === 'threshing-floor') {
     return (village.threshingFloors ?? []).some((f) => f.id === target.id);
   }
-  if (target.kind === 'fortification') {
+  if (target.kind === 'fortification' || target.kind === 'fortification-section') {
     return (village.forts ?? []).some((f) => f.id === target.id);
+  }
+  if (target.kind === 'fortification-gate') {
+    return (village.forts ?? []).some(
+      (f) => f.id === target.id && f.gates.some((g) => g.segment === target.segment),
+    );
   }
   if (target.kind === 'grain-pit') {
     return (village.grainPits ?? []).some((p) => p.id === target.id);
