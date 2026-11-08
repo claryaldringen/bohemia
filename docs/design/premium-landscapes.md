@@ -60,20 +60,29 @@ ideálně.
   Kdy: při prvním vstupu do hry (`enterGame`, nové sídelní sídlo).
 - **Typ patří hráči** (návrh Clauda): uloží se u hráče a **Začít znovu ho nepřelosuje** – nová
   krajina po restartu je stejného typu (jiný seed). Jinak by šlo restartovat, dokud nepadne
-  žádaný typ.
+  žádaný typ. Výjimka – **typ kostry patří místu** (návrh Clauda, [kostra světa](world-skeleton.md)
+  – Hustota a stejné podmínky): po restartu ho hráč dostane, jen když je poblíž políčko s tímto
+  místem kostry.
 - **Prémie patří první mapě** (návrh Clauda): další mapy hráče (odchod do nové vsi –
   migration.md) jsou průměrné, prémie se stěhováním nesbírá. Opustí-li hráč první mapu, výhoda
   zůstane mapě (a vsi, která tam případně žije).
 - **Jak hra vybírá** (návrh Clauda): typy, které potřebují kostru světa (řeka, brod, průsmyk,
-  soutok), dostane jen mapa, přes kterou kostra vede; ostatní typy kdekoli. Mezi vhodnými typy
-  hra vybírá tak, aby typy ve světě byly zastoupené zhruba stejně často, a dva stejné typy nebyly
-  vedle sebe v mřížce map.
+  soutok), dostane jen mapa, přes kterou kostra vede; ostatní typy jen mapa bez kostry (8. 11.
+  2026 upřesněno – jinak by sídlo mělo prémii i řeku nebo stezku). Mezi vhodnými typy hra vybírá
+  tak, aby typy ve světě byly zastoupené zhruba stejně často, a dva stejné typy nebyly vedle sebe
+  v mřížce map. Místo a typ najednou (`placeSeat`): [kostra světa](world-skeleton.md) – Hustota
+  a stejné podmínky.
 - **Stávající sídla** se nemění (Vlkov zůstává průměrný) – prémie platí pro nová sídla.
 
 ## Kostra světa
 
 Martin: „samozřejmě by se mi líbilo, kdyby krajiny navazovaly, ale bojím se, aby to nebylo moc
 náročné“ – na návrh navázat jen řeky a stezky: „Ano, takhle bychom to mohli udělat“.
+
+**Podrobný návrh** (8. 11. 2026, ke schválení): [kostra světa](world-skeleton.md) – algoritmus
+v nekonečné mřížce, hustota a stejné podmínky, co mapa dostane z kostry, verze vrstev; plán
+[2026-11-08-world-skeleton.md](../superpowers/plans/2026-11-08-world-skeleton.md). Níž zůstává
+rámec.
 
 - **Co:** řeky a dálkové obchodní stezky jako čáry přes mřížku map světa, deterministicky ze seedu
   světa. **Jsou vlastností světa** (návrh Clauda): objeví se na každé mapě, kudy vedou – i na
@@ -88,8 +97,9 @@ náročné“ – na návrh navázat jen řeky a stezky: „Ano, takhle bychom t
 - **Sdílená mřížka:** dnes má každý hráč vlastní mřížku map (`settlement.grid_x` / `grid_y` – CLAUDE.md,
   Víc vsí jednoho hráče). Kostra světa potřebuje **jednu mřížku světa pro všechny** – přesun
   map hráčů do společné mřížky (kde začíná nový hráč, kde jsou NPC) je **předpoklad** a patří do
-  návrhu vazalství a světa (vision.md – zatím nenavrženo) a **musí vzniknout před kostrou**
-  (návrh Clauda). Do té doby mají řeka, brod, průsmyk a soutok na prémiové mapě jen místní vstup
+  návrhu vazalství a světa a **musí vzniknout před kostrou** (návrh Clauda) – **už existuje**
+  (vassalage.md – Místo na mapě světa, newcomers.md; docs/code/world.md – Mřížka a umístění).
+  Do vzniku kostry mají řeka, brod, průsmyk a soutok na prémiové mapě jen místní vstup
   a výstup (náhodný) – vývojová verze, před ostrým spuštěním se přegeneruje (uložená vývojová
   sídla se do sdíleného světa nepřenášejí).
 - **Obchodní stezka kostry** je jiná věc než zemská stezka vsi (trade.md – postaví si ji ves
@@ -254,7 +264,8 @@ v práci teprve změří. **Louka do 600 m** = louka do 600 m od místa pro vesn
 1. **Generátor typů** – všechny typy jako krajina a data, verze, pásmo, ukázka na `/dev/landscape`
    (výběr typu a seedu). Bez kostry: řeka, brod, průsmyk a soutok s náhodným vstupem a výstupem.
 2. **Přidělení** – lidský hráč při vstupu do hry dostane typ, NPC průměrnou krajinu.
-3. **Kostra světa** – řeky a stezky přes mřížku map (zatím mřížka každého hráče, později sdílená).
+3. **Kostra světa** – řeky a stezky přes sdílenou mřížku světa ([world-skeleton.md](world-skeleton.md),
+   plán `docs/superpowers/plans/2026-11-08-world-skeleton.md`).
 4. **Kalibrace** typů s dnešní mechanikou, plánované křivky ostatních.
 5. **Mechaniky využití** – každá vlastní návrh (rýžování, hornictví, doprava po řece, mýto, sůl,
    brtnictví, lov, kámen, vinice).
@@ -263,8 +274,8 @@ v práci teprve změří. **Louka do 600 m** = louka do 600 m od místa pro vesn
 
 - Nové suroviny (zlato, sůl, med, kožešiny) – přijdou až s mechanikou, platí do té doby „jen
   společné suroviny“?
-- Sdílená mřížka světa a kde začíná nový hráč – patří do návrhu vazalství a světa (musí být
-  před kostrou).
+- ~~Sdílená mřížka světa a kde začíná nový hráč~~ – hotové (vassalage.md, newcomers.md); otázky
+  ke kostře jsou v [world-skeleton.md](world-skeleton.md) – Otevřené otázky.
 - Kdy ve světě přijdou které mechaniky (rok hornictví, lodí, mýta…) – plán pro kalibraci.
 
 ## Co je na staviteli
@@ -298,3 +309,4 @@ algoritmus kostry světa, rozhraní dat – v mezích výše a determinismu kraj
 | Účinky hned: bohatá ruda 4 kg na kg nástrojů (rudiště na prvku, nevyčerpá se), hlína poloviční na kg keramiky, sad na svahu × 1,25             | návrh Clauda                                                |
 | Posvátná hora a pramen = posvátné místo vsi +10 jako háj, mezi háji a do stropů; pramen a slanisko pole ani sad nesmí                          | návrh Clauda                                                |
 | Stezka kostry ve vsi jako upravená cesta s průsekem a hotová zemská stezka oběma směry od založení                                             | návrh Clauda                                                |
+| Kostra světa podrobně ([world-skeleton.md](world-skeleton.md)); typy bez kostry jen na mapách bez kostry, typ kostry patří místu (8. 11. 2026) | návrh Clauda                                                |
