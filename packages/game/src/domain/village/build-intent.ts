@@ -5,7 +5,7 @@ import {
   foundOrchard,
   foundPen,
   startNewDwelling,
-  startRelocation,
+  startReplacement,
   startSacredBuilding,
   startThreshingFloor,
   startWorkshop,
@@ -31,7 +31,7 @@ import { forestEdgeDistanceM, waterDistanceM } from './placement-squares';
 import type { DwellingPlacementCheck } from './placement-types';
 import { placementVillageOf, villageDwellingPositions } from './placement-village';
 import type { Point } from './polygon';
-import { relocationAffordability, relocationBlock, type RelocationBlock } from './relocation';
+import { relocationBlock, replacementAffordability } from './relocation';
 import { NO_ROAD, roadApplesOption, startRoadApples } from './road-apples';
 import {
   NO_UPGRADE,
@@ -83,12 +83,8 @@ export const SHRINE_EXISTS = 'Ves už svatyni má – svatyně je jedna na ves.'
 export const UNKNOWN_DIRECTION = 'Neznámý směr stezky.';
 // Důvody cest žijí vedle akcí, které je vyhazují (jeden text pro hráče i správce).
 export { NO_ROAD, NO_UPGRADE };
-/** Proč se domácnost teď přestěhovat nemůže – česky pro hráče. */
-export const RELOCATION_BLOCKED: Record<RelocationBlock, string> = {
-  'no-household': 'V tomhle obydlí nikdo nebydlí.',
-  relocating: 'Domácnost si už staví nový dům.',
-  rebuilding: 'Domácnost svůj dům právě přestavuje.',
-};
+/** Domácnost si teď nový dům stavět nemůže (`relocationBlock`) – náhradu zakládá jen správce. */
+export const REPLACEMENT_BLOCKED = 'Tahle domácnost si teď nový dům stavět nemůže.';
 
 /** Nové obydlí – volná poloha (zemnice), nebo pozemek (polozemnice, `PLOT_TYPES`). */
 export interface DwellingIntent {
@@ -101,11 +97,12 @@ export interface DwellingIntent {
 }
 
 /**
- * Přestěhování domácnosti (migration.md – Přestěhování domácnosti): nový dům obydlí `dwellingId`
- * (id obydlí = id domácnosti) jako stavba obydlí, jen bez lidí k osídlení.
+ * Náhrada domu správcem (demolition.md – Správce): nový dům obydlí `dwellingId` (id obydlí = id
+ * domácnosti) jako stavba obydlí, jen bez lidí k osídlení; po dostavění se domácnost přestěhuje
+ * a starý dům se zbourá.
  */
-export interface RelocationIntent {
-  kind: 'relocation';
+export interface ReplacementIntent {
+  kind: 'replacement';
   /** Obydlí, jehož domácnost se stěhuje. */
   dwellingId: number;
   /** Typ nového domu – zemnice, nebo polozemnice. */
@@ -220,7 +217,7 @@ export type BuildIntent =
   | FortificationIntent
   | FortificationUpgradeIntent
   | DwellingIntent
-  | RelocationIntent
+  | ReplacementIntent
   | WorkshopIntent
   | SacredIntent
   | ThreshingFloorIntent
@@ -272,8 +269,8 @@ export function applyBuildIntent(
       );
     case 'dwelling':
       return buildDwelling(state, day, landscape, obstacles, intent);
-    case 'relocation':
-      return buildRelocation(state, day, landscape, obstacles, intent);
+    case 'replacement':
+      return buildReplacement(state, day, landscape, obstacles, intent);
     case 'workshop':
       return buildWorkshop(state, day, landscape, obstacles, intent);
     case 'sacred':
@@ -385,19 +382,19 @@ function buildDwelling(
 }
 
 /**
- * Přestěhování domácnosti – stejné kontroly umístění, pozemek polozemnice, dřevo a cena jako nové
+ * Náhrada domu správcem – stejné kontroly umístění, pozemek polozemnice, dřevo a cena jako nové
  * obydlí, jen bez lidí k osídlení; obyvatelé si dům postaví ze společné práce vsi.
  */
-function buildRelocation(
+function buildReplacement(
   state: VillageState,
   day: number,
   landscape: Landscape,
   obstacles: ObstacleLayer,
-  intent: RelocationIntent,
+  intent: ReplacementIntent,
 ): BuildResult {
   const block = relocationBlock(state, intent.dwellingId);
-  if (block !== null) return { ok: false, reason: RELOCATION_BLOCKED[block] };
-  if (!relocationAffordability(state, intent.type, obstacles).affordable) {
+  if (block !== null) return { ok: false, reason: REPLACEMENT_BLOCKED };
+  if (!replacementAffordability(state, intent.type, obstacles).affordable) {
     return { ok: false, reason: NO_WOOD };
   }
   const site = dwellingSite(
@@ -414,7 +411,7 @@ function buildRelocation(
   try {
     return {
       ok: true,
-      state: startRelocation(
+      state: startReplacement(
         state,
         day,
         intent.dwellingId,

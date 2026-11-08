@@ -409,6 +409,10 @@ stavbami; rozhoduje jen ze stavu vsi a dne, bez náhody.
   ves nejí a bez kterého hospodaří (jako nákup osiva: jídlem ani dobytkem neplatí), napřed
   s nejvyšší hodnotou na kg nákladu, ať je výprava nejmenší; jen co soused shání a co letos ještě
   vezme. Obilnáři shánějí vždy klády, takže ves s kládami platí skoro vždy. Nemá-li čím, nekoupí.
+  **Klády staveb neprodá** (návrh Clauda, 8. 11. 2026 – „správce v nouzi“, princip schválil
+  Martin): z hromady platí jen klády nad rezervu rozestavěných staveb vsi = dřevo, které stavby
+  ještě vezmou (stromy, které pro ně ještě nikdo neskácel; klády z hromady si stavba bere už při
+  zahájení).
 - **Nejvýš jedna výprava naráz** – správce nevyšle výpravu, dokud je jakákoli výprava za obchodem
   na cestě (i hráčova; zásilky dávek pánovi se nepočítají).
 - **Kdy zvěř škodí:** v měsících škod (červen–srpen, `FIELD_DAMAGE.windowMonths`) je škoda zvěře
@@ -419,7 +423,10 @@ stavbami; rozhoduje jen ze stavu vsi a dne, bez náhody.
 - **Lov:** lov navíc na zítřek, jen když ho pravidla dovolí (`canDeclareHunt` – mimo hájení,
   aspoň 3 dny od minulého, cvičící rodina a lovci); správce rozhoduje jednou za `everyDays` (10)
   dní, takže loví nejvýš jednou za 10 dní a vždy jen jeden lov naráz. Cíl lovu volí pravidla lovu
-  (prasata a jeleni, vlci při škodách na dobytku).
+  (prasata a jeleni, vlci při škodách na dobytku). **Nejvýš `STEWARD.huntsPerSummer` (3) lovů za
+  léto** (červen–srpen; návrh Clauda, 8. 11. 2026 – princip „správce v nouzi“ schválil Martin):
+  den lovu chybí v hlídce, výcviku a práci synů, takže lov každých 10 dní by léto vyjedl; počítá
+  se v `steward.summerHunts` (rok a počet, volitelná část stavu).
 
 ### Ostatní stavby – upřesnění (návrh Clauda – `STEWARD` v `rules-steward.ts`, `steward-extras.ts`)
 
@@ -749,9 +756,18 @@ domů a ta se po založení nemění.
   - `STEWARD.rebuildMargin` (≈ 20 %, ať se nepřestavuje kvůli šumu). Zisk = ušetřená chůze na pole,
     pro vodu a dřevo, menší ztráty záplav a požáru, uvolněná dobrá půda pod stavbou.
 - **Obydlí a dílny – na konci životnosti.** Když vesničané dožilé obydlí správce přestavují
-  (`decideRebuilds`), zbytková hodnota je nulová – správce místo přestavby na místě použije
-  **Přestěhovat** (`startRelocation`, stejná akce jako hráč) na lepší slot plánu, když zisk
-  převáží rozdíl ceny. Dřív jen při velkém zisku (zatopené místo, dům uprostřed nejlepšího pole).
+  (`decideRebuilds`), zbytková hodnota je nulová – správce místo přestavby na místě postaví
+  **nový dům** na lepším slotu plánu, když zisk převáží rozdíl ceny, a po jeho dostavění
+  a přestěhování domácnosti starý dům **zbourá** ([demolition.md](demolition.md) – Správce; akce
+  Přestěhovat pro hráče zanikla 8. 11. 2026). Dřív jen při velkém zisku (zatopené místo, dům
+  uprostřed nejlepšího pole).
+- **Nový dům a zbourání starého (návrh Clauda, 8. 11. 2026):** nový dům je stavba obydlí bez lidí
+  k osídlení (`startReplacement` – stavba nese `relocates` a `replaces`); po dostavění se domácnost
+  přestěhuje a starý, už prázdný dům se týž den opustí a začne bourat ze společné práce (bez
+  kontroly volných míst – nikdo v něm nebydlí; klády z bourání na hromadu). Jiné stavby ani
+  opevnění správce sám neboří. Rozestavěné přestěhování ze starší vsi (bez `replaces`) se dostaví
+  jako dřív a starý dům zůstane stát prázdný. Hráč, který náhradu zruší, zapíše veto na nové
+  i staré místo jako dřív – správce pak dům přestaví na místě.
 - **Upřesnění (návrh Clauda):** háček je v `decideRebuilds` (`steward-rebuild.ts`), protože
   rozhodnutí o přestavbě padá tam každý den a den správce (po 10 dnech) by ho předběhl. Zisk
   = rozdíl ceny místa domu za rok (voda a dřevo – `dwellingSiteValue`) × horizont
@@ -764,10 +780,18 @@ domů a ta se po založení nemění.
 - **Ostatní stavby** (ohrada, humno, hřbitov, sad, modla) se nepřesouvají: správce postaví novou
   na lepším místě a starou, kam se přestane chodit, nechá chátrat a rozpadnout
   ([opuštěné stavby](abandonment.md)) – bourat ji nemusí. Hřbitov s hroby zůstává vždy.
-- **Pole:** díly, které správce založil a které mají v plánu hodnotu pod polovinou průměru, by
-  šlo „vypustit“. Akce **opustit díl** (díly vypadnou z oběhu a zarostou – fields.md, Opuštěný
-  díl) je stejná pro hráče i správce (Martin 8. 11. 2026: „A“ – Otevřené otázky, bod 1); hráč ji
-  už má, správce ji začne používat v navazující úloze – do té doby díly nevypouští.
+- **Pole:** akce **opustit díl** (díly vypadnou z oběhu a zarostou – fields.md, Opuštěný díl) je
+  stejná pro hráče i správce (Martin 8. 11. 2026: „A“ – Otevřené otázky, bod 1;
+  `setPartsAbandoned`). **Kdy a které (návrh Clauda, 8. 11. 2026):** jednou za rok, první den
+  správce v září (po žních a novém osevním postupu 1. 9., výhled práce je už na nový hospodářský
+  rok), když pole trvale přesahuje, co ves obdělá – výhled vsi má trvalé hrdlo práce (`lasting`
+  `labor`, Model kapacity vsi). Přebytek = pole v oběhu nad osev podle práce
+  × `STEWARD.fieldReserve` (táž rezerva, nad kterou správce pole nestaví – co by nezaložil, ani
+  nedrží). Z přebytku opustí jen **celé díly, které sám založil** (`steward.built`; zakládané,
+  opuštěné a zarostlé ne), od nejhorší hodnoty v mapě hodnot (`fieldCellValue` políčka dílu se
+  vzdáleností chůze), dokud se vejdou. Opuštěné díly výhled nepočítá do pole v oběhu ani do práce
+  na vrácení přílohu. Zpět je zatím nevrací – když ves zase doroste, založí pole jako dřív
+  (vrácení je otázka na Martina).
 
 ## Soužití s hráčem (návrh Clauda)
 
@@ -1094,7 +1118,7 @@ kód, který se pak zahřeje, stojí ≈ 3× víc než zahřátý).
 | Plán sídla ze šablon (shluk, řadová ves, samoty), hospodářství dům + blok polí, rezervy, uložený ve stavu               | návrh Clauda                                                         |
 | Území vsi do 800 m od středu; správce plánuje jen na svém území (Voroného buňky zrušeny 1. 11. 2026)                    | návrh Clauda                                                         |
 | Značka „postavil správce“ jako množina id `steward.built`; převod: bez stavu vypnutý                                    | návrh Clauda                                                         |
-| Přestavba obydlí přestěhováním na konci životnosti; ostatní stavby nová + stará chátrá                                  | návrh Clauda                                                         |
+| Přestavba obydlí na konci životnosti: nový dům jinde, starý se zbourá; ostatní stavby nová + stará chátrá               | návrh Clauda (bourání – Martin 8. 11. 2026)                          |
 | Hráč smí zrušit rozestavěnou stavbu správce → veto na 5 let                                                             | návrh Clauda                                                         |
 | Jména synů při narození jako u vnuků; odchod nejstaršího ženatého způsobilého syna, nejvýš jednou za rok                | návrh Clauda                                                         |
 | ~~Odchod na téže mapě, když tam je místo pro 2× díl~~; vždy nová mapa (stezka, nejkratší cesta)                         | návrh Clauda, Martin (1. 11. 2026)                                   |
@@ -1114,13 +1138,15 @@ kód, který se pak zahřeje, stojí ≈ 3× víc než zahřátý).
 | Měření: čas správce na hodinách CPU vlákna; akce staveb kopírují stav přes `cloneState`                                 | návrh Clauda (2. 11. 2026)                                           |
 | Posvátná místa podle návratnosti: přínos štěstí k práci vsi za horizont režimu (Růst 25, Obnova 5) proti ceně stavby    | návrh Clauda (2. 11. 2026)                                           |
 | Obchod a lov jen v nouzi: obilí výpravou, když hrozí hlad, lov navíc, když zvěř škodí na polích – akcemi hráče          | Martin (8. 11. 2026: „A“), pravidla návrh Clauda                     |
+| Správce v nouzi: lov nejvýš 3× za léto, klády rozestavěných staveb neprodá                                              | Martin (8. 11. 2026 – princip), čísla návrh Clauda                   |
+| Správce opouští své nejhorší díly v září, když pole přesahuje práci × rezerva (akce hráče)                              | Martin (8. 11. 2026: „A“), kritérium návrh Clauda                    |
 
 ## Otevřené otázky
 
 1. ~~**Vypustit díly pole**~~ – rozhodnuto (Martin 8. 11. 2026: „A“ – „Vypustit díly pole – akce
    pro hráče i správce, kterou díly vypadnou z oběhu a zarostou; stejná akce pro oba.“). Pravidla
-   v [polích – Opuštěný díl](fields.md); akce hráče je hotová, správce ji použije v navazující
-   úloze.
+   v [polích – Opuštěný díl](fields.md); akce hráče je hotová a správce ji používá (Přestavba
+   vlastních staveb – Pole).
 2. **Odchod bez syna** – ves přerostla, ale syn, který smí vést, není (nebo bude za ≥ 2 roky).
    Návrh Clauda: správce počká a ves srovná hlad; alternativa – odchod nejbližších obydlí
    (vojvodou nejstarší muž rodu mezi nimi) jako hráč.

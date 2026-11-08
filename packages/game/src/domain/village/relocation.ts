@@ -4,10 +4,12 @@ import { occupants } from './people';
 import type { BuildableDwellingType, Construction, VillageState } from './types';
 import { addLogs } from './wood';
 
-// Přestěhování domácnosti (migration.md – Přestěhování domácnosti): domácnost si postaví nový dům
-// jinde ve vsi a po dostavění se do něj přestěhuje, starý dům zůstane prázdný (dál ho řeší běžná
-// pravidla – osídlení, chátrání, rozpad). Stavba je běžná stavba obydlí (`kind: 'dwelling'`)
-// s `relocates` = id domácnosti – ze společné práce vsi, bez lidí k osídlení.
+// Nový dům domácnosti (migration.md – Přestěhování domácnosti, demolition.md – Správce): domácnost
+// si postaví nový dům jinde ve vsi a po dostavění se do něj přestěhuje. Stavba je běžná stavba
+// obydlí (`kind: 'dwelling'`) s `relocates` = id domácnosti – ze společné práce vsi, bez lidí
+// k osídlení. Dnes ji zakládá jen správce (`startReplacement` s `replaces`) a starý dům po
+// přestěhování zbourá; rozestavěné přestěhování ze starší vsi (bez `replaces`) nechá starý dům
+// stát prázdný (dál ho řeší běžná pravidla – osídlení, chátrání, rozpad).
 
 /** Domácnosti, které si právě staví nový dům (id jejich obydlí). */
 export function relocatingHouseholds(state: Pick<VillageState, 'constructions'>): Set<number> {
@@ -45,7 +47,7 @@ export function relocationBlock(state: VillageState, householdId: number): Reloc
  * Má ves na nový dům domácnosti suroviny předem? Jako cena obydlí (`BUILD_COSTS`), ale bez lidí
  * k osídlení – domácnost už existuje, jen si staví nový dům (migration.md, návrh Clauda).
  */
-export function relocationAffordability(
+export function replacementAffordability(
   state: VillageState,
   type: BuildableDwellingType,
   obstacles?: ObstacleLayer | null,

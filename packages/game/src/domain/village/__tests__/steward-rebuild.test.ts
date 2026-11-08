@@ -106,7 +106,59 @@ function agedHome(s: VillageState, tile: number, bySteward: boolean): VillageSta
   return next;
 }
 
+/** Dokončí rozestavěnou stavbu `id` (všechna práce) a dopočítá ves o den. */
+function finishNextDay(s: VillageState, id: number): VillageState {
+  const next = structuredClone(s);
+  const c = next.constructions.find((x) => x.id === id)!;
+  c.done = c.cost;
+  return advanceVillage(next, next.lastDay + 1, obstacles, landscape);
+}
+
 describe('přestavba vlastních staveb správce', () => {
+  it('dožilé obydlí správce na špatném místě: nový dům na slotu plánu, starý se zbourá', () => {
+    const s = agedHome(waitingVillage(SEPT), badTile(), true);
+    const old = s.dwellings[1]!.id;
+    const day = s.lastDay + 1;
+    decideRebuilds(s, day, obstacles, landscape);
+    s.lastDay = day;
+    const move = s.constructions.find((c) => c.relocates === old);
+    expect(move).toMatchObject({ kind: 'dwelling', relocates: old, replaces: true });
+    // po dostavění domácnost bydlí v novém domě, starý je opuštěný a bourá se
+    const moved = finishNextDay(s, move!.id);
+    const fresh = moved.dwellings.find((d) => d.builtDay === moved.lastDay)!;
+    expect(moved.people.filter((p) => p.id === 900 || p.id === 901)).toEqual([
+      expect.objectContaining({ dwellingId: fresh.id }),
+      expect.objectContaining({ dwellingId: fresh.id }),
+    ]);
+    expect(moved.steward!.built).toContain(fresh.id);
+    expect(moved.dwellings.find((d) => d.id === old)?.disusedDay).toBe(moved.lastDay);
+    const demolition = moved.constructions.find((c) => c.kind === 'demolition')!;
+    expect(demolition.demolition).toEqual({ structure: 'dwelling', id: old });
+    // po bourání starý dům zmizí – kronika „zbořeno“
+    const gone = finishNextDay(moved, demolition.id);
+    expect(gone.dwellings.some((d) => d.id === old)).toBe(false);
+    expect(gone.chronicle.at(-1)).toMatchObject({
+      kind: 'structure-demolished',
+      structure: 'dwelling',
+      id: old,
+    });
+  });
+
+  it('rozestavěné přestěhování ze starší vsi (bez replaces): starý dům stojí prázdný, nebourá se', () => {
+    const s = agedHome(waitingVillage(SEPT), badTile(), true);
+    const old = s.dwellings[1]!.id;
+    const day = s.lastDay + 1;
+    decideRebuilds(s, day, obstacles, landscape);
+    s.lastDay = day;
+    const move = s.constructions.find((c) => c.relocates === old)!;
+    delete move.replaces;
+    const moved = finishNextDay(s, move.id);
+    expect(moved.chronicle.some((e) => e.kind === 'household-relocated')).toBe(true);
+    const stays = moved.dwellings.find((d) => d.id === old);
+    expect(stays?.disusedDay).toBeUndefined();
+    expect(moved.constructions.some((c) => c.kind === 'demolition')).toBe(false);
+  });
+
   it('dožilé obydlí správce na špatném místě se přestěhuje na slot plánu', () => {
     const s = agedHome(waitingVillage(SEPT), badTile(), true);
     const day = s.lastDay + 1;

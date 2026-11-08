@@ -7,7 +7,7 @@ import {
   foundOrchard,
   foundPen,
   foundVillage,
-  startRelocation,
+  startReplacement,
   startThreshingFloor,
   type CemeteryInput,
 } from '../actions';
@@ -47,7 +47,7 @@ const cemeteryInput = (cells: { x: number; y: number }[]): CemeteryInput => ({
 describe('cancelConstruction', () => {
   it('nové obydlí: stavba zmizí, nespotřebované dřevo se vrátí podle odvedené práce', () => {
     const s = village();
-    const started = startRelocation(
+    const started = startReplacement(
       s,
       DAY,
       s.dwellings[0]!.id,
@@ -83,7 +83,7 @@ describe('cancelConstruction', () => {
     expect(() => cancelConstruction(founded, DAY, first.id)).toThrow(RangeError);
     expect(() => cancelConstruction(founded, DAY, 99999)).toThrow(RangeError);
     const s = village();
-    const started = startRelocation(
+    const started = startReplacement(
       s,
       DAY,
       s.dwellings[0]!.id,
@@ -198,7 +198,7 @@ describe('cancelConstruction', () => {
 
   it('vrácení dřeva: 0 <= vráceno <= fromPile + felled i při done = cost a smíšeném zdroji', () => {
     const s = village();
-    const started = startRelocation(
+    const started = startReplacement(
       s,
       DAY,
       s.dwellings[0]!.id,

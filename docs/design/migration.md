@@ -32,8 +32,10 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 
 > **Akce Přestěhovat zanikla** (Martin 8. 11. 2026, [demolition.md](demolition.md)): hráč si místo toho
 > postaví nový dům a starý opustí nebo zboří. Níže popsané chování zůstává jen u rozestavěných
-> přestěhování ze starších vsí (dostaví se a domácnost se přestěhuje jako dřív; správce
-> `startRelocation` používá do Úlohy 6 plánu). Tlačítko ani server action už neexistují.
+> přestěhování ze starších vsí (dostaví se a domácnost se přestěhuje jako dřív, starý dům zůstane
+> stát prázdný). Správce místo stěhování postaví nový dům a starý po přestěhování zbourá
+> (`startReplacement`, [demolition.md](demolition.md) – Správce). Tlačítko ani server action už
+> neexistují.
 
 - U vybraného obydlí tlačítko **Přestěhovat** → umisťování nového domu jako u stavby obydlí
   (stejné kontroly, cena, dřevo, pozemek polozemnice). Hráč volí typ (zemnice / polozemnice).
@@ -157,7 +159,7 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 ### Stav fází
 
 1. **Přestěhování domácnosti a výběr víc obydlí – hotovo.** Jádro `relocation.ts` a akce
-   `startRelocation` (`actions.ts`), zrušení `cancelConstruction` (`cancel-construction.ts`), panel
+   `startRelocation` (`actions.ts`; od 8. 11. 2026 `startReplacement` správce), zrušení `cancelConstruction` (`cancel-construction.ts`), panel
    výběru (`RelocationControls.tsx`; use-case `relocate-household.ts` a tlačítka Přestěhovat zanikly 8. 11. 2026), výběr víc obydlí `village-selection.ts`.
 2. **Víc vsí a přepínač – hotovo.** Migrace `0005_multi_village`, use-casy podle id vsi,
    `player-villages.ts`, přepínač `VillageSwitcher.tsx` (vývojová druhá ves na téže mapě – zrušeno

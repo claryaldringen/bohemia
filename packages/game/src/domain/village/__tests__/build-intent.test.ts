@@ -10,7 +10,7 @@ import {
   NO_WOOD,
   UNKNOWN_CRAFT,
   NO_SETTLERS,
-  RELOCATION_BLOCKED,
+  REPLACEMENT_BLOCKED,
   NO_ROAD,
   NO_UPGRADE,
   SHRINE_EXISTS,
@@ -99,12 +99,12 @@ describe('applyBuildIntent – obydlí', () => {
   });
 });
 
-describe('applyBuildIntent – přestěhování domácnosti', () => {
+describe('applyBuildIntent – náhrada domu správcem', () => {
   it('nový dům domácnosti jde postavit i bez lidí k osídlení', () => {
     const state = settled();
     const dwellingId = state.dwellings[0]!.id;
     const result = apply(state, {
-      kind: 'relocation',
+      kind: 'replacement',
       dwellingId,
       type: 'zemnice',
       position: at(60, 60),
@@ -112,19 +112,19 @@ describe('applyBuildIntent – přestěhování domácnosti', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.state.constructions).toContainEqual(
-      expect.objectContaining({ kind: 'dwelling', relocates: dwellingId }),
+      expect.objectContaining({ kind: 'dwelling', relocates: dwellingId, replaces: true }),
     );
   });
 
   it('prázdné obydlí odmítne', () => {
     expect(
       apply(settled(), {
-        kind: 'relocation',
+        kind: 'replacement',
         dwellingId: 999,
         type: 'zemnice',
         position: at(60, 60),
       }),
-    ).toEqual({ ok: false, reason: RELOCATION_BLOCKED['no-household'] });
+    ).toEqual({ ok: false, reason: REPLACEMENT_BLOCKED });
   });
 });
 
@@ -400,11 +400,11 @@ describe('applyBuildIntent – důvody odmítnutí', () => {
     });
   });
 
-  it('přestěhování bez dřeva odmítne důvodem NO_WOOD', () => {
+  it('náhrada domu bez dřeva odmítne důvodem NO_WOOD', () => {
     const state = settled();
     state.woodLogs = 0;
     const result = apply(state, {
-      kind: 'relocation',
+      kind: 'replacement',
       dwellingId: state.dwellings[0]!.id,
       type: 'zemnice',
       position: at(60, 60),

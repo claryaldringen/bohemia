@@ -1,7 +1,8 @@
 // Přestavba vlastních staveb správce (steward.md – Přestavba vlastních staveb; Martin 30. 10. 2026:
-// „Přestaví, ne hráčovo“): obydlí, které správce postavil (`steward.built`) a které dožilo,
-// se místo přestavby na místě přestěhuje na lepší slot plánu, když se to vyplatí. Stavby hráče
-// a stavby před zapnutím správce se nikdy nepřesouvají.
+// „Přestaví, ne hráčovo“): za obydlí, které správce postavil (`steward.built`) a které dožilo,
+// postaví správce místo přestavby na místě nový dům na lepším slotu plánu, když se to vyplatí,
+// a starý po přestěhování zbourá (demolition.md – Správce). Stavby hráče a stavby před zapnutím
+// správce se nikdy nenahrazují ani neboří.
 import { tileCenterWorld, type Landscape, type ObstacleLayer } from '../landscape';
 import { craftCoverage } from './crafts';
 import { occupants } from './people';
@@ -67,13 +68,14 @@ export function relocationWorthwhile(gain: number, type: BuildableDwellingType):
 }
 
 /**
- * Dožilé obydlí správce: přestěhuje se na nejlepší volný slot plánu, když zisk za horizont převáží
+ * Dožilé obydlí správce: nový dům na nejlepším volném slotu plánu, když zisk za horizont převáží
  * rozdíl ceny (stavba jinde stojí tolik co přestavba na místě, takže rozdíl je jen přirážka
- * `STEWARD.rebuildMargin` z práce nového domu proti šumu). Mutuje stav; vrací, zda se stěhování
- * začalo (jinak obyvatelé dům přestaví na místě). Jen obydlí v `steward.built` při zapnutém
+ * `STEWARD.rebuildMargin` z práce nového domu proti šumu); po dostavění se domácnost přestěhuje
+ * a starý dům se zbourá (`replaces`, demolition.md – Správce). Mutuje stav; vrací, zda stavba
+ * začala (jinak obyvatelé dům přestaví na místě). Jen obydlí v `steward.built` při zapnutém
  * správci – stavby hráče a dílny nikdy.
  */
-export function stewardRelocate(
+export function stewardReplace(
   state: VillageState,
   d: Dwelling,
   type: BuildableDwellingType,
@@ -86,7 +88,7 @@ export function stewardRelocate(
   if (!plan || plan.stage !== 'done') return false;
   const slots = plan.slots.dwelling ?? [];
   if (slots.length === 0) return false;
-  // hráč zrušil stěhování tohoto domu: přestaví se na místě
+  // hráč zrušil náhradu tohoto domu: přestaví se na místě
   const own = tileOfPoint(landscape, d.position.x, d.position.z);
   if (own !== null && houseVetoed(state, landscape, day, own)) return false;
   const people = occupants(state, d.id).length;
@@ -112,7 +114,7 @@ export function stewardRelocate(
     const cell = tileCell(landscape, t);
     const c = tileCenterWorld(landscape, cell.x, cell.y);
     const intent: BuildIntent = {
-      kind: 'relocation',
+      kind: 'replacement',
       dwellingId: d.id,
       type,
       position: { x: c.x, z: c.z, rotation: 0 },

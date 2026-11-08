@@ -205,18 +205,20 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   z okolí, náves).
 
 - **Přestěhování domácnosti** ([migration.md](../design/migration.md), fáze 1): akce
-  `startRelocation` (`actions.ts`) = nová stavba obydlí (`kind: 'dwelling'`) s
-  `Construction.relocates` = id domácnosti – dřevo, pozemek polozemnice, překážky a cena jako
-  `startNewDwelling`, jen **bez lidí k osídlení** (`relocationAffordability` v `relocation.ts`;
+  `startReplacement` (`actions.ts`, dřív `startRelocation`; dnes jen správce – náhrada domu,
+  village-steward.md) = nová stavba obydlí (`kind: 'dwelling'`) s
+  `Construction.relocates` = id domácnosti a `replaces` – dřevo, pozemek polozemnice, překážky a cena jako
+  `startNewDwelling`, jen **bez lidí k osídlení** (`replacementAffordability` v `relocation.ts`;
   `availableSettlers` přestěhování nepočítá). Domácnost, která si staví nový dům, starý
   nepřestavuje (`relocatingHouseholds` v `decideRebuilds`) a znovu se stěhovat nemůže
   (`relocationBlock`: prázdné obydlí, už se stěhuje, přestavuje). Po dostavění se obyvatelé
-  přestěhují (`moveRelocatedHousehold` ve `finishConstructions`, kronika `household-relocated`),
-  starý dům zůstane prázdný – dál ho řeší běžná pravidla (osídlení, chátrání, rozpad, zbytek
-  jámy). Rozestavěné stěhování zruší obecné `cancelConstruction` (stavba zmizí, nespotřebované dřevo se
+  přestěhují (`moveRelocatedHousehold` ve `finishConstructions`, kronika `household-relocated`);
+  s `replaces` se starý dům hned opustí a zbourá (`startDemolition`), rozestavěné přestěhování ze
+  starší vsi (bez `replaces`) ho nechá stát prázdný – dál ho řeší běžná pravidla (osídlení,
+  chátrání, rozpad, zbytek jámy). Rozestavěné stěhování zruší obecné `cancelConstruction` (stavba zmizí, nespotřebované dřevo se
   vrátí na hromadu, `returnConstructionWood`; kronika `relocation-cancelled`). Use-case
   `relocateHousehold` (`relocate-household.ts`) **zanikl** s tlačítkem Přestěhovat (8. 11. 2026,
-  [demolition.md](../design/demolition.md)); doména (`startRelocation`, `relocates`,
+  [demolition.md](../design/demolition.md)); doména (`startReplacement`, `relocates`,
   `relocationBlock` – ten hlídá i Odejít) zůstává pro správce a rozestavěná stěhování starých vsí.
   V rozhraní je rozestavěný nový dům běžné staveniště se Zrušit, starý dům nese jen Odejít
   (návrh Clauda); kronika `relocation-started` / `household-relocated` / `relocation-cancelled`
