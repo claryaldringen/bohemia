@@ -2,6 +2,7 @@ import type { FortWalls } from '../fortification/walls';
 import type { Point } from '../polygon';
 import { length2 } from '../../landscape';
 import type { PathPoint } from './network-types';
+import { SegmentMemo } from './segment-memo';
 import { boxesAlong, boxGridOf, type BoxGrid } from './wall-grid';
 
 // Stěny opevnění pro odhad chůze a trasy postav (fortifications.md – Obvod, Brány; Martin
@@ -434,12 +435,31 @@ export function wallDetour(
   slack = 0,
   limit = Infinity,
 ): PathPoint[] | 'none' | 'far' {
+  return detourSearch(walls, a, b, slack, limit).found;
+}
+
+/**
+ * Výsledek objížďky (`wallDetour`) s mezí, od které je 'far': body objížďky nebo 'none' platí pro
+ * každé `limit` nad `at` (pro menší 'far') – konce se zkoušejí v pořadí dolní meze nezávisle na
+ * `limit`, ten jen ukončí hledání u první meze aspoň `limit`. 'far' říká jen, že `at` ≥ `limit`.
+ */
+interface DetourFound {
+  readonly found: PathPoint[] | 'none' | 'far';
+  /** Body objížďky: dolní mez konce; 'none': největší konečná mez (bez ní −Infinity); 'far': `limit`. */
+  readonly at: number;
+}
+
+function detourSearch(
+  walls: WalkWalls,
+  a: PathPoint,
+  b: PathPoint,
+  slack: number,
+  limit: number,
+): DetourFound {
   const g = detourGraphOf(walls);
   const w = g.pts.length;
   const from = reachOf(walls, g, a, slack);
   const sees = seesOf(g, b, slack);
-  // konec objížďky v pořadí dolní meze (dosah + vzdušnou čarou k cíli) – první, od kterého se
-  // k cíli jde bez stěny, je nejkratší
   // konec objížďky v pořadí dolní meze (dosah + vzdušnou čarou k cíli) – první, od kterého se
   // k cíli jde bez stěny, je nejkratší
   const bound = new Float64Array(w);
@@ -449,6 +469,7 @@ export function wallDetour(
     bound[j] = r === Infinity ? Infinity : r + length2(b.x - p.x, b.z - p.z);
   }
   let end = -1;
+  let last = -Infinity;
   for (;;) {
     let best = Infinity;
     let pick = -1;
@@ -458,8 +479,9 @@ export function wallDetour(
         pick = j;
       }
     }
-    if (pick < 0) return 'none';
-    if (best >= limit) return 'far';
+    if (pick < 0) return { found: 'none', at: last };
+    if (best >= limit) return { found: 'far', at: limit };
+    last = best;
     // týž cíl se zkouší z mnoha výchozích bodů (všechna obydlí) – výsledek `cutsWall` z paměti
     if (sees[pick] === 0) sees[pick] = cutsWall(walls, g.pts[pick]!, b, slack) ? 1 : 2;
     if (sees[pick] === 2) {
@@ -475,5 +497,66 @@ export function wallDetour(
     k = g.next[k * w + end]!;
     out.push(g.pts[k]!);
   }
-  return out;
+  return { found: out, at: last };
+}
+
+/** Paměť `wallCrossing` jedněch stěn a rezervy: úsečka → index výsledku (−1 = bez stěny). */
+interface CrossingMemo {
+  index: SegmentMemo;
+  found: DetourFound[];
+}
+
+/** Paměť `wallCrossing` podle stěn a rezervy – úsečky z obydlí k dílům se opakují každý přepočet. */
+const crossings = new WeakMap<WalkWalls, Map<number, CrossingMemo>>();
+
+/**
+ * Kolik objížděk si stěny s rezervou pamatují (`wallCrossing`), pak začnou znovu – tabulka
+ * (`SegmentMemo` s dvojnásobkem míst) se do té doby sama nevyprázdní.
+ */
+const CROSSING_MEMO = 1 << 18;
+
+function crossingMemo(walls: WalkWalls, slack: number): CrossingMemo {
+  let bySlack = crossings.get(walls);
+  if (!bySlack) {
+    bySlack = new Map();
+    crossings.set(walls, bySlack);
+  }
+  let memo = bySlack.get(slack);
+  if (!memo || memo.found.length >= CROSSING_MEMO) {
+    memo = { index: new SegmentMemo(CROSSING_MEMO * 2), found: [] };
+    bySlack.set(slack, memo);
+  }
+  return memo;
+}
+
+/**
+ * `cutsWall(walls, a, b, slack) ? wallDetour(walls, a, b, slack, limit) : null` z paměti stěn
+ * (jen zrychlení – výsledek týž): úsečky rovně z obydlí k dílům a uzlům sítě se opakují
+ * v každém přepočtu tras, stěny (`walkWallsOf`) zůstávají týmž objektem. Výsledek 'far' pro mez
+ * `limit` platí i pro každou menší; pro větší se objížďka dopočítá znovu.
+ */
+export function wallCrossing(
+  walls: WalkWalls,
+  a: PathPoint,
+  b: PathPoint,
+  slack = 0,
+  limit = Infinity,
+): PathPoint[] | 'none' | 'far' | null {
+  const memo = crossingMemo(walls, slack);
+  const index = memo.index.get(a.x, a.z, b.x, b.z);
+  if (index === -1) return null;
+  let known = index === undefined ? undefined : memo.found[index]!;
+  if (known === undefined || (known.found === 'far' && limit > known.at)) {
+    if (known === undefined && !cutsWall(walls, a, b, slack)) {
+      memo.index.set(a.x, a.z, b.x, b.z, -1);
+      return null;
+    }
+    known = detourSearch(walls, a, b, slack, limit);
+    if (index === undefined) {
+      memo.index.set(a.x, a.z, b.x, b.z, memo.found.length);
+      memo.found.push(known);
+    } else memo.found[index] = known;
+  }
+  if (known.found === 'far') return 'far';
+  return known.at >= limit ? 'far' : known.found;
 }
