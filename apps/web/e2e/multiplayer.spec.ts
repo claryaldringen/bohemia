@@ -563,8 +563,12 @@ test('obchod mezi hráči: A nabídne C obilí za klády, C přijme → oba maj�
   );
   expect(dialogs).toHaveLength(2);
 
-  // A otevře dialog z upozornění a pošle celé
+  // Oba otevřou dialog z upozornění hned za sebou – upozornění se přináší jednou a v rozhraní
+  // mizí po pár sekundách, takže na druhého se nesmí čekat, až první dokončí odeslání.
   await noticeAfterPoll(a, 'čeká odeslání zboží', true);
+  await noticeAfterPoll(c, 'čeká odeslání zboží', true);
+
+  // A pošle celé
   const dialogA = a.getByRole('dialog', { name: 'Odvody' });
   await expect(dialogA).toBeVisible();
   await dialogA.locator('input[type="range"]').fill('6');
@@ -572,7 +576,6 @@ test('obchod mezi hráči: A nabídne C obilí za klády, C přijme → oba maj�
   await expect(dialogA.locator('[data-testid$="-sent"]')).toBeVisible({ timeout: 30_000 });
 
   // C pošle míň (2 z 4 klád)
-  await noticeAfterPoll(c, 'čeká odeslání zboží', true);
   const dialogC = c.getByRole('dialog', { name: 'Odvody' });
   await expect(dialogC).toBeVisible();
   await dialogC.locator('input[type="range"]').fill('2');
