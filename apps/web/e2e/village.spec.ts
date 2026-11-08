@@ -28,6 +28,7 @@ import {
   type TileCell,
   startDemolition,
   type VillageState,
+  WORLD,
 } from '@bohemia/game';
 import { openGameMenu, useUniqueClientIp } from './helpers';
 import {
@@ -145,9 +146,10 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   await found(page, spots.dwelling);
   const name = page.getByTestId('village-name');
   await expect(name).toHaveText(suggestVillageName(s.seed));
-  await expect(grid.getByRole('button')).toHaveCount(14);
+  await expect(grid.getByRole('button')).toHaveCount(15);
   // Obydlí ani dílny lidi k osídlení nechtějí (demolition.md) – stavba stojí jen dřevo a stromy
-  // krajina má. Hřbitov, sad, modla, svatyně ani ohrada lidi nechtějí taky.
+  // krajina má. Hřbitov, sad, modla, svatyně ani ohrada lidi nechtějí taky. Lom je v nabídce
+  // vždy (fortifications.md – Kámen; bez dřeva předem) – že jde jen na skalní výchoz, řekne kurzor.
   await expect(grid.getByRole('button', { name: 'Polozemnice' })).toBeEnabled();
   for (const craft of ['Hrnčíř', 'Kovář', 'Uhlíř', 'Tesař']) {
     await expect(grid.getByRole('button', { name: craft })).toBeEnabled();
@@ -157,6 +159,7 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   await expect(grid.getByRole('button', { name: 'Modla' })).toBeEnabled();
   await expect(grid.getByRole('button', { name: 'Svatyně' })).toBeEnabled();
   await expect(grid.getByRole('button', { name: 'Ohrada' })).toBeEnabled();
+  await expect(grid.getByRole('button', { name: 'Lom' })).toBeEnabled();
   // štěstí obyvatel v horní liště (happiness.md) – výchozí kolem 50
   await expect(page.getByTestId('village-happiness')).toHaveText(/^\d+$/);
   expect((await villageState(s.settlementId)).fields).toEqual([]);
@@ -957,8 +960,12 @@ test('nabídka hry (F10) zruší umisťování a Začít znovu se živou vsí po
   await expect(page.getByTestId('village-name')).toHaveCount(0);
   // nový rod je odříznutý nováček: nejdřív volba cesty, pak panel jména
   await page.getByTestId('newcomer-free').click({ timeout: 30_000 });
-  // panel jména vojvody znovu, předvyplněný posledním jménem (lord.md – Kde se jméno zadává)
-  await expect(page.getByTestId('line-name-input')).toHaveValue('Bořivoj');
+  // Svobodný bez vsi dostane krajinu z políčka světa (world-skeleton.md – Svobodný nováček bez
+  // vsi) – stránka se načte znovu, panel jména vojvody až s novou scénou, předvyplněný posledním
+  // jménem (lord.md – Kde se jméno zadává)
+  const namePanel = page.getByTestId('line-name-panel');
+  await expect(namePanel).toBeVisible({ timeout: 60_000 });
+  await expect(namePanel.getByTestId('line-name-input')).toHaveValue('Bořivoj');
 
   const fresh = await seat(email);
   expect(fresh.settlementId).not.toBe(s.settlementId);
@@ -1187,20 +1194,31 @@ test('lidé odejdou na novou mapu – po cestě umístí první zemnici', async 
       grid_y: number | null;
       landscape_seed: number;
       layer_versions: LayerVersions;
+      has_skeleton: boolean;
     }[]
   > =>
     query(
-      `SELECT s.id, s.grid_x, s.grid_y, s.landscape_seed, s.layer_versions
+      `SELECT s.id, s.grid_x, s.grid_y, s.landscape_seed, s.layer_versions,
+              s.skeleton IS NOT NULL AS has_skeleton
          FROM settlement s JOIN "user" u ON u.id = s.owner_id
         WHERE u.email = $1 AND s.archived_at IS NULL ORDER BY s.created_at`,
       [email],
     );
   await expect.poll(async () => (await maps()).length, { timeout: 30_000 }).toBe(2);
   const [home, east] = await maps();
-  // mřížka je společná všem hráčům – poloha domova závisí na pořadí hráčů, východ je o sloupec dál
+  // mřížka je společná všem hráčům – poloha domova závisí na pořadí hráčů. Nová ves je jen na
+  // suché mapě (world-skeleton.md – NPC a vsi synů): políčko o sloupec východně, vede-li jím řeka
+  // či stezka kostry, nejbližší suché nejvýš `WORLD.sonDryRings` prstenců od něj – bez výřezu kostry.
   expect(home).toMatchObject({ id: s.settlementId });
   expect(home!.grid_x).not.toBeNull();
-  expect(east).toMatchObject({ grid_x: home!.grid_x! + 1, grid_y: home!.grid_y });
+  expect(east!.grid_x).not.toBeNull();
+  expect([east!.grid_x, east!.grid_y]).not.toEqual([home!.grid_x, home!.grid_y]);
+  const eastward = { x: home!.grid_x! + 1, y: home!.grid_y! };
+  expect(
+    Math.max(Math.abs(east!.grid_x! - eastward.x), Math.abs(east!.grid_y! - eastward.y)),
+  ).toBeLessThanOrEqual(WORLD.sonDryRings);
+  expect(east!.has_skeleton).toBe(false);
+  expect(east!.layer_versions).not.toHaveProperty('skeleton');
   const [travelling] = await query<{ id: string; name: string; state: VillageState }>(
     'SELECT id, name, state FROM village WHERE settlement_id = $1',
     [east!.id],
