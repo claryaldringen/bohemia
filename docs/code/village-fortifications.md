@@ -396,6 +396,25 @@ men, hours)` (nejvýš 4 muži). Práh vzdání s násobkem (`surrenderThreshold
   a `defenderKnowsPlace` zrušeny s násobkem 8. 11. 2026; `multiplier` zbývá jen pro odhad správce
   `planMultiplier`, než ho nahradí ochrana druhu – Úloha 15 plánu hradeb).
 
+## Přechod hradby (`assault.ts`)
+
+Čistá doména (fortifications.md – Přechod hradby, Obrana bez násobku); čísla `FORTIFICATIONS.assault`,
+`.defense`, `.moat`. Bitva (`war/ladders.ts`, `wall-defense.ts`) a NPC velitel z ní jen čtou.
+
+- `crossingLayers(fort, seg, day, atGate)` – hradba (druh, stav podle stáří), val (výška, voda jen
+  napuštěná a nezamrzlá) a brána (klešťová, věž); prolomený či zbořený úsek bez vrstev.
+- `assaultSteps(layers)` – všechny postupy místa (`open`, `climb`, `ladder`, `cut`, `burn`, `dig`,
+  `mine`); práce a hoření × stav hradby, stav 0 = `open`. Plot: přelézt, sekat; brána: sekat, pálit,
+  žebřík (u plotu jen sekání za 0); palisáda i s ochozem: žebřík, sekat, odkopat, pálit; roštová
+  a komorová: žebřík, podkop. Oheň u palisády na valu má `fill: 'rampart'` (80 mužohodin), vodní
+  příkop `fill: 'moat'` (48) u každého postupu; obojí = `moat` se součtem práce.
+- `assaultHours(step, men, fuelDistanceM)` – nejvýš 4 muži, otepi do 100 m (dál úměrně), hoří 2
+  přikládající. `mineUnderground` – po pětině podkopu jsou kopáči pod zemí.
+- `climbTicks(wall)` (takty: opřít, vylézt, druhý žebřík jen u palisády bez ochozu, slézt),
+  `rampartPace` = 1 ÷ (1 + 3 v), `rampartFatigue` = 1 − 0,15 v, `fatigueFactor` (zpět za 120
+  taktů), `moatFrozen` (měsíce 12, 1, 2), `fortOccupancy` (1 obránce na 5 m ochozu).
+- `manHours` žebříku je jeden žebřík (4); druhý u palisády bez ochozu počítá bitva.
+
 ## Akce
 
 - Use-casy `application/place-fortification.ts` (`placeFortification`),
