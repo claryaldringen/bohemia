@@ -55,7 +55,7 @@ vylepšit jen celé.
 | Dílny (hrnčíř, kovář, tesař, uhlíř)      | ano     | ano        | řemeslo stojí, dokud nemá dílnu                |
 | Ohrada                                   | ano     | ano        | stádo zůstane ve vsi jako bez ohrady           |
 | Humno, obilná jáma                       | ano     | ano        | obilí z jámy se přesune do ostatních zásob vsi |
-| Sad                                      | ano     | ano        | zbourat = vykácet (klády za dospělé stromy)    |
+| Sad                                      | ano     | ano        | zbourat = vykácet, klády žádné (Martin: „C“)   |
 | Modla, svatyně                           | ano     | ano        | štěstí vsi, jako by nestály                    |
 | Hřbitov                                  | ne      | ne         | hroby zůstávají (návrh Clauda)                 |
 | Opevnění                                 | –       | po úsecích | níž – Opevnění                                 |
