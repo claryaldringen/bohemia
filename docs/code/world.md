@@ -36,7 +36,7 @@ začátku svého dne, zápis zvedá verzi vsi) – `docs/code/village-core.md`, 
 plán `docs/superpowers/plans/2026-11-08-world-skeleton.md`). Kostra je **čistá funkce seedu světa
 a souřadnic políčka** – nic z databáze, výsledek nezávisí na pořadí dotazů ani na tom, kolik
 světa existuje. Obě složky `skeleton/` patří do deterministické vrstvy ESLintu (počítá server
-i prohlížeč). Zatím jen řeky (Úloha 1); stezky a místa kostry přidá Úloha 2.
+i prohlížeč). Řeky (Úloha 1), stezky a místa kostry (Úloha 2).
 
 - **Výřez mapy** (`domain/landscape/skeleton/types.ts`): `SkeletonSlice` = `world: 1`, body řek
   (`SkeletonRiverPort` – strana `MapSide`, `at` 24–103 ze 128, `widthM`, `flow` `in`/`out`)
@@ -62,6 +62,25 @@ i prohlížeč). Zatím jen řeky (Úloha 1); stezky a místa kostry přidá Úl
 - **Výřez** (`slice.ts`): `skeletonSlice(worldSeed, cell, cache?)` – vtok od souseda s řekou, který
   sem odtéká (sever, východ, západ), výtok do `drainTarget`, když políčkem teče řeka; šířka bodu =
   šířka horního políčka hrany (obě mapy se shodnou, po proudu řeka jen sílí).
+- **Stezky** (`trails.ts`): bloky 20 × 20, `trailNode(worldSeed, block)` = políčko aspoň 5 od kraje
+  bloku (soli `trailNodeX/Y`), `trailEdgeExists(worldSeed, block, 'E' | 'N')` s pravděpodobností
+  `edgeShare` (soli `trailEdgeE/N`). Spojení je tři úseky (rovně k hranici bloků, ohyb, rovně do
+  druhého uzlu), `trailSides(worldSeed, cell)` najde v 3 × 3 blocích úseky, které políčko obsahují,
+  a vrátí strany, kde leží soused na tomtéž úseku (2 strany, v uzlu 1–4). `trailPortAt(worldSeed,
+a, b, riverAt)` (`ports.ts`) – hash hrany jako u řeky (soli `trailPortNS/EW`); na hraně s řekou
+  los vybírá jen z políček ≥ `trailGap` od bodu řeky. `skeletonSlice` plní `trails` z `trailSides`
+  a bodu řeky na téže straně.
+- **Místa** (`sites.ts`): `riverCrossings(slice)` – obvod 0–511 (S od západu, E od jihu, N od
+  východu, W od severu), body řek ho dělí na oblouky, přechody = oblouky s bodem stezky − 1;
+  `seatSlot(slice)` = `'dry'` (null), `'river'`, `'trail'`, `'ford'` (1 přechod), jinak null
+  (pramen, soutok řek, křižovatka, konec stezky, víc brodů, řeka i stezka bez přechodu);
+  `isDry(slice)`.
+- **Zlatý otisk celé kostry** (`golden.test.ts`, okno 32 × 32, seed 20270101): klíč výřezu
+  - `seatSlot`, hodnota 2488818595; vedle otisku samotných řek (4193049158). Po ostrém spuštění
+    se nesmí změnit.
+- **Hustota** (8. 11. 2026, okno 200 × 200, seedy 1, 2, 3, 20270101): stezka 7,5–8,4 % map, řeka
+  10,8–12,3 %, řeka i stezka 0,8–1,0 %, suchá 80,3–82,5 %; sídlo `river` 9,9–11,2 %, `trail`
+  6,6–7,3 %, `ford` 0,46–0,64 % (≈ 1 ze 170), ostatní (null) ≈ 0,6 %.
 - **Testy** (`world/skeleton/__tests__/`): sled odtoku se nevrací, povodí po proudu neklesá,
   sousedé se shodnou na každé hraně okna 64 × 64, výřez sám = výřez po 4000 jiných dotazech,
   hustota řek 8–14 % (okno 200 × 200), zlatý otisk řek (okno 32 × 32, seed 20270101 – po ostrém

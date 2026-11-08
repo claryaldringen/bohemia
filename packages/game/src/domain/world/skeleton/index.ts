@@ -7,5 +7,7 @@ export {
   type SkeletonCache,
   upstreamSize,
 } from './drainage';
-export { riverPortAt, sideTowards } from './ports';
+export { riverPortAt, sideTowards, trailPortAt } from './ports';
+export { trailEdgeExists, trailNode, trailSides } from './trails';
+export { isDry, riverCrossings, type SeatSlot, seatSlot } from './sites';
 export { skeletonSlice } from './slice';
