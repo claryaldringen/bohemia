@@ -357,6 +357,21 @@ Vše kromě Martinových životností je návrh Clauda.
 | Přestavba hradby            | roštová a komorová ⅓ ceny, kámen zůstane                                                               | návrh Clauda                  |
 | Ochrana pro správce         | pasivní + aktivní × obsazenost (výchozí v Správce)                                                     | návrh Clauda                  |
 
+### Střelba a viditelná plocha (Martin 8. 11. 2026)
+
+Martin: „Musíme nějak vymyslet pravděpodobnost s ohledem na vycvičenost střelce“ – k návrhu
+„Jo, to zní dobře“; ke střelbě do hloučku a do vřavy „a“. Čísla návrh Clauda:
+
+- **Kruh rozptylu:** střelec míří do kruhu o poloměru `r = r0 × vzdálenost ÷ 30 m`, kde
+  `r0 = 2 − 1,5 × dovednost ÷ 100` m (mistr 0,5 m, nováček se 0 bodů 2 m; luk podle dovednosti
+  luku muže rodu, vesničan hází pevně jako dovednost 20, dosah 15 m).
+- **Viditelná plocha cíle:** stojící člověk 0,5 × 1,7 m, obránce na ochozu za předprsní 0,5 × 0,5 m
+  (hlava a ramena), lezec na žebříku celý.
+- **Šance na zásah** = součet viditelných ploch všech lidí v kruhu ÷ plocha kruhu (nejvýš 1); koho
+  šíp trefí, určí los ze seedu války váhou podle podílu na kruhu – hlouček je snadný cíl.
+- **Do vlastních:** šíp smí trefit i vlastního, pokud je v kruhu (Martin: „a“); střelec nestřílí,
+  když jsou v kruhu jen vlastní.
+
 ### Otevřené otázky k hradbám
 
 Jedna otázka = jedno rozhodnutí, doporučení Clauda u každé.
@@ -364,16 +379,19 @@ Jedna otázka = jedno rozhodnutí, doporučení Clauda u každé.
 1. ~~**Dům × 1,5**~~ – rozhodnuto 8. 11. 2026 (Martin: „a“): násobek u domu se ruší také. Původně: zůstane obráncům u domu násobek „znají místo“, když za hradbou žádný není?
    Doporučení: **zrušit i ten**; výhodu obránce u domů nese vyšší bod zlomu (45 % proti 30 %),
    útěk a skryté jámy. NPC velitel pak napadne skupinu domů při 1,5 × síle obránců.
-2. **Kryt předprsní** – smí střela nebo hod zespodu na obránce na ochozu padnout jen 1 : 3? Je to
-   fyzický kryt jen proti střelám, ne násobek síly. Doporučení: **ano**.
-3. **Časy přechodu** – platí tabulka (bez valu nejrychlejší oheň, s valem odkopání, podkop hradeb
+2. ~~**Kryt předprsní**~~ – nahrazeno 8. 11. 2026 modelem střelby podle dovednosti (viz Střelba
+   a viditelná plocha níž; Martin: „Musíme nějak vymyslet pravděpodobnost s ohledem na
+   vycvičenost střelce“ – „Jo, to zní dobře“). Kryt = menší viditelná plocha obránce.
+3. ~~**Časy přechodu**~~ – rozhodnuto 8. 11. 2026 (Martin: „ok“) – výchozí, doladit na první bitvě. Původně: platí tabulka (bez valu nejrychlejší oheň, s valem odkopání, podkop hradeb
    dny, žebřík sekundy)? Doporučení: **ano** a doladit na první bitvě ve scéně.
-4. **Cena ochozu** – 15 h na 1 m (palisáda s ochozem 45 h na 1 m komplet)? Doporučení: **ano**.
-5. **Kláda z hromady** ušetří 1 čd, ne 2 čd? Doporučení: **1 čd**, jinak by hradba z hromady
+4. ~~**Cena ochozu**~~ – rozhodnuto 8. 11. 2026 (Martin: „ano“): 15 h na 1 m (palisáda s ochozem 45 h na 1 m komplet)? Doporučení: **ano**.
+5. ~~**Kláda z hromady**~~ – rozhodnuto 8. 11. 2026 (Martin: „A“): ušetří 1 čd, ne 2 čd. Doporučení: **1 čd**, jinak by hradba z hromady
    stála míň než její zemní práce.
-6. **Vylepšit o víc stupňů najednou** (palisáda rovnou na komorovou za cenu komorové)?
+6. ~~**Vylepšit o víc stupňů najednou**~~ – rozhodnuto 8. 11. 2026 (Martin: „To záleží na
+   letopočtu. Od 790 je možné stavět roštovou hradbu, od 830 i komorovou. Pokud je možné vše, tak
+   A“): ano, jen ze stupňů dostupných v daném roce. Původně: (palisáda rovnou na komorovou za cenu komorové)?
    Doporučení: **ano** – postupně je jen pořadí stupňů, mezistupeň by stál navíc a nic nevrátil.
-7. **Vodní příkop v zimě** – zamrzne (1. 12. – konec února) a jde přejít jako suchý?
+7. ~~**Vodní příkop v zimě**~~ – rozhodnuto 8. 11. 2026 (Martin: „Má zamrznout“). Původně: – zamrzne (1. 12. – konec února) a jde přejít jako suchý?
    Doporučení: **ano** – zima je i ve válce roční doba nájezdů s vlastními pravidly.
 
 ## Druhy
