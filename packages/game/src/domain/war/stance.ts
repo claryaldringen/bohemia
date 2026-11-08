@@ -15,7 +15,7 @@ import type { Pos } from './march-grid';
 import { dist2 } from './orders';
 import { TICKS_PER_SECOND } from './ticks';
 import { WAR } from './rules-war';
-import { crownAt, wallPosts } from './wall-defense';
+import { crownAt, towerPosts, wallPosts } from './wall-defense';
 
 // Postoje vsi před bojem (war.md – Obránci – postoje a útěk; fortifications.md – Postoje vsi
 // s opevněním, Útočiště). Vesničané spatří vojsko dřív, než dojde k boji, a podle postoje se
@@ -214,7 +214,17 @@ export function planDefense(input: StanceInput): StancePlan {
       if (gives && !d.lastLine) shelter.surrendered.push(d.personId);
       else staying.push(d);
     }
-    const posts = wallPosts([bf], staying.length);
+    const posts = wallPosts([bf], staying.length, day);
+    // věže nad branami (první stanoviště) obsadí napřed muži rodu (plán hradeb Ú19)
+    const tower = Math.min(staying.length, towerPosts([bf], day).length);
+    if (tower > 0) {
+      const first = [...staying.filter((d) => d.line), ...staying.filter((d) => !d.line)].slice(
+        0,
+        tower,
+      );
+      const rest = staying.filter((d) => !first.includes(d));
+      staying.splice(0, staying.length, ...first, ...rest);
+    }
     staying.forEach((d, i) => {
       const post = posts[i] ?? bf.center;
       const onWall = posts[i] !== undefined && crownAt([bf], post, day);

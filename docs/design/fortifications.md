@@ -316,6 +316,12 @@ dřevěná věž nad samotnou branou.**“ Výklad níž Martin schválil („An
   hradby po konec uličky – u plotu a palisády palisáda s ochozem, u roštové a komorové kamenné čelo
   s ochozem na koruně; vrata se na hotové klešťové bráně přesunou na vnitřní konec uličky (v hradbě
   zůstanou kůly a trám); věž stojí nad vraty, rozestavěná se nekreslí.
+- **Bitva – implementováno 8. 11. 2026** (plán hradeb, Úloha 19). Návrh Clauda: ústí uličky
+  v hradbě je otevřené, zavřená vrata stojí na vnitřním konci uličky; ramena se nepřelézají a stojí
+  i na prolomeném dílu (vlastní stěny s ochozem – zboří se jen s dílem, zvlášť zatím ne); obránci
+  brány stojí u klešťové brány po jednom na každém rameni; na věž jdou 4 obránci jako první, napřed
+  muži rodu; posila k vratům jde na věž, bez věže na rameno vedle vrat; ramena blokují pochod i při
+  zavřené bráně.
 
 ### Cena
 
