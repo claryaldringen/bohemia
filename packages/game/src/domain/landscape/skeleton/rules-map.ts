@@ -18,6 +18,31 @@ export const SKELETON_MAP = {
   courseGapCells: 9,
   /** Šířka toku se podél toku mění o ± tento podíl (v bodech okraje a u soutoku přesně). */
   widthWave: 0.1,
+  /**
+   * Meandry řek kostry – víc než u řeky prémie (Martin 8. 11. 2026: „řeka musí co nejvíce
+   * meandrovat a být co nejpřirozenější“): amplituda (políčka); když by se tok sám dotkl, zkusí
+   * se menší podíl amplitudy (`meanderFallback`), až nakonec rovně.
+   */
+  meanderAmplitude: [3, 5],
+  meanderFallback: [0.65, 0.35, 0],
+  /**
+   * Délka dlouhé vlny meandrů roste se šířkou toku (užší přítok má kratší oblouky, asi 10–14
+   * šířek toku): vlna `RIVER.wave` patří toku širokému `meanderWidthM`, užšímu úměrně kratší,
+   * v mezích násobku.
+   */
+  meanderWidthM: 45,
+  meanderWaveScale: [0.55, 1],
+  /**
+   * Pramen: řeka bez vtoku začíná v šířce potoka mapy, který do ní ústí (m), a k výtoku se plynule
+   * rozšíří na šířku výřezu.
+   */
+  sourceWidthM: 15,
+  /**
+   * Soutok pod ostrým úhlem po proudu: přítok se posledních tolik políček stočí po proudu a vlévá
+   * se rovně pod úhlem v těchto mezích (stupně, ze seedu) k ose hlavního toku.
+   */
+  junctionApproachCells: 10,
+  junctionAngleDeg: [35, 50],
   /** Brod aspoň tolik políček od soutoku. */
   fordJunctionCells: 8,
   /**

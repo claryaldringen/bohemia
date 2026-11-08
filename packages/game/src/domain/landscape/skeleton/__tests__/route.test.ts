@@ -121,6 +121,74 @@ describe('stezka kostry na mapě', () => {
     expect(crossed).toBeGreaterThan(0);
   });
 
+  it('brod: stezka přejde řeku rovně přes střed mělčiny', () => {
+    let crossed = 0;
+    for (const seed of SEEDS) {
+      const l = landscapeOf(seed, FORD);
+      const route = skeletonRoute(l);
+      if (route === null) continue;
+      const [fx, fz] = route.fords[0]!;
+      // Střed brodu je střed mělčiny na ose řeky.
+      const centers = (l.rivers ?? []).flatMap((course) =>
+        course.flatMap((p, k) => {
+          const mid = p.shallow && !course[k - 1]?.shallow;
+          if (!mid) return [];
+          let last = k;
+          while (course[last + 1]?.shallow) last++;
+          const c = course[Math.round((k + last) / 2)]!;
+          return [tileCenterWorld(l, c.x, c.y)];
+        }),
+      );
+      expect(centers.some((c) => length2(c.x - fx, c.z - fz) < 0.01)).toBe(true);
+      // Stezka prochází středem mělčiny (± 2 m).
+      let nearest = Infinity;
+      for (const leg of route.legs) {
+        for (let i = 0; i + 1 < leg.length; i++) {
+          const [ax, az] = leg[i]!;
+          const [bx, bz] = leg[i + 1]!;
+          const dx = bx - ax;
+          const dz = bz - az;
+          const t = Math.min(
+            1,
+            Math.max(0, ((fx - ax) * dx + (fz - az) * dz) / (dx * dx + dz * dz)),
+          );
+          nearest = Math.min(nearest, length2(ax + t * dx - fx, az + t * dz - fz));
+        }
+      }
+      expect(nearest).toBeLessThanOrEqual(2);
+      // Ve vodě řeky vede stezka jen v mělčině – nejdál přes polovinu šířky brodu od středu.
+      const shallowHalfM =
+        Math.max(
+          ...(l.rivers ?? []).flatMap((course) =>
+            course.filter((p) => p.shallow).map((p) => Math.max(p.halfWidthLeft, p.halfWidthRight)),
+          ),
+        ) * l.cellSizeM;
+      for (const leg of route.legs) {
+        for (const [x, z] of leg) {
+          const i = cellAt(l, x, z);
+          const tx = i % l.size;
+          const ty = Math.floor(i / l.size);
+          const inRiver = (l.rivers ?? []).some((course) =>
+            course.some(
+              (p) =>
+                length2(p.x - tx, p.y - ty) <= Math.max(p.halfWidthLeft, p.halfWidthRight) - 0.5,
+            ),
+          );
+          if (inRiver) {
+            expect(length2(x - fx, z - fz)).toBeLessThanOrEqual(shallowHalfM + l.cellSizeM);
+          }
+        }
+      }
+      crossed++;
+    }
+    expect(crossed).toBeGreaterThan(0);
+  });
+
+  it('stejná krajina = stejná trasa', () => {
+    const l = landscapeOf(1, FORD);
+    expect(skeletonRoute(landscapeOf(1, FORD))).toEqual(skeletonRoute(l));
+  });
+
   it('bez přechodu řeky nejde žádný bod trasy ve vodě řeky', () => {
     for (const seed of SEEDS) {
       const l = landscapeOf(seed, NO_CROSSING);

@@ -1,4 +1,4 @@
-import { length2, smoothstep } from '../det-math';
+import { detCos, detSin, length2, smoothstep } from '../det-math';
 import { distanceToMask } from '../grid';
 import {
   carveRiver,
@@ -9,9 +9,10 @@ import {
   riverLook,
   selfTouching,
   shapeChannel,
+  type RiverLook,
   type WidthProfile,
 } from '../premium/river';
-import { createRandom } from '../random';
+import { createRandom, type Random } from '../random';
 import { rasterize, smoothPolyline, type ChannelSample } from '../stream';
 import type { Terrain } from '../terrain';
 import { CELL_SIZE_M, type StreamPoint } from '../types';
@@ -19,8 +20,9 @@ import type { RiverCoursePlan } from './river-course';
 import { SKELETON_MAP } from './rules-map';
 
 // Koryta řek mapy z kostry (world-skeleton.md – Mapa z kostry, krok 2): tvar koryta, meandry,
-// 1–2 brody, hloubka a niva jako řeka prémie (`premium/river.ts`), šířka plynule od šířky vtoku
-// k šířce výtoku. Řeky vznikají dřív než potok a místo pro vesnici – údolí proto rovinu kolem
+// 1–2 brody, hloubka a niva jako řeka prémie (`premium/river.ts`), meandry výraznější a u užšího
+// toku kratší, šířka plynule od šířky vtoku (u pramene od šířky potoka) k šířce výtoku, přítok
+// ústí pod ostrým úhlem po proudu. Řeky vznikají dřív než potok a místo pro vesnici – údolí proto rovinu kolem
 // vsi nešetří (ves se pak vybere aspoň `RIVER.villageMinCells` od os řek). Terén řek počítá
 // jen server při generování (pomocné funkce osy ze `stream.ts` smí `Math.hypot`).
 
@@ -29,14 +31,117 @@ const TAPER_CELLS = 8;
 
 type Cell = { x: number; y: number };
 
-/** Šířka vody podél toku: lineárně `fromWidthM` → `toWidthM`, ± `widthWave`, na koncích přesně. */
+/**
+ * Šířka vody podél toku: lineárně `fromWidthM` → `toWidthM`, ± `widthWave`, na koncích přesně;
+ * nejméně `RIVER.width.minM`, u pramene užší (od šířky potoka).
+ */
 function widthProfile(plan: RiverCoursePlan): WidthProfile {
+  const minM = Math.min(RIVER.width.minM, plan.fromWidthM, plan.toWidthM);
   return (s, length, wave) => {
     const t = length > 0 ? s / length : 0;
     const base = plan.fromWidthM + (plan.toWidthM - plan.fromWidthM) * t;
     const taper = smoothstep(0, TAPER_CELLS, s) * smoothstep(0, TAPER_CELLS, length - s);
     const width = base * (1 + SKELETON_MAP.widthWave * wave * taper);
-    return Math.min(RIVER.width.maxM, Math.max(RIVER.width.minM, width));
+    return Math.min(RIVER.width.maxM, Math.max(minM, width));
+  };
+}
+
+function range(random: Random, [min, max]: readonly [number, number]): number {
+  return min + (max - min) * random.next();
+}
+
+/**
+ * Vzhled toku kostry: jako řeka prémie (`riverLook`), ale s výraznějšími meandry
+ * (`SKELETON_MAP.meanderAmplitude`) a s dlouhou vlnou úměrnou šířce toku (`meanderWaveScale`).
+ */
+function skeletonLook(random: Random, plan: RiverCoursePlan): RiverLook {
+  const look = riverLook(random, []);
+  const widthM = (plan.fromWidthM + plan.toWidthM) / 2;
+  const [low, high] = SKELETON_MAP.meanderWaveScale;
+  const scale = Math.min(high, Math.max(low, widthM / SKELETON_MAP.meanderWidthM));
+  return {
+    ...look,
+    wave: look.wave * scale,
+    amplitude: range(random, SKELETON_MAP.meanderAmplitude),
+  };
+}
+
+/** Vzdálenost bodu od osy toku (políčka) – k nejbližšímu vzorku. */
+function axisDistance(samples: readonly ChannelSample[], p: Cell): number {
+  const q = samples[nearestSample(samples, p)]!;
+  return length2(q.x - p.x, q.y - p.y);
+}
+
+/** Body úsečky po nejvýš políčku (bez prvního bodu, s posledním). */
+function stepsTo(from: Cell, to: Cell): Cell[] {
+  const n = Math.max(1, Math.ceil(length2(to.x - from.x, to.y - from.y)));
+  return Array.from({ length: n }, (_, k) => ({
+    x: from.x + ((to.x - from.x) * (k + 1)) / n,
+    y: from.y + ((to.y - from.y) * (k + 1)) / n,
+  }));
+}
+
+/**
+ * Soutok pod ostrým úhlem po proudu (návrh Clauda – přirozený soutok): přítok ústí do osy hlavního
+ * toku zhruba o průmět přiblížení níž po proudu, než k ní dovedla trasa (ne blíž okraji mapy, než
+ * je `junctionEdgeCells`), a posledních `junctionApproachCells` vede rovně pod úhlem
+ * `junctionAngleDeg` k ose hlavního toku v soutoku. Soutok se vybere tak, aby začátek přiblížení
+ * nebyl blízko hlavního toku (ten meandruje). Trasa přítoku blíž k hlavnímu toku, než začíná
+ * přiblížení, se zahodí (rovný úsek u okraje zůstane). Vrací body osy přítoku a vzorek hlavního
+ * toku v soutoku.
+ */
+function confluence(
+  main: readonly ChannelSample[],
+  cells: readonly Cell[],
+  size: number,
+  random: Random,
+): { cells: Cell[]; junction: number } {
+  const first = nearestSample(main, cells.at(-1)!);
+  const reach = main[first]!;
+  const angle = (range(random, SKELETON_MAP.junctionAngleDeg) * Math.PI) / 180;
+  const approach = SKELETON_MAP.junctionApproachCells;
+  const along = approach * detCos(angle);
+  const across = approach * detSin(angle);
+  const edge = (p: Cell): number => Math.min(p.x, p.y, size - 1 - p.x, size - 1 - p.y);
+  const floor = Math.min(SKELETON_MAP.junctionEdgeCells, edge(reach));
+  // Strana přítoku: kde leží jeho trasa kus před koncem.
+  const back = cells[Math.max(0, cells.length - 1 - Math.ceil(across))]!;
+  const side = reach.tx * (back.y - reach.y) - reach.ty * (back.x - reach.x) >= 0 ? 1 : -1;
+  const startOf = (p: ChannelSample): Cell => ({
+    x: p.x - p.tx * along - p.ty * side * across,
+    y: p.y - p.ty * along + p.tx * side * across,
+  });
+  // Kandidáti soutoku po proudu: nejblíž průmětu přiblížení, se začátkem přiblížení dost daleko
+  // od hlavního toku a v mapě; když takový není, ten s nejvzdálenějším začátkem.
+  let junction = first;
+  let best = -Infinity;
+  for (let j = first; j < main.length && main[j]!.s - reach.s <= 2 * along; j++) {
+    if (edge(main[j]!) < floor) break;
+    const start = startOf(main[j]!);
+    const clear = edge(start) >= 1 ? Math.min(axisDistance(main, start), 0.8 * across) : -1;
+    const score = clear * 100 - Math.abs(main[j]!.s - reach.s - along);
+    if (score > best) {
+      best = score;
+      junction = j;
+    }
+  }
+  const end = main[junction]!;
+  const start = startOf(end);
+  start.x = Math.min(size - 1, Math.max(0, start.x));
+  start.y = Math.min(size - 1, Math.max(0, start.y));
+  const reachAt = Math.min(across, axisDistance(main, start));
+  let keep = cells.length;
+  const lead = SKELETON_MAP.portLeadCells + 1;
+  for (let k = lead; k < cells.length; k++) {
+    if (axisDistance(main, cells[k]!) < reachAt) {
+      keep = k;
+      break;
+    }
+  }
+  const kept = cells.slice(0, Math.max(lead, keep));
+  return {
+    cells: [...kept, ...stepsTo(kept.at(-1)!, start), ...stepsTo(start, end)],
+    junction,
   };
 }
 
@@ -76,21 +181,21 @@ export function carveRiverCourses(
   if (plans.length === 0) return terrain;
   const { size } = terrain;
   const random = createRandom(seed);
+  // Soutoky podle tras – brod hlavního toku se jim vyhne i s přiblížením přítoku po proudu.
   const junctions = plans.flatMap((p) => (p.joins === null ? [] : [p.cells.at(-1)!]));
+  const junctionGap = SKELETON_MAP.fordJunctionCells + SKELETON_MAP.junctionApproachCells;
   const shaped: ShapedCourse[] = [];
   plans.forEach((plan, k) => {
     if (plan.joins !== null && !(plan.joins >= 0 && plan.joins < k)) {
       throw new RangeError(`Přítok ${k} ústí do toku ${plan.joins}, který před ním není.`);
     }
-    const look = riverLook(random, []);
+    const look = skeletonLook(random, plan);
     const main = plan.joins === null ? null : shaped[plan.joins]!;
     let cells: readonly Cell[] = plan.cells;
     let junction = -1;
     if (main) {
       // Přítok končí přesně na ose hlavního toku (ta je oproti trase vyhlazená a meandruje).
-      junction = nearestSample(main.samples, plan.cells.at(-1)!);
-      const end = main.samples[junction]!;
-      cells = [...plan.cells, { x: end.x, y: end.y }];
+      ({ cells, junction } = confluence(main.samples, plan.cells, size, random));
     }
     const base = smoothPolyline(cells, size);
     // Meandr nevyvede vodu za okraj mapy ani do jiného toku.
@@ -104,18 +209,23 @@ export function carveRiverCourses(
     };
     const profile = widthProfile(plan);
     let samples = shapeChannel(base, look, size, room, 0, profile);
-    if (selfTouching(samples)) {
-      samples = shapeChannel(base, { ...look, amplitude: 0 }, size, room, 0, profile);
+    for (const share of SKELETON_MAP.meanderFallback) {
+      if (!selfTouching(samples)) break;
+      samples = shapeChannel(
+        base,
+        { ...look, amplitude: look.amplitude * share },
+        size,
+        room,
+        0,
+        profile,
+      );
     }
-    const ends = plan.joins === null ? junctions : [plan.cells.at(-1)!];
+    const ends = plan.joins === null ? junctions : [cells.at(-1)!];
+    const gap = plan.joins === null ? junctionGap : SKELETON_MAP.fordJunctionCells;
     const fords = chooseFords(
       samples,
       random,
-      (j) =>
-        ends.every(
-          (c) =>
-            length2(samples[j]!.x - c.x, samples[j]!.y - c.y) >= SKELETON_MAP.fordJunctionCells,
-        ),
+      (j) => ends.every((c) => length2(samples[j]!.x - c.x, samples[j]!.y - c.y) >= gap),
       null,
       options.singleFord === true ? 1 : 2,
     );

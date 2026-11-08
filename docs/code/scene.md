@@ -467,7 +467,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   zvuk vody bere nejhlasitější tok. Řeka prémie 1 je jediná řeka – ozdoby, ryby i zvuk jako dřív.
   Ústí: přítok končí v ose hlavního toku a potok mapy ve vodě řeky na její hladině (generátor –
   `planMapStream`, konec osy potoka se prodlouží o políčko do řeky), hladina je bez schodu; konce
-  řeky kostry uvnitř mapy (pramen, ústí přítoku) se neprodlužují (`edgeEnds`). Náhled
+  řeky kostry uvnitř mapy (pramen, ústí přítoku) se neprodlužují (`edgeEnds`). Proud hladiny
+  v soutoku (`flowSampleAt`, `stream-geometry.ts`; `water.ts`): přítok končí v ose hlavního toku,
+  takže nejbližší tok se uvnitř řeky střídá a hladina by ukázala šev, kde se náhle mění směr
+  proudu – na mapě s víc řekami proto směr, rychlost a tůň řek prolíná: hlavní tok (první řeka)
+  přebírá proud ve své vodě, v pásu `CONFLUENCE_BLEND_M` (14 m) od svého břehu plynule, další
+  řeka ve své, zbytek měkce bližší řeka; voda potoka a mapa s jednou řekou beze změny (test
+  `skeleton-water.test.ts` – kolem ústí se směr mezi body 2 m od sebe nezlomí o 20° a víc). Náhled
   `/dev/landscape?skeleton=straight|corner|junction|source|trail|ford|crossroads` (výřezy jako
   testy pásma kostry, `app/dev/landscape/dev-skeleton.ts`; s výřezem jen prémie na svém místě
   kostry – `premium: 2`, seed bez přijatého pokusu = krajina přesně ze seedu): překryv trasy

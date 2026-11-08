@@ -8,6 +8,7 @@ import { CELL_SIZE_M, LANDSCAPE_SIZE, type StreamPoint } from '../../types';
 import { carveRiverCourses, riversOf } from '../rivers';
 import { planRiverCourses, type RiverCoursePlan } from '../river-course';
 import { portTile } from '../ports-map';
+import { SKELETON_MAP } from '../rules-map';
 import type { SkeletonRiverPort, SkeletonSlice } from '../types';
 
 const SIZE = LANDSCAPE_SIZE;
@@ -146,8 +147,9 @@ describe('planRiverCourses', () => {
           20,
         );
       }
-      // Hlavní tok od nejširšího vtoku (u pramene šířka výtoku).
-      const widest = ins.length === 0 ? outflow(s).widthM : Math.max(...ins.map((p) => p.widthM));
+      // Hlavní tok od nejširšího vtoku (u pramene v šířce potoka).
+      const widest =
+        ins.length === 0 ? SKELETON_MAP.sourceWidthM : Math.max(...ins.map((p) => p.widthM));
       expect(main.fromWidthM).toBe(widest);
       expect(main.toWidthM).toBe(outflow(s).widthM);
     },
@@ -222,10 +224,64 @@ describe('carveRiverCourses', () => {
     expect(far).toBeGreaterThan(1);
   });
 
+  it('soutok pod ostrým úhlem po proudu – přítok se stočí po proudu hlavního toku', () => {
+    const { rivers } = BUILT['soutok']!;
+    const [main, tributary] = [rivers[0]!, rivers[1]!];
+    const end = tributary.at(-1)!;
+    // Směr přítoku posledních 2 políček a směr hlavního toku v soutoku.
+    const before = tributary.at(-5)!;
+    let k = 0;
+    main.forEach((p, j) => {
+      if (length2(p.x - end.x, p.y - end.y) < length2(main[k]!.x - end.x, main[k]!.y - end.y))
+        k = j;
+    });
+    const a = main[k - 2]!;
+    const b = main[k + 2]!;
+    const tx = end.x - before.x;
+    const ty = end.y - before.y;
+    const mx = b.x - a.x;
+    const my = b.y - a.y;
+    const cos = (tx * mx + ty * my) / (length2(tx, ty) * length2(mx, my));
+    const degrees = (Math.acos(cos) * 180) / Math.PI;
+    expect(degrees).toBeGreaterThan(20);
+    expect(degrees).toBeLessThan(65);
+  });
+
+  it('přítok meandruje jako hlavní tok – osa se odchyluje od přímky přiblížení', () => {
+    const { rivers } = BUILT['soutok']!;
+    const sinuosity = (river: readonly StreamPoint[]): number => {
+      let along = 0;
+      for (let k = 1; k < river.length; k++) {
+        along += length2(river[k]!.x - river[k - 1]!.x, river[k]!.y - river[k - 1]!.y);
+      }
+      return along / length2(river.at(-1)!.x - river[0]!.x, river.at(-1)!.y - river[0]!.y);
+    };
+    expect(sinuosity(rivers[1]!)).toBeGreaterThan(1.08);
+    expect(sinuosity(rivers[0]!)).toBeGreaterThan(1.05);
+  });
+
+  it('pramen: řeka začíná v šířce potoka a plynule se rozšíří na šířku výtoku', () => {
+    const { rivers, slice: s } = BUILT['pramen']!;
+    const river = rivers[0]!;
+    const width = (p: StreamPoint): number => (p.halfWidthLeft + p.halfWidthRight) * CELL_SIZE_M;
+    expect(width(river[0]!)).toBeCloseTo(SKELETON_MAP.sourceWidthM, 6);
+    expect(width(river.at(-1)!)).toBeCloseTo(outflow(s).widthM, 6);
+    // Mimo brod (širší mělčina) se šířka mezi sousedními body mění jen málo.
+    for (let k = 1; k < river.length; k++) {
+      if (river[k]!.shallow || river[k - 1]!.shallow) continue;
+      expect(Math.abs(width(river[k]!) - width(river[k - 1]!))).toBeLessThan(0.6);
+    }
+    // Prvních 10 políček je užší než výtok.
+    const head = river.filter((p, k) => k < 20 && !p.shallow);
+    expect(Math.max(...head.map(width))).toBeLessThan(outflow(s).widthM - 4);
+  });
+
   it('stejný vstup = stejné koryto', () => {
-    const again = build('soutok');
-    expect(again.rivers).toEqual(BUILT['soutok']!.rivers);
-    expect(again.terrain.heights).toEqual(BUILT['soutok']!.terrain.heights);
+    for (const name of ['soutok', 'pramen']) {
+      const again = build(name);
+      expect(again.rivers).toEqual(BUILT[name]!.rivers);
+      expect(again.terrain.heights).toEqual(BUILT[name]!.terrain.heights);
+    }
   });
 });
 

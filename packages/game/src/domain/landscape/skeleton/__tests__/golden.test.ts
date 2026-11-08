@@ -1,5 +1,7 @@
 // Zlatý otisk map s řekou kostry (world-skeleton.md – Uložení, verze vrstev): po ostrém spuštění
 // se terén `skeleton: 1` nesmí změnit – jen nová verze vrstvy. Suché mapy hlídá `generate.test.ts`.
+// Otisky přepočítané 8. 11. 2026 před ostrým spuštěním kostry (meandry, soutok po proudu, šířka
+// u pramene – oprava vad z náhledu scény).
 import { describe, expect, it } from 'vitest';
 import { generateAcceptedLandscape, generateLandscapeAttempt } from '../../generate';
 import { landscapeHash } from '../../__tests__/landscape-checks';
@@ -25,14 +27,14 @@ function riversHash(rivers: readonly (readonly StreamPoint[])[]): string {
 
 describe('mapa s řekou kostry – zlatý otisk (skeleton: 1)', () => {
   it.each([
-    ['rovně', 1, 1, 'fe1e4158', '4354b911'],
-    ['rovně', 42, 42, '54ffb145', '5255a230'],
-    ['ohyb', 1, 1, '4c48c4d8', '4622820a'],
-    ['ohyb', 42, 42, '7b24ca6c', 'af815b27'],
-    ['soutok', 1, 2, 'eac78442', 'dfb48f24'],
-    ['soutok', 42, 42, 'a3ac4cb4', 'f24d91fd'],
-    ['pramen', 1, 1, '6f2cc938', 'cf50e6e9'],
-    ['pramen', 42, 42, 'b7234e71', '2a737a7d'],
+    ['rovně', 1, 1, 'a421ed3d', 'c52a34ce'],
+    ['rovně', 42, 42, 'efe70ffc', '2957b71c'],
+    ['ohyb', 1, 1, '09e9e93b', 'd90992d7'],
+    ['ohyb', 42, 42, '795e513b', 'a107cf3f'],
+    ['soutok', 1, 2, '8b2e1cb0', '338b6293'],
+    ['soutok', 42, 42, '1a15fbe6', 'a636a63e'],
+    ['pramen', 1, 1, '331a9e62', '208a368f'],
+    ['pramen', 42, 42, 'f125709d', 'a268371e'],
   ] as const)('%s, seed %i (přijatý pokus %i)', (name, seed, acceptedSeed, land, rivers) => {
     const s = SKELETON_BAND_CASES[name as SkeletonBandCase];
     const accepted = generateAcceptedLandscape(seed, SKELETON, undefined, s);

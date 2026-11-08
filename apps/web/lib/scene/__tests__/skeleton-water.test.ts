@@ -11,6 +11,7 @@ import { ambientMix, type AmbientEnvironment } from '../ambient-mix';
 import { decorPlacements } from '../decor-placement';
 import { fishSchools } from '../fauna-placement';
 import { buildRenderSurface } from '../render-surface';
+import { flowSampleAt } from '../stream-geometry';
 
 // Řeky kostry světa ve scéně (world-skeleton.md – Mapa z kostry): voda, koryto a břehy berou
 // všechny toky (osa vod), stanice podél vody – rákos, ryby, zvuk – jdou po každé řece zvlášť,
@@ -98,5 +99,31 @@ describe('řeky kostry ve scéně', () => {
     const river = surface.river!.nearest(mouth.x, mouth.z, 100);
     expect(river.bankDistance).toBeLessThan(0);
     expect(Math.abs(mouth.level - river.level)).toBeLessThan(0.05);
+  });
+  it('soutok bez švu: proud přítoku se v řece plynule stočí do proudu hlavního toku', () => {
+    const mouth = tributary!.points.at(-1)!;
+    const flow = (x: number, z: number): ReturnType<typeof flowSampleAt> =>
+      flowSampleAt(surface.stream, surface.rivers, x, z);
+    // Hluboko ve vodě hlavního toku teče voda jako hlavní tok.
+    const there = flow(mouth.x, mouth.z);
+    const own = main!.nearest(mouth.x, mouth.z);
+    expect(there.flowX * own.flowX + there.flowZ * own.flowZ).toBeGreaterThan(0.99);
+    // Kolem ústí se směr proudu mezi sousedními body (2 m) nikde nezlomí.
+    const step = 2;
+    let worst = 0;
+    for (let dz = -60; dz <= 60; dz += step) {
+      for (let dx = -60; dx <= 60; dx += step) {
+        const x = mouth.x + dx;
+        const z = mouth.z + dz;
+        const a = flow(x, z);
+        if (a.bankDistance > -1) continue;
+        for (const b of [flow(x + step, z), flow(x, z + step)]) {
+          if (b.bankDistance > -1) continue;
+          const cos = Math.min(1, a.flowX * b.flowX + a.flowZ * b.flowZ);
+          worst = Math.max(worst, (Math.acos(cos) * 180) / Math.PI);
+        }
+      }
+    }
+    expect(worst).toBeLessThan(20);
   });
 });

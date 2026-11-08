@@ -140,7 +140,8 @@ export function planRiverCourses(
   const plans: RiverCoursePlan[] = [
     {
       cells: mainCells,
-      fromWidthM: main ? main.widthM : out.widthM,
+      // U pramene v šířce potoka mapy, který do řeky ústí – k výtoku se rozšíří.
+      fromWidthM: main ? main.widthM : Math.min(SKELETON_MAP.sourceWidthM, out.widthM),
       toWidthM: out.widthM,
       joins: null,
     },

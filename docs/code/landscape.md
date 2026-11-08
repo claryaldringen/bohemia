@@ -200,15 +200,23 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (u pramene od bodu uvnitř mapy) k výtoku, přítoky k políčku hlavního toku ≥ 20 od okraje
   (`joins`; hlavní tok u rohu mapy, který se od okraje na 20 políček nevzdálí – W 24 → S 24 –,
   přijme přítok v nejhlubším místě), přes rovné úseky jiných bodů trasa nevede; null = trasa
-  nevede.
+  nevede; u pramene `fromWidthM` = `SKELETON_MAP.sourceWidthM` (15 m, šířka potoka).
   `carveRiverCourses(terrain, plans, seed, { floodplainCells })` (`rivers.ts`) – na místě:
-  `shapeChannel` s profilem šířky (lineárně vtok → výtok ± 10 %, v bodech okraje přesně),
-  meandry jako řeka prémie (u dotyku sebe sama bez meandrů), 1–2 brody (ne do 8 políček od
-  soutoku), `carveRiver` od políčka vtoku či pramene (`source`) bez ohledu na ves
-  (`ignoreVillage` – ves se vybírá až po řekách); přítok ústí do osy hlavního toku a jeho dno
-  nekončí pod dnem soutoku (`bedFloor`). Osy jdou do `Terrain.rivers` / `Landscape.rivers`
+  `shapeChannel` s profilem šířky (lineárně vtok → výtok ± 10 %, v bodech okraje přesně; mez
+  `RIVER.width.minM` jen od užšího konce – pramen začíná na 15 m a plynule se rozšíří),
+  meandry výraznější než řeka prémie (`skeletonLook`: amplituda `meanderAmplitude` 3–5 políček,
+  dlouhá vlna `RIVER.wave` × šířka / `meanderWidthM` 45 m v mezích 0,55–1; u dotyku sebe sama
+  menší amplituda `meanderFallback` 65 % → 35 % → rovně), 1–2 brody (ne do 8 políček od soutoku,
+  u hlavního toku 8 + 10 od soutoku podle trasy), `carveRiver` od políčka vtoku či pramene
+  (`source`) bez ohledu na ves (`ignoreVillage` – ves se vybírá až po řekách). **Soutok**
+  (`confluence`): přítok ústí do osy hlavního toku zhruba o průmět přiblížení níž po proudu,
+  než k ní dovedla trasa (ne blíž okraji než `junctionEdgeCells`), posledních
+  `junctionApproachCells` (10) vede rovně pod úhlem `junctionAngleDeg` 35–50° k ose v soutoku
+  (soutok se vybere tak, aby začátek přiblížení nebyl u meandrujícího hlavního toku); trasa
+  přítoku blíž k hlavnímu toku se zahodí. Dno přítoku nekončí pod dnem soutoku (`bedFloor`). Osy jdou do `Terrain.rivers` / `Landscape.rivers`
   (hlavní tok první), všechny řeky mapy dá `riversOf` (i řeku prémie `river`). Testy
-  `skeleton/__tests__/river-course.test.ts` (rovně, ohyb, soutok, pramen na umělém svahu).
+  `skeleton/__tests__/river-course.test.ts` (rovně, ohyb, soutok, pramen na umělém svahu; úhel
+  soutoku po proudu, meandry přítoku, šířka u pramene, determinismus).
   **Terén mapy s řekou** (Úloha 5): `generateSkeletonTerrain(seed, version, slice, options?)`
   (`skeleton/terrain.ts`; `options.floodplainCells` pro prémie na kostře) – výřez bez řeky dá
   `generateTerrain` beze změny; s řekou „řeka první“: `terrainStart` (šum, převýšení, sesypání –
@@ -242,10 +250,14 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   det-math): `skeletonRoute(l)` – od každého bodu stezky (`portTile`) nejlevnější cesta
   (`routeLeg`, cena `trailCellCost`) k jednomu bodu obejití vsi (`villageBypass`, 13 políček ≈ 195 m
   od vsi, zkouší se bokem ke směru od každého bodu stezky); ves ≥ 11 políček, voda řeky
-  neprůchozí a souš do `SKELETON_ROUTE.bankCells` (1,5) od ní taky, kromě **brodu** (políčka do
-  `šířka + 1,5` od mělkých bodů osy – `shallow`) a prvních 4 políček od okraje; potok mapy se
-  přebrodí s příplatkem 6 ×. Úseky se vyhladí (2 průchody), první bod se přisune na okraj mapy,
-  každý musí vést ≥ 150 m od vsi. `SkeletonRoute { legs, ends, fords }` – `fords` = mělčiny,
+  neprůchozí a souš do `SKELETON_ROUTE.bankCells` (1,5) od ní taky, kromě **přechodu brodem**
+  (`fordCrossings`: přímka kolmo na osu ve středu mělčiny – prostřední bod souvislého úseku
+  `shallow` –, přes vodu a `bankCells + fordLandCells` za ni; průchozí jen políčka do
+  `fordCorridorCells` 0,75 od ní) a prvních 4 políček od okraje; potok mapy se přebrodí
+  s příplatkem 6 ×. Přechod se v úseku nahradí přesnou přímkou přes střed mělčiny a úsek se
+  vyhladí (2 průchody) po kusech od středu brodu ke středu brodu – voda se přejde rovně, střed
+  mělčiny leží na stezce. První bod se přisune na okraj mapy, každý úsek musí vést ≥ 150 m od
+  vsi. `SkeletonRoute { legs, ends, fords }` – `fords` = středy mělčin (osa řeky ve světě),
   kterými trasa opravdu vede. Dva body = stezka kolem vsi, víc = křižovatka (`crossroads`, větve
   se potkají v bodě obejití), jeden = konec stezky (`trailEnd`). `skeletonFeaturesOf(l)`
   (`WeakMap`, počítá z `transferPrecision`) vrací `SkeletonFeatures`, null bez výřezu.
