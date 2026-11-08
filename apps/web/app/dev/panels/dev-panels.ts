@@ -4,23 +4,11 @@ import { ABANDON_FOUNDING, DIRECTIONS, type TrailOption } from '@bohemia/game';
 import type { VillageManor, VillageNeighbour } from '@/lib/manor-view';
 import type { SelectionDetails, SelectionLeave } from '@/lib/selection-details';
 import type { VillageListItem } from '@/lib/village-list';
-import type { BuildOption } from '@/lib/village-view';
 
 // Ukázková data panelu výběru pro vývojovou stránku /dev/panels – nejbohatší objekty (dvorec
 // s vylepšeními a obchodem, obydlí s rodinami a přestavbou, víc obydlí, dílny, ohrada, pole a díly
 // pole, sad a čtverec sadu, cesta, rudiště kováře, otevřená obilná jáma)
 // i malé (posvátný dub, staveniště) vedle sebe, ať jde rozvržení panelu zkontrolovat bez hry.
-
-const option = (affordable: boolean, wood: number, missing = 0): BuildOption => ({
-  laborManDays: 64,
-  perHa: false,
-  perSquare: false,
-  upfront: [{ resource: 'wood', amount: wood, missing }],
-  blocked: null,
-  affordable,
-});
-
-const relocate = { zemnice: option(true, 7), polozemnice: option(false, 18, 6) };
 
 const leave: SelectionLeave = {
   households: [3],
@@ -251,8 +239,6 @@ const dwelling = (
   overcrowded: false,
   rebuild: null,
   workshop: null,
-  relocation: null,
-  relocate,
   manor: null,
   leave,
   ...over,
@@ -336,15 +322,6 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
     details: dwelling(),
   },
   {
-    key: 'stehovani',
-    label: 'Stěhování',
-    details: dwelling({
-      relocate: null,
-      relocation: { constructionId: 12, type: 'polozemnice', progress: 0.35, treesToFell: 4 },
-      rebuild: null,
-    }),
-  },
-  {
     key: 'vic-obydli',
     label: 'Víc obydlí',
     details: {
@@ -352,8 +329,6 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       ids: Array.from({ length: 14 }, (_, i) => i + 1),
       households: 13,
       people: 87,
-      relocatable: [1, 2, 3, 5, 8],
-      relocate,
       leave: { ...leave, households: [1, 2, 3, 5, 8], people: 34, foodKg: 680 },
     },
   },

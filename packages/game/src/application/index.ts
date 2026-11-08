@@ -34,7 +34,6 @@ export * from './dev-disasters';
 export * from './place-dwelling';
 export * from './abandon-field-parts';
 export * from './cancel-construction';
-export * from './relocate-household';
 export * from './leave-village';
 export * from './place-workshop';
 export * from './place-field';

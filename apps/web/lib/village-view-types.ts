@@ -27,7 +27,6 @@ import {
   type CraftPurchaseGoods,
   type CraftStocks,
   type Crop,
-  type BuildableDwellingType,
   type Direction8,
   type NewcomerGroup,
   type DwellingType,
@@ -51,7 +50,6 @@ import {
   type HerdPlaces,
   type FieldCapacity,
 } from '@bohemia/game';
-import { type HouseholdRelocation } from './relocation-view';
 
 import { type VillageManor } from './manor-view';
 import type { FieldDamageView, VillageWildlife } from './wildlife-view';
@@ -434,9 +432,7 @@ export interface VillageView {
     residents: DwellingResident[];
     /** Stáří obydlí v celých letech. */
     ageYears: number;
-    /** Domácnost si staví nový dům (migration.md – Přestěhování domácnosti); jinak null. */
-    relocation: HouseholdRelocation | null;
-    /** Proč se domácnost teď přestěhovat nemůže (null = může). */
+    /** Proč domácnost teď nemůže odejít (stěhuje se, bez lidí…); odchod to hlídá (migration.md). */
     relocationBlock: RelocationBlock | null;
   }[];
   storesKg: number;
@@ -511,8 +507,6 @@ export interface VillageView {
   fullHousehold: boolean;
   /** Nabídka staveb – hráč staví kdy chce, předem musí ves mít suroviny a lidi k osídlení. */
   build: Record<BuildKind, BuildOption>;
-  /** Nový dům stěhující se domácnosti – cena bez lidí k osídlení (migration.md). */
-  relocation: Record<BuildableDwellingType, BuildOption>;
   constructions: {
     id: number;
     kind: ConstructionKind;

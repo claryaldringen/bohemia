@@ -28,7 +28,12 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 - **Anti-cíl:** hráč, který stěhováním obchází pravidla (např. lidé, kteří se „přestěhují“ bez
   práce, nebo vyvedení lidí, aby stará ves nemusela živit staré a děti).
 
-## Přestěhování domácnosti (na stejné mapě)
+## Přestěhování domácnosti (na stejné mapě) – ZANIKÁ
+
+> **Akce Přestěhovat zanikla** (Martin 8. 11. 2026, [demolition.md](demolition.md)): hráč si místo toho
+> postaví nový dům a starý opustí nebo zboří. Níže popsané chování zůstává jen u rozestavěných
+> přestěhování ze starších vsí (dostaví se a domácnost se přestěhuje jako dřív; správce
+> `startRelocation` používá do Úlohy 6 plánu). Tlačítko ani server action už neexistují.
 
 - U vybraného obydlí tlačítko **Přestěhovat** → umisťování nového domu jako u stavby obydlí
   (stejné kontroly, cena, dřevo, pozemek polozemnice). Hráč volí typ (zemnice / polozemnice).
@@ -44,8 +49,8 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 
 - **Ctrl / Shift + kliknutí** přidá nebo ubere obydlí z výběru; tlačítko a klávesa **„Všechna
   obydlí“** (návrh Clauda: Ctrl + A) označí všechna obydlí vsi. Panel výběru pak ukáže počet
-  domácností a lidí (ikony + čísla) a tlačítka **Přestěhovat** (každá domácnost dostane nový dům –
-  umisťuje se postupně, Shift jako u staveb) a **Odejít**.
+  domácností a lidí (ikony + čísla) a tlačítko **Odejít** (tlačítko Přestěhovat zaniklo –
+  [demolition.md](demolition.md)).
 
 ## Odchod do nové vsi
 
@@ -104,7 +109,7 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 
 ## Co hráč vidí
 
-- Tlačítka v panelu výběru: Přestěhovat, Odejít (ikony, popisek s cenou / počtem lidí – jako
+- Tlačítka v panelu výběru: Odejít (Přestěhovat zaniklo – demolition.md) (ikony, popisek s cenou / počtem lidí – jako
   v 0 A.D.).
 - Při přestěhování: staveniště nového domu, obyvatelé chodí stavět; po dostavění se přestěhují.
 - Při odchodu: lidé odejdou ke kraji mapy (směr), mapa nové vsi se načte.
@@ -152,8 +157,8 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 ### Stav fází
 
 1. **Přestěhování domácnosti a výběr víc obydlí – hotovo.** Jádro `relocation.ts` a akce
-   `startRelocation` (`actions.ts`), zrušení `cancelConstruction` (`cancel-construction.ts`), use-casy `relocate-household.ts`, panel
-   výběru (`RelocationControls.tsx`), výběr víc obydlí `village-selection.ts`.
+   `startRelocation` (`actions.ts`), zrušení `cancelConstruction` (`cancel-construction.ts`), panel
+   výběru (`RelocationControls.tsx`; use-case `relocate-household.ts` a tlačítka Přestěhovat zanikly 8. 11. 2026), výběr víc obydlí `village-selection.ts`.
 2. **Víc vsí a přepínač – hotovo.** Migrace `0005_multi_village`, use-casy podle id vsi,
    `player-villages.ts`, přepínač `VillageSwitcher.tsx` (vývojová druhá ves na téže mapě – zrušeno
    1. 11. 2026, jedna ves, jedna mapa).

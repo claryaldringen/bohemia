@@ -215,7 +215,12 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   starý dům zůstane prázdný – dál ho řeší běžná pravidla (osídlení, chátrání, rozpad, zbytek
   jámy). Rozestavěné stěhování zruší obecné `cancelConstruction` (stavba zmizí, nespotřebované dřevo se
   vrátí na hromadu, `returnConstructionWood`; kronika `relocation-cancelled`). Use-case
-  `relocateHousehold` (`relocate-household.ts`, důvody česky `RELOCATION_BLOCKED`).
+  `relocateHousehold` (`relocate-household.ts`) **zanikl** s tlačítkem Přestěhovat (8. 11. 2026,
+  [demolition.md](../design/demolition.md)); doména (`startRelocation`, `relocates`,
+  `relocationBlock` – ten hlídá i Odejít) zůstává pro správce a rozestavěná stěhování starých vsí.
+  V rozhraní je rozestavěný nový dům běžné staveniště se Zrušit, starý dům nese jen Odejít
+  (návrh Clauda); kronika `relocation-started` / `household-relocated` / `relocation-cancelled`
+  je dál čitelná.
 
 - **Víc vsí jednoho hráče** (migration.md, fáze 2): sídlo (`settlement`) = mapa s krajinou,
   **jedna ves, jedna mapa** (Martin 1. 11. 2026) – `village.id` je primární klíč, `settlement_id`

@@ -14,7 +14,6 @@ import {
   parseAbandonFieldPartsInput,
   parseCancelConstructionInput,
   parseNameLineManInput,
-  parseRelocateHouseholdInput,
   parseVillageId,
   villageIdOf,
   parsePlantRoadApplesInput,
@@ -193,29 +192,6 @@ describe('vstupy víc vsí a přestěhování (migration.md)', () => {
     expect(villageIdOf({})).toBeNull();
     expect(villageIdOf(null)).toBeNull();
     expect(parseVillageId(undefined)).toBeNull();
-  });
-
-  it('přestěhování: id obydlí a nový dům jako stavba obydlí', () => {
-    const position = { x: 1, z: 2, rotation: 0 };
-    expect(
-      parseRelocateHouseholdInput({ villageId: ID, dwellingId: 3, type: 'zemnice', position }),
-    ).toEqual({ dwellingId: 3, type: 'zemnice', position });
-    expect(
-      parseRelocateHouseholdInput({
-        dwellingId: 3,
-        type: 'polozemnice',
-        position,
-        plot: { cell: { x: 4, y: 5 }, variant: 'center' },
-      }),
-    ).toEqual({
-      dwellingId: 3,
-      type: 'polozemnice',
-      position,
-      plot: { cell: { x: 4, y: 5 }, variant: 'center' },
-    });
-    expect(parseRelocateHouseholdInput({ dwellingId: 0, type: 'zemnice', position })).toBeNull();
-    expect(parseRelocateHouseholdInput({ dwellingId: 1.5, type: 'zemnice', position })).toBeNull();
-    expect(parseRelocateHouseholdInput({ dwellingId: 2, type: 'hrad', position })).toBeNull();
   });
 
   it('zrušení přestěhování: kladné celé id stavby', () => {

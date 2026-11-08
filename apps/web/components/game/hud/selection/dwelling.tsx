@@ -1,11 +1,6 @@
 /** Panel výběru obydlí, dvorce vojvody a skupiny obydlí. */
 import { type ReactElement } from 'react';
-import {
-  type BuildableDwellingType,
-  type DefenseStance,
-  Direction8,
-  TradeGoods,
-} from '@bohemia/game';
+import { type DefenseStance, Direction8, TradeGoods } from '@bohemia/game';
 import { VillageTarget } from '@/lib/scene/village-picking';
 import { type SelectionDetails } from '@/lib/selection-details';
 import { PreviewPeople } from '@/lib/trade-quote';
@@ -15,17 +10,15 @@ import { StewardToggle } from '../StewardToggle';
 import { ManorUpgrades } from '../ManorPanel';
 import type { PrisonerAction } from '../PrisonersPanel';
 import { TradePanel } from '../TradePanel';
-import { LeaveControls, RelocateButtons, RelocationProgress } from '../RelocationControls';
+import { LeaveControls } from '../RelocationControls';
 import { Stat, Bar, ROW, Commands, WoodToFell } from './parts';
 import { ManorHunt } from './wildlife';
 import { WorkshopRow, BuyingRow } from './crafts';
 import { SonsRow } from './sons';
 
-/** Akce panelu nad obydlími – přestěhování domácnosti a jeho zrušení (migration.md). */
+/** Akce panelu nad obydlími – odchod do nové vsi a zrušení stavby (migration.md). */
 export interface RelocationActions {
-  /** Začne umisťovat nové domy domácností `householdIds` (postupně, jeden za druhým). */
-  onRelocate?: (type: BuildableDwellingType, householdIds: readonly number[]) => void;
-  /** Zruší rozestavěné stěhování (stavba nového domu) – hotovo, až se vrátí. */
+  /** Zruší rozestavěnou stavbu – hotovo, až se vrátí. */
   onCancelConstruction?: (constructionId: number) => Promise<void>;
   /**
    * Odejít do nové vsi (migration.md – fáze 3 a 4): na novou mapu ve směru (jedna ves, jedna mapa).
@@ -61,8 +54,6 @@ export interface ManorActions {
 export function DwellingBody({
   details,
   onSelectTarget,
-  onRelocate,
-  onCancelConstruction,
   onLeave,
   onLeaveSon,
   onPreviewSon,
@@ -83,11 +74,7 @@ export function DwellingBody({
 } & RelocationActions &
   ManorActions): ReactElement {
   const tone = details.overcrowded ? 'text-red-400' : details.full ? 'text-[#f3cf86]' : '';
-  const commands =
-    details.manor !== null ||
-    details.relocate !== null ||
-    details.leave !== null ||
-    steward !== undefined;
+  const commands = details.manor !== null || details.leave !== null || steward !== undefined;
   return (
     <div className="hud-split">
       <div className="flex min-w-0 flex-col justify-center gap-1.5">
@@ -117,13 +104,6 @@ export function DwellingBody({
             {details.rebuild.treesToFell > 0 && <WoodToFell trees={details.rebuild.treesToFell} />}
           </div>
         )}
-        {details.relocation && (
-          <RelocationProgress
-            constructionId={details.relocation.constructionId}
-            progress={details.relocation.progress}
-            onCancel={onCancelConstruction}
-          />
-        )}
       </div>
       {commands && (
         <Commands>
@@ -143,18 +123,7 @@ export function DwellingBody({
               )}
             />
           )}
-          {(details.relocate || details.leave) && (
-            <div className="flex items-center gap-2">
-              {details.relocate && (
-                <RelocateButtons
-                  options={details.relocate}
-                  households={1}
-                  onRelocate={onRelocate ? (type) => onRelocate(type, [details.id]) : undefined}
-                />
-              )}
-              <LeaveControls leave={details.leave} onLeave={onLeave} />
-            </div>
-          )}
+          {details.leave && <LeaveControls leave={details.leave} onLeave={onLeave} />}
         </Commands>
       )}
     </div>
@@ -162,12 +131,11 @@ export function DwellingBody({
 }
 
 /**
- * Víc vybraných obydlí (migration.md – Výběr víc obydlí): kolik domácností a lidí, Přestěhovat
- * (nový dům postupně každé domácnosti, která se může stěhovat) a Odejít (růžice odchodu).
+ * Víc vybraných obydlí (migration.md – Výběr víc obydlí): kolik domácností a lidí a Odejít
+ * (růžice odchodu).
  */
 export function DwellingsBody({
   details,
-  onRelocate,
   onLeave,
 }: {
   details: Extract<SelectionDetails, { kind: 'dwellings' }>;
@@ -183,16 +151,7 @@ export function DwellingsBody({
         </Stat>
       </div>
       <Commands>
-        <div className="flex items-center gap-2">
-          {details.relocate && (
-            <RelocateButtons
-              options={details.relocate}
-              households={details.relocatable.length}
-              onRelocate={onRelocate ? (type) => onRelocate(type, details.relocatable) : undefined}
-            />
-          )}
-          <LeaveControls leave={details.leave} onLeave={onLeave} />
-        </div>
+        <LeaveControls leave={details.leave} onLeave={onLeave} />
       </Commands>
     </div>
   );

@@ -24,7 +24,6 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   name: 'Libice',
   villages: [],
   rights: { allowed: [], reason: null },
-  relocation: { zemnice: workshop(60), polozemnice: workshop(220) },
   abandoned: null,
   journey: null,
   pendingDeparture: null,

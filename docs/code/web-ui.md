@@ -3,7 +3,7 @@
 Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). Pravidla a rozhodnutí: vision.md, accounts.md v `docs/design/`.
 
 - **Web:** server actions `app/game/actions.ts` (`getVillageView`, `selectVillage`, `foundVillage`,
-  `placeDwelling`, `relocateHousehold`, `cancelConstruction`, `leaveVillage`,
+  `placeDwelling`, `cancelConstruction`, `leaveVillage`,
   `settleJourney`, `placeWorkshop`,
   `placeField`, `placeCemetery`, `placeOrchard`, `placeSacred`, `placePen`,
   `buildTrail`, `sendExpedition`, `declareHunt`, `renameVillage`, `nameLineMan` → `VillageView` / `null` / `{ error }`; `restartGame(input?)` → `{ ok: true }` /
@@ -19,8 +19,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `manor-hunt` v `ManorUpgrades`; důvod odepření dává pohled `VillageManor.huntDenied`).
   Composition root `lib/village.ts` (pohled na ves
   dopočítá všechny vsi hráče – přepínač a konec hry), `lib/village-view.ts` (DTO, smí i do
-  prohlížeče – `id`, `settlementId`, `villages` pro přepínač, `relocation` cena nového domu bez
-  lidí k osídlení), `lib/village-list.ts`, `lib/relocation-view.ts`. Vybraná ves se pamatuje
+  prohlížeče – `id`, `settlementId`, `villages` pro přepínač), `lib/village-list.ts`. Vybraná ves se pamatuje
   v cookie, kterou zapisuje prohlížeč (`lib/village-choice.ts` – zápis cookie v server action by
   Next.js odpověděl novým vykreslením stránky a novou scénou); stránka /game ji přečte
   (`lib/village-cookie.ts`) a otevře přes `gameEntryForPlayer` (`lib/game.ts`), cizí nebo
@@ -211,17 +210,17 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   ani být nahňácaný): `w-max` a `whitespace-nowrap`, meze v `hud-selection` (globals.css – na
   středu mezi minimapou a mřížkou staveb, nejvýš 70 % okna, širší obsah se zalomí po celých
   položkách – řádky `ROW` s `flex-wrap`; na okně pod 55rem stojí nad nimi, svislý posuv
-  `useOverflowScroll` až když přeroste výšku okna – ořízl by popisky); příkazy (dvorec, Přestěhovat,
+  `useOverflowScroll` až když přeroste výšku okna – ořízl by popisky); příkazy (dvorec,
   Odejít, vylepšení cesty) vpravo za čarou – `Commands`, `hud-split` / `hud-commands`, na okně
   55–72rem pod údaji; rozbalené nabídky (růžice stezek a odchodu, obchod) nad panelem u pravého
   okraje – `hud-popup`, zavře je stisk myši mimo ně (`hooks/use-dismiss.ts`); popisky (`Tooltip`)
   se zalomit smí – `whitespace-normal`; náhled bez hry s nejbohatšími daty:
   http://localhost:3010/dev/panels (`?panel=dvorec`, `ohrada`, `pole`, `pole-dil`, `rudiste`… – `app/dev/panels/dev-panels.ts`,
   i seznam vsí a nabídka hry); u obydlí a víc vybraných obydlí – počet domácností a lidí –
-  tlačítka Přestěhovat po typu nového domu a Odejít – růžice odchodu `LeaveCompass`: 8 směrů nové
+  tlačítko Odejít – růžice odchodu `LeaveCompass`: 8 směrů nové
   mapy, uprostřed nic (jedna ves, jedna mapa – „sem“ zrušené 1. 11. 2026) (dny cesty, lidé a jídlo v popisku, směr s vlastní
-  vsí zašedlý) –, průběh stěhování se Zrušit – `hud/RelocationControls.tsx`; u víc domácností se
-  nové domy umisťují postupně, po umístění jednoho hned další jako Shift + klik; **odchod syna
+  vsí zašedlý) – `hud/RelocationControls.tsx` (Přestěhovat zaniklo 8. 11. 2026 – demolition.md; rozestavěný
+  nový dům je běžné staveniště se Zrušit); **odchod syna
   vojvody** (lord.md – Dělení vsi): pohled `dynasty.sons` (`lib/dynasty-view.ts`, z `leadingSons` /
   `sonDeparturePreview` – náhled ze všech odcházejících stejnými funkcemi jako `departWithSon`,
   i když je díl jen rodina syna; počítá se jen pro syna, který smí vést) → `SelectionSon` v detailech dvorce (`sonDetails`
@@ -327,7 +326,7 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   humnu, modle, svatyni a staveništi `cancelConstructionId` (u hřbitova a ohrady nejnovější
   stavba – rozšíření) a `SelectionPanel` ukáže `CancelConstructionButton`
   (`hud/RelocationControls.tsx`, `data-testid="cancel-construction"`, křížek bez textu, slova
-  jen v `Tooltip`). Stejné tlačítko je u starého domu při stěhování (`RelocationProgress`).
+  jen v `Tooltip`).
 
 - **Panel ohrady koní** (horses.md – Co hráč vidí): `lib/horse-view.ts` (`horsesView` →
   `VillageView.horses`: koně po kusech s druhem, věkem, výcvikem 0–1, hřebcem a jezdcem, místa, kolik
@@ -750,8 +749,7 @@ action `levyDialogs()` (rozdělení po vsích se počítá až tehdy, ne s dotaz
   vrací důvod, nebo null. `Tooltip` má prop `denied` – místo obsahu ukáže červený důvod
   (`data-testid="rights-reason"`), tlačítko dostane `disabled`. Pokrytá práva (`ACTION_RIGHTS`):
   `build` – `BuildGrid` (i zkratky – `startBuild`), zrušení stavby, vylepšení cest / vozová cesta /
-  jabloně (`selection/roads.tsx`), zemská stezka (`TrailCompass`); `evacuate` – Přestěhovat
-  a Odejít (`RelocationControls`); `sendSons` – odchod se synem (`LeaveCompass right`);
+  jabloně (`selection/roads.tsx`), zemská stezka (`TrailCompass`); `evacuate` – Odejít (`RelocationControls`); `sendSons` – odchod se synem (`LeaveCompass right`);
   `nameSons` – `LineNamePanel`; `steward` – `StewardToggle` (jen zobrazená ves; ves v seznamu
   jiná než zobrazená právo nezná, rozhodne server), přejmenování vsi, lov navíc; `trade` – Vyslat
   výpravu (`NeighbourTrade`). Pohled na ves a výběr zůstávají – dívat se smí každý hráč rodu.

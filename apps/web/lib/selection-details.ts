@@ -14,7 +14,6 @@ import {
   type Craft,
   type Crop,
   type Direction8,
-  type BuildableDwellingType,
   type DwellingType,
   type FamilyCounts,
   type FieldSurface,
@@ -48,7 +47,6 @@ import type {
   VillageFieldPart,
   VillageThreshingFloor,
 } from './village-view-types';
-import type { HouseholdRelocation } from './relocation-view';
 import { TREE_GROWTH_YEARS } from './orchard-look';
 import {
   personPortrait,
@@ -75,7 +73,6 @@ import {
 } from './scene/village-picking';
 import {
   CRAFT_LOOKS,
-  type BuildOption,
   type FieldLook,
   type SceneVillage,
   type VillageCraftSource,
@@ -176,10 +173,6 @@ type SelectionKinds =
       rebuild: { progress: number; type: DwellingType; treesToFell: number } | null;
       /** Řemeslná dílna (crafts.md); obyčejné obydlí null. */
       workshop: SelectionWorkshop | null;
-      /** Domácnost si staví nový dům (migration.md – Přestěhování domácnosti); jinak null. */
-      relocation: HouseholdRelocation | null;
-      /** Přestěhovat domácnost – cena nového domu; když teď nejde (staví, přestavuje…), null. */
-      relocate: Record<BuildableDwellingType, BuildOption> | null;
       /** Dvorec vojvody (trade.md) – vylepšení vsi; obyčejné obydlí null. */
       manor: VillageManor | null;
       /**
@@ -205,10 +198,6 @@ type SelectionKinds =
       households: number;
       /** Lidé ve vybraných obydlích. */
       people: number;
-      /** Domácnosti, které se teď můžou přestěhovat (id obydlí) – Přestěhovat je umístí postupně. */
-      relocatable: readonly number[];
-      /** Cena nového domu jedné domácnosti. */
-      relocate: Record<BuildableDwellingType, BuildOption> | null;
       /** Odejít do nové vsi s domácnostmi, které můžou (migration.md); žádná null. */
       leave: SelectionLeave | null;
     }
@@ -950,8 +939,6 @@ function selectionKinds(
           }
         : null,
       workshop: view ? workshopDetails(view, household.dwellingId) : null,
-      relocation: household.relocation,
-      relocate: view && household.relocationBlock === null ? view.relocation : null,
       manor: view?.manor?.dwellingId === household.dwellingId ? view.manor : null,
       lordWifeHome: lordWifeHome(view, scene, household.dwellingId),
       ...(view?.manor?.dwellingId === household.dwellingId && view.crafts.sources
@@ -1302,8 +1289,7 @@ function fieldPartDetails(
 }
 
 /**
- * Víc vybraných obydlí: domácnosti a lidé v nich a které domácnosti se můžou přestěhovat (jen
- * hotová obydlí s lidmi, které si nový dům nestaví ani nepřestavují). Žádné hotové → null.
+ * Víc vybraných obydlí: domácnosti a lidé v nich (jen hotová obydlí s lidmi). Žádné hotové → null.
  */
 function dwellingsDetails(
   view: VillageView | null,
@@ -1314,16 +1300,11 @@ function dwellingsDetails(
   if (present.length === 0) return null;
   const households = (view?.households ?? []).filter((h) => present.includes(h.dwellingId));
   const inhabited = households.filter((h) => h.occupants > 0);
-  const relocatable = present.filter((id) =>
-    households.some((h) => h.dwellingId === id && h.relocationBlock === null),
-  );
   return {
     kind: 'dwellings',
     ids: present,
     households: inhabited.length,
     people: inhabited.reduce((sum, h) => sum + h.occupants, 0),
-    relocatable,
-    relocate: view && relocatable.length > 0 ? view.relocation : null,
     leave: view ? leaveDetails(view, present) : null,
   };
 }

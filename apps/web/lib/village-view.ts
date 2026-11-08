@@ -44,6 +44,7 @@ import {
   type HerdPlaces,
   penHerdSpecies,
   isStewardOn,
+  relocationBlock,
 } from '@bohemia/game';
 import { formatGameDate } from './game-date';
 
@@ -78,12 +79,6 @@ import {
 } from './village-view-buildings';
 import { fortificationViews, fortWoodSupply } from './fort-view';
 import { fieldViews, orchardSquareView } from './village-view-fields';
-import {
-  householdRelocation,
-  householdRelocationBlock,
-  relocationOptions,
-} from './relocation-view';
-
 import { manorView } from './manor-view';
 import { wildlifeView, type VillageWildlife } from './wildlife-view';
 import { disasterChronicleFields, weatherView, type WeatherView } from './disasters-view';
@@ -398,8 +393,7 @@ export function buildVillageView(
           .sort((a, b) => b - a),
         residents,
         ageYears: dwelling ? Math.max(0, Math.floor((day - dwelling.builtDay) / DAYS_PER_YEAR)) : 0,
-        relocation: householdRelocation(state, summary.constructions, h.dwellingId),
-        relocationBlock: householdRelocationBlock(state, h.dwellingId),
+        relocationBlock: relocationBlock(state, h.dwellingId),
       };
     }),
     storesKg: summary.storesKg,
@@ -427,7 +421,6 @@ export function buildVillageView(
     steward: { on: isStewardOn(state), built: [...(state.steward?.built ?? [])] },
     fullHousehold: summary.fullHousehold,
     build: buildOptions(state, landscape, summary.crafts.coverage),
-    relocation: relocationOptions(state, landscape),
     constructions: summary.constructions.map((c) => ({
       id: c.id,
       kind: c.kind,

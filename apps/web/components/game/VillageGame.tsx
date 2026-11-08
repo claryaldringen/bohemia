@@ -49,7 +49,6 @@ import {
   placeThreshingFloor,
   placeWorkshop,
   plantRoadApples,
-  relocateHousehold,
   renameVillage,
   setSteward,
   restartGame,
@@ -957,29 +956,6 @@ export function VillageGame({
     ).finally(() => setPendingList(pendingRef.current.filter((d) => d.id !== entry.id)));
   };
 
-  /**
-   * Nový dům stěhující se domácnosti (migration.md) – staveniště hned ve scéně, server umístění
-   * ověří znovu.
-   */
-  const buildRelocation = (
-    villageId: string,
-    dwellingId: number,
-    result: Extract<PlacementResult, { kind: 'dwelling' }>,
-  ): void => {
-    const { type, position, plot } = result;
-    const entry: PendingSite = {
-      kind: 'dwelling',
-      id: -1 - pendingId.current++,
-      type,
-      position,
-      ...(plot ? { plot: scenePlot(decoded, plot) } : {}),
-    };
-    setPendingList([...pendingRef.current, entry]);
-    void runBuildAction(() =>
-      relocateHousehold({ villageId, dwellingId, type, position, ...(plot ? { plot } : {}) }),
-    ).finally(() => setPendingList(pendingRef.current.filter((d) => d.id !== entry.id)));
-  };
-
   /** Zahájí stavbu řemeslné dílny (crafts.md) – staveniště hned ve scéně. */
   const buildWorkshop = (craft: Craft, position: Position): void => {
     const entry: PendingSite = {
@@ -1052,30 +1028,6 @@ export function VillageGame({
       check: (position) =>
         item.check(decoded, placementVillage(), position, viewRef.current?.woodLogs ?? 0),
     };
-  };
-
-  /**
-   * Přestěhovat domácnosti obydlí `householdIds` (migration.md): hráč umístí nový dům typu
-   * `type` postupně za každou domácnost – po umístění jedné hned běží umisťování další (jako
-   * Shift + klik u staveb); Esc nebo pravé tlačítko zbytek zruší.
-   */
-  const relocate = (type: BuildableDwellingType, householdIds: readonly number[]): void => {
-    const villageId = viewRef.current?.id;
-    if (!scene || !villageId || householdIds.length === 0) return;
-    const queue = [...householdIds];
-    setSelected(null);
-    setPlacingItem(null);
-    const run = (): void => {
-      placement.start(dwellingMode(type), (result, keepPlacing) => {
-        const household = queue.shift();
-        if (result.kind !== 'dwelling' || household === undefined) return;
-        buildRelocation(villageId, household, result);
-        if (queue.length === 0) {
-          if (keepPlacing) placement.cancel();
-        } else if (!keepPlacing) run();
-      });
-    };
-    run();
   };
 
   /**
@@ -1619,7 +1571,6 @@ export function VillageGame({
                   ? toggleSteward(villageId, on)
                   : Promise.resolve(CONNECTION_FAILED);
               }}
-              onRelocate={relocate}
               onLeave={leave}
               onLeaveSon={leaveWithSon}
               onPreviewSon={setSonPreview}

@@ -39,7 +39,6 @@ import {
   placeSacredBuilding,
   placeThreshingFloor,
   placeWorkshop,
-  relocateHousehold,
   renameVillage,
   plantApplesAlongRoad,
   buildWagonRoad,
@@ -501,25 +500,6 @@ export function placeDwellingForPlayer(
 ): Promise<VillageActionResult> {
   return actOn(playerId, villageId, 'placeDwelling', (ctx) =>
     placeDwelling(
-      { villages: villages() },
-      { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
-    ),
-  );
-}
-
-/** Přestěhování domácnosti obydlí `dwellingId` do nového domu (migration.md). */
-export function relocateHouseholdForPlayer(
-  playerId: string,
-  villageId: string,
-  input: {
-    dwellingId: number;
-    type: BuildableDwellingType;
-    position: Position;
-    plot?: DwellingPlot;
-  },
-): Promise<VillageActionResult> {
-  return actOn(playerId, villageId, 'relocateHousehold', (ctx) =>
-    relocateHousehold(
       { villages: villages() },
       { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
     ),
