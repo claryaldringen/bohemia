@@ -128,7 +128,8 @@ function validPoints(points: readonly Point[]): boolean {
  * uvnitř krajiny, ne přes vodu, stavby (`checkFootprintFree` – pole, sad a les vsi smí), skalní
  * výchoz ani posvátný dub a háj. Překážky v pásu osadníci odstraní (díly polí a sadu pod plotem
  * a palisádou nechají poli), val a široké hradby vezmou kusy polí a sadů pod pásem (`takenLand`,
- * varování „Pole se zmenší“). Stav nemění.
+ * varování „Pole se zmenší“). Vylepšení úseku (`only` – díly a šířky pásu) kontroluje ohyb jen
+ * v dílech úseku, s `bendRanges` jen v těchto kusech obvodu (kus dílu s branou). Stav nemění.
  */
 export function checkFortificationPlacement(
   landscape: Landscape,
@@ -137,6 +138,7 @@ export function checkFortificationPlacement(
   points: readonly Point[],
   kind: FortKind,
   only?: ReadonlyMap<number, number>,
+  bendRanges?: readonly (readonly [number, number])[],
 ): FortPlacementCheck {
   if (!validPoints(points)) return { ...fail(FORT_BAD_POINTS), ...NONE };
   const outline = fortificationOutline(points, kind);
@@ -144,7 +146,7 @@ export function checkFortificationPlacement(
   if (outline && only) {
     // vylepšení úseku: obvod už stojí – ohyb cílového druhu jen v dílech úseku
     const minBend = FORTIFICATIONS.minBendM[kind];
-    const bend = outlineBend(outline, minBend, new Set(only.keys()));
+    const bend = outlineBend(outline, minBend, new Set(only.keys()), bendRanges);
     if (bend.radiusM < minBend - 1e-6) {
       return { ...fail(FORT_BEND_KIND, { points: [{ x: bend.at[0], z: bend.at[1] }] }), ...shaped };
     }

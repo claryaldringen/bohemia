@@ -1,16 +1,15 @@
 import type { Landscape, ObstacleLayer } from '../landscape';
 import { cloneState } from './clone';
 import {
-  busySegments,
   fortificationCost,
   fortSegments,
   FORT_WALKWAY_NEW,
+  gatePartView,
   needsUpgrade,
+  pieceBusy,
   sectionOf,
   sectionPieces,
   segmentBand,
-  segmentRampart,
-  segmentWall,
   upgradeBase,
   upgradeOnRampart,
   wallYearReason,
@@ -72,13 +71,17 @@ export interface FortUpgradeOption {
   block: string | null;
 }
 
-/** Kus vylepšení – celý díl, nebo kus dílu s branou (mezera po zboření sousedního úseku). */
+/** Kus vylepšení – celý díl, nebo kus dílu s branou od okraje brány do úseku. */
 interface UpgradePiece {
   index: number;
   part?: 'before' | 'after';
   cost: FortCost;
-  /** Co na celém dílu stojí; u kusu dílu s branou null. */
-  base: UpgradeBase | null;
+  /** Co na kusu stojí. */
+  base: UpgradeBase;
+  /** Díl, jak vypadá kus (`gatePartView`; celý díl – díl sám). */
+  view: FortSegment;
+  /** Kus obvodu (m od začátku dílu 0) – ohyb cílové hradby jen tam. */
+  range: [number, number];
 }
 
 /** Plán vylepšení: kusy v pořadí práce, nebo důvod. */
@@ -95,27 +98,14 @@ function addCost(a: FortCost, b: FortCost): FortCost {
 }
 
 /**
- * Cena kusu dílu s branou, který je mezerou (návrh Clauda): postaví se znovu to, co na dílu stojí –
- * val i hradba dílu jako nové, podle délky kusu.
- */
-function partCost(fort: Fortification, seg: FortSegment, lengthM: number): FortCost {
-  const rampart = segmentRampart(fort, seg);
-  const wall = segmentWall(fort, seg);
-  let cost = rampart ? fortificationCost('rampart', lengthM) : ZERO;
-  if (wall) cost = addCost(cost, fortificationCost(wall.kind, lengthM));
-  return cost;
-}
-
-/**
- * Kusy vylepšení úseku s dílem `input.segment` (null – všech dílů) na hradbu `target`: díly úseku,
- * které cílovou hradbu ještě nemají (stojící nižší za cenu cílového, holý val a mezera za cenu
- * nové); u úseku i kusy dílů s branou, které jsou mezerou (zbořený sousední úsek). „Vylepšit vše“
- * zbořené díly vynechá (demolition.md – Opevnění). Pořadí práce od brány nejblíž dvorci.
- *
- * Díl s branou je rozhraní dvou úseků (návrh Clauda): druh má jeden pro celý díl, takže ho
- * vylepšení úseku zvedne, jen když hradba po obou stranách brány (sousední díly) bude mít aspoň
- * cílový stupeň – jinak brána zůstane na nižším druhu, dokud se nevylepší i sousední úsek. Úsek
- * tak nesahá do sousedního úseku a ten smí mít současně vlastní stavbu (Martin 8. 11. 2026 – „B“).
+ * Kusy vylepšení úseku s dílem `input.segment` (null – všech úseků) na hradbu `target`: hradba
+ * úseku přesně mezi okraji bran (`sectionPieces` – celé díly a z dílů s branou jen kus od okraje
+ * brány do úseku), kusy, které cílovou hradbu ještě nemají (stojící nižší za cenu cílového, holý
+ * val a mezera za cenu nové). Brána sama se nevylepšuje (Martin 8. 11. 2026: „Hradba je hradba,
+ * brána je brána.“) – kus dílu s branou dostane vlastní hradbu (`FortSegment.beforeGate` /
+ * `afterGate`), takže úsek nesahá do sousedního úseku a ten smí mít současně vlastní stavbu
+ * (Martin 8. 11. 2026 – „B“). „Vylepšit vše“ zbořené díly a kusy vynechá (demolition.md –
+ * Opevnění). Pořadí práce od brány nejblíž dvorci.
  */
 function upgradePlan(
   state: VillageState,
@@ -130,56 +120,30 @@ function upgradePlan(
   const lengths = shapes.map((s) => s.lengthM);
   const section = input.segment === null ? null : sectionOf(fort, input.segment);
   if (input.segment !== null && !section) return { reason: FORT_UNKNOWN };
-  const n = fort.segments.length;
-  const gateSegs = new Set(fort.gates.map((g) => g.segment));
-  const inner = new Set(
-    section
-      ? section.segments.filter((i) => !gateSegs.has(i) || gateSegs.size === 0)
-      : fort.segments.map((s) => s.index),
-  );
-  const segOf = (i: number): FortSegment | undefined => fort.segments.find((s) => s.index === i);
-  // hradba dílu bude mít po vylepšení aspoň cílový stupeň (díl úseku, nebo už stojí vyšší)
-  const atLeast = (i: number): boolean => {
-    if (inner.has(i)) return true;
-    const seg = segOf(i);
-    return seg !== undefined && !needsUpgrade(upgradeBase(fort, seg), input.target);
-  };
-  const indices = [...inner];
-  if (section) {
-    const last = section.segments[section.segments.length - 1]!;
-    for (const g of new Set([section.segments[0]!, (last + 1) % n])) {
-      if (!gateSegs.has(g) || inner.has(g)) continue;
-      if (atLeast((g - 1 + n) % n) && atLeast((g + 1) % n)) indices.push(g);
-    }
-  }
+  // úseky mezi branami – jeden, nebo všechny („Vylepšit vše“)
+  const gateSegs = [...new Set(fort.gates.map((g) => g.segment))];
+  const sections = section ? [section.gateSegment] : gateSegs.length > 0 ? gateSegs : [null];
   const order = fortWorkOrder(shapes.length, fort.gates, villageAnchor(state));
   const rank = new Map(order.map((index, k) => [index, k]));
   const pieces: UpgradePiece[] = [];
-  for (const index of indices) {
-    const seg = segOf(index);
-    if (!seg) continue;
-    if (!section && seg.demolishedDay !== undefined) continue;
-    const base = upgradeBase(fort, seg);
-    if (!needsUpgrade(base, input.target)) continue;
-    const lengthM = lengths[index] ?? 0;
-    const from = base.kind === 'wall' ? base.wall : null;
-    pieces.push({ index, cost: fortificationCost(input.target, lengthM, from), base });
-  }
-  if (section) {
-    for (const piece of sectionPieces(lengths, fort.gates, section.gateSegment)) {
-      if (piece.part === undefined) continue;
+  for (const gateSegment of sections) {
+    for (const piece of sectionPieces(lengths, fort.gates, gateSegment)) {
       const seg = fort.segments.find((s) => s.index === piece.index);
-      if (!seg || seg.demolishedDay !== undefined) continue;
-      const gone =
-        piece.part === 'before'
-          ? seg.demolishedBeforeGate !== undefined
-          : seg.demolishedAfterGate !== undefined;
-      if (!gone) continue;
+      if (!seg) continue;
+      const view = piece.part === undefined ? seg : gatePartView(seg, piece.part);
+      if (!section && view.demolishedDay !== undefined) continue;
+      const base = upgradeBase(fort, view);
+      if (!needsUpgrade(base, input.target)) continue;
+      const from = base.kind === 'wall' ? base.wall : null;
+      const start = shapes[piece.index]?.startM ?? 0;
+      const end = start + (lengths[piece.index] ?? 0);
       pieces.push({
         index: piece.index,
-        part: piece.part,
-        cost: partCost(fort, seg, piece.lengthM),
-        base: null,
+        ...(piece.part ? { part: piece.part } : {}),
+        cost: fortificationCost(input.target, piece.lengthM, from),
+        base,
+        view,
+        range: piece.part === 'after' ? [end - piece.lengthM, end] : [start, start + piece.lengthM],
       });
     }
   }
@@ -187,7 +151,8 @@ function upgradePlan(
   pieces.sort(
     (a, b) =>
       (rank.get(a.index) ?? 0) - (rank.get(b.index) ?? 0) ||
-      (a.part === undefined ? 0 : 1) - (b.part === undefined ? 0 : 1),
+      (a.part === undefined ? 0 : a.part === 'before' ? 1 : 2) -
+        (b.part === undefined ? 0 : b.part === 'before' ? 1 : 2),
   );
   return { fort, pieces };
 }
@@ -226,27 +191,23 @@ export function startSectionUpgrade(
   // ochoz jen na stojící palisádu (Martin 8. 11. 2026 – „ne – napřed palisáda“)
   if (
     input.target === 'walkway' &&
-    pieces.some((p) => p.base !== null && (p.base.kind !== 'wall' || p.base.wall !== 'palisade'))
+    pieces.some((p) => p.base.kind !== 'wall' || p.base.wall !== 'palisade')
   ) {
     return { ok: false, reason: FORT_WALKWAY_NEW };
   }
-  const busy = busySegments(
-    state.constructions,
-    fort.id,
-    fort.segments.map((s) => s.index),
-  );
-  if (pieces.some((p) => busy.has(p.index))) return { ok: false, reason: FORT_BUSY };
+  // jedna stavba na díl, kusy dílu s branou zvlášť (Martin 8. 11. 2026 – „B“)
+  const busy = pieceBusy(state.constructions, fort.id);
+  if (pieces.some((p) => busy(p.index, p.part))) return { ok: false, reason: FORT_BUSY };
   // pás cílové hradby: kontrola jen dílů, kde se pás rozšíří, a mezer (pás uvolnily jiným stavbám)
   const only = new Map<number, number>();
+  const ranges: [number, number][] = [];
   for (const p of pieces) {
-    const seg = fort.segments.find((s) => s.index === p.index)!;
-    if (p.base === null) {
-      if (!only.has(p.index)) only.set(p.index, segmentBand(fort, seg).inM);
-      continue;
-    }
     const width = targetBand(p.base, input.target);
-    const now = p.base.kind === 'gap' ? 0 : segmentBand(fort, seg).inM;
-    if (width > now + 1e-9) only.set(p.index, Math.max(width, only.get(p.index) ?? 0));
+    const now = p.base.kind === 'gap' ? 0 : segmentBand(fort, p.view).inM;
+    if (width > now + 1e-9) {
+      only.set(p.index, Math.max(width, only.get(p.index) ?? 0));
+      ranges.push(p.range);
+    }
   }
   const outline = outlineOf(landscape, fort);
   if (!outline) return { ok: false, reason: FORT_UNKNOWN };
@@ -261,6 +222,7 @@ export function startSectionUpgrade(
       outline.points,
       input.target,
       only,
+      ranges,
     );
     if (!check.ok) return { ok: false, reason: check.reason ?? 'Sem taková hradba nepatří.' };
     cleared = { ids: check.obstacleIds, trees: check.clearedTrees };
@@ -280,7 +242,7 @@ export function startSectionUpgrade(
   };
   const next = cloneState(state);
   giveWayToBuilding(next, day, taken, 'fortification');
-  const onRampart = pieces.some((p) => p.base !== null && upgradeOnRampart(p.base));
+  const onRampart = pieces.some((p) => upgradeOnRampart(p.base));
   const before = next.constructions.length;
   const missing = pushWork(
     next,

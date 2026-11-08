@@ -3,6 +3,7 @@ import {
   assaultSteps,
   climbTicks,
   crossingLayers,
+  wallSpotSegment,
   fatigueFactor,
   rampartFatigue,
   type FortSegmentShape,
@@ -195,8 +196,11 @@ function wallKindOf(
   segment: number,
   day: number,
 ): { kind: WallKind; rampart: number | null; climb: boolean; ladder: boolean } | null {
-  const seg = bf.fort.segments.find((s) => s.index === segment);
-  if (!seg) return null;
+  const whole = bf.fort.segments.find((s) => s.index === segment);
+  if (!whole) return null;
+  // díl s branou – hradba kusu u místa prolomení (`wallSpotSegment`)
+  const length = bf.shapes.find((s) => s.index === segment)?.line.length ?? 0;
+  const seg = wallSpotSegment(bf.fort.gates, whole, length);
   const layers = crossingLayers(bf.fort, seg, day, false);
   if (!layers.wall) return null;
   const steps = assaultSteps(layers);

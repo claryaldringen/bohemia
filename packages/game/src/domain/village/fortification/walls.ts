@@ -4,12 +4,13 @@ import type { GridGeometry } from '../square-grid';
 import type { FortKind } from '../types';
 import { bandPieces } from './band';
 import { fortPointsOf, type FortShapeSource } from './convert';
+import { gatePartView, hasGateParts, type GatePart } from './gate-parts';
 import { gateChord, type FortGate } from './gates';
 import { segmentBuilt, segmentKind, segmentStands } from './life';
 import { fortificationOutline, outlinePointAt, type FortOutline } from './outline';
 import { fortSegments } from './segments';
-import { fortRuns, runOn, runTarget, type FortRunRef, type FortRuns } from './runs';
-import type { FortBuildWork } from './types';
+import { fortRuns, partKey, runOn, runTarget, type FortRunRef, type FortRuns } from './runs';
+import type { FortBuildWork, FortGatePart } from './types';
 
 // Stěny opevnění pro síť cest (fortifications.md – Obvod, Brány, Pro implementaci – Chůze a cesty):
 // pás blokujících úseků jako obdélníky (`fortBandPieces`) bez otvorů bran – chodec, vůz ani stádo
@@ -143,6 +144,8 @@ export interface WallFortification extends FortShapeSource {
     readonly demolishedAfterGate?: number;
     readonly state?: number;
     readonly kind?: FortKind;
+    readonly beforeGate?: FortGatePart;
+    readonly afterGate?: FortGatePart;
   }[];
   readonly gates: readonly FortGate[];
 }
@@ -178,8 +181,9 @@ export function segmentBlockKind(
   fort: Pick<WallFortification, 'kind'>,
   segment: WallSegment,
   work: FortBuildWork | FortRuns | null,
+  part?: GatePart,
 ): FortKind | null {
-  const run = runOn(work, segment.index);
+  const run = runOn(work, segment.index, part);
   const target = runTarget(run);
   if (segment.breachedDay !== undefined || segment.demolishedDay !== undefined) {
     return segment.demolishedDay !== undefined && run?.target != null ? target : null;
@@ -193,17 +197,55 @@ export function segmentBlockKind(
   return target !== null && kind !== 'rampart' ? target : kind;
 }
 
-/** Blokující úseky opevnění – index a druh pásu (`segmentBlockKind`), v pořadí obvodu. */
+/** Blokující úsek opevnění (`fortBlockingSegments`). */
+export interface FortBlockingSegment {
+  index: number;
+  /** Druh pásu dílu (u dílu s branou pás otvoru brány). */
+  kind: FortKind;
+  /** Zbořené kusy dílu u brány (`b` před, `a` za bránou) – do klíče stěn (`fortLayoutKey`). */
+  gone?: string;
+  /**
+   * Druh pásu kusů dílu s branou, které mají vlastní hradbu nebo vlastní práci (`gatePartView`;
+   * null – kus neblokuje); chybí – kusy podle dílu a zboření kusů.
+   */
+  parts?: { before: FortKind | null; after: FortKind | null };
+}
+
+/** Má díl s branou kus s vlastní hradbou nebo s vlastní prací stavby? */
+function ownParts(segment: WallSegment, work: FortBuildWork | FortRuns | null): boolean {
+  if (hasGateParts(segment)) return true;
+  if (work === null || typeof work === 'string') return false;
+  return (
+    work.byPart.has(partKey(segment.index, 'before')) ||
+    work.byPart.has(partKey(segment.index, 'after'))
+  );
+}
+
+/**
+ * Blokující úseky opevnění – index a druh pásu (`segmentBlockKind`), v pořadí obvodu. Díl s branou,
+ * jehož kus má vlastní hradbu či práci, blokuje po kusech (`parts`) – kus hradby úseku mezi okraji
+ * bran (Martin 8. 11. 2026: „Hradba je hradba, brána je brána.“).
+ */
 export function fortBlockingSegments(
   fort: Pick<WallFortification, 'kind' | 'segments'>,
   work: FortBuildWork | FortRuns | null,
-): { index: number; kind: FortKind; gone?: string }[] {
+): FortBlockingSegment[] {
   return fort.segments.flatMap((s) => {
-    const kind = segmentBlockKind(fort, s, work);
+    let kind = segmentBlockKind(fort, s, work);
+    let parts: FortBlockingSegment['parts'];
+    if (ownParts(s, work)) {
+      parts = {
+        before: segmentBlockKind(fort, gatePartView(s, 'before'), work, 'before'),
+        after: segmentBlockKind(fort, gatePartView(s, 'after'), work, 'after'),
+      };
+      kind ??= parts.before ?? parts.after;
+    }
     if (kind === null) return [];
     // zbořená část dílu u brány mění stěny – dostane se do klíče (`fortLayoutKey`)
     const gone = `${s.demolishedBeforeGate === undefined ? '' : 'b'}${s.demolishedAfterGate === undefined ? '' : 'a'}`;
-    return [{ index: s.index, kind, ...(gone === '' ? {} : { gone }) }];
+    return [
+      { index: s.index, kind, ...(gone === '' ? {} : { gone }), ...(parts ? { parts } : {}) },
+    ];
   });
 }
 
@@ -237,15 +279,28 @@ export function fortWalls(
       continue;
     }
     const chord = gateChord(outline, shape, gate);
-    // část dílu zbořená se zbořeným sousedním úsekem je mezera, brána stojí (demolition.md)
+    // část dílu zbořená se zbořeným sousedním úsekem je mezera, brána stojí (demolition.md);
+    // kus s vlastní hradbou má pás svého druhu (`FortBlockingSegment.parts`)
     const part = fort.segments.find((x) => x.index === segment.index);
-    if (part?.demolishedBeforeGate === undefined) {
-      for (const p of bandPieces(outline, band, segment.index, -Infinity, chord.fromM)) {
+    const before = segment.parts
+      ? segment.parts.before
+      : part?.demolishedBeforeGate === undefined
+        ? segment.kind
+        : null;
+    const after = segment.parts
+      ? segment.parts.after
+      : part?.demolishedAfterGate === undefined
+        ? segment.kind
+        : null;
+    if (before !== null) {
+      const width = FORTIFICATIONS.bandM[before];
+      for (const p of bandPieces(outline, width, segment.index, -Infinity, chord.fromM)) {
         walls.push(p.corners);
       }
     }
-    if (part?.demolishedAfterGate === undefined) {
-      for (const p of bandPieces(outline, band, segment.index, chord.toM, Infinity)) {
+    if (after !== null) {
+      const width = FORTIFICATIONS.bandM[after];
+      for (const p of bandPieces(outline, width, segment.index, chord.toM, Infinity)) {
         walls.push(p.corners);
       }
     }

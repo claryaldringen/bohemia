@@ -202,7 +202,9 @@ m3, at)` – z hromad od nejbližší k `at` (při shodě menší id), prázdná
 - **`FortSegment { index, builtDay (null = základ nestojí), topBuiltDay?, state, breachedDay?, kind? }`** –
   `kind` jen u rozdělaného vylepšení (úsek s hotovou palisádou `'palisade'`, `segmentKind`).
   `state` plní chátrání (Ú5.4), `breachedDay` válka (další úlohy F5). Čte se jen přes vrstvy –
-  [Druhy hradeb a vrstvy úseku](#druhy-hradeb-a-vrstvy-úseku-lifets-bandts-stonets).
+  [Druhy hradeb a vrstvy úseku](#druhy-hradeb-a-vrstvy-úseku-lifets-bandts-stonets). Díl s branou
+  smí mít vlastní hradbu kusu před / za bránou (`beforeGate` / `afterGate`, volitelné) – [Kusy
+  dílu s branou](#kusy-dílu-s-branou-fortificationgate-partsts-martin-8-11-2026-hradba-je-hradba-brána-je-brána).
 - **Stavba `'fortification'`** (`ConstructionKind`, `LandTaker`) s `fortificationId`, `fortWork`
   (`FortBuildWork`: `build` | `upgrade` | `top` | `rebuild` | `restore`),
   `segmentIndex` (nepoužité – přestavba je jedna stavba pro všechny dožilé úseky opevnění) a `fortSegments` (`FortSegmentWork { index, cost }` –
@@ -295,18 +297,20 @@ walk?)`** – úsek s dílem `segment` (`sectionOf`), `null` = „Vylepšit vše
   stavbě, zbořené díly vynechá – demolition.md). Díly úseku mezi branami, které cíl ještě nemají:
   stojící nižší hradba za `fortificationCost(target, délka, from)` (skok o víc stupňů za cenu
   cílového, ochoz z palisády přístavba 150 čd + 10 klád na 100 m), holý val a mezera za cenu nové.
-  **Díl s branou** (rozhraní dvou úseků – druh má jeden pro celý díl; návrh Clauda) se zvedne, jen
-  když hradba po obou stranách brány (sousední díly) bude mít aspoň cílový stupeň – jinak brána
-  zůstane nižší, dokud se nevylepší i sousední úsek; úsek tak nesahá do sousedního a ten smí mít
-  vlastní stavbu. Kusy dílů bran, které jsou mezerou (zbořený úsek – `demolishedBeforeGate` /
-  `demolishedAfterGate`), se postaví znovu jako to, co na dílu stojí (val a hradba jako nové podle
-  délky kusu; `FortSegmentWork.part`). Pořadí práce `fortWorkOrder`, celý díl před kusem.
+  **Kusy úseku = `sectionPieces`** – přesně hradba mezi okraji bran (Martin 8. 11. 2026: „Hradba
+  je hradba, brána je brána.“): celé díly a z dílů s branou kus od okraje brány do úseku
+  (`FortSegmentWork.part`, cena podle délky kusu); „Vylepšit vše“ = kusy všech úseků. Kus se čte
+  přes `gatePartView` (viz Kusy dílu s branou níž), kus zbořený se sousedním úsekem je mezera –
+  cílová hradba za cenu nové. Brána se nevylepšuje. Pořadí práce `fortWorkOrder`, celý díl před
+  kusem (před bránou před kusem za ní).
   Kontroly v pořadí: rok (`wallYearReason` podle `day` = `state.lastDay` akce), nic k vylepšení
   (`FORT_UPGRADE_NONE` „Úsek už takovou hradbu má.“), ochoz jen na stojící palisádu
   (`FORT_WALKWAY_NEW`; Martin 8. 11. 2026: „ne – napřed palisáda, pak vylepšení v podobě ochozu“),
-  `FORT_BUSY`, umístění. **Umístění** – `checkFortificationPlacement(…, kind, only)`: `only` = díl →
-  šířka pásu cílové hradby (bez valu `bandM`, na valu `wallOnRampartBandM`), jen díly, kde se pás
-  rozšíří, a mezery; ohyb jen v dílech `only` (`outlineBend(outline, reach, only)`) – ostřejší než
+  `FORT_BUSY` (`pieceBusy` – kus dílu s branou se srazí jen s prací na celém dílu nebo na tomtéž
+  kusu), umístění. **Umístění** – `checkFortificationPlacement(…, kind, only, bendRanges)`: `only`
+  = díl → šířka pásu cílové hradby (bez valu `bandM`, na valu `wallOnRampartBandM`), jen díly, kde
+  se pás rozšíří, a mezery (pás celého dílu s branou); ohyb jen v kusech obvodu úseku
+  (`outlineBend(outline, reach, only, ranges)` – u dílu s branou jen kus bez brány) – ostřejší než
   nejmenší ohyb cíle `FORT_BEND_KIND` („Ohyb je na tento druh příliš ostrý.“); pás, voda, stavby,
   skalní výchoz, posvátný háj a dub jako u nového opevnění (bez sebe sama); překážky osadníci
   odstraní, široké hradby vezmou díly polí a sadů (`giveWayToBuilding`). Klády a kámen předem
@@ -318,9 +322,10 @@ walk?)`** – úsek s dílem `segment` (`sectionOf`), `null` = „Vylepšit vše
   v úseku něco změnilo (vyšší než nejnižší stojící hradba; na mezeře a holém valu všechny), cena
   bez kácení a lámání a důvod z `startSectionUpgrade` (na klonu). Rozhraní ji zatím nevolá
   (tlačítka Vylepšit – Úloha 17).
-- **Práce** – `segmentDone` / `workFortification` pro stavbu s `fortTarget`: díl je hotový, když na
-  něm stojí cílová hradba (`upgradeDone`), kus dílu brány, když už není mezerou.
-  `completeUpgrade(fort, seg, target, day, part?)`: mezera dostane hradbu bez valu (`builtDay`, stav
+- **Práce** – `segmentDone` / `workFortification` pro stavbu s `fortTarget`: díl (kus dílu brány
+  podle `gatePartView`) je hotový, když na něm stojí cílová hradba (`upgradeDone`).
+  `completeUpgrade(fort, seg, target, day, part?)` – s `part` totéž na pohledu kusu a zápis zpět
+  (`storeGatePart`); mezera dostane hradbu bez valu (`builtDay`, stav
   1, `kind`, zmizí `demolishedDay`, nástavba a údaje valu); na valu nástavba (`top`, `topBuiltDay`);
   bez valu nový `kind` a `builtDay`. Ochoz je přístavba – palisáda drží `builtDay` (na valu
   `topBuiltDay`) i stav. Průlom a ohořelý průlom vylepšení zavře. Konec (`finishFortification`):
@@ -337,6 +342,38 @@ walk?)`** – úsek s dílem `segment` (`sectionOf`), `null` = „Vylepšit vše
   dílech úseku (`selectionDetails` je dá panelu úseku – zrušení té správné stavby);
   `SceneFortSegment.work` – práce stavby dílu, když na opevnění běží víc staveb (`segmentBuild`
   čte `look.work ?? fort.work`). Scéna nových druhů ve stavbě a vytyčení po dílech – Úloha 18.
+
+### Kusy dílu s branou (`fortification/gate-parts.ts`; Martin 8. 11. 2026: „Hradba je hradba, brána je brána.“)
+
+- **Stav:** díl s branou má kus před bránou (od začátku dílu po okraj brány), bránu a kus za
+  branou. Kus, jehož hradba se liší od dílu, má vlastní vrstvy **`FortSegment.beforeGate` /
+  `afterGate`** (`FortGatePart` = `kind`, `top`, `builtDay`, `topBuiltDay`, `state`,
+  `extraAgeDays` – týž význam jako na dílu, chybějící `kind` = druh opevnění). Vrstvy dílu drží
+  bránu a kus bez vlastních vrstev; val, příkop, průlom a zboření celého dílu zůstávají dílu,
+  zboření kusu dál `demolishedBeforeGate` / `demolishedAfterGate`. Volitelná pole – starší vsi
+  beze změny, opevnění bez těchto akcí počítá vše jako dřív (zlaté otisky).
+- **Čtení:** `gatePartView(seg, part)` – vždy kopie dílu s vrstvami kusu, zbořený kus jako zbořený
+  díl (`demolishedDay`, stav 0); `gatePartAt(gateM, s)` – kus podle polohy (před středem brány
+  `before`); `gatePartLengthM` – délka kusu bez brány; `gatePartPieces(seg)` – díl s vlastními
+  kusy jako dva kusy, každý s druhým jako zbořeným (stěny pochodu); `wallSpotSegment` – kus u místa
+  prolomení hradby v bitvě (delší kus).
+- **Zápis:** `storeGatePart(fort, seg, part, view)` – vrstvy kusu (shodné s dílem se neukládají),
+  postavený kus už není zbořený. Mají-li pak oba kusy stejnou hradbu (druh základu a hradby)
+  a brána jinou, brána ji převezme od tohoto kusu – druhý kus si nechá vlastní vrstvy jen se
+  stářím jiným než brána (návrh Clauda). `settleUpgrade` počítá i druhy kusů a `settleGateParts`
+  po změně druhu opevnění kusy uklidí.
+- **Kdo čte kus podle polohy:** vylepšení (`upgradePlan` – `sectionPieces`, `upgradeBase` pohledu
+  kusu), zboření (cena a klády kusu), běžící práce (`FortRuns.byPart`, `runOn(work, index, part)`,
+  `pieceBusy` – úseky po obou stranách brány se nesrazí, `busySegments` dál celý díl pro chátrání),
+  stěny (`fortBlockingSegments` – `parts` s druhem pásu kusů, `fortWalls` pás každého kusu, klíč
+  `fortLayoutKey`), pás (`fortificationBand` – díl podle nejširšího kusu), mezery a obrana
+  (`fortGaps` – shnilý či zbořený kus jako mezera vedle brány, `fortHasWall`), pochod
+  (`march-grid.ts` – `gatePartPieces`), bitva (`battle.ts` – stěna po kusech, místo prolomení
+  `wallSpotSegment`; `ladders.ts`), chátrání, přestavba a údržba (`decay.ts` – kus chátrá,
+  přestavuje se a udržuje po svém podle délky kusu; přestavba celého dílu bez kusů s vlastní
+  hradbou), panel úseku (`partsState` po kusech `sectionPieces`, stavba úseku podle kusů)
+  a scéna (`SceneFortSegment.before` / `after` – stáří a průběh kusu, `fortBuilds(fort).at(segment,
+s)` v `fortification-layout.ts`).
 
 ## Úseky pro hráče a zboření (`sections.ts`, `fortifications.ts`; demolition.md – Opevnění)
 

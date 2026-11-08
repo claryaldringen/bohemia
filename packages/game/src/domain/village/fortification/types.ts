@@ -62,7 +62,26 @@ export interface FortSegment {
   extraAgeDays?: number;
   /** Den průlomu ohněm (válka – scéna kreslí ohořelý průlom); chybí = ne. */
   burnedDay?: number;
+  /**
+   * Vlastní hradba části dílu s branou před bránou (od začátku dílu po okraj brány), když se liší
+   * od dílu – vylepšení úseku sahá přesně po okraj brány (Martin 8. 11. 2026: „Hradba je hradba,
+   * brána je brána.“; návrh Clauda). Vrstvy dílu pak drží bránu a část bez vlastní hradby. Čte
+   * se přes `gatePartView` (`fortification/gate-parts.ts`). Chybí = hradba dílu.
+   */
+  beforeGate?: FortGatePart;
+  /** Totéž pro část dílu za bránou (od okraje brány po konec dílu). */
+  afterGate?: FortGatePart;
 }
+
+/**
+ * Hradba části dílu s branou (`FortSegment.beforeGate` / `afterGate`): druh, nástavba valu, dny
+ * dokončení, stav a stárnutí navíc – týž význam jako na dílu (chybějící druh = druh opevnění).
+ * Val, příkop, průlom a zboření celého dílu zůstávají dílu.
+ */
+export type FortGatePart = Pick<
+  FortSegment,
+  'kind' | 'top' | 'builtDay' | 'topBuiltDay' | 'state' | 'extraAgeDays'
+>;
 
 /** Opevnění vsi – hotové i rozestavěné (úseky s `builtDay` null). */
 export interface Fortification {

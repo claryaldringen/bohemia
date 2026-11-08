@@ -18,6 +18,9 @@ import {
   sectionPieces,
   busySegments,
   completeUpgrade,
+  gatePartView,
+  pieceBusy,
+  storeGatePart,
   layerBuilt,
   segmentBuilt,
   settleUpgrade,
@@ -632,15 +635,9 @@ function demolitionPlan(
     if (seg && segmentBuilt(seg) && !pieceGone(seg, piece.part)) parts.push({ seg, ...piece });
   }
   if (parts.length === 0) return { reason: FORT_SECTION_GONE };
-  // jedna stavba na díl (Martin 8. 11. 2026 – „B“)
-  if (
-    segmentsBusy(
-      state,
-      fort,
-      parts.map((p) => p.seg.index),
-    )
-  )
-    return { reason: FORT_BUSY };
+  // jedna stavba na díl, kusy dílu s branou zvlášť (Martin 8. 11. 2026 – „B“)
+  const busy = pieceBusy(state.constructions, fort.id);
+  if (parts.some((p) => busy(p.seg.index, p.part))) return { reason: FORT_BUSY };
   const rampart = fort.kind === 'rampart';
   // nástavbu valu zbourá jen celý díl, kus dílu s branou se srovná až při srovnání valu
   const tops = rampart ? parts.filter((p) => p.part === undefined && topStands(fort, p.seg)) : [];
@@ -656,9 +653,11 @@ function demolitionPlan(
       labor += DEMOLITION.rampartLaborShare * cost;
       return { index: seg.index, ...at, cost: DEMOLITION.rampartLaborShare * cost };
     }
-    const top = rampart ? (segmentWall(fort, seg)?.kind ?? null) : null;
-    const cost = fortificationFullCost(top ?? segmentKind(fort, seg), lengthM);
-    const segLogs = DEMOLITION.logShare * cost.logs * seg.state;
+    // kus dílu s branou má svou hradbu (`gatePartView`)
+    const piece = part === undefined ? seg : gatePartView(seg, part);
+    const top = rampart ? (segmentWall(fort, piece)?.kind ?? null) : null;
+    const cost = fortificationFullCost(top ?? segmentKind(fort, piece), lengthM);
+    const segLogs = DEMOLITION.logShare * cost.logs * piece.state;
     labor += DEMOLITION.laborShare * cost.laborManDays;
     logs += segLogs;
     return {
@@ -797,6 +796,10 @@ function segmentDone(
   // vylepšení úseku s cílovou hradbou (Hradby a obrana – Druhy a postup vylepšení)
   if (sectionUpgrade(c)) return upgradeDone(fort, s, c.fortTarget, part);
   if (c.fortWork === 'level') return pieceGone(s, part);
+  // přestavba kusu dílu s branou s vlastní hradbou – hotovo podle kusu
+  if (part !== undefined && c.fortWork !== 'demolish') {
+    return segmentDone(fort, gatePartView(s, part), c);
+  }
   if (c.fortWork === 'demolish') {
     if (part !== undefined) return pieceGone(s, part);
     return segmentRampart(fort, s) !== null ? !topStands(fort, s) : s.demolishedDay !== undefined;
@@ -839,29 +842,42 @@ export function workFortification(state: VillageState, c: Construction, day: num
       completeUpgrade(fort, s, c.fortTarget, day, w.part);
       continue;
     }
-    if (c.fortWork === 'top') {
-      s.topBuiltDay = day;
-      // díl se zbořenou nástavbou dostane nástavbu opevnění
-      delete s.top;
+    // přestavba kusu dílu s branou s vlastní hradbou – práce na kusu, pak zpět do dílu
+    if (w.part !== undefined) {
+      const view = gatePartView(s, w.part);
+      finishSegmentWork(fort, view, c, day);
+      storeGatePart(fort, s, w.part, view);
       continue;
     }
-    if (
-      c.fortWork === 'rebuild' &&
-      segmentRampart(fort, s) !== null &&
-      s.breachedDay === undefined
-    ) {
-      // přestavba shnilé nástavby valu – val sám stojí dál
-      s.topBuiltDay = day;
-      s.state = 1;
-      delete s.extraAgeDays;
-      continue;
-    }
-    s.builtDay = day;
+    finishSegmentWork(fort, s, c, day);
+  }
+}
+
+/** Práce stavby došla na díl `s` (mutuje díl) – nástavba, přestavba, stavba a staré vylepšení. */
+function finishSegmentWork(
+  fort: Fortification,
+  s: FortSegment,
+  c: Construction,
+  day: number,
+): void {
+  if (c.fortWork === 'top') {
+    s.topBuiltDay = day;
+    // díl se zbořenou nástavbou dostane nástavbu opevnění
+    delete s.top;
+    return;
+  }
+  if (c.fortWork === 'rebuild' && segmentRampart(fort, s) !== null && s.breachedDay === undefined) {
+    // přestavba shnilé nástavby valu – val sám stojí dál
+    s.topBuiltDay = day;
     s.state = 1;
     delete s.extraAgeDays;
-    delete s.breachedDay;
-    if (c.fortWork === 'upgrade') s.kind = 'palisade';
+    return;
   }
+  s.builtDay = day;
+  s.state = 1;
+  delete s.extraAgeDays;
+  delete s.breachedDay;
+  if (c.fortWork === 'upgrade') s.kind = 'palisade';
 }
 
 /**

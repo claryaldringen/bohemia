@@ -101,9 +101,15 @@ roštová ≈ 7 m, komorová ≈ 8 m, komory po 5–6 m).
 - **Každý úsek zvlášť** (Martin 8. 11. 2026 – „B“): na jednom opevnění smí běžet víc staveb
   najednou – vylepšit úsek A a současně bourat úsek B nebo stavět val u C; jedna stavba na díl,
   práce vsi se mezi ně rozdělí jako mezi jiné stavby.
-- **Díl s branou** je rozhraní dvou úseků (návrh Clauda): vylepšení úseku ho zvedne, až hradba po
-  obou stranách brány bude mít aspoň cílový stupeň – do té doby brána zůstane na nižším druhu.
-  Zbořený úsek (mezera) dostane cílovou hradbu za cenu nové, kusy dílů bran se postaví znovu.
+- **Úsek sahá přesně po okraj brány** (Martin 8. 11. 2026: „Pořád nechápu, co je za problém.
+  Hradba je hradba, brána je brána.“): vylepšení úseku – stejně jako zboření – postaví cílovou
+  hradbu na celé zvýrazněné hradbě od okraje jedné brány po okraj druhé, i na kusech dílů s branou;
+  kus dílu za branou patří sousednímu úseku a ten smí mít současně vlastní stavbu (zboření, jiné
+  vylepšení). Vnitřní díly po ≈ 15 m jsou jen způsob uložení, hráč je nepozná. Platí se jen délka
+  hradby úseku, brána se nevylepšuje – má vlastní vylepšení (klešťová brána, věž; Úloha 13).
+  Mají-li po vylepšení obě strany brány stejnou hradbu a brána jinou, stojí brána v hradbě kolem
+  sebe – převezme její druh (návrh Clauda). Zbořený úsek (mezera) dostane cílovou hradbu za cenu
+  nové – i kus dílu s branou zbořený se sousedním úsekem.
 - **Implementováno 8. 11. 2026** (plán hradeb, Úloha 8): doména a akce vylepšení po úsecích;
   tlačítka Vylepšit v panelu úseku – Úloha 17.
 - **Kterákoli ves** smí postavit kterýkoli druh – že se běžné vsi hradba nevyplatí, usoudí správce
