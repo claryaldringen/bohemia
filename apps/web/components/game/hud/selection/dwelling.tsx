@@ -15,6 +15,8 @@ import { Stat, Bar, ROW, Commands, WoodToFell } from './parts';
 import { ManorHunt } from './wildlife';
 import { WorkshopRow, BuyingRow } from './crafts';
 import { SonsRow } from './sons';
+import { DemolitionBar } from '../StructureUseButtons';
+import { plural } from '@/lib/village-format';
 
 /** Akce panelu nad obydlími – odchod do nové vsi a zrušení stavby (migration.md). */
 export interface RelocationActions {
@@ -49,6 +51,11 @@ export interface ManorActions {
     get: TradeGoods,
     people: PreviewPeople,
   ) => Promise<string | null | void>;
+}
+
+/** Popisek dočasně ubytovaných (demolition.md – Obydlí): „Dočasně tu bydlí 3 lidé z opuštěného domu“. */
+export function lodgersLabel(count: number): string {
+  return `Dočasně tu bydlí ${count} ${plural(count, 'člověk', 'lidé', 'lidí')} z opuštěného domu`;
 }
 
 export function DwellingBody({
@@ -91,6 +98,11 @@ export function DwellingBody({
           <Stat icon="date" name="Stáří (roky)">
             {details.ageYears}
           </Stat>
+          {details.use?.lodgers !== undefined && (
+            <Stat icon="family" name={lodgersLabel(details.use.lodgers)} testId="selection-lodgers">
+              {details.use.lodgers}
+            </Stat>
+          )}
         </div>
         <DwellingResidents residents={details.residents} onSelect={onSelectTarget} />
         {details.manor?.hunt && <ManorHunt hunt={details.manor.hunt} />}
@@ -98,6 +110,7 @@ export function DwellingBody({
           <SonsRow sons={details.sons} onLeaveSon={onLeaveSon} onPreviewSon={onPreviewSon} />
         )}
         <Bar value={details.condition} name="Stav" testId="selection-condition" />
+        <DemolitionBar use={details.use} />
         {details.rebuild && (
           <div className={ROW}>
             <Bar value={details.rebuild.progress} name="Přestavba" />

@@ -24,6 +24,7 @@ import {
   type SquareGrid,
   type TileCell,
   type TimeSkip,
+  type UsableStructure,
 } from '@bohemia/game';
 
 // Ověření tvaru vstupu server actions vsi – data od klienta jsou nedůvěryhodná. Herní pravidla
@@ -462,6 +463,21 @@ export function parseCancelConstructionInput(value: unknown): { constructionId: 
   if (!isRecord(value)) return null;
   const constructionId = parsePositiveInt(value.constructionId);
   return constructionId !== null ? { constructionId } : null;
+}
+
+const USABLE_STRUCTURES: readonly UsableStructure[] = ['dwelling', 'pen', 'idol', 'shrine'];
+
+/**
+ * Vstup opuštění, zbourání a vrácení stavby `{ structure, id }` (demolition.md – Opustit
+ * a zbourat): druh obydlí / ohrada / modla / svatyně a kladné id, jinak null.
+ */
+export function parseStructureUseInput(
+  value: unknown,
+): { structure: UsableStructure; id: number } | null {
+  if (!isRecord(value)) return null;
+  const structure = USABLE_STRUCTURES.find((s) => s === value.structure);
+  const id = parsePositiveInt(value.id);
+  return structure !== undefined && id !== null ? { structure, id } : null;
 }
 
 /** Nejvíc dílů pole v jednom opuštění, které server vůbec přijme (pravidla povolí méně). */

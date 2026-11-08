@@ -1,7 +1,7 @@
 // Typy dat scény (`SceneVillage` a jeho části).
 
 import { Landscape } from '@bohemia/game';
-import type { CartWorld, LogStack } from '@bohemia/game';
+import type { CartWorld, LogStack, UsableStructure } from '@bohemia/game';
 import type { PathFortification } from '@bohemia/game';
 import type { SceneFortification } from './fort-view';
 import type { CartGoal } from './cart-routes';
@@ -49,6 +49,14 @@ import { type SceneFuneral } from './funeral-view';
 import { type ScenePerson } from './person-view';
 
 import { type SceneWedding } from './wedding-view';
+
+/** Bourání ve scéně – id stavby `demolition`, druh bourané stavby a u obydlí typ a řemeslo. */
+export interface SceneDemolition {
+  id: number;
+  structure: UsableStructure;
+  type?: DwellingType;
+  craft?: Craft;
+}
 
 export interface SceneVillage {
   /**
@@ -242,6 +250,11 @@ export interface SceneVillage {
    * `dwellingId` a klády v celých kusech – scéna je složí na volném místě u místa. Bez údaje žádné.
    */
   logStacks?: (Pick<LogStack, 'id' | 'x' | 'z' | 'road' | 'dwellingId'> & { logs: number })[];
+  /**
+   * Rozestavěná bourání (demolition.md – Bourání): id stavby bourání a co se boří – popisek práce
+   * u člověka („bourá zemnici“). Bez údaje se nic nebourá.
+   */
+  demolitions?: SceneDemolition[];
   /**
    * Kde ves dnes pracuje – postavy ve scéně (docs/design/villagers.md). Bez údaje (ves uložená
    * před rozdělením práce, ještě nedopočítaný den) nikdo.

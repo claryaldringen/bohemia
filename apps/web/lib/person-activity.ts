@@ -7,7 +7,7 @@ import { crewActivityText, type DraftFigureState } from './draft-activity';
 import type { PersonJob } from './scene/villager-roster';
 import type { VillagerStage } from './scene/villager-motion';
 import type { PhaseName } from './scene/villager-phases';
-import type { LaborTarget, SceneVillage } from './village-view';
+import type { LaborTarget, SceneDemolition, SceneVillage } from './village-view';
 
 /**
  * Stav vybraného člověka ve scéně (villagers.ts hlásí změny): jeho postava dne a co dělá (`job`),
@@ -391,7 +391,18 @@ function buildText(t: LaborTarget, village: SceneVillage): string {
   if (site) return site.craft ? CRAFT_SITES[site.craft] : (DWELLING_SITES[site.type] ?? 'staví');
   const sacred = village.sacred?.buildings.find((b) => b.id === t.id);
   if (sacred) return sacred.kind === 'shrine' ? 'staví svatyni' : 'staví modlu';
+  const demolition = village.demolitions?.find((d) => d.id === t.id);
+  if (demolition) return demolitionText(demolition);
   return 'staví';
+}
+
+/** Bourání (demolition.md – Bourání): „bourá zemnici“, „bourá kovárnu“, „bourá ohradu“… */
+function demolitionText(d: SceneDemolition): string {
+  if (d.structure === 'pen') return 'bourá ohradu';
+  if (d.structure === 'idol') return 'bourá modlu';
+  if (d.structure === 'shrine') return 'bourá svatyni';
+  const site = d.craft ? CRAFT_SITES[d.craft] : (DWELLING_SITES[d.type ?? 'zemnice'] ?? 'staví');
+  return site.replace('staví', 'bourá');
 }
 
 function craftText(t: LaborTarget, village: SceneVillage): string {

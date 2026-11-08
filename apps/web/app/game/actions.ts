@@ -81,6 +81,9 @@ import {
   buildTrailForPlayer,
   buildWagonRoadForPlayer,
   abandonFieldPartsForPlayer,
+  abandonStructureForPlayer,
+  demolishStructureForPlayer,
+  restoreStructureForPlayer,
   cancelConstructionForPlayer,
   sendExpeditionForPlayer,
   forceDevDisasterForPlayer,
@@ -130,6 +133,7 @@ import {
 import {
   parseBuildTrailInput,
   parseAbandonFieldPartsInput,
+  parseStructureUseInput,
   parseCancelConstructionInput,
   parseDevDisasterInput,
   parseSendExpeditionInput,
@@ -377,6 +381,24 @@ export async function cancelConstruction(input: unknown): Promise<VillageActionR
  */
 export async function abandonFieldParts(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parseAbandonFieldPartsInput, abandonFieldPartsForPlayer);
+}
+
+/**
+ * Opuštění stavby (demolition.md – Opustit a zbourat): `{ villageId, structure, id }` – obydlí,
+ * ohrada, modla nebo svatyně přestane sloužit a chátrá. Server stavbu ověří znovu.
+ */
+export async function abandonStructure(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parseStructureUseInput, abandonStructureForPlayer);
+}
+
+/** Zbourání stavby: `{ villageId, structure, id }` – vesničané ji rozeberou ze společné práce. */
+export async function demolishStructure(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parseStructureUseInput, demolishStructureForPlayer);
+}
+
+/** Vrácení opuštěné stavby do užívání: `{ villageId, structure, id }`. */
+export async function restoreStructure(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parseStructureUseInput, restoreStructureForPlayer);
 }
 
 /**

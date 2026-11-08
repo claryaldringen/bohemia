@@ -319,7 +319,53 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
   {
     key: 'obydli',
     label: 'Obydlí',
-    details: dwelling(),
+    details: dwelling({
+      use: {
+        structure: 'dwelling',
+        id: 3,
+        state: 'in-use',
+        block: null,
+        demolition: { laborManDays: 10, logs: 3 },
+        demolishing: null,
+      },
+    }),
+  },
+  {
+    // opustit ani zbourat nejde – obyvatelé nemají kam jít (demolition.md – Obydlí); dočasně tu
+    // bydlí lidé z jiného opuštěného domu
+    key: 'obydli-bez-mista',
+    label: 'Obydlí bez místa',
+    details: dwelling({
+      use: {
+        structure: 'dwelling',
+        id: 3,
+        state: 'in-use',
+        block: 'Obyvatelé nemají kam jít – v ostatních obydlích chybí 5 míst.',
+        demolition: { laborManDays: 10, logs: 3 },
+        demolishing: null,
+        lodgers: 2,
+      },
+    }),
+  },
+  {
+    key: 'obydli-bourani',
+    label: 'Obydlí se bourá',
+    details: dwelling({
+      occupants: 0,
+      ages: [],
+      residents: [],
+      full: false,
+      family: { men: 0, women: 0, boys: 0, girls: 0, elderMen: 0, elderWomen: 0, couples: 0 },
+      leave: null,
+      use: {
+        structure: 'dwelling',
+        id: 3,
+        state: 'demolishing',
+        block: null,
+        demolition: null,
+        demolishing: { constructionId: 120, progress: 0.4 },
+      },
+    }),
   },
   {
     key: 'vic-obydli',
@@ -948,6 +994,14 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       training: null,
       condition: 0.31,
       abandoned: true,
+      use: {
+        structure: 'pen',
+        id: 90,
+        state: 'abandoned',
+        block: null,
+        demolition: { laborManDays: 1.5, logs: 1 },
+        demolishing: null,
+      },
     }),
   },
   {
@@ -1454,6 +1508,14 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       condition: 0.38,
       abandoned: true,
       repair: null,
+      use: {
+        structure: 'idol',
+        id: 40,
+        state: 'in-use',
+        block: null,
+        demolition: { laborManDays: 2.5, logs: 0 },
+        demolishing: null,
+      },
     },
   },
   {

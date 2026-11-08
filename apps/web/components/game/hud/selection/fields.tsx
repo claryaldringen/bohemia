@@ -35,6 +35,7 @@ import {
 } from '@/lib/field-outlook-labels';
 import type { WorkShortfallView } from '@/lib/village-view-types';
 import { Stat, Bar, Wear, RepairBar, ROW, formatM2, Walk, Flag, formatTons } from './parts';
+import { DemolitionBar } from '../StructureUseButtons';
 
 /** Krátký název plodiny malými písmeny (ozim, jař, luštěniny, len) – do popisků. */
 function cropShort(crop: keyof typeof CROP_LABELS): string {
@@ -876,6 +877,7 @@ export function PenBody({
       </div>
       {details.horses && <HorsesBlock horses={details.horses} penId={details.id} />}
       {details.repair !== null && <RepairBar value={details.repair} />}
+      <DemolitionBar use={details.use} />
       {details.extension !== null && (
         <Bar value={details.extension} name="Rozšíření ohrady" testId="selection-extension" />
       )}

@@ -62,6 +62,18 @@ describe('personActivity – co postava dělá', () => {
     expect(share({ kind: 'share', activity: 'build', target: { kind: 'site', id: 90 } })).toBe(
       'staví polozemnici',
     );
+    // bourání (demolition.md – Bourání): práce u stavby bourání podle toho, co se boří
+    const demolishing = (d: NonNullable<SceneVillage['demolitions']>): string =>
+      personActivity(
+        state({ kind: 'share', activity: 'build', target: { kind: 'site', id: 95 } }),
+        { ...VILLAGE, demolitions: d },
+      );
+    expect(demolishing([{ id: 95, structure: 'dwelling', type: 'zemnice' }])).toBe('bourá zemnici');
+    expect(demolishing([{ id: 95, structure: 'dwelling', type: 'zemnice', craft: 'smith' }])).toBe(
+      'bourá kovárnu',
+    );
+    expect(demolishing([{ id: 95, structure: 'pen' }])).toBe('bourá ohradu');
+    expect(demolishing([{ id: 95, structure: 'shrine' }])).toBe('bourá svatyni');
     expect(
       share({
         kind: 'share',

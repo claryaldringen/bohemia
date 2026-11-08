@@ -17,6 +17,10 @@ import {
   settleJourney,
   abandonVillageFieldParts,
   cancelUnfinishedConstruction,
+  abandonVillageStructure,
+  demolishVillageStructure,
+  restoreVillageStructure,
+  type UsableStructure,
   foundVillageForSettlement,
   newcomerFoundingReason,
   declareHuntInVillage,
@@ -528,6 +532,48 @@ export function abandonFieldPartsForPlayer(
 ): Promise<VillageActionResult> {
   return actOn(playerId, villageId, 'abandonFieldParts', (ctx) =>
     abandonVillageFieldParts(
+      { villages: villages() },
+      { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
+    ),
+  );
+}
+
+/** Opuštění stavby (structure-use.ts – demolition.md, Opustit a zbourat). */
+export function abandonStructureForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { structure: UsableStructure; id: number },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, 'abandonStructure', (ctx) =>
+    abandonVillageStructure(
+      { villages: villages() },
+      { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
+    ),
+  );
+}
+
+/** Zbourání stavby – bourání ze společné práce vsi (structure-use.ts). */
+export function demolishStructureForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { structure: UsableStructure; id: number },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, 'demolishStructure', (ctx) =>
+    demolishVillageStructure(
+      { villages: villages() },
+      { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
+    ),
+  );
+}
+
+/** Vrácení opuštěné stavby do užívání (structure-use.ts). */
+export function restoreStructureForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { structure: UsableStructure; id: number },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, 'restoreStructure', (ctx) =>
+    restoreVillageStructure(
       { villages: villages() },
       { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
     ),

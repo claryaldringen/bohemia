@@ -28,6 +28,9 @@ import {
   setDefenseStance,
   decidePrisonerAction,
   abandonFieldParts,
+  abandonStructure,
+  demolishStructure,
+  restoreStructure,
   cancelConstruction,
   forceDevDisaster,
   foundVillage,
@@ -364,6 +367,13 @@ function withPending(scene: SceneVillage, pending: readonly PendingSite[]): Scen
  * Ctrl / Shift + klik přidá obydlí k výběru, Ctrl + A vybere všechna; panel výběru obydlí
  * nabídne Přestěhovat (nový dům postupně každé domácnosti).
  */
+/** Opustit, zbourat a vrátit stavbu (demolition.md) – server action podle tlačítka v panelu. */
+const STRUCTURE_USE_ACTIONS = {
+  abandon: abandonStructure,
+  demolish: demolishStructure,
+  restore: restoreStructure,
+} as const;
+
 export function VillageGame({
   landscape,
   seed,
@@ -1581,6 +1591,12 @@ export function VillageGame({
                       abandonFieldParts({ villageId, partIds: [partId], abandon }),
                     )
                   : Promise.resolve();
+              }}
+              onStructureUse={(action, structure, id) => {
+                const villageId = viewRef.current?.id;
+                if (!villageId) return Promise.resolve();
+                const run = STRUCTURE_USE_ACTIONS[action];
+                return runBuildAction(() => run({ villageId, structure, id }));
               }}
               onCancelConstruction={(constructionId) => {
                 const villageId = viewRef.current?.id;

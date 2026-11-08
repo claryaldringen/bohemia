@@ -12,6 +12,7 @@ import {
   parsePosition,
   parseSkipTimeInput,
   parseAbandonFieldPartsInput,
+  parseStructureUseInput,
   parseCancelConstructionInput,
   parseNameLineManInput,
   parseVillageId,
@@ -217,6 +218,21 @@ describe('vstupy víc vsí a přestěhování (migration.md)', () => {
     expect(parseAbandonFieldPartsInput({ partIds: [3], abandon: 'yes' })).toBeNull();
     expect(parseAbandonFieldPartsInput({ partIds: 3, abandon: true })).toBeNull();
     expect(parseAbandonFieldPartsInput(null)).toBeNull();
+  });
+
+  it('opustit, zbourat a vrátit stavbu – druh stavby a kladné id', () => {
+    expect(parseStructureUseInput({ structure: 'dwelling', id: 5 })).toEqual({
+      structure: 'dwelling',
+      id: 5,
+    });
+    expect(parseStructureUseInput({ structure: 'shrine', id: 9 })).toEqual({
+      structure: 'shrine',
+      id: 9,
+    });
+    expect(parseStructureUseInput({ structure: 'cemetery', id: 5 })).toBeNull();
+    expect(parseStructureUseInput({ structure: 'pen', id: 0 })).toBeNull();
+    expect(parseStructureUseInput({ structure: 'pen', id: '3' })).toBeNull();
+    expect(parseStructureUseInput(null)).toBeNull();
   });
 
   it('pojmenování muže rodu – kladné id člověka a jméno (písmena ověří use-case)', () => {

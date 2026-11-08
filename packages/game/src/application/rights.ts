@@ -80,6 +80,10 @@ export const ACTION_RIGHTS = {
   cancelConstruction: 'build',
   // opuštění dílu pole a vrácení do osevu (fields.md – Opuštěný díl) – jako zakládání pole
   abandonFieldParts: 'build',
+  // opustit, zbourat a vrátit stavbu (demolition.md – Opustit a zbourat) – jako stavba
+  abandonStructure: 'build',
+  demolishStructure: 'build',
+  restoreStructure: 'build',
   // první zemnice nové vsi po příchodu lidí – stavba
   settleJourney: 'build',
   // odchod domácností (i celé vsi) na novou mapu

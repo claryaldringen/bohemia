@@ -44,6 +44,7 @@ import type {
   DepartingSon,
   FieldOutlookView,
   PartOutlookView,
+  StructureUseView,
   VillageFieldPart,
   VillageThreshingFloor,
 } from './village-view-types';
@@ -189,6 +190,8 @@ type SelectionKinds =
       leave: SelectionLeave | null;
       /** Dvorec: synové vojvody od 16 let pro odchod s poměrnou částí vsi (lord.md); jinak chybí. */
       sons?: SelectionSon[];
+      /** Opustit, zbourat, vrátit (demolition.md – Rozhraní); dvorec údaj nemá. */
+      use?: StructureUseView;
     }
   | {
       /** Víc vybraných obydlí (Ctrl/Shift + klik, Ctrl + A – migration.md). */
@@ -418,6 +421,8 @@ type SelectionKinds =
       abandoned: boolean;
       /** Oprava (abandonment.md – Oprava) – průběh 0–1; bez opravy null. */
       repair: number | null;
+      /** Opustit, zbourat, vrátit (demolition.md – Rozhraní); rozestavěná stavba údaj nemá. */
+      use?: StructureUseView;
     }
   | {
       kind: 'pen';
@@ -469,6 +474,8 @@ type SelectionKinds =
       abandoned: boolean;
       /** Oprava (abandonment.md – Oprava) – průběh 0–1; bez opravy null. */
       repair: number | null;
+      /** Opustit, zbourat, vrátit (demolition.md – Rozhraní); rozestavěná ohrada údaj nemá. */
+      use?: StructureUseView;
     }
   | {
       kind: 'road';
@@ -948,6 +955,7 @@ function selectionKinds(
       ...(view?.manor?.dwellingId === household.dwellingId && view.dynasty
         ? { sons: sonDetails(view) }
         : {}),
+      ...(household.use ? { use: household.use } : {}),
     };
   }
   if (target.kind === 'cemetery') {
@@ -1451,6 +1459,7 @@ function sacredDetails(
       condition: building.condition,
       abandoned: building.abandoned,
       repair: building.repair,
+      ...(building.use ? { use: building.use } : {}),
     };
   }
   const site = scene.sacred?.buildings.find((b) => b.id === id);
@@ -1504,5 +1513,6 @@ function penDetails(view: VillageView | null, id: number): SelectionDetails | nu
     condition: pen.condition,
     abandoned: pen.abandoned,
     repair: pen.repair,
+    ...(pen.use ? { use: pen.use } : {}),
   };
 }

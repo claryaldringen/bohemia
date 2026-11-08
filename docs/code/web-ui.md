@@ -921,3 +921,43 @@ jsou v `lib/premium-view.ts` (`PREMIUM_TEXTS`, `premiumIntroNotice`); portréty 
 - **Minimapa:** `premiumMinimapMarks` (scene.md – Prémiové krajiny ve scéně).
 - **Testy:** `premium-view.test.ts`, `premium-picking.test.ts`, `PremiumSitePanel.test.tsx`
   (statický render panelu), `NoticeLines.behavior.test.tsx` (hláška při prvním vstupu).
+
+## Opustit, zbourat a vrátit stavbu (Ú10 bourání, `hud/StructureUseButtons.tsx`)
+
+- **Use-casy** `abandonVillageStructure`, `demolishVillageStructure`, `restoreVillageStructure`
+  (`application/structure-use.ts`, vstup `{ villageId, landscape, today, structure, id }`,
+  `updateLivingVillage` – ves se nejdřív dopočítá). Jména s `Village`, protože doménová pravidla
+  `abandonStructure` / `demolishStructure` / `restoreStructure` exportuje stejný balík. Druhý pokyn
+  Zbourat téže stavby (i souběžný) odmítne doména `'Stavba se už bourá.'` – repozitář uloží jen
+  jednu verzi, druhý pokus se dopočítá znovu.
+- **Práva** `abandonStructure`, `demolishStructure`, `restoreStructure` → `'build'` (`ACTION_RIGHTS`);
+  vstup `parseStructureUseInput` (`{ structure: 'dwelling' | 'pen' | 'idol' | 'shrine', id }`),
+  `…StructureForPlayer` přes `actOn` (`lib/village.ts`), server actions `abandonStructure`,
+  `demolishStructure`, `restoreStructure` (`app/game/actions.ts`).
+- **Pohled:** `StructureUseView` (`village-view-types.ts`) – `state` `'in-use' | 'abandoned' |
+'demolishing'`, `block` (důvod z `disuseBlock` – obyvatelé nemají kam jít, ohrada se rozšiřuje),
+  `demolition` (`demolitionCost` dnes), `demolishing` (`constructionId`, průběh), `lodgers`
+  (`lodgersIn` – dočasně ubytovaní z opuštěného domu). Počítá `structureUseView`
+  (`lib/village-view-structure-use.ts`) jako `use` u `households`, hotových `pens`
+  a `sacred.buildings`; `selection-details.ts` ho předá do `dwelling`, `pen` a `sacred`.
+  **Dvorec údaj nemá** – tlačítka vůbec nevidí (návrh Clauda: dvorec nejde opustit ani zbourat
+  nikdy, zašedlé ikony by jen zabíraly místo). Dvorcem je i zemnice zakladatelů –
+  `isManorTarget` v doméně čte `villageManorId`, ne jen typ `dvorec`.
+- **Tlačítka** `StructureUseButtons` vpravo nahoře v `SelectionPanel` (vedle značky správce): v
+  provozu Opustit + Zbourat, opuštěná Vrátit + Zbourat, bouraná jen Zrušit
+  (`CancelConstructionButton` s `demolishing.constructionId`). Ikony `abandon-structure.svg`,
+  `demolish.svg`, `restore.svg` (CC0). Popisky „Opustit – stavba se přestane používat a začne
+  chátrat“, „Zbourat – 7,5 čd, 2 klády zpět na hromadu“ (bez klád „bez klád“), „Vrátit – stavba se
+  zase bude používat“. `block` a chybějící právo `build` zašední s důvodem u kurzoru; během akce
+  stojí všechna tlačítka (`busy`). `data-testid`: `structure-abandon`, `structure-demolish`,
+  `structure-restore`. `VillageGame` posílá `onStructureUse` přes `runBuildAction`.
+- **Panely:** průběh bourání `DemolitionBar` („Bourání“, `selection-demolition`) v obydlí, ohradě,
+  modle a svatyni; v obydlí ikona `family` s počtem dočasně ubytovaných (`selection-lodgers`,
+  popisek „Dočasně tu bydlí N lidí z opuštěného domu“).
+- **Kronika:** „Stavba opuštěna.“, „Stavba vrácena.“, „Stavba zbourána – N klád na hromadu.“
+  (1 kláda / 2–4 klády / 5 klád). **Činnost člověka:** `SceneVillage.demolitions` (id stavby bourání
+  a co se boří) → „bourá zemnici“, „bourá kovárnu“, „bourá ohradu“ (`person-activity.ts`).
+- **Dev panely:** `obydli`, `obydli-bez-mista`, `obydli-bourani`, `ohrada-opustena`, `modla`.
+- **Testy:** `application/__tests__/structure-use.test.ts` (Opustit → Vrátit, opuštěné Zbourat,
+  dvojklik Zbourat, dvorec), `StructureUseButtons.behavior.test.tsx`, e2e `village.spec.ts` –
+  „hráč zboří obydlí – lidé bydlí dočasně jinde – a opustí a vrátí ohradu“.

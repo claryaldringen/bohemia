@@ -37,6 +37,7 @@ import {
   type PartYearWork,
   type OutlookStep,
   type RelocationBlock,
+  type UsableStructure,
   type RoadGrade,
   type RoadUpgrade,
   type RoadUpgradeOption,
@@ -131,6 +132,24 @@ export interface VillageHappiness {
  * pro celou ves), stáří dubu (háj: jeho nejstaršího dubu – `oakAgeYears`, celé roky; strom mimo
  * vrstvu null) a u modly a svatyně průběh stavby.
  */
+/**
+ * Opustit, zbourat a vrátit stavbu (demolition.md – Rozhraní): v jakém stavu stavba je a co s ní
+ * jde – počítá server (`structureUseView`). Dvorec a rozestavěné stavby údaj nemají.
+ */
+export interface StructureUseView {
+  structure: UsableStructure;
+  id: number;
+  state: 'in-use' | 'abandoned' | 'demolishing';
+  /** Proč stavbu v provozu teď nejde opustit ani zbourat (důvod u kurzoru); jde-li, null. */
+  block: string | null;
+  /** Bourání dnes – práce (člověkodny) a klády zpět na hromadu; bouraná stavba null. */
+  demolition: { laborManDays: number; logs: number } | null;
+  /** Rozestavěné bourání – stavba ke zrušení a průběh 0–1; jinak null. */
+  demolishing: { constructionId: number; progress: number } | null;
+  /** Obydlí: kolik lidí z opuštěného domu tu dočasně bydlí (demolition.md – Obydlí); jen > 0. */
+  lodgers?: number;
+}
+
 export interface VillageSacred {
   /** Živé posvátné duby a posvátné souše (`snag`) – padlá souš už posvátným dubem není. */
   oaks: { id: number; happiness: number; ageYears: number | null; snag: boolean }[];
@@ -158,6 +177,8 @@ export interface VillageSacred {
     abandoned: boolean;
     /** Vesničané stavbu opravují (abandonment.md – Oprava) – průběh 0–1; jinak null. */
     repair: number | null;
+    /** Opustit, zbourat, vrátit (demolition.md) – jen hotová stavba. */
+    use?: StructureUseView;
   }[];
 }
 
@@ -205,6 +226,8 @@ export interface VillagePen {
   abandoned: boolean;
   /** Vesničané ohradu opravují (abandonment.md – Oprava) – průběh 0–1; jinak null. */
   repair: number | null;
+  /** Opustit, zbourat, vrátit (demolition.md) – jen hotová ohrada. */
+  use?: StructureUseView;
 }
 
 /**
@@ -434,6 +457,8 @@ export interface VillageView {
     ageYears: number;
     /** Proč domácnost teď nemůže odejít (stěhuje se, bez lidí…); odchod to hlídá (migration.md). */
     relocationBlock: RelocationBlock | null;
+    /** Opustit, zbourat, vrátit (demolition.md); dvorec údaj nemá. */
+    use?: StructureUseView;
   }[];
   storesKg: number;
   /** Zásoby ovoce – jablek (kg; v rozhraní „ovoce“ – diet.md). */
