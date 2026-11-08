@@ -138,7 +138,8 @@ function decideDay(
   // krok 2a – nouze: obilí od sousedů, když hrozí hlad, a lov, když zvěř škodí (steward-needs.ts)
   needSteps(state, ctx);
   fieldStep(state, ctx);
-  // díly pole nad to, co ves obdělá – jednou za rok v září (steward-abandon.ts)
+  // výměna špatných vlastních dílů pole za lepší místo plánu – jednou za rok v září
+  // (steward-abandon.ts)
   abandonStep(state, ctx);
   dwellingStep(state, ctx);
   extraSteps(state, ctx);
@@ -499,7 +500,7 @@ function connectedPick(
 }
 
 /** Nejmenší počet čtverců pole (`FIELD_LIMITS.minAreaM2`). */
-function minFieldCells(landscape: Landscape): number {
+export function minFieldCells(landscape: Landscape): number {
   return Math.ceil(FIELD_LIMITS.minAreaM2 / (landscape.cellSizeM * landscape.cellSizeM));
 }
 
@@ -553,31 +554,36 @@ function farmsByHomes(
  * louky (1. 9. – 28. 2., 15. 6. – 31. 7.) volná políčka bloku prvního hospodářství (napřed se
  * stojícím domem, pak políčka nejblíž stojícím domům – `farmsByHomes`), které jich má dost; když
  * louka v plánu nestačí, v okně lesa (1. 10. – 31. 1.) les na území vsi do
- * `STEWARD.forestSearchTiles` od bloku. Počet čtverců podle chybějících lidí (`shortPeople`)
- * a úrodnosti, nejvýš co unese `budget`.
+ * `STEWARD.forestSearchTiles` od bloku. Počet čtverců podle chybějících lidí (`short` – číslo)
+ * a úrodnosti, nebo rovnou `{ cells }` (výměna dílů – steward-abandon.ts); aspoň nejmenší pole,
+ * nejvýš co unese `budget`.
  */
 export function nextFieldBlock(
   state: VillageState,
   ctx: StewardContext,
-  shortPeople: number,
+  short: number | { cells: number },
   budget: number,
   skip: ReadonlySet<number> = new Set(),
 ): FieldBlock | null {
   const plan = state.steward?.plan;
-  if (!plan || shortPeople <= 0 || budget <= 0) return null;
+  const wanted = typeof short === 'number' ? short : short.cells;
+  if (!plan || wanted <= 0 || budget <= 0) return null;
   const { landscape, obstacles } = ctx;
   const size = landscape.size;
   const cells = fieldCells(landscape, obstacles);
   const taken = takenTiles(state, ctx.day, landscape);
   const min = minFieldCells(landscape);
   const ha = (landscape.cellSizeM * landscape.cellSizeM) / 10_000;
-  const pick = (farm: number, ordered: number[], forest: boolean): FieldBlock | null => {
-    if (ordered.length < min) return null;
+  const wantOf = (ordered: readonly number[]): number => {
+    if (typeof short !== 'number') return Math.max(min, short.cells);
     const head = ordered.slice(0, 20);
     const fertility = head.reduce((s, t) => s + landscape.fertility[t]!, 0) / head.length;
     const perHa = peoplePerHa(state, ctx.day, ctx.coverage, fertility);
-    const want = perHa > 0 ? Math.max(min, Math.ceil(shortPeople / perHa / ha)) : min;
-    const chosen = connectedPick(ordered, size, want, budget, cells.found);
+    return perHa > 0 ? Math.max(min, Math.ceil(short / perHa / ha)) : min;
+  };
+  const pick = (farm: number, ordered: number[], forest: boolean): FieldBlock | null => {
+    if (ordered.length < min) return null;
+    const chosen = connectedPick(ordered, size, wantOf(ordered), budget, cells.found);
     return chosen.cells.length >= min ? { farm, ...chosen, forest } : null;
   };
   const usable = (t: number): boolean =>
@@ -643,24 +649,42 @@ function fieldStep(state: VillageState, ctx: StewardContext): void {
   if (ctx.mode === 'emergency' && ctx.outlook.bottleneck !== 'land') return;
   const target = fieldTarget(state, ctx.day, ctx.coverage, ctx.outlook);
   if (target.have >= target.need) return;
+  const short = target.need - target.have;
+  const started = startFieldBlock(state, ctx, (skip) =>
+    nextFieldBlock(state, ctx, short, laborBudget(state).left, skip),
+  );
+  if (started === 'none') markFieldsExhausted(state, ctx);
+}
+
+/** Výsledek `startFieldBlock`: pole začalo, blok chybí (`none`), nebo pokusy skončily. */
+export type FieldBlockStart = 'started' | 'none' | 'failed';
+
+/**
+ * Založí pole z bloku plánu (mutuje stav – záměr stavby pole jako hráč, `startStewardBuild`):
+ * nejvýš `STEWARD.slotTries` pokusů; blok, který neprošel kontrolou místa, ztratí z plánu první
+ * políčko (`skip` – les v plánu není, jen pro dnešek) a `blockOf` vybere další. Odmítnutí, za
+ * která místo nemůže (cena předem, dřevo), pokusy ukončí.
+ */
+export function startFieldBlock(
+  state: VillageState,
+  ctx: StewardContext,
+  blockOf: (skip: ReadonlySet<number>) => FieldBlock | null,
+): FieldBlockStart {
   const skip = new Set<number>();
   for (let attempt = 0; attempt < STEWARD.slotTries; attempt++) {
-    const budget = laborBudget(state);
-    const block = nextFieldBlock(state, ctx, target.need - target.have, budget.left, skip);
-    if (!block) {
-      markFieldsExhausted(state, ctx);
-      return;
-    }
+    const block = blockOf(skip);
+    if (!block) return 'none';
     const built = startStewardBuild(state, ctx, {
       kind: 'field',
       cells: block.cells.map((t) => tileCell(ctx.landscape, t)),
     });
-    if (built.ok || NOT_THE_SLOT.has(built.reason)) return;
-    // blok neprošel – první políčko bloku se z plánu zahodí (les v plánu není – jen pro dnešek)
+    if (built.ok) return 'started';
+    if (NOT_THE_SLOT.has(built.reason)) return 'failed';
     const first = block.cells[0]!;
     skip.add(first);
     dropFarmCell(state, block.farm, first, ctx.landscape.size);
   }
+  return 'failed';
 }
 
 /** Zahodí políčko z bloku hospodářství (hotový plán). */

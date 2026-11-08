@@ -85,6 +85,14 @@ export const STEWARD = {
    * nového domu (ať se nestěhuje kvůli šumu).
    */
   rebuildMargin: 0.2,
+  /**
+   * Přestavba – Pole: výměna dílů smí založit nové pole nejvýš za tento podíl rozpočtu práce
+   * (`laborBudget().left` – volná práce za `laborHorizonDays` mínus rozestavěné stavby), tedy
+   * nejvýš ≈ 60 dní volné práce: tolik dílů, kolik ves ze září založí znovu do jarního setí
+   * (okno louky do 28. 2.) i vedle staveb, které už běží; druhá polovina rozpočtu zůstane obydlím
+   * a ostatním stavbám téhož dne správce (krok 4 a dál).
+   */
+  fieldSwapLaborShare: 0.5,
   /** Soužití s hráčem – Veto: tolik let po zrušení hráčem správce tentýž druh na políčku nestaví. */
   vetoYears: 5,
 

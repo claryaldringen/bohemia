@@ -784,16 +784,35 @@ domů a ta se po založení nemění.
   ([opuštěné stavby](abandonment.md)) – bourat ji nemusí. Hřbitov s hroby zůstává vždy.
 - **Pole:** akce **opustit díl** (díly vypadnou z oběhu a zarostou – fields.md, Opuštěný díl) je
   stejná pro hráče i správce (Martin 8. 11. 2026: „A“ – Otevřené otázky, bod 1;
-  `setPartsAbandoned`). **Kdy a které (návrh Clauda, 8. 11. 2026):** jednou za rok, první den
-  správce v září (po žních a novém osevním postupu 1. 9., výhled práce je už na nový hospodářský
-  rok), když pole trvale přesahuje, co ves obdělá – výhled vsi má trvalé hrdlo práce (`lasting`
-  `labor`, Model kapacity vsi). Přebytek = pole v oběhu nad osev podle práce
-  × `STEWARD.fieldReserve` (táž rezerva, nad kterou správce pole nestaví – co by nezaložil, ani
-  nedrží). Z přebytku opustí jen **celé díly, které sám založil** (`steward.built`; zakládané,
-  opuštěné a zarostlé ne), od nejhorší hodnoty v mapě hodnot (`fieldCellValue` políčka dílu se
-  vzdáleností chůze), dokud se vejdou. Opuštěné díly výhled nepočítá do pole v oběhu ani do práce
-  na vrácení přílohu. Zpět je zatím nevrací – když ves zase doroste, založí pole jako dřív
-  (vrácení je otázka na Martina).
+  `setPartsAbandoned`). Správce díly opouští, **když jsou špatné, ne když má málo lidí**
+  (Martin 8. 11. 2026: „Já měl za to, že správce pole opouští, když jsou na hovno, ne když má
+  málo lidí“; původní otázka 1: „Bez ní správce špatná pole, která sám založil, nepřestaví – jen staví lépe
+  dál.“). Pole, na které ves nemá lidi, leží ladem samo (osev podle práce) – kvůli nedostatku lidí
+  správce nic neopouští (do 8. 11. 2026 opouštěl při trvalém hrdle práce – zrušeno).
+  **Výměna dílů (návrh Clauda, Martin 8. 11. 2026: „ok“):** jednou za rok, první den správce
+  v září (po žních a novém osevním postupu 1. 9.), mimo Nouzi (výměna se splatí až za roky):
+  1. **Které díly:** jen díly, které sám založil (`steward.built`; zakládané, opuštěné a zarostlé
+     ne), od nejhorší hodnoty – mapa hodnot políčka dílu se vzdáleností chůze **bez ceny
+     založení**, tu ves už zaplatila (jinak by měnil díly kvůli kamenům a pařezům, které už
+     odklidil, a čerstvě založené pole by příští září měnil znovu).
+  2. **Kam:** blok, který by správce založil jako další pole (Pole blízko a podle práce), na tolik
+     čtverců, kolik má vlastních dílů. Jeho hodnota = průměr mapy hodnot čtverců **i s cenou
+     založení**, vzdálenost od nejbližšího obydlí (tu dostane nový díl).
+  3. **Výrazně lépe:** vymění nejvíc k nejhorších dílů, kdy k-tý z nich
+     × (1 + `STEWARD.rebuildMargin`) (20 %, jako přestavba domů) vychází hůř než průměr prvních
+     max(nejmenší pole, k) čtverců bloku. Nové pole má aspoň nejmenší plochu pole (1000 m²
+     – 5 čtverců), i když opouští méně dílů. Na samotnou vzdálenost to při stejné půdě bez
+     překážek vychází od ≈ 670 m (práce 1,57×); dřív u záplav, chudé půdy a zvěře u lesa.
+  4. **Práce:** blok jen v rozpočtu práce × `STEWARD.fieldSwapLaborShare` (0,5) – stejná
+     kontrola jako u nového pole, nejvýš ≈ 60 dní volné práce: tolik dílů, kolik ves ze září
+     založí znovu do jarního setí (okno louky do 28. 2.) i vedle staveb, které už běží; druhá
+     polovina rozpočtu zůstane obydlím a ostatním stavbám téhož dne správce.
+  5. **Jak:** pole z bloku založí stejnou cestou jako nové pole (záměr stavby pole jako hráč);
+     teprve když stavba začne, opustí vybrané díly (jeden řádek kroniky). Bez volného místa, bez
+     práce nebo bez dílu o přirážku horšího nic.
+
+  Opuštěné díly výhled nepočítá do pole v oběhu ani do práce na vrácení přílohu. Zpět je správce
+  nevrací (vrácení je otázka na Martina).
 
 ## Soužití s hráčem (návrh Clauda)
 
@@ -1103,52 +1122,54 @@ kód, který se pak zahřeje, stojí ≈ 3× víc než zahřátý).
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                                              | Kdo                                                                  |
-| ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| Zbytek vsi spravuje NPC; hráč může svou ves svěřit správci a vždy smí v každé vsi rodu stavět                           | Martin (zadání issue #9, 24. 10. 2026)                               |
-| Přepínač Správce u každé vsi; ves syna zapnutý, první ves vypnutý; hráč přepíná kdykoli a staví i sám                   | Martin (30. 10. 2026)                                                |
-| Rozsah první verze: obydlí, pole, ohrady, hřbitov, sad, humno, dílny, cesty, odchod syna, jména synů                    | Martin (30. 10. 2026)                                                |
-| Úroveň „Absolutní skiller“ – optimalizuje rozestavení, pole a vzdálenosti podle krajiny                                 | Martin (30. 10. 2026)                                                |
-| Cíl „Růst se zásobou“ – napřed pole a klučení, až když není kam, odchod syna                                            | Martin (30. 10. 2026)                                                |
-| Přestavba „Přestaví, ne hráčovo“ – jen vlastní stavby, když se to vyplatí                                               | Martin (30. 10. 2026)                                                |
-| Nástupnictví náhodou až s pozvánkami, ne ve fázi 3                                                                      | Martin (30. 10. 2026)                                                |
-| Krok simulovaného dne `stewardDay` v pevné dny (každý 10. den, odchod 31. 8.), bez krajiny spí                          | návrh Clauda                                                         |
-| Doménový příkaz `applyBuildIntent` – jedno pravidlo pro hráče i správce; use-casy se na něj přepojí                     | návrh Clauda                                                         |
-| Správce nezná budoucnost (seed počasí, rozpis pohrom), jen co vidí hráč a četnosti z pravidel                           | návrh Clauda                                                         |
-| Režimy Nouze / Obnova / Růst podle pojistky zásob; rozpočet práce ≈ 120 dní volné práce                                 | návrh Clauda                                                         |
-| Hodnota a cena v člověkodnech za rok; cíl polí na lidi za 2 roky × 1,1                                                  | návrh Clauda                                                         |
-| Plán sídla ze šablon (shluk, řadová ves, samoty), hospodářství dům + blok polí, rezervy, uložený ve stavu               | návrh Clauda                                                         |
-| Území vsi do 800 m od středu; správce plánuje jen na svém území (Voroného buňky zrušeny 1. 11. 2026)                    | návrh Clauda                                                         |
-| Značka „postavil správce“ jako množina id `steward.built`; převod: bez stavu vypnutý                                    | návrh Clauda                                                         |
-| Přestavba obydlí na konci životnosti: nový dům jinde, starý se zbourá; ostatní stavby nová + stará chátrá               | návrh Clauda (bourání – Martin 8. 11. 2026)                          |
-| Hráč smí zrušit rozestavěnou stavbu správce → veto na 5 let                                                             | návrh Clauda                                                         |
-| Jména synů při narození jako u vnuků; odchod nejstaršího ženatého způsobilého syna, nejvýš jednou za rok                | návrh Clauda                                                         |
-| ~~Odchod na téže mapě, když tam je místo pro 2× díl~~; vždy nová mapa (stezka, nejkratší cesta)                         | návrh Clauda, Martin (1. 11. 2026)                                   |
-| Odchod přes odchozí schránku `steward.departures` a use-case `settleStewardDepartures`                                  | návrh Clauda                                                         |
-| UI: přepínač s ikonou v seznamu vsí a v panelu dvorce, ikona u staveb správce, žádné kroniky navíc ani plán             | návrh Clauda                                                         |
-| Ověření skriptem `measure-steward.ts` – 20 krajin v 5 typech, 50 let, srovnání se skriptem, Vlkovem a mezí              | návrh Clauda                                                         |
-| Nouze jen při rostoucím hladu; kroky Růstu i v Obnově z poloviny rozpočtu (sad jen první); syn z pasti po roce          | návrh Clauda (oprava 31. 10. 2026)                                   |
-| Kapacita mapy: odchod syna při lidech > 0,8 × co uživí všechna obdělatelná půda mapy; pole bez stropu podle jídla       | Martin 6. 11. 2026 („Ano, přesně tak“); vzorec návrh Clauda          |
-| Model kapacity vsi: cíl polí nejvýš podle práce v oknech setí, „je kam“ a přelidnění podle trvalého hrdla               | návrh Clauda (Martin 1. 11. 2026: „Vylepši ho“)                      |
-| Syn odchází jen se životaschopnou výpravou (pár, ≥ 4 dospělí, plný náklad jídla a osiva, pojistka matky ≥ 0,5)          | návrh Clauda (Martin 1. 11. 2026: „Vylepši ho“)                      |
-| Blok domácnosti podle práce (nejvýš podle jídla), pole napřed u stojícího domu, políčka dál od nejbližšího              | návrh Clauda (Martin 1. 11. 2026: „Vylepši ho“)                      |
-| Rok 0 s hrdlem práce: humno jen s ušetřenou prací výmlatu za rok, ohrady stád ne; odklad posvátných míst měření zamítlo | návrh Clauda (Martin 1. 11. 2026: „Vylepši ho“)                      |
-| Vylepšení cesty: úspora chůze i vozů (mokřina, brod), horizont Růst 25 let, Obnova 5 let                                | návrh Clauda (Martin 1. 11. 2026: „správce nijak nevylepšuje cesty“) |
-| Ohrada volů od chovného páru krav s pasáky, úspora orby podle výhledu; koně ne za krávy na mléko a voly                 | návrh Clauda (1. 11. 2026)                                           |
-| Syn odejde, jen když obě vsi po odchodu uživí osevem vlastní prací 1,2× své lidi (půda se nepočítá)                     | Martin (2. 11. 2026) / čísla návrh Clauda                            |
-| Měření: využití oběhu = 1 − odpočatá půda ladem, vracení přílohu ≤ 24 %, založení a vzdálenost dílů jen info            | návrh Clauda (2. 11. 2026)                                           |
-| Měření: čas správce na hodinách CPU vlákna; akce staveb kopírují stav přes `cloneState`                                 | návrh Clauda (2. 11. 2026)                                           |
-| Posvátná místa podle návratnosti: přínos štěstí k práci vsi za horizont režimu (Růst 25, Obnova 5) proti ceně stavby    | návrh Clauda (2. 11. 2026)                                           |
-| Obchod a lov jen v nouzi: obilí výpravou, když hrozí hlad, lov navíc, když zvěř škodí na polích – akcemi hráče          | Martin (8. 11. 2026: „A“), pravidla návrh Clauda                     |
-| Správce v nouzi: lov nejvýš 3× za léto, klády rozestavěných staveb neprodá                                              | Martin (8. 11. 2026 – princip), čísla návrh Clauda                   |
-| Správce opouští své nejhorší díly v září, když pole přesahuje práci × rezerva (akce hráče)                              | Martin (8. 11. 2026: „A“), kritérium návrh Clauda                    |
+| Rozhodnutí                                                                                                                                            | Kdo                                                                                                                                        |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Zbytek vsi spravuje NPC; hráč může svou ves svěřit správci a vždy smí v každé vsi rodu stavět                                                         | Martin (zadání issue #9, 24. 10. 2026)                                                                                                     |
+| Přepínač Správce u každé vsi; ves syna zapnutý, první ves vypnutý; hráč přepíná kdykoli a staví i sám                                                 | Martin (30. 10. 2026)                                                                                                                      |
+| Rozsah první verze: obydlí, pole, ohrady, hřbitov, sad, humno, dílny, cesty, odchod syna, jména synů                                                  | Martin (30. 10. 2026)                                                                                                                      |
+| Úroveň „Absolutní skiller“ – optimalizuje rozestavení, pole a vzdálenosti podle krajiny                                                               | Martin (30. 10. 2026)                                                                                                                      |
+| Cíl „Růst se zásobou“ – napřed pole a klučení, až když není kam, odchod syna                                                                          | Martin (30. 10. 2026)                                                                                                                      |
+| Přestavba „Přestaví, ne hráčovo“ – jen vlastní stavby, když se to vyplatí                                                                             | Martin (30. 10. 2026)                                                                                                                      |
+| Nástupnictví náhodou až s pozvánkami, ne ve fázi 3                                                                                                    | Martin (30. 10. 2026)                                                                                                                      |
+| Krok simulovaného dne `stewardDay` v pevné dny (každý 10. den, odchod 31. 8.), bez krajiny spí                                                        | návrh Clauda                                                                                                                               |
+| Doménový příkaz `applyBuildIntent` – jedno pravidlo pro hráče i správce; use-casy se na něj přepojí                                                   | návrh Clauda                                                                                                                               |
+| Správce nezná budoucnost (seed počasí, rozpis pohrom), jen co vidí hráč a četnosti z pravidel                                                         | návrh Clauda                                                                                                                               |
+| Režimy Nouze / Obnova / Růst podle pojistky zásob; rozpočet práce ≈ 120 dní volné práce                                                               | návrh Clauda                                                                                                                               |
+| Hodnota a cena v člověkodnech za rok; cíl polí na lidi za 2 roky × 1,1                                                                                | návrh Clauda                                                                                                                               |
+| Plán sídla ze šablon (shluk, řadová ves, samoty), hospodářství dům + blok polí, rezervy, uložený ve stavu                                             | návrh Clauda                                                                                                                               |
+| Území vsi do 800 m od středu; správce plánuje jen na svém území (Voroného buňky zrušeny 1. 11. 2026)                                                  | návrh Clauda                                                                                                                               |
+| Značka „postavil správce“ jako množina id `steward.built`; převod: bez stavu vypnutý                                                                  | návrh Clauda                                                                                                                               |
+| Přestavba obydlí na konci životnosti: nový dům jinde, starý se zbourá; ostatní stavby nová + stará chátrá                                             | návrh Clauda (bourání – Martin 8. 11. 2026)                                                                                                |
+| Hráč smí zrušit rozestavěnou stavbu správce → veto na 5 let                                                                                           | návrh Clauda                                                                                                                               |
+| Jména synů při narození jako u vnuků; odchod nejstaršího ženatého způsobilého syna, nejvýš jednou za rok                                              | návrh Clauda                                                                                                                               |
+| ~~Odchod na téže mapě, když tam je místo pro 2× díl~~; vždy nová mapa (stezka, nejkratší cesta)                                                       | návrh Clauda, Martin (1. 11. 2026)                                                                                                         |
+| Odchod přes odchozí schránku `steward.departures` a use-case `settleStewardDepartures`                                                                | návrh Clauda                                                                                                                               |
+| UI: přepínač s ikonou v seznamu vsí a v panelu dvorce, ikona u staveb správce, žádné kroniky navíc ani plán                                           | návrh Clauda                                                                                                                               |
+| Ověření skriptem `measure-steward.ts` – 20 krajin v 5 typech, 50 let, srovnání se skriptem, Vlkovem a mezí                                            | návrh Clauda                                                                                                                               |
+| Nouze jen při rostoucím hladu; kroky Růstu i v Obnově z poloviny rozpočtu (sad jen první); syn z pasti po roce                                        | návrh Clauda (oprava 31. 10. 2026)                                                                                                         |
+| Kapacita mapy: odchod syna při lidech > 0,8 × co uživí všechna obdělatelná půda mapy; pole bez stropu podle jídla                                     | Martin 6. 11. 2026 („Ano, přesně tak“); vzorec návrh Clauda                                                                                |
+| Model kapacity vsi: cíl polí nejvýš podle práce v oknech setí, „je kam“ a přelidnění podle trvalého hrdla                                             | návrh Clauda (Martin 1. 11. 2026: „Vylepši ho“)                                                                                            |
+| Syn odchází jen se životaschopnou výpravou (pár, ≥ 4 dospělí, plný náklad jídla a osiva, pojistka matky ≥ 0,5)                                        | návrh Clauda (Martin 1. 11. 2026: „Vylepši ho“)                                                                                            |
+| Blok domácnosti podle práce (nejvýš podle jídla), pole napřed u stojícího domu, políčka dál od nejbližšího                                            | návrh Clauda (Martin 1. 11. 2026: „Vylepši ho“)                                                                                            |
+| Rok 0 s hrdlem práce: humno jen s ušetřenou prací výmlatu za rok, ohrady stád ne; odklad posvátných míst měření zamítlo                               | návrh Clauda (Martin 1. 11. 2026: „Vylepši ho“)                                                                                            |
+| Vylepšení cesty: úspora chůze i vozů (mokřina, brod), horizont Růst 25 let, Obnova 5 let                                                              | návrh Clauda (Martin 1. 11. 2026: „správce nijak nevylepšuje cesty“)                                                                       |
+| Ohrada volů od chovného páru krav s pasáky, úspora orby podle výhledu; koně ne za krávy na mléko a voly                                               | návrh Clauda (1. 11. 2026)                                                                                                                 |
+| Syn odejde, jen když obě vsi po odchodu uživí osevem vlastní prací 1,2× své lidi (půda se nepočítá)                                                   | Martin (2. 11. 2026) / čísla návrh Clauda                                                                                                  |
+| Měření: využití oběhu = 1 − odpočatá půda ladem, vracení přílohu ≤ 24 %, založení a vzdálenost dílů jen info                                          | návrh Clauda (2. 11. 2026)                                                                                                                 |
+| Měření: čas správce na hodinách CPU vlákna; akce staveb kopírují stav přes `cloneState`                                                               | návrh Clauda (2. 11. 2026)                                                                                                                 |
+| Posvátná místa podle návratnosti: přínos štěstí k práci vsi za horizont režimu (Růst 25, Obnova 5) proti ceně stavby                                  | návrh Clauda (2. 11. 2026)                                                                                                                 |
+| Obchod a lov jen v nouzi: obilí výpravou, když hrozí hlad, lov navíc, když zvěř škodí na polích – akcemi hráče                                        | Martin (8. 11. 2026: „A“), pravidla návrh Clauda                                                                                           |
+| Správce v nouzi: lov nejvýš 3× za léto, klády rozestavěných staveb neprodá                                                                            | Martin (8. 11. 2026 – princip), čísla návrh Clauda                                                                                         |
+| Správce opouští díly, když jsou špatné, ne když má málo lidí: v září vymění své díly o 20 % horší než volné místo plánu za nové pole tam (akce hráče) | Martin (8. 11. 2026: „A“; „Já měl za to, že správce pole opouští, když jsou na hovno, ne když má málo lidí“; „ok“), kritérium návrh Clauda |
 
 ## Otevřené otázky
 
 1. ~~**Vypustit díly pole**~~ – rozhodnuto (Martin 8. 11. 2026: „A“ – „Vypustit díly pole – akce
    pro hráče i správce, kterou díly vypadnou z oběhu a zarostou; stejná akce pro oba.“). Pravidla
    v [polích – Opuštěný díl](fields.md); akce hráče je hotová a správce ji používá (Přestavba
-   vlastních staveb – Pole).
+   vlastních staveb – Pole). Správce opouští špatné díly, ne díly navíc kvůli nedostatku lidí
+   (Martin 8. 11. 2026: „Já měl za to, že správce pole opouští, když jsou na hovno, ne když má
+   málo lidí“) – výměna za lepší místo plánu.
 2. **Odchod bez syna** – ves přerostla, ale syn, který smí vést, není (nebo bude za ≥ 2 roky).
    Návrh Clauda: správce počká a ves srovná hlad; alternativa – odchod nejbližších obydlí
    (vojvodou nejstarší muž rodu mezi nimi) jako hráč.
