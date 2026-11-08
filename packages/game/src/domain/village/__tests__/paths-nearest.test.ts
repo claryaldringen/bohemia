@@ -158,6 +158,8 @@ describe('síť pěšin na skutečné krajině – zlatý otisk', () => {
     // 26. 10. 2026 (Martin „A“): stálá cena chůze přes pole 1,67 → 8 / 7 ≈ 1,14 – časový průměr
     // přes skutečný osevní postup (paths.md – Stálé trasy, pravidlo 1); celý blok 12 × 9 dílů je
     // pole, pěšiny přes něj vedou rovněji
-    expect(networkFingerprint(network)).toBe('75041:39bc110a');
+    // 8. 11. 2026 (Martin „Ano“ – rešerše modelů pěšin): „pole z domu“ – každá domácnost jedním
+    // hledáním z brány ke všem cílům, po sobě, bez A*; konce tras a remízy se hledají od brány
+    expect(networkFingerprint(network)).toBe('75093:a83b2cb9');
   }, 30_000);
 });

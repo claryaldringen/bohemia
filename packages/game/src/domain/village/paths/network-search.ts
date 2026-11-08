@@ -1,11 +1,9 @@
-// Hledání tras (A*/Dijkstra), sčítání provozu po buňkách a pochůzky.
+// Hledání tras „z domu“ (Dijkstra z brány domácnosti ke všem jejím cílům), sčítání provozu po buňkách.
 // Součást výpočtu sítě pěšin – rozcestník je network.ts (komentář k celku tam).
 
-import { length2 } from '../../landscape';
 import { HUMNO, ROUTE_HABIT, SACRED_BUILDINGS } from '../rules';
 import { pathCostFactor } from './walk-speed';
 import {
-  A_STAR_WEIGHT,
   ERRAND_REACH,
   GOAL_SLACK,
   MILIR_RADIUS_M,
@@ -120,33 +118,32 @@ export interface SearchState {
   run: number;
   parent: Int32Array;
   heap: PathHeap;
-  /** Brány domácností, ke kterým hledání ještě má dojít (1 = čeká). */
-  sinks: Uint8Array;
+  /**
+   * Souvislé oblasti průchodných buněk (`passableAreas`) – spočítají se s prvním kolem (průchodnost
+   * se mezi koly nemění); null = ještě ne.
+   */
+  areas: Int32Array | null;
 }
 
 /**
- * Dijkstra z buněk `sources` po mřížce s cenou `cost` (Infinity = neprůchodné). Po každé
- * vyjmuté buňce se zeptá `done(c)` – true hledání ukončí; skončí i nad `maxCost`. S buňkou
- * `toward` je to A* (odhad vzdušnou čarou k ní × A_STAR_WEIGHT – jen směr hledání, `done` může
- * skončit i jinde). Úhlopříčně jen kolem průchodných rohů (neproklouzne rohem domu ani podél
- * vody).
+ * Dijkstra z buňky `from` (brána domácnosti) po mřížce s cenou `cost` (Infinity = neprůchodné). Po
+ * každé vyjmuté buňce se zeptá `visit(c, d)` – true hledání ukončí; skončí i nad `maxCost`.
+ * Úhlopříčně jen kolem průchodných rohů (neproklouzne rohem domu ani podél vody).
  *
  * Remízy (paths.md – Stálé trasy, pravidlo 3; návrh Clauda): ceny kroků po kvantech
  * (`quantizedStep`) a síla pěšiny po setinách (`trodden`), takže dvě stejně drahé trasy jsou
- * opravdu stejně drahé; ze stejně drahých předchůdců buňky vyhraje vyšší index. Bez odhadu
- * (Dijkstra) to nezávisí na pořadí, v jakém halda buňky vydá – stejně drazí předchůdci mají ostře
- * menší vzdálenost a rozbalí se dřív; s odhadem a předčasným koncem (`done`) může rodiče cíle určit
- * i pořadí haldy – výsledek je dál deterministický. Každé pevné pravidlo dá přednost jednomu směru; s nižším
+ * opravdu stejně drahé; ze stejně drahých předchůdců buňky vyhraje vyšší index. Nezávisí to na
+ * pořadí, v jakém halda buňky vydá: krok stojí aspoň kvantum, stejně drazí předchůdci mají ostře
+ * menší vzdálenost a rozbalí se dřív. Každé pevné pravidlo dá přednost jednomu směru; s nižším
  * indexem (jako u vozů) se v testu „jedna pěšina“ trasy dvou sousedů nesejdou, s vyšším ano.
  */
 function search(
   grid: Grid,
   cost: Float32Array,
-  sources: readonly number[],
+  from: number,
   maxCost: number,
   state: SearchState,
-  done: (c: number) => boolean,
-  toward = -1,
+  visit: (c: number, d: number) => boolean,
 ): void {
   const { dist, parent, heap, stamp } = state;
   const run = ++state.run;
@@ -154,26 +151,17 @@ function search(
   const w = grid.width;
   const h = grid.height;
   const m = grid.cellM / 2;
-  const ti = toward >= 0 ? toward % w : 0;
-  const tj = toward >= 0 ? (toward - ti) / w : 0;
-  const weight = toward >= 0 ? A_STAR_WEIGHT * grid.cellM : 0;
-  // odhad k cíli (A*) přímo z indexů buňky – týž výpočet jako dřív přes index (jen zrychlení)
-  const astar = weight > 0;
-  for (const s of sources) {
-    if (stamp[s] === run) continue;
-    stamp[s] = run;
-    dist[s] = 0;
-    parent[s] = -1;
-    const si = s % w;
-    heap.push(s, astar ? length2(si - ti, (s - si) / w - tj) * weight : 0);
-  }
+  stamp[from] = run;
+  dist[from] = 0;
+  parent[from] = -1;
+  heap.push(from, 0);
   while (heap.size > 0) {
     const c = heap.pop();
+    const d = heap.topKey;
+    if (d > dist[c]!) continue;
+    if (d > maxCost || visit(c, d)) break;
     const i = c % w;
     const j = (c - i) / w;
-    const d = astar ? dist[c]! : heap.topKey;
-    if (astar ? heap.topKey > d + length2(i - ti, j - tj) * weight + 1e-9 : d > dist[c]!) continue;
-    if (d > maxCost || done(c)) break;
     const own = cost[c]!;
     for (let k = 0; k < 8; k++) {
       const ii = i + DI[k]!;
@@ -189,13 +177,45 @@ function search(
         stamp[n] = run;
         dist[n] = nd;
         parent[n] = c;
-        heap.push(n, astar ? nd + length2(ii - ti, jj - tj) * weight : nd);
+        heap.push(n, nd);
       } else if (nd === dist[n]! && c > parent[n]!) {
         // remíza – vyhraje předchůdce s vyšším indexem (viz `search`)
         parent[n] = c;
       }
     }
   }
+}
+
+/**
+ * Souvislé oblasti průchodných buněk mřížky (−1 = neprůchodná). Stačí 4-okolí: úhlopříčně se jde
+ * jen kolem průchodných rohů (`search`), takže úhlopříčkou se do jiné oblasti nedojde. Cíl v jiné
+ * oblasti než brána domácnosti (za plotem bez branky, za vodou) se nehledá – hledání by jinak
+ * prošlo celou oblast brány.
+ */
+export function passableAreas(grid: Grid): Int32Array {
+  const w = grid.width;
+  const all = w * grid.height;
+  const area = new Int32Array(all).fill(-1);
+  const stack = new Int32Array(all);
+  let next = 0;
+  for (let s = 0; s < all; s++) {
+    if (area[s] !== -1 || grid.base[s] === Infinity) continue;
+    let top = 0;
+    stack[top++] = s;
+    area[s] = next;
+    while (top > 0) {
+      const c = stack[--top]!;
+      const i = c % w;
+      const around = [i > 0 ? c - 1 : -1, i < w - 1 ? c + 1 : -1, c - w, c + w];
+      for (const n of around) {
+        if (n < 0 || n >= all || area[n] !== -1 || grid.base[n] === Infinity) continue;
+        area[n] = next;
+        stack[top++] = n;
+      }
+    }
+    next++;
+  }
+  return area;
 }
 
 /**
@@ -300,23 +320,47 @@ function addTrip(
 }
 
 /**
- * Jedno kolo: skupiny od nejvytíženější. Cíl – jediná domácnost: hledání od buněk cíle k její
- * bráně; víc domácností: každá zvlášť (A* od cíle k její bráně), nejvytíženější první – další se
- * k pěšině, kterou ta před ní právě vyšlapala, přidá (souběžné pěšiny nevzniknou). Pochůzka – v prvním kole od všech míst najednou (každá domácnost dojde k nejbližšímu),
- * v dalších každá domácnost zvlášť od brány (cestou se přidá k pěšině souseda). Trasy se
- * přičtou do provozu; u pochůzek si domácnost zapamatuje, kam došla (`ends`). S `routes` zapíše
- * každou trasu kola (buňky od brány k cíli) – hledání ani provoz se tím nemění.
+ * Pořadí domácností v kolech (paths.md – Slévání): od nejvytíženější – součet cest za den ke všem
+ * cílům před prvním kolem, při shodě nižší index. Stejné ve všech kolech. Návštěva sousedů je jedna
+ * trasa na dvojici (`tripGroups`), chodí se ale oběma směry – vytíží obě domácnosti (návrh Clauda;
+ * jinak by pořadí rozhodovalo, kterému z dvojice trasa připadla).
+ */
+export function householdOrder(
+  groups: readonly TripGroup[],
+  homes: readonly Household[],
+): number[] {
+  const total = homes.map((_, k) => groups.reduce((sum, g) => sum + g.weights[k]!, 0));
+  for (const g of groups) {
+    if (g.purpose !== 'neighbour') continue;
+    const host = homes.findIndex((h) => `d:${h.dwellingId}` === g.to);
+    if (host < 0) continue;
+    total[host] = total[host]! + g.weights.reduce((sum, w) => sum + w, 0);
+  }
+  return homes.map((_, k) => k).sort((a, b) => total[b]! - total[a]! || a - b);
+}
+
+/**
+ * Jedno kolo „z domu“ (paths.md – Slévání; Martin 8. 11. 2026): domácnosti po sobě v pořadí
+ * `order` (`householdOrder`), každá jedno hledání z brány ke všem
+ * svým cílům najednou (`routeHome`). Trasy domácnosti se pak přičtou do provozu a hned vyšlapou –
+ * další domácnost se k pěšinám těch před ní přidá; trasy jednoho domu sdílejí kmen ze stromu
+ * nejkratších cest. Cíl v jiné souvislé oblasti než brána se předem vyřadí. Nedosažený cíl (moc
+ * daleko, nedosažitelný) dostane váhu 0 – další kola ho nehledají. Pochůzka v prvním kole určí,
+ * jak daleko smí další kola (ERRAND_REACH), u dřeva i podíl cest podle ceny (`nearCost`), a domácnost
+ * si zapamatuje, kam došla (`ends`). S `routes` zapíše každou trasu kola (buňky od brány k cíli) –
+ * hledání ani provoz se tím nemění.
  */
 export function routeAll(
   grid: Grid,
   costs: PassCosts,
   homes: readonly Household[],
   groups: readonly TripGroup[],
+  order: readonly number[],
   state: SearchState,
   ends: Map<number, PathErrands> | null,
   routes: RouteRecord[] | null = null,
 ): Traffic {
-  const steps = routeAllSteps(grid, costs, homes, groups, state, ends, routes);
+  const steps = routeAllSteps(grid, costs, homes, groups, order, state, ends, routes);
   for (;;) {
     const step = steps.next();
     if (step.done) return step.value;
@@ -324,7 +368,7 @@ export function routeAll(
 }
 
 /**
- * `routeAll` po krocích: po každé domácnosti (hledání cesty) se zastaví, aby volající mohl dát
+ * `routeAll` po krocích: před hledáním každé domácnosti se zastaví, aby volající mohl dát
  * přestávku (server – dlouhý dopočet neblokuje ostatní požadavky). Výsledek je týž.
  */
 export function* routeAllSteps(
@@ -332,131 +376,211 @@ export function* routeAllSteps(
   costs: PassCosts,
   homes: readonly Household[],
   groups: readonly TripGroup[],
+  order: readonly number[],
   state: SearchState,
   ends: Map<number, PathErrands> | null,
   routes: RouteRecord[] | null = null,
 ): Generator<void, Traffic, void> {
+  const all = grid.width * grid.height;
   const traffic: Traffic = {
-    cells: new Float32Array(grid.width * grid.height),
-    edges: new Float32Array(grid.width * grid.height * 4),
-    edgeYears: new Float32Array(grid.width * grid.height * 4),
+    cells: new Float32Array(all),
+    edges: new Float32Array(all * 4),
+    edgeYears: new Float32Array(all * 4),
     trips: 0,
   };
-  const remember = (group: TripGroup, k: number, end: number): void => {
-    if (!ends || !group.errand) return;
+  const areas = (state.areas ??= passableAreas(grid));
+  const targets = targetIndex(groups, all);
+  const groupAreas = groups.map((g) => areasOf(g.sources, areas));
+  // pochůzky: v prvním kole hledání nejvýš do meze skupiny, v dalších do ERRAND_REACH z prvního
+  const first = groups.map((g) => g.errand !== undefined && !g.reach);
+  const reach = groups.map((g) =>
+    g.errand !== undefined ? (g.reach ?? homes.map(() => g.maxCost)) : null,
+  );
+  const search: HomeSearch = {
+    want: new Uint8Array(groups.length),
+    limit: new Float64Array(groups.length),
+    found: new Int32Array(groups.length),
+    foundDist: new Float64Array(groups.length),
+    errand: Uint8Array.from(groups.map((g) => (g.errand !== undefined ? 1 : 0))),
+    // pěšiny pochůzek kola – další domácnost se k nim cestou může přidat
+    trails: groups.map((g) => (g.errand !== undefined ? errandTrail(all) : null)),
+    best: new Int32Array(groups.length),
+    bestValue: new Float64Array(groups.length),
+  };
+  for (const k of order) {
     const home = homes[k]!;
-    const entry = ends.get(home.dwellingId) ?? { water: null, wood: null };
-    entry[group.errand] = { x: cellX(grid, end), z: cellZ(grid, end) };
-    ends.set(home.dwellingId, entry);
-  };
-  const sinks = state.sinks;
-  /** Hledání od buněk skupiny ke všem branám s cestou; vrátí, jestli nějaká brána čekala. */
-  const toGates = (group: TripGroup): boolean => {
-    let remaining = 0;
-    group.weights.forEach((w, k) => {
-      const gate = homes[k]!.gate;
-      if (w >= MIN_TRIP && !sinks[gate]) {
-        sinks[gate] = 1;
-        remaining++;
-      }
-    });
-    if (remaining === 0) return false;
-    search(grid, costs.cost, group.sources, group.maxCost, state, (c) => {
-      if (sinks[c]) {
-        sinks[c] = 0;
-        remaining--;
-      }
-      return remaining === 0;
-    });
-    for (const home of homes) sinks[home.gate] = 0;
-    return true;
-  };
-  /** Brána domácnosti `k` byla v posledním hledání dosažena (a ne moc daleko). */
-  const reached = (group: TripGroup, k: number): boolean => {
-    const gate = homes[k]!.gate;
-    return state.stamp[gate] === state.run && state.dist[gate]! <= group.maxCost;
-  };
-  for (const group of groups) {
-    const marks = group.marks;
-    if (marks) {
-      const first = !group.reach;
-      const reach = group.reach ?? homes.map(() => group.maxCost);
-      const goals = group.goals ?? [];
-      // každá domácnost zvlášť od brány k nejbližšímu místu – po sobě, takže se další přidá
-      // k pěšině, kterou vyšlapali sousedé
-      const trail = errandTrail(grid.width * grid.height);
-      for (let k = 0; k < group.weights.length; k++) {
-        const w = group.weights[k]!;
-        if (w < MIN_TRIP) continue;
-        yield;
-        const gate = homes[k]!.gate;
-        const at = searchErrand(
-          grid,
-          costs.cost,
-          gate,
-          marks,
-          trail,
-          reach[k]!,
-          state,
-          goals[k] ?? -1,
-        );
-        if (at < 0) {
-          // pro vodu / dřevo nemá kam (moc daleko, za vodou) – další kola už nehledají
-          group.weights[k] = 0;
-          continue;
-        }
-        if (first) {
-          const total = state.dist[at]! + (marks[at] ? 0 : trail.rest[at]!);
-          reach[k] = total * ERRAND_REACH.factor + ERRAND_REACH.extra;
-          // pro dřevo se daleko chodí méně často (s větším nákladem) – pěšina tam vznikne, až když
-          // se slije; pro vodu vždy naplno
-          if (group.nearCost !== undefined) {
-            const scale = Math.min(1, group.nearCost / Math.max(1, total));
-            group.weights[k] = w * scale;
-            // podíl si trasa nese – převážení bez hledání (paths.md – Stálé trasy, pravidlo 5)
-            (group.scale ??= [])[k] = scale;
-          }
-        }
-        const trips = group.weights[k]!;
-        const years = group.years?.[k] ?? homes[k]!.years;
-        const path = routes ? [] : null;
-        const end = addErrand(grid, state, traffic, costs, trail, marks, at, trips, years, path);
-        remember(group, k, end);
-        if (routes && path) routes.push({ home: k, group, trips, cells: path });
-      }
-      group.reach = reach;
-      continue;
-    }
-    const walkers = group.weights
-      .map((w, k) => ({ w, k }))
-      .filter(({ w }) => w >= MIN_TRIP)
-      .sort((a, b) => b.w - a.w || a.k - b.k);
-    if (walkers.length === 1) {
-      // jediná domácnost – jedno hledání od cíle k její bráně
-      if (!toGates(group)) continue;
-    }
-    for (const { w, k } of walkers) {
-      yield;
-      const home = homes[k]!;
-      if (walkers.length > 1) {
-        // víc domácností ke stejnému cíli: každá zvlášť, nejvytíženější první – další se po
-        // čerstvě vyšlapané pěšině přidá k ní (Martin: „Pokud už cesta vede tím směrem, lidé by
-        // měli použít tu, ne si prošlapat vlastní souběžnou.“)
-        const gate = home.gate;
-        search(grid, costs.cost, group.sources, group.maxCost, state, (c) => c === gate, gate);
-      }
-      if (!reached(group, k)) {
-        // nedosažitelná brána (nebo moc daleko) – další kola ji už nehledají
+    const area = areas[home.gate]!;
+    const wanted: number[] = [];
+    for (let g = 0; g < groups.length; g++) {
+      const group = groups[g]!;
+      search.want[g] = 0;
+      if (group.weights[k]! < MIN_TRIP) continue;
+      if (!groupAreas[g]!.includes(area)) {
+        // cíl v jiné oblasti (za plotem bez branky, za vodou) – další kola ho nehledají
         group.weights[k] = 0;
         continue;
       }
+      search.want[g] = 1;
+      search.limit[g] = reach[g]?.[k] ?? group.maxCost;
+      wanted.push(g);
+    }
+    if (wanted.length === 0) continue;
+    yield;
+    routeHome(grid, costs.cost, home.gate, wanted, targets, search, state);
+    for (const g of wanted) {
+      const group = groups[g]!;
+      const at = search.found[g]!;
+      if (at < 0) {
+        // moc daleko – další kola už nehledají
+        group.weights[k] = 0;
+        continue;
+      }
+      if (first[g]) {
+        const total = search.foundDist[g]!;
+        reach[g]![k] = total * ERRAND_REACH.factor + ERRAND_REACH.extra;
+        // pro dřevo se daleko chodí méně často (s větším nákladem) – pěšina tam vznikne, až když
+        // se slije; pro vodu vždy naplno
+        if (group.nearCost !== undefined) {
+          const scale = Math.min(1, group.nearCost / Math.max(1, total));
+          group.weights[k] = group.weights[k]! * scale;
+          // podíl si trasa nese – převážení bez hledání (paths.md – Stálé trasy, pravidlo 5)
+          (group.scale ??= [])[k] = scale;
+        }
+      }
+      const trips = group.weights[k]!;
       const years = group.years?.[k] ?? home.years;
       const path = routes ? [] : null;
-      addTrip(state, traffic, costs, grid.width, home.gate, w, years, path);
-      if (routes && path) routes.push({ home: k, group, trips: w, cells: path });
+      const trail = search.trails[g];
+      if (trail) {
+        const mark = isTarget(targets, at, g);
+        const end = addErrand(grid, state, traffic, costs, trail, mark, at, trips, years, path);
+        if (ends && group.errand) {
+          const entry = ends.get(home.dwellingId) ?? { water: null, wood: null };
+          entry[group.errand] = { x: cellX(grid, end), z: cellZ(grid, end) };
+          ends.set(home.dwellingId, entry);
+        }
+      } else {
+        addTrip(state, traffic, costs, grid.width, at, trips, years, path);
+        path?.reverse();
+      }
+      if (routes && path) routes.push({ home: k, group, trips, cells: path });
     }
   }
+  groups.forEach((g, i) => {
+    const r = reach[i];
+    if (r) g.reach = r;
+  });
   return traffic;
+}
+
+/** Hledání jedné domácnosti: které skupiny hledá, do jaké ceny a kde a za kolik skončily. */
+interface HomeSearch {
+  want: Uint8Array;
+  limit: Float64Array;
+  /** Konec trasy ke skupině (buňka cíle nebo pěšiny pochůzky, −1 = nedosažen, −2 = nad mezí). */
+  found: Int32Array;
+  /** Cena trasy ke konci (u pochůzky i se zbytkem po pěšině souseda). */
+  foundDist: Float64Array;
+  /** Skupina je pochůzka (konec s rezervou GOAL_SLACK, i na pěšině souseda). */
+  errand: Uint8Array;
+  trails: (ErrandTrail | null)[];
+  /** Pochůzka: nejlepší dosavadní konec a jeho cena (i se zbytkem po pěšině). */
+  best: Int32Array;
+  bestValue: Float64Array;
+}
+
+/**
+ * Hledání z brány ke všem cílům domácnosti (`wanted`) najednou. Konec trasy ke skupině je její
+ * buňka s nejmenší cenou nejvýš do meze skupiny, při shodě vyšší index – rozhodne se, až jsou
+ * vyjmuté všechny buňky té ceny, ne podle pořadí haldy. Pochůzka (voda, dřevo) skončí u místa,
+ * nebo na pěšině souseda k místu (cena = cesta k ní + zbytek po ní – `ErrandTrail`): z vyjmutých
+ * buněk vybere nejlevnější konec (při shodě vyšší index) a přijme ho, jakmile hledání dojde do
+ * ceny, nad kterou by lepší konec ušetřil víc než GOAL_SLACK – domácnost se tak přidá k vyšlapané
+ * pěšině souseda poblíž. Skončí, když má každá skupina konec (a buňky jeho ceny jsou vyjmuté),
+ * nebo už žádnou nedosáhne pod svou mezí.
+ */
+function routeHome(
+  grid: Grid,
+  cost: Float32Array,
+  gate: number,
+  wanted: readonly number[],
+  targets: TargetIndex,
+  out: HomeSearch,
+  state: SearchState,
+): void {
+  const { want, limit, found, foundDist, errand, trails, best, bestValue } = out;
+  const errands: number[] = [];
+  for (const g of wanted) {
+    found[g] = -1;
+    best[g] = -1;
+    if (errand[g]) errands.push(g);
+  }
+  // podle meze vzestupně – cíl nad mezí už nedojde (ceny vyjmutých buněk rostou)
+  const byLimit = [...wanted].sort((a, b) => limit[a]! - limit[b]! || a - b);
+  let remaining = wanted.length;
+  let lapsed = 0;
+  let last = 0;
+  let radius = -1;
+  /** Pochůzka přijme nejlepší dosavadní konec, stojí-li nejvýš GOAL_SLACK × `upTo`. */
+  const settle = (g: number, upTo: number): void => {
+    if (found[g] !== -1 || best[g]! < 0 || bestValue[g]! > GOAL_SLACK * upTo) return;
+    found[g] = best[g]!;
+    foundDist[g] = bestValue[g]!;
+    remaining--;
+  };
+  const offer = (g: number, c: number, value: number): void => {
+    if (best[g]! < 0 || value < bestValue[g]! || (value === bestValue[g]! && c > best[g]!)) {
+      best[g] = c;
+      bestValue[g] = value;
+    }
+  };
+  search(grid, cost, gate, limit[byLimit[byLimit.length - 1]!]!, state, (c, d) => {
+    if (d > radius) {
+      // všechny levnější buňky jsou vyjmuté – nabídky pochůzek úplné
+      for (const g of errands) settle(g, d);
+      radius = d;
+    }
+    while (lapsed < byLimit.length && limit[byLimit[lapsed]!]! < d) {
+      const g = byLimit[lapsed++]!;
+      if (errand[g]) settle(g, limit[g]!);
+      if (found[g] === -1) {
+        found[g] = -2;
+        remaining--;
+      }
+    }
+    // každý cíl má konec a všechny buňky jeho ceny jsou vyjmuté – remízy rozhodnuté
+    if (remaining === 0 && d > last) return true;
+    for (let e = targets.head[c]!; e >= 0; e = targets.link[e]!) {
+      const g = targets.group[e]!;
+      if (!want[g] || found[g] === -2 || d > limit[g]!) continue;
+      if (errand[g]) {
+        if (found[g] === -1) offer(g, c, d);
+      } else if (found[g] === -1) {
+        found[g] = c;
+        foundDist[g] = d;
+        remaining--;
+        last = d;
+      } else if (d === foundDist[g]! && c > found[g]!) {
+        found[g] = c;
+      }
+    }
+    // pěšiny sousedů k místům pochůzek – konec s cenou zbytku po pěšině
+    for (const g of errands) {
+      const trail = trails[g]!;
+      if (found[g] === -1 && trail.next[c]! >= 0) offer(g, c, d + trail.rest[c]!);
+    }
+    return false;
+  });
+  // hledání došlo na konec (mez, celá oblast) – pochůzky vezmou nejlepší konec pod mezí
+  for (const g of errands) settle(g, limit[g]!);
+}
+
+/** Buňka `c` je cílem skupiny `g`. */
+function isTarget(targets: TargetIndex, c: number, g: number): boolean {
+  for (let e = targets.head[c]!; e >= 0; e = targets.link[e]!) {
+    if (targets.group[e] === g) return true;
+  }
+  return false;
 }
 
 /** Pěšina pochůzky v kole: kudy se z buňky jde dál k místu, kolik to ještě stojí a kam vede. */
@@ -475,91 +599,18 @@ function errandTrail(all: number): ErrandTrail {
   };
 }
 
-/** Cena kroku mezi sousedními buňkami (jako v hledání). */
+/** Cena kroku mezi sousedními buňkami (jako v hledání, po kvantech). */
 function stepCost(grid: Grid, cost: Float32Array, a: number, b: number): number {
   const d = Math.abs(a - b);
   const diagonal = d !== 1 && d !== grid.width;
-  return ((cost[a]! + cost[b]!) / 2) * (diagonal ? SQRT2 : 1) * grid.cellM;
+  return quantizedStep(((cost[a]! + cost[b]!) / 2) * (diagonal ? SQRT2 : 1) * grid.cellM);
 }
 
 /**
- * A* od brány k nejbližšímu místu pochůzky – nebo k pěšině souseda, která k místu vede (cena =
- * cesta k ní + zbytek po ní): domácnost se přidá k vyšlapané pěšině, jen když se jí to vyplatí,
- * a hledání skončí brzo. Vrátí buňku, kde skončilo (místo, nebo napojení na pěšinu), nebo −1.
- * Odhad A* vzdušnou čarou k `toward` (místo nejblíž vzdušnou čarou) × A_STAR_WEIGHT.
- */
-function searchErrand(
-  grid: Grid,
-  cost: Float32Array,
-  gate: number,
-  marks: Uint8Array,
-  trail: ErrandTrail,
-  maxCost: number,
-  state: SearchState,
-  toward: number,
-): number {
-  const { dist, parent, heap, stamp } = state;
-  const run = ++state.run;
-  heap.clear();
-  const w = grid.width;
-  const h = grid.height;
-  const m = grid.cellM / 2;
-  const ti = toward >= 0 ? toward % w : 0;
-  const tj = toward >= 0 ? (toward - ti) / w : 0;
-  const weight = toward >= 0 ? A_STAR_WEIGHT * grid.cellM : 0;
-  const estimate = (c: number): number => {
-    const ci = c % w;
-    return length2(ci - ti, (c - ci) / w - tj) * weight;
-  };
-  // cíl hledání: místo (zbývá 0) nebo pěšina k místu (zbývá cena po ní) – záznam −(c + 1);
-  // cíl se přijme o něco dřív (GOAL_SLACK), hledání pak neprochází celé okolí
-  const offer = (c: number, g: number): void => {
-    if (marks[c]) heap.push(-(c + 1), g / GOAL_SLACK);
-    else if (trail.next[c]! >= 0) heap.push(-(c + 1), (g + trail.rest[c]!) / GOAL_SLACK);
-  };
-  stamp[gate] = run;
-  dist[gate] = 0;
-  parent[gate] = -1;
-  heap.push(gate, estimate(gate));
-  offer(gate, 0);
-  while (heap.size > 0) {
-    const entry = heap.pop();
-    if (entry < 0) return -entry - 1;
-    if (heap.topKey > maxCost) return -1;
-    const c = entry;
-    const d = dist[c]!;
-    if (heap.topKey > d + estimate(c) + 1e-9) continue;
-    const i = c % w;
-    const j = (c - i) / w;
-    const own = cost[c]!;
-    for (let k = 0; k < 8; k++) {
-      const ii = i + DI[k]!;
-      const jj = j + DJ[k]!;
-      if (ii < 0 || jj < 0 || ii >= w || jj >= h) continue;
-      const n = jj * w + ii;
-      const next = cost[n]!;
-      if (next === Infinity) continue;
-      if (k >= 4 && (cost[j * w + ii] === Infinity || cost[jj * w + i] === Infinity)) continue;
-      const nd = d + quantizedStep((own + next) * STEP[k]! * m);
-      if (stamp[n] !== run || nd < dist[n]!) {
-        stamp[n] = run;
-        dist[n] = nd;
-        parent[n] = c;
-        heap.push(n, nd + estimate(n));
-        offer(n, nd);
-      } else if (nd === dist[n]! && c > parent[n]!) {
-        // remíza – vyhraje předchůdce s vyšším indexem (viz `search`)
-        parent[n] = c;
-      }
-    }
-  }
-  return -1;
-}
-
-/**
- * Přidá pochůzku domácnosti, která skončila v buňce `at` (místo, nebo napojení na pěšinu):
- * úsek od brány k `at` (rodiče hledání), dál po pěšině souseda k místu; nový úsek zapíše do
- * pěšiny pochůzky. Vrátí místo, kam domácnost chodí.
+ * Přidá pochůzku domácnosti, která skončila v buňce `at` (místo – `mark`, nebo napojení na pěšinu
+ * souseda): úsek od brány k `at` (rodiče hledání), dál po pěšině souseda k místu; nový úsek zapíše
+ * do pěšiny pochůzky. S `path` do něj zapíše buňky od brány k místu. Vrátí místo, kam domácnost
+ * chodí.
  */
 function addErrand(
   grid: Grid,
@@ -567,17 +618,17 @@ function addErrand(
   traffic: Traffic,
   costs: PassCosts,
   trail: ErrandTrail,
-  marks: Uint8Array,
+  mark: boolean,
   at: number,
   weight: number,
   years: number,
-  path: number[] | null = null,
+  path: number[] | null,
 ): number {
-  // trasa od brány: buňky od místa k bráně obráceně
+  // trasa od brány: buňky od `at` k bráně obráceně
   const back = path ? [] : null;
   addTrip(state, traffic, costs, grid.width, at, weight, years, back);
   if (path && back) for (let i = back.length - 1; i >= 0; i--) path.push(back[i]!);
-  const joined = !marks[at] && trail.next[at]! >= 0;
+  const joined = !mark && trail.next[at]! >= 0;
   const end = joined ? trail.end[at]! : at;
   if (joined) {
     // po pěšině souseda až k místu
@@ -609,6 +660,42 @@ function addErrand(
     child = p;
   }
   return end;
+}
+
+/** Buňka → skupiny, jejichž cílem je: první záznam `head[c]`, další `link[e]` (−1 = konec). */
+interface TargetIndex {
+  head: Int32Array;
+  link: Int32Array;
+  group: Int32Array;
+}
+
+function targetIndex(groups: readonly TripGroup[], all: number): TargetIndex {
+  const total = groups.reduce((sum, g) => sum + g.sources.length, 0);
+  const index: TargetIndex = {
+    head: new Int32Array(all).fill(-1),
+    link: new Int32Array(total),
+    group: new Int32Array(total),
+  };
+  let e = 0;
+  groups.forEach((g, gi) => {
+    for (const c of g.sources) {
+      index.group[e] = gi;
+      index.link[e] = index.head[c]!;
+      index.head[c] = e;
+      e++;
+    }
+  });
+  return index;
+}
+
+/** Oblasti (`passableAreas`), ve kterých leží buňky cíle. */
+function areasOf(cells: readonly number[], areas: Int32Array): number[] {
+  const out: number[] = [];
+  for (const c of cells) {
+    const a = areas[c]!;
+    if (a >= 0 && !out.includes(a)) out.push(a);
+  }
+  return out;
 }
 
 /** Lehce rozmazaný provoz (3 × 3) – pěšina přitahuje i trasy o buňku vedle. */

@@ -430,8 +430,18 @@ describe('computePathNetwork – pěšiny vsi', () => {
 
   it('k otevřené obilné jámě vede pěšina pro zrno, k jámě, kterou kopou, za prací (production-chains.md – Obilné jámy)', () => {
     const pit = { id: 31, x: -60, z: 30 };
-    const near = (network: PathNetwork, x: number, z: number): number =>
-      samples(network).filter((q) => Math.hypot(q.x - x, q.z - z) < 4).length;
+    // provoz do 4 m od jámy – trasy „z domu“ (Martin 8. 11. 2026) k jámě přicházejí každá svým
+    // směrem a tři domácnosti po 0,2 cesty za den samy viditelnou pěšinu nedají (PATH_TRAFFIC.min)
+    const near = (network: PathNetwork, x: number, z: number): number => {
+      const t = network.traffic;
+      let sum = 0;
+      for (let c = 0; c < t.raw.length; c++) {
+        const cx = t.originX + (c % t.width) * t.cellM;
+        const cz = t.originZ + Math.floor(c / t.width) * t.cellM;
+        if (Math.hypot(cx - x, cz - z) < 4) sum += t.raw[c]!;
+      }
+      return sum;
+    };
     expect(near(computePathNetwork({ village: village(), terrain }), pit.x, pit.z)).toBe(0);
     expect(
       near(computePathNetwork({ village: village({ grainPits: [pit] }), terrain }), pit.x, pit.z),
@@ -751,8 +761,10 @@ describe('pevná cesta – chodí se po ní bez ohledu na povrch (Martin, 19. 10
     // vnitřek ohrady (okraj čtverce je plot – pěšina vede podél něj)
     const inside = samples(network).filter((p) => Math.abs(p.x) < 4 && Math.abs(p.z - 37.5) < 4);
     expect(inside).toEqual([]);
-    // cesta k potoku pokračuje kolem ohrady
-    expect(onRoad(network, 60, 6)).toBeGreaterThan(0);
+    // pěšina k potoku pokračuje kolem ohrady – za ní k nejbližší vodě (hledání „z domu“ najde
+    // místo přesně podle ceny; Martin 8. 11. 2026), ne nutně zpět na cestu
+    const beyond = samples(network).filter((p) => Math.abs(p.x) < 15 && Math.abs(p.z - 60) < 6);
+    expect(beyond.length).toBeGreaterThan(0);
   });
 });
 
