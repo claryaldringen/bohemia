@@ -8,6 +8,7 @@ import { gateChord, type FortGate } from './gates';
 import { segmentBuilt, segmentKind, segmentStands } from './life';
 import { fortificationOutline, outlinePointAt, type FortOutline } from './outline';
 import { fortSegments } from './segments';
+import { fortRuns, runOn, runTarget, type FortRunRef, type FortRuns } from './runs';
 import type { FortBuildWork } from './types';
 
 // Stěny opevnění pro síť cest (fortifications.md – Obvod, Brány, Pro implementaci – Chůze a cesty):
@@ -147,22 +148,18 @@ export interface WallFortification extends FortShapeSource {
 }
 
 /** Stavba ve vsi, jak ji zná `fortRunningWork` (`Construction`). */
-export interface FortWorkRef {
-  readonly kind: string;
-  readonly fortificationId?: number;
-  readonly fortWork?: FortBuildWork;
-}
+export type FortWorkRef = FortRunRef & { readonly kind: string };
 
 /**
- * Práce stavby, která na opevnění `id` běží (`Construction.fortWork`, starší stavby bez údaje
- * stavějí), bez stavby null – staveniště blokuje jen s ní (`segmentBlockKind`).
+ * Práce staveb, které na opevnění `id` běží, po dílech (`fortRuns`), bez stavby null – staveniště
+ * blokuje jen se stavbou (`segmentBlockKind`). Na opevnění smí běžet víc staveb, každá na svých
+ * dílech (Martin 8. 11. 2026 – „B“).
  */
 export function fortRunningWork(
   state: { readonly constructions: readonly FortWorkRef[] },
   id: number,
-): FortBuildWork | null {
-  const c = state.constructions.find((x) => x.kind === 'fortification' && x.fortificationId === id);
-  return c ? (c.fortWork ?? 'build') : null;
+): FortRuns | null {
+  return fortRuns(state.constructions, id);
 }
 
 /** Úsek, jak ho stěny potřebují znát. */
@@ -170,30 +167,36 @@ type WallSegment = WallFortification['segments'][number];
 
 /**
  * Druh pásu, kterým úsek blokuje chůzi, vozy i stáda, nebo null – průchozí (fortifications.md –
- * Obvod; Martin 6. 11. 2026: „Ať celý obvod blokuje už od zahájení.“). `work` je práce stavby, která
- * na opevnění běží (`Construction.fortWork`), bez stavby null. Nehotový úsek blokuje jen při stavbě
- * nebo vylepšení (staveniště) – po zrušení stavby je to mezera; hotový, když stojí
- * (`segmentStands`; zbořený díl je mezera). Vylepšení plotu na palisádu blokuje od zahájení pásem palisády.
+ * Obvod; Martin 6. 11. 2026: „Ať celý obvod blokuje už od zahájení.“). `work` je práce staveb, které
+ * na opevnění běží (`fortRunningWork` po dílech, nebo jedna práce pro celý obvod), bez stavby null.
+ * Nehotový úsek blokuje jen při stavbě nebo vylepšení (staveniště) – po zrušení stavby je to
+ * mezera; hotový, když stojí (`segmentStands`; zbořený díl je mezera). Vylepšení blokuje od zahájení
+ * pásem cílové hradby (`runTarget`) – jen na dílech své stavby; nástavba valu pásem valu. Zbořený
+ * díl, který vylepšení úseku staví znovu (`fortTarget`), blokuje pásem cílové hradby.
  */
 export function segmentBlockKind(
   fort: Pick<WallFortification, 'kind'>,
   segment: WallSegment,
-  work: FortBuildWork | null,
+  work: FortBuildWork | FortRuns | null,
 ): FortKind | null {
-  if (segment.breachedDay !== undefined || segment.demolishedDay !== undefined) return null;
-  const upgrade = work === 'upgrade';
+  const run = runOn(work, segment.index);
+  const target = runTarget(run);
+  if (segment.breachedDay !== undefined || segment.demolishedDay !== undefined) {
+    return segment.demolishedDay !== undefined && run?.target != null ? target : null;
+  }
   if (!segmentBuilt(segment)) {
-    if (work !== 'build' && !upgrade) return null;
-    return upgrade ? 'palisade' : fort.kind;
+    if (run?.work === 'build') return fort.kind;
+    return target;
   }
   if (!segmentStands(fort, segment)) return null;
-  return upgrade ? 'palisade' : segmentKind(fort, segment);
+  const kind = segmentKind(fort, segment);
+  return target !== null && kind !== 'rampart' ? target : kind;
 }
 
 /** Blokující úseky opevnění – index a druh pásu (`segmentBlockKind`), v pořadí obvodu. */
 export function fortBlockingSegments(
   fort: Pick<WallFortification, 'kind' | 'segments'>,
-  work: FortBuildWork | null,
+  work: FortBuildWork | FortRuns | null,
 ): { index: number; kind: FortKind; gone?: string }[] {
   return fort.segments.flatMap((s) => {
     const kind = segmentBlockKind(fort, s, work);
@@ -213,7 +216,7 @@ export function fortBlockingSegments(
 export function fortWalls(
   geo: GridGeometry,
   fort: WallFortification,
-  work: FortBuildWork | null = null,
+  work: FortBuildWork | FortRuns | null = null,
 ): FortWalls {
   const blocking = fortBlockingSegments(fort, work);
   if (blocking.length === 0) return { walls: [], gates: [], detour: [] };

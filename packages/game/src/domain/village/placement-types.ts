@@ -12,7 +12,9 @@ import {
   type SacredBuildingKind,
   type SquareGrid,
   type TileCell,
+  type WallKind,
 } from './types';
+import type { FortBuildWork } from './fortification/types';
 import { type ObstacleChanges } from './obstacles';
 import { type ObstacleKind } from '../landscape';
 import { type SparedSacred } from './sacred';
@@ -66,6 +68,10 @@ export interface PlacementVillage {
     readonly plainShape?: boolean;
     /** Stavba opevnění (fortifications.md) – opevnění, které se staví. */
     readonly fortificationId?: number;
+    /** Práce, cíl a díly stavby opevnění (`fortRuns`); chybí – stavba na celém obvodu. */
+    readonly fortWork?: FortBuildWork;
+    readonly fortTarget?: WallKind;
+    readonly fortSegments?: readonly { readonly index: number }[];
   }[];
   /**
    * Opevnění vsi (fortifications.md – Obvod) – pás zabírá místo jiným stavbám (hotové úseky

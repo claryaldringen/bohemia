@@ -138,9 +138,16 @@ export function fortificationOutline(points: readonly Point[], kind: FortKind): 
  * o `reachM` po obvodu před ním a za ním – nejmenší a kde. Krátké zakolísání křivky mezi body
  * (přechod z rovného kusu do oblouku) se tak nepočítá, roh ostřejší než poloměr ano.
  */
-export function outlineBend(outline: FortOutline, reachM: number): CurveBend {
+export function outlineBend(
+  outline: FortOutline,
+  reachM: number,
+  only?: ReadonlySet<number>,
+): CurveBend {
   let best: CurveBend = { radiusM: Infinity, at: outline.polyline[0] ?? [0, 0] };
+  // jen body lomené čáry v dílech `only` (vylepšení úseku – ohyb cílové hradby jen tam)
+  const inside = only ? pointsOfSegments(outline, only) : null;
   outline.polyline.forEach((b, k) => {
+    if (inside && !inside.has(k)) return;
     const s = outline.stations[k]!;
     const a = outlinePointAt(outline, s - reachM);
     const c = outlinePointAt(outline, s + reachM);
@@ -150,6 +157,18 @@ export function outlineBend(outline: FortOutline, reachM: number): CurveBend {
     if (r < best.radiusM) best = { radiusM: r, at: b };
   });
   return best;
+}
+
+/** Indexy bodů lomené čáry, které leží v dílech `segments` (`segmentStarts`). */
+function pointsOfSegments(outline: FortOutline, segments: ReadonlySet<number>): Set<number> {
+  const result = new Set<number>();
+  for (const index of segments) {
+    const first = outline.segmentStarts[index];
+    const end = outline.segmentStarts[index + 1];
+    if (first === undefined || end === undefined) continue;
+    for (let k = first; k < end; k++) result.add(k);
+  }
+  return result;
 }
 
 /**

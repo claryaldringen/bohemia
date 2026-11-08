@@ -134,4 +134,48 @@ describe('opevnění – use-casy', () => {
       reason: FORT_BUSY,
     });
   });
+
+  it('upgradeFortification s cílovou hradbou vylepší úsek, druhý úsek se smí bourat současně', async () => {
+    const { villages, villageId } = await settled();
+    const placed = await placeFortification(
+      { villages },
+      {
+        villageId,
+        landscape,
+        today: TODAY + 1,
+        // mírné rohy – ochoz chce ohyb aspoň 4 m
+        points: squarePoints(block(9, 9, 4, 4), null, landscape, 'chamber')!,
+        kind: 'palisade',
+      },
+    );
+    if (!placed.ok) throw new Error(placed.reason);
+    villages.edit(placed.village.id, (state) => {
+      state.constructions = state.constructions.filter((c) => c.kind !== 'fortification');
+      for (const seg of state.fortifications![0]!.segments) {
+        seg.builtDay = TODAY;
+        seg.state = 1;
+      }
+      state.woodLogs = 300;
+    });
+    const fortificationId = placed.village.state.fortifications![0]!.id;
+    const base = { villageId, landscape, today: TODAY + 1, fortificationId };
+    const gate = await addFortificationGate({ villages }, { ...base, position: { x: 52, z: 75 } });
+    if (!gate.ok) throw new Error(gate.reason);
+    const [first, second] = fortSections(gate.village.state.fortifications![0]!);
+    const up = await upgradeFortification(
+      { villages },
+      { ...base, work: 'upgrade', target: 'walkway', segment: first!.segments[1]! },
+    );
+    if (!up.ok) throw new Error(up.reason);
+    const down = await demolishFortificationSection(
+      { villages },
+      { ...base, segment: second!.segments[1]! },
+    );
+    if (!down.ok) throw new Error(down.reason);
+    const works = down.village.state.constructions.filter((c) => c.kind === 'fortification');
+    expect(works.map((c) => [c.fortWork, c.fortTarget])).toEqual([
+      ['upgrade', 'walkway'],
+      ['demolish', undefined],
+    ]);
+  });
 });

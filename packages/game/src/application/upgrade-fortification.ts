@@ -1,5 +1,11 @@
 import { obstaclesOf, type Landscape } from '../domain/landscape';
-import { startFortificationUpgrade, villageRoadWalk, type FortTop } from '../domain/village';
+import {
+  startFortificationUpgrade,
+  startSectionUpgrade,
+  villageRoadWalk,
+  type FortTop,
+  type WallKind,
+} from '../domain/village';
 import { updateLivingVillage } from './update-village';
 import type { VillageRepository, VillageResult } from './villages';
 
@@ -14,11 +20,19 @@ export interface UpgradeFortificationInput {
   work: 'upgrade' | 'top';
   /** Nástavba na val (jen `top`). */
   top?: FortTop;
+  /**
+   * Vylepšení po úsecích (fortifications.md – Hradby a obrana, Druhy a postup vylepšení): cílová
+   * hradba – s ní se `work` a `top` nečtou a vylepší se úsek s dílem `segment` (null či chybí –
+   * celé opevnění, „Vylepšit vše“).
+   */
+  target?: WallKind;
+  segment?: number | null;
 }
 
 /**
- * Hráč vylepší opevnění (fortifications.md – Druhy): plot na palisádu po úsecích (plot úseku
- * stojí, dokud jeho palisáda není hotová), nebo plot či palisáda na hotový val.
+ * Hráč vylepší opevnění (fortifications.md – Druhy): s cílovou hradbou úsek mezi branami (nebo
+ * celé) na kterýkoli vyšší stupeň (`startSectionUpgrade`); bez ní starší akce – plot na palisádu
+ * (plot úseku stojí, dokud jeho palisáda není hotová), nebo plot či palisáda na hotový val.
  */
 export function upgradeFortification(
   deps: { villages: VillageRepository },
@@ -30,17 +44,30 @@ export function upgradeFortification(
     input.today,
     input.landscape,
     (state) =>
-      startFortificationUpgrade(
-        state,
-        state.lastDay,
-        input.landscape,
-        obstaclesOf(input.landscape),
-        {
-          fortificationId: input.fortificationId,
-          work: input.work,
-          ...(input.top ? { top: input.top } : {}),
-        },
-        villageRoadWalk(state, input.landscape),
-      ),
+      input.target !== undefined
+        ? startSectionUpgrade(
+            state,
+            state.lastDay,
+            input.landscape,
+            obstaclesOf(input.landscape),
+            {
+              fortificationId: input.fortificationId,
+              segment: input.segment ?? null,
+              target: input.target,
+            },
+            villageRoadWalk(state, input.landscape),
+          )
+        : startFortificationUpgrade(
+            state,
+            state.lastDay,
+            input.landscape,
+            obstaclesOf(input.landscape),
+            {
+              fortificationId: input.fortificationId,
+              work: input.work,
+              ...(input.top ? { top: input.top } : {}),
+            },
+            villageRoadWalk(state, input.landscape),
+          ),
   );
 }

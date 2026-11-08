@@ -156,6 +156,53 @@ describe('rozestavěné opevnění na 0 % ve scéně', () => {
     expect(view!.gateViews[0]).toMatchObject({ state: 1, old: false, ageYears: 0 });
   });
 
+  it('dvě stavby na jednom opevnění – úsek ukáže svou stavbu, scéna práci po dílech', () => {
+    const state = fortState(100, false);
+    const fort = state.fortifications![0]!;
+    const n = fort.segments.length;
+    const half = Math.floor(n / 2);
+    fort.gates = [
+      { segment: 0, offsetM: 3, x: 0, z: 0 },
+      { segment: half, offsetM: 2.5, x: 0, z: 0 },
+    ];
+    const base = {
+      kind: 'fortification' as const,
+      startedDay: DAY - 2,
+      dwellingType: null,
+      position: null,
+      dwellingId: null,
+      fieldId: null,
+      fortificationId: fort.id,
+    };
+    state.constructions.push(
+      {
+        ...base,
+        id: 91,
+        cost: 20,
+        done: 5,
+        fortWork: 'upgrade',
+        fortTarget: 'palisade',
+        fortSegments: [1, 2].map((index) => ({ index, cost: 10 })),
+      },
+      {
+        ...base,
+        id: 92,
+        cost: 10,
+        done: 5,
+        fortWork: 'demolish',
+        fortSegments: [{ index: half + 1, cost: 10 }],
+      },
+    );
+    const [view] = fortificationViews(state, landscape, DAY, 0);
+    const [first, second] = view!.sections;
+    expect(first).toMatchObject({ constructionId: 91, work: 'upgrade', progress: 0.25 });
+    expect(second).toMatchObject({ constructionId: 92, work: 'demolish', progress: 0.5 });
+    const looks = scene(state).forts![0]!.looks;
+    expect(looks[1]).toMatchObject({ work: 'upgrade', progress: 0.5 });
+    expect(looks[half + 1]).toMatchObject({ work: 'demolish', progress: 0.5 });
+    expect(looks[3]!.work).toBeUndefined();
+  });
+
   it('klik na pás vybere opevnění i na 0 %', () => {
     const village = scene(fortState(0, true));
     const fort = village.forts![0]!;

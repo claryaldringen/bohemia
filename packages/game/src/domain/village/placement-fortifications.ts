@@ -1,10 +1,12 @@
 import { type Landscape, type ObstacleLayer, surfaceAt } from '../landscape';
 import { squareCorners } from './square-grid';
 import {
+  bandPieces,
   fortBandPolygons,
   fortificationOutline,
   fortOutlineOf,
   fortShapeError,
+  outlineBend,
   type FortOutline,
 } from './fortification';
 import { type TakenLand } from './land-taken';
@@ -37,6 +39,8 @@ export const FORT_BAD_POINTS = 'Neplatné body opevnění.';
 export const FORT_TOO_FEW = 'Obvod chce aspoň 4 body.';
 export const FORT_SHARP = 'Tady je ohyb moc ostrý.';
 export const FORT_CROSSING = 'Obvod se nesmí křížit.';
+/** Vylepšení úseku – ohyb úseku je na cílový druh ostřejší než jeho nejmenší ohyb. */
+export const FORT_BEND_KIND = 'Ohyb je na tento druh příliš ostrý.';
 
 /** Kontrola opevnění – tvar a co se v pásu stane (prošlá kontrola; neprošlá s prázdnými údaji). */
 export interface FortPlacementCheck extends PlacementCheck {
@@ -132,11 +136,20 @@ export function checkFortificationPlacement(
   obstacles: ObstacleLayer,
   points: readonly Point[],
   kind: FortKind,
+  only?: ReadonlyMap<number, number>,
 ): FortPlacementCheck {
   if (!validPoints(points)) return { ...fail(FORT_BAD_POINTS), ...NONE };
   const outline = fortificationOutline(points, kind);
   const shaped = { ...NONE, outline };
-  const shape = fortShapeError(outline);
+  if (outline && only) {
+    // vylepšení úseku: obvod už stojí – ohyb cílového druhu jen v dílech úseku
+    const minBend = FORTIFICATIONS.minBendM[kind];
+    const bend = outlineBend(outline, minBend, new Set(only.keys()));
+    if (bend.radiusM < minBend - 1e-6) {
+      return { ...fail(FORT_BEND_KIND, { points: [{ x: bend.at[0], z: bend.at[1] }] }), ...shaped };
+    }
+  }
+  const shape = only ? null : fortShapeError(outline);
   if (shape) {
     const where = shape.at ? { points: [{ x: shape.at[0], z: shape.at[1] }] } : undefined;
     const reason =
@@ -150,7 +163,9 @@ export function checkFortificationPlacement(
     return { ...fail(reason, where), ...shaped };
   }
   if (!outline) return { ...fail(FORT_TOO_FEW), ...NONE };
-  const band = fortBandPolygons(outline);
+  const band = only
+    ? [...only].flatMap(([index, width]) => bandPieces(outline, width, index).map((p) => p.corners))
+    : fortBandPolygons(outline);
   if (!bandInside(landscape, band)) return { ...fail(FORT_OUTSIDE), ...shaped };
   const touched = touchedOther(landscape, village, outline);
   if (touched.length > 0) {
