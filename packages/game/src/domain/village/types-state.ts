@@ -590,6 +590,18 @@ export interface DynastyState {
   lords: LordRecord[];
   /** Den, kdy rod vymřel po meči (lord.md – Konec rodu); chybí – rod žije. */
   endedDay?: number;
+  /**
+   * Pojmenovaní muži rodu, kteří odešli (zemřeli) – jméno a otec; z nich se bere jméno po dědovi
+   * či strýci (absence.md – Jména synů). Nejvýš `DECEASED_NAMES_MAX` nejnovějších; chybí – žádný.
+   */
+  deceased?: DeceasedLineMan[];
+}
+
+/** Zemřelý pojmenovaný muž rodu v `DynastyState.deceased`. */
+export interface DeceasedLineMan {
+  id: number;
+  name: string;
+  fatherId?: number;
 }
 
 /** Přesun muže rodu do vsi: odkud (ves a číslo osoby) a pod jakým číslem tu žije. */

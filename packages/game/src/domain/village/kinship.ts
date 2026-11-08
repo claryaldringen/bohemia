@@ -4,7 +4,7 @@
 // v rodokmenu jen jako id a jejich rodiče (`VillageState.ancestors`). Čisté funkce bez I/O.
 import { cloneState } from './clone';
 import { ageGroup, ageYears } from './people';
-import { AGE, MARRIAGE } from './rules';
+import { AGE, DECEASED_NAMES_MAX, MARRIAGE } from './rules';
 import type { Ancestor, Emigrant, NeighborDirection, Person, Sex, VillageState } from './types';
 
 const DAYS_PER_YEAR = 365.25;
@@ -83,6 +83,20 @@ function parentChildOrSibling(
   );
 }
 
+/** Pojmenovaný muž rodu, který odešel, se zapamatuje v rodě (absence.md – Jména synů). */
+function rememberLineName(state: VillageState, p: Person): void {
+  if (!state.dynasty || p.name === undefined || p.sex !== 'male' || p.line !== true) return;
+  const deceased = [
+    ...(state.dynasty.deceased ?? []),
+    {
+      id: p.id,
+      name: p.name,
+      ...(p.fatherId === undefined ? {} : { fatherId: p.fatherId }),
+    },
+  ];
+  state.dynasty.deceased = deceased.slice(-DECEASED_NAMES_MAX);
+}
+
 /**
  * Lidé odešli ze vsi – zemřeli, nebo se vdali pryč (mutuje stav): jejich manželé ovdověli,
  * a kdo z nich je rodičem někoho žijícího, zůstane v rodokmenu (`ancestors` – id a rodiče). Předci,
@@ -109,6 +123,7 @@ export function removePeople(
       ...(p.fatherId === undefined ? {} : { fatherId: p.fatherId }),
     };
     ancestors.push({ id: p.id, ...parents });
+    rememberLineName(state, p);
     const direction = emigrated.get(p.id);
     if (direction !== undefined && p.sex !== undefined) {
       emigrants.push({ id: p.id, sex: p.sex, bornDay: p.bornDay, direction, ...parents });

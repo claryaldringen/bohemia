@@ -53,6 +53,10 @@ export type ChronicleEvent = { day: number } & (
       name: string;
       /** Koho hráč pojmenoval – vojvodu, nebo syna vojvody; chybí – jiný muž rodu (starší záznam). */
       who?: 'lord' | 'son';
+      /** Jméno dal rod, protože hráč do roku nepojmenoval (absence.md – Jména synů). */
+      house?: true;
+      /** Po kom: dědeček, strýc, praděd, jiný muž rodu; chybí – vygenerované. */
+      after?: 'grandfather' | 'uncle' | 'great-grandfather' | 'kinsman';
     }
   /** Vojvodou se stal muž rodu `name` (lord.md – Nástupnictví); bez jména chybí. */
   | { kind: 'lord'; name?: string }

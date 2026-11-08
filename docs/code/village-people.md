@@ -106,6 +106,14 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     syn hlavní manželky `mainWifeSon`; syn vojvody bez jména (kronika `line-birth`), ostatní
     jméno hned – `generatedLineName` (proud `'line-name:' + den + člověk`, jen jméno, které nenosí
     žijící muž rodu; `LINE_NAMES` – 62 jmen). Úmrtí muže rodu nese v kronice `name`.
+  - **Jména synů po roce** (absence.md – Jména synů): `nameWaitingSons` (`dynasty-kin-names.ts`,
+    volá `dynastyDay`) pojmenuje muže rodu bez jména (ne vojvodu), kterému je `SON_NAME_GRACE_DAYS`
+    (365) dní. `houseNameForSon`: děd z otcovy strany → strýc (otcův bratr) → praděd → jiný muž rodu
+    (los ze seedu `'kin-name:' + den + syn`) → `generatedLineName`; jméno žijícího muže rodu se
+    přeskočí. Jména zemřelých drží `dynasty.deceased` (`removePeople` → `rememberLineName`, nejvýš
+    `DECEASED_NAMES_MAX`). Syn dostane `nameByHouse` – `nameLineMan` ho smí jednou přepsat (příznak
+    se smaže). Kronika `line-named` s `house` a `after` („Syn dostal jméno X po dědovi“). Upozornění
+    „Syn vojvody čeká na jméno“ zmizí samo (fronta = muži bez jména).
   - **Nástupnictví** (`succession.ts`, lord.md – Nástupnictví): `currentLord` (žijící `lordId`);
     `dynastyDay` po `populationDay` = `ensureMainWives` + `succeedLord`. Zemřel-li vojvoda,
     `successorOf`: nejstarší syn s `mainWifeSon` (i chlapec, i po smrti matky) → nejstarší syn →

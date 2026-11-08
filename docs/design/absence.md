@@ -10,6 +10,8 @@ způsobem mírně růst nebo i stagnovat bez něj.“). Nástupnictví a vymřen
 
 ## Jména synů
 
+**Implementováno** (8. 11. 2026) – `docs/code/village-people.md`, `nameWaitingSons`.
+
 - Syn, kterému hráč **do jednoho herního roku** od narození nedá jméno, dostane **jméno obvyklé
   v rodě** – Martin 8. 11. 2026: „Ať dostane nějaké jméno obvyklé v rodě, např. po dědečkovi nebo
   strýci. Pokud by žádné takové nebylo, ať se vygeneruje.“
@@ -17,7 +19,10 @@ způsobem mírně růst nebo i stagnovat bez něj.“). Nástupnictví a vymřen
   jiný muž rodu; jméno, které v rodě právě nese žijící muž ve stejné vsi, se přeskočí. Nic
   takového → vygenerované jméno jako u vnuků ([vojvodova rodina](lord.md) – Generovaná jména
   vnuků). Volba je deterministická (seed vsi a dne).
-- Hráč smí jméno později přepsat stejně jako dnes (návrh Clauda).
+- Hráč smí jméno později přepsat stejně jako dnes (návrh Clauda) – jméno od rodu **jednou**, pak je
+  trvalé jako jméno od hráče. Zemřelí muži rodu a jejich jména se pamatují (nejvýš 40), aby šlo
+  jméno dát i po zemřelém dědovi či strýci. Kronika: „Syn dostal jméno X po dědovi / strýci“
+  (návrh Clauda).
 
 ## Povinnosti vazala, když hráč nehraje
 
