@@ -688,6 +688,8 @@ type SelectionKinds =
       reroutes?: { segment: number; target: WallKind }[];
       /** Na opevnění se staví – úsek jinudy počká (nový tvar přečísluje díly). */
       busy?: boolean;
+      /** U hradby se bojuje (`VillageView.fortContested`) – úsek jinudy počká. */
+      contested?: boolean;
     } & FortPanelBase)
   | ({
       /**
@@ -1251,6 +1253,7 @@ function fortificationDetails(
     road: road && segment !== null ? { id: road.id, segment, roadKind: road.roadKind } : null,
     reroutes,
     busy: fort.progress !== undefined,
+    ...(view?.fortContested ? { contested: true } : {}),
   };
 }
 

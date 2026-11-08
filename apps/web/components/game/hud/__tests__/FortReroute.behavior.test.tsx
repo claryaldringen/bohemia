@@ -55,12 +55,15 @@ it('brána u zbořeného úseku – Postavit jinudy otevře editor s dílem úse
   expect(onReroute).toHaveBeenCalledWith(7, 2, 'palisade');
 });
 
-it('na opevnění se staví – zašedlé; bez zbořeného úseku tlačítko není', () => {
+it('na opevnění se staví nebo se u hradby bojuje – zašedlé; bez zbořeného úseku tlačítko není', () => {
   const onReroute = vi.fn();
   render(gate({ busy: true }), onReroute);
   expect(reroute()!.disabled).toBe(true);
   act(() => reroute()!.click());
   expect(onReroute).not.toHaveBeenCalled();
+  // u hradby se bojuje (cizí vojsko dnes na mapě vsi) – zašedlé
+  render(gate({ contested: true }), onReroute);
+  expect(reroute()!.disabled).toBe(true);
   render(gate({ reroutes: [] }), onReroute);
   expect(reroute()).toBeNull();
 });

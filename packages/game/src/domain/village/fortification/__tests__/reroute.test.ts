@@ -12,7 +12,11 @@ import {
   startSectionDemolition,
   villageFortifications,
 } from '../../fortifications';
-import { startSectionReroute } from '../../fortification-reroute';
+import {
+  contestsFortification,
+  FORT_UNDER_ATTACK,
+  startSectionReroute,
+} from '../../fortification-reroute';
 import type { Point } from '../../polygon';
 import type { Construction, Fortification, VillageState } from '../../types';
 import { block, makeLandscape } from '../../__tests__/placement-fixtures';
@@ -327,5 +331,30 @@ describe('úsek jinudy – stavba', () => {
         target: 'palisade',
       }),
     ).toEqual({ ok: false, reason: FORT_SECTION_STANDS });
+  });
+
+  it('u hradby se bojuje – cizí vojsko dnes na mapě vsi nebo boj podle use-casu', () => {
+    const s = demolishedMiddle();
+    const old = fortOf(s);
+    const input = {
+      fortificationId: old.id,
+      segment: old.gates[1]!.segment + 1,
+      points: routeOut(old, old.gates[1]!.segment, 10),
+      target: 'palisade' as const,
+    };
+    const attacked = { ...s, raidDay: DAY + 2 };
+    expect(startSectionReroute(attacked, DAY + 2, landscape, EMPTY, input)).toEqual({
+      ok: false,
+      reason: FORT_UNDER_ATTACK,
+    });
+    // včerejší nájezd už nevadí
+    expect(startSectionReroute(attacked, DAY + 3, landscape, EMPTY, input).ok).toBe(true);
+    expect(
+      startSectionReroute(s, DAY + 2, landscape, EMPTY, { ...input, contested: true }),
+    ).toEqual({ ok: false, reason: FORT_UNDER_ATTACK });
+    // zprávy schránky, které nesou čísla dílů nebo boj u vsi
+    expect(contestsFortification({ kind: 'fortification-breach' })).toBe(true);
+    expect(contestsFortification({ kind: 'raid-day' })).toBe(true);
+    expect(contestsFortification({ kind: 'threat-signal' })).toBe(false);
   });
 });

@@ -3,7 +3,7 @@
  * a vylepšeními, úsek mezi branami (klik) se zbořením a brána (klik jako na křižovatku).
  */
 import { useState, type ReactElement } from 'react';
-import type { FortKind, FortTop, WallKind } from '@bohemia/game';
+import { FORT_UNDER_ATTACK, type FortKind, type FortTop, type WallKind } from '@bohemia/game';
 import type { SelectionDetails } from '@/lib/selection-details';
 import { FORT_BUSY_TEXT, type FortDemolishOption, type FortWorkOption } from '@/lib/fort-view';
 import type { VillageTarget } from '@/lib/scene/village-picking';
@@ -470,14 +470,14 @@ export function FortGateBody({
             tooltip={
               <span className="flex flex-col gap-0.5">
                 <span>{`Postavit úsek jinudy – ${FORT_NAMES[r.target].toLowerCase()}`}</span>
-                {details.busy && (
+                {(details.contested || details.busy) && (
                   <span data-testid="fort-blocked" className="font-semibold text-red-400">
-                    {FORT_BUSY_TEXT}
+                    {details.contested ? FORT_UNDER_ATTACK : FORT_BUSY_TEXT}
                   </span>
                 )}
               </span>
             }
-            disabled={details.busy === true || !onReroute}
+            disabled={details.busy === true || details.contested === true || !onReroute}
             busy={false}
             denied={denied}
             onClick={() => onReroute?.(details.id, r.segment, r.target)}

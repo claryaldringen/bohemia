@@ -45,6 +45,7 @@ import {
   penHerdSpecies,
   isStewardOn,
   relocationBlock,
+  raidHiding,
 } from '@bohemia/game';
 import { formatGameDate } from './game-date';
 
@@ -336,13 +337,17 @@ function fortificationsOf(
   landscape: Landscape,
   day: number,
   obstacles: ObstacleLayer,
-): Pick<VillageView, 'fortifications' | 'woodSupply' | 'stoneSupply'> {
+): Pick<VillageView, 'fortifications' | 'woodSupply' | 'stoneSupply' | 'fortContested'> {
   const woodSupply = fortWoodSupply(state, obstacles);
   const fortifications = fortificationViews(state, landscape, day, woodSupply);
   return {
     woodSupply,
     stoneSupply: fortStoneSupply(state),
     ...(fortifications.length > 0 ? { fortifications } : {}),
+    // cizí vojsko dnes na mapě vsi – úsek jinudy počká (demolition.md – Rozhodnutí)
+    ...(fortifications.length > 0 && raidHiding(state, day)
+      ? { fortContested: true as const }
+      : {}),
   };
 }
 

@@ -941,7 +941,7 @@ export function rerouteFortificationSectionForPlayer(
 ): Promise<VillageActionResult> {
   return actOn(playerId, villageId, 'rerouteFortificationSection', (ctx) =>
     rerouteFortificationSection(
-      { villages: villages() },
+      { villages: villages(), campaigns: gameDeps().campaigns },
       {
         villageId: ctx.villageId,
         landscape: ctx.landscape,

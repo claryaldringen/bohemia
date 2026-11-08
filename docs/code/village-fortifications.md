@@ -595,7 +595,11 @@ points, target: WallKind }, walk?)`: jen když na opevnění nic neběží (`FOR
   cenu nové (ohyb cílového druhu a pás jen na dílech úseku, rok, ochoz jen vylepšením palisády,
   klády a kámen předem, stavba `upgrade` s `fortTarget`). Zrušená stavba nechá novou trasu jako
   mezeru (zbořený úsek – jde znovu jinudy i Vylepšit). Val s příkopem se k nové trase doplní
-  potom (doplnění valu).
+  potom (doplnění valu). Ani když se u vsi bojuje (`FORT_UNDER_ATTACK` „U hradby se bojuje – teď
+  ji nejde přestavět.“): cizí vojsko dnes na mapě vsi (`raidHiding`, ve view `fortContested` –
+  tlačítko zašedlé), nebo podle use-casu nedoručená událost boje ve schránce
+  (`contestsFortification` – průlom s čísly dílů, `raid-day`, `raid-result`) či tažení proti vsi
+  (`CampaignRepository.active` + `checkpoint`) – bitva i průlom nesou čísla dílů starého tvaru.
 - `rerouteProposal(fort, geo, section)` – návrh pro editor: okraj brány, body obvodu v úseku
   (bez nich střed úseku) a okraj druhé brány; `rerouteTarget(fort, gateSegment)` – hradba nového
   úseku = hradba dílu brány (ochoz a holý val → palisáda; návrh Clauda).
