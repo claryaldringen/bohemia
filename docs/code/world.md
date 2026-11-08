@@ -83,7 +83,8 @@ hráč)`) a rod s `house.placed_at` null. Pozvaný je na mapě hned (`placed_at`
   obsazení, pak výjimka (zruší i `claim`). `expireNewcomerWaits` chybu jednoho rodu nepřeruší.
 - Ochrana: upozornění „ochrana končí“ (`playerHousesSince`) jen u rodů s `placed_at`, od umístění.
   `update-user` (Better Auth) jazyk nemění – `databaseHooks.user.update.before` pole `language`
-  zahodí (`lib/auth-hooks.ts`); mění ho jen registrace a `chooseLanguage`.
+  smaže přímo z dat změny (`dropLanguage` v `lib/auth-hooks.ts` – Better Auth výsledek hooku jen
+  přimíchá); mění ho jen registrace a `chooseLanguage`.
 - **Známé omezení – výkon `placeCluster`:** hledá po prstencích od každého cíle a u každého posunu
   kontroluje každou buňku shluku proti všem obsazeným mapám (`occupied.some` – lineárně),
   poloměr až k nejvzdálenější mapě + odstup. S tisíci map a mnoha cíli (`sameLanguage`) to roste

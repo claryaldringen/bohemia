@@ -5,7 +5,7 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { nextCookies } from 'better-auth/next-js';
 import { createInviteRepository, schema, type Database } from '@bohemia/db';
 import { isLanguageGroup, reserveInvite } from '@bohemia/game';
-import { withoutLanguage } from './auth-hooks';
+import { dropLanguage } from './auth-hooks';
 import { getDatabase } from './db';
 import { forgetInvite, rememberedInvite } from './invite-cookie';
 import { resetPasswordMail, sendMail, verificationMail } from './mail';
@@ -71,7 +71,7 @@ function createAuth(db: Database) {
         },
         // Jazyk mění jen registrace a `chooseLanguage` – `update-user` ho zahodí (pole má `input`).
         update: {
-          before: async (data) => ({ data: withoutLanguage(data) }),
+          before: async (data) => ({ data: dropLanguage(data) }),
         },
       },
     },

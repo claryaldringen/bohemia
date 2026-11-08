@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { withoutLanguage } from '../auth-hooks';
+import { dropLanguage } from '../auth-hooks';
 
-describe('withoutLanguage', () => {
-  it('změna účtu jazyk zahodí, ostatní pole nechá', () => {
-    expect(withoutLanguage({ name: 'Bořivoj', language: 'de' })).toEqual({ name: 'Bořivoj' });
-    expect(withoutLanguage({ name: 'Bořivoj' })).toEqual({ name: 'Bořivoj' });
+describe('dropLanguage', () => {
+  it('změna účtu jazyk zahodí přímo z dat změny, ostatní pole nechá', () => {
+    const data: Record<string, unknown> = { name: 'Bořivoj', language: 'de' };
+    expect(dropLanguage(data)).toEqual({ name: 'Bořivoj' });
+    // Better Auth výsledek hooku jen přimíchá – pole musí zmizet i z původního objektu
+    expect(data).toEqual({ name: 'Bořivoj' });
+    expect(dropLanguage({ name: 'Bořivoj' })).toEqual({ name: 'Bořivoj' });
   });
 });
