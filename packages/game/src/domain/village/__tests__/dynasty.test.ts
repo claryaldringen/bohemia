@@ -292,8 +292,11 @@ describe('sledovaná ves – vcelku = po kouscích', () => {
       const father = whole.people.find((f) => f.id === p.fatherId);
       if (!father?.line) continue;
       expect(p.line).toBe(true);
-      if (father.id === 2) expect(p.name).toBeUndefined();
-      else expect(LINE_NAMES).toContain(p.name);
+      if (father.id !== 2) expect(LINE_NAMES).toContain(p.name);
+      // syn vojvody je bez jména jen první rok, pak mu jméno dá rod (absence.md – Jména synů) –
+      // jen proto se tu změnilo očekávání (dřív zůstal bez jména navždy)
+      else if (end - p.bornDay < 365) expect(p.name).toBeUndefined();
+      else expect(p.nameByHouse).toBe(true);
     }
   });
 });

@@ -76,6 +76,11 @@ export interface Person {
    */
   name?: string;
   /**
+   * Jméno synovi dal rod (absence.md – Jména synů), ne hráč – hráč ho smí jednou přepsat
+   * (`nameLineMan`). Chybí – jméno dal hráč nebo je vygenerované při narození.
+   */
+  nameByHouse?: true;
+  /**
    * Muž rodu po meči (lord.md – Kdo patří k rodu): vojvoda a jeho mužští potomci po otcích.
    * Nastaví se při narození synovi muže rodu (starší vsi `withDynasty`). Jen muži; chybí – mimo rod.
    */

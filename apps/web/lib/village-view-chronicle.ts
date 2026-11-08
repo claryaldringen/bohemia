@@ -489,6 +489,15 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'line-birth':
       return 'Vojvodovi se narodil syn.';
     case 'line-named':
+      if (event.house) {
+        const afterText = {
+          grandfather: ' po dědovi',
+          uncle: ' po strýci',
+          'great-grandfather': ' po pradědovi',
+          kinsman: ' po předkovi',
+        };
+        return `Syn dostal jméno ${event.name}${event.after ? afterText[event.after] : ''}.`;
+      }
       return event.who === 'lord'
         ? `Vojvoda dostal jméno – ${event.name}.`
         : event.who === 'son'
