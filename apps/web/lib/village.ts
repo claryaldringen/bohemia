@@ -42,6 +42,9 @@ import {
   addFortificationGate,
   demolishFortificationSection,
   rerouteFortificationSection,
+  addFortificationRampart,
+  fillFortificationMoat,
+  upgradeFortificationGate,
   placeSacredBuilding,
   placeThreshingFloor,
   placeQuarry,
@@ -865,13 +868,22 @@ export function placeFortificationForPlayer(
   );
 }
 
-/** Vylepšení opevnění (fortifications.md – Druhy): plot na palisádu, nebo nástavba na valu. */
+/**
+ * Vylepšení opevnění (fortifications.md – Druhy): plot na palisádu, nebo nástavba na valu; s cílovou
+ * hradbou úsek s dílem `segment` (null – „Vylepšit vše“) na vyšší stupeň (`startSectionUpgrade`).
+ */
 export function upgradeFortificationForPlayer(
   playerId: string,
   villageId: string,
-  input: { fortificationId: number; work: 'upgrade' | 'top'; top?: FortTop },
+  input: {
+    fortificationId: number;
+    work: 'upgrade' | 'top';
+    top?: FortTop;
+    target?: WallKind;
+    segment?: number | null;
+  },
 ): Promise<VillageActionResult> {
-  const top = input.top;
+  const { top, target } = input;
   return actOn(playerId, villageId, 'upgradeFortification', (ctx) =>
     upgradeFortification(
       { villages: villages() },
@@ -882,6 +894,71 @@ export function upgradeFortificationForPlayer(
         fortificationId: input.fortificationId,
         work: input.work,
         ...(top ? { top } : {}),
+        ...(target ? { target, segment: input.segment ?? null } : {}),
+      },
+    ),
+  );
+}
+
+/**
+ * Doplnění valu s příkopem pod stojící hradbu úseku s dílem `segment` (null – celé opevnění;
+ * fortifications.md – Hradby a obrana, Druhy) – server úsek, pás a cenu spočítá znovu.
+ */
+export function addFortificationRampartForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { fortificationId: number; segment: number | null },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, 'addFortificationRampart', (ctx) =>
+    addFortificationRampart(
+      { villages: villages() },
+      {
+        villageId: ctx.villageId,
+        landscape: ctx.landscape,
+        today: ctx.day,
+        fortificationId: input.fortificationId,
+        segment: input.segment,
+      },
+    ),
+  );
+}
+
+/** Napuštění příkopu úseku s dílem `segment` (fortifications.md – Hradby a obrana, Druhy). */
+export function fillFortificationMoatForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { fortificationId: number; segment: number },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, 'fillFortificationMoat', (ctx) =>
+    fillFortificationMoat(
+      { villages: villages() },
+      {
+        villageId: ctx.villageId,
+        landscape: ctx.landscape,
+        today: ctx.day,
+        fortificationId: input.fortificationId,
+        segment: input.segment,
+      },
+    ),
+  );
+}
+
+/** Klešťová brána, nebo věž nad branou v dílu `segment` (fortifications.md – Hradby a obrana, Brány). */
+export function upgradeFortificationGateForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { fortificationId: number; segment: number; level: 'pincer' | 'tower' },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, 'upgradeFortificationGate', (ctx) =>
+    upgradeFortificationGate(
+      { villages: villages() },
+      {
+        villageId: ctx.villageId,
+        landscape: ctx.landscape,
+        today: ctx.day,
+        fortificationId: input.fortificationId,
+        segment: input.segment,
+        level: input.level,
       },
     ),
   );

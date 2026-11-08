@@ -2,6 +2,7 @@ import {
   ABANDON_FOUNDING,
   FORT_SECTION_GONE,
   rerouteTarget,
+  wallYearReason,
   HORSES,
   AGE,
   CARTS,
@@ -671,7 +672,7 @@ type SelectionKinds =
       kind: 'fortification-section';
       section: VillageFortSection;
     } & FortPanelBase &
-      Pick<VillageFortification, 'progress' | 'work' | 'constructionId'>)
+      Pick<VillageFortification, 'progress' | 'work' | 'constructionId' | 'occupancy'>)
   | ({
       /**
        * Brána opevnění (klik jako na křižovatku – fortifications.md, Brány): druh brány podle
@@ -685,7 +686,15 @@ type SelectionKinds =
        * Zbořené úseky u brány, které jde postavit jinudy (demolition.md – Rozhodnutí): díl úseku
        * (`segment` pro server) a hradba nového úseku (`rerouteTarget`); úsek za branou první.
        */
-      reroutes?: { segment: number; target: WallKind }[];
+      reroutes?: {
+        segment: number;
+        target: WallKind;
+        /**
+         * Jiné hradby nového úseku na výběr (plot, palisáda, roštová, komorová – ochoz jen
+         * vylepšením) s důvodem roku (`wallYearReason`), proč zatím nejdou.
+         */
+        others: { target: WallKind; blocked: string | null }[];
+      }[];
       /** Na opevnění se staví – úsek jinudy počká (nový tvar přečísluje díly). */
       busy?: boolean;
       /** U hradby se bojuje (`VillageView.fortContested`) – úsek jinudy počká. */
@@ -1188,6 +1197,9 @@ function selectionKinds(
 }
 
 /** Kůň jezdce `riderId` z pohledu na ves (jede-li na koni); jinak null. */
+/** Hradby, které jde postavit nově – i úsek jinudy (palisáda s ochozem jen vylepšením). */
+const REROUTE_KINDS: readonly WallKind[] = ['fence', 'palisade', 'crib', 'chamber'];
+
 /**
  * Opevnění ve výběru (fortifications.md – Rozhraní): celé (dvojklik), úsek mezi branami s dílem
  * `segment` (klik), nebo brána v dílu `segment` (klik do dosahu brány).
@@ -1216,6 +1228,7 @@ function fortificationDetails(
       kind: 'fortification-section',
       ...base,
       section,
+      occupancy: fort.occupancy,
       // stavba na dílech úseku (na opevnění smí běžet víc staveb); starší pohled – stavba opevnění
       ...((section.progress ?? fort.progress) !== undefined
         ? { progress: section.progress ?? fort.progress }
@@ -1245,7 +1258,17 @@ function fortificationDetails(
         );
   const reroutes = around
     .filter((s) => s.demolish.blocked === FORT_SECTION_GONE)
-    .map((s) => ({ segment: s.segments[0]!, target: rerouteTarget(inScene, target.segment) }));
+    .map((s) => {
+      const main = rerouteTarget(inScene, target.segment);
+      return {
+        segment: s.segments[0]!,
+        target: main,
+        others: REROUTE_KINDS.filter((k) => k !== main).map((k) => ({
+          target: k,
+          blocked: view ? wallYearReason(k, view.dayIndex) : null,
+        })),
+      };
+    });
   return {
     kind: 'fortification-gate',
     ...base,

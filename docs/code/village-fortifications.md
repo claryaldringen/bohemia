@@ -341,8 +341,8 @@ walk?)`** – úsek s dílem `segment` (`sectionOf`), `null` = „Vylepšit vše
 - **`sectionUpgrades(state, day, landscape, obstacles, { fortificationId, segment }, walk?)`** →
   `FortUpgradeOption { target, laborManDays, logs, stoneM3, block }[]` – stupně, na které by se
   v úseku něco změnilo (vyšší než nejnižší stojící hradba; na mezeře a holém valu všechny), cena
-  bez kácení a lámání a důvod z `startSectionUpgrade` (na klonu). Rozhraní ji zatím nevolá
-  (tlačítka Vylepšit – Úloha 17).
+  bez kácení a lámání a důvod z `startSectionUpgrade` (na klonu). Rozhraní ji volá pro každý úsek
+  a pro celé opevnění (`fortificationViews` – [web-ui.md](web-ui.md), Opevnění v rozhraní).
 - **Práce** – `segmentDone` / `workFortification` pro stavbu s `fortTarget`: díl (kus dílu brány
   podle `gatePartView`) je hotový, když na něm stojí cílová hradba (`upgradeDone`).
   `completeUpgrade(fort, seg, target, day, part?)` – s `part` totéž na pohledu kusu a zápis zpět
@@ -359,7 +359,7 @@ walk?)`** – úsek s dílem `segment` (`sectionOf`), `null` = „Vylepšit vše
 - **Akce** – `upgradeFortification` (use-case) a záměr `fortification-upgrade` (`build-intent.ts`)
   s `target` (a `segment`) volají `startSectionUpgrade`, bez něj starší `startFortificationUpgrade`
   (správce, panel celého opevnění) beze změny výsledku.
-- **Rozhraní** (minimum, plné ve Úloze 17): `VillageFortSection` nese průběh, práci a id stavby na
+- **Rozhraní** (plné v Úloze 17 – [web-ui.md](web-ui.md), Opevnění v rozhraní): `VillageFortSection` nese průběh, práci a id stavby na
   dílech úseku (`selectionDetails` je dá panelu úseku – zrušení té správné stavby);
   `SceneFortSegment.work` – práce stavby dílu, když na opevnění běží víc staveb (`segmentBuild`
   čte `look.work ?? fort.work`). Scéna nových druhů ve stavbě a vytyčení po dílech – Úloha 18.
@@ -447,8 +447,12 @@ scéně.
   s tempem 0, buňky brány zůstanou průchozí. `assaultSteps` – zasypat vodní příkop jen mimo bránu
   (brána má hráz či most – návrh Clauda).
 - **Akce**: use-casy `addFortificationRampart`, `fillFortificationMoat`
-  (`application/fortification-rampart.ts`); tlačítka a server actions – Úloha 17. Testy
-  `fortification/__tests__/rampart-addition.test.ts` a `moat.test.ts`.
+  (`application/fortification-rampart.ts`, právo `build`), server actions
+  `addFortificationRampart` a `fillFortificationMoat`, tlačítka Doplnit val a Napustit příkop
+  v panelu úseku ([web-ui.md](web-ui.md)). Druhý klik na Doplnit val vrátí `FORT_RAMPART_DONE`
+  (val se do dílů zapíše hned se staveništěm), druhé Napustit `FORT_BUSY`. Testy
+  `fortification/__tests__/rampart-addition.test.ts`, `moat.test.ts`
+  a `application/__tests__/fortification-section-actions.test.ts`.
 
 ## Klešťová brána a věž (`fortification-gate.ts`, `fortification/pincer.ts`)
 
@@ -502,8 +506,11 @@ tlačítka Úloha 17.
   přičte za každou hotovou věž (díl bez stavby) `tower.upkeepManDaysYear` (1 čd ročně); nedodělek
   ji postarší jako hradbu. Ramena klešťové brány nestárnou zvlášť – patří k dílu brány (návrh
   Clauda).
-- **Akce**: use-case `upgradeFortificationGate` (`application/upgrade-fortification-gate.ts`).
-  Testy `fortification/__tests__/gate-upgrade.test.ts`.
+- **Akce**: use-case `upgradeFortificationGate` (`application/upgrade-fortification-gate.ts`, právo
+  `build`), server action `upgradeFortificationGate`, tlačítka Klešťová brána a Věž v panelu brány.
+  Testy `fortification/__tests__/gate-upgrade.test.ts`
+  a `application/__tests__/fortification-section-actions.test.ts` (dvojklik `FORT_BUSY`, plot
+  `FORT_GATE_LOW`).
 
 ## Úseky pro hráče a zboření (`sections.ts`, `fortifications.ts`; demolition.md – Opevnění)
 

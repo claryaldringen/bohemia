@@ -339,7 +339,7 @@ function fortificationsOf(
   obstacles: ObstacleLayer,
 ): Pick<VillageView, 'fortifications' | 'woodSupply' | 'stoneSupply' | 'fortContested'> {
   const woodSupply = fortWoodSupply(state, obstacles);
-  const fortifications = fortificationViews(state, landscape, day, woodSupply);
+  const fortifications = fortificationViews(state, landscape, day, woodSupply, obstacles);
   return {
     woodSupply,
     stoneSupply: fortStoneSupply(state),

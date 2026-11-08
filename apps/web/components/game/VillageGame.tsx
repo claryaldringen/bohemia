@@ -7,7 +7,6 @@ import {
   shiftWorldClock,
   suggestVillageName,
   type Direction8,
-  type FortTop,
   type WallKind,
   type Craft,
   FORTIFICATIONS,
@@ -51,6 +50,9 @@ import {
   placeFortification,
   upgradeFortification,
   demolishFortificationSection,
+  addFortificationRampart,
+  fillFortificationMoat,
+  upgradeFortificationGate,
   rerouteFortificationSection,
   addFortificationGate,
   placeSacred,
@@ -1708,18 +1710,28 @@ export function VillageGame({
               }}
               gateFort={gateFort}
               onGateMode={setGateFort}
-              onFortWork={(fortificationId, work, top?: FortTop) => {
+              onFortAction={(fortificationId, segment, action) => {
                 const villageId = viewRef.current?.id;
-                return villageId
-                  ? runBuildAction(() =>
-                      upgradeFortification({
-                        villageId,
-                        fortificationId,
-                        work,
-                        ...(top ? { top } : {}),
-                      }),
-                    )
-                  : Promise.resolve();
+                if (!villageId) return Promise.resolve();
+                const at = { villageId, fortificationId };
+                switch (action.kind) {
+                  case 'upgrade':
+                    return runBuildAction(() =>
+                      upgradeFortification({ ...at, target: action.target, segment }),
+                    );
+                  case 'rampart':
+                    return runBuildAction(() => addFortificationRampart({ ...at, segment }));
+                  case 'moat':
+                    return segment === null
+                      ? Promise.resolve()
+                      : runBuildAction(() => fillFortificationMoat({ ...at, segment }));
+                  case 'gate':
+                    return segment === null
+                      ? Promise.resolve()
+                      : runBuildAction(() =>
+                          upgradeFortificationGate({ ...at, segment, level: action.level }),
+                        );
+                }
               }}
               onFortReroute={startReroute}
               onFortDemolish={(fortificationId, segment) => {

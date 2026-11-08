@@ -211,21 +211,68 @@ export function parsePlaceFortificationInput(
   return kind ? { points, kind } : null;
 }
 
+const WALL_KINDS: readonly WallKind[] = ['fence', 'palisade', 'walkway', 'crib', 'chamber'];
+
+/** Díl úseku `segment` – celé číslo od 0, null či chybí – celé opevnění; jinak undefined. */
+function parseSectionSegment(segment: unknown): number | null | undefined {
+  if (segment === undefined || segment === null) return null;
+  return Number.isInteger(segment) && (segment as number) >= 0 ? (segment as number) : undefined;
+}
+
 /**
  * Vstup vylepšení opevnění `{ fortificationId, work, top? }` – plot na palisádu (`upgrade`), nebo
- * plot či palisáda na val (`top`), jinak null.
+ * plot či palisáda na val (`top`); s cílovou hradbou `{ fortificationId, target, segment? }`
+ * vylepšení úseku s dílem `segment` (null či chybí – „Vylepšit vše“; fortifications.md – Hradby
+ * a obrana, Druhy a postup vylepšení). Jinak null.
  */
-export function parseUpgradeFortificationInput(
-  value: unknown,
-): { fortificationId: number; work: 'upgrade' | 'top'; top?: FortTop } | null {
+export function parseUpgradeFortificationInput(value: unknown): {
+  fortificationId: number;
+  work: 'upgrade' | 'top';
+  top?: FortTop;
+  target?: WallKind;
+  segment?: number | null;
+} | null {
   if (!isRecord(value)) return null;
   const fortificationId = parsePositiveInt(value.fortificationId);
   if (fortificationId === null) return null;
+  if (value.target !== undefined) {
+    const target = WALL_KINDS.find((k) => k === value.target);
+    const segment = parseSectionSegment(value.segment);
+    if (!target || segment === undefined) return null;
+    return { fortificationId, work: 'upgrade', target, segment };
+  }
   if (value.work === 'upgrade') return { fortificationId, work: 'upgrade' };
   if (value.work !== 'top') return null;
   if (value.top === undefined) return { fortificationId, work: 'top' };
   const top = FORT_TOPS.find((t) => t === value.top);
   return top ? { fortificationId, work: 'top', top } : null;
+}
+
+/**
+ * Vstup doplnění valu `{ fortificationId, segment? }` (fortifications.md – Hradby a obrana,
+ * Druhy): díl úseku, null či chybí – celé opevnění. Jinak null.
+ */
+export function parseFortificationRampartInput(
+  value: unknown,
+): { fortificationId: number; segment: number | null } | null {
+  if (!isRecord(value)) return null;
+  const fortificationId = parsePositiveInt(value.fortificationId);
+  const segment = parseSectionSegment(value.segment);
+  if (fortificationId === null || segment === undefined) return null;
+  return { fortificationId, segment };
+}
+
+/**
+ * Vstup vylepšení brány `{ fortificationId, segment, level }` (fortifications.md – Hradby
+ * a obrana, Brány): díl s branou a klešťová brána či věž. Jinak null.
+ */
+export function parseFortificationGateUpgradeInput(
+  value: unknown,
+): { fortificationId: number; segment: number; level: 'pincer' | 'tower' } | null {
+  const gate = parseDemolishFortificationSectionInput(value);
+  if (!gate || !isRecord(value)) return null;
+  const level = value.level === 'pincer' || value.level === 'tower' ? value.level : null;
+  return level ? { ...gate, level } : null;
 }
 
 /** Vstup brány opevnění `{ fortificationId, position }` – klik na obvod ve světě, jinak null. */
@@ -254,8 +301,6 @@ export function parseDemolishFortificationSectionInput(
   }
   return { fortificationId, segment: segment as number };
 }
-
-const WALL_KINDS: readonly WallKind[] = ['fence', 'palisade', 'walkway', 'crib', 'chamber'];
 
 /**
  * Vstup stavby úseku jinudy `{ fortificationId, segment, points, target }` (demolition.md –

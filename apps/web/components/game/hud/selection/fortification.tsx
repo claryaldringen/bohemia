@@ -3,9 +3,23 @@
  * a vylepšeními, úsek mezi branami (klik) se zbořením a brána (klik jako na křižovatku).
  */
 import { useState, type ReactElement } from 'react';
-import { FORT_UNDER_ATTACK, type FortKind, type FortTop, type WallKind } from '@bohemia/game';
+import {
+  FORT_UNDER_ATTACK,
+  type AssaultMethod,
+  type FortKind,
+  type GateLevel,
+  type WallKind,
+} from '@bohemia/game';
 import type { SelectionDetails } from '@/lib/selection-details';
-import { FORT_BUSY_TEXT, type FortDemolishOption, type FortWorkOption } from '@/lib/fort-view';
+import {
+  FORT_BUSY_TEXT,
+  type FortAssaultIcon,
+  type FortAssaultView,
+  type FortDemolishOption,
+  type FortOccupancyView,
+  type FortUpgradeView,
+  type FortWorkOption,
+} from '@/lib/fort-view';
 import type { VillageTarget } from '@/lib/scene/village-picking';
 import { formatInteger, formatPercent } from '@/lib/village-format';
 import { ROAD_KIND_NAMES } from '@/lib/village-view';
@@ -25,16 +39,16 @@ export const FORT_NAMES: Record<FortKind, string> = {
 };
 
 /**
- * Ikony druhů (`/icons/resources/<ikona>.png`) – portrét panelu, rozcestník a tlačítka. Vyšší
- * stupně hradby zatím s ikonou palisády (vlastní ikony přidá další úloha).
+ * Ikony druhů – celá cesta (portrét panelu, tlačítka Vylepšit, Postavit jinudy): plot, palisáda
+ * a val render z Blenderu, vyšší stupně hradby vlastní kresba (CC0).
  */
-export const FORT_ICONS: Record<FortKind, string> = {
-  fence: 'fort-fence',
-  palisade: 'fort-palisade',
-  walkway: 'fort-palisade',
-  crib: 'fort-palisade',
-  chamber: 'fort-palisade',
-  rampart: 'fort-rampart',
+export const FORT_ICON_SRC: Record<FortKind, string> = {
+  fence: '/icons/resources/fort-fence.png',
+  palisade: '/icons/resources/fort-palisade.png',
+  walkway: '/icons/resources/fort-walkway.svg',
+  crib: '/icons/resources/fort-crib.svg',
+  chamber: '/icons/resources/fort-chamber.svg',
+  rampart: '/icons/resources/fort-rampart.png',
 };
 
 /** Název brány podle druhu opevnění (portrét panelu brány). */
@@ -50,14 +64,112 @@ export const FORT_GATE_NAMES: Record<FortKind, string> = {
 /** Ikona brány (portrét panelu brány, tlačítko Přidat bránu). */
 export const FORT_GATE_ICON = '/icons/house/gate.svg';
 
-/** Název nástavby na valu (popisek tlačítka). */
-const TOP_NAMES: Record<FortTop, string> = {
-  fence: 'Postavit na valu plot',
-  palisade: 'Postavit na valu palisádu',
-  walkway: 'Postavit na valu palisádu s ochozem',
-  crib: 'Postavit na valu roštovou hradbu',
-  chamber: 'Postavit na valu komorovou hradbu',
+/** Cílová hradba v nabídce Vylepšit (popisek tlačítka). */
+const UPGRADE_NAMES: Record<WallKind, string> = {
+  fence: 'Vylepšit na polský plot',
+  palisade: 'Vylepšit na palisádu',
+  walkway: 'Vylepšit na palisádu s ochozem',
+  crib: 'Vylepšit na roštovou hradbu',
+  chamber: 'Vylepšit na komorovou hradbu',
 };
+
+/**
+ * Akce tlačítek panelu opevnění (fortifications.md – Hradby a obrana, Rozhraní a scéna):
+ * vylepšit úsek či vše, doplnit val, napustit příkop, vylepšit bránu.
+ */
+export type FortAction =
+  | { kind: 'upgrade'; target: WallKind }
+  | { kind: 'rampart' }
+  | { kind: 'moat' }
+  | { kind: 'gate'; level: GateLevel };
+
+/** Zadá akci nad opevněním `fortificationId` u dílu `segment` (null – celé opevnění). */
+export type FortActionHandler = (
+  fortificationId: number,
+  segment: number | null,
+  action: FortAction,
+) => Promise<void>;
+
+/** Ikony postupů útočníka (žebřík, sekera, oheň, rýč – vlastní kresba CC0). */
+const ASSAULT_SRC: Record<FortAssaultIcon, string> = {
+  ladder: '/icons/resources/assault-ladder.svg',
+  cut: '/icons/resources/assault-axe.svg',
+  burn: '/icons/resources/assault-fire.svg',
+  dig: '/icons/resources/assault-spade.svg',
+};
+
+/** Název postupu jádra v popisku. */
+const ASSAULT_NAMES: Record<AssaultMethod, string> = {
+  open: 'Mezera',
+  climb: 'Přelézt plot',
+  ladder: 'Žebříky',
+  cut: 'Prosekat',
+  burn: 'Vypálit',
+  dig: 'Odkopat',
+  mine: 'Podkopat',
+};
+
+/** Název ikony postupu, který tu nejde (zašedlá ikona). */
+const ASSAULT_ICON_NAMES: Record<FortAssaultIcon, string> = {
+  ladder: 'Žebříky',
+  cut: 'Prosekat',
+  burn: 'Vypálit',
+  dig: 'Odkopat či podkopat',
+};
+
+/** Herní hodiny jako „5 h“, od 24 h „1 d 3 h“ (nahoru na celé hodiny). */
+export function formatAssaultHours(hours: number): string {
+  const h = Math.ceil(hours - 1e-9);
+  if (h < 24) return `${h} h`;
+  const rest = h % 24;
+  return rest === 0 ? `${h / 24} d` : `${Math.floor(h / 24)} d ${rest} h`;
+}
+
+/**
+ * Ikony postupů útočníka s časem se 4 muži (fortifications.md – Rozhraní a scéna); postup, který
+ * tu nejde, zašedlý.
+ */
+function AssaultStats({ assault }: { assault: readonly FortAssaultView[] }): ReactElement {
+  return (
+    <>
+      {assault.map((a) => {
+        const blocked = a.hours4 === null || a.method === null;
+        const name = blocked
+          ? `${ASSAULT_ICON_NAMES[a.icon]} – tu nejde`
+          : `${ASSAULT_NAMES[a.method!]} – ${formatAssaultHours(a.hours4!)} se 4 muži`;
+        return (
+          <Tooltip key={a.icon} content={name} placement="above">
+            <span
+              className={`flex shrink-0 items-center gap-1 whitespace-nowrap ${blocked ? 'opacity-40 grayscale' : ''}`}
+              tabIndex={0}
+              data-testid={`selection-fort-assault-${a.icon}`}
+              data-blocked={blocked || undefined}
+            >
+              <img src={ASSAULT_SRC[a.icon]} alt="" width={20} height={20} />
+              <span className="text-sm font-semibold tabular-nums">
+                {blocked ? '–' : formatAssaultHours(a.hours4!)}
+              </span>
+            </span>
+          </Tooltip>
+        );
+      })}
+    </>
+  );
+}
+
+/** Obsazení hradby – muži vsi na délku obvodu (podíl obsazených 5 m ochozu). */
+function OccupancyStat({ occupancy }: { occupancy: FortOccupancyView }): ReactElement {
+  return (
+    <Stat
+      src="/icons/resources/fort-occupancy.svg"
+      name={`Obsazení hradby – ${formatInteger(occupancy.men)} mužů na ${formatInteger(occupancy.lengthM)} m`}
+      testId="selection-fort-occupancy"
+      alert={occupancy.share < 1}
+    >
+      {formatPercent(occupancy.share)}
+    </Stat>
+  );
+}
 
 /** Barva úseků za životností (oranžově – fortifications.md – Rozhraní). */
 const OLD_COLOR = 'text-[#ffb15c]';
@@ -67,18 +179,26 @@ function WorkTooltip({ name, option }: { name: string; option: FortWorkOption })
   return (
     <span className="flex flex-col gap-0.5">
       <span>{name}</span>
-      <span className="flex items-center gap-2 tabular-nums">
-        <span className="flex items-center gap-1">
-          <img src="/icons/resources/labor.png" alt="" width={16} height={16} />
-          {formatInteger(option.cost.laborManDays)}
-        </span>
-        {option.cost.logs > 0 && (
+      {(option.cost.laborManDays > 0 || option.cost.logs > 0) && (
+        <span className="flex items-center gap-2 tabular-nums">
           <span className="flex items-center gap-1">
-            <img src="/icons/resources/wood.png" alt="" width={16} height={16} />
-            {formatInteger(option.cost.logs)}
+            <img src="/icons/resources/labor.png" alt="" width={16} height={16} />
+            {formatInteger(option.cost.laborManDays)}
           </span>
-        )}
-      </span>
+          {option.cost.logs > 0 && (
+            <span className="flex items-center gap-1">
+              <img src="/icons/resources/wood.png" alt="" width={16} height={16} />
+              {formatInteger(option.cost.logs)}
+            </span>
+          )}
+          {(option.cost.stoneM3 ?? 0) > 0 && (
+            <span className="flex items-center gap-1" data-testid="fort-stone">
+              <img src="/icons/resources/stone.svg" alt="" width={16} height={16} />
+              {formatInteger(option.cost.stoneM3!)}
+            </span>
+          )}
+        </span>
+      )}
       {option.blocked && (
         <span data-testid="fort-blocked" className="font-semibold text-red-400">
           {option.blocked}
@@ -178,6 +298,105 @@ function CommandButton({
   );
 }
 
+/**
+ * Tlačítka akcí úseku či celého opevnění (fortifications.md – Hradby a obrana, Rozhraní a scéna):
+ * první řádek nabídka Vylepšit (vyšší stupně, zašedlé s důvodem), druhý Doplnit val, Napustit
+ * příkop a další tlačítka panelu (`children` – Zbořit, Přidat bránu).
+ */
+function FortActionCommands({
+  all,
+  upgrades,
+  rampartAdd,
+  moat,
+  busy,
+  denied,
+  onRun,
+  children,
+}: {
+  /** Celé opevnění („Vylepšit vše“) – jiné popisky a `data-testid`. */
+  all: boolean;
+  upgrades: readonly FortUpgradeView[];
+  rampartAdd: FortWorkOption | null;
+  moat?: FortWorkOption | null;
+  busy: boolean;
+  denied: string | null;
+  /** Zadá akci; chybí – tlačítka zašedlá (náhled bez serveru). */
+  onRun: ((action: FortAction) => void) | undefined;
+  children: ReactElement | ReactElement[];
+}): ReactElement {
+  const prefix = all ? 'fort-upgrade-all' : 'fort-upgrade';
+  return (
+    <Commands>
+      {upgrades.length > 0 && (
+        <div className="flex gap-1.5">
+          {upgrades.map(({ target, option }) => {
+            const name = all
+              ? UPGRADE_NAMES[target].replace('Vylepšit', 'Vylepšit vše')
+              : UPGRADE_NAMES[target];
+            return (
+              <CommandButton
+                key={target}
+                testId={`${prefix}-${target}`}
+                name={name}
+                icon={FORT_ICON_SRC[target]}
+                option={option}
+                disabled={option.blocked !== null || busy || !onRun}
+                busy={busy}
+                denied={denied}
+                onClick={() => onRun?.({ kind: 'upgrade', target })}
+              />
+            );
+          })}
+        </div>
+      )}
+      <div className="flex gap-1.5">
+        {rampartAdd && (
+          <CommandButton
+            testId="fort-rampart-add"
+            name={all ? 'Doplnit val s příkopem pod celé opevnění' : 'Doplnit val s příkopem'}
+            icon="/icons/resources/fort-rampart-add.svg"
+            option={rampartAdd}
+            disabled={rampartAdd.blocked !== null || busy || !onRun}
+            busy={busy}
+            denied={denied}
+            onClick={() => onRun?.({ kind: 'rampart' })}
+          />
+        )}
+        {moat && (
+          <CommandButton
+            testId="fort-moat"
+            name="Napustit příkop"
+            icon="/icons/resources/fort-moat.svg"
+            option={moat}
+            disabled={moat.blocked !== null || busy || !onRun}
+            busy={busy}
+            denied={denied}
+            onClick={() => onRun?.({ kind: 'moat' })}
+          />
+        )}
+        {children}
+      </div>
+    </Commands>
+  );
+}
+
+/** Stav tlačítek akcí panelu – zadá akci a do návratu serveru tlačítka zašedí. */
+function useFortAction(
+  fortificationId: number,
+  onAction: FortActionHandler | undefined,
+): { busy: boolean; run: ((segment: number | null, action: FortAction) => void) | undefined } {
+  const [busy, setBusy] = useState(false);
+  if (!onAction) return { busy, run: undefined };
+  return {
+    busy,
+    run: (segment, action) => {
+      if (busy) return;
+      setBusy(true);
+      void onAction(fortificationId, segment, action).finally(() => setBusy(false));
+    },
+  };
+}
+
 /** Tlačítko Přidat bránu – další klik na obvod přidá bránu (fortifications.md – Brány). */
 function GateButton({
   fortificationId,
@@ -230,24 +449,19 @@ function WorkBar({
 export function FortificationBody({
   details,
   gateMode = false,
-  onWork,
+  onAction,
   onGateMode,
 }: {
   details: Extract<SelectionDetails, { kind: 'fortification' }>;
   /** Hráč právě klikáním na obvod přidává bránu. */
   gateMode?: boolean;
-  /** Zadá vylepšení (server action) – hotovo, až se vrátí. */
-  onWork?: (fortificationId: number, work: 'upgrade' | 'top', top?: FortTop) => Promise<void>;
+  /** Zadá „Vylepšit vše“ či val pod celé opevnění (server action) – hotovo, až se vrátí. */
+  onAction?: FortActionHandler;
   /** Zapne / vypne přidávání brány kliknutím na obvod. */
   onGateMode?: (fortificationId: number | null) => void;
 }): ReactElement {
-  const [busy, setBusy] = useState(false);
+  const { busy, run } = useFortAction(details.id, onAction);
   const denied = useRightDenied('build');
-  const run = (work: 'upgrade' | 'top', top?: FortTop): void => {
-    if (!onWork || busy) return;
-    setBusy(true);
-    void onWork(details.id, work, top).finally(() => setBusy(false));
-  };
   const old = details.oldSegments > 0;
   return (
     <div className="hud-split">
@@ -276,42 +490,25 @@ export function FortificationBody({
           <Stat icon="cow" name="Útočiště – dobytek" testId="selection-fort-refuge-cattle">
             {formatInteger(details.refugeCattle)}
           </Stat>
+          <OccupancyStat occupancy={details.occupancy} />
           <WorkBar progress={details.progress} work={details.work} />
         </div>
       </div>
-      <Commands row>
-        {details.upgrade && (
-          <CommandButton
-            testId="fort-upgrade"
-            name="Vylepšit na palisádu"
-            icon={`/icons/resources/${FORT_ICONS.palisade}.png`}
-            option={details.upgrade}
-            disabled={details.upgrade.blocked !== null || busy || !onWork}
-            busy={busy}
-            denied={denied}
-            onClick={() => run('upgrade')}
-          />
-        )}
-        {details.tops?.map(({ top, option }) => (
-          <CommandButton
-            key={top}
-            testId={`fort-top-${top}`}
-            name={TOP_NAMES[top]}
-            icon={`/icons/resources/${FORT_ICONS[top]}.png`}
-            option={option}
-            disabled={option.blocked !== null || busy || !onWork}
-            busy={busy}
-            denied={denied}
-            onClick={() => run('top', top)}
-          />
-        ))}
+      <FortActionCommands
+        all
+        upgrades={details.upgrades}
+        rampartAdd={details.rampartAdd}
+        busy={busy}
+        denied={denied}
+        onRun={run && ((action) => run(null, action))}
+      >
         <GateButton
           fortificationId={details.id}
           gateMode={gateMode}
           onGateMode={onGateMode}
           denied={denied}
         />
-      </Commands>
+      </FortActionCommands>
     </div>
   );
 }
@@ -325,21 +522,27 @@ export function FortSectionBody({
   details,
   gateMode = false,
   onDemolish,
+  onAction,
   onGateMode,
 }: {
   details: Extract<SelectionDetails, { kind: 'fortification-section' }>;
   gateMode?: boolean;
   /** Zboří úsek s dílem `segment` (server action) – hotovo, až se vrátí. */
   onDemolish?: (fortificationId: number, segment: number) => Promise<void>;
+  /** Vylepšit úsek, doplnit val, napustit příkop (server action) – hotovo, až se vrátí. */
+  onAction?: FortActionHandler;
   onGateMode?: (fortificationId: number | null) => void;
 }): ReactElement {
-  const [busy, setBusy] = useState(false);
+  const [demolishing, setDemolishing] = useState(false);
+  const { busy: acting, run } = useFortAction(details.id, onAction);
+  const busy = demolishing || acting;
   const denied = useRightDenied('build');
   const { section } = details;
+  const segment = section.segments[0]!;
   const demolish = (): void => {
     if (!onDemolish || busy) return;
-    setBusy(true);
-    void onDemolish(details.id, section.segments[0]!).finally(() => setBusy(false));
+    setDemolishing(true);
+    void onDemolish(details.id, segment).finally(() => setDemolishing(false));
   };
   const old = section.oldParts > 0;
   const name = demolishName(details.fortKind, section.demolish.work);
@@ -351,7 +554,7 @@ export function FortSectionBody({
             {`${formatInteger(section.lengthM)} m`}
           </Stat>
           <Stat
-            icon={FORT_ICONS[details.fortKind]}
+            src={FORT_ICON_SRC[details.fortKind]}
             name="Díly úseku – hotové / všechny"
             testId="selection-fort-section-parts"
           >
@@ -381,10 +584,22 @@ export function FortSectionBody({
           )}
         </div>
         <div className={ROW}>
+          <AssaultStats assault={section.assault} />
+          <OccupancyStat occupancy={details.occupancy} />
+        </div>
+        <div className={ROW}>
           <WorkBar progress={details.progress} work={details.work} />
         </div>
       </div>
-      <Commands row>
+      <FortActionCommands
+        all={false}
+        upgrades={section.upgrades}
+        rampartAdd={section.rampartAdd}
+        moat={section.moat}
+        busy={busy}
+        denied={denied}
+        onRun={run && ((action) => run(segment, action))}
+      >
         <CommandButton
           testId="fort-demolish"
           name={name}
@@ -401,7 +616,7 @@ export function FortSectionBody({
           onGateMode={onGateMode}
           denied={denied}
         />
-      </Commands>
+      </FortActionCommands>
     </div>
   );
 }
@@ -415,9 +630,12 @@ export function FortGateBody({
   details,
   onSelectTarget,
   onReroute,
+  onAction,
 }: {
   details: Extract<SelectionDetails, { kind: 'fortification-gate' }>;
   onSelectTarget?: ((target: VillageTarget) => void) | undefined;
+  /** Klešťová brána či věž (server action) – hotovo, až se vrátí. */
+  onAction?: FortActionHandler;
   /**
    * Postaví zbořený úsek s dílem `segment` jinudy (demolition.md – Rozhodnutí) – otevře editor
    * trasy s konci v branách.
@@ -426,7 +644,14 @@ export function FortGateBody({
 }): ReactElement {
   const { gate, road } = details;
   const denied = useRightDenied('build');
+  const { busy, run } = useFortAction(details.id, onAction);
   const reroutes = details.reroutes ?? [];
+  const levels = (
+    [
+      ['pincer', gate.pincer, 'Klešťová brána', '/icons/resources/gate-pincer.svg'],
+      ['tower', gate.tower, 'Věž nad branou', '/icons/resources/gate-tower.svg'],
+    ] as const
+  ).filter((x) => x[1] !== null);
   const body = (
     <div className="flex min-w-0 flex-col justify-center gap-1.5">
       <div className={ROW}>
@@ -444,6 +669,7 @@ export function FortGateBody({
             {gate.ageYears}
           </Stat>
         )}
+        {gate.assault.length > 0 && <AssaultStats assault={gate.assault} />}
         {road && (
           <TargetButton
             src={`/icons/build/${ROAD_KIND_ICONS[road.roadKind]}.png`}
@@ -456,33 +682,56 @@ export function FortGateBody({
       </div>
     </div>
   );
-  if (reroutes.length === 0) return body;
+  if (reroutes.length === 0 && levels.length === 0) return body;
   return (
     <div className="hud-split">
       {body}
       <Commands row>
-        {reroutes.map((r) => (
+        {levels.map(([level, option, name, icon]) => (
           <CommandButton
-            key={r.segment}
-            testId="fort-reroute"
-            name={`Postavit úsek jinudy – ${FORT_NAMES[r.target].toLowerCase()}, body od brány k bráně`}
-            icon={`/icons/resources/${FORT_ICONS[r.target]}.png`}
-            tooltip={
-              <span className="flex flex-col gap-0.5">
-                <span>{`Postavit úsek jinudy – ${FORT_NAMES[r.target].toLowerCase()}`}</span>
-                {(details.contested || details.busy) && (
-                  <span data-testid="fort-blocked" className="font-semibold text-red-400">
-                    {details.contested ? FORT_UNDER_ATTACK : FORT_BUSY_TEXT}
-                  </span>
-                )}
-              </span>
-            }
-            disabled={details.busy === true || details.contested === true || !onReroute}
-            busy={false}
+            key={level}
+            testId={`fort-gate-${level}`}
+            name={name}
+            icon={icon}
+            option={option!}
+            disabled={option!.blocked !== null || busy || !run}
+            busy={busy}
             denied={denied}
-            onClick={() => onReroute?.(details.id, r.segment, r.target)}
+            onClick={() => run?.(gate.segment, { kind: 'gate', level })}
           />
         ))}
+        {reroutes.map((r) =>
+          [{ target: r.target, blocked: null as string | null }, ...r.others].map(
+            ({ target, blocked }, k) => {
+              const name = `Postavit úsek jinudy – ${FORT_NAMES[target].toLowerCase()}`;
+              const reason =
+                blocked ??
+                (details.contested ? FORT_UNDER_ATTACK : details.busy ? FORT_BUSY_TEXT : null);
+              return (
+                <CommandButton
+                  key={`${r.segment}-${target}`}
+                  testId={k === 0 ? 'fort-reroute' : `fort-reroute-${target}`}
+                  name={`${name}, body od brány k bráně`}
+                  icon={FORT_ICON_SRC[target]}
+                  tooltip={
+                    <span className="flex flex-col gap-0.5">
+                      <span>{name}</span>
+                      {reason && (
+                        <span data-testid="fort-blocked" className="font-semibold text-red-400">
+                          {reason}
+                        </span>
+                      )}
+                    </span>
+                  }
+                  disabled={reason !== null || !onReroute}
+                  busy={false}
+                  denied={denied}
+                  onClick={() => onReroute?.(details.id, r.segment, target)}
+                />
+              );
+            },
+          ),
+        )}
       </Commands>
     </div>
   );

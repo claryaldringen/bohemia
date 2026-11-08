@@ -28,6 +28,9 @@ const fort = (over: Partial<Omit<Fort, 'kind'>> = {}): Fort => ({
   refugeCattle: 168,
   sections: [],
   gateViews: [],
+  upgrades: [],
+  rampartAdd: null,
+  occupancy: { men: 12, lengthM: 238, share: 0.25 },
   ...over,
 });
 
@@ -49,7 +52,12 @@ const section = (
     oldParts: 1,
     ageYears: 12,
     demolish: { work: 'demolish', cost: { laborManDays: 16, logs: 6 }, blocked: null, ...demolish },
+    upgrades: [],
+    assault: [],
+    rampartAdd: null,
+    moat: null,
   },
+  occupancy: { men: 12, lengthM: 238, share: 0.25 },
   ...over,
 });
 
@@ -57,7 +65,7 @@ const render = (details: Fort | Section | Gate, extra: { gateFort?: number } = {
   renderToStaticMarkup(
     <SelectionPanel
       details={details}
-      onFortWork={() => Promise.resolve()}
+      onFortAction={() => Promise.resolve()}
       onFortDemolish={() => Promise.resolve()}
       onGateMode={() => undefined}
       {...extra}
@@ -80,33 +88,23 @@ describe('SelectionPanel – opevnění', () => {
     expect(html).not.toContain('data-old');
   });
 
-  it('plot nabízí vylepšení na palisádu, ne nástavbu na val', () => {
-    const html = render(fort({ upgrade: { cost: COST, blocked: null } }));
-    expect(button(html, 'fort-upgrade')).toBeDefined();
-    expect(button(html, 'fort-upgrade')).not.toContain('disabled=""');
-    expect(html).toContain('aria-label="Vylepšit na palisádu"');
-    expect(button(html, 'fort-top-fence')).toBeUndefined();
-  });
-
-  it('val nabízí nástavbu plotu a palisády', () => {
+  it('Vylepšit vše – vyšší stupně z nabídky jádra, zašedlé s důvodem; obsazení hradby', () => {
     const html = render(
       fort({
-        fortKind: 'rampart',
-        tops: [
-          { top: 'fence', option: { cost: COST, blocked: null } },
-          { top: 'palisade', option: { cost: COST, blocked: null } },
+        upgrades: [
+          { target: 'palisade', option: { cost: COST, blocked: null } },
+          { target: 'crib', option: { cost: COST, blocked: 'Roštová hradba až od roku 790.' } },
         ],
+        rampartAdd: { cost: { laborManDays: 360, logs: 0 }, blocked: null },
       }),
     );
-    expect(html).toContain('aria-label="Postavit na valu plot"');
-    expect(html).toContain('aria-label="Postavit na valu palisádu"');
-    expect(button(html, 'fort-upgrade')).toBeUndefined();
-  });
-
-  it('bez dřeva je vylepšení zašedlé s důvodem „Chybí 120 klád.“', () => {
-    const html = render(fort({ upgrade: { cost: COST, blocked: 'Chybí 120 klád.' } }));
-    expect(button(html, 'fort-upgrade')).toContain('disabled=""');
-    expect(html).toMatch(/data-testid="fort-blocked"[^>]*>Chybí 120 klád\.</);
+    expect(button(html, 'fort-upgrade-all-palisade')).not.toContain('disabled=""');
+    expect(html).toContain('aria-label="Vylepšit vše na palisádu"');
+    expect(button(html, 'fort-upgrade-all-crib')).toContain('disabled=""');
+    expect(html).toMatch(/data-testid="fort-blocked"[^>]*>Roštová hradba až od roku 790\.</);
+    expect(button(html, 'fort-rampart-add')).not.toContain('disabled=""');
+    expect(html).toMatch(/data-testid="selection-fort-occupancy"[^>]*>25 %/);
+    expect(html).toContain('Obsazení hradby – 12 mužů na 238 m');
   });
 
   it('úseky za životností oranžově, stavba průběhem a brána tlačítkem', () => {
@@ -132,7 +130,7 @@ describe('SelectionPanel – opevnění', () => {
     expect(html).not.toContain('selection-fort-length');
     expect(html).not.toContain('selection-fort-gates');
     expect(html).not.toContain('selection-fort-refuge-people');
-    expect(button(html, 'fort-upgrade')).toBeUndefined();
+    expect(button(html, 'fort-upgrade-palisade')).toBeUndefined();
     expect(html).toContain('Polský plot – úsek');
   });
 
@@ -172,7 +170,15 @@ describe('SelectionPanel – opevnění', () => {
       kind: 'fortification-gate',
       id: 7,
       fortKind: 'palisade',
-      gate: { segment: 2, state: 0.7, old: true, ageYears: 30 },
+      gate: {
+        segment: 2,
+        state: 0.7,
+        old: true,
+        ageYears: 30,
+        pincer: null,
+        tower: null,
+        assault: [],
+      },
       road: { id: 40, segment: 41, roadKind: 'improved' },
     };
     const html = render(gate);
