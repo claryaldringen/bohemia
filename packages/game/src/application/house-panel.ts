@@ -1,6 +1,7 @@
 import { canOpen, respondingHouse, type TermItem } from '../domain/negotiation';
 import { treeBelowDepths } from '../domain/vassalage/tree';
 import { VASSALAGE } from '../domain/vassalage/rules-vassalage';
+import { cattleFoodKg } from '../domain/vassalage/domain-food';
 import type { VassalTerms } from '../domain/vassalage/terms';
 import type { HungerLevel } from '../domain/village';
 import { INVITES, isInviteUnused } from '../domain/world';
@@ -169,6 +170,16 @@ export interface PanelStewardship {
   stewardHouseId: string;
 }
 
+/** Jídlo domény hráče (hillfort.md – Přehled jídla domény). */
+export interface PanelDomainFood {
+  /** Sídla domény se souhrnem současné verze (bez souhrnu řádek chybí). */
+  villages: { villageId: string; name: string; growsKg: number; needsKg: number }[];
+  /** Vazalové hráče s domluvenou dávkou jídla – „Domluveno – nemusí přijít“. */
+  vassals: { houseId: string; grainKg: number; cattle: number }[];
+  /** Σ (growsKg − needsKg) + Σ obilí vazalů + cattleFoodKg(dobytek vazalů); kg obilí. */
+  totalKg: number;
+}
+
 /** Data panelu; web z nich složí `HouseView`. */
 export interface HousePanelData {
   /** Hráč má živý rod (bez něj je panel prázdný). */
@@ -211,6 +222,8 @@ export interface HousePanelData {
   disputes: PanelDispute[];
   /** Spoluvazalové hráče (společný pán) – tlačítko žaloby. */
   fellows: PanelFellow[];
+  /** Jídlo domény; null bez rodu nebo bez aktivní vsi. */
+  domainFood: PanelDomainFood | null;
   /** Do kdy trvá ochrana nového rodu (štít s hodinami); null – rod chráněn není. */
   protectedUntil: Date | null;
   /** Rod je odříznutý nováček – ještě není na mapě světa (newcomers.md). */
@@ -231,7 +244,7 @@ export interface HousePanelDeps {
   dialogs: DialogRepository;
   /** Správy cizích vsí a jména vsí k nim; bez nich panel správy nenese. */
   stewardships?: Pick<StewardshipRepository, 'listByHolderHouse' | 'listByStewardHouse'>;
-  villages?: Pick<VillageRepository, 'find' | 'digestsOf'>;
+  villages?: Pick<VillageRepository, 'find' | 'digestsOf' | 'stampsOf'>;
   /** Války a ochrana nováčka; bez nich panel válku nenese. */
   wars?: Pick<WarRepository, 'activeOf' | 'activeBetween' | 'ownAttackAt'>;
   /** Spory a rozsudky pána (bez nich panel spory neukazuje). */
@@ -256,6 +269,7 @@ const EMPTY: HousePanelData = {
   wars: [],
   disputes: [],
   fellows: [],
+  domainFood: null,
   protectedUntil: null,
   isolated: false,
   inviteReason: null,
@@ -308,6 +322,51 @@ function worstHunger(entry: DirectoryEntry | undefined): HungerLevel | null {
  * už slouží ve válce, z počtu odečte F6 (válka) – rodokmen je zatím nezná.
  */
 export const serviceMen = (house: PublicHouse): number => house.men.length;
+
+/**
+ * Jídlo domény: sídla hráče se souhrnem současné verze a vazalové s domluvenou dávkou jídla
+ * (to, co se domluvilo, ne co vazal ten rok skutečně dá). Dobytek se počítá masem (návrh Clauda –
+ * stejně jako při rozdělení). Bez aktivní vsi null.
+ */
+async function domainFoodOf(
+  deps: HousePanelDeps,
+  playerId: string,
+  agreements: readonly PanelAgreement[],
+): Promise<PanelDomainFood | null> {
+  if (!deps.villages) return null;
+  const settlements = await deps.settlements.listActive(playerId);
+  const stamps = (await deps.villages.stampsOf(settlements.map((s) => s.id))).filter(
+    (s) => !s.asleep,
+  );
+  if (stamps.length === 0) return null;
+  const digests = new Map(
+    (await deps.villages.digestsOf(stamps.map((s) => s.id))).map((d) => [d.id, d]),
+  );
+  const villages = stamps.flatMap((stamp) => {
+    const food = digests.get(stamp.id)?.digest.food;
+    return food ? [{ villageId: stamp.id, name: stamp.name, ...food }] : [];
+  });
+  const vassals = agreements.flatMap((a) => {
+    const tribute = a.other === 'vassal' ? a.terms.tribute : undefined;
+    if (!tribute) return [];
+    const cattle = tribute.cattle.cows + tribute.cattle.youngOxen + tribute.cattle.trainedOxen;
+    return tribute.grainKg > 0 || cattle > 0
+      ? [{ houseId: a.otherHouseId, grainKg: tribute.grainKg, cattle }]
+      : [];
+  });
+  const cattleKg = cattleFoodKg(
+    vassals.reduce((sum, v) => ({ ...sum, cows: sum.cows + v.cattle }), {
+      cows: 0,
+      youngOxen: 0,
+      trainedOxen: 0,
+    }),
+  );
+  const totalKg =
+    villages.reduce((sum, v) => sum + v.growsKg - v.needsKg, 0) +
+    vassals.reduce((sum, v) => sum + v.grainKg, 0) +
+    cattleKg;
+  return { villages, vassals, totalKg };
+}
 
 /** Data panelu hráče ke dni `today`. */
 export async function housePanel(
@@ -551,6 +610,7 @@ export async function housePanel(
     negotiations,
     actions,
     stewardships: await stewardshipsOf(deps, own.id),
+    domainFood: await domainFoodOf(deps, input.playerId, agreements),
     wars: activeWars.map((w): PanelWar => ({
       warId: w.id,
       other: publicOf(warOpponent(w, own.id)),

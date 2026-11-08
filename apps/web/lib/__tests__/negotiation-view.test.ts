@@ -64,6 +64,7 @@ describe('negotiationView', () => {
       protectedUntil: null,
       disputes: [],
       fellows: [],
+      domainFood: null,
       agreements: [],
       tree: [],
       status: {},

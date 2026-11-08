@@ -178,6 +178,14 @@ se **jen na vyžádání** (server action `houseSpare`), načítá stavy vsí ro
 pánům. Akce serveru: `houseSpare`, `renounceVassalage` (`apps/web/app/game/actions.ts`,
 `lib/house.ts`, vstupy `lib/house-input.ts`).
 
+**Jídlo domény v panelu** (`HousePanelData.domainFood`, `PanelDomainFood`, hradiště – úloha 9):
+`domainFoodOf` vezme aktivní sídla hráče (`listActive` → `villages.stampsOf` bez `asleep` →
+`digestsOf` → `digest.food`); ves bez souhrnu současné verze nebo bez lidí řádek nemá. Vazalové
+= dohody s `other === 'vassal'` a `terms.tribute` s obilím nebo dobytkem (kusy = součet tří druhů);
+počítá se **domluvené**, ne co vazal ten rok skutečně dá. `totalKg` = Σ (`growsKg` − `needsKg`)
++ obilí vazalů + `cattleFoodKg` (dobytek masem, návrh Clauda – jako při rozdělení). Bez rodu nebo bez
+aktivní vsi (i bez `deps.villages`) `null`; panel nese i hráč s jedinou vsí.
+
 Rozhraní podmínek (ikony, formulář s výhledem, Nové podmínky, Vypovědět): [web-ui.md](web-ui.md) – „Podmínky vazalství v panelu“.
 
 ## Roční Odvody (`application/annual-levies.ts`, `dialogs.ts`, `domain/vassalage/levy.ts`, úloha 4.4)
