@@ -35,7 +35,10 @@ hráč)`) a rod s `house.placed_at` null. Pozvaný je na mapě hned (`placed_at`
   Sídelní sídlo (odříznuté i pozvaného) má prémiovou krajinu (`Settlement.premiumType` –
   landscape.md, Přidělení typu); vsi synů průměrnou, umístění shluku typ nemění.
 - **Vsi syna** v odříznuté krajině: `targetSettlement` → `isolatedTarget` – soused v místní mřížce,
-  seed `isolated:<rod>:x,y`, unikátní index `settlement_local_idx` (hráč + místní poloha).
+  seed `isolated:<rod>:x,y`, unikátní index `settlement_local_idx` (hráč + místní poloha). Zápis je
+  podmíněný: `settlements.create` s `localCell` v transakci zamkne řádek rodu `FOR SHARE`
+  (`placed_at IS NULL`) – umístění (`claim`) počká; rod mezitím umístěný → null a odchod pokračuje
+  větví světa s čerstvým sídlem (`settlements.find`).
 - **Nikdo ho nevidí:** adresář (`nearestHouses`, `entriesOf` – jen `placed_at IS NOT NULL` a sídlo
   s `grid_*`), `openNegotiation` (odříznutý jen žádá o pána – `newcomer: true`; na odříznutý cíl
   `NEWCOMER_REASONS.isolatedTarget`), `declareWar`, `prepareCampaign` (plán i vyslání tažení –
@@ -52,7 +55,13 @@ hráč)`) a rod s `house.placed_at` null. Pozvaný je na mapě hned (`placed_at`
   `adapters/newcomer-placement.ts`): advisory zámek umisťování → podmíněné `placed_at IS NULL`
   (prohra = „Nováček už má pána.“) → `placeCluster` celého shluku (vazal u sídla pána, svobodný
   u map rodů svého jazyka) → `moveIsolated` jedním UPDATE → vazalství `origin` `newcomer` /
-  `newcomer-lot`. `acceptNegotiation` ho volá **před** změnou stavu jednání; ostatní žádosti zavře
+  `newcomer-lot`; `moveIsolated` bere stejná sídla jako `isolatedCells` (bez `pending_owner_id`).
+  Žádost nováčka (`openNegotiation` s `newcomer`) se zapisuje pod zámkem řádku rodu
+  (`PlacementTx.lockIsolated`, `FOR UPDATE`): souběžné výběry dohromady nejvýš
+  `NEWCOMERS.maxChoices`, po umístění žádná; `startFree` po umístění žádosti zavře ještě jednou.
+  Los (`drawNewcomerLot`) v transakci zamkne vylosovanou žádost (`getForUpdate`, musí být `open`,
+  jinak los příští kolo) – stejné pořadí zámků jako přijetí; chyba jednoho rodu kolo nepřeruší
+  (vyhodí se na konci). `acceptNegotiation` ho volá **před** změnou stavu jednání; ostatní žádosti zavře
   `closeNewcomerRequests` až po transakci (jiné řádky jednání se v ní nezamykají – bez uváznutí;
   zaniklé `ended` → pozdější přijetí „Nováček už má pána.“, pánům `newcomer-taken`).
 - **Svobodný:** `startFree` stáhne žádosti (`withdrawn`) a umístí bez pána; `withdrawNegotiation`

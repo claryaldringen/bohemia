@@ -6,6 +6,7 @@ import {
   acceptNegotiation,
   CURRENT_LAYER_VERSIONS,
   NEWCOMER_REASONS,
+  NEWCOMERS,
   openNegotiation,
   WORLD,
   cellDistance,
@@ -122,5 +123,39 @@ describe('umístění nováčka (Drizzle)', () => {
     // obě žádosti jsou uzavřené – přijatá a zaniklá
     const statuses = (await db.select().from(schema.negotiation)).map((r) => r.status).sort();
     expect(statuses).toEqual(['accepted', 'ended']);
+  });
+
+  it('souběžné žádosti nováčka – nejvýš 5 otevřených; po umístění žádná a místní sídlo nevznikne', async () => {
+    const lords = await Promise.all(
+      Array.from({ length: 7 }, (_, i) => lord(`l${i}`, 10 * (i + 1))),
+    );
+    const n = await newcomer();
+    const open = (to: string): ReturnType<typeof openNegotiation> =>
+      openNegotiation(deps, {
+        playerId: 'n',
+        to,
+        items: [{ kind: 'oath', lord: to, vassal: n }],
+        message: null,
+        now: NOW,
+        today: 10,
+        newcomer: true,
+      });
+    const results = await Promise.all(lords.slice(0, 6).map(open));
+    expect(results.filter((r) => r.ok)).toHaveLength(NEWCOMERS.maxChoices);
+    expect(results.filter((r) => !r.ok)).toEqual([{ ok: false, reason: NEWCOMER_REASONS.choices }]);
+    await db
+      .update(schema.house)
+      .set({ placedAt: NOW })
+      .where(sql`id = ${n}`);
+    await db.execute(sql`UPDATE negotiation SET status = 'withdrawn'`);
+    expect(await open(lords[6]!)).toEqual({ ok: false, reason: NEWCOMER_REASONS.placed });
+    // odchod syna u umístěného rodu nezapíše sídlo v místní mřížce (podmíněný zápis)
+    const created = await settlements.create({
+      ownerId: 'n',
+      landscapeSeed: 9,
+      layerVersions: CURRENT_LAYER_VERSIONS,
+      localCell: { x: 2, y: 0 },
+    });
+    expect(created).toBeNull();
   });
 });

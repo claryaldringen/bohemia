@@ -53,6 +53,7 @@ import { chronicleWar } from './war-chronicle';
 import { sendShipment, type ShipmentDeps } from './shipments';
 import type { Vassalage } from './vassalages';
 import type { WorldDirectory } from './world-directory';
+import { NEWCOMERS } from '../domain/world';
 import {
   NEWCOMER_REASONS,
   closeNewcomerRequests,
@@ -414,6 +415,15 @@ export async function openNegotiation(
   const round = opened.negotiation.rounds[0];
   if (!round) return fail(R.badOath);
   const result = await deps.negotiations.transaction(async (tx): Promise<NegotiateResult> => {
+    if (newcomer) {
+      // žádosti nováčka po jedné pod zámkem řádku rodu: souběžné výběry dohromady nejvýš 5
+      // a po umístění žádná nepřibude (newcomers.md)
+      if (!(await tx.placement.lockIsolated(from.id))) return fail(NEWCOMER_REASONS.placed);
+      const pending = (await tx.openOf(from.id)).filter(
+        (r) => r.newcomer && r.initiatorHouseId === from.id,
+      );
+      if (pending.length >= NEWCOMERS.maxChoices) return fail(NEWCOMER_REASONS.choices);
+    }
     const reason = canOpen({
       from: from.id,
       to: input.to,

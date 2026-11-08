@@ -19,6 +19,14 @@ export function createPlacementTx(db: Executor): PlacementTx {
     async lockPlacement(): Promise<void> {
       await db.execute(sql`SELECT pg_advisory_xact_lock(${NEWCOMER_PLACEMENT_LOCK}, 0)`);
     },
+    async lockIsolated(houseId): Promise<boolean> {
+      const rows = await db
+        .select({ id: house.id })
+        .from(house)
+        .where(and(eq(house.id, houseId), isNull(house.placedAt), isNull(house.endedAt)))
+        .for('update');
+      return rows.length > 0;
+    },
     async claim(houseId, at): Promise<boolean> {
       const rows = await db
         .update(house)
@@ -95,6 +103,8 @@ export function createPlacementTx(db: Executor): PlacementTx {
           and(
             eq(settlement.ownerId, ownerId),
             isNull(settlement.archivedAt),
+            // stejný výběr jako `isolatedCells` – přesouvá se jen to, s čím počítal `placeCluster`
+            isNull(settlement.pendingOwnerId),
             isNotNull(settlement.localX),
           ),
         );
