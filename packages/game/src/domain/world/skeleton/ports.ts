@@ -51,3 +51,30 @@ export function riverPortAtBase(base: number, a: GridCell, b: GridCell): number 
 export function riverPortAt(worldSeed: number, a: GridCell, b: GridCell): number {
   return riverPortAtBase(skeletonBase(worldSeed), a, b);
 }
+
+const TRAIL_PORT_SALTS = { ns: SKELETON_SALT.trailPortNS, ew: SKELETON_SALT.trailPortEW };
+
+/**
+ * Bod stezky na hraně mezi sousedními políčky a a b (24–103), stejný z obou stran. Na hraně
+ * s řekou (`riverAt` = bod řeky) leží aspoň `trailGap` políček od něj (world-skeleton.md – Body
+ * na okraji): los vybírá jen z dovolených políček.
+ */
+export function trailPortAt(
+  worldSeed: number,
+  a: GridCell,
+  b: GridCell,
+  riverAt: number | null,
+): number {
+  const unit = edgeUnit(skeletonBase(worldSeed), TRAIL_PORT_SALTS, a, b);
+  if (riverAt === null) return portFromUnit(unit);
+  const { margin, trailGap } = SKELETON.port;
+  const first = margin;
+  const last = LANDSCAPE_SIZE - 1 - margin;
+  const allowed: number[] = [];
+  for (let at = first; at <= last; at++) {
+    if (Math.abs(at - riverAt) >= trailGap) allowed.push(at);
+  }
+  const picked = allowed[Math.floor(unit * allowed.length)];
+  if (picked === undefined) throw new RangeError('Bod stezky nemá kam na hranu s řekou.');
+  return picked;
+}

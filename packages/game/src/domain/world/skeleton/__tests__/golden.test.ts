@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { deriveSeed } from '../../../landscape/random';
 import { skeletonKey, type SkeletonSlice } from '../../../landscape/skeleton/types';
-import { createSkeletonCache, skeletonSlice } from '..';
+import { createSkeletonCache, seatSlot, skeletonSlice } from '..';
 
 // Zlatý otisk kostry světa – po ostrém spuštění se nesmí změnit (world-skeleton.md – Uložení).
 // Změna odvodnění, bodů na okraji nebo čísel SKELETON = nová verze grafu kostry (`world`).
@@ -31,5 +31,12 @@ describe('zlatý otisk kostry', () => {
   it('řeky (okno 32 × 32, seed 20270101)', () => {
     // v okně je 100 map s řekou
     expect(fingerprint(riverKey)).toBe(4193049158);
+  });
+
+  it('celá kostra – řeky, stezky a místa (okno 32 × 32, seed 20270101)', () => {
+    // klíč výřezu (řeky i stezky) a místo sídla; po ostrém spuštění se nesmí změnit
+    const keyOf = (slice: SkeletonSlice | null): string =>
+      `${skeletonKey(slice)}#${seatSlot(slice)}`;
+    expect(fingerprint(keyOf)).toBe(2488818595);
   });
 });

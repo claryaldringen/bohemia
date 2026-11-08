@@ -15,6 +15,15 @@ export const SKELETON_SALT = {
   riverPortNS: 4,
   /** Bod řeky na hraně mezi políčky v řádku (východ–západ). */
   riverPortEW: 5,
+  /** Poloha uzlu stezky v bloku – sloupec a řádek. */
+  trailNodeX: 6,
+  trailNodeY: 7,
+  /** Existence spojení uzlu na východ a na sever. */
+  trailEdgeE: 8,
+  trailEdgeN: 9,
+  /** Bod stezky na hraně mezi políčky ve sloupci (sever–jih) a v řádku (východ–západ). */
+  trailPortNS: 10,
+  trailPortEW: 11,
 } as const;
 
 /** Základ hashů kostry – z hlavního seedu světa (jiné vrstvy mají vlastní `deriveSeed`). */
