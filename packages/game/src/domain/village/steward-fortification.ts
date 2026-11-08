@@ -66,10 +66,13 @@ export function planLifeYears(plan: FortPlan): number {
   return Number.MAX_SAFE_INTEGER;
 }
 
-/** Druh opevnění, které ves má (druh + hotová nástavba). */
+/**
+ * Druh opevnění, které ves má (druh + hotová nástavba). Vyšší stupně hradby než palisáda správce
+ * zatím počítá jako palisádu (ochranu druhu přidá další úloha – Hradby a obrana, Správce).
+ */
 export function planOf(kind: FortKind, top: FortTop | undefined): FortPlan {
-  if (kind !== 'rampart') return kind;
-  return top === 'fence' ? 'rampart-fence' : top === 'palisade' ? 'rampart-palisade' : 'rampart';
+  if (kind !== 'rampart') return kind === 'fence' ? 'fence' : 'palisade';
+  return top === undefined ? 'rampart' : top === 'fence' ? 'rampart-fence' : 'rampart-palisade';
 }
 
 /**

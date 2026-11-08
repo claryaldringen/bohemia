@@ -1,7 +1,10 @@
 import type { Point } from '../polygon';
+import { FORTIFICATIONS } from '../rules-fortifications';
 import type { GridGeometry } from '../square-grid';
 import { fortOutlineOf, type FortShapeSource } from './convert';
+import { segmentBuilt, segmentKind, segmentWall } from './life';
 import { runEnd, type FortOutline } from './outline';
+import type { FortSegment, Fortification } from './types';
 
 // Pás opevnění (fortifications.md – Obvod): leží uvnitř obvodu podél křivky, křivka je jeho vnější
 // okraj. Pás každého kusu lomené čáry je čtyřúhelník kus × šířka pásu dovnitř (plocha vpravo od
@@ -130,6 +133,7 @@ export interface BandFortification extends FortShapeSource {
   readonly segments: readonly {
     readonly index: number;
     readonly builtDay: number | null;
+    readonly topBuiltDay?: number | null;
     readonly demolishedDay?: number;
   }[];
 }
@@ -148,10 +152,36 @@ export function fortificationBand(
   if (!outline) return [];
   const built = new Set(
     fort.segments
-      .filter((s) => s.builtDay !== null && s.demolishedDay === undefined)
+      .filter((s) => segmentBuilt(s) && s.demolishedDay === undefined)
       .map((s) => s.index),
   );
   return fortBandPieces(outline)
     .filter((p) => building || built.has(p.index))
     .map((p) => p.corners);
+}
+
+/**
+ * Pás úseku od křivky obvodu (fortifications.md – Hradby a obrana, Druhy): dovnitř (`inM`) a ven
+ * (`outM`), m. Hradba bez valu má pás druhu (`bandM`), hradba na valu pás s valem
+ * (`wallOnRampartBandM`), holý val 10 m; val doplněný vně hradby (`rampartOutside`) sahá 7 m ven
+ * a dovnitř šířkou hradby, nejméně 3 m. Hradba se počítá i rozestavěná – pás, jak bude postaven.
+ */
+export function segmentBand(
+  fort: Pick<Fortification, 'kind' | 'top'>,
+  segment: Pick<FortSegment, 'kind' | 'top' | 'builtDay' | 'topBuiltDay' | 'rampartOutside'>,
+): { inM: number; outM: number } {
+  const kind = segmentKind(fort, segment);
+  if (kind !== 'rampart') return { inM: FORTIFICATIONS.bandM[kind], outM: 0 };
+  const wall = segmentWall(fort, segment);
+  if (segment.rampartOutside) {
+    const out = FORTIFICATIONS.rampartOutside;
+    return {
+      inM: Math.max(wall ? FORTIFICATIONS.bandM[wall.kind] : 0, out.minInM),
+      outM: out.outM,
+    };
+  }
+  return {
+    inM: wall ? FORTIFICATIONS.wallOnRampartBandM[wall.kind] : FORTIFICATIONS.bandM.rampart,
+    outM: 0,
+  };
 }

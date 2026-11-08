@@ -11,7 +11,11 @@ import {
   roadGates,
   sectionOf,
   sectionPieces,
-  segmentTop,
+  layerBuilt,
+  segmentBuilt,
+  segmentKind,
+  segmentRampart,
+  segmentWall,
   type FortGate,
   type FortOutline,
   type FortSegmentShape,
@@ -78,11 +82,6 @@ export function villageFortifications(
   state: Pick<VillageState, 'fortifications'>,
 ): Fortification[] {
   return state.fortifications ?? [];
-}
-
-/** Druh, který na úseku stojí (rozdělané vylepšení – úsek s hotovou palisádou). */
-export function segmentKind(fort: Fortification, segment: FortSegment): FortKind {
-  return segment.kind ?? fort.kind;
 }
 
 /** Obvod opevnění druhu `kind` (bez údaje druh opevnění) – tvar z uložených bodů. */
@@ -371,7 +370,7 @@ export function startFortificationUpgrade(
     // zbořený díl zůstává mezerou (demolition.md – Opevnění)
     const todo = new Set(
       fort.segments
-        .filter((s) => segmentKind(fort, s) !== 'palisade' && s.demolishedDay === undefined)
+        .filter((s) => segmentWall(fort, s)?.kind !== 'palisade' && s.demolishedDay === undefined)
         .map((s) => s.index),
     );
     const order = fortWorkOrder(shapes.length, fort.gates, anchor).filter((i) => todo.has(i));
@@ -395,17 +394,14 @@ export function startFortificationUpgrade(
   // nástavba na valu (fortifications.md – Druhy): jen na hotový val, kdykoli později
   if (fort.kind !== 'rampart') return { ok: false, reason: FORT_NOT_RAMPART };
   if (busy) return { ok: false, reason: FORT_BUSY };
-  if (fort.segments.some((s) => s.builtDay === null)) {
+  if (fort.segments.some((s) => segmentRampart(fort, s)?.builtDay === null)) {
     return { ok: false, reason: FORT_RAMPART_UNFINISHED };
   }
   const top = input.top ?? fort.top ?? 'fence';
   // srovnaný val nástavbu nedostane; díl se zbořenou nástavbou ji dostane znovu
   const todo = new Set(
     fort.segments
-      .filter(
-        (s) =>
-          (s.topBuiltDay === undefined || s.topBuiltDay === null) && s.demolishedDay === undefined,
-      )
+      .filter((s) => !layerBuilt(segmentWall(fort, s)) && s.demolishedDay === undefined)
       .map((s) => s.index),
   );
   // rozdělaná nástavba (zrušená stavba) se dostaví stejným druhem
@@ -461,9 +457,9 @@ export function addGateToFortification(
   return { ok: true, state: next };
 }
 
-/** Stojí na dílu valu nástavba (plot či palisáda dokončená a nezbořená)? */
+/** Stojí na dílu valu hradba (dokončená a nezbořená)? */
 function topStands(fort: Fortification, s: FortSegment): boolean {
-  return segmentTop(fort, s) !== null && s.topBuiltDay !== undefined && s.topBuiltDay !== null;
+  return segmentRampart(fort, s) !== null && layerBuilt(segmentWall(fort, s));
 }
 
 /** Vstup zboření – opevnění a díl, na který hráč klikl (úsek dohledá server). */
@@ -529,7 +525,7 @@ function demolitionPlan(
   const parts: DemolitionPiece[] = [];
   for (const piece of pieces) {
     const seg = fort.segments.find((x) => x.index === piece.index);
-    if (seg && seg.builtDay !== null && !pieceGone(seg, piece.part)) parts.push({ seg, ...piece });
+    if (seg && segmentBuilt(seg) && !pieceGone(seg, piece.part)) parts.push({ seg, ...piece });
   }
   if (parts.length === 0) return { reason: FORT_SECTION_GONE };
   const rampart = fort.kind === 'rampart';
@@ -546,7 +542,7 @@ function demolitionPlan(
       labor += DEMOLITION.rampartLaborShare * cost;
       return { index: seg.index, ...at, cost: DEMOLITION.rampartLaborShare * cost };
     }
-    const top = rampart ? segmentTop(fort, seg) : null;
+    const top = rampart ? (segmentWall(fort, seg)?.kind ?? null) : null;
     const cost = top
       ? fortificationCost(top, lengthM, 'top')
       : fortificationCost(segmentKind(fort, seg), lengthM, 'new');
@@ -630,7 +626,7 @@ function demolishSegment(
     return;
   }
   delete s.breachedDay;
-  if (segmentKind(fort, s) === 'rampart' && topStands(fort, s)) {
+  if (topStands(fort, s)) {
     s.top = 'none';
     delete s.topBuiltDay;
     s.state = 1;
@@ -662,7 +658,7 @@ function settleDemolition(state: VillageState, fort: Fortification, c: Construct
       delete s.topBuiltDay;
     }
   }
-  if (!fort.segments.some((s) => s.builtDay !== null && s.demolishedDay === undefined)) {
+  if (!fort.segments.some((s) => segmentBuilt(s) && s.demolishedDay === undefined)) {
     state.fortifications = villageFortifications(state).filter((f) => f.id !== fort.id);
   }
   return logs;
@@ -678,18 +674,18 @@ function segmentDone(
   if (c.fortWork === 'level') return pieceGone(s, part);
   if (c.fortWork === 'demolish') {
     if (part !== undefined) return pieceGone(s, part);
-    return segmentKind(fort, s) === 'rampart' ? !topStands(fort, s) : s.demolishedDay !== undefined;
+    return segmentRampart(fort, s) !== null ? !topStands(fort, s) : s.demolishedDay !== undefined;
   }
-  if (c.fortWork === 'upgrade') return segmentKind(fort, s) === 'palisade';
-  if (c.fortWork === 'top') return s.topBuiltDay !== undefined && s.topBuiltDay !== null;
-  // přestavba: úsek (nebo nástavba valu) dostavěný po založení stavby
+  if (c.fortWork === 'upgrade') return segmentWall(fort, s)?.kind === 'palisade';
+  if (c.fortWork === 'top') return layerBuilt(segmentWall(fort, s));
+  // přestavba: val nebo hradba dílu dostavěné po založení stavby
   if (c.fortWork === 'rebuild') {
-    return (
-      (s.builtDay !== null && s.builtDay > c.startedDay) ||
-      (s.topBuiltDay !== undefined && s.topBuiltDay !== null && s.topBuiltDay > c.startedDay)
-    );
+    const after = (layer: { builtDay: number | null } | null): boolean =>
+      layer !== null && layer.builtDay !== null && layer.builtDay > c.startedDay;
+    return after(segmentRampart(fort, s)) || after(segmentWall(fort, s));
   }
-  return s.builtDay !== null;
+  // stavba: základ úseku – val, bez valu hradba
+  return layerBuilt(segmentRampart(fort, s) ?? segmentWall(fort, s));
 }
 
 /**
@@ -761,7 +757,9 @@ export function finishFortification(
   }
   if (c.fortWork !== 'upgrade') return null;
   if (
-    fort.segments.every((s) => s.demolishedDay !== undefined || segmentKind(fort, s) === 'palisade')
+    fort.segments.every(
+      (s) => s.demolishedDay !== undefined || segmentWall(fort, s)?.kind === 'palisade',
+    )
   ) {
     fort.kind = 'palisade';
     for (const s of fort.segments) delete s.kind;
@@ -784,14 +782,11 @@ export function dropFortificationWork(next: VillageState, c: Construction): void
     settleDemolition(next, fort, c);
     return;
   }
-  if (c.fortWork === 'build' && fort.segments.every((s) => s.builtDay === null)) {
+  if (c.fortWork === 'build' && fort.segments.every((s) => !segmentBuilt(s))) {
     next.fortifications = forts.filter((f) => f.id !== fort.id);
     return;
   }
-  if (
-    c.fortWork === 'top' &&
-    fort.segments.every((s) => s.topBuiltDay === undefined || s.topBuiltDay === null)
-  ) {
+  if (c.fortWork === 'top' && fort.segments.every((s) => !layerBuilt(segmentWall(fort, s)))) {
     delete fort.top;
     for (const s of fort.segments) delete s.topBuiltDay;
   }

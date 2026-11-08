@@ -19,6 +19,13 @@ export interface FortGate {
   /** Střed brány ve světě (m) – bod křivky. */
   x: number;
   z: number;
+  /**
+   * Klešťová brána (fortifications.md – Hradby a obrana, Brány): den dokončení ramen, null = staví
+   * se. Chybí = prostá brána.
+   */
+  pincerDay?: number | null;
+  /** Věž nad branou (Hradby a obrana – Brány): den dokončení, null = staví se. Chybí = bez věže. */
+  towerDay?: number | null;
 }
 
 /** Proč bránu nejde přidat: klik daleko od obvodu, úsek už bránu má. */

@@ -5,7 +5,7 @@ import type { FortKind } from '../types';
 import { bandPieces } from './band';
 import { fortPointsOf, type FortShapeSource } from './convert';
 import { gateChord, type FortGate } from './gates';
-import { segmentStands } from './life';
+import { segmentBuilt, segmentKind, segmentStands } from './life';
 import { fortificationOutline, outlinePointAt, type FortOutline } from './outline';
 import { fortSegments } from './segments';
 import type { FortBuildWork } from './types';
@@ -135,6 +135,7 @@ export interface WallFortification extends FortShapeSource {
   readonly segments: readonly {
     readonly index: number;
     readonly builtDay: number | null;
+    readonly topBuiltDay?: number | null;
     readonly breachedDay?: number;
     readonly demolishedDay?: number;
     readonly demolishedBeforeGate?: number;
@@ -181,12 +182,12 @@ export function segmentBlockKind(
 ): FortKind | null {
   if (segment.breachedDay !== undefined || segment.demolishedDay !== undefined) return null;
   const upgrade = work === 'upgrade';
-  if (segment.builtDay === null) {
+  if (!segmentBuilt(segment)) {
     if (work !== 'build' && !upgrade) return null;
     return upgrade ? 'palisade' : fort.kind;
   }
   if (!segmentStands(fort, segment)) return null;
-  return upgrade ? 'palisade' : (segment.kind ?? fort.kind);
+  return upgrade ? 'palisade' : segmentKind(fort, segment);
 }
 
 /** Blokující úseky opevnění – index a druh pásu (`segmentBlockKind`), v pořadí obvodu. */

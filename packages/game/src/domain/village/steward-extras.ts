@@ -16,7 +16,7 @@ import { oxPens, PEN_BY_SPECIES } from './oxen';
 import { herdRoom, herdsOverRoom, penCapacity } from './pens';
 import { placementVillageOf } from './placement-village';
 import { penSquaresFromCells } from './placement-pens';
-import { villageThreat } from './fortification';
+import { segmentRampart, segmentWall, villageThreat } from './fortification';
 import { villageFortifications } from './fortifications';
 import {
   fortHorizonYears,
@@ -67,7 +67,7 @@ import { villageThreshingFloors } from './threshing-floors';
 import { planTrail, villageTrails, DIRECTIONS } from './trail';
 import { DIRECTION_VECTORS } from './trail-axis';
 import { planWagonRoad, wagonPlanInputOf } from './wagon-road';
-import type { HerdSpecies, PenSpecies, Road, VillageState } from './types';
+import type { FortSegment, HerdSpecies, PenSpecies, Road, VillageState } from './types';
 import { premiumSacredHappiness } from './premium-effects';
 
 // Kroky 5 až 10 dne správce (steward.md – Rozhodovací pořadí v den správce, Ostatní stavby):
@@ -550,7 +550,9 @@ export function fortificationStep(state: VillageState, ctx: StewardContext): voi
   const own = forts[0];
   if (own) {
     // vlastní opevnění: jen vylepšení hotového (rozdělaná stavba ani nástavba se nedoplňuje)
-    if (own.segments.some((s) => s.builtDay === null) || own.top !== undefined) return;
+    const unfinished = (s: FortSegment): boolean =>
+      [segmentRampart(own, s), segmentWall(own, s)].some((l) => l !== null && l.builtDay === null);
+    if (own.segments.some(unfinished) || own.top !== undefined) return;
     const from = planOf(own.kind, own.top);
     if (own.kind === 'fence') {
       const length = fortLengthAs(ctx.landscape, own, 'palisade');

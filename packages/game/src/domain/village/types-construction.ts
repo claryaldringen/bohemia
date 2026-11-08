@@ -3,6 +3,7 @@
 
 import type { Craft } from './types-crafts';
 import type { FortBuildWork, FortSegmentWork } from './fortification/types';
+import type { WallKind } from './types-fortifications';
 import type { AbandonedStructure, Crop, UsableStructure } from './types-land';
 import type { HorseGood } from './types-trade';
 import type { TradedHorse } from './types-livestock';
@@ -167,6 +168,13 @@ export interface Construction {
   fortificationId?: number;
   /** Co stavba opevnění dělá – stavba, vylepšení, nástavba, přestavba, obnova valu. */
   fortWork?: FortBuildWork;
+  /**
+   * Cílový druh hradby vylepšení nebo hradby na valu (fortifications.md – Hradby a obrana, Druhy
+   * a postup vylepšení). Chybí = starší stavby: `upgrade` na palisádu, `top` = `Fortification.top`.
+   */
+  fortTarget?: WallKind;
+  /** Stavba u brány (`fortWork` `gate`): úsek brány a klešťová brána, nebo věž. Jinak chybí. */
+  fortGate?: { segment: number; level: 'pincer' | 'tower' };
   /** Nepoužité (přestavba je jedna stavba pro všechny dožilé úseky opevnění). */
   segmentIndex?: number;
   /**

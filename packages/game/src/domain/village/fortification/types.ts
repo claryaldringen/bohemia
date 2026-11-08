@@ -7,12 +7,19 @@ import type { FortGate } from './gates';
 // funkcí (`fortificationOutline`, `fortSegments`) – ukládá se jen to, co tvar neurčí. Opevnění
 // nakreslená dřív po čtvercích (`grid`, `cells`) se při načtení vsi převedou na body (`convert.ts`).
 
-/** Úsek opevnění ve stavu vsi – `FortSegmentShape.index` (stejně dlouhé úseky ≈ 15 m). */
+/**
+ * Úsek opevnění ve stavu vsi – `FortSegmentShape.index` (stejně dlouhé úseky ≈ 15 m). Úsek má dvě
+ * vrstvy – hradbu a val s příkopem (fortifications.md – Hradby a obrana); čte se přes vrstvy
+ * `segmentWall` / `segmentRampart` (`fortification/life.ts`), ne přímo z `builtDay`.
+ */
 export interface FortSegment {
   index: number;
-  /** Den dokončení úseku (stáří); dokud se staví nebo po zrušení stavby nedostavěný, null. */
+  /**
+   * Den dokončení základu úseku (stáří) – val, bez valu hradba; dokud se staví nebo po zrušení
+   * stavby nedostavěný, null. Hradba na valu může stát i s nedostavěným valem (`topBuiltDay`).
+   */
   builtDay: number | null;
-  /** Nástavba na valu (`Fortification.top`) – den dokončení na úseku; bez nástavby chybí. */
+  /** Hradba na valu (`Fortification.top`) – den dokončení na úseku; bez hradby chybí. */
   topBuiltDay?: number | null;
   /** Stav úseku 0–1 (chátrání – `segmentState`); nový úsek 1. */
   state: number;
@@ -42,6 +49,19 @@ export interface FortSegment {
    * (val bez nástavby). Chybí = nástavba opevnění (`segmentTop`).
    */
   top?: FortTop | 'none';
+  /**
+   * Val doplněný vně stojící hradby (fortifications.md – Hradby a obrana, Druhy): pás dílu sahá
+   * ven přes křivku (`segmentBand`). Chybí = val pod hradbou na křivce, nebo bez valu.
+   */
+  rampartOutside?: true;
+  /** Výška valu dílu 0–1 (údržba valu); chybí = `Fortification.rampartHeight`. */
+  rampartHeight?: number;
+  /** Den napuštění vodního příkopu (Hradby a obrana – Druhy); chybí = suchý příkop. */
+  moatDay?: number;
+  /** Stárnutí hradby navíc za nedodělanou údržbu (dny; Životnost a údržba); chybí = 0. */
+  extraAgeDays?: number;
+  /** Den průlomu ohněm (válka – scéna kreslí ohořelý průlom); chybí = ne. */
+  burnedDay?: number;
 }
 
 /** Opevnění vsi – hotové i rozestavěné (úseky s `builtDay` null). */
@@ -73,7 +93,19 @@ export interface Fortification {
  * palisády či nástavby valu (`demolish`) a srovnání valu (`level`) v úseku mezi branami.
  */
 export type FortBuildWork =
-  'build' | 'upgrade' | 'top' | 'rebuild' | 'restore' | 'demolish' | 'level';
+  | 'build'
+  | 'upgrade'
+  | 'top'
+  | 'rebuild'
+  | 'restore'
+  | 'demolish'
+  | 'level'
+  /** Doplnění valu pod úsek (Hradby a obrana – Druhy; zatím nevzniká). */
+  | 'rampart'
+  /** Napuštění příkopu (Hradby a obrana – Druhy; zatím nevzniká). */
+  | 'moat'
+  /** Klešťová brána nebo věž nad branou (`Construction.fortGate`; zatím nevzniká). */
+  | 'gate';
 
 /** Úsek v plánu stavby – pořadí práce a práce úseku (čd bez kácení). */
 export interface FortSegmentWork {

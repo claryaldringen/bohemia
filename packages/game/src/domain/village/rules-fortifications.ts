@@ -2,12 +2,13 @@
 // (tabulka Čísla). Horizonty správce jsou v `rules-steward.ts` (STEWARD).
 
 import type { FenceCorners } from './paths/entrances';
-import type { FortKind, FortTop } from './types-fortifications';
+import type { FortKind, WallKind } from './types-fortifications';
 
-/** Cena na 100 m obvodu – práce (člověkodny) a klády. */
+/** Cena na 100 m obvodu – práce (člověkodny), klády a kámen (m³; chybí = bez kamene). */
 export interface FortCostPer100M {
   laborManDays: number;
   wood: number;
+  stoneM3?: number;
 }
 
 export const FORTIFICATIONS = {
@@ -28,14 +29,45 @@ export const FORTIFICATIONS = {
    * Cena na 100 m obvodu (Cena a stavba; Martin 3. 11. 2026): plot 20 čd + 15 klád, palisáda
    * 80 čd + 70 klád, val 150 čd (jen hlína). Vylepšení plotu na palisádu stojí jako nová palisáda
    * (plot nevrací nic), plot nebo palisáda na valu jako samotné. Cena roste s délkou úměrně.
+   * Nové druhy komplet včetně kácení a odvozu (Hradby a obrana – Cena; Martin 8. 11. 2026):
+   * palisáda s ochozem 450 čd + 80 klád, roštová 1 050 čd + 330 klád + 100 m³ kamene, komorová
+   * 1 450 čd + 350 klád + 320 m³ (klády a kámen návrh Clauda).
    */
   costPer100M: {
     fence: { laborManDays: 20, wood: 15 },
     palisade: { laborManDays: 80, wood: 70 },
+    walkway: { laborManDays: 450, wood: 80 },
+    crib: { laborManDays: 1050, wood: 330, stoneM3: 100 },
+    chamber: { laborManDays: 1450, wood: 350, stoneM3: 320 },
     rampart: { laborManDays: 150, wood: 0 },
   } satisfies Record<FortKind, FortCostPer100M>,
-  /** Životnost úseku v letech (Životnost a oprava; Martin 3. 11. 2026) – val nehnije. */
-  lifeYears: { fence: 15, palisade: 20 } satisfies Record<FortTop, number>,
+  /**
+   * Ochoz – přístavba palisády na 100 m (Hradby a obrana – Cena; návrh Clauda): násyp, fošny
+   * a schůdky 150 čd + 10 klád.
+   */
+  walkwayAddPer100M: { laborManDays: 150, wood: 10 },
+  /**
+   * Co ušetří surovina z hromady (Hradby a obrana – Cena; návrh Clauda): kláda 1 čd (kácení
+   * a svoz stromu), kámen 1 čd na m³ (lámání a vození).
+   */
+  pileSaves: { logManDays: 1, stoneManDaysPerM3: 1 },
+  /**
+   * Od kterého herního roku jde hradba stavět (Hradby a obrana – Druhy): roštová od roku 790,
+   * komorová od roku 830.
+   */
+  wallFromYear: { crib: 790, chamber: 830 },
+  /**
+   * Životnost hradby v letech (Životnost a oprava; Martin 3. 11. 2026: plot 15, palisáda 20;
+   * Hradby a obrana – Životnost a údržba, návrh Clauda: ochoz s palisádou 20, roštová 30,
+   * komorová 50) – val nehnije.
+   */
+  lifeYears: {
+    fence: 15,
+    palisade: 20,
+    walkway: 20,
+    crib: 30,
+    chamber: 50,
+  } satisfies Record<WallKind, number>,
   /** Chátrání za životností bez dřeva: stav 100 → 0 % za 5 let (Životnost a oprava; návrh Clauda). */
   decayYears: 5,
   /**
@@ -67,17 +99,48 @@ export const FORTIFICATIONS = {
   rampartHeightBonus: 0.5,
   /** Přesila, při které se skupina za opevněním vzdá: 1,5 × obránci × násobek (Postoje; návrh Clauda). */
   surrenderOddsPerDefender: 1.5,
-  /** Šířka pásu uvnitř plochy podél okraje (Obvod; návrh Clauda) – m. */
-  bandM: { fence: 1, palisade: 1.5, rampart: 10 } satisfies Record<FortKind, number>,
+  /**
+   * Šířka pásu uvnitř plochy podél okraje (Obvod; Hradby a obrana – Druhy; návrh Clauda) – m:
+   * plot 1, palisáda 1,5, s ochozem 5,5, roštová 7, komorová 8, val 10.
+   */
+  bandM: {
+    fence: 1,
+    palisade: 1.5,
+    walkway: 5.5,
+    crib: 7,
+    chamber: 8,
+    rampart: 10,
+  } satisfies Record<FortKind, number>,
+  /**
+   * Pás hradby na valu (Hradby a obrana – Druhy; návrh Clauda) – m: plot a palisáda 10 jako
+   * samotný val, s ochozem 12,5, roštová 14, komorová 15.
+   */
+  wallOnRampartBandM: {
+    fence: 10,
+    palisade: 10,
+    walkway: 12.5,
+    crib: 14,
+    chamber: 15,
+  } satisfies Record<WallKind, number>,
+  /**
+   * Val doplněný vně stojící hradby (Hradby a obrana – Druhy; návrh Clauda): pás sahá 7 m ven
+   * (příkop 4 m + vnější svah 3 m) a dovnitř aspoň 3 m (víc, je-li hradba širší).
+   */
+  rampartOutside: { outM: 7, minInM: 3 },
   /** Pás valu (Obvod; návrh Clauda): příkop 4 m vně, val 6 m u paty (m). */
   rampartBand: { ditchM: 4, footM: 6 },
   /**
    * Poloměr vnějšího a vnitřního rohu (Obvod; návrh Clauda): plot 1,25 a 0,5 m jako pletený
-   * plot pozemků, palisáda 3 m a val 8 m, vnitřní roh u nich polovina vnějšího.
+   * plot pozemků, palisáda 3 m a val 8 m, vnitřní roh u nich polovina vnějšího; vyšší stupně
+   * hradby vnější roh = nejmenší ohyb (s ochozem 4, roštová 8, komorová 10 m – Hradby a obrana,
+   * Druhy).
    */
   cornerM: {
     fence: { outer: 1.25, inner: 0.5 },
     palisade: { outer: 3, inner: 1.5 },
+    walkway: { outer: 4, inner: 2 },
+    crib: { outer: 8, inner: 4 },
+    chamber: { outer: 10, inner: 5 },
     rampart: { outer: 8, inner: 4 },
   } satisfies Record<FortKind, FenceCorners>,
   /** Úsek = strana okrajového čtverce (Obvod – Úseky; návrh Clauda) – jen převod starých opevnění. */
@@ -86,9 +149,17 @@ export const FORTIFICATIONS = {
   minAreaSquares: 2,
   /**
    * Nejmenší poloměr ohybu na vnějším okraji v obou směrech (Obvod – tabulka pásu; návrh Clauda):
-   * plot 1,25 m (jako pozemek), palisáda 3 m, val 8 m.
+   * plot 1,25 m (jako pozemek), palisáda 3 m, val 8 m; s ochozem 4 m, roštová 8 m, komorová 10 m
+   * (Hradby a obrana – Druhy).
    */
-  minBendM: { fence: 1.25, palisade: 3, rampart: 8 } satisfies Record<FortKind, number>,
+  minBendM: {
+    fence: 1.25,
+    palisade: 3,
+    walkway: 4,
+    crib: 8,
+    chamber: 10,
+    rampart: 8,
+  } satisfies Record<FortKind, number>,
   /**
    * Obvod z bodů (Obvod, Pro implementaci – Obvod z bodů; návrh Clauda): body nejvýš ≈ 15 m od sebe,
    * nejméně 4 (strop bodů hlídá server); křivka navzorkovaná krokem ≈ 1,5 m; úseky stejně dlouhé
