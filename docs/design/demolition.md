@@ -1,7 +1,7 @@
 # Bourání a opuštění staveb
 
-Stav: **návrh 8. 11. 2026, čeká na Martinovo schválení.** Zadání je Martinovo, podrobnosti
-jsou návrh Clauda.
+Stav: **schváleno 8. 11. 2026** (Martin: „Schváleno.“). Zadání je Martinovo, podrobnosti jsou
+návrh Clauda.
 
 Martin, 8. 11. 2026: „**Hráč/správce může nechat stavbu opustit nebo zbourat. U obytných domů tím
 teď nahradíme to stěhování. Obytný dům půjde zbourat jen, když je ve zbývajících domech ve vsi
