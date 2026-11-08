@@ -916,8 +916,8 @@ Data `SceneVillage.tornado` (den, síla, stopa, prvních pár dní vývraty) –
   - **Staveniště** (`fortSitePhase`): ochoz – žlab (20 %), kůly (do 60 %), pak násyp a fošny od
     začátku úseku; roštová roste po patrech (výška jádra, plenty i týlu); komorová – komory od
     začátku úseku (první polovina), pak výplň a čelní zeď (výška). Předprseň až na hotovém
-    dílu. Vytyčení ustoupí, jakmile práce dílu začala. Brány vyšších stupňů zatím jako
-    u palisády (klešťová brána a věž – Ú18).
+    dílu. Vytyčení ustoupí, jakmile práce dílu začala. Brány vyšších stupňů jako u palisády,
+    klešťová brána a věž – níž (Ú18).
   - **Stáří a průlom:** dřevo šedne podle `woodTint(stáří, druh)` (životnost druhu), plenta
     a čelní zeď nestárnou; za životností díly řídnou podle stavu úseku, v průlomu chybí.
   - **Zemina hradeb** (`wallCoreMeshData` v `rampart-mesh.ts`, `wallCoreAt`, `wallCoreProfile`):
@@ -926,6 +926,40 @@ Data `SceneVillage.tornado` (den, síla, stopa, prvních pár dní vývraty) –
     a tráva jako val – sítě `village-fort-core-<id>` a `…-grass-<id>`.
   - **Ukázka:** `/dev/buildings` – tlačítko **Hradby** (`SHOWCASE_WALLS`): ochoz, roštová,
     komorová (12 let), ochoz na valu, staveniště roštové a komorové.
+- **Val vně, vodní příkop, klešťová brána a věž** (fortifications.md – Hradby a obrana, Druhy
+  a Brány; plán hradeb Ú18):
+  - **Val vně hradby** (`rampartOutside` – vrstvy dílu z jádra, `segmentRampart` →
+    `SegmentBuild.rampart.outside` / `water`): týž průřez valu posunutý o `rampartOutside.outM`
+    (7 m) ven – příkop 7–3 m vně křivky (osa 5 m vně), koruna na křivce (`RampartLook.offset`).
+    Hradba stojí na místě (čára kůlů, plenta) a zvedne se o korunu po dílech (`crownLift` – kde val
+    není, 0); pod širší hradbou se koruna rozšíří (`RampartLook.wide` = `segmentBand.inM` − 3 m,
+    vnitřní svah se posune dovnitř), násyp ochozu na valu není – sloupky a schůdky stojí na valu
+    (`rampartGround`). Síť valu, prořez příkopu (`ditchCuts`) a vytyčení běží po dílech, ne podle
+    druhu opevnění. Doplňovaný val (`fortWork: 'rampart'`) roste s prací dílu a hradba na něm stojí
+    dál (staveniště valu vně – vytyčení okrajů jeho pásu). Návrh Clauda: jádro hradeb pod širokou
+    korunou se zvedá vcelku jako na valu na křivce.
+  - **Voda v příkopu** (`moatWaterRuns`, `moatWaterLine`, `moatWaterMeshData`): hladina po
+    souvislých kusech dílů s napuštěným příkopem (`moatDay`) a hotovým valem, jen kde je příkop
+    hlubší než 0,6 m (průchod brány – hráz); rovná napříč, 0,5 m pod okrajem plného příkopu
+    (u nižšího valu nejvýš 0,35 m), okraje zasunuté do stěn příkopu. Síť `village-fort-moat-<id>`
+    s PBR materiálem s oparem (`applyGammaFog`), nevrhá stín.
+  - **Led** (`moatIceOn(dayOfYear)` – měsíce `moat.frozenMonths` jako `moatFrozen` v jádru; Martin 8. 11. 2026: „Má zamrznout“): `VillageRenderer.setSeason` → `FortificationRenderer.setSeason`
+    vymění materiál hladiny za led jen při změně (vrátí true → `needsRender`).
+  - **Klešťová brána** (`SceneFortification.gateLooks` z `sceneFortGates` ve `fort-view.ts` –
+    ulička z jádra `pincerAlley` od vnitřního okraje pásu blokujícího dílu, druh `pincerArmKind`,
+    stáří a průběh stavby brány; `pincerGateInstances`): ramena od čáry hradby po vnitřní konec
+    uličky – u palisády palisáda s ochozem (kůly k uličce, fošny na sloupcích, schůdky u konce),
+    u roštové a komorové kamenné čelo s ochozem a předprsní na koruně. Rozestavěná ramena rostou od
+    ústí; vrata (kůly, křídla, trám) na vnitřním konci až na hotové bráně – pak v pásu zůstanou
+    jen kůly a trám (`fortGateInstances`).
+  - **Věž nad branou** (`towerInstances`, díl `tower`): stojící věž (`gateTowerStands`) nad vraty
+    – střed na vnitřním konci uličky, natočená podél tětivy, dřevo šedne podle `tower.lifeYears`;
+    rozestavěná se nekreslí (návrh Clauda).
+  - **Ukázka:** `/dev/buildings` – tlačítko **Brány** (`SHOWCASE_GATES`): palisáda s valem vně
+    a vodou v polovině příkopu (tlačítko Zima – led), ochoz s valem vně, klešťovou bránou a věží,
+    palisáda s klešťovou bránou (vrata zavřená), roštová s klešťovou bránou a věží a palisáda,
+    ke které se val vně dosypává. Ukázka prořízne příkopy nejblíž cíli kamery (`setView`).
+  - Testy `__tests__/rampart-mesh.test.ts` a `fortification-layout.test.ts` (klešťová brána).
 - **Výkon** (`measure-scenery-culling.ts`, Vlkov 1138310652): palisáda 355 m (6 × 6 čtverců,
   2 brány) = 1376 instancí v 6 dílech, 39,9 k trojúhelníků a 6 draw callů kamery (+ 6 do stínové
   mapy); s ořezem 16 × 16 je opevnění kolem vsi v záběru celé (odstup 60, 120 i 400 m – 100 %),

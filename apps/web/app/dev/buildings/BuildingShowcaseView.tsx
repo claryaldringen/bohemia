@@ -30,7 +30,7 @@ import {
   structureRepairLabel,
   showcaseGrounds,
 } from '@/lib/scene/building-showcase-layout';
-import { SHOWCASE_FORTS, SHOWCASE_WALLS } from '@/lib/scene/fortification-showcase';
+import { SHOWCASE_FORTS, SHOWCASE_GATES, SHOWCASE_WALLS } from '@/lib/scene/fortification-showcase';
 import { penPhase } from '@/lib/scene/pen-layout';
 import type { BuildingShowcase } from '@/lib/scene/building-showcase';
 import { constructionPhase, type ConstructionKind } from '@/lib/scene/village-construction';
@@ -229,6 +229,7 @@ export function BuildingShowcaseView(): ReactElement {
           SHOWCASE_CRAFT_YARDS,
           SHOWCASE_FORTS,
           SHOWCASE_WALLS,
+          SHOWCASE_GATES,
         ].map((target) => (
           <button
             key={target.id}

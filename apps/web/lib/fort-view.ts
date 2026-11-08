@@ -8,7 +8,12 @@ import {
   FORT_DAYS_PER_YEAR,
   fortBandPieces,
   FORT_BUSY,
+  fortBlockingSegments,
   fortSections,
+  gatePincerStands,
+  gateTowerStands,
+  pincerAlley,
+  pincerArmKind,
   fortSegments,
   gatePartView,
   GATE_PARTS,
@@ -83,6 +88,32 @@ export interface SceneFortification extends Pick<
   work?: FortBuildWork;
   /** Brány zavřené (nájezd – válka, F6); chybí – v míru otevřené. */
   gatesClosed?: true;
+  /**
+   * Klešťová brána a věž – stejné pořadí jako `gates` (`sceneFortGates`); chybí – žádná brána
+   * vylepšení nemá.
+   */
+  gateLooks?: SceneFortGate[];
+}
+
+/**
+ * Vylepšení brány ve scéně (fortifications.md – Hradby a obrana, Brány; plán hradeb Úloha 18).
+ * Geometrie z jádra (`pincerAlley`), scéna z ní rozmístí ramena, vrata a věž.
+ */
+export interface SceneFortGate {
+  /**
+   * Klešťová brána: ulička mezi rameny (`pincerAlley` – čtyřúhelník od vnitřního okraje pásu `inM`
+   * dovnitř: dva body u pásu, pak dva na vnitřním konci), druh ramen (`pincerArmKind`), stáří
+   * (roky; null – staví se) a průběh stavby 0–1.
+   */
+  pincer?: {
+    alley: FortPoint[];
+    inM: number;
+    kind: WallKind;
+    age: number | null;
+    progress?: number;
+  };
+  /** Stojící věž nad vraty – stáří v letech (i navíc za nedodělanou údržbu). */
+  tower?: { age: number };
 }
 
 /** Úsek opevnění ve scéně: stáří (roky) a průběh jeho práce ve stavbě. */
@@ -258,12 +289,52 @@ export function fortSegmentProgress(
   return progress;
 }
 
+/**
+ * Klešťové brány a věže opevnění ke dni `day` (`SceneFortification.gateLooks`): ulička z jádra
+ * (`pincerAlley` od vnitřního okraje pásu blokujícího dílu – jako stěny a místo za branou),
+ * průběh rozestavěné brány či věže z `progress` (díl brány, úroveň). Bez vylepšení undefined.
+ */
+export function sceneFortGates(
+  fort: Fortification,
+  outline: FortOutline,
+  day: number,
+  progress: (segment: number, level: 'pincer' | 'tower') => number | undefined = () => undefined,
+): SceneFortGate[] | undefined {
+  if (!fort.gates.some((g) => g.pincerDay !== undefined || g.towerDay != null)) return undefined;
+  const shapes = fortSegments(outline);
+  const blocking = fortBlockingSegments(fort, null);
+  return fort.gates.map((gate): SceneFortGate => {
+    const look: SceneFortGate = {};
+    const shape = shapes[gate.segment];
+    const block = blocking.find((s) => s.index === gate.segment);
+    const seg = fort.segments.find((s) => s.index === gate.segment);
+    if (gate.pincerDay !== undefined && shape && block && seg) {
+      const inM = block.outside?.inM ?? FORTIFICATIONS.bandM[block.kind];
+      const alley = pincerAlley(outline, shape, gate, inM);
+      const p = progress(gate.segment, 'pincer');
+      if (alley)
+        look.pincer = {
+          alley: alley.map(([x, z]): FortPoint => [x, z]),
+          inM,
+          kind: pincerArmKind(segmentWall(fort, seg)?.kind ?? 'palisade'),
+          age: gatePincerStands(gate, day) ? yearsSince(gate.pincerDay, day) : null,
+          ...(p !== undefined ? { progress: p } : {}),
+        };
+    }
+    if (gate.towerDay != null && gateTowerStands(gate, day))
+      look.tower = {
+        age: (day - gate.towerDay + (gate.towerExtraAgeDays ?? 0)) / FORT_DAYS_PER_YEAR,
+      };
+    return look;
+  });
+}
+
 /** Opevnění pro scénu z jádra: tvar obvodu `outline`, vzhled úseků a co se na něm děje. */
 export function sceneFortification(
   fort: Fortification,
   outline: FortOutline,
   looks: SceneFortSegment[],
-  extra: Pick<SceneFortification, 'building' | 'work' | 'gatesClosed'>,
+  extra: Pick<SceneFortification, 'building' | 'work' | 'gatesClosed' | 'gateLooks'>,
 ): SceneFortification {
   const shapes = fortSegments(outline);
   return {
@@ -320,6 +391,16 @@ export function sceneFortifications(
       ...(p !== undefined ? { progress: p.progress } : {}),
       ...(p !== undefined && sites.length > 1 ? { work: p.work } : {}),
     });
+    // rozestavěná klešťová brána či věž – průběh dílu brány (`Construction.fortGate`)
+    const gateWork = new Map<string, number>();
+    for (const c of sites) {
+      if (c.fortWork !== 'gate' || !c.fortGate) continue;
+      const p = fortSegmentProgress(c).get(c.fortGate.segment);
+      if (p !== undefined) gateWork.set(`${c.fortGate.segment}:${c.fortGate.level}`, p);
+    }
+    const gateLooks = sceneFortGates(fort, outline, day, (segment, level) =>
+      gateWork.get(`${segment}:${level}`),
+    );
     const looks = fortSegments(outline).map((shape): SceneFortSegment => {
       const s = fort.segments.find((x) => x.index === shape.index);
       const look = lookOf(s, bySegment.get(shape.index));
@@ -335,6 +416,7 @@ export function sceneFortifications(
       sceneFortification(fort, outline, looks, {
         building: site !== undefined,
         ...(site?.fortWork ? { work: site.fortWork } : {}),
+        ...(gateLooks ? { gateLooks } : {}),
       }),
     );
   }

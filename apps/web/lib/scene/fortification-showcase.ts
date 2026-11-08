@@ -2,8 +2,10 @@
 // palisáda, val, val s palisádou, staveniště po úsecích, stáří a průlom; hradby (Hradby
 // a obrana) – palisáda s ochozem, roštová a komorová hradba, ochoz na valu a jejich staveniště –
 // skutečná opevnění z jádra (obvod, úseky a brány z plochy po čtvercích), jen stáří a stavba
-// jsou dané ukázkou.
+// jsou dané ukázkou. Brány a příkop (plán hradeb Ú18): val vně hradby s vodou (v zimě led),
+// klešťová brána a věž nad vraty.
 import {
+  FORT_DAYS_PER_YEAR,
   fortificationArea,
   areaOutline,
   fortSegments,
@@ -13,7 +15,12 @@ import {
   type Fortification,
   type GridGeometry,
 } from '@bohemia/game';
-import { sceneFortification, type SceneFortification, type SceneFortSegment } from '../fort-view';
+import {
+  sceneFortGates,
+  sceneFortification,
+  type SceneFortification,
+  type SceneFortSegment,
+} from '../fort-view';
 
 /** Ukázka opevnění – tlačítko Opevnění. */
 export const SHOWCASE_FORTS = {
@@ -29,6 +36,16 @@ export const SHOWCASE_WALLS = {
   focus: { x: 118, z: 140, radius: 62 },
 } as const;
 
+/** Ukázka bran a příkopu – tlačítko Brány (jižně od opevnění). */
+export const SHOWCASE_GATES = {
+  id: 'brany',
+  label: 'Brány',
+  focus: { x: -8, z: 55, radius: 120 },
+} as const;
+
+/** Den ukázky – stáří hotových bran a věží (2 roky). */
+const DEMO_DAY = 2 * FORT_DAYS_PER_YEAR;
+
 /** Mřížka louky ukázky (400 m – střed v počátku, čtverce 15 m jako ve hře). */
 export const SHOWCASE_FORT_GEO: GridGeometry = { size: 26, cellSizeM: 15 };
 
@@ -39,8 +56,16 @@ export interface DemoFort {
   top?: FortTop;
   /** Obdélník čtverců plochy: levý dolní čtverec a rozměry. */
   cells: { x: number; y: number; w: number; h: number };
-  /** Brány: úsek a poloha na jeho rovné části (m od začátku; chybí – uprostřed). */
-  gates?: { segment: number; offsetM?: number }[];
+  /**
+   * Brány: úsek a poloha na jeho rovné části (m od začátku; chybí – uprostřed), klešťová brána
+   * a věž nad vraty (hotové – 2 roky).
+   */
+  gates?: { segment: number; offsetM?: number; pincer?: boolean; tower?: boolean }[];
+  /**
+   * Val doplněný vně hradby na všech dílech (`rampartOutside`): napuštěný příkop na dílech `water`,
+   * stáří hradby `wallAge` (chybí – rok); `age` je pak stáří valu (null – val se staví).
+   */
+  outside?: { water?: readonly number[]; wallAge?: number };
   /** Stáří úseků v letech (null – úsek nestojí). */
   age?: (segment: number) => number | null;
   /** Stav úseků 0–1 (chátrání za životností). */
@@ -71,6 +96,17 @@ export function demoFortification(demo: DemoFort, geo: GridGeometry): SceneForti
     ...(demo.top ? { top: demo.top } : {}),
     segments: shapes.map((s) => {
       const a = age(s.index);
+      if (demo.outside)
+        return {
+          index: s.index,
+          kind: 'rampart' as const,
+          top: demo.kind as Exclude<FortKind, 'rampart'>,
+          builtDay: a === null ? null : 0,
+          topBuiltDay: 0,
+          rampartOutside: true as const,
+          ...(a !== null && demo.outside.water?.includes(s.index) ? { moatDay: 0 } : {}),
+          state: demo.state ?? 1,
+        };
       return {
         index: s.index,
         builtDay: a === null ? null : 0,
@@ -87,6 +123,8 @@ export function demoFortification(demo: DemoFort, geo: GridGeometry): SceneForti
         offsetM,
         x: line.x + line.dx * offsetM,
         z: line.z + line.dz * offsetM,
+        ...(g.pincer ? { pincerDay: 0 } : {}),
+        ...(g.tower ? { towerDay: 0 } : {}),
       };
     }),
     ...(demo.rampartHeight !== undefined ? { rampartHeight: demo.rampartHeight } : {}),
@@ -97,13 +135,16 @@ export function demoFortification(demo: DemoFort, geo: GridGeometry): SceneForti
     return {
       age: a,
       ...(demo.top ? { topAge: a } : {}),
+      ...(demo.outside ? { topAge: demo.outside.wallAge ?? 1 } : {}),
       ...(p !== undefined ? { progress: p } : {}),
     };
   });
+  const gateLooks = sceneFortGates(fort, outline, DEMO_DAY);
   return sceneFortification(fort, outline, looks, {
     building: demo.work !== undefined,
     ...(demo.work ? { work: demo.work.kind } : {}),
     ...(demo.gatesClosed ? { gatesClosed: true as const } : {}),
+    ...(gateLooks ? { gateLooks } : {}),
   });
 }
 
@@ -199,5 +240,52 @@ export function showcaseFortifications(): SceneFortification[] {
       work: { kind: 'build', progress: (s) => (s >= 6 ? 1 : ([0.85, 0.6, 0.3][s] ?? 0)) },
     },
   ];
-  return demos.map((d) => demoFortification(d, SHOWCASE_FORT_GEO));
+  return [...demos, ...GATE_DEMOS].map((d) => demoFortification(d, SHOWCASE_FORT_GEO));
 }
+
+/**
+ * Brány a příkop (plán hradeb Ú18): palisáda s valem vně a vodou v polovině příkopu (v zimě led),
+ * palisáda s ochozem s valem vně, klešťovou bránou a věží, palisáda s klešťovou bránou (vrata
+ * zavřená), roštová hradba s klešťovou bránou a věží a palisáda, ke které se val vně teprve
+ * dosypává.
+ */
+const GATE_DEMOS: DemoFort[] = [
+  {
+    id: 15,
+    kind: 'palisade',
+    cells: { x: 1, y: 16, w: 3, h: 2 },
+    gates: [{ segment: 7 }],
+    age: () => 3,
+    outside: { water: [0, 1, 2, 3, 4, 5] },
+  },
+  {
+    id: 16,
+    kind: 'walkway',
+    cells: { x: 6, y: 15, w: 3, h: 3 },
+    gates: [{ segment: 1, pincer: true, tower: true }],
+    age: () => 2,
+    outside: { wallAge: 3 },
+  },
+  {
+    id: 17,
+    kind: 'palisade',
+    cells: { x: 11, y: 15, w: 3, h: 3 },
+    gates: [{ segment: 1, pincer: true }],
+    gatesClosed: true,
+  },
+  {
+    id: 18,
+    kind: 'crib',
+    cells: { x: 16, y: 15, w: 3, h: 3 },
+    gates: [{ segment: 1, pincer: true, tower: true }],
+  },
+  {
+    id: 19,
+    kind: 'palisade',
+    cells: { x: 21, y: 16, w: 3, h: 2 },
+    gates: [{ segment: 7 }],
+    age: () => null,
+    outside: { wallAge: 4 },
+    work: { kind: 'rampart', progress: (s) => [1, 1, 0.7, 0.35, 0.1][s] ?? 0 },
+  },
+];

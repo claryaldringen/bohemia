@@ -7,7 +7,9 @@ import type { SceneFortification } from '../fort-view';
 import {
   RAMPART,
   RAMPART_BAND_M,
+  RAMPART_CROWN_M,
   fortBand,
+  moatWaterRuns,
   hash01,
   insetPoint,
   perimeterSamples,
@@ -69,8 +71,8 @@ function emptyArrays(): MeshArrays {
  */
 export function rampartMeshData(fort: SceneFortification, rim: HeightFn): RampartMeshData {
   const data: RampartMeshData = { earth: emptyArrays(), grass: emptyArrays() };
-  if (fort.kind !== 'rampart') return data;
   const looks = rampartLooks(fort);
+  if (!looks.some((l) => l.height > 0)) return data;
   const samples = perimeterSamples(fort, RAMPART_RING_STEP_M);
   const band = fortBand(fort);
   const n = samples.length;
@@ -79,12 +81,15 @@ export function rampartMeshData(fort: SceneFortification, rim: HeightFn): Rampar
   const rings: { looks: RampartLook; heights: number[] }[] = [];
   for (const p of samples) {
     const look = rampartAt(fort, looks, p.s);
-    const heights = RAMPART_COLUMNS.map((d) =>
-      rampartProfile(Math.min(Math.max(d, 0), RAMPART_BAND_M), look),
+    // val vně hradby: pás před křivkou (`offset`), koruna rozšířená pod hradbu (`wide`)
+    const wide = look.wide ?? 0;
+    const depths = RAMPART_COLUMNS.map((d) => (d > RAMPART_CROWN_M ? d + wide : d));
+    const heights = depths.map((d) =>
+      rampartProfile(Math.min(Math.max(d, 0), RAMPART_BAND_M + wide), look),
     );
     for (const target of [data.earth, data.grass]) {
       RAMPART_COLUMNS.forEach((d, c) => {
-        const [x, z] = insetPoint(p, d, band);
+        const [x, z] = insetPoint(p, (look.offset ?? 0) + depths[c]!, band);
         const y = rim(x, z) + RIM_LIFT_M + heights[c]!;
         target.positions.push(x, y, z);
         const color =
@@ -264,4 +269,29 @@ export function trenchMeshData(
 /** Počet trojúhelníků sítě (měření scény). */
 export function triangleCount(arrays: MeshArrays): number {
   return arrays.indices.length / 3;
+}
+
+/**
+ * Hladina vody v příkopu (fortifications.md – Hradby a obrana, vodní příkop): pruh po souvislých
+ * kusech s vodou (`moatWaterRuns`) – rovný napříč (výška okraje na ose příkopu − hloubka
+ * hladiny), okraje zasunuté do stěn příkopu. Led v zimě je tatáž síť s jiným materiálem.
+ */
+export function moatWaterMeshData(fort: SceneFortification, rim: HeightFn): MeshArrays {
+  const out = emptyArrays();
+  for (const run of moatWaterRuns(fort)) {
+    const base = out.positions.length / 3;
+    run.forEach((w, i) => {
+      const y = rim(w.axis[0], w.axis[1]) + RIM_LIFT_M - w.below;
+      for (const [x, z] of [w.outer, w.inner]) {
+        out.positions.push(x, y, z);
+        out.colors.push(1, 1, 1, 1);
+        out.uvs.push(x * 0.1, z * 0.1);
+      }
+      if (i === 0) return;
+      const a = base + (i - 1) * 2;
+      const b = base + i * 2;
+      out.indices.push(a, b, b + 1, a, b + 1, a + 1);
+    });
+  }
+  return out;
 }

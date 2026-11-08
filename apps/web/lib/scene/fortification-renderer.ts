@@ -4,8 +4,11 @@
 // plot jako pletený plot pozemků (WovenFenceRenderer), val s příkopem, násyp ochozu, jádro roštu
 // a výplň komor jako sítě podél obvodu (rampart-mesh.ts), prořez terénu
 // pod příkopem (pit-cut.ts) a vytyčení nehotových úseků kolíky a provázkem jako u ostatních
-// stavenišť (staking.ts). Rozmístění počítá fortification-layout.ts; kreslí se jen při změně.
+// stavenišť (staking.ts). Vodní příkop – hladina (PBR s oparem), v zimě led (`setSeason`);
+// klešťová brána a věž nad vraty jako díly modelu. Rozmístění počítá fortification-layout.ts;
+// kreslí se jen při změně.
 import type { Material } from '@babylonjs/core/Materials/material';
+import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
@@ -20,7 +23,10 @@ import {
   fortFenceStage,
   fortGateInstances,
   fortStakingLines,
+  moatIceOn,
   palisadeLayout,
+  pincerGateInstances,
+  towerInstances,
   walkwayLayout,
   cribLayout,
   chamberLayout,
@@ -30,7 +36,9 @@ import {
 } from './fortification-layout';
 import { loadModelParts, setStaticInstances, type ModelInstance } from './instanced-model';
 import type { PitCuts } from './pit-cut';
+import { applyGammaFog } from './gamma-fog';
 import {
+  moatWaterMeshData,
   rampartMeshData,
   trenchMeshData,
   wallCoreMeshData,
@@ -71,7 +79,15 @@ interface FortMeshes {
   cuts: DitchCut[];
   /** Kolíky vytyčení nehotových úseků (sdílený mesh `pegs`). */
   pegs: ModelInstance[];
+  /** Hladina vodního příkopu (v zimě s materiálem ledu); null – příkop bez vody. */
+  water: Mesh | null;
 }
+
+/** Voda a led příkopu (barva, lesk) – tmavá stojatá voda a matný led se sněhovým nádechem. */
+const MOAT_LOOK = {
+  water: { color: [0.16, 0.22, 0.2] as const, roughness: 0.12 },
+  ice: { color: [0.74, 0.8, 0.84] as const, roughness: 0.45 },
+} as const;
 
 /** Světlá čára vytyčení na zemi pod provázkem (vyšlapaná tráva) – šířka a výška nad terénem (m). */
 const LAYOUT_LINE = { widthM: 0.2, stepM: 0.5, liftM: 0.06 } as const;
@@ -102,6 +118,10 @@ export class FortificationRenderer {
   private grass: Material | null = null;
   private string: Material | null = null;
   private layout: Material | null = null;
+  private moatWater: PBRMaterial | null = null;
+  private moatIce: PBRMaterial | null = null;
+  /** Zamrzlý příkop (roční období scény – `moatIceOn`). */
+  private frozen = false;
   private readonly pegs: StakingPegs;
   private disposed = false;
 
@@ -153,6 +173,25 @@ export class FortificationRenderer {
     this.pegs.dispose();
     this.string?.dispose();
     this.layout?.dispose();
+    this.moatWater?.dispose();
+    this.moatIce?.dispose();
+  }
+
+  /**
+   * Roční období scény (den v roce): v zimě příkop zamrzne (Martin 8. 11. 2026: „Má zamrznout“ –
+   * 1. 12. až konec února, jako `moatFrozen` v jádru). Vrátí true jen při změně (překreslit).
+   */
+  setSeason(dayOfYear: number): boolean {
+    const frozen = moatIceOn(dayOfYear);
+    if (frozen === this.frozen) return false;
+    this.frozen = frozen;
+    let changed = false;
+    for (const fort of this.forts.values()) {
+      if (!fort.water) continue;
+      fort.water.material = this.moatMaterial();
+      changed = true;
+    }
+    return changed;
   }
 
   /** Rozmístění opevnění a jeho sítě (val, žlab); pletený plot jde do sdíleného rendereru. */
@@ -165,12 +204,21 @@ export class FortificationRenderer {
       ...cribLayout(fort, crown),
       ...chamberLayout(fort, crown),
       ...fortGateInstances(fort),
+      ...pincerGateInstances(fort),
+      ...towerInstances(fort),
     ];
     this.context.fences.set(fenceOwner(fort.id), fortFenceStage(fort, crown));
     const meshes: Mesh[] = [];
     const rim = this.context.decalHeight;
-    if (fort.kind === 'rampart')
-      meshes.push(...this.earthMeshes('rampart', fort.id, rampartMeshData(fort, rim)));
+    // val s příkopem – i val doplněný vně hradby jiného druhu
+    meshes.push(...this.earthMeshes('rampart', fort.id, rampartMeshData(fort, rim)));
+    const water = this.mesh(
+      `village-fort-moat-${fort.id}`,
+      moatWaterMeshData(fort, rim),
+      this.moatMaterial(),
+      false,
+    );
+    if (water) meshes.push(water);
     // násyp ochozu, jádro roštové a výplň komorové hradby
     meshes.push(...this.earthMeshes('fort-core', fort.id, wallCoreMeshData(fort, rim)));
     if (palisade.trench.length > 0) {
@@ -201,7 +249,7 @@ export class FortificationRenderer {
       meshes.push(line);
     }
     const pegs = staking.length > 0 ? pegInstances(staking, rim) : [];
-    return { key, meshes, instances, cuts: ditchCuts(fort), pegs };
+    return { key, meshes, instances, cuts: ditchCuts(fort), pegs, water };
   }
 
   /** Hlína a tráva sítě podél obvodu (val, zemina hradby). */
@@ -218,7 +266,7 @@ export class FortificationRenderer {
     this.context.fences.set(fenceOwner(id), null);
   }
 
-  private mesh(name: string, arrays: MeshArrays, material: Material): Mesh | null {
+  private mesh(name: string, arrays: MeshArrays, material: Material, shadow = true): Mesh | null {
     if (arrays.indices.length === 0) return null;
     const data = new VertexData();
     data.positions = arrays.positions;
@@ -247,8 +295,25 @@ export class FortificationRenderer {
     mesh.material = material;
     mesh.isPickable = false;
     mesh.receiveShadows = true;
-    this.context.addShadowCaster(mesh);
+    if (shadow) this.context.addShadowCaster(mesh);
     return mesh;
+  }
+
+  /** Voda, nebo v zimě led příkopu – PBR s oparem jako modely vsi (`applyGammaFog`). */
+  private moatMaterial(): Material {
+    const ice = this.frozen;
+    const known = ice ? this.moatIce : this.moatWater;
+    if (known) return known;
+    const look = ice ? MOAT_LOOK.ice : MOAT_LOOK.water;
+    const m = new PBRMaterial(ice ? 'village-moat-ice' : 'village-moat-water', this.scene);
+    m.albedoColor = new Color3(...look.color);
+    m.metallic = 0;
+    m.roughness = look.roughness;
+    m.backFaceCulling = false;
+    applyGammaFog(m);
+    if (ice) this.moatIce = m;
+    else this.moatWater = m;
+    return m;
   }
 
   /** Světlá čára vytyčení (provázek, vyšlapaná tráva) – barva jako u hřbitova. */
