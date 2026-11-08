@@ -143,8 +143,10 @@ describe('createWorldQueue', () => {
     ]);
   });
 
-  it('uspání nečinných: bez aktivního dne od meze venku, dotek tažením a aktivní správce ne', async () => {
+  it('uspání nečinných: vzhůru a spící zvlášť; dotek tažením a aktivní správce budí', async () => {
     const since = '2026-11-09';
+    const awake = { awakeSince: since, asleep: false };
+    const asleep = { awakeSince: since, asleep: true };
     const activity = createActivityRepository(db);
     await player('hrac-a', [state(TODAY - 5)]);
     await activity.record('hrac-a', since);
@@ -171,23 +173,15 @@ describe('createWorldQueue', () => {
     });
     const holds = new Map([[await villageOf(raided!), TODAY - 2]]);
 
-    expect((await queue.behind(TODAY, 10, holds, since)).map((p) => p.playerId)).toEqual([
-      'hrac-d',
-      'hrac-a',
-      'hrac-e',
-    ]);
-    // bez meze probuzení nikdo nespí; ves na mezi tažení už dotekem není
-    expect((await queue.behind(TODAY, 10, holds)).map((p) => p.playerId)).toEqual([
-      'hrac-d',
-      'hrac-a',
-      'hrac-b',
-      'hrac-c',
-      'hrac-e',
-    ]);
+    const ids = async (h: Map<string, number>, sleep?: typeof awake): Promise<string[]> =>
+      (await queue.behind(TODAY, 10, h, sleep)).map((p) => p.playerId);
+    expect(await ids(holds, awake)).toEqual(['hrac-d', 'hrac-a', 'hrac-e']);
+    expect(await ids(holds, asleep)).toEqual(['hrac-b', 'hrac-c']);
+    // bez uspání se nerozlišuje
+    expect(await ids(holds)).toEqual(['hrac-d', 'hrac-a', 'hrac-b', 'hrac-c', 'hrac-e']);
+    // ves na mezi tažení už dotekem není – hráč „d“ spí
     const reached = new Map([[await villageOf(raided!), TODAY - 6]]);
-    expect((await queue.behind(TODAY, 10, reached, since)).map((p) => p.playerId)).toEqual([
-      'hrac-a',
-      'hrac-e',
-    ]);
+    expect(await ids(reached, awake)).toEqual(['hrac-a', 'hrac-e']);
+    expect(await ids(new Map(), asleep)).toEqual(['hrac-d', 'hrac-b', 'hrac-c']);
   });
 });

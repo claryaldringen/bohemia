@@ -14,7 +14,7 @@ import { villagesNearCampaigns } from './village-holds';
  */
 export function createWorldQueue(db: Database): WorldQueue {
   return {
-    async behind(worldDay, limit, holds = new Map(), awakeSince): Promise<PlayerBehind[]> {
+    async behind(worldDay, limit, holds = new Map(), sleep): Promise<PlayerBehind[]> {
       const today = sql`LEAST(${worldDay}::int + coalesce(o.offset_days, 0), ${LAST_WORLD_DAY}::int)`;
       // meze bariéry (village-holds.ts): ves na mezi není pozadu, hráč s přednostní vsí pod mezí
       // jde první; bez mezí stejný dotaz jako dřív
@@ -22,23 +22,26 @@ export function createWorldQueue(db: Database): WorldQueue {
       const days = `{${[...holds.values()].join(',')}}`;
       const target = sql`LEAST(${today}, coalesce(h.day, ${today}))`;
       // uspání nečinných (absence.md – Zátěž serveru): hráč bez aktivního dne od `awakeSince`
-      // se vynechá, ledaže má přednostní ves pod mezí (dotek tažením) nebo ves, kterou živě
-      // spravuje aktivní hráč (vassalage.md – Hráč jako správce cizí vsi); indexy = primární klíč
-      // `player_activity (player_id, prague_date)` a `stewardship_village_alive_idx`
-      const activeSince = (player: SQL): SQL =>
+      // spí, ledaže má přednostní ves pod mezí (dotek tažením) nebo ves, kterou živě spravuje
+      // aktivní hráč (vassalage.md – Hráč jako správce cizí vsi); `asleep` vybere spící, nebo
+      // vzhůru. Indexy = primární klíč `player_activity (player_id, prague_date)`
+      // a `stewardship_village_alive_idx`.
+      const activeSince = (player: SQL, since: string): SQL =>
         sql`EXISTS (SELECT 1 FROM player_activity a
-              WHERE a.player_id = ${player} AND a.prague_date >= ${awakeSince ?? ''})`;
+              WHERE a.player_id = ${player} AND a.prague_date >= ${since})`;
       const stewarded =
-        awakeSince === undefined
+        sleep === undefined
           ? sql`false`
           : sql`bool_or(EXISTS (SELECT 1 FROM stewardship st
               JOIN house sh ON sh.id = st.steward_house_id
               WHERE st.village_id = v.id AND st.ended_at IS NULL AND st.kind = 'player'
-                AND ${activeSince(sql`sh.player_id`)}))`;
-      const awake =
-        awakeSince === undefined
-          ? sql`true`
-          : sql`(first OR stewarded OR ${activeSince(sql`players."playerId"`)})`;
+                AND ${activeSince(sql`sh.player_id`, sleep.awakeSince)}))`;
+      let chosen = sql`true`;
+      if (sleep !== undefined) {
+        const player = sql`players."playerId"`;
+        const awake = sql`(first OR stewarded OR ${activeSince(player, sleep.awakeSince)})`;
+        chosen = sleep.asleep ? sql`NOT ${awake}` : awake;
+      }
       const result = await db.execute<{ playerId: string; today: number; oldestDay: number }>(sql`
         WITH h AS (SELECT * FROM unnest(${ids}::uuid[], ${days}::int[]) AS h(id, day))
         SELECT "playerId", today, "oldestDay"
@@ -57,7 +60,7 @@ export function createWorldQueue(db: Database): WorldQueue {
           WHERE NOT v.asleep
           GROUP BY coalesce(s.pending_owner_id, s.owner_id), o.offset_days
         ) players
-        WHERE "oldestDay" < today AND ${awake}
+        WHERE "oldestDay" < today AND ${chosen}
         ORDER BY first DESC, today - "oldestDay" DESC, "playerId" COLLATE "C"
         LIMIT ${limit}::int`);
       return result.rows.map((row) => ({

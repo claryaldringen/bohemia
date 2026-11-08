@@ -26,6 +26,7 @@ function step(players: PlayerStep[], idle: boolean, held = 0): WorldStep {
     days: players.reduce((s, p) => s + p.days, 0),
     idle,
     held,
+    asleep: 0,
   };
 }
 

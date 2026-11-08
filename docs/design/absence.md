@@ -79,7 +79,8 @@ nečinnosti.
 
 ## Zátěž serveru
 
-**Implementováno** (8. 11. 2026) – `docs/code/worker.md`, Uspání nečinných.
+**Implementováno** (8. 11. 2026) – `docs/code/worker.md`, Uspání nečinných. Návrh Clauda 8. 11.: spící vsi worker počítá s nejnižší předností, když nemá jinou práci – ušetří jen při
+nedostatku kapacity; čeká na Martina.
 
 Martin 8. 11. 2026: „A“ – ves hráče, který nehraje **déle než 3 skutečné dny** (návrh Clauda),
 se **uspí**: worker ji průběžně nepočítá a dopočítá ji, až se jí něco dotkne (hráč se vrátí,

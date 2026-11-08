@@ -1,6 +1,6 @@
 import { isVillageAsleep } from '../../domain/village';
 import { playerDay } from '../player-time';
-import type { PlayerBehind, WorldQueue } from '../world-queue';
+import type { PlayerBehind, SleepFilter, WorldQueue } from '../world-queue';
 import { InMemoryActivity } from './in-memory-activity';
 import type { InMemorySettlements } from './in-memory-settlements';
 import type { InMemoryTimeOffsets } from './in-memory-time-offsets';
@@ -26,7 +26,7 @@ export class InMemoryWorldQueue implements WorldQueue {
     worldDay: number,
     limit: number,
     holds: ReadonlyMap<string, number> = new Map(),
-    awakeSince?: string,
+    sleep?: SleepFilter,
   ): Promise<PlayerBehind[]> {
     await Promise.resolve();
     const oldest = new Map<string, number>();
@@ -45,14 +45,14 @@ export class InMemoryWorldQueue implements WorldQueue {
     }
     const lag = (p: PlayerBehind): number => p.today - p.oldestDay;
     const rank = (p: PlayerBehind): number => (first.has(p.playerId) ? 0 : 1);
-    // vsi nečinného hráče spí (absence.md – Zátěž serveru), jen dotek tažením je probudí
+    // vsi nečinného hráče spí (absence.md – Zátěž serveru), dotek tažením ho probudí
     const awake = (playerId: string): boolean => {
-      if (awakeSince === undefined || first.has(playerId)) return true;
+      if (sleep === undefined || first.has(playerId)) return true;
       const latest = this.activity.latest(playerId);
-      return latest !== null && latest >= awakeSince;
+      return latest !== null && latest >= sleep.awakeSince;
     };
     return [...oldest]
-      .filter(([playerId]) => awake(playerId))
+      .filter(([playerId]) => sleep === undefined || awake(playerId) !== sleep.asleep)
       .map(([playerId, oldestDay]) => ({
         playerId,
         today: playerDay(worldDay, this.offsets.offsets.get(playerId) ?? 0),
