@@ -16,17 +16,26 @@ import { oxPens, PEN_BY_SPECIES } from './oxen';
 import { herdRoom, herdsOverRoom, penCapacity } from './pens';
 import { placementVillageOf } from './placement-village';
 import { penSquaresFromCells } from './placement-pens';
-import { segmentRampart, segmentWall, villageThreat } from './fortification';
+import {
+  segmentRampart,
+  segmentWall,
+  villageThreat,
+  WALL_ORDER,
+  wallAvailable,
+  wallRank,
+} from './fortification';
 import { villageFortifications } from './fortifications';
 import {
+  fortDefenders,
   fortHorizonYears,
   fortLengthAs,
+  fortPlanOf,
   fortValue,
-  planBase,
-  planOf,
-  planTop,
+  NO_FORT,
+  samePlan,
   stewardFortificationFor,
   stewardKgPerManDay,
+  stewardMoatSection,
   type FortPlan,
 } from './steward-fortification';
 import { isStewardBuilt } from './steward-state';
@@ -67,7 +76,15 @@ import { villageThreshingFloors } from './threshing-floors';
 import { planTrail, villageTrails, DIRECTIONS } from './trail';
 import { DIRECTION_VECTORS } from './trail-axis';
 import { planWagonRoad, wagonPlanInputOf } from './wagon-road';
-import type { FortSegment, HerdSpecies, PenSpecies, Road, VillageState } from './types';
+import type {
+  FortKind,
+  FortSegment,
+  HerdSpecies,
+  PenSpecies,
+  Road,
+  VillageState,
+  WallKind,
+} from './types';
 import { premiumSacredHappiness } from './premium-effects';
 
 // Kroky 5 až 10 dne správce (steward.md – Rozhodovací pořadí v den správce, Ostatní stavby):
@@ -498,7 +515,7 @@ export function sacredStep(state: VillageState, ctx: StewardContext): void {
 
 // --- 9a. opevnění podle hrozby -----------------------------------------------------------
 
-/** Možnost kroku Opevnění: druh, přínos × horizont − cena a záměr stavby. */
+/** Možnost kroku Opevnění: plán, přínos × horizont − cena, cena a záměr první etapy. */
 interface FortOption {
   plan: FortPlan;
   value: number;
@@ -506,21 +523,68 @@ interface FortOption {
   intent: BuildIntent;
 }
 
-const FORT_PLANS: readonly FortPlan[] = [
-  'fence',
-  'palisade',
-  'rampart',
-  'rampart-fence',
-  'rampart-palisade',
-];
+/** Pořadí plánu při shodě hodnoty: nižší hradba, bez valu, bez vody napřed. */
+function planOrder(plan: FortPlan): number {
+  return (
+    (plan.wall === null ? 0 : wallRank(plan.wall)) * 4 +
+    (plan.rampart ? 2 : 0) +
+    (plan.water ? 1 : 0)
+  );
+}
+
+/** Hradby, které jdou v den `day` postavit (roštová od roku 790, komorová od 830). */
+function wallsOn(day: number): WallKind[] {
+  return WALL_ORDER.filter((w) => wallAvailable(w, day));
+}
 
 /**
- * Krok 9a – opevnění podle hrozby (fortifications.md – Správce; Martin 3. 11. 2026: „Opevnění je
- * stavba jako každá jiná“): za hrozby nad 0 (`villageThreat` ze signálů války a nájezdů) a mimo
- * žně správce spočte pro plot, palisádu, val a val s plotem či palisádou přínos × horizont
- * (`STEWARD.fortPaybackYears`, nejvýš životnost) − cena (`fortValue`) a postaví nejlepší kladný;
- * má-li vlastní opevnění, počítá jen rozdíl vylepšení (plot → palisáda, nástavba na val). Hráčovo
- * opevnění nemění a vedle něj nestaví. V Růstu a Obnově, v Nouzi ne.
+ * Základ nového opevnění plánu (Hradby a obrana – Druhy): s valem val (hradba na něj v další
+ * etapě), palisáda s ochozem napřed jako palisáda (ochoz jen vylepšením palisády).
+ */
+function newFortKind(plan: FortPlan): FortKind {
+  if (plan.rampart) return 'rampart';
+  return plan.wall === 'walkway' ? 'palisade' : (plan.wall ?? 'rampart');
+}
+
+/**
+ * První etapa vylepšení vlastního opevnění z `from` na `plan` (vždy celý obvod): napřed hradba
+ * (ochoz jen na palisádu – jinak napřed palisáda), pak val pod hradbu, nakonec vodní příkop
+ * (úsek po úseku – `moat`).
+ */
+function upgradeIntent(
+  fortificationId: number,
+  from: FortPlan,
+  plan: FortPlan,
+  moat: { segment: number } | null,
+): BuildIntent | null {
+  if (plan.wall !== null && plan.wall !== from.wall) {
+    const target = plan.wall === 'walkway' && from.wall !== 'palisade' ? 'palisade' : plan.wall;
+    return {
+      kind: 'fortification-upgrade',
+      fortificationId,
+      work: 'upgrade',
+      target,
+      segment: null,
+    };
+  }
+  if (plan.rampart && !from.rampart) {
+    return { kind: 'fortification-rampart', fortificationId, segment: null };
+  }
+  if (plan.water && !from.water && moat) {
+    return { kind: 'fortification-moat', fortificationId, segment: moat.segment };
+  }
+  return null;
+}
+
+/**
+ * Krok 9a – opevnění podle hrozby (fortifications.md – Hradby a obrana, Správce; Martin 3. 11.
+ * 2026: „Opevnění je stavba jako každá jiná“; 8. 11. 2026: „To, že vesnice hradbu nepostaví, je
+ * spíš věcí správce – prostě usoudí, že se mu nevyplatí.“): za hrozby nad 0 (`villageThreat`) a mimo
+ * žně správce spočte pro každý plán – hradba (plot až komorová, podle roku), val s příkopem, vodní
+ * příkop, vždy celý obvod – přínos ochrany × horizont − cena (`fortValue`) a postaví první etapu
+ * nejlepšího kladného. Má-li vlastní hotové opevnění, počítá jen rozdíl vylepšení (vyšší hradba,
+ * ochoz, doplnění valu, napuštění příkopu). Hráčovo opevnění nemění a vedle něj nestaví; klešťovou
+ * bránu a věž staví jen hráč. V Růstu a Obnově, v Nouzi ne.
  */
 export function fortificationStep(state: VillageState, ctx: StewardContext): void {
   if (!inStewardWindows(ctx.date, STEWARD.offHarvestWindows)) return;
@@ -530,6 +594,8 @@ export function fortificationStep(state: VillageState, ctx: StewardContext): voi
   const forts = villageFortifications(state);
   if (forts.some((f) => !isStewardBuilt(state, f.id))) return;
   const kg = stewardKgPerManDay(state, ctx.landscape, ctx.obstacles);
+  const men = fortDefenders(state, ctx.day);
+  const walls = wallsOn(ctx.day);
   const options: FortOption[] = [];
   const consider = (
     plan: FortPlan,
@@ -537,65 +603,65 @@ export function fortificationStep(state: VillageState, ctx: StewardContext): voi
     lengthM: number,
     intent: BuildIntent,
   ): void => {
-    const years = fortHorizonYears(plan, ctx.mode);
+    const years = fortHorizonYears(plan, from, ctx.mode);
     if (years <= 0) return;
     const { gain, cost } = fortValue(state, ctx.day, plan, threat, {
       lengthM,
       kgPerManDay: kg,
       from,
       years,
+      men,
     });
     options.push({ plan, value: gain * years - cost, cost, intent });
   };
   const own = forts[0];
   if (own) {
-    // vlastní opevnění: jen vylepšení hotového (rozdělaná stavba ani nástavba se nedoplňuje)
+    // vlastní opevnění: jen vylepšení hotového (rozdělaná stavba se nedoplňuje)
     const unfinished = (s: FortSegment): boolean =>
       [segmentRampart(own, s), segmentWall(own, s)].some((l) => l !== null && l.builtDay === null);
-    if (own.segments.some(unfinished) || own.top !== undefined) return;
-    const from = planOf(own.kind, own.top);
-    if (own.kind === 'fence') {
-      const length = fortLengthAs(ctx.landscape, own, 'palisade');
-      if (length === null) return;
-      consider('palisade', from, length, {
-        kind: 'fortification-upgrade',
-        fortificationId: own.id,
-        work: 'upgrade',
-      });
-    } else if (own.kind === 'rampart') {
-      const length = fortLengthAs(ctx.landscape, own, 'rampart');
-      if (length === null) return;
-      for (const plan of ['rampart-fence', 'rampart-palisade'] as const) {
-        consider(plan, from, length, {
-          kind: 'fortification-upgrade',
-          fortificationId: own.id,
-          work: 'top',
-          top: planTop(plan)!,
-        });
+    if (own.segments.some(unfinished)) return;
+    const from = fortPlanOf(own);
+    if (from.wall === null && !from.rampart) return;
+    const length = fortLengthAs(ctx.landscape, own, own.kind);
+    if (length === null) return;
+    const moat = from.rampart && !from.water ? stewardMoatSection(ctx.landscape, own) : null;
+    const higher = walls.filter((w) => from.wall === null || wallRank(w) > wallRank(from.wall));
+    for (const wall of [from.wall, ...higher]) {
+      for (const rampart of from.rampart ? [true] : [false, true]) {
+        for (const water of moat ? [false, true] : [from.water]) {
+          const plan: FortPlan = { wall, rampart, water: rampart && water };
+          if (samePlan(plan, from)) continue;
+          const intent = upgradeIntent(own.id, from, plan, moat);
+          if (intent) consider(plan, from, length, intent);
+        }
       }
     }
   } else {
-    const areas = new Map<string, ReturnType<typeof stewardFortificationFor>>();
-    for (const plan of FORT_PLANS) {
-      const base = planBase(plan);
-      if (!areas.has(base)) {
-        areas.set(
-          base,
-          stewardFortificationFor(state, ctx.landscape, ctx.obstacles, ctx.day, base),
-        );
+    const areas = new Map<FortKind, ReturnType<typeof stewardFortificationFor>>();
+    for (const wall of [null, ...walls]) {
+      for (const rampart of [false, true]) {
+        const plan: FortPlan = { ...NO_FORT, wall, rampart };
+        if (samePlan(plan, NO_FORT)) continue;
+        const base = newFortKind(plan);
+        if (!areas.has(base)) {
+          areas.set(
+            base,
+            stewardFortificationFor(state, ctx.landscape, ctx.obstacles, ctx.day, base),
+          );
+        }
+        const area = areas.get(base);
+        if (!area) continue;
+        consider(plan, null, area.lengthM, {
+          kind: 'fortification',
+          points: area.points,
+          fortKind: base,
+        });
       }
-      const area = areas.get(base);
-      if (!area) continue;
-      consider(plan, null, area.lengthM, {
-        kind: 'fortification',
-        points: area.points,
-        fortKind: base,
-      });
     }
   }
   const best = options
     .filter((o) => o.value > 0)
-    .sort((a, b) => b.value - a.value || FORT_PLANS.indexOf(a.plan) - FORT_PLANS.indexOf(b.plan));
+    .sort((a, b) => b.value - a.value || planOrder(a.plan) - planOrder(b.plan));
   let starts = 0;
   for (const option of best) {
     if (starts++ >= STEWARD.slotTries) return;

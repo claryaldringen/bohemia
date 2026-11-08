@@ -13,6 +13,7 @@ import {
 import { buildAffordability } from './costs';
 import { startFortification, startFortificationUpgrade } from './fortifications';
 import { startSectionUpgrade } from './fortification-upgrade';
+import { startMoatFill, startRampartAddition } from './fortification-rampart';
 import { HORSE_PEN_NO_SURPLUS } from './horse-pen-payment';
 import { villageRoadWalk } from './paths/walking';
 import {
@@ -149,6 +150,23 @@ export interface FortificationUpgradeIntent {
   segment?: number | null;
 }
 
+/**
+ * Val s příkopem pod stojící hradbou (fortifications.md – Hradby a obrana, Druhy): úsek s dílem
+ * `segment`, null – celé opevnění (`startRampartAddition`).
+ */
+export interface FortificationRampartIntent {
+  kind: 'fortification-rampart';
+  fortificationId: number;
+  segment: number | null;
+}
+
+/** Napuštění příkopu úseku s dílem `segment` (Hradby a obrana – Druhy; `startMoatFill`). */
+export interface FortificationMoatIntent {
+  kind: 'fortification-moat';
+  fortificationId: number;
+  segment: number;
+}
+
 /** Humno (production-chains.md – Humno) – volně u kurzoru jako dílna. */
 export interface ThreshingFloorIntent {
   kind: 'threshing-floor';
@@ -230,6 +248,8 @@ export interface RoadApplesIntent {
 export type BuildIntent =
   | FortificationIntent
   | FortificationUpgradeIntent
+  | FortificationRampartIntent
+  | FortificationMoatIntent
   | DwellingIntent
   | ReplacementIntent
   | WorkshopIntent
@@ -296,6 +316,20 @@ export function applyBuildIntent(
         { fortificationId: intent.fortificationId, work: intent.work, top: intent.top },
         villageRoadWalk(state, landscape),
       );
+    case 'fortification-rampart':
+      return startRampartAddition(
+        state,
+        day,
+        landscape,
+        obstacles,
+        { fortificationId: intent.fortificationId, segment: intent.segment },
+        villageRoadWalk(state, landscape),
+      );
+    case 'fortification-moat':
+      return startMoatFill(state, day, landscape, {
+        fortificationId: intent.fortificationId,
+        segment: intent.segment,
+      });
     case 'dwelling':
       return buildDwelling(state, day, landscape, obstacles, intent);
     case 'replacement':
