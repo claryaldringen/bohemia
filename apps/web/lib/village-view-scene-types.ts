@@ -54,6 +54,8 @@ import { type SceneWedding } from './wedding-view';
 export interface SceneDemolition {
   id: number;
   structure: UsableStructure;
+  /** Id bourané stavby před zbouráním – ve scéně ji nahradilo staveniště s id `id`. */
+  targetId: number;
   type?: DwellingType;
   craft?: Craft;
 }

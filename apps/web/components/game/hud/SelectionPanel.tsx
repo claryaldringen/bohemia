@@ -308,12 +308,16 @@ export function SelectionPanel({
     body = (
       <div className="flex flex-col items-start justify-center gap-1.5">
         <div className={ROW}>
-          <Stat icon="labor" name="Stavba">
-            {formatPercent(details.progress)}
+          <Stat icon="labor" name={details.demolition === undefined ? 'Stavba' : 'Bourání'}>
+            {formatPercent(details.demolition ?? details.progress)}
           </Stat>
           {details.treesToFell > 0 && <WoodToFell trees={details.treesToFell} />}
         </div>
-        <Bar value={details.progress} name="Stavba" testId="selection-progress" />
+        {details.demolition === undefined ? (
+          <Bar value={details.progress} name="Stavba" testId="selection-progress" />
+        ) : (
+          <Bar value={details.demolition} name="Bourání" testId="selection-demolition" />
+        )}
       </div>
     );
   } else if (details.kind === 'dwellings') {

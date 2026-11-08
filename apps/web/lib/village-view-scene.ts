@@ -302,6 +302,7 @@ export function sceneVillage(
       {
         id: c.id,
         structure: ref.structure,
+        targetId: ref.id,
         ...(home ? { type: home.type } : {}),
         ...(home?.workshop ? { craft: home.workshop.craft } : {}),
       },
