@@ -130,6 +130,8 @@ vylepšit jen celé.
   zůstane prázdný, dokud se do něj někdo nenastěhuje – typicky obyvatelé zbouraného nebo
   opuštěného domu (návrh Clauda). Lidé k osídlení tak přestávají být cenou předem obydlí
   (`BUILD_COSTS` – `settlers`).
+- **I dílny bez lidí k osídlení** (Martin 8. 11. 2026: „A“) – dílna po dostavění čeká prázdná,
+  dokud se do ní nenastěhuje rodina, a teprve pak vyrábí; přesun dílny tak jde jako přesun domu.
 - **Dočasně ubytovaní jsou členy hostitelského domu** (návrh Clauda, otázka 5 plánu): mají
   `dwellingId` hostitele, takže v simulaci pracují, jedí a počítají se do kapacity tam; jako vlastní
   domácnost platí jen pro pořadí nastěhování (`VillageState.displaced`). Do prázdného obydlí v provozu
