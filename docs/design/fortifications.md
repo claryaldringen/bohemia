@@ -361,7 +361,7 @@ Vše kromě Martinových životností je návrh Clauda.
 
 Jedna otázka = jedno rozhodnutí, doporučení Clauda u každé.
 
-1. **Dům × 1,5** – zůstane obráncům u domu násobek „znají místo“, když za hradbou žádný není?
+1. ~~**Dům × 1,5**~~ – rozhodnuto 8. 11. 2026 (Martin: „a“): násobek u domu se ruší také. Původně: zůstane obráncům u domu násobek „znají místo“, když za hradbou žádný není?
    Doporučení: **zrušit i ten**; výhodu obránce u domů nese vyšší bod zlomu (45 % proti 30 %),
    útěk a skryté jámy. NPC velitel pak napadne skupinu domů při 1,5 × síle obránců.
 2. **Kryt předprsní** – smí střela nebo hod zespodu na obránce na ochozu padnout jen 1 : 3? Je to
