@@ -341,8 +341,8 @@ export function householdOrder(
 
 /**
  * Jedno kolo „z domu“ (paths.md – Slévání; Martin 8. 11. 2026): domácnosti po sobě v pořadí
- * `order` (`householdOrder`), každá jedno hledání z brány ke všem
- * svým cílům najednou (`routeHome`). Trasy domácnosti se pak přičtou do provozu a hned vyšlapou –
+ * `order` (`householdOrder`), každá jedno hledání z brány ke všem svým cílům najednou
+ * (`routeHome`). Trasy domácnosti se pak přičtou do provozu a hned vyšlapou –
  * další domácnost se k pěšinám těch před ní přidá; trasy jednoho domu sdílejí kmen ze stromu
  * nejkratších cest. Cíl v jiné souvislé oblasti než brána se předem vyřadí. Nedosažený cíl (moc
  * daleko, nedosažitelný) dostane váhu 0 – další kola ho nehledají. Pochůzka v prvním kole určí,
