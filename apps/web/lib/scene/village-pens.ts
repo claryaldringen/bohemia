@@ -4,6 +4,7 @@
 // plough-front.ts. Kreslí village-renderer.ts (pen-renderer.ts, pen-animals.ts,
 // plough-team-renderer.ts).
 import { penGateToward } from '@bohemia/game';
+import { demolitionSiteProgress } from '../demolition-view';
 import type { SceneVillage } from '../village-view';
 import type { PenHerd } from './pen-layout';
 import type { PenView } from './pen-renderer';
@@ -36,7 +37,13 @@ export function scenePenViews(
       ...(pen.species === undefined ? {} : { species: pen.species }),
       square,
       facing: { x: toward.x - pen.x, z: toward.z - pen.z },
-      progress: pen.built ? 1 : Math.min(0.999, Math.max(0, pen.progress)),
+      // bouraná ohrada je stavba pozpátku (demolition.md – plot ubývá po fázích stavby)
+      progress:
+        pen.demolition !== undefined
+          ? Math.min(0.999, demolitionSiteProgress(pen.demolition))
+          : pen.built
+            ? 1
+            : Math.min(0.999, Math.max(0, pen.progress)),
       ...(pen.condition === undefined ? {} : { condition: pen.condition }),
       ...(pen.hay === undefined ? {} : { hay: pen.hay }),
       ...(tornado ? { tornado } : {}),

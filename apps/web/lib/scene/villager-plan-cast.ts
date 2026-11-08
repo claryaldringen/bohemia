@@ -31,6 +31,7 @@ import {
   type VillagerLook,
   type VillagerPaths,
 } from './villager-plan-types';
+import { demolitionSiteProgress } from '../demolition-view';
 import { houseBox, plotBox, siteBox, stringHash } from './villager-plan-geometry';
 import { withBuilderAtEachConstruction } from './villager-plan-sites';
 
@@ -247,11 +248,13 @@ export function context(
       const fence = (side: keyof typeof inset): number =>
         inset[side] === 0 ? PEN_FENCE_INSET_M : 0;
       return {
-        id: pen.id,
+        // bouraná ohrada je staveniště pod id stavby bourání – tam stojí bouračí parta
+        id: pen.demolitionSite ?? pen.id,
         // natočená ohrada (fields.md – Natočené stavby) – čtverec v osách ohrady
         position: { x: q.x, z: q.z, rotation },
-        built: pen.built,
-        progress: pen.progress,
+        built: pen.built && pen.demolition === undefined,
+        progress:
+          pen.demolition === undefined ? pen.progress : demolitionSiteProgress(pen.demolition),
         inhabited: false,
         box: {
           minX: -half + fence('minX'),

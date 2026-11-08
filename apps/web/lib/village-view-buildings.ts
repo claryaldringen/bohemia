@@ -40,6 +40,7 @@ import {
   herdsOverRoom,
   threshingStatus,
 } from '@bohemia/game';
+import { demolitionKey, demolitionLooks, demolitionSiteProgress } from './demolition-view';
 import { fruitVisible, treeGrowth } from './orchard-look';
 
 import { sacredOakGrowth } from './sacred-look';
@@ -61,7 +62,9 @@ export function scenePens(
   // seno vsi rovným dílem do stohů hotových ohrad (villagers.md – odvoz sena na stoh)
   const builtPens = summary.pens.filter((p) => p.built).length;
   const hay = yardStage((state.hay?.kg ?? 0) / Math.max(1, builtPens), HAY_STACK_KG);
+  const demolishing = demolitionLooks(state, summary);
   return summary.pens.map((pen) => {
+    const demolition = demolishing.get(demolitionKey('pen', pen.id));
     const building = pen.built
       ? undefined
       : state.constructions.find((c) => c.kind === 'pen' && c.penId === pen.id);
@@ -88,6 +91,7 @@ export function scenePens(
         : (summary.constructions.find((c) => c.id === building?.id)?.buildProgress ?? 0),
       // rozšíření ve stavbě – průběh plotu kolem nových čtverců
       ...extensionProgress(state, summary, pen),
+      ...(demolition ? { demolition: demolition.progress, demolitionSite: demolition.site } : {}),
       oxen: pen.oxen?.trained ?? 0,
       trainees: pen.oxen?.training ?? 0,
       cows,
@@ -250,9 +254,22 @@ export function sceneSacred(
         : [],
     ),
   );
+  const demolishing = demolitionLooks(state, summary);
   const buildings = [
     ...summary.sacred.buildings.map((b) => {
       const wear = wears.get(b.id);
+      // bouraná stavba je staveniště pozpátku pod id stavby bourání (demolition-view.ts)
+      const demolition = demolishing.get(demolitionKey(b.kind, b.id));
+      if (demolition) {
+        return {
+          id: demolition.site,
+          kind: b.kind,
+          position: b.position,
+          built: false,
+          progress: demolitionSiteProgress(demolition.progress),
+          demolition: demolition.progress,
+        };
+      }
       return {
         id: b.id,
         kind: b.kind,

@@ -91,6 +91,7 @@ import {
   pathFortificationsOf,
   type DwellingPlot,
 } from '@bohemia/game';
+import { demolitionKey, demolitionLooks, demolitionSiteProgress } from './demolition-view';
 import { sceneGrainPits } from './grain-pit-view';
 import { sceneFunerals } from './funeral-view';
 import { scenePersons } from './person-view';
@@ -114,7 +115,24 @@ export function sceneVillage(
   ).length;
   const yardOf = (d: (typeof state.dwellings)[number]): SceneCraftYard | null =>
     occupied.has(d.id) ? craftYard(state, d, day, smithies) : null;
+  const demolishing = demolitionLooks(state, summary);
   const built = state.dwellings.map((d) => {
+    // bouraný dům je staveniště pozpátku pod id stavby bourání (demolition-view.ts)
+    const demolition = demolishing.get(demolitionKey('dwelling', d.id));
+    if (demolition) {
+      return {
+        id: demolition.site,
+        type: d.type,
+        position: d.position,
+        built: false,
+        progress: demolitionSiteProgress(demolition.progress),
+        demolition: demolition.progress,
+        ...(d.plot ? { plot: scenePlot(landscape, d.plot) } : {}),
+        since: d.builtDay,
+        ...(d.workshop ? { craft: d.workshop.craft } : {}),
+        ...(d.plainShape ? { plainShape: true as const } : {}),
+      };
+    }
     const yard = yardOf(d);
     return {
       id: d.id,

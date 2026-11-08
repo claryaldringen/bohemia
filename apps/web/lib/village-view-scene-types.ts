@@ -61,6 +61,11 @@ export interface SceneVillage {
     position: Position;
     built: boolean;
     progress: number;
+    /**
+     * Obydlí se bourá (demolition.md): `built` je false, `progress` fáze staveniště pozpátku
+     * (`1 − demolition`), `id` je id stavby bourání (cíl práce vesničanů). Průběh bourání 0–1.
+     */
+    demolition?: number;
     /** Řemeslná dílna (crafts.md) – `type` je pak obydlí, na kterém stojí. */
     craft?: Craft;
     /**
@@ -660,6 +665,12 @@ export interface ScenePen {
   rotation?: number;
   built: boolean;
   progress: number;
+  /**
+   * Ohrada se bourá (demolition.md): průběh bourání 0–1 – scéna ji kreslí jako stavbu pozpátku
+   * (`1 − demolition`); `demolitionSite` je id stavby bourání (cíl práce vesničanů).
+   */
+  demolition?: number;
+  demolitionSite?: number;
   /** Rozšíření ve stavbě (čtverce `pending`) – průběh 0–1; bez rozšíření chybí. */
   extension?: number;
   oxen: number;
@@ -858,6 +869,8 @@ export interface SceneSacred {
     position: Position;
     built: boolean;
     progress: number;
+    /** Stavba se bourá (demolition.md): jako u obydlí – `built` false, `id` stavby bourání. */
+    demolition?: number;
     /**
      * Stav hotové stavby 0–1 (abandonment.md – chátrání, structure-decay.ts) – jen pod 1; bez
      * údaje celá.
