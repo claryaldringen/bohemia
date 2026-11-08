@@ -68,7 +68,8 @@ vylepšit jen celé.
 - Obyvatelé se hned **rozejdou do obydlí s volnými místy** – nejdřív nejbližší, rodina pohromadě,
   kde to jde (návrh Clauda). Zůstávají svou domácností, jen dočasně bydlí jinde; jako první se
   pak nastěhují do prázdného obydlí, až nějaké bude ([populace](population.md) – Nové obydlí).
-- **Přesun stavení:** hráč postaví nový dům a starý zbourá nebo opustí (Martin).
+- **Přesun stavení:** hráč postaví nový dům (i bez lidí k osídlení – Rozhodnutí) a starý zbourá
+  nebo opustí (Martin).
 - **Přestěhovat zaniká** – tlačítko u obydlí i u výběru víc obydlí. Rozestavěné přestěhování ve
   starých vsích se dostaví a domácnost se přestěhuje jako dřív (převod – návrh Clauda).
 
@@ -109,7 +110,10 @@ vylepšit jen celé.
 | Klády zpět    | 0,5 × klády stavby × stav stavby (0–1), dolů na celé |
 | Zbořit val    | 0,25 × práce valu, klády žádné                       |
 
-## Otevřené otázky
+## Rozhodnutí
 
-1. **Nový dům bez lidí k osídlení** – dnes obydlí stojí lidi k osídlení (rodinu ženatého syna nebo
-   svobodného syna z přeplněného domu). Bez nich nový dům pro přesun postavit nejde.
+- **Obydlí jde postavit i bez lidí k osídlení** (Martin 8. 11. 2026: „A“). Je-li ve vsi rodina,
+  která se může oddělit, stavba ji zamluví a nastěhuje se jako dnes; jinak dům po dostavění
+  zůstane prázdný, dokud se do něj někdo nenastěhuje – typicky obyvatelé zbouraného nebo
+  opuštěného domu (návrh Clauda). Lidé k osídlení tak přestávají být cenou předem obydlí
+  (`BUILD_COSTS` – `settlers`).
