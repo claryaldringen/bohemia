@@ -154,6 +154,8 @@ export async function sendShipment(
     purpose: string;
     refId: string;
     today: number;
+    /** Jídlo domény – dobytek se v cíli porazí (hillfort.md – Jídlo domény). */
+    domain?: true;
   },
 ): Promise<SendShipmentResult> {
   const from = await deps.villages.find(input.fromVillageId);
@@ -199,6 +201,7 @@ async function sendLocked(
       fromName: from!.name,
       fromVillageId: from!.id,
       purpose: input.purpose,
+      ...(input.domain ? { domain: true as const } : {}),
     });
     if (!sent.ok) return sent;
     const { record } = await deps.shipments.reserve({
@@ -260,7 +263,7 @@ async function returnToSender(
     body: {
       kind: 'shipment',
       shipment: {
-        ...record.body,
+        ...withoutDomain(record.body),
         key: `${record.body.key}:back`,
         fromVillageId: record.toVillageId,
         fromName: target?.name ?? '',
@@ -553,3 +556,10 @@ async function postGuests(
 }
 
 type CorveeGuests = readonly Guest[];
+
+/** Vracená zásilka už není jídlo domény – dobytek se odesílateli vrátí živý. */
+function withoutDomain(body: ShipmentBody): ShipmentBody {
+  const rest = { ...body };
+  delete rest.domain;
+  return rest;
+}

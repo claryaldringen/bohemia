@@ -123,6 +123,28 @@ describe('sendShipment', () => {
     expect(w.shipments.rows[0]!.postedAt).not.toBeNull();
   });
 
+  it('jídlo domény: tělo v řádku i ve schránce nese domain, v cíli se dobytek porazí', async () => {
+    const w = await world();
+    const result = await sendShipment(w.deps, {
+      fromVillageId: w.fromId,
+      toVillageId: w.toId,
+      bundle: bundle({ grainKg: 300, cattle: { cows: 2, youngOxen: 0, trainedOxen: 0 } }),
+      purpose: 'domain-food',
+      refId: 'domain-food:1',
+      today: DAY,
+      domain: true,
+    });
+    expect(result).toMatchObject({ ok: true });
+    expect(w.shipments.rows[0]!.body.domain).toBe(true);
+    const events = await w.villages.inbox.pending(w.toId, 0, DAY + 100);
+    const body = events[0]!.body;
+    expect(body.kind === 'shipment' && body.shipment.domain).toBe(true);
+    const to = await deliver(w, w.toId, DAY + 6);
+    expect(to.domainFoodDay).toBe(DAY + 6);
+    expect(to.meatKg ?? 0).toBeGreaterThanOrEqual(240);
+    expect(to.livestock?.herds.cow ?? 0).toBe(receiver().livestock?.herds.cow ?? 0);
+  });
+
   it('opakované odeslání se stejným refId nic nezdvojí', async () => {
     const w = await world();
     const input = {

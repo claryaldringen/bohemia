@@ -3,7 +3,7 @@ import { cloneState } from '../village/clone';
 import { villageHayKg } from '../village/hay';
 import { addHorses, horsesForSale, horsesToSell, removeHorses } from '../village/horse-trade';
 import { removePeople } from '../village/kinship';
-import { ensureLivestock } from '../village/livestock';
+import { ensureLivestock, LIVESTOCK } from '../village/livestock';
 import { CATTLE_GOODS, HORSE_GOODS } from '../village/neighbours';
 import { emigrantGroups, emigrantList, newcomerHome, peopleCount } from '../village/people-trade';
 import { rehomePeople } from '../village/transfer-people';
@@ -177,6 +177,8 @@ export function dispatchShipment(
     fromName?: string;
     fromVillageId?: string;
     purpose?: string;
+    /** Jídlo domény – dobytek se v cíli porazí (`ShipmentBody.domain`). */
+    domain?: true;
   },
 ):
   | { ok: true; state: VillageState; body: ShipmentBody; arrivesDay: number }
@@ -255,6 +257,7 @@ export function dispatchShipment(
     fromName: input.fromName ?? '',
     direction: OPPOSITE[input.firstStep],
     ...(input.purpose === undefined ? {} : { purpose: input.purpose }),
+    ...(input.domain ? { domain: true as const } : {}),
     grainKg: bundle.grainKg,
     hayKg: bundle.hayKg,
     logs: bundle.logs,
@@ -283,8 +286,15 @@ export function receiveShipment(
     hay.kg += body.hayKg;
   }
   addLogs(state, body.logs, null);
-  if (CATTLE_GOODS.some((g) => body.cattle[g] > 0)) ensureLivestock(state);
-  for (const good of CATTLE_GOODS) addCattle(state, good, body.cattle[good], day);
+  if (body.domain) {
+    // jídlo domény: dobytek je hned poražen a snězen (jako na dobytčích trzích), do stád nejde
+    const heads = CATTLE_GOODS.reduce((n, g) => n + body.cattle[g], 0);
+    state.meatKg = (state.meatKg ?? 0) + heads * LIVESTOCK.meatKg.cow;
+    state.domainFoodDay = day;
+  } else {
+    if (CATTLE_GOODS.some((g) => body.cattle[g] > 0)) ensureLivestock(state);
+    for (const good of CATTLE_GOODS) addCattle(state, good, body.cattle[good], day);
+  }
   addHorses(state, body.horses, day);
   const events: ChronicleEvent[] = [];
   for (const group of body.groups) {

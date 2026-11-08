@@ -17,6 +17,37 @@ const FULL = bundle({
 });
 
 describe('zásilka (dispatchShipment, receiveShipment)', () => {
+  it('jídlo domény: dobytek se v cíli porazí do masa, stáda beze změny, domainFoodDay', () => {
+    const from = sender();
+    const to = receiver();
+    const b = bundle({ grainKg: 500, cattle: { cows: 2, youngOxen: 0, trainedOxen: 0 } });
+    const sent = dispatchShipment(from, DAY, { bundle: b, cells: 3, firstStep: 'E', domain: true });
+    if (!sent.ok) throw new Error(sent.reason);
+    expect(sent.body.domain).toBe(true);
+    expect(stock(from).cows! - stock(sent.state).cows!).toBe(2);
+    expect(from.storesKg - sent.state.storesKg).toBe(500);
+    const received = structuredClone(to);
+    const meatBefore = received.meatKg ?? 0;
+    receiveShipment(received, DAY + 6, sent.body);
+    expect(received.storesKg - to.storesKg).toBe(500);
+    expect((received.meatKg ?? 0) - meatBefore).toBe(240);
+    expect(stock(received).cows).toBe(stock(to).cows);
+    expect(received.domainFoodDay).toBe(DAY + 6);
+  });
+
+  it('obyčejná zásilka: dobytek do stáda, domainFoodDay nevznikne, tělo bez domain', () => {
+    const b = bundle({ cattle: { cows: 2, youngOxen: 0, trainedOxen: 0 } });
+    const sent = dispatchShipment(sender(), DAY, { bundle: b, cells: 3, firstStep: 'E' });
+    if (!sent.ok) throw new Error(sent.reason);
+    expect(sent.body.domain).toBeUndefined();
+    const received = structuredClone(receiver());
+    const meatBefore = received.meatKg;
+    receiveShipment(received, DAY + 6, sent.body);
+    expect(stock(received).cows).toBe(stock(receiver()).cows! + 2);
+    expect(received.domainFoodDay).toBeUndefined();
+    expect(received.meatKg).toBe(meatBefore);
+  });
+
   it('bilance: co odesílateli ubylo, to příjemci přibylo (obilí, seno, klády, dobytek, koně, lidé)', () => {
     const from = sender();
     const to = receiver();

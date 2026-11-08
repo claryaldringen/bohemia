@@ -498,8 +498,16 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
         ? `Muž rodu odešel vládnout do vsi ${event.villageName}.`
         : `${event.name} odešel vládnout do vsi ${event.villageName}.`;
     case 'shipment-sent':
+      if (event.purpose === 'domain-food') {
+        return `Jídlo pro ves${event.villageName === '' ? '' : ` ${event.villageName}`}: ${shipmentText(event.goods)}.`;
+      }
       return `Zásilka vyrazila${event.villageName === '' ? '' : ` do vsi ${event.villageName}`} – ${shipmentText(event.goods)}.`;
     case 'shipment-received':
+      if (event.purpose === 'domain-food' && !event.returned) {
+        const cattle =
+          event.goods.cattle.cows + event.goods.cattle.youngOxen + event.goods.cattle.trainedOxen;
+        return `Jídlo${event.villageName === '' ? '' : ` z vsi ${event.villageName}`}: ${shipmentText(event.goods)}${cattle > 0 ? ', dobytek poražen' : ''}.`;
+      }
       return event.returned
         ? `Zásilka se vrátila z vsi ${event.villageName} – ${shipmentText(event.goods)}.`
         : `Zásilka ${event.villageName === '' ? '' : `z vsi ${event.villageName} `}dorazila – ${shipmentText(event.goods)}.`;
