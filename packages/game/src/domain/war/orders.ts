@@ -1,5 +1,5 @@
 import type { BattleGroup, BattleState, Fighter } from './battle';
-import type { CampaignState, GroupOrder } from './campaign-types';
+import type { CampaignState, GroupAssault, GroupOrder } from './campaign-types';
 import type { Pos } from './march-grid';
 import { WAR } from './rules-war';
 
@@ -47,9 +47,12 @@ export function dist2(a: Pos, b: Pos): number {
   return dx * dx + dz * dz;
 }
 
-/** Bojuje muž (ne prchá, neleží, není pryč z bojiště)? Prolamující bojuje jen jako cíl. */
+/**
+ * Bojuje muž (ne prchá, neleží, není pryč z bojiště)? Prolamující a ten, kdo přechází hradbu,
+ * bojuje jen jako cíl (lezec nahoře i s obráncem – `ladders.ts`).
+ */
 export function inFight(f: Fighter): boolean {
-  return f.state === 'fight' || f.state === 'breach';
+  return f.state === 'fight' || f.state === 'breach' || f.state === 'climb';
 }
 
 /** Dosah muže – luk, nebo zblízka. */
@@ -144,6 +147,31 @@ export function setGroupOrder(
   if (bg) {
     bg.order = order;
     bg.holdAt = place ? { x: place.x, z: place.z } : null;
+  }
+  return true;
+}
+
+/**
+ * Postup skupiny přes hradbu (fortifications.md – Přechod hradby; Martin 8. 11. 2026 – „ano“, volí
+ * hráč rozkazem skupině): před bitvou kdykoli, v boji jen na doslech velitele jako rozkaz. `null` =
+ * nejrychlejší postup místa (jako NPC). Platí pro muže, kteří ke stěně teprve dojdou. Vrací, zda
+ * volba platí. Mění `state` na místě. Rozhraní – Úloha 17 plánu hradeb.
+ */
+export function setGroupAssault(
+  state: CampaignState,
+  groupId: number,
+  assault: GroupAssault | null,
+): boolean {
+  const group = state.groups.find((g) => g.id === groupId);
+  if (!group) return false;
+  const battle = state.battle?.outcome === 'ongoing' ? state.battle : null;
+  if (battle && !orderHeard(battle, groupId)) return false;
+  if (assault) group.assault = assault;
+  else delete group.assault;
+  const bg = battle?.groups.find((g) => g.side === 'attack' && g.id === groupId);
+  if (bg) {
+    if (assault) bg.assault = assault;
+    else delete bg.assault;
   }
   return true;
 }

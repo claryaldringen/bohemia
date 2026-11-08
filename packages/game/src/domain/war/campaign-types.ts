@@ -1,5 +1,6 @@
 import type { WorldClock } from '../calendar';
 import type { Landscape, ObstacleLayer } from '../landscape';
+import type { AssaultMethod } from '../village/fortification/assault';
 import type { NewVillageEvent } from '../village/inbox';
 import type { Person, PersonRef, Prisoner, RaidLoot, VillageState } from '../village/types';
 import type { GridCell } from '../village/world-grid';
@@ -58,6 +59,13 @@ export interface CampaignMember {
 /** Rozkaz skupiny (war.md – Boj; zapojí Ú6.8). */
 export type GroupOrder = 'follow-leader' | 'attack-all' | 'hold-place';
 
+/**
+ * Postup přes hradbu, který skupině zvolil hráč (fortifications.md – Přechod hradby; Martin
+ * 8. 11. 2026 – „ano“, volí hráč rozkazem skupině). Bez volby – i u NPC – nejrychlejší postup
+ * místa. Boj zatím zná žebřík a sekání (oheň, odkop a podkop – Úloha 14 plánu hradeb).
+ */
+export type GroupAssault = Exclude<AssaultMethod, 'open' | 'climb'>;
+
 /** Místo ve světě: políčko mřížky a bod na jeho mapě (m). */
 export interface CampaignPlace {
   cell: GridCell;
@@ -95,6 +103,8 @@ export interface CampaignGroup {
   arrived: boolean;
   /** Rozkaz „držet místo“ – místo na mapě cíle (war.md – Boj – Skupiny); jinak chybí. */
   holdAt?: Pos;
+  /** Postup přes hradbu zvolený hráčem; chybí = nejrychlejší (`GroupAssault`). */
+  assault?: GroupAssault;
 }
 
 /** Zásoby tažení (war.md – Pohyb – Zásoby); píci a nosnost doplní příprava (Ú6.6). */

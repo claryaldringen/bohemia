@@ -227,6 +227,8 @@ z [Prolomení](#prolomení) (3. 11.) zůstávají, nové navazují.
   a nechá průlom 4 m.
 - **S valem:** sekat a pálit se dá jen po výstupu na val a pálit až po zasypání; odkopat
   a podkopat jde ze dna příkopu (Martin). Vodní příkop napřed zasypat.
+- **Postup volí hráč** rozkazem skupině – žebříky, sekání, oheň, kopání (Martin 8. 11. 2026 –
+  „ano“); bez rozkazu a u NPC muži volí nejrychlejší postup místa.
 - Proč takové pořadí: bez valu je nejrychlejší oheň (≈ ½ sekání), s valem odkopání – hráč
   i NPC velitel volí podle hradby. Podkop hradeb trvá dny, takže **hradba se bere hlavně
   žebříky přes neobsazená místa** – a tam rozhoduje obsazení.

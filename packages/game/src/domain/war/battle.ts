@@ -16,9 +16,23 @@ import type { Fortification, FortSegment } from '../village/fortification/types'
 import { FORTIFICATIONS } from '../village/rules-fortifications';
 import type { GridGeometry } from '../village/square-grid';
 import { bowShot, poseOf } from './aim';
-import type { GroupOrder } from './campaign-types';
+import type { GroupAssault, GroupOrder } from './campaign-types';
 import { defenderPlan, type Defender } from './defenders';
 import { nearestForest } from './flight';
+import {
+  climbStep,
+  defendLadder,
+  fighterStrength,
+  onLadder,
+  outward,
+  rampartFatigueStep,
+  restFatigue,
+  settleLadders,
+  startCrossing,
+  type BattleLadder,
+  type ClimbWorld,
+  type FighterClimb,
+} from './ladders';
 import { MARCH_BUILDING, MARCH_WALL, marchCellAt, type MarchGrid, type Pos } from './march-grid';
 import {
   attackerPlan,
@@ -41,14 +55,18 @@ import { TICKS_PER_SECOND } from './ticks';
 // taktu 1 : 1, šíp podle dovednosti střelce a viditelné plochy v kruhu rozptylu (`aim.ts`). Na nule
 // padlý, nebo raněný; skupina uteče při bodu zlomu podle počtu; velitel sám neuteče; poslední muž
 // rodu doma neklesne pod 10 zdraví a vždy uteče. Opevnění: stěny úseků jsou úsečky, kterými se
-// neprojde – jen branou, mezerou nebo průlomem; prolamující nebojují. Stav je JSON, takt čte jen
-// stav, bojiště a náhodu taktu – výsledek nezávisí na kouscích taktů. Jen det-math.
+// neprojde – jen branou, mezerou nebo průlomem, nebo přes ně (plot přelézt, žebřík – `ladders.ts`);
+// prolamující nebojují. Stav je JSON, takt čte jen stav, bojiště a náhodu taktu – výsledek nezávisí
+// na kouscích taktů. Jen det-math.
 
 /** Strana boje. */
 export type BattleSide = 'attack' | 'defend';
 
-/** Bojuje, prolamuje opevnění, prchá, je pryč z bojiště (utekl), leží (padlý nebo raněný). */
-export type FighterState = 'fight' | 'breach' | 'flee' | 'fled' | 'down';
+/**
+ * Bojuje, prolamuje opevnění, přechází hradbu (žebřík, plot – `ladders.ts`), prchá, je pryč
+ * z bojiště (utekl), leží (padlý nebo raněný).
+ */
+export type FighterState = 'fight' | 'breach' | 'climb' | 'flee' | 'fled' | 'down';
 
 /** Muž v boji. */
 export interface Fighter {
@@ -91,6 +109,12 @@ export interface Fighter {
   lastLine: boolean;
   /** Na nule zdraví – padl (jinak raněný). */
   killed: boolean;
+  /** Přechod hradby (stav `climb`); jinak chybí. */
+  climb?: FighterClimb;
+  /** Nese vyrobený žebřík (do opření); jinak chybí. */
+  ladder?: boolean;
+  /** Únava po valu: síla × `factor` v taktu boje `tick`, zpět k 1 za 120 taktů; jinak chybí. */
+  fatigue?: { factor: number; tick: number };
 }
 
 /** Skupina v boji – skupina tažení s rozkazem, nebo skupina domů obránců (rozkaz null). */
@@ -102,6 +126,8 @@ export interface BattleGroup {
   /** Muži, kteří do boje vstoupili – jmenovatel bodu zlomu. */
   entered: number;
   broken: boolean;
+  /** Postup přes hradbu zvolený hráčem (útočníci); chybí = nejrychlejší. */
+  assault?: GroupAssault;
 }
 
 /** Rozdělaný průlom – úsek `segment` opevnění `fort` (pořadí ve vsi), brána nebo zeď. */
@@ -128,6 +154,8 @@ export interface BattleState {
   /** Zavřené brány `<opevnění>:<úsek>` (fortifications.md – Brány se zavřou). */
   closedGates: string[];
   breaches: BattleBreach[];
+  /** Žebříky u hradeb (`ladders.ts`); chybí = žádný. */
+  ladders?: BattleLadder[];
   outcome: BattleOutcome;
   /** Spočtené takty boje. */
   ticks: number;
@@ -174,7 +202,12 @@ export interface BattleAttacker {
 export interface NewBattle {
   attackers: readonly BattleAttacker[];
   defenders: readonly Defender[];
-  groups: readonly { id: number; order: GroupOrder; holdAt: Pos | null }[];
+  groups: readonly {
+    id: number;
+    order: GroupOrder;
+    holdAt: Pos | null;
+    assault?: GroupAssault;
+  }[];
   /** Index velitele a zástupce mezi muži tažení (`member`). */
   commander: number | null;
   deputy: number | null;
@@ -277,6 +310,7 @@ export function openBattle(input: NewBattle): BattleState {
       holdAt,
       entered: men.length,
       broken: false,
+      ...(g.assault ? { assault: g.assault } : {}),
     });
   }
   const houseGroups = [...new Set(input.defenders.map((d) => d.houseGroup))].sort((a, b) => a - b);
@@ -301,12 +335,13 @@ export function openBattle(input: NewBattle): BattleState {
 
 // --- Stěny opevnění -------------------------------------------------------------------------
 
-/** Úsečka stěny, kterou se neprojde. */
+/** Úsečka stěny, kterou se neprojde; `segment` – úsek opevnění. */
 interface WallLine {
   ax: number;
   az: number;
   bx: number;
   bz: number;
+  segment: number;
 }
 
 /** Průchod opevněním – brána, mezera, průlom; body vně a uvnitř. */
@@ -368,19 +403,14 @@ function wallsOf(forts: readonly BattleFort[], closed: ReadonlySet<string>, day:
       const l = shape.line;
       const at = (t: number): Pos => ({ x: l.x + l.dx * t, z: l.z + l.dz * t });
       const mid = at(l.length / 2);
-      let nx = l.dz;
-      let nz = -l.dx;
-      if ((mid.x - bf.center.x) * nx + (mid.z - bf.center.z) * nz < 0) {
-        nx = -nx;
-        nz = -nz;
-      }
+      const { x: nx, z: nz } = outward(bf, l);
       const shift = (p: Pos, m: number): Pos => ({ x: p.x + nx * m, z: p.z + nz * m });
       const opening = (p: Pos): Opening => ({ out: shift(p, 3), in: shift(p, -3) });
       const part = (from: number, to: number): void => {
         if (to - from <= 1e-6) return;
         const a = at(from);
         const e = at(to);
-        lines.push({ ax: a.x, az: a.z, bx: e.x, bz: e.z });
+        lines.push({ ax: a.x, az: a.z, bx: e.x, bz: e.z, segment: shape.index });
       };
       const seg = bf.fort.segments.find((s) => s.index === shape.index);
       if (!seg || !blocks(bf.fort, seg, day)) {
@@ -401,7 +431,7 @@ function wallsOf(forts: readonly BattleFort[], closed: ReadonlySet<string>, day:
       const next = bf.shapes[(k + 1) % bf.shapes.length];
       if (shape.arc && next) {
         const e = at(l.length);
-        lines.push({ ax: e.x, az: e.z, bx: next.line.x, bz: next.line.z });
+        lines.push({ ax: e.x, az: e.z, bx: next.line.x, bz: next.line.z, segment: shape.index });
       }
       if (gate) {
         spots.push({
@@ -533,6 +563,8 @@ interface TickWorld {
   forts: BattleFort[];
   walls: Walls;
   b: BattleState;
+  /** Co přechod hradby (`ladders.ts`) čte z taktu. */
+  climb: ClimbWorld;
 }
 
 const MELEE_TICKS = WAR.combat.meleeSeconds * TICKS_PER_SECOND;
@@ -602,7 +634,8 @@ function chooseSpot(w: TickWorld, fort: number, from: Pos): Spot | null {
 
 /**
  * Jde k cíli `goal`. Útočník, kterému v cestě stojí stěna, jde průchodem (brána, mezera, průlom)
- * – body před ním a za ním; bez průchodu začne opevnění prolamovat. Obránce průchody nehledá.
+ * – body před ním a za ním; bez průchodu hradbu přeleze (plot, žebřík – `startCrossing`), je-li
+ * to postup skupiny nebo nejrychlejší, jinak začne opevnění prolamovat. Obránce průchody nehledá.
  */
 function approach(f: Fighter, goal: Pos, key: string, w: TickWorld, leash: Leash | null): void {
   if (f.side === 'attack') {
@@ -636,6 +669,13 @@ function approach(f: Fighter, goal: Pos, key: string, w: TickWorld, leash: Leash
         return;
       }
       const spot = chooseSpot(w, wall.fort, f.pos);
+      const started = spot ? w.b.breaches.find((x) => x.key === spot.key) : undefined;
+      const left = started ? started.progress.required - started.progress.done : spot?.work;
+      const breachHours = left === undefined ? null : left / FORTIFICATIONS.breach.maxMen;
+      const group = w.b.groups.find((g) => g.side === 'attack' && g.id === f.group);
+      if (startCrossing(f, wall.fort, wall.line.segment, group?.assault, breachHours, w.climb)) {
+        return;
+      }
       if (spot) {
         if (!w.b.breaches.some((x) => x.key === spot.key)) {
           w.b.breaches.push({
@@ -746,13 +786,22 @@ export function battleTick(b: BattleState, field: BattleField, rng: Random): voi
   b.ticks++;
   const forts = breachedForts(field, b);
   closeGates(b, forts);
+  const walls = wallsOf(forts, new Set(b.closedGates), field.day);
   const w: TickWorld = {
     field,
     forts,
-    walls: wallsOf(forts, new Set(b.closedGates), field.day),
+    walls,
     b,
+    climb: {
+      b,
+      field,
+      forts,
+      walk: (f, to) => stepToward(f, to, field, walls, null),
+      hasOpening: (fort) => (walls.openings[fort]?.length ?? 0) > 0,
+    },
   };
   breakpoints(w);
+  settleLadders(b);
   const byId = new Map(b.fighters.map((f) => [f.id, f]));
   const houses = new Map<number, Pos[]>();
   for (const f of b.fighters) {
@@ -770,6 +819,8 @@ export function battleTick(b: BattleState, field: BattleField, rng: Random): voi
   };
   for (const f of b.fighters) {
     if (f.cooldown > 0) f.cooldown--;
+    restFatigue(f, b.ticks);
+    const from = f.pos;
     switch (f.state) {
       case 'down':
       case 'fled':
@@ -783,20 +834,37 @@ export function battleTick(b: BattleState, field: BattleField, rng: Random): voi
       case 'breach':
         breachStepOf(f, w);
         break;
+      case 'climb':
+        climbStep(f, w.climb);
+        break;
       case 'fight':
         fightStep(f, w, ctx);
         break;
     }
+    if (f.pos !== from) rampartFatigueStep(f, from, field.grid, b.ticks);
   }
   breachWorkStep(w);
-  const pose = (x: Fighter): ReturnType<typeof poseOf> => poseOf(x, field);
+  const pose = (x: Fighter): ReturnType<typeof poseOf> => poseOf(x, field, b);
   const damage = new Map<string, number>();
   for (const f of b.fighters) {
-    if (f.state !== 'fight' || f.aim === null || f.cooldown > 0) continue;
-    const t = byId.get(f.aim);
-    if (!t || !canAttack(f, t, true)) continue;
-    const kind = strikeKind(f, t);
-    if (kind === null) continue;
+    if (f.cooldown > 0) continue;
+    // lezec nahoře bojuje s obráncem, který ho nepustí (`aim`); jinak jen muž ve stavu `fight`
+    if (f.state !== 'fight' && !(f.state === 'climb' && f.aim !== null)) continue;
+    const t = f.aim === null ? undefined : byId.get(f.aim);
+    const kind = t && canAttack(f, t, true) ? strikeKind(f, t) : null;
+    const strength = fighterStrength(f, b);
+    if (f.side === 'defend') {
+      // místo rány shodí žebřík (`ladders.ts`); prázdný, když nemá na koho udeřit
+      const push = defendLadder(f, b, hitDamage(strength, false), kind === null, rng);
+      if (push) {
+        f.cooldown = MELEE_TICKS;
+        if (push.fallen !== null) {
+          damage.set(push.fallen, (damage.get(push.fallen) ?? 0) + push.damage);
+        }
+        continue;
+      }
+    }
+    if (!t || kind === null) continue;
     let hit: string | null;
     if (kind === 'bow') {
       // v kruhu jen vlastní – nestřílí a ránu si nechá na další takt
@@ -806,15 +874,17 @@ export function battleTick(b: BattleState, field: BattleField, rng: Random): voi
       hit = shot.hit;
     } else {
       f.cooldown = MELEE_TICKS;
-      hit = rng.next() < WAR.combat.hitChance ? t.id : null;
+      // lezec na žebříku neuhne – každá rána na něj padne
+      hit = onLadder(t, b) || rng.next() < WAR.combat.hitChance ? t.id : null;
     }
     if (hit === null) continue;
-    damage.set(hit, (damage.get(hit) ?? 0) + hitDamage(f.strength, kind === 'bow'));
+    damage.set(hit, (damage.get(hit) ?? 0) + hitDamage(strength, kind === 'bow'));
   }
   for (const t of b.fighters) {
     const d = damage.get(t.id);
     if (d !== undefined && t.state !== 'down') takeHit(t, d, w, rng);
   }
+  settleLadders(b);
   const attackers = b.fighters.some((f) => f.side === 'attack' && inFight(f));
   const defenders = b.fighters.some(
     (f) => f.side === 'defend' && (inFight(f) || f.state === 'flee'),

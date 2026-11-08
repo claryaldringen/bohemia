@@ -18,8 +18,8 @@ import type { Pos } from '../march-grid';
 import { marchGrid } from '../march-grid';
 import { hoursPerTick, tickRandom } from '../ticks';
 
-// Přípravky testů boje: rovná louka 1920 × 1920 m (volitelně les), palisáda kolem středu
-// (svět −30…30 m, brána na jihu v z = −30), útočníci a obránci.
+// Přípravky testů boje: rovná louka 1920 × 1920 m (volitelně les – `forestSouth` pro žebříky),
+// palisáda kolem středu (svět −30…30 m, brána na jihu v z = −30), útočníci a obránci.
 
 const SIZE = 128;
 export const DAY = 10;
@@ -62,6 +62,17 @@ export function palisade(gate: boolean): Fortification {
     gates,
   };
 }
+
+/** Palisáda bez brány jiného druhu (plot, palisáda s ochozem…), nebo holý val s příkopem. */
+export function fortOf(kind: Fortification['kind']): Fortification {
+  return { ...palisade(false), kind };
+}
+
+/**
+ * Les jižně od opevnění (políčka y < 59 – z pod −75 m): tam útočníci vyrobí žebříky (Úloha 9
+ * plánu hradeb).
+ */
+export const forestSouth = (_tx: number, ty: number): boolean => ty < 59;
 
 /** Bojiště na louce s opevněním `forts`. */
 export function field(
