@@ -423,21 +423,34 @@ function takeLoot(state: VillageState, want: RaidLoot, pitsFound: readonly numbe
 /**
  * Průlom opevnění (fortifications.md – Prolomení, Životnost a oprava): prolomené úseky zůstanou
  * se stavem 0, než je obyvatelé přestaví – přednostně před ostatními stavbami
- * (`decideFortRebuilds`). Mutuje stav; neznámé opevnění nebo úsek se přeskočí.
+ * (`decideFortRebuilds`). Díl prolomený ohněm (`burned`) nese `burnedDay` (scéna – ohořelý
+ * průlom); vypálená brána (`gatesBurned`) zapálí i věž nad ní – věž je pryč (Přechod hradby –
+ * Oheň; postaví se znovu jako nová). Mutuje stav; neznámé opevnění nebo úsek se přeskočí.
  */
 export function applyFortificationBreach(
   state: VillageState,
   day: number,
-  body: { fortificationId: number; segments: readonly number[] },
+  body: {
+    fortificationId: number;
+    segments: readonly number[];
+    burned?: readonly number[];
+    gatesBurned?: readonly number[];
+  },
 ): void {
   const fort = state.fortifications?.find((f) => f.id === body.fortificationId);
   if (!fort) return;
   const segments = new Set(body.segments);
+  const burned = new Set(body.burned ?? []);
   for (const s of fort.segments) {
     // zbořený díl je už mezera – není co prolomit
     if (!segments.has(s.index) || !segmentBuilt(s) || s.demolishedDay !== undefined) continue;
     s.breachedDay ??= day;
     s.state = 0;
+    if (burned.has(s.index)) s.burnedDay ??= day;
+  }
+  for (const index of body.gatesBurned ?? []) {
+    const gate = fort.gates.find((g) => g.segment === index);
+    if (gate) delete gate.towerDay;
   }
 }
 

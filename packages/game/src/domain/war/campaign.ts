@@ -44,7 +44,7 @@ import {
   type CampaignReturn,
   type RaidResult,
 } from './raid-apply';
-import { marchGrid, type MarchGrid } from './march-grid';
+import { marchGrid, type MarchGrid, type Pos } from './march-grid';
 import { marchPath, marchPathToEdge, marchProgress, marchSpeed, type GroupPace } from './march';
 import { WAR } from './rules-war';
 import { discoverBuildings } from './sight';
@@ -80,6 +80,8 @@ interface TickContext {
   grids: Map<string, MarchGrid>;
   /** Opevnění vsi pro bojiště (ves a den). */
   forts: Map<string, BattleFort[]>;
+  /** Dříví vsi na otepi (`fuelOf`) podle klíče vsi a dne jako `forts`. */
+  fuel: Map<string, Pos[]>;
 }
 
 const cellKey = (c: GridCell): string => `${c.x},${c.y}`;
@@ -167,7 +169,7 @@ export function stepCampaign(
   const pending = intents
     .filter((i) => i.tick > state.tick && i.tick <= toTick && i.byPlayer === state.playerId)
     .sort((a, b) => a.tick - b.tick || a.seq - b.seq);
-  const ctx: TickContext = { world, grids: new Map(), forts: new Map() };
+  const ctx: TickContext = { world, grids: new Map(), forts: new Map(), fuel: new Map() };
   const villageEvents: NewVillageEvent[] = [];
   const notices: CampaignNotice[] = [];
   let current = state;
@@ -642,14 +644,25 @@ function battleFieldOf(s: CampaignState, ctx: TickContext): BattleField {
     if (village === null) throw new MissingData([], [s.target.villageId]);
     forts = battleForts(map.landscape, village.fortifications ?? []);
     ctx.forts.set(key, forts);
+    ctx.fuel.set(key, forts.length > 0 ? fuelOf(village) : []);
   }
+  const fuel = ctx.fuel.get(key) ?? [];
   return {
     grid,
     geo: map.landscape,
     forts,
     day: s.day,
     hoursPerTick: hoursPerTick(ctx.world.clock),
+    ...(fuel.length > 0 ? { fuel } : {}),
   };
+}
+
+/**
+ * Dříví vsi na otepi (fortifications.md – Přechod hradby – Oheň): hromady klád s kládami; les
+ * bere boj z mřížky.
+ */
+function fuelOf(village: VillageState): Pos[] {
+  return (village.logStacks ?? []).filter((x) => x.logs > 0).map((x) => ({ x: x.x, z: x.z }));
 }
 
 /** Výchozí boj: muži tažení na mapě cíle, kteří stojí na nohou, a obránci vsi. */
@@ -900,8 +913,8 @@ function reportRaid(s: CampaignState, ctx: TickContext, out: TickOut): void {
   }
   post(s, out, s.target.villageId, { kind: 'raid-result', result });
   const guardCaptured = reportGuards(s, out, full, guards);
-  for (const [fortificationId, segments] of breachesOf(b, village)) {
-    post(s, out, s.target.villageId, { kind: 'fortification-breach', fortificationId, segments });
+  for (const [fortificationId, report] of breachesOf(b, village)) {
+    post(s, out, s.target.villageId, { kind: 'fortification-breach', fortificationId, ...report });
   }
   // kronika útočníka počítá i hosty z ochrany – padli a byli zajati v tomto nájezdu
   const counts = {
@@ -1080,18 +1093,37 @@ function raidResultOf(
   return { ...base, loot, pitsFound };
 }
 
-/** Prolomené úseky po opevněních vsi (id opevnění → úseky); pořadí jako `battleForts`. */
-function breachesOf(b: BattleState, village: VillageState): Map<number, number[]> {
+/** Průlomy opevnění pro schránku vsi: prolomené díly, z nich vypálené a díly s vypálenou branou. */
+interface BreachReport {
+  segments: number[];
+  burned?: number[];
+  gatesBurned?: number[];
+}
+
+/** Prolomené úseky po opevněních vsi (id opevnění → průlomy); pořadí jako `battleForts`. */
+function breachesOf(b: BattleState, village: VillageState): Map<number, BreachReport> {
   const forts = village.fortifications ?? [];
-  const byFort = new Map<number, number[]>();
+  const byFort = new Map<number, BreachReport>();
+  const add = (list: number[], segment: number): void => {
+    if (!list.includes(segment)) list.push(segment);
+  };
   for (const br of b.breaches) {
     const fort = forts[br.fort];
     if (!br.progress.breached || !fort) continue;
-    const list = byFort.get(fort.id) ?? [];
-    if (!list.includes(br.segment)) list.push(br.segment);
-    byFort.set(fort.id, list);
+    const report = byFort.get(fort.id) ?? { segments: [] };
+    add(report.segments, br.segment);
+    if (br.method === 'burn') {
+      add((report.burned ??= []), br.segment);
+      if (br.spot === 'gate') add((report.gatesBurned ??= []), br.segment);
+    }
+    byFort.set(fort.id, report);
   }
-  for (const list of byFort.values()) list.sort((x, y) => x - y);
+  const bySegment = (x: number, y: number): number => x - y;
+  for (const r of byFort.values()) {
+    r.segments.sort(bySegment);
+    r.burned?.sort(bySegment);
+    r.gatesBurned?.sort(bySegment);
+  }
   return byFort;
 }
 

@@ -15,10 +15,10 @@ import { WAR } from './rules-war';
 export type TargetPose = 'standing' | 'parapet' | 'climbing' | 'underground';
 
 /**
- * Poloha muže na bojišti pro střelbu: lezec na žebříku a přes plot (`ladders.ts`), obránce na
- * ochozu a koruně (`Fighter.onWall`) kryje předprseň – jen proti střele a hodu zespodu, přes hradbu
- * (`below`; zevnitř opevnění je vidět celý). Kopáče v podkopu doplní Úloha 14 plánu hradeb.
- * `b` – žebříky boje.
+ * Poloha muže na bojišti pro střelbu: kopáč v podkopu po pětině práce (`Fighter.underground` –
+ * nevidí ho nikdo), lezec na žebříku a přes plot (`ladders.ts`), obránce na ochozu a koruně
+ * (`Fighter.onWall`) kryje předprseň – jen proti střele a hodu zespodu, přes hradbu (`below`;
+ * zevnitř opevnění je vidět celý). `b` – žebříky boje.
  */
 export function poseOf(
   f: Fighter,
@@ -26,6 +26,7 @@ export function poseOf(
   b: Pick<BattleState, 'ladders'> = {},
   below = true,
 ): TargetPose {
+  if (f.underground) return 'underground';
   if (onLadder(f, b)) return 'climbing';
   return f.onWall && below ? 'parapet' : 'standing';
 }

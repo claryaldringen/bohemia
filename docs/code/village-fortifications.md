@@ -165,7 +165,7 @@ platí dál, staré vsi se nepřevádějí.
   mezera: hradba brání, stárne a hnije podle svého dne (`segmentState`, `segmentIsOld`,
   `segmentStands`). **Žádné čtení `builtDay === null` mimo vrstvy** – převedené jsou
   `fortifications.ts` (vylepšení, nástavba, zboření, `segmentDone` – stavba čte základ
-  `segmentRampart ?? segmentWall`), `decay.ts`, `defense.ts`, `breach.ts`, `walls.ts`, `band.ts`,
+  `segmentRampart ?? segmentWall`), `decay.ts`, `defense.ts`, `walls.ts`, `band.ts`,
   `war/march-grid.ts`, `war/battle.ts` (`blocks` = stojí hradba), `war/raid-apply.ts`,
   `steward-extras.ts` (rozdělaná stavba = některá vrstva nedostavěná), `apps/web/lib/fort-view.ts`
   (`partBuiltDay` – den valu, jinak hradby) a scéna (`segmentBuild`). Scéna dál dostává surové
@@ -523,7 +523,7 @@ part?, lengthM }[]` – kusy dílů téhož úseku: celé díly mezi branami a z
   (jen díly bran; brána a zbytek dílu stojí, kus je mezera; volitelné, starší vsi beze změny);
   `top` – nástavba dílu, když se liší od `Fortification.top` (`'none'` = zbořená nástavba).
   **`segmentTop(fort, seg)`** (`life.ts`) = `seg.top ?? fort.top`, `'none'` → null – čtou ji
-  `rotting` (stáří nástavby), `breachWork`, `fortCells` (march-grid),
+  `rotting` (stáří nástavby), `crossingLayers`, `fortCells` (march-grid),
   `blocks` (battle) a cena přestavby nástavby (`decay.ts`). **`segmentIsOpen(seg)`** – díl bez stěny
   (nedostavěný, prolomený, zbořený); používá ho `segmentStands` a `segmentIsGap` (defense.ts).
   Bez nových údajů bit po bitu jako dřív (`fortification-paths`, válečné testy beze změny).
@@ -703,8 +703,9 @@ points: [x, z][], target }` – body mezi konci, `parseRerouteFortificationSecti
 
 ## Obrana, útočiště a prolomení (Ú5.5)
 
-Čistá doména pro válku (F6), nic ji zatím nevolá; soubory `fortification/{defense,refuge,breach}.ts`,
-testy `__tests__/defense.test.ts`. Funkce berou `geo` (`GridGeometry`) jako ostatní.
+Čistá doména pro válku (F6); soubory `fortification/{defense,refuge}.ts`, testy
+`__tests__/defense.test.ts`. Funkce berou `geo` (`GridGeometry`) jako ostatní. Prolomení počítá
+od 8. 11. 2026 `assault.ts` (Přechod hradby níž; boj – `docs/code/war.md`, Prolomení v boji).
 
 - **`defense.ts`** – **násobek obrany zrušen 8. 11. 2026** (fortifications.md – Obrana bez násobku;
   `segmentMultiplier` a `defenderMultiplier` pryč). Mezera `segmentIsGap` (nedostavěný, prolomený,
@@ -716,10 +717,14 @@ testy `__tests__/defense.test.ts`. Funkce berou `geo` (`GridGeometry`) jako osta
 gateCloseTick)` (bere plochu místo opevnění): příchozí po zavření brány venku; ostatní podle
   přednosti lidé → koně a voli → skot → drobný dobytek (uvnitř skupiny podle taktu příchodu);
   `homeInside` lidé nic nenesou, zvenku 25 / 10 kg (`carriedKg`).
-- **`breach.ts`** – `breachWork(fort, seg, 'gate' | 'wall')` (0 / 2 / 12 / 96; val podle nástavby,
-  holý val 0), `breachPace` (val `rampartAssaultPace` = 0,25), `breachStart`, `breachStep(progress,
-men, hours)` (nejvýš 4 muži). Práh vzdání s násobkem (`surrenderThreshold`) je od 8. 11. 2026
+- **Prolomení** – `breach.ts` (`breachWork`, `breachPace`, `breachStep`), `breachManHours`
+  a `rampartAssaultPace` jsou pryč (plán hradeb Úloha 14) – nahradil je `assault.ts`, testy
+  prolomení se přesunuly do `assault.test.ts`; zůstává `FORTIFICATIONS.breach.widthM` (4 m – průlom
+  i zasypaný kus příkopu). Práh vzdání s násobkem (`surrenderThreshold`) je od 8. 11. 2026
   pryč – za opevněním se skupina nevzdá, dokud útočník nestojí uvnitř obvodu (`war/stance.ts`).
+- **Průlom po boji** – `applyFortificationBreach` (`war/raid-apply.ts`): prolomené díly stav 0
+  a `breachedDay`; vypálené (`burned`) navíc `burnedDay`, vypálená brána (`gatesBurned`) smaže
+  věž (`towerDay`). Přestavba a zboření dílu `breachedDay` i `burnedDay` smažou.
 - **Odchylky od plánu:** funkce navíc berou `geo`; `refugeAdmit` bere kapacitu, ne opevnění;
   `closedGates` je množina indexů úseků; pozice jsou `{ x, z }`. Čísla navíc v `FORTIFICATIONS`:
   `refuge.carryKgAdult/Child` (`rampartHeightBonus`, `surrenderOddsPerDefender`
@@ -745,6 +750,7 @@ men, hours)` (nejvýš 4 muži). Práh vzdání s násobkem (`surrenderThreshold
   `rampartPace` = 1 ÷ (1 + 3 v), `rampartFatigue` = 1 − 0,15 v, `fatigueFactor` (zpět za 120
   taktů), `moatFrozen` (měsíce 12, 1, 2), `fortOccupancy` (1 obránce na 5 m ochozu).
 - `manHours` žebříku je jeden žebřík (4); druhý u palisády bez ochozu počítá bitva.
+- Bitva po fázích (zasypat, otepi, hoření, práce) – `docs/code/war.md`, Prolomení v boji.
 
 ## Akce
 

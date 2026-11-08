@@ -748,6 +748,7 @@ function demolishSegment(
     return;
   }
   delete s.breachedDay;
+  delete s.burnedDay;
   if (topStands(fort, s)) {
     s.top = 'none';
     delete s.topBuiltDay;
@@ -903,6 +904,7 @@ function finishSegmentWork(
   s.state = 1;
   delete s.extraAgeDays;
   delete s.breachedDay;
+  delete s.burnedDay;
   if (c.fortWork === 'upgrade') s.kind = 'palisade';
 }
 

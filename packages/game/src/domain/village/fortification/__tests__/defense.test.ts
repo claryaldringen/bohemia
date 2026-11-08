@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FortKind, FortTop, TileCell } from '../../types';
 import {
-  breachStart,
-  breachStep,
-  breachWork,
   fortGaps,
   fortificationArea,
   areaOutline,
@@ -17,7 +14,7 @@ import {
 } from '..';
 import type { Fortification } from '../types';
 
-// Obrana, útočiště a prolomení (fortifications.md – Obrana, Útočiště, Prolomení).
+// Obrana a útočiště (fortifications.md – Obrana, Útočiště); prolomení – `assault.test.ts`.
 
 const GEO = { size: 128, cellSizeM: 15 };
 
@@ -126,25 +123,5 @@ describe('útočiště', () => {
 
   it('drobný dobytek zabírá čtvrt kusu', () => {
     expect(refugeAdmit(100, [a('sheep', 100)], 9).admitted[0]!.count).toBe(20);
-  });
-});
-
-describe('prolomení', () => {
-  const work = (f: Fortification, at: 'gate' | 'wall'): number => breachWork(f, seg0(f), at);
-
-  it('práce 0 / 2 / 12 / 96, val podle nástavby', () => {
-    expect([work(fort('fence'), 'gate'), work(fort('fence'), 'wall')]).toEqual([0, 2]);
-    expect([work(fort('palisade'), 'gate'), work(fort('palisade'), 'wall')]).toEqual([12, 96]);
-    expect(work(fort('rampart'), 'wall')).toBe(0);
-    expect(work(fort('rampart', 'palisade'), 'wall')).toBe(96);
-  });
-
-  it('brána palisády se 4 muži za 3 hodiny, zeď za den, pátý muž nezrychlí', () => {
-    expect(breachStep(breachStart(12), 4, 3).breached).toBe(true);
-    expect(breachStep(breachStart(12), 4, 2.9).breached).toBe(false);
-    expect(breachStep(breachStart(96), 4, 24).breached).toBe(true);
-    expect(breachStep(breachStart(96), 5, 23).breached).toBe(false);
-    expect(breachStep(breachStart(96), 5, 23).done).toBe(92);
-    expect(breachStart(0).breached).toBe(true);
   });
 });

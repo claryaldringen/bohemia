@@ -282,6 +282,12 @@ z [Prolomení](#prolomení) (3. 11.) zůstávají, nové navazují.
 - Proč takové pořadí: bez valu je nejrychlejší oheň (≈ ½ sekání), s valem odkopání – hráč
   i NPC velitel volí podle hradby. Podkop hradeb trvá dny, takže **hradba se bere hlavně
   žebříky přes neobsazená místa** – a tam rozhoduje obsazení.
+- **Implementováno 8. 11. 2026** (plán hradeb, Úloha 14 – bitva). Návrh Clauda k provedení:
+  nejrychlejší postup se počítá s tolika muži, kolik jich ze skupiny bojuje (nejvýš 4 na místo) –
+  osamělý muž u palisády vyrobí žebřík, čtyři ji vypálí; otepi z nejbližšího hustého lesa nebo
+  hromady klád vsi (keře zatím ne), bez nich oheň nejde; zasypávající vodní příkop stojí za
+  vodou a zasype pruh 4 m až k hradbě – pak jím jdou i žebříky (v pruhu); vypálená brána zapálí
+  věž, průlom ohněm vedle brány ne; ohořelý průlom (`burnedDay`) do přestavby.
 
 ### Brány
 
