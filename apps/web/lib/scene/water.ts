@@ -21,7 +21,7 @@ import {
   SEASON_HELPERS_WGSL,
   SEASON_UBO,
 } from './season-materials';
-import { WATER_VISIBILITY_M, waterClarity } from './stream-geometry';
+import { flowSampleAt, WATER_VISIBILITY_M, waterClarity } from './stream-geometry';
 import {
   bankSlowdown,
   BANK_ICE_M,
@@ -111,7 +111,8 @@ export function createWaterMesh(scene: Scene, surface: RenderSurface): WaterSurf
     let s = samples.get(v);
     if (!s) {
       const { x, z } = surface.position(v);
-      s = surface.stream.nearest(x, z);
+      // V soutoku se proud přítoku plynule stočí do proudu řeky (bez švu na hladině).
+      s = flowSampleAt(surface.stream, surface.rivers, x, z);
       samples.set(v, s);
     }
     return s;
