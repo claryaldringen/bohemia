@@ -433,8 +433,9 @@ export function fortWalls(
 
 /**
  * Ramena klešťové brány (`pincer.ts`; Hradby a obrana – Brány) jako stěny – od zahájení stavby
- * (`pincerBlocks`) u brány blokujícího dílu – a ulička mezi nimi jako otvor až k vratům na jejím
- * vnitřním konci (mutuje `walls`, `gates`). Ramena leží uvnitř – objížďku vně nemění.
+ * (`pincerBlocks`) u brány blokujícího i prolomeného dílu (`pincerBandInM`) – a ulička mezi nimi
+ * jako otvor až k vratům na jejím vnitřním konci (mutuje `walls`, `gates`). Ramena leží uvnitř –
+ * objížďku vně nemění.
  */
 function pincerWalls(
   outline: FortOutline,
@@ -446,14 +447,57 @@ function pincerWalls(
 ): void {
   for (const gate of fort.gates) {
     if (!pincerBlocks(gate)) continue;
-    const segment = blocking.find((s) => s.index === gate.segment);
     const shape = shapes[gate.segment];
-    if (!segment || !shape) continue;
-    const band = segment.outside?.inM ?? FORTIFICATIONS.bandM[segment.kind];
+    const band = pincerBandInM(fort, gate.segment, blocking);
+    if (!shape || band === null) continue;
     walls.push(...pincerArms(outline, shape, gate, band));
     const alley = pincerAlley(outline, shape, gate, band);
     if (alley) gates.push(alley);
   }
+}
+
+/**
+ * Vnitřní okraj pásu dílu s branou `index` (m od křivky), od kterého vedou ramena klešťové brány;
+ * neblokující díl null. Prolomený (ne zbořený) díl dá pás jako před průlomem – ramena jsou vlastní
+ * stěny s ochozem a stojí dál, dokud se díl neopraví (návrh Clauda, plán hradeb Ú19).
+ */
+export function pincerBandInM(
+  fort: WallFortification,
+  index: number,
+  blocking: readonly FortBlockingSegment[] = fortBlockingSegments(fort, null),
+): number | null {
+  let segment = blocking.find((s) => s.index === index);
+  if (!segment) {
+    const seg = fort.segments.find((s) => s.index === index);
+    if (!seg || seg.breachedDay === undefined || seg.demolishedDay !== undefined) return null;
+    const whole: { -readonly [K in keyof typeof seg]: (typeof seg)[K] } = { ...seg };
+    delete whole.breachedDay;
+    segment = fortBlockingSegments({ ...fort, segments: [whole] }, null)[0];
+    if (!segment) return null;
+  }
+  return segment.outside?.inM ?? FORTIFICATIONS.bandM[segment.kind];
+}
+
+/**
+ * Ramena klešťových bran opevnění jako stěny (`pincerArms`) – bez ohledu na to, zda je brána
+ * zavřená, i na prolomeném dílu (`pincerBandInM`). Pochod (`march-grid.ts`) je přidá ke stěnám:
+ * ulička je průchozí jen k vratům, ramena blokují vždy (plán hradeb Ú19).
+ */
+export function fortPincerArms(geo: GridGeometry, fort: WallFortification): Point[][] {
+  if (!fort.gates.some((g) => pincerBlocks(g))) return [];
+  const points = fortPointsOf(geo, fort);
+  const outline = points ? fortificationOutline(points, fort.kind) : null;
+  if (!outline) return [];
+  const shapes = fortSegments(outline);
+  const blocking = fortBlockingSegments(fort, null);
+  const out: Point[][] = [];
+  for (const gate of fort.gates) {
+    if (!pincerBlocks(gate)) continue;
+    const shape = shapes[gate.segment];
+    const band = pincerBandInM(fort, gate.segment, blocking);
+    if (shape && band !== null) out.push(...pincerArms(outline, shape, gate, band));
+  }
+  return out;
 }
 
 /**

@@ -1,4 +1,14 @@
-import { crossingLayers, gatePartAt, gatePartView, hasGateParts } from '../village/fortification';
+import {
+  crossingLayers,
+  gatePartAt,
+  gatePartView,
+  gatePincerStands,
+  gateTowerStands,
+  hasGateParts,
+  pincerArmKind,
+  pincerBandInM,
+  segmentWall,
+} from '../village/fortification';
 import type { FortSegmentShape } from '../village/fortification';
 import { FORTIFICATIONS } from '../village/rules-fortifications';
 import type { WallKind } from '../village/types';
@@ -50,6 +60,153 @@ export function wallKindAt(
   const view =
     gate && hasGateParts(seg) ? gatePartView(seg, gatePartAt(gate.offsetM, alongM)) : seg;
   return crossingLayers(bf.fort, view, day, false).wall?.kind ?? null;
+}
+
+// --- Klešťová brána a věž (plán hradeb Ú19) -----------------------------------------------------
+
+/**
+ * Klešťová brána na bojišti (fortifications.md – Hradby a obrana, Brány): osa brány na čáře úseku
+ * (bitva bere úsek jako úsečku – `battle.ts`), ulička `alleyWidthM` mezi rameny od čáry hradby po
+ * vrata `endM` m dovnitř (vnitřní okraj pásu + `alleyLengthM`), ramena s ochozem široká jako pás
+ * palisády s ochozem. Návrh Clauda: ramena stojí, dokud stojí díl s branou, i prolomený (vlastní
+ * stěny s ochozem); zbořený či zchátralý díl je vezme s sebou.
+ */
+export interface BattlePincer {
+  segment: number;
+  /** Střed brány na čáře úseku. */
+  mx: number;
+  mz: number;
+  /** Jednotkový směr podél čáry úseku a dovnitř opevnění. */
+  ux: number;
+  uz: number;
+  nx: number;
+  nz: number;
+  /** Vrata na vnitřním konci uličky – m od čáry hradby. */
+  endM: number;
+  /** Druh ramen (`pincerArmKind`) – vždy s ochozem. */
+  kind: WallKind;
+  /** Stojí věž nad vraty (`gateTowerStands`). */
+  tower: boolean;
+}
+
+const pincerCache = new WeakMap<BattleFort, { day: number; list: BattlePincer[] }>();
+
+/** Stojící klešťové brány opevnění ke dni `day` (jednou za den a opevnění bojiště). */
+export function battlePincers(bf: BattleFort, day: number): BattlePincer[] {
+  const cached = pincerCache.get(bf);
+  if (cached && cached.day === day) return cached.list;
+  const list: BattlePincer[] = [];
+  for (const gate of bf.fort.gates) {
+    if (!gatePincerStands(gate, day)) continue;
+    const shape = bf.shapes.find((s) => s.index === gate.segment);
+    const seg = bf.fort.segments.find((s) => s.index === gate.segment);
+    const band = pincerBandInM(bf.fort, gate.segment);
+    if (!shape || !seg || band === null) continue;
+    const l = shape.line;
+    const t = Math.min(l.length, Math.max(0, gate.offsetM));
+    const n = outward(bf, l);
+    list.push({
+      segment: gate.segment,
+      mx: l.x + l.dx * t,
+      mz: l.z + l.dz * t,
+      ux: l.dx,
+      uz: l.dz,
+      nx: -n.x,
+      nz: -n.z,
+      endM: band + FORTIFICATIONS.pincerGate.alleyLengthM,
+      kind: pincerArmKind(segmentWall(bf.fort, seg)?.kind ?? 'palisade'),
+      tower: gateTowerStands(gate, day),
+    });
+  }
+  pincerCache.set(bf, { day, list });
+  return list;
+}
+
+/** Bod `along` m podél brány a `inM` m dovnitř od čáry hradby. */
+export function pincerPoint(p: BattlePincer, along: number, inM: number): Pos {
+  return { x: p.mx + p.ux * along + p.nx * inM, z: p.mz + p.uz * along + p.nz * inM };
+}
+
+/** Souřadnice bodu v ose brány: podél a dovnitř (m). */
+function pincerLocal(p: BattlePincer, at: Pos): { along: number; inM: number } {
+  const dx = at.x - p.mx;
+  const dz = at.z - p.mz;
+  return { along: dx * p.ux + dz * p.uz, inM: dx * p.nx + dz * p.nz };
+}
+
+const ALLEY_HALF_M = FORTIFICATIONS.pincerGate.alleyWidthM / 2;
+const ARM_M = FORTIFICATIONS.bandM.walkway;
+/** Plošina věže nad vraty sahá od vrat tolik metrů dovnitř (stanoviště 1 m za vraty). */
+const TOWER_DEPTH_M = D.postInsideM + POST_SLACK_M;
+
+/** Stojí bod na rameni klešťové brány (na ochozu)? */
+function onArm(p: BattlePincer, at: Pos): boolean {
+  const { along, inM } = pincerLocal(p, at);
+  const side = Math.abs(along);
+  return side >= ALLEY_HALF_M && side <= ALLEY_HALF_M + ARM_M && inM >= 0 && inM <= p.endM;
+}
+
+/** Stojí bod na věži nad vraty? */
+function onTower(p: BattlePincer, at: Pos): boolean {
+  if (!p.tower) return false;
+  const { along, inM } = pincerLocal(p, at);
+  return Math.abs(along) <= ALLEY_HALF_M && inM >= p.endM && inM <= p.endM + TOWER_DEPTH_M;
+}
+
+/** Leží bod v uličce klešťové brány (mezi rameny, před vraty)? */
+function inAlley(p: BattlePincer, at: Pos): boolean {
+  const { along, inM } = pincerLocal(p, at);
+  return Math.abs(along) < ALLEY_HALF_M && inM >= 0 && inM < p.endM;
+}
+
+/** Stojí bod `at` na věži nad branou některého opevnění? */
+export function towerAt(forts: readonly BattleFort[], at: Pos, day: number): boolean {
+  for (const bf of forts) {
+    for (const p of battlePincers(bf, day)) if (onTower(p, at)) return true;
+  }
+  return false;
+}
+
+/**
+ * Dohled a dostřel muže (fortifications.md – Hradby a obrana, Brány; návrh Clauda): obránce na
+ * ochozu věže nad branou vidí `tower.sightM` (250 m) a lukem dostřelí `tower.bowMaxM` (80 m),
+ * jinak dohled v otevřené krajině `WAR.sight.openM` a luk `WAR.combat.bowMaxM`.
+ */
+export function towerReach(
+  f: Fighter,
+  field: { readonly forts: readonly BattleFort[]; readonly day: number },
+): { sightM: number; bowMaxM: number } {
+  if (f.side === 'defend' && f.onWall && towerAt(field.forts, f.pos, field.day)) {
+    return { sightM: FORTIFICATIONS.tower.sightM, bowMaxM: FORTIFICATIONS.tower.bowMaxM };
+  }
+  return { sightM: WAR.sight.openM, bowMaxM: WAR.combat.bowMaxM };
+}
+
+/**
+ * Stanoviště klešťové brány (návrh Clauda): na věži `tower.defenders` (4) 1 m za vraty rovnoměrně
+ * přes šířku uličky; místo 2 obránců brány po jednom na každém rameni – 1 m od uličky uprostřed
+ * její délky za pásem, odkud zasahují útočníky v uličce z obou stran.
+ */
+function pincerPosts(p: BattlePincer): { tower: Pos[]; arms: Pos[] } {
+  const tower: Pos[] = [];
+  if (p.tower) {
+    const k = FORTIFICATIONS.tower.defenders;
+    const w = FORTIFICATIONS.pincerGate.alleyWidthM;
+    for (let i = 0; i < k; i++) {
+      tower.push(pincerPoint(p, -ALLEY_HALF_M + (w * (i + 0.5)) / k, p.endM + D.postInsideM));
+    }
+  }
+  const mid = p.endM - FORTIFICATIONS.pincerGate.alleyLengthM / 2;
+  const side = ALLEY_HALF_M + D.postInsideM;
+  return { tower, arms: [pincerPoint(p, -side, mid), pincerPoint(p, side, mid)] };
+}
+
+/**
+ * Stanoviště obránců na věžích nad branami opevnění ke dni `day` – v `wallPosts` jdou první
+ * (obsadí je napřed muži rodu – `planDefense`).
+ */
+export function towerPosts(forts: readonly BattleFort[], day: number): Pos[] {
+  return forts.flatMap((bf) => battlePincers(bf, day).flatMap((p) => pincerPosts(p).tower));
 }
 
 // --- Obvod jako stěny bitvy ---------------------------------------------------------------------
@@ -183,37 +340,47 @@ function spread(lengthM: number, anchors: readonly number[], k: number): number[
   return out;
 }
 
-/** Brány opevnění jako místa po obvodu (m od začátku obvodu). */
-function gateStations(bf: BattleFort, ring: Ring): number[] {
-  const out: number[] = [];
+/** Brány opevnění jako místa po obvodu (m od začátku obvodu) s dílem brány. */
+function gateStations(bf: BattleFort, ring: Ring): { s: number; segment: number }[] {
+  const out: { s: number; segment: number }[] = [];
   for (const g of bf.fort.gates) {
     const piece = ring.pieces.find((p) => p.segment === g.segment && p.along === 0);
-    if (piece) out.push(piece.s + g.offsetM);
+    if (piece) out.push({ s: piece.s + g.offsetM, segment: g.segment });
   }
   return out;
 }
 
 /**
- * Stanoviště `men` obránců (fortifications.md – Obrana bez násobku 6; návrh Clauda): napřed brány
- * po 2 (1 m vlevo a vpravo od středu brány), věže doplní Úloha 19, zbytek rovnoměrně po obvodu
- * podle délky – nejvýš jeden na 5 m; kdo stanoviště nedostane, zůstane v záloze. Stanoviště leží
- * 1 m za čarou hradby (`postInsideM`) – na ochozu a koruně (`crownAt`), nebo na zemi za stěnou.
+ * Stanoviště `men` obránců (fortifications.md – Obrana bez násobku 6; návrh Clauda): napřed věže
+ * nad branami po 4 (`towerPosts`), pak brány po 2 (1 m vlevo a vpravo od středu brány, u klešťové
+ * brány po jednom na rameni), zbytek rovnoměrně po obvodu podle délky – nejvýš jeden na 5 m; kdo
+ * stanoviště nedostane, zůstane v záloze. Stanoviště leží 1 m za čarou hradby (`postInsideM`) – na
+ * ochozu a koruně (`crownAt`), nebo na zemi za stěnou. Bez dne `day` bez klešťových bran a věží.
  */
-export function wallPosts(forts: readonly BattleFort[], men: number): Pos[] {
+export function wallPosts(forts: readonly BattleFort[], men: number, day?: number): Pos[] {
   const out: Pos[] = [];
+  for (const post of day === undefined ? [] : towerPosts(forts, day)) {
+    if (out.length >= men) return out;
+    out.push(post);
+  }
   const rings = forts
     .filter((bf) => bf.shapes.length > 0)
     .map((bf) => {
       const ring = ringOf(bf);
-      return { ring, gates: gateStations(bf, ring) };
+      const pincers = day === undefined ? [] : battlePincers(bf, day);
+      return { ring, gates: gateStations(bf, ring), pincers };
     })
     .filter((r) => r.ring.lengthM > 0);
   const side = FORTIFICATIONS.gate.widthM / 4;
   for (const r of rings) {
     for (const g of r.gates) {
-      for (const k of [-1, 1]) {
+      const pincer = r.pincers.find((p) => p.segment === g.segment);
+      const posts = pincer
+        ? pincerPosts(pincer).arms
+        : [-1, 1].map((k) => postAt(r.ring, g.s + k * side));
+      for (const post of posts) {
         if (out.length >= men) return out;
-        out.push(postAt(r.ring, g + k * side));
+        out.push(post);
       }
     }
   }
@@ -223,16 +390,21 @@ export function wallPosts(forts: readonly BattleFort[], men: number): Pos[] {
   );
   rings.forEach((r, i) => {
     const k = Math.min(shares[i]!, Math.floor(r.ring.lengthM / D.perDefenderM + 1e-9));
-    for (const s of spread(r.ring.lengthM, r.gates, k)) out.push(postAt(r.ring, s));
+    const anchors = r.gates.map((g) => g.s);
+    for (const s of spread(r.ring.lengthM, anchors, k)) out.push(postAt(r.ring, s));
   });
   return out;
 }
 
-/** Stojí bod `at` na ochozu či koruně hradby (stanoviště do 1,25 m za čarou hradby s korunou)? */
+/**
+ * Stojí bod `at` na ochozu či koruně hradby (stanoviště do 1,25 m za čarou hradby s korunou), na
+ * rameni klešťové brány nebo na věži nad vraty?
+ */
 export function crownAt(forts: readonly BattleFort[], at: Pos, day: number): boolean {
   const near = D.postInsideM + POST_SLACK_M;
   for (const bf of forts) {
     if (bf.shapes.length === 0) continue;
+    for (const p of battlePincers(bf, day)) if (onArm(p, at) || onTower(p, at)) return true;
     const hit = nearestPiece(ringOf(bf), at);
     if (!hit || hit.d2 > near * near) continue;
     if (hasCrown(wallKindAt(bf, hit.piece.segment, hit.piece.along + hit.t, day))) return true;
@@ -289,12 +461,17 @@ export function occupied(bf: BattleFort, at: Pos, defenders: readonly Fighter[])
  * Druh rány podle vzdálenosti (war.md – Boj; fortifications.md – Obrana bez násobku 3): zblízka do
  * 3 m (z ochozu i kameny k patě), luk 20–60 m (kdo ho má), z ochozu a koruny hod do 15 m (návrh
  * Clauda: i muž rodu, na kterého je pod 20 m na luk blízko). Hradby mezi nimi `canStrikeAcross`.
+ * `bowMaxM` – dostřel luku (z věže nad branou dál – `towerReach`).
  */
-export function strikeReach(f: Fighter, t: Fighter): StrikeKind | null {
+export function strikeReach(
+  f: Fighter,
+  t: Fighter,
+  bowMaxM: number = WAR.combat.bowMaxM,
+): StrikeKind | null {
   const d2 = dist2(f.pos, t.pos);
   const c = WAR.combat;
   if (d2 <= c.meleeM * c.meleeM) return 'melee';
-  if (f.bow && d2 >= c.bowMinM * c.bowMinM && d2 <= c.bowMaxM * c.bowMaxM) return 'bow';
+  if (f.bow && d2 >= c.bowMinM * c.bowMinM && d2 <= bowMaxM * bowMaxM) return 'bow';
   if (f.onWall && d2 <= D.throwM * D.throwM) return 'throw';
   return null;
 }
@@ -359,7 +536,20 @@ interface Place {
 const AT_WALL: ReadonlySet<string> = new Set(['lean', 'up', 'over', 'down']);
 
 /** Bod na čáře hradby nejblíž `p` a stanoviště za ním. */
-function placeAt(bf: BattleFort, p: Pos): { wall: Pos; at: Pos } {
+function placeAt(bf: BattleFort, p: Pos, day: number): { wall: Pos; at: Pos } {
+  // v uličce klešťové brány se brání u vrat (návrh Clauda): s věží na ní 1 m za vraty, bez věže
+  // na rameni vedle vrat – odtud dosáhne na ty, kdo vrata prolamují
+  const pincer = battlePincers(bf, day).find((x) => inAlley(x, p));
+  if (pincer) {
+    if (pincer.tower) {
+      return {
+        wall: pincerPoint(pincer, 0, pincer.endM),
+        at: pincerPoint(pincer, 0, pincer.endM + D.postInsideM),
+      };
+    }
+    const at = pincerPoint(pincer, -(ALLEY_HALF_M + D.postInsideM), pincer.endM - 1);
+    return { wall: at, at: { ...at } };
+  }
   const hit = bf.shapes.length > 0 ? nearestPiece(ringOf(bf), p) : null;
   if (!hit) return { wall: { ...p }, at: { ...p } };
   return { wall: inward(hit.piece, hit.t, 0), at: inward(hit.piece, hit.t, D.postInsideM) };
@@ -374,13 +564,13 @@ function places(w: WallWorld): Place[] {
     if (!c?.climb || c.state !== 'climb' || c.climb.ladder !== l.key) continue;
     if (!AT_WALL.has(c.climb.phase)) continue;
     const bf = w.forts[l.fort];
-    if (bf) out.push({ fort: l.fort, ...placeAt(bf, l.top), attackers: 1 });
+    if (bf) out.push({ fort: l.fort, ...placeAt(bf, l.top, w.day), attackers: 1 });
   }
   for (const br of w.b.breaches) {
     if (br.phase === 'done') continue;
     const men = w.b.fighters.filter((f) => f.state === 'breach' && f.breachAt === br.key).length;
     const bf = w.forts[br.fort];
-    if (men > 0 && bf) out.push({ fort: br.fort, ...placeAt(bf, br.at), attackers: men });
+    if (men > 0 && bf) out.push({ fort: br.fort, ...placeAt(bf, br.at, w.day), attackers: men });
   }
   return out;
 }

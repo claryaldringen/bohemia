@@ -457,7 +457,7 @@ scéně.
 ## Klešťová brána a věž (`fortification-gate.ts`, `fortification/pincer.ts`)
 
 Plán hradeb Úloha 13; fortifications.md – Hradby a obrana, Brány, Životnost a údržba. Bitva
-s uličkou a věží je Úloha 19, scéna ramen a věže (Úloha 18) – `docs/code/scene-village.md`,
+s uličkou a věží (Úloha 19) – `docs/code/war.md`, scéna ramen a věže (Úloha 18) – `docs/code/scene-village.md`,
 tlačítka Úloha 17.
 
 - **Stav brány** (`FortGate`): `pincerDay` a `towerDay` – den dokončení, `null` = staví se, chybí =
@@ -494,8 +494,11 @@ tlačítka Úloha 17.
 - **Stěny** (`walls.ts` – `pincerWalls` po hlavní smyčce): u brány blokujícího dílu s `pincerDay`
   (i `null` – blokuje od zahájení, `pincerBlocks`) přidá ramena do `walls` a uličku do `gates`
   (průchod až k vratům na vnitřním konci); objížďka vně se nemění. `fortLayoutKey` přidá u takové
-  brány `:p` (jen u ní – klíče beze změny). Pochod (`march-grid.ts`) ramena dostane jen s otevřenými
-  branami – zavřené brány a ulička v bitvě jsou Úloha 19.
+  brány `:p` (jen u ní – klíče beze změny). Vnitřní okraj pásu dává `pincerBandInM` – prolomený (ne
+  zbořený) díl jako před průlomem: ramena jsou vlastní stěny s ochozem a stojí dál, dokud se díl
+  neopraví (návrh Clauda, Úloha 19). Pochod (`march-grid.ts` – `fortCells`) přidá ramena
+  (`fortPincerArms`) vždy – i u zavřené brány a prolomeného dílu; ulička je průchozí jen u otevřené
+  brány (v `open`). Bitva – `docs/code/war.md` (Brány v bitvě).
 - **Přechod** (`assault.ts` – `crossingLayers`): `gatePincerStands` (hotová klešťová) a
   `gateTowerStands` (hotová věž, dožilá bez přestavby jen do `decayYears` – pak spadne; návrh
   Clauda).

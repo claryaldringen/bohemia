@@ -453,9 +453,9 @@ v `domain/war/wall-defense.ts`, `battle.ts`, `stance.ts` a `defenders.ts` jen vo
   opevnění; chybí = obránce domu) a `onWall?` (stojí na ochozu či koruně – `true`, jinak chybí);
   `openBattle` je převezme. Staré boje beze změny.
 - **Rozestavění** – `planDefense`: muži v útočišti (bez vzdaných) dostanou `wallPosts([opevnění],
-počet)` po řadě podle id: napřed brány po 2 (± ¼ šířky brány od středu), věže doplní Úloha 19,
-  zbytek po obvodu podle délky – mezi branami v mezerách podle délky mezery (brány jsou kotvy),
-  bez bran rovnoměrně; nejvýš ⌊obvod ÷ 5⌋ mimo brány, kdo nedostane, je záloha ve středu. Obvod =
+počet, den)` po řadě podle id: napřed věže nad branami po 4, pak brány po 2 (± ¼ šířky
+  brány od středu; u klešťové brány po jednom na rameni – Brány v bitvě), zbytek po obvodu podle
+  délky – mezi branami v mezerách podle délky mezery (brány jsou kotvy), bez bran rovnoměrně; nejvýš ⌊obvod ÷ 5⌋ mimo brány, kdo nedostane, je záloha ve středu. Obvod =
   stěny bitvy (čáry úseků a tětivy rohů); stanoviště 1 m za čarou hradby; `onWall` =
   `crownAt` (do 1,25 m od čáry hradby s korunou – `walkway`, `crib`, `chamber`; druh v místě
   `wallKindAt` přes kusy dílu s branou). 300 m se 2 branami a 20 muži: 4 u bran, 16 po ≈ obvod ÷ 18 (≈ 16 m).
@@ -490,6 +490,46 @@ počet)` po řadě podle id: napřed brány po 2 (± ¼ šířky brány od stře
   luk z ochozu ano a přes palisádu ne, kameny na prolamujícího, Review Focus 5, bitva po 1 / 7 / 40
   přes JSON = vcelku); `battle.test.ts` – obránce za palisádou šípem ne, na ochozu poloviční zásah;
   `stance.test.ts` – muži v útočišti obsadí hradbu.
+
+## Brány v bitvě – ulička a věž (hradby Ú19)
+
+fortifications.md – Hradby a obrana, Brány. Geometrie a obránci ve `wall-defense.ts`, stěny
+a místo prolomení v `battle.ts` (`wallsOf`), pochod v `march-grid.ts`. Čísla
+`FORTIFICATIONS.pincerGate` a `FORTIFICATIONS.tower` (4 obránci, dohled 250 m, luk 80 m).
+
+- **Klešťová brána na bojišti** – `battlePincers(bf, den)` (`BattlePincer`, mezipaměť na opevnění
+  a den): stojící klešťová brána (`gatePincerStands`) na dílu, který stojí nebo je prolomený
+  (`pincerBandInM`); osa na čáře úseku (bitva bere úsek jako úsečku), dovnitř `-outward`, vrata
+  `endM` = vnitřní okraj pásu + 12 m, druh ramen `pincerArmKind`, `tower` = `gateTowerStands`.
+  `pincerPoint(p, podél, dovnitř)` – bod v ose brány.
+- **Stěny** (`wallsOf`, `WallLine.pincer`) – ramena jako dvě úsečky po stranách uličky od čáry
+  hradby po vrata (druh ramen předem – rány přes ně podle `canStrikeAcross` jako přes ochoz); stojí
+  i na prolomeném dílu (návrh Clauda – vlastní stěny s ochozem; zbořený díl je vezme). Ústí uličky
+  v hradbě je vždy otevřené; zavřená vrata jsou úsečka přes uličku na jejím vnitřním konci,
+  otevřenými vede průchod od 3 m před branou po 3 m za vraty. Prolomený díl (i vrata) – mezera
+  jako dosud. Ramena ani vrata se nepřelézají: `approach` hledá žebřík jen přes hradbu na cestě
+  (`firstWall(…, climbable)`), jinak prolamuje.
+- **Vrata** – místo `gate` 1 m před vraty v uličce; `Spot.maxMen` = `pincerGate.maxMen` (4) –
+  víc prolamujících se k vratům nevejde (`chooseSpot`).
+- **Obránci** – `wallPosts(opevnění, muži, den)`: napřed věže (`towerPosts` – 4 rovnoměrně přes
+  uličku 1 m za vraty), pak brány; klešťová brána místo 2 v hradbě po jednom na rameni (1 m od
+  uličky uprostřed její délky za pásem) – odtud zasahují útočníky v uličce z obou stran (hod do
+  15 m, luk). `planDefense` (`stance.ts`) dá na věž napřed muže rodu (jen když věž stojí – jinak
+  pořadí beze změny). `crownAt` – rameno i plošina věže jsou ochoz (`onWall`). Posila k vratům
+  (`placeAt`): s věží na ni, bez věže na rameno vedle vrat.
+- **Věž** – `towerReach(f, {forts, day})`: obránce na ochozu věže (`towerAt`) vidí
+  `tower.sightM` a dostřelí `tower.bowMaxM`, jinak `WAR.sight.openM` a `WAR.combat.bowMaxM`.
+  `strikeReach(f, t, bowMaxM)` a `inSight(grid, od, kam, openM)` mají dosah parametrem; `battleTick`
+  dá věži dohled podle polohy (`towerAt` – kdo stojí na plošině věže), luk v `strikeOf`. Kryt na věži
+  jako ochoz (`poseOf` – `parapet`). Vypálená brána v boji vezme věž hned (`breachedForts` smaže
+  `towerDay` v kopii opevnění taktu; po boji `raid-apply.ts`).
+- **Pochod** – `fortCells` přidá ramena (`fortPincerArms`) ke stěnám vždy – i u zavřené brány
+  (dřív je `fortWalls` bez zavřených bran vynechal) a u prolomeného dílu; ulička průchozí jen
+  u otevřené brány.
+- **Testy** – `__tests__/gate-battle.test.ts` (ulička 13,5 m u palisády; k vratům nejvýš 4 a místo
+  u vrat; obránci na obou ramenech zasahují útočníka v uličce; věž 4 obránci napřed; z věže luk na
+  75 m ano, bez věže ne; věž vidí na 200 m; pochod – ramena blokují u zavřené brány; prolomený díl
+  ramena nechá, zbořený ne; bitva s věží po 1 / 7 / 40 přes JSON = vcelku).
 
 ## Bariéra dopočtu a dny nájezdu (Ú6.7)
 
