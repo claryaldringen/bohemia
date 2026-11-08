@@ -192,8 +192,12 @@ function upgradePlan(
   return { fort, pieces };
 }
 
-/** Šířka pásu cílové hradby na dílu (m): na valu pás s valem, jinak pás hradby. */
-function targetBand(base: UpgradeBase, target: WallKind): number {
+/**
+ * Šířka pásu cílové hradby na dílu (m): na valu pás s valem, jinak pás hradby; na valu vně hradby
+ * (`rampartOutside`) jen pás hradby dovnitř, nejméně `rampartOutside.minInM`.
+ */
+function targetBand(base: UpgradeBase, target: WallKind, outside: boolean): number {
+  if (outside) return Math.max(FORTIFICATIONS.bandM[target], FORTIFICATIONS.rampartOutside.minInM);
   return upgradeOnRampart(base)
     ? FORTIFICATIONS.wallOnRampartBandM[target]
     : FORTIFICATIONS.bandM[target];
@@ -244,7 +248,8 @@ export function startSectionUpgrade(
       if (!only.has(p.index)) only.set(p.index, segmentBand(fort, seg).inM);
       continue;
     }
-    const width = targetBand(p.base, input.target);
+    const outside = p.base.kind !== 'gap' && segmentRampart(fort, seg)?.outside === true;
+    const width = targetBand(p.base, input.target, outside);
     const now = p.base.kind === 'gap' ? 0 : segmentBand(fort, seg).inM;
     if (width > now + 1e-9) only.set(p.index, Math.max(width, only.get(p.index) ?? 0));
   }

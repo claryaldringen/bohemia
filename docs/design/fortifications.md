@@ -113,6 +113,12 @@ roštová ≈ 7 m, komorová ≈ 8 m, komory po 5–6 m).
   potoka, řeky nebo tůně, jde napustit strouhou (¼ čd na 1 m); voda se rozlije do souvislých
   úseků příkopu, jejichž dno leží pod hladinou zdroje, ostatní zůstanou suché (deterministicky
   z terénu).
+- **Implementováno 8. 11. 2026** (plán hradeb, Úloha 11): doména a use-casy doplnění valu vně
+  hradby a napuštění příkopu, stěny, pás a pochod; tlačítka – Úloha 17, scéna – Úloha 18. Návrh
+  Clauda k provedení: brána přes vodní příkop má hráz či most – branou se jde bez zasypání,
+  zasypat je potřeba jen mimo bránu; voda přijde do všech dílů naráz, až je strouha hotová;
+  zrušené doplnění valu vrátí díly bez hotového valu přesně do stavu před zahájením; srovnaný val
+  příkop ztratí.
 
 ### Kámen
 
