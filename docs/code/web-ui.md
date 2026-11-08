@@ -924,7 +924,9 @@ se vykreslí i v testech bez serveru.
 
 - **Route** `GET /api/campaign/<id>?since=<takt>` (`app/api/campaign/[id]/route.ts`, `no-store`,
   session povinná) → `{ view: CampaignView }`; `?map=<x>,<y>` → `{ map: ForeignMap }` (krajina
-  políčka, `lib/foreign-map.ts`). Cizí i neexistující tažení = stejná 404. Route Handler, ne server
+  políčka, `lib/foreign-map.ts`); `?scene=<x>,<y>` → `{ war: WarSceneView | null }` (válka na té
+  mapě z pohledu útočníka – `warSceneOnMapForPlayer`, cizí tažení i mapa bez vojska = `null`).
+  Cizí i neexistující tažení = stejná 404. Route Handler, ne server
   action – server actions jednoho klienta jdou za sebou a dotaz by čekal za pokynem.
 - **`useCampaign(id, presence)`**: dotaz 2× za sekundu (`CAMPAIGN_POLL_MS`, `usePolling` – ve
   skrytém panelu prohlížeče stojí), polohy mezi dvěma stavy interpoluje `interpolateCampaign`
@@ -939,11 +941,34 @@ se vykreslí i v testech bez serveru.
   (SVG v metrech mapy): velitel (`campaign-commander`, `data-x` / `data-z`), vlastní muži, spojenci,
   cizí v dohledu (klik = napadni), objevené domy (klik = jdi k domu), cíl (`campaign-goal`); klik
   na mapu = velitel jde. Ikony Domů, tři rozkazy skupiny velitele a v boji Pobít / Odvést / Nechat,
-  slova jen v `Tooltip`; nevede-li hráč živě, vše zašedlé („Velí jiný muž.“).
+  slova jen v `Tooltip`; nevede-li hráč živě, vše zašedlé („Velí jiný muž.“). Oko
+  (`campaign-watch`, „Ve scéně“ / „Zpět na ves“, `aria-pressed`) přepne scénu na cizí mapu – výš.
 
-- **Válka ve scéně** (`hooks/use-war-scene.ts`, war.md – Ve scéně – napojení na hru): `GET
-/api/war-scene/<sídlo>` po otevření hry hned, při válce na mapě 2× za sekundu
+- **Válka ve scéně** (`hooks/use-war-scene.ts`, war.md – Ve scéně – napojení na hru):
+  `useWarScene(url, enabled)` – vlastní mapa `GET /api/war-scene/<sídlo>`, cizí mapa
+  `GET /api/campaign/<id>?scene=x,y`; po otevření hned, při válce na mapě 2× za sekundu
   (`WAR_SCENE_POLL_MS`), jinak po 5 s (`WAR_SCENE_IDLE_MS`); nový stav jen s novým taktem.
+  `undefined` = server ještě neodpověděl, `null` = na mapě nic.
+
+## Cizí mapa ve scéně (`ForeignWarScene.tsx`, `hooks/use-army.ts`, `lib/war-scene-view.ts`)
+
+War.md – Ve scéně – cizí mapa. Útočník (vůdce i vazal ve službě) sleduje své vojsko ve 3D na mapě,
+na které stojí.
+
+- **Výběr mapy** (`watchCellOf(view, home)`): políčko velitele na nohou, jinak prvního vlastního muže
+  na nohou, jinak muže spojence; `null` – tažení skončilo, nikdo nestojí, nebo vojsko stojí na
+  mapě sídla ve scéně (`homeCell` z `app/game/page.tsx` – tam ho ukazuje scéna vsi). Tlačítko oka
+  v `CampaignMap` je pak zašedlé („Vojsko není na cizí mapě.“).
+- **Přepnutí** (`ArmyActions.scene` – `SceneWatch`: `home`, `watching`, `watch`, `back`; bez něj
+  tlačítko chybí): `VillageGame` při `watching` vrátí místo hry jen `ForeignWarScene` – scéna a rozhraní
+  vsi se odpojí (dvě scény Babylonu naráz ne – návrh Clauda), návrat ji načte znovu.
+- **`ForeignWarScene`** (`foreign-scene`, `data-cell`): krajina z `?map=x,y` (404 = zpět) do
+  `GameView`, válka z `useWarScene(…?scene=x,y)` → `sceneWarOf(war, world, true)` – se závojem
+  mlhy strany hráče; objevené domy `foreignVillageOf` → `setVillage` (jen stojící domy, bez lidí,
+  polí a všeho dalšího; přestaví se jen novým objevem). Kamera poprvé na vojsko (`armyFocusOf`,
+  R se k němu vrací). Rozhraní: ⌂ zpět na ves (`foreign-back`), ⚔ mapa tažení (`CampaignMap` –
+  živé vedení dál). `war === null` (vojsko odešlo, tažení skončilo) = scéna se vrátí na ves sama.
+  E2e háček `armyStats` míří na scénu cizí mapy.
 
 ## Postoj vsi ve dvorci (úloha 6.9, `hud/ManorPanel.tsx`)
 

@@ -23,6 +23,7 @@ import {
   type TimeSkip,
   type WorldClock,
   type WagonRoadPlan,
+  type GridCell,
 } from '@bohemia/game';
 import {
   buildTrail,
@@ -113,13 +114,13 @@ import {
 } from '@/app/game/actions';
 import type { PassageView, SummonsDialogView } from '@/lib/summons';
 import type { ProtectionView } from '@/lib/protection';
-import { ArmyActionsContext, type ArmyActions } from '@/hooks/use-army';
+import { ArmyActionsContext, type ArmyActions, type SceneWatch } from '@/hooks/use-army';
 import { PanelOptionsContext, type PanelOptionsSource } from '@/hooks/use-panel-options';
 import type { PanelAsk, PanelOptions } from '@/lib/panel-options';
 import { usePlacement } from '@/hooks/use-placement';
 import { usePolling } from '@/hooks/use-polling';
 import { useWarScene } from '@/hooks/use-war-scene';
-import { sceneWarOf } from '@/lib/war-scene-view';
+import { sceneWarOf, type WatchedMap } from '@/lib/war-scene-view';
 import { authClient } from '@/lib/auth-client';
 import {
   buildItem,
@@ -178,6 +179,7 @@ import {
   scenePenSpecies,
   scenePenSquares,
 } from '@/lib/village-view';
+import { ForeignWarScene } from './ForeignWarScene';
 import { GameView } from './GameView';
 import { BuildGrid } from './hud/BuildGrid';
 import { FortConfirm } from './hud/FortConfirm';
@@ -400,6 +402,7 @@ export function VillageGame({
   email,
   initialNowMs,
   languageChoice = false,
+  homeCell = null,
 }: {
   landscape: LandscapeTransfer;
   /** Seed krajiny sídla – podle něj hra navrhne jméno vsi. */
@@ -419,6 +422,8 @@ export function VillageGame({
   initialNowMs: number;
   /** Účet přes Google bez založené vsi – v úvodu řádek ikon jazyků (newcomers.md). */
   languageChoice?: boolean;
+  /** Políčko sídla v mřížce světa (null – odříznuté) – vojsko na něm ukazuje scéna vsi sama. */
+  homeCell?: GridCell | null;
 }): ReactElement {
   const decoded = useMemo(() => decodeLandscape(landscape), [landscape]);
   const [scene, setScene] = useState<LandscapeScene | null>(null);
@@ -611,10 +616,18 @@ export function VillageGame({
   const gameOver = view?.gameOver === true;
   // Válka na mapě sídla ve scéně (war.md – Ve scéně – napojení na hru): napadená ves i vlastní
   // vojsko na mapě; co je vidět, rozhodl server (mlha války), scéna jen kreslí.
-  const warScene = useWarScene(settlementId, scene !== null && !gameOver);
+  const warScene = useWarScene(`/api/war-scene/${settlementId}`, scene !== null && !gameOver);
   useEffect(() => {
-    scene?.setWar(sceneWarOf(warScene, world));
+    scene?.setWar(sceneWarOf(warScene ?? null, world));
   }, [scene, warScene, world]);
+  // Cizí mapa ve scéně (war.md – Ve scéně – cizí mapa): z mapy tažení se scéna přepne na mapu, na
+  // které vojsko stojí – jen pohled; scéna a rozhraní vlastní vsi mezitím neběží
+  const [watching, setWatching] = useState<WatchedMap | null>(null);
+  const backHome = useCallback((): void => setWatching(null), []);
+  const sceneWatch = useMemo<SceneWatch>(
+    () => ({ home: homeCell, watching, watch: setWatching, back: backHome }),
+    [homeCell, watching, backHome],
+  );
   // Po konci hry je přes všechno obrazovka porážky – nabídka se neukáže.
   const menuShown = menuOpen && !gameOver;
   // Panel Kronika (absence.md – Návrat) – střídá se s panely rodu, války a nabídkou
@@ -1627,8 +1640,9 @@ export function VillageGame({
         surrendered: (input) => chooseSurrendered(input),
         presence: (campaignId) => presence({ campaignId }),
       },
+      scene: sceneWatch,
     }),
-    [],
+    [sceneWatch],
   );
   const panelKey = view ? (view.stamp ?? `${view.id}:${view.dayIndex}`) : '';
   const panelSource = useMemo<PanelOptionsSource>(
@@ -1646,6 +1660,20 @@ export function VillageGame({
     window.location.assign('/');
     return null;
   };
+
+  if (watching && !gameOver) {
+    return (
+      <ArmyActionsContext.Provider value={armyActions}>
+        <ForeignWarScene
+          key={`${watching.campaignId}@${watching.cell.x},${watching.cell.y}`}
+          watch={watching}
+          world={world}
+          clock={clock}
+          onBack={backHome}
+        />
+      </ArmyActionsContext.Provider>
+    );
+  }
 
   return (
     <PanelOptionsContext.Provider value={panelSource}>

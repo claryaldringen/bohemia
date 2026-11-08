@@ -3,10 +3,12 @@ import {
   dateOfDayIndex,
   OFFICIAL_WORLD,
   realTimeOf,
+  type CampaignView,
+  type CampaignViewMan,
   type WarSceneFighter,
   type WarSceneView,
 } from '@bohemia/game';
-import { sceneWarOf } from '../war-scene-view';
+import { armyFocusOf, foreignVillageOf, sceneWarOf, watchCellOf } from '../war-scene-view';
 
 // Válka ve scéně vlastní mapy (war.md – Ve scéně – napojení na hru): odpověď serveru (už po mlze
 // války – packages/game `war-scene.test.ts`) se převede na snímek scény beze změny obsahu.
@@ -121,5 +123,125 @@ describe('sceneWarOf', () => {
       arrived: false,
       heading: { x: 1, z: 0 },
     });
+  });
+});
+
+describe('cizí mapa ve scéně (war.md – Ve scéně – cizí mapa)', () => {
+  const man = (
+    member: number,
+    cell: { x: number; y: number },
+    extra: Partial<CampaignViewMan> = {},
+  ): CampaignViewMan => ({
+    member,
+    line: false,
+    mounted: false,
+    wounded: false,
+    health: 100,
+    status: 'active',
+    group: 0,
+    cell,
+    pos: { x: 0, z: 0 },
+    commander: false,
+    deputy: false,
+    fight: null,
+    ...extra,
+  });
+  const campaign = (men: CampaignViewMan[], extra: Partial<CampaignView> = {}): CampaignView =>
+    ({
+      phase: 'raiding',
+      men,
+      allies: [],
+      ...extra,
+    }) as unknown as CampaignView;
+  const HOME = { x: 0, y: 0 };
+  const AWAY = { x: 1, y: 0 };
+
+  it('výběr mapy: políčko velitele, jinak vlastního muže, jinak spojence; doma nic', () => {
+    const view = campaign([man(1, { x: 2, y: 0 }), man(2, AWAY, { commander: true })]);
+    expect(watchCellOf(view, HOME)).toEqual(AWAY);
+    // velitel padl – mapa prvního muže na nohou
+    const fallen = campaign([
+      man(1, { x: 2, y: 0 }),
+      man(2, AWAY, { commander: true, status: 'fallen' }),
+    ]);
+    expect(watchCellOf(fallen, HOME)).toEqual({ x: 2, y: 0 });
+    // vazal, jehož muži padli, sleduje tažení muži pána
+    const ally = campaign([man(1, AWAY, { status: 'fallen' })], {
+      allies: [{ ...man(5, { x: 3, y: 1 }) }],
+    });
+    expect(watchCellOf(ally, HOME)).toEqual({ x: 3, y: 1 });
+    // vojsko na mapě sídla ve scéně – tam ho ukazuje scéna vsi sama
+    expect(watchCellOf(campaign([man(1, HOME, { commander: true })]), HOME)).toBeNull();
+    // konec tažení, nikdo na nohou
+    expect(watchCellOf(campaign([man(1, AWAY)], { phase: 'done' }), HOME)).toBeNull();
+    expect(watchCellOf(campaign([man(1, AWAY, { status: 'captive' })]), HOME)).toBeNull();
+    // odříznuté sídlo – jakákoli mapa vojska
+    expect(watchCellOf(campaign([man(1, HOME)]), null)).toEqual(HOME);
+  });
+
+  it('na cizí mapě závoj mlhy ze strany hráče, na vlastní ne', () => {
+    const view: WarSceneView = {
+      ...BASE,
+      side: 'attack',
+      battle: null,
+      march: {
+        members: [{ line: false, mounted: false, wounded: false, group: 0, status: 'active' }],
+        groups: [
+          {
+            id: 0,
+            order: 'follow-leader',
+            pos: { x: 5, z: 6 },
+            arrived: true,
+            heading: { x: 0, z: 1 },
+          },
+        ],
+      },
+    };
+    expect(sceneWarOf(view, OFFICIAL_WORLD, true)?.fog).toEqual({ side: 'attack' });
+    expect(sceneWarOf(view, OFFICIAL_WORLD)?.fog).toBeNull();
+    expect(armyFocusOf(view)).toEqual({ x: 5, z: 6 });
+  });
+
+  it('cizí ves jen z poslaných domů – stojící, bez lidí a polí', () => {
+    expect(foreignVillageOf(undefined)).toBeNull();
+    expect(foreignVillageOf([])).toBeNull();
+    const village = foreignVillageOf([
+      { id: 7, type: 'zemnice', position: { x: 60, z: 0, rotation: 1 } },
+    ]);
+    expect(village).toEqual({
+      dwellings: [
+        {
+          id: 7,
+          type: 'zemnice',
+          position: { x: 60, z: 0, rotation: 1 },
+          built: true,
+          progress: 1,
+        },
+      ],
+      fields: [],
+    });
+  });
+
+  it('pohled na vojsko: první vlastní bojovník na nohou', () => {
+    const view: WarSceneView = {
+      ...BASE,
+      side: 'attack',
+      battle: {
+        ticks: 1,
+        outcome: 'ongoing',
+        fighters: [
+          { ...fighter('d:1', 'defend', 50) },
+          { ...fighter('a:0', 'attack', 10), state: 'down' },
+          fighter('a:1', 'attack', 20),
+        ],
+        groups: [],
+        closedGates: [],
+        breaches: [],
+        ladders: [],
+        walls: [],
+      },
+      march: null,
+    };
+    expect(armyFocusOf(view)).toEqual({ x: 20, z: 0 });
   });
 });

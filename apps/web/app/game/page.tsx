@@ -32,6 +32,11 @@ export default async function GamePage(): Promise<ReactElement> {
         devMode={session.user.devMode === true}
         email={session.user.email}
         languageChoice={languageChoice}
+        homeCell={
+          entry.settlement.worldCell
+            ? { x: entry.settlement.worldCell.x, y: entry.settlement.worldCell.y }
+            : null
+        }
         initialNowMs={Date.now()}
       />
     </main>

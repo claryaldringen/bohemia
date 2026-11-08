@@ -1,5 +1,5 @@
 import { crossingLayers } from '../village/fortification';
-import type { WallKind } from '../village/types';
+import type { DwellingType, Position, WallKind } from '../village/types';
 import { sameCell, type GridCell } from '../village/world-grid';
 import type {
   BattleBreach,
@@ -87,6 +87,13 @@ export interface WarSceneMarch {
   groups: WarSceneGroup[];
 }
 
+/** Dům cílové vsi, který útočník objevil (`CampaignState.discovered`) – jen co scéna kreslí. */
+export interface WarSceneBuilding {
+  id: number;
+  type: DwellingType;
+  position: Position;
+}
+
 /** Válka na jedné mapě z pohledu jedné strany. */
 export interface WarSceneView {
   campaignId: string;
@@ -97,6 +104,11 @@ export interface WarSceneView {
   side: BattleSide;
   battle: WarSceneBattle | null;
   march: WarSceneMarch | null;
+  /**
+   * Útočník na mapě cíle: objevené domy cílové vsi (mlha války – nic dalšího o cizí vsi). Obránce
+   * svou ves kreslí ze svého stavu – pole chybí.
+   */
+  buildings?: WarSceneBuilding[];
 }
 
 /** Vstup: mapa, strana hráče, mřížka mapy (dohled v lese) a oči mimo boj (domy vsi obránce). */
@@ -109,6 +121,8 @@ export interface WarSceneInput {
   eyes: readonly Pos[];
   /** Opevnění bojiště (jako v boji – `battleForts`) a den – výšky hradeb; [] = bez hradeb. */
   forts: readonly BattleFort[];
+  /** Domy cílové vsi – útočník na mapě cíle z nich vidí jen objevené (`discovered`). */
+  buildings?: readonly WarSceneBuilding[];
 }
 
 /**
@@ -149,7 +163,28 @@ export function warSceneView(state: CampaignState, input: WarSceneInput): WarSce
   const battle = fight ? battleView(fight, state.day, input) : null;
   const march = battle ? null : marchView(state, input);
   if (!battle && !march) return null;
-  return { campaignId: state.id, tick: state.tick, day: state.day, side, battle, march };
+  const view: WarSceneView = {
+    campaignId: state.id,
+    tick: state.tick,
+    day: state.day,
+    side,
+    battle,
+    march,
+  };
+  // cizí ves útočník zná jen z domů, na které jeho muži dohlédli (objevené zůstane)
+  const known = new Set(state.discovered);
+  const buildings =
+    side === 'attack' && onTarget
+      ? (input.buildings ?? [])
+          .filter((b) => known.has(b.id))
+          .map((b) => ({
+            id: b.id,
+            type: b.type,
+            position: { x: b.position.x, z: b.position.z, rotation: b.position.rotation },
+          }))
+      : [];
+  if (buildings.length > 0) view.buildings = buildings;
+  return view;
 
   function marchView(s: CampaignState, inp: WarSceneInput): WarSceneMarch | null {
     const groups = s.groups.filter(

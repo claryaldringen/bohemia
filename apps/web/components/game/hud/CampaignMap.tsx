@@ -3,13 +3,16 @@
 import { useState, type MouseEvent, type ReactElement } from 'react';
 import type { GroupOrder, LeaderTarget, Pos, SurrenderOrder } from '@bohemia/game';
 import { useCampaign } from '@/hooks/use-campaign';
+import { useArmyActions } from '@/hooks/use-army';
 import type { CampaignView } from '@/lib/campaign-view';
+import { watchCellOf } from '@/lib/war-scene-view';
 import { Tooltip } from './Tooltip';
 
 // Mapa tažení (war.md – Na mapě s vojskem, Mlha války; plán 2026-11-03 – Úloha 6.14): minimální
 // pohled shora na mapu, na které stojí velitel – vlastní muži, spojenci, cizí v dohledu a objevené
 // stavby jako značky. Klik na mapu = velitel jde (záměr na takt teď + 2), klik na cizího = napadne,
-// klik na stavbu = jde k ní. Scénu vojska kreslí `lib/scene` (jiná úloha) ze stejného `CampaignView`.
+// klik na stavbu = jde k ní. Tlačítko oka přepne 3D scénu na cizí mapu, na které vojsko stojí,
+// a zpět na ves (war.md – Ve scéně – cizí mapa; `ArmyActions.scene` z kontextu).
 
 type Result = Promise<{ ok: true } | { error: string }>;
 
@@ -52,6 +55,7 @@ export function CampaignMap({
   onClose: () => void;
 }): ReactElement {
   const { view, gone, refresh } = useCampaign(campaignId, actions.presence);
+  const sceneWatch = useArmyActions()?.scene ?? null;
   const [pending, setPending] = useState<Pos | null>(null);
   const [reason, setReason] = useState<string | null>(null);
 
@@ -95,6 +99,13 @@ export function CampaignMap({
       if (live) send(actions.lead({ campaignId, target }));
     };
   const denied = live ? null : 'Velí jiný muž.';
+  const watching = sceneWatch?.watching?.campaignId === campaignId;
+  const watchCell = sceneWatch ? watchCellOf(view, sceneWatch.home) : null;
+  const toggleWatch = (): void => {
+    if (!sceneWatch) return;
+    if (watching) sceneWatch.back();
+    else if (watchCell) sceneWatch.watch({ campaignId, cell: watchCell });
+  };
 
   return (
     <div
@@ -162,6 +173,25 @@ export function CampaignMap({
             </Tooltip>
           ))}
         <span className="flex-1" />
+        {sceneWatch && (
+          <Tooltip
+            content={watching ? 'Zpět na ves' : 'Ve scéně'}
+            denied={watching || watchCell ? null : 'Vojsko není na cizí mapě.'}
+            placement="below-left"
+          >
+            <button
+              type="button"
+              data-testid="campaign-watch"
+              aria-label={watching ? 'Zpět na ves' : 'Ve scéně'}
+              aria-pressed={watching}
+              disabled={!watching && !watchCell}
+              onClick={toggleWatch}
+              className={`hud-inset rounded px-1.5 disabled:opacity-45 disabled:grayscale ${watching ? 'ring-1 ring-[#f3cf86]' : ''}`}
+            >
+              👁
+            </button>
+          </Tooltip>
+        )}
         <Tooltip content="Zavřít" placement="below-left">
           <button
             type="button"

@@ -5,7 +5,7 @@ import { attacker, battle, defender, land } from '../../domain/war/__tests__/bat
 import { campaign, member } from '../../domain/war/__tests__/campaign-fixtures';
 import type { Settlement } from '../settlements';
 import type { VillageRecord, VillageStamp } from '../villages';
-import { warSceneFor, type WarSceneDefender, type WarSceneDeps } from '../war-scene';
+import { warSceneFor, warSceneOnMap, type WarSceneDefender, type WarSceneDeps } from '../war-scene';
 import { InMemoryCampaigns } from './in-memory-campaigns';
 
 // Válka ve scéně vlastní mapy (war.md – Ve scéně): obránce vidí svou ves celou a útočníky jen
@@ -167,5 +167,75 @@ describe('warSceneFor', () => {
     const { deps } = await setup(raiding([defender(101, { x: 100, z: 0 })]), []);
     expect(await warSceneFor(deps, { playerId: 'p1', settlementId: 's9' })).toBeNull();
     expect(await warSceneFor(deps, { playerId: 'p9', settlementId: 'nic' })).toBeNull();
+  });
+});
+
+describe('warSceneOnMap – útočník na cizí mapě', () => {
+  const TARGET = { x: 1, y: 0 };
+
+  it('vojsko tažení celé se zdravím, obránci jen v dohledu jeho mužů', async () => {
+    // obránce 100 m od útočníků je vidět, obránce 600 m daleko ne
+    const state = raiding([defender(101, { x: 100, z: 0 }), defender(102, { x: 600, z: 0 })]);
+    const { deps } = await setup(state, []);
+    const view = await warSceneOnMap(deps, { playerId: 'p1', campaignId: 'c1', cell: TARGET });
+    expect(view?.side).toBe('attack');
+    const seen = new Map(view!.battle!.fighters.map((f) => [f.id, f]));
+    expect([...seen.keys()].sort()).toEqual(['a:0', 'a:1', 'd:101']);
+    expect(seen.get('a:0')!.health).toBe(100);
+    expect(seen.get('d:101')).not.toHaveProperty('health');
+    expect(seen.get('d:101')!.home).toEqual(seen.get('d:101')!.pos);
+  });
+
+  it('z cizí vsi jen objevené domy – neobjevený dům se nepošle', async () => {
+    const state = { ...raiding([]), discovered: [7] };
+    const { deps } = await setup(state, [house(7, 60, 0), house(8, 500, 0)]);
+    const view = await warSceneOnMap(deps, { playerId: 'p1', campaignId: 'c1', cell: TARGET });
+    expect(view!.buildings).toEqual([
+      { id: 7, type: 'zemnice', position: { x: 60, z: 0, rotation: 0 } },
+    ]);
+    // nic objeveného – pole chybí
+    const { deps: none } = await setup(raiding([]), [house(7, 60, 0)]);
+    const blind = await warSceneOnMap(none, { playerId: 'p1', campaignId: 'c1', cell: TARGET });
+    expect(blind).not.toHaveProperty('buildings');
+  });
+
+  it('obránce na své mapě cizí domy nedostane (svou ves kreslí ze stavu)', async () => {
+    const state = { ...raiding([defender(101, { x: 100, z: 0 })]), discovered: [7] };
+    const { deps } = await setup(state, [house(7, 60, 0)]);
+    const view = await warSceneFor(deps, { playerId: 'p9', settlementId: 's9' });
+    expect(view?.side).toBe('defend');
+    expect(view).not.toHaveProperty('buildings');
+  });
+
+  it('cizí hráč, jiná mapa, odchod vojska a konec tažení – nic', async () => {
+    const { deps, campaigns } = await setup(raiding([defender(101, { x: 100, z: 0 })]), []);
+    // obránce tažení nezná – na cizí mapu se jeho očima nedívá
+    expect(
+      await warSceneOnMap(deps, { playerId: 'p9', campaignId: 'c1', cell: TARGET }),
+    ).toBeNull();
+    expect(
+      await warSceneOnMap(deps, { playerId: 'p1', campaignId: 'nic', cell: TARGET }),
+    ).toBeNull();
+    // vojsko na mapě nestojí
+    expect(
+      await warSceneOnMap(deps, { playerId: 'p1', campaignId: 'c1', cell: { x: 5, y: 5 } }),
+    ).toBeNull();
+    const point = await campaigns.checkpoint('c1');
+    await campaigns.create({ ...point!.state, phase: 'done' });
+    expect(
+      await warSceneOnMap(deps, { playerId: 'p1', campaignId: 'c1', cell: TARGET }),
+    ).toBeNull();
+  });
+
+  it('vazal ve službě vidí vojsko tažení na cizí mapě taky', async () => {
+    const base = raiding([]);
+    const state: CampaignState = {
+      ...base,
+      members: [...base.members, { ...base.members[1]!, playerId: 'p5' }],
+    };
+    const { deps } = await setup(state, []);
+    const view = await warSceneOnMap(deps, { playerId: 'p5', campaignId: 'c1', cell: TARGET });
+    expect(view?.side).toBe('attack');
+    expect(view!.battle!.fighters.length).toBeGreaterThan(0);
   });
 });
