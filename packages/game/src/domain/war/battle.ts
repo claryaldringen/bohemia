@@ -624,6 +624,7 @@ function wallsOf(
           openings.push({
             out: shift({ x: pincer.mx, z: pincer.mz }, 3),
             in: pincerPoint(pincer, 0, pincer.endM + 3),
+            segment: shape.index,
           });
         }
       } else {
@@ -1062,12 +1063,19 @@ function chooseSpot(
     const there = w.b.fighters.filter(
       (f) => f.state === 'breach' && f.breachAt === spot.key,
     ).length;
-    if (there >= (spot.maxMen ?? A.maxMen)) continue;
+    const cap = spot.maxMen ?? A.maxMen;
+    if (there >= cap) continue;
+    // hodiny s tolika muži, kolik se k místu vejde (u vrat klešťové brány `pincerGate.maxMen`)
+    const workers = Math.min(men, cap);
     const started = w.b.breaches.find((x) => x.key === spot.key);
     let choice: SpotChoice | null = null;
     if (started) {
       if (started.phase !== 'done') {
-        choice = { spot, step: null, hours: breachHoursLeft(started, Math.max(men, there + 1)) };
+        choice = {
+          spot,
+          step: null,
+          hours: breachHoursLeft(started, Math.min(cap, Math.max(workers, there + 1))),
+        };
       }
     } else {
       const fuelM = spot.steps.some((p) => p.method === 'burn')
@@ -1078,7 +1086,7 @@ function chooseSpot(
         steps = steps.filter((p) => p.method === assault);
       }
       for (const step of steps) {
-        const hours = assaultHours(step, men, step.method === 'burn' ? fuelM : 0);
+        const hours = assaultHours(step, workers, step.method === 'burn' ? fuelM : 0);
         if (!choice || hours < choice.hours) choice = { spot, step, hours };
       }
     }
@@ -1110,8 +1118,9 @@ export interface FortPassage {
 /**
  * Průchody opevněním bojiště pro NPC velitele (`npc-assault.ts` – plán hradeb, Úloha 20): mezery
  * a průlomy boje (`openings`) a na každém opevnění nejrychlejší místo prolomení – stejné stěny
- * a volba jako v taktu (`wallsOf`, `chooseSpot`); brány zavřené – zavřou se, než k nim vojsko
- * dojde. Stav ani bojiště nemění.
+ * a volba jako v taktu (`wallsOf`, `chooseSpot` – i nejvýš `maxMen` u vrat klešťové brány); brány
+ * zavřené – zavřou se, než k nim vojsko dojde. U klešťové brány stojí velitel před ústím uličky.
+ * Stav ani bojiště nemění.
  */
 export function fortPassages(
   field: BattleField,
@@ -1140,7 +1149,16 @@ export function fortPassages(
     const method = c.step
       ? (c.step.method as BreachMethod)
       : b.breaches.find((x) => x.key === c.spot.key)!.method;
-    out.push({ fort: fi, segment: c.spot.segment, at: { ...c.spot.at }, method, hours: c.hours });
+    // vrata klešťové brány jsou na konci uličky – velitel stojí před jejím ústím, k vratům
+    // dojdou muži v boji sami (ramena nepřelézají)
+    const pincer =
+      c.spot.spot === 'gate'
+        ? battlePincers(forts[fi]!, field.day).find((p) => p.segment === c.spot.segment)
+        : undefined;
+    const at = pincer
+      ? { x: pincer.mx + c.spot.out.x, z: pincer.mz + c.spot.out.z }
+      : { ...c.spot.at };
+    out.push({ fort: fi, segment: c.spot.segment, at, method, hours: c.hours });
   });
   return out;
 }

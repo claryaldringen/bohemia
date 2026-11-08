@@ -741,9 +741,11 @@ Rozpad). Čísla `WAR.npc` (`attackRatio` 1,5, `lostShare` 0,5) a `WAR.absentLea
 men, from)` → `{ fort, segment, at, method, hours }` | null. Mezery, průlomy boje a nejrychlejší
   místo prolomení každého opevnění bere z boje – `fortPassages` v `battle.ts` (stejné `wallsOf`
   a `chooseSpot` jako takt, brány zavřené, `min(4, muži)`, oheň jen s otepi z lesa či dříví vsi;
-  `Opening.segment`), žebřík přes vodní příkop z nich vynechá. Sám odhadne přelézt plot (`climb`)
+  `Opening.segment`; u vrat klešťové brány nejvýš `maxMen` a velitel stojí před ústím uličky –
+  k vratům dojdou muži v boji sami), žebřík přes vodní příkop z nich vynechá. Sám odhadne přelézt plot (`climb`)
   a žebříky jen na neobsazeném místě (`occupied` v bodě i ±0,5 m – ne škvíra mezi obránci 5 m od
-  sebe; mimo vrata; 1 m od stojících žebříků): volný žebřík opevnění jen výstup, nový = výroba 4 h
+  sebe; mimo vrata a u klešťové brány mimo ramena – uličku 2 m + rameno 5,5 m + 1 m od
+  středu brány, i na sousedním úseku; 1 m od stojících žebříků): volný žebřík opevnění jen výstup, nový = výroba 4 h
   - do nejbližšího lesa (od středu úseku, `nearestForestOf`, mezipaměť na mřížku a tvar) a zpět
   - výstup (`climbTicks`), zasypání příkopu `assaultHours` bez výroby. Vybere nejmenší
     `hours + cesta od from` (3,5 m/s; při shodě první v pořadí); `hours` je jen postup.

@@ -18,6 +18,7 @@ import {
   fighter,
   forestSouth,
   fortOf,
+  palisade,
   run,
 } from './battle-fixtures';
 import { campaign, worldOf } from './campaign-fixtures';
@@ -190,6 +191,27 @@ describe('nejrychlejší postup přes hradbu (fastestApproach)', () => {
     expect(Math.sqrt(dist2(around, way.at))).toBeLessThan(Math.sqrt(dist2(out, way.at)));
     // u místa rovnou k němu
     expect(approachStep(f, { x: 1, z: -34 }, way)).toEqual(way.at);
+  });
+
+  it('klešťová brána: velitel stojí před ústím uličky, žebříky ne přes ramena', () => {
+    const fort = palisade(true);
+    fort.gates = [{ ...fort.gates[0]!, pincerDay: 0 }];
+    const f = field([fort]);
+    const b = siege(f, 10, wallPosts(f.forts, 6));
+    const way = fastestApproach(f, b, 10, FROM)!;
+    // brána palisády prosekne za 12 ÷ 4 = 3 h – vrata na konci uličky, velitel před ústím venku
+    expect(way.method).toBe('cut');
+    expect(way.hours).toBeCloseTo(12 / 4, 6);
+    expect(way.at.x).toBeCloseTo(0, 6);
+    expect(way.at.z).toBeCloseTo(-31, 6);
+    // jeden muž: brána 12 h, žebřík z lesa u hradby ≈ 10 h – nejblíž bráně, ale ne u ramen
+    // (ulička 2 m + rameno 5,5 m + 1 m od středu brány) ani na sousedním úseku
+    const g = fort.gates[0]!;
+    const near = field([fort], forestNear);
+    const ladder = fastestApproach(near, siege(near, 1, []), 1, { x: 0, z: -40 })!;
+    expect(ladder.method).toBe('ladder');
+    expect(Math.abs(ladder.at.x - g.x)).toBeGreaterThanOrEqual(8.5 - 1e-6);
+    expect(Math.abs(ladder.at.x - g.x)).toBeLessThan(10);
   });
 
   it('bez mužů není postup; stejný výsledek při opakování (determinismus)', () => {

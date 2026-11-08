@@ -24,7 +24,7 @@ import type { MarchGrid, Pos } from './march-grid';
 import { dist2, inFight } from './orders';
 import { WAR } from './rules-war';
 import { TICKS_PER_SECOND } from './ticks';
-import { occupied, onWallTop } from './wall-defense';
+import { battlePincers, occupied, onWallTop } from './wall-defense';
 
 // NPC velitel u hradby (fortifications.md – Obrana bez násobku, NPC velitel; Přechod hradby;
 // Prolomení; plán hradeb – Úloha 20): odhadne nejrychlejší postup přes opevnění bojiště – mezera
@@ -91,22 +91,29 @@ function segmentForests(grid: MarchGrid, bf: BattleFort): (Pos | null)[] {
 /**
  * Vrchol žebříku na úseku nejblíž `from`: na neobsazeném místě (`occupied`) – i půl metru na obě
  * strany, ať velitel nevede k úzké škvíře mezi dvěma obránci 5 m od sebe (stojí metr za čarou;
- * návrh Clauda) –, nejméně 1 m od stojících žebříků a mimo vrata brány – po metru podél úseku;
- * null, když takové místo není.
+ * návrh Clauda) –, nejméně 1 m od stojících žebříků, mimo vrata brány a ramena klešťové brány – po
+ * metru podél úseku; null, když takové místo není.
  */
 function freeLadderTop(c: Ctx, bf: BattleFort, fi: number, shape: FortSegmentShape): Pos | null {
   const l = shape.line;
-  const gate = bf.fort.gates.find((g) => g.segment === shape.index);
   const gap2 = D.ladderGapM * D.ladderGapM - 1e-9;
   const taken = (c.b.ladders ?? []).filter((x) => x.fort === fi);
+  // mimo vrata; u klešťové brány i mimo ramena uličky (ramena se nepřelézají) – i na sousedním
+  // úseku, když brána leží u jeho konce
+  const pincers = new Set(battlePincers(bf, c.field.day).map((p) => p.segment));
+  const keepOut = bf.fort.gates.map((g) => {
+    const r =
+      (pincers.has(g.segment)
+        ? FORTIFICATIONS.pincerGate.alleyWidthM / 2 + FORTIFICATIONS.bandM.walkway
+        : FORTIFICATIONS.gate.widthM / 2) + D.ladderGapM;
+    return { x: g.x, z: g.z, r2: r * r };
+  });
   let best: Pos | null = null;
   let bestD = Infinity;
   for (let t = Math.min(0.5, l.length / 2); t <= l.length - 0.5 + 1e-9; t += D.ladderGapM) {
-    if (gate && Math.abs(t - gate.offsetM) < FORTIFICATIONS.gate.widthM / 2 + D.ladderGapM) {
-      continue;
-    }
     const at = (s: number): Pos => ({ x: l.x + l.dx * s, z: l.z + l.dz * s });
     const p = at(t);
+    if (keepOut.some((g) => dist2(p, g) < g.r2)) continue;
     const d = dist2(c.from, p);
     if (d >= bestD) continue;
     if (taken.some((x) => dist2(x.top, p) < gap2)) continue;
