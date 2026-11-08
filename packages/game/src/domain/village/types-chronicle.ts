@@ -245,6 +245,11 @@ export type ChronicleEvent = { day: number } & (
       /** Dostavěná vozová cesta (roads.md – Vozová cesta); u ostatních staveb chybí. */
       wagon?: true;
     }
+  /**
+   * Zbořený úsek opevnění (demolition.md – Opevnění): plot, palisáda či nástavba valu, nebo
+   * srovnaný val (`level`); `logs` klád přišlo na hromadu u cesty.
+   */
+  | { kind: 'fortification-demolished'; logs: number; level?: true }
   /** Hráč zrušil rozestavěnou stavbu (cancel-construction.ts); dřevo se vrátilo na hromadu. */
   | { kind: 'construction-cancelled'; constructionKind: ConstructionKind; craft?: Craft }
   /**

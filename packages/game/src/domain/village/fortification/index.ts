@@ -12,6 +12,7 @@ export * from './curve';
 export * from './convert';
 export * from './proposal';
 export * from './segments';
+export * from './sections';
 export * from './gates';
 export * from './cost';
 export * from './band';

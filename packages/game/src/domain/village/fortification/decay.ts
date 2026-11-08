@@ -11,7 +11,7 @@ import {
 import { FORTIFICATIONS } from '../rules-fortifications';
 import type { Construction, FortSegmentWork, Fortification, VillageState } from '../types';
 import { fortificationCost } from './cost';
-import { FORT_DAYS_PER_YEAR, segmentIsOld, segmentState } from './life';
+import { FORT_DAYS_PER_YEAR, segmentIsOld, segmentState, segmentTop } from './life';
 import { fortSegments } from './segments';
 
 export { segmentState } from './life';
@@ -33,12 +33,15 @@ function running(state: VillageState, fort: Fortification): Construction | undef
   );
 }
 
-/** Úseky, které obyvatelé přestaví: průlom, dožilý plot či palisáda a dožilá nástavba valu. */
+/**
+ * Úseky, které obyvatelé přestaví: průlom, dožilý plot či palisáda a dožilá nástavba valu.
+ * Zbořený díl ne – hráč ho zbořil (demolition.md – Opevnění).
+ */
 function dueSegments(fort: Fortification, day: number): number[] {
   const breached: number[] = [];
   const old: number[] = [];
   for (const s of fort.segments) {
-    if (s.builtDay === null) continue;
+    if (s.builtDay === null || s.demolishedDay !== undefined) continue;
     if (s.breachedDay !== undefined) breached.push(s.index);
     else if (segmentIsOld(fort, s, day)) old.push(s.index);
   }
@@ -75,8 +78,13 @@ export function decideFortRebuilds(
     if (!work) {
       for (const s of fort.segments) {
         const value = segmentState(fort, s, day);
-        // průlom drží stav 0, dokud ho obyvatelé nepřestaví
-        if (s.builtDay !== null && s.breachedDay === undefined && s.state !== value)
+        // průlom drží stav 0, dokud ho obyvatelé nepřestaví; zbořený díl nechátrá
+        if (
+          s.builtDay !== null &&
+          s.breachedDay === undefined &&
+          s.demolishedDay === undefined &&
+          s.state !== value
+        )
           s.state = value;
       }
     }
@@ -107,7 +115,7 @@ export function decideFortRebuilds(
         const length = lengths.get(index) ?? 0;
         const top = fort.kind === 'rampart' && seg.breachedDay === undefined;
         const cost = top
-          ? fortificationCost(fort.top ?? 'fence', length, 'top')
+          ? fortificationCost(segmentTop(fort, seg) ?? 'fence', length, 'top')
           : fortificationCost(segmentKind(fort, seg), length, 'new');
         plan.wood += cost.upfront.wood ?? 0;
         plan.segments.push({ index, cost: cost.laborManDays });
@@ -116,7 +124,8 @@ export function decideFortRebuilds(
       kind = 'restore';
       plan = { segments: [], wood: 0 };
       for (const s of fort.segments) {
-        if (s.builtDay === null) continue;
+        // srovnaný val se neobnovuje
+        if (s.builtDay === null || s.demolishedDay !== undefined) continue;
         const cost = fortificationCost('rampart', lengths.get(s.index) ?? 0, 'new');
         plan.segments.push({
           index: s.index,
@@ -165,7 +174,12 @@ export function rampartMaintenance(
     const lengths = builtLengths(geo, fort);
     if (!lengths) continue;
     let meters = 0;
-    for (const s of fort.segments) if (s.builtDay !== null) meters += lengths.get(s.index) ?? 0;
+    for (const s of fort.segments) {
+      // srovnaný val se neudržuje
+      if (s.builtDay !== null && s.demolishedDay === undefined) {
+        meters += lengths.get(s.index) ?? 0;
+      }
+    }
     const need =
       (meters / 100) * (FORTIFICATIONS.rampartUpkeep.manDaysPer100MYear / FORT_DAYS_PER_YEAR);
     if (need <= EPSILON) continue;

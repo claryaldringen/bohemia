@@ -1,5 +1,5 @@
 import { FORTIFICATIONS } from '../rules-fortifications';
-import type { FortKind } from '../types';
+import type { FortKind, FortTop } from '../types';
 import type { FortSegment, Fortification } from './types';
 
 // Stáří úseků opevnění (fortifications.md – Životnost a oprava): plot a palisáda hnijí, val ne.
@@ -14,17 +14,45 @@ function kindOf(fort: Pick<Fortification, 'kind'>, segment: Pick<FortSegment, 'k
 }
 
 /**
+ * Nástavba valu na dílu (demolition.md – Opevnění): vlastní nástavba dílu (`FortSegment.top`),
+ * jinak nástavba opevnění; `'none'` (zbořená nástavba) i val bez nástavby null. Jen údaj druhu –
+ * zda nástavba na dílu stojí, říká `topBuiltDay`.
+ */
+export function segmentTop(
+  fort: Pick<Fortification, 'top'>,
+  segment: Pick<FortSegment, 'top'>,
+): FortTop | null {
+  const top = segment.top ?? fort.top;
+  return top === undefined || top === 'none' ? null : top;
+}
+
+/**
+ * Díl bez stěny (demolition.md – Opevnění): nedostavěný, prolomený nebo zbořený. Shnilý plot či
+ * palisáda na nule je mezera taky, to ale rozhoduje stav (`segmentStands`, `segmentIsGap`).
+ */
+export function segmentIsOpen(
+  segment: Pick<FortSegment, 'builtDay' | 'breachedDay' | 'demolishedDay'>,
+): boolean {
+  return (
+    segment.builtDay === null ||
+    segment.breachedDay !== undefined ||
+    segment.demolishedDay !== undefined
+  );
+}
+
+/**
  * Den dokončení části úseku, která hnije, a její životnost v letech: plot a palisáda sám úsek,
  * val s nástavbou jeho nástavbu; holý val nehnije (null).
  */
 function rotting(
   fort: Pick<Fortification, 'kind' | 'top'>,
-  segment: Pick<FortSegment, 'kind' | 'builtDay' | 'topBuiltDay'>,
+  segment: Pick<FortSegment, 'kind' | 'builtDay' | 'topBuiltDay' | 'top'>,
 ): { builtDay: number; years: number } | null {
   const kind = kindOf(fort, segment);
   if (kind === 'rampart') {
-    if (!fort.top || segment.topBuiltDay === undefined || segment.topBuiltDay === null) return null;
-    return { builtDay: segment.topBuiltDay, years: FORTIFICATIONS.lifeYears[fort.top] };
+    const top = segmentTop(fort, segment);
+    if (!top || segment.topBuiltDay === undefined || segment.topBuiltDay === null) return null;
+    return { builtDay: segment.topBuiltDay, years: FORTIFICATIONS.lifeYears[top] };
   }
   if (segment.builtDay === null) return null;
   return { builtDay: segment.builtDay, years: FORTIFICATIONS.lifeYears[kind] };
@@ -33,7 +61,7 @@ function rotting(
 /** Dožilý úsek – plot či palisáda (nebo nástavba valu) za koncem životnosti. */
 export function segmentIsOld(
   fort: Pick<Fortification, 'kind' | 'top'>,
-  segment: Pick<FortSegment, 'kind' | 'builtDay' | 'topBuiltDay'>,
+  segment: Pick<FortSegment, 'kind' | 'builtDay' | 'topBuiltDay' | 'top'>,
   day: number,
 ): boolean {
   const r = rotting(fort, segment);
@@ -46,7 +74,7 @@ export function segmentIsOld(
  */
 export function segmentState(
   fort: Pick<Fortification, 'kind' | 'top'>,
-  segment: Pick<FortSegment, 'kind' | 'builtDay' | 'topBuiltDay'>,
+  segment: Pick<FortSegment, 'kind' | 'builtDay' | 'topBuiltDay' | 'top'>,
   day: number,
 ): number {
   if (segment.builtDay === null) return 0;
@@ -58,13 +86,15 @@ export function segmentState(
 }
 
 /**
- * Stojí úsek (brání a překáží v síti cest)? Hotový, neprolomený a – plot či palisáda – ne
- * shnilý na nulu (mezera). Val stojí i s shnilou nástavbou.
+ * Stojí úsek (brání a překáží v síti cest)? Hotový, neprolomený, nezbořený a – plot či palisáda –
+ * ne shnilý na nulu (mezera). Val stojí i s shnilou či zbořenou nástavbou.
  */
 export function segmentStands(
   fort: Pick<Fortification, 'kind'>,
-  segment: Pick<FortSegment, 'kind' | 'builtDay' | 'breachedDay'> & { state?: number },
+  segment: Pick<FortSegment, 'kind' | 'builtDay' | 'breachedDay' | 'demolishedDay'> & {
+    state?: number;
+  },
 ): boolean {
-  if (segment.builtDay === null || segment.breachedDay !== undefined) return false;
+  if (segmentIsOpen(segment)) return false;
   return kindOf(fort, segment) === 'rampart' || (segment.state ?? 1) > 0;
 }

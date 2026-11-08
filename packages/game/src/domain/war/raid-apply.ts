@@ -433,7 +433,8 @@ export function applyFortificationBreach(
   if (!fort) return;
   const segments = new Set(body.segments);
   for (const s of fort.segments) {
-    if (!segments.has(s.index) || s.builtDay === null) continue;
+    // zbořený díl je už mezera – není co prolomit
+    if (!segments.has(s.index) || s.builtDay === null || s.demolishedDay !== undefined) continue;
     s.breachedDay ??= day;
     s.state = 0;
   }

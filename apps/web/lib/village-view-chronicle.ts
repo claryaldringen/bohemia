@@ -272,6 +272,16 @@ function returnedPartsText(parts: number): string {
   return `${plural(parts, 'Vrácen', 'Vráceny', 'Vráceno')} ${formatInteger(parts)} ${plural(parts, 'díl', 'díly', 'dílů')} pole do osevu.`;
 }
 
+/**
+ * Zbořený úsek opevnění (demolition.md – Opevnění, kronika „Stavba zbourána – N klád na
+ * hromadu.“): plot, palisáda či nástavba valu, nebo srovnaný val bez klád.
+ */
+function fortDemolishedText(logs: number, level: boolean): string {
+  if (level) return 'Val úseku opevnění srovnán.';
+  if (logs <= 0) return 'Úsek opevnění zbořen.';
+  return `Úsek opevnění zbořen – ${formatInteger(logs)} ${plural(logs, 'kláda', 'klády', 'klád')} na hromadu.`;
+}
+
 /** Opuštěná stavba spadla (abandonment.md – kronika). */
 const STRUCTURE_FELL_TEXTS: Record<AbandonedStructure, string> = {
   idol: 'Modla, ke které léta nikdo nechodil, padla.',
@@ -634,6 +644,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return abandonedPartsText(event.parts);
     case 'parts-returned':
       return returnedPartsText(event.parts);
+    case 'fortification-demolished':
+      return fortDemolishedText(event.logs, event.level === true);
     case 'relocation-started':
       return `Domácnost si začala stavět novou ${DWELLING_NAMES[event.type].accusative} – přestěhuje se.`;
     case 'relocation-cancelled':

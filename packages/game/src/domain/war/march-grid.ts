@@ -15,7 +15,7 @@ import {
   obstacleStatus,
   type ObstacleChanges,
 } from '../village/obstacles';
-import { fortWalls, segmentIsGap, segmentState } from '../village/fortification';
+import { fortWalls, segmentIsGap, segmentState, segmentTop } from '../village/fortification';
 import type { Fortification, FortSegment } from '../village/fortification/types';
 import {
   buildingBounds,
@@ -211,18 +211,22 @@ function roadCells(grid: MarchGrid, village: VillageState): Set<number> {
   return cells;
 }
 
-/** Úsek opevnění bez průlomu – val se neprolamuje, prolomená nástavba ho nechá valem. */
+/**
+ * Úsek opevnění bez průlomu a zboření – val se neprolamuje, prolomená nástavba ho nechá valem;
+ * pás mezery (i zbořeného dílu) se kreslí jako stojící úsek.
+ */
 function withoutBreach(seg: FortSegment): FortSegment {
   const copy = { ...seg };
   delete copy.breachedDay;
+  delete copy.demolishedDay;
   return copy;
 }
 
 /**
  * Buňky opevnění pro pochod (fortifications.md – Obrana, Prolomení): stěny hotových úseků plotu
  * a palisády a valu se stojící nástavbou jsou neprůchodné; val bez nástavby (i s prolomenou či
- * shnilou) je pás čtvrtinového tempa. Průchozí jsou otevřené brány a mezery – nedostavěný, shnilý
- * nebo prolomený úsek (`segmentIsGap`, jako `fortGaps`) celým pásem; buňka, které se dotkne
+ * shnilou) je pás čtvrtinového tempa. Průchozí jsou otevřené brány a mezery – nedostavěný, shnilý,
+ * prolomený nebo zbořený úsek (i srovnaný val; `segmentIsGap`, jako `fortGaps`) celým pásem; buňka, které se dotkne
  * průchod, stěnou není (jako brána u pěšin – `fortWallCells`), takže mezera úzká jako úsek vede
  * i mřížkou 10 m.
  */
@@ -238,9 +242,9 @@ function fortCells(
   const gaps: FortSegment[] = [];
   for (const seg of fort.segments) {
     const isRampart = (seg.kind ?? fort.kind) === 'rampart';
-    if (isRampart && seg.builtDay !== null) {
+    if (isRampart && seg.builtDay !== null && seg.demolishedDay === undefined) {
       const topStands =
-        fort.top !== undefined &&
+        segmentTop(fort, seg) !== null &&
         seg.topBuiltDay !== undefined &&
         seg.topBuiltDay !== null &&
         seg.breachedDay === undefined &&

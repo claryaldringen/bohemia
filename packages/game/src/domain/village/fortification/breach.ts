@@ -1,5 +1,6 @@
 import { FORTIFICATIONS } from '../rules-fortifications';
-import type { FortKind } from '../types';
+import type { FortKind, FortTop } from '../types';
+import { segmentTop } from './life';
 import type { Fortification, FortSegment } from './types';
 
 // Prolomení opevnění (fortifications.md – Prolomení): práce v mužohodinách podle druhu a místa,
@@ -24,12 +25,12 @@ export interface BreachProgress {
  */
 export function breachWork(
   fort: Pick<Fortification, 'kind' | 'top'>,
-  seg: Pick<FortSegment, 'kind'>,
+  seg: Pick<FortSegment, 'kind' | 'top'>,
   at: BreachSpot,
 ): number {
   const kind: FortKind = seg.kind ?? fort.kind;
   const w = FORTIFICATIONS.breachManHours;
-  const top = kind === 'rampart' ? fort.top : kind;
+  const top: FortTop | null = kind === 'rampart' ? segmentTop(fort, seg) : kind;
   if (!top) return 0;
   if (top === 'fence') return at === 'gate' ? w.fenceGate : w.fence;
   return at === 'gate' ? w.palisadeGate : w.palisade;

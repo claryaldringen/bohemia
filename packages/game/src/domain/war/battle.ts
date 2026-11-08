@@ -7,6 +7,7 @@ import {
   fortOutlineOf,
   fortSegments,
   segmentIsGap,
+  segmentTop,
   type BreachProgress,
   type BreachSpot,
   type FortSegmentShape,
@@ -327,7 +328,9 @@ interface Walls {
 function blocks(fort: Fortification, seg: FortSegment, day: number): boolean {
   if (segmentIsGap(fort, seg, day)) return false;
   if ((seg.kind ?? fort.kind) !== 'rampart') return true;
-  return fort.top !== undefined && seg.topBuiltDay !== undefined && seg.topBuiltDay !== null;
+  return (
+    segmentTop(fort, seg) !== null && seg.topBuiltDay !== undefined && seg.topBuiltDay !== null
+  );
 }
 
 /** Opevnění s průlomy boje (prolomený úsek je mezera – `breachedDay`). */

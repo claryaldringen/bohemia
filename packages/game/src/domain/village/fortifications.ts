@@ -9,6 +9,8 @@ import {
   fortRunningWork,
   fortSegments,
   roadGates,
+  sectionOf,
+  segmentTop,
   type FortGate,
   type FortOutline,
   type FortSegmentShape,
@@ -21,7 +23,9 @@ import { obstacleChangesAt, recordClearedObstacles } from './obstacles';
 import type { Walk } from './paths/walking';
 import { checkFortificationPlacement } from './placement-fortifications';
 import { placementVillageOf } from './placement-village';
+import { DEMOLITION } from './rules-buildings';
 import type {
+  ChronicleEvent,
   Construction,
   FortBuildWork,
   FortKind,
@@ -32,7 +36,14 @@ import type {
   RoadPoint,
   VillageState,
 } from './types';
-import { claimedObstacles, planWoodFrom, takeWood, woodFellingCost, woodLogs } from './wood';
+import {
+  addLogs,
+  claimedObstacles,
+  planWoodFrom,
+  takeWood,
+  woodFellingCost,
+  woodLogs,
+} from './wood';
 
 // Stavba opevnění po úsecích (fortifications.md – Cena a stavba): cena předem jen dřevo – klády
 // na hromadě a dospělé stromy k mání musí pokrýt klády celé stavby („Hráč staví kdy chce“), práce
@@ -51,6 +62,8 @@ export const FORT_RAMPART_UNFINISHED = 'Na valu se staví až na hotovém.';
 export const FORT_TOP_DONE = 'Val už nástavbu má.';
 export const FORT_GATE_OFF = 'Brána musí stát na obvodu opevnění.';
 export const FORT_GATE_TAKEN = 'Úsek už bránu má.';
+export const FORT_SECTION_GONE = 'Úsek už je zbořený.';
+export const FORT_SECTION_GATE_ONLY = 'V úseku stojí jen brána – brány zůstávají.';
 
 /** Tolerance porovnání práce (čd). */
 const EPSILON = 1e-9;
@@ -353,8 +366,11 @@ export function startFortificationUpgrade(
       return { ok: false, reason: check.reason ?? 'Sem palisáda nepatří.' };
     }
     const shapes = fortSegments(check.outline);
+    // zbořený díl zůstává mezerou (demolition.md – Opevnění)
     const todo = new Set(
-      fort.segments.filter((s) => segmentKind(fort, s) !== 'palisade').map((s) => s.index),
+      fort.segments
+        .filter((s) => segmentKind(fort, s) !== 'palisade' && s.demolishedDay === undefined)
+        .map((s) => s.index),
     );
     const order = fortWorkOrder(shapes.length, fort.gates, anchor).filter((i) => todo.has(i));
     const next = cloneState(state);
@@ -381,9 +397,13 @@ export function startFortificationUpgrade(
     return { ok: false, reason: FORT_RAMPART_UNFINISHED };
   }
   const top = input.top ?? fort.top ?? 'fence';
+  // srovnaný val nástavbu nedostane; díl se zbořenou nástavbou ji dostane znovu
   const todo = new Set(
     fort.segments
-      .filter((s) => s.topBuiltDay === undefined || s.topBuiltDay === null)
+      .filter(
+        (s) =>
+          (s.topBuiltDay === undefined || s.topBuiltDay === null) && s.demolishedDay === undefined,
+      )
       .map((s) => s.index),
   );
   // rozdělaná nástavba (zrušená stavba) se dostaví stejným druhem
@@ -439,12 +459,189 @@ export function addGateToFortification(
   return { ok: true, state: next };
 }
 
-/** Úsek je hotový pro práci `work` (stavba, vylepšení, nástavba). */
+/** Stojí na dílu valu nástavba (plot či palisáda dokončená a nezbořená)? */
+function topStands(fort: Fortification, s: FortSegment): boolean {
+  return segmentTop(fort, s) !== null && s.topBuiltDay !== undefined && s.topBuiltDay !== null;
+}
+
+/** Vstup zboření – opevnění a díl, na který hráč klikl (úsek dohledá server). */
+export interface SectionDemolitionInput {
+  fortificationId: number;
+  /** Díl (`FortSegment.index`) v úseku – úsek je z dílů vždy znovu spočítaný (`sectionOf`). */
+  segment: number;
+}
+
+/** Co zboření úseku udělá: práce (čd) a klády zpět na hromadu. */
+export interface SectionDemolition {
+  /** `demolish` – plot, palisáda či nástavba valu; `level` – srovnání valu bez nástavby. */
+  work: 'demolish' | 'level';
+  laborManDays: number;
+  logs: number;
+}
+
+/** Plán zboření úseku – díly v pořadí práce s prací a kládami a místo hromady. */
+interface DemolitionPlan extends SectionDemolition {
+  segments: FortSegmentWork[];
+  at: RoadPoint;
+}
+
+/**
+ * Plán zboření úseku mezi branami, ve kterém leží díl `input.segment` (demolition.md – Opevnění,
+ * Čísla): díly úseku po směru hodin bez dílu s branou (brány zůstávají na koncích úseků), jen
+ * nezbořené a dostavěné. Plot a palisáda – díl zbořit; val s nástavbou – jen nástavbu (díly, kde
+ * stojí); val bez nástavby – srovnat. Práce dílu `laborShare` × práce dílu podle délky (val
+ * `rampartLaborShare`), klády `logShare` × klády dílu × stav dílu; celé dolů jednou za stavbu.
+ */
+function demolitionPlan(
+  state: VillageState,
+  geo: Pick<Landscape, 'size' | 'cellSizeM'>,
+  input: SectionDemolitionInput,
+): DemolitionPlan | { reason: string } {
+  const fort = villageFortifications(state).find((f) => f.id === input.fortificationId);
+  if (!fort) return { reason: FORT_UNKNOWN };
+  if (runningWork(state, fort.id)) return { reason: FORT_BUSY };
+  const section = sectionOf(fort, input.segment);
+  if (!section) return { reason: FORT_UNKNOWN };
+  const inner = section.segments.filter((i) => i !== section.gateSegment);
+  if (inner.length === 0) return { reason: FORT_SECTION_GATE_ONLY };
+  const parts: FortSegment[] = [];
+  for (const i of inner) {
+    const seg = fort.segments.find((x) => x.index === i);
+    if (seg && seg.builtDay !== null && seg.demolishedDay === undefined) parts.push(seg);
+  }
+  if (parts.length === 0) return { reason: FORT_SECTION_GONE };
+  const outline = outlineOf(geo, fort);
+  if (!outline) return { reason: FORT_UNKNOWN };
+  const shapes = fortSegments(outline);
+  const rampart = fort.kind === 'rampart';
+  const tops = rampart ? parts.filter((p) => topStands(fort, p)) : [];
+  const work: 'demolish' | 'level' = rampart && tops.length === 0 ? 'level' : 'demolish';
+  const targets = rampart && work === 'demolish' ? tops : parts;
+  let labor = 0;
+  let logs = 0;
+  const segments: FortSegmentWork[] = targets.map((seg) => {
+    const lengthM = shapes[seg.index]?.lengthM ?? 0;
+    if (work === 'level') {
+      const cost = fortificationCost('rampart', lengthM, 'new').laborManDays;
+      labor += DEMOLITION.rampartLaborShare * cost;
+      return { index: seg.index, cost: DEMOLITION.rampartLaborShare * cost };
+    }
+    const top = rampart ? segmentTop(fort, seg) : null;
+    const cost = top
+      ? fortificationCost(top, lengthM, 'top')
+      : fortificationCost(segmentKind(fort, seg), lengthM, 'new');
+    const segLogs = DEMOLITION.logShare * (cost.upfront.wood ?? 0) * seg.state;
+    labor += DEMOLITION.laborShare * cost.laborManDays;
+    logs += segLogs;
+    return { index: seg.index, cost: DEMOLITION.laborShare * cost.laborManDays, logs: segLogs };
+  });
+  const middle = shapes[targets[Math.floor(targets.length / 2)]!.index];
+  const at = middle ? { x: middle.mid[0], z: middle.mid[1] } : villageAnchor(state);
+  return { work, laborManDays: labor, logs: Math.floor(logs + EPSILON), segments, at };
+}
+
+/**
+ * Co by zboření úseku s dílem `input.segment` stálo a vrátilo (popisek tlačítka Zbořit), nebo
+ * důvod, proč nejde (`FORT_BUSY`, `FORT_SECTION_GONE`, `FORT_SECTION_GATE_ONLY`).
+ */
+export function sectionDemolition(
+  state: VillageState,
+  geo: Pick<Landscape, 'size' | 'cellSizeM'>,
+  input: SectionDemolitionInput,
+): SectionDemolition | { reason: string } {
+  const plan = demolitionPlan(state, geo, input);
+  if ('reason' in plan) return plan;
+  return { work: plan.work, laborManDays: plan.laborManDays, logs: plan.logs };
+}
+
+/**
+ * Hráč zboří úsek opevnění mezi branami (demolition.md – Opevnění): stavba opevnění `demolish`
+ * nebo `level` ze společné práce vsi jako každá stavba, bez ceny předem. Stavba drží indexy dílů –
+ * brána přidaná během zboření úsek rozdělí, práce ale pokračuje po dílech, které měla. Na
+ * opevnění smí běžet jen jedna stavba. Vstupní stav nemění.
+ */
+export function startSectionDemolition(
+  state: VillageState,
+  day: number,
+  geo: Pick<Landscape, 'size' | 'cellSizeM'>,
+  input: SectionDemolitionInput,
+): FortificationResult {
+  const plan = demolitionPlan(state, geo, input);
+  if ('reason' in plan) return { ok: false, reason: plan.reason };
+  const next = cloneState(state);
+  next.constructions.push({
+    id: next.nextId++,
+    kind: 'fortification',
+    startedDay: day,
+    cost: plan.laborManDays,
+    done: 0,
+    dwellingType: null,
+    position: null,
+    dwellingId: null,
+    fieldId: null,
+    fortificationId: input.fortificationId,
+    fortWork: plan.work,
+    fortSegments: plan.segments,
+    ...(plan.work === 'demolish' ? { fortLogsAt: plan.at } : {}),
+  });
+  return { ok: true, state: next };
+}
+
+/**
+ * Zboří díl (mutuje stav): na valu se zbořením jen nástavba (`top: 'none'`) – val stojí dál
+ * s plným stavem; jinak díl je mezera (`demolishedDay`, stav 0) – plot a palisáda zbořené, val
+ * srovnaný. Průlom dílu zboření pohltí.
+ */
+function demolishSegment(fort: Fortification, s: FortSegment, day: number): void {
+  delete s.breachedDay;
+  if (segmentKind(fort, s) === 'rampart' && topStands(fort, s)) {
+    s.top = 'none';
+    delete s.topBuiltDay;
+    s.state = 1;
+    return;
+  }
+  s.demolishedDay = day;
+  s.state = 0;
+  delete s.top;
+  delete s.topBuiltDay;
+}
+
+/**
+ * Konec zboření – dokončeného i zrušeného (mutuje stav; vrací klády): klády zbořených dílů
+ * stavby (necelé, `FortSegmentWork.logs`) dolů na celé na hromadu u cesty nejblíž úseku. Val, na
+ * kterém už žádná nástavba nestojí, je val bez nástavby; opevnění, kde nestojí žádný díl, zmizí.
+ */
+function settleDemolition(state: VillageState, fort: Fortification, c: Construction): number {
+  let sum = 0;
+  for (const w of c.fortSegments ?? []) {
+    const s = fort.segments.find((x) => x.index === w.index);
+    if (s && w.logs !== undefined && segmentDone(fort, s, c)) sum += w.logs;
+  }
+  const logs = Math.floor(sum + EPSILON);
+  addLogs(state, logs, c.fortLogsAt ?? null);
+  if (fort.top !== undefined && !fort.segments.some((s) => topStands(fort, s))) {
+    delete fort.top;
+    for (const s of fort.segments) {
+      delete s.top;
+      delete s.topBuiltDay;
+    }
+  }
+  if (!fort.segments.some((s) => s.builtDay !== null && s.demolishedDay === undefined)) {
+    state.fortifications = villageFortifications(state).filter((f) => f.id !== fort.id);
+  }
+  return logs;
+}
+
+/** Úsek je hotový pro práci `work` (stavba, vylepšení, nástavba, zboření). */
 function segmentDone(
   fort: Fortification,
   s: FortSegment,
   c: Pick<Construction, 'fortWork' | 'startedDay'>,
 ): boolean {
+  if (c.fortWork === 'level') return s.demolishedDay !== undefined;
+  if (c.fortWork === 'demolish') {
+    return segmentKind(fort, s) === 'rampart' ? !topStands(fort, s) : s.demolishedDay !== undefined;
+  }
   if (c.fortWork === 'upgrade') return segmentKind(fort, s) === 'palisade';
   if (c.fortWork === 'top') return s.topBuiltDay !== undefined && s.topBuiltDay !== null;
   // přestavba: úsek (nebo nástavba valu) dostavěný po založení stavby
@@ -461,7 +658,8 @@ function segmentDone(
  * Úseky, na které došla práce stavby opevnění (mutuje stav): práce napřed pokácí vyhrazené
  * stromy (`fellAsWorked`), pak úseky v pořadí `fortSegments` – úsek je hotový v den, kdy práce
  * stavby přejde jeho konec. Hotový úsek: stavba a vylepšení – den dokončení a plný stav (palisáda
- * nahradí plot úseku), nástavba – den nástavby. Nezávisí na tom, po kolika dnech se ves dopočítá.
+ * nahradí plot úseku), nástavba – den nástavby, zboření – díl zbořený (`demolishSegment`).
+ * Nezávisí na tom, po kolika dnech se ves dopočítá.
  */
 export function workFortification(state: VillageState, c: Construction, day: number): void {
   const fort = villageFortifications(state).find((f) => f.id === c.fortificationId);
@@ -474,8 +672,14 @@ export function workFortification(state: VillageState, c: Construction, day: num
     if (c.fortWork === 'restore') continue;
     const s = fort.segments.find((x) => x.index === w.index);
     if (!s || segmentDone(fort, s, c)) continue;
+    if (c.fortWork === 'demolish' || c.fortWork === 'level') {
+      demolishSegment(fort, s, day);
+      continue;
+    }
     if (c.fortWork === 'top') {
       s.topBuiltDay = day;
+      // díl se zbořenou nástavbou dostane nástavbu opevnění
+      delete s.top;
       continue;
     }
     if (c.fortWork === 'rebuild' && fort.kind === 'rampart' && s.breachedDay === undefined) {
@@ -493,32 +697,55 @@ export function workFortification(state: VillageState, c: Construction, day: num
 
 /**
  * Dostavěné opevnění (krok 4 – `finishConstructions`): všechny úseky hotové; vylepšení plotu,
- * které došlo na všechny úseky, změní druh opevnění na palisádu.
+ * které došlo na všechny nezbořené úseky, změní druh opevnění na palisádu. Dokončené zboření dá
+ * klády na hromadu a vrátí událost kroniky (`fortification-demolished`), jinak null.
  */
-export function finishFortification(state: VillageState, c: Construction, day: number): void {
+export function finishFortification(
+  state: VillageState,
+  c: Construction,
+  day: number,
+): ChronicleEvent | null {
   workFortification(state, c, day);
   const fort = villageFortifications(state).find((f) => f.id === c.fortificationId);
-  if (!fort) return;
+  if (!fort) return null;
+  if (c.fortWork === 'demolish' || c.fortWork === 'level') {
+    const logs = settleDemolition(state, fort, c);
+    return {
+      day,
+      kind: 'fortification-demolished',
+      logs,
+      ...(c.fortWork === 'level' ? { level: true as const } : {}),
+    };
+  }
   if (c.fortWork === 'restore') {
     delete fort.rampartHeight;
-    return;
+    return null;
   }
-  if (c.fortWork !== 'upgrade') return;
-  if (fort.segments.every((s) => segmentKind(fort, s) === 'palisade')) {
+  if (c.fortWork !== 'upgrade') return null;
+  if (
+    fort.segments.every((s) => s.demolishedDay !== undefined || segmentKind(fort, s) === 'palisade')
+  ) {
     fort.kind = 'palisade';
     for (const s of fort.segments) delete s.kind;
   }
+  return null;
 }
 
 /**
  * Zrušená stavba opevnění (mutuje klon – fortifications.md, Cena a stavba): hotové úseky zůstanou
  * stát, nehotové zmizí a obvod je otevřený. Nové opevnění bez hotového úseku zmizí celé,
- * nástavba bez hotového úseku zruší i druh nástavby.
+ * nástavba bez hotového úseku zruší i druh nástavby. Zrušené zboření: zbořené díly zůstanou
+ * zbořené, ostatní stojí dál.
  */
 export function dropFortificationWork(next: VillageState, c: Construction): void {
   const forts = villageFortifications(next);
   const fort = forts.find((f) => f.id === c.fortificationId);
   if (!fort) return;
+  if (c.fortWork === 'demolish' || c.fortWork === 'level') {
+    // zbořené díly zůstanou zbořené a jejich klády přijdou na hromadu (návrh Clauda)
+    settleDemolition(next, fort, c);
+    return;
+  }
   if (c.fortWork === 'build' && fort.segments.every((s) => s.builtDay === null)) {
     next.fortifications = forts.filter((f) => f.id !== fort.id);
     return;

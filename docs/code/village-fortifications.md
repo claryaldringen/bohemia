@@ -188,6 +188,47 @@ Dřívější obvod po čtvercích zůstal jen pro převod (`squares-outline.ts`
 - **Robota hostů** napřed do opevnění – až Ú4.5 (`VillageState.guests` zatím není; komentář
   v `labor.ts`).
 
+## Úseky pro hráče a zboření (`sections.ts`, `fortifications.ts`; demolition.md – Opevnění)
+
+- **`fortSections(fort)`** → `FortSection { segments, gateSegment }[]` – úsek pro hráče = díl
+  s branou a díly po směru hodin až před další díl s branou (návrh Clauda); bez brány i s jedinou
+  branou jeden úsek (bez brány od dílu 0, `gateSegment` null). Úseky se neukládají – vždy znovu
+  z `gates`, takže nová brána úsek rozdělí. **`sectionOf(fort, segment)`** – úsek dílu.
+- **Díl ve stavu** (`FortSegment`): `demolishedDay` – zbořený plot či palisáda, srovnaný val;
+  `top` – nástavba dílu, když se liší od `Fortification.top` (`'none'` = zbořená nástavba).
+  **`segmentTop(fort, seg)`** (`life.ts`) = `seg.top ?? fort.top`, `'none'` → null – čtou ji
+  `rotting` (stáří nástavby), `segmentMultiplier`, `breachWork`, `fortCells` (march-grid),
+  `blocks` (battle) a cena přestavby nástavby (`decay.ts`). **`segmentIsOpen(seg)`** – díl bez stěny
+  (nedostavěný, prolomený, zbořený); používá ho `segmentStands` a `segmentIsGap` (defense.ts).
+  Bez nových údajů bit po bitu jako dřív (`fortification-paths`, válečné testy beze změny).
+- **`sectionDemolition(state, geo, { fortificationId, segment })`** → `{ work, laborManDays, logs }`
+  nebo `{ reason }` (popisek tlačítka Zbořit); **`startSectionDemolition(state, day, geo, input)`**
+  založí stavbu `fortification` s `fortWork` `demolish` / `level` (bez ceny předem, jen práce ze
+  společné práce). Díly = úsek bez dílu s branou (brány zůstávají), jen dostavěné a nezbořené
+  (i prolomené a shnilé). Plot a palisáda: `demolish` celého dílu; val s nástavbou: `demolish` jen
+  dílů, kde nástavba stojí; val bez nástavby: `level`. Práce dílu `DEMOLITION.laborShare` × práce
+  podle délky (`fortificationCost(druh, délka, 'new')`, nástavba `'top'`), val
+  `rampartLaborShare` × práce valu. Klády dílu `logShare` × klády dílu × `seg.state` (necelé
+  v `FortSegmentWork.logs`), celé dolů jednou za stavbu; místo hromady `Construction.fortLogsAt`
+  (střed prostředního dílu). Důvody `FORT_BUSY` (jedna stavba na opevnění), `FORT_SECTION_GONE`
+  („Úsek už je zbořený.“), `FORT_SECTION_GATE_ONLY` (úsek jen z dílu s branou), `FORT_UNKNOWN`.
+- **Práce** (`workFortification`, `demolishSegment`): díl hotový, když na něj dojde práce – val
+  s nástavbou `top: 'none'`, bez `topBuiltDay`, stav 1; jinak `demolishedDay`, stav 0, průlom
+  zmizí. Stavba drží indexy dílů – brána přidaná během zboření práci nezmění (Review Focus 3).
+- **Konec** (`finishFortification` → `settleDemolition`): klády na hromadu (`addLogs` u cesty
+  nejblíž úseku), kronika **`fortification-demolished`** `{ logs, level? }` místo
+  `construction-finished` (`simulate-build.ts` – `finishFortification` vrací událost). Val, na
+  kterém žádná nástavba nestojí, je val bez nástavby (`top` zmizí z opevnění i dílů); opevnění bez
+  jediného stojícího dílu zmizí (obvod bez brány zbořený celý – návrh Clauda). **Zrušení**
+  (`dropFortificationWork`): zbořené díly zůstanou, jejich klády přijdou na hromadu (návrh Clauda).
+- **Zbořený díl jinde:** mezera v obraně (`segmentIsGap`, `fortGaps` druh `gap` celou délkou dílu),
+  stěny a cesty ho nevidí (`segmentBlockKind`), pás jiným stavbám uvolní (`fortificationBand`),
+  obyvatelé ho nepřestaví ani neudržují (`dueSegments`, obnova a údržba valu, stav nechátrá),
+  nájezd ho neprolomí (`applyFortificationBreach`), pochod jím projde (`fortCells` – srovnaný val
+  není pás čtvrtinového tempa). Vylepšení celého opevnění (`startFortificationUpgrade`) zbořené
+  díly vynechá, nástavba se zbořenou nástavbou dílu postaví znovu (`delete seg.top`); plot je
+  palisádou, když jsou palisádou všechny nezbořené díly. Scéna a rozhraní – Úloha 12.
+
 ## Stáří, přestavba a údržba valu (Ú5.4)
 
 - **`fortification/life.ts`** (čistá matematika, bez stavu vsi): `segmentState(fort, seg, day)` –

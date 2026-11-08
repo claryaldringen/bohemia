@@ -136,6 +136,7 @@ export interface WallFortification extends FortShapeSource {
     readonly index: number;
     readonly builtDay: number | null;
     readonly breachedDay?: number;
+    readonly demolishedDay?: number;
     readonly state?: number;
     readonly kind?: FortKind;
   }[];
@@ -169,14 +170,14 @@ type WallSegment = WallFortification['segments'][number];
  * Obvod; Martin 6. 11. 2026: „Ať celý obvod blokuje už od zahájení.“). `work` je práce stavby, která
  * na opevnění běží (`Construction.fortWork`), bez stavby null. Nehotový úsek blokuje jen při stavbě
  * nebo vylepšení (staveniště) – po zrušení stavby je to mezera; hotový, když stojí
- * (`segmentStands`). Vylepšení plotu na palisádu blokuje od zahájení pásem palisády.
+ * (`segmentStands`; zbořený díl je mezera). Vylepšení plotu na palisádu blokuje od zahájení pásem palisády.
  */
 export function segmentBlockKind(
   fort: Pick<WallFortification, 'kind'>,
   segment: WallSegment,
   work: FortBuildWork | null,
 ): FortKind | null {
-  if (segment.breachedDay !== undefined) return null;
+  if (segment.breachedDay !== undefined || segment.demolishedDay !== undefined) return null;
   const upgrade = work === 'upgrade';
   if (segment.builtDay === null) {
     if (work !== 'build' && !upgrade) return null;
