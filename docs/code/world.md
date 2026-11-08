@@ -93,6 +93,17 @@ a, b, riverAt)` (`ports.ts`) – hash hrany jako u řeky (soli `trailPortNS/EW`)
   `seatSlot(slice)` = `'dry'` (null), `'river'`, `'trail'`, `'ford'` (1 přechod), jinak null
   (pramen, soutok řek, křižovatka, konec stezky, víc brodů, řeka i stezka bez přechodu);
   `isDry(slice)`.
+- **Ves syna jen na suché mapě** (Otevřené otázky 3 – Martin 8. 11. 2026: „NPC budou mít
+  normální mapy. Prémiové jen lidští hráči.“; `dry-cell.ts`, `new-village.ts`): `targetSettlement`
+  (odchod hráče i schránka odchodů správce) – obsazené políčko ve směru (vlastní sídlo k použití,
+  cizí mapa) a suché políčko jako dřív; volné políčko s řekou či stezkou nahradí
+  `dryCellNear(worldSeed, from, target, allowed, cache?)` = nejbližší suché bez cizí mapy
+  (`nearestCellAround` – `target`, pak prstence kolem něj do `WORLD.sonDryRings` = 2; v prstenci
+  napřed sousedé výchozí mapy, pak blíž `target`, pak pořadí `ringCells`; výchozí mapa nikdy –
+  návrh Clauda). Vlastní sídlo na náhradním políčku se použije jako na sousedním (opakovaný
+  i souběžný odchod týmž směrem najde totéž). Žádné v dosahu → `NO_DRY_MAP_THERE` (odchod syna
+  po pohřbu i schránka správce zkusí další směr). Sídlo syna je bez výřezu a bez verze
+  `skeleton` (krajina z `cellLandscapeSeed` jako dřív). Odříznutý rod je suchý vždy.
 - **Zlatý otisk celé kostry** (`golden.test.ts`, okno 32 × 32, seed 20270101): klíč výřezu
   - `seatSlot`, hodnota 2488818595; vedle otisku samotných řek (4193049158). Po ostrém spuštění
     se nesmí změnit.

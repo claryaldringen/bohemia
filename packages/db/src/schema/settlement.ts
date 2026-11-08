@@ -10,7 +10,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import type { LayerVersions, PremiumType } from '@bohemia/game';
+import type { LayerVersions, PremiumType, SkeletonSlice } from '@bohemia/game';
 import { user } from './auth';
 
 /**
@@ -50,6 +50,9 @@ export const settlement = pgTable(
     // Hráč, kterému typ patří (Typ patří hráči – Začít znovu ho nepřelosuje): převod sídla na
     // jiného držitele (odúmrť, postoupení) ho nemění; smazaný účet → null.
     premiumOwnerId: text('premium_owner_id').references(() => user.id, { onDelete: 'set null' }),
+    // Výřez kostry světa, ze kterého mapa vznikla (world-skeleton.md – Uložení): body řek a stezek
+    // na okraji; krajina se generuje z něj, ne z políčka. Null = suchá mapa (i sídla před kostrou).
+    skeleton: jsonb('skeleton').$type<SkeletonSlice>(),
     // čekající držitel (odúmrť – 1. krok převodu `transferHolder`): sídlo nepočítá starý ani nový,
     // dokud ho nový pod svým zámkem nepřevezme (`acceptTransfers`)
     pendingOwnerId: text('pending_owner_id').references(() => user.id, { onDelete: 'cascade' }),

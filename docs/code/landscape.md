@@ -246,6 +246,22 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   okraji, řeka ani stezka nevedou do 120 m od vsi. `checkBand` ji volá až u pokusu, který jinak
   prošel (selhání `skeleton-<důvod>`). Testy `skeleton/__tests__/route.test.ts`,
   `skeleton-band-trail.test.ts` (stezka, křižovatka, konec, brod; 300 seedů).
+- **Uložený výřez a krajina políčka** (Úloha 9 plánu kostry; world-skeleton.md – Uložení):
+  sídlo nese výřez (`Settlement.skeleton`, sloupec `settlement.skeleton` jsonb, migrace
+  `0041_settlement_skeleton`; chybí nebo null = suchá mapa) a krajina se generuje z něj, ne
+  z políčka – `settlementLandscape` předá výřez jako čtvrtý vstup
+  (`LandscapeSource.landscapeOf(seed, verze, typ, výřez)`). Klíč mezipaměti krajin serveru
+  (`landscape-cache.ts`) má u mapy z kostry navíc verzi `skeleton` a `skeletonKey(výřez)` –
+  sousedé se stejným seedem a verzemi, ale jiným výřezem, dostanou každý svou krajinu; suchá
+  mapa má klíč jako dřív. Sídlo bez výřezu (vývojové, z doby před kostrou) na políčku, kudy
+  kostra vede, má krajinu bit po bitu jako dřív. **Prázdné políčko** (pochod vojska –
+  `emptyCellLandscape(worldSeed, cell, versions?, cache?)`, `cell-landscape.ts`) bere výřez
+  z kostry světa (`skeletonSlice`) a verze `cellSkeletonVersions(slice, versions?)` (s kostrou
+  `skeleton: 1`, suchá mapa bez ní – tytéž verze beze změny); mapa z kostry, která pásmem
+  neprojde ani ve 4 oknech po `MAX_ATTEMPTS` seedech, má první pokus bez pásma (pochod krajinu
+  potřebuje vždy). `createCampaignCells` drží mezipaměť kostry pro seed světa.
+  `settledCellLandscape(seed, verze, typ?, výřez?)`. Vsi synů vznikají jen na suché mapě (bez
+  výřezu) – world.md – Kostra světa.
 - **Prémie na kostře** (`premium: 2`, Úloha 10 plánu kostry; world-skeleton.md – Mapa z kostry):
   průchod 2 bere řeku a stezku z výřezu, vlastní nepřidává. `SKELETON_PREMIUM_SLOTS`
   (`premium/types.ts`) – splavná řeka a soutok na místě `river`, vyvýšenina nad brodem na `ford`,

@@ -224,7 +224,7 @@ const GENERATED: LandscapeSource = { landscapeOf: generateLandscapeAttempt };
 
 /**
  * Krajina uloženého sídla – z mezipaměti vstupního bodu, nebo vygenerovaná ze seedu; s prémiovým
- * typem sídla (bez něj průměrná krajina bit po bitu jako dřív).
+ * typem sídla a uloženým výřezem kostry (bez nich průměrná suchá krajina bit po bitu jako dřív).
  */
 export function settlementLandscape(
   settlement: Settlement,
@@ -234,5 +234,6 @@ export function settlementLandscape(
     settlement.landscapeSeed,
     settlement.layerVersions,
     settlement.premiumType ?? undefined,
+    settlement.skeleton ?? null,
   );
 }

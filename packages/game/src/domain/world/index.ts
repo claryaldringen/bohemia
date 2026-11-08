@@ -7,3 +7,4 @@ export * from './lord-offer';
 export * from './cluster-placement';
 export * from './languages';
 export * from './skeleton';
+export * from './dry-cell';

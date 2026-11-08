@@ -1,4 +1,4 @@
-import type { Landscape, LayerVersions, PremiumType } from '../domain/landscape';
+import type { Landscape, LayerVersions, PremiumType, SkeletonSlice } from '../domain/landscape';
 import type { OccupiedCell } from '../domain/world';
 
 /** Políčko mřížky světa – sloupec x a řádek y (war.md – Svět, sousední mapy). */
@@ -35,16 +35,27 @@ export interface Settlement {
    * nové mapy, sídla z doby před prémiovými krajinami). Krajina se generuje s ním.
    */
   premiumType?: PremiumType | null;
+  /**
+   * Výřez kostry světa, ze kterého mapa vznikla (world-skeleton.md – Uložení): krajina se generuje
+   * z uloženého výřezu, ne z políčka – nezmění ji přesun odříznutého shluku ani úprava kostry.
+   * Chybí nebo null – suchá mapa (vsi synů, odříznutá sídla, sídla z doby před kostrou).
+   */
+  skeleton?: SkeletonSlice | null;
   createdAt: Date;
 }
 
-/** Nové sídlo – seed přijatého pokusu, verze vrstev, poloha a prémiový typ (jen sídelní). */
+/**
+ * Nové sídlo – seed přijatého pokusu, verze vrstev, poloha, prémiový typ (jen sídelní) a výřez
+ * kostry (s verzí vrstvy `skeleton`).
+ */
 export type NewSettlement = {
   ownerId: string;
   landscapeSeed: number;
   layerVersions: LayerVersions;
   /** Prémiový typ krajiny; chybí nebo null = průměrná krajina. */
   premiumType?: PremiumType | null;
+  /** Výřez kostry mapy; chybí nebo null = suchá mapa. */
+  skeleton?: SkeletonSlice | null;
 } & SettlementPlace;
 
 /**
@@ -130,9 +141,18 @@ export interface SeedSource {
 
 /**
  * Port: krajina uloženého sídla ze seedu přijatého pokusu. Generování trvá desítky až stovky
- * ms – vstupní bod ji může držet v mezipaměti (krajina se pro daný seed a verze nemění).
+ * ms – vstupní bod ji může držet v mezipaměti (krajina se pro daný seed, verze, typ a výřez
+ * nemění).
  */
 export interface LandscapeSource {
-  /** `premium` – prémiový typ sídla (`Settlement.premiumType`); bez něj průměrná krajina. */
-  landscapeOf(attemptSeed: number, versions: LayerVersions, premium?: PremiumType): Landscape;
+  /**
+   * `premium` – prémiový typ sídla (`Settlement.premiumType`); bez něj průměrná krajina.
+   * `skeleton` – uložený výřez kostry (`Settlement.skeleton`); bez něj suchá mapa.
+   */
+  landscapeOf(
+    attemptSeed: number,
+    versions: LayerVersions,
+    premium?: PremiumType,
+    skeleton?: SkeletonSlice | null,
+  ): Landscape;
 }

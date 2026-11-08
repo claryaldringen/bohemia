@@ -281,6 +281,13 @@
       "when": 1794145861125,
       "tag": "0040_domain_food",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1794163316084,
+      "tag": "0041_settlement_skeleton",
+      "breakpoints": true
     }
   ]
 }

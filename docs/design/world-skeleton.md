@@ -201,10 +201,12 @@ kdekoli“ → jen na suchých mapách):
   s tímto místem; jinak se typ vybere znovu (nejméně zastoupený). Restartem si typ nevybere –
   rozhoduje zastoupení ve světě.
 - **Okolí sídla** se nevyrovnává: hustota kostry je všude stejná, v průměru mají všichni stejně.
-  Kam pošle syny (k řece, na stezku), je volba hráče – kostra je na jeho mapách vidět tam, kde
-  odchází za okraj.
-- **NPC a vsi synů** mají průměrnou krajinu a výřez svého políčka – řeka i stezka se na nich
-  objeví, prvky prémie ne (Otevřené otázky 3).
+  Kostra je na jeho mapách vidět tam, kde odchází za okraj.
+- **NPC a vsi synů** mají průměrnou suchou krajinu (Otevřené otázky 3 – Martin 8. 11. 2026: „NPC
+  budou mít normální mapy. Prémiové jen lidští hráči.“): ves syna vznikne jen na mapě bez kostry.
+  Když políčkem ve směru odchodu vede řeka nebo stezka, ves vznikne na nejbližším suchém políčku
+  bez cizí mapy – nejvýš 2 prstence od něj, napřed vedle výchozí mapy (návrh Clauda); v dosahu
+  žádné → tím směrem odejít nejde.
 
 ## Mapa z kostry – generátor krajiny
 

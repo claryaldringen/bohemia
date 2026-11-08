@@ -21,13 +21,14 @@ function toSettlement(row: SettlementRow): Settlement {
     worldCell: row.gridX === null || row.gridY === null ? null : { x: row.gridX, y: row.gridY },
     localCell: row.localX === null || row.localY === null ? null : { x: row.localX, y: row.localY },
     premiumType: row.premiumType,
+    skeleton: row.skeleton,
     createdAt: row.createdAt,
   };
 }
 
 /**
  * Sloupce nového sídla – poloha na mapě světa, nebo v místní mřížce odříznutého rodu; prémiový typ
- * patří zakladateli.
+ * patří zakladateli; výřez kostry (null = suchá mapa).
  */
 function placeValues(input: NewSettlement): typeof settlement.$inferInsert {
   const premiumType = input.premiumType ?? null;
@@ -37,6 +38,7 @@ function placeValues(input: NewSettlement): typeof settlement.$inferInsert {
     layerVersions: input.layerVersions,
     premiumType,
     premiumOwnerId: premiumType ? input.ownerId : null,
+    skeleton: input.skeleton ?? null,
   };
   return 'worldCell' in input
     ? { ...base, gridX: input.worldCell.x, gridY: input.worldCell.y }
