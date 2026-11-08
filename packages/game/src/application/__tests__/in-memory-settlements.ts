@@ -1,4 +1,10 @@
-import type { NewSettlement, Settlement, SettlementRepository, WorldCell } from '../settlements';
+import type {
+  NewSettlement,
+  Settlement,
+  SettlementOwners,
+  SettlementRepository,
+  WorldCell,
+} from '../settlements';
 import type { LayerVersions, PremiumType } from '../../domain/landscape';
 import type { OccupiedCell } from '../../domain/world';
 
@@ -6,7 +12,7 @@ import type { OccupiedCell } from '../../domain/world';
  * Repozitář sídel v paměti – createSeat a archive se chovají atomicky jako databáze (unikátní
  * index, podmíněný UPDATE). Archivovaná sídla zůstávají v `settlements`, jejich id v `archived`.
  */
-export class InMemorySettlements implements SettlementRepository {
+export class InMemorySettlements implements SettlementRepository, SettlementOwners {
   readonly settlements: Settlement[] = [];
   readonly archived = new Set<string>();
   /** Prémiové sídlo → hráč, kterému typ patří (převod sídla na jiného držitele ho nemění). */
@@ -54,6 +60,19 @@ export class InMemorySettlements implements SettlementRepository {
     return this.settlements
       .filter((s) => s.ownerId === ownerId && !this.archived.has(s.id) && !this.pending.has(s.id))
       .sort((a, b) => Number(b.isSeat) - Number(a.isSeat));
+  }
+
+  async ownersWithManyActive(): Promise<string[]> {
+    await Promise.resolve();
+    const counts = new Map<string, number>();
+    for (const s of this.settlements) {
+      if (this.archived.has(s.id) || this.pending.has(s.id)) continue;
+      counts.set(s.ownerId, (counts.get(s.ownerId) ?? 0) + 1);
+    }
+    return [...counts]
+      .filter(([, n]) => n >= 2)
+      .map(([ownerId]) => ownerId)
+      .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   }
 
   async archive(settlementId: string): Promise<boolean> {

@@ -69,6 +69,7 @@ export * from './succession-credits';
 export * from './renounce';
 export * from './house-spare';
 export * from './shipments';
+export * from './domain-food';
 export * from './dialogs';
 export * from './annual-levies';
 export * from './loans';

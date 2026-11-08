@@ -11,6 +11,7 @@ import {
   type ProtectionNoticeDeps,
   type QuietWarsDeps,
 } from './declare-war';
+import { sendDomainFood, type DomainFoodDeps } from './domain-food';
 import { reconcileShipments, type ShipmentDeps } from './shipments';
 import { lapseSummons } from './summons';
 
@@ -70,11 +71,14 @@ export type WorldTaskDeps = SuccessionCreditDeps & {
   summons?: Parameters<typeof lapseSummons>[0];
   /** Nováček po týdnu čekání dostane pána losem, nebo začne svobodný (newcomers.md). */
   newcomers?: NewcomerDeps;
+  /** Jídlo domény po žních (hillfort.md – Jídlo domény): vsi držitele si rozdělí přebytek. */
+  domainFood?: DomainFoodDeps;
 };
 
 /**
  * Úlohy světa, které worker pouští jednou za minutu mezi koly: kredity nástupnictví, obnova
- * zásilek po pádu (`reconcileShipments`) a konec týdne čekání nováčků (`expireNewcomerWaits`).
+ * zásilek po pádu (`reconcileShipments`), jídlo domény po žních (`sendDomainFood` – po obnově
+ * zásilek, ať vidí, co je na cestě) a konec týdne čekání nováčků (`expireNewcomerWaits`).
  */
 export async function runWorldTasks(
   deps: WorldTaskDeps,
@@ -82,6 +86,7 @@ export async function runWorldTasks(
 ): Promise<void> {
   await grantSuccessionCredits(deps, input);
   if (deps.shipments) await reconcileShipments(deps.shipments, input.today);
+  if (deps.domainFood) await sendDomainFood(deps.domainFood, { today: input.today });
   if (deps.levies) await openAnnualDialogs(deps.levies, { today: input.today });
   if (deps.wars) {
     await quietWars(deps.wars, input);

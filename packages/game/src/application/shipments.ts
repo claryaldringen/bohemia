@@ -22,7 +22,12 @@ import { GRID_STEPS, OPPOSITE } from '../domain/village/world-grid';
 import { TOTAL_GAME_DAYS } from '../domain/calendar';
 import { cellDistance } from '../domain/world/placement';
 import type { PlayerLock } from './locks';
-import { isIsolated, type SettlementRepository } from './settlements';
+import {
+  isIsolated,
+  type Settlement,
+  type SettlementRepository,
+  type WorldCell,
+} from './settlements';
 import type { VillageRecord, VillageRepository } from './villages';
 
 // Zásilky mezi vsemi různých hráčů (vassalage.md – Doprava a cílová ves; plán 2026-11-03 –
@@ -117,9 +122,14 @@ interface ShipmentPlace {
 }
 
 /**
- * Poloha vsi na mapě světa (sídlo z doby před mřížkou – počátek) a držitel; odříznutý rod
- * (newcomers.md) má polohu v místní mřížce.
+ * Políčko vsi sídla pro vzdálenost zásilky: mapa světa (sídlo z doby před mřížkou – počátek),
+ * odříznutý rod (newcomers.md) místní mřížka. Sdílí ho krok jídla domény (`domain-food.ts`).
  */
+export function settlementCell(settlement: Settlement): WorldCell {
+  return settlement.worldCell ?? settlement.localCell ?? { x: 0, y: 0 };
+}
+
+/** Poloha vsi (`settlementCell`) a držitel. */
 async function placeOf(
   deps: Pick<ShipmentDeps, 'settlements'>,
   village: VillageRecord,
@@ -127,7 +137,7 @@ async function placeOf(
   const settlement = await deps.settlements.find(village.settlementId);
   if (!settlement) return null;
   return {
-    cell: settlement.worldCell ?? settlement.localCell ?? { x: 0, y: 0 },
+    cell: settlementCell(settlement),
     ownerId: settlement.ownerId,
     isolated: isIsolated(settlement),
   };

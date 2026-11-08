@@ -485,3 +485,43 @@ algoritmus návrh Clauda). `offer` je obilí a dobytek domény (součet `domainO
   `headKg ÷ 2`; jinak zůstane doma.
 - Výsledek: jen nenulové dodávky podle `toVillageId`, nezávislé na pořadí vstupu.
 - Testy: `domain/vassalage/__tests__/domain-allocation.test.ts`.
+
+## Jídlo domény – krok světa (`application/domain-food.ts`, hradiště – úloha 7)
+
+`sendDomainFood(deps, { today })` – krok světa v `runWorldTasks` (člen `domainFood`, po
+`reconcileShipments`), jednou za minutu ve workeru. Vsi se dopočítávají každá zvlášť a žádná nevidí
+stav jiné, proto rozdělení neběží v simulaci vsi, ale tady – jako dávky vazalů. Pevné pořadí
+(determinismus):
+
+1. Napřed plány zapsané a neprovedené (pád) – `rounds.unfinished()`, nejstarší napřed: dárce se
+   dopočítá do `today` (`loadVillage`) a pošle se **uložený** plán, nový se nepočítá.
+2. Rok `Y` dne `today`. Držitelé `ownersWithManyActive()` podle id; u každého otisky vsí bez
+   `asleep` (méně než 2 → dál) a souhrny: dárci = vsi s `domainReadyYear === Y`, ne `travelling`,
+   bez rozhodnutí roku (`rounds.decided`). Žádný dárce → dál, **nic se nenačítá** (doména jedné vsi
+   ani mimo podzim stav nikdy nenačte). Ves bez souhrnu současné verze se posoudí po příštím uložení.
+3. Jinak `loadVillage` všech vsí domény do `today` (podle id, jednou na držitele). Dárce (podle id)
+   musí být i po dopočtu po výmlatu (`domainFoodReadyYear`), živý a ne na cestě. Příjemci = ostatní
+   živé vsi s lidmi, ne na cestě; `needKg = domainNeedKg − jídlo domény na cestě` (`onTheWay` s účelem
+   `domain-food` a příjezdem po dni, do kterého je ves dopočtená: obilí + `cattleFoodKg`), jen od
+   `DOMAIN_FOOD.minNeedKg`. Nabídka `domainOffer` v mezi `transportLimit(stav, today, políčka)`
+   k nejvzdálenějšímu příjemci (obilí a každý druh dobytka zvlášť) a obilí jen ze zásob – snopy se
+   nevezou (`dispatchShipment` bere obilí ze `storesKg`; návrh Clauda). `allocateDomainFood(…,
+HEAD_KG = cattleFoodKg(1 kráva))`.
+4. `rounds.reserve({ villageId, year: Y, day: today, deliveries })` – existuje-li plán (ves, rok),
+   vrátí ho a provede se ten. Každá dodávka `sendShipment` s `purpose: 'domain-food'`, `domain: true`,
+   `refId` `domain:<Y>:<dárce>:<příjemce>` (`domainFoodRef`) – opakování po pádu nic nezdvojí.
+   Odmítnutí (např. `Ves tolik obilí nemá.` po pádu a dalším dni) se přeskočí a zapíše do logu
+   (`deps.log`, výchozí `console.warn`). Pak `rounds.finish`. Prázdný plán se zapíše taky – ves letos
+   rozhodla. Další dárce téhož kola vidí zásilky předchozího jako jídlo na cestě a potřebnou ves
+   nepřekrmí; dárce po odeslání se načte znovu (pro případ, že je příjemcem dalšího).
+
+- **Jedno kolo za rok:** `domainFoodReadyYear` vrací rok po celé období do 31. 12.; podruhé ves
+  nedá díky řádku (ves, rok) v `DomainFoodRepository` (`decided`).
+- **Dávky vazalů** jdou dál do cílové vsi (Doprava a cílová ves); ta je po svém výmlatu pošle
+  s přebytkem dál jako každá ves domény (hillfort.md – Jídlo domény).
+- Porty: `DomainFoodRepository` (`decided`, `reserve`, `unfinished`, `finish`), `SettlementOwners`
+  (`ownersWithManyActive` – zatím zvlášť od `SettlementRepository`, adaptér DB přibude v úloze 8),
+  `loadVillage` (composition root jako `prepareVillage` Odvodů), `ShipmentDeps`. Polohu vsi pro
+  vzdálenost dává `settlementCell` (`application/shipments.ts`, sdílené se zásilkami).
+- Testy: `application/__tests__/domain-food.test.ts` (in-memory `InMemoryDomainFood`,
+  `InMemorySettlements.ownersWithManyActive`).
