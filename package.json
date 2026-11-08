@@ -20,6 +20,7 @@
     "db:migrate": "npm run db:migrate -w @bohemia/db",
     "db:generate": "npm run db:generate -w @bohemia/db",
     "village-log": "npm run village-log -w @bohemia/db --",
+    "skeleton-check": "npm run skeleton-check -w @bohemia/server",
     "db:seed-dev": "npm run seed:dev -w @bohemia/web",
     "test:db": "npm run test:db -w @bohemia/db && npm run test:db -w @bohemia/server",
     "test:db:create": "npm run test:db:create -w @bohemia/db"

@@ -110,6 +110,9 @@ a, b, riverAt)` (`ports.ts`) – hash hrany jako u řeky (soli `trailPortNS/EW`)
 - **Hustota** (8. 11. 2026, okno 200 × 200, seedy 1, 2, 3, 20270101): stezka 7,5–8,4 % map, řeka
   10,8–12,3 %, řeka i stezka 0,8–1,0 %, suchá 80,3–82,5 %; sídlo `river` 9,9–11,2 %, `trail`
   6,6–7,3 %, `ford` 0,46–0,64 % (≈ 1 ze 170), ostatní (null) ≈ 0,6 %.
+- **Kontrola vývojových sídel:** `npm run skeleton-check` (`packages/server/scripts/skeleton-check.ts`,
+  jen čte; DB podle `DATABASE_URL`, seed podle `WORLD_SEED`) vypíše aktivní sídla na mřížce, jejichž
+  uložený výřez (`settlement.skeleton`) se liší od `skeletonSlice(worldSeed, políčko)`.
 - **Testy** (`world/skeleton/__tests__/`): sled odtoku se nevrací, povodí po proudu neklesá,
   sousedé se shodnou na každé hraně okna 64 × 64, výřez sám = výřez po 4000 jiných dotazech,
   hustota řek 8–14 % (okno 200 × 200), zlatý otisk řek (okno 32 × 32, seed 20270101 – po ostrém

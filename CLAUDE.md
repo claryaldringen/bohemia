@@ -120,7 +120,7 @@ název). Pravidla a rozhodnutí jsou v `docs/design/`.
 | `docs/code/village-fortifications.md` | opevnění – plocha a obvod, zakulacené rohy, pás a útočiště, úseky, brány na cestách, cena podle délky                                |
 | `docs/code/war.md`                    | válka – stropy výcviku, převod starých vsí, síla vojska (muž rodu, vesničan, kůň, výzbroj)                                           |
 | `docs/code/worker.md`                 | worker – smyčka, odklady, spánek do dalšího dne, uspání nečinných, konfigurace, spuštění a ukončení                                  |
-| `docs/code/world.md`                  | svět pro víc hráčů – mřížka a umístění, rod hráče, adresář rodů (co je veřejné), schránka vsi, vstup nováčka                         |
+| `docs/code/world.md`                  | svět pro víc hráčů – mřížka a umístění, rod hráče, adresář rodů (co je veřejné), schránka vsi, vstup nováčka, kostra světa           |
 | `docs/code/vassalage.md`              | vazalství – makrokomodity, výhled přebytku vsi a rodu, doprava dávek do cílové vsi, podmínky, vypovězení, neplnění                   |
 | `docs/code/web-ui.md`                 | server actions, dotazování na ves, rozhraní jako 0 A.D., katalog staveb, ovládání, e2e                                               |
 
@@ -139,6 +139,9 @@ název). Pravidla a rozhodnutí jsou v `docs/design/`.
   počítá server i prohlížeč ze stejných funkcí – **jen deterministická matematika** (`det-math.ts`;
   ESLint v těchto souborech zakazuje `Math.sin/cos/atan2/hypot/log` i `**`). Co všechno vyžaduje
   novou verzi vrstvy překážek: `docs/code/landscape.md`.
+- **Graf kostry světa** (odvodnění, uzly stezek, body na okraji, čísla `SKELETON`, `WORLD_SEED`)
+  se po ostrém spuštění nemění – prázdná políčka by dostala jiný výřez než uložená sídla; hlídá ho
+  zlatý otisk kostry (`docs/design/world-skeleton.md`).
 
 **Scéna (Babylon)**
 

@@ -297,6 +297,31 @@ Všechny seedy prošly do 16 pokusů; pásmo 300 seedů (`skeleton-band.ts`) pro
 výřezů s řekou. Mapy s řekou nejčastěji padnou na horní mezi úrodné louky do 600 m (řeka bývá
 v okolí vsi) a na úrodných políčkách. Krajina s řekou trvá ≈ 1,3–1,6 × suchá.
 
+**Závěrečné měření** (Úloha 15, 8. 11. 2026, po opravě řek – meandry, soutok po proudu, pramen
+15 m, stezka středem brodu; `measure-landscapes.ts 300 --skeleton …`, 300 seedů, stejné výřezy):
+
+| Výřez               | 1. pokus | ms / pokus | Louka do 600 m (medián) | Úrodná (medián) |
+| ------------------- | -------- | ---------- | ----------------------- | --------------- |
+| suchá mapa          | 94 %     | 39         | 59,9 ha                 | 2 946           |
+| rovně (`straight`)  | 60 %     | 64         | 59,8 ha                 | 2 922           |
+| ohyb (`corner`)     | 80 %     | 69         | 60,0 ha                 | 3 172           |
+| soutok (`junction`) | 66 %     | 71         | 60,0 ha                 | 2 999           |
+| pramen (`source`)   | 61 %     | 60         | 60,2 ha                 | 2 884           |
+| stezka (`trail`)    | 94 %     | 106        | 59,9 ha                 | 2 946           |
+| brod (`ford`)       | 60 %     | 98         | 59,8 ha                 | 2 922           |
+
+Všech 300 seedů každého výřezu prošlo (nesplněno 0) do 16 pokusů; napoprvé 60–80 % u map s řekou
+(rovná řeka a brod nejhůř, 60 %), proto nikde nehrozí pokles pod 95 % přijetí do 16 pokusů
+(riziko Ú5). Časy jsou při souběžném běhu šesti měření, tj. horní odhad. Hustoty kostry
+(`measure-skeleton.ts`, seedy 1, 2, 3, 200 × 200 map) beze změny proti tabulce výše: řeka 11,04 %,
+stezka 8,41 %, brod 0,55 % (1 z 182), suchá mapa 81,43 %; v prstencích 3–4 kolem 3000 středů řeka
+74,9 %, stezka 67,2 %, brod 23,1 %; čas výřezu ≈ 110–180 µs podle vytížení stroje.
+
+**Kontrola vývojové databáze** (`npm run skeleton-check`, jen čte, `bohemia`, `WORLD_SEED`
+500001): 4 aktivní sídla na mřížce, 1 se liší – sídlo na políčku [32, 0] má uloženu suchou mapu,
+kostra světa tam vede 2 řeky a 2 stezky (vzniklo před kostrou). Podle návrhu zůstává, jak je
+(drží ho zlaté otisky); ostrý svět začne s prázdnou databází.
+
 ## Stezka kostry = hotová dálková cesta
 
 - Platí pro **každou** mapu se stezkou kostry, prémiovou i průměrnou (vlastnost světa): při
@@ -373,3 +398,4 @@ mimo ni (zásilky, tažení), mosty a mýto (mechaniky prémií), plavba po řec
 | Mapa s řekou: řeka první, potok přítokem, ves ≥ 300 m od řeky, celé pásmo bez koryta a nivy v celomapových mezích      | návrh Clauda                                                |
 | Prémie na kostře `premium: 2`, vrstva `skeleton: 1`, výřez uložený u sídla; graf kostry se po spuštění nemění          | návrh Clauda                                                |
 | Stezka kostry je hotová dálková cesta na každé mapě, kudy vede                                                         | návrh Clauda (Otevřené otázky 3)                            |
+| Vývojová sídla před kostrou zůstávají beze změny; `skeleton-check` jen hlásí rozdíly, ostrý svět začíná prázdný        | návrh Clauda                                                |
