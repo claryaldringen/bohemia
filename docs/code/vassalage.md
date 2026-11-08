@@ -463,3 +463,18 @@ kroku (`domain-allocation.ts`), rozhodnutí a doprava v kroku světa.
   (`fieldCapacity`) proti potřebě z pole a obilí koní a psů dvorce; bez `stewardOutlook`, volá se
   při každém uložení vsi. Ves bez lidí nebo bez pole null.
 - Čísla: `DOMAIN_FOOD` v `rules-vassalage.ts`.
+
+## Jídlo domény – rozdělení (`domain/vassalage/domain-allocation.ts`, hradiště – úloha 4)
+
+`allocateDomainFood(offer, recipients, headKg)` – čistá funkce (Martin 8. 11. 2026: „rovnoměrně“;
+algoritmus návrh Clauda). `offer` je obilí a dobytek domény (součet `domainOffer` vsí),
+`recipients` vsi s `needKg` (`domainNeedKg`, filtr `DOMAIN_FOOD.minNeedKg` dělá volající),
+`headKg = cattleFoodKg` na kus.
+
+- Příjemci s `needKg > 0` podle `villageId`; podíl `f = min(1, (obilí + kusy × headKg) ÷ Σ potřeb)`,
+  cíl vsi `f × needKg` – každá dostane stejný podíl toho, co jí chybí.
+- Napřed obilí úměrně cílům (celá kg dolů), pak dobytek po kusech v pořadí `CATTLE_GOODS`: kus
+  jde vsi s největším nepokrytým zbytkem cíle (shoda → nižší id), jen je-li zbytek aspoň
+  `headKg ÷ 2`; jinak zůstane doma.
+- Výsledek: jen nenulové dodávky podle `toVillageId`, nezávislé na pořadí vstupu.
+- Testy: `domain/vassalage/__tests__/domain-allocation.test.ts`.
