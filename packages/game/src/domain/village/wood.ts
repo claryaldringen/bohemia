@@ -21,11 +21,13 @@ import {
   FELLING_MAN_DAYS_PER_TREE,
   LOG_ROT_PER_YEAR,
   LOGS_PER_CLEARED_TREE,
+  LOG_PILES,
   OAK_MODEL_HEIGHT_M,
   SACRED_BUILDINGS,
 } from './rules';
 import { TORNADO } from './rules-disasters';
 import type { Walk } from './paths/walking';
+import { logArrivalPoint, logPilePlace } from './log-piles';
 import { sacredSitesOf } from './sacred';
 import { isWoodTreeId } from './woods';
 import type {
@@ -33,11 +35,12 @@ import type {
   ConstructionWood,
   Dwelling,
   DwellingType,
+  LogStack,
   SacredBuildingKind,
   VillageState,
 } from './types';
 
-// Les a dřevo (forest.md): hromada klád u vsi, dřevo staveb (nejdřív z hromady, zbytek se kácí
+// Les a dřevo (forest.md): hromady klád u cesty, dřevo staveb (nejdřív z hromad, zbytek se kácí
 // z nejbližších dospělých stromů ke staveništi), hnití klád a palivo. Stromy ke kácení se
 // vybírají jednou při zahájení stavby (vyhradí se) – simulace pak kácí jen podle uložených id,
 // nikdy neprochází celou vrstvu překážek (desítky tisíc stromů) den po dni.
@@ -60,40 +63,66 @@ export function wholeLogs(logs: number): number {
   return Math.max(0, Math.round(logs));
 }
 
-/** Přidá klády na hromadu (mutuje stav – volat na klonu). */
-export function addLogs(state: VillageState, logs: number): void {
+/**
+ * Přidá klády z mýcení na hromadu u cesty nejblíž místu kácení `at` (forest.md – Mýcení a hromada
+ * klád; `logPilePlace`), mutuje stav – volat na klonu. Klučení pole (`fieldId` > 0) skládá na svou
+ * hromadu, dokud leží; jinak se doplní hromada do `LOG_PILES.joinM` od nového místa (při shodě
+ * bližší, pak menší id), jinak vznikne nová. `at` null = klády přišly odjinud (`logArrivalPoint`).
+ * Přičte i do `woodLogs`.
+ */
+export function addLogs(
+  state: VillageState,
+  logs: number,
+  at: { x: number; z: number } | null,
+  fieldId = 0,
+): void {
   if (logs <= 0) return;
   state.woodLogs = woodLogs(state) + logs;
+  const stacks = (state.logStacks ??= []);
+  const own = fieldId > 0 ? stacks.find((s) => s.fieldId === fieldId) : undefined;
+  if (own) {
+    own.logs += logs;
+    return;
+  }
+  const place = logPilePlace(state, at ?? logArrivalPoint(state));
+  const join = LOG_PILES.joinM * LOG_PILES.joinM;
+  let target: LogStack | null = null;
+  let targetD = Infinity;
+  for (const s of stacks) {
+    const dx = s.x - place.x;
+    const dz = s.z - place.z;
+    const d = dx * dx + dz * dz;
+    if (d <= join && (d < targetD || (d === targetD && target !== null && s.id < target.id))) {
+      target = s;
+      targetD = d;
+    }
+  }
+  if (target) target.logs += logs;
+  else {
+    stacks.push({
+      id: state.nextId++,
+      fieldId,
+      x: place.x,
+      z: place.z,
+      ...(place.road ? { road: place.road } : {}),
+      logs,
+    });
+  }
 }
 
-/** Klády hromad u lesa (součet; zbytek `woodLogs` leží u vsi). */
+/** Klády hromad (součet; zbytek `woodLogs` je bez hromady – ves před převodem). */
 function stackedLogs(state: Pick<VillageState, 'logStacks'>): number {
   let sum = 0;
   for (const stack of state.logStacks ?? []) sum += stack.logs;
   return sum;
 }
 
-/** Klády na hromadě u vsi (zásoba bez hromad u lesa) – pro scénu a souhrn. */
+/**
+ * Klády bez hromady (zásoba bez `logStacks`) – jen ves před převodem (`withRoadLogPiles`) má
+ * dřívější hromadu u vsi; scéna ji kreslí u obydlí jako dřív.
+ */
 export function pileLogs(state: Pick<VillageState, 'woodLogs' | 'logStacks'>): number {
   return Math.max(0, woodLogs(state) - stackedLogs(state));
-}
-
-/**
- * Přidá klády na hromadu u lesa polního dílu (mutuje stav): nová hromada s kotvou, existující
- * hromada pole se jen doplní. Přičte i do `woodLogs`.
- */
-export function addStackLogs(
-  state: VillageState,
-  fieldId: number,
-  anchor: { x: number; z: number },
-  logs: number,
-): void {
-  if (logs <= 0) return;
-  state.woodLogs = woodLogs(state) + logs;
-  const stacks = (state.logStacks ??= []);
-  const existing = stacks.find((s) => s.fieldId === fieldId);
-  if (existing) existing.logs += logs;
-  else stacks.push({ id: state.nextId++, fieldId, x: anchor.x, z: anchor.z, logs });
 }
 
 /**
@@ -129,13 +158,15 @@ export function addFallenTrunks(
 }
 
 /**
- * Vezme až `n` klád (celé kusy – `wholeLogs`): nejdřív z hromad u lesa od nejbližší k `near`
- * (bez `near` od nejmenšího id), pak z hromady u vsi. Vrací, kolik vzal. Hromada pod půl klády
- * zmizí. Mutuje stav.
+ * Vezme až `n` klád (celé kusy – `wholeLogs`): z hromad od nejbližší k `near` (bez `near` od
+ * nejmenšího id), pak klády bez hromady (ves před převodem) a nakonec neceločíselné zbytky hromad
+ * ve stejném pořadí. Vrací, kolik vzal. Mutuje stav. Hromada pod půl klády zmizí a její zbytek
+ * přejde na nejbližší hromadu, která zůstane (`dropSpentStacks`).
  */
 export function takeLogs(state: VillageState, n: number, near?: { x: number; z: number }): number {
   let left = Math.min(Math.max(0, Math.floor(n)), wholeLogs(woodLogs(state)));
   const taken = left;
+  const loose = pileLogs(state);
   const stacks = state.logStacks;
   if (stacks && stacks.length > 0 && left > 0) {
     const order = [...stacks].sort((a, b) =>
@@ -150,13 +181,52 @@ export function takeLogs(state: VillageState, n: number, near?: { x: number; z: 
       stack.logs -= take;
       left -= take;
     }
+    // celé kusy zásoby, které hromady v celých kládách nepokryjí (zaokrouhlení) – zbytky hromad
+    let rest = left - loose;
+    for (const stack of order) {
+      if (rest <= EPSILON) break;
+      const take = Math.min(rest, stack.logs);
+      stack.logs -= take;
+      rest -= take;
+    }
   }
   state.woodLogs = Math.max(0, woodLogs(state) - taken);
-  if (state.logStacks) {
-    state.logStacks = state.logStacks.filter((s) => wholeLogs(s.logs) > 0);
-    if (state.logStacks.length === 0) delete state.logStacks;
-  }
+  dropSpentStacks(state);
   return taken;
+}
+
+/**
+ * Hromady pod půl klády zmizí (mutuje stav); jejich zbytek přejde na nejbližší hromadu, která
+ * zůstane (při shodě menší id) – zásoba se nemění a klády bez hromady nepřibývají. Když nezůstane
+ * žádná, zůstane největší z nich (při shodě menší id) se zbytky ostatních – scéna ji nekreslí.
+ */
+function dropSpentStacks(state: VillageState): void {
+  const stacks = state.logStacks;
+  if (!stacks) return;
+  const spent = stacks.filter((s) => wholeLogs(s.logs) === 0);
+  if (spent.length === 0) return;
+  let kept = stacks.filter((s) => wholeLogs(s.logs) > 0);
+  if (kept.length === 0) {
+    const biggest = spent.reduce((a, b) =>
+      b.logs > a.logs || (b.logs === a.logs && b.id < a.id) ? b : a,
+    );
+    kept = [biggest];
+  }
+  for (const s of spent) {
+    if (kept.includes(s) || s.logs <= 0) continue;
+    let target = kept[0]!;
+    let best = Infinity;
+    for (const k of kept) {
+      const d = (k.x - s.x) * (k.x - s.x) + (k.z - s.z) * (k.z - s.z);
+      if (d < best || (d === best && k.id < target.id)) {
+        best = d;
+        target = k;
+      }
+    }
+    target.logs += s.logs;
+  }
+  state.logStacks = stacks.filter((s) => kept.includes(s));
+  if (state.logStacks.every((s) => s.logs <= EPSILON)) delete state.logStacks;
 }
 
 /** Klády z mýcení – dospělé stromy na vymýcené ploše (1 kláda za strom). */
@@ -561,7 +631,7 @@ export function takeWood(
   plan: WoodPlan,
   near?: { x: number; z: number },
 ): ConstructionWood {
-  addLogs(state, logsFromClearedTrees(plan.clearedTrees));
+  addLogs(state, logsFromClearedTrees(plan.clearedTrees), near ?? null);
   if (plan.fromPile > 0) takeLogs(state, plan.fromPile, near);
   return {
     trees: plan.fromPile + plan.fell.length,

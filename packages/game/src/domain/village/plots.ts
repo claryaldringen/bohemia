@@ -37,10 +37,11 @@ function clearPlot(
   state: VillageState,
   day: number,
   clearing: { obstacleIds?: number[]; clearedTrees?: number },
+  at: { x: number; z: number },
 ): void {
   recordClearedObstacles(state, clearing.obstacleIds ?? [], day);
   const logs = logsFromClearedTrees(clearing.clearedTrees ?? 0);
-  if (logs > 0) addLogs(state, logs);
+  if (logs > 0) addLogs(state, logs, at);
 }
 
 /**
@@ -76,7 +77,7 @@ export function withPlots(
       obstacles,
     );
     if (!square.ok) return null;
-    clearPlot(next, day, square);
+    clearPlot(next, day, square, position);
     const { variant, snapped } = nearestPlotVariant(landscape, cell, position);
     return { plot: { cell, variant }, position: snapped ?? position };
   };

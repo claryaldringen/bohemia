@@ -97,6 +97,8 @@ const DETERMINISTIC_LAYER_FILES = [
   'packages/game/src/domain/village/steward.ts',
   'packages/game/src/domain/village/steward-extras.ts',
   'packages/game/src/domain/village/steward-rebuild.ts',
+  // hromady klád u cesty (forest.md – Mýcení a hromada klád) – místo se ukládá do stavu vsi
+  'packages/game/src/domain/village/log-piles.ts',
 ];
 
 export default defineConfig(

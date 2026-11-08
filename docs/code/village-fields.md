@@ -286,7 +286,8 @@ store, keepKg)` = osivo jen na setí + všechno zrno nad přežívací zásobu `
   „založ vše“: kácený díl dostane jen zbytek kácení (všechny stromy padnou, `felledDay` = dnes,
   pak schne), založí se jen díl, který dnes dohoří. `fellDueTrees` (jednou za díl a den) pokácí
   stromy, na které došla práce (`treesDue`) – pařez přes `fellTrees`, strom, který mezitím padl
-  jinak, bez klády; klády dospělých na hromadu u lesa (`addStackLogs`). Dohoření (`foundPart`):
+  jinak, bez klády; klády dospělých na hromadu pole u cesty nejblíž čtverci (`addLogs` s `fieldId`, místo
+  `partCenter`; bez cesty do 60 m u čtverce). Dohoření (`foundPart`):
   zbylé stromy padnou, překážky zmizí (`recordClearedObstacles`), záznamy kácení stromů dílu se
   smažou, `burnedDay` = dnes, bonus popela od dneška, `clearing` zmizí; překážky a stromy dílu
   si stavba pole zapíše do `Construction.burntObstacles` – trasy chodců a vozů je vidí až

@@ -1,7 +1,7 @@
 // Typy dat scény (`SceneVillage` a jeho části).
 
 import { Landscape } from '@bohemia/game';
-import type { CartWorld } from '@bohemia/game';
+import type { CartWorld, LogStack } from '@bohemia/game';
 import type { PathFortification } from '@bohemia/game';
 import type { SceneFortification } from './fort-view';
 import type { CartGoal } from './cart-routes';
@@ -232,16 +232,16 @@ export interface SceneVillage {
    */
   reservedTrees?: number[];
   /**
-   * Klády na hromadě u vsi v kusech (zásoba bez hromad u lesa – `pileLogs`) – scéna je složí
-   * u obydlí nejblíž lesu. Bez údaje žádné.
+   * Klády bez hromady v kusech (`pileLogs` – jen ves před převodem na hromady u cesty) – scéna je
+   * složí u obydlí nejblíž lesu jako dřívější hromadu u vsi. Bez údaje žádné.
    */
   woodLogs?: number;
   /**
-   * Hromady klád u lesa (forest.md – Klučení lesa pro pole – postup): id, kotva (střed čtverce,
-   * na kterém padl první dospělý strom) a klády v celých kusech – scéna je složí na volném místě
-   * u kotvy. Bez údaje žádné.
+   * Hromady klád (forest.md – Mýcení a hromada klád): id, místo z jádra (`LogStack` – u cesty
+   * `road` nejblíž místu kácení, bez cesty místo kácení), bývalá hromada u vsi s obydlím
+   * `dwellingId` a klády v celých kusech – scéna je složí na volném místě u místa. Bez údaje žádné.
    */
-  logStacks?: { id: number; x: number; z: number; logs: number }[];
+  logStacks?: (Pick<LogStack, 'id' | 'x' | 'z' | 'road' | 'dwellingId'> & { logs: number })[];
   /**
    * Kde ves dnes pracuje – postavy ve scéně (docs/design/villagers.md). Bez údaje (ves uložená
    * před rozdělením práce, ještě nedopočítaný den) nikdo.

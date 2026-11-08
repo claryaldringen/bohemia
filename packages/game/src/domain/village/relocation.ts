@@ -91,5 +91,5 @@ export function returnConstructionWood(state: VillageState, c: Construction): vo
   if (!c.wood) return;
   const progress = c.cost > 0 ? Math.min(1, c.done / c.cost) : 0;
   const builtIn = Math.floor(c.wood.trees * progress);
-  addLogs(state, Math.max(0, c.wood.fromPile + c.wood.felled - builtIn));
+  addLogs(state, Math.max(0, c.wood.fromPile + c.wood.felled - builtIn), c.position);
 }

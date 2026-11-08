@@ -328,7 +328,7 @@ export function collapseDwellings(state: VillageState, day: number, destroyed: D
   }
   state.constructions = state.constructions.filter((c) => {
     const lost = c.dwellingId !== null && gone.has(c.dwellingId);
-    if (lost && c.wood) addLogs(state, c.wood.fromPile);
+    if (lost && c.wood) addLogs(state, c.wood.fromPile, c.position);
     return !lost;
   });
   recordRuins(state, destroyed, day, true);

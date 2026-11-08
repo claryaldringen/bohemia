@@ -129,6 +129,14 @@ export const FELLING_MAN_DAYS_PER_TREE = 2;
 export const LOGS_PER_CLEARED_TREE = 1;
 // forest.md – Klády hnijí (Martin – oprava podle rešerše 17. 10. 2026): ≈ 4 % ročně
 export const LOG_ROT_PER_YEAR = 0.04;
+/**
+ * forest.md – Mýcení a hromada klád (hromady u cesty – Martin 8. 11. 2026; čísla návrh Clauda):
+ * klády z mýcení se složí u nejbližší pevné cesty vsi, je-li do `roadReachM` od místa kácení
+ * (4 čtverce po 15 m – kmen se ještě dá vláčet k cestě; dál leží u paseky), `roadSideM` od osy
+ * cesty (mimo pás cesty i s hromadou hlubokou ≈ 4,8 m); hromada do `joinM` od nového místa se
+ * jen doplní (dvě hromady tak blízko by se překrývaly).
+ */
+export const LOG_PILES = { roadReachM: 60, roadSideM: 6, joinM: 10 } as const;
 
 /** Práce na obydlí bez dřeva – cena obydlí minus kácení jeho stromů u blízkého lesa. */
 export function dwellingBuildLabor(type: DwellingType): number {

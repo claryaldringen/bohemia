@@ -282,7 +282,7 @@ export function receiveShipment(
     const hay = (state.hay ??= { kg: 0, mowing: null });
     hay.kg += body.hayKg;
   }
-  addLogs(state, body.logs);
+  addLogs(state, body.logs, null);
   if (CATTLE_GOODS.some((g) => body.cattle[g] > 0)) ensureLivestock(state);
   for (const good of CATTLE_GOODS) addCattle(state, good, body.cattle[good], day);
   addHorses(state, body.horses, day);

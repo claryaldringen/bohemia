@@ -150,6 +150,8 @@ export * from './names';
 export * from './costs';
 export * from './wood';
 export * from './forest-clearing';
+export * from './log-piles';
+export * from './log-piles-migration';
 export * from './sacred';
 export * from './sacred-life';
 export * from './threshing-floors';

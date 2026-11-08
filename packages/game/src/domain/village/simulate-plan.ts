@@ -65,6 +65,7 @@ import type {
   VillageState,
 } from './types';
 import { addLogs } from './wood';
+import { partCenter } from './forest-clearing';
 import { keptSeedKg, partsSeedKg, seedAheadKg, seedStore } from './seed';
 import { legumeEnergy } from './legumes';
 import {
@@ -393,7 +394,8 @@ function fellReclaimed(state: VillageState, season: FarmSeason, day: number): vo
     }
   }
   if (parts.length === 0) return;
-  addLogs(state, clearedLogs(parts, day));
+  // klády na hromadu u cesty u prvního vraceného dílu (forest.md – Mýcení a hromada klád)
+  addLogs(state, clearedLogs(parts, day), partCenter(state, parts[0]!));
   for (const part of parts) delete part.fallowBeforeSeason!.overgrowthYears;
 }
 
