@@ -99,6 +99,9 @@ const DETERMINISTIC_LAYER_FILES = [
   'packages/game/src/domain/village/steward-rebuild.ts',
   // hromady klád u cesty (forest.md – Mýcení a hromada klád) – místo se ukládá do stavu vsi
   'packages/game/src/domain/village/log-piles.ts',
+  // kostra světa (world-skeleton.md) – řeky a stezky světa i výřez mapy počítá server i prohlížeč
+  'packages/game/src/domain/world/skeleton/**/*.ts',
+  'packages/game/src/domain/landscape/skeleton/**/*.ts',
 ];
 
 export default defineConfig(
