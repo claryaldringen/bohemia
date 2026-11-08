@@ -29,10 +29,15 @@ import type { SkeletonSlice } from './types';
 
 type Cell = { x: number; y: number };
 
-/** Parametry terénu z kostry – prémie na kostře (`premium: 2`) změní nivu řeky. */
+/** Parametry terénu z kostry – prémie na kostře (`premium: 2`) změní nivu řeky nebo brody. */
 export interface SkeletonTerrainOptions {
   /** Rovná niva podél vody řeky (políčka); výchozí `RIVER.floodplainCells`. */
   readonly floodplainCells?: number;
+  /**
+   * Jen jeden brod na každé řece (vyvýšenina nad brodem – stezka kostry pak řeku přejde právě
+   * jím); výchozí 1–2 brody.
+   */
+  readonly singleFord?: boolean;
 }
 
 /**
@@ -78,6 +83,7 @@ function riverTerrain(
   };
   carveRiverCourses(terrain, courses, deriveSeed(seed, 'skeleton-rivers'), {
     floodplainCells: options.floodplainCells ?? RIVER.floodplainCells,
+    singleFord: options.singleFord === true,
   });
   const rivers = terrain.rivers!;
   const riverWater = terrain.water;

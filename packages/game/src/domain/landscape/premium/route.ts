@@ -1,9 +1,11 @@
 import { length2 } from '../det-math';
 import { buildRelief } from '../relief';
 import { SURFACE_CODES, type Landscape } from '../types';
+import type { SkeletonRoute } from '../skeleton/route';
 import { tileCenterWorld } from '../world';
 import type { WorldPoint } from './geometry';
 import { cheapestPath } from './river';
+import type { PremiumSite } from './types';
 
 // Stezky prémiových krajin od okraje k okraji mapy – přes brod pod vyvýšeninou (`water.ts`)
 // a přes horský průsmyk (`relief.ts`). Hledají se v hotové krajině na serveru i v prohlížeči,
@@ -154,4 +156,18 @@ export function lineKeepsAway(
     if (segmentDistance(line[i]!, line[i + 1]!, point.x, point.z) < minM) return false;
   }
   return true;
+}
+
+/**
+ * Stezka kostry jako prvek `route` prémie na kostře (vyvýšenina nad brodem, průsmyk): oba úseky
+ * trasy (`skeletonRoute` – od okraje k bodu obejití vsi) jako jedna čára od okraje k okraji;
+ * null pro trasu s jiným počtem úseků než dva.
+ */
+export function skeletonRouteSite(route: SkeletonRoute): PremiumSite | null {
+  if (route.legs.length !== 2) return null;
+  const [from, to] = route.legs as readonly [readonly WorldPoint[], readonly WorldPoint[]];
+  // Oba úseky končí v bodě obejití – ten jen jednou.
+  const line = [...from, ...[...to].reverse().slice(1)];
+  const middle = line[Math.floor(line.length / 2)]!;
+  return { kind: 'route', x: middle[0], z: middle[1], line };
 }
