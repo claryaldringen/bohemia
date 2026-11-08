@@ -36,8 +36,9 @@ describe('zlatý otisk kostry', () => {
 
   it('celá kostra – řeky, stezky a místa (okno 32 × 32, seed 20270101)', () => {
     // klíč výřezu (řeky i stezky) a místo sídla; po ostrém spuštění se nesmí změnit
+    // (8. 11. 2026 nový otisk se šířkami řek z kostry Ú4 – klíč nese šířku výtoku)
     const keyOf = (slice: SkeletonSlice | null): string =>
       `${skeletonKey(slice)}#${seatSlot(slice)}`;
-    expect(fingerprint(keyOf)).toBe(2488818595);
+    expect(fingerprint(keyOf)).toBe(4065472257);
   });
 });
