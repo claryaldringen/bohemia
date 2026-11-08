@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Locator, type Page } from '@playwright/test';
 import { newCampaign, resolveWorldClock, tickOfMs, type CampaignMember } from '@bohemia/game';
 import { E2E_ENV } from '../playwright.config';
 import { registerAndEnterGame, uniqueEmail, useUniqueClientIp } from './helpers';
@@ -115,6 +115,25 @@ test('pozvánka: pozvaný je vazal, pozvatel má vazala a upozornění, cizí hr
 
   await Promise.all([ctxA.close(), ctxB.close(), ctxC.close()]);
 });
+
+/**
+ * Upozornění vsi hráče: opakovaně se zeptá na ves (háček dotazování), dokud upozornění není vidět.
+ * Jediný dotaz nestačí – pod zátěží může být zrovna rozběhnutý starší dotaz a nový se s ním
+ * sloučí, takže odpověď s čerstvým upozorněním nepřijde.
+ */
+async function noticeAfterPoll(page: Page, text: string): Promise<Locator> {
+  const notice = page.getByTestId('village-notice').filter({ hasText: text });
+  await expect
+    .poll(
+      async () => {
+        await pollVillage(page);
+        return notice.count();
+      },
+      { timeout: 90_000 },
+    )
+    .toBeGreaterThan(0);
+  return notice;
+}
 
 /** Obnoví panel (data se načítají při otevření): zavře ho a otevře znovu. */
 async function reopenHousePanel(page: Page): Promise<ReturnType<Page['getByRole']>> {
@@ -308,12 +327,7 @@ test('podmínky vazalství: ikony v panelu, nové podmínky odmítnuty, vypověz
   await panelB2.getByTestId('renounce-message').fill('Dost bylo');
   await panelB2.getByTestId('renounce-confirm').click();
   await expect(panelB2.getByTestId('house-independent')).toBeVisible();
-  await pollVillage(a);
-  await expect(
-    a.getByTestId('village-notice').filter({ hasText: 'skončilo vypovězením' }),
-  ).toBeVisible({
-    timeout: 60_000,
-  });
+  await noticeAfterPoll(a, 'skončilo vypovězením');
   const panelA4 = await reopenHousePanel(a);
   await expect(panelA4.getByTestId('house-vassal')).toHaveCount(0);
 
@@ -547,8 +561,7 @@ test('obchod mezi hráči: A nabídne C obilí za klády, C přijme → oba maj�
   expect(dialogs).toHaveLength(2);
 
   // A otevře dialog z upozornění a pošle celé
-  await pollVillage(a);
-  await a.getByTestId('village-notice').filter({ hasText: 'čeká odeslání zboží' }).click();
+  await (await noticeAfterPoll(a, 'čeká odeslání zboží')).click();
   const dialogA = a.getByRole('dialog', { name: 'Odvody' });
   await expect(dialogA).toBeVisible();
   await dialogA.locator('input[type="range"]').fill('6');
@@ -556,8 +569,7 @@ test('obchod mezi hráči: A nabídne C obilí za klády, C přijme → oba maj�
   await expect(dialogA.locator('[data-testid$="-sent"]')).toBeVisible({ timeout: 30_000 });
 
   // C pošle míň (2 z 4 klád)
-  await pollVillage(c);
-  await c.getByTestId('village-notice').filter({ hasText: 'čeká odeslání zboží' }).click();
+  await (await noticeAfterPoll(c, 'čeká odeslání zboží')).click();
   const dialogC = c.getByRole('dialog', { name: 'Odvody' });
   await expect(dialogC).toBeVisible();
   await dialogC.locator('input[type="range"]').fill('2');
@@ -573,14 +585,8 @@ test('obchod mezi hráči: A nabídne C obilí za klády, C přijme → oba maj�
   expect(shipments.map((s) => s.to_village).sort()).toEqual(
     [seatA.settlementId, seatC.settlementId].sort(),
   );
-  await pollVillage(c);
-  await expect(c.getByTestId('village-notice').filter({ hasText: 'zboží z obchodu' })).toBeVisible({
-    timeout: 60_000,
-  });
-  await pollVillage(a);
-  await expect(
-    a.getByTestId('village-notice').filter({ hasText: 'Míň, než bylo domluveno' }),
-  ).toBeVisible({ timeout: 60_000 });
+  await noticeAfterPoll(c, 'zboží z obchodu');
+  await noticeAfterPoll(a, 'Míň, než bylo domluveno');
   expect(idA).not.toBe(idC);
 
   await Promise.all(ctxs.map((ctx) => ctx.close()));
@@ -837,8 +843,15 @@ test('mír: A a C jsou ve válce, C nabídne mír s poplatkem, A přijme → vá
   await expect(a.getByTestId('war-count')).toHaveAttribute('data-wars', '1', { timeout: 30_000 });
 
   // C nabídne mír s poplatkem 4 kg obilí, který zaplatí sám
-  await pollVillage(c);
-  await expect(c.getByTestId('war-count')).toHaveAttribute('data-wars', '1', { timeout: 30_000 });
+  await expect
+    .poll(
+      async () => {
+        await pollVillage(c);
+        return c.getByTestId('war-count').getAttribute('data-wars', { timeout: 5_000 });
+      },
+      { timeout: 90_000 },
+    )
+    .toBe('1');
   await c.getByTestId('war-toggle').click();
   await c.getByTestId('war-offer-peace').click();
   // jedinou vsi rodu postoupit nejde (poslední mapa) – volba je zašedlá
@@ -882,10 +895,7 @@ test('mír: A a C jsou ve válce, C nabídne mír s poplatkem, A přijme → vá
     [idC],
   );
   expect(dialogs).toEqual([{ kind: 'fee-send' }]);
-  await pollVillage(c);
-  await expect(c.getByTestId('village-notice').filter({ hasText: 'Mír s' })).toBeVisible({
-    timeout: 60_000,
-  });
+  await noticeAfterPoll(c, 'Mír s');
   await Promise.all(ctxs.map((ctx) => ctx.close()));
 });
 
