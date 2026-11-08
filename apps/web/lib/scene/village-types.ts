@@ -46,6 +46,8 @@ export interface PlacementCost {
   burn?: number;
   /** Opevnění: klády celé stavby (fortifications.md – Cena a stavba). */
   logs?: number;
+  /** Opevnění: kámen celé stavby v m³ (fortifications.md – Hradby a obrana, Cena). */
+  stoneM3?: number;
   /** Opevnění: kolik lidí se vejde do útočiště (fortifications.md – Útočiště). */
   refuge?: number;
 }

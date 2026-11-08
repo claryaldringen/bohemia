@@ -88,6 +88,12 @@ export function CursorReason({
                   {formatInteger(cost.logs ?? 0)}
                 </span>
               )}
+              {(cost.stoneM3 ?? 0) > 0 && (
+                <span data-cost="stone" className="flex items-center gap-1">
+                  <img src="/icons/resources/stone.svg" alt="Kámen" width={16} height={16} />
+                  {formatInteger(cost.stoneM3 ?? 0)} m³
+                </span>
+              )}
               {(cost.refuge ?? 0) > 0 && (
                 <span data-cost="refuge" className="flex items-center gap-1">
                   <img src="/icons/resources/people.png" alt="Útočiště" width={16} height={16} />

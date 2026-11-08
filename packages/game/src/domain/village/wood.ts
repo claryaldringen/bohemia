@@ -240,9 +240,12 @@ export function rotLogs(state: VillageState): void {
   for (const stack of state.logStacks ?? []) stack.logs *= DAILY_LOG_KEEP;
 }
 
-/** Práce za skácení a dovoz jednoho stromu podle vzdálenosti od staveniště (člověkodny). */
-export function fellingCost(distanceM: number): number {
-  return FELLING_MAN_DAYS_PER_TREE * distanceFactor(distanceM);
+/**
+ * Práce za skácení a dovoz jednoho stromu podle vzdálenosti od staveniště (člověkodny); `perTree`
+ * = práce na blízký strom (opevnění 1 čd – fortifications.md, Hradby a obrana – Cena).
+ */
+export function fellingCost(distanceM: number, perTree = FELLING_MAN_DAYS_PER_TREE): number {
+  return perTree * distanceFactor(distanceM);
 }
 
 /** Práce za kácení stromů stavby (první část ceny stavby). */
@@ -538,6 +541,11 @@ export interface WoodPlanOptions {
    * kácení podle ní místo vzdušné vzdálenosti. Bez ní (kalibrace, testy) vzdušná vzdálenost.
    */
   walk?: Walk;
+  /**
+   * Práce na skácení a dovoz blízkého stromu (čd); bez údaje `FELLING_MAN_DAYS_PER_TREE`.
+   * Opevnění má kácení v ceně komplet – strom za `FORTIFICATIONS.pileSaves.logManDays`.
+   */
+  fellManDaysPerTree?: number;
 }
 
 /**
@@ -611,14 +619,14 @@ export function planWoodFrom(
     const fell = Array.from({ length: toFell }, () => ({
       id: null,
       distanceM: 0,
-      cost: fellingCost(0),
+      cost: fellingCost(0, options.fellManDaysPerTree),
     }));
     return { clearedTrees, fromPile, fell, missing: 0 };
   }
   const exclude = source.claimed();
   for (const id of options.clearedIds ?? []) exclude.add(id);
   const trees = nearestMatureTrees(options.obstacles, source.changes(), position, toFell, exclude);
-  const fell = fellingsOf(trees, position, options.walk);
+  const fell = fellingsOf(trees, position, options.walk, options.fellManDaysPerTree);
   return { clearedTrees, fromPile, fell, missing: toFell - fell.length };
 }
 
@@ -677,17 +685,18 @@ export function planSacredWood(
 
 /**
  * Stromy ke kácení s cenou: vzdálenost chůze ke stromu (`walk` – po pevných cestách s půdou,
- * roads.md), bez ní vzdušná vzdálenost.
+ * roads.md), bez ní vzdušná vzdálenost; `perTree` – práce na blízký strom (`fellingCost`).
  */
 export function fellingsOf(
   trees: readonly TreeAtDistance[],
   position: { x: number; z: number },
   walk: Walk | undefined,
+  perTree?: number,
 ): PlannedFelling[] {
   const walks = walk && trees.length > 0 ? walk(position, trees) : null;
   return trees.map((t, k) => {
     const distanceM = walks ? walks[k]! : t.distanceM;
-    return { id: t.id, distanceM, cost: fellingCost(distanceM) };
+    return { id: t.id, distanceM, cost: fellingCost(distanceM, perTree) };
   });
 }
 

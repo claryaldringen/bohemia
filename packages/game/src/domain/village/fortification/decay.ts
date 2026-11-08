@@ -123,10 +123,11 @@ export function decideFortRebuilds(
         const length = lengths.get(index) ?? 0;
         // přestavba hradby na valu – val sám stojí dál; průlom valu se staví celý
         const top = segmentRampart(fort, seg) !== null && seg.breachedDay === undefined;
+        // kámen roštové a komorové hradby zůstane (Hradby a obrana – Životnost a údržba)
         const cost = top
-          ? fortificationCost(segmentWall(fort, seg)?.kind ?? 'fence', length, 'top')
-          : fortificationCost(segmentKind(fort, seg), length, 'new');
-        plan.wood += cost.upfront.wood ?? 0;
+          ? fortificationCost(segmentWall(fort, seg)?.kind ?? 'fence', length)
+          : fortificationCost(segmentKind(fort, seg), length);
+        plan.wood += cost.logs;
         plan.segments.push({ index, cost: cost.laborManDays });
       }
     } else {
@@ -135,7 +136,7 @@ export function decideFortRebuilds(
       for (const s of fort.segments) {
         // srovnaný val se neobnovuje
         if (!layerBuilt(segmentRampart(fort, s)) || s.demolishedDay !== undefined) continue;
-        const cost = fortificationCost('rampart', lengths.get(s.index) ?? 0, 'new');
+        const cost = fortificationCost('rampart', lengths.get(s.index) ?? 0);
         plan.segments.push({
           index: s.index,
           cost: cost.laborManDays * FORTIFICATIONS.rampartUpkeep.renewCostShare,
@@ -143,20 +144,21 @@ export function decideFortRebuilds(
       }
     }
     const before = state.constructions.length;
-    const ok = pushWork(
-      state,
-      day,
-      obstacles,
-      {
-        fortificationId: fort.id,
-        work: kind,
-        plan,
-        center: outlineCenter(outline),
-        clearedIds: [],
-        clearedTrees: 0,
-      },
-      undefined,
-    );
+    const ok =
+      pushWork(
+        state,
+        day,
+        obstacles,
+        {
+          fortificationId: fort.id,
+          work: kind,
+          plan,
+          center: outlineCenter(outline),
+          clearedIds: [],
+          clearedTrees: 0,
+        },
+        undefined,
+      ) === null;
     if (ok && state.constructions.length > before) {
       started.push(state.constructions[state.constructions.length - 1]!);
     }

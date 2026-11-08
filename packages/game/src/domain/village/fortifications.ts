@@ -1,9 +1,14 @@
 import type { Landscape, ObstacleLayer } from '../landscape';
 import { cloneState } from './clone';
+import { distanceFactor } from './fields';
 import {
   addGate,
   autoGates,
   fortificationCost,
+  fortificationFullCost,
+  FORT_NO_STONE,
+  FORT_WALKWAY_NEW,
+  wallYearReason,
   fortBlockingSegments,
   fortOutlineOf,
   fortRunningWork,
@@ -19,7 +24,6 @@ import {
   type FortGate,
   type FortOutline,
   type FortSegmentShape,
-  type FortWork,
   type SectionPiece,
 } from './fortification';
 import type { Point } from './polygon';
@@ -30,6 +34,8 @@ import type { Walk } from './paths/walking';
 import { checkFortificationPlacement } from './placement-fortifications';
 import { placementVillageOf } from './placement-village';
 import { DEMOLITION } from './rules-buildings';
+import { FORTIFICATIONS } from './rules-fortifications';
+import { quarryNear, stoneOnHand, takeStone } from './stone';
 import type {
   ChronicleEvent,
   Construction,
@@ -41,6 +47,7 @@ import type {
   Fortification,
   RoadPoint,
   VillageState,
+  WallKind,
 } from './types';
 import {
   addLogs,
@@ -51,11 +58,14 @@ import {
   woodLogs,
 } from './wood';
 
-// Stavba opevnění po úsecích (fortifications.md – Cena a stavba): cena předem jen dřevo – klády
-// na hromadě a dospělé stromy k mání musí pokrýt klády celé stavby („Hráč staví kdy chce“), práce
-// se nečeká, jen trvá. Stavba bere ze společné práce rovným dílem s ostatními stavbami
-// (`build` v simulate-build.ts); práce jde napřed do kácení vyhrazených stromů, pak do úseků
-// jeden po druhém od brány nejblíž dvorci po směru hodin. Hotový úsek stojí hned.
+// Stavba opevnění po úsecích (fortifications.md – Cena a stavba; Hradby a obrana – Cena): cena
+// předem jen klády a kámen – klády na hromadě a dospělé stromy k mání musí pokrýt klády celé
+// stavby, kámen na hromadách a lom ve skalním výchozu kámen celé stavby („Hráč staví kdy chce“),
+// práce se nečeká, jen trvá. Cena je komplet: strom pro opevnění se kácí za 1 čd × vzdálenost
+// (ne za obecné 2 čd), kámen z lomu se láme za 1 čd na m³ × vzdálenost. Stavba bere ze společné
+// práce rovným dílem s ostatními stavbami (`build` v simulate-build.ts); práce jde napřed do
+// kácení vyhrazených stromů, pak do úseků jeden po druhém od brány nejblíž dvorci po směru hodin
+// (lámání kamene je v práci úseků podle jejich kamene). Hotový úsek stojí hned.
 
 /** Důvody odmítnutí česky (u kurzoru a v odpovědi akce). */
 export const FORT_NO_WOOD = 'Na opevnění chybí dřevo – klády ani stromy ke kácení nestačí.';
@@ -171,20 +181,64 @@ export function fortWorkOrder(
   return Array.from({ length: count }, (_, k) => (start + k) % count);
 }
 
-/** Plán práce úseků `indices` (v pořadí) a dřevo celé stavby (klády, i necelé). */
+/** Plán stavby opevnění: práce úseků v pořadí, klády celé stavby (i necelé) a kámen úseků. */
+export interface FortWorkPlan {
+  segments: FortSegmentWork[];
+  wood: number;
+  /** Kámen úseků (m³) ve stejném pořadí jako `segments`; chybí = stavba bez kamene. */
+  stoneM3?: readonly number[];
+}
+
+/**
+ * Plán práce úseků `indices` (v pořadí) na hradbu či val `target` z hradby `from` (null = nové,
+ * hradba na valu, přestavba – `fortificationCost`): práce bez kácení a lámání, dřevo a kámen.
+ */
 export function segmentPlan(
   shapes: readonly FortSegmentShape[],
   indices: readonly number[],
-  kind: FortKind,
-  work: FortWork,
-): { segments: FortSegmentWork[]; wood: number } {
+  target: FortKind,
+  from: WallKind | null = null,
+): FortWorkPlan {
   let wood = 0;
+  const stoneM3: number[] = [];
   const segments = indices.map((index) => {
-    const cost = fortificationCost(kind, shapes[index]!.lengthM, work);
-    wood += cost.upfront.wood ?? 0;
+    const cost = fortificationCost(target, shapes[index]!.lengthM, from);
+    wood += cost.logs;
+    stoneM3.push(cost.stoneM3);
     return { index, cost: cost.laborManDays };
   });
-  return { segments, wood };
+  return { segments, wood, ...(stoneM3.some((m) => m > 0) ? { stoneM3 } : {}) };
+}
+
+/** Odkud vezme stavba opevnění kámen: z hromad, z lomu (s prací lámání), a kolik chybí (m³). */
+export interface FortStonePlan {
+  fromPile: number;
+  quarried: number;
+  /** Lámání a dovoz kamene z lomu (čd). */
+  quarryManDays: number;
+  missing: number;
+}
+
+/**
+ * Kámen stavby opevnění (Hradby a obrana – Cena): napřed z hromad vsi (`stoneOnHand`), zbytek
+ * z lomu v nejbližším skalním výchozu k `at` (`quarryNear`) za `pileSaves.stoneManDaysPerM3` na m³
+ * × `distanceFactor` vzdálenosti; bez výchozu chybí. Bez vrstvy překážek (jen testy) se láme bez
+ * polohy jako u blízkého lomu – jako kácení bez vrstvy (`planWoodFrom`). Stav nemění.
+ */
+export function fortStonePlan(
+  state: Pick<VillageState, 'stoneM3'>,
+  obstacles: ObstacleLayer | null,
+  needM3: number,
+  at: RoadPoint,
+): FortStonePlan {
+  const need = Math.max(0, needM3);
+  const fromPile = Math.min(need, stoneOnHand(state));
+  const rest = need - fromPile;
+  if (rest <= EPSILON) return { fromPile, quarried: 0, quarryManDays: 0, missing: 0 };
+  const quarry = obstacles ? quarryNear(obstacles, at) : { distanceM: 0 };
+  if (!quarry) return { fromPile, quarried: 0, quarryManDays: 0, missing: rest };
+  const perM3 = FORTIFICATIONS.pileSaves.stoneManDaysPerM3 * distanceFactor(quarry.distanceM);
+  return { fromPile, quarried: rest, quarryManDays: rest * perM3, missing: 0 };
 }
 
 /** Průměr bodů lomené čáry obvodu – odtud se hledají nejbližší stromy ke kácení. */
@@ -202,7 +256,7 @@ export function outlineCenter(outline: FortOutline): RoadPoint {
 export interface FortWorkInput {
   fortificationId: number;
   work: FortBuildWork;
-  plan: { segments: FortSegmentWork[]; wood: number };
+  plan: FortWorkPlan;
   center: RoadPoint;
   clearedIds: readonly number[];
   clearedTrees: number;
@@ -210,7 +264,10 @@ export interface FortWorkInput {
 
 /**
  * Založí stavbu na opevnění (mutuje `next` – klon): klády z hromady (i z pokácených stromů pásu),
- * zbytek vyhradí ke kácení mezi nejbližšími dospělými stromy. False, když dřevo nestačí.
+ * zbytek vyhradí ke kácení mezi nejbližšími dospělými stromy (strom za `pileSaves.logManDays`
+ * × vzdálenost – kácení je v ceně komplet); kámen z hromad, zbytek z lomu (`fortStonePlan`) –
+ * lámání se přičte k práci úseků podle jejich kamene. Vrátí důvod, když dřevo nebo kámen
+ * nestačí (`FORT_NO_WOOD`, `FORT_NO_STONE`) – stav pak nemění; jinak null.
  */
 export function pushWork(
   next: VillageState,
@@ -218,7 +275,7 @@ export function pushWork(
   obstacles: ObstacleLayer | null,
   input: FortWorkInput,
   walk: Walk | undefined,
-): boolean {
+): string | null {
   const need = Math.ceil(input.plan.wood - EPSILON);
   const plan = planWoodFrom(
     Math.max(0, need),
@@ -233,12 +290,27 @@ export function pushWork(
       clearedIds: input.clearedIds,
       clearedTrees: input.clearedTrees,
       ...(walk ? { walk } : {}),
+      fellManDaysPerTree: FORTIFICATIONS.pileSaves.logManDays,
     },
   );
-  if (plan.missing > 0) return false;
+  if (plan.missing > 0) return FORT_NO_WOOD;
+  const stoneBy = input.plan.stoneM3 ?? [];
+  const stoneNeed = stoneBy.reduce((sum, m) => sum + m, 0);
+  const stone = fortStonePlan(next, obstacles, stoneNeed, input.center);
+  if (stone.missing > EPSILON) return FORT_NO_STONE(stone.missing);
   recordClearedObstacles(next, input.clearedIds, day);
   const wood = takeWood(next, plan, input.center);
-  const labor = input.plan.segments.reduce((sum, s) => sum + s.cost, 0);
+  if (stone.fromPile > 0) takeStone(next, stone.fromPile, input.center);
+  // lámání z lomu po úsecích podle jejich kamene – úsek je hotový i s kamenem, který chce
+  const quarryPerM3 = stoneNeed > EPSILON ? stone.quarryManDays / stoneNeed : 0;
+  const segments =
+    quarryPerM3 > 0
+      ? input.plan.segments.map((s, k) => ({
+          ...s,
+          cost: s.cost + (stoneBy[k] ?? 0) * quarryPerM3,
+        }))
+      : input.plan.segments;
+  const labor = segments.reduce((sum, s) => sum + s.cost, 0);
   next.constructions.push({
     id: next.nextId++,
     kind: 'fortification',
@@ -252,9 +324,9 @@ export function pushWork(
     ...(wood.trees > 0 ? { wood } : {}),
     fortificationId: input.fortificationId,
     fortWork: input.work,
-    fortSegments: input.plan.segments,
+    fortSegments: segments,
   });
-  return true;
+  return null;
 }
 
 /** Vstup stavby nového opevnění – body obvodu (návrh hry, upravený hráčem) a druh. */
@@ -264,10 +336,12 @@ export interface FortificationInput {
 }
 
 /**
- * Hráč zahájí stavbu opevnění (fortifications.md – Obvod, Cena a stavba): kontrola umístění
- * (`checkFortificationPlacement`), brány samy na průsečících s pevnými cestami (jinak jedna
- * u dvorce), překážky v pásu osadníci odstraní hned (dospělé stromy dají klády), val vezme kusy
- * polí a sadů pod pásem. Stavba po úsecích od brány nejblíž dvorci. Vstupní stav nemění.
+ * Hráč zahájí stavbu opevnění (fortifications.md – Obvod, Cena a stavba): roštová hradba až od
+ * roku 790, komorová od 830 a palisáda s ochozem jen vylepšením (Hradby a obrana – Druhy), kontrola
+ * umístění (`checkFortificationPlacement`), brány samy na průsečících s pevnými cestami (jinak
+ * jedna u dvorce), překážky v pásu osadníci odstraní hned (dospělé stromy dají klády), val a široké
+ * hradby vezmou kusy polí a sadů pod pásem. Klády a kámen předem (`pushWork`). Stavba po úsecích od
+ * brány nejblíž dvorci. Vstupní stav nemění.
  */
 export function startFortification(
   state: VillageState,
@@ -277,6 +351,9 @@ export function startFortification(
   input: FortificationInput,
   walk?: Walk,
 ): FortificationResult {
+  if (input.kind === 'walkway') return { ok: false, reason: FORT_WALKWAY_NEW };
+  const year = wallYearReason(input.kind, day);
+  if (year) return { ok: false, reason: year };
   const check = checkFortificationPlacement(
     landscape,
     placementVillageOf(state, day),
@@ -295,21 +372,21 @@ export function startFortification(
   const id = next.nextId++;
   // val vezme kusy polí a sadů pod pásem (fields.md – Pole jako krajina)
   giveWayToBuilding(next, day, check.takenLand, 'fortification');
-  const ok = pushWork(
+  const missing = pushWork(
     next,
     day,
     obstacles,
     {
       fortificationId: id,
       work: 'build',
-      plan: segmentPlan(shapes, fortWorkOrder(shapes.length, gates, anchor), input.kind, 'new'),
+      plan: segmentPlan(shapes, fortWorkOrder(shapes.length, gates, anchor), input.kind),
       center: outlineCenter(outline),
       clearedIds: check.obstacleIds,
       clearedTrees: check.clearedTrees,
     },
     walk,
   );
-  if (!ok) return { ok: false, reason: FORT_NO_WOOD };
+  if (missing) return { ok: false, reason: missing };
   (next.fortifications ??= []).push({
     id,
     points: outline.points.map((p): Point => [p[0], p[1]]),
@@ -375,21 +452,21 @@ export function startFortificationUpgrade(
     );
     const order = fortWorkOrder(shapes.length, fort.gates, anchor).filter((i) => todo.has(i));
     const next = cloneState(state);
-    const ok = pushWork(
+    const missing = pushWork(
       next,
       day,
       obstacles,
       {
         fortificationId: fort.id,
         work: 'upgrade',
-        plan: segmentPlan(shapes, order, 'palisade', 'upgrade'),
+        plan: segmentPlan(shapes, order, 'palisade', 'fence'),
         center: outlineCenter(check.outline),
         clearedIds: check.obstacleIds,
         clearedTrees: check.clearedTrees,
       },
       walk,
     );
-    return ok ? { ok: true, state: next } : { ok: false, reason: FORT_NO_WOOD };
+    return missing ? { ok: false, reason: missing } : { ok: true, state: next };
   }
   // nástavba na valu (fortifications.md – Druhy): jen na hotový val, kdykoli později
   if (fort.kind !== 'rampart') return { ok: false, reason: FORT_NOT_RAMPART };
@@ -398,6 +475,10 @@ export function startFortificationUpgrade(
     return { ok: false, reason: FORT_RAMPART_UNFINISHED };
   }
   const top = input.top ?? fort.top ?? 'fence';
+  // ochoz jen vylepšením palisády, roštová a komorová až od svého roku (Hradby a obrana – Druhy)
+  if (top === 'walkway') return { ok: false, reason: FORT_WALKWAY_NEW };
+  const year = wallYearReason(top, day);
+  if (year) return { ok: false, reason: year };
   // srovnaný val nástavbu nedostane; díl se zbořenou nástavbou ji dostane znovu
   const todo = new Set(
     fort.segments
@@ -413,21 +494,21 @@ export function startFortificationUpgrade(
   const shapes = fortSegments(outline);
   const order = fortWorkOrder(shapes.length, fort.gates, anchor).filter((i) => todo.has(i));
   const next = cloneState(state);
-  const ok = pushWork(
+  const missing = pushWork(
     next,
     day,
     obstacles,
     {
       fortificationId: fort.id,
       work: 'top',
-      plan: segmentPlan(shapes, order, top, 'top'),
+      plan: segmentPlan(shapes, order, top),
       center: outlineCenter(outline),
       clearedIds: [],
       clearedTrees: 0,
     },
     walk,
   );
-  if (!ok) return { ok: false, reason: FORT_NO_WOOD };
+  if (missing) return { ok: false, reason: missing };
   const target = villageFortifications(next).find((f) => f.id === fort.id)!;
   target.top = top;
   for (const s of target.segments) s.topBuiltDay ??= null;
@@ -537,16 +618,15 @@ function demolitionPlan(
   let logs = 0;
   const segments: FortSegmentWork[] = targets.map(({ seg, part, lengthM }) => {
     const at = part === undefined ? {} : { part };
+    // zboření stojí podíl práce stavby komplet (demolition.md – Čísla; Hradby a obrana – Cena)
     if (work === 'level') {
-      const cost = fortificationCost('rampart', lengthM, 'new').laborManDays;
+      const cost = fortificationFullCost('rampart', lengthM).laborManDays;
       labor += DEMOLITION.rampartLaborShare * cost;
       return { index: seg.index, ...at, cost: DEMOLITION.rampartLaborShare * cost };
     }
     const top = rampart ? (segmentWall(fort, seg)?.kind ?? null) : null;
-    const cost = top
-      ? fortificationCost(top, lengthM, 'top')
-      : fortificationCost(segmentKind(fort, seg), lengthM, 'new');
-    const segLogs = DEMOLITION.logShare * (cost.upfront.wood ?? 0) * seg.state;
+    const cost = fortificationFullCost(top ?? segmentKind(fort, seg), lengthM);
+    const segLogs = DEMOLITION.logShare * cost.logs * seg.state;
     labor += DEMOLITION.laborShare * cost.laborManDays;
     logs += segLogs;
     return {

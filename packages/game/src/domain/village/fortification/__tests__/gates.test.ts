@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { dayIndexOf } from '../../../calendar';
 import { FORTIFICATIONS } from '../../rules-fortifications';
 import type { RoadPoint, TileCell } from '../../types';
 import {
@@ -6,12 +7,16 @@ import {
   autoGates,
   fortificationArea,
   fortificationCost,
+  fortificationFullCost,
+  wallAvailable,
+  wallYearReason,
   areaOutline,
   type FortGate,
   type FortOutline,
 } from '..';
 
-// Brány opevnění (fortifications.md – Brány) a cena podle délky (Cena a stavba).
+// Brány opevnění (fortifications.md – Brány) a cena podle délky (Cena a stavba, Hradby a obrana –
+// Cena).
 
 const GEO = { size: 128, cellSizeM: 15 };
 
@@ -97,41 +102,61 @@ describe('brány opevnění', () => {
 });
 
 describe('cena opevnění', () => {
-  it('100 m = čísla Martina (fortifications.md – Cena a stavba)', () => {
-    expect(fortificationCost('fence', 100, 'new')).toEqual({
-      laborManDays: 20,
-      perHa: false,
-      upfront: { wood: 15 },
+  // ceny komplet 8. 11. 2026 (Hradby a obrana – Cena): dřív plot 20 čd a palisáda 80 čd bez
+  // kácení; teď komplet 35 a 300 čd, cena bez kácení a lámání = komplet − 1 čd za kládu a m³
+  it('100 m z hromady = komplet − 1 čd za kládu a m³ kamene (Martin 8. 11. 2026)', () => {
+    expect(fortificationCost('fence', 100)).toEqual({ laborManDays: 20, logs: 15, stoneM3: 0 });
+    expect(fortificationCost('palisade', 100)).toEqual({ laborManDays: 230, logs: 70, stoneM3: 0 });
+    expect(fortificationCost('rampart', 100)).toEqual({ laborManDays: 150, logs: 0, stoneM3: 0 });
+    expect(fortificationCost('walkway', 100)).toEqual({ laborManDays: 370, logs: 80, stoneM3: 0 });
+    expect(fortificationCost('crib', 100)).toEqual({ laborManDays: 620, logs: 330, stoneM3: 100 });
+    expect(fortificationCost('chamber', 100)).toEqual({
+      laborManDays: 780,
+      logs: 350,
+      stoneM3: 320,
     });
-    expect(fortificationCost('palisade', 100, 'new')).toEqual({
-      laborManDays: 80,
-      perHa: false,
-      upfront: { wood: 70 },
+    // komplet – z ní počítá zboření
+    expect(fortificationFullCost('palisade', 100)).toEqual({
+      laborManDays: 300,
+      logs: 70,
+      stoneM3: 0,
     });
-    expect(fortificationCost('rampart', 100, 'new')).toEqual({
-      laborManDays: 150,
-      perHa: false,
-      upfront: {},
-    });
-    // vylepšení plotu na palisádu jako nová palisáda, plot nebo palisáda na valu jako samotné
-    expect(fortificationCost('palisade', 100, 'upgrade')).toEqual(
-      fortificationCost('palisade', 100, 'new'),
+  });
+
+  it('vylepšení stojí cenu cílového, ochoz jen přístavbu; nižší stupeň nic nevrací', () => {
+    expect(fortificationCost('palisade', 100, 'fence')).toEqual(fortificationCost('palisade', 100));
+    expect(fortificationCost('chamber', 100, 'palisade')).toEqual(
+      fortificationCost('chamber', 100),
     );
-    expect(fortificationCost('fence', 100, 'top')).toEqual(fortificationCost('fence', 100, 'new'));
-    expect(fortificationCost('palisade', 100, 'top')).toEqual(
-      fortificationCost('palisade', 100, 'new'),
-    );
+    expect(fortificationCost('crib', 100, 'walkway')).toEqual(fortificationCost('crib', 100));
+    expect(fortificationCost('walkway', 100, 'palisade')).toEqual({
+      laborManDays: 140,
+      logs: 10,
+      stoneM3: 0,
+    });
+    // plot rovnou na palisádu s ochozem – cena celé palisády s ochozem
+    expect(fortificationCost('walkway', 100, 'fence')).toEqual(fortificationCost('walkway', 100));
+    expect(() => fortificationCost('fence', 100, 'palisade')).toThrow();
+    expect(() => fortificationCost('palisade', 100, 'palisade')).toThrow();
   });
 
   it('cena roste s délkou úměrně – 4 × 4 plot ≈ 48 čd + 36 klád', () => {
     const o = square4('fence');
-    const cost = fortificationCost('fence', o.lengthM, 'new');
+    const cost = fortificationCost('fence', o.lengthM);
     expect(cost.laborManDays).toBeCloseTo(47.57, 2);
-    expect(cost.upfront.wood).toBeCloseTo(35.67, 2);
+    expect(cost.logs).toBeCloseTo(35.67, 2);
   });
 
-  it('vylepšit jde jen na palisádu, nástavba jen plot nebo palisáda', () => {
-    expect(() => fortificationCost('fence', 100, 'upgrade')).toThrow();
-    expect(() => fortificationCost('rampart', 100, 'top')).toThrow();
+  it('roštová od roku 790, komorová od 830 (Martin 8. 11. 2026)', () => {
+    const last789 = dayIndexOf({ year: 789, month: 12, day: 31 });
+    expect(wallAvailable('crib', last789)).toBe(false);
+    expect(wallYearReason('crib', last789)).toBe('Roštová hradba až od roku 790.');
+    expect(wallAvailable('crib', last789 + 1)).toBe(true);
+    expect(wallYearReason('crib', last789 + 1)).toBeNull();
+    const last829 = dayIndexOf({ year: 829, month: 12, day: 31 });
+    expect(wallYearReason('chamber', last829)).toBe('Komorová hradba až od roku 830.');
+    expect(wallAvailable('chamber', last829 + 1)).toBe(true);
+    expect(wallYearReason('palisade', 0)).toBeNull();
+    expect(wallYearReason('rampart', 0)).toBeNull();
   });
 });

@@ -179,7 +179,9 @@ export function parsePlacePenInput(
   return known ? { ...input, species: known } : null;
 }
 
-const FORT_KINDS: readonly FortKind[] = ['fence', 'palisade', 'rampart'];
+// palisáda s ochozem vzniká jen vylepšením palisády (Hradby a obrana – Druhy) – jako nové opevnění
+// ji vstup nepřijme
+const FORT_KINDS: readonly FortKind[] = ['fence', 'palisade', 'crib', 'chamber', 'rampart'];
 const FORT_TOPS: readonly FortTop[] = ['fence', 'palisade'];
 
 /** Nejvíc bodů obvodu ve vstupu (fortifications.md – Čísla, Body obvodu – strop hlídá server). */

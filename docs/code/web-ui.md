@@ -788,7 +788,11 @@ Návrh: [fortifications.md – Rozhraní](../design/fortifications.md); jádro a
   a bran, obrysy staveb, vody a cizího opevnění). E2E háček `paintProblems`.
 - **Katalog staveb** (`lib/build-items.ts`): záznam `fortification` (zkratka **P**, ikona
   `build/opevneni.png`, `placement: 'fort-points'`) je rozcestník druhů `FORT_VARIANTS` (plot,
-  palisáda, val – ikony `resources/fort-*.png`) jako ohrady. `BuildKind` v jádru **zůstává beze
+  palisáda, roštová a komorová hradba, val – ikony `resources/fort-*.png`, roštová a komorová
+  zatím ikonou palisády) jako ohrady. Palisáda s ochozem v rozcestníku není (jen vylepšením).
+  Roštová a komorová před svým rokem zašedlé s důvodem v popisku: `fortVariantsBlocked(day)` (id
+  → `wallYearReason`, den `view.dayIndex`) → `BuildGrid` prop `blockedVariants` (jen otevřený
+  rozcestník opevnění); `startBuild` zašedlý druh nespustí. Rozhoduje server podle `state.lastDay`. `BuildKind` v jádru **zůstává beze
   změny** (cena opevnění není pevná, počítá se podle délky – `fortificationCost`), proto má web
   vlastní `WebBuildKind = BuildKind | 'fortification'`; nabídka (`options`) má pro opevnění `null`.
   `propose` volá `proposeFortificationIn` z jádra (stejný návrh jako server, nad `PlacementVillage`
@@ -802,10 +806,13 @@ Návrh: [fortifications.md – Rozhraní](../design/fortifications.md); jádro a
   **Enter** nebo **ikona kladiva** (`hud/FortConfirm.tsx`, zašedlá s důvodem v popisku) pošle body
   do `placeFortification` (`points`). Čisté funkce bodů v `lib/fort-points.ts` (`insertPoint` –
   mezi body s nejmenší zajížďkou, `removePoint`, `movePoint`, `nearestPoint`, `nearestOnLoop`).
-  Kontrola `fortPointsPlacement(landscape, village, points, kind, woodSupply)` volá
+  Kontrola `fortPointsPlacement(landscape, village, points, kind, woodSupply, stoneSupply?)` volá
   `checkFortificationPlacement` z jádra (stejně jako server) nejvýš po 80 ms tažení; cena u kurzoru
-  je práce a klády (`fortificationCost` podle `outline.lengthM`) a útočiště (lidé – `refugePlaces`);
-  chybí-li dřevo (`VillageView.woodSupply`), místo ceny červeně „Chybí N klád.“. Všechny důvody
+  je práce bez kácení a lámání, klády, kámen (m³, `PlacementCost.stoneM3`, ikona
+  `resources/stone.svg` z úlohy kamene) a útočiště (lidé – `refugePlaces`); chybí-li dřevo
+  (`VillageView.woodSupply`), místo ceny červeně „Chybí N klád.“, chybí-li kámen na hromadách
+  a na mapě není lom (`VillageView.stoneSupply` – `fortStoneSupply`: `{ m3, quarry }`), „Chybí N m³
+  kamene.“ (`FORT_NO_STONE`). Všechny důvody
   červeně. Obrys = vnější okraj a vnitřní okraj pásu (zelený / červený), brány z `autoGates` podle
   `PlacementVillage.walkRoads` bíle, body jako kroužky (bod pod kurzorem větší, s Ctrl červený).
   E2E háček `fortPoints` vrací body návrhu. Malování po čtvercích a `squarePoints` v rozhraní
