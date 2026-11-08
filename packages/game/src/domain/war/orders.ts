@@ -39,6 +39,11 @@ export interface PlanContext {
   sees(a: Pos, b: Pos): boolean;
   /** Domy skupiny domů obránců. */
   houses(group: number): readonly Pos[];
+  /**
+   * Dosáhne `f` na `e` přes hradby mezi nimi – střelou, nebo zblízka (`battle.ts`); chybí = bez
+   * hradeb ano.
+   */
+  reaches?(f: Fighter, e: Fighter): boolean;
 }
 
 export function dist2(a: Pos, b: Pos): number {
@@ -227,7 +232,9 @@ export function attackerPlan(f: Fighter, group: BattleGroup, ctx: PlanContext): 
       return { target: null, moveTo: far ? { ...guard.pos } : null, leash: null };
     }
     case 'hold-place': {
-      // nepřítel u místa (na dosah zblízka od jeho okraje), lukem i kdo je na dostřel odsud
+      // nepřítel u místa (na dosah zblízka od jeho okraje), lukem i kdo je na dostřel odsud – jen
+      // na koho přes hradbu dosáhne, ať kvůli němu místo neopustí a hradbu nepřeleze ani
+      // neprolomí (návrh Clauda – plán hradeb, Úloha 20)
       const at = group.holdAt ?? f.home;
       const hold = WAR.holdPlaceM;
       const zone = hold + WAR.combat.meleeM;
@@ -236,7 +243,8 @@ export function attackerPlan(f: Fighter, group: BattleGroup, ctx: PlanContext): 
         (e) =>
           canAttack(f, e, false) &&
           ctx.sees(f.pos, e.pos) &&
-          (dist2(at, e.pos) <= zone * zone || (f.bow && dist2(f.pos, e.pos) <= bow)),
+          (dist2(at, e.pos) <= zone * zone || (f.bow && dist2(f.pos, e.pos) <= bow)) &&
+          (ctx.reaches?.(f, e) ?? true),
       );
       const leash: Leash = { at: [at], radiusM: hold };
       const foe = nearest(f.pos, foes);

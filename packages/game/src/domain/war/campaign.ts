@@ -232,9 +232,9 @@ function campaignTick(
   command(s, tick, ctx, out);
   if (npcLeads(s)) {
     // NPC velitel rozhoduje ze stavu na začátku taktu; opevnění cíle musí být načtené
-    if (s.phase === 'raiding' && s.battle) battleFieldOf(s, ctx);
+    const field = s.phase === 'raiding' && s.battle ? battleFieldOf(s, ctx) : null;
     syncControl(s);
-    for (const body of npcIntents(s, ctx.world)) applyBody(s, body, out, true);
+    for (const body of npcIntents(s, ctx.world, field)) applyBody(s, body, out, true);
   }
   switch (s.phase) {
     case 'assembling':

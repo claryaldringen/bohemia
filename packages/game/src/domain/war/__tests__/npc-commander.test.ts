@@ -12,6 +12,7 @@ import {
   intent,
   LAUNCH,
   LIVE,
+  member,
   SET_OUT,
   SUMMER,
   world,
@@ -154,7 +155,7 @@ describe('NPC velitel – silná ves za palisádou', () => {
   const whole = stepCampaign(start, END, SET_OUT, fortWorld);
 
   // násobek zrušen 8. 11. 2026 – síla obránců je jen součet sil (dřív × 1,5 × násobek palisády);
-  // všichni obránci uvnitř obvodu → vezme, co je venku (přechod hradby přidá Úloha 20)
+  // všichni obránci uvnitř obvodu a vojsko slabší → hradbu nenapadne a vezme, co je venku
   it('nenapadne (pod 1,5 × obránci) a vezme jen, co je venku', () => {
     expect(whole.state.phase).toBe('done');
     expect(whole.state.battle?.plundered).toBe(true);
@@ -168,6 +169,45 @@ describe('NPC velitel – silná ves za palisádou', () => {
     expect(Object.values(r.loot.livestock).every((n) => n === 0)).toBe(true);
     expect(r.loot.grainKg).toBeGreaterThan(0);
     expect(r.loot.grainKg).toBeLessThanOrEqual(3 * 25);
+  });
+});
+
+describe('NPC velitel – silnější vojsko u palisády (plán hradeb, Úloha 20)', () => {
+  // les 15 m jižně od palisády (žebříky)
+  const fortWorld = worldWith(
+    'hradek',
+    { landscape: land((_tx, ty) => ty < 61), obstacles: null, villageIds: ['hradek'] },
+    hradek(),
+  );
+  // 2 + 4 × 0,4 = 3,6 ≥ 1,5 × 5 × 0,4 = 3
+  const start = campaign({
+    liveCommand: false,
+    foodKg: 60,
+    members: [
+      member(1, 0, true),
+      member(2, 1, false),
+      member(3, 1, false),
+      member(11, 1, false),
+      member(12, 1, false),
+    ],
+    target: { villageId: 'hradek', name: 'Hrádek', cell: { x: 1, y: 0 }, pos: { x: -200, z: 0 } },
+  });
+  const whole = stepCampaign(start, END, SET_OUT, fortWorld);
+
+  // brána na jihu se prosekne nejrychleji (12 mužohodin ÷ 4 = 3 h) – velitel k ní obejde hradbu
+  it('napadne přes hradbu (brána) a vyhraje – ne jen kořist zvenku', () => {
+    const b = whole.state.battle;
+    expect(b?.plundered).toBeUndefined();
+    expect(b?.outcome).toBe('attackers');
+    expect(b?.breaches.some((x) => x.spot === 'gate')).toBe(true);
+  });
+
+  it('po kouscích 1 / 7 / 100 taktů = vcelku', { timeout: 60_000 }, () => {
+    for (const chunk of [1, 7, 100]) {
+      const parts = inChunks(start, END, chunk, fortWorld);
+      expect(JSON.stringify(parts.state)).toBe(JSON.stringify(whole.state));
+      expect(JSON.stringify(parts.events)).toBe(JSON.stringify(whole.villageEvents));
+    }
   });
 });
 

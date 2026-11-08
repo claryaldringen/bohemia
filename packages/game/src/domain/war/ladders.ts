@@ -169,7 +169,7 @@ export function pushLadder(withClimber: boolean, rng: Random): boolean {
 const forestCache = new WeakMap<MarchGrid, Pos[]>();
 
 /** Nejbližší střed buňky lesa (stejně jako `nearestForest`), středy lesa jednou na mřížku. */
-function nearestForestOf(grid: MarchGrid, from: Pos): Pos | null {
+export function nearestForestOf(grid: MarchGrid, from: Pos): Pos | null {
   let centers = forestCache.get(grid);
   if (!centers) {
     centers = [];

@@ -656,6 +656,25 @@ function strikeOf(
   return { kind, across };
 }
 
+/**
+ * Dosáhne `f` na `t` přes hradby mezi nimi (`canStrikeAcross`) – lukem na dostřel, jinak zblízka
+ * (vzdálenost zblízka se nehlídá – k cíli dojde)? Skupina „držet místo“ jiné cíle nevolí (plán
+ * hradeb, Úloha 20).
+ */
+function reachable(f: Fighter, t: Fighter, w: TickWorld): boolean {
+  if (onWallTop(f, w.b) || onWallTop(t, w.b)) return true;
+  const c = WAR.combat;
+  const d2 = dist2(f.pos, t.pos);
+  const bow = f.bow && d2 >= c.bowMinM * c.bowMinM && d2 <= c.bowMaxM * c.bowMaxM;
+  for (let fi = 0; fi < w.walls.lines.length; fi++) {
+    for (const line of w.walls.lines[fi]!) {
+      if (!crosses(f.pos, t.pos, line)) continue;
+      if (!canStrikeAcross(lineWall(line, fi, w), f, t, bow ? 'ranged' : 'melee')) return false;
+    }
+  }
+  return true;
+}
+
 /** Druh rány na cíl odsud, nebo null. */
 function strikeKind(f: Fighter, t: Fighter, w: TickWorld): StrikeKind | null {
   return strikeOf(f, t, w)?.kind ?? null;
@@ -903,6 +922,7 @@ export function battleTick(b: BattleState, field: BattleField, rng: Random): voi
     leader: battleLeader(b, byId),
     sees: (p, q) => inSight(field.grid, p, q),
     houses: (g) => houses.get(g) ?? [],
+    reaches: (p, q) => reachable(p, q, w),
   };
   for (const f of b.fighters) {
     if (f.cooldown > 0) f.cooldown--;
