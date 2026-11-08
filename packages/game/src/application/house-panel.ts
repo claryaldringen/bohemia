@@ -18,6 +18,7 @@ import { WAR_REASONS } from './declare-war';
 import type { Dispute, DisputeRepository, Verdict } from './disputes';
 import { canJudgeNow } from './judgment';
 import { houseName, UNNAMED_HOUSE } from './negotiation-chronicle';
+import { NEWCOMER_REASONS } from './newcomers';
 import { warOpponent, type War, type WarHow, type WarRepository } from './wars';
 import type { VillageRepository } from './villages';
 import {
@@ -586,10 +587,12 @@ export async function housePanel(
 
 /** Konec ochrany nového rodu, pokud ještě trvá; jinak null. */
 function protectionEnd(
-  house: { kind: 'player' | 'npc'; createdAt: Date },
+  house: { kind: 'player' | 'npc'; createdAt: Date; placedAt: Date | null },
   ownAttackAt: Date | null,
   now: Date,
 ): Date | null {
+  // odříznutý rod je chráněn vždy – štít s počtem dní ukáže až umístění (newcomers.md)
+  if (house.placedAt === null) return null;
   const until = houseProtectedUntil(house, ownAttackAt);
   return until !== null && until.getTime() > now.getTime() ? until : null;
 }
@@ -605,6 +608,7 @@ async function warReason(
   if (await wars.activeBetween(ownId, targetId)) return WAR_REASONS.atWar;
   const target = await deps.houses.byId(targetId);
   if (!target || target.endedAt !== null) return WAR_REASONS.extinct;
+  if (target.placedAt === null) return NEWCOMER_REASONS.isolatedTarget;
   const left = protectionDaysLeft(
     houseProtectedUntil(target, await wars.ownAttackAt(targetId)),
     now,

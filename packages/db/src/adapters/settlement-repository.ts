@@ -7,7 +7,7 @@ import type {
   SettlementRepository,
 } from '@bohemia/game';
 import type { Database } from '../client';
-import { settlement } from '../schema';
+import { house, settlement } from '../schema';
 
 type SettlementRow = typeof settlement.$inferSelect;
 
@@ -121,8 +121,33 @@ export function createSettlementRepository(db: Database): SettlementRepository {
       return findSeat(input.ownerId);
     },
     async create(input): Promise<Settlement | null> {
-      // Atomicky: obsazené políčko světa (nebo místní mřížky rodu) hlídá unikátní index – druhý
-      // INSERT nic nezmění.
+      if ('localCell' in input) {
+        // Odříznutý rod (newcomers.md): sídlo v místní mřížce jen, dokud rod není na mapě světa.
+        // Zámek řádku rodu (FOR SHARE) nechá umístění (`claim` – UPDATE téhož řádku) počkat na
+        // konec zápisu; umístěný rod mezitím → null (odchod pokračuje větví světa).
+        return db.transaction(async (tx) => {
+          const [own] = await tx
+            .select({ id: house.id })
+            .from(house)
+            .where(
+              and(
+                eq(house.playerId, input.ownerId),
+                eq(house.kind, 'player'),
+                isNull(house.endedAt),
+                isNull(house.placedAt),
+              ),
+            )
+            .for('share');
+          if (!own) return null;
+          const [created] = await tx
+            .insert(settlement)
+            .values({ ...placeValues(input), isSeat: false })
+            .onConflictDoNothing()
+            .returning();
+          return created ? toSettlement(created) : null;
+        });
+      }
+      // Atomicky: obsazené políčko světa hlídá unikátní index – druhý INSERT nic nezmění.
       const [created] = await db
         .insert(settlement)
         .values({ ...placeValues(input), isSeat: false })

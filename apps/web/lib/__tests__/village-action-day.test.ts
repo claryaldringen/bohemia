@@ -19,6 +19,8 @@ vi.mock('@bohemia/game', async (importOriginal) => ({
     state.foundDays.push(input.today);
     return Promise.resolve({ ok: false, reason: 'test' });
   },
+  // odříznutý nováček bez volby cesty – tady hráč cestu zvolil
+  newcomerFoundingReason: (): Promise<string | null> => Promise.resolve(null),
   settleJourney: (_deps: unknown, input: { today: number }): Promise<unknown> => {
     state.settleDays.push(input.today);
     return Promise.resolve({ ok: false, reason: 'test' });

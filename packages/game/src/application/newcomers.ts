@@ -21,6 +21,12 @@ import { publicHouseOf, type WorldDirectory } from './world-directory';
 
 const DAY_MS = 86_400_000;
 
+/** Kolikrát zkusit umístit shluk, když políčko mezitím obsadí souběžný zápis do mřížky. */
+const PLACEMENT_ATTEMPTS = 3;
+
+/** Vylosovaná žádost se mezi čtením a transakcí losu změnila (odmítnutí) – los příště znovu. */
+const LOT_STALE = 'Žádost se mezitím změnila.';
+
 export const NEWCOMER_REASONS = {
   noHouse: 'Nemáš živý rod.',
   placed: 'Už jsi na mapě světa.',
@@ -35,6 +41,8 @@ export const NEWCOMER_REASONS = {
   notPlaced: 'Nejdřív musíš být na mapě světa.',
   /** Cíl (jednání, válka, zásilka) je odříznutý rod – nikdo ho nevidí. */
   isolatedTarget: 'Ten rod není na mapě světa.',
+  /** Odříznutý nováček zakládá ves až po volbě cesty (newcomers.md – Tři cesty do světa). */
+  choosePath: 'Nejdřív si vyber pána, nebo začni svobodný.',
 } as const;
 
 /**
@@ -47,6 +55,11 @@ export interface PlacementTx {
   lockPlacement(): Promise<void>;
   /** Podmíněně (`placed_at IS NULL`, rod živý) zapíše umístění; false – už umístěný. */
   claim(houseId: string, at: Date): Promise<boolean>;
+  /**
+   * Zamkne řádek odříznutého živého rodu do konce transakce (`FOR UPDATE`) – žádosti nováčka se
+   * zapisují po jedné a umístění (`claim`) počká; false – rod už je na mapě světa nebo zanikl.
+   */
+  lockIsolated(houseId: string): Promise<boolean>;
   /** Místní polohy odříznutých sídel hráče, sídelní první. */
   isolatedCells(ownerId: string): Promise<WorldCell[]>;
   /** Aktivní mapy světa všech hráčů. */
@@ -55,8 +68,11 @@ export interface PlacementTx {
   languageCells(language: LanguageGroup): Promise<WorldCell[]>;
   /** Poloha sídelního sídla hráče na mapě světa; null – nemá (odříznutý, bez sídla). */
   seatCell(ownerId: string): Promise<WorldCell | null>;
-  /** Přesune odříznutá sídla hráče na mapu světa (místní poloha + `shift`) a místní smaže. */
-  moveIsolated(ownerId: string, shift: WorldCell): Promise<void>;
+  /**
+   * Přesune odříznutá sídla hráče na mapu světa (místní poloha + `shift`) a místní smaže; false –
+   * cílové políčko mezitím obsadil souběžný zápis do mřížky (nic se nepřesunulo).
+   */
+  moveIsolated(ownerId: string, shift: WorldCell): Promise<boolean>;
 }
 
 /** Rod v nabídce pánů – jen veřejné údaje (praporec kreslí web podle `houseId`). */
@@ -100,6 +116,31 @@ export function newcomerDeadline(house: Pick<House, 'newcomerSince'>): Date | nu
     : new Date(house.newcomerSince.getTime() + NEWCOMERS.waitDays * DAY_MS);
 }
 
+/**
+ * Kdy rozhodne los: týden od první žádosti; odříznutý rod, který cestu ještě nezvolil, týden od
+ * založení rodu (pojistka – začne svobodný; návrh Clauda, newcomers.md).
+ */
+function newcomerLotAt(house: Pick<House, 'newcomerSince' | 'createdAt'>): Date {
+  return (
+    newcomerDeadline(house) ?? new Date(house.createdAt.getTime() + NEWCOMERS.waitDays * DAY_MS)
+  );
+}
+
+/**
+ * Smí hráč založit ves? Odříznutý nováček nejdřív zvolí cestu – pošle žádost o pána
+ * (`newcomerSince`), nebo začne svobodný (pak už je na mapě světa). newcomers.md: „Volba 2 nebo 3
+ * padne při vstupu do hry, před stavbou vesnice“. Vrací důvod odmítnutí, nebo null.
+ */
+export async function newcomerFoundingReason(
+  houses: Pick<HouseRepository, 'activeOf'>,
+  playerId: string,
+): Promise<string | null> {
+  const house = await houses.activeOf(playerId);
+  return house && house.placedAt === null && house.newcomerSince === null
+    ? NEWCOMER_REASONS.choosePath
+    : null;
+}
+
 /** Žádosti nováčka: čekající a odmítnuté (stažené a zaniklé se nepočítají), bez jmen pánů. */
 async function requestsOf(
   deps: NewcomerDeps,
@@ -128,7 +169,7 @@ async function offerIds(deps: NewcomerDeps, house: House, asked: Set<string>): P
 
 /** Odříznutý živý rod hráče, nebo důvod, proč nováček nic volit nemůže. */
 async function isolatedHouse(
-  deps: NewcomerDeps,
+  deps: Pick<NegotiateDeps, 'houses'>,
   playerId: string,
 ): Promise<{ ok: true; house: House } | { ok: false; reason: string }> {
   const house = await deps.houses.activeOf(playerId);
@@ -213,20 +254,22 @@ export async function requestLords(
 
 /** Nováček začne svobodný: stáhne žádosti a umístí se k rodům svého jazyka. */
 export async function startFree(
-  deps: NewcomerDeps,
+  deps: Pick<NegotiateDeps, 'houses' | 'villages' | 'negotiations'>,
   input: { playerId: string; now: Date; today: number },
 ): Promise<NewcomerResult> {
   const found = await isolatedHouse(deps, input.playerId);
   if (!found.ok) return found;
   const { house } = found;
   // žádosti napřed (vlastní transakce) – mezitím přijatá žádost vyhraje a umístění níž selže
-  await closeNewcomerRequests(deps, {
-    houseId: house.id,
-    status: 'withdrawn',
-    notify: false,
-    now: input.now,
-    today: input.today,
-  });
+  const withdraw = (): Promise<void> =>
+    closeNewcomerRequests(deps, {
+      houseId: house.id,
+      status: 'withdrawn',
+      notify: false,
+      now: input.now,
+      today: input.today,
+    });
+  await withdraw();
   const placed = await deps.negotiations.transaction((tx) =>
     placeNewcomer(deps, tx, {
       houseId: house.id,
@@ -236,6 +279,8 @@ export async function startFree(
       today: input.today,
     }),
   );
+  // žádost zapsaná souběžně před umístěním (`lockIsolated`) – po umístění už žádná nepřibude
+  if (placed.ok) await withdraw();
   return placed.ok || placed.reason !== NEWCOMER_REASONS.taken
     ? placed
     : fail(NEWCOMER_REASONS.placed);
@@ -278,11 +323,18 @@ export async function placeNewcomer(
     const request: PlacementRequest = lordSeat
       ? { kind: 'invited', lordSeat }
       : { kind: 'independent', sameLanguage: await tx.placement.languageCells(house.language) };
-    const { offset } = placeCluster(await tx.placement.occupiedCells(), cluster, request);
-    await tx.placement.moveIsolated(house.playerId, {
-      x: offset.x - first.x,
-      y: offset.y - first.y,
-    });
+    // pozvaný a odchod ve světě zapisují do mřížky bez zámku umisťování – obsazené políčko →
+    // znovu s čerstvou mapou obsazení
+    let moved = false;
+    for (let attempt = 0; attempt < PLACEMENT_ATTEMPTS && !moved; attempt++) {
+      const { offset } = placeCluster(await tx.placement.occupiedCells(), cluster, request);
+      moved = await tx.placement.moveIsolated(house.playerId, {
+        x: offset.x - first.x,
+        y: offset.y - first.y,
+      });
+    }
+    // umístění už je zapsané (`claim`) – výjimka zruší celou transakci
+    if (!moved) throw new Error(`Nováčka ${house.id} se nepodařilo umístit na mapu světa.`);
   }
 
   if (lord && lordSeat) {
@@ -355,47 +407,71 @@ export async function closeNewcomerRequests(
 /**
  * Úloha světa (worker): nováček, kterému uplynul týden od první žádosti, dostane losem (seed účtu)
  * pána mezi vybranými živými rody, které žádost neodmítly; nezbude-li žádný, začne svobodný.
- * Souběh s přijetím pánem rozhodne podmíněné umístění – vyhraje jeden.
+ * Odříznutý rod, který týden od založení cestu nezvolil, začne svobodný (pojistka). Souběh
+ * s přijetím pánem rozhodne podmíněné umístění – vyhraje jeden.
  */
 export async function expireNewcomerWaits(
   deps: NewcomerDeps,
   input: { now: Date; today: number },
 ): Promise<void> {
+  // chyba jednoho rodu (např. souběžný zápis do mřížky) nepřeruší kolo – vyhodí se až na konci
+  let failure: unknown = null;
   for (const house of await deps.houses.waitingNewcomers()) {
-    const deadline = newcomerDeadline(house);
-    if (!deadline || input.now.getTime() < deadline.getTime()) continue;
-    const open = (await deps.negotiations.newcomerRequestsOf(house.id)).filter(
-      (r) => r.status === 'open',
-    );
-    const lords: string[] = [];
-    for (const id of [...new Set(open.map((r) => r.recipientHouseId))].sort()) {
-      const lord = await deps.houses.byId(id);
-      if (lord && lord.endedAt === null && lord.placedAt !== null) lords.push(id);
+    if (input.now.getTime() < newcomerLotAt(house).getTime()) continue;
+    try {
+      await drawNewcomerLot(deps, house, input);
+    } catch (error) {
+      failure ??= error;
     }
-    const seed = deriveSeed(accountSeed(deps.worldSeed, house.playerId ?? house.id), 'lot');
-    const chosen = lords.length > 0 ? (lords[seed % lords.length] ?? null) : null;
-    const place = (lordHouseId: string | null): Promise<NewcomerResult> =>
-      deps.negotiations.transaction((tx) =>
-        placeNewcomer(deps, tx, {
-          houseId: house.id,
-          lordHouseId,
-          origin: 'newcomer-lot',
-          now: input.now,
-          today: input.today,
-        }),
-      );
-    let placed = await place(chosen);
-    // pán mezitím z mapy zmizel (vymřel) – nováček začne svobodný
-    if (!placed.ok && placed.reason === NEWCOMER_REASONS.lordGone) placed = await place(null);
-    // přijetí pánem mohlo vyhrát dřív – jeho zavření žádostí proběhlo tam
-    if (!placed.ok) continue;
-    await closeNewcomerRequests(deps, {
-      houseId: house.id,
-      status: 'ended',
-      notify: true,
-      quietLord: chosen,
-      now: input.now,
-      today: input.today,
-    });
   }
+  if (failure !== null) throw failure;
+}
+
+/** Los jednoho nováčka po týdnu (`expireNewcomerWaits`). */
+async function drawNewcomerLot(
+  deps: NewcomerDeps,
+  house: House,
+  input: { now: Date; today: number },
+): Promise<void> {
+  const open = (await deps.negotiations.newcomerRequestsOf(house.id)).filter(
+    (r) => r.status === 'open',
+  );
+  const lords: string[] = [];
+  for (const id of [...new Set(open.map((r) => r.recipientHouseId))].sort()) {
+    const lord = await deps.houses.byId(id);
+    if (lord && lord.endedAt === null && lord.placedAt !== null) lords.push(id);
+  }
+  const seed = deriveSeed(accountSeed(deps.worldSeed, house.playerId ?? house.id), 'lot');
+  const chosen = lords.length > 0 ? (lords[seed % lords.length] ?? null) : null;
+  const request = open.find((r) => r.recipientHouseId === chosen) ?? null;
+  const place = (lordHouseId: string | null): Promise<NewcomerResult> =>
+    deps.negotiations.transaction(async (tx) => {
+      // žádosti se četly mimo transakci: vylosovanou zamknout (pořadí zámků jako přijetí –
+      // řádek jednání → umisťování → rod) a vyžadovat, že je pořád otevřená (neodmítnutá)
+      if (lordHouseId !== null && request) {
+        const fresh = await tx.getForUpdate(request.id);
+        if (!fresh || fresh.status !== 'open') return fail(LOT_STALE);
+      }
+      return placeNewcomer(deps, tx, {
+        houseId: house.id,
+        lordHouseId,
+        origin: 'newcomer-lot',
+        now: input.now,
+        today: input.today,
+      });
+    });
+  let placed = await place(chosen);
+  // pán mezitím z mapy zmizel (vymřel) – nováček začne svobodný
+  if (!placed.ok && placed.reason === NEWCOMER_REASONS.lordGone) placed = await place(null);
+  // přijetí pánem mohlo vyhrát dřív – jeho zavření žádostí proběhlo tam; změněná žádost –
+  // los příští kolo s čerstvými žádostmi
+  if (!placed.ok) return;
+  await closeNewcomerRequests(deps, {
+    houseId: house.id,
+    status: 'ended',
+    notify: true,
+    quietLord: chosen,
+    now: input.now,
+    today: input.today,
+  });
 }

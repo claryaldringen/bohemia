@@ -29,6 +29,7 @@ import type { Person, PersonRef, VillageState } from '../domain/village/types';
 import { directionBetween, type GridCell } from '../domain/village/world-grid';
 import type { House, HouseRepository } from './houses';
 import { NO_HOUSE } from './negotiate';
+import { NEWCOMER_REASONS } from './newcomers';
 import { houseName } from './negotiation-chronicle';
 import { findPlayerVillage, NOT_PLAYER_VILLAGE, type PlayerVillage } from './player-villages';
 import { settlementLandscape } from './enter-game';
@@ -84,6 +85,8 @@ export interface PreparedMan {
 
 export interface PreparedVillage {
   player: PlayerVillage;
+  /** Mapa světa vsi (ověřená – odříznutá ves do tažení nejde). */
+  cell: GridCell;
   landscape: Landscape;
   day: number;
   men: PreparedMan[];
@@ -130,15 +133,15 @@ export const CAMPAIGN_REASONS = {
 export function homePlaces(prepared: PreparedCampaign): Record<string, CampaignPlace> {
   const homes: Record<string, CampaignPlace> = {};
   for (const v of prepared.villages) {
-    const place = villagePlace(v.player.settlement, v.landscape);
+    const place = villagePlace(v.cell, v.landscape);
     homes[v.player.village.id] = { cell: place.cell, pos: place.pos };
   }
   return homes;
 }
 
-/** Poloha vsi na mapě (m): střed políčka místa pro ves. */
+/** Poloha vsi na mapě (m): střed políčka místa pro ves na mapě světa `cell`. */
 function villagePlace(
-  settlement: PlayerVillage['settlement'],
+  cell: GridCell,
   l: Landscape,
 ): CampaignVillage & {
   extent: number;
@@ -146,7 +149,7 @@ function villagePlace(
   const half = (l.size * l.cellSizeM) / 2;
   return {
     villageId: '',
-    cell: settlement.worldCell ?? { x: 0, y: 0 },
+    cell,
     pos: {
       x: -half + (l.villageSite.x + 0.5) * l.cellSizeM,
       z: -half + (l.villageSite.y + 0.5) * l.cellSizeM,
@@ -191,6 +194,8 @@ export async function prepareCampaign(
   const { plan } = input;
   const house = await deps.houses.activeOf(input.playerId);
   if (!house) return fail(NO_HOUSE);
+  // odříznutý rod (newcomers.md) na mapě světa není – nikoho nenapadne
+  if (house.placedAt === null) return fail(NEWCOMER_REASONS.notPlaced);
   if (plan.villages.length === 0) return fail(CAMPAIGN_REASONS.noMen);
   if (!Number.isFinite(plan.food) || plan.food < 0) return fail(CAMPAIGN_REASONS.badFood);
 
@@ -203,6 +208,8 @@ export async function prepareCampaign(
   });
   if (!assemblyVillage) return fail(NOT_PLAYER_VILLAGE);
   if (!alive(assemblyVillage.village.state)) return fail(CAMPAIGN_REASONS.asleep);
+  const assemblyCell = assemblyVillage.settlement.worldCell;
+  if (!assemblyCell) return fail(NEWCOMER_REASONS.notPlaced);
 
   const seen = new Set<string>();
   const villages: PreparedVillage[] = [];
@@ -216,16 +223,12 @@ export async function prepareCampaign(
     });
     if (!own) return fail(NOT_PLAYER_VILLAGE);
     if (!alive(own.village.state)) return fail(CAMPAIGN_REASONS.asleep);
+    const cell = own.settlement.worldCell;
+    if (!cell) return fail(NEWCOMER_REASONS.notPlaced);
     const landscape = settlementLandscape(own.settlement, deps.landscapes);
-    const men = chooseMen(
-      own.village.state,
-      own.settlement.worldCell ?? { x: 0, y: 0 },
-      target.cell,
-      entry,
-      plan,
-    );
+    const men = chooseMen(own.village.state, cell, target.cell, entry, plan);
     if (typeof men === 'string') return men;
-    villages.push({ player: own, landscape, day: own.village.state.lastDay, men });
+    villages.push({ player: own, cell, landscape, day: own.village.state.lastDay, men });
   }
 
   const commander = findMan(villages, plan.commander);
@@ -241,8 +244,8 @@ export async function prepareCampaign(
   if (total === 0) return fail(CAMPAIGN_REASONS.noMen);
 
   const assemblyLandscape = settlementLandscape(assemblyVillage.settlement, deps.landscapes);
-  const assemblyPlace = villagePlace(assemblyVillage.settlement, assemblyLandscape);
-  const targetPlace = villagePlace(target.settlement, target.landscape);
+  const assemblyPlace = villagePlace(assemblyCell, assemblyLandscape);
+  const targetPlace = villagePlace(target.cell, target.landscape);
   const assembly: CampaignVillage = {
     villageId: assemblyVillage.village.id,
     name: assemblyVillage.village.name,
@@ -343,6 +346,9 @@ async function loadTarget(
   const house = await deps.houses.activeOf(settlement.ownerId);
   if (!house) return fail(CAMPAIGN_REASONS.noTargetHouse);
   if (house.id === own.id) return fail(CAMPAIGN_REASONS.sameHouse);
+  // odříznutý rod (newcomers.md) na mapě světa není – nikdo ho nenapadne ani po týdnu ochrany
+  const cell = settlement.worldCell;
+  if (house.placedAt === null || !cell) return fail(NEWCOMER_REASONS.isolatedTarget);
   const name = await houseName({ villages: deps.villages }, house);
   if (villageProtected(record.state, input.today)) {
     return fail(`${name} má novou ves pod ochranou.`);
@@ -359,7 +365,7 @@ async function loadTarget(
     record,
     settlement,
     house,
-    cell: settlement.worldCell ?? { x: 0, y: 0 },
+    cell,
     landscape: settlementLandscape(settlement, deps.landscapes),
     ambush: war === null,
   };

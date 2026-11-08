@@ -93,13 +93,19 @@ export interface HouseRepository {
    * ještě nepovýšil; true jen když zapsal (ze souběžných volání uspěje jedno).
    */
   claimEnnoble(houseId: string, year: number): Promise<boolean>;
-  /** Živé hráčovy rody založené po `since` (ochrana nováčka – upozornění na konec). */
+  /**
+   * Živé hráčovy rody umístěné na mapu světa po `since` (ochrana nováčka běží od umístění –
+   * upozornění na konec); odříznuté rody ne.
+   */
   playerHousesSince(since: Date): Promise<House[]>;
   /**
    * Zapíše první žádost nováčka o pána (podmíněně – jen když ještě žádná nebyla a rod není
    * umístěný); vrací platný začátek týdne (zapsaný, nebo dřívější), null – rod je umístěný.
    */
   markNewcomerSince(houseId: string, at: Date): Promise<Date | null>;
-  /** Živé odříznuté rody hráčů, které už požádaly o pána (`newcomerSince` není null). */
+  /**
+   * Živé odříznuté rody hráčů – čekající na pána (`newcomerSince`) i ty, které cestu ještě nezvolily
+   * (pojistka losu po týdnu od založení – newcomers.md).
+   */
   waitingNewcomers(): Promise<House[]>;
 }

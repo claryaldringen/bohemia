@@ -1,4 +1,4 @@
-import { and, eq, gt, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
+import { and, eq, gt, isNull, lt, or, sql } from 'drizzle-orm';
 import type { House, HouseRepository } from '@bohemia/game';
 import type { Database } from '../client';
 import { house } from '../schema';
@@ -137,8 +137,8 @@ export function createHouseRepository(db: Database): HouseRepository {
           and(
             eq(house.kind, 'player'),
             isNull(house.endedAt),
-            // ochrana běží od umístění na mapu světa – odříznutý rod ji ještě nemá
-            gt(sql`coalesce(${house.placedAt}, ${house.createdAt})`, since),
+            // ochrana běží od umístění na mapu světa – odříznutý rod (chráněn vždy) tu není
+            gt(house.placedAt, since),
           ),
         );
       return rows.map(toHouse);
@@ -159,14 +159,7 @@ export function createHouseRepository(db: Database): HouseRepository {
       const rows = await db
         .select()
         .from(house)
-        .where(
-          and(
-            eq(house.kind, 'player'),
-            isNull(house.endedAt),
-            isNull(house.placedAt),
-            isNotNull(house.newcomerSince),
-          ),
-        );
+        .where(and(eq(house.kind, 'player'), isNull(house.endedAt), isNull(house.placedAt)));
       return rows.map(toHouse);
     },
     async clearPendingDeparture(houseId, sonId): Promise<boolean> {

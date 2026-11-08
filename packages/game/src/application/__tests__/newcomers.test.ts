@@ -1,22 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
+import { neighbourCell } from '../../domain/village/world-grid';
 import { cellDistance, NEWCOMERS, WORLD, type LanguageGroup } from '../../domain/world';
 import {
   acceptNegotiation,
   counterNegotiation,
   openNegotiation,
   rejectNegotiation,
+  withdrawNegotiation,
   type NegotiateDeps,
 } from '../negotiate';
 import {
   expireNewcomerWaits,
   NEWCOMER_REASONS,
+  newcomerFoundingReason,
   newcomerStatus,
   requestLords,
   startFree,
   type NewcomerDeps,
 } from '../newcomers';
-import type { VillageRecord } from '../villages';
+import { targetSettlement } from '../new-village';
+import type { VillageRecord, VillageRepository } from '../villages';
 import type { DirectoryEntry } from '../world-directory';
 import { InMemoryHouses } from './in-memory-houses';
 import { InMemoryNegotiations } from './in-memory-negotiations';
@@ -32,7 +36,10 @@ const TODAY = 100;
 const layers = CURRENT_LAYER_VERSIONS;
 
 /** Rody `a`, `b` (2 vsi), `c` (3 vsi) na mapě světa a odříznutý nováček `n` se dvěma sídly. */
-async function setup(language: LanguageGroup = 'cs'): Promise<{
+async function setup(
+  language: LanguageGroup = 'cs',
+  extraLords = 0,
+): Promise<{
   deps: NewcomerDeps;
   houses: InMemoryHouses;
   settlements: InMemorySettlements;
@@ -53,6 +60,13 @@ async function setup(language: LanguageGroup = 'cs'): Promise<{
     ['a', 0, 2, 'cs'],
     ['b', 10, 2, 'de'],
     ['c', 20, 3, 'cs'],
+    // další rody se dvěma vsemi (souběh výběrů)
+    ...Array.from({ length: extraLords }, (_, i): [string, number, number, LanguageGroup] => [
+      `x${i}`,
+      30 + 10 * i,
+      2,
+      'cs',
+    ]),
   ];
   for (const [key, x, count, lang] of lords) {
     const house = await houses.create({
@@ -334,7 +348,199 @@ describe('umístění nováčka', () => {
   });
 });
 
+describe('volba cesty a stažení žádosti', () => {
+  it('odříznutý založí ves až po volbě cesty – žádost nebo svobodný (newcomers.md)', async () => {
+    const s = await setup();
+    expect(await newcomerFoundingReason(s.houses, 'player-n')).toBe(NEWCOMER_REASONS.choosePath);
+    expect(await newcomerFoundingReason(s.houses, 'player-a')).toBeNull();
+    await requestLords(s.deps, { playerId: 'player-n', houseIds: [s.ids.a!], now: NOW, today: 1 });
+    expect(await newcomerFoundingReason(s.houses, 'player-n')).toBeNull();
+    const t = await setup();
+    await startFree(t.deps, { playerId: 'player-n', now: NOW, today: TODAY });
+    expect(await newcomerFoundingReason(t.houses, 'player-n')).toBeNull();
+  });
+
+  it('stažení žádosti nováčka = svobodný: stáhne všechny a umístí ho bez pána', async () => {
+    const s = await setup();
+    await requestLords(s.deps, {
+      playerId: 'player-n',
+      houseIds: [s.ids.a!, s.ids.b!],
+      now: NOW,
+      today: TODAY,
+    });
+    const done = await withdrawNegotiation(s.deps, {
+      playerId: 'player-n',
+      negotiationId: requestTo(s, 'a'),
+      now: NOW,
+      today: TODAY,
+    });
+    expect(done.ok).toBe(true);
+    const requests = s.negotiations.records.filter((r) => r.newcomer);
+    expect(requests.map((r) => r.status)).toEqual(['withdrawn', 'withdrawn']);
+    expect((await s.houses.byId(s.ids.n!))?.placedAt).toEqual(NOW);
+    expect(s.vassalages.vassalages).toHaveLength(0);
+    // nový výběr po stažení už nejde – nováček je na mapě světa
+    expect(
+      await requestLords(s.deps, {
+        playerId: 'player-n',
+        houseIds: [s.ids.c!],
+        now: NOW,
+        today: TODAY,
+      }),
+    ).toEqual({ ok: false, reason: NEWCOMER_REASONS.placed });
+  });
+});
+
+describe('souběh výběru a umístění', () => {
+  it('dva výběry pánů naráz → dohromady nejvýš 5 žádostí; Svobodný souběžně nenechá žádnou otevřenou', async () => {
+    const s = await setup('cs', 8);
+    const offered = ['a', 'b', ...Array.from({ length: 8 }, (_, i) => `x${i}`)].map(
+      (k) => s.ids[k]!,
+    );
+    const ask = (ids: string[]): ReturnType<typeof requestLords> =>
+      requestLords(s.deps, { playerId: 'player-n', houseIds: ids, now: NOW, today: TODAY });
+    await Promise.all([ask(offered.slice(0, 5)), ask(offered.slice(5, 10))]);
+    const open = s.negotiations.records.filter((r) => r.newcomer && r.status === 'open');
+    expect(open.length).toBeLessThanOrEqual(NEWCOMERS.maxChoices);
+
+    const t = await setup('cs', 8);
+    await Promise.all([
+      requestLords(t.deps, {
+        playerId: 'player-n',
+        houseIds: [t.ids.a!, t.ids.b!],
+        now: NOW,
+        today: TODAY,
+      }),
+      startFree(t.deps, { playerId: 'player-n', now: NOW, today: TODAY }),
+    ]);
+    expect((await t.houses.byId(t.ids.n!))?.placedAt).toEqual(NOW);
+    expect(t.negotiations.records.filter((r) => r.newcomer && r.status === 'open')).toEqual([]);
+  });
+});
+
+describe('umístění × souběžný zápis do mřížky', () => {
+  it('políčko mezitím obsadil pozvaný → umístění se zopakuje s čerstvou mapou obsazení', async () => {
+    const s = await setup();
+    await requestLords(s.deps, { playerId: 'player-n', houseIds: [s.ids.a!], now: NOW, today: 1 });
+    const placement = s.negotiations.placement!;
+    const move = placement.moveIsolated.bind(placement);
+    const taken: { x: number; y: number }[] = [];
+    placement.moveIsolated = async (ownerId, shift) => {
+      if (taken.length === 0) {
+        // sídlo nováčka je v místní mřížce na (0, 0) – cíl přesunu je přímo `shift`
+        taken.push({ ...shift });
+        await s.settlements.create({
+          ownerId: 'player-z',
+          landscapeSeed: 9,
+          layerVersions: layers,
+          worldCell: shift,
+        });
+      }
+      return move(ownerId, shift);
+    };
+    expect((await accept(s, 'a')).ok).toBe(true);
+    const seat = await s.settlements.findSeat('player-n');
+    expect(seat?.worldCell).not.toBeNull();
+    expect(seat?.worldCell).not.toEqual(taken[0]);
+    expect(s.vassalages.vassalages).toHaveLength(1);
+  });
+});
+
+describe('odchod syna × umístění (newcomers.md)', () => {
+  it('rod umístěný během odchodu: sídlo v místní mřížce nevznikne, odchod pokračuje ve světě', async () => {
+    const s = await setup();
+    const from = (await s.settlements.findSeat('player-n'))!;
+    const create = s.settlements.create.bind(s.settlements);
+    // umístění vyhraje těsně před zápisem odchodu – podmíněný zápis v místní mřížce nic nezapíše
+    s.settlements.create = async (input) => {
+      if ('localCell' in input) {
+        s.settlements.moveIsolated('player-n', { x: 40, y: 0 });
+        (await s.houses.byId(s.ids.n!))!.placedAt = NOW;
+        return null;
+      }
+      return create(input);
+    };
+    const villages = {
+      listBySettlement: () => Promise.resolve([]),
+    } as unknown as VillageRepository;
+    const result = await targetSettlement(
+      { settlements: s.settlements, villages, worldSeed: 4242, houses: s.houses },
+      from,
+      'player-n',
+      'N',
+    );
+    expect(result.ok && result.settlement.worldCell).toEqual(neighbourCell({ x: 40, y: 0 }, 'N'));
+    const own = s.settlements.settlements.filter((x) => x.ownerId === 'player-n');
+    expect(own.every((x) => x.worldCell !== null && !x.localCell)).toBe(true);
+  });
+});
+
 describe('expireNewcomerWaits', () => {
+  it('los nevybere rod, který mezi čtením žádostí a losem odmítl', async () => {
+    const s = await setup();
+    await requestLords(s.deps, { playerId: 'player-n', houseIds: [s.ids.a!], now: NOW, today: 1 });
+    // los čte žádosti mimo transakci – snímek ještě před odmítnutím
+    const stale = (await s.negotiations.newcomerRequestsOf(s.ids.n!)).map((r) => ({ ...r }));
+    await rejectNegotiation(s.deps, {
+      playerId: lordOf(s, 'a'),
+      negotiationId: requestTo(s, 'a'),
+      now: NOW,
+      today: TODAY,
+    });
+    const fresh = s.negotiations.newcomerRequestsOf.bind(s.negotiations);
+    s.negotiations.newcomerRequestsOf = () => Promise.resolve(stale);
+    const late = new Date(NOW.getTime() + NEWCOMERS.waitDays * DAY_MS);
+    await expireNewcomerWaits(s.deps, { now: late, today: TODAY });
+    expect(s.vassalages.vassalages).toHaveLength(0);
+    expect((await s.houses.byId(s.ids.n!))?.placedAt).toBeNull();
+    // příští kolo s čerstvými žádostmi: nikdo nezbyl → svobodný
+    s.negotiations.newcomerRequestsOf = fresh;
+    await expireNewcomerWaits(s.deps, { now: late, today: TODAY });
+    expect(s.vassalages.vassalages).toHaveLength(0);
+    expect((await s.houses.byId(s.ids.n!))?.placedAt).toEqual(late);
+  });
+
+  it('chyba jednoho rodu nepřeruší kolo losu – vyhodí se až na konci', async () => {
+    const s = await setup();
+    const other = await s.houses.create({
+      playerId: 'player-m',
+      kind: 'player',
+      createdAt: NOW,
+      placedAt: null,
+    });
+    const waiting = s.houses.waitingNewcomers.bind(s.houses);
+    // rod `m` první a bez sídla – umístění u něj spadne
+    s.houses.waitingNewcomers = async () =>
+      [...(await waiting())].sort((x) => (x.id === other.id ? -1 : 1));
+    const transaction = s.negotiations.transaction.bind(s.negotiations);
+    let calls = 0;
+    s.negotiations.transaction = (fn) => {
+      calls++;
+      if (calls === 1) return Promise.reject(new Error('settlement_grid_idx'));
+      return transaction(fn);
+    };
+    const late = new Date(NOW.getTime() + NEWCOMERS.waitDays * DAY_MS);
+    await expect(expireNewcomerWaits(s.deps, { now: late, today: TODAY })).rejects.toThrow(
+      'settlement_grid_idx',
+    );
+    expect((await s.houses.byId(s.ids.n!))?.placedAt).toEqual(late);
+  });
+
+  it('odříznutý bez žádosti po týdnu od založení rodu začne svobodný, dřív nic', async () => {
+    const s = await setup();
+    await expireNewcomerWaits(s.deps, {
+      now: new Date(NOW.getTime() + (NEWCOMERS.waitDays - 1) * DAY_MS),
+      today: TODAY,
+    });
+    expect((await s.houses.byId(s.ids.n!))?.placedAt).toBeNull();
+    const late = new Date(NOW.getTime() + NEWCOMERS.waitDays * DAY_MS);
+    await expireNewcomerWaits(s.deps, { now: late, today: TODAY });
+    expect((await s.houses.byId(s.ids.n!))?.placedAt).toEqual(late);
+    expect(s.vassalages.vassalages).toHaveLength(0);
+    const seat = await s.settlements.findSeat('player-n');
+    expect(seat?.worldCell).not.toBeNull();
+  });
+
   it('po týdnu los mezi neodmítnutými (deterministicky); před koncem týdne nic', async () => {
     const s = await setup();
     await requestLords(s.deps, {

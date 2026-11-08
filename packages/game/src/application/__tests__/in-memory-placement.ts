@@ -18,6 +18,12 @@ export class InMemoryPlacement implements PlacementTx {
     await Promise.resolve();
   }
 
+  async lockIsolated(houseId: string): Promise<boolean> {
+    await Promise.resolve();
+    const house = this.houses.houses.find((h) => h.id === houseId);
+    return house !== undefined && house.endedAt === null && house.placedAt === null;
+  }
+
   async claim(houseId: string, at: Date): Promise<boolean> {
     await Promise.resolve();
     const house = this.houses.houses.find((h) => h.id === houseId);
@@ -57,8 +63,13 @@ export class InMemoryPlacement implements PlacementTx {
     return (await this.settlements.findSeat(ownerId))?.worldCell ?? null;
   }
 
-  async moveIsolated(ownerId: string, shift: WorldCell): Promise<void> {
+  async moveIsolated(ownerId: string, shift: WorldCell): Promise<boolean> {
     await Promise.resolve();
-    this.settlements.moveIsolated(ownerId, shift);
+    try {
+      this.settlements.moveIsolated(ownerId, shift);
+      return true;
+    } catch {
+      return false;
+    }
   }
 }

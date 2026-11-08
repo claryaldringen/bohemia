@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { houseProtectedUntil, protectedReason, protectionDaysLeft } from '../../domain/war';
+import {
+  houseProtectedUntil,
+  ISOLATED_PROTECTION_UNTIL,
+  protectedReason,
+  protectionDaysLeft,
+} from '../../domain/war';
 import { acceptNegotiation } from '../negotiate';
 import {
   declareWar,
@@ -49,6 +54,14 @@ describe('ochrana nováčka', () => {
     expect(houseProtectedUntil(house, at(2))).toBeNull();
     expect(houseProtectedUntil(house, at(8))).toEqual(at(7));
     expect(houseProtectedUntil({ kind: 'npc', createdAt: NOW }, null)).toBeNull();
+  });
+
+  it('odříznutý rod (newcomers.md) je chráněn vždy, umístěný od umístění', () => {
+    const isolated = { kind: 'player' as const, createdAt: NOW, placedAt: null };
+    expect(houseProtectedUntil(isolated, null)).toEqual(ISOLATED_PROTECTION_UNTIL);
+    expect(protectionDaysLeft(houseProtectedUntil(isolated, null), at(30))).toBeGreaterThan(0);
+    const placed = { kind: 'player' as const, createdAt: NOW, placedAt: at(10) };
+    expect(houseProtectedUntil(placed, null)).toEqual(at(17));
   });
 
   it('zbývající dny se zaokrouhlují nahoru a důvod se skloňuje', () => {
@@ -237,6 +250,21 @@ describe('upozornění na konec ochrany', () => {
     expect(await notifyProtectionEnding(deps, { now: at(6.5), today: 10 })).toBe(3);
     expect(await notifyProtectionEnding(deps, { now: at(6.6), today: 10 })).toBe(0);
     expect(s.notices.notices.filter((n) => n.kind === 'protection-ending')).toHaveLength(3);
+  });
+
+  it('odříznutý rod „ochrana končí“ nedostane – až týden od umístění (newcomers.md)', async () => {
+    const s = await setup();
+    const isolated = (await s.houses.byId(s.ids.a!))!;
+    isolated.placedAt = null;
+    const deps = { houses: s.houses, wars: s.wars, notices: s.notices };
+    expect(await notifyProtectionEnding(deps, { now: at(6.5), today: 10 })).toBe(2);
+    isolated.placedAt = at(20);
+    expect(await notifyProtectionEnding(deps, { now: at(25), today: 10 })).toBe(0);
+    expect(await notifyProtectionEnding(deps, { now: at(26.5), today: 10 })).toBe(1);
+    const own = s.notices.notices.filter(
+      (n) => n.kind === 'protection-ending' && n.playerId === isolated.playerId,
+    );
+    expect(own).toHaveLength(1);
   });
 
   it('rod, který ochranu ukončil sám, upozornění nedostane', async () => {

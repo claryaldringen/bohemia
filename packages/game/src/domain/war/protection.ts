@@ -9,20 +9,28 @@ const DAY_MS = 86_400_000;
 export interface ProtectedHouse {
   kind: 'player' | 'npc';
   createdAt: Date;
-  /** Umístění na mapu světa (newcomers.md) – ochrana běží od něj; chybí/null – od založení. */
+  /**
+   * Umístění na mapu světa (newcomers.md) – ochrana běží od něj; null – odříznutý rod, chráněn
+   * vždy; chybí – rod je na mapě od založení.
+   */
   placedAt?: Date | null;
 }
 
+/** Konec ochrany odříznutého rodu – nejzazší datum (chráněn, dokud není na mapě světa). */
+export const ISOLATED_PROTECTION_UNTIL = new Date(8.64e15);
+
 /**
  * Do kdy je rod chráněn před napadením: 7 skutečných dní od založení (Martin 2. 11. 2026 – „ok“),
- * u nováčka z odříznuté krajiny od umístění na mapu světa (newcomers.md – Odříznutá krajina).
+ * u nováčka z odříznuté krajiny od umístění na mapu světa (newcomers.md – Odříznutá krajina);
+ * dokud odříznutý rod na mapě není, je chráněn vždy (`ISOLATED_PROTECTION_UNTIL`).
  * Ochrana **skončí dřív**, když rod sám napadl – opověděl válku nebo jeho vojsko zaútočilo
  * (`ownAttackAt`, čas prvního útoku). Vrací konec ochrany, nebo null – rod chráněn není (NPC rod,
  * nebo ochranu ukončil vlastní útok). Platí i po Začít znovu – nový rod je nový začátek.
  */
 export function houseProtectedUntil(house: ProtectedHouse, ownAttackAt: Date | null): Date | null {
   if (house.kind !== 'player') return null;
-  // odříznutý nováček (newcomers.md) má ochranu až od umístění na mapu světa
+  // odříznutý nováček (newcomers.md) je chráněn vždy, ochrana mu běží až od umístění
+  if (house.placedAt === null) return ISOLATED_PROTECTION_UNTIL;
   const since = house.placedAt ?? house.createdAt;
   const until = new Date(since.getTime() + WAR.newLineProtectionDays * DAY_MS);
   if (ownAttackAt !== null && ownAttackAt.getTime() < until.getTime()) return null;

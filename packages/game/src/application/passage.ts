@@ -2,6 +2,7 @@ import { NEGOTIATION } from '../domain/negotiation';
 import { WAR } from '../domain/war';
 import type { House, HouseRepository } from './houses';
 import { NO_HOUSE } from './negotiate';
+import { NEWCOMER_REASONS } from './newcomers';
 import { chronicleHouses, houseName, type NegotiationVillages } from './negotiation-chronicle';
 import type { NoticeRepository } from './notices';
 import type { Passage, PassageRepository } from './passages';
@@ -78,9 +79,12 @@ export async function announcePassage(
 ): Promise<PassageResult> {
   const from = await deps.houses.activeOf(input.playerId);
   if (!from) return fail(NO_HOUSE);
+  // odříznutý rod (newcomers.md) na mapě světa není – průchod neohlásí ani nedostane
+  if (from.placedAt === null) return fail(NEWCOMER_REASONS.notPlaced);
   const to = await deps.houses.byId(input.house);
   if (!alive(to)) return fail(PASSAGE_REASONS.extinct);
   if (to.id === from.id) return fail(PASSAGE_REASONS.own);
+  if (to.placedAt === null) return fail(NEWCOMER_REASONS.isolatedTarget);
   if (await deps.wars.activeBetween(from.id, to.id)) return fail(PASSAGE_REASONS.atWar);
   const cells = cleanCells(input.cells);
   if (!cells || cells.length === 0) return fail(PASSAGE_REASONS.noCells);

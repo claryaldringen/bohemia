@@ -35,12 +35,18 @@ hráč)`) a rod s `house.placed_at` null. Pozvaný je na mapě hned (`placed_at`
   Sídelní sídlo (odříznuté i pozvaného) má prémiovou krajinu (`Settlement.premiumType` –
   landscape.md, Přidělení typu); vsi synů průměrnou, umístění shluku typ nemění.
 - **Vsi syna** v odříznuté krajině: `targetSettlement` → `isolatedTarget` – soused v místní mřížce,
-  seed `isolated:<rod>:x,y`, unikátní index `settlement_local_idx` (hráč + místní poloha).
+  seed `isolated:<rod>:x,y`, unikátní index `settlement_local_idx` (hráč + místní poloha). Zápis je
+  podmíněný: `settlements.create` s `localCell` v transakci zamkne řádek rodu `FOR SHARE`
+  (`placed_at IS NULL`) – umístění (`claim`) počká; rod mezitím umístěný → null a odchod pokračuje
+  větví světa s čerstvým sídlem (`settlements.find`).
 - **Nikdo ho nevidí:** adresář (`nearestHouses`, `entriesOf` – jen `placed_at IS NOT NULL` a sídlo
   s `grid_*`), `openNegotiation` (odříznutý jen žádá o pána – `newcomer: true`; na odříznutý cíl
-  `NEWCOMER_REASONS.isolatedTarget`), `declareWar` (cíl i útočník), zásilky mezi hráči
-  (`crossesIsolation` v `shipments.ts`), `issueInvite` (`INVITE_NEEDS_PLACEMENT`). Ochrana nováčka
-  běží od `placedAt` (`houseProtectedUntil`, `playerHousesSince`).
+  `NEWCOMER_REASONS.isolatedTarget`), `declareWar`, `prepareCampaign` (plán i vyslání tažení –
+  útočník `notPlaced`, cíl `isolatedTarget`, poloha vsí jen z mapy světa, žádné `?? (0, 0)`),
+  `announcePassage` (oba rody), zásilky mezi hráči (`crossesIsolation` v `shipments.ts`),
+  `issueInvite` (`INVITE_NEEDS_PLACEMENT`). Ochrana nováčka: dokud `placedAt` null, je rod chráněn
+  vždy (`houseProtectedUntil` → `ISOLATED_PROTECTION_UNTIL`, štít v panelu se neukáže), pak běží od
+  `placedAt` (`playerHousesSince`).
 - **Žádosti:** `requestLords` – 1–5 rodů z `newcomerStatus().offer` (`WorldDirectory.offerCandidates`
   → `lordOffer`, bez už žádaných), jednání `negotiation.newcomer` s holou přísahou; první úspěšná
   žádost zapíše `newcomer_since` (`markNewcomerSince`). Pán jen přijme / odmítne
@@ -49,20 +55,44 @@ hráč)`) a rod s `house.placed_at` null. Pozvaný je na mapě hned (`placed_at`
   `adapters/newcomer-placement.ts`): advisory zámek umisťování → podmíněné `placed_at IS NULL`
   (prohra = „Nováček už má pána.“) → `placeCluster` celého shluku (vazal u sídla pána, svobodný
   u map rodů svého jazyka) → `moveIsolated` jedním UPDATE → vazalství `origin` `newcomer` /
-  `newcomer-lot`. `acceptNegotiation` ho volá **před** změnou stavu jednání; ostatní žádosti zavře
+  `newcomer-lot`; `moveIsolated` bere stejná sídla jako `isolatedCells` (bez `pending_owner_id`).
+  Žádost nováčka (`openNegotiation` s `newcomer`) se zapisuje pod zámkem řádku rodu
+  (`PlacementTx.lockIsolated`, `FOR UPDATE`): souběžné výběry dohromady nejvýš
+  `NEWCOMERS.maxChoices`, po umístění žádná; `startFree` po umístění žádosti zavře ještě jednou.
+  Los (`drawNewcomerLot`) v transakci zamkne vylosovanou žádost (`getForUpdate`, musí být `open`,
+  jinak los příští kolo) – stejné pořadí zámků jako přijetí; chyba jednoho rodu kolo nepřeruší
+  (vyhodí se na konci). `acceptNegotiation` ho volá **před** změnou stavu jednání; ostatní žádosti zavře
   `closeNewcomerRequests` až po transakci (jiné řádky jednání se v ní nezamykají – bez uváznutí;
   zaniklé `ended` → pozdější přijetí „Nováček už má pána.“, pánům `newcomer-taken`).
-- **Svobodný:** `startFree` stáhne žádosti (`withdrawn`) a umístí bez pána. **Týden:**
-  `expireNewcomerWaits` v `runWorldTasks` (worker) – po `NEWCOMERS.waitDays` los
-  `deriveSeed(accountSeed, 'lot')` mezi živými neodmítnutými (seřazenými podle id), jinak svobodný.
+- **Svobodný:** `startFree` stáhne žádosti (`withdrawn`) a umístí bez pána; `withdrawNegotiation`
+  na otevřenou žádost odříznutého (`withdrawNewcomerRequest`) = `startFree`. **Volba cesty před
+  vsí:** `newcomerFoundingReason` (`choosePath`) – `foundVillageForPlayer` odmítne založit ves
+  odříznutému bez `newcomerSince`. **Týden:** `expireNewcomerWaits` v `runWorldTasks` (worker) –
+  `waitingNewcomers` = všechny odříznuté rody; po `NEWCOMERS.waitDays` od první žádosti los
+  `deriveSeed(accountSeed, 'lot')` mezi živými neodmítnutými (seřazenými podle id), jinak svobodný;
+  rod bez žádosti týden od založení (`newcomerLotAt`) začne svobodný.
 - **Panel rodu odříznutého:** adresář ho nezná, proto `WorldDirectory.isolatedEntriesOf` (sídlo
   v místní mřížce) – vlastní rod v panelu a nováček v žádosti u pána. `HousePanelData.isolated`,
   `inviteReason` (`INVITE_NEEDS_PLACEMENT`), `PanelNegotiation.newcomer`; `NewcomerRequest.lordName`.
 - Web: server actions `newcomerStatusAction`, `startFreeAction`, `requestLordsAction` (`lib/house.ts`),
   rozhraní [web-ui.md](web-ui.md) – Nováček v rozhraní. e2e `e2e/newcomers.spec.ts`; ostatní e2e
   umísťují hráče bez pozvánky zápisem do `bohemia_test` (`e2e/placement.ts`).
-- Testy: `__tests__/newcomers.test.ts`, db `newcomer-placement.db.test.ts` (souběh dvou pánů),
-  `world-directory.db.test.ts` (odříznutý rod v adresáři není).
+- **Souběžný zápis do mřížky:** pozvaný (`enterGame`) a odchod ve světě (`targetSettlement`)
+  zapisují bez zámku umisťování – `moveIsolated` běží v úložném bodě (savepoint) a obsazené políčko
+  (unikátní index) vrátí false; `placeNewcomer` zkusí `PLACEMENT_ATTEMPTS` (3) s čerstvou mapou
+  obsazení, pak výjimka (zruší i `claim`). `expireNewcomerWaits` chybu jednoho rodu nepřeruší.
+- Ochrana: upozornění „ochrana končí“ (`playerHousesSince`) jen u rodů s `placed_at`, od umístění.
+  `update-user` (Better Auth) jazyk nemění – `databaseHooks.user.update.before` pole `language`
+  smaže přímo z dat změny (`dropLanguage` v `lib/auth-hooks.ts` – Better Auth výsledek hooku jen
+  přimíchá); mění ho jen registrace a `chooseLanguage`.
+- **Známé omezení – výkon `placeCluster`:** hledá po prstencích od každého cíle a u každého posunu
+  kontroluje každou buňku shluku proti všem obsazeným mapám (`occupied.some` – lineárně),
+  poloměr až k nejvzdálenější mapě + odstup. S tisíci map a mnoha cíli (`sameLanguage`) to roste
+  zhruba kubicky a běží pod globálním zámkem umisťování uvnitř transakce jednání – umístění se
+  řadí za sebe. Zatím neopraveno (index obsazení podle políček by stačil).
+- Testy: `__tests__/newcomers.test.ts`, db `newcomer-placement.db.test.ts` (souběh dvou pánů,
+  souběžné žádosti, úložný bod přesunu), `world-directory.db.test.ts` (odříznutý rod v adresáři
+  není).
 
 ## Rod
 

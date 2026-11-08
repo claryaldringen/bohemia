@@ -17,6 +17,7 @@ import {
   settleJourney,
   cancelUnfinishedConstruction,
   foundVillageForSettlement,
+  newcomerFoundingReason,
   declareHuntInVillage,
   setDefenseStanceInVillage,
   forceBadYear,
@@ -466,6 +467,9 @@ export async function foundVillageForPlayer(
     const today = await playerToday(playerId);
     if (!today.ok) return { kind: 'failed' as const, error: today.error };
     const { settlement, landscape } = await enterGameForPlayer(playerId);
+    // odříznutý nováček zakládá ves až po volbě cesty (newcomers.md) – klient to jen předchází
+    const choose = await newcomerFoundingReason(gameDeps().houses, playerId);
+    if (choose !== null) return { kind: 'failed' as const, error: choose };
     const result = await foundVillageForSettlement(
       { villages: villages(), seeds: gameDeps().seeds },
       { settlementId: settlement.id, landscape, today: today.day, ...input },

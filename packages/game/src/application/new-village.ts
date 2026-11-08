@@ -37,7 +37,7 @@ export async function targetSettlement(
   direction: Direction8,
 ): Promise<TargetResult> {
   if (from.worldCell === null && from.localCell) {
-    return isolatedTarget(deps, from.localCell, playerId, direction);
+    return isolatedTarget(deps, from, from.localCell, playerId, direction);
   }
   let cell = from.worldCell;
   if (cell === null) {
@@ -83,6 +83,7 @@ export async function targetSettlement(
  */
 async function isolatedTarget(
   deps: Parameters<typeof targetSettlement>[0],
+  fromSettlement: Settlement,
   from: WorldCell,
   playerId: string,
   direction: Direction8,
@@ -108,6 +109,11 @@ async function isolatedTarget(
     localCell: targetCell,
   });
   if (created) return { ok: true, settlement: created };
+  // rod mezitím umístěn na mapu světa (podmíněný zápis – newcomers.md): odchod pokračuje ve světě
+  const moved = await deps.settlements.find(fromSettlement.id);
+  if (moved && moved.worldCell !== null) {
+    return targetSettlement(deps, moved, playerId, direction);
+  }
   // souběžný odchod týmž směrem mezitím sídlo založil (unikátní index místní mřížky)
   const again = atTarget(await deps.settlements.listActive(playerId));
   return again ? { ok: true, settlement: again } : { ok: false, reason: OWN_MAP_THERE };

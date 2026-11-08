@@ -14,6 +14,7 @@ import {
   planCampaign,
   type CampaignPlan,
 } from '../plan-campaign';
+import { NEWCOMER_REASONS } from '../newcomers';
 import { NOT_PLAYER_VILLAGE } from '../player-villages';
 import { InMemoryCampaigns } from './in-memory-campaigns';
 import { InMemoryDisputes } from './in-memory-disputes';
@@ -262,6 +263,24 @@ describe('plán tažení (planCampaign)', () => {
     expect(await planCampaign(w.deps, input({ ...w.plan, food: 1e6 }))).toBe(
       CAMPAIGN_REASONS.tooHeavy,
     );
+  });
+
+  it('odříznutý rod (newcomers.md) nenapadne nikdo ani on nikoho – ani po týdnu ochrany', async () => {
+    const w = await world();
+    const [a, b] = [await w.houses.activeOf('pa'), await w.houses.activeOf('pb')];
+    b!.placedAt = null;
+    expect(await planCampaign(w.deps, input(w.plan))).toBe(NEWCOMER_REASONS.isolatedTarget);
+    expect(await launchCampaign(w.deps, input(w.plan))).toEqual({
+      ok: false,
+      reason: NEWCOMER_REASONS.isolatedTarget,
+    });
+    // i ve válce (válka s odříznutým nevznikne, ale tažení ji nesmí obejít)
+    await declareWarBetween(w);
+    expect(await planCampaign(w.deps, input(w.plan))).toBe(NEWCOMER_REASONS.isolatedTarget);
+    b!.placedAt = b!.createdAt;
+    a!.placedAt = null;
+    expect(await planCampaign(w.deps, input(w.plan))).toBe(NEWCOMER_REASONS.notPlaced);
+    expect(w.campaigns.rows.size).toBe(0);
   });
 
   it('vlastní ves jako cíl nejde', async () => {
