@@ -241,13 +241,13 @@ export function* repairRoadsSteps(
   joinWagonChains(next, day, landscape, obstacles, oldAxes, report);
   if (report.joined.length > 0) {
     yield;
-    refreshWalkDistances(next, day, landscape, obstacles);
+    refreshWalkDistances(next, day, landscape, obstacles, true);
     yield;
     tidyRoadsNow(next, landscape, obstacles);
   }
   abandonLooseWagons(next, day, landscape, report);
   yield;
-  refreshWalkDistances(next, day, landscape, obstacles);
+  refreshWalkDistances(next, day, landscape, obstacles, true);
   yield;
   tidyRoadsNow(next, landscape, obstacles);
   next.chronicle.length = chronicle;

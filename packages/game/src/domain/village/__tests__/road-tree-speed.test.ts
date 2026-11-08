@@ -353,7 +353,8 @@ describe('olemování ve stavu vsi (lineRoads, refreshWalkDistances)', () => {
 
   it('nový úsek dostane olemování hned z míst na stromy – růst stromů přepočet nespustí', () => {
     const s = withRoad();
-    refreshWalkDistances(s, DAY + 2, LANDSCAPE, null);
+    // nová cesta – mapa tras hned (`now`), jinak až 1. 7. (přepočet 1. dne měsíce)
+    refreshWalkDistances(s, DAY + 2, LANDSCAPE, null, true);
     // keře na místech – alej, jak je naplánovaná, lemuje celý úsek
     expect(s.roads!.roads[0]!.lined!.trees).toBeGreaterThanOrEqual(0.9);
     const key = s.walkLayoutKey;

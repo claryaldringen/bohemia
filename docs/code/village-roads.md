@@ -11,9 +11,15 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`computePathNetwork(PathVillage)` – cesty domácností pro vodu a dřevo každá zvlášť s napojením
   na pěšinu souseda – **pro vodu vždy k nejbližší vodě v okně, bez meze a naplno** (0,4 cesty na
   člověka – `WATER_FETCHING`; dřevo nejvýš 450 m a za 130 m řidčeji – `nearCost`; okno sítě
-  `villagePathBounds` sahá k nejbližší vodě – `nearestWaterTiles`, jen k ní, ± 45 m, do 1 000 m), do cílů podle práce dne + základ zavedených míst (ke společnému cíli každá
-  domácnost zvlášť A* od cíle k bráně, nejvytíženější první – další se přidá k čerstvě vyšlapané
-  pěšině, souběžné pěšiny nevzniknou), k sousedům; 2 kola,
+  `villagePathBounds` sahá k nejbližší vodě – `nearestWaterTiles`, jen k ní, ± 45 m, do 1 000 m), do cílů podle práce dne + základ zavedených míst, k sousedům – **„pole z domu“**
+  (8. 11. 2026, `routeAllSteps` v `network-search.ts`): domácnosti po sobě v pořadí
+  `householdOrder` (součet cest za den před prvním kolem, návštěva sousedů oběma, shoda → nižší
+  index), každá **jedno Dijkstrovo hledání z brány ke všem svým cílům** (`routeHome` – konec =
+  nejlevnější buňka cíle, shoda → vyšší index, rozhodne se po vyjmutí všech buněk té ceny;
+  pochůzka bere i pěšinu souseda `ErrandTrail` do `GOAL_SLACK` 1,3×), pak se všechny její trasy
+  vyšlapou (`addTrip` / `addErrand`) – další se přidá k čerstvě vyšlapaným pěšinám, souběžné pěšiny
+  nevzniknou; cíle v jiné souvislé oblasti než brána (`passableAreas`, 4-okolí) se předem vyřadí;
+  bez A*; 2 kola,
   vyšlapané buňky hned zlevní; buňky pod pevnou cestou (`PathVillage.roads`, maska `roadMask`) od
   začátku jako plná pěšina – trasy se k ní stahují – a **bez ohledu na povrch** (Martin, 19. 10.
   2026; `roadCellCost` = 1 / rychlost cesty podle stupně a mokřiny, pěšina dne ji nezrychlí –
@@ -864,7 +870,7 @@ Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
   `STEP_QUANTUM` v `paths/network-search.ts` – součty ve Float64 přesné); při stejné ceně vyhraje
   předchůdce s nižším indexem stavu (buňka × směr), po posledním cíli se dobírají stavy se stejnou
   cenou a z koncových stavů cíle vyhraje nižší index (`PathHeap.peekKey`).
-- **Remízy chodců** (A2a): `search` a `searchErrand` v `network-search.ts` sčítají ceny kroků po
+- **Remízy chodců** (A2a): `search` (Dijkstra z brány) v `network-search.ts` sčítá ceny kroků po
   `quantizedStep`, `trodden` bere sílu pěšiny po setinách; ze stejně drahých předchůdců vyhraje
   **vyšší** index (návrh Clauda – s nižším se v „jedna pěšina“ trasy sousedů nesejdou; každé pevné
   pravidlo dá přednost jednomu směru, slévání v zrcadleném rozložení není zaručené ani dřív).
@@ -875,6 +881,14 @@ Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
 - **Mapa tras a klíč** (A2b, [paths.md – Stálé trasy, pravidlo 5](../design/paths.md#stálé-trasy-25-10-2026)):
   `refreshWalkDistances` (`paths/village.ts`) drží v `VillageState.walkLayoutKey` = `routes.key`
   otisk `routeMapKey | WALK_VERSION` (`routes-v9` – bez tras k práci dne).
+  - **Přepočet 1. dne měsíce** (8. 11. 2026, Martin: „a“): má-li ves platné trasy
+    (`routes.key === walkLayoutKey`), jiný klíč mimo 1. den měsíce trasy nehledá – trasy,
+    `walkLayoutKey` i vzdálenosti chůze zůstanou ze staré mapy, obsazenost je dál hned převáží
+    (mřížka převážení podle dnešního klíče – `reweighedList(…, mapKey)`). 1. dne měsíce (po
+    `roadsMonthSteps`) se přepočítá najednou za všechny změny. Hned: ves bez platných tras a volání
+    s `now` (`repairRoads`, `rebuildRoads` – trasy po nové síti cest hned). Den přepočtu je den
+    kalendáře, ne kousku dopočtu (test `změna mapy v půli měsíce – dopočet po kouscích`). Scéna
+    trasy jen čte (`SceneVillage.routes`), vidí tedy tutéž starou mapu jako server.
   - **Denní kontrola mapy bez skládání klíče** (31. 10. 2026): `routeMapKey` vrací rovnou otisk
     (`KeyHash` – tytéž dvě FNV-1a jako `walkLayoutHash`, části klíče se míchají po řetězcích
     s oddělovači, celý JSON se neskládá). Zemní práce v klíči bez celého profilu – id, počet bodů

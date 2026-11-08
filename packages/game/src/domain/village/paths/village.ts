@@ -979,7 +979,8 @@ function routesOf(
 ): VillageRoutes {
   // trasy ze všech hotových obydlí ke všem stavbám, cesty za den podle dnešní obsazenosti
   const found = network ? storedRoutes(network) : [];
-  const list = found.length > 0 ? reweighedList(state, day, landscape, obstacles, found) : found;
+  const list =
+    found.length > 0 ? reweighedList(state, day, landscape, obstacles, found, key) : found;
   return {
     day,
     key,
@@ -1000,12 +1001,13 @@ function reweighRoutes(
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
   list: StoredRoute[],
+  mapKey: string,
 ): StoredRoute[] {
   // týž seznam týž den a s toutéž obsazeností už převážený (opakovaný přepočet dne – oprava
   // a přestavba cest)
-  const mark = `${day}|${state.walkLayoutKey}|${routePlacesKey(state)}`;
+  const mark = `${day}|${mapKey}|${routePlacesKey(state)}`;
   if (WEIGHED.get(list) === mark) return list;
-  const next = reweighedList(state, day, landscape, obstacles, list);
+  const next = reweighedList(state, day, landscape, obstacles, list, mapKey);
   WEIGHED.set(next, mark);
   return next;
 }
@@ -1022,11 +1024,13 @@ function reweighedList(
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
   list: StoredRoute[],
+  mapKey: string,
 ): StoredRoute[] {
   const village = pathVillageOf(state, day, landscape);
   // mřížka (jen průchodnost – brány a cíle) z dřívějšího převážení téže mapy tras – buňky se
-  // znovu nestaví (paths.md – Stálé trasy, pravidlo 5: převážení po trasách)
-  const key = `${state.walkLayoutKey}`;
+  // znovu nestaví (paths.md – Stálé trasy, pravidlo 5: převážení po trasách). Klíč je dnešní mapa
+  // (`mapKey`), ne mapa uložených tras – během měsíce se mohou lišit (přepočet až 1. dne měsíce)
+  const key = mapKey;
   const known = WEIGHT_GRIDS.get(landscape);
   const cached = known && known.key === key && known.obstacles === obstacles ? known : null;
   const input = cached
@@ -1051,8 +1055,8 @@ function reweighedList(
 }
 
 /**
- * Mřížka posledního převážení pro krajinu (jedna ves na krajinu – jako `lastBlocked`): otisk mapy
- * tras (`walkLayoutKey` – i s verzí tras), vrstva překážek, terén okna a mřížka. Jen zrychlení –
+ * Mřížka posledního převážení pro krajinu (jedna ves na krajinu – jako `lastBlocked`): otisk dnešní
+ * mapy tras (`routeMapKey` i s verzí tras), vrstva překážek, terén okna a mřížka. Jen zrychlení –
  * průchodnost je funkce mapy tras, takže převážení dá s ní i bez ní totéž.
  */
 const WEIGHT_GRIDS = new WeakMap<
@@ -1075,6 +1079,9 @@ const WEIGHT_GRIDS = new WeakMap<
  * - stálé trasy a vzdálenosti chůze se přepočítají, jen když se změní mapa tras (`routeMapKey` –
  *   stavby a pole od postavení po zánik, pevné cesty, pařezy k 1. 11.); obsazenost domácností,
  *   ohrad a jam ani stadia dílů nic nehledají (Martin 31. 10. 2026);
+ * - změna mapy tras během měsíce se projeví až 1. dne dalšího měsíce – za všechny změny najednou,
+ *   do té doby se chodí po staré mapě (Martin 8. 11. 2026); hned jen ves bez platných tras (nová,
+ *   starší uložení) a s `now` (oprava a přestavba cest – trasy po nové síti hned);
  * - jiná obsazenost (`routePlacesKey`) stálé trasy hned převáží (`reweighRoutes`) – nic se nehledá;
  * - 1. dne v měsíci se stálé trasy převáží (lidé, stáda, stáří spojení – `reweighRoutes`);
  * - trasy k práci dne a na pastvu se nehledají – pěšiny ke kácení, na paseku, louky a pastvu
@@ -1089,8 +1096,9 @@ export function refreshWalkDistances(
   day: number,
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
+  now = false,
 ): void {
-  const steps = refreshWalkDistancesSteps(state, day, landscape, obstacles);
+  const steps = refreshWalkDistancesSteps(state, day, landscape, obstacles, now);
   for (;;) {
     if (steps.next().done) return;
   }
@@ -1106,20 +1114,24 @@ export function* refreshWalkDistancesSteps(
   day: number,
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
+  now = false,
 ): Generator<void, void, void> {
   const routes = state.routes;
   // měsíční převážení 1. dne v měsíci
   const monthly = dateOfDayIndex(day).day === 1;
   lineRoads(state);
   const key = walkLayoutHash(`${routeMapKey(state, day)}|${WALK_VERSION}`);
-  if (state.walkLayoutKey === key && routes?.key === key) {
+  // platné trasy staré mapy: změna mapy počká na 1. den dalšího měsíce (Martin 8. 11. 2026) – den
+  // přepočtu určuje kalendář, ne kousky dopočtu
+  const valid = routes !== undefined && routes.key === state.walkLayoutKey;
+  if (routes && valid && (routes.key === key || (!monthly && !now))) {
     // obsazenost (nastěhování, vyhnání stáda, otevřená jáma) jen převáží – nic se nehledá
     const placesKey = walkLayoutHash(routePlacesKey(state));
     const moved = routes.placesKey !== placesKey;
     if (!monthly && !moved) return;
     // vyšlapanost do dneška ještě s dosavadními trasami a vahami (paths.md)
     settleVillageWear(state, day, landscape);
-    const list = reweighRoutes(state, day, landscape, obstacles, routes.list);
+    const list = reweighRoutes(state, day, landscape, obstacles, routes.list, key);
     if (list !== routes.list || moved) state.routes = { ...routes, list, placesKey };
     return;
   }

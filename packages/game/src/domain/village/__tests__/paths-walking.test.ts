@@ -170,7 +170,7 @@ describe('vzdálenost chůze dílů pole (refreshWalkDistances)', () => {
     expect(s.walkLayoutKey).toMatch(/^[0-9a-f]{16}$/);
   });
 
-  it('stadia dílů chůzi nemění ani 1. dne v měsíci, nový díl hned (paths.md – Stálé trasy)', () => {
+  it('stadia dílů chůzi nemění ani 1. dne v měsíci, nový díl 1. dne dalšího měsíce (paths.md – Stálé trasy)', () => {
     const s = advanceVillage(withField(), DAY + 1, null, LANDSCAPE);
     const [part, other] = s.parts.filter((p) => p.cell);
     part!.walkDistanceM = 1;
@@ -184,11 +184,14 @@ describe('vzdálenost chůze dílů pole (refreshWalkDistances)', () => {
     refreshWalkDistances(s, july, LANDSCAPE, null);
     expect(part!.walkDistanceM).toBe(1);
     expect(s.walkLayoutKey).toBe(key);
-    // nový díl pole (hráč umístil pole) – přepočet hned, i v půli měsíce
+    // nový díl pole (hráč umístil pole) – v půli měsíce stará mapa, přepočet 1. dne dalšího
+    // měsíce (Martin 8. 11. 2026)
     refreshWalkDistances(s, july + 3, LANDSCAPE, null);
     expect(part!.walkDistanceM).toBe(1);
     s.parts.push({ ...other!, id: 999, cell: { x: 12, y: 8 } });
     refreshWalkDistances(s, july + 4, LANDSCAPE, null);
+    expect(part!.walkDistanceM).toBe(1);
+    refreshWalkDistances(s, dayIndexOf({ year: 600, month: 8, day: 1 }), LANDSCAPE, null);
     expect(part!.walkDistanceM).not.toBe(1);
   });
 
@@ -221,9 +224,11 @@ describe('vzdálenost chůze dílů pole (refreshWalkDistances)', () => {
     part.walkDistanceM = 1;
     refreshWalkDistances(s, DAY + 2, LANDSCAPE, null);
     expect(part.walkDistanceM).toBe(1);
-    // nové obydlí rozložení změní
+    // nové obydlí rozložení změní – přepočet 1. dne dalšího měsíce, s `now` hned
     s.dwellings.push({ ...s.dwellings[0]!, id: 99, position: { x: 0, z: -30, rotation: 0 } });
     refreshWalkDistances(s, DAY + 2, LANDSCAPE, null);
+    expect(part.walkDistanceM).toBe(1);
+    refreshWalkDistances(s, DAY + 2, LANDSCAPE, null, true);
     expect(part.walkDistanceM).not.toBe(1);
   });
 
