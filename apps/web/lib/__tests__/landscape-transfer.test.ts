@@ -6,6 +6,7 @@ import {
   INITIAL_LAYER_VERSIONS,
   OBSTACLE_SOURCES,
   obstaclesOf,
+  PREMIUM_LAYER_VERSION,
   premiumFeaturesOf,
   promontoriesOf,
   riverCenterlines,
@@ -272,6 +273,26 @@ describe('přenos mapy z kostry světa – víc řek a výřez', () => {
     for (let k = 0; k < a.count; k++) {
       const d = Math.hypot(a.x[k]! - mid.x, a.z[k]! - mid.z);
       expect(d).toBeGreaterThan(Math.min(mid.halfLeft, mid.halfRight) - 1);
+    }
+  });
+
+  it('prémie na kostře (premium: 2) – prohlížeč najde tytéž prvky typu jako server', () => {
+    const PREMIUM2 = { ...SKELETON_VERSIONS, premium: PREMIUM_LAYER_VERSION } as const;
+    const river: SkeletonSlice = {
+      world: 1,
+      rivers: [
+        { side: 'N', at: 60, widthM: 35, flow: 'in' },
+        { side: 'S', at: 70, widthM: 35, flow: 'out' },
+      ],
+      trails: [],
+    };
+    for (const type of ['navigable-river', 'confluence'] as const) {
+      const premium = generateLandscape(1, PREMIUM2, type, river);
+      const features = premiumFeaturesOf(premium);
+      expect(features?.type).toBe(type);
+      const decoded = decodeLandscape(encodeLandscape(premium));
+      expect(decoded.premium).toBe(type);
+      expect(premiumFeaturesOf(decoded)).toEqual(features);
     }
   });
 

@@ -102,7 +102,7 @@ describe('terén mapy z kostry', () => {
     expect(() => generateLandscapeAttempt(1, SKELETON, undefined, empty)).toThrow(RangeError);
   });
 
-  it('prémiový typ na mapě z kostry zatím není (premium: 2) → RangeError', () => {
+  it('prémiový typ na mapě z kostry s průchodem 1 (bez premium: 2) → RangeError', () => {
     expect(() => generateLandscape(1, SKELETON, 'navigable-river', RIVER_CASES.rovně!)).toThrow(
       RangeError,
     );

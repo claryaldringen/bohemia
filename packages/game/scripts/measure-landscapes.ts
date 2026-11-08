@@ -3,7 +3,8 @@
 // sídla do 20. 10. 2026 (bez skal u potoka), název typu prémiové krajiny (např. `iron-ore`)
 // změří prémiovou krajinu typu (premium-landscapes.md – Kalibrace). `--skeleton straight|corner|
 // junction|source|trail|ford` změří mapu z ukázkového výřezu kostry (world-skeleton.md – Výsledky
-// měření generátoru).
+// měření generátoru), s typem kostry na jeho místě (`200 navigable-river --skeleton straight`)
+// prémii na kostře (premium: 2).
 import {
   checkBand,
   CURRENT_LAYER_VERSIONS,
@@ -65,10 +66,16 @@ if (skeletonName !== undefined && !skeleton) {
   throw new Error(`Neznámý výřez ${skeletonName} – ${Object.keys(SKELETON_SAMPLES).join(', ')}.`);
 }
 const premium = PREMIUM_TYPES.find((type): type is PremiumType => type === process.argv[3]);
+// Typ na výřezu kostry = prémie na kostře (průchod 2), na suché mapě průchod 1 (typy kostry
+// s vlastní řekou – ostatní typy mají v obou verzích stejný průchod).
 const versions = skeleton
-  ? { ...CURRENT_LAYER_VERSIONS, skeleton: SKELETON_LAYER_VERSION }
+  ? {
+      ...CURRENT_LAYER_VERSIONS,
+      skeleton: SKELETON_LAYER_VERSION,
+      ...(premium ? { premium: PREMIUM_LAYER_VERSION } : {}),
+    }
   : premium
-    ? { ...CURRENT_LAYER_VERSIONS, premium: PREMIUM_LAYER_VERSION }
+    ? { ...CURRENT_LAYER_VERSIONS, premium: 1 as const }
     : process.argv[3] === 'initial'
       ? INITIAL_LAYER_VERSIONS
       : process.argv[3] === 'previous'

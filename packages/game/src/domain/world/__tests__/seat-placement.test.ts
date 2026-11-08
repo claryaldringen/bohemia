@@ -1,18 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { PREMIUM_TYPES } from '../../landscape/premium/catalog';
-import type { PremiumType } from '../../landscape/premium/types';
+import { SKELETON_PREMIUM_SLOTS, type PremiumType } from '../../landscape/premium/types';
 import type { GridCell } from '../../village/world-grid';
 import { cellDistance, type OccupiedCell, placeCluster, ringCells } from '../placement';
 import { placeSeat, SLOT_TYPES } from '../seat-placement';
 import type { SeatSlot } from '../skeleton';
-
-// Do sloučení Úlohy 10 (`SKELETON_PREMIUM_SLOTS` v premium/types.ts) stejná mapa lokálně.
-const SKELETON_PREMIUM_SLOTS: Partial<Record<PremiumType, SeatSlot>> = {
-  'navigable-river': 'river',
-  confluence: 'river',
-  'ford-hill': 'ford',
-  'mountain-pass': 'trail',
-};
 
 const key = (cell: GridCell): string => `${cell.x},${cell.y}`;
 

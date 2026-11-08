@@ -1,6 +1,6 @@
 import { choosePremiumType } from '../landscape/premium/assign';
 import { PREMIUM_TYPES } from '../landscape/premium/catalog';
-import type { PremiumType } from '../landscape/premium/types';
+import { SKELETON_PREMIUM_SLOTS, type PremiumType } from '../landscape/premium/types';
 import type { GridCell } from '../village/world-grid';
 import { freeCellsByRing, type OccupiedCell, type PlacementRequest } from './placement';
 import { WORLD } from './rules-world';
@@ -9,20 +9,17 @@ import type { SeatSlot } from './skeleton/sites';
 
 // Místo a typ sídla hráče podle kostry světa (world-skeleton.md – Hustota a stejné podmínky).
 
-/** Typy kostry světa – jen na svém místě kostry; ostatní typy jen na suchých mapách. */
-const SKELETON_TYPES: readonly PremiumType[] = [
-  'navigable-river',
-  'confluence',
-  'ford-hill',
-  'mountain-pass',
-];
+/** Typy prémie místa – typy kostry jen na svém místě kostry, ostatní jen na suché mapě. */
+function typesOf(slot: SeatSlot): readonly PremiumType[] {
+  return PREMIUM_TYPES.filter((type) => (SKELETON_PREMIUM_SLOTS[type] ?? 'dry') === slot);
+}
 
 /** Typy prémie, které místo sídla nabízí (`'dry'` = 15 typů bez kostry), v pořadí katalogu. */
 export const SLOT_TYPES: Readonly<Record<SeatSlot, readonly PremiumType[]>> = {
-  dry: PREMIUM_TYPES.filter((type) => !SKELETON_TYPES.includes(type)),
-  river: ['navigable-river', 'confluence'],
-  ford: ['ford-hill'],
-  trail: ['mountain-pass'],
+  dry: typesOf('dry'),
+  river: typesOf('river'),
+  ford: typesOf('ford'),
+  trail: typesOf('trail'),
 };
 
 export interface SeatPlacementInput {

@@ -5,7 +5,6 @@ import {
   generateAcceptedLandscape,
   generateLandscapeAttempt,
   MAX_ATTEMPTS,
-  PREMIUM_LAYER_VERSION,
   type Landscape,
   type LayerVersions,
   type PremiumType,
@@ -185,10 +184,14 @@ async function becomeVassal(deps: EnterGameDeps, lord: House, vassal: House): Pr
 /** Kolikrát se nováček pokusí o místo, než se vzdá (souběh s jinými nováčky). */
 const PLACEMENT_ATTEMPTS = 5;
 
-/** Verze vrstev prémiové krajiny – průměrné vrstvy a prémiový průchod. */
+/**
+ * Verze vrstev prémiové krajiny – průměrné vrstvy a prémiový průchod. Sídlo zatím vzniká bez
+ * výřezu kostry, proto průchod 1 (typy kostry s vlastní řekou); průchod 2 (`PREMIUM_LAYER_VERSION`,
+ * typ kostry na místě kostry) přijde s umístěním sídla podle kostry (`placeSeat`).
+ */
 const PREMIUM_LAYER_VERSIONS: LayerVersions = {
   ...CURRENT_LAYER_VERSIONS,
-  premium: PREMIUM_LAYER_VERSION,
+  premium: 1,
 };
 
 /**

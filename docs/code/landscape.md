@@ -76,7 +76,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   otisky i s třetím parametrem `undefined`). Průchod typu (`PremiumPass` v `premium/generate.ts` – úpravy terénu, vegetace
   a úrodnosti s vlastním seedem `deriveSeed(seed, 'premium')` a hledání prvků `sites`) se
   zapisuje do `PREMIUM_PASSES`; typ bez průchodu nemá prvky a pásmem neprojde. Verze průchodu
-  `LayerVersions.premium` (`PREMIUM_LAYER_VERSION` = 1, chybí = 1), krajina nese
+  `LayerVersions.premium` (`PREMIUM_LAYER_VERSION` = 2, chybí = 1 – průchod 2 viz Prémie na
+  kostře níž), krajina nese
   `Landscape.premium`. Prvky `premiumFeaturesOf(landscape)` – čistá funkce krajiny s přesností
   prohlížeče, mezipaměť podle objektu jako `obstaclesOf`; složka `premium/` je v deterministické
   vrstvě (ESLint). Kontrola typu `checkPremium` (prvek existuje, obrys ani osa nezasahuje do
@@ -218,7 +219,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   neprojde (`skeleton-rivers`). **Generátor:** čtvrtý parametr `skeleton?: SkeletonSlice | null`
   u `generateAcceptedLandscape`, `generateLandscape`, `generateLandscapeAttempt`; prázdný výřez =
   null; verze `LayerVersions.skeleton?: 1` (`SKELETON_LAYER_VERSION`) jen s neprázdným výřezem –
-  výřez bez verze, verze bez výřezu i prémie s výřezem (do `premium: 2`) = `RangeError`. Krajina
+  výřez bez verze, verze bez výřezu i typ prémie, který výřezu neodpovídá (`assertPremiumSlot` –
+  Prémie na kostře níž), = `RangeError`. Krajina
   nese `skeleton` (výřez) a `rivers`; suchá mapa bit po bitu jako dřív. **Pásmo** (`band.ts`):
   mapa s řekou kostry projde celým pásmem; podíl lesa a úrodná políčka se měří bez
   `riverCorridorMask` (voda řek a souš do `RIVER_CORRIDOR_CELLS` = 8 políček od ní – úrodná
@@ -244,3 +246,30 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   okraji, řeka ani stezka nevedou do 120 m od vsi. `checkBand` ji volá až u pokusu, který jinak
   prošel (selhání `skeleton-<důvod>`). Testy `skeleton/__tests__/route.test.ts`,
   `skeleton-band-trail.test.ts` (stezka, křižovatka, konec, brod; 300 seedů).
+- **Prémie na kostře** (`premium: 2`, Úloha 10 plánu kostry; world-skeleton.md – Mapa z kostry):
+  průchod 2 bere řeku a stezku z výřezu, vlastní nepřidává. `SKELETON_PREMIUM_SLOTS`
+  (`premium/types.ts`) – splavná řeka a soutok na místě `river`, vyvýšenina nad brodem na `ford`,
+  horský průsmyk na `trail` (`seatSlot` výřezu z `world/skeleton/sites.ts`); ostatní typy jen na
+  suché mapě s průchodem stejným jako 1. `assertPremiumSlot(type, version, slice)` (volá ho
+  generátor hned na začátku): průchod 1 jen bez výřezu, průchod 2 jen typ na svém místě, jinak
+  `RangeError`. `premiumPassOf(type, version)` – typy kostry ve verzi 2 z `SKELETON_PREMIUM_PASSES`
+  (zatím `SKELETON_WATER_PASSES`; brod a průsmyk přijdou s Úlohou 11 – do té doby průchod nemají
+  a pásmem neprojdou), `hasPremiumPass(type, version = 1)`. `premiumFeaturesOf` verzi bere z krajiny:
+  s výřezem 2, bez něj 1 (verze 1 výřez nemá, ostatní typy mají v obou verzích stejný průchod).
+  `PremiumPassContext.skeleton` (výřez nebo null); `PremiumPass.skeletonTerrainOptions` – terén
+  mapy z kostry se generuje znovu ze seedu terénu pokusu a výřezu s nimi (`passTerrain` →
+  `generateSkeletonTerrain(…, options)`). **Splavná řeka:** `{ floodplainCells:
+NAVIGABLE_FLOODPLAIN_CELLS }` (rovná niva 4 políčka), prvky řeka a brody hlavního toku
+  (`riverSites(l, l.rivers[0])`) a přístaviště (`portSite(l, river)` – břeh na straně vsi). **Soutok:**
+  potok mapy už do řeky ústí, `addSkeletonConfluence` (`premium/river.ts`) přidá ostrožnu `SPUR`
+  s výškou `CONFLUENCE.heightM` nad hladinou řeky v soutoku – na ose mezi směrem proti proudu
+  potoka a proti proudu řeky od ústí potoka (když se tam nevejde, po proudu řeky), první místo
+  ≥ 3,4 políčka od vody, ≥ 28 políček od vsi (`spurClearOfVillage`), mimo okraj a jiné ostrožny;
+  řeka a potok se nemění, jen dostanou stěny u ostrožny. Prvky řeka, brody, `confluence` (konec
+  potoka) a ostrožna. Krajina nese `skeleton`, `rivers` a `premium`, `river` nemá. `enterGame`
+  ukládá do Úlohy 13 dál průchod 1 (sídlo zatím bez výřezu). Testy
+  `premium/__tests__/skeleton-river-types.test.ts` (niva, přístaviště, ostrožna, zlatý otisk
+  průchodu 1 – `PREMIUM1_GOLDEN` všech typů, `RangeError`) a pásmo `skeleton-type-band.ts`
+  (`skeleton-river-band.test.ts` – 2 typy × výřez rovně a ohyb, 300 seedů: projde 300/300,
+  napoprvé splavná 62 / 80 %, soutok 47 / 65 %, mapa bez prémie 64 / 81 %). Měření:
+  `measure-landscapes.ts 200 navigable-river --skeleton straight`.

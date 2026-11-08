@@ -13,8 +13,9 @@ import type { Terrain } from '../terrain';
 import { CELL_SIZE_M, type Promontory, type StreamPoint } from '../types';
 
 // Řeka prémiových krajin (premium-landscapes.md – Typy krajin, Kostra světa): splavná řeka,
-// vyvýšenina nad brodem a soutok. Řeka je nový tok vedle potoka – sdílená mřížka světa zatím
-// není, proto vstupuje a vystupuje na náhodných okrajích (vývojová verze). Terén řeky počítá jen
+// vyvýšenina nad brodem a soutok. V prémiovém průchodu 1 je řeka nový tok vedle potoka, který
+// vstupuje a vystupuje na náhodných okrajích (vývojová verze); v průchodu 2 (prémie na kostře)
+// je řeka z výřezu kostry (`skeleton/terrain.ts`) a průchod přidá jen prvky typu. Terén řeky počítá jen
 // server při generování (výšky, voda a osa řeky jdou do prohlížeče hotové). Soubor hlídá ESLint
 // jako deterministickou vrstvu (jen det-math), ale pomocné funkce osy potoka ze `stream.ts`
 // (`arcLengths`, `smoothPolyline`, `rasterize`) používají `Math.hypot` – smí, protože je volá
@@ -1382,4 +1383,96 @@ function tryConfluence(
     stream.slice(0, junction + 1),
     lowerBank,
   );
+}
+
+// ── Soutok na kostře (premium: 2) ────────────────────────────────────────────────────────────
+
+/** Stěny u vody z ostrožny do bodů toku (jako `finishRiver` u potoka). */
+function withSpurBanks(
+  terrain: Terrain,
+  course: readonly StreamPoint[],
+  spurs: readonly SpurPlan[],
+): StreamPoint[] {
+  const banks = spurBanks(
+    terrain,
+    course.map((p, k) => ({
+      x: p.x,
+      y: p.y,
+      left: p.halfWidthLeft,
+      right: p.halfWidthRight,
+      ...tangentAt(course, k),
+    })),
+    course.map((p) => p.level),
+    spurs,
+  );
+  return course.map((p, k) => {
+    if (banks.left[k]! === 0 && banks.right[k]! === 0) return p;
+    return {
+      ...p,
+      bankLeft: Math.max(p.bankLeft ?? 0, banks.left[k]!),
+      bankRight: Math.max(p.bankRight ?? 0, banks.right[k]!),
+    };
+  });
+}
+
+/**
+ * Soutok na kostře (world-skeleton.md – Mapa z kostry, prémie na kostře): potok mapy už ústí do
+ * řeky kostry (přítok), průchod přidá ostrožnu (`SPUR`, výška `CONFLUENCE.heightM` nad hladinou
+ * řeky v soutoku) v úhlu mezi potokem a řekou nad ústím potoka – nejdřív v klínu proti proudu
+ * řeky, když se tam nevejde (voda, okraj, rovina vsi), v klínu po proudu. Řeka ani potok se
+ * nemění, jen dostanou stěny u ostrožny. Mění terén na místě; když se ostrožna nevejde, vrací
+ * terén beze změny (pokus neprojde kontrolou typu).
+ */
+export function addSkeletonConfluence(terrain: Terrain, seed: number): Terrain {
+  const river = terrain.rivers?.[0];
+  const stream = terrain.stream;
+  if (!river || river.length < 2 || stream.length < 2) return terrain;
+  const random = createRandom(seed);
+  const heightM = range(random, CONFLUENCE.heightM);
+  const { size } = terrain;
+  const mouth = stream.length - 1;
+  const j = stream[mouth]!;
+  let junction = 0;
+  river.forEach((p, k) => {
+    if (cellDistance(p, j) < cellDistance(river[junction]!, j)) junction = k;
+  });
+  const waterDistance = distanceToMask(terrain.water, size);
+  const up = directionAlong(stream, mouth, -8);
+  const center = (along: Cell): { center: Cell; dir: Cell } | null => {
+    const bisector = { x: up.x + along.x, y: up.y + along.y };
+    const length = length2(bisector.x, bisector.y);
+    if (length < 0.2) return null;
+    const dir = { x: bisector.x / length, y: bisector.y / length };
+    for (let d = 4; d <= 16; d += 0.5) {
+      const p = { x: j.x + dir.x * d, y: j.y + dir.y * d };
+      if (waterDistance[cellIndex(p, size)]! < SPUR.halfWidth + SPUR.bankGap) continue;
+      const edge = Math.min(p.x, p.y, size - 1 - p.x, size - 1 - p.y);
+      const clear =
+        edge >= SPUR.halfLength + SPUR.ridgeLength &&
+        spurClearOfVillage(p, terrain) &&
+        (terrain.promontories ?? []).every(
+          (q) =>
+            cellDistance(p, q.center) >= promontoryRadius(q) + SPUR.halfLength + SPUR.halfWidth,
+        );
+      return clear ? { center: p, dir } : null;
+    }
+    return null;
+  };
+  // Klín proti proudu řeky (nad soutokem), jinak po proudu.
+  const placed =
+    center(directionAlong(river, junction, -8)) ?? center(directionAlong(river, junction, 8));
+  if (!placed) return terrain;
+  const reference = river[junction]!.level;
+  const spur: SpurPlan = {
+    kind: 'confluence',
+    center: placed.center,
+    dir: placed.dir,
+    top: reference + heightM,
+    reference,
+  };
+  sculptSpur(terrain, terrain.water, spur);
+  terrain.rivers = terrain.rivers!.map((course) => withSpurBanks(terrain, course, [spur]));
+  terrain.stream = withSpurBanks(terrain, stream, [spur]);
+  terrain.promontories = [...(terrain.promontories ?? []), describeSpur(terrain, spur)];
+  return terrain;
 }

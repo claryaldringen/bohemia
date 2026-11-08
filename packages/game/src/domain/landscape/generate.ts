@@ -1,9 +1,10 @@
 import { checkBand } from './band';
 import { computeFertility, meanLandHeight } from './fertility';
 import {
+  assertPremiumSlot,
   hasPremiumPass,
-  PREMIUM_LAYER_VERSION,
   premiumGeneration,
+  premiumVersionOf,
   type PremiumGeneration,
 } from './premium/generate';
 import type { PremiumType } from './premium/types';
@@ -36,13 +37,14 @@ const KNOWN_VERSIONS: { readonly [K in keyof LayerVersions]-?: readonly LayerVer
   vegetation: [1, 2],
   fertility: [1, 2],
   obstacles: [1, 2],
-  premium: [PREMIUM_LAYER_VERSION],
+  premium: [1, 2],
   skeleton: [SKELETON_LAYER_VERSION],
 };
 
 /**
  * Výřez kostry mapy – prázdný výřez je suchá mapa (null). Verze `skeleton` patří jen k neprázdnému
- * výřezu a naopak; prémie na kostře přijde s `premium: 2` – zatím `RangeError`.
+ * výřezu a naopak; prémiový typ musí výřezu odpovídat (`assertPremiumSlot` – na kostře jen
+ * `premium: 2` a typ kostry na svém místě), jinak `RangeError`.
  */
 function skeletonOf(
   versions: LayerVersions,
@@ -57,9 +59,7 @@ function skeletonOf(
   if (!slice && versions.skeleton !== undefined) {
     throw new RangeError(`Verze vrstvy skeleton ${String(versions.skeleton)} bez výřezu kostry.`);
   }
-  if (slice && premium !== undefined) {
-    throw new RangeError(`Prémiový typ ${premium} na mapě z kostry zatím není (premium: 2).`);
-  }
+  if (premium !== undefined) assertPremiumSlot(premium, premiumVersionOf(versions), slice);
   return slice;
 }
 
@@ -72,7 +72,9 @@ function skeletonOf(
  * pak musí splnit dolní meze pásma (start není horší) a kontrolu typu (`checkPremium`). Neznámý
  * typ vyhodí RangeError jako neznámá verze. Výřez kostry (`skeleton`, world-skeleton.md – Mapa z kostry)
  * je čtvrtý vstup: s řekou terén „řeka první“, se stezkou jen nese výřez; null = suchá mapa bit
- * po bitu jako dřív.
+ * po bitu jako dřív. Prémiový typ na výřezu = prémie na kostře (`premium: 2`, typ na svém místě
+ * kostry – `assertPremiumSlot`): pásmo jako u mapy z kostry bez typu, prémie navíc dolní meze,
+ * kontrolu typu i kontrolu kostry.
  */
 export function generateAcceptedLandscape(
   seed: number,
@@ -86,7 +88,8 @@ export function generateAcceptedLandscape(
       throw new RangeError(`Neznámá verze vrstvy ${layer}: ${String(version)}`);
     }
   }
-  if (premium !== undefined) hasPremiumPass(premium); // neznámý typ → RangeError hned
+  // Neznámý typ → RangeError hned.
+  if (premium !== undefined) hasPremiumPass(premium, premiumVersionOf(versions));
   const slice = skeletonOf(versions, skeleton, premium);
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const attemptSeed = (seed + attempt) >>> 0;
@@ -94,8 +97,8 @@ export function generateAcceptedLandscape(
     const plain = assemble(attemptSeed, versions, average, undefined, slice);
     if (!checkBand(plain, versions).ok) continue;
     if (premium === undefined) return { seed: attemptSeed, landscape: plain };
-    const layers = premiumLayers(attemptSeed, versions, premium, average);
-    const landscape = assemble(attemptSeed, versions, layers, premium);
+    const layers = premiumLayers(attemptSeed, versions, premium, average, slice);
+    const landscape = assemble(attemptSeed, versions, layers, premium, slice);
     if (checkBand(landscape, versions).ok) return { seed: attemptSeed, landscape };
   }
   throw new BandFailureError(seed);
@@ -138,8 +141,9 @@ export function generateLandscapeAttempt(
   return assemble(
     attemptSeed,
     versions,
-    premiumLayers(attemptSeed, versions, premium, null),
+    premiumLayers(attemptSeed, versions, premium, null, slice),
     premium,
+    slice,
   );
 }
 
@@ -176,15 +180,25 @@ function averageTerrain(
 
 /**
  * Terén, který dostane průchod typu: vlastní terén typu (`terrainOptions` – generuje se znovu
- * ze seedu terénu pokusu), kopie terénu průměrné krajiny (přijetí – ten zůstane pro pásmo),
- * nebo terén průměrné krajiny spočítaný jednou (uložené sídlo).
+ * ze seedu terénu pokusu; na mapě z kostry `skeletonTerrainOptions` z výřezu), kopie terénu
+ * průměrné krajiny (přijetí – ten zůstane pro pásmo), nebo terén průměrné krajiny spočítaný
+ * jednou (uložené sídlo).
  */
 function passTerrain(
   attemptSeed: number,
   versions: LayerVersions,
   pass: PremiumGeneration,
   average: Layers | null,
+  slice: SkeletonSlice | null,
 ): Terrain {
+  if (slice && pass.skeletonTerrainOptions) {
+    return generateSkeletonTerrain(
+      deriveSeed(attemptSeed, 'terrain'),
+      versions.terrain,
+      slice,
+      pass.skeletonTerrainOptions,
+    );
+  }
   if (pass.terrainOptions) {
     return generateTerrain(
       deriveSeed(attemptSeed, 'terrain'),
@@ -192,7 +206,7 @@ function passTerrain(
       pass.terrainOptions,
     );
   }
-  return average ? cloneTerrain(average.terrain) : averageTerrain(attemptSeed, versions);
+  return average ? cloneTerrain(average.terrain) : averageTerrain(attemptSeed, versions, slice);
 }
 
 function averageVegetation(
@@ -232,17 +246,19 @@ function premiumLayers(
   versions: LayerVersions,
   type: PremiumType,
   average: Layers | null,
+  slice: SkeletonSlice | null,
 ): Layers {
-  const pass = premiumGeneration(type, attemptSeed, versions);
+  const pass = premiumGeneration(type, attemptSeed, versions, slice);
   const base = pass.changesTerrain
-    ? passTerrain(attemptSeed, versions, pass, average)
-    : (average?.terrain ?? averageTerrain(attemptSeed, versions));
+    ? passTerrain(attemptSeed, versions, pass, average, slice)
+    : (average?.terrain ?? averageTerrain(attemptSeed, versions, slice));
+  const ownTerrain = pass.terrainOptions !== null || pass.skeletonTerrainOptions !== null;
   // Průměr souše průměrné krajiny pokusu (typy reliéfu) – spočítá se před průchodem, který terén
   // upraví na místě; vlastní terén typu (`terrainOptions`) průměrný není, pak se průměrný terén
   // u uloženého sídla spočítá navíc.
   const meanHeight = pass.fertilityAverageMean
     ? meanLandHeight(
-        average?.terrain ?? (pass.terrainOptions ? averageTerrain(attemptSeed, versions) : base),
+        average?.terrain ?? (ownTerrain ? averageTerrain(attemptSeed, versions, slice) : base),
       )
     : undefined;
   const terrain = pass.changesTerrain ? pass.terrain(base) : base;
