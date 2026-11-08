@@ -168,7 +168,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   háj mezi háji, do stropů posvátných míst; `sacredHappiness`, `happinessFactors`,
   `updateHappiness`, `summarizeVillage(…, landscape)`, `sacredLaborGainPerYear`), pramen
   a slanisko jako voda pro pole, sad a hřbitov (`premiumSpringShapes` v `squareFlags`), stezka
-  kostry brodu a průsmyku (`withPremiumRoute` ve `foundedState` – osa `route` jako upravené pevné
+  kostry brodu a průsmyku (`withSkeletonRoute` ve `foundedState` – osa `route` jako upravené pevné
   cesty s průsekem lesem bez klád a hotová zemská stezka v obou směrech, kam vede; trade.md).
   Úrodná krajina, doubravy a nivní louky působí samy přes krajinu.
 - **Osa vod víc řek** (Úloha 7 plánu kostry; world-skeleton.md – Kde všude kostra působí): mapa
