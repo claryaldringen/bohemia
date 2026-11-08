@@ -62,8 +62,8 @@ z dovezeného jídla a její muži rodu se věnují výcviku místo pole.
 - **Ženy a děti elity** jako ženy a děti rodiny ve dvorci (jen domácnost, na pole při hrozbě
   hladu; chlapci 7–13 let cvičí) – návrh Clauda.
 - **Změna pravidla:** dnes se ženatý syn po odchodu z dvorce stane rolníkem. Nově jen syn
-  vedlejší manželky. Starší vsi se převedou při načtení – muži z linie hlavních manželek, kteří
-  dnes pracují, začnou cvičit (návrh Clauda; výsledek simulace starších vsí se tím změní).
+  vedlejší manželky. Zvláštní převod starších vsí není potřeba – jde jen o vývojový Vlkov
+  (Martin 8. 11. 2026: „Ten převádět nemusíš“); pravidlo prostě platí od nové verze.
 
 ## Hradiště staví hráč
 
@@ -71,9 +71,10 @@ z dovezeného jídla a její muži rodu se věnují výcviku místo pole.
   cvičí. Žádný přepínač (Martin).
 - **NPC správce** ve vsi, kterou spravuje, posílá syny jako dnes při 80 % kapacity mapy
   ([správce](steward.md) – Kapacita mapy), takže hradiště sám nevybuduje (Martin).
-- **Převzaté hradiště správce udržuje** (Martin – „převzít a udržovat“; podrobnosti návrh Clauda):
-  převezme-li ves, ve které žije víc lidí, než uživí 80 % kapacity mapy, syny neposílá, dokud
-  počet lidí nepřesáhne počet z doby převzetí. Hradiště tak neroste ani se nerozpadne.
+- **Převzaté hradiště správce udržuje** (Martin – „převzít a udržovat“): v hradišti syny
+  neposílá pryč – synové se v něm hromadí a tvoří elitu (Martin 8. 11. 2026: „tam by se měli
+  synové hromadit v hradišti a tvořit elitu“). Hradištěm je pro správce ves, do které doména
+  v den převzetí dováží jídlo (návrh Clauda – hra hradiště jinak nerozlišuje).
 
 ## Jídlo domény
 
