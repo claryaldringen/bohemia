@@ -1,3 +1,4 @@
+import type { IsolatedReseat } from '../newcomers';
 import type { NewSettlement, Settlement, SettlementRepository, WorldCell } from '../settlements';
 import type { LayerVersions, PremiumType } from '../../domain/landscape';
 import type { OccupiedCell } from '../../domain/world';
@@ -9,6 +10,8 @@ import type { OccupiedCell } from '../../domain/world';
 export class InMemorySettlements implements SettlementRepository {
   readonly settlements: Settlement[] = [];
   readonly archived = new Set<string>();
+  /** Sídla, na kterých stojí ves (tabulka `village` v databázi) – testy je značí ručně. */
+  readonly withVillage = new Set<string>();
   /** Prémiové sídlo → hráč, kterému typ patří (převod sídla na jiného držitele ho nemění). */
   private readonly premiumOwners = new Map<string, string>();
   private nextId = 1;
@@ -132,12 +135,45 @@ export class InMemorySettlements implements SettlementRepository {
 
   async lastPremiumType(playerId: string): Promise<PremiumType | null> {
     await Promise.resolve();
-    // nejnovější = poslední vložené (createdAt je v paměti pro všechna stejné)
+    // nejnovější = poslední vložené (createdAt je v paměti pro všechna stejné); jen sídla s vsí
+    // a archivovaná – typ sídla, na kterém hráč ještě nezaložil ves, mu nepatří
     for (let i = this.settlements.length - 1; i >= 0; i--) {
       const s = this.settlements[i]!;
+      if (!this.withVillage.has(s.id) && !this.archived.has(s.id)) continue;
       if (s.premiumType && this.premiumOwners.get(s.id) === playerId) return s.premiumType;
     }
     return null;
+  }
+
+  /** Odříznuté sídelní sídlo hráče bez vsi (`PlacementTx.seatWithoutVillage`). */
+  bareIsolatedSeat(ownerId: string): Settlement | null {
+    return (
+      this.settlements.find(
+        (s) =>
+          s.ownerId === ownerId &&
+          s.isSeat &&
+          !this.archived.has(s.id) &&
+          s.localCell &&
+          !this.withVillage.has(s.id),
+      ) ?? null
+    );
+  }
+
+  /** Přesídlení odříznutého sídla bez vsi (`PlacementTx.reseatIsolated`) – obsazené políčko → false. */
+  reseatIsolated(ownerId: string, seat: IsolatedReseat): boolean {
+    const bare = this.bareIsolatedSeat(ownerId);
+    if (!bare || this.cellTaken(seat.worldCell)) return false;
+    this.settlements[this.settlements.indexOf(bare)] = {
+      ...bare,
+      landscapeSeed: seat.landscapeSeed,
+      layerVersions: seat.layerVersions,
+      worldCell: { x: seat.worldCell.x, y: seat.worldCell.y },
+      localCell: null,
+      premiumType: seat.premiumType,
+      skeleton: seat.skeleton,
+    };
+    this.premiumOwners.set(bare.id, ownerId);
+    return true;
   }
 
   private localTaken(ownerId: string, cell: WorldCell): boolean {

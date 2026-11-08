@@ -54,6 +54,7 @@ import {
   woodFellingCost,
   woodSupply,
 } from './wood';
+import { finishQuarry, finishQuarrying } from './quarry';
 import { fieldGridOf } from './squares';
 import { stewardReplace } from './steward-rebuild';
 import { isStewardBuilt, markStewardBuilt } from './steward-state';
@@ -430,6 +431,13 @@ export function finishConstructions(state: VillageState, day: number): void {
         finishPen(state, c.penId, day, c.id);
       }
       if (c.kind === 'ard') finishArd(state);
+      state.chronicle.push(finishedEvent(day, c, null));
+      continue;
+    }
+    if (c.kind === 'quarry' || c.kind === 'quarrying') {
+      // dostavěný lom, nalámaný kámen do zásoby na hromadě u dvorce (fortifications.md – Kámen)
+      if (c.kind === 'quarry') finishQuarry(state, c, day);
+      else finishQuarrying(state, c);
       state.chronicle.push(finishedEvent(day, c, null));
       continue;
     }

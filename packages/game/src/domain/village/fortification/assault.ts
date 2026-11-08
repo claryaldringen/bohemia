@@ -86,8 +86,9 @@ function step(method: AssaultMethod, extra: Partial<AssaultStep> = {}): AssaultS
 /**
  * Všechny postupy místa. Práce a hoření se násobí stavem hradby (poloviční hradba = poloviční
  * práce); stav 0 nebo žádná hradba = mezera (`open`). Vodní příkop je napřed nutné zasypat
- * u každého postupu; oheň u palisády na valu navíc zasypat val. Sekat a pálit se smí až po
- * výstupu na val a kopat ze dna příkopu – to je věcí pohybu, ne postupu.
+ * u každého postupu mimo bránu – brána má přes příkop hráz či most (návrh Clauda); oheň u palisády
+ * na valu navíc zasypat val. Sekat a pálit se smí až po výstupu na val a kopat ze dna příkopu – to
+ * je věcí pohybu, ne postupu.
  */
 export function assaultSteps(layers: CrossingLayers): AssaultStep[] {
   const { wall, rampart, gate } = layers;
@@ -130,7 +131,8 @@ export function assaultSteps(layers: CrossingLayers): AssaultStep[] {
       }
     }
   }
-  if (!moat) return steps;
+  // brána: hráz či most přes vodní příkop – branou se jde bez zasypání
+  if (!moat || gate) return steps;
   return steps.map((p) => ({
     ...p,
     fill: 'moat' as const,

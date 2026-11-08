@@ -7,6 +7,7 @@ export const LEVY_UNITS: Record<string, string> = {
   trainedOxen: 'vycvičených volů',
   horses: 'koní',
   logs: 'klád',
+  stoneM3: 'm³ kamene',
   families: 'rodin',
   men: 'mužů',
   women: 'žen',

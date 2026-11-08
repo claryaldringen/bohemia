@@ -270,11 +270,17 @@ export function fortUpkeep(
       const length = lengths.get(s.index) ?? 0;
       const perDay = (kind: FortKind, m: number): number =>
         ((m / 100) * FORTIFICATIONS.upkeepPer100MYear[kind]) / FORT_DAYS_PER_YEAR;
-      // srovnaný val se neudržuje
-      if (layerBuilt(segmentRampart(fort, s))) rampartNeed += perDay('rampart', length);
       // průlom čeká na přestavbu, shnilá hradba na nule už nemá co udržovat; kus dílu s branou
-      // s vlastní hradbou se udržuje po svém
+      // s vlastní hradbou a valem se udržuje po svém
       const parts = ownParts(fort, s);
+      // srovnaný val se neudržuje
+      const wholeM = parts.length > 0 ? pieceLength(fort, s, length) : length;
+      if (layerBuilt(segmentRampart(fort, s))) rampartNeed += perDay('rampart', wholeM);
+      for (const part of parts) {
+        if (layerBuilt(segmentRampart(fort, gatePartView(s, part)))) {
+          rampartNeed += perDay('rampart', pieceLength(fort, s, length, part));
+        }
+      }
       const pieces: { layers: { extraAgeDays?: number }; view: FortSegment; m: number }[] = [
         { layers: s, view: s, m: parts.length > 0 ? pieceLength(fort, s, length) : length },
         ...parts.map((part) => ({

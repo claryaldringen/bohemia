@@ -28,3 +28,5 @@ export * from './refuge';
 export * from './breach';
 export * from './threat';
 export * from './assault';
+export * from './moat';
+export * from './rampart';

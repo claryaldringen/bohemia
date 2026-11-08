@@ -6,6 +6,7 @@ import { distanceFactor } from './fields';
 import { applesSpoiled } from './food';
 import { recordClearedObstacles } from './obstacles';
 import { addLogs, logsFromClearedTrees } from './wood';
+import { growWildOrchards } from './wild-orchard';
 import {
   ORCHARD,
   ORCHARD_PLANTING_WINDOWS,
@@ -425,7 +426,11 @@ export function orchardSeasonDay(
   const events: ChronicleEvent[] = [];
   if (applesSpoiled(day, potteryCoverage)) rotApples(state);
   if (isOn(date, CARE_SEASON.end) && state.orchardWork?.task === 'care') state.orchardWork = null;
-  if (isOn(date, SEASON_START)) events.push(...retireOrchards(state, day));
+  if (isOn(date, SEASON_START)) {
+    // opuštěný sad zdivočí dřív, než dosloužené čtverce zaniknou (orchard.md – Zdivočelý sad)
+    growWildOrchards(state, day);
+    events.push(...retireOrchards(state, day));
+  }
   if (isOn(date, HARVEST_SEASON.end) && state.orchardWork?.task === 'harvest') {
     const kg = Math.round(harvestedApplesKg(state.orchardWork));
     if (kg > 0) events.push({ day, kind: 'apple-harvest', kg });

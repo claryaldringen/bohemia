@@ -17,12 +17,12 @@ import { HORSE_TRADE, NEIGHBOURS, TRADE_GOOD_VALUES } from '../rules';
 import { DIRECTIONS } from '../trail';
 import type { NeighbourGood, TradeGood, TradeGoods, VillageState } from '../types';
 
-/** Zboží souseda jako v povaze – dobytek vcelku (`cattle`), koně mimo povahu (`horseKinds`). */
+/** Zboží souseda jako v povaze – dobytek vcelku (`cattle`), koně (`horseKinds`) a kámen (`stoneKinds`) mimo povahu. */
 function tokens(goods: readonly TradeGood[]): NeighbourGood[] {
   return [
     ...new Set(
       goods.flatMap((g): NeighbourGood[] => {
-        if (isHorseGood(g)) return [];
+        if (isHorseGood(g) || g === 'stone') return [];
         return [isCattleGood(g) ? 'cattle' : g];
       }),
     ),
@@ -79,7 +79,7 @@ describe('povaha souseda', () => {
         expect(n.demands.some((g) => n.offers.includes(g))).toBe(false);
         for (const g of [...n.offers, ...n.demands]) expect(TRADE_GOODS).toContain(g);
         expect(n.name.length).toBeGreaterThan(0);
-        for (const g of n.offers.filter((x) => !isHorseGood(x))) {
+        for (const g of n.offers.filter((x) => !isHorseGood(x) && x !== 'stone')) {
           const value = n.supply[g]! * TRADE_GOOD_VALUES[g].valueKg;
           expect(n.supply[g]).toBeGreaterThanOrEqual(1);
           expect(value).toBeLessThanOrEqual(NEIGHBOURS.supplyKg.to + TRADE_GOOD_VALUES[g].valueKg);
@@ -99,12 +99,14 @@ describe('povaha souseda', () => {
     const offered = new Set([
       ...kindsOf.flatMap((k) => expanded(NEIGHBOURS.kinds[k].offers, k)),
       ...kindsOf.flatMap((k) => NEIGHBOURS.horseKinds[k].offers),
+      ...kindsOf.filter((k) => NEIGHBOURS.stoneKinds[k] === 'offers').map(() => 'stone' as const),
     ]);
     const wanted = new Set([
       ...kindsOf.flatMap((k) =>
         expanded([NEIGHBOURS.kinds[k].always, ...NEIGHBOURS.kinds[k].needs], k),
       ),
       ...kindsOf.flatMap((k) => NEIGHBOURS.horseKinds[k].demands),
+      ...kindsOf.filter((k) => NEIGHBOURS.stoneKinds[k] === 'demands').map(() => 'stone' as const),
     ]);
     for (const g of TRADE_GOODS) {
       expect(offered.has(g)).toBe(true);
@@ -152,12 +154,14 @@ describe('povaha souseda', () => {
       for (const d of DIRECTIONS) {
         const n = neighbourOf(seed, d);
         const strip = (goods: TradeGoods): TradeGoods =>
-          Object.fromEntries(Object.entries(goods).filter(([g]) => !isHorseGood(g)));
+          Object.fromEntries(
+            Object.entries(goods).filter(([g]) => !isHorseGood(g) && g !== 'stone'),
+          );
         all += JSON.stringify([
           n.name,
           n.kind,
-          n.offers.filter((g) => !isHorseGood(g)),
-          n.demands.filter((g) => !isHorseGood(g)),
+          n.offers.filter((g) => !isHorseGood(g) && g !== 'stone'),
+          n.demands.filter((g) => !isHorseGood(g) && g !== 'stone'),
           strip(n.supply),
           strip(n.demand),
         ]);
@@ -175,12 +179,27 @@ describe('povaha souseda', () => {
     expect(NEIGHBOURS.horseKinds.woodsmen).toEqual({ offers: [], demands: [] });
   });
 
-  it('všech 14 druhů zboží má hodnotu – jen to, co má i ves (dobytek a koně ve třech druzích)', () => {
-    expect(TRADE_GOODS).toHaveLength(14);
+  it('všech 15 druhů zboží má hodnotu – jen to, co má i ves (dobytek a koně ve třech druzích, kámen)', () => {
+    expect(TRADE_GOODS).toHaveLength(15);
     expect(TRADE_GOODS.filter(isHorseGood)).toEqual(['foals', 'mares', 'ridingHorses']);
     expect(TRADE_GOODS.filter(isCattleGood)).toEqual(['cows', 'youngOxen', 'trainedOxen']);
     expect(Object.keys(TRADE_GOOD_VALUES).sort()).toEqual([...TRADE_GOODS].sort());
     for (const g of TRADE_GOODS) expect(TRADE_GOOD_VALUES[g].valueKg).toBeGreaterThan(0);
+  });
+
+  it('kámen (trade.md – Kámen): lesní ves a řemeslníci nabízejí, obilnáři a pastevci shánějí, 10–40 m³', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      for (const d of DIRECTIONS) {
+        const n = neighbourOf(seed, d);
+        const role = NEIGHBOURS.stoneKinds[n.kind];
+        const side = role === 'offers' ? n.supply : n.demand;
+        const other = role === 'offers' ? n.demand : n.supply;
+        expect(side.stone).toBeGreaterThanOrEqual(NEIGHBOURS.stoneM3.from);
+        expect(side.stone).toBeLessThanOrEqual(NEIGHBOURS.stoneM3.to);
+        expect(other.stone).toBeUndefined();
+        expect(role === 'offers' ? n.offers : n.demands).toContain('stone');
+      }
+    }
   });
 });
 

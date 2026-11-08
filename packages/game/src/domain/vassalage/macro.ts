@@ -5,7 +5,7 @@ import type { CattleGood, TradePeople } from '../village/types';
  * Makrokomodity – zboží, které jde obchodovat za celou ves (vassalage.md – Makrokomodity; Martin
  * 2. 11. 2026: „Makrokomodity – obilí, seno, dobytek, koně, klády, lidé, práce.“): obilí a seno
  * (kg), dobytek po druzích jako v obchodě (kusy – krávy, mladí a vycvičení voli), koně (kusy)
- * a klády (kusy). Lidé a práce jdou po svých – jsou zvlášť (`MacroSpare`).
+ * a klády (kusy) a kámen (m³ – Martin 8. 11. 2026: „kámen může být komoditou v obchodě nebo ve vazalském tributu“). Lidé a práce jdou po svých – jsou zvlášť (`MacroSpare`).
  */
 export interface MacroGoods {
   grainKg: number;
@@ -13,6 +13,15 @@ export interface MacroGoods {
   cattle: Record<CattleGood, number>;
   horses: number;
   logs: number;
+  /** Kámen v celých m³ (hromady kamení; zásilka jen vozem – 1 m³ ≈ 2,5 t). */
+  stoneM3: number;
+}
+
+/**
+ * Kámen svazku; uložené podmínky a jednání z doby před kamenem řádek nemají (čtou se jako 0).
+ */
+export function stoneOf(goods: Pick<MacroGoods, 'stoneM3'>): number {
+  return (goods as { stoneM3?: number }).stoneM3 ?? 0;
 }
 
 /**
@@ -38,6 +47,7 @@ export function noMacroGoods(): MacroGoods {
     cattle: { cows: 0, youngOxen: 0, trainedOxen: 0 },
     horses: 0,
     logs: 0,
+    stoneM3: 0,
   };
 }
 
@@ -55,6 +65,7 @@ export function combineMacro(
     cattle,
     horses: f(a.horses, b.horses),
     logs: f(a.logs, b.logs),
+    stoneM3: f(stoneOf(a), stoneOf(b)),
   };
 }
 
@@ -81,5 +92,6 @@ export function macroGoodsOf(goods: MacroGoods): MacroGoods {
     cattle: { ...goods.cattle },
     horses: goods.horses,
     logs: goods.logs,
+    stoneM3: stoneOf(goods),
   };
 }

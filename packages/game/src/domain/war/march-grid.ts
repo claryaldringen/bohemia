@@ -19,6 +19,8 @@ import {
   fortWalls,
   gatePartPieces,
   layerBuilt,
+  moatDitchPieces,
+  moatFrozen,
   rampartPace,
   segmentIsGap,
   segmentRampart,
@@ -239,7 +241,8 @@ function withoutBreach(seg: FortSegment): FortSegment {
  * shnilou) je pás čtvrtinového tempa. Průchozí jsou otevřené brány a mezery – nedostavěný, shnilý,
  * prolomený nebo zbořený úsek (i srovnaný val; `segmentIsGap`, jako `fortGaps`) celým pásem; buňka, které se dotkne
  * průchod, stěnou není (jako brána u pěšin – `fortWallCells`), takže mezera úzká jako úsek vede
- * i mřížkou 10 m.
+ * i mřížkou 10 m. Val doplněný vně hradby zabírá pás přes křivku ven (`fortWalls`); napuštěný
+ * a nezamrzlý příkop (`moatDitchPieces`) je voda – neprůchodný mimo bránu.
  */
 function fortCells(
   grid: MarchGrid,
@@ -247,7 +250,12 @@ function fortCells(
   fort: Fortification,
   day: number,
   closed: ReadonlySet<number>,
-): { wall: number[]; rampart: { cell: number; height: number }[]; open: Set<number> } {
+): {
+  wall: number[];
+  rampart: { cell: number; height: number }[];
+  open: Set<number>;
+  water: number[];
+} {
   const wall: FortSegment[] = [];
   // holý val po výškách dílů (tempo podle výšky – `rampartPace`)
   const rampart = new Map<number, FortSegment[]>();
@@ -288,12 +296,20 @@ function fortCells(
     height,
     cells: cellsOf(segs, true),
   }));
+  // napuštěný a nezamrzlý vodní příkop – neprojde nikdo, dokud ho nezasype (Hradby a obrana –
+  // Druhy, Přechod hradby); brána má hráz či most, její buňky zůstanou průchozí
+  const ditch = moatFrozen(day) ? [] : moatDitchPieces(geo, fort);
+  const water =
+    ditch.length === 0
+      ? []
+      : fortWallCells(grid, { walls: ditch, gates: [] }).wall.filter((c) => !open.has(c));
   return {
     wall: wallCells.filter((c) => !open.has(c)),
     rampart: rampartCells.flatMap(({ height, cells }) =>
       cells.filter((c) => !open.has(c)).map((cell) => ({ cell, height })),
     ),
     open,
+    water,
   };
 }
 
@@ -406,6 +422,10 @@ export function marchGrid(
       grid.flags[c] = grid.flags[c]! | MARCH_WALL;
     }
     for (const c of cells.open) grid.flags[c] = grid.flags[c]! | MARCH_GATE;
+    for (const c of cells.water) {
+      grid.pace[c] = 0;
+      grid.flags[c] = grid.flags[c]! | MARCH_WATER;
+    }
   }
   return grid;
 }

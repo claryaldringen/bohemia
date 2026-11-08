@@ -7,7 +7,8 @@ import {
   woodTreeSpots,
   type AddedObstacle,
 } from '@bohemia/game';
-import type { SceneFieldPart, SceneVillage, SceneWood } from '../village-view';
+import type { SceneFieldPart, SceneVillage, SceneWildTree, SceneWood } from '../village-view';
+import { treeGrowth } from '../orchard-look';
 import {
   buildingClearings,
   clearingsKey,
@@ -38,12 +39,16 @@ export const WILD_SHRUB_MODELS = [
 export const WILD_PIONEER_MODELS = ['birch-1', 'birch-2', 'poplar-1', 'poplar-2'] as const;
 /** Stromy, které v lese vsi přibývají se stářím – dub a buk. */
 export const WILD_LATE_MODELS = ['oak-1', 'oak-2', 'beech-1', 'beech-2'] as const;
+/** Náletové jabloně opuštěného sadu (orchard.md – Zdivočelý sad) – modely sadu. */
+export const WILD_APPLE_MODELS = ['apple-1', 'apple-2', 'apple-3', 'apple-4'] as const;
 /** Pařez pokáceného stromu lesa vsi. */
 export const WILD_STUMP_MODEL = 'stump';
 
 type ShrubModel = (typeof WILD_SHRUB_MODELS)[number];
 export type WildTreeModel =
-  (typeof WILD_PIONEER_MODELS)[number] | (typeof WILD_LATE_MODELS)[number];
+  | (typeof WILD_PIONEER_MODELS)[number]
+  | (typeof WILD_LATE_MODELS)[number]
+  | (typeof WILD_APPLE_MODELS)[number];
 export type WildDecorModel = ShrubModel | typeof WILD_STUMP_MODEL;
 export type WildModel = WildTreeModel | WildDecorModel;
 
@@ -51,6 +56,7 @@ export type WildModel = WildTreeModel | WildDecorModel;
 export const WILD_TREE_MODELS: readonly WildTreeModel[] = [
   ...WILD_PIONEER_MODELS,
   ...WILD_LATE_MODELS,
+  ...WILD_APPLE_MODELS,
 ];
 export const WILD_DECOR_MODELS: readonly WildDecorModel[] = [
   ...WILD_SHRUB_MODELS,
@@ -224,6 +230,41 @@ export function woodWildPlants(wood: SceneWood, trees: readonly AddedObstacle[])
   return plants;
 }
 
+/** Dřeviny náletu: z jiných než jabloní je 60 % bříza a topol, 40 % dub a buk (návrh Clauda). */
+const WILD_OTHER_LATE_SHARE = 0.4;
+/** Jiná dřevina náletu dorůstá do plné velikosti za tolik let. */
+const WILD_OTHER_FULL_YEARS = 50;
+
+/**
+ * Náletové stromy opuštěných sadů (orchard.md – Zdivočelý sad): jabloně v modelech sadu a velikosti
+ * podle stáří jako v sadu, jiné dřeviny bříza, topol, dub, buk. Místa jsou z jádra (nepravidelná),
+ * natočení a drobný rozdíl velikosti podle id.
+ */
+export function wildTreePlants(trees: readonly SceneWildTree[]): WildPlant[] {
+  return trees.map((tree): WildPlant => {
+    const rotationY = hash01(tree.id, 0, 61) * Math.PI * 2;
+    const jitter = 0.85 + hash01(tree.id, 0, 71) * 0.3;
+    if (tree.apple) {
+      return {
+        model: pick(WILD_APPLE_MODELS, tree.id, 0, 51),
+        x: tree.x,
+        z: tree.z,
+        rotationY,
+        scale: treeGrowth(tree.age) * jitter,
+      };
+    }
+    const list =
+      hash01(tree.id, 0, 81) < WILD_OTHER_LATE_SHARE ? WILD_LATE_MODELS : WILD_PIONEER_MODELS;
+    return {
+      model: pick(list, tree.id, 0, 51),
+      x: tree.x,
+      z: tree.z,
+      rotationY,
+      scale: lerp(0.2, 1, tree.age / WILD_OTHER_FULL_YEARS) * jitter,
+    };
+  });
+}
+
 /** Stromy lesa vsi z překážek přidaných vsí – po políčkách. */
 function woodTreesByCell(village: Pick<SceneVillage, 'obstacles'>): Map<string, AddedObstacle[]> {
   const byCell = new Map<string, AddedObstacle[]>();
@@ -238,6 +279,7 @@ function woodTreesByCell(village: Pick<SceneVillage, 'obstacles'>): Map<string, 
 
 /** Ves pro zarůstání – díly polí, les vsi a jeho stromy, cesty (průsek); stavby, pod kterými nic neroste. */
 type WildVillage = Pick<SceneVillage, 'fields' | 'woods' | 'obstacles' | 'roads'> &
+  Partial<Pick<SceneVillage, 'wildTrees'>> &
   Partial<Pick<SceneVillage, 'dwellings' | 'sacred'>>;
 
 /**
@@ -285,6 +327,7 @@ function allWildPlants(village: WildVillage): WildPlant[] {
     const id = woodIdCell(wood);
     plants.push(...woodWildPlants(wood, trees.get(`${id.x},${id.y}`) ?? []));
   }
+  plants.push(...wildTreePlants(village.wildTrees ?? []));
   const bands = swathBands(village.roads);
   if (bands.length === 0) return plants;
   return plants.filter((p) => !(swathDistance(bands, p.x, p.z, 0) <= 0));
@@ -306,7 +349,17 @@ export function wildKey(village: WildVillage): string {
   const trees = (village.obstacles?.added ?? [])
     .filter((o) => isWoodTreeId(o.id))
     .map((o) => `${o.id}:${o.kind}`);
+  const wild = (village.wildTrees ?? []).map((t) => `${t.id}:${t.age}`);
   const clearings =
-    parts.length > 0 || woods.length > 0 ? clearingsKey(wildClearings(village)) : '';
-  return JSON.stringify([parts, woods, trees, swathBandsKey(swathBands(village.roads)), clearings]);
+    parts.length > 0 || woods.length > 0 || wild.length > 0
+      ? clearingsKey(wildClearings(village))
+      : '';
+  return JSON.stringify([
+    parts,
+    woods,
+    trees,
+    wild,
+    swathBandsKey(swathBands(village.roads)),
+    clearings,
+  ]);
 }

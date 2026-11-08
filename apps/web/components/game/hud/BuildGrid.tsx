@@ -9,6 +9,11 @@ import { isBuildAffordable, type BuildOption, type StockResource } from '@/lib/v
 import { useRightDenied } from './rights';
 import { Tooltip } from './Tooltip';
 
+/** Ikona stavby – PNG z 0 A.D. podle jména, vlastní kresba s příponou (lom.svg). */
+function buildIconSrc(icon: string): string {
+  return `/icons/build/${icon.includes('.') ? icon : `${icon}.png`}`;
+}
+
 /** Kolik slotů má mřížka staveb (jako příkazový panel 0 A.D.) – prázdné jsou prohlubně. */
 const GRID_SLOTS = 12;
 
@@ -209,7 +214,7 @@ export function BuildGrid({
               <GridButton
                 key={hub.kind}
                 label={hub.name}
-                icon={`/icons/build/${hub.icon}.png`}
+                icon={buildIconSrc(hub.icon)}
                 tooltip={<BuildTooltip item={hub} option={options[hub.kind] ?? null} />}
                 pressed
                 disabled={disabled}
@@ -248,7 +253,7 @@ export function BuildGrid({
                 <GridButton
                   key={item.kind}
                   label={item.name}
-                  icon={`/icons/build/${item.icon}.png`}
+                  icon={buildIconSrc(item.icon)}
                   tooltip={<BuildTooltip item={item} option={option} />}
                   pressed={active === item.kind}
                   disabled={disabled || (option !== null && !option.affordable)}

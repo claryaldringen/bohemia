@@ -91,6 +91,15 @@ describe('val a příkop', () => {
     expect(wet.every((s) => s.fill === 'moat' && s.fillManHours === 48)).toBe(true);
     expect(assaultSteps(layers('crib', { rampart })).every((s) => s.fill === null)).toBe(true);
   });
+  it('brána má přes vodní příkop hráz či most – branou bez zasypání (návrh Clauda)', () => {
+    const wet = { height: 1, water: true };
+    expect(
+      assaultSteps(layers('palisade', { rampart: wet, gate })).every((s) => s.fill === null),
+    ).toBe(true);
+    expect(assaultSteps(layers(null, { rampart: wet, gate }))).toEqual([
+      expect.objectContaining({ method: 'open', fill: null }),
+    ]);
+  });
   it('tempo a únava podle výšky', () => {
     expect(rampartPace(1)).toBe(0.25);
     expect(rampartPace(0)).toBe(1);

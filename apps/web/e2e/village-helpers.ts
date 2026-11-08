@@ -12,6 +12,7 @@ import {
   type DwellingPlot,
   type Landscape,
   type LayerVersions,
+  type SkeletonSlice,
   type PlacementVillage,
   type Position,
   type TileCell,
@@ -42,8 +43,13 @@ export async function query<T extends object>(sql: string, params: unknown[]): P
  * z databáze). Sídla archivovaná restartem hry se nepočítají.
  */
 export async function seat(email: string): Promise<Seat> {
-  const [row] = await query<{ id: string; landscape_seed: number; layer_versions: LayerVersions }>(
-    `SELECT s.id, s.landscape_seed, s.layer_versions
+  const [row] = await query<{
+    id: string;
+    landscape_seed: number;
+    layer_versions: LayerVersions;
+    skeleton: SkeletonSlice | null;
+  }>(
+    `SELECT s.id, s.landscape_seed, s.layer_versions, s.skeleton
        FROM settlement s JOIN "user" u ON u.id = s.owner_id
       WHERE u.email = $1 AND s.is_seat AND s.archived_at IS NULL`,
     [email],
@@ -52,7 +58,13 @@ export async function seat(email: string): Promise<Seat> {
   return {
     settlementId: row.id,
     seed: row.landscape_seed,
-    landscape: generateLandscapeAttempt(row.landscape_seed, row.layer_versions),
+    // s výřezem kostry (pozvaný na řece či stezce – verze `skeleton` bez výřezu by neprošla)
+    landscape: generateLandscapeAttempt(
+      row.landscape_seed,
+      row.layer_versions,
+      undefined,
+      row.skeleton,
+    ),
   };
 }
 

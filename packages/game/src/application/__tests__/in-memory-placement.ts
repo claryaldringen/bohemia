@@ -1,5 +1,6 @@
+import type { PremiumType } from '../../domain/landscape';
 import type { LanguageGroup, OccupiedCell } from '../../domain/world';
-import type { PlacementTx } from '../newcomers';
+import type { IsolatedReseat, PlacementTx } from '../newcomers';
 import type { WorldCell } from '../settlements';
 import { InMemoryHouses } from './in-memory-houses';
 import { InMemorySettlements } from './in-memory-settlements';
@@ -71,5 +72,23 @@ export class InMemoryPlacement implements PlacementTx {
     } catch {
       return false;
     }
+  }
+
+  premiumTypeCounts(): Promise<Partial<Record<PremiumType, number>>> {
+    return this.settlements.premiumTypeCounts();
+  }
+
+  lastPremiumType(playerId: string): Promise<PremiumType | null> {
+    return this.settlements.lastPremiumType(playerId);
+  }
+
+  async seatWithoutVillage(ownerId: string): Promise<boolean> {
+    await Promise.resolve();
+    return this.settlements.bareIsolatedSeat(ownerId) !== null;
+  }
+
+  async reseatIsolated(playerId: string, seat: IsolatedReseat): Promise<boolean> {
+    await Promise.resolve();
+    return this.settlements.reseatIsolated(playerId, seat);
   }
 }

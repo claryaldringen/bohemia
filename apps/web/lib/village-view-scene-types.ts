@@ -258,6 +258,23 @@ export interface SceneVillage {
    */
   logStacks?: (Pick<LogStack, 'id' | 'x' | 'z' | 'road' | 'dwellingId'> & { logs: number })[];
   /**
+   * Hromady kamení u cest (fortifications.md – Kámen): id, místo z jádra (`StoneStack`) a kámen
+   * (m³). Bez údaje žádné.
+   */
+  stoneStacks?: { id: number; x: number; z: number; m3: number }[];
+  /**
+   * Lomy na skalních výchozech (fortifications.md – Kámen): id výchozu, střed a natočení značky;
+   * `building` = lom se staví (`constructionId` jeho stavby). Bez údaje žádné.
+   */
+  quarries?: {
+    outcropId: number;
+    x: number;
+    z: number;
+    rotation: number;
+    building?: true;
+    constructionId?: number;
+  }[];
+  /**
    * Rozestavěná bourání (demolition.md – Bourání): id stavby bourání a co se boří – popisek práce
    * u člověka („bourá zemnici“). Bez údaje se nic nebourá.
    */
@@ -359,6 +376,11 @@ export interface SceneVillage {
    * (`obstacles.added`, id lesa vsi – `isWoodTreeId`). Bez údaje žádný.
    */
   woods?: SceneWood[];
+  /**
+   * Náletové stromy opuštěných sadů (orchard.md – Zdivočelý sad): jabloně a jiné dřeviny
+   * mezi starými stromy i po zániku čtverců sadu. Bez údaje žádné.
+   */
+  wildTrees?: SceneWildTree[];
   /**
    * Přirozené louky letošní seče (oxen.md – Seno; ozdobné louky na seno nahradila data):
    * políčko, střed a strana jako u dílu pole a vzhled `meadow` / `mown` / `haystacks` (rozpracované
@@ -621,6 +643,15 @@ export interface SceneCart {
  * tam i zpět (wagons.md – Co vozy vozí); ruda z rudiště (crafts.md – Uhlí a ruda kováře).
  */
 export type CartLoad = 'sheaves' | 'hay' | 'logs' | 'goods' | 'water' | 'ore' | 'clay' | 'apples';
+
+/** Náletový strom opuštěného sadu ve scéně – stáří v celých letech. */
+export interface SceneWildTree {
+  id: number;
+  x: number;
+  z: number;
+  apple: boolean;
+  age: number;
+}
 
 /** Čtverec lesa vsi ve scéně (fields.md – Les vsi). */
 export interface SceneWood {

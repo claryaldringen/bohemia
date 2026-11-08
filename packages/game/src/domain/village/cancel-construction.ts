@@ -2,6 +2,7 @@ import { validateActionDay } from './actions';
 import { refundHorsePen } from './horse-pen-payment';
 import { villageCemeteries } from './cemetery';
 import { dropFortificationWork } from './fortifications';
+import { returnConstructionStone } from './quarry';
 import { villageOrchards } from './orchard';
 import { villagePens } from './oxen';
 import { returnConstructionWood } from './relocation';
@@ -38,6 +39,9 @@ const CANCELLABLE: ReadonlySet<ConstructionKind> = new Set([
   'fortification',
   // zrušené bourání: stavba zůstane opuštěná (demolition.md – Bourání)
   'demolition',
+  // lom a lámání do zásoby (fortifications.md – Kámen); nalámaný kámen zůstane na hromadě
+  'quarry',
+  'quarrying',
 ]);
 
 /** Důvod, proč stavbu zrušit nejde; null = jde. */
@@ -297,6 +301,7 @@ export function cancelConstruction(
     }
   }
   returnConstructionWood(next, target);
+  returnConstructionStone(next, target);
   // vrátí se přesně to, čím ves zaplatila koně ohrady (horses.md – Koně se stavbou ohrady)
   if (target.horsePenPaid) refundHorsePen(next, target.horsePenPaid, day);
   dropSite(next, target);

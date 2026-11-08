@@ -148,6 +148,8 @@ export function settleUpgrade(fort: Fortification): void {
   if (kinds.size !== 1) return;
   const kind = [...kinds][0]!;
   if (kind === fort.kind) return;
+  // val doplněný vně hradby není val na křivce – opevnění zůstane druhem hradby (tvar pásu)
+  if (kind === 'rampart' && fort.segments.some((s) => s.rampartOutside)) return;
   fort.kind = kind;
   for (const s of fort.segments) {
     if (s.kind === kind || s.demolishedDay !== undefined) delete s.kind;

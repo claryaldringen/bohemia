@@ -57,6 +57,8 @@ export const TRADE_GOOD_NAMES: Record<
   pottery: { name: 'Keramika', genitive: 'keramiky', unit: 'kg', icon: 'pottery' },
   ironBars: { name: 'Hřivny', genitive: 'hřiven', unit: 'kg', icon: 'iron-bars' },
   charcoal: { name: 'Uhlí', genitive: 'uhlí', unit: 'kg', icon: 'charcoal' },
+  // kámen v m³ (trade.md – Kámen); jednotka obchodu je „ks“ = celé m³
+  stone: { name: 'Kámen', genitive: 'kamene', unit: 'ks', icon: 'stone' },
 };
 
 /**

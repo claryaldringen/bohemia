@@ -154,3 +154,42 @@ describe('les vsi – stromy z herního jádra, rostou do 70 let', () => {
     expect(wildKey(built)).not.toBe(wildKey(village));
   });
 });
+
+describe('Zdivočelý sad ve scéně', () => {
+  // náletové stromy opuštěného sadu (orchard.md – Zdivočelý sad): jabloně v modelech sadu,
+  // k nim pár jiných dřevin, nepravidelně rozmístěné podle jádra
+  const trees = Array.from({ length: 40 }, (_, i) => ({
+    id: 3_221_225_472 + i,
+    x: 20 + (i % 8) * 4.3 + (i % 3) * 0.7,
+    z: 30 + Math.floor(i / 8) * 5.1 + (i % 5) * 0.4,
+    apple: i % 5 !== 0,
+    age: (i * 3) % 40,
+  }));
+  const village = {
+    fields: [],
+    obstacles: undefined,
+    roads: undefined,
+    wildTrees: trees,
+  } as unknown as SceneVillage;
+
+  it('jabloně mají modely sadu a velikost podle stáří, ostatní jsou jiné dřeviny', () => {
+    const plants = wildPlants(village);
+    expect(plants).toHaveLength(trees.length);
+    const apples = plants.filter((p) => p.model.startsWith('apple'));
+    expect(apples).toHaveLength(trees.filter((t) => t.apple).length);
+    expect(apples.length / plants.length).toBeGreaterThan(0.7);
+    for (const p of plants) expect(isWildTreeModel(p.model)).toBe(true);
+    // mladší strom je menší
+    const young = wildPlants({ ...village, wildTrees: [{ ...trees[1]!, age: 1 }] } as SceneVillage);
+    const old = wildPlants({ ...village, wildTrees: [{ ...trees[1]!, age: 20 }] } as SceneVillage);
+    expect(young[0]!.scale).toBeLessThan(old[0]!.scale);
+  });
+
+  it('stromy nestojí v řadách (poloha podle jádra) a klíč reaguje na stáří', () => {
+    const xs = new Set(wildPlants(village).map((p) => Math.round(p.x * 10)));
+    expect(xs.size).toBeGreaterThan(15);
+    const older = { ...village, wildTrees: trees.map((t) => ({ ...t, age: t.age + 1 })) };
+    expect(wildKey(older as SceneVillage)).not.toBe(wildKey(village));
+    expect(wildKey(village)).toBe(wildKey(village));
+  });
+});

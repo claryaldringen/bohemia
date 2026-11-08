@@ -1,6 +1,8 @@
 import { deriveSeed } from '../domain/landscape/random';
+import type { LayerVersions, PremiumType, SkeletonSlice } from '../domain/landscape';
 import {
   NEWCOMERS,
+  isolatedLandscapeSeed,
   lordOffer,
   placeCluster,
   type LanguageGroup,
@@ -13,6 +15,7 @@ import { houseName, noticeHouse } from './negotiation-chronicle';
 import type { NegotiationRecord, NegotiationTx } from './negotiations';
 import type { WorldCell } from './settlements';
 import { publicHouseOf, type WorldDirectory } from './world-directory';
+import { seatOnWorld, seatSkeleton, type SeatSkeleton } from './world-seat';
 
 // Vstup nového hráče do světa (docs/design/newcomers.md): odříznutý nováček si vybere pány
 // z nabídky (žádost = holá přísaha, pán jen přijme / odmítne), nebo začne svobodný; po týdnu
@@ -73,6 +76,27 @@ export interface PlacementTx {
    * cílové políčko mezitím obsadil souběžný zápis do mřížky (nic se nepřesunulo).
    */
   moveIsolated(ownerId: string, shift: WorldCell): Promise<boolean>;
+  /** Kolik hráčů má který prémiový typ (`SettlementRepository.premiumTypeCounts`). */
+  premiumTypeCounts(): Promise<Partial<Record<PremiumType, number>>>;
+  /** Typ, který hráč dostal (`SettlementRepository.lastPremiumType` – jen sídla s vsí a archivovaná). */
+  lastPremiumType(playerId: string): Promise<PremiumType | null>;
+  /** Má hráč odříznuté sídelní sídlo bez vsi (svobodný nováček, který ještě nezaložil ves)? */
+  seatWithoutVillage(ownerId: string): Promise<boolean>;
+  /**
+   * Přesídlí odříznuté sídelní sídlo bez vsi na políčko mapy světa s novou krajinou (seed, verze,
+   * typ, výřez) – podmíněně: sídlo je pořád odříznuté a bez vsi. False – podmínka neplatí (ves
+   * mezitím založená), nebo políčko obsadil souběžný zápis do mřížky (nic se nezměnilo).
+   */
+  reseatIsolated(playerId: string, seat: IsolatedReseat): Promise<boolean>;
+}
+
+/** Nové místo a krajina odříznutého sídla bez vsi (`PlacementTx.reseatIsolated`). */
+export interface IsolatedReseat {
+  worldCell: WorldCell;
+  landscapeSeed: number;
+  layerVersions: LayerVersions;
+  premiumType: PremiumType;
+  skeleton: SkeletonSlice | null;
 }
 
 /** Rod v nabídce pánů – jen veřejné údaje (praporec kreslí web podle `houseId`). */
@@ -254,7 +278,7 @@ export async function requestLords(
 
 /** Nováček začne svobodný: stáhne žádosti a umístí se k rodům svého jazyka. */
 export async function startFree(
-  deps: Pick<NegotiateDeps, 'houses' | 'villages' | 'negotiations'>,
+  deps: Pick<NegotiateDeps, 'houses' | 'villages' | 'negotiations' | 'worldSeed'>,
   input: { playerId: string; now: Date; today: number },
 ): Promise<NewcomerResult> {
   const found = await isolatedHouse(deps, input.playerId);
@@ -290,11 +314,13 @@ export async function startFree(
  * Umístí odříznutý rod na mapu světa – uvnitř transakce jednání: podmíněně (`placed_at IS NULL`,
  * z více souběžných volání uspěje jedno, ostatní dostanou „Nováček už má pána.“) přesune celý
  * shluk vsí rodu se zachováním vzájemných poloh – vazal nejblíž sídlu pána (odstup 2), svobodný
- * nejblíž mapám rodů svého jazyka (odstup 3, bez nich u středu světa). U pána založí vazalství
- * (holá přísaha). Ostatní žádosti zavře `closeNewcomerRequests` po transakci.
+ * nejblíž mapám rodů svého jazyka (odstup 3, bez nich u středu světa). Se seedem světa jen na suchá
+ * políčka kostry (world-skeleton.md – Odříznutý nováček); svobodný, který ještě nezaložil ves,
+ * se místo přesunu přesídlí – místo, typ a krajina z políčka světa jako u pozvaného (`seatOnWorld`).
+ * U pána založí vazalství (holá přísaha). Ostatní žádosti zavře `closeNewcomerRequests` po transakci.
  */
 export async function placeNewcomer(
-  deps: Pick<NegotiateDeps, 'houses' | 'villages'>,
+  deps: Pick<NegotiateDeps, 'houses' | 'villages' | 'worldSeed'>,
   tx: NegotiationTx,
   input: {
     houseId: string;
@@ -318,23 +344,17 @@ export async function placeNewcomer(
   if (!(await tx.placement.claim(house.id, input.now))) return fail(NEWCOMER_REASONS.taken);
 
   const cluster = await tx.placement.isolatedCells(house.playerId);
-  const first = cluster[0];
-  if (first) {
+  if (cluster.length > 0) {
     const request: PlacementRequest = lordSeat
       ? { kind: 'invited', lordSeat }
       : { kind: 'independent', sameLanguage: await tx.placement.languageCells(house.language) };
-    // pozvaný a odchod ve světě zapisují do mřížky bez zámku umisťování – obsazené políčko →
-    // znovu s čerstvou mapou obsazení
-    let moved = false;
-    for (let attempt = 0; attempt < PLACEMENT_ATTEMPTS && !moved; attempt++) {
-      const { offset } = placeCluster(await tx.placement.occupiedCells(), cluster, request);
-      moved = await tx.placement.moveIsolated(house.playerId, {
-        x: offset.x - first.x,
-        y: offset.y - first.y,
-      });
-    }
-    // umístění už je zapsané (`claim`) – výjimka zruší celou transakci
-    if (!moved) throw new Error(`Nováčka ${house.id} se nepodařilo umístit na mapu světa.`);
+    const skeleton = deps.worldSeed === undefined ? null : seatSkeleton(deps.worldSeed);
+    const reseated =
+      lordSeat === null &&
+      skeleton !== null &&
+      cluster.length === 1 &&
+      (await reseatFree(tx.placement, skeleton, house.playerId, request));
+    if (!reseated) await moveCluster(tx.placement, skeleton, house.playerId, cluster, request);
   }
 
   if (lord && lordSeat) {
@@ -363,6 +383,72 @@ export async function placeNewcomer(
     await noticeHouse(tx, house, 'newcomer-assigned', { houseId: null }, input.today);
   }
   return { ok: true };
+}
+
+/**
+ * Přesune odříznutý shluk na mapu světa (`placeCluster`, se seedem světa jen na suchá políčka
+ * kostry). Pozvaný a odchod ve světě zapisují do mřížky bez zámku umisťování – obsazené políčko →
+ * znovu s čerstvou mapou obsazení.
+ */
+async function moveCluster(
+  placement: PlacementTx,
+  skeleton: SeatSkeleton | null,
+  playerId: string,
+  cluster: readonly WorldCell[],
+  request: PlacementRequest,
+): Promise<void> {
+  const first = cluster[0];
+  if (!first) return;
+  for (let attempt = 0; attempt < PLACEMENT_ATTEMPTS; attempt++) {
+    const { offset } = placeCluster(
+      await placement.occupiedCells(),
+      cluster,
+      request,
+      skeleton?.isDryCell,
+    );
+    const shift = { x: offset.x - first.x, y: offset.y - first.y };
+    if (await placement.moveIsolated(playerId, shift)) return;
+  }
+  // umístění už je zapsané (`claim`) – výjimka zruší celou transakci
+  throw new Error(`Nováčka ${playerId} se nepodařilo umístit na mapu světa.`);
+}
+
+/**
+ * Svobodný nováček bez vsi (world-skeleton.md – Svobodný nováček bez vsi): odříznutou krajinu jen
+ * viděl, a tak sídlo dostane místo a typ jako pozvaný (`seatOnWorld` u map jeho jazykové skupiny)
+ * a krajinu z políčka světa. False – sídlo už má ves (pak se přesune celý shluk na suchá políčka).
+ */
+async function reseatFree(
+  placement: PlacementTx,
+  skeleton: SeatSkeleton,
+  playerId: string,
+  request: PlacementRequest,
+): Promise<boolean> {
+  // typ sídla bez vsi hráči nepatří (`lastPremiumType` ho nevrací) – platí jen typ z dřívějška
+  const owned = await placement.lastPremiumType(playerId);
+  const playerSeed = isolatedLandscapeSeed(skeleton.worldSeed, playerId);
+  for (let attempt = 0; attempt < PLACEMENT_ATTEMPTS; attempt++) {
+    if (!(await placement.seatWithoutVillage(playerId))) return false;
+    const seat = seatOnWorld(
+      {
+        skeleton,
+        occupied: await placement.occupiedCells(),
+        counts: await placement.premiumTypeCounts(),
+        playerSeed,
+        owned,
+      },
+      request,
+    );
+    const done = await placement.reseatIsolated(playerId, {
+      worldCell: seat.cell,
+      landscapeSeed: seat.seed,
+      layerVersions: seat.layerVersions,
+      premiumType: seat.type,
+      skeleton: seat.skeleton,
+    });
+    if (done) return true;
+  }
+  throw new Error(`Nováčka ${playerId} se nepodařilo přesídlit na mapu světa.`);
 }
 
 /**

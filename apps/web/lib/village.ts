@@ -43,6 +43,8 @@ import {
   demolishFortificationSection,
   placeSacredBuilding,
   placeThreshingFloor,
+  placeQuarry,
+  orderStoneQuarrying,
   placeWorkshop,
   renameVillage,
   plantApplesAlongRoad,
@@ -640,6 +642,34 @@ export function placeThreshingFloorForPlayer(
 ): Promise<VillageActionResult> {
   return actOn(playerId, villageId, 'placeThreshingFloor', (ctx) =>
     placeThreshingFloor(
+      { villages: villages() },
+      { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
+    ),
+  );
+}
+
+/** Lom na skalním výchozu (fortifications.md – Kámen). */
+export function placeQuarryForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { position: Position },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, 'placeQuarry', (ctx) =>
+    placeQuarry(
+      { villages: villages() },
+      { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
+    ),
+  );
+}
+
+/** Nalámat do zásoby `m3` kamene v lomu `outcropId` (fortifications.md – Kámen). */
+export function orderStoneQuarryingForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { outcropId: number; m3: number },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, 'orderStoneQuarrying', (ctx) =>
+    orderStoneQuarrying(
       { villages: villages() },
       { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
     ),

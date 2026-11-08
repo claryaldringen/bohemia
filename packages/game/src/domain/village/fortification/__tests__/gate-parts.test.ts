@@ -105,7 +105,7 @@ describe('vylepšení úseku po okraj brány (Vlkov)', () => {
     }
     // stěny: kus dílu brány 2 na straně A pás ochozu, na straně B pás palisády
     const wall = fortBlockingSegments(fortOf(next), null).find((x) => x.index === B)!;
-    expect(wall.parts).toEqual({ before: 'walkway', after: 'palisade' });
+    expect(wall.parts).toEqual({ before: { kind: 'walkway' }, after: { kind: 'palisade' } });
   });
 
   it('souběžně vylepšení A a zboření B – díl s branou mezi nimi se nesrazí, pořadí nerozhoduje', () => {

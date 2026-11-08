@@ -845,5 +845,6 @@ function sentGoods(sent: LevyAmounts): MacroGoods {
     cattle: { cows: sent.cows, youngOxen: sent.youngOxen, trainedOxen: sent.trainedOxen },
     horses: sent.horses,
     logs: sent.logs,
+    stoneM3: sent.stoneM3,
   };
 }

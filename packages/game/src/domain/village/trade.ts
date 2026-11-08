@@ -44,6 +44,8 @@ import {
   offeredHorses,
   removeHorses,
 } from './horse-trade';
+import { logArrivalPoint } from './log-piles';
+import { addStone, stoneOnHand, takeStone } from './stone';
 import { addLogs, takeLogs, woodLogs } from './wood';
 import {
   TRADE_GOODS,
@@ -144,6 +146,9 @@ export function villageGoodStock(
       return Math.floor(state.legumesKg ?? 0);
     case 'logs':
       return Math.floor(woodLogs(state));
+    case 'stone':
+      // celé m³ z hromad kamení (trade.md – Kámen)
+      return Math.floor(stoneOnHand(state) + EPSILON);
     case 'pottery':
       return Math.floor(state.crafts?.potteryKg ?? 0);
     case 'ironBars':
@@ -186,6 +191,11 @@ export function addGood(state: VillageState, good: TradeGood, amount: number, da
     case 'logs':
       if (amount > 0) addLogs(state, amount, null);
       else takeLogs(state, -amount);
+      return;
+    case 'stone':
+      // koupený kámen na hromadu u cesty, prodaný z hromad nejblíž dvorci (trade.md – Kámen)
+      if (amount > 0) addStone(state, amount, null);
+      else takeStone(state, -amount, logArrivalPoint(state));
       return;
     case 'pottery': {
       const crafts = (state.crafts ??= { charcoalKg: 0, potteryKg: 0 });
@@ -241,7 +251,9 @@ export function expeditionTransport(
   get: TradeGoods,
   carts: readonly CartKind[] = [],
 ): { porters: number; carts: number; trips: number; work: number } {
-  const hasLogs = (give.logs ?? 0) > 0 || (get.logs ?? 0) > 0;
+  // klády a kámen jedou, je-li vůz, vždy na voze (kámen 2 500 kg na m³ nikdo nenese)
+  const hasLogs =
+    (give.logs ?? 0) > 0 || (get.logs ?? 0) > 0 || (give.stone ?? 0) > 0 || (get.stone ?? 0) > 0;
   let best: { porters: number; carts: number; trips: number; work: number } | null = null;
   for (let n = hasLogs && carts.length > 0 ? 1 : 0; n <= carts.length; n++) {
     const used = carts.slice(0, n);
@@ -270,6 +282,7 @@ function legCrew(
   let kg = 0;
   let logKg = 0;
   let logs = 0;
+  let stoneKg = 0;
   let heads = 0;
   let horses = 0;
   for (const [good, amount] of entries(goods)) {
@@ -277,6 +290,7 @@ function legCrew(
     else if (isHorseGood(good)) horses += amount;
     else {
       kg += amount * TRADE_GOOD_VALUES[good].carryKg;
+      if (good === 'stone') stoneKg += amount * TRADE_GOOD_VALUES[good].carryKg;
       if (good === 'logs') {
         logKg += amount * TRADE_GOOD_VALUES[good].carryKg;
         logs += amount;
@@ -295,7 +309,7 @@ function legCrew(
   const load = carts.reduce((sum, kind) => sum + CARTS.loadKg[kind], 0);
   const full = Math.floor(kg / load + EPSILON);
   const extra = kg - full * load >= TRADE.restTripShare * load - EPSILON ? 1 : 0;
-  const trips = Math.max(1, full + extra, Math.ceil(logKg / load - EPSILON));
+  const trips = Math.max(1, full + extra, Math.ceil((logKg + stoneKg) / load - EPSILON));
   return {
     trips,
     crew: (n) => {

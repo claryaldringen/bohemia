@@ -29,6 +29,7 @@ import type {
   Sheaves,
   ThreshingFloor,
   VillageWood,
+  WildTree,
 } from './types-land';
 import type {
   DietDay,
@@ -97,6 +98,20 @@ export interface StoneStack {
   m3: number;
   /** Bod osy cesty, u které hromada leží; chybí = hromada u místa sběru. */
   road?: { x: number; z: number };
+}
+
+/**
+ * Lom na skalním výchozu (fortifications.md – Hradby a obrana, Kámen; Martin 8. 11. 2026) –
+ * dostavěný; kámen se v něm láme na zakázku (`quarry.ts`). Na výchozu nejvýš jeden lom.
+ */
+export interface Quarry {
+  /** Id skalního výchozu ve vrstvě překážek – zároveň id lomu. */
+  outcropId: number;
+  /** Střed výchozu (m, svět) a natočení značky lomu (rad). */
+  x: number;
+  z: number;
+  rotation: number;
+  builtDay: number;
 }
 
 /** Postoj vsi: bránit se (stěna štítů), vzdát se při přesile (bílá vlajka), raději utéct (stromy). */
@@ -220,6 +235,8 @@ export interface VillageState {
   stoneStacks?: StoneStack[];
   /** Id další hromady kamene (`StoneStack.id`); chybí = 1. */
   nextStoneStackId?: number;
+  /** Dostavěné lomy vsi (`quarry.ts`). Chybí = žádný. */
+  quarries?: Quarry[];
   /**
    * Rozdělení práce posledního odsimulovaného dne (labor-report.ts) – pro zobrazení; simulace ho
    * čte jen přes síť pěšin (kam se chodí – vzdálenost chůze dílů, paths.md). U vsí uložených
@@ -450,6 +467,11 @@ export interface VillageState {
    * = žádný (i u vsí uložených před zarůstáním).
    */
   woods?: VillageWood[];
+  /**
+   * Náletové stromy opuštěných sadů (orchard.md – Zdivočelý sad). Chybí = žádné (i u vsí bez
+   * opuštěného sadu).
+   */
+  wildTrees?: WildTree[];
   /**
    * Dvorec vojvody (trade.md – Dvorec vojvody): id obydlí (= domácnosti), které je dvorcem vsi –
    * v nové vsi první zemnice zakladatelů, ve starší vsi nejstarší obydlí (`withManor`). Odtud jdou

@@ -96,6 +96,11 @@ export interface NegotiateDeps extends NegotiationVillages {
   ransom?: RansomHooks;
   /** Čte se z něj, které vsi rod vlastní (cílová ves musí patřit pánovi). */
   worldDirectory: Pick<WorldDirectory, 'entriesOf'>;
+  /**
+   * Seed světa – přijatý nováček se přesune jen na suchá políčka kostry (`placeNewcomer`); bez něj
+   * (testy jednání bez kostry) se kostra při umístění nováčka nebere v úvahu.
+   */
+  worldSeed?: number;
 }
 
 /** Výkupné zajatců: kontrola před jednáním a provedení po přijetí (zaplacení a propuštění). */

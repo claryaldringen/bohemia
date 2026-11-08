@@ -1,6 +1,6 @@
 import { CATTLE_GOODS } from '../village/neighbours';
 import { TRADE_GOOD_VALUES } from '../village/rules-trade';
-import { addMacro, noMacroGoods, type MacroBundle, type MacroGoods } from './macro';
+import { addMacro, noMacroGoods, stoneOf, type MacroBundle, type MacroGoods } from './macro';
 import { VASSALAGE } from './rules-vassalage';
 import { checkBundle } from './terms';
 
@@ -56,7 +56,12 @@ export function installmentValue(goods: MacroGoods): number {
   const L = VASSALAGE.loan;
   let value = goods.grainKg + goods.hayKg * L.hayValueKg;
   for (const good of CATTLE_GOODS) value += goods.cattle[good] * TRADE_GOOD_VALUES[good].valueKg;
-  return value + goods.horses * L.horseValueKg + goods.logs * TRADE_GOOD_VALUES.logs.valueKg;
+  return (
+    value +
+    goods.horses * L.horseValueKg +
+    goods.logs * TRADE_GOOD_VALUES.logs.valueKg +
+    stoneOf(goods) * TRADE_GOOD_VALUES.stone.valueKg
+  );
 }
 
 /** Hodnota všech splátek kalendáře. */

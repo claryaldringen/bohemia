@@ -152,8 +152,9 @@ vylepšit jen celé.
   - **Provedení (návrh Clauda, Ú7):** humno i jáma se po zarůstání odstraní bez zříceniny
     a kronika to zapíše. Opuštěné humno se do kapacity výmlatu nepočítá (bez humna v provozu ves
     mlátí nouzově). Opustit jámu ji vyprázdní – zrno je pak mimo jámy, zásoby se nemění. Opuštěný
-    sad se neošetřuje, nesklízí ani neobnovuje a jeho čtverce dosluhují v 60. roce sadu; nový
-    porost mezi nimi dělá zatím jen běžné zarůstání louky. Sad s rozestavěnou výsadbou nebo
+    sad se neošetřuje, nesklízí ani neobnovuje a jeho čtverce dosluhují v 60. roce sadu; mezi
+    starými stromy ročně vyrůstá nálet (jabloň z 80 %, jinak jiná dřevina) a po dosloužení čtverců
+    zůstane jako smíšený les (orchard.md – Zdivočelý sad). Sad s rozestavěnou výsadbou nebo
     obnovou nejde opustit ani zbourat. Vrácené humno se hned mlátí, vrácená jáma se plní znovu,
     vrácený sad se ošetřuje. Kód: [code/village-buildings.md](../code/village-buildings.md).
 

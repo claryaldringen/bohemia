@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
 import { neighbourCell } from '../../domain/village/world-grid';
-import { cellDistance, NEWCOMERS, WORLD, type LanguageGroup } from '../../domain/world';
+import {
+  cellDistance,
+  cellLandscapeSeed,
+  isDry,
+  NEWCOMERS,
+  seatSlot,
+  skeletonSlice,
+  SLOT_TYPES,
+  WORLD,
+  type LanguageGroup,
+} from '../../domain/world';
+import { cellSkeletonVersions } from '../cell-landscape';
+import { PREMIUM_SEAT_VERSIONS } from '../world-seat';
 import {
   acceptNegotiation,
   counterNegotiation,
@@ -116,6 +128,8 @@ async function setup(
     layerVersions: layers,
     localCell: { x: 1, y: 0 },
   });
+  // nováček už staví – na obou mapách stojí ves (ves syna vznikla odchodem z vsi sídla)
+  for (const own of await settlements.listActive('player-n')) settlements.withVillage.add(own.id);
   const villages: NegotiateDeps['villages'] = {
     find: (villageId) =>
       Promise.resolve({
@@ -341,10 +355,87 @@ describe('umístění nováčka', () => {
     const seat = await s.settlements.findSeat('player-n');
     // nejblíž rodu `b` (de, x = 10), aspoň 3 políčka od všech cizích map
     expect(cellDistance(seat!.worldCell!, { x: 10, y: 0 })).toBe(WORLD.independentGap);
+    // nováček s vsí: shluk jen na suchá políčka kostry, krajina sídla beze změny
+    for (const own of await s.settlements.listActive('player-n')) {
+      expect(isDry(skeletonSlice(4242, own.worldCell!))).toBe(true);
+    }
+    expect(seat).toMatchObject({ landscapeSeed: 2, premiumType: 'fertile' });
     expect(await startFree(s.deps, { playerId: 'player-n', now: NOW, today: TODAY })).toEqual({
       ok: false,
       reason: NEWCOMER_REASONS.placed,
     });
+  });
+});
+
+describe('svobodný nováček bez vsi (world-skeleton.md)', () => {
+  it('sídlo dostane místo u jazykové skupiny, typ podle místa a krajinu z políčka světa', async () => {
+    const s = await setup();
+    await s.houses.create({
+      playerId: 'player-m',
+      kind: 'player',
+      createdAt: NOW,
+      language: 'cs',
+      placedAt: null,
+    });
+    const isolated = await s.settlements.createSeat({
+      ownerId: 'player-m',
+      landscapeSeed: 5,
+      layerVersions: PREMIUM_SEAT_VERSIONS,
+      premiumType: 'fertile',
+      localCell: { x: 0, y: 0 },
+    });
+    // typ sídla bez vsi hráči nepatří – při přesídlení se vybírá znovu
+    expect(await s.settlements.lastPremiumType('player-m')).toBeNull();
+    expect(await startFree(s.deps, { playerId: 'player-m', now: NOW, today: TODAY })).toEqual({
+      ok: true,
+    });
+    const seat = (await s.settlements.findSeat('player-m'))!;
+    expect(seat.id).toBe(isolated!.id);
+    expect(seat.localCell).toBeNull();
+    const cell = seat.worldCell!;
+    const slice = skeletonSlice(4242, cell);
+    expect(SLOT_TYPES[seatSlot(slice)!]).toContain(seat.premiumType);
+    expect(seat.skeleton ?? null).toEqual(slice);
+    expect(seat.layerVersions).toEqual(cellSkeletonVersions(slice, PREMIUM_SEAT_VERSIONS));
+    const drawn = cellLandscapeSeed(4242, cell);
+    expect(seat.landscapeSeed - drawn).toBeGreaterThanOrEqual(0);
+    expect(seat.landscapeSeed - drawn).toBeLessThan(64);
+    // u map rodů svého jazyka (a, c – cs), aspoň 3 políčka od všech cizích map
+    const near = Math.min(cellDistance(cell, { x: 0, y: 0 }), cellDistance(cell, { x: 20, y: 0 }));
+    expect(near).toBeLessThanOrEqual(WORLD.independentGap + 1);
+    for (const o of await s.settlements.occupiedCells()) {
+      if (o.ownerId !== 'player-m') {
+        expect(cellDistance(cell, o.cell)).toBeGreaterThanOrEqual(WORLD.independentGap);
+      }
+    }
+    expect((await s.houses.activeOf('player-m'))?.placedAt).toEqual(NOW);
+  }, 120_000);
+
+  it('sídlo s vsí se nepřesídlí – přesune se na suché políčko a krajinu si nechá', async () => {
+    const s = await setup();
+    await s.houses.create({
+      playerId: 'player-m',
+      kind: 'player',
+      createdAt: NOW,
+      language: 'cs',
+      placedAt: null,
+    });
+    const isolated = await s.settlements.createSeat({
+      ownerId: 'player-m',
+      landscapeSeed: 5,
+      layerVersions: PREMIUM_SEAT_VERSIONS,
+      premiumType: 'fertile',
+      localCell: { x: 0, y: 0 },
+    });
+    s.settlements.withVillage.add(isolated!.id);
+    expect(await s.settlements.lastPremiumType('player-m')).toBe('fertile');
+    expect((await startFree(s.deps, { playerId: 'player-m', now: NOW, today: TODAY })).ok).toBe(
+      true,
+    );
+    const seat = (await s.settlements.findSeat('player-m'))!;
+    expect(seat).toMatchObject({ landscapeSeed: 5, premiumType: 'fertile', localCell: null });
+    expect(seat.skeleton ?? null).toBeNull();
+    expect(isDry(skeletonSlice(4242, seat.worldCell!))).toBe(true);
   });
 });
 

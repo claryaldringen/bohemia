@@ -179,6 +179,11 @@ export type PlacementMode =
        */
       kind: 'threshing-floor';
       check(position: Position): PlacementCheck & { cost?: PlacementCost | null };
+    }
+  | {
+      /** Lom (fortifications.md – Kámen) – značka u kurzoru, jen na skalním výchozu. */
+      kind: 'quarry';
+      check(position: Position): PlacementCheck & { cost?: PlacementCost | null };
     };
 
 /**
@@ -191,7 +196,8 @@ export type PlacementResult =
   | { kind: 'sacred'; type: SacredBuildingKind; position: Position }
   | { kind: 'fort-points'; points: [number, number][]; variant: string }
   | { kind: 'workshop'; craft: Craft; position: Position }
-  | { kind: 'threshing-floor'; position: Position };
+  | { kind: 'threshing-floor'; position: Position }
+  | { kind: 'quarry'; position: Position };
 
 /**
  * Průběžný stav umisťování pro rozhraní: kontrola, popisek (u pole výměra a cena z `preview`,

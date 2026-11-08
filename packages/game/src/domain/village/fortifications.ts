@@ -1,6 +1,5 @@
 import type { Landscape, ObstacleLayer } from '../landscape';
 import { cloneState } from './clone';
-import { distanceFactor } from './fields';
 import {
   addGate,
   autoGates,
@@ -21,7 +20,9 @@ import {
   gatePartView,
   pieceBusy,
   storeGatePart,
+  finishMoatFill,
   layerBuilt,
+  revertRampartAddition,
   segmentBuilt,
   settleUpgrade,
   upgradeDone,
@@ -42,7 +43,8 @@ import { checkFortificationPlacement } from './placement-fortifications';
 import { placementVillageOf } from './placement-village';
 import { DEMOLITION } from './rules-buildings';
 import { FORTIFICATIONS } from './rules-fortifications';
-import { quarryNear, stoneOnHand, takeStone } from './stone';
+import { nearestQuarry, quarryManDaysPerM3 } from './quarry';
+import { stoneOnHand, takeStone } from './stone';
 import type {
   ChronicleEvent,
   Construction,
@@ -240,14 +242,13 @@ export interface FortStonePlan {
 }
 
 /**
- * Kámen stavby opevnění (Hradby a obrana – Cena): napřed z hromad vsi (`stoneOnHand`), zbytek
- * z lomu v nejbližším skalním výchozu k `at` (`quarryNear`) za `pileSaves.stoneManDaysPerM3` na m³
- * × `distanceFactor` vzdálenosti; bez výchozu chybí. Bez vrstvy překážek (jen testy) se láme bez
- * polohy jako u blízkého lomu – jako kácení bez vrstvy (`planWoodFrom`). Stav nemění.
+ * Kámen stavby opevnění (Hradby a obrana – Cena, Kámen): napřed z hromad vsi (`stoneOnHand`),
+ * zbytek se láme na zakázku v nejbližším dostavěném lomu k `at` (`nearestQuarry`) za
+ * `STONE.quarryManDaysPerM3` × `distanceFactor` vzdálenosti; bez lomu chybí (Martin 8. 11. 2026:
+ * „Kámen z pole je na to nevhodný. Musíme zavést lom.“). Stav nemění.
  */
 export function fortStonePlan(
-  state: Pick<VillageState, 'stoneM3'>,
-  obstacles: ObstacleLayer | null,
+  state: Pick<VillageState, 'stoneM3' | 'quarries'>,
   needM3: number,
   at: RoadPoint,
 ): FortStonePlan {
@@ -255,10 +256,14 @@ export function fortStonePlan(
   const fromPile = Math.min(need, stoneOnHand(state));
   const rest = need - fromPile;
   if (rest <= EPSILON) return { fromPile, quarried: 0, quarryManDays: 0, missing: 0 };
-  const quarry = obstacles ? quarryNear(obstacles, at) : { distanceM: 0 };
+  const quarry = nearestQuarry(state, at);
   if (!quarry) return { fromPile, quarried: 0, quarryManDays: 0, missing: rest };
-  const perM3 = FORTIFICATIONS.pileSaves.stoneManDaysPerM3 * distanceFactor(quarry.distanceM);
-  return { fromPile, quarried: rest, quarryManDays: rest * perM3, missing: 0 };
+  return {
+    fromPile,
+    quarried: rest,
+    quarryManDays: rest * quarryManDaysPerM3(quarry.distanceM),
+    missing: 0,
+  };
 }
 
 /** Průměr bodů lomené čáry obvodu – odtud se hledají nejbližší stromy ke kácení. */
@@ -285,7 +290,7 @@ export interface FortWorkInput {
 /**
  * Založí stavbu na opevnění (mutuje `next` – klon): klády z hromady (i z pokácených stromů pásu),
  * zbytek vyhradí ke kácení mezi nejbližšími dospělými stromy (strom za `pileSaves.logManDays`
- * × vzdálenost – kácení je v ceně komplet); kámen z hromad, zbytek z lomu (`fortStonePlan`) –
+ * × vzdálenost – kácení je v ceně komplet); kámen z hromad, zbytek z lomu vsi (`fortStonePlan`) –
  * lámání se přičte k práci úseků podle jejich kamene. Vrátí důvod, když dřevo nebo kámen
  * nestačí (`FORT_NO_WOOD`, `FORT_NO_STONE`) – stav pak nemění; jinak null.
  */
@@ -316,7 +321,7 @@ export function pushWork(
   if (plan.missing > 0) return FORT_NO_WOOD;
   const stoneBy = input.plan.stoneM3 ?? [];
   const stoneNeed = stoneBy.reduce((sum, m) => sum + m, 0);
-  const stone = fortStonePlan(next, obstacles, stoneNeed, input.center);
+  const stone = fortStonePlan(next, stoneNeed, input.center);
   if (stone.missing > EPSILON) return FORT_NO_STONE(stone.missing);
   recordClearedObstacles(next, input.clearedIds, day);
   const wood = takeWood(next, plan, input.center);
@@ -345,6 +350,7 @@ export function pushWork(
     fortificationId: input.fortificationId,
     fortWork: input.work,
     fortSegments: segments,
+    ...(stone.fromPile > 0 ? { stoneFromPile: stone.fromPile } : {}),
   });
   return null;
 }
@@ -747,6 +753,8 @@ function demolishSegment(
   s.state = 0;
   delete s.top;
   delete s.topBuiltDay;
+  // srovnaný val nemá příkop
+  delete s.moatDay;
 }
 
 /**
@@ -806,6 +814,8 @@ function segmentDone(
   }
   if (c.fortWork === 'upgrade') return segmentWall(fort, s)?.kind === 'palisade';
   if (c.fortWork === 'top') return layerBuilt(segmentWall(fort, s));
+  // doplnění valu pod stojící hradbu: val dílu dostavěný
+  if (c.fortWork === 'rampart') return layerBuilt(segmentRampart(fort, s));
   // přestavba: val nebo hradba dílu dostavěné po založení stavby
   if (c.fortWork === 'rebuild') {
     const after = (layer: { builtDay: number | null } | null): boolean =>
@@ -830,8 +840,9 @@ export function workFortification(state: VillageState, c: Construction, day: num
   for (const w of c.fortSegments) {
     reached += w.cost;
     if (c.done + EPSILON < reached) return;
-    // obnova valu nemá úseky k dokončení – výška se vrátí s koncem stavby (`finishFortification`)
-    if (c.fortWork === 'restore') continue;
+    // obnova valu nemá úseky k dokončení – výška se vrátí s koncem stavby (`finishFortification`);
+    // vodní příkop se napustí naráz, až je strouha hotová (`finishMoatFill`)
+    if (c.fortWork === 'restore' || c.fortWork === 'moat') continue;
     const s = fort.segments.find((x) => x.index === w.index);
     if (!s || segmentDone(fort, s, c, w.part)) continue;
     if (c.fortWork === 'demolish' || c.fortWork === 'level') {
@@ -860,6 +871,11 @@ function finishSegmentWork(
   c: Construction,
   day: number,
 ): void {
+  if (c.fortWork === 'rampart') {
+    // val pod stojící hradbou – hradba dál stojí se svým dnem, stavem i průlomem
+    s.builtDay = day;
+    return;
+  }
   if (c.fortWork === 'top') {
     s.topBuiltDay = day;
     // díl se zbořenou nástavbou dostane nástavbu opevnění
@@ -906,6 +922,10 @@ export function finishFortification(
     delete fort.rampartHeight;
     return null;
   }
+  if (c.fortWork === 'moat') {
+    finishMoatFill(fort, c, day);
+    return null;
+  }
   // plot, který je celý palisádou, je palisáda – i po vylepšení úseků (`settleUpgrade`)
   if (c.fortWork === 'upgrade' || sectionUpgrade(c)) settleUpgrade(fort);
   return null;
@@ -915,7 +935,8 @@ export function finishFortification(
  * Zrušená stavba opevnění (mutuje klon – fortifications.md, Cena a stavba): hotové úseky zůstanou
  * stát, nehotové zmizí a obvod je otevřený. Nové opevnění bez hotového úseku zmizí celé,
  * nástavba bez hotového úseku zruší i druh nástavby. Zrušené zboření: zbořené díly zůstanou
- * zbořené, ostatní stojí dál.
+ * zbořené, ostatní stojí dál. Zrušené doplnění valu: díly bez hotového valu jsou zase hradba bez
+ * valu se stejným stářím (`revertRampartAddition`); zrušené napuštění příkopu nic nenapustí.
  */
 export function dropFortificationWork(next: VillageState, c: Construction): void {
   const forts = villageFortifications(next);
@@ -928,6 +949,24 @@ export function dropFortificationWork(next: VillageState, c: Construction): void
   }
   // vylepšení úseku: hotové díly mají cílovou hradbu, ostatní starou – nic se nevrací
   if (sectionUpgrade(c)) return;
+  // doplnění valu: díly s hotovým valem ho mají, ostatní jsou zase hradba bez valu se stejným
+  // stářím (Review Focus 2 plánu hradeb); příkop bez hotové strouhy zůstane suchý
+  if (c.fortWork === 'rampart') {
+    for (const w of c.fortSegments ?? []) {
+      const s = fort.segments.find((x) => x.index === w.index);
+      if (!s) continue;
+      if (w.part === undefined) {
+        revertRampartAddition(fort, s);
+        continue;
+      }
+      // kus dílu s branou – zpět jen vrstvy kusu
+      const view = gatePartView(s, w.part);
+      revertRampartAddition(fort, view);
+      storeGatePart(fort, s, w.part, view);
+    }
+    return;
+  }
+  if (c.fortWork === 'moat') return;
   if (c.fortWork === 'build' && fort.segments.every((s) => !segmentBuilt(s))) {
     next.fortifications = forts.filter((f) => f.id !== fort.id);
     return;

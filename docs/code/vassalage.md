@@ -20,7 +20,7 @@ vypovězení) a `panelTreeDepth` (6 pater stromu v panelu).
 ## Makrokomodity (`macro.ts`)
 
 `MacroGoods` – `grainKg`, `hayKg`, `cattle` (`Record<CattleGood>` – krávy, mladí a vycvičení voli
-jako v obchodě), `horses`, `logs`; `MacroSpare` přidá `people` (`TradePeople` – rodiny, muži, ženy)
+jako v obchodě), `horses`, `logs`, `stoneM3` (m³ kamene; `stoneOf` čte i uložené svazky bez řádku jako 0); `MacroSpare` přidá `people` (`TradePeople` – rodiny, muži, ženy)
 a `laborDays` (robota, čd za rok). Pomocné: `noMacroGoods` (vždy nový objekt), `combineMacro`,
 `addMacro`, `subtractMacro` (nejméně 0), `minMacro`, `macroGoodsOf` (bez lidí a roboty).
 
@@ -49,7 +49,9 @@ Z dnešních zásob (nejvíc vypovídá 1. 11. po výmlatu) nad pojistku vsi (n�
   a zpět `2 × cells × travelDaysPerCell` (0 políček = `TRADE.tripDays.min`). Napřed vozy
   `tradeCarts` (doma, s voly; čtyřkoláky napřed) – každý `max(1, ⌊listopad ÷ cesta⌋)` jízd, dokud
   stačí práce na vozky; zbytek práce nosiči. Dobytek a koně jen honáci z celé práce. Každý řádek
-  platí pro zboží samotné (celá doprava jen na něj) – řádky se nesčítají.
+  platí pro zboží samotné (celá doprava jen na něj) – řádky se nesčítají. Kámen (`stoneM3`) jen vozy:
+  `⌊náklad vozů ÷ VASSALAGE.transport.stoneKgPerM3 (2 500)⌋`, nosiči ani honáci ho nevezou; výhled
+  vsi (`spare.ts`) = celé m³ na hromadách kamení (`stoneOnHand`).
 - `houseSpare(villages, targetCell, commitments)` – `HouseVillage { state, cell, day? }` (bez `day`
   `state.lastDay`); u každé vsi `min(villageSpare, transportLimit(cellDistance))`, součet přes vsi,
   pak − závazky (`MacroCommitments` – makrokomodity, volitelně lidé a robota), nejméně 0. Závazky

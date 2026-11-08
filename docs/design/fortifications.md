@@ -108,7 +108,8 @@ roštová ≈ 7 m, komorová ≈ 8 m, komory po 5–6 m).
   vylepšení). Vnitřní díly po ≈ 15 m jsou jen způsob uložení, hráč je nepozná. Platí se jen délka
   hradby úseku, brána se nevylepšuje – má vlastní vylepšení (klešťová brána, věž; Úloha 13).
   Mají-li po vylepšení obě strany brány stejnou hradbu a brána jinou, stojí brána v hradbě kolem
-  sebe – převezme její druh (návrh Clauda). Zbořený úsek (mezera) dostane cílovou hradbu za cenu
+  sebe – převezme její druh (návrh Clauda). Totéž platí pro doplnění valu pod stojící hradbu:
+  val sahá po okraj brány, brána ho převezme, až ho mají obě strany. Zbořený úsek (mezera) dostane cílovou hradbu za cenu
   nové – i kus dílu s branou zbořený se sousedním úsekem.
 - **Implementováno 8. 11. 2026** (plán hradeb, Úloha 8): doména a akce vylepšení po úsecích;
   tlačítka Vylepšit v panelu úseku – Úloha 17.
@@ -119,6 +120,12 @@ roštová ≈ 7 m, komorová ≈ 8 m, komory po 5–6 m).
   potoka, řeky nebo tůně, jde napustit strouhou (¼ čd na 1 m); voda se rozlije do souvislých
   úseků příkopu, jejichž dno leží pod hladinou zdroje, ostatní zůstanou suché (deterministicky
   z terénu).
+- **Implementováno 8. 11. 2026** (plán hradeb, Úloha 11): doména a use-casy doplnění valu vně
+  hradby a napuštění příkopu, stěny, pás a pochod; tlačítka – Úloha 17, scéna – Úloha 18. Návrh
+  Clauda k provedení: brána přes vodní příkop má hráz či most – branou se jde bez zasypání,
+  zasypat je potřeba jen mimo bránu; voda přijde do všech dílů naráz, až je strouha hotová;
+  zrušené doplnění valu vrátí díly bez hotového valu přesně do stavu před zahájením; srovnaný val
+  příkop ztratí.
 
 ### Kámen
 
@@ -127,13 +134,28 @@ roštová ≈ 7 m, komorová ≈ 8 m, komory po 5–6 m).
   silná), komorová **320 m³** (čelní zeď 4 × 0,8 m – rešerše).
 - **Lom** (Martin 8. 11. 2026): „**Kámen z pole je na to nevhodný. Musíme zavést lom.**“ – lom
   vzniká **jen na skalním výchozu** mapy („Na skalním výchozu“) a láme se **na zakázku** („A“):
-  kámen se nalámá, když ho potřebuje rozestavěná hradba (lámání 1,4 čd na m³ a dovoz podle
+  kámen se nalámá, když ho potřebuje rozestavěná hradba (lámání 1 čd na m³ a dovoz podle
   vzdálenosti, jako kácení stromů pro stavby). **Kámen je komodita** – „s tím, že kámen může být
   komoditou v obchodě nebo ve vazalském tributu“ (Martin): obchod se sousedy, dávky vazalů
   (makrokomodita) a jídlo/zásoby domény ho mohou přivézt; ves bez skály ho tak získá jinde.
 - Podrobnosti (návrh Clauda): lom je stavba na výchozu (≈ 20 čd, bez dřeva); kromě zakázky
   hradby smí hráč zadat „nalámat do zásoby N m³“ (pro obchod a dávky); nalámaný či dovezený kámen
   leží na hromadách kamení u cesty (jako klády); kámen nehnije.
+- **Implementováno 8. 11. 2026** (plán hradeb, Úloha 4 přepsaná podle Martina). Návrh Clauda
+  k provedení:
+  - lom se staví z nabídky staveb jen na skalní výchoz (do 1 m za jeho okrajem); na jednom výchozu
+    jeden lom, ves jich smí mít víc (zakázka hradby láme v nejbližším). Lom chce 20 čd, dřevo ne;
+  - **lámání na zakázku** pro hradbu jen z **dostavěného** lomu: 1 čd na m³ × příplatek za
+    vzdušnou vzdálenost lomu od středu stavby; kámen na hromadách se bere napřed. Bez lomu a bez
+    kamene na hromadách roštová a komorová hradba nejde („Chybí N m³ kamene. Ves nemá lom.“);
+  - **nalámat do zásoby** zadá hráč v panelu lomu (po 10 nebo 50 m³, jedna zakázka 1–200 m³):
+    1 čd na m³ × příplatek za vzdálenost lomu od dvorce – kámen se sveze na hromadu u cesty
+    nejblíž dvorci. Práce jde ze společné práce vsi jako stavba; zrušená zakázka složí, co se už
+    nalámalo (podle odvedené práce);
+  - **zrušená stavba hradby** vrátí na hromadu kámen, který vzala z hromad, v podílu nehotové
+    práce; kámen lámaný na zakázku pro nehotové úseky se ještě nelámal, nic nevrací;
+  - hromady kamení u cesty stojí jako klády (`LOG_PILES` – u cesty do 60 m od místa, blízké se
+    spojí); ve scéně díly po 3 a 1 m³, lom je vylomená stěna s hromádkami kamení.
 
 ### Obrana bez násobku
 
@@ -295,7 +317,7 @@ Martin 8. 11. 2026 – ceny „**komplet, včetně kácení a odvozu**“: palis
 - **Kláda z hromady ušetří 1 čd** – kácení a svoz jednoho stromu (návrh Clauda; dřív navržené
   2 čd by roštovou hradbu z hromady srazily na 390 čd, méně než její zemní práce ≈ 500 čd podle
   rešerše – otázka 5). **Kámen z hromady ušetří 1 čd na m³** (rešerše: lámání a vození ≈ 1,4 čd
-  na m³, kladení zůstane).
+  na m³, kladení zůstane; lámání v lomu proto Martin-ceníkem sjednoceno na 1 čd na m³ – návrh Clauda 8. 11. 2026, aby hradba s lomem nevyšla dráž než komplet).
 - **Zablokovat smí jen cena předem** (`CLAUDE.md`): klády i kámen musí být na hromadě nebo k mání
   v krajině sídla, jako dosud u klád; práce se nečeká, jen trvá.
 - **Doplnění valu** stojí cenu valu (150 čd na 100 m), **vodní příkop** strouhu (¼ čd na 1 m).
@@ -303,10 +325,10 @@ Martin 8. 11. 2026 – ceny „**komplet, včetně kácení a odvozu**“: palis
   a komorová hradba jako nové opevnění (od roku 790 a 830 podle dne vsi, zašedlé v nabídce
   s důvodem), kámen předem. Návrh Clauda k provedení:
   - strom pro opevnění se kácí za **1 čd × příplatek za vzdálenost** (jako ostatní stavby, ale
-    1 čd místo 2 čd – kácení je v ceně komplet); kámen, který na hromadách chybí, se láme v
-    **nejbližším skalním výchozu** za 1 čd na m³ × příplatek za vzdálenost (vzdušnou) – bez výchozu
-    a bez kamene na hromadách stavba nejde („Chybí N m³ kamene.“); lámání je v práci úseků podle
-    jejich kamene;
+    1 čd místo 2 čd – kácení je v ceně komplet); kámen, který na hromadách chybí, se láme
+    ~~v nejbližším skalním výchozu za 1 čd na m³~~ v **lomu vsi** za 1 čd na m³ × příplatek za
+    vzdálenost (vzdušnou; Kámen – Martin 8. 11. 2026) – bez lomu a bez kamene na hromadách stavba
+    nejde („Chybí N m³ kamene. Ves nemá lom.“); lámání je v práci úseků podle jejich kamene;
   - **zboření** stojí ¼ práce stavby komplet (palisáda 75 čd na 100 m, plot 8,75 čd) – dřív ¼ práce
     bez kácení;
   - roštová a komorová hradba (pás 7–8 m) **vezmou díly polí a sadů pod pásem** jako val;

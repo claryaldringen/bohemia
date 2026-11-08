@@ -28,6 +28,7 @@ import {
   type UsableRef,
 } from './structure-use';
 import { addLogs } from './wood';
+import { clearWildTrees } from './wild-orchard';
 import type { ChronicleEvent, Construction, VillageState } from './types';
 
 // Bourání stavby (docs/design/demolition.md – Bourání; Martin 8. 11. 2026: „Hráč/správce může nechat
@@ -211,6 +212,8 @@ export function finishDemolition(
   } else if (target.structure === 'grain-pit') {
     next.grainPits = (next.grainPits ?? []).filter((p) => p.id !== ref.id);
   } else if (target.structure === 'orchard') {
+    // vykácený sad nedá klády ani z náletu (demolition.md – Rozhodnutí)
+    clearWildTrees(next, target.item);
     next.orchards = (next.orchards ?? []).filter((o) => o.id !== ref.id);
     if (next.orchards.length === 0) delete next.orchards;
   } else {

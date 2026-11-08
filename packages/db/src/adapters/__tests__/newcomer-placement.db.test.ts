@@ -10,7 +10,9 @@ import {
   openNegotiation,
   WORLD,
   cellDistance,
+  type IsolatedReseat,
   type NegotiateDeps,
+  type SkeletonSlice,
 } from '@bohemia/game';
 import { createDatabase } from '../../client';
 import { testDatabaseUrl } from '../../test-database';
@@ -174,5 +176,104 @@ describe('umístění nováčka (Drizzle)', () => {
       { x: 7, y: 0 },
       { x: 8, y: 0 },
     ]);
+  });
+
+  it('přesídlení sídla bez vsi: souběh dvou na stejné políčko – jeden uspěje, druhý zkusí jinde', async () => {
+    const versions = { ...CURRENT_LAYER_VERSIONS, premium: 2 as const };
+    for (const id of ['p', 'q']) {
+      await user(id);
+      await houses.create({ playerId: id, kind: 'player', createdAt: NOW, placedAt: null });
+      await settlements.createSeat({
+        ownerId: id,
+        landscapeSeed: 3,
+        layerVersions: versions,
+        premiumType: 'fertile',
+        localCell: { x: 0, y: 0 },
+      });
+    }
+    const skeleton: SkeletonSlice = {
+      world: 1,
+      rivers: [
+        { side: 'N', at: 40, widthM: 30, flow: 'in' },
+        { side: 'S', at: 71, widthM: 30, flow: 'out' },
+      ],
+      trails: [],
+    };
+    const seat = (x: number): IsolatedReseat => ({
+      worldCell: { x, y: 4 },
+      landscapeSeed: 77,
+      layerVersions: { ...versions, skeleton: 1 },
+      premiumType: 'navigable-river',
+      skeleton,
+    });
+    // typ sídla bez vsi hráči nepatří
+    expect(await settlements.lastPremiumType('p')).toBeNull();
+    const results = await Promise.all(
+      ['p', 'q'].map((id) =>
+        db.transaction(async (tx) => {
+          const placement = createPlacementTx(tx);
+          expect(await placement.seatWithoutVillage(id)).toBe(true);
+          if (await placement.reseatIsolated(id, seat(9))) return true;
+          // prohra v úložném bodě – transakce žije dál a zkusí jiné políčko
+          expect(await placement.reseatIsolated(id, seat(13))).toBe(true);
+          return false;
+        }),
+      ),
+    );
+    expect(results.filter(Boolean)).toHaveLength(1);
+    const seats = await Promise.all(['p', 'q'].map((id) => settlements.findSeat(id)));
+    expect(seats.map((x) => x?.worldCell?.x).sort()).toEqual([13, 9]);
+    for (const x of seats) {
+      expect(x).toMatchObject({
+        localCell: null,
+        landscapeSeed: 77,
+        premiumType: 'navigable-river',
+        skeleton,
+        layerVersions: { ...versions, skeleton: 1 },
+      });
+    }
+    // přesídlené už odříznuté není – podruhé nic
+    await db.transaction(async (tx) => {
+      expect(await createPlacementTx(tx).seatWithoutVillage('p')).toBe(false);
+      expect(await createPlacementTx(tx).reseatIsolated('p', seat(20))).toBe(false);
+    });
+  });
+
+  it('sídlo s vsí se nepřesídlí; jeho typ hráči patří', async () => {
+    await user('p');
+    await houses.create({ playerId: 'p', kind: 'player', createdAt: NOW, placedAt: null });
+    const own = await settlements.createSeat({
+      ownerId: 'p',
+      landscapeSeed: 3,
+      layerVersions: { ...CURRENT_LAYER_VERSIONS, premium: 2 },
+      premiumType: 'fertile',
+      localCell: { x: 0, y: 0 },
+    });
+    await db.insert(schema.village).values({
+      settlementId: own!.id,
+      name: 'Ves p',
+      state: {} as never,
+    });
+    expect(await settlements.lastPremiumType('p')).toBe('fertile');
+    await db.transaction(async (tx) => {
+      const placement = createPlacementTx(tx);
+      expect(await placement.seatWithoutVillage('p')).toBe(false);
+      expect(await placement.lastPremiumType('p')).toBe('fertile');
+      expect(await placement.premiumTypeCounts()).toEqual({ fertile: 1 });
+      expect(
+        await placement.reseatIsolated('p', {
+          worldCell: { x: 9, y: 4 },
+          landscapeSeed: 77,
+          layerVersions: { ...CURRENT_LAYER_VERSIONS, premium: 2 },
+          premiumType: 'iron-ore',
+          skeleton: null,
+        }),
+      ).toBe(false);
+    });
+    expect(await settlements.findSeat('p')).toMatchObject({
+      localCell: { x: 0, y: 0 },
+      landscapeSeed: 3,
+      premiumType: 'fertile',
+    });
   });
 });

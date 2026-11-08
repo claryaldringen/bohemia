@@ -82,10 +82,12 @@ export interface ActivePlacement {
  */
 type FootprintMode = Extract<
   PlacementMode,
-  { kind: 'dwelling' | 'plot' | 'sacred' | 'workshop' | 'threshing-floor' }
+  { kind: 'dwelling' | 'plot' | 'sacred' | 'workshop' | 'threshing-floor' | 'quarry' }
 >;
 /** Model ducha: obydlí, dílna nebo milíř uhlíře, modla či svatyně. */
 export type GhostType = DwellingType | SacredBuildingKind | WorkshopModel | 'milir';
+/** Strana čtverce značky lomu u kurzoru (m) – jako model lomu ve scéně (`quarry-renderer.ts`). */
+const QUARRY_MARK_M = 6;
 
 /**
  * Půdorys stavby u kurzoru v souřadnicích modelu (m): obydlí a dílna s variantou rozměrů podle
@@ -98,6 +100,11 @@ function footprintOf(
 ): { minX: number; maxX: number; minZ: number; maxZ: number } {
   if (mode.kind === 'sacred') {
     const half = SACRED_BUILDINGS[mode.type].footprintM / 2;
+    return { minX: -half, maxX: half, minZ: -half, maxZ: half };
+  }
+  if (mode.kind === 'quarry') {
+    // lom: značka vylomené stěny a hromady kamení na výchozu (fortifications.md – Kámen)
+    const half = QUARRY_MARK_M / 2;
     return { minX: -half, maxX: half, minZ: -half, maxZ: half };
   }
   if (mode.kind === 'threshing-floor') {
@@ -305,6 +312,7 @@ export class PlacementController implements ActivePlacement {
     if (!mode.check(position).ok) return null;
     if (mode.kind === 'workshop') return { kind: 'workshop', craft: mode.craft, position };
     if (mode.kind === 'threshing-floor') return { kind: 'threshing-floor', position };
+    if (mode.kind === 'quarry') return { kind: 'quarry', position };
     return mode.kind === 'sacred'
       ? { kind: 'sacred', type: mode.type, position }
       : { kind: 'dwelling', type: mode.type, position };
@@ -336,7 +344,7 @@ export class PlacementController implements ActivePlacement {
     const ghostType: GhostType | null =
       mode.kind === 'workshop'
         ? CRAFT_MODEL[mode.craft]
-        : mode.kind === 'threshing-floor'
+        : mode.kind === 'threshing-floor' || mode.kind === 'quarry'
           ? null
           : mode.type;
     if (ghostType !== null) this.model ??= this.context.ghostModel(ghostType);
@@ -357,7 +365,9 @@ export class PlacementController implements ActivePlacement {
         ? CRAFT_NAMES[mode.craft]
         : mode.kind === 'threshing-floor'
           ? 'Humno'
-          : FOOTPRINT_NAMES[mode.type];
+          : mode.kind === 'quarry'
+            ? 'Lom'
+            : FOOTPRINT_NAMES[mode.type];
     if (mode.kind === 'plot') {
       const at = this.plotAt(this.cursor);
       if (!at) {
@@ -413,7 +423,12 @@ export class PlacementController implements ActivePlacement {
         this.addStrip(stripSegments(world, false, 0.12, 1), look);
       }
     }
-    if (this.model && ghostType !== null && mode.kind !== 'threshing-floor') {
+    if (
+      this.model &&
+      ghostType !== null &&
+      mode.kind !== 'threshing-floor' &&
+      mode.kind !== 'quarry'
+    ) {
       // duch má tvar varianty u kurzoru (population.md – Varianty rozměrů)
       if (mode.kind !== 'sacred') {
         shapeGhost(

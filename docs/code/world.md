@@ -131,7 +131,8 @@ hráč)`) a rod s `house.placed_at` null. Pozvaný je na mapě hned (`placed_at`
   `Settlement.localCell`, `isIsolated(settlement)`; `House.placedAt`, `House.newcomerSince`.
   Migrace `0038_newcomers` (dosavadní rody `placed_at = created_at`, výchozí `now()`).
   Sídelní sídlo (odříznuté i pozvaného) má prémiovou krajinu (`Settlement.premiumType` –
-  landscape.md, Přidělení typu); vsi synů průměrnou, umístění shluku typ nemění.
+  landscape.md, Přidělení typu; odříznuté jen typ bez kostry, pozvaný podle místa kostry –
+  `seatOnWorld`); vsi synů průměrnou, umístění shluku typ nemění.
 - **Vsi syna** v odříznuté krajině: `targetSettlement` → `isolatedTarget` – soused v místní mřížce,
   seed `isolated:<rod>:x,y`, unikátní index `settlement_local_idx` (hráč + místní poloha). Zápis je
   podmíněný: `settlements.create` s `localCell` v transakci zamkne řádek rodu `FOR SHARE`
@@ -162,6 +163,19 @@ hráč)`) a rod s `house.placed_at` null. Pozvaný je na mapě hned (`placed_at`
   (vyhodí se na konci). `acceptNegotiation` ho volá **před** změnou stavu jednání; ostatní žádosti zavře
   `closeNewcomerRequests` až po transakci (jiné řádky jednání se v ní nezamykají – bez uváznutí;
   zaniklé `ended` → pozdější přijetí „Nováček už má pána.“, pánům `newcomer-taken`).
+- **Kostra při umístění** (world-skeleton.md – Hustota a stejné podmínky, Úloha 13): odříznuté
+  sídlo je suché (typ jen bez kostry), `placeNewcomer` přesune shluk jen na suchá políčka
+  (`placeCluster(…, seatSkeleton.isDryCell)`; seed světa z `NegotiateDeps.worldSeed` – bez něj
+  bez podmínky). **Svobodný bez vsi** (`startFree`, stažení žádosti, los bez pána; shluk = jen
+  sídlo) se místo přesunu přesídlí (`reseatFree`): `PlacementTx.seatWithoutVillage` → `seatOnWorld`
+  (u map jazykové skupiny, typ podle místa, `lastPremiumType` + `premiumTypeCounts` z transakce) →
+  `PlacementTx.reseatIsolated` – v úložném bodě zamkne řádek sídla `FOR UPDATE` (zakládání vsi
+  drží `FOR KEY SHARE` přes cizí klíč) a podmíněně (sídlo odříznuté a bez vsi) přepíše polohu,
+  seed, verze, typ a výřez; obsazené políčko nebo mezitím založená ves → false a nové kolo
+  (`PLACEMENT_ATTEMPTS`), s vsí přesun shluku. `lastPremiumType` vrací jen typ sídel s vsí nebo
+  archivovaných – typ odříznutého sídla bez vsi hráči nepatří. Web: `startFreeForPlayer` a stažení
+  žádosti běží pod zámkem hráče (jako založení vsi); klient po přechodu odříznutý → umístěný bez
+  vsi načte stránku znovu (nová krajina).
 - **Svobodný:** `startFree` stáhne žádosti (`withdrawn`) a umístí bez pána; `withdrawNegotiation`
   na otevřenou žádost odříznutého (`withdrawNewcomerRequest`) = `startFree`. **Volba cesty před
   vsí:** `newcomerFoundingReason` (`choosePath`) – `foundVillageForPlayer` odmítne založit ves

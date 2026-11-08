@@ -16,7 +16,17 @@ export type GatePart = 'before' | 'after';
 export const GATE_PARTS: readonly GatePart[] = ['before', 'after'];
 
 /** Pole vrstev hradby, která kus dílu s branou drží zvlášť (`FortGatePart`). */
-const PART_FIELDS = ['kind', 'top', 'builtDay', 'topBuiltDay', 'state', 'extraAgeDays'] as const;
+const PART_FIELDS = [
+  'kind',
+  'top',
+  'builtDay',
+  'topBuiltDay',
+  'state',
+  'extraAgeDays',
+  'rampartOutside',
+  'rampartHeight',
+  'moatDay',
+] as const;
 
 /** Díl, jak ho kusy u brány potřebují znát (stav vsi i pohled scény). */
 export interface GatePartSource {
@@ -128,10 +138,14 @@ function setOwn(seg: FortSegment, part: GatePart, own: FortGatePart): void {
   else seg[key] = own;
 }
 
-/** Hradba v místě – druh základu a hradby (bez stáří); zbořený kus null. */
+/**
+ * Hradba v místě – druh základu, hradby a val vně (bez stáří); zbořený kus a kus, jehož základ
+ * se teprve staví (val doplňovaný pod hradbu), null.
+ */
 function wallSign(fort: Pick<Fortification, 'kind' | 'top'>, seg: FortSegment): string | null {
-  if (seg.demolishedDay !== undefined) return null;
-  return `${segmentKind(fort, seg)}:${segmentWall(fort, seg)?.kind ?? ''}`;
+  if (seg.demolishedDay !== undefined || seg.builtDay === null) return null;
+  const outside = seg.rampartOutside === true ? ':o' : '';
+  return `${segmentKind(fort, seg)}:${segmentWall(fort, seg)?.kind ?? ''}${outside}`;
 }
 
 /**

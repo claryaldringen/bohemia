@@ -142,8 +142,11 @@ export const FORTIFICATIONS = {
    * (příkop 4 m + vnější svah 3 m) a dovnitř aspoň 3 m (víc, je-li hradba širší).
    */
   rampartOutside: { outM: 7, minInM: 3 },
-  /** Pás valu (Obvod; návrh Clauda): příkop 4 m vně, val 6 m u paty (m). */
-  rampartBand: { ditchM: 4, footM: 6 },
+  /**
+   * Pás valu (Obvod, Ve scéně; návrh Clauda): příkop 4 m vně a 1,5 m hluboký, val 6 m u paty (m).
+   * Hloubka příkopu určuje i dno vodního příkopu (Hradby a obrana – Druhy, `moatSegments`).
+   */
+  rampartBand: { ditchM: 4, footM: 6, ditchDepthM: 1.5 },
   /**
    * Poloměr vnějšího a vnitřního rohu (Obvod; návrh Clauda): plot 1,25 a 0,5 m jako pletený
    * plot pozemků, palisáda 3 m a val 8 m, vnitřní roh u nich polovina vnějšího; vyšší stupně
@@ -275,8 +278,12 @@ export const FORTIFICATIONS = {
     rampartFatigue: 0.15,
     fatigueTicks: 120,
   },
-  /** Vodní příkop v zimě zamrzne (Přechod hradby – S valem; návrh Clauda): měsíce 12, 1, 2. */
-  moat: { frozenMonths: [12, 1, 2] as readonly number[] },
+  /**
+   * Vodní příkop (Hradby a obrana – Druhy, Cena; návrh Clauda): napustí se strouhou od vody do
+   * 30 m od osy příkopu (potok, řeka, tůň) za ¼ čd na 1 m napouštěných dílů; v zimě zamrzne
+   * (Přechod hradby – S valem; Martin 8. 11. 2026: „Má zamrznout“) – měsíce 12, 1, 2.
+   */
+  moat: { frozenMonths: [12, 1, 2] as readonly number[], reachM: 30, manDaysPerM: 0.25 },
   /**
    * Obrana bez násobku (Obrana bez násobku 1; návrh Clauda): obránců na m ochozu 1 na 5 m, bránu
    * brání 2, hod na 15 m s polovinou účinku každé 4 s, kámen u paty na 3 m každé 2 s, shození

@@ -397,6 +397,12 @@ umístění a dokončení.
   **Zbourat = vykácet bez klád** (Martin: „C“): cena `ORCHARD.plantingPerHa × ha × laborShare`,
   sad s celou plochou zmizí. Vrátit smaže jen `disusedDay` – ošetřování a sklizeň jedou dál,
   stromy se nevysazují znovu.
-- **Neřešeno (návrh Clauda, otázka pro Martina):** „neuspořádaný les s převahou jabloní“ opuštěného
-  sadu zatím dělá jen běžné zarůstání louky; vlastní růst nových stromů mezi starými (a jejich
-  podoba ve scéně) není.
+- **Zdivočelý sad** (orchard.md – Zdivočelý sad; `wild-orchard.ts`, `ORCHARD_WILD`): `orchardSeasonDay`
+  1. 3. před `retireOrchards` volá `growWildOrchards` – na vysazeném čtverci opuštěného sadu
+     s pravděpodobností `saplingChance` přibude `WildTree` (`VillageState.wildTrees`, id nad
+     `WILD_TREE_ID_BASE` = `WOOD_TREE_ID_BASE` + 2^30, `OrchardSquare.wild` = počet na čtverci, strop
+     `maxPerSquare`); náhoda `deriveSeed(seed, 'wild-orchard:den:sad:čtverec')`, souřadnice rovnou
+     ve světě (rotace sadu se respektuje). Nálet přežije zánik čtverce. `obstacleChangesAt` ho
+     přidá mezi `added` (mladý do `matureYears`, pak strom; pokácený jako strom lesa vsi), takže ho
+     stavby, dřevo a cesty berou jako strom lesa vsi (`isWoodTreeId`). `restoreStructure` a bourání
+     sadu volají `clearWildTrees`.

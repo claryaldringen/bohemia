@@ -45,6 +45,7 @@ import {
   wearOf,
 } from './village-view-buildings';
 import { FLAX_BLOOM_MONTH, scenePart } from './village-view-fields';
+import { sceneWildTrees } from './village-view-wild';
 import {
   wagonHome,
   ableTeams,
@@ -76,6 +77,7 @@ import {
   structureCondition,
   tileCenterWorld,
   wholeLogs,
+  villageQuarries,
   pileLogs,
   type ConstructionSummary,
   purchaseLine,
@@ -251,6 +253,7 @@ export function sceneVillage(
   const labor = sceneLabor(state, { ...summary.people, ...summary.family }, landscape);
   const sacred = sceneSacred(state, landscape, day, summary);
   const obstacles = obstacleChangesAt(state, day);
+  const wildTrees = sceneWildTrees(state, day, obstacles);
   const roads = sceneRoads(state, summary.constructions);
   const roadTrees = sceneRoadTrees(state, day, obstacles);
   const kilns = sceneKilns(state, summary);
@@ -322,6 +325,13 @@ export function sceneVillage(
       },
     ];
   });
+  const stoneStacks = (state.stoneStacks ?? []).map((stack) => ({
+    id: stack.id,
+    x: stack.x,
+    z: stack.z,
+    m3: stack.m3,
+  }));
+  const quarries = sceneQuarries(state);
   const penned = pens.reduce((sum, pen) => sum + pen.cows, 0);
   const herds = summary.livestock.herds;
   const threshingFloors = sceneThreshingFloors(state, constructions, day, demolishing);
@@ -347,6 +357,8 @@ export function sceneVillage(
     ...(reserved.length > 0 ? { reservedTrees: reserved } : {}),
     woodLogs: wholeLogs(pileLogs(state)),
     ...(logStacks.length > 0 ? { logStacks } : {}),
+    ...(stoneStacks.length > 0 ? { stoneStacks } : {}),
+    ...(quarries.length > 0 ? { quarries } : {}),
     ...(demolitions.length > 0 ? { demolitions } : {}),
     ...(labor ? { labor } : {}),
     ...(sacred ? { sacred } : {}),
@@ -362,6 +374,7 @@ export function sceneVillage(
     ...(state.roads?.junctions ? { junctions: state.roads.junctions } : {}),
     ...(roadTrees.length > 0 ? { roadTrees } : {}),
     ...(woods.length > 0 ? { woods } : {}),
+    ...(wildTrees.length > 0 ? { wildTrees } : {}),
     ...(kilns.length > 0 ? { kilns } : {}),
     ...(kilnRemnants.length > 0 ? { kilnRemnants } : {}),
     ...(grainPits.length > 0 ? { grainPits } : {}),
@@ -691,6 +704,31 @@ export function plotOfScene(plot: ScenePlot): DwellingPlot {
  * jako obydlí, pole podle čtverců dílů, pohřebiště a sady podle svých čtverců, odstraněné
  * a pokácené překážky a vyhrazené stromy – náhled pak spočítá totéž co server.
  */
+/** Lomy vsi ve scéně – dostavěné a rozestavěné (fortifications.md – Kámen). */
+function sceneQuarries(state: VillageState): NonNullable<SceneVillage['quarries']> {
+  const built = villageQuarries(state).map((q) => ({
+    outcropId: q.outcropId,
+    x: q.x,
+    z: q.z,
+    rotation: q.rotation,
+  }));
+  const building = state.constructions.flatMap((c) =>
+    c.kind === 'quarry' && c.position !== null && c.quarryOutcrop !== undefined
+      ? [
+          {
+            outcropId: c.quarryOutcrop,
+            x: c.position.x,
+            z: c.position.z,
+            rotation: c.position.rotation,
+            building: true as const,
+            constructionId: c.id,
+          },
+        ]
+      : [],
+  );
+  return [...built, ...building];
+}
+
 export function placementVillageFromScene(scene: SceneVillage): PlacementVillage {
   // kontrola běží při každém pohybu kurzoru nad stejnou scénou – stejná ves (i rejstřík čtverců
   // staveb v jádru, který se pamatuje podle seznamů staveb)
@@ -713,6 +751,10 @@ function scenePlacementVillage(scene: SceneVillage): PlacementVillage {
       ...(d.craft ? { workshop: { craft: d.craft } } : {}),
       ...(d.plainShape ? { plainShape: true } : {}),
     })),
+    // lomy (i rozestavěné) – na výchozu jeden (fortifications.md – Kámen)
+    ...(scene.quarries
+      ? { quarries: scene.quarries.map((q) => ({ outcropId: q.outcropId })) }
+      : {}),
     // stavba opevnění zabírá celý obvod (`fortificationBand`) – ostatní stavby ji neznají
     constructions: (scene.forts ?? [])
       .filter((f) => f.building)

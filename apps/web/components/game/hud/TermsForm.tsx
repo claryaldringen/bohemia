@@ -326,6 +326,7 @@ function goodsOf(bundle: MacroBundle): MacroGoods {
     cattle: { ...bundle.cattle },
     horses: bundle.horses,
     logs: bundle.logs,
+    stoneM3: bundle.stoneM3,
   };
 }
 

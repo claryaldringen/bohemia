@@ -74,13 +74,21 @@ export interface FortSegment {
 }
 
 /**
- * Hradba části dílu s branou (`FortSegment.beforeGate` / `afterGate`): druh, nástavba valu, dny
- * dokončení, stav a stárnutí navíc – týž význam jako na dílu (chybějící druh = druh opevnění).
- * Val, příkop, průlom a zboření celého dílu zůstávají dílu.
+ * Vrstvy části dílu s branou (`FortSegment.beforeGate` / `afterGate`): druh, nástavba valu, dny
+ * dokončení, stav, stárnutí navíc a val vně hradby s příkopem – týž význam jako na dílu (chybějící
+ * druh = druh opevnění). Průlom a zboření celého dílu zůstávají dílu.
  */
 export type FortGatePart = Pick<
   FortSegment,
-  'kind' | 'top' | 'builtDay' | 'topBuiltDay' | 'state' | 'extraAgeDays'
+  | 'kind'
+  | 'top'
+  | 'builtDay'
+  | 'topBuiltDay'
+  | 'state'
+  | 'extraAgeDays'
+  | 'rampartOutside'
+  | 'rampartHeight'
+  | 'moatDay'
 >;
 
 /** Opevnění vsi – hotové i rozestavěné (úseky s `builtDay` null). */

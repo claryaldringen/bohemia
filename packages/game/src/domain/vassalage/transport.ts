@@ -69,6 +69,8 @@ export function transportLimit(state: VillageState, day: number, cells: number):
     cattle: { cows: heads, youngOxen: heads, trainedOxen: heads },
     horses: drovers * t.horsesPerDrover,
     logs: cartLogs + Math.floor(porters / t.logCarriers + EPSILON),
+    // kámen jen vozem – celé m³ z nákladu všech cest vozů
+    stoneM3: Math.floor(cartKg / t.stoneKgPerM3 + EPSILON),
   };
 }
 

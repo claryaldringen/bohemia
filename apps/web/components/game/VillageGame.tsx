@@ -51,6 +51,8 @@ import {
   addFortificationGate,
   placeSacred,
   placeThreshingFloor,
+  placeQuarry,
+  orderStoneQuarrying,
   placeWorkshop,
   plantRoadApples,
   renameVillage,
@@ -585,6 +587,16 @@ export function VillageGame({
   const placement = usePlacement(scene);
   const view = isVillageView(village) ? village : null;
   const villageError = village !== null && 'error' in village ? village.error : null;
+  // Odříznutý nováček bez vsi, který se právě dostal na mapu světa, mohl dostat sídlo s krajinou
+  // z políčka světa (svobodný – world-skeleton.md) – scéna se načte znovu; s vsí se krajina nemění.
+  const newcomerPhase = useRef<string | null>(null);
+  useEffect(() => {
+    const phase = newcomer?.phase ?? null;
+    if (newcomerPhase.current === 'isolated' && phase === 'placed' && village === null) {
+      window.location.reload();
+    }
+    newcomerPhase.current = phase;
+  }, [newcomer, village]);
   const gameOver = view?.gameOver === true;
   // Po konci hry je přes všechno obrazovka porážky – nabídka se neukáže.
   const menuShown = menuOpen && !gameOver;
@@ -1008,6 +1020,13 @@ export function VillageGame({
     );
   };
 
+  /** Zahájí stavbu lomu na skalním výchozu (fortifications.md – Kámen); server místo ověří. */
+  const buildQuarry = (position: Position): void => {
+    const villageId = viewRef.current?.id;
+    if (!villageId) return;
+    void runBuildAction(() => placeQuarry({ villageId, position }));
+  };
+
   // vymřelá a opuštěná ves nic nestaví – nabídka staveb je prázdná (i zkratky); lidé na cestě
   // po příjezdu umisťují první zemnici (migration.md – fáze 4)
   const options: Partial<Record<WebBuildKind, BuildOption | null>> = view
@@ -1264,6 +1283,15 @@ export function VillageGame({
         },
         (result) => {
           if (result.kind === 'sacred') buildSacred(result.type, result.position);
+        },
+      );
+      return;
+    }
+    if (item.placement === 'quarry') {
+      placement.start(
+        { kind: 'quarry', check: (position) => item.check(decoded, placementVillage(), position) },
+        (result) => {
+          if (result.kind === 'quarry') buildQuarry(result.position);
         },
       );
       return;
@@ -1597,6 +1625,12 @@ export function VillageGame({
               onLeave={leave}
               onLeaveSon={leaveWithSon}
               onPreviewSon={setSonPreview}
+              onOrderQuarrying={(outcropId, m3) => {
+                const villageId = viewRef.current?.id;
+                return villageId
+                  ? runBuildAction(() => orderStoneQuarrying({ villageId, outcropId, m3 }))
+                  : Promise.resolve();
+              }}
               onAbandonPart={(partId, abandon) => {
                 const villageId = viewRef.current?.id;
                 return villageId
