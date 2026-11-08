@@ -13,6 +13,7 @@ import {
   SceneLord,
   SceneRide,
   SceneShoeing,
+  SceneDemolition,
   SceneVillage,
   type SceneCraftYard,
 } from './village-view-scene-types';
@@ -291,6 +292,21 @@ export function sceneVillage(
     };
   });
   // hromady klád (forest.md – Mýcení a hromada klád) v celých kládách
+  // bourání ve vsi – co se boří (popisek práce „bourá zemnici“ – person-activity.ts)
+  const demolitions = state.constructions.flatMap((c): SceneDemolition[] => {
+    const ref = c.kind === 'demolition' ? c.demolition : undefined;
+    if (!ref) return [];
+    const home =
+      ref.structure === 'dwelling' ? state.dwellings.find((d) => d.id === ref.id) : undefined;
+    return [
+      {
+        id: c.id,
+        structure: ref.structure,
+        ...(home ? { type: home.type } : {}),
+        ...(home?.workshop ? { craft: home.workshop.craft } : {}),
+      },
+    ];
+  });
   const logStacks = (state.logStacks ?? []).flatMap((stack) => {
     const logs = wholeLogs(stack.logs);
     if (logs <= 0) return [];
@@ -330,6 +346,7 @@ export function sceneVillage(
     ...(reserved.length > 0 ? { reservedTrees: reserved } : {}),
     woodLogs: wholeLogs(pileLogs(state)),
     ...(logStacks.length > 0 ? { logStacks } : {}),
+    ...(demolitions.length > 0 ? { demolitions } : {}),
     ...(labor ? { labor } : {}),
     ...(sacred ? { sacred } : {}),
     ...(threshingFloors.length > 0 ? { threshingFloors } : {}),

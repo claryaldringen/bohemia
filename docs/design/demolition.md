@@ -110,6 +110,10 @@ vylepšit jen celé.
   **Vrátit**. Důvod, proč nejde, u kurzoru.
 - Bouraná stavba má ve scéně lešení rozebírání jako rozestavěná stavba pozpátku; opuštěná chátrá
   podle dnešních stupňů rozpadu.
+- Bouraná stavba má v panelu průběh bourání a jen tlačítko **Zrušit** (bourání); u obydlí, ve kterém
+  dočasně bydlí lidé z opuštěného domu, ikona s jejich počtem (návrh Clauda).
+- Dvorec (i zemnice zakladatelů, dokud je dvorcem) tlačítka Opustit a Zbourat nemá vůbec – nejde to
+  nikdy, zašedlé ikony by jen zabíraly místo (návrh Clauda).
 
 ## Čísla (návrh Clauda – do `rules-buildings.ts`, `DEMOLITION`)
 

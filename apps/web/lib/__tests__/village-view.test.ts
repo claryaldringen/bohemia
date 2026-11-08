@@ -1795,6 +1795,14 @@ describe('štěstí a posvátná místa v pohledu na ves', () => {
         condition: 1,
         abandoned: false,
         repair: null,
+        // hotová modla jde opustit a zbourat (demolition.md – Rozhraní)
+        use: expect.objectContaining({
+          structure: 'idol',
+          id: 40,
+          state: 'in-use',
+          block: null,
+          demolishing: null,
+        }) as unknown,
       },
       {
         id: 41,

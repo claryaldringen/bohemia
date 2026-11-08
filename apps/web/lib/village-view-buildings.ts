@@ -8,6 +8,7 @@ import {
 } from './village-view-types';
 import { ScenePen, SceneSacred, SceneSacredOak, SceneVillage } from './village-view-scene-types';
 import { repairProgress } from './village-view-chronicle';
+import { structureUseOf } from './village-view-structure-use';
 import {
   ORCHARD_WINDOWS,
   sacredBuildingHappiness,
@@ -379,6 +380,7 @@ export function sacredView(
         condition: structureCondition(wears.get(b.id), b.kind, day),
         abandoned: isAbandoned(wears.get(b.id)),
         repair: repairProgress(summary.constructions, b.kind, b.id),
+        ...structureUseOf(state, summary, { structure: b.kind, id: b.id }, day),
       })),
       ...sites,
     ],

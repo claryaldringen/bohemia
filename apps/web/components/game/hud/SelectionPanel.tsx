@@ -7,6 +7,7 @@ import { PEN_NAMES } from '@/lib/build-items';
 import { formatPercent } from '@/lib/village-format';
 import { ROAD_KIND_NAMES, SACRED_BUILDING_NAMES } from '@/lib/village-view';
 import { AbandonPartButton } from './AbandonPartButton';
+import { StructureUseButtons, type StructureUseActions } from './StructureUseButtons';
 import { CancelConstructionButton } from './RelocationControls';
 import { Tooltip } from './Tooltip';
 import { StewardBuiltMark } from './StewardToggle';
@@ -70,6 +71,8 @@ export { ROAD_KIND_ICONS } from './selection/roads';
  * vylepšení (`onUpgradeRoad`), vozová cesta (`onBuildWagonRoad` s náhledem `wagonPlan`)
  * a výsadba jabloní (`onPlantRoadApples`). Obydlí a víc vybraných
  * obydlí: Odejít (`onLeave` – migration.md); staveniště: Zrušit (`onCancelConstruction`).
+ * Obydlí, ohrada, modla a svatyně: Opustit / Zbourat / Vrátit (`onStructureUse` – demolition.md),
+ * bouraná stavba Zrušit bourání.
  */
 export function SelectionPanel({
   details,
@@ -93,6 +96,7 @@ export function SelectionPanel({
   onGateMode,
   ennoble,
   onAbandonPart,
+  onStructureUse,
 }: {
   details: SelectionDetails | null;
   /** Opustí díl pole, nebo ho vrátí do osevu (server action – fields.md, Opuštěný díl). */
@@ -118,7 +122,8 @@ export function SelectionPanel({
   /** Náhled vozové cesty vybrané cesty (`planWagonRoad` ve scéně); null – ještě se hledá. */
   wagonPlan?: WagonRoadPlan | null;
 } & RelocationActions &
-  ManorActions): ReactElement | null {
+  ManorActions &
+  Pick<StructureUseActions, 'onStructureUse'>): ReactElement | null {
   const [panelRef, scroll] = useOverflowScroll();
   if (!details) return null;
   let portrait: ReactElement;
@@ -313,6 +318,11 @@ export function SelectionPanel({
       />
     );
   }
+  // Opustit / Zbourat / Vrátit (demolition.md – Rozhraní) u obydlí, ohrady, modly a svatyně
+  const structureUse =
+    details.kind === 'dwelling' || details.kind === 'pen' || details.kind === 'sacred'
+      ? details.use
+      : undefined;
   // Panel roste s obsahem (w-max) do mezí `hud-selection` (globals.css – mezi minimapou a mřížkou
   // staveb, nejvýš 70 % okna); text se nezalamuje, širší obsah se zalomí po celých položkách.
   return (
@@ -330,9 +340,18 @@ export function SelectionPanel({
         {body}
         {(details.cancelConstructionId !== undefined ||
           details.stewardBuilt ||
-          details.kind === 'field-part') && (
+          details.kind === 'field-part' ||
+          structureUse !== undefined) && (
           <div className="ml-auto flex items-center gap-1 self-start">
             {details.stewardBuilt && <StewardBuiltMark />}
+            {structureUse !== undefined && (
+              <StructureUseButtons
+                key={`${structureUse.structure}-${structureUse.id}`}
+                use={structureUse}
+                onStructureUse={onStructureUse}
+                onCancelConstruction={onCancelConstruction}
+              />
+            )}
             {details.kind === 'field-part' && (
               <AbandonPartButton
                 partId={details.partId}

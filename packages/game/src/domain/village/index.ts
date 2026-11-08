@@ -87,6 +87,7 @@ export * from './rules-steward';
 export * from './households';
 export {
   displacedCount,
+  lodgersIn,
   lodgingShortfall,
   noRoomReason,
   pruneDisplaced,

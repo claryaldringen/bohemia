@@ -2,6 +2,7 @@ import { structureCondition } from './abandonment';
 import type { BuildResult } from './build-intent';
 import { cloneState } from './clone';
 import { demolitionOf, isDisused } from './disused';
+import { villageManorId } from './manor';
 import { villagePens } from './oxen';
 import { lodgingShortfall, noRoomReason, vacateDwelling } from './displaced';
 import { oxenOf, penSpecies } from './pens';
@@ -53,6 +54,17 @@ export function targetOf(state: VillageState, ref: UsableRef): Target | null {
   return item ? { structure: ref.structure, item } : null;
 }
 
+/**
+ * Je stavba dvorcem vsi? Dvorec je i zemnice zakladatelů, dokud se nepřestaví (trade.md – Dvorec
+ * vojvody), proto podle `villageManorId`, ne jen podle typu.
+ */
+export function isManorTarget(state: VillageState, target: Target): boolean {
+  return (
+    target.structure === 'dwelling' &&
+    (target.item.type === 'dvorec' || target.item.id === villageManorId(state))
+  );
+}
+
 /** Důvod, proč stavbu nejde opustit (česky pro hráče); null = jde. */
 export function disuseBlock(
   state: VillageState,
@@ -61,7 +73,7 @@ export function disuseBlock(
 ): string | null {
   const target = targetOf(state, ref);
   if (!target) return STRUCTURE_MISSING;
-  if (target.structure === 'dwelling' && target.item.type === 'dvorec') return MANOR_STAYS;
+  if (isManorTarget(state, target)) return MANOR_STAYS;
   if (isDisused(target.item)) return ALREADY_DISUSED;
   if (target.structure === 'dwelling') {
     // obyvatelé se rozejdou do volných míst v ostatních obydlích (displaced.ts)

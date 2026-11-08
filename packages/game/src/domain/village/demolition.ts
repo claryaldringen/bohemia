@@ -13,6 +13,7 @@ import {
   STRUCTURE_MISSING,
   beginDisuse,
   disuseBlock,
+  isManorTarget,
   targetOf,
   type Target,
   type UsableRef,
@@ -92,7 +93,7 @@ export function demolitionBlock(
   const target = targetOf(state, ref);
   if (!target) return STRUCTURE_MISSING;
   if (demolitionOf(state, ref)) return ALREADY_DEMOLISHING;
-  if (target.structure === 'dwelling' && target.item.type === 'dvorec') return MANOR_STAYS;
+  if (isManorTarget(state, target)) return MANOR_STAYS;
   if (target.item.disusedDay !== undefined) return null;
   // stavba se napřed opustí (obyvatelé se rozejdou, ohrada nesmí být ve stavbě)
   return disuseBlock(state, ref, day);

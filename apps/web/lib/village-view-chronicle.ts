@@ -837,12 +837,12 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'structure-abandoned':
       return 'Stavba opuštěna.';
     case 'structure-restored':
-      return 'Opuštěná stavba vrácena do užívání.';
+      return 'Stavba vrácena.';
     case 'structure-repaired':
       return STRUCTURE_REPAIRED_TEXTS[event.structure];
     case 'structure-demolished':
       return event.logs > 0
-        ? `Stavba zbourána, ${event.logs} klád na hromadě.`
+        ? `Stavba zbourána – ${formatInteger(event.logs)} ${plural(event.logs, 'kláda', 'klády', 'klád')} na hromadu.`
         : 'Stavba zbourána.';
     case 'weather':
       return weatherText(event.summer, event.winter);

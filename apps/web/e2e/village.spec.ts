@@ -1733,3 +1733,114 @@ test('správce jiné vsi ze seznamu – pohled zůstane na zobrazené vsi', asyn
   await expect(name).toHaveText(first);
   await expect(page.getByTestId('steward-badge')).toHaveCount(0);
 });
+
+test('hráč zboří obydlí – lidé bydlí dočasně jinde – a opustí a vrátí ohradu', async ({ page }) => {
+  const { seat: s } = await newPlayer(page, 'bourani');
+  const spots = villageSpots(s.landscape);
+  await found(page, spots.dwelling);
+  // obydlí A s mladým párem a prázdné obydlí B vedle dvorce zakladatelů (demolition.md – Obydlí)
+  const [homeA, homeB] = freeHomes(s.landscape, spots.dwelling, [spots.dwelling], 2);
+  const village: PlacementVillage = {
+    dwellings: [spots.dwelling, homeA!, homeB!].map((position) => ({ type: 'zemnice', position })),
+    constructions: [],
+    parts: [],
+  };
+  const tile = tileOfWorldPoint(s.landscape, spots.dwelling.x, spots.dwelling.z)!;
+  const cell = [3, 4, 5, 6, 7]
+    .flatMap((r) => [
+      { x: tile.x + r, y: tile.y },
+      { x: tile.x - r, y: tile.y },
+      { x: tile.x, y: tile.y + r },
+      { x: tile.x, y: tile.y - r },
+    ])
+    .find((c) => penSquaresFromCells(s.landscape, village, [c], 'sheep').check.ok);
+  expect(cell).toBeDefined();
+  await page.keyboard.press('o');
+  await page.getByTestId('build-grid').getByRole('button', { name: 'Ohrada ovcí' }).click();
+  await confirmPlacement(page, { kind: 'squares', cells: [cell!], variant: 'sheep' });
+  await expect.poll(async () => (await villageState(s.settlementId)).pens?.length ?? 0).toBe(1);
+
+  const state = withBuiltFirstDwelling(await villageState(s.settlementId));
+  const ids = [homeA!, homeB!].map((position) => {
+    const id = state.nextId++;
+    state.dwellings.push({ id, type: 'zemnice', builtDay: state.lastDay, condition: 1, position });
+    return id;
+  });
+  const adultBorn = state.lastDay - Math.ceil(20 * 365.25);
+  state.people.push(
+    { id: state.nextId++, bornDay: adultBorn, dwellingId: ids[0]!, sex: 'male' },
+    { id: state.nextId++, bornDay: adultBorn, dwellingId: ids[0]!, sex: 'female' },
+  );
+  const pen = state.pens![0]!;
+  pen.builtDay = state.lastDay;
+  state.constructions = state.constructions.filter((c) => c.kind !== 'pen');
+  state.storesKg = 1500;
+  await writeVillageState(s.settlementId, state);
+  await pollVillage(page);
+  await page.keyboard.press('r');
+
+  const panel = page.getByTestId('selection-panel');
+  const select = async (at: Position, kind: string): Promise<void> => {
+    await expect
+      .poll(
+        async () => {
+          const point = await page.evaluate(
+            (p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z),
+            at,
+          );
+          if (!point) return null;
+          await page.mouse.move(point.x - 3, point.y);
+          await page.mouse.click(point.x, point.y);
+          return panel.getAttribute('data-kind');
+        },
+        { timeout: 30_000 },
+      )
+      .toBe(kind);
+  };
+
+  // Zbourat obydlí A: pár se nastěhuje do prázdného B, z A je staveniště bourání (jen Zrušit)
+  await select(homeA!, 'dwelling');
+  await expect(panel.getByTestId('selection-occupants')).toHaveText('2/6', { timeout: 20_000 });
+  await expect(panel.getByTestId('structure-abandon')).toBeEnabled();
+  await panel.getByTestId('structure-demolish').click();
+  await expect
+    .poll(async () => {
+      const saved = await villageState(s.settlementId);
+      return {
+        inB: saved.people.filter((p) => p.dwellingId === ids[1]).length,
+        demolitions: saved.constructions.filter((c) => c.kind === 'demolition').length,
+      };
+    })
+    .toEqual({ inB: 2, demolitions: 1 });
+  await expect(panel.getByTestId('cancel-construction')).toBeVisible({ timeout: 20_000 });
+  await expect(panel.getByTestId('structure-demolish')).toHaveCount(0);
+  await expect(panel.getByTestId('selection-demolition')).toBeVisible();
+
+  // Pár z A se nastěhoval do prázdného B (demolition.md – Obydlí) – B pak opustit ani zbourat
+  // nejde (dvorec nehostí, A se bourá), důvod u kurzoru
+  await select(homeB!, 'dwelling');
+  await expect(panel.getByTestId('selection-occupants')).toHaveText('2/6', { timeout: 20_000 });
+  const demolish = panel.getByTestId('structure-demolish');
+  await expect(demolish).toBeDisabled();
+  await demolish.hover({ force: true });
+  await expect(
+    panel
+      .locator('span.group\\/tooltip', { has: page.getByTestId('structure-demolish') })
+      .getByTestId('rights-reason'),
+  ).toHaveText(/Obyvatelé nemají kam jít/);
+
+  // Ohrada: Opustit → Vrátit
+  await select({ x: pen.x, z: pen.z, rotation: 0 }, 'pen');
+  await panel.getByTestId('structure-abandon').click();
+  await expect
+    .poll(async () => (await villageState(s.settlementId)).pens![0]!.disusedDay !== undefined)
+    .toBe(true);
+  const restore = panel.getByTestId('structure-restore');
+  await expect(restore).toBeEnabled({ timeout: 20_000 });
+  await restore.click();
+  await expect
+    .poll(async () => (await villageState(s.settlementId)).pens![0]!.disusedDay)
+    .toBeUndefined();
+  await expect(panel.getByTestId('structure-abandon')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
+});

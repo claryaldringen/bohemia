@@ -58,6 +58,7 @@ import {
   boughtProducts,
 } from './village-view-types';
 import { SceneVillage } from './village-view-scene-types';
+import { structureUseOf } from './village-view-structure-use';
 import { cartEarthworksOf, cartFieldsOf } from './cart-routes';
 import {
   CHRONICLE_LENGTH,
@@ -394,6 +395,7 @@ export function buildVillageView(
         residents,
         ageYears: dwelling ? Math.max(0, Math.floor((day - dwelling.builtDay) / DAYS_PER_YEAR)) : 0,
         relocationBlock: relocationBlock(state, h.dwellingId),
+        ...structureUseOf(state, summary, { structure: 'dwelling', id: h.dwellingId }, day),
       };
     }),
     storesKg: summary.storesKg,
@@ -627,6 +629,7 @@ function penViews(state: VillageState, day: number, summary: VillageSummary): Vi
       condition: structureCondition(wear, 'pen', day),
       abandoned: isAbandoned(wear),
       repair: repairProgress(summary.constructions, 'pen', pen.id),
+      ...structureUseOf(state, summary, { structure: 'pen', id: pen.id }, day),
     };
   });
 }

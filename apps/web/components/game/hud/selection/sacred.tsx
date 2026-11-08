@@ -3,6 +3,7 @@ import { type ReactElement } from 'react';
 import { type SelectionDetails } from '@/lib/selection-details';
 import { formatInteger, formatPercent } from '@/lib/village-format';
 import { Stat, Bar, Wear, RepairBar, HappinessGain } from './parts';
+import { DemolitionBar } from '../StructureUseButtons';
 
 /** Dospělé duby – ikona dubu a počet (háj: duby v háji, stavba: duby ke skácení). */
 export function Oaks({
@@ -52,6 +53,7 @@ export function SacredBody({
           <Wear condition={details.condition} abandoned={details.abandoned} />
         </div>
         {details.repair !== null && <RepairBar value={details.repair} />}
+        <DemolitionBar use={details.use} />
       </div>
     );
   }

@@ -132,6 +132,8 @@ describe('Opustit', () => {
   it('důvody odmítnutí', () => {
     const s = fixture();
     s.dwellings[1]!.type = 'dvorec';
+    // přestavěný dvorec je dvorcem vsi (`manorId`) – jinak by jím byla nejstarší zemnice 1
+    s.manorId = 2;
     s.pens = [pen(1), pen(2, { builtDay: null }), pen(3)];
     s.constructions = [
       {
@@ -154,6 +156,8 @@ describe('Opustit', () => {
     expect(reason('dwelling', 1)).toBeNull();
     expect(reason('dwelling', 2)).toBe(MANOR_STAYS);
     expect(reason('dwelling', 99)).toBe(STRUCTURE_MISSING);
+    // zemnice zakladatelů, dokud se nepřestaví, je taky dvorec (villageManorId)
+    expect(disuseBlock({ ...s, manorId: 1 }, { structure: 'dwelling', id: 1 })).toBe(MANOR_STAYS);
     expect(reason('pen', 2)).toBe(STRUCTURE_UNFINISHED);
     expect(reason('pen', 3)).toBe(STRUCTURE_BUSY);
     expect(reason('pen', 1)).toBeNull();

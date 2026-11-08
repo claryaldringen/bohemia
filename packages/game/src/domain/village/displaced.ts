@@ -48,6 +48,13 @@ export function displacedCount(state: VillageState): number {
   return pruned(state).length;
 }
 
+/** Kolik lidí z opuštěných obydlí dočasně bydlí v obydlí `dwellingId` (panel obydlí). */
+export function lodgersIn(state: VillageState, dwellingId: number): number {
+  let count = 0;
+  for (const r of pruned(state)) count += r.people.filter((m) => m.host === dwellingId).length;
+  return count;
+}
+
 /** Záznamy bez mrtvých a bez těch, co už bydlí jinde než u hostitele (sňatek, odchod). */
 function pruned(state: VillageState): NonNullable<VillageState['displaced']> {
   const byId = new Map(state.people.map((p) => [p.id, p]));
