@@ -125,6 +125,12 @@ vylepšit jen celé.
 
 ## Rozhodnutí
 
+- **Úsek od brány k bráně jde postavit znovu – i jinudy** (Martin 8. 11. 2026: „Můžu postavit jen
+  část té zdi od brány k bráně. Hráč bude bourat, pokud zjistí, že potřebuje vést část hradby
+  jinudy.“): v mezeře po zbořeném úseku hráč postaví novou část hradby mezi dvěma branami – po
+  původní trase, nebo novou trasou z bodů jako při stavbě obvodu (fortifications.md – Obvod; konce
+  drží brány). Cena a stavba podle délky nového úseku a druhu (návrh Clauda).
+
 - **Chátrání humna, obilné jámy a sadu** (Martin 8. 11. 2026):
   - **Humno** zaroste trávou za 10 let – a to nejen opuštěné: stačí, když na něm po tu dobu
     neprobíhá výmlat (Martin: „nemusí být jen cíleně opuštěné – stačí, když na něm nebude po
