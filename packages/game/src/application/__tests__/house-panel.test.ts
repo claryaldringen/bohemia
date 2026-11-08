@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { VillageDigest } from '../../domain/village';
 import { INVITES } from '../../domain/world';
+import type { VassalTerms } from '../../domain/vassalage/terms';
 import { housePanel, type HousePanelDeps } from '../house-panel';
 import type { VillageDigestRecord } from '../villages';
 import { InMemoryDialogs } from './in-memory-dialogs';
@@ -184,7 +185,11 @@ describe('housePanel', () => {
         listByStewardHouse: async (houseId) =>
           houseId === npc.id ? ([{ villageId: 'v-npc' }] as never) : [],
       },
-      villages: { find: async () => null, digestsOf: async () => [record] },
+      villages: {
+        find: async () => null,
+        stampsOf: async () => [],
+        digestsOf: async () => [record],
+      },
     };
     const named = await housePanel(withNpc, { playerId: 'me', today: TODAY });
     expect(named.vassals.map((h) => h.lordName)).toEqual(['Radim']);
@@ -322,5 +327,111 @@ describe('housePanel', () => {
     expect(data.actions[c.id]).toMatchObject({ offer: 'Odmítl – zkus zítra.' });
     const theirs = await housePanel(deps, { playerId: 'a', today: TODAY });
     expect(theirs.negotiations[0]?.myTurn).toBe(true);
+  });
+
+  describe('jídlo domény', () => {
+    const foodDigest = (
+      id: string,
+      food: { growsKg: number; needsKg: number } | null,
+    ): VillageDigestRecord => {
+      const record = digest(id, []);
+      (record.digest as { food: unknown }).food = food;
+      return record;
+    };
+    const stamp = (id: string, settlementId: string, asleep = false) => ({
+      id,
+      settlementId,
+      name: `Ves ${id}`,
+      version: 1,
+      lastDay: TODAY,
+      asleep,
+    });
+    const withVillages = (
+      deps: HousePanelDeps,
+      stamps: ReturnType<typeof stamp>[],
+      digests: VillageDigestRecord[],
+    ): HousePanelDeps => ({
+      ...deps,
+      villages: {
+        find: async () => null,
+        stampsOf: async () => stamps,
+        digestsOf: async (ids) => digests.filter((d) => ids.includes(d.id)),
+      },
+    });
+    const tribute = (grainKg: number, cows: number): VassalTerms => ({
+      tribute: {
+        grainKg,
+        hayKg: 0,
+        cattle: { cows, youngOxen: 0, trainedOxen: 0 },
+        horses: 0,
+        people: {} as never,
+        laborDays: 0,
+        logs: 0,
+      },
+    });
+
+    it('dvě vsi a vazal s dávkou: řádky a součet', async () => {
+      const { deps, make, vassalages } = await setup();
+      const me = await make('me', 0, 0, [30]);
+      const vassal = await make('vassal', 2, 0, [20]);
+      const lord = await make('lord', 5, 0, [40]);
+      await vassalages.create({
+        lordHouseId: me.id,
+        vassalHouseId: vassal.id,
+        terms: tribute(150, 1),
+        origin: 'invite',
+        sinceAt: NOW,
+        sinceDay: TODAY,
+      });
+      // dohoda, kde je hráč vazalem, se nepočítá
+      await vassalages.create({
+        lordHouseId: lord.id,
+        vassalHouseId: me.id,
+        terms: tribute(999, 3),
+        origin: 'invite',
+        sinceAt: NOW,
+        sinceDay: TODAY,
+      });
+      const full = withVillages(
+        deps,
+        [stamp('a', 's-a'), stamp('b', 's-b'), stamp('c', 's-c')],
+        [
+          foodDigest('a', { growsKg: 1200, needsKg: 900 }),
+          foodDigest('b', { growsKg: 400, needsKg: 700 }),
+        ],
+      );
+      const data = await housePanel(full, { playerId: 'me', today: TODAY });
+      expect(data.domainFood).toEqual({
+        villages: [
+          { villageId: 'a', name: 'Ves a', growsKg: 1200, needsKg: 900 },
+          { villageId: 'b', name: 'Ves b', growsKg: 400, needsKg: 700 },
+        ],
+        vassals: [{ houseId: vassal.id, grainKg: 150, cattle: 1 }],
+        totalKg: 300 - 300 + 150 + 72,
+      });
+    });
+
+    it('spící ves a ves bez souhrnu v panelu chybí, bez vsi je null', async () => {
+      const { deps, make } = await setup();
+      await make('me', 0, 0, [30]);
+      const some = withVillages(
+        deps,
+        [stamp('a', 's-a'), stamp('z', 's-z', true)],
+        [foodDigest('a', null), foodDigest('z', { growsKg: 5, needsKg: 1 })],
+      );
+      const data = await housePanel(some, { playerId: 'me', today: TODAY });
+      expect(data.domainFood).toEqual({ villages: [], vassals: [], totalKg: 0 });
+      const none = withVillages(deps, [], []);
+      expect((await housePanel(none, { playerId: 'me', today: TODAY })).domainFood).toBeNull();
+    });
+
+    it('hráč bez rodu: null', async () => {
+      const { deps } = await setup();
+      const data = await housePanel(withVillages(deps, [], []), {
+        playerId: 'nikdo',
+        today: TODAY,
+      });
+      expect(data.domainFood).toBeNull();
+    });
   });
 });
