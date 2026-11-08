@@ -3,6 +3,7 @@ import { WAR } from '../../war/rules-war';
 import { FORTIFICATIONS } from '../rules-fortifications';
 import type { WallKind } from '../types';
 import { layerBuilt, segmentRampart, segmentState, segmentWall } from './life';
+import { gatePincerStands, gateTowerStands } from './pincer';
 import type { FortSegment, Fortification } from './types';
 
 // Přechod hradby (fortifications.md – Hradby a obrana, Přechod hradby; Martin 8. 11. 2026): čistá
@@ -62,8 +63,9 @@ export function crossingLayers(
   if (atGate) {
     const g = fort.gates.find((x) => x.segment === seg.index);
     gate = {
-      pincer: g?.pincerDay != null && g.pincerDay <= day,
-      tower: g?.towerDay != null && g.towerDay <= day,
+      pincer: g !== undefined && gatePincerStands(g, day),
+      // dožilá věž bez přestavby po chátrání spadne (`gateTowerStands`)
+      tower: g !== undefined && gateTowerStands(g, day),
     };
   }
   return { wall, rampart, gate };

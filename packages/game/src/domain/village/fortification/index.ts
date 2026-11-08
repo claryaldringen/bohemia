@@ -29,3 +29,4 @@ export * from './threat';
 export * from './assault';
 export * from './moat';
 export * from './rampart';
+export * from './pincer';

@@ -104,7 +104,7 @@ export type FortBuildWork =
   | 'rampart'
   /** Napuštění příkopu (Hradby a obrana – Druhy; zatím nevzniká). */
   | 'moat'
-  /** Klešťová brána nebo věž nad branou (`Construction.fortGate`; zatím nevzniká). */
+  /** Klešťová brána nebo věž nad branou (`Construction.fortGate`; `startGateUpgrade`). */
   | 'gate';
 
 /** Úsek v plánu stavby – pořadí práce a práce úseku (čd bez kácení). */

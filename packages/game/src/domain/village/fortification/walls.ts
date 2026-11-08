@@ -7,7 +7,8 @@ import { fortPointsOf, type FortShapeSource } from './convert';
 import { gateChord, type FortGate } from './gates';
 import { segmentBuilt, segmentKind, segmentStands, segmentWall } from './life';
 import { fortificationOutline, outlinePointAt, type FortOutline } from './outline';
-import { fortSegments } from './segments';
+import { pincerAlley, pincerArms, pincerBlocks } from './pincer';
+import { fortSegments, type FortSegmentShape } from './segments';
 import { fortRuns, runOn, runTarget, type FortRunRef, type FortRuns } from './runs';
 import type { FortBuildWork } from './types';
 
@@ -339,7 +340,34 @@ export function fortWalls(
       [ax + nx * band, az + nz * band],
     ]);
   }
-  return { walls, gates, detour: detourPoints(outline, walls, gateAtM, outBy) };
+  const detour = detourPoints(outline, walls, gateAtM, outBy);
+  pincerWalls(outline, shapes, fort, blocking, walls, gates);
+  return { walls, gates, detour };
+}
+
+/**
+ * Ramena klešťové brány (`pincer.ts`; Hradby a obrana – Brány) jako stěny – od zahájení stavby
+ * (`pincerBlocks`) u brány blokujícího dílu – a ulička mezi nimi jako otvor až k vratům na jejím
+ * vnitřním konci (mutuje `walls`, `gates`). Ramena leží uvnitř – objížďku vně nemění.
+ */
+function pincerWalls(
+  outline: FortOutline,
+  shapes: readonly FortSegmentShape[],
+  fort: WallFortification,
+  blocking: readonly FortBlockingSegment[],
+  walls: Point[][],
+  gates: Point[][],
+): void {
+  for (const gate of fort.gates) {
+    if (!pincerBlocks(gate)) continue;
+    const segment = blocking.find((s) => s.index === gate.segment);
+    const shape = shapes[gate.segment];
+    if (!segment || !shape) continue;
+    const band = segment.outside?.inM ?? FORTIFICATIONS.bandM[segment.kind];
+    walls.push(...pincerArms(outline, shape, gate, band));
+    const alley = pincerAlley(outline, shape, gate, band);
+    if (alley) gates.push(alley);
+  }
 }
 
 /**
