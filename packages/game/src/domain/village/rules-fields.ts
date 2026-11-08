@@ -361,6 +361,18 @@ export const ORCHARD = {
   endYear: 60,
   renewalShareYear: 0.1,
 } as const;
+// orchard.md – Zdivočelý sad (Martin 8. 11. 2026: „stromy dožijí, ale zároveň tam vyrostou nové,
+// takže to časem bude takový neuspořádaný les, ve kterém budou převažovat jabloně a trocha jiných
+// stromů“; čísla návrh Clauda): od opuštění se 1. 3. na každém vysazeném čtverci s pravděpodobností
+// `saplingChance` objeví nový stromek (nejvýš `maxPerSquare` na čtverec), z `appleShare` jabloň,
+// jinak jiná dřevina; do `matureYears` let je stromek mladý (nedá kládu), pak dospělý
+export const ORCHARD_WILD = {
+  saplingChance: 0.4,
+  appleShare: 0.8,
+  maxPerSquare: 6,
+  matureYears: 15,
+  marginM: 1.5,
+} as const;
 // orchard.md – Úroda (jablka mají asi 1/7 výživy obilí na kg: 3 t jablek ≈ 430 kg obilí)
 export const APPLE_FOOD_VALUE = 1 / 7;
 // orchard.md – okna prací v měsících včetně: výsadba na jaře nebo na podzim jako kopání (návrh

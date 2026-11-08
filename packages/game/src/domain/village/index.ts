@@ -438,6 +438,7 @@ export {
 export * from './overgrowth';
 export * from './pasture';
 export * from './woods';
+export * from './wild-orchard';
 export * from './road-fields';
 export * from './road-swath';
 export * from './founding';

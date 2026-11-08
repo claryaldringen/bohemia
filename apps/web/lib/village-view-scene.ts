@@ -45,6 +45,7 @@ import {
   wearOf,
 } from './village-view-buildings';
 import { FLAX_BLOOM_MONTH, scenePart } from './village-view-fields';
+import { sceneWildTrees } from './village-view-wild';
 import {
   wagonHome,
   ableTeams,
@@ -252,6 +253,7 @@ export function sceneVillage(
   const labor = sceneLabor(state, { ...summary.people, ...summary.family }, landscape);
   const sacred = sceneSacred(state, landscape, day, summary);
   const obstacles = obstacleChangesAt(state, day);
+  const wildTrees = sceneWildTrees(state, day, obstacles);
   const roads = sceneRoads(state, summary.constructions);
   const roadTrees = sceneRoadTrees(state, day, obstacles);
   const kilns = sceneKilns(state, summary);
@@ -372,6 +374,7 @@ export function sceneVillage(
     ...(state.roads?.junctions ? { junctions: state.roads.junctions } : {}),
     ...(roadTrees.length > 0 ? { roadTrees } : {}),
     ...(woods.length > 0 ? { woods } : {}),
+    ...(wildTrees.length > 0 ? { wildTrees } : {}),
     ...(kilns.length > 0 ? { kilns } : {}),
     ...(kilnRemnants.length > 0 ? { kilnRemnants } : {}),
     ...(grainPits.length > 0 ? { grainPits } : {}),

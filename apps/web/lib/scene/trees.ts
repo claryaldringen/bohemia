@@ -81,7 +81,7 @@ export async function addTrees(
 }
 
 /** Materiál 3D stromu – tón a světlo laděné k impostorům vnitřku lesa (viz konstanty nahoře). */
-export function prepareTreeMaterial(model: TreeModel, material: Material): void {
+export function prepareTreeMaterial(model: TreeModel | string, material: Material): void {
   if (!(material instanceof PBRMaterial)) return;
   material.albedoColor = model.startsWith('spruce')
     ? SPRUCE_TINT

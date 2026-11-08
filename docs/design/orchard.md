@@ -116,6 +116,29 @@ sad v 60. roce naráz zmizel – bez upozornění a nikdo ho neobnovil.
 - **Staré sady** (i uložené před zavedením obnovy) se do obnovy zařadí samy v nejbližším okně
   výsadby – uložený stav se nemění, platí jen pravidlo nad ním.
 
+## Zdivočelý sad
+
+Stav: **Martin, 8. 11. 2026** ([demolition.md](demolition.md) – Rozhodnutí): „sad – stromy dožijí,
+ale zároveň tam vyrostou nové, takže to časem bude takový neuspořádaný les, ve kterém budou
+převažovat jabloně a trocha jiných stromů“. Čísla a provedení návrh Clauda. Implementace
+`wild-orchard.ts`, čísla `ORCHARD_WILD`.
+
+- **Nálet.** Opuštěný sad se neošetřuje, ale **1. 3. každého roku** (před dosloužením čtverců) na
+  každém vysazeném čtverci s pravděpodobností **40 %** vyroste nový stromek, nejvýš **6 na čtverec**.
+  Je to z **80 % jabloň** (ze spadaných plodů), jinak jiná dřevina z okolí (bříza, topol, dub, buk).
+  Místo je náhodné ve čtverci (aspoň 1,5 m od okraje), náhoda ze seedu vsi, dne, sadu a čtverce.
+- **Stromky rostou jako strom v sadu** (jabloň 12 let do plné velikosti) a jiná dřevina jako mladý
+  les; do **15 let** je stromek mladý (nedá kládu), pak dospělý. Je to herní strom jako strom lesa
+  vsi – překážka, kterou stavba odstraní, a dřevo na stavby a dílny.
+- **Čtverce dosloužily, nálet zůstává.** Čtverec v 60. roce sadu zanikne jako dřív (louka), ale
+  nálet na něm **stojí dál a roste** – z opuštěného sadu je nepravidelný smíšený les s převahou
+  jabloní, bez řad. Nálet už nikdo neošetřuje ani nesklízí; **jablka z něj se nesbírají** (v rozpisu
+  potravin nic takového není, návrh Clauda – nepřibývají zásoby, jen les).
+- **Vrátit opuštěný sad** nálet **vyklučí** (návrh Clauda): vrácený sad je zase pravidelný a čtverce
+  zapomenou počet; vesničané ho odstraní bez klád. **Zbourat sad** (vykácet) odstraní i nálet bez
+  klád (Martin: „C“). Nálet z čtverců, které už dosloužily, vrácení nezasáhne – ty už v sadu nejsou.
+- **Starší vsi** bez opuštěného sadu nemají nálet – stav i výsledek simulace beze změny.
+
 ## Co hráč vidí
 
 - V panelu staveb ikona sadu (název + cena za hektar v tooltipu), stavba po čtvercích.
@@ -143,6 +166,10 @@ sad v 60. roce naráz zmizel – bez upozornění a nikdo ho neobnovil.
   Krátký mizející řádek nahoře: „Vesničané obnovují starý sad“ (jednou za rok sadu, když zařadí
   čtverce do obnovy) a „Starý sad dosloužil“. U kurzoru při umisťování obydlí oranžově „Sad se
   zmenší“ (poslední čtverec: „Sad zanikne“).
+
+**Zdivočelý sad ve scéně:** mezi starými řadami přibývají nepravidelně rozmístěné jabloně různého
+stáří (od sazenic po velké koruny) a pár bříz, topolů, dubů a buků; po dosloužení řad zůstane jen
+neuspořádaný les (`SceneVillage.wildTrees`, `wild-growth.ts`).
 
 ## Jabloně podél cest
 

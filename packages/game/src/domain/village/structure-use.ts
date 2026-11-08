@@ -9,6 +9,7 @@ import { oxenOf, penSpecies } from './pens';
 import { returnConstructionWood } from './relocation';
 import { cancelRepair, startRepair } from './repair';
 import { villageOrchards } from './orchard';
+import { clearWildTrees } from './wild-orchard';
 import { villageGrainPits } from './grain-pits';
 import { villageThreshingFloors } from './threshing-floors';
 import type {
@@ -239,6 +240,8 @@ export function restoreStructure(state: VillageState, day: number, ref: UsableRe
     else restored.item.wear = { condition };
     startRepair(next, day, { structure: restored.structure, id: restored.item.id }, condition);
   }
+  // vrácený sad je zase pravidelný – vesničané nálet vyklučí (orchard.md – Zdivočelý sad)
+  if (restored.structure === 'orchard') clearWildTrees(next, restored.item);
   next.chronicle.push({ day, kind: 'structure-restored', structure: ref.structure, id: ref.id });
   return { ok: true, state: next };
 }
