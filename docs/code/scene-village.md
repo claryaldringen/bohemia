@@ -889,6 +889,40 @@ Data `SceneVillage.tornado` (den, síla, stopa, prvních pár dní vývraty) –
 - **Ukázka:** `/dev/buildings` – tlačítko **Opevnění** (`fortification-showcase.ts`): plot,
   palisáda, val (zarostlý), val s palisádou, staveniště palisády (žlab a kůly od brány),
   stará palisáda (šedá, nakřivo, mezery), průlom (zavřená rozsekaná brána) a rozestavěný val.
+- **Hradby – ochoz, roštová, komorová** (fortifications.md – Hradby a obrana, Rozhraní
+  a scéna; plán hradeb Ú7): druh dílu z jádra (`segmentWall` → `SegmentBuild.ground/top.layer`
+  = `WallKind`), na valu stojí hradba od koruny (7 m) a vše se zvedne o korunu (`crownLift`).
+  Rozměry jsou čísla scény (`WALKWAY`, `CRIB`, `CHAMBER` ve `fortification-layout.ts`), díly
+  z `fortifications.glb` (Ú3). Instance mají navíc vodorovné měřítko `scaleX` / `scaleZ`
+  (`fortInstanceMatrix`) – fošny a komory se roztáhnou napříč.
+  - **Palisáda s ochozem** (`walkwayLayout`): kůly kreslí `palisadeLayout` na čáře palisády
+    (0,75 m – ochoz je přístavba, kůly se nehnou); za nimi fošny po 2 m roztažené na 0,9 m, vrch
+    `WALKWAY.deckM` = 2 m (1,5 m pod špičkami), sloupek na spoji fošen od zeminy k fošně, schůdky
+    jednou v úseku (čtvrtina délky – mimo bránu) od paty za ochozem ke kůlům (výška
+    `scaleY`). Násyp zevnitř (síť): koruna 1,2 m za kůly do 1,75 m, svah k vnitřnímu okraji
+    pásu 5,5 m; zarůstá trávou jako val. Na valu násyp není (je jím val), sloupky a schůdky stojí
+    na skutečné výšce valu (`rampartProfile`).
+  - **Roštová** (`cribLayout`, pás 7 m, výška 3 m): kamenná plenta po 1 m na vnější hraně
+    (`facing-stone-a/-b` podle `hash01`, svislé měřítko na 3 m), na koruně dvě příčné klády
+    roštu po 2 m napůl v hlíně, stupňovitý týl – podélná kláda po 4 m v každém z 6 pater, patro
+    o 0,2 m dovnitř, předprseň po 2 m za plentou. Hliněné jádro (síť) od plenty, koruna do 5,6 m,
+    týl k zemi na 7 m.
+  - **Komorová** (`chamberLayout`, pás 8 m, výška 4 m): srubové komory po 5 m roztažené přes pás
+    (`scaleZ` 2,4), čelní kamenná zeď po 1 m vně, předprseň po 2 m; výplň komor (síť) mezi
+    vnitřními líci srubů ve výšce 3,85 m.
+  - **Staveniště** (`fortSitePhase`): ochoz – žlab (20 %), kůly (do 60 %), pak násyp a fošny od
+    začátku úseku; roštová roste po patrech (výška jádra, plenty i týlu); komorová – komory od
+    začátku úseku (první polovina), pak výplň a čelní zeď (výška). Předprseň až na hotovém
+    dílu. Vytyčení ustoupí, jakmile práce dílu začala. Brány vyšších stupňů zatím jako
+    u palisády (klešťová brána a věž – Ú18).
+  - **Stáří a průlom:** dřevo šedne podle `woodTint(stáří, druh)` (životnost druhu), plenta
+    a čelní zeď nestárnou; za životností díly řídnou podle stavu úseku, v průlomu chybí.
+  - **Zemina hradeb** (`wallCoreMeshData` v `rampart-mesh.ts`, `wallCoreAt`, `wallCoreProfile`):
+    průřezy po 1,5 m obvodu se stejným počtem sloupců pro všechny druhy
+    (`WALL_CORE_COLUMNS`), v bráně a ve zbořené části nic; kus bez zeminy se nekreslí. Hlína
+    a tráva jako val – sítě `village-fort-core-<id>` a `…-grass-<id>`.
+  - **Ukázka:** `/dev/buildings` – tlačítko **Hradby** (`SHOWCASE_WALLS`): ochoz, roštová,
+    komorová (12 let), ochoz na valu, staveniště roštové a komorové.
 - **Výkon** (`measure-scenery-culling.ts`, Vlkov 1138310652): palisáda 355 m (6 × 6 čtverců,
   2 brány) = 1376 instancí v 6 dílech, 39,9 k trojúhelníků a 6 draw callů kamery (+ 6 do stínové
   mapy); s ořezem 16 × 16 je opevnění kolem vsi v záběru celé (odstup 60, 120 i 400 m – 100 %),

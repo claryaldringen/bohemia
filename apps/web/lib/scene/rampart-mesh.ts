@@ -14,7 +14,12 @@ import {
   rampartAt,
   rampartLooks,
   rampartProfile,
+  wallCoreAt,
+  wallCoreProfile,
+  crownLift,
+  RAMPART_GRASS_YEARS,
   type RampartLook,
+  type WallCore,
 } from './fortification-layout';
 import type { HeightFn } from './village-meshes';
 
@@ -112,6 +117,93 @@ export function rampartMeshData(fort: SceneFortification, rim: HeightFn): Rampar
       const bias = d > 0.4 && d < RAMPART.ditchM - 0.4 ? 0.25 : 0;
       const patch = grassNoise(fort.id, samples[i]!.s, d) + 0.12 * hash01(fort.id, i * 32 + c, 21);
       const target = patch * 0.88 + bias < grass * 1.25 ? data.grass : data.earth;
+      const v00 = i * cols + c;
+      const v01 = i * cols + c + 1;
+      const v10 = j * cols + c;
+      const v11 = j * cols + c + 1;
+      target.indices.push(v00, v10, v11, v00, v11, v01);
+    }
+  }
+  return data;
+}
+
+/**
+ * Průřez zeminy hradby (m od `wallCoreLine` dovnitř) – stejný počet sloupců pro všechny druhy:
+ * násyp ochozu za kůly, hliněné jádro roštové (od plenty po týl), výplň komor komorové hradby
+ * (mezi vnitřními líci srubů). Krajní sloupce leží na zemi.
+ */
+export const WALL_CORE_COLUMNS: Record<WallCore['kind'], readonly number[]> = {
+  walkway: [0.08, 0.12, 0.9, 1.75, 2.75, 3.75, 4.75, 4.85],
+  crib: [0.45, 0.5, 2, 3.5, 5, 5.6, 6.3, 7],
+  chamber: [1.45, 1.5, 2.9, 4.4, 5.8, 7.3, 7.35, 7.4],
+};
+/** Barvy zeminy hradby: násyp ochozu jako val, jádro roštu tmavší, výplň komor kamenitá. */
+const CORE_COLORS: Record<WallCore['kind'], readonly [number, number, number]> = {
+  walkway: BANK_COLOR,
+  crib: [0.6, 0.5, 0.38],
+  chamber: [0.6, 0.57, 0.52],
+};
+
+/**
+ * Zemina hradeb opevnění (fortifications.md – Hradby a obrana, Rozhraní a scéna): násyp ochozu
+ * 4 m zevnitř za palisádou, hliněné jádro roštové hradby a výplň komor komorové – průřezy po
+ * obvodu (`WALL_CORE_COLUMNS`), výška podle stavby úseku. Na valu se zvedne o korunu. Násyp
+ * ochozu zarůstá trávou jako val, jádro a výplň zůstanou hlínou (mezi kládami a kamením).
+ */
+export function wallCoreMeshData(fort: SceneFortification, rim: HeightFn): RampartMeshData {
+  const data: RampartMeshData = { earth: emptyArrays(), grass: emptyArrays() };
+  const coreAt = wallCoreAt(fort);
+  const samples = perimeterSamples(fort, RAMPART_RING_STEP_M);
+  const n = samples.length;
+  if (n < 3) return data;
+  const band = fortBand(fort);
+  const crown = crownLift(fort);
+  const cores = samples.map(coreAt);
+  // kus bez zeminy má průřez jako zemina opevnění – konec násypu u brány se nezkosí
+  const fallback = cores.find((c) => c !== null);
+  if (!fallback) return data;
+  const cols = WALL_CORE_COLUMNS.walkway.length;
+  const rings: { heights: number[]; grass: number }[] = [];
+  samples.forEach((p, i) => {
+    const core = cores[i]!;
+    const columns = WALL_CORE_COLUMNS[core?.kind ?? fallback.kind];
+    const heights = columns.map((d) => (core ? wallCoreProfile(core.kind, d) * core.earth : 0));
+    const lift = crown(p.s);
+    const grass =
+      core?.kind === 'walkway' && core.earth >= 1
+        ? Math.min(
+            1,
+            Math.max(
+              0,
+              (core.age - RAMPART_GRASS_YEARS.from) /
+                (RAMPART_GRASS_YEARS.full - RAMPART_GRASS_YEARS.from),
+            ),
+          )
+        : 0;
+    const color = CORE_COLORS[core?.kind ?? fallback.kind];
+    for (const target of [data.earth, data.grass]) {
+      columns.forEach((d, c) => {
+        const [x, z] = insetPoint(p, (core ?? fallback).line + d, band);
+        const y = rim(x, z) + RIM_LIFT_M + lift + heights[c]!;
+        target.positions.push(x, y, z);
+        const tint = target === data.grass ? GRASS_COLOR : color;
+        target.colors.push(tint[0], tint[1], tint[2], 1);
+        target.uvs.push(x * 0.25, z * 0.25 + y * 0.15);
+      });
+    }
+    rings.push({ heights, grass });
+  });
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const a = rings[i]!;
+    const b = rings[j]!;
+    for (let c = 0; c + 1 < cols; c++) {
+      // kus bez zeminy (brána, jiný druh, nestojí) se nekreslí – ležel by na terénu
+      const hs = [a.heights[c]!, a.heights[c + 1]!, b.heights[c]!, b.heights[c + 1]!];
+      if (hs.every((h) => h < 0.005)) continue;
+      const grass = (a.grass + b.grass) / 2;
+      const patch = grassNoise(fort.id, samples[i]!.s, c);
+      const target = grass > 0 && patch * 0.88 < grass * 1.25 ? data.grass : data.earth;
       const v00 = i * cols + c;
       const v01 = i * cols + c + 1;
       const v10 = j * cols + c;

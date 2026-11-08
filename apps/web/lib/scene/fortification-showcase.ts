@@ -1,6 +1,8 @@
 // Ukázka opevnění na /dev/buildings (fortifications.md – Ve scéně) bez Babylonu: polský plot,
-// palisáda, val, val s palisádou, staveniště po úsecích, stáří a průlom – skutečná opevnění
-// z jádra (obvod, úseky a brány z plochy po čtvercích), jen stáří a stavba jsou dané ukázkou.
+// palisáda, val, val s palisádou, staveniště po úsecích, stáří a průlom; hradby (Hradby
+// a obrana) – palisáda s ochozem, roštová a komorová hradba, ochoz na valu a jejich staveniště –
+// skutečná opevnění z jádra (obvod, úseky a brány z plochy po čtvercích), jen stáří a stavba
+// jsou dané ukázkou.
 import {
   fortificationArea,
   areaOutline,
@@ -18,6 +20,13 @@ export const SHOWCASE_FORTS = {
   id: 'opevneni',
   label: 'Opevnění',
   focus: { x: -8, z: 133, radius: 58 },
+} as const;
+
+/** Ukázka hradeb – tlačítko Hradby (východně od opevnění). */
+export const SHOWCASE_WALLS = {
+  id: 'hradby',
+  label: 'Hradby',
+  focus: { x: 118, z: 140, radius: 62 },
 } as const;
 
 /** Mřížka louky ukázky (400 m – střed v počátku, čtverce 15 m jako ve hře). */
@@ -154,6 +163,40 @@ export function showcaseFortifications(): SceneFortification[] {
       gates: [{ segment: 7 }],
       age: () => null,
       work: { kind: 'build', progress: (s) => [1, 1, 0.8, 0.45, 0.15][s] ?? 0 },
+    },
+    // hradby: ochoz, roštová, komorová; na jihu ochoz na valu a staveniště roštové a komorové
+    { id: 9, kind: 'walkway', cells: { x: 16, y: 20, w: 2, h: 2 }, gates: [{ segment: 4 }] },
+    { id: 10, kind: 'crib', cells: { x: 19, y: 20, w: 3, h: 3 }, gates: [{ segment: 7 }] },
+    {
+      id: 11,
+      kind: 'chamber',
+      cells: { x: 23, y: 20, w: 3, h: 3 },
+      gates: [{ segment: 7 }],
+      age: () => 12,
+    },
+    {
+      id: 12,
+      kind: 'rampart',
+      top: 'walkway',
+      cells: { x: 16, y: 24, w: 3, h: 2 },
+      gates: [{ segment: 7 }],
+      age: () => 4,
+    },
+    {
+      id: 13,
+      kind: 'crib',
+      cells: { x: 20, y: 24, w: 2, h: 2 },
+      gates: [{ segment: 4 }],
+      age: (s) => (s >= 6 ? 0 : null),
+      work: { kind: 'build', progress: (s) => (s >= 6 ? 1 : ([0.75, 0.5, 0.25][s] ?? 0)) },
+    },
+    {
+      id: 14,
+      kind: 'chamber',
+      cells: { x: 23, y: 24, w: 2, h: 2 },
+      gates: [{ segment: 4 }],
+      age: (s) => (s >= 6 ? 0 : null),
+      work: { kind: 'build', progress: (s) => (s >= 6 ? 1 : ([0.85, 0.6, 0.3][s] ?? 0)) },
     },
   ];
   return demos.map((d) => demoFortification(d, SHOWCASE_FORT_GEO));
