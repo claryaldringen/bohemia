@@ -1,4 +1,9 @@
-import type { NewPlayerNotice, NoticeRepository, PlayerNotice } from '../notices';
+import {
+  NOTICES_KEPT_PER_PLAYER,
+  type NewPlayerNotice,
+  type NoticeRepository,
+  type PlayerNotice,
+} from '../notices';
 
 /** Repozitář upozornění v paměti; čas dodává `clock` (v testech pevný). */
 export class InMemoryNotices implements NoticeRepository {
@@ -10,6 +15,21 @@ export class InMemoryNotices implements NoticeRepository {
   async post(notice: NewPlayerNotice): Promise<void> {
     await Promise.resolve();
     this.notices.push({ ...notice, id: this.nextId++, createdAt: this.clock(), readAt: null });
+    const mine = this.notices
+      .filter((n) => n.playerId === notice.playerId)
+      .sort((a, b) => b.id - a.id);
+    for (const old of mine.slice(NOTICES_KEPT_PER_PLAYER)) {
+      this.notices.splice(this.notices.indexOf(old), 1);
+    }
+  }
+
+  async page(playerId: string, beforeId: number | null, limit: number): Promise<PlayerNotice[]> {
+    await Promise.resolve();
+    return this.notices
+      .filter((n) => n.playerId === playerId && (beforeId === null || n.id < beforeId))
+      .sort((a, b) => b.id - a.id)
+      .slice(0, limit)
+      .map((n) => ({ ...n }));
   }
 
   async after(playerId: string, afterId: number, limit: number): Promise<PlayerNotice[]> {

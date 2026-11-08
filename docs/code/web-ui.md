@@ -1042,3 +1042,28 @@ nová pravidla (návrh Clauda).
 - **Testy:** `lib/__tests__/chronicle-view.test.ts` (seskupení, pořadí, stránkování, spojování),
   `hud/__tests__/ChroniclePanel.behavior.test.tsx`, `hooks/__tests__/use-chronicle.behavior.test.tsx`,
   e2e `village.spec.ts` – „panel Kronika“ (zápis o založení vsi, střídání s panelem rodu, Esc).
+
+## Panel Upozornění (absence.md – Návrat, `hud/NoticesPanel.tsx`, `lib/notice-page.ts`)
+
+Rozhraní nad uloženými upozorněními mezi hráči (`player_notice`, `lib/player-notices.ts` – texty
+z `playerNoticeText`), žádná nová pravidla (návrh Clauda). Upozornění vsi (`village-notices.ts`)
+se neukládají a panel je nemá.
+
+- **Lišta:** zvonek `icons/house/bell.svg` (`notices-toggle`, popisek „Upozornění“) vlevo od knihy
+  kroniky; číslo nepřečtených (`notices-unread`) se ukáže jen se zavřeným panelem. Panel vpravo
+  nahoře se střídá s kronikou, rodem, válkou a nabídkou (`othersOpen` / `closeOthers` ve
+  `hooks/use-notices.ts`, kronika se zavírá přes `closeNoticesRef` ve `VillageGame`). Esc a křížek zavřou.
+- **Data:** server action `getNotices({ before? })` → `NoticeRepository.page` (nejnovější první,
+  `NOTICE_PAGE_SIZE` = 30 + řádek navíc pro `olderThan`) → `noticePage`; hráč je jen ze session,
+  cizí upozornění se vrátit nedají. Stránkování **nic neoznačuje za přečtené**.
+- **Nepřečtené:** `read_at` v DB znamená „doručeno jako řádek nahoře“ (`takeUnread` při dotazu na
+  ves), takže pro panel nestačí. Panel si pamatuje poslední viděné `id` v `localStorage`
+  (`bohemia:notices-seen`, jen tento prohlížeč); otevřený panel vše do nejnovějšího považuje za
+  viděné, zvýrazní (`data-unread`) ta novější než při otevření. Číslo u ikony se počítá z načtené
+  první stránky (strop 30). První stránka se načte po startu a kdykoli klientovi dorazí nové
+  upozornění (`noticeTick` ve `VillageGame`).
+- **Omezení historie:** upozornění se nikde nemažou, jen označují; `post` smaže starší než
+  posledních `NOTICES_KEPT_PER_PLAYER` = 500 na hráče (bez migrace, index `(player_id, id)`).
+- **Testy:** `lib/__tests__/notice-page.test.ts`, `hud/__tests__/NoticesPanel.behavior.test.tsx`,
+  `hooks/__tests__/use-notices.behavior.test.tsx`, `notice-repository.db.test.ts` (stránkování,
+  omezení), e2e `multiplayer.spec.ts` – „pomoc na žádost“ (zvonek, zvýrazněné upozornění).

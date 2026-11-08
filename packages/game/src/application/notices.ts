@@ -124,4 +124,15 @@ export interface NoticeRepository {
   takeUnread(playerId: string, limit: number): Promise<PlayerNotice[]>;
   /** Označí za přečtená upozornění hráče s `id` do `upToId` (včetně). */
   markRead(playerId: string, upToId: number): Promise<void>;
+  /**
+   * Stránka historie (panel Upozornění): přečtená i nepřečtená upozornění hráče od nejnovějšího,
+   * jen s `id` menším než `beforeId` (null = od nejnovějšího), nejvýš `limit`. Nic neoznačuje.
+   */
+  page(playerId: string, beforeId: number | null, limit: number): Promise<PlayerNotice[]>;
 }
+
+/**
+ * Kolik upozornění si hráč uchovává (návrh Clauda): `post` smaže starší než posledních tolik.
+ * Přečtená se nemažou – jen se označí; hranice jen brání neomezenému růstu tabulky.
+ */
+export const NOTICES_KEPT_PER_PLAYER = 500;

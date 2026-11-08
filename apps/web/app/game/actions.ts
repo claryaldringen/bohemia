@@ -83,6 +83,7 @@ import {
 } from '@/lib/house-input';
 import { parsePanelAsk, type PanelOptions } from '@/lib/panel-options';
 import { parseChronicleAsk, type ChroniclePage } from '@/lib/chronicle-view';
+import { NOTICE_PAGE_SIZE, noticePage, parseNoticeAsk, type NoticePage } from '@/lib/notice-page';
 import {
   buildTrailForPlayer,
   buildWagonRoadForPlayer,
@@ -612,6 +613,18 @@ export async function getChronicle(input: unknown): Promise<ChroniclePage | { er
   const ask = parseChronicleAsk(input);
   if (villageId === null || ask === null) return { error: INVALID_INPUT };
   return chronicleForPlayer(id, villageId, ask);
+}
+
+/**
+ * Stránka historie upozornění mezi hráči (panel Upozornění): `{ before? }`. Jen upozornění
+ * přihlášeného hráče (id hráče je ze session, ne ze vstupu); nic neoznačuje za přečtené.
+ */
+export async function getNotices(input: unknown): Promise<NoticePage | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const ask = parseNoticeAsk(input);
+  if (ask === null) return { error: INVALID_INPUT };
+  return noticePage(await gameDeps().notices.page(id, ask.before, NOTICE_PAGE_SIZE + 1));
 }
 
 export async function upgradeRoad(input: unknown): Promise<VillageActionResult> {
