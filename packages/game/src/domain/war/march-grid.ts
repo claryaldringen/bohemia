@@ -9,7 +9,6 @@ import {
   type Landscape,
   type ObstacleLayer,
 } from '../landscape';
-import { FORTIFICATIONS } from '../village/rules-fortifications';
 import {
   NO_OBSTACLE_CHANGES,
   obstacleChangesAt,
@@ -19,6 +18,7 @@ import {
 import {
   fortWalls,
   layerBuilt,
+  rampartPace,
   segmentIsGap,
   segmentRampart,
   segmentState,
@@ -246,17 +246,24 @@ function fortCells(
   fort: Fortification,
   day: number,
   closed: ReadonlySet<number>,
-): { wall: number[]; rampart: number[]; open: Set<number> } {
+): { wall: number[]; rampart: { cell: number; height: number }[]; open: Set<number> } {
   const wall: FortSegment[] = [];
-  const rampart: FortSegment[] = [];
+  // holý val po výškách dílů (tempo podle výšky – `rampartPace`)
+  const rampart = new Map<number, FortSegment[]>();
   const gaps: FortSegment[] = [];
   for (const seg of fort.segments) {
-    if (layerBuilt(segmentRampart(fort, seg)) && seg.demolishedDay === undefined) {
+    const layer = segmentRampart(fort, seg);
+    if (layer && layerBuilt(layer) && seg.demolishedDay === undefined) {
       const topStands =
         layerBuilt(segmentWall(fort, seg)) &&
         seg.breachedDay === undefined &&
         segmentState(fort, seg, day) > 0;
-      (topStands ? wall : rampart).push(withoutBreach(seg));
+      if (topStands) wall.push(withoutBreach(seg));
+      else {
+        const list = rampart.get(layer.height) ?? [];
+        list.push(withoutBreach(seg));
+        rampart.set(layer.height, list);
+      }
     } else if (segmentIsGap(fort, seg, day)) {
       // pás mezery jako stojící úsek – jen kvůli tvaru průchodu
       gaps.push({ ...withoutBreach(seg), builtDay: seg.builtDay ?? day, state: 1 });
@@ -275,10 +282,15 @@ function fortCells(
   };
   for (const c of cellsOf(gaps, false)) open.add(c);
   const wallCells = cellsOf(wall, true);
-  const rampartCells = cellsOf(rampart, true);
+  const rampartCells = [...rampart].map(([height, segs]) => ({
+    height,
+    cells: cellsOf(segs, true),
+  }));
   return {
     wall: wallCells.filter((c) => !open.has(c)),
-    rampart: rampartCells.filter((c) => !open.has(c)),
+    rampart: rampartCells.flatMap(({ height, cells }) =>
+      cells.filter((c) => !open.has(c)).map((cell) => ({ cell, height })),
+    ),
     open,
   };
 }
@@ -382,8 +394,9 @@ export function marchGrid(
   const closed = options.closedGates ?? new Set<number>();
   for (const fort of village.fortifications ?? []) {
     const cells = fortCells(grid, landscape, fort, day, closed);
-    for (const c of cells.rampart) {
-      grid.pace[c] = FORTIFICATIONS.rampartAssaultPace;
+    // tempo přes příkop a val podle výšky dílu: 1 ÷ (1 + 3 × v) – plný val čtvrtinové jako dřív
+    for (const { cell: c, height } of cells.rampart) {
+      grid.pace[c] = rampartPace(height);
       grid.flags[c] = grid.flags[c]! | MARCH_RAMPART;
     }
     for (const c of cells.wall) {

@@ -50,7 +50,7 @@ import { WAR } from './rules-war';
 import { discoverBuildings } from './sight';
 import { frostDay } from './season';
 import { npcIntents, npcLeader } from './npc-commander';
-import { setGroupOrder } from './orders';
+import { inFight, setGroupOrder } from './orders';
 import { dayOfTick, hoursPerTick, TICKS_PER_SECOND, tickRandom } from './ticks';
 import { edgeCrossing, worldRoute } from './world-route';
 
@@ -616,9 +616,7 @@ function discover(
   if (!ctx.world.landscapeOf(s.target.cell)?.villageIds.includes(s.target.villageId)) return;
   const village = ctx.world.villageAt(s.target.villageId, s.day);
   if (village === null) throw new MissingData([], [s.target.villageId]);
-  const eyes = battle.fighters
-    .filter((f) => f.side === 'attack' && (f.state === 'fight' || f.state === 'breach'))
-    .map((f) => f.pos);
+  const eyes = battle.fighters.filter((f) => f.side === 'attack' && inFight(f)).map((f) => f.pos);
   s.discovered = discoverBuildings(s.discovered, village.dwellings, eyes, field.grid);
 }
 
@@ -705,7 +703,12 @@ function campaignBattle(s: CampaignState, ctx: TickContext, field: BattleField):
     attackers: fighters,
     ...(plan ? { shelter: plan.shelter } : {}),
     defenders: plan ? plan.fighters : [],
-    groups: s.groups.map((g) => ({ id: g.id, order: g.order, holdAt: g.holdAt ?? null })),
+    groups: s.groups.map((g) => ({
+      id: g.id,
+      order: g.order,
+      holdAt: g.holdAt ?? null,
+      ...(g.assault ? { assault: g.assault } : {}),
+    })),
     commander: indexOf(s, s.commander),
     deputy: s.deputy ? indexOf(s, s.deputy) : null,
     liveCommand: s.liveCommand,

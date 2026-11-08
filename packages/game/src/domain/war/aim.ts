@@ -1,5 +1,6 @@
 import type { Random } from '../landscape/random';
-import type { BattleField, BattleSide, Fighter } from './battle';
+import type { BattleField, BattleSide, BattleState, Fighter } from './battle';
+import { onLadder } from './ladders';
 import type { Pos } from './march-grid';
 import { dist2 } from './orders';
 import { WAR } from './rules-war';
@@ -14,10 +15,16 @@ import { WAR } from './rules-war';
 export type TargetPose = 'standing' | 'parapet' | 'climbing' | 'underground';
 
 /**
- * Poloha muže na bojišti pro střelbu. Zatím všichni stojí – lezce na žebříku, obránce na ochozu
- * a kopáče v podkopu doplní Úlohy 9, 12 a 14 plánu hradeb.
+ * Poloha muže na bojišti pro střelbu: lezec na žebříku a přes plot (`ladders.ts`), jinak stojí.
+ * Obránce na ochozu a kopáče v podkopu doplní Úlohy 12 a 14 plánu hradeb. `b` – žebříky boje.
  */
-export const poseOf: (f: Fighter, field: BattleField) => TargetPose = () => 'standing';
+export function poseOf(
+  f: Fighter,
+  _field: BattleField,
+  b: Pick<BattleState, 'ladders'> = {},
+): TargetPose {
+  return onLadder(f, b) ? 'climbing' : 'standing';
+}
 
 /** Viditelná plocha cíle v m² (stojící 0,85, za předprsní 0,25, lezec 0,85, v podkopu 0). */
 export function visibleAreaM2(pose: TargetPose): number {

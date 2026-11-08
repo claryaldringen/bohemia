@@ -90,7 +90,7 @@ vojska mapu po mapě (Ú6.4); tažení po taktech, boj a dohra přibývají v da
 ## Pohyb vojska (Ú6.4)
 
 Čistá doména, jen det-math (`domain/war/**` v `eslint.config.mjs`); čísla ve `WAR.pace`,
-`WAR.march`, `WAR.snowPace`, `WAR.frost` a `FORTIFICATIONS.rampartAssaultPace`.
+`WAR.march`, `WAR.snowPace`, `WAR.frost` a `rampartPace(výška)` (`fortification/assault.ts`).
 
 - **Mřížka** – `domain/war/march-grid.ts`: `marchGrid(landscape, obstacles, village, { day,
 closedGates })` → `MarchGrid` (buňky 10 m přes celou mapu 1 920 m, 192 × 192; `pace` = násobek
@@ -107,7 +107,8 @@ closedGates })` → `MarchGrid` (buňky 10 m přes celou mapu 1 920 m, 192 × 19
   paseka vsi lesem není); bez vrstvy (testy) celý les krajiny. Ves: osy pevných cest (i zemské
   stezky – její úseky jsou mezi `roads.roads`) × 1,5 i lesem a přes vodu (brod, lávka);
   opevnění (`fortCells`): hotový plot, palisáda a val se stojící nástavbou neprůchodné, val bez
-  nástavby `rampartAssaultPace`, průchozí otevřené brány (zavřené v `closedGates`) a mezery
+  nástavby tempem `rampartPace(výška dílu)` = 1 ÷ (1 + 3 × v) (plný val ¼ jako dřív; díly po
+  výškách – jedna výška = stejné buňky jako dřív), průchozí otevřené brány (zavřené v `closedGates`) a mezery
   (`segmentIsGap` – nedostavěný, shnilý, prolomený úsek celým pásem). Buňky přes `fortWalls`
   a `fortWallCells` (pěšiny); buňka, které se dotkne průchod, stěnou není. Stavby vsi (`blockBuildings`, příznak
   `MARCH_BUILDING`, tempo 0): obdélníky `villageBuildings` jako u pěšin (obydlí s pozemkem, dvorec,
@@ -321,8 +322,8 @@ group, order, at)` – před bitvou kdykoli, v boji jen na doslech (jinak false)
   vnější události – Ú6.10.
 - **Střelba podle dovednosti** – `domain/war/aim.ts` (fortifications.md – Střelba a viditelná
   plocha; Martin 8. 11. 2026): `spreadRadiusM(dovednost, d)` = `(2 − 1,5 × dovednost ÷ 100) × d ÷ 30`
-  (mistr 0,5 m na 30 m, nováček 2 m); `poseOf(f, field)` – zatím vždy `standing` (lezce, ochoz
-  a podkop doplní Úlohy 9, 12 a 14 plánu hradeb), `visibleAreaM2` 0,85 / 0,25 / 0,85 / 0;
+  (mistr 0,5 m na 30 m, nováček 2 m); `poseOf(f, field, b)` – lezec na žebříku a přes plot
+  `climbing` (`onLadder`), jinak `standing` (ochoz a podkop doplní Úlohy 12 a 14 plánu hradeb), `visibleAreaM2` 0,85 / 0,25 / 0,85 / 0;
   `shotCandidates` – všichni na nohou obou stran (ne `down` ani `fled`) se středem v kruhu kolem cíle,
   v pořadí bojovníků, bez střelce; `shotChance` = Σ ploch ÷ π r² (nejvýš 1); `shotHit(kandidáti, r,
 roll, pick)` – zásah, když `roll` < šance, zasažený váhou podle plochy. `bowShot(střelec, cíl,
@@ -339,6 +340,58 @@ bojovníci, pose, rng)` – dovednost `Fighter.bowSkill` (muž rodu z `CampaignM
   u nováčka a hloučku, výběr podle ploch, jen vlastní v kruhu = nestřílí), `orders.test.ts` (za velitelem, obrana
   velitele, útočit na vše mimo dohled, držet místo ≤ 30 m, změna rozkazu na doslech),
   `defenders.test.ts` (skupiny domů, soupis, poslední muž rodu); přípravky `battle-fixtures.ts`.
+
+## Přechod hradby v boji (hradby Ú9)
+
+fortifications.md – Obrana bez násobku 1, 4, 5; Přechod hradby. Logika v `domain/war/ladders.ts`,
+`battle.ts` jen volá. Čísla `FORTIFICATIONS.assault` (žebřík 4 mužohodiny, `climbSeconds`, únava)
+a `FORTIFICATIONS.defense` (shození 1 : 3 / 1 : 2, pád 20, lezec × 0,5, žebříky 1 m od sebe);
+dosah obránce na vrchol žebříku 2,5 m = `perDefenderM ÷ 2`.
+
+- **Stav** – `FighterState` + `climb`; `Fighter.climb?: FighterClimb` (`ladder` – klíč žebříku
+  nebo null, `phase` `make` / `carry` / `lean` / `up` / `over` / `down`, `ticks`, `fort`,
+  `segment`, `at` – les nebo pata), `Fighter.ladder?` (nese vyrobený žebřík do opření),
+  `Fighter.fatigue?: { factor, tick }`, `BattleState.ladders?: BattleLadder[]` (`key`
+  `<opevnění>:<úsek>:<n>`, `foot` vně 1 m, `top` na čáře úseku, `inner` – pata druhého žebříku
+  uvnitř palisády bez ochozu po přetažení, `climber`, `up`). `inFight` počítá i `climb` (cíl,
+  výsledek boje, bod zlomu). Všechno volitelné – staré boje beze změny.
+- **Volba postupu** – `approach`: stěna bez průchodu → `startCrossing(f, opevnění, úsek, volba,
+hodiny prolomení)`; jinak prolamuje jako dosud. Úsek z `WallLine.segment`, druh z
+  `crossingLayers` + `assaultSteps`. Plot → přelézt (`carry` k místu, `up` 8 taktů, 1 m za
+  plot). Palisáda a hradba → žebřík: volný žebřík opevnění blíž než les vezme, jinak (bez nesení)
+  jde k nejbližší buňce `MARCH_FOREST` a vyrábí `ladderMakeTicks` = ⌈4 ÷ hodin taktu⌉ = 58
+  taktů; bez lesa prolamuje. Bez volby (i NPC) nejrychlejší: 4 h výroby + chůze les a zpět +
+  takty přechodu proti zbývající práci nejlepšího místa ÷ 4 muži (brána palisády 3 h → sekání,
+  palisáda 24 h → žebřík). Zevnitř ven se neleze.
+- **Rozkaz hráče** (Martin 8. 11. 2026 – „ano“, volí hráč rozkazem skupině) – `GroupAssault`
+  (`campaign-types.ts`: postupy bez `open` a `climb`) v `CampaignGroup.assault?` a
+  `BattleGroup.assault?` (`campaign.ts` předá do boje); `setGroupAssault(stav, skupina, volba |
+null)` v `orders.ts` – před bitvou kdykoli, v boji na doslech velitele jako `setGroupOrder`.
+  Boj zná `ladder` (žebříky i tam, kde je sekání rychlejší) a `cut` (prolamuje, plot nepřeleze);
+  oheň, odkop a podkop doplní Úloha 14 – do té doby jako bez volby. Rozhraní – Úloha 17.
+- **Takt přechodu** – `climbStep`: `make` (do lesa, pak takty výroby), `carry` (místo
+  `ladderSpot` – průmět na úsek, po metru na obě strany, nejméně 1 m od žebříků opevnění; žebřík
+  se založí a nese), `lean` 8, `up` 16 / 20 / 24 (na nule nahoře na `top`), `over` 16 (jen
+  palisáda bez ochozu a jen první – pak `inner`), `down` 16 / 8 / 12 → 1 m za hradbou (palisáda
+  na `inner`), boj; s valem pod hradbou únava. Dokud vyrábí a nese, vrátí se do boje, má-li
+  opevnění průchod; zablokovaný krok (neprůchodno) = zpět do boje.
+- **Souboj u žebříku** – nahoře (`up` na nule) obránce do 2,5 m od vrcholu lezce nepustí: lezec
+  mu dává rány (`aim`, los 1 : 1) silou `fighterStrength` = `strength × únava × 0,5`, každá rána
+  obránce na lezce na žebříku (`onLadder` – `up`, `over`, `down` po vnitřním žebříku) padne bez
+  losu. `defendLadder` v ranách: obránce do 2,5 m od vrcholu opřeného žebříku s lezcem ho místo
+  rány shodí, je-li čekaný pád 20 ÷ 3 víc než jeho rána (vesničan 4 → shazuje, muž rodu 10 a víc
+  → bije); prázdný žebřík shodí, když nemá na koho udeřit (návrh Clauda). Los `pushLadder`,
+  pokus stojí ránu (2 s). Shozený lezec −20 (zásah na konci taktu), leží u paty a opírá znovu;
+  z vnitřního žebříku padne dovnitř a druhý žebřík se musí přetáhnout znovu. `settleLadders`
+  (po bodu zlomu a na konci taktu): kdo přestal lézt, pustí žebřík, z vrcholu leží u paty.
+- **Únava po valu** – `rampartFatigueStep`: muž, který krokem sešel z buňky `MARCH_RAMPART`, má
+  `rampartFatigue(v)` (výška z tempa buňky), po žebříku přes hradbu na valu taky; `fighterStrength`
+  ji vrací lineárně za 120 taktů (`fatigueFactor`), `restFatigue` pak záznam smaže.
+- **Testy** – `__tests__/ladders.test.ts` (palisáda: výroba 58, opřít 8, vylézt 16, přetáhnout
+  16, slézt 16; ochoz bez druhého žebříku, dolů 8; plot 8 bez žebříku; nejrychlejší – palisáda
+  žebřík, brána sekání; bez lesa prolamuje; rozkaz `cut` a `ladder`; lezec na půl síly a každá rána
+  obránce padne; shození 1 : 3, pád −20 k patě; 1 m mezi žebříky; únava 0,85 → za 120 taktů
+  zpět; bitva se žebříky po 1 / 7 / 40 přes JSON = vcelku); přípravky `fortOf`, `forestSouth`.
 
 ## Bariéra dopočtu a dny nájezdu (Ú6.7)
 

@@ -190,7 +190,8 @@ export function campaignView(state: CampaignState, input: CampaignViewInput): Ca
     // dohlédne jen muž na nohou na mapě cíle (cizí jsou jen tam)
     const onTarget = cell.x === state.target.cell.x && cell.y === state.target.cell.y;
     const standing =
-      m.status === 'active' && (fight === null || fight === 'fight' || fight === 'breach');
+      m.status === 'active' &&
+      (fight === null || fight === 'fight' || fight === 'breach' || fight === 'climb');
     if (onTarget && standing) eyes.push(pos);
   });
   const foreign: CampaignViewForeign[] = [];
