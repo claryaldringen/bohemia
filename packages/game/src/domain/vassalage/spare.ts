@@ -65,7 +65,7 @@ function haySpareKg(state: VillageState, day: number, coverage: CraftCoverage): 
  * nad počet, který ves chce na rádla a vozy (`oxenTrainingTarget`) – napřed mladí, pak vycvičení,
  * které ves smí prodat (`cattleForSale` – doma, mimo posledních let služby).
  */
-function cattleSpare(state: VillageState, day: number): Record<CattleGood, number> {
+export function cattleSpare(state: VillageState, day: number): Record<CattleGood, number> {
   let oxen = 0;
   let young = 0;
   for (const pen of oxPens(state)) {

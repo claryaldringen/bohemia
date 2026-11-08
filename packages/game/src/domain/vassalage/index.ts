@@ -10,3 +10,4 @@ export * from './loan';
 export * from './guests';
 export * from './ennoble';
 export * from './escheat';
+export * from './domain-food';
