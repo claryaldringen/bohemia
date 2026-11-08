@@ -31,11 +31,13 @@ a doladit je).
   v pomocných funkcích `premium/river.ts`, které je už mají (volá je jen server).
 - Čísla kostry světa jen v `SKELETON` (`domain/world/skeleton/rules-skeleton.ts`, komentář
   s odkazem na world-skeleton.md) – verbatim:
-  `river: { minUpstream: 500, upstreamCap: 2000, lateralShare: 0.25, biasWavelength: 16,
+  > **Změna 8. 11. 2026 (Ú4, ladění šířek):** platí `upstreamCap: 12000` a prahy `widths`
+  > 500 / 850 / 1600 / 3800 / 12 000 – viz `rules-skeleton.ts`; čísla níž jsou původní návrh.
+  > `river: { minUpstream: 500, upstreamCap: 2000, lateralShare: 0.25, biasWavelength: 16,
 widths: [[500, 25], [750, 30], [1000, 35], [1500, 40], [2000, 45]] }`,
-  `trail: { block: 20, nodeMargin: 5, edgeShare: 0.7 }`, `port: { margin: 24, trailGap: 16 }`,
-  `seat: { slackRings: 1 }`, `world: 1`. Čísla mapy (soutok ≥ 20 políček od okraje, ústí potoka
-  ≥ 20 políček od bodu řeky) v `SKELETON_MAP` (`landscape/skeleton/rules-map.ts`); ostatní z `RIVER`.
+  > `trail: { block: 20, nodeMargin: 5, edgeShare: 0.7 }`, `port: { margin: 24, trailGap: 16 }`,
+  > `seat: { slackRings: 1 }`, `world: 1`. Čísla mapy (soutok ≥ 20 políček od okraje, ústí potoka
+  > ≥ 20 políček od bodu řeky) v `SKELETON_MAP` (`landscape/skeleton/rules-map.ts`); ostatní z `RIVER`.
 - Body na okraji: políčko 24–103 ze 128 podél strany, počítané od západu (strany N, S) a od jihu
   (E, W); sever = +y mřížky světa = +z mapy.
 - Suchá mapa (výřez null) bit po bitu: zlaté otisky `generate.test.ts`, `obstacles.test.ts`,
