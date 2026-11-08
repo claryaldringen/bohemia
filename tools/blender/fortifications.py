@@ -18,6 +18,16 @@ Díly (uzly) s počátkem na zemi – scéna je rozmístí podle apps/web/lib/sc
               (ve scéně +x), dvě příčky a vzpěra na vnitřní straně (+Y Blenderu, ve scéně −z)
   gate-wicker křídlo proutěné brány plotu 2 × 1,3 m – závěs v počátku, křídlo do −X Blenderu
   gate-bar    závora v průchodu valem: dva kůly s vidlicí 4,6 m od sebe a žerď přes ně (1 m)
+Hradby a obrana (docs/design/fortifications.md – Hradby a obrana; ochoz 2 m nad zemí = 1,5 m pod špičkami):
+  walk-plank  fošna ochozu 2 (X) × 0,3 (Y) m, tlustá 5 cm, spodní hrana na zemi, uprostřed
+  walk-post   sloupek pod fošnou Ø 14 cm, 1,6 m (od země)
+  walk-steps  schůdky z násypu: 1,2 m široké (X), 8 stupňů po 25 cm do výšky 2 m, běží do +Y (2 m)
+  crib-log    kláda roštu 4 m podél X, Ø 0,3 m, ležící na zemi (střed v počátku)
+  facing-stone-a / -b  kamenná plenta nasucho, modul 1 (X) × 0,5 (Y) × 2 (Z) m z nepravidelných kvádrů
+  chamber-box srubová komora 5 (X) × 3 (Y) × 4 (Z) m z klád (Ø 0,3 m, přeplátované rohy)
+  chamber-face čelní kamenná zeď, modul 1 (X) × 0,8 (Y) × 4 (Z) m
+  tower       věž nad branou 5 × 5 m, 8 m: čtyři kůly, plošina 5,5 m, předprseň, stříška
+  parapet     předprseň z prken 2 (X) × 0,1 (Y) × 1 (Z) m, spodní hrana na zemi
 """
 import math
 import os
@@ -32,6 +42,9 @@ COLORS = {
     "fort-wood": (0.45, 0.33, 0.21),
     "fort-planks": (0.50, 0.38, 0.24),
     "fort-wicker": (0.55, 0.45, 0.28),
+    "fort-stone-a": (0.52, 0.50, 0.46),
+    "fort-stone-b": (0.46, 0.45, 0.43),
+    "fort-stone-c": (0.50, 0.47, 0.42),
 }
 MATS = {}
 
@@ -169,6 +182,120 @@ def gate_bar():
     return join("gate-bar", parts)
 
 
+def walk_plank():
+    return box("walk-plank", (2.0, 0.3, 0.05), (0, 0, 0.025))
+
+
+def walk_post():
+    return cylinder("walk-post", 0.07, 1.6, (0, 0, 0.8), verts=7)
+
+
+def walk_steps():
+    parts = []
+    for k in range(8):
+        h = 0.25 * (k + 1)
+        parts.append(box(f"step-{k}", (1.2, 0.25, h), (0, 0.125 + 0.25 * k, h / 2)))
+    return join("walk-steps", parts)
+
+
+def crib_log():
+    return cylinder("crib-log", 0.15, 4.0, (0, 0, 0.15), rot=(0, math.pi / 2, 0), verts=8)
+
+
+def stone_block(name, x0, x1, y0, y1, z0, z1, seed, mat, j=0.04):
+    """Nepravidelný kvádr: osm rohů mírně posunutých (deterministicky podle seed)."""
+    verts = []
+    for i, (x, y, z) in enumerate(
+        (x, y, z) for z in (z0, z1) for y in (y0, y1) for x in (x0, x1)
+    ):
+        a = math.sin(seed * 12.9898 + i * 78.233) * 43758.5453
+        b = math.sin(seed * 39.346 + i * 11.135) * 24634.6345
+        c = math.sin(seed * 73.156 + i * 52.235) * 13758.1234
+        f = lambda v: (v - math.floor(v)) - 0.5
+        verts.append((x + f(a) * 2 * j, y + f(b) * 2 * j, z + f(c) * 2 * j))
+    faces = [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)]
+    return mesh_object(name, verts, faces, mat)
+
+
+def facing_stone(name, mat, seed):
+    """Zeď 1 × 0,5 × 2 m: pět vrstev kvádrů, spáry se střídají."""
+    parts = []
+    rows = [0.0, 0.4, 0.8, 1.2, 1.6, 2.0]
+    for r in range(5):
+        cuts = [0.0, 0.55, 1.0] if r % 2 == 0 else [0.0, 0.3, 0.75, 1.0]
+        for c in range(len(cuts) - 1):
+            s = seed * 100 + r * 10 + c
+            x0, x1 = cuts[c] - 0.5 + 0.01, cuts[c + 1] - 0.5 - 0.01
+            edge_x = cuts[c] == 0.0 or cuts[c + 1] == 1.0
+            parts.append(
+                stone_block(f"st-{r}-{c}", x0, x1, -0.25, 0.25, rows[r] + 0.01, rows[r + 1] - 0.01, s, mat, j=0.0 if edge_x else 0.035)
+            )
+    return join(name, parts)
+
+
+def chamber_box():
+    """Sruby 5 × 3 × 4 m: 13 vrstev klád Ø 0,3 m; delší stěny podél X, kratší v Y, rohy přečnívají."""
+    parts = []
+    r = 0.15
+    n = 13
+    for k in range(n):
+        z = r + k * 0.3
+        for y in (-1.35, 1.35):
+            parts.append(cylinder(f"lx-{k}-{y}", r, 5.0, (0, y, z), rot=(0, math.pi / 2, 0), verts=7))
+        for x in (-2.35, 2.35):
+            parts.append(cylinder(f"ly-{k}-{x}", r, 3.0, (x, 0, z + 0.15), rot=(math.pi / 2, 0, 0), verts=7))
+    return join("chamber-box", parts)
+
+
+def chamber_face():
+    """Čelní zeď 1 × 0,8 × 4 m: kvádry po 0,5 m, spáry se střídají."""
+    parts = []
+    for r in range(8):
+        cuts = [0.0, 0.5, 1.0] if r % 2 == 0 else [0.0, 0.25, 0.75, 1.0]
+        for c in range(len(cuts) - 1):
+            edge_x = cuts[c] == 0.0 or cuts[c + 1] == 1.0
+            parts.append(
+                stone_block(
+                    f"cf-{r}-{c}", cuts[c] - 0.5 + 0.01, cuts[c + 1] - 0.5 - 0.01, -0.4, 0.4,
+                    r * 0.5 + 0.01, (r + 1) * 0.5 - 0.01, 700 + r * 10 + c, "fort-stone-c", j=0.0 if edge_x else 0.04,
+                )
+            )
+    return join("chamber-face", parts)
+
+
+def parapet():
+    parts = []
+    n = 6
+    w = 2.0 / n
+    for k in range(n):
+        h = 1.0 - 0.03 * ((k * 5) % 3)
+        parts.append(box(f"pp-{k}", (w - 0.02, 0.1, h), (-1.0 + (k + 0.5) * w, 0, h / 2)))
+    parts.append(box("pp-rail", (2.0, 0.06, 0.08), (0, -0.07, 0.6), mat="fort-planks"))
+    return join("parapet", parts)
+
+
+def tower():
+    """Věž 5 × 5 m, 8 m: čtyři kůly, příčky, plošina 5,5 m, předprseň (1 m), čtyřstranná stříška."""
+    parts = []
+    for x in (-2.2, 2.2):
+        for y in (-2.2, 2.2):
+            parts.append(cylinder(f"tp-{x}-{y}", 0.18, 7.0, (x, y, 3.5), verts=8))
+    for z in (2.0, 4.0):
+        for a in (-2.2, 2.2):
+            parts.append(box(f"bx-{z}-{a}", (4.4, 0.14, 0.16), (0, a, z), mat="fort-wood"))
+            parts.append(box(f"by-{z}-{a}", (0.14, 4.4, 0.16), (a, 0, z), mat="fort-wood"))
+    parts.append(box("deck", (5.0, 5.0, 0.2), (0, 0, 5.4), mat="fort-wood"))
+    for a in (-2.4, 2.4):
+        parts.append(box(f"pw-x{a}", (5.0, 0.12, 1.0), (0, a, 6.1), mat="fort-wood"))
+        parts.append(box(f"pw-y{a}", (0.12, 4.8, 1.0), (a, 0, 6.1), mat="fort-wood"))
+    # stříška: pyramida od 6,9 m (nad kůly) do 8 m, přesah 5 cm
+    h0, h1, e = 6.9, 8.0, 2.55
+    verts = [(-e, -e, h0), (e, -e, h0), (e, e, h0), (-e, e, h0), (0, 0, h1)]
+    faces = [(0, 1, 4), (1, 2, 4), (2, 3, 4), (3, 0, 4), (3, 2, 1, 0)]
+    parts.append(mesh_object("roof", verts, faces, "fort-wood"))
+    return join("tower", parts)
+
+
 def main():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.context.scene.cursor.location = (0, 0, 0)
@@ -181,6 +308,16 @@ def main():
         gate_planks(),
         gate_wicker(),
         gate_bar(),
+        walk_plank(),
+        walk_post(),
+        walk_steps(),
+        crib_log(),
+        facing_stone("facing-stone-a", "fort-stone-a", 1),
+        facing_stone("facing-stone-b", "fort-stone-b", 2),
+        chamber_box(),
+        chamber_face(),
+        tower(),
+        parapet(),
     ]
     os.makedirs(OUT, exist_ok=True)
     bpy.ops.object.select_all(action="DESELECT")
