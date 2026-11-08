@@ -209,7 +209,7 @@ podle typu, dílna podle řemesla, ohrada `PEN.laborManDays`, modla a svatyně
 ostatních `structureCondition(wear, …)`.
 
 - [ ] **Krok 1:** testy: (a) zemnice se stavem 0,6 → stavba `demolition` s `cost = 0.25 ×
-    BUILD_COSTS.zemnice.laborManDays`, obydlí `disusedDay`; po dokončení obydlí zmizí bez
+  BUILD_COSTS.zemnice.laborManDays`, obydlí `disusedDay`; po dokončení obydlí zmizí bez
       zříceniny, klády `floor(0.5 × 7 × 0.6) = 2` na hromadě u obydlí, kronika `logs: 2`;
       (b) ohrada se stavem 1 → 3 klády, rozestavěná rozšíření `penId` zmizí; (c) modla zmizí bez
       `sacredRuins`; (d) bourání bere společnou práci rovným dílem s ostatními stavbami (`build`);

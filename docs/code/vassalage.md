@@ -183,8 +183,9 @@ pánům. Akce serveru: `houseSpare`, `renounceVassalage` (`apps/web/app/game/act
 `digestsOf` → `digest.food`); ves bez souhrnu současné verze nebo bez lidí řádek nemá. Vazalové
 = dohody s `other === 'vassal'` a `terms.tribute` s obilím nebo dobytkem (kusy = součet tří druhů);
 počítá se **domluvené**, ne co vazal ten rok skutečně dá. `totalKg` = Σ (`growsKg` − `needsKg`)
-+ obilí vazalů + `cattleFoodKg` (dobytek masem, návrh Clauda – jako při rozdělení). Bez rodu nebo bez
-aktivní vsi (i bez `deps.villages`) `null`; panel nese i hráč s jedinou vsí.
+
+- obilí vazalů + `cattleFoodKg` (dobytek masem, návrh Clauda – jako při rozdělení). Bez rodu nebo bez
+  aktivní vsi (i bez `deps.villages`) `null`; panel nese i hráč s jedinou vsí.
 
 Rozhraní podmínek (ikony, formulář s výhledem, Nové podmínky, Vypovědět): [web-ui.md](web-ui.md) – „Podmínky vazalství v panelu“.
 

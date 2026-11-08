@@ -923,4 +923,3 @@ funkce jsou v `apps/web/lib/demolition-view.ts` (`demolitionLooks`, `demolitionS
 - **Chování na začátku:** při průběhu 0 (práce ještě nezačala) je stavba hned celé staveniště
   (`progress` 1) – rozdíl proti hotovému modelu je jen v dílech staveniště, ne v tvaru.
 - Test: `apps/web/lib/__tests__/demolition-view.test.ts`.
-
