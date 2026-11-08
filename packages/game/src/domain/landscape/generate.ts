@@ -8,8 +8,16 @@ import {
 } from './premium/generate';
 import type { PremiumType } from './premium/types';
 import { deriveSeed } from './random';
+import { generateSkeletonTerrain } from './skeleton/terrain';
+import type { SkeletonSlice } from './skeleton/types';
 import { generateTerrain, type Terrain } from './terrain';
-import { CELL_SIZE_M, CURRENT_LAYER_VERSIONS, type Landscape, type LayerVersions } from './types';
+import {
+  CELL_SIZE_M,
+  CURRENT_LAYER_VERSIONS,
+  SKELETON_LAYER_VERSION,
+  type Landscape,
+  type LayerVersions,
+} from './types';
 import { generateVegetation } from './vegetation';
 
 export const MAX_ATTEMPTS = 16;
@@ -29,7 +37,31 @@ const KNOWN_VERSIONS: { readonly [K in keyof LayerVersions]-?: readonly LayerVer
   fertility: [1, 2],
   obstacles: [1, 2],
   premium: [PREMIUM_LAYER_VERSION],
+  skeleton: [SKELETON_LAYER_VERSION],
 };
+
+/**
+ * Výřez kostry mapy – prázdný výřez je suchá mapa (null). Verze `skeleton` patří jen k neprázdnému
+ * výřezu a naopak; prémie na kostře přijde s `premium: 2` – zatím `RangeError`.
+ */
+function skeletonOf(
+  versions: LayerVersions,
+  skeleton: SkeletonSlice | null | undefined,
+  premium: PremiumType | undefined,
+): SkeletonSlice | null {
+  const slice =
+    skeleton && (skeleton.rivers.length > 0 || skeleton.trails.length > 0) ? skeleton : null;
+  if (slice && versions.skeleton === undefined) {
+    throw new RangeError('Výřez kostry bez verze vrstvy skeleton.');
+  }
+  if (!slice && versions.skeleton !== undefined) {
+    throw new RangeError(`Verze vrstvy skeleton ${String(versions.skeleton)} bez výřezu kostry.`);
+  }
+  if (slice && premium !== undefined) {
+    throw new RangeError(`Prémiový typ ${premium} na mapě z kostry zatím není (premium: 2).`);
+  }
+  return slice;
+}
 
 /**
  * Krajina pro nové sídlo: první pokus (seed, seed+1, …), který padne do pásma srovnatelnosti.
@@ -38,12 +70,15 @@ const KNOWN_VERSIONS: { readonly [K in keyof LayerVersions]-?: readonly LayerVer
  * typem (návrh Clauda) se celé pásmo měří na průměrné krajině pokusu – vrstvách před prémiovým
  * průchodem –, takže bonus typu nevytáhne do pásma základ, který by neprošel; prémiová krajina
  * pak musí splnit dolní meze pásma (start není horší) a kontrolu typu (`checkPremium`). Neznámý
- * typ vyhodí RangeError jako neznámá verze.
+ * typ vyhodí RangeError jako neznámá verze. Výřez kostry (`skeleton`, world-skeleton.md – Mapa z kostry)
+ * je čtvrtý vstup: s řekou terén „řeka první“, se stezkou jen nese výřez; null = suchá mapa bit
+ * po bitu jako dřív.
  */
 export function generateAcceptedLandscape(
   seed: number,
   versions: LayerVersions = CURRENT_LAYER_VERSIONS,
   premium?: PremiumType,
+  skeleton?: SkeletonSlice | null,
 ): { seed: number; landscape: Landscape } {
   for (const [layer, version] of Object.entries(versions)) {
     const known = KNOWN_VERSIONS[layer as keyof LayerVersions] as readonly unknown[] | undefined;
@@ -52,10 +87,11 @@ export function generateAcceptedLandscape(
     }
   }
   if (premium !== undefined) hasPremiumPass(premium); // neznámý typ → RangeError hned
+  const slice = skeletonOf(versions, skeleton, premium);
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const attemptSeed = (seed + attempt) >>> 0;
-    const average = averageLayers(attemptSeed, versions);
-    const plain = assemble(attemptSeed, versions, average);
+    const average = averageLayers(attemptSeed, versions, slice);
+    const plain = assemble(attemptSeed, versions, average, undefined, slice);
     if (!checkBand(plain, versions).ok) continue;
     if (premium === undefined) return { seed: attemptSeed, landscape: plain };
     const layers = premiumLayers(attemptSeed, versions, premium, average);
@@ -70,8 +106,9 @@ export function generateLandscape(
   seed: number,
   versions: LayerVersions = CURRENT_LAYER_VERSIONS,
   premium?: PremiumType,
+  skeleton?: SkeletonSlice | null,
 ): Landscape {
-  return generateAcceptedLandscape(seed, versions, premium).landscape;
+  return generateAcceptedLandscape(seed, versions, premium, skeleton).landscape;
 }
 
 /**
@@ -80,15 +117,23 @@ export function generateLandscape(
  * a úrodnosti (`premiumGeneration`, vlastní seed – náhoda vrstev se nemění) a krajina nese typ.
  * Bez typu je krajina bit po bitu jako dřív. Průměrné vrstvy se tu nepočítají zbytečně: každá
  * vrstva vznikne jednou (průchod, který mění terén, dostane rovnou čerstvý terén) – vyjde stejně
- * jako prémiová krajina přijatého pokusu v `generateAcceptedLandscape`.
+ * jako prémiová krajina přijatého pokusu v `generateAcceptedLandscape`. Výřez kostry jako tam.
  */
 export function generateLandscapeAttempt(
   attemptSeed: number,
   versions: LayerVersions,
   premium?: PremiumType,
+  skeleton?: SkeletonSlice | null,
 ): Landscape {
+  const slice = skeletonOf(versions, skeleton, premium);
   if (premium === undefined) {
-    return assemble(attemptSeed, versions, averageLayers(attemptSeed, versions));
+    return assemble(
+      attemptSeed,
+      versions,
+      averageLayers(attemptSeed, versions, slice),
+      undefined,
+      slice,
+    );
   }
   return assemble(
     attemptSeed,
@@ -106,15 +151,27 @@ interface Layers {
 }
 
 /** Vrstvy průměrné krajiny pokusu – terén a voda → vegetace → úrodnost. */
-function averageLayers(attemptSeed: number, versions: LayerVersions): Layers {
-  const terrain = averageTerrain(attemptSeed, versions);
+function averageLayers(
+  attemptSeed: number,
+  versions: LayerVersions,
+  slice: SkeletonSlice | null = null,
+): Layers {
+  const terrain = averageTerrain(attemptSeed, versions, slice);
   const surface = averageVegetation(attemptSeed, versions, terrain);
   const fertility = averageFertility(attemptSeed, versions, terrain, surface);
   return { terrain, surface, fertility };
 }
 
-function averageTerrain(attemptSeed: number, versions: LayerVersions): Terrain {
-  return generateTerrain(deriveSeed(attemptSeed, 'terrain'), versions.terrain);
+/** Terén průměrné krajiny pokusu – s výřezem kostry terén mapy z kostry. */
+function averageTerrain(
+  attemptSeed: number,
+  versions: LayerVersions,
+  slice: SkeletonSlice | null = null,
+): Terrain {
+  const seed = deriveSeed(attemptSeed, 'terrain');
+  return slice
+    ? generateSkeletonTerrain(seed, versions.terrain, slice)
+    : generateTerrain(seed, versions.terrain);
 }
 
 /**
@@ -229,15 +286,19 @@ function cloneTerrain(terrain: Terrain): Terrain {
         }
       : {}),
     ...(terrain.river ? { river: terrain.river.map((p) => ({ ...p })) } : {}),
+    ...(terrain.rivers
+      ? { rivers: terrain.rivers.map((course) => course.map((p) => ({ ...p }))) }
+      : {}),
   };
 }
 
-/** Krajina z vrstev pokusu (s prémiovým typem i typ). */
+/** Krajina z vrstev pokusu (s prémiovým typem i typ, s výřezem kostry i výřez a osy řek). */
 function assemble(
   attemptSeed: number,
   versions: LayerVersions,
   { terrain, surface, fertility }: Layers,
   premium?: PremiumType,
+  slice: SkeletonSlice | null = null,
 ): Landscape {
   return {
     size: terrain.size,
@@ -253,6 +314,8 @@ function assemble(
     },
     ...(terrain.promontories ? { promontories: terrain.promontories } : {}),
     ...(terrain.river ? { river: terrain.river } : {}),
+    ...(terrain.rivers ? { rivers: terrain.rivers } : {}),
     ...(premium !== undefined ? { premium } : {}),
+    ...(slice ? { skeleton: slice } : {}),
   };
 }

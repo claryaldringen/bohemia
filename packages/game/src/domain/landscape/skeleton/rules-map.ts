@@ -20,4 +20,14 @@ export const SKELETON_MAP = {
   widthWave: 0.1,
   /** Brod aspoň tolik políček od soutoku. */
   fordJunctionCells: 8,
+  /**
+   * Řeka první: terén se před trasami řek nakloní k výtoku – u vtoku (u pramene u jeho bodu)
+   * o tolik metrů výš než u výtoku, mezi nimi plynule. Řeka tak má spád, i když vtok leží
+   * v nejnižším místě terénu.
+   */
+  tiltM: 8,
+  /** Rovina kolem místa pro vesnici mění terén až od tolika políček od vody řeky, plně od druhé meze. */
+  villageFlattenRiverCells: [3, 11],
+  /** Potok mapy: kolik nejlepších startů na okraji se zkusí, než pokus vzdá. */
+  streamStartTries: 6,
 } as const;

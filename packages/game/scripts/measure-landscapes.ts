@@ -1,7 +1,9 @@
 // Měření generátoru krajiny na vzorku seedů: npx tsx packages/game/scripts/measure-landscapes.ts 500
 // Druhý argument `initial` změří verze vrstev sídel založených do 18. 10. 2026, `previous` nová
 // sídla do 20. 10. 2026 (bez skal u potoka), název typu prémiové krajiny (např. `iron-ore`)
-// změří prémiovou krajinu typu (premium-landscapes.md – Kalibrace).
+// změří prémiovou krajinu typu (premium-landscapes.md – Kalibrace). `--skeleton straight|corner|
+// junction|source|trail|ford` změří mapu z ukázkového výřezu kostry (world-skeleton.md – Výsledky
+// měření generátoru).
 import {
   checkBand,
   CURRENT_LAYER_VERSIONS,
@@ -14,19 +16,64 @@ import {
   PREMIUM_TYPES,
   PREVIOUS_LAYER_VERSIONS,
   promontoriesOf,
+  SKELETON_LAYER_VERSION,
   type Landscape,
   type PremiumType,
+  type SkeletonRiverPort,
+  type SkeletonSlice,
 } from '../src/domain/landscape';
 
+const river = (
+  side: SkeletonRiverPort['side'],
+  at: number,
+  widthM: number,
+  flow: 'in' | 'out',
+): SkeletonRiverPort => ({ side, at, widthM, flow });
+/** Ukázkové výřezy kostry – řeky jako v testech koryt a pásma (`skeleton/__tests__`). */
+const SKELETON_SAMPLES: Record<string, SkeletonSlice> = {
+  straight: { world: 1, rivers: [river('N', 60, 35, 'in'), river('S', 70, 35, 'out')], trails: [] },
+  corner: { world: 1, rivers: [river('W', 40, 30, 'in'), river('S', 90, 30, 'out')], trails: [] },
+  junction: {
+    world: 1,
+    rivers: [river('N', 50, 40, 'in'), river('E', 64, 25, 'in'), river('S', 80, 45, 'out')],
+    trails: [],
+  },
+  source: { world: 1, rivers: [river('S', 64, 25, 'out')], trails: [] },
+  trail: {
+    world: 1,
+    rivers: [],
+    trails: [
+      { side: 'E', at: 40 },
+      { side: 'W', at: 90 },
+    ],
+  },
+  ford: {
+    world: 1,
+    rivers: [river('N', 60, 35, 'in'), river('S', 70, 35, 'out')],
+    trails: [
+      { side: 'E', at: 40 },
+      { side: 'W', at: 90 },
+    ],
+  },
+};
+
 const count = Number(process.argv[2] ?? 500);
+const skeletonArg = process.argv.indexOf('--skeleton');
+const skeletonName = skeletonArg >= 0 ? process.argv[skeletonArg + 1] : undefined;
+const skeleton = skeletonName === undefined ? null : (SKELETON_SAMPLES[skeletonName] ?? null);
+if (skeletonName !== undefined && !skeleton) {
+  throw new Error(`Neznámý výřez ${skeletonName} – ${Object.keys(SKELETON_SAMPLES).join(', ')}.`);
+}
 const premium = PREMIUM_TYPES.find((type): type is PremiumType => type === process.argv[3]);
-const versions = premium
-  ? { ...CURRENT_LAYER_VERSIONS, premium: PREMIUM_LAYER_VERSION }
-  : process.argv[3] === 'initial'
-    ? INITIAL_LAYER_VERSIONS
-    : process.argv[3] === 'previous'
-      ? PREVIOUS_LAYER_VERSIONS
-      : CURRENT_LAYER_VERSIONS;
+const versions = skeleton
+  ? { ...CURRENT_LAYER_VERSIONS, skeleton: SKELETON_LAYER_VERSION }
+  : premium
+    ? { ...CURRENT_LAYER_VERSIONS, premium: PREMIUM_LAYER_VERSION }
+    : process.argv[3] === 'initial'
+      ? INITIAL_LAYER_VERSIONS
+      : process.argv[3] === 'previous'
+        ? PREVIOUS_LAYER_VERSIONS
+        : CURRENT_LAYER_VERSIONS;
 /** Políčko 15 × 15 m = 0,0225 ha. */
 const HA_PER_CELL = 0.0225;
 const firstAttempt = {
@@ -42,6 +89,7 @@ const acceptedMetrics = {
   'louka do 600 m (ha)': [] as number[],
   'z toho úrodnost ≥ 60 (ha)': [] as number[],
   'podíl lesa': [] as number[],
+  'úrodná políčka': [] as number[],
 };
 const attempts: number[] = [];
 /** Skály u potoka (terén 2) u přijatých krajin. */
@@ -60,7 +108,7 @@ const started = performance.now();
 
 for (let seed = 0; seed < count; seed++) {
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    const landscape = generateLandscapeAttempt((seed + attempt) >>> 0, versions, premium);
+    const landscape = generateLandscapeAttempt((seed + attempt) >>> 0, versions, premium, skeleton);
     const m = measureLandscape(landscape);
     if (attempt === 0) {
       firstAttempt.forestShare.push(m.forestShare);
@@ -77,6 +125,7 @@ for (let seed = 0; seed < count; seed++) {
       acceptedMetrics['louka do 600 m (ha)'].push(m.nearMeadowCells * HA_PER_CELL);
       acceptedMetrics['z toho úrodnost ≥ 60 (ha)'].push(m.nearGoodMeadowCells * HA_PER_CELL);
       acceptedMetrics['podíl lesa'].push(m.forestShare);
+      acceptedMetrics['úrodná políčka'].push(m.fertileCells);
       const wall = (p: Landscape['stream'][number]): number =>
         Math.max(p.bankLeft ?? 0, p.bankRight ?? 0);
       rocks['nejvyšší stěna (m)'].push(Math.max(...landscape.stream.map(wall)));
@@ -109,7 +158,7 @@ const quantiles = (values: number[], qs = [0.05, 0.5, 0.95]): string => {
 };
 
 console.log(
-  `Vzorek: ${count} seedů, verze vrstev ${JSON.stringify(versions)}${premium ? `, typ ${premium}` : ''} (metriky z 1. pokusu)`,
+  `Vzorek: ${count} seedů, verze vrstev ${JSON.stringify(versions)}${premium ? `, typ ${premium}` : ''}${skeletonName ? `, výřez ${skeletonName}` : ''} (metriky z 1. pokusu)`,
 );
 for (const [name, values] of Object.entries(firstAttempt))
   console.log(`  ${name.padEnd(19)} ${quantiles(values, [0.01, 0.05, 0.5, 0.95, 0.99])}`);
@@ -121,9 +170,10 @@ console.log(`  důvody neúspěchu pokusů:`, failures);
 console.log(`  průměrný čas jednoho pokusu ${(elapsed / totalAttempts).toFixed(1)} ms`);
 console.log(`Přijaté krajiny (${attempts.length}):`);
 const sortedMeadow = [...acceptedMetrics['louka do 600 m (ha)']].sort((a, b) => a - b);
-// jeden řádek pro tabulku v premium-landscapes.md (Kalibrace – výsledky měření)
+// jeden řádek pro tabulku v premium-landscapes.md (Kalibrace – výsledky měření) a world-skeleton.md
+const sortedFertile = [...acceptedMetrics['úrodná políčka']].sort((a, b) => a - b);
 console.log(
-  `SOUHRN ${premium ?? 'průměrná'} | 1. pokus ${((attempts.filter((a) => a === 1).length / count) * 100).toFixed(0)} % | nesplněno ${count - attempts.length} | ${(elapsed / totalAttempts).toFixed(0)} ms/pokus | louka do 600 m medián ${(sortedMeadow[Math.floor(sortedMeadow.length / 2)] ?? 0).toFixed(1)} ha (p10 ${(sortedMeadow[Math.floor(sortedMeadow.length * 0.1)] ?? 0).toFixed(1)})`,
+  `SOUHRN ${skeletonName ?? premium ?? 'průměrná'} | 1. pokus ${((attempts.filter((a) => a === 1).length / count) * 100).toFixed(0)} % | nesplněno ${count - attempts.length} | ${(elapsed / totalAttempts).toFixed(0)} ms/pokus | louka do 600 m medián ${(sortedMeadow[Math.floor(sortedMeadow.length / 2)] ?? 0).toFixed(1)} ha (p10 ${(sortedMeadow[Math.floor(sortedMeadow.length * 0.1)] ?? 0).toFixed(1)}) | úrodná medián ${sortedFertile[Math.floor(sortedFertile.length / 2)] ?? 0}`,
 );
 for (const [name, values] of Object.entries(acceptedMetrics))
   console.log(`  ${name.padEnd(26)} ${quantiles(values, [0.1, 0.5, 0.9])}`);

@@ -86,7 +86,8 @@ function toCells(path: readonly number[], size: number): Cell[] {
 /**
  * Trasy řek mapy z bodů výřezu: hlavní tok (index 0) od nejširšího vtoku – u pramene od bodu
  * `sourceCells` od výtoku do mapy – k výtoku, ostatní vtoky k nejlevněji dosažitelnému políčku
- * hlavního toku aspoň `junctionEdgeCells` od okraje. [] = výřez bez řeky, null = trasa nevede
+ * hlavního toku aspoň `junctionEdgeCells` od okraje (hlavní tok u rohu mapy, který se tak daleko
+ * od okraje nedostane – v jeho nejhlubším místě). [] = výřez bez řeky, null = trasa nevede
  * (pokus krajiny pak neprojde). Výřez s vtokem bez výtoku je chybný (`RangeError`).
  */
 export function planRiverCourses(
@@ -146,14 +147,21 @@ export function planRiverCourses(
   ];
 
   const mainMask = new Uint8Array(size * size);
-  for (const c of mainCells) mainMask[index(c, size)] = 1;
+  let deepest = 0;
+  for (const c of mainCells) {
+    mainMask[index(c, size)] = 1;
+    deepest = Math.max(deepest, borderDistance(index(c, size), size));
+  }
+  // Hlavní tok u rohu mapy (W 24 → S 24) se od okraje na `junctionEdgeCells` nevzdálí – přítok
+  // pak ústí v jeho nejhlubším místě (návrh Clauda, jinak by výřez nešel).
+  const junctionEdge = Math.min(SKELETON_MAP.junctionEdgeCells, deepest);
   const taken = Uint8Array.from(mainMask);
   for (const port of tributaries) {
     const lead = leads.get(port)!;
     const blocked = leadMask(port);
     for (let i = 0; i < blocked.length; i++) if (taken[i]) blocked[i] = 1;
     const goal = (i: number): boolean =>
-      mainMask[i] === 1 && borderDistance(i, size) >= SKELETON_MAP.junctionEdgeCells;
+      mainMask[i] === 1 && borderDistance(i, size) >= junctionEdge;
     for (let i = 0; i < blocked.length; i++) if (goal(i)) blocked[i] = 0;
     const path = cheapestPath(
       size,
