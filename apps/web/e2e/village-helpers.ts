@@ -338,7 +338,8 @@ export async function selectAllDwellings(page: Page): Promise<ReturnType<Page['g
         await page.keyboard.press('Control+A');
         return panel.getAttribute('data-kind', { timeout: 1000 }).catch(() => null);
       },
-      { timeout: 20_000 },
+      // Ctrl+A zabere, až je scéna s obydlími nakreslená – pod zátěží stroje to trvá přes 20 s
+      { timeout: 90_000 },
     )
     .toBe('dwellings');
   return panel;
