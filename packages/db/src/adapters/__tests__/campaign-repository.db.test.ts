@@ -97,6 +97,9 @@ describe('campaign repository', () => {
     // tažení vůdce – jen jeho a jen běžící (panel Vojsko)
     expect(await campaigns.activeOf('a')).toEqual([ID]);
     expect(await campaigns.activeOf('b')).toEqual([]);
+    // tažení proti vsi – scéna napadené vsi
+    expect(await campaigns.activeAgainst('w')).toEqual([ID]);
+    expect(await campaigns.activeAgainst('v')).toEqual([]);
   });
 
   it('tažení, ve kterém jdou muži vazala, je i jeho (panel Vojsko – Ú6.17)', async () => {
@@ -144,6 +147,7 @@ describe('campaign repository', () => {
     // skončené tažení s nedoručenými událostmi se ještě dopočítává (doručení), pak už ne
     expect(await campaigns.active()).toEqual([ID]);
     expect(await campaigns.activeOf('a')).toEqual([]);
+    expect(await campaigns.activeAgainst('w')).toEqual([]);
     expect((await campaigns.checkpoint(ID))?.outbox).toEqual(outbox);
     await campaigns.clearOutbox(ID, 149);
     expect(await campaigns.active()).toEqual([ID]);

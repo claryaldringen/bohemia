@@ -64,6 +64,22 @@ export function createCampaignRepository(db: Database): CampaignRepository {
       return rows.map((r) => r.id);
     },
 
+    async activeAgainst(villageId: string): Promise<string[]> {
+      // cíl je jen v bodu (`state.target`) – scéna napadené vsi
+      const rows = await db
+        .select({ id: campaign.id })
+        .from(campaign)
+        .innerJoin(campaignCheckpoint, eq(campaignCheckpoint.campaignId, campaign.id))
+        .where(
+          and(
+            eq(campaign.status, 'active'),
+            sql`${campaignCheckpoint.state}->'target'->>'villageId' = ${villageId}`,
+          ),
+        )
+        .orderBy(asc(campaign.createdAt), asc(campaign.id));
+      return rows.map((r) => r.id);
+    },
+
     async checkpoint(campaignId: string): Promise<CampaignCheckpoint | null> {
       const [row] = await db
         .select({ state: campaignCheckpoint.state, outbox: campaignCheckpoint.outbox })

@@ -64,7 +64,10 @@ async function viewOf(
 }
 
 /** Mřížka mapy cíle v den tažení (dohled v lese) – jako ji bere boj (`gridOf`). */
-async function sightGrid(deps: CampaignViewDeps, state: CampaignState): Promise<MarchGrid> {
+export async function sightGrid(
+  deps: Pick<CampaignViewDeps, 'cells' | 'villages' | 'grids'>,
+  state: CampaignState,
+): Promise<MarchGrid> {
   const key = `${state.id}@${state.day}`;
   const cached = deps.grids?.get(key);
   if (cached) return cached;

@@ -36,6 +36,11 @@ export interface CampaignRepository {
    * službě) – panel Vojsko (Ú6.14, Ú6.17), od nejstaršího.
    */
   activeOf(playerId: string): Promise<string[]>;
+  /**
+   * Id běžících tažení s cílem ve vsi `villageId` – scéna napadené vsi (war.md – Ve scéně), od
+   * nejstaršího.
+   */
+  activeAgainst(villageId: string): Promise<string[]>;
   checkpoint(campaignId: string): Promise<CampaignCheckpoint | null>;
   /** Záměry s taktem větším než `tick`, podle taktu a `seq`. */
   intentsAfter(campaignId: string, tick: number): Promise<CampaignIntent[]>;
