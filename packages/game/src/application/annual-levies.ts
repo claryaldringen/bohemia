@@ -14,6 +14,7 @@ import {
   isEmptyBundle,
   noMacroGoods,
   scaleBundle,
+  spareSplit,
   suggestSplit,
   sumBundles,
   type LevyAmounts,
@@ -22,20 +23,23 @@ import {
   type MacroBundle,
   type MacroGoods,
 } from '../domain/vassalage';
+import { ABSENT_VASSAL } from '../domain/vassalage/rules-absence';
 import type { VillageState } from '../domain/village';
-import type { Dialog, DialogRepository } from './dialogs';
+import type { Dialog, DialogKind, DialogRepository } from './dialogs';
 import type { House, HouseRepository } from './houses';
 import { chronicleHouses, houseName, type NegotiationVillages } from './negotiation-chronicle';
 import type { Loan, LoanRepository } from './loans';
 import type { NegotiationRepository } from './negotiations';
 import type { NoticeRepository } from './notices';
-import { sendCorvee, sendShipment, type ShipmentDeps } from './shipments';
+import { SHIPMENT_RACE, sendCorvee, sendShipment, type ShipmentDeps } from './shipments';
 import type { Vassalage, VassalageRepository } from './vassalages';
 
 // Roční Odvody (vassalage.md – Roční dialog 1. 11.): každý herní rok 1. 11. se vazalovi s domluvenou
 // dávkou otevře dialog; neodpoví-li, dialog počká a další 1. 11. o rok naroste (druhý nevznikne),
 // každý zmeškaný rok je neplnění. Odpověď pošle zásilky z vsí rodu vazala a zapíše kroniku obou
-// rodů a upozornění pánovi. Nic se nevymáhá. Podrobnosti: docs/code/vassalage.md – Roční Odvody.
+// rodů a upozornění pánovi. Nic se nevymáhá. Neodpoví-li hráč do konce roku, odvede za něj
+// formální správce předvyplněné (absence.md – Povinnosti vazala, když hráč nehraje).
+// Podrobnosti: docs/code/vassalage.md – Roční Odvody.
 
 /** Herní měsíc a den ročního dialogu. */
 const LEVY_MONTH = 11;
@@ -306,27 +310,55 @@ export interface LevyDialogView {
    * robotu (`corveeWorkers` – dospělí od 16 let, ne muži rodu), podle toho dialog ukáže lidi × dny.
    */
   villages: { villageId: string; name: string; suggested: MacroBundle; corveeHands: number }[];
+  /** Herní den, kdy za hráče odvede předvyplněné správce (absence.md); bez něj dialog čeká. */
+  stewardDay?: number;
+}
+
+/** Roční dialogy 1. 11., za které po lhůtě odvede správce (absence.md – Povinnosti vazala). */
+const STEWARD_KINDS: readonly DialogKind[] = ['levy', 'repay', 'tribute-send'];
+
+/** Den, kdy za hráče odpoví správce – konec lhůty od 1. 11. roku dialogu (null – nečeká na něj). */
+export function levyStewardDay(dialog: Pick<Dialog, 'kind' | 'year'>): number | null {
+  return STEWARD_KINDS.includes(dialog.kind)
+    ? levyDay(dialog.year) + ABSENT_VASSAL.levyAnswerDays
+    : null;
+}
+
+function withSteward(view: LevyDialogView, dialog: Dialog): LevyDialogView {
+  const stewardDay = levyStewardDay(dialog);
+  return stewardDay === null ? view : { ...view, stewardDay };
 }
 
 /**
  * Otevřené dialogy Odvody hráče s předvyplněným rozdělením po vsích (počítá se jen na vyžádání –
  * načítá stavy vsí rodu): u každé vsi menší z přebytku a z dopravy do pánovy cílové vsi.
  */
-export async function levyDialogs(
+export function levyDialogs(
   deps: LevyDeps,
   input: { playerId: string },
 ): Promise<LevyDialogView[]> {
+  return dialogViews(deps, input.playerId, suggestSplit);
+}
+
+/** Předvyplnění po vsích: hráči `suggestSplit` (celé domluvené), správci `spareSplit` (co může). */
+type SplitFn = typeof suggestSplit;
+
+async function dialogViews(
+  deps: LevyDeps,
+  playerId: string,
+  splitOf: SplitFn,
+): Promise<LevyDialogView[]> {
   const out: LevyDialogView[] = [];
-  const own = await houseVillages(deps.shipments, input.playerId);
-  for (const dialog of await deps.dialogs.listOpen(input.playerId)) {
+  const own = await houseVillages(deps.shipments, playerId);
+  for (const dialog of await deps.dialogs.listOpen(playerId)) {
     if (dialog.kind === 'repay') {
-      const view = await repayView(deps, dialog, own);
-      if (view) out.push(view);
+      const view = await repayView(deps, dialog, own, splitOf);
+      if (view) out.push(withSteward(view, dialog));
       continue;
     }
     if (isSendKind(dialog.kind)) {
-      const view = await tradeView(deps, dialog, own);
-      if (view) out.push(view);
+      const view = await tradeView(deps, dialog, own, splitOf);
+      if (view) out.push(withSteward(view, dialog));
       continue;
     }
     if (dialog.kind !== 'levy') continue;
@@ -344,8 +376,8 @@ export async function levyDialogs(
         noMacroGoods(),
       ),
     }));
-    const split = suggestSplit(agreed, spares);
-    out.push({
+    const split = splitOf(agreed, spares);
+    const view: LevyDialogView = {
       dialogId: dialog.id,
       kind: 'levy',
       vassalageId: v.id,
@@ -359,9 +391,88 @@ export async function levyDialogs(
         suggested: split[village.id] ?? bundleOfAmounts(sumBundles([])),
         corveeHands: corveeHandsOf(village.state),
       })),
-    });
+    };
+    out.push(withSteward(view, dialog));
   }
   return out;
+}
+
+/**
+ * Úloha světa (absence.md – Povinnosti vazala, když hráč nehraje): na roční Odvody (dávka, splátka,
+ * tribut), na které hráč neodpověděl do konce lhůty (`ABSENT_VASSAL.levyAnswerDays` od 1. 11.),
+ * odpoví formální správce rodu – potvrdí domluvené jako loni a odvede předvyplněné: u každé vsi
+ * rodu menší z přebytku a z dopravy. Nemá-li na to ves, odvede, co může, a míň než domluveno je
+ * neplnění jako u odpovědi hráče. Vsi rodu se nejdřív dopočítají do dneška (uspané vsi také).
+ * Selže-li odeslání chybou, která se sama nespraví (cílová ves chybí…), uzavře se dialog jako
+ * „nic neodvedl“ (neplnění); dohoda, která už neplatí, dialog zahodí; souběh se zkusí příště.
+ * Odpověď hráče do lhůty má přednost – podmíněné uzavření dialogu pustí jen jednu. Vazal dostane
+ * upozornění `levy-steward`, pán `levy-sent` se `steward`. Vrací počet odpovědí správce.
+ */
+export async function answerAbsentLevies(
+  deps: LevyDeps,
+  input: { today: number },
+): Promise<number> {
+  const due = new Map<string, Dialog[]>();
+  for (const kind of STEWARD_KINDS) {
+    for (const dialog of await deps.dialogs.openOfKind(kind)) {
+      const day = levyStewardDay(dialog);
+      if (day === null || input.today < day) continue;
+      due.set(dialog.playerId, [...(due.get(dialog.playerId) ?? []), dialog]);
+    }
+  }
+  let answered = 0;
+  for (const [playerId, dialogs] of due) {
+    for (const village of await houseVillages(deps.shipments, playerId)) {
+      await deps.prepareVillage(village.id, input.today);
+    }
+    for (const dialog of dialogs) {
+      // výhled znovu po každé odpovědi – předchozí zásilka už ze vsí odešla
+      const views = await dialogViews(deps, playerId, spareSplit);
+      const view = views.find((v) => v.dialogId === dialog.id);
+      if (!view) {
+        // dohoda už neplatí (vazalství, půjčka) – dialog zmizí, ať se nezkouší každou minutu
+        await deps.dialogs.lapse(dialog.id);
+        continue;
+      }
+      const answer = (split: Record<string, MacroBundle>): Promise<AnswerLevyResult> => {
+        const amounts = sumBundles(Object.values(split));
+        const lines = LEVY_GOODS.filter((good) => amounts[good] > 0).map((good) => ({
+          good,
+          amount: amounts[good],
+        }));
+        const answerInput = { playerId, dialogId: dialog.id, lines, split, message: null };
+        return answerDialog(deps, { ...answerInput, today: input.today }, true);
+      };
+      let split = Object.fromEntries(view.villages.map((v) => [v.villageId, v.suggested]));
+      let result = await answer(split);
+      if (!result.ok && result.reason !== DIALOG_CLOSED && result.reason !== SHIPMENT_RACE) {
+        // chyba, která se sama nespraví (pán nemá cílovou ves, ves zanikla…): uzavřít jako
+        // „nic neodvedl“ = neplnění; souběh (SHIPMENT_RACE) se zkusí příští kolo
+        split = {};
+        result = await answer(split);
+        if (!result.ok && result.reason !== DIALOG_CLOSED) await deps.dialogs.lapse(dialog.id);
+      }
+      if (!result.ok) continue;
+      const sent = sumBundles(Object.values(split));
+      answered++;
+      const agreed = flattenBundle(view.agreed);
+      const parts: LevyPart[] = LEVY_GOODS.filter((g) => agreed[g] > 0 || sent[g] > 0).map(
+        (good) => ({ good, sent: sent[good], agreed: agreed[good] }),
+      );
+      await deps.notices.post({
+        playerId,
+        kind: 'levy-steward',
+        payload: {
+          lordName: view.lordName,
+          kind: dialog.kind,
+          parts,
+          arrivesDay: result.arrivesDay,
+        },
+        gameDay: input.today,
+      });
+    }
+  }
+  return answered;
 }
 
 /** Kolik lidí může ves poslat na robotu (stav vsi v den jejího posledního spočítaného dne). */
@@ -375,6 +486,7 @@ async function repayView(
   deps: LevyDeps,
   dialog: Dialog,
   own: Awaited<ReturnType<typeof houseVillages>>,
+  splitOf: SplitFn,
 ): Promise<LevyDialogView | null> {
   const loan = await deps.loans?.byId(dialog.refId);
   if (!loan || loan.status !== 'active') return null;
@@ -395,7 +507,7 @@ async function repayView(
       noMacroGoods(),
     ),
   }));
-  const split = suggestSplit(agreed, spares);
+  const split = splitOf(agreed, spares);
   return {
     dialogId: dialog.id,
     kind: 'repay',
@@ -438,6 +550,7 @@ async function tradeView(
   deps: LevyDeps,
   dialog: Dialog,
   own: Awaited<ReturnType<typeof houseVillages>>,
+  splitOf: SplitFn,
 ): Promise<LevyDialogView | null> {
   const body = tradeBodyOf(dialog);
   const partner = await deps.houses.byId(body.toHouseId);
@@ -450,7 +563,7 @@ async function tradeView(
       noMacroGoods(),
     ),
   }));
-  const split = suggestSplit(body.goods, spares);
+  const split = splitOf(body.goods, spares);
   return {
     dialogId: dialog.id,
     kind: dialog.kind as SendKind,
@@ -493,16 +606,25 @@ export type AnswerLevyResult =
  * zapíše kroniku obou rodů, upozornění pánovi (co, kdy dorazí, vzkaz) a méně než domluveno
  * jako neplnění (`addBreach`). Posílat víc než domluveno smí.
  */
-export async function answerLevy(
+export function answerLevy(deps: LevyDeps, input: LevyAnswerInput): Promise<AnswerLevyResult> {
+  return answerDialog(deps, input, false);
+}
+
+/** Odpověď na dialog Odvody (hráč, nebo po lhůtě formální správce za něj). */
+export interface LevyAnswerInput {
+  playerId: string;
+  dialogId: string;
+  lines: LevyAnswerLine[];
+  split: Record<string, MacroBundle>;
+  message: string | null;
+  today: number;
+}
+
+/** `steward` – odpovídá formální správce za nepřítomného hráče (pán to vidí v upozornění). */
+async function answerDialog(
   deps: LevyDeps,
-  input: {
-    playerId: string;
-    dialogId: string;
-    lines: LevyAnswerLine[];
-    split: Record<string, MacroBundle>;
-    message: string | null;
-    today: number;
-  },
+  input: LevyAnswerInput,
+  steward: boolean,
 ): Promise<AnswerLevyResult> {
   const dialog = await deps.dialogs.byId(input.dialogId);
   if (
@@ -516,8 +638,8 @@ export async function answerLevy(
   if (input.message !== null && input.message.length > NEGOTIATION.messageMaxChars) {
     return { ok: false, reason: LEVY_MESSAGE_TOO_LONG };
   }
-  if (dialog.kind === 'repay') return answerRepay(deps, dialog, input);
-  if (isSendKind(dialog.kind)) return answerTrade(deps, dialog, input);
+  if (dialog.kind === 'repay') return answerRepay(deps, dialog, input, steward);
+  if (isSendKind(dialog.kind)) return answerTrade(deps, dialog, input, steward);
   const v = await deps.vassalages.byId(dialog.refId);
   if (!v || v.endedAt !== null || !v.terms.tribute) return { ok: false, reason: LEVY_ENDED };
   const vassal = await deps.houses.activeOf(input.playerId);
@@ -598,6 +720,7 @@ export async function answerLevy(
         parts: parts.filter((p) => p.sent > 0),
         arrivesDay,
         ...(input.message ? { message: input.message } : {}),
+        ...(steward ? { steward: true } : {}),
       },
       gameDay: input.today,
     });
@@ -653,6 +776,7 @@ async function answerRepay(
     message: string | null;
     today: number;
   },
+  steward: boolean,
 ): Promise<AnswerLevyResult> {
   const loan = await deps.loans?.byId(dialog.refId);
   if (!loan || loan.status !== 'active') return { ok: false, reason: LEVY_ENDED };
@@ -701,6 +825,7 @@ async function answerRepay(
         arrivesDay,
         loan: true,
         ...(input.message ? { message: input.message } : {}),
+        ...(steward ? { steward: true } : {}),
       },
       gameDay: input.today,
     });
@@ -724,6 +849,7 @@ async function answerTrade(
     message: string | null;
     today: number;
   },
+  steward: boolean,
 ): Promise<AnswerLevyResult> {
   const body = tradeBodyOf(dialog);
   const sender = await deps.houses.activeOf(input.playerId);
@@ -787,6 +913,7 @@ async function answerTrade(
         ...(dialog.kind === 'judgment' ? { judgment: true } : {}),
         short,
         ...(input.message ? { message: input.message } : {}),
+        ...(steward ? { steward: true } : {}),
       },
       gameDay: input.today,
     });

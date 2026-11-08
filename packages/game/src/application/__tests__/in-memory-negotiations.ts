@@ -52,6 +52,13 @@ export class InMemoryNegotiations implements NegotiationRepository {
     return this.records.map(peaceTributeOf).filter((t): t is PeaceTribute => t !== null);
   }
 
+  async allOpen(): Promise<NegotiationRecord[]> {
+    await Promise.resolve();
+    return this.records
+      .filter((r) => r.status === 'open')
+      .map((r) => ({ ...r, rounds: [...r.rounds] }));
+  }
+
   transaction<T>(fn: (tx: NegotiationTx) => Promise<T>): Promise<T> {
     const turn = this.tail.then(() => fn(this.tx()));
     this.tail = turn.catch(() => undefined);

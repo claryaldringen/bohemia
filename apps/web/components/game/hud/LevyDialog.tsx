@@ -179,6 +179,15 @@ function LevyRow({
     sent?.arrivesDay != null
       ? `Dorazí ${formatGameDate(dateOfDayIndex(sent.arrivesDay))}`
       : 'Odesláno';
+  // čeká víc let; po lhůtě odvede za nepřítomného hráče předvyplněné správce (absence.md)
+  const waitTip = [
+    dialog.years > 1 ? `Čeká už ${dialog.years} roky.` : null,
+    dialog.stewardDay !== undefined
+      ? `Neodpovíš-li, odvede ${formatGameDate(dateOfDayIndex(dialog.stewardDay))} předvyplněné správce.`
+      : null,
+  ]
+    .filter((line) => line !== null)
+    .join(' ');
 
   return (
     <div data-testid={testId} className="flex flex-col gap-1.5 border-t border-[#5c4526] pt-2">
@@ -220,9 +229,14 @@ function LevyRow({
         <span data-testid={`${testId}-lord`} className="text-sm font-semibold">
           {dialog.lordName}
         </span>
-        {dialog.years > 1 && (
-          <Tooltip content={`Čeká už ${dialog.years} roky`}>
-            <span tabIndex={0} aria-label={`Čeká už ${dialog.years} roky`} className="inline-flex">
+        {waitTip !== '' && !sent && (
+          <Tooltip content={waitTip}>
+            <span
+              tabIndex={0}
+              aria-label={waitTip}
+              data-testid={`${testId}-wait`}
+              className="inline-flex"
+            >
               <HouseIcon name="hourglass" size={18} />
             </span>
           </Tooltip>
@@ -406,7 +420,14 @@ function SummonsRow({
       className="flex flex-col gap-1 border-t border-[#5c4526] py-2 text-sm first:border-t-0"
     >
       <div className="flex items-center gap-1.5">
-        <Tooltip content={`${dialog.lordName} svolává do vsi ${dialog.targetName}`}>
+        <Tooltip
+          content={
+            `${dialog.lordName} svolává do vsi ${dialog.targetName}.` +
+            (dialog.stewardDay === undefined
+              ? ''
+              : ` Neodpovíš-li, pošle ${formatGameDate(dateOfDayIndex(dialog.stewardDay))} domluvené muže správce.`)
+          }
+        >
           <span tabIndex={0} className="inline-flex items-center gap-1">
             <img src="/icons/house/horn.svg" alt="" width={18} height={18} draggable={false} />
             <span className="font-semibold">{dialog.lordName}</span>

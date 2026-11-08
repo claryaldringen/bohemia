@@ -7,8 +7,11 @@ import type { WarTx } from './wars';
 import type { PlacementTx } from './newcomers';
 import type { MacroBundle } from '../domain/vassalage';
 
-/** Stav jednání v úložišti: doménové stavy a `ended` (rod vymřel, vazalství už nelze uzavřít). */
-export type StoredNegotiationStatus = Negotiation['status'] | 'ended';
+/**
+ * Stav jednání v úložišti: doménové stavy, `ended` (rod vymřel, vazalství už nelze uzavřít)
+ * a `expired` (návrh bez odpovědi vypršel – absence.md, `expireNegotiations`).
+ */
+export type StoredNegotiationStatus = Negotiation['status'] | 'ended' | 'expired';
 
 /** Jednání načtené z úložiště, včetně kol a verze řádku. */
 export interface NegotiationRecord extends Omit<Negotiation, 'status'> {
@@ -93,6 +96,8 @@ export interface NegotiationRepository {
   peaceTributes(): Promise<PeaceTribute[]>;
   /** Všechny žádosti nováčka `houseId` o pána (jednání `newcomer`, v libovolném stavu). */
   newcomerRequestsOf(houseId: string): Promise<NegotiationRecord[]>;
+  /** Všechna otevřená jednání (s koly), nejstarší první – úloha světa `expireNegotiations`. */
+  allOpen(): Promise<NegotiationRecord[]>;
   transaction<T>(fn: (tx: NegotiationTx) => Promise<T>): Promise<T>;
 }
 
