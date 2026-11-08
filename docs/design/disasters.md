@@ -1,7 +1,7 @@
 # Přírodní pohromy – zlé roky, kroupy, povodně, požár, smršť
 
 Stav: **schváleno Martinem 27. 10. 2026** (noční návrh Clauda prošel otázku po otázce, s úpravami;
-tornádo doplnil týž den). Nic z toho zatím není v kódu – plán implementace:
+tornádo doplnil týž den). **Implementováno** (sloučeno ≈ 28. 10. 2026, kód viz [village-disasters.md](../code/village-disasters.md)); plán implementace:
 [2026-10-27-disasters.md](../superpowers/plans/2026-10-27-disasters.md). Navazuje na
 [pole](fields.md) (úroda, pojistka zásob, obilné jámy), [stravu a dobytek](diet.md), [orání
 rádlem](oxen.md) (seno), [obyvatelstvo](population.md) (hlad, hájení), [divokou zvěř](wildlife.md)

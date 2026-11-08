@@ -2,7 +2,7 @@
 
 Stav: **schváleno** – Martin 3. 11. 2026 na otázku „Schvaluješ návrhy seniorátu, vazalství a války jako celek, abych podle nich připravil plán implementace?“: „ano“. Původní stav:
 Stav: **schváleno odpověďmi Martina 2. 11. 2026 – zbývá potvrdit celek** (odpovědi citované
-v oddílu [Odpovědi Martina 2. 11. 2026](#odpovědi-martina-2-11-2026)). Implementace zatím není.
+v oddílu [Odpovědi Martina 2. 11. 2026](#odpovědi-martina-2-11-2026)). **Implementováno** (sloučeno ≈ 5. 11. 2026, kód viz [village-people.md](../code/village-people.md) – Seniorát a práva ve vsích rodu a [vassalage.md](../code/vassalage.md)).
 Navazuje na
 [vojvodovu rodinu](lord.md) – Rod vojvody (fáze 1: rod po meči, nástupnictví), Dělení vsi
 (fáze 2: odchod mladšího syna s poměrnou částí vsi) – a na [správce vsi](steward.md) (fáze 3: NPC
