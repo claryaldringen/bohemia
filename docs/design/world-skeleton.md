@@ -273,7 +273,7 @@ mimo ni (zásilky, tažení), mosty a mýto (mechaniky prémií), plavba po řec
    zhruba k jihu (s dlouhými oblouky na východ a západ), nikdy nekončí a jen se slévají. Druhá
    možnost: jezera, do kterých řeky ústí – nový druh krajiny navíc a „díry“ v mřížce.
    **Doporučení:** k jihu, bez jezer.
-2. **Hustota kostry.** Návrh: řeka ≈ 1 mapa z 9, stezka ≈ 1 z 12, brod ≈ 1 ze 100–150, ≈ 4 z 5
+2. ~~**Hustota kostry.**~~ Rozhodnuto 8. 11. 2026 (Martin: „a“) – takto, doladit do spuštění. Návrh: řeka ≈ 1 mapa z 9, stezka ≈ 1 z 12, brod ≈ 1 ze 100–150, ≈ 4 z 5
    map bez kostry. Víc kostry = víc vsí synů s řekou a hotovou stezkou, ale hráčům bez pozvánky
    se zmenší výběr suchých míst. **Doporučení:** takto a doladit do spuštění.
 3. **Kostra i na mapách synů a NPC.** Ves syna nebo NPC na stezce kostry dostane hotovou zemskou
