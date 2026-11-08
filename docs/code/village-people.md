@@ -146,6 +146,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     neodejdou), ženy a dcery mužů rodu → `household`, ostatní → `others`. Elita se tak počítá do
     rodiny i do „4 dospělých mimo rodinu“ (`familyTrains` beze změny). `familyHomes` vrací i
     `eliteHomes` (minimum domu mimo minimum vsi), `lordApartIds` jejich lidi z rodiny.
+    Ve scéně (`manorHousehold` v `village-view-scene.ts`) se u dvorce kreslí jen `household`, kdo
+    bydlí v dvorci; ženy elity z `eliteHomes` stojí u svého domu jako ostatní domácnosti.
     `manorLabor` počítá po domech `[dvorec, ...eliteHomes]`: minimum domu (`homeNeed`) kryje
     kapacita lidí rodiny z toho domu (napřed `household`, pak `trainees`), `free += cap − min`,
     `freeMen += min(cap − min, muži)`; ke dvorci patří, kdo nebydlí v domě elity – samotný dvorec
