@@ -324,10 +324,7 @@ test('brána, úsek a celé opevnění – klik na bránu, klik zvýrazní úsek
 }) => {
   // celý průběh od založení vsi po mezeru – delší než ostatní testy opevnění
   test.setTimeout(300_000);
-  const { settlementId, state, home, landscape, showVillage } = await villageWithRoad(
-    page,
-    'zboreni',
-  );
+  const { settlementId, state, home, landscape } = await villageWithRoad(page, 'zboreni');
   // hotový polský plot z návrhu kolem vsi – brány samy na obou průsečících cesty
   const proposal = proposeFortification(
     state,
@@ -455,8 +452,21 @@ test('brána, úsek a celé opevnění – klik na bránu, klik zvýrazní úsek
     expect(Math.min(...all.flat().map(([x, z]) => Math.hypot(x - g.x, z - g.z)))).toBeLessThan(1);
   }
   if (shot) {
-    await showVillage();
-    await page.screenshot({ path: `${shot}-whole.png` });
+    // celý obvod v záběru – střed vsi, kamera blíž než přehled vsi
+    await page.evaluate(
+      (p) => window.__bohemiaE2E!.moveCameraTo!(p[0], p[1]),
+      c as [number, number],
+    );
+    await page.mouse.move(640, 300);
+    for (let i = 0; i < 7; i++) {
+      await page.mouse.wheel(0, -300);
+      await page.waitForTimeout(150);
+    }
+    await page.waitForTimeout(1500);
+    await page.screenshot({
+      path: `${shot}-whole.png`,
+      clip: { x: 240, y: 60, width: 800, height: 640 },
+    });
     await closeUp(page, spot);
   }
 
