@@ -1,8 +1,9 @@
 # Válka – kód
 
 Pravidla: [docs/design/war.md](../design/war.md). Hotová je síla vojska a stropy výcviku
-(Ú6.1), válka mezi rody s ochranou nováčka a opovědí (Ú6.2), mírové jednání (Ú6.3) a pohyb
-vojska mapu po mapě (Ú6.4); tažení po taktech, boj a dohra přibývají v dalších úlohách.
+(Ú6.1), válka mezi rody s ochranou nováčka a opovědí (Ú6.2), mírové jednání (Ú6.3), pohyb
+vojska mapu po mapě (Ú6.4), tažení po taktech, boj a dohra (Ú6.5–Ú6.17) a boj u hradby
+(plán hradeb 2026-11-08 – obránci na hradbě, prolomení, brány, NPC velitel).
 
 ## Stropy výcviku
 
