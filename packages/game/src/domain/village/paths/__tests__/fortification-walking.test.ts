@@ -15,7 +15,7 @@ import type { PathPoint, PathVillage } from '../network-types';
 import { routePaths } from '../route-paths';
 import { storedRoutes } from '../routes';
 import { pathFortificationsOf } from '../village';
-import { WALL_CLIMB_M } from '../walk-walls';
+import { WALL_CLIMB_M, cutsWall } from '../walk-walls';
 import {
   walkGraph,
   walkingDistances,
@@ -33,7 +33,7 @@ import {
 // palisáda kolem 4 × 4 čtverců (plocha x, z ∈ [−30, 30]) s jedinou branou na severu (x = −7,5)
 const CELLS = Array.from({ length: 16 }, (_, k) => ({ x: 8 + (k % 4), y: 8 + Math.floor(k / 4) }));
 const AREA = fortificationArea(CELLS, null, LANDSCAPE);
-if ('error' in AREA) throw new Error('plocha opevnění testu');
+if ('error' in AREA) throw new Error('plocha opevnění testu: ' + AREA.error);
 const OUTLINE = areaOutline(AREA, 'palisade');
 
 function fort(gates: readonly PathPoint[]): Fortification {
@@ -106,6 +106,61 @@ function villageLines(): ReturnType<typeof routePaths> {
   const network = computePathNetwork({ village: VILLAGE, terrain: TERRAIN, keepRoutes: true });
   return routePaths(storedRoutes(network), new Map(), TERRAIN.cellM);
 }
+
+/** Opevnění z libovolných čtverců (gates = střed úseku, ke kterému se přidá brána). */
+function shapedFort(
+  cells: readonly { x: number; y: number }[],
+  gateAt: PathPoint | null,
+): Fortification {
+  const area = fortificationArea(cells, null, LANDSCAPE);
+  if ('error' in area) throw new Error('plocha opevnění testu: ' + area.error);
+  const outline = areaOutline(area, 'palisade');
+  let gates: FortGate[] = [];
+  if (gateAt) {
+    const next = addGate(outline, gates, gateAt);
+    if ('error' in next) throw new Error(next.error);
+    gates = next;
+  }
+  return {
+    id: 901,
+    grid: null,
+    cells: [...cells],
+    kind: 'palisade',
+    segments: fortSegments(outline).map((s) => ({ index: s.index, builtDay: 1, state: 1 })),
+    gates,
+  };
+}
+
+describe('objížďka stěn po 10 m – hrany nikdy neřežou zeď (návrh Clauda 8. 11. 2026)', () => {
+  const sq = (n: number, m: number, x0 = 8, y0 = 8): { x: number; y: number }[] =>
+    Array.from({ length: n * m }, (_, k) => ({ x: x0 + (k % n), y: y0 + Math.floor(k / n) }));
+  const shapes: [string, { x: number; y: number }[], PathPoint | null][] = [
+    ['čtverec 4 × 4 s bránou', sq(4, 4), { x: -7.5, z: -30 }],
+    ['pás 8 × 2 bez brány', sq(8, 2), null],
+    ['písmeno L (ostrý ohyb)', [...sq(5, 2), ...sq(2, 5, 8, 10)], null],
+    ['malý čtverec 2 × 2', sq(2, 2), null],
+    ['písmeno T (dva ostré ohyby)', [...sq(6, 2), ...sq(2, 3, 10, 10)], null],
+  ];
+  for (const [name, cells, gate] of shapes) {
+    it(name, () => {
+      const walls = withFortWalk(
+        PLAIN_GROUND,
+        pathFortificationsOf(
+          { fortifications: [shapedFort(cells, gate)], constructions: [] },
+          LANDSCAPE,
+        ),
+      ).walls;
+      expect(walls).toBeDefined();
+      const w = walls!;
+      expect(w.detour.length).toBeGreaterThanOrEqual(4);
+      w.detour.forEach((p, i) => {
+        expect(cutsWall(w, p, w.detour[(i + 1) % w.detour.length]!)).toBe(false);
+      });
+      // před bránou stojí bod, ze kterého je vidět do jejího středu
+      for (const c of w.centers) expect(w.detour.some((p) => !cutsWall(w, p, c))).toBe(true);
+    });
+  }
+});
 
 describe('chodci a opevnění – jen branou (fortifications.md – Brány)', () => {
   it('ves bez opevnění: půda chůze beze změny', () => {

@@ -95,7 +95,7 @@ Dřívější obvod po čtvercích zůstal jen pro převod (`squares-outline.ts`
 ## Stěny (`walls.ts`, Ú5.3)
 
 - **`fortWalls(geo, fort, work)`** – stěny (kusy pásu blokujících úseků – `bandPieces` – bez části
-  pod tětivou brány), otvory bran (tětiva × šířka pásu) a `detour` – body vně křivky po ≈ 5 m, 1 m
+  pod tětivou brány), otvory bran (tětiva × šířka pásu) a `detour` – body vně křivky po ≈ 10 m (kde úsečka mezi sousedními body řízne stěnu, vloží se bod doprostřed, půlí se až na ≈ 2,5 m; před každou bránou stojí bod vždy – `detourPoints`), 1 m
   za okrajem: hladký obvod nemá ostré rohy, kolem kterých by se lámala objížďka chůze
   (`walk-walls.ts` je přidá do grafu objížďky). `quadTouchesSquare` a `insideQuad` pro buňky mřížek
   a obrys plotu.
