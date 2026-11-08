@@ -107,8 +107,8 @@ z dovezeného jídla a její muži rodu se věnují výcviku místo pole.
 - **Doprava jako dávky** (Martin – „A“): nosiči a vozy z dávající vsi, cesta trvá dny podle
   vzdálenosti, nosiči ten čas nepracují ([vazalství](vassalage.md) – Doprava dávek). Hradiště se
   tak vyplatí mít blízko vsí, které ho živí.
-- **Dávky vazalů** jdou do cílové vsi jako dnes; co tam přebývá, rozdělení pošle dál (návrh
-  Clauda – podmínky vazalství se nemění).
+- **Dávky vazalů** jdou do cílové vsi jako dnes; co tam přebývá, ves pošle dál po svých
+  žních se svým přebytkem (Martin 8. 11. 2026: „Ano“ – podmínky vazalství se nemění).
 - **Víc času:** dovezené jídlo leží v zásobách vsi a osev se podle zásob řídí už dnes
   ([pole](fields.md) – Osev podle zásob) – ves oseje méně a lidé mají čas na řemesla a stavby
   (Martin).
