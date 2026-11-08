@@ -4,7 +4,7 @@ import { packObstacles } from '../../landscape';
 import { foundVillage } from '../actions';
 import { DEMOLITION } from '../rules-buildings';
 import { FORTIFICATIONS } from '../rules-fortifications';
-import { decideFortRebuilds, rampartMaintenance } from '../fortification/decay';
+import { decideFortRebuilds, fortUpkeep } from '../fortification/decay';
 import { fortGaps, segmentIsGap } from '../fortification/defense';
 import { gateChord } from '../fortification/gates';
 import { outlinePointAt } from '../fortification/outline';
@@ -333,9 +333,9 @@ describe('zboření valu', () => {
       demolishedBeforeGate: DAY + 10,
       demolishedAfterGate: DAY + 10,
     });
-    // srovnaný val se neudržuje – jen díl s branou
-    const need = rampartMaintenance(structuredClone(s), 1000, landscape);
-    expect(need).toBeCloseTo(((len[gateSeg]! / 100) * 2) / YEAR, 9);
+    // srovnaný val se neudržuje – jen díl s branou: val 2 čd a plot nástavby 1 čd na 100 m ročně
+    const need = fortUpkeep(structuredClone(s), 1000, landscape).used;
+    expect(need).toBeCloseTo(((len[gateSeg]! / 100) * 3) / YEAR, 9);
     expect(sectionDemolition(s, landscape, input)).toEqual({ reason: FORT_SECTION_GONE });
   });
 

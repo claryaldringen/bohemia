@@ -457,10 +457,21 @@ part?, lengthM }[]` – kusy dílů téhož úseku: celé díly mezi branami a z
   se každý den). Dokončený úsek: `builtDay` (`topBuiltDay`)
   = den, `state` 1, `breachedDay` pryč (`workFortification`). Staré kůly nic nevrátí. Hráčovo
   opevnění stejně – rozhoduje jen stáří. Bez lidí (opuštěná, vymřelá ves) ani bez krajiny nic.
-- **Údržba valu** `rampartMaintenance(state, labor, geo): čd` (v `work()` hned za opravami
-  obydlí): 2 čd na 100 m hotových úseků ročně (`rampartUpkeep`), počítá se za den ze zbytku
-  společné práce. Nedodělek (podíl) sníží `Fortification.rampartHeight` (chybí = plná) tempem
-  `rampartNeglect` – bez údržby 0,5 za 50 let. Víc práce výšku nevrací.
+- **Údržba po úsecích** `fortUpkeep(state, laborLeft, geo): { used }` (v `work()` hned za opravami
+  obydlí; Hradby a obrana – Životnost a údržba): každá hotová nezbořená vrstva dílu (hradba i val)
+  potřebuje `upkeepPer100MYear` čd na 100 m ročně (plot 1, palisáda 1, ochoz 2, roštová a komorová
+  5, val 2), počítá se za den ze zbytku společné práce, opevnění po opevnění. Díl, na kterém běží
+  stavba (`busySegments`), se neudržuje. Nedodělek se dělí rovným dílem na všechny vrstvy:
+  hradba dostane `extraAgeDays += podíl` (rok bez údržby = o rok víc; `rotting` v `life.ts` ho
+  odečte od `builtDay`, dokončená přestavba ho smaže), val tratí výšku tempem `rampartNeglect`
+  (0,5 za 50 let, `Fortification.rampartHeight`). Víc práce výšku nevrací.
+- **Přestavba po dílech:** `decideFortRebuilds` už nečeká, až na opevnění neběží nic – díly se
+  stavbou (`busySegments`) drží stav a nepřestavují se, ostatní chátrají a přestavují se dál;
+  obnova valu se přeskočí jen na dílech se stavbou. Cena přestavby dožilé hradby
+  `fortificationRebuildCost(druh, délka)`: plot a palisáda plná cena, **ochoz** cena palisády
+  (30 h na 1 m) + fošny ochozu 2 h na 1 m (20 čd a 10 klád na 100 m, `rebuild.walkwayPlanksPer100M`),
+  násyp zůstane (návrh Clauda; Martin: „nevím, něco navrhni“), **roštová a komorová** ⅓ práce
+  a klád bez kamene (`rebuild`). Průlom a nedostavěný díl se staví za cenu nového úseku.
 - **Obnova valu** (`restore`): výška pod `renewBelowHeight` 0,75 a žádná jiná stavba na opevnění →
   stavba za `renewCostShare` (½) ceny valu přes všechny hotové úseky, bez dřeva; po dokončení
   (`finishFortification`) se `rampartHeight` smaže (plná).

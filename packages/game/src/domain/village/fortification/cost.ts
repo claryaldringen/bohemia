@@ -69,6 +69,37 @@ export function fortificationCost(
 }
 
 /**
+ * Cena přestavby dožilé hradby `kind` o délce `lengthM` (m; Hradby a obrana – Životnost a údržba,
+ * návrh Clauda): plot a palisáda plná cena; palisáda s ochozem cena palisády a fošny ochozu
+ * (násyp zůstane); roštová a komorová třetina práce a klád, kámen nic (práce bez lámání kamene).
+ * Kácení klád přičte stavba jako jinde (`pushWork`).
+ */
+export function fortificationRebuildCost(kind: WallKind, lengthM: number): FortCost {
+  if (kind === 'walkway') {
+    const base = fortificationCost('palisade', lengthM);
+    const planks = FORTIFICATIONS.rebuild.walkwayPlanksPer100M;
+    const share = lengthM / 100;
+    // fošny z klád: stejná úspora za kládu z hromady jako jinde
+    const logs = planks.wood * share;
+    return {
+      laborManDays:
+        base.laborManDays +
+        planks.laborManDays * share -
+        FORTIFICATIONS.pileSaves.logManDays * logs,
+      logs: base.logs + logs,
+      stoneM3: 0,
+    };
+  }
+  if (kind !== 'crib' && kind !== 'chamber') return fortificationCost(kind, lengthM);
+  const part = FORTIFICATIONS.rebuild[kind];
+  const full = fortificationFullCost(kind, lengthM);
+  const saves = FORTIFICATIONS.pileSaves;
+  const logs = full.logs * part;
+  const labor = (full.laborManDays - saves.stoneManDaysPerM3 * full.stoneM3) * part;
+  return { laborManDays: labor - saves.logManDays * logs, logs, stoneM3: 0 };
+}
+
+/**
  * Jde hradbu `kind` v den `day` stavět (Hradby a obrana – Druhy; Martin 8. 11. 2026: „Od 790 je
  * možné stavět roštovou hradbu, od 830 i komorovou.“)? Ostatní stupně kdykoli.
  */

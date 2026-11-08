@@ -126,17 +126,21 @@ export function segmentIsOpen(
  */
 function rotting(
   fort: Pick<Fortification, 'kind' | 'top'>,
-  segment: Pick<FortSegment, 'kind' | 'builtDay' | 'topBuiltDay' | 'top'>,
+  segment: Pick<FortSegment, 'kind' | 'builtDay' | 'topBuiltDay' | 'top' | 'extraAgeDays'>,
 ): { builtDay: number; years: number } | null {
   const wall = segmentWall(fort, segment);
   if (!wall || wall.builtDay === null) return null;
-  return { builtDay: wall.builtDay, years: FORTIFICATIONS.lifeYears[wall.kind] };
+  // nedodělaná údržba hradbu postarší (`extraAgeDays`), jako by byla dřív postavená
+  return {
+    builtDay: wall.builtDay - (segment.extraAgeDays ?? 0),
+    years: FORTIFICATIONS.lifeYears[wall.kind],
+  };
 }
 
 /** Dožilý úsek – hradba (i na valu) za koncem životnosti. */
 export function segmentIsOld(
   fort: Pick<Fortification, 'kind' | 'top'>,
-  segment: Pick<FortSegment, 'kind' | 'builtDay' | 'topBuiltDay' | 'top'>,
+  segment: Pick<FortSegment, 'kind' | 'builtDay' | 'topBuiltDay' | 'top' | 'extraAgeDays'>,
   day: number,
 ): boolean {
   const r = rotting(fort, segment);
@@ -149,7 +153,7 @@ export function segmentIsOld(
  */
 export function segmentState(
   fort: Pick<Fortification, 'kind' | 'top'>,
-  segment: Pick<FortSegment, 'kind' | 'builtDay' | 'topBuiltDay' | 'top'>,
+  segment: Pick<FortSegment, 'kind' | 'builtDay' | 'topBuiltDay' | 'top' | 'extraAgeDays'>,
   day: number,
 ): number {
   if (!segmentBuilt(segment)) return 0;

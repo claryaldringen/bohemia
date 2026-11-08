@@ -327,6 +327,10 @@ Vše kromě Martinových životností je návrh Clauda.
   nedodělek se rozdělí na úseky rovným dílem. Přestavba dožilých úseků a chátrání bez dřeva
   zůstávají ([Životnost a oprava](#životnost-a-oprava)) – stav ale místo násobku mění čas
   prolomení (Obrana bez násobku).
+- **Přestavba po dílech** (návrh Clauda): obyvatelé přestavují a udržují každý díl zvlášť – blokuje
+  je jen stavba, která na tom dílu běží, ne jiná stavba na opevnění. **Dožilý ochoz** se přestaví
+  jako palisáda (30 h na 1 m) s novými fošnami ochozu (2 h na 1 m); násyp zůstane (Martin: „nevím,
+  něco navrhni“).
 - Údržba je třetí cena hradby vedle stavby a obsazení – u komorové hradby kolem velké vsi
   (≈ 400 m) 20 čd ročně, u palisády s ochozem 8 čd.
 

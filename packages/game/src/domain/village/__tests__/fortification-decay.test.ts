@@ -3,7 +3,9 @@ import { dayIndexOf } from '../../calendar';
 import { packObstacles } from '../../landscape';
 import { foundVillage } from '../actions';
 import { FORTIFICATIONS } from '../rules-fortifications';
-import { decideFortRebuilds, rampartMaintenance, segmentState } from '../fortification/decay';
+import { decideFortRebuilds, fortUpkeep, segmentState } from '../fortification/decay';
+import { fortificationCost, fortificationRebuildCost } from '../fortification/cost';
+import { segmentIsOld } from '../fortification/life';
 import { fortWalls } from '../fortification/walls';
 import { squarePoints } from '../fortification/convert';
 import {
@@ -171,6 +173,71 @@ describe('přestavba dožilých úseků', () => {
   });
 });
 
+describe('údržba hradby po úsecích a přestavba nových druhů', () => {
+  const totalLength = (s: VillageState): number =>
+    fortSegments(outlineOf(landscape, fortOf(s))!).reduce((sum, x) => sum + x.lengthM, 0);
+
+  it('palisáda s prací na údržbu stárne normálně, bez práce za rok o dva roky', () => {
+    const s = aged('palisade', 0);
+    const need = fortUpkeep(structuredClone(s), 1000, landscape).used * YEAR;
+    // 1 čd na 100 m ročně
+    expect(need).toBeCloseTo(totalLength(s) / 100, 6);
+    for (let d = 0; d < YEAR; d++) fortUpkeep(s, 1000, landscape);
+    expect(fortOf(s).segments.every((x) => x.extraAgeDays === undefined)).toBe(true);
+    for (let d = 0; d < YEAR; d++) fortUpkeep(s, 0, landscape);
+    const seg = fortOf(s).segments[0]!;
+    expect(seg.extraAgeDays).toBeCloseTo(YEAR, 6);
+    // o rok po dokončení je hradba stará jako dvouletá
+    expect(segmentIsOld(fortOf(s), { ...seg, extraAgeDays: 19 * YEAR }, DAY + YEAR)).toBe(true);
+    expect(segmentIsOld(fortOf(s), { ...seg, extraAgeDays: 0 }, DAY + YEAR)).toBe(false);
+  });
+
+  it('nedodělek se dělí rovným dílem na všechny díly', () => {
+    const s = aged('palisade', 0);
+    const need = fortUpkeep(structuredClone(s), 1000, landscape).used;
+    fortUpkeep(s, need / 4, landscape);
+    for (const seg of fortOf(s).segments) expect(seg.extraAgeDays).toBeCloseTo(0.75, 6);
+  });
+
+  it('díl, na kterém běží stavba, se neudržuje a nepřestavuje; ostatní ano', () => {
+    const s = aged('fence', 15 * YEAR);
+    const first = decideFortRebuilds(s, DAY, landscape, EMPTY)[0]!;
+    // stavba pracuje jen na prvním dílu
+    first.fortSegments = first.fortSegments!.slice(0, 1);
+    const busyIndex = first.fortSegments[0]!.index;
+    for (const seg of fortOf(s).segments) seg.state = 1;
+    const second = decideFortRebuilds(s, DAY + 1, landscape, EMPTY);
+    expect(second).toHaveLength(1);
+    const indices = second[0]!.fortSegments!.map((w) => w.index);
+    expect(indices).not.toContain(busyIndex);
+    expect(indices).toHaveLength(fortOf(s).segments.length - 1);
+    fortUpkeep(s, 0, landscape);
+    expect(fortOf(s).segments.find((x) => x.index === busyIndex)!.extraAgeDays).toBeUndefined();
+  });
+
+  it('roštová dožije za 30 let a přestavba stojí třetinu bez kamene', () => {
+    const cost = fortificationRebuildCost('crib', 100);
+    const full = fortificationCost('crib', 100);
+    expect(cost.stoneM3).toBe(0);
+    expect(cost.logs).toBeCloseTo(330 / 3, 6);
+    expect(cost.laborManDays).toBeCloseTo((1050 - 100) / 3 - 330 / 3, 6);
+    expect(cost.laborManDays).toBeLessThan(full.laborManDays / 2);
+    const kind = { kind: 'crib' as const };
+    expect(segmentIsOld(kind, { builtDay: 0 }, 30 * YEAR - 1)).toBe(false);
+    expect(segmentIsOld(kind, { builtDay: 0 }, 30 * YEAR)).toBe(true);
+  });
+
+  it('ochoz se přestaví s palisádou: cena palisády a fošny, násyp zůstane', () => {
+    const cost = fortificationRebuildCost('walkway', 100);
+    const palisade = fortificationCost('palisade', 100);
+    expect(cost.logs).toBeCloseTo(palisade.logs + 10, 6);
+    // fošny 2 h na 1 m = 20 čd na 100 m komplet
+    expect(cost.laborManDays).toBeCloseTo(palisade.laborManDays + 20 - 10, 6);
+    expect(cost.stoneM3).toBe(0);
+    expect(fortificationRebuildCost('palisade', 100)).toEqual(palisade);
+  });
+});
+
 describe('val – údržba a obnova', () => {
   const rampart = (): VillageState => aged('rampart', 0);
 
@@ -179,7 +246,7 @@ describe('val – údržba a obnova', () => {
     const outline = outlineOf(landscape, fortOf(s))!;
     const meters = fortSegments(outline).reduce((sum, x) => sum + x.lengthM, 0);
     let used = 0;
-    for (let d = 0; d < 5 * YEAR; d++) used += rampartMaintenance(s, 1000, landscape);
+    for (let d = 0; d < 5 * YEAR; d++) used += fortUpkeep(s, 1000, landscape).used;
     expect(fortOf(s).rampartHeight).toBeUndefined();
     // 2 čd na 100 m ročně
     expect(used).toBeCloseTo((meters / 100) * 2 * 5, 6);
@@ -187,15 +254,15 @@ describe('val – údržba a obnova', () => {
 
   it('bez údržby má za 50 let výšku 0,5', () => {
     const s = rampart();
-    for (let d = 0; d < 50 * YEAR; d++) rampartMaintenance(s, 0, landscape);
+    for (let d = 0; d < 50 * YEAR; d++) fortUpkeep(s, 0, landscape);
     expect(fortOf(s).rampartHeight).toBeCloseTo(0.5, 6);
   });
 
   it('polovina potřebné práce sníží výšku o poloviční tempo', () => {
     const s = rampart();
-    const need = rampartMaintenance(s, 1000, landscape);
+    const need = fortUpkeep(s, 1000, landscape).used;
     const half = rampart();
-    for (let d = 0; d < 50 * YEAR; d++) rampartMaintenance(half, need / 2, landscape);
+    for (let d = 0; d < 50 * YEAR; d++) fortUpkeep(half, need / 2, landscape);
     expect(fortOf(half).rampartHeight).toBeCloseTo(0.75, 6);
   });
 
@@ -222,6 +289,6 @@ describe('ves bez opevnění', () => {
   it('nic nezměnilo, funkce nic nespotřebují', () => {
     const s = village();
     expect(decideFortRebuilds(s, DAY, landscape, EMPTY)).toHaveLength(0);
-    expect(rampartMaintenance(s, 5, landscape)).toBe(0);
+    expect(fortUpkeep(s, 5, landscape).used).toBe(0);
   });
 });

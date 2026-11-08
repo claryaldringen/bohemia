@@ -853,10 +853,12 @@ export function workFortification(state: VillageState, c: Construction, day: num
       // přestavba shnilé nástavby valu – val sám stojí dál
       s.topBuiltDay = day;
       s.state = 1;
+      delete s.extraAgeDays;
       continue;
     }
     s.builtDay = day;
     s.state = 1;
+    delete s.extraAgeDays;
     delete s.breachedDay;
     if (c.fortWork === 'upgrade') s.kind = 'palisade';
   }
