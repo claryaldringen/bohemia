@@ -117,6 +117,19 @@ export interface SettlementRepository {
   lastPremiumType(playerId: string): Promise<PremiumType | null>;
 }
 
+/**
+ * Port: držitelé domén – kdo drží víc vsí (krok světa jídla domény, hillfort.md – Jídlo domény).
+ * Zatím zvlášť od `SettlementRepository`: implementuje ho úložiště sídel v paměti a adaptér DB
+ * přibude v Úloze 8 plánu hradiště (pak se smí přesunout do `SettlementRepository`).
+ */
+export interface SettlementOwners {
+  /**
+   * Držitelé s aspoň dvěma aktivními sídly bez čekajícího převodu (sídla jako `listActive`) –
+   * jedno sídlo = jedna ves; seřazení podle id.
+   */
+  ownersWithManyActive(): Promise<string[]>;
+}
+
 /** Port: zdroj nových seedů krajiny – náhoda přichází zvenku, doména je deterministická. */
 export interface SeedSource {
   /** Celé číslo 0 … 2^31 − 1. */
