@@ -1180,9 +1180,14 @@ function fortificationDetails(
       kind: 'fortification-section',
       ...base,
       section,
-      ...(fort.progress !== undefined ? { progress: fort.progress } : {}),
-      ...(fort.work ? { work: fort.work } : {}),
-      ...(fort.constructionId !== undefined ? { constructionId: fort.constructionId } : {}),
+      // stavba na dílech úseku (na opevnění smí běžet víc staveb); starší pohled – stavba opevnění
+      ...((section.progress ?? fort.progress) !== undefined
+        ? { progress: section.progress ?? fort.progress }
+        : {}),
+      ...((section.work ?? fort.work) ? { work: section.work ?? fort.work } : {}),
+      ...((section.constructionId ?? fort.constructionId) !== undefined
+        ? { constructionId: section.constructionId ?? fort.constructionId }
+        : {}),
     };
   }
   const gate = fort.gateViews.find((g) => g.segment === target.segment);

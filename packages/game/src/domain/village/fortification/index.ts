@@ -2,6 +2,7 @@
 export {
   fortificationOutline,
   fortShapeError,
+  outlineBend,
   outlinePointAt,
   type FortOutline,
   type FortRun,
@@ -18,6 +19,8 @@ export * from './gates';
 export * from './cost';
 export * from './band';
 export * from './walls';
+export * from './runs';
+export * from './upgrade';
 export * from './life';
 export * from './defense';
 export * from './refuge';

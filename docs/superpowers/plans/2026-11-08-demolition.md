@@ -392,6 +392,9 @@ stav)` sečtené za celou stavbu, na hromadu při `finishFortification` (návrh 
 
 ### Úloha 9: Opevnění – Vylepšit po úsecích (≈ 110 kroků) – po Ú8
 
+> **Nahrazena plánem hradeb** – [2026-11-08-ramparts.md](2026-11-08-ramparts.md), Úloha 8
+> (vylepšení po úsecích o víc stupňů, hotovo 8. 11. 2026). Text níž zůstává jen pro historii.
+
 **Files:**
 
 - Modify: `fortifications.ts:323-421` (`startFortificationUpgrade` – vstup `segment?: number`; bez

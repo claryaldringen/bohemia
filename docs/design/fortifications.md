@@ -95,6 +95,17 @@ roštová ≈ 7 m, komorová ≈ 8 m, komory po 5–6 m).
 - **Vylepšení** jde na kterýkoli vyšší stupeň za cenu cílového a nižší stupeň nic nevrací – jako
   plot → palisáda (Martin 3. 11. 2026); výjimkou je ochoz – přístavba, palisáda zůstane. Starý
   stupeň stojí a brání, dokud nový úsek není hotový (návrh Clauda; skok o víc stupňů – otázka 6).
+- **Ochoz jen na stojící palisádu** (Martin 8. 11. 2026: „ne – napřed palisáda, pak vylepšení
+  v podobě ochozu“): plot ani mezera rovnou na palisádu s ochozem nejdou; skok o víc stupňů platí
+  mezi palisádou, roštovou a komorovou hradbou podle roku.
+- **Každý úsek zvlášť** (Martin 8. 11. 2026 – „B“): na jednom opevnění smí běžet víc staveb
+  najednou – vylepšit úsek A a současně bourat úsek B nebo stavět val u C; jedna stavba na díl,
+  práce vsi se mezi ně rozdělí jako mezi jiné stavby.
+- **Díl s branou** je rozhraní dvou úseků (návrh Clauda): vylepšení úseku ho zvedne, až hradba po
+  obou stranách brány bude mít aspoň cílový stupeň – do té doby brána zůstane na nižším druhu.
+  Zbořený úsek (mezera) dostane cílovou hradbu za cenu nové, kusy dílů bran se postaví znovu.
+- **Implementováno 8. 11. 2026** (plán hradeb, Úloha 8): doména a akce vylepšení po úsecích;
+  tlačítka Vylepšit v panelu úseku – Úloha 17.
 - **Kterákoli ves** smí postavit kterýkoli druh – že se běžné vsi hradba nevyplatí, usoudí správce
   (Martin výš); nahrazuje doporučení rešerše „roštová a komorová jen pro hradiště“.
 - **Vodní příkop** – Martin: „**Další možnost bude napojení příkopu na vodní zdroj. Pak nelze

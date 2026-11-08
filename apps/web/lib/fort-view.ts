@@ -88,6 +88,11 @@ export interface SceneFortSegment {
   topAge?: number | null;
   /** Podíl práce úseku ve stavbě 0–1 (`Construction.fortSegments`); chybí – úsek se nestaví. */
   progress?: number;
+  /**
+   * Práce stavby, která na úseku běží (na opevnění smí běžet víc staveb, každá na svých dílech –
+   * Martin 8. 11. 2026); chybí – úsek se nestaví, platí `SceneFortification.work`.
+   */
+  work?: FortBuildWork;
 }
 
 /** Cena práce pro tlačítko panelu – člověkodny a klády. */
@@ -137,6 +142,10 @@ export interface VillageFortSection extends FortPartsState {
   /** Délka hradby úseku mezi okraji bran (m). */
   lengthM: number;
   demolish: FortDemolishOption;
+  /** Stavba, která na dílech úseku běží (průběh, práce, id pro zrušení); chybí – žádná. */
+  progress?: number;
+  work?: FortBuildWork;
+  constructionId?: number;
 }
 
 /** Brána opevnění pro panel (fortifications.md – Brány): díl, ve kterém stojí, a jeho stav. */
@@ -270,17 +279,26 @@ export function sceneFortifications(
   for (const fort of villageFortifications(state)) {
     const outline = outlineOf(landscape, fort);
     if (!outline) continue;
-    const site = state.constructions.find(
+    // na opevnění smí běžet víc staveb, každá na svých dílech (Martin 8. 11. 2026 – „B“)
+    const sites = state.constructions.filter(
       (c) => c.kind === 'fortification' && c.fortificationId === fort.id,
     );
-    const progress = site ? fortSegmentProgress(site) : null;
+    const site = sites[0];
+    const bySegment = new Map<number, { progress: number; work: FortBuildWork }>();
+    for (const c of sites) {
+      for (const [index, p] of fortSegmentProgress(c)) {
+        if (!bySegment.has(index))
+          bySegment.set(index, { progress: p, work: c.fortWork ?? 'build' });
+      }
+    }
     const looks = fortSegments(outline).map((shape): SceneFortSegment => {
       const s = fort.segments.find((x) => x.index === shape.index);
-      const p = progress?.get(shape.index);
+      const p = bySegment.get(shape.index);
       return {
         age: yearsSince(s?.builtDay, day),
         ...(s && 'topBuiltDay' in s ? { topAge: yearsSince(s.topBuiltDay, day) } : {}),
-        ...(p !== undefined ? { progress: p } : {}),
+        ...(p !== undefined ? { progress: p.progress } : {}),
+        ...(p !== undefined && sites.length > 1 ? { work: p.work } : {}),
       };
     });
     result.push(
@@ -414,12 +432,26 @@ export function fortificationViews(
       refugeCattle: places.cattle,
       sections: fortSections(fort).map((section) => {
         const span = spans.find((x) => x.gateSegment === section.gateSegment);
+        // stavba na dílech úseku (každý úsek zvlášť – Martin 8. 11. 2026)
+        const own = state.constructions.find(
+          (c) =>
+            c.kind === 'fortification' &&
+            c.fortificationId === fort.id &&
+            (c.fortSegments ?? []).some((w) => section.segments.includes(w.index)),
+        );
         return {
           segments: [...section.segments],
           gateSegment: section.gateSegment,
           lengthM: span?.lengthM ?? 0,
           ...partsState(fort, span?.segments ?? section.segments, day),
           demolish: demolishOption(state, landscape, fort.id, section.segments[0]!),
+          ...(own
+            ? {
+                progress: own.cost > 0 ? Math.min(1, own.done / own.cost) : 1,
+                work: own.fortWork ?? 'build',
+                constructionId: own.id,
+              }
+            : {}),
         };
       }),
       gateViews: [...fort.gates]

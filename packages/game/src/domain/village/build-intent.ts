@@ -12,6 +12,7 @@ import {
 } from './actions';
 import { buildAffordability } from './costs';
 import { startFortification, startFortificationUpgrade } from './fortifications';
+import { startSectionUpgrade } from './fortification-upgrade';
 import { HORSE_PEN_NO_SURPLUS } from './horse-pen-payment';
 import { villageRoadWalk } from './paths/walking';
 import {
@@ -49,6 +50,7 @@ import type {
   DwellingPlot,
   FortKind,
   FortTop,
+  WallKind,
   PenSpecies,
   Position,
   SacredBuildingKind,
@@ -138,6 +140,12 @@ export interface FortificationUpgradeIntent {
   fortificationId: number;
   work: 'upgrade' | 'top';
   top?: FortTop;
+  /**
+   * Vylepšení po úsecích (Hradby a obrana – Druhy a postup vylepšení): cílová hradba – s ní se
+   * `work` a `top` nečtou; úsek s dílem `segment` (null či chybí – celé opevnění).
+   */
+  target?: WallKind;
+  segment?: number | null;
 }
 
 /** Humno (production-chains.md – Humno) – volně u kurzoru jako dílna. */
@@ -257,6 +265,20 @@ export function applyBuildIntent(
       return r.ok ? r : { ok: false, reason: r.reason };
     }
     case 'fortification-upgrade':
+      if (intent.target !== undefined) {
+        return startSectionUpgrade(
+          state,
+          day,
+          landscape,
+          obstacles,
+          {
+            fortificationId: intent.fortificationId,
+            segment: intent.segment ?? null,
+            target: intent.target,
+          },
+          villageRoadWalk(state, landscape),
+        );
+      }
       return startFortificationUpgrade(
         state,
         day,

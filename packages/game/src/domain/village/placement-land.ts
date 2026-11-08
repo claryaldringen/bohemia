@@ -24,6 +24,7 @@ import {
 import { type DwellingShape, type ShapedDwelling, dwellingShape } from './dwelling-shape';
 import { type LandSquare } from './squares';
 import { fortificationBand } from './fortification/band';
+import { fortRuns } from './fortification/runs';
 import {
   type Landscape,
   SURFACE_CODES,
@@ -257,9 +258,9 @@ export function checkFootprintFree(
   for (const f of village.threshingFloors ?? []) {
     if (overlaps([threshingFloorFootprint(f.position)])) return fail('Překrývá se s humnem.');
   }
-  // pás opevnění (fortifications.md – Obvod): hotové úseky a celý obvod, dokud se staví
+  // pás opevnění (fortifications.md – Obvod): hotové úseky a díly, na kterých běží stavba
   for (const f of village.fortifications ?? []) {
-    const building = village.constructions.some((c) => c.fortificationId === f.id);
+    const building = fortRuns(village.constructions, f.id);
     if (overlaps(fortificationBand(landscape, f, building))) return fail(OVERLAPS_FORTIFICATION);
   }
   // milíř uhlíře je samostatná stavba (crafts.md – Milíř u skácených buků)

@@ -83,7 +83,11 @@ vylepšit jen celé.
 - **Vylepšit** podle dnešních druhů a cen za délku úseku: plot → palisáda, val → val s plotem nebo
   val s palisádou, val s plotem → val s palisádou ([opevnění](fortifications.md) – Druhy). Od 8. 11. 2026 stupně plot → palisáda → palisáda s ochozem → roštová → komorová hradba a doplnění
   valu s příkopem i ke stojící hradbě (Martin) – [opevnění – Druhy a postup
-  vylepšení](fortifications.md#druhy-a-postup-vylepšení) (návrh).
+  vylepšení](fortifications.md#druhy-a-postup-vylepšení) (návrh). Implementováno 8. 11. 2026
+  (plán hradeb, Úloha 8 – nahrazuje Úlohu 9 plánu bourání): úsek mezi branami na vyšší stupeň,
+  zbořený úsek znovu za cenu nové; na opevnění smí běžet víc staveb, jedna na díl (Martin 8. 11.
+  2026 – „B“); díl s branou se zvedne, až hradba po obou stranách brány bude mít aspoň cílový
+  stupeň (návrh Clauda).
 - **Zbořit:** jako bourání stavby – čtvrtina práce, polovina klád × stav. U valu s plotem nebo
   palisádou se zboří jen dřevo, val zůstane; další Zbořit srovná val (čtvrtina jeho práce).
   Zbořený úsek je **mezera** – průchod jako průlom ([opevnění](fortifications.md) – Prolomení).

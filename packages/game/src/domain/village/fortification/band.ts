@@ -3,6 +3,7 @@ import { FORTIFICATIONS } from '../rules-fortifications';
 import type { GridGeometry } from '../square-grid';
 import { fortOutlineOf, type FortShapeSource } from './convert';
 import { segmentBuilt, segmentKind, segmentWall } from './life';
+import { runOn, runTarget, type FortRuns, type FortSegmentRun } from './runs';
 import { runEnd, type FortOutline } from './outline';
 import type { FortSegment, Fortification } from './types';
 
@@ -130,34 +131,65 @@ export function fortBandPolygons(outline: FortOutline): Point[][] {
 
 /** Co pás stojícího opevnění potřebuje znát (`Fortification` ze stavu vsi i z pohledu na ves). */
 export interface BandFortification extends FortShapeSource {
+  readonly top?: Fortification['top'];
   readonly segments: readonly {
     readonly index: number;
     readonly builtDay: number | null;
     readonly topBuiltDay?: number | null;
     readonly demolishedDay?: number;
+    readonly kind?: FortSegment['kind'];
+    readonly top?: FortSegment['top'];
+    readonly rampartOutside?: true;
   }[];
 }
 
 /**
- * Pás opevnění, který zabírá místo jiným stavbám: hotové nezbořené úseky, a dokud se opevnění
- * staví (`building`), celý obvod – nedostavěný úsek po zrušení stavby i zbořený díl je mezera
- * (fortifications.md – Cena a stavba; demolition.md – Opevnění).
+ * Pás, který díl zabírá uvnitř křivky (m): stojící díl podle svých vrstev (`segmentBand`), nejméně
+ * pás druhu opevnění; díl, na kterém stavba vylepšení staví vyšší hradbu, pás cílové hradby (na valu
+ * s valem – `wallOnRampartBandM`); mezera stavěná znovu pás cílové hradby bez valu.
+ */
+function bandWidthOf(
+  fort: BandFortification,
+  outline: FortOutline,
+  segment: BandFortification['segments'][number],
+  run: FortSegmentRun | null,
+): number {
+  const target = runTarget(run);
+  // mezera (zbořená či nedostavěná), kterou vylepšení staví znovu – hradba bez valu
+  const gap = !segmentBuilt(segment) || segment.demolishedDay !== undefined;
+  if (gap && target !== null) return FORTIFICATIONS.bandM[target];
+  const width = Math.max(outline.bandM, segmentBand(fort, segment).inM);
+  if (target === null) return width;
+  const onRampart = segmentKind(fort, segment) === 'rampart';
+  return Math.max(
+    width,
+    onRampart ? FORTIFICATIONS.wallOnRampartBandM[target] : FORTIFICATIONS.bandM[target],
+  );
+}
+
+/**
+ * Pás opevnění, který zabírá místo jiným stavbám: hotové nezbořené díly, a díly, na kterých běží
+ * stavba (`building` – práce staveb po dílech `fortRuns`; `true` – celý obvod, jen „staví se“
+ * bez dílů, pohled na ves) – nedostavěný díl po zrušení stavby i zbořený díl je mezera
+ * (fortifications.md – Cena a stavba; demolition.md – Opevnění). Šířka po dílech (`bandWidthOf`).
  */
 export function fortificationBand(
   geo: GridGeometry,
   fort: BandFortification,
-  building: boolean,
+  building: boolean | FortRuns | null,
 ): Point[][] {
   const outline = fortOutlineOf(geo, fort);
   if (!outline) return [];
-  const built = new Set(
-    fort.segments
-      .filter((s) => segmentBuilt(s) && s.demolishedDay === undefined)
-      .map((s) => s.index),
-  );
-  return fortBandPieces(outline)
-    .filter((p) => building || built.has(p.index))
-    .map((p) => p.corners);
+  const pieces: Point[][] = [];
+  for (const s of fort.segments) {
+    const run = building === true || building === false ? null : runOn(building, s.index);
+    const taken =
+      building === true || run !== null || (segmentBuilt(s) && s.demolishedDay === undefined);
+    if (!taken) continue;
+    const width = bandWidthOf(fort, outline, s, run);
+    for (const p of bandPieces(outline, width, s.index)) pieces.push(p.corners);
+  }
+  return pieces;
 }
 
 /**

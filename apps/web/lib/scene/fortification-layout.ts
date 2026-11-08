@@ -505,6 +505,8 @@ export function segmentBuild(fort: SceneFortification, index: number): SegmentBu
   const state = segment?.state ?? 1;
   const breached = segment?.breachedDay !== undefined;
   const progress = look.progress;
+  // práce stavby na dílu – na opevnění smí běžet víc staveb (`SceneFortSegment.work`)
+  const work = look.work ?? fort.work;
   const layers = segment ?? { builtDay: null };
   const wall = segmentWall(fort, layers);
   const result: SegmentBuild = {
@@ -517,16 +519,12 @@ export function segmentBuild(fort: SceneFortification, index: number): SegmentBu
   };
   if (segment?.demolishedDay !== undefined) return result;
   /** Kolik z dílu ještě stojí při zboření `work` (1 − průběh); null – díl se tak nebourá. */
-  const left = (work: 'demolish' | 'level'): number | null =>
-    fort.work === work && progress !== undefined ? 1 - progress : null;
+  const left = (kind: 'demolish' | 'level'): number | null =>
+    work === kind && progress !== undefined ? 1 - progress : null;
   if (segmentRampart(fort, layers)) {
     const level = left('level');
     const earth =
-      look.age !== null
-        ? (level ?? 1)
-        : fort.work === 'build' && progress !== undefined
-          ? progress
-          : 0;
+      look.age !== null ? (level ?? 1) : work === 'build' && progress !== undefined ? progress : 0;
     result.rampart = { earth, age: look.age ?? 0 };
     const top = wall?.kind ?? null;
     if (top && earth >= 1) {
@@ -537,7 +535,7 @@ export function segmentBuild(fort: SceneFortification, index: number): SegmentBu
           phase: down === null ? FORT_SITE_DONE : fortSitePhase(top, down),
           age: look.topAge,
         };
-      else if (fort.work === 'top' && progress !== undefined)
+      else if (work === 'top' && progress !== undefined)
         result.top = { layer: top, phase: fortSitePhase(top, progress), age: 0 };
     }
     return result;
@@ -551,9 +549,9 @@ export function segmentBuild(fort: SceneFortification, index: number): SegmentBu
       phase: down === null ? FORT_SITE_DONE : fortSitePhase(layer, down),
       age: look.age,
     };
-  else if (fort.work === 'build' && progress !== undefined)
+  else if (work === 'build' && progress !== undefined)
     result.ground = { layer, phase: fortSitePhase(layer, progress), age: 0 };
-  if (fort.work === 'upgrade' && layer === 'fence' && progress !== undefined && progress > 0)
+  if (work === 'upgrade' && layer === 'fence' && progress !== undefined && progress > 0)
     result.upgrade = { phase: fortSitePhase('palisade', progress) };
   return result;
 }
