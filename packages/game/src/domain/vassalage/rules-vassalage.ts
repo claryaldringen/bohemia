@@ -38,6 +38,11 @@ export const VASSALAGE = {
     porterKg: TRADE.porterKg,
     logCarriers: TRADE.logCarriers,
     logKg: TRADE_GOOD_VALUES.logs.carryKg,
+    /**
+     * Kámen (vassalage.md – Makrokomodity; návrh Clauda): 1 m³ lomového kamene váží ≈ 2 500 kg, takže
+     * ho nosič neunese a jede jen vozem (400 / 800 kg → m³ se počítají z celkového nákladu vozů).
+     */
+    stoneKgPerM3: TRADE_GOOD_VALUES.stone.carryKg,
     headsPerDrover: TRADE.headsPerDrover,
     horsesPerDrover: TRADE.horsesPerDrover,
     cartKg: CARTS.loadKg,

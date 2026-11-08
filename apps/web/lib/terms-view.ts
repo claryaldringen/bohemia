@@ -28,6 +28,7 @@ export type BundleKey =
   | 'trainedOxen'
   | 'horses'
   | 'logs'
+  | 'stoneM3'
   | 'men'
   | 'women'
   | 'families'
@@ -52,6 +53,7 @@ export const BUNDLE_SLOTS: readonly BundleSlot[] = [
   { key: 'trainedOxen', icon: { set: 'resources', name: 'ox' }, unit: '', label: 'Vycvičení voli' },
   { key: 'horses', icon: { set: 'resources', name: 'horse' }, unit: '', label: 'Koně' },
   { key: 'logs', icon: { set: 'house', name: 'log' }, unit: '', label: 'Klády' },
+  { key: 'stoneM3', icon: { set: 'resources', name: 'stone' }, unit: '', label: 'Kámen (m³)' },
   { key: 'men', icon: { set: 'resources', name: 'man' }, unit: '', label: 'Muži' },
   { key: 'women', icon: { set: 'resources', name: 'woman' }, unit: '', label: 'Ženy' },
   { key: 'families', icon: { set: 'resources', name: 'family' }, unit: '', label: 'Rodiny' },
@@ -65,6 +67,7 @@ export function bundleValue(bundle: MacroBundle, key: BundleKey): number {
     case 'hayKg':
     case 'horses':
     case 'logs':
+    case 'stoneM3':
     case 'laborDays':
       return bundle[key];
     case 'cows':
@@ -85,6 +88,7 @@ export function withBundleValue(bundle: MacroBundle, key: BundleKey, value: numb
     case 'hayKg':
     case 'horses':
     case 'logs':
+    case 'stoneM3':
     case 'laborDays':
       return { ...bundle, [key]: value };
     case 'cows':
@@ -106,6 +110,7 @@ export function emptyBundle(): MacroBundle {
     cattle: { cows: 0, youngOxen: 0, trainedOxen: 0 },
     horses: 0,
     logs: 0,
+    stoneM3: 0,
     people: { families: 0, men: 0, women: 0 },
     laborDays: 0,
   };

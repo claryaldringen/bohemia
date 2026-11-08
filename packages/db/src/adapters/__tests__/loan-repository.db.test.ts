@@ -25,6 +25,7 @@ const goods = (grainKg: number): NewLoan['principal'] => ({
   cattle: { cows: 0, youngOxen: 0, trainedOxen: 0 },
   horses: 0,
   logs: 0,
+  stoneM3: 0,
 });
 
 beforeAll(async () => {

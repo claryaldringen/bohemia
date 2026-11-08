@@ -10,6 +10,7 @@ import {
   termLinesOf,
   type TermItem,
 } from '../domain/negotiation';
+import { stoneOf } from '../domain/vassalage/macro';
 import { AID_REASONS, checkAidLine, type AidLine } from '../domain/vassalage/loan';
 import {
   checkTermLine,
@@ -222,6 +223,7 @@ export const NEGOTIATION_EFFECTS: { [K in TermItem['kind']]: NegotiationEffect<K
           cattle: { ...item.bundle.cattle },
           horses: item.bundle.horses,
           logs: item.bundle.logs,
+          stoneM3: stoneOf(item.bundle),
         },
         schedule: item.schedule,
         sinceAt: ctx.now,

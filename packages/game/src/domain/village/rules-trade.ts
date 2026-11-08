@@ -86,6 +86,19 @@ export const NEIGHBOURS = {
    * a řemeslníci shánějí jezdecké koně (jejich vojvodové jezdí taky) – a hříbata a klisny na
    * vlastní chov, ať má ves komu prodat, co jí z chovu přebývá; lesní ves koně nemá.
    */
+  /**
+   * Kámen (trade.md – Kámen; Martin 8. 11. 2026: „kámen může být komoditou v obchodě“, druhy sousedů
+   * a čísla návrh Clauda): lesní ves v kopcích a řemeslníci (kameníci, stavitelé) kámen nabízejí,
+   * obilnáři a pastevci z roviny ho shánějí na hradby a stavby. Roční množství m³ losem z vlastního
+   * proudu (ostatní zboží souseda se nemění).
+   */
+  stoneKinds: {
+    farmers: 'demands',
+    herders: 'demands',
+    woodsmen: 'offers',
+    crafters: 'offers',
+  },
+  stoneM3: { from: 10, to: 40 },
   horseKinds: {
     farmers: { offers: [], demands: ['foals', 'mares', 'ridingHorses'] },
     herders: { offers: ['foals', 'mares', 'ridingHorses'], demands: [] },
@@ -99,6 +112,7 @@ export const NEIGHBOURS = {
   >;
   cattleKinds: Record<string, readonly TradeGood[]>;
   cattleAlways: readonly string[];
+  stoneKinds: Record<string, 'offers' | 'demands'>;
   horseKinds: Record<string, { offers: readonly HorseGood[]; demands: readonly HorseGood[] }>;
 };
 // trade.md – Obchod, hodnoty zboží v kg obilí (rešerše research/2026-10-18-trade-values.md, návrh
@@ -127,6 +141,9 @@ export const TRADE_GOOD_VALUES = {
   mares: { valueKg: 1600, carryKg: 0 },
   ridingHorses: { valueKg: 2400, carryKg: 0 },
   logs: { valueKg: 40, carryKg: 100 },
+  // kámen (trade.md – Kámen; návrh Clauda): 1 m³ = lámání 1 čd + dovoz ≈ 0,5 čd, a kláda za 1 čd práce
+  // má 40 → 60 kg obilí za m³; váží 2 500 kg, takže ho unese jen vůz (`STONE_KG_PER_M3`)
+  stone: { valueKg: 60, carryKg: 2500 },
 } as const satisfies Record<TradeGood, { valueKg: number; carryKg: number }>;
 /**
  * horses.md – Nákup a prodej (Martin 23. 10. 2026: koně jako ostatní zvířata; čísla návrh Clauda):

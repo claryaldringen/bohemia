@@ -65,7 +65,7 @@ a smysl přebytkům (obilí, sýr, maso, klády po mýcení) – jen se surovina
 
 - V každém z 8 směrů je soused s **povahou** určenou deterministicky ze seedu světa a směru
   (návrh Clauda): 2–3 druhy zboží **nabízí** (přebytek – levně), 2–3 **shání** (dražší).
-  Zboží souseda: obilí, maso, sýr, luštěniny, dobytek (kusy), klády, keramika, hřivny (od 20. 10.
+  Zboží souseda: obilí, maso, sýr, luštěniny, dobytek (kusy), klády, kámen (od 8. 11. 2026), keramika, hřivny (od 20. 10.
   2026 místo nástrojů – [Hřivny místo nástrojů](#hřivny-místo-nástrojů-20-10-2026)), uhlí –
   jen to, co má i ves (Martin 19. 10. 2026, viz [Jen společné suroviny](#jen-společné-suroviny)).
   ~~a **zboží zvenku**: **sůl, železo, med, kožešiny**~~ (zrušeno 19. 10. 2026).
@@ -78,7 +78,7 @@ a smysl přebytkům (obilí, sýr, maso, klády po mýcení) – jen se surovina
 ## Obchod
 
 - **Výměnou, ne za peníze** (návrh Clauda). Každé zboží má hodnotu v kg obilí: obilí 1,
-  luštěniny 1, maso 3, sýr 4, keramika 3, uhlí 0,5, hřivny 45 (kg), kráva 600, kláda 40 (kus) –
+  luštěniny 1, maso 3, sýr 4, keramika 3, uhlí 0,5, hřivny 45 (kg), kráva 600, kláda 40 (kus), kámen 60 (m³) –
   rešerše
   [2026-10-18-trade-values.md](research/2026-10-18-trade-values.md) (návrh Clauda). Soused
   bere s přirážkou **≈ 20 %**; co shání, za to dá o ≈ 20 % víc, co nabízí, dá o ≈ 20 % levněji.
@@ -133,6 +133,15 @@ variantu „a“: odebrat zboží zvenku). Detaily níž jsou návrh Clauda.
   | lesní ves (dřevaři a uhlíři)  | klády, uhlí, maso         | obilí      | luštěniny, sýr, keramika, hřivny           |
   | řemeslníci (hrnčíři a kováři) | keramika, hřivny          | obilí      | luštěniny, maso, sýr, klády, uhlí, dobytek |
 
+- **Kámen** (Martin 8. 11. 2026: „kámen může být komoditou v obchodě“; druhy sousedů, množství
+  a cena návrh Clauda): **lesní ves a řemeslníci kámen nabízejí** (kameníci a lomaři), **obilnáři
+  a pastevci z roviny ho shánějí** na hradby a stavby – ves bez lomu si ho tak koupí a ves s lomem
+  přebytek prodá. Roční zásoba nebo poptávka 10–40 m³ (los z vlastního proudu souseda, ostatní
+  zboží se nemění). Hodnota **60 kg obilí za m³** = lámání 1 čd (`STONE.quarryManDaysPerM3`) +
+  dovoz ≈ 0,5 čd, kláda za 1 čd práce má 40; při přirážce 20 % ves za m³ zaplatí 0,96 × 60
+  a prodá za 60. Kámen váží 2 500 kg na m³, takže **jede jen na voze** (jako klády, jen 100×
+  těžší): výprava s kamenem bez vozu chce 100 nosičů na m³, tedy v praxi nejde. Koupený kámen
+  jde na hromadu u cesty (`addStone`), prodaný se bere z hromad (`takeStone`).
 - **Kolem vsi je každý druh souseda dvakrát** (8 směrů, rozdání ze seedu vsi) – každé zboží
   některý soused nabízí a některý shání. Zásoby a poptávka se nemění (600–1 500 a 800–2 000 kg
   obilí ročně, doplnění 1. 11.).

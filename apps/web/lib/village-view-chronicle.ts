@@ -364,6 +364,7 @@ function shipmentText(goods: ShipmentManifest): string {
     goods.logs > 0
       ? `${formatInteger(goods.logs)} ${plural(goods.logs, 'kláda', 'klády', 'klád')}`
       : '',
+    (goods.stoneM3 ?? 0) > 0 ? `${formatInteger(goods.stoneM3 ?? 0)} m³ kamene` : '',
     cattle > 0 ? `${formatInteger(cattle)} ks dobytka` : '',
     goods.horses > 0
       ? `${formatInteger(goods.horses)} ${plural(goods.horses, 'kůň', 'koně', 'koní')}`
