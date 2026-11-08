@@ -80,10 +80,12 @@ describe('riverWidthM', () => {
     expect(riverWidthM(1)).toBeNull();
     expect(riverWidthM(499)).toBeNull();
     expect(riverWidthM(500)).toBe(25);
-    expect(riverWidthM(749)).toBe(25);
-    expect(riverWidthM(750)).toBe(30);
-    expect(riverWidthM(1000)).toBe(35);
-    expect(riverWidthM(1999)).toBe(40);
-    expect(riverWidthM(2000)).toBe(45);
+    expect(riverWidthM(849)).toBe(25);
+    expect(riverWidthM(850)).toBe(30);
+    expect(riverWidthM(1600)).toBe(35);
+    expect(riverWidthM(3799)).toBe(35);
+    expect(riverWidthM(3800)).toBe(40);
+    expect(riverWidthM(11999)).toBe(40);
+    expect(riverWidthM(12000)).toBe(45);
   });
 });

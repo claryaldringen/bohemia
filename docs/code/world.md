@@ -67,9 +67,11 @@ i prohlížeč). Zatím jen řeky (Úloha 1); stezky a místa kostry přidá Úl
   hustota řek 8–14 % (okno 200 × 200), zlatý otisk řek (okno 32 × 32, seed 20270101 – po ostrém
   spuštění se nesmí změnit).
 - **Měření** (8. 11. 2026, okno 1000 × 1000, seedy 1, 2, 3, 7, 20270101): řeka 11,7–12,1 % map
-  (≈ 1 z 8,5), z toho 58 % rovně ze S na J, soutok i pramen ≈ 0,05 %; šířky výtoku 25 m 14 %,
-  30 m 9 %, 35 m 11 %, 40 m 7 %, 45 m ≈ 60 %. Okno 1000 × 1000 od severu ≈ 1,4 s, samostatný výřez
-  bez mezipaměti nejvýš ≈ 1,4 ms.
+  (≈ 1 z 8,5), z toho 58 % rovně ze S na J, soutok i pramen ≈ 0,05 %. Šířky výtoku se stropem
+  povodí 12 000 (8. 11. 2026, okno 1000 × 1000, seedy 1, 2, 3, 7, 20270101): 25 m 17,8 %,
+  30 m 17,5 %, 35 m 18,7 %, 40 m 15,7 %, 45 m 30,3 % (dřív se stropem 2000: 14, 9, 11, 7 a 60 %).
+  Okno 1000 × 1000 od severu ≈ 2,2 s, samostatný výřez bez mezipaměti nejvýš ≈ 8 ms (měřeno při
+  vytíženém stroji).
 
 ## Vstup nováčka (odříznutá krajina, výběr pána)
 
