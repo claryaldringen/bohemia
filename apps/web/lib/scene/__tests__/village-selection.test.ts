@@ -257,3 +257,40 @@ describe('výpis výběru do konzole (Martin 24. 10. 2026)', () => {
     expect(describeTarget({ kind: 'cart', id: 3 }, { roads })).toBe('cart {"id":3}');
   });
 });
+
+describe('výběr bourané stavby', () => {
+  const site = { ...dwelling(90, false), progress: 0.75, demolition: 0.25 };
+  const demolishing: SceneVillage = {
+    ...village,
+    dwellings: [dwelling(2), site],
+    demolitions: [{ id: 90, structure: 'dwelling', targetId: 1 }],
+  };
+
+  it('vybrané obydlí zůstane vybrané jako staveniště bourání', () => {
+    expect(presentTarget(demolishing, { kind: 'dwelling', id: 1 })).toEqual({
+      kind: 'dwelling',
+      id: 90,
+    });
+    // už převedený výběr i obydlí, které se nebourá, zůstanou, jak jsou
+    const moved: VillageTarget = { kind: 'dwelling', id: 90 };
+    expect(presentTarget(demolishing, moved)).toBe(moved);
+    const other: VillageTarget = { kind: 'dwelling', id: 2 };
+    expect(presentTarget(demolishing, other)).toBe(other);
+  });
+
+  it('humno a svatyně se bourají stejně, zaniklé obydlí bez bourání výběr zruší', () => {
+    const more: SceneVillage = {
+      ...demolishing,
+      demolitions: [
+        { id: 91, structure: 'threshing-floor', targetId: 7 },
+        { id: 92, structure: 'shrine', targetId: 8 },
+      ],
+    };
+    expect(presentTarget(more, { kind: 'threshing-floor', id: 7 })).toEqual({
+      kind: 'threshing-floor',
+      id: 91,
+    });
+    expect(presentTarget(more, { kind: 'sacred', id: 8 })).toEqual({ kind: 'sacred', id: 92 });
+    expect(presentTarget(more, { kind: 'dwelling', id: 1 })).toBeNull();
+  });
+});

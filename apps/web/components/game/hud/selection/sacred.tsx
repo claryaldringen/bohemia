@@ -57,6 +57,18 @@ export function SacredBody({
       </div>
     );
   }
+  if (details.demolition !== undefined) {
+    return (
+      <div className="flex flex-col justify-center gap-1.5">
+        <div className="flex items-center gap-3">
+          <Stat icon="labor" name="Bourání">
+            {formatPercent(details.demolition)}
+          </Stat>
+        </div>
+        <Bar value={details.demolition} name="Bourání" testId="selection-demolition" />
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col justify-center gap-1.5">
       <div className="flex items-center gap-3">

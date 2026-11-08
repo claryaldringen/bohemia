@@ -58,6 +58,31 @@ export function allDwellingsTarget(village: SceneVillage): VillageTarget | null 
 }
 
 /**
+ * Bouraná stavba ve scéně zmizí a nahradí ji staveniště pod id stavby bourání (demolition-view.ts)
+ * – vybraný dům, humno, modla či svatyně tak po pokynu Zbourat zůstane vybraný jako staveniště
+ * bourání (panel ukáže průběh a Zrušit). Jiný cíl, nebo stavba, která ve vsi ještě je, → null.
+ */
+export function followDemolition(
+  village: SceneVillage,
+  target: VillageTarget,
+): VillageTarget | null {
+  const kinds = {
+    dwelling: ['dwelling'],
+    'threshing-floor': ['threshing-floor'],
+    sacred: ['idol', 'shrine'],
+  } as const;
+  if (target.kind !== 'dwelling' && target.kind !== 'threshing-floor' && target.kind !== 'sacred') {
+    return null;
+  }
+  if (targetExists(village, target)) return null;
+  const structures: readonly string[] = kinds[target.kind];
+  const site = (village.demolitions ?? []).find(
+    (d) => d.targetId === target.id && structures.includes(d.structure),
+  );
+  return site ? { kind: target.kind, id: site.id } : null;
+}
+
+/**
  * Vybraný cíl, jak ho ves po obnovení stavu ještě má: zaniklé obydlí, díl pole (zarostl lesem,
  * ustoupil stavbě) či čtverec sadu → null, z víc obydlí zbydou jen existující (jedno zbylé je
  * obydlí). Beze změny vrátí tentýž objekt.
@@ -67,6 +92,8 @@ export function presentTarget(
   target: VillageTarget | null,
 ): VillageTarget | null {
   if (target === null) return null;
+  const moved = followDemolition(village, target);
+  if (moved) return moved;
   if (target.kind !== 'dwellings') {
     // zaniklá pole z výběru všech polí vypadnou, jedno zbylé je pole
     if (target.kind === 'fields') {

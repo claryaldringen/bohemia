@@ -222,6 +222,8 @@ type SelectionKinds =
       treesToFell: number;
       /** Nový dům stěhující se domácnosti (id jejího obydlí) – jde zrušit; jinak null. */
       relocates: number | null;
+      /** Průběh bourání 0–1 (staveniště pozpátku – demolition.md); stavba null. */
+      demolition?: number;
     }
   | {
       kind: 'field';
@@ -433,6 +435,8 @@ type SelectionKinds =
       repair: number | null;
       /** Opustit, zbourat, vrátit (demolition.md – Rozhraní); rozestavěná stavba údaj nemá. */
       use?: StructureUseView;
+      /** Průběh bourání 0–1 (staveniště pozpátku); stavba, která se nebourá, údaj nemá. */
+      demolition?: number;
     }
   | {
       kind: 'pen';
@@ -948,6 +952,7 @@ function selectionKinds(
         progress: construction?.progress ?? dwelling.progress,
         treesToFell: construction?.treesToFell ?? 0,
         relocates: construction?.relocates ?? null,
+        ...(dwelling.demolition === undefined ? {} : { demolition: dwelling.demolition }),
       };
     }
     const household = view?.households.find((h) => h.dwellingId === target.id);
@@ -1555,6 +1560,23 @@ function sacredDetails(
   }
   const site = scene.sacred?.buildings.find((b) => b.id === id);
   if (!site) return null;
+  // bouraná modla či svatyně je staveniště pozpátku pod id stavby bourání (demolition-view.ts)
+  if (site.demolition !== undefined) {
+    const target = scene.demolitions?.find((d) => d.id === id)?.targetId;
+    const original = view?.sacred.buildings.find((b) => b.id === target);
+    return {
+      kind: 'sacred',
+      id,
+      type: site.kind,
+      happiness: original?.happiness ?? sacredBuildingHappiness(site.kind),
+      building: site.progress,
+      oaksToFell: 0,
+      condition: original?.condition ?? site.condition ?? 1,
+      abandoned: original?.abandoned ?? false,
+      repair: null,
+      demolition: site.demolition,
+    };
+  }
   return {
     kind: 'sacred',
     id,
