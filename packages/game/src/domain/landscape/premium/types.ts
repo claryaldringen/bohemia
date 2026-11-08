@@ -1,3 +1,5 @@
+import type { SeatSlot } from '../../world/skeleton/sites';
+
 /** Typy prémiových krajin (premium-landscapes.md) – krajina přidělená lidskému hráči. */
 export type PremiumType =
   | 'deep-gold'
@@ -19,6 +21,18 @@ export type PremiumType =
   | 'wild-bees'
   | 'game-furs'
   | 'building-stone';
+
+/**
+ * Místo kostry, na kterém typ kostry v prémiovém průchodu 2 jedině vzniká (world-skeleton.md –
+ * Hustota a stejné podmínky, Mapa z kostry): splavná řeka a soutok na řece, vyvýšenina nad brodem
+ * na brodu, horský průsmyk na stezce. Ostatní typy jen na suché mapě (`'dry'`).
+ */
+export const SKELETON_PREMIUM_SLOTS: Partial<Record<PremiumType, SeatSlot>> = {
+  'navigable-river': 'river',
+  confluence: 'river',
+  'ford-hill': 'ford',
+  'mountain-pass': 'trail',
+};
 
 /** Kotva rozvoje – co se v prémiové krajině časem vyplatí postavit. */
 export type PremiumAnchor =

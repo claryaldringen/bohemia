@@ -41,8 +41,9 @@ začátku svého dne, zápis zvedá verzi vsi) – `docs/code/village-core.md`, 
   horský průsmyk); `owned` mezi nimi → ten, jinak `choosePremiumType(seed, counts, nabízené)`
   (`allowed` omezí výběr, shoda v pořadí katalogu; bez `allowed` výsledek jako dřív). Políčko =
   první kandidát s typem. `slotOf` (výřez kostry, ≈ 110 µs) se volá jen pro volná políčka okna.
-  Nikde místo → `RangeError` po `WORLD.searchRings` prstencích za stropem. Do Úlohy 10
-  (`SKELETON_PREMIUM_SLOTS`) drží `SLOT_TYPES` typy kostry samo; test porovná s lokální mapou.
+  Nikde místo → `RangeError` po `WORLD.searchRings` prstencích za stropem. `SLOT_TYPES` se
+  odvozuje ze `SKELETON_PREMIUM_SLOTS` (`landscape/premium/types.ts` – místo typu kostry, ostatní
+  typy `'dry'`), v pořadí katalogu.
 - **Nabídka pánů** (`domain/world/lord-offer.ts`): `lordOffer(candidates, { language, seed })` –
   jen živé rody hráčů s nejmenším počtem vsí ≥ 2; stejný jazyk první, uvnitř skupiny pořadí
   z `deriveSeed(seed, houseId)`; prázdná nabídka = `[]` (newcomers.md – Nabídka pánů).

@@ -11,6 +11,7 @@ import { ellipseOutline, streamPointWorld, type WorldPoint } from './geometry';
 import {
   addConfluence,
   addSideRiver,
+  addSkeletonConfluence,
   landRegion,
   NAVIGABLE_FLOODPLAIN_CELLS,
   RIVER,
@@ -28,7 +29,7 @@ import {
   villageBypass,
 } from './route';
 import { promontorySiteOf } from './relief';
-import type { PremiumSite } from './types';
+import type { PremiumSite, PremiumType } from './types';
 
 // Prémiové typy vody (premium-landscapes.md – Typy krajin): splavná řeka, vyvýšenina nad brodem
 // se stezkou, soutok, zlatonosný potok, solný a posvátný pramen. Řeka mění terén (`river.ts`),
@@ -130,8 +131,11 @@ function fordCenters(river: readonly StreamPoint[]): number[] {
   return centers;
 }
 
-function riverSites(l: Landscape): PremiumSite[] | null {
-  const river = l.river;
+/** Řeka a její brody jako prvky typu – řeka prémie (`l.river`), nebo hlavní tok kostry. */
+function riverSites(
+  l: Landscape,
+  river: readonly StreamPoint[] | undefined = l.river,
+): PremiumSite[] | null {
   if (!river || river.length < 2) return null;
   const line = lineToEdges(
     l,
@@ -156,10 +160,9 @@ function leftNormal(points: readonly StreamPoint[], k: number): { x: number; z: 
 
 /**
  * Místo pro přístaviště: na břehu řeky na straně vsi (souš dosažitelná z místa vsi), u bodu
- * řeky nejblíž vsi – `RIVER.portBankM` za okrajem vody.
+ * řeky nejblíž vsi – `RIVER.portBankM` za okrajem vody. Řeka prémie, nebo hlavní tok kostry.
  */
-function portSite(l: Landscape): PremiumSite | null {
-  const river = l.river!;
+function portSite(l: Landscape, river: readonly StreamPoint[] = l.river!): PremiumSite | null {
   const village = villageWorld(l);
   const side = landRegion(waterMask(l), l.size, l.villageSite);
   const order = river
@@ -323,6 +326,53 @@ const confluence = {
     return [...sites, { kind: 'confluence', x, z }, spur];
   },
 } satisfies PremiumPass;
+
+// ── Prémie na kostře (premium: 2) ────────────────────────────────────────────────────────────
+
+/**
+ * Řeka kostry na místě „řeka“ (jeden vtok, jeden výtok – `SKELETON_PREMIUM_SLOTS`): hlavní tok
+ * je jediná řeka mapy. Mapa bez řeky kostry (trasa nevedla) undefined.
+ */
+function skeletonRiver(l: Landscape): readonly StreamPoint[] | undefined {
+  return l.rivers?.[0];
+}
+
+/**
+ * Splavná řeka na kostře (world-skeleton.md – Mapa z kostry): řeka z výřezu se širší rovnou nivou
+ * (terén mapy z kostry znovu s `NAVIGABLE_FLOODPLAIN_CELLS`) a přístaviště na břehu na straně vsi.
+ */
+const skeletonNavigableRiver = {
+  skeletonTerrainOptions: { floodplainCells: NAVIGABLE_FLOODPLAIN_CELLS },
+  sites({ landscape }: { landscape: Landscape }): readonly PremiumSite[] | null {
+    const river = skeletonRiver(landscape);
+    const sites = riverSites(landscape, river);
+    const port = sites && river ? portSite(landscape, river) : null;
+    return sites && port ? [...sites, port] : null;
+  },
+} satisfies PremiumPass;
+
+/**
+ * Soutok na kostře: potok mapy už do řeky kostry ústí (přítok), průchod přidá jen ostrožnu mezi
+ * řekou a potokem nad ústím potoka (`addSkeletonConfluence`).
+ */
+const skeletonConfluence = {
+  terrain(terrain: Terrain, ctx: PremiumPassContext): Terrain {
+    return addSkeletonConfluence(terrain, riverSeed(ctx));
+  },
+  sites({ landscape }: { landscape: Landscape }): readonly PremiumSite[] | null {
+    const sites = riverSites(landscape, skeletonRiver(landscape));
+    const spur = promontorySite(landscape, 'confluence');
+    if (!sites || !spur) return null;
+    const [x, z] = streamPointWorld(landscape, landscape.stream.at(-1)!);
+    return [...sites, { kind: 'confluence', x, z }, spur];
+  },
+} satisfies PremiumPass;
+
+/** Průchody typů vody na kostře (prémiový průchod 2). */
+export const SKELETON_WATER_PASSES = {
+  'navigable-river': skeletonNavigableRiver,
+  confluence: skeletonConfluence,
+} satisfies Partial<Record<PremiumType, PremiumPass>>;
 
 // ── Zlatonosný potok ─────────────────────────────────────────────────────────────────────────
 

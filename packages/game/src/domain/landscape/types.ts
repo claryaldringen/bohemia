@@ -27,9 +27,11 @@ export interface LayerVersions {
   obstacles?: 1 | 2;
   /**
    * Prémiový průchod (premium-landscapes.md – Generátor) – platí jen pro krajinu s prémiovým
-   * typem, chybí = 1. Průměrná krajina (bez typu) ho nemá a nic se jí nemění.
+   * typem, chybí = 1. Průměrná krajina (bez typu) ho nemá a nic se jí nemění. 2 = prémie na
+   * kostře (world-skeleton.md – Mapa z kostry): typ kostry jen na svém místě kostry (výřez),
+   * ostatní typy jako ve verzi 1 jen na suché mapě.
    */
-  premium?: 1;
+  premium?: 1 | 2;
   /**
    * Mapa z kostry světa (world-skeleton.md – Uložení, verze vrstev): 1 = terén „řeka první“
    * z výřezu (`skeleton/terrain.ts`). Jen u map s neprázdným výřezem – suchá mapa ji nemá

@@ -245,7 +245,8 @@ kdekoli“ → jen na suchých mapách):
 - **Prémie na kostře** (nová verze průchodu `premium: 2`) už vlastní řeku ani stezku nepřidává,
   bere je z kostry:
   - **splavná řeka** – široká niva (4 políčka) na straně vsi a přístaviště;
-  - **soutok** – ostrožna mezi řekou a potokem nad jejich soutokem;
+  - **soutok** – ostrožna mezi řekou a potokem nad jejich soutokem (v klínu proti proudu řeky;
+    když se tam nevejde – voda, okraj mapy, rovina vsi –, v klínu po proudu; návrh Clauda);
   - **vyvýšenina nad brodem** – ostrožna 16–20 m nad brodem, kudy kostra vede stezku;
   - **horský průsmyk** – hřbet se sedlem napříč stezkou u okraje, kudy stezka vstupuje, ves na
     druhé straně hřbetu.

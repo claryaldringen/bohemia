@@ -72,21 +72,23 @@ describe('prémiový typ jako třetí vstup generátoru', () => {
     }
   });
 
-  it('verze prémiového průchodu 1 – průměrnou krajinu nezmění', () => {
-    expect(PREMIUM_LAYER_VERSION).toBe(1);
-    const versions: LayerVersions = { ...CURRENT_LAYER_VERSIONS, premium: PREMIUM_LAYER_VERSION };
-    const accepted = generateAcceptedLandscape(1, versions);
-    expect(accepted.seed).toBe(1);
-    expect(landscapeHash(accepted.landscape)).toBe(landscapeHash(average));
-    expect('premium' in accepted.landscape).toBe(false);
+  it('verze prémiového průchodu 1 i 2 – průměrnou krajinu nezmění', () => {
+    expect(PREMIUM_LAYER_VERSION).toBe(2);
+    for (const premium of [1, PREMIUM_LAYER_VERSION] as const) {
+      const versions: LayerVersions = { ...CURRENT_LAYER_VERSIONS, premium };
+      const accepted = generateAcceptedLandscape(1, versions);
+      expect(accepted.seed).toBe(1);
+      expect(landscapeHash(accepted.landscape)).toBe(landscapeHash(average));
+      expect('premium' in accepted.landscape).toBe(false);
+    }
   });
 
   it('neznámý typ i neznámá verze průchodu vyhodí RangeError', () => {
     expect(() => generateAcceptedLandscape(1, CURRENT_LAYER_VERSIONS, UNKNOWN)).toThrow(RangeError);
     expect(() => generateLandscapeAttempt(1, CURRENT_LAYER_VERSIONS, UNKNOWN)).toThrow(RangeError);
-    const premium2 = { ...CURRENT_LAYER_VERSIONS, premium: 2 } as unknown as LayerVersions;
-    expect(() => generateAcceptedLandscape(1, premium2)).toThrow(RangeError);
-    expect(() => generateLandscapeAttempt(1, premium2, 'fertile')).toThrow(RangeError);
+    const premium3 = { ...CURRENT_LAYER_VERSIONS, premium: 3 } as unknown as LayerVersions;
+    expect(() => generateAcceptedLandscape(1, premium3)).toThrow(RangeError);
+    expect(() => generateLandscapeAttempt(1, premium3, 'fertile')).toThrow(RangeError);
     expect(() => premiumFeaturesOf({ ...average, premium: UNKNOWN })).toThrow(RangeError);
   });
 
@@ -115,10 +117,12 @@ describe('napojení průchodu typu na generátor', () => {
   });
   const seed = 7;
   const average = generateLandscapeAttempt(seed, CURRENT_LAYER_VERSIONS);
+  // Verze vrstev bez `premium` = průchod 1, suchá mapa bez výřezu.
   const ctx = {
-    version: PREMIUM_LAYER_VERSION,
+    version: 1,
     seed: deriveSeed(seed, 'premium'),
     versions: CURRENT_LAYER_VERSIONS,
+    skeleton: null,
   };
 
   it('vegetace dostane terén a povrch průměrné krajiny a její výsledek je povrch krajiny', () => {
