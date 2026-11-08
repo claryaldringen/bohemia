@@ -1,6 +1,6 @@
 # Divoká zvěř – stavy, škody, obrana, lov a ryby
 
-Stav: **schváleno** (Martin 24. 10. 2026: „Schvaluji“). Implementace zatím není – po cestách, růstu populace a #9 fázi 1. Navazuje na
+Stav: **schváleno** (Martin 24. 10. 2026: „Schvaluji“). **Implementováno** (sloučeno ≈ 26.–28. 10. 2026, kód viz [village-wildlife.md](../code/village-wildlife.md)). Navazuje na
 [koně](horses.md), [vojvodovu rodinu](lord.md), [stravu a dobytek](diet.md), [pole](fields.md)
 a [les](forest.md). Čísla zdůvodňuje [rešerše](research/2026-10-24-wildlife.md). Co níž není
 výslovně Martinovo, je návrh Clauda. Otevřené otázky Martin uzavřel 24. 10. 2026 (sekce

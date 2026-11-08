@@ -1,6 +1,6 @@
 # Vojvodova rodina – výcvik místo pole
 
-Stav: **schváleno** (Martin 23. 10. 2026: „Schvaluji, implementuj“) (23. 10. 2026, issue #8). Implementace zatím není. Koně, na kterých
+Stav: **schváleno** (Martin 23. 10. 2026: „Schvaluji, implementuj“) (23. 10. 2026, issue #8). **Implementováno** (sloučeno ≈ 24.–31. 10. 2026, kód viz [village-people.md](../code/village-people.md)). Koně, na kterých
 vojvoda a synové jezdí, popisuje [koně](horses.md) (issue #5). Čísla zdůvodňuje
 [rešerše](research/2026-10-23-horses-lord.md). Co níž není výslovně Martinovo, je návrh Clauda.
 

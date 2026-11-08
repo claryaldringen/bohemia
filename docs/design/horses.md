@@ -1,6 +1,6 @@
 # Koně – ohrada, chov, výcvik a jezdci
 
-Stav: **schváleno** (Martin 23. 10. 2026: „Schvaluji, implementuj“) (23. 10. 2026, issue #5). Implementace zatím není. Kdo na koních jezdí
+Stav: **schváleno** (Martin 23. 10. 2026: „Schvaluji, implementuj“) (23. 10. 2026, issue #5). **Implementováno** (sloučeno ≈ 24. 10. 2026, kód viz [village-livestock.md](../code/village-livestock.md) a [village-people.md](../code/village-people.md)). Kdo na koních jezdí
 a jak se cvičí, popisuje [vojvodova rodina](lord.md) (issue #8). Čísla zdůvodňuje
 [rešerše](research/2026-10-23-horses-lord.md). Co níž není výslovně Martinovo, je návrh Clauda.
 

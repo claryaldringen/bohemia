@@ -88,7 +88,7 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   Clauda, aby první nová domácnost mohla vzniknout do pár let; zůstávají i s porody od 16 let –
   Martin). Jsou to **dva páry** ([kinship.md](kinship.md)): manželé 25 let a chlapec 13 a dívka
   12 let, kteří nejsou příbuzní (rodiče neznámí) a vezmou se, až dorostou. Ves dostane navržené staročeské jméno, které hráč může kdykoli změnit.
-  **Návrh issue #9 fáze 1** (Martin, 24. 10. 2026 – zatím neimplementováno): ves založí **vojvoda
+  **Návrh issue #9 fáze 1** (Martin, 24. 10. 2026 – implementováno, [village-people.md](../code/village-people.md)): ves založí **vojvoda
   se 4 manželkami** (5 lidí bez dětí, všichni v první zemnici); vedlejší manželky odcházejí do
   vlastních obydlí, až když se dvorec přeplní – [vojvodova rodina](lord.md), Rod vojvody –
   Zakladatelé, Manželky.
