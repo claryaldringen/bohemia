@@ -851,6 +851,12 @@ staví až na hotovém.`, `Val už nástavbu má.`), ikona brány (`aria-pressed
   cookie vybrané vsi stejně jako u vlastních vsí na jiné mapě.
 - **Panel „Rod a vazalové“** (`hud/HousePanel.tsx`): řádek „Správci vsí“ (`house-stewards`) s tlačítkem Odvolat
   (`steward-dismiss-<villageId>`) pro držitele; `HouseView.stewardships`.
+- **Jídlo domény** (`hud/DomainFood.tsx`, `DomainFoodRows`; řada `house-food` v `HousePanel` za „Rod“, jen s `HouseView.domainFood`
+  z `HousePanelData.domainFood`, viz [vassalage.md](vassalage.md) – Jídlo domény v panelu): řádek sídla
+  (`house-food-village`: `manor.png` s jménem, `harvest.png` vypěstuje, `food.png` potřebuje, `balance.png` ± rozdíl –
+  záporný červeně, `data-bad`), vazal (`house-food-vassal`: portrét rodu, obilí, dobytek, pečeť s popiskem
+  „Domluveno – nemusí přijít“, `house-food-agreed`) a součet (`house-food-total`, „Doména – zbývá“ / „Doména – chybí“).
+  Čísla kg zaokrouhlená na celé; slova jen v `Tooltip`.
 - **Nabídka** (`hud/TermsForm.tsx`): u nabídky vazalství přidá pán tlačítkem klíče (`terms-add-stewardship`)
   řádek „Svěřit správu vsi“ s výběrem své vsi (`term-stewardship-select`); `lib/house-input.ts` ho parsuje.
 - Server: akce správce jdou stejnými server actions jako vlastní (`actOn` → `guardedAction`); právo i zámek

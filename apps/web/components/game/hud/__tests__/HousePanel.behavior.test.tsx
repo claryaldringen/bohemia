@@ -34,6 +34,7 @@ const VIEW: HouseView = {
   protectionDaysLeft: null,
   disputes: [],
   fellows: [],
+  domainFood: null,
   agreements: [],
   tree: [],
   status: {},
@@ -126,6 +127,38 @@ describe('HousePanel', () => {
     expect(host.querySelector('[data-testid="house-invite-slots"]')?.textContent).toBe('2');
     expect(host.querySelector('[data-testid="house-invite-code"]')?.textContent).toBe('BH7K-M2QX');
     expect(host.querySelector('[data-testid="house-invite-played"]')).not.toBeNull();
+  });
+
+  it('jídlo domény: sídla, vazal s popiskem Domluveno a součet; bez dat řada chybí', () => {
+    render();
+    expect(host.querySelector('[data-testid="house-food"]')).toBeNull();
+    render({
+      view: {
+        ...VIEW,
+        domainFood: {
+          villages: [
+            { villageId: 'v-1', name: 'Libice', growsKg: 5000, needsKg: 4000, balanceKg: 1000 },
+            { villageId: 'v-2', name: 'Ves', growsKg: 3000, needsKg: 3400.4, balanceKg: -400.4 },
+          ],
+          vassals: [{ houseId: 'h-v', house: link('h-v'), grainKg: 300, cattle: 2 }],
+          totalKg: -150.4,
+        },
+      },
+    });
+    expect(host.querySelectorAll('[data-testid="house-food-village"]')).toHaveLength(2);
+    const bal = host.querySelectorAll('[data-testid="house-food-balance"]');
+    expect(bal[0]?.textContent).toBe('+1000');
+    expect(bal[0]?.getAttribute('data-bad')).toBeNull();
+    expect(bal[1]?.textContent).toBe('-400');
+    expect(bal[1]?.getAttribute('data-bad')).toBe('true');
+    expect(
+      host.querySelector('[data-testid="house-food-agreed"]')?.getAttribute('aria-label'),
+    ).toBe('Domluveno – nemusí přijít');
+    expect(host.querySelector('[data-testid="house-food-vassal-house"]')).not.toBeNull();
+    const total = host.querySelector('[data-testid="house-food-total"]');
+    expect(total?.textContent).toBe('-150');
+    expect(total?.getAttribute('data-bad')).toBe('true');
+    expect(total?.getAttribute('aria-label')).toContain('Doména – chybí');
   });
 
   it('vydání a zrušení volá akce, kopírování dá odkaz s kódem', async () => {

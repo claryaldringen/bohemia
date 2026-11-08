@@ -124,6 +124,20 @@ export interface StewardshipView {
   steward: HouseLinkView | null;
 }
 
+/** Jídlo domény v panelu (hillfort.md – Přehled jídla domény); čísla v kg obilí. */
+export interface DomainFoodView {
+  villages: {
+    villageId: string;
+    name: string;
+    growsKg: number;
+    needsKg: number;
+    balanceKg: number;
+  }[];
+  /** Vazal s domluvenou dávkou; rod nemusí být v seznamu vazalů (pak `house` chybí). */
+  vassals: { houseId: string; house: HouseLinkView | null; grainKg: number; cattle: number }[];
+  totalKg: number;
+}
+
 export interface HouseView {
   /** Hráč má živý rod. */
   hasHouse: boolean;
@@ -153,6 +167,8 @@ export interface HouseView {
   disputes: DisputeView[];
   /** Spoluvazalové – tlačítko žaloby. */
   fellows: FellowView[];
+  /** Jídlo domény; null – řada se neukáže. */
+  domainFood: DomainFoodView | null;
   /** Zbývající dny ochrany nového rodu (štít s hodinami); null – rod chráněn není. */
   protectionDaysLeft: number | null;
   /** Čekající věci (jednání, kde je hráč na tahu, a Odvody pánům) – pečeť v liště. */
@@ -335,6 +351,19 @@ export function houseView(data: HousePanelData, nowMs: number): HouseView {
       canAnswer: d.canAnswer,
     })),
     fellows: data.fellows.map((f) => ({ house: houseLinkOf(f.house), name: houseNameOf(f.house) })),
+    domainFood: data.domainFood
+      ? {
+          villages: data.domainFood.villages.map((v) => ({
+            ...v,
+            balanceKg: v.growsKg - v.needsKg,
+          })),
+          vassals: data.domainFood.vassals.map((v) => {
+            const house = data.vassals.find((h) => h.houseId === v.houseId);
+            return { ...v, house: house ? houseLinkOf(house) : null };
+          }),
+          totalKg: data.domainFood.totalKg,
+        }
+      : null,
     protectionDaysLeft:
       data.protectedUntil === null
         ? null

@@ -28,6 +28,7 @@ import { NewcomerWaiting } from './NewcomerPanel';
 import { newcomerWaiting, type NewcomerStatusView } from '@/lib/newcomer-view';
 import { Chip, TermsForm, type TermsContext } from './TermsForm';
 import { Tooltip } from './Tooltip';
+import { DomainFoodRows } from './DomainFood';
 
 // Panel „Rod a vazalové“ – první verze (vassalage.md – Co hráč vidí): rod, páni, vazalové, hráči
 // podle vzdálenosti a pozvánky. Jako v 0 A.D. jen ikony s čísly, slova v popiscích; výjimkou je
@@ -808,6 +809,14 @@ export function HousePanel({
                 status={newcomer}
                 busy={busy}
                 onWithdraw={() => run(() => onStartFree?.() ?? Promise.resolve())}
+              />
+            </Row>
+          )}
+          {view.domainFood && (
+            <Row label="Jídlo domény" testId="house-food" marker={<Icon name="grain" />}>
+              <DomainFoodRows
+                food={view.domainFood}
+                renderHouse={(h, testId) => <HouseLink house={h} testId={testId} />}
               />
             </Row>
           )}

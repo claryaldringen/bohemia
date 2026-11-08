@@ -20,6 +20,59 @@ const house = (houseId: string, lordName: string | null, ages: number[]): Public
   language: 'cs',
 });
 
+describe('houseView – jídlo domény', () => {
+  const base = (
+    domainFood: HousePanelData['domainFood'],
+    vassals: PublicHouse[],
+  ): HousePanelData => ({
+    hasHouse: true,
+    isolated: false,
+    inviteReason: null,
+    negotiations: [],
+    actions: {},
+    stewardships: [],
+    wars: [],
+    protectedUntil: null,
+    disputes: [],
+    fellows: [],
+    domainFood,
+    agreements: [],
+    tree: [],
+    status: {},
+    own: null,
+    lords: [],
+    vassals,
+    others: [],
+    invites: [],
+    freeInviteSlots: 0,
+  });
+
+  it('mapuje sídla s rozdílem a vazala s rodem', () => {
+    const view = houseView(
+      base(
+        {
+          villages: [{ villageId: 'v', name: 'Libice', growsKg: 100, needsKg: 130 }],
+          vassals: [
+            { houseId: 'h1', grainKg: 50, cattle: 1 },
+            { houseId: 'cizi', grainKg: 5, cattle: 0 },
+          ],
+          totalKg: 25,
+        },
+        [house('h1', 'Boleslav', [30])],
+      ),
+      NOW,
+    );
+    expect(view.domainFood?.villages[0]?.balanceKg).toBe(-30);
+    expect(view.domainFood?.vassals[0]?.house?.houseId).toBe('h1');
+    expect(view.domainFood?.vassals[1]?.house).toBeNull();
+    expect(view.domainFood?.totalKg).toBe(25);
+  });
+
+  it('bez domainFood je null', () => {
+    expect(houseView(base(null, []), NOW).domainFood).toBeNull();
+  });
+});
+
 describe('houseView', () => {
   it('převede data panelu na portréty, štíty a dny', () => {
     const data: HousePanelData = {
