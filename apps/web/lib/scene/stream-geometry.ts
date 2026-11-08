@@ -1,11 +1,12 @@
 import type { StreamSample } from '@bohemia/game';
 
-// Osa potoka (a řeky prémiových krajin) ve světě je v herním jádru (podle ní stojí stromy
+// Osa potoka (a řek – kostry i prémiových krajin) ve světě je v herním jádru (podle ní stojí stromy
 // a kameny vrstvy překážek); tady jen vzhled vody – průzračnost a viditelnost do hloubky.
 export {
   BANK_REACH_M,
   nearestWaterPair,
   riverCenterline,
+  riverCenterlines,
   streamCenterline,
   streamStations,
   watersCenterline,

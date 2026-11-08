@@ -463,7 +463,7 @@ export class LandscapeScene {
     // ozdoby vody (rákos, lekníny, kmeny v potoce) nejsou překážky – jen vzhled scény
     const decor = [
       ...(premium ? scenery.decor.map(withRockTint) : scenery.decor),
-      ...decorPlacements(landscape, surface.stream, surface.river),
+      ...decorPlacements(landscape, surface.stream, surface.rivers),
       ...premiumDecor(landscape, premium, surface.stream),
     ];
     this.felled = new FelledTrees(this.scene, {
@@ -782,7 +782,7 @@ export class LandscapeScene {
     this.rendering = true;
     // Zvuky se stahují až teď – nezdrží přípravu scény; mix sleduje pohled kamery ve frame().
     this.ambient = new AmbientSound({
-      environment: { stream: surface.stream, river: surface.river, forest: field },
+      environment: { stream: surface.stream, rivers: surface.rivers, forest: field },
       enabled: this.soundEnabled,
       onStateChange: (state) => {
         this.canvas.dataset.sound = state;

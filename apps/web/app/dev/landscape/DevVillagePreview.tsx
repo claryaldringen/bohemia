@@ -90,6 +90,7 @@ import {
 } from './dev-weather';
 import { promontoryFocus, promontoryOverlay } from './dev-promontory';
 import { premiumOverlay } from './dev-premium';
+import { skeletonFocus, skeletonOverlay } from './dev-skeleton';
 import { premiumFocus } from '@/lib/scene/premium-sites-layout';
 import { demoOvergrowth, type OvergrowthDemo } from './dev-overgrowth';
 import { demoClearing, type ClearingDemo } from './dev-clearing';
@@ -298,6 +299,10 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
   // prvky prémiové krajiny (premium-landscapes.md, dev-premium.ts) – obrysy a kam se podívat
   const [premiumOn, setPremiumOn] = useState(false);
   const premiumView = useMemo(() => premiumFocus(decoded, premiumFeaturesOf(decoded)), [decoded]);
+  // mapa z kostry světa (world-skeleton.md, dev-skeleton.ts) – trasa stezky, pohled na místo kostry
+  const [skeletonOn, setSkeletonOn] = useState(true);
+  const skeletonView = useMemo(() => skeletonFocus(decoded), [decoded]);
+  const hasSkeletonRoute = useMemo(() => skeletonOverlay(decoded).length > 0, [decoded]);
   const [simulated, setSimulated] = useState<Map<string, SimulatedPart> | null>(null);
   const [demo, setDemo] = useState(0);
   const nextId = useRef(1);
@@ -634,15 +639,17 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       ...(holdingsOn ? holdingsOverlay(decoded, dwellings, cells) : []),
       ...(promontoryOn ? promontoryOverlay(decoded) : []),
       ...(premiumOn ? premiumOverlay(decoded) : []),
+      ...(skeletonOn ? skeletonOverlay(decoded) : []),
     ];
     scene.setHoldingsOverlay(sectors.length > 0 ? sectors : null);
-  }, [scene, holdingsOn, promontoryOn, premiumOn, decoded, dwellings, fields]);
+  }, [scene, holdingsOn, promontoryOn, premiumOn, skeletonOn, decoded, dwellings, fields]);
 
-  // prémiová krajina: po načtení scény pohled na hlavní prvek typu (R vrátí pohled na ves)
+  // prémiová krajina: po načtení scény pohled na hlavní prvek typu (R vrátí pohled na ves);
+  // mapa z kostry bez prémie: pohled na brod stezky, soutok řek nebo pramen
   useEffect(() => {
-    if (scene && premiumView)
-      scene.moveCameraTo(premiumView.x, premiumView.z, premiumView.radiusM, premiumView.alpha);
-  }, [scene, premiumView]);
+    const view = premiumView ?? skeletonView;
+    if (scene && view) scene.moveCameraTo(view.x, view.z, view.radiusM, view.alpha);
+  }, [scene, premiumView, skeletonView]);
 
   // čísla posledního výpočtu pěšin (přepočítají se odloženě po změně vsi)
   useEffect(() => {
@@ -2341,6 +2348,27 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
           data-testid="dev-premium-overlay"
         >
           {premiumOn ? 'Obrysy prvků ✓' : 'Obrysy prvků'}
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene || !skeletonView}
+          onClick={() => {
+            if (skeletonView)
+              scene?.moveCameraTo(skeletonView.x, skeletonView.z, skeletonView.radiusM);
+          }}
+          title="Pohled na brod stezky kostry, soutok řek nebo pramen řeky (?skeleton=…)"
+          data-testid="dev-skeleton-focus"
+        >
+          Místo kostry
+        </button>
+        <button
+          className={buttonClass}
+          disabled={!scene || !hasSkeletonRoute}
+          onClick={() => setSkeletonOn((on) => !on)}
+          title="Trasa stezky kostry světa a její brody (?skeleton=…)"
+          data-testid="dev-skeleton-route"
+        >
+          {skeletonOn ? 'Stezka kostry ✓' : 'Stezka kostry'}
         </button>
         <button
           className={buttonClass}

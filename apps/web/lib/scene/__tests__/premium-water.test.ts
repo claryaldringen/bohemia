@@ -47,7 +47,7 @@ describe('řeka ve scéně', () => {
 
   it('rákos a lekníny i podél řeky (stanice řeky), potok má své jako bez řeky', () => {
     const streamOnly = decorPlacements(withRiver, surface.stream);
-    const both = decorPlacements(withRiver, surface.stream, surface.river);
+    const both = decorPlacements(withRiver, surface.stream, surface.rivers);
     expect(both.slice(0, streamOnly.length)).toEqual(streamOnly);
     const alongRiver = both.slice(streamOnly.length);
     expect(

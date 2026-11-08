@@ -43,8 +43,11 @@ export interface AmbientEnvironment {
   stream: {
     points: readonly Pick<StreamPoint, 'x' | 'z' | 'speed' | 'pool' | 'halfLeft' | 'halfRight'>[];
   };
-  /** Řeka prémiové krajiny – zní stejně jako potok (kde teče přes štěrk – brod). */
-  river?: AmbientEnvironment['stream'] | null;
+  /**
+   * Řeky – každá zvlášť (kostry i prémie, `RenderSurface.rivers`); zní stejně jako potok (kde
+   * teče přes štěrk – brod), platí nejhlasitější tok.
+   */
+  rivers?: readonly AmbientEnvironment['stream'][];
   forest: Pick<ForestField, 'distanceAt'>;
 }
 
@@ -121,8 +124,8 @@ export function ambientMix(
   const zoom = Math.log(radius / ZOOM_NEAR_M) / Math.log(ZOOM_FAR_M / ZOOM_NEAR_M);
   const listenerHeight = radius * LISTENER_HEIGHT;
   const stream = streamPresence(view, radius, environment.stream.points, season.ice ?? 0);
-  if (environment.river) {
-    const river = streamPresence(view, radius, environment.river.points, season.ice ?? 0);
+  for (const course of environment.rivers ?? []) {
+    const river = streamPresence(view, radius, course.points, season.ice ?? 0);
     stream.medium = Math.max(stream.medium, river.medium);
     stream.fast = Math.max(stream.fast, river.fast);
   }
