@@ -1268,6 +1268,8 @@ export interface SceneThreshingFloor {
   threshing?: true;
   /** Vymlácené zrno na humně, které čeká na uložení do jam (kg na desítky); chybí = žádné. */
   grainKg?: number;
+  /** Průběh bourání 0–1 (`built` false, `progress` = 1 − průběh, `id` = stavba bourání). */
+  demolition?: number;
 }
 
 /**

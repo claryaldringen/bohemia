@@ -175,6 +175,9 @@ export const ABANDONMENT = {
   fallYears: { idol: 20, shrine: 30, 'cemetery-fence': 10, pen: 10 },
   remnantYears: { idol: 10, shrine: 20 },
   graceDays: 365,
+  // demolition.md – Rozhodnutí (Martin 8. 11. 2026): humno zaroste trávou po 10 letech bez výmlatu,
+  // opuštěná obilná jáma se zasype a zarovná za 5 let; roky bez výmlatu počítá návrh Clauda
+  overgrowYears: { 'threshing-floor': 10, 'grain-pit': 5 },
 } as const;
 // abandonment.md – Oprava (Martin 19. 10. 2026: vesničané plot hřbitova opraví sami, jakmile se
 // ke hřbitovu zase chodí – postupně z práce vsi, spadlý postaví znovu; „ano“ i pro modlu, svatyni

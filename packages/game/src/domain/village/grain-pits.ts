@@ -1,6 +1,6 @@
 import { dateOfDayIndex } from '../calendar';
 import { storageLossPerYear } from './productivity';
-import { GRAIN_PITS } from './rules';
+import { ABANDONMENT, GRAIN_PITS } from './rules';
 import type { GrainPit, VillageState } from './types';
 
 // Obilné jámy (production-chains.md – Obilné jámy; Martin 20. 10. 2026: „Obilné jámy by asi neměl
@@ -145,8 +145,22 @@ export function settleGrainPits(state: VillageState, day: number, potteryCoverag
     }
   }
   drawGrainPits(state);
-  const kept = pits.filter((p) => !(p.state === 'empty' && pitWornOut(p, day)));
-  if (kept.length !== pits.length) state.grainPits = kept;
+  const kept = pits.filter(
+    (p) => !(p.state === 'empty' && (pitWornOut(p, day) || pitOvergrown(p, day))),
+  );
+  if (kept.length !== pits.length) {
+    for (const p of pits) {
+      if (!kept.includes(p) && pitOvergrown(p, day)) {
+        state.chronicle.push({
+          day,
+          kind: 'structure-overgrown',
+          structure: 'grain-pit',
+          id: p.id,
+        });
+      }
+    }
+    state.grainPits = kept;
+  }
 }
 
 /**
@@ -172,6 +186,14 @@ export function soakGrainPits(
 /** Slouží jáma už GRAIN_PITS.lifeYears – prázdná se zasype a kope se nová? */
 function pitWornOut(pit: GrainPit, day: number): boolean {
   return day - pit.dugDay >= LIFE_DAYS;
+}
+
+/** Je opuštěná jáma už ABANDONMENT.overgrowYears let bez použití – zasype se a zarovná? */
+export function pitOvergrown(pit: GrainPit, day: number): boolean {
+  return (
+    pit.disusedDay !== undefined &&
+    day - pit.disusedDay >= ABANDONMENT.overgrowYears['grain-pit'] * DAYS_PER_YEAR
+  );
 }
 
 /**
@@ -222,7 +244,9 @@ function pitLoads(state: PitsState, day: number, moreGrain: boolean): PitLoad[] 
   const { year, month } = dateOfDayIndex(day);
   const lastMonth = month === GRAIN_PITS.fillTo;
   const digging = work.noSiteYear !== year;
-  const empties = pits.filter((p) => p.state === 'empty' && !pitWornOut(p, day));
+  const empties = pits.filter(
+    (p) => p.state === 'empty' && p.disusedDay === undefined && !pitWornOut(p, day),
+  );
   const loads: PitLoad[] = [];
   while (queue > EPSILON_KG) {
     const pit = empties[loads.length] ?? null;

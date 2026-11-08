@@ -481,11 +481,19 @@ export function parseCancelConstructionInput(value: unknown): { constructionId: 
   return constructionId !== null ? { constructionId } : null;
 }
 
-const USABLE_STRUCTURES: readonly UsableStructure[] = ['dwelling', 'pen', 'idol', 'shrine'];
+const USABLE_STRUCTURES: readonly UsableStructure[] = [
+  'dwelling',
+  'pen',
+  'idol',
+  'shrine',
+  'threshing-floor',
+  'grain-pit',
+  'orchard',
+];
 
 /**
  * Vstup opuštění, zbourání a vrácení stavby `{ structure, id }` (demolition.md – Opustit
- * a zbourat): druh obydlí / ohrada / modla / svatyně a kladné id, jinak null.
+ * a zbourat): druh obydlí / ohrada / modla / svatyně / humno / obilná jáma / sad a kladné id, jinak null.
  */
 export function parseStructureUseInput(
   value: unknown,

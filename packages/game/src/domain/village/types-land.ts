@@ -316,6 +316,11 @@ export interface Orchard {
    * obnovy – za rok sadu jen jednou (orchard.md – Obnova sadu). Chybí = ještě nikdy.
    */
   renewedSeason?: number;
+  /**
+   * Den pokynu „Opustit“ (demolition.md – Opuštění): sad se neošetřuje, nesklízí ani neobnovuje,
+   * stromy dožijí stářím. Chybí = používá se.
+   */
+  disusedDay?: number;
 }
 /** Sezónní práce v sadech celé vsi – sklizeň (září–říjen), nebo péče (prosinec–únor). */
 export interface OrchardWork {
@@ -364,6 +369,21 @@ export interface ThreshingFloor {
   id: number;
   position: Position;
   builtDay: number | null;
+  /**
+   * Den pokynu „Opustit“ (demolition.md – Opuštění): od něj se na humně nemlátí, ale stojí. Chybí =
+   * používá se. Vrátit = záznam smazat.
+   */
+  disusedDay?: number;
+  /**
+   * Dnes nebo od poslední roční kontroly (1. 11.) se na humně mlátilo – kontrola údaj smaže
+   * (demolition.md – Chátrání humna). Chybí = od kontroly se nemlátilo.
+   */
+  threshed?: true;
+  /**
+   * Den, od kterého se na humně nemlátí (opuštěné od pokynu, jinak od roční kontroly, která
+   * rok bez výmlatu zjistila): po ABANDONMENT.overgrowYears let zaroste trávou. Chybí = mlátí se.
+   */
+  idleSince?: number;
 }
 
 /**
@@ -396,6 +416,11 @@ export interface GrainPit {
    * prázdná ho nemá.
    */
   filledDay?: number;
+  /**
+   * Den pokynu „Opustit“ (demolition.md – Opuštění): jáma je vyprázdněná, nepoužívá se a po
+   * ABANDONMENT.overgrowYears letech se zasype. Chybí = používá se.
+   */
+  disusedDay?: number;
 }
 
 /**
@@ -454,8 +479,9 @@ export interface SacredBuilding {
  */
 export type AbandonedStructure = 'idol' | 'shrine' | 'cemetery-fence' | 'pen';
 
-/** Stavby, které jde opustit a vrátit (demolition.md – Opuštění); Ú7 přidá humno, jámu a sad. */
-export type UsableStructure = 'dwelling' | 'pen' | 'idol' | 'shrine';
+/** Stavby, které jde opustit a vrátit (demolition.md – Opuštění). */
+export type UsableStructure =
+  'dwelling' | 'pen' | 'idol' | 'shrine' | 'threshing-floor' | 'grain-pit' | 'orchard';
 
 /**
  * Chátrání stavby (abandonment.md – Chátrání): stav 0–1 a od kdy je stavba opuštěná. Opuštěná

@@ -175,6 +175,17 @@ export function abandonmentCheck(
     setWear(c, 'fenceWear', nextWear(c.fenceWear, 'cemetery-fence', day, on));
     keepRepaired(state, day, { structure: 'cemetery-fence', id: c.id }, c.fenceWear, on);
   }
+  // humno bez výmlatu (demolition.md – Chátrání humna): rok bez výmlatu = rok chátrání, výmlat
+  // chátrání vynuluje; stavba dokončená za poslední rok a humno, které se ještě nemlátilo, nechátrá
+  for (const f of villageThreshingFloors(state)) {
+    if (f.builtDay === null) continue;
+    const threshed = f.threshed === true && !isDisused(f);
+    delete f.threshed;
+    if (threshed) delete f.idleSince;
+    else if (isDisused(f) || !fresh(f.builtDay)) {
+      f.idleSince ??= Math.max(f.builtDay, day - DAYS_PER_YEAR);
+    }
+  }
   const stocked = stockedPenIds(state);
   for (const p of villagePens(state)) {
     if (p.builtDay === null) continue;
@@ -247,6 +258,19 @@ export function abandonmentDay(
       );
       for (const p of gone)
         events.push({ day, kind: 'structure-fell', structure: 'pen', id: p.id });
+    }
+  }
+  // humno zarostlé trávou a zasypaná jáma zmizí bez zříceniny (demolition.md – Rozhodnutí)
+  const overgrown = villageThreshingFloors(state).filter(
+    (f) =>
+      f.idleSince !== undefined &&
+      day - f.idleSince >= ABANDONMENT.overgrowYears['threshing-floor'] * DAYS_PER_YEAR,
+  );
+  if (overgrown.length > 0) {
+    state.threshingFloors = villageThreshingFloors(state).filter((f) => !overgrown.includes(f));
+    if (state.threshingFloors.length === 0) delete state.threshingFloors;
+    for (const f of overgrown) {
+      events.push({ day, kind: 'structure-overgrown', structure: 'threshing-floor', id: f.id });
     }
   }
   updateSacredRuins(state, day, landscape);

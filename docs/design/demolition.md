@@ -140,6 +140,14 @@ vylepšit jen celé.
   - **Sad** se přestane ošetřovat a sklízet; stromy dožijí stářím, ale zároveň vyrostou nové –
     „časem to bude takový neuspořádaný les, ve kterém budou převažovat jabloně a trocha jiných
     stromů“ (Martin).
+  - **Vykácený (zbouraný) sad nedá žádné klády** (Martin 8. 11. 2026: „C“).
+  - **Provedení (návrh Clauda, Ú7):** humno i jáma se po zarůstání odstraní bez zříceniny
+    a kronika to zapíše. Opuštěné humno se do kapacity výmlatu nepočítá (bez humna v provozu ves
+    mlátí nouzově). Opustit jámu ji vyprázdní – zrno je pak mimo jámy, zásoby se nemění. Opuštěný
+    sad se neošetřuje, nesklízí ani neobnovuje a jeho čtverce dosluhují v 60. roce sadu; nový
+    porost mezi nimi dělá zatím jen běžné zarůstání louky. Sad s rozestavěnou výsadbou nebo
+    obnovou nejde opustit ani zbourat. Vrácené humno se hned mlátí, vrácená jáma se plní znovu,
+    vrácený sad se ošetřuje. Kód: [code/village-buildings.md](../code/village-buildings.md).
 
 - **Obydlí jde postavit i bez lidí k osídlení** (Martin 8. 11. 2026: „A“). Je-li ve vsi rodina,
   která se může oddělit, stavba ji zamluví a nastěhuje se jako dnes; jinak dům po dostavění

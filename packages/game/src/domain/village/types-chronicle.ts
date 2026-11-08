@@ -503,6 +503,11 @@ export type ChronicleEvent = { day: number } & (
    * plot hřbitova (i spadlý postavili znovu) nebo ohradu – id stavby.
    */
   | { kind: 'structure-repaired'; structure: AbandonedStructure; id: number }
+  /**
+   * Humno bez výmlatu zaroste trávou, opuštěná obilná jáma se zasype (demolition.md – Rozhodnutí) –
+   * stavba zmizí bez zříceniny.
+   */
+  | { kind: 'structure-overgrown'; structure: 'threshing-floor' | 'grain-pit'; id: number }
   /** Stavba zbourána (demolition.md – Bourání): `logs` klád na hromadě u cesty. */
   | { kind: 'structure-demolished'; structure: UsableStructure; id: number; logs: number }
   /**

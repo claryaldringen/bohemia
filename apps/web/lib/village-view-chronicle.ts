@@ -842,6 +842,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return newcomerText(event.direction, event.group, event.people);
     case 'structure-fell':
       return STRUCTURE_FELL_TEXTS[event.structure];
+    case 'structure-overgrown':
+      return event.structure === 'threshing-floor'
+        ? 'Humno, na kterém se dlouho nemlátilo, zarostlo trávou.'
+        : 'Opuštěná obilná jáma se zasypala a zarovnala.';
     case 'structure-abandoned':
       return 'Stavba opuštěna.';
     case 'structure-restored':

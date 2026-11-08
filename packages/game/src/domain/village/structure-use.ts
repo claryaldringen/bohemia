@@ -8,7 +8,19 @@ import { lodgingShortfall, noRoomReason, vacateDwelling } from './displaced';
 import { oxenOf, penSpecies } from './pens';
 import { returnConstructionWood } from './relocation';
 import { cancelRepair, startRepair } from './repair';
-import type { Dwelling, Pen, SacredBuilding, UsableStructure, VillageState } from './types';
+import { villageOrchards } from './orchard';
+import { villageGrainPits } from './grain-pits';
+import { villageThreshingFloors } from './threshing-floors';
+import type {
+  Dwelling,
+  GrainPit,
+  Orchard,
+  Pen,
+  SacredBuilding,
+  ThreshingFloor,
+  UsableStructure,
+  VillageState,
+} from './types';
 
 // Nepoužívaná stavba – Opustit a Vrátit (demolition.md – Opuštění; Martin 8. 11. 2026: „Hráč/správce
 // může nechat stavbu opustit nebo zbourat.“). Opuštění nic nestojí a stavba hned přestane sloužit:
@@ -37,7 +49,10 @@ export const NOT_DISUSED = 'Stavba se používá.';
 export type Target =
   | { structure: 'dwelling'; item: Dwelling }
   | { structure: 'pen'; item: Pen }
-  | { structure: 'idol' | 'shrine'; item: SacredBuilding };
+  | { structure: 'idol' | 'shrine'; item: SacredBuilding }
+  | { structure: 'threshing-floor'; item: ThreshingFloor }
+  | { structure: 'grain-pit'; item: GrainPit }
+  | { structure: 'orchard'; item: Orchard };
 
 export function targetOf(state: VillageState, ref: UsableRef): Target | null {
   if (ref.structure === 'dwelling') {
@@ -47,6 +62,18 @@ export function targetOf(state: VillageState, ref: UsableRef): Target | null {
   if (ref.structure === 'pen') {
     const item = villagePens(state).find((p) => p.id === ref.id);
     return item ? { structure: 'pen', item } : null;
+  }
+  if (ref.structure === 'threshing-floor') {
+    const item = villageThreshingFloors(state).find((f) => f.id === ref.id);
+    return item ? { structure: 'threshing-floor', item } : null;
+  }
+  if (ref.structure === 'grain-pit') {
+    const item = villageGrainPits(state).find((p) => p.id === ref.id);
+    return item ? { structure: 'grain-pit', item } : null;
+  }
+  if (ref.structure === 'orchard') {
+    const item = villageOrchards(state).find((o) => o.id === ref.id);
+    return item ? { structure: 'orchard', item } : null;
   }
   const item = (state.sacredBuildings ?? []).find(
     (b) => b.id === ref.id && b.kind === ref.structure,
@@ -88,6 +115,16 @@ export function disuseBlock(
     );
     return extending ? STRUCTURE_BUSY : null;
   }
+  if (target.structure === 'threshing-floor') {
+    return target.item.builtDay === null ? STRUCTURE_UNFINISHED : null;
+  }
+  if (target.structure === 'orchard') {
+    // výsadba nebo obnova sadu běží jako stavba – napřed ji dokonči nebo zruš (návrh Clauda)
+    const orchardId = target.item.id;
+    return state.constructions.some((c) => c.kind === 'orchard' && c.orchardId === orchardId)
+      ? STRUCTURE_BUSY
+      : null;
+  }
   return null;
 }
 
@@ -114,10 +151,38 @@ export function beginDisuse(next: VillageState, day: number, ref: UsableRef): vo
     );
     return;
   }
+  if (
+    target.structure === 'threshing-floor' ||
+    target.structure === 'grain-pit' ||
+    target.structure === 'orchard'
+  ) {
+    beginFarmDisuse(day, target);
+    return;
+  }
   cancelRepair(next, { structure: target.structure, id: target.item.id });
   const condition = structureCondition(target.item.wear, target.structure, day);
   target.item.wear = { condition, abandonedDay: day };
   if (target.structure === 'pen') releaseAnimals(next, target.item);
+}
+
+/**
+ * Opuštění humna, jámy a sadu (mutuje stav; `disusedDay` už je zapsané). Humno od pokynu nemlátí
+ * a po ABANDONMENT.overgrowYears letech zaroste (`idleSince`, nejpozději od pokynu); jáma se
+ * vyprázdní – zrno je pak mimo jámy, zásoby se nemění (návrh Clauda); sad se přestane ošetřovat
+ * a sklízet (obnova a sklizeň ho přeskočí).
+ */
+function beginFarmDisuse(
+  day: number,
+  target: Extract<Target, { structure: 'threshing-floor' | 'grain-pit' | 'orchard' }>,
+): void {
+  if (target.structure === 'threshing-floor') {
+    target.item.idleSince ??= day;
+    delete target.item.threshed;
+  } else if (target.structure === 'grain-pit') {
+    target.item.grainKg = 0;
+    target.item.state = 'empty';
+    delete target.item.filledDay;
+  }
 }
 
 /** Zvířata opuštěné ohrady zůstanou ve vsi bez ohrady (mutuje stav). */
@@ -161,7 +226,14 @@ export function restoreStructure(state: VillageState, day: number, ref: UsableRe
   const next = cloneState(state);
   const restored = targetOf(next, ref)!;
   delete restored.item.disusedDay;
-  if (restored.structure !== 'dwelling') {
+  if (restored.structure === 'threshing-floor') {
+    // vrácené humno se hned mlátí a tráva ustoupí (návrh Clauda – bez opravy)
+    delete restored.item.idleSince;
+  } else if (
+    restored.structure !== 'dwelling' &&
+    restored.structure !== 'grain-pit' &&
+    restored.structure !== 'orchard'
+  ) {
     const condition = structureCondition(restored.item.wear, restored.structure, day);
     if (condition >= 1) delete restored.item.wear;
     else restored.item.wear = { condition };

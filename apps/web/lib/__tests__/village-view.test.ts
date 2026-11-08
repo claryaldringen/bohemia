@@ -1552,6 +1552,8 @@ describe('sad v pohledu na ves', () => {
         planting: 0,
         // 12. 4. – jarní okno výsadby
         plantingWaits: false,
+        // rozestavěná výsadba se neopouští (demolition.md), ale tlačítka sad nese
+        use: expect.objectContaining({ structure: 'orchard', state: 'in-use' }),
       },
     ]);
     expect(view.applesKg).toBe(0);
