@@ -33,7 +33,7 @@ export const negotiation = pgTable(
       .notNull()
       .references(() => house.id, { onDelete: 'cascade' }),
     status: text('status')
-      .$type<'open' | 'accepted' | 'rejected' | 'withdrawn' | 'ended'>()
+      .$type<'open' | 'accepted' | 'rejected' | 'withdrawn' | 'ended' | 'expired'>()
       .notNull()
       .default('open'),
     version: integer('version').notNull().default(1),

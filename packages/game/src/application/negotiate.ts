@@ -136,9 +136,9 @@ const fail = (reason: string): { ok: false; reason: string } => ({ ok: false, re
 
 const isAlive = (house: House | null): house is House => house !== null && house.endedAt === null;
 
-/** Doménový pohled na záznam; `ended` (rod vymřel) už nelze měnit. */
+/** Doménový pohled na záznam; `ended` (rod vymřel) a `expired` (vypršelo) už nelze měnit. */
 function domainOf(record: NegotiationRecord): Negotiation | null {
-  if (record.status === 'ended') return null;
+  if (record.status === 'ended' || record.status === 'expired') return null;
   return { ...record, status: record.status };
 }
 

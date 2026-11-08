@@ -147,3 +147,23 @@ export function suggestSplit(
   }
   return Object.fromEntries([...result].map(([id, a]) => [id, bundleOfAmounts(a)]));
 }
+
+/**
+ * Rozdělení správce za nepřítomného hráče (absence.md – Povinnosti vazala): jako `suggestSplit`,
+ * ale z každého zboží nejvýš součet přebytků vsí (zaokrouhleno dolů) – „nemá-li na to ves, odvede,
+ * co může“. Žádná ves tak nepošle víc, než může postrádat.
+ */
+export function spareSplit(
+  agreed: MacroBundle,
+  villages: readonly { id: string; spare: MacroBundle }[],
+): Record<string, MacroBundle> {
+  const want = flattenBundle(agreed);
+  const total = sumBundles(villages.map((v) => v.spare));
+  const capped = noAmountsFlat();
+  for (const good of LEVY_GOODS) {
+    const most = Math.max(0, Math.min(want[good], total[good]));
+    capped[good] =
+      good === 'grainKg' || good === 'hayKg' ? Math.floor(most * 10) / 10 : Math.floor(most);
+  }
+  return suggestSplit(bundleOfAmounts(capped), villages);
+}

@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
 import { DAY, receiver, sender } from '../../domain/vassalage/__tests__/shipment-fixtures';
 import type { Person, VillageState } from '../../domain/village';
+import { ABSENT_VASSAL } from '../../domain/vassalage';
 import {
+  answerAbsentSummons,
   answerNpcSummons,
   answerSummons,
   lapseSummons,
@@ -10,6 +12,7 @@ import {
   summonVassals,
   SUMMONS_REASONS,
   summonsBody,
+  summonsStewardDay,
   type SummonsDeps,
 } from '../summons';
 import { InMemoryDialogs } from './in-memory-dialogs';
@@ -407,5 +410,76 @@ describe('svolání vazalů', () => {
       (e) => e.body.kind === 'chronicle' && e.body.event.kind === 'no-show',
     );
     expect(noShow.map((e) => e.villageId).sort()).toEqual([w.lordVillage, w.vassalVillage].sort());
+  });
+});
+
+describe('správce za nepřítomného vazala (absence.md)', () => {
+  const summon = async (w: Awaited<ReturnType<typeof world>>): Promise<string> => {
+    const summoned = await summonVassals(w.deps, {
+      playerId: LORD,
+      warId: w.warId,
+      vassalageIds: [w.vassalageId],
+      targetVillageId: w.lordVillage,
+      today: DAY,
+    });
+    return summoned.ok ? summoned.opened[0]!.id : '';
+  };
+
+  it('po lhůtě pošle správce domluvené nejzdatnější muže rodu; pán i vazal to vidí', async () => {
+    const w = await world();
+    const dialogId = await summon(w);
+    expect(summonsStewardDay((await w.dialogs.byId(dialogId))!)).toBe(
+      DAY + ABSENT_VASSAL.summonsAnswerDays,
+    );
+    const due = DAY + ABSENT_VASSAL.summonsAnswerDays;
+    expect(await answerAbsentSummons(w.deps, { today: due - 1 })).toBe(0);
+    expect(await answerAbsentSummons(w.deps, { today: due })).toBe(1);
+    expect(await answerAbsentSummons(w.deps, { today: due + 1 })).toBe(0);
+    const home = (await w.villages.find(w.vassalVillage))!.state;
+    expect(home.people.filter((p) => p.away?.kind === 'service').map((p) => p.id)).toEqual([
+      902, 903,
+    ]);
+    const dialog = (await w.dialogs.byId(dialogId))!;
+    expect(dialog.status).toBe('answered');
+    expect(summonsBody(dialog)).toMatchObject({ sent: 2, steward: true });
+    expect(w.vassalages.breachLog).toEqual([]);
+    const notices = w.deps.notices as InMemoryNotices;
+    expect(notices.notices.find((n) => n.kind === 'summons-steward')).toMatchObject({
+      playerId: VASSAL,
+      payload: { name: 'Bořivoj', men: 2 },
+    });
+    expect(notices.notices.find((n) => n.kind === 'summons-sent')).toMatchObject({
+      playerId: LORD,
+      payload: { men: 2, steward: true },
+    });
+  });
+
+  it('nemá-li dost mužů doma a zdravých, pošle všechny a míň je neplnění', async () => {
+    const w = await world({ men: 6, days: 30 });
+    await summon(w);
+    expect(await answerAbsentSummons(w.deps, { today: DAY + 40 })).toBe(1);
+    const home = (await w.villages.find(w.vassalVillage))!.state;
+    // hlava rodu a tři synové – vesničan do služby nesmí
+    expect(home.people.filter((p) => p.away?.kind === 'service')).toHaveLength(4);
+    expect(w.vassalages.breachLog.map((b) => b.kind)).toEqual(['summons']);
+  });
+
+  it('odpověď hráče do lhůty má přednost; po konci války správce nejedná – svolání propadne', async () => {
+    const w = await world();
+    const dialogId = await summon(w);
+    await answerSummons(w.deps, {
+      playerId: VASSAL,
+      dialogId,
+      men: [{ villageId: w.vassalVillage, personId: 901 }],
+      message: null,
+      today: DAY + 1,
+    });
+    expect(await answerAbsentSummons(w.deps, { today: DAY + 100 })).toBe(0);
+
+    const v = await world();
+    await summon(v);
+    await v.wars.end(v.warId, 'peace', NOW);
+    expect(await answerAbsentSummons(v.deps, { today: DAY + 100 })).toBe(0);
+    expect(await lapseSummons(v.deps, { today: DAY + 100 })).toBe(1);
   });
 });

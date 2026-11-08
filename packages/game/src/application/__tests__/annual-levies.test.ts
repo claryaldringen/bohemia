@@ -4,6 +4,7 @@ import { dayIndexOf } from '../../domain/calendar';
 import { DAY, bundle, receiver, sender } from '../../domain/vassalage/__tests__/shipment-fixtures';
 import type { VillageState } from '../../domain/village';
 import {
+  answerAbsentLevies,
   answerLevy,
   DIALOG_CLOSED,
   LEVY_BAD_ANSWER,
@@ -14,7 +15,7 @@ import {
 } from '../annual-levies';
 import { renounceVassalage } from '../renounce';
 import { sendCorvee } from '../shipments';
-import { dispatchCorvee, type MacroBundle } from '../../domain/vassalage';
+import { ABSENT_VASSAL, dispatchCorvee, type MacroBundle } from '../../domain/vassalage';
 import { InMemoryDialogs } from './in-memory-dialogs';
 import { InMemoryHouses } from './in-memory-houses';
 import { InMemoryPlayerLock } from './in-memory-locks';
@@ -338,5 +339,66 @@ describe('roční dialog Odvody', () => {
     expect(view!.villages).toHaveLength(1);
     expect(view!.villages[0]).toMatchObject({ villageId: w.vassalVillage, name: 'Dub' });
     expect(view!.villages[0]!.suggested.grainKg).toBe(150);
+  });
+});
+
+describe('správce za nepřítomného vazala (absence.md)', () => {
+  const due = NOV_1 + ABSENT_VASSAL.levyAnswerDays;
+
+  it('do konce roku bez odpovědi: správce odvede domluvené, pán i vazal to vidí; dialog nenaroste', async () => {
+    const w = await world();
+    // klády ves postrádat může (obilí ne – pojistka jídla na 2 roky)
+    w.vassalages.vassalages[0]!.terms = { tribute: bundle({ logs: 10 }) };
+    await openAnnualDialogs(w.deps, { today: NOV_1 });
+    const [view] = await levyDialogs(w.deps, { playerId: VASSAL });
+    expect(view!.stewardDay).toBe(due);
+    expect(await answerAbsentLevies(w.deps, { today: due - 1 })).toBe(0);
+    expect(await answerAbsentLevies(w.deps, { today: due })).toBe(1);
+    expect(await answerAbsentLevies(w.deps, { today: due + 1 })).toBe(0);
+    expect(w.dialogs.rows[0]!.status).toBe('answered');
+    expect(w.shipments.rows).toHaveLength(1);
+    expect(w.shipments.rows[0]).toMatchObject({ toVillageId: w.lordVillage });
+    expect(w.vassalages.breachLog).toEqual([]);
+    expect(w.notices.notices.find((n) => n.kind === 'levy-steward')).toMatchObject({
+      playerId: VASSAL,
+      payload: {
+        lordName: 'Bořivoj',
+        kind: 'levy',
+        parts: [{ good: 'logs', sent: 10, agreed: 10 }],
+      },
+    });
+    expect(w.notices.notices.find((n) => n.kind === 'levy-sent')).toMatchObject({
+      playerId: LORD,
+      payload: { steward: true },
+    });
+    // další 1. 11. vznikne nový dialog za jeden rok, bez zmeškaného roku
+    expect(await openAnnualDialogs(w.deps, { today: NOV_1_NEXT })).toBe(1);
+    expect(w.dialogs.rows[1]).toMatchObject({ year: 504, years: 1, status: 'open' });
+    expect(w.vassalages.breachLog).toEqual([]);
+  });
+
+  it('nemá-li na to ves, odvede, co může – míň než domluveno je neplnění', async () => {
+    const w = await world();
+    w.vassalages.vassalages[0]!.terms = { tribute: bundle({ grainKg: 1_000, logs: 1_000 }) };
+    await openAnnualDialogs(w.deps, { today: NOV_1 });
+    expect(await answerAbsentLevies(w.deps, { today: due })).toBe(1);
+    const sent = w.notices.notices.find((n) => n.kind === 'levy-steward')!.payload;
+    const parts = sent.parts as { good: string; sent: number; agreed: number }[];
+    // obilí ves nepostrádá (pojistka jídla), klád pošle, kolik může – nic nad přebytek
+    expect(parts.find((p) => p.good === 'grainKg')).toMatchObject({ sent: 0, agreed: 1_000 });
+    const logs = parts.find((p) => p.good === 'logs')!;
+    expect(logs.sent).toBeGreaterThan(0);
+    expect(logs.sent).toBeLessThan(1_000);
+    expect(w.shipments.rows).toHaveLength(1);
+    expect(w.vassalages.breachLog).toEqual([{ id: w.vassalageId, kind: 'levy', day: due }]);
+  });
+
+  it('odpověď hráče do lhůty má přednost', async () => {
+    const w = await world();
+    await openAnnualDialogs(w.deps, { today: NOV_1 });
+    await answerLevy(w.deps, answerOf(w.dialogs.rows[0]!.id, w.vassalVillage, 100));
+    expect(await answerAbsentLevies(w.deps, { today: due })).toBe(0);
+    expect(w.shipments.rows).toHaveLength(1);
+    expect(w.notices.notices.filter((n) => n.kind === 'levy-steward')).toHaveLength(0);
   });
 });

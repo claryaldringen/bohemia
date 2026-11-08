@@ -166,6 +166,8 @@ je samostatná dohoda; **dar při přijetí je zrušen** (Martin 2. 11. 2026: �
 - **Strany se střídají**, počet kol omezený není.
 - **Návrh nepropadá** – Martin 2. 11. 2026: „**Ať visí do nekonečna. Oba se k tomu musí nějak
   postavit**“. Jednání skončí přijetím, odmítnutím, stažením, zablokováním nebo vymřením strany.
+  Změna 8. 11. 2026 ([nepřítomnost](absence.md), Martin: „ano“): návrh, na který druhá strana
+  neodpoví do 1 herního roku, vyprší (návrh Clauda).
 - **Stažení:** odesílatel smí návrh vzít zpět, dokud druhý neodpověděl – „Ano“ (Martin 2. 11.
   2026); u protinávrhu jeho autor (návrh Clauda).
 - **Kronika** obou rodů: „Bořivoj nabídl vazalství“, „Ctibor žádá o přijetí“, „Ctibor přijal
@@ -256,6 +258,8 @@ tím, že nabídku vazala odsouhlasí, nebo dá protinabídku – bez jeho souhl
   Clauda).
 - **Neodpoví-li vazal, dialog počká, dokud nepřijde** (Martin: „c)“). Další 1. 11. se k němu
   přičte další rok, druhý dialog nevznikne; v dialogu je vidět, za kolik let (návrh Clauda).
+  Změna 8. 11. 2026 ([nepřítomnost](absence.md)): neodpoví-li do konce roku, odvede za něj
+  domluvené formální správce – kolik vsi mohou postrádat; míň je neplnění.
 - **Pán** dostane upozornění s tím, co a kdy přijde, a se vzkazem (Martin: „Pánovi se příjem
   poplatku zobrazí v notifikacích.“); čekající dialog vazala vidí jako přesýpací hodiny (návrh
   Clauda).
@@ -317,7 +321,9 @@ tím, že nabídku vazala odsouhlasí, nebo dá protinabídku – bez jeho souhl
 - Vazal smí poslat **domluvené, míň, nebo víc** mužů a připojit vzkaz; pán to vidí
   v upozorněních (Martin).
 - **Neodpoví-li vazal**, dialog počká jako u dávek – nejdéle do konce pánovy války; pak propadne
-  a kronika zapíše „Ctibor nepřišel do války“ (návrh Clauda).
+  a kronika zapíše „Ctibor nepřišel do války“ (návrh Clauda). Změna 8. 11. 2026
+  ([nepřítomnost](absence.md)): neodpoví-li do 30 herních dní, pošle za něj domluvené muže rodu,
+  kteří jsou doma a zdraví, formální správce.
 - **Kolik:** za herní rok nejvýš domluvené dny služby; pán smí během války svolat i víckrát, dokud
   dny nevyčerpá (návrh Clauda).
   Každé svolání vezme dny (zbytek roku, nebo méně, když pán určí) – i když vazal pošle míň mužů;
@@ -574,10 +580,10 @@ Ves bez vojvody držitelova rodu (ponechaná odúmrť, ves bez muže rodu) potř
 | Platnost kódu                     | 14 skutečných dní                                          |
 | Pozvaný „začal hrát“              | 3 různé skutečné dny ve hře                                |
 | Mapa pozvaného / nezávislého      | aspoň 2 / 3 políčka od ostatních hráčů                     |
-| Platnost návrhu v jednání         | nepropadá (Martin)                                         |
+| Platnost návrhu v jednání         | 1 herní rok bez odpovědi (absence.md, Martin 8. 11.)       |
 | Jednání mezi dvěma hráči          | 1 najednou, s různými hráči bez meze (Martin)              |
 | Nový návrh po odmítnutí           | po 1 skutečném dni (Martin)                                |
-| Roční dialog (dávky, splátky)     | 1. 11. (Martin), čeká na vazala                            |
+| Roční dialog (dávky, splátky)     | 1. 11. (Martin), do 31. 12., pak odvede správce            |
 | Pojistka ve výhledu               | osivo a jídlo na 2 roční potřeby                           |
 | Cesta dávky, lidí, služby, pomoci | 2 herní dny na políčko vzdálenosti                         |
 | Doprava                           | nosič 25 kg, kláda 2 nosiči, vůz 400 / 800 kg, honák 10    |

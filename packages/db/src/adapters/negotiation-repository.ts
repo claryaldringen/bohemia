@@ -234,6 +234,14 @@ export function createNegotiationRepository(db: Database): NegotiationRepository
         .orderBy(asc(negotiation.createdAt), asc(negotiation.id));
       return Promise.all(rows.map((row) => load(db, row)));
     },
+    async allOpen(): Promise<NegotiationRecord[]> {
+      const rows = await db
+        .select()
+        .from(negotiation)
+        .where(eq(negotiation.status, 'open'))
+        .orderBy(asc(negotiation.createdAt), asc(negotiation.id));
+      return Promise.all(rows.map((row) => load(db, row)));
+    },
     transaction: <T>(fn: (tx: NegotiationTx) => Promise<T>): Promise<T> =>
       db.transaction((tx) => fn(createTx(tx))),
   };

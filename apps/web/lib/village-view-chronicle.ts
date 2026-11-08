@@ -535,6 +535,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
           return `Dohoda odmítnuta – ${event.actor} a ${event.other}.`;
         case 'withdrawn':
           return `Návrh dohody stažen – ${event.actor} a ${event.other}.`;
+        case 'expired':
+          return `Návrh dohody vypršel bez odpovědi – ${event.actor} a ${event.other}.`;
         case 'terms-accepted':
           return `Nové podmínky dohody přijaty – ${event.actor} a ${event.other}.`;
         case 'aid-gift':

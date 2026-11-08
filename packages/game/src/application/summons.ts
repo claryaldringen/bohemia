@@ -1,5 +1,6 @@
-import { dateOfDayIndex } from '../domain/calendar';
+import { dateOfDayIndex, dayIndexOf } from '../domain/calendar';
 import { NEGOTIATION } from '../domain/negotiation';
+import { ABSENT_VASSAL } from '../domain/vassalage/rules-absence';
 import type { PersonRef } from '../domain/village';
 import { lineCandidates, lineManStrength, nobleLineCandidates } from '../domain/war';
 import type { Dialog, DialogRepository } from './dialogs';
@@ -22,7 +23,8 @@ import type { WarRepository } from './wars';
 // strop, pán smí svolat víckrát, dokud je nevyčerpá. Bez odpovědi dialog propadne s koncem války –
 // kronika „Ctibor nepřišel do války“ a neplnění. Vazal B smí na svolání pána A svolat své vazaly
 // s cílem rovnou u A; jejich muži se počítají do služby B. NPC vazal (povýšený) plní přesně a bez
-// dialogu (vassalage.md – Povýšení vesničana) – `answerNpcSummons`.
+// dialogu (vassalage.md – Povýšení vesničana) – `answerNpcSummons`. Neodpoví-li hráč do lhůty, pošle
+// za něj domluvené muže formální správce (absence.md – Povinnosti vazala) – `answerAbsentSummons`.
 
 export const SUMMONS_REASONS = {
   notAtWar: 'Svolávat smíš jen ve válce.',
@@ -53,11 +55,24 @@ export interface SummonsBody {
   men: number;
   /** Dny služby tohoto svolání (nejvýš zbytek dní roku). */
   days: number;
+  /**
+   * Herní den svolání – od něj běží lhůta, po které za hráče odpoví správce (absence.md). Starší
+   * svolání ho nemají – lhůta běží od 1. 1. roku dialogu.
+   */
+  openedDay?: number;
   /** Svolání vazala vazala: dialog svolání pána, do jehož služby se muži počítají. */
   forDialogId?: string;
-  /** Odpověď: kolik mužů vazal poslal a vzkaz. */
+  /** Odpověď: kolik mužů vazal poslal a vzkaz; `steward` – za nepřítomného poslal správce. */
   sent?: number;
   message?: string | null;
+  steward?: boolean;
+}
+
+/** Den, kdy za hráče odpoví na Svolání správce (absence.md – Povinnosti vazala). */
+export function summonsStewardDay(dialog: Pick<Dialog, 'body' | 'year'>): number {
+  const opened =
+    summonsBody(dialog).openedDay ?? dayIndexOf({ year: dialog.year, month: 1, day: 1 });
+  return opened + ABSENT_VASSAL.summonsAnswerDays;
 }
 
 export interface SummonsDeps extends NegotiationVillages {
@@ -202,6 +217,7 @@ export async function summonVassals(
       targetVillageId,
       men: service.men,
       days,
+      openedDay: input.today,
       ...(war.forDialog ? { forDialogId: war.forDialog.id } : {}),
     };
     // klíč podle pořadí svolání vazalství – ze dvou souběžných svolání projde jedno
@@ -361,12 +377,15 @@ async function dispatchSummons(
     vassalage: Vassalage;
     byVillage: Map<string, number[]>;
     message: string;
+    /** Za nepřítomného hráče posílá správce (absence.md) – pán to vidí v upozornění. */
+    steward?: boolean;
   },
   today: number,
 ): Promise<AnswerSummonsResult> {
   let sent = 0;
   for (const ids of a.byVillage.values()) sent += ids.length;
-  if (!(await deps.dialogs.answer(a.dialog.id, 'open', { sent, message: a.message || null }))) {
+  const reply = { sent, message: a.message || null, ...(a.steward ? { steward: true } : {}) };
+  if (!(await deps.dialogs.answer(a.dialog.id, 'open', reply))) {
     return fail(SUMMONS_REASONS.answered);
   }
   let arrivesDay: number | null = null;
@@ -397,6 +416,7 @@ async function dispatchSummons(
         name: await houseName(deps, a.vassal),
         men: sent,
         message: a.message || null,
+        ...(a.steward ? { steward: true } : {}),
       },
       gameDay: today,
     });
@@ -446,6 +466,54 @@ export async function answerNpcSummons(
     { dialog, body, vassal: npc, vassalage: v, byVillage, message: '' },
     input.today,
   );
+}
+
+/**
+ * Úloha světa (absence.md – Povinnosti vazala, když hráč nehraje): na Svolání, na které hráč
+ * neodpověděl do lhůty (`ABSENT_VASSAL.summonsAnswerDays` od svolání), pošle formální správce rodu
+ * domluvený počet nejzdatnějších mužů rodu, kteří jsou doma a zdraví (`lineCandidates` ve vsích
+ * rodu dopočítaných do dneška – předvyplnění dialogu, jako NPC rod). Nemá-li jich tolik, pošle
+ * všechny a míň = neplnění; své vazaly správce nesvolává. Po konci války nic – svolání propadne
+ * (`lapseSummons`). NPC svolání splní vstupní bod hned (`answerNpcSummons`). Odpověď hráče do lhůty
+ * má přednost (podmíněné `answer`). Vazal dostane `summons-steward`. Vrací počet odpovědí správce.
+ */
+export async function answerAbsentSummons(
+  deps: SummonsDeps,
+  input: { today: number },
+): Promise<number> {
+  let answered = 0;
+  for (const dialog of await deps.dialogs.openOfKind('summons')) {
+    if (input.today < summonsStewardDay(dialog)) continue;
+    const body = summonsBody(dialog);
+    const vassal = await deps.houses.byId(body.vassalHouseId);
+    if (!vassal || vassal.playerId === null || vassal.endedAt !== null) continue;
+    const war = await deps.wars.activeBetween(body.warHouses[0], body.warHouses[1]);
+    if (war?.id !== body.warId) continue;
+    const v = await deps.vassalages.byId(body.vassalageId);
+    if (!v || v.endedAt !== null) continue;
+    for (const settlement of await deps.settlements.listActive(vassal.playerId)) {
+      for (const village of await deps.villages.listBySettlement(settlement.id)) {
+        await deps.prepareVillage(village.id, input.today);
+      }
+    }
+    const men = await serviceMenOf(deps, { playerId: vassal.playerId, today: input.today });
+    const byVillage = refsByVillage(men.slice(0, body.men).map((m) => m.ref));
+    const result = await dispatchSummons(
+      deps,
+      { dialog, body, vassal, vassalage: v, byVillage, message: '', steward: true },
+      input.today,
+    );
+    if (!result.ok) continue;
+    answered++;
+    const lord = await deps.houses.byId(body.lordHouseId);
+    await deps.notices.post({
+      playerId: vassal.playerId,
+      kind: 'summons-steward',
+      payload: { name: lord ? await houseName(deps, lord) : '', men: result.sent },
+      gameDay: input.today,
+    });
+  }
+  return answered;
 }
 
 /**

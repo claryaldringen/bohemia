@@ -113,6 +113,8 @@ export type ChronicleEvent = { day: number } & (
         | 'counter'
         | 'rejected'
         | 'withdrawn'
+        // návrh bez odpovědi vypršel (absence.md); `actor` = autor návrhu
+        | 'expired'
         | 'terms-accepted'
         | 'aid-gift'
         | 'aid-loan'
