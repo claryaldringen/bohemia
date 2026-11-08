@@ -27,6 +27,7 @@ import { DWELLINGS } from './rules-people';
 import { STEWARD, type StewardMonthDay, type StewardWindow } from './rules-steward';
 import { fieldSowingTargets } from './simulate-plan';
 import { fieldCells, planCentre, takenTiles, villageTerritory } from './steward-land';
+import { abandonStep } from './steward-abandon';
 import { extraSteps } from './steward-extras';
 import { needSteps } from './steward-needs';
 import {
@@ -143,6 +144,8 @@ function decideDay(
   // krok 2a – nouze: obilí od sousedů, když hrozí hlad, a lov, když zvěř škodí (steward-needs.ts)
   needSteps(state, ctx);
   fieldStep(state, ctx);
+  // díly pole nad to, co ves obdělá – jednou za rok v září (steward-abandon.ts)
+  abandonStep(state, ctx);
   dwellingStep(state, ctx);
   extraSteps(state, ctx);
 }

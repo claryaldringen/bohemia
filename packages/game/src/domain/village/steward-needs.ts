@@ -49,7 +49,22 @@ export interface GrainDeal {
 export function needSteps(state: VillageState, ctx: NeedContext): void {
   const targets = fieldSowingTargets(state, ctx.day, ctx.coverage);
   grainStep(state, ctx, targets.shortKg);
-  if (huntWanted(state, ctx.day, targets.needKg)) declareHunt(state, ctx.day);
+  if (huntWanted(state, ctx.day, targets.needKg) && declareHunt(state, ctx.day) === null) {
+    countSummerHunt(state, ctx.day);
+  }
+}
+
+/** Kolik lovů v nouzi správce letos v létě vyhlásil (`steward.summerHunts`). */
+function summerHuntsOf(state: VillageState, day: number): number {
+  const hunts = state.steward?.summerHunts;
+  return hunts?.year === dateOfDayIndex(day).year ? hunts.count : 0;
+}
+
+/** Zapíše vyhlášený lov v nouzi do letošního léta (mutuje stav). */
+function countSummerHunt(state: VillageState, day: number): void {
+  if (!state.steward) return;
+  const year = dateOfDayIndex(day).year;
+  state.steward.summerHunts = { year, count: summerHuntsOf(state, day) + 1 };
 }
 
 /**
@@ -133,6 +148,7 @@ function grainDealWith(
 /**
  * Čím ves zaplatí `dueKg` (kg obilí u souseda): zboží `STEWARD.grainPayment` v jeho pořadí, jen
  * které soused shání, nejvýš co ves má a co soused letos ještě vezme; každý druh do pokrytí ceny.
+ * Klády jen nad rezervu staveb (`constructionLogsLeft`).
  */
 function grainPayment(
   state: VillageState,
@@ -148,8 +164,9 @@ function grainPayment(
     if (!demands.includes(good)) continue;
     const unit = sellPrice(good) * goodWorth(state, good, day);
     if (unit <= EPSILON) continue;
+    const reserve = good === 'logs' ? constructionLogsLeft(state) : 0;
     const have = Math.min(
-      villageGoodStock(state, good, day),
+      Math.max(0, villageGoodStock(state, good, day) - reserve),
       Math.floor((stock.demand[good] ?? 0) + EPSILON),
     );
     const n = Math.min(have, Math.max(0, Math.ceil((dueKg - creditKg) / unit - EPSILON)));
@@ -161,9 +178,23 @@ function grainPayment(
 }
 
 /**
+ * Rezerva klád rozestavěných staveb vsi (steward.md – Obilí a lov v nouzi): dřevo, které stavby
+ * ještě vezmou – stromy, které pro ně ještě nikdo neskácel (`wood.fell` bez `felled`). Klády
+ * z hromady si stavba bere při zahájení; správce prodá jen klády nad tuto rezervu.
+ */
+export function constructionLogsLeft(state: Pick<VillageState, 'constructions'>): number {
+  let logs = 0;
+  for (const c of state.constructions) {
+    if (c.wood) logs += Math.max(0, c.wood.fell.length - c.wood.felled);
+  }
+  return logs;
+}
+
+/**
  * Lov navíc (stav nemění): zvěř škodí na polích – v měsících škod (`FIELD_DAMAGE.windowMonths`)
  * je škoda letos nebo loni aspoň `STEWARD.huntDamageShare` roční potřeby obilí z pole `needKg` –
  * a lov navíc na zítřek pravidla lovu dovolí (`canDeclareHunt` – hájení, 3 dny od minulého, lovci).
+ * Nejvýš `STEWARD.huntsPerSummer` lovů za léto (den lovu chybí v hlídce, výcviku a práci synů).
  */
 export function huntWanted(state: VillageState, day: number, needKg: number): boolean {
   const damage = state.wildlife?.damage;
@@ -171,6 +202,7 @@ export function huntWanted(state: VillageState, day: number, needKg: number): bo
   const { month } = dateOfDayIndex(day);
   const window = FIELD_DAMAGE.windowMonths;
   if (month < window.from || month > window.to) return false;
+  if (summerHuntsOf(state, day) >= STEWARD.huntsPerSummer) return false;
   const kg = Math.max(damage.totalKg, damage.lastYearKg ?? 0);
   if (kg <= EPSILON || kg < STEWARD.huntDamageShare * needKg) return false;
   return canDeclareHunt(state, day) === null;

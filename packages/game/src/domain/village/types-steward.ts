@@ -160,4 +160,9 @@ export interface StewardState {
    * Režim správce). Chybí – 0.
    */
   lastHunger?: number;
+  /**
+   * Lovy v nouzi letošního léta (steward.md – Obilí a lov v nouzi): rok a kolik lovů navíc správce
+   * vyhlásil – nejvýš `STEWARD.huntsPerSummer`. Chybí – letos ještě nelovil.
+   */
+  summerHunts?: { year: number; count: number };
 }

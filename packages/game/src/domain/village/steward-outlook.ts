@@ -76,7 +76,8 @@ function workPerSownHa(
     ploughWork += crop.plough?.required ?? 0;
   }
   if (ha > 0 && people > 0) return { people: people / ha, plough: ploughWork / ha };
-  const parts = state.parts.filter((p) => p.state !== 'founding');
+  // opuštěné díly (fields.md – Opuštěný díl) se neosejí ani nevracejí – do práce nepatří
+  const parts = state.parts.filter((p) => p.state !== 'founding' && !p.abandoned);
   const area = parts.reduce((sum, p) => sum + p.areaM2, 0);
   const factor =
     area > 0

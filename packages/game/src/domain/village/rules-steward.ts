@@ -303,6 +303,11 @@ export const STEWARD = {
    * roční potřeby obilí z pole – stejný práh jako noční hlídka dílu (`FIELD_GUARD.night.threat`).
    */
   huntDamageShare: FIELD_GUARD.night.threat,
+  /**
+   * Krok 2a – Lov v nouzi nejvýš tolikrát za léto (měsíce škod červen–srpen); den lovu chybí
+   * v hlídce, výcviku a práci synů (steward.md – Obilí a lov v nouzi; návrh Clauda, 8. 11. 2026).
+   */
+  huntsPerSummer: 3,
 } as const;
 
 /** Den v roce (měsíc a den) – hranice oken správce. */

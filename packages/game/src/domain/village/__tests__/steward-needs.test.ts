@@ -20,7 +20,14 @@ import { WILDLIFE_LAND } from '../rules-wildlife';
 import { advanceVillage } from '../simulate';
 import { fieldSowingTargets } from '../simulate-plan';
 import { newSteward } from '../steward-state';
-import { grainDeal, grainStep, huntWanted, needSteps, type NeedContext } from '../steward-needs';
+import {
+  constructionLogsLeft,
+  grainDeal,
+  grainStep,
+  huntWanted,
+  needSteps,
+  type NeedContext,
+} from '../steward-needs';
 import { tradeQuote } from '../trade';
 import { finishTrail, startTrail } from '../trail';
 import type { Direction8, VillageState } from '../types';
@@ -255,6 +262,52 @@ describe('lov v nouzi – lov navíc, když zvěř škodí (steward.md – Obil�
     const calm = damaged(SUMMER, 0);
     needSteps(calm, ctxOf(calm, SUMMER));
     expect(calm.wildlife!.hunt?.extraDay).toBeUndefined();
+  });
+
+  it('nejvýš STEWARD.huntsPerSummer lovů za léto, další léto znovu', () => {
+    const june = at(602, 6, 10);
+    const s = damaged(june, 1_000_000);
+    s.steward = newSteward(june, true);
+    let hunts = 0;
+    for (let day = june; day <= at(602, 8, 25); day += STEWARD.everyDays) {
+      needSteps(s, ctxOf(s, day));
+      if (s.wildlife!.hunt?.extraDay === day + 1) hunts++;
+    }
+    expect(hunts).toBe(STEWARD.huntsPerSummer);
+    expect(s.steward.summerHunts).toEqual({ year: 602, count: STEWARD.huntsPerSummer });
+    const nextJune = at(603, 6, 10);
+    expect(huntWanted(s, nextJune, NEED)).toBe(canDeclareHunt(s, nextJune) === null);
+    expect(canDeclareHunt(s, nextJune)).toBeNull();
+  });
+});
+
+describe('obilí v nouzi – rezerva klád staveb', () => {
+  it('klády, které rozestavěné stavby ještě vezmou, správce neprodá', () => {
+    const s = hungry();
+    const free = grainDeal(s, DAY, LANDSCAPE, shortOf(s))!;
+    expect(free.offer.give.logs).toBeGreaterThan(0);
+    // rozestavěná stavba, které chybí skácet tolik stromů, kolik je na hromadě
+    const reserved = hungry();
+    const logs = reserved.woodLogs ?? 0;
+    reserved.constructions.push({
+      id: 9000,
+      kind: 'pen',
+      startedDay: DAY,
+      cost: 100,
+      done: 0,
+      dwellingType: null,
+      position: null,
+      dwellingId: null,
+      fieldId: null,
+      wood: {
+        trees: logs,
+        fromPile: 0,
+        fell: Array.from({ length: logs }, () => ({ id: null, cost: 1 })),
+        felled: 0,
+      },
+    });
+    expect(constructionLogsLeft(reserved)).toBe(logs);
+    expect(grainDeal(reserved, DAY, LANDSCAPE, shortOf(reserved))?.offer.give.logs).toBeUndefined();
   });
 });
 
