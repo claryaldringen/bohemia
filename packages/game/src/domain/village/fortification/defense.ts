@@ -2,10 +2,10 @@ import { FORTIFICATIONS } from '../rules-fortifications';
 import { pointInPolygon } from '../polygon';
 import type { GridGeometry } from '../square-grid';
 import type { FortKind, RoadPoint } from '../types';
-import { distanceTo, type FortGate } from './gates';
+import { distanceTo, gateChord, type FortGate } from './gates';
 import { segmentIsOpen, segmentState, segmentTop } from './life';
 import { fortOutlineOf } from './convert';
-import type { FortOutline } from './outline';
+import { outlinePointAt, type FortOutline } from './outline';
 import { fortSegments } from './segments';
 import type { Fortification, FortSegment } from './types';
 
@@ -100,6 +100,19 @@ export function fortGaps(
       continue;
     }
     const gate: FortGate | undefined = fort.gates.find((g) => g.segment === seg.index);
+    if (gate && (seg.demolishedBeforeGate !== undefined || seg.demolishedAfterGate !== undefined)) {
+      // část dílu zbořená se sousedním úsekem je mezera vedle brány
+      const chord = gateChord(outline, shape, gate);
+      const ends = shape.startM + shape.lengthM;
+      const parts: [number, number][] = [];
+      if (seg.demolishedBeforeGate !== undefined) parts.push([shape.startM, chord.fromM]);
+      if (seg.demolishedAfterGate !== undefined) parts.push([chord.toM, ends]);
+      for (const [from, to] of parts) {
+        if (to - from <= 0) continue;
+        const [x, z] = outlinePointAt(outline, (from + to) / 2);
+        gaps.push({ kind: 'gap', segment: seg.index, x, z, widthM: to - from });
+      }
+    }
     if (gate && !closedGates.has(seg.index)) {
       gaps.push({
         kind: 'gate',

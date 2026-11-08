@@ -86,10 +86,11 @@ vylepšit jen celé.
   palisádou se zboří jen dřevo, val zůstane; další Zbořit srovná val (čtvrtina jeho práce).
   Zbořený úsek je **mezera** – průchod jako průlom ([opevnění](fortifications.md) – Prolomení).
 - Brány zůstávají na koncích úseků.
-- **Úsek** = díl s branou a díly po směru hodin až před další díl s branou; Zbořit vynechá díl
-  s branou. Hráč klikne na díl, úsek dohledá server – brána přidaná později úsek rozdělí, rozdělané
-  zboření ale pokračuje po dílech, které mělo. Úsek jen z dílu s branou zbořit nejde (návrh
-  Clauda).
+- **Úsek** = hradba od okraje brány po okraj další brány, přesně to, co je zvýrazněné (Martin 8. 11. 2026). Zbořit zboří celé díly mezi branami a z dílu s branou jen kus od okraje brány do
+  úseku – brána a zbytek dílu stojí, kus je mezera (návrh Clauda). Hráč klikne na úsek, server ho
+  dohledá – brána přidaná později úsek rozdělí, rozdělané zboření ale pokračuje po kusech, které
+  mělo. Úsek, kde brány na sobě nenechávají mezi okraji nic, zbořit nejde. Na valu se nástavba boří
+  po celých dílech, kus dílu brány se srovná až s valem (návrh Clauda).
 - U valu Zbořit napřed bere nástavbu dílů, kde stojí; až v úseku žádná nestojí, srovná val. Klády
   se sečtou za celé zboření a dolů na celé jednou (návrh Clauda).
 - Zbořený díl obyvatelé nepřestaví ani neudržují a jeho pás jiným stavbám uvolní; vylepšení celého

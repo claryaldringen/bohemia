@@ -137,6 +137,8 @@ export interface WallFortification extends FortShapeSource {
     readonly builtDay: number | null;
     readonly breachedDay?: number;
     readonly demolishedDay?: number;
+    readonly demolishedBeforeGate?: number;
+    readonly demolishedAfterGate?: number;
     readonly state?: number;
     readonly kind?: FortKind;
   }[];
@@ -191,10 +193,13 @@ export function segmentBlockKind(
 export function fortBlockingSegments(
   fort: Pick<WallFortification, 'kind' | 'segments'>,
   work: FortBuildWork | null,
-): { index: number; kind: FortKind }[] {
+): { index: number; kind: FortKind; gone?: string }[] {
   return fort.segments.flatMap((s) => {
     const kind = segmentBlockKind(fort, s, work);
-    return kind === null ? [] : [{ index: s.index, kind }];
+    if (kind === null) return [];
+    // zbořená část dílu u brány mění stěny – dostane se do klíče (`fortLayoutKey`)
+    const gone = `${s.demolishedBeforeGate === undefined ? '' : 'b'}${s.demolishedAfterGate === undefined ? '' : 'a'}`;
+    return [{ index: s.index, kind, ...(gone === '' ? {} : { gone }) }];
   });
 }
 
@@ -228,11 +233,17 @@ export function fortWalls(
       continue;
     }
     const chord = gateChord(outline, shape, gate);
-    for (const p of bandPieces(outline, band, segment.index, -Infinity, chord.fromM)) {
-      walls.push(p.corners);
+    // část dílu zbořená se zbořeným sousedním úsekem je mezera, brána stojí (demolition.md)
+    const part = fort.segments.find((x) => x.index === segment.index);
+    if (part?.demolishedBeforeGate === undefined) {
+      for (const p of bandPieces(outline, band, segment.index, -Infinity, chord.fromM)) {
+        walls.push(p.corners);
+      }
     }
-    for (const p of bandPieces(outline, band, segment.index, chord.toM, Infinity)) {
-      walls.push(p.corners);
+    if (part?.demolishedAfterGate === undefined) {
+      for (const p of bandPieces(outline, band, segment.index, chord.toM, Infinity)) {
+        walls.push(p.corners);
+      }
     }
     gateAtM.push((chord.fromM + chord.toM) / 2);
     const [ax, az] = chord.a;

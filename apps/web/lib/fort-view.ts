@@ -217,6 +217,11 @@ export function fortSegmentProgress(
   const progress = new Map<number, number>();
   let start = woodFellingCost(c.wood);
   for (const w of c.fortSegments ?? []) {
+    // kus dílu s branou se rozebírá bez průběhu – zbytek dílu stojí celý (demolition.md)
+    if (w.part !== undefined) {
+      start += w.cost;
+      continue;
+    }
     const p = w.cost > 0 ? (c.done - start) / w.cost : c.done >= start ? 1 : 0;
     progress.set(w.index, Math.min(1, Math.max(0, p)));
     start += w.cost;

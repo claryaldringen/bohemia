@@ -6,9 +6,13 @@ import { DEMOLITION } from '../rules-buildings';
 import { FORTIFICATIONS } from '../rules-fortifications';
 import { decideFortRebuilds, rampartMaintenance } from '../fortification/decay';
 import { fortGaps, segmentIsGap, segmentMultiplier } from '../fortification/defense';
-import { fortBlockingSegments } from '../fortification/walls';
+import { gateChord } from '../fortification/gates';
+import { outlinePointAt } from '../fortification/outline';
+import { fortSectionSpans } from '../fortification/section-spans';
+import { fortBlockingSegments, fortWalls, insideQuad } from '../fortification/walls';
 import { squarePoints } from '../fortification/convert';
 import { fortSegments } from '../fortification/segments';
+import { sectionPieces } from '../fortification/section-spans';
 import { sectionOf } from '../fortification/sections';
 import { segmentIsOld, segmentTop } from '../fortification/life';
 import { cancelConstruction } from '../cancel-construction';
@@ -118,19 +122,24 @@ describe('zboření plotu a palisády', () => {
     const gateSeg = fort.gates[1]!.segment;
     const section = sectionOf(fort, gateSeg + 1)!;
     expect(section.gateSegment).toBe(gateSeg);
-    const parts = section.segments.filter((i) => i !== gateSeg);
-    // díl s poloviční palisádou (shnilá) vrátí polovinu klád
-    fort.segments[parts[0]!]!.state = 0.5;
     const len = lengths(s);
+    // celé díly mezi branami a kusy dílů bran u okraje brány (přesně zvýrazněná hradba)
+    const pieces = sectionPieces(len, fort.gates, gateSeg);
+    const full = pieces.filter((x) => x.part === undefined).map((x) => x.index);
+    const parts = pieces.map((x) => x.index);
+    expect(pieces[0]).toMatchObject({ index: gateSeg, part: 'after' });
+    expect(pieces.at(-1)).toMatchObject({ index: fort.gates[2]!.segment, part: 'before' });
+    // díl s poloviční palisádou (shnilá) vrátí polovinu klád
+    fort.segments[full[0]!]!.state = 0.5;
     const per = FORTIFICATIONS.costPer100M.palisade;
-    const labor = parts.reduce(
-      (sum, i) => sum + DEMOLITION.laborShare * per.laborManDays * (len[i]! / 100),
+    const labor = pieces.reduce(
+      (sum, x) => sum + DEMOLITION.laborShare * per.laborManDays * (x.lengthM / 100),
       0,
     );
     const logs = Math.floor(
-      parts.reduce(
-        (sum, i) =>
-          sum + DEMOLITION.logShare * per.wood * (len[i]! / 100) * fort.segments[i]!.state,
+      pieces.reduce(
+        (sum, x) =>
+          sum + DEMOLITION.logShare * per.wood * (x.lengthM / 100) * fort.segments[x.index]!.state,
         0,
       ) + 1e-9,
     );
@@ -154,13 +163,19 @@ describe('zboření plotu a palisády', () => {
     expect(woodLogs(r.state) - before).toBe(logs);
     const after = fortOf(r.state);
     for (const seg of after.segments) {
-      if (parts.includes(seg.index))
+      if (full.includes(seg.index))
         expect(seg).toMatchObject({ demolishedDay: DAY + 10, state: 0 });
       else expect(seg.demolishedDay).toBeUndefined();
     }
+    // díl brány drží bránu a zbytek dílu, zbořená je jen hradba úseku od okraje brány
+    const lastGate = fort.gates[2]!.segment;
+    expect(after.segments[gateSeg]).toMatchObject({ demolishedAfterGate: DAY + 10, state: 1 });
+    expect(after.segments[gateSeg]!.demolishedBeforeGate).toBeUndefined();
+    expect(after.segments[lastGate]).toMatchObject({ demolishedBeforeGate: DAY + 10, state: 1 });
+    expect(after.segments[lastGate]!.demolishedAfterGate).toBeUndefined();
     // zbořený díl je mezera: nebrání, neblokuje cesty, obrana ho počítá jako průchod
     const blocking = new Set(fortBlockingSegments(after, null).map((x) => x.index));
-    for (const i of parts) {
+    for (const i of full) {
       expect(blocking.has(i)).toBe(false);
       expect(segmentIsGap(after, after.segments[i]!, DAY + 11)).toBe(true);
       expect(segmentMultiplier(after, after.segments[i]!, DAY + 11)).toBe(1);
@@ -170,6 +185,9 @@ describe('zboření plotu a palisády', () => {
     expect(gaps.map((g) => g.segment).sort((a, b) => a - b)).toEqual(
       [...parts].sort((a, b) => a - b),
     );
+    // mezera u brány má délku zbořeného kusu dílu
+    const bit = gaps.find((g) => g.segment === gateSeg)!;
+    expect(bit.widthM).toBeCloseTo(pieces[0]!.lengthM, 1);
     // druhé Zbořit: úsek už je zbořený
     expect(sectionDemolition(r.state, landscape, input)).toEqual({ reason: FORT_SECTION_GONE });
   });
@@ -247,7 +265,9 @@ describe('zboření valu', () => {
     const n = fort.segments.length;
     const input = { fortificationId: fort.id, segment: (gateSeg + 2) % n };
     const len = lengths(s);
-    const parts = sectionOf(fort, input.segment)!.segments.filter((i) => i !== gateSeg);
+    const pieces = sectionPieces(len, fort.gates, gateSeg);
+    // nástavbu zbourají celé díly, kusy dílu brány se srovnají až se valem
+    const parts = pieces.filter((x) => x.part === undefined).map((x) => x.index);
     const first = sectionDemolition(s, landscape, input);
     const fence = FORTIFICATIONS.costPer100M.fence;
     expect(first).toMatchObject({
@@ -285,8 +305,8 @@ describe('zboření valu', () => {
 
     const second = sectionDemolition(s, landscape, input);
     const rampart = FORTIFICATIONS.costPer100M.rampart;
-    const level = parts.reduce(
-      (sum, i) => sum + DEMOLITION.rampartLaborShare * rampart.laborManDays * (len[i]! / 100),
+    const level = pieces.reduce(
+      (sum, x) => sum + DEMOLITION.rampartLaborShare * rampart.laborManDays * (x.lengthM / 100),
       0,
     );
     expect(second).toMatchObject({ work: 'level', logs: 0 });
@@ -307,6 +327,11 @@ describe('zboření valu', () => {
       expect(after.segments[i]!.demolishedDay).toBe(DAY + 10);
       expect(segmentIsGap(after, after.segments[i]!, DAY + 11)).toBe(true);
     }
+    // jediná brána: její díl má zbořený kus před bránou i za ní
+    expect(after.segments[gateSeg]).toMatchObject({
+      demolishedBeforeGate: DAY + 10,
+      demolishedAfterGate: DAY + 10,
+    });
     // srovnaný val se neudržuje – jen díl s branou
     const need = rampartMaintenance(structuredClone(s), 1000, landscape);
     expect(need).toBeCloseTo(((len[gateSeg]! / 100) * 2) / YEAR, 9);
@@ -345,8 +370,20 @@ describe('stavba zboření', () => {
         segment: fort.gates[2]!.segment,
       }),
     ).toEqual({ ok: false, reason: FORT_BUSY });
-    // brána hned za branou – úsek z jediného dílu s branou
+    // brána hned za branou: úsek jen z kusů dílů bran, od okraje po okraj brány
     const adjacent = withGate(s, (gateSeg + 1) % fort.segments.length);
+    const between = sectionDemolition(adjacent, landscape, {
+      fortificationId: fort.id,
+      segment: gateSeg,
+    });
+    expect(between).toMatchObject({ work: 'demolish' });
+    const next = fortOf(adjacent).gates.find(
+      (g) => g.segment === (gateSeg + 1) % lengths(s).length,
+    )!;
+    const gate = fortOf(adjacent).gates.find((g) => g.segment === gateSeg)!;
+    // brány na sobě – mezi okraji není co zbořit
+    gate.offsetM = lengths(s)[gateSeg]!;
+    next.offsetM = 0;
     expect(
       sectionDemolition(adjacent, landscape, { fortificationId: fort.id, segment: gateSeg }),
     ).toEqual({ reason: FORT_SECTION_GATE_ONLY });
@@ -362,15 +399,17 @@ describe('stavba zboření', () => {
     });
     if (!r.ok) throw new Error(r.reason);
     const planned = work(r.state)!.fortSegments!.map((w) => w.index);
-    expect(planned.length).toBeGreaterThan(2);
-    const split = withGate(r.state, planned[1]!);
+    // první a poslední kus jsou části dílů bran, celé díly jsou mezi nimi
+    const inner = planned.slice(1, -1);
+    expect(inner.length).toBeGreaterThan(2);
+    const split = withGate(r.state, inner[1]!);
     expect(fortOf(split).gates).toHaveLength(4);
     expect(work(split)!.fortSegments!.map((w) => w.index)).toEqual(planned);
     finish(split);
     const gone = fortOf(split)
       .segments.filter((x) => x.demolishedDay !== undefined)
       .map((x) => x.index);
-    expect(gone).toEqual([...planned].sort((a, b) => a - b));
+    expect(gone).toEqual([...inner].sort((a, b) => a - b));
   });
 
   it('zrušené zboření: zbořené díly zůstanou a jejich klády přijdou na hromadu', () => {
@@ -383,15 +422,18 @@ describe('stavba zboření', () => {
     });
     if (!r.ok) throw new Error(r.reason);
     const c = work(r.state)!;
-    const [a, b] = c.fortSegments!;
-    // práce došla přes konec prvního dílu
-    c.done = a!.cost + b!.cost / 2;
+    // první kus je část dílu brány, druhý a třetí jsou celé díly
+    const [first, a, b] = c.fortSegments!;
+    expect(first!.part).toBe('after');
+    // práce došla přes konec prvního kusu a celého dílu
+    c.done = first!.cost + a!.cost + b!.cost / 2;
     workFortification(r.state, c, DAY + 3);
+    expect(fortOf(r.state).segments[first!.index]!.demolishedAfterGate).toBe(DAY + 3);
     expect(fortOf(r.state).segments[a!.index]!.demolishedDay).toBe(DAY + 3);
     expect(fortOf(r.state).segments[b!.index]!.demolishedDay).toBeUndefined();
     const before = woodLogs(r.state);
     const cancelled = cancelConstruction(r.state, r.state.lastDay, c.id);
-    expect(woodLogs(cancelled) - before).toBe(Math.floor(a!.logs! + 1e-9));
+    expect(woodLogs(cancelled) - before).toBe(Math.floor(first!.logs! + a!.logs! + 1e-9));
     expect(fortOf(cancelled).segments[a!.index]!.demolishedDay).toBe(DAY + 3);
     expect(fortOf(cancelled).segments[b!.index]!.demolishedDay).toBeUndefined();
     expect(work(cancelled)).toBeUndefined();
@@ -429,5 +471,74 @@ describe('stavba zboření', () => {
     const direct = advanceVillage(structuredClone(r.state), end, EMPTY, landscape);
     expect(JSON.stringify(pieces.fortifications)).toBe(JSON.stringify(direct.fortifications));
     expect(woodLogs(pieces)).toBe(woodLogs(direct));
+    // kusy dílů bran jsou zbořené v obou případech
+    const gone = fortOf(direct).segments.filter(
+      (x) => x.demolishedBeforeGate !== undefined || x.demolishedAfterGate !== undefined,
+    );
+    expect(gone.map((x) => x.index)).toEqual([fort.gates[1]!.segment, fort.gates[2]!.segment]);
+  });
+});
+
+describe('zboření přesně zvýrazněné hradby (od okraje brány po okraj brány)', () => {
+  it('délky zbořených kusů dají přesně délku zvýrazněného úseku', () => {
+    for (const s of [threeSections('palisade'), threeSections('fence'), built('palisade')]) {
+      const fort = fortOf(s);
+      const len = lengths(s);
+      const spans = fortSectionSpans(len, fort.gates);
+      expect(spans.length).toBeGreaterThan(0);
+      for (const span of spans) {
+        const pieces = sectionPieces(len, fort.gates, span.gateSegment);
+        const sum = pieces.reduce((a, x) => a + x.lengthM, 0);
+        expect(sum).toBeCloseTo(span.lengthM, 6);
+      }
+    }
+  });
+
+  it('zbořený kus dílu brány je průchozí mezera, brána a zbytek dílu blokují', () => {
+    const s = threeSections('palisade');
+    const fort = fortOf(s);
+    const gateSeg = fort.gates[1]!.segment;
+    const r = startSectionDemolition(s, DAY, landscape, {
+      fortificationId: fort.id,
+      segment: gateSeg,
+    });
+    if (!r.ok) throw new Error(r.reason);
+    const before = fortWalls(landscape, fortOf(r.state), null);
+    finish(r.state);
+    const after = fortOf(r.state);
+    const walls = fortWalls(landscape, after, null);
+    expect(walls.walls.length).toBeLessThan(before.walls.length);
+    const outline = outlineOf(landscape, after)!;
+    const shape = fortSegments(outline)[gateSeg]!;
+    const chord = gateChord(
+      outline,
+      shape,
+      after.gates.find((g) => g.segment === gateSeg)!,
+    );
+    const blocked = (m: number): boolean => {
+      const [x, z] = outlinePointAt(outline, m);
+      return walls.walls.some((w) => insideQuad(w, x, z));
+    };
+    // za bránou (v úseku) mezera, před bránou (v sousedním úseku) hradba stojí
+    expect(blocked((chord.toM + shape.startM + shape.lengthM) / 2)).toBe(false);
+    expect(blocked((shape.startM + chord.fromM) / 2)).toBe(true);
+    // brána je otvor ve stěně
+    expect(walls.gates.length).toBeGreaterThan(0);
+    // obrana: mezera vedle brány je průchod
+    const bit = fortGaps(landscape, after, DAY + 11).find(
+      (g) => g.segment === gateSeg && g.kind === 'gap',
+    );
+    expect(bit).toBeDefined();
+  });
+
+  it('starší opevnění beze zboření kusů dílů má stěny jako dřív', () => {
+    const s = threeSections('palisade');
+    const fort = fortOf(s);
+    expect(
+      fort.segments.every(
+        (x) => x.demolishedBeforeGate === undefined && x.demolishedAfterGate === undefined,
+      ),
+    ).toBe(true);
+    expect(fortBlockingSegments(fort, null).every((x) => x.gone === undefined)).toBe(true);
   });
 });

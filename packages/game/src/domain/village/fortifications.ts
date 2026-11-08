@@ -10,11 +10,13 @@ import {
   fortSegments,
   roadGates,
   sectionOf,
+  sectionPieces,
   segmentTop,
   type FortGate,
   type FortOutline,
   type FortSegmentShape,
   type FortWork,
+  type SectionPiece,
 } from './fortification';
 import type { Point } from './polygon';
 import { giveWayToBuilding } from './land-taken';
@@ -479,6 +481,19 @@ export interface SectionDemolition {
   logs: number;
 }
 
+/** Kus úseku ke zboření – celý díl, nebo část dílu s branou (`SectionPiece`). */
+interface DemolitionPiece extends SectionPiece {
+  seg: FortSegment;
+}
+
+/** Je kus dílu už zbořený (celý díl, nebo jeho část u brány)? */
+function pieceGone(seg: FortSegment, part: 'before' | 'after' | undefined): boolean {
+  if (seg.demolishedDay !== undefined) return true;
+  if (part === 'before') return seg.demolishedBeforeGate !== undefined;
+  if (part === 'after') return seg.demolishedAfterGate !== undefined;
+  return false;
+}
+
 /** Plán zboření úseku – díly v pořadí práce s prací a kládami a místo hromady. */
 interface DemolitionPlan extends SectionDemolition {
   segments: FortSegmentWork[];
@@ -502,29 +517,34 @@ function demolitionPlan(
   if (runningWork(state, fort.id)) return { reason: FORT_BUSY };
   const section = sectionOf(fort, input.segment);
   if (!section) return { reason: FORT_UNKNOWN };
-  const inner = section.segments.filter((i) => i !== section.gateSegment);
-  if (inner.length === 0) return { reason: FORT_SECTION_GATE_ONLY };
-  const parts: FortSegment[] = [];
-  for (const i of inner) {
-    const seg = fort.segments.find((x) => x.index === i);
-    if (seg && seg.builtDay !== null && seg.demolishedDay === undefined) parts.push(seg);
-  }
-  if (parts.length === 0) return { reason: FORT_SECTION_GONE };
   const outline = outlineOf(geo, fort);
   if (!outline) return { reason: FORT_UNKNOWN };
   const shapes = fortSegments(outline);
+  const pieces = sectionPieces(
+    shapes.map((x) => x.lengthM),
+    fort.gates,
+    section.gateSegment,
+  );
+  if (pieces.length === 0) return { reason: FORT_SECTION_GATE_ONLY };
+  const parts: DemolitionPiece[] = [];
+  for (const piece of pieces) {
+    const seg = fort.segments.find((x) => x.index === piece.index);
+    if (seg && seg.builtDay !== null && !pieceGone(seg, piece.part)) parts.push({ seg, ...piece });
+  }
+  if (parts.length === 0) return { reason: FORT_SECTION_GONE };
   const rampart = fort.kind === 'rampart';
-  const tops = rampart ? parts.filter((p) => topStands(fort, p)) : [];
+  // nástavbu valu zbourá jen celý díl, kus dílu s branou se srovná až při srovnání valu
+  const tops = rampart ? parts.filter((p) => p.part === undefined && topStands(fort, p.seg)) : [];
   const work: 'demolish' | 'level' = rampart && tops.length === 0 ? 'level' : 'demolish';
   const targets = rampart && work === 'demolish' ? tops : parts;
   let labor = 0;
   let logs = 0;
-  const segments: FortSegmentWork[] = targets.map((seg) => {
-    const lengthM = shapes[seg.index]?.lengthM ?? 0;
+  const segments: FortSegmentWork[] = targets.map(({ seg, part, lengthM }) => {
+    const at = part === undefined ? {} : { part };
     if (work === 'level') {
       const cost = fortificationCost('rampart', lengthM, 'new').laborManDays;
       labor += DEMOLITION.rampartLaborShare * cost;
-      return { index: seg.index, cost: DEMOLITION.rampartLaborShare * cost };
+      return { index: seg.index, ...at, cost: DEMOLITION.rampartLaborShare * cost };
     }
     const top = rampart ? segmentTop(fort, seg) : null;
     const cost = top
@@ -533,9 +553,14 @@ function demolitionPlan(
     const segLogs = DEMOLITION.logShare * (cost.upfront.wood ?? 0) * seg.state;
     labor += DEMOLITION.laborShare * cost.laborManDays;
     logs += segLogs;
-    return { index: seg.index, cost: DEMOLITION.laborShare * cost.laborManDays, logs: segLogs };
+    return {
+      index: seg.index,
+      ...at,
+      cost: DEMOLITION.laborShare * cost.laborManDays,
+      logs: segLogs,
+    };
   });
-  const middle = shapes[targets[Math.floor(targets.length / 2)]!.index];
+  const middle = shapes[targets[Math.floor(targets.length / 2)]!.seg.index];
   const at = middle ? { x: middle.mid[0], z: middle.mid[1] } : villageAnchor(state);
   return { work, laborManDays: labor, logs: Math.floor(logs + EPSILON), segments, at };
 }
@@ -592,7 +617,18 @@ export function startSectionDemolition(
  * s plným stavem; jinak díl je mezera (`demolishedDay`, stav 0) – plot a palisáda zbořené, val
  * srovnaný. Průlom dílu zboření pohltí.
  */
-function demolishSegment(fort: Fortification, s: FortSegment, day: number): void {
+function demolishSegment(
+  fort: Fortification,
+  s: FortSegment,
+  day: number,
+  part?: 'before' | 'after',
+): void {
+  if (part !== undefined) {
+    // kus dílu u brány je mezera, brána i zbytek dílu stojí dál (průlom dílu zůstává)
+    if (part === 'before') s.demolishedBeforeGate ??= day;
+    else s.demolishedAfterGate ??= day;
+    return;
+  }
   delete s.breachedDay;
   if (segmentKind(fort, s) === 'rampart' && topStands(fort, s)) {
     s.top = 'none';
@@ -615,7 +651,7 @@ function settleDemolition(state: VillageState, fort: Fortification, c: Construct
   let sum = 0;
   for (const w of c.fortSegments ?? []) {
     const s = fort.segments.find((x) => x.index === w.index);
-    if (s && w.logs !== undefined && segmentDone(fort, s, c)) sum += w.logs;
+    if (s && w.logs !== undefined && segmentDone(fort, s, c, w.part)) sum += w.logs;
   }
   const logs = Math.floor(sum + EPSILON);
   addLogs(state, logs, c.fortLogsAt ?? null);
@@ -637,9 +673,11 @@ function segmentDone(
   fort: Fortification,
   s: FortSegment,
   c: Pick<Construction, 'fortWork' | 'startedDay'>,
+  part?: 'before' | 'after',
 ): boolean {
-  if (c.fortWork === 'level') return s.demolishedDay !== undefined;
+  if (c.fortWork === 'level') return pieceGone(s, part);
   if (c.fortWork === 'demolish') {
+    if (part !== undefined) return pieceGone(s, part);
     return segmentKind(fort, s) === 'rampart' ? !topStands(fort, s) : s.demolishedDay !== undefined;
   }
   if (c.fortWork === 'upgrade') return segmentKind(fort, s) === 'palisade';
@@ -671,9 +709,9 @@ export function workFortification(state: VillageState, c: Construction, day: num
     // obnova valu nemá úseky k dokončení – výška se vrátí s koncem stavby (`finishFortification`)
     if (c.fortWork === 'restore') continue;
     const s = fort.segments.find((x) => x.index === w.index);
-    if (!s || segmentDone(fort, s, c)) continue;
+    if (!s || segmentDone(fort, s, c, w.part)) continue;
     if (c.fortWork === 'demolish' || c.fortWork === 'level') {
-      demolishSegment(fort, s, day);
+      demolishSegment(fort, s, day, w.part);
       continue;
     }
     if (c.fortWork === 'top') {

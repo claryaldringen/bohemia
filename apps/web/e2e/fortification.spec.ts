@@ -493,7 +493,9 @@ test('brána, úsek a celé opevnění – klik na bránu, klik zvýrazní úsek
   // bourání doběhne (jádro – jako po dnech práce vsi): díly úseku bez brány jsou zbořené
   const now = await villageState(settlementId);
   const work = now.constructions.find((x) => x.kind === 'fortification')!;
-  expect(work.fortSegments!.map((w) => w.index)).toEqual(inner);
+  // celé díly mezi branami a kusy dílů bran od okraje brány (přesně zvýrazněná hradba)
+  expect(work.fortSegments!.filter((w) => w.part === undefined).map((w) => w.index)).toEqual(inner);
+  expect(work.fortSegments!.some((w) => w.part !== undefined)).toBe(true);
   work.done = work.cost;
   finishFortification(now, work, now.lastDay);
   now.constructions = now.constructions.filter((x) => x.id !== work.id);
@@ -504,6 +506,12 @@ test('brána, úsek a celé opevnění – klik na bránu, klik zvýrazní úsek
     expect(gone.segments.find((x) => x.index === i)?.demolishedDay).toBeDefined();
   }
   expect(gone.gates).toHaveLength(2);
+  // díl brány drží bránu, zbořený je jen kus hradby úseku
+  const partial = gone.segments.filter(
+    (x) => x.demolishedBeforeGate !== undefined || x.demolishedAfterGate !== undefined,
+  );
+  expect(partial.length).toBeGreaterThan(0);
+  for (const x of partial) expect(x.demolishedDay).toBeUndefined();
 
   // zbořený díl je mezera – klik na stejné místo opevnění nevybere
   await expect

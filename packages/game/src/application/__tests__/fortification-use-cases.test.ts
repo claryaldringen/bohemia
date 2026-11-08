@@ -91,7 +91,7 @@ describe('opevnění – use-casy', () => {
     expect(gate.village.state.fortifications![0]!.gates.length).toBeGreaterThan(1);
   });
 
-  it('demolishFortificationSection zboří úsek mezi branami bez dílu s branou', async () => {
+  it('demolishFortificationSection zboří úsek od okraje brány po okraj brány', async () => {
     const { villages, villageId } = await settled();
     const placed = await placeFortification(
       { villages },
@@ -124,9 +124,10 @@ describe('opevnění – use-casy', () => {
     if (!done.ok) throw new Error(done.reason);
     const c = done.village.state.constructions.find((x) => x.kind === 'fortification');
     expect(c?.fortWork).toBe('demolish');
-    expect(c?.fortSegments?.map((w) => w.index)).toEqual(
-      section.segments.filter((i) => i !== section.gateSegment),
-    );
+    // celé díly mezi branami a kusy dílů bran od okraje brány (přesně zvýrazněná hradba)
+    const full = c?.fortSegments?.filter((w) => w.part === undefined).map((w) => w.index);
+    expect(full).toEqual(section.segments.filter((i) => i !== section.gateSegment));
+    expect(c?.fortSegments?.some((w) => w.part !== undefined)).toBe(true);
     // dvojklik: druhý požadavek narazí na běžící zboření
     expect(await demolishFortificationSection({ villages }, { ...base, segment })).toEqual({
       ok: false,

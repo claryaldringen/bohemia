@@ -420,7 +420,7 @@ export function fortLayoutKey(
         ? f.points.map((p) => `${p[0]},${p[1]}`).join(';')
         : [f.grid ?? null, (f.cells ?? []).map((c) => `${c.x},${c.y}`).join(';')],
       fortBlockingSegments(f, fortRunningWork(state, f.id))
-        .map((s) => `${s.index}:${s.kind}`)
+        .map((s) => `${s.index}:${s.kind}${s.gone === undefined ? '' : `:${s.gone}`}`)
         .join(','),
       f.gates.map((g) => `${g.segment}@${g.offsetM}`).join(','),
     ]),

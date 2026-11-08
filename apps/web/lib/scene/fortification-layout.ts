@@ -356,6 +356,30 @@ export function gatePositions(fort: SceneFortification): number[] {
   return fort.gates.map((g) => (starts[g.segment] ?? 0) + g.offsetM);
 }
 
+/**
+ * Leží bod `s` obvodu v části dílu `segment` s branou, která se zbořila se sousedním úsekem
+ * (`demolishedBeforeGate` / `demolishedAfterGate`; demolition.md – Opevnění)? Mezera – nestojí tam
+ * plot, palisáda ani val; brána a zbytek dílu stojí.
+ */
+export function inGoneGatePart(
+  fort: Pick<SceneFortification, 'segments' | 'gates'>,
+  starts: readonly number[],
+  segment: number,
+  s: number,
+): boolean {
+  const seg = fort.segments.find((x) => x.index === segment);
+  if (!seg || (seg.demolishedBeforeGate === undefined && seg.demolishedAfterGate === undefined)) {
+    return false;
+  }
+  const gate = fort.gates.find((g) => g.segment === segment);
+  if (!gate) return false;
+  const center = (starts[segment] ?? 0) + gate.offsetM;
+  return (
+    (seg.demolishedBeforeGate !== undefined && s < center) ||
+    (seg.demolishedAfterGate !== undefined && s > center)
+  );
+}
+
 /** Pevné číslo 0–1 z celých čísel (bez náhody – stejné při každém kreslení). */
 export function hash01(a: number, b: number, c: number): number {
   let h =
@@ -537,6 +561,7 @@ export function palisadeLayout(fort: SceneFortification, crown: CrownLift): Pali
   const gap = FORT_GATE_M / 2 + 0.12;
   line.forEach((p, k) => {
     if (gates.some((g) => loopDistance(p.s, g, length) < gap)) return;
+    if (inGoneGatePart(fort, starts, p.segment, p.s)) return;
     const b = builds[p.segment]!;
     const u = along(fort, starts, p);
     let phase: FortSitePhase | null = null;
@@ -601,6 +626,7 @@ export function fortStakingLines(fort: SceneFortification): [number, number][][]
     const marks = line.map(
       (p) =>
         !gates.some((g) => loopDistance(p.s, g, length) < half) &&
+        !inGoneGatePart(fort, starts, p.segment, p.s) &&
         staked(fort, builds[p.segment]!, along(fort, starts, p)),
     );
     // souvislé vytyčené kusy obvodu; kus přes začátek čáry se spojí s posledním
@@ -646,6 +672,10 @@ export function fortFenceStage(fort: SceneFortification, crown: CrownLift): Fenc
   line.forEach((p, k) => {
     const near = gates.map((g) => loopDistance(p.s, g, length));
     if (near.some((d) => d < half)) {
+      levels.push(-1);
+      return;
+    }
+    if (inGoneGatePart(fort, starts, p.segment, p.s)) {
       levels.push(-1);
       return;
     }
@@ -865,6 +895,7 @@ export function rampartAt(
   const here = looks[k] ?? { height: 0, round: 0, grass: 0 };
   const start = starts[k]!;
   const end = start + (fort.shapes[k]?.lengthM ?? 0);
+  if (inGoneGatePart(fort, starts, k, s)) return { height: 0, round: 0, grass: 0 };
   const blend = 1.5;
   let other: RampartLook | null = null;
   let w = 0;

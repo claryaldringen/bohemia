@@ -194,7 +194,16 @@ Dřívější obvod po čtvercích zůstal jen pro převod (`squares-outline.ts`
   s branou a díly po směru hodin až před další díl s branou (návrh Clauda); bez brány i s jedinou
   branou jeden úsek (bez brány od dílu 0, `gateSegment` null). Úseky se neukládají – vždy znovu
   z `gates`, takže nová brána úsek rozdělí. **`sectionOf(fort, segment)`** – úsek dílu.
+- **Přesně zvýrazněná hradba** (`section-spans.ts`, sdílí server i web – `apps/web/lib/fort-sections.ts`
+  jen vyvezuje): **`fortSectionSpans(lengths, gates)`** = úsek od okraje brány po okraj další brány
+  (`fromM`, `lengthM`); **`sectionPieces(lengths, gates, gateSegment)`** → `SectionPiece { index,
+part?, lengthM }[]` – kusy dílů téhož úseku: celé díly mezi branami a z dílu s branou kus
+  od okraje brány do úseku (`part` `'after'` za bránou na začátku úseku, `'before'` před bránou na
+  konci; s jedinou branou má její díl obojí; kus kratší než 5 cm se vynechá). Součet délek kusů =
+  `lengthM` úseku (test na Vlkovu).
 - **Díl ve stavu** (`FortSegment`): `demolishedDay` – zbořený plot či palisáda, srovnaný val;
+  `demolishedBeforeGate` / `demolishedAfterGate` – den zboření kusu dílu s branou před / za bránou
+  (jen díly bran; brána a zbytek dílu stojí, kus je mezera; volitelné, starší vsi beze změny);
   `top` – nástavba dílu, když se liší od `Fortification.top` (`'none'` = zbořená nástavba).
   **`segmentTop(fort, seg)`** (`life.ts`) = `seg.top ?? fort.top`, `'none'` → null – čtou ji
   `rotting` (stáří nástavby), `segmentMultiplier`, `breachWork`, `fortCells` (march-grid),
@@ -204,8 +213,10 @@ Dřívější obvod po čtvercích zůstal jen pro převod (`squares-outline.ts`
 - **`sectionDemolition(state, geo, { fortificationId, segment })`** → `{ work, laborManDays, logs }`
   nebo `{ reason }` (popisek tlačítka Zbořit); **`startSectionDemolition(state, day, geo, input)`**
   založí stavbu `fortification` s `fortWork` `demolish` / `level` (bez ceny předem, jen práce ze
-  společné práce). Díly = úsek bez dílu s branou (brány zůstávají), jen dostavěné a nezbořené
-  (i prolomené a shnilé). Plot a palisáda: `demolish` celého dílu; val s nástavbou: `demolish` jen
+  společné práce). Kusy = `sectionPieces` (brány zůstávají, zboří se hradba od okraje brány po
+  okraj brány), jen dostavěné a nezbořené (i prolomené a shnilé); `FortSegmentWork.part` označuje
+  kus dílu brány, práce i klády podle jeho délky. Kus dílu brány na valu se srovná až při `level`
+  (nástavbu valu boří jen celé díly – nástavba je údaj celého dílu). Plot a palisáda: `demolish` celého dílu; val s nástavbou: `demolish` jen
   dílů, kde nástavba stojí; val bez nástavby: `level`. Práce dílu `DEMOLITION.laborShare` × práce
   podle délky (`fortificationCost(druh, délka, 'new')`, nástavba `'top'`), val
   `rampartLaborShare` × práce valu. Klády dílu `logShare` × klády dílu × `seg.state` (necelé
@@ -214,7 +225,11 @@ Dřívější obvod po čtvercích zůstal jen pro převod (`squares-outline.ts`
   („Úsek už je zbořený.“), `FORT_SECTION_GATE_ONLY` (úsek jen z dílu s branou), `FORT_UNKNOWN`.
 - **Práce** (`workFortification`, `demolishSegment`): díl hotový, když na něj dojde práce – val
   s nástavbou `top: 'none'`, bez `topBuiltDay`, stav 1; jinak `demolishedDay`, stav 0, průlom
-  zmizí. Stavba drží indexy dílů – brána přidaná během zboření práci nezmění (Review Focus 3).
+  zmizí; kus dílu brány jen nastaví `demolishedBeforeGate` / `demolishedAfterGate` (stav dílu
+  a průlom se nemění). Mezera kusu: `fortWalls` vynechá pás před / za tětivou brány (chodci, vozy,
+  stáda, pochod `march-grid` jdou mezerou; `fortBlockingSegments` nese `gone` pro `fortLayoutKey`),
+  `fortGaps` přidá `gap` o délce kusu. Scéna kus nekreslí (`inGoneGatePart`), obrys výběru ho
+  vynechá (`standingPieces`), rozebírání kusu bez průběhu (kus zmizí hotový). Stavba drží indexy dílů – brána přidaná během zboření práci nezmění (Review Focus 3).
 - **Konec** (`finishFortification` → `settleDemolition`): klády na hromadu (`addLogs` u cesty
   nejblíž úseku), kronika **`fortification-demolished`** `{ logs, level? }` místo
   `construction-finished` (`simulate-build.ts` – `finishFortification` vrací událost). Val, na
