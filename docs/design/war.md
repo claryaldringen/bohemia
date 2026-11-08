@@ -350,11 +350,16 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
 - **Změna rozkazu** (návrh Clauda): před bitvou kterékoli skupině; během boje jen skupině, u níž je
   velitel na doslech (≈ 30 m) – rozkazy nesou hlasy, ne kurzor. NPC velitel stejně.
 - **Souboj mužů** (Martin 2. 11. 2026 – „ok“; čísla návrh Clauda):
-  - každý má **zdraví 100**; zásah ubere **10 × síla útočníka ÷ násobek obrany** zasaženého
-    (u domu 1,5 – otázka, zda zůstane; ~~za opevněním 1,5 × násobek opevnění~~ – zrušeno 8. 11.
-    2026, za hradbou platí [fortifications.md](fortifications.md#hradby-a-obrana-8-11-2026): kryt předprsní, lezec × 0,5, únava po valu);
+  - každý má **zdraví 100**; zásah ubere **10 × síla útočníka** – ~~÷ násobek obrany (u domu 1,5,
+    za opevněním 1,5 × násobek opevnění)~~ – **násobek zrušen 8. 11. 2026** (Martin: „Násobek obrany
+    je píčovina. Ta mechanika musí fungovat jinak.“; u domu „a“); výhodu za hradbou nese
+    [fortifications.md](fortifications.md#hradby-a-obrana-8-11-2026) – menší viditelná plocha za
+    předprsní, lezec × 0,5, únava po valu, obsazení;
   - **luk na dálku** (20–60 m) – poloviční zásah ≈ každé 4 s; luk mají jen muži rodu, vesničané
     bojují zblízka, z ochozu hradby házejí kameny a oštěpy do ≈ 15 m (Martin 8. 11. 2026); **zblízka oštěp nebo sekera** – plný zásah ≈ každé 2 s;
+  - **šance na zásah na dálku** podle dovednosti střelce a viditelné plochy cílů v kruhu rozptylu
+    (Martin 8. 11. 2026 – [fortifications.md](fortifications.md), Střelba a viditelná plocha;
+    hlouček je snadný cíl, šíp smí trefit i vlastního);
   - zda rána padne, určí **los ze seedu** války, tažení a okamžiku – server počítá
     deterministicky, výsledek nezávisí na tom, kdo se dívá;
   - příklad: muž rodu se silou 2 srazí vesničana se silou 0,4 pěti ranami, vesničan jeho
