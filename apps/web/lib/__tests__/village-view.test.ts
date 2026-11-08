@@ -55,7 +55,7 @@ import {
   sceneRoadApples,
   type VillageView,
 } from '../village-view';
-import { visitedWives } from '../village-view-scene';
+import { manorHousehold, visitedWives } from '../village-view-scene';
 import { protectionLevel, sceneWeather } from '../weather-view';
 import type { SceneVillage, ScenePloughLegs } from '../village-view-scene-types';
 import {
@@ -2905,5 +2905,19 @@ describe('návštěvy vedlejších manželek vojvody (lord.md – Rod vojvody, M
   it('bez vedlejších manželek mimo dvorec nikdo', () => {
     expect(visitedWives([], 1)).toEqual([]);
     expect(visitedWives([w(11, 1)], 1)).toEqual([]);
+  });
+});
+
+describe('manorHousehold (ženy rodiny u dvorce)', () => {
+  const w = (id: number, dwellingId: number): { id: number; dwellingId: number } => ({
+    id,
+    dwellingId,
+  });
+  it('žena elity z vlastního domu se u dvorce nekreslí, žena dvorce ano', () => {
+    const household = [w(9, 1), w(4, 7), w(2, 1)];
+    expect(manorHousehold(household, new Set(), 1)).toEqual([2, 9]);
+  });
+  it('žena na poli u dvorce nestojí', () => {
+    expect(manorHousehold([w(2, 1), w(9, 1)], new Set([2]), 1)).toEqual([9]);
   });
 });
