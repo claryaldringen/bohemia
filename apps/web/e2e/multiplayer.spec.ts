@@ -59,6 +59,9 @@ test('pozvánka: pozvaný je vazal, pozvatel má vazala a upozornění, cizí hr
   await found(a, villageSpots(seat.landscape).dwelling);
   const panelA = await openHousePanel(a);
   await expect(panelA.getByTestId('house-independent')).toBeVisible();
+  // jídlo domény: řada a součet (řádek vsi přibude až se souhrnem vsi) (hillfort.md – Přehled jídla domény)
+  await expect(panelA.getByTestId('house-food')).toBeVisible();
+  await expect(panelA.getByTestId('house-food-total')).toBeVisible();
   await expect(panelA.getByTestId('house-invite-slots')).toHaveText('3');
   await panelA.getByTestId('house-invite-issue').click();
   await expect(panelA.getByTestId('house-invite-open')).toHaveCount(1);
