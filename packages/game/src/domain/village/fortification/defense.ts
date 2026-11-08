@@ -2,15 +2,15 @@ import { FORTIFICATIONS } from '../rules-fortifications';
 import { pointInPolygon } from '../polygon';
 import type { GridGeometry } from '../square-grid';
 import type { FortKind, RoadPoint } from '../types';
-import { distanceTo, gateChord, type FortGate } from './gates';
-import { segmentIsOpen, segmentState, segmentTop } from './life';
+import { gateChord, type FortGate } from './gates';
+import { segmentIsOpen, segmentState } from './life';
 import { fortOutlineOf } from './convert';
 import { outlinePointAt, type FortOutline } from './outline';
 import { fortSegments } from './segments';
 import type { Fortification, FortSegment } from './types';
 
-// Obrana opevnění (fortifications.md – Obrana): násobek síly obránců podle stavu úseku, jeho
-// kombinace se „zná místo“ a mezery v obvodu. Čistá doména pro válku – žádná simulace.
+// Obrana opevnění (fortifications.md – Obrana bez násobku): mezery v obvodu a kdo stojí uvnitř.
+// Násobek obrany je zrušen (Martin 8. 11. 2026). Čistá doména pro válku – žádná simulace.
 
 /** Co funkce obrany potřebují znát z úseku (`FortSegment` ze stavu vsi). */
 type SegmentLike = Pick<
@@ -33,31 +33,12 @@ export function segmentIsGap(fort: FortLike, seg: SegmentLike, day: number): boo
   return kindOf(fort, seg) !== 'rampart' && segmentState(fort, seg, day) <= 0;
 }
 
-/** Násobek nástavby valu (druh nástavby → násobek celku valu s ní). */
-function topMultiplier(top: 'fence' | 'palisade'): number {
-  return top === 'fence'
-    ? FORTIFICATIONS.multiplier.rampartFence
-    : FORTIFICATIONS.multiplier.rampartPalisade;
-}
-
 /**
- * Násobek opevnění úseku ke dni `day` (Obrana – Násobek podle stavu): plot a palisáda
- * `1 + (m − 1) × stav`; val `v × (1 + (m ÷ 1,5 − 1) × stav nástavby)`, `v = 1 + 0,5 × výška` (m =
- * násobek valu s nástavbou, bez ní jen `v`). Mezera má 1. Bez „zná místo“ × 1,5 – to přidává
- * `defenderMultiplier`.
+ * Stojí z opevnění ke dni `day` aspoň jeden úsek (ne mezera)? Jen za takovým se dá schovat –
+ * rozestavěné opevnění bez jediného hotového úseku je jen čára v plánu.
  */
-export function segmentMultiplier(fort: FortLike, seg: SegmentLike, day: number): number {
-  if (segmentIsGap(fort, seg, day)) return 1;
-  const kind = kindOf(fort, seg);
-  if (kind !== 'rampart') {
-    return 1 + (FORTIFICATIONS.multiplier[kind] - 1) * segmentState(fort, seg, day);
-  }
-  const v = 1 + FORTIFICATIONS.rampartHeightBonus * (fort.rampartHeight ?? 1);
-  const topBuilt = seg.topBuiltDay !== undefined && seg.topBuiltDay !== null;
-  const top = segmentTop(fort, seg);
-  if (!top || !topBuilt) return v;
-  const topState = segmentState(fort, seg, day);
-  return v * (1 + (topMultiplier(top) / FORTIFICATIONS.multiplier.rampart - 1) * topState);
+export function fortHasWall(fort: Fortification, day: number): boolean {
+  return fort.segments.some((seg) => !segmentIsGap(fort, seg, day));
 }
 
 /** Mezera v obvodu: otevřená brána, nedostavěný / shnilý / zbořený úsek nebo průlom. */
@@ -132,52 +113,18 @@ function insideArea(outline: FortOutline, p: RoadPoint): boolean {
 }
 
 /**
- * Násobek obránce vůči útočníkovi (Obrana – Jak násobek působí). Obránce uvnitř obvodu proti
- * útočníkovi vně, v bráně / průlomu nebo na pásu (zdolává ho) má `1,5 × násobek` nejbližšího
- * úseku; mezeru nahradí slabší z jejích sousedů. Útočník dál uvnitř než šířka pásu (už je
- * uvnitř) a obránce mimo všechna opevnění mají jen 1,5 (u domu).
+ * Pro každý bod pořadí opevnění (v `forts`), uvnitř jehož obvodu (křivky) leží; null mimo všechna
+ * (fortifications.md – Obrana bez násobku: za opevněním se skupina nevzdá, dokud útočník nestojí
+ * uvnitř obvodu). Obvod každého opevnění se spočítá jednou.
  */
-export function defenderMultiplier(
+export function fortsContaining(
   geo: GridGeometry,
   forts: readonly Fortification[],
-  defender: RoadPoint,
-  attacker: RoadPoint,
-  day: number,
-): number {
-  const home = FORTIFICATIONS.defenderKnowsPlace;
-  for (const fort of forts) {
-    const outline = fortOutlineOf(geo, fort);
-    if (!outline || !insideArea(outline, defender)) continue;
-    const shapes = fortSegments(outline);
-    const nearest = (p: RoadPoint): number => {
-      let best = 0;
-      let bestD = Infinity;
-      for (const shape of shapes) {
-        const d = distanceTo(shape, p.x, p.z);
-        if (d < bestD) {
-          bestD = d;
-          best = shape.index;
-        }
-      }
-      return best;
-    };
-    if (insideArea(outline, attacker)) {
-      // útočník v ploše: za pásem už mu opevnění nepřekáží
-      const shape = shapes[nearest(attacker)];
-      if (shape && distanceTo(shape, attacker.x, attacker.z) > outline.bandM) return home;
-    }
-    const n = fort.segments.length;
-    const mult = (index: number): number => {
-      const seg = fort.segments.find((s) => s.index === index);
-      return seg ? segmentMultiplier(fort, seg, day) : 1;
-    };
-    const near = nearest(defender);
-    const nearSeg = fort.segments.find((s) => s.index === near);
-    let m = mult(near);
-    if (nearSeg && segmentIsGap(fort, nearSeg, day)) {
-      m = Math.min(mult((near + n - 1) % n), mult((near + 1) % n));
-    }
-    return home * m;
-  }
-  return home;
+  points: readonly RoadPoint[],
+): (number | null)[] {
+  const outlines = forts.map((fort) => fortOutlineOf(geo, fort));
+  return points.map((p) => {
+    const i = outlines.findIndex((outline) => outline !== null && insideArea(outline, p));
+    return i < 0 ? null : i;
+  });
 }

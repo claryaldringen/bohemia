@@ -91,7 +91,8 @@ describe('NPC velitel – nájezd na bránící se ves', () => {
   const whole = stepCampaign(NPC, END, SET_OUT, defendWorld);
   const result = whole.villageEvents.find((e) => e.body.kind === 'raid-result')?.body;
 
-  it('napadne slabší ves (síla nad 1,5 × obránci × násobek), vyhraje a vrátí se s kořistí', () => {
+  // násobek zrušen 8. 11. 2026 – síla obránců je jen součet sil (dřív × 1,5 u domu)
+  it('napadne slabší ves (síla nad 1,5 × obránci), vyhraje a vrátí se s kořistí', () => {
     expect(whole.state.phase).toBe('done');
     expect(whole.state.battle?.outcome).toBe('attackers');
     expect(whole.state.battle?.plundered).toBeUndefined();
@@ -152,7 +153,9 @@ describe('NPC velitel – silná ves za palisádou', () => {
   });
   const whole = stepCampaign(start, END, SET_OUT, fortWorld);
 
-  it('nenapadne (pod 1,5 × obránci × násobek) a vezme jen, co je venku', () => {
+  // násobek zrušen 8. 11. 2026 – síla obránců je jen součet sil (dřív × 1,5 × násobek palisády);
+  // všichni obránci uvnitř obvodu → vezme, co je venku (přechod hradby přidá Úloha 20)
+  it('nenapadne (pod 1,5 × obránci) a vezme jen, co je venku', () => {
     expect(whole.state.phase).toBe('done');
     expect(whole.state.battle?.plundered).toBe(true);
     const body = whole.villageEvents.find((e) => e.body.kind === 'raid-result')?.body;

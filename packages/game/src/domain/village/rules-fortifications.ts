@@ -12,8 +12,9 @@ export interface FortCostPer100M {
 
 export const FORTIFICATIONS = {
   /**
-   * Násobek opevnění (Druhy, Obrana; Martin 3. 11. 2026): plot 1,25, palisáda 2, val 1,5, val
-   * s plotem 2, val s palisádou 3.
+   * Násobek opevnění (Druhy; Martin 3. 11. 2026): plot 1,25, palisáda 2, val 1,5, val s plotem 2,
+   * val s palisádou 3. **V boji zrušen 8. 11. 2026** (Obrana bez násobku) – zbývá jen v odhadu
+   * přínosu správce (`planMultiplier`), než ho nahradí ochrana druhu (plán hradeb, Úloha 15).
    */
   multiplier: {
     fence: 1.25,
@@ -22,8 +23,6 @@ export const FORTIFICATIONS = {
     rampartFence: 2,
     rampartPalisade: 3,
   },
-  /** Obránce za opevněním: × 1,5 (zná místo) × násobek opevnění (Obrana; návrh Clauda). */
-  defenderKnowsPlace: 1.5,
   /**
    * Cena na 100 m obvodu (Cena a stavba; Martin 3. 11. 2026): plot 20 čd + 15 klád, palisáda
    * 80 čd + 70 klád, val 150 čd (jen hlína). Vylepšení plotu na palisádu stojí jako nová palisáda
@@ -39,10 +38,10 @@ export const FORTIFICATIONS = {
   /** Chátrání za životností bez dřeva: stav 100 → 0 % za 5 let (Životnost a oprava; návrh Clauda). */
   decayYears: 5,
   /**
-   * Val bez údržby (Životnost a oprava; Martin 3. 11. 2026): za 50 let výška 0,5 a násobek valu
-   * 1,5 → 1,25 (polovina přínosu valu).
+   * Val bez údržby (Životnost a oprava; Martin 3. 11. 2026): za 50 let výška 0,5 (polovina přínosu
+   * valu).
    */
-  rampartNeglect: { years: 50, height: 0.5, multiplier: 1.25 },
+  rampartNeglect: { years: 50, height: 0.5 },
   /**
    * Údržba valu (Životnost a oprava; návrh Clauda): 2 čd na 100 m ročně; obnova, když výška
    * klesne pod 0,75, za polovinu ceny valu.
@@ -60,13 +59,6 @@ export const FORTIFICATIONS = {
     carryKgAdult: 25,
     carryKgChild: 10,
   },
-  /**
-   * Přínos výšky valu (Obrana – Násobek podle stavu; návrh Clauda): násobek holého valu
-   * `1 + 0,5 × výška` (plná výška 1 = 1,5, bez údržby nejníž 0,5 = 1,25).
-   */
-  rampartHeightBonus: 0.5,
-  /** Přesila, při které se skupina za opevněním vzdá: 1,5 × obránci × násobek (Postoje; návrh Clauda). */
-  surrenderOddsPerDefender: 1.5,
   /** Šířka pásu uvnitř plochy podél okraje (Obvod; návrh Clauda) – m. */
   bandM: { fence: 1, palisade: 1.5, rampart: 10 } satisfies Record<FortKind, number>,
   /** Pás valu (Obvod; návrh Clauda): příkop 4 m vně, val 6 m u paty (m). */

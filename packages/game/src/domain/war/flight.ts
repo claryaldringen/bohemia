@@ -93,7 +93,7 @@ export function returnDayAfter(armyLeftDay: number): number {
 
 /**
  * Přesila (war.md – Vzdát se při přesile): útočníků v dohledu víc než 1,5× obránců; jezdec za dva
- * (návrh Clauda). `threshold` je horní mez bez přesily (u opevnění `surrenderThreshold`).
+ * (návrh Clauda). `threshold` je horní mez bez přesily.
  */
 export function attackerWeight(attackers: readonly { mounted: boolean }[]): number {
   let n = 0;

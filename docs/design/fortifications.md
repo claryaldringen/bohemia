@@ -116,7 +116,8 @@ roštová ≈ 7 m, komorová ≈ 8 m, komory po 5–6 m).
 
 **Násobek obrany za opevněním se ruší** – Martinovy násobky z 3. 11. 2026 i jejich násobení „zná
 místo“ (návrh Clauda) neplatí. Zásah zůstává `10 × síla útočníka` ([válka](war.md) – Boj); dům
-× 1,5 je [otázka 1](#otevřené-otázky-k-hradbám). Výhoda obránce vzniká ze šesti věcí:
+× 1,5 se ruší také ([otázka 1](#otevřené-otázky-k-hradbám), Martin „a“). Výhoda obránce vzniká ze
+šesti věcí:
 
 1. **Překážka – kudy a jak dlouho.** Útočník projde jen branou, mezerou nebo průlomem, nebo
    hradbu přeleze, prosekne, odkope, podkope či vypálí – podle druhu (časy v [Přechod

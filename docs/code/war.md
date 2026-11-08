@@ -16,7 +16,7 @@ vojska mapu po mapě (Ú6.4); tažení po taktech, boj a dohra přibývají v da
 
 ## Síla
 
-- `domain/war/rules-war.ts` – `WAR` (čísla war.md – Čísla; násobky opevnění jsou ve `FORTIFICATIONS`).
+- `domain/war/rules-war.ts` – `WAR` (čísla war.md – Čísla; čísla opevnění jsou ve `FORTIFICATIONS`).
 - `domain/war/strength.ts` – `militaryExperience` ((boj + luk) ÷ 2), `lineManStrength` (muž rodu,
   kůň přes `riderPower`), `villagerStrength` (0,4, nucený × 0,5, štěstí přes `happinessLaborFactor`),
   `armyStrength` (součet × výzbroj, pokrytí nástroji z `craftCoverage(...).tools`).
@@ -259,15 +259,16 @@ a `food` (kg obilí ze zásob shromaždiště).
 
 ## Boj muž po muži (Ú6.8)
 
-war.md – Boj, Ztráty; fortifications.md – Obrana, Prolomení. Čísla ve `WAR.combat` (zdraví,
-zásah, luk 20–60 m, zblízka 3 m, los zásahu 1 : 1, rány po 2 / 4 s), `WAR.sight` (150 m, v hustém
+war.md – Boj, Ztráty; fortifications.md – Obrana bez násobku, Střelba a viditelná plocha,
+Prolomení. Čísla ve `WAR.combat` (zdraví, zásah, luk 20–60 m, zblízka 3 m, los zásahu zblízka
+1 : 1, rány po 2 / 4 s, `aim` – kruh rozptylu a viditelné plochy), `WAR.sight` (150 m, v hustém
 lese 50 m), `WAR.houseGroupM`, `WAR.holdPlaceM`, `WAR.defenderAges`, `WAR.downed`,
 `WAR.breakpoint`, `WAR.lastLineManMinHealth`, `WAR.orderHearingMeters`.
 
 - **Obránci** – `domain/war/defenders.ts`: `houseGroups(dwellings)` (obydlí blíž než 40 m i řetězem
   → číslo skupiny podle nejmenšího id), `defenderRoster(state, day, { lineMenElsewhere })` →
   `Defender[]` (pořadí podle id): muži 16–44 `villagerStrength(false, štěstí)`, muži rodu od 14 let
-  `lineManStrength(p, null)` s lukem, ženy, starší a chlapci 14–15 let 0,1 `atHouseOnly`; kdo je
+  `lineManStrength(p, null)` s lukem a `bowSkill` (`bowSkillOf` – `ArmsSkills.bow`), ženy, starší a chlapci 14–15 let 0,1 `atHouseOnly`; kdo je
   pryč (`isAway`) nebo zraněný, chybí. `lastLine` = jediný muž rodu ve vsi a `lineMenElsewhere`
   (výchozí 0 – tažení zatím jiné vsi hráče nezná). `defenderPlan` – výchozí postoj u domů:
   útočník do 40 m od domů skupiny (nebo kdo útočí na obránce) a ve dohledu, vodítko 40 m od domů;
@@ -294,9 +295,9 @@ group, order, at)` – před bitvou kdykoli, v boji jen na doslech (jinak false)
   brány do 30 m od útočníka se zavřou → stěny taktu → bod zlomu (padlí a ranění ÷ `entered`,
   30 % útok, 45 % obrana; velitel neuteče sám) → muži v pevném pořadí (plán, krok) → práce na
   průlomech (`breachStep`, nejvýš 4 na místo, `hoursPerTick` z `ticks.ts`) → rány (cooldown 8 / 16
-  taktů, los zásahu, `hitDamage(síla, násobek, luk)` = `10 × síla ÷ násobek`, u obránce
-  `defenderMultiplier` s průlomy boje) se sečtou a použijí až po všech – kdo padne, v tomto taktu
-  ještě udeřil → výsledek (útočníci bez bojujících = `defenders`; obránci bez bojujících
+  taktů; zblízka los 1 : 1, šíp `bowShot` z `aim.ts` – viz Střelba podle dovednosti;
+  `hitDamage(síla, luk)` = `10 × síla`, luk polovina – **násobek obrany zrušen 8. 11. 2026**, i u
+  domu) se sečtou a použijí až po všech – kdo padne, v tomto taktu ještě udeřil → výsledek (útočníci bez bojujících = `defenders`; obránci bez bojujících
   i prchajících = `attackers`). Na nule `down`, `killed` losem (vesničan 1 : 1, muž rodu 1 ze 3);
   `lastLine` neklesne pod 10, pak uteče (i `controlled`). Útěk: útočník do `home`, obránce do
   nejbližší buňky hustého lesa (bez lesa hned `fled`); kdo se nepohne, je `fled`. Pohyb tempem
@@ -314,10 +315,24 @@ group, order, at)` – před bitvou kdykoli, v boji jen na doslech (jinak false)
   `defenders` → `routed` (háček Ú6.12 rozpad, Ú6.11 ranění zůstanou); `turnBack` v boji →
   `leaveBattle` (`withdrawn`, skupiny se sejdou u velitele). Padlí a ranění obránci do vsi jako
   vnější události – Ú6.10.
-- **Testy** – `__tests__/battle.test.ts` (příklad war.md 5 vs. 25 ran, u domu 8 ran po 2 s; bod
+- **Střelba podle dovednosti** – `domain/war/aim.ts` (fortifications.md – Střelba a viditelná
+  plocha; Martin 8. 11. 2026): `spreadRadiusM(dovednost, d)` = `(2 − 1,5 × dovednost ÷ 100) × d ÷ 30`
+  (mistr 0,5 m na 30 m, nováček 2 m); `poseOf(f, field)` – zatím vždy `standing` (lezce, ochoz
+  a podkop doplní Úlohy 9, 12 a 14 plánu hradeb), `visibleAreaM2` 0,85 / 0,25 / 0,85 / 0;
+  `shotCandidates` – všichni na nohou obou stran (ne `down` ani `fled`) se středem v kruhu kolem cíle,
+  v pořadí bojovníků, bez střelce; `shotChance` = Σ ploch ÷ π r² (nejvýš 1); `shotHit(kandidáti, r,
+roll, pick)` – zásah, když `roll` < šance, zasažený váhou podle plochy. `bowShot(střelec, cíl,
+bojovníci, pose, rng)` – dovednost `Fighter.bowSkill` (muž rodu z `CampaignMember.bowSkill` /
+  `Defender.bowSkill`; chybí = vesničan 20); **v kruhu žádný viditelný nepřítel → nestřílí**
+  (`{ fired: false }`, cooldown zůstane, žádný los), jinak dva losy taktu (`roll`, `pick`) – šíp smí
+  trefit vlastního. `CampaignMember.bowSkill` nastaví `launchCampaign` (`bowSkillOf` muže rodu);
+  starší tažení ho nemají.
+- **Testy** – `__tests__/battle.test.ts` (příklad war.md 5 vs. 25 ran, u domu 5 ran po 2 s; bod
   zlomu 30 % / 45 %, velitel zůstane; poslední muž rodu doma pod řízením hráče – nejníž 10, uteče
-  do lesa; palisáda – brána se zavře, 4 muži ≈ 3 h, zeď ≈ 24 h, šíp za palisádu ÷ 3; tažení po
-  1 / 7 / 40 taktech přes JSON = vcelku, ztráty v mužích), `orders.test.ts` (za velitelem, obrana
+  do lesa; palisáda – brána se zavře, 4 muži ≈ 3 h, zeď ≈ 24 h, šíp za palisádu plný poloviční;
+  šíp do hloučku trefí i vlastního, nováček na 60 m trefí zřídka, mistr často; tažení po
+  1 / 7 / 40 taktech přes JSON = vcelku, ztráty v mužích), `aim.test.ts` (kruh, plochy, šance
+  u nováčka a hloučku, výběr podle ploch, jen vlastní v kruhu = nestřílí), `orders.test.ts` (za velitelem, obrana
   velitele, útočit na vše mimo dohled, držet místo ≤ 30 m, změna rozkazu na doslech),
   `defenders.test.ts` (skupiny domů, soupis, poslední muž rodu); přípravky `battle-fixtures.ts`.
 
@@ -384,9 +399,10 @@ návrat za 1 den), `WAR.surrenderRatio`, `WAR.pitFoundChance`.
 - `domain/war/stance.ts` – `planDefense` se zavolá **jednou při otevření boje** (`campaignBattle`):
   1. s opevněním s plochou jdou **všichni** přítomní lidé a dobytek napřed do útočiště – nejbližší
      opevnění, doběh tempem vojska, brány se zavřou, jakmile je první útočník do 30 m (takt
-     `gateCloseTick`), `refugeAdmit` rozhodne, kdo se vejde. Muži uvnitř bojují u středu opevnění
-     (násobek `defenderMultiplier`), ženy a starší nebojují. Postoj `surrender`: skupina uvnitř se
-     vzdá nad `surrenderThreshold(muži, násobek opevnění)`;
+     `gateCloseTick`), `refugeAdmit` rozhodne, kdo se vejde. Muži uvnitř bojují u středu opevnění,
+     ženy a starší nebojují. Postoj `surrender`: skupina uvnitř se nevzdá, dokud žádný útočník
+     v dohledu nestojí uvnitř obvodu (`attackerInsideFort` – `fortsContaining`); pak
+     `fortSurrenders` = přesila 1,5× jako u domů (`isOverpowered`);
   2. kdo zůstal venku, jedná po **skupinách domů**: `defend` bojuje; `surrender` se vzdá při
      přesile, jinak bojuje; `flee` do lesa (zásoby, dobytek), **bez lesa jako `surrender`**. Poslední
      muž rodu se nevzdá – uteče do lesa (bez lesa bojuje);
@@ -516,9 +532,10 @@ Rozpad). Čísla `WAR.npc` (`attackRatio` 1,5, `lostShare` 0,5) a `WAR.absentLea
   Pochod: skupiny, které hráč poslal jinam, pošle k cíli (`march`); trasa je pochod Ú6.4 (A*
   obchází hustý les, potoky po brodech). Nájezd: `npcLeader` (velitel, dokud bojuje i prolamuje,
   jinak zástupce) – drží napadeného, dokud bojuje; jinak skupiny domů obránců v dohledu (150 m od
-  kteréhokoli útočníka) poměří silou obránců × `defenderMultiplier` (u domu 1,5, za opevněním
-  1,5 × násobek) a napadne nejslabší (`strike` na nejbližšího jejího muže), má-li vojsko aspoň
-  1,5 × její sílu. Jinak: všichni obránci za opevněním → `plunder` (boj `attackers` +
+  kteréhokoli útočníka) poměří součtem sil obránců (bez násobku – 8. 11. 2026) a napadne nejslabší
+  (`strike` na nejbližšího jejího muže), má-li vojsko aspoň 1,5 × její sílu. Jinak: všichni
+  obránci uvnitř obvodu opevnění, ve kterém velitel není (`behindWalls` – `fortsContaining`; přechod
+  hradby přidá Úloha 20 plánu hradeb) → `plunder` (boj `attackers` +
   `BattleState.plundered` → `raidResultOf` bere útočiště za nedobyté – kořist jen zvenku), jinak
   `turn-back { reason: 'order' }`. Nevidí-li nikoho, jde k nejbližšímu obránci (`march`). Průchod
   opevněním volí boj (`approach` – mezera / brána / průlom, jinak místo s nejmenší prací).

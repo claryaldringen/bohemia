@@ -5,7 +5,7 @@ import { foundVillage } from '../actions';
 import { DEMOLITION } from '../rules-buildings';
 import { FORTIFICATIONS } from '../rules-fortifications';
 import { decideFortRebuilds, rampartMaintenance } from '../fortification/decay';
-import { fortGaps, segmentIsGap, segmentMultiplier } from '../fortification/defense';
+import { fortGaps, segmentIsGap } from '../fortification/defense';
 import { gateChord } from '../fortification/gates';
 import { outlinePointAt } from '../fortification/outline';
 import { fortSectionSpans } from '../fortification/section-spans';
@@ -177,8 +177,8 @@ describe('zboření plotu a palisády', () => {
     const blocking = new Set(fortBlockingSegments(after, null).map((x) => x.index));
     for (const i of full) {
       expect(blocking.has(i)).toBe(false);
+      // násobek obrany zrušen 8. 11. 2026 – mezeru hlídá jen `segmentIsGap` (dřív i násobek 1)
       expect(segmentIsGap(after, after.segments[i]!, DAY + 11)).toBe(true);
-      expect(segmentMultiplier(after, after.segments[i]!, DAY + 11)).toBe(1);
     }
     expect(blocking.has(gateSeg)).toBe(true);
     const gaps = fortGaps(landscape, after, DAY + 11).filter((g) => g.kind === 'gap');
@@ -296,8 +296,9 @@ describe('zboření valu', () => {
       expect(seg.demolishedDay).toBeUndefined();
       expect(seg.topBuiltDay).toBeUndefined();
       expect(segmentTop(after, seg)).toBeNull();
-      // val bez nástavby: násobek jen podle výšky, nestárne
-      expect(segmentMultiplier(after, seg, DAY + 11)).toBe(1 + FORTIFICATIONS.rampartHeightBonus);
+      // val bez nástavby stojí dál a nestárne (násobek obrany zrušen 8. 11. 2026 – dřív se tu
+      // hlídal násobek holého valu `1 + 0,5 × výška`; teď jen, že úsek není mezera)
+      expect(segmentIsGap(after, seg, DAY + 11)).toBe(false);
       expect(segmentIsOld(after, seg, DAY + 100 * YEAR)).toBe(false);
     }
     // díl s branou nástavbu drží

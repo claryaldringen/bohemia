@@ -1,5 +1,5 @@
-// Čísla války (docs/design/war.md – Čísla). Změna čísla = i text v návrhu. Násobky opevnění tu
-// nejsou – jsou ve `FORTIFICATIONS` (fortifications.md – Obrana).
+// Čísla války (docs/design/war.md – Čísla). Změna čísla = i text v návrhu. Čísla opevnění tu
+// nejsou – jsou ve `FORTIFICATIONS` (fortifications.md – Hradby a obrana).
 
 export const WAR = {
   /** war.md – Čísla: ochrana nového rodu (skutečné dny; končí vlastním útokem nebo opovědí – Martin). */
@@ -80,9 +80,9 @@ export const WAR = {
     smithMax: 1.5,
   },
   /**
-   * war.md – Boj: zdraví 100, zásah 10 × síla ÷ násobek obrany, luk polovina; rány v sekundách,
-   * luk na 20–60 m. Dosah zblízka (oštěp, sekera – i přes palisádu) 3 m a los, zda rána padne,
-   * 1 : 1 jsou návrh Clauda (war.md – Čísla).
+   * war.md – Boj – Souboj mužů: zdraví 100, zásah 10 × síla (násobek obrany zrušen 8. 11. 2026 –
+   * Martin), luk polovina; rány v sekundách, luk na 20–60 m. Dosah zblízka (oštěp, sekera – i přes
+   * palisádu) 3 m a los zblízka, zda rána padne, 1 : 1 jsou návrh Clauda (war.md – Čísla).
    */
   combat: {
     health: 100,
@@ -93,7 +93,21 @@ export const WAR = {
     bowMinM: 20,
     bowMaxM: 60,
     meleeM: 3,
+    /** Los zblízka 1 : 1; na dálku rozhoduje `aim`. */
     hitChance: 0.5,
+    /**
+     * Střelba podle dovednosti (fortifications.md – Střelba a viditelná plocha; Martin 8. 11. 2026,
+     * čísla návrh Clauda): kruh rozptylu `r = (2 − 1,5 × dovednost ÷ 100) × vzdálenost ÷ 30` m,
+     * vesničan hází pevně jako dovednost 20; viditelná plocha stojícího 0,5 × 1,7 m, obránce za
+     * předprsní 0,5 × 0,5 m, lezec na žebříku celý (m²).
+     */
+    aim: {
+      baseM: 2,
+      skillM: 1.5,
+      refM: 30,
+      villagerSkill: 20,
+      visibleM2: { standing: 0.85, parapet: 0.25, climbing: 0.85 },
+    },
   },
   /** war.md – Mlha války: dohled ≈ 150 m (18. 10.), v hustém lese 50 m (návrh Clauda). */
   sight: { openM: 150, forestM: 50 },
