@@ -585,6 +585,16 @@ export function VillageGame({
   const placement = usePlacement(scene);
   const view = isVillageView(village) ? village : null;
   const villageError = village !== null && 'error' in village ? village.error : null;
+  // Odříznutý nováček bez vsi, který se právě dostal na mapu světa, mohl dostat sídlo s krajinou
+  // z políčka světa (svobodný – world-skeleton.md) – scéna se načte znovu; s vsí se krajina nemění.
+  const newcomerPhase = useRef<string | null>(null);
+  useEffect(() => {
+    const phase = newcomer?.phase ?? null;
+    if (newcomerPhase.current === 'isolated' && phase === 'placed' && village === null) {
+      window.location.reload();
+    }
+    newcomerPhase.current = phase;
+  }, [newcomer, village]);
   const gameOver = view?.gameOver === true;
   // Po konci hry je přes všechno obrazovka porážky – nabídka se neukáže.
   const menuShown = menuOpen && !gameOver;

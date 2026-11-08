@@ -128,7 +128,8 @@ export interface SettlementRepository {
   /**
    * Prémiový typ, který hráč dostal (Typ patří hráči – Začít znovu ho nepřelosuje): z jeho
    * nejnovějšího prémiového sídelního sídla, i archivovaného nebo převedeného na jiného
-   * držitele (odúmrť, postoupení); hráč bez typu null.
+   * držitele (odúmrť, postoupení); hráč bez typu null. Jen sídla s vsí nebo archivovaná – typ
+   * sídla, na kterém hráč ještě nezaložil ves (odříznutý nováček před přesídlením), mu nepatří.
    */
   lastPremiumType(playerId: string): Promise<PremiumType | null>;
 }

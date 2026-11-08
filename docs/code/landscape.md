@@ -134,10 +134,18 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   mapy; uložené sídlo přirozené pevnosti proto generuje terén dvakrát (vlastní terén typu
   a průměrný pro průměr). **Přidělení typu** (premium-landscapes.md – Kdo dostane jakou krajinu):
   `choosePremiumType(seed, counts)` (`premium/assign.ts`) – nejméně zastoupený typ, při shodě
-  podle seedu krajiny. `enterGame` dá sídelnímu sídlu (odříznutému i pozvanému)
-  `lastPremiumType(hráč) ?? choosePremiumType(seed, premiumTypeCounts())`, verze vrstev
-  s `premium: 1`; typ, který neprojde pásmem do `MAX_ATTEMPTS`, zkusí další okna seedů (+16, +32,
-  `PREMIUM_SEED_WINDOWS`). Začít znovu jde přes `enterGame` – stejný typ. Vsi synů (`targetSettlement`
+  podle seedu krajiny (`allowed` omezí výběr na typy místa). `enterGame` dá sídelnímu sídlu
+  verze `PREMIUM_SEAT_VERSIONS` (`premium: 2`, `application/world-seat.ts`): pozvaný místo a typ
+  z `seatOnWorld` (`placeSeat` – typ kostry na svém místě kostry, ostatní na suché mapě; krajina ze
+  seedu políčka a jeho výřezu, s řekou nebo stezkou i `skeleton: 1` – `cellSkeletonVersions`;
+  výřez se ukládá u sídla); odříznutý jen typ bez kostry (`isolatedSeatType` – `SLOT_TYPES.dry`,
+  výřez null). Shodu typů rozhodne seed hráče (`isolatedLandscapeSeed(worldSeed, hráč)`), typ
+  hráče `lastPremiumType` (jen sídla s vsí nebo archivovaná) platí, když ho místo nabízí. Typ, který
+  neprojde pásmem do `MAX_ATTEMPTS`, zkusí další okna seedů (+16, +32 – `PREMIUM_SEED_WINDOWS`);
+  neprojde-li ani tak, `seatOnWorld` políčko vyřadí (`exclude`) a vybere znovu (nejvýš 8 políček –
+  `SEAT_CANDIDATES`); `generate` je parametr (test podstrčí selhání). `seatSkeleton(worldSeed)` –
+  výřez a místo po políčkách s pamětí (sdílená mezipaměť kostry) pro celé umisťování. Sídla
+  s `premium: 1` (před Úlohou 13) zůstávají. Začít znovu jde přes `enterGame`. Vsi synů (`targetSettlement`
   na mapě světa i v místní mřížce), NPC rody a sídla z doby před prémiemi mají `premiumType` null
   (průměrná krajina); umístění odříznutého shluku typ ani krajinu nemění. Sloupce
   `settlement.premium_type` a `premium_owner_id` (hráč, kterému typ patří – převod sídla

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, exists, isNotNull, isNull, or, sql } from 'drizzle-orm';
 import type {
   NewSettlement,
   OccupiedCell,
@@ -6,8 +6,8 @@ import type {
   Settlement,
   SettlementRepository,
 } from '@bohemia/game';
-import type { Database } from '../client';
-import { house, settlement } from '../schema';
+import type { Database, Executor } from '../client';
+import { house, settlement, village } from '../schema';
 
 type SettlementRow = typeof settlement.$inferSelect;
 
@@ -43,6 +43,55 @@ function placeValues(input: NewSettlement): typeof settlement.$inferInsert {
   return 'worldCell' in input
     ? { ...base, gridX: input.worldCell.x, gridY: input.worldCell.y }
     : { ...base, localX: input.localCell.x, localY: input.localCell.y };
+}
+
+/** Na sídle stojí ves (tabulka `village`) – podmínka pro dotazy nad `settlement`. */
+export function hasVillage(db: Executor): ReturnType<typeof exists> {
+  return exists(
+    db
+      .select({ one: sql`1` })
+      .from(village)
+      .where(eq(village.settlementId, settlement.id)),
+  );
+}
+
+/** Kolik hráčů má který prémiový typ (`premiumTypeCounts` – i v transakci umisťování). */
+export async function premiumTypeCountsOf(
+  db: Executor,
+): Promise<Partial<Record<PremiumType, number>>> {
+  const rows = await db
+    .select({
+      type: settlement.premiumType,
+      players: sql<number>`count(distinct ${settlement.premiumOwnerId})::integer`,
+    })
+    .from(settlement)
+    .where(and(isNotNull(settlement.premiumType), isNotNull(settlement.premiumOwnerId)))
+    .groupBy(settlement.premiumType);
+  return Object.fromEntries(rows.flatMap((r) => (r.type ? [[r.type, r.players]] : [])));
+}
+
+/**
+ * Typ, který hráč dostal (`lastPremiumType`): i archivovaná a převedená sídla – typ patří hráči,
+ * ne mapě, kterou zrovna drží; ale jen sídla s vsí nebo archivovaná – typ sídla, na kterém hráč
+ * ještě nezaložil ves (odříznutý nováček před přesídlením), mu nepatří.
+ */
+export async function lastPremiumTypeOf(
+  db: Executor,
+  playerId: string,
+): Promise<PremiumType | null> {
+  const [row] = await db
+    .select({ type: settlement.premiumType })
+    .from(settlement)
+    .where(
+      and(
+        eq(settlement.premiumOwnerId, playerId),
+        isNotNull(settlement.premiumType),
+        or(isNotNull(settlement.archivedAt), hasVillage(db)),
+      ),
+    )
+    .orderBy(desc(settlement.createdAt))
+    .limit(1);
+  return row?.type ?? null;
 }
 
 /** Drizzle adaptér portu SettlementRepository – archivovaná sídla (`archived_at`) nevrací. */
@@ -185,26 +234,11 @@ export function createSettlementRepository(db: Database): SettlementRepository {
         .limit(1);
       return row ? toSettlement(row) : null;
     },
-    async premiumTypeCounts(): Promise<Partial<Record<PremiumType, number>>> {
-      const rows = await db
-        .select({
-          type: settlement.premiumType,
-          players: sql<number>`count(distinct ${settlement.premiumOwnerId})::integer`,
-        })
-        .from(settlement)
-        .where(and(isNotNull(settlement.premiumType), isNotNull(settlement.premiumOwnerId)))
-        .groupBy(settlement.premiumType);
-      return Object.fromEntries(rows.flatMap((r) => (r.type ? [[r.type, r.players]] : [])));
+    premiumTypeCounts(): Promise<Partial<Record<PremiumType, number>>> {
+      return premiumTypeCountsOf(db);
     },
-    async lastPremiumType(playerId): Promise<PremiumType | null> {
-      // i archivovaná a převedená sídla – typ patří hráči, ne mapě, kterou zrovna drží
-      const [row] = await db
-        .select({ type: settlement.premiumType })
-        .from(settlement)
-        .where(and(eq(settlement.premiumOwnerId, playerId), isNotNull(settlement.premiumType)))
-        .orderBy(desc(settlement.createdAt))
-        .limit(1);
-      return row?.type ?? null;
+    lastPremiumType(playerId): Promise<PremiumType | null> {
+      return lastPremiumTypeOf(db, playerId);
     },
     async assignWorldCell(settlementId, cell): Promise<Settlement | null> {
       // Jen sídlu bez polohy (podmíněný UPDATE) – souběžná volání ho neposunou dvakrát.

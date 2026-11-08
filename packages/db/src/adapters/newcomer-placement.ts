@@ -1,7 +1,8 @@
-import { and, asc, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
-import type { OccupiedCell, PlacementTx, WorldCell } from '@bohemia/game';
+import { and, asc, desc, eq, isNotNull, isNull, not, sql } from 'drizzle-orm';
+import type { OccupiedCell, PlacementTx, PremiumType, WorldCell } from '@bohemia/game';
 import type { Executor } from '../client';
 import { house, settlement } from '../schema';
+import { hasVillage, lastPremiumTypeOf, premiumTypeCountsOf } from './settlement-repository';
 import { isUniqueViolation } from './village-repository';
 
 /**
@@ -120,5 +121,64 @@ export function createPlacementTx(db: Executor): PlacementTx {
         throw error;
       }
     },
+    premiumTypeCounts(): Promise<Partial<Record<PremiumType, number>>> {
+      return premiumTypeCountsOf(db);
+    },
+    lastPremiumType(playerId): Promise<PremiumType | null> {
+      return lastPremiumTypeOf(db, playerId);
+    },
+    async seatWithoutVillage(ownerId): Promise<boolean> {
+      const rows = await db
+        .select({ id: settlement.id })
+        .from(settlement)
+        .where(and(isolatedSeatOf(ownerId), not(hasVillage(db))))
+        .limit(1);
+      return rows.length > 0;
+    },
+    async reseatIsolated(playerId, seat): Promise<boolean> {
+      // v úložném bodě jako přesun – obsazené políčko (unikátní index) zruší jen přesídlení
+      try {
+        return await db.transaction(async (sp) => {
+          // zámek řádku sídla: zakládání vsi (cizí klíč `village` → FOR KEY SHARE) se dokončí dřív,
+          // nebo počká – podmínka „bez vsi“ níž vidí jeho výsledek
+          const [row] = await sp
+            .select({ id: settlement.id })
+            .from(settlement)
+            .where(isolatedSeatOf(playerId))
+            .for('update');
+          if (!row) return false;
+          const updated = await sp
+            .update(settlement)
+            .set({
+              gridX: seat.worldCell.x,
+              gridY: seat.worldCell.y,
+              localX: null,
+              localY: null,
+              landscapeSeed: seat.landscapeSeed,
+              layerVersions: seat.layerVersions,
+              premiumType: seat.premiumType,
+              premiumOwnerId: playerId,
+              skeleton: seat.skeleton,
+            })
+            .where(and(eq(settlement.id, row.id), not(hasVillage(sp))))
+            .returning({ id: settlement.id });
+          return updated.length > 0;
+        });
+      } catch (error) {
+        if (isUniqueViolation(error)) return false;
+        throw error;
+      }
+    },
   };
+}
+
+/** Odříznuté aktivní sídelní sídlo hráče (bez čekajícího převodu). */
+function isolatedSeatOf(ownerId: string): ReturnType<typeof and> {
+  return and(
+    eq(settlement.ownerId, ownerId),
+    eq(settlement.isSeat, true),
+    isNull(settlement.archivedAt),
+    isNull(settlement.pendingOwnerId),
+    isNotNull(settlement.localX),
+  );
 }
