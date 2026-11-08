@@ -3,6 +3,8 @@ import { problemMarks } from './problem-marks';
 import {
   CRAFT_BASE,
   autoGates,
+  checkQuarryPlacement,
+  STONE,
   checkFortificationPlacement,
   fortSegments,
   proposeFortificationIn,
@@ -237,6 +239,11 @@ export type BuildItem =
         position: Position,
         woodLogs: number,
       ): FootprintCheck;
+    })
+  | (BuildItemBase & {
+      /** Lom (fortifications.md – Kámen) – jen na skalním výchozu, značka u kurzoru. */
+      placement: 'quarry';
+      check(landscape: Landscape, village: PlacementVillage, position: Position): FootprintCheck;
     });
 
 const dwelling = (kind: BuildableDwellingType, name: string, hotkeyLabel: string): BuildItem => {
@@ -501,6 +508,27 @@ const THRESHING_FLOOR: BuildItem & { placement: 'threshing-floor' } = {
       cost: check.ok
         ? threshingFloorPlacementCost(landscape, village, position, check, woodLogs, obstacles)
         : null,
+    };
+  },
+};
+
+/**
+ * Lom (fortifications.md – Kámen; Martin 8. 11. 2026) – jen na skalním výchozu, na výchozu jeden;
+ * cena u kurzoru je práce stavby (bez dřeva), zkratka L. Ikona je SVG (vlastní kresba).
+ */
+const QUARRY: BuildItem & { placement: 'quarry' } = {
+  kind: 'quarry',
+  name: 'Lom',
+  icon: 'lom.svg',
+  hotkey: 'KeyL',
+  hotkeyLabel: 'L',
+  placement: 'quarry',
+  check: (landscape, village, position) => {
+    const check = checkQuarryPlacement(village, obstaclesOf(landscape), position);
+    return {
+      ok: check.ok,
+      reason: check.reason,
+      cost: check.ok ? { laborManDays: STONE.quarryLaborManDays, trees: 0 } : null,
     };
   },
 };
@@ -821,6 +849,7 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
       ),
   },
   THRESHING_FLOOR,
+  QUARRY,
 ];
 
 /**

@@ -1,6 +1,5 @@
 import type { Landscape, ObstacleLayer } from '../landscape';
 import { cloneState } from './clone';
-import { distanceFactor } from './fields';
 import {
   addGate,
   autoGates,
@@ -39,7 +38,8 @@ import { checkFortificationPlacement } from './placement-fortifications';
 import { placementVillageOf } from './placement-village';
 import { DEMOLITION } from './rules-buildings';
 import { FORTIFICATIONS } from './rules-fortifications';
-import { quarryNear, stoneOnHand, takeStone } from './stone';
+import { nearestQuarry, quarryManDaysPerM3 } from './quarry';
+import { stoneOnHand, takeStone } from './stone';
 import type {
   ChronicleEvent,
   Construction,
@@ -237,14 +237,13 @@ export interface FortStonePlan {
 }
 
 /**
- * Kámen stavby opevnění (Hradby a obrana – Cena): napřed z hromad vsi (`stoneOnHand`), zbytek
- * z lomu v nejbližším skalním výchozu k `at` (`quarryNear`) za `pileSaves.stoneManDaysPerM3` na m³
- * × `distanceFactor` vzdálenosti; bez výchozu chybí. Bez vrstvy překážek (jen testy) se láme bez
- * polohy jako u blízkého lomu – jako kácení bez vrstvy (`planWoodFrom`). Stav nemění.
+ * Kámen stavby opevnění (Hradby a obrana – Cena, Kámen): napřed z hromad vsi (`stoneOnHand`),
+ * zbytek se láme na zakázku v nejbližším dostavěném lomu k `at` (`nearestQuarry`) za
+ * `STONE.quarryManDaysPerM3` × `distanceFactor` vzdálenosti; bez lomu chybí (Martin 8. 11. 2026:
+ * „Kámen z pole je na to nevhodný. Musíme zavést lom.“). Stav nemění.
  */
 export function fortStonePlan(
-  state: Pick<VillageState, 'stoneM3'>,
-  obstacles: ObstacleLayer | null,
+  state: Pick<VillageState, 'stoneM3' | 'quarries'>,
   needM3: number,
   at: RoadPoint,
 ): FortStonePlan {
@@ -252,10 +251,14 @@ export function fortStonePlan(
   const fromPile = Math.min(need, stoneOnHand(state));
   const rest = need - fromPile;
   if (rest <= EPSILON) return { fromPile, quarried: 0, quarryManDays: 0, missing: 0 };
-  const quarry = obstacles ? quarryNear(obstacles, at) : { distanceM: 0 };
+  const quarry = nearestQuarry(state, at);
   if (!quarry) return { fromPile, quarried: 0, quarryManDays: 0, missing: rest };
-  const perM3 = FORTIFICATIONS.pileSaves.stoneManDaysPerM3 * distanceFactor(quarry.distanceM);
-  return { fromPile, quarried: rest, quarryManDays: rest * perM3, missing: 0 };
+  return {
+    fromPile,
+    quarried: rest,
+    quarryManDays: rest * quarryManDaysPerM3(quarry.distanceM),
+    missing: 0,
+  };
 }
 
 /** Průměr bodů lomené čáry obvodu – odtud se hledají nejbližší stromy ke kácení. */
@@ -282,7 +285,7 @@ export interface FortWorkInput {
 /**
  * Založí stavbu na opevnění (mutuje `next` – klon): klády z hromady (i z pokácených stromů pásu),
  * zbytek vyhradí ke kácení mezi nejbližšími dospělými stromy (strom za `pileSaves.logManDays`
- * × vzdálenost – kácení je v ceně komplet); kámen z hromad, zbytek z lomu (`fortStonePlan`) –
+ * × vzdálenost – kácení je v ceně komplet); kámen z hromad, zbytek z lomu vsi (`fortStonePlan`) –
  * lámání se přičte k práci úseků podle jejich kamene. Vrátí důvod, když dřevo nebo kámen
  * nestačí (`FORT_NO_WOOD`, `FORT_NO_STONE`) – stav pak nemění; jinak null.
  */
@@ -313,7 +316,7 @@ export function pushWork(
   if (plan.missing > 0) return FORT_NO_WOOD;
   const stoneBy = input.plan.stoneM3 ?? [];
   const stoneNeed = stoneBy.reduce((sum, m) => sum + m, 0);
-  const stone = fortStonePlan(next, obstacles, stoneNeed, input.center);
+  const stone = fortStonePlan(next, stoneNeed, input.center);
   if (stone.missing > EPSILON) return FORT_NO_STONE(stone.missing);
   recordClearedObstacles(next, input.clearedIds, day);
   const wood = takeWood(next, plan, input.center);
@@ -342,6 +345,7 @@ export function pushWork(
     fortificationId: input.fortificationId,
     fortWork: input.work,
     fortSegments: segments,
+    ...(stone.fromPile > 0 ? { stoneFromPile: stone.fromPile } : {}),
   });
   return null;
 }

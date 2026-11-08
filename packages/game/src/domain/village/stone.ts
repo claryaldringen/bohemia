@@ -1,9 +1,11 @@
 import { obstacleKind, type ObstacleLayer } from '../landscape';
+import { logArrivalPoint, logPilePlace } from './log-piles';
+import { LOG_PILES } from './rules';
 import type { StoneStack, VillageState } from './types';
 
 // Kámen vsi (fortifications.md – Hradby a obrana, Kámen): zásoba v m³ s hromadami u cest jako klády
-// (`wood.ts`). Odkud kámen přibývá (pole, staveniště, balvany, lom), řeší až návrh suroviny – tady
-// jen zásoba, braní z nejbližších hromad a lom ve skalním výchozu.
+// (`wood.ts`, `log-piles.ts`). Kámen přibývá jen z lomu (`quarry.ts` – Martin 8. 11. 2026: „Kámen
+// z pole je na to nevhodný. Musíme zavést lom.“) a vrací se ze zrušené stavby hradby; nehnije.
 
 /** Tolerance zbytku hromady (m³) – menší hromada zmizí. */
 const EPSILON_M3 = 1e-9;
@@ -40,6 +42,40 @@ export function takeStone(state: VillageState, m3: number, at: { x: number; z: n
   const rest = stoneOnHand(state) - want;
   if (rest > EPSILON_M3) state.stoneM3 = rest;
   else delete state.stoneM3;
+}
+
+/**
+ * Přidá `m3` kamene na hromadu u cesty nejblíž místu `at` (`logPilePlace`; null = kámen přišel
+ * odjinud – u cesty nejblíž dvorci, `logArrivalPoint`). Hromada do `LOG_PILES.joinM` od místa se
+ * zvětší (nejbližší, při shodě menší id), jinak vznikne nová s id z `nextStoneStackId` (ne
+ * z `nextId`). Mutuje stav – volat na klonu.
+ */
+export function addStone(
+  state: VillageState,
+  m3: number,
+  at: { x: number; z: number } | null,
+): void {
+  if (!(m3 > EPSILON_M3)) return;
+  state.stoneM3 = stoneOnHand(state) + m3;
+  const stacks = (state.stoneStacks ??= []);
+  const place = logPilePlace(state, at ?? logArrivalPoint(state));
+  const join = LOG_PILES.joinM * LOG_PILES.joinM;
+  let target: StoneStack | null = null;
+  let targetD = Infinity;
+  for (const s of stacks) {
+    const d = (s.x - place.x) * (s.x - place.x) + (s.z - place.z) * (s.z - place.z);
+    if (d <= join && (d < targetD || (d === targetD && target !== null && s.id < target.id))) {
+      target = s;
+      targetD = d;
+    }
+  }
+  if (target) {
+    target.m3 += m3;
+    return;
+  }
+  const id = state.nextStoneStackId ?? 1;
+  state.nextStoneStackId = id + 1;
+  stacks.push({ id, x: place.x, z: place.z, m3, ...(place.road ? { road: place.road } : {}) });
 }
 
 /**

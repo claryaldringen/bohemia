@@ -614,6 +614,14 @@ describe('buildVillageView', () => {
         blocked: null,
         affordable: true,
       },
+      quarry: {
+        laborManDays: 20,
+        perHa: false,
+        perSquare: false,
+        upfront: [],
+        blocked: null,
+        affordable: true,
+      },
     });
     // zakladatelé bydlí na staveništi – domácnost s obydlím přibude s dostavěním zemnice
     expect(view.households).toEqual([]);

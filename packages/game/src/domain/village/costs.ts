@@ -21,6 +21,7 @@ import type {
   SacredBuildingKind,
   VillageState,
 } from './types';
+import { STONE } from './rules-stone';
 import { oakSupply, woodSupply, type WoodPlan } from './wood';
 
 // Ceny staveb a jestli na ně ves má (population.md – Nové obydlí, Odemčení). Práce
@@ -43,7 +44,8 @@ export type BuildKind =
   | 'orchard'
   | SacredBuildingKind
   | 'pen'
-  | 'threshing-floor';
+  | 'threshing-floor'
+  | 'quarry';
 
 /**
  * Co stavba potřebuje předem: obilí ze zásob, dřevo (stromy – klády z hromady, nebo dospělé
@@ -122,6 +124,8 @@ export const BUILD_COSTS: Record<BuildKind, BuildCost> = {
     perHa: false,
     upfront: { wood: HUMNO.trees },
   },
+  // fortifications.md – Kámen: lom na skalním výchozu ≈ 20 čd, bez dřeva (návrh Clauda)
+  quarry: { laborManDays: STONE.quarryLaborManDays, perHa: false, upfront: {} },
 };
 
 /**

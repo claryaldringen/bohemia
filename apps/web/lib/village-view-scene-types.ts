@@ -258,6 +258,23 @@ export interface SceneVillage {
    */
   logStacks?: (Pick<LogStack, 'id' | 'x' | 'z' | 'road' | 'dwellingId'> & { logs: number })[];
   /**
+   * Hromady kamení u cest (fortifications.md – Kámen): id, místo z jádra (`StoneStack`) a kámen
+   * (m³). Bez údaje žádné.
+   */
+  stoneStacks?: { id: number; x: number; z: number; m3: number }[];
+  /**
+   * Lomy na skalních výchozech (fortifications.md – Kámen): id výchozu, střed a natočení značky;
+   * `building` = lom se staví (`constructionId` jeho stavby). Bez údaje žádné.
+   */
+  quarries?: {
+    outcropId: number;
+    x: number;
+    z: number;
+    rotation: number;
+    building?: true;
+    constructionId?: number;
+  }[];
+  /**
    * Rozestavěná bourání (demolition.md – Bourání): id stavby bourání a co se boří – popisek práce
    * u člověka („bourá zemnici“). Bez údaje se nic nebourá.
    */

@@ -29,6 +29,7 @@ import { canonicalPlot } from './placement-geometry';
 import { penSquaresFromCells } from './placement-pens';
 import { checkSacredBuildingPlacement, checkThreshingFloorPlacement } from './placement-sacred';
 import { forestEdgeDistanceM, waterDistanceM } from './placement-squares';
+import { startQuarry } from './quarry';
 import type { DwellingPlacementCheck } from './placement-types';
 import { placementVillageOf, villageDwellingPositions } from './placement-village';
 import type { Point } from './polygon';
@@ -155,6 +156,13 @@ export interface ThreshingFloorIntent {
   position: Position;
 }
 
+/** Lom (fortifications.md – Kámen) – jen na skalním výchozu; střed padne na střed výchozu. */
+export interface QuarryIntent {
+  kind: 'quarry';
+  /** Bod na výchozu a natočení značky lomu. */
+  position: Position;
+}
+
 /** Nové pole ze čtverců (fields.md). */
 export interface FieldIntent {
   kind: 'field';
@@ -227,6 +235,7 @@ export type BuildIntent =
   | WorkshopIntent
   | SacredIntent
   | ThreshingFloorIntent
+  | QuarryIntent
   | FieldIntent
   | OrchardIntent
   | CemeteryIntent
@@ -297,6 +306,8 @@ export function applyBuildIntent(
       return buildSacred(state, day, landscape, obstacles, intent);
     case 'threshing-floor':
       return buildThreshingFloor(state, day, landscape, obstacles, intent);
+    case 'quarry':
+      return startQuarry(state, day, obstacles, intent.position);
     case 'field':
       return buildField(state, day, landscape, obstacles, intent);
     case 'orchard':

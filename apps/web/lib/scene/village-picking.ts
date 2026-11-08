@@ -97,6 +97,8 @@ export type VillageTarget =
   | { kind: 'fortification-gate'; id: number; segment: number }
   /** Humno (id humna = id stavby – production-chains.md, Humno): klik na mlatovou plochu. */
   | { kind: 'threshing-floor'; id: number }
+  /** Lom (id skalního výchozu – fortifications.md, Kámen): klik na výchoz s lomem. */
+  | { kind: 'quarry'; id: number }
   /**
    * Člověk vsi (id – villagers.md, Výběr postavy): klik na jeho postavu; výběr zůstane, i když
    * postava zmizí (vejde domů, za kraj mapy).
@@ -150,6 +152,9 @@ const KILN_REMNANT_PICK_M = 3.5;
 export const SACRED_OAK_PICK = { radiusM: 4, heightM: 12, stepM: 1 } as const;
 
 /** Bod paprsku ve výšce `y` (x, z) a jeho parametr t; null, když paprsek výšku neprotne vpřed. */
+/** Dosah kliku na lom od středu výchozu (m) – značka lomu má ≈ 6 m. */
+const QUARRY_PICK_M = 4;
+
 export function rayAtHeight(ray: Ray, y: number): { x: number; z: number; t: number } | null {
   const dy = ray.direction.y;
   if (Math.abs(dy) < 1e-9) return null;
@@ -300,6 +305,11 @@ export function pickVillageTarget(
     ),
   );
   if (floor) return { kind: 'threshing-floor', id: floor.id };
+  // lom – klik do dosahu značky na výchozu (hotový i rozestavěný)
+  const quarry = (village.quarries ?? []).find(
+    (q) => Math.hypot(ground.x - q.x, ground.z - q.z) <= QUARRY_PICK_M,
+  );
+  if (quarry) return { kind: 'quarry', id: quarry.outcropId };
   // opevnění – pás kolem plochy (hotový i rozestavěný obvod) a kousek podél okraje (pás je úzký);
   // zbořený díl je mezera (demolition.md – Opevnění) – nevybere se
   for (const f of village.forts ?? []) {
@@ -578,6 +588,9 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
   if (target.kind === 'wildlife') return true;
   // prvek prémiové krajiny je v krajině pořád
   if (target.kind === 'premium-site') return true;
+  if (target.kind === 'quarry') {
+    return (village.quarries ?? []).some((q) => q.outcropId === target.id);
+  }
   return village.fields.some((f) => f.id === target.id);
 }
 

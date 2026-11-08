@@ -13,7 +13,6 @@ import {
   fortificationCost,
   layerBuilt,
   outlineOf,
-  quarryNear,
   sectionDemolition,
   segmentBuilt,
   segmentIsOld,
@@ -21,6 +20,7 @@ import {
   segmentState,
   segmentWall,
   stoneOnHand,
+  villageQuarries,
   villageFortifications,
   villageStock,
   woodFellingCost,
@@ -33,7 +33,6 @@ import {
   type FortTop,
   type Fortification,
   type Landscape,
-  type ObstacleLayer,
   type VillageState,
   type WallKind,
 } from '@bohemia/game';
@@ -522,17 +521,14 @@ export function fortWoodSupply(
   return villageStock(state, obstacles).wood;
 }
 
-/** Kámen vsi pro cenu opevnění (Hradby a obrana – Cena): m³ na hromadách a lom ve skále. */
+/** Kámen vsi pro cenu opevnění (Hradby a obrana – Cena): m³ na hromadách a lom vsi. */
 export interface FortStoneSupply {
   m3: number;
-  /** Na mapě sídla je skalní výchoz – kamene z lomu je kolik je třeba. */
+  /** Ves má dostavěný lom – kamene na zakázku je kolik je třeba (fortifications.md – Kámen). */
   quarry: boolean;
 }
 
-/**
- * Kámen vsi pro cenu opevnění u kurzoru – hromady (`stoneOnHand`) a lom: stačí, že na mapě sídla
- * nějaký výchoz je (`quarryNear` – výchoz se neodstraňuje).
- */
-export function fortStoneSupply(state: VillageState, obstacles: ObstacleLayer): FortStoneSupply {
-  return { m3: stoneOnHand(state), quarry: quarryNear(obstacles, { x: 0, z: 0 }) !== null };
+/** Kámen vsi pro cenu opevnění u kurzoru – hromady (`stoneOnHand`) a dostavěný lom. */
+export function fortStoneSupply(state: VillageState): FortStoneSupply {
+  return { m3: stoneOnHand(state), quarry: villageQuarries(state).length > 0 };
 }

@@ -68,6 +68,8 @@ export const ACTION_RIGHTS = {
   placeOrchard: 'build',
   placeSacred: 'build',
   placeThreshingFloor: 'build',
+  placeQuarry: 'build',
+  orderStoneQuarrying: 'build',
   placeWorkshop: 'build',
   placePen: 'build',
   placeFortification: 'build',

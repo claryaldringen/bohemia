@@ -128,6 +128,21 @@ roštová ≈ 7 m, komorová ≈ 8 m, komory po 5–6 m).
 - Podrobnosti (návrh Clauda): lom je stavba na výchozu (≈ 20 čd, bez dřeva); kromě zakázky
   hradby smí hráč zadat „nalámat do zásoby N m³“ (pro obchod a dávky); nalámaný či dovezený kámen
   leží na hromadách kamení u cesty (jako klády); kámen nehnije.
+- **Implementováno 8. 11. 2026** (plán hradeb, Úloha 4 přepsaná podle Martina). Návrh Clauda
+  k provedení:
+  - lom se staví z nabídky staveb jen na skalní výchoz (do 1 m za jeho okrajem); na jednom výchozu
+    jeden lom, ves jich smí mít víc (zakázka hradby láme v nejbližším). Lom chce 20 čd, dřevo ne;
+  - **lámání na zakázku** pro hradbu jen z **dostavěného** lomu: 1,4 čd na m³ × příplatek za
+    vzdušnou vzdálenost lomu od středu stavby; kámen na hromadách se bere napřed. Bez lomu a bez
+    kamene na hromadách roštová a komorová hradba nejde („Chybí N m³ kamene. Ves nemá lom.“);
+  - **nalámat do zásoby** zadá hráč v panelu lomu (po 10 nebo 50 m³, jedna zakázka 1–200 m³):
+    1,4 čd na m³ × příplatek za vzdálenost lomu od dvorce – kámen se sveze na hromadu u cesty
+    nejblíž dvorci. Práce jde ze společné práce vsi jako stavba; zrušená zakázka složí, co se už
+    nalámalo (podle odvedené práce);
+  - **zrušená stavba hradby** vrátí na hromadu kámen, který vzala z hromad, v podílu nehotové
+    práce; kámen lámaný na zakázku pro nehotové úseky se ještě nelámal, nic nevrací;
+  - hromady kamení u cesty stojí jako klády (`LOG_PILES` – u cesty do 60 m od místa, blízké se
+    spojí); ve scéně díly po 3 a 1 m³, lom je vylomená stěna s hromádkami kamení.
 
 ### Obrana bez násobku
 
@@ -297,10 +312,10 @@ Martin 8. 11. 2026 – ceny „**komplet, včetně kácení a odvozu**“: palis
   a komorová hradba jako nové opevnění (od roku 790 a 830 podle dne vsi, zašedlé v nabídce
   s důvodem), kámen předem. Návrh Clauda k provedení:
   - strom pro opevnění se kácí za **1 čd × příplatek za vzdálenost** (jako ostatní stavby, ale
-    1 čd místo 2 čd – kácení je v ceně komplet); kámen, který na hromadách chybí, se láme v
-    **nejbližším skalním výchozu** za 1 čd na m³ × příplatek za vzdálenost (vzdušnou) – bez výchozu
-    a bez kamene na hromadách stavba nejde („Chybí N m³ kamene.“); lámání je v práci úseků podle
-    jejich kamene;
+    1 čd místo 2 čd – kácení je v ceně komplet); kámen, který na hromadách chybí, se láme
+    ~~v nejbližším skalním výchozu za 1 čd na m³~~ v **lomu vsi** za 1,4 čd na m³ × příplatek za
+    vzdálenost (vzdušnou; Kámen – Martin 8. 11. 2026) – bez lomu a bez kamene na hromadách stavba
+    nejde („Chybí N m³ kamene. Ves nemá lom.“); lámání je v práci úseků podle jejich kamene;
   - **zboření** stojí ¼ práce stavby komplet (palisáda 75 čd na 100 m, plot 8,75 čd) – dřív ¼ práce
     bez kácení;
   - roštová a komorová hradba (pás 7–8 m) **vezmou díly polí a sadů pod pásem** jako val;

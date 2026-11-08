@@ -40,6 +40,7 @@ import {
   ThreshingFloorBody,
   FieldsBody,
 } from './selection/fields';
+import { QuarryBody } from './selection/quarry';
 import { WildlifeBody } from './selection/wildlife';
 import { PremiumSiteBody } from './selection/premium';
 import { PREMIUM_TEXTS } from '@/lib/premium-view';
@@ -106,8 +107,11 @@ export function SelectionPanel({
   ennoble,
   onAbandonPart,
   onStructureUse,
+  onOrderQuarrying,
 }: {
   details: SelectionDetails | null;
+  /** Nalámat do zásoby `m3` kamene v lomu (server action – fortifications.md, Kámen). */
+  onOrderQuarrying?: (outcropId: number, m3: number) => Promise<void>;
   /** Opustí díl pole, nebo ho vrátí do osevu (server action – fields.md, Opuštěný díl). */
   onAbandonPart?: (partId: number, abandon: boolean) => Promise<void>;
   /** Povýšení vesničana (vassalage.md): cílové vsi bez vojvody a akce – klíč v panelu muže. */
@@ -191,6 +195,9 @@ export function SelectionPanel({
   } else if (details.kind === 'threshing-floor') {
     portrait = <Portrait icon="humno" name="Humno" />;
     body = <ThreshingFloorBody details={details} />;
+  } else if (details.kind === 'quarry') {
+    portrait = <Portrait icon="lom" name="Lom" src="/icons/build/lom.svg" />;
+    body = <QuarryBody details={details} onOrder={onOrderQuarrying} />;
   } else if (details.kind === 'fortification') {
     portrait = (
       <Portrait
