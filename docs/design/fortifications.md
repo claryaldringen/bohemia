@@ -45,6 +45,8 @@ stavbách), [obyvatele](population.md) (práce vsi, chátrání a přestavba), [
 
 ## Hradby a obrana (8. 11. 2026)
 
+Stav: **schváleno 8. 11. 2026** (Martin: „Schvaluji.“) – odpovědi na otevřené otázky níž.
+
 Stav: **návrh** (8. 11. 2026) – čeká na [otevřené otázky](#otevřené-otázky-k-hradbám). Oddíl
 **ruší násobek obrany**, přidává nové druhy a vylepšení po úsecích; starší oddíly níž platí, kde
 nejsou přeškrtnuté. Citace jsou z rozhovoru s Martinem 8. 11. 2026; co není jeho, je **návrh
