@@ -112,6 +112,7 @@ async function main(): Promise<void> {
             villages: gameDeps.villages,
             worldDirectory: gameDeps.worldDirectory,
             worldSeed: gameDeps.worldSeed,
+            locks,
           },
           levies: {
             dialogs: gameDeps.dialogs,

@@ -1,5 +1,5 @@
 import { INVITES } from '../domain/world';
-import { expireNewcomerWaits, type NewcomerDeps } from './newcomers';
+import { expireNewcomerWaits, type NewcomerWorldDeps } from './newcomers';
 import { openAnnualDialogs, type AnnualLevyDeps } from './annual-levies';
 import type { ActivityRepository } from './activity';
 import type { HouseRepository } from './houses';
@@ -70,7 +70,7 @@ export type WorldTaskDeps = SuccessionCreditDeps & {
   /** Svolání bez odpovědi propadne s koncem války (vassalage.md – Svolání). */
   summons?: Parameters<typeof lapseSummons>[0];
   /** Nováček po týdnu čekání dostane pána losem, nebo začne svobodný (newcomers.md). */
-  newcomers?: NewcomerDeps;
+  newcomers?: NewcomerWorldDeps;
   /** Jídlo domény po žních (hillfort.md – Jídlo domény): vsi držitele si rozdělí přebytek. */
   domainFood?: DomainFoodDeps;
 };
