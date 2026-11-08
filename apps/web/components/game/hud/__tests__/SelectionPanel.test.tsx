@@ -501,6 +501,9 @@ describe('SelectionPanel – díl pole a čtverec sadu (klik – fields.md, Co h
     kind: 'field-part',
     id: 5,
     cell: { x: 2, y: 0 },
+    partId: 105,
+    abandoned: false,
+    abandonBlock: null,
     look: 'ripe',
     stage: 'sown',
     legume: false,
@@ -548,6 +551,22 @@ describe('SelectionPanel – díl pole a čtverec sadu (klik – fields.md, Co h
     // příloh ani zakládání se neukazují
     expect(html).not.toContain('selection-fallow-years');
     expect(html).not.toContain('selection-progress');
+  });
+
+  it('opustit díl: přepínač ikonou, popisek podle stavu, nezaložený díl s důvodem', () => {
+    // fields.md – Opuštěný díl: osetý díl se opustí po žních, opuštěný svítí a vrací se do osevu
+    const sown = render(part());
+    expect(sown).toMatch(/data-testid="abandon-part"[^>]*aria-pressed="false"/);
+    expect(sown).toContain('/icons/resources/abandon-part.svg');
+    expect(sown).toContain('Opustit díl – po žních se už neoseje a zaroste');
+    const fallow = render(part({ stage: 'meadow', crop: null, abandoned: true }));
+    expect(fallow).toMatch(/data-testid="abandon-part"[^>]*aria-pressed="true"/);
+    expect(fallow).toContain('Opuštěný díl – vrátit do osevu');
+    const founding = render(
+      part({ stage: 'founding', crop: null, abandonBlock: 'Díl se teprve zakládá.' }),
+    );
+    expect(founding).toMatch(/data-testid="abandon-part"[^>]*disabled/);
+    expect(founding).toContain('Díl se teprve zakládá.');
   });
 
   it('osevní postup: kolikátý osev oběhu, příště úhor s odpočinkem, díl nad potřebu', () => {

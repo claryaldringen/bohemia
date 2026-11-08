@@ -260,6 +260,18 @@ function forestText(parts: number, gone: boolean): string {
     : `Nepasené pole zarostlo lesem – ubylo ${formatCells(parts)}.`;
 }
 
+/** Opuštěné díly pole (fields.md – Opuštěný díl): „Díl pole opuštěn – zaroste.“ */
+function abandonedPartsText(parts: number): string {
+  if (parts === 1) return 'Díl pole opuštěn – zaroste.';
+  return `${plural(parts, 'Opuštěn', 'Opuštěny', 'Opuštěno')} ${formatInteger(parts)} ${plural(parts, 'díl', 'díly', 'dílů')} pole – zarostou.`;
+}
+
+/** Opuštěné díly pole vrácené do osevu (fields.md – Opuštěný díl). */
+function returnedPartsText(parts: number): string {
+  if (parts === 1) return 'Díl pole vrácen do osevu.';
+  return `${plural(parts, 'Vrácen', 'Vráceny', 'Vráceno')} ${formatInteger(parts)} ${plural(parts, 'díl', 'díly', 'dílů')} pole do osevu.`;
+}
+
 /** Opuštěná stavba spadla (abandonment.md – kronika). */
 const STRUCTURE_FELL_TEXTS: Record<AbandonedStructure, string> = {
   idol: 'Modla, ke které léta nikdo nechodil, padla.',
@@ -618,6 +630,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return `Obyvatelé se rozhodli přestavět dožilé obydlí na ${DWELLING_NAMES[event.type].accusative}.`;
     case 'construction-cancelled':
       return cancelledText(event.constructionKind, event.craft);
+    case 'parts-abandoned':
+      return abandonedPartsText(event.parts);
+    case 'parts-returned':
+      return returnedPartsText(event.parts);
     case 'relocation-started':
       return `Domácnost si začala stavět novou ${DWELLING_NAMES[event.type].accusative} – přestěhuje se.`;
     case 'relocation-cancelled':

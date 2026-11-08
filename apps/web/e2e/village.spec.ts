@@ -1620,6 +1620,33 @@ test('díl pole ukáže škodu zvěře letos', async ({ page }) => {
   await expect(panel.getByTestId('selection-damage')).toHaveText('12 %');
   await expect(panel.getByTestId('selection-damage')).toHaveAttribute('data-alert', 'true');
   await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
+
+  // Opustit díl a vrátit ho do osevu (fields.md – Opuštěný díl): nezaložený díl opustit nejde,
+  // založený přepínač opustí (svítí) a vrátí.
+  const abandon = panel.getByTestId('abandon-part');
+  await expect(abandon).toBeDisabled();
+  const founded = await villageState(s.settlementId);
+  for (const p of founded.parts) {
+    p.foundingDone = p.foundingCost;
+    p.state = 'ready';
+  }
+  founded.constructions = founded.constructions.filter((c) => c.kind !== 'field');
+  await writeVillageState(s.settlementId, founded);
+  await pollVillage(page);
+  await expect(abandon).toBeEnabled({ timeout: 20_000 });
+  await expect(abandon).toHaveAttribute('aria-pressed', 'false');
+  await abandon.click();
+  await expect(abandon).toHaveAttribute('aria-pressed', 'true', { timeout: 20_000 });
+  await expect
+    .poll(async () => (await villageState(s.settlementId)).parts.filter((p) => p.abandoned).length)
+    .toBe(1);
+  await expect(abandon).toBeEnabled();
+  await abandon.click();
+  await expect(abandon).toHaveAttribute('aria-pressed', 'false', { timeout: 20_000 });
+  await expect
+    .poll(async () => (await villageState(s.settlementId)).parts.some((p) => p.abandoned))
+    .toBe(false);
+  await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
 });
 
 test('vývojový režim: vynucené sucho – ikona na liště, upozornění a ochrana dílu', async ({

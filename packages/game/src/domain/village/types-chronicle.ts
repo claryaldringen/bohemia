@@ -247,6 +247,13 @@ export type ChronicleEvent = { day: number } & (
     }
   /** Hráč zrušil rozestavěnou stavbu (cancel-construction.ts); dřevo se vrátilo na hromadu. */
   | { kind: 'construction-cancelled'; constructionKind: ConstructionKind; craft?: Craft }
+  /**
+   * Opuštěné díly pole (fields.md – Opuštěný díl): kolik dílů vypadlo z osevu a zaroste (osetý až
+   * po žních).
+   */
+  | { kind: 'parts-abandoned'; parts: number }
+  /** Opuštěné díly pole se vrátily do osevního postupu (fields.md – Opuštěný díl). */
+  | { kind: 'parts-returned'; parts: number }
   | { kind: 'rebuild-decided'; dwellingId: number; type: DwellingType }
   /** Domácnost obydlí `dwellingId` si začala stavět nový dům typu `type` (migration.md). */
   | { kind: 'relocation-started'; dwellingId: number; type: DwellingType }

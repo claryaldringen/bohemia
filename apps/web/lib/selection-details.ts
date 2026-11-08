@@ -1,4 +1,5 @@
 import {
+  ABANDON_FOUNDING,
   HORSES,
   AGE,
   CARTS,
@@ -278,6 +279,12 @@ type SelectionKinds =
       kind: 'field-part';
       id: number;
       cell: TileCell;
+      /** Id dílu (`FieldPart.id`) – opuštění a vrácení do osevu. */
+      partId: number;
+      /** Opuštěný díl (fields.md – Opuštěný díl) – neoseje se a zarůstá; osetý po žních. */
+      abandoned: boolean;
+      /** Proč díl opustit nejde (nezaložený díl – zrušit jde stavba); jde-li, null. */
+      abandonBlock: string | null;
       /** Co je na dílu vidět (vzhled ze scény); bez vzhledu null – název podle stadia. */
       look: FieldLook | null;
       stage: PartStage;
@@ -1259,6 +1266,9 @@ function fieldPartDetails(
     kind: 'field-part',
     id: target.id,
     cell: { x: target.cell.x, y: target.cell.y },
+    partId: part.id,
+    abandoned: part.abandoned === true,
+    abandonBlock: part.founding ? ABANDON_FOUNDING : null,
     look: shown.look ?? null,
     stage: shown.stage,
     legume: shown.crop === 'legume',

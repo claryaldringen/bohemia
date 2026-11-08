@@ -302,6 +302,7 @@ function fieldPartView(
       : {}),
     ...(rotation ? { next: rotation.next } : {}),
     ...(rotation?.rest ? { rest: rotation.rest } : {}),
+    ...(part.abandoned ? { abandoned: true as const } : {}),
     ...(part.state === 'founding'
       ? {
           founding: {
