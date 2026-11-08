@@ -940,3 +940,12 @@ sinceTick })` – kontrolní bod z úložiště, mřížka mapy cíle jen při b
   A pak nabídne mír s ročním tributem (platí B), B přijme – válka `peace`, tribut v přijatém kole,
   kronika míru ve schránce obou vsí. Vedle `next start` běží worker se smyčkou tažení (jako test
   živého vedení), mezi nájezdem a návratem se restartuje.
+- **e2e hradby** (plán hradeb, Úloha 22) – druhý test téhož souboru: ves B má kolem vsi hotovou
+  palisádu s ochozem (`proposeFortification` + `startFortification`, díly dostavěné, `kind:
+'walkway'`) **bez bran** – brána by se prosekla dřív, než se vyrobí žebřík. Tažení A (8 mužů,
+  velí vesničan – NPC) stojí 40 m vně hradby; NPC velitel volí postup sám (`fastestApproach` –
+  žebříky z lesa). Výroba žebříku trvá 4 herní hodiny, v pomalém světě testů ≈ 11 500 taktů, proto
+  kontrolní bod začne o 16 000 taktů (≈ 67 min) dřív a worker boj dopočítá najednou. Test ověří
+  stanoviště obránců u čáry hradby (`Fighter.post`), žebříky v `BattleState.ladders`, útočníka
+  uvnitř obvodu (bod v mnohoúhelníku středů dílů) a nájezd bez opovědi v kronice obou vsí – vsi
+  se dopočítají znovu ode dne nájezdu (`replayFrom`; boj mohl začít i včera).

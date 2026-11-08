@@ -10,7 +10,9 @@ rodinu](lord.md) (výcvik), [koně](horses.md), [divokou zvěř](wildlife.md) (l
 [stěhování](migration.md) (mřížka map) a [obchod](trade.md) (dvorec, zemská stezka). Opevnění
 popisuje samostatný návrh [fortifications.md](fortifications.md) (schválen 3. 11. 2026) – válka
 z něj bere ~~násobky obrany~~ obranu hradeb (od 8. 11. 2026 bez násobku – [fortifications.md](fortifications.md#hradby-a-obrana-8-11-2026)), útočiště
-a prolomení. Historické opory:
+a prolomení; hradby a obrana jsou implementované 8. 11. 2026
+([plán hradeb](../superpowers/plans/2026-11-08-ramparts.md); kód [docs/code/war.md](../code/war.md) –
+Přechod hradby, Prolomení, Obránci na hradbě, Brány v bitvě, NPC velitel). Historické opory:
 [rešerše](research/2026-11-02-war.md).
 
 ## Proč
