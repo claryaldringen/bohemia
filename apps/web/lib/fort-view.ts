@@ -30,6 +30,7 @@ import {
   type Landscape,
   type VillageState,
 } from '@bohemia/game';
+import { fortSectionSpans } from './fort-sections';
 
 /** Bod světa (x, z) v m. */
 export type FortPoint = readonly [number, number];
@@ -104,12 +105,43 @@ export interface FortDemolishOption {
   blocked: string | null;
 }
 
-/** Úsek opevnění mezi branami pro panel (jádro – `fortSections`) a jeho zboření. */
-export interface VillageFortSection {
-  /** Díly úseku po směru hodin; první je díl s branou. */
+/** Stav dílů pro panel: hotové a všechny, nejslabší, za životností a stáří nejstaršího. */
+export interface FortPartsState {
+  /** Díly (≈ 15 m) – hotové a všechny. */
+  builtParts: number;
+  parts: number;
+  /** Stav nejslabšího hotového dílu 0–1 (nic hotového 1). */
+  weakest: number;
+  /** Díly za životností (oranžově) – stav pod 100 %. */
+  oldParts: number;
+  /** Stáří nejstaršího hotového dílu v celých letech; null – nic hotového. */
+  ageYears: number | null;
+}
+
+/**
+ * Úsek opevnění mezi branami pro panel (fortifications.md – Rozhraní, Úseky): hradba mezi okraji
+ * bran (`fortSectionSpans`) – délka a stav dílů, kterých se dotkne – a zboření úseku jádra
+ * (`fortSections` – díly od dílu s branou po další díl s branou).
+ */
+export interface VillageFortSection extends FortPartsState {
+  /** Díly úseku jádra po směru hodin (zboření); první je díl s branou. */
   segments: number[];
   gateSegment: number | null;
+  /** Délka hradby úseku mezi okraji bran (m). */
+  lengthM: number;
   demolish: FortDemolishOption;
+}
+
+/** Brána opevnění pro panel (fortifications.md – Brány): díl, ve kterém stojí, a jeho stav. */
+export interface VillageFortGate {
+  /** Díl s branou (`FortGate.segment`) – podle něj se brána vybírá. */
+  segment: number;
+  /** Stav dílu brány 0–1; nehotový díl 1. */
+  state: number;
+  /** Díl brány je za životností (oranžově). */
+  old: boolean;
+  /** Stáří dílu brány v celých letech; null – díl ještě nestojí. */
+  ageYears: number | null;
 }
 
 /** Opevnění pro panel výběru (fortifications.md – Rozhraní). */
@@ -144,8 +176,10 @@ export interface VillageFortification {
   upgrade?: FortWorkOption;
   /** Nástavby na valu (jen val): plot a palisáda. */
   tops?: { top: FortTop; option: FortWorkOption }[];
-  /** Úseky mezi branami se zbořením – panel ukáže úsek, na jehož díl hráč klikl. */
+  /** Úseky mezi branami se zbořením – panel úseku ukáže vybraný úsek. */
   sections: VillageFortSection[];
+  /** Brány v pořadí dílů – panel brány. */
+  gateViews: VillageFortGate[];
 }
 
 /** Uzavřený obrys vnějšího okraje – lomená čára křivky po směru hodin, první bod i na konci. */
@@ -297,6 +331,21 @@ function demolishOption(
   };
 }
 
+/** Stav dílů `indices` opevnění ke dni `day` pro panel úseku. */
+function partsState(fort: Fortification, indices: readonly number[], day: number): FortPartsState {
+  const parts = fort.segments.filter((s) => indices.includes(s.index));
+  const built = parts.filter((s) => s.builtDay !== null && s.demolishedDay === undefined);
+  const oldest = Math.min(...built.map((s) => s.builtDay ?? day));
+  return {
+    builtParts: built.length,
+    parts: parts.length,
+    weakest: built.length === 0 ? 1 : Math.min(...built.map((s) => segmentState(fort, s, day))),
+    oldParts: built.filter((s) => segmentIsOld(fort, s, day)).length,
+    ageYears:
+      built.length === 0 ? null : Math.floor(Math.max(0, day - oldest) / FORT_DAYS_PER_YEAR),
+  };
+}
+
 /** Útočiště: lidé a skot podle plochy uvnitř (m² na člověka a na kus). */
 export function refugePlaces(innerAreaM2: number): { people: number; cattle: number } {
   const r = FORTIFICATIONS.refuge;
@@ -322,6 +371,10 @@ export function fortificationViews(
     const outline = outlineOf(landscape, fort);
     if (!outline) continue;
     const shapes = fortSegments(outline);
+    const spans = fortSectionSpans(
+      shapes.map((x) => x.lengthM),
+      fort.gates,
+    );
     const work = state.constructions.find(
       (c) => c.kind === 'fortification' && c.fortificationId === fort.id,
     );
@@ -342,11 +395,30 @@ export function fortificationViews(
       gates: fort.gates.length,
       refugePeople: places.people,
       refugeCattle: places.cattle,
-      sections: fortSections(fort).map((section) => ({
-        segments: [...section.segments],
-        gateSegment: section.gateSegment,
-        demolish: demolishOption(state, landscape, fort.id, section.segments[0]!),
-      })),
+      sections: fortSections(fort).map((section) => {
+        const span = spans.find((x) => x.gateSegment === section.gateSegment);
+        return {
+          segments: [...section.segments],
+          gateSegment: section.gateSegment,
+          lengthM: span?.lengthM ?? 0,
+          ...partsState(fort, span?.segments ?? section.segments, day),
+          demolish: demolishOption(state, landscape, fort.id, section.segments[0]!),
+        };
+      }),
+      gateViews: [...fort.gates]
+        .sort((a, b) => a.segment - b.segment)
+        .map((gate) => {
+          const seg = fort.segments.find((x) => x.index === gate.segment);
+          const stands = seg !== undefined && seg.builtDay !== null;
+          return {
+            segment: gate.segment,
+            state: stands ? segmentState(fort, seg, day) : 1,
+            old: stands && segmentIsOld(fort, seg, day),
+            ageYears: stands
+              ? Math.floor(Math.max(0, day - (seg.builtDay ?? day)) / FORT_DAYS_PER_YEAR)
+              : null,
+          };
+        }),
       multiplier:
         standing.length === 0
           ? 1

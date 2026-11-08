@@ -360,18 +360,37 @@ tlačítka „Vylepšit na palisádu“ a „Postavit na valu plot / palisádu�
   červeně: „Opevnění nevede přes obydlí.“, „Opevnění nevede přes vodu.“, „Ohyb je moc ostrý.“,
   „Obvod se nesmí křížit.“, „Opevnění se nesmí dotknout jiného.“, „Chybí 40 klád.“ (návrh
   Clauda) – Martin 3. 11. 2026 schválil kreslení „jako pole“, které tahle úprava nahrazuje.
-- **Panel opevnění** (výběr kliknutím na úsek – návrh Clauda): ikona druhu, délka (m), stav
+- **Panel opevnění** (výběr dvojklikem na obvod – Martin 8. 11. 2026): ikona druhu, délka (m), stav
   (nejslabší úsek v %, oranžově úseky za životností), brány (počet), útočiště (lidé a dobytek),
   násobek obrany (štít s číslem), průběh stavby; tlačítka „Vylepšit na palisádu“ (u plotu),
   „Postavit na valu plot“ a „Postavit na valu palisádu“ (u valu) – zašedlé s důvodem u kurzoru
   („Chybí 120 klád.“, „Stavba už běží.“); ikona brány – další klik na obvod přidá bránu.
 - **Úseky** ([demolition.md](demolition.md) – Opevnění; Martin 8. 11. 2026: „Hradba bude fungovat
   podobně jako cesta – bude rozdělena na jednotlivé úseky mezi bránami. Hráč pak bude moci každý
-  z těch úseků zbořit nebo vylepšit.“): klik na obvod vybere úsek mezi branami s dílem, na který
-  hráč klikl – zvýrazní se pás úseku; ikona Zbořit (popisek: práce a klády zpět, u valu napřed
+  z těch úseků zbořit nebo vylepšit.“): klik na obvod vybere úsek mezi branami – hradbu od okraje
+  brány po okraj další brány, kde hráč klikl – a zvýrazní se přesně jeho pás (křivka a šířka pásu
+  druhu); panel úseku: délka úseku, díly (hotové / všechny), stav nejslabšího dílu (oranžově za
+  životností), stáří nejstaršího dílu a ikona Zbořit (popisek: práce a klády zpět, u valu napřed
   nástavba, pak srovnat val), zašedlá s důvodem („V úseku stojí jen brána – brány zůstávají.“,
   „Úsek už je zbořený.“, „Stavba už běží.“). Ve scéně se úsek rozebírá jako staveniště pozpátku,
   zbořený díl je mezera (návrh Clauda). Vylepšit po úsecích – později.
+- **Výběr brány, úseku a celé hradby** (Martin 8. 11. 2026: „nemůžu označit brány tak jako
+  křižovatky u cesty. Žluté označení nesedí s tvarem označené hradby. Na označeném úseku vidím
+  parametry celé hradby. Chtěl bych označit celou hradbu včetně bran dvojklikem, tak jak je to
+  u polí.“):
+  - **brána** jde vybrat klikem jako křižovatka – klik do dosahu brány (pás brány a 0,75 m za
+    jejím okrajem) má přednost před úsekem; zvýrazní se brána, panel: portrét „Brána plotu /
+    palisády / valu“ podle druhu opevnění, stav a stáří dílu, ve kterém stojí, a ikona cesty, která
+    branou vede (klik ji vybere) – návrh Clauda; zrušit bránu zatím nejde (Brány);
+  - **úsek** začíná a končí na okraji brány, ne na hranici dílu – brána stojí uvnitř svého dílu,
+    takže díl s branou patří napůl k sousednímu úseku (návrh Clauda); délka a stav dílů jsou jen
+    úseku, parametry celé hradby (délka obvodu, brány, útočiště, násobek, vylepšení celého
+    opevnění) panel úseku neukazuje;
+  - **dvojklik** na úsek nebo bránu vybere celou hradbu včetně bran – zvýrazní se celý pás obvodu,
+    panel celého opevnění (Panel opevnění výš). Přidat bránu jde z panelu úseku i celé hradby
+    (návrh Clauda).
+  - Zbořit úsek dál boří celé díly mezi díly bran (díly s branou zůstávají) – kus hradby mezi
+    okrajem brány a koncem dílu brány zůstane stát (otázka na Martina, zda dělit díly u brány).
 - **Minimapa:** obvod čarou v barvě druhu (návrh Clauda).
 - Slova jen v popiscích (`Tooltip`), žádná výjimka z pravidla.
 

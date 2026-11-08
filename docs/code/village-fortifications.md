@@ -228,17 +228,48 @@ Dřívější obvod po čtvercích zůstal jen pro převod (`squares-outline.ts`
   není pás čtvrtinového tempa). Vylepšení celého opevnění (`startFortificationUpgrade`) zbořené
   díly vynechá, nástavba se zbořenou nástavbou dílu postaví znovu (`delete seg.top`); plot je
   palisádou, když jsou palisádou všechny nezbořené díly.
-- **Rozhraní** (Úloha 12 – zatím jen Zbořit; Vylepšit po úsecích čeká na Úlohu 9): klik na obvod
-  vybere `{ kind: 'fortification', id, segment }` – díl nejblíž kliku (`fortSegmentAt`
-  v `village-picking.ts`: kus pásu podle `SceneFortification.bandSegments`, jinak nejbližší okraj
-  dílu do `FORT_PICK_M`; zbořený díl je mezera a nevybere se). `fortificationViews` nese
-  `sections` (`fortSections` + `sectionDemolition` každého úseku → `FortDemolishOption { work,
-cost, blocked }`, běžící stavba jako „Stavba už běží.“), `selectionDetails` z nich vybere
-  `section` úseku s klikem. Panel (`hud/selection/fortification.tsx`) – ikona Zbořit
-  (`fort-demolish`; popisek „Zbořit úsek“ / „Zbořit nástavbu úseku“ / „Srovnat val úseku“, práce
-  a klády `+N` zpět, nebo důvod červeně), průběh bourání „Bourání“, zrušení jako u stavby.
-  Zvýraznění (`selection-highlight.ts` – `fortSectionRings`): obrys pásu dílů úseku z kusů pásu,
-  zbořené díly ho dělí; bez `bandSegments` celý obvod.
+- **Rozhraní** (Úloha 12 – zatím jen Zbořit; Vylepšit po úsecích čeká na Úlohu 9; výběr podle
+  Martina 8. 11. 2026): tři výběry ve `village-picking.ts` – `fortTargetAt` (čisté funkce
+  z `lib/fort-sections.ts`, polohu kliku po obvodu dá `perimeterPosition`):
+  - **brána** `{ kind: 'fortification-gate', id, segment }` (díl brány) – klik na pás nebo do
+    `FORT_PICK_M` od okraje do `FORT_GATE_PICK_MARGIN_M` (0,75 m) za okrajem brány po obvodu; má
+    přednost před úsekem i cestou (jako křižovatka);
+  - **úsek** `{ kind: 'fortification-section', id, segment }` – `segment` je první díl úseku jádra
+    (díl brány na začátku, bez brány 0); úsek se hledá **podle polohy kliku po obvodu**
+    (`fortSectionSpans` + `spanAt`), ne podle dílu – brána leží uvnitř dílu (`offsetM`), takže
+    začátek dílu s branou patří ještě k předchozímu úseku. Zbořený díl je mezera (`fortSegmentAt`
+    – kus pásu podle `SceneFortification.bandSegments`, jinak nejbližší okraj dílu do `FORT_PICK_M`);
+  - **celé opevnění** `{ kind: 'fortification', id }` – dvojklik (`wholeTarget` úseku i brány, jako
+    díl pole → pole); `fortTargetId` drží režim přidávání brány u všech tří výběrů.
+- **Úsek pro hráče** (`fortSectionSpans` v `lib/fort-sections.ts`): hradba od okraje brány po okraj
+  další brány po obvodu (střed brány `gateCenterM` = začátek dílu + `offsetM`, ± `FORT_GATE_HALF_M`),
+  `segments` = díly, kterých se dotkne (i díly bran na koncích – napůl sousední úsek), bez brány
+  celý obvod od dílu 0, s jednou branou kolem dokola. Úseky + brány = celý obvod. Úsek jádra pro
+  zboření (`fortSections`) se k němu přiřadí podle `gateSegment`.
+- **Panel** (`fortificationViews`): `sections` – `VillageFortSection` = díly jádra a zboření
+  (`sectionDemolition` → `FortDemolishOption { work, cost, blocked }`, běžící stavba „Stavba už
+  běží.“) + `lengthM` hradby úseku a stav dílů úseku (`FortPartsState`: `parts`, `builtParts`,
+  `weakest`, `oldParts`, `ageYears` nejstaršího; zbořené díly se nepočítají jako hotové);
+  `gateViews` – `VillageFortGate { segment, state, old, ageYears }` dílu brány. `selectionDetails`
+  (`fortificationDetails`): `fortification` = celé (`VillageFortification`), `fortification-section`
+  = úsek + průběh stavby a id stavby (zrušení), `fortification-gate` = brána + cesta branou
+  (`nearestRoad` do půl šířky brány od středu brány → `view.roads`, druh a id cesty). Panely
+  (`hud/selection/fortification.tsx`): `FortificationBody` – délka obvodu, stav, brány, násobek,
+  útočiště, průběh, vylepšení celého opevnění, Přidat bránu; `FortSectionBody` – délka úseku
+  (`selection-fort-section-length`), díly hotové / všechny, stav nejslabšího dílu (oranžově za
+  životností), stáří nejstaršího dílu, průběh, ikona Zbořit (`fort-demolish`; popisek „Zbořit úsek“
+  / „Zbořit nástavbu úseku“ / „Srovnat val úseku“, práce a klády `+N` zpět, nebo důvod červeně),
+  Přidat bránu; `FortGateBody` – portrét brány (`FORT_GATE_NAMES`: „Brána plotu / palisády /
+  valu“), stav a stáří dílu brány, ikona cesty branou (klik ji vybere). Zrušit bránu nejde.
+- **Zvýraznění** (`selection-highlight.ts`): `fortBandRings(fort, fromM, lengthM, margin)` – obrys
+  pásu z `perimeterSamples` (tentýž pás, podle kterého scéna staví kůly, plot i val: křivka
+  = vnější okraj, šířka pásu druhu, v ostrém ohybu vnitřní okraj do rohu), zbořené díly ho dělí;
+  `fortSectionRings` – úsek mezi okraji bran, `fortGateRings` – brána s okrajem 0,5 m, celé
+  opevnění – oba okraje pásu jako dvě uzavřené čáry. **Dřív nesedělo** (Martin 8. 11. 2026 na
+  Vlkově): obrys šel po dílech úseku jádra – od začátku dílu s branou (brána Vlkova v dílu 0 stojí
+  14 m od jeho začátku, v dílu 44 4 m) po konec dílu před další branou, takže přesahoval přes
+  bránu do sousedního úseku a před další branou končil o kus dřív; klik před branou v jejím dílu
+  vybral úsek za branou.
 - **Scéna** (`segmentBuild` ve `fortification-layout.ts`): zbořený díl nekreslí nic (palisáda,
   plot, nástavba, brána dílu ne – díl s branou se nebourá; val výška 0 → bez náspu a příkopu
   v `rampart-mesh.ts` i `ditchCuts`); bouraný díl je staveniště pozpátku –

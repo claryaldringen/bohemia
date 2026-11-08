@@ -14,6 +14,7 @@ import {
   type VillageState,
 } from '@bohemia/game';
 import { useUniqueClientIp } from './helpers';
+import { fortSectionSpans } from '../lib/fort-sections';
 import {
   found,
   newPlayer,
@@ -27,9 +28,11 @@ import {
 // Opevnění v rozhraní (fortifications.md – Obvod, Rozhraní): hráč v mřížce staveb otevře
 // rozcestník a vybere palisádu – hra navrhne obvod s body kolem jádra vsi. Hráč bod táhne (cena
 // u kurzoru se mění), klik na obvod přidá bod, Ctrl + klik ho ubere, ikona kladiva položí; brány
-// vzniknou na cestě a panel ukáže délku a brány. Posun bodu přes zemnici ukáže důvod a červené
-// místo problému, Esc návrh zahodí. Zboření úseku (demolition.md – Opevnění): klik na obvod
-// zvýrazní úsek mezi branami, Zbořit založí bourání, po dokončení je úsek mezera.
+// vzniknou na cestě a dvojklik na obvod ukáže panel celého opevnění s délkou a branami. Posun
+// bodu přes zemnici ukáže důvod a červené místo problému, Esc návrh zahodí. Výběr a zboření úseku
+// (fortifications.md – Rozhraní, Úseky; demolition.md – Opevnění): klik na bránu vybere bránu,
+// klik na obvod zvýrazní úsek mezi okraji bran a ukáže jeho délku, dvojklik celé opevnění, Zbořit
+// založí bourání, po dokončení je úsek mezera.
 
 test.beforeEach(async ({ context, page }) => {
   await useUniqueClientIp(context);
@@ -237,7 +240,8 @@ test('návrh palisády kolem vsi – tah bodu mění cenu, klik přidá a Ctrl +
   await expect(page.getByTestId('fort-confirm')).toHaveCount(0);
   await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
 
-  // klik na obvod vybere opevnění – panel ukáže délku a brány; bod pásu na západě (0,75 m uvnitř)
+  // dvojklik na obvod vybere celé opevnění – panel ukáže délku a brány; bod pásu na západě
+  // (0,75 m uvnitř)
   const outline = fortificationOutline(fort.points!, 'palisade')!;
   const west = outline.polyline.reduce((w, p) => (p[0] < w[0] ? p : w));
   await pollVillage(page);
@@ -252,7 +256,7 @@ test('návrh palisády kolem vsi – tah bodu mění cenu, klik přidá a Ctrl +
         ] as [number, number]);
         if (!edge) return null;
         await page.mouse.move(edge.x + 2, edge.y);
-        await page.mouse.click(edge.x, edge.y);
+        await page.mouse.dblclick(edge.x, edge.y);
         return panel.getAttribute('data-kind', { timeout: 500 }).catch(() => null);
       },
       { timeout: 30_000 },
@@ -315,7 +319,7 @@ test('bod tažený přes zemnici – důvod u kurzoru, červené místo problém
   await expect.poll(async () => (await fortPoints(page)).length).toBe(0);
 });
 
-test('zboření úseku plotu mezi dvěma branami – klik zvýrazní úsek, Zbořit, po dokončení mezera', async ({
+test('brána, úsek a celé opevnění – klik na bránu, klik zvýrazní úsek mezi branami, dvojklik celé; Zbořit, po dokončení mezera', async ({
   page,
 }) => {
   // celý průběh od založení vsi po mezeru – delší než ostatní testy opevnění
@@ -357,38 +361,121 @@ test('zboření úseku plotu mezi dvěma branami – klik zvýrazní úsek, Zbo�
   const len = Math.hypot(c[0] - m[0], c[1] - m[1]);
   const spot: Pt = [m[0] + ((c[0] - m[0]) / len) * 0.3, m[1] + ((c[1] - m[1]) / len) * 0.3];
 
-  await pollVillage(page);
-  await closeUp(page, spot);
+  // úseky hradby mezi okraji bran (jako je hráč vidí) – brána leží uvnitř svého dílu
+  const spans = fortSectionSpans(
+    shapes.map((x) => x.lengthM),
+    fort.gates,
+  );
+  const span = spans.find((x) => x.gateSegment === section.gateSegment)!;
+  const otherSpan = spans.find((x) => x !== span)!;
+  const shot = process.env.FORT_DEMOLISH_SHOT;
+  const clip = { x: 300, y: 240, width: 680, height: 480 };
   const panel = page.getByTestId('selection-panel');
-  let clickAt = { x: 0, y: 0 };
-  await expect
-    .poll(
-      async () => {
-        clickAt = await screenOf(page, spot);
-        await page.mouse.move(clickAt.x + 2, clickAt.y);
-        await page.mouse.click(clickAt.x, clickAt.y);
-        return panel.getAttribute('data-kind', { timeout: 500 }).catch(() => null);
-      },
-      { timeout: 30_000 },
-    )
-    .toBe('fortification');
+  /** Klik (dvojklik) na bod krajiny, dokud panel neukáže výběr druhu `kind`. */
+  const select = async (
+    at: Pt,
+    kind: string,
+    double = false,
+  ): Promise<{ x: number; y: number }> => {
+    let screen = { x: 0, y: 0 };
+    await expect
+      .poll(
+        async () => {
+          screen = await screenOf(page, at);
+          await page.mouse.move(screen.x + 2, screen.y);
+          if (double) await page.mouse.dblclick(screen.x, screen.y);
+          else await page.mouse.click(screen.x, screen.y);
+          return panel.getAttribute('data-kind', { timeout: 500 }).catch(() => null);
+        },
+        { timeout: 30_000 },
+      )
+      .toBe(kind);
+    return screen;
+  };
+  const outlineLines = (): Promise<(readonly [number, number])[][]> =>
+    page.evaluate(() => window.__bohemiaE2E!.selectionOutline?.() ?? []);
 
-  // zvýrazněný je jen pás úseku – u středů jeho dílů, daleko od dílů druhého úseku
-  const lines = await page.evaluate(() => window.__bohemiaE2E!.selectionOutline?.() ?? []);
+  // klik na bránu (kousek uvnitř pásu) vybere bránu jako křižovatku – cesta branou, obrys brány
+  await pollVillage(page);
+  const gate = fort.gates[0]!;
+  const toC = Math.hypot(c[0] - gate.x, c[1] - gate.z);
+  const gateSpot: Pt = [
+    gate.x + ((c[0] - gate.x) / toC) * 0.4,
+    gate.z + ((c[1] - gate.z) / toC) * 0.4,
+  ];
+  await closeUp(page, gateSpot);
+  await select(gateSpot, 'fortification-gate');
+  await expect(panel.getByText('Brána plotu')).toBeVisible();
+  await expect(panel.getByTestId('selection-fort-gate-road')).toBeVisible();
+  await expect(panel.getByTestId('selection-fort-gate-state')).toHaveText('100 %');
+  const gateLines = await outlineLines();
+  expect(gateLines.length).toBe(1);
+  for (const [x, z] of gateLines.flat()) {
+    expect(Math.hypot(x - gate.x, z - gate.z)).toBeLessThan(4);
+  }
+  if (shot) await page.screenshot({ path: `${shot}-gate.png`, clip });
+
+  // klik na obvod vybere úsek mezi branami – panel ukáže délku úseku, ne celé hradby
+  await closeUp(page, spot);
+  let clickAt = await select(spot, 'fortification-section');
+  const sectionLength = Number.parseInt(
+    (await panel.getByTestId('selection-fort-section-length').textContent()) ?? '',
+    10,
+  );
+  expect(Math.abs(sectionLength - span.lengthM)).toBeLessThan(1.5);
+  await expect(panel.getByTestId('selection-fort-gates')).toHaveCount(0);
+  await expect(panel.getByTestId('selection-fort-length')).toHaveCount(0);
+
+  // zvýrazněný je jen pás úseku – u středů jeho dílů, daleko od dílů jen druhého úseku i od bran
+  const lines = await outlineLines();
   expect(lines.length).toBeGreaterThan(0);
   const nearest = (p: Pt): number =>
     Math.min(...lines.flat().map(([x, z]) => Math.hypot(x - p[0], z - p[1])));
   for (const i of inner) expect(nearest(mids[i]!)).toBeLessThan(3);
-  const other = sections.find((x) => x !== section)!;
-  for (const i of other.segments) expect(nearest(mids[i]!)).toBeGreaterThan(3);
+  for (const i of otherSpan.segments.filter((x) => !span.segments.includes(x))) {
+    expect(nearest(mids[i]!)).toBeGreaterThan(3);
+  }
+  for (const g of fort.gates) expect(nearest([g.x, g.z])).toBeGreaterThan(1.5);
+  if (shot) await page.screenshot({ path: `${shot}-selected.png`, clip });
 
+  // dvojklik vybere celé opevnění včetně bran – délka obvodu, brány, obrys celého pásu
+  await select(spot, 'fortification', true);
+  const whole = Number.parseInt(
+    (await panel.getByTestId('selection-fort-length').textContent()) ?? '',
+    10,
+  );
+  expect(Math.abs(whole - shapes.reduce((m, x) => m + x.lengthM, 0))).toBeLessThan(2);
+  await expect(panel.getByTestId('selection-fort-gates')).toHaveText('2');
+  await expect(panel.getByTestId('fort-demolish')).toHaveCount(0);
+  const all = await outlineLines();
+  for (const g of fort.gates) {
+    expect(Math.min(...all.flat().map(([x, z]) => Math.hypot(x - g.x, z - g.z)))).toBeLessThan(1);
+  }
+  if (shot) {
+    // celý obvod v záběru – střed vsi, kamera blíž než přehled vsi
+    await page.evaluate(
+      (p) => window.__bohemiaE2E!.moveCameraTo!(p[0], p[1]),
+      c as [number, number],
+    );
+    await page.mouse.move(640, 300);
+    for (let i = 0; i < 7; i++) {
+      await page.mouse.wheel(0, -300);
+      await page.waitForTimeout(150);
+    }
+    await page.waitForTimeout(1500);
+    await page.screenshot({
+      path: `${shot}-whole.png`,
+      clip: { x: 240, y: 60, width: 800, height: 640 },
+    });
+    await closeUp(page, spot);
+  }
+
+  // znovu úsek – Zbořit
+  clickAt = await select(spot, 'fortification-section');
   const demolish = panel.getByTestId('fort-demolish');
   await expect(demolish).toBeEnabled();
   await demolish.hover();
   await expect(page.getByTestId('fort-demolish-logs')).toBeVisible();
-  const shot = process.env.FORT_DEMOLISH_SHOT;
-  const clip = { x: 300, y: 240, width: 680, height: 480 };
-  if (shot) await page.screenshot({ path: `${shot}-selected.png`, clip });
   await demolish.click();
   await expect
     .poll(
@@ -423,11 +510,12 @@ test('zboření úseku plotu mezi dvěma branami – klik zvýrazní úsek, Zbo�
     .poll(
       async () => {
         await page.mouse.click(clickAt.x, clickAt.y);
-        return panel.getAttribute('data-kind', { timeout: 500 }).catch(() => null);
+        const kind = await panel.getAttribute('data-kind', { timeout: 500 }).catch(() => null);
+        return kind?.startsWith('fortification') ?? false;
       },
       { timeout: 20_000 },
     )
-    .not.toBe('fortification');
+    .toBe(false);
   if (shot) {
     await page.mouse.move(20, 20);
     await page.waitForTimeout(800);

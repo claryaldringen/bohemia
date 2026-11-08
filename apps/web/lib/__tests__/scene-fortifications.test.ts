@@ -15,6 +15,7 @@ import {
   type VillageState,
 } from '@bohemia/game';
 import { fortStakingLines } from '../scene/fortification-layout';
+import { fortificationViews } from '../fort-view';
 import { pickVillageTarget } from '../scene/village-picking';
 import { sceneVillage } from '../village-view-scene';
 
@@ -133,6 +134,28 @@ describe('rozestavěné opevnění na 0 % ve scéně', () => {
       0,
     );
 
+  it('panel úseku: délka hradby mezi okraji bran a stav dílů úseku, brány se stavem dílu', () => {
+    const state = fortState(100, false);
+    const fort = state.fortifications![0]!;
+    const shapes = fort.segments.length;
+    fort.gates = [
+      { segment: 0, offsetM: 3, x: 0, z: 0 },
+      { segment: Math.floor(shapes / 2), offsetM: 2.5, x: 0, z: 0 },
+    ];
+    fort.segments[1]!.builtDay = DAY - 365 * 3;
+    const [view] = fortificationViews(state, landscape, DAY, 0);
+    expect(view!.sections).toHaveLength(2);
+    // úseky a brány dohromady dají celý obvod
+    const sum = view!.sections.reduce((m, x) => m + x.lengthM, 0);
+    expect(sum + 2 * 4).toBeCloseTo(view!.lengthM, 6);
+    const first = view!.sections[0]!;
+    expect(first.gateSegment).toBe(0);
+    expect(first.parts).toBe(first.builtParts);
+    expect(first.ageYears).toBe(3);
+    expect(view!.gateViews.map((g) => g.segment)).toEqual([0, Math.floor(shapes / 2)]);
+    expect(view!.gateViews[0]).toMatchObject({ state: 1, old: false, ageYears: 0 });
+  });
+
   it('klik na pás vybere opevnění i na 0 %', () => {
     const village = scene(fortState(0, true));
     const fort = village.forts![0]!;
@@ -145,7 +168,8 @@ describe('rozestavěné opevnění na 0 % ve scéně', () => {
       { origin: { x, y: 200, z }, direction: { x: 0, y: -1, z: 0 } },
       { ground: { x, z }, groundHeight: () => 0, cellOf: () => null },
     );
-    expect(target).toEqual({ kind: 'fortification', id: 60, segment: fort.bandSegments![0] });
+    expect(target).toMatchObject({ id: 60 });
+    expect(target?.kind).toMatch(/^fortification-(section|gate)$/);
   });
 
   it('vytyčení po celém obvodu na 0 %, ustupuje hotovým úsekům, bez stavby nic', () => {

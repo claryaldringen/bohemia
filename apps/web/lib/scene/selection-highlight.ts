@@ -3,8 +3,16 @@ import type { StandardMaterial } from '@babylonjs/core/Materials/standardMateria
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
-import { SACRED_BUILDINGS, fortSections, roadChain, threshingFloorFootprint } from '@bohemia/game';
+import { SACRED_BUILDINGS, roadChain, threshingFloorFootprint } from '@bohemia/game';
 import type { SceneFortification } from '../fort-view';
+import {
+  FORT_GATE_HALF_M,
+  alongFrom,
+  fortPerimeter,
+  fortSectionSpans,
+  gateCenterM,
+} from '../fort-sections';
+import { perimeterSamples, type FortEdges, type PerimeterSample } from './fortification-layout';
 import { scenePenSquares, type SceneVillage } from '../village-view';
 import { cellsBoundary, type CellSquare } from './field-cells';
 import { junctionShape } from './junction-shape';
@@ -60,6 +68,8 @@ const SEE_THROUGH: ReadonlySet<VillageTarget['kind']> = new Set([
   'grain-pit',
   // obvod opevnění prosvítá přes stromy v pásu
   'fortification',
+  'fortification-section',
+  'fortification-gate',
 ]);
 /** Poloměr obrysu milíře a milířiště (m) – kousek za kupou (MILIR_SHAPE_M.radius 2,3 m). */
 const KILN_RING_M = 3.6;
@@ -76,45 +86,145 @@ export function offsetLine(points: readonly { x: number; z: number }[], d: numbe
   });
 }
 
+/** Krok bodů obrysu pásu opevnění po obvodu (m) – oblouky křivky hladce. */
+const FORT_RING_STEP_M = 0.5;
+/** Obrys brány kousek za pásem a za okraji brány (m). */
+const FORT_GATE_RING_M = 0.5;
+
+/** Opevnění pro obrys pásu: tvar obvodu, druh (šířka pásu) a zbořené díly. */
+export type FortRingSource = FortEdges & Pick<SceneFortification, 'segments'>;
+
+/** Bod vzorků pásu v poloze `s` obvodu délky `total` (mezi sousedními vzorky lineárně). */
+function sampleAt(samples: readonly PerimeterSample[], s: number, total: number): PerimeterSample {
+  const at = alongFrom(0, s, total);
+  const n = samples.length;
+  let i = n - 1;
+  while (i > 0 && samples[i]!.s > at) i--;
+  const a = samples[i]!;
+  const b = samples[(i + 1) % n]!;
+  const span = alongFrom(a.s, b.s, total) || total;
+  const t = Math.min(1, Math.max(0, alongFrom(a.s, at, total) / span));
+  const mix = (p: number, q: number): number => p + (q - p) * t;
+  return {
+    x: mix(a.x, b.x),
+    z: mix(a.z, b.z),
+    nx: mix(a.nx, b.nx),
+    nz: mix(a.nz, b.nz),
+    s: at,
+    segment: a.segment,
+    ix: mix(a.ix, b.ix),
+    iz: mix(a.iz, b.iz),
+  };
+}
+
+/** Kusy obvodu [od, do] (m, `do` smí přesáhnout délku obvodu) bez zbořených dílů. */
+function standingPieces(fort: FortRingSource, fromM: number, lengthM: number): [number, number][] {
+  const { starts, total } = fortPerimeter(fort.shapes.map((x) => x.lengthM));
+  const gaps: [number, number][] = [];
+  for (const seg of fort.segments) {
+    if (seg.demolishedDay === undefined) continue;
+    const a = starts[seg.index];
+    const len = fort.shapes[seg.index]?.lengthM;
+    if (a === undefined || len === undefined) continue;
+    // mezera po směru obvodu od začátku kusu (i přes začátek dílu 0)
+    const from = alongFrom(fromM, a, total);
+    gaps.push(
+      [fromM + from, fromM + from + len],
+      [fromM + from - total, fromM + from + len - total],
+    );
+  }
+  gaps.sort((p, q) => p[0] - q[0]);
+  const pieces: [number, number][] = [];
+  let at = fromM;
+  const end = fromM + lengthM;
+  for (const [a, b] of gaps) {
+    if (b <= at || a >= end) continue;
+    if (a > at) pieces.push([at, a]);
+    at = Math.max(at, b);
+  }
+  if (at < end) pieces.push([at, end]);
+  return pieces.filter(([a, b]) => b - a > 1e-6);
+}
+
 /**
- * Obrysy pásu dílů `segments` opevnění (úsek mezi branami, v pořadí po směru hodin): vnější okraj
- * kusů pásu tam, vnitřní zpět – uzavřený. Kus pásu (jádro – `bandPieces`) má rohy [a, b, ib, ia]
- * (a, b na vnějším okraji), u ostrého vnitřního ohybu trojúhelník [a, b, x]. Zbořené díly se
- * vynechají – úsek se pak kreslí po kouscích mezi mezerami. Bez `bandSegments` nic.
+ * Obrysy pásu opevnění na kusu obvodu od `fromM` délky `lengthM` (m po obvodu od začátku dílu 0):
+ * vnější okraj – křivka obvodu – tam, vnitřní okraj pásu zpět, uzavřené. Pás je tentýž, podle
+ * kterého scéna staví kůly, plot i val (`perimeterSamples` – šířka pásu druhu, v ostrém ohybu
+ * vnitřní okraj do rohu); `margin` m ho rozšíří ven, dovnitř i za konce (brána). Zbořené díly
+ * obrys dělí; celý obvod bez mezer jsou dva uzavřené okraje.
+ */
+export function fortBandRings(
+  fort: FortRingSource,
+  fromM: number,
+  lengthM: number,
+  margin = 0,
+): Point[][] {
+  const samples = perimeterSamples(fort, FORT_RING_STEP_M);
+  const { total } = fortPerimeter(fort.shapes.map((x) => x.lengthM));
+  if (samples.length < 3 || total <= 0) return [];
+  const outerOf = (p: PerimeterSample): Point => [p.x - p.nx * margin, p.z - p.nz * margin];
+  const innerOf = (p: PerimeterSample): Point => [p.ix + p.nx * margin, p.iz + p.nz * margin];
+  const whole = lengthM >= total - 1e-6;
+  const gone = fort.segments.some((x) => x.demolishedDay !== undefined);
+  if (whole && !gone) {
+    const outer = samples.map(outerOf);
+    const inner = samples.map(innerOf);
+    return [
+      [...outer, outer[0]!],
+      [...inner, inner[0]!],
+    ];
+  }
+  // celý obvod s mezerami začne za první mezerou, ať se kus přes začátek dílu 0 nerozdělí
+  let from = fromM - margin;
+  if (whole) {
+    const first = fort.segments.find((x) => x.demolishedDay !== undefined)!;
+    const { starts } = fortPerimeter(fort.shapes.map((x) => x.lengthM));
+    from = (starts[first.index] ?? 0) + (fort.shapes[first.index]?.lengthM ?? 0);
+  }
+  const span = whole ? total : lengthM + 2 * margin;
+  return standingPieces(fort, from, span).map(([a, b]) => {
+    const inside = samples
+      .flatMap((p) => [p.s, p.s + total, p.s - total].map((s) => ({ p, s })))
+      .filter(({ s }) => s > a + 1e-6 && s < b - 1e-6)
+      .sort((p, q) => p.s - q.s)
+      .map(({ p }) => p);
+    const points = [sampleAt(samples, a, total), ...inside, sampleAt(samples, b, total)];
+    const outer = points.map(outerOf);
+    const inner = points.map(innerOf).reverse();
+    return [...outer, ...inner, outer[0]!];
+  });
+}
+
+/**
+ * Obrysy vybraného úseku mezi branami (fortifications.md – Rozhraní, Úseky): pás hradby od
+ * okraje brány na začátku úseku jádra s dílem `segment` po okraj další brány (`fortSectionSpans`).
  */
 export function fortSectionRings(
-  fort: Pick<SceneFortification, 'band' | 'bandSegments' | 'segments'>,
-  segments: readonly number[],
+  fort: FortRingSource & Pick<SceneFortification, 'gates'>,
+  segment: number,
 ): Point[][] {
-  const owners = fort.bandSegments;
-  if (!owners) return [];
-  const gone = new Set(
-    fort.segments.filter((s) => s.demolishedDay !== undefined).map((s) => s.index),
+  const spans = fortSectionSpans(
+    fort.shapes.map((x) => x.lengthM),
+    fort.gates,
   );
-  const rings: Point[][] = [];
-  let outer: Point[] = [];
-  let inner: Point[] = [];
-  const flush = (): void => {
-    if (outer.length > 0) rings.push([...outer, ...inner.reverse(), outer[0]!]);
-    outer = [];
-    inner = [];
-  };
-  for (const index of segments) {
-    if (gone.has(index)) {
-      flush();
-      continue;
-    }
-    fort.band.forEach((piece, k) => {
-      if (owners[k] !== index) return;
-      const [a, b, c, d] = piece;
-      if (!a || !b || !c) return;
-      outer.push([a[0], a[1]], [b[0], b[1]]);
-      if (d) inner.push([d[0], d[1]], [c[0], c[1]]);
-      else inner.push([c[0], c[1]]);
-    });
-  }
-  flush();
-  return rings;
+  const gateSegments = [...new Set(fort.gates.map((g) => g.segment))].sort((a, b) => a - b);
+  // úsek jádra s dílem `segment` začíná dílem brány před ním (bez brány celý obvod)
+  const start =
+    [...gateSegments].reverse().find((g) => g <= segment) ?? gateSegments[gateSegments.length - 1];
+  const span = spans.find((x) => x.gateSegment === (start ?? null));
+  return span && span.lengthM > 0 ? fortBandRings(fort, span.fromM, span.lengthM) : [];
+}
+
+/** Obrys brány v dílu `segment` – pás brány kousek za okraji (`FORT_GATE_RING_M`). */
+export function fortGateRings(
+  fort: FortRingSource & Pick<SceneFortification, 'gates'>,
+  segment: number,
+): Point[][] {
+  const gate = fort.gates.find((g) => g.segment === segment);
+  if (!gate) return [];
+  const perimeter = fortPerimeter(fort.shapes.map((x) => x.lengthM));
+  const center = gateCenterM(perimeter, gate);
+  return fortBandRings(fort, center - FORT_GATE_HALF_M, 2 * FORT_GATE_HALF_M, FORT_GATE_RING_M);
 }
 
 /** Zvýraznění vybraného obydlí, pole nebo hřbitova – rámeček na zemi (obtisk). */
@@ -274,13 +384,19 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
     const corners = threshingFloorFootprint(floor.position).map(([x, z]): Point => [x, z]);
     return [[...corners, corners[0]!]];
   }
-  if (target.kind === 'fortification') {
-    // úsek mezi branami s vybraným dílem (demolition.md – Opevnění) – obrys jeho pásu; bez
-    // údajů o kusech pásu obvod opevnění (fortifications.md – Rozhraní) se zakulacenými rohy
+  if (
+    target.kind === 'fortification' ||
+    target.kind === 'fortification-section' ||
+    target.kind === 'fortification-gate'
+  ) {
+    // pás opevnění, jak ho kreslí scéna (fortifications.md – Rozhraní): celé opevnění včetně
+    // bran (dvojklik), úsek mezi okraji bran, nebo brána
     const fort = village.forts?.find((f) => f.id === target.id);
     if (!fort) return [];
-    const section = fortSections(fort).find((x) => x.segments.includes(target.segment));
-    const rings = section ? fortSectionRings(fort, section.segments) : [];
+    if (target.kind === 'fortification-gate') return fortGateRings(fort, target.segment);
+    if (target.kind === 'fortification-section') return fortSectionRings(fort, target.segment);
+    const total = fort.shapes.reduce((sum, x) => sum + x.lengthM, 0);
+    const rings = fortBandRings(fort, 0, total);
     return rings.length > 0 ? rings : [fort.outline.map(([x, z]): Point => [x, z])];
   }
   if (target.kind === 'grain-pit') {

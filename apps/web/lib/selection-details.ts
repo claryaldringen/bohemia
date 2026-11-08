@@ -25,6 +25,7 @@ import {
   type NextCrop,
   type PartYearWork,
   type RoadGrade,
+  type RoadKind,
   type RoadUpgradeOption,
   type SacredBuildingKind,
   type TileCell,
@@ -39,7 +40,8 @@ import type { VillageDugSite } from './ore-site-view';
 import type { VillageKiln } from './kiln-view';
 import type { VillageGrainPit } from './grain-pit-view';
 import type { VillageJunction } from './junction-view';
-import type { VillageFortification, VillageFortSection } from './fort-view';
+import type { VillageFortGate, VillageFortification, VillageFortSection } from './fort-view';
+import { FORT_GATE_HALF_M } from './fort-sections';
 import type {
   DepartingSon,
   FieldOutlookView,
@@ -68,6 +70,7 @@ import {
 import { ROLE_NAMES, herdRole } from './person-roles';
 import {
   dugSiteOf,
+  nearestRoad,
   selectedFieldPart,
   selectedOrchardSquare,
   type VillageTarget,
@@ -149,6 +152,9 @@ export interface SelectionBuying {
   sources: VillageCraftSource[];
   purchases: VillagePurchase[];
 }
+
+/** Společné údaje panelů opevnění: id, druh a nástavba valu. */
+type FortPanelBase = Pick<VillageFortification, 'id' | 'fortKind' | 'top'>;
 
 type SelectionKinds =
   | {
@@ -635,15 +641,30 @@ type SelectionKinds =
     } & VillageThreshingFloor)
   | ({
       /**
-       * Opevnění (fortifications.md – Rozhraní): druh, délka, stav, brány, útočiště, násobek
-       * obrany, průběh stavby a vylepšení.
+       * Celé opevnění včetně bran (dvojklik – fortifications.md, Rozhraní): druh, délka obvodu,
+       * stav, brány, útočiště, násobek obrany, průběh stavby a vylepšení celého opevnění.
        */
       kind: 'fortification';
-      /** Díl, na který hráč klikl (`FortSegmentShape.index`). */
-      segment: number;
-      /** Úsek mezi branami s tímto dílem a jeho zboření (demolition.md – Opevnění); null – neznámý díl. */
-      section: VillageFortSection | null;
     } & VillageFortification)
+  | ({
+      /**
+       * Úsek opevnění mezi branami (klik – fortifications.md, Rozhraní – Úseky): délka hradby
+       * úseku, stav a stáří jeho dílů, druh, průběh stavby a zboření úseku.
+       */
+      kind: 'fortification-section';
+      section: VillageFortSection;
+    } & FortPanelBase &
+      Pick<VillageFortification, 'progress' | 'work' | 'constructionId'>)
+  | ({
+      /**
+       * Brána opevnění (klik jako na křižovatku – fortifications.md, Brány): druh brány podle
+       * opevnění, stav dílu brány a cesta, která branou vede.
+       */
+      kind: 'fortification-gate';
+      gate: VillageFortGate;
+      /** Cesta hráče, která branou vede (klik ji vybere); bez cesty null. */
+      road: { id: number; segment: number; roadKind: RoadKind } | null;
+    } & FortPanelBase)
   | ({
       /**
        * Divoké zvíře (wildlife.md – Co hráč vidí; Martin 24. 10. 2026 nechal na Claudovi): druh
@@ -850,6 +871,7 @@ function cancellableConstruction(
     case 'threshing-floor':
       return details.built ? undefined : among((c) => c.id === details.id);
     case 'fortification':
+    case 'fortification-section':
       return details.constructionId === undefined
         ? undefined
         : among((c) => c.id === details.constructionId);
@@ -1040,12 +1062,12 @@ function selectionKinds(
     const floor = view?.threshingFloors?.find((f) => f.id === target.id);
     return floor ? { kind: 'threshing-floor', ...floor } : null;
   }
-  if (target.kind === 'fortification') {
-    if (!scene.forts?.some((f) => f.id === target.id)) return null;
-    const fort = view?.fortifications?.find((f) => f.id === target.id);
-    if (!fort) return null;
-    const section = fort.sections.find((x) => x.segments.includes(target.segment)) ?? null;
-    return { kind: 'fortification', ...fort, segment: target.segment, section };
+  if (
+    target.kind === 'fortification' ||
+    target.kind === 'fortification-section' ||
+    target.kind === 'fortification-gate'
+  ) {
+    return fortificationDetails(view, scene, target);
   }
   if (target.kind === 'grain-pit') {
     // jen otevřená jáma, která ve scéně je (zapečetěné nejsou vidět)
@@ -1125,6 +1147,56 @@ function selectionKinds(
 }
 
 /** Kůň jezdce `riderId` z pohledu na ves (jede-li na koni); jinak null. */
+/**
+ * Opevnění ve výběru (fortifications.md – Rozhraní): celé (dvojklik), úsek mezi branami s dílem
+ * `segment` (klik), nebo brána v dílu `segment` (klik do dosahu brány).
+ */
+function fortificationDetails(
+  view: VillageView | null,
+  scene: SceneVillage,
+  target: Extract<
+    VillageTarget,
+    { kind: 'fortification' | 'fortification-section' | 'fortification-gate' }
+  >,
+): SelectionKinds | null {
+  const inScene = scene.forts?.find((f) => f.id === target.id);
+  const fort = view?.fortifications?.find((f) => f.id === target.id);
+  if (!inScene || !fort) return null;
+  if (target.kind === 'fortification') return { kind: 'fortification', ...fort };
+  const base: FortPanelBase = {
+    id: fort.id,
+    fortKind: fort.fortKind,
+    ...(fort.top ? { top: fort.top } : {}),
+  };
+  if (target.kind === 'fortification-section') {
+    const section = fort.sections.find((x) => x.segments.includes(target.segment));
+    if (!section) return null;
+    return {
+      kind: 'fortification-section',
+      ...base,
+      section,
+      ...(fort.progress !== undefined ? { progress: fort.progress } : {}),
+      ...(fort.work ? { work: fort.work } : {}),
+      ...(fort.constructionId !== undefined ? { constructionId: fort.constructionId } : {}),
+    };
+  }
+  const gate = fort.gateViews.find((g) => g.segment === target.segment);
+  const at = inScene.gates.find((g) => g.segment === target.segment);
+  if (!gate || !at) return null;
+  // cesta, která branou vede – osa cesty prochází bránou (fortifications.md – Brány)
+  const segment = nearestRoad(scene, at, FORT_GATE_HALF_M);
+  const road =
+    segment === null
+      ? undefined
+      : view?.roads.find((r) => r.id === segment || r.segments.includes(segment));
+  return {
+    kind: 'fortification-gate',
+    ...base,
+    gate,
+    road: road && segment !== null ? { id: road.id, segment, roadKind: road.roadKind } : null,
+  };
+}
+
 function mountOf(view: VillageView | null, riderId: number): SelectionPersonMount | null {
   const horse = view?.horses?.horses.find((h) => h.riderId === riderId);
   if (!view?.horses || !horse) return null;
