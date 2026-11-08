@@ -60,6 +60,7 @@ export * from './fortification-rampart';
 export * from './fortification-gate';
 export * from './fortification-proposal';
 export * from './fortification-reroute';
+export { fortDefenders } from './steward-fortification';
 export { raidHiding } from './raid-day';
 export * from './relocation';
 export * from './departure';

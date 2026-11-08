@@ -112,7 +112,7 @@ roštová ≈ 7 m, komorová ≈ 8 m, komory po 5–6 m).
   val sahá po okraj brány, brána ho převezme, až ho mají obě strany. Zbořený úsek (mezera) dostane cílovou hradbu za cenu
   nové – i kus dílu s branou zbořený se sousedním úsekem.
 - **Implementováno 8. 11. 2026** (plán hradeb, Úloha 8): doména a akce vylepšení po úsecích;
-  tlačítka Vylepšit v panelu úseku – Úloha 17.
+  tlačítka Vylepšit v panelu úseku a „Vylepšit vše“ v panelu celé hradby – Úloha 17.
 - **Kterákoli ves** smí postavit kterýkoli druh – že se běžné vsi hradba nevyplatí, usoudí správce
   (Martin výš); nahrazuje doporučení rešerše „roštová a komorová jen pro hradiště“.
 - **Vodní příkop** – Martin: „**Další možnost bude napojení příkopu na vodní zdroj. Pak nelze
@@ -402,7 +402,11 @@ Vše kromě Martinových životností je návrh Clauda.
   sekera, oheň, rýč) – zašedlá, kde postup nejde, v popisku čas se 4 muži; ikona obsazení (muži
   × 5 m ÷ délka obvodu). Tlačítka **Vylepšit** (nabídka vyšších stupňů), **Doplnit val**,
   **Napustit příkop**, u brány **Klešťová brána** a **Věž**; důvod u kurzoru („Chybí 100 m³
-  kamene.“, „Příkop nedosáhne k vodě.“, „Za branou není místo.“).
+  kamene.“, „Příkop nedosáhne k vodě.“, „Za branou není místo.“). Implementováno 8. 11. 2026
+  (plán hradeb, Úloha 17) – návrh Clauda: čas postupu je nejrychlejší místo úseku se 4 muži
+  a otepmi do 100 m; pod ikonou žebříku je i přelezení plotu, pod rýčem odkopání i podkop;
+  obsazení počítá muže 16–44 let (jako správce) a ukazuje se i v panelu celé hradby; ikony jsou
+  zatím vlastní jednoduché kresby (SVG, CC0), render z Blenderu může přijít později.
 - **Scéna:** násyp ochozu s fošnami za kůly, rošt s kamennou plentou, srubové komory s čelní
   zdí, ramena a věž brány, voda v příkopu; v boji žebříky, otepi a oheň, průlom po ohni
   ohořelý. Modely jako dosud (Blender CC0, předlohy z 0 A.D.).

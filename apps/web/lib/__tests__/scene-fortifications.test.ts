@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   dayIndexOf,
+  FORT_GATE_LOW,
   fortificationArea,
   areaOutline,
   fortSegments,
@@ -154,6 +155,36 @@ describe('rozestavěné opevnění na 0 % ve scéně', () => {
     expect(first.ageYears).toBe(3);
     expect(view!.gateViews.map((g) => g.segment)).toEqual([0, Math.floor(shapes / 2)]);
     expect(view!.gateViews[0]).toMatchObject({ state: 1, old: false, ageYears: 0 });
+  });
+
+  it('panel úseku plotu: nabídka Vylepšit, val, postupy útočníka; brána – klešťová zašedlá', () => {
+    const state = fortState(100, false);
+    const fort = state.fortifications![0]!;
+    fort.gates = [
+      { segment: 0, offsetM: 3, x: 0, z: 0 },
+      { segment: Math.floor(fort.segments.length / 2), offsetM: 2.5, x: 0, z: 0 },
+    ];
+    const [view] = fortificationViews(state, landscape, DAY, 0);
+    const first = view!.sections[0]!;
+    // plot úseku: vyšší stupně; ochoz jen vylepšením palisády – zašedlý s důvodem jádra
+    const targets = first.upgrades.map((u) => u.target);
+    expect(targets).toContain('palisade');
+    expect(targets).not.toContain('fence');
+    const walkway = first.upgrades.find((u) => u.target === 'walkway');
+    expect(walkway?.option.blocked).not.toBeNull();
+    // přes plot: přelézt hned, prosekat déle; oheň ani rýč u plotu nejdou
+    expect(first.assault.map((a) => [a.icon, a.method])).toEqual([
+      ['ladder', 'climb'],
+      ['cut', 'cut'],
+      ['burn', null],
+      ['dig', null],
+    ]);
+    expect(first.assault[0]!.hours4).toBe(0);
+    expect(first.assault[1]!.hours4).toBeGreaterThan(0);
+    expect(first.moat).toBeNull();
+    expect(view!.gateViews[0]!.pincer?.blocked).toBe(FORT_GATE_LOW);
+    expect(view!.upgrades.map((u) => u.target)).toEqual(targets);
+    expect(view!.occupancy.lengthM).toBeCloseTo(view!.lengthM, 6);
   });
 
   it('dvě stavby na jednom opevnění – úsek ukáže svou stavbu, scéna práci po dílech', () => {

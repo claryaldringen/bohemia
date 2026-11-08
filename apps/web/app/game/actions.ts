@@ -103,6 +103,9 @@ import {
   addFortificationGateForPlayer,
   demolishFortificationSectionForPlayer,
   rerouteFortificationSectionForPlayer,
+  addFortificationRampartForPlayer,
+  fillFortificationMoatForPlayer,
+  upgradeFortificationGateForPlayer,
   placeSacredForPlayer,
   placeThreshingFloorForPlayer,
   placeQuarryForPlayer,
@@ -157,6 +160,8 @@ import {
   parseAddFortificationGateInput,
   parseDemolishFortificationSectionInput,
   parseRerouteFortificationSectionInput,
+  parseFortificationRampartInput,
+  parseFortificationGateUpgradeInput,
   parsePlaceSacredInput,
   parsePlaceThreshingFloorInput,
   parseOrderQuarryingInput,
@@ -543,6 +548,35 @@ export async function rerouteFortificationSection(input: unknown): Promise<Villa
     input,
     parseRerouteFortificationSectionInput,
     rerouteFortificationSectionForPlayer,
+  );
+}
+
+/**
+ * Doplnění valu s příkopem pod stojící hradbu (fortifications.md – Hradby a obrana, Druhy):
+ * `{ villageId, fortificationId, segment }` – díl úseku, null celé opevnění.
+ */
+export async function addFortificationRampart(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parseFortificationRampartInput, addFortificationRampartForPlayer);
+}
+
+/** Napuštění příkopu úseku: `{ villageId, fortificationId, segment }` (Hradby a obrana, Druhy). */
+export async function fillFortificationMoat(input: unknown): Promise<VillageActionResult> {
+  return villageAction(
+    input,
+    parseDemolishFortificationSectionInput,
+    fillFortificationMoatForPlayer,
+  );
+}
+
+/**
+ * Klešťová brána nebo věž nad branou (fortifications.md – Hradby a obrana, Brány): `{ villageId,
+ * fortificationId, segment, level: 'pincer' | 'tower' }`.
+ */
+export async function upgradeFortificationGate(input: unknown): Promise<VillageActionResult> {
+  return villageAction(
+    input,
+    parseFortificationGateUpgradeInput,
+    upgradeFortificationGateForPlayer,
   );
 }
 

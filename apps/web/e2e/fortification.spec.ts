@@ -409,6 +409,8 @@ test('brána, úsek a celé opevnění – klik na bránu, klik zvýrazní úsek
   await expect(panel.getByText('Brána plotu')).toBeVisible();
   await expect(panel.getByTestId('selection-fort-gate-road')).toBeVisible();
   await expect(panel.getByTestId('selection-fort-gate-state')).toHaveText('100 %');
+  // klešťová brána až od palisády – u plotu zašedlá (fortifications.md – Hradby a obrana, Brány)
+  await expect(panel.getByTestId('fort-gate-pincer')).toBeDisabled();
   const gateLines = await outlineLines();
   expect(gateLines.length).toBe(1);
   for (const [x, z] of gateLines.flat()) {
@@ -645,4 +647,122 @@ test('úsek jinudy – brána u zbořeného úseku nabídne Postavit jinudy, tah
   for (const w of whole) expect(next.segments[w.index]!.demolishedDay).toBeDefined();
   await expect(page.getByTestId('fort-confirm')).toHaveCount(0);
   await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
+});
+
+test('panel úseku palisády – ochoz jen v úseku, Doplnit val u druhého úseku, brána s klešťovou bránou a věží', async ({
+  page,
+}) => {
+  test.setTimeout(300_000);
+  const { settlementId, state, home, landscape } = await villageWithRoad(page, 'usek');
+  // hotová palisáda z návrhu kolem vsi – brány samy na obou průsečících cesty, klád dost
+  const proposal = proposeFortification(
+    state,
+    state.lastDay,
+    landscape,
+    obstaclesOf(landscape),
+    'palisade',
+    { x: home[0], z: home[1] },
+  );
+  const started = startFortification(state, state.lastDay, landscape, obstaclesOf(landscape), {
+    points: proposal.points,
+    kind: 'palisade',
+  });
+  if (!started.ok) throw new Error(started.reason);
+  const built = started.state;
+  built.constructions = built.constructions.filter((c) => c.kind !== 'fortification');
+  built.woodLogs = 2000;
+  const fort = villageFortifications(built)[0]!;
+  for (const seg of fort.segments) {
+    seg.builtDay = built.lastDay;
+    seg.state = 1;
+  }
+  expect(fort.gates).toHaveLength(2);
+  await writeVillageState(settlementId, built);
+  const sections = fortSections(fort);
+  const shapes = fortSegments(outlineOf(landscape, fort)!);
+  const mids = shapes.map((x): Pt => [x.mid[0], x.mid[1]]);
+  const c = centroid(mids);
+  /** Bod kousek uvnitř od středu dílu uprostřed úseku. */
+  const spotOf = (section: (typeof sections)[number]): Pt => {
+    const inner = section.segments.filter((i) => i !== section.gateSegment);
+    const m = mids[inner[Math.floor(inner.length / 2)]!]!;
+    const len = Math.hypot(c[0] - m[0], c[1] - m[1]);
+    return [m[0] + ((c[0] - m[0]) / len) * 0.3, m[1] + ((c[1] - m[1]) / len) * 0.3];
+  };
+  const panel = page.getByTestId('selection-panel');
+  const select = async (at: Pt, kind: string): Promise<void> => {
+    await expect
+      .poll(
+        async () => {
+          const screen = await screenOf(page, at);
+          await page.mouse.move(screen.x + 2, screen.y);
+          await page.mouse.click(screen.x, screen.y);
+          return panel.getAttribute('data-kind', { timeout: 500 }).catch(() => null);
+        },
+        { timeout: 30_000 },
+      )
+      .toBe(kind);
+  };
+  /** Stavby opevnění vsi podle serveru. */
+  const works = async (): Promise<VillageState['constructions']> =>
+    (await villageState(settlementId)).constructions.filter((x) => x.kind === 'fortification');
+
+  // brána palisády: klešťová brána a věž – věž až na klešťové bráně (zašedlá s důvodem)
+  await pollVillage(page);
+  const gate = fort.gates[0]!;
+  const toC = Math.hypot(c[0] - gate.x, c[1] - gate.z);
+  const gateSpot: Pt = [
+    gate.x + ((c[0] - gate.x) / toC) * 0.4,
+    gate.z + ((c[1] - gate.z) / toC) * 0.4,
+  ];
+  await closeUp(page, gateSpot);
+  await select(gateSpot, 'fortification-gate');
+  await expect(panel.getByTestId('fort-gate-pincer')).toBeVisible();
+  await expect(panel.getByTestId('fort-gate-tower')).toBeDisabled();
+  await expect(panel.getByTestId('selection-fort-assault-cut')).toBeVisible();
+
+  // úsek: postupy útočníka a obsazení, nabídka Vylepšit; ochoz založí staveniště jen v úseku
+  const [first, second] = sections;
+  await closeUp(page, spotOf(first!));
+  await select(spotOf(first!), 'fortification-section');
+  await expect(panel.getByTestId('selection-fort-assault-ladder')).toBeVisible();
+  await expect(panel.getByTestId('selection-fort-assault-burn')).not.toHaveAttribute(
+    'data-blocked',
+    'true',
+  );
+  await expect(panel.getByTestId('selection-fort-occupancy')).toBeVisible();
+  const walkway = panel.getByTestId('fort-upgrade-walkway');
+  await expect(walkway).toBeEnabled();
+  await expect(panel.getByTestId('fort-upgrade-fence')).toHaveCount(0);
+  const shot = process.env.FORT_SECTION_SHOT;
+  if (shot) {
+    await walkway.hover();
+    await page.waitForTimeout(300);
+    const box = (await panel.boundingBox())!;
+    await page.screenshot({
+      path: shot,
+      clip: {
+        x: Math.max(0, box.x - 10),
+        y: Math.max(0, box.y - 140),
+        width: Math.min(700, box.width + 20),
+        height: box.height + 150,
+      },
+    });
+  }
+  await walkway.click();
+  await expect.poll(async () => (await works()).map((w) => w.fortTarget)).toEqual(['walkway']);
+  const [upgrade] = await works();
+  const whole = (upgrade!.fortSegments ?? []).filter((w) => w.part === undefined);
+  expect(whole.length).toBeGreaterThan(0);
+  for (const w of whole) expect(first!.segments).toContain(w.index);
+
+  // druhý úsek: Doplnit val s příkopem – vlastní stavba vedle ochozu
+  await closeUp(page, spotOf(second!));
+  await select(spotOf(second!), 'fortification-section');
+  const rampart = panel.getByTestId('fort-rampart-add');
+  await expect(rampart).toBeEnabled();
+  await rampart.click();
+  await expect
+    .poll(async () => (await works()).map((w) => w.fortWork).sort())
+    .toEqual(['rampart', 'upgrade']);
 });
