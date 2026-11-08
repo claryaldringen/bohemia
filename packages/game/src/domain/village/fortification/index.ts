@@ -20,6 +20,7 @@ export * from './cost';
 export * from './band';
 export * from './walls';
 export * from './runs';
+export * from './gate-parts';
 export * from './upgrade';
 export * from './life';
 export * from './defense';

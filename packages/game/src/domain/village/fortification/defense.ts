@@ -2,6 +2,13 @@ import { FORTIFICATIONS } from '../rules-fortifications';
 import { pointInPolygon } from '../polygon';
 import type { GridGeometry } from '../square-grid';
 import type { RoadPoint } from '../types';
+import {
+  gatePartPieces,
+  gatePartView,
+  gonePartDay,
+  hasGateParts,
+  type GatePart,
+} from './gate-parts';
 import { gateChord, type FortGate } from './gates';
 import { layerBuilt, segmentIsOpen, segmentRampart, segmentState } from './life';
 import { fortOutlineOf } from './convert';
@@ -41,7 +48,7 @@ export function segmentIsGap(fort: FortLike, seg: SegmentLike, day: number): boo
  * rozestavěné opevnění bez jediného hotového úseku je jen čára v plánu.
  */
 export function fortHasWall(fort: Fortification, day: number): boolean {
-  return fort.segments.some((seg) => !segmentIsGap(fort, seg, day));
+  return fort.segments.some((seg) => gatePartPieces(seg).some((p) => !segmentIsGap(fort, p, day)));
 }
 
 /** Mezera v obvodu: otevřená brána, nedostavěný / shnilý / zbořený úsek nebo průlom. */
@@ -72,7 +79,10 @@ export function fortGaps(
   for (const seg of fort.segments) {
     const shape = shapes[seg.index];
     if (!shape) continue;
-    if (segmentIsGap(fort, seg, day)) {
+    const gate: FortGate | undefined = fort.gates.find((g) => g.segment === seg.index);
+    // díl s branou s kusy s vlastní hradbou: mezera po kusech (brána je brána)
+    const split = gate !== undefined && hasGateParts(seg) && !segmentIsOpen(seg);
+    if (!split && segmentIsGap(fort, seg, day)) {
       const breached = seg.breachedDay !== undefined;
       gaps.push({
         kind: breached ? 'breach' : 'gap',
@@ -83,14 +93,20 @@ export function fortGaps(
       });
       continue;
     }
-    const gate: FortGate | undefined = fort.gates.find((g) => g.segment === seg.index);
-    if (gate && (seg.demolishedBeforeGate !== undefined || seg.demolishedAfterGate !== undefined)) {
-      // část dílu zbořená se sousedním úsekem je mezera vedle brány
+    const open = (part: GatePart): boolean =>
+      split
+        ? segmentIsGap(fort, gatePartView(seg, part), day)
+        : gonePartDay(seg, part) !== undefined;
+    if (
+      gate &&
+      (split || seg.demolishedBeforeGate !== undefined || seg.demolishedAfterGate !== undefined)
+    ) {
+      // část dílu zbořená se sousedním úsekem (či shnilá vlastní hradba kusu) je mezera vedle brány
       const chord = gateChord(outline, shape, gate);
       const ends = shape.startM + shape.lengthM;
       const parts: [number, number][] = [];
-      if (seg.demolishedBeforeGate !== undefined) parts.push([shape.startM, chord.fromM]);
-      if (seg.demolishedAfterGate !== undefined) parts.push([chord.toM, ends]);
+      if (open('before')) parts.push([shape.startM, chord.fromM]);
+      if (open('after')) parts.push([chord.toM, ends]);
       for (const [from, to] of parts) {
         if (to - from <= 0) continue;
         const [x, z] = outlinePointAt(outline, (from + to) / 2);

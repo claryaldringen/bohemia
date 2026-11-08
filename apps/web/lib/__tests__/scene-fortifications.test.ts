@@ -14,7 +14,7 @@ import {
   type TileCell,
   type VillageState,
 } from '@bohemia/game';
-import { fortStakingLines } from '../scene/fortification-layout';
+import { fortBuilds, fortStakingLines, segmentBuild } from '../scene/fortification-layout';
 import { fortificationViews } from '../fort-view';
 import { pickVillageTarget } from '../scene/village-picking';
 import { sceneVillage } from '../village-view-scene';
@@ -201,6 +201,44 @@ describe('rozestavěné opevnění na 0 % ve scéně', () => {
     expect(looks[1]).toMatchObject({ work: 'upgrade', progress: 0.5 });
     expect(looks[half + 1]).toMatchObject({ work: 'demolish', progress: 0.5 });
     expect(looks[3]!.work).toBeUndefined();
+  });
+
+  it('kus dílu s branou s vlastní hradbou – scéna kreslí kus po okraj brány, brána stojí', () => {
+    const state = fortState(100, false);
+    const fort = state.fortifications![0]!;
+    const half = Math.floor(fort.segments.length / 2);
+    fort.gates = [
+      { segment: 0, offsetM: 7, x: 0, z: 0 },
+      { segment: half, offsetM: 7, x: 0, z: 0 },
+    ];
+    // kus před bránou na dílu `half` už je palisáda (vylepšený úsek), brána a kus za ní plot
+    fort.segments[half]!.beforeGate = { kind: 'palisade', builtDay: DAY - 365, state: 1 };
+    state.constructions.push({
+      kind: 'fortification',
+      id: 93,
+      startedDay: DAY - 2,
+      cost: 10,
+      done: 5,
+      dwellingType: null,
+      position: null,
+      dwellingId: null,
+      fieldId: null,
+      fortificationId: fort.id,
+      fortWork: 'upgrade',
+      fortTarget: 'palisade',
+      fortSegments: [{ index: 0, part: 'after', cost: 10 }],
+    });
+    const sceneFort = scene(state).forts![0]!;
+    expect(sceneFort.looks[half]!.before).toMatchObject({ age: 1 });
+    expect(sceneFort.looks[0]!.after).toMatchObject({ progress: 0.5 });
+    const start = sceneFort.shapes.slice(0, half).reduce((sum, x) => sum + x.lengthM, 0);
+    const builds = fortBuilds(sceneFort);
+    expect(builds.at(half, start + 2)?.ground?.layer).toBe('palisade');
+    expect(builds.at(half, start + 7 + 3)?.ground?.layer).toBe('fence');
+    expect(segmentBuild(sceneFort, half).ground?.layer).toBe('fence');
+    // vylepšení kusu za bránou na dílu 0 – palisáda se staví vedle plotu jen na tom kusu
+    expect(builds.at(0, 7 + 3)?.upgrade).not.toBeNull();
+    expect(builds.at(0, 2)?.upgrade).toBeNull();
   });
 
   it('klik na pás vybere opevnění i na 0 %', () => {

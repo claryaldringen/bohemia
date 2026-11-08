@@ -17,6 +17,7 @@ import {
 } from '../village/obstacles';
 import {
   fortWalls,
+  gatePartPieces,
   layerBuilt,
   moatDitchPieces,
   moatFrozen,
@@ -259,7 +260,8 @@ function fortCells(
   // holý val po výškách dílů (tempo podle výšky – `rampartPace`)
   const rampart = new Map<number, FortSegment[]>();
   const gaps: FortSegment[] = [];
-  for (const seg of fort.segments) {
+  // díl s branou s kusy s vlastní hradbou po kusech – každý kus se čte podle své hradby
+  for (const seg of fort.segments.flatMap((s) => gatePartPieces(s))) {
     const layer = segmentRampart(fort, seg);
     if (layer && layerBuilt(layer) && seg.demolishedDay === undefined) {
       const topStands =
