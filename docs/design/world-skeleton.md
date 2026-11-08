@@ -69,11 +69,15 @@ Umožní nám to dát všem hráčům víceméně stejné podmínky.“ Svět je
    poměr východ/západ posouvá pomalý sklon – šum s vlnou 16 map (`biasWavelength`). Řeky pak na
    desítky map uhýbají na východ nebo na západ, ne jen rovně k jihu.
 3. **Povodí políčka** = kolik políček do něj odtéká, i nepřímo. Počítá se procházením proti proudu
-   (sever, východ, západ – kdo sem odtéká) a končí na 2000 (víc není potřeba).
+   (sever, východ, západ – kdo sem odtéká) a končí na 12 000 (víc není potřeba).
 4. **Řeka** teče políčkem s povodím aspoň 500 map; odtok takového políčka je bod řeky na okraji.
-   Šířka podle povodí: 500 → 25 m, 750 → 30 m, 1000 → 35 m, 1500 → 40 m, 2000 → 45 m (dnešní meze
-   řeky 25–45 m – landscape.md, Typy vody). Šířku v bodě okraje počítají obě mapy ze stejného
-   políčka (horního), takže se shodují; po proudu řeka jen sílí.
+   Šířka podle povodí: 500 → 25 m, 850 → 30 m, 1600 → 35 m, 3800 → 40 m, 12 000 → 45 m (dnešní
+   meze řeky 25–45 m – landscape.md, Typy vody). Povodí má dlouhý chvost – s dřívějšími prahy
+   (do 2000) měla nejširší řeku 45 m ≈ 60 % map s řekou; prahy podle změřeného rozdělení dávají
+   šířky 25–40 m po 16–19 % a 45 m ≈ 30 % (návrh Clauda 8. 11. 2026, Martin: „doladit do
+   spuštění“). Rovnoměrně i pro 45 m by strop musel být přes 100 000 map – výřez by byl drahý.
+   Šířku v bodě okraje počítají obě mapy ze stejného políčka (horního), takže se shodují; po
+   proudu řeka jen sílí.
 5. Řeky tečou vždy k jihu a do moře nedotečou – svět nemá hranice (Otevřené otázky 1). Řeka
    nekončí, jen se slévá; začíná **pramenem** – mapou, kde povodí poprvé dosáhne 500.
 
@@ -128,7 +132,7 @@ průsmyk; hřbety za okraj nepokračují, jako ostatní terén.
 ### Proč nezáleží na pořadí a velikosti světa
 
 Každá hodnota (odtok, povodí, uzel, spojení, bod na okraji) je funkce seedu světa a celých čísel
-souřadnic, bez stavu. Výřez políčka se spočítá z jeho okolí – povodí nejvýš 2000 políček proti
+souřadnic, bez stavu. Výřez políčka se spočítá z jeho okolí – povodí nejvýš 12 000 políček proti
 proudu, stezky z 3 × 3 bloků kolem – bez ohledu na to, co už ve světě je. Mezipaměť smí výpočet
 jen zrychlit; test hlídá, že výřez spočítaný samostatně je stejný jako po tisících jiných dotazů
 a že sousedé mají na společné hraně stejný bod. Zlatý otisk kostry (okno 32 × 32 map) hlídá, že se
@@ -191,9 +195,11 @@ kdekoli“ → jen na suchých mapách):
 - **S řekou** se terén staví v jiném pořadí – řeka první:
   1. výšky a sesypání svahů jako dnes;
   2. **koryta řek:** nejlevnější cesta nízkými místy od každého vtoku k výtoku, přítok do
-     hlavního toku (soutok aspoň 20 políček od okraje); pramen začíná uvnitř mapy. Tvar koryta,
-     meandry, 1–2 brody, hloubka a niva jako dnešní řeka (`RIVER` v `premium/river.ts`), šířka
-     plynule od šířky vtoku k šířce výtoku;
+     hlavního toku (soutok aspoň 20 políček od okraje); pramen začíná uvnitř mapy, 40 políček od
+     výtoku (podél strany ± 12 ze seedu). Tok vtéká a vytéká kolmo k okraji (rovný úsek
+     6 políček). Tvar koryta, meandry, 1–2 brody (ne do 8 políček od soutoku), hloubka a niva jako
+     dnešní řeka (`RIVER` v `premium/river.ts`), šířka plynule od šířky vtoku k šířce výtoku,
+     podél toku ± 10 %, v bodech okraje přesně (návrh Clauda, čísla v `SKELETON_MAP`);
   3. **potok mapy je přítok:** teče od okraje mapy (ne do 20 políček od bodu řeky) do řeky; na mapě
      s pramenem je potok počátkem řeky. Potok tedy zůstává, jen nevytéká za okraj;
   4. místo pro vesnici jako dnes u potoka a navíc aspoň 300 m od osy řeky

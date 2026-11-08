@@ -162,3 +162,22 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   kostry brodu a průsmyku (`withPremiumRoute` ve `foundedState` – osa `route` jako upravené pevné
   cesty s průsekem lesem bez klád a hotová zemská stezka v obou směrech, kam vede; trade.md).
   Úrodná krajina, doubravy a nivní louky působí samy přes krajinu.
+- **Kostra světa na mapě** ([world-skeleton.md](docs/design/world-skeleton.md) – Mapa z kostry;
+  `landscape/skeleton/`, deterministická vrstva v ESLint): výřez kostry (`SkeletonSlice`, body
+  řek a stezek na okraji) je vstup generátoru mapy. Čísla mapy v `SKELETON_MAP`
+  (`rules-map.ts` – soutok ≥ 20 políček od okraje, ústí potoka ≥ 20 od bodu řeky, pramen 40
+  políček od výtoku, rovný úsek 6 políček kolmo od bodu okraje), tvar řeky z `RIVER`.
+  `portTile(side, at, size)` (`ports-map.ts`) dá políčko bodu – sever = poslední řádek (+z),
+  východ = poslední sloupec, `at` = x (N, S) nebo y (E, W). **Koryta** (Úloha 4 plánu kostry):
+  `planRiverCourses(heights, size, slice, random)` (`river-course.ts`) – trasy `cheapestPath`
+  s cenou jako `routeSideRiver` (nízká místa, přirážka u okraje): hlavní tok od nejširšího vtoku
+  (u pramene od bodu uvnitř mapy) k výtoku, přítoky k políčku hlavního toku ≥ 20 od okraje
+  (`joins`), přes rovné úseky jiných bodů trasa nevede; null = trasa nevede.
+  `carveRiverCourses(terrain, plans, seed, { floodplainCells })` (`rivers.ts`) – na místě:
+  `shapeChannel` s profilem šířky (lineárně vtok → výtok ± 10 %, v bodech okraje přesně),
+  meandry jako řeka prémie (u dotyku sebe sama bez meandrů), 1–2 brody (ne do 8 políček od
+  soutoku), `carveRiver` od políčka vtoku či pramene (`source`) bez ohledu na ves
+  (`ignoreVillage` – ves se vybírá až po řekách); přítok ústí do osy hlavního toku a jeho dno
+  nekončí pod dnem soutoku (`bedFloor`). Osy jdou do `Terrain.rivers` / `Landscape.rivers`
+  (hlavní tok první), všechny řeky mapy dá `riversOf` (i řeku prémie `river`). Testy
+  `skeleton/__tests__/river-course.test.ts` (rovně, ohyb, soutok, pramen na umělém svahu).

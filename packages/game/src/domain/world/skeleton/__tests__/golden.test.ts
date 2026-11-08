@@ -29,8 +29,9 @@ function riverKey(slice: SkeletonSlice | null): string {
 
 describe('zlatý otisk kostry', () => {
   it('řeky (okno 32 × 32, seed 20270101)', () => {
-    // v okně je 100 map s řekou
-    expect(fingerprint(riverKey)).toBe(4193049158);
+    // v okně je 100 map s řekou; 8. 11. 2026 (před spuštěním) nový otisk – strop povodí 12 000
+    // a nové prahy šířek (rovnoměrnější šířky 25–45 m, Martin: „doladit do spuštění“)
+    expect(fingerprint(riverKey)).toBe(2978999827);
   });
 
   it('celá kostra – řeky, stezky a místa (okno 32 × 32, seed 20270101)', () => {

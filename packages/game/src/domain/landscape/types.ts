@@ -127,6 +127,12 @@ export interface Landscape {
    */
   readonly river?: readonly StreamPoint[];
   /**
+   * Osy řek kostry světa (mapa s řekou kostry – `skeleton/rivers.ts`) ve stejném tvaru jako
+   * `river`: hlavní tok první (od vtoku nebo pramene k výtoku), pak přítoky, které do něj ústí.
+   * Chybí = mapa bez řeky kostry. Všechny řeky mapy (i prémiovou) dá `riversOf`.
+   */
+  readonly rivers?: readonly (readonly StreamPoint[])[];
+  /**
    * Vrstva překážek se negeneruje s krajinou (stovky ms) – až když je potřeba, ze seedu a verze
    * (`obstaclesOf`). null = krajina bez překážek (ručně vyrobená krajina v testech).
    */
