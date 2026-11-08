@@ -1,12 +1,15 @@
 // Vojsko a boj ve scéně (war.md – Ve scéně): postavy (`man.glb`, `woman.glb` – zapečené animace
 // jako lidé vsi, VillagerPlugin), koně a odehnaný dobytek (klíčové pózy jako dobytek –
-// LivestockPlugin), měkké stíny, šípy, prach srážek, ikony rozkazů nad skupinami a závoj mlhy
-// války. Vše thin instances – draw call na druh. Rozmístění počítají army.ts, battle-fx.ts,
+// LivestockPlugin), měkké stíny, šípy, hozené kameny a oštěpy, prach srážek, ikony rozkazů nad
+// skupinami a závoj mlhy války; u hradeb žebříky a otepi (díly `siege.glb`), oheň u paty (sprity
+// ohně pálení paseky – ClearingFireRenderer) a jáma podkopu. Vše thin instances – draw call na druh. Rozmístění počítají army.ts, battle-fx.ts,
 // fog-of-war.ts a villager-plan.ts (útěk), tady se jen zapíše do instancí; pohyb jen v `animate`
 // (takt WATER_FPS scény), při omezeném pohybu stojí na posledním snímku boje.
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import type { Camera } from '@babylonjs/core/Cameras/camera';
 import { Constants } from '@babylonjs/core/Engines/constants';
+import type { Material } from '@babylonjs/core/Materials/material';
+import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
@@ -15,16 +18,21 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
 import type { Scene } from '@babylonjs/core/scene';
-import { TICK_MS, type BattleSide, type GroupOrder, type Pos } from '@bohemia/game';
+import { FORTIFICATIONS, TICK_MS, type BattleSide, type GroupOrder, type Pos } from '@bohemia/game';
 import {
   ARMY_LOOKS,
   ORDER_ICON_LIFT_M,
   battleFigures,
+  breachFagots,
+  breachFires,
   marchFigures,
+  minePits,
   orderIcons,
   type ArmyAnimal,
   type ArmyFigure,
   type FigureKind,
+  type LadderModel,
+  type LadderPose,
   type OrderIcon,
   type SceneBattle,
   type SceneMarch,
@@ -37,8 +45,13 @@ import {
   strikesOf,
   DUST_S,
   type Clash,
+  type MissileKind,
   type Shot,
 } from './battle-fx';
+import { heapFireShape, type HeapFire } from './clearing-fire';
+import { ClearingFireRenderer, type FireKind } from './clearing-fire-renderer';
+import { applyGammaFog } from './gamma-fog';
+import { instanceMatrices, loadModelParts, type ModelInstance } from './instanced-model';
 import { loadGeometry } from './fauna';
 import { createFog, fogPixels, fogSees, revealFog, type FogGrid } from './fog-of-war';
 import { createAnimalMesh, standOnGround, writeAnimalPose } from './livestock';
@@ -91,6 +104,29 @@ const VEIL_CELLS = 160;
 const ICON_M = 2.6;
 const ICON_PX = 64;
 const ORDERS: readonly GroupOrder[] = ['follow-leader', 'attack-all', 'hold-place'];
+/** Díly obléhání ze `siege.glb` (tools/blender/siege.py) – žebříky a otep. */
+const SIEGE_PARTS = ['ladder-5', 'ladder-7', 'fagot'] as const;
+type SiegePart = (typeof SIEGE_PARTS)[number];
+/** Ohňů u hradeb nejvýš (sprity předem) a sprity jednoho ohně (clearing-fire.ts). */
+const MAX_BATTLE_FIRES = 6;
+const BATTLE_FIRE_SPRITES = 16;
+/** Semínko spritů ohně u hradby – odliší je od hromad paseky. */
+const FIRE_SEED = 9_100_000;
+/** Oheň u hradby hoří naplno, dokud je místo ve fázi `burn` (rozvrh je boj, ne herní den). */
+const BATTLE_FIRE: FireKind = {
+  name: 'battle-fire',
+  capacity: MAX_BATTLE_FIRES * BATTLE_FIRE_SPRITES,
+  shape: heapFireShape,
+  state: () => ({ fire: 1, glow: 1, smoke: 0 }),
+};
+
+/** Materiál dílů obléhání – PBR z glb s oparem, matné dřevo. */
+function prepareSiege(material: Material): void {
+  if (!(material instanceof PBRMaterial)) return;
+  applyGammaFog(material);
+  material.roughness = 1;
+  material.metallic = 0;
+}
 
 interface Animals {
   mesh: Mesh;
@@ -111,6 +147,11 @@ export class ArmyRenderer {
   private readonly animals = new Map<'horse' | 'cow', Animals>();
   private shadow: { mesh: Mesh; matrices: Float32Array } | null = null;
   private arrows: { mesh: Mesh; matrices: Float32Array } | null = null;
+  private stones: { mesh: Mesh; matrices: Float32Array } | null = null;
+  private javelins: { mesh: Mesh; matrices: Float32Array } | null = null;
+  private pits: { mesh: Mesh; matrices: Float32Array } | null = null;
+  private readonly siege = new Map<SiegePart, Mesh>();
+  private readonly fire: ClearingFireRenderer;
   private dust: { mesh: Mesh; matrices: Float32Array } | null = null;
   private readonly icons = new Map<GroupOrder, { mesh: Mesh; matrices: Float32Array }>();
   private fog: FogGrid | null = null;
@@ -122,7 +163,12 @@ export class ArmyRenderer {
   constructor(
     private readonly scene: Scene,
     private readonly env: ArmyEnvironment,
-  ) {}
+  ) {
+    this.fire = new ClearingFireRenderer(scene, {
+      groundHeight: (x, z) => env.groundHeight(x, z),
+      kind: BATTLE_FIRE,
+    });
+  }
 
   /** Nový stav války (snímek boje po taktu). Vrátí true, když je co překreslit. */
   set(war: SceneWar | null, nowMs: number, frozen: boolean, camera: Camera | null): boolean {
@@ -145,19 +191,24 @@ export class ArmyRenderer {
       this.shots = [];
       this.clashes = [];
       this.fog = null;
+      this.fire.set([], 'none');
+      this.fire.animate(nowMs, camera);
       this.hideAll();
       return had;
     }
     void this.load();
     this.updateFog();
     this.write(nowMs, frozen, camera);
+    // oheň u hradby i při omezeném pohybu – jeden snímek plamenů
+    this.fire.animate(nowMs, camera);
     return true;
   }
 
   /** Posun v čase – true, když se něco hnulo (boj běží, letí šíp, lidé utíkají). */
   animate(nowMs: number, camera: Camera | null): boolean {
     if (!this.war) return false;
-    return this.write(nowMs, false, camera);
+    const fire = this.fire.animate(nowMs, camera);
+    return this.write(nowMs, false, camera) || fire;
   }
 
   /** Meshe vojska, které se kreslí (jméno a počet instancí) – e2e a měření. */
@@ -178,10 +229,23 @@ export class ArmyRenderer {
       a.mesh.material?.dispose(true, true);
       a.mesh.dispose();
     }
-    for (const m of [this.shadow, this.arrows, this.dust, ...this.icons.values()]) {
+    for (const m of [
+      this.shadow,
+      this.arrows,
+      this.stones,
+      this.javelins,
+      this.pits,
+      this.dust,
+      ...this.icons.values(),
+    ]) {
       m?.mesh.material?.dispose(true, true);
       m?.mesh.dispose();
     }
+    for (const mesh of this.siege.values()) {
+      mesh.material?.dispose(true, true);
+      mesh.dispose();
+    }
+    this.fire.dispose();
     this.veil?.texture.dispose();
     this.veil?.mesh.material?.dispose();
     this.veil?.mesh.dispose();
@@ -218,6 +282,7 @@ export class ArmyRenderer {
     const t = villagerSeconds(nowMs);
     const figures: ArmyFigure[] = [];
     const animals: ArmyAnimal[] = [];
+    let ladders: LadderPose[] = [];
     let moving = false;
     const battle = war.battle;
     if (battle) {
@@ -236,8 +301,10 @@ export class ArmyRenderer {
       });
       figures.push(...out.figures);
       animals.push(...out.animals);
+      ladders = out.ladders;
       moving ||= battle.outcome === 'ongoing' && f < 1.5;
     }
+    this.writeSiege(battle, ladders);
     if (war.march) {
       const out = marchFigures(war.march);
       figures.push(...out.figures);
@@ -381,25 +448,12 @@ export class ArmyRenderer {
   private writeFx(t: number): boolean {
     this.shots = pruneFx(this.shots, t, (x) => x.flightS);
     this.clashes = pruneFx(this.clashes, t, () => DUST_S);
-    const arrows = this.arrows;
-    if (arrows) {
-      if (arrows.matrices.length < Math.max(1, this.shots.length) * 16) {
-        arrows.matrices = new Float32Array(Math.max(1, this.shots.length) * 2 * 16);
-        arrows.mesh.thinInstanceSetBuffer('matrix', arrows.matrices, 16, false);
-      }
-      let n = 0;
-      for (const shot of this.shots) {
-        const p = arrowAt(shot, t);
-        if (!p) continue;
-        // terén pod šípem mezi střelcem a cílem (oblouk je nad spojnicí ramen)
-        const ground =
-          this.env.groundHeight(shot.from.x, shot.from.z) * (1 - p.u) +
-          this.env.groundHeight(shot.to.x, shot.to.z) * p.u;
-        along(arrows.matrices, n++, p.x, ground + p.y, p.z, p.dx, p.dy, p.dz);
-      }
-      arrows.mesh.thinInstanceCount = n;
-      arrows.mesh.setEnabled(n > 0);
-      if (n > 0) arrows.mesh.thinInstanceBufferUpdated('matrix');
+    for (const [kind, holder] of [
+      ['arrow', this.arrows],
+      ['stone', this.stones],
+      ['javelin', this.javelins],
+    ] as const) {
+      if (holder) this.writeMissiles(holder, kind, t);
     }
     const dust = this.dust;
     if (dust) {
@@ -428,6 +482,102 @@ export class ArmyRenderer {
       if (n > 0) dust.mesh.thinInstanceBufferUpdated('matrix');
     }
     return this.shots.length > 0 || this.clashes.length > 0;
+  }
+
+  /** Šípy, kameny či oštěpy v letu (`kind`) do jejich meshe. */
+  private writeMissiles(
+    holder: { mesh: Mesh; matrices: Float32Array },
+    kind: MissileKind,
+    t: number,
+  ): void {
+    const mine = this.shots.filter((x) => (x.kind ?? 'arrow') === kind);
+    if (holder.matrices.length < Math.max(1, mine.length) * 16) {
+      holder.matrices = new Float32Array(Math.max(1, mine.length) * 2 * 16);
+      holder.mesh.thinInstanceSetBuffer('matrix', holder.matrices, 16, false);
+    }
+    let n = 0;
+    for (const shot of mine) {
+      const p = arrowAt(shot, t);
+      if (!p) continue;
+      // terén pod střelou mezi střelcem a cílem (oblouk je nad spojnicí ramen)
+      const ground =
+        this.env.groundHeight(shot.from.x, shot.from.z) * (1 - p.u) +
+        this.env.groundHeight(shot.to.x, shot.to.z) * p.u;
+      along(holder.matrices, n++, p.x, ground + p.y, p.z, p.dx, p.dy, p.dz);
+    }
+    holder.mesh.thinInstanceCount = n;
+    holder.mesh.setEnabled(n > 0);
+    if (n > 0) holder.mesh.thinInstanceBufferUpdated('matrix');
+  }
+
+  /**
+   * Obléhání u hradeb: žebříky (opřené, ležící, nesené – díl podle délky), otepi u paty, oheň
+   * ve fázi `burn` (sprity – ClearingFireRenderer, klíč podle hořících míst) a jámy podkopu.
+   */
+  private writeSiege(battle: SceneBattle | null, ladders: readonly LadderPose[]): void {
+    const ground = (x: number, z: number): number => this.env.groundHeight(x, z);
+    const byModel = new Map<LadderModel, ModelInstance[]>();
+    for (const l of ladders) {
+      const list = byModel.get(l.model) ?? [];
+      // příčky napříč směrem žebříku (díl stojí podél Y, příčky podél X)
+      list.push({
+        x: l.x,
+        y: ground(l.x, l.z) + l.lift,
+        z: l.z,
+        rotationY: Math.atan2(-l.up.x, -l.up.z),
+        scale: 1,
+        up: l.up,
+      });
+      byModel.set(l.model, list);
+    }
+    const fagots = battle ? breachFagots(battle) : [];
+    const parts: Record<SiegePart, ModelInstance[]> = {
+      'ladder-5': byModel.get('ladder-5') ?? [],
+      'ladder-7': byModel.get('ladder-7') ?? [],
+      fagot: fagots.map((f) => ({
+        x: f.x,
+        y: ground(f.x, f.z) + f.lift,
+        z: f.z,
+        rotationY: f.yaw,
+        scale: 1,
+      })),
+    };
+    for (const name of SIEGE_PARTS) {
+      const mesh = this.siege.get(name);
+      if (!mesh) continue;
+      const list = parts[name];
+      if (list.length > 0) mesh.thinInstanceSetBuffer('matrix', instanceMatrices(list), 16, false);
+      mesh.thinInstanceCount = list.length;
+      mesh.setEnabled(list.length > 0);
+    }
+    const fires = battle ? breachFires(battle).slice(0, MAX_BATTLE_FIRES) : [];
+    this.fire.set(
+      fires.map((f, i): HeapFire => ({
+        x: f.x,
+        z: f.z,
+        yaw: f.yaw,
+        scale: f.scale,
+        square: f.key,
+        seed: FIRE_SEED + i * 7,
+        order: 0,
+        burn: {},
+      })),
+      fires.map((f) => f.key).join('|'),
+    );
+    const pits = this.pits;
+    if (pits) {
+      const list = battle ? minePits(battle, FORTIFICATIONS.assault.undergroundShare) : [];
+      if (pits.matrices.length < Math.max(1, list.length) * 16) {
+        pits.matrices = new Float32Array(Math.max(1, list.length) * 2 * 16);
+        pits.mesh.thinInstanceSetBuffer('matrix', pits.matrices, 16, false);
+      }
+      list.forEach((p, i) =>
+        flat(pits.matrices, i, p.x, ground(p.x, p.z) + 0.06, p.z, 1, 0, p.radius * 2, p.radius * 2),
+      );
+      pits.mesh.thinInstanceCount = list.length;
+      pits.mesh.setEnabled(list.length > 0);
+      if (list.length > 0) pits.mesh.thinInstanceBufferUpdated('matrix');
+    }
   }
 
   /** Ikony rozkazů – čtverce natočené ke kameře (bez kamery k jihu). */
@@ -467,8 +617,17 @@ export class ArmyRenderer {
   private hideAll(): void {
     for (const k of this.figures.values()) k.mesh.setEnabled(false);
     for (const a of this.animals.values()) a.mesh.setEnabled(false);
-    for (const m of [this.shadow, this.arrows, this.dust, ...this.icons.values()])
+    for (const m of [
+      this.shadow,
+      this.arrows,
+      this.stones,
+      this.javelins,
+      this.pits,
+      this.dust,
+      ...this.icons.values(),
+    ])
       m?.mesh.setEnabled(false);
+    for (const mesh of this.siege.values()) mesh.setEnabled(false);
     this.veil?.mesh.setEnabled(false);
   }
 
@@ -530,13 +689,30 @@ export class ArmyRenderer {
 
   private load(): Promise<void> {
     this.loading ??= (async (): Promise<void> => {
-      const [man, woman, horse, cow] = await Promise.allSettled([
+      const [man, woman, horse, cow, siege] = await Promise.allSettled([
         loadBakedModel(this.scene, '/models/people/man.glb'),
         loadBakedModel(this.scene, '/models/people/woman.glb'),
         loadGeometry(this.scene, '/models/fauna/horse.glb'),
         loadGeometry(this.scene, '/models/fauna/cow.glb'),
+        loadModelParts(this.scene, '/models/siege/siege.glb', 'army-', prepareSiege),
       ]);
-      if (this.disposed || this.scene.isDisposed) return;
+      if (this.disposed || this.scene.isDisposed) {
+        if (siege.status === 'fulfilled') for (const m of siege.value?.values() ?? []) m.dispose();
+        return;
+      }
+      if (siege.status === 'fulfilled' && siege.value) {
+        for (const [name, mesh] of siege.value) {
+          if (!(SIEGE_PARTS as readonly string[]).includes(name)) {
+            mesh.dispose();
+            continue;
+          }
+          mesh.alwaysSelectAsActiveMesh = true;
+          mesh.thinInstanceSetBuffer('matrix', new Float32Array(16), 16, false);
+          mesh.thinInstanceCount = 0;
+          mesh.setEnabled(false);
+          this.siege.set(name as SiegePart, mesh);
+        }
+      } else console.warn('Model obléhání (žebříky, otepi) se nepodařilo načíst.');
       if (man.status === 'fulfilled' && man.value) {
         const k = createBakedFigure(this.scene, 'army-man', man.value);
         ensure(k, 8, true);
@@ -582,8 +758,38 @@ export class ArmyRenderer {
       wood.specularColor = Color3.Black();
       arrow.material = wood;
       this.arrows = { mesh: arrow, matrices: new Float32Array(16) };
+      const javelin = CreateBox(
+        'army-javelin',
+        { width: 0.045, height: 0.045, depth: 1.8 },
+        this.scene,
+      );
+      javelin.material = wood;
+      const stone = CreateBox('army-stone', { size: 0.24 }, this.scene);
+      const grey = new StandardMaterial('army-stone-material', this.scene);
+      grey.diffuseColor = new Color3(0.5, 0.48, 0.44);
+      grey.specularColor = Color3.Black();
+      stone.material = grey;
+      for (const mesh of [javelin, stone]) {
+        mesh.isPickable = false;
+        mesh.alwaysSelectAsActiveMesh = true;
+      }
+      this.javelins = { mesh: javelin, matrices: new Float32Array(16) };
+      this.stones = { mesh: stone, matrices: new Float32Array(16) };
+      const pit = createBlobShadow(this.scene, 'army-pit', 0.92);
+      if (pit.mesh.material instanceof StandardMaterial) {
+        pit.mesh.material.emissiveColor = new Color3(0.1, 0.07, 0.04);
+      }
+      this.pits = pit;
       for (const order of ORDERS) this.icons.set(order, this.createIcon(order));
-      for (const m of [this.shadow, this.dust, this.arrows, ...this.icons.values()]) {
+      for (const m of [
+        this.shadow,
+        this.dust,
+        this.arrows,
+        this.javelins,
+        this.stones,
+        this.pits,
+        ...this.icons.values(),
+      ]) {
         m.mesh.thinInstanceSetBuffer('matrix', m.matrices, 16, false);
         m.mesh.thinInstanceCount = 0;
         m.mesh.setEnabled(false);

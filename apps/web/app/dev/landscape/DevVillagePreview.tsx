@@ -555,7 +555,8 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
       console.warn('Palisáda ukázky Bitva se do krajiny nevešla.');
       return;
     }
-    scene.moveCameraTo(demo.gate.x, demo.gate.z - 45);
+    // útok na hradbu – kamera u brány (žebříky a oheň po stranách), jinak před ní
+    scene.moveCameraTo(demo.gate.x, demo.gate.z - (demo.stage === 'walls' ? 12 : 45));
     const fortKey = (): string => {
       const b = demo.battle;
       if (!b) return `${demo.stage}`;
@@ -568,7 +569,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
     scene.setWar(battleDemoWar(demo, Date.now()));
     const timer = setInterval(() => {
       const now = Date.now();
-      if (demo.stage === 'fight' && !stepBattleDemo(demo, now)) return;
+      if (demo.stage !== 'flight' && !stepBattleDemo(demo, now)) return;
       scene.setWar(battleDemoWar(demo, now));
       setBattleFortKey(fortKey());
     }, TICK_MS);
