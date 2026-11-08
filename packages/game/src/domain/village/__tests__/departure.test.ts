@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { foundVillage, startRelocation } from '../actions';
+import { foundVillage, startReplacement } from '../actions';
 import {
   abandonedVillageAt,
   departVillage,
@@ -190,7 +190,14 @@ describe('departVillage', () => {
     expect(departureBlock(s, [999])).not.toBeNull();
     expect(departureBlock(s, [1, 1])).not.toBeNull();
     s.woodLogs = 20;
-    const moving = startRelocation(s, DAY, sonHome(s), 'zemnice', { x: 120, z: 0, rotation: 0 }, 0);
+    const moving = startReplacement(
+      s,
+      DAY,
+      sonHome(s),
+      'zemnice',
+      { x: 120, z: 0, rotation: 0 },
+      0,
+    );
     expect(departureBlock(moving, [sonHome(s)])).toMatch(/staví nový dům/);
     expect(() => departVillage(moving, DAY, [sonHome(s)])).toThrow(RangeError);
     const { state } = departVillage(s, DAY, [1, sonHome(s)]);

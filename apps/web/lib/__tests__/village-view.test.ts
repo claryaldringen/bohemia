@@ -30,7 +30,7 @@ import {
   sacredOakLife,
   sacredOakNow,
   sacredSitesOf,
-  startRelocation,
+  startReplacement,
   surfaceAt,
   tileCenterWorld,
   villageDwellingPositions,
@@ -2192,7 +2192,7 @@ describe('buildVillageView – víc vsí a přestěhování (migration.md)', () 
     s.woodLogs = 20;
     const before = buildVillageView(record(s), landscape, DAY);
     expect(before.households[0]?.relocationBlock).toBeNull();
-    const moving = startRelocation(s, DAY, 1, 'zemnice', { x: 60, z: 60, rotation: 0 }, 0);
+    const moving = startReplacement(s, DAY, 1, 'zemnice', { x: 60, z: 60, rotation: 0 }, 0);
     const view = buildVillageView(record(moving), landscape, DAY);
     const site = view.constructions.find((c) => c.relocates === 1);
     expect(site).toMatchObject({ kind: 'dwelling', dwellingType: 'zemnice', progress: 0 });

@@ -19,7 +19,12 @@ import { mergeRoadChains } from './paths/roads';
 import { roadWalk, walkGroundOf } from './paths/walking';
 import { finishRoadApples, workRoadApples, roadApplesNeed } from './road-apples';
 import { finishRoadUpgrade } from './road-upgrades';
-import { demolitionNeed, finishDemolition, isDemolitionFinished } from './demolition';
+import {
+  demolitionNeed,
+  finishDemolition,
+  isDemolitionFinished,
+  startDemolition,
+} from './demolition';
 import { finishRepair, isRepairFinished, repairNeed, workRepair } from './repair';
 import { copyPlot, relocationPlot } from './plots';
 import { finishThreshingFloor } from './threshing-floors';
@@ -50,7 +55,7 @@ import {
   woodSupply,
 } from './wood';
 import { fieldGridOf } from './squares';
-import { stewardRelocate } from './steward-rebuild';
+import { stewardReplace } from './steward-rebuild';
 import { isStewardBuilt, markStewardBuilt } from './steward-state';
 import { clearWoodAt } from './woods';
 import { forestBonusUntil, occupiedDwellings } from './simulate-plan';
@@ -356,6 +361,8 @@ export function finishConstructions(state: VillageState, day: number): void {
   const unfinished: Construction[] = [];
   const founding = foundingIndex(state);
   let roadUpgraded = false;
+  /** Staré domy nahrazené správcem – po přestěhování se zbourají. */
+  const replaced: number[] = [];
   for (const c of state.constructions) {
     if (!isFinished(state, c, founding)) {
       unfinished.push(c);
@@ -491,14 +498,30 @@ export function finishConstructions(state: VillageState, day: number): void {
     state.dwellings.push(dwelling);
     if (isStewardBuilt(state, c.id)) markStewardBuilt(state, dwelling.id);
     state.chronicle.push(finishedEvent(day, c, dwelling.id));
-    // přestěhování: domácnost se přestěhuje do nového domu, starý zůstane prázdný (migration.md);
-    // jinak nové obydlí osídlí rodina ženatého syna (kinship.md – Domácnosti)
-    if (c.relocates !== undefined) moveRelocatedHousehold(state, day, c, dwelling.id);
-    else if (c.dwellingId === null) settleNewDwelling(state, day, dwelling.id);
+    // nový dům domácnosti: domácnost se přestěhuje do nového domu (migration.md); náhrada správce
+    // starý dům zbourá (demolition.md – Správce), rozestavěné přestěhování ze starší vsi ho nechá
+    // stát prázdný; jinak nové obydlí osídlí rodina ženatého syna (kinship.md – Domácnosti)
+    if (c.relocates !== undefined) {
+      moveRelocatedHousehold(state, day, c, dwelling.id);
+      if (c.replaces) replaced.push(c.relocates);
+    } else if (c.dwellingId === null) settleNewDwelling(state, day, dwelling.id);
   }
   state.constructions = unfinished;
+  // bourání starých domů až po dokončených stavbách dne (přidává stavbu `demolition`)
+  for (const id of replaced) demolishReplaced(state, day, id);
   // vylepšený úsek se stejným stupněm jako soused v uzlu bez odbočky se s ním spojí (roads.md)
   if (roadUpgraded && state.roads) mergeRoadChains(state.roads, state.constructions, state.trails);
+}
+
+/**
+ * Starý dům nahrazený správcem (demolition.md – Správce): domácnost už bydlí v novém, starý se
+ * opustí a zbourá ze společné práce (`startDemolition`) – bez kontroly volných míst, je prázdný.
+ * Dům, který mezitím zanikl, a dvorec (ten se nikdy nebourá) nic.
+ */
+function demolishReplaced(state: VillageState, day: number, dwellingId: number): void {
+  const old = state.dwellings.find((d) => d.id === dwellingId);
+  if (!old || old.type === 'dvorec') return;
+  startDemolition(state, day, { structure: 'dwelling', id: dwellingId });
 }
 
 /**
@@ -583,7 +606,7 @@ export function decideRebuilds(
     // obydlí správce na konci životnosti: když se vyplatí, správce ho přestěhuje na lepší slot
     // plánu místo přestavby na místě (steward.md – Přestavba vlastních staveb)
     if (landscape && obstacles && !craft && type !== 'dvorec' && d.id !== manorId) {
-      if (stewardRelocate(state, d, type, day, landscape, obstacles)) continue;
+      if (stewardReplace(state, d, type, day, landscape, obstacles)) continue;
     }
     // nový pozemek: polozemnice bez pozemku, dvorec bez pozemku se dvorem (dvě políčka)
     const needsSite = !d.plot || (type === 'dvorec' && !d.plot.yard);

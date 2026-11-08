@@ -140,11 +140,17 @@ export interface Construction {
   /** Nová dílna: vzdálenost k potoku (m) – dílna ji po dostavění převezme. */
   waterDistanceM?: number;
   /**
-   * Přestěhování domácnosti (migration.md): id domácnosti (= id jejího obydlí), která si nové
-   * obydlí staví a po dostavění se do něj přestěhuje – starý dům zůstane prázdný. Jen u stavby
-   * `dwelling`, u ostatních staveb chybí.
+   * Nový dům domácnosti (migration.md, demolition.md – Správce): id domácnosti (= id jejího
+   * obydlí), která si nové obydlí staví a po dostavění se do něj přestěhuje. Jen u stavby
+   * `dwelling`, u ostatních staveb chybí. Bez `replaces` (rozestavěné přestěhování ze starší vsi)
+   * zůstane starý dům stát prázdný.
    */
   relocates?: number;
+  /**
+   * Náhrada domu správcem (demolition.md – Správce): po dostavění a přestěhování domácnosti
+   * `relocates` se starý, už prázdný dům zbourá (`startDemolition`). Jen spolu s `relocates`.
+   */
+  replaces?: true;
   /**
    * Oprava stavby (abandonment.md – Oprava): která stavba a z jakého stavu se opravuje – stav
    * stavby roste s prací. Jen u stavby `repair`, u ostatních chybí.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TOTAL_GAME_DAYS, dayIndexOf } from '../../calendar';
-import { foundField, foundVillage, startNewDwelling, startRelocation } from '../actions';
+import { foundField, foundVillage, startNewDwelling, startReplacement } from '../actions';
 import type { PartInput } from '../actions';
 import { ageYears, foodNeedPerDay, occupants } from '../people';
 import { NO_CRAFTS } from '../productivity';
@@ -1306,7 +1306,7 @@ describe('advanceVillage – obydlí', () => {
     const quiet = advanceVillage(s0, day + 1, null);
     expect(repairLabor(quiet)).toBeGreaterThan(0);
     // stavba nového domu vezme celou společnou práci dne – opravy dostanou jen zbytek, tady nic
-    const building = startRelocation(s0, day, 1, 'polozemnice', { x: 30, z: 30, rotation: 0 }, 0);
+    const building = startReplacement(s0, day, 1, 'polozemnice', { x: 30, z: 30, rotation: 0 }, 0);
     const busy = advanceVillage(building, day + 1, null);
     expect(repairLabor(busy)).toBe(0);
     expect(busy.labor!.shares.some((share) => share.construction !== undefined)).toBe(true);

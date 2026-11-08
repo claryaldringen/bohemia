@@ -749,9 +749,18 @@ domů a ta se po založení nemění.
   - `STEWARD.rebuildMargin` (≈ 20 %, ať se nepřestavuje kvůli šumu). Zisk = ušetřená chůze na pole,
     pro vodu a dřevo, menší ztráty záplav a požáru, uvolněná dobrá půda pod stavbou.
 - **Obydlí a dílny – na konci životnosti.** Když vesničané dožilé obydlí správce přestavují
-  (`decideRebuilds`), zbytková hodnota je nulová – správce místo přestavby na místě použije
-  **Přestěhovat** (`startRelocation`, stejná akce jako hráč) na lepší slot plánu, když zisk
-  převáží rozdíl ceny. Dřív jen při velkém zisku (zatopené místo, dům uprostřed nejlepšího pole).
+  (`decideRebuilds`), zbytková hodnota je nulová – správce místo přestavby na místě postaví
+  **nový dům** na lepším slotu plánu, když zisk převáží rozdíl ceny, a po jeho dostavění
+  a přestěhování domácnosti starý dům **zbourá** ([demolition.md](demolition.md) – Správce; akce
+  Přestěhovat pro hráče zanikla 8. 11. 2026). Dřív jen při velkém zisku (zatopené místo, dům
+  uprostřed nejlepšího pole).
+- **Nový dům a zbourání starého (návrh Clauda, 8. 11. 2026):** nový dům je stavba obydlí bez lidí
+  k osídlení (`startReplacement` – stavba nese `relocates` a `replaces`); po dostavění se domácnost
+  přestěhuje a starý, už prázdný dům se týž den opustí a začne bourat ze společné práce (bez
+  kontroly volných míst – nikdo v něm nebydlí; klády z bourání na hromadu). Jiné stavby ani
+  opevnění správce sám neboří. Rozestavěné přestěhování ze starší vsi (bez `replaces`) se dostaví
+  jako dřív a starý dům zůstane stát prázdný. Hráč, který náhradu zruší, zapíše veto na nové
+  i staré místo jako dřív – správce pak dům přestaví na místě.
 - **Upřesnění (návrh Clauda):** háček je v `decideRebuilds` (`steward-rebuild.ts`), protože
   rozhodnutí o přestavbě padá tam každý den a den správce (po 10 dnech) by ho předběhl. Zisk
   = rozdíl ceny místa domu za rok (voda a dřevo – `dwellingSiteValue`) × horizont
@@ -1094,7 +1103,7 @@ kód, který se pak zahřeje, stojí ≈ 3× víc než zahřátý).
 | Plán sídla ze šablon (shluk, řadová ves, samoty), hospodářství dům + blok polí, rezervy, uložený ve stavu               | návrh Clauda                                                         |
 | Území vsi do 800 m od středu; správce plánuje jen na svém území (Voroného buňky zrušeny 1. 11. 2026)                    | návrh Clauda                                                         |
 | Značka „postavil správce“ jako množina id `steward.built`; převod: bez stavu vypnutý                                    | návrh Clauda                                                         |
-| Přestavba obydlí přestěhováním na konci životnosti; ostatní stavby nová + stará chátrá                                  | návrh Clauda                                                         |
+| Přestavba obydlí na konci životnosti: nový dům jinde, starý se zbourá; ostatní stavby nová + stará chátrá               | návrh Clauda (bourání – Martin 8. 11. 2026)                          |
 | Hráč smí zrušit rozestavěnou stavbu správce → veto na 5 let                                                             | návrh Clauda                                                         |
 | Jména synů při narození jako u vnuků; odchod nejstaršího ženatého způsobilého syna, nejvýš jednou za rok                | návrh Clauda                                                         |
 | ~~Odchod na téže mapě, když tam je místo pro 2× díl~~; vždy nová mapa (stezka, nejkratší cesta)                         | návrh Clauda, Martin (1. 11. 2026)                                   |

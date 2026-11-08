@@ -39,7 +39,7 @@ import { ageGroup } from './people';
 import { settlersMaxId, type Settlers } from './departure';
 import { isLineMan } from './dynasty';
 import { checkPersonName, normalizePersonName } from './dynasty-names';
-import { relocationAffordability, relocationBlock } from './relocation';
+import { replacementAffordability, relocationBlock } from './relocation';
 import {
   CRAFTS,
   CRAFT_BASE,
@@ -712,14 +712,15 @@ export function startNewDwelling(
 }
 
 /**
- * Domácnost obydlí `householdId` si začne stavět nový dům jinde ve vsi (migration.md –
- * Přestěhování domácnosti). Stejné jako `startNewDwelling` – kontroly vstupu, dřevo, pozemek,
- * překážky a cena –, jen bez lidí k osídlení: stavba nese `relocates` a po dostavění se do ní
- * domácnost přestěhuje (`moveRelocatedHousehold`), starý dům zůstane prázdný. RangeError, když
- * domácnost neexistuje, nový dům si už staví nebo svůj dům přestavuje (`relocationBlock`), když
- * ves nemá dřevo předem nebo je vstup neplatný. Konvence dne jako u `startNewDwelling`.
+ * Náhrada domu (demolition.md – Správce; akce správce): domácnost obydlí `householdId` si začne
+ * stavět nový dům jinde ve vsi. Stejné jako `startNewDwelling` – kontroly vstupu, dřevo, pozemek,
+ * překážky a cena –, jen bez lidí k osídlení: stavba nese `relocates` a `replaces`, po dostavění se
+ * do ní domácnost přestěhuje (`moveRelocatedHousehold`) a starý dům se zbourá (`startDemolition`).
+ * RangeError, když domácnost neexistuje, nový dům si už staví nebo svůj dům přestavuje
+ * (`relocationBlock`), když ves nemá dřevo předem nebo je vstup neplatný. Konvence dne jako
+ * u `startNewDwelling`.
  */
-export function startRelocation(
+export function startReplacement(
   state: VillageState,
   day: number,
   householdId: number,
@@ -732,7 +733,7 @@ export function startRelocation(
   validateDwellingSite(state, day, position, obstacleCost, obstacleIds, site);
   const block = relocationBlock(state, householdId);
   if (block !== null) throw new RangeError(`Domácnost ${householdId} se teď nestěhuje (${block}).`);
-  if (!relocationAffordability(state, type, site.obstacles).affordable) {
+  if (!replacementAffordability(state, type, site.obstacles).affordable) {
     throw new RangeError('Na nový dům ves nemá dřevo.');
   }
   const next = addDwellingSite(
@@ -745,6 +746,9 @@ export function startRelocation(
     site,
     householdId,
   );
+  // domácnost má jen jednu stavbu nového domu (`relocationBlock`)
+  const added = next.constructions.find((c) => c.relocates === householdId);
+  if (added) added.replaces = true;
   next.chronicle.push({ day, kind: 'relocation-started', dwellingId: householdId, type });
   return next;
 }

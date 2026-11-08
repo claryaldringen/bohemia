@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { foundVillage, startNewDwelling, startRelocation } from '../actions';
+import { foundVillage, startNewDwelling, startReplacement } from '../actions';
 import { buildAffordability } from '../costs';
 import { availableSettlers } from '../households';
 import { occupants } from '../people';
 import {
   relocatingHouseholds,
-  relocationAffordability,
+  replacementAffordability,
   relocationBlock,
   relocationOf,
 } from '../relocation';
@@ -14,8 +14,8 @@ import { advanceVillage } from '../simulate';
 import type { VillageState } from '../types';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
-// Přestěhování domácnosti (migration.md): domácnost si postaví nový dům a po dostavění se do něj
-// přestěhuje, starý dům zůstane prázdný.
+// Nový dům domácnosti (migration.md, demolition.md – Správce): domácnost si postaví nový dům a po
+// dostavění se do něj přestěhuje; náhrada správce starý dům zbourá, starší přestěhování ne.
 
 const DAY = 1000;
 const HOME = { x: 10, z: 20, rotation: 0 };
@@ -40,12 +40,12 @@ function untilFinished(s: VillageState, id: number): VillageState {
   throw new Error('Přestěhování se nedostavělo.');
 }
 
-describe('startRelocation', () => {
+describe('startReplacement', () => {
   it('nový dům domácnosti je stavba bez lidí k osídlení – běžné obydlí ne', () => {
     const s = settled();
     expect(availableSettlers(s, DAY)).toBeLessThanOrEqual(0);
     expect(() => startNewDwelling(s, DAY, 'zemnice', NEW_HOME, 0)).toThrow(RangeError);
-    const next = startRelocation(s, DAY, household(s), 'zemnice', NEW_HOME, 4);
+    const next = startReplacement(s, DAY, household(s), 'zemnice', NEW_HOME, 4);
     const site = next.constructions.at(-1);
     expect(site).toMatchObject({
       kind: 'dwelling',
@@ -75,11 +75,11 @@ describe('startRelocation', () => {
   it('podruhé, z prázdného nebo přestavovaného domu nejde', () => {
     const s = settled();
     const id = household(s);
-    const once = startRelocation(s, DAY, id, 'zemnice', NEW_HOME, 0);
+    const once = startReplacement(s, DAY, id, 'zemnice', NEW_HOME, 0);
     expect(relocationBlock(once, id)).toBe('relocating');
-    expect(() => startRelocation(once, DAY, id, 'zemnice', HOME, 0)).toThrow(RangeError);
+    expect(() => startReplacement(once, DAY, id, 'zemnice', HOME, 0)).toThrow(RangeError);
     expect(relocationBlock(s, 999)).toBe('no-household');
-    expect(() => startRelocation(s, DAY, 999, 'zemnice', NEW_HOME, 0)).toThrow(RangeError);
+    expect(() => startReplacement(s, DAY, 999, 'zemnice', NEW_HOME, 0)).toThrow(RangeError);
     const empty = structuredClone(s);
     empty.people = [];
     expect(relocationBlock(empty, id)).toBe('no-household');
@@ -96,36 +96,74 @@ describe('startRelocation', () => {
       fieldId: null,
     });
     expect(relocationBlock(rebuilding, id)).toBe('rebuilding');
-    expect(() => startRelocation(rebuilding, DAY, id, 'zemnice', NEW_HOME, 0)).toThrow(RangeError);
+    expect(() => startReplacement(rebuilding, DAY, id, 'zemnice', NEW_HOME, 0)).toThrow(RangeError);
   });
 
   it('cena předem je jen dřevo – lidi k osídlení nechce', () => {
     const s = settled();
     for (const type of ['zemnice', 'polozemnice'] as const) {
       expect(buildAffordability(s, type).missing.settlers).toBeGreaterThan(0);
-      expect(relocationAffordability(s, type)).toEqual({ affordable: true, missing: {} });
+      expect(replacementAffordability(s, type)).toEqual({ affordable: true, missing: {} });
     }
   });
 
   it('neplatný vstup a den do minulosti vsi vyhodí RangeError', () => {
     const s = settled();
     const id = household(s);
-    expect(() => startRelocation(s, DAY, id, 'zemnice', { ...NEW_HOME, x: NaN }, 0)).toThrow(
+    expect(() => startReplacement(s, DAY, id, 'zemnice', { ...NEW_HOME, x: NaN }, 0)).toThrow(
       RangeError,
     );
-    expect(() => startRelocation(s, DAY, id, 'zemnice', NEW_HOME, -1)).toThrow(RangeError);
+    expect(() => startReplacement(s, DAY, id, 'zemnice', NEW_HOME, -1)).toThrow(RangeError);
     const later = structuredClone(s);
     later.lastDay = DAY + 5;
-    expect(() => startRelocation(later, DAY + 4, id, 'zemnice', NEW_HOME, 0)).toThrow(RangeError);
+    expect(() => startReplacement(later, DAY + 4, id, 'zemnice', NEW_HOME, 0)).toThrow(RangeError);
   });
 });
 
-describe('dostavěné přestěhování', () => {
-  it('domácnost se přestěhuje do nového domu, starý zůstane prázdný a chátrá', () => {
+/** Rozestavěné přestěhování ze starší vsi (před bouráním): stavba nese `relocates` bez `replaces`. */
+function legacyRelocation(s: VillageState, from: number): VillageState {
+  const started = startReplacement(s, DAY, from, 'zemnice', NEW_HOME, 0);
+  for (const c of started.constructions) delete c.replaces;
+  return started;
+}
+
+/** Ves dopočítaná po dnech do dne, kdy podmínka platí (nejvýš rok). */
+function untilDay(s: VillageState, done: (x: VillageState) => boolean): VillageState {
+  let state = s;
+  for (let day = s.lastDay + 1; day < s.lastDay + 365; day++) {
+    state = advanceVillage(state, day, null);
+    if (done(state)) return state;
+  }
+  throw new Error('Podmínka do roka nenastala.');
+}
+
+describe('náhrada domu správcem (demolition.md – Správce)', () => {
+  it('po dostavění se domácnost přestěhuje a starý dům se opustí a zbourá', () => {
+    const s = settled();
+    const from = household(s);
+    const started = startReplacement(s, DAY, from, 'zemnice', NEW_HOME, 0);
+    const site = started.constructions.find((c) => c.relocates === from)!;
+    expect(site.replaces).toBe(true);
+    const moved = untilDay(started, (x) => !x.constructions.some((c) => c.id === site.id));
+    // týž den: domácnost v novém domě, starý dům opuštěný a ve stavbě bourání
+    expect(occupants(moved, from)).toEqual([]);
+    expect(moved.dwellings.find((d) => d.id === from)?.disusedDay).toBe(moved.lastDay);
+    const demolition = moved.constructions.find((c) => c.kind === 'demolition');
+    expect(demolition?.demolition).toEqual({ structure: 'dwelling', id: from });
+    // po bourání dům zmizí, kronika „zbořeno“
+    const gone = untilDay(moved, (x) => !x.dwellings.some((d) => d.id === from));
+    expect(gone.chronicle.filter((e) => e.kind === 'structure-demolished')).toEqual([
+      expect.objectContaining({ structure: 'dwelling', id: from }),
+    ]);
+  });
+});
+
+describe('dostavěné přestěhování ze starší vsi (bez replaces)', () => {
+  it('domácnost se přestěhuje do nového domu, starý zůstane prázdný, nebourá se a chátrá', () => {
     const s = settled();
     const from = household(s);
     const people = occupants(s, from).map((p) => p.id);
-    const started = startRelocation(s, DAY, from, 'zemnice', NEW_HOME, 0);
+    const started = legacyRelocation(s, from);
     const siteId = started.constructions.at(-1)!.id;
     const done = untilFinished(started, siteId);
     const moved = done.chronicle.find((e) => e.kind === 'household-relocated');
@@ -142,6 +180,8 @@ describe('dostavěné přestěhování', () => {
     expect(occupants(done, from)).toEqual([]);
     const old = done.dwellings.find((d) => d.id === from);
     expect(old).toBeDefined();
+    expect(old?.disusedDay).toBeUndefined();
+    expect(done.constructions.some((c) => c.kind === 'demolition')).toBe(false);
     expect(relocatingHouseholds(done).size).toBe(0);
     // prázdný dům chátrá rychleji než obydlený
     const later = advanceVillage(done, done.lastDay + 365, null);
@@ -158,7 +198,7 @@ describe('dostavěné přestěhování', () => {
     const rebuilt = advanceVillage(s, DAY + 1, null);
     expect(rebuilt.constructions.some((c) => c.kind === 'rebuild')).toBe(true);
     const relocating = advanceVillage(
-      startRelocation(s, DAY, id, 'zemnice', NEW_HOME, 0),
+      startReplacement(s, DAY, id, 'zemnice', NEW_HOME, 0),
       DAY + 1,
       null,
     );
@@ -166,7 +206,7 @@ describe('dostavěné přestěhování', () => {
   });
 
   it('výsledek nezávisí na tom, po jakých kouscích se ves dopočítá', () => {
-    const started = startRelocation(settled(), DAY, 1, 'polozemnice', NEW_HOME, 3);
+    const started = startReplacement(settled(), DAY, 1, 'polozemnice', NEW_HOME, 3);
     const end = DAY + 400;
     const once = advanceVillage(started, end, null);
     let pieces = started;
