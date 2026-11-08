@@ -16,6 +16,7 @@ import {
   type ObstacleChanges,
 } from '../village/obstacles';
 import {
+  fortPincerArms,
   fortWalls,
   gatePartPieces,
   layerBuilt,
@@ -339,8 +340,13 @@ function fortCells(
     ditch.length === 0
       ? []
       : fortWallCells(grid, { walls: ditch, gates: [] }).wall.filter((c) => !open.has(c));
+  // ramena klešťových bran blokují vždy – i u zavřené brány a prolomeného dílu (`fortPincerArms`;
+  // plán hradeb Ú19): ulička je průchozí jen k vratům, otevřená brána ji má v `open`
+  const arms = fortPincerArms(geo, fort);
+  const armCells = arms.length === 0 ? [] : fortWallCells(grid, { walls: arms, gates: [] }).wall;
+  const walls = armCells.length === 0 ? wallCells : [...new Set([...wallCells, ...armCells])];
   return {
-    wall: wallCells.filter((c) => !open.has(c)),
+    wall: walls.filter((c) => !open.has(c)),
     rampart: rampartCells.flatMap(({ height, cells }) =>
       cells.filter((c) => !open.has(c)).map((cell) => ({ cell, height })),
     ),

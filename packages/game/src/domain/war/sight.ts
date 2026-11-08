@@ -6,14 +6,20 @@ import { WAR } from './rules-war';
 
 /**
  * Vidí muž v `from` na místo `to`? Stojí-li kterýkoli z nich v lese, dohled je lesní. Bez mřížky
- * (mapa ještě není) se bere dohled v lese – mlha války raději skryje víc než míň.
+ * (mapa ještě není) se bere dohled v lese – mlha války raději skryje víc než míň. `openM` – dohled
+ * v otevřené krajině (z věže nad branou dál – `towerReach`).
  */
-export function inSight(grid: MarchGrid | null, from: Pos, to: Pos): boolean {
+export function inSight(
+  grid: MarchGrid | null,
+  from: Pos,
+  to: Pos,
+  openM: number = WAR.sight.openM,
+): boolean {
   const forest =
     grid === null ||
     (grid.flags[marchCellAt(grid, from)]! & MARCH_FOREST) !== 0 ||
     (grid.flags[marchCellAt(grid, to)]! & MARCH_FOREST) !== 0;
-  const r = forest ? WAR.sight.forestM : WAR.sight.openM;
+  const r = forest ? WAR.sight.forestM : openM;
   const dx = from.x - to.x;
   const dz = from.z - to.z;
   return dx * dx + dz * dz <= r * r;
