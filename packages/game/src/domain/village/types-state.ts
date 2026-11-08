@@ -413,6 +413,12 @@ export interface VillageState {
    */
   manorId?: number;
   /**
+   * Dočasně ubytované domácnosti (demolition.md – Obydlí s obyvateli): obyvatelé opuštěného nebo
+   * zbouraného obydlí bydlí v cizích obydlích (`Person.dwellingId` = hostitel). Záznam drží, kdo
+   * patří k jaké domácnosti a kam se má nastěhovat první – do nového obydlí. Chybí = nikdo.
+   */
+  displaced?: DisplacedHousehold[];
+  /**
    * Režim vojvodovy rodiny (lord.md – Zakládání vsi, Kdy jde rodina na pole): chybí = rodina
    * pracuje jako ostatní (ves má málo dospělých mimo rodinu, i starší ves před výcvikem).
    */
@@ -604,4 +610,14 @@ export interface LordState {
   field?: { since: number; reason: 'hunger' | 'sowing' };
   /** Dní s plným přídělem po sobě, co je rodina na poli – návrat po `LORD.backToTrainingDays`. */
   fedDays?: number;
+}
+
+/** Vystěhovaná domácnost (`VillageState.displaced`). */
+export interface DisplacedHousehold {
+  /** Původní domácnost = id obydlí, ze kterého se lidé vystěhovali. */
+  household: number;
+  /** Den vystěhování – nejstarší záznam se nastěhuje první. */
+  day: number;
+  /** Lidé a obydlí, kde teď bydlí (hostitel). */
+  people: { id: number; host: number }[];
 }

@@ -3,7 +3,7 @@ import type { BuildResult } from './build-intent';
 import { cloneState } from './clone';
 import { isDisused } from './disused';
 import { villagePens } from './oxen';
-import { occupants } from './people';
+import { lodgingShortfall, noRoomReason, vacateDwelling } from './displaced';
 import { oxenOf, penSpecies } from './pens';
 import { returnConstructionWood } from './relocation';
 import { cancelRepair, startRepair } from './repair';
@@ -11,9 +11,9 @@ import type { Dwelling, Pen, SacredBuilding, UsableStructure, VillageState } fro
 
 // Nepoužívaná stavba – Opustit a Vrátit (demolition.md – Opuštění; Martin 8. 11. 2026: „Hráč/správce
 // může nechat stavbu opustit nebo zbourat.“). Opuštění nic nestojí a stavba hned přestane sloužit:
-// obydlí nemá obyvatele a neosídlí se, ohrada nedrží stádo, modla a svatyně nedávají štěstí. Stavba
+// obydlí se vystěhuje (lidé bydlí dočasně jinde – displaced.ts) a neosídlí se, ohrada nedrží stádo, modla a svatyně nedávají štěstí. Stavba
 // stojí a chátrá jako opuštěná stavba (abandonment.md) – bez roční kontroly provozu a bez opravy,
-// opravit ji může jen hráč tím, že ji vrátí. Zbourání (Ú3) a vystěhování obydlí (Ú2) staví na tomto
+// opravit ji může jen hráč tím, že ji vrátí. Zbourání (Ú3) staví na tomto
 // modulu.
 
 export type { UsableStructure } from './types';
@@ -31,8 +31,6 @@ export const MANOR_STAYS = 'Dvorec je sídlo vojvody – opustit ani zbourat nej
 export const STRUCTURE_BUSY = 'Na stavbě se staví – nejdřív stavbu dokonči nebo zruš.';
 export const ALREADY_DISUSED = 'Stavba už je opuštěná.';
 export const NOT_DISUSED = 'Stavba se používá.';
-/** Dočasně (Ú1): obydlí s obyvateli nejde opustit – Ú2 to nahradí volnými místy v jiných obydlích. */
-export const DWELLING_OCCUPIED = 'V obydlí bydlí lidé.';
 
 type Target =
   | { structure: 'dwelling'; item: Dwelling }
@@ -55,13 +53,19 @@ function targetOf(state: VillageState, ref: UsableRef): Target | null {
 }
 
 /** Důvod, proč stavbu nejde opustit (česky pro hráče); null = jde. */
-export function disuseBlock(state: VillageState, ref: UsableRef): string | null {
+export function disuseBlock(
+  state: VillageState,
+  ref: UsableRef,
+  day: number = state.lastDay,
+): string | null {
   const target = targetOf(state, ref);
   if (!target) return STRUCTURE_MISSING;
   if (target.structure === 'dwelling' && target.item.type === 'dvorec') return MANOR_STAYS;
   if (isDisused(target.item)) return ALREADY_DISUSED;
   if (target.structure === 'dwelling') {
-    return occupants(state, target.item.id).length > 0 ? DWELLING_OCCUPIED : null;
+    // obyvatelé se rozejdou do volných míst v ostatních obydlích (displaced.ts)
+    const missing = lodgingShortfall(state, target.item.id, day);
+    return missing > 0 ? noRoomReason(missing) : null;
   }
   if (target.structure === 'pen') {
     if (target.item.builtDay === null) return STRUCTURE_UNFINISHED;
@@ -86,6 +90,7 @@ export function beginDisuse(next: VillageState, day: number, ref: UsableRef): vo
   target.item.disusedDay = day;
   if (target.structure === 'dwelling') {
     const dwellingId = target.item.id;
+    vacateDwelling(next, day, dwellingId);
     for (const c of next.constructions.filter(
       (x) => x.kind === 'rebuild' && x.dwellingId === dwellingId,
     )) {

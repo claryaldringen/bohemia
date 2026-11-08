@@ -723,3 +723,23 @@ cellDistance` sídel), 2. spočte družinu a pošle `lord-arrives` do schránky 
 
 Muž (s manželkou a svobodnými dětmi) putuje do vsi bez vojvody schránkou jako dosazený vojvoda (`noble-arrives`,
 `Person.noble`, `VillageState.nobles`) – podrobnosti a pravidla v [vassalage.md](vassalage.md#povýšení-vesničana-a-npc-rod-vassalagemd--povýšení-vesničana-úloha-49).
+
+## Dočasné ubytování (demolition.md – Obydlí s obyvateli)
+
+Soubor `domain/village/displaced.ts`, stav `VillageState.displaced?: DisplacedHousehold[]`
+(`household` = id původního obydlí, `day`, `people: { id, host }[]`).
+
+- `vacateDwelling(next, day, id)` – vystěhuje obydlí a vrátí počet lidí, kterým chybělo místo.
+  Je-li ve vsi prázdné obydlí v provozu, celá vlastní domácnost jde do nejbližšího (kronika
+  `household-relocated`, bez záznamu). Jinak se skupiny (`familiesOf` + zbytek, sestupně podle
+  velikosti) rozejdou do nejbližšího obydlí (čtverec vzdálenosti, pak id) s místem pro celou
+  skupinu, jinak po lidech. Cizí ubytovaní téhož domu se přesunou taky a drží si záznam s novým
+  `host`. Dvorec a opuštěná obydlí nehostí.
+- `lodgingShortfall(state, id, day)` – totéž na klonu; `disuseBlock` z toho dělá důvod
+  `noRoomReason(n)`. (`disuseBlock` má třetí parametr `day`, výchozí `state.lastDay`.)
+- Dočasně ubytovaní mají `Person.dwellingId` = hostitel, tedy v simulaci jsou členy hostitele
+  (návrh Clauda). `availableSettlers` je počítá mimo (`withoutDisplaced`) a přičte
+  `displacedCount` – domácnost čeká na dům.
+- `settleNewDwelling` napřed zkusí `rehouseDisplaced` (nejstarší záznam, pak nižší `household`);
+  `occupyEmptyDwellings` záznamy uklidí (`pruneDisplaced` – mrtví a ti, co už bydlí jinde).
+- V indexu je `freePlaces` exportováno jako `freeDwellingPlaces` (kolize s hřbitovem).
