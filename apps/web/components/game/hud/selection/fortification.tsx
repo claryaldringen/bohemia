@@ -2,7 +2,7 @@
 import { useState, type ReactElement } from 'react';
 import type { FortKind, FortTop } from '@bohemia/game';
 import type { SelectionDetails } from '@/lib/selection-details';
-import type { FortWorkOption } from '@/lib/fort-view';
+import type { FortDemolishOption, FortWorkOption } from '@/lib/fort-view';
 import { formatDecimal, formatInteger, formatPercent } from '@/lib/village-format';
 import { useRightDenied } from '../rights';
 import { Tooltip } from '../Tooltip';
@@ -57,12 +57,56 @@ function WorkTooltip({ name, option }: { name: string; option: FortWorkOption })
   );
 }
 
+/** Název zboření v popisku: plot či palisáda, nástavba valu, nebo srovnání valu. */
+function demolishName(fortKind: FortKind, work: FortDemolishOption['work']): string {
+  if (work === 'level') return 'Srovnat val úseku';
+  return fortKind === 'rampart' ? 'Zbořit nástavbu úseku' : 'Zbořit úsek';
+}
+
+/**
+ * Popisek Zbořit (demolition.md – Opevnění): název, práce a klády zpět na hromadu (bez klád nic)
+ * a důvod, proč nejde (červeně) – u důvodu bez čísel.
+ */
+function DemolishTooltip({
+  name,
+  option,
+}: {
+  name: string;
+  option: FortDemolishOption;
+}): ReactElement {
+  return (
+    <span className="flex flex-col gap-0.5">
+      <span>{name}</span>
+      {option.blocked === null && (
+        <span className="flex items-center gap-2 tabular-nums">
+          <span className="flex items-center gap-1">
+            <img src="/icons/resources/labor.png" alt="" width={16} height={16} />
+            {formatInteger(option.cost.laborManDays)}
+          </span>
+          {option.cost.logs > 0 && (
+            <span className="flex items-center gap-1" data-testid="fort-demolish-logs">
+              <img src="/icons/resources/wood.png" alt="" width={16} height={16} />
+              {`+${formatInteger(option.cost.logs)}`}
+            </span>
+          )}
+        </span>
+      )}
+      {option.blocked && (
+        <span data-testid="fort-blocked" className="font-semibold text-red-400">
+          {option.blocked}
+        </span>
+      )}
+    </span>
+  );
+}
+
 /** Čtvercové tlačítko příkazu panelu s ikonou (jako vylepšení cesty). */
 function CommandButton({
   testId,
   name,
   icon,
   option,
+  tooltip,
   pressed,
   disabled,
   onClick,
@@ -73,6 +117,8 @@ function CommandButton({
   name: string;
   icon: string;
   option?: FortWorkOption;
+  /** Vlastní obsah popisku (jinak název, s `option` cena a důvod). */
+  tooltip?: ReactElement;
   pressed?: boolean;
   disabled: boolean;
   onClick: () => void;
@@ -83,7 +129,7 @@ function CommandButton({
     <Tooltip
       denied={denied}
       placement="above"
-      content={option ? <WorkTooltip name={name} option={option} /> : name}
+      content={tooltip ?? (option ? <WorkTooltip name={name} option={option} /> : name)}
     >
       <button
         type="button"
@@ -105,6 +151,7 @@ export function FortificationBody({
   details,
   gateMode = false,
   onWork,
+  onDemolish,
   onGateMode,
 }: {
   details: Extract<SelectionDetails, { kind: 'fortification' }>;
@@ -112,6 +159,8 @@ export function FortificationBody({
   gateMode?: boolean;
   /** Zadá vylepšení (server action) – hotovo, až se vrátí. */
   onWork?: (fortificationId: number, work: 'upgrade' | 'top', top?: FortTop) => Promise<void>;
+  /** Zboří úsek s dílem `segment` (server action) – hotovo, až se vrátí. */
+  onDemolish?: (fortificationId: number, segment: number) => Promise<void>;
   /** Zapne / vypne přidávání brány kliknutím na obvod. */
   onGateMode?: (fortificationId: number | null) => void;
 }): ReactElement {
@@ -122,6 +171,12 @@ export function FortificationBody({
     setBusy(true);
     void onWork(details.id, work, top).finally(() => setBusy(false));
   };
+  const demolish = (): void => {
+    if (!onDemolish || busy) return;
+    setBusy(true);
+    void onDemolish(details.id, details.segment).finally(() => setBusy(false));
+  };
+  const section = details.section;
   const old = details.oldSegments > 0;
   const building = details.progress !== undefined;
   return (
@@ -159,7 +214,11 @@ export function FortificationBody({
             {formatInteger(details.refugeCattle)}
           </Stat>
           {building && details.progress !== undefined && (
-            <Bar value={details.progress} name="Stavba" testId="selection-fort-progress" />
+            <Bar
+              value={details.progress}
+              name={details.work === 'demolish' || details.work === 'level' ? 'Bourání' : 'Stavba'}
+              testId="selection-fort-progress"
+            />
           )}
         </div>
       </div>
@@ -189,6 +248,23 @@ export function FortificationBody({
             onClick={() => run('top', top)}
           />
         ))}
+        {section && (
+          <CommandButton
+            testId="fort-demolish"
+            name={demolishName(details.fortKind, section.demolish.work)}
+            icon="/icons/resources/demolish.svg"
+            tooltip={
+              <DemolishTooltip
+                name={demolishName(details.fortKind, section.demolish.work)}
+                option={section.demolish}
+              />
+            }
+            disabled={section.demolish.blocked !== null || busy || !onDemolish}
+            busy={busy}
+            denied={denied}
+            onClick={demolish}
+          />
+        )}
         <CommandButton
           testId="fort-gate"
           name="Přidat bránu – klik na obvod"

@@ -227,7 +227,23 @@ Dřívější obvod po čtvercích zůstal jen pro převod (`squares-outline.ts`
   nájezd ho neprolomí (`applyFortificationBreach`), pochod jím projde (`fortCells` – srovnaný val
   není pás čtvrtinového tempa). Vylepšení celého opevnění (`startFortificationUpgrade`) zbořené
   díly vynechá, nástavba se zbořenou nástavbou dílu postaví znovu (`delete seg.top`); plot je
-  palisádou, když jsou palisádou všechny nezbořené díly. Scéna a rozhraní – Úloha 12.
+  palisádou, když jsou palisádou všechny nezbořené díly.
+- **Rozhraní** (Úloha 12 – zatím jen Zbořit; Vylepšit po úsecích čeká na Úlohu 9): klik na obvod
+  vybere `{ kind: 'fortification', id, segment }` – díl nejblíž kliku (`fortSegmentAt`
+  v `village-picking.ts`: kus pásu podle `SceneFortification.bandSegments`, jinak nejbližší okraj
+  dílu do `FORT_PICK_M`; zbořený díl je mezera a nevybere se). `fortificationViews` nese
+  `sections` (`fortSections` + `sectionDemolition` každého úseku → `FortDemolishOption { work,
+cost, blocked }`, běžící stavba jako „Stavba už běží.“), `selectionDetails` z nich vybere
+  `section` úseku s klikem. Panel (`hud/selection/fortification.tsx`) – ikona Zbořit
+  (`fort-demolish`; popisek „Zbořit úsek“ / „Zbořit nástavbu úseku“ / „Srovnat val úseku“, práce
+  a klády `+N` zpět, nebo důvod červeně), průběh bourání „Bourání“, zrušení jako u stavby.
+  Zvýraznění (`selection-highlight.ts` – `fortSectionRings`): obrys pásu dílů úseku z kusů pásu,
+  zbořené díly ho dělí; bez `bandSegments` celý obvod.
+- **Scéna** (`segmentBuild` ve `fortification-layout.ts`): zbořený díl nekreslí nic (palisáda,
+  plot, nástavba, brána dílu ne – díl s branou se nebourá; val výška 0 → bez náspu a příkopu
+  v `rampart-mesh.ts` i `ditchCuts`); bouraný díl je staveniště pozpátku –
+  `fortSitePhase(vrstva, 1 − průběh)` pro plot a palisádu u země i nástavbu (`demolish`), hlína
+  valu `1 − průběh` (`level`). Nástavba dílu přes `segmentTop` (`top: 'none'` – val bez ní).
 
 ## Stáří, přestavba a údržba valu (Ú5.4)
 
@@ -287,11 +303,13 @@ men, hours)` (nejvýš 4 muži), `surrenderThreshold(defenders, fortMultiplier)`
 
 - Use-casy `application/place-fortification.ts` (`placeFortification`),
   `upgrade-fortification.ts` (`upgradeFortification`), `add-fortification-gate.ts`
-  (`addFortificationGate`) – `updateLivingVillage` v den `state.lastDay`, chůze ke stromům
+  (`addFortificationGate`), `demolish-fortification-section.ts` (`demolishFortificationSection`
+  – díl `segment`, úsek dohledá `startSectionDemolition`) – `updateLivingVillage` v den `state.lastDay`, chůze ke stromům
   `villageRoadWalk`. Testy `application/__tests__/fortification-use-cases.test.ts`, doména
   `domain/village/__tests__/fortifications.test.ts`, adaptér `village-repository.db.test.ts`.
 - Web: server actions `placeFortification` (vstup `{ points: [x, z][], kind }`),
-  `upgradeFortification`, `addFortificationGate` (`apps/web/app/game/actions.ts`, vstupy
+  `upgradeFortification`, `addFortificationGate`, `demolishFortificationSection` (vstup
+  `{ fortificationId, segment }`, díl od 0) (`apps/web/app/game/actions.ts`, vstupy
   `parse…FortificationInput` v `village-input.ts`; body posílá editor návrhu – web-ui.md),
   `…ForPlayer` přes `actOn` s právem `build` (`ACTION_RIGHTS`). Tlačítka a kreslení – Ú5.6; cena
   v katalogu (`BUILD_COSTS`) také až s ním – opevnění nemá pevnou cenu, jen `fortificationCost`.

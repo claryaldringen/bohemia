@@ -17,8 +17,11 @@ import {
   rampartAt,
   rampartLooks,
   rampartProfile,
+  segmentBuild,
   MAX_DITCH_CUTS,
 } from '../fortification-layout';
+import { fortSectionRings } from '../selection-highlight';
+import type { SceneFortification } from '../../fort-view';
 import { demoFortification, type DemoFort, SHOWCASE_FORT_GEO } from '../fortification-showcase';
 import { RAMPART_COLUMNS, RAMPART_RING_STEP_M, rampartMeshData } from '../rampart-mesh';
 import { fortSitePhase } from '../village-construction';
@@ -106,6 +109,92 @@ describe('palisáda', () => {
       (x - start.x) * start.dx + (z - start.z) * start.dz;
     const lastStake = Math.max(...stakes.map((s) => dist(s.x, s.z)));
     expect(Math.min(...trench.map((t) => dist(t[0], t[1])))).toBeGreaterThan(lastStake - 0.5);
+  });
+});
+
+/** Opevnění `f` s díly `gone` zbořenými a díly `bare` bez nástavby (`top: 'none'`). */
+const withSegments = (
+  f: SceneFortification,
+  gone: readonly number[],
+  bare: readonly number[] = [],
+): SceneFortification => ({
+  ...f,
+  segments: f.segments.map((s) => {
+    if (gone.includes(s.index)) return { ...s, demolishedDay: 5, state: 0 };
+    if (bare.includes(s.index)) {
+      const rest = { ...s, top: 'none' as const };
+      delete rest.topBuiltDay;
+      return rest;
+    }
+    return s;
+  }),
+  looks: f.looks.map((l, i) => {
+    if (!bare.includes(i)) return l;
+    const rest = { ...l };
+    delete rest.topAge;
+    return rest;
+  }),
+});
+
+describe('zboření úseku (demolition.md – Opevnění)', () => {
+  it('palisáda se rozebírá jako staveniště pozpátku, zbořený díl je mezera', () => {
+    const full = palisadeLayout(fort(), () => 0).stakes.length;
+    const len0 = fort().shapes[0]!.lengthM;
+    // rozebráno 35 % práce dílu 0 = fáze stavby na 65 % – polovina kůlů stojí
+    const down = fort({
+      work: { kind: 'demolish', progress: (s) => (s === 0 ? 0.35 : undefined) },
+    });
+    expect(segmentBuild(down, 0).ground?.phase).toEqual(fortSitePhase('palisade', 0.65));
+    const missing = full - palisadeLayout(down, () => 0).stakes.length;
+    expect(missing).toBeGreaterThan(len0 * 0.4 * STAKES_PER_M);
+    expect(missing).toBeLessThan(len0 * 0.6 * STAKES_PER_M);
+    // díl 1 zbořený – nic na něm nestojí, kůly chybí po celé jeho délce
+    const gone = withSegments(fort(), [1]);
+    expect(segmentBuild(gone, 1)).toMatchObject({ ground: null, top: null, rampart: null });
+    const len1 = gone.shapes[1]!.lengthM;
+    expect(full - palisadeLayout(gone, () => 0).stakes.length).toBeGreaterThan(
+      len1 * 0.9 * STAKES_PER_M,
+    );
+  });
+
+  it('val: nástavba se rozebírá, `none` bez nástavby, srovnávaný val klesá, srovnaný mezera', () => {
+    const topped = fort({ kind: 'rampart', top: 'palisade' });
+    expect(segmentBuild(topped, 0).top?.layer).toBe('palisade');
+    const down = fort({
+      kind: 'rampart',
+      top: 'palisade',
+      work: { kind: 'demolish', progress: (s) => (s === 0 ? 1 : undefined) },
+    });
+    expect(segmentBuild(down, 0).top?.phase.posts).toBe(0);
+    expect(segmentBuild(down, 0).rampart?.earth).toBe(1);
+    const bare = withSegments(topped, [], [0]);
+    expect(segmentBuild(bare, 0).top).toBeNull();
+    expect(segmentBuild(bare, 1).top?.layer).toBe('palisade');
+    const level = fort({
+      kind: 'rampart',
+      work: { kind: 'level', progress: (s) => (s === 1 ? 0.25 : undefined) },
+    });
+    expect(rampartLooks(level)[1]!.height).toBeCloseTo(0.75);
+    expect(rampartLooks(withSegments(fort({ kind: 'rampart' }), [2]))[2]!.height).toBe(0);
+  });
+
+  it('zvýraznění úseku: obrys pásu jeho dílů, zbořený díl ho rozdělí', () => {
+    const f = fort();
+    const rings = fortSectionRings(f, [1, 2, 3]);
+    expect(rings).toHaveLength(1);
+    const ring = rings[0]!;
+    expect(ring[0]).toEqual(ring[ring.length - 1]);
+    // obrys leží jen u dílů 1–3: daleko od dílu 0 i dílu 5
+    const near = (index: number): boolean =>
+      ring.some(([x, z]) =>
+        f.shapes[index]!.path.some(([px, pz]) => Math.hypot(px - x, pz - z) < 0.5),
+      );
+    expect(near(2)).toBe(true);
+    expect(
+      f.shapes[5]!.path.every(([px, pz]) => ring.every(([x, z]) => Math.hypot(px - x, pz - z) > 1)),
+    ).toBe(true);
+    expect(fortSectionRings(withSegments(f, [2]), [1, 2, 3])).toHaveLength(2);
+    expect(fortSectionRings({ ...f, bandSegments: undefined }, [1])).toEqual([]);
   });
 });
 

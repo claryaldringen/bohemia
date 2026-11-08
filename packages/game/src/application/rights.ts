@@ -73,6 +73,7 @@ export const ACTION_RIGHTS = {
   placeFortification: 'build',
   upgradeFortification: 'build',
   addFortificationGate: 'build',
+  demolishFortificationSection: 'build',
   upgradeRoad: 'build',
   buildWagonRoad: 'build',
   plantRoadApples: 'build',

@@ -236,6 +236,22 @@ export function parseAddFortificationGateInput(
   return { fortificationId, position: { x, z } };
 }
 
+/**
+ * Vstup zboření úseku opevnění `{ fortificationId, segment }` (demolition.md – Opevnění) – díl,
+ * na který hráč klikl (od 0); úsek mezi branami dohledá server. Jinak null.
+ */
+export function parseDemolishFortificationSectionInput(
+  value: unknown,
+): { fortificationId: number; segment: number } | null {
+  if (!isRecord(value)) return null;
+  const fortificationId = parsePositiveInt(value.fortificationId);
+  const { segment } = value;
+  if (fortificationId === null || !Number.isInteger(segment) || (segment as number) < 0) {
+    return null;
+  }
+  return { fortificationId, segment: segment as number };
+}
+
 /** Vstup vylepšení pevné cesty `{ roadId, upgrade }` (roads.md), jinak null. */
 export function parseUpgradeRoadInput(
   value: unknown,

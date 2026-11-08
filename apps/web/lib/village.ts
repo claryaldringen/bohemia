@@ -40,6 +40,7 @@ import {
   placeFortification,
   upgradeFortification,
   addFortificationGate,
+  demolishFortificationSection,
   placeSacredBuilding,
   placeThreshingFloor,
   placeWorkshop,
@@ -869,6 +870,29 @@ export function addFortificationGateForPlayer(
         today: ctx.day,
         fortificationId: input.fortificationId,
         position: { x: input.position.x, z: input.position.z },
+      },
+    ),
+  );
+}
+
+/**
+ * Zboření úseku opevnění mezi branami (demolition.md – Opevnění): díl, na který hráč klikl – úsek,
+ * práci a klády spočítá server znovu (`sectionDemolition`).
+ */
+export function demolishFortificationSectionForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { fortificationId: number; segment: number },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, 'demolishFortificationSection', (ctx) =>
+    demolishFortificationSection(
+      { villages: villages() },
+      {
+        villageId: ctx.villageId,
+        landscape: ctx.landscape,
+        today: ctx.day,
+        fortificationId: input.fortificationId,
+        segment: input.segment,
       },
     ),
   );

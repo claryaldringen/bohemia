@@ -145,7 +145,7 @@ describe('rozestavěné opevnění na 0 % ve scéně', () => {
       { origin: { x, y: 200, z }, direction: { x: 0, y: -1, z: 0 } },
       { ground: { x, z }, groundHeight: () => 0, cellOf: () => null },
     );
-    expect(target).toEqual({ kind: 'fortification', id: 60 });
+    expect(target).toEqual({ kind: 'fortification', id: 60, segment: fort.bandSegments![0] });
   });
 
   it('vytyčení po celém obvodu na 0 %, ustupuje hotovým úsekům, bez stavby nic', () => {

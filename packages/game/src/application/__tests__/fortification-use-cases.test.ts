@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../domain/calendar';
-import { FORT_NOT_FENCE, FORT_GATE_OFF, squarePoints } from '../../domain/village';
+import {
+  FORT_BUSY,
+  FORT_GATE_OFF,
+  FORT_NOT_FENCE,
+  fortSections,
+  squarePoints,
+} from '../../domain/village';
 import { withBuiltFirstDwelling } from '../../domain/village/__tests__/village-fixtures';
 import { block, makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
 import { addFortificationGate } from '../add-fortification-gate';
+import { demolishFortificationSection } from '../demolish-fortification-section';
 import { foundVillageForSettlement } from '../found-village';
 import { placeFortification } from '../place-fortification';
 import { upgradeFortification } from '../upgrade-fortification';
@@ -82,5 +89,48 @@ describe('opevnění – use-casy', () => {
     const gate = await addFortificationGate({ villages }, { ...base, position: { x: 52, z: 75 } });
     if (!gate.ok) throw new Error(gate.reason);
     expect(gate.village.state.fortifications![0]!.gates.length).toBeGreaterThan(1);
+  });
+
+  it('demolishFortificationSection zboří úsek mezi branami bez dílu s branou', async () => {
+    const { villages, villageId } = await settled();
+    const placed = await placeFortification(
+      { villages },
+      {
+        villageId,
+        landscape,
+        today: TODAY + 1,
+        points: squarePoints(block(9, 9, 4, 4), null, landscape, 'palisade')!,
+        kind: 'palisade',
+      },
+    );
+    if (!placed.ok) throw new Error(placed.reason);
+    // hotová palisáda bez simulace stavby
+    villages.edit(placed.village.id, (state) => {
+      state.constructions = state.constructions.filter((c) => c.kind !== 'fortification');
+      for (const seg of state.fortifications![0]!.segments) {
+        seg.builtDay = TODAY;
+        seg.state = 1;
+      }
+    });
+    const fortificationId = placed.village.state.fortifications![0]!.id;
+    const base = { villageId, landscape, today: TODAY + 1, fortificationId };
+    const gate = await addFortificationGate({ villages }, { ...base, position: { x: 52, z: 75 } });
+    if (!gate.ok) throw new Error(gate.reason);
+    const sections = fortSections(gate.village.state.fortifications![0]!);
+    expect(sections).toHaveLength(2);
+    const section = sections[0]!;
+    const segment = section.segments[1]!;
+    const done = await demolishFortificationSection({ villages }, { ...base, segment });
+    if (!done.ok) throw new Error(done.reason);
+    const c = done.village.state.constructions.find((x) => x.kind === 'fortification');
+    expect(c?.fortWork).toBe('demolish');
+    expect(c?.fortSegments?.map((w) => w.index)).toEqual(
+      section.segments.filter((i) => i !== section.gateSegment),
+    );
+    // dvojklik: druhý požadavek narazí na běžící zboření
+    expect(await demolishFortificationSection({ villages }, { ...base, segment })).toEqual({
+      ok: false,
+      reason: FORT_BUSY,
+    });
   });
 });

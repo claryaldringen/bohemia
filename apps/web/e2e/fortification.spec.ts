@@ -1,8 +1,15 @@
 import { test, expect, type Page } from '@playwright/test';
 import {
+  finishFortification,
+  fortSections,
+  fortSegments,
   fortificationOutline,
   obstaclesOf,
+  outlineOf,
   proposeFortification,
+  startFortification,
+  villageFortifications,
+  type Landscape,
   type Road,
   type VillageState,
 } from '@bohemia/game';
@@ -21,11 +28,13 @@ import {
 // rozcestník a vybere palisádu – hra navrhne obvod s body kolem jádra vsi. Hráč bod táhne (cena
 // u kurzoru se mění), klik na obvod přidá bod, Ctrl + klik ho ubere, ikona kladiva položí; brány
 // vzniknou na cestě a panel ukáže délku a brány. Posun bodu přes zemnici ukáže důvod a červené
-// místo problému, Esc návrh zahodí.
+// místo problému, Esc návrh zahodí. Zboření úseku (demolition.md – Opevnění): klik na obvod
+// zvýrazní úsek mezi branami, Zbořit založí bourání, po dokončení je úsek mezera.
 
 test.beforeEach(async ({ context, page }) => {
   await useUniqueClientIp(context);
-  await page.route('**/models/**', (route) => route.abort());
+  // snímky zboření (FORT_DEMOLISH_SHOT) s modely plotu, jinak bez nich (rychlejší kreslení)
+  if (!process.env.FORT_DEMOLISH_SHOT) await page.route('**/models/**', (route) => route.abort());
 });
 
 test.describe.configure({ timeout: 180_000 });
@@ -69,6 +78,7 @@ async function villageWithRoad(
   settlementId: string;
   state: VillageState;
   home: Pt;
+  landscape: Landscape;
   showVillage: () => Promise<void>;
 }> {
   const { seat: s } = await newPlayer(page, name);
@@ -110,7 +120,7 @@ async function villageWithRoad(
     { x: home[0], z: home[1] },
   );
   expect(proposal.check.reason).toBeNull();
-  return { settlementId: s.settlementId, state, home, showVillage };
+  return { settlementId: s.settlementId, state, home, landscape: s.landscape, showVillage };
 }
 
 /** P otevře rozcestník, palisáda spustí návrh; kurzor nad scénou ho ukáže. */
@@ -303,4 +313,124 @@ test('bod tažený přes zemnici – důvod u kurzoru, červené místo problém
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('fort-confirm')).toHaveCount(0);
   await expect.poll(async () => (await fortPoints(page)).length).toBe(0);
+});
+
+test('zboření úseku plotu mezi dvěma branami – klik zvýrazní úsek, Zbořit, po dokončení mezera', async ({
+  page,
+}) => {
+  // celý průběh od založení vsi po mezeru – delší než ostatní testy opevnění
+  test.setTimeout(300_000);
+  const { settlementId, state, home, landscape } = await villageWithRoad(page, 'zboreni');
+  // hotový polský plot z návrhu kolem vsi – brány samy na obou průsečících cesty
+  const proposal = proposeFortification(
+    state,
+    state.lastDay,
+    landscape,
+    obstaclesOf(landscape),
+    'fence',
+    { x: home[0], z: home[1] },
+  );
+  const started = startFortification(state, state.lastDay, landscape, obstaclesOf(landscape), {
+    points: proposal.points,
+    kind: 'fence',
+  });
+  if (!started.ok) throw new Error(started.reason);
+  const built = started.state;
+  built.constructions = built.constructions.filter((c) => c.kind !== 'fortification');
+  const fort = villageFortifications(built)[0]!;
+  for (const seg of fort.segments) {
+    seg.builtDay = built.lastDay;
+    seg.state = 1;
+  }
+  expect(fort.gates).toHaveLength(2);
+  await writeVillageState(settlementId, built);
+  const sections = fortSections(fort);
+  expect(sections).toHaveLength(2);
+  // delší úsek, díl uprostřed něj; středy dílů na vnějším okraji
+  const section = sections.reduce((a, b) => (b.segments.length > a.segments.length ? b : a));
+  const inner = section.segments.filter((i) => i !== section.gateSegment);
+  const target = inner[Math.floor(inner.length / 2)]!;
+  const shapes = fortSegments(outlineOf(landscape, fort)!);
+  const mids = shapes.map((x): Pt => [x.mid[0], x.mid[1]]);
+  const c = centroid(mids);
+  const m = mids[target]!;
+  const len = Math.hypot(c[0] - m[0], c[1] - m[1]);
+  const spot: Pt = [m[0] + ((c[0] - m[0]) / len) * 0.3, m[1] + ((c[1] - m[1]) / len) * 0.3];
+
+  await pollVillage(page);
+  await closeUp(page, spot);
+  const panel = page.getByTestId('selection-panel');
+  let clickAt = { x: 0, y: 0 };
+  await expect
+    .poll(
+      async () => {
+        clickAt = await screenOf(page, spot);
+        await page.mouse.move(clickAt.x + 2, clickAt.y);
+        await page.mouse.click(clickAt.x, clickAt.y);
+        return panel.getAttribute('data-kind', { timeout: 500 }).catch(() => null);
+      },
+      { timeout: 30_000 },
+    )
+    .toBe('fortification');
+
+  // zvýrazněný je jen pás úseku – u středů jeho dílů, daleko od dílů druhého úseku
+  const lines = await page.evaluate(() => window.__bohemiaE2E!.selectionOutline?.() ?? []);
+  expect(lines.length).toBeGreaterThan(0);
+  const nearest = (p: Pt): number =>
+    Math.min(...lines.flat().map(([x, z]) => Math.hypot(x - p[0], z - p[1])));
+  for (const i of inner) expect(nearest(mids[i]!)).toBeLessThan(3);
+  const other = sections.find((x) => x !== section)!;
+  for (const i of other.segments) expect(nearest(mids[i]!)).toBeGreaterThan(3);
+
+  const demolish = panel.getByTestId('fort-demolish');
+  await expect(demolish).toBeEnabled();
+  await demolish.hover();
+  await expect(page.getByTestId('fort-demolish-logs')).toBeVisible();
+  const shot = process.env.FORT_DEMOLISH_SHOT;
+  const clip = { x: 300, y: 240, width: 680, height: 480 };
+  if (shot) await page.screenshot({ path: `${shot}-selected.png`, clip });
+  await demolish.click();
+  await expect
+    .poll(
+      async () =>
+        (await villageState(settlementId)).constructions.find((x) => x.kind === 'fortification')
+          ?.fortWork ?? null,
+      { timeout: 20_000 },
+    )
+    .toBe('demolish');
+  await expect(panel.getByRole('progressbar', { name: 'Bourání' })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
+
+  // bourání doběhne (jádro – jako po dnech práce vsi): díly úseku bez brány jsou zbořené
+  const now = await villageState(settlementId);
+  const work = now.constructions.find((x) => x.kind === 'fortification')!;
+  expect(work.fortSegments!.map((w) => w.index)).toEqual(inner);
+  work.done = work.cost;
+  finishFortification(now, work, now.lastDay);
+  now.constructions = now.constructions.filter((x) => x.id !== work.id);
+  await writeVillageState(settlementId, now);
+  await pollVillage(page);
+  const gone = villageFortifications(await villageState(settlementId))[0]!;
+  for (const i of inner) {
+    expect(gone.segments.find((x) => x.index === i)?.demolishedDay).toBeDefined();
+  }
+  expect(gone.gates).toHaveLength(2);
+
+  // zbořený díl je mezera – klik na stejné místo opevnění nevybere
+  await expect
+    .poll(
+      async () => {
+        await page.mouse.click(clickAt.x, clickAt.y);
+        return panel.getAttribute('data-kind', { timeout: 500 }).catch(() => null);
+      },
+      { timeout: 20_000 },
+    )
+    .not.toBe('fortification');
+  if (shot) {
+    await page.mouse.move(20, 20);
+    await page.waitForTimeout(800);
+    await page.screenshot({ path: `${shot}-gap.png`, clip });
+  }
 });
