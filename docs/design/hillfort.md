@@ -78,7 +78,9 @@ přirozený cíl nájezdu – zásoby celé domény na jednom místě – a dův
 - **Převzaté hradiště správce udržuje** (Martin – „převzít a udržovat“): v hradišti syny
   neposílá pryč – synové se v něm hromadí a tvoří elitu (Martin 8. 11. 2026: „tam by se měli
   synové hromadit v hradišti a tvořit elitu“). Hradištěm je pro správce ves, do které doména
-  v den převzetí dováží jídlo (návrh Clauda – hra hradiště jinak nerozlišuje).
+  v den převzetí dováží jídlo (návrh Clauda – hra hradiště jinak nerozlišuje): jídlo domény přišlo
+  za posledních 365 dní (`STEWARD.hillfortImportDays`; rozdělení je roční). Posuzuje se při zapnutí
+  správce, vypnutí značku maže.
 
 ## Jídlo domény
 

@@ -1,4 +1,5 @@
 import { cloneState } from './clone';
+import { STEWARD } from './rules-steward';
 import type { StewardState } from './types-steward';
 import type { VillageState } from './types-state';
 
@@ -55,10 +56,31 @@ export function isStewardBuilt(state: VillageState, id: number): boolean {
 
 /** Přepne správce ke dni `day` (mutuje `state`); stejná hodnota den nemění. */
 export function setStewardOn(state: VillageState, day: number, on: boolean): void {
+  const created = state.steward === undefined;
   const steward = (state.steward ??= newSteward(day, on));
-  if (steward.on === on) return;
+  if (steward.on === on) {
+    if (created) assessHillfort(state, steward, day);
+    return;
+  }
   steward.on = on;
   steward.sinceDay = day;
+  assessHillfort(state, steward, day);
+}
+
+/** Doména do vsi dováží jídlo: přišlo za posledních `STEWARD.hillfortImportDays` dní. */
+export function importsDomainFood(
+  state: Pick<VillageState, 'domainFoodDay'>,
+  day: number,
+): boolean {
+  return (
+    state.domainFoodDay !== undefined && day - state.domainFoodDay < STEWARD.hillfortImportDays
+  );
+}
+
+/** Hradiště se posuzuje při zapnutí správce; vypnutí značku maže (hillfort.md). */
+function assessHillfort(state: VillageState, steward: StewardState, day: number): void {
+  if (steward.on && importsDomainFood(state, day)) steward.hillfort = true;
+  else delete steward.hillfort;
 }
 
 /**

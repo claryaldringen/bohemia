@@ -351,6 +351,8 @@ export function stewardDeparture(
   obstacles: ObstacleLayer,
 ): boolean {
   if (!isDepartureDate(day) || !isStewardOn(state) || state.people.length === 0) return false;
+  // převzaté hradiště syny neposílá, jídlo dodá doména (hillfort.md – Hradiště staví hráč)
+  if (state.steward?.hillfort) return false;
   const crowded = stewardCrowded(state, landscape, obstacles);
   const hungry = (state.steward?.hungerPeak ?? 0) >= STEWARD.departureHungerDays;
   // past osiva (hlad i bez přelidnění) a přelidnění mapy: odchod bez ohledu na místo na pole –
