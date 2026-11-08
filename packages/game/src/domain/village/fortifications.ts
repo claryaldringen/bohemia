@@ -18,7 +18,9 @@ import {
   sectionPieces,
   busySegments,
   completeUpgrade,
+  finishMoatFill,
   layerBuilt,
+  revertRampartAddition,
   segmentBuilt,
   settleUpgrade,
   upgradeDone,
@@ -748,6 +750,8 @@ function demolishSegment(
   s.state = 0;
   delete s.top;
   delete s.topBuiltDay;
+  // srovnaný val nemá příkop
+  delete s.moatDay;
 }
 
 /**
@@ -803,6 +807,8 @@ function segmentDone(
   }
   if (c.fortWork === 'upgrade') return segmentWall(fort, s)?.kind === 'palisade';
   if (c.fortWork === 'top') return layerBuilt(segmentWall(fort, s));
+  // doplnění valu pod stojící hradbu: val dílu dostavěný
+  if (c.fortWork === 'rampart') return layerBuilt(segmentRampart(fort, s));
   // přestavba: val nebo hradba dílu dostavěné po založení stavby
   if (c.fortWork === 'rebuild') {
     const after = (layer: { builtDay: number | null } | null): boolean =>
@@ -827,8 +833,9 @@ export function workFortification(state: VillageState, c: Construction, day: num
   for (const w of c.fortSegments) {
     reached += w.cost;
     if (c.done + EPSILON < reached) return;
-    // obnova valu nemá úseky k dokončení – výška se vrátí s koncem stavby (`finishFortification`)
-    if (c.fortWork === 'restore') continue;
+    // obnova valu nemá úseky k dokončení – výška se vrátí s koncem stavby (`finishFortification`);
+    // vodní příkop se napustí naráz, až je strouha hotová (`finishMoatFill`)
+    if (c.fortWork === 'restore' || c.fortWork === 'moat') continue;
     const s = fort.segments.find((x) => x.index === w.index);
     if (!s || segmentDone(fort, s, c, w.part)) continue;
     if (c.fortWork === 'demolish' || c.fortWork === 'level') {
@@ -837,6 +844,11 @@ export function workFortification(state: VillageState, c: Construction, day: num
     }
     if (sectionUpgrade(c)) {
       completeUpgrade(fort, s, c.fortTarget, day, w.part);
+      continue;
+    }
+    if (c.fortWork === 'rampart') {
+      // val pod stojící hradbou – hradba dál stojí se svým dnem, stavem i průlomem
+      s.builtDay = day;
       continue;
     }
     if (c.fortWork === 'top') {
@@ -890,6 +902,10 @@ export function finishFortification(
     delete fort.rampartHeight;
     return null;
   }
+  if (c.fortWork === 'moat') {
+    finishMoatFill(fort, c, day);
+    return null;
+  }
   // plot, který je celý palisádou, je palisáda – i po vylepšení úseků (`settleUpgrade`)
   if (c.fortWork === 'upgrade' || sectionUpgrade(c)) settleUpgrade(fort);
   return null;
@@ -899,7 +915,8 @@ export function finishFortification(
  * Zrušená stavba opevnění (mutuje klon – fortifications.md, Cena a stavba): hotové úseky zůstanou
  * stát, nehotové zmizí a obvod je otevřený. Nové opevnění bez hotového úseku zmizí celé,
  * nástavba bez hotového úseku zruší i druh nástavby. Zrušené zboření: zbořené díly zůstanou
- * zbořené, ostatní stojí dál.
+ * zbořené, ostatní stojí dál. Zrušené doplnění valu: díly bez hotového valu jsou zase hradba bez
+ * valu se stejným stářím (`revertRampartAddition`); zrušené napuštění příkopu nic nenapustí.
  */
 export function dropFortificationWork(next: VillageState, c: Construction): void {
   const forts = villageFortifications(next);
@@ -912,6 +929,16 @@ export function dropFortificationWork(next: VillageState, c: Construction): void
   }
   // vylepšení úseku: hotové díly mají cílovou hradbu, ostatní starou – nic se nevrací
   if (sectionUpgrade(c)) return;
+  // doplnění valu: díly s hotovým valem ho mají, ostatní jsou zase hradba bez valu se stejným
+  // stářím (Review Focus 2 plánu hradeb); příkop bez hotové strouhy zůstane suchý
+  if (c.fortWork === 'rampart') {
+    for (const w of c.fortSegments ?? []) {
+      const s = fort.segments.find((x) => x.index === w.index);
+      if (s) revertRampartAddition(fort, s);
+    }
+    return;
+  }
+  if (c.fortWork === 'moat') return;
   if (c.fortWork === 'build' && fort.segments.every((s) => !segmentBuilt(s))) {
     next.fortifications = forts.filter((f) => f.id !== fort.id);
     return;

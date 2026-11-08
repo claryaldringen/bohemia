@@ -56,6 +56,7 @@ export * from './abandon-parts';
 export * from './cancel-construction';
 export * from './fortifications';
 export * from './fortification-upgrade';
+export * from './fortification-rampart';
 export * from './fortification-proposal';
 export * from './relocation';
 export * from './departure';

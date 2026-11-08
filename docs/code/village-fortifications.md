@@ -172,8 +172,8 @@ platí dál, staré vsi se nepřevádějí.
   `age` / `topAge` (`sceneFortifications`).
 - **`segmentBand(fort, seg): { inM, outM }`** (`band.ts`) – pás od křivky: hradba bez valu `bandM`
   (1 / 1,5 / 5,5 / 7 / 8 m), hradba na valu `wallOnRampartBandM` (10 / 10 / 12,5 / 14 / 15), holý
-  val 10; val doplněný vně (`rampartOutside`) 7 m ven a dovnitř šířka hradby, nejméně 3 m. Zatím ho
-  nečte nic kromě testů – stěny, pochod a scéna dál kreslí pás dovnitř podle druhu.
+  val 10; val doplněný vně (`rampartOutside`) 7 m ven a dovnitř šířka hradby, nejméně 3 m. Čtou ho
+  stěny, pás pro jiné stavby, pochod a příkop – [Val pod hradbou a vodní příkop](#val-pod-hradbou-a-vodní-příkop-fortification-rampartts-moatts).
 - **Nová pole stavu (volitelná)**: `FortSegment.rampartOutside?`, `rampartHeight?`, `moatDay?`,
   `extraAgeDays?`, `burnedDay?`; `FortGate.pincerDay?` / `towerDay?` (null = staví se);
   `Construction.fortTarget?: WallKind` (chybí – `upgrade` na palisádu, `top` = `fort.top`)
@@ -337,6 +337,57 @@ walk?)`** – úsek s dílem `segment` (`sectionOf`), `null` = „Vylepšit vše
   dílech úseku (`selectionDetails` je dá panelu úseku – zrušení té správné stavby);
   `SceneFortSegment.work` – práce stavby dílu, když na opevnění běží víc staveb (`segmentBuild`
   čte `look.work ?? fort.work`). Scéna nových druhů ve stavbě a vytyčení po dílech – Úloha 18.
+
+## Val pod hradbou a vodní příkop (`fortification-rampart.ts`, `moat.ts`)
+
+Plán hradeb Úloha 11; fortifications.md – Hradby a obrana, Druhy (dvě vrstvy, doplnění valu, vodní
+příkop), Cena. Scéna valu vně a vody je Úloha 18 – zatím kreslí díl jako dřív.
+
+- **Doplnění valu** – `startRampartAddition` (stav, den, krajina, překážky, opevnění a díl úseku –
+  `segment` null = celé opevnění, chůze): díly úseku s dostavěnou hradbou bez valu (ne prolomené
+  ani zbořené – `canAddRampart`); díl s branou až s valem po obou stranách brány (jako
+  vylepšení). Důvody `FORT_RAMPART_DONE` „Úsek už val má.“ (i rozestavěný), `FORT_RAMPART_NO_WALL`
+  „Val se doplňuje jen pod stojící hradbu.“, `FORT_BUSY` a důvod z umístění –
+  `checkFortificationPlacement` s druhem `rampart` a pásem přes křivku (`FortBandSpan` – 7 m ven,
+  dovnitř šířka hradby), ohyb valu 8 m, dotyk s jiným opevněním i vnějším okrajem; val vezme díly
+  polí a sadů (`giveWayToBuilding`). Cena valu (`fortificationCost`, 150 čd na 100 m), bez klád;
+  stavba `fortWork: 'rampart'`.
+- **Přepis při zahájení** (`fortification/rampart.ts` – `startRampartOn`): `kind: 'rampart'`, `top`
+  = hradba, `topBuiltDay` = dřívější `builtDay`, `builtDay: null`, `rampartOutside: true` – „hradba
+  stojí, val se staví“: díl není mezera, hradba brání a stárne dál, staveniště blokuje celým pásem
+  od zahájení. `rampartHeight: 1` jen u opevnění se sníženým valem (návrh Clauda – jinak díl sleduje
+  výšku valu opevnění a jeho údržbu). Dokončení dílu dá jen `builtDay` (stav, stárnutí a průlom
+  hradby zůstanou); `settleUpgrade` opevnění s valem vně na val nepřevede.
+- **Zrušení** (`dropFortificationWork` → `revertRampartAddition`): díly bez hotového valu jsou
+  přesně jako před zahájením (druh, `builtDay` hradby, stav, `extraAgeDays`); hotové díly val mají.
+- **Pás přes křivku** (`band.ts`): `spanPieces` – kusy pásu mezi dvěma okraji od křivky (dovnitř
+  kladně, vně záporně), u vydutého ohybu, kde se boční hrany zkříží, trojúhelník u vnitřního okraje;
+  `bandPieces` je `spanPieces` od křivky (beze změny). `bandLine` – rovnoběžka s křivkou podél dílu
+  (osa příkopu). `fortificationBand` přidá dílům s valem vně jejich vnější pás; `bandWidthOf` u nich
+  počítá dovnitř jen šířku hradby (i cílové při vylepšení – `targetBand` ve
+  `fortification-upgrade.ts`).
+- **Stěny** (`walls.ts`): `fortBlockingSegments` vrací u valu vně `outside` (7 m ven, dovnitř šířka
+  hradby – při vylepšení cílové –, nejméně 3 m); stěny ze `spanPieces`, otvor brány přes celý pás
+  (hráz), objížďka (`detourPoints`) u dílu s valem vně a u jeho sousedů o 7 m dál; `fortLayoutKey`
+  přidá `:o7/3` jen u nich. Pochod (`march-grid.ts`) tím dostane buňky valu vně – se stojící
+  hradbou stěna, bez ní pás valu.
+- **Vodní příkop** (`fortification/moat.ts`): osa příkopu `moatAxisOffsetM` = −`outM` + 2 m (val na
+  křivce 2 m uvnitř, val vně 5 m vně). `moatSource` – nejbližší vodní políčko (potok, řeka, tůň) do
+  `moat.reachM` (30 m) od osy dílu (střed políčka, při shodě menší index): hladina `levelM` = výška
+  terénu políčka, `distanceM`. `moatSegments` – díly úseku (i díl s branou na jeho konci)
+  s hotovým nezbořeným valem; zdroj je díl nejblíž vodě s dnem (nejvyšší terén osy −
+  `rampartBand.ditchDepthM` 1,5 m) pod hladinou, voda zaplní souvislé díly s dnem pod hladinou.
+  `startMoatFill` – důvody `FORT_MOAT_NO_RAMPART`, `FORT_MOAT_NO_WATER` „Příkop nedosáhne k vodě.“,
+  `FORT_MOAT_DONE`, `FORT_BUSY`; strouha `moat.manDaysPerM` (¼ čd) na 1 m nenapuštěných dílů,
+  `fortWork: 'moat'`. Voda přijde naráz s koncem stavby (`finishMoatFill` – `moatDay`; návrh
+  Clauda: strouha napustí příkop, až je hotová); zrušení nic nenapustí, srovnaný val příkop ztratí.
+- **Voda v pochodu a přechodu**: `moatDitchPieces` – pás příkopu 4 m napuštěných dílů bez kusu pod
+  tětivou brány; `marchGrid` z něj (mimo `moatFrozen` – měsíce 12, 1, 2) dá buňky `MARCH_WATER`
+  s tempem 0, buňky brány zůstanou průchozí. `assaultSteps` – zasypat vodní příkop jen mimo bránu
+  (brána má hráz či most – návrh Clauda).
+- **Akce**: use-casy `addFortificationRampart`, `fillFortificationMoat`
+  (`application/fortification-rampart.ts`); tlačítka a server actions – Úloha 17. Testy
+  `fortification/__tests__/rampart-addition.test.ts` a `moat.test.ts`.
 
 ## Úseky pro hráče a zboření (`sections.ts`, `fortifications.ts`; demolition.md – Opevnění)
 
@@ -516,7 +567,8 @@ men, hours)` (nejvýš 4 muži). Práh vzdání s násobkem (`surrenderThreshold
   `mine`); práce a hoření × stav hradby, stav 0 = `open`. Plot: přelézt, sekat; brána: sekat, pálit,
   žebřík (u plotu jen sekání za 0); palisáda i s ochozem: žebřík, sekat, odkopat, pálit; roštová
   a komorová: žebřík, podkop. Oheň u palisády na valu má `fill: 'rampart'` (80 mužohodin), vodní
-  příkop `fill: 'moat'` (48) u každého postupu; obojí = `moat` se součtem práce.
+  příkop `fill: 'moat'` (48) u každého postupu mimo bránu (hráz či most – Úloha 11); obojí = `moat`
+  se součtem práce.
 - `assaultHours(step, men, fuelDistanceM)` – nejvýš 4 muži, otepi do 100 m (dál úměrně), hoří 2
   přikládající. `mineUnderground` – po pětině podkopu jsou kopáči pod zemí.
 - `climbTicks(wall)` (takty: opřít, vylézt, druhý žebřík jen u palisády bez ochozu, slézt),

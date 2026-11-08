@@ -2,6 +2,7 @@ import { type Landscape, type ObstacleLayer, surfaceAt } from '../landscape';
 import { squareCorners } from './square-grid';
 import {
   bandPieces,
+  spanPieces,
   fortBandPolygons,
   fortificationOutline,
   fortOutlineOf,
@@ -64,6 +65,15 @@ const NONE = {
 /** Do jaké vzdálenosti se obvody dotýkají (m) – dotyk se počítá. */
 const TOUCH_MARGIN_M = 0.05;
 
+/**
+ * Pás dílu přes křivku – val doplněný vně hradby (fortifications.md – Hradby a obrana, Druhy):
+ * `outM` vně křivky a `inM` dovnitř (m).
+ */
+export interface FortBandSpan {
+  outM: number;
+  inM: number;
+}
+
 /** Nejmenší vzdálenost dvou uzavřených lomených čar (m) – stačí vědět, jestli je pod `limit`. */
 function closerThan(a: readonly Point[], b: readonly Point[], limit: number): boolean {
   const near = (p: Point, q0: Point, q1: Point): number => {
@@ -90,6 +100,7 @@ function touchedOther(
   landscape: Landscape,
   village: PlacementVillage | null,
   outline: FortOutline,
+  outM = 0,
 ): Point[][] {
   const others = village?.fortifications ?? [];
   return others.flatMap((f) => {
@@ -97,7 +108,7 @@ function touchedOther(
     if (!other) return [];
     const touches =
       polygonsOverlap(outline.polyline, other.polyline) ||
-      closerThan(outline.polyline, other.polyline, TOUCH_MARGIN_M);
+      closerThan(outline.polyline, other.polyline, TOUCH_MARGIN_M + outM);
     return touches ? [other.polyline] : [];
   });
 }
@@ -128,7 +139,8 @@ function validPoints(points: readonly Point[]): boolean {
  * uvnitř krajiny, ne přes vodu, stavby (`checkFootprintFree` – pole, sad a les vsi smí), skalní
  * výchoz ani posvátný dub a háj. Překážky v pásu osadníci odstraní (díly polí a sadu pod plotem
  * a palisádou nechají poli), val a široké hradby vezmou kusy polí a sadů pod pásem (`takenLand`,
- * varování „Pole se zmenší“). Stav nemění.
+ * varování „Pole se zmenší“). `only` – stojící obvod, kontrola jen dílů (vylepšení, doplnění valu):
+ * šířka pásu dovnitř, nebo pás přes křivku (`FortBandSpan` – val vně hradby). Stav nemění.
  */
 export function checkFortificationPlacement(
   landscape: Landscape,
@@ -136,7 +148,7 @@ export function checkFortificationPlacement(
   obstacles: ObstacleLayer,
   points: readonly Point[],
   kind: FortKind,
-  only?: ReadonlyMap<number, number>,
+  only?: ReadonlyMap<number, number | FortBandSpan>,
 ): FortPlacementCheck {
   if (!validPoints(points)) return { ...fail(FORT_BAD_POINTS), ...NONE };
   const outline = fortificationOutline(points, kind);
@@ -164,10 +176,20 @@ export function checkFortificationPlacement(
   }
   if (!outline) return { ...fail(FORT_TOO_FEW), ...NONE };
   const band = only
-    ? [...only].flatMap(([index, width]) => bandPieces(outline, width, index).map((p) => p.corners))
+    ? [...only].flatMap(([index, width]) =>
+        (typeof width === 'number'
+          ? bandPieces(outline, width, index)
+          : spanPieces(outline, -width.outM, width.inM, index)
+        ).map((p) => p.corners),
+      )
     : fortBandPolygons(outline);
   if (!bandInside(landscape, band)) return { ...fail(FORT_OUTSIDE), ...shaped };
-  const touched = touchedOther(landscape, village, outline);
+  // val vně hradby se nesmí dotknout jiného opevnění ani vnějším okrajem
+  const outM = Math.max(
+    0,
+    ...[...(only?.values() ?? [])].map((w) => (typeof w === 'number' ? 0 : w.outM)),
+  );
+  const touched = touchedOther(landscape, village, outline, outM);
   if (touched.length > 0) {
     return { ...fail(FORT_TOUCHES, { footprints: touched }), ...shaped };
   }

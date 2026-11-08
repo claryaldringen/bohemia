@@ -82,12 +82,44 @@ function runPoint(outline: FortOutline, k: number, s: number): Point {
 }
 
 /**
- * Pás úseku `index` šířky `band` mezi polohami `fromM` a `toM` na obvodu (m od začátku obvodu;
- * bez nich celý úsek) – kusy po kusech lomené čáry, oříznuté na okno.
+ * Kus pásu mezi okraji ve vzdálenostech `outerM` (záporná – vně křivky) a `innerM` od křivky (dovnitř
+ * kladně) – val doplněný vně hradby. Kde se boční hrany zkříží (ohyb ostřejší, než pás dovolí),
+ * zbude trojúhelník u okraje blíž křivce: průsečík dovnitř od křivky – vnitřní okraj se sejde do
+ * rohu, vně – vnější okraj (vydutý ohyb).
  */
-export function bandPieces(
+function spanPiece(
+  a: Point,
+  na: Point,
+  b: Point,
+  nb: Point,
+  outerM: number,
+  innerM: number,
+): Point[] {
+  const oa: Point = [a[0] + na[0] * outerM, a[1] + na[1] * outerM];
+  const ob: Point = [b[0] + nb[0] * outerM, b[1] + nb[1] * outerM];
+  const ia: Point = [a[0] + na[0] * innerM, a[1] + na[1] * innerM];
+  const ib: Point = [b[0] + nb[0] * innerM, b[1] + nb[1] * innerM];
+  const d1 = cross(ob, ib, oa);
+  const d2 = cross(ob, ib, ia);
+  const d3 = cross(oa, ia, ob);
+  const d4 = cross(oa, ia, ib);
+  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+    const t = d1 / (d1 - d2);
+    const x: Point = [oa[0] + (ia[0] - oa[0]) * t, oa[1] + (ia[1] - oa[1]) * t];
+    return outerM + (innerM - outerM) * t > 0 ? [oa, ob, x] : [x, ib, ia];
+  }
+  return [oa, ob, ib, ia];
+}
+
+/**
+ * Pás úseku `index` mezi okraji `outerM` a `innerM` od křivky (m; dovnitř kladně, vně záporně) a mezi
+ * polohami `fromM` a `toM` na obvodu (m od začátku obvodu; bez nich celý úsek) – kusy po kusech
+ * lomené čáry, oříznuté na okno. Pás od křivky (`outerM` 0) je `bandPieces`.
+ */
+export function spanPieces(
   outline: FortOutline,
-  band: number,
+  outerM: number,
+  innerM: number,
   index: number,
   fromM = -Infinity,
   toM = Infinity,
@@ -107,9 +139,44 @@ export function bandPieces(
     const b = runPoint(outline, k, clipB ? toM : s1 + OVERLAP_M);
     const na = clipA ? n : vertexNormal(outline, k);
     const nb = clipB ? n : vertexNormal(outline, k + 1);
-    pieces.push({ index, corners: piece(a, na, b, nb, band) });
+    // pás od křivky beze změny (zlaté otisky stěn), jinak pás posunutý přes křivku
+    const corners =
+      outerM === 0 ? piece(a, na, b, nb, innerM) : spanPiece(a, na, b, nb, outerM, innerM);
+    pieces.push({ index, corners });
   }
   return pieces;
+}
+
+/**
+ * Pás úseku `index` šířky `band` dovnitř od křivky mezi polohami `fromM` a `toM` na obvodu (m od
+ * začátku obvodu; bez nich celý úsek) – kusy po kusech lomené čáry, oříznuté na okno.
+ */
+export function bandPieces(
+  outline: FortOutline,
+  band: number,
+  index: number,
+  fromM = -Infinity,
+  toM = Infinity,
+): FortBandPiece[] {
+  return spanPieces(outline, 0, band, index, fromM, toM);
+}
+
+/**
+ * Čára rovnoběžná s křivkou ve vzdálenosti `offsetM` (dovnitř kladně, vně záporně) podél úseku
+ * `index` – body na ose ohybu u každého bodu lomené čáry úseku i na jeho konci (osa příkopu).
+ */
+export function bandLine(outline: FortOutline, index: number, offsetM: number): Point[] {
+  const first = outline.segmentStarts[index];
+  const end = outline.segmentStarts[index + 1];
+  if (first === undefined || end === undefined) return [];
+  const n = outline.polyline.length;
+  const line: Point[] = [];
+  for (let k = first; k <= end; k++) {
+    const p = outline.polyline[k % n]!;
+    const v = vertexNormal(outline, k);
+    line.push([p[0] + v[0] * offsetM, p[1] + v[1] * offsetM]);
+  }
+  return line;
 }
 
 /** Pás opevnění po úsecích (šířka `band`, bez údaje šířka druhu obvodu). */
@@ -145,7 +212,7 @@ export interface BandFortification extends FortShapeSource {
 
 /**
  * Pás, který díl zabírá uvnitř křivky (m): stojící díl podle svých vrstev (`segmentBand`), nejméně
- * pás druhu opevnění; díl, na kterém stavba vylepšení staví vyšší hradbu, pás cílové hradby (na valu
+ * pás druhu opevnění (val vně hradby jen šířkou hradby – ven sahá `segmentBand.outM`); díl, na kterém stavba vylepšení staví vyšší hradbu, pás cílové hradby (na valu
  * s valem – `wallOnRampartBandM`); mezera stavěná znovu pás cílové hradby bez valu.
  */
 function bandWidthOf(
@@ -158,7 +225,12 @@ function bandWidthOf(
   // mezera (zbořená či nedostavěná), kterou vylepšení staví znovu – hradba bez valu
   const gap = !segmentBuilt(segment) || segment.demolishedDay !== undefined;
   if (gap && target !== null) return FORTIFICATIONS.bandM[target];
-  const width = Math.max(outline.bandM, segmentBand(fort, segment).inM);
+  const band = segmentBand(fort, segment);
+  if (band.outM > 0) {
+    // val vně hradby: dovnitř jen hradba (nejméně `minInM`), i cílová hradba vylepšení
+    return target === null ? band.inM : Math.max(band.inM, FORTIFICATIONS.bandM[target]);
+  }
+  const width = Math.max(outline.bandM, band.inM);
   if (target === null) return width;
   const onRampart = segmentKind(fort, segment) === 'rampart';
   return Math.max(
@@ -187,7 +259,11 @@ export function fortificationBand(
       building === true || run !== null || (segmentBuilt(s) && s.demolishedDay === undefined);
     if (!taken) continue;
     const width = bandWidthOf(fort, outline, s, run);
-    for (const p of bandPieces(outline, width, s.index)) pieces.push(p.corners);
+    // val vně hradby sahá přes křivku ven (mezera stavěná znovu ne – staví se hradba bez valu)
+    const gapRebuilt =
+      (!segmentBuilt(s) || s.demolishedDay !== undefined) && runTarget(run) !== null;
+    const out = gapRebuilt ? 0 : segmentBand(fort, s).outM;
+    for (const p of spanPieces(outline, -out, width, s.index)) pieces.push(p.corners);
   }
   return pieces;
 }
