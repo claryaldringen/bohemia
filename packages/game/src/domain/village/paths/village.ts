@@ -36,6 +36,7 @@ import {
   fortWalls,
   type FortWorkRef,
 } from '../fortification/walls';
+import { pincerBlocks } from '../fortification/pincer';
 import { clearingRouteObstacles, withoutHiddenChanges } from './clearing-routes';
 import { earthworkSpansOf } from './earthworks';
 import {
@@ -428,7 +429,8 @@ export function fortLayoutKey(
             }`,
         )
         .join(','),
-      f.gates.map((g) => `${g.segment}@${g.offsetM}`).join(','),
+      // klešťová brána přidá ramena a uličku (`pincerWalls`) – jen u ní, klíče beze změny
+      f.gates.map((g) => `${g.segment}@${g.offsetM}${pincerBlocks(g) ? ':p' : ''}`).join(','),
     ]),
   );
 }

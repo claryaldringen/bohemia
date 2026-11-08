@@ -207,6 +207,26 @@ export const FORTIFICATIONS = {
   },
   /** Brána 4 m – projde vůz se spřežením, nic navíc nestojí, nejvýš 1 na úsek (Brány; návrh Clauda). */
   gate: { widthM: 4, perSegment: 1 },
+  /**
+   * Klešťová brána (Hradby a obrana – Brány; návrh Clauda): ulička 4 m široká a 12 m dlouhá od
+   * vnitřního okraje pásu, k vratům nejvýš 4 muži; ramena 2 × 12 = 24 m hradby druhu úseku
+   * s ochozem (u palisády ochoz), za vnitřním okrajem pásu 12 m volného místa podél cesty.
+   */
+  pincerGate: { alleyWidthM: 4, alleyLengthM: 12, maxMen: 4, wallM: 24, clearM: 12 },
+  /**
+   * Dřevěná věž nad branou (Hradby a obrana – Brány, Životnost a údržba; návrh Clauda): nejvýš
+   * 4 obránci, dohled 250 m, luk do 80 m; 120 čd komplet + 30 klád; životnost 20 let, přestavba
+   * plnou cenou, údržba 1 čd za věž ročně.
+   */
+  tower: {
+    defenders: 4,
+    sightM: 250,
+    bowMaxM: 80,
+    laborManDays: 120,
+    wood: 30,
+    lifeYears: 20,
+    upkeepManDaysYear: 1,
+  },
   /** Brány se zavřou, když je první útočník do 30 m od brány (Obrana; návrh Clauda). */
   gatesCloseWithinM: 30,
   /**

@@ -7,6 +7,7 @@ import {
   villageAnchor,
   villageFortifications,
 } from '../fortifications';
+import { decideTowerRebuilds } from '../fortification-gate';
 import { FORTIFICATIONS } from '../rules-fortifications';
 import type {
   Construction,
@@ -179,6 +180,8 @@ export function decideFortRebuilds(
       started.push(state.constructions[state.constructions.length - 1]!);
     }
   }
+  // dožilé věže nad branami – až po dílech, aby na dílu brány neběžely dvě stavby
+  started.push(...decideTowerRebuilds(state, day, obstacles));
   return started;
 }
 
@@ -227,6 +230,9 @@ export function fortUpkeep(
       }
     }
     need += rampartNeed;
+    // věž nad branou – údržba za věž (`tower.upkeepManDaysYear`), stárne navíc jako hradba
+    const towers = fort.gates.filter((g) => g.towerDay != null && !busy.has(g.segment));
+    need += (towers.length * FORTIFICATIONS.tower.upkeepManDaysYear) / FORT_DAYS_PER_YEAR;
     if (need <= EPSILON) continue;
     const given = Math.min(left, need);
     left -= given;
@@ -234,6 +240,7 @@ export function fortUpkeep(
     const shortfall = (need - given) / need;
     if (shortfall <= EPSILON) continue;
     for (const { seg } of aging) seg.extraAgeDays = (seg.extraAgeDays ?? 0) + shortfall;
+    for (const g of towers) g.towerExtraAgeDays = (g.towerExtraAgeDays ?? 0) + shortfall;
     if (rampartNeed > EPSILON) {
       const { years, height } = FORTIFICATIONS.rampartNeglect;
       const next =

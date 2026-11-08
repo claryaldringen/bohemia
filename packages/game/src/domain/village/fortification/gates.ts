@@ -26,6 +26,8 @@ export interface FortGate {
   pincerDay?: number | null;
   /** Věž nad branou (Hradby a obrana – Brány): den dokončení, null = staví se. Chybí = bez věže. */
   towerDay?: number | null;
+  /** Stárnutí věže navíc za nedodělanou údržbu (dny; Životnost a údržba); chybí = 0. */
+  towerExtraAgeDays?: number;
 }
 
 /** Proč bránu nejde přidat: klik daleko od obvodu, úsek už bránu má. */
