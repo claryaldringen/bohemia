@@ -123,8 +123,8 @@ function validPoints(points: readonly Point[]): boolean {
  * než nejmenší poloměr druhu, nekříží se, plocha aspoň 900 m²), nedotýká se jiného opevnění; pás
  * uvnitř krajiny, ne přes vodu, stavby (`checkFootprintFree` – pole, sad a les vsi smí), skalní
  * výchoz ani posvátný dub a háj. Překážky v pásu osadníci odstraní (díly polí a sadu pod plotem
- * a palisádou nechají poli), val vezme kusy polí a sadů pod pásem (`takenLand`, varování „Pole se
- * zmenší“). Stav nemění.
+ * a palisádou nechají poli), val a široké hradby vezmou kusy polí a sadů pod pásem (`takenLand`,
+ * varování „Pole se zmenší“). Stav nemění.
  */
 export function checkFortificationPlacement(
   landscape: Landscape,
@@ -199,10 +199,12 @@ export function checkFortificationPlacement(
       return { ...fail('Stojí tu posvátný dub – ten vesničané nepokácí.'), ...shaped };
     }
   }
-  // val vezme kusy polí a sadů pod pásem; plot a palisáda stojí na mezi – díl zůstane i se svými
-  // překážkami (patří poli a sadu)
-  const takenLand = kind === 'rampart' ? takenLandUnder(landscape, village, band) : [];
-  const onCrops = kind === 'rampart' ? null : ownedAt(landscape, village, ['field', 'orchard']);
+  // val a široké hradby (s ochozem, roštová, komorová – pás 5,5–8 m; návrh Clauda) vezmou kusy
+  // polí a sadů pod pásem; plot a palisáda stojí na mezi – díl zůstane i se svými překážkami
+  // (patří poli a sadu)
+  const takes = kind !== 'fence' && kind !== 'palisade';
+  const takenLand = takes ? takenLandUnder(landscape, village, band) : [];
+  const onCrops = takes ? null : ownedAt(landscape, village, ['field', 'orchard']);
   const ids = new Set<number>();
   const treeIds = new Set<number>();
   // obdélníky pásu se v rozích překrývají – překážka se počítá jednou

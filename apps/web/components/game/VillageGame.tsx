@@ -115,6 +115,7 @@ import {
   buildItem,
   buildItemForKey,
   fortVariantKind,
+  fortVariantsBlocked,
   penVariantSpecies,
   type WebBuildKind,
 } from '@/lib/build-items';
@@ -1133,6 +1134,15 @@ export function VillageGame({
       setBuildGroup(buildGroup === kind ? null : kind);
       return;
     }
+    // roštová a komorová hradba až od svého roku – zašedlé tlačítko druhu nejde obejít
+    if (
+      kind === 'fortification' &&
+      variant &&
+      view &&
+      fortVariantsBlocked(view.dayIndex)[variant]
+    ) {
+      return;
+    }
     setBuildGroup(null);
     const option = options[kind];
     // vybraný díl pole či čtverec sadu patří své stavbě (mřížka rozšíření)
@@ -1160,6 +1170,7 @@ export function VillageGame({
           preview: (points) => ({
             ...item.check(decoded, placementVillage(), points, fortVariant.id, {
               woodSupply: viewRef.current?.woodSupply ?? 0,
+              ...(viewRef.current?.stoneSupply ? { stoneSupply: viewRef.current.stoneSupply } : {}),
             }),
             label: '',
           }),
@@ -1711,6 +1722,9 @@ export function VillageGame({
               disabled={scene === null || foundingName}
               group={buildGroup}
               extendingVariant={extendingVariant}
+              {...(view && buildGroup === 'fortification'
+                ? { blockedVariants: fortVariantsBlocked(view.dayIndex) }
+                : {})}
               onBuild={startBuild}
             />
             <NoticeLines

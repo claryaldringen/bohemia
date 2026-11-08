@@ -78,7 +78,7 @@ import {
   threshingOf,
   threshingFloorsOf,
 } from './village-view-buildings';
-import { fortificationViews, fortWoodSupply } from './fort-view';
+import { fortificationViews, fortStoneSupply, fortWoodSupply } from './fort-view';
 import { fieldViews, orchardSquareView } from './village-view-fields';
 import { manorView } from './manor-view';
 import { wildlifeView, type VillageWildlife } from './wildlife-view';
@@ -330,16 +330,20 @@ function fieldCapacityView(
   );
 }
 
-/** Opevnění pro panel a dřevo vsi pro cenu u kurzoru (fortifications.md – Rozhraní). */
+/** Opevnění pro panel, dřevo a kámen vsi pro cenu u kurzoru (fortifications.md – Rozhraní). */
 function fortificationsOf(
   state: VillageState,
   landscape: Landscape,
   day: number,
   obstacles: ObstacleLayer,
-): Pick<VillageView, 'fortifications' | 'woodSupply'> {
+): Pick<VillageView, 'fortifications' | 'woodSupply' | 'stoneSupply'> {
   const woodSupply = fortWoodSupply(state, obstacles);
   const fortifications = fortificationViews(state, landscape, day, woodSupply);
-  return { woodSupply, ...(fortifications.length > 0 ? { fortifications } : {}) };
+  return {
+    woodSupply,
+    stoneSupply: fortStoneSupply(state, obstacles),
+    ...(fortifications.length > 0 ? { fortifications } : {}),
+  };
 }
 
 export function buildVillageView(

@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { circlePoints, type Landscape, type PlacementVillage } from '@bohemia/game';
-import { BUILD_ITEMS, buildItem, buildItemForKey, FORT_VARIANTS } from '../build-items';
+import { circlePoints, dayIndexOf, type Landscape, type PlacementVillage } from '@bohemia/game';
+import {
+  BUILD_ITEMS,
+  buildItem,
+  buildItemForKey,
+  FORT_VARIANTS,
+  fortVariantsBlocked,
+} from '../build-items';
 
 // Opevnění v katalogu staveb (fortifications.md – Rozhraní): rozcestník druhů, návrh obvodu z bodů,
-// cena u kurzoru roste s tažením bodu, útočiště, důvod „Chybí N klád.“ a místo problému.
+// cena u kurzoru roste s tažením bodu, útočiště, důvod „Chybí N klád.“ a místo problému; roštová
+// a komorová hradba podle roku a kamene (Hradby a obrana – Druhy, Cena).
 
 const SIZE = 32;
 const landscape: Landscape = {
@@ -32,10 +39,19 @@ const item = buildItem('fortification');
 if (item.placement !== 'fort-points') throw new Error('Opevnění se upravuje po bodech.');
 
 describe('opevnění v katalogu staveb', () => {
-  it('je rozcestník plot, palisáda, val se zkratkou P bez kolize', () => {
-    expect(item.variants.map((v) => v.id)).toEqual(['fence', 'palisade', 'rampart']);
+  it('je rozcestník plot, palisáda, roštová, komorová, val se zkratkou P bez kolize', () => {
+    // roštová a komorová hradba od 8. 11. 2026 (Hradby a obrana – Druhy); ikony zatím palisády
+    expect(item.variants.map((v) => v.id)).toEqual([
+      'fence',
+      'palisade',
+      'crib',
+      'chamber',
+      'rampart',
+    ]);
     expect(FORT_VARIANTS.map((v) => v.icon)).toEqual([
       'fort-fence',
+      'fort-palisade',
+      'fort-palisade',
       'fort-palisade',
       'fort-rampart',
     ]);
@@ -116,5 +132,40 @@ describe('opevnění v katalogu staveb', () => {
     const cross = item.check(landscape, village, crossed, 'palisade', { woodSupply: 9999 });
     expect(cross.check.ok).toBe(false);
     expect(cross.problem?.length).toBeGreaterThan(0);
+  });
+
+  it('roštová zašedlá do 31. 12. 789 s důvodem, 1. 1. 790 dostupná; komorová až od 830', () => {
+    const eve = dayIndexOf({ year: 789, month: 12, day: 31 });
+    expect(fortVariantsBlocked(eve)).toEqual({
+      crib: 'Roštová hradba až od roku 790.',
+      chamber: 'Komorová hradba až od roku 830.',
+    });
+    expect(fortVariantsBlocked(eve + 1)).toEqual({ chamber: 'Komorová hradba až od roku 830.' });
+    expect(fortVariantsBlocked(dayIndexOf({ year: 830, month: 1, day: 1 }))).toEqual({});
+  });
+
+  it('roštová bez kamene a lomu „Chybí N m³ kamene.“; s kamenem či lomem cena i s kamenem', () => {
+    const points = circle(25);
+    const none = item.check(landscape, village, points, 'crib', { woodSupply: 9999 });
+    expect(none.check.ok).toBe(false);
+    expect(none.check.reason).toMatch(/^Chybí \d+ m³ kamene\.$/);
+    expect(none.cost).toBeNull();
+    const quarry = item.check(landscape, village, points, 'crib', {
+      woodSupply: 9999,
+      stoneSupply: { m3: 0, quarry: true },
+    });
+    expect(quarry.check.ok).toBe(true);
+    // obvod 2π · 25 ≈ 157 m: 100 m³ kamene na 100 m, 620 čd bez kácení a lámání
+    expect(quarry.cost!.stoneM3).toBeGreaterThan(150);
+    expect(quarry.cost!.laborManDays).toBeGreaterThan(900);
+    const pile = item.check(landscape, village, points, 'crib', {
+      woodSupply: 9999,
+      stoneSupply: { m3: 500, quarry: false },
+    });
+    expect(pile.check.ok).toBe(true);
+    expect(pile.cost).toEqual(quarry.cost);
+    // palisáda kámen nechce
+    const palisade = item.check(landscape, village, points, 'palisade', { woodSupply: 9999 });
+    expect(palisade.cost!.stoneM3).toBeUndefined();
   });
 });

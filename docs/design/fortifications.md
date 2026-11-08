@@ -274,6 +274,20 @@ Martin 8. 11. 2026 – ceny „**komplet, včetně kácení a odvozu**“: palis
 - **Zablokovat smí jen cena předem** (`CLAUDE.md`): klády i kámen musí být na hromadě nebo k mání
   v krajině sídla, jako dosud u klád; práce se nečeká, jen trvá.
 - **Doplnění valu** stojí cenu valu (150 čd na 100 m), **vodní příkop** strouhu (¼ čd na 1 m).
+- **Implementováno 8. 11. 2026** (plán hradeb, Úloha 5): ceny komplet plotu a palisády, roštová
+  a komorová hradba jako nové opevnění (od roku 790 a 830 podle dne vsi, zašedlé v nabídce
+  s důvodem), kámen předem. Návrh Clauda k provedení:
+  - strom pro opevnění se kácí za **1 čd × příplatek za vzdálenost** (jako ostatní stavby, ale
+    1 čd místo 2 čd – kácení je v ceně komplet); kámen, který na hromadách chybí, se láme v
+    **nejbližším skalním výchozu** za 1 čd na m³ × příplatek za vzdálenost (vzdušnou) – bez výchozu
+    a bez kamene na hromadách stavba nejde („Chybí N m³ kamene.“); lámání je v práci úseků podle
+    jejich kamene;
+  - **zboření** stojí ¼ práce stavby komplet (palisáda 75 čd na 100 m, plot 8,75 čd) – dřív ¼ práce
+    bez kácení;
+  - roštová a komorová hradba (pás 7–8 m) **vezmou díly polí a sadů pod pásem** jako val;
+  - cena u kurzoru ukazuje práci bez kácení a lámání (100 m: plot 20, palisáda 230, roštová 620,
+    komorová 780 čd), klády a kámen – kolik se přičte za kácení a lom, záleží na zdroji;
+  - rozdělané stavby ze starších vsí se dostaví za uloženou cenu, nic se nepřepočítá.
 
 ### Životnost a údržba
 
@@ -573,8 +587,8 @@ tři **úkrytem bližším než les** a liší se jen ti, kdo se do něj nevejdo
   ~~80 čd + 70 klád~~; val s příkopem 150 čd (jen hlína); plot nebo palisáda na valu jako samotné;
   vylepšení plotu na palisádu ~~80 čd + 70 klád~~ (plot nevrací nic). Cena roste s délkou úměrně –
   i rohy a brány se počítají délkou (návrh Clauda). Nahrazeno 8. 11. 2026: palisáda **300 čd
-  komplet** (30 h na 1 m, Martin), 70 klád; nové druhy a kámen – [Cena](#cena). Příklady palisády
-  níž počítají s cenou z 3. 11.
+  komplet** (30 h na 1 m, Martin), 70 klád; plot 35 čd komplet (20 čd + kácení); nové druhy
+  a kámen – [Cena](#cena) (implementováno 8. 11.). Příklady palisády níž počítají s cenou z 3. 11.
 - **Příklady** (návrh Clauda – zaokrouhleno):
 
   | Plocha               | Druh     | Délka   | Cena                | Pro srovnání                                  |

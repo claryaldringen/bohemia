@@ -108,13 +108,23 @@ Dřívější obvod po čtvercích zůstal jen pro převod (`squares-outline.ts`
   Podrobnosti a použití v síti pěšin a vozů:
   [village-roads.md – Brány opevnění v síti](village-roads.md#brány-opevnění-v-síti-ú53-6-11-2026).
 
-## Cena (`cost.ts`)
+## Cena (`cost.ts`; Hradby a obrana – Cena, Martin 8. 11. 2026 – „komplet“)
 
-- **`fortificationCost(kind, lengthM, work)`** → `BuildCost` – na 100 m `FORTIFICATIONS.costPer100M`
-  úměrně délce (plot 20 čd + 15 klád, palisáda 80 + 70, val 150 čd bez klád – `upfront: {}`).
-  `work`: `'new'`, `'upgrade'` (jen `palisade` – jako nová palisáda, plot nevrací nic), `'top'`
-  (plot nebo palisáda na valu za cenu samotného); jiné kombinace vyhodí chybu. Nezaokrouhluje –
-  zaokrouhlí až rozhraní.
+- **Ceny komplet** (`FORTIFICATIONS.costPer100M`, na 100 m úměrně délce, i s kácením a odvozem):
+  plot 35 čd + 15 klád, palisáda 300 + 70, s ochozem 450 + 80, roštová 1 050 + 330 + 100 m³
+  kamene, komorová 1 450 + 350 + 320 m³, val 150 čd. `walkwayAddPer100M` – ochoz na palisádu
+  150 čd + 10 klád.
+- **`fortificationFullCost(target, lengthM, from?)`** → `FortCost { laborManDays, logs, stoneM3 }`
+  komplet. **`fortificationCost(target, lengthM, from?)`** → totéž, ale práce = komplet − 1 čd ×
+  klády − 1 čd × m³ kamene (`pileSaves`) – kácení a lámání přičte stavba podle zdroje (`pushWork`).
+  100 m: plot 20 čd, palisáda 230, s ochozem 370, roštová 620, komorová 780, val 150. `from`
+  (`WallKind`, chybí / null = nové, hradba na valu, přestavba): vyšší stupeň za cenu cílového,
+  `palisade → walkway` přístavba (140 čd + 10 klád), stejný či nižší cíl vyhodí chybu; val `from`
+  nezná. Nezaokrouhluje – zaokrouhlí až rozhraní.
+- **Rok** – `wallAvailable(kind, day)` (rok `dateOfDayIndex(day).year` ≥ `wallFromYear` – roštová
+  790, komorová 830), `wallYearReason(kind, day)` → `FORT_WALL_YEAR(kind)` („Roštová hradba až od
+  roku 790.“) nebo null. Texty `FORT_WALKWAY_NEW` („Palisáda s ochozem vzniká jen vylepšením
+  palisády.“) a `FORT_NO_STONE(m3)` („Chybí {m3} m³ kamene.“, celé m³ nahoru).
 
 ## Pás (`band.ts`)
 
@@ -171,7 +181,7 @@ platí dál, staré vsi se nepřevádějí.
   - 100 m³ kamene, komorová 1 450 + 350 + 320 m³ – `FortCostPer100M.stoneM3?`) pro nové druhy;
     `wallOnRampartBandM`, `rampartOutside { outM: 7, minInM: 3 }`, `wallFromYear { crib: 790,
 chamber: 830 }`, `walkwayAddPer100M` (150 čd + 10 klád), `pileSaves { logManDays: 1,
-stoneManDaysPerM3: 1 }`. Ceny plotu a palisády komplet přepíše Úloha 5.
+stoneManDaysPerM3: 1 }`. Ceny plotu a palisády komplet – Cena.
 - **Kámen** (`stone.ts`): `VillageState.stoneM3?` (zásoba m³), `stoneStacks?: StoneStack[]`
   (`{ id, x, z, m3, road? }`, podmnožina zásoby) a `nextStoneStackId?` – vlastní čítač, ne `nextId`
   (jinak by se posunula id ostatních věcí a zlaté otisky). `stoneOnHand(state)`, `takeStone(state,
@@ -206,16 +216,28 @@ m3, at)` – z hromad od nejbližší k `at` (při shodě menší id), prázdná
   `checkFootprintFree` s `DWELLING_LAND` (obydlí → `FORT_OVER_BUILDING`, jinak důvod překryvu –
   hřbitov, ohrada, humno, modla, svatyně, milíř, branka souseda), skalní výchoz, posvátný háj a dub.
   Obilné jámy kontrola nezná – stejně jako u ostatních staveb (`placementVillageOf`). Val vezme
-  kusy polí a sadů pod pásem (`takenLandUnder`), plot a palisáda ne – překážky dílů pod nimi patří
-  poli a sadu.
-- **`startFortification(state, day, landscape, obstacles, { points, kind }, walk?)`** – brány
-  samy (`autoGates` s osami všech pevných cest vsi `state.roads.roads`, kotva dvorec, bez něj
-  průměr poloh obydlí), val ubere pole a sady (`giveWayToBuilding(…, 'fortification')` – sad
-  ustoupí valu jako obydlí), překážky pásu osadníci odstraní hned (`recordClearedObstacles`,
-  dospělé stromy dají klády na hromadu). **Cena předem jen dřevo**: klády celé stavby
-  (`fortificationCost` po úsecích, součet nahoru na celé) z hromady, zbytek vyhradí mezi
-  nejbližšími stromy k těžišti plochy (`planWoodFrom`); `plan.missing > 0` → `FORT_NO_WOOD`. Práce
-  se nečeká. Cena překážek pásu se k práci nepřičítá – cena je jen podle délky (návrh Clauda).
+  kusy polí a sadů pod pásem (`takenLandUnder`), stejně široké hradby – s ochozem, roštová
+  a komorová (pás 5,5–8 m; návrh Clauda); plot a palisáda ne – překážky dílů pod nimi patří poli
+  a sadu.
+- **`startFortification(state, day, landscape, obstacles, { points, kind }, walk?)`** – napřed
+  `walkway` → `FORT_WALKWAY_NEW` a rok (`wallYearReason` podle `day` = `state.lastDay` akce), pak
+  kontrola umístění; brány samy (`autoGates` s osami všech pevných cest vsi `state.roads.roads`,
+  kotva dvorec, bez něj průměr poloh obydlí), val ubere pole a sady
+  (`giveWayToBuilding(…, 'fortification')` – sad ustoupí valu jako obydlí), překážky pásu osadníci
+  odstraní hned (`recordClearedObstacles`, dospělé stromy dají klády na hromadu). Plán
+  `segmentPlan(shapes, indices, target, from?)` → `FortWorkPlan { segments, wood, stoneM3? }`
+  (kámen po úsecích).
+- **`pushWork(next, day, obstacles, input, walk)`** → důvod nebo null. **Cena předem jen klády
+  a kámen**: klády celé stavby (součet nahoru na celé) z hromady, zbytek vyhradí mezi nejbližšími
+  stromy k těžišti plochy (`planWoodFrom` s `fellManDaysPerTree: pileSaves.logManDays` – strom
+  opevnění za 1 čd × `distanceFactor`, ne obecné 2 čd); chybí → `FORT_NO_WOOD`. Kámen
+  `fortStonePlan`: napřed z hromad (`stoneOnHand`, `takeStone` od nejbližší k těžišti), zbytek
+  z lomu v nejbližším skalním výchozu (`quarryNear`) za `stoneManDaysPerM3` × m³ × `distanceFactor`
+  vzdušné vzdálenosti; bez výchozu → `FORT_NO_STONE(chybí)`, stav se nemění. Lámání se rozpočítá
+  do práce úseků podle jejich kamene (`fortSegments[].cost` – úsek je hotový i s kamenem; pořadí
+  práce ani `workFortification` se nemění). Bez vrstvy překážek (testy) se láme jako u blízkého
+  lomu. Práce se nečeká. Cena překážek pásu se k práci nepřičítá – cena je jen podle délky (návrh
+  Clauda). Rozdělaná stavba drží uloženou `cost` a `fortSegments` – ceny komplet ji nepřecení.
 - **Pořadí úseků** `fortWorkOrder(count, gates, anchor)` – od úseku brány nejblíž kotvě (při shodě
   menší úsek) po směru hodin, uložené v `fortSegments` stavby (pozdější dvorec pořadí nezmění).
 - **Práce** – `build` (`simulate-build.ts`) rovným dílem s ostatními stavbami, `invest` jako
@@ -227,10 +249,11 @@ m3, at)` – z hromad od nejbližší k `at` (při shodě menší id), prázdná
   `construction-finished`.
 - **`startFortificationUpgrade(…, { fortificationId, work, top? })`** – `upgrade` jen u plotu
   (`FORT_NOT_FENCE`, `FORT_ALREADY_PALISADE`): kontrola umístění pásu palisády bez sebe sama,
-  úseky, které palisádu ještě nemají, za cenu palisády (`fortificationCost(…, 'upgrade')`), plot nic
-  nevrací. `top` jen na valu (`FORT_NOT_RAMPART`), celý postavený (`FORT_RAMPART_UNFINISHED`),
-  úseky bez nástavby za cenu samotného plotu nebo palisády po délkách valu; rozdělanou nástavbu
-  jen stejným druhem (`FORT_TOP_DONE`). Na opevnění běží nejvýš jedna stavba (`FORT_BUSY`).
+  úseky, které palisádu ještě nemají, za cenu palisády (`fortificationCost('palisade', …, 'fence')`),
+  plot nic nevrací. `top` jen na valu (`FORT_NOT_RAMPART`), celý postavený (`FORT_RAMPART_UNFINISHED`),
+  úseky bez nástavby za cenu samotného plotu nebo palisády po délkách valu (ochoz `FORT_WALKWAY_NEW`,
+  roštová a komorová podle roku – vstup je zatím nenabízí); rozdělanou nástavbu jen stejným druhem
+  (`FORT_TOP_DONE`). Na opevnění běží nejvýš jedna stavba (`FORT_BUSY`).
 - **`addGateToFortification(state, geo, fortificationId, position)`** – `addGate` na obvod
   (`FORT_GATE_OFF`, `FORT_GATE_TAKEN`), kdykoli, nic nestojí.
 - **Zrušení** (`cancel-construction.ts`, `dropFortificationWork`): hotové úseky stojí, nehotové
@@ -270,8 +293,7 @@ part?, lengthM }[]` – kusy dílů téhož úseku: celé díly mezi branami a z
   kus dílu brány, práce i klády podle jeho délky. Kus dílu brány na valu se srovná až při `level`
   (nástavbu valu boří jen celé díly – nástavba je údaj celého dílu). Plot a palisáda: `demolish` celého dílu; val s nástavbou: `demolish` jen
   dílů, kde nástavba stojí; val bez nástavby: `level`. Práce dílu `DEMOLITION.laborShare` × práce
-  podle délky (`fortificationCost(druh, délka, 'new')`, nástavba `'top'`), val
-  `rampartLaborShare` × práce valu. Klády dílu `logShare` × klády dílu × `seg.state` (necelé
+  komplet podle délky (`fortificationFullCost(druh či nástavba, délka)` – „práce stavby“ je od 8. 11. cena komplet, návrh Clauda), val `rampartLaborShare` × práce valu. Klády dílu `logShare` × klády dílu × `seg.state` (necelé
   v `FortSegmentWork.logs`), celé dolů jednou za stavbu; místo hromady `Construction.fortLogsAt`
   (střed prostředního dílu). Důvody `FORT_BUSY` (jedna stavba na opevnění), `FORT_SECTION_GONE`
   („Úsek už je zbořený.“), `FORT_SECTION_GATE_ONLY` (úsek jen z dílu s branou), `FORT_UNKNOWN`.
@@ -355,8 +377,9 @@ part?, lengthM }[]` – kusy dílů téhož úseku: celé díly mezi branami a z
   `decideRebuilds`): u každého opevnění **bez běžící stavby** zapíše `seg.state` ke dni; úsek, na
   který se staví, stav drží (stojí a brání). Pak založí jednu stavbu `rebuild` pro všechny dožilé
   úseky (průlom `breachedDay` v plánu první, pak v pořadí práce od brány) za cenu nového úseku
-  (`fortificationCost`, nástavba valu za cenu `top`, klády předem přes `pushWork` – **bez dřeva se
-  nezačne a úsek chátrá dál**, zkouší se každý den). Dokončený úsek: `builtDay` (`topBuiltDay`)
+  (`fortificationCost` bez `from`, kámen roštové a komorové zůstane – plán bez kamene; klády předem
+  přes `pushWork`, strom za 1 čd × vzdálenost – **bez dřeva se nezačne a úsek chátrá dál**, zkouší
+  se každý den). Dokončený úsek: `builtDay` (`topBuiltDay`)
   = den, `state` 1, `breachedDay` pryč (`workFortification`). Staré kůly nic nevrátí. Hráčovo
   opevnění stejně – rozhoduje jen stáří. Bez lidí (opuštěná, vymřelá ves) ani bez krajiny nic.
 - **Údržba valu** `rampartMaintenance(state, labor, geo): čd` (v `work()` hned za opravami

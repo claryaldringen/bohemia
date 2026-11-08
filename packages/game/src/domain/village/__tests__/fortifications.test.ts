@@ -4,8 +4,12 @@ import { packObstacles, type ObstaclePlacement } from '../../landscape';
 import { foundVillage } from '../actions';
 import { applyBuildIntent } from '../build-intent';
 import { cancelConstruction } from '../cancel-construction';
+import { distanceFactor } from '../fields';
 import {
   circlePoints,
+  FORT_NO_STONE,
+  FORT_WALKWAY_NEW,
+  FORT_WALL_YEAR,
   fortBlockingSegments,
   fortificationOutline,
   fortRunningWork,
@@ -42,6 +46,7 @@ import { fortLayoutKey, pathFortificationsOf, routeMapKey } from '../paths/villa
 import { advanceVillage } from '../simulate';
 import type { FortKind, VillageState } from '../types';
 import { block, makeLandscape } from './placement-fixtures';
+import { fellingCost } from '../wood';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Stavba opevnění po úsecích (fortifications.md – Obvod, Cena a stavba). Krajina 16 × 16 políček
@@ -60,8 +65,8 @@ function sq(cells: readonly TileCell[], kind: FortKind): Point[] {
   return points;
 }
 
-function village(logs = 200): VillageState {
-  const s = withBuiltFirstDwelling(foundVillage({ seed: 5, day: DAY, dwellingPosition: FAR }));
+function village(logs = 200, day = DAY): VillageState {
+  const s = withBuiltFirstDwelling(foundVillage({ seed: 5, day, dwellingPosition: FAR }));
   s.woodLogs = logs;
   return s;
 }
@@ -86,6 +91,23 @@ function start(
 function advance(state: VillageState, days: number): VillageState {
   return advanceVillage(state, state.lastDay + days, EMPTY, landscape);
 }
+
+/**
+ * Dopočítá ves po 5 dnech, dokud neplatí `done` (nejvýš 400 dní) – první hotový úsek: s cenami
+ * komplet (8. 11. 2026) stojí úsek palisády ≈ 3 × víc práce, dřív na něj stačilo 20 dní.
+ */
+function until(state: VillageState, done: (s: VillageState) => boolean): VillageState {
+  let s = state;
+  for (let d = 0; d < 400 && !done(s); d += 5) s = advance(s, 5);
+  return s;
+}
+
+/** Stojí na prvním opevnění aspoň jeden úsek palisády (vylepšení plotu)? */
+const somePalisade = (s: VillageState): boolean =>
+  s.fortifications![0]!.segments.some((x) => x.kind === 'palisade');
+/** Stojí na prvním opevnění aspoň jeden hotový úsek? */
+const someBuilt = (s: VillageState): boolean =>
+  s.fortifications![0]!.segments.some((x) => x.builtDay !== null);
 
 /** Dopočítá ves, dokud na opevnění běží stavba (nejvýš `limit` dní). */
 function finish(state: VillageState, limit = 400): VillageState {
@@ -264,6 +286,163 @@ describe('cena předem a zahájení', () => {
   });
 });
 
+describe('cena komplet a nové druhy (Hradby a obrana – Cena, Druhy)', () => {
+  /** Délka obvodu druhu `kind` kolem `AREA` (m). */
+  const lengthOf = (kind: FortKind): number => fortificationOutline(sq(AREA, kind), kind)!.lengthM;
+  /** Hromada kamene `m3` u severovýchodu vsi – zásoba i hromada. */
+  const withStone = (s: VillageState, m3: number): VillageState => {
+    s.stoneM3 = m3;
+    s.stoneStacks = [{ id: 1, x: 70, z: 70, m3 }];
+    return s;
+  };
+  /** Skalní výchoz (lom) daleko od pásu. */
+  const QUARRY = { x: -90, z: 100 };
+  const quarryLayer = packObstacles(
+    [{ id: 1, kind: 'outcrop', look: 'rock-ridge', ...QUARRY, rotation: 0, scale: 1 }],
+    16,
+    15,
+  );
+  const fortWork = (s: VillageState) => s.constructions.find((x) => x.kind === 'fortification')!;
+  /** Vzdálenost od středu obvodu druhu `kind` kolem `AREA` (odtud se kácí a láme). */
+  const fromCenter = (kind: FortKind, at: { x: number; z: number }): number => {
+    const line = fortificationOutline(sq(AREA, kind), kind)!.polyline;
+    let x = 0;
+    let z = 0;
+    for (const [px, pz] of line) {
+      x += px;
+      z += pz;
+    }
+    const dx = at.x - x / line.length;
+    const dz = at.z - z / line.length;
+    return Math.sqrt(dx * dx + dz * dz);
+  };
+  /** Den založení vsi dopočítané do 1. 1. 790 (ves vzniká s `lastDay` = den založení − 1). */
+  const ROSTOVA = dayIndexOf({ year: 790, month: 1, day: 1 }) + 1;
+
+  it('palisáda z hromady 230 čd na 100 m; kácení za 1 čd × vzdálenost (ne 2 čd)', () => {
+    const len = lengthOf('palisade');
+    const fromPile = fortWork(start(village(400), 'palisade'));
+    expect(fromPile.wood).toMatchObject({ fell: [] });
+    expect(fromPile.cost).toBeCloseTo((230 * len) / 100, 6);
+    // bez klád: stromy háje stranou se kácí za 1 čd × vzdálenost – cena komplet 300 čd na 100 m
+    const grove = Array.from({ length: 200 }, (_, k) =>
+      tree(100 + k, 70 + (k % 10) * 4, 70 + Math.floor(k / 10) * 2.5),
+    );
+    const layer = packObstacles(grove, 16, 15);
+    const s = village(0);
+    const c = fortWork(
+      ok(
+        startFortification(s, s.lastDay, landscape, layer, {
+          points: sq(AREA, 'palisade'),
+          kind: 'palisade',
+        }),
+      ),
+    );
+    expect(c.wood!.fell).toHaveLength(Math.ceil((70 * len) / 100));
+    for (const t of c.wood!.fell) {
+      const at = grove.find((g) => g.id === t.id)!;
+      const d = fromCenter('palisade', at);
+      expect(t.cost).toBeCloseTo(distanceFactor(d), 9);
+      expect(t.cost).toBeCloseTo(fellingCost(d) / 2, 9);
+    }
+    const fell = c.wood!.fell.reduce((sum, t) => sum + t.cost, 0);
+    expect(c.cost).toBeCloseTo((230 * len) / 100 + fell, 6);
+  });
+
+  it('roštová z hromady (klády a kámen) 620 čd na 100 m, kámen se vezme z hromady', () => {
+    const len = lengthOf('crib');
+    const s = withStone(village(1000, ROSTOVA), 500);
+    const next = start(s, 'crib');
+    const c = fortWork(next);
+    expect(c.wood).toMatchObject({ fell: [] });
+    expect(c.cost).toBeCloseTo((620 * len) / 100, 6);
+    expect(next.stoneM3).toBeCloseTo(500 - (100 * len) / 100, 6);
+    expect(next.stoneStacks![0]!.m3).toBeCloseTo(500 - (100 * len) / 100, 6);
+  });
+
+  it('roštová až od roku 790 – 31. 12. 789 důvod roku, 1. 1. 790 projde (server podle dne vsi)', () => {
+    const eve = withStone(village(1000, ROSTOVA - 1), 500);
+    expect(eve.lastDay).toBe(dayIndexOf({ year: 789, month: 12, day: 31 }));
+    expect(
+      startFortification(eve, eve.lastDay, landscape, EMPTY, {
+        points: sq(AREA, 'crib'),
+        kind: 'crib',
+      }),
+    ).toEqual({ ok: false, reason: FORT_WALL_YEAR('crib') });
+    expect(FORT_WALL_YEAR('crib')).toBe('Roštová hradba až od roku 790.');
+    expect(start(withStone(village(1000, ROSTOVA), 500), 'crib').fortifications).toHaveLength(1);
+    // komorová až od roku 830
+    const chamber = withStone(village(1000, ROSTOVA), 1000);
+    expect(
+      startFortification(chamber, chamber.lastDay, landscape, EMPTY, {
+        points: sq(AREA, 'chamber'),
+        kind: 'chamber',
+      }),
+    ).toEqual({ ok: false, reason: 'Komorová hradba až od roku 830.' });
+  });
+
+  it('palisáda s ochozem jako nové opevnění nejde – jen vylepšením palisády', () => {
+    const s = village(400);
+    expect(
+      startFortification(s, s.lastDay, landscape, EMPTY, {
+        points: sq(AREA, 'walkway'),
+        kind: 'walkway',
+      }),
+    ).toEqual({ ok: false, reason: FORT_WALKWAY_NEW });
+  });
+
+  it('roštová bez kamene a bez výchozu chybí kámen; s výchozem projde a práce obsahuje lámání', () => {
+    const len = lengthOf('crib');
+    const need = (100 * len) / 100;
+    const s = village(1000, ROSTOVA);
+    const input = { points: sq(AREA, 'crib'), kind: 'crib' as const };
+    expect(startFortification(s, s.lastDay, landscape, EMPTY, input)).toEqual({
+      ok: false,
+      reason: FORT_NO_STONE(need),
+    });
+    expect(FORT_NO_STONE(99.2)).toBe('Chybí 100 m³ kamene.');
+    // část kamene na hromadě – chybí jen zbytek
+    const some = withStone(village(1000, ROSTOVA), 40);
+    expect(startFortification(some, some.lastDay, landscape, EMPTY, input)).toEqual({
+      ok: false,
+      reason: FORT_NO_STONE(need - 40),
+    });
+    // lom: 40 m³ z hromady, zbytek se láme za 1 čd na m³ × vzdálenost k výchozu
+    const quarried = ok(startFortification(some, some.lastDay, landscape, quarryLayer, input));
+    const c = fortWork(quarried);
+    const factor = distanceFactor(fromCenter('crib', QUARRY));
+    expect(factor).toBeGreaterThan(1);
+    expect(c.cost).toBeCloseTo((620 * len) / 100 + (need - 40) * factor, 6);
+    expect(quarried.stoneM3).toBeUndefined();
+    expect(quarried.stoneStacks).toBeUndefined();
+    // lámání je v práci úseků podle jejich kamene – úseky dohromady = celá práce
+    const segments = c.fortSegments!.reduce((sum, w) => sum + w.cost, 0);
+    expect(segments).toBeCloseTo(c.cost, 6);
+  });
+
+  it('rozdělané vylepšení plotu ze staré vsi se dostaví za uloženou cenu (Review Focus 3)', () => {
+    const built = finish(start(village(800), 'fence', AREA, 'palisade'));
+    const up = ok(
+      startFortificationUpgrade(built, built.lastDay, landscape, EMPTY, {
+        fortificationId: built.fortifications![0]!.id,
+        work: 'upgrade',
+      }),
+    );
+    // stará ves: stavba založená za ceny 3. 11. (palisáda 80 čd na 100 m bez kácení)
+    const old = structuredClone(up);
+    const c = fortWork(old);
+    for (const w of c.fortSegments!) w.cost *= 80 / 230;
+    c.cost = c.fortSegments!.reduce((sum, w) => sum + w.cost, 0);
+    const stored = c.cost;
+    const later = advance(old, 5);
+    expect(fortWork(later).cost).toBe(stored);
+    const doneOld = finish(old);
+    const doneNew = finish(up);
+    expect(doneOld.fortifications![0]!.kind).toBe('palisade');
+    expect(doneOld.lastDay).toBeLessThan(doneNew.lastDay);
+  });
+});
+
 describe('stavba po úsecích', () => {
   it('úseky jeden po druhém od brány nejblíž dvorci po směru hodin', () => {
     const s = start(village(), 'fence');
@@ -329,7 +508,7 @@ describe('vylepšení, nástavba a zrušení', () => {
     );
     // palisáda 234,85 m → 164,4 klády → 165 z hromady, plot nic nevrátil
     expect(up.woodLogs).toBe(logs - 165);
-    const half = advance(up, 20);
+    const half = until(up, somePalisade);
     const segs = half.fortifications![0]!.segments;
     expect(half.fortifications![0]!.kind).toBe('fence');
     expect(segs.some((x) => x.kind === 'palisade')).toBe(true);
@@ -367,7 +546,7 @@ describe('vylepšení, nástavba a zrušení', () => {
     const c = s.constructions.find((x) => x.kind === 'fortification')!;
     const none = cancelConstruction(s, s.lastDay, c.id);
     expect(none.fortifications).toEqual([]);
-    const half = advance(s, 20);
+    const half = until(s, someBuilt);
     const cancelled = cancelConstruction(half, half.lastDay, c.id);
     const segs = cancelled.fortifications![0]!.segments;
     expect(segs.some((x) => x.builtDay !== null)).toBe(true);
@@ -410,7 +589,7 @@ describe('celý obvod blokuje od zahájení stavby (Martin 6. 11. 2026)', () => 
     expect(partial).toBe(true);
     expect(x.constructions.some((c) => c.kind === 'fortification')).toBe(false);
     // zrušená stavba: nehotové úseky zmizí a přestanou blokovat, hotové stojí
-    const half = advance(s, 20);
+    const half = until(s, someBuilt);
     const c = half.constructions.find((g) => g.kind === 'fortification')!;
     const cancelled = cancelConstruction(half, half.lastDay, c.id);
     const built = cancelled.fortifications![0]!.segments.filter((g) => g.builtDay !== null);
@@ -430,7 +609,7 @@ describe('celý obvod blokuje od zahájení stavby (Martin 6. 11. 2026)', () => 
     );
     expect(blocking(up).every((b) => b.kind === 'palisade')).toBe(true);
     expect(blocking(up)).toHaveLength(built.fortifications![0]!.segments.length);
-    const half = advance(up, 20);
+    const half = until(up, somePalisade);
     expect(half.fortifications![0]!.segments.some((g) => g.kind === 'palisade')).toBe(true);
     expect(fortLayoutKey(half)).toBe(fortLayoutKey(up));
   });

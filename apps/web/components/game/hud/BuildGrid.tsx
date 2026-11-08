@@ -29,6 +29,7 @@ function BuildTooltip({
   option: baseOption,
   variant,
   extending = false,
+  blocked = null,
 }: {
   item: BuildItem;
   option: BuildOption | null;
@@ -36,11 +37,15 @@ function BuildTooltip({
   variant?: SquaresVariant;
   /** Vybraná ohrada tohoto druhu se rozšiřuje – koně se neplatí, platba ani blokace se nezobrazí. */
   extending?: boolean;
+  /** Druh v rozcestníku ještě nejde z jiného důvodu než surovin (roštová hradba až od roku 790). */
+  blocked?: string | null;
 }): ReactElement {
   // druh s vlastní cenou (ohrada koní – obilí předem za koně)
   const own = variant ? baseOption?.variants?.[variant.id] : undefined;
   const option = baseOption && own ? { ...baseOption, ...own } : baseOption;
   const payment = extending ? [] : (own?.payment ?? []);
+  // důvod druhu (rok), jinak stavby – rozšíření vybrané ohrady koní blokaci nezobrazí
+  const reason = blocked ?? (extending && own ? null : (option?.blocked ?? null));
   return (
     <span className="block">
       <span className="font-serif text-sm font-semibold text-[#f3dfb0]">
@@ -89,9 +94,9 @@ function BuildTooltip({
           ))}
         </span>
       )}
-      {option?.blocked && !(extending && own) && (
+      {reason && (
         <span data-testid="build-blocked" className="mt-0.5 block font-semibold text-red-400">
-          {option.blocked}
+          {reason}
         </span>
       )}
     </span>
@@ -158,6 +163,7 @@ export function BuildGrid({
   disabled,
   group = null,
   extendingVariant = null,
+  blockedVariants = {},
   onBuild,
 }: {
   /** Nabízené stavby; null = bez ceny (první zemnice zakládá ves – osídlí ji zakladatelé). */
@@ -170,6 +176,11 @@ export function BuildGrid({
   group?: BuildItem['kind'] | null;
   /** Druh ohrady, jejíž existující ohrada je vybraná (rozšíření bez platby za koně). */
   extendingVariant?: string | null;
+  /**
+   * Druhy otevřeného rozcestníku, které ještě nejdou z jiného důvodu než surovin – id druhu →
+   * důvod (opevnění: roštová hradba až od roku 790, komorová od 830). Zašedlé s důvodem v popisku.
+   */
+  blockedVariants?: Readonly<Record<string, string>>;
   /**
    * Kliknutí na stavbu (u stavby s druhy otevře či zavře rozcestník – to řeší volající), nebo na
    * druh v rozcestníku (`variant`).
@@ -209,6 +220,7 @@ export function BuildGrid({
                 const option = options[hub.kind] ?? null;
                 const extending = extendingVariant === variant.id;
                 const affordable = isBuildAffordable(option, variant.id, extending);
+                const blocked = blockedVariants[variant.id] ?? null;
                 return (
                   <GridButton
                     key={variant.id}
@@ -220,10 +232,11 @@ export function BuildGrid({
                         option={option}
                         variant={variant}
                         extending={extending}
+                        blocked={blocked}
                       />
                     }
                     pressed={false}
-                    disabled={disabled || !affordable}
+                    disabled={disabled || !affordable || blocked !== null}
                     onClick={() => onBuild(hub.kind, variant.id)}
                   />
                 );

@@ -4,13 +4,12 @@ import { stewardFortificationProposal } from './fortification-proposal';
 import type { Point } from './polygon';
 import { outlineOf, villageFortifications } from './fortifications';
 import { laborPerDay } from './people';
-import { FELLING_MAN_DAYS_PER_TREE } from './rules-buildings';
 import { FORTIFICATIONS } from './rules-fortifications';
 import { TRADE_GOOD_VALUES } from './rules-trade';
 import { STEWARD } from './rules-steward';
 import { fieldCells, fieldCellValue, planCentre } from './steward-land';
 import type { StewardMode } from './steward';
-import type { FortKind, FortTop, VillageState } from './types';
+import type { FortKind, FortTop, VillageState, WallKind } from './types';
 import { woodLogs, wholeLogs } from './wood';
 
 // Opevnění podle hrozby (fortifications.md – Správce, Hrozba; steward.md – Rozhodovací pořadí,
@@ -92,7 +91,11 @@ export function raidLossManDays(state: VillageState, day: number, kgPerManDay: n
   return (loot + cattleKg) / kgPerManDay + loss.adultShare * adultDays * DAYS_PER_YEAR;
 }
 
-/** Cena stavby druhu `plan` z druhu `from` (práce + kácení chybějících klád), klády k tomu. */
+/**
+ * Cena stavby druhu `plan` z druhu `from` (fortifications.md – Hradby a obrana, Cena): práce bez
+ * kácení (`fortificationCost`) + kácení chybějících klád za `pileSaves.logManDays` na strom –
+ * cena komplet, z hromady o kládu levněji.
+ */
 function planCost(
   state: VillageState,
   plan: FortPlan,
@@ -100,22 +103,22 @@ function planCost(
   lengthM: number,
 ): number {
   const parts: { labor: number; wood: number }[] = [];
-  const add = (kind: FortKind, work: 'new' | 'upgrade' | 'top'): void => {
-    const c = fortificationCost(kind, lengthM, work);
-    parts.push({ labor: c.laborManDays, wood: c.upfront.wood ?? 0 });
+  const add = (kind: FortKind, wallFrom: WallKind | null = null): void => {
+    const c = fortificationCost(kind, lengthM, wallFrom);
+    parts.push({ labor: c.laborManDays, wood: c.logs });
   };
   const top = planTop(plan);
   if (from === null) {
-    add(planBase(plan), 'new');
-    if (top) add(top, 'top');
+    add(planBase(plan));
+    if (top) add(top);
   } else if (from === 'fence') {
-    add('palisade', 'upgrade');
+    add('palisade', 'fence');
   } else if (top) {
-    add(top, 'top');
+    add(top);
   }
   const labor = parts.reduce((s, p) => s + p.labor, 0);
   const wood = parts.reduce((s, p) => s + p.wood, 0);
-  const fell = Math.max(0, wood - wholeLogs(woodLogs(state))) * FELLING_MAN_DAYS_PER_TREE;
+  const fell = Math.max(0, wood - wholeLogs(woodLogs(state))) * FORTIFICATIONS.pileSaves.logManDays;
   return labor + fell;
 }
 

@@ -13,12 +13,14 @@ import {
   fortificationCost,
   layerBuilt,
   outlineOf,
+  quarryNear,
   sectionDemolition,
   segmentBuilt,
   segmentIsOld,
   segmentRampart,
   segmentState,
   segmentWall,
+  stoneOnHand,
   villageFortifications,
   villageStock,
   woodFellingCost,
@@ -31,7 +33,9 @@ import {
   type FortTop,
   type Fortification,
   type Landscape,
+  type ObstacleLayer,
   type VillageState,
+  type WallKind,
 } from '@bohemia/game';
 import { fortSectionSpans } from './fort-sections';
 
@@ -289,19 +293,22 @@ export function sceneFortifications(
   return result;
 }
 
-/** Cena práce nad úseky `indices` obvodu opevnění. */
+/**
+ * Cena práce nad úseky `indices` obvodu opevnění na hradbu `kind` z hradby `from` (null = hradba
+ * na valu) – práce bez kácení a klády (`fortificationCost`, ceny komplet).
+ */
 function workCost(
   shapes: readonly FortSegmentShape[],
   indices: readonly number[],
   kind: FortKind,
-  work: 'upgrade' | 'top',
+  from: WallKind | null,
 ): FortWorkCost {
   let laborManDays = 0;
   let logs = 0;
   for (const i of indices) {
-    const cost = fortificationCost(kind, shapes[i]!.lengthM, work);
+    const cost = fortificationCost(kind, shapes[i]!.lengthM, from);
     laborManDays += cost.laborManDays;
-    logs += cost.upfront.wood ?? 0;
+    logs += cost.logs;
   }
   return { laborManDays, logs };
 }
@@ -442,7 +449,7 @@ export function fortificationViews(
       const todo = fort.segments
         .filter((s) => segmentWall(fort, s)?.kind !== 'palisade')
         .map((s) => s.index);
-      const cost = workCost(shapes, todo, 'palisade', 'upgrade');
+      const cost = workCost(shapes, todo, 'palisade', 'fence');
       view.upgrade = {
         cost,
         blocked: busy ? FORT_BUSY_TEXT : woodBlocked(cost, woodSupply),
@@ -453,7 +460,7 @@ export function fortificationViews(
         .filter((s) => !layerBuilt(segmentWall(fort, s)))
         .map((s) => s.index);
       view.tops = (['fence', 'palisade'] as const).map((top) => {
-        const cost = workCost(shapes, todo, top, 'top');
+        const cost = workCost(shapes, todo, top, null);
         const taken = todo.length === 0 || (fort.top !== undefined && fort.top !== top);
         return {
           top,
@@ -481,4 +488,19 @@ export function fortWoodSupply(
   obstacles: Parameters<typeof villageStock>[1],
 ): number {
   return villageStock(state, obstacles).wood;
+}
+
+/** Kámen vsi pro cenu opevnění (Hradby a obrana – Cena): m³ na hromadách a lom ve skále. */
+export interface FortStoneSupply {
+  m3: number;
+  /** Na mapě sídla je skalní výchoz – kamene z lomu je kolik je třeba. */
+  quarry: boolean;
+}
+
+/**
+ * Kámen vsi pro cenu opevnění u kurzoru – hromady (`stoneOnHand`) a lom: stačí, že na mapě sídla
+ * nějaký výchoz je (`quarryNear` – výchoz se neodstraňuje).
+ */
+export function fortStoneSupply(state: VillageState, obstacles: ObstacleLayer): FortStoneSupply {
+  return { m3: stoneOnHand(state), quarry: quarryNear(obstacles, { x: 0, z: 0 }) !== null };
 }

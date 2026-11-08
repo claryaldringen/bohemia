@@ -7,6 +7,8 @@ import {
   fortSegments,
   proposeFortificationIn,
   fortificationCost,
+  FORT_NO_STONE,
+  wallYearReason,
   logsFromClearedTrees,
   type FortKind,
   type FortPlacementCheck,
@@ -58,7 +60,13 @@ import {
   penSpecies,
 } from '@bohemia/game';
 import type { PlacementCost, SquaresVariant } from './scene/village-types';
-import { fortShape, missingLogsText, refugePlaces, type FortPoint } from './fort-view';
+import {
+  fortShape,
+  missingLogsText,
+  refugePlaces,
+  type FortPoint,
+  type FortStoneSupply,
+} from './fort-view';
 
 // Katalog staveb pro mřížku staveb (jako v 0 A.D.): název, ikona, klávesová zkratka, způsob
 // umístění a kontrola, jestli stavba smí kam. Čistý modul (kontroly z herního jádra běží
@@ -98,6 +106,8 @@ export type FortPointsCheck = Omit<SquaresCheck, 'blockedCells' | 'warningCells'
 /** Co kontrola stavby po čtvercích ví o vsi navíc – dřevo vsi (klády a stromy ke kácení). */
 export interface SquaresContext {
   woodSupply: number;
+  /** Kámen vsi pro opevnění (hromady a lom); bez údaje žádný. */
+  stoneSupply?: FortStoneSupply;
 }
 
 /** Kontrola obydlí: projde? a u prošlého umístění cena (práce a stromy ke kácení). */
@@ -541,14 +551,32 @@ export function penVariantSpecies(variant: string | undefined): PenSpecies {
 }
 
 /**
- * Druhy opevnění v pořadí rozcestníku mřížky staveb (fortifications.md – Rozhraní): plot,
- * palisáda, val – ikony `public/icons/resources/fort-*.png`.
+ * Druhy opevnění v pořadí rozcestníku mřížky staveb (fortifications.md – Rozhraní; Hradby a obrana
+ * – Druhy): plot, palisáda, roštová a komorová hradba, val – ikony `public/icons/resources/fort-*`.
+ * Palisáda s ochozem vzniká jen vylepšením palisády, v rozcestníku není. Roštová a komorová mají
+ * zatím ikonu palisády – vlastní ikony přidá rozhraní hradeb (plán hradeb, Úloha 17).
  */
 export const FORT_VARIANTS: readonly (SquaresVariant & { id: FortKind })[] = [
   { id: 'fence', icon: 'fort-fence', name: 'Polský plot' },
   { id: 'palisade', icon: 'fort-palisade', name: 'Palisáda' },
+  { id: 'crib', icon: 'fort-palisade', name: 'Roštová hradba' },
+  { id: 'chamber', icon: 'fort-palisade', name: 'Komorová hradba' },
   { id: 'rampart', icon: 'fort-rampart', name: 'Val s příkopem' },
 ];
+
+/**
+ * Druhy opevnění, které v den `day` ještě nejdou (roštová od roku 790, komorová od 830 – Martin
+ * 8. 11. 2026): id druhu → důvod u kurzoru. Rozhoduje server podle dne vsi; rozcestník je jen
+ * zašedne stejným textem (`wallYearReason`).
+ */
+export function fortVariantsBlocked(day: number): Record<string, string> {
+  const blocked: Record<string, string> = {};
+  for (const v of FORT_VARIANTS) {
+    const reason = wallYearReason(v.id, day);
+    if (reason) blocked[v.id] = reason;
+  }
+  return blocked;
+}
 
 /** Druh opevnění z id druhu stavby (bez údaje nebo neznámý – plot). */
 export function fortVariantKind(variant: string | undefined): FortKind {
@@ -575,10 +603,12 @@ function villageAnchorOf(village: PlacementVillage): Position | { x: number; z: 
 }
 
 /**
- * Kontrola obvodu opevnění z bodů `points` (fortifications.md – Obvod, Cena a stavba): umístění
- * jako na serveru (`checkFortificationPlacement`), u prošlého cena podle délky obvodu – člověkodny
- * a klády, útočiště (lidé) a když ves nemá dost dřeva (klády a stromy ke kácení), důvod „Chybí N
- * klád.“. Do náhledu patří obrys, pás, brány na cestách (`autoGates`) a místo problému.
+ * Kontrola obvodu opevnění z bodů `points` (fortifications.md – Obvod, Cena a stavba; Hradby
+ * a obrana – Cena): umístění jako na serveru (`checkFortificationPlacement`), u prošlého cena podle
+ * délky obvodu – člověkodny bez kácení a lámání, klády, kámen a útočiště (lidé); když ves nemá dost
+ * dřeva (klády a stromy ke kácení), důvod „Chybí N klád.“, když nemá kámen na hromadách ani lom
+ * ve skále, „Chybí N m³ kamene.“. Do náhledu patří obrys, pás, brány na cestách (`autoGates`)
+ * a místo problému.
  */
 export function fortPointsPlacement(
   landscape: Landscape,
@@ -586,6 +616,7 @@ export function fortPointsPlacement(
   points: readonly FortEditPoint[],
   kind: FortKind,
   woodSupply: number,
+  stoneSupply: FortStoneSupply = { m3: 0, quarry: false },
 ): FortPointsCheck {
   const check: FortPlacementCheck = checkFortificationPlacement(
     landscape,
@@ -607,9 +638,10 @@ export function fortPointsPlacement(
   if (!check.ok || !outline) {
     return { check, cost: null, ...preview, problem: problemMarks(check.where) };
   }
-  const cost = fortificationCost(kind, outline.lengthM, 'new');
-  const logs = Math.max(0, Math.ceil((cost.upfront.wood ?? 0) - 1e-9));
+  const cost = fortificationCost(kind, outline.lengthM);
+  const logs = Math.max(0, Math.ceil(cost.logs - 1e-9));
   const missing = logs - woodSupply - logsFromClearedTrees(check.clearedTrees);
+  const missingStone = stoneSupply.quarry ? 0 : cost.stoneM3 - stoneSupply.m3;
   const roads = (village.walkRoads ?? []).map((r) => r.points);
   const gates = autoGates(outline, roads, villageAnchorOf(village)).map((g) => {
     const line = fortSegments(outline)[g.segment]!.line;
@@ -619,22 +651,25 @@ export function fortPointsPlacement(
       [g.x + line.dx * half, g.z + line.dz * half],
     ] as const;
   });
+  const short = missing > 0 || missingStone > 1e-9;
   return {
     check:
       missing > 0
         ? { ok: false, reason: missingLogsText(missing) }
-        : check.warning
-          ? { ok: true, reason: null, warning: check.warning }
-          : { ok: true, reason: null },
-    cost:
-      missing > 0
-        ? null
-        : {
-            laborManDays: cost.laborManDays,
-            trees: 0,
-            logs,
-            refuge: refugePlaces(outline.innerAreaM2).people,
-          },
+        : missingStone > 1e-9
+          ? { ok: false, reason: FORT_NO_STONE(missingStone) }
+          : check.warning
+            ? { ok: true, reason: null, warning: check.warning }
+            : { ok: true, reason: null },
+    cost: short
+      ? null
+      : {
+          laborManDays: cost.laborManDays,
+          trees: 0,
+          logs,
+          ...(cost.stoneM3 > 0 ? { stoneM3: Math.ceil(cost.stoneM3 - 1e-9) } : {}),
+          refuge: refugePlaces(outline.innerAreaM2).people,
+        },
     ...preview,
     gates,
   };
@@ -782,6 +817,7 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
         points,
         fortVariantKind(variant),
         context?.woodSupply ?? 0,
+        context?.stoneSupply,
       ),
   },
   THRESHING_FLOOR,

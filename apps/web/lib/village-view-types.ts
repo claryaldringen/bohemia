@@ -2,7 +2,7 @@
 
 import type { VillageRight } from '@bohemia/game';
 import type { ViewPieces } from './view-pieces';
-import type { VillageFortification } from './fort-view';
+import type { FortStoneSupply, VillageFortification } from './fort-view';
 import type { DwellingResident } from './person-view';
 import { SceneVillage } from './village-view-scene-types';
 import {
@@ -503,6 +503,11 @@ export interface VillageView {
   fortifications?: VillageFortification[];
   /** Dřevo vsi pro cenu u kurzoru – klády a stromy ke kácení (`villageStock`); bez údaje 0. */
   woodSupply?: number;
+  /**
+   * Kámen vsi pro cenu opevnění u kurzoru (fortifications.md – Hradby a obrana, Cena): m³ na
+   * hromadách a lom ve skalním výchozu; bez údaje žádný.
+   */
+  stoneSupply?: FortStoneSupply;
   /** Všechny klády vsi v kusech – na všech hromadách (forest.md – Mýcení a hromada klád). */
   woodLogs: number;
   /** Řemesla – zásoby uhlí, nástrojů a keramiky, pokrytí a dílny (crafts.md). */

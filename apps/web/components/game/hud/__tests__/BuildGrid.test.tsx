@@ -111,3 +111,39 @@ describe('BuildGrid – rozšíření ohrady koní', () => {
     expect(isBuildAffordable(horsePen, 'sheep')).toBe(true);
   });
 });
+
+describe('BuildGrid – rozcestník opevnění (Hradby a obrana – Druhy)', () => {
+  const button = (html: string, label: string): string =>
+    html.match(new RegExp(`<button[^>]*aria-label="${label}"[^>]*>`))![0];
+  const render = (blockedVariants?: Record<string, string>): string =>
+    renderToStaticMarkup(
+      <BuildGrid
+        options={OPTIONS}
+        active={null}
+        disabled={false}
+        group="fortification"
+        {...(blockedVariants ? { blockedVariants } : {})}
+        onBuild={() => undefined}
+      />,
+    );
+
+  it('druhy plot, palisáda, roštová, komorová a val; roštová před rokem 790 zašedlá', () => {
+    const open = render();
+    expect(labels(open)).toEqual([
+      'Opevnění',
+      'Polský plot',
+      'Palisáda',
+      'Roštová hradba',
+      'Komorová hradba',
+      'Val s příkopem',
+    ]);
+    expect(button(open, 'Roštová hradba')).not.toContain('disabled');
+    const early = render({
+      crib: 'Roštová hradba až od roku 790.',
+      chamber: 'Komorová hradba až od roku 830.',
+    });
+    expect(button(early, 'Roštová hradba')).toContain('disabled');
+    expect(button(early, 'Komorová hradba')).toContain('disabled');
+    expect(button(early, 'Palisáda')).not.toContain('disabled');
+  });
+});
