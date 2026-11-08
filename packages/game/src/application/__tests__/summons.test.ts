@@ -425,6 +425,24 @@ describe('správce za nepřítomného vazala (absence.md)', () => {
     return summoned.ok ? summoned.opened[0]!.id : '';
   };
 
+  it('vsi vazala (i uspané – worker.md, Uspání nečinných) se dopočtou dřív, než správce vybere muže', async () => {
+    const w = await world();
+    await summon(w);
+    const due = DAY + ABSENT_VASSAL.summonsAnswerDays;
+    const prepared: [string, number, number][] = [];
+    w.deps.prepareVillage = async (villageId, today) => {
+      const state = (await w.villages.find(villageId))!.state;
+      prepared.push([villageId, today, state.people.filter((p) => p.away).length]);
+      return null;
+    };
+    expect(await answerAbsentSummons(w.deps, { today: due })).toBe(1);
+    // každá ves rodu do dneška lhůty, dřív než muži odešli
+    expect(prepared.find(([id]) => id === w.vassalVillage)).toEqual([w.vassalVillage, due, 0]);
+    expect(prepared.every(([, day]) => day === due)).toBe(true);
+    const home = (await w.villages.find(w.vassalVillage))!.state;
+    expect(home.people.filter((p) => p.away?.kind === 'service')).toHaveLength(2);
+  });
+
   it('po lhůtě pošle správce domluvené nejzdatnější muže rodu; pán i vazal to vidí', async () => {
     const w = await world();
     const dialogId = await summon(w);

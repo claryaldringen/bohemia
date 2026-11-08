@@ -8,7 +8,8 @@ import { settleStewardDeparturesSafely } from './settle-steward-departures';
 import type { Settlement } from './settlements';
 import { heldDay } from './village-holds';
 import type { VillageRecord, VillageStamp } from './villages';
-import type { WorldQueue } from './world-queue';
+import type { PlayerBehind, WorldQueue } from './world-queue';
+import { awakeSince } from './activity';
 
 // Krok světa (docs/superpowers/plans/2026-10-31-worker.md – 1. Co worker dělá): worker posouvá vsi
 // hráčů nejvíc pozadu po dávkách do jejich dneška, i když nikdo není online. Zámek hráče jen
@@ -231,6 +232,12 @@ export interface WorldStepInput {
   skip?: ReadonlySet<string>;
   /** Vrátí true, když se má kolo ukončit (signál workeru) – kontroluje se mezi hráči. */
   shouldStop?: () => boolean;
+  /**
+   * Skutečný okamžik kola (hodiny workeru): vsi hráčů nečinných déle než `ABSENCE.sleepDays`
+   * skutečných dnů spí – worker je počítá s nejnižší předností, jen když nikdo vzhůru nezaostává
+   * (`awakeSince`, absence.md – Zátěž serveru). Chybí – nikdo nespí (testy, měření).
+   */
+  now?: Date;
 }
 
 /** Souhrn kola. */
@@ -250,12 +257,17 @@ export interface WorldStep {
    * dnem, a tak worker s nimi nespí do dalšího dne, jen krátce.
    */
   held: number;
+  /**
+   * Kolik dávek kola patřilo spícím hráčům (nečinní – worker.md, Uspání nečinných); spící se
+   * berou jen v kole, kdy nikdo vzhůru nezaostává.
+   */
+  asleep: number;
 }
 
 /**
  * Kolo workeru: z fronty (`WorldQueue.behind` – hráči s přednostní vsí pod mezí bariéry, pak nejvíc
- * pozadu; `priorityVillages` a jejich meze `VillageHolds.limitOf`) vezme nejvýš `limit` hráčů
- * bez odkladu a každému posune vsi o dávku (`advancePlayer`). Chyba u jednoho hráče ostatní
+ * pozadu; `priorityVillages` a jejich meze `VillageHolds.limitOf`; nečinní hráči – `now` – až když
+ * nikdo vzhůru nezaostává) vezme nejvýš `limit` hráčů bez odkladu a každému posune vsi o dávku (`advancePlayer`). Chyba u jednoho hráče ostatní
  * nezastaví – vrátí se v jeho `PlayerStep` (`failed`). Celý worker bez procesu kolem.
  */
 export async function advanceWorldStep(
@@ -269,8 +281,18 @@ export async function advanceWorldStep(
     priority.length > 0 && deps.villages.holds
       ? await deps.villages.holds.limitOf(priority)
       : new Map<string, number>();
-  const queue = await deps.queue.behind(input.worldDay, input.limit + skip.size, holds);
-  const due = queue.filter((p) => !skip.has(p.playerId)).slice(0, input.limit);
+  // uspání nečinných (absence.md – Zátěž serveru): spící hráči až tehdy, když nikdo vzhůru
+  // (mimo odložené) nezaostává – worker na nich šetří jen při nedostatku kapacity
+  const since = input.now ? awakeSince(input.now) : undefined;
+  const pick = async (asleep?: boolean): Promise<PlayerBehind[]> => {
+    const sleep =
+      since !== undefined && asleep !== undefined ? { awakeSince: since, asleep } : undefined;
+    const queue = await deps.queue.behind(input.worldDay, input.limit + skip.size, holds, sleep);
+    return queue.filter((p) => !skip.has(p.playerId)).slice(0, input.limit);
+  };
+  let due = await pick(since === undefined ? undefined : false);
+  const sleeping = due.length === 0 && since !== undefined;
+  if (sleeping) due = await pick(true);
   const players: PlayerStep[] = [];
   for (const player of due) {
     if (input.shouldStop?.()) break;
@@ -288,5 +310,6 @@ export async function advanceWorldStep(
     days: players.reduce((sum, p) => sum + p.days, 0),
     idle: due.length === 0,
     held: priority.length,
+    asleep: sleeping ? players.length : 0,
   };
 }

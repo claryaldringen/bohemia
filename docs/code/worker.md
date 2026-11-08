@@ -21,7 +21,7 @@ vstupní bod (composition root) jako web – žádná herní logika, jen plánov
 - `src/main.ts` – skládání: pool hlavní a pool zámků (`WORKER_LOCK_POOL_SIZE` = 2),
   `createGameDeps` (obsahuje i `queue` = `createWorldQueue`), signály, zavření poolů.
 - `src/loop.ts` – `runLoop(deps, options, signal)`: kolo `advanceWorldStep` → při práci pauza
-  `pauseMs`, při `idle` spánek `nextWakeMs` (drží-li tažení vsi – `WorldStep.held` – nejvýš
+  `pauseMs`, při `idle` spánek `nextWakeMs`; krok dostane okamžik kola `now` (Uspání nečinných) (drží-li tažení vsi – `WorldStep.held` – nejvýš
   `HELD_WAKE_MS` = 250 ms, viz Přednostní vsi); souhrn do logu jednou za minutu; chyba kola ani jednoho
   hráče smyčku nezastaví. Hodiny, spánek i krok se v testech nahrazují (`LoopDeps`). Mezi koly pouští
   `runWorldTasks` (kredity nástupnictví, `world.md`; obnova zásilek, Odvody, války, nováčci – los po
@@ -69,6 +69,42 @@ předchozí den – worker ji proto bere **přednostně**:
 - `WorldStep.held` = počet přednostních vsí; nic pozadu a `held > 0` → smyčka spí jen `HELD_WAKE_MS`
   (mez roste s taktem tažení – tažení uloží bod hned, když na ves čeká –, ne s herním dnem).
 - Vsi bez tažení se dopočítají jako dřív (bariéra je nenačte – `limitOf` je nevrátí).
+
+## Uspání nečinných
+
+absence.md – Zátěž serveru (Martin 8. 11. 2026: „A“). Vsi hráče, který **nehraje déle než
+`ABSENCE.sleepDays` (3) skutečné dny** (`domain/world/rules-world.ts`), spí: worker je počítá
+s **nejnižší předností** – jen v kole, kdy nikdo vzhůru (mimo odložené) nezaostává (návrh Clauda 8. 11. 2026, čeká na Martina). Server tak šetří práci jen při nedostatku kapacity; s volnou
+kapacitou jsou spící vsi aktuální a návrat je rychlý. Co worker nestihl, dopočítá dotek. Výsledek
+je díky determinismu stejný (test „uspaná ves po dotyku = průběžně počítaná“
+v `advance-world.test.ts`, i se zásilkou ve schránce).
+
+- **Kdo je nečinný:** aktivní dny hráče (`player_activity`, datum v Europe/Prague – táž tabulka
+  jako „začal hrát“ pozvaného). `awakeSince(now)` (`application/activity.ts`) = datum před 3 dny;
+  hráč, jehož poslední aktivní den je dřív (nebo žádný), spí. Přesnost je den – vsi usnou po 3 až
+  4 dnech od poslední hry. Web zapisuje aktivní den při vstupu do hry
+  (`gameEntryForPlayer`) i při každé akci a dotazu na ves (`playerId()` v `app/game/actions.ts` →
+  `notePlayerActive`, do databáze nejvýš jednou za den a proces) – hráč s otevřenou hrou neusne.
+- **Fronta:** smyčka předá `advanceWorldStep` okamžik kola (`now`). Use-case se ptá
+  `WorldQueue.behind` dvakrát: napřed `{ awakeSince, asleep: false }` (jen vzhůru), a teprve když
+  z toho po odkladech nikdo nezbude, `asleep: true` (jen spící; `WorldStep.asleep` = jejich počet
+  v kole). Adaptér: `EXISTS` nad primárním klíčem `player_activity`. Vzhůru je i hráč
+  s **přednostní vsí pod mezí** (tažení u ní čeká – dotek nájezdem, Přednostní vsi) – jde první jako
+  dřív – a hráč, jehož ves živě spravuje **aktivní hráč** (`stewardship`, vassalage.md – Hráč jako
+  správce cizí vsi). Bez `now` (testy, `measure-absence`) se spící nerozlišují.
+- **Dotyky** (když worker spící ves nestihl; všechny dopočítají ves do dneška, nebo čekají ve
+  schránce): návrat hráče – web
+  dopočte zobrazenou a zaostalé vsi (`lagsBehindWorker`, village-core.md – Dopočet) a zapsaný
+  aktivní den ho probudí; obchod, dávky, výměna lidí, jídlo domény – zásilky přes schránku vsi
+  (`inbox.post`, použijí se v den příjezdu při dopočtu); jídlo domény, roční potvrzení dávek,
+  svolání (i správce za nepřítomného – `answerAbsentLevies`, `answerAbsentSummons`, testy
+  v `annual-levies.test.ts` a `summons.test.ts`), jednání, zajatci, ochrana – `prepareVillage` (`loadVillage` s uložením) před čtením
+  stavu; odúmrť – `updateVillage`; nájezd – přednostní ves (výš). Smrt hlavy spícího rodu (a s ní
+  nástupnictví – `settleSuccessionOf` po dávce) se odhalí až dopočtem při dotyku.
+- **Omezení (jen když worker nestíhá):** pohled jiného hráče na rod (`house-panel`, adresář rodů)
+  čte uložené souhrny (`digestsOf`) – u nedopočtené spící vsi ze dne, kam ji worker dostal.
+  Nedopočtenou ves dopočítá web při návratu v požadavku: 31–43 ms na herní den vsi velikosti Vlkova
+  (Výkon), tj. ≈ 1,5–2 min za 3 skutečné dny na ves; nájezd čeká, než ji worker dožene.
 
 ## Výjimky a omezení
 

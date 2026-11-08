@@ -393,6 +393,22 @@ describe('správce za nepřítomného vazala (absence.md)', () => {
     expect(w.vassalages.breachLog).toEqual([{ id: w.vassalageId, kind: 'levy', day: due }]);
   });
 
+  it('ves vazala (i uspaná – worker.md, Uspání nečinných) se dopočte dřív, než správce odvede', async () => {
+    const w = await world();
+    w.vassalages.vassalages[0]!.terms = { tribute: bundle({ logs: 10 }) };
+    await openAnnualDialogs(w.deps, { today: NOV_1 });
+    const prepared: [string, number, number][] = [];
+    w.deps.prepareVillage = (villageId, today) => {
+      prepared.push([villageId, today, w.shipments.rows.length]);
+      return Promise.resolve(null);
+    };
+    expect(await answerAbsentLevies(w.deps, { today: due })).toBe(1);
+    // do dneška lhůty, dřív než zásilka odešla (výhled i odeslání čtou dopočtený stav)
+    expect(prepared[0]).toEqual([w.vassalVillage, due, 0]);
+    expect(prepared.every(([id, day]) => id === w.vassalVillage && day === due)).toBe(true);
+    expect(w.shipments.rows).toHaveLength(1);
+  });
+
   it('odpověď hráče do lhůty má přednost', async () => {
     const w = await world();
     await openAnnualDialogs(w.deps, { today: NOV_1 });
