@@ -71,8 +71,11 @@ export type VillageTarget =
    * a vybrat nejdou.
    */
   | { kind: 'grain-pit'; id: number }
-  /** Opevnění (id opevnění – fortifications.md, Rozhraní): klik na jeho pás kolem plochy. */
-  | { kind: 'fortification'; id: number }
+  /**
+   * Opevnění (id opevnění – fortifications.md, Rozhraní): klik na jeho pás kolem plochy; `segment`
+   * – díl nejblíž kliku (demolition.md – Opevnění: panel ukáže úsek mezi branami s tímto dílem).
+   */
+  | { kind: 'fortification'; id: number; segment: number }
   /** Humno (id humna = id stavby – production-chains.md, Humno): klik na mlatovou plochu. */
   | { kind: 'threshing-floor'; id: number }
   /**
@@ -278,22 +281,12 @@ export function pickVillageTarget(
     ),
   );
   if (floor) return { kind: 'threshing-floor', id: floor.id };
-  // opevnění – pás kolem plochy (hotový i rozestavěný obvod) a kousek podél okraje (pás je úzký)
-  const fort = (village.forts ?? []).find(
-    (f) =>
-      f.band.some((piece) =>
-        pointInPolygon(
-          piece.map(([x, z]): Point => [x, z]),
-          ground.x,
-          ground.z,
-        ),
-      ) ||
-      distanceToPolyline(
-        ground,
-        f.outline.map(([x, z]) => ({ x, z })),
-      ) <= FORT_PICK_M,
-  );
-  if (fort) return { kind: 'fortification', id: fort.id };
+  // opevnění – pás kolem plochy (hotový i rozestavěný obvod) a kousek podél okraje (pás je úzký);
+  // zbořený díl je mezera (demolition.md – Opevnění) – nevybere se
+  for (const f of village.forts ?? []) {
+    const segment = fortSegmentAt(f, ground);
+    if (segment !== null) return { kind: 'fortification', id: f.id, segment };
+  }
   const cell = options.cellOf(ground.x, ground.z);
   if (!cell) return null;
   // čtverec v mřížce krajiny podle políčka, natočený čtverec (fields.md – Natočené stavby)
@@ -365,6 +358,55 @@ export function selectedOrchardSquare(
   return village.orchards
     ?.find((o) => o.id === target.id)
     ?.squares.find((s) => s.cell.x === target.cell.x && s.cell.y === target.cell.y);
+}
+
+/**
+ * Díl opevnění pod bodem `ground` (`FortSegmentShape.index`): kus pásu, ve kterém bod leží, jinak
+ * díl s okrajem nejblíž bodu do `FORT_PICK_M`; zbořený díl ne. Mimo opevnění null.
+ */
+export function fortSegmentAt(
+  fort: NonNullable<SceneVillage['forts']>[number],
+  ground: { x: number; z: number },
+): number | null {
+  const gone = new Set(
+    fort.segments.filter((s) => s.demolishedDay !== undefined).map((s) => s.index),
+  );
+  /** Díl s okrajem nejblíž bodu (bez zbořených) a vzdálenost okraje. */
+  const nearest = (): { index: number; distance: number } | null => {
+    let best: { index: number; distance: number } | null = null;
+    for (const shape of fort.shapes) {
+      if (gone.has(shape.index)) continue;
+      const distance = distanceToPolyline(
+        ground,
+        shape.path.map(([x, z]) => ({ x, z })),
+      );
+      if (!best || distance < best.distance) best = { index: shape.index, distance };
+    }
+    return best;
+  };
+  const hit = fort.band.findIndex((piece) =>
+    pointInPolygon(
+      piece.map(([x, z]): Point => [x, z]),
+      ground.x,
+      ground.z,
+    ),
+  );
+  if (hit >= 0) {
+    const index = fort.bandSegments?.[hit];
+    if (index !== undefined) return gone.has(index) ? null : index;
+    return nearest()?.index ?? 0;
+  }
+  if (
+    distanceToPolyline(
+      ground,
+      fort.outline.map(([x, z]) => ({ x, z })),
+    ) > FORT_PICK_M
+  ) {
+    return null;
+  }
+  if (fort.shapes.length === 0) return 0;
+  const near = nearest();
+  return near && near.distance <= FORT_PICK_M ? near.index : null;
 }
 
 /** Vzdálenost bodu od lomené čáry (m). */

@@ -3,7 +3,8 @@ import type { StandardMaterial } from '@babylonjs/core/Materials/standardMateria
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
-import { SACRED_BUILDINGS, roadChain, threshingFloorFootprint } from '@bohemia/game';
+import { SACRED_BUILDINGS, fortSections, roadChain, threshingFloorFootprint } from '@bohemia/game';
+import type { SceneFortification } from '../fort-view';
 import { scenePenSquares, type SceneVillage } from '../village-view';
 import { cellsBoundary, type CellSquare } from './field-cells';
 import { junctionShape } from './junction-shape';
@@ -17,6 +18,7 @@ import {
   type Point,
 } from './village-layout';
 import { createDecalMaterial, createStripMesh, type HeightFn } from './village-meshes';
+import { setE2EHook } from '../e2e-hooks';
 import {
   dugSiteOf,
   selectedFieldPart,
@@ -74,16 +76,60 @@ export function offsetLine(points: readonly { x: number; z: number }[], d: numbe
   });
 }
 
+/**
+ * Obrysy pásu dílů `segments` opevnění (úsek mezi branami, v pořadí po směru hodin): vnější okraj
+ * kusů pásu tam, vnitřní zpět – uzavřený. Kus pásu (jádro – `bandPieces`) má rohy [a, b, ib, ia]
+ * (a, b na vnějším okraji), u ostrého vnitřního ohybu trojúhelník [a, b, x]. Zbořené díly se
+ * vynechají – úsek se pak kreslí po kouscích mezi mezerami. Bez `bandSegments` nic.
+ */
+export function fortSectionRings(
+  fort: Pick<SceneFortification, 'band' | 'bandSegments' | 'segments'>,
+  segments: readonly number[],
+): Point[][] {
+  const owners = fort.bandSegments;
+  if (!owners) return [];
+  const gone = new Set(
+    fort.segments.filter((s) => s.demolishedDay !== undefined).map((s) => s.index),
+  );
+  const rings: Point[][] = [];
+  let outer: Point[] = [];
+  let inner: Point[] = [];
+  const flush = (): void => {
+    if (outer.length > 0) rings.push([...outer, ...inner.reverse(), outer[0]!]);
+    outer = [];
+    inner = [];
+  };
+  for (const index of segments) {
+    if (gone.has(index)) {
+      flush();
+      continue;
+    }
+    fort.band.forEach((piece, k) => {
+      if (owners[k] !== index) return;
+      const [a, b, c, d] = piece;
+      if (!a || !b || !c) return;
+      outer.push([a[0], a[1]], [b[0], b[1]]);
+      if (d) inner.push([d[0], d[1]], [c[0], c[1]]);
+      else inner.push([c[0], c[1]]);
+    });
+  }
+  flush();
+  return rings;
+}
+
 /** Zvýraznění vybraného obydlí, pole nebo hřbitova – rámeček na zemi (obtisk). */
 export class SelectionHighlight {
   private readonly material: StandardMaterial;
   private readonly xrayMaterial: StandardMaterial;
   private meshes: Mesh[] = [];
+  /** Čáry právě kreslené (háček pro e2e – `selectionOutline`). */
+  private lines: Point[][] = [];
 
   constructor(
     private readonly scene: Scene,
     private readonly height: HeightFn,
   ) {
+    setE2EHook('selectionOutline', () => this.lines);
     this.material = createDecalMaterial(scene, 'selection-ring', {
       emissive: SELECTION_COLOR,
       zOffset: -6,
@@ -101,6 +147,7 @@ export class SelectionHighlight {
     this.clear();
     if (!village || !target) return;
     const lines = targetOutline(village, target);
+    this.lines = lines;
     if (lines.length === 0) return;
     const segments = lines.flatMap((line) => stripSegments(line, false, 0.35, 1.5));
     const mesh = createStripMesh(this.scene, 'selection-ring', segments, this.height, 0.15);
@@ -118,6 +165,7 @@ export class SelectionHighlight {
 
   dispose(): void {
     this.clear();
+    setE2EHook('selectionOutline', undefined);
     this.material.dispose();
     this.xrayMaterial.dispose();
   }
@@ -125,6 +173,7 @@ export class SelectionHighlight {
   private clear(): void {
     for (const mesh of this.meshes) mesh.dispose();
     this.meshes = [];
+    this.lines = [];
   }
 }
 
@@ -226,9 +275,13 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
     return [[...corners, corners[0]!]];
   }
   if (target.kind === 'fortification') {
-    // obvod opevnění (fortifications.md – Rozhraní) – vnější okraj se zakulacenými rohy
+    // úsek mezi branami s vybraným dílem (demolition.md – Opevnění) – obrys jeho pásu; bez
+    // údajů o kusech pásu obvod opevnění (fortifications.md – Rozhraní) se zakulacenými rohy
     const fort = village.forts?.find((f) => f.id === target.id);
-    return fort ? [fort.outline.map(([x, z]): Point => [x, z])] : [];
+    if (!fort) return [];
+    const section = fortSections(fort).find((x) => x.segments.includes(target.segment));
+    const rings = section ? fortSectionRings(fort, section.segments) : [];
+    return rings.length > 0 ? rings : [fort.outline.map(([x, z]): Point => [x, z])];
   }
   if (target.kind === 'grain-pit') {
     // otevřená obilná jáma (production-chains.md – Obilné jámy) – kruh kolem hrdla a hrud pečeti

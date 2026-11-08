@@ -4,7 +4,8 @@ import type { SelectionDetails } from '@/lib/selection-details';
 import { CursorReason } from '../CursorReason';
 import { SelectionPanel } from '../SelectionPanel';
 
-// Panel opevnění (fortifications.md – Rozhraní): údaje, vylepšení a brána.
+// Panel opevnění (fortifications.md – Rozhraní): údaje, vylepšení, brána a zboření úseku
+// (demolition.md – Opevnění).
 
 type Fort = Extract<SelectionDetails, { kind: 'fortification' }>;
 
@@ -23,7 +24,19 @@ const fort = (over: Partial<Omit<Fort, 'kind'>> = {}): Fort => ({
   refugePeople: 336,
   refugeCattle: 168,
   multiplier: 1.25,
+  sections: [],
+  segment: 3,
+  section: null,
   ...over,
+});
+
+/** Úsek s dílem 3 (brána na dílu 0) a jeho zboření. */
+const section = (
+  demolish: Partial<NonNullable<Fort['section']>['demolish']> = {},
+): Fort['section'] => ({
+  segments: [0, 1, 2, 3, 4],
+  gateSegment: 0,
+  demolish: { work: 'demolish', cost: { laborManDays: 16, logs: 6 }, blocked: null, ...demolish },
 });
 
 const render = (details: Fort, extra: { gateFort?: number } = {}): string =>
@@ -31,6 +44,7 @@ const render = (details: Fort, extra: { gateFort?: number } = {}): string =>
     <SelectionPanel
       details={details}
       onFortWork={() => Promise.resolve()}
+      onFortDemolish={() => Promise.resolve()}
       onGateMode={() => undefined}
       {...extra}
     />,
@@ -88,6 +102,40 @@ describe('SelectionPanel – opevnění', () => {
     expect(html).toMatch(/data-old="true"[^>]*>60 %/);
     expect(html).toContain('data-testid="selection-fort-progress"');
     expect(button(html, 'fort-gate')).toContain('aria-pressed="true"');
+  });
+
+  it('Zbořit úsek – práce a klády zpět v popisku; bez úseku tlačítko není', () => {
+    const html = render(fort({ section: section() }));
+    expect(button(html, 'fort-demolish')).toBeDefined();
+    expect(button(html, 'fort-demolish')).not.toContain('disabled=""');
+    expect(html).toContain('aria-label="Zbořit úsek"');
+    expect(html).toMatch(/data-testid="fort-demolish-logs"[^>]*>.*\+6</);
+    expect(button(render(fort()), 'fort-demolish')).toBeUndefined();
+  });
+
+  it('úsek jen s bránou – Zbořit zašedlé s důvodem', () => {
+    const reason = 'V úseku stojí jen brána – brány zůstávají.';
+    const html = render(fort({ section: section({ blocked: reason }) }));
+    expect(button(html, 'fort-demolish')).toContain('disabled=""');
+    expect(html).toContain(
+      `data-testid="fort-blocked" class="font-semibold text-red-400">${reason}<`,
+    );
+    expect(html).not.toContain('data-testid="fort-demolish-logs"');
+  });
+
+  it('val: napřed zbořit nástavbu, pak srovnat val; bourání průběhem', () => {
+    const top = render(fort({ fortKind: 'rampart', section: section() }));
+    expect(top).toContain('aria-label="Zbořit nástavbu úseku"');
+    const level = render(
+      fort({
+        fortKind: 'rampart',
+        section: section({ work: 'level', cost: { laborManDays: 30, logs: 0 } }),
+        progress: 0.5,
+        work: 'level',
+      }),
+    );
+    expect(level).toContain('aria-label="Srovnat val úseku"');
+    expect(level).toContain('aria-label="Bourání"');
   });
 });
 

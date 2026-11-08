@@ -96,6 +96,7 @@ import {
   placeFortificationForPlayer,
   upgradeFortificationForPlayer,
   addFortificationGateForPlayer,
+  demolishFortificationSectionForPlayer,
   placeSacredForPlayer,
   placeThreshingFloorForPlayer,
   placeWorkshopForPlayer,
@@ -146,6 +147,7 @@ import {
   parsePlaceFortificationInput,
   parseUpgradeFortificationInput,
   parseAddFortificationGateInput,
+  parseDemolishFortificationSectionInput,
   parsePlaceSacredInput,
   parsePlaceThreshingFloorInput,
   parsePlaceWorkshopInput,
@@ -495,6 +497,18 @@ export async function upgradeFortification(input: unknown): Promise<VillageActio
  */
 export async function addFortificationGate(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parseAddFortificationGateInput, addFortificationGateForPlayer);
+}
+
+/**
+ * Zboření úseku opevnění mezi branami (demolition.md – Opevnění): `{ villageId, fortificationId,
+ * segment }` – díl, na který hráč klikl; úsek dohledá server.
+ */
+export async function demolishFortificationSection(input: unknown): Promise<VillageActionResult> {
+  return villageAction(
+    input,
+    parseDemolishFortificationSectionInput,
+    demolishFortificationSectionForPlayer,
+  );
 }
 
 /**

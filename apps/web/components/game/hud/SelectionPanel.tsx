@@ -92,6 +92,7 @@ export function SelectionPanel({
   onSendExpedition,
   onSetSteward,
   onFortWork,
+  onFortDemolish,
   gateFort = null,
   onGateMode,
   ennoble,
@@ -105,6 +106,8 @@ export function SelectionPanel({
   ennoble?: EnnobleActions;
   /** Zadá vylepšení opevnění (server action) – hotovo, až se vrátí. */
   onFortWork?: (fortificationId: number, work: 'upgrade' | 'top', top?: FortTop) => Promise<void>;
+  /** Zboří úsek opevnění s dílem `segment` (server action – demolition.md, Opevnění). */
+  onFortDemolish?: (fortificationId: number, segment: number) => Promise<void>;
   /** Opevnění, kterému se právě přidává brána kliknutím na obvod; null = nic. */
   gateFort?: number | null;
   /** Zapne / vypne přidávání brány kliknutím na obvod (null = vypnout). */
@@ -194,6 +197,7 @@ export function SelectionPanel({
         details={details}
         gateMode={gateFort === details.id}
         onWork={onFortWork}
+        onDemolish={onFortDemolish}
         onGateMode={onGateMode}
       />
     );

@@ -39,7 +39,7 @@ import type { VillageDugSite } from './ore-site-view';
 import type { VillageKiln } from './kiln-view';
 import type { VillageGrainPit } from './grain-pit-view';
 import type { VillageJunction } from './junction-view';
-import type { VillageFortification } from './fort-view';
+import type { VillageFortification, VillageFortSection } from './fort-view';
 import type {
   DepartingSon,
   FieldOutlookView,
@@ -635,6 +635,10 @@ type SelectionKinds =
        * obrany, průběh stavby a vylepšení.
        */
       kind: 'fortification';
+      /** Díl, na který hráč klikl (`FortSegmentShape.index`). */
+      segment: number;
+      /** Úsek mezi branami s tímto dílem a jeho zboření (demolition.md – Opevnění); null – neznámý díl. */
+      section: VillageFortSection | null;
     } & VillageFortification)
   | ({
       /**
@@ -1027,7 +1031,9 @@ function selectionKinds(
   if (target.kind === 'fortification') {
     if (!scene.forts?.some((f) => f.id === target.id)) return null;
     const fort = view?.fortifications?.find((f) => f.id === target.id);
-    return fort ? { kind: 'fortification', ...fort } : null;
+    if (!fort) return null;
+    const section = fort.sections.find((x) => x.segments.includes(target.segment)) ?? null;
+    return { kind: 'fortification', ...fort, segment: target.segment, section };
   }
   if (target.kind === 'grain-pit') {
     // jen otevřená jáma, která ve scéně je (zapečetěné nejsou vidět)

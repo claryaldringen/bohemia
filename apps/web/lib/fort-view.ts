@@ -7,9 +7,12 @@ import {
   FORTIFICATIONS,
   FORT_DAYS_PER_YEAR,
   fortBandPieces,
+  FORT_BUSY,
+  fortSections,
   fortSegments,
   fortificationCost,
   outlineOf,
+  sectionDemolition,
   segmentIsOld,
   segmentMultiplier,
   segmentState,
@@ -55,6 +58,8 @@ export interface SceneFortification extends Pick<
   building: boolean;
   outline: FortPoint[];
   band: FortPoint[][];
+  /** Díl (`FortSegmentShape.index`) každého kusu `band` – stejné pořadí; chybí – neznámo. */
+  bandSegments?: number[];
   /** Tvar úseků v pořadí obvodu (jádro – `fortSegments`): lomená čára křivky a délka. */
   shapes: Pick<FortSegmentShape, 'index' | 'path' | 'lengthM'>[];
   /** Poloměry rohů obvodu (jádro – `FortOutline.corners`): vnější a vnitřní roh, zmenšené. */
@@ -89,6 +94,24 @@ export interface FortWorkOption {
   blocked: string | null;
 }
 
+/**
+ * Zboření úseku v panelu (demolition.md – Opevnění): co se boří (`demolish` – plot, palisáda či
+ * nástavba valu; `level` – srovnat val), práce a klády zpět na hromadu, nebo důvod, proč nejde.
+ */
+export interface FortDemolishOption {
+  work: 'demolish' | 'level';
+  cost: FortWorkCost;
+  blocked: string | null;
+}
+
+/** Úsek opevnění mezi branami pro panel (jádro – `fortSections`) a jeho zboření. */
+export interface VillageFortSection {
+  /** Díly úseku po směru hodin; první je díl s branou. */
+  segments: number[];
+  gateSegment: number | null;
+  demolish: FortDemolishOption;
+}
+
 /** Opevnění pro panel výběru (fortifications.md – Rozhraní). */
 export interface VillageFortification {
   id: number;
@@ -121,6 +144,8 @@ export interface VillageFortification {
   upgrade?: FortWorkOption;
   /** Nástavby na valu (jen val): plot a palisáda. */
   tops?: { top: FortTop; option: FortWorkOption }[];
+  /** Úseky mezi branami se zbořením – panel ukáže úsek, na jehož díl hráč klikl. */
+  sections: VillageFortSection[];
 }
 
 /** Uzavřený obrys vnějšího okraje – lomená čára křivky po směru hodin, první bod i na konci. */
@@ -131,10 +156,14 @@ export function fortOutlinePolyline(outline: FortOutline): FortPoint[] {
 }
 
 /** Obrys a pás hotového tvaru `outline`. */
-export function fortShape(outline: FortOutline): Pick<SceneFortification, 'outline' | 'band'> {
+export function fortShape(
+  outline: FortOutline,
+): Pick<SceneFortification, 'outline' | 'band' | 'bandSegments'> {
+  const pieces = fortBandPieces(outline);
   return {
     outline: fortOutlinePolyline(outline),
-    band: fortBandPieces(outline).map((p) => p.corners.map(([x, z]): FortPoint => [x, z])),
+    band: pieces.map((p) => p.corners.map(([x, z]): FortPoint => [x, z])),
+    bandSegments: pieces.map((p) => p.index),
   };
 }
 
@@ -243,6 +272,31 @@ function woodBlocked(cost: FortWorkCost, woodSupply: number): string | null {
   return missing > 0 ? missingLogsText(missing) : null;
 }
 
+/**
+ * Zboření úseku s dílem `segment` (jádro – `sectionDemolition`): cena, nebo důvod z jádra (běžící
+ * stavba stejným textem jako ostatní tlačítka panelu).
+ */
+function demolishOption(
+  state: VillageState,
+  landscape: Landscape,
+  fortificationId: number,
+  segment: number,
+): FortDemolishOption {
+  const plan = sectionDemolition(state, landscape, { fortificationId, segment });
+  if ('reason' in plan) {
+    return {
+      work: 'demolish',
+      cost: { laborManDays: 0, logs: 0 },
+      blocked: plan.reason === FORT_BUSY ? FORT_BUSY_TEXT : plan.reason,
+    };
+  }
+  return {
+    work: plan.work,
+    cost: { laborManDays: plan.laborManDays, logs: plan.logs },
+    blocked: null,
+  };
+}
+
 /** Útočiště: lidé a skot podle plochy uvnitř (m² na člověka a na kus). */
 export function refugePlaces(innerAreaM2: number): { people: number; cattle: number } {
   const r = FORTIFICATIONS.refuge;
@@ -288,6 +342,11 @@ export function fortificationViews(
       gates: fort.gates.length,
       refugePeople: places.people,
       refugeCattle: places.cattle,
+      sections: fortSections(fort).map((section) => ({
+        segments: [...section.segments],
+        gateSegment: section.gateSegment,
+        demolish: demolishOption(state, landscape, fort.id, section.segments[0]!),
+      })),
       multiplier:
         standing.length === 0
           ? 1

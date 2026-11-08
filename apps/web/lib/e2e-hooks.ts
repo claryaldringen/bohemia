@@ -39,6 +39,8 @@ export interface E2EHooks {
   selectPerson?: (id: number) => void;
   /** Vybere cestu hráče (id kteréhokoli úseku) – úzký pás cesty se v softwarovém kreslení špatně trefuje. */
   selectRoad?: (id: number) => void;
+  /** Lomené čáry zvýraznění výběru na zemi (x, z) – co scéna právě kreslí; nic nevybráno – []. */
+  selectionOutline?: () => (readonly [number, number])[][];
 }
 
 declare global {

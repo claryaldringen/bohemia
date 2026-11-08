@@ -2,7 +2,7 @@
 // brány, val s příkopem a staveniště po úsecích. Tvar obvodu (úseky – rovná část a oblouk rohu)
 // je z jádra (`SceneFortification.shapes`); vše ostatní se odvozuje pevně z id opevnění a indexu
 // úseku, takže se při každém kreslení vyjde stejně. Souřadnice světa scény v metrech (x, z).
-import { FORTIFICATIONS, type FortTop } from '@bohemia/game';
+import { FORTIFICATIONS, segmentTop, type FortTop } from '@bohemia/game';
 import type { SceneFortification, SceneFortSegment } from '../fort-view';
 import {
   FORT_SITE_DONE,
@@ -380,7 +380,13 @@ export interface SegmentBuild {
   breached: boolean;
 }
 
-/** Co stojí na úseku `index` (stáří, stavba, vylepšení, nástavba). */
+/**
+ * Co stojí na úseku `index` (stáří, stavba, vylepšení, nástavba, zboření). Zbořený díl
+ * (demolition.md – Opevnění) je mezera – nestojí na něm nic, srovnaný val nemá násep ani příkop.
+ * Bouraný díl se rozebírá jako staveniště pozpátku (`fortSitePhase(vrstva, 1 − průběh)`): plot
+ * a palisáda u země, na valu nástavba (`demolish`), val sám se srovnává (`level`). Nástavba dílu
+ * je `segmentTop` – `top: 'none'` je val bez nástavby.
+ */
 export function segmentBuild(fort: SceneFortification, index: number): SegmentBuild {
   const segment = fort.segments.find((s) => s.index === index);
   const look: SceneFortSegment = fort.looks[index] ?? { age: null };
@@ -396,20 +402,41 @@ export function segmentBuild(fort: SceneFortification, index: number): SegmentBu
     state,
     breached,
   };
+  if (segment?.demolishedDay !== undefined) return result;
+  /** Kolik z dílu ještě stojí při zboření `work` (1 − průběh); null – díl se tak nebourá. */
+  const left = (work: 'demolish' | 'level'): number | null =>
+    fort.work === work && progress !== undefined ? 1 - progress : null;
   if (kind === 'rampart') {
+    const level = left('level');
     const earth =
-      look.age !== null ? 1 : fort.work === 'build' && progress !== undefined ? progress : 0;
+      look.age !== null
+        ? (level ?? 1)
+        : fort.work === 'build' && progress !== undefined
+          ? progress
+          : 0;
     result.rampart = { earth, age: look.age ?? 0 };
-    if (fort.top && earth >= 1) {
+    const top = segmentTop(fort, segment ?? {});
+    if (top && earth >= 1) {
+      const down = left('demolish');
       if (look.topAge !== undefined && look.topAge !== null)
-        result.top = { layer: fort.top, phase: FORT_SITE_DONE, age: look.topAge };
+        result.top = {
+          layer: top,
+          phase: down === null ? FORT_SITE_DONE : fortSitePhase(top, down),
+          age: look.topAge,
+        };
       else if (fort.work === 'top' && progress !== undefined)
-        result.top = { layer: fort.top, phase: fortSitePhase(fort.top, progress), age: 0 };
+        result.top = { layer: top, phase: fortSitePhase(top, progress), age: 0 };
     }
     return result;
   }
   const layer: 'fence' | 'palisade' = kind;
-  if (look.age !== null) result.ground = { layer, phase: FORT_SITE_DONE, age: look.age };
+  const down = left('demolish');
+  if (look.age !== null)
+    result.ground = {
+      layer,
+      phase: down === null ? FORT_SITE_DONE : fortSitePhase(layer, down),
+      age: look.age,
+    };
   else if (fort.work === 'build' && progress !== undefined)
     result.ground = { layer, phase: fortSitePhase(layer, progress), age: 0 };
   if (fort.work === 'upgrade' && layer === 'fence' && progress !== undefined && progress > 0)

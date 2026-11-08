@@ -365,6 +365,13 @@ tlačítka „Vylepšit na palisádu“ a „Postavit na valu plot / palisádu�
   násobek obrany (štít s číslem), průběh stavby; tlačítka „Vylepšit na palisádu“ (u plotu),
   „Postavit na valu plot“ a „Postavit na valu palisádu“ (u valu) – zašedlé s důvodem u kurzoru
   („Chybí 120 klád.“, „Stavba už běží.“); ikona brány – další klik na obvod přidá bránu.
+- **Úseky** ([demolition.md](demolition.md) – Opevnění; Martin 8. 11. 2026: „Hradba bude fungovat
+  podobně jako cesta – bude rozdělena na jednotlivé úseky mezi bránami. Hráč pak bude moci každý
+  z těch úseků zbořit nebo vylepšit.“): klik na obvod vybere úsek mezi branami s dílem, na který
+  hráč klikl – zvýrazní se pás úseku; ikona Zbořit (popisek: práce a klády zpět, u valu napřed
+  nástavba, pak srovnat val), zašedlá s důvodem („V úseku stojí jen brána – brány zůstávají.“,
+  „Úsek už je zbořený.“, „Stavba už běží.“). Ve scéně se úsek rozebírá jako staveniště pozpátku,
+  zbořený díl je mezera (návrh Clauda). Vylepšit po úsecích – později.
 - **Minimapa:** obvod čarou v barvě druhu (návrh Clauda).
 - Slova jen v popiscích (`Tooltip`), žádná výjimka z pravidla.
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  parseDemolishFortificationSectionInput,
   parseFoundVillageInput,
   parseCells,
   parsePlaceDwellingInput,
@@ -245,6 +246,19 @@ describe('vstupy víc vsí a přestěhování (migration.md)', () => {
     expect(parseNameLineManInput({ personId: 12, name: 5 })).toBeNull();
     expect(parseNameLineManInput({ personId: 12, name: 'x'.repeat(201) })).toBeNull();
     expect(parseNameLineManInput(null)).toBeNull();
+  });
+});
+
+describe('parseDemolishFortificationSectionInput (demolition.md – Opevnění)', () => {
+  it('opevnění kladné id, díl od 0; jinak null', () => {
+    expect(parseDemolishFortificationSectionInput({ fortificationId: 3, segment: 0 })).toEqual({
+      fortificationId: 3,
+      segment: 0,
+    });
+    expect(parseDemolishFortificationSectionInput({ fortificationId: 3, segment: -1 })).toBeNull();
+    expect(parseDemolishFortificationSectionInput({ fortificationId: 3, segment: 1.5 })).toBeNull();
+    expect(parseDemolishFortificationSectionInput({ fortificationId: 0, segment: 2 })).toBeNull();
+    expect(parseDemolishFortificationSectionInput({ fortificationId: 3 })).toBeNull();
   });
 });
 

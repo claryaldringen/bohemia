@@ -47,6 +47,7 @@ import {
   placePen,
   placeFortification,
   upgradeFortification,
+  demolishFortificationSection,
   addFortificationGate,
   placeSacred,
   placeThreshingFloor,
@@ -1616,6 +1617,14 @@ export function VillageGame({
                         work,
                         ...(top ? { top } : {}),
                       }),
+                    )
+                  : Promise.resolve();
+              }}
+              onFortDemolish={(fortificationId, segment) => {
+                const villageId = viewRef.current?.id;
+                return villageId
+                  ? runBuildAction(() =>
+                      demolishFortificationSection({ villageId, fortificationId, segment }),
                     )
                   : Promise.resolve();
               }}
