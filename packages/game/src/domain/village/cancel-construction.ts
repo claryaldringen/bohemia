@@ -36,6 +36,8 @@ const CANCELLABLE: ReadonlySet<ConstructionKind> = new Set([
   'threshing-floor',
   'road',
   'fortification',
+  // zrušené bourání: stavba zůstane opuštěná (demolition.md – Bourání)
+  'demolition',
 ]);
 
 /** Důvod, proč stavbu zrušit nejde; null = jde. */

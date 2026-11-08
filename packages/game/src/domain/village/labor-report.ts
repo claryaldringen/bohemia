@@ -710,6 +710,8 @@ function constructionShares(work: ConstructionWork, state: VillageState): LaborS
           },
         ];
   }
+  // bourání pracuje na místě bourané stavby
+  if (c.kind === 'demolition') return penShares(work, { kind: 'site', id: c.id }, 'build');
   if (c.kind === 'repair') return c.repair ? [repairShare(c.repair, work.manDays)] : [];
   // přestavba na místě pracuje u obydlí, přestavba na novém pozemku (polozemnice bez pozemku) na
   // staveništi

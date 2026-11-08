@@ -1,7 +1,7 @@
 import { structureCondition } from './abandonment';
 import type { BuildResult } from './build-intent';
 import { cloneState } from './clone';
-import { isDisused } from './disused';
+import { demolitionOf, isDisused } from './disused';
 import { villagePens } from './oxen';
 import { lodgingShortfall, noRoomReason, vacateDwelling } from './displaced';
 import { oxenOf, penSpecies } from './pens';
@@ -30,14 +30,15 @@ export const STRUCTURE_UNFINISHED = 'Rozestavěnou stavbu jde jen zrušit.';
 export const MANOR_STAYS = 'Dvorec je sídlo vojvody – opustit ani zbourat nejde.';
 export const STRUCTURE_BUSY = 'Na stavbě se staví – nejdřív stavbu dokonči nebo zruš.';
 export const ALREADY_DISUSED = 'Stavba už je opuštěná.';
+export const DEMOLISHING = 'Stavba se bourá – nejdřív bourání zruš.';
 export const NOT_DISUSED = 'Stavba se používá.';
 
-type Target =
+export type Target =
   | { structure: 'dwelling'; item: Dwelling }
   | { structure: 'pen'; item: Pen }
   | { structure: 'idol' | 'shrine'; item: SacredBuilding };
 
-function targetOf(state: VillageState, ref: UsableRef): Target | null {
+export function targetOf(state: VillageState, ref: UsableRef): Target | null {
   if (ref.structure === 'dwelling') {
     const item = state.dwellings.find((d) => d.id === ref.id);
     return item ? { structure: 'dwelling', item } : null;
@@ -143,6 +144,8 @@ export function restoreStructure(state: VillageState, day: number, ref: UsableRe
   const target = targetOf(state, ref);
   if (!target) return { ok: false, reason: STRUCTURE_MISSING };
   if (!isDisused(target.item)) return { ok: false, reason: NOT_DISUSED };
+  // stavba, kterou vesničané právě bourají, se nevrací (demolition.md – Bourání)
+  if (demolitionOf(state, ref)) return { ok: false, reason: DEMOLISHING };
   const next = cloneState(state);
   const restored = targetOf(next, ref)!;
   delete restored.item.disusedDay;
