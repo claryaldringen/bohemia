@@ -358,6 +358,11 @@ export interface SceneVillage {
    */
   woods?: SceneWood[];
   /**
+   * Náletové stromy opuštěných sadů (orchard.md – Zdivočelý sad): jabloně a jiné dřeviny
+   * mezi starými stromy i po zániku čtverců sadu. Bez údaje žádné.
+   */
+  wildTrees?: SceneWildTree[];
+  /**
    * Přirozené louky letošní seče (oxen.md – Seno; ozdobné louky na seno nahradila data):
    * políčko, střed a strana jako u dílu pole a vzhled `meadow` / `mown` / `haystacks` (rozpracované
    * s `work` a `before`). Bez údaje žádné.
@@ -619,6 +624,15 @@ export interface SceneCart {
  * tam i zpět (wagons.md – Co vozy vozí); ruda z rudiště (crafts.md – Uhlí a ruda kováře).
  */
 export type CartLoad = 'sheaves' | 'hay' | 'logs' | 'goods' | 'water' | 'ore' | 'clay' | 'apples';
+
+/** Náletový strom opuštěného sadu ve scéně – stáří v celých letech. */
+export interface SceneWildTree {
+  id: number;
+  x: number;
+  z: number;
+  apple: boolean;
+  age: number;
+}
 
 /** Čtverec lesa vsi ve scéně (fields.md – Les vsi). */
 export interface SceneWood {

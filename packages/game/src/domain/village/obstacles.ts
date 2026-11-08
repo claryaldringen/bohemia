@@ -22,6 +22,7 @@ import {
   junctionLandmarkId,
   type RoadTreeObstacleKind,
 } from './road-trees';
+import { wildTreeMature } from './wild-orchard';
 import { dropClearedWoods, villageWoods, woodMatureTrees, woodTreeSpots } from './woods';
 import {
   BEECH_PLANTING,
@@ -131,7 +132,7 @@ export function plantOnStump(state: VillageState, id: number, day: number): bool
 }
 
 type ChangeLists = Pick<VillageState, 'clearedObstacles' | 'felledTrees' | 'roads'> &
-  Partial<Pick<VillageState, 'woods'>>;
+  Partial<Pick<VillageState, 'woods' | 'wildTrees'>>;
 
 /** Odstraněné překážky vsi – množina a seřazená id k seznamům, ze kterých vznikly. */
 interface RemovedIds {
@@ -230,6 +231,20 @@ export function obstacleChangesAt(state: ChangeLists, day: number): ObstacleChan
             : 'tree';
       added.push({ id: spot.id, x: spot.x, z: spot.z, kind });
     }
+  }
+  // náletové stromy opuštěných sadů (orchard.md – Zdivočelý sad) – jako strom lesa vsi
+  for (const wild of state.wildTrees ?? []) {
+    if (removed.has(wild.id)) continue;
+    const felled = lastFelled.get(wild.id);
+    const regrowth =
+      felled === undefined ? 'grown' : kept.has(wild.id) ? 'stump' : felledTreeStage(felled, day);
+    const kind: RoadTreeObstacleKind =
+      regrowth === 'stump'
+        ? 'stump'
+        : regrowth === 'sapling' || !wildTreeMature(wild, day)
+          ? 'youngTree'
+          : 'tree';
+    added.push({ id: wild.id, x: wild.x, z: wild.z, kind });
   }
   added.sort((a, b) => a.id - b.id);
   return {

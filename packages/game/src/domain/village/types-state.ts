@@ -29,6 +29,7 @@ import type {
   Sheaves,
   ThreshingFloor,
   VillageWood,
+  WildTree,
 } from './types-land';
 import type {
   DietDay,
@@ -425,6 +426,11 @@ export interface VillageState {
    * = žádný (i u vsí uložených před zarůstáním).
    */
   woods?: VillageWood[];
+  /**
+   * Náletové stromy opuštěných sadů (orchard.md – Zdivočelý sad). Chybí = žádné (i u vsí bez
+   * opuštěného sadu).
+   */
+  wildTrees?: WildTree[];
   /**
    * Dvorec vojvody (trade.md – Dvorec vojvody): id obydlí (= domácnosti), které je dvorcem vsi –
    * v nové vsi první zemnice zakladatelů, ve starší vsi nejstarší obydlí (`withManor`). Odtud jdou

@@ -301,6 +301,28 @@ export interface OrchardSquare {
    * bez překážek). Po výsadbě údaj zmizí. U ostatních čtverců chybí.
    */
   renewal?: number;
+  /**
+   * Kolik náletových stromků už na čtverci opuštěného sadu vyrostlo (wild-orchard.md, návrh
+   * Clauda – demolition.md); strop ORCHARD_WILD.maxPerSquare. Chybí = žádný.
+   */
+  wild?: number;
+}
+/**
+ * Náletový strom opuštěného sadu (demolition.md – Rozhodnutí; orchard.md – Zdivočelý sad): jabloň
+ * ze spadaných plodů, nebo jiná dřevina z okolí. Je to herní strom jako strom lesa vsi (překážka,
+ * dřevo na stavby) a přežije zánik čtverce sadu – z opuštěného sadu zbyde neuspořádaný les.
+ * Id leží nad stromy lesa vsi (WILD_TREE_ID_BASE).
+ */
+export interface WildTree {
+  id: number;
+  /** Sad, ze kterého nálet vyrostl – vrácení nebo zbourání sadu nálet odstraní. */
+  orchardId: number;
+  x: number;
+  z: number;
+  /** Jabloň (jinak jiná dřevina – bříza, osika, dub, buk podle id). */
+  apple: boolean;
+  /** Den, kdy strom vyrostl. */
+  day: number;
 }
 /** Jabloňový sad – souvislá skupina čtverců (orchard.md). */
 export interface Orchard {

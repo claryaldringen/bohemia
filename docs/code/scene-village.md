@@ -113,7 +113,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`fruit`, srpen až sklizeň) počítá server (`lib/orchard-look.ts`) v `SceneVillage.orchards` –
   háček pro podzim; květ, podzimní listí a holé koruny dodají roční období (`applySeasonModel`
   podle jména `apple*`, meshe `orchard-*` jsou v zimě mezi holými vrhači stínu). Modely se
-  načtou až s prvním sadem.
+  načtou až s prvním sadem. **Nálet opuštěného sadu** (`SceneVillage.wildTrees` z
+  `village-view-wild.ts`: místo z jádra, jabloň/jiná dřevina, stáří v letech) kreslí `wild-growth.ts`
+  (`wildTreePlants`): jabloně modely `apple-1…4` ve velikosti `treeGrowth(věk)`, jiné dřeviny
+  bříza/topol/dub/buk; rozmístění je nepravidelné, mimo řady.
   Dým z dýmníku (`village-smoke.ts`, sprity) podle rozvrhu ohně za herní den (`smoke-schedule.ts`, deterministicky) – hýbe se jen v záběru, ve stejném
   taktu `WATER_FPS` jako voda, při omezeném pohybu stojí.
 
