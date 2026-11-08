@@ -8,8 +8,8 @@ import type {
   CampaignWorld,
   IntentBody,
 } from './campaign-types';
-import { approachStep, fastestApproach } from './npc-assault';
-import { dist2, inFight, nearest } from './orders';
+import { approachStep, fastestApproach, passageOpen } from './npc-assault';
+import { dist2, inFight, nearest, orderHeard } from './orders';
 import { lootCapacity } from './raid-apply';
 import { WAR } from './rules-war';
 import { hoursPerTick, TICKS_PER_SECOND } from './ticks';
@@ -141,13 +141,54 @@ function marchIntents(s: CampaignState): IntentBody[] {
  * velitel není, napadne jen s nejrychlejším postupem přes hradbu nejvýš 1 herní den
  * (`fastestApproach`) – vede skupinu k místu postupu a odtud napadne; jinak vezme, co je venku
  * (`plunder`). Bez opevnění se slabší vojsko obrátí. Nevidí-li nikoho, jde k nejbližším obráncům
- * (ví, kde ves stojí).
+ * (ví, kde ves stojí). Otevře-li se průchod hradbou, pošle skupiny dovnitř (`insideOrders`).
  */
 function raidIntents(s: CampaignState, field: BattleField | null): IntentBody[] {
   const b = s.battle;
   if (!b || b.outcome !== 'ongoing') return [];
   const leader = npcLeader(b);
   if (!leader) return [];
+  return [...insideOrders(field, b, leader), ...leaderIntents(s, field, b, leader)];
+}
+
+/**
+ * Průchod hradbou je otevřený (mezera či průlom, lezec nahoře, útočník za hradbou – `passageOpen`)
+ * a obránci stojí za ní → skupiny, které velitele slyší a nemají „útočit na vše“, pošle dovnitř
+ * (`set-order`; war.md – Změna rozkazu; plán hradeb, Úloha 20 – návrh Clauda). Velitel sám smí
+ * zůstat u průchodu (luk), skupina venku stát nesmí.
+ */
+function insideOrders(field: BattleField | null, b: BattleState, leader: Fighter): IntentBody[] {
+  if (!field) return [];
+  const groups = b.groups.filter(
+    (g) =>
+      g.side === 'attack' &&
+      !g.broken &&
+      g.order !== 'attack-all' &&
+      b.fighters.some(
+        (f) => f.side === 'attack' && f.group === g.id && f.id !== leader.id && inFight(f),
+      ) &&
+      orderHeard(b, g.id),
+  );
+  if (groups.length === 0) return [];
+  const forts = field.forts.map((bf) => bf.fort).filter((f) => fortHasWall(f, field.day));
+  if (forts.length === 0) return [];
+  const foes = b.fighters.filter((f) => f.side === 'defend' && inFight(f));
+  const inside = fortsContaining(
+    field.geo,
+    forts,
+    foes.map((f) => f.pos),
+  ).some((fort) => fort !== null);
+  if (!inside || !passageOpen(field, b)) return [];
+  return groups.map((g) => ({ kind: 'set-order', group: g.id, order: 'attack-all' }));
+}
+
+/** Záměry velitele samého: koho napadnout, kam jít, nebo vzít, co je venku, či se obrátit. */
+function leaderIntents(
+  s: CampaignState,
+  field: BattleField | null,
+  b: BattleState,
+  leader: Fighter,
+): IntentBody[] {
   const chosen =
     leader.chosen === null ? undefined : b.fighters.find((f) => f.id === leader.chosen);
   if (chosen && chosen.side === 'defend' && inFight(chosen)) return [];

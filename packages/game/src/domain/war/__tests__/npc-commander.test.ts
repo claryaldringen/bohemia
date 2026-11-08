@@ -194,14 +194,17 @@ describe('NPC velitel – silnější vojsko u palisády (plán hradeb, Úloha 2
   });
   const whole = stepCampaign(start, END, SET_OUT, fortWorld);
 
-  // brána na jihu se prosekne nejrychleji (12 mužohodin ÷ 4 = 3 h) – velitel k ní obejde hradbu
-  // a jeho muži ji proseknou
-  it('napadne přes hradbu (brána) – ne jen kořist zvenku', () => {
+  // brána na jihu se prosekne nejrychleji (12 mužohodin ÷ 4 = 3 h) – velitel k ní obejde hradbu,
+  // jeho muži ji proseknou a po proseknutí jdou dovnitř („útočit na vše“) a bitvu dotáhnou
+  it('napadne přes hradbu (brána), pošle skupinu dovnitř a vyhraje', () => {
     const b = whole.state.battle;
     expect(b?.plundered).toBeUndefined();
     const gate = b?.breaches.find((x) => x.spot === 'gate');
     expect(gate?.method).toBe('cut');
     expect(gate?.progress.breached).toBe(true);
+    expect(b?.groups.find((g) => g.side === 'attack' && g.id === 1)?.order).toBe('attack-all');
+    expect(b?.outcome).toBe('attackers');
+    expect(whole.villageEvents.some((e) => e.body.kind === 'raid-result')).toBe(true);
   });
 
   it('po kouscích 1 / 7 / 100 taktů = vcelku', { timeout: 60_000 }, () => {

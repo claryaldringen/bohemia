@@ -1,4 +1,6 @@
 import {
+  fortHasWall,
+  fortsContaining,
   assaultHours,
   assaultSteps,
   climbTicks,
@@ -19,10 +21,10 @@ import {
 } from './battle';
 import { nearestForestOf, outward } from './ladders';
 import type { MarchGrid, Pos } from './march-grid';
-import { dist2 } from './orders';
+import { dist2, inFight } from './orders';
 import { WAR } from './rules-war';
 import { TICKS_PER_SECOND } from './ticks';
-import { occupied } from './wall-defense';
+import { occupied, onWallTop } from './wall-defense';
 
 // NPC velitel u hradby (fortifications.md – Obrana bez násobku, NPC velitel; Přechod hradby;
 // Prolomení; plán hradeb – Úloha 20): odhadne nejrychlejší postup přes opevnění bojiště – mezera
@@ -312,4 +314,27 @@ export function approachStep(field: BattleField, from: Pos, way: Approach): Pos 
           z: way.at.z + ((way.at.z - c.z) / d) * STAGE_M,
         };
   return leadTo(field, from, stage);
+}
+
+/**
+ * Je průchod opevněním otevřený (plán hradeb, Úloha 20 – návrh Clauda)? Lezec nahoře na hradbě
+ * (vrchol žebříku, přetahuje, slézá dovnitř), útočník už uvnitř obvodu, nebo mezera či průlom
+ * (`fortPassages` – `open`; brány zavřené).
+ */
+export function passageOpen(field: BattleField, b: BattleState): boolean {
+  const attackers = b.fighters.filter((f) => f.side === 'attack' && inFight(f));
+  const atTop = attackers.some(
+    (f) =>
+      f.state === 'climb' &&
+      (f.climb?.phase === 'over' || f.climb?.phase === 'down' || onWallTop(f, b)),
+  );
+  if (atTop) return true;
+  const forts = field.forts.map((bf) => bf.fort).filter((f) => fortHasWall(f, field.day));
+  if (forts.length === 0) return false;
+  const inside = fortsContaining(
+    field.geo,
+    forts,
+    attackers.map((f) => f.pos),
+  ).some((fort) => fort !== null);
+  return inside || fortPassages(field, b, { x: 0, z: 0 }, 1).some((p) => p.method === 'open');
 }
