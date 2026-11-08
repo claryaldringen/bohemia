@@ -1,16 +1,22 @@
 import { isVillageAsleep } from '../../domain/village';
 import { playerDay } from '../player-time';
 import type { PlayerBehind, WorldQueue } from '../world-queue';
+import { InMemoryActivity } from './in-memory-activity';
 import type { InMemorySettlements } from './in-memory-settlements';
 import type { InMemoryTimeOffsets } from './in-memory-time-offsets';
 import type { InMemoryVillages } from './in-memory-villages';
 
-/** Fronta workeru v paměti nad repozitáři v paměti – stejné pořadí jako dotaz v databázi. */
+/**
+ * Fronta workeru v paměti nad repozitáři v paměti – stejné pořadí jako dotaz v databázi. Správy
+ * cizích vsí (aktivní správce drží ves vzhůru) nemodeluje – ty hlídá test adaptéru.
+ */
 export class InMemoryWorldQueue implements WorldQueue {
   constructor(
     private readonly settlements: InMemorySettlements,
     private readonly villages: InMemoryVillages,
     private readonly offsets: InMemoryTimeOffsets,
+    /** Aktivní dny hráčů – podle nich spí vsi nečinných (`awakeSince`). */
+    readonly activity = new InMemoryActivity(),
   ) {}
 
   /** Vsi s tažením u nich (`priorityVillages`) – test je nastaví. */
@@ -20,6 +26,7 @@ export class InMemoryWorldQueue implements WorldQueue {
     worldDay: number,
     limit: number,
     holds: ReadonlyMap<string, number> = new Map(),
+    awakeSince?: string,
   ): Promise<PlayerBehind[]> {
     await Promise.resolve();
     const oldest = new Map<string, number>();
@@ -38,7 +45,14 @@ export class InMemoryWorldQueue implements WorldQueue {
     }
     const lag = (p: PlayerBehind): number => p.today - p.oldestDay;
     const rank = (p: PlayerBehind): number => (first.has(p.playerId) ? 0 : 1);
+    // vsi nečinného hráče spí (absence.md – Zátěž serveru), jen dotek tažením je probudí
+    const awake = (playerId: string): boolean => {
+      if (awakeSince === undefined || first.has(playerId)) return true;
+      const latest = this.activity.latest(playerId);
+      return latest !== null && latest >= awakeSince;
+    };
     return [...oldest]
+      .filter(([playerId]) => awake(playerId))
       .map(([playerId, oldestDay]) => ({
         playerId,
         today: playerDay(worldDay, this.offsets.offsets.get(playerId) ?? 0),

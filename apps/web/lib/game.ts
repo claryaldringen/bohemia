@@ -33,6 +33,7 @@ import {
   findPlayerVillage,
   firstPlayerVillage,
   lockOwnerOf as lockOwnerOfVillage,
+  pragueDateOf,
   recordActiveDay,
   requireRight,
   restartGame,
@@ -123,6 +124,23 @@ export function landscapeOfSettlement(settlement: Settlement): Landscape {
   return settlementLandscape(settlement, landscapes);
 }
 
+/** Hráči, kterým tento proces dnes (datum v Europe/Prague) už aktivní den zapsal. */
+const activeToday = new Map<string, string>();
+
+/**
+ * Aktivní den hráče (datum v Europe/Prague) – podle nich se pozvaný počítá jako „začal hrát“
+ * a worker uspí vsi hráče, který nehraje déle než 3 dny (absence.md – Zátěž serveru). Zapisuje se
+ * při vstupu do hry i při každé akci a dotazu na ves (hráč s otevřenou hrou), do databáze nejvýš
+ * jednou za den a proces.
+ */
+export async function notePlayerActive(playerId: string): Promise<void> {
+  const now = new Date();
+  const today = pragueDateOf(now);
+  if (activeToday.get(playerId) === today) return;
+  await recordActiveDay({ activity: createActivityRepository(getDatabase()) }, playerId, now);
+  activeToday.set(playerId, today);
+}
+
 /** Hra, jak ji hráč uvidí: sídlo (mapa) s krajinou a vybraná ves (null = zakládá ves). */
 export interface GameEntry {
   settlement: Settlement;
@@ -140,12 +158,7 @@ export async function gameEntryForPlayer(
   preferredVillageId: string | null,
 ): Promise<GameEntry> {
   const seat = await enterGameForPlayer(playerId);
-  // Aktivní den (datum v Europe/Prague) – podle nich se pozvaný počítá jako „začal hrát“.
-  await recordActiveDay(
-    { activity: createActivityRepository(getDatabase()) },
-    playerId,
-    new Date(),
-  );
+  await notePlayerActive(playerId);
   const deps = playerVillagesDeps();
   const preferred =
     preferredVillageId === null

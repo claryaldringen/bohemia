@@ -18,6 +18,7 @@ import {
   type WorldStep,
   type WorldStepDeps,
 } from '../advance-world';
+import { awakeSince } from '../activity';
 import { dynastyForVillage } from '../dynasty-for-village';
 import { isFullVillage } from '../villages';
 import { loadVillage } from '../load-village';
@@ -383,5 +384,92 @@ describe('bariéra ves × tažení (Úloha 6.7)', () => {
     world.villages.holdLimits.set(held!, TODAY - 4);
     const view = await loadVillage(world.deps, { villageId: held!, today: TODAY, landscape });
     expect(view?.state.lastDay).toBe(TODAY - 2);
+  });
+});
+
+describe('uspání nečinných (absence.md – Zátěž serveru)', () => {
+  /** Okamžik kola: 12. 11. 2026 v poledne v Praze – hráč aktivní od 9. 11. (3 dny zpět) nespí. */
+  const NOW = new Date('2026-11-12T11:00:00Z');
+  const stepAt = (world: World, now: Date | undefined): Promise<WorldStep> =>
+    advanceWorldStep(world.deps, {
+      worldDay: TODAY,
+      stepDays: WORLD_STEP_DAYS,
+      limit: 10,
+      ...(now ? { now } : {}),
+    });
+
+  it('mez probuzení: poslední aktivní den nejdřív před 3 dny (datum v Praze)', () => {
+    expect(awakeSince(NOW)).toBe('2026-11-09');
+    // pár minut po pražské půlnoci se mez posune o den
+    expect(awakeSince(new Date('2026-11-12T23:05:00Z'))).toBe('2026-11-10');
+  });
+
+  it('vsi nečinného hráče (i bez aktivního dne) worker nepočítá, aktivního ano', async () => {
+    const world = new World();
+    const queue = world.deps.queue as InMemoryWorldQueue;
+    const [active] = await world.player('aktivni', [tracked(FAMILY, TODAY - 9)]);
+    const [idle] = await world.player('necinny', [tracked(FAMILY, TODAY - 9)]);
+    const [never] = await world.player('nikdy', [tracked(FAMILY, TODAY - 9)]);
+    await queue.activity.record('aktivni', '2026-11-09');
+    await queue.activity.record('necinny', '2026-11-08');
+
+    const step = await stepAt(world, NOW);
+    expect(step.players.map((p) => p.playerId)).toEqual(['aktivni']);
+    expect(world.state(active!).lastDay).toBe(TODAY);
+    expect(world.state(idle!).lastDay).toBe(TODAY - 9);
+    expect(world.state(never!).lastDay).toBe(TODAY - 9);
+    expect((await stepAt(world, NOW)).idle).toBe(true);
+    // návrat hráče – zapsaný aktivní den ho probudí
+    await queue.activity.record('necinny', '2026-11-12');
+    expect((await stepAt(world, NOW)).players.map((p) => p.playerId)).toEqual(['necinny']);
+    // bez okamžiku kola (testy, měření) nikdo nespí
+    expect((await stepAt(world, undefined)).players.map((p) => p.playerId)).toEqual(['nikdy']);
+  });
+
+  it('dotek tažením: přednostní ves nečinného hráče se dopočítá do meze', async () => {
+    const world = new World();
+    world.villages.withHolds();
+    const queue = world.deps.queue as InMemoryWorldQueue;
+    const [held] = await world.player('necinny', [tracked(FAMILY, TODAY - 9)]);
+    world.villages.holdLimits.set(held!, TODAY - 4);
+    queue.priority = [held!];
+    const step = await stepAt(world, NOW);
+    expect(step.players.map((p) => p.playerId)).toEqual(['necinny']);
+    expect(world.state(held!).lastDay).toBe(TODAY - 4);
+    // na mezi zase spí – tažení ještě nepostoupilo
+    expect((await stepAt(world, NOW)).idle).toBe(true);
+  });
+
+  it('uspaná ves po dotyku = průběžně počítaná (i se zásilkou ve schránce)', async () => {
+    const start = TODAY - 27;
+    const event = (villageId: string): Parameters<InMemoryVillages['inbox']['post']>[0] => ({
+      villageId,
+      day: start + 13,
+      ref: `test:${villageId}`,
+      body: { kind: 'chronicle', event: { day: start + 13, kind: 'line-named', name: 'Bořivoj' } },
+    });
+    // převody starého stavu (`withPenGrace`, `withThreshingGrace`) běží ke dni načtení – výjimka
+    // z „po kouscích“ (worker.md – Výjimky); ves je proto napřed převedená ke dni `start`
+    const convert = (world: World, villageId: string): Promise<unknown> =>
+      loadVillage(world.deps, { villageId, today: start, landscape });
+    // průběžně: worker po dávkách, zásilka dorazí mezi dávkami
+    const awake = new World();
+    const [a] = await awake.player('hrac', [tracked(FAMILY, start)]);
+    await convert(awake, a!);
+    await (awake.deps.queue as InMemoryWorldQueue).activity.record('hrac', '2026-11-12');
+    await stepAt(awake, NOW);
+    await awake.villages.inbox.post(event(a!));
+    await awake.untilIdle();
+    // uspaná: worker ji nepočítá, zásilka čeká ve schránce, dotek (otevření) ji dopočte naráz
+    const sleeping = new World();
+    const [s] = await sleeping.player('hrac', [tracked(FAMILY, start)]);
+    await convert(sleeping, s!);
+    expect((await stepAt(sleeping, NOW)).idle).toBe(true);
+    await sleeping.villages.inbox.post(event(s!));
+    expect(sleeping.state(s!).lastDay).toBe(start);
+    const touched = await loadVillage(sleeping.deps, { villageId: s!, today: TODAY, landscape });
+
+    expect(touched?.state.lastDay).toBe(TODAY);
+    expect(JSON.stringify(touched!.state)).toBe(JSON.stringify(awake.state(a!)));
   });
 });

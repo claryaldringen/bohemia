@@ -50,6 +50,8 @@ nečinnosti.
 
 ## Zátěž serveru
 
+**Implementováno** (8. 11. 2026) – `docs/code/worker.md`, Uspání nečinných.
+
 Martin 8. 11. 2026: „A“ – ves hráče, který nehraje **déle než 3 skutečné dny** (návrh Clauda),
 se **uspí**: worker ji průběžně nepočítá a dopočítá ji, až se jí něco dotkne (hráč se vrátí,
 nájezd, obchod, dávky, rozvoz jídla domény, pohled jiného hráče). Výsledek je díky determinismu

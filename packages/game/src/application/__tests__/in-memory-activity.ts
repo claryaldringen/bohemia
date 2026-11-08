@@ -8,6 +8,15 @@ export class InMemoryActivity implements ActivityRepository {
     this.days.add(`${playerId}|${pragueDate}`);
   }
 
+  /** Poslední aktivní den hráče (`YYYY-MM-DD`), null – žádný (pro frontu workeru v paměti). */
+  latest(playerId: string): string | null {
+    const days = [...this.days]
+      .filter((d) => d.startsWith(`${playerId}|`))
+      .map((d) => d.slice(playerId.length + 1))
+      .sort();
+    return days.at(-1) ?? null;
+  }
+
   async distinctDays(playerId: string): Promise<number> {
     return [...this.days].filter((d) => d.startsWith(`${playerId}|`)).length;
   }

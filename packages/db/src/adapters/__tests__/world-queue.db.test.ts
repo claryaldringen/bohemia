@@ -13,6 +13,7 @@ import {
 import { createDatabase } from '../../client';
 import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
+import { createActivityRepository } from '../activity-repository';
 import { createSettlementRepository } from '../settlement-repository';
 import { createTimeOffsetRepository } from '../time-offset-repository';
 import { createVillageRepository } from '../village-repository';
@@ -139,6 +140,54 @@ describe('createWorldQueue', () => {
     expect(await queue.behind(TODAY, 10)).toEqual([]);
     expect(await queue.behind(TODAY + 1, 10)).toEqual([
       { playerId: 'hrac-a', today: TODAY + 1, oldestDay: TODAY },
+    ]);
+  });
+
+  it('uspání nečinných: bez aktivního dne od meze venku, dotek tažením a aktivní správce ne', async () => {
+    const since = '2026-11-09';
+    const activity = createActivityRepository(db);
+    await player('hrac-a', [state(TODAY - 5)]);
+    await activity.record('hrac-a', since);
+    await player('hrac-b', [state(TODAY - 5)]);
+    await activity.record('hrac-b', '2026-11-08');
+    await player('hrac-c', [state(TODAY - 5)]); // nikdy nehrál
+    const [raided] = await player('hrac-d', [state(TODAY - 6)]);
+    const [stewarded] = await player('hrac-e', [state(TODAY - 4)]);
+    await activity.record('hrac-f', '2026-11-12');
+    const [holder, steward] = await db
+      .insert(schema.house)
+      .values([
+        { playerId: 'hrac-e', kind: 'player' as const },
+        { playerId: 'hrac-f', kind: 'player' as const },
+      ])
+      .returning({ id: schema.house.id });
+    const villageOf = async (settlementId: string): Promise<string> =>
+      (await villages.listBySettlement(settlementId))[0]!.id;
+    await db.insert(schema.stewardship).values({
+      villageId: await villageOf(stewarded!),
+      holderHouseId: holder!.id,
+      stewardHouseId: steward!.id,
+      sinceAt: new Date(),
+    });
+    const holds = new Map([[await villageOf(raided!), TODAY - 2]]);
+
+    expect((await queue.behind(TODAY, 10, holds, since)).map((p) => p.playerId)).toEqual([
+      'hrac-d',
+      'hrac-a',
+      'hrac-e',
+    ]);
+    // bez meze probuzení nikdo nespí; ves na mezi tažení už dotekem není
+    expect((await queue.behind(TODAY, 10, holds)).map((p) => p.playerId)).toEqual([
+      'hrac-d',
+      'hrac-a',
+      'hrac-b',
+      'hrac-c',
+      'hrac-e',
+    ]);
+    const reached = new Map([[await villageOf(raided!), TODAY - 6]]);
+    expect((await queue.behind(TODAY, 10, reached, since)).map((p) => p.playerId)).toEqual([
+      'hrac-a',
+      'hrac-e',
     ]);
   });
 });

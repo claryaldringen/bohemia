@@ -22,6 +22,8 @@ export interface LoopDeps {
     limit: number;
     skip: ReadonlySet<string>;
     shouldStop: () => boolean;
+    /** Okamžik kola – vsi nečinných hráčů spí (worker.md – Uspání nečinných). */
+    now: Date;
   }) => Promise<WorldStep>;
   /** Úlohy světa (kredity nástupnictví…) – smyčka je pouští nejvýš jednou za `WORLD_TASKS_MS`. */
   worldTasks?: (input: { now: Date; today: number }) => Promise<void>;
@@ -112,6 +114,7 @@ export async function runLoop(
           limit: options.limit,
           skip: skips.active(nowMs),
           shouldStop: () => signal.aborted,
+          now: new Date(nowMs),
         });
         idle = step.idle;
         held = step.held > 0;

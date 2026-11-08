@@ -9,6 +9,7 @@ import type { Settlement } from './settlements';
 import { heldDay } from './village-holds';
 import type { VillageRecord, VillageStamp } from './villages';
 import type { WorldQueue } from './world-queue';
+import { awakeSince } from './activity';
 
 // Krok světa (docs/superpowers/plans/2026-10-31-worker.md – 1. Co worker dělá): worker posouvá vsi
 // hráčů nejvíc pozadu po dávkách do jejich dneška, i když nikdo není online. Zámek hráče jen
@@ -231,6 +232,12 @@ export interface WorldStepInput {
   skip?: ReadonlySet<string>;
   /** Vrátí true, když se má kolo ukončit (signál workeru) – kontroluje se mezi hráči. */
   shouldStop?: () => boolean;
+  /**
+   * Skutečný okamžik kola (hodiny workeru): vsi hráčů nečinných déle než `ABSENCE.sleepDays`
+   * skutečných dnů spí – fronta je vynechá (`awakeSince`, absence.md – Zátěž serveru). Chybí –
+   * nikdo nespí (testy, měření).
+   */
+  now?: Date;
 }
 
 /** Souhrn kola. */
@@ -254,8 +261,8 @@ export interface WorldStep {
 
 /**
  * Kolo workeru: z fronty (`WorldQueue.behind` – hráči s přednostní vsí pod mezí bariéry, pak nejvíc
- * pozadu; `priorityVillages` a jejich meze `VillageHolds.limitOf`) vezme nejvýš `limit` hráčů
- * bez odkladu a každému posune vsi o dávku (`advancePlayer`). Chyba u jednoho hráče ostatní
+ * pozadu; `priorityVillages` a jejich meze `VillageHolds.limitOf`; vsi nečinných hráčů spí – `now`)
+ * vezme nejvýš `limit` hráčů bez odkladu a každému posune vsi o dávku (`advancePlayer`). Chyba u jednoho hráče ostatní
  * nezastaví – vrátí se v jeho `PlayerStep` (`failed`). Celý worker bez procesu kolem.
  */
 export async function advanceWorldStep(
@@ -269,7 +276,8 @@ export async function advanceWorldStep(
     priority.length > 0 && deps.villages.holds
       ? await deps.villages.holds.limitOf(priority)
       : new Map<string, number>();
-  const queue = await deps.queue.behind(input.worldDay, input.limit + skip.size, holds);
+  const since = input.now ? awakeSince(input.now) : undefined;
+  const queue = await deps.queue.behind(input.worldDay, input.limit + skip.size, holds, since);
   const due = queue.filter((p) => !skip.has(p.playerId)).slice(0, input.limit);
   const players: PlayerStep[] = [];
   for (const player of due) {

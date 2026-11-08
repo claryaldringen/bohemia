@@ -22,11 +22,18 @@ export interface WorldQueue {
    * Spící vsi (vymřelé, opuštěné) a archivovaná sídla se nepočítají. `holds` = meze bariéry vsí
    * s tažením u nich (`VillageHolds.limitOf` přednostních vsí): ves na své mezi není pozadu a hráč
    * s přednostní vsí pod mezí jde před ostatními.
+   *
+   * `awakeSince` (`YYYY-MM-DD`, `awakeSince(now)` z activity.ts) = uspání nečinných (absence.md –
+   * Zátěž serveru): hráč, jehož poslední aktivní den je dřív (nebo žádný), se vynechá – jeho vsi
+   * spí. Výjimky: má-li přednostní ves pod mezí (tažení u ní čeká – dotek nájezdem), jde první
+   * jako ostatní; má-li ves, kterou živě spravuje aktivní hráč (vassalage.md – Hráč jako správce
+   * cizí vsi), počítá se jako aktivní. Bez `awakeSince` se nikdo nevynechá (testy, měření).
    */
   behind(
     worldDay: number,
     limit: number,
     holds?: ReadonlyMap<string, number>,
+    awakeSince?: string,
   ): Promise<PlayerBehind[]>;
   /**
    * Vsi, u kterých stojí tažení (skupina na mapě vsi nebo políčko od ní – `VillageHolds`): worker
