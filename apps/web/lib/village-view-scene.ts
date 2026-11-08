@@ -581,11 +581,24 @@ function sceneLord(state: VillageState, counts: LaborDay['lord'], day: number): 
         id: p.id,
         ...trainingHours(p, day, family.lord, rides !== null && riders.has(p.id)),
       })),
-    household: family.household
-      .filter((p) => !women.has(p.id))
-      .map((p) => p.id)
-      .sort((a, b) => a - b),
+    household: manorHousehold(family.household, women, home),
   };
+}
+
+/**
+ * Ženy rodiny u dvorce (`SceneLord.household`): jen ty, které bydlí v dvorci a dnes nejsou na poli.
+ * Ženy a dcery elity z vlastních domů (hillfort.md – Elita) se kreslí u svého obydlí jako ostatní
+ * domácnosti, ne u dvorce.
+ */
+export function manorHousehold<W extends { id: number; dwellingId: number }>(
+  household: readonly W[],
+  atField: ReadonlySet<number>,
+  manor: number,
+): number[] {
+  return household
+    .filter((p) => p.dwellingId === manor && !atField.has(p.id))
+    .map((p) => p.id)
+    .sort((a, b) => a - b);
 }
 
 /**
