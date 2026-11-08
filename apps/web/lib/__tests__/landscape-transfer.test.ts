@@ -9,6 +9,7 @@ import {
   premiumFeaturesOf,
   promontoriesOf,
   riverCenterlines,
+  skeletonFeaturesOf,
   transferPrecision,
   type ObstacleLayer,
   type SkeletonSlice,
@@ -252,6 +253,8 @@ describe('přenos mapy z kostry světa – víc řek a výřez', () => {
     expect(decoded.rivers).toEqual(transferPrecision(server).rivers);
     expect(decoded.skeleton).toEqual(server.skeleton);
     expect(transferPrecision(decoded)).toEqual(transferPrecision(server));
+    // stezka kostry (route, křižovatky, konce) vychází v prohlížeči stejně jako na serveru
+    expect(skeletonFeaturesOf(decoded)).toEqual(skeletonFeaturesOf(server));
     expect(JSON.stringify(transfer).length).toBeLessThan(150_000);
   });
 
