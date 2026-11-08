@@ -122,6 +122,13 @@ export interface FieldPart {
    */
   fallowBeforeSeason?: { sinceDay: number | null; overgrowthYears?: number };
   /**
+   * Opuštěný díl (fields.md – Opuštěný díl; Martin 8. 11. 2026: „A“): trvalý příloh, který se už
+   * neoseje – zarůstá podle Zarůstání (pastva a seč ve fázi louky ho drží loukou), po 30 letech
+   * z pole vypadne. Osetý díl se opustí až po žních (`rotateAfterSeason` 1. 9.). Chybí = díl je
+   * v osevním postupu (vsi uložené dřív).
+   */
+  abandoned?: true;
+  /**
    * Na dílu leží drn – louka, kterou ves se spřežením založila bez motyky (oxen.md – Jen rádlo):
    * rozorá ho až první orba (`PLOUGH_SOD_FACTOR`), bez spřežení ho rozruší motyka jako vrácení
    * louky. Smaže se na konci hospodářského roku, ve kterém byl díl v osevu; chybí = drn není.

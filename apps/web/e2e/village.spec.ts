@@ -739,6 +739,8 @@ test('pole v lese ve fázi pálení – panel dílu ukáže oheň', async ({ pag
 test('porážka ve scéně – mršina a kozlina se nakreslí a jsou připravené ke kreslení', async ({
   page,
 }) => {
+  // registrace + scéna + založení vsi + načtení modelů – pod zátěží stroje 120 s nestačí
+  test.setTimeout(300_000);
   const { seat: s } = await newPlayer(page, 'porazka');
   await found(page, villageSpots(s.landscape).dwelling);
 
@@ -757,6 +759,13 @@ test('porážka ve scéně – mršina a kozlina se nakreslí a jsou připraven�
   await writeVillageState(s.settlementId, state);
   // modely jinak testy přerušují (newPlayer) – porážka se bez nich nenakreslí
   await page.unroute('**/models/**');
+  // Porážka se ve scéně kreslí podle hodin dne (okno herního dne z hodin světa): na začátku
+  // a na konci dne se ještě / už nekreslí, takže test dřív procházel jen v části dne. Hodiny
+  // stránky proto nastavíme doprostřed herního dne vsi (jinak by test závisel na denní době).
+  const realStart = Date.parse('2000-01-01T00:00:00+01:00');
+  const realEnd = Date.parse('2200-01-01T00:00:00+01:00');
+  const dayMs = (realEnd - realStart) / (1000 * 365);
+  await page.clock.install({ time: new Date(realStart + (state.lastDay + 0.5) * dayMs) });
   await page.reload();
   await expect
     .poll(
@@ -765,7 +774,8 @@ test('porážka ve scéně – mršina a kozlina se nakreslí a jsou připraven�
         const ready = (name: string): boolean => meshes.some((m) => m.name === name && m.ready);
         return ready('slaughter-carcass-pig') && ready('slaughter-trestle-small');
       },
-      { timeout: 30_000 },
+      // po reloadu se načítají modely a vytváří meshe – pod zátěží to přesáhne 30 s
+      { timeout: 90_000 },
     )
     .toBe(true);
 });
@@ -1619,6 +1629,33 @@ test('díl pole ukáže škodu zvěře letos', async ({ page }) => {
     .toBe('field-part');
   await expect(panel.getByTestId('selection-damage')).toHaveText('12 %');
   await expect(panel.getByTestId('selection-damage')).toHaveAttribute('data-alert', 'true');
+  await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
+
+  // Opustit díl a vrátit ho do osevu (fields.md – Opuštěný díl): nezaložený díl opustit nejde,
+  // založený přepínač opustí (svítí) a vrátí.
+  const abandon = panel.getByTestId('abandon-part');
+  await expect(abandon).toBeDisabled();
+  const founded = await villageState(s.settlementId);
+  for (const p of founded.parts) {
+    p.foundingDone = p.foundingCost;
+    p.state = 'ready';
+  }
+  founded.constructions = founded.constructions.filter((c) => c.kind !== 'field');
+  await writeVillageState(s.settlementId, founded);
+  await pollVillage(page);
+  await expect(abandon).toBeEnabled({ timeout: 20_000 });
+  await expect(abandon).toHaveAttribute('aria-pressed', 'false');
+  await abandon.click();
+  await expect(abandon).toHaveAttribute('aria-pressed', 'true', { timeout: 20_000 });
+  await expect
+    .poll(async () => (await villageState(s.settlementId)).parts.filter((p) => p.abandoned).length)
+    .toBe(1);
+  await expect(abandon).toBeEnabled();
+  await abandon.click();
+  await expect(abandon).toHaveAttribute('aria-pressed', 'false', { timeout: 20_000 });
+  await expect
+    .poll(async () => (await villageState(s.settlementId)).parts.some((p) => p.abandoned))
+    .toBe(false);
   await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
 });
 

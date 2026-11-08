@@ -57,16 +57,29 @@ import type { WildlifeState } from './types-wildlife';
 import type { DisasterState } from './types-disasters';
 
 /**
- * Hromada klád u lesa (forest.md – Klučení lesa pro pole): klády skácených dospělých stromů
- * polního dílu. Podmnožina `woodLogs` (u vsi leží zbytek).
+ * Hromada klád (forest.md – Mýcení a hromada klád): klády z mýcení složené u cesty nejblíž místu
+ * kácení, bez cesty v dosahu u místa kácení (`logPilePlace`); padlé kmeny po smršti leží, kde
+ * stromy stály. Podmnožina `woodLogs` – zbytek bez hromady má jen ves před převodem
+ * (`withRoadLogPiles`) a scéna ho kreslí u obydlí jako dřív.
  */
 export interface LogStack {
   id: number; // z nextId
+  /** Pole, z jehož klučení klády jsou (další klády téhož klučení přibývají sem); 0 = jiné mýcení. */
   fieldId: number;
-  /** Kotva – střed čtverce, na kterém padl první dospělý strom (m, svět). */
+  /**
+   * Místo hromady (m, svět) – určí se při vzniku a nemění se: vedle cesty (`road`), bez cesty
+   * v dosahu místo kácení (u klučení pole střed čtverce prvního dospělého stromu).
+   */
   x: number;
   z: number;
-  /** Hnije jako hromada u vsi, proto neceločíselné. */
+  /** Bod osy cesty, u které hromada leží (klády čely k ní); chybí = hromada u místa kácení. */
+  road?: { x: number; z: number };
+  /**
+   * Bývalá hromada u vsi (převod `withRoadLogPiles`): leží u tohoto obydlí na dnešním místě, po
+   * jeho zániku u `x`, `z` (poloha obydlí). Chybí = ne.
+   */
+  dwellingId?: number;
+  /** Hnije, proto neceločíselné. */
   logs: number;
 }
 
@@ -168,12 +181,13 @@ export interface VillageState {
   /** Rozběhnutá sezónní práce v sadech (sklizeň, péče); chybí nebo null = žádná. */
   orchardWork?: OrchardWork | null;
   /**
-   * Klády na hromadě u vsi (forest.md – Mýcení a hromada klád) – z mýcení přibývají, stavby je
-   * berou, hnijí (proto i neceločíselné). U vsí uložených před dřevem chybí (= 0).
+   * Klády vsi celkem (forest.md – Mýcení a hromada klád) – z mýcení přibývají, stavby je berou,
+   * hnijí (proto i neceločíselné). U vsí uložených před dřevem chybí (= 0).
    */
   woodLogs?: number;
   /**
-   * Hromady klád u lesa – podmnožina `woodLogs` (u vsi = woodLogs − Σ logs). Chybí = žádné.
+   * Hromady klád u cest a u míst kácení – podmnožina `woodLogs` (klády bez hromady = woodLogs − Σ
+   * logs má jen ves před převodem `withRoadLogPiles`). Chybí = žádné.
    */
   logStacks?: LogStack[];
   /**

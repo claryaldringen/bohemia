@@ -272,10 +272,20 @@ export function sceneVillage(
       ...(view.before === undefined ? {} : { before: view.before }),
     };
   });
-  // hromady klád u lesa (forest.md – Klučení lesa pro pole – postup) v celých kládách
+  // hromady klád (forest.md – Mýcení a hromada klád) v celých kládách
   const logStacks = (state.logStacks ?? []).flatMap((stack) => {
     const logs = wholeLogs(stack.logs);
-    return logs > 0 ? [{ id: stack.id, x: stack.x, z: stack.z, logs }] : [];
+    if (logs <= 0) return [];
+    return [
+      {
+        id: stack.id,
+        x: stack.x,
+        z: stack.z,
+        ...(stack.road ? { road: { x: stack.road.x, z: stack.road.z } } : {}),
+        ...(stack.dwellingId === undefined ? {} : { dwellingId: stack.dwellingId }),
+        logs,
+      },
+    ];
   });
   const penned = pens.reduce((sum, pen) => sum + pen.cows, 0);
   const herds = summary.livestock.herds;

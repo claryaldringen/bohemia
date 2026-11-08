@@ -113,9 +113,28 @@ k lesu stojí práci a mýcení pro pole dá klády na stavby.
   (zemnice v hustém lese ≈ 8 stromů z pasek, potřebuje 7). Posvátné duby a háje se nekácí,
   vyhrazené stromy jiné stavby klády nedají (jako u pole). Obyvatelé sami les nevyklučí.
   Palivo má dům v lese u dveří (vzdálenost k okraji lesa ≈ 0).
-- **Hromada klád** leží viditelně složená stranou u vsi (Martin) – vesničané ji založí u obydlí
-  nejblíž okraji lesa na volném místě vedle něj (návrh Clauda): hranice po 21 kládách, ve scéně
-  nejvýš tři. Ubývá podle toho, jak se staví (Martin).
+- **Hromady klád u cesty** (Martin, 8. 11. 2026: „teď jsou klády u vsi, ale vlastně by měly
+  zůstávat složené někde u cesty, nejblíž místu, kde byly pokáceny“; podrobnosti návrh Clauda):
+  každé mýcení, které dá klády (klučení pole, hřbitov, staveniště, pozemek, sad, milířiště,
+  průsek a vozová cesta, vracený příloh), je složí viditelně na **hromadu u cesty nejblíž místu
+  kácení** – vedle nejbližšího bodu pevných cest vsi (vyšlapané, upravené i vozové; pěšina dne
+  ne – mění se den ode dne), **6 m od osy** na straně místa kácení, mimo pás cesty, díly polí
+  a stavby (volné místo u tohoto bodu dohledá scéna), čely klád k cestě. Pevné pořadí při shodě
+  vzdálenosti (dřívější cesta a úsek). **Bez cesty do 60 m** od místa kácení (4 čtverce po 15 m
+  – kmen se k cestě ještě dá vláčet, dál zůstane u paseky) leží hromada u místa kácení.
+  Místo kácení je střed vymýceného čtverce (pole, hřbitov, sad), staveniště, milířiště nebo
+  prostředek nové cesty. Místo hromady se určí při jejím vzniku a pak se **nemění** – cesty se
+  mění, hromada se nestěhuje. Další klády téhož klučení pole přibývají na tutéž hromadu; jiné
+  mýcení doplní hromadu, která leží do 10 m od nového místa (dvě tak blízko by se překrývaly),
+  jinak vznikne nová. Klády odjinud (obchod, dávky vazalů) se složí u cesty nejblíž dvorci.
+  Hranice po 21 kládách, ve scéně nejvýš tři na hromadu. **Odběr:** stavba bere klády od
+  hromady nejbližší ke staveništi (Martin: ubývá podle toho, jak se staví); odvoz je v ceně
+  stavby jako dosud (kácení 2 čd za strom v sobě má i dovoz). Kácení pro stavbu, když hromady
+  nestačí, dává klády rovnou stavbě – hromada nevzniká. Hromada pod půl klády zmizí, zbytek
+  přejde na nejbližší hromadu. Horní lišta ukazuje celou zásobu (všechny hromady).
+- **Starší vsi:** dřívější hromada u vsi (u obydlí nejblíž okraji lesa) se při načtení jednou
+  stane hromadou na svém dnešním místě – klády se ve hře nestěhují – a dál se chová jako ostatní
+  (odběr od nejbližší, hnití). Hromady u lesa ze dřívějška zůstanou, kde leží.
 - **Klády hnijí:** ležící dřevo ztratí ≈ **4 % ročně** (Martin – oprava podle rešerše 17. 10.
   2026, dřív 10 %: ležící kmeny ztrácejí ≈ 2–5 % hmoty ročně – Petrillo a kol. 2016 a rozklad
   buku v rezervacích, FEM 2016), den po dni – hromadit je do zásoby se dlouhodobě nevyplácí.
@@ -155,8 +174,8 @@ zkracuje na herní tempo.
 **Fáze dílu v lese** (díl = čtverec 15 × 15 m; návrh Clauda):
 
 1. **Kácení** – vesničané pokácí na čtverci stojící stromy (dospělé, mladé stromky a souše) strom
-   po stromu, po každém zůstane pařez. Kmeny dospělých stromů odnesou na **hromadu klád u lesa**
-   (strom = kláda jako dosud, vyhrazené stromy jiné stavby kládu nedají). Padlé kmeny, keře,
+   po stromu, po každém zůstane pařez. Kmeny dospělých stromů odnesou na **hromadu klád** u cesty
+   nejblíž čtverci, bez cesty do 60 m u paseky (Martin, 8. 11. 2026 – dřív u lesa; strom = kláda jako dosud, vyhrazené stromy jiné stavby kládu nedají). Padlé kmeny, keře,
    podrost a staré pařezy zůstanou do pálení. Kameny a balvany se v této fázi sesbírají (po kusech
    jako dosud).
 2. **Schnutí** – větve a klest leží na pasece v hromadách a schnou **30 dní** od pádu posledního
@@ -189,20 +208,21 @@ podíl práce kácení: strom padne, když práce kácení dojde k jeho podílu 
 při dopočtu po dnech i najednou. Ohně a kouř počítá scéna z fáze dílu a dne dohoření, bez náhody
 v jádru.
 
-**Klády u lesa:** pole má svou **hromadu klád u lesa** – vznikne s prvním skáceným dospělým
-stromem u čtverce, na kterém se začalo (kraj lesa nejblíž vsi), a leží vedle něj na volném místě
-mimo díly pole (hranice po 21 kládách, nejvýš tři; bez volného místa se nekreslí – jako hromada
-u vsi). Klády u lesa patří do zásoby vsi (horní lišta, cena staveb, tlačítka staveb) a hnijí
-stejně (4 % ročně). **Odvoz na stavby:** stavba bere klády nejdřív z hromad u lesa (od nejbližší
-ke staveništi), pak z hromady u vsi – hromada u lesa ubývá, až zmizí. Odvoz je v ceně stavby jako
-dosud u hromady u vsi (kácení 2 čd za strom v sobě má i dovoz). Klády z ostatního mýcení
-(hřbitov, staveniště, milířiště, vracený příloh) jdou dál na hromadu u vsi. **Zrušené pole nebo
-ubraný čtverec:** skácené stromy zůstanou pařezy a z náletu dorostou, klády zůstanou u lesa.
+**Klády z klučení:** pole má svou **hromadu klád** (Mýcení a hromada klád – hromady u cesty;
+Martin, 8. 11. 2026) – vznikne s prvním skáceným dospělým stromem u cesty nejblíž čtverci, na
+kterém se začalo (kraj lesa nejblíž vsi); bez cesty do 60 m leží vedle toho čtverce na volném
+místě mimo díly pole (hranice po 21 kládách, nejvýš tři; bez volného místa se nekreslí). Další
+klády klučení téhož pole přibývají na ni, i když se kácí na jiném čtverci. Klády patří do zásoby
+vsi (horní lišta, cena staveb, tlačítka staveb) a hnijí stejně (4 % ročně). **Odvoz na stavby:**
+stavba bere klády od hromady nejbližší ke staveništi – hromada ubývá, až zmizí. Odvoz je v ceně
+stavby (kácení 2 čd za strom v sobě má i dovoz). **Zrušené pole nebo ubraný čtverec:** skácené
+stromy zůstanou pařezy a z náletu dorostou, klády zůstanou na hromadě; stromy, které ještě
+nepadly, dají klády na hromadu pole.
 
 **Co hráč vidí:**
 
 - **Scéna:** stromy padají po jednom a po každém zůstane pařez; postavy kácí a nosí kmeny
-  k hromadě u lesa. Paseka s pařezy a hromadami větví (2–4 na čtverec) – les ustupuje (vymýcený
+  k hromadě klád (u cesty, bez ní u paseky). Paseka s pařezy a hromadami větví (2–4 na čtverec) – les ustupuje (vymýcený
   les, jakmile ze čtverce zmizí aspoň polovina dospělých stromů, kreslí scéna už dnes). Při pálení
   hoří hromady větví (plameny, jiskry a záře jako u pohřební hranice), nad pasekou stoupá hustý
   kouř, který vítr odnáší, a postavy u ohňů rozhrnují hořící větve. Plameny jsou přes pracovní
@@ -211,7 +231,8 @@ ubraný čtverec:** skácené stromy zůstanou pařezy a z náletu dorostou, kl�
   zbývá), přesýpací hodiny (schne: datum v popisku – „Větve schnou do 12. 4.“, „Pálí se od
   března“), oheň (pálení: pruh). Panel pole ukáže počet čtverců v každé fázi. Jen ikony s čísly,
   slova v popiscích.
-- **Horní lišta:** klády celkem, popisek rozdělí „u vsi“ a „u lesa“.
+- **Horní lišta:** klády celkem na všech hromadách (popisek „Klády na hromadách“ – hromady u vsi
+  a u lesa se už nerozlišují, Mýcení a hromada klád).
 - **U kurzoru** při zakládání pole v lese práce jako dosud a v popisku, že čtverec v lese bude
   připravený až po vyschnutí a vypálení.
 
@@ -258,7 +279,7 @@ nebo až padnou stromy na straně ke kameře. Ohně zůstávají ve výšce člo
 **Mimo tento návrh:** stavby v lese (obydlí, dílny – Stavba v lese) se klučí dál naráz; vracení
 zarostlého přílohu (mladý les) beze změny; počasí – až přijde, pálí se jen za suchých dnů a déšť
 schnutí prodlouží; oheň, který přeskočí do lesa; zvuk praskání ohně; postavy a vozy, které vozí
-klády z hromady u lesa na staveniště.
+klády z hromady na staveniště.
 
 **Otázka na Martina:** setí do popela bez kopání (Rösch a kol. 2017 – půda je po pálení kyprá)?
 Návrh Clauda: zatím ne – kopání zůstává, jinak by se měnila kalibrace polí.
@@ -292,30 +313,33 @@ Návrh Clauda: zatím ne – kopání zůstává, jinak by se měnila kalibrace 
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                               | Kdo                                        |
-| -------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| Palivo (klestí, odřezky) sbírají vesničané sami, bez kácení                                              | Martin                                     |
-| Stromy se kácí na stavby, později na řemesla                                                             | Martin                                     |
-| Kde kácet, si vyberou vesničané sami – nejbližší vhodný les                                              | Martin                                     |
-| Dřevo z mýcení jde na hromadu klád u vsi, ubývá se stavbami                                              | Martin                                     |
-| Stavba bere nejdřív z hromady, kácí se jen při nedostatku                                                | Martin                                     |
-| Když není z čeho kácet (klády + dospělé stromy nestačí), stavba je zašedlá                               | Martin                                     |
-| Strom = velký strom; 7 / 18 stromů na zemnici / polozemnici, dílny + 30 %                                | Martin – oprava podle rešerše 17. 10. 2026 |
-| Kácení a dovoz 2 čd na strom, nad 100 m od staveniště +1 % / 10 m                                        | Martin – oprava podle rešerše 17. 10. 2026 |
-| Jen dospělé stromy, pařez po kácení; nálet: mladý strom ≈ 30 let, dospělý ≈ 70                           | Martin – oprava podle rešerše 17. 10. 2026 |
-| Klády hnijí ≈ 4 % ročně                                                                                  | Martin – oprava podle rešerše 17. 10. 2026 |
-| Strom z mýcení = 1 kláda; hromada u obydlí nejblíž lesu                                                  | návrh Clauda                               |
-| Stromy se vyhradí při zahájení, kácí se jako první část práce stavby                                     | návrh Clauda                               |
-| Přestavbu a první zemnici dřevo neblokuje – vezmou, co je                                                | návrh Clauda                               |
-| Vyhrazený strom patří své stavbě; opuštěná přestavba vrátí klády z hromady                               | revize implementace 18. 10. 2026           |
-| Palivo jako třetina domácí výroby, dražší se vzdáleností k lesu                                          | návrh Clauda                               |
-| Stromy jako herní data (vrstva překážek) jsou předpoklad                                                 | návrh Clauda                               |
-| Obydlí i ostatní stavby smí do lesa – les se vyklučí                                                     | Martin, 19. 10. 2026                       |
-| Les pod stavbou za sazbu lesa jako pole, pruh 4 m pod korunami, stromy = klády                           | návrh Clauda                               |
-| Palivo s domácí výrobou bokem, přirážka za les daleko zmizela                                            | Martin / Claude, 19. 10. 2026              |
-| Les pro pole: kácení, klády složené u lesa, pálení větví a pařezů s ohni a kouřem, pak pole připravené   | Martin, 24. 10. 2026 (issue #10)           |
-| Fáze čtverce kácení → schnutí 30 dní → pálení březen–říjen → připraveno, bonus popela od dohoření        | návrh Clauda, 26. 10. 2026                 |
-| Sazba lesa beze změny, rozdělená 60 % kácení a odnos klád / 40 % pálení; klučení pařezů nahradí vypálení | návrh Clauda, 26. 10. 2026                 |
-| Uvnitř pole napřed pálení suchých čtverců, pak kácení; schnoucí pole práci nebere                        | návrh Clauda, 26. 10. 2026                 |
-| Hromada klád u lesa pro každé pole, patří do zásoby vsi; stavby berou nejdřív z hromad u lesa            | návrh Clauda, 26. 10. 2026                 |
-| Rozestavěné díly v lese starších vsí dostanou fáze, odvedená práce se zachová                            | návrh Clauda, 26. 10. 2026                 |
+| Rozhodnutí                                                                                               | Kdo                                           |
+| -------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| Palivo (klestí, odřezky) sbírají vesničané sami, bez kácení                                              | Martin                                        |
+| Stromy se kácí na stavby, později na řemesla                                                             | Martin                                        |
+| Kde kácet, si vyberou vesničané sami – nejbližší vhodný les                                              | Martin                                        |
+| Dřevo z mýcení jde na hromadu klád u vsi, ubývá se stavbami                                              | Martin                                        |
+| Stavba bere nejdřív z hromady, kácí se jen při nedostatku                                                | Martin                                        |
+| Když není z čeho kácet (klády + dospělé stromy nestačí), stavba je zašedlá                               | Martin                                        |
+| Strom = velký strom; 7 / 18 stromů na zemnici / polozemnici, dílny + 30 %                                | Martin – oprava podle rešerše 17. 10. 2026    |
+| Kácení a dovoz 2 čd na strom, nad 100 m od staveniště +1 % / 10 m                                        | Martin – oprava podle rešerše 17. 10. 2026    |
+| Jen dospělé stromy, pařez po kácení; nálet: mladý strom ≈ 30 let, dospělý ≈ 70                           | Martin – oprava podle rešerše 17. 10. 2026    |
+| Klády hnijí ≈ 4 % ročně                                                                                  | Martin – oprava podle rešerše 17. 10. 2026    |
+| Strom z mýcení = 1 kláda; hromada u obydlí nejblíž lesu                                                  | návrh Clauda                                  |
+| Stromy se vyhradí při zahájení, kácí se jako první část práce stavby                                     | návrh Clauda                                  |
+| Přestavbu a první zemnici dřevo neblokuje – vezmou, co je                                                | návrh Clauda                                  |
+| Vyhrazený strom patří své stavbě; opuštěná přestavba vrátí klády z hromady                               | revize implementace 18. 10. 2026              |
+| Palivo jako třetina domácí výroby, dražší se vzdáleností k lesu                                          | návrh Clauda                                  |
+| Stromy jako herní data (vrstva překážek) jsou předpoklad                                                 | návrh Clauda                                  |
+| Obydlí i ostatní stavby smí do lesa – les se vyklučí                                                     | Martin, 19. 10. 2026                          |
+| Les pod stavbou za sazbu lesa jako pole, pruh 4 m pod korunami, stromy = klády                           | návrh Clauda                                  |
+| Palivo s domácí výrobou bokem, přirážka za les daleko zmizela                                            | Martin / Claude, 19. 10. 2026                 |
+| Les pro pole: kácení, klády složené u lesa, pálení větví a pařezů s ohni a kouřem, pak pole připravené   | Martin, 24. 10. 2026 (issue #10)              |
+| Fáze čtverce kácení → schnutí 30 dní → pálení březen–říjen → připraveno, bonus popela od dohoření        | návrh Clauda, 26. 10. 2026                    |
+| Sazba lesa beze změny, rozdělená 60 % kácení a odnos klád / 40 % pálení; klučení pařezů nahradí vypálení | návrh Clauda, 26. 10. 2026                    |
+| Uvnitř pole napřed pálení suchých čtverců, pak kácení; schnoucí pole práci nebere                        | návrh Clauda, 26. 10. 2026                    |
+| Hromada klád u lesa pro každé pole, patří do zásoby vsi; stavby berou nejdřív z hromad u lesa            | návrh Clauda, 26. 10. 2026 (nahrazeno 8. 11.) |
+| Klády z každého mýcení na hromadu u cesty nejblíž místu kácení, místo se nemění; hromada u vsi zaniká    | Martin, 8. 11. 2026                           |
+| Hromada 6 m od osy cesty, cesta nejvýš 60 m od místa kácení, doplnění hromady do 10 m, dovoz u dvorce    | návrh Clauda, 8. 11. 2026                     |
+| Starší ves: hromada u vsi se stane hromadou na svém dnešním místě                                        | návrh Clauda, 8. 11. 2026                     |
+| Rozestavěné díly v lese starších vsí dostanou fáze, odvedená práce se zachová                            | návrh Clauda, 26. 10. 2026                    |

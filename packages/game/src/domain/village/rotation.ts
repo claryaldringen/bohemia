@@ -43,6 +43,8 @@ export type SowingKind = 'first' | 'spring' | 'winter' | 'late' | 'emergency' | 
 
 /** Co je na dílu na řadě; díl v sezóně (zasetý) a zakládaný null. */
 export function nextSowing(part: FieldPart): SowingKind | null {
+  // opuštěný díl odpočívá napořád (fields.md – Opuštěný díl); osetý dál roste do žní
+  if (part.abandoned) return part.state === 'fallow' || part.state === 'ready' ? 'rest' : null;
   if (part.state === 'ready') return part.next ?? 'first';
   if (part.state !== 'fallow') return null;
   if (part.fertilityShare >= FERTILITY.fallowReady - EPSILON) return 'first';
@@ -79,6 +81,19 @@ export function sowingCropToday(kind: SowingKind | null, day: number): 'winter' 
 }
 
 /**
+ * Opuštěný díl jde do přílohu (mutuje – fields.md, Opuštěný díl): jako díl po osevu, který
+ * vyčerpal úrodnost – od dne `day` ladem, bez plodiny, postupu a popela z vymýcení.
+ */
+export function toAbandonedFallow(part: FieldPart, day: number): void {
+  part.state = 'fallow';
+  part.fallowSinceDay = day;
+  part.sownYears = 0;
+  part.bonusUntilDay = null;
+  delete part.crop;
+  delete part.next;
+}
+
+/**
  * Konec hospodářského roku (1. 9.) pro jeden díl podle postupu (fields.md – Osevní postup po
  * dílech, bod 1) – mění ho na místě. Úrodnost jako `endOfSeason`; pak ozim, který byl prvním
  * osevem oběhu, čeká na jař a jař, která byla prvním osevem (ozim nestihla), na ozim (Martin
@@ -90,6 +105,11 @@ export function rotateAfterSeason(part: FieldPart, day: number): void {
   const crop = part.crop ?? 'spring';
   if (sown) delete part.next;
   endOfSeason(part, day);
+  // opuštěný díl po žních do přílohu (fields.md – Opuštěný díl)
+  if (part.abandoned && (part.state === 'sown' || part.state === 'ready')) {
+    toAbandonedFallow(part, day);
+    return;
+  }
   if (!sown || part.state !== 'sown') return;
   delete part.crop;
   if (part.sownYears === SOWN_ROUNDS - 1 && (crop === 'winter' || crop === 'spring')) {
@@ -136,7 +156,9 @@ export function returnPart(part: FieldPart, startDay: number): void {
   delete part.crop;
   delete part.fallowBeforeSeason;
   if (!before) {
-    part.state = 'ready';
+    // opuštěný díl se nevrací k osevu – leží ladem (fields.md – Opuštěný díl)
+    if (part.abandoned) toAbandonedFallow(part, startDay);
+    else part.state = 'ready';
     return;
   }
   part.state = 'fallow';

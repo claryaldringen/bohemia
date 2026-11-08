@@ -1330,7 +1330,8 @@ function buildPiece(
       ];
     }
     keepClear(state, [...tally.felled, ...tally.kept]);
-    addLogs(state, logsFromClearedTrees(tally.trees));
+    // klády k nové cestě u prostředku úseku (forest.md – Mýcení a hromada klád)
+    addLogs(state, logsFromClearedTrees(tally.trees), axis[axis.length >> 1]!);
   }
   return road;
 }

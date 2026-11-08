@@ -485,12 +485,13 @@ export function burnCrew(
   return atTree(ctx, { x: site.x, z: site.z }, slot, 'hoe', reach);
 }
 
-/** Nejdál k hromadě klád u lesa (m) – dál se kmeny nenosí, kácí se. */
+/** Nejdál k hromadě klád (m) – dál se kmeny nenosí, kácí se. */
 const LOG_HAUL_M = 120;
 
 /**
- * Nosič kmenů na kácené pasece: od padlého stromu k nejbližší hromadě klád u lesa
- * (`SceneVillage.logStacks` – kotva hromady), zpátky s prázdnou. Bez hromady kácí.
+ * Nosič kmenů na kácené pasece: od padlého stromu k nejbližší hromadě klád – u cesty nejblíž
+ * pasece, bez cesty u paseky (`SceneVillage.logStacks` – místo hromady), zpátky s prázdnou. Bez
+ * hromady kácí.
  */
 export function logCarrier(ctx: Context, tree: Point, who: Identity): PoseFn | null {
   const stacks = ctx.village.logStacks ?? [];

@@ -11,6 +11,7 @@ import {
   parseRestartGameInput,
   parsePosition,
   parseSkipTimeInput,
+  parseAbandonFieldPartsInput,
   parseCancelConstructionInput,
   parseNameLineManInput,
   parseRelocateHouseholdInput,
@@ -222,6 +223,24 @@ describe('vstupy víc vsí a přestěhování (migration.md)', () => {
     expect(parseCancelConstructionInput({ constructionId: -1 })).toBeNull();
     expect(parseCancelConstructionInput({ constructionId: '12' })).toBeNull();
     expect(parseCancelConstructionInput(undefined)).toBeNull();
+  });
+
+  it('opuštění dílů pole – neprázdný seznam kladných id bez opakování a abandon', () => {
+    expect(parseAbandonFieldPartsInput({ partIds: [3, 7], abandon: true })).toEqual({
+      partIds: [3, 7],
+      abandon: true,
+    });
+    expect(parseAbandonFieldPartsInput({ partIds: [3], abandon: false })).toEqual({
+      partIds: [3],
+      abandon: false,
+    });
+    expect(parseAbandonFieldPartsInput({ partIds: [], abandon: true })).toBeNull();
+    expect(parseAbandonFieldPartsInput({ partIds: [3, 3], abandon: true })).toBeNull();
+    expect(parseAbandonFieldPartsInput({ partIds: [0], abandon: true })).toBeNull();
+    expect(parseAbandonFieldPartsInput({ partIds: ['3'], abandon: true })).toBeNull();
+    expect(parseAbandonFieldPartsInput({ partIds: [3], abandon: 'yes' })).toBeNull();
+    expect(parseAbandonFieldPartsInput({ partIds: 3, abandon: true })).toBeNull();
+    expect(parseAbandonFieldPartsInput(null)).toBeNull();
   });
 
   it('pojmenování muže rodu – kladné id člověka a jméno (písmena ověří use-case)', () => {

@@ -6,6 +6,7 @@ import { fieldPartName, orchardSquareName, type SelectionDetails } from '@/lib/s
 import { PEN_NAMES } from '@/lib/build-items';
 import { formatPercent } from '@/lib/village-format';
 import { ROAD_KIND_NAMES, SACRED_BUILDING_NAMES } from '@/lib/village-view';
+import { AbandonPartButton } from './AbandonPartButton';
 import { CancelConstructionButton } from './RelocationControls';
 import { Tooltip } from './Tooltip';
 import { StewardBuiltMark } from './StewardToggle';
@@ -93,8 +94,11 @@ export function SelectionPanel({
   gateFort = null,
   onGateMode,
   ennoble,
+  onAbandonPart,
 }: {
   details: SelectionDetails | null;
+  /** Opustí díl pole, nebo ho vrátí do osevu (server action – fields.md, Opuštěný díl). */
+  onAbandonPart?: (partId: number, abandon: boolean) => Promise<void>;
   /** Povýšení vesničana (vassalage.md): cílové vsi bez vojvody a akce – klíč v panelu muže. */
   ennoble?: EnnobleActions;
   /** Zadá vylepšení opevnění (server action) – hotovo, až se vrátí. */
@@ -328,9 +332,20 @@ export function SelectionPanel({
       <div className="flex min-h-24 gap-3">
         {portrait}
         {body}
-        {(details.cancelConstructionId !== undefined || details.stewardBuilt) && (
+        {(details.cancelConstructionId !== undefined ||
+          details.stewardBuilt ||
+          details.kind === 'field-part') && (
           <div className="ml-auto flex items-center gap-1 self-start">
             {details.stewardBuilt && <StewardBuiltMark />}
+            {details.kind === 'field-part' && (
+              <AbandonPartButton
+                partId={details.partId}
+                abandoned={details.abandoned}
+                sown={details.stage === 'sown'}
+                block={details.abandonBlock}
+                onToggle={onAbandonPart}
+              />
+            )}
             {details.cancelConstructionId !== undefined && (
               <CancelConstructionButton
                 constructionId={details.cancelConstructionId}

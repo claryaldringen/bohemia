@@ -126,7 +126,7 @@ export function harvestPerPersonKg(
 export interface FieldCapacity {
   /** Uživí se ≈ tolik lidí (při dnešním složení a stravě vsi). */
   people: number;
-  /** Plocha pole v oběhu (ha) – osev a příloh bez zarostlých a zakládaných dílů. */
+  /** Plocha pole v oběhu (ha) – osev a příloh bez zarostlých, opuštěných a zakládaných dílů. */
   rotationHa: number;
   /** Z toho osev v ustáleném oběhu (ha). */
   sownHa: number;
@@ -154,7 +154,10 @@ export function fieldCapacity(
   potteryCoverage: number = NO_CRAFTS.pottery,
 ): FieldCapacity | null {
   const inRotation = state.parts.filter(
-    (p) => (p.state === 'sown' || p.state === 'ready' || p.state === 'fallow') && !isOvergrown(p),
+    (p) =>
+      (p.state === 'sown' || p.state === 'ready' || p.state === 'fallow') &&
+      !isOvergrown(p) &&
+      !p.abandoned,
   );
   const areaM2 = inRotation.reduce((sum, p) => sum + p.areaM2, 0);
   if (state.people.length === 0 || areaM2 <= 0) return null;

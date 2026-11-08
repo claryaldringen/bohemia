@@ -41,7 +41,7 @@ export function withDwellingShapes(
     for (const id of ids) cleared.add(id);
     if (ids.length > 0) recordClearedObstacles(next, ids, day);
     const logs = logsFromClearedTrees(trees);
-    if (logs > 0) addLogs(next, logs);
+    if (logs > 0) addLogs(next, logs, placed.position);
     return true;
   };
   for (const d of [...next.dwellings].sort((a, b) => a.id - b.id)) {

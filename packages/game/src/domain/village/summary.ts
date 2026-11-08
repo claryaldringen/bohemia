@@ -446,11 +446,11 @@ export interface VillageSummary {
   storesKg: number;
   /** Zásoby jablek (kg) – jí se před obilím, 1. 3. shnijí. */
   applesKg: number;
-  /** Klády v zásobě vsi celkem (forest.md) – u vsi i u lesa. */
+  /** Klády v zásobě vsi celkem (forest.md) – na všech hromadách. */
   woodLogs: number;
-  /** Z toho klády na hromadách u lesa (zbytek leží u vsi). */
+  /** Z toho klády na hromadách (`logStacks` – u cest a u míst kácení). */
   forestLogs: number;
-  /** Klády na hromadě u vsi (kusy, bez hromad u lesa). */
+  /** Klády bez hromady (`pileLogs` – jen ves před převodem na hromady u cesty). */
   pileLogs: number;
   /** Na kolik měsíců zásoby obilí vystačí při dnešní potřebě (bez lidí 0). */
   storesMonths: number;

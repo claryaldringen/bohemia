@@ -184,7 +184,7 @@ export function addGood(state: VillageState, good: TradeGood, amount: number, da
       state.legumesKg = Math.max(0, (state.legumesKg ?? 0) + amount);
       return;
     case 'logs':
-      if (amount > 0) addLogs(state, amount);
+      if (amount > 0) addLogs(state, amount, null);
       else takeLogs(state, -amount);
       return;
     case 'pottery': {

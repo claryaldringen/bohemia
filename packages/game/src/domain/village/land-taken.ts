@@ -5,7 +5,8 @@ import { recordClearedObstacles } from './obstacles';
 import { partsSeedKg } from './seed';
 import { normalizeGrid, squareKey } from './square-grid';
 import { PolygonIndex, villageLandSquares, type LandSquare, type SquaresVillage } from './squares';
-import { squareCareWork, squareHarvestWork, squareYieldKg } from './orchard';
+import { orchardSquareCenter, squareCareWork, squareHarvestWork, squareYieldKg } from './orchard';
+import { partCenter } from './forest-clearing';
 import { TAKEN_LAND_MIN_SHARE, TAKEN_LAND_TREE_M2 } from './rules';
 import type {
   ChronicleEvent,
@@ -325,12 +326,12 @@ function resizeParts(
       for (const { work } of seasonCrops(plan)) dropFromWork(work, new Set([part.id]));
     }
     dropFromMowing(state, part.id);
-    handOverObstacles(state, part, day);
-    // díl v lese s fázemi: dospělé stromy, které ještě nepadly, dají klády na hromadu u vsi jako
-    // dřív `trees` (forest.md – Klučení lesa pro pole – postup)
+    handOverObstacles(state, part, day, partCenter(state, part));
+    // díl v lese s fázemi: dospělé stromy, které ještě nepadly, dají klády na hromadu pole u cesty
+    // jako dřív `trees` (forest.md – Mýcení a hromada klád)
     if (part.clearing) {
       const standing = part.clearing.fell.slice(part.clearing.felled).filter((t) => t.log);
-      addLogs(state, logsFromClearedTrees(standing.length));
+      addLogs(state, logsFromClearedTrees(standing.length), partCenter(state, part), part.fieldId);
       // pařezy padlých stromů odklidila stavba – záznamy kácení zmizí (odstranění má přednost)
       if (state.felledTrees) {
         const gone = new Set([...(part.obstacles ?? []), ...part.clearing.fell.map((t) => t.id)]);
@@ -606,6 +607,7 @@ function handOverObstacles(
   state: VillageState,
   square: Pick<FieldPart | OrchardSquare, 'obstacles' | 'trees'>,
   day: number,
+  at: { x: number; z: number } | null,
 ): void {
   if (square.obstacles) {
     const cleared = new Set((state.clearedObstacles ?? []).map((o) => o.id));
@@ -615,7 +617,7 @@ function handOverObstacles(
       day,
     );
   }
-  if (square.trees) addLogs(state, logsFromClearedTrees(square.trees));
+  if (square.trees) addLogs(state, logsFromClearedTrees(square.trees), at);
 }
 
 /** Pole bez dílů zanikne i se svou stavbou (založení). */
@@ -651,7 +653,7 @@ function shrinkOrchards(
       shrinkOrchardWork(state, square, share, day);
       loss.set(orchard.id, (loss.get(orchard.id) ?? 0) + lost);
       if (left <= 0) {
-        handOverObstacles(state, square, day);
+        handOverObstacles(state, square, day, orchardSquareCenter(orchard, square));
         continue;
       }
       square.plantingCost -= square.plantingCost * share;

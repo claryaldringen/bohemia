@@ -116,6 +116,28 @@ test('pozvánka: pozvaný je vazal, pozvatel má vazala a upozornění, cizí hr
   await Promise.all([ctxA.close(), ctxB.close(), ctxC.close()]);
 });
 
+/**
+ * Upozornění vsi hráče po dotazu na ves; `click` ho rovnou otevře. Upozornění se přináší jednou
+ * a v rozhraní mizí po pár sekundách, takže po každém dotazu se čeká jen krátce na jeho zobrazení
+ * (a klik jde hned) a dotaz se případně zopakuje – jediný dotaz pod zátěží někdy čerstvé
+ * upozornění nepřinese (sloučí se s běžícím dotazem), ale čekání na zobrazení v jedné smyčce
+ * s dotazy by upozornění nechalo vypršet dřív, než ho test uvidí.
+ */
+async function noticeAfterPoll(page: Page, text: string, click = false): Promise<void> {
+  const notice = page.getByTestId('village-notice').filter({ hasText: text }).first();
+  const deadline = Date.now() + 90_000;
+  for (;;) {
+    await pollVillage(page);
+    try {
+      await notice.waitFor({ state: 'visible', timeout: 5_000 });
+      if (click) await notice.click({ timeout: 3_000 });
+      return;
+    } catch (error) {
+      if (Date.now() > deadline) throw error;
+    }
+  }
+}
+
 /** Obnoví panel (data se načítají při otevření): zavře ho a otevře znovu. */
 async function reopenHousePanel(page: Page): Promise<ReturnType<Page['getByRole']>> {
   const panel = page.getByRole('dialog', { name: 'Rod a vazalové' });
@@ -246,7 +268,8 @@ const TERMS_SCREENSHOT = process.env.TERMS_SCREENSHOT;
 test('podmínky vazalství: ikony v panelu, nové podmínky odmítnuty, vypovězení', async ({
   browser,
 }) => {
-  test.setTimeout(240_000);
+  // dva hráči (registrace, scéna, založení vsi) – pod zátěží stroje 240 s nestačí
+  test.setTimeout(480_000);
   await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
   const ctxs = await Promise.all([browser.newContext(), browser.newContext()]);
   for (const ctx of ctxs) await useUniqueClientIp(ctx);
@@ -290,6 +313,8 @@ test('podmínky vazalství: ikony v panelu, nové podmínky odmítnuty, vypověz
   await panelA2.getByTestId('agreement-new-terms').click();
   await panelA2.getByTestId('term-tribute-grainKg').fill('900');
   await panelA2.getByTestId('terms-submit').click();
+  // protinávrh je uložený – jinak by B panel otevřel dřív a jednání v něm nebylo
+  await expect(panelA2.getByTestId('house-negotiation')).toHaveAttribute('data-my-turn', 'false');
   const panelB2 = await reopenHousePanel(b);
   await expect(panelB2.getByTestId('house-negotiation')).toHaveAttribute('data-my-turn', 'true');
   await panelB2.getByTestId('negotiation-reject').click();
@@ -305,12 +330,7 @@ test('podmínky vazalství: ikony v panelu, nové podmínky odmítnuty, vypověz
   await panelB2.getByTestId('renounce-message').fill('Dost bylo');
   await panelB2.getByTestId('renounce-confirm').click();
   await expect(panelB2.getByTestId('house-independent')).toBeVisible();
-  await pollVillage(a);
-  await expect(
-    a.getByTestId('village-notice').filter({ hasText: 'skončilo vypovězením' }),
-  ).toBeVisible({
-    timeout: 60_000,
-  });
+  await noticeAfterPoll(a, 'skončilo vypovězením');
   const panelA4 = await reopenHousePanel(a);
   await expect(panelA4.getByTestId('house-vassal')).toHaveCount(0);
 
@@ -485,7 +505,8 @@ test('pomoc na žádost: B požádá A o obilí, A dá půjčku, B přijme → z
 test('obchod mezi hráči: A nabídne C obilí za klády, C přijme → oba mají dialog, A pošle celé, C míň', async ({
   browser,
 }) => {
-  test.setTimeout(240_000);
+  // dva hráči (registrace, scéna, založení vsi) – pod zátěží stroje 240 s nestačí
+  test.setTimeout(480_000);
   await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
   const ctxs = await Promise.all([browser.newContext(), browser.newContext()]);
   for (const ctx of ctxs) await useUniqueClientIp(ctx);
@@ -522,6 +543,8 @@ test('obchod mezi hráči: A nabídne C obilí za klády, C přijme → oba maj�
   await panelA.getByTestId('term-trade-give-grainKg').fill('6');
   await panelA.getByTestId('term-trade-get-logs').fill('4');
   await panelA.getByTestId('terms-submit').click();
+  // nabídka je uložená – jinak by C panel otevřel dřív a jednání v něm nebylo
+  await expect(panelA.getByTestId('house-negotiation')).toHaveAttribute('data-my-turn', 'false');
 
   // C vidí obchod z druhé strany (dá klády, dostane obilí) a přijme
   const panelC = await reopenHousePanel(c);
@@ -540,9 +563,12 @@ test('obchod mezi hráči: A nabídne C obilí za klády, C přijme → oba maj�
   );
   expect(dialogs).toHaveLength(2);
 
-  // A otevře dialog z upozornění a pošle celé
-  await pollVillage(a);
-  await a.getByTestId('village-notice').filter({ hasText: 'čeká odeslání zboží' }).click();
+  // Oba otevřou dialog z upozornění hned za sebou – upozornění se přináší jednou a v rozhraní
+  // mizí po pár sekundách, takže na druhého se nesmí čekat, až první dokončí odeslání.
+  await noticeAfterPoll(a, 'čeká odeslání zboží', true);
+  await noticeAfterPoll(c, 'čeká odeslání zboží', true);
+
+  // A pošle celé
   const dialogA = a.getByRole('dialog', { name: 'Odvody' });
   await expect(dialogA).toBeVisible();
   await dialogA.locator('input[type="range"]').fill('6');
@@ -550,8 +576,6 @@ test('obchod mezi hráči: A nabídne C obilí za klády, C přijme → oba maj�
   await expect(dialogA.locator('[data-testid$="-sent"]')).toBeVisible({ timeout: 30_000 });
 
   // C pošle míň (2 z 4 klád)
-  await pollVillage(c);
-  await c.getByTestId('village-notice').filter({ hasText: 'čeká odeslání zboží' }).click();
   const dialogC = c.getByRole('dialog', { name: 'Odvody' });
   await expect(dialogC).toBeVisible();
   await dialogC.locator('input[type="range"]').fill('2');
@@ -567,14 +591,8 @@ test('obchod mezi hráči: A nabídne C obilí za klády, C přijme → oba maj�
   expect(shipments.map((s) => s.to_village).sort()).toEqual(
     [seatA.settlementId, seatC.settlementId].sort(),
   );
-  await pollVillage(c);
-  await expect(c.getByTestId('village-notice').filter({ hasText: 'zboží z obchodu' })).toBeVisible({
-    timeout: 60_000,
-  });
-  await pollVillage(a);
-  await expect(
-    a.getByTestId('village-notice').filter({ hasText: 'Míň, než bylo domluveno' }),
-  ).toBeVisible({ timeout: 60_000 });
+  await noticeAfterPoll(c, 'zboží z obchodu');
+  await noticeAfterPoll(a, 'Míň, než bylo domluveno');
   expect(idA).not.toBe(idC);
 
   await Promise.all(ctxs.map((ctx) => ctx.close()));
@@ -804,7 +822,8 @@ test('válka: nový rod je pod ochranou, po jejím vypršení A opoví válku C 
 test('mír: A a C jsou ve válce, C nabídne mír s poplatkem, A přijme → válka skončila mírem a C má dialog poplatku', async ({
   browser,
 }) => {
-  test.setTimeout(240_000);
+  // dva hráči (registrace, scéna, založení vsi) – pod zátěží stroje 240 s nestačí
+  test.setTimeout(480_000);
   await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
   const ctxs = await Promise.all([browser.newContext(), browser.newContext()]);
   for (const ctx of ctxs) await useUniqueClientIp(ctx);
@@ -830,8 +849,15 @@ test('mír: A a C jsou ve válce, C nabídne mír s poplatkem, A přijme → vá
   await expect(a.getByTestId('war-count')).toHaveAttribute('data-wars', '1', { timeout: 30_000 });
 
   // C nabídne mír s poplatkem 4 kg obilí, který zaplatí sám
-  await pollVillage(c);
-  await expect(c.getByTestId('war-count')).toHaveAttribute('data-wars', '1', { timeout: 30_000 });
+  await expect
+    .poll(
+      async () => {
+        await pollVillage(c);
+        return c.getByTestId('war-count').getAttribute('data-wars', { timeout: 5_000 });
+      },
+      { timeout: 90_000 },
+    )
+    .toBe('1');
   await c.getByTestId('war-toggle').click();
   await c.getByTestId('war-offer-peace').click();
   // jedinou vsi rodu postoupit nejde (poslední mapa) – volba je zašedlá
@@ -840,6 +866,21 @@ test('mír: A a C jsou ve válce, C nabídne mír s poplatkem, A přijme → vá
   await c.getByTestId('peace-cede-side').selectOption('none');
   await c.getByTestId('peace-fee').fill('4');
   await c.getByTestId('peace-send').click();
+  // formulář se zavře hned a nabídka se posílá na pozadí – počkat, až je jednání uložené,
+  // jinak by A panel otevřel dřív a jednání v něm nebylo
+  await expect
+    .poll(
+      async () =>
+        (
+          await query(
+            `SELECT 1 FROM negotiation WHERE status = 'open'
+              AND party_low = ANY($1) AND party_high = ANY($1)`,
+            [[idA, idC]],
+          )
+        ).length,
+      { timeout: 30_000 },
+    )
+    .toBe(1);
 
   // A vidí mírové jednání a přijme
   const panelA2 = await reopenHousePanel(a);
@@ -860,10 +901,7 @@ test('mír: A a C jsou ve válce, C nabídne mír s poplatkem, A přijme → vá
     [idC],
   );
   expect(dialogs).toEqual([{ kind: 'fee-send' }]);
-  await pollVillage(c);
-  await expect(c.getByTestId('village-notice').filter({ hasText: 'Mír s' })).toBeVisible({
-    timeout: 60_000,
-  });
+  await noticeAfterPoll(c, 'Mír s');
   await Promise.all(ctxs.map((ctx) => ctx.close()));
 });
 

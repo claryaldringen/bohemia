@@ -24,32 +24,108 @@ export interface FortWalls {
   /** Otvory bran ve stojících úsecích – obdélník brány přes celou šířku pásu. */
   gates: Point[][];
   /**
-   * Body objížďky vně hladkého obvodu (po ≈ 5 m, 1 m za vnějším okrajem) – chůze kolem stěny
+   * Body objížďky vně hladkého obvodu (po ≈ 10 m, 1 m za vnějším okrajem) – chůze kolem stěny
    * (`wallDetour`); obvod nemá ostré rohy, kolem kterých by se objížďka lámala.
    */
   detour?: Point[];
 }
 
 /** Rozestup a odstup bodů objížďky vně obvodu (m). */
-const DETOUR_STEP_M = 5;
+const DETOUR_STEP_M = 10;
 const DETOUR_OFFSET_M = 1;
 
-/** Body objížďky vně obvodu – po `DETOUR_STEP_M`, `DETOUR_OFFSET_M` za vnějším okrajem. */
-function detourPoints(outline: FortOutline): Point[] {
+/** Nejmenší rozestup bodů objížďky po půlení (m). */
+const DETOUR_MIN_STEP_M = 2.5;
+
+/** Řízne úsečka p → q vnitřek konvexního čtyřúhelníku? (ořez podle hran, jen sčítání a násobení) */
+export function segmentCutsQuad(p: Point, q: Point, quad: readonly Point[]): boolean {
+  const n = quad.length;
+  let sign = 0;
+  for (let k = 0; k < n && sign === 0; k++) {
+    const a = quad[k]!;
+    const b = quad[(k + 1) % n]!;
+    const c = quad[(k + 2) % n]!;
+    const cross = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+    if (cross !== 0) sign = cross > 0 ? 1 : -1;
+  }
+  if (sign === 0) return false;
+  let t0 = 0;
+  let t1 = 1;
+  const dx = q[0] - p[0];
+  const dz = q[1] - p[1];
+  for (let k = 0; k < n; k++) {
+    const a = quad[k]!;
+    const b = quad[(k + 1) % n]!;
+    // vnitřek: sign * ((b - a) × (x - a)) > 0
+    const ex = b[0] - a[0];
+    const ez = b[1] - a[1];
+    const f0 = sign * (ex * (p[1] - a[1]) - ez * (p[0] - a[0]));
+    const df = sign * (ex * dz - ez * dx);
+    if (df === 0) {
+      if (f0 <= 0) return false;
+    } else {
+      const t = -f0 / df;
+      if (df > 0) t0 = Math.max(t0, t);
+      else t1 = Math.min(t1, t);
+    }
+    if (t0 >= t1) return false;
+  }
+  return t1 - t0 > 1e-9;
+}
+
+/**
+ * Body objížďky vně obvodu – základ po `DETOUR_STEP_M`, `DETOUR_OFFSET_M` za vnějším okrajem.
+ * Kde úsečka mezi sousedními body řízne stěnu (ostrý ohyb), vloží se bod doprostřed; půlí se
+ * nejvýš na `DETOUR_MIN_STEP_M` (návrh Clauda 8. 11. 2026, hrubší objížďka po 10 m). Před každou
+ * bránou (`gateAtM` – střed otvoru po obvodu) stojí bod vždy, aby se k ní dalo dojít přímo.
+ */
+function detourPoints(
+  outline: FortOutline,
+  walls: readonly Point[][],
+  gateAtM: readonly number[],
+): Point[] {
   const count = Math.max(4, Math.ceil(outline.lengthM / DETOUR_STEP_M));
   const step = outline.lengthM / count;
-  const out: Point[] = [];
-  for (let k = 0; k < count; k++) {
-    const s = k * step;
+  const at = (s: number): Point | null => {
     const p = outlinePointAt(outline, s);
-    const a = outlinePointAt(outline, s - step / 4);
-    const b = outlinePointAt(outline, s + step / 4);
+    const a = outlinePointAt(outline, s - DETOUR_MIN_STEP_M);
+    const b = outlinePointAt(outline, s + DETOUR_MIN_STEP_M);
     const dx = b[0] - a[0];
     const dz = b[1] - a[1];
     const len = Math.sqrt(dx * dx + dz * dz);
-    if (!(len > 0)) continue;
+    if (!(len > 0)) return null;
     // ven = vlevo od směru po směru hodin
-    out.push([p[0] - (dz / len) * DETOUR_OFFSET_M, p[1] + (dx / len) * DETOUR_OFFSET_M]);
+    return [p[0] - (dz / len) * DETOUR_OFFSET_M, p[1] + (dx / len) * DETOUR_OFFSET_M];
+  };
+  const cuts = (p: Point, q: Point): boolean => walls.some((w) => segmentCutsQuad(p, q, w));
+  const out: Point[] = [];
+  const refine = (s0: number, p0: Point, s1: number, p1: Point): void => {
+    if (s1 - s0 <= DETOUR_MIN_STEP_M * 1.5 || !cuts(p0, p1)) return;
+    const sm = (s0 + s1) / 2;
+    const pm = at(sm);
+    if (pm === null) return;
+    refine(s0, p0, sm, pm);
+    out.push(pm);
+    refine(sm, pm, s1, p1);
+  };
+  const base: { s: number; p: Point }[] = [];
+  for (let k = 0; k < count; k++) {
+    const s = k * step;
+    // bod těsně vedle brány by jen zdvojil bod před bránou
+    if (gateAtM.some((g) => Math.abs(g - s) < DETOUR_MIN_STEP_M)) continue;
+    const p = at(s);
+    if (p !== null) base.push({ s, p });
+  }
+  for (const s of gateAtM) {
+    const p = at(s);
+    if (p !== null) base.push({ s, p });
+  }
+  base.sort((x, y) => x.s - y.s);
+  for (let k = 0; k < base.length; k++) {
+    const cur = base[k]!;
+    const nxt = base[(k + 1) % base.length]!;
+    out.push(cur.p);
+    refine(cur.s, cur.p, k + 1 < base.length ? nxt.s : outline.lengthM, nxt.p);
   }
   return out;
 }
@@ -140,6 +216,7 @@ export function fortWalls(
   const shapes = fortSegments(outline);
   const walls: Point[][] = [];
   const gates: Point[][] = [];
+  const gateAtM: number[] = [];
   for (const segment of blocking) {
     const shape = shapes[segment.index];
     if (!shape) continue;
@@ -156,6 +233,7 @@ export function fortWalls(
     for (const p of bandPieces(outline, band, segment.index, chord.toM, Infinity)) {
       walls.push(p.corners);
     }
+    gateAtM.push((chord.fromM + chord.toM) / 2);
     const [ax, az] = chord.a;
     const [bx, bz] = chord.b;
     const len = Math.sqrt((bx - ax) * (bx - ax) + (bz - az) * (bz - az));
@@ -169,7 +247,7 @@ export function fortWalls(
       [ax + nx * band, az + nz * band],
     ]);
   }
-  return { walls, gates, detour: detourPoints(outline) };
+  return { walls, gates, detour: detourPoints(outline, walls, gateAtM) };
 }
 
 /**

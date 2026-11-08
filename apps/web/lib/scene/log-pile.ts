@@ -30,11 +30,11 @@ const SAPWOOD = [0.86, 0.7, 0.46] as const;
 const HEARTWOOD = [0.7, 0.5, 0.3] as const;
 
 /**
- * Hromada klád u vsi (forest.md – „klády leží viditelně složené stranou“) a hromady klád u lesa
- * (forest.md – Klučení lesa pro pole – postup): kmeny jako instance jedné vlastní sítě (válec
- * s kůrou a světlými čely), kolik klád, tolik kmenů – nejvýš MAX_SHOWN_LOGS na hromadu. Místa
- * se hledají jen při změně vsi (obydlí, pole, cesty, překážky), počet klád jen přeskládá
- * instance.
+ * Hromady klád (forest.md – Mýcení a hromada klád): u cesty nejblíž místu kácení, bez cesty u místa
+ * kácení, bývalá hromada u vsi u svého obydlí (`dwellingId`) a klády bez hromady (ves před
+ * převodem) u obydlí nejblíž lesu: kmeny jako instance jedné vlastní sítě (válec s kůrou
+ * a světlými čely), kolik klád, tolik kmenů – nejvýš MAX_SHOWN_LOGS na hromadu. Místa se hledají
+ * jen při změně vsi (obydlí, pole, cesty, překážky), počet klád jen přeskládá instance.
  */
 export class LogPile {
   private mesh: Mesh | null = null;
@@ -72,27 +72,43 @@ export class LogPile {
     }
     const piles: { site: LogPileSite; count: number }[] = [];
     if (this.site && count > 0) piles.push({ site: this.site, count });
-    // půdorysy už umístěných hromad – další hromada na ně nesmí
-    const occupied: Point[][] = this.site ? [pileCorners(this.site)] : [];
-    // hromady u lesa – místo se hledá znovu jen při změně vsi, předchozí volné místo zůstane
+    // půdorysy už umístěných hromad – další hromada na ně nesmí (klády bez hromady jen, když leží)
+    const occupied: Point[][] = this.site && count > 0 ? [pileCorners(this.site)] : [];
+    // hromady – místo se hledá znovu jen při změně vsi, předchozí volné místo zůstane; bývalá
+    // hromada u vsi (u svého obydlí) první, jako dřív hromada u vsi
     const stackKey = `${siteKey}|${(village.roads ?? []).length}`;
     const live = new Set<number>();
-    for (const stack of village.logStacks ?? []) {
+    const dwellingIds = new Set(village.dwellings.map((d) => d.id));
+    const atHome = (s: { dwellingId?: number }): boolean =>
+      s.dwellingId !== undefined && dwellingIds.has(s.dwellingId);
+    const stacks = [...(village.logStacks ?? [])].sort((a, b) => +atHome(b) - +atHome(a));
+    for (const stack of stacks) {
       if (stack.logs <= 0) continue;
       live.add(stack.id);
       const prior = this.stackSites.get(stack.id);
       const key = `${stack.x}|${stack.z}|${stackKey}${prior && !prior.site ? `|${retry}` : ''}`;
       let known = this.stackSites.get(stack.id);
       if (known?.key !== key) {
-        const site = logStackSite(
-          this.options.landscape,
-          village,
-          this.options.layer,
-          changes,
-          stack,
-          known?.site ?? null,
-          occupied,
-        );
+        const home = atHome(stack)
+          ? logPileSite(
+              this.options.landscape,
+              village,
+              this.options.layer,
+              changes,
+              stack.dwellingId ?? null,
+            )
+          : null;
+        const site =
+          home ??
+          logStackSite(
+            this.options.landscape,
+            village,
+            this.options.layer,
+            changes,
+            stack,
+            known?.site ?? null,
+            occupied,
+          );
         known = { key, site };
         this.stackSites.set(stack.id, known);
       }

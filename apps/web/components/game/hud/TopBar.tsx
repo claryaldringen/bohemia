@@ -235,17 +235,6 @@ export function dairyName(view: Pick<VillageView, 'milkLPerDay'>): string {
   return milk > 0 ? `Sýr (kg) – mléko ${formatInteger(milk)} l/den` : 'Sýr (kg)';
 }
 
-/** Popisek klád: u vsi i u lesa, pokud leží hromada u lesa (forest.md – Klády u lesa). */
-export function woodName(
-  view: Pick<VillageView, 'woodLogs' | 'woodLogsForest' | 'woodLogsPile'>,
-): string {
-  const forest = Math.min(view.woodLogsForest ?? 0, view.woodLogs);
-  if (forest <= 0) return 'Klády na hromadě';
-  // u vsi z hromady samotné, ne z rozdílu zaokrouhlených čísel (ten by se mohl rozejít o kus)
-  const pile = Math.min(view.woodLogsPile ?? view.woodLogs - forest, view.woodLogs);
-  return `Klády – u vsi ${formatInteger(pile)}, u lesa ${formatInteger(forest)}`;
-}
-
 /** Seno v horní liště – když ves má hotovou ohradu nebo seno v zásobě (oxen.md). */
 export function showsHay(view: Pick<VillageView, 'hayKg' | 'pens'>): boolean {
   return Math.round(view.hayKg) > 0 || view.pens.some((pen) => pen.built);
@@ -670,7 +659,7 @@ export function TopBar({
               {formatInteger(view.hayKg)}
             </Resource>
           )}
-          <Resource icon="wood" name={woodName(view)} testId="village-wood">
+          <Resource icon="wood" name="Klády na hromadách" testId="village-wood">
             {formatInteger(view.woodLogs)}
           </Resource>
           {view.crafts.present && <CraftStocks crafts={view.crafts} />}

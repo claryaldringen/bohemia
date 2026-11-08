@@ -27,6 +27,7 @@ import {
   declareHunt,
   setDefenseStance,
   decidePrisonerAction,
+  abandonFieldParts,
   cancelConstruction,
   forceDevDisaster,
   foundVillage,
@@ -1622,6 +1623,14 @@ export function VillageGame({
               onLeave={leave}
               onLeaveSon={leaveWithSon}
               onPreviewSon={setSonPreview}
+              onAbandonPart={(partId, abandon) => {
+                const villageId = viewRef.current?.id;
+                return villageId
+                  ? runBuildAction(() =>
+                      abandonFieldParts({ villageId, partIds: [partId], abandon }),
+                    )
+                  : Promise.resolve();
+              }}
               onCancelConstruction={(constructionId) => {
                 const villageId = viewRef.current?.id;
                 return villageId

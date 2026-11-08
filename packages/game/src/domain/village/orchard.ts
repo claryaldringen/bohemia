@@ -1,4 +1,6 @@
 import { dateOfDayIndex } from '../calendar';
+import { CELL_SIZE_M, LANDSCAPE_SIZE } from '../landscape';
+import { squareCenter } from './square-grid';
 import type { CalendarDate } from '../calendar';
 import { distanceFactor } from './fields';
 import { applesSpoiled } from './food';
@@ -311,6 +313,17 @@ export function orchardPlantingNeed(state: VillageState, c: Construction, day: n
   return workableSquares(state, orchard, c).reduce((sum, s) => sum + squarePlantingNeed(s), 0);
 }
 
+/** Krajina sídla má pevnou velikost (landscape/world.ts). */
+const GEOMETRY = { size: LANDSCAPE_SIZE, cellSizeM: CELL_SIZE_M } as const;
+
+/** Střed čtverce sadu ve světě (m) – místo kácení pro hromadu klád (`addLogs`). */
+export function orchardSquareCenter(
+  orchard: Pick<Orchard, 'grid'>,
+  square: Pick<OrchardSquare, 'cell'>,
+): { x: number; z: number } {
+  return squareCenter(GEOMETRY, orchard.grid, square.cell);
+}
+
 /**
  * Vloží společnou práci do výsadby (mutuje stav): čtverce od nejbližšího, přebytek dne teče do
  * dalšího. Překážky z čtverce zmizí natrvalo, jakmile na něm práce začne (nejdřív se vyklidí,
@@ -344,7 +357,7 @@ export function plantOrchard(
     }
     // dospělé stromy z vyklizeného čtverce dají klády na hromadu jako u dílu pole (forest.md)
     if (square.trees) {
-      addLogs(state, logsFromClearedTrees(square.trees));
+      addLogs(state, logsFromClearedTrees(square.trees), orchardSquareCenter(orchard, square));
       delete square.trees;
     }
     const need = square.plantingCost - square.plantingDone;

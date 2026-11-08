@@ -1708,6 +1708,37 @@ dřeviny po ≈ 20 letech – Prach 2023). Implementace `overgrowth.ts`.
   **les vsi**. Kronika: „Nepasený díl pole zarostl lesem – pole se zmenšilo.“ (víc dílů: „…ubylo
   N čtverců“, poslední díl: „Nepasené pole zarostlo lesem a zaniklo.“), krátký řádek nahoře.
 
+### Opuštěný díl
+
+Stav: **Martin, 8. 11. 2026:** „A“ (k otázce správce – [steward.md](steward.md), Otevřené otázky,
+bod 1): „Vypustit díly pole – akce pro hráče i správce, kterou díly vypadnou z oběhu a zarostou;
+stejná akce pro oba.“ Podrobnosti návrh Clauda. Implementace `abandon-parts.ts`.
+
+- **Opustit díl** může hráč kdykoli a bez ceny (Hráč staví kdy chce), stejným právem jako
+  zakládá pole. Tutéž čistou funkci použije správce.
+- Opuštěný díl **zůstane v poli jako trvalý příloh**, který se už neoseje – osevní postup,
+  přílohová soustava ani nouzový osev ho nevyberou. Zarůstá podle **Zarůstání** (tabulka výš):
+  pastva nebo seč ve fázi louky zarůstání vynuluje – opuštěný díl smí sloužit jako pastvina
+  a louka na seno; nepasený díl po 30 letech z pole vypadne a zůstane lesem vsi jako dnes.
+- **Připravený díl** (založený, nebo čekající na další osev) jde do přílohu hned – od toho dne
+  leží ladem.
+- **Osetý díl** se opustí **až po žních** – úroda se nezahodí, do konce hospodářského roku se
+  s dílem pracuje normálně a 1. 9. jde do přílohu (i když by jinak čekal na další osev). Totéž
+  platí pro díl, který ves k letošní práci už přibrala, ale ještě na něm nezačala.
+- **Nezaložený díl** opustit nejde – rozestavěné pole jde zrušit celé (tlačítko Zrušit stavbu); důvod
+  u kurzoru.
+- **Vrátit díl** (tatáž akce jako přepínač): díl se vrátí do osevního postupu jako příloh –
+  podle úrodnosti ho ves oseje jako jiný příloh a vrácení zarostlého dílu stojí práci podle
+  tabulky Zarůstání (nic nového). Opuštěný osetý díl vrácený před 1. 9. pokračuje v osevu, jako by
+  opuštěný nebyl.
+- Opuštěný díl se nepočítá do pole, které ves uživí (rozloha v oběhu).
+- **Kronika:** „Díl pole opuštěn – zaroste.“ (víc dílů: „Opuštěno N dílů pole – zarostou.“),
+  u vrácení „Díl pole vrácen do osevu.“ (víc: „Vráceno N dílů pole do osevu.“).
+- **V rozhraní:** v panelu dílu pole přepínač s ikonou dílu se stromkem (bez slov, popisek
+  u kurzoru) – opuštěný díl svítí, díl v osevu je tlumený. **Ve scéně** vypadá jako každý příloh
+  (mladý příloh, louka, křoviny, mladý les).
+- **Starší vsi** opuštěné díly nemají – beze změny.
+
 ### Les vsi
 
 Návrh Clauda (implementace `woods.ts`): stav vsi si pamatuje zarostlé čtverce (políčko, plochu,

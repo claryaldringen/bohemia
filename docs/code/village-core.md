@@ -331,6 +331,16 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   nevidím: návrh Clauda – (a) hrubší body objížďky stěn (`DETOUR_STEP_M` 5 → 10 m, graf 210 →
   ≈ 110 bodů – objížďky ±1–2 m, nová verze tras) nebo (b) přepočet mapy tras po změně stavby až
   další den ráno jednou za týden (ne hned) – obojí mění výsledek, proto jen na pokyn.
+  **Kolo 3 (Martin 8. 11. 2026, volba „B“ – objížďka po 10 m):** body objížďky vně obvodu hradeb po
+  10 m místo po 5 m (`DETOUR_STEP_M`, `fortification/walls.ts`) – graf objížďky je zhruba o třetinu
+  menší (testovací palisáda 4 × 4 čtverce 47 → 33 bodů, malý čtverec 23 → 20); vesničané obcházejí
+  palisádu o kus méně přesně, výsledek vsí s opevněním se mění, vsi bez opevnění ne. Samotných
+  10 m protnulo zeď na rozích (test „bez pěšiny na straně cíle“ padal), proto návrh Clauda:
+  zhušťování jen tam, kde to hrana potřebuje – kde úsečka mezi sousedními body řízne stěnu, vloží se
+  bod doprostřed (půlí se až na ≈ 2,5 m) a před každou bránu se bod klade vždy. Větší odstup u
+  ostrých míst jsem nezvolil: odsouvá bod od zdi a zhoršuje objížďku, zhušťování je jednodušší a
+  nechává běžné rovné úseky řídké. Čas roku Vlkova: změří se (měření na zatíženém stroji
+  nic neříkalo).
   Souběžné požadavky téhož hráče dopočet nezdvojují: web je řadí do fronty (`apps/web/lib/exclusive.ts`,
   web-ui.md – Jeden dopočet vsí naráz), druhý jen dopočte zbytek do svého dne.
 
@@ -391,17 +401,32 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   v `PlacementVillage`) a stromy zakládaných dílů a čtverců hřbitova obydlí nevyhradí
   (`claimedObstacles`). Dospělé stromy lesa vsi (fields.md – Les vsi) se kácí jako stromy krajiny.
   Mýcení (díly polí, čtverce hřbitova, staveniště) dá kládu za dospělý
-  strom (`trees` u dílu / čtverce). **Hromady klád u lesa** (forest.md – Klučení lesa pro pole –
-  postup; `logStacks` – `LogStack` s kotvou a počtem, podmnožina `woodLogs`): klády z kácení dílu
-  v lese s fázemi jdou na hromadu u lesa pole (`addStackLogs`, kotva = střed čtverce prvního
-  dospělého stromu), odběr staveb, tesaře a prodeje jen přes `takeLogs` (nejdřív hromady u lesa od
-  nejbližší ke staveništi, pak hromada u vsi; prázdná hromada zmizí), hnijí stejně (`rotLogs`);
-  hromada u vsi = `pileLogs`. Dřevo je surovina předem (`villageStock` s vrstvou překážek:
+  strom (`trees` u dílu / čtverce). **Hromady klád u cesty** (forest.md – Mýcení a hromada klád;
+  Martin 8. 11. 2026; `logStacks` – `LogStack` s místem a počtem, Σ = `woodLogs`): každé mýcení
+  volá `addLogs(state, logs, at, fieldId?)` s místem kácení `at` (střed čtverce – `partCenter`,
+  `orchardSquareCenter`, čtverec hřbitova; staveniště, milířiště, prostředek průseku či úseku
+  vozové cesty; `null` = klády odjinud – obchod, dávky vazalů – u `logArrivalPoint`: dvorec, první
+  obydlí). Místo nové hromady `logPilePlace` (`log-piles.ts`, deterministická vrstva):
+  `nearestRoadPoint` – nejbližší bod os `state.roads.roads` bez `abandoned` (při shodě dřívější
+  cesta a úsek), do `LOG_PILES.roadReachM` (60 m) hromada `roadSideM` (6 m) od osy na straně
+  místa kácení s `road` = bod osy (místo kácení na ose – vlevo od směru úseku), jinak `at` bez
+  `road`; na cm. Klučení pole (`fieldId` > 0) skládá na svou hromadu, dokud leží; jinak se doplní
+  hromada do `LOG_PILES.joinM` (10 m, bližší, pak menší id), jinak nová. Místo se už nemění.
+  Kácení stavby, když hromady nestačí, jde rovnou do stavby (`fellAsWorked`) – hromadu nezakládá.
+  Odběr staveb, tesaře a prodeje jen přes `takeLogs` (od hromady nejbližší k `near`, bez něj od
+  nejmenšího id; pak klády bez hromady a neceločíselné zbytky; `dropSpentStacks` – hromada pod
+  půl klády zmizí a zbytek přejde na nejbližší, která zůstane), hnijí stejně (`rotLogs`). Klády
+  bez hromady (`pileLogs`) má jen ves před převodem: `withRoadLogPiles` (`log-piles-migration.ts`,
+  v `updateVillage` po `withForestClearing`, s krajinou) z nich jednou udělá hromadu u obydlí
+  nejblíž okraji lesa (obydlí i staveniště obydlí, při shodě menší id – jako `logPileSite`) s
+  `dwellingId`, idempotentně (po převodu `pileLogs` = 0). Dřevo je surovina předem (`villageStock` s vrstvou překážek:
   klády + stromy, které jde skácet – počet stromů vrstvy v mezipaměti). Palivo je v domácí výrobě
-  bokem – přirážka za les daleko zmizela (`forestDistanceM` / `forestWalkM` se dál měří). Scéna: hromada klád `lib/scene/log-pile.ts` (místo
-  a hranice v `log-pile-layout.ts`, bez volného místa se nekreslí) – `SceneVillage.woodLogs` je
-  hromada u vsi (`pileLogs`), `SceneVillage.logStacks` hromady u lesa v celých kládách (místo
-  `logStackSite`, viz `docs/code/scene.md` – Paseka klučení); staveniště ukazuje průběh bez
+  bokem – přirážka za les daleko zmizela (`forestDistanceM` / `forestWalkM` se dál měří). Scéna: hromady klád `lib/scene/log-pile.ts` (místo
+  a hranice v `log-pile-layout.ts`, bez volného místa se nekreslí) – `SceneVillage.logStacks`
+  hromady v celých kládách s `road` a `dwellingId` (místo `logStackSite`: hromada u cesty nejdřív
+  přesně na místě z jádra, čely klád k cestě, pak po kružnicích; s `dwellingId` `logPileSite` u toho
+  obydlí – bývalá hromada u vsi na dnešním místě, kreslí se první), `SceneVillage.woodLogs` klády
+  bez hromady (ves před převodem, u obydlí nejblíž lesu); viz `docs/code/scene.md` – Paseka klučení; staveniště ukazuje průběh bez
   kácení (`buildProgress`).
 
 - **Upozornění** (`lib/village-notices.ts`): rodina čeká na dům (fakt), stupně hladu (šetří

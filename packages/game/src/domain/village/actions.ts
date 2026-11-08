@@ -1186,7 +1186,7 @@ export function startSacredBuilding(
   const next = cloneState(state);
   payUpfront(next, kind);
   recordClearedObstacles(next, obstacleIds, day);
-  addLogs(next, logsFromClearedTrees(site.clearedTrees ?? 0));
+  addLogs(next, logsFromClearedTrees(site.clearedTrees ?? 0), position);
   next.constructions.push({
     id: next.nextId++,
     kind,

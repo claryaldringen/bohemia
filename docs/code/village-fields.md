@@ -286,7 +286,8 @@ store, keepKg)` = osivo jen na setí + všechno zrno nad přežívací zásobu `
   „založ vše“: kácený díl dostane jen zbytek kácení (všechny stromy padnou, `felledDay` = dnes,
   pak schne), založí se jen díl, který dnes dohoří. `fellDueTrees` (jednou za díl a den) pokácí
   stromy, na které došla práce (`treesDue`) – pařez přes `fellTrees`, strom, který mezitím padl
-  jinak, bez klády; klády dospělých na hromadu u lesa (`addStackLogs`). Dohoření (`foundPart`):
+  jinak, bez klády; klády dospělých na hromadu pole u cesty nejblíž čtverci (`addLogs` s `fieldId`, místo
+  `partCenter`; bez cesty do 60 m u čtverce). Dohoření (`foundPart`):
   zbylé stromy padnou, překážky zmizí (`recordClearedObstacles`), záznamy kácení stromů dílu se
   smažou, `burnedDay` = dnes, bonus popela od dneška, `clearing` zmizí; překážky a stromy dílu
   si stavba pole zapíše do `Construction.burntObstacles` – trasy chodců a vozů je vidí až
@@ -368,6 +369,27 @@ store, keepKg)` = osivo jen na setí + všechno zrno nad přežívací zásobu `
   krajiny (Stavba v lese; les vsi bez stromů zmizí – `dropClearedWoods` v `recordClearedObstacles`).
   Prasatům je les vsi lesem (`pigForestHa`).
   Starší vsi začínají roky bez pastvy počítat od nuly.
+
+- **Opuštěný díl** (fields.md – Opuštěný díl; Martin 8. 11. 2026: „A“ – akce pro hráče
+  i správce): `FieldPart.abandoned?: true` (volitelné, starší vsi beze změny). Doména
+  `abandon-parts.ts`: `abandonPartBlock` / `abandonPartsBlock` (důvody `ABANDON_NO_PART`,
+  `ABANDON_FOUNDING` – nezaložený díl, `ABANDON_ALREADY`, `RETURN_NOT_ABANDONED`),
+  `setPartsAbandoned(state, day, ids, abandon)` mutuje (pro den správce) a `abandonFieldParts`
+  je čistá funkce pro use-case (`validateActionDay`, `structuredClone`); kronika
+  `parts-abandoned` / `parts-returned` s počtem dílů. Připravený díl jde hned do přílohu
+  (`toAbandonedFallow` v `rotation.ts`), příloh zůstane, osetý roste a do přílohu jde 1. 9.
+  v `rotateAfterSeason`; `returnPart` vyřazený opuštěný díl nechá ladem. Osev ho přeskočí přes
+  `sowingGroup` (null), `isEmergencyFallow` (false) a `nextSowing` (`'rest'`) – na nich stojí
+  `sowingOrder`, `sowingBlocks`, `neededSelection`, `surplusOrder` i `ploughPairsForRotation`;
+  `partRotation` u něj ukáže úhor bez odpočinku, `fieldCapacity` ho nepočítá. Zarůstání, pastva
+  a seč beze změny (opuštěný příloh je přílohem). Use-case `abandonVillageFieldParts`
+  (`application/abandon-field-parts.ts`, právo `abandonFieldParts: 'build'`), server action
+  `abandonFieldParts` (`parseAbandonFieldPartsInput` – `{ partIds, abandon }`,
+  `abandonFieldPartsForPlayer`). Panel dílu: `VillageFieldPart.abandoned`, v detailech výběru
+  `partId`, `abandoned`, `abandonBlock`; přepínač `AbandonPartButton` (ikona
+  `resources/abandon-part.svg`, `aria-pressed`, popisek `abandonPartLabel`) vpravo nahoře
+  v `SelectionPanel` (`onAbandonPart`). Scéna kreslí podle stavu dílu – beze změny.
+  `/dev/panels?panel=pole-dil-opusteny`.
 
 - **Výběr dílu pole a čtverce sadu** (fields.md – Co hráč vidí; Martin 19. 10. 2026: „Když
   kliknu na pole, zobrazí se mi jen to jedno políčko s parametry. Když dvojkliknu, označí se
