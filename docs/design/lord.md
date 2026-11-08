@@ -530,7 +530,8 @@ Clauda.
 - **Upozornění a kronika:** „Syn vojvody čeká na jméno“; do kroniky „Narodil se syn vojvody“,
   „Syn vojvody dostal jméno – Bořivoj“ / „Vojvoda dostal jméno – Bořivoj“ (při potvrzení), „Svatba – Bořivoj“, „Bořivoj odešel
   z dvorce“, „Zemřel Bořivoj“, „Vojvodou je Bořivoj“. Kronika zapíše jméno do události, text se
-  pak nemění. Kronika v rozhraní zatím není ([obyvatelstvo](population.md)), data budou připravená.
+  pak nemění. Kronika je v rozhraní panelem Kronika (implementováno, návrh Clauda – Martin 8. 11. 2026: „může si přece sám zobrazit panel s notifikacemi a kroniku“;
+  [obyvatelstvo](population.md)).
 - Muž rodu, který dvorec opustil, nese jméno dál. Ostatní lidé zůstávají bez jmen.
 
 ### Synové po sňatku odcházejí z dvorce

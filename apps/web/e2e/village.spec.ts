@@ -1852,3 +1852,28 @@ test('hráč zboří obydlí – lidé bydlí dočasně jinde – a opustí a vr
   await expect(panel.getByTestId('structure-abandon')).toBeVisible({ timeout: 20_000 });
   await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
 });
+
+test('panel Kronika – ikona v liště otevře kroniku vsi se zápisem o založení', async ({ page }) => {
+  const { seat: s } = await newPlayer(page, 'kronika');
+  await found(page, villageSpots(s.landscape).dwelling);
+  const name = suggestVillageName(s.seed);
+
+  const toggle = page.getByTestId('chronicle-toggle');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  const panel = page.getByTestId('chronicle-panel');
+  const founded = panel.locator('[data-testid="chronicle-entry"][data-kind="village-founded"]');
+  await expect(founded).toHaveText(new RegExp(`Osadníci založili ves ${name}\\.`));
+  // nejnovější rok nahoře, ves stojí první rok – starší stránka není
+  await expect(panel.getByTestId('chronicle-year').first()).toHaveAttribute('data-year', /^\d+$/);
+  await expect(panel.getByTestId('chronicle-older')).toHaveCount(0);
+
+  // panel rodu kroniku zavře, Esc zavře znovu otevřenou kroniku
+  await page.getByTestId('house-toggle').click();
+  await expect(panel).toHaveCount(0);
+  await toggle.click();
+  await expect(panel).toBeVisible();
+  await expect(page.getByTestId('house-panel')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(panel).toHaveCount(0);
+});

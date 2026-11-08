@@ -82,6 +82,7 @@ import {
   parseSpareInput,
 } from '@/lib/house-input';
 import { parsePanelAsk, type PanelOptions } from '@/lib/panel-options';
+import { parseChronicleAsk, type ChroniclePage } from '@/lib/chronicle-view';
 import {
   buildTrailForPlayer,
   buildWagonRoadForPlayer,
@@ -124,6 +125,7 @@ import {
   skipTimeForPlayerView,
   upgradeRoadForPlayer,
   panelOptionsForPlayer,
+  chronicleForPlayer,
   villageViewForPlayer,
   villageViewIfChanged,
   type TimeSkipResult,
@@ -597,6 +599,19 @@ export async function getPanelOptions(input: unknown): Promise<PanelOptions | { 
   const ask = parsePanelAsk(input);
   if (villageId === null || ask === null) return { error: INVALID_INPUT };
   return panelOptionsForPlayer(id, villageId, ask);
+}
+
+/**
+ * Stránka kroniky vsi (panel Kronika): `{ villageId, before? }` – roky před `before`, bez něj od
+ * nejnovějšího (chronicle-view.ts).
+ */
+export async function getChronicle(input: unknown): Promise<ChroniclePage | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const villageId = villageIdOf(input);
+  const ask = parseChronicleAsk(input);
+  if (villageId === null || ask === null) return { error: INVALID_INPUT };
+  return chronicleForPlayer(id, villageId, ask);
 }
 
 export async function upgradeRoad(input: unknown): Promise<VillageActionResult> {

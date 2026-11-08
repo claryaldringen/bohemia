@@ -559,6 +559,7 @@ export function TopBar({
   devDisasters = null,
   house = null,
   war = null,
+  chronicle = null,
 }: {
   view: VillageView | null;
   /** Hodiny světa hráče – ve vývojovém režimu posunuté o jeho posun času. */
@@ -587,6 +588,8 @@ export function TopBar({
     open: boolean;
     onToggle: () => void;
   } | null;
+  /** Kniha panelu Kronika (absence.md – Návrat): otevření panelu; bez vsi null. */
+  chronicle?: { open: boolean; onToggle: () => void } | null;
 }): ReactElement {
   const [nowMs, setNowMs] = useState(initialNowMs);
   // Datum se obnoví na začátku dalšího herního dne (ostrý svět ≈ 86 s), ne každou sekundu –
@@ -696,6 +699,23 @@ export function TopBar({
           <DevDisasterButtons pending={devDisasters.pending} onForce={devDisasters.onForce} />
         )}
         <span className="mx-1 h-6 border-l border-[#5c4526]" aria-hidden />
+        {chronicle && (
+          <IconButton
+            label="Kronika"
+            tooltip="Kronika"
+            testId="chronicle-toggle"
+            expanded={chronicle.open}
+            onClick={chronicle.onToggle}
+          >
+            <img
+              src="/icons/house/chronicle.svg"
+              alt=""
+              width={22}
+              height={22}
+              className="h-[22px] w-[22px]"
+            />
+          </IconButton>
+        )}
         {house && (
           <IconButton
             label="Rod a vazalové"

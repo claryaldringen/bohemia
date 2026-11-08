@@ -70,6 +70,10 @@ hráče). Podrobnosti a lhůty jsou návrh Clauda (`ABSENT_VASSAL` v `rules-abse
 Žádné zvláštní shrnutí – Martin 8. 11. 2026: „Ne, může si přece sám zobrazit panel s notifikacemi
 a kroniku.“
 
+- **Panel Kronika** (implementováno, návrh Clauda): kniha v liště vedle praporu rodu otevře
+  zápisy kroniky zobrazené vsi od nejnovějších, po herních letech; starší roky se načítají po
+  stránkách ze serveru. Kód: `docs/code/web-ui.md` – Panel Kronika.
+
 ## Opuštěný rod
 
 Martin 8. 11. 2026: „A“ – rod hráče, který měsíce nehraje, **zůstane ve světě napořád**: žije jen
