@@ -5,6 +5,7 @@ import { settlementLandscape } from './enter-game';
 import type { HouseRepository, PendingDeparture } from './houses';
 import {
   FOREIGN_MAP_THERE,
+  NO_DRY_MAP_THERE,
   OWN_MAP_THERE,
   leaveVillage,
   type LeaveVillageDeps,
@@ -134,8 +135,10 @@ export async function autoPlayerDeparture(
       await deps.houses.clearPendingDeparture(house.id, pending.sonId);
       return result;
     }
-    // vlastní ves či cizí mapa tím směrem – zkusit další; jiný důvod platí pro všechny směry
-    if (result.reason !== OWN_MAP_THERE && result.reason !== FOREIGN_MAP_THERE) break;
+    // vlastní ves či cizí mapa tím směrem, nebo kostra bez suché mapy v dosahu – zkusit další;
+    // jiný důvod platí pro všechny směry
+    const tryNext = [OWN_MAP_THERE, FOREIGN_MAP_THERE, NO_DRY_MAP_THERE];
+    if (!tryNext.includes(result.reason)) break;
   }
   return last;
 }

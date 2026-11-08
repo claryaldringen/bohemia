@@ -1,13 +1,16 @@
 import {
   generateLandscapeAttempt,
+  skeletonKey,
   type Landscape,
   type LandscapeSource,
   type LayerVersions,
   type PremiumType,
+  type SkeletonSlice,
 } from '@bohemia/game';
 
-// Mezipaměť krajin sídel pro server: krajina je čistá funkce seedu a verzí vrstev, ale její
-// generování trvá desítky až stovky ms – a ptá se na ni každá akce i celý dotaz na ves.
+// Mezipaměť krajin sídel pro server: krajina je čistá funkce seedu, verzí vrstev, prémiového typu
+// a výřezu kostry, ale její generování trvá desítky až stovky ms – a ptá se na ni každá akce i celý
+// dotaz na ves.
 
 /** Mapa s omezenou velikostí – při přeplnění zahodí nejdéle nepoužitou položku. */
 export class LruCache<K, V> {
@@ -41,11 +44,20 @@ export class LruCache<K, V> {
   }
 }
 
-function landscapeKey(seed: number, versions: LayerVersions, premium?: PremiumType): string {
+function landscapeKey(
+  seed: number,
+  versions: LayerVersions,
+  premium?: PremiumType,
+  skeleton?: SkeletonSlice | null,
+): string {
   const { terrain, vegetation, fertility, obstacles = 1 } = versions;
   const base = `${seed}|${terrain}.${vegetation}.${fertility}.${obstacles}`;
   // prémiová krajina (typ a verze průchodu) je jiná krajina než průměrná ze stejného seedu
-  return premium === undefined ? base : `${base}|${premium}.${versions.premium ?? 1}`;
+  const typed = premium === undefined ? base : `${base}|${premium}.${versions.premium ?? 1}`;
+  // mapa z kostry (verze vrstvy a výřez) je jiná krajina než suchá ze stejného seedu – sousedé
+  // se stejným seedem a verzemi, ale jiným výřezem, dostanou každý svou (suchá mapa: klíč jako dřív)
+  const slice = skeletonKey(skeleton ?? null);
+  return slice === '' ? typed : `${typed}|${versions.skeleton ?? 0}:${slice}`;
 }
 
 /**
@@ -59,11 +71,11 @@ export function cachedLandscapes(
 ): LandscapeSource {
   const cache = new LruCache<string, Landscape>(capacity);
   return {
-    landscapeOf(seed, versions, premium) {
-      const key = landscapeKey(seed, versions, premium);
+    landscapeOf(seed, versions, premium, skeleton) {
+      const key = landscapeKey(seed, versions, premium, skeleton);
       const cached = cache.get(key);
       if (cached) return cached;
-      const landscape = generate(seed, versions, premium);
+      const landscape = generate(seed, versions, premium, skeleton);
       cache.set(key, landscape);
       return landscape;
     },

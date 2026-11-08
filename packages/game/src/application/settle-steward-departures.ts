@@ -9,7 +9,12 @@ import {
 } from '../domain/village';
 import type { HouseRepository } from './houses';
 import { followPlayerLord } from './player-lord';
-import { FOREIGN_MAP_THERE, OWN_MAP_THERE, targetSettlement } from './new-village';
+import {
+  FOREIGN_MAP_THERE,
+  NO_DRY_MAP_THERE,
+  OWN_MAP_THERE,
+  targetSettlement,
+} from './new-village';
 import { findPlayerVillage } from './player-villages';
 import type { Settlement, SettlementRepository } from './settlements';
 import type { VillageRecord, VillageRepository } from './villages';
@@ -120,8 +125,8 @@ async function createVillage(
         if (again) return again;
         continue;
       }
-      // cizí mapa tím směrem – zkusit další směr ze záznamu
-      if (target.reason === FOREIGN_MAP_THERE) continue;
+      // cizí mapa tím směrem, nebo kostra bez suché mapy v dosahu – zkusit další směr ze záznamu
+      if (target.reason === FOREIGN_MAP_THERE || target.reason === NO_DRY_MAP_THERE) continue;
       break;
     }
     const state = travellingVillage(settlers, record.seed, record.id, {

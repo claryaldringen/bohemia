@@ -2,7 +2,12 @@ import path from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, it, expect } from 'vitest';
 import { sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
-import { CURRENT_LAYER_VERSIONS, type NewSettlement, type Settlement } from '@bohemia/game';
+import {
+  CURRENT_LAYER_VERSIONS,
+  type NewSettlement,
+  type Settlement,
+  type SkeletonSlice,
+} from '@bohemia/game';
 import { createDatabase } from '../../client';
 import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
@@ -221,6 +226,28 @@ describe('createSettlementRepository', () => {
     expect(other?.premiumType).toBeNull();
     expect(await repository.lastPremiumType('hrac-1')).toBe('salt-spring');
     expect(await repository.lastPremiumType('nikdo')).toBeNull();
+  });
+
+  it('výřez kostry: sídlo s výřezem ho uloží a načte, bez výřezu null', async () => {
+    const skeleton: SkeletonSlice = {
+      world: 1,
+      rivers: [
+        { side: 'N', at: 40, widthM: 30, flow: 'in' },
+        { side: 'S', at: 71, widthM: 30, flow: 'out' },
+      ],
+      trails: [{ side: 'E', at: 88 }],
+    };
+    const versions = { ...CURRENT_LAYER_VERSIONS, skeleton: 1 as const };
+    const created = await createdSeat({ ...seat, layerVersions: versions, skeleton });
+    expect(created).toMatchObject({ skeleton, layerVersions: versions });
+    expect(await repository.findSeat('hrac-1')).toEqual(created);
+    expect((await repository.find(created.id))?.skeleton).toEqual(skeleton);
+    const dry = await repository.create({ ...base, worldCell: { x: 1, y: 0 } });
+    expect(dry?.skeleton).toBeNull();
+    expect((await repository.listActive('hrac-1')).map((s) => s.skeleton ?? null)).toEqual([
+      skeleton,
+      null,
+    ]);
   });
 
   it('ownersWithManyActive: držitel s 1, 2 a archivovaným sídlem, čekající převod nepočítá', async () => {

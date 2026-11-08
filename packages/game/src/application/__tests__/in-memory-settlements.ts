@@ -109,6 +109,7 @@ export class InMemorySettlements implements SettlementRepository {
       worldCell: worldCell ? { x: worldCell.x, y: worldCell.y } : null,
       localCell: localCell ? { x: localCell.x, y: localCell.y } : null,
       ...(input.premiumType ? { premiumType: input.premiumType } : {}),
+      ...(input.skeleton ? { skeleton: input.skeleton } : {}),
       createdAt: new Date(0),
     };
     this.settlements.push(settlement);

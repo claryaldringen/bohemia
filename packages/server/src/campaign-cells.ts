@@ -1,4 +1,6 @@
 import {
+  createSkeletonCache,
+  CURRENT_LAYER_VERSIONS,
   emptyCellLandscape,
   obstaclesOf,
   SEAT_CELL,
@@ -16,8 +18,9 @@ export const CAMPAIGN_CELL_CACHE_SIZE = 16;
 
 /**
  * Mapy políček světa pro tažení (war.md – Pohyb – mapu po mapě): políčko se sídlem má krajinu
- * z uloženého seedu (sdílená mezipaměť krajin) a jeho vsi; prázdné políčko krajinu z
- * `cellLandscapeSeed` – generuje se jednou a drží v LRU (generování je drahé).
+ * z uloženého seedu a výřezu (sdílená mezipaměť krajin) a jeho vsi; prázdné políčko krajinu z
+ * `cellLandscapeSeed` a výřezu kostry světa – generuje se jednou a drží v LRU (generování je
+ * drahé), kostra má vlastní mezipaměť pro seed světa.
  */
 export function createCampaignCells(deps: {
   settlements: Pick<SettlementRepository, 'occupiedCells' | 'listActive'>;
@@ -28,6 +31,7 @@ export function createCampaignCells(deps: {
   capacity?: number;
 }): CampaignCells {
   const empty = new LruCache<string, CampaignMap>(deps.capacity ?? CAMPAIGN_CELL_CACHE_SIZE);
+  const skeleton = createSkeletonCache(deps.worldSeed);
   return {
     async mapOf(cell) {
       const same = (c: { x: number; y: number }): boolean => c.x === cell.x && c.y === cell.y;
@@ -49,7 +53,12 @@ export function createCampaignCells(deps: {
       const key = `${cell.x},${cell.y}`;
       const cached = empty.get(key);
       if (cached) return cached;
-      const { landscape, obstacles } = emptyCellLandscape(deps.worldSeed, cell);
+      const { landscape, obstacles } = emptyCellLandscape(
+        deps.worldSeed,
+        cell,
+        CURRENT_LAYER_VERSIONS,
+        skeleton,
+      );
       const map: CampaignMap = { landscape, obstacles, villageIds: [] };
       empty.set(key, map);
       return map;

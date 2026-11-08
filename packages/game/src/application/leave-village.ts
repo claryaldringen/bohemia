@@ -107,7 +107,7 @@ export const FUNERAL_SON_GONE = 'Syn už ve vsi není.';
 export const UNKNOWN_LEAVE_DIRECTION = 'Neznámý směr.';
 /** Cíl odchodu jinde než na nové mapě (jedna ves, jedna mapa – migration.md). */
 export const LEAVE_ONLY_TO_NEW_MAP = 'Odejít jde jen na novou mapu.';
-export { FOREIGN_MAP_THERE, NO_WORLD_CELL, OWN_MAP_THERE } from './new-village';
+export { FOREIGN_MAP_THERE, NO_DRY_MAP_THERE, NO_WORLD_CELL, OWN_MAP_THERE } from './new-village';
 
 /**
  * Domácnosti obydlí `dwellingIds` – nebo syn vojvody `sonId` s poměrnou částí vsi (lord.md – Dělení
