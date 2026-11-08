@@ -138,7 +138,7 @@ import {
   withoutWinterWeeding,
 } from './year-plan';
 import { payWatch, watchWanted } from './wildlife-damage';
-import { rampartMaintenance } from './fortification/decay';
+import { fortUpkeep } from './fortification/decay';
 import { build, decayEmptyDwellings, woodworkToday } from './simulate-build';
 import {
   bestWaterPlan,
@@ -889,9 +889,9 @@ export function work(
     Math.min(common, common + help.labor - invested),
     repairNeed,
   );
-  // údržba valu hned po opravách obydlí, ze zbytku společné práce (fortifications.md – Životnost
+  // údržba opevnění po úsecích hned po opravách obydlí, ze zbytku společné práce (fortifications.md – Životnost
   // a oprava); ves bez opevnění nic nespotřebuje
-  const upkeep = rampartMaintenance(state, afterBuild.left, landscape);
+  const upkeep = fortUpkeep(state, afterBuild.left, landscape).used;
   const freeLabor = afterBuild.left - upkeep;
   const repairs = households.map((d, i) => {
     const need = repairNeeds[i] ?? 0;

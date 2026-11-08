@@ -80,6 +80,29 @@ export const FORTIFICATIONS = {
    */
   rampartUpkeep: { manDaysPer100MYear: 2, renewBelowHeight: 0.75, renewCostShare: 0.5 },
   /**
+   * Údržba po úsecích (Hradby a obrana – Životnost a údržba; návrh Clauda): čd na 100 m hotového
+   * úseku ročně – plot 1, palisáda 1, s ochozem 2 (+1 za fošny), roštová a komorová 5, val 2
+   * (shoduje se s `rampartUpkeep.manDaysPer100MYear`). Hradba na valu platí svůj druh a val zvlášť.
+   */
+  upkeepPer100MYear: {
+    fence: 1,
+    palisade: 1,
+    walkway: 2,
+    crib: 5,
+    chamber: 5,
+    rampart: 2,
+  } satisfies Record<FortKind, number>,
+  /**
+   * Přestavba dožilé hradby (Hradby a obrana – Životnost a údržba; návrh Clauda): roštová
+   * a komorová stojí třetinu práce a klád, kámen (rošt, plenta) zůstane; palisáda s ochozem cenu
+   * palisády a k tomu fošny ochozu 2 h na 1 m (20 čd na 100 m) a 10 klád, násyp zůstane.
+   */
+  rebuild: {
+    crib: 1 / 3,
+    chamber: 1 / 3,
+    walkwayPlanksPer100M: { laborManDays: 20, wood: 10 },
+  },
+  /**
    * Útočiště (Obrana – Útočiště; návrh Clauda): 10 m² na člověka, 20 m² na kus dobytka (kráva,
    * vůl, kůň); ovce, koza a prase jsou čtvrt kusu.
    */

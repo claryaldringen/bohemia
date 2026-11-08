@@ -22,7 +22,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 - **Opevnění v pořadí dne** (fortifications.md – Životnost a oprava; podrobnosti
   [village-fortifications.md](village-fortifications.md#stáří-přestavba-a-údržba-valu-ú54)):
   `decideFortRebuilds` běží v `simulate.ts` hned za `decideRebuilds` (přestavby obydlí) a před
-  `occupyEmptyDwellings`; údržba valu (`rampartMaintenance`) v `work()` hned za opravami obydlí –
+  `occupyEmptyDwellings`; údržba opevnění po úsecích (`fortUpkeep`) v `work()` hned za opravami obydlí –
   bere ze zbytku společné práce (`afterBuild.left`), co zbude, jde dál (díly nad potřebu, seč).
   Ves bez opevnění nebo bez krajiny: žádný krok nic nemění.
 
