@@ -126,6 +126,10 @@ roštová ≈ 7 m, komorová ≈ 8 m, komory po 5–6 m).
   zasypat je potřeba jen mimo bránu; voda přijde do všech dílů naráz, až je strouha hotová;
   zrušené doplnění valu vrátí díly bez hotového valu přesně do stavu před zahájením; srovnaný val
   příkop ztratí.
+- **Scéna – implementováno 8. 11. 2026** (plán hradeb, Úloha 18). Návrh Clauda: val vně má
+  korunu na křivce a hradba na ní stojí na místě, zvednutá o výšku valu (pod širší hradbou se
+  koruna rozšíří); hladina 0,5 m pod okrajem příkopu, jen v dílech s vodou a mimo hráz brány;
+  od 1. 12. do konce února led (Martin: „Má zamrznout“).
 
 ### Kámen
 
@@ -301,6 +305,10 @@ dřevěná věž nad samotnou branou.**“ Výklad níž Martin schválil („An
   smí – ramena je vezmou jako široká hradba); ramena blokují pěšiny od zahájení stavby; věž jen
   na hotové klešťové bráně; dožilá věž bez dřeva chátrá a po 5 letech (jako hradba) spadne;
   ramena nestárnou zvlášť – patří k dílu brány.
+- **Scéna – implementováno 8. 11. 2026** (plán hradeb, Úloha 18). Návrh Clauda: ramena od čáry
+  hradby po konec uličky – u plotu a palisády palisáda s ochozem, u roštové a komorové kamenné čelo
+  s ochozem na koruně; vrata se na hotové klešťové bráně přesunou na vnitřní konec uličky (v hradbě
+  zůstanou kůly a trám); věž stojí nad vraty, rozestavěná se nekreslí.
 
 ### Cena
 

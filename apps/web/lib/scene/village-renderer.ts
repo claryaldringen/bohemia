@@ -795,13 +795,15 @@ export class VillageRenderer {
 
   /**
    * Den v roce (roční období scény) a sněhová pokrývka – podle dne se odhaduje vzhled polí (dokud
-   * ho server neposílá) a seče louky, pod sněhem zmizí nízké trsy. Vrátí true, když je co
-   * překreslit.
+   * ho server neposílá) a seče louky, pod sněhem zmizí nízké trsy, v zimě zamrzne vodní příkop.
+   * Vrátí true, když je co překreslit.
    */
   setSeason(dayOfYear: number, snow: number): boolean {
     const day = this.fields.setDay(dayOfYear);
     const covered = this.fields.setSnow(snow);
-    return day || covered;
+    // vodní příkop v zimě zamrzne (fortification-renderer.ts)
+    const ice = this.fortifications.setSeason(dayOfYear);
+    return day || covered || ice;
   }
 
   /** Vzdálenost kamery – obilí z dálky řídne. Vrátí true, když je co překreslit. */

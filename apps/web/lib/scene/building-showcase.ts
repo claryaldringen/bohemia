@@ -69,7 +69,12 @@ import {
   setSeasonShaderState,
 } from './season-materials';
 import type { DitchCut } from './fortification-layout';
-import { SHOWCASE_FORTS, SHOWCASE_WALLS, showcaseFortifications } from './fortification-showcase';
+import {
+  SHOWCASE_FORTS,
+  SHOWCASE_GATES,
+  SHOWCASE_WALLS,
+  showcaseFortifications,
+} from './fortification-showcase';
 import { ShowcaseSites } from './showcase-sites';
 import { addSunShadows, type SunShadows } from './sun-shadows';
 import { prepareTreeMaterial } from './trees';
@@ -249,6 +254,9 @@ export class BuildingShowcase {
   private roadMaterials: { worn: Material; earth: Material; gravel: Material } | null = null;
   /** Zimní vzhled (sníh na střechách a louce) – jinak léto. */
   private winter = false;
+  /** Cíl kamery pro výběr prořezaných příkopů a přepočet prořezu (`build`). */
+  private ditchFocus: { x: number; z: number } | null = null;
+  private remergeCuts: (() => void) | null = null;
   /** Poslední snímek animace spřežení (ms) – nejvýš WATER_FPS za sekundu. */
   private lastAnimation = 0;
   /** Při omezeném pohybu stojí – stačí ho jednou postavit. */
@@ -347,6 +355,7 @@ export class BuildingShowcase {
       SHOWCASE_CRAFT_YARDS,
       SHOWCASE_FORTS,
       SHOWCASE_WALLS,
+      SHOWCASE_GATES,
     ].find((b) => b.id === id);
     if (!target) return;
     this.setView(target.focus);
@@ -370,6 +379,8 @@ export class BuildingShowcase {
     if (view.radius !== undefined) camera.radius = view.radius;
     if (view.alpha !== undefined) camera.alpha = view.alpha;
     if (view.beta !== undefined) camera.beta = view.beta;
+    this.ditchFocus = { x: camera.target.x, z: camera.target.z };
+    this.remergeCuts?.();
   }
 
   /** Náklon kamery jako ve hře (natočení a přiblížení zůstanou). */
@@ -410,6 +421,8 @@ export class BuildingShowcase {
     setSeasonShaderState(scene, look);
     // pole a louky: nízké trsy pod sněhem zmizí
     this.grounds?.setSeason(showcaseMeadowDay(this.progress), this.snow());
+    // opevnění: vodní příkop v zimě zamrzne
+    this.fortDemo?.setSeason(on ? WINTER_DAY : REFERENCE_DAY, this.snow());
     this.shadows?.refresh();
     this.burst(600);
     return this.winter;
@@ -526,8 +539,10 @@ export class BuildingShowcase {
     const pitCuts = new PitCuts();
     const mergeCuts = (): void => {
       pitCuts.set([...siteCuts.list, ...decayCuts.list, ...kilnCuts.list, ...variantCuts.list]);
-      pitCuts.setDitches(fortCuts.ditchList);
+      // příkopů ukázky je víc, než shader prořízne – ty nejblíž cíli kamery (`setView`)
+      pitCuts.setDitches(fortCuts.ditchList, this.ditchFocus);
     };
+    this.remergeCuts = mergeCuts;
     const siteCuts = new PitCutsPart(mergeCuts);
     const fortCuts = new PitCutsPart(mergeCuts);
     const decayCuts = new PitCutsPart(mergeCuts);

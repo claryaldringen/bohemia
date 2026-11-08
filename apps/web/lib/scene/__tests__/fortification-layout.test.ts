@@ -14,7 +14,9 @@ import {
   insideDitchCut,
   packDitchCuts,
   palisadeLayout,
+  pincerGateInstances,
   rampartAt,
+  towerInstances,
   rampartLooks,
   rampartProfile,
   segmentBuild,
@@ -544,5 +546,89 @@ describe('palisáda s ochozem, roštová a komorová hradba', () => {
     for (let i = 0; i < p.length; i += 3)
       if (Math.hypot(p[i]! - gate.x, p[i + 2]! - gate.z) < 1.5)
         expect(p[i + 1]!).toBeLessThan(0.03);
+  });
+});
+
+describe('klešťová brána a věž (plán hradeb Ú18)', () => {
+  /** Osa uličky z jádra: ústí, směr dovnitř a podél tětivy. */
+  const frame = (
+    f: SceneFortification,
+  ): { mx: number; mz: number; nx: number; nz: number; ux: number; uz: number } => {
+    const [a, b, c, d] = f.gateLooks![0]!.pincer!.alley;
+    const mx = (a![0] + b![0]) / 2;
+    const mz = (a![1] + b![1]) / 2;
+    const ex = (c![0] + d![0]) / 2 - mx;
+    const ez = (c![1] + d![1]) / 2 - mz;
+    const len = Math.hypot(ex, ez);
+    const across = Math.hypot(b![0] - a![0], b![1] - a![1]);
+    return {
+      mx,
+      mz,
+      nx: ex / len,
+      nz: ez / len,
+      ux: (b![0] - a![0]) / across,
+      uz: (b![1] - a![1]) / across,
+    };
+  };
+
+  it('ramena po obou stranách uličky 12 m podél cesty, vrata na vnitřním konci', () => {
+    const f = fort({ gates: [{ segment: 1, pincer: true }] });
+    expect(f.gateLooks?.[0]?.pincer?.age).not.toBeNull();
+    const parts = pincerGateInstances(f);
+    const ax = frame(f);
+    const along = (p: FortInstance): number => (p.x - ax.mx) * ax.nx + (p.z - ax.mz) * ax.nz;
+    const across = (p: FortInstance): number => (p.x - ax.mx) * ax.ux + (p.z - ax.mz) * ax.uz;
+    for (const side of [-1, 1]) {
+      const stakes = parts.filter((p) => p.part.startsWith('stake') && across(p) * side > 0);
+      expect(stakes.length).toBeGreaterThan(40);
+      const ts = stakes.map(along);
+      expect(Math.max(...ts)).toBeGreaterThan(11.5);
+      expect(Math.max(...ts) - Math.min(...ts)).toBeGreaterThanOrEqual(12);
+      // kůly k uličce (4 m) – mimo ni
+      for (const p of stakes) expect(Math.abs(across(p))).toBeGreaterThan(2);
+    }
+    const leaves = parts.filter((p) => p.part === 'gate-planks');
+    expect(leaves).toHaveLength(2);
+    for (const p of leaves) expect(along(p)).toBeCloseTo(12, 1);
+    // v pásu zůstanou kůly a trám brány, křídla jsou na vratech
+    const outer = fortGateInstances(f);
+    expect(outer.some((p) => p.part === 'gate-post')).toBe(true);
+    expect(outer.some((p) => p.part === 'gate-planks')).toBe(false);
+  });
+
+  it('rozestavěná klešťová brána – ramena od ústí podle průběhu, vrata až hotová', () => {
+    const f = fort({ gates: [{ segment: 1, pincer: true }] });
+    const look = f.gateLooks![0]!;
+    const half = { ...f, gateLooks: [{ pincer: { ...look.pincer!, age: null, progress: 0.5 } }] };
+    const done = pincerGateInstances(f).filter((p) => p.part.startsWith('stake')).length;
+    const parts = pincerGateInstances(half);
+    const stakes = parts.filter((p) => p.part.startsWith('stake')).length;
+    expect(stakes).toBeGreaterThan(done * 0.4);
+    expect(stakes).toBeLessThan(done * 0.6);
+    expect(parts.some((p) => p.part === 'gate-planks')).toBe(false);
+    // dokud ramena nestojí, křídla zůstanou v pásu
+    expect(fortGateInstances(half).some((p) => p.part === 'gate-planks')).toBe(true);
+  });
+
+  it('věž stojí nad vraty, bez věže nic', () => {
+    expect(towerInstances(fort({ gates: [{ segment: 1, pincer: true }] }))).toEqual([]);
+    const f = fort({ gates: [{ segment: 1, pincer: true, tower: true }] });
+    const [tower, ...rest] = towerInstances(f);
+    expect(rest).toHaveLength(0);
+    const ax = frame(f);
+    expect(tower!.part).toBe('tower');
+    expect((tower!.x - ax.mx) * ax.nx + (tower!.z - ax.mz) * ax.nz).toBeCloseTo(12, 1);
+    expect((tower!.x - ax.mx) * ax.ux + (tower!.z - ax.mz) * ax.uz).toBeCloseTo(0, 1);
+  });
+
+  it('roštová hradba má ramena s kamenným čelem a ochozem na koruně', () => {
+    const f = fort({ kind: 'crib', gates: [{ segment: 1, pincer: true }] });
+    expect(f.gateLooks?.[0]?.pincer?.kind).toBe('crib');
+    const parts = pincerGateInstances(f);
+    expect(parts.some((p) => p.part.startsWith('facing-stone'))).toBe(true);
+    expect(parts.some((p) => p.part.startsWith('stake'))).toBe(false);
+    const planks = parts.filter((p) => p.part === 'walk-plank');
+    expect(planks.length).toBeGreaterThan(8);
+    for (const p of planks) expect(p.lift).toBeCloseTo(CRIB.heightM - WALKWAY.plankThickM, 6);
   });
 });

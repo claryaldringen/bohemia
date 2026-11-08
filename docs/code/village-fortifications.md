@@ -401,7 +401,8 @@ s)` v `fortification-layout.ts`).
 ## Val pod hradbou a vodní příkop (`fortification-rampart.ts`, `moat.ts`)
 
 Plán hradeb Úloha 11; fortifications.md – Hradby a obrana, Druhy (dvě vrstvy, doplnění valu, vodní
-příkop), Cena. Scéna valu vně a vody je Úloha 18 – zatím kreslí díl jako dřív.
+příkop), Cena. Scéna valu vně, vody a ledu (Úloha 18) – `docs/code/scene-village.md`, Opevnění ve
+scéně.
 
 - **Doplnění valu** – `startRampartAddition` (stav, den, krajina, překážky, opevnění a díl úseku –
   `segment` null = celé opevnění, chůze): díly úseku s dostavěnou hradbou bez valu (ne prolomené
@@ -452,7 +453,8 @@ příkop), Cena. Scéna valu vně a vody je Úloha 18 – zatím kreslí díl ja
 ## Klešťová brána a věž (`fortification-gate.ts`, `fortification/pincer.ts`)
 
 Plán hradeb Úloha 13; fortifications.md – Hradby a obrana, Brány, Životnost a údržba. Bitva
-s uličkou a věží je Úloha 19, scéna ramen a věže Úloha 18, tlačítka Úloha 17.
+s uličkou a věží je Úloha 19, scéna ramen a věže (Úloha 18) – `docs/code/scene-village.md`,
+tlačítka Úloha 17.
 
 - **Stav brány** (`FortGate`): `pincerDay` a `towerDay` – den dokončení, `null` = staví se, chybí =
   bez vylepšení; `towerExtraAgeDays` – stárnutí věže navíc za nedodělanou údržbu.
