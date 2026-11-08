@@ -1,7 +1,7 @@
 # Hradiště
 
-Stav: **návrh 8. 11. 2026, čeká na Martinovo schválení.** Zadání je Martinovo (citace níž),
-podrobnosti jsou návrh Clauda.
+Stav: **schváleno 8. 11. 2026** po bodech (Martin: „teď se pusť do toho, co jsme schválili“);
+hradba později. Zadání je Martinovo (citace níž), podrobnosti jsou návrh Clauda.
 
 Martin, 8. 11. 2026:
 
@@ -33,6 +33,10 @@ Ves dnes roste jen do toho, co uživí její pole; přeroste-li, odchází syn s
 novou ([vojvodova rodina](lord.md) – Dělení vsi). Historická hradiště byla sídla pána s družinou,
 řemeslníky a mohutnou hradbou, živená z okolí. Ve hře z toho stačí jedno: ves pána, která žije
 z dovezeného jídla a její muži rodu se věnují výcviku místo pole.
+
+Martin, 8. 11. 2026: „Za hradištěm ještě stojí taková myšlenka, že v některých vsích se budou
+shromažďovat zásoby z jiných vsí, a proto je dobré taková místa lépe opevnit.“ Hradiště je tak
+přirozený cíl nájezdu – zásoby celé domény na jednom místě – a důvod stavět silnější hradbu.
 
 ## Cíle, ne-cíle, anti-cíle
 
@@ -124,9 +128,9 @@ z dovezeného jídla a její muži rodu se věnují výcviku místo pole.
 ## Opevnění hradiště
 
 Roštová a komorová hradba (Martin) – nový druh [opevnění](fortifications.md) nad val s palisádou,
-dražší stavba i údržba. Čísla, násobek obrany a životnost po rešerši jako samostatný doplněk
-návrhu opevnění.
+dražší stavba i údržba. Martin 8. 11. 2026: „Hradbu proberem později“ – samostatný doplněk návrhu
+opevnění po rešerši. Do té doby má hradiště dnešní druhy opevnění.
 
 ## Otevřené otázky
 
-Zatím žádné – ke schválení.
+- Roštová a komorová hradba – později (viz výš).
