@@ -3,15 +3,24 @@ import type {
   ObstacleLayerSeed,
   PremiumType,
   Promontory,
+  SkeletonSlice,
   StreamPoint,
 } from '@bohemia/game';
 
 /** Čísel na bod osy potoka: x, y, levá a pravá poloviční šířka, hladina, mělčina (0/1). */
 const STREAM_FIELDS = 6;
 
+/** Osa jedné řeky kostry v přenosu – jako `LandscapeTransfer.river` a `riverBanks`. */
+export interface RiverTransfer {
+  /** Base64 Float32 little-endian – body osy po STREAM_FIELDS číslech. */
+  axis: string;
+  /** Base64 Float32 – výšky stěn u řeky po dvou číslech na bod osy (vlevo, vpravo). */
+  banks?: string;
+}
+
 /**
  * Krajina ve tvaru, který jde poslat v props ze serveru do klientské komponenty (≈ 100 kB,
- * ≈ 50 kB po kompresi). Přesnost (výšky na cm, osa potoka i řeky a výšky stěn u toků ve Float32) odpovídá
+ * ≈ 50 kB po kompresi). Přesnost (výšky na cm, osa potoka i řek a výšky stěn u toků ve Float32) odpovídá
  * `transferPrecision` z herního jádra – vrstvu překážek (desítky tisíc stromů) si prohlížeč
  * vygeneruje sám ze seedu vrstvy a vyjde mu přesně stejná jako serveru.
  */
@@ -44,6 +53,16 @@ export interface LandscapeTransfer {
   /** Base64 Float32 – výšky stěn u řeky po dvou číslech na bod osy (vlevo, vpravo). */
   riverBanks?: string;
   /**
+   * Osy řek kostry světa (`Landscape.rivers`) v pořadí krajiny – hlavní tok první, pak přítoky;
+   * u mapy bez řeky kostry chybí.
+   */
+  rivers?: readonly RiverTransfer[];
+  /**
+   * Výřez kostry světa (řeky a stezky na okraji); u suché mapy chybí. Stezku kostry si prohlížeč
+   * spočítá sám jako vrstvu překážek – z výřezu a krajiny s přesností přenosu.
+   */
+  skeleton?: SkeletonSlice;
+  /**
    * Prémiový typ krajiny; u průměrné krajiny chybí. Prvky typu (`premiumFeaturesOf`) si prohlížeč
    * spočítá sám jako vrstvu překážek – z typu a krajiny s přesností přenosu.
    */
@@ -70,8 +89,25 @@ export function encodeLandscape(l: Landscape): LandscapeTransfer {
     ...(l.river?.some((p) => p.bankLeft !== undefined)
       ? { riverBanks: bytesToBase64(encodeBanks(l.river)) }
       : {}),
+    ...(l.rivers ? { rivers: l.rivers.map(encodeRiver) } : {}),
+    ...(l.skeleton ? { skeleton: l.skeleton } : {}),
     ...(l.premium !== undefined ? { premium: l.premium } : {}),
   };
+}
+
+/** Osa řeky kostry do přenosu – výšky stěn jen, když je osa má (jako `riverBanks`). */
+function encodeRiver(course: readonly StreamPoint[]): RiverTransfer {
+  return {
+    axis: bytesToBase64(encodeStream(course)),
+    ...(course.some((p) => p.bankLeft !== undefined)
+      ? { banks: bytesToBase64(encodeBanks(course)) }
+      : {}),
+  };
+}
+
+function decodeRiver(r: RiverTransfer): StreamPoint[] {
+  const axis = decodeStream(base64ToBytes(r.axis));
+  return r.banks !== undefined ? withBanks(axis, base64ToBytes(r.banks)) : axis;
 }
 
 /** Dekódované krajiny podle přenosu – scéna i rozhraní dostanou týž objekt (a vrstvu překážek). */
@@ -106,6 +142,8 @@ function decode(t: LandscapeTransfer): Landscape {
     ...(river
       ? { river: t.riverBanks ? withBanks(river, base64ToBytes(t.riverBanks)) : river }
       : {}),
+    ...(t.rivers ? { rivers: t.rivers.map(decodeRiver) } : {}),
+    ...(t.skeleton ? { skeleton: t.skeleton } : {}),
     ...(t.premium !== undefined ? { premium: t.premium } : {}),
   };
 }

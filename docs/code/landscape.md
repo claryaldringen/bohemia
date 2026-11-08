@@ -101,8 +101,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   ve tvaru osy potoka (`Terrain.river`, přenos `LandscapeTransfer.river` / `riverBanks`,
   `transferPrecision`), ostrožny nad brodem a soutokem jsou `Promontory` druhů `ford-hill`
   a `confluence`. Osa řeky `riverCenterline(l)`, osa všech vod `watersCenterline(l)` (nejbližší
-  místo potoka i řeky, body osy potoka) – podle ní rozmisťovače překážek a terén pěšin, krajina bez
-  řeky má přesně `streamCenterline`. Stezka přes brod (`route`) a přístaviště se počítají v `sites`
+  místo potoka i řek, body osy potoka) – podle ní rozmisťovače překážek a terén pěšin, krajina bez
+  řeky má přesně `streamCenterline` (víc řek kostry – Osa vod víc řek níž). Stezka přes brod (`route`) a přístaviště se počítají v `sites`
   z hotové krajiny (`fordRoute`, `cheapestPath`). Zlatonosný potok a solný pramen jen označí místa
   v průměrné krajině; posvátný pramen (`sacredSpringSpot`) má ve vrstvě překážek skalku (zdroj
   `springRock`, `obstacles/spring-rocks.ts`). Typ, který mění terén, nepočítá průměrné vrstvy
@@ -149,7 +149,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`premium/`), `patches.ts` a rozmisťovače `obstacles/bee-trees.ts`, `spring-rocks.ts`
   a `premium-rocks.ts` – po ostrém spuštění nová `PREMIUM_LAYER_VERSION`. Pochod války
   (`march-grid.ts`) čte osu všech vod (`watersCenterline`), loviště ryb vsi (`wildlife-land.ts`)
-  i bod řeky (`riverCenterline`). **Účinky typů „hned“** (premium-landscapes.md – Typy krajin,
+  i body řek (`riverCenterlines`). **Účinky typů „hned“** (premium-landscapes.md – Typy krajin,
   sloupec „Hned“; čísla `PREMIUM_EFFECTS` v `rules-premium.ts`) jdou přes existující mechaniky
   vsi – `village/premium-effects.ts` a `village/premium-route.ts`, krajina bez typu ves nemění
   (zlaté otisky vsí): bohatá ruda a dobrá hlína (`premiumDugSpot`, `OreSite.rich` – rudiště
@@ -162,6 +162,23 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   kostry brodu a průsmyku (`withPremiumRoute` ve `foundedState` – osa `route` jako upravené pevné
   cesty s průsekem lesem bez klád a hotová zemská stezka v obou směrech, kam vede; trade.md).
   Úrodná krajina, doubravy a nivní louky působí samy přes krajinu.
+- **Osa vod víc řek** (Úloha 7 plánu kostry; world-skeleton.md – Kde všude kostra působí): mapa
+  z kostry má víc řek (`Landscape.rivers` – soutok), všechny řeky mapy dá `riversOf`.
+  `riverCenterlines(l)` (`stream-geometry.ts`) – osa každé řeky zvlášť v pořadí `riversOf`
+  (řeky kostry, pak řeka prémie), bez tůní a s proudem jako řeka prémie; řeka prémie se prodlouží
+  k okraji na obou koncích jako dřív, řeka kostry jen na koncích u okraje (`edgeEnds` – pramen
+  uvnitř mapy a ústí přítoku do osy hlavního toku ne, přítok by jinak vyčníval za protější břeh).
+  `riverCenterline(l)` – všechny řeky dohromady (`nearest`/`nearestPair` přes všechny, při shodě
+  dřívější; `points` = osa první řeky; jediná řeka = přesně její osa, krajina bez řeky null);
+  `watersCenterline(l)` a `nearestWaterPair(potok, řeky, …)` tak počítají s potokem i všemi řekami
+  (v soutoku dá dvojice místo z přítoku i hlavního toku). Přes osu vod jdou vrstva překážek, terén
+  pěšin, pochod (`march-grid.ts` – i mapa s řekou bez potoka) a loviště ryb (`wildlife-land.ts`
+  – bod nejbližší řeky, proud podle jejích bodů). **Přenos:** `transferPrecision` dá osy řek
+  kostry ve Float32 (i s výškami stěn) jako osu řeky prémie; `LandscapeTransfer.rivers`
+  (`RiverTransfer` – `axis` a `banks` po tocích, hlavní tok první) a `skeleton` (výřez beze
+  změny – stezku kostry si prohlížeč spočítá sám); suchá mapa a prémie bez nich jako dřív. Testy
+  `stream-geometry.test.ts` (soutok, pramen), `landscape-transfer.test.ts` (soutok – vrstva
+  překážek bit po bitu), `march.test.ts` (řeky kostry jen přes brod), `wildlife-land.test.ts`.
 - **Kostra světa na mapě** ([world-skeleton.md](docs/design/world-skeleton.md) – Mapa z kostry;
   `landscape/skeleton/`, deterministická vrstva v ESLint): výřez kostry (`SkeletonSlice`, body
   řek a stezek na okraji) je vstup generátoru mapy. Čísla mapy v `SKELETON_MAP`

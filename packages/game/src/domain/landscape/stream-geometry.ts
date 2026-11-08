@@ -109,12 +109,14 @@ const RIVER_COURSE: CourseKind = { poolOf: () => 0, minSpeed: 0.5 };
 
 /**
  * Osa toku `course` (body ve tvaru osy potoka) ve světě: tůň podle poloviční šířky v políčkách
- * (`kind.poolOf`), hladina po proudu nestoupá, konce prodloužené k okraji mapy, proud a oblouky.
+ * (`kind.poolOf`), hladina po proudu nestoupá, konce `ends` prodloužené k okraji mapy, proud
+ * a oblouky.
  */
 function centerlineOf(
   l: Landscape,
   course: readonly StreamPoint[],
   kind: CourseKind,
+  ends: Ends = BOTH_ENDS,
 ): StreamCenterline {
   const half = (l.size * l.cellSizeM) / 2;
   let points: StreamCenterPoint[] = course.map((p) => {
@@ -137,7 +139,7 @@ function centerlineOf(
     points[k]!.level = Math.min(points[k]!.level, points[k - 1]!.level);
   }
   if (points.length >= 2) {
-    points = extendToEdges(points, l.cellSizeM);
+    points = extendToEdges(points, l.cellSizeM, ends);
     deriveFlow(points);
   }
   const minSpeed = kind.minSpeed;
@@ -145,19 +147,63 @@ function centerlineOf(
   return withNearestQuery(points);
 }
 
+/** Které konce osy prodloužit o políčko ven (`extendToEdges`). */
+interface Ends {
+  readonly start: boolean;
+  readonly end: boolean;
+}
+
+const BOTH_ENDS: Ends = { start: true, end: true };
+
+/**
+ * Konce řeky kostry, které leží na okraji mapy (vtok, výtok). Pramen uvnitř mapy a ústí přítoku
+ * do osy hlavního toku se neprodlužují – přítok by jinak vyčníval za protější břeh hlavního toku.
+ */
+function edgeEnds(course: readonly StreamPoint[], size: number): Ends {
+  const atEdge = (p: StreamPoint): boolean =>
+    Math.min(p.x, p.y, size - 1 - p.x, size - 1 - p.y) <= 1;
+  return { start: atEdge(course[0]!), end: atEdge(course.at(-1)!) };
+}
+
+const riversCache = new WeakMap<Landscape, readonly StreamCenterline[]>();
+
+/**
+ * Osy všech řek krajiny, každá zvlášť, v pořadí `riversOf`: řeky kostry (`Landscape.rivers` –
+ * hlavní tok první, pak přítoky), pak řeka prémie (`Landscape.river`). Stejná geometrie jako osa
+ * potoka (šířky, hladina, brody, proud, oblouky), jen bez tůní a s proudem aspoň
+ * `RIVER_COURSE.minSpeed`: řeka je souvislý tok 25–45 m široký (tůně potoka se poznají podle
+ * šířky nad 36 m – řeka by s prahy potoka vyšla jako stojatá tůň a led, ryby i hladina by ji
+ * braly jako klidnou vodu). Řeka prémie teče od okraje k okraji a prodlužuje se na obou koncích
+ * jako dřív; řeka kostry jen na koncích u okraje (`edgeEnds`). Krajina bez řeky []. Mezipaměť
+ * podle objektu krajiny.
+ */
+export function riverCenterlines(l: Landscape): readonly StreamCenterline[] {
+  const cached = riversCache.get(l);
+  if (cached) return cached;
+  const lines = [
+    ...(l.rivers ?? [])
+      .filter((course) => course.length >= 2)
+      .map((course) => centerlineOf(l, course, RIVER_COURSE, edgeEnds(course, l.size))),
+    ...(l.river && l.river.length >= 2 ? [centerlineOf(l, l.river, RIVER_COURSE)] : []),
+  ];
+  riversCache.set(l, lines);
+  return lines;
+}
+
 const riverCache = new WeakMap<Landscape, StreamCenterline | null>();
 
 /**
- * Osa řeky prémiové krajiny (`Landscape.river`) – stejná geometrie jako osa potoka (šířky,
- * hladina, brody, proud, oblouky), jen bez tůní a s proudem aspoň `RIVER_COURSE.minSpeed`: řeka
- * je souvislý tok 25–45 m široký (tůně potoka se poznají podle šířky nad 36 m – řeka by s prahy
- * potoka vyšla jako stojatá tůň a led, ryby i hladina by ji braly jako klidnou vodu). Krajina bez
- * řeky null. Mezipaměť podle objektu krajiny.
+ * Osa všech řek krajiny dohromady (`riverCenterlines`): `nearest` a `nearestPair` vrací nejbližší
+ * místo kterékoli řeky (při shodě vyhrává dřívější, druhé místo dvojice může být i z jiné řeky
+ * – v soutoku z přítoku i hlavního toku), `points` jsou body osy první řeky (hlavní tok kostry,
+ * nebo řeka prémie). Jediná řeka (prémie 1) = přesně její osa. Krajina bez řeky null. Mezipaměť
+ * podle objektu krajiny.
  */
 export function riverCenterline(l: Landscape): StreamCenterline | null {
   const cached = riverCache.get(l);
   if (cached !== undefined) return cached;
-  const river = l.river && l.river.length >= 2 ? centerlineOf(l, l.river, RIVER_COURSE) : null;
+  const [first, ...rest] = riverCenterlines(l);
+  const river = first ? rest.reduce(combineCenterlines, first) : null;
   riverCache.set(l, river);
   return river;
 }
@@ -165,11 +211,12 @@ export function riverCenterline(l: Landscape): StreamCenterline | null {
 const watersCache = new WeakMap<Landscape, StreamCenterline>();
 
 /**
- * Všechny toky krajiny pro dotazy „co je tady za vodu“ – potok a řeka (prémiové krajiny).
- * `nearest` a `nearestPair` vrací nejbližší místo kteréhokoli toku (druhý úsek může být
- * i z druhého toku), `points` jsou body osy potoka – stanice podél potoka (břehový porost,
- * zvuky) zůstanou, kde byly. Krajina bez řeky vrací přesně `streamCenterline` – vrstva
- * překážek i pěšiny průměrné krajiny jsou bit po bitu stejné. Mezipaměť podle objektu krajiny.
+ * Všechny toky krajiny pro dotazy „co je tady za vodu“ – potok a všechny řeky (`riverCenterline`
+ * – řeky kostry i řeka prémie). `nearest` a `nearestPair` vrací nejbližší místo kteréhokoli toku
+ * (druhý úsek může být i z jiného toku), `points` jsou body osy potoka – stanice podél potoka
+ * (břehový porost, zvuky) zůstanou, kde byly. Krajina bez řeky vrací přesně `streamCenterline`
+ * – vrstva překážek i pěšiny průměrné krajiny jsou bit po bitu stejné. Mezipaměť podle objektu
+ * krajiny.
  */
 export function watersCenterline(l: Landscape): StreamCenterline {
   const cached = watersCache.get(l);
@@ -191,9 +238,9 @@ export interface WaterPair {
 }
 
 /**
- * Nejbližší místo vody ze dvou toků – potoka `a` a řeky `b` (null = jen potok) – stejně jako
- * `watersCenterline` (při shodě vyhrává potok) a s tím, ze kterého toku je; scéna podle toho
- * hloubí řece hlubší koryto.
+ * Nejbližší místo vody ze dvou toků – potoka `a` a řek `b` (`riverCenterline` – všechny řeky
+ * mapy dohromady; null = jen potok) – stejně jako `watersCenterline` (při shodě vyhrává potok)
+ * a s tím, ze kterého toku je; scéna podle toho hloubí řece hlubší koryto.
  */
 export function nearestWaterPair(
   a: StreamCenterline,
@@ -228,15 +275,23 @@ function combineCenterlines(a: StreamCenterline, b: StreamCenterline): StreamCen
   };
 }
 
-/** Prodlouží konce osy o políčko ven – voda pak sahá až za okraj mapy. */
-function extendToEdges(points: StreamCenterPoint[], cellSizeM: number): StreamCenterPoint[] {
+/** Prodlouží konce osy `ends` o políčko ven – voda pak sahá až za okraj mapy. */
+function extendToEdges(
+  points: StreamCenterPoint[],
+  cellSizeM: number,
+  ends: Ends,
+): StreamCenterPoint[] {
   const extend = (end: StreamCenterPoint, inner: StreamCenterPoint): StreamCenterPoint => {
     const dx = end.x - inner.x;
     const dz = end.z - inner.z;
     const length = length2(dx, dz) || 1;
     return { ...end, x: end.x + (dx / length) * cellSizeM, z: end.z + (dz / length) * cellSizeM };
   };
-  return [extend(points[0]!, points[1]!), ...points, extend(points.at(-1)!, points.at(-2)!)];
+  return [
+    ...(ends.start ? [extend(points[0]!, points[1]!)] : []),
+    ...points,
+    ...(ends.end ? [extend(points.at(-1)!, points.at(-2)!)] : []),
+  ];
 }
 
 /** Rychlost proudu ze spádu hladiny a šířky, stočení toku pro vnitřní a vnější břeh. */

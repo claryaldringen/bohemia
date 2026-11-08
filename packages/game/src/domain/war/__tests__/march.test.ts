@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf, OFFICIAL_WORLD, TOTAL_GAME_DAYS } from '../../calendar';
 import {
+  CURRENT_LAYER_VERSIONS,
   generateLandscape,
   obstaclesOf,
+  riverCenterlines,
   SURFACE_CODES,
   TREE_KINDS,
   obstacleKind,
@@ -157,6 +159,88 @@ describe('voda jen přes brod (war.md – Pohyb – Terén)', () => {
     // brod leží v řádcích políček 100–106 (svět z ≈ 547–637 m)
     const crossing = path.points.filter((p) => Math.abs(p.x - 7.5) < 10);
     for (const p of crossing) expect(p.z).toBeGreaterThan(530);
+  });
+});
+
+/**
+ * Řeka kostry jako přímka od `from` do `to` (políčka) – 30 m široká; brod v bodech, jejichž
+ * řádek políček leží v `ford`.
+ */
+function riverLine(
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  ford: [number, number] | null = null,
+): StreamPoint[] {
+  const n = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y));
+  return Array.from({ length: n + 1 }, (_, k) => {
+    const y = from.y + ((to.y - from.y) * k) / n;
+    return {
+      x: from.x + ((to.x - from.x) * k) / n,
+      y,
+      halfWidthLeft: 1,
+      halfWidthRight: 1,
+      level: 5 - k / n,
+      shallow: ford !== null && y >= ford[0] && y <= ford[1],
+      bankLeft: 0,
+      bankRight: 0,
+    };
+  });
+}
+
+describe('řeky kostry jen přes brod (war.md – Pohyb – Terén, world-skeleton.md)', () => {
+  // Hlavní tok od severu k jihu ve sloupci políček 80 (svět x ≈ 247,5 m), přítok od západu
+  // v řádku 30 (svět z ≈ −502,5 m) do osy hlavního toku – mapa bez potoka.
+  const main = (ford: [number, number] | null): StreamPoint[] =>
+    riverLine({ x: 80, y: 127 }, { x: 80, y: 0 }, ford);
+  const tributary = riverLine({ x: 0, y: 30 }, { x: 80, y: 30 });
+
+  it('řeka kostry bez brodu vojsko nepřejde', () => {
+    const grid = marchGrid({ ...flat(), rivers: [main(null)] }, null, null);
+    expect(marchPath(grid, { x: 0, z: 0 }, { x: 500, z: 0 })).toBeNull();
+    expect(marchPath(grid, { x: 0, z: 0 }, { x: -300, z: 300 })).not.toBeNull();
+  });
+
+  it('přes hlavní tok jen brodem, přes přítok bez brodu vůbec', () => {
+    const grid = marchGrid({ ...flat(), rivers: [main([100, 106]), tributary] }, null, null);
+    const path = marchPath(grid, { x: 0, z: 0 }, { x: 500, z: 0 })!;
+    expect(path).not.toBeNull();
+    expect(flagged(grid, path, MARCH_WATER)).toBe(0);
+    expect(flagged(grid, path, MARCH_FORD)).toBeGreaterThan(0);
+    // brod leží v řádcích políček 100–106 (svět z ≈ 547–637 m)
+    const crossing = path.points.filter((p) => Math.abs(p.x - 247.5) < 10);
+    for (const p of crossing) expect(p.z).toBeGreaterThan(530);
+    // jih pod přítokem: přítok brod nemá a hlavní tok jde přejít jen severně od soutoku
+    expect(marchPath(grid, { x: 0, z: 0 }, { x: 0, z: -800 })).toBeNull();
+    expect(grid.flags[marchCellAt(grid, { x: -300, z: -502.5 })]! & MARCH_WATER).toBe(MARCH_WATER);
+  });
+
+  it('mapa se soutokem řek kostry: osy obou řek jsou voda, kromě brodů', () => {
+    const landscape = generateLandscape(1, { ...CURRENT_LAYER_VERSIONS, skeleton: 1 }, undefined, {
+      world: 1,
+      rivers: [
+        { side: 'N', at: 50, widthM: 40, flow: 'in' },
+        { side: 'E', at: 64, widthM: 25, flow: 'in' },
+        { side: 'S', at: 80, widthM: 45, flow: 'out' },
+      ],
+      trails: [],
+    });
+    const grid = marchGrid(landscape, null, null);
+    const rivers = riverCenterlines(landscape);
+    expect(rivers).toHaveLength(2);
+    let fords = 0;
+    for (const river of rivers) {
+      for (const p of river.points) {
+        const flags = grid.flags[marchCellAt(grid, p)]!;
+        if (p.shallow === 0) expect(flags & (MARCH_WATER | MARCH_FORD)).not.toBe(0);
+        if (flags & MARCH_FORD) fords++;
+      }
+    }
+    expect(fords).toBeGreaterThan(0);
+    // přes řeku jen brodem – žádná cesta po buňkách hluboké vody
+    const path = marchPath(grid, { x: -900, z: 0 }, { x: 900, z: -300 })!;
+    expect(path).not.toBeNull();
+    expect(flagged(grid, path, MARCH_WATER)).toBe(0);
+    expect(flagged(grid, path, MARCH_FORD)).toBeGreaterThan(0);
   });
 });
 

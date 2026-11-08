@@ -116,4 +116,27 @@ describe('krajina zvěře', () => {
     expect(Math.abs(spots[0]!.flowX)).toBeCloseTo(1, 3);
     expect(fishingPools(base, village())).toEqual([]);
   });
+
+  it('víc řek kostry: lovištěm je bod nejbližší řeky a proud teče podél ní', () => {
+    const base = makeLandscape({ size: 128, surface: () => 'meadow' });
+    const line = (from: { x: number; y: number }, to: { x: number; y: number }, n: number) =>
+      Array.from({ length: n + 1 }, (_, k) => ({
+        x: from.x + ((to.x - from.x) * k) / n,
+        y: from.y + ((to.y - from.y) * k) / n,
+        halfWidthLeft: 1,
+        halfWidthRight: 1,
+        level: 10 - k / n,
+        shallow: false,
+      }));
+    // hlavní tok od severu k jihu ve sloupci 80, přítok od západu v řádku 66 do jeho osy
+    const main = line({ x: 80, y: 127 }, { x: 80, y: 0 }, 127);
+    const tributary = line({ x: 0, y: 66 }, { x: 80, y: 66 }, 80);
+    const landscape = { ...base, rivers: [main, tributary] };
+    const spots = fishingPools(landscape, village());
+    expect(spots).toHaveLength(1);
+    // přítok v řádku 66 (z = −960 + 66,5 × 15 = 37,5) je ke vsi v počátku blíž než hlavní tok
+    expect(spots[0]!.z).toBeCloseTo(37.5, 1);
+    expect(Math.abs(spots[0]!.x)).toBeLessThan(15);
+    expect(spots[0]!.flowX).toBeCloseTo(1, 3);
+  });
 });

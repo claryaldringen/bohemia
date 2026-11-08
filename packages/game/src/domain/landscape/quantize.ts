@@ -3,8 +3,9 @@ import type { Landscape, StreamPoint } from './types';
 /**
  * Krajina s přesností, jakou dostane prohlížeč (výšky na centimetry ve Float32, osa potoka ve
  * Float32 i s výškami stěn u potoka – viz `apps/web/lib/landscape-transfer.ts`; osa řeky
- * prémiových krajin stejně). Vrstvy, které počítá server i prohlížeč (překážky, prvky prémiových
- * typů), vycházejí z ní – oba tak počítají ze stejných čísel. Opakované použití nic nemění.
+ * prémiových krajin i osy řek kostry stejně, výřez kostry beze změny). Vrstvy, které počítá
+ * server i prohlížeč (překážky, prvky prémiových typů, stezka kostry), vycházejí z ní – oba tak
+ * počítají ze stejných čísel. Opakované použití nic nemění.
  */
 export function transferPrecision(l: Landscape): Landscape {
   return {
@@ -12,6 +13,7 @@ export function transferPrecision(l: Landscape): Landscape {
     heights: transferHeights(l.heights),
     stream: transferLine(l.stream),
     ...(l.river ? { river: transferLine(l.river) } : {}),
+    ...(l.rivers ? { rivers: l.rivers.map(transferLine) } : {}),
   };
 }
 
