@@ -73,6 +73,11 @@ a kroniku.“
 - **Panel Kronika** (implementováno, návrh Clauda): kniha v liště vedle praporu rodu otevře
   zápisy kroniky zobrazené vsi od nejnovějších, po herních letech; starší roky se načítají po
   stránkách ze serveru. Kód: `docs/code/web-ui.md` – Panel Kronika.
+- **Panel Upozornění** (implementováno, návrh Clauda): zvonek vedle knihy kroniky otevře uložená
+  upozornění mezi hráči (jednání, vazalství, válka, odvody…) od nejnovějších, s herním datem, po
+  stránkách ze serveru; nová od posledního otevření jsou zvýrazněná a jejich počet je číslem u
+  ikony. Upozornění vsi (hlad, nedostatek surovin…) se neukládají – odvozují se z pohledu a stav
+  vsi ukazují řádky nahoře. Kód: `docs/code/web-ui.md` – Panel Upozornění.
 
 ## Opuštěný rod
 

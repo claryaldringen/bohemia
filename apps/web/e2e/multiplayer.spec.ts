@@ -508,6 +508,18 @@ test('pomoc na žádost: B požádá A o obilí, A dá půjčku, B přijme → z
   await expect(dialog).toBeVisible();
   await expect(dialog.locator('[data-testid$="-kind"]')).toBeVisible();
 
+  // panel Upozornění: uložené upozornění (už doručené jako řádek) je v historii, nové a s číslem
+  await b.keyboard.press('Escape');
+  await expect(b.getByTestId('notices-unread')).toBeVisible();
+  await b.getByTestId('notices-toggle').click();
+  const noticesPanel = b.getByTestId('notices-panel');
+  await expect(noticesPanel).toBeVisible();
+  const entry = noticesPanel.getByTestId('notice-entry').filter({ hasText: 'splátku půjčky' });
+  await expect(entry).toHaveAttribute('data-unread', 'true');
+  await b.getByTestId('notices-close').click();
+  await expect(noticesPanel).toHaveCount(0);
+  await expect(b.getByTestId('notices-unread')).toHaveCount(0);
+
   await Promise.all(ctxs.map((ctx) => ctx.close()));
 });
 

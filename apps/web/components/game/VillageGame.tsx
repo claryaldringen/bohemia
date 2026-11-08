@@ -186,6 +186,8 @@ import { GameMenu } from './hud/GameMenu';
 import { HousePanel } from './hud/HousePanel';
 import { WarPanel } from './hud/WarPanel';
 import { ChroniclePanel } from './hud/ChroniclePanel';
+import { NoticesPanel } from './hud/NoticesPanel';
+import { useNotices } from '@/hooks/use-notices';
 import { useChronicle } from '@/hooks/use-chronicle';
 import { LevyDialog } from './hud/LevyDialog';
 import { EscheatDialog } from './hud/EscheatDialog';
@@ -609,6 +611,7 @@ export function VillageGame({
   const gameOver = view?.gameOver === true;
   // Po konci hry je přes všechno obrazovka porážky – nabídka se neukáže.
   const menuShown = menuOpen && !gameOver;
+  const closeNoticesRef = useRef<() => void>(() => undefined);
   // Panel Kronika (absence.md – Návrat) – střídá se s panely rodu, války a nabídkou
   const chronicle = useChronicle({
     villageId: view && !view.extinct ? view.id : null,
@@ -618,8 +621,25 @@ export function VillageGame({
       setHouseOpen(false);
       setWarOpen(false);
       setMenuOpen(false);
+      closeNoticesRef.current();
     },
   });
+  // Panel Upozornění (absence.md – Návrat) – střídá se s kronikou, panely rodu a války i nabídkou
+  const [noticeTick, setNoticeTick] = useState(0);
+  const noticeHistory = useNotices({
+    tick: noticeTick,
+    enabled: true,
+    othersOpen: houseOpen || warOpen || menuShown,
+    closeOthers: () => {
+      setHouseOpen(false);
+      setWarOpen(false);
+      setMenuOpen(false);
+      chronicle.close();
+    },
+  });
+  useEffect(() => {
+    closeNoticesRef.current = noticeHistory.close;
+  }, [noticeHistory.close]);
 
   // Jména rodu (lord.md – Kde se jméno zadává). Bez vsi hráč nejdřív pojmenuje vojvodu – jméno
   // odejde na server se založením vsi (zavře-li stránku dřív, panel se ukáže znovu). Ve vsi čeká
@@ -672,6 +692,7 @@ export function VillageGame({
     (received: readonly PlayerNotice[] | undefined): void => {
       if (!received || received.length === 0) return;
       void refreshHouse();
+      setNoticeTick((t) => t + 1);
       const lines = received.map((n) => {
         const panel = noticePanel(n.kind);
         return { ...playerNoticeLine(n), onOpen: panel ? () => openNoticePanel(panel) : undefined };
@@ -1669,6 +1690,11 @@ export function VillageGame({
               chronicle={
                 view && !view.extinct ? { open: chronicle.open, onToggle: chronicle.toggle } : null
               }
+              notices={{
+                unread: noticeHistory.unread,
+                open: noticeHistory.open,
+                onToggle: noticeHistory.toggle,
+              }}
               devTime={devMode ? { pending: skipping, onSkip: skipTimeBy } : null}
               devDisasters={
                 devMode && view && !view.extinct
@@ -1976,6 +2002,16 @@ export function VillageGame({
                 error={chronicle.error}
                 onOlder={chronicle.loadOlder}
                 onClose={chronicle.close}
+              />
+            )}
+            {noticeHistory.open && !menuShown && (
+              <NoticesPanel
+                page={noticeHistory.page}
+                highlightAfter={noticeHistory.highlightAfter}
+                loading={noticeHistory.loading}
+                error={noticeHistory.error}
+                onOlder={noticeHistory.loadOlder}
+                onClose={noticeHistory.close}
               />
             )}
             {houseOpen && !menuShown && (

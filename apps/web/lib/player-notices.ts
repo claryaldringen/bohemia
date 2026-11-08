@@ -242,6 +242,11 @@ function textOf(n: PlayerNotice): string {
   }
 }
 
+/** Text upozornění pro hráče (řádek i panel Upozornění). */
+export function playerNoticeText(n: PlayerNotice): string {
+  return textOf(n);
+}
+
 /**
  * Řádek upozornění pro hráče. `id` řádku je záporné číslo upozornění: vesnická upozornění mají
  * kladná id z čítače v `VillageGame`, takže se obě řady nikdy nesrazí.

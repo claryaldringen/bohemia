@@ -5,6 +5,7 @@ import path from 'node:path';
 import { createDatabase } from '../../client';
 import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
+import { NOTICES_KEPT_PER_PLAYER } from '@bohemia/game';
 import { createNoticeRepository } from '../notice-repository';
 
 const db = createDatabase(testDatabaseUrl());
@@ -83,5 +84,34 @@ describe('NoticeRepository (Drizzle)', () => {
     expect(new Set(ids).size).toBe(ids.length);
     const rest = await notices.takeUnread('p1', 10);
     expect(ids.length + rest.length).toBe(10);
+  });
+
+  it('page vrací přečtená i nepřečtená upozornění hráče od nejnovějšího po stránkách', async () => {
+    for (let i = 0; i < 5; i++) {
+      await notices.post({ ...base, playerId: 'p1', kind: 'invitee-played', gameDay: i });
+    }
+    await notices.post({ ...base, playerId: 'p2', kind: 'invite-accepted' });
+    await notices.takeUnread('p1', 2); // dvě nejstarší jsou přečtená
+    const first = await notices.page('p1', null, 3);
+    expect(first.map((n) => n.gameDay)).toEqual([4, 3, 2]);
+    expect(first.every((n) => n.playerId === 'p1')).toBe(true);
+    const second = await notices.page('p1', first.at(-1)!.id, 3);
+    expect(second.map((n) => n.gameDay)).toEqual([1, 0]);
+    expect(second.map((n) => n.readAt !== null)).toEqual([true, true]);
+    // stránkování nic neoznačuje za přečtené
+    expect((await notices.page('p1', null, 1))[0]!.readAt).toBeNull();
+  });
+
+  it('post nechá hráči nejvýš NOTICES_KEPT_PER_PLAYER nejnovějších, cizí hráče nechá být', async () => {
+    await notices.post({ ...base, playerId: 'p2', kind: 'invite-accepted' });
+    await db.execute(sql`
+      INSERT INTO player_notice (player_id, kind, payload, game_day)
+      SELECT 'p1', 'invitee-played', '{}'::jsonb, g FROM generate_series(1, ${NOTICES_KEPT_PER_PLAYER}) g`);
+    await notices.post({ ...base, playerId: 'p1', kind: 'invitee-played', gameDay: 9999 });
+    const mine = await notices.page('p1', null, NOTICES_KEPT_PER_PLAYER + 10);
+    expect(mine).toHaveLength(NOTICES_KEPT_PER_PLAYER);
+    expect(mine[0]!.gameDay).toBe(9999);
+    expect(mine.at(-1)!.gameDay).toBe(2); // nejstarší (den 1) odpadl
+    expect(await notices.page('p2', null, 10)).toHaveLength(1);
   });
 });
