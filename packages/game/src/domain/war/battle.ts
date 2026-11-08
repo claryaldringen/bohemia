@@ -428,10 +428,11 @@ interface WallLine {
   pincer?: true;
 }
 
-/** Průchod opevněním – brána, mezera, průlom; body vně a uvnitř. */
+/** Průchod opevněním – brána, mezera, průlom; body vně a uvnitř, úsek. */
 interface Opening {
   out: Pos;
   in: Pos;
+  segment: number;
 }
 
 /** Místo, kde jde opevnění prolomit: postupy místa (`assaultSteps`) a vnější normála hradby. */
@@ -556,7 +557,11 @@ function wallsOf(
       const mid = at(l.length / 2);
       const { x: nx, z: nz } = outward(bf, l);
       const shift = (p: Pos, m: number): Pos => ({ x: p.x + nx * m, z: p.z + nz * m });
-      const opening = (p: Pos): Opening => ({ out: shift(p, 3), in: shift(p, -3) });
+      const opening = (p: Pos): Opening => ({
+        out: shift(p, 3),
+        in: shift(p, -3),
+        segment: shape.index,
+      });
       const part = (from: number, to: number): void => {
         if (to - from <= 1e-6) return;
         const a = at(from);
@@ -619,6 +624,7 @@ function wallsOf(
           openings.push({
             out: shift({ x: pincer.mx, z: pincer.mz }, 3),
             in: pincerPoint(pincer, 0, pincer.endM + 3),
+            segment: shape.index,
           });
         }
       } else {
@@ -830,6 +836,25 @@ function strikeOf(
   return { kind, across };
 }
 
+/**
+ * Dosáhne `f` na `t` přes hradby mezi nimi (`canStrikeAcross`) – lukem na dostřel, jinak zblízka
+ * (vzdálenost zblízka se nehlídá – k cíli dojde)? Skupina „držet místo“ jiné cíle nevolí (plán
+ * hradeb, Úloha 20).
+ */
+function reachable(f: Fighter, t: Fighter, w: TickWorld): boolean {
+  if (onWallTop(f, w.b) || onWallTop(t, w.b)) return true;
+  const c = WAR.combat;
+  const d2 = dist2(f.pos, t.pos);
+  const bow = f.bow && d2 >= c.bowMinM * c.bowMinM && d2 <= c.bowMaxM * c.bowMaxM;
+  for (let fi = 0; fi < w.walls.lines.length; fi++) {
+    for (const line of w.walls.lines[fi]!) {
+      if (!crosses(f.pos, t.pos, line)) continue;
+      if (!canStrikeAcross(lineWall(line, fi, w), f, t, bow ? 'ranged' : 'melee')) return false;
+    }
+  }
+  return true;
+}
+
 /** Druh rány na cíl odsud, nebo null. */
 function strikeKind(f: Fighter, t: Fighter, w: TickWorld): StrikeKind | null {
   return strikeOf(f, t, w)?.kind ?? null;
@@ -1026,7 +1051,7 @@ interface SpotChoice {
  * má přednost, nabízí-li ho místo; oheň jen s otepi (les, dříví vsi).
  */
 function chooseSpot(
-  w: TickWorld,
+  w: Pick<TickWorld, 'field' | 'walls' | 'b'>,
   fort: number,
   from: Pos,
   assault: GroupAssault | undefined,
@@ -1038,12 +1063,19 @@ function chooseSpot(
     const there = w.b.fighters.filter(
       (f) => f.state === 'breach' && f.breachAt === spot.key,
     ).length;
-    if (there >= (spot.maxMen ?? A.maxMen)) continue;
+    const cap = spot.maxMen ?? A.maxMen;
+    if (there >= cap) continue;
+    // hodiny s tolika muži, kolik se k místu vejde (u vrat klešťové brány `pincerGate.maxMen`)
+    const workers = Math.min(men, cap);
     const started = w.b.breaches.find((x) => x.key === spot.key);
     let choice: SpotChoice | null = null;
     if (started) {
       if (started.phase !== 'done') {
-        choice = { spot, step: null, hours: breachHoursLeft(started, Math.max(men, there + 1)) };
+        choice = {
+          spot,
+          step: null,
+          hours: breachHoursLeft(started, Math.min(cap, Math.max(workers, there + 1))),
+        };
       }
     } else {
       const fuelM = spot.steps.some((p) => p.method === 'burn')
@@ -1054,7 +1086,7 @@ function chooseSpot(
         steps = steps.filter((p) => p.method === assault);
       }
       for (const step of steps) {
-        const hours = assaultHours(step, men, step.method === 'burn' ? fuelM : 0);
+        const hours = assaultHours(step, workers, step.method === 'burn' ? fuelM : 0);
         if (!choice || hours < choice.hours) choice = { spot, step, hours };
       }
     }
@@ -1070,6 +1102,65 @@ function chooseSpot(
     }
   }
   return best;
+}
+
+/** Průchod opevněním pro NPC velitele: mezera, nebo místo a postup prolomení s hodinami. */
+export interface FortPassage {
+  fort: number;
+  segment: number;
+  /** Kde se stojí – vně před průchodem či místem prolomení. */
+  at: Pos;
+  method: 'open' | BreachMethod;
+  /** Herní hodiny prolomení se `min(4, muži)` (rozdělaný průlom – zbývající); mezera 0. */
+  hours: number;
+}
+
+/**
+ * Průchody opevněním bojiště pro NPC velitele (`npc-assault.ts` – plán hradeb, Úloha 20): mezery
+ * a průlomy boje (`openings`) a na každém opevnění nejrychlejší místo prolomení – stejné stěny
+ * a volba jako v taktu (`wallsOf`, `chooseSpot` – i nejvýš `maxMen` u vrat klešťové brány); brány
+ * zavřené – zavřou se, než k nim vojsko dojde. U klešťové brány stojí velitel před ústím uličky.
+ * Stav ani bojiště nemění.
+ */
+export function fortPassages(
+  field: BattleField,
+  b: BattleState,
+  from: Pos,
+  men: number,
+): FortPassage[] {
+  // průlom uložený před Úlohou 14 – takt ho převede až po rozhodnutí velitele; stav se nemění
+  if (b.breaches.some((x) => !(x as Partial<BattleBreach>).need)) {
+    b = structuredClone(b);
+    upgradeBreaches(b);
+  }
+  const forts = breachedForts(field, b);
+  const closed = new Set<string>();
+  forts.forEach((bf, fi) => {
+    for (const g of bf.fort.gates) closed.add(`${fi}:${g.segment}`);
+  });
+  const walls = wallsOf(forts, closed, field.day, moatFills(b));
+  const out: FortPassage[] = [];
+  forts.forEach((_, fi) => {
+    for (const o of walls.openings[fi] ?? []) {
+      out.push({ fort: fi, segment: o.segment, at: { ...o.out }, method: 'open', hours: 0 });
+    }
+    const c = chooseSpot({ field, walls, b }, fi, from, undefined, Math.min(A.maxMen, men));
+    if (!c) return;
+    const method = c.step
+      ? (c.step.method as BreachMethod)
+      : b.breaches.find((x) => x.key === c.spot.key)!.method;
+    // vrata klešťové brány jsou na konci uličky – velitel stojí před jejím ústím, k vratům
+    // dojdou muži v boji sami (ramena nepřelézají)
+    const pincer =
+      c.spot.spot === 'gate'
+        ? battlePincers(forts[fi]!, field.day).find((p) => p.segment === c.spot.segment)
+        : undefined;
+    const at = pincer
+      ? { x: pincer.mx + c.spot.out.x, z: pincer.mz + c.spot.out.z }
+      : { ...c.spot.at };
+    out.push({ fort: fi, segment: c.spot.segment, at, method, hours: c.hours });
+  });
+  return out;
 }
 
 /**
@@ -1286,6 +1377,7 @@ export function battleTick(b: BattleState, field: BattleField, rng: Random): voi
       ? (p, q) => inSight(field.grid, p, q, towerAt(forts, p, field.day) ? towerSightM : undefined)
       : (p, q) => inSight(field.grid, p, q),
     houses: (g) => houses.get(g) ?? [],
+    reaches: (p, q) => reachable(p, q, w),
   };
   for (const f of b.fighters) {
     if (f.cooldown > 0) f.cooldown--;

@@ -238,7 +238,11 @@ místo“ (návrh Clauda) neplatí. Zásah zůstává `10 × síla útočníka` 
 - **NPC velitel** (návrh Clauda, nahrazuje „1,5 × obránci × násobek“): odhadne nejrychlejší
   postup – mezera, žebříky na neobsazeném úseku, brána, oheň, sekání, odkopání, podkop – a napadne,
   je-li jeho síla aspoň 1,5 × síla obránců v dohledu a postup trvá nejvýš 1 herní den práce; jinak
-  vezme, co je venku, a odejde. Žebříky si vyrobí u nejbližšího lesa.
+  vezme, co je venku, a odejde. Žebříky si vyrobí u nejbližšího lesa. Návrh Clauda k provedení:
+  do postupu počítá i cestu k místu (vybere nejmenší součet cesty a postupu), 1 herní den hlídá jen
+  postup od hradby; zavřenou bránu bere jako zavřenou (zavře se, než k ní dojde); místo pro žebřík
+  je neobsazené i půl metru na obě strany; k místu vede skupinu kolem hradby (obchází ji po kruhu
+  5 m za nejvzdálenějším rohem) a odtud napadá – postup na místě volí muži sami (nejrychlejší).
 
 ### Přechod hradby (návrh Clauda)
 

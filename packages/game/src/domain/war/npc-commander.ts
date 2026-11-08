@@ -1,5 +1,5 @@
 import { fortHasWall, fortsContaining } from '../village/fortification';
-import type { BattleState, Fighter } from './battle';
+import type { BattleField, BattleState, Fighter } from './battle';
 import type {
   CampaignGroup,
   CampaignMember,
@@ -8,7 +8,8 @@ import type {
   CampaignWorld,
   IntentBody,
 } from './campaign-types';
-import { dist2, inFight, nearest } from './orders';
+import { approachStep, fastestApproach, passageOpen } from './npc-assault';
+import { dist2, inFight, nearest, orderHeard } from './orders';
 import { lootCapacity } from './raid-apply';
 import { WAR } from './rules-war';
 import { hoursPerTick, TICKS_PER_SECOND } from './ticks';
@@ -17,18 +18,28 @@ import { hoursPerTick, TICKS_PER_SECOND } from './ticks';
 // velí jiný muž než hráčův, když je hráč pryč a vede zástupce, nebo když velitel padl. Rozhoduje
 // jen ze stavu tažení a světa – záměry platí v taktu, ve kterém je spočítá (stejně po kouscích).
 // Pochod jde nejkratší cestou po mřížce map (A* obchází les, řeky po brodech – `marchPath`), průchod
-// opevněním volí boj (mezera, jinak místo s nejkratším prolomením – `approach`). Jen det-math.
+// opevněním: velitel vede skupinu k místu nejrychlejšího postupu (`npc-assault.ts`), u hradby pak
+// každý muž volí postup místa sám (boj – `approach`). Jen det-math.
 
 const SIGHT2 = WAR.sight.openM * WAR.sight.openM;
 /** O kolik se smí poloha obránce posunout, než NPC velitele pošle znovu (m). */
 const REGOAL_M = 10;
+/** Velitel je u místa postupu přes hradbu (a odtud napadne), stojí-li do tolika metrů (m). */
+const AT_APPROACH_M = 3;
 
-/** Záměry NPC velitele pro takt (pochod a nájezd; jinak žádné). Stav ani svět nemění. */
-export function npcIntents(state: CampaignState, world: CampaignWorld): IntentBody[] {
+/**
+ * Záměry NPC velitele pro takt (pochod a nájezd; jinak žádné). Stav, svět ani bojiště nemění.
+ * `field` – bojiště nájezdu s opevněním cíle (`battleFieldOf`); bez něj velitel o hradbě neví.
+ */
+export function npcIntents(
+  state: CampaignState,
+  world: CampaignWorld,
+  field: BattleField | null = null,
+): IntentBody[] {
   if (state.phase !== 'marching' && state.phase !== 'raiding') return [];
   const reason = turnReason(state, world);
   if (reason !== null) return [{ kind: 'turn-back', reason }];
-  return state.phase === 'marching' ? marchIntents(state) : raidIntents(state, world);
+  return state.phase === 'marching' ? marchIntents(state) : raidIntents(state, field);
 }
 
 /**
@@ -124,18 +135,60 @@ function marchIntents(s: CampaignState): IntentBody[] {
 }
 
 /**
- * Nájezd (war.md – Velení; fortifications.md – Obrana bez násobku): velitel napadá skupiny domů
- * od nejslabší v dohledu (součet sil obránců – násobek obrany zrušen 8. 11. 2026). Nemá-li vojsko
- * aspoň 1,5 × sílu ani nejslabší z nich, nenapadne: stojí-li všichni obránci uvnitř obvodu
- * opevnění, ve kterém velitel není, vezme, co je venku (`plunder`), jinak se obrátí (návrh
- * Clauda). Přechod hradby (napadne, trvá-li nejvýš 1 herní den) přidá Úloha 20 plánu hradeb.
- * Nevidí-li nikoho, jde k nejbližším obráncům (ví, kde ves stojí).
+ * Nájezd (war.md – Velení; fortifications.md – Obrana bez násobku, NPC velitel): velitel napadá
+ * skupiny domů od nejslabší v dohledu (součet sil obránců – násobek obrany zrušen 8. 11. 2026),
+ * má-li vojsko aspoň 1,5 × její sílu. Stojí-li všichni obránci uvnitř obvodu opevnění, ve kterém
+ * velitel není, napadne jen s nejrychlejším postupem přes hradbu nejvýš 1 herní den
+ * (`fastestApproach`) – vede skupinu k místu postupu a odtud napadne; jinak vezme, co je venku
+ * (`plunder`). Bez opevnění se slabší vojsko obrátí. Nevidí-li nikoho, jde k nejbližším obráncům
+ * (ví, kde ves stojí). Otevře-li se průchod hradbou, pošle skupiny dovnitř (`insideOrders`).
  */
-function raidIntents(s: CampaignState, world: CampaignWorld): IntentBody[] {
+function raidIntents(s: CampaignState, field: BattleField | null): IntentBody[] {
   const b = s.battle;
   if (!b || b.outcome !== 'ongoing') return [];
   const leader = npcLeader(b);
   if (!leader) return [];
+  return [...insideOrders(field, b, leader), ...leaderIntents(s, field, b, leader)];
+}
+
+/**
+ * Průchod hradbou je otevřený (mezera či průlom, lezec nahoře, útočník za hradbou – `passageOpen`)
+ * a obránci stojí za ní → skupiny, které velitele slyší a nemají „útočit na vše“, pošle dovnitř
+ * (`set-order`; war.md – Změna rozkazu; plán hradeb, Úloha 20 – návrh Clauda). Velitel sám smí
+ * zůstat u průchodu (luk), skupina venku stát nesmí.
+ */
+function insideOrders(field: BattleField | null, b: BattleState, leader: Fighter): IntentBody[] {
+  if (!field) return [];
+  const groups = b.groups.filter(
+    (g) =>
+      g.side === 'attack' &&
+      !g.broken &&
+      g.order !== 'attack-all' &&
+      b.fighters.some(
+        (f) => f.side === 'attack' && f.group === g.id && f.id !== leader.id && inFight(f),
+      ) &&
+      orderHeard(b, g.id),
+  );
+  if (groups.length === 0) return [];
+  const forts = field.forts.map((bf) => bf.fort).filter((f) => fortHasWall(f, field.day));
+  if (forts.length === 0) return [];
+  const foes = b.fighters.filter((f) => f.side === 'defend' && inFight(f));
+  const inside = fortsContaining(
+    field.geo,
+    forts,
+    foes.map((f) => f.pos),
+  ).some((fort) => fort !== null);
+  if (!inside || !passageOpen(field, b)) return [];
+  return groups.map((g) => ({ kind: 'set-order', group: g.id, order: 'attack-all' }));
+}
+
+/** Záměry velitele samého: koho napadnout, kam jít, nebo vzít, co je venku, či se obrátit. */
+function leaderIntents(
+  s: CampaignState,
+  field: BattleField | null,
+  b: BattleState,
+  leader: Fighter,
+): IntentBody[] {
   const chosen =
     leader.chosen === null ? undefined : b.fighters.find((f) => f.id === leader.chosen);
   if (chosen && chosen.side === 'defend' && inFight(chosen)) return [];
@@ -156,35 +209,36 @@ function raidIntents(s: CampaignState, world: CampaignWorld): IntentBody[] {
     if (weakest === null || power.get(g)! < power.get(weakest)! - 1e-9) weakest = g;
   }
   const ours = army.reduce((sum, f) => sum + f.strength, 0);
-  if (ours >= WAR.npc.attackRatio * power.get(weakest!)! - 1e-9) {
-    const target = nearest(
-      leader.pos,
-      foes.filter((f) => f.group === weakest),
-    )!;
+  const strong = ours >= WAR.npc.attackRatio * power.get(weakest!)! - 1e-9;
+  const target = nearest(
+    leader.pos,
+    foes.filter((f) => f.group === weakest),
+  )!;
+  if (!field || !behindWalls(field, leader, foes)) {
+    return strong
+      ? [{ kind: 'strike', target: target.id }]
+      : [{ kind: 'turn-back', reason: 'order' }];
+  }
+  // za hradbou: napadne jen s postupem nejvýš 1 herní den, jinak vezme, co je venku
+  const way = strong ? fastestApproach(field, b, army.length, leader.pos) : null;
+  if (!way || way.hours > WAR.npc.maxAssaultHours + 1e-9) return [{ kind: 'plunder' }];
+  if (dist2(leader.pos, way.at) <= AT_APPROACH_M * AT_APPROACH_M) {
     return [{ kind: 'strike', target: target.id }];
   }
-  return behindWalls(s, world, leader, foes)
-    ? [{ kind: 'plunder' }]
-    : [{ kind: 'turn-back', reason: 'order' }];
+  // k místu kolem hradby (`approachStep`); nový bod dá, až se posune o víc než 3 m
+  const next = approachStep(field, leader.pos, way);
+  if (leader.goal && dist2(leader.goal, next) <= AT_APPROACH_M * AT_APPROACH_M) return [];
+  return [{ kind: 'march', to: { cell: { ...s.target.cell }, pos: next } }];
 }
 
 /**
- * Stojí všichni obránci uvnitř obvodu opevnění cílové vsi s aspoň jedním stojícím úsekem (v den
- * taktu), ve kterém velitel není? Obvod každého opevnění se spočítá jednou.
+ * Stojí všichni obránci uvnitř obvodu opevnění bojiště s aspoň jedním stojícím úsekem (v den
+ * boje), ve kterém velitel není? Obvod každého opevnění se spočítá jednou.
  */
-function behindWalls(
-  s: CampaignState,
-  world: CampaignWorld,
-  leader: Fighter,
-  foes: readonly Fighter[],
-): boolean {
-  const map = world.landscapeOf(s.target.cell);
-  if (!map || !map.villageIds.includes(s.target.villageId)) return false;
-  const forts = (world.villageAt(s.target.villageId, s.day)?.fortifications ?? []).filter((f) =>
-    fortHasWall(f, s.day),
-  );
+function behindWalls(field: BattleField, leader: Fighter, foes: readonly Fighter[]): boolean {
+  const forts = field.forts.map((bf) => bf.fort).filter((f) => fortHasWall(f, field.day));
   if (forts.length === 0) return false;
-  const [mine, ...theirs] = fortsContaining(map.landscape, forts, [
+  const [mine, ...theirs] = fortsContaining(field.geo, forts, [
     leader.pos,
     ...foes.map((f) => f.pos),
   ]);

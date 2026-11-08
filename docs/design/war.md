@@ -345,7 +345,9 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
   - **útočit na vše** – na každého nepřítele, který se brání, i na prchající; vzdané nechají
     (o nich rozhodne velitel – Vzdaní) (návrh Clauda);
   - **držet místo** (brod, brána, kraj lesa) – brání určené místo a nevzdálí se od něj víc než
-    ≈ 30 m (návrh Clauda).
+    ≈ 30 m (návrh Clauda). Napadá jen nepřítele, na kterého z místa dosáhne – střelou, nebo
+    zblízka přes hradbu, přes kterou se tak dá bít (plot); za hradbu kvůli nikomu nechodí, nepřeleze
+    ji ani neprolomí (návrh Clauda, 8. 11. 2026).
 - **Ustoupit není rozkaz** – Martin 2. 11. 2026: „**když ustoupí velitel, jeho muži spořádaně
   ustoupí s ním**“.
 - **Změna rozkazu** (návrh Clauda): před bitvou kterékoli skupině; během boje jen skupině, u níž je

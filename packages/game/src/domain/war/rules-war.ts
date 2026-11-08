@@ -56,10 +56,11 @@ export const WAR = {
   absentLeaderDays: 1,
   /**
    * war.md – Velení a příprava tažení, Čísla (návrh Clauda): NPC velitel napadne skupinu domů,
-   * jen má-li aspoň 1,5 × sílu jejích obránců × násobek obrany (jako přesila u vzdání); obrátí se,
-   * když padne, je zajata nebo uteče aspoň polovina vojska.
+   * jen má-li aspoň 1,5 × sílu jejích obránců (bez násobku – 8. 11. 2026); obránce za hradbou jen
+   * s postupem přes ni nejvýš 1 herní den (24 h – fortifications.md – Obrana bez násobku, NPC
+   * velitel); obrátí se, když padne, je zajata nebo uteče aspoň polovina vojska.
    */
-  npc: { attackRatio: 1.5, lostShare: 0.5 },
+  npc: { attackRatio: 1.5, lostShare: 0.5, maxAssaultHours: 24 },
   /** war.md – Síla: válka jako výcvik – hodiny luku a boje za herní den (stropy: `ARMS_CAPS.war`). */
   trainingHours: { campaignDay: 2, fightDay: 6 },
   strength: {
