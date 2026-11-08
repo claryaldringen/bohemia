@@ -261,6 +261,39 @@ test('válka dvou hráčů: A přepadne B, B uteče do lesa i s dobytkem, kronik
     expect(shelter!.surrendered).toEqual([]);
     expect(shelter!.livestockForest.sheep).toBe(herds.sheep);
     await notices(b, 'Cizí vojsko u vsi');
+    // scéna napadené vsi dostane vojsko (war.md – Ve scéně – napojení na hru): útočníci v dohledu
+    // domů vsi, i když obránci utekli do lesa
+    await expect(b.locator('canvas[data-scene]')).toHaveAttribute('data-war-men', /^[1-9]/, {
+      timeout: 30_000,
+    });
+    // a kreslí ho – postavy mužů (instance meshů `army-*`)
+    await expect
+      .poll(
+        () =>
+          b.evaluate(() =>
+            window.__bohemiaE2E!.armyStats!()
+              .filter((m) => m.name.startsWith('army-man'))
+              .reduce((n, m) => n + m.count, 0),
+          ),
+        { timeout: 60_000 },
+      )
+      .toBeGreaterThan(0);
+    if (process.env.WAR_SHOT_DIR) {
+      // snímek vsi s vojskem: výchozí záběr na ves, pak přiblížit k vojsku pod ní
+      const dir = process.env.WAR_SHOT_DIR;
+      await b.keyboard.press('Escape');
+      await b.mouse.move(640, 300);
+      await b.waitForTimeout(2_000);
+      await b.screenshot({ path: `${dir}/napadena-ves-zaber.png` });
+      await b.mouse.move(640, 560);
+      for (let i = 0; i < 5; i++) {
+        await b.mouse.wheel(0, -300);
+        await b.waitForTimeout(150);
+      }
+      await b.mouse.move(640, 300);
+      await b.waitForTimeout(2_000);
+      await b.screenshot({ path: `${dir}/napadena-ves.png` });
+    }
 
     // vojsko obrátilo – zkrátíme cestu domů: skupiny rovnou ve shromaždišti
     await worker.stop();
@@ -283,6 +316,13 @@ test('válka dvou hráčů: A přepadne B, B uteče do lesa i s dobytkem, kronik
       campaignId,
       JSON.stringify(back),
     ]);
+    // vojsko stojí na mapě A – scéna A ho ukáže (vlastní vojsko, bez mlhy); B už ho nevidí
+    await expect(a.locator('canvas[data-scene]')).toHaveAttribute('data-war-men', /^[1-9]/, {
+      timeout: 30_000,
+    });
+    await expect(b.locator('canvas[data-scene]')).not.toHaveAttribute('data-war-men', /.*/, {
+      timeout: 30_000,
+    });
     worker = await startWorker();
     await expect
       .poll(async () => (await checkpointOf(campaignId)).status, {

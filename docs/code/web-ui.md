@@ -941,6 +941,10 @@ se vykreslí i v testech bez serveru.
   na mapu = velitel jde. Ikony Domů, tři rozkazy skupiny velitele a v boji Pobít / Odvést / Nechat,
   slova jen v `Tooltip`; nevede-li hráč živě, vše zašedlé („Velí jiný muž.“).
 
+- **Válka ve scéně** (`hooks/use-war-scene.ts`, war.md – Ve scéně – napojení na hru): `GET
+/api/war-scene/<sídlo>` po otevření hry hned, při válce na mapě 2× za sekundu
+  (`WAR_SCENE_POLL_MS`), jinak po 5 s (`WAR_SCENE_IDLE_MS`); nový stav jen s novým taktem.
+
 ## Postoj vsi ve dvorci (úloha 6.9, `hud/ManorPanel.tsx`)
 
 `ManorUpgrades` má vedle stezky, lovu a obchodu tři ikony postoje (stěna štítů = bránit se, bílá

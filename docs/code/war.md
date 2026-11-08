@@ -924,6 +924,46 @@ sinceTick })` – kontrolní bod z úložiště, mřížka mapy cíle jen při b
   `domain/war/__tests__/sight.test.ts`, `raid-campaign.test.ts` (objevený dům), e2e
   `multiplayer.spec.ts` („živé vedení: …“ – tažení zapsané přímo do DB, worker vedle).
 
+## Ve scéně – napojení na hru
+
+Scéna vojska (scene.md – Vojsko, boj a mlha války) kreslí válku i ve hře, ne jen v ukázce Bitva.
+Scéna hry ukazuje **mapu sídla hráče** – vojsko je v ní vidět, když na ní stojí.
+
+- **Pohled** (`domain/war/scene-view.ts` – `warSceneView(state, { cell, side, grid, eyes, forts })`,
+  typy `WarScene*`): co strana `side` vidí z tažení na mapě `cell`. Vlastní strana celá (útočník =
+  celé vojsko tažení i s muži vazalů), druhá jen v dohledu (`inSight`) vlastních bojovníků na
+  nohou a očí `eyes` – u obránce domy vsi (návrh Clauda: ves vidí i tehdy, když lidé utekli do
+  lesa). Bojovník jen se vším, co scéna kreslí (`WarSceneFighter` – bez `ref`, síly, cílů a tras);
+  zdraví jen vlastní strana, cizí muž nese hrubý stav (`state`, `killed`) a počet zásahů `hits`
+  (`Fighter.hits` – přičte `takeHit`; scéna podle něj pozná ránu – `strikesOf`); cizímu se domov
+  nahradí polohou a cíl (`aim`, `climber`) mimo dohled se smaže. Průlomy
+  a žebříky obránce vidí v dohledu, zavřené brány a hradby všichni (stavba, ne vojsko). Boj jen na
+  mapě cíle a jen běžící (`outcome = 'ongoing'`), jinak pochod – skupiny na mapě a jejich aktivní
+  muži se směrem chůze (`heading`). Hradby bojiště počítá `battleWallsOf` (web `battleWalls` ji
+  volá).
+- **Use-case** (`application/war-scene.ts` – `warSceneFor(deps, { playerId, settlementId })`):
+  sídlo musí být hráče a ležet v mřížce světa; tažení proti vsi sídla
+  (`CampaignRepository.activeAgainst` – `state->'target'->>'villageId'`) z pohledu obránce (mřížka
+  pro dohled v lese `sightGrid`, opevnění `battleForts` jen při boji), pak tažení hráče
+  (`activeOf`) z pohledu útočníka. Boj má přednost, napadení před vlastním vojskem; jeden pohled.
+  Ves sídla se hledá otiskem bez stavu (`stampsOf`); domy a opevnění obránce (`WarSceneDefender`)
+  se čtou ze stavu vsi jednou za herní den – mezipaměť `defenders` (klíč `ves@den`, web LRU 16).
+- **Web:** route `GET /api/war-scene/<sídlo>` (`lib/war-scene.ts`, `no-store`) → `{ war }`; cizí
+  sídlo i mapa bez války = `{ war: null }`. `useWarScene` (web-ui.md – Dotazování na tažení)
+  a `sceneWarOf` (`lib/war-scene-view.ts`) → `LandscapeScene.setWar` ve `VillageGame`. Na vlastní
+  mapě bez závoje mlhy (svou zem hráč zná; cizí mimo dohled server neposlal), padlí do konce dne.
+- **Zatím ne:** 3D pohled na cizí mapu (vojsko útočníka u cizí vsi – `foreignMapForPlayer` krajinu
+  dá, scéna hry ji zatím nenačítá; pohled `warSceneView` se stranou `attack` je připravený),
+  útěk vsi a odehnané stádo (`planFlight`, `drivenHerd`), plynulý pochod mezi dotazy (skupina
+  poskočí po 0,5 s), rány mezi dvěma dotazy (dotaz nese každý druhý takt – `strikesOf` vidí jen
+  údery v taktu snímku).
+- **Testy:** `application/__tests__/war-scene.test.ts` (obránce – útočníci v dohledu mužů i domů,
+  mlha, cíl mimo dohled, cizí bez zdraví se zásahy, ves jednou za herní den; po boji pochod;
+  útočník na své mapě; cizí sídlo), web `lib/__tests__/war-scene-view.test.ts`,
+  `battle-fx.test.ts` (rána podle zásahů), e2e `multiplayer-war.spec.ts` (napadená ves B má ve
+  scéně vojsko – `data-war-men` na plátně, vojsko doma u A, B ho pak nevidí), db
+  `campaign-repository.db.test.ts` (`activeAgainst`).
+
 ## Měření tažení a e2e celé války (Ú6.17)
 
 - **Měření** `apps/worker/scripts/measure-campaigns.ts` (v paměti, skutečné `stepCampaigns`) –

@@ -47,6 +47,18 @@ export class InMemoryCampaigns implements CampaignRepository {
     );
   }
 
+  activeAgainst(villageId: string): Promise<string[]> {
+    return Promise.resolve(
+      [...this.rows]
+        .filter(
+          ([, r]) =>
+            r.status === 'active' &&
+            (JSON.parse(r.state) as CampaignState).target.villageId === villageId,
+        )
+        .map(([id]) => id),
+    );
+  }
+
   checkpoint(campaignId: string): Promise<CampaignCheckpoint | null> {
     const row = this.rows.get(campaignId);
     if (!row) return Promise.resolve(null);

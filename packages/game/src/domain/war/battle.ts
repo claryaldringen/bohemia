@@ -156,6 +156,11 @@ export interface Fighter {
    * nevidí ani nezasáhnou; jinak chybí. Nastaví práce na průlomech v taktu (`breachWorkStep`).
    */
   underground?: true;
+  /**
+   * Kolikrát byl zasažen (`takeHit`) – scéna pozná ránu cizího muže bez přesného zdraví (war.md –
+   * Ve scéně – napojení na hru); dokud nebyl, chybí.
+   */
+  hits?: number;
 }
 
 /** Skupina v boji – skupina tažení s rozkazem, nebo skupina domů obránců (rozkaz null). */
@@ -1305,6 +1310,7 @@ function breachWorkStep(w: TickWorld): void {
  * (i řízený hráčem); jinak na nule padlý, nebo raněný – los 1 : 1, muž rodu raněný 2 ze 3.
  */
 function takeHit(t: Fighter, damage: number, w: TickWorld, rng: Random): void {
+  t.hits = (t.hits ?? 0) + 1;
   if (t.lastLine) {
     // Ú6.9: vzdání – poslední muž rodu doma se nevzdá; Ú6.11: nezajme se
     t.health = Math.max(WAR.lastLineManMinHealth, t.health - damage);

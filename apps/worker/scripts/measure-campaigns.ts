@@ -233,6 +233,7 @@ function memoryRepository(rows: Map<string, Row>, saves: { n: number }): Campaig
   return {
     create: none,
     activeOf: none,
+    activeAgainst: none,
     addIntent: none,
     active: () =>
       Promise.resolve([...rows].filter(([, r]) => !r.done || r.outbox).map(([id]) => id)),

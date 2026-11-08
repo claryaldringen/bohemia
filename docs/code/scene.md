@@ -433,7 +433,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   závoj 51 k); bez války 0. Ukázka **Bitva** na `/dev/landscape` (`dev-battle.ts`) běží
   skutečným `battleTick` (palisáda 6 × 6 čtverců s branou na jihu, dvě skupiny útočníků proti
   mužům u domů), druhý krok útěk vsi, třetí útok na hradbu; e2e `e2e/battle-scene.spec.ts` (jen
-  s `BATTLE_DEV_URL`).
+  s `BATTLE_DEV_URL`). **Ve hře** (war.md – Ve scéně – napojení na hru): `VillageGame` předává
+  `sceneWarOf(useWarScene(sídlo))` – válku na mapě sídla po mlze války ze serveru (napadená ves,
+  vlastní vojsko); `setWar` zapíše na plátno `data-war-men` (počet mužů snímku, e2e).
 - **Boj u hradby** (fortifications.md – Hradby a obrana, Ve scéně; plán hradeb Úloha 21; `army.ts`,
   `battle-fx.ts`, kreslí `army-renderer.ts`): `sceneBattle(b, walls)` nese žebříky (`ladders` –
   `BattleLadder`), lezce (`Fighter.climb` – fáze a zbývající takty), `onWall`, `underground`,
