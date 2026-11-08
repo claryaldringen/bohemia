@@ -25,6 +25,11 @@ export interface Terrain {
   promontories?: Promontory[];
   /** Osa řeky – jen prémiové krajiny s řekou (prémiový průchod terénu, `premium/river.ts`). */
   river?: StreamPoint[];
+  /**
+   * Osy řek kostry světa (`skeleton/rivers.ts`) – hlavní tok první, pak přítoky. Jen mapy
+   * s řekou kostry; čtou se přes `riversOf`.
+   */
+  rivers?: StreamPoint[][];
 }
 
 // Místo pro vesnici leží 9–11 políček od potoka: mýtina kolem něj dosáhne k vodě,

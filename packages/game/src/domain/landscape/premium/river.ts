@@ -146,7 +146,8 @@ function borderSides(i: number, size: number): number {
   );
 }
 
-function borderDistance(i: number, size: number): number {
+/** Vzdálenost políčka od okraje mapy (políčka). */
+export function borderDistance(i: number, size: number): number {
   const x = i % size;
   const y = Math.floor(i / size);
   return Math.min(x, y, size - 1 - x, size - 1 - y);
@@ -156,7 +157,7 @@ function borderDistance(i: number, size: number): number {
  * Trasa toku se drží dál od okraje mapy (od okraje odbočí, ne aby vedla podél něj) – přirážka
  * k ceně kroku v pásu `RIVER_ROUTE.edgeCells` u okraje.
  */
-function edgePenalty(i: number, size: number): number {
+export function edgePenalty(i: number, size: number): number {
   return Math.max(0, RIVER_ROUTE.edgeCells - borderDistance(i, size)) * RIVER_ROUTE.edgeCost;
 }
 
@@ -244,7 +245,7 @@ export function cheapestPath(
   return null;
 }
 
-function reliefOf(heights: Float32Array): { min: number; max: number } {
+export function reliefOf(heights: Float32Array): { min: number; max: number } {
   let min = Infinity;
   let max = -Infinity;
   for (const h of heights) {
@@ -283,7 +284,7 @@ function tangentAt(points: readonly Cell[], k: number): { tx: number; ty: number
 // ── Tvar toku ────────────────────────────────────────────────────────────────────────────────
 
 /** Vylosované vlastnosti řeky – vlny meandrů a šířky. */
-interface RiverLook {
+export interface RiverLook {
   readonly wave: number;
   readonly shortWave: number;
   readonly phase: number;
@@ -315,7 +316,7 @@ export function riverMinWidthM(stream: readonly StreamPoint[]): number {
   return Math.min(maxM, Math.max(minM, streamFactor * streamMedianWidthM(stream)));
 }
 
-function riverLook(random: Random, stream: readonly StreamPoint[]): RiverLook {
+export function riverLook(random: Random, stream: readonly StreamPoint[]): RiverLook {
   const minWidthM = riverMinWidthM(stream);
   return {
     wave: range(random, RIVER.wave),
@@ -332,14 +333,20 @@ function riverLook(random: Random, stream: readonly StreamPoint[]): RiverLook {
   };
 }
 
+/** Vlna šířky řeky ve vzdálenosti `s` (políčka) podél toku, v [−1, 1]. */
+function widthWave(look: RiverLook, s: number): number {
+  return (
+    0.65 * detSin((2 * Math.PI * s) / 31 + look.widthPhase) +
+    0.35 * detSin((2 * Math.PI * s) / 13 + look.widthPhase2)
+  );
+}
+
 /**
  * Šířka vody (m) a podíl levého břehu ve vzdálenosti `s` (políčka) podél toku – v rozpětí
  * nejmenší šířky a `width.maxM` (střed ze seedu ± pětina rozpětí).
  */
 function widthAt(look: RiverLook, s: number): { width: number; leftShare: number } {
-  const wave =
-    0.65 * detSin((2 * Math.PI * s) / 31 + look.widthPhase) +
-    0.35 * detSin((2 * Math.PI * s) / 13 + look.widthPhase2);
+  const wave = widthWave(look, s);
   return {
     width: look.minWidthM + look.spanM * (look.widthShare + 0.2 * wave),
     leftShare: 0.5 + 0.08 * detSin((2 * Math.PI * s) / 17 + look.bankPhase),
@@ -352,16 +359,23 @@ function maxHalfCells(look: RiverLook): number {
 }
 
 /**
- * Osa řeky nad trasou po políčkách: vyhlazená trasa, mírné meandry (kde je místo – `room`
- * v políčkách od zakázaných míst), šířka podle `widthAt`, každý břeh vlastní odchylkou. Konce zůstanou
- * na trase (u okrajů mapy, u soutoku) a meandry k nim utichnou.
+ * Profil šířky toku (koryta z kostry – `landscape/skeleton/rivers.ts`): šířka vody (m) ve
+ * vzdálenosti `s` podél toku délky `length` (políčka); `wave` je vlna šířky řeky v [−1, 1].
  */
-function shapeChannel(
+export type WidthProfile = (s: number, length: number, wave: number) => number;
+
+/**
+ * Osa řeky nad trasou po políčkách: vyhlazená trasa, mírné meandry (kde je místo – `room`
+ * v políčkách od zakázaných míst), šířka podle `widthAt` (nebo profilu `profile`), každý břeh
+ * vlastní odchylkou. Konce zůstanou na trase (u okrajů mapy, u soutoku) a meandry k nim utichnou.
+ */
+export function shapeChannel(
   base: readonly Cell[],
   look: RiverLook,
   size: number,
   room: (p: Cell) => number,
   s0 = 0,
+  profile?: WidthProfile,
 ): ChannelSample[] {
   const along = arcLengths(base);
   const total = along.at(-1)!;
@@ -394,7 +408,9 @@ function shapeChannel(
   const length = arcLengths(points).at(-1)!;
   return points.map((p, k) => {
     const s = (length * k) / (points.length - 1);
-    const { width, leftShare } = widthAt(look, s0 + s);
+    const shaped = widthAt(look, s0 + s);
+    const width = profile ? profile(s, length, widthWave(look, s0 + s)) : shaped.width;
+    const { leftShare } = shaped;
     const { tx, ty } = tangentAt(points, k);
     return {
       x: p.x,
@@ -411,7 +427,7 @@ function shapeChannel(
 }
 
 /** Dvě části toku daleko od sebe podél osy, ale blízko vzdušně (meandr by se spojil)? */
-function selfTouching(samples: readonly ChannelSample[]): boolean {
+export function selfTouching(samples: readonly ChannelSample[]): boolean {
   for (let a = 0; a < samples.length; a += 2) {
     for (let b = a + 2; b < samples.length; b += 2) {
       const pa = samples[a]!;
@@ -425,7 +441,7 @@ function selfTouching(samples: readonly ChannelSample[]): boolean {
 }
 
 /** Brody v daných bodech osy: mělký a širší úsek ± `fordHalfCells` podél toku. */
-function placeFords(samples: ChannelSample[], centers: readonly number[]): void {
+export function placeFords(samples: ChannelSample[], centers: readonly number[]): void {
   for (const c of centers) {
     const sc = samples[c]!.s;
     for (const p of samples) {
@@ -445,7 +461,7 @@ function placeFords(samples: ChannelSample[], centers: readonly number[]): void 
  * Body osy pro brody: 1–2 v prostřední části toku (`fordSpan`), druhý aspoň `fordSpacing` délky
  * od prvního, mimo zakázané úseky (`allowed`). První může být předem dán (brod pod vyvýšeninou).
  */
-function chooseFords(
+export function chooseFords(
   samples: readonly ChannelSample[],
   random: Random,
   allowed: (k: number) => boolean,
@@ -490,14 +506,27 @@ function lowestAround(heights: Float32Array, size: number, p: Cell, radius: numb
 }
 
 /**
- * Voda teče z kopce i po políčkách: od nejvyššího vodního políčka řeky na okraji mapy nemá žádné
- * políčko dno výš než soused blíž prameni (jako u potoka).
+ * Voda teče z kopce i po políčkách: od nejvyššího vodního políčka řeky na okraji mapy (nebo od
+ * daného políčka `from` – pramen uvnitř mapy) nemá žádné políčko dno výš než soused blíž prameni
+ * (jako u potoka).
  */
-function enforceDownhill(tileBed: Float32Array, water: Uint8Array, size: number): void {
-  let source = -1;
-  for (let i = 0; i < water.length; i++) {
-    if (water[i] && borderSides(i, size) !== 0 && (source === -1 || tileBed[i]! > tileBed[source]!))
-      source = i;
+function enforceDownhill(
+  tileBed: Float32Array,
+  water: Uint8Array,
+  size: number,
+  from?: number,
+): void {
+  let source = from !== undefined && water[from] ? from : -1;
+  if (source === -1) {
+    for (let i = 0; i < water.length; i++) {
+      if (
+        water[i] &&
+        borderSides(i, size) !== 0 &&
+        (source === -1 || tileBed[i]! > tileBed[source]!)
+      ) {
+        source = i;
+      }
+    }
   }
   if (source === -1) return;
   const hops = new Int32Array(water.length).fill(-1);
@@ -524,7 +553,7 @@ function enforceDownhill(tileBed: Float32Array, water: Uint8Array, size: number)
   }
 }
 
-interface CarveInput {
+export interface CarveInput {
   readonly terrain: Terrain;
   readonly samples: readonly ChannelSample[];
   /** Vodní políčka řeky. */
@@ -536,6 +565,13 @@ interface CarveInput {
   /** Dno ramene nesmí klesnout pod tuto mez (soutok – dno pod soutokem). */
   readonly bedFloor: number;
   readonly floodplainCells: number;
+  /**
+   * Políčko, od kterého voda teče (koryta z kostry – vtok nebo pramen uvnitř mapy); jinak
+   * nejvyšší vodní políčko na okraji mapy.
+   */
+  readonly source?: number;
+  /** Údolí smí měnit i rovinu kolem místa pro vesnici (koryta z kostry vznikají dřív než ves). */
+  readonly ignoreVillage?: boolean;
 }
 
 /**
@@ -544,7 +580,7 @@ interface CarveInput {
  * podél vody, pak svah jako u potoka. Rovinu kolem místa pro vesnici údolí nemění a voda potoka
  * zůstane. Vrací hladinu v bodech osy (m).
  */
-function carveRiver(input: CarveInput): number[] {
+export function carveRiver(input: CarveInput): number[] {
   const { terrain, samples, water, valleyFrom } = input;
   const { size, heights } = terrain;
   const bed: number[] = [];
@@ -589,7 +625,7 @@ function carveRiver(input: CarveInput): number[] {
       }
     }
   });
-  enforceDownhill(tileBed, water, size);
+  enforceDownhill(tileBed, water, size, input.source);
 
   // Údolí: vzdálenost od vody ramene po mřížce a hladina nejbližšího vodního políčka.
   const distance = new Float64Array(size * size).fill(Infinity);
@@ -635,7 +671,7 @@ function carveRiver(input: CarveInput): number[] {
       RIVER.valleySlope * Math.max(0, distance[i]! - input.floodplainCells);
     const h = heights[i]!;
     if (top >= h) continue;
-    const keep = villageKeep(i % size, Math.floor(i / size), village);
+    const keep = input.ignoreVillage ? 1 : villageKeep(i % size, Math.floor(i / size), village);
     heights[i] = h + (top - h) * keep;
   }
   return bed.map((b) => b + RIVER.depthM);

@@ -195,9 +195,11 @@ kdekoli“ → jen na suchých mapách):
 - **S řekou** se terén staví v jiném pořadí – řeka první:
   1. výšky a sesypání svahů jako dnes;
   2. **koryta řek:** nejlevnější cesta nízkými místy od každého vtoku k výtoku, přítok do
-     hlavního toku (soutok aspoň 20 políček od okraje); pramen začíná uvnitř mapy. Tvar koryta,
-     meandry, 1–2 brody, hloubka a niva jako dnešní řeka (`RIVER` v `premium/river.ts`), šířka
-     plynule od šířky vtoku k šířce výtoku;
+     hlavního toku (soutok aspoň 20 políček od okraje); pramen začíná uvnitř mapy, 40 políček od
+     výtoku (podél strany ± 12 ze seedu). Tok vtéká a vytéká kolmo k okraji (rovný úsek
+     6 políček). Tvar koryta, meandry, 1–2 brody (ne do 8 políček od soutoku), hloubka a niva jako
+     dnešní řeka (`RIVER` v `premium/river.ts`), šířka plynule od šířky vtoku k šířce výtoku,
+     podél toku ± 10 %, v bodech okraje přesně (návrh Clauda, čísla v `SKELETON_MAP`);
   3. **potok mapy je přítok:** teče od okraje mapy (ne do 20 políček od bodu řeky) do řeky; na mapě
      s pramenem je potok počátkem řeky. Potok tedy zůstává, jen nevytéká za okraj;
   4. místo pro vesnici jako dnes u potoka a navíc aspoň 300 m od osy řeky
