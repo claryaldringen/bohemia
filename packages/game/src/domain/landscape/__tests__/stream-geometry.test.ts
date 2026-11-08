@@ -3,6 +3,7 @@ import { generateLandscape } from '../generate';
 import {
   nearestWaterPair,
   riverCenterline,
+  riverCenterlines,
   streamCenterline,
   watersCenterline,
 } from '../stream-geometry';
@@ -13,6 +14,7 @@ import {
   type StreamPoint,
 } from '../types';
 import { tileCenterWorld } from '../world';
+import type { SkeletonRiverPort, SkeletonSlice } from '../skeleton/types';
 
 const landscape = generateLandscape(3);
 const stream = streamCenterline(landscape);
@@ -267,5 +269,119 @@ describe('osa řeky – souvislý tok bez tůní', () => {
     const alone = nearestWaterPair(stream, null, onStream.x, onStream.z);
     expect([alone.near, alone.other]).toEqual(stream.nearestPair(onStream.x, onStream.z));
     expect(alone.second).toBe(false);
+  });
+});
+
+describe('osa vod – víc řek kostry na jedné mapě (soutok, pramen)', () => {
+  const SKELETON_VERSIONS = { ...CURRENT_LAYER_VERSIONS, skeleton: 1 } as const;
+  const port = (
+    side: SkeletonRiverPort['side'],
+    at: number,
+    widthM: number,
+    flow: 'in' | 'out',
+  ): SkeletonRiverPort => ({ side, at, widthM, flow });
+  const slice = (...rivers: SkeletonRiverPort[]): SkeletonSlice => ({
+    world: 1,
+    rivers,
+    trails: [],
+  });
+  // Výřezy jako v testu pásma map s řekou (`skeleton/__tests__/skeleton-band.ts`).
+  const confluence = generateLandscape(
+    1,
+    SKELETON_VERSIONS,
+    undefined,
+    slice(port('N', 50, 40, 'in'), port('E', 64, 25, 'in'), port('S', 80, 45, 'out')),
+  );
+  const rivers = riverCenterlines(confluence);
+  const courses = confluence.rivers!;
+  const half = (confluence.size * confluence.cellSizeM) / 2;
+  const world = (p: StreamPoint): { x: number; z: number } => ({
+    x: -half + (p.x + 0.5) * confluence.cellSizeM,
+    z: -half + (p.y + 0.5) * confluence.cellSizeM,
+  });
+
+  it('každá řeka má svou osu – k okraji se prodlouží jen konce na okraji, přítok končí v soutoku', () => {
+    expect(courses).toHaveLength(2);
+    expect(rivers).toHaveLength(2);
+    expect(riverCenterlines(confluence)).toBe(rivers);
+    // hlavní tok od okraje k okraji – o bod víc na obou koncích
+    expect(rivers[0]!.points).toHaveLength(courses[0]!.length + 2);
+    // přítok: vtok z okraje prodloužen, ústí v ose hlavního toku ne (nevyčnívá za protější břeh)
+    expect(rivers[1]!.points).toHaveLength(courses[1]!.length + 1);
+    const mouth = world(courses[1]!.at(-1)!);
+    expect(rivers[1]!.points.at(-1)!.x).toBeCloseTo(mouth.x, 6);
+    expect(rivers[1]!.points.at(-1)!.z).toBeCloseTo(mouth.z, 6);
+    // řeka kostry je řeka – bez tůní a teče
+    for (const r of rivers) {
+      expect(r.points.every((p) => p.pool === 0)).toBe(true);
+      expect(Math.min(...r.points.map((p) => p.speed))).toBeGreaterThanOrEqual(0.5);
+    }
+    // osa řek dohromady: body hlavního toku, dotazy přes obě řeky
+    const all = riverCenterline(confluence)!;
+    expect(all.points).toBe(rivers[0]!.points);
+    const onTributary = world(courses[1]![Math.floor(courses[1]!.length / 2)]!);
+    expect(all.nearest(onTributary.x, onTributary.z)).toEqual(
+      rivers[1]!.nearest(onTributary.x, onTributary.z),
+    );
+  });
+
+  it('osa vod vrací nejbližší místo ze všech toků – potoka i obou řek', () => {
+    const lines = [streamCenterline(confluence), ...rivers];
+    const waters = watersCenterline(confluence);
+    const nearestOfAll = (x: number, z: number): ReturnType<typeof waters.nearest> =>
+      lines
+        .map((c) => c.nearest(x, z))
+        .reduce((best, s) => (s.bankDistance < best.bankDistance ? s : best));
+    courses.forEach((course, k) => {
+      for (const t of [0.1, 0.5, 0.9]) {
+        const p = world(course[Math.floor(t * (course.length - 1))]!);
+        for (const [x, z] of [
+          [p.x, p.z],
+          [p.x + 20, p.z - 15],
+        ] as const) {
+          expect(waters.nearest(x, z)).toEqual(nearestOfAll(x, z));
+        }
+        // na ose řeky je voda té řeky
+        expect(waters.nearest(p.x, p.z)).toEqual(rivers[k]!.nearest(p.x, p.z));
+        expect(waters.nearest(p.x, p.z).bankDistance).toBeLessThan(0);
+      }
+    });
+  });
+
+  it('v soutoku dá dvojice místo z obou řek a ví, že leží na řece', () => {
+    const waters = watersCenterline(confluence);
+    const brook = streamCenterline(confluence);
+    // na ose přítoku ≈ 30 m nad ústím
+    const tributary = courses[1]!;
+    const p = world(tributary[tributary.length - 5]!);
+    const [near, other] = waters.nearestPair(p.x, p.z);
+    expect(near).toEqual(rivers[1]!.nearest(p.x, p.z));
+    expect(other).toEqual(rivers[0]!.nearest(p.x, p.z));
+    const pair = nearestWaterPair(brook, riverCenterline(confluence), p.x, p.z);
+    expect([pair.near, pair.other]).toEqual([near, other]);
+    expect(pair.second).toBe(true);
+  });
+
+  it('řeka z pramene uvnitř mapy se k okraji prodlouží jen na výtoku', () => {
+    const source = generateLandscape(
+      1,
+      SKELETON_VERSIONS,
+      undefined,
+      slice(port('S', 64, 25, 'out')),
+    );
+    const [river] = riverCenterlines(source);
+    const course = source.rivers![0]!;
+    expect(river!.points).toHaveLength(course.length + 1);
+    const h = (source.size * source.cellSizeM) / 2;
+    expect(river!.points[0]!.x).toBeCloseTo(-h + (course[0]!.x + 0.5) * source.cellSizeM, 6);
+    expect(river!.points[0]!.z).toBeCloseTo(-h + (course[0]!.y + 0.5) * source.cellSizeM, 6);
+  });
+
+  it('prémiová řeka (`river`) jde osou vod jako dřív – jediná řeka, obě konce prodloužené', () => {
+    const premium = generateLandscape(42, CURRENT_LAYER_VERSIONS, 'navigable-river');
+    const [only, ...rest] = riverCenterlines(premium);
+    expect(rest).toHaveLength(0);
+    expect(riverCenterline(premium)).toBe(only);
+    expect(only!.points).toHaveLength(premium.river!.length + 2);
   });
 });

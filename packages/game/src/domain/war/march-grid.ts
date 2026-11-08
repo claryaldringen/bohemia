@@ -4,6 +4,7 @@ import {
   buildForestField,
   heightAtWorld,
   length2,
+  riversOf,
   watersCenterline,
   type Landscape,
   type ObstacleLayer,
@@ -103,8 +104,9 @@ const terrainCache = new WeakMap<Landscape, MarchTerrain>();
 
 /**
  * Terén pochodu: buňka do půl úhlopříčky (≈ 7 m) od vody je voda – krok mezi sousedními středy
- * (i úhlopříčný) tak vodu nepřeskočí; brod je mělčina potoka (`StreamPoint.shallow` nejbližšího
- * místa osy – široký mělký úsek). Sráz jako u pěšin (`PATH_SLOPE_MAX`), les z pole lesa.
+ * (i úhlopříčný) tak vodu nepřeskočí; brod je mělčina potoka nebo řeky (`StreamPoint.shallow`
+ * nejbližšího místa osy – široký mělký úsek, u řeky 1–2 brody). Sráz jako u pěšin
+ * (`PATH_SLOPE_MAX`), les z pole lesa.
  */
 function marchTerrain(l: Landscape): MarchTerrain {
   const cached = terrainCache.get(l);
@@ -114,8 +116,9 @@ function marchTerrain(l: Landscape): MarchTerrain {
   const width = Math.round(extent / cellM);
   const originX = -extent / 2 + cellM / 2;
   const base = new Uint8Array(width * width);
-  // potok i řeka prémiové krajiny (`watersCenterline` – bez řeky přesně osa potoka)
-  const stream = l.stream.length >= 2 ? watersCenterline(l) : null;
+  // potok a všechny řeky – řeky kostry i řeka prémie (`watersCenterline` – bez řeky přesně osa
+  // potoka); mapa bez potoka s řekou má vodu jen z řek
+  const stream = l.stream.length >= 2 || riversOf(l).length > 0 ? watersCenterline(l) : null;
   const field = buildForestField(l, { remember: false });
   const reach = (cellM * Math.SQRT2) / 2;
   const d = cellM / 2;

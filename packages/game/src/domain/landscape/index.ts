@@ -27,6 +27,7 @@ export {
   BANK_REACH_M,
   nearestWaterPair,
   riverCenterline,
+  riverCenterlines,
   streamCenterline,
   streamStations,
   watersCenterline,

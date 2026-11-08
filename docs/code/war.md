@@ -95,9 +95,12 @@ vojska mapu po mapě (Ú6.4); tažení po taktech, boj a dohra přibývají v da
 - **Mřížka** – `domain/war/march-grid.ts`: `marchGrid(landscape, obstacles, village, { day,
 closedGates })` → `MarchGrid` (buňky 10 m přes celou mapu 1 920 m, 192 × 192; `pace` = násobek
   tempa, 0 neprůchodná; `flags` `MARCH_*`). Terén krajiny (`marchTerrain`, mezipaměť `WeakMap`
-  podle krajiny): buňka do půl úhlopříčky (≈ 7 m) od vody (potok i řeka prémiové krajiny –
-  `watersCenterline`) je voda – krok mezi středy ji
-  nepřeskočí; brod = mělčina potoka (`StreamSample.shallow ≥ WAR.march.fordShallow`; úzký brod
+  podle krajiny): buňka do půl úhlopříčky (≈ 7 m) od vody (potok a všechny řeky – řeka prémiové
+  krajiny i řeky kostry světa, soutok; `watersCenterline`, landscape.md – Osa vod víc řek; mapa
+  s řekou bez potoka také) je voda – krok mezi středy ji
+  nepřeskočí; brod = mělčina potoka či řeky (`StreamSample.shallow ≥ WAR.march.fordShallow`;
+  řeka kostry má 1–2 brody, jinudy ji vojsko nepřejde – world-skeleton.md – Kde všude kostra
+  působí; úzký brod
   chodců `FORD` v `paths/terrain.ts` v krajinách nevychází, proto jen mělčina); sráz nad
   `PATH_SLOPE_MAX`. Hustý les (× ¼) = pole lesa > 0 a v okolí 3 × 3 buněk aspoň
   `denseForestTrees` stojících stromů vrstvy překážek podle změn vsi (`obstacleChangesAt` –
@@ -133,7 +136,8 @@ outside, day)` → `MemberDelta` (`health`, `vigor` = podíl plné síly): v zim
   (`generateAcceptedLandscape(cellLandscapeSeed(...))` – tatáž krajina, jakou by dostala nová ves,
   i s `obstaclesOf`), `settledCellLandscape(seed, versions)` (políčko se vsí – uložený seed),
   `emptyCellMarchGrid`.
-- **Testy** – `domain/war/__tests__/march.test.ts` (tempo, les, brod, opevnění, cesta, zima,
+- **Testy** – `domain/war/__tests__/march.test.ts` (tempo, les, brod, řeky kostry jen přes brod
+  – umělé i mapa se soutokem, opevnění, cesta, zima,
   zlatá cesta na seedech 1–3 – otisk počtu brodů a trasy přes mapu, determinismus, paseka, okraj),
   `world-route.test.ts`, `application/__tests__/cell-landscape.test.ts`. Změna mřížky nebo A*
   změní zlatý otisk – zapsat nový jen se záměrem.

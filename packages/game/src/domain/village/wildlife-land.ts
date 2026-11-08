@@ -2,7 +2,7 @@
 // Počítá se jen při převodu a 1. 5. – jednou ročně, ne po dílech.
 
 import {
-  riverCenterline,
+  riverCenterlines,
   streamCenterline,
   surfaceAt,
   tileCenterWorld,
@@ -355,11 +355,11 @@ function streamSpot(
   origin: { x: number; z: number },
   reach2: number,
 ): FishingPool | null {
-  // potok i řeka prémiové krajiny (osa řeky tůně nemá – loviště jen bodem nejblíž vsi)
-  const river = riverCenterline(landscape);
+  // potok a všechny řeky – řeky kostry i řeka prémie (osa řeky tůně nemá – loviště jen bodem
+  // nejblíž vsi); každý tok zvlášť, ať směr proudu vychází z bodů jednoho toku
   const lines = [
     ...(landscape.stream.length >= 2 ? [streamCenterline(landscape).points] : []),
-    ...(river ? [river.points] : []),
+    ...riverCenterlines(landscape).map((river) => river.points),
   ];
   let points = lines[0] ?? [];
   let best = -1;

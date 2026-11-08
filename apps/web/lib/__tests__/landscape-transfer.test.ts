@@ -8,8 +8,10 @@ import {
   obstaclesOf,
   premiumFeaturesOf,
   promontoriesOf,
+  riverCenterlines,
   transferPrecision,
   type ObstacleLayer,
+  type SkeletonSlice,
 } from '@bohemia/game';
 import { decodeLandscape, encodeLandscape } from '../landscape-transfer';
 
@@ -223,5 +225,59 @@ describe('přenos prémiové krajiny', () => {
     expect('river' in decodeLandscape(transfer)).toBe(false);
     expect('premium' in decodeLandscape(transfer)).toBe(false);
     expect(premiumFeaturesOf(decodeLandscape(transfer))).toBeNull();
+  });
+});
+
+describe('přenos mapy z kostry světa – víc řek a výřez', () => {
+  const SKELETON_VERSIONS = { ...CURRENT_LAYER_VERSIONS, skeleton: 1 } as const;
+  // Soutok řek jako v testu pásma map s řekou kostry (`skeleton/__tests__/skeleton-band.ts`).
+  const confluence: SkeletonSlice = {
+    world: 1,
+    rivers: [
+      { side: 'N', at: 50, widthM: 40, flow: 'in' },
+      { side: 'E', at: 64, widthM: 25, flow: 'in' },
+      { side: 'S', at: 80, widthM: 45, flow: 'out' },
+    ],
+    trails: [{ side: 'W', at: 40 }],
+  };
+  const server = generateLandscape(1, SKELETON_VERSIONS, undefined, confluence);
+
+  it('přenos nese osy obou řek (Float32 i s výškami stěn) a výřez kostry', () => {
+    expect(server.rivers).toHaveLength(2);
+    const transfer = encodeLandscape(server);
+    expect(transfer.rivers).toHaveLength(2);
+    expect('river' in transfer).toBe(false);
+    expect(transfer.skeleton).toEqual(confluence);
+    const decoded = decodeLandscape(transfer);
+    expect(decoded.rivers).toEqual(transferPrecision(server).rivers);
+    expect(decoded.skeleton).toEqual(server.skeleton);
+    expect(transferPrecision(decoded)).toEqual(transferPrecision(server));
+    expect(JSON.stringify(transfer).length).toBeLessThan(150_000);
+  });
+
+  it('prohlížeč vygeneruje přesně tutéž vrstvu překážek jako server (břehy obou řek)', () => {
+    const decoded = decodeLandscape(encodeLandscape(server));
+    const a = obstaclesOf(server);
+    const b = obstaclesOf(decoded);
+    expect(b.count).toBe(a.count);
+    for (const key of ['id', 'x', 'z', 'kind', 'look', 'rotation', 'scale', 'impostor'] as const) {
+      expect(b[key]).toEqual(a[key]);
+    }
+    // vrstva počítá s oběma řekami – v ose přítoku žádný strom
+    const trib = riverCenterlines(server)[1]!;
+    const mid = trib.points[Math.floor(trib.points.length / 2)]!;
+    for (let k = 0; k < a.count; k++) {
+      const d = Math.hypot(a.x[k]! - mid.x, a.z[k]! - mid.z);
+      expect(d).toBeGreaterThan(Math.min(mid.halfLeft, mid.halfRight) - 1);
+    }
+  });
+
+  it('krajina bez řek kostry jde přenosem jako dřív – bez řek a výřezu', () => {
+    const transfer = encodeLandscape(generateLandscape(1));
+    expect('rivers' in transfer).toBe(false);
+    expect('skeleton' in transfer).toBe(false);
+    const decoded = decodeLandscape(transfer);
+    expect('rivers' in decoded).toBe(false);
+    expect('skeleton' in decoded).toBe(false);
   });
 });
