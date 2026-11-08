@@ -276,7 +276,9 @@ mimo ni (zásilky, tažení), mosty a mýto (mechaniky prémií), plavba po řec
 2. ~~**Hustota kostry.**~~ Rozhodnuto 8. 11. 2026 (Martin: „a“) – takto, doladit do spuštění. Návrh: řeka ≈ 1 mapa z 9, stezka ≈ 1 z 12, brod ≈ 1 ze 100–150, ≈ 4 z 5
    map bez kostry. Víc kostry = víc vsí synů s řekou a hotovou stezkou, ale hráčům bez pozvánky
    se zmenší výběr suchých míst. **Doporučení:** takto a doladit do spuštění.
-3. **Kostra i na mapách synů a NPC.** Ves syna nebo NPC na stezce kostry dostane hotovou zemskou
+3. ~~**Kostra i na mapách synů a NPC.**~~ Rozhodnuto 8. 11. 2026 – Martin: „NPC budou mít
+   normální mapy. Prémiové jen lidští hráči“; ves syna (NPC vojvody) se umístí jen na mapu bez
+   kostry (nejbližší suchou), jako odříznutý nováček (Martin: „ok“). Původní text otázky: Ves syna nebo NPC na stezce kostry dostane hotovou zemskou
    stezku (obchod hned), na řece řeku – bez prvků prémie. Hráč to získá volbou směru odchodu syna,
    ne náhodou. Druhá možnost: na průměrných mapách jen vyšlapaná cesta, kterou si ves sama
    dostaví. **Doporučení:** stejně pro všechny mapy (vlastnost světa).
