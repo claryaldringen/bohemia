@@ -566,6 +566,11 @@ zásoby a cennosti a utekli do nejbližšího hradiště“).
 - **Správce za nepřítomného hráče** (návrh Clauda, Martin 9. 11. 2026: „ano platí“): jakmile ves
   vojsko spatří, pošle posla do hradiště pána; lidi evakuuje do hradiště, když tam podle
   vzdálenosti stihnou dojít dřív než vojsko, jinak je ukryje v lese na mapě.
+- **Co si vezmou:** Martin 9. 11. 2026: „To rozhodne hráč. Někdy může rozhodnout, ať se evakuují
+  jenom lidé (spasí holý život), pokud usoudí, že je dost času, tak nechá lidi vzít vše, co unesou,
+  a sehnat dobytek.“ – dvě volby: **jen lidé** (rychle), nebo **lidé s tím, co unesou, a stáda**
+  (pomaleji; vozy se spřežením naloží víc – návrh Clauda); co zůstane ve vsi, může nájezdník vzít.
+  Správce volí podle času (návrh Clauda): stihnou-li to i se stády, vezmou vše, jinak jen lidé.
 
 ## Co hráč vidí (UI jako 0 A.D.)
 
