@@ -1170,8 +1170,8 @@ nestačí na všechno):
 0. **výmlat na dnešní jídlo** (jen kolik se dnes sní – jinak lidé nemají co jíst),
 1. **sklizeň obilí** (žeň a odnos – ozim, jař, i dosklizeň v srpnu a září),
 2. **sklizeň lnu** (trhání),
-3. **sklizeň sena** (seč) – jen první seč; **otava (druhá seč v září) až po orbě a setí ozimu**
-   (Martin 9. 11. 2026: „Otava až po orbě a setí ozimu“ – implementace čeká),
+3. **sklizeň sena** (seč) – jen první seč; **otava (druhá seč v srpnu a září) až po orbě a setí
+   ozimu** (Martin 9. 11. 2026: „Otava až po orbě a setí ozimu“ – implementováno, níž),
 4. **sklizeň jablek**,
 5. **pletí** (ženy a děti – muži jen zbytek a až po stavbách),
 6. **orba, příprava půdy a setí** (vrácení přílohu, klučení, kopání, orba, setí),
@@ -1187,6 +1187,14 @@ pro střet s žněmi.
 **Implementace** (`DAY_WORK_ORDER` v rules-fields.ts, `dayTaskOrder` v simulate-work.ts; volby
 návrhem Clauda):
 
+- **Otava** (nutná 2. seč – [oxen.md](oxen.md), Seno, dvě seče; `DayTask.aftermath` podle čísla
+  seče v plánu, `mowingCut`): vlastní skupina hned za přípravou půdy a setím, před péčí o sad,
+  hlídkou a výmlatem (návrh Clauda). 1. seč zůstává před jablky, pletím i orbou. Vlkov 871–874
+  (před → po): v září 871 orba a setí 47 → 310 čd, otava 309 → 12 čd; ozim 15,5 → 22,4 ha
+  (jař 872 17,4 → 11,3 ha – víc dílů jde pod ozim), sklizeň 872 + 873 o 1,0 t víc. Seno 30. 9.
+  871 36,5 → 26,7 t, k 31. 3. zbylo 0,6 t místo 9,8 t – zimní krmení i tak 100 % (voli i stáda),
+  stáda beze změny; dní s přídělem v hubeném roce 871/872 227 → 236 (víc osiva ozimu). V roce
+  873 otavu nestihne ani dřív (září bere dosklizeň jaře).
 - **Úlohy mimo seznam:** porážka a uzení hned za výmlatem na dnešní jídlo (maso se musí zpracovat
   hned – jako dřív před polními úlohami); péče o sad za přípravou půdy, před hlídkou; obilné jámy
   (potřebují vymlácené zrno) a dospělý pasák za výmlatem – před stavbami jako dřív. Seč navíc pro
