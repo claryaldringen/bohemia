@@ -547,7 +547,7 @@ Martin 2. 11. 2026 – „ok“ (podrobnosti návrh Clauda):
   nájezdy a cizí vojska spatřená u vsi zvedají **hrozbu**, podle které staví opevnění správce
   ([fortifications.md](fortifications.md) – Správce).
 
-## Varování, poslové a útěk do hradiště (9. 11. 2026, rozpracováno – implementace čeká)
+## Varování, poslové a útěk do hradiště (9. 11. 2026 – návrh ke schválení)
 
 Vychází z rešerše, kterou Martin přinesl 9. 11. 2026 (proč slovanské vsi neměly palisádu – útočištěm
 kraje bylo hradiště: „Obyvatelé okolních neopevněných vesnic v případě nebezpečí sbalili dobytek,
@@ -571,6 +571,29 @@ zásoby a cennosti a utekli do nejbližšího hradiště“).
   a sehnat dobytek.“ – dvě volby: **jen lidé** (rychle), nebo **lidé s tím, co unesou, a stáda**
   (pomaleji; vozy se spřežením naloží víc – návrh Clauda); co zůstane ve vsi, může nájezdník vzít.
   Správce volí podle času (návrh Clauda): stihnou-li to i se stády, vezmou vše, jinak jen lidé.
+- **Pobyt v hradišti** (návrh Clauda, Martin 9. 11. 2026: „Ano“): uprchlíci jedí, co si přinesli,
+  pak je živí hradiště ze svých zásob (ochrana je povinnost pána); bydlí v útočišti za hradbou
+  hradiště; domů se vrátí, až vojsko odtáhne z jejich mapy – rozhodne hráč, za nepřítomného správce.
+
+**Podrobnosti k provedení (návrh Clauda – ke schválení celku):**
+- **Vesničan, který vojsko spatří** (do 150 m od kteréhokoli muže vojska – dohled jako dnes), běží
+  do vsi rychlostí běhu (≈ 2× chůze); ves je varovaná, až doběhne. Do té doby lidé pracují dál.
+- **Posel** je dospělý muž vsi, běží nejkratší cestou po stezkách (pochodová mřížka jako vojsko,
+  ≈ 2× rychleji než pochod vojska) do hradiště pána; každá ves na mapách, kterými proběhne, je
+  varovaná. Hradiště pak pošle posly do vsí domény, ke kterým vojsko míří (správce hradiště
+  vždy, hráč rozhodne). Posla může vojsko zajmout nebo zabít, když ho má v dohledu.
+- **Evakuace** jde jako skupina po stezkách (stáda zpomalí na tempo dobytka); kde ji vojsko dostihne,
+  platí pravidla útěku (vzdání, zajetí, kořist) jako v lese. Prázdnou ves nájezdník vyplení
+  o to, co v ní zůstalo (zásoby, nesehnaný dobytek); domy zůstanou.
+- **Místo v hradišti:** útočiště hradiště (10 m² na člověka, 20 m² na kus dobytka jako útočiště
+  vsi); co se nevejde, stojí u hradiště venku (stáda první). Útočí-li vojsko na hradiště, brání ho
+  i muži uprchlíků (přidají se k obráncům – obsazenost hradby).
+- **Bez hradiště pána** (pán ho nemá, nebo je dál, než se stihne dojít) zbývá les na mapě.
+- **NPC rody** dělají totéž přes správce.
+- **Rozhraní:** při varování v panelu vsi ikony **Poslat posla**, **Ukrýt v lese**, **Do hradiště –
+  jen lidé**, **Do hradiště – se vším** (zašedlé s důvodem, když nejde – „Pán nemá hradiště“,
+  „Nestihnou to“ s odhadem času), po útěku **Vrátit se**; ve scéně průvod uprchlíků se stády k okraji
+  mapy, na mapě tažení ikona skupiny.
 
 ## Co hráč vidí (UI jako 0 A.D.)
 
