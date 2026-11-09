@@ -146,7 +146,7 @@ function main(): void {
     `Ves: ${input.households} × (dospělí ${h.adults}, starší ${h.elders}, děti 7–13 ${h.olderChildren}, malé ${h.smallChildren}) = ${r.people} lidí | úrodnost ${input.fertility} | díly ${input.distanceM} m od obydlí | les ${input.forestDistanceM} m | ${input.dwelling}`,
   );
   console.log(
-    `Potřeba${input.fieldShare !== undefined && input.fieldShare < 1 ? ` z pole (podíl ${fmt(input.fieldShare, 2)})` : ''} ${fmt(r.needKg, 0)} kg/rok | čistá úroda ${fmt(r.netPerHa, 0)} kg/ha (průměr ${ROTATION.sown} let osevu) | cíl osevu ${input.reserve ? `podle zásob – potřeba, ztráty a pojistka ${fmt(FIELD_STORES.bufferEnergyYears, 2)} roční potřeby energie` : 'jen potřeba'}`,
+    `Potřeba${input.fieldShare !== undefined && input.fieldShare < 1 ? ` z pole (podíl ${fmt(input.fieldShare, 2)})` : ''} ${fmt(r.needKg, 0)} kg/rok | čistá úroda ${fmt(r.netPerHa, 0)} kg/ha (průměr ${ROTATION.sown} let osevu) | osev kalkulačky ${input.reserve ? `podle zásob – potřeba, ztráty a pojistka ${fmt(FIELD_STORES.bufferEnergyYears, 2)} roční potřeby energie` : 'jen potřeba'}`,
   );
   const limit = maxSownHa(input);
   console.log(

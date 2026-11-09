@@ -228,7 +228,9 @@ volů (`draft.ts`).
   pole“, **Martin 27. 10. 2026: „Ano“**; provedení návrh Clauda): když výhled zásob z pole
   k příští sklizni k 1. 9. nedosáhne pojistky ([pole](fields.md) – Osev podle zásob), potřeba párů
   počítá **i nutné díly mimo postup** – výběr nutných dílů k 1. 9. včetně nouzových příloh
-  (`neededSelection`); páry zvýší hned jako vždy, když orba nestačí. Proč orba a ne lidé: Vlkov (rok 822, 1 rádlo, 7 vycvičených volů) měl v oknech
+  (`neededSelection`); páry zvýší hned jako vždy, když orba nestačí. _Historie:_ nutné díly
+  a `neededSelection` zrušené 9. 11. 2026 s cílem osevu – páry počítají všechny díly na řadě
+  ([pole](fields.md) – Osevní postup po dílech, bod 3, Páry k rádlům). Proč orba a ne lidé: Vlkov (rok 822, 1 rádlo, 7 vycvičených volů) měl v oknech
   setí 3–5 člověkodnů denně volných a stavby nutné polní práci už ustupují (pořadí práce dne –
   [pole](fields.md), Práce; Martin 25. 10. 2026) – úzkým hrdlem bylo jediné rádlo, které zorá
   ≈ 18 ha za podzim, kdežto ves potřebovala ≈ 45 ha ozimu. Volné páry volů ves osadí rádly sama
@@ -575,7 +577,7 @@ Clauda**:
   (bez překážek je díl připravený hned) a díl nese drn (`FieldPart.sod`) do první orby. Křoviny
   a les se zakládají jako dřív. Když ves spřežení do plánu ztratí, drn rozruší motyka jako vrácení
   louky. Cena u kurzoru podle `PlacementVillage.ploughTeam` (v prohlížeči `SceneVillage.ploughTeam`).
-- **Kapacita:** osevní postup (`neededSelection`, `sowingCapacity` – pomoc rodiny) hlídá i orbu spřežení v jejích
+- **Kapacita:** osevní postup (čelo práce a `sowingCapacity`; do 9. 11. 2026 i `neededSelection` – historie) hlídá i orbu spřežení v jejích
   oknech – ozim v září–říjnu (bez posledního dne, ať se zaseje i poslední zoraný pruh), jař
   a luštěniny na podzim, kolik po ozimu zbude, a zbytek v březnu–dubnu. Co spřežení nestihnou,
   ves nezaseje (motyka nepomůže); víc ohrad se spřežením = víc kapacity. Orbu dál dělají lidé

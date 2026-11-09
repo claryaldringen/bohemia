@@ -123,10 +123,11 @@ vesničanů.
   nesklizených dílů**, jinak by po sklizni ozimu šla celá dávka na méně dílů a škoda jaře na ha
   by se zdvojnásobila.
 - **Osev a očekávaná škoda (přijato, návrh Clauda):** plán osevu (`sowingTargets`) s očekávanou
-  škodou nepočítá. Rezerva osevu unese ≈ 7 % úrody, škody jsou desetiny úrody a hlídky je
+  škodou nepočítá. _Historie:_ `sowingTargets` i cíl osevu zrušené 9. 11. 2026 – ves seje všechny
+  díly na řadě ([pole](fields.md) – Osevní postup po dílech, bod 3), škoda osev neovlivní. Rezerva osevu unese ≈ 7 % úrody, škody jsou desetiny úrody a hlídky je
   snižují, takže ves kvůli zvěři neseje víc; loňskou škodu (`damage.lastYearKg`) do osevu
   nezapočítáváme.
-- **Plodiny:** jen obilí – ozim a jař, i díly nad potřebu; luštěniny a len ne (návrh Clauda –
+- **Plodiny:** jen obilí – ozim a jař (do 9. 11. 2026 i díly nad potřebu – zrušené); luštěniny a len ne (návrh Clauda –
   návrh počítá „kg obilí“). Škodí se jen na dílech, které ves letos zaseje (do 1. 6. dosel).
 - **Co s ≈ 650 kg:** čísla výše platí pro žně, které se protáhnou do poloviny července a srpna;
   zvěř krmí jen dosud nesklizené díly, takže po sklizni dílu škoda na jeho úrodě končí. Kalibrace

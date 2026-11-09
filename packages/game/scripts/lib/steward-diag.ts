@@ -195,7 +195,7 @@ function september(
       s.parts.filter((p) => p.state === 'founding').reduce((sum, p) => sum + p.areaM2, 0),
     ),
     walkM: area > 0 ? Math.round(walk / area) : 0,
-    crowded: stewardCrowded(s, day, coverage, outlook),
+    crowded: stewardCrowded(s, view.landscape, view.obstacles),
     fieldRoom: stewardFieldRoom(s, day, view.landscape, view.obstacles, outlook),
     capacity: {
       autumnWinter: Math.round(capacity.autumnWinter),
@@ -212,7 +212,7 @@ function june(s: VillageState): { haSown: number; crops: Record<string, number> 
   const byId = new Map(s.parts.map((p) => [p.id, p]));
   const crops: Record<string, number> = {};
   for (const c of s.season?.crops ?? []) {
-    const key = `${c.crop}${c.surplus ? '+' : ''}`;
+    const key = c.crop;
     const m2 = c.partIds.reduce((sum, id) => sum + (byId.get(id)?.areaM2 ?? 0), 0);
     crops[key] = hectares((crops[key] ?? 0) * 10_000 + m2);
   }
