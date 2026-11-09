@@ -576,6 +576,7 @@ zásoby a cennosti a utekli do nejbližšího hradiště“).
   hradiště; domů se vrátí, až vojsko odtáhne z jejich mapy – rozhodne hráč, za nepřítomného správce.
 
 **Podrobnosti k provedení (návrh Clauda – ke schválení celku):**
+
 - **Vesničan, který vojsko spatří** (do 150 m od kteréhokoli muže vojska – dohled jako dnes), běží
   do vsi rychlostí běhu (≈ 2× chůze); ves je varovaná, až doběhne. Do té doby lidé pracují dál.
 - **Posel** je dospělý muž vsi, běží nejkratší cestou po stezkách (pochodová mřížka jako vojsko,
