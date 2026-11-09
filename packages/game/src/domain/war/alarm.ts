@@ -6,14 +6,22 @@ import type { CampaignState, IntentBody } from './campaign-types';
 import { villageLookouts, runTicks, type Lookout } from './lookouts';
 import type { MarchGrid, Pos } from './march-grid';
 import type { GridCell } from '../village/world-grid';
+import { WAR } from './rules-war';
 import { inSight } from './sight';
 
 // Varování vsí v tažení útočníka (war.md – Varování, poslové a útěk do hradiště; plán 2026-11-09 –
 // Úloha 2): ves se o vojsku dozví, až ho spatří vesničan kdekoli na mapě, kde pracuje (`lookouts.ts`),
 // a doběhne domů. Do té doby lidé pracují dál (bez `raid-day`). Stav je v `CampaignState.alarm`.
 
-/** Vlastník vsi, dokud svět port `alarmOf` nedodá (Úloha 6) – rod neznámý, rozhoduje pravidlo. */
-const UNKNOWN_OWNER: AlarmOwner = { playerId: null, npc: true, houseId: null };
+/**
+ * Vlastník vsi, když svět port `alarmOf` nemá, nebo ves nezná (Úloha 6) – rod neznámý, rozhoduje
+ * pravidlo.
+ */
+export const UNKNOWN_ALARM_OWNER: Readonly<AlarmOwner> = {
+  playerId: null,
+  npc: true,
+  houseId: null,
+};
 
 /** Záměry obránce varované vsi (plán 2026-11-09 – Rozhodnutí plánu). */
 export type AlarmIntentBody = Extract<
@@ -72,6 +80,7 @@ export function sightAlarms(s: CampaignState, tick: number, ctx: TickContext, ou
       const warnTick = tick + sighting.run;
       const known = alarmVillage(s, villageId);
       if (known === null) {
+        const hosts = hostCandidates(villageId, cell, ctx);
         addVillage(s, {
           villageId,
           owner: ownerOf(villageId, ctx),
@@ -79,6 +88,7 @@ export function sightAlarms(s: CampaignState, tick: number, ctx: TickContext, ou
           seenAt: { cell: { ...cell }, pos: { ...sighting.at } },
           warnTick,
           by: 'villager',
+          ...(hosts === null ? {} : { hosts }),
         });
       } else if (warnTick < known.warnTick) {
         known.warnTick = warnTick;
@@ -158,13 +168,43 @@ function runOf(
   return run;
 }
 
-/** Kdo za ves rozhoduje – ze světa (Úloha 6), jinak neznámý rod; `null` = svět ještě nenačetl. */
+/**
+ * Kdo za ves rozhoduje – ze světa (`CampaignWorld.alarmOf`, Úloha 6), bez portu neznámý rod; port
+ * vrátí `null` = svět ještě nenačetl (takt čeká).
+ */
 export function ownerOf(villageId: string, ctx: TickContext): AlarmOwner {
   const ask = ctx.world.alarmOf;
-  if (!ask) return { ...UNKNOWN_OWNER };
+  if (!ask) return { ...UNKNOWN_ALARM_OWNER };
   const owner = ask(villageId);
   if (owner === null) throw new MissingData([], [villageId]);
   return { ...owner };
+}
+
+/**
+ * Kandidáti hradišť vsi `villageId` na políčku `cell` (plán – Otevřené 1, Úloha 6): vlastní rod
+ * a přímí páni ze světa (`CampaignWorld.refugeHostsOf`) do `WAR.alarm.refugeMaxCells` políček, id
+ * seřazená. Zapíší se, jakmile ves vstoupí do varování (`AlarmVillage.hosts`) – bariéra dopočtu je
+ * od té chvíle drží, takže volba posla nebo útěku čte jejich stav ke dni tažení. Bez portu null;
+ * svět ještě nenačetl – takt čeká (`MissingData`).
+ */
+export function hostCandidates(
+  villageId: string,
+  cell: GridCell,
+  ctx: TickContext,
+): string[] | null {
+  const ask = ctx.world.refugeHostsOf;
+  if (!ask) return null;
+  const candidates = ask(villageId);
+  if (candidates === null) throw new MissingData([], [villageId]);
+  return candidates
+    .filter((c) => cellsBetween(c.cell, cell) <= WAR.alarm.refugeMaxCells)
+    .map((c) => c.villageId)
+    .sort();
+}
+
+/** Vzdálenost políček (nejvíc kroků po řádku nebo sloupci – i úhlopříčně jeden krok). */
+export function cellsBetween(a: GridCell, b: GridCell): number {
+  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 }
 
 /** Zapíše ves do varování – seřazené podle `villageId` (stav je JSON, pořadí pevné). */

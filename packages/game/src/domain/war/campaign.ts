@@ -67,6 +67,7 @@ import {
   moveMessengers,
   recallMessengers,
   sendMessenger,
+  warnDomain,
   withoutTaken,
 } from './messenger';
 import {
@@ -390,8 +391,11 @@ function applyAlarm(
         ...(body.personId === undefined ? {} : { personId: body.personId }),
       });
       return;
+    case 'alarm-domain':
+      // hradiště hráče rozešle posly do vybraných vsí domény (Úloha 6, Otevřené 5)
+      warnDomain(s, v.villageId, ctx, out, body.to);
+      return;
     case 'alarm-flee': // evakuace – Úloha 8
-    case 'alarm-domain': // hradiště varuje doménu – Úloha 6
       return;
   }
 }

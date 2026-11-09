@@ -2,7 +2,16 @@ import type { WorldClock } from '../calendar';
 import { villageCentre } from '../village/departure';
 import type { Prisoner, VillageState } from '../village/types';
 import type { GridCell } from '../village/world-grid';
-import { addVillage, alarmCellOf, alarmVillage, isWarned, ownerOf, warn } from './alarm';
+import {
+  addVillage,
+  alarmCellOf,
+  alarmVillage,
+  cellsBetween,
+  hostCandidates,
+  isWarned,
+  ownerOf,
+  warn,
+} from './alarm';
 import type { AlarmMessenger, AlarmVillage, CampaignAlarm } from './alarm-types';
 import { gridOf, MissingData, sameCell, villageEvent } from './campaign-tick';
 import type { TickContext, TickOut } from './campaign-tick';
@@ -14,6 +23,7 @@ import {
   messengerSpeed,
   refugeHostOf,
   refugeOptions,
+  refugeRoute,
   type RefugeHost,
 } from './refuge-choice';
 import { WAR } from './rules-war';
@@ -24,7 +34,8 @@ import { dayOfTick, TICKS_PER_SECOND } from './ticks';
 // 2026-11-09 – Úloha 5, Otevřené 4; Martin 9. 11. 2026: „Posel jde pěšky“, „Kdo je poslem, volí
 // hráč“). Posel běží po mapách jako skupina vojska (`stepMover`) tempem běhu – vesničan pěšky, muž
 // rodu, kterého vybral hráč, na svém koni. Každá ves na mapě, kam vstoupí, se o vojsku dozví;
-// hradiště, až doběhne. Vojsko ho chytí do 30 m, skupina s jezdcem už na dohled.
+// hradiště, až doběhne. Vojsko ho chytí do 30 m, skupina s jezdcem už na dohled. Hradiště pak
+// rozešle posly do vsí své domény (Úloha 6, Otevřené 5).
 
 /** Co tažení v den `day` z vsi odvedlo (plán – Review Focus 2); Úloha 8 doplní zásoby a stádo. */
 export interface AlarmTaken {
@@ -69,22 +80,21 @@ function backTick(m: AlarmMessenger): number {
 /**
  * Hradiště pro ves (Otevřené 1): kandidáti ze světa (`CampaignWorld.refugeHostsOf` – Úloha 6; bez
  * portu žádní = „Pán nemá hradiště“) do `WAR.alarm.refugeMaxCells` políček, s hotovým opevněním
- * s plochou ke dni tažení.
+ * s plochou ke dni tažení. `ids` = všichni kandidáti v dosahu (čte se jejich stav – bariéra).
  */
 function refugeHosts(
   s: CampaignState,
   villageId: string,
   cell: GridCell,
   ctx: TickContext,
-): RefugeHost[] {
+): { hosts: RefugeHost[]; ids: string[] } {
   const ask = ctx.world.refugeHostsOf;
-  if (!ask) return [];
+  if (!ask) return { hosts: [], ids: [] };
   const candidates = ask(villageId);
   if (candidates === null) throw new MissingData([], [villageId]);
+  const near = candidates.filter((c) => cellsBetween(c.cell, cell) <= WAR.alarm.refugeMaxCells);
   const hosts: RefugeHost[] = [];
-  for (const c of candidates) {
-    const cells = Math.max(Math.abs(c.cell.x - cell.x), Math.abs(c.cell.y - cell.y));
-    if (cells > WAR.alarm.refugeMaxCells) continue;
+  for (const c of near) {
     const map = ctx.world.landscapeOf(c.cell);
     if (map === null) throw new MissingData([{ ...c.cell }], []);
     const state = ctx.world.villageAt(c.villageId, s.day);
@@ -92,7 +102,7 @@ function refugeHosts(
     const host = refugeHostOf(c.villageId, state, map.landscape, c.cell, s.day);
     if (host) hosts.push(host);
   }
-  return hosts;
+  return { hosts, ids: near.map((c) => c.villageId).sort() };
 }
 
 /**
@@ -115,7 +125,7 @@ export function sendMessenger(
   if (state === null) throw new MissingData([], [villageId]);
   const home = withoutTaken(state, alarmTaken(s, villageId, s.day, ctx.world.clock));
   const centre = villageCentre(state);
-  const hosts = refugeHosts(s, villageId, cell, ctx);
+  const { hosts, ids } = refugeHosts(s, villageId, cell, ctx);
   const options = refugeOptions({
     state: home,
     day: s.day,
@@ -129,28 +139,54 @@ export function sendMessenger(
   const host = options.host;
   const runner = messengerOf(home, s.day, opts.personId);
   if (options.messenger.blocked !== null || host === null || runner === null) return false;
+  const m = launch(s, ctx, out, {
+    fromVillageId: villageId,
+    personId: runner.personId,
+    toVillageId: host.villageId,
+    mounted: runner.mounted,
+    cell,
+    pos: centre,
+    route: options.route.slice(1),
+    target: { cell: host.cell, pos: host.center },
+  });
+  av.messenger = m.refId;
+  av.decided ??= opts.by;
+  av.hosts = ids;
+  return true;
+}
+
+/**
+ * Posel vyběhne (vsi do hradiště i hradiště do domény): `AlarmMessenger` s novým `refId`, domů
+ * `messenger-out` na týž den; ostatní vsi na mapě výchozí vsi se dozví hned, jak vyběhne.
+ */
+function launch(
+  s: CampaignState,
+  ctx: TickContext,
+  out: TickOut,
+  spec: Pick<
+    AlarmMessenger,
+    'fromVillageId' | 'personId' | 'toVillageId' | 'mounted' | 'cell' | 'pos' | 'route' | 'target'
+  >,
+): AlarmMessenger {
   const alarm = s.alarm!;
   const refId = `${s.id}:a${alarm.nextRef}`;
   alarm.nextRef++;
   const m: AlarmMessenger = {
     refId,
-    fromVillageId: villageId,
-    personId: runner.personId,
-    toVillageId: host.villageId,
-    mounted: runner.mounted,
+    fromVillageId: spec.fromVillageId,
+    personId: spec.personId,
+    toVillageId: spec.toVillageId,
+    mounted: spec.mounted,
     status: 'running',
     departTick: s.tick,
-    cell: { ...cell },
-    pos: { ...centre },
-    route: options.route.slice(1).map((c) => ({ ...c })),
+    cell: { ...spec.cell },
+    pos: { ...spec.pos },
+    route: spec.route.map((c) => ({ ...c })),
     leg: null,
-    target: { cell: { ...host.cell }, pos: { ...host.center } },
+    target: { cell: { ...spec.target.cell }, pos: { ...spec.target.pos } },
   };
   addMessenger(alarm, m);
-  av.messenger = refId;
-  av.decided ??= opts.by;
-  av.hosts = hosts.map((h) => h.villageId).sort();
-  villageEvent(s, out, villageId, s.day, {
+  villageEvent(s, out, m.fromVillageId, s.day, {
     kind: 'messenger-out',
     campaignId: s.id,
     refId,
@@ -158,9 +194,8 @@ export function sendMessenger(
     toVillageId: m.toVillageId,
     mounted: m.mounted,
   });
-  // ostatní vsi na mapě vsi se dozví hned, jak posel vyběhne
   warnMap(s, m, ctx, out);
-  return true;
+  return m;
 }
 
 /** Zapíše posla – seřazené podle `refId` (stav je JSON, pořadí pevné). */
@@ -176,7 +211,8 @@ function addMessenger(alarm: CampaignAlarm, m: AlarmMessenger): void {
  * kudy, vrátí se domů (`recalled`).
  */
 export function moveMessengers(s: CampaignState, ctx: TickContext, out: TickOut): void {
-  for (const m of s.alarm?.messengers ?? []) {
+  // poslové, které hradiště v tomto taktu rozešle do domény, vyběhnou až v dalším taktu
+  for (const m of [...(s.alarm?.messengers ?? [])]) {
     if (m.status !== 'running') continue;
     const stepM = messengerSpeed(m.mounted, s.day) / TICKS_PER_SECOND;
     const step = stepMover(m, m.target.pos, stepM, s.day, ctx);
@@ -186,8 +222,96 @@ export function moveMessengers(s: CampaignState, ctx: TickContext, out: TickOut)
       m.doneTick = s.tick;
       warnByMessenger(s, m, m.toVillageId, ctx, out);
       comeBack(s, m, ctx, out);
+      hillfortHeard(s, m, ctx, out);
     } else if (step === 'stuck') recall(s, m, ctx, out);
   }
+}
+
+/**
+ * Posel vsi doběhl do hradiště (ne posel hradiště do domény): NPC hradiště hned rozešle posly do
+ * vsí své domény (Otevřené 5) – jednou. Hradiště hráče čeká na jeho volbu (`alarm-domain`);
+ * správce hradiště a lhůta hráče – Úloha 11.
+ */
+function hillfortHeard(s: CampaignState, m: AlarmMessenger, ctx: TickContext, out: TickOut): void {
+  if (alarmVillage(s, m.fromVillageId)?.messenger !== m.refId) return;
+  const hillfort = alarmVillage(s, m.toVillageId);
+  if (!hillfort || !hillfort.owner.npc || hillfort.domain !== undefined) return;
+  warnDomain(s, hillfort.villageId, ctx, out, null);
+}
+
+/**
+ * Hradiště (ves `villageId` ve varování) rozešle posly do vsí své domény (war.md – Varování: „Hradiště
+ * pak pošle posly do vsí domény, ke kterým vojsko míří“; plán – Otevřené 5): vsi vlastního rodu
+ * a přímých vazalů ze světa (`CampaignWorld.domainOf`) do `WAR.alarm.domainRadiusCells` políček od
+ * místa spatření, které o vojsku ještě nevědí a nikdo k nim neběží (kromě vsí, kterým vojsko
+ * neškodí), nejbližší k místu spatření první (shoda – menší id), celkem nejvýš
+ * `WAR.alarm.hillfortMessengers` poslů. `only` = vsi, které vybral hráč (`alarm-domain`); null =
+ * všechny (NPC). Každý posel je jiný muž hradiště (`messengerOf` – vesničan pěšky); dojdou-li,
+ * další nejde. Domů `messenger-out` na týž den (hradiště drží bariéra – je ve varování). Bez portu
+ * nic; svět doménu ještě nenačetl – takt čeká. Vrací počet poslů.
+ */
+export function warnDomain(
+  s: CampaignState,
+  villageId: string,
+  ctx: TickContext,
+  out: TickOut,
+  only: readonly string[] | null,
+): number {
+  const av = alarmVillage(s, villageId);
+  const ask = ctx.world.domainOf;
+  if (!av || !isWarned(s, villageId, s.tick) || !ask) return 0;
+  const domain = ask(villageId);
+  if (domain === null) throw new MissingData([], [villageId]);
+  const sent = (av.domain ??= []);
+  const seen = av.seenAt.cell;
+  const running = new Set(
+    s.alarm!.messengers.filter((m) => m.status === 'running').map((m) => m.toVillageId),
+  );
+  const chosen = only === null ? null : new Set(only);
+  const dist = (c: GridCell): number =>
+    (c.x - seen.x) * (c.x - seen.x) + (c.y - seen.y) * (c.y - seen.y);
+  const targets = domain
+    .filter(
+      (d) =>
+        d.villageId !== villageId &&
+        (chosen === null || chosen.has(d.villageId)) &&
+        cellsBetween(d.cell, seen) <= WAR.alarm.domainRadiusCells &&
+        !isWarned(s, d.villageId, s.tick) &&
+        !running.has(d.villageId),
+    )
+    .sort(
+      (a, b) =>
+        dist(a.cell) - dist(b.cell) ||
+        (a.villageId < b.villageId ? -1 : a.villageId > b.villageId ? 1 : 0),
+    );
+  let count = 0;
+  for (const target of targets) {
+    if (sent.length >= WAR.alarm.hillfortMessengers) break;
+    // ves na mapě hradiště se dozvěděla od posla, který vyběhl před chvílí
+    if (isWarned(s, target.villageId, s.tick)) continue;
+    const there = ctx.world.villageAt(target.villageId, s.day);
+    if (there === null) throw new MissingData([], [target.villageId]);
+    if (ctx.world.harmless?.(target.villageId, s.playerId)) continue;
+    const state = ctx.world.villageAt(villageId, s.day);
+    if (state === null) throw new MissingData([], [villageId]);
+    const home = withoutTaken(state, alarmTaken(s, villageId, s.day, ctx.world.clock));
+    const runner = messengerOf(home, s.day);
+    if (runner === null) break;
+    const cell = alarmCellOf(av);
+    const m = launch(s, ctx, out, {
+      fromVillageId: villageId,
+      personId: runner.personId,
+      toVillageId: target.villageId,
+      mounted: runner.mounted,
+      cell,
+      pos: villageCentre(state),
+      route: refugeRoute(cell, target.cell).slice(1),
+      target: { cell: { ...target.cell }, pos: villageCentre(there) },
+    });
+    sent.push(m.refId);
+    count++;
+  }
+  return count;
 }
 
 /** Vsi na mapě posla (kromě hradiště – to se dozví, až posel doběhne) se o vojsku dozví. */
@@ -218,6 +342,7 @@ function warnByMessenger(
   const from = alarmVillage(s, m.fromVillageId);
   if (from === null) return;
   if (known === null) {
+    const hosts = hostCandidates(villageId, m.cell, ctx);
     const v: AlarmVillage = {
       villageId,
       owner: ownerOf(villageId, ctx),
@@ -226,6 +351,7 @@ function warnByMessenger(
       warnTick: s.tick,
       by: 'messenger',
       cell: { ...m.cell },
+      ...(hosts === null ? {} : { hosts }),
     };
     addVillage(s, v);
   } else {

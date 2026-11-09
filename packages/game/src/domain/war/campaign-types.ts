@@ -315,21 +315,22 @@ export interface CampaignWorld {
    * Neví-li svět, vojsko škodí.
    */
   harmless?(villageId: string, armyPlayerId: string): boolean;
-  /**
-   * Pošle ves `passedVillageId`, kterou vojsko prošlo, posla do cílové vsi `targetVillageId` – je to
-   * jiná ves téhož rodu (war.md – Obránci, Kdy)? Od Úlohy 2 plánu 2026-11-09 ho tažení nevolá –
-   * posla do hradiště posílá hráč nebo správce (Úloha 5); port zmizí s porty varování (Úloha 6).
-   */
-  messengerTo?(passedVillageId: string, targetVillageId: string): boolean | null;
   /*
-   * Varování, poslové a útěk do hradiště (plán 2026-11-09 – Úloha 6 dodá porty; do té doby chybí):
-   * `null` = svět ještě nenačetl (takt se zastaví a volající je načte).
+   * Varování, poslové a útěk do hradiště (plán 2026-11-09 – Úloha 6; worker je skládá z portu
+   * `AlarmOwnerPort`): `null` = svět ještě nenačetl (takt se zastaví a volající je načte). Bez portu
+   * rod vsi neznámý (rozhoduje pravidlo), hradiště ani doména žádné.
    */
   /** Kdo za ves rozhoduje (hráč, NPC rod). */
   alarmOf?(villageId: string): AlarmOwner | null;
-  /** Kandidáti hradišť vsi – vlastní rod a přímí páni do `WAR.alarm.refugeMaxCells` (Otevřené 1). */
+  /**
+   * Kandidáti hradišť vsi – vsi vlastního rodu (kromě ní) a přímých pánů (Otevřené 1); tažení si
+   * vybere ty do `WAR.alarm.refugeMaxCells` políček.
+   */
   refugeHostsOf?(villageId: string): { villageId: string; cell: GridCell }[] | null;
-  /** Vsi domény hradiště – vlastní rod a přímí vazalové (Otevřené 5). */
+  /**
+   * Vsi domény hradiště – vlastní rod a přímí vazalové (Otevřené 5); tažení si vybere ty do
+   * `WAR.alarm.domainRadiusCells` políček od místa spatření.
+   */
   domainOf?(villageId: string): { villageId: string; cell: GridCell }[] | null;
   /**
    * Mřížky pochodu napříč voláními (worker) – jen zrychlení; bez ní se mřížka staví jednou na

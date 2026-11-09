@@ -4,7 +4,7 @@ import type { NewVillageEvent } from '../../village/inbox';
 import type { Person, VillageState } from '../../village/types';
 import type { GridCell } from '../../village/world-grid';
 import { alarmVillage } from '../alarm';
-import type { AlarmMessenger, AlarmVillage } from '../alarm-types';
+import type { AlarmMessenger, AlarmOwner, AlarmVillage } from '../alarm-types';
 import { stepCampaign } from '../campaign';
 import type {
   CampaignIntent,
@@ -440,5 +440,197 @@ describe('den odchodu (Review Focus 2)', () => {
     expect([...taken.people]).toEqual([VILLAGER]);
     expect(withoutTaken(villageA(), taken).people.map((p) => p.id)).toEqual([LORD]);
     expect(alarmTaken(withMessenger.state, 'b', start.day, world).people.size).toBe(0);
+  });
+});
+
+describe('hradiště varuje doménu (Úloha 6, Otevřené 5)', () => {
+  /**
+   * Doména hradiště C (políčko 3, 0): vsi e1–e5 do 3 políček od spatření (A – 1, 0), e6 dál, B už
+   * ví. Nejbližší k místu spatření: e1, e2 (√2), e3, e4 (√5), e5 (√10).
+   */
+  const DOMAIN: Record<string, GridCell> = {
+    b: B,
+    c: C,
+    e1: { x: 2, y: 1 },
+    e2: { x: 2, y: -1 },
+    e3: { x: 3, y: 1 },
+    e4: { x: 3, y: -1 },
+    e5: { x: 4, y: 1 },
+    e6: { x: 5, y: 0 },
+  };
+  /** Hradiště s pěti muži 20–24 let – každý posel jiný (nejmladší první). */
+  const hillfort = village(
+    [20, 21, 22, 23, 24].map((age, i) => kin({ id: i + 1, age, sex: 'male' }, SUMMER)),
+    [dwelling(1)],
+    { lastDay: SUMMER - 1, fortifications: [palisade(true)] },
+  );
+  const small = village([kin({ id: 1, age: 40, sex: 'female' }, SUMMER)], [dwelling(1)], {
+    lastDay: SUMMER - 1,
+  });
+  const domainMaps: Record<string, CampaignMap> = { ...MAPS };
+  for (const [id, cell] of Object.entries(DOMAIN)) {
+    if (id.startsWith('e')) domainMaps[`${cell.x},${cell.y}`] = mapOf([id]);
+  }
+  const HILLFORT_NPC: AlarmOwner = { playerId: null, npc: true, houseId: 'h-c' };
+  const HILLFORT_PLAYER: AlarmOwner = { playerId: 'p3', npc: false, houseId: 'h3' };
+
+  function domainWorld(owner = HILLFORT_NPC): CampaignWorld {
+    return worldWith({
+      landscapeOf: (cell) => domainMaps[`${cell.x},${cell.y}`] ?? MEADOW,
+      villageAt: (id) =>
+        id === 'a' ? villageA() : id === 'c' ? hillfort : id in DOMAIN ? small : null,
+      alarmOf: (id) =>
+        id === 'a' ? OWNER : id === 'c' ? owner : { playerId: null, npc: true, houseId: `h-${id}` },
+      domainOf: (id) =>
+        id === 'c' ? Object.entries(DOMAIN).map(([villageId, cell]) => ({ villageId, cell })) : [],
+    });
+  }
+
+  /** Posel A doběhne do hradiště C za pár taktů; B už ví, vojsko je daleko (9, 9). */
+  function arriving(): CampaignState {
+    const s = campaign({ liveCommand: false, foodKg: 200 });
+    s.phase = 'marching';
+    for (const g of s.groups) {
+      g.cell = { x: 9, y: 9 };
+      g.pos = { x: 0, z: 0 };
+      g.goal = { cell: { x: 9, y: 9 }, pos: { x: 0, z: 0 } };
+      g.route = [];
+      g.arrived = true;
+    }
+    const seen = { cell: { ...A }, pos: { x: 100, z: 100 } };
+    const known = (villageId: string, owner: AlarmVillage['owner']): AlarmVillage => ({
+      villageId,
+      owner,
+      seenTick: s.tick - 900,
+      seenAt: structuredClone(seen),
+      warnTick: s.tick - 900,
+      by: 'villager',
+    });
+    s.alarm = {
+      villages: [
+        { ...known('a', OWNER), messenger: 'c1:a0' },
+        { ...known('b', { playerId: null, npc: true, houseId: 'h-b' }), by: 'messenger', cell: B },
+      ],
+      messengers: [
+        {
+          refId: 'c1:a0',
+          fromVillageId: 'a',
+          personId: VILLAGER,
+          toVillageId: 'c',
+          mounted: false,
+          status: 'running',
+          departTick: s.tick - 800,
+          cell: { ...C },
+          pos: { x: 0, z: -60 },
+          route: [],
+          leg: null,
+          target: { cell: { ...C }, pos: { x: 0, z: 0 } },
+        },
+      ],
+      flights: [],
+      nextRef: 1,
+    };
+    return s;
+  }
+
+  const domainOut = (step: CampaignStep): AlarmMessenger[] =>
+    step.state.alarm!.messengers.filter((m) => m.fromVillageId === 'c');
+
+  it('(a) posel doběhne do hradiště NPC – nejvýš 4 poslové do nevarovaných vsí domény, nejbližší první', () => {
+    const start = arriving();
+    const step = stepCampaign(start, start.tick + 50, [], domainWorld());
+    expect(step.waiting).toBeNull();
+    const c = warned(step, 'c');
+    const sent = domainOut(step);
+    expect(sent.map((m) => [m.refId, m.toVillageId, m.personId])).toEqual([
+      ['c1:a1', 'e1', 1],
+      ['c1:a2', 'e2', 2],
+      ['c1:a3', 'e3', 3],
+      ['c1:a4', 'e4', 4],
+    ]);
+    expect(c.domain).toEqual(['c1:a1', 'c1:a2', 'c1:a3', 'c1:a4']);
+    expect(sent.every((m) => m.departTick === c.warnTick && !m.mounted)).toBe(true);
+    // poslové hradiště odešli dnes – domů `messenger-out` na týž den
+    expect(
+      step.villageEvents
+        .filter((e) => e.villageId === 'c' && e.body.kind === 'messenger-out')
+        .map((e) => [e.day, (e.body as { toVillageId: string }).toVillageId]),
+    ).toEqual(['e1', 'e2', 'e3', 'e4'].map((id) => [start.day, id]));
+    // v hradišti zbyl jen pátý muž
+    expect([...alarmTaken(step.state, 'c', start.day, world).people]).toEqual([1, 2, 3, 4]);
+    // doběhnou a varují; e5 (pátý) ani e6 (dál než 3 políčka) ne
+    const later = stepCampaign(step.state, start.tick + 2000, [], domainWorld());
+    for (const id of ['e1', 'e2', 'e3', 'e4']) {
+      expect(warned(later, id)).toMatchObject({ by: 'messenger', seenAt: c.seenAt });
+    }
+    expect(alarmVillage(later.state, 'e5')).toBeNull();
+    expect(alarmVillage(later.state, 'e6')).toBeNull();
+    // posel hradiště, který doběhl, další posly nerozesílá
+    expect(later.state.alarm!.messengers).toHaveLength(5);
+  });
+
+  it('(b) hradiště hráče – nic, dokud hráč nevybere vsi (`alarm-domain`)', () => {
+    const start = arriving();
+    const idle = stepCampaign(start, start.tick + 50, [], domainWorld(HILLFORT_PLAYER));
+    expect(domainOut(idle)).toEqual([]);
+    expect(warned(idle, 'c').domain).toBeUndefined();
+    const at = warned(idle, 'c').warnTick + 2;
+    const pick = (tick: number, seq: number, to: string[], by = 'p3'): CampaignIntent =>
+      intent(tick, seq, { kind: 'alarm-domain', village: 'c', to }, by);
+    const step = stepCampaign(
+      start,
+      start.tick + 50,
+      [
+        // cizí hráč (majitel A) za hradiště nerozhoduje
+        pick(at, 1, ['e1'], 'p2'),
+        // e6 je dál než 3 políčka, B už ví, x do domény nepatří, c je hradiště samo
+        pick(at, 2, ['e3', 'e1', 'e6', 'b', 'x', 'c']),
+        // nejvýš 4 poslové celkem
+        pick(at + 1, 3, ['e5', 'e2', 'e4']),
+      ],
+      domainWorld(HILLFORT_PLAYER),
+    );
+    expect(domainOut(step).map((m) => [m.toVillageId, m.departTick])).toEqual([
+      ['e1', at],
+      ['e3', at],
+      ['e2', at + 1],
+      ['e4', at + 1],
+    ]);
+    expect(warned(step, 'c').domain).toHaveLength(4);
+  });
+
+  it('(c) bez portu domény hradiště nikoho neposílá; nenačtená doména – takt čeká', () => {
+    const start = arriving();
+    const none = stepCampaign(start, start.tick + 50, [], {
+      ...domainWorld(),
+      domainOf: undefined,
+    });
+    expect(domainOut(none)).toEqual([]);
+    const waiting = stepCampaign(start, start.tick + 50, [], {
+      ...domainWorld(),
+      domainOf: () => null,
+    });
+    expect(waiting.waiting).toEqual({ cells: [], villageIds: ['c'] });
+    expect(waiting.state.alarm!.messengers[0]!.status).toBe('running');
+  });
+
+  it('(d) po 1, 7 a 40 taktech a přes JSON = vcelku', { timeout: 120_000 }, () => {
+    const start = arriving();
+    const end = start.tick + 1200;
+    const whole = stepCampaign(start, end, [], domainWorld());
+    expect(domainOut(whole)).toHaveLength(4);
+    for (const chunk of [1, 7, 40]) {
+      const w = domainWorld();
+      const events: NewVillageEvent[] = [];
+      let s = start;
+      while (s.tick < end) {
+        const next = stepCampaign(s, Math.min(end, s.tick + chunk), [], w);
+        expect(next.waiting).toBeNull();
+        events.push(...next.villageEvents);
+        s = JSON.parse(JSON.stringify(next.state)) as CampaignState;
+      }
+      expect(JSON.stringify(s)).toBe(JSON.stringify(whole.state));
+      expect(events).toEqual(whole.villageEvents);
+    }
   });
 });

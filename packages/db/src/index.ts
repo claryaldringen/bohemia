@@ -32,6 +32,7 @@ export {
   createTimeOffsetRepository,
   createVillageRepository,
   createWorldQueue,
+  createAlarmOwners,
   playerLockHash,
   type PlayerLockOptions,
 } from './adapters';

@@ -38,8 +38,16 @@ export interface AlarmVillage {
   flight?: string;
   /** Kdo volbu udělal (hráč, nebo pravidlo správce); chybí – zatím nikdo. */
   decided?: 'player' | 'steward';
-  /** Kandidáti hradišť (id vsí – pro bariéru dopočtu); chybí – zatím nehledáno. */
+  /**
+   * Kandidáti hradišť do `WAR.alarm.refugeMaxCells` políček (id vsí – pro bariéru dopočtu; Úloha 6
+   * je zapíše, jakmile ves do varování vstoupí); chybí – svět kandidáty nezná (bez portu).
+   */
   hosts?: string[];
+  /**
+   * `refId` poslů, které ves (hradiště) rozeslala do vsí své domény (Úloha 6, Otevřené 5); chybí –
+   * zatím nikoho. NPC hradiště rozešle posly jednou, hned jak doběhne posel vsi.
+   */
+  domain?: string[];
   /**
    * Políčko vsi (Úloha 5 – ves varovaná poslem vojsko na své mapě neviděla); chybí – políčko
    * spatření (`seenAt.cell` – vesničan vojsko viděl na mapě vsi).
