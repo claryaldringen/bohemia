@@ -80,11 +80,29 @@ a kroniku.“
   ikony. Upozornění vsi (hlad, nedostatek surovin…) se odvozují z pohledu a stav vsi ukazují
   řádky nahoře. Kód: `docs/code/web-ui.md` – Panel Upozornění.
 - **Upozornění vsi do kroniky** (Martin 9. 11. 2026: „Ano, ať se zapisují do kroniky“;
-  implementace čeká): trvalé stavy vsi z upozornění (hlad a šetření jídlem, chybějící suroviny
+  implementováno): trvalé stavy vsi z upozornění (hlad a šetření jídlem, chybějící suroviny
   dílen, koně bez obilí, stáda bez místa…) zapíše simulace do kroniky vsi **při začátku a konci
   stavu** s herním datem – ne denně (návrh Clauda: kratší stav než 7 dní se nezapíše, aby kronika
   nebyla zaplavená; půst v okně setí a zimní šetření na osivo nejsou hlad – zapíší se jako „Ves
   šetří na osivo“). Hráč, který se vrátí po delší době, tak v kronice uvidí, co se mezitím dělo.
+  - **Stavy a zápisy** (začátek / konec): ves šetří jídlem – zásoby nevystačí do sklizně / už
+    nešetří; ves hladoví / hlad skončil; lidé umírají hlady / už neumírají (stupně jsou vnořené –
+    hladovějící ves i šetří); stavby stojí / zase se na nich pracuje; kovář nemá uhlí, rudu,
+    hrnčíř hlínu, dílna nemá co kácet, tesař nemá klády / … má zase …; stáda se nevejdou do ohrad
+    (jeden zápis za všechny druhy – návrh Clauda), voli a koně se nevejdou do ohrady / zase se
+    vejdou; koně a psi jsou bez
+    obilí / mají zase obilí; ves nemá humno – mlátí se na udusané zemi / výmlat na udusané zemi
+    skončil; humno nestačí / zase stačí.
+  - **Datum** (návrh Clauda): začátek nese den, kdy stav začal (zapíše se, až trvá 7 dní), konec
+    první den bez stavu (zapíše se, až stav 7 dní chybí); kratší přerušení než 7 dní stav
+    neukončí. Konec se zapíše jen u stavu, jehož začátek je v kronice.
+  - **Bez zvláštního zápisu** (návrh Clauda): plný hřbitov, chybí len, vlna a osivo, porážky,
+    úhyn, škody zvěře a vlci, počasí a pohromy – jsou v kronice jako události samy; rodina čeká na
+    dům je běžný stav růstu vsi, ne nouze. Dřívější denní zápisy začátku a konce hladu kronika
+    neukazuje (zůstávají pro deník vsí).
+  - **Ves šetří na osivo – otevřené:** dnešní stav vsi půst kvůli osivu od hladu neodliší
+    (příděl ze zásob do sklizně osivo vždy vynechá); zapíše se, až osivo v okně setí přinese
+    vlastní údaj ve stavu vsi.
 
 ## Opuštěný rod
 

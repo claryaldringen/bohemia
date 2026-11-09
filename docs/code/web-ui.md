@@ -1072,12 +1072,20 @@ nová pravidla (návrh Clauda).
   stránka (tlačítko `chronicle-older` – dvojitá šipka, popisek „Starší zápisy“); null = starší
   nejsou. `lost` – kronika je plná a zápis o založení vsi už v ní není: na konci „Starší zápisy se
   nedochovaly.“
+- **Trvalé stavy vsi** (absence.md – Upozornění vsi do kroniky; jádro `lasting-notices.ts`,
+  viz `village-core.md`): `notice-began` / `notice-ended` s textem z `lib/notice-chronicle.ts`
+  (`NOTICE_CHRONICLE_TEXTS` – začátek jako řádek upozornění s tečkou, konec „… zase …“, např.
+  „Kovář nemá uhlí.“ / „Kovář má zase uhlí.“, „Ves hladoví.“ / „Hlad skončil.“). Začátek má den
+  začátku stavu, i když se zapsal o týden později – stránka ho zařadí podle dne. Denní
+  `hunger-began` / `hunger-ended` panel neukazuje (`HIDDEN_KINDS` – návrh Clauda: hlad nesou
+  trvalé stavy, denní zápisy zůstávají pro deník vsí).
 - **Obnova:** `useChronicle` načte první stránku při otevření, při jiné vsi a když v pohledu
   přibude zápis (`latest` = nejnovější zápis `VillageView.chronicle`); `mergeNewest` nahradí roky
   nové stránky a starší načtené roky ponechá, `appendOlder` připojí starší stránku.
 - **Testy:** `lib/__tests__/chronicle-view.test.ts` (seskupení, pořadí, stránkování, spojování),
   `hud/__tests__/ChroniclePanel.behavior.test.tsx`, `hooks/__tests__/use-chronicle.behavior.test.tsx`,
-  e2e `village.spec.ts` – „panel Kronika“ (zápis o založení vsi, střídání s panelem rodu, Esc).
+  e2e `village.spec.ts` – „panel Kronika“ (zápis o založení vsi, střídání s panelem rodu, Esc,
+  zápis trvalého stavu „Kovář nemá uhlí.“).
 
 ## Panel Upozornění (absence.md – Návrat, `hud/NoticesPanel.tsx`, `lib/notice-page.ts`)
 
