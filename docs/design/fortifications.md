@@ -360,6 +360,11 @@ Martin 8. 11. 2026: „**brána se dá prosekat nebo vypálit. Od palisády vý�
 vylepšit bránu ve dvou úrovních 1. klešťová brána (za opevněním však musí být dost místa) 2.
 dřevěná věž nad samotnou branou.**“ Výklad níž Martin schválil („Ano“).
 
+- **Klešťová brána jen u hradby s ochozem** – Martin 9. 11. 2026: „Pokud budeme mít obyčejnou
+  palisádu bez ochozu, nemůže tam stát klešťová brána, ale jen obyč“ – klešťová brána (a s ní věž)
+  jde postavit jen u palisády s ochozem, roštové a komorové hradby; u plotu a palisády bez ochozu
+  jen obyčejná brána (tlačítko zašedlé s důvodem – implementace čeká; stojící klešťové brány
+  starších vsí zůstanou – návrh Clauda).
 - **Klešťová brána** (1. úroveň): ramena hradby zatažená dovnitř podél cesty, mezi nimi ulička
   a vrata na jejím vnitřním konci. Útočník v uličce je v dosahu obránců z obou ramen a k vratům se
   vejde jen pár útočníků. Návrh Clauda: ulička 4 m široká a 12 m dlouhá, k vratům nejvýš 4 muži;
