@@ -1003,7 +1003,10 @@ nebrání hradbu.“, „Obránci utíkají.“, „Obránci se už probíjejí.
 název v `Tooltip`, důvod červeně (`denied`); bez práva `war` zašedne s důvodem práva. Klik → server
 action `orderBreakout({ villageId })`; po odeslání zašedne („Obránci se už probíjejí.“), chyba serveru
 se ukáže stejně – platí, dokud server nepošle jiný důvod, nejdéle 10 s. Test:
-`BreakoutButton.behavior.test.tsx`, `war-scene-view.test.ts` (`breakoutOf`).
+`BreakoutButton.behavior.test.tsx`, `war-scene-view.test.ts` (`breakoutOf`); e2e `multiplayer-war.spec.ts`
+– „obránce za hradbou s branou rozkáže ‚Probít se‘“ (boj zapsaný do kontrolního bodu bez workeru, klik
+→ řádek `campaign_intent` s `breakout` od hráče B; obránce v krytu a vzdaný ve scéně, snímek
+`probijeni.png` v `test-results`). Popisek tlačítka u levého okraje: `Tooltip` `below-right`.
 
 ## Prémiová krajina v rozhraní
 

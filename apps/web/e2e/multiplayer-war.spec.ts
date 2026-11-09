@@ -918,7 +918,8 @@ test('útočník sleduje vojsko ve 3D na mapě napadené vsi i na sousední, po 
 test('obránce za hradbou s branou rozkáže „Probít se“ – záměr v tažení útočníka', async ({
   browser,
 }) => {
-  test.setTimeout(240_000);
+  // dva hráči zakládají ves (v zatíženém stroji i přes 2 minuty) – jako nájezd s workerem
+  test.setTimeout(420_000);
   await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
   const ctxs = await Promise.all([browser.newContext(), browser.newContext()]);
   for (const ctx of ctxs) await useUniqueClientIp(ctx);
@@ -969,6 +970,7 @@ test('obránce za hradbou s branou rozkáže „Probít se“ – záměr v taž
   if (!Array.isArray(gates)) throw new Error(gates.error);
   fort.gates = gates;
   await writeVillageState(seatB.settlementId, stateB);
+  await pollVillage(b);
   const today = stateB.lastDay;
   const [war] = await query<{ id: string }>(
     `INSERT INTO war (house_low, house_high, how, started_at, started_day, last_clash_day)
@@ -1064,9 +1066,16 @@ test('obránce za hradbou s branou rozkáže „Probít se“ – záměr v taž
       fighters: [
         fighter('a:0', 'attack', 0, out),
         fighter('a:1', 'attack', 1, { x: out.x + 2, z: out.z }),
+        // první brání, druhý se kryje pod palbou (skrčený), třetí se vzdal (stojí bez zbraně)
         ...men.map((p, i) => {
           const post = ring[(i + 1) % ring.length]!;
-          return fighter(`d:${p.id}`, 'defend', p.id, post, { post, onWall: true });
+          const poses: Partial<Fighter>[] = [
+            {},
+            { cover: true },
+            { state: 'fled', surrendered: true },
+          ];
+          const pose = poses[i]!;
+          return fighter(`d:${p.id}`, 'defend', p.id, post, { post, onWall: true, ...pose });
         }),
       ],
       groups: [
@@ -1110,6 +1119,15 @@ test('obránce za hradbou s branou rozkáže „Probít se“ – záměr v taž
       .toEqual([{ by_player: playerB!.id, body: { kind: 'breakout', fort: 0 } }]);
     // po odeslání zašedne – obránci se shromažďují u brány
     await expect(breakout).toBeDisabled();
+    await b.screenshot({
+      path: test.info().outputPath('probijeni-tlacitko.png'),
+      clip: { x: 0, y: 44, width: 320, height: 110 },
+    });
+    // snímek scény: přiblížení na hradbu – kryjící se skrčený, vzdaný stojí bez zbraně
+    await b.mouse.move(640, 400);
+    for (let i = 0; i < 3; i++) await b.mouse.wheel(0, -300);
+    await b.waitForTimeout(1_000);
+    await b.screenshot({ path: test.info().outputPath('probijeni.png'), scale: 'css' });
   } finally {
     await query(`UPDATE campaign SET status = 'done' WHERE id = $1`, [campaignId]);
   }

@@ -38,7 +38,7 @@ export function BreakoutButton({
   const reason = warDenied ?? sent ?? denied;
   return (
     <div className="fixed top-14 left-2 z-20" data-hud-block>
-      <Tooltip placement="below" denied={reason} content="Probít se">
+      <Tooltip placement="below-right" denied={reason} content="Probít se">
         <button
           type="button"
           data-testid="breakout"
