@@ -468,6 +468,8 @@ počet, den)` po řadě podle id: napřed věže nad branami po 4, pak brány po
   `wallKindAt` přes kusy dílu s branou). 300 m se 2 branami a 20 muži: 4 u bran, 16 po ≈ obvod ÷ 18 (≈ 16 m).
 - **Obsazení** – `occupied(opevnění, místo, bojovníci)`: obránce na nohou do 2,5 m, který nestojí
   víc než 0,5 m před čarou hradby. Neobsazeným místem lezec vyleze bez boje (`guardOf` v `ladders.ts`).
+- **Muži uprchlíků** v hradišti obsadí hradbu za domácími (stanoviště dostanou až po nich) –
+  [Varování – Pobyt v hradišti (Ú9)](#varování-poslové-a-útěk-do-hradiště).
 - **Plán obránce se stanovištěm** – `defenderPlan(f, ctx, wall)` → `wallDefenderPlan`: (1) útočník
   ve stavu `fight` uvnitř obvodu (`withinWalls`), bez stěny mezi, v dohledu, do 40 m od stanoviště
   nebo útočí na něj – boj jako u domů (vodítko 40 m od stanoviště), a nedosáhne-li odsud, sleze
@@ -895,7 +897,9 @@ stepM, day, ctx)` → `moved` | `crossed` | `arrived` | `stuck`, `planMoverLeg`)
   s aktivním mužem na mapě posla do `WAR.alarm.catchM`, nebo skupina s jezdcem, která ho vidí
   (`inSight`); osud podle `CampaignState.surrendered` (výchozí odvést): pobít – `killed`, odvést –
   vesničan `led` (snímek osoby do `CampaignLoot.people`), muž rodu a šlechtic `captured` – zajetí
-  u vsi shromaždiště (`CampaignLoot.prisoners`, NPC velitel zajme vždy – jako po nájezdu), nechat –
+  u vsi shromaždiště (`CampaignLoot.prisoners`, klíč `guardPrisonerKey` `<tažení>:<ves>:<osoba>` –
+  i v těle události `prisonerId`; starší událost bez něj `prisonerKey` – Ú9; NPC velitel zajme vždy –
+  jako po nájezdu), nechat –
   běží dál; `s.captives`, `messenger-caught` domů den nato, majiteli upozornění `messenger-caught`
   (`fate`). `reportRaid` kořist s poslem slučuje (dřív ji přepsal). **Den odchodu** (Review Focus 2):
   `campaignBattle` bere stav cíle bez lidí z `alarmTaken(s, ves, den)` – posel, který dnes vyběhl,
@@ -1002,6 +1006,30 @@ mode, ctx, out, { by })` (správce – Ú11): ves ještě neodešla (`AlarmVilla
   – rychleji, kořist vezme stádo a zásoby; les týž den; přesila – kořist, odvedení, poslední muž rodu
   jde dál; bez přesily dál; pobít; zajetí mužů rodu; den odchodu – boj téhož dne; blokovaná volba
   a cizí záměr; po 1 / 7 / 40 / 400 taktech přes JSON = vcelku).
+- **Pobyt v hradišti – útočiště a obrana (Ú9).** Uprchlíci bydlí v hradišti jako hosté druhu
+  `refuge` (Ú7 – `applyRefugeArrive`); když vojsko hradiště napadne, `campaignBattle` je bere
+  z hostů jako hosty z ochrany: `guardGuestsOf` – přítomní (osoba ve stavu domovské vsi je pryč
+  s `refuge` u hradiště; domov nenačtený = takt čeká), **muži od 16 let** (`refugeeFighter` –
+  `WAR.army.minAge`; muž rodu v každém věku, vesničan do `AGE.elder`) jsou obránci pod zápornými
+  čísly (`GuardGuest.refugee`, `Defender.refugee`, `CampaignGuard.kind` `refuge`, vesničan
+  s `villager`); muž rodu bojuje jako muž rodu s lukem, vesničan silou vesničana podle štěstí
+  hradiště (návrh Clauda), bez luku. Ženy, děti, starší a ranění muži se stády pobytů
+  (`RefugeStay.herd`) jdou do `planDefense` jako `StanceInput.refugeLoad` (`refugeLoadOf`; bez
+  uprchlíků chybí – rozdělení jako dřív). **Místo v útočišti** (`admitWithRefugees`, Otevřené 9):
+  napřed lidé vsi (kdo stihne bránu), pak muži uprchlíků (návrh Clauda – obsadí hradbu), pak
+  ostatní uprchlíci (bydlí uvnitř – brána je nezastaví, zásoby nenesou), pak dobytek vsi a nakonec
+  stádo uprchlíků – co se nevejde, stojí venku (stáda první); uprchlíci jdou do útočiště nejbližšího
+  dvorci. Muži uprchlíků v útočišti dostanou stanoviště na hradbě za domácími (obsazenost roste),
+  kdo se nevešel, jedná se skupinou dvorce podle postoje hradiště (jako hosté z ochrany – návrh
+  Clauda místo „u brány“). `ShelterReport.refugees` (`RefugeesPlace`) – kolik nebojujících uprchlíků
+  a kusů je uvnitř a venku. **Ztráty** jako hosté z ochrany (`reportGuards`): domov dostane
+  `guard-losses` (padlý zemře bez pohřbu, muž rodu – nástupnictví; ranění; zajatí u vsi
+  shromaždiště pod `guardPrisonerKey`), hradiště `guests-leave` druhu `refuge` za padlé a zajaté.
+  Vzdaného muže rodu nebo šlechtice útočník zajme (NPC vždy), vesničana uprchlíků při „pobít“ zabije,
+  jinak zůstane v hradišti (odvést ho z hradiště zatím nelze – jako ženy, děti, zásoby a stáda
+  uprchlíků při dobytí hradiště – Později). Test `refuge-defense.test.ts` (20 domácích a 15
+  uprchlíků – 6 mužů na hradbě; malé útočiště – domácí, uprchlíci, dobytek venku; boj u hradiště –
+  ztráty domů, zajetí muže rodu, vesničan zůstane; po kouscích přes JSON = vcelku).
 
 ## Výsledky nájezdu a kořist (Ú6.10)
 
@@ -1073,7 +1101,10 @@ rozhodnutí.
   `CampaignLoot.prisoners` → `CampaignReturn.prisoners` (ves shromaždiště: `VillageState.prisoners`
   - host druhu `captive` s `untilDay = 1e9`, takže jí z jejích zásob – `villageFoodNeed` – a
     `guestLaborToday` ho nepočítá; necvičí).
-- **Klíč zajetí** `<id tažení>:<číslo osoby>` (`prisonerKey`).
+- **Klíč zajetí** `<id tažení>:<číslo osoby>` (`prisonerKey`) – lidé napadené vsi; kdo je z jiné
+  vsi (hosté z ochrany a ze svolání, muži uprchlíků v hradišti, dostižení uprchlíci, chycený posel),
+  `<id tažení>:<ves>:<číslo osoby>` (`guardPrisonerKey` – číslo by se mohlo potkat s lidmi napadené
+  vsi).
 - **Schránka `captive-returns { role: 'home' | 'captor'; prisonerId; personId }`**
   (`domain/war/captives.ts`): `home` zruší `away` (+ vypne správce zapnutého zajetím, kronika
   `people-back` druhu `captive`); `captor` odebere zajatce i hosta. Poprava = `captor` +

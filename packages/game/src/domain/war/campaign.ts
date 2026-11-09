@@ -1,6 +1,8 @@
 import type { WorldClock } from '../calendar';
 import type { NewVillageEvent, VillageEventBody } from '../village/inbox';
-import type { Person, PersonRef, Prisoner, VillageState } from '../village/types';
+import type { HerdSpecies, Person, PersonRef, Prisoner, VillageState } from '../village/types';
+import { isLineMan } from '../village/dynasty';
+import { AGE } from '../village/rules';
 import { createRandom, deriveSeed } from '../landscape/random';
 import { surrenders } from './surrender';
 import type { GridCell } from '../village/world-grid';
@@ -27,11 +29,11 @@ import {
   type BattleField,
   type BattleState,
 } from './battle';
-import { defenderRoster, type GuardGuest } from './defenders';
+import { defenderRoster, type Defender, type GuardGuest } from './defenders';
 import { ageYears, isAway } from '../village/people';
 import { stanceOf } from './flight';
 import { refugeRout } from './rout';
-import { planDefense } from './stance';
+import { planDefense, type RefugeLoad } from './stance';
 import {
   lootCapacity,
   lootTotals,
@@ -742,8 +744,11 @@ function campaignBattle(s: CampaignState, ctx: TickContext, field: BattleField):
   });
   // Ú6.10 / aplikace: muži rodu v jiných vsích hráče (`lineMenElsewhere`) – zatím jen tato ves.
   // Ves se podle postoje rozdělí dřív, než dojde na boj (útěk, útočiště, vzdání – Ú6.9).
-  // hosté z ochrany pánem se brání se vsí podle jejího postoje (vassalage.md – Ochrana vojskem)
-  const guests = village ? guardGuestsOf(s, village, ctx) : [];
+  // hosté z ochrany pánem se brání se vsí podle jejího postoje (vassalage.md – Ochrana vojskem);
+  // muži uprchlíků v hradišti také (war.md – Varování – Místo v hradišti; plán 2026-11-09, Úloha 9)
+  const { guests, refugees } = village
+    ? guardGuestsOf(s, village, ctx)
+    : { guests: [], refugees: 0 };
   if (guests.length > 0) {
     s.guards = guests.map(({ guard }) => guard);
   }
@@ -751,17 +756,22 @@ function campaignBattle(s: CampaignState, ctx: TickContext, field: BattleField):
   const home = village
     ? withoutTaken(village, alarmTaken(s, s.target.villageId, s.day, ctx.world.clock))
     : null;
+  const defenders = home
+    ? defenderRoster(home, s.day, { guests: guests.map(({ guest }) => guest) })
+    : [];
+  const refugeLoad = home ? refugeLoadOf(home, guests, defenders, refugees) : undefined;
   const plan = home
     ? planDefense({
         state: home,
         day: s.day,
         stance: stanceOf(home),
-        defenders: defenderRoster(home, s.day, { guests: guests.map(({ guest }) => guest) }),
+        defenders,
         attackers: fighters.map((a) => ({ pos: a.pos, mounted: a.mounted })),
         field,
         // ves o vojsku ví (vesničan, posel – Úloha 2 plánu 2026-11-09), nebo ji varoval posel
         // starého tažení (Ú6.7 – `armySeen` jen ze starých bodů) – postoj dřív
         warned: isWarned(s, s.target.villageId, s.tick) || home.armySeen?.campaignId === s.id,
+        ...(refugeLoad ? { refugeLoad } : {}),
       })
     : null;
   return openBattle({
@@ -783,16 +793,18 @@ function campaignBattle(s: CampaignState, ctx: TickContext, field: BattleField):
 /**
  * Hosté z ochrany i ze svolání v cílové vsi (`guests` druhu `protection` / `service`), kteří jsou
  * opravdu tam: osoba ve stavu domovské vsi (ke dni `s.day − 1` – jinak takt čeká) je pryč u této vsi s týmž druhem a od 16 let.
+ * Uprchlíci v hradišti (druh `refuge` – war.md, Varování – Místo v hradišti): muži od 16 let
+ * (`refugeeFighter`) jsou hosté v boji, ostatní přítomní jen v počtu `refugees` (zabírají útočiště).
  * Pořadí podle domovské vsi a osoby; čísla v boji −1, −2, …
  */
 function guardGuestsOf(
   s: CampaignState,
   village: VillageState,
   ctx: TickContext,
-): { guest: GuardGuest; guard: CampaignGuard }[] {
+): { guests: { guest: GuardGuest; guard: CampaignGuard }[]; refugees: number } {
   const entries = (village.guests ?? [])
-    .filter((g) => g.kind === 'protection' || g.kind === 'service')
-    .map((g) => ({ ref: g.ref, kind: g.kind as 'protection' | 'service' }))
+    .filter((g) => g.kind === 'protection' || g.kind === 'service' || g.kind === 'refuge')
+    .map((g) => ({ ref: g.ref, kind: g.kind as 'protection' | 'service' | 'refuge' }))
     .sort((a, b) =>
       a.ref.villageId === b.ref.villageId
         ? a.ref.personId - b.ref.personId
@@ -806,24 +818,63 @@ function guardGuestsOf(
   );
   if (missing.length > 0) throw new MissingData([], missing);
   const out: { guest: GuardGuest; guard: CampaignGuard }[] = [];
+  let refugees = 0;
   for (const { ref, kind } of entries) {
     const home = ctx.world.villageAt(ref.villageId, s.day)!;
     const p = home.people.find((x) => x.id === ref.personId);
     if (!p || p.away?.kind !== kind || p.away.hostVillageId !== s.target.villageId) continue;
-    if (!isAway(p, s.day) || ageYears(p.bornDay, s.day) < WAR.army.minAge) continue;
+    if (!isAway(p, s.day)) continue;
+    const refugee = kind === 'refuge';
+    if (refugee && !refugeeFighter(p, s.day)) {
+      refugees++;
+      continue;
+    }
+    if (ageYears(p.bornDay, s.day) < WAR.army.minAge) continue;
     const id = -(out.length + 1);
     out.push({
-      guest: { id, person: structuredClone(p) },
+      guest: { id, person: structuredClone(p), ...(refugee ? { refugee: true as const } : {}) },
       guard: {
         id,
-        ...(kind === 'service' ? { kind } : {}),
+        ...(kind === 'protection' ? {} : { kind }),
         ref: { ...ref },
         ...(p.name === undefined ? {} : { name: p.name }),
         ...(p.noble ? { noble: true as const } : {}),
+        ...(refugee && !p.line && !p.noble ? { villager: true as const } : {}),
       },
     });
   }
-  return out;
+  return { guests: out, refugees };
+}
+
+/**
+ * Bojuje uprchlík v hradišti (plán 2026-11-09 – Otevřené 9)? Muž od 16 let (`WAR.army.minAge`) – muž
+ * rodu v každém věku, vesničan do stáří (`AGE.elder` – jako obránce doma); ženy, děti a starší
+ * nebojují.
+ */
+function refugeeFighter(p: Person, day: number): boolean {
+  const age = ageYears(p.bornDay, day);
+  return p.sex === 'male' && age >= WAR.army.minAge && (isLineMan(p) || age < AGE.elder);
+}
+
+/**
+ * Uprchlíci v hradišti, kteří nebojují (`StanceInput.refugeLoad`): ženy, děti a starší (`refugees`)
+ * a ranění muži (host bez místa v soupisu obránců), se stády pobytů (`RefugeStay.herd`). Bez
+ * uprchlíků undefined – rozdělení vsi jako dřív.
+ */
+function refugeLoadOf(
+  village: VillageState,
+  guests: readonly { guest: GuardGuest }[],
+  defenders: readonly Defender[],
+  refugees: number,
+): RefugeLoad | undefined {
+  const men = guests.filter(({ guest }) => guest.refugee).length;
+  const herd: Record<HerdSpecies, number> = { sheep: 0, goat: 0, pig: 0, cow: 0 };
+  for (const stay of village.refugeStays ?? []) {
+    for (const sp of Object.keys(herd) as HerdSpecies[]) herd[sp] += Math.max(0, stay.herd[sp]);
+  }
+  if (men === 0 && refugees === 0 && !Object.values(herd).some((n) => n > 0)) return undefined;
+  const wounded = men - defenders.filter((d) => d.refugee).length;
+  return { people: refugees + wounded, herd };
 }
 
 function indexOf(s: CampaignState, ref: PersonRef): number | null {
@@ -1041,7 +1092,7 @@ function reportGuards(
       captorVillageId: s.assembly.villageId,
     });
   }
-  for (const away of ['protection', 'service'] as const) {
+  for (const away of ['protection', 'service', 'refuge'] as const) {
     const gone = [...fallen, ...captured]
       .filter((g) => (g.kind ?? 'protection') === away)
       .map((g) => ({ ...g.ref }));
@@ -1092,9 +1143,15 @@ function raidResultOf(
       else return;
       if (w >= 0) wounded.splice(w, 1);
     };
-    // host z ochrany je muž rodu pána – zajme se jako muž rodu
+    // host z ochrany je muž rodu pána – zajme se jako muž rodu; muž uprchlíků, který není muž rodu
+    // ani šlechtic, padne při „pobít“, jinak zůstane v hradišti (odvést ho zatím nelze – Později)
     const guard = new Set((s.guards ?? []).map((g) => g.id));
+    const villagers = new Set((s.guards ?? []).filter((g) => g.villager).map((g) => g.id));
     for (const id of yieldedOf(b, village, s.day)) {
+      if (villagers.has(id)) {
+        if (order === 'kill') fallen.push(id);
+        continue;
+      }
       if (guard.has(id)) {
         takeMan(id);
         continue;
@@ -1109,7 +1166,8 @@ function raidResultOf(
     for (const f of b.fighters) {
       if (f.side !== 'defend' || f.state !== 'down' || f.killed) continue;
       const p = people.get(f.ref);
-      const lineMan = guard.has(f.ref) || (p !== undefined && (p.line || p.noble));
+      const lineMan =
+        (guard.has(f.ref) && !villagers.has(f.ref)) || (p !== undefined && (p.line || p.noble));
       if (!lineMan || captured.includes(f.ref) || fallen.includes(f.ref)) continue;
       const rng = createRandom(deriveSeed(s.seed, `surrender:${f.ref}`));
       if (surrenders({ mounted: false }, { hopeless: true, freeRoute: false }, rng)) {
