@@ -2384,23 +2384,9 @@ def flat_plate(bm, pts, y, thickness):
 def icon_tools():
     """Nástroje: kovaná sekera s bradou na topůrku zkřížená se srpem – železo od kováře."""
     wood, iron, edge = bmesh.new(), bmesh.new(), bmesh.new()
-    # sekera: topůrko zprava dole doleva nahoru, list s bradou míří doprava
-    h0, h1 = Vector((0.74, 0.0, -0.78)), Vector((-0.46, 0.0, 0.76))
-    cyl(wood, h0, h1, 0.1, 0.09, 10)
-    d = (h1 - h0).normalized()
-    n = Vector((d.z, 0, -d.x))  # kolmo doprava nahoru
-    head = h0 + (h1 - h0) * 0.84
-    k = 1.25  # list sekery větší než skutečně – ikona se čte i ve 26 px
-    to_xz = lambda u, v: ((head + d * u * k + n * v * k).x, (head + d * u * k + n * v * k).z)  # noqa: E731
-    blade_pts = [
-        (0.13, -0.16), (0.14, 0.12), (0.11, 0.3), (0.2, 0.62), (0.3, 0.86),
-        (-0.06, 0.92), (-0.38, 0.86), (-0.42, 0.72), (-0.22, 0.5), (-0.12, 0.3),
-        (-0.13, 0.12), (-0.11, -0.16),
-    ]
-    flat_plate(iron, [to_xz(u, v) for u, v in blade_pts], -0.02, 0.12)
-    # broušené ostří – světlejší pruh podél břitu
-    edge_pts = [(0.3, 0.86), (-0.06, 0.92), (-0.38, 0.86), (-0.34, 0.8), (-0.06, 0.85), (0.26, 0.8)]
-    flat_plate(edge, [to_xz(u, v) for u, v in edge_pts], -0.02, 0.13)
+    # sekera: topůrko zprava dole doleva nahoru, list s bradou míří doprava (list větší než
+    # skutečně – ikona se čte i ve 26 px)
+    axe(wood, iron, edge, Vector((0.74, 0.0, -0.78)), Vector((-0.46, 0.0, 0.76)))
     # srp: rukojeť vlevo dole, čepel obloukem nahoru a doprava
     c, R = Vector((0.04, 0.0, 0.0)), 0.55
     start = c + Vector((math.cos(math.radians(212)), 0, math.sin(math.radians(212)))) * R
@@ -3802,6 +3788,647 @@ PREMIUM = {
     "game-furs": icon_premium_game_furs,
     "building-stone": icon_premium_building_stone,
 }
+
+
+# ------------------------------------------------------ ikony rozhraní ----
+# Ikony, které nejdřív vznikly jako ruční SVG (7.–9. 11. 2026) – Martin 9. 11. 2026: „ano“ k jejich
+# předělání v Blenderu stejně jako ostatní ikony (o ruční ikoně opevnění 8. 11.: „vůbec nevypadá
+# jako ostatní ikonky“). Panel úseku hradby (druhy, val, příkop, brány, obsazení, postupy útočníka),
+# kámen, zbourat / opustit / vrátit stavbu, opustit díl, Probít se, Kronika, Upozornění a portrét
+# lomu. Díly opevnění a obléhání jsou modely scény (`models/fortifications/`, `models/siege/`).
+
+SIEGE = os.path.join(ROOT, "apps/web/public/models/siege")
+AXE_BLADE = [
+    (0.13, -0.16), (0.14, 0.12), (0.11, 0.3), (0.2, 0.62), (0.3, 0.86),
+    (-0.06, 0.92), (-0.38, 0.86), (-0.42, 0.72), (-0.22, 0.5), (-0.12, 0.3),
+    (-0.13, 0.12), (-0.11, -0.16),
+]
+AXE_EDGE = [(0.3, 0.86), (-0.06, 0.92), (-0.38, 0.86), (-0.34, 0.8), (-0.06, 0.85), (0.26, 0.8)]
+
+
+def siege_parts():
+    """Díly obléhání ze `siege.glb` (žebříky, otep, hromady kamení) – originály skryté, kopie `inst`."""
+    parts = {}
+    for o in place_model("siege", folder=SIEGE):
+        parts[o.name.split(".")[0]] = o
+        o.hide_render = True
+    return parts
+
+
+def metal(name, color, rough, metallic):
+    m = mat(name, color, rough, noise=14, bump=0.4)
+    next(x for x in m.node_tree.nodes if x.type == "BSDF_PRINCIPLED").inputs["Metallic"].default_value = metallic
+    return m
+
+
+def seg_points(p0, p1, step=0.27):
+    """Body kůlů po `step` na úsečce p0 → p1 (včetně konců)."""
+    n = max(1, round(math.hypot(p1[0] - p0[0], p1[1] - p0[1]) / step))
+    return [(p0[0] + (p1[0] - p0[0]) * i / n, p0[1] + (p1[1] - p0[1]) * i / n) for i in range(n + 1)]
+
+
+def gate(parts, cx, cy, open_angle=0.0):
+    """Brána podél X: dva kůly, trám navrch a dvě křídla z prken (o `open_angle` otevřená ven, k −Y)."""
+    for k in (-1, 1):
+        inst(parts["gate-post"], (cx + k * 2.05, cy, 0))
+    inst(parts["gate-beam"], (cx, cy, 3.9))
+    inst(parts["gate-planks"], (cx + 2.0, cy, 0), rot=open_angle)
+    inst(parts["gate-planks"], (cx - 2.0, cy, 0), rot=math.pi - open_angle)
+
+
+def axe(wood, iron, edge, h0, h1, k=1.25, y=-0.02):
+    """Kovaná sekera s bradou: topůrko z h0 do h1 (rovina XZ), list u horního konce míří doprava."""
+    cyl(wood, h0, h1, 0.1, 0.09, 10)
+    d = (h1 - h0).normalized()
+    n = Vector((d.z, 0, -d.x))  # kolmo doprava nahoru
+    head = h0 + (h1 - h0) * 0.84
+
+    def to_xz(u, v):
+        p = head + d * u * k + n * v * k
+        return (p.x, p.z)
+
+    flat_plate(iron, [to_xz(u, v) for u, v in AXE_BLADE], y, 0.12)
+    # broušené ostří – světlejší pruh podél břitu
+    flat_plate(edge, [to_xz(u, v) for u, v in AXE_EDGE], y, 0.13)
+
+
+def iron_objs(iron, edge):
+    bmesh.ops.recalc_face_normals(iron, faces=iron.faces)
+    bmesh.ops.recalc_face_normals(edge, faces=edge.faces)
+    to_obj(iron, "iron", metal("forged", (0.36, 0.36, 0.38), 0.42, 0.65), smooth=False)
+    to_obj(edge, "edge", metal("edge", (0.72, 0.72, 0.74), 0.3, 0.8), smooth=False)
+
+
+def spade(wood, iron, foot, top, width=0.34, blade=0.46):
+    """Rýč: dřevěný list s okovaným břitem u `foot`, násada s příčnou rukojetí k `top` (rovina XZ)."""
+    foot, top = Vector(foot), Vector(top)
+    d = (top - foot).normalized()
+    n = Vector((d.z, 0, -d.x))
+
+    def p(u, v):
+        q = foot + d * u + n * v
+        return (q.x, q.z)
+
+    w = width / 2
+    flat_plate(wood, [p(0.04, -w), p(blade * 0.8, -w * 0.95), p(blade, -w * 0.4), p(blade + 0.06, 0),
+                      p(blade, w * 0.4), p(blade * 0.8, w * 0.95), p(0.04, w)], foot.y, 0.05)
+    flat_plate(iron, [p(-0.03, -w - 0.015), p(0.09, -w - 0.015), p(0.09, w + 0.015), p(-0.03, w + 0.015)],
+               foot.y, 0.07)
+    cyl(wood, foot + d * blade, top, 0.045, 0.04, 8)
+    cyl(wood, top - n * 0.13, top + n * 0.13, 0.042, 0.042, 8)
+
+
+def mallet(bm, grip, head_c, length=0.7, r=0.22):
+    """Dřevěná palice: topůrko od `grip` k hlavě, válcová hlava kolmo k němu (rovina XZ)."""
+    grip, head_c = Vector(grip), Vector(head_c)
+    d = (head_c - grip).normalized()
+    n = Vector((d.z, 0, -d.x))
+    cyl(bm, grip, head_c, 0.06, 0.07, 8)
+    cyl(bm, head_c - n * length / 2, head_c + n * length / 2, r, r * 0.95, 14)
+
+
+def lumpy_heap(bm, radius, height, rng, amp=0.08):
+    """Hrouda / hromádka hlíny – rotační kopeček s hrbolatým povrchem."""
+    revolve(bm, [(0.0, radius), (height * 0.3, radius * 0.86), (height * 0.65, radius * 0.55),
+                 (height * 0.9, radius * 0.22), (height, 0.0)], 28, cap_bottom=True)
+    off = Vector((rng.uniform(0, 50), rng.uniform(0, 50), 0))
+    for v in bm.verts:
+        if v.co.z > 0.01:
+            v.co += Vector((0, 0, amp * noise.noise(v.co * 3.0 + off)))
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+
+
+def mud_mat(name="mud", scale=0.9):
+    return mat(name, tex=f"{TEX}/mud.jpg", scale=scale, tint=(1.15, 0.92, 0.72))
+
+
+def hud_light(az=-45, el=40, strength=4.2):
+    sun(az=az, el=el, strength=strength)
+
+
+def flat_arrow(tail, tip, w, head_w, head_len):
+    """Obrys rovné šipky v rovině (body x, y) od `tail` k `tip`."""
+    tail, tip = Vector((*tail, 0)), Vector((*tip, 0))
+    d = (tip - tail).normalized()
+    n = Vector((-d.y, d.x, 0))
+    neck = tip - d * head_len
+    pts = [tail - n * w / 2, neck - n * w / 2, neck - n * head_w / 2, tip, neck + n * head_w / 2,
+           neck + n * w / 2, tail + n * w / 2]
+    return [(p.x, p.y) for p in pts]
+
+
+def arc_arrow(r, w, a0, a1, head=2.0, n=40):
+    """Obrys zahnuté šipky v rovině: oblouk poloměru `r` a šířky `w` z úhlu a0 do a1, hrot na konci."""
+    def at(a, rr):
+        return (math.cos(a) * rr, math.sin(a) * rr)
+
+    outer = [at(a0 + (a1 - a0) * i / n, r + w / 2) for i in range(n + 1)]
+    inner = [at(a0 + (a1 - a0) * i / n, r - w / 2) for i in range(n + 1)][::-1]
+    s = 1 if a1 > a0 else -1
+    tx, ty = -math.sin(a1) * s, math.cos(a1) * s
+    cx, cy = at(a1, r)
+    tip = (cx + tx * w * 1.6, cy + ty * w * 1.6)
+    return outer + [at(a1, r + w * head / 2), tip, at(a1, r - w * head / 2)] + inner
+
+
+def icon_fort_walkway():
+    """Palisáda s ochozem: řada kůlů a za ní fošny ochozu na sloupcích 2 m nad zemí (pohled zevnitř)."""
+    rng = random.Random(5)
+    parts = fort_parts()
+    palisade_run(parts, seg_points((-3.0, 0.0), (3.0, 0.0)), rng)
+    wood = bmesh.new()
+    for x in (-2.9, -1.0, 1.0, 2.9):
+        for y in (0.3, 1.2):
+            cyl(wood, (x, y, 0), (x, y, 1.95), 0.08, 0.07, 8)
+        cyl(wood, (x, 0.2, 1.9), (x, 1.3, 1.9), 0.07, 0.07, 8)
+    to_obj(wood, "posts", mat("post", (0.45, 0.33, 0.21), 0.9, noise=25, bump=0.3))
+    for x in (-2.0, 0.0, 2.0):
+        for y in (0.42, 0.75, 1.08):
+            inst(parts["walk-plank"], (x + rng.uniform(-0.05, 0.05), y, 1.97), rot=rng.uniform(-0.02, 0.02))
+    hud_light(az=150, el=42)
+    sun(az=-40, el=30, strength=1.2)
+    camera([Vector((-3.1, -0.2, 0)), Vector((3.1, 1.4, 0)), Vector((-3.1, -0.2, 3.5)), Vector((3.1, 1.4, 3.5))],
+           az=205, el=36, margin=1.03)
+    return True
+
+
+def icon_fort_crib():
+    """Roštová hradba: rošt klád křížem zasypaný hlínou, vlevo vpředu kamenná plenta nasucho."""
+    parts = fort_parts()
+    for k in range(8):
+        z = k * 0.28
+        if k % 2 == 0:
+            for y in (-1.15, 1.15):
+                inst(parts["crib-log"], (0, y, z))
+        else:
+            for x in (-1.75, 0.0, 1.75):
+                inst(parts["crib-log"], (x, 0, z), rot=math.pi / 2)
+    fill = bmesh.new()
+    box(fill, (0, 0, 1.12), (3.9, 2.3, 2.2))
+    to_obj(fill, "fill", mud_mat(scale=0.4), smooth=False)
+    for x in (-1.5, -0.5):
+        inst(parts["facing-stone-a" if x < -1 else "facing-stone-b"], (x, -1.6, 0))
+    hud_light()
+    camera([Vector((-2.2, -2.1, 0)), Vector((2.2, 2.1, 0)), Vector((-2.2, -2.1, 2.5)), Vector((2.2, 2.1, 2.5))],
+           az=-32, el=26, margin=1.0)
+    return True
+
+
+def icon_fort_chamber():
+    """Komorová hradba: srubová komora z klád zasypaná hlínou, vlevo vpředu čelní kamenná zeď."""
+    parts = fort_parts()
+    inst(parts["chamber-box"], (0, 0, 0))
+    fill = bmesh.new()
+    box(fill, (0, 0, 1.95), (4.7, 2.7, 3.9))
+    to_obj(fill, "fill", mud_mat(scale=0.4), smooth=False)
+    for x in (-2.0, -1.0, 0.0):
+        inst(parts["chamber-face"], (x, -1.95, 0))
+    hud_light()
+    camera([Vector((-2.6, -2.4, 0)), Vector((2.6, 1.6, 0)), Vector((-2.6, -2.4, 4.1)), Vector((2.6, 1.6, 4.1))],
+           az=-32, el=24, margin=1.0)
+    return True
+
+
+def rampart_slice(L=3.2, X0=-2.5, X1=6.5, base=-0.9):
+    """Výsek valu s příkopem v řezu (profil `rampart_profile`): drn nahoře, řez a stěny holá hlína."""
+    bm = bmesh.new()
+    xs = [X0 + i * 0.1 for i in range(int((X1 - X0) / 0.1) + 1)]
+    prof = [(x, rampart_profile(x)) for x in xs]
+    ymin, ymax = -L / 2, L / 2
+    top0 = [bm.verts.new((x, ymin, h)) for x, h in prof]
+    top1 = [bm.verts.new((x, ymax, h)) for x, h in prof]
+    for i in range(len(xs) - 1):
+        bm.faces.new((top0[i], top0[i + 1], top1[i + 1], top1[i]))
+    bl0, br0 = bm.verts.new((X0, ymin, base)), bm.verts.new((X1, ymin, base))
+    bl1, br1 = bm.verts.new((X0, ymax, base)), bm.verts.new((X1, ymax, base))
+    bm.faces.new([bl0, br0] + top0[::-1])  # čelní řez
+    bm.faces.new([bl1] + top1 + [br1])  # zadní stěna
+    bm.faces.new((bl0, bl1, top1[0], top0[0]))
+    bm.faces.new((br0, top0[-1], top1[-1], br1))
+    bm.faces.new((bl0, bl1, br1, br0))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    o = to_obj(bm, "rampart", mat("earth", tex=f"{TEX}/mud.jpg", scale=0.3, tint=(0.95, 0.78, 0.6)), smooth=False)
+    o.data.materials.append(mat("turf", tex=f"{TEX}/grass-lush.jpg", scale=0.3, tint=(0.8, 0.85, 0.6)))
+    for poly in o.data.polygons:
+        poly.material_index = 1 if poly.normal.z > 0.3 and abs(poly.normal.y) < 0.9 else 0
+    return o
+
+
+def icon_fort_rampart_add():
+    """Doplnit val: val s příkopem v řezu, na koruně valu palisáda a ve svahu náspu zaražený rýč."""
+    rng = random.Random(8)
+    L, X0, X1 = 4.4, -0.5, 10.6
+    rampart_slice(L, X0, X1)
+    parts = fort_parts()
+    crest = RAMPART_DITCH + RAMPART_FOOT / 2
+    palisade_run(parts, seg_points((crest, -L / 2 + 0.15), (crest, L / 2 - 0.15)), rng,
+                 sink=rampart_profile(crest) - 0.12)
+    wood, iron = bmesh.new(), bmesh.new()
+    x = 5.0
+    y = -L / 2 + 0.5
+    spade(wood, iron, (x, y, rampart_profile(x) - 0.3), (x - 0.7, y, rampart_profile(x) + 1.9),
+          width=0.6, blade=0.8)
+    bmesh.ops.recalc_face_normals(wood, faces=wood.faces)
+    to_obj(wood, "spade", mat("haft", (0.66, 0.45, 0.24), 0.75, noise=18, bump=0.3), smooth=False)
+    to_obj(iron, "shoe", metal("shoe", (0.36, 0.36, 0.38), 0.42, 0.65), smooth=False)
+    hud_light()
+    camera([Vector((X0, -L / 2, -0.9)), Vector((X1, L / 2, 5.4)), Vector((X0, L / 2, -0.9)),
+            Vector((X1, -L / 2, -0.9))], az=-42, el=28, margin=1.0)
+    return True
+
+
+def icon_fort_moat():
+    """Napustit příkop: val s příkopem v řezu, příkop plný vody."""
+    L = 3.2
+    rampart_slice(L)
+    wb = bmesh.new()
+    box(wb, (2.0, 0, -0.97), (3.8, L - 0.04, 0.94))
+    to_obj(wb, "water", mat("water", (0.09, 0.2, 0.26), 0.05), smooth=False)
+    hud_light()
+    camera([Vector((-2.5, -L / 2, -0.9)), Vector((6.5, L / 2, 2.2)), Vector((-2.5, L / 2, -0.9)),
+            Vector((6.5, -L / 2, -0.9))], az=-18, el=30, margin=1.0)
+    return True
+
+
+def icon_fort_gate():
+    """Brána v opevnění: kůly s trámem, jedno křídlo pootevřené, po stranách palisáda."""
+    rng = random.Random(6)
+    parts = fort_parts()
+    palisade_run(parts, seg_points((-4.6, 0.0), (-2.35, 0.0)), rng)
+    palisade_run(parts, seg_points((2.35, 0.0), (4.6, 0.0)), rng)
+    for k in (-1, 1):
+        inst(parts["gate-post"], (k * 2.05, 0, 0))
+    inst(parts["gate-beam"], (0, 0, 3.9))
+    inst(parts["gate-planks"], (2.0, 0, 0), rot=0.05)
+    inst(parts["gate-planks"], (-2.0, 0, 0), rot=math.pi - 0.75)
+    hud_light()
+    camera([Vector((-4.7, -1.6, 0)), Vector((4.7, 0.3, 0)), Vector((-4.7, -1.6, 4.2)), Vector((4.7, 0.3, 4.2))],
+           az=12, el=26, margin=1.0)
+    return True
+
+
+def icon_gate_pincer():
+    """Klešťová brána: hradba se u brány stáčí dovnitř do dvou ramen, brána mezi nimi."""
+    rng = random.Random(9)
+    parts = fort_parts()
+    palisade_run(parts, seg_points((-5.5, 0.0), (-2.3, 0.0)), rng)
+    palisade_run(parts, seg_points((2.3, 0.0), (5.5, 0.0)), rng)
+    for k in (-1, 1):
+        palisade_run(parts, seg_points((k * 2.3, 0.27), (k * 2.3, 5.4)), rng)
+    gate(parts, 0, 5.4, open_angle=0.0)
+    hud_light()
+    camera([Vector((-5.6, -0.4, 0)), Vector((5.6, 5.8, 0)), Vector((-5.6, 5.8, 4.2)), Vector((5.6, -0.4, 3.5))],
+           az=32, el=56, margin=1.0)
+    return True
+
+
+def icon_gate_tower():
+    """Věž nad branou: dřevěná věž na čtyřech kůlech nad vraty, po stranách palisáda."""
+    rng = random.Random(10)
+    parts = fort_parts()
+    inst(parts["tower"], (0, 0, 0))
+    gate(parts, 0, -2.4)
+    palisade_run(parts, seg_points((-6.0, -2.4), (-2.65, -2.4)), rng)
+    palisade_run(parts, seg_points((2.65, -2.4), (6.0, -2.4)), rng)
+    hud_light()
+    camera([Vector((-6.0, -2.7, 0)), Vector((6.0, 2.6, 0)), Vector((-2.6, -2.7, 8.1)), Vector((2.6, 2.6, 8.1))],
+           az=18, el=18, margin=1.0)
+    return True
+
+
+def icon_fort_occupancy():
+    """Obsazení hradby: tři muži rodu za palisádou, nad kůly jim jsou vidět hlavy a ramena."""
+    rng = random.Random(12)
+    parts = fort_parts()
+    pts = seg_points((-1.5, 0.0), (1.5, 0.0), 0.12)
+    for x, y in pts:
+        inst(parts[rng.choice(["stake-a", "stake-b", "stake-c"])], (x, y, 0), rot=rng.uniform(0, 6.28),
+             scale=0.4 * rng.uniform(0.95, 1.05))
+    men = []
+    for x, turn in ((-0.75, -10.0), (0.0, -24.0), (0.75, -38.0)):
+        men += place_person("man", loc=(x, 0.45, 0.0), turn=turn)
+    hud_light(az=-40, el=40, strength=4.4)
+    camera([Vector((-1.5, -0.2, 0.55)), Vector((1.5, 0.6, 0.55)), Vector((-1.5, -0.2, 1.85)), Vector((1.5, 0.6, 1.85))],
+           az=6, el=10, margin=1.02)
+    return True
+
+
+def icon_assault_ladder():
+    """Žebříky: žebřík opřený o palisádu zvenčí, přečnívá přes špičky kůlů."""
+    rng = random.Random(14)
+    parts = fort_parts()
+    siege = siege_parts()
+    palisade_run(parts, seg_points((-2.0, 0.0), (2.0, 0.0)), rng)
+    inst(siege["ladder-5"], (0.3, -1.95, 0), scale=1.25, tilt=(-0.32, 0.0))
+    hud_light(az=-60, el=38)
+    camera([Vector((-2.0, -2.1, 0)), Vector((2.0, 0.2, 0)), Vector((-2.0, -2.1, 5.9)), Vector((2.0, 0.2, 5.9))],
+           az=-38, el=14, margin=1.02)
+    return True
+
+
+def icon_assault_axe():
+    """Prosekat: kovaná sekera zaťatá do kůlu palisády (kůl přeseknutý napůl)."""
+    wood, iron, edge, stake = bmesh.new(), bmesh.new(), bmesh.new(), bmesh.new()
+    cyl(stake, (0.0, 0.25, -1.0), (0.0, 0.25, 1.05), 0.3, 0.3, 10)
+    cyl(stake, (0.0, 0.25, 1.05), (0.0, 0.25, 1.45), 0.3, 0.0, 10)
+    axe(wood, iron, edge, Vector((0.95, 0.0, -0.75)), Vector((-0.3, 0.0, 0.62)))
+    to_obj(stake, "stake", mat("stake", (0.45, 0.33, 0.21), 0.9, noise=25, bump=0.3), smooth=False)
+    to_obj(wood, "handle", mat("haft", (0.66, 0.45, 0.24), 0.75, noise=18, bump=0.3))
+    iron_objs(iron, edge)
+    hud_light(az=-35, el=45, strength=4.4)
+    camera([Vector((-0.9, -0.3, -1.0)), Vector((1.0, 0.6, 1.45))], az=-14, el=10, margin=1.02)
+    return True
+
+
+def icon_assault_fire():
+    """Vypálit: otep chrastí u paty kůlů palisády, plameny šlehají po kůlech."""
+    rng = random.Random(15)
+    parts = fort_parts()
+    siege = siege_parts()
+    palisade_run(parts, seg_points((-0.8, 0.0), (0.8, 0.0)), rng)
+    inst(siege["fagot"], (0.0, -0.45, 0), rot=0.1)
+    outer, inner = bmesh.new(), bmesh.new()
+    flame(outer, (0, -0.45, 0.2), 2.3, 0.6)
+    flame(outer, (0.5, -0.4, 0.15), 1.5, 0.38, tilt=(0.2, 0.05))
+    flame(outer, (-0.5, -0.45, 0.15), 1.6, 0.4, tilt=(-0.2, -0.05))
+    flame(inner, (0, -0.55, 0.2), 1.3, 0.36)
+    to_obj(outer, "flame", glow_mat("flame", (1.0, 0.36, 0.04), 2.2))
+    to_obj(inner, "core", glow_mat("core", (1.0, 0.78, 0.25), 3.5))
+    hud_light(az=-40, el=50, strength=3.5)
+    camera([Vector((-1.0, -0.9, 0)), Vector((1.0, 0.2, 0)), Vector((-1.0, -0.9, 3.5)), Vector((1.0, 0.2, 3.5))],
+           az=-10, el=14, margin=1.02)
+    return True
+
+
+def icon_assault_spade():
+    """Odkopat / podkopat: rýč zaražený do hromádky vykopané hlíny."""
+    rng = random.Random(16)
+    heap, wood, iron = bmesh.new(), bmesh.new(), bmesh.new()
+    lumpy_heap(heap, 0.85, 0.42, rng)
+    to_obj(heap, "heap", mud_mat())
+    spade(wood, iron, (0.08, 0.0, 0.05), (-0.42, 0.0, 1.55))
+    bmesh.ops.recalc_face_normals(wood, faces=wood.faces)
+    to_obj(wood, "spade", mat("haft", (0.66, 0.45, 0.24), 0.75, noise=18, bump=0.3), smooth=False)
+    to_obj(iron, "shoe", metal("shoe", (0.36, 0.36, 0.38), 0.42, 0.65), smooth=False)
+    hud_light(az=-40, el=45, strength=4.2)
+    camera([Vector((-0.85, -0.85, 0)), Vector((0.85, 0.85, 0)), Vector((-0.55, 0, 1.6))], az=8, el=16, margin=1.02)
+    return True
+
+
+def icon_stone():
+    """Kámen: hromada lomového kamení – díl `stone-pile-a` ze scény (hromady u cest a lomy)."""
+    siege = siege_parts()
+    inst(siege["stone-pile-a"], (0, 0, 0), rot=0.4)
+    hud_light(az=-45, el=45)
+    camera([Vector((-0.95, -0.95, 0)), Vector((0.95, 0.95, 0)), Vector((0, 0, 0.75))], az=10, el=26, margin=1.02)
+    return True
+
+
+def icon_demolish():
+    """Zbourat stavbu: dřevěná palice nad rozbořenou palisádou – pahýly a padlé kůly."""
+    rng = random.Random(18)
+    parts = fort_parts()
+    for x, h in ((-0.7, 0.55), (0.0, 0.42), (0.55, 0.6)):
+        inst(parts[rng.choice(["stake-a", "stake-b", "stake-c"])], (x, 0.3, -3.5 * (1 - h) * 0.7),
+             rot=rng.uniform(0, 6.28), scale=0.7, tilt=(rng.uniform(-0.15, 0.15), rng.uniform(-0.15, 0.15)))
+    inst(parts["stake-a"], (-1.3, -0.2, 0.1), rot=0.25, scale=0.7, tilt=(0.0, math.pi / 2 - 0.05))
+    inst(parts["stake-b"], (0.2, -0.75, 0.1), rot=-0.35, scale=0.7, tilt=(0.0, -math.pi / 2 + 0.05))
+    wood = bmesh.new()
+    mallet(wood, (1.75, -0.1, 0.9), (0.45, -0.1, 2.5), length=1.1, r=0.36)
+    to_obj(wood, "mallet", mat("mallet", (0.46, 0.31, 0.17), 0.8, noise=18, bump=0.35))
+    hud_light()
+    camera([Vector((-1.6, -1.0, 0)), Vector((1.8, 0.6, 0)), Vector((-1.6, -1.0, 2.8)), Vector((1.8, 0.6, 2.8))],
+           az=-12, el=18, margin=1.02)
+    return True
+
+
+def icon_breakout():
+    """Probít se: palisáda s bránou otevřenou ven a červená šipka z brány ven."""
+    rng = random.Random(20)
+    parts = fort_parts()
+    palisade_run(parts, seg_points((-5.0, 0.0), (-2.35, 0.0)), rng)
+    palisade_run(parts, seg_points((2.35, 0.0), (5.0, 0.0)), rng)
+    gate(parts, 0, 0, open_angle=1.15)
+    arrow = bmesh.new()
+    lying_plate(arrow, flat_arrow((0.0, 1.6), (0.0, -5.4), 1.5, 3.4, 2.3), 0.9, 0.36)
+    bmesh.ops.recalc_face_normals(arrow, faces=arrow.faces)
+    to_obj(arrow, "arrow", glow_mat("out", (0.85, 0.12, 0.06), 0.5), smooth=False)
+    hud_light()
+    camera([Vector((-5.0, -5.6, 0)), Vector((5.0, 0.4, 0)), Vector((-5.0, 0.4, 4.2)), Vector((5.0, -5.6, 0))],
+           az=14, el=36, margin=0.98)
+    return True
+
+
+def page_z(u):
+    """Výška stránky otevřené knihy ve vzdálenosti `u` (0 hřbet, 1 okraj)."""
+    return 0.06 + 0.22 * (1 - (1 - u) ** 3) - 0.05 * u ** 4
+
+
+def icon_chronicle():
+    """Kronika: otevřená kniha – pergamenové stránky s řádky písma a červenou iniciálou, kožená vazba."""
+    rng = random.Random(21)
+    pages, ink, red, cover = bmesh.new(), bmesh.new(), bmesh.new(), bmesh.new()
+    n = 24
+    for s in (-1, 1):
+        prof = [(s * (0.015 + 0.985 * i / n), page_z(0.015 + 0.985 * i / n)) for i in range(n + 1)]
+        flat_plate(pages, prof + [(s * 1.0, 0.05), (s * 0.015, 0.05)], 0.0, 1.4)
+        lying_plate(cover, [(0, -0.78), (s * 1.09, -0.78), (s * 1.09, 0.78), (0, 0.78)], 0.0, 0.05)
+        for j in range(8):
+            y = 0.5 - j * 0.135
+            u = 0.14
+            while u < 0.86:
+                ln = rng.uniform(0.07, 0.2)
+                u1 = min(u + ln, 0.86)
+                target = red if (j < 2 and u < 0.2 and s < 0) else ink
+                k = 4
+                for i in range(k):
+                    a = u + (u1 - u) * i / k
+                    b = u + (u1 - u) * (i + 1) / k
+                    hw = 0.05 if target is red else 0.022
+                    v = [target.verts.new((s * a, y - hw, page_z(a) + 0.004)),
+                         target.verts.new((s * b, y - hw, page_z(b) + 0.004)),
+                         target.verts.new((s * b, y + hw, page_z(b) + 0.004)),
+                         target.verts.new((s * a, y + hw, page_z(a) + 0.004))]
+                    target.faces.new(v if s > 0 else v[::-1])
+                u = u1 + rng.uniform(0.03, 0.05)
+    bmesh.ops.recalc_face_normals(pages, faces=pages.faces)
+    bmesh.ops.recalc_face_normals(cover, faces=cover.faces)
+    to_obj(pages, "pages", mat("parchment", (0.93, 0.85, 0.66), 0.9, noise=8, bump=0.15), smooth=False)
+    to_obj(ink, "ink", mat("ink", (0.16, 0.1, 0.07), 0.9), smooth=False)
+    to_obj(red, "initial", mat("initial", (0.62, 0.1, 0.06), 0.8), smooth=False)
+    to_obj(cover, "cover", mat("leather", (0.36, 0.17, 0.08), 0.7, noise=20, bump=0.3), smooth=False)
+    hud_light(az=-35, el=55, strength=4.0)
+    camera([Vector((-1.1, -0.8, 0)), Vector((1.1, 0.8, 0)), Vector((0, 0, 0.3))], az=0, el=50, margin=1.02)
+    return True
+
+
+def icon_bell():
+    """Upozornění: bronzový zvon s okem a srdcem, lehce rozhoupaný, na dřevěném břevnu."""
+    bell, wood, iron = bmesh.new(), bmesh.new(), bmesh.new()
+    revolve(bell, [(0.0, 0.0), (0.0, 0.66), (0.06, 0.68), (0.13, 0.6), (0.35, 0.49), (0.62, 0.42), (0.86, 0.4),
+                   (1.0, 0.35), (1.08, 0.22), (1.11, 0.0)], 48, cap_top=True)
+    for i in range(16):
+        a0, a1 = 2 * math.pi * i / 16, 2 * math.pi * (i + 1) / 16
+        cyl(bell, (math.cos(a0) * 0.13, 0, 1.24 + math.sin(a0) * 0.13), (math.cos(a1) * 0.13, 0, 1.24 + math.sin(a1) * 0.13),
+            0.04, 0.04, 6)
+    cyl(iron, (0, 0, 1.0), (0, 0, 0.0), 0.03, 0.03, 6)
+    blob(iron, ((0, 0, -0.04), (0, 0, 0)), (0.11, 0.11, 0.13), 12, 8)
+    box(wood, (0, 0, 1.42), (1.6, 0.2, 0.18))
+    objs = [to_obj(bell, "bell", metal("bronze", (0.7, 0.47, 0.2), 0.32, 0.85)),
+            to_obj(iron, "clapper", metal("clapper", (0.3, 0.3, 0.32), 0.5, 0.7))]
+    to_obj(wood, "yoke", mat("yoke", (0.45, 0.31, 0.18), 0.85, noise=20, bump=0.3), smooth=False)
+    pivot = Vector((0, 0, 1.42))
+    swing = Matrix.Translation(pivot) @ Matrix.Rotation(math.radians(14), 4, "Y") @ Matrix.Translation(-pivot)
+    for o in objs:
+        o.matrix_world = swing @ o.matrix_world
+    hud_light(az=-40, el=40, strength=4.4)
+    camera([Vector((-0.9, -0.2, -0.1)), Vector((0.9, 0.2, 1.55))], az=0, el=8, margin=1.04)
+    return True
+
+
+def house_model(name="zemnice"):
+    objs = place_model(name)
+    bpy.context.view_layer.update()
+    return objs, world_points(objs)
+
+
+def icon_abandon_structure():
+    """Opustit stavbu: zšedlá zemnice, ke které už se prodírají kopřivy."""
+    objs, pts = house_model()
+    tint_imported(objs, (0.62, 0.62, 0.6))
+    lo = [min(p[i] for p in pts) for i in range(2)]
+    hi = [max(p[i] for p in pts) for i in range(2)]
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=f"{MODELS}/decay.glb")
+    nettles = []
+    for o in [o for o in bpy.data.objects if o not in before]:
+        if o.type == "MESH" and o.name.startswith("nettle"):
+            nettles.append(o)
+        elif o.type == "MESH":
+            bpy.data.objects.remove(o)
+    size = (hi[0] - lo[0]) * 0.32
+    spots = ((lo[0] + 0.1 * (hi[0] - lo[0]), lo[1] - 0.2, 0.3), (hi[0] - 0.2 * (hi[0] - lo[0]), lo[1] - 0.4, 2.1),
+             ((lo[0] + hi[0]) / 2, lo[1] - 0.8, 4.0))
+    for k, (x, y, rot) in enumerate(spots):
+        o = nettles[0] if k == 0 else nettles[0].copy()
+        if k:
+            bpy.context.collection.objects.link(o)
+        o.location = (x, y, 0)
+        o.scale = (size, size, size)
+        o.rotation_euler = (0, 0, rot)
+    hud_light(az=-55, el=46)
+    camera(pts + [Vector((x, y, 0)) for x, y, _ in spots], az=32, el=26, margin=1.02)
+    return True
+
+
+def icon_restore():
+    """Vrátit opuštěnou stavbu: zemnice a kolem ní zelená šipka zpět."""
+    objs, pts = house_model()
+    lo = [min(p[i] for p in pts) for i in range(2)]
+    hi = [max(p[i] for p in pts) for i in range(2)]
+    cx, cy = (lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2
+    r = max(hi[0] - lo[0], hi[1] - lo[1]) * 0.62
+    arrow = bmesh.new()
+    lying_plate(arrow, [(cx + x, cy + y) for x, y in arc_arrow(r, r * 0.16, math.radians(-30), math.radians(250))],
+                0.15, r * 0.06)
+    bmesh.ops.recalc_face_normals(arrow, faces=arrow.faces)
+    to_obj(arrow, "arrow", glow_mat("back", (0.22, 0.62, 0.12), 0.45), smooth=False)
+    hud_light(az=-55, el=46)
+    ring = [Vector((cx + math.cos(a) * r * 1.2, cy + math.sin(a) * r * 1.2, 0)) for a in range(0, 7)]
+    camera(pts + ring, az=20, el=34, margin=1.0)
+    return True
+
+
+def icon_abandon_part():
+    """Opustit díl pole: zoraný díl s brázdami, do kterého se vrací keř a mladá bříza."""
+    soil, ridges, grass = bmesh.new(), bmesh.new(), bmesh.new()
+    lying_plate(soil, [(-1.6, -1.2), (1.6, -1.2), (1.6, 1.2), (-1.6, 1.2)], -0.1, 0.1)
+    for i in range(8):
+        y = -1.05 + i * 0.3
+        cyl(ridges, (-1.55, y, -0.02), (1.55, y, -0.02), 0.1, 0.1, 6)
+    rng = random.Random(22)
+    for _ in range(40):
+        x, y = rng.uniform(-1.5, 1.5), rng.uniform(-1.1, 1.1)
+        h = rng.uniform(0.12, 0.32)
+        cyl(grass, (x, y, 0), (x + rng.uniform(-0.06, 0.06), y + rng.uniform(-0.06, 0.06), h), 0.02, 0.0, 3)
+    soil_mat = mud_mat("soil", 0.5)
+    to_obj(soil, "soil", soil_mat, smooth=False)
+    to_obj(ridges, "ridges", soil_mat)
+    to_obj(grass, "grass", mat("grass", (0.3, 0.46, 0.16), 1.0, noise=22), smooth=False)
+    objs = []
+    for (name, folder, loc, rot, scale) in (
+        ("birch-1", TREES, (0.55, 0.45, 0), 0.6, 0.16),
+        ("shrub-3", DECOR, (-0.75, 0.1, 0), 1.2, 0.42),
+        ("shrub-5", DECOR, (0.1, -0.6, 0), 2.6, 0.3),
+    ):
+        for o in place_model(name, folder=folder):
+            o.location = Vector(loc)
+            o.rotation_euler = (0, 0, rot)
+            o.scale = (scale, scale, scale)
+            objs.append(o)
+    bpy.context.view_layer.update()
+    hud_light(az=-50, el=46, strength=4.0)
+    camera(world_points(objs) + [Vector((-1.6, -1.2, 0)), Vector((1.6, 1.2, 0)), Vector((1.6, -1.2, 0)),
+                                 Vector((-1.6, 1.2, 0))], az=20, el=30, margin=1.02)
+    return True
+
+
+def icon_lom():
+    """Lom (portrét stavby): vylomená stěna světlé skály ve stupních, hromady kamení a kvádry."""
+    rng = random.Random(23)
+    earth_ground(6.5, lambda x, y: 0.03 * noise.noise(Vector((x * 0.8, y * 0.8, 0))), tint=(0.86, 0.8, 0.68))
+    lime = mat("limestone", (0.64, 0.6, 0.52), 0.95, noise=12, bump=1.2)
+    wall = bmesh.new()
+    for k, (y, z, w) in enumerate([(1.0, 1.0, 6.6), (1.9, 2.0, 6.0), (2.8, 3.0, 5.4)]):
+        box(wall, (0.2 * k, y, z / 2), (w, 0.95, z))
+    bmesh.ops.subdivide_edges(wall, edges=wall.edges[:], cuts=3, use_grid_fill=True)
+    for v in wall.verts:
+        if v.co.z > 0.05:
+            v.co += Vector((0.12 * noise.noise(v.co * 1.7), 0.18 * noise.noise(v.co * 1.3 + Vector((5, 5, 5))),
+                            0.1 * noise.noise(v.co * 2.1 + Vector((9, 9, 9)))))
+    to_obj(wall, "wall", lime, smooth=False)
+    siege = siege_parts()
+    inst(siege["stone-pile-b"], (-2.0, -1.1, 0), rot=0.6)
+    inst(siege["stone-pile-a"], (1.9, -1.7, 0), rot=1.9)
+    blocks = bmesh.new()
+    for x, y in [(0.2, -0.5), (0.9, 0.0), (-0.5, -2.2)]:
+        box(blocks, (x, y, 0.2), (0.7, 0.45, 0.4), (0, 0, rng.uniform(-0.5, 0.5)))
+    to_obj(blocks, "blocks", lime, smooth=False)
+    wood = bmesh.new()
+    mallet(wood, (0.6, -1.15, 0.12), (-0.35, -1.6, 0.15), length=0.45, r=0.13)
+    to_obj(wood, "mallet", mat("mallet", (0.6, 0.42, 0.24), 0.8, noise=18, bump=0.35))
+    sun(az=-55, el=46)
+    pts = [Vector((-3.6, -3.0, 0)), Vector((3.6, 3.4, 0)), Vector((-3.6, 3.4, 0)), Vector((3.6, -3.0, 0)),
+           Vector((0.4, 2.8, 3.0))]
+    camera(pts, az=22, el=36, margin=1.0)
+    return True
+
+
+HUD = {
+    "fort-walkway": icon_fort_walkway,
+    "fort-crib": icon_fort_crib,
+    "fort-chamber": icon_fort_chamber,
+    "fort-rampart-add": icon_fort_rampart_add,
+    "fort-moat": icon_fort_moat,
+    "fort-gate": icon_fort_gate,
+    "gate-pincer": icon_gate_pincer,
+    "gate-tower": icon_gate_tower,
+    "fort-occupancy": icon_fort_occupancy,
+    "assault-ladder": icon_assault_ladder,
+    "assault-axe": icon_assault_axe,
+    "assault-fire": icon_assault_fire,
+    "assault-spade": icon_assault_spade,
+    "stone": icon_stone,
+    "demolish": icon_demolish,
+    "breakout": icon_breakout,
+    "chronicle": icon_chronicle,
+    "bell": icon_bell,
+    "abandon-structure": icon_abandon_structure,
+    "restore": icon_restore,
+    "abandon-part": icon_abandon_part,
+}
+RESOURCES.update(HUD)
+BUILD["lom"] = icon_lom
 
 
 def backdrop(src, dst, size):

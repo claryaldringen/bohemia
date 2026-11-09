@@ -208,10 +208,10 @@ outcropId, m3)` (celé m³ v `STONE.stockOrderM3`, bez lomu `QUARRY_MISSING`) �
   složí kámen `addStone(…, null)`. Zrušení (`returnConstructionStone` v `cancelConstruction`):
   lámání složí nalámaný podíl (`done / cost`), hradba vrátí `stoneFromPile × (1 − done / cost)`.
   Use-casy `placeQuarry`, `orderStoneQuarrying` (právo `build`). Web: katalog (zkratka L, ikona
-  `public/icons/build/lom.svg`), umisťování `quarry` (značka 6 × 6 m), scéna `stone-piles.ts`
+  `public/icons/build/lom.png`), umisťování `quarry` (značka 6 × 6 m), scéna `stone-piles.ts`
   - `stone-pile-layout.ts` (díly `stone-pile-a/b` ze `siege.glb`, vylomená stěna – kvádr),
     výběr lomu (klik do 4 m) s tlačítky „nalámat 10 / 50 m³“ (`selection/quarry.tsx`), horní lišta
-    `village-stone` (ikona `public/icons/resources/stone.svg`).
+    `village-stone` (ikona `public/icons/resources/stone.png`).
 
 ## Stav vsi (Ú5.2)
 

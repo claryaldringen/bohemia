@@ -10,7 +10,7 @@ import { useRightDenied } from './rights';
 // pohromadě probili branou do lesa. Jen ikona – název v popisku, důvod, proč nejde, červeně.
 
 /** Ikona tlačítka (vlastní SVG, CC0 – public/icons/LICENSES.md). */
-export const BREAKOUT_ICON = '/icons/war/breakout.svg';
+export const BREAKOUT_ICON = '/icons/resources/breakout.png';
 
 /**
  * Tlačítko „Probít se“ (nad mapou vlevo pod lištou). `denied` – proč rozkaz teď nejde (rozhodl

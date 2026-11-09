@@ -9,7 +9,7 @@ import { isBuildAffordable, type BuildOption, type StockResource } from '@/lib/v
 import { useRightDenied } from './rights';
 import { Tooltip } from './Tooltip';
 
-/** Ikona stavby – PNG z 0 A.D. podle jména, vlastní kresba s příponou (lom.svg). */
+/** Ikona stavby – PNG podle jména (`public/icons/build/<jméno>.png`), jiný soubor s příponou. */
 function buildIconSrc(icon: string): string {
   return `/icons/build/${icon.includes('.') ? icon : `${icon}.png`}`;
 }

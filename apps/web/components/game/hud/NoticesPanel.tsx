@@ -45,7 +45,7 @@ export function NoticesPanel({
     >
       <div className="flex items-center gap-1.5 pb-2">
         <Tooltip content="Upozornění">
-          <img src={`${ICON}/bell.svg`} alt="" width={24} height={24} draggable={false} />
+          <img src="/icons/resources/bell.png" alt="" width={24} height={24} draggable={false} />
         </Tooltip>
         <Tooltip content="Zavřít">
           <button

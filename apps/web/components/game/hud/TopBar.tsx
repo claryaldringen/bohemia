@@ -669,7 +669,7 @@ export function TopBar({
             {formatInteger(view.woodLogs)}
           </Resource>
           {view.stoneSupply && (view.stoneSupply.m3 >= 0.5 || view.stoneSupply.quarry) && (
-            <Resource icon="stone.svg" name="Kámen na hromadách (m³)" testId="village-stone">
+            <Resource icon="stone" name="Kámen na hromadách (m³)" testId="village-stone">
               {formatInteger(view.stoneSupply.m3)}
             </Resource>
           )}
@@ -711,7 +711,7 @@ export function TopBar({
             onClick={chronicle.onToggle}
           >
             <img
-              src="/icons/house/chronicle.svg"
+              src="/icons/resources/chronicle.png"
               alt=""
               width={22}
               height={22}
@@ -729,7 +729,7 @@ export function TopBar({
           >
             <span className="relative flex h-6 items-center">
               <img
-                src="/icons/house/bell.svg"
+                src="/icons/resources/bell.png"
                 alt=""
                 width={22}
                 height={22}

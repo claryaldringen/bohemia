@@ -816,7 +816,7 @@ Návrh: [fortifications.md – Rozhraní](../design/fortifications.md); jádro a
   Kontrola `fortPointsPlacement(landscape, village, points, kind, woodSupply, stoneSupply?)` volá
   `checkFortificationPlacement` z jádra (stejně jako server) nejvýš po 80 ms tažení; cena u kurzoru
   je práce bez kácení a lámání, klády, kámen (m³, `PlacementCost.stoneM3`, ikona
-  `resources/stone.svg` z úlohy kamene) a útočiště (lidé – `refugePlaces`); chybí-li dřevo
+  `resources/stone.png` z úlohy kamene) a útočiště (lidé – `refugePlaces`); chybí-li dřevo
   (`VillageView.woodSupply`), místo ceny červeně „Chybí N klád.“, chybí-li kámen na hromadách
   a na mapě není lom (`VillageView.stoneSupply` – `fortStoneSupply`: `{ m3, quarry }`), „Chybí N m³
   kamene.“ (`FORT_NO_STONE`). Všechny důvody
@@ -857,7 +857,7 @@ Návrh: [fortifications.md – Rozhraní](../design/fortifications.md); jádro a
   (`fort-upgrade-<druh>`), druhý Doplnit val (`fort-rampart-add`), Napustit příkop (`fort-moat`),
   Zbořit a Přidat bránu; celé opevnění `fort-upgrade-all-<druh>`, `fort-rampart-add`, obsazení;
   brána `fort-gate-pincer`, `fort-gate-tower` a postupy přes bránu. Popisek tlačítka: název, práce,
-  klády, kámen (`resources/stone.svg`) a důvod červeně. Jedna obsluha `onFortAction(fortificationId,
+  klády, kámen (`resources/stone.png`) a důvod červeně. Jedna obsluha `onFortAction(fortificationId,
 segment | null, FortAction)` (`upgrade` s `target`, `rampart`, `moat`, `gate` s `level`) –
   `VillageGame` ji rozešle na server actions `upgradeFortification` (`target`, `segment`),
   `addFortificationRampart`, `fillFortificationMoat`, `upgradeFortificationGate` (vstupy
@@ -999,7 +999,7 @@ Obránce sleduje boj u své vsi ve scéně (`useWarScene`); `breakoutOf(warScene
 pohled útočníka) = tlačítko chybí, jinak důvod (`BREAKOUT_BLOCKED` z jádra – „Boj neběží.“, „Nikdo
 nebrání hradbu.“, „Obránci utíkají.“, „Obránci se už probíjejí.“) nebo null. `BreakoutButton`
 (`data-testid="breakout"`, vlevo pod lištou – návrh Clauda, obrana jiný panel boje nemá): ikona
-`public/icons/war/breakout.svg` (palisáda s otevřenou bránou a šipka ven, CC0, `LICENSES.md`),
+`public/icons/resources/breakout.png` (palisáda s otevřenou bránou a šipka ven, CC0, `LICENSES.md`),
 název v `Tooltip`, důvod červeně (`denied`); bez práva `war` zašedne s důvodem práva. Klik → server
 action `orderBreakout({ villageId })`; po odeslání zašedne („Obránci se už probíjejí.“), chyba serveru
 se ukáže stejně – platí, dokud server nepošle jiný důvod, nejdéle 10 s. Test:
@@ -1049,8 +1049,8 @@ jsou v `lib/premium-view.ts` (`PREMIUM_TEXTS`, `premiumIntroNotice`); portréty 
   `isManorTarget` v doméně čte `villageManorId`, ne jen typ `dvorec`.
 - **Tlačítka** `StructureUseButtons` vpravo nahoře v `SelectionPanel` (vedle značky správce): v
   provozu Opustit + Zbourat, opuštěná Vrátit + Zbourat, bouraná jen Zrušit
-  (`CancelConstructionButton` s `demolishing.constructionId`). Ikony `abandon-structure.svg`,
-  `demolish.svg`, `restore.svg` (CC0). Popisky „Opustit – stavba se přestane používat a začne
+  (`CancelConstructionButton` s `demolishing.constructionId`). Ikony `abandon-structure.png`,
+  `demolish.png`, `restore.png` (render `tools/blender/icons.py`). Popisky „Opustit – stavba se přestane používat a začne
   chátrat“, „Zbourat – 7,5 čd, 2 klády zpět na hromadu“ (bez klád „bez klád“), „Vrátit – stavba se
   zase bude používat“. `block` a chybějící právo `build` zašední s důvodem u kurzoru; během akce
   stojí všechna tlačítka (`busy`). `data-testid`: `structure-abandon`, `structure-demolish`,
@@ -1072,7 +1072,7 @@ Martin 8. 11. 2026: „může si přece sám zobrazit panel s notifikacemi a kro
 existující kronikou vsi (`state.chronicle`, nejvýš `CHRONICLE_MAX_EVENTS` = 500 zápisů), žádná
 nová pravidla (návrh Clauda).
 
-- **Lišta:** kniha `icons/house/chronicle.svg` (`chronicle-toggle`, popisek „Kronika“) vlevo od
+- **Lišta:** kniha `icons/resources/chronicle.png` (`chronicle-toggle`, popisek „Kronika“) vlevo od
   praporu rodu; bez vsi nebo u vymřelé vsi chybí. Bez klávesy – jako panely rodu a války (klávesa
   je jen F10 nabídky). Panel leží vpravo nahoře jako panely rodu a války a střídá se s nimi
   i s nabídkou: otevření kroniky je zavře (`closeOthers`), otevření jiného zavře kroniku
@@ -1112,7 +1112,7 @@ Rozhraní nad uloženými upozorněními mezi hráči (`player_notice`, `lib/pla
 z `playerNoticeText`), žádná nová pravidla (návrh Clauda). Upozornění vsi (`village-notices.ts`)
 se neukládají a panel je nemá.
 
-- **Lišta:** zvonek `icons/house/bell.svg` (`notices-toggle`, popisek „Upozornění“) vlevo od knihy
+- **Lišta:** zvonek `icons/resources/bell.png` (`notices-toggle`, popisek „Upozornění“) vlevo od knihy
   kroniky; číslo nepřečtených (`notices-unread`) se ukáže jen se zavřeným panelem. Panel vpravo
   nahoře se střídá s kronikou, rodem, válkou a nabídkou (`othersOpen` / `closeOthers` ve
   `hooks/use-notices.ts`, kronika se zavírá přes `closeNoticesRef` ve `VillageGame`). Esc a křížek zavřou.
@@ -1130,3 +1130,26 @@ se neukládají a panel je nemá.
 - **Testy:** `lib/__tests__/notice-page.test.ts`, `hud/__tests__/NoticesPanel.behavior.test.tsx`,
   `hooks/__tests__/use-notices.behavior.test.tsx`, `notice-repository.db.test.ts` (stránkování,
   omezení), e2e `multiplayer.spec.ts` – „pomoc na žádost“ (zvonek, zvýrazněné upozornění).
+
+## Ikony z Blenderu místo ručních SVG (`tools/blender/icons.py` – sekce Ikony rozhraní)
+
+Martin 9. 11. 2026: „ano“ k předělání ručně kreslených SVG ikon z posledních dní v Blenderu stejně
+jako ostatní ikony (8. 11. o ruční ikoně opevnění: „vůbec nevypadá jako ostatní ikonky“). Stejná
+scéna, světlo a zmenšení jako ostatní ikony surovin (Cycles, 64 × 64 PNG s průhledným okolím,
+`small`), portrét lomu jako portréty staveb (128 × 128 s vinětou, `backdrop`). Díly opevnění
+a obléhání jsou modely scény (`fortifications.glb`, `siege.glb`), takže ikony vypadají jako hradba
+ve hře.
+
+- **Panel opevnění** (`hud/selection/fortification.tsx`): druhy `fort-walkway`, `fort-crib`,
+  `fort-chamber` (i v rozcestníku druhů `FORT_VARIANTS` místo ikony palisády), `fort-rampart-add`,
+  `fort-moat`, brány `fort-gate` (`FORT_GATE_ICON` – dřív `house/gate.svg`, ta zůstává panelu rodu
+  pro Blokovat), `gate-pincer`, `gate-tower`, `fort-occupancy`, postupy útočníka `assault-ladder`,
+  `assault-axe`, `assault-fire`, `assault-spade`, `stone`, `demolish`.
+- **Jinde:** `breakout` (Probít se), `chronicle` a `bell` (lišta a hlavičky panelů), `abandon-structure`,
+  `restore` (`StructureUseButtons`), `abandon-part` (`AbandonPartButton`), portrét `build/lom.png`.
+- Všechny v `public/icons/resources/*.png` (lom v `build/`), zdroj v `public/icons/LICENSES.md`.
+  Jen vybrané: `blender -b --factory-startup --python tools/blender/icons.py -- apps/web/public/icons
+fort-walkway,chronicle,lom`.
+- Ruční SVG zůstávají panelům rodu, vazalství a války (`public/icons/house/`, `war/` – z 5.–7. 11.)
+  a oku „Ve scéně“ (`war/eye.svg` je jednobarevná maska v barvě textu); len, luštěniny ze zahrádky
+  a osivo už byly z Blenderu (`flax`, `legumes`, `food`).

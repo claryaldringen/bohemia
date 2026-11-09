@@ -536,7 +536,7 @@ describe('SelectionPanel – díl pole a čtverec sadu (klik – fields.md, Co h
     // fields.md – Opuštěný díl: osetý díl se opustí po žních, opuštěný svítí a vrací se do osevu
     const sown = render(part());
     expect(sown).toMatch(/data-testid="abandon-part"[^>]*aria-pressed="false"/);
-    expect(sown).toContain('/icons/resources/abandon-part.svg');
+    expect(sown).toContain('/icons/resources/abandon-part.png');
     expect(sown).toContain('Opustit díl – po žních se už neoseje a zaroste');
     const fallow = render(part({ stage: 'meadow', crop: null, abandoned: true }));
     expect(fallow).toMatch(/data-testid="abandon-part"[^>]*aria-pressed="true"/);
