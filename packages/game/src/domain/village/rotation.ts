@@ -7,15 +7,12 @@ import {
   isSowableFertility,
   partOvergrowthYears,
 } from './fields';
-import { expectedFlaxKg } from './flax';
 import { EMERGENCY_GROUP, sowingBlocks, villageHoldings } from './holdings';
 import { CROP_WINDOWS, FERTILITY, SOWN_ROUNDS } from './rules';
-import { flaxOrder } from './sowing';
 import type { Crop, FarmSeason, FieldPart, SeasonCrop, VillageState } from './types';
 import { logsFromClearedTrees } from './wood';
 import { woodMatureShare, woodTreesOnArea } from './woods';
 import { seasonCrops, windowEndOf } from './year-plan';
-import { partsByIdOf } from './parts-by-id';
 
 // Osevní postup po dílech a setí do konce okna (fields.md, 25. 10. 2026 – návrh Clauda, Martin:
 // „Ano“; k dílu, který nestihl ozim: „Jestli bude možné mu dát ozim, ať dostane ozim.“). Ves nemá
@@ -25,8 +22,6 @@ import { partsByIdOf } from './parts-by-id';
 
 /** Tolerance porovnání úrodnosti a práce. */
 const EPSILON = 1e-9;
-/** Tolerance porovnání energie (kg obilí). */
-const ENERGY_EPSILON = 1e-6;
 
 /**
  * Co na dílu poroste příště (fields.md – Osevní postup po dílech, bod 1): `first` – první osev
@@ -204,8 +199,6 @@ export interface SeasonJoin {
 
 /** Co výběr dílů dne potřebuje vědět mimo stav dílů (`turnSelection`). */
 export interface TurnOptions {
-  /** Potřeba lnu na oděv k 1. 9. (kg třeného lnu – fields.md, Len). */
-  flaxNeedKg: number;
   /**
    * Skutečný nedostatek – zásoby k sklizni (i hromada osiva okna a snopy) pod přežívací zásobou do
    * žní (`seedKeepKg`): k práci přibudou i přílohy 70–95 % a nouzové přílohy 40–70 %.
@@ -241,15 +234,14 @@ function turnSown(state: VillageState, day: number): boolean {
  * Díly, které dnes přibudou k letošní práci, v pořadí, ve kterém je ves vezme (fields.md – Osevní
  * postup po dílech, bod 3; Martin 25. 10. 2026: „ves by měla vyrobit maximum obilí a maximum sena,
  * kolik jí umožňuje rozloha polí a množství lidí“): bez odhadu úrody a bez stropu – kolik ves
- * zvládne, určí čelo práce (lidé a spřežení) a osivo. Len místo jaře podle své potřeby na oděv (od
- * konce, napřed díly po ozimu, pak díly s prvním osevem – Len napřed), pak
- * obilí na všech dílech na
- * řadě (první osev, jař po ozimu, ozim po jaři) v pořadí přílohové soustavy po úsecích od domu
+ * zvládne, určí čelo práce (lidé a spřežení) a osivo. Obilí na všech dílech na řadě (první
+ * osev, jař po ozimu, ozim po jaři) v pořadí přílohové soustavy po úsecích od domu
  * (`sowingBlocks`), v dávce ozim před jaří (jeho okno končí dřív); plodina `sowingCropToday`.
  * Na řadě (návrh Clauda): zotavené přílohy 70–95 % až když jsou díly na řadě oseté a okno setí
  * běží (`turnSown` – osivo z toho, co zbude nad přežívací zásobou), nouzové přílohy 40–70 % s kladnou
  * úrodou jen při skutečném nedostatku (`TurnOptions.shortage` – pak i přílohy 70–95 % hned).
- * Luštěniny ves na poli nepěstuje (fields.md – Luštěniny, zrušeno; Martin 9. 11. 2026). Stav nemění.
+ * Luštěniny ani len ves na poli nepěstuje (fields.md – Luštěniny, zrušeno; Len, zrušeno – len
+ * a luštěniny má domácnost na zahrádce u obydlí; Martin 9. 11. 2026). Stav nemění.
  */
 export function turnSelection(
   state: VillageState,
@@ -259,17 +251,8 @@ export function turnSelection(
   const parts = byId(state.parts);
   const holdings = villageHoldings(parts === state.parts ? state : { ...state, parts: [...parts] });
   const inSeason = new Set<number>();
-  let flaxKg = 0;
-  if (state.season) {
-    const partsById = partsByIdOf(parts);
-    for (const { crop, work } of seasonCrops(state.season)) {
-      for (const id of work.partIds) inSeason.add(id);
-      if (crop !== 'flax' || work.harvestedKg !== null) continue;
-      for (const id of work.partIds) {
-        const part = partsById.get(id);
-        if (part) flaxKg += expectedFlaxKg(part, day);
-      }
-    }
+  for (const { work } of state.season ? seasonCrops(state.season) : []) {
+    for (const id of work.partIds) inSeason.add(id);
   }
   const kindOf = new Map<number, SowingKind | null>();
   const kind = (p: FieldPart): SowingKind | null => {
@@ -280,17 +263,6 @@ export function turnSelection(
   const turn = blocks.filter((p) => onTurn(kind(p)));
   const join: SeasonJoin[] = [];
   const used = new Set<number>();
-  // len místo jaře – jen když jař dnes smí začít
-  if (sowingCropToday('spring', day) !== null) {
-    const free = (k: SowingKind): FieldPart[] =>
-      turn.filter((p) => kind(p) === k && !used.has(p.id));
-    for (const p of [...flaxOrder(free('spring')), ...flaxOrder(free('first'))]) {
-      if (flaxKg >= options.flaxNeedKg - ENERGY_EPSILON) break;
-      join.push({ id: p.id, crop: 'flax' });
-      used.add(p.id);
-      flaxKg += expectedFlaxKg(p, day);
-    }
-  }
   // obilí v pořadí bloků, v dávce ozim před jaří
   const grain = (list: readonly FieldPart[]): number => {
     const batch: SeasonJoin[] = [];

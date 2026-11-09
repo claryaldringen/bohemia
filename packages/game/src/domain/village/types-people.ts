@@ -269,6 +269,17 @@ export interface Dwelling {
    * stavba se používá. Vrátit stavbu = záznam smazat.
    */
   disusedDay?: number;
+  /**
+   * Letošní sklizeň zahrádky pozemku (fields.md – Zahrádka u obydlí): kg třeného lnu a čistých
+   * luštěnin, zapsané 31. 7. Chybí = obydlí letos nesklízelo (zemnice, prázdné obydlí, vsi
+   * uložené dřív).
+   */
+  garden?: GardenHarvest;
+}
+/** Sklizeň zahrádky jednoho obydlí (kg, celá čísla). */
+export interface GardenHarvest {
+  flaxKg: number;
+  legumeKg: number;
 }
 /**
  * Zbytek jámy po zaniklém obydlí: zarostlá prohlubeň s kopřivami a pár trámy (population.md –

@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage, type PartInput } from '../actions';
 import { expectedNetKg, sowingGroup } from '../fields';
-import { expectedFlaxKg } from '../flax';
 import { sowingBlocks, villageHoldings } from '../holdings';
 import {
   nextSowing,
@@ -90,7 +89,7 @@ const blockOrder = (s: VillageState): number[] =>
     .flat()
     .map((p) => p.id);
 
-const NO_FLAX: TurnOptions = { flaxNeedKg: 0, shortage: false };
+const CALM: TurnOptions = { shortage: false };
 const SEPT_1 = at(600, 9, 1);
 
 describe('postup dílu – co poroste příště', () => {
@@ -259,12 +258,12 @@ describe('výběr dílů na řadě – bez stropu', () => {
   it('všechny díly na řadě v pořadí bloků – na podzim ozim, po říjnu jař, mimo okna nic', () => {
     const s = village(8);
     const order = blockOrder(s);
-    expect(turnSelection(s, SEPT_1, NO_FLAX)).toEqual(order.map((id) => ({ id, crop: 'winter' })));
+    expect(turnSelection(s, SEPT_1, CALM)).toEqual(order.map((id) => ({ id, crop: 'winter' })));
     // po 30. 10. první osev už jen jař
-    const late = turnSelection(s, at(600, 11, 5), NO_FLAX);
+    const late = turnSelection(s, at(600, 11, 5), CALM);
     expect(late.map((j) => j.crop)).toEqual(order.map(() => 'spring'));
     // mimo okna nic
-    expect(turnSelection(s, at(600, 12, 15), NO_FLAX)).toEqual([]);
+    expect(turnSelection(s, at(600, 12, 15), CALM)).toEqual([]);
   });
 
   it('díly letošní práce znovu nepřibudou', () => {
@@ -273,7 +272,7 @@ describe('výběr dílů na řadě – bez stropu', () => {
     const parts = order.map((id) => s.parts.find((p) => p.id === id)!);
     s.season = createSeason({ winter: parts.slice(0, 3), spring: [] }, SEPT_1, 1);
     sowParts(parts.slice(0, 3), 'winter');
-    expect(turnSelection(s, SEPT_1, NO_FLAX).map((j) => j.id)).toEqual(order.slice(3));
+    expect(turnSelection(s, SEPT_1, CALM).map((j) => j.id)).toEqual(order.slice(3));
   });
 
   it('díl po jaři prvním osevem (`next: winter`): ozim do konce okna setí ozimu, pak záložní jař', () => {
@@ -283,39 +282,22 @@ describe('výběr dílů na řadě – bez stropu', () => {
     const ids = after.map((p) => p.id);
     // díly po prvním osevu jsou v pořadí bloků před čerstvými
     expect(blockOrder(s).slice(0, 3).sort()).toEqual([...ids].sort());
-    const autumn = turnSelection(s, SEPT_1, NO_FLAX).filter((j) => ids.includes(j.id));
+    const autumn = turnSelection(s, SEPT_1, CALM).filter((j) => ids.includes(j.id));
     expect(autumn.map((j) => j.id).sort()).toEqual([...ids].sort());
     expect(autumn.every((j) => j.crop === 'winter')).toBe(true);
-    const late = turnSelection(s, at(600, 11, 5), NO_FLAX).filter((j) => ids.includes(j.id));
+    const late = turnSelection(s, at(600, 11, 5), CALM).filter((j) => ids.includes(j.id));
     expect(late.map((j) => j.id).sort()).toEqual([...ids].sort());
     expect(late.every((j) => j.crop === 'spring')).toBe(true);
-    // len díl po jaři nebere – je místo jaře, ne místo ozimu
-    const side = turnSelection(s, at(601, 3, 10), { ...NO_FLAX, flaxNeedKg: 1e9 });
-    expect(side.filter((j) => ids.includes(j.id) && j.crop === 'flax')).toEqual([]);
   });
 
-  it('len jen v den, kdy může začít jař – podle své potřeby na oděv', () => {
-    const s = village(8);
-    const flax = { ...NO_FLAX, flaxNeedKg: 1e9 };
-    expect(turnSelection(s, at(600, 12, 15), flax)).toEqual([]);
-    expect(turnSelection(s, at(601, 5, 1), flax)).toEqual([]);
-    const all = turnSelection(s, at(601, 4, 30), flax);
-    expect(new Set(all.map((j) => j.crop))).toEqual(new Set(['flax']));
-    const one = turnSelection(s, at(601, 4, 30), { ...NO_FLAX, flaxNeedKg: 1 });
-    expect(one.filter((j) => j.crop === 'flax')).toHaveLength(1);
-    expect(one.filter((j) => j.crop === 'spring')).toHaveLength(7);
-  });
-
-  it('luštěniny výběr dílů nepřidělí nikdy – na jaře, na podzim ani při nedostatku (Martin 9. 11. 2026)', () => {
+  it('luštěniny ani len výběr dílů nepřidělí nikdy – na jaře, na podzim ani při nedostatku (Martin 9. 11. 2026)', () => {
     const s = village(8);
     for (const p of s.parts.slice(0, 4)) Object.assign(p, { next: 'spring', sownYears: 1 });
-    for (const day of [SEPT_1, at(600, 11, 5), at(601, 3, 10), at(601, 4, 29)]) {
-      for (const options of [
-        { flaxNeedKg: 1e9, shortage: true },
-        { flaxNeedKg: 0, shortage: true },
-        { flaxNeedKg: 1e9, shortage: false },
-      ]) {
-        expect(turnSelection(s, day, options).map((j) => j.crop)).not.toContain('legume');
+    for (const day of [SEPT_1, at(600, 11, 5), at(601, 3, 10), at(601, 4, 29), at(601, 4, 30)]) {
+      for (const shortage of [true, false]) {
+        const crops = turnSelection(s, day, { shortage }).map((j) => j.crop);
+        expect(crops).not.toContain('legume');
+        expect(crops).not.toContain('flax');
       }
     }
   });
@@ -324,7 +306,7 @@ describe('výběr dílů na řadě – bez stropu', () => {
     const s = village(8);
     const after = s.parts.slice(4).map((p) => p.id);
     for (const p of s.parts.slice(4)) Object.assign(p, { next: 'spring', sownYears: 1 });
-    const join = turnSelection(s, SEPT_1, NO_FLAX);
+    const join = turnSelection(s, SEPT_1, CALM);
     // ozim čerstvých dílů v dávce před jaří, jař po ozimu v pořadí bloků za ním
     expect(
       join
@@ -333,17 +315,6 @@ describe('výběr dílů na řadě – bez stropu', () => {
         .sort(),
     ).toEqual([...after].sort());
     expect(blockOrder(s).slice(0, 4).sort()).toEqual([...after].sort());
-  });
-
-  it('len od konce – napřed díly po ozimu, pak první osev', () => {
-    const s = village(8);
-    const after = s.parts.slice(0, 4);
-    for (const p of after) Object.assign(p, { next: 'spring', sownYears: 1 });
-    const order = blockOrder(s).filter((id) => after.some((p) => p.id === id));
-    const byId = (id: number): FieldPart => s.parts.find((p) => p.id === id)!;
-    const flaxNeedKg = expectedFlaxKg(byId(order.at(-1)!), SEPT_1) - 0.01;
-    const join = turnSelection(s, SEPT_1, { ...NO_FLAX, flaxNeedKg });
-    expect(join.filter((j) => j.crop === 'flax')).toEqual([{ id: order.at(-1)!, crop: 'flax' }]);
   });
 
   it('příloh 70–95 % až po oseté řadě v okně setí, nouzový jen při nedostatku (návrh Clauda)', () => {
@@ -356,26 +327,26 @@ describe('výběr dílů na řadě – bez stropu', () => {
     expect(expectedNetKg(a!, SEPT_1)).toBeGreaterThan(0);
     const regular = [d!.id, e!.id, f!.id];
     // díly na řadě čekají – příloh 70–95 % ne
-    const first = turnSelection(s, SEPT_1, NO_FLAX);
+    const first = turnSelection(s, SEPT_1, CALM);
     expect(first.map((j) => j.id).sort()).toEqual([...regular].sort());
     // řada je v letošní práci, ale nezasetá – příloh 70–95 % dál čeká
     const parts = [d!, e!, f!];
     s.season = createSeason({ winter: parts, spring: [] }, SEPT_1, 1);
     sowParts(parts, 'winter');
-    expect(turnSelection(s, SEPT_1, NO_FLAX)).toEqual([]);
+    expect(turnSelection(s, SEPT_1, CALM)).toEqual([]);
     // řada zasetá – v okně setí přibude příloh 70–95 %, nouzový ne
     const winter = seasonCrop(s.season, 'winter')!;
     winter.done.sow = winter.required.sow;
-    expect(turnSelection(s, SEPT_1, NO_FLAX)).toEqual([{ id: b!.id, crop: 'winter' }]);
+    expect(turnSelection(s, SEPT_1, CALM)).toEqual([{ id: b!.id, crop: 'winter' }]);
     // po okně setí ozimu (listopad) ne
-    expect(turnSelection(s, at(600, 11, 5), NO_FLAX)).toEqual([]);
+    expect(turnSelection(s, at(600, 11, 5), CALM)).toEqual([]);
     // skutečný nedostatek – přílohy 70–95 % i nouzové s kladnou úrodou hned
     s.season = null;
     for (const p of parts) {
       p.state = 'fallow';
       delete p.crop;
     }
-    const hungry = turnSelection(s, SEPT_1, { ...NO_FLAX, shortage: true });
+    const hungry = turnSelection(s, SEPT_1, { ...CALM, shortage: true });
     const ids = hungry.map((j) => j.id);
     expect(ids).toHaveLength(5);
     expect(ids.slice(3)).toEqual([b!.id, a!.id]);
@@ -386,7 +357,7 @@ describe('výběr dílů na řadě – bez stropu', () => {
     const s = village(10);
     for (const p of s.parts.slice(0, 3)) Object.assign(p, { next: 'spring', sownYears: 1 });
     Object.assign(s.parts[9]!, { state: 'fallow', fertilityShare: 0.6, fallowSinceDay: 0 });
-    const options: TurnOptions = { flaxNeedKg: 2, shortage: true };
+    const options: TurnOptions = { shortage: true };
     const once = turnSelection(s, SEPT_1, options);
     expect(turnSelection(s, SEPT_1, options)).toEqual(once);
     const shuffled = { ...s, parts: [...s.parts].reverse() };

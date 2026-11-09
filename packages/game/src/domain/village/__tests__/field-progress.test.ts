@@ -141,7 +141,11 @@ describe('postup po čtvercích', () => {
     for (let k = 0; k < 6; k++) {
       start.people.push({ id: nextId + k, bornDay: at(590 + k, 3, 1), dwellingId: home });
     }
-    let s = advanceVillage(start, at(602, 4, 30), null);
+    // šest dětí navíc ves projí – zrno na osivo jaře (bez lnu na poli by se v květnu nepletlo –
+    // fields.md, Len, zrušeno)
+    let s = structuredClone(advanceVillage(start, at(602, 2, 28), null));
+    s.storesKg += 3000;
+    s = advanceVillage(s, at(602, 4, 30), null);
     let kidsDays = 0;
     for (let day = at(602, 5, 1); day <= at(602, 6, 30); day++) {
       s = advanceVillage(s, day, null);

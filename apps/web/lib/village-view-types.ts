@@ -459,6 +459,11 @@ export interface VillageView {
     relocationBlock: RelocationBlock | null;
     /** Opustit, zbourat, vrátit (demolition.md); dvorec údaj nemá. */
     use?: StructureUseView;
+    /**
+     * Letošní sklizeň zahrádky pozemku – kg lnu a luštěnin (fields.md – Zahrádka u obydlí); chybí,
+     * když obydlí letos nesklízelo (zemnice, prázdné obydlí).
+     */
+    garden?: { flaxKg: number; legumeKg: number };
   }[];
   storesKg: number;
   /**

@@ -125,13 +125,16 @@ describe('žně i v srpnu (fields.md – Žně i v srpnu)', () => {
     expect(villageSheaves(s).legumesKg).toBeCloseTo(sheaves.legumesKg, 9);
   });
 
-  it('len nedotržený 31. 7. se trhá v srpnu – oděv se zapíše 31. 8.', () => {
+  it('len nedotržený 31. 7. se trhá v srpnu – přičte se k oděvu 31. 8.', () => {
     const s = village({ winter: 1, legume: 1, flax: 0.5 });
     s.linen = 0.3;
     const flax = crop(s, 'flax');
     harvestWinter(s, at(601, 7, 31));
     expect(flax.harvestedKg).toBeNull();
-    expect(s.linen).toBe(0.3);
+    // 31. 7. platí len ze zahrádek (ves bez obydlí – žádný, fields.md – Zahrádka u obydlí),
+    // upozornění počká na dotrhání
+    expect(s.linen).toBe(0);
+    expect(s.chronicle.some((e) => e.kind === 'linen-short')).toBe(false);
     flax.done.harvest = flax.required.harvest;
     harvest(s, at(601, 8, 31));
     expect(flax.harvestedKg).toBeGreaterThan(0);

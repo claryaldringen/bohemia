@@ -143,6 +143,7 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
     // hash 7fc9acc1 (26. 10. 2026, W7 ryby a oka; wildlife.md – Drobná zvěř a ryby): vesničané chytají ryby a zajíce z volné práce (nebo při hladu před stavbami), maso jde do zásoby bez porážky – jiná práce vsi, zásoby a stav zvěře; dřív c98b44a4
     // hash 673f1d6b (26. 10. 2026, oprava po recenzi W7): roční kvóta ryb a zajíců, čerstvé maso a brzda letošním úlovkem – jiný úlovek, jídlo a stav zvěře; dřív 7fc9acc1
     // hash 8498535 (26. 10. 2026, závěrečná oprava zvěře): drobná zvěř loňska se do chuti na bílkoviny nepočítá, jen letošní – jiný úlovek ryb a jídlo; dřív 673f1d6b
-    expect(hash(stripped)).toBe('8498535');
+    // hash 52acb247 (9. 11. 2026, len z polí vyřazený – fields.md, Zahrádka u obydlí): plán bez dílů lnu, jař místo nich, oděv ze zahrádek – jiný osev, práce a štěstí; dřív 8498535
+    expect(hash(stripped)).toBe('52acb247');
   }, 120_000);
 });

@@ -342,6 +342,11 @@ export type ChronicleEvent = { day: number } & (
   /** Konec sklizně jablek (1. 11.) – kolik kg se sklidilo. */
   | { kind: 'apple-harvest'; kg: number }
   /**
+   * Sklizeň zahrádek u obydlí (31. 7. – fields.md, Zahrádka u obydlí): souhrn za ves – kg
+   * třeného lnu a čistých luštěnin (do zásoby luštěnin).
+   */
+  | { kind: 'garden-harvest'; flaxKg: number; legumeKg: number }
+  /**
    * Při trhání lnu (31. 7.): ves sklidila jen `kg` třeného lnu z `neededKg`, které potřebuje na
    * oděv (fields.md – Len, diet.md – Oděv).
    */
