@@ -442,6 +442,24 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   roky 2–4 (`years.mts`, střídavě před `d9f61153` / po, zátěž 7,9 → 4,1): 4,94 / 5,98 / 5,11
   a 4,89 / 6,10 / 5,17 s → 4,76 / 5,93 / 4,93 a 4,88 / 6,08 / 5,11 s (průměr 5,37 → 5,28 s,
   −1,7 %); rok 1 8,66–8,70 → 8,68–8,82 s (v šumu – v roce 1 se nic neušetří).
+  **Kolo drobná zrychlení (9. 11. 2026, fronta zrychlení výpočtu – Martin schválil):** jen
+  zrychlení, otisk stavu Vlkova po 1, 2 a 3 letech před / po týž vcelku i po 37 dnech (sha256
+  `5e16b6751d5b`, `240f4aec6ab0`, `f3de54797adb`). **Kování** (village-livestock.md – Kování):
+  ves bez kováře zkouší platit cizímu každý den po termínu – napřed levná kontrola, zda platba
+  vůbec projde (samo železo nad přebytkem → dnes ne), cena práce (`villageFoodCosts`) až potom;
+  `planShoeing` 0,19 → 0,07 s, `villageFoodCosts` 0,15 → 0,02 s za zahřáté roky 2–4.
+  **Měsíční kontrola cest** (village-roads.md – Úklid sítě): ploty, stavby pro copánek, vchody
+  a stavby s ploty pro ohyb ramene z jedné vsi pro pěšiny za měsíc (`monthLayoutOf`; dřív
+  `pathVillageOf` až čtyřikrát) – `tidyMonth` 1,04 → 0,63 s (`hasRingBraid` 0,36 → 0,25,
+  `accessDue` 0,28 → 0,11, `updateJunctions` 0,31 → 0,12 s), `pathVillageOf` 1,10 → 0,80 s
+  (zbylé jedno volání nese `monthRoutes` 0,60 → 0,85 s). Profil roků 2–4 při rozkolísané zátěži
+  (8–60; běh po byl celkově o 55 % pomalejší), proto i podíl na celém dopočtu: měsíc cest
+  (`roadsMonthRunSteps`) 14,5 → 10,4 %, `tidyMonth` 6,5 → 2,5 %, kování 1,2 → 0,3 %. Zahřáté
+  roky 2–4 střídavě před / po: 14,96 / 26,30 / 16,93 s → 14,84 / 16,37 / 15,50 s (CPU 18,3 /
+  25,2 / 20,0 → 17,9 / 19,8 / 18,5 s). Přeskočit kontroly úplně podle otisku vstupů se nevyplatí:
+  provoz tras (`trips`) se převažuje každý 1. v měsíci a pořadí tras se tak mění každý měsíc
+  (osy cest, stavby a stezky Vlkova se za rok nezměnily, sada tras jen 1. 11.) a otisk by musel
+  nést celé rozložení vsi – právě to, co stojí čas; zbylé ≈ 0,2 s za rok je vlastní práce kontrol.
 
 - **Čísla** pravidel jsou jen v `rules*.ts` (u každého odkaz na sekci návrhu); změna čísla = i
   text v návrhu. Kalibrace: `measure-village.ts` nasimuluje stovky vsí a vypíše cíle z Kalibrace
