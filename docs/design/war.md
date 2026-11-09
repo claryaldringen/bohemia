@@ -562,8 +562,10 @@ zásoby a cennosti a utekli do nejbližšího hradiště“).
 - **Poslové:** „O vyslání posla rozhoduje hráč nebo správce. Každá vesnice, kterou posel projde, se
   dozví o hrozícím nebezpečí a zařídí se podle toho.“ (Martin 9. 11. 2026)
 - **Kam utéct:** „Pak je otázkou, jestli se vesničany pokusí hráč evakuovat do nějaké sousední
-  vesnice, či je ukryje někde v lese na mapě.“ (Martin 9. 11. 2026) – volba hráče; co udělá
-  správce, čeká na Martina.
+  vesnice, či je ukryje někde v lese na mapě.“ (Martin 9. 11. 2026) – volba hráče.
+- **Správce za nepřítomného hráče** (návrh Clauda, Martin 9. 11. 2026: „ano platí“): jakmile ves
+  vojsko spatří, pošle posla do hradiště pána; lidi evakuuje do hradiště, když tam podle
+  vzdálenosti stihnou dojít dřív než vojsko, jinak je ukryje v lese na mapě.
 
 ## Co hráč vidí (UI jako 0 A.D.)
 
