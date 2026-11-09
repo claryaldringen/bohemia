@@ -140,8 +140,8 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'refuge-left'; people: number; villageName?: string }
   /** Skupina uprchlíků došla do lesa na mapě vsi a ukryla se – `people` lidí. */
   | { kind: 'refuge-hidden'; people: number }
-  /** Vojsko dostihlo skupinu uprchlíků: `killed` padlo, `led` odvedlo. */
-  | { kind: 'refuge-caught'; killed: number; led: number }
+  /** Vojsko dostihlo skupinu uprchlíků: `killed` padlo, `led` odvedlo, `captured` zajalo (muži rodu). */
+  | { kind: 'refuge-caught'; killed: number; led: number; captured?: number }
   /** Vojsko chytilo posla `name` (bez jména vesničan): padl, odvedlo ho, nebo ho zajalo (muž rodu). */
   | { kind: 'messenger-caught'; fate: 'killed' | 'led' | 'captured'; name?: string }
   /**

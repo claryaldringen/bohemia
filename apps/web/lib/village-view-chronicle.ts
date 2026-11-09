@@ -548,6 +548,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return `Vojsko dostihlo uprchlíky: ${[
         event.killed > 0 ? `padli ${formatInteger(event.killed)}` : '',
         event.led > 0 ? `odvedeno ${formatInteger(event.led)}` : '',
+        (event.captured ?? 0) > 0 ? `zajato ${formatInteger(event.captured ?? 0)}` : '',
       ]
         .filter((part) => part !== '')
         .join(', ')}.`;

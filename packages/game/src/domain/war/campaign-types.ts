@@ -333,6 +333,11 @@ export interface CampaignWorld {
    */
   domainOf?(villageId: string): { villageId: string; cell: GridCell }[] | null;
   /**
+   * Jméno vsi (kronika a upozornění – „Lidé odešli do hradiště {jméno}.“; Úloha 8). Svět ho zná
+   * s načteným stavem vsi; neví-li, null – text bez jména.
+   */
+  villageNameOf?(villageId: string): string | null;
+  /**
    * Mřížky pochodu napříč voláními (worker) – jen zrychlení; bez ní se mřížka staví jednou na
    * volání.
    */

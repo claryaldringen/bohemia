@@ -360,6 +360,39 @@ describe('Ú7 – dostižení (refuge-caught)', () => {
     });
     expect(v).toStrictEqual(once);
   });
+
+  it('Ú8 – zajatí muži rodu jsou v zajetí u věznitele, bez věznitele zmizí', () => {
+    const v = home();
+    v.people[0] = { ...v.people[0]!, line: true };
+    apply(v, D, depart('all', 100));
+    const caught: VillageEventBody = {
+      kind: 'refuge-caught',
+      campaignId: 'c1',
+      refId: 'c1:a1',
+      killed: [],
+      led: [3],
+      captured: [{ personId: 1, prisonerId: 'c1:v:1' }],
+      captorVillageId: 'lhota',
+    };
+    apply(v, D + 1, caught);
+    expect(v.people.find((p) => p.id === 1)!.away).toEqual({
+      kind: 'captive',
+      hostVillageId: 'lhota',
+      refId: 'c1:v:1',
+    });
+    expect(v.people.map((p) => p.id)).toEqual([1, 2, 4]);
+    expect(v.chronicle.at(-1)).toEqual({
+      day: D + 1,
+      kind: 'refuge-caught',
+      killed: 0,
+      led: 1,
+      captured: 1,
+    });
+    const free = home();
+    apply(free, D, depart('all', 100));
+    apply(free, D + 1, { ...caught, led: [], captorVillageId: undefined });
+    expect(free.people.map((p) => p.id)).toEqual([2, 3, 4]);
+  });
 });
 
 describe('Ú7 – posel (messenger-out / back / caught)', () => {

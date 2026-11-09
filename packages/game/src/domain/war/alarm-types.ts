@@ -96,16 +96,33 @@ export interface AlarmFlight extends AlarmMover {
   mode: FlightMode;
   /** Hradiště; null = les na mapě vsi. */
   hostVillageId: string | null;
+  /** Kdo odešel (při odchodu, id vzestupně); kdo cestou padl nebo byl odveden, je v `lost`. */
   people: RefugeePerson[];
   /** Zásoby, které skupina nese (kg obilí); jedí z nich cestou. */
   foodKg: number;
   herd: Record<HerdSpecies, number>;
   /** Vozy se spřežením. */
   carts: number;
+  /**
+   * Co skupina z vsi odnesla při odchodu (`refuge-depart`) – v den odchodu to tažení samo odečte
+   * od stavu vsi (`alarmTaken`; Úloha 8, Review Focus 2). Zapisuje `departFlight`; chybí – jako
+   * `foodKg` a `herd`.
+   */
+  carried?: { foodKg: number; herd: Record<HerdSpecies, number> };
+  /** Ranění ve skupině (zpomalí ji); chybí – nikdo. */
+  wounded?: number;
+  /**
+   * `marching` – jde (i po dostižení se zbylými), `arrived` – v hradišti, `hidden` – v lese,
+   * `caught` – dostižena a nikdo nejde dál.
+   */
   status: 'marching' | 'arrived' | 'hidden' | 'caught';
   departTick: number;
   /** Takt příchodu, ukrytí nebo dostižení; chybí – jde. */
   doneTick?: number;
+  /** Takt, kdy ji dostihlo vojsko a vzdala se (Otevřené 8 – jen jednou); chybí – nedostižena. */
+  caughtTick?: number;
+  /** Kdo ze skupiny při dostižení padl, byl odveden nebo zajat (id vzestupně); chybí – nikdo. */
+  lost?: number[];
 }
 
 /** Varování v tažení (`CampaignState.alarm`); chybí – žádná ves vojsko zatím nespatřila. */

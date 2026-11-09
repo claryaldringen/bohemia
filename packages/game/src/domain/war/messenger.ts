@@ -1,6 +1,5 @@
-import type { WorldClock } from '../calendar';
 import { villageCentre } from '../village/departure';
-import type { Prisoner, VillageState } from '../village/types';
+import type { Prisoner } from '../village/types';
 import type { GridCell } from '../village/world-grid';
 import {
   addVillage,
@@ -10,6 +9,7 @@ import {
   hostCandidates,
   isWarned,
   ownerOf,
+  refugeHosts,
   warn,
 } from './alarm';
 import type { AlarmMessenger, AlarmVillage, CampaignAlarm } from './alarm-types';
@@ -18,14 +18,8 @@ import type { TickContext, TickOut } from './campaign-tick';
 import type { CampaignState } from './campaign-types';
 import { stepMover } from './movement';
 import { prisonerKey } from './raid-apply';
-import {
-  messengerOf,
-  messengerSpeed,
-  refugeHostOf,
-  refugeOptions,
-  refugeRoute,
-  type RefugeHost,
-} from './refuge-choice';
+import { alarmTaken, messengerBackTick, withoutTaken } from './evacuation';
+import { messengerOf, messengerSpeed, refugeOptions, refugeRoute } from './refuge-choice';
 import { WAR } from './rules-war';
 import { inSight } from './sight';
 import { dayOfTick, TICKS_PER_SECOND } from './ticks';
@@ -37,73 +31,8 @@ import { dayOfTick, TICKS_PER_SECOND } from './ticks';
 // hradiště, až doběhne. Vojsko ho chytí do 30 m, skupina s jezdcem už na dohled. Hradiště pak
 // rozešle posly do vsí své domény (Úloha 6, Otevřené 5).
 
-/** Co tažení v den `day` z vsi odvedlo (plán – Review Focus 2); Úloha 8 doplní zásoby a stádo. */
-export interface AlarmTaken {
-  /** Lidé vsi, kteří jsou pryč s tažením (posel) – v boji ani ve skupinách domů nejsou. */
-  people: Set<number>;
-}
-
-/**
- * Co tažení z vsi `villageId` odvedlo do dne `day` a stav vsi `villageAt(…, day)` (ke konci dne
- * `day − 1`) to ještě nemusí znát: poslové, kteří vyběhli nejpozději v den `day` a nevrátili se
- * domů před ním.
- */
-export function alarmTaken(
-  s: CampaignState,
-  villageId: string,
-  day: number,
-  clock: WorldClock,
-): AlarmTaken {
-  const people = new Set<number>();
-  for (const m of s.alarm?.messengers ?? []) {
-    if (m.fromVillageId !== villageId || dayOfTick(m.departTick, clock) > day) continue;
-    if (m.doneTick !== undefined && (m.status === 'arrived' || m.status === 'recalled')) {
-      if (dayOfTick(backTick(m), clock) < day) continue;
-    }
-    people.add(m.personId);
-  }
-  return { people };
-}
-
-/** Stav vsi bez lidí, které tažení odvedlo (mělká kopie – lidé se jen vynechají). */
-export function withoutTaken(state: VillageState, taken: AlarmTaken): VillageState {
-  if (taken.people.size === 0) return state;
-  return { ...state, people: state.people.filter((p) => !taken.people.has(p.id)) };
-}
-
-/** Takt návratu posla domů – vrací se tak dlouho, jak dlouho běžel (plán – Úloha 5). */
-function backTick(m: AlarmMessenger): number {
-  const done = m.doneTick ?? m.departTick;
-  return done + (done - m.departTick);
-}
-
-/**
- * Hradiště pro ves (Otevřené 1): kandidáti ze světa (`CampaignWorld.refugeHostsOf` – Úloha 6; bez
- * portu žádní = „Pán nemá hradiště“) do `WAR.alarm.refugeMaxCells` políček, s hotovým opevněním
- * s plochou ke dni tažení. `ids` = všichni kandidáti v dosahu (čte se jejich stav – bariéra).
- */
-function refugeHosts(
-  s: CampaignState,
-  villageId: string,
-  cell: GridCell,
-  ctx: TickContext,
-): { hosts: RefugeHost[]; ids: string[] } {
-  const ask = ctx.world.refugeHostsOf;
-  if (!ask) return { hosts: [], ids: [] };
-  const candidates = ask(villageId);
-  if (candidates === null) throw new MissingData([], [villageId]);
-  const near = candidates.filter((c) => cellsBetween(c.cell, cell) <= WAR.alarm.refugeMaxCells);
-  const hosts: RefugeHost[] = [];
-  for (const c of near) {
-    const map = ctx.world.landscapeOf(c.cell);
-    if (map === null) throw new MissingData([{ ...c.cell }], []);
-    const state = ctx.world.villageAt(c.villageId, s.day);
-    if (state === null) throw new MissingData([], [c.villageId]);
-    const host = refugeHostOf(c.villageId, state, map.landscape, c.cell, s.day);
-    if (host) hosts.push(host);
-  }
-  return { hosts, ids: near.map((c) => c.villageId).sort() };
-}
+/** Co tažení z vsi odvedlo – i skupiny uprchlíků (Úloha 8); dřív zde. */
+export { alarmTaken, withoutTaken, type AlarmTaken } from './evacuation';
 
 /**
  * Ves `villageId` pošle posla do hradiště (záměr `alarm-messenger` hráče; správce – Úloha 11):
@@ -363,7 +292,7 @@ function warnByMessenger(
 
 /** Posel se vrací domů – `messenger-back` na den návratu (vrací se tak dlouho, jak běžel). */
 function comeBack(s: CampaignState, m: AlarmMessenger, ctx: TickContext, out: TickOut): void {
-  villageEvent(s, out, m.fromVillageId, dayOfTick(backTick(m), ctx.world.clock), {
+  villageEvent(s, out, m.fromVillageId, dayOfTick(messengerBackTick(m), ctx.world.clock), {
     kind: 'messenger-back',
     campaignId: s.id,
     refId: m.refId,
