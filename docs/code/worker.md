@@ -236,8 +236,9 @@ Akce i otevření jsou s workerem v cíli pro 1 / 5 / 20 vsí a na počtu vsí u
 
 `apps/worker/scripts/measure-campaigns.ts` – v paměti (žádná databáze): 1 / 5 / 20 tažení × 60
 mužů (3 skupiny, NPC velitel) na pochodu přes skutečné krajiny prázdných políček
-(`emptyCellLandscape`) a 5 tažení u opevněných vsí (palisáda z bodů kolem jádra, postoj bránit –
-útočiště, prolamování). Smyčka je skutečné `stepCampaigns` každých 250 ms nad porty v paměti
+(`emptyCellLandscape`), 5 tažení u opevněných vsí (palisáda z bodů kolem jádra, postoj bránit –
+útočiště, prolamování) a 5 tažení na varované vsi („varování 5“ – správce NPC pošle posla a lidi
+„se vším“ do hradiště o políčko dál; plán 2026-11-09, Úloha 11). Smyčka je skutečné `stepCampaigns` každých 250 ms nad porty v paměti
 (kontrolní bod jako JSON – jsonb, bod po ≥ 40 taktech nebo s událostí) s pamětí workeru;
 `--no-memory` = bez ní (každé kolo znovu od bodu – stav do 7. 11. 2026). „Otisk“ uložených bodů
 musí být s pamětí i bez ní tentýž. `--ticks` (výchozí 480 = 2 min), `--profile` = podíl hledání

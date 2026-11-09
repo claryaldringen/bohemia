@@ -35,8 +35,9 @@ import { dayOfTick, TICKS_PER_SECOND } from './ticks';
 export { alarmTaken, withoutTaken, type AlarmTaken } from './evacuation';
 
 /**
- * Ves `villageId` pošle posla do hradiště (záměr `alarm-messenger` hráče; správce – Úloha 11):
- * ves je varovaná a posla ještě neposlala, `refugeOptions` posla pustí (hradiště, kdo běžet).
+ * Ves `villageId` pošle posla do hradiště (záměr `alarm-messenger` hráče, pravidlo správce –
+ * `decideAlarms`, Úloha 11): ves je varovaná a posla ještě neposlala, `refugeOptions` posla pustí
+ * (hradiště, kdo běžet).
  * Posel `personId` (výběr hráče – `messengerOf`), bez něj vesničan pěšky. Domů `messenger-out` na
  * týž den (ves drží bariéra – je ve varování). Vrací, zda posel vyběhl.
  */
@@ -158,8 +159,8 @@ export function moveMessengers(s: CampaignState, ctx: TickContext, out: TickOut)
 
 /**
  * Posel vsi doběhl do hradiště (ne posel hradiště do domény): NPC hradiště hned rozešle posly do
- * vsí své domény (Otevřené 5) – jednou. Hradiště hráče čeká na jeho volbu (`alarm-domain`);
- * správce hradiště a lhůta hráče – Úloha 11.
+ * vsí své domény (Otevřené 5) – jednou. Hradiště hráče čeká na jeho volbu (`alarm-domain`); se
+ * správcem je rozešle hned, bez něj po lhůtě hráče (`decideAlarms` – Úloha 11).
  */
 function hillfortHeard(s: CampaignState, m: AlarmMessenger, ctx: TickContext, out: TickOut): void {
   if (alarmVillage(s, m.fromVillageId)?.messenger !== m.refId) return;

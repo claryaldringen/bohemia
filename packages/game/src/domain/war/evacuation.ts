@@ -116,9 +116,9 @@ export function withoutTaken(state: VillageState, taken: AlarmTaken): VillageSta
 // --- Odchod ------------------------------------------------------------------------------------
 
 /**
- * Varovaná ves `villageId` odejde skupinou (záměr `alarm-flee` hráče; správce – Úloha 11): ves
- * ještě neodešla, boj u ní nezačal (pak rozhoduje postoj – `planDefense`) a `refugeOptions` volbu
- * pustí (hradiště, „Stihnou to“, les). Složení `flightLoad` ze stavu bez toho, co tažení dnes
+ * Varovaná ves `villageId` odejde skupinou (záměr `alarm-flee` hráče, pravidlo správce –
+ * `decideAlarms`, Úloha 11): ves ještě neodešla, boj u ní nezačal (pak rozhoduje postoj –
+ * `planDefense`) a `refugeOptions` volbu pustí (hradiště, „Stihnou to“, les). Složení `flightLoad` ze stavu bez toho, co tažení dnes
  * odvedlo; cíl – střed útočiště hradiště (trasa `refugeRoute`), nebo nejbližší hustý les na mapě
  * vsi. Domů `refuge-depart` na týž den (ves drží bariéra – je ve varování). Skupina do hradiště sní
  * hned jídlo dne odchodu (doma už nejí). Vrací, zda skupina odešla.

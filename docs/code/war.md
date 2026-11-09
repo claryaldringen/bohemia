@@ -899,8 +899,8 @@ stepM, day, ctx)` → `moved` | `crossed` | `arrived` | `stuck`, `planMoverLeg`)
   běží dál; `s.captives`, `messenger-caught` domů den nato, majiteli upozornění `messenger-caught`
   (`fate`). `reportRaid` kořist s poslem slučuje (dřív ji přepsal). **Den odchodu** (Review Focus 2):
   `campaignBattle` bere stav cíle bez lidí z `alarmTaken(s, ves, den)` – posel, který dnes vyběhl,
-  v `planDefense` / `defenderRoster` není (Ú8 doplní skupiny, zásoby a stádo). Správce a NPC posla
-  zatím neposílají (Ú11). Test `messenger.test.ts` (tři mapy v řadě: záměr majitele, cizí záměr,
+  v `planDefense` / `defenderRoster` není (Ú8 doplní skupiny, zásoby a stádo). Správce a NPC posílají
+  posla pravidlem správce (Ú11 – níž). Test `messenger.test.ts` (tři mapy v řadě: záměr majitele, cizí záměr,
   neškodné vojsko, jezdec z rodu rychleji, bez muže / bez hradiště nic, chycení do 30 m a jezdcem
   na dohled, zajetí muže rodu, po 1 / 7 / 40 taktech přes JSON = vcelku, den odchodu).
 - **Návrat (Ú10).** Use-case mimo tažení `application/refuge-return.ts` (test
@@ -942,7 +942,7 @@ stepM, day, ctx)` → `moved` | `crossed` | `arrived` | `stuck`, `planMoverLeg`)
   `vassalage`, jeden stupeň) do `WAR.alarm.refugeMaxCells`, `domainOf` = vsi rodu (i ona) a přímých
   vazalů – vazal vazala ne; obojí bez archivovaných sídel, spících vsí a vsí bez políčka, od nejbližší
   (shoda – menší id). Zapojení ve workeru (`apps/worker/src/main.ts`) a `measure-campaign-db.ts`;
-  `measure-campaigns.ts` má porty v paměti (každá ves NPC bez hradiště). **Kandidáti hradišť**
+  `measure-campaigns.ts` má porty v paměti (každá ves NPC, hradiště jen ve scénáři varování – Ú11). **Kandidáti hradišť**
   (`hostCandidates` v `alarm.ts`) se do `AlarmVillage.hosts` zapíší, jakmile ves do varování vstoupí
   (`sightAlarms`, posel – `warnByMessenger`) – všichni v dosahu, i bez opevnění (tažení čte jejich
   stav – bariéra Ú3 je drží už před volbou); `sendMessenger` je přepíše týmiž. **Hradiště varuje
@@ -956,7 +956,7 @@ stepM, day, ctx)` → `moved` | `crossed` | `arrived` | `stuck`, `planMoverLeg`)
   (`owner.npc`) rozešle posly hned, jak doběhne posel vsi (ne posel hradiště – `AlarmVillage.messenger`
   odesílatele), jednou; vyběhnou až další takt. **Hradiště hráče** čeká na záměr `alarm-domain`
   (`to` – vybrané vsi, v pořadí podle vzdálenosti; platí od majitele varované vsi, i opakovaně do
-  součtu 4) – správce hradiště a lhůta hráče: Ú11. Testy `messenger.test.ts` (NPC hradiště – 4 nejbližší,
+  součtu 4) – správce hradiště hned, bez správce po lhůtě (Ú11 – níž). Testy `messenger.test.ts` (NPC hradiště – 4 nejbližší,
   pátá a vzdálená ne, B už ví; hradiště hráče až záměrem, cizí záměr, mez 4; bez portu nic, nenačtená
   doména čeká; po 1 / 7 / 40 taktech přes JSON = vcelku), `application/__tests__/alarm-world.test.ts`
   (smyčka `stepCampaigns` s portem v paměti = vcelku s daty předem, dotazy jen na potřebné).
@@ -1002,6 +1002,30 @@ mode, ctx, out, { by })` (správce – Ú11): ves ještě neodešla (`AlarmVilla
   – rychleji, kořist vezme stádo a zásoby; les týž den; přesila – kořist, odvedení, poslední muž rodu
   jde dál; bez přesily dál; pobít; zajetí mužů rodu; den odchodu – boj téhož dne; blokovaná volba
   a cizí záměr; po 1 / 7 / 40 / 400 taktech přes JSON = vcelku).
+- **Kdo rozhoduje – správce, NPC rody a lhůta hráče (Ú11).** `domain/war/alarm-steward.ts` (test
+  `alarm-steward.test.ts`; Otevřené 6, Review Focus 6; Martin 9. 11. 2026: správce a NPC hned, ves
+  bez správce čeká na hráče nejvýš 1 herní den – „Ok, nechme to, jak jsi navrhl“). `decideAlarms(s,
+tick, ctx, out)` v každém taktu po poslech (`campaignTick`: pohyb → spatření → `moveMessengers` →
+  `catchMessengers` → **`decideAlarms`** → `moveFlights` → `catchFlights` → dny nájezdu): ves ve
+  varování, za kterou ještě nikdo nerozhodl (`AlarmVillage.decided`), rozhodne pravidlem správce
+  hned, je-li `owner.npc` (i neznámý rod bez portu) nebo má zapnutého správce (`steward.on` ve
+  `villageAt`), jinak v taktu `warnTick + WAR.alarm.playerGraceTicks` (344). Pravidlo: `refugeOptions`
+  ze stavu bez toho, co tažení dnes odvedlo, postoj `stanceOf`, vlastní útočiště `refugeHostOf`
+  (hotové opevnění s plochou) → `stewardAlarmChoice` → `sendMessenger(…, { by: 'steward' })`
+  (`messengerOf` bez volby – vesničan pěšky, bez vesničana muž rodu, na koni umí-li jezdit; Martin
+  „Ano“), pak `departFlight(…, { by: 'steward' })` (`all` → `people` → `forest`; posel ve skupině
+  nejde). `decided = 'steward'` i když nic nešlo – rozhoduje se jednou; volba hráče před lhůtou
+  (`decided: 'player'`) správce vypne, hráč smí zvolit, co správce nechal. Ves varovaná poslem
+  správce v témž taktu rozhodne v témž taktu (smyčka přes nové vsi). **Hradiště hráče** (NPC dál
+  `hillfortHeard` při příchodu) rozešle posly do domény (`warnDomain(…, null)`) se správcem hned, bez
+  něj po lhůtě od příchodu prvního posla vsi (`heardTick` – z `messengers`, žádné nové pole stavu);
+  záměr `alarm-domain` před lhůtou (i prázdný výběr) ho vypne (`AlarmVillage.domain`). Testy
+  `alarm-steward.test.ts` (NPC ves – posel a „se vším“ v taktu varování; správce hráče hned; hráč bez
+  volby po 344 taktech, volba v taktu 100 má přednost; postoj bránit – jen posel, boj s obránci;
+  vlastní opevnění – jen posel; nestihnou – les, bez lesa nic; hradiště se správcem hned, bez něj po
+  lhůtě, výběr hráče přednost; po 1 / 7 / 40 taktech přes JSON = vcelku). Měření
+  `measure-campaigns.ts` – scénář „varování 5“ (vojsko na okraji mapy neopevněné vsi NPC, hradiště
+  o políčko dál – posel a útěk „se vším“; port `alarmOwners` ve smyčce workeru) – pustí Ú15.
 
 ## Výsledky nájezdu a kořist (Ú6.10)
 
