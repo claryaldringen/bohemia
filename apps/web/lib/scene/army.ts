@@ -48,6 +48,8 @@ export type SceneFighter = Pick<
   | 'ladder'
   | 'onWall'
   | 'underground'
+  | 'cover'
+  | 'surrendered'
 > & {
   /** Přechod hradby (jádro – `FighterClimb`); jinak chybí. */
   climb?: SceneClimb;
@@ -159,6 +161,8 @@ export function sceneBattle(b: SceneBattleSource, walls: readonly SceneWall[] = 
       ...(f.climb
         ? { climb: { ladder: f.climb.ladder, phase: f.climb.phase, ticks: f.climb.ticks } }
         : {}),
+      ...(f.cover ? { cover: true as const } : {}),
+      ...(f.surrendered ? { surrendered: true as const } : {}),
     })),
     groups: b.groups.map((g) => ({ side: g.side, id: g.id, order: g.order, broken: g.broken })),
     closedGates: [...b.closedGates],
@@ -505,7 +509,8 @@ export function battleFigures(
       : c.ticks;
   };
   for (const man of cur.fighters) {
-    if (man.state === 'fled' || man.underground) continue;
+    // utečený zmizí; vzdaný zůstane stát na místě bez zbraně (`surrenderedFigure`)
+    if (man.underground || (man.state === 'fled' && !man.surrendered)) continue;
     const was = before.get(man.id);
     const from = was?.pos ?? man.pos;
     const x = from.x + (man.pos.x - from.x) * t;
@@ -527,6 +532,10 @@ export function battleFigures(
           : man.state === 'breach' && man.breachAt
             ? breachFace(cur, man)
             : nearestFoe(cur, man, x, z);
+    if (man.state === 'fled') {
+      figures.push(surrenderedFigure(cur, man, look));
+      continue;
+    }
     if (man.state === 'down') {
       if (!options.showFallen) continue;
       // padlý leží, kde padl; raněný sedí u domu (útočník tam, kde vstoupil do boje)
@@ -590,6 +599,28 @@ export function battleFigures(
     });
   }
   return { figures, animals, ladders: ladderPoses(cur, carriers, climbTicksOf) };
+}
+
+/**
+ * Vzdaný obránce (fortifications.md – Obrana bez násobku 3, Bod zlomu a probíjení): stojí, kde se
+ * vzdal (na ochozu ve výšce ochozu), ruce dolů a bez zbraně – klip `idle` (jen hlava, žádná
+ * rekvizita); neotáčí se za nepřítelem. Útočník ho po boji odvede.
+ */
+function surrenderedFigure(cur: SceneBattle, man: SceneFighter, look: FigureLook): ArmyFigure {
+  return {
+    key: man.id,
+    kind: 'man',
+    x: man.pos.x,
+    z: man.pos.z,
+    hx: 0,
+    hz: 1,
+    clip: 'idle',
+    pace: 1,
+    lift: man.onWall ? wallStandLift(cur.walls, man.pos) : 0,
+    lying: false,
+    side: man.side,
+    look,
+  };
 }
 
 // --- Přechod hradby ve scéně (fortifications.md – Hradby a obrana, Ve scéně) --------------------
@@ -972,10 +1003,12 @@ function breachFace(b: SceneBattle, man: SceneFighter): Pos {
  * (`breach`): sekera (sekat, bez místa), motyka (zasypat, odkopat, podkopat), otepi v náručí
  * a skládání u paty (nanosit), přikládání (hoří). Lezec: v lese seká strom na žebřík, žebřík
  * nese v náručí, opírá vidlemi (`pitch`), po příčkách leze rukama (`build`); nahoře bojuje.
+ * Obránce v krytu pod palbou na ochozu (`cover`) se skrčí za předprseň (`weed` – podřep bez
+ * zbraně, klip vsi).
  */
 export function fighterClip(
   man: Pick<SceneFighter, 'state' | 'mounted' | 'bow' | 'line' | 'cooldown' | 'aim' | 'pos'> &
-    Partial<Pick<SceneFighter, 'climb'>>,
+    Partial<Pick<SceneFighter, 'climb' | 'cover' | 'onWall'>>,
   target: Pick<SceneFighter, 'pos'> | undefined,
   speed: number,
   breach?: Pick<SceneBreach, 'method' | 'phase'>,
@@ -1002,6 +1035,7 @@ export function fighterClip(
         return 'build';
     }
   }
+  if (man.cover && man.onWall && !moving) return 'weed';
   if (man.mounted) {
     if (speed > TROT_M_S) return 'ride-trot';
     return moving ? 'ride' : 'ride-idle';

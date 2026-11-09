@@ -1,4 +1,5 @@
 import {
+  BREAKOUT_BLOCKED,
   dateOfDayIndex,
   msOfTick,
   realTimeOf,
@@ -168,6 +169,19 @@ export function foreignVillageOf(
     })),
     fields: [],
   };
+}
+
+/**
+ * Tlačítko „Probít se“ obránce na mapě své vsi (fortifications.md – Obrana bez násobku 3, Bod zlomu
+ * a probíjení): null – ves nemá opevnění s branou nebo se u ní nebojuje (tlačítko chybí); jinak
+ * důvod, proč rozkaz nejde (`denied` null – jde). Rozhodl server (`WarSceneView.breakout`).
+ */
+export function breakoutOf(
+  view: WarSceneView | null | undefined,
+): { denied: string | null } | null {
+  if (!view || view.side !== 'defend' || !view.breakout) return null;
+  const blocked = view.breakout.blocked;
+  return { denied: blocked === null ? null : BREAKOUT_BLOCKED[blocked] };
 }
 
 /** Kam se podívat na cizí mapě: první vlastní bojovník na nohou, jinak první skupina pochodu. */

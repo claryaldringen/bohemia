@@ -529,11 +529,13 @@ shromáždění do 6 m nejvýš 60 s).
   `openingRoute` (nejbližší průchod, body před a za ním), bez průchodu nebo zaseknutý na cestě
   `cutOff` (vzdá se; poslední muž rodu bojuje dál).
 - **Probíjení** – `orderBreakout(stav, bojiště, opevnění, úsek)` otevře bránu a zapíše
-  `BattleBreakout`; veřejně `orderDefenderBreakout(stav, bojiště, opevnění, úsek?)` (bez úseku
-  volí `breakoutGate` – nejméně útočníků do 30 m, nejvýš ½ proti probíjejícím). Velitel obrany
-  (`fortBreakpoints`) při 30 % ztrát v útoku, jednou na opevnění. Hráč obránců: záměr tažení
+  `BattleBreakout`; veřejně `orderDefenderBreakout(stav, bojiště, opevnění, úsek?)`. Brána
+  `breakoutGate` – nejméně útočníků do 30 m; velitel obrany (`fortBreakpoints`, při 30 % ztrát
+  v útoku, jednou na opevnění) jen volnou či slabě hlídanou (nejvýš ½ proti probíjejícím), rozkaz
+  hráče (`weakOnly` false) i hlídanou (návrh Clauda – hráč rozkáže sám). Hráč obránců: záměr tažení
   `{ kind: 'breakout', fort, segment? }` (`campaign-types.ts`) zapíše `BattleState.breakoutOrder`,
-  takt ho na začátku provede (před bodem zlomu). `breakoutStep` (před stěnami
+  takt ho na začátku provede (před bodem zlomu). `stepCampaign` z cizích záměrů přijme jen
+  `breakout` (a ten nikdy od vůdce tažení). `breakoutStep` (před stěnami
   taktu): `gathered`, když jsou všichni na nohou do 6 m od brány nebo uplynulo 60 s; kdo je venku
   u lesa (bez lesa hned venku), je `fled`. `breakoutPlan`: z ochozu dolů, útočníka do 3 m bije,
   jinak k bodu uvnitř průchodu (`WallWorld.exits`), po vyražení po ose průchodu ven a do lesa.
@@ -547,16 +549,32 @@ shromáždění do 6 m nejvýš 60 s).
 - **Po boji** (`campaign.ts` – `raidResultOf`): útočiště dobyté = `taken` neprázdné (dřív stačilo,
   že někdo z útočiště bojoval); vzdaní z boje a lidé dobytého útočiště podle `refugeRout`
   (`rout.ts`) se odvedou jako vzdaní.
-- **Zatím chybí** – use-case, kterým přítomný držitel napadené vsi (právo `war`) pošle záměr
-  `breakout` do cizího tažení (`commandCampaign` bere jen příkazy velitele tažení), a tlačítko
-  „Probít se“ – obrana panel rozkazů v boji nemá; scéna krytu (skrčení) a vzdaných (zmizí jako
-  utečení).
+- **Rozkaz hráče „Probít se“** (`application/order-breakout.ts` – `orderBreakout(deps, { playerId,
+villageId, today, nowMs })`): právo `war` ověří use-case sám (`requireRight` – správce cizí vsi ho
+  nemá), bez zámku vsi (stav vsi se nemění, rozkaz v boji nečeká na dopočet – návrh Clauda). Najde
+  cizí tažení s bojem u vsi (`activeAgainst`, fáze `raiding`, cíl na mapě sídla), opevnění bojiště
+  (`battleForts` z mapy `cells.mapOf` a opevnění vsi) a komu rozkázat (`breakoutChoice` v `rout.ts`:
+  opevnění s branou před bodem zlomu, bez probíjení a bez čekajícího `breakoutOrder`, s obránci na
+  nohou – víc takových: nejvíc obránců; jinak `BreakoutBlock` `over` | `undefended` | `routed` |
+  `underway`). Zapíše záměr `breakout` na takt teď + 2 (`queueCampaignIntent`); bránu vybere takt.
+  Důvody česky v `BREAKOUT_BLOCKED` (+ `BREAKOUT_NO_GATE`) – jediné místo textů i pro tlačítko.
+  Web: server action `orderBreakout({ villageId })` → `orderBreakoutForPlayer` (`lib/war-scene.ts`),
+  tlačítko web-ui.md – Rozkaz „Probít se“.
+- **Ve scéně** – `WarSceneFighter` nese `cover` a `surrendered` (cizí jen v dohledu jako ostatní);
+  `WarSceneView.breakout { blocked }` jen obránci s opevněním s branou při boji (`breakoutChoice`
+  nad `input.forts`; rozhodnutý dnes = `over`). Scéna (`army.ts`): kryjící se na ochozu stojící na
+  místě je skrčený (`fighterClip` → `weed`, podřep bez zbraně – klip vsi, žádný nový vertex buffer),
+  vzdaný (`fled` + `surrendered`) zůstane stát, kde se vzdal (na ochozu ve výšce ochozu), klipem
+  `idle` (ruce dolů, bez zbraně), neotáčí se (`surrenderedFigure`); utečený dál zmizí.
 - **Testy** – `__tests__/wall-cover.test.ts` (půl hodiny ostřelování 12 obránců šesti lučištníky –
   kryt, bez bodu zlomu, padlí jen `shotDown`, pod 60 zásahů; padlí ostřelováním do bodu zlomu
   nejdou; po žebříku obránce u vrcholu bez krytu, jinde kryt; chaos – brána otevřená, raněný se
   vzdá, zdraví utečou branou; útočiště dobyté až s útočníkem uvnitř; bez brány odříznutí; po
   kouscích přes JSON = vcelku; probíjení velitelem při 30 % volnou branou do lesa, hlídanou ne,
-  rozkaz s branou a před bodem zlomu, záměr hráče přes `breakoutOrder`; `refugeRout`). Nájezd na
+  rozkaz s branou a před bodem zlomu, záměr hráče přes `breakoutOrder`, rozkaz hráče i hlídanou
+  branou, `breakoutChoice` a důvody; `refugeRout`); `npc-commander.test.ts` – záměr `breakout` od
+  obránce tažení provede, od vůdce ne; `scene-view.test.ts` – kryt, vzdaní, `breakout` a mlha;
+  `application/__tests__/order-breakout.test.ts` – záměr na takt + 2, cizí hráč, důvody. Nájezd na
   palisádu s ochozem (`palisade-walkway-raid.test.ts`) dál končí žebříky a útočníkem uvnitř;
   `npc-commander.test.ts` – NPC velitel na palisádu s ochozem a bránou: proseknutí, bod zlomu
   v útoku, útočiště dobyté s útočníkem uvnitř.

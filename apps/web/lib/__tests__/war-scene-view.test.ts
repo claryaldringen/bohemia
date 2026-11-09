@@ -11,6 +11,7 @@ import {
 } from '@bohemia/game';
 import {
   armyFocusOf,
+  breakoutOf,
   followCellOf,
   foreignVillageOf,
   SCENE_HERD_MAX,
@@ -133,6 +134,53 @@ describe('sceneWarOf', () => {
       arrived: false,
       heading: { x: 1, z: 0 },
     });
+  });
+});
+
+describe('kryt, vzdaní a „Probít se“ (fortifications.md – Obrana bez násobku 3)', () => {
+  const battle = (fighters: WarSceneFighter[]): WarSceneView['battle'] => ({
+    ticks: 40,
+    outcome: 'ongoing',
+    fighters,
+    groups: [],
+    closedGates: [],
+    breaches: [],
+    ladders: [],
+    walls: [],
+  });
+
+  it('kryjící se a vzdaný jdou do scény, jak je server poslal', () => {
+    const war = sceneWarOf(
+      {
+        ...BASE,
+        march: null,
+        battle: battle([
+          { ...fighter('d:1', 'defend', 10), cover: true, onWall: true },
+          { ...fighter('d:2', 'defend', 12), state: 'fled', surrendered: true },
+          fighter('d:3', 'defend', 14),
+        ]),
+      },
+      OFFICIAL_WORLD,
+    );
+    const men = war!.battle!.fighters;
+    expect(men[0]).toMatchObject({ cover: true, onWall: true });
+    expect(men[1]).toMatchObject({ state: 'fled', surrendered: true });
+    expect(men[2]).not.toHaveProperty('cover');
+    expect(men[2]).not.toHaveProperty('surrendered');
+  });
+
+  it('tlačítko jen obránci s opevněním s branou; důvod česky', () => {
+    const view: WarSceneView = { ...BASE, march: null, battle: battle([]) };
+    expect(breakoutOf(null)).toBeNull();
+    expect(breakoutOf(view)).toBeNull();
+    expect(breakoutOf({ ...view, breakout: { blocked: null } })).toEqual({ denied: null });
+    expect(breakoutOf({ ...view, breakout: { blocked: 'undefended' } })).toEqual({
+      denied: 'Nikdo nebrání hradbu.',
+    });
+    expect(breakoutOf({ ...view, breakout: { blocked: 'over' } })).toEqual({
+      denied: 'Boj neběží.',
+    });
+    expect(breakoutOf({ ...view, side: 'attack', breakout: { blocked: null } })).toBeNull();
   });
 });
 
