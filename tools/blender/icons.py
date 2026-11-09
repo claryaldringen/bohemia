@@ -4458,7 +4458,7 @@ def wax_mat(name="wax"):
 
 
 def red_mark(name="red"):
-    """Červená značka (křížek zrušení, šipka ven) – stejná jako šipka Probít se."""
+    """Červená šipka ven (poslat muže na ochranu) – stejná jako šipka Probít se."""
     return glow_mat(name, (0.85, 0.12, 0.06), 0.5)
 
 
