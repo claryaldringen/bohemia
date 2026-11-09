@@ -1081,6 +1081,22 @@ to – vojsko tu bude za ≈ 2 dny, z mapy jim to potrvá ≈ 3 dny.“):
   bez práva), `lib/__tests__/alarm-view.test.ts` (texty), `lib/__tests__/player-notices.test.ts`
   (`noticeOpener`).
 
+**Mapa tažení, výkon a e2e (Úloha 15).** `CampaignMap` kreslí skupiny uprchlíků a běžící posly
+cizích vsí v dohledu vlastních mužů (`CampaignView.flights`, jen na ukázané mapě) ikonami z panelu
+dvorce zmenšenými na 110 m mapy (`FlightMarks`: uprchlíci se stádem `alarm-all`, jen lidé
+`alarm-people`, posel `alarm-messenger`); počty lidí a dobytka jen v popisku (`title`),
+`interpolateCampaign` je posouvá mezi dotazy jako muže. Test `hud/__tests__/CampaignMap.test.tsx`.
+**Dotazování na varování** (každé 2 s) čte stavy vsi a hradiště z paměti přes dotazy
+(`VillageMemory` 8 vsí – `withVillageMemory` v `lib/alarm.ts`, platnost hlídá otisk verze jako
+`withVillageCache`) a mřížky pochodu z `MarchGridMemo` (`AlarmViewDeps.grids`) – u vsi velikosti
+Vlkova 76 → 4 ms na dotaz (worker.md – Výkon – Pohled na varování). E2E `multiplayer-war.spec.ts` –
+„ves B varovaná utíká do hradiště pána a po odtažení vojska se vrátí“ (vazal B, pán C s hotovou
+palisádou na políčku vedle, tažení A s varováním B v kontrolním bodu, worker vedle `next start`):
+upozornění, ikony v panelu dvorce, „Do hradiště – se vším“ → záměr `alarm-flee`, průvod přenesený
+k hradišti → `refuge-arrive`, hosté `refuge` v C a lidé B pryč, Vrátit se zašedlé „Vojsko je ještě
+na mapě.“, po odtažení vojska klik → `refuge-back` a lidé doma; snímky `varovani-ikony.png`
+a `utek-do-hradiste.png`.
+
 ## Prémiová krajina v rozhraní
 
 Premium-landscapes.md – Co hráč vidí. Texty typů (krátký název, „hned“, „později“) a jediná věta

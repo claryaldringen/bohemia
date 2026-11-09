@@ -31,13 +31,13 @@ import {
 
 // Měření tažení (plán 2026-11-03 – Úloha 6.17; docs/code/worker.md – Výkon): 1 / 5 / 20 tažení
 // × 60 mužů na pochodu přes skutečné krajiny prázdných políček, 5 tažení u opevněných vsí
-// (prolamování, útočiště) a 5 tažení na varované vsi (posel a útěk do hradiště – plán 2026-11-09,
-// Úloha 11). Všechno v paměti – žádná databáze. Smyčka je worker: `stepCampaigns`
-// každých 250 ms nad porty v paměti (kontrolní bod jako JSON – jsonb) s pamětí workeru
-// (`newCampaignMemory` – pokračuje od posledního spočteného stavu); `--no-memory` = bez ní, každé
-// kolo znovu od bodu (bod se ukládá po ≥ 40 taktech nebo s událostí). „Takty/s“ = takty tažení za
-// sekundu času procesoru jednoho jádra; „jádro“ = čas procesoru ÷ skutečný čas, který kola
-// představují.
+// (prolamování, útočiště), 5 tažení na varované vsi (posel a útěk do hradiště – plán 2026-11-09,
+// Úloha 11) a 20 tažení, z toho 5 na varované vsi (Úloha 15). Všechno v paměti – žádná databáze.
+// Smyčka je worker: `stepCampaigns` každých 250 ms nad porty v paměti (kontrolní bod jako JSON –
+// jsonb) s pamětí workeru (`newCampaignMemory` – pokračuje od posledního spočteného stavu);
+// `--no-memory` = bez ní, každé kolo znovu od bodu (bod se ukládá po ≥ 40 taktech nebo
+// s událostí). „Takty/s“ = takty tažení za sekundu času procesoru jednoho jádra; „jádro“ = čas
+// procesoru ÷ skutečný čas, který kola představují.
 //
 //   npx tsx apps/worker/scripts/measure-campaigns.ts [--ticks 480] [--profile] [--no-memory]
 
@@ -481,6 +481,14 @@ async function main(): Promise<void> {
     ['pochod 20', () => Array.from({ length: 20 }, (_, k) => marching(k))],
     ['opevněné 5', () => Array.from({ length: 5 }, (_, k) => besieging(k))],
     ['varování 5', () => Array.from({ length: 5 }, (_, k) => warned(k))],
+    // 20 tažení, z toho 5 na varované vsi s oky, poslem a evakuací (plán 2026-11-09 – Úloha 15)
+    [
+      'pochod 15 + varování 5',
+      () => [
+        ...Array.from({ length: 15 }, (_, k) => marching(k)),
+        ...Array.from({ length: 5 }, (_, k) => warned(k)),
+      ],
+    ],
   ];
   console.log(`takty ${TICKS} (${(TICKS * TICK_S).toFixed(0)} s skutečného času), ${MEN} mužů`);
   for (const [name, make] of scenarios) {
@@ -495,11 +503,11 @@ async function main(): Promise<void> {
     // takty tažení za sekundu procesoru (každé tažení posune každé kolo o jeden takt)
     const ticks = r.campaigns * TICKS;
     const line =
-      `${name.padEnd(11)} takty/s ${(ticks / r.cpuS).toFixed(0).padStart(6)}, ` +
+      `${name.padEnd(22)} takty/s ${(ticks / r.cpuS).toFixed(0).padStart(6)}, ` +
       `jádro ${((100 * r.cpuS) / r.realS).toFixed(1).padStart(5)} % (${r.cpuS.toFixed(1)} s), ` +
       `bodů ${r.saves}, otisk ${r.digest} – ${r.phases}`;
     console.log(line);
-    if (args.profile) console.log(`            profil: ${await profiled(starts)}`);
+    if (args.profile) console.log(`  profil: ${await profiled(starts)}`);
   }
 }
 

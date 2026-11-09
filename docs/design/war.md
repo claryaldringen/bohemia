@@ -547,7 +547,7 @@ Martin 2. 11. 2026 – „ok“ (podrobnosti návrh Clauda):
   nájezdy a cizí vojska spatřená u vsi zvedají **hrozbu**, podle které staví opevnění správce
   ([fortifications.md](fortifications.md) – Správce).
 
-## Varování, poslové a útěk do hradiště (schváleno 9. 11. 2026 – implementace čeká)
+## Varování, poslové a útěk do hradiště (schváleno 9. 11. 2026 – implementováno)
 
 Vychází z rešerše, kterou Martin přinesl 9. 11. 2026 (proč slovanské vsi neměly palisádu – útočištěm
 kraje bylo hradiště: „Obyvatelé okolních neopevněných vesnic v případě nebezpečí sbalili dobytek,
@@ -607,6 +607,37 @@ zásoby a cennosti a utekli do nejbližšího hradiště“).
   jen lidé**, **Do hradiště – se vším** (zašedlé s důvodem, když nejde – „Pán nemá hradiště“,
   „Nestihnou to“ s odhadem času), po útěku **Vrátit se**; ve scéně průvod uprchlíků se stády k okraji
   mapy, na mapě tažení ikona skupiny.
+
+**Implementace** (plán `docs/superpowers/plans/2026-11-09-hillfort-refuge.md`, úlohy Ú1–Ú15; kód
+`docs/code/war.md` – Varování, poslové a útěk do hradiště). Co spec nerozhodl, volí návrh Clauda:
+
+- **Hradiště** je kterákoli jiná ves vlastního rodu nebo přímého pána (jeden stupeň vazalství)
+  s hotovým opevněním s plochou do 8 políček; víc kandidátů – nejkratší cesta. Jinak „Pán nemá
+  hradiště“.
+- **„Stihnou to“:** skupina opustí mapu vsi dřív, než vojsko dojde od místa, kde ho viděli
+  (vzdušně × 1,3 ÷ tempo skupiny), a trasa nevede přes políčko vojska – obránce zná jen místo
+  spatření, ne trasu.
+- **Oči vsi:** domy a dvorec vždy, mimo zimu i pole, milíře, lomy, klády, sady a ohrady; ves, která
+  se schovává, jen domy. Vesničan běží 2× tempem pěších, vojsko ho nechytá.
+- **Posel** je chycen do 30 m od skupiny vojska (s jezdcem v dohledu); osud podle volby ke vzdaným
+  té skupiny. Po doručení se vrátí domů za tolik dní, kolik běžel.
+- **Hradiště varuje doménu:** vsi vlastního rodu a přímých vazalů do 3 políček od místa spatření,
+  nejvýš 4 poslové, nejbližší první.
+- **Správce za hráče:** posel vždy (je-li hradiště a kdo běžet), útěk jen s postojem „utéct“ –
+  „bránit“ a „vzdát se“ platí; ves s vlastním útočištěm neevakuuje.
+- **Co nesou:** jen lidé = bez zásob a dobytka; se vším = co unesou (dospělý 25 kg, dítě 10 kg),
+  každý vůz se spřežením 400 kg a stáda; osivo a zapečetěné jámy zůstávají.
+- **Dostižení:** skupina vojska do 30 m od uprchlíků; přesila → vzdají se (lidé podle volby ke
+  vzdaným, zásoby do nosnosti a stáda do kořisti), jinak jdou dál; poslední muž rodu se nevzdá a
+  uteče do lesa.
+- **Pobyt:** do útočiště napřed domácí, pak uprchlíci podle příchodu, stáda až za lidmi; muži
+  uprchlíků od 16 let brání hradiště, dospělí pracují pro hradiště jako hosté (napřed opevnění).
+- **Návrat:** jen po příchodu a jen když na mapě vsi nestojí žádná skupina vojska; z lesa týž den,
+  z hradiště za dny cesty. Dvě tažení najednou – druhé ves jen varuje.
+
+**Později:** boj v poli při dostižení skupiny bez přesily; kořist zásob a stád uprchlíků
+v dobytém hradišti; posel na koni k pánovi přes víc hradišť; hlad uprchlíků na dlouhé cestě; stáda
+uprchlíků u hradiště jedí seno hostitele.
 
 ## Co hráč vidí (UI jako 0 A.D.)
 
