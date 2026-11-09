@@ -85,6 +85,11 @@ export interface SowingCapacity {
    */
   august: number;
   /**
+   * Září: žeň jaře, kterou srpen nestihne (fields.md – Žeň jaře i v září) – v září zbytek
+   * letošního září (dosklizeň loňské jaře), jinak celé září po hospodářském roce.
+   */
+  september: number;
+  /**
    * Orba spřežení v člověkodnech orby (oxen.md – Jen rádlo) – jen ves, která orá: září–říjen
    * (ozim), září–listopad celkem (co po ozimu zbude, jde na jař) a březen–duben (zbytek jaře
    * a luštěnin). Chybí = ves neorá, orba se nehlídá.
@@ -148,6 +153,11 @@ export interface CropLoad {
   springDig: number;
   springSow: number;
   august: number;
+  /**
+   * Žeň jaře, kterou srpen nedosklidil (v září – `lateHarvestRemaining`; fields.md – Žeň jaře
+   * i v září); jinak 0 – co srpen nestihne, dopočte `lordHarvestHelp`.
+   */
+  september: number;
   /** Orba ozimu (září–říjen) a orba jaře s luštěninami (podzim, zbytek na jaře). */
   ploughWinter: number;
   ploughSpring: number;
@@ -178,6 +188,7 @@ export function cropLoadOf(planned: SowingLoad): CropLoad {
     springDig: planned.spring.dig + planned.spring.plough,
     springSow: planned.spring.sow,
     august: planned.spring.harvest + planned.winter.thresh,
+    september: 0,
     ploughWinter: planned.winter.plough,
     ploughSpring: planned.spring.plough,
   };
@@ -205,19 +216,33 @@ function withoutMonths(
   return result;
 }
 
+/** Září okna žně jaře – po konci okna žně ozimu (fields.md – Žeň jaře i v září). */
+const SEPTEMBER_HARVEST = withoutMonths(WINDOWS.harvest, WINTER_WINDOWS.harvest);
+
 /**
  * Měsíce oken volné práce `SowingCapacity` (lidé): podzim ozimu září–říjen, vrácení přílohu
  * a kopání září–listopad i březen–duben, jaro březen–duben, červenec (žeň ozimu, luštěnin a lnu
- * před oknem žně jaře), sklizeň jaře, zbytek žně z července a výmlat srpen. Podle nich
- * `sowingCapacity` i podíl dne rodiny na žních (`lordHelpShare`).
+ * před oknem žně jaře), srpen (sklizeň jaře, zbytek žně z července a výmlat) a září (žeň jaře,
+ * kterou srpen nestihne – fields.md, Žeň jaře i v září). Podle nich `sowingCapacity` i podíl dne
+ * rodiny na žních (`lordHelpShare`).
  */
 export const SOWING_CAPACITY_WINDOWS: Readonly<Record<LordHelpWindow, readonly WindowSegment[]>> = {
   autumnWinter: WINTER_WINDOWS.sow,
   autumn: WINDOWS.reclaim,
   spring: WINDOWS.sow,
   july: withoutMonths(WINTER_WINDOWS.harvest, WINDOWS.harvest),
-  august: WINDOWS.harvest,
+  august: withoutMonths(WINDOWS.harvest, SEPTEMBER_HARVEST),
+  september: SEPTEMBER_HARVEST,
 };
+
+/**
+ * Žeň jaře, kterou srpen nestihne ani s rodinou (člověkodny – fields.md, Žeň jaře i v září):
+ * zátěž srpna i s přetečením z července nad volnou prací srpna (`augustWork` – i s prací rodiny)
+ * – žne se v září před orbou a setím ozimu.
+ */
+export function augustOverflow(load: CropLoad, julyWork: number, augustWork: number): number {
+  return Math.max(0, load.august + harvestOverflow(load, julyWork) - augustWork);
+}
 
 /**
  * Žeň ozimu, luštěnin a lnu, kterou červenec nestihne (člověkodny – fields.md, Žně i v srpnu):
@@ -229,16 +254,19 @@ export function harvestOverflow(load: CropLoad, julyWork: number): number {
 }
 
 /** Okna žní, ve kterých pomáhá vojvodova rodina (lord.md – Kdy jde rodina na pole). */
-export const HARVEST_HELP_WINDOWS: readonly LordHelpWindow[] = ['july', 'august'];
+export const HARVEST_HELP_WINDOWS: readonly LordHelpWindow[] = ['july', 'august', 'september'];
 
 /**
  * Podíl práce vojvodovy rodiny ve žních, aby ves stihla sklidit (lord.md – Kdy jde rodina na
  * pole; Martin 9. 11. 2026): chybějící práce (zátěž `load` nad volnou prací vsi bez rodiny
  * `village`) ÷ práce rodiny v okně (`withLord − village`), nejvýš 1 – jen tolik, kolik chybí. Kdo
  * z rodiny jde (ženy a dcery, pak muži, vojvoda nakonec), určí den (`lordFieldShares`).
- * Červenec a srpen; žeň, kterou červenec nestihne ani s rodinou, přejde do srpna
- * (`harvestOverflow`). S osevem rodina nepomáhá. Okna, kde nic nechybí, chybí; ves, která žně
- * stihne sama, dostane {}.
+ * Červenec, srpen a září; žeň, kterou červenec nestihne ani s rodinou, přejde do srpna
+ * (`harvestOverflow`), co nestihne srpen, do září (`augustOverflow` – v září zbytek jaře, kterou
+ * srpen nedosklidil, `CropLoad.september`; fields.md – Žeň jaře i v září). V srpnu rodina pomáhá
+ * jako dřív, aby jař byla sklizená do konce srpna – zářijová žeň bere práci setí ozimu (návrh
+ * Clauda). S osevem rodina nepomáhá. Okna, kde nic nechybí, chybí; ves, která žně stihne sama,
+ * dostane {}.
  */
 export function lordHarvestHelp(
   load: CropLoad,
@@ -256,7 +284,17 @@ export function lordHarvestHelp(
   };
   // co červenec nestihne ani s rodinou, se žne v srpnu (fields.md – Žně i v srpnu)
   const july = add('july', load.july - village.july);
-  add('august', load.august + harvestOverflow(load, village.july + july) - village.august);
+  const august = add(
+    'august',
+    load.august + harvestOverflow(load, village.july + july) - village.august,
+  );
+  // co srpen nestihne ani s rodinou, se žne v září (fields.md – Žeň jaře i v září)
+  add(
+    'september',
+    load.september +
+      augustOverflow(load, village.july + july, village.august + august) -
+      village.september,
+  );
   return help;
 }
 

@@ -12,9 +12,12 @@ import { dayPartLosses } from './disasters';
 import { addSheaves } from './threshing';
 import { villageLegumesKg } from './legumes';
 import { threshWorkFactor } from './weather-effects';
-import type { CraftCoverage, CropWork, ThreshedCrop, VillageState } from './types';
+import type { CraftCoverage, CropWork, FarmSeason, ThreshedCrop, VillageState } from './types';
+import { rotateAfterSeason } from './rotation';
+import { wildlifeSeasonEnd } from './wildlife-damage';
 import {
   harvestKg,
+  lateSpringCrop,
   seasonCrop,
   springCrop,
   taskRemaining,
@@ -31,11 +34,12 @@ function threshWork(state: VillageState, day: number, work: number): number {
 }
 
 /**
- * Žeň plodiny do snopů (mutuje stav i `work` – fields.md, Žně i v srpnu): úroda podle hotové práce
- * žně bez té, která už šla do snopů 31. 7. (`CropWork.sheaved`), s výmlatem jen této části. Když
- * okno žně ještě běží (`final` false – 31. 7.) a žeň není hotová, plodina zůstává na poli: zapíše
- * se `sheaved` a zbytek se žne v srpnu; jinak je sklizená (`harvestedKg` – celá úroda) a nesklizené
- * propadne. Vrací úrodu, která dnes šla do snopů (kg).
+ * Žeň plodiny do snopů (mutuje stav i `work` – fields.md, Žně i v srpnu, Žeň jaře i v září): úroda
+ * podle hotové práce žně bez té, která už šla do snopů (`CropWork.sheaved` – 31. 7. ozim, 31. 8.
+ * jař), s výmlatem jen této části. Když okno žně ještě běží (`final` false – 31. 7. ozim, 31. 8.
+ * jař) a žeň není hotová, plodina zůstává na poli: zapíše se `sheaved` a zbytek se žne další měsíc;
+ * jinak je sklizená (`harvestedKg` – celá úroda) a nesklizené propadne. Vrací úrodu, která dnes šla
+ * do snopů (kg).
  */
 function sheaveCrop(
   state: VillageState,
@@ -116,9 +120,21 @@ export function harvestWinter(
   harvestEarlyCrops(state, day, false, harvestGardens(state, day, landscape));
 }
 
+/** Sklizeň jaře do kroniky – plán jen s ozimem jař nesklízí (sklizeň bez plodiny). */
+function recordSpring(state: VillageState, plan: FarmSeason, day: number, kg: number): void {
+  if (!seasonCrop(plan, 'winter')) {
+    state.chronicle.push({ day, kind: 'harvest', kg: Math.round(kg) });
+  } else if (kg > 0 || springCrop(plan).partIds.length > 0) {
+    state.chronicle.push({ day, kind: 'harvest', kg: Math.round(kg), crop: 'spring' });
+  }
+}
+
 /**
  * 31. 8. (po jídle dne): úroda jaře do snopů – vymlátí se v září na humně (production-chains.md
  * – Humno) – i se zbytkem ozimu, luštěnin a lnu žatým v srpnu; plán (i s ozimem) jde k výmlatu.
+ * Jař, kterou srpen nedosklidil, dá do snopů jen srpnovou žeň (`CropWork.sheaved`) a zůstává na
+ * poli – dožne se v září (`harvestLateSpring`; fields.md – Žeň jaře i v září); do kroniky až
+ * celá. Je-li jař sklizená, končí sezóna škod zvěře (`wildlifeSeasonEnd`).
  */
 export function harvest(state: VillageState, day: number): void {
   const plan = state.season;
@@ -127,26 +143,34 @@ export function harvest(state: VillageState, day: number): void {
   harvestEarlyCrops(state, day, true, null);
   const spring = springCrop(plan);
   const losses = dayPartLosses(state, day, 'spring', spring.partIds, state.wildlife?.damage?.parts);
-  spring.harvestedKg = harvestKg(spring, state.parts, day, 'spring', losses);
-  addSheaves(
-    state,
-    'spring',
-    spring.harvestedKg,
-    threshWork(state, day, taskRemaining(spring, 'thresh')),
-  );
-  const kg = spring.harvestedKg;
-  // plán jen s ozimem jař nesklízí – žádná sklizeň do kroniky
-  if (!seasonCrop(plan, 'winter'))
-    state.chronicle.push({ day, kind: 'harvest', kg: Math.round(kg) });
-  else if (kg > 0 || spring.partIds.length > 0) {
-    state.chronicle.push({ day, kind: 'harvest', kg: Math.round(kg), crop: 'spring' });
-  }
+  const kg = sheaveCrop(state, day, 'spring', spring, false, losses);
+  if (spring.harvestedKg !== null || Math.round(kg) > 0) recordSpring(state, plan, day, kg);
   state.threshingSeason = plan;
   state.season = null;
+  if (!lateSpringCrop(state)) wildlifeSeasonEnd(state, day);
 }
 
 /**
- * 1. 10. (po jídle dne – den po konci okna výmlatu jaře): loňský plán u výmlatu se zahodí. Snopy,
+ * V září (po jídle dne): jař, kterou srpen nedosklidil (`lateSpringCrop` – fields.md, Žeň jaře
+ * i v září), jde do snopů v den, kdy je dožatá, nejpozději 30. 9. (`final`) – úroda zářijové žně
+ * (srpnová už je ve snopech), nesklizené propadne. Teprve pak její díly končí hospodářský rok
+ * (`rotateAfterSeason` – do té doby se neorají pod ozim) a končí sezóna škod zvěře.
+ */
+export function harvestLateSpring(state: VillageState, day: number, final: boolean): void {
+  const plan = state.threshingSeason;
+  const late = lateSpringCrop(state);
+  if (!plan || !late) return;
+  if (!final && taskRemaining(late, 'harvest') > EPSILON) return;
+  const losses = dayPartLosses(state, day, 'spring', late.partIds, state.wildlife?.damage?.parts);
+  const kg = sheaveCrop(state, day, 'spring', late, true, losses);
+  recordSpring(state, plan, day, kg);
+  const ids = new Set(late.partIds);
+  for (const part of state.parts) if (ids.has(part.id)) rotateAfterSeason(part, day);
+  wildlifeSeasonEnd(state, day);
+}
+
+/**
+ * 1. 11. (po jídle dne – den po konci okna výmlatu jaře): loňský plán u výmlatu se zahodí. Snopy,
  * které výmlat nestihl, zůstávají ve snopech a mlátí se dál (production-chains.md – Humno; dřív
  * nevymlácená část 1. 3. propadla).
  */

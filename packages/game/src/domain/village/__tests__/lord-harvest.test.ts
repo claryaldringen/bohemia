@@ -99,8 +99,9 @@ describe('podíl dne rodiny ve žních (lordHarvestHelp)', () => {
     spring: 100,
     july: 50,
     august: 80,
+    september: 30,
   };
-  const withLord: SowingCapacity = { ...village, july: 90, august: 140 };
+  const withLord: SowingCapacity = { ...village, july: 90, august: 140, september: 60 };
   const load = (extra: Partial<CropLoad> = {}): CropLoad => ({
     winterAutumn: 60,
     july: 30,
@@ -108,6 +109,7 @@ describe('podíl dne rodiny ve žních (lordHarvestHelp)', () => {
     springDig: 0,
     springSow: 40,
     august: 60,
+    september: 0,
     ploughWinter: 0,
     ploughSpring: 0,
     ...extra,
@@ -130,6 +132,19 @@ describe('podíl dne rodiny ve žních (lordHarvestHelp)', () => {
     expect(both.july).toBe(1);
     expect(both.august).toBeCloseTo(5 / 60, 12);
   });
+
+  it('žeň jaře, kterou srpen nestihne ani s rodinou, se žne v září (Žeň jaře i v září)', () => {
+    // srpen: 80 + 60 rodiny = 140 proti 160 – 20 přejde do září, ves sama 30 → září bez pomoci
+    expect(lordHarvestHelp(load({ august: 160 }), village, withLord)).toEqual({ august: 1 });
+    // 175 – do září přejde 35, ves sama 30, rodina dá 5 z 30
+    const late = lordHarvestHelp(load({ august: 175 }), village, withLord);
+    expect(late.august).toBe(1);
+    expect(late.september).toBeCloseTo(5 / 30, 12);
+    // v září dosklizeň loňské jaře (`CropLoad.september`): chybí 15 z 30 práce rodiny
+    expect(lordHarvestHelp(load({ september: 45 }), village, withLord)).toEqual({
+      september: 0.5,
+    });
+  });
 });
 
 describe('podíl dnešního dne (lordHelpShare)', () => {
@@ -143,6 +158,8 @@ describe('podíl dnešního dne (lordHelpShare)', () => {
     expect(lordHelpShare(p, at(601, 7, 1))).toBe(0.1);
     expect(lordHelpShare(p, at(601, 8, 1))).toBe(0.2);
     expect(lordHelpShare(plan(), at(601, 7, 1))).toBe(0);
+    // září – dosklizeň jaře (fields.md – Žeň jaře i v září)
+    expect(lordHelpShare(plan({ september: 0.4 }), at(601, 9, 10))).toBe(0.4);
     expect(lordHelpShare(null, at(601, 7, 1))).toBe(0);
   });
 });
@@ -151,7 +168,11 @@ describe('práce dne (manorLabor, allocateDay)', () => {
   it('mimo žňový den (setí, zima) rodina nepomáhá, ani se starším plánem pomoci', () => {
     const s = sowingVillage(8000);
     s.people.push(person(15, 15, s.manorId!, 'female', { fatherId: 10, motherId: 11 }));
-    s.season = { startDay: PLAN_DAY, lordHelp: { autumnWinter: 1, july: 0.5 } } as FarmSeason;
+    s.season = {
+      startDay: PLAN_DAY,
+      crops: [],
+      lordHelp: { autumnWinter: 1, july: 0.5 },
+    } as unknown as FarmSeason;
     const coverage = craftCoverage(s, START);
     const p = villageProductivity(s, coverage);
     // mimo žňový den (setí, zima) nic
@@ -205,7 +226,7 @@ describe('rodina ve žních (lordHelpDay)', () => {
     expect(september.labor?.lord).toEqual({ training: 3, field: 0, household: 2 });
   });
 
-  it('žně, které ves sama nestíhá – podíl v červenci a srpnu; ves bez rodiny nic', () => {
+  it('žně, které ves sama nestíhá – podíl v červenci, srpnu a září; ves bez rodiny nic', () => {
     const planned = advanceVillage(sowingVillage(SHORT_STORES), PLAN_DAY, null);
     const july = structuredClone(planned);
     // ves zaseje víc, než sama sklidí – žeň všech plodin čeká
@@ -215,7 +236,7 @@ describe('rodina ve žních (lordHelpDay)', () => {
     const help = july.season!.lordHelp!;
     expect(help.july).toBeGreaterThan(0);
     for (const share of Object.values(help)) expect(share).toBeLessThanOrEqual(1);
-    expect(Object.keys(help).every((w) => w === 'july' || w === 'august')).toBe(true);
+    expect(Object.keys(help).every((w) => ['july', 'august', 'september'].includes(w))).toBe(true);
     // rodina, která necvičí, pracuje jako ostatní – podíl nemá
     const working = structuredClone(july);
     delete working.season!.lordHelp;

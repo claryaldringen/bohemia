@@ -16,6 +16,7 @@ import {
   CROP_WINDOWS,
   FLAX,
   LEGUMES,
+  PLANNING_DAY,
   SEED_KG_PER_HA,
   SOWERS,
   LEGACY_WEEDING_WORST_PER_HA,
@@ -350,6 +351,40 @@ export function seasonCrops(season: FarmSeason): { crop: Crop; work: SeasonCrop 
   return season.crops.map((work) => ({ crop: work.crop, work }));
 }
 
+/** Stav s plánem u výmlatu (výhledy bez něj – jař na poli v září nevidí). */
+type LateSpringState = Partial<Pick<VillageState, 'threshingSeason'>>;
+
+/**
+ * Jař loňského hospodářského roku, kterou srpen nedosklidil (fields.md – Žeň jaře i v září): od
+ * 31. 8. v plánu u výmlatu (`threshingSeason`) nesklizená (`harvestedKg` null) – žne se v září
+ * a její díly zůstávají osetou jaří, dokud nejde do snopů. Jinak undefined.
+ */
+export function lateSpringCrop(state: LateSpringState): SeasonCrop | undefined {
+  const spring = seasonCrop(state.threshingSeason, 'spring');
+  return spring && spring.harvestedKg === null && spring.partIds.length > 0 ? spring : undefined;
+}
+
+/** Zbývající žeň jaře, kterou srpen nedosklidil (člověkodny – `lateSpringCrop`); jinak 0. */
+export function lateHarvestRemaining(state: LateSpringState): number {
+  const late = lateSpringCrop(state);
+  return late ? taskRemaining(late, 'harvest') : 0;
+}
+
+/**
+ * Plodiny letošní práce (`season`) a jař, kterou srpen nedosklidil (`lateSpringCrop` – v září se
+ * dožíná) – ta jen se žní.
+ */
+export function cropsAfield(
+  state: Pick<VillageState, 'season'> & LateSpringState,
+): { crop: Crop; work: SeasonCrop; late?: true }[] {
+  const crops: { crop: Crop; work: SeasonCrop; late?: true }[] = state.season
+    ? seasonCrops(state.season)
+    : [];
+  const late = state.season ? lateSpringCrop(state) : undefined;
+  if (late) crops.push({ crop: 'spring', work: late, late: true });
+  return crops;
+}
+
 /**
  * Ves letos orá rádlem (oxen.md – Jen rádlo): letošní plán (po sklizni ten, který se mlátí)
  * vznikl se spřežením – i když ho po ztrátě spřežení dokončila motyka; plán starší vsi, když
@@ -497,17 +532,23 @@ export function windowEndOf(segments: readonly WindowSegment[], month: number): 
   return to;
 }
 
-/** Úlohy plodiny s nedodělkem, jejichž okno dnes běží; nejbližší konec okna první. */
+/**
+ * Úlohy plodiny s nedodělkem, jejichž okno dnes běží; nejbližší konec okna první. Žeň v prvním
+ * měsíci hospodářského roku (září) patří jen jaři, kterou srpen nedosklidil (`late` – fields.md,
+ * Žeň jaře i v září); plodina letošní práce se žne až za rok.
+ */
 export function activeTasks(
   work: CropWork,
   day: number,
   crop: Crop = 'spring',
   sowExtended = false,
+  late = false,
 ): TaskName[] {
   const { month } = dateOfDayIndex(day);
   const result: { task: TaskName; end: number }[] = [];
   for (const task of TASK_ORDER) {
     if (taskRemaining(work, task) <= 0) continue;
+    if (task === 'harvest' && !late && month === PLANNING_DAY.month) continue;
     // dohra setí jařin v dlouhé zimě 1.–14. 5. (`springSowingExtended`)
     const end = taskWindowEnd(task, month, crop) ?? (sowExtended && task === 'sow' ? month : null);
     if (end !== null) result.push({ task, end });
@@ -542,6 +583,27 @@ export function harvestKg(
     planShare(work, 'sow'),
     Math.max(0, workedShare(work, 'harvest') - before),
     crop,
+    losses,
+  );
+}
+
+/**
+ * Úroda, kterou plodina ještě dá ze žně, která zbývá (kg – výhled přídělu v září s jaří, kterou
+ * srpen nedosklidil: fields.md, Žeň jaře i v září) – jako `harvestKg` pro zbytek žně.
+ */
+export function unharvestedKg(
+  work: CropWork,
+  parts: FieldPart[],
+  day: number,
+  losses?: PartLosses,
+): number {
+  return cropYieldKg(
+    work,
+    parts,
+    day,
+    planShare(work, 'sow'),
+    Math.max(0, 1 - workedShare(work, 'harvest')),
+    'spring',
     losses,
   );
 }

@@ -102,7 +102,8 @@ vesničanů.
 ### Prasata a jeleni na polích
 
 - **Kdy:** od **1. 6.** (obilí v klasu a mléčné zralosti) **do sklizně dílu** – ozim do žní
-  v červenci, jař do srpna ([pole](fields.md) – Ozim a jař). Mimo okno zvěř na polích nic
+  v červenci (co červenec nestihne, v srpnu), jař do srpna – jař, kterou srpen nedosklidí, i v září,
+  dokud ji ves nedožne ([pole](fields.md) – Ozim a jař, Žeň jaře i v září). Mimo okno zvěř na polích nic
   významného nezničí (zjednodušení – škody na osevu a ozimu v zimě se nepočítají).
 - **Kolik:** za den v okně – **dospělé prase 1 kg obilí, sele 0,3 kg, jelen 0,6 kg, laň 0,5 kg,
   kolouch 0,15 kg** (sežere a pošlape; neověřeno, návrh). Typická ves (8 prasat, 10 kusů jelení

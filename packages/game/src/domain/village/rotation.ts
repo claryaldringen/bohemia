@@ -12,7 +12,7 @@ import { CROP_WINDOWS, FERTILITY, SOWN_ROUNDS } from './rules';
 import type { Crop, FarmSeason, FieldPart, SeasonCrop, VillageState } from './types';
 import { logsFromClearedTrees } from './wood';
 import { woodMatureShare, woodTreesOnArea } from './woods';
-import { seasonCrops, windowEndOf } from './year-plan';
+import { lateSpringCrop, seasonCrops, windowEndOf } from './year-plan';
 
 // Osevní postup po dílech a setí do konce okna (fields.md, 25. 10. 2026 – návrh Clauda, Martin:
 // „Ano“; k dílu, který nestihl ozim: „Jestli bude možné mu dát ozim, ať dostane ozim.“). Ves nemá
@@ -254,6 +254,9 @@ export function turnSelection(
   for (const { work } of state.season ? seasonCrops(state.season) : []) {
     for (const id of work.partIds) inSeason.add(id);
   }
+  // jař, kterou srpen nedosklidil, je na poli – díl přijde na řadu, až se sklidí (fields.md – Žeň
+  // jaře i v září)
+  for (const id of lateSpringCrop(state)?.partIds ?? []) inSeason.add(id);
   const kindOf = new Map<number, SowingKind | null>();
   const kind = (p: FieldPart): SowingKind | null => {
     if (!kindOf.has(p.id)) kindOf.set(p.id, inSeason.has(p.id) ? null : nextSowing(p));

@@ -8,6 +8,7 @@ import {
   FLAX_WORK_PER_HA,
   LEGUME_WORK_PER_HA,
   HARVEST_DAY,
+  LATE_HARVEST_DAY,
   LEGUME_WINDOWS,
   ORCHARD_PLANTING_WINDOWS,
   ORCHARD_SEASON,
@@ -37,12 +38,16 @@ describe('data polního roku souhlasí s okny prací', () => {
   const inWindow = (task: keyof typeof WINDOWS, month: number): boolean =>
     WINDOWS[task].some(([from, to]) => month >= from && month <= to);
 
-  it('sklizeň je poslední den okna sklizně a plán osevu den po ní', () => {
+  it('sklizeň jaře 31. 8. je poslední den prvního měsíce jejího okna, 30. 9. poslední den okna; plán osevu den po 31. 8. (fields.md – Žeň jaře i v září)', () => {
     const harvest = dayIndexOf({ year: 601, ...HARVEST_DAY });
     expect(inWindow('harvest', HARVEST_DAY.month)).toBe(true);
     const next = dateOfDayIndex(harvest + 1);
-    expect(inWindow('harvest', next.month)).toBe(false);
+    expect(next.month).toBe(HARVEST_DAY.month + 1);
     expect({ month: next.month, day: next.day }).toEqual(PLANNING_DAY);
+    const late = dayIndexOf({ year: 601, ...LATE_HARVEST_DAY });
+    expect(inWindow('harvest', LATE_HARVEST_DAY.month)).toBe(true);
+    expect(inWindow('harvest', dateOfDayIndex(late + 1).month)).toBe(false);
+    expect(LATE_HARVEST_DAY.month).toBe(HARVEST_DAY.month + 1);
   });
 
   it('červencová žeň ozimu je poslední den prvního měsíce jeho okna, okno končí sklizní jaře (fields.md – Žně i v srpnu), setí ozimu končí před koncem podzimu jaře', () => {
@@ -91,7 +96,7 @@ describe('data polního roku souhlasí s okny prací', () => {
     expect(WINDOWS.thresh).toEqual(after(WINDOWS.harvest));
     expect(LEGUME_WINDOWS.thresh).toEqual(after(LEGUME_WINDOWS.harvest));
     expect(WINTER_WINDOWS.thresh[0]![0]).toBe(WINTER_HARVEST_DAY.month + 1);
-    expect(WINDOWS.thresh).toEqual([[HARVEST_DAY.month + 1, HARVEST_DAY.month + 1]]);
+    expect(WINDOWS.thresh).toEqual([[HARVEST_DAY.month + 1, LATE_HARVEST_DAY.month + 1]]);
   });
 
   it('konec výmlatu je den po konci okna výmlatu', () => {

@@ -378,7 +378,7 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     }
   });
 
-  it('31. 8. sklizeň do snopů a plán k výmlatu, v září vymlátí do zásob, 1. 10. plán zmizí (Ruling 8)', () => {
+  it('31. 8. sklizeň do snopů a plán k výmlatu, v září vymlátí do zásob, 1. 10. plán zmizí (Ruling 8; 1. 11. – Žeň jaře i v září)', () => {
     const before = advanceVillage(found(at(600, 3, 15)), at(600, 8, 30), null);
     expect(before.season).not.toBeNull();
     const s = advanceVillage(before, at(600, 8, 31), null);
@@ -411,7 +411,8 @@ describe('advanceVillage – roční plán a sklizeň', () => {
       s.storesKg + 0.99 * (harvest?.kg ?? 0) - 30 * need - seed,
     );
     expect(threshed.threshingSeason).not.toBeNull();
-    expect(advanceVillage(threshed, at(600, 10, 1), null).threshingSeason).toBeNull();
+    // výmlat jaře září–říjen (fields.md – Žeň jaře i v září) – plán zmizí 1. 11.
+    expect(advanceVillage(threshed, at(600, 11, 1), null).threshingSeason).toBeNull();
   });
 
   it('1. 9. díly po dvou osevech jdou do úhoru, připravené čekají na řadě (fields.md – Osevní postup po dílech)', () => {
@@ -1520,7 +1521,7 @@ describe('advanceVillage – ozim a jař (fields.md – Ozim a jař)', () => {
     expect(villageSheaves(september)).toEqual({ grainKg: 0, legumesKg: 0 });
     expect(august.storesKg).toBeGreaterThan(harvested.storesKg);
     expect(september.storesKg).toBeGreaterThan(august.storesKg);
-    expect(advanceVillage(september, at(602, 10, 1), null).threshingSeason).toBeNull();
+    expect(advanceVillage(september, at(602, 11, 1), null).threshingSeason).toBeNull();
   });
 
   it('starší ves bez plodin na dílech a bez ozimu v plánu dopočítá dál (díl bez plodiny = jař)', () => {

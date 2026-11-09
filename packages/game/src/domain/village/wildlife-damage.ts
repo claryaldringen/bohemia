@@ -20,7 +20,7 @@ import type {
   WildlifeState,
 } from './types';
 import { forestEdgeDistances } from './wildlife-land';
-import { cropGrossPerHa, seasonCrops } from './year-plan';
+import { cropGrossPerHa, cropsAfield } from './year-plan';
 
 const M2_PER_HA = 10_000;
 const EPSILON = 1e-9;
@@ -35,11 +35,13 @@ export function edgeWeight(edgeM: number): number {
   return (zeroM - edgeM) / (zeroM - fullM);
 }
 
-/** Obilné plodiny hospodářského roku, které zvěř ničí (ozim, jař; i nad potřebu). */
-function cerealCrops(state: VillageState): { crop: DamageCrop; work: CropWork }[] {
-  if (!state.season) return [];
-  return seasonCrops(state.season).flatMap(({ crop, work }) =>
-    crop === 'winter' || crop === 'spring' ? [{ crop, work }] : [],
+/**
+ * Obilné plodiny hospodářského roku, které zvěř ničí (ozim, jař; i nad potřebu) – v září i jař,
+ * kterou srpen nedosklidil (`cropsAfield`; fields.md – Žeň jaře i v září).
+ */
+function cerealCrops(state: VillageState): { crop: DamageCrop; work: CropWork; late?: true }[] {
+  return cropsAfield(state).flatMap(({ crop, work, late }) =>
+    crop === 'winter' || crop === 'spring' ? [{ crop, work, ...(late ? { late } : {}) }] : [],
   );
 }
 
@@ -253,14 +255,19 @@ export function dailyThreatShare(
   const damage = w?.damage;
   if (!w || !damage || damage.risk.length === 0) return shares;
   const date = dateOfDayIndex(day);
+  // po okně škod jen jař, kterou srpen nedosklidil – v září ji zvěř ničí dál (fields.md – Žeň jaře
+  // i v září)
+  const lateOnly = date.month === FIELD_DAMAGE.windowMonths.to + 1;
   if (
     date.month < FIELD_DAMAGE.windowMonths.from ||
-    date.month > FIELD_DAMAGE.windowMonths.to ||
+    (date.month > FIELD_DAMAGE.windowMonths.to && !lateOnly) ||
     day < damage.fromDay
   )
     return shares;
   const riskById = new Map(damage.risk.map((r) => [r.partId, r]));
-  const crops = cerealCrops(state).filter(({ work }) => work.harvestedKg === null);
+  const crops = cerealCrops(state).filter(
+    ({ work, late }) => work.harvestedKg === null && (!lateOnly || late),
+  );
   if (crops.length === 0) return shares;
   const byId = new Map(state.parts.map((p) => [p.id, p]));
   const open: { id: number; crop: DamageCrop; weightHa: number; grossKg: number }[] = [];

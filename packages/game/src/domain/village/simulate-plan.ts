@@ -42,7 +42,7 @@ import {
   type LaborTaskName,
 } from './labor';
 import { dayChores } from './day-chores';
-import { daylightFactor } from './daylight';
+import { daylightFactor, monthDaylight } from './daylight';
 import { orchardWorkRemaining } from './orchard';
 import { laborPerDay } from './people';
 import { dailyMinPerHousehold, woodToolsLaborFactor } from './productivity';
@@ -50,6 +50,7 @@ import {
   FOREST_BONUS,
   OXEN,
   PEAK_CAPACITY_SHARE,
+  PLANNING_DAY,
   WINDOWS,
   WINTER_WINDOWS,
   WORK_FRONT_DAYS,
@@ -60,6 +61,7 @@ import {
   HARVEST_HELP_WINDOWS,
   SOWING_CAPACITY_WINDOWS,
   planLoad,
+  windowDaylightLeft,
   windowDaylightWithout,
   windowDaysLeft,
   type SowingCapacity,
@@ -83,6 +85,8 @@ import {
   createSeason,
   cropTaskWindows,
   dropSeasonCrop,
+  lateHarvestRemaining,
+  lateSpringCrop,
   nearestFirst,
   partWork,
   ploughRemaining,
@@ -131,7 +135,10 @@ export function startSeason(
   // kolik jídla ves za uplynulý rok potřebovala z pole – podle toho potřeba úrody (fields.md –
   // Osev podle stravy)
   closeFieldFoodYear(state);
-  for (const part of state.parts) rotateAfterSeason(part, day);
+  // díly jaře, kterou srpen nedosklidil, hospodářský rok končí, až jde do snopů – do té doby se
+  // neorají pod ozim (`harvestLateSpring`; fields.md – Žeň jaře i v září)
+  const late = new Set(lateSpringCrop(state)?.partIds ?? []);
+  for (const part of state.parts) if (!late.has(part.id)) rotateAfterSeason(part, day);
   // ves s párem volů a rádlem orá všechno, motyka nekope (oxen.md – Jen rádlo)
   const plough = ableTeams(state, day) > 0;
   // práce (i orba – železná špička rádla od kováře) platí podle pokrytí nástroji dne, kdy díl
@@ -256,11 +263,16 @@ function workFront(state: VillageState, day: number, coverage: CraftCoverage): F
     day,
     people: {},
     plough: {},
-    // dnešní délka dne a skladba dne jako práce dne (population.md – Skladba dne podle období)
-    peopleRoom:
+    // dnešní délka dne a skladba dne jako práce dne (population.md – Skladba dne podle období);
+    // žeň jaře, kterou srpen nedosklidil, jde v září před orbou a setím (fields.md – Žeň jaře
+    // i v září; Martin 9. 11. 2026) – čelo má jen práci, která po ní zbude
+    peopleRoom: Math.max(
+      0,
       WORK_FRONT_DAYS *
-      freeLabor(state, day, coverage, dayChores(state, day)).villageFree *
-      daylightFactor(day),
+        freeLabor(state, day, coverage, dayChores(state, day)).villageFree *
+        daylightFactor(day) -
+        lateHarvestRemaining(state),
+    ),
     ploughRoom:
       WORK_FRONT_DAYS * ploughCapacityPerDay(state, coverage.tools, day) * daylightFactor(day),
   };
@@ -503,7 +515,7 @@ export function fieldStoresOutlook(
 
 /**
  * Podíl dne vojvodovy rodiny ve žních (lord.md – Kdy jde rodina na pole): každý den v oknech žní
- * (`HARVEST_HELP_WINDOWS` – červenec, srpen) ze zbývající práce hospodářského roku a volné práce
+ * (`HARVEST_HELP_WINDOWS` – červenec, srpen, září) ze zbývající práce hospodářského roku a volné práce
  * vsi od dneška (`lordHarvestHelp`) – když ves zaostává, rodina pomůže víc, když dohnala, méně.
  * Jen cvičící rodina; ves, která žně stihne sama, pomoc nemá.
  */
@@ -525,7 +537,11 @@ export function lordHelpDay(
     return;
   }
   const plough = springCrop(season).plough !== undefined;
-  const load = cropLoadOf(planLoad(season, orchardHarvestLoad(state)));
+  // v září žeň jaře, kterou srpen nedosklidil (fields.md – Žeň jaře i v září)
+  const load = {
+    ...cropLoadOf(planLoad(season, orchardHarvestLoad(state))),
+    september: lateHarvestRemaining(state),
+  };
   const village = sowingCapacity(state, day, coverage, plough, landscape);
   // orba spřežení na rodině nezávisí – podruhé se nepočítá (výkon; výsledek týž)
   const withLord = sowingCapacity(state, day, coverage, plough, landscape, undefined, {
@@ -644,6 +660,28 @@ export function harvestLaborPerDay(
 export const SOW_AFTER_DIG_DAYS = 1;
 
 /**
+ * Světlé dny září pro žeň jaře, kterou srpen nestihne (fields.md – Žeň jaře i v září): v září
+ * zbytek letošního září, jinak celé září po hospodářském roce (`SowingCapacity.september`).
+ */
+function septemberHarvestDaylight(day: number): number {
+  const { year, month } = dateOfDayIndex(day);
+  const september = SOWING_CAPACITY_WINDOWS.september;
+  if (september.some(([from, to]) => month >= from && month <= to)) {
+    return windowDaylightLeft(day, september);
+  }
+  const nextYear = month >= PLANNING_DAY.month ? year + 1 : year;
+  return september.reduce(
+    (sum, [from, to]) =>
+      sum +
+      Array.from({ length: to - from + 1 }, (_, i) => monthDaylight(nextYear, from + i)).reduce(
+        (a, b) => a + b,
+        0,
+      ),
+    0,
+  );
+}
+
+/**
  * Volná práce vsi ve špičkách polních prací od dneška do konce hospodářského roku: všechna
  * práce po denním minimu (PEAK_CAPACITY_SHARE) krát dny oken – podzim pro ozim (září–říjen)
  * a celý podzim (září–listopad) bez výmlatu snopů, který ves čeká (production-chains.md – Humno),
@@ -657,7 +695,8 @@ export const SOW_AFTER_DIG_DAYS = 1;
  * vojvodova rodina je mimo práci vsi; s `lord` se v červenci a srpnu přičte práce celé rodiny po
  * minimu dvorce (`manorLabor` – `free`, lord.md – Kdy jde rodina na pole) – jen do pomoci ve žních.
  * `ploughCapacity` – orba spřežení z jiného volání téhož dne a vsi (na `lord` nezávisí), jen se
- * převezme.
+ * převezme. Žeň jaře, kterou srpen nedosklidil, jde v září před setím ozimu – ubere podzim (bez
+ * `withoutLateHarvest`); září je okno její žně (`september` – fields.md, Žeň jaře i v září).
  */
 export function sowingCapacity(
   state: VillageState,
@@ -666,7 +705,12 @@ export function sowingCapacity(
   plough = false,
   landscape: Landscape | null = null,
   pairs?: number,
-  options: { lord?: boolean; ploughCapacity?: NonNullable<SowingCapacity['plough']> } = {},
+  options: {
+    lord?: boolean;
+    ploughCapacity?: NonNullable<SowingCapacity['plough']>;
+    /** Bez dosklizně jaře v září (dlouhodobý výhled správce – jednorázová, kapacitu nemění). */
+    withoutLateHarvest?: boolean;
+  } = {},
 ): SowingCapacity {
   const labor = freeLabor(state, day, coverage);
   const { villageFree } = labor;
@@ -692,13 +736,17 @@ export function sowingCapacity(
   const villageShare = villageFree + hands > 0 ? villageFree / (villageFree + hands) : 1;
   const threshing = (segments: Parameters<typeof windowDaysLeft>[1]): number =>
     pendingThreshLabor(state, day, windowDaysLeft(day, segments)) * villageShare;
+  // žeň jaře, kterou srpen nedosklidil, jde v září před orbou a setím ozimu (fields.md – Žeň jaře
+  // i v září; Martin 9. 11. 2026) – ubere podzim; žňové ruce žnou se vsí, ves dá jen svůj díl
+  const late = options.withoutLateHarvest ? 0 : lateHarvestRemaining(state) * villageShare;
   const w = SOWING_CAPACITY_WINDOWS;
   const people: SowingCapacity = {
-    autumnWinter: Math.max(0, days(w.autumnWinter, true) - threshing(w.autumnWinter)),
-    autumn: Math.max(0, days(w.autumn) - threshing(w.autumn)),
+    autumnWinter: Math.max(0, days(w.autumnWinter, true) - threshing(w.autumnWinter) - late),
+    autumn: Math.max(0, days(w.autumn) - threshing(w.autumn) - late),
     spring: days(w.spring, true),
     july: days(w.july, false, harvestFree),
     august: days(w.august, false, harvestFree),
+    september: harvestFree * septemberHarvestDaylight(day),
   };
   if (!plough) return people;
   if (options.ploughCapacity) return { ...people, plough: { ...options.ploughCapacity } };

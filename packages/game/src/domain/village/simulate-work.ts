@@ -110,6 +110,7 @@ import {
   DOMESTIC,
   GRAIN_PITS,
   HARVEST_DAY,
+  LATE_HARVEST_DAY,
   ORCHARD_WINDOWS,
   WEEDING_CHILDREN,
 } from './rules';
@@ -140,6 +141,7 @@ import {
   cropTaskDone,
   cropTaskRemaining,
   cropTaskWindows,
+  lateSpringCrop,
   ploughRemaining,
   seasonCrop,
   seasonCrops,
@@ -261,6 +263,15 @@ export function fieldTasks(
       if (cropTaskRemaining(work, 'plough') > 0) add(crop, work, 'plough');
     }
   }
+  // v září žeň jaře, kterou srpen nedosklidil (fields.md – Žeň jaře i v září)
+  const late = lateSpringCrop(state);
+  if (
+    state.season !== null &&
+    late &&
+    activeTasks(late, day, 'spring', false, true).includes('harvest')
+  ) {
+    add('spring', late, 'harvest');
+  }
   entries.sort((a, b) => a.end - b.end || a.rank - b.rank);
   // spřežení orají obě plodiny – dohromady nejvýš jejich denní kapacitu; výkon podle brázdy pásu
   // a cesty k bloku (oxen.md – Co nejdelší brázda)
@@ -299,10 +310,12 @@ export function fieldTasks(
 
 /**
  * Čeká ves letos ještě na žeň obilí (plán letošního roku jař, nebo ozim žatý i v srpnu – fields.md,
- * Žně i v srpnu – nesklidil, do HARVEST_DAY)? Pak přijde další vymlácené zrno a neúplná obilná
- * jáma počká (production-chains.md – Obilné jámy).
+ * Žně i v srpnu – nesklidil, do HARVEST_DAY; v září jař, kterou srpen nedosklidil – Žeň jaře
+ * i v září)? Pak přijde další vymlácené zrno a neúplná obilná jáma počká (production-chains.md –
+ * Obilné jámy).
  */
 export function springHarvestAhead(state: VillageState, month: number): boolean {
+  if (month === LATE_HARVEST_DAY.month && lateSpringCrop(state)) return true;
   const plan = state.season;
   if (!plan || month > HARVEST_DAY.month) return false;
   const ahead = (work: CropWork | undefined): boolean =>
@@ -349,10 +362,15 @@ export function threshForFoodToday(state: VillageState, day: number): number {
  * výmlat na dnešní jídlo – orba nese i setí za sebou, fields.md – Práce, a jinak by jídlu dne
  * práci vzala), pak orba rádlem (oxen.md – Orba má přednost; Martin 24. 10. 2026: „Co může být
  * přednějšího než orba?“ – spřežení potřebuje jen oráče, jinak voli stojí), pak nejbližší konec
- * okna, přednost (`tie`) a pořadí úloh.
+ * okna, přednost (`tie`) a pořadí úloh. Ve dni, kdy ves žne (`reaping`), orba přednost nemá – žeň
+ * s dřívějším koncem okna jde před ní i před setím (fields.md – Pořadí práce dne; Martin 9. 11.
+ * 2026: „Je lepší za každou cenu sklidit to, co už vyrostlo, než začínat pěstování úplně od
+ * začátku“ – v září dosklizeň jaře, na žeň jdou i muži od spřežení a rozsévači); dosklizeň ozimu
+ * v srpnu (konec okna srpen) jde před žní jaře a výmlatem.
  */
-export function dayTaskOrder(a: DayTask, b: DayTask): number {
-  const first = (t: DayTask): number => (t.thresh?.urgent ? 0 : t.name === 'plough' ? 1 : 2);
+export function dayTaskOrder(a: DayTask, b: DayTask, reaping = false): number {
+  const first = (t: DayTask): number =>
+    t.thresh?.urgent ? 0 : t.name === 'plough' && !reaping ? 1 : 2;
   return first(a) - first(b) || a.end - b.end || a.tie - b.tie || a.rank - b.rank;
 }
 
@@ -491,7 +509,9 @@ export function work(
       rank: 1,
     });
   }
-  dayTasks.sort(dayTaskOrder);
+  // žeň má ve dni, kdy ves žne, přednost před orbou (fields.md – Pořadí práce dne)
+  const reaping = dayTasks.some((t) => t.field?.name === 'harvest' && t.remaining > EPSILON);
+  dayTasks.sort((a, b) => dayTaskOrder(a, b, reaping));
   // vozy (wagons.md – Vůz): dvoukoláky s volem, který dnes neorá, vozí snopy a seno tam, kam
   // dojedou – převezmou kus nošení a jde s nimi honák a nakladač (úloha pak chce méně práce); ve
   // dny orby jdou páry napřed k rádlům, vozy táhne zbytek volů (oxen.md – Voli se sdílí)

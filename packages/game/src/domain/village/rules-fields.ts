@@ -219,8 +219,10 @@ export const OBSTACLE_COST = {
 export const FIELD_LIMITS = { maxDistanceM: 800, minAreaM2: 1000 } as const;
 // fields.md – Práce, tabulka Kdy, a Ozim a jař (okna prací v měsících včetně). WINDOWS = jař:
 // vrací se z přílohu a kope se na podzim, co se nestihne, v březnu–dubnu (Martin 21. 10. 2026:
-// „Ano udělej to tak.“ – návrh Clauda: i vrácení přílohu pod jař smí na jaře, ne jen kopání); seje se na jaře, sklízí v srpnu a mlátí
-// hned po žni v září (production-chains.md – Výmlat hned po žni; Martin 20. 10. 2026: „Staří
+// „Ano udělej to tak.“ – návrh Clauda: i vrácení přílohu pod jař smí na jaře, ne jen kopání); seje se na jaře, sklízí v srpnu,
+// co srpen nestihne, v září (fields.md – Žeň jaře i v září, Martin 9. 11. 2026: „Ano, ať se jař
+// sklízí i v září“), a mlátí hned po žni – srpnová žeň v září, zářijová v říjnu (production-chains.md
+// – Výmlat hned po žni; Martin 20. 10. 2026: „Staří
 // slované se snažili dělat výmlat hned. Klasy neskladovali.“). Výmlat, který okno nestihne,
 // pokračuje dál, dokud je co mlátit (snopy čekají a kazí se – THRESHING). Pletí jaře v květnu –
 // vzejde 3–4 týdny po setí (fields.md – Pletí jednou a rychle, Martin 25. 10. 2026).
@@ -235,8 +237,8 @@ export const WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
   ],
   sow: [[3, 4]],
   weed: [[5, 5]],
-  harvest: [[8, 8]],
-  thresh: [[9, 9]],
+  harvest: [[8, 9]],
+  thresh: [[9, 10]],
 };
 // fields.md – Ozim a jař (návrh Clauda, Martin schválil směr 18. 10. 2026): ozim se vrací
 // z přílohu, kope a seje v září–říjnu, neplete se (fields.md – Pletí jednou a rychle, Martin
@@ -276,8 +278,8 @@ export const CROP_WINDOWS: Record<Crop, Record<TaskName, readonly WindowSegment[
 /**
  * Pořadí plodin při shodě konce okna – len první (je ho málo a bez něj chybí oděv – trhá se
  * v červenci se ozimem a luštěninami), pak ozim (sklízí se dřív), luštěniny před jaří. Žně
- * ozimu, luštěnin a lnu i jaře končí v srpnu – v srpnu se proto napřed dosklízí, co červenec
- * nestihl, a teprve pak jař (návrh Clauda – fields.md, Žně i v srpnu).
+ * ozimu, luštěnin a lnu končí v srpnu, jaře v září – v srpnu se napřed dosklízí, co červenec
+ * nestihl (dřívější konec okna), a teprve pak jař (návrh Clauda – fields.md, Žně i v srpnu).
  */
 export const CROP_ORDER: readonly Crop[] = ['flax', 'winter', 'legume', 'spring'];
 /**
@@ -422,17 +424,20 @@ export const APPLE_ROT_DAY = { month: 3, day: 1 } as const;
 // výsadba je 1. rokem sadu hned, podzimní (od září) až od příštího jara
 export const ORCHARD_SEASON = { startMonth: 3, autumnPlantingFromMonth: 9 } as const;
 
-// fields.md – Kolik ves oseje (k 1. září), Práce a Včasnost (sklizeň jaře do konce srpna, ozimu
-// a luštěnin v červenci, co červenec nestihne, v srpnu – Žně i v srpnu; výmlat jaře v září).
-// Musí souhlasit s okny: sklizeň (HARVEST_DAY) je poslední den okna harvest všech plodin,
-// WINTER_HARVEST_DAY poslední den prvního měsíce okna ozimu – do snopů jde, co je do té doby
-// sklizené (výmlat v srpnu), zbytek až s jaří 31. 8.; plán den po sklizni jaře, konec výmlatu
-// den po konci okna thresh (hlídá rules.test.ts) – tehdy se zahodí loňský plán u výmlatu
+// fields.md – Kolik ves oseje (k 1. září), Práce a Včasnost (sklizeň jaře v srpnu, co srpen
+// nestihne, v září – Žeň jaře i v září; ozimu a luštěnin v červenci, co červenec nestihne,
+// v srpnu – Žně i v srpnu; výmlat jaře září–říjen). Musí souhlasit s okny: HARVEST_DAY je poslední
+// den okna harvest ozimu, luštěnin a lnu a poslední den prvního měsíce okna jaře, WINTER_HARVEST_DAY
+// poslední den prvního měsíce okna ozimu – do snopů jde, co je do té doby sklizené, zbytek ozimu
+// 31. 8. s jaří; LATE_HARVEST_DAY poslední den okna harvest jaře – nejpozději tehdy jde do snopů
+// jař, kterou srpen nedosklidil (dřív, je-li sklizená); plán den po HARVEST_DAY, konec výmlatu den
+// po konci okna thresh (hlídá rules.test.ts) – tehdy se zahodí loňský plán u výmlatu
 // (`threshingSeason`); snopy, které výmlat nestihl, zůstávají (Sheaves – mlátí se dál).
 export const HARVEST_DAY = { month: 8, day: 31 } as const;
 export const WINTER_HARVEST_DAY = { month: 7, day: 31 } as const;
+export const LATE_HARVEST_DAY = { month: 9, day: 30 } as const;
 export const PLANNING_DAY = { month: 9, day: 1 } as const;
-export const THRESH_END_DAY = { month: 10, day: 1 } as const;
+export const THRESH_END_DAY = { month: 11, day: 1 } as const;
 /**
  * production-chains.md – Humno, Výmlat hned po žni, Starší vsi (Martin 20. 10. 2026: „Humno je
  * podmínka“, „Rok odkladu“; čísla návrh Clauda podle rešerše 2026-10-20-production-chains.md –

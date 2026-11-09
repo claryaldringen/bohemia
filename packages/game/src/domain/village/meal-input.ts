@@ -9,7 +9,7 @@ import {
   villageProteinNeed,
   type DietInput,
 } from './diet';
-import { winterEstimateLosses } from './disasters';
+import { dayPartLosses, winterEstimateLosses } from './disasters';
 import { fieldFoodShare } from './field-food';
 import { daysUntilAppleRot } from './food';
 import { grainKeepInput } from './grain-pits';
@@ -18,7 +18,7 @@ import { dailyEggsKg, freshMeatAheadEnergy, villageDams } from './livestock';
 import { villageApplesKg } from './orchard';
 import { sheavesOutlook } from './threshing';
 import type { HerdSpecies, VillageState } from './types';
-import { daysUntilFoodHarvest } from './year-plan';
+import { daysUntilFoodHarvest, lateSpringCrop, unharvestedKg } from './year-plan';
 
 /**
  * Vstup jídla dne (`eatDiet`) ze stavu na konci předchozího dne s celými zásobami obilí
@@ -49,13 +49,24 @@ export function baseMealInput(
     // škoda zvěře a počasí, které už je vidět (disasters.md – Dopady, Úroda)
     winterEstimateLosses(state, day),
   );
-  // snopy, které ves vymlátí, jsou ve výhledu jako zrno (production-chains.md – Humno)
+  // snopy, které ves vymlátí, jsou ve výhledu jako zrno (production-chains.md – Humno); v září
+  // i jař, kterou srpen nedosklidil – příděl počítá se sklizní jaře 31. 8. celou, zbytek ves
+  // dožne (návrh Clauda – fields.md, Žeň jaře i v září)
   const sheaves = sheavesOutlook(state, day);
+  const late = lateSpringCrop(state);
+  const lateKg = late
+    ? unharvestedKg(
+        late,
+        state.parts,
+        day,
+        dayPartLosses(state, day, 'spring', late.partIds, state.wildlife?.damage?.parts, true),
+      )
+    : 0;
   return {
     grainKg: state.storesKg,
     // zapečetěné obilné jámy ztrácí méně (production-chains.md – Obilné jámy)
     ...grainKeepInput(state, potteryCoverage),
-    sheavesGrainKg: sheaves.grainKg,
+    sheavesGrainKg: sheaves.grainKg + lateKg,
     sheavesLegumesKg: sheaves.legumesKg,
     meatKg: villageMeatKg(state),
     // čerstvé maso zimní porážky – dnešní a do konce zimy (diet.md – Porážka v zimě)

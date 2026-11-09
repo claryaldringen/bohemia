@@ -150,7 +150,7 @@ describe('žně i v srpnu (fields.md – Žně i v srpnu)', () => {
       ['flax', 8],
       ['winter', 8],
       ['legume', 8],
-      ['spring', 8],
+      ['spring', 9],
     ]);
     // zbývá jen nesklizená část
     expect(tasks[1]!.remaining).toBeCloseTo(0.4 * crop(s, 'winter').required.harvest, 9);

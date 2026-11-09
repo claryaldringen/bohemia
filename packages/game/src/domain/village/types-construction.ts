@@ -430,6 +430,6 @@ export interface SeedKg {
   legumes: number;
 }
 /** Okna volné práce plánu osevu (`SowingCapacity` bez orby). */
-export type LordHelpWindow = 'autumnWinter' | 'autumn' | 'spring' | 'july' | 'august';
+export type LordHelpWindow = 'autumnWinter' | 'autumn' | 'spring' | 'july' | 'august' | 'september';
 /** Podíl dne rodiny 0–1 po oknech žní (`HARVEST_HELP_WINDOWS`); okno bez pomoci chybí. */
 export type LordHelp = Partial<Record<LordHelpWindow, number>>;

@@ -11,7 +11,7 @@ import { seedStore } from '../village/seed';
 import { stewardOutlook } from '../village/steward-outlook';
 import { fieldStoresOutlook } from '../village/simulate-plan';
 import type { CattleGood, VillageState } from '../village/types';
-import { seasonCrops } from '../village/year-plan';
+import { lateSpringCrop, seasonCrops } from '../village/year-plan';
 import type { MacroGoods } from './macro';
 import { DOMAIN_FOOD, VASSALAGE } from './rules-vassalage';
 import { cattleSpare } from './spare';
@@ -28,7 +28,7 @@ const EPSILON = 1e-9;
 
 /**
  * Rok `Y`, jestli je ves ve dni `day` po výmlatu letošní sklizně, jinak null: plán u výmlatu
- * (`threshingSeason`, od konce žní do 1. 10.) existuje a snopů zbývá nejvýš `sheavesDoneKg`, nebo je
+ * (`threshingSeason`, od konce žní do 1. 11.) existuje, jař je sklizená a snopů zbývá nejvýš `sheavesDoneKg`, nebo je
  * den od `readyBy` roku `Y` (výmlat, který nestihla, ves dodělá dál – hillfort.md: nejpozději
  * k 1. 10.). Mimo září a podzim null.
  */
@@ -36,7 +36,8 @@ export function domainFoodReadyYear(state: VillageState, day: number): number | 
   const date = dateOfDayIndex(day);
   const { month, day: dom } = DOMAIN_FOOD.readyBy;
   if (date.month > month || (date.month === month && date.day >= dom)) return date.year;
-  if (!state.threshingSeason) return null;
+  // jař, kterou srpen nedosklidil, je ještě na poli (fields.md – Žeň jaře i v září)
+  if (!state.threshingSeason || lateSpringCrop(state)) return null;
   const sheavesKg = (state.sheaves?.grainKg ?? 0) + (state.sheaves?.legumesKg ?? 0);
   return sheavesKg <= DOMAIN_FOOD.sheavesDoneKg ? date.year : null;
 }
