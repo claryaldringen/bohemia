@@ -4,6 +4,7 @@ import {
   nearestCraftsman,
   ownCraftsmanWorks,
   paymentPool,
+  type PaymentPool,
   type PurchaseRoute,
 } from './craft-buying';
 import { isUnshod, nextShoeingDay, shoeingDue } from './horse-shoeing-term';
@@ -85,6 +86,11 @@ export function shoeingCosts(
   };
 }
 
+/** Železo cizího kováře v kg obilí (hřivny za cenu souseda) – bez ceny práce. */
+function foreignIronKg(horses: number): number {
+  return horses * HORSE_SHOEING.ironBarsKg * buyPrice('ironBars');
+}
+
 /** Cena kování cizím kovářem v kg obilí (cena práce vsi v jídle + železo za cenu souseda). */
 function foreignValueKg(
   state: VillageState,
@@ -95,10 +101,18 @@ function foreignValueKg(
 ): number {
   const grainPerKg = villageFoodCosts(state, day, coverage.tools).grainPerKg;
   const workDays = routeDays + horses * HORSE_SHOEING.manDays;
-  return (
-    workDays / Math.max(EPSILON, grainPerKg) +
-    horses * HORSE_SHOEING.ironBarsKg * buyPrice('ironBars')
-  );
+  return workDays / Math.max(EPSILON, grainPerKg) + foreignIronKg(horses);
+}
+
+/**
+ * Nejvíc, kolik ves z přebytku zaplatí (kg obilí u souseda) – obilí, pak luštěniny, jako
+ * `planShoeing`. Jen horní odhad pro rychlé odmítnutí: platba nad ním určitě neprojde, takže cenu
+ * práce (`villageFoodCosts`, drahá) není třeba počítat – výsledek je stejný.
+ */
+function payableKg(pool: PaymentPool): number {
+  const grainKg = Math.min(pool.grainKg, pool.energyKg);
+  const legumesKg = Math.max(0, Math.min(pool.legumesKg, pool.energyKg - grainKg));
+  return Math.max(0, grainKg) * sellPrice('grain') + legumesKg * sellPrice('legumes');
 }
 
 /**
@@ -131,8 +145,12 @@ export function planShoeing(
   }
   const route = nearestCraftsman(state, 'smith', landscape);
   if (!route) return null;
-  const valueKg = foreignValueKg(state, day, coverage, horses, route.days);
   const pool = paymentPool(state, day, coverage, true);
+  // rychlé odmítnutí: už samo železo (cena práce je kladná) je nad tím, co ves zaplatí – s rezervou
+  // na zaokrouhlení, aby rozhodnutí bylo stejné jako po celém výpočtu níž
+  const payable = payableKg(pool);
+  if (foreignIronKg(horses) > payable * (1 + EPSILON) + EPSILON) return null;
+  const valueKg = foreignValueKg(state, day, coverage, horses, route.days);
   const grainKg = Math.min(valueKg / sellPrice('grain'), pool.grainKg, pool.energyKg);
   let left = valueKg - grainKg * sellPrice('grain');
   pool.energyKg -= grainKg;
