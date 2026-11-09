@@ -7,8 +7,10 @@
 /** Port: do kterého dne se smí vsi dopočítat kvůli tažením u nich. */
 export interface VillageHolds {
   /**
-   * Mez každé z `villageIds`, u které stojí tažení (skupina na mapě vsi nebo políčko od ní):
-   * nejmenší `holdDay` přes tato tažení. Ves bez tažení ve výsledku chybí – dopočítá se jako dřív.
+   * Mez každé z `villageIds`, u které stojí tažení (skupina nebo běžící posel na mapě vsi nebo
+   * políčko od ní), nebo kterou tažení drží varováním (ves ve varování, kandidát hradiště, hradiště
+   * skupiny uprchlíků – plán 2026-11-09, Úloha 3): nejmenší `holdDay` přes tato tažení. Ves bez
+   * tažení ve výsledku chybí – dopočítá se jako dřív.
    */
   limitOf(villageIds: readonly string[]): Promise<Map<string, number>>;
 }

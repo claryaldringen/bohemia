@@ -41,6 +41,13 @@ export interface CampaignRepository {
    * nejstaršího.
    */
   activeAgainst(villageId: string): Promise<string[]>;
+  /**
+   * Id běžících tažení, která se vsi `villageId` týkají varováním (war.md – Varování, poslové
+   * a útěk do hradiště; plán 2026-11-09 – Úloha 3): ves je cílem, je ve varování
+   * (`alarm.villages`), nebo je hradištěm skupiny uprchlíků (`alarm.flights[].hostVillageId`) –
+   * pohled na varování a návrat z útěku. Kandidáti hradišť (`hosts`) ne. Od nejstaršího.
+   */
+  activeAlarming(villageId: string): Promise<string[]>;
   checkpoint(campaignId: string): Promise<CampaignCheckpoint | null>;
   /** Záměry s taktem větším než `tick`, podle taktu a `seq`. */
   intentsAfter(campaignId: string, tick: number): Promise<CampaignIntent[]>;

@@ -80,6 +80,30 @@ export function createCampaignRepository(db: Database): CampaignRepository {
       return rows.map((r) => r.id);
     },
 
+    async activeAlarming(villageId: string): Promise<string[]> {
+      // cíl, ves ve varování nebo hradiště skupiny uprchlíků – jen v bodu (`state.alarm`);
+      // `@>` najde prvek pole s daným klíčem (jako `members` u activeOf)
+      const state = campaignCheckpoint.state;
+      const warned = JSON.stringify([{ villageId }]);
+      const host = JSON.stringify([{ hostVillageId: villageId }]);
+      const rows = await db
+        .select({ id: campaign.id })
+        .from(campaign)
+        .innerJoin(campaignCheckpoint, eq(campaignCheckpoint.campaignId, campaign.id))
+        .where(
+          and(
+            eq(campaign.status, 'active'),
+            or(
+              sql`${state}->'target'->>'villageId' = ${villageId}`,
+              sql`${state}->'alarm'->'villages' @> ${warned}::jsonb`,
+              sql`${state}->'alarm'->'flights' @> ${host}::jsonb`,
+            ),
+          ),
+        )
+        .orderBy(asc(campaign.createdAt), asc(campaign.id));
+      return rows.map((r) => r.id);
+    },
+
     async checkpoint(campaignId: string): Promise<CampaignCheckpoint | null> {
       const [row] = await db
         .select({ state: campaignCheckpoint.state, outbox: campaignCheckpoint.outbox })

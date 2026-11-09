@@ -656,13 +656,15 @@ Plán 2026-11-03 – rozhodnutí 13, Úloha 6.7. Ves čeká jen na tažení u se
 `d − 1` – obě strany se střídají, cyklus čekání nevznikne.
 
 - **Mez vsi** – port `application/village-holds.ts`: `VillageHolds.limitOf(villageIds)` → mapa ves →
-  den, do kterého se smí dopočítat; ves bez tažení chybí. Tažení drží ves, když jeho skupina stojí
-  na mapě vsi nebo políčko od ní: mez = `CampaignState.throughDay` (poslední den, jehož takty jsou
+  den, do kterého se smí dopočítat; ves bez tažení chybí. Tažení drží ves, když jeho skupina (nebo
+  běžící posel) stojí na mapě vsi nebo políčko od ní, nebo ji drží varováním (Varování, poslové
+  a útěk do hradiště – bariéra, Ú3): mez = `CampaignState.throughDay` (poslední den, jehož takty jsou
   všechny spočtené – `dayOfTick(tick + 1) − 1`, počítá ho každý takt, úložiště tak hodiny nepotřebuje;
   bod bez něj → `day − 1`), nedoručené události `outbox` mez sníží na svůj den − 1 (i u vsi daleko –
   posel, kronika). `holdDay`, `heldDay(today, lastDay, limit)` (nikdy pod spočítaný `lastDay`).
   Adaptér `db/adapters/village-holds.ts` (`createVillageHolds` – CTE nad aktivními body:
-  `state->'groups'` a `outbox` se rozbalí jednou na tažení; `villagesNearCampaigns`), úložiště vsí ho
+  `state->'groups'`, `state->'alarm'` a `outbox` se rozbalí jednou na tažení; `villagesNearCampaigns`
+  – přednostní vsi = všechny držené vsi kromě těch jen s nedoručenou událostí), úložiště vsí ho
   nese jako `VillageRepository.holds` (patří k dopočtu jako schránka; `cachedVillages` ho propouští).
 - **Dopočet vsi** – `updateVillage` se zeptá na mez při každém pokusu a dopočítá ves jen do
   `heldDay`; akce `change` dostane ves k tomu dni. `advancePlayer` vezme meze všech vsí hráče jedním
@@ -843,6 +845,19 @@ null }`); pozdější spatření s kratším doběhem `warnTick` zkrátí. V tak
   (kronika `people-back` druhu `messenger`); `messenger-caught` – `killed` padne (bez pohřbu),
   `led` zmizí, kůň `horseId` se nevrátí (z ohrady i bez ohrady); kronika „Posel {jméno} padl.“ /
   „Posla {jméno} odvedlo vojsko.“ (bez jména vesničan). Po kouscích dopočtu 1 / 3 / 10 dní = vcelku.
+- **Bariéra a dotaz na varované vsi (Ú3).** Tažení drží (`db/adapters/village-holds.ts`, mez
+  `throughDay` jako u skupin, i daleko od vojska) vsi ve varování (`alarm.villages[].villageId` –
+  i ty, ke kterým vesničan ještě běží), kandidáty hradišť (`alarm.villages[].hosts` – zapisuje Ú6)
+  a hradiště skupin uprchlíků (`alarm.flights[].hostVillageId`, i po příchodu – dokud tažení běží);
+  id mimo uuid se zahodí. Návrh Clauda nad plán: drží i vsi na mapě **běžícího posla** a políčko od
+  ní (jako skupina vojska – posel varuje každou ves na trase a tažení pak čte její stav; mez platí
+  s předstihem – přejít políčko trvá i poslu na koni po cestě přes herní den). Držené vsi jsou
+  i přednostní (`villagesNearCampaigns`) – jinak by je fronta workeru (`world-queue.ts`) brala jako
+  pozadu a hráče vybírala dokola. Skončené tažení bez nedoručených událostí nedrží nic. Port
+  `CampaignRepository.activeAlarming(villageId)` – běžící tažení, kde je ves cílem, ve varování nebo
+  hradištěm skupiny (kandidáti hradišť ne), od nejstaršího (`@>` nad `state->'alarm'`); pro pohled
+  na varování (Ú12) a návrat (Ú10). In-memory `InMemoryCampaigns.activeAlarming` totéž. Testy
+  `village-holds.db.test.ts` (Ú3), `campaign-repository.db.test.ts`.
 
 ## Výsledky nájezdu a kořist (Ú6.10)
 

@@ -112,6 +112,61 @@ describe('campaign repository', () => {
     expect(await campaigns.activeOf('c')).toEqual([]);
   });
 
+  it('tažení, která ves varují: cíl, ves ve varování, hostitel skupiny (Ú3 e)', async () => {
+    const place = { cell: { x: 1, y: 0 }, pos: { x: 0, z: 0 } };
+    const alarm: CampaignState['alarm'] = {
+      villages: [
+        {
+          villageId: 'u',
+          owner: { playerId: 'b', npc: false, houseId: null },
+          seenTick: 90,
+          seenAt: place,
+          warnTick: 95,
+          by: 'villager',
+          hosts: ['kandidat'],
+        },
+      ],
+      messengers: [],
+      flights: [
+        {
+          ...place,
+          route: [],
+          leg: null,
+          target: place,
+          refId: `${ID}:a0`,
+          villageId: 'u',
+          mode: 'people',
+          hostVillageId: 'h',
+          people: [{ id: 1, bornDay: 0, man: true, line: false }],
+          foodKg: 0,
+          herd: { sheep: 0, goat: 0, pig: 0, cow: 0 },
+          carts: 0,
+          status: 'marching',
+          departTick: 96,
+        },
+      ],
+      nextRef: 1,
+    };
+    const second = '00000000-0000-4000-8000-0000000000c2';
+    await campaigns.create(state(100, { alarm }), NOW);
+    await campaigns.create({ ...state(100), id: second }, new Date(NOW.getTime() + 1000));
+    expect(await campaigns.activeAlarming('w')).toEqual([ID, second]);
+    expect(await campaigns.activeAlarming('u')).toEqual([ID]);
+    expect(await campaigns.activeAlarming('h')).toEqual([ID]);
+    // kandidát hradiště, shromaždiště ani cizí ves tažení nevarují
+    expect(await campaigns.activeAlarming('kandidat')).toEqual([]);
+    expect(await campaigns.activeAlarming('v')).toEqual([]);
+    expect(await campaigns.activeAlarming('cizi')).toEqual([]);
+    await campaigns.saveCheckpoint(ID, {
+      fromTick: 100,
+      seenIntents: 0,
+      state: state(110, { alarm, phase: 'done' }),
+      outbox: null,
+    });
+    expect(await campaigns.activeAlarming('u')).toEqual([]);
+    expect(await campaigns.activeAlarming('w')).toEqual([second]);
+  });
+
   it('záměr s taktem nejvýš bodem odmítne, za bodem zapíše; seq roste', async () => {
     await campaigns.create(state(100), NOW);
     expect(await campaigns.addIntent(ID, { tick: 100, byPlayer: 'a', body: SET_OUT })).toBeNull();
