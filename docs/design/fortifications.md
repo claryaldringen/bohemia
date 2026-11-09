@@ -92,7 +92,10 @@ roštová ≈ 7 m, komorová ≈ 8 m, komory po 5–6 m).
   val leží vně hradby, ta stojí a brání dál; vnější okraj pásu se posune ven a nový pás musí
   splnit [Kudy pás smí](#obvod).
 - **Pás s valem** = příkop 4 m + vnější svah valu 3 m + hradba na koruně, nejméně 10 m jako
-  samotný val (návrh Clauda).
+  samotný val (návrh Clauda). Martin 9. 11. 2026: „Pokud se jedná o palisádu nebo polský plot, má
+  stát na koruně valu“ – plot i palisáda (i s ochozem) s valem stojí na koruně valu (≈ 2 m nad
+  terénem), ne na zemi za valem (implementace čeká – dnes stojí na zemi); obránce stojí o korunu
+  výš a útočník musí napřed vylézt na val, pak na hradbu.
 - **Po úsecích mezi branami** (Martin 8. 11. 2026 – [bourání](demolition.md): „Hráč pak bude
   moci každý z těch úseků zbořit nebo vylepšit.“): vylepšení i doplnění valu se zadává na úsek;
   obvod smí mít po úsecích různé druhy, rozhraní je vždy brána. „Vylepšit vše“ zadá všechny úseky.
