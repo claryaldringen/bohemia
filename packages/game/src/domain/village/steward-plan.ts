@@ -21,6 +21,7 @@ import { placementVillageOf, villageDwellingPositions } from './placement-villag
 import { DWELLING_CLEARING_M } from './rules-buildings';
 import { CRAFTS } from './rules-crafts';
 import { FIELD_LIMITS, FOOD_NEED_KG_PER_YEAR } from './rules-fields';
+import { PEN_PLACES_PER_SQUARE } from './rules-livestock';
 import { CEMETERY_DISTANCE_M } from './rules-people';
 import { STEWARD } from './rules-steward';
 import {
@@ -39,6 +40,7 @@ import {
 import { stewardOutlook } from './steward-outlook';
 import type {
   CraftCoverage,
+  HerdSpecies,
   PenSpecies,
   Position,
   StewardFarm,
@@ -489,6 +491,19 @@ function templatesStage(
   const land = planLand(state, day, landscape, obstacles);
   const size = planSize(state, day, land, coverage);
   const existing = existingHouses(state, landscape);
+  // místo ohrad a sadu napřed – blok polí ani nový dům ho nedostane
+  const reserve = reservedExtras(state, day, landscape, size.people);
+  for (const i of reserve.all) land.arable[i] = 0;
+  // ani dvůr nového domu (3 × 3 – sloty ho nedostanou) na vyhrazeném místě
+  const size2 = landscape.size;
+  land.sites = land.sites.filter((i) => {
+    for (let oy = -1; oy <= 1; oy++) {
+      for (let ox = -1; ox <= 1; ox++) {
+        if (reserve.all.has(i + oy * size2 + ox)) return false;
+      }
+    }
+    return true;
+  });
   const owned = ownedFields(land, existing, fieldTiles(state, day, landscape));
   const layouts = TEMPLATES.map((t) => layoutOf(t, land, size, existing, owned));
   const best = Math.min(...layouts.map((l) => l.cost));
@@ -515,6 +530,84 @@ function templatesStage(
     slots: { dwelling: layout.houses },
     farms: layout.farms.map(storedFarm),
   };
+}
+
+/** Stáda s ohradou (jako `HERD_PENS` v steward-extras.ts). */
+const PEN_HERDS: readonly HerdSpecies[] = ['cow', 'pig', 'sheep', 'goat'];
+
+/** Políčka vyhrazená sadu a ohradám (`reservedExtras`). */
+interface ExtraReserve {
+  orchard: Set<number>;
+  pen: Set<number>;
+  all: Set<number>;
+}
+
+/**
+ * Přednost ohrad a sadu (steward.md – Plán sídla; návrh Clauda 9. 11. 2026): blok polí podle práce
+ * nesmí vzít místo u stojících domů, kde ves bude chtít ohrady a sad – jinak ho pole zaberou
+ * a přepočtený plán (nové domy u stojících) už slot ohrady ani sadu nenajde. Vyhradí se
+ * `planReserve.orchardSquares` políček sadu do `ORCHARD_HOUSE_TILES` od stojícího domu a políčka
+ * ohrad do `PEN_HOUSE_TILES` (stáda, která ves má, podle `penPlacesPerPerson` × lidé plánu,
+ * spřežení a koně) – volná louka území mimo dvůr domu, nejlepší podle stejného skóre jako sloty
+ * (`rankSlots`). Vyhrazená políčka nedostane blok polí ani nový dům a ostatní sloty (`rankSlots`).
+ */
+function reservedExtras(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  people: number,
+): ExtraReserve {
+  const size = landscape.size;
+  const territory = villageTerritory(state, landscape);
+  const taken = takenTiles(state, day, landscape);
+  const existing = existingHouses(state, landscape).map((f) => f.house);
+  const centre = planCentre(state);
+  const houses = existing.length > 0 ? existing : centre ? [tileAt(landscape, centre)] : [];
+  const herds = state.livestock?.herds;
+  let penSquares = STEWARD.planReserve.teamSquares + STEWARD.planReserve.horseSquares;
+  for (const herd of PEN_HERDS) {
+    if (!herds || herds[herd] <= 0) continue;
+    const places = people * (STEWARD.penPlacesPerPerson[herd] ?? 0);
+    penSquares += Math.max(1, Math.ceil(places / PEN_PLACES_PER_SQUARE[herd]));
+  }
+  const tileDist = (a: number, b: number): number => {
+    const dx = (a % size) - (b % size);
+    const dy = Math.floor(a / size) - Math.floor(b / size);
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+  const nearest = (i: number): number =>
+    houses.reduce((best, h) => Math.min(best, tileDist(h, i)), Infinity);
+  // volná louka území do dosahu ohrady mimo dvůr domu (3 × 3 – sloty ho nedostanou)
+  const free: number[] = [];
+  for (let i = 0; i < size * size; i++) {
+    if (!territory[i] || taken[i] || landscape.surface[i] !== SURFACE_CODES.meadow) continue;
+    if (nearest(i) > PEN_HOUSE_TILES) continue;
+    const x = i % size;
+    const y = Math.floor(i / size);
+    const yard = houses.some(
+      (h) => Math.abs((h % size) - x) <= 1 && Math.abs(Math.floor(h / size) - y) <= 1,
+    );
+    if (!yard) free.push(i);
+  }
+  const all = new Set<number>();
+  const take = (radius: number, score: (i: number) => number, count: number): Set<number> => {
+    const picked = free
+      .filter((i) => !all.has(i) && nearest(i) <= radius)
+      .map((i) => ({ i, s: score(i) }))
+      .sort((a, b) => a.s - b.s || a.i - b.i)
+      .slice(0, Math.max(0, count))
+      .map((e) => e.i);
+    for (const i of picked) all.add(i);
+    return new Set(picked);
+  };
+  const fertility = (i: number): number => landscape.fertility[i]! / FERTILITY_PER_TILE;
+  const orchard = take(
+    ORCHARD_HOUSE_TILES,
+    (i) => Math.abs(landscape.fertility[i]! - 50) / FERTILITY_PER_TILE + nearest(i),
+    STEWARD.planReserve.orchardSquares,
+  );
+  const pen = take(PEN_HOUSE_TILES, (i) => fertility(i) + nearest(i), penSquares);
+  return { orchard, pen, all };
 }
 
 /** Obydlí a rozestavěná obydlí vsi – pevné domy plánu (políčko a id). */
@@ -1038,31 +1131,43 @@ function rankSlots(
     }
   }
   const farmCentre = farmsCentroid(plan.farms, blocks, size);
+  // místo vyhrazené sadu a ohradám (`reservedExtras`) ostatní druhy nedostanou; sad a ohrady ho
+  // berou napřed (u stojících domů), až pak místa u plánovaných domů
+  const reserve = reservedExtras(state, day, landscape, plan.people);
+  const notReserved = (i: number): boolean => !reserve.all.has(i);
   const kinds: [StewardSlotKind, (i: number) => boolean, (i: number) => number, number][] = [
     [
       'cemetery',
-      cemeteryOk,
+      (i) => notReserved(i) && cemeteryOk(i),
       (i) =>
         (anchors.length > 0 ? nearAnchors(i) * 100 : seed === undefined ? 0 : dist(i, seed) * 100) +
         fertility(i),
       seed === undefined ? 0 : STEWARD.extraSlots - 1,
     ],
     // humno mezi poli a dvorcem na suchu a rovině
-    ['threshing-floor', site, (i) => dist(i, farmCentre) + dist(i, centreTile), STEWARD.extraSlots],
+    [
+      'threshing-floor',
+      (i) => notReserved(i) && site(i),
+      (i) => dist(i, farmCentre) + dist(i, centreTile),
+      STEWARD.extraSlots,
+    ],
     // dílny u středu vsi na suchu a rovině
-    ['workshop', site, (i) => dist(i, centreTile), STEWARD.extraSlots],
+    ['workshop', (i) => notReserved(i) && site(i), (i) => dist(i, centreTile), STEWARD.extraSlots],
     // sad u domů na střední půdě
     [
       'orchard',
-      (i) => nearestHouse(i) <= ORCHARD_HOUSE_TILES * cellM,
-      (i) => Math.abs(landscape.fertility[i]! - 50) / FERTILITY_PER_TILE + nearestHouse(i) / cellM,
+      (i) => !reserve.pen.has(i) && nearestHouse(i) <= ORCHARD_HOUSE_TILES * cellM,
+      (i) =>
+        (reserve.orchard.has(i) ? 0 : BLOCK_PENALTY) +
+        Math.abs(landscape.fertility[i]! - 50) / FERTILITY_PER_TILE +
+        nearestHouse(i) / cellM,
       STEWARD.extraSlots,
     ],
     // ohrada u domů na horší půdě
     [
       'pen',
-      (i) => nearestHouse(i) <= PEN_HOUSE_TILES * cellM,
-      (i) => fertility(i) + nearestHouse(i) / cellM,
+      (i) => !reserve.orchard.has(i) && nearestHouse(i) <= PEN_HOUSE_TILES * cellM,
+      (i) => (reserve.pen.has(i) ? 0 : BLOCK_PENALTY) + fertility(i) + nearestHouse(i) / cellM,
       STEWARD.extraSlots,
     ],
   ];

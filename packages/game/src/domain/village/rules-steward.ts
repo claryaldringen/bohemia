@@ -70,6 +70,13 @@ export const STEWARD = {
   /** Plán sídla – Ostatní: slotů jednoho druhu (hřbitov, sad, ohrada, humno, dílna) nejvýš. */
   extraSlots: 8,
   /**
+   * Plán sídla – Přednost ohrad a sadu (návrh Clauda 9. 11. 2026): bloky polí podle práce nesmí
+   * vzít místo u domů, kde ves bude chtít ohrady a sad – plán napřed vyhradí `orchardSquares`
+   * čtverců sadu a čtverce ohrad (stáda podle `penPlacesPerPerson`, spřežení a koně po
+   * `penSquares` čtverci), bloky polí dostanou zbytek.
+   */
+  planReserve: { orchardSquares: 2, teamSquares: 1, horseSquares: 1 },
+  /**
    * Plán sídla – Ostatní: kandidátů jednoho druhu k ověření kontrolou umístění (sloty a náhradníci
    * za ty, které kontrolou neprojdou).
    */
