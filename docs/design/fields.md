@@ -1159,7 +1159,7 @@ Len (0,2 ha) se trhá celý vždy. Bez luštěnin ves sklidí za tři roky 26,2 
 Ozim se dožne celý; jař 873 (24 ha, z toho velká část nad potřebu) zůstane z velké části
 nesklizená – srpen dál nestačí na všechno, co ves v hladovém roce oseje.
 
-#### Pořadí důležitosti polních prací a výmlat do zimy (9. 11. 2026, implementace čeká)
+#### Pořadí důležitosti polních prací a výmlat do zimy (9. 11. 2026, implementováno)
 
 Martin 9. 11. 2026: „Je lepší za každou cenu sklidit to, co už vyrostlo, než začínat pěstování
 úplně od začátku“, „Výmlat prý počká i docela hluboko do zimy“ a „Pořadí důležitosti: 1. sklizeň
@@ -1182,6 +1182,60 @@ okno výmlatu ozimu i jaře až do **konce února**; snopy se v okně nekazí (k
 `THRESHING.spoilPerMonth`); mlátí se hlavně v zimě, kdy jiná práce venku není. Nahrazuje Martinovo
 „Staří slované se snažili dělat výmlat hned“ (20. 10. 2026) a „orba má přednost“ (24. 10. 2026)
 pro střet s žněmi.
+
+**Implementace** (`DAY_WORK_ORDER` v rules-fields.ts, `dayTaskOrder` v simulate-work.ts; volby
+návrhem Clauda):
+
+- **Úlohy mimo seznam:** porážka a uzení hned za výmlatem na dnešní jídlo (maso se musí zpracovat
+  hned – jako dřív před polními úlohami); péče o sad za přípravou půdy, před hlídkou; obilné jámy
+  (potřebují vymlácené zrno) a dospělý pasák za výmlatem – před stavbami jako dřív. Seč navíc pro
+  růst stád, pletí mužů a ryby zůstávají za stavbami.
+- **Uvnitř skupiny** nejbližší konec okna (v srpnu dosklizeň ozimu před žní jaře), v přípravě půdy
+  **orba rádlem první** – spřežení potřebuje jen oráče, jinak voli stojí ([oxen.md](oxen.md) –
+  Orba má přednost platí dál uvnitř skupiny). Luštěniny starších vsí se sklízejí s obilím.
+- **Zásobníky** (žňové ruce, děti a ženy při pletí, rodina vojvody ve žních, ženy řemeslníků jen
+  lehké úlohy) zůstávají; pořadí skupin jen určuje, kdo z obecné práce dostane napřed.
+- **Okno výmlatu** ozimu a luštěnin srpen–únor, jaře září–únor (dva úseky přes konec roku). Snopy
+  v okně čekají bez ztráty, od 1. 3. se kazí `THRESHING.spoilPerMonth`; dřina počítá výmlat
+  s koncem února. Upozornění „humno nestačí“ až po únoru.
+- **Žňový den** (Žně všemi rukama – žňové ruce, poloviční skladba dne, řemeslníci a rodina vojvody
+  na poli) jen při **výmlatu hned po žni** (`HARVEST_THRESH_WINDOWS` – ozim srpen–září, jař září–
+  říjen); výmlat v listopadu až únoru je obyčejná práce vsi se zimní skladbou dne a řemeslníci
+  zůstávají v dílnách – zimní výmlat termín nemá.
+- **Plán u výmlatu** (`threshingSeason`) se dál zahodí 1. 11. – den po žňovém výmlatu jaře; snopy se
+  mlátí dál bez něj. Vazalská dávka z úrody je hotová nejpozději 1. 10. jako dřív (snopy jsou
+  v nabídce jako zrno).
+- **Výmlat na osivo** (skupina před přípravou půdy, `THRESHING.seedDays`): ve snopech zrno na setí
+  není – hromada osiva okna bere jen vymlácené zrno. Když hromada ráno narazí na vymlácené zrno,
+  ves v okně setí obilí vymlátí napřed osivo na 2 dny setí dnešním tempem (dnešek a zítřek, jako
+  výmlat na dnešní jídlo) – nejvýš osivo ideálního zbytku okna a nad přežívací zásobu do žní. Bez
+  něj by ves za výmlatem v hubeném roce orala a kopala bez osiva (Vlkov 873: 1. 9. 0,2 t zrna
+  a 14 t ve snopech).
+- **Humno** (`THRESHING.floorManDaysPerDay`) beze změny – přes zimu má dost dní; obilné jámy se dál
+  plní jen do listopadu (zámraz), co se vymlátí později, čeká v zásobách. Výhled zásob počítá snopy
+  jako zrno (`sheavesOutlook` – v okně bez ztráty).
+- **Plán osevu** výmlat z podzimní práce neodečítá a do zátěže srpna (pomoc rodiny vojvody) ho
+  nepočítá – výmlat čeká za polními pracemi. **Deník vsí** zapisuje zásoby na konci roku i se zrnem
+  v nevymlácených snopech.
+
+**Naměřeno** (Vlkov ze stavu DB, 3 roky po dnech; dřív = feat/landscape d91680bf; řádek =
+hospodářský rok – ozim oseto do 31. 10., jař do 14. 5., úroda v roce žně; sklizeno = podíl žně 31. 7. ozim, 31. 8. jař a len; příděl = dny pod plným přídělem; snopy 1. 11. a 1. 1.):
+
+| Rok     | Verze | Oseto ozim / jař (ha) | Úroda (t) | Sklizeno ozim / jař / len | Příděl (dní) | Snopy (t)   | Dovymláceno       |
+| ------- | ----- | --------------------- | --------- | ------------------------- | ------------ | ----------- | ----------------- |
+| 871/872 | dřív  | 20,3 / 9,3            | 13,7      | 0,98 / 0,97 / 1,0         | 239          | 4,5 / 0,1   | 2. 1.             |
+| 871/872 | nově  | 15,5 / 17,4           | 14,7      | 0,99 / 1,0 / 0,19         | 227          | 5,6 / 1,7   | 19. 1.            |
+| 872/873 | dřív  | 20,9 / 24,6           | 17,7      | 0,97 / 0,66 / 0           | 0            | 1,2 / 0     | 2. 12.            |
+| 872/873 | nově  | 23,5 / 25,7           | 18,9      | 0,84 / 0,53 / 0           | 0            | 8,1 / 0,5   | 4. 1.             |
+| 873/874 | dřív  | 8,3 / –               | –         | –                         | 0            | 15,4 / 8,1  | 20. 2.            |
+| 873/874 | nově  | 10,5 / –              | –         | –                         | 0            | 16,4 / 11,1 | 1. 3. zbývá 2,0 t |
+
+Za tři roky ves sklidí 41,7 t (dřív 39,5 t). V září 871 jde druhá seč sena (279 čd) před orbu – ozimu
+je o 4,8 ha méně, jaře na jaře o 8,1 ha víc. Výmlat na osivo pomohl v roce 873 (1. 9. jen 0,2 t
+vymláceného zrna, 14 t ve snopech): ozim 10,5 ha proti 8,2 ha bez něj. Len v srpnu 872 jen z 19 %
+– rodina vojvody v srpnu pomáhá jen se žní (výmlat do zátěže srpna nepatří) a obilí má přednost.
+Po rekordní úrodě 873 ves do konce února nedomlátí 2,0 t snopů (dřív hotovo 20. 2.) – v listopadu
+má přednost podzimní kopání pod jař, zbytek se od března kazí.
 
 #### Žeň jaře i v září (9. 11. 2026)
 
@@ -1207,8 +1261,10 @@ nesklidilo, propadlo.
   (Osevní postup po dílech, bod 1), do nového osevu nepřijdou a **neorají se pod ozim**, dokud
   jsou na poli; po sklizni se posunou (první osev oběhu → ozim) a přijdou na řadu další den.
 - **Výmlat jaře** má okno **září–říjen** (výmlat hned po žni – zářijová žeň se mlátí v říjnu);
-  snopy v okně čekají bez ztráty. Plán u výmlatu se zahodí 1. 11. (dřív 1. 10.).
-- **Pořadí práce dne ve žních** – **Martin (9. 11. 2026): „Je lepší za každou cenu sklidit to, co
+  snopy v okně čekají bez ztráty. Plán u výmlatu se zahodí 1. 11. (dřív 1. 10.). _Okno výmlatu
+  nově do konce února – Pořadí důležitosti polních prací a výmlat do zimy (výš)._
+- **Pořadí práce dne ve žních** (_nahrazeno pevným pořadím – Pořadí důležitosti polních prací
+  a výmlat do zimy, výš_) – **Martin (9. 11. 2026): „Je lepší za každou cenu sklidit to, co
   už vyrostlo, než začínat pěstování úplně od začátku“.** Ve dni, kdy ves žne, má žeň přednost
   před orbou a setím (orba jinak jde napřed – [oxen.md](oxen.md), Orba má přednost): na žeň jdou
   i muži od spřežení a rozsévači, orba a setí ozimu dostanou, co po žni zbude, a naplno pokračují,
@@ -1258,7 +1314,8 @@ dospělých (diagnóza 24. 10. 2026). Martin (24. 10. 2026): „Teď žije vesni
 vesnice populačně roste i bez zásahu hráče, za předpokladu, že má dostatečnou rozlohu polí.“ a ke
 žním: „Dílny i vojvodova rodina.“
 
-- **Žňový den** = den v oknech žní a výmlatu kterékoli plodiny (červenec – žeň ozimu, luštěnin
+- **Žňový den** = den v oknech žní a výmlatu hned po žni kterékoli plodiny (výmlat v listopadu až
+  únoru žňový den nemá – Pořadí důležitosti polních prací a výmlat do zimy; červenec – žeň ozimu, luštěnin
   a lnu; srpen – výmlat ozimu a luštěnin, žeň jaře a zbytku ozimu, luštěnin a lnu; září – výmlat
   jaře a srpnové žně – Žně i v srpnu), kdy má ves v okně ještě
   co sklízet nebo **opravdu jde mlátit** (snopy a humno s kapacitou, nebo nouzový výmlat; ves

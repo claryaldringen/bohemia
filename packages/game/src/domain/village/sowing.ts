@@ -165,7 +165,8 @@ export interface CropLoad {
 
 /**
  * Jařina místo jaře (len, dorůstající luštěniny starších vsí) – příprava půdy a setí v oknech jaře;
- * žeň a výmlat luštěnin v červenci a srpnu. Trhání lnu do zátěže žní nejde (`harvest` false) – len
+ * žeň luštěnin v červenci (výmlat do zátěže srpna nepatří – počká do zimy, fields.md – Pořadí
+ * důležitosti polních prací a výmlat do zimy). Trhání lnu do zátěže žní nejde (`harvest` false) – len
  * se trhá jen z práce, která po obilí zbude, a rodina vojvody s ním nepomáhá (fields.md – Len,
  * návrh Clauda).
  */
@@ -173,17 +174,15 @@ function addSideCrop(load: CropLoad, work: PartWork, harvest: boolean): void {
   load.springReclaim += work.reclaim;
   load.springDig += work.dig + work.plough;
   load.springSow += work.sow;
-  if (harvest) {
-    load.july += work.harvest;
-    load.august += work.thresh;
-  }
+  if (harvest) load.july += work.harvest;
   load.ploughSpring += work.plough;
 }
 
 /** Práce v oknech, kterou ves už má (`SowingLoad`) – zátěž oken pro pomoc rodiny. */
 export function cropLoadOf(planned: SowingLoad): CropLoad {
   // ozim na podzim: vrácení, kopání (orba) a setí; jablka se sklízejí po něm, ale v témže okně;
-  // v srpnu sklizeň jaře a výmlat ozimu (len a luštěniny přičte addSideCrop)
+  // v srpnu sklizeň jaře (len a luštěniny přičte addSideCrop); výmlat ozimu počká do zimy za
+  // polními pracemi (fields.md – Pořadí důležitosti polních prací a výmlat do zimy)
   const load: CropLoad = {
     winterAutumn:
       planned.orchardAutumn +
@@ -194,7 +193,7 @@ export function cropLoadOf(planned: SowingLoad): CropLoad {
     springReclaim: planned.spring.reclaim,
     springDig: planned.spring.dig + planned.spring.plough,
     springSow: planned.spring.sow,
-    august: planned.spring.harvest + planned.winter.thresh,
+    august: planned.spring.harvest,
     september: 0,
     ploughWinter: planned.winter.plough,
     ploughSpring: planned.spring.plough,

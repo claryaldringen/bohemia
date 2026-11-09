@@ -286,10 +286,11 @@ describe('přirozená stadia podle kalendáře', () => {
     let s = advanceVillage(village(), at(601, 9, 1), null);
     const winter = seasonCrop(s.season!, 'winter')!.partIds;
     const spring = springCrop(s.season!).partIds;
-    // 1. 9. se už začíná kopat – nic není zasetého
-    for (const state of statesInOrder(s, winter)) {
-      expect(['stubble', 'bare', 'plowed']).toContain(state);
-    }
+    // 1. 9. se už začíná kopat a za motykou hned sít (fields.md – Práce; výmlat čeká za přípravou
+    // půdy – Pořadí důležitosti polních prací) – zasetý jen začátek čela
+    const first = statesInOrder(s, winter);
+    for (const state of first) expect(['stubble', 'bare', 'plowed', 'sown']).toContain(state);
+    expect(first.filter((state) => state === 'sown').length).toBeLessThan(first.length);
     s = advanceVillage(s, at(601, 9, 30), null);
     expect(statesInOrder(s, winter)).toContain('sown');
     s = advanceVillage(s, at(601, 11, 15), null);

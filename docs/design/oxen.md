@@ -829,6 +829,13 @@ Spřežení potřebuje jen oráče (a honáka), jinak voli stojí; dřív se úl
 nejbližšího konce okna, takže výmlat jaře v září nebo jablka braly lidi před orbou.
 Kapacita rádel (`ploughCap`) se nemění.
 
+**Nahrazeno (9. 11. 2026)** pořadím důležitosti polních prací ([fields.md](fields.md) – Pořadí
+důležitosti polních prací a výmlat do zimy; Martin 9. 11. 2026: „Je lepší za každou cenu sklidit
+to, co už vyrostlo, než začínat pěstování úplně od začátku“): orba a setí jdou za sklizní obilí,
+lnu, sena a jablek, za pletím a výmlatem na osivo, před noční hlídkou polí a výmlatem. **Uvnitř
+přípravy půdy a setí má orba rádlem přednost dál** (návrh Clauda – spřežení potřebuje jen oráče,
+jinak voli stojí).
+
 ## Co hráč vidí
 
 - V nabídce staveb **ohrada** (název a cena v tooltipu).
