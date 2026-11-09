@@ -579,6 +579,8 @@ zásoby a cennosti a utekli do nejbližšího hradiště“).
 
 - **Vesničan, který vojsko spatří** (do 150 m od kteréhokoli muže vojska – dohled jako dnes), běží
   do vsi rychlostí běhu (≈ 2× chůze); ves je varovaná, až doběhne. Do té doby lidé pracují dál.
+- **Posel jde pěšky** – Martin 9. 11. 2026: „obyčejný vesničan pravděpodobně nebude umět jezdit.
+  Navíc bude muset koni dát minimálně uzdu, když už ne sedlo“ (návrh plánu „s koněm jede“ zamítnut).
 - **Posel** je dospělý muž vsi, běží nejkratší cestou po stezkách (pochodová mřížka jako vojsko,
   ≈ 2× rychleji než pochod vojska) do hradiště pána; každá ves na mapách, kterými proběhne, je
   varovaná. Hradiště pak pošle posly do vsí domény, ke kterým vojsko míří (správce hradiště
