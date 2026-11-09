@@ -387,7 +387,7 @@ describe('výkon spřežení za den', () => {
     expect(sum('sow')).toBeGreaterThan(0);
   });
 
-  it('v září dostanou jablka (dřívější konec okna) zbytek po orbě – pořadí úloh dne', () => {
+  it('v září jablka před orbou, výmlat za ní – pořadí důležitosti prací dne (fields.md)', () => {
     const task = (name: DayTask['name'], end: number): DayTask => ({
       name,
       remaining: 1,
@@ -398,7 +398,7 @@ describe('výkon spřežení za den', () => {
     const sorted = [task('orchard-harvest', 1), task('thresh', 2), task('plough', 9)].sort(
       dayTaskOrder,
     );
-    expect(sorted.map((t) => t.name)).toEqual(['plough', 'orchard-harvest', 'thresh']);
+    expect(sorted.map((t) => t.name)).toEqual(['orchard-harvest', 'plough', 'thresh']);
   });
 
   it('starší spřežení bez příjezdu mimo okno orby není na poli (vozy ani voda se neruší)', () => {

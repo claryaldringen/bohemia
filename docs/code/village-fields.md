@@ -123,8 +123,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   okna bez posledních `spareDays` dní (`weedDaysLeft` z `work()` podle konce okna úloh `weed`); spotřeba `DayAllocation.weedWomen`. `laborDay` dá podílu pletí dospělých
   `LaborShare.women` (ženy ÷ pletí dospělých) – scéna podle něj kreslí ženy.
   **Žně všemi rukama** (fields.md – Žně všemi rukama, `harvest-hands.ts`): `harvestHandsDay`
-  (měsíce `HARVEST_HANDS_MONTHS` z oken žní a výmlatu `CROP_WINDOWS` – 7–9 – a v okně zbývá žeň
-  plánu nebo práce snopů) je jedno místo pravdy pro `workshopLabor` (řemeslník se syny →
+  (měsíce `HARVEST_HANDS_MONTHS` z oken žní `CROP_WINDOWS` a výmlatu hned po žni
+  `HARVEST_THRESH_WINDOWS` – 7–10, zimní výmlat ne – a v okně zbývá žeň plánu nebo práce snopů) je jedno místo pravdy pro `workshopLabor` (řemeslník se syny →
   `WorkshopLabor.harvest`, `craft` 0), `manorLabor` (cvičící muži → `ManorLabor.harvest` =
   `freeMen`, `help` 0 – i ženatí synové v dvorci; vedlejší manželky vojvody mimo dvorec ne, jsou
   v `lordApartIds`, takže je nepočítá ani `harvestHelperLabor`) i `work()`; v `allocateDay` zásobníky `harvestHands` (`craftHarvestLabor`
@@ -140,8 +140,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     po žni (Snopy a výmlat níž); příděl počítá do sklizně
     podle `daysUntilFoodHarvest` (31. 7., když ozim podle odhadu uživí srpen). **Žně i v srpnu**
     (fields.md, Martin 9. 11. 2026): okno žně ozimu a luštěnin je červenec–srpen
-    (`WINTER_WINDOWS.harvest` [7, 8], luštěniny sdílí; len jen srpen – Len níž), výmlat srpen–září
-    (`WINTER_WINDOWS.thresh` [8, 9]). `harvestEarlyCrops` (`simulate-food.ts`) 31. 7. dá do snopů
+    (`WINTER_WINDOWS.harvest` [7, 8], luštěniny sdílí; len jen srpen – Len níž), výmlat srpen–únor
+    (`WINTER_WINDOWS.thresh` – dva úseky přes konec roku). `harvestEarlyCrops` (`simulate-food.ts`) 31. 7. dá do snopů
     úrodu červencové žně (`sheaveCrop` – `harvestKg(…, fromDone)` a `threshRemainingAfter`
     v `year-plan.ts`); nedosklizená plodina dostane `CropWork.sheaved` (práce žně a kg v snopech)
     a `harvestedKg` zůstane null – plodina je dál na poli (zvěř, pohromy, scéna, výhled). `harvest` 31. 8. zavolá `harvestEarlyCrops(…, true)` před jaří – zbytek do snopů, nesklizené propadne.
@@ -183,10 +183,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     `effectiveFertility` (při shodě id), jen `isSowableFertility` a `flaxAllowed` (rok sklizně
     `seasonHarvestYear` − `FieldPart.flaxYear` ≥ `FLAX.returnYears` 7; chybí = smí).
     `rotateAfterSeason` 1. 9. zapíše `flaxYear` osetému lnu (i nevytrhanému). Trhání:
-    `FLAX_WINDOWS.harvest` [8, 8]; ve `fieldTasks` (`simulate-work.ts`) má trhání pořadí
-    `flaxHarvestOrder` – konec okna příští měsíc a pořadí těsně před `THRESH_RANK`: za všemi žněmi
-    obilí (i jař s oknem do září), výmlatem na dnešní jídlo a výmlatem, jehož okno tento měsíc
-    končí, před výmlatem s oknem i v září (návrh Clauda); rodina vojvody nepomáhá
+    `FLAX_WINDOWS.harvest` [8, 8]; v pořadí práce dne (`dayTaskOrder`) má trhání
+    skupinu `flax-harvest` (`DAY_WORK_ORDER`) – za výmlatem na dnešní jídlo a všemi žněmi obilí
+    (i jař s oknem do září), před sečí a výmlatem; rodina vojvody nepomáhá
     (`noLordHelp` v `allocateDay`, `addSideCrop(…, false)` – trhání lnu není v zátěži žní
     `cropLoadOf`), dřinu (`isToilDay`) nepřidá. `harvestFlax(state, day)` v `harvestEarlyCrops` 31. 8. (`final`): `harvestKg` vytrhané části (zbytek propadne), `VillageState.linen` = kg ÷
     `flaxNeedKg` plánu, `linen-short` při nedostatku; plán bez `flaxNeedKg` nic. `linenUnhappiness`
@@ -610,11 +609,15 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   rešerše – Výmlat na humně): `threshing.ts`. Sklizeň jde do snopů `VillageState.sheaves`
   (`Sheaves` – kg zrna obilí a luštěnin a zbývající práce výmlatu po plodinách `work` – sklizená
   část práce `thresh` plánu; `addSheaves` v `harvestWinter` / `harvest`), ne do `storesKg`.
-  Okna `thresh`: ozim a luštěniny srpen–září (srpnová žeň – Žně i v srpnu), jař září–říjen
-  (zářijová žeň – Žeň jaře i v září; `WINTER_WINDOWS`, `LEGUME_WINDOWS`, `WINDOWS`; v září řadí
-  `orderEnd` výmlat jaře koncem září – před setím ozimu jako dřív); `threshTasks` (úlohy dne v `work()` – za polními úlohami téhož konce okna, žeň má
-  přednost – `THRESH_RANK`; po konci okna se mlátí dál – září–únor s koncem v dnešním měsíci,
-  březen–srpen `THRESH_OVERDUE_END` po všech pracích; **výmlat na dnešní jídlo** napřed –
+  Okna `thresh` (fields.md – Pořadí důležitosti polních prací a výmlat do zimy): ozim a luštěniny
+  srpen–únor, jař září–únor – dva úseky přes konec roku; `threshWindowLast` spojí úsek do prosince
+  s lednovým, `threshWindowDaysLeft` počítá do konce února; `threshTasks` (úlohy dne v `work()` –
+  skupina `thresh` za polními pracemi a hlídkou polí; mezi plodinami konec úseku okna a pořadí
+  plodin, po okně – březen až srpen – `THRESH_OVERDUE_END` poslední; **výmlat na osivo** –
+  `seedKg` z `seedThreshKg` v seed.ts, `ThreshTask.seed`, skupina `seed-thresh` před přípravou
+  půdy: v okně setí obilí, když hromada osiva ráno narazila na vymlácené zrno, osivo na
+  `THRESHING.seedDays` dní setí dnešním tempem, nejvýš ideál zbytku okna a nad přežívací zásobu;
+  `urgentProgress` s `before` za výmlatem na jídlo; **výmlat na dnešní jídlo** napřed –
   `threshForFoodKg`: chybí-li zrno na 2 dny jídla, úloha `urgent` s `THRESH_URGENT_END` před
   žní; `urgentProgress` – na humnech do jejich kapacity plným výnosem, zbytek nouzově a o ztrátu
   `emergencyLoss` víc snopů, aby zrna bylo, kolik chybí; oprava 2. 11. 2026) a `threshCrop` převede snopy do zásob podílem postupu na práci druhu (obilí ozimu a jaře
@@ -630,7 +633,7 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   (`spoilSheaves` na začátku dne). Nová ves (`foundVillage`) má prázdné snopy bez odkladu; ves uložená dřív
   dostane `withThreshingGrace` (v `updateVillage` od dneška, v `advanceVillageSteps` od dne po
   dopočtu) – prázdné snopy a rok odkladu, úroda už v zásobách zůstane. `threshingSeason` se
-  zahodí 1. 10. (`THRESH_END_DAY`, bez ztráty – dřívější „nevymlácené 1. 3. propadne“ zmizelo).
+  zahodí 1. 11. (`THRESH_END_DAY` – den po žňovém výmlatu jaře; snopy se mlátí dál bez něj).
   Výhled jídla (`DietInput.sheavesGrainKg` / `sheavesLegumesKg` – `sheavesOutlook`, jen když ves
   smí mlátit, se ztrátami `sheafYields` – nouzově −10 % podílu mimo humna po druzích snopů
   v pořadí úloh dne `threshTasks`; oprava 2. 11. 2026, dřív společný podíl obou druhů a mrtvá
@@ -646,10 +649,9 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   `fieldStoresKg(state, day)`) a dobré zásoby
   štěstí počítají snopy jako zrno; jí se jen vymlácené. Hlad a příděl (`eat` – `state.ration`)
   jdou podle menšího z výhledu a snědené energie. Odchod do nové vsi dělí snopy jako zásoby
-  (`leavingFood`, `takeSheaves`). Plán osevu odečte
-  čekající výmlat (`pendingThreshLabor` – na humnech nejvýš kapacita za dny okna) z podzimní
-  kapacity (`sowingCapacity`) a výmlat ozimu a luštěnin přičte k srpnu (`CropLoad.august` ve
-  `sowing.ts`). Rozdělení práce: výmlat na hotová humna rovným dílem (cíl `threshing-floor`),
+  (`leavingFood`, `takeSheaves`). Plán osevu výmlat
+  z podzimní kapacity (`sowingCapacity`) neodečítá a do zátěže srpna (`CropLoad.august` ve
+  `sowing.ts`) nepřičítá – výmlat počká za polními pracemi do zimy. Rozdělení práce: výmlat na hotová humna rovným dílem (cíl `threshing-floor`),
   nouzový u vsi (`DayWork.threshing`); ve scéně mlátí podíl s cílem `threshing-floor` na humně (`threshingOnFloor` ve `villager-plan-fields.ts` – páry mlatců s holemi, prohazovači, nosič slámy), podíl s cílem ves nouzově u vsi (`threshing` – dva páry mlatců a dva prohazovači na místo; issue #3 – dřív mlátili všichni u vsi), pěší nosiči snopů jdou z pole na humno (`sheafFloor`, scene-village.md – Humno ve scéně); síť pěšin vede k humnu vstupem na předku
   (`threshingFloorEntrance` v `paths/entrances.ts`, `PathVillage.threshingFloors`, klíče sítě
   a chůze), humno je stavba, kterou obejdou pěšiny, vozy, vozové cesty (`villageBuildings`)

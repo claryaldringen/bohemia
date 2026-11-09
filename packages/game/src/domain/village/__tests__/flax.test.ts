@@ -211,7 +211,10 @@ describe('zlatý otisk – výběr dílů a práce vsi k 2. 9.', () => {
     // 124:fe7ca4e9
     // 154:7d382a45 (9. 11. 2026 večer, len zpět na poli – fields.md, Len): plán k 1. 9. nese
     // potřebu lnu a 2. 9. 601 už díl lnu; dřív 139:0eabfd7a
-    expect(fingerprint(plans)).toBe('154:7d382a45');
+    // 169:c1ff75b5 (9. 11. 2026, pořadí důležitosti polních prací a výmlat do zimy – fields.md):
+    // výmlat čeká za přípravou půdy, plán osevu ho z podzimu neodečítá – jiné zásoby a výběr dílů;
+    // dřív 154:7d382a45
+    expect(fingerprint(plans)).toBe('169:c1ff75b5');
   });
 });
 
@@ -284,14 +287,12 @@ describe('len v simulaci', () => {
     }
   });
 
-  it('trhání lnu v srpnu až za žněmi obilí, před výmlatem s oknem i v září; rodina nepomáhá', () => {
+  it('trhání lnu v srpnu až za žněmi obilí, před sečí a výmlatem; rodina nepomáhá', () => {
     expect(FLAX_WINDOWS.harvest).toEqual([[8, 8]]);
     const s = advanceVillage(withFlax(), at(602, 8, 10), null);
     const tasks = fieldTasks(s, s.lastDay, 0);
     const flax = tasks.find((t) => t.crop === 'flax' && t.name === 'harvest');
     expect(flax).toBeDefined();
-    // za všemi polními úlohami – i za žní jaře (okno do září)
-    expect(tasks.at(-1)).toBe(flax);
     const task = (
       over: Partial<Parameters<typeof dayTaskOrder>[0]>,
     ): Parameters<typeof dayTaskOrder>[0] => ({
@@ -303,16 +304,18 @@ describe('len v simulaci', () => {
       ...over,
     });
     const flaxTask = task({ name: 'harvest', end: flax!.end, rank: flax!.rank, field: flax });
-    // výmlat na dnešní jídlo a výmlat v posledním měsíci okna napřed
+    // za všemi žněmi obilí – i za žní jaře (okno do září)
+    for (const reap of tasks.filter((t) => t.name === 'harvest' && t.crop !== 'flax')) {
+      const grain = task({ name: 'harvest', end: reap.end, rank: reap.rank, field: reap });
+      expect(dayTaskOrder(flaxTask, grain)).toBeGreaterThan(0);
+    }
+    // výmlat na dnešní jídlo napřed
+    expect(dayTaskOrder(flaxTask, task({ thresh: { urgent: true } as never }))).toBeGreaterThan(0);
+    // výmlat (i v posledním měsíci okna a zpožděný) a seč až po lnu
+    expect(dayTaskOrder(flaxTask, task({ thresh: {} as never, end: 8 }))).toBeLessThan(0);
+    expect(dayTaskOrder(flaxTask, task({ thresh: {} as never, end: 99 }))).toBeLessThan(0);
     expect(
-      dayTaskOrder(flaxTask, task({ thresh: { urgent: true } as never }), true),
-    ).toBeGreaterThan(0);
-    expect(dayTaskOrder(flaxTask, task({ end: 8 }), true)).toBeGreaterThan(0);
-    // výmlat, jehož okno běží i v září, a zpožděný výmlat až po lnu; seč také
-    expect(dayTaskOrder(flaxTask, task({}), true)).toBeLessThan(0);
-    expect(dayTaskOrder(flaxTask, task({ end: 99 }), true)).toBeLessThan(0);
-    expect(
-      dayTaskOrder(flaxTask, task({ name: 'mow', end: Infinity, tie: 3, rank: 1 }), true),
+      dayTaskOrder(flaxTask, task({ name: 'mow', end: Infinity, tie: 3, rank: 1 })),
     ).toBeLessThan(0);
     // pomoc rodiny jde na žeň obilí, na len ne
     const allocation = allocateDay({

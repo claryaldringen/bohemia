@@ -19,7 +19,14 @@ import { ageGroup, laborPerDay } from './people';
 import { daylightFactor } from './daylight';
 import { PLOUGH_HA_PER_DAY } from './plough';
 import { fieldWorkPerHa } from './productivity';
-import { CROP_WINDOWS, PEAK_CAPACITY_SHARE, SEED_BUYING, SEED_STORES, STARVATION } from './rules';
+import {
+  CROP_WINDOWS,
+  PEAK_CAPACITY_SHARE,
+  SEED_BUYING,
+  SEED_STORES,
+  STARVATION,
+  THRESHING,
+} from './rules';
 import { windowDaysLeft } from './sowing';
 import { nextSowing, onTurn } from './rotation';
 import { sheavesOutlook } from './threshing';
@@ -538,6 +545,33 @@ export function sowingSeedDay(state: VillageState, day: number): void {
   const ideal = (pile.totalKg * Math.min(pile.days, sowingDaysLeft(state, crop, day))) / pile.days;
   const want = Math.min(ideal, windowSeedNeedKg(state, crop)) - reservedSeedKg(state);
   pile.kg = pileKg(state, day, want);
+}
+
+/**
+ * Kolik zrna ves dnes vymlátí na osivo (kg – výmlat na osivo; fields.md, Pořadí důležitosti
+ * polních prací a výmlat do zimy, návrh Clauda): ve snopech zrno na setí není – hromada osiva okna
+ * bere jen vymlácené zrno (`pileKg`). V okně setí obilí, když hromada ráno narazila na vymlácené
+ * zrno, vymlátí ves před přípravou půdy osivo na THRESHING.seedDays dní setí dnešním tempem
+ * (`sowingHaPerDay`) – nejvýš osivo ideálního zbytku okna a osivo nad přežívací zásobu do žní
+ * (`seedKeepKg`; výmlat zásobu nezvětší), bez vymláceného zrna, které ves má. Mimo okno setí 0.
+ */
+export function seedThreshKg(state: VillageState, day: number, toolCoverage: number): number {
+  const pile = state.sowingSeed;
+  if (!pile || pile.beforeWindow) return 0;
+  const ordinary = Math.max(0, state.storesKg - reservedSeedKg(state));
+  // hromada pod vymláceným zrnem – drží ji ideál okna nebo přežívací zásoba, výmlat nepomůže
+  if (pile.kg < ordinary - EPSILON) return 0;
+  const left = sowingDaysLeft(state, pile.crop, day);
+  if (left <= 0) return 0;
+  const ideal = (pile.totalKg * Math.min(pile.days, left)) / pile.days;
+  const pace =
+    sowingHaPerDay(state, day, pile.crop, toolCoverage) *
+    cropSeedPerHa(pile.crop) *
+    THRESHING.seedDays;
+  const want = Math.min(ideal - reservedSeedKg(state), pace);
+  if (want <= ordinary + EPSILON) return 0;
+  const aboveKeep = ordinary + sheavesOutlook(state, day).grainKg - seedKeepKg(state, day);
+  return Math.max(0, Math.min(want, aboveKeep) - ordinary);
 }
 
 /**

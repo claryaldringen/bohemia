@@ -107,12 +107,14 @@ import {
   CART_JOBS,
   COMMON_LABOR_HISTORY_DAYS,
   CROP_ORDER,
+  DAY_WORK_ORDER,
   DOMESTIC,
   GRAIN_PITS,
   HARVEST_DAY,
   LATE_HARVEST_DAY,
   ORCHARD_WINDOWS,
   WEEDING_CHILDREN,
+  type DayWorkGroup,
 } from './rules';
 import type {
   CartTripLog,
@@ -128,6 +130,7 @@ import {
   seedKeepKg,
   seedPrepShares,
   seedSowCap,
+  seedThreshKg,
   seedUseKg,
   seedStore,
   sowableSeedKg,
@@ -229,10 +232,9 @@ export function fieldTasks(
     if (windowEnd === null) return;
     const order =
       TASK_ORDER.indexOf(name === 'plough' ? 'dig' : name) - (name === 'plough' ? 0.5 : 0);
-    // trhání lnu až za žněmi obilí (`flaxHarvestOrder`)
-    const { end, rank } = flaxHarvest(crop, name)
-      ? flaxHarvestOrder(month)
-      : { end: windowEnd, rank: CROP_ORDER.indexOf(crop) * TASK_ORDER.length + order };
+    // trhání lnu jde za žněmi obilí skupinou dne (`dayTaskOrder` – DAY_WORK_ORDER)
+    const end = windowEnd;
+    const rank = CROP_ORDER.indexOf(crop) * TASK_ORDER.length + order;
     let remaining = cropTaskRemaining(work, name);
     // příprava půdy jaře jen na díly, na které je osivo (`seedPrepShares`)
     const prep =
@@ -311,22 +313,12 @@ export function fieldTasks(
   );
 }
 
-/** Úloha je trhání lnu – jde za žněmi obilí (`flaxHarvestOrder`; fields.md – Len). */
+/**
+ * Úloha je trhání lnu – jde za žněmi obilí (`DAY_WORK_ORDER`; fields.md – Len, Martin 9. 11. 2026:
+ * „Sklízí se v srpnu, ale obilí má vždy absolutní přednost“) a dřinu nepřidá.
+ */
 function flaxHarvest(crop: Crop, name: CropTask): boolean {
   return crop === 'flax' && name === 'harvest';
-}
-
-/**
- * Místo trhání lnu v pořadí úloh dne (fields.md – Len; Martin 9. 11. 2026: „Sklízí se v srpnu, ale
- * obilí má vždy absolutní přednost – pokud se nesklidí len, tak lidé budou maximálně chodit
- * v potrhaných šatech, ale neumřou hlady“): za všemi žněmi obilí (žeň a odnos – i jař, jejíž okno
- * běží do září), za výmlatem na dnešní jídlo a výmlatem, jehož okno tento měsíc končí; před
- * výmlatem, jehož okno běží i příští měsíc – snopy v okně čekají bez ztráty (návrh Clauda: Vlkov
- * mlátí v srpnu ozim celou prací vsi a za výmlatem by len nevytrhal nikdy). Konec okna jako úlohy
- * příštího měsíce, pořadí těsně před výmlatem (`THRESH_RANK`).
- */
-function flaxHarvestOrder(month: number): { end: number; rank: number } {
-  return { end: month + 1, rank: THRESH_RANK - 0.5 };
 }
 
 /**
@@ -344,10 +336,7 @@ export function springHarvestAhead(state: VillageState, month: number): boolean 
   return ahead(springCrop(plan)) || ahead(seasonCrop(plan, 'winter'));
 }
 
-/**
- * Výmlat jde při shodě konce okna za polními úlohami (žeň má přednost, výmlat ji následuje) – pořadí
- * za všemi úlohami všech plodin.
- */
+/** Pořadí výmlatu za všemi polními úlohami všech plodin (shoda konce okna ve skupině dne). */
 export const THRESH_RANK = CROP_ORDER.length * TASK_ORDER.length;
 
 /**
@@ -378,21 +367,61 @@ export function threshForFoodToday(state: VillageState, day: number): number {
   return threshForFoodKg(edible, villageFoodNeed(state, day));
 }
 
+/** Skupina úlohy dne podle druhu práce (`DAY_WORK_ORDER`). */
+export function dayWorkGroup(task: DayTask): DayWorkGroup {
+  if (task.thresh) {
+    return task.thresh.urgent ? 'food-thresh' : task.thresh.seed ? 'seed-thresh' : 'thresh';
+  }
+  const crop = task.field?.crop;
+  switch (task.name) {
+    case 'harvest':
+      return crop === 'flax' ? 'flax-harvest' : 'grain-harvest';
+    case 'weed':
+      return 'weeding';
+    case 'reclaim':
+    case 'dig':
+    case 'plough':
+    case 'sow':
+      return 'tillage';
+    case 'thresh':
+      return 'thresh';
+    case 'mow':
+      return 'hay';
+    case 'orchard-harvest':
+      return 'apples';
+    case 'orchard-care':
+      return 'orchard-care';
+    case 'slaughter':
+      return 'slaughter';
+    case 'watch':
+      return 'watch';
+    case 'grain-pit':
+      return 'grain-pit';
+    case 'herding':
+      return 'herding';
+  }
+}
+
 /**
- * Pořadí úloh dne v rozdělení práce: výmlat na dnešní jídlo napřed (production-chains.md – Humno,
- * výmlat na dnešní jídlo – orba nese i setí za sebou, fields.md – Práce, a jinak by jídlu dne
- * práci vzala), pak orba rádlem (oxen.md – Orba má přednost; Martin 24. 10. 2026: „Co může být
- * přednějšího než orba?“ – spřežení potřebuje jen oráče, jinak voli stojí), pak nejbližší konec
- * okna, přednost (`tie`) a pořadí úloh. Ve dni, kdy ves žne (`reaping`), orba přednost nemá – žeň
- * s dřívějším koncem okna jde před ní i před setím (fields.md – Pořadí práce dne; Martin 9. 11.
- * 2026: „Je lepší za každou cenu sklidit to, co už vyrostlo, než začínat pěstování úplně od
- * začátku“ – v září dosklizeň jaře, na žeň jdou i muži od spřežení a rozsévači); dosklizeň ozimu
- * v srpnu (konec okna srpen) jde před žní jaře a výmlatem.
+ * Pořadí úloh dne v rozdělení práce (fields.md – Pořadí důležitosti polních prací a výmlat do
+ * zimy; Martin 9. 11. 2026: „Je lepší za každou cenu sklidit to, co už vyrostlo, než začínat
+ * pěstování úplně od začátku“): napřed skupina úlohy (`DAY_WORK_ORDER` – výmlat na dnešní jídlo,
+ * porážka, žeň obilí, trhání lnu, nutná seč, jablka, pletí, výmlat na osivo, příprava půdy
+ * a setí, péče o sad,
+ * hlídka polí, výmlat, obilné jámy, dospělý pasák), v přípravě půdy orba rádlem první (oxen.md –
+ * Orba má přednost; Martin 24. 10. 2026: „Co může být přednějšího než orba?“ – spřežení potřebuje
+ * jen oráče, jinak voli stojí), pak nejbližší konec okna, přednost (`tie`) a pořadí úloh.
  */
-export function dayTaskOrder(a: DayTask, b: DayTask, reaping = false): number {
-  const first = (t: DayTask): number =>
-    t.thresh?.urgent ? 0 : t.name === 'plough' && !reaping ? 1 : 2;
-  return first(a) - first(b) || a.end - b.end || a.tie - b.tie || a.rank - b.rank;
+export function dayTaskOrder(a: DayTask, b: DayTask): number {
+  const group = (t: DayTask): number => DAY_WORK_ORDER.indexOf(dayWorkGroup(t));
+  const plough = (t: DayTask): number => (t.name === 'plough' ? 0 : 1);
+  return (
+    group(a) - group(b) ||
+    plough(a) - plough(b) ||
+    a.end - b.end ||
+    a.tie - b.tie ||
+    a.rank - b.rank
+  );
 }
 
 /**
@@ -452,12 +481,17 @@ export function work(
     rank: field.rank,
     field,
   }));
-  // výmlat snopů na humnech, v roce odkladu i nouzově na udusané zemi (production-chains.md –
-  // Humno): ozim a luštěniny v srpnu a září (srpnová žeň – fields.md, Žně i v srpnu), jař v září
-  // – za polními úlohami téhož konce okna (žeň má přednost); výmlat, který okno nestihl, po všech
-  // pracích. Chybí-li v zásobách zrno na dnešní
-  // jídlo, vymlátí se napřed – před žní i ostatními úlohami (výmlat na dnešní jídlo)
-  const threshes = threshTasks(state, day, threshForFoodToday(state, day));
+  // výmlat snopů na humnech, jinak nouzově na udusané zemi (production-chains.md – Humno): ozim
+  // a luštěniny od srpna, jař od září, do konce února – za polními pracemi a hlídkou polí (fields.md
+  // – Pořadí důležitosti polních prací a výmlat do zimy). Chybí-li v zásobách zrno na dnešní jídlo,
+  // vymlátí se napřed – před žní i ostatními úlohami (výmlat na dnešní jídlo); chybí-li vymlácené
+  // zrno na osivo setí dneška a zítřka, vymlátí se před přípravou půdy (výmlat na osivo)
+  const threshes = threshTasks(
+    state,
+    day,
+    threshForFoodToday(state, day),
+    seedThreshKg(state, day, coverage.tools),
+  );
   for (const thresh of threshes) {
     dayTasks.push({
       name: 'thresh',
@@ -488,14 +522,15 @@ export function work(
     });
   }
   // noční hlídka polí (wildlife.md – Noční hlídka vesničanů, 2. stupeň): dospělí z práce vsi za
-  // polními úlohami dne – v žních soupeří se sklizní (zamýšlená volba) – a za nutnou sečí (seno
-  // pro voly a krávy je životně důležité; návrh Clauda), před stavbami a rybami
+  // sklizní, nutnou sečí, pletím a přípravou půdy, před výmlatem, stavbami a rybami (fields.md –
+  // Pořadí důležitosti polních prací a výmlat do zimy)
   const watchLabor = watchWanted(state, day);
   if (watchLabor > EPSILON) {
     dayTasks.push({ name: 'watch', remaining: watchLabor, end: Infinity, tie: 4, rank: 2 });
   }
   // dospělý pasák (diet.md – Pasáci, Dospělý pasák; Martin 2. 11. 2026): ves bez výrostků pase
-  // z práce vsi za polními úlohami dne, nutnou sečí a hlídkou polí, před stavbami (návrh Clauda)
+  // z práce vsi za polními úlohami dne (i výmlatem a obilnými jamami), nutnou sečí a hlídkou polí,
+  // před stavbami (návrh Clauda)
   const adultHerdingWanted = adultHerding(state, day, villageOxen(state));
   if (adultHerdingWanted > EPSILON) {
     dayTasks.push({
@@ -511,14 +546,14 @@ export function work(
     const tie = orchard.name === ORCHARD_TASK_NAMES.harvest ? 0 : 2;
     dayTasks.push({ ...orchard, tie, rank: 0 });
   }
-  // seč (oxen.md – Seno, dvě seče): nutné seno (dnešní stádo) až za všemi úlohami dne – polním
-  // pracím (pletí, žně, odnos, výmlat, orba, setí, kopání) práci nikdy nebere –, před stavbami;
-  // seč navíc pro růst stád až z práce po stavbách (níž)
+  // seč (oxen.md – Seno, dvě seče): nutné seno (dnešní stádo) za žní obilí a trháním lnu, před
+  // jablky, pletím, orbou a setím i výmlatem (fields.md – Pořadí důležitosti polních prací –
+  // 3. sklizeň sena); seč navíc pro růst stád až z práce po stavbách (níž)
   const neededMowing = mowingNeededRemaining(state, day);
   if (neededMowing > EPSILON) {
     dayTasks.push({ name: 'mow', remaining: neededMowing, end: Infinity, tie: 3, rank: 1 });
   }
-  // porážka a uzení – maso se musí zpracovat hned, před polními úlohami téhož měsíce (diet.md)
+  // porážka a uzení – maso se musí zpracovat hned, hned za výmlatem na dnešní jídlo (diet.md)
   const butchery = slaughterRemaining(state, day);
   if (butchery > 0) {
     dayTasks.push({
@@ -530,9 +565,8 @@ export function work(
       rank: 1,
     });
   }
-  // žeň má ve dni, kdy ves žne, přednost před orbou (fields.md – Pořadí práce dne)
-  const reaping = dayTasks.some((t) => t.field?.name === 'harvest' && t.remaining > EPSILON);
-  dayTasks.sort((a, b) => dayTaskOrder(a, b, reaping));
+  // pořadí důležitosti prací dne (fields.md – Pořadí důležitosti polních prací a výmlat do zimy)
+  dayTasks.sort(dayTaskOrder);
   // vozy (wagons.md – Vůz): dvoukoláky s volem, který dnes neorá, vozí snopy a seno tam, kam
   // dojedou – převezmou kus nošení a jde s nimi honák a nakladač (úloha pak chce méně práce); ve
   // dny orby jdou páry napřed k rádlům, vozy táhne zbytek volů (oxen.md – Voli se sdílí)

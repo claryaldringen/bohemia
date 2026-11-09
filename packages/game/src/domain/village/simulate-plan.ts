@@ -32,7 +32,7 @@ import {
   windowOpen,
   type SeasonJoin,
 } from './rotation';
-import { pendingThreshLabor, sheavesOutlook, type ThreshTask } from './threshing';
+import { sheavesOutlook, type ThreshTask } from './threshing';
 import {
   adultDailyMin,
   HARVEST_CHORES,
@@ -737,19 +737,16 @@ export function sowingCapacity(
     sowing = false,
     perDay = free,
   ): number => perDay * windowDaylightWithout(day, segments, sowing ? SOW_AFTER_DIG_DAYS : 0);
-  // výmlat snopů hned po žni (production-chains.md – Humno) bere podzimní práci: co z něj zbývá
-  // (na humnech nejvýš jejich kapacita za dny okna, v roce odkladu i nouzově), ubere podzim ozimu
-  // i celý podzim – mlátí se před setím ozimu; žňové ruce mlátí se vsí, ves dá jen svůj díl
+  // výmlat snopů podzimní práci nebere – čeká za přípravou půdy a setím do konce února (fields.md
+  // – Pořadí důležitosti polních prací a výmlat do zimy); žňové ruce žnou se vsí, ves dá jen svůj díl
   const villageShare = villageFree + hands > 0 ? villageFree / (villageFree + hands) : 1;
-  const threshing = (segments: Parameters<typeof windowDaysLeft>[1]): number =>
-    pendingThreshLabor(state, day, windowDaysLeft(day, segments)) * villageShare;
   // žeň jaře, kterou srpen nedosklidil, jde v září před orbou a setím ozimu (fields.md – Žeň jaře
   // i v září; Martin 9. 11. 2026) – ubere podzim; žňové ruce žnou se vsí, ves dá jen svůj díl
   const late = options.withoutLateHarvest ? 0 : lateHarvestRemaining(state) * villageShare;
   const w = SOWING_CAPACITY_WINDOWS;
   const people: SowingCapacity = {
-    autumnWinter: Math.max(0, days(w.autumnWinter, true) - threshing(w.autumnWinter) - late),
-    autumn: Math.max(0, days(w.autumn) - threshing(w.autumn) - late),
+    autumnWinter: Math.max(0, days(w.autumnWinter, true) - late),
+    autumn: Math.max(0, days(w.autumn) - late),
     spring: days(w.spring, true),
     july: days(w.july, false, harvestFree),
     august: days(w.august, false, harvestFree),
