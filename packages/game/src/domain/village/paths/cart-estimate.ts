@@ -132,9 +132,125 @@ function cartGroundOf(state: VillageState, day: number, landscape: Landscape): C
       cost[c] = speed > 0 ? Math.max(own, 1 / speed) : Infinity;
     }
   }
+  // jiné vstupy dílů, ale tytéž ceny buněk (díl změnil stadium bez změny rychlosti vozu) – táž
+  // půda i s pamětí úseček
+  if (lastGround && lastGround.terrain === t && sameCosts(lastGround.ground.cost, cost)) {
+    lastGround = { terrain: t, values, turned, ground: lastGround.ground };
+    return lastGround.ground;
+  }
   const ground = { terrain: t, cost };
+  if (lastGround && lastGround.terrain === t) carryCartSegments(lastGround.ground, ground);
   lastGround = { terrain: t, values, turned, ground };
   return ground;
+}
+
+/** Ceny buněk dvou půd vozu jsou tytéž (číslo po čísle). */
+function sameCosts(a: Float32Array, b: Float32Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let c = 0; c < a.length; c++) if (a[c] !== b[c]) return false;
+  return true;
+}
+
+/** Strana čtverce buněk, po kterých se hledají změněné buňky půdy vozu (`carryCartSegments`). */
+const CHANGE_TILE = 8;
+/** Nejvíc čtverců se změnou, se kterými se paměť úseček převádí – jinak začne znovu. */
+const MAX_CHANGE_TILES = 256;
+
+/**
+ * Převede ceny úseček z paměti staré půdy vozu (`segmentMemo`) na novou téhož terénu: úsečka čte
+ * jen ceny buněk, přes které vede (`straightCartCost` – buňka nejbližší bodu po půlbuňkách; výšky
+ * jsou terénu), takže úsečka, která žádnou buňku se změněnou cenou nemine ani o buňku, má cenu
+ * touž. Změněné buňky po čtvercích CHANGE_TILE buněk, úsečka se zkouší proti každému čtverci
+ * s rezervou buňky (`touchesBox`). Objížďky přes brod jsou v jiné paměti (`detourMemo`) a nepřevádějí
+ * se. Jen zrychlení – tytéž ceny jako bez paměti (docs/code/village-core.md – Výkon dopočtu).
+ */
+export function carryCartSegments(old: CartGround, next: CartGround): void {
+  const memo = segmentMemo.get(old);
+  if (!memo) return;
+  const t = next.terrain;
+  const tilesW = Math.ceil(t.width / CHANGE_TILE);
+  const tiles = new Set<number>();
+  for (let c = 0; c < next.cost.length; c++) {
+    if (old.cost[c] === next.cost[c]) continue;
+    const i = c % t.width;
+    const j = (c - i) / t.width;
+    tiles.add(Math.floor(j / CHANGE_TILE) * tilesW + Math.floor(i / CHANGE_TILE));
+    if (tiles.size > MAX_CHANGE_TILES) return;
+  }
+  // čtverce v buňkách s rezervou: bod úsečky čte buňku, od jejíhož středu je nejvýš půl buňky
+  const boxes: number[] = [];
+  for (const tile of tiles) {
+    const ti = tile % tilesW;
+    const tj = (tile - ti) / tilesW;
+    boxes.push(
+      ti * CHANGE_TILE - 1,
+      tj * CHANGE_TILE - 1,
+      ti * CHANGE_TILE + CHANGE_TILE,
+      tj * CHANGE_TILE + CHANGE_TILE,
+    );
+  }
+  // obal všech čtverců – úsečka mimo něj se čtverců nedotkne
+  let i0 = Infinity;
+  let j0 = Infinity;
+  let i1 = -Infinity;
+  let j1 = -Infinity;
+  for (let k = 0; k < boxes.length; k += 4) {
+    i0 = Math.min(i0, boxes[k]!);
+    j0 = Math.min(j0, boxes[k + 1]!);
+    i1 = Math.max(i1, boxes[k + 2]!);
+    j1 = Math.max(j1, boxes[k + 3]!);
+  }
+  const kept = new SegmentMemo();
+  memo.forEach((ax, az, bx, bz, value) => {
+    const u0 = (ax - t.originX) / t.cellM;
+    const v0 = (az - t.originZ) / t.cellM;
+    const u1 = (bx - t.originX) / t.cellM;
+    const v1 = (bz - t.originZ) / t.cellM;
+    if (!touchesBox(u0, v0, u1, v1, i0, j0, i1, j1)) {
+      kept.set(ax, az, bx, bz, value);
+      return;
+    }
+    for (let k = 0; k < boxes.length; k += 4) {
+      if (touchesBox(u0, v0, u1, v1, boxes[k]!, boxes[k + 1]!, boxes[k + 2]!, boxes[k + 3]!)) {
+        return;
+      }
+    }
+    kept.set(ax, az, bx, bz, value);
+  });
+  segmentMemo.set(next, kept);
+}
+
+/** Úsečka (u0, v0)–(u1, v1) protne obdélník [i0, i1] × [j0, j1] (nebo v něm leží) – ořez po osách. */
+function touchesBox(
+  u0: number,
+  v0: number,
+  u1: number,
+  v1: number,
+  i0: number,
+  j0: number,
+  i1: number,
+  j1: number,
+): boolean {
+  if ((u0 < i0 && u1 < i0) || (u0 > i1 && u1 > i1)) return false;
+  if ((v0 < j0 && v1 < j0) || (v0 > j1 && v1 > j1)) return false;
+  // u = u0 + s·du v [i0, i1] a v = v0 + s·dv v [j0, j1] pro nějaké s v [0, 1]
+  let lo = 0;
+  let hi = 1;
+  const du = u1 - u0;
+  if (du !== 0) {
+    const a = (i0 - u0) / du;
+    const b = (i1 - u0) / du;
+    lo = Math.max(lo, Math.min(a, b));
+    hi = Math.min(hi, Math.max(a, b));
+  }
+  const dv = v1 - v0;
+  if (dv !== 0) {
+    const a = (j0 - v0) / dv;
+    const b = (j1 - v0) / dv;
+    lo = Math.max(lo, Math.min(a, b));
+    hi = Math.min(hi, Math.max(a, b));
+  }
+  return lo <= hi;
 }
 
 /** Vstupy půdy po dílech jsou tytéž jako u poslední půdy. */
@@ -230,13 +346,21 @@ function cartSegment(g: CartGround, ground: WalkGround, a: PathPoint, b: PathPoi
   }
   const known = memo.get(a.x, a.z, b.x, b.z);
   if (known !== undefined) return known;
+  let detours = detourMemo.get(g);
+  const viaFord = detours?.get(a.x, a.z, b.x, b.z);
+  if (viaFord !== undefined) return viaFord;
   const value = straightCartCost(g, a, b);
-  let cost = value;
-  if (crossedDeep) {
-    const ford = fordDetour(ground, a, b);
-    cost = ford ? straightCartCost(g, a, ford) + straightCartCost(g, ford, b) : Infinity;
+  if (!crossedDeep) {
+    memo.set(a.x, a.z, b.x, b.z, value);
+    return value;
   }
-  memo.set(a.x, a.z, b.x, b.z, cost);
+  const ford = fordDetour(ground, a, b);
+  const cost = ford ? straightCartCost(g, a, ford) + straightCartCost(g, ford, b) : Infinity;
+  if (!detours) {
+    detours = new SegmentMemo();
+    detourMemo.set(g, detours);
+  }
+  detours.set(a.x, a.z, b.x, b.z, cost);
   return cost;
 }
 
@@ -247,6 +371,11 @@ function cartSegment(g: CartGround, ground: WalkGround, a: PathPoint, b: PathPoi
  * dopočtu).
  */
 const segmentMemo = new WeakMap<CartGround, SegmentMemo>();
+/**
+ * Ceny úseček, které jedou objížďkou přes brod (čtou i úsečky k brodu) – zvlášť od `segmentMemo`,
+ * při změně půdy se nepřevádějí (`carryCartSegments`).
+ */
+const detourMemo = new WeakMap<CartGround, SegmentMemo>();
 
 /** Síť pevných cest pro vůz – body os, spoje s cenou a délkou (rozcestí sdílí bod). */
 interface CartRoadGraph {

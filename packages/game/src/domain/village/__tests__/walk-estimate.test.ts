@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
-import { cartEstimates, villageCartEstimates, type CartGround } from '../paths/cart-estimate';
+import {
+  carryCartSegments,
+  cartEstimates,
+  villageCartEstimates,
+  type CartGround,
+} from '../paths/cart-estimate';
 import { PATH_FORD, PATH_FOREST, PATH_WATER, type PathTerrain } from '../paths/terrain';
 import { fordDetour, groundWalkLength, type WalkGround } from '../paths/walking';
 import { ROAD_WALK } from '../rules';
@@ -141,6 +146,36 @@ describe('odhad jízdy vozu', () => {
       [target],
     );
     expect(improved[0]!.cost).toBeLessThan(viaRoad[0]!.cost);
+  });
+
+  it('paměť úseček převedená na změněnou půdu = výpočet bez paměti', () => {
+    const before = ground(15);
+    const origins = [
+      { x: 10, z: 10 },
+      { x: 20, z: 100 },
+    ];
+    const targets = [];
+    for (let x = 4; x < 120; x += 9) {
+      for (let z = 3; z < 120; z += 11) targets.push({ x, z, reachM: 1 });
+    }
+    // napřed paměť staré půdy (i objížďky přes brod)
+    const old = cartEstimates(before, [], origins, targets);
+    // nová půda: zarostlý čtverec u cílů a pomalejší pruh – změněné buňky
+    const cost = new Float32Array(before.cost);
+    for (let j = 20; j < 24; j++) for (let i = 10; i < 14; i++) cost[j * W + i] = Infinity;
+    for (let j = 40; j < 50; j++) cost[j * W + 50] = 4;
+    const after: CartGround = { terrain: before.terrain, cost };
+    carryCartSegments(before, after);
+    const carried = cartEstimates(after, [], origins, targets);
+    // táž půda bez paměti
+    const cold = cartEstimates(
+      { terrain: before.terrain, cost: new Float32Array(cost) },
+      [],
+      origins,
+      targets,
+    );
+    expect(carried).toEqual(cold);
+    expect(carried).not.toEqual(old);
   });
 
   it('přes potok jen brodem – bez brodu nedojede', () => {
