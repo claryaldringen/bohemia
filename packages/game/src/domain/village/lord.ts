@@ -626,11 +626,7 @@ export function trainLordDay(
  * jako bez keramiky – `craftCoverage` by s `crafts.ts` udělal kruh importů; návrh Clauda). Jen
  * čte stav.
  */
-export function harvestFieldIds(
-  state: VillageState,
-  day: number,
-  family: LordFamily,
-): Set<number> {
+export function harvestFieldIds(state: VillageState, day: number, family: LordFamily): Set<number> {
   if (!harvestHandsDay(state, day) || lordHelpShare(state.season, day) <= 0) return new Set();
   const manor = manorLabor(state, day, 0, 1, family);
   return lordFieldIds(family, day, lordFieldShares(manor, manor.help));
