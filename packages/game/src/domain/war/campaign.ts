@@ -573,6 +573,7 @@ function raidTick(s: CampaignState, tick: number, ctx: TickContext, out: TickOut
   const field = battleFieldOf(s, ctx);
   if (!s.battle) {
     s.battle = campaignBattle(s, ctx, field);
+    s.battle.openTick = tick;
     // přítomný hráč se dozví, že u vsi stojí cizí vojsko (war.md – Obránci: Přítomný hráč)
     const watcher = ctx.world.watcherOf?.(s.target.villageId);
     if (watcher && watcher.playerId !== s.playerId) {

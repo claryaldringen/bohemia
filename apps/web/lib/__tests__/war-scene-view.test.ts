@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   dateOfDayIndex,
+  msOfTick,
   OFFICIAL_WORLD,
   realTimeOf,
   type CampaignView,
@@ -8,7 +9,13 @@ import {
   type WarSceneFighter,
   type WarSceneView,
 } from '@bohemia/game';
-import { armyFocusOf, foreignVillageOf, sceneWarOf, watchCellOf } from '../war-scene-view';
+import {
+  armyFocusOf,
+  foreignVillageOf,
+  SCENE_HERD_MAX,
+  sceneWarOf,
+  watchCellOf,
+} from '../war-scene-view';
 
 // Válka ve scéně vlastní mapy (war.md – Ve scéně – napojení na hru): odpověď serveru (už po mlze
 // války – packages/game `war-scene.test.ts`) se převede na snímek scény beze změny obsahu.
@@ -123,6 +130,90 @@ describe('sceneWarOf', () => {
       arrived: false,
       heading: { x: 1, z: 0 },
     });
+  });
+});
+
+describe('napadená ves ve scéně – útěk, stádo, padlí (war.md – Ve scéně)', () => {
+  const march: WarSceneView['march'] = {
+    members: [{ line: false, mounted: false, wounded: false, group: 3, status: 'active' }],
+    groups: [
+      {
+        id: 3,
+        order: 'follow-leader',
+        pos: { x: 50, z: 7 },
+        arrived: false,
+        heading: { x: 0, z: 1 },
+      },
+    ],
+  };
+
+  it('útěk do lesa: lidé od domů k okraji lesa své skupiny domů, od taktu útěku, dobytek', () => {
+    const flight: WarSceneView['flight'] = {
+      startTick: 30,
+      forests: [
+        { x: 0, z: 100 },
+        { x: 200, z: 100 },
+      ],
+      people: [
+        { id: 11, home: { x: 0, z: 0 }, kind: 'woman', child: false, carries: true, forest: 0 },
+        { id: 12, home: { x: 0, z: 0 }, kind: 'man', child: true, carries: false, forest: 0 },
+        { id: 21, home: { x: 200, z: 0 }, kind: 'man', child: false, carries: true, forest: 1 },
+      ],
+      herd: 80,
+    };
+    const war = sceneWarOf({ ...BASE, battle: null, march, flight }, OFFICIAL_WORLD)!;
+    expect(war.flight?.startMs).toBe(msOfTick(30, OFFICIAL_WORLD));
+    expect(war.flight?.walks.map((w) => [w.id, w.kind, w.child, w.clip])).toEqual([
+      [11, 'woman', false, 'carry'],
+      [12, 'man', true, 'walk'],
+      [21, 'man', false, 'carry'],
+    ]);
+    // každý k okraji lesa své skupiny domů (rozptyl do 9 m)
+    const to = war.flight!.walks.map((w) => Math.abs(Math.round(w.to.x / 100)));
+    expect(to).toEqual([0, 0, 2]);
+    expect(war.flight?.herd).toBe(SCENE_HERD_MAX);
+    // starší stav bez taktu útěku – lidé už stojí u lesa
+    const old = sceneWarOf(
+      { ...BASE, battle: null, march, flight: { ...flight, startTick: null } },
+      OFFICIAL_WORLD,
+    )!;
+    expect(old.flight?.startMs).toBe(-Infinity);
+  });
+
+  it('odehnané stádo jde za skupinou, se kterou ho vedou; bez stáda nic', () => {
+    expect(sceneWarOf({ ...BASE, battle: null, march }, OFFICIAL_WORLD)?.herd).toBeNull();
+    const war = sceneWarOf(
+      { ...BASE, battle: null, march: { ...march, herd: { group: 3, count: 7 } } },
+      OFFICIAL_WORLD,
+    );
+    expect(war?.herd).toEqual({ lead: { x: 50, z: 7 }, heading: { x: 0, z: 1 }, count: 7 });
+    expect(war?.flight).toBeNull();
+  });
+
+  it('rozhodnutý boj s padlými vedle pochodu – padlí do konce herního dne', () => {
+    const dead = { ...fighter('d:1', 'defend', 10), state: 'down' as const, killed: true };
+    const war = sceneWarOf(
+      {
+        ...BASE,
+        march,
+        battle: {
+          ticks: 90,
+          outcome: 'attackers',
+          fighters: [dead],
+          groups: [],
+          closedGates: [],
+          breaches: [],
+          ladders: [],
+          walls: [],
+        },
+      },
+      OFFICIAL_WORLD,
+    )!;
+    expect(war.battle?.fighters.map((f) => [f.id, f.state, f.killed])).toEqual([
+      ['d:1', 'down', true],
+    ]);
+    expect(war.march?.members).toHaveLength(1);
+    expect(war.dayEndMs).toBe(realTimeOf(dateOfDayIndex(BASE.day + 1), OFFICIAL_WORLD));
   });
 });
 

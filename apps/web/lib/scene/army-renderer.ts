@@ -66,8 +66,11 @@ export interface SceneWar {
   battle: SceneBattle | null;
   /** Pochod vojska – hloučky skupin; null – vojsko nepochoduje. */
   march: SceneMarch | null;
-  /** Útěk vsi k lesu (villager-plan.ts – `planFlight`) a kdy začal (ms). */
-  flight: { walks: readonly FleeWalk[]; startMs: number } | null;
+  /**
+   * Útěk vsi k lesu (villager-plan.ts – `planFlight`), kdy začal (ms) a kolik dobytka žene poslední
+   * z nich (`herd` kusů – `drivenHerd` za ním; chybí – bez dobytka).
+   */
+  flight: { walks: readonly FleeWalk[]; startMs: number; herd?: number } | null;
   /** Odehnané stádo za skupinou vojska (villager-plan.ts – `drivenHerd`). */
   herd: { lead: Pos; heading: Pos; count: number } | null;
   /** Mlha války z pohledu strany `side` (útočník na cizí mapě); null – bez mlhy. */
@@ -329,6 +332,22 @@ export class ArmyRenderer {
           lying: false,
           side: 'folk',
           look: ARMY_LOOKS.folk,
+        });
+      }
+      // dobytek žene poslední, kdo z vsi vyšel (stádo za ním jako za vojskem)
+      const drover = war.flight.walks[war.flight.walks.length - 1];
+      if (drover && war.flight.herd) {
+        const at = fleeWalkAt(drover, ft);
+        drivenHerd(at, { x: at.hx, z: at.hz }, war.flight.herd).forEach((p, i) => {
+          animals.push({
+            key: `fc${i}`,
+            species: 'cow',
+            x: p.x,
+            z: p.z,
+            hx: at.hx,
+            hz: at.hz,
+            speed: at.moving ? drover.speed : 0,
+          });
         });
       }
     }

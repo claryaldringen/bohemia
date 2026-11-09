@@ -234,6 +234,11 @@ export interface BattleState {
   outcome: BattleOutcome;
   /** Spočtené takty boje. */
   ticks: number;
+  /**
+   * Takt tažení, ve kterém se boj otevřel (ves utekla – scéna kreslí útěk od něj, i když je boj
+   * už rozhodnutý; war.md – Ve scéně). Chybí – boj mimo tažení nebo starší stav.
+   */
+  openTick?: number;
   /** Kdo ze vsi odešel před bojem: útočiště, les, vzdaní, odnesené zásoby (Ú6.10 je použije). */
   shelter?: ShelterReport;
   /**

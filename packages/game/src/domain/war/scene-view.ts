@@ -1,5 +1,6 @@
 import { crossingLayers } from '../village/fortification';
-import type { DwellingType, Position, WallKind } from '../village/types';
+import { ageYears, isAway } from '../village/people';
+import type { DwellingType, Position, VillageState, WallKind } from '../village/types';
 import { sameCell, type GridCell } from '../village/world-grid';
 import type {
   BattleBreach,
@@ -11,8 +12,11 @@ import type {
   Fighter,
 } from './battle';
 import type { CampaignGroup, CampaignMember, CampaignState } from './campaign-types';
+import { houseGroups } from './defenders';
+import { nearestForest } from './flight';
 import type { BattleLadder } from './ladders';
 import type { MarchGrid, Pos } from './march-grid';
+import { WAR } from './rules-war';
 import { inSight } from './sight';
 
 // Válka ve scéně jedné mapy (war.md – Ve scéně; scene.md – Vojsko, boj a mlha války): co z tažení
@@ -85,6 +89,43 @@ export type WarSceneGroup = Pick<CampaignGroup, 'id' | 'order' | 'pos' | 'arrive
 export interface WarSceneMarch {
   members: Pick<CampaignMember, 'line' | 'mounted' | 'wounded' | 'group' | 'status'>[];
   groups: WarSceneGroup[];
+  /**
+   * Odehnané stádo (kořist – `CampaignLoot.herd` kusů) jde se skupinou `group` (war.md – Napadená
+   * ves). Chybí – stádo nevedou, nebo jeho skupina není vidět.
+   */
+  herd?: { group: number; count: number };
+}
+
+/**
+ * Člověk napadené vsi pro útěk ve scéně (`sceneFolkOf`) – dům, skupina domů (`houseGroups`),
+ * postava, dítě a jestli nese zásoby (`fleeParty`). Jen vlastní ves obránce.
+ */
+export interface WarSceneFolk {
+  id: number;
+  home: Pos;
+  group: number;
+  kind: 'man' | 'woman';
+  /** Dítě (mladší než `WAR.flight.adultFromYears`) – menší postava. */
+  child: boolean;
+  /** Nese zásoby (od `WAR.flight.childFromYears` – dospělý 25 kg, dítě 10 kg). */
+  carries: boolean;
+}
+
+/** Utíkající člověk – od domu k okraji lesa `forest` (index v `WarSceneFlight.forests`). */
+export type WarSceneFleeing = Omit<WarSceneFolk, 'group'> & { forest: number };
+
+/**
+ * Útěk vsi do lesa (war.md – Napadená ves; `ShelterReport.forest`, `livestockForest`): kdo utekl,
+ * ke kterému okraji lesa a kolik dobytka hnali. Jen obránce na mapě své vsi.
+ */
+export interface WarSceneFlight {
+  /** Takt, kdy ves utekla (otevření boje – `BattleState.openTick`); null – neznámo, stojí u lesa. */
+  startTick: number | null;
+  /** Okraje lesa (`nearestForest` od první skupiny domů jako v `planDefense`). */
+  forests: Pos[];
+  people: WarSceneFleeing[];
+  /** Dobytek hnaný do lesa (kusů). */
+  herd: number;
 }
 
 /** Dům cílové vsi, který útočník objevil (`CampaignState.discovered`) – jen co scéna kreslí. */
@@ -109,6 +150,8 @@ export interface WarSceneView {
    * svou ves kreslí ze svého stavu – pole chybí.
    */
   buildings?: WarSceneBuilding[];
+  /** Obránce na mapě své vsi: útěk vsi do lesa se stády. Chybí – nikdo neutekl. */
+  flight?: WarSceneFlight;
 }
 
 /** Vstup: mapa, strana hráče, mřížka mapy (dohled v lese) a oči mimo boj (domy vsi obránce). */
@@ -123,6 +166,8 @@ export interface WarSceneInput {
   forts: readonly BattleFort[];
   /** Domy cílové vsi – útočník na mapě cíle z nich vidí jen objevené (`discovered`). */
   buildings?: readonly WarSceneBuilding[];
+  /** Lidé napadené vsi (`sceneFolkOf`) – jen obránce, pro útěk do lesa. */
+  folk?: readonly WarSceneFolk[];
 }
 
 /**
@@ -151,17 +196,31 @@ export function battleWallsOf(forts: readonly BattleFort[], day: number): WarSce
 const STANDING: ReadonlySet<Fighter['state']> = new Set(['fight', 'breach', 'climb']);
 
 /**
+ * Boj, který scéna ukazuje: běžící, nebo rozhodnutý v dnešní herní den (padlí leží do konce dne,
+ * ranění sedí u domů – war.md, Ve scéně: Boj). Jinak null.
+ */
+export function shownBattle(state: CampaignState): BattleState | null {
+  const b = state.battle;
+  if (!b) return null;
+  if (b.outcome === 'ongoing') return b;
+  // výsledek nájezdu odchází v taktu rozhodnutí (`reportRaid` – `raidDay` = den rozhodnutí)
+  return state.raidDay === state.day ? b : null;
+}
+
+/**
  * Co strana `side` vidí z tažení na mapě `cell`: vlastní strana celá, druhá jen v dohledu (`inSight`)
  * vlastních bojovníků na nohou a očí `eyes`. Útočník je vlastní stranou celé vojsko tažení (i muži
- * vazalů). Boj je jen na mapě cíle a jen běžící; pochod jen mimo boj. Nic na mapě – null.
+ * vazalů). Boj je jen na mapě cíle – běžící celý, rozhodnutý do konce dne jen padlí a ranění (vedle
+ * pochodu). Obránce na mapě své vsi vidí i útěk vsi do lesa. Nic na mapě – null.
  */
 export function warSceneView(state: CampaignState, input: WarSceneInput): WarSceneView | null {
   const { side, grid } = input;
   const onTarget = sameCell(state.target.cell, input.cell);
-  // po konci boje (výsledek rozhodnut) se kreslí pochod – vojsko jde dál, snímek boje by stál
-  const fight = onTarget && state.battle?.outcome === 'ongoing' ? state.battle : null;
-  const battle = fight ? battleView(fight, state.day, input) : null;
-  const march = battle ? null : marchView(state, input);
+  const shown = onTarget ? shownBattle(state) : null;
+  const fight = shown?.outcome === 'ongoing' ? shown : null;
+  const battle = shown ? battleView(shown, state.day, input, fight === null) : null;
+  // po konci boje se kreslí pochod – vojsko jde dál (vedle padlých do konce dne)
+  const march = fight ? null : marchView(state, input);
   if (!battle && !march) return null;
   const view: WarSceneView = {
     campaignId: state.id,
@@ -184,6 +243,8 @@ export function warSceneView(state: CampaignState, input: WarSceneInput): WarSce
           }))
       : [];
   if (buildings.length > 0) view.buildings = buildings;
+  const flight = side === 'defend' && onTarget ? flightView(state, input) : null;
+  if (flight) view.flight = flight;
   return view;
 
   function marchView(s: CampaignState, inp: WarSceneInput): WarSceneMarch | null {
@@ -203,7 +264,7 @@ export function warSceneView(state: CampaignState, input: WarSceneInput): WarSce
         status: m.status,
       }));
     if (members.length === 0) return null;
-    return {
+    const out: WarSceneMarch = {
       members,
       groups: groups.map((g) => ({
         id: g.id,
@@ -213,17 +274,106 @@ export function warSceneView(state: CampaignState, input: WarSceneInput): WarSce
         heading: headingOf(g),
       })),
     };
+    const herd = herdGroupOf(s);
+    if (herd !== null && ids.has(herd)) out.herd = { group: herd, count: s.loot.herd };
+    return out;
   }
 }
 
-function battleView(b: BattleState, day: number, input: WarSceneInput): WarSceneBattle | null {
+/**
+ * Skupina, se kterou jde odehnané stádo: nejmenší id skupiny s mužem na nohou (návrh Clauda –
+ * kořist nese vojsko jako celek, stádo jde s jednou skupinou). null – stádo nevedou.
+ */
+function herdGroupOf(s: CampaignState): number | null {
+  if (s.loot.herd <= 0) return null;
+  const active = s.members.filter((m) => m.status === 'active').map((m) => m.group);
+  return active.length > 0 ? Math.min(...active) : null;
+}
+
+/**
+ * Lidé vsi pro útěk ve scéně v den `day` (přítomní – `isAway`): dům, skupina domů jako
+ * v `planDefense` (`houseGroups`), postava, dítě a nesení zásob jako `fleeParty`.
+ */
+export function sceneFolkOf(state: VillageState, day: number): WarSceneFolk[] {
+  const groupOf = houseGroups(state.dwellings);
+  const homes = new Map(state.dwellings.map((d) => [d.id, d]));
+  const f = WAR.flight;
+  return state.people
+    .filter((p) => !isAway(p, day))
+    .flatMap((p) => {
+      const home = homes.get(p.dwellingId) ?? state.dwellings[0];
+      if (!home) return [];
+      const age = ageYears(p.bornDay, day);
+      return [
+        {
+          id: p.id,
+          home: { x: home.position.x, z: home.position.z },
+          group: groupOf.get(home.id) ?? 0,
+          kind: p.sex === 'female' ? ('woman' as const) : ('man' as const),
+          child: age < f.adultFromYears,
+          carries: age >= f.childFromYears,
+        },
+      ];
+    })
+    .sort((a, b) => a.id - b.id);
+}
+
+/**
+ * Útěk vsi do lesa z pohledu obránce (`ShelterReport.forest` – kdo utekl, `livestockForest` –
+ * dobytek): každá skupina domů k okraji lesa nejbližšímu svému prvnímu člověku (`nearestForest`
+ * jako v `planDefense`). Bez mřížky (les neznámý) nebo bez utečených – null.
+ */
+function flightView(state: CampaignState, input: WarSceneInput): WarSceneFlight | null {
+  const b = state.battle;
+  const shelter = b?.shelter;
+  if (!b || !shelter || !input.grid || !input.folk || shelter.forest.length === 0) return null;
+  const folk = new Map(input.folk.map((p) => [p.id, p]));
+  const fled = shelter.forest.flatMap((id) => folk.get(id) ?? []).sort((x, y) => x.id - y.id);
+  const forests: Pos[] = [];
+  const forestOf = new Map<number, number | null>();
+  const people: WarSceneFleeing[] = [];
+  for (const p of fled) {
+    if (!forestOf.has(p.group)) {
+      const at = nearestForest(input.grid, p.home);
+      forestOf.set(p.group, at ? forests.push({ x: at.x, z: at.z }) - 1 : null);
+    }
+    const forest = forestOf.get(p.group);
+    if (forest === null || forest === undefined) continue;
+    people.push({
+      id: p.id,
+      home: { x: p.home.x, z: p.home.z },
+      kind: p.kind,
+      child: p.child,
+      carries: p.carries,
+      forest,
+    });
+  }
+  if (people.length === 0) return null;
+  const herd = Object.values(shelter.livestockForest).reduce((n, k) => n + k, 0);
+  // takt otevření boje; starší stav bez něj – u běžícího boje z počtu taktů, jinak neznámo
+  const startTick = b.openTick ?? (b.outcome === 'ongoing' ? state.tick - b.ticks + 1 : null);
+  return { startTick, forests, people, herd };
+}
+
+/**
+ * Boj pro scénu; `fallenOnly` – rozhodnutý boj: jen padlí a ranění (`down`) bez skupin – leží
+ * a sedí do konce dne, stojící odešli (pochod nebo ves).
+ */
+function battleView(
+  b: BattleState,
+  day: number,
+  input: WarSceneInput,
+  fallenOnly: boolean,
+): WarSceneBattle | null {
   const { side, grid } = input;
   const eyes = [
     ...input.eyes,
     ...b.fighters.filter((f) => f.side === side && STANDING.has(f.state)).map((f) => f.pos),
   ];
   const sees = (p: Pos): boolean => eyes.some((e) => inSight(grid, e, p));
-  const shown = b.fighters.filter((f) => f.side === side || sees(f.pos));
+  const shown = b.fighters.filter(
+    (f) => (!fallenOnly || f.state === 'down') && (f.side === side || sees(f.pos)),
+  );
   const ids = new Set(shown.map((f) => f.id));
   const fighters = shown.map((f): WarSceneFighter => {
     const own = f.side === side;
@@ -258,7 +408,7 @@ function battleView(b: BattleState, day: number, input: WarSceneInput): WarScene
     outcome: b.outcome,
     fighters,
     groups: b.groups
-      .filter((g) => groupIds.has(`${g.side}:${g.id}`))
+      .filter((g) => !fallenOnly && groupIds.has(`${g.side}:${g.id}`))
       .map((g) => ({ side: g.side, id: g.id, order: g.order, broken: g.broken })),
     // brány a hradby jsou vidět z pole (stavba, ne vojsko)
     closedGates: [...b.closedGates],
