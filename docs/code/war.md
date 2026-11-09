@@ -761,6 +761,31 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
   `-caught`, `refuge-depart` / `-hidden` / `-caught` / `-arrive` / `-back` – `applyInboxDay` je zatím
   přeskočí (aplikace Ú7). Test `alarm-types.test.ts` hlídá tvar přes JSON a zlatý otisk tažení bez
   varování.
+- **Hradiště, odhady a volba správce (Ú4).** Čistá doména `domain/war/refuge-choice.ts` (test
+  `refuge-choice.test.ts`), tažení ji zatím nevolá (posel Ú5, evakuace Ú8, správce Ú11, pohled Ú12).
+  `refugeHostOf(villageId, state, geo, cell, day)` – ves je hradiště, má-li **hotové** opevnění
+  s plochou (každý úsek s dostavěným valem nebo hradbou ke dni `day` – návrh Clauda; průlom ani
+  chátrání nevadí) a `refugeCapacity > 0`; útočiště = největší takové opevnění (shoda – menší id),
+  střed = těžiště obvodu (`RefugeHost`). `flightLoad(state, day, mode)` – vždy všichni přítomní
+  (`RefugeePerson` – `man` od 16 let, `line`); „jen lidé“ bez zásob a dobytka; les = `fleeParty`;
+  „se vším“ navíc vozy se spřežením (`teamedCarts` – vycvičení voli doma i bez ohrady napřed na
+  dvoukoláky, pak čtyřkoláky; vůz na výpravě nebo s platbou za kování doma není) po
+  `WAR.carryKg.cart`; zásoby nejvýš `storesKg − reservedSeedKg`; tempo `GroupPace` – ranění
+  zpomalí, dobytek i vůz jdou tempem stáda. Odhady vzdušnou čarou mezi místy světa (políčko =
+  1920 m): `flightEtaTicks` × `routeFactor` ÷ `marchSpeed`, `leaveMapTicks` k okraji mapy ve směru
+  dalšího políčka trasy (úhlopříčně do rohu), `armyEtaTicks` od místa spatření ÷ pěší tempo (bez
+  násobku – obránce počítá s nejhorším), `messengerSpeed` (běh × 2, na koni × 1,5). `refugeOptions`
+  (`RefugeOptionsInput` – stav vsi bez toho, co tažení dnes odvedlo, místo vsi, mřížka, `seenAt`,
+  takty od spatření, kandidáti) vrátí pro `messenger`, `forest`, `people`, `all` `AlarmOption`
+  (`blocked`, `etaTicks`, `leaveTicks`, `armyEtaTicks` – zbývá od teď) a `host` + `route`
+  (`refugeRoute` = `worldRoute` bez vyhýbání – tutéž trasu použije posel i skupina). Hradiště =
+  kandidát do `refugeMaxCells` s nejkratším odhadem, shoda – menší id. Důvody: `gone` (lidé odešli –
+  `fled`, `state.refuge`, nikdo doma), `no-hillfort`, `too-late` (skupina neopustí mapu dřív, než
+  vojsko dojde do vsi, nebo trasa vede přes políčko spatření – kromě vlastního), `no-forest`, posel
+  `sent` → `no-hillfort` → `no-runner`. `messengerOf` – nejmladší zdravý přítomný muž 16–44 let mimo
+  muže rodu (návrh Clauda: „nejzdatnější“ = nejmladší), jinak nejmladší muž rodu; na koni, má-li ves
+  koně v letech služby (ohrada i bez ohrady), jehož jezdec není pryč. `stewardAlarmChoice` – posel,
+  jde-li; útěk jen s postojem `flee` a bez vlastního útočiště: `all` → `people` → `forest` → nic.
 
 ## Výsledky nájezdu a kořist (Ú6.10)
 
