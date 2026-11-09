@@ -1284,3 +1284,38 @@ export async function launchCampaignActionForPlayer<T>(
   );
   return warResult(done);
 }
+
+/**
+ * Akce s právem (`ACTION_RIGHTS`), ale bez zámku hráče (plán 2026-11-09 – Úloha 12): stav vsi
+ * nemění (příkaz při varování je záměr do tažení – nesmí čekat na dopočet vsi), nebo si zámek
+ * bere use-case sám (návrat z útěku – zámek držitele hradiště; jeden zámek, nikdy vnořený). Ves
+ * a právo ověří jako `guardedAction`, use-case běží za držitele vsi s jeho dnem.
+ */
+async function unlockedAction<T>(
+  playerId: string,
+  villageId: string,
+  action: VillageAction,
+  run: (ctx: WarContext) => Promise<T>,
+): Promise<T | { error: string }> {
+  const ctx = await context(playerId, villageId, ACTION_RIGHTS[action]);
+  if (!ctx.ok) return { error: ctx.error };
+  return run({ playerId: ctx.playerId, villageId: ctx.villageId, day: ctx.day });
+}
+
+/** Příkaz obránce varované vsi (war.md – Varování, poslové a útěk do hradiště) – právo `war`. */
+export function commandAlarmActionForPlayer<T>(
+  playerId: string,
+  villageId: string,
+  run: (ctx: WarContext) => Promise<T>,
+): Promise<T | { error: string }> {
+  return unlockedAction(playerId, villageId, 'commandAlarm', run);
+}
+
+/** Vrátit se – uprchlíci vsi domů (war.md – Varování, poslové a útěk do hradiště) – právo `war`. */
+export function returnFromRefugeActionForPlayer<T>(
+  playerId: string,
+  villageId: string,
+  run: (ctx: WarContext) => Promise<T>,
+): Promise<T | { error: string }> {
+  return unlockedAction(playerId, villageId, 'returnFromRefuge', run);
+}

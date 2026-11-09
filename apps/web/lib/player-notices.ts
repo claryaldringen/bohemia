@@ -68,6 +68,23 @@ export function noticePanel(kind: PlayerNoticeKind): NoticePanel | null {
   }
 }
 
+/**
+ * Ves upozornění varování a útěku (`army-warned`, `refuge-arrived`, `refuge-caught`,
+ * `messenger-caught` – payload `villageId`): klik otevře panel dvorce té vsi s ikonami varování
+ * (plán 2026-11-09 – Úloha 12 data, Úloha 13 panel). Jiné upozornění null.
+ */
+export function alarmNoticeVillage(n: Pick<PlayerNotice, 'kind' | 'payload'>): string | null {
+  switch (n.kind) {
+    case 'army-warned':
+    case 'refuge-arrived':
+    case 'refuge-caught':
+    case 'messenger-caught':
+      return stringOf(n.payload.villageId);
+    default:
+      return null;
+  }
+}
+
 /** „ z vsi Kněžice“ (jméno vsi se neskloňuje); bez jména nic. */
 function fromVillage(payload: Record<string, unknown>): string {
   const name = stringOf(payload.name);
