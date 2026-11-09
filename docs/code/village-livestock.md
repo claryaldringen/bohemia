@@ -460,7 +460,7 @@ Návrh: `docs/design/horses.md` – Kování. Čísla: `HORSE_SHOEING` v `rules-
 - Známá drobnost: `lordRides` se pro scénu vyhodnocuje před `work()`, takže v den termínu scéna jezdce neukáže, i když ho kovář týž den okuje (od druhého dne jezdí).
 - Kování dne jen ke čtení: `shoeingDay(state, day, landscape)` (`horse-shoeing.ts`) – z kroniky `horses-shod` toho dne: vlastní / cizí, koně (ohrada, kůň) a cizímu kováři cesta `nearestCraftsman` (směr, stezka, bod na kraji mapy). Pohled: `sceneShoeing` v `village-view-scene.ts` → `SceneLabor.shoeing` (`own`, `horses`, `trailId`, nebo `line` – `purchaseLine` jako nákup u sousedů); `sceneLabor` dostává krajinu.
 - Scéna (podrobně `docs/code/scene-village.md` – Kování ve scéně): s `SceneLabor.shoeing` jde kovář k brance ohrady koní (`villager-plan-shoeing.ts`) a podíl `horse-shoeing` už postavu u plotu nemá. Bez kování dne (starší rozdělení práce) kuje u plotu muž z domácnosti kovárny (`shareWorker` v `villager-plan.ts`, kovář a synové, záložně starší chlapec; `horse-shoeing` je v `CRAFT_ACTIVITIES`, `WOMEN['horse-shoeing'] = 0`).
-- Web: `horse-view.ts` (`shoeing`), blok koní v `selection/fields.tsx`, upozornění `horses-unshod` v `village-notices.ts`; kování samo se neohlašuje (Martin 27. 10. 2026), zůstává v kronice (`village-view-chronicle.ts`).
+- Web: `horse-view.ts` (`shoeing`), blok koní v `selection/fields.tsx` (nepodkutý kůň červeně); upozornění se nedává ani na nepodkutého koně (Martin 9. 11. 2026), kování samo se neohlašuje (Martin 27. 10. 2026), zůstává v kronice (`village-view-chronicle.ts`).
 
 ## Kusy poražené dnes (hlášení pro scénu)
 

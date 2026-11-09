@@ -80,7 +80,6 @@ export type NoticeKind =
   | 'foal-born'
   | 'horses-arrived'
   | 'horse-trained'
-  | 'horses-unshod'
   | 'horse-retired'
   /** Divoká zvěř (wildlife.md – Co hráč vidí): prasata ničí úrodu, vlci strhávají dobytek, psi bez obilí. */
   | 'boar-damage'
@@ -233,9 +232,6 @@ export function villageNotices(view: VillageView): VillageNotice[] {
   // bez obilí (výcvik se zpomalil)
   if (view.horses?.overRoom) {
     notices.push({ kind: 'horses-short', tone: 'warn', text: 'Koně se nevejdou do ohrady' });
-  }
-  if (view.horses?.shoeing?.unshod) {
-    notices.push({ kind: 'horses-unshod', tone: 'warn', text: 'Jezdecký kůň není podkutý' });
   }
   if (view.horses && !view.horses.fed && view.horses.grainKgPerDay > 0) {
     notices.push({ kind: 'horses-ungrained', tone: 'warn', text: 'Koně jsou bez obilí' });
