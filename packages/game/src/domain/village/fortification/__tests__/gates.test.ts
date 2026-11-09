@@ -103,12 +103,17 @@ describe('brány opevnění', () => {
 
 describe('cena opevnění', () => {
   // ceny komplet 8. 11. 2026 (Hradby a obrana – Cena): dřív plot 20 čd a palisáda 80 čd bez
-  // kácení; teď komplet 35 a 300 čd, cena bez kácení a lámání = komplet − 1 čd za kládu a m³
+  // kácení; teď komplet 35 a 430 čd (palisáda 200 klád – Martin 9. 11. 2026), cena bez kácení
+  // a lámání = komplet − 1 čd za kládu a m³
   it('100 m z hromady = komplet − 1 čd za kládu a m³ kamene (Martin 8. 11. 2026)', () => {
     expect(fortificationCost('fence', 100)).toEqual({ laborManDays: 20, logs: 15, stoneM3: 0 });
-    expect(fortificationCost('palisade', 100)).toEqual({ laborManDays: 230, logs: 70, stoneM3: 0 });
+    expect(fortificationCost('palisade', 100)).toEqual({
+      laborManDays: 230,
+      logs: 200,
+      stoneM3: 0,
+    });
     expect(fortificationCost('rampart', 100)).toEqual({ laborManDays: 150, logs: 0, stoneM3: 0 });
-    expect(fortificationCost('walkway', 100)).toEqual({ laborManDays: 370, logs: 80, stoneM3: 0 });
+    expect(fortificationCost('walkway', 100)).toEqual({ laborManDays: 370, logs: 210, stoneM3: 0 });
     expect(fortificationCost('crib', 100)).toEqual({ laborManDays: 620, logs: 330, stoneM3: 100 });
     expect(fortificationCost('chamber', 100)).toEqual({
       laborManDays: 780,
@@ -117,8 +122,8 @@ describe('cena opevnění', () => {
     });
     // komplet – z ní počítá zboření
     expect(fortificationFullCost('palisade', 100)).toEqual({
-      laborManDays: 300,
-      logs: 70,
+      laborManDays: 430,
+      logs: 200,
       stoneM3: 0,
     });
   });
