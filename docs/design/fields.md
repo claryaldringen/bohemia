@@ -1645,7 +1645,8 @@ a „Trhání“ níž; potřeba, výnos, práce, vyčerpání půdy, zpracován
      nestačí, díly **prvního osevu** (čerstvý díl, příloh 70–95 %) – len jim vezme jedno kolo obilí.
      Nouzový příloh pod 70 % ne. Proč i první osev: ves s prvním osevem jaří (založená na jaře) nemá
      díly po ozimu – jař po jaři čeká na ozim a len by neměl kam (ves z testů by v roce 603 lnu neměla).
-- **Trhání jen v srpnu**; **obilí má přednost** (návrh Clauda k Martinově kontrole): trhání dostane
+- **Trhání jen v srpnu**; **obilí má přednost** (návrh Clauda, Martin 9. 11. 2026: „Ano. Výmlat
+  prý počká i docela hluboko do zimy“): trhání dostane
   práci dne za **všemi žněmi obilí** (žeň a odnos ozimu, luštěnin i jaře, jejíž okno běží do září),
   za výmlatem na dnešní jídlo a výmlatem, jehož okno tento měsíc končí – ale **před výmlatem, jehož
   okno běží i v září** (snopy v okně čekají bez ztráty, výmlat se jen o kousek odsune). Přísnější
