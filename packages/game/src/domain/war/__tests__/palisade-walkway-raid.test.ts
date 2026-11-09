@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import type { BattleField } from '../battle';
 import type { Pos } from '../march-grid';
 import { hoursPerTick } from '../ticks';
@@ -36,14 +36,23 @@ function inside(p: Pos, poly: readonly (readonly [number, number])[]): boolean {
   return in_;
 }
 
+// Bojiště (mřížka pochodu z krajiny) se staví ≈ 0,2 s – stavba pro každý seed zabrala víc než boje
+// samy a test pod zátěží stroje přesáhl 5 s. Boj bojiště nemění (`battleTick` jen čte), a tak je
+// jedno pro všechny seedy i oba bloky.
+let walkway: BattleField;
+let ring: [number, number][];
+beforeAll(() => {
+  walkway = field([fortOf('walkway')], forestSouth);
+  ring = walkway.forts[0]!.shapes.map((s) => [s.mid[0], s.mid[1]] as [number, number]);
+});
+
 describe('nájezd na palisádu s ochozem – ladders a průnik pro mnoho seedů', () => {
   const seeds = Array.from({ length: 30 }, (_, i) => i + 1);
   for (const men of [2, 3, 4]) {
     it(`${men} obránci na hradbě: žebříky a útočník uvnitř při každém seedu`, () => {
       const fails: string[] = [];
       for (const seed of seeds) {
-        const f = field([fortOf('walkway')], forestSouth);
-        const ring = f.forts[0]!.shapes.map((s) => [s.mid[0], s.mid[1]] as [number, number]);
+        const f = walkway;
         const b = battle({
           attackers: [
             attacker(0, { x: -3, z: -70 }, { strength: 1 }),
@@ -85,36 +94,45 @@ describe('nájezd na palisádu s ochozem v pomalém světě e2e – bez luků ž
     startMs: Date.parse('2000-01-01T00:00:00+01:00'),
     endMs: Date.parse('2200-01-01T00:00:00+01:00'),
   });
-  it('8 vesničanů proti 3 vesničanům na hradbě: žebříky a útočník uvnitř při každém seedu', () => {
-    const fails: string[] = [];
-    for (let seed = 1; seed <= 10; seed++) {
-      const f: BattleField = { ...field([fortOf('walkway')], forestSouth), hoursPerTick: slow };
-      const ring = f.forts[0]!.shapes.map((s) => [s.mid[0], s.mid[1]] as [number, number]);
-      const b = battle({
-        attackers: [0, 1, 2, 3, 4, 5, 6, 7].map((i) =>
-          attacker(i, { x: i - 4, z: i < 2 ? -70 : -72 }, { strength: 1 }),
-        ),
-        defenders: wallPosts(f.forts, 3).map((p, i) =>
-          defender(i + 1, p, { post: p, onWall: true }),
-        ),
-        commander: 0,
-      });
-      let sawInside = false;
-      run(
-        b,
-        f,
-        20_000,
-        () => {
-          if (b.fighters.some((x) => x.side === 'attack' && inside(x.pos, ring))) sawInside = true;
-        },
-        seed,
-      );
-      if (!((b.ladders?.length ?? 0) > 0 && sawInside && b.outcome === 'attackers')) {
-        fails.push(
-          `seed ${seed}: ${b.outcome} ladders=${b.ladders?.length ?? 0} inside=${sawInside}`,
+  // vlastní limit: každý boj trvá přes ≈ 11 500 taktů (výroba žebříku v pomalém světě), deset
+  // seedů je ≈ 2–4 s i se sdíleným bojištěm a pod zátěží stroje by 5 s nestačilo; seedy ani takty
+  // ubrat nejde – hlídají právě los taktu
+  it(
+    '8 vesničanů proti 3 vesničanům na hradbě: žebříky a útočník uvnitř při každém seedu',
+    {
+      timeout: 20_000,
+    },
+    () => {
+      const fails: string[] = [];
+      for (let seed = 1; seed <= 10; seed++) {
+        const f: BattleField = { ...walkway, hoursPerTick: slow };
+        const b = battle({
+          attackers: [0, 1, 2, 3, 4, 5, 6, 7].map((i) =>
+            attacker(i, { x: i - 4, z: i < 2 ? -70 : -72 }, { strength: 1 }),
+          ),
+          defenders: wallPosts(f.forts, 3).map((p, i) =>
+            defender(i + 1, p, { post: p, onWall: true }),
+          ),
+          commander: 0,
+        });
+        let sawInside = false;
+        run(
+          b,
+          f,
+          20_000,
+          () => {
+            if (b.fighters.some((x) => x.side === 'attack' && inside(x.pos, ring)))
+              sawInside = true;
+          },
+          seed,
         );
+        if (!((b.ladders?.length ?? 0) > 0 && sawInside && b.outcome === 'attackers')) {
+          fails.push(
+            `seed ${seed}: ${b.outcome} ladders=${b.ladders?.length ?? 0} inside=${sawInside}`,
+          );
+        }
       }
-    }
-    expect(fails).toEqual([]);
-  });
+      expect(fails).toEqual([]);
+    },
+  );
 });
