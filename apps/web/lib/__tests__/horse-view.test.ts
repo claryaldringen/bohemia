@@ -36,11 +36,13 @@ describe('horsesView', () => {
     const fed = horsesView(s, START)!;
     expect(fed.grainKgPerDay).toBe(3);
     expect(fed.fed).toBe(true);
+    expect(fed.ungrained).toBe(false);
     // 2 jezdečtí koně + klisna po 6 kg, 151 dní zimy
     expect(fed.hayWinterKg).toBe(18 * 151);
     s.horsesFed = false;
     const hungry = horsesView(s, START)!;
     expect(hungry.fed).toBe(false);
+    expect(hungry.ungrained).toBe(true);
     expect(hungry.hayWinterKg).toBe(20 * 151);
   });
 

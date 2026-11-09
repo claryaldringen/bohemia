@@ -50,6 +50,7 @@ const HORSES: VillageHorses = {
   overRoom: false,
   fed: true,
   grainKgPerDay: 3,
+  ungrained: false,
   hayWinterKg: 2718,
   horses: [
     { id: 1, kind: 'riding', ageYears: 8, training: 0.5, stallion: true, penId: 90 },

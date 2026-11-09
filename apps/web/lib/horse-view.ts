@@ -9,6 +9,7 @@ import {
   horseKind,
   horsePlaces,
   horsesOverRoom,
+  horsesUngrained,
   horsesWanted,
   penHorses,
   craftCoverage,
@@ -51,6 +52,11 @@ export interface VillageHorses {
   fed: boolean;
   /** Obilí koní za den (kg). */
   grainKgPerDay: number;
+  /**
+   * Jezdečtí koně jsou bez obilí – upozornění i kronika z téže podmínky jádra (`horsesUngrained`,
+   * absence.md – Upozornění vsi do kroniky).
+   */
+  ungrained: boolean;
   /** Seno koní na celou zimu (kg). */
   hayWinterKg: number;
   /** Kování jezdeckých koní (horses.md – Kování); ves bez jezdeckých koní null. */
@@ -90,6 +96,7 @@ export function horsesView(state: VillageState, day: number): VillageHorses | nu
     overRoom: horsesOverRoom(state, day),
     fed,
     grainKgPerDay: horseGrainToday(all, day),
+    ungrained: horsesUngrained(state, day),
     hayWinterKg: Math.round(horseHayDailyKg(all, day, fed) * HAY_WINTER_DAYS),
     shoeing: shoeingView(state, day, craftCoverage(state, day)),
     horses,

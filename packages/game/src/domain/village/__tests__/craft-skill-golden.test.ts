@@ -3,7 +3,7 @@ import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import { advanceVillage } from '../simulate';
 import type { Person, VillageState } from '../types';
-import { withBuiltFirstDwelling } from './village-fixtures';
+import { withBuiltFirstDwelling, withoutNoticeChronicle } from './village-fixtures';
 
 // Učení řemesla a kování vozů (crafts.md – Učení řemesla, wagons.md – Kování vozů): ves bez dílen
 // se nemění bit po bitu – lidé nemají praxi, vůz se spřežením jezdí jako dřív. Otisk stavu po dvou
@@ -132,8 +132,10 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
       // výhled výmlatu do konce okna
       'threshHands',
     ]);
-    const stripped = JSON.stringify(legacyShape(next), (key, value: unknown) =>
-      marks.has(key) ? undefined : value,
+    // trvalé stavy z upozornění do kroniky (absence.md, 9. 11. 2026) – jen zápis, simulaci nemění
+    const stripped = JSON.stringify(
+      legacyShape(withoutNoticeChronicle(next)),
+      (key, value: unknown) => (marks.has(key) ? undefined : value),
     );
     // hash 5e3b6c4c (26. 10. 2026 (W3 šelmy; wildlife.md – Vlci na dobytku): vlčí díl ztrát jen venku a medvěd bere prasata, takže stáda jdou po dnech jinak; dřív 39b51dd8); 26. 10. 2026 podruhé (oprava po recenzi W3): medvěd bere jen z prasat nad chovný pár a kronika šelem jde po měsících (jiné události kroniky), dřív 5e3b6c4c)
     // hash 89e5e1ce (26. 10. 2026 (W4 psi dvorce a velký lov rodu; wildlife.md – Psi, Lov rodu): obilí psů dvorce se sije z pole a pěší lovci a odešlí synové chybí v den lovu v práci vsi, takže se mění sklizeň, plán osevu a stav zvěře; dřív 5362ef6)

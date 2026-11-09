@@ -837,6 +837,7 @@ describe('selectionDetails – posvátná místa', () => {
       overRoom: false,
       fed: false,
       grainKgPerDay: 1.5,
+      ungrained: true,
       hayWinterKg: 1057,
       horses: [
         {

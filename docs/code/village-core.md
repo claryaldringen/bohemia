@@ -555,6 +555,25 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   `VillageView.chronicle[].kind`, `CHRONICLE_NOTICES`) – nově vzniklé jako krátký mizející
   řádek nahoře, žádný trvalý seznam; vymřelá ves žádná. Kronika je jen v DTO.
 
+- **Upozornění vsi do kroniky** (absence.md – Upozornění vsi do kroniky,
+  `domain/village/lasting-notices.ts`): podmínky trvalých stavů jsou v jádře –
+  `lastingNotices(state, day)` vrací `LastingNotice[]` v pořadí `LASTING_NOTICES`: stupně hladu
+  vnořeně (`rationing` ⊂ `hungry` ⊂ `starving` z `hungerLevel`), `stalled`
+  (`constructionsStalled`), dílny bez vstupu (`no-charcoal`, `no-ore`, `no-clay`, `no-wood`,
+  `carpenter-no-wood` – jen obydlené, `workshopActivity`), `pen-short` (`herdsOverRoom` – jeden stav za všechny druhy, stáda přerůstají ohrady každé jaro),
+  `oxen-short` (`oxenOverRoom`), `horses-short` (`horsesOverRoom`), `horses-ungrained`
+  (`horsesUngrained`), `dogs-ungrained` (`dogsUngrained`), `emergency-threshing` a
+  `threshing-floor-short` (`threshingStatus`). Web z týchž funkcí skládá pohled (souhrn,
+  `horsesView.ungrained`, `wildlifeView.dogsUnfed`) a upozornění nahoře. Simulace na konci dne
+  (`noticeStatesDay` – poslední krok `simulateDaySteps`) porovná dnešní stavy s
+  `VillageState.noticeStates` (`{ since, logged?, off? }` po stavu) a do kroniky zapíše
+  `notice-began` (`day` = den začátku, až stav trvá `NOTICE_CHRONICLE_MIN_DAYS` = 7 dní)
+  a `notice-ended` (`day` = první den bez stavu, až chybí 7 dní, jen když byl zapsán začátek;
+  kratší přerušení stav neukončí; konce téhož dne od nejhoršího stupně). Ves bez
+  `noticeStates` (uložená dřív) začne sledovat od prvního dopočítaného dne – převod není
+  potřeba; prázdné stavy se neukládají. Denní `hunger-began` / `hunger-ended` zůstávají pro
+  deník vsí (`year-log.ts`), panel Kronika je neukazuje.
+
 - **Krajina sídla** se na serveru drží v LRU mezipaměti (`packages/server/src/landscape-cache.ts`, port
   `LandscapeSource` v `enterGame`) – negeneruje se při každé akci a dotazu. Vrstva překážek
   se generuje až pro stavby (`obstaclesOf`, mezipaměť podle objektu krajiny); dotaz na ves

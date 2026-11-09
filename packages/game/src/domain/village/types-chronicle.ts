@@ -42,6 +42,43 @@ export interface WeddingCouple {
   name?: string;
 }
 
+/**
+ * Trvalé stavy vsi z upozornění, které se zapisují do kroniky (absence.md – Upozornění vsi do
+ * kroniky): stupně hladu (vnořené – hladovějící ves i šetří), stavby stojí, dílny bez vstupu,
+ * stáda bez místa v ohradách (jeden stav za všechny druhy), voli a koně bez místa, koně a psi bez obilí, výmlat bez
+ * humna a humno nestačí. Pořadí je pořadí zápisu v jednom dni.
+ */
+export type LastingNotice =
+  | 'rationing'
+  | 'hungry'
+  | 'starving'
+  | 'stalled'
+  | 'no-charcoal'
+  | 'no-ore'
+  | 'no-clay'
+  | 'no-wood'
+  | 'carpenter-no-wood'
+  | 'pen-short'
+  | 'oxen-short'
+  | 'horses-short'
+  | 'horses-ungrained'
+  | 'dogs-ungrained'
+  | 'emergency-threshing'
+  | 'threshing-floor-short';
+
+/** Běžící trvalý stav vsi (`VillageState.noticeStates`). */
+export interface LastingNoticeState {
+  /** Den začátku stavu. */
+  since: number;
+  /** Začátek už je v kronice. */
+  logged?: true;
+  /**
+   * První den, kdy stav neplatí; kratší přerušení než NOTICE_CHRONICLE_MIN_DAYS stav neukončí
+   * (návrh Clauda). Stav, který platí, ho nemá.
+   */
+  off?: number;
+}
+
 export type ChronicleEvent = { day: number } & (
   | { kind: 'village-founded' }
   | { kind: 'birth' }
@@ -399,6 +436,12 @@ export type ChronicleEvent = { day: number } & (
     }
   | { kind: 'hunger-began' }
   | { kind: 'hunger-ended' }
+  /**
+   * Trvalý stav vsi z upozornění (absence.md – Upozornění vsi do kroniky): začátek – `day` je den
+   * začátku, zapíše se, až stav trvá NOTICE_CHRONICLE_MIN_DAYS dní; konec – `day` je první den bez
+   * stavu, zapíše se, až chybí NOTICE_CHRONICLE_MIN_DAYS dní (`lasting-notices.ts`).
+   */
+  | { kind: 'notice-began' | 'notice-ended'; notice: LastingNotice }
   /** Vojvodova rodina jde na pole – hrozí hlad (lord.md – Kdy jde rodina na pole). */
   | { kind: 'lord-to-field'; reason: 'hunger' | 'sowing' }
   /** Vojvodova rodina se vrací k výcviku – 30 dní plného přídělu (lord.md). */

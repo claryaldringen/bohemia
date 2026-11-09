@@ -243,6 +243,9 @@ export const CEMETERY_DISTANCE_M = {
 export const HYGIENE_DEATH_EXTRA = { child: 0.5, adult: 0.3, elder: 0.3 } as const;
 // population.md – Kronika (ves drží posledních 500 událostí, starší se zahazují)
 export const CHRONICLE_MAX_EVENTS = 500;
+// absence.md – Upozornění vsi do kroniky (návrh Clauda: trvalý stav kratší než 7 dní se do kroniky
+// nezapíše a přerušení kratší než 7 dní ho neukončí)
+export const NOTICE_CHRONICLE_MIN_DAYS = 7;
 
 // population.md – Růst populace (roční úmrtnost dětí: za AGE.adult let vymře CHILD_DEATH_BEFORE_ADULT dětí)
 /** Roční úmrtnost dětí – za AGE.adult let vymře CHILD_DEATH_BEFORE_ADULT dětí. */

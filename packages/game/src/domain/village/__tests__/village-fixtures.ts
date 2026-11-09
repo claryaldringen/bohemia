@@ -99,3 +99,19 @@ export function withoutSmallGame(state: VillageState): VillageState {
   state.wildlife = wildlife;
   return state;
 }
+
+/**
+ * Stav bez trvalých stavů z upozornění (absence.md – Upozornění vsi do kroniky): `noticeStates`
+ * a zápisy `notice-began` / `notice-ended` jen zaznamenávají, simulace je nečte – zlaté otisky
+ * stavu je vynechají.
+ */
+export function withoutNoticeChronicle(state: VillageState): VillageState {
+  const next: VillageState = {
+    ...state,
+    chronicle: state.chronicle.filter(
+      (e) => e.kind !== 'notice-began' && e.kind !== 'notice-ended',
+    ),
+  };
+  delete next.noticeStates;
+  return next;
+}

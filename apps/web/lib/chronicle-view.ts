@@ -63,9 +63,16 @@ function entryView(event: ChronicleEvent, villageName: string): ChronicleEntryVi
 }
 
 /**
+ * Zápisy, které panel neukazuje (návrh Clauda): začátek a konec hladu ze dne na den – kronika
+ * nese trvalé stavy (`notice-began` / `notice-ended` – absence.md, Upozornění vsi do kroniky),
+ * denní zápisy hladu zůstávají jen pro deník vsí (`year-log.ts`).
+ */
+const HIDDEN_KINDS: ReadonlySet<ChronicleEvent['kind']> = new Set(['hunger-began', 'hunger-ended']);
+
+/**
  * Stránka kroniky vsi `villageName`: roky před `ask.before`, od nejnovějšího, celé roky, dokud
- * stránka nemá aspoň CHRONICLE_PAGE_ENTRIES záznamů. Zápisy ze schránky mohou přijít s dřívějším
- * dnem než poslední zápis – řadí se podle dne (stejný den v pořadí zápisu).
+ * stránka nemá aspoň CHRONICLE_PAGE_ENTRIES záznamů. Zápisy ze schránky a začátky trvalých stavů
+ * mohou mít dřívější den než poslední zápis – řadí se podle dne (stejný den v pořadí zápisu).
  */
 export function chroniclePage(
   chronicle: readonly ChronicleEvent[],
@@ -74,6 +81,7 @@ export function chroniclePage(
 ): ChroniclePage {
   const ordered = chronicle
     .map((event, index) => ({ event, index, year: dateOfDayIndex(event.day).year }))
+    .filter((item) => !HIDDEN_KINDS.has(item.event.kind))
     .filter((item) => ask.before === null || item.year < ask.before)
     .sort((a, b) => b.event.day - a.event.day || b.index - a.index);
   const years: ChronicleYearView[] = [];

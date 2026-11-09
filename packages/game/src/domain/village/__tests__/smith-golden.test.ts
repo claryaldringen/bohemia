@@ -5,7 +5,7 @@ import { newWorkshop } from '../crafts';
 import { CRAFT_BASE } from '../rules';
 import { advanceVillage } from '../simulate';
 import type { Craft, Person, VillageState } from '../types';
-import { withBuiltFirstDwelling } from './village-fixtures';
+import { withBuiltFirstDwelling, withoutNoticeChronicle } from './village-fixtures';
 
 // Uhlí a ruda kováře (crafts.md – Uhlí a ruda kováře, Starší vsi): ves bez kováře se nemění bit po
 // bitu – uhlíř, hrnčíř, tesař i vůz se spřežením jako dřív. Otisk stavu po dvou letech je
@@ -151,8 +151,10 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
       // výhled výmlatu do konce okna
       'threshHands',
     ]);
-    const stripped = JSON.stringify(legacyShape(next), (key, value: unknown) =>
-      learning.has(key) ? undefined : value,
+    // trvalé stavy z upozornění do kroniky (absence.md, 9. 11. 2026) – jen zápis, simulaci nemění
+    const stripped = JSON.stringify(
+      legacyShape(withoutNoticeChronicle(next)),
+      (key, value: unknown) => (learning.has(key) ? undefined : value),
     );
     // otisk se změnil 22. 10. 2026: řemeslo dělají jen muži domácnosti, ženy dávají zbytek práce
     // po domácnosti vsi (crafts.md – Kdo dělá řemeslo); dřív 2f488a15; 23. 10. 2026 podruhé (6bd77b28): práce žen

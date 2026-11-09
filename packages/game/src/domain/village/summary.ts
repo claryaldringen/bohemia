@@ -797,8 +797,13 @@ function cemeterySummaries(state: VillageState, deathsPerYear: number): Cemetery
   });
 }
 
-/** Stavby stojí: nějaká se staví a posledních STALL_DAYS dní na ni nezbyla společná práce. */
-function stalled(state: VillageState): boolean {
+/**
+ * Stavby stojí: nějaká se staví a posledních STALL_DAYS dní na ni nezbyla společná práce
+ * (upozornění „Stavby stojí“ i kronika – `lasting-notices.ts`).
+ */
+export function constructionsStalled(
+  state: Pick<VillageState, 'commonLaborHistory' | 'constructions'>,
+): boolean {
   const recent = state.commonLaborHistory.slice(-STALL_DAYS);
   return (
     state.constructions.length > 0 &&
@@ -851,7 +856,7 @@ export function summarizeVillage(
     starvationDays,
     starving: isStarving(state),
     extinctDay: state.extinctDay ?? null,
-    constructionsStalled: stalled(state),
+    constructionsStalled: constructionsStalled(state),
     cemeteries: cemeterySummaries(state, deathsPerYear),
     deathsPerYear,
     orchards: villageOrchards(state).map((o) => ({
@@ -866,6 +871,19 @@ export function summarizeVillage(
     sacred: sacredSummary(state, day, obstacles),
     crafts: craftsSummary(state, day),
   };
+}
+
+/**
+ * Co dílna dělá (crafts.md – Co hráč vidí; upozornění i kronika – `lasting-notices.ts`): bez
+ * obyvatel `empty`; dnes nastěhovaní `settled` – práce dne proběhla před osídlením, dílna začne
+ * zítra; jinak uložená činnost dne.
+ */
+export function workshopActivity(
+  workshop: Pick<Workshop, 'activity'>,
+  occupied: number,
+): WorkshopActivity {
+  if (occupied === 0) return 'empty';
+  return workshop.activity === 'empty' ? 'settled' : workshop.activity;
 }
 
 /** Řemesla vsi: zásoby, potřeba a pokrytí, dílny s tím, co dělají (crafts.md – Co hráč vidí). */
@@ -887,13 +905,7 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
         {
           dwellingId: d.id,
           craft: workshop.craft,
-          // dnes nastěhovaní: práce dne proběhla před osídlením – dílna začne zítra
-          activity:
-            occupied === 0
-              ? 'empty'
-              : workshop.activity === 'empty'
-                ? 'settled'
-                : workshop.activity,
+          activity: workshopActivity(workshop, occupied),
           occupants: occupied,
           laborPerDay:
             occupied > 0

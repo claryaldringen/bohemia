@@ -1,7 +1,12 @@
 // Typy stavu vsi – Stav vsi, cesta vsi, sousedé a stezka.
 // Rozcestník je `types.ts`; tento soubor jen drží část typů.
 
-import type { ChronicleEvent, LaborDay } from './types-chronicle';
+import type {
+  ChronicleEvent,
+  LaborDay,
+  LastingNotice,
+  LastingNoticeState,
+} from './types-chronicle';
 import type { StewardState } from './types-steward';
 import type { Construction, FarmSeason } from './types-construction';
 import type { Fortification, ThreatSignal } from './fortification/types';
@@ -202,6 +207,12 @@ export interface VillageState {
    * před zavedením hladovění chybí (= 0).
    */
   starvationDays?: number;
+  /**
+   * Trvalé stavy vsi z upozornění, které právě běží (absence.md – Upozornění vsi do kroniky;
+   * `lasting-notices.ts`) – začátek a konec jdou do kroniky. Bez údaje (ves uložená dřív nebo bez
+   * stavu) žádný neběží – sledují se od prvního dopočítaného dne.
+   */
+  noticeStates?: Partial<Record<LastingNotice, LastingNoticeState>>;
   /**
    * Den, kdy zemřel poslední člověk – ves vymřela a simulace se zastavila (lidé, pole i stavby
    * stojí). Žijící ves ho nemá.

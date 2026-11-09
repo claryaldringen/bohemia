@@ -163,6 +163,8 @@ export {
 export { fullRepairManDays, repairOf, repairedCondition, type StructureRef } from './repair';
 export * from './obstacles';
 export * from './summary';
+// trvalé stavy z upozornění – podmínky pro web i simulaci (absence.md – Upozornění vsi do kroniky)
+export { LASTING_NOTICES, dogsUngrained, horsesUngrained, lastingNotices } from './lasting-notices';
 export * from './names';
 export * from './costs';
 export * from './wood';
