@@ -180,28 +180,111 @@ export function pushLadder(withClimber: boolean, rng: Random): boolean {
   return rng.next() < (withClimber ? D.push.withClimber : D.push.empty);
 }
 
-const forestCache = new WeakMap<MarchGrid, Pos[]>();
+/** Strana kbelíku lesa v buňkách mřížky. */
+const FOREST_BUCKET = 8;
 
-/** Nejbližší střed buňky lesa (stejně jako `nearestForest`), středy lesa jednou na mřížku. */
+/** Středy buněk lesa po kbelících (CSR; v kbelíku vzestupně podle indexu buňky). */
+interface ForestIndex {
+  readonly bw: number;
+  readonly bh: number;
+  /** Začátky kbelíků v `centers` / `cells` (délka bw * bh + 1). */
+  readonly start: Int32Array;
+  readonly centers: Pos[];
+  readonly cells: Int32Array;
+}
+
+const forestCache = new WeakMap<MarchGrid, ForestIndex>();
+
+function buildForestIndex(grid: MarchGrid): ForestIndex {
+  const bw = Math.ceil(grid.width / FOREST_BUCKET);
+  const bh = Math.ceil(grid.height / FOREST_BUCKET);
+  const start = new Int32Array(bw * bh + 1);
+  const bucketOf = (c: number): number => {
+    const i = c % grid.width;
+    return Math.floor((c - i) / grid.width / FOREST_BUCKET) * bw + Math.floor(i / FOREST_BUCKET);
+  };
+  let total = 0;
+  for (let c = 0; c < grid.flags.length; c++) {
+    if ((grid.flags[c]! & MARCH_FOREST) !== 0) {
+      start[bucketOf(c) + 1]!++;
+      total++;
+    }
+  }
+  for (let k = 0; k < bw * bh; k++) start[k + 1]! += start[k]!;
+  const fill = start.slice(0, bw * bh);
+  const centers: Pos[] = new Array<Pos>(total);
+  const cells = new Int32Array(total);
+  for (let c = 0; c < grid.flags.length; c++) {
+    if ((grid.flags[c]! & MARCH_FOREST) === 0) continue;
+    const k = bucketOf(c);
+    const at = fill[k]!++;
+    centers[at] = marchCellCenter(grid, c);
+    cells[at] = c;
+  }
+  return { bw, bh, start, centers, cells };
+}
+
+/**
+ * Nejbližší střed buňky lesa (stejně jako `nearestForest`: nejmenší `dist2`, při shodě nejmenší
+ * index buňky). Středy lesa jednou na mřížku v kbelících 8 × 8 buněk, hledá se po prstencích
+ * kbelíků, dokud dolní mez vzdálenosti prstence nepřekročí dosud nejlepší.
+ */
 export function nearestForestOf(grid: MarchGrid, from: Pos): Pos | null {
-  let centers = forestCache.get(grid);
-  if (!centers) {
-    centers = [];
-    for (let c = 0; c < grid.flags.length; c++) {
-      if ((grid.flags[c]! & MARCH_FOREST) !== 0) centers.push(marchCellCenter(grid, c));
-    }
-    forestCache.set(grid, centers);
+  let idx = forestCache.get(grid);
+  if (!idx) {
+    idx = buildForestIndex(grid);
+    forestCache.set(grid, idx);
   }
-  let best: Pos | null = null;
+  if (idx.centers.length === 0) return null;
+  const { bw, bh, start, centers, cells } = idx;
+  const span = grid.cellM * FOREST_BUCKET;
+  // Kbelík dotazu (i mimo mřížku) – souřadnice v buňkách: střed buňky i leží v u = i.
+  const qx = Math.floor((from.x - grid.originX) / grid.cellM / FOREST_BUCKET);
+  const qz = Math.floor((from.z - grid.originZ) / grid.cellM / FOREST_BUCKET);
+  const r0 = Math.max(
+    qx < 0 ? -qx : 0,
+    qx > bw - 1 ? qx - (bw - 1) : 0,
+    qz < 0 ? -qz : 0,
+    qz > bh - 1 ? qz - (bh - 1) : 0,
+  );
+  const rMax = Math.max(
+    Math.abs(qx),
+    Math.abs(qx - (bw - 1)),
+    Math.abs(qz),
+    Math.abs(qz - (bh - 1)),
+  );
+  let best = -1;
   let bestD = Infinity;
-  for (const p of centers) {
-    const d = dist2(p, from);
-    if (d < bestD) {
-      bestD = d;
-      best = p;
+  let bestC = Infinity;
+  const scan = (bx: number, bz: number): void => {
+    const k = bz * bw + bx;
+    for (let at = start[k]!; at < start[k + 1]!; at++) {
+      const d = dist2(centers[at]!, from);
+      if (d < bestD || (d === bestD && cells[at]! < bestC)) {
+        bestD = d;
+        bestC = cells[at]!;
+        best = at;
+      }
+    }
+  };
+  for (let r = r0; r <= rMax; r++) {
+    // Dolní mez vzdálenosti kbelíků prstence r s polovinou buňky rezervy proti zaokrouhlení.
+    const lo = (r - 1) * span - 0.5 * grid.cellM;
+    if (lo > 0 && lo * lo > bestD) break;
+    const z0 = qz - r;
+    const z1 = qz + r;
+    const x0 = Math.max(0, qx - r);
+    const x1 = Math.min(bw - 1, qx + r);
+    for (let bz = Math.max(0, z0); bz <= Math.min(bh - 1, z1); bz++) {
+      if (bz === z0 || bz === z1) {
+        for (let bx = x0; bx <= x1; bx++) scan(bx, bz);
+      } else {
+        if (qx - r >= 0) scan(qx - r, bz);
+        if (r > 0 && qx + r <= bw - 1) scan(qx + r, bz);
+      }
     }
   }
-  return best;
+  return best < 0 ? null : centers[best]!;
 }
 
 /**
