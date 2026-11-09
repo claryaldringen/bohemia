@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type MouseEvent, type ReactElement } from 'react';
+import { useState, type CSSProperties, type MouseEvent, type ReactElement } from 'react';
 import type { GroupOrder, LeaderTarget, Pos, SurrenderOrder } from '@bohemia/game';
 import { useCampaign } from '@/hooks/use-campaign';
 import { useArmyActions } from '@/hooks/use-army';
@@ -38,6 +38,22 @@ const CHOICES: readonly { choice: SurrenderOrder; icon: string; label: string }[
   { choice: 'lead', icon: '⛓', label: 'Odvést' },
   { choice: 'leave', icon: '🏳', label: 'Nechat' },
 ];
+
+/**
+ * Oko „Ve scéně“ – jednobarevná ikona (`public/icons/war/eye.svg`, CC0) jako maska v barvě textu,
+ * stejně jako znaky ostatních tlačítek (⌂, ⚔, ✕).
+ */
+const EYE_ICON: CSSProperties = {
+  maskImage: 'url(/icons/war/eye.svg)',
+  WebkitMaskImage: 'url(/icons/war/eye.svg)',
+  maskSize: 'contain',
+  WebkitMaskSize: 'contain',
+  maskRepeat: 'no-repeat',
+  WebkitMaskRepeat: 'no-repeat',
+  maskPosition: 'center',
+  WebkitMaskPosition: 'center',
+  verticalAlign: '-0.125em',
+};
 
 /** Políčko, jehož mapu ukázat: velitelovo, jinak prvního vlastního muže, jinak mapa cíle. */
 function shownCell(view: CampaignView): { x: number; y: number } {
@@ -188,7 +204,7 @@ export function CampaignMap({
               onClick={toggleWatch}
               className={`hud-inset rounded px-1.5 disabled:opacity-45 disabled:grayscale ${watching ? 'ring-1 ring-[#f3cf86]' : ''}`}
             >
-              👁
+              <span aria-hidden className="inline-block size-[1em] bg-current" style={EYE_ICON} />
             </button>
           </Tooltip>
         )}

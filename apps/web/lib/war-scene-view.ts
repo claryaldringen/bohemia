@@ -59,6 +59,8 @@ export function sceneWarOf(
             pos: { ...g.pos },
             heading: { ...g.heading },
           })),
+          // takt snímku – mezi dvěma dotazy jde pochod plynule (army.ts – `marchAt`)
+          tick: view.tick,
         }
       : null,
     flight: null,
@@ -84,6 +86,22 @@ export function watchCellOf(view: CampaignView, home: GridCell | null): GridCell
   if (!man) return null;
   if (home && man.cell.x === home.x && man.cell.y === home.y) return null;
   return { x: man.cell.x, y: man.cell.y };
+}
+
+/**
+ * Kam jde scéna cizí mapy `current`, když na ní vojsko už nestojí (design „mapu po mapě“ – scéna jde
+ * za vojskem): na mapu, kde je teď (`watchCellOf` – velitel, jinak vlastní muž, jinak spojenec).
+ * null – zpět na ves: tažení skončilo, vojsko přišlo na mapu sídla ve scéně (ukáže ho scéna vsi),
+ * nikdo nestojí, nebo pohled ho má pořád na téže mapě (nic nového k ukázání).
+ */
+export function followCellOf(
+  view: CampaignView,
+  current: GridCell,
+  home: GridCell | null,
+): GridCell | null {
+  const next = watchCellOf(view, home);
+  if (!next || (next.x === current.x && next.y === current.y)) return null;
+  return next;
 }
 
 /**

@@ -664,9 +664,10 @@ test('nájezd na ves s palisádou s ochozem: obránci na hradbě, útočníci p�
 });
 
 // Cizí mapa ve scéně (war.md – Ve scéně – cizí mapa): útočník A přepne z mapy tažení 3D scénu na
-// mapu napadené vsi B – vojsko ve scéně s mlhou války, z vsi B jen objevený dům; když vojsko z mapy
-// odejde, scéna se vrátí na vlastní ves (a vojsko ukáže tam). Bez workeru – stav tažení se jen čte.
-test('útočník sleduje vojsko ve 3D na mapě napadené vsi, po odchodu vojska zpět na ves', async ({
+// mapu napadené vsi B – vojsko ve scéně s mlhou války, z vsi B jen objevený dům; když vojsko přejde
+// na sousední mapu, scéna jde za ním; když přijde domů, scéna se vrátí na vlastní ves (a vojsko ukáže
+// tam). Bez workeru – stav tažení se jen čte.
+test('útočník sleduje vojsko ve 3D na mapě napadené vsi i na sousední, po návratu zpět na ves', async ({
   browser,
 }) => {
   test.setTimeout(240_000);
@@ -813,6 +814,32 @@ test('útočník sleduje vojsko ve 3D na mapě napadené vsi, po odchodu vojska 
       await a.waitForTimeout(2_000);
       await a.screenshot({ path: `${process.env.WAR_SHOT_DIR}/cizi-mapa.png` });
     }
+
+    // vojsko přejde na sousední mapu – scéna jde za ním (krajina sousední mapy, vojsko dál ve scéně)
+    const next = [
+      { x: placeB.cell.x + 1, y: placeB.cell.y },
+      { x: placeB.cell.x, y: placeB.cell.y + 1 },
+      { x: placeB.cell.x - 1, y: placeB.cell.y },
+    ].find((c) => c.x !== placeA.cell.x || c.y !== placeA.cell.y)!;
+    await query(`UPDATE campaign_checkpoint SET state = $2::jsonb WHERE campaign_id = $1`, [
+      campaignId,
+      JSON.stringify(onMap(next, { x: 20, z: 20 })),
+    ]);
+    await expect(foreign).toHaveAttribute('data-cell', `${next.x},${next.y}`, { timeout: 30_000 });
+    await expect(canvas).toHaveAttribute('data-scene-ready', 'true', { timeout: 60_000 });
+    await expect(canvas).toHaveAttribute('data-war-men', '3', { timeout: 30_000 });
+    await expect
+      .poll(
+        () =>
+          a.evaluate(() =>
+            window.__bohemiaE2E!.armyStats!()
+              .filter((m) => m.name.startsWith('army-man'))
+              .reduce((n, m) => n + m.count, 0),
+          ),
+        { timeout: 60_000 },
+      )
+      .toBeGreaterThan(0);
+    await expect(foreign.getByTestId('campaign-watch')).toHaveAttribute('aria-pressed', 'true');
 
     // vojsko odejde domů – scéna se vrátí na ves A a ukáže ho tam (bez mlhy)
     await query(`UPDATE campaign_checkpoint SET state = $2::jsonb WHERE campaign_id = $1`, [

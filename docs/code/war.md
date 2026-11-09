@@ -959,22 +959,34 @@ Scéna hry ukazuje **mapu sídla hráče** – vojsko je v ní vidět, když na 
   `campaignView`), hradby bojiště, z cílové vsi jen objevené domy (`WarSceneView.buildings` –
   `discovered`, poloha a natočení; nic dalšího o cizí vsi). Domy a opevnění cílové vsi z mezipaměti
   `defenders` (`WarSceneDefender.buildings`, klíč `ves@den`). null – cizí hráč, konec tažení
-  (`done`, `disbanded`) nebo vojsko na mapě nestojí → scéna se vrátí na ves. Scéna se závojem mlhy
+  (`done`, `disbanded`) nebo vojsko na mapě nestojí → scéna jde za vojskem (design „mapu po mapě“):
+  zeptá se na pohled na tažení a přepne se na mapu, kde teď stojí velitel, jinak vlastní muž, jinak
+  spojenec (web `followCellOf`); na ves se vrátí jen po konci tažení, když vojsko přijde na mapu
+  sídla ve scéně, nebo když ho pohled nemá nikde jinde. Dokud na mapě stojí kterákoli skupina
+  vojska, scéna zůstane (návrh Clauda – za velitelem jde, až mapu opustí všichni). Scéna se závojem mlhy
   (design „Mlha války na cizí mapě“); vlastní vsi útočník vidí jen na své mapě. Vazal vidí jako
   vlastní stranu celé vojsko tažení i se zdravím mužů pána (návrh Clauda – je jeho součástí).
+- **Plynulost mezi snímky** (scene.md – Vojsko, boj a mlha války): scéna se ptá 2× za sekundu,
+  ale route čte kontrolní bod tažení, který worker uloží po ≥ 40 taktech (10 s) nebo s událostí –
+  snímky tak dělí i desítky taktů. Muži boje i skupiny pochodu (`SceneMarch.tick` = takt pohledu)
+  jdou k novému snímku tak dlouho, kolik taktů uběhlo (`TICK_MS`, nejvýš 15 s); rány z vynechaných
+  taktů scéna pozná z `cooldown` (`strikeTicks`) a ukáže je, až k nim pohyb dojde. Údery od `since`
+  ze serveru ne (návrh Clauda): server zná jen poslední bod – rány mezi body by musel stav boje
+  zapisovat do bodu (stovky ran za 40 taktů v jsonb, čteno 2× za sekundu); rytmus ran určuje jádro
+  (`cooldown`), scéna ho z bodu dopočte sama a zásahy zná ze součtu `hits` / zdraví.
 - **Zatím ne:** lidé cizí vsi mimo boj (útěk vsi se nekreslí ani obránci), pole a další stavby cizí
-  vsi, útěk vsi a odehnané stádo (`planFlight`, `drivenHerd`), plynulý pochod mezi dotazy (skupina
-  poskočí po 0,5 s), rány mezi dvěma dotazy (dotaz nese každý druhý takt – `strikesOf` vidí jen
-  údery v taktu snímku).
+  vsi, útěk vsi a odehnané stádo (`planFlight`, `drivenHerd`).
 - **Testy:** `application/__tests__/war-scene.test.ts` (obránce – útočníci v dohledu mužů i domů,
   mlha, cíl mimo dohled, cizí bez zdraví se zásahy, ves jednou za herní den; po boji pochod;
   útočník na své mapě; cizí sídlo; `warSceneOnMap` – obránci v dohledu, jen objevené domy, obránce
   cizí domy nedostane, cizí hráč / jiná mapa / konec tažení = null, vazal ve službě), web
-  `lib/__tests__/war-scene-view.test.ts` (i výběr mapy `watchCellOf`, závoj na cizí mapě, cizí ves
-  z domů),
-  `battle-fx.test.ts` (rána podle zásahů), e2e `multiplayer-war.spec.ts` (napadená ves B má ve
-  scéně vojsko – `data-war-men` na plátně, vojsko doma u A, B ho pak nevidí; útočník A přepne
-  scénu na mapu vsi B – `foreign-scene`, `data-war-men`, `armyStats`, po odchodu vojska zpět), db
+  `lib/__tests__/war-scene-view.test.ts` (i výběr mapy `watchCellOf`, další mapa `followCellOf`,
+  závoj na cizí mapě, cizí ves z domů, takt pochodu), `army.test.ts` (plynulý pochod `marchAt`),
+  `battle-fx.test.ts` (rána podle zásahů, rány z vynechaných taktů `strikeTicks`), e2e
+  `multiplayer-war.spec.ts` (napadená ves B má ve scéně vojsko – `data-war-men` na plátně, vojsko
+  doma u A, B ho pak nevidí; útočník A přepne scénu na mapu vsi B – `foreign-scene`,
+  `data-war-men`, `armyStats`, vojsko přejde na sousední mapu – nová `data-cell` a vojsko dál,
+  po návratu domů zpět na ves), db
   `campaign-repository.db.test.ts` (`activeAgainst`).
 
 ## Měření tažení a e2e celé války (Ú6.17)
