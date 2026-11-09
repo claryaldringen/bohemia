@@ -3,17 +3,17 @@ import { isLineMan } from '../village/dynasty';
 import { refugeCapacity } from '../village/fortification/refuge';
 import type { Fortification } from '../village/fortification/types';
 import { fortOutlineOf } from '../village/fortification/convert';
-import { villageHorses } from '../village/horses';
+import { isUnshod } from '../village/horse-shoeing-term';
+import { isGrainHorse, villageHorses } from '../village/horses';
 import { isTrained, oxenHome } from '../village/oxen';
 import { ageYears, isAway, isInjured } from '../village/people';
-import { DRAFT_OXEN, HORSES } from '../village/rules';
+import { DRAFT_OXEN } from '../village/rules';
 import type { GridGeometry } from '../village/square-grid';
 import type {
   Cart,
   DefenseStance,
   FlightMode,
   HerdSpecies,
-  Horse,
   Person,
   RefugeePerson,
   VillageState,
@@ -268,43 +268,59 @@ export function messengerSpeed(mounted: boolean, day: number): number {
   return marchSpeed(pace, day) * WAR.alarm.runFactor;
 }
 
-/** Je kůň pro posla – v letech služby (`HORSES.serviceFromYears` až `serviceToYears`). */
-function rideable(horse: Horse, day: number): boolean {
-  const age = ageYears(horse.bornDay, day);
-  return age >= HORSES.serviceFromYears && age < HORSES.serviceToYears;
+/** Posel vsi: kdo běží a zda jede na koni. */
+export interface MessengerPick {
+  personId: number;
+  mounted: boolean;
 }
 
 /**
- * Posel vsi (Otevřené 4): nejmladší zdravý přítomný muž 16–44 let mimo muže rodu (návrh Clauda –
- * „nejzdatnější“ = nejmladší dospělý, shoda – menší id); bez takového nejmladší zdravý muž rodu od
- * 16 let; bez mužů null. Jede na koni, má-li ves kůň v letech služby (ohrada nebo bez ohrady), jehož
- * jezdec není pryč.
+ * Jede muž rodu `p` na koni (Martin 9. 11. 2026: „Může vyslat někoho z rodu, kdo jezdit umí“)? Umí
+ * jezdit a má jezdeckého koně = jeho kůň (`Horse.riderId` – pár jezdec–kůň drží jen cvičící muži
+ * rodu; horses.md – Výcvik koně a jezdec) je jezdecký (samec od 3 let) a ves není po termínu kování
+ * (`isUnshod` – nepodkutí koně nejezdí).
+ */
+function ridesOwnHorse(state: VillageState, p: Person, day: number): boolean {
+  if (!isLineMan(p) || isUnshod(state, day)) return false;
+  const horses = [...villageHorses(state), ...(state.looseHorses ?? [])];
+  return horses.some((h) => h.riderId === p.id && isGrainHorse(h, day));
+}
+
+/**
+ * Posel vsi (Otevřené 4; Martin 9. 11. 2026: „Posel jde pěšky“, „Kdo je poslem, volí hráč“).
+ * `personId` = muž, kterého vybral hráč: zdravý přítomný muž od 16 let – vesničan nejvýš 44 let
+ * jde pěšky, muž rodu jede na svém jezdeckém koni, umí-li jezdit (`ridesOwnHorse`), jinak pěšky;
+ * jiný null. Bez volby (i za správce) nejmladší zdravý přítomný vesničan 16–44 let pěšky (návrh
+ * Clauda – „nejzdatnější“ = nejmladší, shoda – menší id); bez takového nejmladší zdravý muž rodu
+ * (návrh Clauda – nikdo jiný běžet nemůže; jede, umí-li); bez mužů null.
  */
 export function messengerOf(
   state: VillageState,
   day: number,
-): { personId: number; mounted: boolean } | null {
+  personId?: number,
+): MessengerPick | null {
   const able = (p: Person): boolean =>
     p.sex === 'male' &&
     !isAway(p, day) &&
     !isInjured(p, day) &&
     ageYears(p.bornDay, day) >= WAR.army.minAge;
+  const villager = (p: Person): boolean =>
+    able(p) && !isLineMan(p) && ageYears(p.bornDay, day) <= WAR.army.villagerMaxAge;
+  const pick = (p: Person): MessengerPick => ({
+    personId: p.id,
+    mounted: ridesOwnHorse(state, p, day),
+  });
+  if (personId !== undefined) {
+    const p = state.people.find((x) => x.id === personId);
+    if (!p || !(villager(p) || (able(p) && isLineMan(p)))) return null;
+    return pick(p);
+  }
   const youngest = (list: Person[]): Person | undefined =>
     [...list].sort((a, b) => b.bornDay - a.bornDay || a.id - b.id)[0];
-  const villagers = state.people.filter(
-    (p) => able(p) && !isLineMan(p) && ageYears(p.bornDay, day) <= WAR.army.villagerMaxAge,
-  );
   const runner =
-    youngest(villagers) ?? youngest(state.people.filter((p) => able(p) && isLineMan(p)));
-  if (!runner) return null;
-  const byId = new Map(state.people.map((p) => [p.id, p]));
-  const horses = [...villageHorses(state), ...(state.looseHorses ?? [])];
-  const mounted = horses.some((h) => {
-    if (!rideable(h, day)) return false;
-    const rider = h.riderId === undefined ? undefined : byId.get(h.riderId);
-    return rider === undefined || !isAway(rider, day);
-  });
-  return { personId: runner.id, mounted };
+    youngest(state.people.filter(villager)) ??
+    youngest(state.people.filter((p) => able(p) && isLineMan(p)));
+  return runner ? pick(runner) : null;
 }
 
 /** Proč volba nejde (texty – rozhraní, plán Ú12). */
@@ -337,6 +353,8 @@ export interface RefugeOptionsInput {
   hosts: readonly RefugeHost[];
   /** Posel vsi už vyběhl. */
   messengerSent?: boolean;
+  /** Posel, kterého vybral hráč (`messengerOf`); chybí – výchozí vesničan pěšky. */
+  messengerId?: number;
   /** Lidé vsi už odešli skupinou tohoto tažení. */
   fled?: boolean;
 }
@@ -408,7 +426,7 @@ export function refugeOptions(input: RefugeOptionsInput): RefugeOptions {
   }
 
   let messenger: AlarmOption;
-  const runner = messengerOf(state, day);
+  const runner = messengerOf(state, day, input.messengerId);
   if (input.messengerSent === true) messenger = { blocked: 'sent' };
   else if (!host) messenger = { blocked: 'no-hillfort' };
   else if (!runner) messenger = { blocked: 'no-runner' };

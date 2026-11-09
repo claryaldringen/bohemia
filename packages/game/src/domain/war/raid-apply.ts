@@ -285,7 +285,7 @@ export function guardPrisonerKey(
 }
 
 /** Zajme osobu (mutuje): `away` zajetí u věznitele; zajatý vojvoda – ves řídí správce. */
-function markCaptive(
+export function markCaptive(
   state: VillageState,
   day: number,
   p: Person,

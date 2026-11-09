@@ -34,5 +34,8 @@ describe('kronika – útěk do hradiště a posel', () => {
     );
     expect(text({ day: 1, kind: 'messenger-caught', fate: 'killed' })).toBe('Posel padl.');
     expect(text({ day: 1, kind: 'messenger-caught', fate: 'led' })).toBe('Posla odvedlo vojsko.');
+    expect(text({ day: 1, kind: 'messenger-caught', fate: 'captured', name: 'Ctibor' })).toBe(
+      'Posla Ctibor zajalo vojsko.',
+    );
   });
 });

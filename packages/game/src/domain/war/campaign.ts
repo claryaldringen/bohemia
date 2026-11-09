@@ -3,12 +3,11 @@ import type { NewVillageEvent, VillageEventBody } from '../village/inbox';
 import type { Person, PersonRef, Prisoner, VillageState } from '../village/types';
 import { createRandom, deriveSeed } from '../landscape/random';
 import { surrenders } from './surrender';
-import { directionBetween, type GridCell } from '../village/world-grid';
+import type { GridCell } from '../village/world-grid';
 import type {
   CampaignGroup,
   CampaignGuard,
   CampaignIntent,
-  CampaignLeg,
   CampaignMember,
   CampaignNotice,
   CampaignPlace,
@@ -45,15 +44,31 @@ import {
   type RaidResult,
 } from './raid-apply';
 import type { Pos } from './march-grid';
-import { marchPath, marchPathToEdge, marchProgress, marchSpeed, type GroupPace } from './march';
+import { marchSpeed, type GroupPace } from './march';
+import { stepMover } from './movement';
 import { WAR } from './rules-war';
 import { discoverBuildings } from './sight';
 import { frostDay } from './season';
 import { npcIntents, npcLeader } from './npc-commander';
 import { inFight, setGroupOrder } from './orders';
 import { dayOfTick, hoursPerTick, TICKS_PER_SECOND, tickRandom } from './ticks';
-import { edgeCrossing, worldRoute } from './world-route';
-import { isWarned, sightAlarms } from './alarm';
+import { worldRoute } from './world-route';
+import {
+  alarmVillage,
+  isAlarmIntent,
+  isDefenderIntent,
+  isWarned,
+  sightAlarms,
+  type AlarmIntentBody,
+} from './alarm';
+import {
+  alarmTaken,
+  catchMessengers,
+  moveMessengers,
+  recallMessengers,
+  sendMessenger,
+  withoutTaken,
+} from './messenger';
 import {
   cellKey,
   gridOf,
@@ -140,9 +155,9 @@ export function campaignFinished(state: CampaignState): boolean {
 
 /**
  * Dopočte tažení z `state` do taktu `toTick` (včetně). Záměry s taktem nejvýš `state.tick`
- * (v minulosti) a cizí záměry se zahodí – kromě rozkazu obráncům `breakout`, který dává držitel
- * napadené vsi (právo ověřil use-case `orderBreakout`), nikdy vůdce tažení; ostatní platí přesně
- * ve svém taktu v pořadí `seq`.
+ * (v minulosti) a cizí záměry se zahodí – kromě záměrů obránce (`isDefenderIntent`): rozkaz
+ * obráncům `breakout` dává držitel napadené vsi (právo ověřil use-case `orderBreakout`), `alarm-*`
+ * majitel varované vsi – nikdy vůdce tažení; ostatní platí přesně ve svém taktu v pořadí `seq`.
  * Chybí-li mapa nebo ves (`waiting`), výsledek je stav na konci posledního celého taktu.
  * Vstupní stav ani záměry nemění.
  */
@@ -157,7 +172,7 @@ export function stepCampaign(
       (i) =>
         i.tick > state.tick &&
         i.tick <= toTick &&
-        (i.body.kind === 'breakout') !== (i.byPlayer === state.playerId),
+        isDefenderIntent(i.body) !== (i.byPlayer === state.playerId),
     )
     .sort((a, b) => a.tick - b.tick || a.seq - b.seq);
   const ctx = tickContext(world);
@@ -221,7 +236,7 @@ function campaignTick(
     s.day++;
     dailyStep(s, out);
   }
-  for (const intent of intents) applyIntent(s, intent, out);
+  for (const intent of intents) applyIntent(s, intent, ctx, out);
   command(s, tick, ctx, out);
   if (npcLeads(s)) {
     // NPC velitel rozhoduje ze stavu na začátku taktu; opevnění cíle musí být načtené
@@ -248,9 +263,12 @@ function campaignTick(
       if (allArrived(s)) finish(s, ctx, out);
       break;
   }
-  // po pohybu: spatření vesničany (varování – Úloha 2 plánu 2026-11-09), pak dny nájezdu
+  // po pohybu: spatření vesničany (varování – Úloha 2 plánu 2026-11-09), posli (pohyb, chycení –
+  // Úloha 5), pak dny nájezdu
   if (s.phase !== 'assembling' && s.phase !== 'done') {
     sightAlarms(s, tick, ctx, out);
+    moveMessengers(s, ctx, out);
+    catchMessengers(s, ctx, out);
     watchVillages(s, ctx, out);
   }
   // boj skončil (výhra, porážka, ústup) – výsledek nájezdu do vsí jednou (Ú6.10)
@@ -334,12 +352,48 @@ function desert(s: CampaignState, out: TickOut): void {
  * Záměr hráče v taktu – každý jeho záměr je i přítomnost u tažení (war.md – Velení: Hráč odejde
  * od tažení); vrátí-li se, převezme velení od zástupce.
  */
-function applyIntent(s: CampaignState, intent: CampaignIntent, out: TickOut): void {
+function applyIntent(
+  s: CampaignState,
+  intent: CampaignIntent,
+  ctx: TickContext,
+  out: TickOut,
+): void {
+  // záměr obránce varované vsi – hráč obránce u tažení není
+  if (isAlarmIntent(intent.body)) {
+    applyAlarm(s, intent.byPlayer, intent.body, ctx, out);
+    return;
+  }
   if (s.liveCommand) {
     s.presenceTick = intent.tick;
     delete s.absent;
   }
   applyBody(s, intent.body, out, false);
+}
+
+/**
+ * Záměr obránce varované vsi (plán 2026-11-09 – Rozhodnutí plánu): platí jen od hráče, kterému ves
+ * patří (`AlarmVillage.owner`), a jen když ves o vojsku ví; co nejde (`refugeOptions`), se zahodí.
+ */
+function applyAlarm(
+  s: CampaignState,
+  byPlayer: string,
+  body: AlarmIntentBody,
+  ctx: TickContext,
+  out: TickOut,
+): void {
+  const v = alarmVillage(s, body.village);
+  if (!v || v.owner.playerId !== byPlayer || !isWarned(s, v.villageId, s.tick)) return;
+  switch (body.kind) {
+    case 'alarm-messenger':
+      sendMessenger(s, v.villageId, ctx, out, {
+        by: 'player',
+        ...(body.personId === undefined ? {} : { personId: body.personId }),
+      });
+      return;
+    case 'alarm-flee': // evakuace – Úloha 8
+    case 'alarm-domain': // hradiště varuje doménu – Úloha 6
+      return;
+  }
 }
 
 /** Úkon tažení od hráče, nebo od NPC velitele (`npc`) – co ve fázi nedává smysl, se zahodí. */
@@ -675,17 +729,21 @@ function campaignBattle(s: CampaignState, ctx: TickContext, field: BattleField):
   if (guests.length > 0) {
     s.guards = guests.map(({ guard }) => guard);
   }
-  const plan = village
+  // kdo dnes s tažením odešel (posel – Úloha 5), v boji nestojí (stav vsi je ze včerejška)
+  const home = village
+    ? withoutTaken(village, alarmTaken(s, s.target.villageId, s.day, ctx.world.clock))
+    : null;
+  const plan = home
     ? planDefense({
-        state: village,
+        state: home,
         day: s.day,
-        stance: stanceOf(village),
-        defenders: defenderRoster(village, s.day, { guests: guests.map(({ guest }) => guest) }),
+        stance: stanceOf(home),
+        defenders: defenderRoster(home, s.day, { guests: guests.map(({ guest }) => guest) }),
         attackers: fighters.map((a) => ({ pos: a.pos, mounted: a.mounted })),
         field,
         // ves o vojsku ví (vesničan, posel – Úloha 2 plánu 2026-11-09), nebo ji varoval posel
         // starého tažení (Ú6.7 – `armySeen` jen ze starých bodů) – postoj dřív
-        warned: isWarned(s, s.target.villageId, s.tick) || village.armySeen?.campaignId === s.id,
+        warned: isWarned(s, s.target.villageId, s.tick) || home.armySeen?.campaignId === s.id,
       })
     : null;
   return openBattle({
@@ -795,6 +853,8 @@ function leaveBattle(s: CampaignState): void {
  */
 function finish(s: CampaignState, ctx: TickContext, out: TickOut): void {
   reportRaid(s, ctx, out);
+  // posli, kteří ještě běží, se vrátí domů – další takty nebudou (Úloha 5)
+  recallMessengers(s, ctx, out);
   // po rozpadu jen muži domů – kronika a upozornění šly už při rozpadu
   const disbanded = s.phase === 'disbanded';
   s.phase = 'done';
@@ -908,12 +968,15 @@ function reportRaid(s: CampaignState, ctx: TickContext, out: TickOut): void {
     ...capturedPrisoners(s, village, hostCaptured),
     ...guardCaptured.map((g) => guardPrisoner(s, g)),
   ];
+  const people = [...(s.loot.people ?? []), ...ledPeople(village, result.led)];
+  const allPrisoners = [...(s.loot.prisoners ?? []), ...prisoners];
   s.loot = {
     foodKg: s.loot.foodKg + totals.foodKg,
     herd: s.loot.herd + totals.herd,
     detail: structuredClone(result.loot),
-    ...(result.led.length > 0 ? { people: ledPeople(village, result.led) } : {}),
-    ...(prisoners.length > 0 ? { prisoners } : {}),
+    // odvedení a zajatí poslové (Úloha 5) zůstávají v kořisti
+    ...(people.length > 0 ? { people } : {}),
+    ...(allPrisoners.length > 0 ? { prisoners: allPrisoners } : {}),
   };
   for (const personId of [...result.led, ...hostCaptured]) {
     s.captives.push({ villageId: s.target.villageId, personId });
@@ -1186,43 +1249,7 @@ function moveGroups(s: CampaignState, ctx: TickContext): void {
       g.arrived = true;
       continue;
     }
-    if (g.leg === null) {
-      g.leg = planLeg(g, s.day, ctx);
-      if (g.leg === null) {
-        g.arrived = true;
-        continue;
-      }
-    }
-    const leg = g.leg;
-    const end = leg.meadowM[leg.meadowM.length - 1]!;
-    const walked = leg.walkedM + marchSpeed(pace, s.day) / TICKS_PER_SECOND;
-    if (walked < end) {
-      leg.walkedM = walked;
-      g.pos = marchProgress(leg, walked);
-      continue;
-    }
-    g.pos = { ...leg.points[leg.points.length - 1]! };
-    g.leg = null;
-    const nextCell = g.route.shift();
-    if (nextCell === undefined) {
-      g.arrived = true;
-      continue;
-    }
-    g.pos = edgeCrossing(g.cell, nextCell, g.pos);
-    g.cell = nextCell;
+    const step = stepMover(g, g.goal.pos, marchSpeed(pace, s.day) / TICKS_PER_SECOND, s.day, ctx);
+    if (step === 'arrived' || step === 'stuck') g.arrived = true;
   }
-}
-
-/** Úsek po mapě skupiny: k okraji ve směru dalšího políčka trasy, nebo k cíli; null = nemá kudy. */
-function planLeg(g: CampaignGroup, day: number, ctx: TickContext): CampaignLeg | null {
-  const grid = gridOf(g.cell, day, ctx);
-  const nextCell = g.route[0];
-  let path;
-  if (nextCell !== undefined) {
-    const direction = directionBetween(g.cell, nextCell);
-    path = direction === null ? null : marchPathToEdge(grid, g.pos, direction);
-  } else {
-    path = g.goal ? marchPath(grid, g.pos, g.goal.pos) : null;
-  }
-  return path ? { points: path.points, meadowM: path.meadowM, walkedM: 0 } : null;
 }
