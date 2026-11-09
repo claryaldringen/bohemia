@@ -65,9 +65,63 @@ function dist(a: Point, b: Point): number {
 /**
  * Obvod druhu `kind` přes body `points` (libovolné pořadí a začátek): křivka navzorkovaná do
  * lomené čáry, na ní hranice stejně dlouhých úseků ≈ 15 m (délka ÷ zaokrouhlený počet), délka,
- * plocha, pás a útočiště. Méně než tři různé body – null.
+ * plocha, pás a útočiště. Méně než tři různé body – null. Z paměti podle druhu a bodů (číslo po
+ * čísle) – obvod je zmrazený a sdílený mezi voláními, jen ke čtení (jen zrychlení: úbytek
+ * hradeb, průsečíky cest s úseky a údržba ho počítají každý den pro tatáž opevnění znovu).
  */
 export function fortificationOutline(points: readonly Point[], kind: FortKind): FortOutline | null {
+  for (let k = 0; k < outlineMemo.length; k++) {
+    const known = outlineMemo[k]!;
+    if (known.kind !== kind || !samePoints(known.points, points)) continue;
+    if (k > 0) {
+      outlineMemo.splice(k, 1);
+      outlineMemo.unshift(known);
+    }
+    return known.outline;
+  }
+  const outline = computeOutline(points, kind);
+  const flat = new Float64Array(points.length * 2);
+  points.forEach((p, k) => {
+    flat[k * 2] = p[0];
+    flat[k * 2 + 1] = p[1];
+  });
+  outlineMemo.unshift({ kind, points: flat, outline: outline && freezeOutline(outline) });
+  if (outlineMemo.length > OUTLINE_MEMO) outlineMemo.pop();
+  return outlineMemo[0]!.outline;
+}
+
+/** Kolik posledních obvodů drží paměť `fortificationOutline` (nejdéle nepoužitý vypadne). */
+const OUTLINE_MEMO = 16;
+const outlineMemo: { kind: FortKind; points: Float64Array; outline: FortOutline | null }[] = [];
+
+/** Body jsou tytéž jako v paměti – i znaménko nuly (`Object.is`), ať je výsledek bit po bitu týž. */
+function samePoints(flat: Float64Array, points: readonly Point[]): boolean {
+  if (flat.length !== points.length * 2) return false;
+  for (let k = 0; k < points.length; k++) {
+    const p = points[k]!;
+    if (!Object.is(flat[k * 2], p[0]) || !Object.is(flat[k * 2 + 1], p[1])) return false;
+  }
+  return true;
+}
+
+/** Zmrazí obvod i s poli a body (sdílený z paměti – změna by vyhodila TypeError, ne tichou chybu). */
+function freezeOutline(outline: FortOutline): FortOutline {
+  for (const p of outline.points) Object.freeze(p);
+  for (const p of outline.polyline) Object.freeze(p);
+  for (const run of outline.runs) {
+    Object.freeze(run.line);
+    Object.freeze(run);
+  }
+  Object.freeze(outline.points);
+  Object.freeze(outline.polyline);
+  Object.freeze(outline.stations);
+  Object.freeze(outline.runs);
+  Object.freeze(outline.corners);
+  Object.freeze(outline.segmentStarts);
+  return Object.freeze(outline);
+}
+
+function computeOutline(points: readonly Point[], kind: FortKind): FortOutline | null {
   const pts = normalizeFortPoints(points);
   if (pts.length < 3) return null;
   const raw = sampleCurve(pts);
