@@ -602,7 +602,7 @@ Návrh: [disasters.md – Co hráč vidí](../design/disasters.md). Jádro a č�
 
 - Server action `setSteward({ villageId, on })` → `VillageGame.toggleSteward` (`runAction`, pohled se obnoví).
   `VillageView.steward = { on, built }` (`built` = id staveb a dílů se značkou, `isStewardBuilt`).
-- **Přepínač** `StewardToggle` (ikona klíče `public/icons/resources/steward.svg`, zapnutý svítí,
+- **Přepínač** `StewardToggle` (ikona klíče `public/icons/resources/steward.png`, zapnutý svítí,
   vypnutý `opacity-40`, popisek „Správce“): v `VillageList` u každé žijící vsi (`VillageListItem.steward`)
   a v panelu dvorce vojvody (`SelectionDetails.steward`, jen `dwelling` s `manor`). `StewardBadge` je
   ikona vedle jména vybrané vsi v `VillageSwitcher`, když správce běží.
@@ -760,7 +760,7 @@ action `levyDialogs()` (rozdělení po vsích se počítá až tehdy, ne s dotaz
   `nameSons` – `LineNamePanel`; `steward` – `StewardToggle` (jen zobrazená ves; ves v seznamu
   jiná než zobrazená právo nezná, rozhodne server), přejmenování vsi, lov navíc; `trade` – Vyslat
   výpravu (`NeighbourTrade`). Pohled na ves a výběr zůstávají – dívat se smí každý hráč rodu.
-- **Stolec:** `public/icons/house/throne.svg` (vlastní kresba, CC0). `VillageListItem.senior`
+- **Stolec:** `public/icons/house/throne.png` (render z Blenderu). `VillageListItem.senior`
   (`villageListItem(…, seniorVillageId)` z `House.senior`) → stolec u vsi seniora v `VillageList`
   (popisek „Senior rodu“) vedle praporce „Tvůj muž“.
 - **Panel rodu:** `PanelMan` nese `villageId` a `personId`; `housePanel` vrací `own.senior`,
@@ -776,7 +776,7 @@ action `levyDialogs()` (rozdělení po vsích se počítá až tehdy, ne s dotaz
 - `VillageView.pendingDeparture` (`PendingDepartureView` v `lib/departure-view.ts`, počítá
   `pendingDepartureView` ze stejného náhledu jako odchod syna, `sonDeparturePreview` s `fatherId`)
   je jen ve vsi, kde syn čeká (`House.pendingDeparture.villageId`; přidává `viewOf` z `villageAccess`).
-- `PlayerDeparturePanel` nahoře uprostřed: přesýpací hodiny (`icons/house/hourglass.svg`) s dny do
+- `PlayerDeparturePanel` nahoře uprostřed: přesýpací hodiny (`icons/resources/hourglass.png`) s dny do
   konce lhůty (popisek v `Tooltip`), obrys obydlí dílu ve scéně (`setSonPreview` jako u řady synů),
   syn bez jména napřed panel jména (`LineNamePanel`), pak růžice `LeaveCompass` (právo `sendSons`).
 - Server action `choosePlayerDeparture` (`app/game/actions.ts` → `choosePlayerDepartureForPlayer` v
@@ -882,8 +882,8 @@ segment | null, FortAction)` (`upgrade` s `target`, `rampart`, `moat`, `gate` s 
 
 ## Pomoc a půjčky v rozhraní (úloha 4.6)
 
-- `TermsForm.tsx`: `TERM_ROWS` má řádky `aid-request`, `gift`, `loan` (`AidRow`) – ikony `house/aid.svg`, `gift.svg`,
-  `loan.svg` (vlastní CC0, `public/icons/LICENSES.md`), políčka zboží (`GOODS_SLOTS`), výběr vsi, u půjčky splátkový
+- `TermsForm.tsx`: `TERM_ROWS` má řádky `aid-request`, `gift`, `loan` (`AidRow`) – ikony `house/aid.png`, `gift.png`,
+  `loan.png` (`public/icons/LICENSES.md`), políčka zboží (`GOODS_SLOTS`), výběr vsi, u půjčky splátkový
   kalendář (rok + zboží, přidat / odebrat splátku). V „aid“ režimu formuláře není přidávání ani odebírání řádků; pán přepíná
   odpověď tlačítky **Dát zdarma** / **Půjčit se splátkami** (`terms-aid-gift`, `terms-aid-loan`).
 - `HousePanel.tsx`: u pána tlačítko **Požádat o pomoc** (`agreement-request-aid`, ikona `aid`) otevře formulář s řádkem
@@ -1159,14 +1159,36 @@ ve hře.
 
 - **Panel opevnění** (`hud/selection/fortification.tsx`): druhy `fort-walkway`, `fort-crib`,
   `fort-chamber` (i v rozcestníku druhů `FORT_VARIANTS` místo ikony palisády), `fort-rampart-add`,
-  `fort-moat`, brány `fort-gate` (`FORT_GATE_ICON` – dřív `house/gate.svg`, ta zůstává panelu rodu
-  pro Blokovat), `gate-pincer`, `gate-tower`, `fort-occupancy`, postupy útočníka `assault-ladder`,
+  `fort-moat`, brány `fort-gate` (`FORT_GATE_ICON` – dřív `house/gate.svg`; panel rodu má pro Blokovat
+  vlastní `house/gate.png`), `gate-pincer`, `gate-tower`, `fort-occupancy`, postupy útočníka `assault-ladder`,
   `assault-axe`, `assault-fire`, `assault-spade`, `stone`, `demolish`.
 - **Jinde:** `breakout` (Probít se), `chronicle` a `bell` (lišta a hlavičky panelů), `abandon-structure`,
   `restore` (`StructureUseButtons`), `abandon-part` (`AbandonPartButton`), portrét `build/lom.png`.
 - Všechny v `public/icons/resources/*.png` (lom v `build/`), zdroj v `public/icons/LICENSES.md`.
   Jen vybrané: `blender -b --factory-startup --python tools/blender/icons.py -- apps/web/public/icons
 fort-walkway,chronicle,lom`.
-- Ruční SVG zůstávají panelům rodu, vazalství a války (`public/icons/house/`, `war/` – z 5.–7. 11.)
-  a oku „Ve scéně“ (`war/eye.svg` je jednobarevná maska v barvě textu); len, luštěniny ze zahrádky
-  a osivo už byly z Blenderu (`flax`, `legumes`, `food`).
+- Len, luštěniny ze zahrádky a osivo už byly z Blenderu (`flax`, `legumes`, `food`).
+
+**Druhá várka – panely rodu, vazalství, války a nováčka** (Martin 9. 11. 2026: „ano“ k předělání
+všech ručních SVG; slovník `PANELS` v `tools/blender/icons.py`, 64 × 64 jako suroviny, `small`):
+
+- **`public/icons/house/*.png`** – `aid` (otevřený pytel obilí s naběračkou), `banner` (červený prapor),
+  `copy` (dva listy), `cross` (červený křížek – zrušit / zavřít), `gate` (zavřená brána se závorou)
+  a `gate-open` (dokořán) z dílů opevnění, `gift` (truhlička), `guard-send` / `guard-recall` (štít
+  a červená šipka ven / zelená zpět), `hands` (klečící vesničan, klip `bind`), `handshake`, `horn`,
+  `hunger` (prázdná mísa), `chain-broken`, `loan` (denáry a šipky dokola), `passage` (šlépěje přes
+  mezníky – země z ikony `walk`), `pen` (brk v kalamáři), `scales` (váhy `balance` bez obilí), `seal`,
+  `seal-broken`, `seal-pen`, `shield`, `shield-hourglass` (štít a hodiny `hourglass`), `spears`,
+  `succession` (koruna), `sword`, `throne`, `village-key` (zemnice a klíč).
+- **`war/*.png`** – `captive` (vesničan s pouty na zápěstích – kosti `hand_L` / `hand_R`), `execute`
+  (sekera ve špalku), `forest` (smrky krajiny), `hold` (visací zámek), `release` (otevřené pouto
+  a zelená šipka), `shield-wall`, `white-flag`. **`newcomer/banner-crown.png`, `banner-free.png`**,
+  **`resources/steward.png`** (klíč).
+- Obilí, klády a přesýpací hodiny rodu jsou ikony surovin: `houseIconSrc` v `TermsForm.tsx` (sdílí
+  `HouseIcon`, `TermIconImg` i `Icon` panelu rodu) mapuje `grain` → `resources/food.png`, `log` →
+  `wood.png`, `hourglass` → `hourglass.png` (a vůz `cart`).
+- Zbraně, štíty a prapory jsou jednoduché modely ve skriptu – výcvikové rekvizity postav
+  (`prop_wicker-shield` má 33 vrcholů, meč je dřevěný) jsou na ikonu moc hrubé.
+- **Zůstávají SVG:** oko „Ve scéně“ (`war/eye.svg` – jednobarevná maska v barvě textu tlačítka,
+  `CampaignMap`) a vlajky jazykových skupin (`newcomer/<jazyk>.svg` – plochý znak 3 : 2 s rámečkem,
+  `LanguageIcon`; vlajka je sama barvami, render látky by ji ve 24 × 16 px rozmazal).

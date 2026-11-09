@@ -7,7 +7,7 @@ import { Tooltip } from './Tooltip';
 // Správce vsi v rozhraní (steward.md – Co hráč vidí): přepínač (ikona klíčů, zapnutý svítí,
 // vypnutý je tlumený; popisek jen „Správce“) a značka „Postavil správce“ u jeho staveb.
 
-const ICON = '/icons/resources/steward.svg';
+const ICON = '/icons/resources/steward.png';
 
 /**
  * Přepínač správce: klik zapne nebo vypne (server action), po odpovědi se pohled obnoví. Dokud

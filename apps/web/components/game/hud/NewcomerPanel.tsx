@@ -87,14 +87,14 @@ export function NewcomerWaiting({
             data-testid="newcomer-countdown"
             className="inline-flex items-center gap-1 font-serif text-[#f3dfb0]"
           >
-            <img src={`${HOUSE_ICON}/hourglass.svg`} alt="" width={24} height={24} />
+            <img src="/icons/resources/hourglass.png" alt="" width={24} height={24} />
             {remaining === null ? '' : formatRemaining(remaining)}
           </span>
         </Tooltip>
         <IconButton
           label="Stáhnout žádosti"
           testId="newcomer-withdraw"
-          src={`${ICON}/banner-free.svg`}
+          src={`${ICON}/banner-free.png`}
           size={40}
           disabled={busy}
           onClick={onWithdraw}
@@ -110,11 +110,15 @@ export function NewcomerWaiting({
               data-state={request.state}
               className="flex items-center gap-2 text-[#f3dfb0]"
             >
-              <img src={`${HOUSE_ICON}/banner.svg`} alt="" width={24} height={24} />
+              <img src={`${HOUSE_ICON}/banner.png`} alt="" width={24} height={24} />
               <span className="font-serif">{request.lordName}</span>
               <Tooltip content={label} placement="above">
                 <img
-                  src={`${HOUSE_ICON}/${request.state === 'pending' ? 'hourglass' : 'cross'}.svg`}
+                  src={
+                    request.state === 'pending'
+                      ? '/icons/resources/hourglass.png'
+                      : `${HOUSE_ICON}/cross.png`
+                  }
                   alt={label}
                   width={20}
                   height={20}
@@ -185,14 +189,14 @@ export function NewcomerPanel({
           <IconButton
             label="Vybrat pána"
             testId="newcomer-choose-lord"
-            src={`${ICON}/banner-crown.svg`}
+            src={`${ICON}/banner-crown.png`}
             onClick={() => setOffering(true)}
           />
         )}
         <IconButton
           label="Svobodný"
           testId="newcomer-free"
-          src={`${ICON}/banner-free.svg`}
+          src={`${ICON}/banner-free.png`}
           onClick={onStartFree}
         />
       </div>,
@@ -229,7 +233,7 @@ export function NewcomerPanel({
                     on ? 'outline-2 outline-[#f3cf86]' : ''
                   } ${blocked ? 'opacity-40' : ''}`}
                 >
-                  <img src={`${HOUSE_ICON}/banner.svg`} alt="" width={24} height={24} />
+                  <img src={`${HOUSE_ICON}/banner.png`} alt="" width={24} height={24} />
                   <span className="grow font-serif">{row.lordName}</span>
                   <LanguageIcon language={row.language} />
                 </button>
@@ -242,7 +246,7 @@ export function NewcomerPanel({
         <IconButton
           label="Zpět"
           testId="newcomer-back"
-          src={`${HOUSE_ICON}/cross.svg`}
+          src={`${HOUSE_ICON}/cross.png`}
           size={32}
           onClick={() => {
             setOffering(false);
@@ -252,7 +256,7 @@ export function NewcomerPanel({
         <IconButton
           label="Požádat vybrané rody"
           testId="newcomer-send"
-          src={`${HOUSE_ICON}/seal-pen.svg`}
+          src={`${HOUSE_ICON}/seal-pen.png`}
           size={40}
           disabled={picked.length === 0}
           onClick={() => onRequest(picked)}

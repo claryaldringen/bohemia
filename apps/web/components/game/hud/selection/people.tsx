@@ -218,7 +218,7 @@ export function PersonBody({
               }}
             >
               <img
-                src="/icons/house/village-key.svg"
+                src="/icons/house/village-key.png"
                 alt=""
                 width={128}
                 height={128}

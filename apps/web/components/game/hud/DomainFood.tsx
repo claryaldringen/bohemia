@@ -112,7 +112,7 @@ export function DomainFoodRows({
               data-testid="house-food-agreed"
               className="inline-flex"
             >
-              <Img src="/icons/house/seal.svg" />
+              <Img src="/icons/house/seal.png" />
             </span>
           </Tooltip>
         </div>

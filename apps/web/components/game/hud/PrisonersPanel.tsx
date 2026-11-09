@@ -36,7 +36,7 @@ function PrisonerRow({
     <div data-testid="prisoner" className="flex items-center gap-1.5">
       <Tooltip placement="above" content={title}>
         <img
-          src="/icons/war/captive.svg"
+          src="/icons/war/captive.png"
           alt={title}
           width={36}
           height={36}
@@ -52,7 +52,7 @@ function PrisonerRow({
           onClick={() => run('hold')}
           className={button}
         >
-          <img src="/icons/war/hold.svg" alt="" width={36} height={36} />
+          <img src="/icons/war/hold.png" alt="" width={36} height={36} />
         </button>
       </Tooltip>
       <Tooltip placement="above" content="Propustit domů">
@@ -64,7 +64,7 @@ function PrisonerRow({
           onClick={() => run('release')}
           className={button}
         >
-          <img src="/icons/war/release.svg" alt="" width={36} height={36} />
+          <img src="/icons/war/release.png" alt="" width={36} height={36} />
         </button>
       </Tooltip>
       <Tooltip
@@ -79,7 +79,7 @@ function PrisonerRow({
           onClick={() => (confirm ? run('execute') : setConfirm(true))}
           className={`${button} ${confirm ? 'ring-2 ring-red-600' : ''}`}
         >
-          <img src="/icons/war/execute.svg" alt="" width={36} height={36} />
+          <img src="/icons/war/execute.png" alt="" width={36} height={36} />
         </button>
       </Tooltip>
       {error !== null && <span className="text-xs text-red-500">{error}</span>}
