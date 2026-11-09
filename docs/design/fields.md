@@ -1036,7 +1036,9 @@ zůstávají v dílnách – jejich lidé by úzké hrdlo (orbu) nerozšířili.
    bod 3)
    podle konce svého okna – polní práce v jejich období (tabulka
    níže), sezónní práce v sadech (sklizeň jablek, péče – [sad](orchard.md)), seč sena
-   ([oxen.md](oxen.md) – Seno) a porážka s uzením ([diet.md](diet.md)).
+   ([oxen.md](oxen.md) – Seno) a porážka s uzením ([diet.md](diet.md)). Orba rádlem jde napřed
+   ([oxen.md](oxen.md) – Orba má přednost), **ne ve dni, kdy ves žne** – žeň má přednost před
+   orbou a setím (Pořadí práce dne ve žních, níže).
 4. **Společná práce vsi do staveb** – stavby hráče i přestavby obyvatel, zakládání polí, rovným
    dílem (populace). To je i **volná práce** v liště – práce, kterou dnes dostanou nebo by
    dostaly stavby.
@@ -1069,9 +1071,9 @@ souvislých blocích a pásech v ose s delší brázdou (po blocích, i sever �
 | kopání motykou             | září–říjen     | podzim (září–listopad), zbytek březen–duben | 100 (50)        | Semjonov 1974         |
 | setí a zahrabání           | září–říjen     | březen–duben                                | 3,3 \*          | Martin 9. 11. 2026    |
 | pletí (jen jař – jednou)   | neplete se     | květen                                      | 8 (5)           | Martin 25. 10. 2026   |
-| sklizeň srpem a vázání     | červenec–srpen | srpen                                       | 20 (15)         | Halstead a Jones 1989 |
-| odnos úrody v nůších       | červenec–srpen | srpen                                       | 10              | nedohledáno           |
-| výmlat cepem a převívání   | srpen–září     | září                                        | 15 (10)         | Clark 2007 (EB 1911)  |
+| sklizeň srpem a vázání     | červenec–srpen | srpen–září                                  | 20 (15)         | Halstead a Jones 1989 |
+| odnos úrody v nůších       | červenec–srpen | srpen–září                                  | 10              | nedohledáno           |
+| výmlat cepem a převívání   | srpen–září     | září–říjen                                  | 15 (10)         | Clark 2007 (EB 1911)  |
 | **celkem na osetý hektar** |                |                                             | **156 (93)**    |                       |
 
 \* Motykou i za rádlem (jeden rozsévač za spřežením – 1 člověkoden na den spřežení), na drnu za
@@ -1080,7 +1082,8 @@ rádlem 8,3 (Jeden rozsévač za spřežením výš). Dřív 10 čd/ha (celkem 1
 Ozim a jař se liší kalendářem (viz Ozim a jař) a pletím – ozim se neplete (Pletí jednou a rychle);
 ostatní sazby práce, osivo a úroda jsou stejné. Žeň ozimu (i luštěnin a lnu) jde v červenci, co
 červenec nestihne, v srpnu, a mlátí se hned po žni – červencová v srpnu, srpnová v září (Žně
-i v srpnu). Pletí dřív 30 (15) čd/ha v květnu–červnu (FAO).
+i v srpnu); žeň jaře v srpnu, co srpen nestihne, v září, výmlat září–říjen (Žeň jaře i v září).
+Pletí dřív 30 (15) čd/ha v květnu–červnu (FAO).
 
 Žeň 24. 10. 2026 zlevnila (Martin schválil, Žně všemi rukama): sklizeň srpem a vázání 30 → 20
 podle [rešerše](research/2026-10-17-zemedelstvi-populace.md) (doporučení 3: ≈ 20), odnos v nůších
@@ -1155,6 +1158,74 @@ Len (0,2 ha) se trhá celý vždy. Bez luštěnin ves sklidí za tři roky 26,2 
 (feat/landscape) a 21,6 t (žně v srpnu s luštěninami) a přídělem šetří 260 dní proti 406 a 538.
 Ozim se dožne celý; jař 873 (24 ha, z toho velká část nad potřebu) zůstane z velké části
 nesklizená – srpen dál nestačí na všechno, co ves v hladovém roce oseje.
+
+#### Žeň jaře i v září (9. 11. 2026)
+
+**Martin (9. 11. 2026): „Ano, ať se jař sklízí i v září“** – na otázku, jestli dosklízet v září jař,
+kterou srpen nestihne: v roce s 26 ha jaře se do 31. 8. sklidí jen 65 %, protože srpnovou práci
+bere i dosklizeň a výmlat ozimu (Žně i v srpnu). Dřív okno žně jaře končilo 31. 8. a co se
+nesklidilo, propadlo.
+
+| Kdy                  | Ozim (luštěniny, len)                     | Jař                                                  |
+| -------------------- | ----------------------------------------- | ---------------------------------------------------- |
+| žeň                  | červenec–srpen                            | srpen–září                                           |
+| do snopů / zapíše se | 31. 7. sklizené v červenci, 31. 8. zbytek | 31. 8. sklizené v srpnu, zbytek až dožatý, do 30. 9. |
+| výmlat hned po žni   | srpen–září                                | září–říjen                                           |
+
+- **Okno žně jaře** je **srpen–září** (dřív jen srpen). 31. 8. (po jídle dne) jde do snopů úroda
+  srpnové žně – vymlátí se v září jako dřív. Jař, kterou srpen nedosklidil, **zůstává na poli**
+  (dál ji ničí zvěř – okno škod září jen pro ni, [wildlife.md](wildlife.md) – Škody – a pohromy,
+  scéna ji ukazuje osetou s postupem žně, výhled dílu s ní počítá) a žne se v září.
+- Do snopů jde zbytek **v den, kdy je jař dožatá** (po jídle dne), **nejpozději 30. 9.** – co ani
+  září nesklidí, propadne (návrh Clauda: dřív než 30. 9., ať díly hned uvolní pole ozimu a snopy se
+  mlátí). Jař sklizená celá do 31. 8. jde do snopů celá jako dřív.
+- **Díly jaře na poli končí hospodářský rok, až se sklidí** – 1. 9. se v postupu neposunou
+  (Osevní postup po dílech, bod 1), do nového osevu nepřijdou a **neorají se pod ozim**, dokud
+  jsou na poli; po sklizni se posunou (první osev oběhu → ozim) a přijdou na řadu další den.
+- **Výmlat jaře** má okno **září–říjen** (výmlat hned po žni – zářijová žeň se mlátí v říjnu);
+  snopy v okně čekají bez ztráty. Plán u výmlatu se zahodí 1. 11. (dřív 1. 10.).
+- **Pořadí práce dne ve žních** – **Martin (9. 11. 2026): „Je lepší za každou cenu sklidit to, co
+  už vyrostlo, než začínat pěstování úplně od začátku“.** Ve dni, kdy ves žne, má žeň přednost
+  před orbou a setím (orba jinak jde napřed – [oxen.md](oxen.md), Orba má přednost): na žeň jdou
+  i muži od spřežení a rozsévači, orba a setí ozimu dostanou, co po žni zbude, a naplno pokračují,
+  až je jař sklizená. V září tak jde dosklizeň jaře před orbou, setím ozimu i výmlatem (žeň má
+  přednost – návrh Clauda); v srpnu jde dosklizeň ozimu (konec okna srpen) před žní jaře (konec
+  okna září) a výmlatem. Výjimkou zůstává výmlat na dnešní jídlo – jde první (production-chains.md
+  – Humno). Sad, seč a porážka nejsou polní práce a pořadí s nimi se nemění.
+- **Plán** (Kolik ves oseje, Postup práce po dílech): zbývající žeň jaře v září ubere podzimu
+  (setí ozimu) – čelo práce i kapacita podzimu mají jen práci, která po žni zbude. Výhled dílu
+  hlásí nedostatek práce na žeň jaře do konce září, ozimu do konce srpna; jař, kterou srpen
+  nedosklidil, má v září výhled jako ostatní díly. Výhled správce (dlouhodobá kapacita) jednorázovou
+  dosklizeň nepočítá (návrh Clauda).
+- **Příděl** dál počítá se sklizní jaře 31. 8. (`daysUntilFoodHarvest`); v září počítá výhled
+  i se zrnem jaře, kterou ves ještě dožne (jako se snopy – návrh Clauda), ať ves kvůli dosklizni
+  zbytečně nešetří.
+- **Rodina vojvody** pomáhá i v září – jen kolik ves sama do 30. 9. nedožne ([lord.md](lord.md) –
+  Kdy jde rodina na pole). V srpnu pomáhá jako dřív, aby jař byla sklizená do konce srpna – zářijová
+  žeň bere práci setí ozimu (návrh Clauda).
+- **Žňový den** (Žně všemi rukama) je i v září, dokud ves dožíná jař, a v říjnu, když mlátí
+  zářijové snopy – s poloviční skladbou dne a žňovými rukama.
+- Obilné jámy v září počkají na zrno jaře, kterou ves ještě dožne (production-chains.md – Obilné
+  jámy); vazalská dávka z úrody je hotová, až je jař sklizená a vymlácená (nejpozději 1. 10.).
+
+**Naměřeno** (Vlkov, ze stavu DB, 3 roky po dnech; dřív = feat/landscape 0b7a4d7b; podíl hotové žně
+jaře 31. 8. → 30. 9.; t úrody do snopů v roce žně; oseto = ozim na podzim a jař na jaře před žní;
+příděl = dny přídělu pod plný v hospodářském roce před žní):
+
+| Rok | Verze | Jař 31. 8. → 30. 9. | Úroda ozim / jař (t) | Oseto ozim / jař (ha) | Příděl (dní) |
+| --- | ----- | ------------------- | -------------------- | --------------------- | ------------ |
+| 871 | dřív  | 1,00                | 3,7 / 4,4 = 8,1      | – / 16,2              | 35           |
+| 871 | nyní  | 1,00                | 3,7 / 4,4 = 8,1      | – / 16,2              | 35           |
+| 872 | dřív  | 0,99                | 9,8 / 3,7 = 13,4     | 21,8 / 7,8            | 252          |
+| 872 | nyní  | 0,99                | 10,3 / 4,0 = 14,3    | 22,7 / 8,5            | 248          |
+| 873 | dřív  | 0,65                | 6,4 / 6,2 = 12,6     | 16,2 / 26,0           | 0            |
+| 873 | nyní  | 0,54 → 0,98         | 8,7 / 10,3 = 19,0    | 22,3 / 26,8           | 0            |
+
+V roce 873 (27 ha jaře) srpen sklidí jen 54 % jaře, září ji dožne (98 %, do snopů 30. 9.) – jař
+dá o 4 t víc a ves v následujícím roce nešetří (příděl září 873 – srpen 874: 30 → 0 dní). Cena:
+zářijová žeň vezme září setí ozimu – na podzim 873 ves oseje ozimem 8,3 ha místo 16,8 ha (Martin:
+„za každou cenu sklidit“). Za tři roky ves sklidí 41,4 t proti 34,1 t (část rozdílu je z ozimu
+zasetého na podzim 872 – 22,3 proti 16,2 ha).
 
 #### Žně všemi rukama
 
@@ -1345,7 +1416,8 @@ pro raný středověk ale nemám – zůstává návrhem Clauda jako dosavadní 
     červenec nestihne, v **srpnu** (Žně i v srpnu, Martin 9. 11. 2026), výmlat hned po žni
     v **srpnu**, srpnové žně v **září** (viz Výmlat hned po žni),
   - **jař** – kopání na podzim (**září–listopad**), co se nestihne, v **březnu–dubnu**; setí
-    v **březnu–dubnu**, sklizeň v **srpnu**, výmlat v **září**.
+    v **březnu–dubnu**, sklizeň v **srpnu**, co srpen nestihne, v **září** (Žeň jaře i v září,
+    Martin 9. 11. 2026), výmlat v **září**, zářijové žně v **říjnu**.
   - Pletí jen jaře v **květnu**, ozim se neplete (Pletí jednou a rychle, Martin 25. 10. 2026).
     Stejné osivo (175 kg/ha), stejná úroda i ostatní sazby práce; vymrzání ozimu zatím ne
     (přijde s počasím).

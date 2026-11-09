@@ -1,9 +1,16 @@
 import { TOTAL_GAME_DAYS, dateOfDayIndex, dayIndexOf } from '../calendar';
 import { addThreshedGrain } from './grain-pits';
 import { villageLegumesKg } from './legumes';
-import { CROP_ORDER, CROP_WINDOWS, THRESHING, type WindowSegment } from './rules';
+import {
+  CROP_ORDER,
+  CROP_WINDOWS,
+  HARVEST_DAY,
+  PLANNING_DAY,
+  THRESHING,
+  type WindowSegment,
+} from './rules';
 import type { Sheaves, ThreshedCrop, VillageState } from './types';
-import { cropTaskRemaining, seasonCrops } from './year-plan';
+import { cropTaskRemaining, cropsAfield } from './year-plan';
 
 // Snopy a výmlat hned po žni (production-chains.md – Humno; Martin 20. 10. 2026: „Humno je
 // podmínka“, „Staří slované se snažili dělat výmlat hned. Klasy neskladovali.“). Sklizeň jde do
@@ -122,7 +129,9 @@ export function canThresh(
 }
 
 /** Stav vsi pro výhled snopů – snopy a humna, ruce pro výmlat a plán (žeň jaře v srpnu). */
-type OutlookState = ThreshState & Pick<VillageState, 'threshHands' | 'season'>;
+type OutlookState = ThreshState &
+  Pick<VillageState, 'threshHands' | 'season'> &
+  Partial<Pick<VillageState, 'threshingSeason'>>;
 
 /**
  * Snopy ve výhledu jídla a plánu osevu (production-chains.md – Humno): kg zrna a luštěnin, které
@@ -157,18 +166,23 @@ interface ThreshHands {
 
 /**
  * Ruce pro výmlat (návrh Clauda): práce vsi ve žních (`VillageState.threshHands` –
- * `harvestLaborPerDay`) bez zbytku žně rozloženého do konce okna žně jaře (srpen) – jaře
- * i ozimu, luštěnin a lnu, které červenec nedosklidil (fields.md – Žně i v srpnu); žeň má
- * přednost před výmlatem (`work()`), po jejím okně dostane výmlat všechno.
+ * `harvestLaborPerDay`) bez zbytku žně rozloženého do konce okna žně jaře (září) – jaře
+ * i ozimu, luštěnin a lnu, které červenec nedosklidil (fields.md – Žně i v srpnu), v září jaře,
+ * kterou srpen nedosklidil (Žeň jaře i v září); žeň má přednost před výmlatem (`work()`), po
+ * jejím okně dostane výmlat všechno.
  */
 function threshHands(state: OutlookState, day: number, perDay: number): ThreshHands {
   const segments = CROP_WINDOWS.spring.harvest;
   const { year, month } = dateOfDayIndex(day);
   const current = segments.find(([from, to]) => month >= from && month <= to);
   let ahead = 0;
-  if (current && state.season) {
-    for (const { crop, work } of seasonCrops(state.season)) {
-      const reaping = CROP_WINDOWS[crop].harvest.some(([from, to]) => month >= from && month <= to);
+  if (current) {
+    // i jař, kterou srpen nedosklidil (fields.md – Žeň jaře i v září)
+    for (const { crop, work, late } of cropsAfield(state)) {
+      // v září se žne jen jař, kterou srpen nedosklidil – plodiny letošní práce až za rok
+      const reaping =
+        (late || month !== PLANNING_DAY.month) &&
+        CROP_WINDOWS[crop].harvest.some(([from, to]) => month >= from && month <= to);
       if (reaping) ahead += cropTaskRemaining(work, 'harvest');
     }
   }
@@ -293,6 +307,17 @@ function threshWindowEnd(crop: ThreshedCrop, month: number): number | null {
   return current ? current[1] : null;
 }
 
+/**
+ * Konec okna výmlatu pro pořadí práce dne (`threshTasks`): výmlat jaře má v září (měsíc po
+ * srpnové žni) přednost před setím ozimu jako dřív – řadí se koncem září; okno do října je jen
+ * pro snopy zářijové žně, ať se nekazí (fields.md – Žeň jaře i v září; production-chains.md –
+ * Výmlat hned po žni; návrh Clauda). Mimo okno null.
+ */
+function orderEnd(crop: ThreshedCrop, month: number, windowEnd: number | null): number | null {
+  if (windowEnd === null || crop !== 'spring') return windowEnd;
+  return Math.min(windowEnd, Math.max(month, HARVEST_DAY.month + 1));
+}
+
 /** Den po posledním dni měsíce `month` roku `year` (za koncem světa konec světa). */
 function afterMonth(year: number, month: number): number {
   try {
@@ -409,7 +434,7 @@ export function threshTasks(state: ThreshState, day: number, foodKg = 0): Thresh
         {
           crop,
           work,
-          end: windowEnd ?? (lateMonth ? THRESH_OVERDUE_END : month),
+          end: orderEnd(crop, month, windowEnd) ?? (lateMonth ? THRESH_OVERDUE_END : month),
           overdue: windowEnd === null,
           urgent: false as const,
         },

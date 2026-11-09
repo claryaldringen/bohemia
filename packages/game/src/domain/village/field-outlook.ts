@@ -10,6 +10,7 @@ import { CROP_WINDOWS } from './rules';
 import { orchardHarvestLoad, sowingCapacity } from './simulate-plan';
 import {
   SOWING_CAPACITY_WINDOWS,
+  augustOverflow,
   cropLoadOf,
   harvestOverflow,
   planLoad,
@@ -25,7 +26,8 @@ import {
 } from './weather-effects';
 import {
   cropGrossPerHa,
-  seasonCrops,
+  cropsAfield,
+  lateHarvestRemaining,
   sownShare,
   seasonCrop,
   unweededYield,
@@ -76,17 +78,24 @@ export interface PartOutlook {
 }
 
 /** Okno práce, kterou výhled hlídá – klíč chybějící práce (`WorkShortfall`). */
-type OutlookWindow = 'autumnWinter' | 'spring' | 'august';
+type OutlookWindow = 'autumnWinter' | 'spring' | 'august' | 'september';
 
 const WINDOW_END: Record<OutlookWindow, number> = {
   autumnWinter: 10,
   spring: 4,
   august: 8,
+  september: 9,
 };
 
-/** Okna kroků plodiny: příprava a setí, sklizeň (všechny plodiny do konce srpna). */
+/**
+ * Okna kroků plodiny: příprava a setí, sklizeň (ozim, luštěniny a len do konce srpna, jař do konce
+ * září – fields.md, Žeň jaře i v září).
+ */
 function cropWindows(crop: Crop): { sow: OutlookWindow; harvest: OutlookWindow } {
-  return { sow: crop === 'winter' ? 'autumnWinter' : 'spring', harvest: 'august' };
+  return {
+    sow: crop === 'winter' ? 'autumnWinter' : 'spring',
+    harvest: crop === 'spring' ? 'september' : 'august',
+  };
 }
 
 /**
@@ -94,7 +103,8 @@ function cropWindows(crop: Crop): { sow: OutlookWindow; harvest: OutlookWindow }
  * letošní práce (`planLoad` – i se sklizní jablek) proti volné práci
  * vsi do konce hospodářského roku (`sowingCapacity` i s cvičící rodinou – ta pomáhá jen ve žních,
  * když ves nestíhá). Jař: vrácení a kopání napřed na podzim, co po ozimu zbude,
- * zbytek se setím na jaře; žeň, kterou červenec nestihne, se žne v srpnu (`harvestOverflow`).
+ * zbytek se setím na jaře; žeň, kterou červenec nestihne, se žne v srpnu (`harvestOverflow`), co
+ * nestihne srpen, v září (`augustOverflow` – fields.md, Žeň jaře i v září).
  */
 function seasonShortfalls(
   state: VillageState,
@@ -104,7 +114,11 @@ function seasonShortfalls(
 ): Partial<Record<OutlookWindow, { manDays: number; ploughManDays: number }>> {
   const season = state.season;
   if (!season) return {};
-  const load = cropLoadOf(planLoad(season, orchardHarvestLoad(state)));
+  // v září i žeň jaře, kterou srpen nedosklidil (fields.md – Žeň jaře i v září)
+  const load = {
+    ...cropLoadOf(planLoad(season, orchardHarvestLoad(state))),
+    september: lateHarvestRemaining(state),
+  };
   // jako `lordHelpDay` – orba jaře; rok bez jaře podle ozimu
   const plough =
     (seasonCrop(season, 'spring') ?? seasonCrop(season, 'winter'))?.plough !== undefined;
@@ -114,7 +128,10 @@ function seasonShortfalls(
   const people: Record<OutlookWindow, number> = {
     autumnWinter: load.winterAutumn - cap.autumnWinter,
     spring: load.springSow + springOver - cap.spring,
-    august: load.august + harvestOverflow(load, cap.july) - cap.august,
+    // v srpnu se napřed dožne, co červenec nestihl (CROP_ORDER) – po srpnu propadne
+    august: harvestOverflow(load, cap.july) - cap.august,
+    // jař, kterou srpen nestihne, se žne v září (fields.md – Žeň jaře i v září)
+    september: load.september + augustOverflow(load, cap.july, cap.august) - cap.september,
   };
   const ploughs: Partial<Record<OutlookWindow, number>> = cap.plough
     ? {
@@ -127,7 +144,9 @@ function seasonShortfalls(
   const result: Partial<Record<OutlookWindow, { manDays: number; ploughManDays: number }>> = {};
   for (const window of Object.keys(people) as OutlookWindow[]) {
     // po konci okna se nic nestihne – nedodělek bere úrodu (`workFactor`), ne varování
-    if (windowDaysLeft(day, SOWING_CAPACITY_WINDOWS[window]) <= 0) continue;
+    // září žně jaře přijde po srpnu hospodářského roku – hlídá se, dokud srpen nepřišel
+    const segments = SOWING_CAPACITY_WINDOWS[window === 'september' ? 'august' : window];
+    if (windowDaysLeft(day, segments) <= 0) continue;
     const manDays = Math.max(0, people[window]);
     const ploughManDays = Math.max(0, ploughs[window] ?? 0);
     if (manDays > EPSILON || ploughManDays > EPSILON) result[window] = { manDays, ploughManDays };
@@ -214,7 +233,8 @@ export function fieldOutlook(
   if (!season) return result;
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
   const shortfalls = seasonShortfalls(state, day, coverage, landscape);
-  for (const { crop, work } of seasonCrops(season)) {
+  // i jař, kterou srpen nedosklidil (fields.md – Žeň jaře i v září)
+  for (const { crop, work } of cropsAfield(state)) {
     if (work.harvestedKg !== null) continue;
     const windows = cropWindows(crop);
     for (const id of work.partIds) {

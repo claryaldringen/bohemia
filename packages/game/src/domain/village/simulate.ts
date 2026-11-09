@@ -61,6 +61,7 @@ import { updateRuins } from './ruins';
 import {
   CHRONICLE_MAX_EVENTS,
   HARVEST_DAY,
+  LATE_HARVEST_DAY,
   PLANNING_DAY,
   THRESH_END_DAY,
   WINTER_HARVEST_DAY,
@@ -69,7 +70,7 @@ import type { VillageState } from './types';
 import { rotLogs } from './wood';
 import { localDisastersDay } from './local-disasters';
 import { decideRebuilds, finishConstructions } from './simulate-build';
-import { eat, endThreshing, harvest, harvestWinter } from './simulate-food';
+import { eat, endThreshing, harvest, harvestLateSpring, harvestWinter } from './simulate-food';
 import {
   fieldStoresOutlook,
   harvestLaborPerDay,
@@ -86,7 +87,7 @@ import { wildlifeYearDay, withWildlife } from './wildlife';
 import { weatherDay } from './weather';
 import { partProtectionDay } from './part-protection';
 import { famineMemoryDay } from './weather-effects';
-import { damageWindowStart, wildlifeDamageDay, wildlifeSeasonEnd } from './wildlife-damage';
+import { damageWindowStart, wildlifeDamageDay } from './wildlife-damage';
 import { trainLordDay, updateLordTraining, withoutSowingHelp } from './lord';
 import { dynastyDay } from './succession';
 import { markSunnyOrchards, premiumSacredHappiness } from './premium-effects';
@@ -447,11 +448,12 @@ function* simulateDaySteps(
   }
   // Sklizeň a ztráta nevymláceného až po jídle (Ruling 13) – 31. 8. se jí ještě z loňských
   // zásob, jak počítá daysUntilHarvest (31. 8. → 1 den); ozim stejně 31. 7. (co červenec
-  // nedosklidil, 31. 8. s jaří – fields.md, Žně i v srpnu)
+  // nedosklidil, 31. 8. s jaří – fields.md, Žně i v srpnu); jař, kterou srpen nedosklidil, v září,
+  // až je dožatá, nejpozději 30. 9. (fields.md – Žeň jaře i v září); s jaří končí sezóna škod zvěře
   if (isOn(date, WINTER_HARVEST_DAY)) harvestWinter(state, day, landscape);
-  if (isOn(date, HARVEST_DAY)) {
-    harvest(state, day);
-    wildlifeSeasonEnd(state, day);
+  if (isOn(date, HARVEST_DAY)) harvest(state, day);
+  if (date.month === LATE_HARVEST_DAY.month) {
+    harvestLateSpring(state, day, isOn(date, LATE_HARVEST_DAY));
   }
   if (isOn(date, THRESH_END_DAY)) endThreshing(state);
   // pevné cesty (roads.md): práce dne do ročního součtu, 1. 11. roční kontrola cest a stromů

@@ -575,14 +575,34 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   (portrét `humno`; staveniště průběh stavby, hotové nevymlácené snopy v kg a značka „dnes se
   mlátí“ – `VillageView.threshingFloors` z `threshingFloorsOf`, podíl práce `thresh` s cílem
   humna).
+- **Žeň jaře i v září** (fields.md, Martin 9. 11. 2026: „Ano, ať se jař sklízí i v září“):
+  `WINDOWS.harvest` [8, 9], `thresh` [9, 10], `LATE_HARVEST_DAY` 30. 9., `THRESH_END_DAY` 1. 11.
+  `harvest` 31. 8. dá jař do snopů přes `sheaveCrop(…, false)` – nedosklizená dostane `sheaved`
+  a jde s plánem do `threshingSeason`; `lateSpringCrop` / `lateHarvestRemaining` / `cropsAfield`
+  (`year-plan.ts`) ji v září vrací k práci. `harvestLateSpring` (`simulate-food.ts`, každý den září
+  po jídle) ji dá do snopů v den, kdy je dožatá, nejpozději 30. 9. (`final`), pak
+  `rotateAfterSeason` jejích dílů a `wildlifeSeasonEnd` (31. 8. jen, když jař sklizená je).
+  `startSeason` 1. 9. díly nedosklizené jaře neposune, `turnSelection` je nevybere (`inSeason`).
+  `activeTasks(…, late)` – žeň v září (`PLANNING_DAY.month`) jen pro ni, plodina letošní práce se
+  žne až za rok. Práce dne: `fieldTasks` přidá její žeň (konec okna 9); `dayTaskOrder(…, reaping)`
+  – ve dni, kdy ves žne, orba přednost nemá (žeň před orbou a setím; Martin 9. 11. 2026: „Je
+  lepší za každou cenu sklidit…“). `harvestHandsDay`, `threshHands`, `springHarvestAhead`,
+  zvěř (`cerealCrops`, v září jen ona – `dailyThreatShare`), scéna (`partYearWork`,
+  `fieldPartLooks` přes `yearCrops`), výhled (`fieldOutlook` – okno `september`) a příděl
+  (`baseMealInput` – `unharvestedKg` jako snopy) ji počítají. Plán: `SowingCapacity.september`
+  a `CropLoad.september` (`augustOverflow`, `SOWING_CAPACITY_WINDOWS.august` [8, 8] a `september`
+  [9, 9]), `sowingCapacity` ubere zbytek žně podzimu (správce ne – `withoutLateHarvest`), čelo
+  práce (`workFront`) ho odečte; `lordHarvestHelp` a `HARVEST_HELP_WINDOWS` mají září.
+  `domainFoodReadyYear` čeká, až je jař sklizená.
 - **Snopy a výmlat hned po žni** ([production-chains.md](../design/production-chains.md) –
   Humno, úloha 2; fields.md – Výmlat hned po žni; Martin 20. 10. 2026: „Humno je podmínka“,
   „Klasy neskladovali.“, „Rok odkladu“; čísla `THRESHING` v `rules*.ts` – návrh Clauda podle
   rešerše – Výmlat na humně): `threshing.ts`. Sklizeň jde do snopů `VillageState.sheaves`
   (`Sheaves` – kg zrna obilí a luštěnin a zbývající práce výmlatu po plodinách `work` – sklizená
   část práce `thresh` plánu; `addSheaves` v `harvestWinter` / `harvest`), ne do `storesKg`.
-  Okna `thresh`: ozim a luštěniny srpen–září (srpnová žeň – Žně i v srpnu), jař září
-  (`WINTER_WINDOWS`, `LEGUME_WINDOWS`, `WINDOWS`); `threshTasks` (úlohy dne v `work()` – za polními úlohami téhož konce okna, žeň má
+  Okna `thresh`: ozim a luštěniny srpen–září (srpnová žeň – Žně i v srpnu), jař září–říjen
+  (zářijová žeň – Žeň jaře i v září; `WINTER_WINDOWS`, `LEGUME_WINDOWS`, `WINDOWS`; v září řadí
+  `orderEnd` výmlat jaře koncem září – před setím ozimu jako dřív); `threshTasks` (úlohy dne v `work()` – za polními úlohami téhož konce okna, žeň má
   přednost – `THRESH_RANK`; po konci okna se mlátí dál – září–únor s koncem v dnešním měsíci,
   březen–srpen `THRESH_OVERDUE_END` po všech pracích; **výmlat na dnešní jídlo** napřed –
   `threshForFoodKg`: chybí-li zrno na 2 dny jídla, úloha `urgent` s `THRESH_URGENT_END` před

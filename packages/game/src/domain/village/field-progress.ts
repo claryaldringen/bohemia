@@ -6,7 +6,7 @@ import { isHayMeadow, mowingPosition, mowingSpans } from './hay';
 import { PLOUGH_SOD_FACTOR } from './plough';
 import { partStage } from './summary';
 import type { Crop, CropWork, FieldPart, PloughBand, TileCell, VillageState } from './types';
-import { cropTaskRemaining, cropTaskWindows, seasonCrops } from './year-plan';
+import { cropTaskRemaining, cropTaskWindows, cropsAfield, seasonCrops } from './year-plan';
 import { partsByIdOf } from './parts-by-id';
 
 // Postup práce po čtvercích (fields.md – Postup práce po čtvercích; Martin, 18. 10. 2026): plán
@@ -553,14 +553,22 @@ export interface PartYearWork {
 }
 
 /**
+ * Plodiny letošní práce (po sklizni jaře plán u výmlatu) a v září i jař, kterou srpen nedosklidil
+ * (`cropsAfield` – fields.md, Žeň jaře i v září).
+ */
+function yearCrops(state: VillageState): { crop: Crop; work: CropWork }[] {
+  if (state.season) return cropsAfield(state);
+  return state.threshingSeason ? seasonCrops(state.threshingSeason) : [];
+}
+
+/**
  * Letošní práce na dílech pole v den `day` (díl id → práce) – jen díly plánu osevu (po sklizni
  * jaře plán u výmlatu) a díly letošní seče sena. Jen čte stav.
  */
 export function partYearWork(state: VillageState, day: number): Map<number, PartYearWork> {
   const result = new Map<number, PartYearWork>();
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
-  const plan = state.season ?? state.threshingSeason;
-  for (const { crop, work } of plan ? seasonCrops(plan) : []) {
+  for (const { crop, work } of yearCrops(state)) {
     const tasks = ['reclaim', 'plough', 'dig', 'sow', 'harvest'] as const;
     const spans = new Map(
       tasks.map((task) => [
@@ -646,8 +654,7 @@ export function fieldPartLooks(
   const views = new Map<number, PartView>();
   const partsById = new Map(state.parts.map((p) => [p.id, p]));
   const mown = mownShares(state, partsById);
-  const plan = state.season ?? state.threshingSeason;
-  for (const { crop, work } of plan ? seasonCrops(plan) : []) {
+  for (const { crop, work } of yearCrops(state)) {
     cropLooks(crop, work, partsById, day, views);
   }
   for (const part of state.parts) {

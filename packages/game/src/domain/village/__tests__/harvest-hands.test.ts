@@ -110,8 +110,8 @@ function harvestVillage(): VillageState {
 }
 
 describe('žňový den (harvestHandsDay)', () => {
-  it('okna žní a výmlatu všech plodin – červenec až září', () => {
-    expect([...HARVEST_HANDS_MONTHS].sort((a, b) => a - b)).toEqual([7, 8, 9]);
+  it('okna žní a výmlatu všech plodin – červenec až říjen (výmlat zářijové žně jaře)', () => {
+    expect([...HARVEST_HANDS_MONTHS].sort((a, b) => a - b)).toEqual([7, 8, 9, 10]);
   });
 
   it('jen když je v okně co sklízet nebo mlátit', () => {
@@ -120,8 +120,8 @@ describe('žňový den (harvestHandsDay)', () => {
     expect(harvestHandsDay(s, at(600, 9, 10))).toBe(false);
     s.sheaves = { grainKg: 100, legumesKg: 0, work: { spring: 5 } };
     expect(harvestHandsDay(s, at(600, 9, 10))).toBe(true);
-    // výmlat jaře po okně (říjen) už žňový den není
-    expect(harvestHandsDay(s, at(600, 10, 10))).toBe(false);
+    // výmlat jaře po okně (listopad) už žňový den není
+    expect(harvestHandsDay(s, at(600, 11, 10))).toBe(false);
   });
 
   it('výmlat bez humna a bez nouzového výmlatu žňový den není – řemeslo a výcvik běží', () => {
@@ -188,7 +188,7 @@ describe('řemeslníci ve žních (workshopLabor, craftHarvestLabor)', () => {
     s.season = null;
     s.sheaves = { grainKg: 100, legumesKg: 0, work: { spring: 5 } };
     const day = at(600, 9, 10);
-    const calm = workshopLabor(s, at(600, 10, 10), WORKSHOP, 0);
+    const calm = workshopLabor(s, at(600, 11, 10), WORKSHOP, 0);
     const harvest = workshopLabor(s, day, WORKSHOP, 0);
     expect(calm.harvest).toBe(0);
     expect(calm.craft).toBeGreaterThan(0);
@@ -201,7 +201,7 @@ describe('řemeslníci ve žních (workshopLabor, craftHarvestLabor)', () => {
       12,
     );
     expect(craftHarvestLabor(s, day, new Set([WORKSHOP]), 0, 1)).toBeCloseTo(calm.craft, 12);
-    expect(craftHarvestLabor(s, at(600, 10, 10), new Set([WORKSHOP]), 0, 1)).toBe(0);
+    expect(craftHarvestLabor(s, at(600, 11, 10), new Set([WORKSHOP]), 0, 1)).toBe(0);
   });
 });
 

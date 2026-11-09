@@ -121,7 +121,11 @@ export function stewardOutlook(
   const landHa = capacity?.sownHa ?? 0;
   const landPeople = capacity?.people ?? 0;
   const plough = ableTeams(state, day) > 0;
-  const windows = sowingCapacity(state, farmYearStart(day), coverage, plough);
+  // dosklizeň jaře v září je jednorázová – dlouhodobou kapacitu nemění (návrh Clauda – fields.md,
+  // Žeň jaře i v září)
+  const windows = sowingCapacity(state, farmYearStart(day), coverage, plough, null, undefined, {
+    withoutLateHarvest: true,
+  });
   const work = workPerSownHa(state, day, coverage.tools, plough);
   const peopleHa = work.people > 0 ? (windows.autumn + windows.spring) / work.people : Infinity;
   const ploughHa =

@@ -16,7 +16,7 @@ import { villageOxen } from './oxen';
 import { dailyMinPerHousehold } from './productivity';
 import { sheafWork, threshTasks, THRESHED_CROPS } from './threshing';
 import type { Person, VillageState } from './types';
-import { activeTasks, cropTaskRemaining, seasonCrops } from './year-plan';
+import { activeTasks, cropTaskRemaining, cropsAfield } from './year-plan';
 
 const EPSILON = 1e-9;
 
@@ -25,7 +25,8 @@ const inSegments = (segments: readonly WindowSegment[], month: number): boolean 
 
 /**
  * Měsíce oken žní a výmlatu všech plodin (CROP_WINDOWS – ozim, luštěniny a len žeň v červenci
- * a srpnu, výmlat v srpnu a září; jař žeň v srpnu, výmlat v září – fields.md, Žně i v srpnu).
+ * a srpnu, výmlat v srpnu a září – fields.md, Žně i v srpnu; jař žeň v srpnu a září, výmlat v září
+ * a říjnu – Žeň jaře i v září).
  */
 export const HARVEST_HANDS_MONTHS: ReadonlySet<number> = new Set(
   CROP_ORDER.flatMap((crop) =>
@@ -47,14 +48,13 @@ export const HARVEST_HANDS_MONTHS: ReadonlySet<number> = new Set(
 export function harvestHandsDay(state: VillageState, day: number): boolean {
   const { month } = dateOfDayIndex(day);
   if (!HARVEST_HANDS_MONTHS.has(month)) return false;
-  if (state.season) {
-    for (const { crop, work } of seasonCrops(state.season)) {
-      if (
-        activeTasks(work, day, crop).includes('harvest') &&
-        cropTaskRemaining(work, 'harvest') > 0
-      ) {
-        return true;
-      }
+  // i jař, kterou srpen nedosklidil – v září se dožíná (fields.md – Žeň jaře i v září)
+  for (const { crop, work, late } of cropsAfield(state)) {
+    if (
+      activeTasks(work, day, crop, false, late).includes('harvest') &&
+      cropTaskRemaining(work, 'harvest') > 0
+    ) {
+      return true;
     }
   }
   if (
