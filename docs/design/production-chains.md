@@ -175,7 +175,10 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
   – Výmlat hned po žni). Stohy snopů se nedělají; zrno jde rovnou do jam. Práce výmlatu je
   stejná, jen přijde v době podzimní orby a setí – ves ji musí stihnout: plán osevu ji odečte
   z podzimní práce (výmlat jaře v září se mlátí před setím ozimu) a výmlat ozimu a luštěnin
-  z práce srpna vedle žně jaře (návrh Clauda). V témže měsíci má přednost žeň.
+  z práce srpna vedle žně jaře (návrh Clauda). V témže měsíci má přednost žeň. **Nahrazeno
+  (Martin 9. 11. 2026: „Výmlat prý počká i docela hluboko do zimy“):** okno výmlatu běží do konce
+  února, výmlat jde za všemi polními pracemi (kromě výmlatu na dnešní jídlo a na osivo) a plán osevu
+  ho z podzimní práce neodečítá – fields.md, Pořadí důležitosti polních prací a výmlat do zimy.
 - **Výhled jídla** (návrh Clauda): snopy, které ves smí vymlátit (humno, nebo bez něj nouzově
   o ztrátu méně), počítá jako zrno se ztrátami (nouzový výmlat −10 % podílu, který se na humna
   nevejde) – ves po žni nešetří jídlem; jí se jen vymlácené. **Oprava (návrh Clauda 2. 11.

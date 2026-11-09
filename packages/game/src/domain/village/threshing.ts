@@ -1,23 +1,17 @@
 import { TOTAL_GAME_DAYS, dateOfDayIndex, dayIndexOf } from '../calendar';
 import { addThreshedGrain } from './grain-pits';
 import { villageLegumesKg } from './legumes';
-import {
-  CROP_ORDER,
-  CROP_WINDOWS,
-  HARVEST_DAY,
-  PLANNING_DAY,
-  THRESHING,
-  type WindowSegment,
-} from './rules';
+import { CROP_ORDER, CROP_WINDOWS, PLANNING_DAY, THRESHING, type WindowSegment } from './rules';
 import type { Sheaves, ThreshedCrop, VillageState } from './types';
 import { cropTaskRemaining, cropsAfield } from './year-plan';
 
-// Snopy a výmlat hned po žni (production-chains.md – Humno; Martin 20. 10. 2026: „Humno je
-// podmínka“, „Staří slované se snažili dělat výmlat hned. Klasy neskladovali.“). Sklizeň jde do
-// snopů (`VillageState.sheaves`), výmlat je převádí do zásob obilí a luštěnin podle postupu práce
-// – ozim a luštěniny v srpnu, jař v září, a co okno nestihne, mlátí se dál. Mlátí se jen na
-// hotovém humnu (kapacita humen se sčítá), starší ves rok od převodu i nouzově na udusané zemi
-// (víc práce, méně zrna). Snopy, které se nemlátí, se kazí. Čísla jsou v THRESHING (rules.ts).
+// Snopy a výmlat (production-chains.md – Humno; Martin 20. 10. 2026: „Humno je podmínka“; fields.md
+// – Pořadí důležitosti polních prací a výmlat do zimy, Martin 9. 11. 2026: „Výmlat prý počká i
+// docela hluboko do zimy“). Sklizeň jde do snopů (`VillageState.sheaves`), výmlat je převádí do
+// zásob obilí a luštěnin podle postupu práce – ozim a luštěniny od srpna, jař od září, do konce
+// února; co okno nestihne, mlátí se dál. Na humnech plným tempem (kapacita humen se sčítá), jinak
+// nouzově na udusané zemi (víc práce, méně zrna). Snopy v okně čekají bez ztráty, po něm se kazí.
+// Čísla jsou v THRESHING (rules.ts).
 
 /** Plodiny, jejichž snopy se mlátí, v pořadí plodin (CROP_ORDER – ozim, luštěniny, jař). */
 export const THRESHED_CROPS: readonly ThreshedCrop[] = CROP_ORDER.filter(
@@ -39,16 +33,13 @@ const DAILY_KEEP = (1 - THRESHING.spoilPerMonth) ** (MONTHS_PER_YEAR / DAYS_PER_
 /** Práce menší než tolik člověkodní je hotová. */
 const EPSILON = 1e-9;
 /**
- * Pořadí výmlatu mezi pracemi dne (konec okna v měsících): výmlat na dnešní jídlo je
- * nejnaléhavější – před žní i ostatními úlohami; výmlat, který okno nestihl, dobíhá na podzim
- * a v zimě (září–únor) s koncem v dnešním měsíci, na jaře a v létě (březen–srpen) až po všech
- * ostatních pracích – zbytky, které se kazí, nepředběhnou setí ani žeň (jídlo hlídá výmlat na
- * dnešek; návrh Clauda).
+ * Pořadí výmlatu mezi výmlatem plodin dne (konec okna v měsících – humna berou snopy v tomto
+ * pořadí): výmlat na dnešní jídlo první, výmlat, který okno nestihl (březen–srpen), poslední.
+ * Mezi ostatními pracemi dne řadí výmlat skupina (`DAY_WORK_ORDER` – výmlat na dnešní jídlo první,
+ * ostatní výmlat za polními pracemi).
  */
 export const THRESH_URGENT_END = -1;
 export const THRESH_OVERDUE_END = 99;
-/** Měsíce, kdy zpožděný výmlat jde až po ostatních pracích (jaro a léto). */
-const LATE_THRESH_MONTHS = { from: 3, to: 8 } as const;
 /** Výmlat na jídlo vymlátí zrno na tolik dní dopředu (dnešek a zítřek – ztráty a chyby zaokrouhlení). */
 const URGENT_FOOD_DAYS = 2;
 
@@ -300,7 +291,10 @@ export function takeSheaves(state: VillageState, grainShare: number, legumesShar
   };
 }
 
-/** Konec okna výmlatu plodiny v měsících, když dnes běží (srpen 8, září 9); jinak null. */
+/**
+ * Konec úseku okna výmlatu plodiny v měsících, když dnes běží (září–prosinec 12, leden–únor 2);
+ * jinak null.
+ */
 function threshWindowEnd(crop: ThreshedCrop, month: number): number | null {
   const segments: readonly WindowSegment[] = CROP_WINDOWS[crop].thresh;
   const current = segments.find(([from, to]) => month >= from && month <= to);
@@ -308,14 +302,18 @@ function threshWindowEnd(crop: ThreshedCrop, month: number): number | null {
 }
 
 /**
- * Konec okna výmlatu pro pořadí práce dne (`threshTasks`): výmlat jaře má v září (měsíc po
- * srpnové žni) přednost před setím ozimu jako dřív – řadí se koncem září; okno do října je jen
- * pro snopy zářijové žně, ať se nekazí (fields.md – Žeň jaře i v září; production-chains.md –
- * Výmlat hned po žni; návrh Clauda). Mimo okno null.
+ * Poslední měsíc okna výmlatu plodiny (rok od dnešního, měsíc), když dnes běží: úsek do prosince
+ * pokračuje úsekem od ledna příštího roku (okno přes konec roku – srpen až únor); jinak null.
  */
-function orderEnd(crop: ThreshedCrop, month: number, windowEnd: number | null): number | null {
-  if (windowEnd === null || crop !== 'spring') return windowEnd;
-  return Math.min(windowEnd, Math.max(month, HARVEST_DAY.month + 1));
+function threshWindowLast(
+  crop: ThreshedCrop,
+  month: number,
+): { yearsAhead: number; month: number } | null {
+  const segments: readonly WindowSegment[] = CROP_WINDOWS[crop].thresh;
+  const end = threshWindowEnd(crop, month);
+  if (end === null) return null;
+  const next = end === MONTHS_PER_YEAR ? segments.find(([from]) => from === 1) : undefined;
+  return next ? { yearsAhead: 1, month: next[1] } : { yearsAhead: 0, month: end };
 }
 
 /** Den po posledním dni měsíce `month` roku `year` (za koncem světa konec světa). */
@@ -332,8 +330,8 @@ function afterMonth(year: number, month: number): number {
 /** Kolik dní okna výmlatu plodiny zbývá včetně dneška; mimo okno 0. */
 export function threshWindowDaysLeft(crop: ThreshedCrop, day: number): number {
   const { year, month } = dateOfDayIndex(day);
-  const end = threshWindowEnd(crop, month);
-  return end === null ? 0 : afterMonth(year, end) - day;
+  const last = threshWindowLast(crop, month);
+  return last === null ? 0 : afterMonth(year + last.yearsAhead, last.month) - day;
 }
 
 /**
@@ -389,13 +387,17 @@ export function spoilSheaves(state: VillageState, day: number): void {
 export interface ThreshTask {
   crop: ThreshedCrop;
   /**
-   * Konec okna výmlatu v měsících (řazení prací dne); výmlat na dnešní jídlo THRESH_URGENT_END
-   * (první), výmlat po konci okna v září–únoru dnešní měsíc, v březnu–srpnu THRESH_OVERDUE_END
-   * (poslední).
+   * Konec úseku okna výmlatu v měsících (pořadí výmlatu plodin dne); výmlat na dnešní jídlo
+   * THRESH_URGENT_END (první), výmlat po konci okna THRESH_OVERDUE_END (poslední).
    */
   end: number;
   /** Výmlat na dnešní jídlo – zásoby dnešní jídlo nepokryjí (production-chains.md – Humno). */
   urgent?: true;
+  /**
+   * Výmlat na osivo – vymlácené zrno nepokryje setí dneška a zítřka (fields.md – Pořadí důležitosti
+   * polních prací a výmlat do zimy; `seedThreshKg`).
+   */
+  seed?: true;
   /** Práce, kterou výmlat dnes chce (člověkodny) – na humnech a nouzově na udusané zemi. */
   remaining: number;
   /** Z ní práce na humnech (do kapacity humen, kterou nevzal výmlat před ní). */
@@ -408,51 +410,84 @@ export interface ThreshTask {
  * Výmlat dne po plodinách (production-chains.md – Humno): plodina se snopy, jejichž práce zbývá,
  * když ves smí mlátit. Napřed **výmlat na dnešní jídlo** (návrh Clauda): chybí-li v zásobách zrno
  * na jídlo (`foodKg` kg – `threshForFoodKg`), vymlátí se ho tolik nejdřív – ze snopů obilí, ozim
- * první. Pak výmlat v pořadí konce okna a plodin (výmlat po okně podle THRESH_OVERDUE_END).
- * Kapacitu humen berou úlohy v tomto pořadí, co se na humna nevejde, mlátí se v roce odkladu
- * nouzově (víc práce).
+ * první, za ním **výmlat na osivo** (`seedKg` kg – `seedThreshKg`). Pak výmlat v pořadí konce okna
+ * a plodin (výmlat po okně poslední – THRESH_OVERDUE_END). Kapacitu humen berou úlohy v tomto
+ * pořadí, co se na humna nevejde, mlátí se nouzově (víc práce).
  */
-export function threshTasks(state: ThreshState, day: number, foodKg = 0): ThreshTask[] {
+export function threshTasks(state: ThreshState, day: number, foodKg = 0, seedKg = 0): ThreshTask[] {
   const capacity = threshingCapacity(state, day);
   if (capacity.floorManDays <= 0 && !capacity.emergency) return [];
   const month = dateOfDayIndex(day).month;
   const urgent = urgentProgress(state, foodKg, capacity);
-  const pending = [
-    ...[...urgent].map(([crop, work]) => ({
+  const seed = urgentProgress(state, seedKg, capacity, urgent);
+  const early = (
+    progress: ReadonlyMap<ThreshedCrop, number>,
+    kind: 'urgent' | 'seed',
+    priority: number,
+  ): PendingThresh[] =>
+    [...progress].map(([crop, work]) => ({
       crop,
       work,
       end: THRESH_URGENT_END,
       overdue: false,
-      urgent: true as const,
-    })),
-    ...THRESHED_CROPS.flatMap((crop) => {
-      const work = sheafWork(state, crop) - (urgent.get(crop) ?? 0);
+      kind,
+      priority,
+    }));
+  const pending: PendingThresh[] = [
+    ...early(urgent, 'urgent', 0),
+    ...early(seed, 'seed', 1),
+    ...THRESHED_CROPS.flatMap((crop): PendingThresh[] => {
+      const work = sheafWork(state, crop) - (urgent.get(crop) ?? 0) - (seed.get(crop) ?? 0);
       if (work <= EPSILON) return [];
       const windowEnd = threshWindowEnd(crop, month);
-      const lateMonth = month >= LATE_THRESH_MONTHS.from && month <= LATE_THRESH_MONTHS.to;
       return [
         {
           crop,
           work,
-          end: orderEnd(crop, month, windowEnd) ?? (lateMonth ? THRESH_OVERDUE_END : month),
+          end: windowEnd ?? THRESH_OVERDUE_END,
           overdue: windowEnd === null,
-          urgent: false as const,
+          kind: null,
+          priority: 2,
         },
       ];
     }),
-  ].sort((a, b) => a.end - b.end || CROP_ORDER.indexOf(a.crop) - CROP_ORDER.indexOf(b.crop));
+  ].sort(
+    (a, b) =>
+      a.priority - b.priority ||
+      a.end - b.end ||
+      CROP_ORDER.indexOf(a.crop) - CROP_ORDER.indexOf(b.crop),
+  );
   let floorLeft = capacity.floorManDays;
   const tasks: ThreshTask[] = [];
-  for (const { crop, work, end, overdue, urgent: now } of pending) {
+  for (const { crop, work, end, overdue, kind } of pending) {
     const floor = Math.min(work, floorLeft);
     floorLeft -= floor;
     const ground = capacity.emergency ? (work - floor) * (1 + THRESHING.emergencyWork) : 0;
     const remaining = floor + ground;
     if (remaining > EPSILON) {
-      tasks.push({ crop, end, remaining, floor, overdue, ...(now ? { urgent: true } : {}) });
+      tasks.push({
+        crop,
+        end,
+        remaining,
+        floor,
+        overdue,
+        ...(kind === 'urgent' ? { urgent: true } : kind === 'seed' ? { seed: true } : {}),
+      });
     }
   }
   return tasks;
+}
+
+/** Výmlat plodiny, který čeká na rozdělení kapacity humen (`threshTasks`). */
+interface PendingThresh {
+  crop: ThreshedCrop;
+  work: number;
+  end: number;
+  overdue: boolean;
+  /** Výmlat na dnešní jídlo, na osivo, nebo obyčejný (null). */
+  kind: 'urgent' | 'seed' | null;
+  /** Pořadí na humnech – jídlo, osivo, ostatní. */
+  priority: number;
 }
 
 /**
@@ -477,21 +512,25 @@ export function threshForFoodKg(
 
 /**
  * Kolik práce výmlatu (postupu, člověkodny na humně) dá `foodKg` kg zrna obilí – po plodinách
- * obilí v pořadí plodin (ozim první), nejvýš jejich zbývající práce. Výmlat na jídlo bere humna
- * první – do jejich kapacity plný výnos; co se nevejde, mlátí se nouzově a je o ztrátu menší –
- * mlátí se ho víc (oprava, návrh Clauda 2. 11. 2026 – dřív s humnem celé jako z humna).
+ * obilí v pořadí plodin (ozim první), nejvýš jejich zbývající práce bez postupu, který už dnes
+ * bere výmlat před ním (`before` – výmlat na osivo za výmlatem na jídlo). Výmlat na jídlo bere
+ * humna první – do jejich kapacity plný výnos; co se nevejde, mlátí se nouzově a je o ztrátu menší
+ * – mlátí se ho víc (oprava, návrh Clauda 2. 11. 2026 – dřív s humnem celé jako z humna).
  */
 function urgentProgress(
   state: ThreshState,
   foodKg: number,
   capacity: ThreshingCapacity,
+  before: ReadonlyMap<ThreshedCrop, number> = new Map(),
 ): Map<ThreshedCrop, number> {
   const progress = new Map<ThreshedCrop, number>();
   const pool = villageSheaves(state).grainKg;
-  const work = kindWork(state, 'grain');
+  const allWork = kindWork(state, 'grain');
+  const taken = [...before.values()].reduce((sum, w) => sum + w, 0);
+  const work = allWork - taken;
   if (foodKg <= EPSILON || pool <= EPSILON || work <= EPSILON) return progress;
-  const kgPerWork = pool / work;
-  const onFloors = Math.min(work, capacity.floorManDays);
+  const kgPerWork = pool / allWork;
+  const onFloors = Math.min(work, Math.max(0, capacity.floorManDays - taken));
   const floorKg = onFloors * kgPerWork;
   let need = Math.min(
     work,
@@ -502,7 +541,7 @@ function urgentProgress(
   for (const crop of THRESHED_CROPS) {
     if (need <= EPSILON) break;
     if (sheafKind(crop) !== 'grain') continue;
-    const take = Math.min(sheafWork(state, crop), need);
+    const take = Math.min(sheafWork(state, crop) - (before.get(crop) ?? 0), need);
     if (take <= EPSILON) continue;
     progress.set(crop, take);
     need -= take;
@@ -574,20 +613,6 @@ export function threshSeasonTasks(
     const left = threshWindowDaysLeft(crop, day);
     return work > EPSILON && left > 0 ? [{ remaining: work * factor, endDay: day + left - 1 }] : [];
   });
-}
-
-/**
- * Práce výmlatu, která ves čeká (člověkodny práce vsi): zbývající práce snopů, které smí mlátit –
- * na humnech plným tempem, bez humna nouzově (o THRESHING.emergencyWork víc); nejvýš kapacita
- * humen za `days` dní, mimo rok odkladu. Bez možnosti mlátit 0 (plán osevu – sowingCapacity).
- */
-export function pendingThreshLabor(state: VillageState, day: number, days: number): number {
-  const capacity = threshingCapacity(state, day);
-  if (capacity.floorManDays <= 0 && !capacity.emergency) return 0;
-  const work = THRESHED_CROPS.reduce((sum, c) => sum + sheafWork(state, c), 0);
-  const onFloors = Math.min(work, capacity.floorManDays * Math.max(0, days));
-  const ground = capacity.emergency ? (work - onFloors) * (1 + THRESHING.emergencyWork) : 0;
-  return onFloors + ground;
 }
 
 /**

@@ -360,6 +360,18 @@ Martin 8. 11. 2026: „**brána se dá prosekat nebo vypálit. Od palisády vý�
 vylepšit bránu ve dvou úrovních 1. klešťová brána (za opevněním však musí být dost místa) 2.
 dřevěná věž nad samotnou branou.**“ Výklad níž Martin schválil („Ano“).
 
+- **Klešťová brána jen u hradby s ochozem** – Martin 9. 11. 2026: „Pokud budeme mít obyčejnou
+  palisádu bez ochozu, nemůže tam stát klešťová brána, ale jen obyč“ – klešťová brána (a s ní věž)
+  jde postavit jen u palisády s ochozem, roštové a komorové hradby; u plotu a palisády bez ochozu
+  jen obyčejná brána. **Implementováno 9. 11. 2026.** Návrh Clauda k provedení: rozhoduje hradba
+  dílu brány – brána převezme ochoz, až ho mají obě strany brány (Úsek sahá přesně po okraj brány);
+  tlačítka Klešťová brána i Věž zašedlá s důvodem „Bránu jde vylepšit až u hradby s ochozem.“,
+  server odmítne akci se stejným důvodem; stojící (i rozestavěné) klešťové brány a věže starších
+  vsí u palisády bez ochozu zůstanou (žádný převod, dožilou věž obyvatelé přestaví dál), novou věž
+  na takovou bránu ale nepřidá nikdo. Snížení druhu u brány nenastane – vylepšení jde jen nahoru,
+  zboření úseku i Postavit jinudy nechají bránu s jejím kusem dílu stát a díl brány se po zřícení
+  či průlomu opraví ve svém druhu; klešťová brána se u něj chová jako dosud (ramena patří k dílu
+  brány).
 - **Klešťová brána** (1. úroveň): ramena hradby zatažená dovnitř podél cesty, mezi nimi ulička
   a vrata na jejím vnitřním konci. Útočník v uličce je v dosahu obránců z obou ramen a k vratům se
   vejde jen pár útočníků. Návrh Clauda: ulička 4 m široká a 12 m dlouhá, k vratům nejvýš 4 muži;
@@ -369,7 +381,8 @@ dřevěná věž nad samotnou branou.**“ Výklad níž Martin schválil („An
 - **Věž nad branou** (2. úroveň, po klešťové): shora zasahuje ty, kdo vrata sekají nebo
   zapalují, dál vidí a dostřelí. Návrh Clauda: nejvýš 4 obránci, dohled 250 m (jinak 150 m), luk
   do 80 m (jinak 60 m), kryt jako ochoz; **cena** 120 čd komplet + 30 klád; hoří s branou.
-- Bránu plotu ani val bez hradby vylepšit nejde („od palisády výše“).
+- Bránu plotu ani val bez hradby vylepšit nejde („od palisády výše“; od 9. 11. 2026 jen u hradby
+  s ochozem – viz výše).
 - **Implementováno 8. 11. 2026** (plán hradeb, Úloha 13 – doména a use-case; bitva, scéna
   a rozhraní později). Návrh Clauda k provedení: ulička jde kolmo na tětivu brány od vnitřního
   okraje pásu, ramena jsou široká jako pás palisády s ochozem (5,5 m); místo za branou = ulička

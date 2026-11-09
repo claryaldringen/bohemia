@@ -246,7 +246,7 @@ export function showcaseFortifications(): SceneFortification[] {
 /**
  * Brány a příkop (plán hradeb Ú18): palisáda s valem vně a vodou v polovině příkopu (v zimě led),
  * palisáda s ochozem s valem vně, klešťovou bránou a věží, palisáda s klešťovou bránou (vrata
- * zavřená), roštová hradba s klešťovou bránou a věží a palisáda, ke které se val vně teprve
+ * zavřená; od 9. 11. 2026 jen stojící brána starší vsi – nová klešťová chce ochoz), roštová hradba s klešťovou bránou a věží a palisáda, ke které se val vně teprve
  * dosypává.
  */
 const GATE_DEMOS: DemoFort[] = [

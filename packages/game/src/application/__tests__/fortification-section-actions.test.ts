@@ -147,11 +147,21 @@ describe('panel úseku – use-casy tlačítek', () => {
     expect(result?.ok).toBe(true);
   });
 
-  it('klešťová brána palisády, dvojklik FORT_BUSY; u plotu důvod', async () => {
+  it('klešťová brána palisády bez ochozu ne – s ochozem ano, dvojklik FORT_BUSY; u plotu důvod', async () => {
     const { villages, base } = await builtFort('palisade', makeLandscape());
     const record = await villages.find(base.villageId);
     const gate = record!.state.fortifications![0]!.gates[0]!;
     const input = { ...base, segment: gate.segment, level: 'pincer' as const };
+    // Martin 9. 11. 2026: „Pokud budeme mít obyčejnou palisádu bez ochozu, nemůže tam stát
+    // klešťová brána, ale jen obyč“ – server odmítne i přímou akci
+    expect(await upgradeFortificationGate({ villages }, input)).toEqual({
+      ok: false,
+      reason: FORT_GATE_LOW,
+    });
+    // ochoz jde jen vylepšením palisády – tady rovnou přepsaný druh
+    villages.edit(base.villageId, (state) => {
+      state.fortifications![0]!.kind = 'walkway';
+    });
     expect(works(await upgradeFortificationGate({ villages }, input))).toEqual(['gate']);
     expect(await upgradeFortificationGate({ villages }, input)).toEqual({
       ok: false,

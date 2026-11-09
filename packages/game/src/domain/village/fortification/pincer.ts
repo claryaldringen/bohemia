@@ -52,8 +52,17 @@ function axisRect(ax: GateAxis, from: number, to: number, inFrom: number, inTo: 
 }
 
 /**
- * Druh ramen klešťové brány u hradby `wall` – ramena mají vždy ochoz (u plotu a palisády
- * palisáda s ochozem), roštová a komorová svůj druh.
+ * Jde u hradby `wall` postavit klešťovou bránu (a s ní věž)? Jen u hradby s ochozem – palisáda
+ * s ochozem, roštová a komorová (`pincerGate.walls`; Brány – Martin 9. 11. 2026); u plotu
+ * a palisády bez ochozu jen obyčejná brána.
+ */
+export function pincerWallAllowed(wall: WallKind): boolean {
+  return (FORTIFICATIONS.pincerGate.walls as readonly WallKind[]).includes(wall);
+}
+
+/**
+ * Druh ramen klešťové brány u hradby `wall` – ramena mají vždy ochoz (stojící klešťová brána
+ * starší vsi u palisády – palisáda s ochozem), roštová a komorová svůj druh.
  */
 export function pincerArmKind(wall: WallKind): WallKind {
   return wall === 'crib' || wall === 'chamber' ? wall : 'walkway';

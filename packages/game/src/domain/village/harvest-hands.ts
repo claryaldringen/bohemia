@@ -6,6 +6,7 @@ import {
   CROP_ORDER,
   CROP_WINDOWS,
   HARVEST_HELPERS,
+  HARVEST_THRESH_WINDOWS,
   LABOR_PER_DAY,
   type WindowSegment,
 } from './rules';
@@ -24,22 +25,24 @@ const inSegments = (segments: readonly WindowSegment[], month: number): boolean 
   segments.some(([from, to]) => month >= from && month <= to);
 
 /**
- * Měsíce oken žní a výmlatu všech plodin (CROP_WINDOWS – ozim, luštěniny a len žeň v červenci
- * a srpnu, výmlat v srpnu a září – fields.md, Žně i v srpnu; jař žeň v srpnu a září, výmlat v září
- * a říjnu – Žeň jaře i v září).
+ * Měsíce oken žní a výmlatu hned po žni všech plodin (CROP_WINDOWS, HARVEST_THRESH_WINDOWS – ozim,
+ * luštěniny a len žeň v červenci a srpnu, výmlat v srpnu a září – fields.md, Žně i v srpnu; jař
+ * žeň v srpnu a září, výmlat v září a říjnu – Žeň jaře i v září). Výmlat v zimě (listopad–únor)
+ * žňový den nemá (fields.md – Pořadí důležitosti polních prací a výmlat do zimy, návrh Clauda).
  */
 export const HARVEST_HANDS_MONTHS: ReadonlySet<number> = new Set(
   CROP_ORDER.flatMap((crop) =>
     Array.from({ length: 12 }, (_, i) => i + 1).filter(
       (month) =>
         inSegments(CROP_WINDOWS[crop].harvest, month) ||
-        inSegments(CROP_WINDOWS[crop].thresh, month),
+        inSegments(HARVEST_THRESH_WINDOWS[crop], month),
     ),
   ),
 );
 
 /**
- * Je dnes žňový den (fields.md – Žně všemi rukama)? Měsíc okna žní nebo výmlatu a ves má v jeho
+ * Je dnes žňový den (fields.md – Žně všemi rukama)? Měsíc okna žní nebo výmlatu hned po žni
+ * (`HARVEST_THRESH_WINDOWS`) a ves má v jeho
  * okně ještě co sklízet (plán) nebo opravdu jde mlátit (snopy a humno či nouzový výmlat –
  * `threshTasks`; ves bez humna se snopy, které nesmí mlátit, žňový den nemá) – pak jdou na pole i
  * řemeslníci se syny (jinak dělají řemeslo) a vojvodova rodina, když ves žně sama nestíhá
@@ -59,7 +62,7 @@ export function harvestHandsDay(state: VillageState, day: number): boolean {
   }
   if (
     !THRESHED_CROPS.some(
-      (crop) => inSegments(CROP_WINDOWS[crop].thresh, month) && sheafWork(state, crop) > EPSILON,
+      (crop) => inSegments(HARVEST_THRESH_WINDOWS[crop], month) && sheafWork(state, crop) > EPSILON,
     )
   ) {
     return false;

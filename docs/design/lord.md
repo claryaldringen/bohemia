@@ -116,8 +116,9 @@ zrušení. K pořadí (Martin 9. 11. 2026, místo celé rodiny naráz): „Je to
 Pokud se nestíhá, jdou ženy z vojvodovy rodiny, pokud se i tak nestíhá, jdou muži z vojvodovy
 rodiny, samotný vojvoda až úplně nakonec“.
 
-- **Žně.** Ves počítá práci žní (červenec – žeň ozimu a lnu, srpen – žeň jaře, zbytek července
-  a výmlat, září – jař, kterou srpen nestihne; [fields.md](fields.md) – Žeň jaře i v září)
+- **Žně.** Ves počítá práci žní (červenec – žeň ozimu a lnu, srpen – žeň jaře a zbytek července,
+  září – jař, kterou srpen nestihne; [fields.md](fields.md) – Žeň jaře i v září; výmlat od 9. 11.
+  2026 ne – počká do zimy, fields.md – Pořadí důležitosti polních prací a výmlat do zimy)
   **bez rodiny**. V srpnu rodina pomáhá, aby jař byla sklizená do konce srpna, v září s tím, co
   ves sama do 30. 9. nedožne (návrh Clauda). Když by je bez ní nestihla, pomůže rodina – kdo je **zrovna ve vsi**
   (ne na tažení, výpravě ani v jiné vsi) – jen prací, která chybí (chybějící práce ÷ práce rodiny

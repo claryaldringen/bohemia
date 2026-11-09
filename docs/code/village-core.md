@@ -55,7 +55,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   práce (domácnost, koně, dílny, výpravy a vozy pro kováře beze změny). Před prací dne (`simulate.ts`): 1. 9. `startSeason`, každý den `seasonDay` (konce oken
   setí, nutné díly podle potřeby úrody – fields.md, Osevní postup po dílech) a `lordHelpDay`
   (podíl dne rodiny na nutné práci) a 1. 5. `wildlifeYearDay` (roční přepočet zvěře; hned za ním `weatherDay` – kronika počasí kraje v den odhalení, `village-disasters.md` –, `dogsYear` smečka dvorce a `planHuntDay` ranní plán lovu, W4), 1. 6. `damageWindowStart` (ohrožené díly polí pro zvěř – wildlife.md, Škody); po `lordHelpDay` `settlePatrol` (jezdecká hlídka polí, W6), po práci dne `wildlifeDamageDay` (škoda zvěře a vran na nesklizených dílech, před jídlem) dále v závěru dne `huntDay` (úlovek velkého lovu), `patrolHuntDay` (úlovek z hlídky), při jídle `feedDogs` (obilí psů dvorce, `simulate-food.ts`) a po sklizni jaře `wildlifeSeasonEnd` (kronika, vynulování ztrát dílů – podrobnosti `village-wildlife.md`); potřebné sezónní úlohy jsou práce nutných dílů – plodiny
-  hospodářského roku (`fieldTasks` – všechny díly jedna fronta, díly nad potřebu zrušené 9. 11. 2026). `allocateDay`: denní minimum → péče o koně (`horseCare` – `horseCareLabor`, horses.md – Péče; pokrytí v `state.horsesCaredToday`) → výpravy (`away`) → potřebné sezónní úlohy v pořadí `dayTaskOrder` – **orba rádlem první** (oxen.md – Orba má přednost, Martin 24. 10. 2026; překrývá se jen s osevem, výmlatem jaře a jablky, žeň ne), pak nejbližší konec okna (žeň a výmlat napřed ze žňových rukou – `harvestHands`, `lordHarvest`, fields.md – Žně všemi rukama) → noční hlídka polí (úloha `'watch'`, `end` Infinity, `tie` 4 – za polními úlohami dne i za nutnou sečí (`mow`, `tie` 3), wildlife.md – Noční hlídka vesničanů; v žních soupeří se sklizní) → `common` (volná práce
+  hospodářského roku (`fieldTasks` – všechny díly jedna fronta, díly nad potřebu zrušené 9. 11. 2026). `allocateDay`: denní minimum → péče o koně (`horseCare` – `horseCareLabor`, horses.md – Péče; pokrytí v `state.horsesCaredToday`) → výpravy (`away`) → potřebné sezónní úlohy v pořadí `dayTaskOrder` – **pevné pořadí skupin** `DAY_WORK_ORDER` (rules-fields.ts; `dayWorkGroup` v simulate-work.ts; fields.md – Pořadí důležitosti polních prací a výmlat do zimy, Martin 9. 11. 2026): výmlat na dnešní jídlo → porážka → žeň a odnos obilí (i luštěnin) → trhání lnu → nutná 1. seč (`mow`) → sklizeň jablek → pletí → výmlat na osivo (`ThreshTask.seed`, `seedThreshKg` v seed.ts) → příprava půdy a setí (vrácení přílohu, kopání, orba, setí – **orba rádlem první** uvnitř skupiny, oxen.md – Orba má přednost) → nutná otava (`mow` s `DayTask.aftermath` – skupina `'aftermath'` podle `mowingCut` plánu seče; Martin 9. 11. 2026: „Otava až po orbě a setí ozimu“) → péče o sad → noční hlídka polí (`'watch'`, wildlife.md – Noční hlídka vesničanů) → výmlat → obilné jámy → dospělý pasák; uvnitř skupiny nejbližší konec okna, `tie` a `rank` (žeň a výmlat napřed ze žňových rukou – `harvestHands`, `lordHarvest`, fields.md – Žně všemi rukama) → `common` (volná práce
   v liště, `commonLaborHistory`) do staveb (`build`) → z toho, co stavby nespotřebovaly, opravy
   obydlí (`afterConstructions`) → **pletí mužů** (`allocateDay` s `menWeedLater` vrátí jejich díl
   v `menWeed`, `work()` ho dá ze zbytku po stavbách, opravách a údržbě opevnění; `DayWork.weedMen` –
@@ -64,9 +64,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   navíc** pro růst stád (oxen.md – Seno, dvě seče; `extraMow`) → **ryby a oka vesničanů**
   (`smallGameDay`, W7 – jen když ves chce bílkoviny; při hladu už před stavbami) → zbytek propadne. Volná práce
   v liště a zápis na seč (`recordMowingLabor` z `mowWork + allocation.common`) počítají práci
-  pletí mužů jako volnou – strop stád nezmenší. **Seč nutného sena** je úloha dne `mow` za
-  všemi ostatními (`end: Infinity`, `tie: 3`) – polním pracím práci nikdy nebere (kromě pletí
-  mužů, které jde až za ní), stavbám ano. Zvířata a domácí výroba (`DOMESTIC`) jdou bokem – jen `LaborDay.aside` pro postavy;
+  pletí mužů jako volnou – strop stád nezmenší. **Seč nutného sena** je úloha dne `mow` ve skupině
+  za žní obilí a trháním lnu, před jablky, pletím, přípravou půdy a výmlatem (fields.md – Pořadí
+  důležitosti polních prací – 3. sklizeň sena); stavbám práci bere. Zvířata a domácí výroba (`DOMESTIC`) jdou bokem – jen `LaborDay.aside` pro postavy;
   `domesticBacklog` a přirážka paliva zmizely (starší vsi pole jen nesou). Úlohy dne berou práci
   ze zásobníků v pořadí **`weedChildren`** (děti 7–13 let, které nepasou, jen pletí –
   `weedingChildren` v harvest-hands.ts, `WEEDING_CHILDREN` 0,5 čd; fields.md – Pletí – děti) →
@@ -493,6 +493,35 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   provoz tras (`trips`) se převažuje každý 1. v měsíci a pořadí tras se tak mění každý měsíc
   (osy cest, stavby a stezky Vlkova se za rok nezměnily, sada tras jen 1. 11.) a otisk by musel
   nést celé rozložení vsi – právě to, co stojí čas; zbylé ≈ 0,2 s za rok je vlastní práce kontrol.
+  **Kolo po novém dni pole (9. 11. 2026 večer, fronta zrychlení výpočtu – Martin schválil):** po
+  osevu naplno, žních v srpnu a září, skladbě dne, pořadí polních prací, zahrádkách a lnu na poli;
+  stav Vlkova z DB 9. 11. (`scratchpad/prof9`, kopie skriptů `prof9-round`). Jen zrychlení – otisk
+  stavu po 1, 2 a 3 letech před / po týž vcelku i po 37 dnech (sha256 `b21ac57c84c5`,
+  `5787b9ce31d2`, `b7ae76df6e01`), zlaté otisky testů beze změny. Šest úprav (profil zahřátých
+  roků 2–4, před → po): **len na poli** – obilí dne podle druhu osevu jednou za druh, kandidáti
+  lnu jedním průchodem do dvou skupin a první osev se řadí, jen když druhý potřebu nepokryje
+  (`flaxCandidates` 0,66 → 0,03 s, `turnSelection` 1,46 → 0,80 s); **odhad úrody plodiny**
+  (`cropYieldKg`) s díly z `partsByIdOf` místo mapy přes všechny díly při každém volání
+  (`baseMealInput` 0,99 → 0,55 s, `daysUntilFoodHarvest` 0,80 → 0,37 s); **paměť úseček vozu
+  přežije změnu polí** – 10 z 11 změn vstupů půdy vozu za rok nezmění žádnou buňku (díl změní
+  stadium, ne rychlost vozu), půda zůstane tatáž i s pamětí; při skutečné změně se převedou úsečky,
+  které žádný čtverec 8 × 8 buněk se změnou nemíjí ani o buňku (`carryCartSegments`), objížďky přes
+  brod mají vlastní paměť a nepřevádějí se (test proti výpočtu bez paměti ve
+  `walk-estimate.test.ts`) – `villageCartEstimates` 1,27 → 0,83 s, `straightCartCost` 0,74 →
+  0,27 s; **zbytky jam** porovnají čtverce dílů s pamětí přímo, bez skládání řady ≈ 19 tisíc čísel
+  denně (`updateRuins` 0,54 → 0,32 s); **obvod opevnění z paměti** podle druhu a bodů (posledních
+  16, zmrazený a sdílený jen ke čtení – `fortificationOutline` 0,45 s → ≈ 0, `builtLengths` 0,26 →
+  0,07 s, `decideFortRebuilds` 0,25 → 0,04 s); **bloky orby** bez textových klíčů políček a s frontou
+  po indexu (`ploughLayout` 0,87 → 0,66 s). Rozpad zahřátých roků 2–4 po částech dne (profil,
+  zátěž 30 → 23; celkem 16,1 → 14,0 s): sezóna 3,45 → 2,56 s, práce dne 2,57 → 1,97 s, přepočet
+  tras 2,43 → 2,51 s (beze změny – hledání sítě pěšin), správce 2,24 → 2,14 s, měsíc cest 1,54 →
+  1,57 s, zbytky jam 0,54 → 0,31 s, jídlo 0,46 → 0,31 s, škody zvěře 0,43 s, pole u cest 0,37 s.
+  Rok Vlkova (`years.mts`) střídavě před / po (zátěž 32): roky 2–4 4,57 / 5,19 / 5,44 a 5,03 /
+  5,51 / 6,01 s → 3,91 / 4,70 / 5,32 a 3,94 / 4,34 / 4,82 s (průměr 5,29 → 4,51 s, −15 %), rok 1
+  8,09 / 8,54 → 7,56 / 7,71 s. Nejvíc dál bere výběr dílů sezóny (`seasonSelection` 1,5 s za tři
+  roky – každý den oken setí), hledání sítě pěšin (≈ 1,0 s), výkon orby plánu osevu (tři přepočty
+  za tři roky po ≈ 0,2 s – mění se díly na řadě a jejich vzdálenosti) a úseky úloh při zmenšení
+  plánu na konci oken setí (`shrinkInPlan` – každý uvolněný díl přepočítá úseky všech úloh).
 
 - **Čísla** pravidel jsou jen v `rules*.ts` (u každého odkaz na sekci návrhu); změna čísla = i
   text v návrhu. Kalibrace: `measure-village.ts` nasimuluje stovky vsí a vypíše cíle z Kalibrace
@@ -650,7 +679,7 @@ pohledu, `currentVillageViewStamp` spící vsi s `lastDay < dnes` ignoruje.
 
 ## Deník vsí (`village_year`)
 
-Martin 1. 11. 2026: „na tohle asi ser, podle mě bude stačit logovat hru“ (místo velkého měření správce). Za každou ves a dokončený herní rok jeden řádek – `villageYearRow(stav)` v `domain/village/year-log.ts` (čistá funkce nad stavem na konci roku: lidé dospělí/děti, narození a úmrtí z kroniky roku, z toho hladem, sklizeň, zásoby, dny hladu, pole a oseto (skutečně zasetý podíl prací hospodářského roku – `sownShare` × výměra dílů práce; od 6. 11. 2026, dřív díly ve stavu `sown` už od výběru do plánu), stáda, správce zapnutý, dostavěné stavby podle druhu, odchody synů, pohromy).
+Martin 1. 11. 2026: „na tohle asi ser, podle mě bude stačit logovat hru“ (místo velkého měření správce). Za každou ves a dokončený herní rok jeden řádek – `villageYearRow(stav)` v `domain/village/year-log.ts` (čistá funkce nad stavem na konci roku: lidé dospělí/děti, narození a úmrtí z kroniky roku, z toho hladem, sklizeň, zásoby (vymlácené i zrno v nevymlácených snopech – výmlat běží do konce února, od 9. 11. 2026), dny hladu, pole a oseto (skutečně zasetý podíl prací hospodářského roku – `sownShare` × výměra dílů práce; od 6. 11. 2026, dřív díly ve stavu `sown` už od výběru do plánu), stáda, správce zapnutý, dostavěné stavby podle druhu, odchody synů, pohromy).
 
 - `updateVillage` dopočítává po kouscích končících na přelomu roku (`nextYearEnd`; stav je týž jako bez dělení) a řádky předá `VillageRepository.save(…, yearRows)`; adaptér je zapíše v téže transakci jako stav (`ON CONFLICT (village_id, year) DO UPDATE` – opakovaný zápis řádek přepíše). Worker i web jdou stejnou cestou. Cena zápisu: jeden upsert za ves a rok, v měření v řádu jednotek ms na save (v šumu).
 - Počty událostí se čtou z kroniky (max. 500 událostí) – při přetečení je `chronicleFull` a počty jsou dolní odhad. Nejnižší zásoby za rok se nesledují (stav na konci roku jen).

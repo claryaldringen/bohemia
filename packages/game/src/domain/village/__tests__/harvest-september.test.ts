@@ -164,7 +164,7 @@ describe('žeň jaře i v září (fields.md – Žeň jaře i v září)', () =
   });
 });
 
-describe('pořadí práce dne – žeň před orbou (fields.md – Pořadí práce dne)', () => {
+describe('pořadí práce dne (fields.md – Pořadí důležitosti polních prací a výmlat do zimy)', () => {
   const task = (name: DayTask['name'], end: number, extra: Partial<DayTask> = {}): DayTask => ({
     name,
     remaining: 10,
@@ -173,22 +173,52 @@ describe('pořadí práce dne – žeň před orbou (fields.md – Pořadí prá
     rank: 0,
     ...extra,
   });
-
-  it('ve dni, kdy ves žne, jde žeň před orbou a setím; jinak orba napřed', () => {
-    const plough = task('plough', 10, { rank: -0.5 });
-    const reap = task('harvest', 9, { rank: 4 });
-    const sow = task('sow', 10, { rank: 2 });
-    const reaping = [sow, plough, reap].sort((a, b) => dayTaskOrder(a, b, true));
-    expect(reaping.map((t) => t.name)).toEqual(['harvest', 'plough', 'sow']);
-    const usual = [sow, reap, plough].sort((a, b) => dayTaskOrder(a, b));
-    expect(usual[0]!.name).toBe('plough');
-    // výmlat na dnešní jídlo zůstává první
-    const urgent = task('thresh', 10, {
-      thresh: { crop: 'spring', remaining: 1, end: 10, urgent: true } as DayTask['thresh'],
+  const thresh = (extra: Partial<NonNullable<DayTask['thresh']>> = {}): DayTask =>
+    task('thresh', 12, {
+      rank: 30,
+      thresh: { crop: 'winter', remaining: 1, floor: 1, end: 12, overdue: false, ...extra },
     });
-    expect([reap, urgent].sort((a, b) => dayTaskOrder(a, b, true))[0]!.name).toBe('thresh');
+
+  it('výmlat na jídlo → porážka → žeň → len → seč → jablka → pletí → výmlat na osivo → orba a setí → hlídka → výmlat', () => {
+    const field = (name: DayTask['name'], crop: 'winter' | 'flax', end: number): DayTask =>
+      task(name, end, { field: { crop } as DayTask['field'] });
+    const ordered = [
+      thresh({ urgent: true, end: -1 }),
+      task('slaughter', 9, { tie: 0, rank: 1 }),
+      field('harvest', 'winter', 9),
+      field('harvest', 'flax', 8),
+      task('mow', Infinity, { tie: 3, rank: 1 }),
+      task('orchard-harvest', 10, { tie: 0 }),
+      task('weed', 5),
+      thresh({ seed: true, end: -1 }),
+      task('plough', 10, { rank: -0.5 }),
+      task('reclaim', 9),
+      task('sow', 10, { rank: 2 }),
+      task('watch', Infinity, { tie: 4, rank: 2 }),
+      thresh(),
+      task('grain-pit', 11),
+      task('herding', Infinity, { tie: 4, rank: 3 }),
+    ];
+    const shuffled = [...ordered].reverse().sort(dayTaskOrder);
+    expect(shuffled).toEqual(ordered);
   });
 
+  it('žeň v září před orbou i výmlatem, v přípravě půdy orba první, uvnitř skupiny konec okna', () => {
+    const plough = task('plough', 11, { rank: -0.5 });
+    const reap = task('harvest', 9, { rank: 4 });
+    const sow = task('sow', 10, { rank: 2 });
+    const dig = task('dig', 10, { rank: 3 });
+    expect([sow, dig, thresh(), plough, reap].sort(dayTaskOrder).map((t) => t.name)).toEqual([
+      'harvest',
+      'plough',
+      'sow',
+      'dig',
+      'thresh',
+    ]);
+    // dosklizeň ozimu (konec okna srpen) před žní jaře
+    const winter = task('harvest', 8, { rank: 10 });
+    expect([reap, winter].sort(dayTaskOrder)[0]).toBe(winter);
+  });
   it('v září je žeň jaře, kterou srpen nedosklidil, mezi úlohami dne s koncem okna září', () => {
     const s = village(0.4);
     harvest(s, at(601, 8, 31));
