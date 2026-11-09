@@ -243,8 +243,8 @@ export type IntentBody =
   /**
    * Rozkaz obráncům napadené vsi „Probít se“ (fortifications.md – Obrana bez násobku 3, Bod zlomu
    * a probíjení): obránci opevnění `fort` (pořadí na bojišti) se probijí branou na úseku `segment`,
-   * bez něj tou, kterou vybere velitel obrany. Dává ho přítomný držitel napadené vsi – jeho
-   * use-case zatím chybí (válka – Kryt pod palbou, bod zlomu za hradbou a probíjení).
+   * bez něj tou s nejméně útočníky (`breakoutGate` – i hlídanou). Dává ho přítomný držitel
+   * napadené vsi use-casem `orderBreakout` (jediný cizí záměr, který tažení přijme).
    */
   | { kind: 'breakout'; fort: number; segment?: number };
 

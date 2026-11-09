@@ -17,6 +17,7 @@ import { nearestForest } from './flight';
 import type { BattleLadder } from './ladders';
 import type { MarchGrid, Pos } from './march-grid';
 import { WAR } from './rules-war';
+import { breakoutChoice, type BreakoutBlock } from './rout';
 import { inSight } from './sight';
 
 // Válka ve scéně jedné mapy (war.md – Ve scéně; scene.md – Vojsko, boj a mlha války): co z tažení
@@ -48,6 +49,8 @@ export type WarSceneFighter = Pick<
   | 'onWall'
   | 'underground'
   | 'climb'
+  | 'cover'
+  | 'surrendered'
 > & {
   /** Zdraví 0–100 – jen vlastní strana. */
   health?: number;
@@ -152,6 +155,12 @@ export interface WarSceneView {
   buildings?: WarSceneBuilding[];
   /** Obránce na mapě své vsi: útěk vsi do lesa se stády. Chybí – nikdo neutekl. */
   flight?: WarSceneFlight;
+  /**
+   * Obránce na mapě své vsi s opevněním s branou při boji (fortifications.md – Obrana bez násobku
+   * 3, Bod zlomu a probíjení): rozkaz „Probít se“ jde (`blocked` null), nebo proč ne
+   * (`breakoutChoice`). Chybí – ves nemá opevnění s branou, nebo se nebojuje.
+   */
+  breakout?: { blocked: BreakoutBlock | null };
 }
 
 /** Vstup: mapa, strana hráče, mřížka mapy (dohled v lese) a oči mimo boj (domy vsi obránce). */
@@ -245,6 +254,8 @@ export function warSceneView(state: CampaignState, input: WarSceneInput): WarSce
   if (buildings.length > 0) view.buildings = buildings;
   const flight = side === 'defend' && onTarget ? flightView(state, input) : null;
   if (flight) view.flight = flight;
+  const breakout = side === 'defend' && shown ? breakoutChoice(shown, input.forts) : null;
+  if (breakout) view.breakout = { blocked: 'blocked' in breakout ? breakout.blocked : null };
   return view;
 
   function marchView(s: CampaignState, inp: WarSceneInput): WarSceneMarch | null {
@@ -399,6 +410,9 @@ function battleView(
       ...(f.onWall ? { onWall: true } : {}),
       ...(f.underground ? { underground: true as const } : {}),
       ...(f.climb ? { climb: structuredClone(f.climb) } : {}),
+      // skrčený za předprsní a vzdaný (stojí na místě bez zbraně) – jen v dohledu jako ostatní
+      ...(f.cover ? { cover: true as const } : {}),
+      ...(f.surrendered ? { surrendered: true as const } : {}),
     };
   });
   if (fighters.length === 0) return null;

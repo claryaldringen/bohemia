@@ -185,6 +185,28 @@ describe('plynulý pochod mezi snímky', () => {
 });
 
 describe('postavy boje', () => {
+  it('obránce v krytu se na ochozu skrčí, vzdaný stojí na místě bez zbraně', () => {
+    const cur = snapshot([
+      man('d:1', { side: 'defend', cover: true, onWall: true, pos: { x: 3, z: 0 } }),
+      // v krytu dole za hradbou stojí (skrčí se jen na ochozu)
+      man('d:2', { side: 'defend', cover: true, pos: { x: 6, z: 0 } }),
+      man('d:3', { side: 'defend', state: 'fled', surrendered: true, pos: { x: 8, z: 2 } }),
+      man('d:4', { side: 'defend', state: 'fled', pos: { x: 9, z: 2 } }),
+      man('a:0', { pos: { x: 30, z: 0 } }),
+    ]);
+    const figures = new Map(
+      battleFigures(null, cur, 1, { showFallen: true }).figures.map((f) => [f.key, f]),
+    );
+    expect(figures.get('d:1')?.clip).toBe('weed');
+    expect(figures.get('d:2')?.clip).toBe('idle');
+    expect(figures.get('d:3')).toMatchObject({ clip: 'idle', x: 8, z: 2, lying: false });
+    // utečený zmizí, vzdaný ne
+    expect(figures.has('d:4')).toBe(false);
+    // při chůzi po ochozu se kryjící nekrčí
+    const walker = man('d:1', { side: 'defend', cover: true, onWall: true });
+    expect(fighterClip(walker, undefined, 1.2)).toBe('walk-spear');
+  });
+
   it('poloha mezi takty plynule, pohled ke směru chůze', () => {
     const prev = snapshot([man('a:0', { pos: { x: 0, z: 0 } })], 1);
     const cur = snapshot([man('a:0', { pos: { x: 1, z: 0 } })], 2);

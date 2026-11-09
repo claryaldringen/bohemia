@@ -4,7 +4,8 @@ import type { CampaignState } from '../campaign-types';
 import { marchGrid } from '../march-grid';
 import { sceneFolkOf, warSceneView, type WarSceneFolk, type WarSceneInput } from '../scene-view';
 import type { ShelterReport } from '../stance';
-import { attacker, battle, defender, land } from './battle-fixtures';
+import { wallPosts } from '../wall-defense';
+import { attacker, battle, defender, field, land, palisade } from './battle-fixtures';
 import { campaign, member } from './campaign-fixtures';
 
 // Válka ve scéně (war.md – Ve scéně): padlí do konce dne, útěk vsi do lesa se stády, odehnané
@@ -217,5 +218,48 @@ describe('warSceneView – odehnané stádo', () => {
     expect(hidden.march?.herd).toBeUndefined();
     const empty = returning(0);
     expect(warSceneView(empty, defend(empty))!.march?.herd).toBeUndefined();
+  });
+});
+
+describe('warSceneView – kryt, vzdaní a rozkaz „Probít se“', () => {
+  // palisáda s ochozem a bránou kolem počátku (60 × 60 m); obránci na stanovištích hradby
+  const forts = field([{ ...palisade(true), kind: 'walkway' }]).forts;
+  function walled(): CampaignState {
+    const posts = wallPosts(forts, 3);
+    const s = raiding([
+      ...posts.map((p, i) => defender(201 + i, p, { post: p, onWall: true })),
+      defender(299, { x: 900, z: 900 }),
+    ]);
+    const men = new Map(s.battle!.fighters.map((f) => [f.id, f]));
+    men.get('d:201')!.cover = true;
+    Object.assign(men.get('d:202')!, { state: 'fled', surrendered: true });
+    Object.assign(men.get('d:299')!, { state: 'fled', surrendered: true });
+    return s;
+  }
+
+  it('obránce vidí své muže v krytu i vzdané a smí rozkázat „Probít se“', () => {
+    const s = walled();
+    const view = warSceneView(s, defend(s, { forts }))!;
+    const seen = new Map(view.battle!.fighters.map((f) => [f.id, f]));
+    expect(seen.get('d:201')).toMatchObject({ cover: true, onWall: true });
+    expect(seen.get('d:202')).toMatchObject({ state: 'fled', surrendered: true });
+    expect(seen.get('d:203')).not.toHaveProperty('cover');
+    expect(view.breakout).toEqual({ blocked: null });
+    // bez brány tlačítko není; rozhodnutý boj – „Boj neběží“
+    expect(warSceneView(s, defend(s))!.breakout).toBeUndefined();
+    s.battle!.outcome = 'attackers';
+    s.raidDay = s.day;
+    expect(warSceneView(s, defend(s, { forts }))!.breakout).toEqual({ blocked: 'over' });
+  });
+
+  it('útočník vidí cizí kryjící se a vzdané jen v dohledu; rozkaz obráncům nedostane', () => {
+    const s = walled();
+    const view = warSceneView(s, { ...defend(s, { forts }), side: 'attack', eyes: [] })!;
+    const seen = new Map(view.battle!.fighters.map((f) => [f.id, f]));
+    expect(seen.get('d:201')?.cover).toBe(true);
+    expect(seen.get('d:202')?.surrendered).toBe(true);
+    // vzdaný daleko mimo dohled se nepošle
+    expect(seen.has('d:299')).toBe(false);
+    expect(view.breakout).toBeUndefined();
   });
 });

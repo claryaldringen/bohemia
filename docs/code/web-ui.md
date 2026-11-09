@@ -992,6 +992,22 @@ plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance`
 (`lib/village.ts`, právo `war` – bez něj tlačítka zašednou s důvodem). Upozornění `foreign-army` →
 „Cizí vojsko u vsi Kněžice!“ (`lib/player-notices.ts`, panel války). Test: `ManorStance.behavior.test.tsx`.
 
+## Rozkaz „Probít se“ (fortifications.md – Obrana bez násobku 3, `hud/BreakoutButton.tsx`)
+
+Obránce sleduje boj u své vsi ve scéně (`useWarScene`); `breakoutOf(warScene)`
+(`lib/war-scene-view.ts`) z `WarSceneView.breakout` – null (ves bez opevnění s branou, nebojuje se,
+pohled útočníka) = tlačítko chybí, jinak důvod (`BREAKOUT_BLOCKED` z jádra – „Boj neběží.“, „Nikdo
+nebrání hradbu.“, „Obránci utíkají.“, „Obránci se už probíjejí.“) nebo null. `BreakoutButton`
+(`data-testid="breakout"`, vlevo pod lištou – návrh Clauda, obrana jiný panel boje nemá): ikona
+`public/icons/war/breakout.svg` (palisáda s otevřenou bránou a šipka ven, CC0, `LICENSES.md`),
+název v `Tooltip`, důvod červeně (`denied`); bez práva `war` zašedne s důvodem práva. Klik → server
+action `orderBreakout({ villageId })`; po odeslání zašedne („Obránci se už probíjejí.“), chyba serveru
+se ukáže stejně – platí, dokud server nepošle jiný důvod, nejdéle 10 s. Test:
+`BreakoutButton.behavior.test.tsx`, `war-scene-view.test.ts` (`breakoutOf`); e2e `multiplayer-war.spec.ts`
+– „obránce za hradbou s branou rozkáže ‚Probít se‘“ (boj zapsaný do kontrolního bodu bez workeru, klik
+→ řádek `campaign_intent` s `breakout` od hráče B; obránce v krytu a vzdaný ve scéně, snímek
+`probijeni.png` v `test-results`). Popisek tlačítka u levého okraje: `Tooltip` `below-right`.
+
 ## Prémiová krajina v rozhraní
 
 Premium-landscapes.md – Co hráč vidí. Texty typů (krátký název, „hned“, „později“) a jediná věta

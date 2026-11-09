@@ -250,6 +250,28 @@ describe('NPC velitel – palisáda s ochozem (kryt pod palbou, bod zlomu jen v 
     expect(b?.taken).toEqual([0]);
     expect(whole.villageEvents.some((e) => e.body.kind === 'raid-result')).toBe(true);
   });
+
+  // rozkaz „Probít se“ dává držitel napadené vsi (cizí hráč tažení – `orderBreakout`); jiné cizí
+  // záměry ani `breakout` od vůdce tažení tažení nepřijme
+  it('záměr „Probít se“ od obránce provede takt, od vůdce tažení ne', () => {
+    let s = start;
+    while (!s.battle?.fighters.some((f) => f.side === 'defend' && f.post)) {
+      s = stepCampaign(s, s.tick + 200, SET_OUT, fortWorld).state;
+    }
+    expect(s.battle?.breakouts).toBeUndefined();
+    const order = (by: string): CampaignState =>
+      stepCampaign(
+        s,
+        s.tick + 3,
+        [
+          ...SET_OUT,
+          { tick: s.tick + 2, seq: 99, byPlayer: by, body: { kind: 'breakout', fort: 0 } },
+        ],
+        fortWorld,
+      ).state;
+    expect(order('p9').battle?.breakouts?.[0]?.fort).toBe(0);
+    expect(order('p1').battle?.breakouts).toBeUndefined();
+  });
 });
 
 // --- Obrat při polovině vojska, plné nosnosti a jídle na cestu domů ------------------------------

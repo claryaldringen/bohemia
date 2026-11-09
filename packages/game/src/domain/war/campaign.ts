@@ -157,7 +157,9 @@ export function campaignFinished(state: CampaignState): boolean {
 
 /**
  * Dopočte tažení z `state` do taktu `toTick` (včetně). Záměry s taktem nejvýš `state.tick`
- * (v minulosti) a cizí záměry se zahodí; ostatní platí přesně ve svém taktu v pořadí `seq`.
+ * (v minulosti) a cizí záměry se zahodí – kromě rozkazu obráncům `breakout`, který dává držitel
+ * napadené vsi (právo ověřil use-case `orderBreakout`), nikdy vůdce tažení; ostatní platí přesně
+ * ve svém taktu v pořadí `seq`.
  * Chybí-li mapa nebo ves (`waiting`), výsledek je stav na konci posledního celého taktu.
  * Vstupní stav ani záměry nemění.
  */
@@ -168,7 +170,12 @@ export function stepCampaign(
   world: CampaignWorld,
 ): CampaignStep {
   const pending = intents
-    .filter((i) => i.tick > state.tick && i.tick <= toTick && i.byPlayer === state.playerId)
+    .filter(
+      (i) =>
+        i.tick > state.tick &&
+        i.tick <= toTick &&
+        (i.body.kind === 'breakout') !== (i.byPlayer === state.playerId),
+    )
     .sort((a, b) => a.tick - b.tick || a.seq - b.seq);
   const ctx: TickContext = { world, grids: new Map(), forts: new Map(), fuel: new Map() };
   const villageEvents: NewVillageEvent[] = [];

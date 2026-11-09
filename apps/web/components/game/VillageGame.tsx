@@ -28,6 +28,7 @@ import {
 import {
   buildTrail,
   declareHunt,
+  orderBreakout,
   setDefenseStance,
   decidePrisonerAction,
   abandonFieldParts,
@@ -120,7 +121,7 @@ import type { PanelAsk, PanelOptions } from '@/lib/panel-options';
 import { usePlacement } from '@/hooks/use-placement';
 import { usePolling } from '@/hooks/use-polling';
 import { useWarScene } from '@/hooks/use-war-scene';
-import { sceneWarOf, type WatchedMap } from '@/lib/war-scene-view';
+import { breakoutOf, sceneWarOf, type WatchedMap } from '@/lib/war-scene-view';
 import { authClient } from '@/lib/auth-client';
 import {
   buildItem,
@@ -180,6 +181,7 @@ import {
   scenePenSquares,
 } from '@/lib/village-view';
 import { ForeignWarScene } from './ForeignWarScene';
+import { BreakoutButton } from './hud/BreakoutButton';
 import { GameView } from './GameView';
 import { BuildGrid } from './hud/BuildGrid';
 import { FortConfirm } from './hud/FortConfirm';
@@ -622,6 +624,19 @@ export function VillageGame({
   useEffect(() => {
     scene?.setWar(sceneWarOf(warScene ?? null, world));
   }, [scene, warScene, world]);
+  // Rozkaz „Probít se“ obráncům za hradbou (fortifications.md – Obrana bez násobku 3): tlačítko
+  // jen u boje u vsi s opevněním s branou; jde-li, rozhodl server
+  const breakout = breakoutOf(warScene);
+  const villageIdForBreakout = view?.id ?? null;
+  const orderDefenderBreakout = useCallback(async (): Promise<string | null> => {
+    if (villageIdForBreakout === null) return CONNECTION_FAILED;
+    try {
+      const result = await orderBreakout({ villageId: villageIdForBreakout });
+      return 'error' in result ? result.error : null;
+    } catch {
+      return CONNECTION_FAILED;
+    }
+  }, [villageIdForBreakout]);
   // Cizí mapa ve scéně (war.md – Ve scéně – cizí mapa): z mapy tažení se scéna přepne na mapu, na
   // které vojsko stojí – jen pohled; scéna a rozhraní vlastní vsi mezitím neběží
   const [watching, setWatching] = useState<WatchedMap | null>(null);
@@ -1740,6 +1755,9 @@ export function VillageGame({
                   : null
               }
             />
+            {breakout && (
+              <BreakoutButton denied={breakout.denied} onOrder={orderDefenderBreakout} />
+            )}
             <Minimap
               landscape={decoded}
               scene={scene}

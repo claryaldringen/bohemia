@@ -250,6 +250,12 @@ místo“ (návrh Clauda) neplatí. Zásah zůstává `10 × síla útočníka` 
      probíjejících; skupina se shromáždí do **6 m** od brány (nejvýš **60 s**), pak branou ven
      a do nejbližšího lesa, útočníky do 3 m cestou bije. Velitel obrany rozhodne jednou za boj na
      opevnění; vzdaní a lidé, kteří v dobytém útočišti zůstali, jdou s útočníkem jako vzdaní.
+   - **Rozkaz hráče (9. 11. 2026, implementováno):** držitel napadené vsi, který boj sleduje ve
+     scéně, má ikonu „Probít se“; zašedne s důvodem, když boj neběží, nikdo nebrání hradbu,
+     obránci po bodu zlomu utíkají nebo už se probíjejí. Návrh Clauda: hráčův rozkaz jde branou
+     s nejméně útočníky do 30 m i tehdy, když je hlídaná (velitel obrany sám jen volnou či slabě
+     hlídanou); při víc opevněních s branou se probijí obránci toho s nejvíc muži na nohou.
+     Ve scéně se kryjící obránce na ochozu skrčí a vzdaný zůstane stát na místě bez zbraně.
 4. **Souboj u žebříku** (Martin – „A“): lezec je znevýhodněný – slabší a neuhne; obránce ho může
    shodit i se žebříkem; nahoru se dostane jen přes sraženého obránce nebo na neobsazeném místě.
    Návrh Clauda: lezec má sílu × 0,5 a každá rána obránce na něj padne; místo rány smí obránce

@@ -25,6 +25,7 @@ import {
 } from './village-helpers';
 // nájezd na ves s palisádou s ochozem (plán hradeb – Úloha 22), test na konci souboru
 import {
+  addGate,
   dayOfTick,
   fortSegments,
   obstaclesOf,
@@ -908,4 +909,227 @@ test('útočník sleduje vojsko ve 3D na mapě napadené vsi i na sousední, po 
     await query(`UPDATE campaign SET status = 'done' WHERE id = $1`, [campaignId]);
     await Promise.all(ctxs.map((ctx) => ctx.close().catch(() => {})));
   }
+});
+
+// Rozkaz „Probít se“ (fortifications.md – Obrana bez násobku 3, Bod zlomu a probíjení): B má
+// palisádu s ochozem a bránou, vojsko A u ní bojuje (stav boje zapsaný do kontrolního bodu, bez
+// workeru – stav tažení se jen čte). B vidí ve scéně boj a ikonu „Probít se“; klik zapíše záměr
+// `breakout` do tažení A.
+test('obránce za hradbou s branou rozkáže „Probít se“ – záměr v tažení útočníka', async ({
+  browser,
+}) => {
+  // dva hráči zakládají ves (v zatíženém stroji i přes 2 minuty) – jako nájezd s workerem
+  test.setTimeout(420_000);
+  await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
+  const ctxs = await Promise.all([browser.newContext(), browser.newContext()]);
+  for (const ctx of ctxs) await useUniqueClientIp(ctx);
+  const [a, b] = (await Promise.all(ctxs.map((ctx) => ctx.newPage()))) as [Page, Page];
+  for (const page of [a, b]) await page.setViewportSize({ width: 1280, height: 720 });
+  const { email: emailA, seat: seatA } = await newPlayer(a, 'probija');
+  await found(a, villageSpots(seatA.landscape).dwelling, 'Soběslav');
+  const { email: emailB, seat: seatB } = await newPlayer(b, 'probijb');
+  await found(b, villageSpots(seatB.landscape).dwelling, 'Vratislav');
+  await ctxs[0]!.close();
+  const [idA, idB] = [await houseIdOf(emailA), await houseIdOf(emailB)];
+  const [placeA, placeB] = [await placeOf(seatA.settlementId), await placeOf(seatB.settlementId)];
+  const [playerA] = await query<{ id: string }>(`SELECT id FROM "user" WHERE email = $1`, [emailA]);
+  const [playerB] = await query<{ id: string }>(`SELECT id FROM "user" WHERE email = $1`, [emailB]);
+
+  // ves B: hotová palisáda s ochozem kolem zemnice a s bránou
+  const builtB = withBuiltFirstDwelling(await villageState(seatB.settlementId));
+  const d = builtB.dwellings[0]!;
+  const home = d.plot?.square
+    ? { x: d.plot.square.x, z: d.plot.square.z }
+    : { x: d.position.x, z: d.position.z };
+  const obstacles = obstaclesOf(seatB.landscape);
+  const proposal = proposeFortification(
+    builtB,
+    builtB.lastDay,
+    seatB.landscape,
+    obstacles,
+    'palisade',
+    home,
+  );
+  expect(proposal.check.reason).toBeNull();
+  const started = startFortification(builtB, builtB.lastDay, seatB.landscape, obstacles, {
+    points: proposal.points,
+    kind: 'palisade',
+  });
+  if (!started.ok) throw new Error(started.reason);
+  const stateB = started.state;
+  stateB.constructions = stateB.constructions.filter((c) => c.kind !== 'fortification');
+  const fort = villageFortifications(stateB)[0]!;
+  fort.kind = 'walkway';
+  for (const seg of fort.segments) {
+    seg.builtDay = Math.max(0, stateB.lastDay - 2);
+    seg.state = 1;
+  }
+  const outline = outlineOf(seatB.landscape, fort)!;
+  const ring = fortSegments(outline).map((s) => ({ x: s.mid[0], z: s.mid[1] }));
+  const gates = addGate(outline, [], ring[0]!);
+  if (!Array.isArray(gates)) throw new Error(gates.error);
+  fort.gates = gates;
+  await writeVillageState(seatB.settlementId, stateB);
+  await pollVillage(b);
+  const today = stateB.lastDay;
+  const [war] = await query<{ id: string }>(
+    `INSERT INTO war (house_low, house_high, how, started_at, started_day, last_clash_day)
+     VALUES (LEAST($1::uuid, $2::uuid), GREATEST($1::uuid, $2::uuid), 'ambush', now(), $3, $3)
+     RETURNING id`,
+    [idA, idB, today],
+  );
+
+  // boj u vsi B: dva útočníci 40 m vně hradby, tři obránci B na stanovištích hradby
+  const world = resolveWorldClock(E2E_ENV);
+  const tick = tickOfMs(Date.now(), world);
+  const villager = 1_000_000;
+  const member = (personId: number): CampaignMember => ({
+    ref: { villageId: placeA.villageId, personId },
+    playerId: playerA!.id,
+    line: false,
+    mounted: false,
+    forced: false,
+    strength: 1,
+    health: 100,
+    vigor: 1,
+    wounded: false,
+    group: 0,
+    status: 'active',
+  });
+  const out = { x: Math.max(...ring.map((p) => p.x)) + 40, z: home.z };
+  const campaignId = randomUUID();
+  const base = newCampaign(
+    {
+      id: campaignId,
+      warId: war!.id,
+      seed: 31,
+      tick,
+      playerId: playerA!.id,
+      leaderName: 'Soběslav',
+      commander: { villageId: placeA.villageId, personId: villager },
+      deputy: null,
+      assembly: { villageId: placeA.villageId, cell: placeA.cell, pos: out, name: 'Lhota' },
+      target: { villageId: placeB.villageId, cell: placeB.cell, pos: out, name: 'Hradec' },
+      members: [member(villager), member(villager + 1)],
+      foodKg: 20,
+      liveCommand: false,
+    },
+    world,
+  );
+  const fighter = (
+    id: string,
+    side: Fighter['side'],
+    ref: number,
+    pos: { x: number; z: number },
+    extra: Partial<Fighter> = {},
+  ): Fighter => ({
+    id,
+    side,
+    ref,
+    group: 0,
+    line: false,
+    bow: false,
+    mounted: false,
+    strength: 1,
+    health: 100,
+    pos,
+    home: pos,
+    state: 'fight',
+    cooldown: 0,
+    aim: null,
+    controlled: false,
+    chosen: null,
+    goal: null,
+    route: [],
+    routeFor: null,
+    breachAt: null,
+    fleeTo: null,
+    atHouseOnly: false,
+    lastLine: false,
+    killed: false,
+    ...extra,
+  });
+  const men = stateB.people.slice(0, 3);
+  const state: CampaignState = {
+    ...base,
+    phase: 'raiding',
+    ambush: true,
+    presenceTick: tick,
+    groups: base.groups.map((g) => ({
+      ...g,
+      cell: { ...placeB.cell },
+      pos: { ...out },
+      goal: { cell: { ...placeB.cell }, pos: { ...out } },
+      arrived: true,
+    })),
+    battle: {
+      fighters: [
+        fighter('a:0', 'attack', 0, out),
+        fighter('a:1', 'attack', 1, { x: out.x + 2, z: out.z }),
+        // první brání, druhý se kryje pod palbou (skrčený), třetí se vzdal (stojí bez zbraně)
+        ...men.map((p, i) => {
+          const post = ring[(i + 1) % ring.length]!;
+          const poses: Partial<Fighter>[] = [
+            {},
+            { cover: true },
+            { state: 'fled', surrendered: true },
+          ];
+          const pose = poses[i]!;
+          return fighter(`d:${p.id}`, 'defend', p.id, post, { post, onWall: true, ...pose });
+        }),
+      ],
+      groups: [
+        { side: 'attack', id: 0, order: 'attack-all', holdAt: null, entered: 2, broken: false },
+        { side: 'defend', id: 0, order: null, holdAt: null, entered: men.length, broken: false },
+      ],
+      commander: 'a:0',
+      deputy: null,
+      closedGates: [`0:${gates[0]!.segment}`],
+      breaches: [],
+      outcome: 'ongoing',
+      ticks: 10,
+      openTick: tick - 10,
+    },
+  };
+  await query(`UPDATE campaign SET status = 'done' WHERE status = 'active'`, []);
+  await query(
+    `INSERT INTO campaign (id, war_id, player_id, status, created_at)
+     VALUES ($1, $2, $3, 'active', now())`,
+    [campaignId, war!.id, playerA!.id],
+  );
+  await query(
+    `INSERT INTO campaign_checkpoint (campaign_id, tick, state) VALUES ($1, $2, $3::jsonb)`,
+    [campaignId, tick, JSON.stringify(state)],
+  );
+
+  try {
+    // B vidí boj u své vsi a ikonu „Probít se“ (scéna se ptá na válku nejdéle po 5 s)
+    const breakout = b.getByTestId('breakout');
+    await expect(breakout).toBeVisible({ timeout: 30_000 });
+    await expect(breakout).toBeEnabled();
+    await expect(breakout).toHaveAttribute('aria-label', 'Probít se');
+    await breakout.click();
+    await expect
+      .poll(async () =>
+        query<{ by_player: string; body: { kind: string; fort: number } }>(
+          `SELECT by_player, body FROM campaign_intent WHERE campaign_id = $1`,
+          [campaignId],
+        ),
+      )
+      .toEqual([{ by_player: playerB!.id, body: { kind: 'breakout', fort: 0 } }]);
+    // po odeslání zašedne – obránci se shromažďují u brány
+    await expect(breakout).toBeDisabled();
+    await b.screenshot({
+      path: test.info().outputPath('probijeni-tlacitko.png'),
+      clip: { x: 0, y: 44, width: 320, height: 110 },
+    });
+    // snímek scény: přiblížení na hradbu – kryjící se skrčený, vzdaný stojí bez zbraně
+    await b.mouse.move(640, 400);
+    for (let i = 0; i < 3; i++) await b.mouse.wheel(0, -300);
+    await b.waitForTimeout(1_000);
+    await b.screenshot({ path: test.info().outputPath('probijeni.png'), scale: 'css' });
+  } finally {
+    await query(`UPDATE campaign SET status = 'done' WHERE id = $1`, [campaignId]);
+  }
+  await ctxs[1]!.close();
 });

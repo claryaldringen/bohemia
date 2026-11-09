@@ -44,7 +44,7 @@ export function surrender(f: Fighter): void {
 
 /** Obránci za hradbou opevnění `fort` – se stanovištěm (`post`) v něm, v pořadí bojovníků. */
 export function fortDefenders(
-  b: BattleState,
+  b: Pick<BattleState, 'fighters'>,
   forts: readonly BattleFort[],
   fort: number,
 ): Fighter[] {
@@ -97,12 +97,16 @@ function routFort(
 
 /**
  * Brána pro probíjení (návrh Clauda): s nejméně útočníky na nohou do 30 m (při shodě dřívější
- * v opevnění); volná nebo slabě hlídaná – útočníků nejvýš polovina proti probíjejícím. Jinak null.
+ * v opevnění). Velitel obrany (`weakOnly`) jen volnou nebo slabě hlídanou – útočníků nejvýš
+ * polovina proti probíjejícím, jinak null; rozkaz hráče (`weakOnly` false) jde i hlídanou branou
+ * (návrh Clauda – přítomný hráč rozkáže sám, brána, kudy se dá nejlépe probít). Bez brány či
+ * obránců na nohou null.
  */
 export function breakoutGate(
   b: BattleState,
   forts: readonly BattleFort[],
   fort: number,
+  weakOnly = true,
 ): number | null {
   const gates = forts[fort]?.fort.gates ?? [];
   const men = fortDefenders(b, forts, fort).filter((f) => f.state === 'fight').length;
@@ -119,7 +123,53 @@ export function breakoutGate(
       best = g.segment;
     }
   }
-  return bestN <= WAR.breakout.weakGuardShare * men + 1e-9 ? best : null;
+  return !weakOnly || bestN <= WAR.breakout.weakGuardShare * men + 1e-9 ? best : null;
+}
+
+/**
+ * Proč obráncům za hradbou nejde rozkázat „Probít se“: boj neběží (`over`), nikdo nebrání hradbu
+ * – žádný obránce se stanovištěm na nohou (`undefended`), obránci po bodu zlomu utíkají (`routed`),
+ * už se probíjejí (`underway`).
+ */
+export type BreakoutBlock = 'over' | 'undefended' | 'routed' | 'underway';
+
+/** Rozkaz „Probít se“: opevnění, jehož obránci se probijí, nebo proč nejde. */
+export type BreakoutChoice = { fort: number } | { blocked: BreakoutBlock };
+
+/**
+ * Komu hráč obránců rozkáže „Probít se“ (fortifications.md – Obrana bez násobku 3, Bod zlomu
+ * a probíjení): opevnění s branou před bodem zlomu, které se ještě neprobíjí, s obránci na nohou
+ * – při víc takových to s nejvíc obránci na nohou (návrh Clauda; při shodě dřívější). Jinak proč
+ * ne (`BreakoutBlock`). Bojiště bez opevnění s branou – null (rozkaz není).
+ */
+export function breakoutChoice(
+  b: Pick<BattleState, 'fighters' | 'outcome' | 'routed' | 'breakouts' | 'breakoutOrder'>,
+  forts: readonly BattleFort[],
+): BreakoutChoice | null {
+  const gated = forts.flatMap((bf, i) =>
+    bf.shapes.length > 0 && bf.fort.gates.length > 0 ? [i] : [],
+  );
+  if (gated.length === 0) return null;
+  if (b.outcome !== 'ongoing') return { blocked: 'over' };
+  const routed = new Set(b.routed ?? []);
+  const busy = new Set([
+    ...(b.breakouts ?? []).map((x) => x.fort),
+    ...(b.breakoutOrder ? [b.breakoutOrder.fort] : []),
+  ]);
+  const standing = gated.map((fort) => ({
+    fort,
+    men: fortDefenders(b, forts, fort).filter((f) => f.state === 'fight').length,
+  }));
+  let best: { fort: number; men: number } | null = null;
+  for (const x of standing) {
+    if (x.men === 0 || routed.has(x.fort) || busy.has(x.fort)) continue;
+    if (!best || x.men > best.men) best = x;
+  }
+  if (best) return { fort: best.fort };
+  if (standing.some((x) => x.men > 0 && busy.has(x.fort) && !routed.has(x.fort))) {
+    return { blocked: 'underway' };
+  }
+  return { blocked: gated.some((f) => routed.has(f)) ? 'routed' : 'undefended' };
 }
 
 /**

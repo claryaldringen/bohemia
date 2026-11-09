@@ -1501,7 +1501,8 @@ export function battleTick(b: BattleState, field: BattleField, rng: Random): voi
   if (b.breakoutOrder) {
     const o = b.breakoutOrder;
     delete b.breakoutOrder;
-    const gate = o.segment ?? breakoutGate(b, forts, o.fort);
+    // hráč rozkáže sám – i hlídanou branou, kudy se dá nejlépe probít (`breakoutGate`)
+    const gate = o.segment ?? breakoutGate(b, forts, o.fort, false);
     if (gate !== null) orderBreakout(b, field, forts, o.fort, gate);
   }
   breakpoints(b, field, forts);
@@ -1681,8 +1682,8 @@ export function untakenRefuges(field: BattleField, b: BattleState): number[] {
 
 /**
  * Rozkaz „Probít se“ obráncům opevnění `fort` (fortifications.md – Obrana bez násobku 3, Bod zlomu
- * a probíjení): branou na úseku `segment`, jinak tou, kterou vybere velitel obrany (volná nebo
- * slabě hlídaná – `breakoutGate`). Mění `b`; vrací, zda rozkaz platí (před bodem zlomu, s branou
+ * a probíjení): branou na úseku `segment`, jinak tou s nejméně útočníky do 30 m – i hlídanou,
+ * rozkaz dává hráč (`breakoutGate`). Mění `b`; vrací, zda rozkaz platí (před bodem zlomu, s branou
  * a s obránci na nohou).
  */
 export function orderDefenderBreakout(
@@ -1692,6 +1693,6 @@ export function orderDefenderBreakout(
   segment?: number,
 ): boolean {
   const forts = breachedForts(field, b);
-  const gate = segment ?? breakoutGate(b, forts, fort);
+  const gate = segment ?? breakoutGate(b, forts, fort, false);
   return gate !== null && orderBreakout(b, field, forts, fort, gate);
 }
