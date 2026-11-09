@@ -268,11 +268,13 @@ describe('trasy vozu vsi v paměti (villageCartRoutes)', () => {
 
   it('dopočet se studeným startem každý den = dopočet najednou (bit po bitu)', () => {
     const l = pathLandscape();
-    const start = village(DAY, { x: 0, z: -135, rotation: 0 });
-    const whole = advanceVillage(structuredClone(start), DAY + 3, null, l);
+    // den bez sněhu – vůz vozí vodu (population.md – Skladba dne podle ročního období)
+    const day = at(601, 11, 15);
+    const start = village(day, { x: 0, z: -135, rotation: 0 });
+    const whole = advanceVillage(structuredClone(start), day + 3, null, l);
     expect((whole.roads?.labor.cart ?? []).some((t) => t.trips > 0)).toBe(true);
     let s = structuredClone(start);
-    for (let d = DAY + 1; d <= DAY + 3; d++) {
+    for (let d = day + 1; d <= day + 3; d++) {
       forgetCartRoutes(l);
       s = advanceVillage(s, d, null, l);
     }

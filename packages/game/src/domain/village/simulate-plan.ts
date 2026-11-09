@@ -32,7 +32,17 @@ import {
   type SeasonJoin,
 } from './rotation';
 import { pendingThreshLabor, sheavesOutlook, type ThreshTask } from './threshing';
-import { adultDailyMin, householdElders, householdWaterLabor, type LaborTaskName } from './labor';
+import {
+  adultDailyMin,
+  HARVEST_CHORES,
+  householdElders,
+  householdWaterLabor,
+  SUMMER_CHORES,
+  type DayChores,
+  type LaborTaskName,
+} from './labor';
+import { dayChores } from './day-chores';
+import { daylightFactor } from './daylight';
 import { orchardWorkRemaining } from './orchard';
 import { laborPerDay } from './people';
 import { dailyMinPerHousehold, woodToolsLaborFactor } from './productivity';
@@ -50,6 +60,7 @@ import {
   HARVEST_HELP_WINDOWS,
   SOWING_CAPACITY_WINDOWS,
   planLoad,
+  windowDaylightWithout,
   windowDaysLeft,
   type SowingCapacity,
 } from './sowing';
@@ -245,8 +256,13 @@ function workFront(state: VillageState, day: number, coverage: CraftCoverage): F
     day,
     people: {},
     plough: {},
-    peopleRoom: WORK_FRONT_DAYS * freeLabor(state, day, coverage).villageFree,
-    ploughRoom: WORK_FRONT_DAYS * ploughCapacityPerDay(state, coverage.tools, day),
+    // dnešní délka dne a skladba dne jako práce dne (population.md – Skladba dne podle období)
+    peopleRoom:
+      WORK_FRONT_DAYS *
+      freeLabor(state, day, coverage, dayChores(state, day)).villageFree *
+      daylightFactor(day),
+    ploughRoom:
+      WORK_FRONT_DAYS * ploughCapacityPerDay(state, coverage.tools, day) * daylightFactor(day),
   };
   if (!state.season) return front;
   for (const { crop, work } of seasonCrops(state.season)) {
@@ -533,9 +549,16 @@ interface FreeLabor {
 /**
  * Volná práce vsi za den (population.md – Práce): lidé mimo dílny a cvičící vojvodovu rodinu
  * krát produktivita, bez denního minima domácností s chůzí pro vodu a bez minima dvorce, které
- * rodina nepokryje. Podle ní kapacita setí i čelo práce nutných dílů (`frontRoom`).
+ * rodina nepokryje – podle skladby dne `chores` (population.md – Skladba dne podle ročního
+ * období; plán bere léto pro okna setí a žňový den pro žně). Podle ní kapacita setí i čelo práce
+ * nutných dílů (`frontRoom`). Za den práce – venku ji násobí délka dne (`daylightFactor`).
  */
-function freeLabor(state: VillageState, day: number, coverage: CraftCoverage): FreeLabor {
+function freeLabor(
+  state: VillageState,
+  day: number,
+  coverage: CraftCoverage,
+  chores: DayChores = SUMMER_CHORES,
+): FreeLabor {
   const crafts = craftHouseholds(state);
   // cvičící vojvodova rodina je mimo práci vsi (lord.md – Den rodiny), jako ji vyřazuje `work()`
   const apart = lordApartIds(state, day);
@@ -553,11 +576,14 @@ function freeLabor(state: VillageState, day: number, coverage: CraftCoverage): F
   const family = trainingFamily(state, day);
   const homes = familyHomes(family);
   const skip = homes.size > 0 ? new Set([...crafts, ...homes]) : crafts;
-  const water = householdWaterLabor(state.people, state.dwellings, skip);
-  const manor = family ? manorLabor(state, day, coverage.pottery, productivity, family) : null;
+  const water = householdWaterLabor(state.people, state.dwellings, skip, chores);
+  const manor = family
+    ? manorLabor(state, day, coverage.pottery, productivity, family, chores)
+    : null;
+  const own = minimum * chores.minimumShare;
   const dailyMin =
     householdElders(state.people, day, skip).reduce(
-      (sum, elders, k) => sum + adultDailyMin(minimum + water[k]!, elders, productivity),
+      (sum, elders, k) => sum + adultDailyMin(own + water[k]!, elders, productivity),
       0,
     ) + (manor ? manor.uncovered : 0);
   return {
@@ -592,16 +618,21 @@ function harvestHands(
 
 /**
  * Práce vsi za den na poli ve žních a výmlatu (člověkodny – den oken `july` a `august`
- * v `sowingCapacity`): volná práce vsi po denním minimu se žňovými rukama, ve špičce
- * PEAK_CAPACITY_SHARE. Podle ní i výhled výmlatu (`sheavesOutlook` – ruce do konce okna).
+ * v `sowingCapacity`): volná práce vsi po denním minimu žňového dne (`HARVEST_CHORES`) se žňovými
+ * rukama, ve špičce PEAK_CAPACITY_SHARE, dnešní délkou dne (`daylightFactor`). Podle ní i výhled
+ * výmlatu (`sheavesOutlook` – ruce do konce okna).
  */
 export function harvestLaborPerDay(
   state: VillageState,
   day: number,
   coverage: CraftCoverage,
 ): number {
-  const labor = freeLabor(state, day, coverage);
-  return (labor.villageFree + harvestHands(state, day, coverage, labor)) * PEAK_CAPACITY_SHARE;
+  const labor = freeLabor(state, day, coverage, HARVEST_CHORES);
+  return (
+    (labor.villageFree + harvestHands(state, day, coverage, labor)) *
+    PEAK_CAPACITY_SHARE *
+    daylightFactor(day)
+  );
 }
 
 /**
@@ -638,19 +669,23 @@ export function sowingCapacity(
   options: { lord?: boolean; ploughCapacity?: NonNullable<SowingCapacity['plough']> } = {},
 ): SowingCapacity {
   const labor = freeLabor(state, day, coverage);
-  const { manor, villageFree } = labor;
+  const { villageFree } = labor;
+  // žně se skladbou žňového dne – poloviční minimum, voda na pole (population.md – Skladba dne
+  // podle ročního období)
+  const harvestLabor = freeLabor(state, day, coverage, HARVEST_CHORES);
   // s rodinou (`lord` – lord.md, Kdy jde rodina na pole) ve žních i práce celé cvičící rodiny po
   // minimu dvorce (`free`) – jen lidé, spřežení ne; s osevem rodina nepomáhá
-  const lordFree = options.lord === true && manor ? manor.free : 0;
+  const lordFree = options.lord === true && harvestLabor.manor ? harvestLabor.manor.free : 0;
   const free = villageFree * PEAK_CAPACITY_SHARE;
   const hands = harvestHands(state, day, coverage, labor);
-  const harvestFree = (villageFree + hands + lordFree) * PEAK_CAPACITY_SHARE;
+  const harvestFree = (harvestLabor.villageFree + hands + lordFree) * PEAK_CAPACITY_SHARE;
+  // venkovní práce podle světla: den okna dá `daylightFactor` dnešního člověkodne – světlé dny
+  // okna (`windowDaylightWithout`), stejná délka dne jako práce dne
   const days = (
     segments: Parameters<typeof windowDaysLeft>[1],
     sowing = false,
     perDay = free,
-  ): number =>
-    perDay * Math.max(0, windowDaysLeft(day, segments) - (sowing ? SOW_AFTER_DIG_DAYS : 0));
+  ): number => perDay * windowDaylightWithout(day, segments, sowing ? SOW_AFTER_DIG_DAYS : 0);
   // výmlat snopů hned po žni (production-chains.md – Humno) bere podzimní práci: co z něj zbývá
   // (na humnech nejvýš jejich kapacita za dny okna, v roce odkladu i nouzově), ubere podzim ozimu
   // i celý podzim – mlátí se před setím ozimu; žňové ruce mlátí se vsí, ves dá jen svůj díl
@@ -676,8 +711,9 @@ export function sowingCapacity(
       state,
       landscape,
     );
+  // voli orají za světla – světlé dny oken orby
   const ploughDays = (segments: Parameters<typeof windowDaysLeft>[1], sowing = false): number =>
-    perDay * Math.max(0, windowDaysLeft(day, segments) - (sowing ? SOW_AFTER_DIG_DAYS : 0));
+    perDay * windowDaylightWithout(day, segments, sowing ? SOW_AFTER_DIG_DAYS : 0);
   // okna kopání jaře: podzim jako vracení přílohu, jaro jako setí
   return {
     ...people,
@@ -725,8 +761,9 @@ export function ploughPairsForRotation(
   const cap = Math.min(OXEN.maxPairs, staffed);
   if (perPair <= 0) return cap;
   // dny oken orby do konce hospodářského roku – ozim jen na podzim, jař na podzim i na jaře
+  // světlé dny oken (voli orají za světla – population.md, Skladba dne podle ročního období)
   const days = (crop: Crop): number =>
-    Math.max(1, windowDaysLeft(day, cropTaskWindows(crop, 'plough')) - SOW_AFTER_DIG_DAYS);
+    Math.max(1, windowDaylightWithout(day, cropTaskWindows(crop, 'plough'), SOW_AFTER_DIG_DAYS));
   const pairs = Math.max(
     autumnLoad / (perPair * days('winter')),
     allLoad / (perPair * days('spring')),

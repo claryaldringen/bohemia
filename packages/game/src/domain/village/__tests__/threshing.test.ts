@@ -508,13 +508,14 @@ describe('výhled jídla a plán osevu', () => {
   });
 
   it('výhled s rukama vsi do konce okna: humno mlátí víc dní – dřív výhled počítal všechno dnes', () => {
-    // 1. 9.: 200 čd výmlatu jaře, jedno humno, ruce ≈ 30 čd denně – humno mlátí 8 dní
+    // 1. 9.: 200 čd výmlatu jaře, jedno humno, ruce ≈ 36 čd denně (žňový den – poloviční minimum,
+    // den 1,1 – population.md, Skladba dne podle ročního období) – humno mlátí 8 dní
     const day = at(601, 9, 1);
     const sheaves = { grainKg: 2000, legumesKg: 0, work: { spring: 200 } };
     const s = withThreshHands(withHands(withSheaves(day, sheaves), day, 28), day);
     const hands = s.threshHands!;
-    expect(hands).toBeGreaterThan(25);
-    expect(hands).toBeLessThan(35);
+    expect(hands).toBeGreaterThan(30);
+    expect(hands).toBeLessThan(40);
     const outlook = sheavesOutlook(s, day);
     // výhled = výmlat po dnech s rukama vsi (bez kazení – okno stačí)
     expect(outlook.grainKg).toBeCloseTo(threshByDays(structuredClone(s), day, hands).grainKg, 6);

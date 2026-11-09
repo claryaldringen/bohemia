@@ -188,7 +188,8 @@ describe('simulace bez hledání tras vozu', () => {
   }
 
   it('vůz jede pro vodu podle odhadu – mřížka ani trasy vozu se nehledají', () => {
-    const day = at(601, 1, 10);
+    // den bez sněhu (population.md – Skladba dne podle ročního období)
+    const day = at(601, 11, 15);
     calls.grid = 0;
     calls.routes = 0;
     calls.cost = 0;

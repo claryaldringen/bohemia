@@ -991,8 +991,22 @@ tedy 1 / 0,3 ≈ **3,3 čd/ha** (návrh Clauda). Přijde-li ves během roku o po
 setí zbytku plodiny se přepočte na sazbu motyky s hotovým podílem (návrh Clauda). Nošení osiva
 vozem (crafts.md) bere dál desetinu práce setí.
 
+**Délka dne** (population.md – Skladba dne podle ročního období; Martin 9. 11. 2026, čísla
+návrh Clauda): den venkovní práce dá (hodiny světla bez jídla a přestávek ÷ 10) člověkodne –
+v polovině ledna a prosince 0,7, února 0,85, března 1,0, dubna 1,15, května 1,3, června
+a července 1,4, srpna 1,3, září 1,1, října 0,95, listopadu 0,8, mezi polovinami měsíců lineárně
+(`DAYLIGHT_WORK`, `daylightFactor`). Násobí se, co zbude po pracích „za den“ (denní minimum,
+péče o koně, kování, lidé na výpravách, sedláci s vozy pro kováře), zásobníky polní práce (ženy
+řemeslníků, žňové ruce, děti při pletí, pomoc vojvodovy rodiny), robota hostů a kapacita
+spřežení (voli orají za světla). Sazby prací na hektar zůstávají – vznikly z hodin přepočtených
+na 10 h. Plán (kapacita setí `sowingCapacity`, páry k rádlům, čelo práce, výhled zásob a výmlatu)
+počítá se stejnou délkou dne: v oknech „světlé dny“ (`windowDaylightLeft`) místo dnů, v čele
+práce a tempu setí dnešní délku dne. Žně v červenci a srpnu tak mají ≈ 1,35× víc práce než
+dřív, zimní stavby ≈ 0,7×; za rok ≈ 1,05×.
+
 Navazuje na pracovní sílu z [populace](population.md) – Práce (na polích a stavbách jen dospělý
-1 člověkoden za den; starší 0,5 jen na denní minimum své domácnosti, výrostci 7–13 let jen pasou).
+1 člověkoden za den podle délky dne; starší 0,5 jen na denní minimum své domácnosti, výrostci
+7–13 let jen pasou).
 Pole jsou společná, a proto se práce počítá **za celou ves**: dospělí všech domácností pracují na
 společných polích (Martin). Martin (19. 10. 2026): „Vesničané se snaží vyrobit co nejvíce jídla
 (později přibudou nejspíš i jiné suroviny), ale pokud se něco staví, tak čas věnují primárně té

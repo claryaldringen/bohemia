@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { daylightFactor } from '../../village/daylight';
 import { dayIndexOf } from '../../calendar';
 import { packObstacles } from '../../landscape';
 import { foundVillage } from '../../village/actions';
@@ -216,8 +217,11 @@ describe('robota (dispatchCorvee, returnHome, hostGuests)', () => {
     const days = 5;
     const without = advanceVillage(started.state, started.state.lastDay + days, empty, landscape);
     const withGuests = advanceVillage(hosted, hosted.lastDay + days, empty, landscape);
-    // 3 hosté × 5 dní = 15 čd navíc přímo do valu
-    expect(fortDone(withGuests) - fortDone(without)).toBeCloseTo(15, 2);
+    // 3 hosté × 5 dní venku podle délky dne (population.md – Skladba dne podle ročního období)
+    // navíc přímo do valu
+    let light = 0;
+    for (let d = hosted.lastDay + 1; d <= hosted.lastDay + days; d++) light += daylightFactor(d);
+    expect(fortDone(withGuests) - fortDone(without)).toBeCloseTo(3 * light, 2);
     // hosté jedí ze zásob hostitele
     expect(withGuests.storesKg).toBeLessThan(without.storesKg);
   });

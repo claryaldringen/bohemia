@@ -144,6 +144,9 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
     // hash 673f1d6b (26. 10. 2026, oprava po recenzi W7): roční kvóta ryb a zajíců, čerstvé maso a brzda letošním úlovkem – jiný úlovek, jídlo a stav zvěře; dřív 7fc9acc1
     // hash 8498535 (26. 10. 2026, závěrečná oprava zvěře): drobná zvěř loňska se do chuti na bílkoviny nepočítá, jen letošní – jiný úlovek ryb a jídlo; dřív 673f1d6b
     // hash 52acb247 (9. 11. 2026, len z polí vyřazený – fields.md, Zahrádka u obydlí): plán bez dílů lnu, jař místo nich, oděv ze zahrádek – jiný osev, práce a štěstí; dřív 8498535
-    expect(hash(stripped)).toBe('52acb247');
+    // hash 5a2a134f (9. 11. 2026, skladba dne podle období – population.md: venkovní práce podle
+    // délky dne, poloviční minimum ve žních, dříví v zimě, se sněhem bez vody): jiná práce, osev
+    // a zásoby; dřív 52acb247
+    expect(hash(stripped)).toBe('5a2a134f');
   }, 120_000);
 });

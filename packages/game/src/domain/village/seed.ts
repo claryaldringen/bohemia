@@ -16,6 +16,7 @@ import { drawGrainPits } from './grain-pits';
 import { dateOfDayIndex } from '../calendar';
 import { ableTeams, oxenStrength } from './oxen';
 import { ageGroup, laborPerDay } from './people';
+import { daylightFactor } from './daylight';
 import { PLOUGH_HA_PER_DAY } from './plough';
 import { fieldWorkPerHa } from './productivity';
 import { CROP_WINDOWS, PEAK_CAPACITY_SHARE, SEED_BUYING, SEED_STORES, STARVATION } from './rules';
@@ -225,13 +226,15 @@ function sowingHaPerDay(
   crop: SowingCrop,
   toolCoverage: number,
 ): number {
+  // dnešní délka dne (population.md – Skladba dne podle ročního období) – voli i lidé venku
+  const daylight = daylightFactor(day);
   const teams = ableTeams(state, day);
-  if (teams > 0) return teams * PLOUGH_HA_PER_DAY * oxenStrength(state, day);
+  if (teams > 0) return teams * PLOUGH_HA_PER_DAY * oxenStrength(state, day) * daylight;
   const perHa =
     fieldWorkPerHa('dig', toolCoverage, crop) + fieldWorkPerHa('sow', toolCoverage, crop);
   if (perHa <= EPSILON) return Infinity;
   const labor = state.people.reduce((sum, p) => sum + laborPerDay(p, day), 0);
-  return (labor * PEAK_CAPACITY_SHARE) / perHa;
+  return (labor * PEAK_CAPACITY_SHARE * daylight) / perHa;
 }
 
 /**

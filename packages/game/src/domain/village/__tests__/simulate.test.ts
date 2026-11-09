@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { daylightFactor } from '../daylight';
 import { TOTAL_GAME_DAYS, dayIndexOf } from '../../calendar';
 import { foundField, foundVillage, startNewDwelling, startReplacement } from '../actions';
 import type { PartInput } from '../actions';
@@ -750,7 +751,11 @@ describe('advanceVillage – založení vsi', () => {
     // výrostci (13 a 12 let) pasou, zvířata a domácí výroba jdou bokem (population.md – Práce)
     const before = advanceVillage(s0, day + 29, null);
     const factor = villageLaborFactor(before);
-    expect(s.commonLaborHistory.at(-1)).toBeCloseTo(2 * factor - 0.5, 9);
+    // venku podle délky dne (population.md – Skladba dne podle ročního období)
+    expect(s.commonLaborHistory.at(-1)).toBeCloseTo(
+      (2 * factor - 0.5) * daylightFactor(day + 30),
+      9,
+    );
     // práce bokem je v rozdělení dne jen pro postavy – dojení krávy v říjnu, domácí výroba
     const aside = s.labor!.aside!;
     expect(aside.some((share) => share.activity === 'domestic')).toBe(true);
@@ -1471,11 +1476,16 @@ describe('advanceVillage – ozim a jař (fields.md – Ozim a jař)', () => {
   });
 
   it('ozim se do konce října zkope a zaseje, jař se kope na podzim, co zbude', () => {
-    const autumn = advanceVillage(settled(), at(601, 10, 31), null);
+    // díly, které přibyly aspoň WORK_FRONT_DAYS dní před koncem okna; díl dozakládaný v posledních
+    // dnech října přibude na čelo i tak (čelo konec okna nehlídá) a kratší říjnový den ho už
+    // nestihne (population.md – Skladba dne podle ročního období)
+    const before = advanceVillage(settled(), at(601, 10, 28), null);
+    const early = seasonCrop(before.season!, 'winter')!.required;
+    const autumn = advanceVillage(before, at(601, 10, 31), null);
     const winter = seasonCrop(autumn.season!, 'winter')!;
-    expect(winter.done.dig).toBeCloseTo(winter.required.dig, 6);
+    expect(winter.done.dig).toBeGreaterThanOrEqual(early.dig - 1e-6);
     // plán nechá poslední den okna na zasetí pruhu zkopaného den předtím
-    expect(winter.done.sow).toBeCloseTo(winter.required.sow, 6);
+    expect(winter.done.sow).toBeGreaterThanOrEqual(early.sow - 1e-6);
     const november = advanceVillage(autumn, at(601, 11, 30), null);
     expect(seasonCrop(november.season!, 'winter')!.done.sow).toBe(winter.done.sow); // po okně se už neseje
     if (springCrop(november.season!).required.dig > 0)

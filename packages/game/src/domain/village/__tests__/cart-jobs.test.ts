@@ -418,7 +418,8 @@ describe('voda v sudech (wagons.md – Co vozy vozí, paths.md – Pochůzky pro
   }, 60_000);
 
   it('ves daleko od vody vozí vodu vozem – jízdy jdou do ročního provozu cest', () => {
-    const day = at(601, 1, 10);
+    // den bez sněhu (population.md – Skladba dne podle ročního období)
+    const day = at(601, 11, 15);
     const s = village(day, { x: 0, z: -135, rotation: 0 });
     const next = advanceVillage(s, day + 2, null, LANDSCAPE);
     const haul = hauls(next).find((share) => share.job === 'water');

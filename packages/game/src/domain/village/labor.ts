@@ -1,7 +1,34 @@
 import { ageGroup } from './people';
 import { dailyMinPerHousehold } from './productivity';
-import { LABOR_PER_DAY, WATER_FETCHING, WEEDING_WOMEN } from './rules';
+import { DAY_CHORES, LABOR_PER_DAY, WATER_FETCHING, WEEDING_WOMEN } from './rules';
 import type { Dwelling, OrchardTaskName, Person, TaskName } from './types';
+
+/**
+ * Skladba denního minima domácností podle období (population.md – Skladba dne podle ročního
+ * období; Martin 9. 11. 2026) – `dayChores` (day-chores.ts).
+ */
+export interface DayChores {
+  /** Násobek denního minima domácnosti – ve žňový den DAY_CHORES.harvestMinimumShare, jinak 1. */
+  minimumShare: number;
+  /** Nosí se voda domů (přirážka za chůzi pro vodu)? Ne ve žňový den ani když leží sníh. */
+  water: boolean;
+  /** Nosí se dříví na topení (přirážka za chůzi k okraji lesa)? V topné sezóně. */
+  wood: boolean;
+}
+
+/** Den jako dřív (léto): plné minimum, voda, bez dříví – výchozí pro volající bez období. */
+export const SUMMER_CHORES: DayChores = Object.freeze({
+  minimumShare: 1,
+  water: true,
+  wood: false,
+});
+
+/** Žňový den (population.md – Skladba dne): poloviční minimum, voda se nosí na pole, ne domů. */
+export const HARVEST_CHORES: DayChores = Object.freeze({
+  minimumShare: DAY_CHORES.harvestMinimumShare,
+  water: false,
+  wood: false,
+});
 
 /**
  * Sezónní práce v rozdělení práce vsi – polní (fields.md), orba rádlem, seč sena (oxen.md),
@@ -96,10 +123,23 @@ export interface DayAllocationInput {
    */
   manorMin?: number;
   /**
-   * Přirážka denního minima za chůzi pro vodu po domácnostech (člověkodny, ve stejném pořadí jako
-   * `householdElders` – `householdWaterLabor`); bez údaje 0. Kryjí ji starší jako zbytek minima.
+   * Přirážka denního minima za chůzi pro vodu (a v topné sezóně pro dříví – `woodFetchingLabor`)
+   * po domácnostech (člověkodny, ve stejném pořadí jako `householdElders` – `householdWaterLabor`);
+   * bez údaje 0. Kryjí ji starší jako zbytek minima.
    */
   householdWater?: readonly number[];
+  /**
+   * Násobek denního minima domácností podle období (`DayChores.minimumShare` – ve žňový den
+   * poloviční; population.md – Skladba dne podle ročního období); bez údaje 1.
+   */
+  minimumShare?: number;
+  /**
+   * Venkovní práce podle světla (population.md – Skladba dne podle ročního období;
+   * `daylightFactor`): práce vsi, která zbude po denním minimu, péči o koně, kování, výpravách
+   * a vozech pro kováře (ty jsou „za den“), a zásobníky polní práce (`light`, `harvestHands`,
+   * `weedChildren`, `womenLabor`, `lordHelp`) se násobí – zima ≈ 0,7, žně ≈ 1,4. Bez údaje 1.
+   */
+  daylight?: number;
   /**
    * Úlohy dne v pořadí přednosti. `follow` – setí týž den hned za orbou nebo motykou (fields.md –
    * Práce; Martin 9. 11. 2026: „Za oráčem by měl jít někdo z rodiny a rovnou zasívat“): úloha
@@ -193,7 +233,7 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     left -= amount;
     return amount;
   };
-  const minimum = dailyMinPerHousehold(input.potteryCoverage);
+  const minimum = dailyMinPerHousehold(input.potteryCoverage) * (input.minimumShare ?? 1);
   const water = input.householdWater ?? [];
   let minimums = 0;
   let adults = 0;
@@ -215,6 +255,11 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
   const away = take(input.away ?? 0);
   // sedláci s vozy pro kováře (crafts.md – Uhlí a ruda kováře) – po výpravách, před úlohami
   const carting = take(input.carting ?? 0);
+  // venkovní práce podle světla (population.md – Skladba dne podle ročního období): co zbude po
+  // pracích „za den“, dají lidé venku tak dlouho, jak je světlo
+  const daylight = Math.max(0, input.daylight ?? 1);
+  left *= daylight;
+  const outdoor = productivity * daylight;
   const tasks: Record<LaborTaskName, number> = {
     reclaim: 0,
     dig: 0,
@@ -232,14 +277,14 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     'orchard-harvest': 0,
   };
   // lehká práce žen řemeslníků – jen na lehké úlohy, napřed ta, pak obecná kapacita
-  let lightLeft = Math.max(0, (input.light ?? 0) * productivity);
+  let lightLeft = Math.max(0, (input.light ?? 0) * outdoor);
   // žňové ruce (fields.md – Žně všemi rukama) – jen žeň a výmlat, za lehkou prací žen
-  const handsPool = Math.max(0, (input.harvestHands ?? 0) * productivity);
+  const handsPool = Math.max(0, (input.harvestHands ?? 0) * outdoor);
   let handsLeft = handsPool;
   // děti při pletí (fields.md – Pletí – děti) – jen pletí, před dospělými
-  const kidsPool = Math.max(0, (input.weedChildren ?? 0) * productivity);
+  const kidsPool = Math.max(0, (input.weedChildren ?? 0) * outdoor);
   let kidsLeft = kidsPool;
-  const helpPool = Math.max(0, (input.lordHelp ?? 0) * productivity);
+  const helpPool = Math.max(0, (input.lordHelp ?? 0) * outdoor);
   let helpLeft = helpPool;
   const taskAmounts = input.tasks.map(() => 0);
   // pletí napřed (fields.md – Pletí jednou a rychle): děti, ženy řemeslníků, pak ženy vsi – jejich
@@ -249,7 +294,7 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     Math.max(
       0,
       Math.max(0, input.womenLabor ?? 0) * productivity - WEEDING_WOMEN.dailyMinShare * dailyMin,
-    ),
+    ) * daylight,
   );
   let weedWomen = 0;
   let weedLight = 0;
@@ -400,35 +445,79 @@ export function householdElders(
  */
 export function householdWaterLabor(
   people: readonly Person[],
-  dwellings: readonly Pick<Dwelling, 'id' | 'waterWalkM'>[],
+  dwellings: readonly Pick<Dwelling, 'id' | 'waterWalkM' | 'forestWalkM'>[],
   skip: ReadonlySet<number> = new Set(),
+  chores: DayChores = SUMMER_CHORES,
 ): number[] {
-  return householdWater(people, dwellings, skip).map((h) => h.labor);
+  return householdWater(people, dwellings, skip, chores).map((h) => h.labor + (h.wood ?? 0));
 }
 
 /** Domácnost a její chůze pro vodu (`householdWater`). */
 export interface HouseholdWater {
   dwellingId: number;
   people: number;
-  /** Přirážka denního minima za chůzi pro vodu (čd za den – `waterFetchingLabor`). */
+  /**
+   * Přirážka denního minima za chůzi pro vodu (čd za den – `waterFetchingLabor`); 0, když se
+   * voda domů nenosí (`DayChores.water` – žně, sníh).
+   */
   labor: number;
+  /**
+   * Přirážka za chůzi pro dříví k okraji lesa (čd za den – `woodFetchingLabor`; jen v topné
+   * sezóně; chybí = 0). Vůz s vodou ji neušetří.
+   */
+  wood?: number;
 }
 
 /**
- * Domácnosti a jejich přirážka za chůzi pro vodu (ve stejném pořadí jako `householdElders`) –
- * podklad pro vodu vozem (wagons.md – Co vozy vozí, cart-jobs.ts).
+ * Domácnosti a jejich přirážka za chůzi pro vodu a dříví (ve stejném pořadí jako
+ * `householdElders`) podle skladby dne `chores` – podklad pro vodu vozem (wagons.md – Co vozy
+ * vozí, cart-jobs.ts).
  */
 export function householdWater(
   people: readonly Person[],
-  dwellings: readonly Pick<Dwelling, 'id' | 'waterWalkM'>[],
+  dwellings: readonly Pick<Dwelling, 'id' | 'waterWalkM' | 'forestWalkM'>[],
   skip: ReadonlySet<number> = new Set(),
+  chores: DayChores = SUMMER_CHORES,
 ): HouseholdWater[] {
-  const walks = new Map(dwellings.map((d) => [d.id, d.waterWalkM]));
+  const walks = new Map(dwellings.map((d) => [d.id, d]));
   return [...householdsOf(people, skip)].map(([id, members]) => ({
     dwellingId: id,
     people: members.length,
-    labor: waterFetchingLabor(members.length, walks.get(id)),
+    labor: chores.water ? waterFetchingLabor(members.length, walks.get(id)?.waterWalkM) : 0,
+    wood: chores.wood ? woodFetchingLabor(walks.get(id)?.forestWalkM) : 0,
   }));
+}
+
+/**
+ * Denní minimum domácnosti podle období (population.md – Skladba dne podle ročního období):
+ * minimum `minimum` × `DayChores.minimumShare` + chůze pro vodu (`water` – jen když se nosí)
+ * a dříví (`wood` – v topné sezóně) domácnosti `people` lidí z obydlí `dwelling`.
+ */
+export function householdMinimum(
+  minimum: number,
+  people: number,
+  dwelling: Pick<Dwelling, 'waterWalkM' | 'forestWalkM'> | undefined,
+  chores: DayChores = SUMMER_CHORES,
+): number {
+  return (
+    minimum * chores.minimumShare +
+    (chores.water ? waterFetchingLabor(people, dwelling?.waterWalkM) : 0) +
+    (chores.wood ? woodFetchingLabor(dwelling?.forestWalkM) : 0)
+  );
+}
+
+/**
+ * Chůze pro dříví na topení nad denní minimum (člověkodny za den; population.md – Skladba dne
+ * podle ročního období, čísla návrh Clauda – DAY_CHORES): `woodTrips` cest na domácnost tam
+ * a zpět k okraji lesa `walkM` m chůze daleko, prvních WATER_FETCHING.includedM v ceně minima,
+ * rychlost a den jako u vody. Bez změřené chůze (bez krajiny) 0.
+ */
+export function woodFetchingLabor(walkM: number | undefined): number {
+  if (walkM === undefined) return 0;
+  const extraM = Math.max(0, walkM - WATER_FETCHING.includedM);
+  return (
+    (DAY_CHORES.woodTrips * 2 * extraM) / WATER_FETCHING.speedMps / (WATER_FETCHING.dayHours * 3600)
+  );
 }
 
 /**

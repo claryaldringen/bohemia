@@ -360,7 +360,9 @@ describe('výkon spřežení za den', () => {
     const busy = ploughed(true);
     expect(busy.thresh).toBeGreaterThan(0);
     expect(busy.plough).toBeGreaterThan(0);
-    expect(busy.plough).toBeCloseTo(ploughed(false).plough, 9);
+    // výmlat dělá ze dne žňový den – poloviční minimum nechá orbě víc (population.md – Skladba dne
+    // podle ročního období), nikdy méně
+    expect(busy.plough).toBeGreaterThanOrEqual(ploughed(false).plough - 1e-9);
   });
 
   it('v dubnu dostane orba práci první a osev zbytek – osev se nezastaví (Martin, 24. 10. 2026)', () => {

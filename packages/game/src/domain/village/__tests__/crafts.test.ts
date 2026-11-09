@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { daylightFactor } from '../daylight';
 import { dayIndexOf } from '../../calendar';
 import { packObstacles, type ObstacleLayer, type ObstaclePlacement } from '../../landscape';
 import { foundField, foundVillage, startWorkshop } from '../actions';
@@ -339,8 +340,12 @@ describe('pokrytí a meze produktivity (crafts.md – Účinek)', () => {
     potted.crafts = { charcoalKg: 0, potteryKg: 1000 };
     const a = advanceVillage(base, DAY + 1, null);
     const b = advanceVillage(potted, DAY + 1, null);
-    // denní minimum jedné domácnosti 0,5 → 0,45
-    expect(b.commonLaborHistory.at(-1)! - a.commonLaborHistory.at(-1)!).toBeCloseTo(0.05, 9);
+    // denní minimum jedné domácnosti 0,5 → 0,45 – venku podle délky dne (population.md – Skladba
+    // dne podle ročního období)
+    expect(b.commonLaborHistory.at(-1)! - a.commonLaborHistory.at(-1)!).toBeCloseTo(
+      0.05 * daylightFactor(DAY + 1),
+      9,
+    );
     // ztráty zásob 10 → 5 % ročně
     const expected = 50_000 * (0.95 ** (1 / 365) - 0.9 ** (1 / 365));
     expect(b.storesKg - a.storesKg).toBeCloseTo(expected, 6);

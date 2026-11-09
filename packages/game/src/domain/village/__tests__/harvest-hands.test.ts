@@ -5,8 +5,16 @@ import { craftCoverage, craftHarvestLabor, newWorkshop, workshopLabor } from '..
 import { harvestHandsDay, harvestHelperLabor, HARVEST_HANDS_MONTHS } from '../harvest-hands';
 import { allocateDay } from '../labor';
 import { harvestFieldIds, lordApartIds, lordFamily, lordRides, manorLabor } from '../lord';
-import { NO_CRAFTS } from '../productivity';
-import { CRAFT_BASE, FIELD_WORK_PER_HA, HARVEST_HELPERS, HARVEST_WORK_PER_HA } from '../rules';
+import { NO_CRAFTS, dailyMinPerHousehold } from '../productivity';
+import {
+  CRAFT_BASE,
+  DAY_CHORES,
+  FIELD_WORK_PER_HA,
+  HARVEST_HELPERS,
+  HARVEST_WORK_PER_HA,
+  LABOR_PER_DAY,
+} from '../rules';
+import { SOWING_CAPACITY_WINDOWS, windowDaylightLeft, windowDaylightWithout } from '../sowing';
 import { advanceVillage } from '../simulate';
 import { sowingCapacity, villageProductivity } from '../simulate-plan';
 import type { Person, VillageState } from '../types';
@@ -186,7 +194,12 @@ describe('řemeslníci ve žních (workshopLabor, craftHarvestLabor)', () => {
     expect(calm.craft).toBeGreaterThan(0);
     expect(harvest.craft).toBe(0);
     expect(harvest.harvest).toBeCloseTo(calm.craft, 12);
-    expect(harvest.light).toBeCloseTo(calm.light, 12);
+    // ve žňový den poloviční minimum domácnosti – ženě zbude víc na lehké práce (population.md –
+    // Skladba dne podle ročního období)
+    expect(harvest.light).toBeCloseTo(
+      calm.light + dailyMinPerHousehold(0) * (1 - DAY_CHORES.harvestMinimumShare),
+      12,
+    );
     expect(craftHarvestLabor(s, day, new Set([WORKSHOP]), 0, 1)).toBeCloseTo(calm.craft, 12);
     expect(craftHarvestLabor(s, at(600, 10, 10), new Set([WORKSHOP]), 0, 1)).toBe(0);
   });
@@ -245,7 +258,7 @@ describe('výrostci a starší ve žních (harvestHelperLabor)', () => {
     ).toBeCloseTo(2 * HARVEST_HELPERS.perDay, 12);
   });
 
-  it('starší, který kryje denní minimum, žeň nepřidá; nad minimum ano (celkem 0,5, ne +0,5)', () => {
+  it('starší kryje napřed poloviční minimum žňového dne, žeň dá zbytek (celkem 0,5, ne +0,5)', () => {
     const base = harvestVillage();
     const elder = (id: number, dwellingId: number): Person => person(id, 55, dwellingId, 'female');
     const view = (list: Person[]): VillageState => ({
@@ -254,7 +267,12 @@ describe('výrostci a starší ve žních (harvestHelperLabor)', () => {
       livestock: undefined,
     });
     const one = [elder(1, OUTSIDE), person(2, 30, OUTSIDE, 'male')];
-    expect(harvestHelperLabor(view(one), START)).toBe(0);
+    // ve žňový den se vaří méně – minimum poloviční (population.md – Skladba dne podle ročního
+    // období), starší dá žni, co mu nad ně zbude
+    expect(harvestHelperLabor(view(one), START)).toBeCloseTo(
+      LABOR_PER_DAY.elder - dailyMinPerHousehold(0) * DAY_CHORES.harvestMinimumShare,
+      12,
+    );
     // dva starší v domácnosti: minimum (< 1 čd) kryjí napřed, žeň dá jen zbytek
     const two = [elder(1, OUTSIDE), elder(3, OUTSIDE), person(2, 30, OUTSIDE, 'male')];
     const labor = harvestHelperLabor(view(two), START);
@@ -336,9 +354,20 @@ describe('plán osevu (sowingCapacity)', () => {
     expect(helpers).toBeLessThanOrEqual(HARVEST_HELPERS.perDay * p + 1e-9);
     // rodina vojvody ve žních jen s `lord` (lord.md – Kdy jde rodina na pole)
     const hands = labor.craft + labor.harvest + helpers;
-    // plán kapacity počítá s dnem rezervy v okně setí (SOW_AFTER_DIG_DAYS)
-    const springPerDay = capacity.spring / (30 + 31 - 1);
-    expect(capacity.july / 31 - springPerDay).toBeCloseTo(hands, 9);
-    expect(capacity.august / 31 - springPerDay).toBeCloseTo(hands, 9);
+    // žně se skladbou žňového dne – domácnost OUTSIDE má poloviční minimum (population.md –
+    // Skladba dne podle ročního období; dvorec kryje cvičící rodina)
+    const gain = dailyMinPerHousehold(coverage.pottery) * (1 - DAY_CHORES.harvestMinimumShare);
+    // plán kapacity počítá světlé dny oken (délka dne) a den rezervy v okně setí
+    // (SOW_AFTER_DIG_DAYS)
+    const w = SOWING_CAPACITY_WINDOWS;
+    const springPerDay = capacity.spring / windowDaylightWithout(day, w.spring, 1);
+    expect(capacity.july / windowDaylightLeft(day, w.july) - springPerDay).toBeCloseTo(
+      hands + gain,
+      9,
+    );
+    expect(capacity.august / windowDaylightLeft(day, w.august) - springPerDay).toBeCloseTo(
+      hands + gain,
+      9,
+    );
   });
 });

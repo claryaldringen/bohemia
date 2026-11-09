@@ -1,6 +1,7 @@
 import { length2, type Landscape, type ObstacleLayer } from '../landscape';
 import { buildingLocalToWorld, fellTrees, obstacleChangesAt } from './obstacles';
-import { adultDailyMin, waterFetchingLabor } from './labor';
+import { adultDailyMin, householdMinimum } from './labor';
+import { dayChores } from './day-chores';
 import { ageGroup, laborPerDay } from './people';
 import {
   barsReserveKg,
@@ -774,8 +775,14 @@ export function workshopLabor(
   // denní minimum (s přirážkou za chůzi pro vodu) kryjí napřed starší domácnosti, dospělí dají
   // zbytek (population.md – Práce)
   const elders = members.filter((p) => ageGroup(p, day) === 'elder').length;
-  const water = waterFetchingLabor(members.length, dwelling?.waterWalkM);
-  const minimum = dailyMinPerHousehold(potteryCoverage) + water;
+  // skladba dne podle období (population.md – Skladba dne podle ročního období)
+  const harvest = harvestHandsDay(state, day);
+  const minimum = householdMinimum(
+    dailyMinPerHousehold(potteryCoverage),
+    members.length,
+    dwelling,
+    dayChores(state, day, harvest),
+  );
   const dailyMin = take(adultDailyMin(minimum, elders, productivity));
   // řemeslo dělá jen řemeslník a jeho synové; zbytek práce žen jde do lehčích prací se vsí
   const handsCapacity =
@@ -783,7 +790,6 @@ export function workshopLabor(
   const hands = Math.min(left, handsCapacity);
   // ve žňový den jde řemeslník se syny na pole (fields.md – Žně všemi rukama; Martin 24. 10. 2026:
   // „Dílny i vojvodova rodina“), ženy dál domácnost a lehčí práce
-  const harvest = harvestHandsDay(state, day);
   return {
     capacity,
     dailyMin,
