@@ -9,6 +9,7 @@ import {
   pincerArmKind,
   pincerArms,
   pincerSpace,
+  pincerWallAllowed,
   gatePincerStands,
   gateTowerIsOld,
   segmentStands,
@@ -40,11 +41,13 @@ import type { Construction, Fortification, VillageState } from './types';
 // Vylepšení brány (fortifications.md – Hradby a obrana, Brány; Martin 8. 11. 2026: „Od palisády
 // výše může hráč či NPC vylepšit bránu ve dvou úrovních 1. klešťová brána (za opevněním však musí
 // být dost místa) 2. dřevěná věž nad samotnou branou.“). Klešťová brána = ramena hradby s ochozem
-// podél uličky (`fortification/pincer.ts`), věž jen na klešťové bráně. Správce ani jedno nestaví
-// (Správce – návrh Clauda); dožilou věž obyvatelé přestaví sami (`decideTowerRebuilds`).
+// podél uličky (`fortification/pincer.ts`), věž jen na klešťové bráně. Obojí jen u hradby s ochozem
+// (Martin 9. 11. 2026: „Pokud budeme mít obyčejnou palisádu bez ochozu, nemůže tam stát klešťová
+// brána, ale jen obyč“ – `pincerWallAllowed`). Správce ani jedno nestaví (Správce – návrh Clauda);
+// dožilou věž obyvatelé přestaví sami (`decideTowerRebuilds`).
 
 /** Důvody odmítnutí česky (u kurzoru a v odpovědi akce). */
-export const FORT_GATE_LOW = 'Bránu jde vylepšit až u palisády.';
+export const FORT_GATE_LOW = 'Bránu jde vylepšit až u hradby s ochozem.';
 export const FORT_GATE_NO_ROOM = 'Za branou není místo.';
 export const FORT_GATE_DOWN = 'Brána nestojí.';
 export const FORT_PINCER_DONE = 'Brána už je klešťová.';
@@ -146,10 +149,12 @@ function pincerRoom(
 }
 
 /**
- * Kontrola vylepšení brány dílu `input.segment` ke dni `day`: brána je, hradba dílu je aspoň
- * palisáda (plot ani holý val ne – „od palisády výše“), díl stojí a nestaví se na něm; klešťová
- * jen jednou a s místem za branou, věž jen na hotové klešťové bráně a jednou. Cena klešťové =
- * `pincerGate.wallM` (24 m) hradby druhu dílu s ochozem (`pincerArmKind`), věž `towerCost`.
+ * Kontrola vylepšení brány dílu `input.segment` ke dni `day`: brána je, hradba dílu je hradba
+ * s ochozem (`pincerWallAllowed` – plot, palisáda bez ochozu ani holý val ne), díl stojí a nestaví
+ * se na něm; klešťová jen jednou a s místem za branou, věž jen na hotové klešťové bráně a jednou.
+ * Stojící (i rozestavěná) klešťová brána či věž starší vsi u palisády bez ochozu zůstane – dostane
+ * „hotovo“, ne důvod (návrh Clauda), novou úroveň tam ale nepřidá. Cena klešťové =
+ * `pincerGate.wallM` (24 m) hradby druhu dílu (`pincerArmKind`), věž `towerCost`.
  */
 function checkGateUpgrade(
   state: VillageState,
@@ -163,7 +168,10 @@ function checkGateUpgrade(
   const seg = fort?.segments.find((s) => s.index === input.segment);
   if (!fort || !gate || !seg) return { reason: FORT_UNKNOWN };
   const wall = segmentWall(fort, seg);
-  if (!wall || wall.kind === 'fence') return { reason: FORT_GATE_LOW };
+  const upgraded = input.level === 'pincer' ? gate.pincerDay : gate.towerDay;
+  if (!wall || (upgraded === undefined && !pincerWallAllowed(wall.kind))) {
+    return { reason: FORT_GATE_LOW };
+  }
   const busy = busySegments(
     state.constructions,
     fort.id,

@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import {
+  FORT_GATE_LOW,
   finishFortification,
   fortSections,
   fortSegments,
@@ -421,7 +422,7 @@ test('brána, úsek a celé opevnění – klik na bránu, klik zvýrazní úsek
   await expect(panel.getByText('Brána plotu')).toBeVisible();
   await expect(panel.getByTestId('selection-fort-gate-road')).toBeVisible();
   await expect(panel.getByTestId('selection-fort-gate-state')).toHaveText('100 %');
-  // klešťová brána až od palisády – u plotu zašedlá (fortifications.md – Hradby a obrana, Brány)
+  // klešťová brána jen u hradby s ochozem – u plotu zašedlá (fortifications.md – Hradby a obrana, Brány)
   await expect(panel.getByTestId('fort-gate-pincer')).toBeDisabled();
   const gateLines = await outlineLines();
   expect(gateLines.length).toBe(1);
@@ -719,7 +720,8 @@ test('panel úseku palisády – ochoz jen v úseku, Doplnit val u druhého úse
   const works = async (): Promise<VillageState['constructions']> =>
     (await villageState(settlementId)).constructions.filter((x) => x.kind === 'fortification');
 
-  // brána palisády: klešťová brána a věž – věž až na klešťové bráně (zašedlá s důvodem)
+  // brána palisády bez ochozu: klešťová brána i věž zašedlé s důvodem u kurzoru (Martin 9. 11. 2026:
+  // „Pokud budeme mít obyčejnou palisádu bez ochozu, nemůže tam stát klešťová brána, ale jen obyč“)
   await pollVillage(page);
   const gate = fort.gates[0]!;
   const toC = Math.hypot(c[0] - gate.x, c[1] - gate.z);
@@ -729,9 +731,30 @@ test('panel úseku palisády – ochoz jen v úseku, Doplnit val u druhého úse
   ];
   await closeUp(page, gateSpot);
   await select(gateSpot, 'fortification-gate');
-  await expect(panel.getByTestId('fort-gate-pincer')).toBeVisible();
+  const pincer = panel.getByTestId('fort-gate-pincer');
+  const pincerTip = panel
+    .locator('span.group\\/tooltip', { has: page.getByTestId('fort-gate-pincer') })
+    .getByRole('tooltip')
+    .first();
+  await expect(pincer).toBeDisabled();
   await expect(panel.getByTestId('fort-gate-tower')).toBeDisabled();
+  await pincer.hover({ force: true });
+  await expect(pincerTip).toContainText(FORT_GATE_LOW);
   await expect(panel.getByTestId('selection-fort-assault-cut')).toBeVisible();
+  // díl brány s ochozem (obě strany brány vylepšené): klešťová brána už důvod hradby nemá, věž
+  // až na klešťové bráně
+  const walkwayGate = structuredClone(built);
+  villageFortifications(walkwayGate)[0]!.segments.find((x) => x.index === gate.segment)!.kind =
+    'walkway';
+  await writeVillageState(settlementId, walkwayGate);
+  await pollVillage(page);
+  await select(gateSpot, 'fortification-gate');
+  await pincer.hover({ force: true });
+  await expect(pincerTip).toBeVisible();
+  await expect(pincerTip).not.toContainText(FORT_GATE_LOW);
+  await expect(panel.getByTestId('fort-gate-tower')).toBeDisabled();
+  await writeVillageState(settlementId, built);
+  await pollVillage(page);
 
   // úsek: postupy útočníka a obsazení, nabídka Vylepšit; ochoz založí staveniště jen v úseku
   const [first, second] = sections;

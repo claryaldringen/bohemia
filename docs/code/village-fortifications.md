@@ -477,8 +477,13 @@ tlačítka Úloha 17.
   `inM`).
 - **Kontrola** (`checkGateUpgrade`, pro rozhraní `gateUpgrade(state, landscape, input)` ke dni
   `state.lastDay` – cena `FortCost`, nebo `{ reason }`): brána na dílu (`FORT_UNKNOWN`), hradba dílu
-  aspoň palisáda – plot ani holý val ne (`FORT_GATE_LOW` „Bránu jde vylepšit až u palisády.“), díl
-  bez běžící stavby (`FORT_BUSY`), dostavěná a stojící hradba (`FORT_GATE_DOWN` „Brána nestojí.“).
+  s ochozem – `pincerWallAllowed` (`pincerGate.walls`: palisáda s ochozem, roštová, komorová); plot,
+  palisáda bez ochozu ani holý val ne, klešťová ani věž (`FORT_GATE_LOW` „Bránu jde vylepšit až
+  u hradby s ochozem.“; Martin 9. 11. 2026). Úroveň, kterou brána už má (i rozestavěnou), tím
+  neprojde – stojící klešťová brána či věž starší vsi u palisády bez ochozu zůstane a dostane
+  „hotovo“ (žádný převod), novou věž na ni nepřidá nikdo; `decideTowerRebuilds` přestaví dožilou
+  věž dál (návrh Clauda). Díl bez běžící stavby (`FORT_BUSY`), dostavěná a stojící hradba
+  (`FORT_GATE_DOWN` „Brána nestojí.“).
   Klešťová jen jednou (`FORT_PINCER_DONE` „Brána už je klešťová.“) a s místem za branou
   (`pincerRoom` → `FORT_GATE_NO_ROOM` „Za branou není místo.“): `pincerSpace` v krajině, bez vody,
   staveb (`checkFootprintFree` – pole, sad a les vsi smí, vlastní pás opevnění se nepočítá),
@@ -486,8 +491,9 @@ tlačítka Úloha 17.
   rozestavěná), jen na stojící klešťové bráně (`FORT_TOWER_NO_PINCER` „Věž stojí jen na klešťové
   bráně.“).
 - **Cena**: klešťová = `fortificationCost(pincerArmKind(hradba), pincerGate.wallM)` – 24 m hradby
-  druhu dílu s ochozem (plot a palisáda → palisáda s ochozem: ≈ 139,2 čd komplet + 50,4 klády;
-  roštová a komorová svůj druh i s kamenem); věž `towerCost` = 120 čd komplet − 30 čd za klády
+  druhu dílu (palisáda s ochozem: ≈ 139,2 čd komplet + 50,4 klády; roštová a komorová svůj druh
+  i s kamenem; `pincerArmKind` dává ramenům ochoz i u stojících klešťových bran starších vsí
+  u palisády – scéna a bitva); věž `towerCost` = 120 čd komplet − 30 čd za klády
   z hromady + 30 klád.
 - **Zahájení** (`startGateUpgrade(state, day, landscape, obstacles, input, walk?)`): klešťová –
   ramena vezmou díly polí a sadů (`giveWayToBuilding`), překážky pod rameny osadníci odstraní,
@@ -518,8 +524,10 @@ tlačítka Úloha 17.
 - **Akce**: use-case `upgradeFortificationGate` (`application/upgrade-fortification-gate.ts`, právo
   `build`), server action `upgradeFortificationGate`, tlačítka Klešťová brána a Věž v panelu brány.
   Testy `fortification/__tests__/gate-upgrade.test.ts`
-  a `application/__tests__/fortification-section-actions.test.ts` (dvojklik `FORT_BUSY`, plot
-  `FORT_GATE_LOW`).
+  a `application/__tests__/fortification-section-actions.test.ts` (palisáda bez ochozu
+  `FORT_GATE_LOW`, s ochozem projde, dvojklik `FORT_BUSY`, plot `FORT_GATE_LOW`); panel – zašedlá
+  tlačítka s důvodem jádra (`lib/__tests__/scene-fortifications.test.ts`,
+  `FortSection.behavior.test.tsx`, e2e `fortification.spec.ts` – panel úseku palisády).
 
 ## Úseky pro hráče a zboření (`sections.ts`, `fortifications.ts`; demolition.md – Opevnění)
 
