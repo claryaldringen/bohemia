@@ -704,6 +704,14 @@ export function harvestLaborPerDay(
 }
 
 /**
+ * Rezerva dne v okně setí, se kterou počítá plán kapacity osevu (`sowingCapacity`, páry k rádlům):
+ * seje se sice týž den hned za orbou a motykou (fields.md – Práce), plán ale dál počítá s jedním
+ * dnem méně (návrh Clauda – odhad zůstává opatrný; celé okno by posunulo zakládání polí správcem,
+ * samostatná změna k ověření).
+ */
+export const SOW_AFTER_DIG_DAYS = 1;
+
+/**
  * Volná práce vsi ve špičkách polních prací od dneška do konce hospodářského roku: všechna
  * práce po denním minimu (PEAK_CAPACITY_SHARE) krát dny oken – podzim pro ozim (září–říjen)
  * a celý podzim (září–listopad) bez výmlatu snopů, který ves čeká (production-chains.md – Humno),
@@ -712,8 +720,8 @@ export function harvestLaborPerDay(
  * v září přijdou žňové ruce (fields.md – Žně všemi rukama: řemeslníci se syny, cvičící muži rodiny,
  * výrostci a starší); práce se zvířaty (diet.md) jde napřed.
  * Ves, která orá (`plough`), má navíc kapacitu spřežení v oknech orby (oxen.md – Jen rádlo):
- * denní orba všech spřežení krát dny oken kopání – září–říjen pro ozim (i poslední den – seje se
- * týž den hned za orbou), září–listopad a březen–duben pro jař a luštěniny. Cvičící
+ * denní orba všech spřežení krát dny oken kopání – září–říjen pro ozim (bez dne rezervy
+ * `SOW_AFTER_DIG_DAYS`), září–listopad a březen–duben pro jař a luštěniny. Cvičící
  * vojvodova rodina je mimo práci vsi; s `lord` se přičte i práce jejích mužů po minimu dvorce
  * (`manorLabor` – `freeMen`, lord.md – Kdy jde rodina na pole, bod 1) – jen do plánu potřebného osevu.
  * `ploughCapacity` – orba spřežení z jiného volání téhož dne a vsi (na `lord` nezávisí), jen se
@@ -736,9 +744,12 @@ export function sowingCapacity(
   const free = (villageFree + lordFree) * PEAK_CAPACITY_SHARE;
   const hands = harvestHands(state, day, coverage, labor);
   const harvestFree = (villageFree + hands) * PEAK_CAPACITY_SHARE;
-  // seje se týž den hned za orbou a motykou (fields.md – Práce) – celé okno
-  const days = (segments: Parameters<typeof windowDaysLeft>[1], perDay = free): number =>
-    perDay * windowDaysLeft(day, segments);
+  const days = (
+    segments: Parameters<typeof windowDaysLeft>[1],
+    sowing = false,
+    perDay = free,
+  ): number =>
+    perDay * Math.max(0, windowDaysLeft(day, segments) - (sowing ? SOW_AFTER_DIG_DAYS : 0));
   // výmlat snopů hned po žni (production-chains.md – Humno) bere podzimní práci: co z něj zbývá
   // (na humnech nejvýš jejich kapacita za dny okna, v roce odkladu i nouzově), ubere podzim ozimu
   // i celý podzim – mlátí se před setím ozimu; žňové ruce mlátí se vsí, ves dá jen svůj díl
@@ -747,11 +758,11 @@ export function sowingCapacity(
     pendingThreshLabor(state, day, windowDaysLeft(day, segments)) * villageShare;
   const w = SOWING_CAPACITY_WINDOWS;
   const people: SowingCapacity = {
-    autumnWinter: Math.max(0, days(w.autumnWinter) - threshing(w.autumnWinter)),
+    autumnWinter: Math.max(0, days(w.autumnWinter, true) - threshing(w.autumnWinter)),
     autumn: Math.max(0, days(w.autumn) - threshing(w.autumn)),
-    spring: days(w.spring),
-    july: days(w.july, harvestFree),
-    august: days(w.august, harvestFree),
+    spring: days(w.spring, true),
+    july: days(w.july, false, harvestFree),
+    august: days(w.august, false, harvestFree),
   };
   if (!plough) return people;
   if (options.ploughCapacity) return { ...people, plough: { ...options.ploughCapacity } };
@@ -764,15 +775,15 @@ export function sowingCapacity(
       state,
       landscape,
     );
-  const ploughDays = (segments: Parameters<typeof windowDaysLeft>[1]): number =>
-    perDay * windowDaysLeft(day, segments);
+  const ploughDays = (segments: Parameters<typeof windowDaysLeft>[1], sowing = false): number =>
+    perDay * Math.max(0, windowDaysLeft(day, segments) - (sowing ? SOW_AFTER_DIG_DAYS : 0));
   // okna kopání jaře: podzim jako vracení přílohu, jaro jako setí
   return {
     ...people,
     plough: {
-      autumnWinter: ploughDays(WINTER_WINDOWS.dig),
+      autumnWinter: ploughDays(WINTER_WINDOWS.dig, true),
       autumn: ploughDays(WINDOWS.reclaim),
-      spring: ploughDays(WINDOWS.sow),
+      spring: ploughDays(WINDOWS.sow, true),
     },
   };
 }
@@ -828,7 +839,7 @@ export function ploughPairsForRotation(
   if (perPair <= 0) return cap;
   // dny oken orby do konce hospodářského roku – ozim jen na podzim, jař na podzim i na jaře
   const days = (crop: Crop): number =>
-    Math.max(1, windowDaysLeft(day, cropTaskWindows(crop, 'plough')));
+    Math.max(1, windowDaysLeft(day, cropTaskWindows(crop, 'plough')) - SOW_AFTER_DIG_DAYS);
   const pairs = Math.max(
     autumnLoad / (perPair * days('winter')),
     allLoad / (perPair * days('spring')),

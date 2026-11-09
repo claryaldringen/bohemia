@@ -1007,7 +1007,9 @@ orbě. Za oráčem by měl jít někdo z rodiny a rovnou zasívat“): za každ�
 jde setí stejným tempem týž den – práce orby a kopání nese i práci setí za sebou (kolik dovolí
 osivo); když práce nestačí, ubude obojího stejně. Zpracovaná půda, kterou ves nestihla zasít,
 se zaseje příští den napřed. Díl proto smí začít i v poslední den okna (dřív se selo zkopané do
-včerejška a ozim musel začít den před koncem okna).
+včerejška a ozim musel začít den před koncem okna). Výmlat na dnešní jídlo jde i před orbou
+a počítá jen zrno, které ves jí – hromada osiva okna smí držet všechno vymlácené zrno, ale ves
+kvůli osivu nikdy nejí pod přežívací zásobu (návrh Clauda).
 
 Navazuje na pracovní sílu z [populace](population.md) – Práce (na polích a stavbách jen dospělý
 1 člověkoden za den; starší 0,5 jen na denní minimum své domácnosti, výrostci 7–13 let jen pasou).

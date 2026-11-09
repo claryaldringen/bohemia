@@ -266,8 +266,12 @@ store, keepKg, needed)` = `reservedSeedKg` (jen `needed`) + max(hromada, běžn�
   s `follow` práci i na setí za sebou v poměru `ratio` a přičte ji úloze setí. V `work()` se setí
   plodiny použije až po jejím kopání (`applyOrder`) a nejvýš na zpracovanou půdu
   (`cropTaskRemaining`). Díly nad potřebu (`surplusTasks`) mají setí ještě jednou po přípravě půdy.
-  `winterStartable` / `springStartable` (`rotation.ts`) – díl smí začít i v poslední den okna;
-  `sowingCapacity` počítá celé okno (zrušené `SOW_AFTER_DIG_DAYS`).
+  `winterStartable` / `springStartable` (`rotation.ts`) – díl smí začít i v poslední den okna.
+  Plán kapacity (`sowingCapacity`, páry k rádlům) dál počítá s dnem rezervy `SOW_AFTER_DIG_DAYS`
+  (návrh Clauda – celé okno posouvá zakládání polí správcem, samostatná změna). Výmlat na dnešní
+  jídlo (`threshForFoodToday`) počítá jen zrno, které ves jí (bez `uneatenSeedKg`), a v rozdělení
+  práce jde i před orbou (`dayTaskOrder`) – orba nese setí za sebou a jinak by jídlu dne vzala
+  práci (Vlkov 1. 10. 871: hromada držela celé zásoby, 4,9 t ve snopech, příděl 0,115).
 - **Osivo pro ves bez zásob** (fields.md – Osivo ze zásob, Osivo pro ves bez zásob; Martin 27. 10. 2026): `VillageState.reservedSeedKg` = osivo ve `storesKg` jen na setí (osadníků –
   `Settlers.seedKg`, village-people.md; koupené). `reservedSeedKg()` ho omezí zásobami;
   `sowableSeedKg` ho přičte vždy a přežívací zásobu počítá ze zbytku zásob (obilí nad potřebu ho

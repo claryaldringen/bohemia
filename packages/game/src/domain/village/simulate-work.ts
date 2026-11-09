@@ -122,6 +122,7 @@ import {
   seedStore,
   sowableSeedKg,
   takeSeed,
+  uneatenSeedKg,
 } from './seed';
 import {
   TASK_ORDER,
@@ -328,13 +329,25 @@ function cutPlough(tasks: readonly DayTask[], teamDays: number): void {
 }
 
 /**
- * Pořadí úloh dne v rozdělení práce: orba rádlem napřed (oxen.md – Orba má přednost; Martin
- * 24. 10. 2026: „Co může být přednějšího než orba?“ – spřežení potřebuje jen oráče, jinak voli
- * stojí), pak nejbližší konec okna, přednost (`tie`) a pořadí úloh.
+ * Kolik zrna se dnes vymlátí napřed na jídlo (`threshForFoodKg`) – jen ze zrna, které ves jí: bez
+ * hromady osiva okna a osiva jen na setí (fields.md – Osivo bez cíle osevu). Hromada smí držet
+ * všechno vymlácené zrno; jídlo dne se pak vymlátí ze snopů napřed.
+ */
+export function threshForFoodToday(state: VillageState, day: number): number {
+  const edible = { storesKg: state.storesKg - uneatenSeedKg(state) };
+  return threshForFoodKg(edible, villageFoodNeed(state, day));
+}
+
+/**
+ * Pořadí úloh dne v rozdělení práce: výmlat na dnešní jídlo napřed (production-chains.md – Humno,
+ * výmlat na dnešní jídlo – orba nese i setí za sebou, fields.md – Práce, a jinak by jídlu dne
+ * práci vzala), pak orba rádlem (oxen.md – Orba má přednost; Martin 24. 10. 2026: „Co může být
+ * přednějšího než orba?“ – spřežení potřebuje jen oráče, jinak voli stojí), pak nejbližší konec
+ * okna, přednost (`tie`) a pořadí úloh.
  */
 export function dayTaskOrder(a: DayTask, b: DayTask): number {
-  const plough = (t: DayTask): number => (t.name === 'plough' ? 0 : 1);
-  return plough(a) - plough(b) || a.end - b.end || a.tie - b.tie || a.rank - b.rank;
+  const first = (t: DayTask): number => (t.thresh?.urgent ? 0 : t.name === 'plough' ? 1 : 2);
+  return first(a) - first(b) || a.end - b.end || a.tie - b.tie || a.rank - b.rank;
 }
 
 /**
@@ -396,7 +409,7 @@ export function work(
   // – za polními úlohami téhož konce okna (žeň má přednost); výmlat, který okno nestihl, po všech
   // pracích. Chybí-li v zásobách zrno na dnešní
   // jídlo, vymlátí se napřed – před žní i ostatními úlohami (výmlat na dnešní jídlo)
-  const threshes = threshTasks(state, day, threshForFoodKg(state, villageFoodNeed(state, day)));
+  const threshes = threshTasks(state, day, threshForFoodToday(state, day));
   for (const thresh of threshes) {
     dayTasks.push({
       name: 'thresh',

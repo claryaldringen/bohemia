@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage, type PartInput } from '../actions';
 import { allocateDay } from '../labor';
+import { dayTaskOrder, threshForFoodToday } from '../simulate-work';
 import {
   settleSowingSeed,
   sowingDaysLeft,
@@ -75,6 +76,32 @@ describe('hromada osiva okna (fields.md – Osivo bez cíle osevu)', () => {
     bought.reservedSeedKg = 100;
     sowingSeedDay(bought, at(600, 9, 1));
     expect(bought.sowingSeed!.kg).toBeCloseTo(windowSeedNeedKg(bought, 'winter') - 100, 6);
+  });
+
+  it('hromada drží všechno vymlácené zrno – jídlo dne se vymlátí ze snopů napřed, před orbou', () => {
+    // Vlkov 1.–3. 10. 871: hromada držela celé zásoby, 4,9 t leželo ve snopech; výmlat na jídlo
+    // počítal s hromadou jako s jídlem a orba se setím za sebou vzala práci – příděl 0,115
+    const day = at(600, 10, 1);
+    const s = village(300);
+    s.sheaves = { grainKg: 5_000, legumesKg: 0, work: { spring: 300 } };
+    sowingSeedDay(s, day);
+    expect(s.sowingSeed!.kg).toBeCloseTo(300, 6);
+    expect(threshForFoodToday(s, day)).toBeGreaterThan(0);
+    delete s.sowingSeed;
+    expect(threshForFoodToday(s, day)).toBe(0);
+    // výmlat na dnešní jídlo má v rozdělení práce přednost i před orbou
+    const plough = { name: 'plough' as const, remaining: 5, end: 10, tie: 1, rank: 1 };
+    const urgent = { name: 'thresh' as const, remaining: 1, end: -1, tie: 0, rank: 30 };
+    const thresh = {
+      crop: 'spring' as const,
+      end: -1,
+      remaining: 1,
+      floor: 1,
+      overdue: false,
+      urgent: true as const,
+    };
+    expect(dayTaskOrder({ ...urgent, thresh }, plough)).toBeLessThan(0);
+    expect(dayTaskOrder(urgent, plough)).toBeGreaterThan(0);
   });
 
   it('dny setí: ozim 61, jař bez dlouhé zimy 61; mimo okno 0', () => {
