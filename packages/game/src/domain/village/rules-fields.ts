@@ -342,19 +342,20 @@ export const FLAX_WORK_PER_HA: Record<FieldTask, Bounds> = {
  * fields.md – Zahrádka u obydlí (Martin 9. 11. 2026: „Nebylo by lepší, kdyby si lidé řešili len
  * sami podobně, jako luštěniny?“; čísla návrh Clauda): domácnost na pozemku polozemnice (políčko
  * 15 × 15 m) pěstuje na záhonech napřed len na oděv své domácnosti (`FLAX.kgPerYear`), na zbytku
- * luštěniny. Záhony ≈ plocha pozemku bez domu, dvorku a cestičky – 150 m² (`bedAreaM2`; scéna
- * kreslí záhony jen jako ukázku, ne podle plochy). Úroda na hektar jako na poli (len `FLAX`,
- * luštěniny `LEGUMES`) při přirozené úrodnosti políčka pozemku – záhony hnojí domácnost (popel,
- * smetí, hnůj), nevyčerpávají se; ves bez krajiny (testy, skripty) počítá s úrodností
- * `fertilityWithoutLandscape`. Osivo luštěnin si domácnost nechá z vlastní úrody (čistá úroda
- * = hrubá − `LEGUMES.seedKgPerHa`). Práce je ženská a jde bokem jako domácí výroba (práci vsi
+ * luštěniny. Záhony = políčko domu bez půdorysu domu (`DWELLING_FOOTPRINT_M` s variantou rozměrů)
+ * a bez cestičky od branky ke dveřím široké `pathWidthM` (polozemnice ≈ 192–197 m², dvorec
+ * ≈ 165 m² – dvůr zůstává dvorem; scéna kreslí záhony jen jako ukázku). Záhony hnojí domácnost
+ * (hnůj, odpad, popel): úrodnost = přirozená úrodnost políčka pozemku, nejméně `manuredFertility`,
+ * nevyčerpávají se; ves bez krajiny (testy, skripty) `manuredFertility`. Úroda na hektar jako na
+ * poli (len `FLAX`, luštěniny `LEGUMES`). Osivo luštěnin si domácnost nechá z vlastní úrody (čistá
+ * úroda = hrubá − `LEGUMES.seedKgPerHa`). Práce je ženská a jde bokem jako domácí výroba (práci vsi
  * nebere) – záhony se plejí, plná úroda. Okna jako dřív na poli: len se seje v dubnu, luštěniny
  * v březnu–dubnu, sklizeň (trhání lnu koncem července, luštěniny v červenci) jeden den 31. 7.
  * (`WINTER_HARVEST_DAY`); ves založená po konci setí (`sowingEnd` – 30. 4.) letos nic nesklidí.
  */
 export const GARDEN = {
-  bedAreaM2: 150,
-  fertilityWithoutLandscape: 50,
+  pathWidthM: 1,
+  manuredFertility: 70,
   sowingEnd: { month: 4, day: 30 },
 } as const;
 // orchard.md – Pravidla (Martin – oprava podle rešerše 17. 10. 2026): výsadba 80 člověkodní/ha

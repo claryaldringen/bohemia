@@ -5,12 +5,18 @@ import { foundVillage } from '../actions';
 import type { PartInput } from '../actions';
 import { withoutFieldFlax } from '../field-legumes';
 import { flaxNeedKg, harvestFlax } from '../flax';
-import { gardenFertility, gardenYield, gardensSown, harvestGardens } from '../garden';
+import {
+  gardenBedAreaM2,
+  gardenFertility,
+  gardenYield,
+  gardensSown,
+  harvestGardens,
+} from '../garden';
 import { moveParts } from '../land-taken';
 import { NO_CRAFTS } from '../productivity';
 import { GARDEN, LEGUMES } from '../rules';
 import { advanceVillage } from '../simulate';
-import type { ChronicleEvent, SeasonCrop, VillageState } from '../types';
+import type { ChronicleEvent, PlotVariant, SeasonCrop, VillageState } from '../types';
 import {
   createCropWork,
   cropGrossPerHa,
@@ -79,44 +85,78 @@ describe('úroda zahrádky – napřed len na oděv domácnosti, na zbytku lušt
   const legumeNetPerM2 = (f: number): number =>
     (cropGrossPerHa('legume', f) - LEGUMES.seedKgPerHa) / M2_PER_HA;
 
+  const BED = 190;
+
   it('bez potřeby lnu jsou celé záhony luštěniny (čisté – osivo si domácnost nechá)', () => {
-    const y = gardenYield(0, 70, NO_WEATHER);
+    const y = gardenYield(BED, 0, 70, NO_WEATHER);
     expect(y.flaxKg).toBe(0);
-    expect(y.legumeKg).toBeCloseTo(GARDEN.bedAreaM2 * legumeNetPerM2(70), 9);
+    expect(y.legumeKg).toBeCloseTo(BED * legumeNetPerM2(70), 9);
   });
 
   it('malá potřeba: len přesně na ni, luštěniny na zbytku plochy', () => {
-    const y = gardenYield(3, 70, NO_WEATHER);
+    const y = gardenYield(BED, 3, 70, NO_WEATHER);
     expect(y.flaxKg).toBeCloseTo(3, 9);
     const flaxArea = 3 / flaxPerM2(70);
-    expect(y.legumeKg).toBeCloseTo((GARDEN.bedAreaM2 - flaxArea) * legumeNetPerM2(70), 9);
+    expect(y.legumeKg).toBeCloseTo((BED - flaxArea) * legumeNetPerM2(70), 9);
   });
 
   it('velká domácnost: celé záhony lnem, zbytek lnu chybí a luštěniny nic', () => {
-    const y = gardenYield(100, 70, NO_WEATHER);
-    expect(y.flaxKg).toBeCloseTo(GARDEN.bedAreaM2 * flaxPerM2(70), 9);
+    const y = gardenYield(BED, 100, 70, NO_WEATHER);
+    expect(y.flaxKg).toBeCloseTo(BED * flaxPerM2(70), 9);
     expect(y.legumeKg).toBe(0);
-    // 150 m² při úrodnosti 56 (Vlkov) ≈ 6 kg lnu – oděv pro ≈ 3 dospělé
-    expect(gardenYield(100, 56, NO_WEATHER).flaxKg).toBeCloseTo(6.07, 2);
+    // ≈ 195 m² hnojených záhonů (úrodnost 70) ≈ 8,8 kg lnu – oděv pro ≈ 4 dospělé
+    expect(gardenYield(195, 100, 70, NO_WEATHER).flaxKg).toBeCloseTo(8.8, 1);
   });
 
   it('úrodnější políčko dá víc; počasí kraje ubere úrodu (plocha lnu podle potřeby bez počasí)', () => {
-    expect(gardenYield(0, 90, NO_WEATHER).legumeKg).toBeGreaterThan(
-      gardenYield(0, 50, NO_WEATHER).legumeKg,
+    expect(gardenYield(BED, 0, 90, NO_WEATHER).legumeKg).toBeGreaterThan(
+      gardenYield(BED, 0, 70, NO_WEATHER).legumeKg,
     );
-    const dry = gardenYield(3, 70, { flax: 0.5, legume: 0.5 });
+    const dry = gardenYield(BED, 3, 70, { flax: 0.5, legume: 0.5 });
     expect(dry.flaxKg).toBeCloseTo(1.5, 9);
-    const legumeArea = GARDEN.bedAreaM2 - 3 / flaxPerM2(70);
+    const legumeArea = BED - 3 / flaxPerM2(70);
     const net = Math.max(0, cropGrossPerHa('legume', 70) * 0.5 - LEGUMES.seedKgPerHa) / M2_PER_HA;
     expect(dry.legumeKg).toBeCloseTo(legumeArea * net, 9);
   });
 
-  it('úrodnost záhonů je přirozená úrodnost políčka pozemku; bez krajiny výchozí', () => {
+  it('záhony hnojí domácnost: přirozená úrodnost políčka, nejméně 70; bez krajiny 70', () => {
     const plot = { cell: { x: 3, y: 2 }, variant: 'center' as const };
     const land = fertileLandscape(40);
+    expect(gardenFertility(plot, land)).toBe(GARDEN.manuredFertility);
     land.fertility[2 * 20 + 3] = 85;
     expect(gardenFertility(plot, land)).toBe(85);
-    expect(gardenFertility(plot, null)).toBe(GARDEN.fertilityWithoutLandscape);
+    expect(gardenFertility(plot, null)).toBe(GARDEN.manuredFertility);
+    expect(GARDEN.manuredFertility).toBe(70);
+  });
+
+  it('plocha záhonů: políčko bez půdorysu domu a cestičky k brance (podle varianty a druhu)', () => {
+    const at0 = { x: 0, z: 0, rotation: Math.PI };
+    const house = (variant: PlotVariant): number =>
+      gardenBedAreaM2({
+        type: 'polozemnice',
+        position: at0,
+        plot: { cell: { x: 0, y: 0 }, variant },
+        plainShape: true,
+      });
+    // polozemnice 5 × 5 m, cestička 1 m: uprostřed 7,5 − 2,5 = 5 m, vpředu 2,7 m, vzadu 8,2 m
+    expect(house('center')).toBeCloseTo(225 - 25 - 5, 9);
+    expect(house('front-left')).toBeCloseTo(225 - 25 - 2.7, 9);
+    expect(house('back-right')).toBeCloseTo(225 - 25 - 8.2, 9);
+    // dvorec 6 × 9,6 m vchodem ke dvoru – záhony jen na políčku domu
+    const manor = gardenBedAreaM2({
+      type: 'dvorec',
+      position: at0,
+      plot: { cell: { x: 0, y: 0 }, variant: 'center', yard: { x: 0, y: 1 } },
+    });
+    expect(manor).toBeCloseTo(225 - 57.6 - 2.7, 9);
+    expect(gardenBedAreaM2({ type: 'zemnice', position: at0 })).toBe(0);
+    // varianta rozměrů domu (±10 % plochy) plochu záhonů mírně mění
+    const shaped = gardenBedAreaM2({
+      type: 'polozemnice',
+      position: { x: 12.3, z: -4.1, rotation: Math.PI },
+      plot: { cell: { x: 0, y: 0 }, variant: 'center' },
+    });
+    expect(Math.abs(shaped - house('center'))).toBeLessThan(5);
   });
 });
 
@@ -127,7 +167,7 @@ describe('sklizeň zahrádek 31. 7.', () => {
     const legumesBefore = s.legumesKg ?? 0;
     const flax = harvestGardens(s, day, fertileLandscape(70))!;
     const need = flaxNeedKg(s, day);
-    const expected = gardenYield(need, 70, NO_WEATHER);
+    const expected = gardenYield(gardenBedAreaM2(s.dwellings[0]!), need, 70, NO_WEATHER);
     expect(flax).toBeCloseTo(expected.flaxKg, 9);
     expect(s.legumesKg! - legumesBefore).toBeCloseTo(expected.legumeKg, 9);
     expect(s.dwellings[0]!.garden).toEqual({
@@ -205,7 +245,11 @@ describe('oděv ze lnu zahrádek', () => {
     expect(event!.flaxKg).toBeGreaterThan(0);
     const need = flaxNeedKg(s, at(600, 7, 31));
     expect(s.linen).toBeCloseTo(
-      Math.min(1, gardenYield(need, GARDEN.fertilityWithoutLandscape, NO_WEATHER).flaxKg / need),
+      Math.min(
+        1,
+        gardenYield(gardenBedAreaM2(s.dwellings[0]!), need, GARDEN.manuredFertility, NO_WEATHER)
+          .flaxKg / need,
+      ),
       6,
     );
   });

@@ -1,8 +1,9 @@
 import { dateOfDayIndex, dayIndexOf } from '../calendar';
-import type { Landscape } from '../landscape';
+import { CELL_SIZE_M, type Landscape } from '../landscape';
+import { dwellingShape, shapedFootprint } from './dwelling-shape';
 import { flaxNeedKg } from './flax';
-import { GARDEN, LEGUMES } from './rules';
-import type { DwellingPlot, GardenHarvest, Person, VillageState } from './types';
+import { GARDEN, LEGUMES, PLOT_HOUSE_OFFSET_M } from './rules';
+import type { Dwelling, DwellingPlot, GardenHarvest, Person, VillageState } from './types';
 import {
   cropWeatherOf,
   hasWeather,
@@ -27,14 +28,33 @@ type GardenCrop = 'flax' | 'legume';
 export type GardenWeather = Readonly<Record<GardenCrop, number>>;
 
 /**
- * Úrodnost záhonů pozemku (0–100): přirozená úrodnost políčka pozemku z krajiny (jako u dílu
- * pole); záhony hnojí domácnost, nevyčerpávají se (návrh Clauda). Ves bez krajiny (testy, skripty)
- * `GARDEN.fertilityWithoutLandscape`.
+ * Úrodnost záhonů pozemku (0–100): záhony hnojí domácnost (hnůj, odpad, popel) – přirozená
+ * úrodnost políčka pozemku z krajiny (jako u dílu pole), nejméně `GARDEN.manuredFertility`;
+ * nevyčerpávají se (návrh Clauda). Ves bez krajiny (testy, skripty) `GARDEN.manuredFertility`.
  */
 export function gardenFertility(plot: DwellingPlot, landscape: Landscape | null): number {
-  if (!landscape) return GARDEN.fertilityWithoutLandscape;
   const { x, y } = plot.cell;
-  return landscape.fertility[y * landscape.size + x] ?? GARDEN.fertilityWithoutLandscape;
+  const natural = landscape ? (landscape.fertility[y * landscape.size + x] ?? 0) : 0;
+  return Math.max(natural, GARDEN.manuredFertility);
+}
+
+/**
+ * Plocha záhonů pozemku (m²): políčko domu (CELL_SIZE_M × CELL_SIZE_M – dvůr dvorce zůstává
+ * dvorem) bez půdorysu domu (`DWELLING_FOOTPRINT_M` s variantou rozměrů – `shapedFootprint`) a bez
+ * cestičky od branky ke dveřím (`GARDEN.pathWidthM` × vzdálenost čela domu od okraje pozemku –
+ * podle varianty polohy domu `PLOT_HOUSE_OFFSET_M`). Obydlí bez pozemku 0.
+ */
+export function gardenBedAreaM2(
+  dwelling: Pick<Dwelling, 'type' | 'position' | 'plot' | 'plainShape'>,
+): number {
+  const plot = dwelling.plot;
+  if (!plot) return 0;
+  const { width, depth, centerZ } = shapedFootprint(dwelling.type, dwellingShape(dwelling));
+  // dům stojí vchodem k brance (u dvorce ke dvoru): čelo je centerZ + depth / 2 od středu domu,
+  // střed domu je od středu políčka posunutý o variantu (k brance záporné z)
+  const offset = plot.yard ? 0 : PLOT_HOUSE_OFFSET_M[plot.variant].z;
+  const pathM = Math.max(0, CELL_SIZE_M / 2 + offset - (centerZ + depth / 2));
+  return Math.max(0, CELL_SIZE_M * CELL_SIZE_M - width * depth - GARDEN.pathWidthM * pathM);
 }
 
 /**
@@ -60,20 +80,21 @@ export interface GardenYield {
 }
 
 /**
- * Úroda zahrádky domácnosti (kg): záhony (`GARDEN.bedAreaM2`) napřed lnem do potřeby domácnosti
+ * Úroda zahrádky domácnosti (kg): záhony (`bedAreaM2`) napřed lnem do potřeby domácnosti
  * (`needKg` – plochu domácnost odhadne při setí, bez počasí), zbytek luštěninami. Úroda plodiny na
  * hektar jako na poli (`cropGrossPerHa`) při úrodnosti záhonů × počasí; luštěniny čisté – osivo
  * (`LEGUMES.seedKgPerHa`) si domácnost nechá z vlastní úrody (len seje vlastní semeno jako na poli).
  * Když záhony na len domácnosti nestačí, zbytek lnu chybí a luštěniny nic (návrh Clauda).
  */
 export function gardenYield(
+  bedAreaM2: number,
   needKg: number,
   fertility: number,
   weather: GardenWeather,
 ): GardenYield {
   const flaxPerM2 = cropGrossPerHa('flax', fertility) / M2_PER_HA;
-  const flaxAreaM2 = Math.min(GARDEN.bedAreaM2, Math.max(0, needKg) / flaxPerM2);
-  const legumeAreaM2 = GARDEN.bedAreaM2 - flaxAreaM2;
+  const flaxAreaM2 = Math.min(bedAreaM2, Math.max(0, needKg) / flaxPerM2);
+  const legumeAreaM2 = bedAreaM2 - flaxAreaM2;
   const legumeNetPerHa = Math.max(
     0,
     cropGrossPerHa('legume', fertility) * weather.legume - LEGUMES.seedKgPerHa,
@@ -96,8 +117,8 @@ export function gardensSown(state: Pick<VillageState, 'foundedDay'>, day: number
 /**
  * Sklizeň zahrádek (31. 7., po jídle dne – mutuje stav): každé obydlí s pozemkem, které se
  * používá a někdo v něm bydlí (domácnost = lidé s jeho `dwellingId`), sklidí len a luštěniny
- * (`gardenYield` – potřeba lnu podle lidí domácnosti v den sklizně, úrodnost políčka pozemku,
- * počasí kraje). Luštěniny jdou do zásoby (`legumesKg`), len se v rámci roku zpracuje v domácí
+ * (`gardenYield` – plocha záhonů pozemku, potřeba lnu podle lidí domácnosti v den sklizně,
+ * hnojená úrodnost políčka pozemku, počasí kraje). Luštěniny jdou do zásoby (`legumesKg`), len se v rámci roku zpracuje v domácí
  * výrobě – vrací jeho kg (podíl oděvu zapíše `harvestFlax`). Obydlí dostane zápis `garden` (panel
  * obydlí), ostatním se smaže; ves souhrnný zápis do kroniky (`garden-harvest`), když nějaká
  * zahrádka je. Ves, která letos zahrádky neosela (`gardensSown`), nic – null.
@@ -125,6 +146,7 @@ export function harvestGardens(
       continue;
     }
     const harvest = gardenYield(
+      gardenBedAreaM2(dwelling),
       flaxNeedKg({ people }, day),
       gardenFertility(dwelling.plot, landscape),
       weather,
