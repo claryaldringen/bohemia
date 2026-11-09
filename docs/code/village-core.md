@@ -477,6 +477,35 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   provoz tras (`trips`) se převažuje každý 1. v měsíci a pořadí tras se tak mění každý měsíc
   (osy cest, stavby a stezky Vlkova se za rok nezměnily, sada tras jen 1. 11.) a otisk by musel
   nést celé rozložení vsi – právě to, co stojí čas; zbylé ≈ 0,2 s za rok je vlastní práce kontrol.
+  **Kolo po novém dni pole (9. 11. 2026 večer, fronta zrychlení výpočtu – Martin schválil):** po
+  osevu naplno, žních v srpnu a září, skladbě dne, pořadí polních prací, zahrádkách a lnu na poli;
+  stav Vlkova z DB 9. 11. (`scratchpad/prof9`, kopie skriptů `prof9-round`). Jen zrychlení – otisk
+  stavu po 1, 2 a 3 letech před / po týž vcelku i po 37 dnech (sha256 `b21ac57c84c5`,
+  `5787b9ce31d2`, `b7ae76df6e01`), zlaté otisky testů beze změny. Šest úprav (profil zahřátých
+  roků 2–4, před → po): **len na poli** – obilí dne podle druhu osevu jednou za druh, kandidáti
+  lnu jedním průchodem do dvou skupin a první osev se řadí, jen když druhý potřebu nepokryje
+  (`flaxCandidates` 0,66 → 0,03 s, `turnSelection` 1,46 → 0,80 s); **odhad úrody plodiny**
+  (`cropYieldKg`) s díly z `partsByIdOf` místo mapy přes všechny díly při každém volání
+  (`baseMealInput` 0,99 → 0,55 s, `daysUntilFoodHarvest` 0,80 → 0,37 s); **paměť úseček vozu
+  přežije změnu polí** – 10 z 11 změn vstupů půdy vozu za rok nezmění žádnou buňku (díl změní
+  stadium, ne rychlost vozu), půda zůstane tatáž i s pamětí; při skutečné změně se převedou úsečky,
+  které žádný čtverec 8 × 8 buněk se změnou nemíjí ani o buňku (`carryCartSegments`), objížďky přes
+  brod mají vlastní paměť a nepřevádějí se (test proti výpočtu bez paměti ve
+  `walk-estimate.test.ts`) – `villageCartEstimates` 1,27 → 0,83 s, `straightCartCost` 0,74 →
+  0,27 s; **zbytky jam** porovnají čtverce dílů s pamětí přímo, bez skládání řady ≈ 19 tisíc čísel
+  denně (`updateRuins` 0,54 → 0,32 s); **obvod opevnění z paměti** podle druhu a bodů (posledních
+  16, zmrazený a sdílený jen ke čtení – `fortificationOutline` 0,45 s → ≈ 0, `builtLengths` 0,26 →
+  0,07 s, `decideFortRebuilds` 0,25 → 0,04 s); **bloky orby** bez textových klíčů políček a s frontou
+  po indexu (`ploughLayout` 0,87 → 0,66 s). Rozpad zahřátých roků 2–4 po částech dne (profil,
+  zátěž 30 → 23; celkem 16,1 → 14,0 s): sezóna 3,45 → 2,56 s, práce dne 2,57 → 1,97 s, přepočet
+  tras 2,43 → 2,51 s (beze změny – hledání sítě pěšin), správce 2,24 → 2,14 s, měsíc cest 1,54 →
+  1,57 s, zbytky jam 0,54 → 0,31 s, jídlo 0,46 → 0,31 s, škody zvěře 0,43 s, pole u cest 0,37 s.
+  Rok Vlkova (`years.mts`) střídavě před / po (zátěž 32): roky 2–4 4,57 / 5,19 / 5,44 a 5,03 /
+  5,51 / 6,01 s → 3,91 / 4,70 / 5,32 a 3,94 / 4,34 / 4,82 s (průměr 5,29 → 4,51 s, −15 %), rok 1
+  8,09 / 8,54 → 7,56 / 7,71 s. Nejvíc dál bere výběr dílů sezóny (`seasonSelection` 1,5 s za tři
+  roky – každý den oken setí), hledání sítě pěšin (≈ 1,0 s), výkon orby plánu osevu (tři přepočty
+  za tři roky po ≈ 0,2 s – mění se díly na řadě a jejich vzdálenosti) a úseky úloh při zmenšení
+  plánu na konci oken setí (`shrinkInPlan` – každý uvolněný díl přepočítá úseky všech úloh).
 
 - **Čísla** pravidel jsou jen v `rules*.ts` (u každého odkaz na sekci návrhu); změna čísla = i
   text v návrhu. Kalibrace: `measure-village.ts` nasimuluje stovky vsí a vypíše cíle z Kalibrace

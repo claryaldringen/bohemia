@@ -45,6 +45,16 @@ export class SegmentMemo {
     this.size++;
   }
 
+  /** Projde všechny úsečky v paměti (v pořadí tabulky) – `visit` paměť nemění. */
+  forEach(visit: (ax: number, az: number, bx: number, bz: number, value: number) => void): void {
+    const { keys, values, used } = this;
+    for (let s = 0; s < used.length; s++) {
+      if (used[s] === 0) continue;
+      const k = s * 4;
+      visit(keys[k]!, keys[k + 1]!, keys[k + 2]!, keys[k + 3]!, values[s]!);
+    }
+  }
+
   private reset(slots: number): void {
     this.keys = new Float64Array(slots * 4);
     this.values = new Float64Array(slots);

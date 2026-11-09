@@ -8,7 +8,7 @@ import { RUIN_YEARS } from './rules';
 import { sacredBuildingPlots, sacredFootprint } from './sacred';
 import { PolygonIndex, villageLandSquares, type LandSquare } from './squares';
 import { threshingFloorFootprint, villageThreshingFloors } from './threshing-floors';
-import type { Dwelling, DwellingRuin, VillageState } from './types';
+import type { Dwelling, DwellingRuin, FieldPart, VillageState } from './types';
 
 // Zbytky jam po zaniklých obydlích (population.md – Chátrání a přestavba, Po zániku – Martin
 // 18. 10. 2026): obydlí, které zchátrá na nulu (prázdné), nebo se jeho domácnost přestěhuje na
@@ -84,10 +84,14 @@ export function updateRuins(state: VillageState, day: number, landscape: Landsca
   const ruins = state.ruins;
   if (!ruins) return;
   // kontrola staveb přes zbytky jam jen se změnou staveb, polí nebo zbytků (výkon; výsledek týž)
-  const inputs = landscape ? coverInputs(state) : null;
-  const unchanged = landscape !== null && sameInputs(uncoveredMemo.get(landscape), inputs!);
+  const texts = landscape ? coverTexts(state) : null;
+  const last = landscape ? uncoveredMemo.get(landscape) : undefined;
+  const unchanged =
+    last !== undefined && sameTexts(last.texts, texts!) && samePartSquares(last.parts, state.parts);
   const covered = unchanged ? new Set<DwellingRuin>() : builtOverRuins(state, landscape);
-  if (landscape && covered.size === 0) uncoveredMemo.set(landscape, inputs!);
+  if (landscape && !unchanged && covered.size === 0) {
+    uncoveredMemo.set(landscape, { texts: texts!, parts: partSquares(state.parts) });
+  }
   const kept = ruins.filter((r) => ruinOvergrowth(r, day) < 1 && !covered.has(r));
   if (kept.length === ruins.length) return;
   if (kept.length > 0) state.ruins = kept;
@@ -99,15 +103,21 @@ export function updateRuins(state: VillageState, day: number, landscape: Landsca
  * vstupy. Se stejnými vstupy by kontrola zase nic nenašla, takže se nepočítá (denně by stavěla
  * čtverce všech dílů polí kvůli pár zbytkům jam).
  */
-const uncoveredMemo = new WeakMap<Landscape, readonly (number | string)[]>();
+const uncoveredMemo = new WeakMap<Landscape, CoverInputs>();
+
+/** Vstupy kontroly zbytků jam (`coverTexts`) a čtverce dílů polí po pěti číslech (`partSquares`). */
+interface CoverInputs {
+  texts: readonly string[];
+  parts: Float64Array;
+}
 
 /**
- * Všechno, co čte `builtOverRuins`, jako řada čísel a textů (porovnává se přesně): zbytky jam,
- * obydlí a staveniště obydlí i přestaveb (druh, poloha, pozemek, dílna, tvar), posvátná místa,
- * humna, mřížky polí, sady, hřbitovy, ohrady a čtverce dílů polí.
+ * Všechno, co čte `builtOverRuins`, kromě čtverců dílů polí (`partSquares`) jako řada textů
+ * (porovnává se přesně): zbytky jam, obydlí a staveniště obydlí i přestaveb (druh, poloha, pozemek,
+ * dílna, tvar), posvátná místa, humna, mřížky polí, sady, hřbitovy a ohrady.
  */
-function coverInputs(state: VillageState): (number | string)[] {
-  const out: (number | string)[] = [
+function coverTexts(state: VillageState): string[] {
+  return [
     JSON.stringify(state.ruins),
     JSON.stringify(
       state.dwellings.map((d) => [
@@ -153,17 +163,48 @@ function coverInputs(state: VillageState): (number | string)[] {
       ]),
     ),
   ];
-  for (const p of state.parts) {
-    if (p.cell) out.push(p.id, p.fieldId, p.cell.x, p.cell.y, p.areaM2);
+}
+
+/** Čtverce dílů polí, jak je čte `builtOverRuins` – po dílu s políčkem id, pole, x, y a plocha. */
+function partSquares(parts: readonly FieldPart[]): Float64Array {
+  let n = 0;
+  for (const p of parts) if (p.cell) n++;
+  const out = new Float64Array(n * 5);
+  let k = 0;
+  for (const p of parts) {
+    if (!p.cell) continue;
+    out[k] = p.id;
+    out[k + 1] = p.fieldId;
+    out[k + 2] = p.cell.x;
+    out[k + 3] = p.cell.y;
+    out[k + 4] = p.areaM2;
+    k += 5;
   }
   return out;
 }
 
-function sameInputs(
-  a: readonly (number | string)[] | undefined,
-  b: readonly (number | string)[],
-): boolean {
-  if (!a || a.length !== b.length) return false;
+/** Čtverce dílů jsou tytéž jako v `last` (`partSquares`) – porovná bez skládání nové řady. */
+function samePartSquares(last: Float64Array, parts: readonly FieldPart[]): boolean {
+  let k = 0;
+  for (const p of parts) {
+    if (!p.cell) continue;
+    if (
+      k + 5 > last.length ||
+      last[k] !== p.id ||
+      last[k + 1] !== p.fieldId ||
+      last[k + 2] !== p.cell.x ||
+      last[k + 3] !== p.cell.y ||
+      last[k + 4] !== p.areaM2
+    ) {
+      return false;
+    }
+    k += 5;
+  }
+  return k === last.length;
+}
+
+function sameTexts(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false;
   for (let k = 0; k < a.length; k++) if (a[k] !== b[k]) return false;
   return true;
 }
