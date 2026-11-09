@@ -869,6 +869,16 @@ describe('SelectionPanel – rozvržení', () => {
     expect(html).toMatch(/<h2 class="[^"]*whitespace-nowrap[^"]*">Dvorec vojvody<\/h2>/);
   });
 
+  it('obydlí se zahrádkou: ikona lnu a luštěnin s kg letošní sklizně; bez ní nic', () => {
+    const html = render(dwelling({ type: 'polozemnice', garden: { flaxKg: 6, legumeKg: 2 } }));
+    expect(html).toContain('data-testid="selection-garden-flax"');
+    expect(html).toContain('data-testid="selection-garden-legumes"');
+    expect(html).toContain('/icons/resources/flax.png');
+    expect(html).toContain('/icons/resources/legumes.png');
+    const plain = render(dwelling({ type: 'zemnice' }));
+    expect(plain).not.toContain('selection-garden-flax');
+  });
+
   it('obydlí: údaje vlevo, příkazy (dvorec, přestěhovat, odejít) vpravo za čarou', () => {
     const html = render(
       dwelling({
