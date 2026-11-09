@@ -32,6 +32,45 @@ export function withVillageCache<T>(run: () => Promise<T>): Promise<T> {
   return storage.run(new Map(), run);
 }
 
+/**
+ * Paměť vsí, která přežije požadavek – pro dotazování, které stav téže vsi čte pořád dokola
+ * (pohled na varování každé 2 s – docs/code/worker.md, Výkon – Pohled na varování). Platnost hlídá
+ * týž otisk jako v rozsahu `withVillageCache`; drží nejvýš `capacity` naposledy použitých záznamů
+ * (velká ves je přes 3 MB JSON).
+ */
+export class VillageMemory extends Map<string, VillageRecord> {
+  constructor(private readonly capacity: number) {
+    super();
+  }
+
+  override get(villageId: string): VillageRecord | undefined {
+    const record = super.get(villageId);
+    if (record) {
+      // naposledy použitý na konec – vyhazuje se nejdéle nepoužitý
+      super.delete(villageId);
+      super.set(villageId, record);
+    }
+    return record;
+  }
+
+  override set(villageId: string, record: VillageRecord): this {
+    super.delete(villageId);
+    super.set(villageId, record);
+    while (this.size > this.capacity) super.delete(this.keys().next().value as string);
+    return this;
+  }
+}
+
+/**
+ * Spustí `run` s pamětí `memory`, která přežije požadavek (`VillageMemory`); vnořené volání
+ * použije paměť vnějšího rozsahu.
+ */
+export function withVillageMemory<T>(memory: VillageMemory, run: () => Promise<T>): Promise<T> {
+  const storage = scopes();
+  if (storage.getStore()) return run();
+  return storage.run(memory, run);
+}
+
 /** Záznam z paměti odpovídá otisku z úložiště (verze roste s každým uložením, jméno zvlášť). */
 function matches(record: VillageRecord, stamp: VillageStamp | undefined): boolean {
   return stamp !== undefined && stamp.version === record.version && stamp.name === record.name;

@@ -752,8 +752,9 @@ export async function getAlarmView(input: unknown): Promise<AlarmView | null | {
   if (id === null) return { error: NOT_SIGNED_IN };
   const parsed = parseAlarmVillage(input);
   if (parsed === null) return { error: INVALID_INPUT };
-  // ves a hradiště se v jednom dotazu čtou víckrát (práva, volby) – jedno načtení stavu
-  return withVillageCache(() => alarmViewForPlayer(id, parsed.villageId));
+  // ves a hradiště se čtou víckrát (práva, volby) a dotaz se opakuje každé 2 s – paměť vsí
+  // přes dotazy drží `alarmViewForPlayer` (lib/alarm.ts)
+  return alarmViewForPlayer(id, parsed.villageId);
 }
 
 /**
