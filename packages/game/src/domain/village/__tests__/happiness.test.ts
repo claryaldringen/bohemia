@@ -106,7 +106,8 @@ describe('štěstí – čísla z návrhu', () => {
     expect(windowEndDay(WINDOWS.dig, at(601, 3, 5))).toBe(at(601, 4, 30));
     expect(windowEndDay(ORCHARD_WINDOWS.care, at(600, 12, 5))).toBe(at(601, 2, 28));
     expect(windowEndDay(ORCHARD_WINDOWS.care, at(601, 1, 5))).toBe(at(601, 2, 28));
-    expect(windowEndDay(WINDOWS.thresh, at(600, 9, 5))).toBe(at(600, 10, 31));
+    // výmlat do konce února (fields.md – Pořadí důležitosti polních prací a výmlat do zimy)
+    expect(windowEndDay(WINDOWS.thresh, at(600, 9, 5))).toBe(at(601, 2, 28));
     expect(windowEndDay(WINDOWS.sow, at(600, 10, 5))).toBeNull();
   });
 });

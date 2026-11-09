@@ -12,6 +12,7 @@ import type {
   IntentBody,
 } from '../domain/war/campaign-types';
 import { flightPace } from '../domain/war/evacuation';
+import type { MarchGridMemo } from '../domain/war/march-grid';
 import { domainTargets, type DomainTarget } from '../domain/war/messenger';
 import {
   armyEtaTicks,
@@ -148,6 +149,11 @@ export interface AlarmViewDeps extends RightsDeps {
   world: WorldClock;
   /** Doména hradiště hráče; chybí – posly do domény pohled nenabízí. */
   alarmOwners?: Pick<AlarmOwnerPort, 'domainOf'>;
+  /**
+   * Mřížky pochodu napříč dotazy (klíč = identita krajiny, překážek a stavu vsi a den) – pohled se
+   * ptá každé 2 s nad týmž stavem; chybí – mřížka se staví v každém dotazu.
+   */
+  grids?: MarchGridMemo;
 }
 
 export interface CommandAlarmDeps extends AlarmViewDeps {
@@ -215,6 +221,7 @@ class AlarmWorld {
       villageAt: (villageId) => this.states.get(villageId) ?? null,
       villageNameOf: (villageId) => this.names.get(villageId) ?? null,
       refugeHostsOf: (villageId) => this.hosts.get(villageId) ?? [],
+      ...(deps.grids ? { grids: deps.grids } : {}),
     };
     this.ctx = tickContext(world);
   }

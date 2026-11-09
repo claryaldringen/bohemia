@@ -221,11 +221,12 @@ export const FIELD_LIMITS = { maxDistanceM: 800, minAreaM2: 1000 } as const;
 // vrací se z přílohu a kope se na podzim, co se nestihne, v březnu–dubnu (Martin 21. 10. 2026:
 // „Ano udělej to tak.“ – návrh Clauda: i vrácení přílohu pod jař smí na jaře, ne jen kopání); seje se na jaře, sklízí v srpnu,
 // co srpen nestihne, v září (fields.md – Žeň jaře i v září, Martin 9. 11. 2026: „Ano, ať se jař
-// sklízí i v září“), a mlátí hned po žni – srpnová žeň v září, zářijová v říjnu (production-chains.md
-// – Výmlat hned po žni; Martin 20. 10. 2026: „Staří
-// slované se snažili dělat výmlat hned. Klasy neskladovali.“). Výmlat, který okno nestihne,
-// pokračuje dál, dokud je co mlátit (snopy čekají a kazí se – THRESHING). Pletí jaře v květnu –
-// vzejde 3–4 týdny po setí (fields.md – Pletí jednou a rychle, Martin 25. 10. 2026).
+// sklízí i v září“), a mlátí od září až do konce února (fields.md – Pořadí důležitosti polních
+// prací a výmlat do zimy; Martin 9. 11. 2026: „Výmlat prý počká i docela hluboko do zimy“ –
+// nahrazuje „Staří slované se snažili dělat výmlat hned“ z 20. 10. 2026). Okno přes konec roku má
+// dva úseky (září–prosinec a leden–únor). Výmlat, který okno nestihne, pokračuje dál, dokud je co
+// mlátit (snopy čekají a kazí se – THRESHING). Pletí jaře v květnu – vzejde 3–4 týdny po setí
+// (fields.md – Pletí jednou a rychle, Martin 25. 10. 2026).
 export const WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
   reclaim: [
     [9, 11],
@@ -238,21 +239,39 @@ export const WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
   sow: [[3, 4]],
   weed: [[5, 5]],
   harvest: [[8, 9]],
-  thresh: [[9, 10]],
+  thresh: [
+    [9, 12],
+    [1, 2],
+  ],
 };
 // fields.md – Ozim a jař (návrh Clauda, Martin schválil směr 18. 10. 2026): ozim se vrací
 // z přílohu, kope a seje v září–říjnu, neplete se (fields.md – Pletí jednou a rychle, Martin
 // 25. 10. 2026: „v dubnu už je tak velký, že plevel udusí“), sklízí v červenci a co červenec
 // nestihne, v srpnu (fields.md – Žně i v srpnu, Martin 9. 11. 2026: „Ať sklízí i v srpnu“);
-// mlátí hned po žni – červencová žeň v srpnu, srpnová v září (production-chains.md – Výmlat
-// hned po žni)
+// mlátí od srpna do konce února (fields.md – Pořadí důležitosti polních prací a výmlat do zimy)
 export const WINTER_WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
   reclaim: [[9, 10]],
   dig: [[9, 10]],
   sow: [[9, 10]],
   weed: [],
   harvest: [[7, 8]],
-  thresh: [[8, 9]],
+  thresh: [
+    [8, 12],
+    [1, 2],
+  ],
+};
+/**
+ * Výmlat hned po žni – měsíc po žni plodiny (production-chains.md – Výmlat hned po žni): ozim
+ * a luštěniny v srpnu a září, jař v září a říjnu. Jen v nich je výmlat žňovým dnem (fields.md –
+ * Žně všemi rukama: žňové ruce, poloviční skladba dne); výmlat v zimě (listopad–únor) je obyčejná
+ * práce vsi se zimní skladbou dne a řemeslníci zůstávají v dílnách (návrh Clauda – zimní výmlat
+ * nemá termín, snopy v okně čekají bez ztráty).
+ */
+export const HARVEST_THRESH_WINDOWS: Record<Crop, readonly WindowSegment[]> = {
+  winter: [[8, 9]],
+  spring: [[9, 10]],
+  legume: [[8, 9]],
+  flax: [[8, 9]],
 };
 // fields.md – Luštěniny (rešerše 2026-10-18-legumes.md): luštěniny jsou jař – kopou se na podzim
 // nebo na jaře, sejí v březnu–dubnu, pletou v květnu, sklízejí (trhají) v červenci, co červenec
@@ -287,6 +306,41 @@ export const CROP_WINDOWS: Record<Crop, Record<TaskName, readonly WindowSegment[
  * (`simulate-work.ts`, `fieldTasks`; fields.md – Len, Martin 9. 11. 2026).
  */
 export const CROP_ORDER: readonly Crop[] = ['flax', 'winter', 'legume', 'spring'];
+/**
+ * fields.md – Pořadí důležitosti polních prací a výmlat do zimy (Martin 9. 11. 2026: „Je lepší za
+ * každou cenu sklidit to, co už vyrostlo, než začínat pěstování úplně od začátku“, „Pořadí
+ * důležitosti: 1. sklizeň obilí 2. sklizeň lnu 3. sklizeň sena 4. orba a setí 5. výmlat“; doplněno
+ * návrhem Clauda, Martin „Ano, jak navrhuješ“): skupiny úloh dne v pořadí, ve kterém dostanou práci,
+ * když jí ves nemá na všechno – výmlat na dnešní jídlo, žeň a odnos obilí (i luštěnin), trhání lnu,
+ * nutná seč (jen 1. seč), sklizeň jablek, pletí, příprava půdy a setí (vrácení přílohu s klučením,
+ * kopání, orba, setí), noční hlídka polí, výmlat. Nutná otava (2. seč – oxen.md, Seno, dvě seče)
+ * až po orbě a setí ozimu (Martin 9. 11. 2026: „Otava až po orbě a setí ozimu“; návrh Clauda: hned
+ * za přípravou půdy). Uvnitř skupiny nejbližší konec okna; v přípravě půdy orba rádlem první
+ * (oxen.md – Orba má přednost: spřežení potřebuje jen oráče, jinak voli stojí).
+ * Návrh Clauda pro úlohy mimo seznam: porážka hned za výmlatem na jídlo (maso se musí zpracovat
+ * hned), výmlat na osivo (THRESHING.seedDays – ve snopech zrno na setí není) před přípravou půdy,
+ * péče o sad za přípravou půdy, obilné jámy (zrno z výmlatu) a dospělý pasák za výmlatem.
+ * Stavby a opravy až po všech úlohách dne (Osevní postup po dílech, bod 3).
+ */
+export const DAY_WORK_ORDER = [
+  'food-thresh',
+  'slaughter',
+  'grain-harvest',
+  'flax-harvest',
+  'hay',
+  'apples',
+  'weeding',
+  'seed-thresh',
+  'tillage',
+  'aftermath',
+  'orchard-care',
+  'watch',
+  'thresh',
+  'grain-pit',
+  'herding',
+] as const;
+/** Skupina úloh dne v pořadí důležitosti (`DAY_WORK_ORDER`). */
+export type DayWorkGroup = (typeof DAY_WORK_ORDER)[number];
 /**
  * diet.md a fields.md – Luštěniny (Martin 18. 10. 2026: bílkoviny 1,6 g/kg zůstávají, přidají se
  * luštěniny; čísla rešerše 2026-10-18-legumes.md, odhady návrh Clauda): hrách a čočka jako jedna
@@ -439,9 +493,10 @@ export const ORCHARD_SEASON = { startMonth: 3, autumnPlantingFromMonth: 9 } as c
 // den okna harvest ozimu, luštěnin a lnu a poslední den prvního měsíce okna jaře, WINTER_HARVEST_DAY
 // poslední den prvního měsíce okna ozimu – do snopů jde, co je do té doby sklizené, zbytek ozimu
 // 31. 8. s jaří; LATE_HARVEST_DAY poslední den okna harvest jaře – nejpozději tehdy jde do snopů
-// jař, kterou srpen nedosklidil (dřív, je-li sklizená); plán den po HARVEST_DAY, konec výmlatu den
-// po konci okna thresh (hlídá rules.test.ts) – tehdy se zahodí loňský plán u výmlatu
-// (`threshingSeason`); snopy, které výmlat nestihl, zůstávají (Sheaves – mlátí se dál).
+// jař, kterou srpen nedosklidil (dřív, je-li sklizená); plán den po HARVEST_DAY, THRESH_END_DAY den
+// po výmlatu hned po žni jaře (HARVEST_THRESH_WINDOWS, hlídá rules.test.ts) – tehdy se zahodí loňský
+// plán u výmlatu (`threshingSeason`); snopy se mlátí dál bez plánu do konce okna výmlatu (únor)
+// i po něm (Sheaves – mlátí se dál).
 export const HARVEST_DAY = { month: 8, day: 31 } as const;
 export const WINTER_HARVEST_DAY = { month: 7, day: 31 } as const;
 export const LATE_HARVEST_DAY = { month: 9, day: 30 } as const;
@@ -454,6 +509,9 @@ export const THRESH_END_DAY = { month: 11, day: 1 } as const;
  * na humno, obracení slámy, odvívání lopatou proti větru) – `floorManDaysPerDay` 12 člověkodní
  * výmlatu za den; v srpnu a září (61 dní) tak humno vymlátí ≈ 730 čd – 50–75 ha osevu podle
  * nástrojů (`FIELD_WORK_PER_HA.thresh` 15–10 čd/ha), tedy humno na ≈ 60 ha; humna se sčítají.
+ * S oknem výmlatu do konce února (fields.md – Pořadí důležitosti polních prací a výmlat do zimy)
+ * stačí humno i na víc – listopad až únor (120 dní) dá dalších ≈ 1 440 čd; číslo zůstává (návrh
+ * Clauda – omezuje výmlat ve žních, ne celé okno).
  * Martin 21. 10. 2026: „Ať mlátí aspoň nouzově“ – ves bez hotového humna mlátí vždy nouzově na
  * udusané zemi u domů bez omezení místa, ale o `emergencyWork` víc práce a o `emergencyLoss` zrna
  * méně (zrno se ztratí v zemi, nečistoty); humno je výhoda, ne podmínka. Rok odkladu starších vsí
@@ -467,6 +525,12 @@ export const THRESHING = {
   emergencyWork: 0.3,
   emergencyLoss: 0.1,
   spoilPerMonth: 0.1,
+  /**
+   * Výmlat na osivo (fields.md – Pořadí důležitosti polních prací a výmlat do zimy; návrh Clauda):
+   * v okně setí obilí vymlátí ves před přípravou půdy osivo na tolik dní setí dnešním tempem, kolik
+   * ho vymlácené zrno nepokryje – jako výmlat na dnešní jídlo (dnešek a zítřek).
+   */
+  seedDays: 2,
 } as const;
 /**
  * production-chains.md – Obilné jámy (Martin 20. 10. 2026: „na příhodném místě obilné jámy po

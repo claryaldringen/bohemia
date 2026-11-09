@@ -187,6 +187,22 @@ describe('rozestavěné opevnění na 0 % ve scéně', () => {
     expect(view!.occupancy.lengthM).toBeCloseTo(view!.lengthM, 6);
   });
 
+  it('brána palisády bez ochozu: klešťová i věž zašedlé s důvodem, s ochozem klešťová jde', () => {
+    // Martin 9. 11. 2026: „Pokud budeme mít obyčejnou palisádu bez ochozu, nemůže tam stát
+    // klešťová brána, ale jen obyč“
+    const state = fortState(100, false);
+    const fort = state.fortifications![0]!;
+    fort.gates = [{ segment: 0, offsetM: 3, x: 0, z: 0 }];
+    fort.kind = 'palisade';
+    const gate = fortificationViews(state, landscape, DAY, 0)[0]!.gateViews[0]!;
+    expect(gate.pincer?.blocked).toBe(FORT_GATE_LOW);
+    expect(gate.tower?.blocked).toBe(FORT_GATE_LOW);
+    fort.kind = 'walkway';
+    const walkway = fortificationViews(state, landscape, DAY, 0)[0]!.gateViews[0]!;
+    expect(walkway.pincer?.blocked).not.toBe(FORT_GATE_LOW);
+    expect(walkway.pincer?.cost.laborManDays).toBeGreaterThan(0);
+  });
+
   it('dvě stavby na jednom opevnění – úsek ukáže svou stavbu, scéna práci po dílech', () => {
     const state = fortState(100, false);
     const fort = state.fortifications![0]!;

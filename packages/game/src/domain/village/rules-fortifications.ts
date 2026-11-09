@@ -229,9 +229,18 @@ export const FORTIFICATIONS = {
   /**
    * Klešťová brána (Hradby a obrana – Brány; návrh Clauda): ulička 4 m široká a 12 m dlouhá od
    * vnitřního okraje pásu, k vratům nejvýš 4 muži; ramena 2 × 12 = 24 m hradby druhu úseku
-   * s ochozem (u palisády ochoz), za vnitřním okrajem pásu 12 m volného místa podél cesty.
+   * s ochozem, za vnitřním okrajem pásu 12 m volného místa podél cesty. Jen u hradby s ochozem
+   * (`walls`; Martin 9. 11. 2026: „Pokud budeme mít obyčejnou palisádu bez ochozu, nemůže tam stát
+   * klešťová brána, ale jen obyč“).
    */
-  pincerGate: { alleyWidthM: 4, alleyLengthM: 12, maxMen: 4, wallM: 24, clearM: 12 },
+  pincerGate: {
+    alleyWidthM: 4,
+    alleyLengthM: 12,
+    maxMen: 4,
+    wallM: 24,
+    clearM: 12,
+    walls: ['walkway', 'crib', 'chamber'],
+  },
   /**
    * Dřevěná věž nad branou (Hradby a obrana – Brány, Životnost a údržba; návrh Clauda): nejvýš
    * 4 obránci, dohled 250 m, luk do 80 m; 120 čd komplet + 30 klád; životnost 20 let, přestavba

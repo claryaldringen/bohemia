@@ -159,17 +159,18 @@ describe('taskRemaining a activeTasks', () => {
     ).toBeCloseTo(0);
     expect(taskRemaining(springCrop(plan), 'thresh')).toBe(0);
   });
-  it('mlácení jaře běží v září hned po žni (production-chains.md – Výmlat hned po žni)', () => {
+  it('mlácení jaře od září do konce února (fields.md – Pořadí důležitosti polních prací a výmlat do zimy)', () => {
     const p = withDone(plan, { harvest: 50 });
     expect(activeTasks(springCrop(p), at(500, 9, 10))).toContain('thresh');
     expect(activeTasks(springCrop(p), at(500, 8, 10))).not.toContain('thresh');
-    expect(activeTasks(springCrop(p), at(500, 12, 10))).not.toContain('thresh');
-    expect(activeTasks(springCrop(p), at(501, 2, 10))).not.toContain('thresh');
+    expect(activeTasks(springCrop(p), at(500, 12, 10))).toContain('thresh');
+    expect(activeTasks(springCrop(p), at(501, 2, 10))).toContain('thresh');
+    expect(activeTasks(springCrop(p), at(501, 3, 10))).not.toContain('thresh');
   });
-  it('v září mlácení (konec 30. 9.) předchází kopání (konec 30. 11.)', () => {
+  it('v září kopání (konec 30. 11.) předchází mlácení (konec úseku 31. 12.)', () => {
     expect(activeTasks(springCrop(withDone(plan, { harvest: 50 })), at(500, 9, 10))).toEqual([
-      'thresh',
       'dig',
+      'thresh',
     ]);
   });
 });

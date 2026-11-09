@@ -149,12 +149,13 @@ it('brána: Klešťová brána pošle úroveň s dílem brány, Věž zašedlá 
   expect(host.textContent).toContain('Věž stojí jen na klešťové bráně.');
   act(() => buttonOf('fort-gate-pincer').click());
   expect(onAction).toHaveBeenCalledWith(7, 4, { kind: 'gate', level: 'pincer' });
-  // u plotu klešťová brána zašedlá (důvod z jádra), hotová věž tlačítko nemá
+  // u plotu a palisády bez ochozu klešťová brána zašedlá (důvod z jádra), hotová věž tlačítko nemá
+  onAction.mockClear();
   act(() =>
     root.render(
       <FortGateBody
         details={gate({
-          pincer: { cost: NO_COST, blocked: 'Bránu jde vylepšit až u palisády.' },
+          pincer: { cost: NO_COST, blocked: 'Bránu jde vylepšit až u hradby s ochozem.' },
           tower: null,
         })}
         onAction={onAction}
@@ -162,5 +163,8 @@ it('brána: Klešťová brána pošle úroveň s dílem brány, Věž zašedlá 
     ),
   );
   expect(buttonOf('fort-gate-pincer').disabled).toBe(true);
+  expect(host.textContent).toContain('Bránu jde vylepšit až u hradby s ochozem.');
+  act(() => buttonOf('fort-gate-pincer').click());
+  expect(onAction).not.toHaveBeenCalled();
   expect(byId('fort-gate-tower')).toBeNull();
 });

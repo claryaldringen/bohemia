@@ -15,7 +15,12 @@ import {
   block,
   makeLandscape,
 } from '../../../game/src/domain/village/__tests__/placement-fixtures';
-import { cachedVillages, withVillageCache } from '../village-cache';
+import {
+  cachedVillages,
+  VillageMemory,
+  withVillageCache,
+  withVillageMemory,
+} from '../village-cache';
 
 const TODAY = dayIndexOf({ year: 540, month: 4, day: 12 });
 const PLAYER = 'hrac-1';
@@ -118,6 +123,28 @@ describe('paměť vsí na jeden požadavek (village-cache.ts)', () => {
       await villages.rename(villageId, 'Nová');
       expect((await villages.find(villageId))!.name).toBe('Nová');
     });
+  });
+
+  it('paměť přes požadavky (VillageMemory): týž záznam, dokud sedí otisk, nejvýš `capacity` vsí', async () => {
+    const { store, villageId } = await world();
+    const villages = cachedVillages(store);
+    const memory = new VillageMemory(1);
+    const first = await withVillageMemory(memory, () => villages.find(villageId));
+    // další požadavek – z paměti (jen otisk)
+    expect(await withVillageMemory(memory, () => villages.find(villageId))).toBe(first);
+    expect(store.finds).toBe(1);
+    store.edit(villageId, (s) => {
+      s.lastDay -= 1;
+    });
+    const fresh = await withVillageMemory(memory, () => villages.find(villageId));
+    expect(fresh!.state.lastDay).toBe(first!.state.lastDay - 1);
+    expect(store.finds).toBe(2);
+    // druhá ves vytlačí první (kapacita 1)
+    const other = [...store.records.keys()].find((id) => id !== villageId)!;
+    await withVillageMemory(memory, () => villages.find(other));
+    expect([...memory.keys()]).toEqual([other]);
+    await withVillageMemory(memory, () => villages.find(villageId));
+    expect(store.finds).toBe(4);
   });
 
   it('mimo rozsah se nic nepamatuje', async () => {

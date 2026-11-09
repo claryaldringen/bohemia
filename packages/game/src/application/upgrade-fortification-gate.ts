@@ -17,8 +17,8 @@ export interface FortificationGateUpgradeInput {
 }
 
 /**
- * Hráč vylepší bránu (fortifications.md – Hradby a obrana, Brány): klešťová brána od palisády
- * výš s místem za branou, věž nad klešťovou branou (`startGateUpgrade`).
+ * Hráč vylepší bránu (fortifications.md – Hradby a obrana, Brány): klešťová brána u hradby
+ * s ochozem s místem za branou, věž nad klešťovou branou (`startGateUpgrade`).
  */
 export function upgradeFortificationGate(
   deps: { villages: VillageRepository },

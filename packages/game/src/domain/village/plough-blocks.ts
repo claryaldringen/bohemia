@@ -116,28 +116,36 @@ export function ploughLayout(selected: readonly FieldPart[]): PloughLayout {
         first: part.id,
       });
     }
-    // bloky – díly sousedící stranou (v mřížce pole)
-    const cellKey = (x: number, y: number): string => `${x},${y}`;
-    const byCell = new Map(
-      parts.flatMap((p) => (p.cell ? [[cellKey(p.cell.x, p.cell.y), p] as const] : [])),
-    );
+    // bloky – díly sousedící stranou (v mřížce pole); díl podle políčka po sloupcích a řádcích
+    // (jako klíč „x,y“ – při dvojím políčku platí poslední díl)
+    const byCell = new Map<number, Map<number, FieldPart>>();
+    const cells: FieldPart[] = [];
+    for (const p of parts) {
+      if (!p.cell) continue;
+      let column = byCell.get(p.cell.x);
+      if (!column) {
+        column = new Map();
+        byCell.set(p.cell.x, column);
+      }
+      const before = column.get(p.cell.y);
+      if (before) cells[cells.indexOf(before)] = p;
+      else cells.push(p);
+      column.set(p.cell.y, p);
+    }
+    const at = (x: number, y: number): FieldPart | undefined => byCell.get(x)?.get(y);
     const seen = new Set<number>();
-    const sorted = [...byCell.values()].sort((a, b) => a.id - b.id);
+    const sorted = cells.sort((a, b) => a.id - b.id);
     for (const start of sorted) {
       if (seen.has(start.id)) continue;
       const block: FieldPart[] = [];
       const queue = [start];
       seen.add(start.id);
-      while (queue.length > 0) {
-        const part = queue.shift()!;
+      // fronta po indexu – v pořadí jako `shift`
+      for (let head = 0; head < queue.length; head++) {
+        const part = queue[head]!;
         block.push(part);
-        for (const [dx, dy] of [
-          [1, 0],
-          [-1, 0],
-          [0, 1],
-          [0, -1],
-        ] as const) {
-          const next = byCell.get(cellKey(part.cell!.x + dx, part.cell!.y + dy));
+        const { x, y } = part.cell!;
+        for (const next of [at(x + 1, y), at(x - 1, y), at(x, y + 1), at(x, y - 1)]) {
           if (!next || seen.has(next.id)) continue;
           seen.add(next.id);
           queue.push(next);

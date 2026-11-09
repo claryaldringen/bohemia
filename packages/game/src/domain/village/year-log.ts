@@ -23,7 +23,11 @@ export interface VillageYearRow {
   deathsHunger: number;
   /** Sklizeň obilí za rok (kg). */
   harvestKg: number;
-  /** Zásoby obilí na konci roku (kg). */
+  /**
+   * Zásoby obilí na konci roku (kg) – vymlácené i zrno v nevymlácených snopech: výmlat běží do konce
+   * února (fields.md – Pořadí důležitosti polních prací a výmlat do zimy), na konci roku je ve
+   * snopech velký díl úrody.
+   */
   storesKg: number;
   /** Dny roku, kdy ves hladověla (mezi `hunger-began` a `hunger-ended`). */
   hungryDays: number;
@@ -156,7 +160,7 @@ export function villageYearRow(end: VillageState): VillageYearRow {
     deaths,
     deathsHunger,
     harvestKg: Math.round(harvestKg),
-    storesKg: Math.round(end.storesKg),
+    storesKg: Math.round(end.storesKg + Math.max(0, end.sheaves?.grainKg ?? 0)),
     hungryDays,
     fieldM2: Math.round(fieldM2),
     sownM2: Math.round(sownM2),

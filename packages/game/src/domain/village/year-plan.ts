@@ -10,6 +10,7 @@ import {
 } from './fields';
 import { daysUntilHarvest, daysUntilWinterHarvest } from './food';
 import { PLOUGH_HA_PER_DAY, PLOUGH_SOD_FACTOR, hasSod, ploughWorkPerHa } from './plough';
+import { partsByIdOf } from './parts-by-id';
 import { ploughLayout } from './plough-blocks';
 import { fieldWorkPerHa } from './productivity';
 import {
@@ -720,10 +721,9 @@ function cropYieldKg(
   seedFrac = 0,
 ): number {
   const weedFrac = workedShare(work, 'weed');
-  // díly plánu podle id najednou – hledat každý v celém poli by bylo kvadratické
-  const wanted = new Set(work.partIds);
-  const byId = new Map<number, FieldPart>();
-  for (const part of parts) if (wanted.has(part.id)) byId.set(part.id, part);
+  // díly podle id z paměti po seznamu dílů (`partsByIdOf` – jako mapa jen dílů plánu: při dvojím
+  // id platí poslední) – hledat každý v celém poli by bylo kvadratické
+  const byId = partsByIdOf(parts);
   let total = 0;
   for (const id of work.partIds) {
     const part = byId.get(id);

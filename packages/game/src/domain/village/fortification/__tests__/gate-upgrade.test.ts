@@ -6,6 +6,7 @@ import { cancelConstruction } from '../../cancel-construction';
 import {
   FORT_GATE_LOW,
   FORT_GATE_NO_ROOM,
+  FORT_PINCER_DONE,
   FORT_TOWER_DONE,
   FORT_TOWER_NO_PINCER,
   gateUpgrade,
@@ -29,7 +30,7 @@ import { fortificationCost } from '../cost';
 import { decideFortRebuilds, fortUpkeep } from '../decay';
 import { gateChord } from '../gates';
 import { FORT_DAYS_PER_YEAR } from '../life';
-import { gateTowerStands } from '../pincer';
+import { gateTowerStands, pincerWallAllowed } from '../pincer';
 import { fortSegments } from '../segments';
 import { fortWalls, insideQuad } from '../walls';
 
@@ -44,16 +45,20 @@ const FAR = { x: -90, z: -90, rotation: 0 };
 const landscape = makeLandscape();
 const AREA = block(8, 8, 4, 4);
 
-/** Hotové opevnění `kind` (všechny díly dostavěné ke `DAY`). */
+/**
+ * Hotové opevnění `kind` (všechny díly dostavěné ke `DAY`). Ochoz jen vylepšením palisády, roštová
+ * a komorová až od svého roku – tady palisáda, které se druh přepíše.
+ */
 function built(kind: FortKind): VillageState {
   const s = withBuiltFirstDwelling(foundVillage({ seed: 5, day: DAY, dwellingPosition: FAR }));
   s.woodLogs = 20000;
   const r = startFortification(s, DAY, landscape, EMPTY, {
     points: squarePoints(AREA, null, landscape, 'chamber')!,
-    kind,
+    kind: kind === 'fence' || kind === 'rampart' ? kind : 'palisade',
   });
   if (!r.ok) throw new Error(r.reason);
   const next = r.state;
+  villageFortifications(next)[0]!.kind = kind;
   next.constructions = next.constructions.filter((c) => c.kind !== 'fortification');
   for (const seg of villageFortifications(next)[0]!.segments) {
     seg.builtDay = DAY;
@@ -112,8 +117,8 @@ const inGate = (s: VillageState, p: [number, number]): boolean =>
   fortWalls(landscape, fortOf(s), null).gates.some((g) => insideQuad(g, p[0], p[1]));
 
 describe('klešťová brána (Hradby a obrana – Brány)', () => {
-  it('u palisády projde – cena 24 m palisády s ochozem, brána se staví', () => {
-    const s = built('palisade');
+  it('u palisády s ochozem projde – cena 24 m palisády s ochozem, brána se staví', () => {
+    const s = built('walkway');
     const cost = gateUpgrade(s, landscape, {
       fortificationId: fortOf(s).id,
       segment: gateOf(s).segment,
@@ -121,7 +126,7 @@ describe('klešťová brána (Hradby a obrana – Brány)', () => {
     });
     const full = fortificationCost('walkway', 24);
     expect(cost).toEqual(full);
-    // komplet ≈ 139,2 čd + 50,4 klády (Brány – „u palisády ≈ 140 čd + 50 klád“)
+    // komplet ≈ 139,2 čd + 50,4 klády (Brány – „u palisády ≈ 140 čd + 50 klád“, palisáda s ochozem)
     expect(full.laborManDays + full.logs).toBeCloseTo(139.2, 6);
     const next = ok(upgrade(s, 'pincer'));
     expect(gateOf(next).pincerDay).toBeNull();
@@ -136,13 +141,50 @@ describe('klešťová brána (Hradby a obrana – Brány)', () => {
     expect(gateOf(s).pincerDay).toBeUndefined();
   });
 
-  it('u plotu nejde', () => {
-    const s = built('fence');
-    expect(upgrade(s, 'pincer')).toEqual({ ok: false, reason: FORT_GATE_LOW });
+  it('jen u hradby s ochozem – u plotu a palisády bez ochozu ani klešťová, ani věž', () => {
+    // Martin 9. 11. 2026: „Pokud budeme mít obyčejnou palisádu bez ochozu, nemůže tam stát
+    // klešťová brána, ale jen obyč“
+    for (const kind of ['fence', 'palisade'] as const) {
+      const s = built(kind);
+      expect(pincerWallAllowed(kind)).toBe(false);
+      expect(upgrade(s, 'pincer')).toEqual({ ok: false, reason: FORT_GATE_LOW });
+      expect(upgrade(s, 'tower')).toEqual({ ok: false, reason: FORT_GATE_LOW });
+      const input = { fortificationId: fortOf(s).id, segment: gateOf(s).segment };
+      expect(gateUpgrade(s, landscape, { ...input, level: 'pincer' })).toEqual({
+        reason: FORT_GATE_LOW,
+      });
+    }
+    for (const kind of ['walkway', 'crib', 'chamber'] as const) {
+      const s = built(kind);
+      expect(pincerWallAllowed(kind)).toBe(true);
+      const cost = gateUpgrade(s, landscape, {
+        fortificationId: fortOf(s).id,
+        segment: gateOf(s).segment,
+        level: 'pincer',
+      });
+      expect(cost).toEqual(fortificationCost(kind, 24));
+    }
+  });
+
+  it('stojící klešťová brána starší vsi u palisády bez ochozu zůstane, věž na ni ne', () => {
+    const s = finish(ok(upgrade(built('walkway'), 'pincer')), DAY + 9);
+    // starší ves: klešťová brána z doby, kdy šla i u palisády
+    fortOf(s).kind = 'palisade';
+    s.lastDay = DAY + 10;
+    const input = { fortificationId: fortOf(s).id, segment: gateOf(s).segment };
+    expect(gateUpgrade(s, landscape, { ...input, level: 'pincer' })).toEqual({
+      reason: FORT_PINCER_DONE,
+    });
+    expect(gateUpgrade(s, landscape, { ...input, level: 'tower' })).toEqual({
+      reason: FORT_GATE_LOW,
+    });
+    const fort = fortOf(s);
+    const seg = fort.segments.find((x) => x.index === gateOf(s).segment)!;
+    expect(crossingLayers(fort, seg, DAY + 10, true).gate).toEqual({ pincer: true, tower: false });
   });
 
   it('obydlí 10 m za vnitřním okrajem pásu podél cesty – „Za branou není místo.“', () => {
-    const s = built('palisade');
+    const s = built('walkway');
     const first = s.dwellings[0]!;
     const [x, z] = gatePoint(s, 0, 1.5 + 10);
     s.dwellings.push({ ...first, id: s.nextId++, position: { x, z, rotation: 0 } });
@@ -150,7 +192,7 @@ describe('klešťová brána (Hradby a obrana – Brány)', () => {
   });
 
   it('ramena blokují pěšiny bokem od zahájení, ulička průchozí; zrušení je vrátí', () => {
-    const s = built('palisade');
+    const s = built('walkway');
     const arm: [number, number] = gatePoint(s, -2 - 2.75, 1.5 + 6);
     const alley: [number, number] = gatePoint(s, 0, 1.5 + 6);
     expect(inWall(s, arm)).toBe(false);
@@ -173,7 +215,7 @@ describe('klešťová brána (Hradby a obrana – Brány)', () => {
   });
 
   it('po dokončení `pincerDay`, ramena stojí, druhá klešťová ne', () => {
-    const next = finish(ok(upgrade(built('palisade'), 'pincer')), DAY + 9);
+    const next = finish(ok(upgrade(built('walkway'), 'pincer')), DAY + 9);
     expect(gateOf(next).pincerDay).toBe(DAY + 9);
     expect(inWall(next, gatePoint(next, -2 - 2.75, 1.5 + 6))).toBe(true);
     const fort = fortOf(next);
@@ -186,14 +228,14 @@ describe('klešťová brána (Hradby a obrana – Brány)', () => {
 
 describe('věž nad branou (Hradby a obrana – Brány)', () => {
   it('bez klešťové brány nejde, s rozestavěnou ani ne', () => {
-    const s = built('palisade');
+    const s = built('walkway');
     expect(upgrade(s, 'tower')).toEqual({ ok: false, reason: FORT_TOWER_NO_PINCER });
     const building = ok(upgrade(s, 'pincer'));
     expect(upgrade(building, 'tower')).toEqual({ ok: false, reason: FORT_BUSY });
   });
 
   it('na klešťové bráně: 120 čd komplet + 30 klád; dvakrát ne', () => {
-    const s = finish(ok(upgrade(built('palisade'), 'pincer')), DAY + 9);
+    const s = finish(ok(upgrade(built('walkway'), 'pincer')), DAY + 9);
     // cena pro rozhraní ke dni vsi – klešťová brána musí stát
     s.lastDay = DAY + 10;
     const cost = gateUpgrade(s, landscape, {
@@ -208,7 +250,7 @@ describe('věž nad branou (Hradby a obrana – Brány)', () => {
   });
 
   it('za 20 let dožije a obyvatelé ji přestaví plnou cenou', () => {
-    const s = finish(ok(upgrade(built('palisade'), 'pincer')), DAY + 9);
+    const s = finish(ok(upgrade(built('walkway'), 'pincer')), DAY + 9);
     gateOf(s).towerDay = DAY + 10;
     // palisáda mladší než věž – přestavují se jen věž
     for (const seg of fortOf(s).segments) seg.builtDay = DAY + 10 + FORT_DAYS_PER_YEAR;
@@ -231,7 +273,7 @@ describe('věž nad branou (Hradby a obrana – Brány)', () => {
   });
 
   it('bez dřeva chátrá a po 5 letech spadne; bez údržby stárne navíc', () => {
-    const s = finish(ok(upgrade(built('palisade'), 'pincer')), DAY + 9);
+    const s = finish(ok(upgrade(built('walkway'), 'pincer')), DAY + 9);
     gateOf(s).towerDay = DAY + 10;
     s.woodLogs = 0;
     const life = 20 * FORT_DAYS_PER_YEAR;
@@ -239,7 +281,7 @@ describe('věž nad branou (Hradby a obrana – Brány)', () => {
     expect(gateTowerStands(gateOf(s), DAY + 10 + life + 5 * FORT_DAYS_PER_YEAR - 1)).toBe(true);
     expect(gateTowerStands(gateOf(s), DAY + 10 + life + 5 * FORT_DAYS_PER_YEAR)).toBe(false);
     // údržba: bez práce věž stárne o den navíc
-    const u = finish(ok(upgrade(built('palisade'), 'pincer')), DAY + 9);
+    const u = finish(ok(upgrade(built('walkway'), 'pincer')), DAY + 9);
     gateOf(u).towerDay = DAY + 10;
     fortUpkeep(u, 0, landscape);
     expect(gateOf(u).towerExtraAgeDays).toBeCloseTo(1, 9);

@@ -2,6 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+**Stav:** úlohy Ú1–Ú15 hotové (9.–10. 11. 2026); ikony uprchlíků a posla na mapě tažení dodělala
+Ú15 (Ú14 je nechala), pohled na varování drží stavy vsí a mřížky přes dotazy (Ú15 – riziko Ú12).
+
 **Goal:** Ves se o cizím vojsku dozví, až ho spatří vesničan kdekoli na mapě a doběhne domů; hráč
 nebo správce pošle posla do hradiště pána (varuje vsi na trase, hradiště pak vsi domény), ukryje
 lidi v lese, nebo je evakuuje do hradiště – jen lidi, nebo se vším, co unesou, a se stády. Skupina
@@ -22,7 +25,7 @@ může být `done`).
 **Tech Stack:** TypeScript 6, Vitest, Drizzle + PostgreSQL (bez migrace), Next.js 16, Babylon.js 9,
 Playwright, Blender (ikony v `tools/blender`).
 
-**Spec:** [docs/design/war.md – Varování, poslové a útěk do hradiště](../../design/war.md#varování-poslové-a-útěk-do-hradiště-schváleno-9-11-2026--implementace-čeká)
+**Spec:** [docs/design/war.md – Varování, poslové a útěk do hradiště](../../design/war.md#varování-poslové-a-útěk-do-hradiště-schváleno-9-11-2026--implementováno)
 (schváleno Martinem 9. 11. 2026 včetně „Podrobnosti k provedení“ – „Ano“ k celku). Navazuje:
 war.md – Obránci, postoje a útěk; Kořist; Vzdaní, zajetí a výkupné; [hillfort.md](../../design/hillfort.md)
 (hradiště = ves pána, hra ho jinak nerozlišuje); [fortifications.md](../../design/fortifications.md) –
@@ -302,12 +305,12 @@ alarm: {
 }
 ```
 
-- [ ] **Krok 1:** typy a čísla; `typecheck` projde (nikdo je zatím nepoužívá).
-- [ ] **Krok 2:** test `domain/war/__tests__/alarm-types.test.ts`: (a) `CampaignState` bez `alarm`
+- [x] **Krok 1:** typy a čísla; `typecheck` projde (nikdo je zatím nepoužívá).
+- [x] **Krok 2:** test `domain/war/__tests__/alarm-types.test.ts`: (a) `CampaignState` bez `alarm`
       po `JSON.parse(JSON.stringify())` totéž; (b) `stepCampaign` starého bodu (`campaign-fixtures.ts`)
       dá bit po bitu stejný stav jako před změnou (otisk JSON); (c) ves s `refuge-depart` v schránce
       zatím beze změny (větev `break`).
-- [ ] **Krok 3:** docs, `typecheck`, `lint`, `test`, `format:check`, commit
+- [x] **Krok 3:** docs, `typecheck`, `lint`, `test`, `format:check`, commit
       `feat(game): varování a útěk do hradiště – čísla a typy`.
 
 ### Úloha 2: Oči vsi a varování během do vsi (≈ 140 kroků) – po Ú1
@@ -344,21 +347,21 @@ alarm: {
 - `watchVillages`: `raid-day` jen pro ves, která je varovaná (`isWarned`), nebo na jejíž mapě se
   bojuje (`phase === 'raiding'` a cíl).
 
-- [ ] **Krok 1:** přesun `TickContext` / `TickOut` do `campaign-tick.ts`; `npx vitest run
+- [x] **Krok 1:** přesun `TickContext` / `TickOut` do `campaign-tick.ts`; `npx vitest run
 packages/game/src/domain/war` – vše zelené beze změny.
-- [ ] **Krok 2:** testy `lookouts.test.ts`: (a) ves s milířem, lomem, polem a ohradou → oko u každého
+- [x] **Krok 2:** testy `lookouts.test.ts`: (a) ves s milířem, lomem, polem a ohradou → oko u každého
       (pořadí pevné); (b) v lednu bez polí; (c) `raidDay === day` → jen domy; (d) dvakrát totéž.
-- [ ] **Krok 3:** testy `alarm-sight.test.ts` (fixtury `campaign-fixtures.ts`, rovná mapa, vojsko jde
+- [x] **Krok 3:** testy `alarm-sight.test.ts` (fixtury `campaign-fixtures.ts`, rovná mapa, vojsko jde
       k vsi): (a) vojsko 140 m od domu → `warnTick` = takt spatření; (b) **uhlíř** – milíř 600 m od
       vsi, vojsko jde 40 m od milíře → `warnTick` = spatření + `runTicks`, dřív než by vojsko došlo
       na dohled domů; (c) v lese dohled 50 m – vojsko 80 m od milíře v lese ves nevaruje; (d) `raid-day`
       až od `warnTick` (dny před tím ves pracuje); (e) neškodné vojsko (`harmless`) nic; (f) po
       1 / 7 / 40 taktech a přes JSON = vcelku; (g) upozornění `army-warned` jednou.
-- [ ] **Krok 4:** pusť testy – padají; implementuj `lookouts.ts`, `alarm.ts`, zapojení v
+- [x] **Krok 4:** pusť testy – padají; implementuj `lookouts.ts`, `alarm.ts`, zapojení v
       `campaignTick` (po `watchVillages` volat `sightAlarms`; pořadí: pohyb → spatření → dny nájezdu).
-- [ ] **Krok 5:** `npm run test` – rozdíly projdi; změnit se smí jen testy ze seznamu výš.
+- [x] **Krok 5:** `npm run test` – rozdíly projdi; změnit se smí jen testy ze seznamu výš.
       `march.test.ts`, `campaign.test.ts` (kousky), `battle.test.ts` beze změny – jinak zastavit a hlásit.
-- [ ] **Krok 6:** `test:db` (`campaign-race.db.test.ts`), docs (war.md – Varování: oči a doběh;
+- [x] **Krok 6:** `test:db` (`campaign-race.db.test.ts`), docs (war.md – Varování: oči a doběh;
       oprava sekce „Bariéra dopočtu a dny nájezdu (Ú6.7)“ – Dny nájezdu a Posel), commit
       `feat(game): ves se o vojsku dozví od vesničana, který ho spatří`.
 
@@ -380,14 +383,14 @@ packages/game/src/domain/war` – vše zelené beze změny.
 `AlarmVillage.hosts?: string[]` (kandidáti hradišť – zapisuje Ú6) přidá Ú3 do `alarm-types.ts`
 jako volitelné, ať CTE má co číst.
 
-- [ ] **Krok 1:** db testy: (a) ves 5 políček od vojska v `alarm.villages` → mez = `throughDay`;
+- [x] **Krok 1:** db testy: (a) ves 5 políček od vojska v `alarm.villages` → mez = `throughDay`;
       (b) hostitel skupiny na cestě → drží; (c) kandidát hradiště → drží; (d) tažení `done` nedrží;
       (e) `activeAlarming` – cíl, varovaná ves, hostitel; cizí ves ne; (f) bod bez `alarm` – meze jako
       dřív (bit po bitu).
-- [ ] **Krok 2:** `npm run test:db -- village-holds campaign-repository` – padají; implementace
+- [x] **Krok 2:** `npm run test:db -- village-holds campaign-repository` – padají; implementace
       (jeden průchod `jsonb_array_elements` na tažení jako dnes u `groups`).
-- [ ] **Krok 3:** in-memory porty v testech use-casů doplnit `activeAlarming` (výchozí = `activeAgainst`).
-- [ ] **Krok 4:** `test:db` celé, docs (war.md – Bariéra dopočtu: Mez vsi; Varování: bariéra),
+- [x] **Krok 3:** in-memory porty v testech use-casů doplnit `activeAlarming` (výchozí = `activeAgainst`).
+- [x] **Krok 4:** `test:db` celé, docs (war.md – Bariéra dopočtu: Mez vsi; Varování: bariéra),
       commit `feat(db): bariéra drží varované vsi a hradiště`.
 
 ### Úloha 4: Hradiště, odhady a volba správce – čistá doména (≈ 90 kroků) – po Ú1
@@ -461,14 +464,14 @@ function messengerOf(
   útočiště – `all`, když stihnou se vším, jinak `people`, když stihnou, jinak `forest` (bez lesa nic –
   postoj při boji).
 
-- [ ] **Krok 1:** testy: (a) pán bez opevněné vsi → `no-hillfort`; (b) hradiště 2 políčka, vojsko
+- [x] **Krok 1:** testy: (a) pán bez opevněné vsi → `no-hillfort`; (b) hradiště 2 políčka, vojsko
       1 km → `people` i `all` jdou; vojsko 300 m → `all` `too-late`, `people` jde; vojsko u domů → oba
       `too-late`; (c) trasa přes políčko spatření → `too-late`; (d) dva kandidáti – bližší; shoda –
       menší id; (e) vozy se spřežením přidají 400 kg každý, vůz bez spřežení nic; (f) `stewardAlarmChoice`
       – `flee` + stihnou se vším = `all`; `defend` = jen posel; vlastní útočiště = jen posel; bez lesa
       a bez hradiště = nic; (g) `messengerOf` – zdatný vesničan, bez něj muž rodu, raněný ne.
-- [ ] **Krok 2:** implementace (det-math, vzdálenosti po políčkách přes `GridCell` × 1920 m).
-- [ ] **Krok 3:** docs (war.md – Varování: hradiště a odhady), commit
+- [x] **Krok 2:** implementace (det-math, vzdálenosti po políčkách přes `GridCell` × 1920 m).
+- [x] **Krok 3:** docs (war.md – Varování: hradiště a odhady), commit
       `feat(game): hradiště pro útěk, odhad času a volba správce`.
 
 ### Úloha 5: Posel z vsi (≈ 140 kroků) – po Ú2, Ú4
@@ -497,9 +500,9 @@ function messengerOf(
   `messenger-caught` majiteli vsi.
 - Pořadí v taktu: pohyb vojska → spatření (Ú2) → posli (pohyb, chycení) → dny nájezdu.
 
-- [ ] **Krok 1:** vytáhnout `movement.ts`; `campaign.test.ts`, `march.test.ts`, `raid-campaign.test.ts`
+- [x] **Krok 1:** vytáhnout `movement.ts`; `campaign.test.ts`, `march.test.ts`, `raid-campaign.test.ts`
       bit po bitu beze změny.
-- [ ] **Krok 2:** testy `messenger.test.ts` (tři mapy v řadě: ves A, ves B, hradiště C): (a) záměr
+- [x] **Krok 2:** testy `messenger.test.ts` (tři mapy v řadě: ves A, ves B, hradiště C): (a) záměr
       `alarm-messenger` od majitele A → posel běží, B varovaná při vstupu na její mapu, C při
       příchodu, `messenger-out` / `messenger-back` do A; (b) záměr od cizího hráče zahozen; (c) ves
       vazala rodu útočníka na trase nevarovaná (`harmless`); (d) vojsko do 30 m → chycen, odvést →
@@ -507,7 +510,7 @@ function messengerOf(
       (e) posel na koni rychleji; (f) bez muže → záměr nic; (g) po kouscích a přes JSON = vcelku;
       (h) v boji v týž den posel mezi obránci není (Review Focus 2 – `alarmTaken` z Ú8 zatím jen
       osoby posla).
-- [ ] **Krok 3:** implementace; `npm run test`; docs (war.md – Varování: posel), commit
+- [x] **Krok 3:** implementace; `npm run test`; docs (war.md – Varování: posel), commit
       `feat(game): posel běží do hradiště a varuje vsi na trase`.
 
 ### Úloha 6: Hradiště varuje doménu a svět varování (≈ 110 kroků) – po Ú5, Ú3
@@ -532,15 +535,15 @@ refugeHostsOf, domainOf }`), adaptér `packages/db/src/adapters/alarm-owners.ts`
 vzdálenosti); `domainOf(hradiště)` = vsi rodu hradiště a přímých vazalů (Otevřené 5).
 `AlarmVillage.hosts` = id kandidátů (pro bariéru Ú3) – zapíše `sightAlarms` / `moveMessengers`.
 
-- [ ] **Krok 1:** testy domény (`messenger.test.ts` doplnit): (a) posel dorazí do hradiště NPC →
+- [x] **Krok 1:** testy domény (`messenger.test.ts` doplnit): (a) posel dorazí do hradiště NPC →
       hradiště pošle nejvýš 4 posly do nevarovaných vsí domény do 3 políček od spatření, nejbližší
       první; (b) hradiště hráče – nic, dokud nepřijde `alarm-domain` (hráč vybere vsi); (c) ves
       vazala hradiště je v doméně, vazal vazala ne.
-- [ ] **Krok 2:** testy use-casu `alarm-world.test.ts` (in-memory porty): `stepCampaigns` dodá
+- [x] **Krok 2:** testy use-casu `alarm-world.test.ts` (in-memory porty): `stepCampaigns` dodá
       `alarmOf`, `refugeHostsOf`, `domainOf`; nenačtený vlastník → takt čeká a po načtení stejný
       výsledek.
-- [ ] **Krok 3:** db test adaptéru (rod s pánem a vazalem, NPC rod, ves bez rodu = null vlastník).
-- [ ] **Krok 4:** implementace, zapojení ve workeru i v `measure-campaigns.ts` (porty v paměti);
+- [x] **Krok 3:** db test adaptéru (rod s pánem a vazalem, NPC rod, ves bez rodu = null vlastník).
+- [x] **Krok 4:** implementace, zapojení ve workeru i v `measure-campaigns.ts` (porty v paměti);
       `test`, `test:db`; docs (war.md – Varování: hradiště varuje doménu; world.md – odkaz), commit
       `feat(game): hradiště rozešle posly do vsí domény`.
 
@@ -575,15 +578,15 @@ vzdálenosti); `domainOf(hradiště)` = vsi rodu hradiště a přímých vazalů
 - `refugeFoodDay(state, day)` – les: z `refuge.hidden.foodKg` do zásob tolik, kolik lidé v lese sní;
   hradiště: z každého `RefugeStay.foodKg` do zásob tolik, kolik jeho hosté sní.
 
-- [ ] **Krok 1:** testy: (a) odchod „se vším“ – bilance obilí, stádo, lidé pryč; druhý odchod týchž
+- [x] **Krok 1:** testy: (a) odchod „se vším“ – bilance obilí, stádo, lidé pryč; druhý odchod týchž
       lidí nic; (b) les – lidé jedí, `hidden` ubývá, pak zásoby vsi; (c) hradiště – hosté jedí napřed
       ze `stay`, pak ze zásob hostitele; dítě jí méně a nepracuje, dospělý pracuje na opevnění;
       (d) `leaveRefuge` + `applyRefugeBack` – bilance host + domov = konstanta; (e) dostižení – padlí
       zemřou, odvedení zmizí z vsi; (f) posel pryč nepracuje a nejí, po `messenger-back` doma;
       (g) po kouscích dopočtu (1 / 3 / 10 dní) = vcelku; (h) ves bez nových částí – zlaté testy
       (`smith-golden.test.ts`, `craft-skill-golden.test.ts`, `guests.test.ts`) beze změny.
-- [ ] **Krok 2:** implementace; `npm run test` – změnit se nesmí nic mimo nové testy.
-- [ ] **Krok 3:** docs (village-core.md – Nepřítomní a hosté: uprchlíci a posel; war.md – Varování:
+- [x] **Krok 2:** implementace; `npm run test` – změnit se nesmí nic mimo nové testy.
+- [x] **Krok 3:** docs (village-core.md – Nepřítomní a hosté: uprchlíci a posel; war.md – Varování:
       ves na útěku), commit `feat(game): ves na útěku – odchod, les, hradiště a návrat ve stavu vsi`.
 
 ### Úloha 8: Evakuace v tažení – skupina, dostižení, příchod, prázdná ves (≈ 150 kroků) – po Ú6, Ú7
@@ -612,7 +615,7 @@ vzdálenosti); `domainOf(hradiště)` = vsi rodu hradiště a přímých vazalů
   – co tažení z vsi v den `day` odvedlo (posel, skupina) – `campaignBattle` lidi vynechá
   z `defenderRoster` / `planDefense`, `raidLoot` zásoby a stádo odečte.
 
-- [ ] **Krok 1:** testy `evacuation.test.ts` (mapy jako v Ú5, hradiště C s palisádou): (a) uhlíř
+- [x] **Krok 1:** testy `evacuation.test.ts` (mapy jako v Ú5, hradiště C s palisádou): (a) uhlíř
       varuje, hráč zvolí „Do hradiště – se vším“ → skupina odejde, dojde do C, `refuge-arrive`
       se zásobami po jídle na cestě; vojsko v A najde prázdnou ves – kořist = zásoby mimo nesené,
       nesehnaný dobytek nic, domy stojí; (b) „jen lidé“ → rychlejší, stádo a zásoby zůstanou a útočník
@@ -622,9 +625,9 @@ vzdálenosti); `domainOf(hradiště)` = vsi rodu hradiště a přímých vazalů
       odešlí v `BattleState` nejsou, kořist nebere jejich zásoby (Review Focus 2); (f) volba, kterou
       `refugeOptions` blokuje (`too-late`), se zahodí; (g) po 1 / 7 / 40 / 400 taktech a přes JSON
       = vcelku; (h) bilance obilí: ves + skupina + kořist + hostitel = konstanta.
-- [ ] **Krok 2:** implementace; `npm run test` – `raid-campaign.test.ts`, `raid-apply.test.ts`,
+- [x] **Krok 2:** implementace; `npm run test` – `raid-campaign.test.ts`, `raid-apply.test.ts`,
       `stance.test.ts` beze změny (ves bez `alarm` se chová jako dřív); jinak zastavit a hlásit.
-- [ ] **Krok 3:** docs (war.md – Varování: evakuace, dostižení, prázdná ves; war.md – Postoje vsi
+- [x] **Krok 3:** docs (war.md – Varování: evakuace, dostižení, prázdná ves; war.md – Postoje vsi
       a včasný útěk: odkaz), commit `feat(game): evakuace do hradiště nebo lesa jako skupina po stezkách`.
 
 ### Úloha 9: Pobyt v hradišti – útočiště a obrana (≈ 90 kroků) – po Ú8
@@ -638,12 +641,12 @@ vzdálenosti); `domainOf(hradiště)` = vsi rodu hradiště a přímých vazalů
   skupina domů), `defenders.ts` (beze změny tvaru – `GuardGuest` se použije).
 - Create: `domain/war/__tests__/refuge-defense.test.ts`.
 
-- [ ] **Krok 1:** testy: (a) hradiště s 20 domácími a 15 uprchlíky (6 mužů) → 6 mužů na hradbě
+- [x] **Krok 1:** testy: (a) hradiště s 20 domácími a 15 uprchlíky (6 mužů) → 6 mužů na hradbě
       (`wallPosts`), obsazenost roste; (b) malé útočiště – domácí uvnitř, uprchlíci napřed, dobytek
       venku (stáda první); (c) padlý muž uprchlíků → událost do jeho domovské vsi (smrt bez pohřbu),
       zajatý → vězeň jako host z ochrany; (d) hradiště bez uprchlíků – `battle.test.ts`,
       `stance.test.ts` bit po bitu.
-- [ ] **Krok 2:** implementace; docs (war.md – Varování: pobyt a obrana; Obránci na hradbě – odkaz),
+- [x] **Krok 2:** implementace; docs (war.md – Varování: pobyt a obrana; Obránci na hradbě – odkaz),
       commit `feat(game): muži uprchlíků brání hradiště`.
 
 ### Úloha 10: Návrat – use-case, správce a úloha světa (≈ 120 kroků) – po Ú3, Ú7
@@ -674,11 +677,11 @@ villageId; refId; hostVillageId: string | null }[]>`) a adaptér
 - Důvody (návrh Clauda): „Lidé ještě nedorazili.“, „Vojsko je ještě na mapě.“, „Ves nikoho
   neodvedla.“
 
-- [ ] **Krok 1:** testy use-casu (in-memory porty): (a) vojsko na mapě → odmítnuto, po odtažení
+- [x] **Krok 1:** testy use-casu (in-memory porty): (a) vojsko na mapě → odmítnuto, po odtažení
       vrátí zbylé zásoby a celé stádo, bilance host + domov = konstanta (Review Focus 5); (b) les →
       týž den; (c) opakované volání = jedna událost; (d) cizí hráč a správce cizí vsi bez práva
       `war` odmítnut; (e) správce vrátí ves den po posledním dni nájezdu, hráčovu ves bez správce ne.
-- [ ] **Krok 2:** db test adaptéru; implementace; `test`, `test:db`; docs (war.md – Varování: návrat;
+- [x] **Krok 2:** db test adaptéru; implementace; `test`, `test:db`; docs (war.md – Varování: návrat;
       worker.md – úlohy světa), commit `feat(game): návrat uprchlíků domů`.
 
 ### Úloha 11: Kdo rozhoduje – lhůta hráče, správce a NPC rody (≈ 90 kroků) – po Ú8
@@ -692,14 +695,14 @@ villageId; refId; hostVillageId: string | null }[]>`) a adaptér
   (scénář s varováním – Ú15 ho pustí).
 - Create: `domain/war/__tests__/alarm-steward.test.ts`.
 
-- [ ] **Krok 1:** testy: (a) NPC ves – posel a útěk do hradiště v taktu varování; (b) hráč bez
+- [x] **Krok 1:** testy: (a) NPC ves – posel a útěk do hradiště v taktu varování; (b) hráč bez
       správce a bez volby – po 344 taktech jako správce; volba v taktu 100 má přednost a správce už
       nerozhoduje (Review Focus 6); (c) postoj `defend` → jen posel, lidé zůstanou, boj jako dnes;
       (d) vlastní opevnění s plochou → jen posel; (e) nestihnou ani jen lidé → les; bez lesa nic
       (postoj při boji); (f) hradiště správce rozešle posly do domény hned; (g) po kouscích = vcelku.
-- [ ] **Krok 2:** implementace; `npm run test` – `npc-commander.test.ts` a `raid-campaign.test.ts`
+- [x] **Krok 2:** implementace; `npm run test` – `npc-commander.test.ts` a `raid-campaign.test.ts`
       (NPC cíle) se smí změnit jen tam, kde cílová ves teď včas uteče (komentář „war.md – Varování, 9. 11. 2026“); jiný test → zastavit a hlásit.
-- [ ] **Krok 3:** docs (war.md – Varování: správce a NPC; village-steward.md – odkaz), commit
+- [x] **Krok 3:** docs (war.md – Varování: správce a NPC; village-steward.md – odkaz), commit
       `feat(game): správce a NPC rody varují, posílají posly a evakuují`.
 
 ### Úloha 12: Pohled na varování a příkazy (≈ 110 kroků) – po Ú9, Ú10, Ú11
@@ -750,12 +753,12 @@ interface AlarmView {
   | `domain` (`to[]`); ověří právo a znovu `refugeOptions` nad posledním bodem; `queueCampaignIntent`
   (teď + 2 takty) jako `orderBreakout`.
 
-- [ ] **Krok 1:** testy use-casu: (a) nevarovaná ves → `warned: false`, volby zašedlé; (b) varovaná
+- [x] **Krok 1:** testy use-casu: (a) nevarovaná ves → `warned: false`, volby zašedlé; (b) varovaná
       bez hradiště → „Pán nemá hradiště“; (c) pozdě → „Nestihnou to“ s odhady; (d) cizí hráč → null;
       (e) příkaz → záměr v `campaign_intent` na takt teď + 2; zablokovaný → důvod, žádný záměr;
       (f) po skončeném tažení `ret` podle návratu (Ú10).
-- [ ] **Krok 2:** web: server actions, hook, `lib/alarm-view.ts` + test (odhad ve dnech, texty).
-- [ ] **Krok 3:** `typecheck`, `lint`, `test`; docs (web-ui.md – nová sekce „Varování a útěk
+- [x] **Krok 2:** web: server actions, hook, `lib/alarm-view.ts` + test (odhad ve dnech, texty).
+- [x] **Krok 3:** `typecheck`, `lint`, `test`; docs (web-ui.md – nová sekce „Varování a útěk
       v rozhraní“ – data a akce), commit `feat(web): pohled na varování a příkazy obránce`.
 
 ### Úloha 13: Rozhraní – ikony v panelu vsi (≈ 120 kroků) – po Ú12
@@ -778,10 +781,10 @@ a odhadem dnů, nebo zaškrtnutí po příchodu) a **Vrátit se**. Název jen v 
 výběr vsí domény (seznam s portréty vsí, zaškrtnutí – návrh Clauda). Po kliknutí zašedne do
 odpovědi serveru, nejdéle 10 s (vzor `BreakoutButton`). Bez práva `war` zašedne s důvodem práva.
 
-- [ ] **Krok 1:** testy chování (`@testing-library`): ikony podle `AlarmView`, důvod u kurzoru,
+- [x] **Krok 1:** testy chování (`@testing-library`): ikony podle `AlarmView`, důvod u kurzoru,
       odhad v popisku, klik volá akci jednou, po útěku stav a Vrátit se, bez práva zašedlé.
-- [ ] **Krok 2:** ikony z Blenderu (headless skript, 64 px jako ostatní), licence.
-- [ ] **Krok 3:** `typecheck`, `lint`, `test`, `format:check`; snímek panelu jen na konci (menší);
+- [x] **Krok 2:** ikony z Blenderu (headless skript, 64 px jako ostatní), licence.
+- [x] **Krok 3:** `typecheck`, `lint`, `test`, `format:check`; snímek panelu jen na konci (menší);
       docs (web-ui.md – Varování a útěk v rozhraní: ikony), commit
       `feat(web): ikony varování a útěku v panelu vsi`.
 
@@ -801,11 +804,11 @@ WarSceneRefugeMarch[]`, `messengers?: WarSceneMessenger[]` – obránce svou sku
 - Tests: `domain/war/__tests__/scene-view.test.ts` (mlha – útočník průvod mimo dohled nevidí,
   obránce vždy), `apps/web/lib/__tests__/war-scene-view.test.ts`.
 
-- [ ] **Krok 1:** testy pohledu (mlha, poloha po taktech, lidé a stádo).
-- [ ] **Krok 2:** scéna: průvod od vsi k okraji mapy (hradiště) nebo k lesu, stádo za lidmi, vozy
+- [x] **Krok 1:** testy pohledu (mlha, poloha po taktech, lidé a stádo).
+- [x] **Krok 2:** scéna: průvod od vsi k okraji mapy (hradiště) nebo k lesu, stádo za lidmi, vozy
       jako karavana; kreslí se jen při pohybu (`needsRender` v `animate()` v taktu `WATER_FPS`);
       Babylon jen z konkrétních modulů; 8 vertex bufferů.
-- [ ] **Krok 3:** `typecheck`, `lint`, `test`; snímek scény na konci (menší); docs (scene.md – Vojsko,
+- [x] **Krok 3:** `typecheck`, `lint`, `test`; snímek scény na konci (menší); docs (scene.md – Vojsko,
       boj a mlha války: průvod a posel; web-ui.md – mapa tažení), commit
       `feat(web): průvod uprchlíků a posel ve scéně a na mapě tažení`.
 
@@ -819,21 +822,21 @@ WarSceneRefugeMarch[]`, `messengers?: WarSceneMessenger[]` – obránce svou sku
   Později: boj v poli při dostižení, kořist zásob a stád uprchlíků v dobytém hradišti, posel na koni
   k pánovi přes víc hradišť).
 
-- [ ] **Krok 1:** e2e „ves B varovaná utíká do hradiště pána“: rod B je vazalem A2 (třetí hráč – pán
+- [x] **Krok 1:** e2e „ves B varovaná utíká do hradiště pána“: rod B je vazalem A2 (třetí hráč – pán
       s hradištěm = ves s hotovou palisádou, zapsaná přímo do DB jako v testu hradeb); tažení A
       zapsané do kontrolního bodu 1,5 km od vsi B, worker vedle `next start`. Ověř: B dostane
       upozornění, v panelu dvorce pět ikon, „Do hradiště – se vším“ → řádek `campaign_intent`
       `alarm-flee` od B; po dopočtu `refuge-arrive` v schránce hradiště, hosté `refuge` ve stavu,
       ve vsi B lidé `away`; ikona Vrátit se zašedlá „Vojsko je ještě na mapě.“; po přenesení vojska
       pryč klik Vrátit se → lidé doma. Snímek `utek-do-hradiste.png` v `test-results`.
-- [ ] **Krok 2:** stávající testy `multiplayer-war.spec.ts` – ves B bez správce s výchozím postojem:
+- [x] **Krok 2:** stávající testy `multiplayer-war.spec.ts` – ves B bez správce s výchozím postojem:
       boj se otevře dřív než lhůta hráče, útěk do lesa při boji jako dřív (beze změny); kdyby se
       změnily, zastavit a hlásit.
-- [ ] **Krok 3:** `npx tsx apps/worker/scripts/measure-campaigns.ts` – scénář 20 tažení × 60 mužů
+- [x] **Krok 3:** `npx tsx apps/worker/scripts/measure-campaigns.ts` – scénář 20 tažení × 60 mužů
       s varováním (vsi s oky, posli, 5 evakuací); cíl: pochod ≤ 6 % jádra (dnes 4,4 %), jinak
       mezipaměť očí po dnech a dohled jen pro skupiny do 300 m od oka (čtverec vzdálenosti napřed).
       Zapsat do worker.md.
-- [ ] **Krok 4:** `npm run test:e2e -- multiplayer-war`, `typecheck`, `lint`, `test`, `format:check`;
+- [x] **Krok 4:** `npm run test:e2e -- multiplayer-war`, `typecheck`, `lint`, `test`, `format:check`;
       commit `test(e2e): útěk do hradiště a návrat` a `docs: varování, poslové a útěk do hradiště`.
 
 ---

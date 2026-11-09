@@ -1,6 +1,7 @@
 import 'server-only';
 import {
   commandAlarm,
+  MarchGridMemo,
   returnFromRefuge,
   villageAlarmView,
   type AlarmCommand,
@@ -9,7 +10,7 @@ import {
   type RefugeReturnDeps,
 } from '@bohemia/game';
 import { createAlarmOwners } from '@bohemia/db';
-import { currentWorld } from '@bohemia/server';
+import { currentWorld, VillageMemory, withVillageMemory } from '@bohemia/server';
 import { campaignCells } from './campaign';
 import { getDatabase, getPlayerLock } from './db';
 import { exclusivePlayer } from './exclusive';
@@ -20,6 +21,15 @@ import { commandAlarmActionForPlayer, returnFromRefugeActionForPlayer } from './
 // pohledu na varování a příkazů obránce. Herní logika je v `packages/game/src/application/
 // alarm-view.ts` (volby, odhady, záměry do tažení) a `refuge-return.ts` (Vrátit se).
 
+/**
+ * Paměť dotazování na varování (docs/code/worker.md – Výkon – Pohled na varování): panel se ptá
+ * každé 2 s nad týmž stavem vsi a hradiště. Stavy vsí přežijí dotaz (platnost hlídá otisk verze –
+ * jinak 2 × 3 MB JSON velké vsi a hradiště v každém dotazu), mřížky pochodu podle identity stavu
+ * a dne. Nejvýš 8 vsí – varovaná ves a její hradiště pro pár hráčů najednou.
+ */
+const ALARM_VILLAGES = new VillageMemory(8);
+const ALARM_GRIDS = new MarchGridMemo();
+
 function alarmDeps(): CommandAlarmDeps {
   return {
     ...villageRightsDeps(),
@@ -27,6 +37,7 @@ function alarmDeps(): CommandAlarmDeps {
     cells: campaignCells(),
     world: currentWorld(),
     alarmOwners: createAlarmOwners(getDatabase()),
+    grids: ALARM_GRIDS,
   };
 }
 
@@ -47,14 +58,19 @@ function returnDeps(): RefugeReturnDeps {
   };
 }
 
-/** Pohled hráče na varování vsi `villageId`; null = ves nevidí (cizí). */
+/**
+ * Pohled hráče na varování vsi `villageId`; null = ves nevidí (cizí). Stavy vsí z paměti dotazování
+ * (`ALARM_VILLAGES`), dokud se v úložišti nezmění.
+ */
 export async function alarmViewForPlayer(
   playerId: string,
   villageId: string,
 ): Promise<AlarmView | null | { error: string }> {
   const today = await playerToday(playerId);
   if (!today.ok) return { error: today.error };
-  return villageAlarmView(alarmDeps(), { playerId, villageId, today: today.day });
+  return withVillageMemory(ALARM_VILLAGES, () =>
+    villageAlarmView(alarmDeps(), { playerId, villageId, today: today.day }),
+  );
 }
 
 /**

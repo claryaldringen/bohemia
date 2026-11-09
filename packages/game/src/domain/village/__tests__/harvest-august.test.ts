@@ -5,7 +5,7 @@ import { grossYieldPerHa } from '../fields';
 import { NO_CRAFTS } from '../productivity';
 import { LEGUMES } from '../rules';
 import { harvest, harvestWinter } from '../simulate-food';
-import { fieldTasks } from '../simulate-work';
+import { dayTaskOrder, fieldTasks } from '../simulate-work';
 import type { Crop, SeasonCrop, VillageState } from '../types';
 import { villageSheaves } from '../threshing';
 import { createCropWork, seasonCrop } from '../year-plan';
@@ -154,12 +154,18 @@ describe('žně i v srpnu (fields.md – Žně i v srpnu)', () => {
     const s = village({ winter: 0.6, legume: 0.25, flax: 0 });
     harvestWinter(s, at(601, 7, 31));
     s.lastDay = at(601, 8, 9);
-    const tasks = fieldTasks(s, at(601, 8, 10), 0).filter((t) => t.name === 'harvest');
+    // pořadí práce dne (`dayTaskOrder` – fields.md, Pořadí důležitosti polních prací): žeň obilí
+    // podle konce okna, trhání lnu za ní
+    const tasks = fieldTasks(s, at(601, 8, 10), 0)
+      .filter((t) => t.name === 'harvest')
+      .map((field) => ({ ...field, tie: 1, field }))
+      .sort(dayTaskOrder)
+      .map((t) => t.field);
     expect(tasks.map((t) => [t.crop, t.end])).toEqual([
       ['winter', 8],
       ['legume', 8],
       ['spring', 9],
-      ['flax', 9],
+      ['flax', 8],
     ]);
     // zbývá jen nesklizená část
     expect(tasks[0]!.remaining).toBeCloseTo(0.4 * crop(s, 'winter').required.harvest, 9);
