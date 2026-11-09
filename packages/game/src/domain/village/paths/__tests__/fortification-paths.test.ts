@@ -96,7 +96,9 @@ describe('ves bez opevnění – zlatý otisk sítě beze změny', () => {
     const village = pathVillageOf(state, DAY, LANDSCAPE);
     expect('fortifications' in village).toBe(false);
     expect(digest(new TextEncoder().encode(JSON.stringify(village)))).toBe('f22456db');
-    expect(routeMapKey(state, DAY)).toBe('a2ab2147a191f420');
+    // bez obilných jam v klíči (Martin 9. 11. 2026 – paths.md, Obilné jámy a vzdálenosti chůze;
+    // dřív 'a2ab2147a191f420' s prázdným seznamem jam)
+    expect(routeMapKey(state, DAY)).toBe('f3f6cc99fc27b958');
   });
 });
 

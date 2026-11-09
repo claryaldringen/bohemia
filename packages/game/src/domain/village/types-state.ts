@@ -409,13 +409,22 @@ export interface VillageState {
   shapesChecked?: true;
   /**
    * Otisk mapy tras (`routeMapKey` – stavby od postavení po zánik, paths.md, Stálé trasy,
-   * pravidlo 5), pro který se naposledy spočítaly stálé trasy a vzdálenosti chůze po pěšinách
-   * (`FieldPart.walkDistanceM`…). Obsazenost v něm není – jen převáží (`VillageRoutes.placesKey`).
+   * pravidlo 5), pro který se naposledy spočítaly stálé trasy (vzdálenosti chůze po pěšinách
+   * s nimi jen při jiném `walkDistanceKey`). Obsazenost ani obilné jámy v něm nejsou – obsazenost
+   * jen převáží (`VillageRoutes.placesKey`).
    * Chybí, dokud se nespočítaly (starší vsi, simulace bez krajiny); otisk starší verze
    * (`WALK_VERSION`) se jednou přepočítá. (Dřívější otisk stadií `walkStages`
    * se při načtení smaže – `withoutWalkStages`.)
    */
   walkLayoutKey?: string;
+  /**
+   * Otisk vstupů vzdáleností chůze kromě pěšin (`walkDistanceKey` v `paths/village.ts` – obydlí,
+   * pole, sady, pevné cesty, opevnění; paths.md – Obilné jámy a vzdálenosti chůze, Martin 9. 11.
+   * 2026), pro který se naposledy změřily `FieldPart.walkDistanceM`, `OrchardSquare.walkDistanceM`,
+   * `Dwelling.forestWalkM` a `waterWalkM`. Přepočet tras se stejným otiskem vzdálenosti nechá.
+   * Chybí u vsí uložených dřív (změří je nejbližší přepočet tras) a bez sítě pěšin.
+   */
+  walkDistanceKey?: string;
   /**
    * Trasy sítě pěšin (paths.md – Kdy se trasy počítají a co se ukládá) – kudy kdo kam chodí,
    * spočítané s přepočtem chůze pro otisk `walkLayoutKey`. Chybí u vsí uložených dřív (doplní je

@@ -314,6 +314,9 @@ describe('trasy ve stavu vsi (refreshWalkDistances, withRoutes)', () => {
         if (day === DAY + 60) break;
       }
       expect(s.routes).toEqual(whole.routes);
+      // otisk vzdáleností chůze i vzdálenosti dílů (Martin 9. 11. 2026) nezávisí na kouscích
+      expect(s.walkDistanceKey).toBe(whole.walkDistanceKey);
+      expect(s.parts.map((p) => p.walkDistanceM)).toEqual(whole.parts.map((p) => p.walkDistanceM));
     }
   }, 60_000);
 
@@ -479,9 +482,11 @@ describe('trasy jen při změně mapy (paths.md – Stálé trasy, pravidlo 5)',
     expect(cellsOf(s.routes!.list)).toEqual(cellsOf(routes.list));
   }, 30_000);
 
-  it('otevřená obilná jáma po začátku dopočtu dostane stálou trasu (klíč mapy)', () => {
+  // Martin 9. 11. 2026 (paths.md – Obilné jámy a vzdálenosti chůze): jáma mapu tras nemění
+  it('nová obilná jáma klíč mapy nemění – trasa k ní s nejbližším přepočtem z jiného důvodu', () => {
     const s = advanceVillage(withField(), DAY + 3, null, LANDSCAPE);
     const key = routeMapKey(s, DAY + 3);
+    const routes = s.routes!;
     s.storesKg = 4000;
     s.grainPits = [
       {
@@ -495,12 +500,28 @@ describe('trasy jen při změně mapy (paths.md – Stálé trasy, pravidlo 5)',
         filledDay: DAY + 1,
       },
     ];
-    expect(routeMapKey(s, DAY + 3)).not.toBe(key);
-    // v půli měsíce stará mapa, trasa k jámě 1. dne dalšího měsíce (Martin 8. 11. 2026)
+    expect(routeMapKey(s, DAY + 3)).toBe(key);
+    // ani 1. dne dalšího měsíce se kvůli jámě trasy nehledají – jen převáží
     refreshWalkDistances(s, DAY + 4, LANDSCAPE, null);
-    expect(s.routes!.list.some((r) => r.to === 'grain-pit:7')).toBe(false);
     refreshWalkDistances(s, JULY, LANDSCAPE, null);
+    expect(s.routes!.day).toBe(routes.day);
+    expect(cellsOf(s.routes!.list)).toEqual(cellsOf(routes.list));
+    expect(s.routes!.list.some((r) => r.to === 'grain-pit:7')).toBe(false);
+    // přepočet z jiného důvodu (nový díl pole, 1. dne dalšího měsíce) najde i trasu k jámě
+    const part = s.parts.find((p) => p.cell)!;
+    s.parts.push({ ...part, id: 999, cell: { x: 12, y: 8 } });
+    refreshWalkDistances(s, JULY + 3, LANDSCAPE, null);
+    expect(s.routes!.list.some((r) => r.to === 'grain-pit:7')).toBe(false);
+    refreshWalkDistances(s, dayIndexOf({ year: 600, month: 8, day: 1 }), LANDSCAPE, null);
     expect(s.routes!.list.some((r) => r.to === 'grain-pit:7')).toBe(true);
+    // zaniklá jáma klíč nemění – trasa k ní zůstane do dalšího přepočtu s 0 cestami
+    const august = s.routes!;
+    s.grainPits = [];
+    refreshWalkDistances(s, dayIndexOf({ year: 600, month: 9, day: 1 }), LANDSCAPE, null);
+    expect(s.routes!.day).toBe(august.day);
+    const toPit = s.routes!.list.filter((r) => r.to === 'grain-pit:7');
+    expect(toPit.length).toBeGreaterThan(0);
+    expect(toPit.every((r) => r.trips === 0)).toBe(true);
   }, 30_000);
 
   // Martin 31. 10. 2026: „Ta věc (dům, ohrada, hřbitov) se prostě postaví a dál se s ní nic
@@ -557,7 +578,10 @@ describe('trasy jen při změně mapy (paths.md – Stálé trasy, pravidlo 5)',
         filledDay: DAY + 1,
       },
     ];
-    // nová jáma do mapy hned (`now`) – jinak až 1. dne dalšího měsíce
+    // jáma mapu tras nemění (Martin 9. 11. 2026) – trasu k ní najde přepočet kvůli novému dílu
+    // hned (`now`)
+    const part = s.parts.find((p) => p.cell)!;
+    s.parts.push({ ...part, id: 999, cell: { x: 12, y: 8 } });
     refreshWalkDistances(s, DAY + 4, LANDSCAPE, null, true);
     const routes = s.routes!;
     const toPit = (list: readonly StoredRoute[]): StoredRoute[] =>
@@ -612,5 +636,55 @@ describe('trasy jen při změně mapy (paths.md – Stálé trasy, pravidlo 5)',
     const again = loaded.routes;
     refreshWalkDistances(loaded, DAY + 5, LANDSCAPE, null);
     expect(loaded.routes).toBe(again);
+  }, 30_000);
+});
+
+// Martin 9. 11. 2026 (paths.md – Obilné jámy a vzdálenosti chůze): vzdálenosti chůze jen při
+// změně obydlí, polí, sadů, pevných cest nebo opevnění – nové pěšiny samy ne
+describe('vzdálenosti chůze jen při změně jejich otisku (walkDistanceKey)', () => {
+  /** Značka ve vzdálenosti dílu – přepočet vzdáleností by ji přepsal. */
+  const MARK = 12345;
+
+  it('přepočet tras se stejným otiskem vzdálenosti nechá, nové obydlí je změří znovu', () => {
+    const s = advanceVillage(withField(), DAY + 3, null, LANDSCAPE);
+    const key = s.walkDistanceKey;
+    expect(key).toBeDefined();
+    const part = s.parts.find((p) => p.cell && p.walkDistanceM !== undefined)!;
+    part.walkDistanceM = MARK;
+    // neplatné trasy – přepočet hned (síť i trasy), vzdálenosti zůstanou
+    s.walkLayoutKey = 'jiny';
+    refreshWalkDistances(s, DAY + 4, LANDSCAPE, null);
+    expect(s.routes!.day).toBe(DAY + 4);
+    expect(s.walkDistanceKey).toBe(key);
+    expect(part.walkDistanceM).toBe(MARK);
+    // nové obydlí (výchozí bod chůze) – vzdálenosti znovu
+    const house = s.dwellings[0]!;
+    s.dwellings.push({ ...house, id: 998, position: { x: -30, z: -55, rotation: 0 } });
+    refreshWalkDistances(s, DAY + 5, LANDSCAPE, null, true);
+    expect(s.walkDistanceKey).not.toBe(key);
+    expect(part.walkDistanceM).not.toBe(MARK);
+  }, 30_000);
+
+  it('ves bez otisku (uložená dřív) změří vzdálenosti s nejbližším přepočtem tras, jednou', () => {
+    const s = advanceVillage(withField(), DAY + 3, null, LANDSCAPE);
+    const key = s.walkDistanceKey;
+    delete s.walkDistanceKey;
+    const part = s.parts.find((p) => p.cell && p.walkDistanceM !== undefined)!;
+    const real = part.walkDistanceM;
+    part.walkDistanceM = MARK;
+    // bez přepočtu tras (stejná mapa, i 1. dne v měsíci) se nic neměří
+    refreshWalkDistances(s, DAY + 4, LANDSCAPE, null);
+    refreshWalkDistances(s, JULY, LANDSCAPE, null);
+    expect(s.walkDistanceKey).toBeUndefined();
+    expect(part.walkDistanceM).toBe(MARK);
+    s.walkLayoutKey = 'jiny';
+    refreshWalkDistances(s, JULY + 1, LANDSCAPE, null);
+    expect(s.walkDistanceKey).toBe(key);
+    expect(part.walkDistanceM).toBe(real);
+    // podruhé otisk sedí – vzdálenosti zůstanou
+    part.walkDistanceM = MARK;
+    s.walkLayoutKey = 'jiny';
+    refreshWalkDistances(s, JULY + 2, LANDSCAPE, null);
+    expect(part.walkDistanceM).toBe(MARK);
   }, 30_000);
 });
