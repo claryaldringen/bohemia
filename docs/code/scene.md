@@ -412,7 +412,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `BattleBreach`), pochod (`sceneMarch` – muži a skupiny `CampaignState`), útěk vsi a odehnané
   stádo (`planFlight`, `fleeWalkAt`, `drivenHerd` ve `villager-plan.ts`), mlha z pohledu strany
   a konec dne. Mezi takty se muži posouvají plynule v `animate()` (`battleFigures`, podíl
-  takty mezi snímky × `TICK_MS`, nejvýš 15 s – `GLIDE_MAX_MS`), pochod taky (`marchAt` – od
+  `glideMs` – takty mezi snímky × `TICK_MS`, ale nejvýš 1,5× doba od předchozího snímku – po
+  přestávce worker dopočítává a snímky chodí rychleji než takty – a nejvýš 15 s), pochod taky (`marchAt` – od
   nakresleného místa k novému snímku po dobu jeho taktů `SceneMarch.tick`, ve směru posunu; nová
   skupina a skok rychlejší než 12 m/s – jiná mapa – stojí rovnou); při omezeném pohybu stojí na
   posledním snímku. Postavy jsou `man.glb` /
@@ -427,7 +428,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   interval a každý takt ho sníží – `strikeTicks`, `strikesOf`), i z taktů, které dotaz scény
   vynechal: poslední rána `full − cooldown` taktů zpět, dřívější téhož boje (stejný cíl už
   v předchozím snímku) po intervalu rány; začnou, až k nim dojde plynulý pohyb, z místa mezi
-  snímky. Šíp letí obloukem (`arrowAt`, 45 m/s), srážka zvíří prach (`dustAt`).
+  snímky; jen z posledních taktů v délce posunu a nejvýš 240 ran ze snímku
+  (`MAX_STRIKES_PER_SNAPSHOT` – dopočet po přestávce nezahltí scénu). Šíp letí obloukem (`arrowAt`, 45 m/s), srážka zvíří prach (`dustAt`).
   Opevnění z boje: `battleFortifications` – zavřená brána (`gatesClosed`), hotový průlom jako
   `breachedDay` úseku (vyvrácené kůly, rozsekaná brána – fortification-layout.ts). **Mlha
   války texturou:** mřížka 10 m (`createFog`, `revealFog` – dohled 150 m, z lesa a do lesa 50 m,

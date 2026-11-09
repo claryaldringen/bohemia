@@ -18,6 +18,7 @@ import {
   battleFigures,
   battleFortifications,
   fighterClip,
+  glideMs,
   huddleSlots,
   marchAt,
   marchFigures,
@@ -161,6 +162,17 @@ describe('plynulý pochod mezi snímky', () => {
     const end = marchAt(at(0, 0), at(6, 8, true), 1, 2);
     expect(end.groups[0]!.pos).toEqual({ x: 6, z: 8 });
     expect(end.groups[0]!.arrived).toBe(true);
+  });
+
+  it('posun trvá takty mezi snímky; po přestávce (dopočet) nejvýš o polovinu déle než snímek', () => {
+    // 40 taktů za 10 s – posun 10 s
+    expect(glideMs(40, 10_000)).toBe(10_000);
+    // první dvojice – podle taktů
+    expect(glideMs(2, null)).toBe(500);
+    // dopočet: 400 taktů za 0,5 s – posun 0,75 s, scéna nezaostává
+    expect(glideMs(400, 500)).toBe(750);
+    // dlouhá přestávka – nejvýš 15 s
+    expect(glideMs(4_000, 60_000)).toBe(15_000);
   });
 
   it('bez předchozího snímku, nová skupina a skok z jiné mapy stojí rovnou v novém snímku', () => {

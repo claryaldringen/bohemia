@@ -74,23 +74,30 @@ function throwKind(id: string, ticks: number): MissileKind {
  * uběhlo `dt` taktů: jádro v taktu rány nastaví `cooldown` na `full` a pak ho každý takt sníží o 1,
  * rána přijde až na nule – poslední rána je tedy `full − cooldown` taktů zpět a jen když ji `cooldown`
  * z `prev` pustil. Dřívější rány téhož boje (stejný stav i cíl už v `prev`) po `full` taktech zpět
- * (dotaz scény vynechá takty; rytmus rány je jádra, jen zobrazení). Nejnovější první.
+ * (dotaz scény vynechá takty; rytmus rány je jádra, jen zobrazení). Nejnovější první; jen rány
+ * méně než `within` taktů zpět (posun k novému snímku je zkrácený – dopočet po přestávce).
  */
 export function strikeTicks(
   was: Pick<SceneFighter, 'cooldown' | 'state' | 'aim'>,
   now: Pick<SceneFighter, 'cooldown' | 'state' | 'aim'>,
   full: number,
   dt: number,
+  within = dt,
 ): number[] {
   if (now.cooldown <= 0 || now.cooldown > full) return [];
   const last = full - now.cooldown;
-  if (last >= dt || was.cooldown > dt - last) return [];
+  if (last >= Math.min(dt, within) || was.cooldown > dt - last) return [];
   const out = [last];
   if (was.state === now.state && was.aim === now.aim) {
-    for (let k = last + full; k < dt && was.cooldown <= dt - k; k += full) out.push(k);
+    for (let k = last + full; k < Math.min(dt, within) && was.cooldown <= dt - k; k += full) {
+      out.push(k);
+    }
   }
   return out;
 }
+
+/** Nejvýš tolik ran z jednoho snímku (dopočet po dlouhé přestávce nezahltí scénu prachem a šípy). */
+export const MAX_STRIKES_PER_SNAPSHOT = 240;
 
 /**
  * Rány od snímku `prev` do `cur`: muž v boji s cílem, kterému jádro nastavilo plný interval rány
@@ -113,6 +120,8 @@ export function strikesOf(
   if (!prev || cur.ticks <= prev.ticks) return { shots, clashes };
   const dt = cur.ticks - prev.ticks;
   const span = spanS ?? dt / TICKS_PER_SECOND;
+  // posun kratší než takty (dopočet po přestávce) – rány jen z posledních taktů v jeho délce
+  const within = Math.max(1, Math.min(dt, Math.round(span * TICKS_PER_SECOND)));
   const before = new Map(prev.fighters.map((f) => [f.id, f]));
   const byId = new Map(cur.fighters.map((f) => [f.id, f]));
   const hurt = cur.fighters.filter((f) => {
@@ -129,8 +138,8 @@ export function strikesOf(
     const u = (dt - k) / dt;
     return { x: was.pos.x + (f.pos.x - was.pos.x) * u, z: was.pos.z + (f.pos.z - was.pos.z) * u };
   };
-  /** Kdy rána `k` taktů před `cur` začne (s) – až k ní dojde plynulý pohyb. */
-  const startOf = (k: number): number => nowS + (span * (dt - 1 - k)) / dt;
+  /** Kdy rána `k` taktů před `cur` začne (s) – až k ní dojde plynulý pohyb (konec posunu = `cur`). */
+  const startOf = (k: number): number => nowS + Math.max(0, span - (k + 1) / TICKS_PER_SECOND);
   /** Kam střela letí: k zasaženému (cíl, nebo nejbližší zraněný u cíle), jinak za cíl na zem. */
   const flight = (
     f: SceneFighter,
@@ -175,10 +184,11 @@ export function strikesOf(
     const t = byId.get(f.aim);
     const was = before.get(f.id);
     if (!t || !was) continue;
+    if (shots.length + clashes.length >= MAX_STRIKES_PER_SNAPSHOT) break;
     // nový interval rány: cooldown se v taktu rány nastaví na plno (`strikeTicks`)
     const d = Math.hypot(t.pos.x - f.pos.x, t.pos.z - f.pos.z);
-    const bow = f.bow && d >= c.bowMinM ? strikeTicks(was, f, BOW_TICKS, dt) : [];
-    const thrown = bow.length === 0 && f.onWall ? strikeTicks(was, f, THROW_TICKS, dt) : [];
+    const bow = f.bow && d >= c.bowMinM ? strikeTicks(was, f, BOW_TICKS, dt, within) : [];
+    const thrown = bow.length === 0 && f.onWall ? strikeTicks(was, f, THROW_TICKS, dt, within) : [];
     if (bow.length > 0) {
       for (const k of bow) shots.push(flight(f, t, 'arrow', (x) => x / ARROW_M_S, k));
     } else if (thrown.length > 0 && d > c.meleeM) {
@@ -186,7 +196,7 @@ export function strikesOf(
         shots.push(flight(f, t, throwKind(f.id, cur.ticks - k), () => THROW_FLIGHT_S, k));
       }
     } else if (d <= c.meleeM + 0.5) {
-      for (const k of strikeTicks(was, f, MELEE_TICKS, dt)) {
+      for (const k of strikeTicks(was, f, MELEE_TICKS, dt, within)) {
         if (f.onWall && t.state !== 'climb' && !t.onWall && d <= footM + 0.5) {
           // z ochozu kámen k patě hradby – padá dolů na muže u paty
           shots.push(flight(f, t, 'stone', () => THROW_FLIGHT_S, k));

@@ -969,7 +969,8 @@ Scéna hry ukazuje **mapu sídla hráče** – vojsko je v ní vidět, když na 
 - **Plynulost mezi snímky** (scene.md – Vojsko, boj a mlha války): scéna se ptá 2× za sekundu,
   ale route čte kontrolní bod tažení, který worker uloží po ≥ 40 taktech (10 s) nebo s událostí –
   snímky tak dělí i desítky taktů. Muži boje i skupiny pochodu (`SceneMarch.tick` = takt pohledu)
-  jdou k novému snímku tak dlouho, kolik taktů uběhlo (`TICK_MS`, nejvýš 15 s); rány z vynechaných
+  jdou k novému snímku tak dlouho, kolik taktů uběhlo (`glideMs` – při dopočtu po přestávce kratší,
+  nejvýš 15 s); rány z vynechaných
   taktů scéna pozná z `cooldown` (`strikeTicks`) a ukáže je, až k nim pohyb dojde. Údery od `since`
   ze serveru ne (návrh Clauda): server zná jen poslední bod – rány mezi body by musel stav boje
   zapisovat do bodu (stovky ran za 40 taktů v jsonb, čteno 2× za sekundu); rytmus ran určuje jádro

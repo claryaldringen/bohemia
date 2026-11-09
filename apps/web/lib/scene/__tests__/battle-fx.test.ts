@@ -162,6 +162,17 @@ describe('rány mezi dvěma dotazy scény', () => {
     expect(clashes[0]!.startS).toBeCloseTo(100.5);
   });
 
+  it('dopočet po přestávce: rány jen z posledních taktů zkráceného posunu, ne celá přestávka', () => {
+    const foe = man('a:0', { side: 'attack', pos: { x: 0, z: 0 } });
+    const hitter = man('d:1', { pos: { x: 1, z: 0 }, aim: 'a:0' });
+    const prev = snap(0, [hitter, foe]);
+    const cur = snap(400, [{ ...hitter, cooldown: MELEE_TICKS }, foe]);
+    // 400 taktů za 0,75 s – jen rány z posledních 3 taktů (tady jedna v taktu 400)
+    const { clashes } = strikesOf(prev, cur, 0, 0.75);
+    expect(clashes.map((c) => c.key)).toEqual(['d:1@400']);
+    expect(clashes[0]!.startS).toBeCloseTo(0.5);
+  });
+
   it('šíp z vynechaného taktu i dřívější výstřel téhož střelce', () => {
     const foe = man('d:0', { pos: { x: 0, z: 30 }, hits: 1 });
     const archer = man('a:1', { side: 'attack', bow: true, pos: { x: 0, z: 0 }, aim: 'd:0' });

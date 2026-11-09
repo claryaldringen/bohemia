@@ -4,6 +4,7 @@
 // a ikona rozkazu nad skupinou. Bez Babylonu – vstup je stav jádra (`BattleState`, skupiny
 // a muži `CampaignState`) zúžený na to, co scéna kreslí; vykresluje army-renderer.ts.
 import {
+  TICK_MS,
   TICKS_PER_SECOND,
   WAR,
   FORTIFICATIONS,
@@ -381,6 +382,23 @@ export function marchFigures(march: SceneMarch): { figures: ArmyFigure[]; animal
     });
   }
   return { figures, animals };
+}
+
+/** Nejdelší plynulý posun k novému snímku (ms) – server stav uloží po ≤ 40 taktech (10 s). */
+export const GLIDE_MAX_MS = 15_000;
+/** Nejkratší posun (ms). */
+const GLIDE_MIN_MS = 100;
+
+/**
+ * Jak dlouho jdou muži k novému snímku boje či pochodu (ms): tolik, kolik taktů mezi snímky uběhlo
+ * (`gapTicks` × `TICK_MS`), ale nejvýš o polovinu déle, než trvalo od předchozího snímku
+ * (`sinceLastMs`; null – první dvojice) – po přestávce worker dopočítává a snímky chodí rychleji, než
+ * běží takty, scéna tak nezaostává. Nejvýš `GLIDE_MAX_MS`.
+ */
+export function glideMs(gapTicks: number, sinceLastMs: number | null): number {
+  const ticks = gapTicks * TICK_MS;
+  const seen = sinceLastMs === null ? ticks : sinceLastMs * 1.5;
+  return Math.max(GLIDE_MIN_MS, Math.min(GLIDE_MAX_MS, ticks, seen));
 }
 
 /**

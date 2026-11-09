@@ -25,6 +25,7 @@ import {
   battleFigures,
   breachFagots,
   breachFires,
+  glideMs,
   marchAt,
   marchFigures,
   minePits,
@@ -87,12 +88,6 @@ export interface ArmyEnvironment {
   /** Dočetly se modely – překreslit. */
   onLoaded(): void;
 }
-
-/**
- * Nejdelší plynulý posun mezi dvěma snímky boje či pochodu (ms) – scéna se ptá 2× za sekundu, ale
- * server stav uloží po ≤ 40 taktech (10 s) nebo s událostí; po delší přestávce se jde rychleji.
- */
-const GLIDE_MAX_MS = 15_000;
 
 /** Snímků za sekundu zapečené animace (villagers.ts). */
 const BAKE_FPS = 24;
@@ -190,11 +185,12 @@ export class ArmyRenderer {
     const last = this.war?.battle ?? null;
     if (cur && (!last || cur.ticks !== last.ticks)) {
       this.prev = last && cur.ticks > last.ticks ? last : null;
-      this.receivedAt = performance.now();
+      const now = performance.now();
       // dotaz scény vynechá takty – muži jdou k novému snímku tak dlouho, kolik taktů uběhlo
       this.battleSpanMs = this.prev
-        ? Math.min(GLIDE_MAX_MS, (cur.ticks - this.prev.ticks) * TICK_MS)
+        ? glideMs(cur.ticks - this.prev.ticks, now - this.receivedAt)
         : TICK_MS;
+      this.receivedAt = now;
       if (!frozen) {
         const nowS = villagerSeconds(nowMs);
         const fresh = strikesOf(this.prev, cur, nowS, this.battleSpanMs / 1000);
@@ -210,7 +206,7 @@ export class ArmyRenderer {
       const gap = lastMarch?.tick !== undefined ? march.tick - lastMarch.tick : 0;
       // odtud, kde je pochod nakreslený teď, k novému snímku za dobu taktů mezi nimi
       this.marchFrom = lastMarch && gap > 0 && !frozen ? this.marchShown(lastMarch, now) : null;
-      this.marchSpanMs = Math.min(GLIDE_MAX_MS, gap * TICK_MS);
+      this.marchSpanMs = gap > 0 ? glideMs(gap, now - this.marchReceivedAt) : 0;
       this.marchReceivedAt = now;
     }
     if (!march) this.marchFrom = null;
