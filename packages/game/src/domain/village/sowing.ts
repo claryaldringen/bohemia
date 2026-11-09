@@ -1,22 +1,14 @@
 import { dateOfDayIndex, isLeapYear } from '../calendar';
 import { isSowableFertility } from './fields';
 import { PLANNING_DAY, WINDOWS, WINTER_WINDOWS, type WindowSegment } from './rules';
-import type {
-  Crop,
-  CropWork,
-  FieldPart,
-  LordHelp,
-  LordHelpWindow,
-  TaskName,
-  FarmSeason,
-} from './types';
+import type { CropWork, FieldPart, LordHelp, LordHelpWindow, TaskName, FarmSeason } from './types';
 import { emptyTaskRecord, ploughRemaining, seasonCrop, type PartWork } from './year-plan';
 
 // Okna volné práce a zátěž osevu (fields.md – Ozim a jař, Osevní postup po dílech): kolik dnů
 // okna ještě zbývá (`windowDaysLeft`), práce, kterou rozběhnutý hospodářský rok ještě nese
 // (`planLoad`, `cropLoadOf`), a podíl dne rodiny vojvody na osevu, když ves bez ní nutnou práci
 // nestihne (`lordSowingHelp`, `lordHelpShare`). Které díly se osejí, určuje osevní postup
-// (`rotation.ts`); tady zůstalo jen pořadí dílů pro luštěniny a len (`sideCropOrder`).
+// (`rotation.ts`); tady zůstalo jen pořadí dílů pro len (`flaxOrder`).
 // Ves se spřežením (oxen.md – Jen rádlo) orá všechno a nekope; orba se počítá do práce lidí
 // (oráč a honáček) jako kopání.
 
@@ -128,7 +120,8 @@ export interface CropLoad {
   ploughSpring: number;
 }
 
-function addLegume(load: CropLoad, work: PartWork): void {
+/** Jařina místo jaře (len, dorůstající luštěniny starších vsí) – práce v oknech jako luštěniny. */
+function addSideCrop(load: CropLoad, work: PartWork): void {
   load.springReclaim += work.reclaim;
   load.springDig += work.dig + work.plough;
   load.springSow += work.sow;
@@ -137,31 +130,20 @@ function addLegume(load: CropLoad, work: PartWork): void {
   load.ploughSpring += work.plough;
 }
 
-/** Plodina místo jaře – luštěniny, nebo len. */
-export type SideCrop = Extract<Crop, 'legume' | 'flax'>;
-
 /**
- * Střídání plodin (fields.md – Luštěniny, Len): napřed díly, které loni plodinu `crop` neměly,
- * pak ostatní – jinak v pořadí `parts`.
+ * Pořadí dílů pro len z dílů seřazených od domu (fields.md – Len): od konce – vysiluje půdu, jeho
+ * delší příloh tak neleží domům v cestě; jen díly od 70 % (nouzový příloh jen na obilí) a se
+ * střídáním plodin – napřed díly, které loni len neměly.
  */
-function rotatedFor(parts: readonly FieldPart[], crop: SideCrop): FieldPart[] {
-  return [...parts.filter((p) => p.crop !== crop), ...parts.filter((p) => p.crop === crop)];
-}
-
-/**
- * Pořadí dílů pro luštěniny nebo len z dílů seřazených od domu (fields.md – Luštěniny, Len):
- * luštěniny od domu (půdu zlepší), len od konce – vysiluje půdu, jeho delší příloh tak neleží
- * domům v cestě; jen díly od 70 % (nouzový příloh jen na obilí) a se střídáním plodin.
- */
-export function sideCropOrder(fromHome: readonly FieldPart[], crop: SideCrop): FieldPart[] {
-  const sowable = fromHome.filter(isSowableFertility);
-  return rotatedFor(crop === 'flax' ? sowable.reverse() : sowable, crop);
+export function flaxOrder(fromHome: readonly FieldPart[]): FieldPart[] {
+  const sowable = fromHome.filter(isSowableFertility).reverse();
+  return [...sowable.filter((p) => p.crop !== 'flax'), ...sowable.filter((p) => p.crop === 'flax')];
 }
 
 /** Práce v oknech, kterou ves už má (`SowingLoad`) – zátěž oken pro pomoc rodiny. */
 export function cropLoadOf(planned: SowingLoad): CropLoad {
   // ozim na podzim: vrácení, kopání (orba) a setí; jablka se sklízejí po něm, ale v témže okně;
-  // v srpnu sklizeň jaře a výmlat ozimu (luštěniny přičte addLegume)
+  // v srpnu sklizeň jaře a výmlat ozimu (len a luštěniny přičte addSideCrop)
   const load: CropLoad = {
     winterAutumn:
       planned.orchardAutumn +
@@ -176,8 +158,8 @@ export function cropLoadOf(planned: SowingLoad): CropLoad {
     ploughWinter: planned.winter.plough,
     ploughSpring: planned.spring.plough,
   };
-  if (planned.legume) addLegume(load, planned.legume);
-  if (planned.flax) addLegume(load, planned.flax);
+  if (planned.legume) addSideCrop(load, planned.legume);
+  if (planned.flax) addSideCrop(load, planned.flax);
   return load;
 }
 

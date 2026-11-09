@@ -7,7 +7,7 @@ import { craftHouseholds, workshopLabor } from './crafts';
 import { harvestHelperLabor } from './harvest-hands';
 import { bufferFill, closeFieldFoodYear, sowingTargets, type SowingTargets } from './field-food';
 import { expectedNetKg, sowingGroup } from './fields';
-import { taskPosition, taskSpans } from './field-progress';
+import { taskPosition, taskSpans, unsownPartIds } from './field-progress';
 import { dropFromWork, moveParts, shrinkInPlan } from './land-taken';
 import { ploughLayout } from './plough-blocks';
 import {
@@ -19,7 +19,6 @@ import { villageLaborFactor } from './happiness';
 import { familyHomes, lordApartIds, manorLabor, trainingFamily } from './lord';
 import { villageHoldings, workOrder } from './holdings';
 import { flaxNeedKg } from './flax';
-import { plannedLegumeKg } from './husbandry';
 import { ableTeams, oxPens, pairCapacityPerDay, ploughCapacityPerDay } from './oxen';
 import {
   clearedLogs,
@@ -146,7 +145,6 @@ export function startSeason(
       ? neededSelection(state, day, {
           harvestKg: targets.harvestKg,
           energyFloorKg: targets.energyFloorKg,
-          legumeKg: targets.legumeKg,
           needKg: targets.needKg,
           flaxNeedKg: state.season.flaxNeedKg ?? 0,
         }).join
@@ -169,15 +167,6 @@ function sowingJustEnded(state: VillageState, crop: Crop, day: number): boolean 
   const open = (d: number): boolean =>
     windowOpen(crop, 'sow', d) || springSowingExtended(state, d, crop);
   return open(day - 1) && !open(day);
-}
-
-/** Díly plodiny, na kterých setí nezačalo (úloha setí nedošla na začátek jejich úseku). */
-function unsownPartIds(state: VillageState, work: CropWork, day: number): number[] {
-  const partsById = partsByIdOf(state.parts);
-  const position = taskPosition(work, 'sow');
-  return taskSpans(work, partsById, 'sow', day)
-    .filter((span) => position <= span.start + EPSILON)
-    .map((span) => span.id);
 }
 
 /** Díl vypadne z letošní práce (i s hotovou prací na něm) a vrátí se, jak byl (`returnPart`). */
@@ -518,7 +507,6 @@ function seasonSelection(
   const { join: selected, release } = neededSelection(state, day, {
     harvestKg: targets.harvestKg,
     energyFloorKg: targets.energyFloorKg,
-    legumeKg: targets.legumeKg,
     needKg: targets.needKg,
     flaxNeedKg: state.season?.flaxNeedKg ?? 0,
   });
@@ -602,8 +590,8 @@ function joinBands(
 
 /**
  * Cíle osevu (fields.md – Kolik ves oseje, Osev podle zásob): úroda na rok spotřeby z pole
- * a pojistku bez toho, co ze zásob k příští sklizni zbude; luštěniny podle rovnovážného hospodaření
- * (`plannedLegumeKg` – soupeří cenou v práci se stády, diet.md) a podle své zásoby. Osivo, které
+ * a pojistku bez toho, co ze zásob k příští sklizni zbude (luštěniny ves na poli nepěstuje –
+ * fields.md, Luštěniny, zrušeno; jí je jen ze zásoby). Osivo, které
  * na setí čeká, ani osivo zakladatelů v lhůtě (`keptSeedKg`), zásoby k sklizni nekrmí; s
  * `reserveSeed = false` krmí (správce – vystačí zásoby
  * do žní, i kdyby ves snědla osivo? steward.md – Cíl, Režim správce).
@@ -620,7 +608,6 @@ export function fieldSowingTargets(
   return sowingTargets(
     state,
     day,
-    plannedLegumeKg(state, day, coverage.tools),
     coverage.pottery,
     seed ? Math.max(seed.grain, kept) + legumeEnergy(seed.legumes) : 0,
   );

@@ -360,7 +360,8 @@ describe('výkon spřežení za den', () => {
       // hotové díly na řadě s prvním osevem – 1. 9. přibudou k ozimu (fields.md – Osevní postup
       // po dílech); díly po dvou osevech by šly do úhoru
       for (const p of s.parts) Object.assign(p, { state: 'ready', sownYears: 0 });
-      if (threshing) s.sheaves = { grainKg: 20_000, legumesKg: 0, work: { spring: 200 } };
+      // snopů málo – ves dál potřebuje osev obilí (dřív při 20 t orala luštěniny – ty už ne)
+      if (threshing) s.sheaves = { grainKg: 100, legumesKg: 0, work: { spring: 200 } };
       const next = advanceVillage(s, DAY, null);
       const sum = (activity: string): number =>
         (next.labor?.shares ?? [])

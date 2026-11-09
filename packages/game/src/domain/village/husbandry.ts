@@ -40,7 +40,6 @@ import type { Landscape, ObstacleLayer } from '../landscape';
 import {
   BIRTH_DAY,
   LIVESTOCK,
-  balancedPlan,
   ensureLivestock,
   herdBirths,
   herdLosses,
@@ -358,14 +357,6 @@ export function herdPlaces(
       return [s, { pens: pens[s], home: home[s], needed }];
     }),
   ) as Record<HerdSpecies, HerdPlaces>;
-}
-
-/**
- * Kolik luštěnin ves chce sníst za rok (kg – diet.md, Rovnovážné hospodaření): luštěniny v plánu
- * chovu a osevu, kde soupeří cenou v práci s prasaty a přežvýkavci o bílkoviny (osev 1. 9.).
- */
-export function plannedLegumeKg(state: VillageState, day: number, toolCoverage: number): number {
-  return balancedPlan(state, day, farmInput(state, day, toolCoverage)).legumeKg;
 }
 
 /**

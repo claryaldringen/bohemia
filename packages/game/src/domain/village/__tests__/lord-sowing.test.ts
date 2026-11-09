@@ -297,7 +297,6 @@ describe('nutná práce s rodinou (lordHelpDay)', () => {
     const { join } = neededSelection(planned, PLAN_DAY, {
       harvestKg: t.harvestKg,
       energyFloorKg: t.energyFloorKg,
-      legumeKg: t.legumeKg,
       needKg: t.needKg,
       flaxNeedKg: planned.season!.flaxNeedKg ?? 0,
     });

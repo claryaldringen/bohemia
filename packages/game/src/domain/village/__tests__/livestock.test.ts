@@ -262,22 +262,18 @@ describe('růst a nosnost', () => {
 });
 
 describe('chovné stádo podle potřeby (Martin 19. 10. 2026)', () => {
-  it('celé stádo v nosnosti zůstane – cena jídla ho nezmenšuje, plán dává jen luštěniny (24. 10. 2026)', () => {
+  it('celé stádo v nosnosti zůstane – cena jídla ho nezmenšuje (24. 10. 2026)', () => {
     const s = village(at(600, 11, 1));
     const day = at(600, 11, 1);
     const keep = herds({ sheep: 60, goat: 6, pig: 60, cow: 8 });
     const sized = sizeHerdsToNeed(s, day, keep);
     expect(sized.keep).toEqual(keep);
-    expect(sized.legumeKg).toBe(0);
     expect(sized.coverage).toBeGreaterThan(0);
     expect(herdProteinNeed(s, day)).toBeGreaterThan(0);
-    // stádo pod potřebou se nezvětší nad nosnost – bílkoviny dorovnají luštěniny plánu
+    // stádo pod potřebou se nezvětší nad nosnost (luštěniny z pole ves nepěstuje – 9. 11. 2026)
     const small = sizeHerdsToNeed(s, day, herds({ sheep: 3, pig: 1 }));
     expect(small.sufficient).toBe(false);
     expect(small.keep).toEqual(herds({ sheep: 3, pig: 1 }));
-    const legumes = sizeHerdsToNeed(s, day, herds({ sheep: 3, pig: 1 }), { planLegumes: true });
-    expect(legumes.keep).toEqual(herds({ sheep: 3, pig: 1 }));
-    expect(legumes.legumeKg).toBeGreaterThan(0);
   });
 });
 

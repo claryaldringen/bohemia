@@ -13,7 +13,6 @@ import {
 } from '../horse-pen-payment';
 import { sowingTargets } from '../field-food';
 import { breedingCows, oxenCalvesWanted, surplusCows } from '../husbandry';
-import { legumeNeedPerYear } from '../livestock';
 import { horsePenValueKg, withHorsePenStock } from '../horse-stock';
 import { penSquaresFromCells } from '../placement';
 import { HORSE_PEN_STOCK, HORSE_TRADE, TRADE_GOOD_VALUES } from '../rules';
@@ -218,12 +217,7 @@ describe('přeplatek zvířetem a pojistka', () => {
     const p = pay(s)!;
     const next = structuredClone(s);
     payHorsePen(next, p, next.lastDay);
-    const t = sowingTargets(
-      next,
-      next.lastDay,
-      legumeNeedPerYear(next, next.lastDay),
-      craftCoverage(next, next.lastDay).pottery,
-    );
+    const t = sowingTargets(next, next.lastDay, craftCoverage(next, next.lastDay).pottery);
     expect(t.leftKg - t.bufferKg).toBeGreaterThanOrEqual(-1e-6);
   });
 });

@@ -30,6 +30,7 @@ import { moveGrainFromCoveredPits } from './grain-pit-site';
 import { withThreshingGrace, spoilSheaves } from './threshing';
 import { withSeason } from './year-plan';
 import { withSeedForgiven } from './seed';
+import { withoutFieldLegumes } from './field-legumes';
 import { seedBuyingDay } from './seed-buying';
 import { withSowingRotation } from './rotation';
 import { sacredOakEvents } from './sacred-life';
@@ -150,7 +151,8 @@ export function* advanceVillageSteps(
   // suroviny), řemeslníci z doby před učením řemesla praxi (crafts.md – Učení řemesla) a ves z doby
   // před snopy rok odkladu mlácení (production-chains.md – Starší vsi) a ves s ročním plánem osevní
   // postup po dílech (fields.md – Osevní postup po dílech, bod 7), plán z doby před osivem ze
-  // zásob odpuštěné osivo zaseté části (fields.md – Osivo ze zásob, Převod) – jednou, idempotentně
+  // zásob odpuštěné osivo zaseté části (fields.md – Osivo ze zásob, Převod) a nezasetý díl
+  // luštěnin jař (fields.md – Luštěniny, zrušeno) – jednou, idempotentně
   const next = cloneState(
     withSteward(
       withWildlife(
@@ -167,7 +169,9 @@ export function* advanceVillageSteps(
                             withArmsCaps(
                               withDynasty(
                                 withKinship(
-                                  withSeedForgiven(withSowingRotation(withSeason(start))),
+                                  withoutFieldLegumes(
+                                    withSeedForgiven(withSowingRotation(withSeason(start))),
+                                  ),
                                 ),
                               ),
                             ),

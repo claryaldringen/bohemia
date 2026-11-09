@@ -53,7 +53,6 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
     grazingHa: 1.8,
     pigForestHa: 30,
     meatNeedKg: 187,
-    legumeNeedKg: 0,
     milkLPerDay: 0,
     milkLPerYear: 0,
   },

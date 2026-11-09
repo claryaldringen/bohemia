@@ -29,20 +29,16 @@ function isOn(day: number, target: { month: number; day: number }): boolean {
 
 /**
  * Kolik osiva nutným dílům plánu chybí (kg obilí, stav nemění): osivo nutných dílů, které čeká na
- * setí (`seedAheadKg` bez prací nad potřebu; chybějící luštěniny za obilí), bez osiva, které smí
- * do země (`sowableSeedKg` – i osivo, které ves má jen na setí) a bez zrna a luštěnin ve
- * nevymlácených snopech (`VillageState.sheaves`).
+ * setí (`seedAheadKg` bez prací nad potřebu – jen obilí; luštěniny ves na poli nepěstuje – fields.md,
+ * Luštěniny, zrušeno), bez osiva, které smí do země (`sowableSeedKg` – i osivo, které ves má jen
+ * na setí) a bez zrna ve nevymlácených snopech (`VillageState.sheaves`).
  */
 export function seedShortKg(state: VillageState, day: number): number {
   if (!state.season) return 0;
   const ahead = seedAheadKg(state, true, day);
   // nevymlácené snopy dají osivo výmlatem stejně jako v `seedPrepShares` – ves je nekupuje
   const sheaves = state.sheaves;
-  const legumesShort = Math.max(
-    0,
-    ahead.legumes - Math.max(0, state.legumesKg ?? 0) - Math.max(0, sheaves?.legumesKg ?? 0),
-  );
-  const need = ahead.grain + legumesShort;
+  const need = ahead.grain;
   if (need <= EPSILON) return 0;
   const grainSowable =
     sowableSeedKg(state, 'grain', seedKeepKg(state, day)) + Math.max(0, sheaves?.grainKg ?? 0);
@@ -135,9 +131,7 @@ export function buySeed(state: VillageState, day: number, shortKg: number): Chro
  * (`FarmSeason.seedFloorKg`), nejméně osivo nutných dílů, které na setí čeká (`seedAheadKg`).
  */
 export function foundersSeedKeepKg(state: VillageState): number {
-  const ahead = seedAheadKg(state, true);
-  const legumesShort = Math.max(0, ahead.legumes - Math.max(0, state.legumesKg ?? 0));
-  return Math.max(state.season?.seedFloorKg ?? 0, ahead.grain + legumesShort);
+  return Math.max(state.season?.seedFloorKg ?? 0, seedAheadKg(state, true).grain);
 }
 
 /**

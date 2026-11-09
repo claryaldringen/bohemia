@@ -437,10 +437,10 @@ describe('výhled jídla a plán osevu', () => {
       9,
     );
     // plán osevu počítá snopy jako zásobu – cíl osevu menší
-    const withSheavesTarget = sowingTargets(floor, day, 0, NO_CRAFTS.pottery);
-    const withoutTarget = sowingTargets(none, day, 0, NO_CRAFTS.pottery);
+    const withSheavesTarget = sowingTargets(floor, day, NO_CRAFTS.pottery);
+    const withoutTarget = sowingTargets(none, day, NO_CRAFTS.pottery);
     expect(withSheavesTarget.leftKg).toBeGreaterThanOrEqual(withoutTarget.leftKg);
-    expect(withSheavesTarget.targetKg).toBeLessThanOrEqual(withoutTarget.targetKg);
+    expect(withSheavesTarget.harvestKg).toBeLessThanOrEqual(withoutTarget.harvestKg);
   });
 
   it('jídlo: výhled se snopy nehladoví, jí se jen vymlácené obilí', () => {

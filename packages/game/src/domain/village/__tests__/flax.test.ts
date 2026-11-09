@@ -193,7 +193,9 @@ describe('len napřed – výběr s kapacitou (do Úlohy 5 pro páry k rádlům)
     // 162:a9a20af5 (6. 11. 2026, přežívací zásoba podle celé stravy, nezaseté osivo po okně zpět do
     // zásob, díly nad potřebu v okně setí před stavbami – fields.md, Osivo ze zásob a bod 3): jiné
     // zásoby k 1. 9. a jiný výběr dílů; dřív 158:fbeb05f6
-    expect(fingerprint(plans)).toBe('162:a9a20af5');
+    // 152:979c21c8 (9. 11. 2026, luštěniny z polí vyřazené – fields.md, Luštěniny, zrušeno; žně
+    // i v srpnu): plán bez luštěnin, díly jaře místo nich; dřív 162:a9a20af5
+    expect(fingerprint(plans)).toBe('152:979c21c8');
   });
 });
 

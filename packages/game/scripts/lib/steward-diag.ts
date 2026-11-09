@@ -186,7 +186,7 @@ function september(
     storesKg: Math.round(s.storesKg),
     needYearKg: Math.round(yearlyFoodNeed(s, day)),
     fieldShare: Math.round(fieldFoodShare(s) * 100) / 100,
-    plannedKg: Math.round(targets.targetKg),
+    plannedKg: Math.round(targets.harvestKg),
     leftKg: Math.round(targets.leftKg),
     bufferKg: Math.round(targets.bufferKg),
     targetNeed: Math.round(target.need * 10) / 10,

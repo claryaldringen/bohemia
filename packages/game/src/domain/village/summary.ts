@@ -56,7 +56,6 @@ import { villageLegumesKg } from './legumes';
 import {
   dailyEggsKg,
   grazingDemandHa,
-  legumeNeedPerYear,
   meatNeedPerYear,
   pastureHa,
   pigForestHa,
@@ -380,8 +379,6 @@ export interface LivestockSummary {
   pigForestHa: number;
   /** Roční potřeba masa vsi (kg) – bílkoviny, které chybí po obilí, mléku, vejcích a luštěninách. */
   meatNeedKg: number;
-  /** Kolik luštěnin ves chce za rok sníst (kg – cíl osevu luštěnin bez rezervy). */
-  legumeNeedKg: number;
   /** Mléko dnes (l, když se podojí všechny dojné samice) a za rok. */
   milkLPerDay: number;
   milkLPerYear: number;
@@ -702,7 +699,6 @@ function livestockSummary(state: VillageState, day: number): LivestockSummary {
     grazingHa: grazingDemandHa(herds, oxen, horsesInPlaces(villageHorses(state), day)),
     pigForestHa: pigForestHa(state),
     meatNeedKg: meatNeedPerYear(state, day),
-    legumeNeedKg: legumeNeedPerYear(state, day),
     milkLPerDay: dailyMilk(villageDams(state), day).liters,
     milkLPerYear: yearlyMilk(dairyDams(herds)).liters,
   };

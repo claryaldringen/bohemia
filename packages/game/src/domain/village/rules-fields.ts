@@ -253,7 +253,8 @@ export const WINTER_WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
 // fields.md – Luštěniny (rešerše 2026-10-18-legumes.md): luštěniny jsou jař – kopou se na podzim
 // nebo na jaře, sejí v březnu–dubnu, pletou v květnu, sklízejí (trhají) v červenci, co červenec
 // nestihne, v srpnu (fields.md – Žně i v srpnu), a mlátí hned po sklizni v srpnu a září na humně
-// jako obilí (production-chains.md – Humno, návrh Clauda)
+// jako obilí (production-chains.md – Humno, návrh Clauda). Z polí vyřazené (Martin 9. 11. 2026 –
+// fields.md, Luštěniny, zrušeno): okna platí už jen pro dorůstající luštěniny starších vsí a len.
 export const LEGUME_WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
   ...WINDOWS,
   harvest: WINTER_WINDOWS.harvest,
@@ -284,7 +285,9 @@ export const CROP_ORDER: readonly Crop[] = ['flax', 'winter', 'legume', 'spring'
  * 150 kg/ha, 22 % bílkovin, energie jako obilí (3 400 kcal/kg); ztráta skladováním jako obilí
  * (STORAGE_LOSS_PER_YEAR – zrnokaz se ve skladu nemnoží); neopletý díl dá 50 % (obilí 60 %);
  * osev úrodnost neubere, ale vrátí 0,03 (`fertilityGain` – poutá dusík, ≈ rok přílohu); strop
- * podílu energie z luštěnin ve stravě 25 % (dospělý ≈ 45 kg ročně).
+ * podílu energie z luštěnin ve stravě 25 % (dospělý ≈ 45 kg ročně). Od 9. 11. 2026 ves luštěniny
+ * na poli nepěstuje (fields.md – Luštěniny, zrušeno): výnos, osivo a úrodnost platí jen pro
+ * dorůstající luštěniny starších vsí, energie, bílkoviny a strop pro zásobu (zboží).
  */
 export const LEGUMES = {
   yieldShare: 0.8,
