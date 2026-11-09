@@ -254,7 +254,6 @@ describe('luštěniny z polí vyřazené (Martin 9. 11. 2026)', () => {
     legacy.season!.selection = {
       window: 'x',
       waiting: [{ id, crop: 'legume' }],
-      floorKg: null,
     };
     const converted = withoutFieldLegumes(legacy);
     expect(converted.season!.selection).toBeUndefined();

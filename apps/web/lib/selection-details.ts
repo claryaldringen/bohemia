@@ -1463,7 +1463,8 @@ function fieldPartDetails(
     mow: part.work?.mow ?? null,
     next: part.next ?? null,
     rest: part.rest ?? null,
-    surplus: part.work?.surplus === true,
+    // díly nad potřebu zrušené (fields.md – Osevní postup po dílech, bod 3) – údaj odstraní krok 4
+    surplus: false,
     founding: part.founding ?? null,
     ...(part.outlook ? { outlook: part.outlook } : {}),
     fieldIds: view?.fields.map((f) => f.id) ?? [],

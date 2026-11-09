@@ -9,7 +9,7 @@ import { householdWater, type HouseholdWater } from './labor';
 import { familyHomes, lordApartIds, trainingFamily } from './lord';
 import { MORNING_WATER } from './rules';
 import type { CropWork, Person, VillageState } from './types';
-import { cropTaskWindows, neededTaskRemaining, seasonCrops, windowEndOf } from './year-plan';
+import { cropTaskWindows, cropTaskRemaining, seasonCrops, windowEndOf } from './year-plan';
 
 const EPS = 1e-9;
 const MONTHS = 12;
@@ -71,7 +71,7 @@ export interface PloughWindow {
 
 /**
  * Okna orby plodin plánu, která dnes běží (wagons.md – Voda ráno ve dny orby): zbytek orby
- * (`neededTaskRemaining`) přepočtený výkonem dílu (`factor` – brázda a cesta k bloku), napřed
+ * (`cropTaskRemaining`) přepočtený výkonem dílu (`factor` – brázda a cesta k bloku), napřed
  * plodina s dřívějším koncem okna, `need` součtem s dřívějšími.
  */
 export function ploughWindowsToday(
@@ -83,7 +83,7 @@ export function ploughWindowsToday(
   const { year, month } = dateOfDayIndex(day);
   const windows: { end: number; need: number; daysLeft: number }[] = [];
   for (const { crop, work } of seasonCrops(state.season)) {
-    const left = neededTaskRemaining(work, 'plough');
+    const left = cropTaskRemaining(work, 'plough');
     if (left <= EPS) continue;
     const end = windowEndOf(cropTaskWindows(crop, 'plough'), month);
     if (end === null) continue;

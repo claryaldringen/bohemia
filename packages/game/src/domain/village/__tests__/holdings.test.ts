@@ -329,26 +329,6 @@ function seasons(start: VillageState, years: number, cultivated = false): Villag
   return out;
 }
 
-/** Souvislé skupiny osetých čtverců (4-sousedství) – míra roztříštěnosti osevu. */
-function sownPatches(state: VillageState, cellOf: Map<number, TileCell>): number {
-  const sown = new Set(
-    state.parts.filter((p) => p.state === 'sown').map((p) => key(cellOf.get(p.id)!)),
-  );
-  let patches = 0;
-  for (const start of sown) {
-    patches++;
-    const stack = [start];
-    sown.delete(start);
-    while (stack.length > 0) {
-      const [x, y] = stack.pop()!.split(',').map(Number) as [number, number];
-      for (const n of [`${x + 1},${y}`, `${x - 1},${y}`, `${x},${y + 1}`, `${x},${y - 1}`]) {
-        if (sown.delete(n)) stack.push(n);
-      }
-    }
-  }
-  return patches;
-}
-
 /** Podíl osetých dílů, ke kterým se od domu dojde po vlastním úseku bez přecházení přílohu. */
 function reachableShare(state: VillageState, holdings: FieldHoldings): number {
   const byId = new Map(state.parts.map((p) => [p.id, p]));
@@ -375,9 +355,8 @@ describe('ves hospodaří podle domů', () => {
     const after = seasons(now.state, 20, true).slice(5);
     const old = seasons(before.state, 20, true).slice(5);
     const mean = (xs: number[]): number => xs.reduce((a, b) => a + b, 0) / xs.length;
-    const patchesNow = mean(after.map((s) => sownPatches(s, now.cellOf)));
-    const patchesOld = mean(old.map((s) => sownPatches(s, before.cellOf)));
-    expect(patchesNow).toBeLessThan(patchesOld);
+    // počet osetých ostrůvků se už neporovnává: ves bez stropu oseje všechny díly na řadě (fields.md
+    // – Osevní postup po dílech, bod 3, 9. 11. 2026), s úseky i bez nich je oseté skoro celé pole
     // dosažitelnost po úsecích měřená na stejných úsecích (staré díly dostanou políčka zpět)
     const withCells = (s: VillageState): VillageState => ({
       ...s,

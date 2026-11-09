@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage, type PartInput } from '../actions';
 import { isSowableFertility } from '../fields';
-import { fieldPartLooks, taskPosition, taskSpans } from '../field-progress';
+import { taskPosition, taskSpans } from '../field-progress';
 import { moveParts } from '../land-taken';
 import { reclaimedLogs, sowParts } from '../rotation';
 import { advanceVillage } from '../simulate';
@@ -18,9 +18,9 @@ import {
   springCrop,
 } from '../year-plan';
 
-// Nutné díly den po dni (fields.md – Osevní postup po dílech a setí do konce okna, 25. 10. 2026):
-// ves nemá plán k 1. 9. – díly na řadě přibývají k letošní práci podle potřeby úrody, ozim, který
-// do konce října nezačal, jde do jaře, nezasetá jař 1. 5. z práce vypadne.
+// Díly na řadě den po dni (fields.md – Osevní postup po dílech a setí do konce okna, 25. 10. 2026):
+// ves nemá plán k 1. 9. – díly na řadě přibývají k letošní práci po dávkách na čele, bez stropu,
+// ozim, který do konce října nezačal, jde do jaře, nezasetá jař 1. 5. z práce vypadne.
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const POSITION = { x: 0, z: 0, rotation: 0 };
@@ -68,8 +68,8 @@ function unsown(s: VillageState, work: CropWork): number[] {
 const doneSum = (s: VillageState, task: 'dig' | 'reclaim' | 'sow'): number =>
   seasonCrops(s.season!).reduce((sum, { work }) => sum + work.done[task], 0);
 
-describe('nutné díly den po dni', () => {
-  it('1. 9. přibudou díly na řadě podle potřeby úrody – ozim; bez potřeby nic', () => {
+describe('díly na řadě den po dni', () => {
+  it('1. 9. přibudou díly na řadě – ozim; i ves s velkou zásobou (bez stropu)', () => {
     const hungry = village(80);
     hungry.storesKg = 0;
     const s = advanceVillage(hungry, at(600, 9, 1), null);
@@ -78,16 +78,16 @@ describe('nutné díly den po dni', () => {
     for (const id of winter.partIds) {
       expect(s.parts.find((p) => p.id === id)).toMatchObject({ state: 'sown', crop: 'winter' });
     }
-    // díly, které ves nepotřebuje, čekají na řadě
+    // díly, které se na čelo nevešly, čekají na řadě
     const waiting = s.parts.filter((p) => !seasonPartIds(s.season!).includes(p.id));
     expect(waiting.every((p) => p.state === 'ready')).toBe(true);
 
     const full = village(80);
     full.storesKg = 1e6;
     const rich = advanceVillage(full, at(600, 9, 1), null);
-    // obilí ne – len na oděv a luštěniny mají svou potřebu
-    expect(seasonCrop(rich.season!, 'winter')).toBeUndefined();
-    expect(springCrop(rich.season!).partIds).toEqual([]);
+    // velká zásoba výběr nebrzdí – ves bere díly na řadě stejně (Martin 25. 10. 2026: „maximum
+    // obilí“)
+    expect(seasonCrop(rich.season!, 'winter')!.partIds).toEqual(winter.partIds);
   });
 
   it('ozim, na kterém do konce října setí nezačalo, jde do jaře – každý zbylý díl ozimu je osetý', () => {
@@ -132,18 +132,13 @@ describe('nutné díly den po dni', () => {
     }
   });
 
-  it('velká zásoba: nezačaté nutné díly ves uvolní – vrátí se na řadu', () => {
+  it('velká zásoba: ves nezačaté díly neuvolní – žádný strop', () => {
     const s = village(40, at(600, 9, 1));
     s.season = createSeason({ winter: s.parts, spring: [] }, at(600, 9, 1), NO_CRAFTS.tools);
     sowParts(s.parts, 'winter');
     s.storesKg = 1e6;
     const next = advanceVillage(s, at(600, 9, 2), null);
-    const kept = new Set(seasonPartIds(next.season!));
-    expect(kept.size).toBeLessThan(40);
-    for (const p of next.parts.filter((x) => !kept.has(x.id))) {
-      expect(p.state).toBe('ready');
-      expect(p.crop).toBeUndefined();
-    }
+    expect(new Set(seasonPartIds(next.season!)).size).toBe(40);
   });
 
   it('po kouscích (1, 7 a 30 dní) dá stejný stav jako jedním voláním', () => {
@@ -230,38 +225,6 @@ describe('postup práce po dílech od čela (fields.md – Postup práce po díl
     // ves s málem práce zaseje, co stihne – všechno přibrané až na čelo
     expect(sownIds(october, winter).length).toBeGreaterThan(n1);
     expect(unsown(october, winter).length).toBeLessThanOrEqual(1);
-  }, 60_000);
-
-  it('uvolnění nezačatých dílů: čelo práce i vzhled zbylých dílů se nepohnou', () => {
-    const start = village(80);
-    start.storesKg = 0;
-    const dug = advanceVillage(start, at(601, 3, 25), null);
-    const day = at(601, 3, 26);
-    const spring = springCrop(dug.season!);
-    expect(spring.done.dig).toBeGreaterThan(0);
-    // k jaři přibude pět nezačatých dílů, pak ves přijde k velké zásobě
-    const added = dug.parts.filter((p) => p.state === 'ready').slice(0, 5);
-    addToCropWork(spring, added, dug.lastDay, NO_CRAFTS.tools);
-    sowParts(added, 'spring');
-    dug.storesKg = 20_000;
-    // pět dílů navíc čelo zaplní – s pamětí výběru by ves nový výběr nedělala a uvolnila by až
-    // první den s místem na čele; tady výběr bez paměti
-    delete dug.season!.selection;
-    const before = structuredClone(springCrop(dug.season!));
-    const looksBefore = fieldPartLooks(dug, day);
-    seasonDay(dug, day, NO_CRAFTS);
-    const after = springCrop(dug.season!);
-    const removed = before.partIds.filter((id) => !after.partIds.includes(id));
-    expect(removed.length).toBeGreaterThan(0);
-    for (const id of removed) {
-      expect(looksBefore.get(id)?.work ?? 0).toBe(0);
-      expect(dug.parts.find((p) => p.id === id)!.state).toBe('ready');
-    }
-    expect(after.partIds).toEqual(before.partIds.filter((id) => !removed.includes(id)));
-    expect(after.done.dig).toBe(before.done.dig);
-    expect(after.done.sow).toBe(before.done.sow);
-    const looksAfter = fieldPartLooks(dug, day);
-    for (const id of after.partIds) expect(looksAfter.get(id)).toEqual(looksBefore.get(id));
   }, 60_000);
 
   it('klády jen za skácené stromy – uvolněný vyklučený díl je podruhé nedá', () => {
@@ -351,7 +314,7 @@ describe('výběr dílů jen s místem na čele (fields.md – Postup práce po 
       // tentýž den s pamětí výběru, kterou ves sama vytvořit nemůže
       const held = structuredClone(s);
       const marker = [{ id: -1, crop: 'winter' as const }];
-      held.season!.selection = { ...fresh.season!.selection!, waiting: marker, floorKg: 7 };
+      held.season!.selection = { ...fresh.season!.selection!, waiting: marker };
       const got = seasonDay(held, day, NO_CRAFTS);
       if (got === held.season!.selection.waiting) {
         // čelo bez místa: přeskočení nic nezměnilo – nový výběr by taky žádný díl nepřibral

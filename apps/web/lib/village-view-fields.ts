@@ -146,8 +146,8 @@ export function fieldViews(
       const r = rotation.get(p.id);
       if (r?.onTurn && (r.next === 'winter' || r.next === 'spring')) turn[r.next]++;
       else if (r?.next === 'fallow' && p.state === 'fallow') turn.resting++;
-      const yearCrop = work.get(p.id)?.crop?.crop;
-      if (r?.surplus && (yearCrop === 'winter' || yearCrop === 'spring')) turn.surplus[yearCrop]++;
+      // díly nad potřebu zrušené (fields.md – Osevní postup po dílech, bod 3, 9. 11. 2026) –
+      // `turn.surplus` zůstává nulový, rozhraní ho odstraní krok 4
       if (p.bonusUntilDay !== null && p.bonusUntilDay >= day) ashParts++;
       ashBonus = Math.max(ashBonus, forestBonus(p, day));
     }
@@ -296,7 +296,6 @@ function fieldPartView(
                 }
               : {}),
             ...(work.mow !== undefined ? { mow: hundredths(work.mow) } : {}),
-            ...(work.surplus ? { surplus: true as const } : {}),
           },
         }
       : {}),

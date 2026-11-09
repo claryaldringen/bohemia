@@ -37,17 +37,16 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   krajiny 0. Před prací dne (`simulate.ts`): 1. 9. `startSeason`, každý den `seasonDay` (konce oken
   setí, nutné díly podle potřeby úrody – fields.md, Osevní postup po dílech) a `lordHelpDay`
   (podíl dne rodiny na nutné práci) a 1. 5. `wildlifeYearDay` (roční přepočet zvěře; hned za ním `weatherDay` – kronika počasí kraje v den odhalení, `village-disasters.md` –, `dogsYear` smečka dvorce a `planHuntDay` ranní plán lovu, W4), 1. 6. `damageWindowStart` (ohrožené díly polí pro zvěř – wildlife.md, Škody); po `lordHelpDay` `settlePatrol` (jezdecká hlídka polí, W6), po práci dne `wildlifeDamageDay` (škoda zvěře a vran na nesklizených dílech, před jídlem) dále v závěru dne `huntDay` (úlovek velkého lovu), `patrolHuntDay` (úlovek z hlídky), při jídle `feedDogs` (obilí psů dvorce, `simulate-food.ts`) a po sklizni jaře `wildlifeSeasonEnd` (kronika, vynulování ztrát dílů – podrobnosti `village-wildlife.md`); potřebné sezónní úlohy jsou práce nutných dílů – plodiny
-  hospodářského roku bez `SeasonCrop.surplus` (`fieldTasks`; `neededTaskRemaining` je u dílů nad
-  potřebu 0). `allocateDay`: denní minimum → péče o koně (`horseCare` – `horseCareLabor`, horses.md – Péče; pokrytí v `state.horsesCaredToday`) → výpravy (`away`) → potřebné sezónní úlohy v pořadí `dayTaskOrder` – **orba rádlem první** (oxen.md – Orba má přednost, Martin 24. 10. 2026; překrývá se jen s osevem, výmlatem jaře a jablky, žeň ne), pak nejbližší konec okna (žeň a výmlat napřed ze žňových rukou – `harvestHands`, `lordHarvest`, fields.md – Žně všemi rukama) → noční hlídka polí (úloha `'watch'`, `end` Infinity, `tie` 4 – za polními úlohami dne i za nutnou sečí (`mow`, `tie` 3), wildlife.md – Noční hlídka vesničanů; v žních soupeří se sklizní) → `common` (volná práce
+  hospodářského roku (`fieldTasks` – všechny díly jedna fronta, díly nad potřebu zrušené 9. 11. 2026). `allocateDay`: denní minimum → péče o koně (`horseCare` – `horseCareLabor`, horses.md – Péče; pokrytí v `state.horsesCaredToday`) → výpravy (`away`) → potřebné sezónní úlohy v pořadí `dayTaskOrder` – **orba rádlem první** (oxen.md – Orba má přednost, Martin 24. 10. 2026; překrývá se jen s osevem, výmlatem jaře a jablky, žeň ne), pak nejbližší konec okna (žeň a výmlat napřed ze žňových rukou – `harvestHands`, `lordHarvest`, fields.md – Žně všemi rukama) → noční hlídka polí (úloha `'watch'`, `end` Infinity, `tie` 4 – za polními úlohami dne i za nutnou sečí (`mow`, `tie` 3), wildlife.md – Noční hlídka vesničanů; v žních soupeří se sklizní) → `common` (volná práce
   v liště, `commonLaborHistory`) do staveb (`build`) → z toho, co stavby nespotřebovaly, opravy
-  obydlí (`afterConstructions`) → **díly nad potřebu** (`surplusFieldDay` – fields.md, Osevní
-  postup po dílech, bod 3; Martin 25. 10. 2026: „ve chvíli, kdy stavba přijde, prostě vesnice
-  o část úrody přijde“): všechna jejich práce na poli (příprava půdy, setí, pletí, žně, odnos)
-  a nové díly – nutná práce proti hladu je tak před stavbami, díly nad potřebu až po nich → **seč
+  obydlí (`afterConstructions`) → **pletí mužů** (`allocateDay` s `menWeedLater` vrátí jejich díl
+  v `menWeed`, `work()` ho dá ze zbytku po stavbách, opravách a údržbě opevnění; `DayWork.weedMen` –
+  fields.md, Osevní postup po dílech, bod 3; Martin 9. 11. 2026: „pletí obstarají ženy a děti“);
+  ostatní polní práce všech dílů je úlohou dne před stavbami → **seč
   navíc** pro růst stád (oxen.md – Seno, dvě seče; `extraMow`) → **ryby a oka vesničanů**
   (`smallGameDay`, W7 – jen když ves chce bílkoviny; při hladu už před stavbami) → zbytek propadne. Volná práce
   v liště a zápis na seč (`recordMowingLabor` z `mowWork + allocation.common`) počítají práci
-  dílů nad potřebu jako volnou – strop stád nezmenší. **Seč nutného sena** je úloha dne `mow` za
+  pletí mužů jako volnou – strop stád nezmenší. **Seč nutného sena** je úloha dne `mow` za
   všemi ostatními (`end: Infinity`, `tie: 3`) – polním pracím práci nikdy nebere (kromě pletí
   mužů, které jde až za ní), stavbám ano. Zvířata a domácí výroba (`DOMESTIC`) jdou bokem – jen `LaborDay.aside` pro postavy;
   `domesticBacklog` a přirážka paliva zmizely (starší vsi pole jen nesou). Úlohy dne berou práci

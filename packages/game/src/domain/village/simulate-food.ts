@@ -10,12 +10,11 @@ import { dayPartLosses } from './disasters';
 import { addSheaves } from './threshing';
 import { villageLegumesKg } from './legumes';
 import { threshWorkFactor } from './weather-effects';
-import type { CraftCoverage, CropWork, SurplusCrop, ThreshedCrop, VillageState } from './types';
+import type { CraftCoverage, CropWork, ThreshedCrop, VillageState } from './types';
 import {
   harvestKg,
   seasonCrop,
   springCrop,
-  surplusCrop,
   taskRemaining,
   threshRemainingAfter,
   type PartLosses,
@@ -61,24 +60,6 @@ function sheaveCrop(
 }
 
 /**
- * Sklizeň obilí nad potřebu do snopů jako nutného (fields.md – Osevní postup po dílech, bod 3):
- * úroda podle práce, kterou díly po stavbách dostaly (nevypletý díl jen část, nesklizené
- * propadne – ozim nad potřebu se žne i v srpnu jako nutný, `sheaveCrop`); výmlat na humně je
- * společný. Vrací úrodu (kg); null = dnes nic nesklidila.
- */
-function harvestSurplus(
-  state: VillageState,
-  crop: SurplusCrop,
-  day: number,
-  final = true,
-): number | null {
-  const work = surplusCrop(state.season, crop);
-  if (!work || work.harvestedKg !== null) return null;
-  const losses = dayPartLosses(state, day, crop, work.partIds, state.wildlife?.damage?.parts);
-  return sheaveCrop(state, day, crop, work, final, losses);
-}
-
-/**
  * Žeň ozimu, luštěnin a lnu (po jídle dne): úroda ozimu a luštěnin do snopů – vymlátí se hned po
  * žni na humně (fields.md – Ozim a jař, Luštěniny; production-chains.md – Humno), a trhání lnu –
  * podíl oděvu, na který len je (fields.md – Len). 31. 7. (`final` false) do snopů, co červenec
@@ -99,8 +80,6 @@ function harvestEarlyCrops(state: VillageState, day: number, final: boolean): vo
     }
   }
   const winter = state.season ? seasonCrop(state.season, 'winter') : undefined;
-  let kg: number | null = null;
-  let recorded = false;
   if (winter && winter.harvestedKg === null) {
     const losses = dayPartLosses(
       state,
@@ -109,15 +88,10 @@ function harvestEarlyCrops(state: VillageState, day: number, final: boolean): vo
       winter.partIds,
       state.wildlife?.damage?.parts,
     );
-    kg = sheaveCrop(state, day, 'winter', winter, final, losses);
-    recorded = record(winter);
-  }
-  const surplusWork = surplusCrop(state.season, 'winter');
-  const surplus = harvestSurplus(state, 'winter', day, final);
-  if (surplus !== null && surplusWork && record(surplusWork)) recorded = true;
-  const total = (kg ?? 0) + (surplus ?? 0);
-  if ((kg !== null || surplus !== null) && (recorded || Math.round(total) > 0)) {
-    state.chronicle.push({ day, kind: 'harvest', kg: Math.round(total), crop: 'winter' });
+    const kg = sheaveCrop(state, day, 'winter', winter, final, losses);
+    if (record(winter) || Math.round(kg) > 0) {
+      state.chronicle.push({ day, kind: 'harvest', kg: Math.round(kg), crop: 'winter' });
+    }
   }
 }
 
@@ -144,9 +118,9 @@ export function harvest(state: VillageState, day: number): void {
     spring.harvestedKg,
     threshWork(state, day, taskRemaining(spring, 'thresh')),
   );
-  const kg = spring.harvestedKg + (harvestSurplus(state, 'spring', day) ?? 0);
+  const kg = spring.harvestedKg;
   // plán jen s ozimem jař nesklízí – žádná sklizeň do kroniky
-  if (!seasonCrop(plan, 'winter') && !surplusCrop(plan, 'winter'))
+  if (!seasonCrop(plan, 'winter'))
     state.chronicle.push({ day, kind: 'harvest', kg: Math.round(kg) });
   else if (kg > 0 || spring.partIds.length > 0) {
     state.chronicle.push({ day, kind: 'harvest', kg: Math.round(kg), crop: 'spring' });

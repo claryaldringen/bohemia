@@ -68,7 +68,6 @@ import { ploughCapacityPerDay, ploughPairsHome, villageOxen } from './oxen';
 import { fireFighting } from './firefighting';
 import { raidHiding } from './raid-day';
 import { morningWater, ploughWindowsToday, villagersToday } from './morning-water';
-import { surplusFieldDay, surplusWantsTeam } from './surplus-fields';
 import { markThreshed, threshingFloorHaulPoints } from './threshing-floors';
 import { grainPitTask, workGrainPits } from './grain-pits';
 import { chooseGrainPitSite } from './grain-pit-site';
@@ -134,7 +133,6 @@ import {
   ploughRemaining,
   seasonCrop,
   seasonCrops,
-  neededTaskRemaining,
   sowPerTill,
   windowEndOf,
   type CropTask,
@@ -174,7 +172,7 @@ import { springSowingExtended, springSowingHeld } from './weather-effects';
 import { partsByIdOf } from './parts-by-id';
 
 /**
- * Polní úlohy dne: práce plánu po plodinách (bez výmlatu – ten mlátí snopy, `threshTasks`), orba
+ * Polní úlohy dne: práce všech dílů letošní práce po plodinách (bez výmlatu – ten mlátí snopy, `threshTasks`), orba
  * rádlem v oknech kopání (spřežení zvládnou nejvýš `ploughCap` člověkodní za den – oxen.md).
  * Nejbližší konec okna první, při shodě ozim před jaří a pořadí úloh (TASK_ORDER; orba před
  * kopáním). Setí týž den hned za orbou a motykou (fields.md – Práce; Martin 9. 11. 2026: „Setí by
@@ -220,7 +218,7 @@ export function fieldTasks(
     const order =
       TASK_ORDER.indexOf(name === 'plough' ? 'dig' : name) - (name === 'plough' ? 0.5 : 0);
     const rank = CROP_ORDER.indexOf(crop) * TASK_ORDER.length + order;
-    let remaining = neededTaskRemaining(work, name);
+    let remaining = cropTaskRemaining(work, name);
     // příprava půdy jaře jen na díly, na které je osivo (`seedPrepShares`)
     const prep =
       name === 'sow' || name === 'weed' || name === 'harvest' ? undefined : prepShares?.get(work);
@@ -240,19 +238,17 @@ export function fieldTasks(
       : null;
   if (state.season !== null) {
     for (const { crop, work } of seasonCrops(state.season)) {
-      // díly nad potřebu mají vlastní krok (`surplusFieldDay` – v okně setí před stavbami)
-      if (work.surplus) continue;
       // dlouhá zima drží setí jařin do 22. 3. (disasters.md – Zima)
       const held = springSowingHeld(state, day, crop);
       const names = activeTasks(work, day, crop, springSowingExtended(state, day, crop));
       // setí za orbou a motykou i bez zpracované půdy do včerejška
-      if (!names.includes('sow') && neededTaskRemaining(work, 'dig') + ploughRemaining(work) > 0) {
+      if (!names.includes('sow') && cropTaskRemaining(work, 'dig') + ploughRemaining(work) > 0) {
         names.push('sow');
       }
       for (const name of names) {
         if (name !== 'thresh' && !(held && name === 'sow')) add(crop, work, name);
       }
-      if (neededTaskRemaining(work, 'plough') > 0) add(crop, work, 'plough');
+      if (cropTaskRemaining(work, 'plough') > 0) add(crop, work, 'plough');
     }
   }
   entries.sort((a, b) => a.end - b.end || a.rank - b.rank);
@@ -361,7 +357,10 @@ export function dayTaskOrder(a: DayTask, b: DayTask): number {
  * (dojení a péči ženy, pasení výrostci) a domácí výrobu ženy – obojí bokem, z práce vsi
  * nebere (rozdělení práce je má jen pro postavy – `LaborDay.aside`). Cvičící vojvodova rodina
  * je mimo práci vsi (lord.md – Den rodiny), na pole jde jen při hladu (zásobník `lordField`)
- * a s potřebným osevem, který ves sama nestihne (`lordHelp`).
+ * a s osevem, který ves sama nestihne (`lordHelp`). Všechna polní práce má přednost před stavbami
+ * (fields.md – Osevní postup po dílech, bod 3; Martin 9. 11. 2026: „Setí – to přece obstará pár
+ * mužů s voly a ženy, pletí obstarají ženy a děti. Na sklizni se pak podílejí úplně všichni“) –
+ * stavby dostanou, co zbude; muži plejí jen, co ženy a děti nestihnou, a až po stavbách.
  * Vrací, jestli ves dnes nestíhá polní práce v období (dřina), a podíl práce rodiny na poli, který
  * dnes úlohy spotřebovaly (`trainLordDay`).
  */
@@ -373,9 +372,6 @@ export function work(
   landscape: Landscape | null,
   waiting: ReadonlySet<Crop> = new Set(),
 ): { toil: boolean; lordField: number } {
-  // nutné díly čekají na čelo práce (`seasonDay`) – nové díly nad potřebu nezačnou, spřežení
-  // jejich plodiny zůstane na poli
-  const neededWaiting = waiting.size > 0;
   const month = dateOfDayIndex(day).month;
   // starší hospodářský rok s pletím ozimu – ozim se neplete; pletí jaře, luštěnin a lnu ze
   // starších sazeb na nové (fields.md – Pletí jednou a rychle)
@@ -385,8 +381,8 @@ export function work(
   // orba: páry volů s rádlem, se železnou špičkou od kováře rychleji (oxen.md); slabí voli po
   // zimě pomaleji; voli s vozem na výpravě neorají (wagons.md)
   const partsById = partsByIdOf(state.parts);
-  // potřeba do sklizně pro příděl, nad kterým nutné díly sejí z běžného zrna (`takeSeed`) – jednou
-  // za den, před prvním osivem dne
+  // přežívací zásoba do žní, nad kterou díly sejí z běžného zrna (`takeSeed`) – jednou za den,
+  // před prvním osivem dne
   let sowKeepKg: number | null = null;
   const teamsCap = ploughCapacityPerDay(state, coverage.tools, day);
   const ploughCap = teamsCap * teamsHomeShare(state, day);
@@ -485,10 +481,8 @@ export function work(
   dayTasks.sort(dayTaskOrder);
   // vozy (wagons.md – Vůz): dvoukoláky s volem, který dnes neorá, vozí snopy a seno tam, kam
   // dojedou – převezmou kus nošení a jde s nimi honák a nakladač (úloha pak chce méně práce); ve
-  // dny orby (i orby dílů nad potřebu) jdou páry napřed k rádlům, vozy táhne zbytek volů (oxen.md
-  // – Voli se sdílí)
-  const ploughing =
-    owned.some((task) => task.name === 'plough') || surplusWantsTeam(state, day, neededWaiting);
+  // dny orby jdou páry napřed k rádlům, vozy táhne zbytek volů (oxen.md – Voli se sdílí)
+  const ploughing = owned.some((task) => task.name === 'plough');
   // spřežení na poli zůstává u rádla i v den bez orby (oxen.md – Spřežení zůstane na poli)
   const fleet = cartFleetToday(state, day, ploughing || afield);
   // dosah vozů má ves s hotovou ohradou volů i bez vozů – měří, co by dnes vozy ušetřily
@@ -633,6 +627,8 @@ export function work(
       weedChildren: weeders.length * WEEDING_CHILDREN.perDay,
       womenLabor,
       ...(weedDaysLeft === undefined ? {} : { weedDaysLeft }),
+      // muži plejí až po stavbách (fields.md – Pletí jednou a rychle; Martin 9. 11. 2026)
+      menWeedLater: true,
       // cvičící muži rodiny ve žňový den – za žňovými rukama vsi, jen žeň a výmlat
       lordHarvest: manor && productivity > 0 ? manor.harvest / productivity : 0,
       // pomoc rodiny s potřebným osevem – jen co ves nestihne (lord.md – Kdy jde rodina na pole)
@@ -883,9 +879,8 @@ export function work(
   );
   const trade = workExpeditions(state, allocation.away - purchaseLabor);
   // volná práce na seč (oxen.md – Stáda podle práce na seč): co po polních pracích zbylo – nutná
-  // seč a společná práce (stavby, opravy, díly nad potřebu a seč navíc, nevyužitá) – podle ní ves
-  // příští rok drží stáda; práce dílů nad potřebu ji nezmenší (fields.md – Osevní postup po
-  // dílech, bod 4)
+  // seč a společná práce (stavby, opravy, pletí mužů a seč navíc, nevyužitá) – podle ní ves
+  // příští rok drží stáda; pletí mužů po stavbách ji nezmenší
   recordMowingLabor(state, day, mowWork + allocation.common, coverage.tools);
   let common = allocation.common;
   // kácení u stromů, kam vůz dojede, před dnešní prací – co se dnes skácí, mohly odvézt vozy
@@ -913,23 +908,8 @@ export function work(
       target: { kind: 'water', ...water.spot },
     });
   }
-  // díly nad potřebu v okně setí (fields.md – Osevní postup po dílech, bod 3; Martin 6. 11. 2026:
-  // ves oře a seje, dokud trvá okno): příprava půdy a setí plodin, jejichž okno setí dnes běží, jdou
-  // hned za nutnými úlohami dne, před stavbami; ostatní práce dílů nad potřebu až po nich (níž)
-  const sowingSurplus = surplusFieldDay(state, day, {
-    labor: common,
-    teamDays: Math.max(
-      0,
-      ploughCap - morningTeam - owned.reduce((sum, t) => sum + (t.teamDays ?? 0), 0),
-    ),
-    ploughFactor,
-    toolCoverage: coverage.tools,
-    neededWaiting,
-    phase: 'sowing',
-  });
-  common -= sowingSurplus.labor;
   // hladovějící ves chytá ryby a zajíce hned za polními úlohami, před stavbami (wildlife.md –
-  // Drobná zvěř a ryby); jinak až ze zbytku práce po dílech nad potřebu a seči navíc (níž)
+  // Drobná zvěř a ryby); jinak až ze zbytku práce po pletí mužů a seči navíc (níž)
   let game: SmallGameResult = { manDays: 0, shares: [] };
   if (state.hungry) {
     game = smallGameDay(state, day, common, true);
@@ -937,8 +917,8 @@ export function work(
   }
   // robota hostů (fortifications.md – Cena a stavba, vassalage.md – Lidé a robota; návrh Clauda):
   // práce hostů jde napřed do rozestavěného opevnění vsi (veřejná stavba, rovným dílem po úsecích),
-  // co zbude, do společné práce – ostatní stavby rovným dílem, opravy obydlí, údržba valu, díly
-  // nad potřebu a seč navíc; polní úlohy dne hosté nedělají
+  // co zbude, do společné práce – ostatní stavby rovným dílem, opravy obydlí, údržba valu, pletí
+  // mužů a seč navíc; polní úlohy dne hosté nedělají
   const guestLabor = guestLaborToday(state, day);
   const corvee = guestLabor > EPSILON ? build(state, day, guestLabor, 0, 'fortification') : [];
   if (guestLabor > EPSILON) {
@@ -973,26 +953,28 @@ export function work(
     return { dwellingId: d.id, manDays };
   });
   decayEmptyDwellings(state, day, new Set(households.map((d) => d.id)));
-  // ostatní práce dílů nad potřebu (fields.md – Osevní postup po dílech, bod 3; Martin 25. 10.
-  // 2026: „ve chvíli, kdy stavba přijde, prostě vesnice o část úrody přijde“): práce, která zbude
-  // po stavbách a opravách, jde na pletí, žně, odnos a přípravu půdy mimo okno setí; páry s rádlem
-  // jen s kapacitou, která po nutné orbě a orbě v okně setí zbyla (vozy ve dny orby páry neberou –
-  // oxen.md, Voli se sdílí)
-  const surplus = surplusFieldDay(state, day, {
-    labor: freeLabor,
-    teamDays: sowingSurplus.teamDays,
-    ploughFactor,
-    toolCoverage: coverage.tools,
-    neededWaiting,
-    phase: 'rest',
-  });
+  // pletí mužů po stavbách (fields.md – Pletí jednou a rychle; Martin 9. 11. 2026: „pletí
+  // obstarají ženy a děti“): co děti a ženy do konce okna nestihnou, z práce, která zbude po
+  // stavbách, opravách obydlí a údržbě opevnění
+  let weedMen = 0;
+  for (const { index, manDays } of allocation.menWeed ?? []) {
+    const field = dayTasks[index]?.field;
+    if (!field) continue;
+    const wanted = Math.min(manDays, freeLabor - weedMen, cropTaskRemaining(field.work, 'weed'));
+    if (wanted <= EPSILON) continue;
+    const before = cropTaskDone(field.work, 'weed');
+    addCropTaskWork(field.work, 'weed', wanted);
+    const after = cropTaskDone(field.work, 'weed');
+    fieldWork.push({ task: 'weed', work: field.work, before, after, amount: after - before });
+    weedMen += after - before;
+  }
   // seč navíc pro růst stád (oxen.md – Seno, dvě seče; Martin 19. 10. 2026: „pokud se něco staví,
-  // tak čas věnují primárně té stavbě“): jen z práce, která zbude po stavbách, opravách a dílech
-  // nad potřebu – pěšky, bez vozů; co nestihne do konce okna, zůstane neposečené
-  const extraMow = Math.max(0, Math.min(freeLabor - surplus.labor, mowingRemaining(state, day)));
+  // tak čas věnují primárně té stavbě“): jen z práce, která zbude po stavbách, opravách a pletí
+  // mužů – pěšky, bez vozů; co nestihne do konce okna, zůstane neposečené
+  const extraMow = Math.max(0, Math.min(freeLabor - weedMen, mowingRemaining(state, day)));
   if (extraMow > EPSILON) mow(state, extraMow, day);
   if (!state.hungry) {
-    game = smallGameDay(state, day, freeLabor - surplus.labor - extraMow, false);
+    game = smallGameDay(state, day, freeLabor - weedMen - extraMow, false);
   }
   // večer: spřežení, které dnes vyjelo a oralo, je u bloku; po zorání okna zpět do ohrady
   settlePloughTeams(state, day, travels, teamsCap <= EPSILON, waiting);
@@ -1082,8 +1064,8 @@ export function work(
           },
         }
       : {}),
-    fieldWork: [...fieldWork, ...sowingSurplus.fieldWork, ...surplus.fieldWork],
-    surplusField: sowingSurplus.labor + surplus.labor,
+    fieldWork,
+    ...(weedMen > EPSILON ? { weedMen } : {}),
     ...(game.manDays > 0 ? { smallGame: game.shares } : {}),
     ...(extraMow > EPSILON ? { extraMow } : {}),
     ...(weeders.length > 0 ? { weedChildAges: weeders } : {}),
@@ -1125,7 +1107,7 @@ export function work(
   );
   const seasonTasks = [
     ...owned.map((task) => ({
-      remaining: neededTaskRemaining(task.work, task.name),
+      remaining: cropTaskRemaining(task.work, task.name),
       endDay:
         windowEndDay(cropTaskWindows(task.crop, task.name), day) ??
         (task.name === 'sow' && springSowingExtended(state, day, task.crop)

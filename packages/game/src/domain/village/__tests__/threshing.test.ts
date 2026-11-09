@@ -637,10 +637,13 @@ describe('výhled jídla a plán osevu', () => {
     );
   });
 
-  it('plán osevu k 1. 9. odečte čekající výmlat z podzimní práce – méně ozimu', () => {
+  it('čekající výmlat bere podzimní práci – ves do konce října připraví méně ozimu', () => {
     const august = advanceVillage(withThreshingFloor(bare(at(600, 3, 15))), at(601, 8, 31), null);
-    const winterParts = (s: VillageState): number =>
-      seasonCrop(advanceVillage(s, at(601, 9, 1), null).season, 'winter')?.partIds.length ?? 0;
+    // příprava půdy pod ozim (bez snopů ves nemá osivo – měří se kopání, vracení a orba)
+    const winterSown = (s: VillageState): number => {
+      const work = seasonCrop(advanceVillage(s, at(601, 10, 31), null).season, 'winter');
+      return work ? work.done.dig + work.done.reclaim + (work.plough?.done ?? 0) : 0;
+    };
     const free = structuredClone(august);
     free.sheaves = { grainKg: 0, legumesKg: 0 };
     // velký nevymlácený výmlat v roce odkladu bez humna – vezme celý podzim
@@ -648,8 +651,8 @@ describe('výhled jídla a plán osevu', () => {
     delete busy.threshingFloors;
     busy.threshingGraceUntil = at(602, 6, 1);
     busy.sheaves = { grainKg: 50_000, legumesKg: 0, work: { spring: 5000 } };
-    expect(winterParts(free)).toBeGreaterThan(0);
-    expect(winterParts(busy)).toBe(0);
+    expect(winterSown(free)).toBeGreaterThan(0);
+    expect(winterSown(busy)).toBeLessThan(winterSown(free));
   });
 });
 

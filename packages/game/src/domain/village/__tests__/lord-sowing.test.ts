@@ -5,14 +5,8 @@ import { craftCoverage } from '../crafts';
 import { allocateDay } from '../labor';
 import { manorLabor } from '../lord';
 import { NO_CRAFTS } from '../productivity';
-import { neededSelection } from '../rotation';
 import { advanceVillage } from '../simulate';
-import {
-  fieldSowingTargets,
-  orchardHarvestLoad,
-  sowingCapacity,
-  villageProductivity,
-} from '../simulate-plan';
+import { orchardHarvestLoad, sowingCapacity, villageProductivity } from '../simulate-plan';
 import {
   cropLoadOf,
   lordHelpShare,
@@ -272,8 +266,11 @@ describe('práce dne (manorLabor, allocateDay)', () => {
 
 describe('nutná práce s rodinou (lordHelpDay)', () => {
   it('ves, která osev stihne bez rodiny – lordHelp chybí, rodina jen cvičí', () => {
-    // zásoby s rezervou i na obilí psů, které dvorec zakládá hned (wildlife.md – Psi)
-    const planned = advanceVillage(sowingVillage(30000), PLAN_DAY, null);
+    // zásoby s rezervou i na obilí psů, které dvorec zakládá hned (wildlife.md – Psi); jen 20 dílů
+    // na řadě – ves je obdělá sama (bez stropu bere ves všechny díly na řadě)
+    const small = sowingVillage(30000);
+    small.parts = small.parts.slice(0, 20);
+    const planned = advanceVillage(small, PLAN_DAY, null);
     expect(planned.season).toBeDefined();
     expect(planned.season!.lordHelp).toBeUndefined();
     expect(planned.labor?.lord?.field).toBe(0);
@@ -293,14 +290,8 @@ describe('nutná práce s rodinou (lordHelpDay)', () => {
     // (fields.md – Postup práce po dílech) – do volné práce vsi nevešla
     const coverage = craftCoverage(planned, PLAN_DAY);
     const rest = planLoad(planned.season!, orchardHarvestLoad(planned));
-    const t = fieldSowingTargets(planned, PLAN_DAY, coverage);
-    const { join } = neededSelection(planned, PLAN_DAY, {
-      harvestKg: t.harvestKg,
-      energyFloorKg: t.energyFloorKg,
-      needKg: t.needKg,
-      flaxNeedKg: planned.season!.flaxNeedKg ?? 0,
-    });
-    expect(join.length).toBeGreaterThan(0);
+    // čekající díly výběru dne (`seasonDay` – paměť výběru)
+    const join = planned.season!.selection?.waiting ?? [];
     const plough = springCrop(planned.season!).plough !== undefined;
     for (const { id, crop } of join) {
       const part = planned.parts.find((p) => p.id === id)!;

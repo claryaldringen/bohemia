@@ -56,7 +56,6 @@ export const FIELD_STORES = {
   bufferEnergyYears: 0.5,
   balanceYears: 3,
   cushionYears: 1 / 3,
-  trimMarginYears: 0.1,
 } as const;
 // fields.md – Osevní postup po dílech, Postup práce po dílech (návrh Clauda v duchu Martina
 // 25. 10. 2026: „orají a sejí od začátku okna do konce okna všechno připravené, dokud stačí lidé

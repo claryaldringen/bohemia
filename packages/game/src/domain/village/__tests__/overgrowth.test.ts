@@ -280,8 +280,10 @@ describe('roční krok zarůstání (1. 11.)', () => {
 
   it('simulace: zarůstání nezávisí na tom, po jakých kouscích se ves dopočítá', () => {
     const s = village(at(615, 6, 1));
-    // vyčerpané přílohy – ves je neoseje, jen zarůstají
-    const tired = { fertilityShare: 0.5 };
+    // vyčerpané přílohy – ves s dost zásobami (bez nedostatku) je neoseje, jen zarůstají
+    s.storesKg = 50_000;
+    // 0,3 → za 4 roky 0,5 – pod 70 % (příloh 70–95 % by ves po oseté řadě vzala)
+    const tired = { fertilityShare: 0.3 };
     s.parts = [
       part(1, { ...tired, overgrowthYears: 27 }),
       part(2, tired),

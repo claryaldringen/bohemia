@@ -13,7 +13,7 @@ import {
 } from '../wildlife-damage';
 import { forestEdgeDistances } from '../wildlife-land';
 import { withWildlife } from '../wildlife';
-import { expectedWinterKg, seasonCrops, surplusCrop } from '../year-plan';
+import { expectedWinterKg, seasonCrops, seasonCrop } from '../year-plan';
 import { makeLandscape } from './placement-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
@@ -190,7 +190,7 @@ describe('škoda dne', () => {
 
   it('po sklizni ozimu se denní škoda jaře na ha nezvýší (násobek malé vsi z nesklizených dílů)', () => {
     const s = forestVillage(10_000, 8); // 5 dílů × 1 ha
-    const [winter, spring] = [surplusCrop(s.season, 'winter')!, surplusCrop(s.season, 'spring')!];
+    const [winter, spring] = [seasonCrop(s.season, 'winter')!, seasonCrop(s.season, 'spring')!];
     const id = spring.partIds[0]!;
     const before = dailyThreatShare(s, JUNE).get(id)!;
     winter.done.harvest = winter.required.harvest;
@@ -227,15 +227,15 @@ describe('škoda dne', () => {
   it('vrány berou 2 % za okno plodiny: ozim za 61, jař za 92 dnů', () => {
     const s = forestVillage(40_000, 0);
     for (let day = JUNE; day < JUNE + 61; day++) wildlifeDamageDay(s, day);
-    const winter = surplusCrop(s.season, 'winter')!.partIds[0]!;
+    const winter = seasonCrop(s.season, 'winter')!.partIds[0]!;
     expect(crowsOnly(s, winter)).toBeCloseTo(0.02 * (61 / 61), 9);
-    const spring = surplusCrop(s.season, 'spring')!.partIds[0]!;
+    const spring = seasonCrop(s.season, 'spring')!.partIds[0]!;
     expect(crowsOnly(s, spring)).toBeCloseTo(0.02 * (61 / 92), 9);
   });
 
   it('sklizený díl už neztrácí, nesklizený ano', () => {
     const s = forestVillage(40_000, 8);
-    const [winter, spring] = [surplusCrop(s.season, 'winter')!, surplusCrop(s.season, 'spring')!];
+    const [winter, spring] = [seasonCrop(s.season, 'winter')!, seasonCrop(s.season, 'spring')!];
     winter.done.harvest = winter.required.harvest; // celý ozim je sklizený
     wildlifeDamageDay(s, JUNE);
     const parts = s.wildlife!.damage!.parts;
@@ -254,7 +254,7 @@ describe('škoda dne', () => {
 
   it('úroda při sklizni = bez škody × (1 − podíl); výhled jídla s dosavadní škodou', () => {
     const s = forestVillage(40_000, 8);
-    const winter = surplusCrop(s.season, 'winter')!;
+    const winter = seasonCrop(s.season, 'winter')!;
     const day = at(600, 7, 1);
     const without = expectedWinterKg(winter, s.parts, day);
     const losses = Object.fromEntries(winter.partIds.map((id) => [String(id), { share: 0.25 }]));
@@ -273,7 +273,7 @@ describe('typická ves bez obrany', () => {
   function harvestProgress(s: VillageState, day: number): void {
     const date = dateOfDayIndex(day);
     const set = (crop: 'winter' | 'spring', month: number): void => {
-      const work = surplusCrop(s.season, crop)!;
+      const work = seasonCrop(s.season, crop)!;
       const frac =
         date.month < month ? 0 : date.month > month ? 1 : Math.min(1, (date.day - 1) / 12);
       work.done.harvest = work.required.harvest * frac;

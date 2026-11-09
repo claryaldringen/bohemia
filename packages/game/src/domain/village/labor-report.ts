@@ -82,10 +82,10 @@ export interface DayWork {
   /** Polní úlohy dne po plodinách (bez nich se práce polí dělí podle plochy plánu). */
   fieldWork?: FieldTaskWork[];
   /**
-   * Práce dílů nad potřebu ze společné práce – po stavbách (fields.md – Osevní postup po dílech,
-   * bod 3); její úlohy jsou ve `fieldWork`. Bez údaje 0.
+   * Pletí mužů ze společné práce – po stavbách (fields.md – Pletí jednou a rychle); jeho úlohy
+   * jsou ve `fieldWork`. Bez údaje 0.
    */
-  surplusField?: number;
+  weedMen?: number;
   /** Seč navíc z práce po stavbách (oxen.md – Seno, dvě seče; člověkodny). Bez údaje 0. */
   extraMow?: number;
   /** Ryby a oka vesničanů ze zbytku práce (W7; wildlife.md); bez údaje žádné. */
@@ -391,11 +391,11 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   }
   // nákup u sousedů – malá skupina po stezce nebo krajinou ke kraji mapy (crafts.md)
   for (const p of work.purchases ?? []) add('trade', p.target, p.manDays);
-  // opravy obydlí jdou ze společné práce po stavbách (population.md – Práce), díly nad potřebu
-  // z toho, co zbude po nich (fields.md – Osevní postup po dílech, bod 3)
+  // opravy obydlí jdou ze společné práce po stavbách (population.md – Práce), pletí mužů z toho,
+  // co zbude po nich (fields.md – Pletí jednou a rychle)
   let invested =
     work.repairs.reduce((sum, r) => sum + r.manDays, 0) +
-    (work.surplusField ?? 0) +
+    (work.weedMen ?? 0) +
     (work.extraMow ?? 0);
   for (const g of work.smallGame ?? []) {
     invested += g.manDays;

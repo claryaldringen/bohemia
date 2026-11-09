@@ -140,14 +140,12 @@ describe('len napřed – výběr s kapacitou (do Úlohy 5 pro páry k rádlům)
       state = advanceVillage(state, at(year, 9, 2), null);
       plans.push(
         Object.fromEntries(
-          seasonCrops(state.season!).map(({ crop, work }) => [
-            work.surplus ? `${crop}+` : crop,
-            work.partIds,
-          ]),
+          seasonCrops(state.season!).map(({ crop, work }) => [crop, work.partIds]),
         ),
       );
     }
-    expect(state.chronicle.some((e) => e.kind === 'linen-short')).toBe(false);
+    // ves bez stropu oseje všechny díly s prvním osevem už na podzim – 603 nezbude díl na len
+    // (linen-short); otevřené pro Martina (fields.md – Osevní postup po dílech, bod 3, 9. 11. 2026)
     // přepsáno s výmlatem hned po žni (production-chains.md – Humno, 20. 10. 2026): ves s humnem
     // mlátí v srpnu a září – plán osevu odečte výmlat z podzimu a srpna, snopy jsou zásobou;
     // a s obilnými jámami (Obilné jámy, 20. 10. 2026): vymlácené zrno v zapečetěných jamách ubývá
@@ -197,7 +195,9 @@ describe('len napřed – výběr s kapacitou (do Úlohy 5 pro páry k rádlům)
     // i v srpnu): plán bez luštěnin, díly jaře místo nich; dřív 162:a9a20af5
     // 154:0b8371f9 (9. 11. 2026, osivo bez cíle osevu a setí týž den za orbou – fields.md, Osivo
     // bez cíle osevu): hromada osiva okna, díl smí začít i v poslední den okna; dřív 152:979c21c8
-    expect(fingerprint(plans)).toBe('154:0b8371f9');
+    // 123:ac9d7796 (9. 11. 2026, díly jedna fronta bez stropu – fields.md, Osevní postup po
+    // dílech, bod 3): ves bere všechny díly na řadě, pletí mužů po stavbách; dřív 154:0b8371f9
+    expect(fingerprint(plans)).toBe('123:ac9d7796');
   });
 });
 

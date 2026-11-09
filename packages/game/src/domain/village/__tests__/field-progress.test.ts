@@ -15,13 +15,7 @@ import { laborReport } from '../labor-report';
 import { advanceVillage } from '../simulate';
 import type { FieldPart, VillageState } from '../types';
 import { PLOUGH_SOD_FACTOR } from '../plough';
-import {
-  neededTaskRemaining,
-  partWeight,
-  seasonPartIds,
-  seasonCrop,
-  springCrop,
-} from '../year-plan';
+import { cropTaskRemaining, partWeight, seasonPartIds, seasonCrop, springCrop } from '../year-plan';
 import { herdingDay } from '../herding';
 import { villageOxen } from '../oxen';
 import { withRoomyPens } from './village-fixtures';
@@ -185,7 +179,7 @@ describe('postup po čtvercích', () => {
     let busyDays = 0;
     for (let day = at(602, 5, 26); day <= at(602, 5, 31); day++) {
       const weedLeft = (v: VillageState): number =>
-        v.season!.crops.reduce((sum, c) => sum + neededTaskRemaining(c, 'weed'), 0);
+        v.season!.crops.reduce((sum, c) => sum + cropTaskRemaining(c, 'weed'), 0);
       const weedBefore = weedLeft(s);
       s = advanceVillage(s, day, null);
       // pletí, které ten den ves nedokončila – plely ženy a děti, muži sekali

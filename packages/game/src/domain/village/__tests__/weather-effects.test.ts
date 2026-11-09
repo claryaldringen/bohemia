@@ -17,7 +17,7 @@ import {
   springSowingHeld,
   threshWorkFactor,
 } from '../weather-effects';
-import { surplusCrop } from '../year-plan';
+import { seasonCrop } from '../year-plan';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Sucho, deštivé léto a krutá zima (disasters.md – Léto, Zima, Ochrana dílu, Dopady).
@@ -300,11 +300,11 @@ describe('dohra setí jařin v simulaci', () => {
     }));
     s.disasters = { override: { weather: { 601: { summer: 'normal', winter } } } };
     const spring = advanceVillage(s, at(601, 4, 25), null);
-    const sowing = surplusCrop(spring.season, 'spring')!;
+    const sowing = seasonCrop(spring.season, 'spring')!;
     sowing.required.sow *= 200;
     return spring;
   };
-  const sowDone = (s: VillageState): number => surplusCrop(s.season, 'spring')?.done.sow ?? -1;
+  const sowDone = (s: VillageState): number => seasonCrop(s.season, 'spring')?.done.sow ?? -1;
 
   it('v dlouhé zimě se rozpracovaný díl dosévá i 1.–14. 5., v normální zimě ne; po kouscích stejně', () => {
     const long = start('long');

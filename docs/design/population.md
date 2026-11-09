@@ -340,8 +340,10 @@ zbytku rodiny.“
   neberou; ve scéně jsou ženy dál u domů a dojí, výrostci u stád (jen zobrazení).
 - **Pletí – hlavně ženy a děti** (Martin 25. 10. 2026: „Ve středověku se plelo jednou, rychle
   a dělaly to hlavně ženy a děti“): pletí bere práci napřed z dětí 7–13 let, které nepasou, pak
-  z žen – jejich podíl na práci vsi –, muži doplejí jen zbytek po ostatních úlohách dne (seč) –
-  [fields.md](fields.md), Pletí jednou a rychle.
+  z žen – jejich podíl na práci vsi –, muži doplejí jen, co ženy a děti nestihnou, a **až po
+  stavbách** (Martin 9. 11. 2026: „pletí obstarají ženy a děti“) – [fields.md](fields.md), Pletí
+  jednou a rychle. Ostatní polní práce má přednost před stavbami (fields.md – Osevní postup po
+  dílech, bod 3).
 - Pole jsou společná, a proto se práce počítá **za celou ves** – dospělí všech domácností
   pracují pro ves. Pořadí práce dne (denní minimum domácností, lidé na výpravách k sousedům,
   potřebné sezónní úlohy, **společná práce vsi** do staveb, opravy obydlí, zbytek) popisuje

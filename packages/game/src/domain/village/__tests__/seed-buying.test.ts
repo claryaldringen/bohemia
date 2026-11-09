@@ -371,7 +371,7 @@ describe('osivo pro ves bez zásob (fields.md – Osivo pro ves bez zásob)', ()
     const whole = advanceVillage(s, end, null);
     const pieces = advanceVillage(advanceVillage(s, at(600, 9, 20), null), end, null);
     expect(JSON.stringify(pieces)).toBe(JSON.stringify(whole));
-    const winter = whole.season!.crops.find((c) => c.crop === 'winter' && !c.surplus);
+    const winter = whole.season!.crops.find((c) => c.crop === 'winter');
     expect(winter?.seedKg ?? 0).toBeGreaterThan(SEED_BUYING.minKg);
     expect(whole.reservedSeedKg).toBeCloseTo(reserved, 6);
   }, 120_000);

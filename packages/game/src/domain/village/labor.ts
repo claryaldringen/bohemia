@@ -93,10 +93,16 @@ export interface DayAllocationInput {
    * ženy a děti). Ženy nesou díl denního minima domácností (`WEEDING_WOMEN.dailyMinShare`) – pletí
    * bere po dětech a lehké práci žen řemeslníků jen jejich práci nad tento díl (nejvýš co vsi
    * zbylo po minimu, koních, výpravách a vozech), i před úlohami, které jsou v pořadí dřív; co
-   * nedoplejí, doplejí muži až po ostatních úlohách dne (seč, setí, orba). Bez údaje 0 – pleje se
-   * jen z toho, co úlohy nechají.
+   * nedoplejí, doplejí muži až po ostatních úlohách dne (seč, setí, orba) – s `menWeedLater` až po
+   * stavbách. Bez údaje 0 – pleje se jen z toho, co úlohy nechají.
    */
   womenLabor?: number;
+  /**
+   * Muži plejí až po stavbách (fields.md – Pletí jednou a rychle; Martin 9. 11. 2026: „pletí
+   * obstarají ženy a děti“): jejich díl pletí (`weedDaysLeft`) se z práce vsi nebere – vrátí se
+   * v `menWeed` a ves ho dostane ze společné práce po stavbách. Bez údaje muži plejí před stavbami.
+   */
+  menWeedLater?: boolean;
   /**
    * Kolik dní zbývá do konce okna pletí i s dneškem (fields.md – Pletí jednou a rychle): muži
    * plejí jen tolik, kolik by děti a ženy dnešním tempem s rezervou do konce okna bez posledních
@@ -184,6 +190,11 @@ export interface DayAllocation {
   weedChildren?: number;
   /** Kolik práce žen vsi (`womenLabor`, po štěstí) dnes pletí spotřebovalo; chybí = 0. */
   weedWomen?: number;
+  /**
+   * Pletí, které zbývá na muže po stavbách (`menWeedLater`): úloha (index v `tasks`) a nejvýš
+   * kolik práce (po štěstí). Chybí = nic.
+   */
+  menWeed?: { index: number; manDays: number }[];
   tasks: Record<LaborTaskName, number>;
   /** Práce pro jednotlivé úlohy vstupu v jejich pořadí (stejný název může být víckrát – plodiny). */
   taskAmounts: number[];
@@ -305,6 +316,8 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
         );
   // práce setí za orbou a motykou (`follow`) – přičte se úloze setí po rozdělení
   const followAmounts = input.tasks.map(() => 0);
+  // díl pletí mužů po stavbách (`menWeedLater`)
+  const later: { index: number; manDays: number }[] = [];
   const allot = (task: DayAllocationInput['tasks'][number], i: number): void => {
     let amount = taskAmounts[i] ?? 0;
     // s úlohou i setí za ní – práce úlohy a setí v poměru `ratio`
@@ -328,11 +341,18 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     const lord = Math.max(0, Math.min(remaining - amount, lordLeft));
     lordLeft -= lord;
     amount += lord;
-    amount += take(remaining - amount);
+    if (task.name === 'weed' && input.menWeedLater === true) {
+      // muži plejí až po stavbách – jejich díl ze společné práce (`menWeed`)
+      const men = Math.max(0, remaining - amount);
+      if (men > 0) later.push({ index: i, manDays: men });
+      menWeed -= men;
+    } else amount += take(remaining - amount);
     // pomoc rodiny s osevem až po práci vsi – jen co ves dnes nestihne
-    const help = SOWING_HELP_TASKS.has(task.name)
-      ? Math.max(0, Math.min(remaining - amount, helpLeft))
-      : 0;
+    const deferred = task.name === 'weed' && input.menWeedLater === true;
+    const help =
+      SOWING_HELP_TASKS.has(task.name) && !deferred
+        ? Math.max(0, Math.min(remaining - amount, helpLeft))
+        : 0;
     helpLeft -= help;
     amount += help;
     if (task.follow && pair > 1) {
@@ -365,6 +385,7 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     harvestHands: handsPool - handsLeft,
     ...(kidsPool > 0 ? { weedChildren: kidsPool - kidsLeft } : {}),
     ...(weedWomen > 0 ? { weedWomen } : {}),
+    ...(later.length > 0 ? { menWeed: later } : {}),
     tasks,
     taskAmounts,
     common: left,

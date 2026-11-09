@@ -19,7 +19,8 @@ import { advanceVillage } from '../simulate';
 import { fieldTasks } from '../simulate-work';
 import { harvestWinter } from '../simulate-food';
 import type { CropWork, FieldPart, SeasonCrop, VillageState } from '../types';
-import { villageSheaves } from '../threshing';
+import { foodGrainReserveKg, villageSheaves } from '../threshing';
+import { villageFoodNeed } from '../diet';
 import { createCropWork, harvestKg, seasonCrop, seasonCrops, sownShare } from '../year-plan';
 
 // Osivo ze zásob při setí (fields.md – Úroda, Osivo ze zásob; Martin 27. 10. 2026: „Osivo ze
@@ -293,26 +294,11 @@ describe('osivo – nálezy recenze', () => {
     expect(work.seedKg).toBeCloseTo(total, 9);
   });
 
-  it('osivo nad potřebu neubere nárok nutných dílů pod prahem', () => {
-    const { s, work } = withWinter(4, 100_000);
-    const food = seedKeepKg(s, at(600, 9, 15));
-    const before = sowableSeedKg(s, 'grain', food);
-    s.season!.crops.push({
-      crop: 'winter',
-      ...createCropWork(s.parts, at(600, 9, 15), 0, false, undefined, 'winter'),
-      surplus: true,
-      seedKg: 40,
-    });
-    expect(work.seedKg).toBe(0);
-    expect(sowableSeedKg(s, 'grain', food)).toBe(before);
-  });
-
-  it('povýšený díl nad potřebu si nese osivo zasetého podílu', () => {
+  it('přesunutý díl si nese osivo zasetého podílu', () => {
     const { s, work: to } = withWinter(2, 1000);
     const from: SeasonCrop = {
       crop: 'winter',
       ...createCropWork(s.parts, at(600, 9, 15), 0, false, undefined, 'winter'),
-      surplus: true,
     };
     const ids = [...from.partIds];
     from.done.sow = from.required.sow;
@@ -331,5 +317,18 @@ describe('osivo – nálezy recenze', () => {
     const free = paymentPool(s, day, NO_CRAFTS).energyKg;
     s.sowingSeed = { crop: 'winter', totalKg: 2000, days: 61, kg: 2000 };
     expect(paymentPool(s, day, NO_CRAFTS).energyKg).toBeLessThan(free);
+  });
+
+  it('platba nevezme zrno na dnešní jídlo ani hromadu osiva (oprava – Vlkov 1. 8. 873)', () => {
+    // 41 kg vymláceného zrna, úroda ve snopech – pojistka k sklizni je kladná, ale zrno je jídlo dne
+    const { s } = withWinter(4, 41);
+    const day = at(600, 9, 15);
+    s.sheaves = { grainKg: 20_000, legumesKg: 0 };
+    const food = foodGrainReserveKg(villageFoodNeed(s, day));
+    expect(food).toBeGreaterThan(0);
+    expect(paymentPool(s, day, NO_CRAFTS, true).grainKg).toBeCloseTo(Math.max(0, 41 - food), 9);
+    s.storesKg = 1000;
+    s.sowingSeed = { crop: 'winter', totalKg: 300, days: 61, kg: 300 };
+    expect(paymentPool(s, day, NO_CRAFTS, true).grainKg).toBeCloseTo(1000 - 300 - food, 9);
   });
 });

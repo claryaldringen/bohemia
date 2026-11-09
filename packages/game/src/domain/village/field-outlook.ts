@@ -61,7 +61,7 @@ export interface WorkShortfall {
  * zbylé práce a z čeho je – úroda z úrodnosti a podíly, které berou vlivy (počasí, které už je
  * vidět, škoda zvěře, kroupy, voda a smršť, nedodělaná práce po konci okna; záporné počasí =
  * dobrý rok přidá). Kroky, na které práce do konce okna nestačí (jen ty, které díl ještě nemá
- * hotové; díl nad potřebu jde z volné práce po stavbách – výhled práce ho nehlídá).
+ * hotové).
  */
 export interface PartOutlook {
   crop: Crop;
@@ -91,7 +91,7 @@ function cropWindows(crop: Crop): { sow: OutlookWindow; harvest: OutlookWindow }
 
 /**
  * Chybějící práce po oknech (jen okna, která letos ještě běží nebo přijdou, a kde chybí): zbytek
- * letošní nutné práce (`planLoad` – bez dílů nad potřebu, i se sklizní jablek) proti volné práci
+ * letošní práce (`planLoad` – i se sklizní jablek) proti volné práci
  * vsi do konce hospodářského roku (`sowingCapacity` i s cvičící rodinou – ta pomáhá, když ves
  * nestíhá). Jař jako `lordSowingHelp`: vrácení a kopání napřed na podzim, co po ozimu zbude,
  * zbytek se setím na jaře; žeň, kterou červenec nestihne, se žne v srpnu (`harvestOverflow`).
@@ -105,7 +105,7 @@ function seasonShortfalls(
   const season = state.season;
   if (!season) return {};
   const load = cropLoadOf(planLoad(season, orchardHarvestLoad(state)));
-  // jako `lordHelpDay` – orba jaře; rok bez nutné jaře (jen díly nad potřebu) podle ozimu
+  // jako `lordHelpDay` – orba jaře; rok bez jaře podle ozimu
   const plough =
     (seasonCrop(season, 'spring') ?? seasonCrop(season, 'winter'))?.plough !== undefined;
   const cap = sowingCapacity(state, day, coverage, plough, landscape, undefined, { lord: true });
@@ -221,18 +221,16 @@ export function fieldOutlook(
       const part = partsById.get(id);
       if (!part || part.state !== 'sown') continue;
       const outlook = partOutlook(state, day, work, crop, part);
-      if (!work.surplus) {
-        const left = stepsLeft(yearWork.get(id));
-        const add = (window: OutlookWindow, steps: readonly OutlookStep[]): void => {
-          const missing = shortfalls[window];
-          const open = steps.filter((s) => left.has(s));
-          if (missing && open.length > 0) {
-            outlook.short.push({ steps: open, endMonth: WINDOW_END[window], ...missing });
-          }
-        };
-        add(windows.sow, ['prep', 'sow']);
-        add(windows.harvest, ['harvest']);
-      }
+      const left = stepsLeft(yearWork.get(id));
+      const add = (window: OutlookWindow, steps: readonly OutlookStep[]): void => {
+        const missing = shortfalls[window];
+        const open = steps.filter((s) => left.has(s));
+        if (missing && open.length > 0) {
+          outlook.short.push({ steps: open, endMonth: WINDOW_END[window], ...missing });
+        }
+      };
+      add(windows.sow, ['prep', 'sow']);
+      add(windows.harvest, ['harvest']);
       result.set(id, outlook);
     }
   }

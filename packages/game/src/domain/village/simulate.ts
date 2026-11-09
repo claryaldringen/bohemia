@@ -31,6 +31,7 @@ import { withThreshingGrace, spoilSheaves } from './threshing';
 import { withSeason } from './year-plan';
 import { settleSowingSeed, withSeedForgiven, withoutSeedTarget } from './seed';
 import { withoutFieldLegumes } from './field-legumes';
+import { withoutSurplusCrops } from './merge-surplus';
 import { seedBuyingDay } from './seed-buying';
 import { withSowingRotation } from './rotation';
 import { sacredOakEvents } from './sacred-life';
@@ -152,8 +153,9 @@ export function* advanceVillageSteps(
   // před snopy rok odkladu mlácení (production-chains.md – Starší vsi) a ves s ročním plánem osevní
   // postup po dílech (fields.md – Osevní postup po dílech, bod 7), plán z doby před osivem ze
   // zásob odpuštěné osivo zaseté části (fields.md – Osivo ze zásob, Převod), plán z doby cíle
-  // osevu bez osiva čekajících dílů (fields.md – Osivo bez cíle osevu) a nezasetý díl luštěnin jař
-  // (fields.md – Luštěniny, zrušeno) – jednou, idempotentně
+  // osevu bez osiva čekajících dílů (fields.md – Osivo bez cíle osevu), nezasetý díl luštěnin jař
+  // (fields.md – Luštěniny, zrušeno) a díly nad potřebu jednou frontou (fields.md – Osevní postup
+  // po dílech, bod 3) – jednou, idempotentně
   const next = cloneState(
     withSteward(
       withWildlife(
@@ -172,7 +174,9 @@ export function* advanceVillageSteps(
                                 withKinship(
                                   withoutFieldLegumes(
                                     withoutSeedTarget(
-                                      withSeedForgiven(withSowingRotation(withSeason(start))),
+                                      withoutSurplusCrops(
+                                        withSeedForgiven(withSowingRotation(withSeason(start))),
+                                      ),
                                     ),
                                   ),
                                 ),

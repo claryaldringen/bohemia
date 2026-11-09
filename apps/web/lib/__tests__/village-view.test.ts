@@ -361,7 +361,6 @@ describe('buildVillageView – osevní postup v panelu (fields.md – Osevní po
       crops: [
         {
           crop: 'winter',
-          surplus: true,
           ...createCropWork([surplus!], DAY - 200, 1, false, undefined, 'winter'),
         },
       ],
@@ -373,12 +372,12 @@ describe('buildVillageView – osevní postup v panelu (fields.md – Osevní po
       next: 'fallow',
       rest: { share: 0.8, years: 4 },
     });
-    // nezasetý díl nad potřebu – příště jeho plodina
-    expect(shown.get(surplus!.id)).toMatchObject({ next: 'winter', work: { surplus: true } });
+    // nezasetý díl letošní práce – příště jeho plodina (díly nad potřebu zrušené 9. 11. 2026)
+    expect(shown.get(surplus!.id)).toMatchObject({ next: 'winter' });
     expect(field.turn.resting).toBe(1);
     expect(field.turn.winter + field.turn.spring).toBe(s.parts.length - 2);
     expect(field.turn.spring).toBeGreaterThan(0);
-    expect(field.turn.surplus).toEqual({ winter: 1, spring: 0 });
+    expect(field.turn.surplus).toEqual({ winter: 0, spring: 0 });
   });
 });
 

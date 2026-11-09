@@ -382,23 +382,14 @@ export interface PloughBand {
   sweep: 1 | -1;
   block: number;
 }
-/** Obilí, které ves oseje i nad potřebu (fields.md – Osevní postup po dílech, bod 3). */
-export type SurplusCrop = 'winter' | 'spring';
 /** Práce jedné plodiny hospodářského roku (fields.md – Osevní postup po dílech). */
 export interface SeasonCrop extends CropWork {
   crop: Crop;
-  /**
-   * Díly nad potřebu (fields.md – Osevní postup po dílech, bod 3; jen ozim a jař): všechna jejich
-   * práce na poli – příprava půdy, setí, pletí, žně a odnos – jde až po stavbách a opravách
-   * obydlí (Martin 25. 10. 2026: „ve chvíli, kdy stavba přijde, prostě vesnice o část úrody
-   * přijde“). Chybí = nutné díly (práce proti hladu před stavbami).
-   */
-  surplus?: true;
 }
 /**
  * Hospodářský rok 1. 9. – 31. 8. (název `FarmSeason`, protože `Season` je roční období
- * kalendáře): evidence práce dílů po plodinách v pořadí ozim, luštěniny, len, jař, za nimi ozim
- * a jař nad potřebu (`SeasonCrop.surplus`) – plodina v `crops` je jen, když ji ves má.
+ * kalendáře): evidence práce dílů po plodinách v pořadí ozim, luštěniny, len, jař – plodina
+ * v `crops` je jen, když ji ves má.
  */
 export interface FarmSeason {
   startDay: number;
@@ -423,17 +414,16 @@ export interface FarmSeason {
   lordHelp?: LordHelp;
   /**
    * Výběr dílů z posledního dne, kdy bylo na čele práce místo (fields.md – Postup práce po dílech,
-   * výkon): čekající díly a roční potřeba z pole. Ve dny bez místa na čele ves nový výběr nedělá
+   * výkon): čekající díly. Ve dny bez místa na čele ves nový výběr nedělá
    * a počítá s tímto; platí jen ve stejném měsíci a se stejnými plodinami, které smí začít
    * (`window`). Mimo dny, kdy smí začít díl, chybí; chybí-li, ves vybírá znovu (starší ves taky).
    */
   selection?: {
     window: string;
     waiting: { id: number; crop: Crop }[];
-    floorKg: number | null;
   };
 }
-/** Osivo po zásobách (kg): obilí (ozim, jař, obilí nad potřebu) a luštěniny. */
+/** Osivo po zásobách (kg): obilí (ozim, jař) a luštěniny. */
 export interface SeedKg {
   grain: number;
   legumes: number;

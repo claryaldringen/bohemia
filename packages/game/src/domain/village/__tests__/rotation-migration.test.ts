@@ -65,7 +65,7 @@ type OldWork = Omit<FarmSeason['crops'][number], 'crop'>;
 /** Hospodářský rok zpět do tvaru ročního plánu z feat/landscape (jař nahoře, ozim, luštěniny, len). */
 function legacyPlan(season: FarmSeason | null): unknown {
   if (!season) return null;
-  expect(season.crops.some((c) => c.surplus)).toBe(false);
+  expect(season.crops.some((c) => 'surplus' in c)).toBe(false);
   // osivo plánu (fields.md – Úroda, Osivo ze zásob) je novější než roční plán – ten ho nezná
   const { startDay, crops, ...rest } = season;
   delete rest.selection;

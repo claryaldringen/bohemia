@@ -516,7 +516,6 @@ describe('selectionDetails – díl pole a čtverec sadu (klik – fields.md, Co
                 sow: 1,
                 harvest: 0.4,
               },
-              surplus: true,
             },
             next: 'fallow',
             rest: { share: 0.81, years: 8 },
@@ -589,7 +588,7 @@ describe('selectionDetails – díl pole a čtverec sadu (klik – fields.md, Co
       mow: null,
       next: 'fallow',
       rest: { share: 0.81, years: 8 },
-      surplus: true,
+      surplus: false,
       founding: null,
       fieldIds: [5],
     });

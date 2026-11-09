@@ -316,7 +316,7 @@ export function ploughDayFactor(
  * Večer dne (oxen.md – Spřežení zůstane na poli; mutuje `PloughWork.trip`): spřežení plodiny,
  * které dnes vyjelo nebo se přesunulo a oralo, je u nového bloku; spřežení na poli se vrátí do
  * ohrady, když je zoráno vše, co okno potřebuje, okno zítra už neběží nebo ves páry s rádlem
- * nemá (`noTeams`). Dny bez orby zůstává na poli – i když má plodina zoráno, ale nutné díly
+ * nemá (`noTeams`). Dny bez orby zůstává na poli – i když má plodina zoráno, ale díly
  * plodiny čekají na čelo práce (`waiting` – přibudou, až lidé dosejí; Martin 24. 10. 2026).
  */
 export function settlePloughTeams(
@@ -337,7 +337,7 @@ export function settlePloughTeams(
       plough.trip = { block, costM, arrived: { day, from } };
     }
     if (!afield(plough)) continue;
-    const more = !work.surplus && waiting.has(crop);
+    const more = waiting.has(crop);
     if (
       noTeams ||
       (cropTaskRemaining(work, 'plough') <= EPS && !more) ||

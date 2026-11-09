@@ -182,12 +182,11 @@ export function seedKeepKg(state: VillageState, day: number, input?: DietInput):
   return aheadKg / grainKeepPerDay(meal) ** ((days + 1) / 2);
 }
 
-/** Osivo obilí, které letošní plán už vzal (kg – plány s osivem ze zásob, i díly nad potřebu). */
+/** Osivo obilí, které letošní plán už vzal (kg – plány s osivem ze zásob). */
 export function grainSeedTakenKg(state: Pick<VillageState, 'season'>): number {
   if (!state.season) return 0;
   let kg = 0;
   for (const { crop, work } of seasonCrops(state.season)) {
-    if (work.surplus) continue;
     if (seedStore(crop) === 'grain') kg += work.seedKg ?? 0;
   }
   return kg;
@@ -223,21 +222,19 @@ export function seedOutsideFoodKg(state: VillageState, day: number): number {
  * Obilí: hromada osiva okna (`sowingSeedKg`), nebo všechno běžné zrno nad přežívací zásobu do žní
  * (`keepKg` – `seedKeepKg`), je-li ho víc – ves, která seje rychleji než ideální denní díl, nebo
  * přílohy 70–95 % až po dílech na řadě, sejí z toho, co zbude nad přežívací zásobou. Osivo, které
- * ves má jen na setí (`reservedSeedKg` – zakladatelů, osadníků a koupené), smí do země vždy – jen
- * ne do dílů nad potřebu (`needed` false). Luštěniny (jen dosévané díly starších vsí) jen ze své
- * zásoby.
+ * ves má jen na setí (`reservedSeedKg` – zakladatelů, osadníků a koupené), smí do země vždy.
+ * Luštěniny (jen dosévané díly starších vsí) jen ze své zásoby.
  */
 export function sowableSeedKg(
   state: Pick<VillageState, 'storesKg' | 'legumesKg' | 'reservedSeedKg' | 'sowingSeed'>,
   store: SeedStore,
   keepKg: number,
-  needed = true,
 ): number {
   if (store === 'legumes') return storeKg(state, 'legumes');
   const reserved = reservedSeedKg(state);
   const ordinary = Math.max(0, storeKg(state, 'grain') - reserved);
   const free = Math.max(Math.min(sowingSeedKg(state), ordinary), ordinary - keepKg);
-  return (needed ? reserved : 0) + Math.max(0, free);
+  return reserved + Math.max(0, free);
 }
 
 /**
@@ -266,7 +263,7 @@ export function seedSowCap(
  * připraví jen díly, na které osivo mají – vzaté, které smí do země (`sowableSeedKg`), a zrno
  * a luštěniny ve snopech, které výmlat ještě dá. Osivo zásob se dělí mezi plodiny v pořadí plánu.
  * Ozim (do jaře přejde i se zkopanou částí) a podzimní příprava jaře (osivo může přijít nákupem
- * 1. 3.) se neomezují – v mapě chybí. Díly nad potřebu také ne (vlastní krok `surplusFieldDay`).
+ * 1. 3.) se neomezují – v mapě chybí.
  */
 export function seedPrepShares(
   state: VillageState,
@@ -280,7 +277,7 @@ export function seedPrepShares(
   let pool: SeedKg | null = null;
   for (const { crop, work } of seasonCrops(season)) {
     const store = seedStore(crop);
-    if (crop === 'winter' || work.surplus || store === null || work.seedKg === undefined) continue;
+    if (crop === 'winter' || store === null || work.seedKg === undefined) continue;
     if (!CROP_WINDOWS[crop].sow.some(([from, to]) => month >= from && month <= to)) continue;
     const total = workSeedKg(work, partsById, crop);
     if (total <= EPSILON) continue;
@@ -320,8 +317,7 @@ export function seedUseKg(
  * bez osiva, které už plodina vzala; luštěniny (dosévané díly starších vsí) jen ze zásoby
  * luštěnin; obilí z otevřené obilné jámy, když zrno mimo jámy nestačí (`drawGrainPits`). Obilí
  * napřed z hromady osiva okna (`VillageState.sowingSeed`), pak z běžného zrna nad přežívací zásobu
- * do žní (`keepKg` – `seedKeepKg`), u dílů na řadě (ne nad potřebu) pak z osiva, které ves má jen
- * na setí (`reservedSeedKg` – zakladatelů, osadníků, koupené), a teprve pak ze zbytku zásob
+ * do žní (`keepKg` – `seedKeepKg`), pak z osiva, které ves má jen na setí (`reservedSeedKg` – zakladatelů, osadníků, koupené), a teprve pak ze zbytku zásob
  * (oprava, návrh Clauda 2. 11. 2026 – osivo zakladatelů má přečkat roky, kdy děti dorůstají, ne se
  * vyset jako první; fields.md – Osivo ze zásob). Vrací vzaté osivo (kg).
  */
@@ -346,10 +342,8 @@ export function takeSeed(
     const pile = Math.min(sowingSeedKg(state), Math.max(0, ordinary));
     const fromPile = Math.min(grain, pile);
     if (state.sowingSeed) state.sowingSeed.kg = Math.max(0, pile - fromPile);
-    // osivo jen na setí jde do dílů na řadě, až když hromada a běžné zrno nad zásobu nestačí – díl
-    // nad potřebu seje jen ze zbytku zásob
-    const surplus = 'surplus' in work && work.surplus === true;
-    if (!surplus && reserved > 0) {
+    // osivo jen na setí jde do dílů, až když hromada a běžné zrno nad zásobu nestačí
+    if (reserved > 0) {
       const aboveKeep = Math.max(0, ordinary - pile - keepKg);
       const fromReserved = Math.min(reserved, Math.max(0, grain - fromPile - aboveKeep));
       const left = reserved - fromReserved;
@@ -398,7 +392,7 @@ export function sowingDaysLeft(state: WeatherState, crop: SowingCrop, day: numbe
 
 /**
  * Osivo na všechny díly na řadě pro obilí okna (kg – fields.md, Osivo bez cíle osevu; „na řadě“
- * návrh Clauda): nezasetý podíl letošní práce plodiny (i díly nad potřebu) a díly mimo letošní
+ * návrh Clauda): nezasetý podíl letošní práce plodiny a díly mimo letošní
  * práci na řadě (`nextSowing`) – pro ozim první osev a díly po jaři, pro jař i díly po ozimu.
  * Přílohy 70–95 % a nouzové přílohy se nepočítají – sejí se z toho, co zbude nad přežívací zásobu.
  */
