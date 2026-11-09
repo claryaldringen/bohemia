@@ -59,6 +59,23 @@ export class InMemoryCampaigns implements CampaignRepository {
     );
   }
 
+  /** Cíl, ves ve varování nebo hradiště skupiny uprchlíků – jako adaptér (Úloha 3). */
+  activeAlarming(villageId: string): Promise<string[]> {
+    return Promise.resolve(
+      [...this.rows]
+        .filter(([, r]) => {
+          if (r.status !== 'active') return false;
+          const s = JSON.parse(r.state) as CampaignState;
+          return (
+            s.target.villageId === villageId ||
+            (s.alarm?.villages.some((v) => v.villageId === villageId) ?? false) ||
+            (s.alarm?.flights.some((f) => f.hostVillageId === villageId) ?? false)
+          );
+        })
+        .map(([id]) => id),
+    );
+  }
+
   checkpoint(campaignId: string): Promise<CampaignCheckpoint | null> {
     const row = this.rows.get(campaignId);
     if (!row) return Promise.resolve(null);

@@ -222,6 +222,7 @@ function memoryCampaigns(rows: Map<string, Row>, saves: { n: number }): Campaign
     create: none,
     activeOf: none,
     activeAgainst: none,
+    activeAlarming: none,
     addIntent: none,
     active: () =>
       Promise.resolve([...rows].filter(([, r]) => !r.done || r.outbox).map(([id]) => id)),
