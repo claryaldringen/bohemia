@@ -239,7 +239,14 @@ export type IntentBody =
    * Jen NPC velitel (Ú6.12): silné opevnění nenapadne a vezme, co je venku – boj končí, útočníci
    * drží ves mimo útočiště (war.md – Velení; fortifications.md – Postoje vsi s opevněním).
    */
-  | { kind: 'plunder' };
+  | { kind: 'plunder' }
+  /**
+   * Rozkaz obráncům napadené vsi „Probít se“ (fortifications.md – Obrana bez násobku 3, Bod zlomu
+   * a probíjení): obránci opevnění `fort` (pořadí na bojišti) se probijí branou na úseku `segment`,
+   * bez něj tou, kterou vybere velitel obrany. Dává ho přítomný držitel napadené vsi – jeho
+   * use-case zatím chybí (válka – Kryt pod palbou, bod zlomu za hradbou a probíjení).
+   */
+  | { kind: 'breakout'; fort: number; segment?: number };
 
 /** Záměr s taktem, ve kterém platí (teď + 2), a pořadím zápisu `seq` (v taktu podle něj). */
 export interface CampaignIntent {

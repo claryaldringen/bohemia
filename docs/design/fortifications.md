@@ -212,15 +212,22 @@ místo“ (návrh Clauda) neplatí. Zásah zůstává `10 × síla útočníka` 
    jako vesničan (návrh Clauda). Obránce na ochozu kryje předprseň – střela nebo hod
    zespodu na něj padne jen s losem 1 : 3 místo 1 : 1 (otázka 2). Ochoz má palisáda s ochozem,
    koruna roštové a komorové hradby, ramena klešťové brány a věž.
-   **Kryt pod palbou a bod zlomu jen v útoku (9. 11. 2026, implementace čeká).** Martin: „Musíme
+   **Kryt pod palbou a bod zlomu jen v útoku (9. 11. 2026, implementováno).** Martin: „Musíme
    to změnit, jinak by útočník mohl vyhrát pouze tím, že bude dostatečně dlouho postřelovat
    obránce na hradbách.“ a „ano“ k návrhu Clauda: dokud útočník jen střílí, obránci se kryjí
    (slezou z ochozu nebo se skrčí za předprseň) a šíp je zasáhne jen výjimečně; jakmile útočník
    opře žebřík, kope, seká nebo pálí hradbu, obránci se vrátí na to místo a brání ho (střílejí
    a házejí na útočníky); bod zlomu obránců za hradbou (45 %) se počítá jen ze ztrát v útoku –
    u žebříků, v průlomu a uvnitř –, ne z ostřelování přes hradbu. Samotné ostřelování tak
-   obránce jen drží v krytu.
-   **Bod zlomu a probíjení (9. 11. 2026, implementace čeká).** Martin: „Obránci se pokusí
+   obránce jen drží v krytu. Návrh Clauda k provedení: kryjí se všichni obránci opevnění mimo
+   místo útoku, dokud na něj dopadají šípy, a ještě **30 s** po posledním; v krytu na ochozu
+   a koruně nestřílí ani nehází a šíp je zasáhne s losem **1 : 10** proti obránci za předprsní
+   (viditelná plocha 0,025 m² místo 0,25 m²). Kdo k místu útoku jde nebo ho brání (posila),
+   z krytu vyjde. Do bodu zlomu se nepočítá padlý ani raněný, kterého srazil šíp či hod přes
+   hradbu mimo místo útoku; bod zlomu mají obránci za hradbou společný pro celé opevnění (ne po
+   skupinách domů). Šest lučištníků (dovednost 60) za půl hodiny ostřelování 12 obránců na
+   palisádě s ochozem zasáhne ≈ 12× (bez krytu by to bylo ≈ 10× víc).
+   **Bod zlomu a probíjení (9. 11. 2026, implementováno).** Martin: „Obránci se pokusí
    uniknout pryč nějakou bránou, která zrovna není hlídaná nebo se z ní dá nejlépe probít“,
    upřesnění: „Bod zlomu je totální chaos, takže někdo se pokusí nekoordinovaně utéct a někdo se
    vzdá. Probíjení pryč bude muset řídit velitel – to je koordinovaná vojenská akce“ a „Ano, ať
@@ -233,6 +240,16 @@ místo“ (návrh Clauda) neplatí. Zásah zůstává `10 × síla útočníka` 
      branou do lesa; přítomný hráč rozkáže sám, jinak rozhodne velitel obrany (muž rodu, jinak
      správce) – návrh Clauda: když ztráty v útoku dosáhnou ≈ 30 % a některá brána je volná nebo
      slabě hlídaná.
+   - **Čísla a provedení (návrh Clauda):** při bodu zlomu se brány opevnění otevřou (zůstanou
+     otevřené – vejde jimi i útočník); kdo má méně než **50 zdraví**, neuteče a vzdá se, ostatní
+     běží nejbližší branou či mezerou do lesa; kdo průchod nemá, je odříznutý a vzdá se (poslední
+     muž rodu se nevzdá, brání se dál). V útočišti se vzdají děti do 16 let, matky dětí do 7 let,
+     staří od 60 let a ranění či nemocní, zdraví dospělí utečou (útěk lidí v útočišti se zatím
+     nesimuluje po krocích – rozhodne se, až útočník vstoupí). Probíjení: brána s nejméně útočníky
+     do **30 m**; volná nebo slabě hlídaná = útočníků tam nejvýš **polovina** proti počtu
+     probíjejících; skupina se shromáždí do **6 m** od brány (nejvýš **60 s**), pak branou ven
+     a do nejbližšího lesa, útočníky do 3 m cestou bije. Velitel obrany rozhodne jednou za boj na
+     opevnění; vzdaní a lidé, kteří v dobytém útočišti zůstali, jdou s útočníkem jako vzdaní.
 4. **Souboj u žebříku** (Martin – „A“): lezec je znevýhodněný – slabší a neuhne; obránce ho může
    shodit i se žebříkem; nahoru se dostane jen přes sraženého obránce nebo na neobsazeném místě.
    Návrh Clauda: lezec má sílu × 0,5 a každá rána obránce na něj padne; místo rány smí obránce
@@ -680,9 +697,10 @@ tři **úkrytem bližším než les** a liší se jen ti, kdo se do něj nevejdo
   20 obránců za palisádou se vzdá až před 61 útočníky).~~ Nahrazeno 8. 11. 2026: skupina za
   opevněním se nevzdá, dokud útočník nestojí uvnitř obvodu, pak 1,5× jako u domů (návrh Clauda).
 - **Raději utéct** (výchozí) – do útočiště místo do lesa (blíž, i s dobytkem); kdo se nevejde
-  nebo nestihne, do lesa jako dnes. V útočišti už není kam utéct, takže muži uvnitř se brání; při
-  bodu zlomu 45 % unikne skupina branou odvrácenou od útočníka do lesa, je-li volná, jinak se
-  vzdá (návrh Clauda).
+  nebo nestihne, do lesa jako dnes. V útočišti už není kam utéct, takže muži uvnitř se brání;
+  ~~při bodu zlomu 45 % unikne skupina branou odvrácenou od útočníka do lesa, je-li volná, jinak
+  se vzdá (návrh Clauda).~~ Nahrazeno 9. 11. 2026: bod zlomu je chaos a probíjení rozkaz velitele
+  ([Obrana bez násobku](#obrana-bez-násobku) 3 – Bod zlomu a probíjení).
 
 ### Útočiště
 

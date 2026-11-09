@@ -107,7 +107,12 @@ export const WAR = {
       skillM: 1.5,
       refM: 30,
       villagerSkill: 20,
-      visibleM2: { standing: 0.85, parapet: 0.25, climbing: 0.85 },
+      /**
+       * Obránce v krytu pod palbou (fortifications.md – Obrana bez násobku 3, Kryt pod palbou;
+       * Martin 9. 11. 2026, číslo návrh Clauda): skrčený za předprsní nebo pod ochozem – desetina
+       * plochy za předprsní, tj. los 1 : 10 proti obránci, který z ochozu brání.
+       */
+      visibleM2: { standing: 0.85, parapet: 0.25, climbing: 0.85, cover: 0.025 },
     },
   },
   /** war.md – Mlha války: dohled ≈ 150 m (18. 10.), v hustém lese 50 m (návrh Clauda). */
@@ -125,6 +130,19 @@ export const WAR = {
   downed: { killedShare: 0.5, lineWoundedShare: 2 / 3 },
   /** war.md – Boj: bod zlomu = padlí a ranění ÷ muži skupiny (Martin 3. 11.). */
   breakpoint: { attacker: 0.3, defender: 0.45 },
+  /**
+   * Bod zlomu za hradbou = chaos (fortifications.md – Obrana bez násobku 3, Bod zlomu a probíjení;
+   * Martin 9. 11. 2026, čísla návrh Clauda): kdo má méně než polovinu zdraví, neuteče a vzdá se;
+   * v útočišti se vzdají děti do 16 let, matky dětí do 7 let, staří od 60 let a ranění či nemocní,
+   * zdraví dospělí utečou.
+   */
+  rout: { fleeMinHealth: 50, motherOfChildUnderYears: 7, elderFromYears: 60 },
+  /**
+   * Probíjení – rozkaz velitele obrany (tamtéž, návrh Clauda): při 30 % ztrát v útoku, je-li brána
+   * volná nebo slabě hlídaná – do 30 m od ní stojí nejvýš polovina útočníků proti počtu
+   * probíjejících; skupina se shromáždí do 6 m od brány (nejvýš 60 s), pak vyrazí do lesa.
+   */
+  breakout: { lossShare: 0.3, gateWatchM: 30, weakGuardShare: 0.5, gatherM: 6, gatherSeconds: 60 },
   /** war.md – Vzdaní: útočníků víc než 1,5× obránců, muž rodu se vzdá s 80 %. */
   surrenderRatio: 1.5,
   lineSurrenderChance: 0.8,

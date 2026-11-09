@@ -23,7 +23,6 @@ import type { GridGeometry } from '../village/square-grid';
 import { bowShot, poseOf, type TargetPose } from './aim';
 import type { GroupAssault, GroupOrder } from './campaign-types';
 import { defenderPlan, type Defender } from './defenders';
-import { nearestForest } from './flight';
 import {
   climbStep,
   defendLadder,
@@ -59,14 +58,27 @@ import {
   type PlanContext,
 } from './orders';
 import { WAR } from './rules-war';
+import { leadTo } from './npc-assault';
 import { inSight } from './sight';
+import {
+  breakoutGate,
+  breakoutStep,
+  fortBreakpoints,
+  markTaken,
+  orderBreakout,
+  startFlee,
+  surrender,
+  untakenForts,
+} from './rout';
 import type { ShelterReport } from './stance';
 import { TICKS_PER_SECOND } from './ticks';
 import {
   battlePincers,
   canStrikeAcross,
+  fortOfPost,
   onWallTop,
   pincerPoint,
+  reinforceTarget,
   strikeReach,
   towerAt,
   towerReach,
@@ -85,7 +97,8 @@ import {
 // neprojde – jen branou, mezerou nebo průlomem, nebo přes ně (plot přelézt, žebřík – `ladders.ts`);
 // prolamující nebojují a volí nejrychlejší postup místa – sekat, vypálit, odkopat, podkopat, napřed
 // zasypat val či vodní příkop (`assault.ts`; Prolomení v boji). Rána přes stěnu jen podle druhu hradby, obránci v opevnění na stanovištích
-// po hradbě a s posilami k žebříkům a průlomům (`wall-defense.ts`). Stav je JSON, takt čte jen
+// po hradbě a s posilami k žebříkům a průlomům (`wall-defense.ts`); kryt pod palbou, bod zlomu za
+// hradbou jen ze ztrát v útoku, chaos, probíjení a dobytí útočiště (`rout.ts`). Stav je JSON, takt čte jen
 // stav, bojiště a náhodu taktu – výsledek nezávisí na kouscích taktů. Jen det-math.
 
 /** Strana boje. */
@@ -152,6 +165,22 @@ export interface Fighter {
   /** Stojí na ochozu či koruně hradby – kryje ho předprseň, chodí polovičním tempem; jinak chybí. */
   onWall?: boolean;
   /**
+   * Obránce na hradbě v krytu pod palbou (fortifications.md – Obrana bez násobku 3, Kryt pod
+   * palbou): na opevnění dopadají šípy a on nebrání místo útoku – na ochozu a koruně je skrčený
+   * (`aim.ts` – póza `cover`), nestřílí ani nehází; jinak chybí. Plán obránce ho nastaví každý takt.
+   */
+  cover?: true;
+  /**
+   * Padl či je raněný ostřelováním přes hradbu, mimo místo útoku – do bodu zlomu obránců za
+   * hradbou se nepočítá (tamtéž – bod zlomu jen v útoku); jinak chybí.
+   */
+  shotDown?: true;
+  /**
+   * Vzdal se při bodu zlomu za hradbou (raněný, odříznutý – tamtéž, Bod zlomu a probíjení); z boje
+   * odešel (stav `fled`), útočník ho po vítězství odvede jako vzdaného; jinak chybí.
+   */
+  surrendered?: true;
+  /**
    * Kopáč v podkopu po pětině práce (fortifications.md – Přechod hradby – Podkop): obránci ho
    * nevidí ani nezasáhnou; jinak chybí. Nastaví práce na průlomech v taktu (`breachWorkStep`).
    */
@@ -216,6 +245,19 @@ export interface BattleBreach {
   progress: BreachProgress;
 }
 
+/**
+ * Probíjení (fortifications.md – Obrana bez násobku 3, Bod zlomu a probíjení): obránci opevnění
+ * `fort` se shromáždí u brány na úseku `segment`, pak se pohromadě probijí ven do lesa `to` (bez
+ * lesa jen ven). `tick` – takt rozkazu, `gathered` – skupina vyrazila.
+ */
+export interface BattleBreakout {
+  fort: number;
+  segment: number;
+  to: Pos | null;
+  tick: number;
+  gathered?: true;
+}
+
 /** Výsledek boje: běží, útočníci drží bojiště, útočníci poraženi, útočníci ustoupili. */
 export type BattleOutcome = 'ongoing' | 'attackers' | 'defenders' | 'withdrawn';
 
@@ -228,6 +270,23 @@ export interface BattleState {
   deputy: string | null;
   /** Zavřené brány `<opevnění>:<úsek>` (fortifications.md – Brány se zavřou). */
   closedGates: string[];
+  /**
+   * Brány, které otevřeli obránci – útěk při bodu zlomu, probíjení; už se nezavřou. Chybí = žádná.
+   */
+  openedGates?: string[];
+  /** Kdy naposled dopadl šíp přes hradbu na obránce opevnění (opevnění → takt); kryt pod palbou. */
+  underFire?: Record<number, number>;
+  /** Opevnění, jejichž obránci dosáhli bodu zlomu – chaos, útěk branami; chybí = žádné. */
+  routed?: number[];
+  /** Probíjení obránců opevnění vybranou branou do lesa (rozkaz velitele obrany). */
+  breakouts?: BattleBreakout[];
+  /**
+   * Rozkaz „Probít se“ od hráče obránců (záměr `breakout`), který takt teprve provede
+   * (`orderDefenderBreakout`); jinak chybí.
+   */
+  breakoutOrder?: { fort: number; segment?: number };
+  /** Dobytá útočiště – útočník stojí uvnitř obvodu (opevnění, pořadí na bojišti); chybí = žádné. */
+  taken?: number[];
   breaches: BattleBreach[];
   /** Žebříky u hradeb (`ladders.ts`); chybí = žádný. */
   ladders?: BattleLadder[];
@@ -781,17 +840,6 @@ function stepToward(
   return true;
 }
 
-/** Útěk (war.md – Bod zlomu): útočník domů – kudy přišel (rozpad po hloučcích Ú6.12), obránce do lesa. */
-function startFlee(f: Fighter, field: BattleField): void {
-  f.state = 'flee';
-  f.aim = null;
-  f.route = [];
-  f.routeFor = null;
-  f.breachAt = null;
-  f.fleeTo = f.side === 'attack' ? { ...f.home } : nearestForest(field.grid, f.pos);
-  if (f.fleeTo === null) f.state = 'fled';
-}
-
 // --- Takt boje --------------------------------------------------------------------------------
 
 /** Co takt zná navíc ke stavu. */
@@ -804,6 +852,11 @@ interface TickWorld {
   climb: ClimbWorld;
   /** Co obránci na hradbě (`wall-defense.ts`) čtou z taktu. */
   wall: WallWorld;
+  /**
+   * Nedobytá útočiště (opevnění), když už žádný obránce nebojuje ani neutíká – útočníci jdou
+   * dovnitř; jinak prázdné.
+   */
+  refuges: number[];
 }
 
 const MELEE_TICKS = WAR.combat.meleeSeconds * TICKS_PER_SECOND;
@@ -870,18 +923,26 @@ function strikeKind(f: Fighter, t: Fighter, w: TickWorld): StrikeKind | null {
   return strikeOf(f, t, w)?.kind ?? null;
 }
 
-/** Bod zlomu po skupinách (war.md – Bod zlomu): padlí a ranění ÷ muži, kteří do boje vstoupili. */
-function breakpoints(w: TickWorld): void {
-  for (const g of w.b.groups) {
+/**
+ * Bod zlomu po skupinách (war.md – Bod zlomu): padlí a ranění ÷ muži, kteří do boje vstoupili.
+ * Obránci za hradbou (se stanovištěm) mají bod zlomu po opevněních jen ze ztrát v útoku
+ * (`rout.ts` – `fortBreakpoints`), ve skupině domů se nepočítají.
+ */
+function breakpoints(b: BattleState, field: BattleField, forts: readonly BattleFort[]): void {
+  for (const g of b.groups) {
     if (g.broken || g.entered === 0) continue;
-    const men = w.b.fighters.filter((f) => f.side === g.side && f.group === g.id);
+    const all = b.fighters.filter((f) => f.side === g.side && f.group === g.id);
+    const men = g.side === 'defend' ? all.filter((f) => f.post === undefined) : all;
+    const entered = g.entered - (all.length - men.length);
+    if (entered <= 0) continue;
     const lost = men.filter((f) => f.state === 'down').length;
     const limit = g.side === 'attack' ? WAR.breakpoint.attacker : WAR.breakpoint.defender;
-    if (lost / g.entered < limit - 1e-9) continue;
+    if (lost / entered < limit - 1e-9) continue;
     g.broken = true;
     // velitel neuteče sám – ustoupí jen na pokyn hráče, nebo NPC velitele (Ú6.12)
-    for (const f of men) if (inFight(f) && f.id !== w.b.commander) startFlee(f, w.field);
+    for (const f of men) if (inFight(f) && f.id !== b.commander) startFlee(f, field);
   }
+  fortBreakpoints(b, field, forts);
 }
 
 /** Brány se zavřou, když je první útočník do 30 m (fortifications.md – Obrana; útočiště Ú6.9). */
@@ -890,7 +951,7 @@ function closeGates(b: BattleState, forts: readonly BattleFort[]): void {
   forts.forEach((bf, fi) => {
     for (const gate of bf.fort.gates) {
       const key = `${fi}:${gate.segment}`;
-      if (b.closedGates.includes(key)) continue;
+      if (b.closedGates.includes(key) || (b.openedGates ?? []).includes(key)) continue;
       const near = b.fighters.some(
         (f) => f.side === 'attack' && inFight(f) && dist2(f.pos, gate) <= r2,
       );
@@ -1145,8 +1206,12 @@ export function fortPassages(
   }
   const forts = breachedForts(field, b);
   const closed = new Set<string>();
+  // brány, které otevřeli obránci (útěk, probíjení), zůstanou otevřené
+  const opened = new Set(b.openedGates ?? []);
   forts.forEach((bf, fi) => {
-    for (const g of bf.fort.gates) closed.add(`${fi}:${g.segment}`);
+    for (const g of bf.fort.gates) {
+      if (!opened.has(`${fi}:${g.segment}`)) closed.add(`${fi}:${g.segment}`);
+    }
   });
   const walls = wallsOf(forts, closed, field.day, moatFills(b));
   const out: FortPassage[] = [];
@@ -1191,20 +1256,9 @@ function approach(f: Fighter, goal: Pos, key: string, w: TickWorld, leash: Leash
     }
     const wall = firstWall(f.pos, goal, w.walls);
     if (wall) {
-      // nejbližší průchod – nejdřív bod na mé straně, pak za ním
-      let route: Pos[] | null = null;
-      let routeD = Infinity;
-      for (const o of w.walls.openings[wall.fort] ?? []) {
-        const outFirst = dist2(f.pos, o.out) <= dist2(f.pos, o.in);
-        const near = outFirst ? o.out : o.in;
-        const d = dist2(f.pos, near);
-        if (d < routeD) {
-          routeD = d;
-          route = outFirst ? [o.out, o.in] : [o.in, o.out];
-        }
-      }
+      const route = openingRoute(f.pos, w.walls.openings[wall.fort] ?? []);
       if (route) {
-        f.route = route.map((p) => ({ ...p }));
+        f.route = route;
         f.routeFor = key;
         stepToward(f, f.route[0]!, w.field, w.walls, leash);
         return;
@@ -1245,9 +1299,106 @@ function approach(f: Fighter, goal: Pos, key: string, w: TickWorld, leash: Leash
   stepToward(f, goal, w.field, w.walls, leash);
 }
 
+/** Nejbližší průchod – nejdřív bod na mé straně, pak za ním; žádný null. */
+function openingRoute(from: Pos, openings: readonly Opening[]): Pos[] | null {
+  let route: Pos[] | null = null;
+  let routeD = Infinity;
+  for (const o of openings) {
+    const outFirst = dist2(from, o.out) <= dist2(from, o.in);
+    const d = dist2(from, outFirst ? o.out : o.in);
+    if (d < routeD) {
+      routeD = d;
+      route = outFirst ? [{ ...o.out }, { ...o.in }] : [{ ...o.in }, { ...o.out }];
+    }
+  }
+  return route;
+}
+
+/**
+ * Útěk o krok (war.md – Bod zlomu). Obránce z opevnění (se stanovištěm) jde napřed nejbližší branou
+ * či mezerou ven (body před a za průchodem); kdo průchod nemá nebo se k němu nedostane, je
+ * odříznutý – vzdá se (poslední muž rodu se nevzdá, brání se dál). Kdo se nepohne nebo doběhl, je
+ * pryč z bojiště.
+ */
+function fleeStep(f: Fighter, w: TickWorld): void {
+  const to = f.fleeTo;
+  if (to === null) {
+    f.state = 'fled';
+    return;
+  }
+  if (f.side === 'defend' && f.post !== undefined) {
+    if (f.route.length > 0 && dist2(f.pos, f.route[0]!) <= 1) f.route.shift();
+    if (f.route.length > 0 && firstWall(f.pos, f.route[0]!, w.walls)) f.route = [];
+    if (f.route.length === 0) {
+      const wall = firstWall(f.pos, to, w.walls);
+      const route = wall ? openingRoute(f.pos, w.walls.openings[wall.fort] ?? []) : null;
+      if (wall && !route) {
+        cutOff(f);
+        return;
+      }
+      if (route) f.route = route;
+    }
+    const routed = f.route.length > 0;
+    const moved = stepToward(f, f.route[0] ?? to, w.field, w.walls, null);
+    if (routed && !moved) cutOff(f);
+    else if (!routed && (!moved || dist2(f.pos, to) <= 4)) f.state = 'fled';
+    return;
+  }
+  const moved = stepToward(f, to, w.field, w.walls, null);
+  if (!moved || dist2(f.pos, to) <= 4) f.state = 'fled';
+}
+
+/** Odříznutý obránce se vzdá; poslední muž rodu se nevzdá – brání se dál. */
+function cutOff(f: Fighter): void {
+  if (!f.lastLine) {
+    surrender(f);
+    return;
+  }
+  f.state = 'fight';
+  f.fleeTo = null;
+  f.route = [];
+}
+
+/**
+ * Útočník jde do nedobytého útočiště (nejbližší střed): má-li opevnění průchod (brána otevřená
+ * prchajícími, mezera, průlom), napřed k němu kolem hradby (`leadTo` – boj kolem hradby jinak
+ * neobchází) a jím dovnitř; jinak přes hradbu nebo prolomením (`approach`).
+ */
+function enterRefuge(f: Fighter, w: TickWorld): void {
+  f.aim = null;
+  let fi = w.refuges[0]!;
+  for (const x of w.refuges) {
+    if (dist2(f.pos, w.forts[x]!.center) < dist2(f.pos, w.forts[fi]!.center)) fi = x;
+  }
+  const center = w.forts[fi]!.center;
+  let exit: Opening | null = null;
+  for (const o of w.walls.openings[fi] ?? []) {
+    if (!exit || dist2(f.pos, o.out) < dist2(f.pos, exit.out)) exit = o;
+  }
+  const routed = f.routeFor === 'refuge' && f.route.length > 0;
+  if (exit && !routed && dist2(f.pos, exit.out) > 4) {
+    f.route = [];
+    f.routeFor = null;
+    stepToward(f, leadTo(w.field, f.pos, exit.out), w.field, w.walls, null);
+    return;
+  }
+  approach(f, center, 'refuge', w, null);
+}
+
 /** Bojující muž: plán podle rozkazu (útočník) nebo postoje (obránce), pak krok k cíli. */
 function fightStep(f: Fighter, w: TickWorld, ctx: PlanContext): void {
   const group = w.b.groups.find((g) => g.side === f.side && g.id === f.group);
+  // nikdo už nebojuje, útočiště nedobyté – neřízený útočník jde dovnitř (útočiště je dobyté, až je
+  // útočník uvnitř – fortifications.md, Bod zlomu a probíjení); skupina „držet místo“ stojí
+  if (
+    f.side === 'attack' &&
+    !f.controlled &&
+    w.refuges.length > 0 &&
+    group?.order !== 'hold-place'
+  ) {
+    enterRefuge(f, w);
+    return;
+  }
   const plan: FighterPlan =
     f.side === 'attack' && group ? attackerPlan(f, group, ctx) : defenderPlan(f, ctx, w.wall);
   f.aim = plan.target?.id ?? null;
@@ -1345,7 +1496,19 @@ export function battleTick(b: BattleState, field: BattleField, rng: Random): voi
   upgradeBreaches(b);
   const forts = breachedForts(field, b);
   closeGates(b, forts);
+  // rozkaz hráče obránců „Probít se“, pak bod zlomu – před stěnami taktu: útěk a probíjení
+  // otevřou brány (`rout.ts`)
+  if (b.breakoutOrder) {
+    const o = b.breakoutOrder;
+    delete b.breakoutOrder;
+    const gate = o.segment ?? breakoutGate(b, forts, o.fort);
+    if (gate !== null) orderBreakout(b, field, forts, o.fort, gate);
+  }
+  breakpoints(b, field, forts);
+  breakoutStep(b, forts);
   const walls = wallsOf(forts, new Set(b.closedGates), field.day, moatFills(b));
+  const fighting = (f: Fighter): boolean =>
+    f.side === 'defend' && (inFight(f) || f.state === 'flee');
   const w: TickWorld = {
     field,
     forts,
@@ -1365,9 +1528,10 @@ export function battleTick(b: BattleState, field: BattleField, rng: Random): voi
       day: field.day,
       strike: (f, t) => strikeKind(f, t, w),
       walled: (p, q) => firstWall(p, q, walls) !== null,
+      exits: (fort) => walls.openings[fort] ?? [],
     },
+    refuges: b.fighters.some(fighting) ? [] : untakenForts(b, forts),
   };
-  breakpoints(w);
   settleLadders(b);
   const byId = new Map(b.fighters.map((f) => [f.id, f]));
   const houses = new Map<number, Pos[]>();
@@ -1398,12 +1562,9 @@ export function battleTick(b: BattleState, field: BattleField, rng: Random): voi
       case 'down':
       case 'fled':
         break;
-      case 'flee': {
-        const to = f.fleeTo;
-        const moved = to !== null && stepToward(f, to, field, w.walls, null);
-        if (!moved || to === null || dist2(f.pos, to) <= 4) f.state = 'fled';
+      case 'flee':
+        fleeStep(f, w);
         break;
-      }
       case 'breach':
         breachStepOf(f, w);
         break;
@@ -1418,6 +1579,11 @@ export function battleTick(b: BattleState, field: BattleField, rng: Random): voi
   }
   breachWorkStep(w);
   const damage = new Map<string, number>();
+  // zásahy taktu jen ostřelováním přes hradbu mimo místo útoku – do bodu zlomu se nepočítají
+  const fireOnly = new Map<string, boolean>();
+  const hitBy = (id: string, fire: boolean): void => {
+    fireOnly.set(id, (fireOnly.get(id) ?? true) && fire);
+  };
   for (const f of b.fighters) {
     if (f.cooldown > 0) continue;
     // lezec nahoře bojuje s obráncem, který ho nepustí (`aim`); jinak jen muž ve stavu `fight`
@@ -1433,6 +1599,7 @@ export function battleTick(b: BattleState, field: BattleField, rng: Random): voi
         f.cooldown = MELEE_TICKS;
         if (push.fallen !== null) {
           damage.set(push.fallen, (damage.get(push.fallen) ?? 0) + push.damage);
+          hitBy(push.fallen, false);
         }
         continue;
       }
@@ -1448,6 +1615,10 @@ export function battleTick(b: BattleState, field: BattleField, rng: Random): voi
       if (!shot.fired) continue;
       f.cooldown = kind === 'throw' ? THROW_TICKS : BOW_TICKS;
       hit = shot.hit;
+      // šíp přes hradbu na obránce opevnění – obránci mimo místo útoku se kryjí (kryt pod palbou)
+      if (strike.across && f.side === 'attack' && t.side === 'defend' && t.post !== undefined) {
+        b.underFire = { ...b.underFire, [fortOfPost(forts, t.post)]: b.ticks };
+      }
     } else {
       f.cooldown = MELEE_TICKS;
       // lezec na žebříku neuhne – každá rána na něj padne
@@ -1455,18 +1626,31 @@ export function battleTick(b: BattleState, field: BattleField, rng: Random): voi
     }
     if (hit === null) continue;
     damage.set(hit, (damage.get(hit) ?? 0) + hitDamage(strength, kind !== 'melee'));
+    const struck = byId.get(hit);
+    hitBy(hit, kind !== 'melee' && strike.across && struck !== undefined && fromAfar(struck, w));
   }
   for (const t of b.fighters) {
     const d = damage.get(t.id);
-    if (d !== undefined && t.state !== 'down') takeHit(t, d, w, rng);
+    if (d === undefined || t.state === 'down') continue;
+    takeHit(t, d, w, rng);
+    // takeHit stav mění – kontrola po zásahu
+    if ((t.state as FighterState) === 'down' && fireOnly.get(t.id) === true) t.shotDown = true;
   }
   settleLadders(b);
+  // útočiště je dobyté, až útočník stojí uvnitř obvodu (Bod zlomu a probíjení)
+  markTaken(b, forts);
   const attackers = b.fighters.some((f) => f.side === 'attack' && inFight(f));
-  const defenders = b.fighters.some(
-    (f) => f.side === 'defend' && (inFight(f) || f.state === 'flee'),
-  );
+  const defenders = b.fighters.some(fighting);
   if (!attackers) b.outcome = 'defenders';
-  else if (!defenders) b.outcome = 'attackers';
+  else if (!defenders && untakenForts(b, forts).length === 0) b.outcome = 'attackers';
+}
+
+/**
+ * Je zásah šípem či hodem přes hradbu na `t` ostřelováním – obránce za hradbou, který nebrání místo
+ * útoku (žebřík, průlom – `reinforceTarget`)? Takové ztráty bod zlomu nepočítá.
+ */
+function fromAfar(t: Fighter, w: TickWorld): boolean {
+  return t.side === 'defend' && t.post !== undefined && reinforceTarget(t, w.wall) === null;
 }
 
 /** Hráčův pokyn veliteli v boji: jít na místo, nebo napadnout muže (`chosen`). */
@@ -1485,4 +1669,29 @@ export function commandFighter(
     const t = b.fighters.find((x) => x.id === order.strike);
     f.chosen = t && t.side !== f.side ? t.id : null;
   }
+}
+
+/**
+ * Nedobytá útočiště bojiště (opevnění, pořadí na bojišti) – obránci za hradbou nebo lidé
+ * v útočišti, útočník zatím uvnitř nestál (`rout.ts`). Stav nemění.
+ */
+export function untakenRefuges(field: BattleField, b: BattleState): number[] {
+  return untakenForts(b, breachedForts(field, b));
+}
+
+/**
+ * Rozkaz „Probít se“ obráncům opevnění `fort` (fortifications.md – Obrana bez násobku 3, Bod zlomu
+ * a probíjení): branou na úseku `segment`, jinak tou, kterou vybere velitel obrany (volná nebo
+ * slabě hlídaná – `breakoutGate`). Mění `b`; vrací, zda rozkaz platí (před bodem zlomu, s branou
+ * a s obránci na nohou).
+ */
+export function orderDefenderBreakout(
+  b: BattleState,
+  field: BattleField,
+  fort: number,
+  segment?: number,
+): boolean {
+  const forts = breachedForts(field, b);
+  const gate = segment ?? breakoutGate(b, forts, fort);
+  return gate !== null && orderBreakout(b, field, forts, fort, gate);
 }

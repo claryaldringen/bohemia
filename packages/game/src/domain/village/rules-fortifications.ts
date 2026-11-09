@@ -337,5 +337,10 @@ export const FORTIFICATIONS = {
     climberStrength: 0.5,
     ladderGapM: 1,
     walkwayPace: 0.5,
+    /**
+     * Kryt pod palbou (Obrana bez násobku 3; Martin 9. 11. 2026, číslo návrh Clauda): obránci
+     * mimo místo útoku se kryjí, dokud na opevnění dopadají šípy, a ještě 30 s po posledním.
+     */
+    coverSeconds: 30,
   },
 } as const;
