@@ -467,6 +467,12 @@ Vše kromě Martinových životností je návrh Clauda.
   s ochozem 0,2 + 0,5; roštová 0,3 + 0,55; komorová 0,35 + 0,55; val přidá 0,05 + 0,1.
   **Přínos za rok** = H × ztráta nájezdu × ochrana; horizont nejvýš životnost druhu (roštová 30,
   komorová 50 let); cena = stavba + údržba za horizont.
+  **Jen s obránci (9. 11. 2026, implementace čeká):** Martin: „Hradba je prostě jen fyzická
+  překážka“ a „Ano, jen s obránci“ – správce počítá jen ochranu, kterou dají obránci na překážce
+  (aktivní × obsazenost); **pasivní část se ruší** (u všech druhů i valu a příkopu) – neobsazenou
+  hradbu útočník přeleze za pár minut (boj to tak dělá od 9. 11.). Měřítko 0,06 se přepočte tak,
+  aby dál platily Martinovy cíle (ves 60 lidí nic, ves 150 lidí palisádu, roštová a komorová se
+  běžné vsi nevyplatí), nebo zmizí, vyjde-li to samo (návrh Clauda).
 - **Vodní příkop** přidá pasivní ochranu **0,1** (návrh Clauda – doladit měřením nájezdů NPC, jen
   na pokyn).
 - **Měřítko přínosu 0,06** (návrh Clauda – doladit měřením nájezdů NPC, jen na pokyn): přínos se
