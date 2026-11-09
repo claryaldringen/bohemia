@@ -411,6 +411,29 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   stroji nejspíš splněn (nejlepší běh 10,7 s při zátěži 92); jedno kolo (návrh b) zůstává
   v záloze.
 
+  **Kolo 6 (9. 11. 2026, přepočet tras):** Martin 9. 11. 2026: „Ok, udělejme to tak jak říkáš“
+  ([paths.md – Obilné jámy a vzdálenosti chůze](../design/paths.md#obilné-jámy-a-vzdálenosti-chůze-9-11-2026),
+  village-roads.md – Stálé trasy). Tři změny: otisk mapy tras jen, když je potřeba (jen zrychlení
+  – otisk roku `2822763fcee9` týž vcelku, po dnech i po 37 dnech), obilné jámy mimo mapu tras
+  a vzdálenosti chůze jen při jiném otisku vstupů bez pěšin (`walkDistanceKey`; obě mění výsledek
+  – otisk roku `2822763fcee9` → `8a445a6b87a5`, týž vcelku, po dnech, po 10 i 37 dnech; nová ves se
+  správcem 5 let `5fb911255c48` → `c24778b28a59`). Stav Vlkova z DB 9. 11. (39 lidí), skripty
+  mimo repo (`scratchpad/prof9`, `prof9-route`), střídavě před / po po dvou bězích. **Rok 1
+  (se zahřátím mezipamětí a JIT):** vcelku 9,03 / 9,10 s → 8,71 / 8,75 s (zátěž 9,0 → 6,6), po
+  dnech 10,76 / 10,91 s → 10,73 / 10,69 s (zátěž 6,5 → 5,0). **Zahřáté roky 2–4** (`years.mts`,
+  zátěž 4,0 → 3,3): 5,23 / 6,44 / 5,34 a 5,17 / 6,22 / 5,38 s → 5,02 / 6,46 / 5,45 a 4,96 / 6,02 /
+  5,02 s (průměr 5,63 → 5,49 s, −2,5 %). Přepočty tras v roce 1: před dny 1. 10. (jen jámy),
+  dále 1. 11. a 1. 2.; po dny 1. 4. (jednorázově – jiný otisk mapy bez jam a ves bez
+  `walkDistanceKey`, den 1,7 s), dále 1. 11. a 1. 2. V rocích 2–4 se jámy nemění a dny přepočtu
+  jsou před i po tytéž (každý rok 1. 11. s pařezy, v roce 3 navíc 1. 1. a v roce 4 1. 3. – jiná
+  cesta). Vzdálenosti se po změně přepočítaly při **každém** přepočtu tras roků 1–4 (5 z 5 po
+  převodu): přepočet tras s nimi vždy přišel se skutečnou změnou vstupů – díly pole 10 přestaly
+  být zarostlé (9–28 dílů, jednou 50 nově zarostlých) a zkracuje se vozová cesta 1350 (71 → 42
+  bodů osy za tři roky, jiné olemování). Úspora vzdáleností se tak ve Vlkově zatím neprojeví;
+  projeví se ve vsích, kde přepočet spustí ohrada, hřbitov, posvátné místo nebo pařezy bez změny
+  polí a cest. Bez zarostlých dílů v otisku (rychlost chůze přes díl – změna pravidla, jen na
+  pokyn) by roky 2–4 ušetřily 3 z 5 měření (≈ 0,2–0,3 s každé).
+
 - **Čísla** pravidel jsou jen v `rules*.ts` (u každého odkaz na sekci návrhu); změna čísla = i
   text v návrhu. Kalibrace: `measure-village.ts` nasimuluje stovky vsí a vypíše cíle z Kalibrace
   obou dokumentů s OK / MIMO (`--quick` = 50 vsí na denní ladění, `200 60` závěrečné ověření,

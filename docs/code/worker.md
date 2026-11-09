@@ -103,8 +103,10 @@ v `advance-world.test.ts`, i se zásilkou ve schránce).
   nástupnictví – `settleSuccessionOf` po dávce) se odhalí až dopočtem při dotyku.
 - **Omezení (jen když worker nestíhá):** pohled jiného hráče na rod (`house-panel`, adresář rodů)
   čte uložené souhrny (`digestsOf`) – u nedopočtené spící vsi ze dne, kam ji worker dostal.
-  Nedopočtenou ves dopočítá web při návratu v požadavku: 31–43 ms na herní den vsi velikosti Vlkova
-  (Výkon), tj. ≈ 1,5–2 min za 3 skutečné dny na ves; nájezd čeká, než ji worker dožene.
+  Nedopočtenou ves dopočítá web při návratu v požadavku: ves velikosti Vlkova (39 lidí, měření
+  z 9. 11. 2026 – village-core.md, Výkon dopočtu, kolo 6) první rok vcelku ≈ 8,7 s (≈ 24 ms na
+  herní den, se zahřátím mezipamětí), další roky 5,0–6,5 s (≈ 14–18 ms na den), tj. za 3 skutečné
+  dny (≈ 8,2 herního roku) ≈ 45–55 s na ves; nájezd čeká, než ji worker dožene.
 
 ## Výjimky a omezení
 

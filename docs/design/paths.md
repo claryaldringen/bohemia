@@ -400,6 +400,13 @@ Rok Vlkova (stav z DB 9. 11. 2026, 39 lidí) trval 9,0 s, z toho přepočet tras
    Návrh Clauda: oprava a přestavba cest (přepočet tras hned) vzdálenosti nevynutí – změní-li
    cesty, přepočítají se samy; ves uložená dřív si je spočítá s nejbližším přepočtem tras.
 
+_Naměřeno 9. 11. 2026 (Vlkov, 4 roky):_ jámy ušetřily v roce 1 přepočet 1. 10., v dalších letech
+se jámy neměnily. Vzdálenosti se zatím měří při každém přepočtu tras – vstupy se při něm vždy
+opravdu změnily (díly pole přestaly být nebo začaly být zarostlé, zkracovaná vozová cesta).
+Zahřátý rok 5,63 → 5,49 s. Otevřená otázka pro Martina: brát zarostlý díl jako stadium (bez vlivu
+na otisk vzdáleností, jako u mapy tras) – v rocích 2–4 by ušetřilo 3 z 5 měření (podrobnosti
+[village-core.md – Výkon dopočtu, kolo 6](../code/village-core.md)).
+
 ### Co to udělá ve hře
 
 - **Pěšina se vyšlape na jedné čáře** – souběžné pásy kolem trasy ani posun trasy se stadiem pole
