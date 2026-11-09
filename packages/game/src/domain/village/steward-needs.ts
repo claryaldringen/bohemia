@@ -12,8 +12,8 @@ import {
   buyPrice,
   expeditionTo,
   goodWorth,
+  launchExpedition,
   sellPrice,
-  startExpedition,
   tradeQuote,
   villageGoodStock,
   type TradeOffer,
@@ -24,9 +24,10 @@ import type { Direction8, NeighbourStock, TradeGood, TradeGoods, VillageState } 
 // Krok 2a dne správce – nouze (steward.md – Obilí a lov v nouzi; Martin 8. 11. 2026: „A“ – obojí,
 // ale jen v nouzi): obilí od sousedů kupuje, jen když hrozí hlad, a na lov vyrazí, jen když zvěř
 // škodí na polích. Správce jedná stejnými akcemi jako hráč – výprava za obchodem
-// (`tradeQuote` + `startExpedition`) a lov navíc (`canDeclareHunt` + `declareHunt`) – se stejnými
-// kontrolami (stezka, poptávka a zásoba souseda, bilance, hájení, lovci). Rozhoduje jen ze stavu
-// vsi a dne, bez náhody – výsledek nezávisí na kouscích dopočtu.
+// (`tradeQuote` + `startExpedition` – v den správce její mutující jádro `launchExpedition` bez
+// kopie vsi) a lov navíc (`canDeclareHunt` + `declareHunt`) – se stejnými kontrolami (stezka,
+// poptávka a zásoba souseda, bilance, hájení, lovci). Rozhoduje jen ze stavu vsi a dne, bez
+// náhody – výsledek nezávisí na kouscích dopočtu.
 
 const EPSILON = 1e-9;
 /** Kolikrát správce zmenší nákup, než se výprava vejde do nosičů (`grainPorterShare`). */
@@ -78,7 +79,7 @@ export function grainStep(state: VillageState, ctx: NeedContext, shortKg: number
   if (state.trade?.expeditions.some((e) => e.kind !== 'shipment')) return false;
   const deal = grainDeal(state, ctx.day, ctx.landscape, shortKg);
   if (!deal) return false;
-  stewardAction(state, ctx.day, (s) => startExpedition(s, ctx.day, deal.offer, ctx.landscape));
+  stewardAction(state, ctx.day, (s) => launchExpedition(s, ctx.day, deal.offer, ctx.landscape));
   return true;
 }
 

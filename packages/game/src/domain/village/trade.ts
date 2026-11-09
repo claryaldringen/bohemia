@@ -567,7 +567,8 @@ export function storeStock(state: VillageState, stock: NeighbourStock): void {
  * (nosiči × dny). Lidé, které ves dává (trade.md – Výměna lidí – `emigrantGroups`), odejdou hned
  * a v rodokmenu zůstanou jako odešlí ve směru souseda (`removePeople`); lidé souseda přijdou
  * s návratem výpravy. Lidé nic nenesou a nosiče nepotřebují. RangeError, když výměna nejde
- * (`tradeQuote` – důvod česky). Konvence dne jako u ostatních akcí.
+ * (`tradeQuote` – důvod česky). Konvence dne jako u ostatních akcí. Akce hráče – stav nemění
+ * (kopie vsi, na ní `launchExpedition`).
  */
 export function startExpedition(
   state: VillageState,
@@ -575,15 +576,62 @@ export function startExpedition(
   offer: TradeOffer,
   landscape: Landscape | null = null,
 ): VillageState {
+  const quote = checkedQuote(state, offer, day, landscape);
+  const next = structuredClone(state);
+  departExpedition(next, day, offer, quote, landscape);
+  return next;
+}
+
+/**
+ * Výprava vyrazí jako `startExpedition`, ale mutuje stav – bez kopie celé vsi (správce v simulaci:
+ * výprava za obilím, village-core.md – Výkon dopočtu). RangeError, když výměna nejde – stav pak
+ * zůstane beze změny.
+ */
+export function launchExpedition(
+  state: VillageState,
+  day: number,
+  offer: TradeOffer,
+  landscape: Landscape | null = null,
+): void {
+  departExpedition(state, day, offer, checkedQuote(state, offer, day, landscape), landscape);
+}
+
+/** Náhled výměny (`tradeQuote`), která jde; jinak RangeError s důvodem. */
+function checkedQuote(
+  state: VillageState,
+  offer: TradeOffer,
+  day: number,
+  landscape: Landscape | null,
+): TradeQuote {
   const quote = tradeQuote(state, offer, day, landscape);
   if (quote.blocked) throw new RangeError(quote.blocked);
-  const trail = builtTrail(state, offer.direction)!;
-  const next = structuredClone(state);
+  return quote;
+}
+
+/**
+ * Jádro výpravy (mutuje stav) podle náhledu `quote`, který jde. Co se čte z vsi před výpravou
+ * (koně z nabídky, vozy a jejich voli, sjízdnost stezky), se přečte napřed – před odečtením zboží
+ * a odchodem lidí.
+ */
+function departExpedition(
+  next: VillageState,
+  day: number,
+  offer: TradeOffer,
+  quote: TradeQuote,
+  landscape: Landscape | null,
+): void {
+  const trail = builtTrail(next, offer.direction)!;
   const stock = structuredClone(neighbourStock(next, offer.direction, day));
   const give = Object.fromEntries(entries(offer.give)) as TradeGoods;
   const get = Object.fromEntries(entries(offer.get)) as TradeGoods;
   // koupení koně s věkem a výcvikem z nabídky souseda – před odečtením ze zásoby souseda
-  const horses = boughtHorses(state, offer.direction, get, day);
+  const horses = boughtHorses(next, offer.direction, get, day);
+  // vozy výpravy (s nimi jejich voli) jsou do návratu pryč (wagons.md – Obchod) – jen s voly,
+  // které ves neprodala
+  const carts = tradeCarts(withoutSoldOxen(next, give, day), day)
+    .slice(0, quote.carts.length)
+    .map((c) => c.id);
+  const cartPassable = trailCartPassable(next, trail, landscape);
   for (const [g, n] of entries(give)) {
     addGood(next, g, -n, day);
     stock.demand[g] = (stock.demand[g] ?? 0) - n;
@@ -620,13 +668,8 @@ export function startExpedition(
   const sent = tradePeopleCount(givePeople) > 0;
   const fetched = tradePeopleCount(getPeople) > 0;
   const trade = tradeOf(next);
-  // vozy výpravy (s nimi jejich voli) jsou do návratu pryč (wagons.md – Obchod) – jen s voly,
-  // které ves neprodala
-  const carts = tradeCarts(withoutSoldOxen(state, give, day), day)
-    .slice(0, quote.carts.length)
-    .map((c) => c.id);
   // co by výpravě ušetřily čtyřkoláky – do roku vozů (wagons.md – Kolik vozů ves chce)
-  if (trailCartPassable(state, trail, landscape)) {
+  if (cartPassable) {
     addExpeditionDemand(next, day, fourWheelSavings(give, get, quote.days / quote.trips));
   }
   trade.expeditions.push({
@@ -653,7 +696,6 @@ export function startExpedition(
     give,
     ...(sent ? { people: { ...givePeople } } : {}),
   });
-  return next;
 }
 
 /**

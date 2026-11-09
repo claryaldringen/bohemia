@@ -27,6 +27,7 @@ import {
   buyPrice,
   expeditionPorters,
   finishExpeditions,
+  launchExpedition,
   sellPrice,
   startExpedition,
   tradeQuote,
@@ -273,6 +274,29 @@ describe('prodej', () => {
     const withOx = { ...offer, give: { grain: 200, trainedOxen: 1 } };
     expect(tradeQuote(s, withOx, DAY).carts).toEqual([]);
     expect(startExpedition(s, DAY, withOx).trade!.expeditions[0]!.carts).toBeUndefined();
+  });
+
+  it('launchExpedition (správce, bez kopie vsi) zmutuje stav na totéž, co vrátí startExpedition', () => {
+    // vozy, voli a koně se čtou před prodejem – na mutovaném stavu by se prodaný vůl odečetl
+    // podruhé a vůz by netáhl nikdo
+    const s = selling();
+    s.pens![0]!.oxen = [
+      { trainedDay: DAY - Math.ceil(1 * YEAR) },
+      { trainedDay: DAY - Math.ceil(2 * YEAR) },
+    ];
+    s.carts = [{ id: 1, kind: 'two-wheel', builtDay: DAY - 100 }];
+    const offer = { direction: 'S' as Direction8, give: { grain: 200, trainedOxen: 1 }, get: {} };
+    const before = JSON.stringify(s);
+    const copy = startExpedition(s, DAY, offer);
+    expect(copy.trade!.expeditions[0]!.carts).toEqual([1]);
+    expect(JSON.stringify(s)).toBe(before);
+    launchExpedition(s, DAY, offer);
+    expect(JSON.stringify(s)).toBe(JSON.stringify(copy));
+    // výměna, která nejde – RangeError a stav beze změny
+    const after = JSON.stringify(s);
+    const tooMany = { ...offer, give: { trainedOxen: 99 } };
+    expect(() => launchExpedition(s, DAY, tooMany)).toThrow(RangeError);
+    expect(JSON.stringify(s)).toBe(after);
   });
 });
 
