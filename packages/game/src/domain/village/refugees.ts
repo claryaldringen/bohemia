@@ -1,5 +1,5 @@
 import { dismissGuests, hostGuests } from '../vassalage/guests';
-import { applyLineManFell } from '../war/raid-apply';
+import { applyLineManFell, markCaptive, prisonerKey } from '../war/raid-apply';
 import { WAR } from '../war/rules-war';
 import { drawGrainPits } from './grain-pits';
 import { horsePens, isGrainHorse, penHorses, villageHorses } from './horses';
@@ -313,7 +313,9 @@ export function applyMessengerBack(
 
 /**
  * Vojsko posla chytilo (`messenger-caught`; mutuje stav): `killed` – padl (bez pohřbu, muž rodu –
- * nástupnictví), `led` – odveden (z vsi zmizí). Kůň, na kterém jel, se nevrátí.
+ * nástupnictví), `led` – odveden (z vsi zmizí), `captured` – muž rodu zajat (`away` zajetí u vsi
+ * `captorVillageId` jako po nájezdu – war.md, Vzdaní, zajetí a výkupné). Kůň, na kterém jel, se
+ * nevrátí.
  */
 export function applyMessengerCaught(
   state: VillageState,
@@ -326,6 +328,11 @@ export function applyMessengerCaught(
   const name = p.name === undefined ? {} : { name: p.name };
   const events = body.fate === 'killed' ? applyLineManFell(state, day, { personId: p.id }) : [];
   if (body.fate === 'led') removePeople(state, new Set([p.id]));
+  if (body.fate === 'captured') {
+    // bez věznitele (tělo bez `captorVillageId`) jako odvedený – z vsi zmizí
+    if (body.captorVillageId === undefined) removePeople(state, new Set([p.id]));
+    else markCaptive(state, day, p, body.captorVillageId, prisonerKey(body.campaignId, p.id));
+  }
   if (horseId !== undefined) removeHorse(state, horseId);
   events.push({ day, kind: 'messenger-caught', fate: body.fate, ...name });
   return events;

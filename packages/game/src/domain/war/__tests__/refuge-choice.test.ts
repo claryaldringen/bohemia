@@ -342,18 +342,56 @@ describe('posel (Otevřené 4)', () => {
     expect(messengerOf(village([awayLord]), DAY)).toBeNull();
   });
 
-  it('s koněm ve vsi jede na koni – rychleji', () => {
+  it('vesničan jde pěšky i s koněm ve vsi (Martin 9. 11. 2026: „Posel jde pěšky“)', () => {
     const horse = { id: 1, bornDay: DAY - 6 * 365, sex: 'male' as const, training: 0 };
-    const foal = { ...horse, bornDay: DAY - 100 };
     const people = [person(2, 20, 'male')];
-    expect(messengerOf(village(people, undefined, { looseHorses: [horse] }), DAY)!.mounted).toBe(
-      true,
-    );
-    expect(messengerOf(village(people, undefined, { looseHorses: [foal] }), DAY)!.mounted).toBe(
-      false,
-    );
+    expect(messengerOf(village(people, undefined, { looseHorses: [horse] }), DAY)).toEqual({
+      personId: 2,
+      mounted: false,
+    });
     expect(messengerSpeed(true, DAY)).toBeGreaterThan(messengerSpeed(false, DAY));
     expect(messengerSpeed(false, DAY)).toBe(WAR.pace.metersPerSecond * WAR.alarm.runFactor);
+  });
+
+  it('hráč vybere posla: muž rodu se svým jezdeckým koněm jede; bez koně, nepodkutý nebo vesničan pěšky', () => {
+    const lord = person(10, 35, 'male', { line: true });
+    const son = person(11, 17, 'male', { line: true });
+    const people = [person(2, 20, 'male'), person(3, 50, 'male'), lord, son];
+    const own = { id: 1, bornDay: DAY - 6 * 365, sex: 'male' as const, training: 0, riderId: 10 };
+    const foal = { ...own, id: 2, bornDay: DAY - 100, riderId: 11 };
+    const v = village(people, undefined, { looseHorses: [own, foal] });
+    // výchozí (i za správce) – vesničan pěšky
+    expect(messengerOf(v, DAY)).toEqual({ personId: 2, mounted: false });
+    expect(messengerOf(v, DAY, 10)).toEqual({ personId: 10, mounted: true });
+    // hříbě není jezdecký kůň
+    expect(messengerOf(v, DAY, 11)).toEqual({ personId: 11, mounted: false });
+    expect(messengerOf(v, DAY, 2)).toEqual({ personId: 2, mounted: false });
+    // starý vesničan, žena, neznámý ani raněný muž rodu ne
+    expect(messengerOf(v, DAY, 3)).toBeNull();
+    expect(messengerOf(v, DAY, 99)).toBeNull();
+    const hurt = village(
+      people.map((p) => (p.id === 10 ? { ...p, woundedUntil: DAY + 10 } : p)),
+      undefined,
+      { looseHorses: [own] },
+    );
+    expect(messengerOf(hurt, DAY, 10)).toBeNull();
+    // po termínu kování koně nejezdí (`isUnshod`)
+    const pen = { id: 1, species: 'horse', horses: [own] } as never;
+    const unshod = village(people, undefined, {
+      pens: [pen],
+      shoeing: { lastDay: DAY - 400 },
+    } as Partial<VillageState>);
+    const shod = village(people, undefined, {
+      pens: [pen],
+      shoeing: { lastDay: DAY - 1 },
+    } as Partial<VillageState>);
+    expect(messengerOf(shod, DAY, 10)).toEqual({ personId: 10, mounted: true });
+    expect(messengerOf(unshod, DAY, 10)).toEqual({ personId: 10, mounted: false });
+    // bez vesničana výchozí muž rodu – jede, umí-li
+    expect(messengerOf(village([lord], undefined, { looseHorses: [own] }), DAY)).toEqual({
+      personId: 10,
+      mounted: true,
+    });
   });
 });
 

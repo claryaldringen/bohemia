@@ -148,13 +148,17 @@ export type VillageEventBody =
     }
   /** Posel se po doručení vrátil domů. */
   | { kind: 'messenger-back'; campaignId: string; refId: string; personId: number }
-  /** Vojsko posla chytilo: `killed` – padl, `led` – odveden (z vsi zmizí). */
+  /**
+   * Vojsko posla chytilo: `killed` – padl, `led` – odveden (z vsi zmizí), `captured` – muž rodu
+   * nebo šlechtic zajat do vsi `captorVillageId` (war.md – Vzdaní, zajetí a výkupné).
+   */
   | {
       kind: 'messenger-caught';
       campaignId: string;
       refId: string;
       personId: number;
-      fate: 'killed' | 'led';
+      fate: 'killed' | 'led' | 'captured';
+      captorVillageId?: string;
     }
   /**
    * Lidé `people` odešli skupinou do hradiště `hostVillageId`, nebo (null) do lesa, s `carriedKg`

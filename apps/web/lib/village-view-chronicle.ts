@@ -553,6 +553,11 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       if (event.fate === 'killed') {
         return event.name === undefined ? 'Posel padl.' : `Posel ${event.name} padl.`;
       }
+      if (event.fate === 'captured') {
+        return event.name === undefined
+          ? 'Posla zajalo vojsko.'
+          : `Posla ${event.name} zajalo vojsko.`;
+      }
       return event.name === undefined
         ? 'Posla odvedlo vojsko.'
         : `Posla ${event.name} odvedlo vojsko.`;

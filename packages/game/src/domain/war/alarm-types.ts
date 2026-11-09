@@ -40,6 +40,11 @@ export interface AlarmVillage {
   decided?: 'player' | 'steward';
   /** Kandidáti hradišť (id vsí – pro bariéru dopočtu); chybí – zatím nehledáno. */
   hosts?: string[];
+  /**
+   * Políčko vsi (Úloha 5 – ves varovaná poslem vojsko na své mapě neviděla); chybí – políčko
+   * spatření (`seenAt.cell` – vesničan vojsko viděl na mapě vsi).
+   */
+  cell?: GridCell;
 }
 
 /** Kdo se hýbe po mapách jako skupina vojska: políčko, poloha, zbývající políčka, úsek a cíl. */
@@ -60,10 +65,19 @@ export interface AlarmMessenger extends AlarmMover {
   /** Osoba ve stavu `fromVillageId`. */
   personId: number;
   toVillageId: string;
-  /** Jede na koni vsi. */
+  /**
+   * Jede na koni (Martin 9. 11. 2026: jen muž rodu, který umí jezdit a má jezdeckého koně – volba
+   * hráče; vesničan jde pěšky).
+   */
   mounted: boolean;
-  status: 'running' | 'arrived' | 'caught';
-  /** Takt doručení nebo chycení; chybí – běží. */
+  /**
+   * `arrived` – doručil (domů za tolik, kolik běžel), `caught` – chycen, `recalled` – tažení skončilo
+   * dřív, než doběhl (vojsko odtáhlo – vrátí se domů).
+   */
+  status: 'running' | 'arrived' | 'caught' | 'recalled';
+  /** Takt odchodu z vsi. */
+  departTick: number;
+  /** Takt doručení, chycení nebo konce tažení; chybí – běží. */
   doneTick?: number;
 }
 

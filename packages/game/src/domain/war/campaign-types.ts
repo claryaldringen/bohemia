@@ -125,11 +125,15 @@ export interface CampaignLoot {
   /** Rozpis kořisti po druzích (`foodKg` a `herd` jsou jeho součty); chybí – nic nevzali. */
   detail?: RaidLoot;
   /**
-   * Odvedení lidé – snímek ze stavu napadené vsi v den nájezdu (id patří jí); ve vsi útočníka
-   * přijdou jako noví vesničané s novými id (`campaign-return`). Chybí – nikdo.
+   * Odvedení lidé – snímek ze stavu napadené vsi v den nájezdu (id patří jí), i chycení poslové
+   * (Úloha 5 plánu 2026-11-09 – snímek z jejich vsi); ve vsi útočníka přijdou jako noví vesničané
+   * s novými id (`campaign-return`). Chybí – nikdo.
    */
   people?: Person[];
-  /** Zajatí muži rodu a šlechtici – přibudou do `VillageState.prisoners` vsi shromaždiště. */
+  /**
+   * Zajatí muži rodu a šlechtici (z nájezdu i chycení poslové) – přibudou do `VillageState.prisoners`
+   * vsi shromaždiště.
+   */
   prisoners?: Prisoner[];
 }
 
@@ -261,8 +265,12 @@ export type IntentBody =
    * Záměry obránce varované vsi (war.md – Varování, poslové a útěk do hradiště; plán 2026-11-09):
    * dává je hráč, kterému ves patří (`AlarmVillage.owner`), ne vůdce tažení – jako `breakout`.
    */
-  /** „Poslat posla“ – ves `village` pošle posla do hradiště pána. */
-  | { kind: 'alarm-messenger'; village: string }
+  /**
+   * „Poslat posla“ – ves `village` pošle posla do hradiště pána: `personId` = muž, kterého hráč
+   * vybral (muž rodu, který umí jezdit, jede na koni – Martin 9. 11. 2026); chybí – vesničan pěšky
+   * (`messengerOf`).
+   */
+  | { kind: 'alarm-messenger'; village: string; personId?: number }
   /** „Ukrýt v lese“, „Do hradiště – jen lidé“, „Do hradiště – se vším“. */
   | { kind: 'alarm-flee'; village: string; mode: FlightMode }
   /** Hradiště `village` hráče pošle posly do vybraných vsí domény `to`. */

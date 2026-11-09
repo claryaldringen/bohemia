@@ -49,6 +49,7 @@ const ALARM: CampaignAlarm = {
       toVillageId: 'hradiste',
       mounted: false,
       status: 'running',
+      departTick: 100,
       cell: { x: 1, y: 0 },
       pos: { x: -880, z: 30 },
       route: [{ x: 2, y: 0 }],

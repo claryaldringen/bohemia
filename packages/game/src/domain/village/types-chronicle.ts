@@ -136,8 +136,8 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'refuge-hidden'; people: number }
   /** Vojsko dostihlo skupinu uprchlíků: `killed` padlo, `led` odvedlo. */
   | { kind: 'refuge-caught'; killed: number; led: number }
-  /** Vojsko chytilo posla `name` (bez jména vesničan): padl, nebo ho odvedlo. */
-  | { kind: 'messenger-caught'; fate: 'killed' | 'led'; name?: string }
+  /** Vojsko chytilo posla `name` (bez jména vesničan): padl, odvedlo ho, nebo ho zajalo (muž rodu). */
+  | { kind: 'messenger-caught'; fate: 'killed' | 'led' | 'captured'; name?: string }
   /**
    * Do vsi, která už vojvodu má, přišel z jiné vsi rodu muž `name` s rodinou (dosazení vojvody
    * přišlo pozdě) – žije v dvorci jako ostatní muži rodu.

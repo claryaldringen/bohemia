@@ -421,6 +421,24 @@ describe('Ú7 – posel (messenger-out / back / caught)', () => {
     });
     expect(u.people.map((p) => p.id)).toEqual([2, 3, 4]);
     expect(u.chronicle.some((e) => e.kind === 'death')).toBe(false);
+    // muž rodu zajat (Úloha 5) – zůstává ve stavu vsi jako zajatec u věznitele; podruhé nic
+    const c = home();
+    apply(c, D, out);
+    const caught: VillageEventBody = {
+      kind: 'messenger-caught',
+      campaignId: 'c1',
+      refId: 'c1:a0',
+      personId: 1,
+      fate: 'captured',
+      captorVillageId: 'lhota',
+    };
+    apply(c, D + 1, caught);
+    expect(c.people.map((p) => p.id)).toEqual([1, 2, 3, 4]);
+    expect(c.people[0]!.away).toEqual({ kind: 'captive', hostVillageId: 'lhota', refId: 'c1:1' });
+    expect(c.chronicle.at(-1)).toEqual({ day: D + 1, kind: 'messenger-caught', fate: 'captured' });
+    const captive = structuredClone(c);
+    apply(c, D + 1, caught);
+    expect(c).toStrictEqual(captive);
     // chycený posel jiné výpravy (jiný refId) – nic
     const z = home();
     apply(z, D, out);

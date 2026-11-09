@@ -2,7 +2,7 @@ import { villageCentre } from '../village/departure';
 import type { AlarmOwner, AlarmVillage, CampaignAlarm } from './alarm-types';
 import { cellKey, gridOf, MissingData, villageEvent } from './campaign-tick';
 import type { TickContext, TickOut } from './campaign-tick';
-import type { CampaignState } from './campaign-types';
+import type { CampaignState, IntentBody } from './campaign-types';
 import { villageLookouts, runTicks, type Lookout } from './lookouts';
 import type { MarchGrid, Pos } from './march-grid';
 import type { GridCell } from '../village/world-grid';
@@ -14,6 +14,32 @@ import { inSight } from './sight';
 
 /** Vlastník vsi, dokud svět port `alarmOf` nedodá (Úloha 6) – rod neznámý, rozhoduje pravidlo. */
 const UNKNOWN_OWNER: AlarmOwner = { playerId: null, npc: true, houseId: null };
+
+/** Záměry obránce varované vsi (plán 2026-11-09 – Rozhodnutí plánu). */
+export type AlarmIntentBody = Extract<
+  IntentBody,
+  { kind: 'alarm-messenger' | 'alarm-flee' | 'alarm-domain' }
+>;
+
+/** Je záměr záměrem obránce varované vsi (`alarm-*`)? */
+export function isAlarmIntent(body: IntentBody): body is AlarmIntentBody {
+  return (
+    body.kind === 'alarm-messenger' || body.kind === 'alarm-flee' || body.kind === 'alarm-domain'
+  );
+}
+
+/**
+ * Dává záměr obránce, ne vůdce tažení (`breakout` – držitel napadené vsi, `alarm-*` – majitel
+ * varované vsi)? Tažení přijme záměr obránce jen od cizího hráče, ostatní jen od vůdce.
+ */
+export function isDefenderIntent(body: IntentBody): boolean {
+  return body.kind === 'breakout' || isAlarmIntent(body);
+}
+
+/** Políčko vsi ve varování (`cell`, jinak políčko spatření – vesničan viděl vojsko na mapě vsi). */
+export function alarmCellOf(v: AlarmVillage): GridCell {
+  return v.cell ?? v.seenAt.cell;
+}
 
 /** Ví ves `villageId` v taktu `tick` o vojsku tažení (doběh vesničana, příchod posla)? */
 export function isWarned(s: CampaignState, villageId: string, tick: number): boolean {
@@ -133,7 +159,7 @@ function runOf(
 }
 
 /** Kdo za ves rozhoduje – ze světa (Úloha 6), jinak neznámý rod; `null` = svět ještě nenačetl. */
-function ownerOf(villageId: string, ctx: TickContext): AlarmOwner {
+export function ownerOf(villageId: string, ctx: TickContext): AlarmOwner {
   const ask = ctx.world.alarmOf;
   if (!ask) return { ...UNKNOWN_OWNER };
   const owner = ask(villageId);
@@ -142,7 +168,7 @@ function ownerOf(villageId: string, ctx: TickContext): AlarmOwner {
 }
 
 /** Zapíše ves do varování – seřazené podle `villageId` (stav je JSON, pořadí pevné). */
-function addVillage(s: CampaignState, v: AlarmVillage): void {
+export function addVillage(s: CampaignState, v: AlarmVillage): void {
   const alarm: CampaignAlarm = (s.alarm ??= {
     villages: [],
     messengers: [],
@@ -156,12 +182,19 @@ function addVillage(s: CampaignState, v: AlarmVillage): void {
 
 /**
  * Ves ví o vojsku: majitel dostane upozornění `army-warned` (jako „Cizí vojsko u …!“ – jen cizí
- * vojsko), ves signál hrozby `army-seen` pro správce na týž den.
+ * vojsko), ves signál hrozby `army-seen` pro správce na den `day` – týž den (ves u vojska drží
+ * bariéra), ves daleko varovaná poslem den nato (rozhodnutí 13).
  */
-function warn(s: CampaignState, villageId: string, ctx: TickContext, out: TickOut): void {
-  villageEvent(s, out, villageId, s.day, {
+export function warn(
+  s: CampaignState,
+  villageId: string,
+  ctx: TickContext,
+  out: TickOut,
+  day: number = s.day,
+): void {
+  villageEvent(s, out, villageId, day, {
     kind: 'threat-signal',
-    signal: { kind: 'army-seen', day: s.day },
+    signal: { kind: 'army-seen', day },
   });
   const watcher = ctx.world.watcherOf?.(villageId);
   if (watcher && watcher.playerId !== s.playerId) {
