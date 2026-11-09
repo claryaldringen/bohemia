@@ -723,6 +723,15 @@ domů a ta se po založení nemění.
   bez lidí nebo bez práce v oknech. Ves samých dospělých, kterou práce nebrzdí, má blok
   jako dřív; ves s dětmi a málo rukama menší (test: 5 dospělých a 12 dětí – 282 místo 622 políček).
   Žádné nové číslo.
+- **Přednost ohrad a sadu** (návrh Clauda, 9. 11. 2026): bloky polí podle práce nesmí vzít
+  místo u stojících domů, kde ves bude chtít ohrady a sad. Po rozsévači za spřežením (setí 10 →
+  3,3 čd/ha) vyšly bloky větší, domy plánu se rozešly a pole u stojícího domu zabrala všechno –
+  ohrady i sad šly k plánovaným (nepostaveným) domům až 400 m daleko a přepočtený plán už slot
+  ohrady ani sadu nenašel. Plán proto napřed vyhradí u stojících domů 2 políčka sadu (do 4 políček
+  od domu) a políčka ohrad (do 7 políček): pro každé stádo, které ves má, tolik čtverců, kolik
+  dá `penPlacesPerPerson` × lidé plánu, aspoň 1, a po 1 pro spřežení a koně. Vyhrazená políčka
+  nedostane blok polí, nový dům (ani jeho dvůr) ani humno, dílna a hřbitov; sad a ohrady je berou
+  jako první, až pak místa u plánovaných domů.
 - **Nové pole napřed u stojícího domu:** blok prvního hospodářství se stojícím obydlím (v pořadí
   plánu), které má volná políčka aspoň na nejmenší pole; když bloky stojících domů nestačí,
   políčka bloků ostatních hospodářství nejblíž stojícím domům (a hospodářství podle nejbližšího

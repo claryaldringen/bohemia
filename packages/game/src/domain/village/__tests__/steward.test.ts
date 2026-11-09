@@ -221,8 +221,17 @@ describe('den správce – režim a pole', () => {
     stewardDay(normal, SEPT, landscape, obstacles);
     const kinds = (v: VillageState): string[] =>
       newConstructions(s, v).map((id) => v.constructions.find((c) => c.id === id)!.kind);
-    // první hřbitov hned po první zemnici (steward.md – krok 5)
-    expect(kinds(normal).sort()).toEqual(['cemetery', 'dwelling', 'field']);
+    // první hřbitov hned po první zemnici (steward.md – krok 5); s místem ohrad a sadu u domu
+    // (přednost ohrad a sadu v plánu, 9. 11. 2026) a dost práce i ohrada, sad a modla – dřív
+    // jen ['cemetery', 'dwelling', 'field'] (sloty ohrad a sadu u plánovaných domů neprošly)
+    expect(kinds(normal).sort()).toEqual([
+      'cemetery',
+      'dwelling',
+      'field',
+      'idol',
+      'orchard',
+      'pen',
+    ]);
     // Nouze a málo práce – na pole rozpočet nezbývá, zemnice pro čekající rodinu ano
     const hungry = structuredClone(s);
     hungry.starvationDays = 3;

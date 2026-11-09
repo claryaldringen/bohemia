@@ -27,7 +27,7 @@ import {
   type PlacementVillage,
 } from '../placement';
 import { NO_CRAFTS } from '../productivity';
-import { CRAFT_BASE, workshopBuildLabor, workshopCost, workshopTrees } from '../rules';
+import { CRAFT_BASE, SOWERS, workshopBuildLabor, workshopCost, workshopTrees } from '../rules';
 import { withPlots } from '../plots';
 import { advanceVillage } from '../simulate';
 import { summarizeVillage } from '../summary';
@@ -370,8 +370,9 @@ describe('pokrytí a meze produktivity (crafts.md – Účinek)', () => {
       const sow = crops.reduce((sum, c) => sum + c.work.required.sow, 0);
       return dig / sow;
     };
-    expect(plan(0)).toBeCloseTo(10, 6);
-    expect(plan(1000)).toBeCloseTo(5, 6);
+    // kopání 100 → 50 čd/ha na setí motykou 1 / 0,3 čd/ha (rozsévač, fields.md – Práce; dřív 10)
+    expect(plan(0)).toBeCloseTo(100 * SOWERS.hoeHaPerDay, 6);
+    expect(plan(1000)).toBeCloseTo(50 * SOWERS.hoeHaPerDay, 6);
     const field = {
       parts: [
         { areaM2: 1000, distanceM: 50, naturalFertility: 70, surface: 'meadow', obstacleCost: 0 },

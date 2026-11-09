@@ -806,7 +806,9 @@ function dwellingStep(state: VillageState, ctx: StewardContext): void {
   const slots = trySlots(state, ctx, 'dwelling', intentOf);
   if (slots.started || slots.tried) return;
   // nová ves bez ověřených domů plánu – obydlí u dvorce (steward.md – Výpočetní rozpočet)
-  for (const tile of centreHouseTiles(state, ctx).slice(0, STEWARD.slotTries)) {
+  // vetovaná políčka obydlí ani tady ne (steward.md – Soužití s hráčem)
+  const tiles = centreHouseTiles(state, ctx).filter((t) => !vetoed(state, ctx, 'dwelling', t));
+  for (const tile of tiles.slice(0, STEWARD.slotTries)) {
     const built = startStewardBuild(state, ctx, intentOf(tile));
     if (built.ok || NOT_THE_SLOT.has(built.reason)) return;
   }

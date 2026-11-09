@@ -9,7 +9,7 @@ import {
   reclaimCostPerHa,
 } from './fields';
 import { daysUntilHarvest, daysUntilWinterHarvest } from './food';
-import { PLOUGH_SOD_FACTOR, hasSod, ploughWorkPerHa } from './plough';
+import { PLOUGH_HA_PER_DAY, PLOUGH_SOD_FACTOR, hasSod, ploughWorkPerHa } from './plough';
 import { ploughLayout } from './plough-blocks';
 import { fieldWorkPerHa } from './productivity';
 import {
@@ -17,6 +17,7 @@ import {
   FLAX,
   LEGUMES,
   SEED_KG_PER_HA,
+  SOWERS,
   LEGACY_WEEDING_WORST_PER_HA,
   UNWEEDED_YIELD,
   YIELD_BASE_KG_PER_HA,
@@ -71,7 +72,8 @@ export function partWeight(part: FieldPart): number {
  * příloh nic, louka drn, křoviny a mladý les jako jejich založení – fields.md, Zarůstání), drn
  * louky založené rádlem jako vrácení louky. S `plough` (ves má spřežení – oxen.md, Jen rádlo) se
  * díl orá místo kopání, i drn: ten rozorá orba křížem (`PLOUGH_SOD_FACTOR`× víc orby, motyka na
- * drn nejde); křoviny a mladý les se klučí ručně jako dřív.
+ * drn nejde); křoviny a mladý les se klučí ručně jako dřív. Setí za rádlem podle orby (rozsévač
+ * za spřežením – `SOWERS.perTeam`), motykou podle sazby.
  */
 export function partWork(
   part: FieldPart,
@@ -98,6 +100,10 @@ export function partWork(
     if (sod) work.reclaim = 0;
     work.plough = ha * ploughWorkPerHa(toolCoverage) * factor * (sod ? PLOUGH_SOD_FACTOR : 1);
     work.dig = 0;
+    // rozsévač za spřežením (fields.md – Práce, setí; Martin 9. 11. 2026: „Ano, jeden rozsévač za
+    // spřežením“) – člověkoden setí na den spřežení: dny spřežení = orba ÷ denní orba páru
+    // (PLOUGH_HA_PER_DAY × sazba – `pairCapacityPerDay`), na drnu orbě křížem 2,5× víc dní
+    work.sow = (work.plough / (PLOUGH_HA_PER_DAY * ploughWorkPerHa(toolCoverage))) * SOWERS.perTeam;
   }
   return work;
 }
@@ -106,7 +112,8 @@ export function partWork(
  * Plodina, kterou letos oralo spřežení, dokončí motyka (mutuje `work`) – ves přišla o poslední
  * spřežení (oxen.md – Jen rádlo). Díly, kam orba došla, zůstanou zorané; zbytek se dokope:
  * kopání celé plodiny podle sazby motyky (drn s vrácením louky) s hotovým podílem, kam došla
- * orba – po dílech stejně (díl s drnem má v orbě větší váhu, v kopání ne). Plodina pak orbu nemá.
+ * orba – po dílech stejně (díl s drnem má v orbě větší váhu, v kopání ne). Setí oraných dílů
+ * (rozsévač za spřežením) se přepočte na sazbu motyky s hotovým podílem. Plodina pak orbu nemá.
  */
 export function ploughToHoe(
   work: CropWork,
@@ -141,6 +148,14 @@ export function ploughToHoe(
   });
   work.required.dig += hoe;
   work.done.dig += weight > 0 ? (doneWeight / weight) * hoe : hoe;
+  // setí za orbou šlo podle orby (`partWork`), motykou podle sazby – plán starší vsi s kopanými
+  // díly (`digWeight`) má setí podle sazby už celé, nechá se
+  if (!plough.digWeight) {
+    const sow = weight * fieldWorkPerHa('sow', toolCoverage, crop);
+    const sown = work.required.sow > 0 ? Math.min(1, work.done.sow / work.required.sow) : 0;
+    work.required.sow = sow;
+    work.done.sow = sown * sow;
+  }
   delete work.plough;
 }
 
@@ -590,15 +605,16 @@ export function withoutWinterWeeding(season: FarmSeason): FarmSeason {
  * Pletí jednou a rychle (fields.md): práce jaře, luštěnin a lnu ze starších sazeb (30 / 15 a 40 /
  * 20 čd/ha v květnu–červnu) by se v jediném květnovém okně nestihla – úroda by klesla. Požadované
  * i hotové pletí se přepočte na nové sazby (× nová ÷ stará nejhorší mez, hotový podíl zůstane).
- * Starší práce se pozná podle pletí na setí: víc, než dá nová nejhorší mez (setí 10 čd/ha je
- * stejné). Idempotentní – rok s novými sazbami vrací týž.
+ * Starší práce se pozná podle pletí na sklizeň: víc, než dá nová nejhorší mez (sazby sklizně se od
+ * té doby nezměnily; setí ne – za rádlem jde podle orby, fields.md – Práce, setí). Idempotentní –
+ * rok s novými sazbami vrací týž.
  */
 export function withOnceWeedingRates(season: FarmSeason): FarmSeason {
   const rescale = (work: SeasonCrop): SeasonCrop => {
     const crop = work.crop;
     if (crop === 'winter') return work;
     const newWorst = fieldWorkPerHa('weed', 0, crop);
-    const limit = (work.required.sow * newWorst) / fieldWorkPerHa('sow', 0, crop);
+    const limit = (work.required.harvest * newWorst) / fieldWorkPerHa('harvest', 0, crop);
     if (work.required.weed <= limit * (1 + 1e-9)) return work;
     const k =
       newWorst /

@@ -192,7 +192,9 @@ describe('zlatý otisk – výběr dílů a práce vsi k 2. 9.', () => {
     // a osev; dřív 123:ac9d7796
     // 120:58a8e173 (9. 11. 2026, len z polí vyřazený – fields.md, Zahrádka u obydlí): plán bez
     // dílů lnu, díly jaře místo nich; dřív 149:b60f2983
-    expect(fingerprint(plans)).toBe('120:58a8e173');
+    // 124:fe7ca4e9 (9. 11. 2026, rozsévač za spřežením – fields.md, Práce, setí 10 → 3,3 čd/ha): ves
+    // oseje víc dílů – jiné zásoby a výběr dílů; dřív 120:58a8e173
+    expect(fingerprint(plans)).toBe('124:fe7ca4e9');
   });
 });
 

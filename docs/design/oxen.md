@@ -496,6 +496,11 @@ v květnu (8 / 5 a 10 / 6 čd/ha), ozim vůbec; plejí děti → ženy, muži je
   motykou (**100 → 50 člověkodní/ha** podle nástrojů) **orba rádlem 10 → 6 člověkodní/ha**
   (rešerše: 5–15 člověkodní/ha; meze produktivity – nejhorší dřevěná radlice, nejlepší se železnou
   špičkou od kováře podle pokrytí nástroji, [řemesla](crafts.md)). Orá oráč a honáček (2 lidé).
+- **Rozsévač za spřežením** (9. 11. 2026 – Martin: „Setí – to přece obstará pár mužů s voly
+  a ženy“, „Za oráčem by měl jít někdo z rodiny a rovnou zasívat“ a „Ano, jeden rozsévač za
+  spřežením“): za každým orajícím spřežením jde týž den 1 rozsévač – setí stojí 1 člověkoden na
+  den spřežení (≈ 3,3 čd/ha, na drnu 8,3; nástroje zlevní orbu, ne tempo volů), dřív 10 čd/ha
+  (≈ 3 lidé za spřežením). Motykou taky ≈ 3,3 čd/ha (návrh Clauda – [fields.md](fields.md), Práce).
 - ~~**Drn rádlo nezvládne** (rešerše – rádla selhávala na panenském drnu): zakládání pole na louce,
   v křovinách a v lese a vracení úhoru ve fázi louky (3+ roky) dál stojí jako dnes (motyka, mýcení).~~
   Od 19. 10. 2026 rádlo bere i drn – viz Jen rádlo.

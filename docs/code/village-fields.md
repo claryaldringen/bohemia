@@ -111,7 +111,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `[[5, 5]]`, ozim `weed: []` a `WINTER_WORK_PER_HA` (pletí 0 – `CROP_WORK_PER_HA.winter`
   v productivity.ts); `unweededYield('winter')` = 1 (year-plan.ts) a `withoutWinterWeeding`
   (idempotentně na začátku `work()`) vynuluje pletí ozimu ve starším hospodářském roce (`state.season`). `withOnceWeedingRates`
-  (hned za ním) přepočte pletí jaře, luštěnin a lnu starších let (víc pletí na setí, než dá nová
+  (hned za ním) přepočte pletí jaře, luštěnin a lnu starších let (víc pletí na sklizeň, než dá nová
   nejhorší mez) × nová ÷ stará nejhorší mez (`LEGACY_WEEDING_WORST_PER_HA`) – jinak by se starý
   požadavek v květnovém okně nestihl (Vlkov 816: opleto 63 %, jař −0,3 t). Ženy: `work()` dá
   `allocateDay` práci žen vsi `womenLabor` (`p.sex === 'female'` mezi `villagers`);
@@ -273,7 +273,11 @@ tools)` = s hromadou `pileSowsKg` (osivo, které ves ještě zaseje: `sowingHaPe
   (`sowPerTill` v `year-plan.ts` × podíl, který dovolí osivo); `allocateDay` (`labor.ts`) dá úloze
   s `follow` práci i na setí za sebou v poměru `ratio` a přičte ji úloze setí. V `work()` se setí
   plodiny použije až po jejím kopání (`applyOrder`) a nejvýš na zpracovanou půdu
-  (`cropTaskRemaining`).
+  (`cropTaskRemaining`). **Rozsévač za spřežením** (Martin 9. 11. 2026): `partWork` dá oranému
+  dílu setí `SOWERS.perTeam` × dny spřežení (orba ÷ `PLOUGH_HA_PER_DAY` × sazba orby – jako
+  `pairCapacityPerDay`; drn 2,5× víc dní), motyka
+  `FIELD_WORK_PER_HA.sow` = 1 ÷ `SOWERS.hoeHaPerDay` ≈ 3,3 čd/ha (`rules-fields.ts`); `ploughToHoe`
+  přepočte setí oraných dílů na sazbu motyky s hotovým podílem (ne u plánu s `digWeight`).
   `winterStartable` / `springStartable` (`rotation.ts`) – díl smí začít i v poslední den okna.
   Plán kapacity (`sowingCapacity`, páry k rádlům) dál počítá s dnem rezervy `SOW_AFTER_DIG_DAYS`
   (návrh Clauda – celé okno posouvá zakládání polí správcem, samostatná změna). Výmlat na dnešní

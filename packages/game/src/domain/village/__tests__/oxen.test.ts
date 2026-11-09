@@ -25,7 +25,7 @@ import {
   type PenInput,
 } from '../oxen';
 import { oxTrainedDay } from '../pens';
-import { DRAFT_OXEN, OXEN, PEN_PLACES_PER_SQUARE } from '../rules';
+import { DRAFT_OXEN, OXEN, PEN_PLACES_PER_SQUARE, SOWERS } from '../rules';
 import { laborPerDay } from '../people';
 import { PLOUGH_HA_PER_DAY, PLOUGH_SOD_FACTOR, hasSod, ploughWorkPerHa } from '../plough';
 import { NO_CRAFTS } from '../productivity';
@@ -509,6 +509,10 @@ describe('orba rádlem', () => {
       expect(work.dig).toBe(0);
       expect(work.reclaim).toBe(0);
       expect(work.plough).toBeCloseTo(10, 9);
+      // rozsévač za spřežením (Martin 9. 11. 2026): 1 čd na den spřežení – pár zorá 0,3 ha za den
+      expect(work.sow).toBeCloseTo(SOWERS.perTeam / PLOUGH_HA_PER_DAY, 9);
+      // nástroje zrychlí orbu (méně člověkodní), ne spřežení – dní spřežení i setí stejně
+      expect(partWork(p, day, 1, true).sow).toBeCloseTo(SOWERS.perTeam / PLOUGH_HA_PER_DAY, 9);
     }
     // drn – příloh ve fázi louky i louka založená rádlem: orba křížem, víc práce, bez motyky
     const meadow = part(4, { state: 'fallow', fallowSinceDay: at(590, 9, 1) });
@@ -519,6 +523,8 @@ describe('orba rádlem', () => {
       expect(work.dig).toBe(0);
       expect(work.reclaim).toBe(0);
       expect(work.plough).toBeCloseTo(10 * PLOUGH_SOD_FACTOR, 9);
+      // na drnu jde spřežení křížem pomaleji – rozsévač za ním taky
+      expect(work.sow).toBeCloseTo((SOWERS.perTeam * PLOUGH_SOD_FACTOR) / PLOUGH_HA_PER_DAY, 9);
     }
     // křoviny vyklučí lidé jako dřív, pak se orá běžně
     const shrubs = part(6, { state: 'fallow', fallowSinceDay: at(590, 9, 1), overgrowthYears: 6 });
@@ -530,6 +536,11 @@ describe('orba rádlem', () => {
     expect(hoe.plough).toBe(0);
     expect(hoe.dig).toBeCloseTo(100, 9);
     expect(hoe.reclaim).toBeCloseTo(100, 9);
+    // setí motykou: rozsévač zaseje, co by spřežení zoralo za den (návrh Clauda) – stejně jako
+    // za spřežením bez drnu (rules-fields.ts nemůže importovat plough.ts – kruh importů; shodu
+    // hlídá tento test)
+    expect(SOWERS.hoeHaPerDay).toBe(PLOUGH_HA_PER_DAY);
+    expect(hoe.sow).toBeCloseTo(1 / SOWERS.hoeHaPerDay, 9);
   });
 
   it('setí jde za zoranou částí; díl s drnem nese orba s větší vahou', () => {
@@ -688,6 +699,7 @@ describe('orba rádlem', () => {
     const byId = new Map(parts.map((p) => [p.id, p]));
     const work = createCropWork(parts, day, 0, true);
     work.plough!.done = work.plough!.required * 0.2; // rozpracovaný druhý díl (drn)
+    work.done.sow = work.required.sow * 0.2; // setí za orbou
     const ploughSpans = taskSpans(work, byId, 'plough', day);
     const ploughAt = taskPosition(work, 'plough');
     ploughToHoe(work, byId, 0, 'spring');
@@ -698,6 +710,10 @@ describe('orba rádlem', () => {
       100 * (weights[0]! + weights[1]! + weights[2]!) + 100 * weights[1]!,
       6,
     );
+    // setí za rádlem (podle orby, drn 2,5×) se přepočte na sazbu motyky – hotový podíl zůstane
+    const hoeSow = (weights[0]! + weights[1]! + weights[2]!) / SOWERS.hoeHaPerDay;
+    expect(work.required.sow).toBeCloseTo(hoeSow, 9);
+    expect(work.done.sow).toBeCloseTo(hoeSow * 0.2, 9);
     // díly, kam orba došla, jsou zoraně stejně daleko i v kopání
     const digSpans = taskSpans(work, byId, 'dig', day);
     const digAt = taskPosition(work, 'dig');

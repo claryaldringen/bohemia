@@ -419,10 +419,12 @@ describe('ves hospodaří podle domů', () => {
         expect(holdings.byPart.get(id)!.distanceM).toBeGreaterThanOrEqual(prev);
       });
     }
-    // 20. 9.: zkopané díly ozimu jsou začátek pořadí, zbytek čeká
+    // 30. 9.: zkopané díly ozimu jsou začátek pořadí, zbytek čeká (dřív 20. 9. – s levnějším setím,
+    // rozsévač za spřežením 9. 11. 2026, ves loni osela víc dílů a v září déle mlátí: kopání
+    // ozimu začne až po 20. 9.)
     let state = planned!;
     pin(state, state.lastDay + 1);
-    state = advanceVillage(state, at(601, 9, 20), null);
+    state = advanceVillage(state, at(601, 9, 30), null);
     const winter = seasonCrop(state.season!, 'winter')!;
     const looks = fieldPartLooks(state, state.lastDay);
     const untouched = ['stubble', 'pasture', 'bare'];
