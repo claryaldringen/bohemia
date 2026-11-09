@@ -542,6 +542,21 @@ test('nájezd na ves s palisádou s ochozem: obránci na hradbě, útočníci p�
     seg.builtDay = Math.max(0, stateB.lastDay - 2);
     seg.state = 1;
   }
+  // Boj bez luků: v pomalém světě e2e (herní den ≈ 4,8 h) trvá výroba žebříku (4 herní hodiny)
+  // ≈ 11 500 taktů boje – souboj luků mužů rodu přes hradbu se za tu dobu rozhodne dřív, než žebřík
+  // stojí (los taktu, tedy hodina spuštění testu). Hradbu tak brání tři vesničané a pán vsi B je
+  // raněný doma; vojsko A jsou jen vesničané.
+  const nextId = Math.max(...stateB.people.map((p) => p.id)) + 1;
+  const lordB = stateB.people.find((p) => p.line === true)!;
+  lordB.woundedUntil = stateB.lastDay + 365;
+  for (let i = 0; i < 3; i++) {
+    stateB.people.push({
+      id: nextId + i,
+      sex: 'male',
+      bornDay: stateB.lastDay - (20 + i) * 365,
+      dwellingId: lordB.dwellingId,
+    });
+  }
   await writeVillageState(seatB.settlementId, stateB);
   const ring = fortSegments(outlineOf(seatB.landscape, fort)!).map((s) => s.mid);
   const stateA = withBuiltFirstDwelling(await villageState(seatA.settlementId));
@@ -589,10 +604,10 @@ test('nájezd na ves s palisádou s ochozem: obránci na hradbě, útočníci p�
       deputy: null,
       assembly: { villageId: placeA.villageId, cell: placeA.cell, pos: homeA, name: 'Lhota' },
       target: { villageId: placeB.villageId, cell: placeB.cell, pos: at, name: 'Hradec' },
+      // jen vesničané – bez muže rodu s lukem (viz výš)
       members: [
         man(villager, false, 1),
-        man(lord.id, true, 2),
-        ...[1, 2, 3, 4, 5, 6].map((i) => man(villager + i, false, 1)),
+        ...[1, 2, 3, 4, 5, 6, 7].map((i) => man(villager + i, false, 1)),
       ],
       foodKg: 80,
       liveCommand: false,
