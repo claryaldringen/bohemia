@@ -139,6 +139,11 @@ export interface PersonAway {
   untilDay?: number;
   hostVillageId?: string;
   refId?: string;
+  /**
+   * Kůň, na kterém posel jel (war.md – Varování, poslové a útěk do hradiště; Martin 9. 11. 2026:
+   * na koni jen muž rodu) – je pryč s jezdcem; padne-li posel nebo ho odvedou, kůň se nevrátí.
+   */
+  horseId?: number;
 }
 
 /** Odkaz na osobu napříč vsemi: ves a číslo osoby v jejím stavu (stejný tvar jako u rodů). */

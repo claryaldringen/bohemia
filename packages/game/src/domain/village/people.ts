@@ -1,5 +1,5 @@
 import { AGE, FOOD_NEED_KG_PER_YEAR, LABOR_PER_DAY } from './rules';
-import type { Person, VillageState } from './types';
+import type { Guest, Person, VillageState } from './types';
 
 const DAYS_PER_YEAR = 365.25; // věk se počítá v celých letech po 365,25 dne
 const FOOD_DAYS_PER_YEAR = 365; // roční potřeba jídla se dělí 365 dny
@@ -11,7 +11,12 @@ export function ageYears(bornDay: number, day: number): number {
 
 /** Věková skupina: dítě 0–13, dospělý 14–44, starší 45+. */
 export function ageGroup(person: Person, day: number): 'child' | 'adult' | 'elder' {
-  const age = ageYears(person.bornDay, day);
+  return ageGroupOf(person.bornDay, day);
+}
+
+/** Věková skupina podle dne narození (host – `Guest.bornDay`). */
+export function ageGroupOf(bornDay: number, day: number): 'child' | 'adult' | 'elder' {
+  const age = ageYears(bornDay, day);
   if (age < AGE.adult) return 'child';
   if (age < AGE.elder) return 'adult';
   return 'elder';
@@ -47,9 +52,20 @@ export function isAway(person: Pick<Person, 'away'>, day: number): boolean {
   return away !== undefined && (away.untilDay === undefined || day < away.untilDay);
 }
 
-/** Potřeba jídla na den v kg podle věkové skupiny; kdo je pryč na čas, jí jinde (0). */
+/**
+ * Je člověk ukrytý v lese na mapě vsi (war.md – Varování, poslové a útěk do hradiště): uprchlík
+ * (`away` druhu `refuge`) bez hradiště. Je pryč – nepracuje –, ale jí doma (`refugeFoodDay`).
+ */
+export function hidesInForest(person: Pick<Person, 'away'>): boolean {
+  return person.away?.kind === 'refuge' && person.away.hostVillageId === undefined;
+}
+
+/**
+ * Potřeba jídla na den v kg podle věkové skupiny; kdo je pryč na čas, jí jinde (0) – kromě
+ * uprchlíků ukrytých v lese (`hidesInForest`), ti jedí ze zásob vsi.
+ */
 export function foodNeedPerDay(person: Person, day: number): number {
-  if (isAway(person, day)) return 0;
+  if (isAway(person, day) && !hidesInForest(person)) return 0;
   return FOOD_NEED_KG_PER_YEAR[ageGroup(person, day)] / FOOD_DAYS_PER_YEAR;
 }
 
@@ -60,15 +76,38 @@ export function guestsToday(state: Pick<VillageState, 'guests'>, day: number): n
   return n;
 }
 
-/** Potřeba jídla hostů na den v kg – dospělí jako dospělí vsi (jedí ze zásob hostitele). */
-export function guestFoodNeedPerDay(state: Pick<VillageState, 'guests'>, day: number): number {
-  return (guestsToday(state, day) * FOOD_NEED_KG_PER_YEAR.adult) / FOOD_DAYS_PER_YEAR;
+/** Potřeba jídla hosta na den v kg (jí ze zásob hostitele): podle věku, bez `bornDay` dospělý. */
+export function guestFoodNeed(guest: Pick<Guest, 'bornDay'>, day: number): number {
+  const group = guest.bornDay === undefined ? 'adult' : ageGroupOf(guest.bornDay, day);
+  return FOOD_NEED_KG_PER_YEAR[group] / FOOD_DAYS_PER_YEAR;
 }
 
-/** Práce hostů na den (čd) – dospělý 1 (`LABOR_PER_DAY.adult`); zajatci nepracují. */
+/**
+ * Potřeba jídla hostů na den v kg – dospělí jako dospělí vsi (jedí ze zásob hostitele); host se
+ * dnem narození (uprchlík – `Guest.bornDay`) podle věku. Hosté bez něj se počítají jako dřív
+ * (počet × dospělý), ať výsledek zůstane bit po bitu.
+ */
+export function guestFoodNeedPerDay(state: Pick<VillageState, 'guests'>, day: number): number {
+  let adults = 0;
+  let aged = 0;
+  for (const g of state.guests ?? []) {
+    if (g.untilDay <= day) continue;
+    if (g.bornDay === undefined) adults++;
+    else aged += guestFoodNeed(g, day);
+  }
+  return (adults * FOOD_NEED_KG_PER_YEAR.adult) / FOOD_DAYS_PER_YEAR + aged;
+}
+
+/**
+ * Práce hostů na den (čd) – dospělý 1 (`LABOR_PER_DAY.adult`); zajatci nepracují, host se dnem
+ * narození jen jako dospělý 14–44 let (dítě a starší uprchlík ne – jako `laborPerDay`).
+ */
 export function guestLaborToday(state: Pick<VillageState, 'guests'>, day: number): number {
   let n = 0;
-  for (const g of state.guests ?? []) if (g.untilDay > day && g.kind !== 'captive') n++;
+  for (const g of state.guests ?? []) {
+    if (g.untilDay <= day || g.kind === 'captive') continue;
+    if (g.bornDay === undefined || ageGroupOf(g.bornDay, day) === 'adult') n++;
+  }
   return n * LABOR_PER_DAY.adult;
 }
 

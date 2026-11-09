@@ -109,7 +109,7 @@ export function refugeHostOf(
 export interface FlightLoad {
   /** Všichni přítomní (id vzestupně). */
   people: RefugeePerson[];
-  /** Zásoby, které nesou (kg obilí) – nejvýš zásoby vsi bez odloženého osiva. */
+  /** Zásoby, které nesou (kg obilí) – nejvýš zásoby vsi bez odloženého osiva a zapečetěných jam. */
   foodKg: number;
   herd: Record<HerdSpecies, number>;
   /** Vozy se spřežením (jen „se vším“). */
@@ -156,7 +156,7 @@ function noHerd(): Record<HerdSpecies, number> {
 /**
  * Skupina uprchlíků vsi v den `day` podle volby (Otevřené 7): vždy všichni přítomní; „jen lidé“
  * bez zásob a dobytka; „Ukrýt v lese“ = `fleeParty` (dospělý 25 kg, dítě 10 kg, dobytek celý);
- * „se vším“ navíc každý vůz se spřežením `WAR.carryKg.cart`. Odložené osivo zůstává ve vsi. Tempo:
+ * „se vším“ navíc každý vůz se spřežením `WAR.carryKg.cart`. Odložené osivo a zapečetěné jámy zůstávají ve vsi. Tempo:
  * pěší, ranění zpomalí; dobytek nebo vozy na tempo stáda (vůz se počítá jako kus stáda).
  */
 export function flightLoad(state: VillageState, day: number, mode: FlightMode): FlightLoad {
@@ -178,7 +178,10 @@ export function flightLoad(state: VillageState, day: number, mode: FlightMode): 
       party.adults * WAR.flight.adultKg +
       party.children * WAR.flight.childKg +
       carts * WAR.carryKg.cart;
-    const availableKg = Math.max(0, state.storesKg - (state.reservedSeedKg ?? 0));
+    // osivo a zapečetěné jámy zůstávají ve vsi (Otevřené 7 – `applyRefugeDepart` je neodečte)
+    let sealedKg = 0;
+    for (const pit of state.grainPits ?? []) if (pit.state === 'sealed') sealedKg += pit.grainKg;
+    const availableKg = Math.max(0, state.storesKg - (state.reservedSeedKg ?? 0) - sealedKg);
     foodKg = Math.min(availableKg, capacityKg);
     herd = { ...party.livestock };
   }

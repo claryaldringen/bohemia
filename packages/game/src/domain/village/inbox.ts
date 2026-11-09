@@ -19,6 +19,16 @@ import {
   type RaidResult,
 } from '../war/raid-apply';
 import { applyCaptiveReturns, type CaptiveReturns } from '../war/captives';
+import {
+  applyMessengerBack,
+  applyMessengerCaught,
+  applyMessengerOut,
+  applyRefugeArrive,
+  applyRefugeBack,
+  applyRefugeCaught,
+  applyRefugeDepart,
+  applyRefugeHidden,
+} from './refugees';
 import type {
   AwayKind,
   ChronicleEvent,
@@ -120,7 +130,8 @@ export type VillageEventBody =
       gatesBurned?: number[];
     }
   /*
-   * Varování, poslové a útěk do hradiště (war.md; plán 2026-11-09 – Úloha 1 tvar, Úloha 7 aplikace).
+   * Varování, poslové a útěk do hradiště (war.md; plán 2026-11-09 – Úloha 1 tvar, Úloha 7 aplikace
+   * v `refugees.ts`).
    * `refId` = posel nebo skupina uprchlíků v tažení `campaignId` (`AlarmMessenger`, `AlarmFlight`).
    */
   /**
@@ -158,6 +169,8 @@ export type VillageEventBody =
       people: number[];
       carriedKg: number;
       herd: Record<HerdSpecies, number>;
+      /** Jméno hradiště do kroniky (Úloha 7); chybí – kronika bez jména. */
+      hostName?: string;
     }
   /** Skupina došla do lesa a ukryla se se zásobami a stádem (`VillageRefuge.hidden`). */
   | {
@@ -263,15 +276,21 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
       applyFortificationBreach(state, day, body);
       return [];
     case 'messenger-out':
+      return applyMessengerOut(state, day, body);
     case 'messenger-back':
+      return applyMessengerBack(state, day, body);
     case 'messenger-caught':
+      return applyMessengerCaught(state, day, body);
     case 'refuge-depart':
+      return applyRefugeDepart(state, day, body);
     case 'refuge-hidden':
+      return applyRefugeHidden(state, day, body);
     case 'refuge-caught':
+      return applyRefugeCaught(state, day, body);
     case 'refuge-arrive':
+      return applyRefugeArrive(state, day, body);
     case 'refuge-back':
-      // Ú7 (plán 2026-11-09) – aplikace v `refugees.ts`; zatím ves beze změny.
-      return [];
+      return applyRefugeBack(state, day, body);
     default:
       return unknownBody(body);
   }

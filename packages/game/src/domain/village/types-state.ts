@@ -164,6 +164,8 @@ export interface RefugeStay {
   refId: string;
   fromVillageId: string;
   fromName: string;
+  /** Id uprchlíků (osoby domovské vsi) – hosté pobytu; podle nich jídlo a odchod (`leaveRefuge`). */
+  people: number[];
   foodKg: number;
   herd: Record<HerdSpecies, number>;
   arrivedDay: number;
