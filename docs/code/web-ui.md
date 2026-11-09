@@ -294,7 +294,7 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   drží ji i mimo ni – rozšíření), vybraná stavba dá mřížku hned (`PlacementMode.squares.grid`);
   natočená mřížka má čtverec pod kurzorem ve středu políčka. Ctrl ve výběru obydlí platí i jako Cmd; Ctrl / Shift + klik na cestu či
   pole vybraná obydlí nezruší; Ctrl + A při umisťování nic nevybere. Zkratky staveb Z zemnice, X polozemnice, C pole, V hřbitov, B sad,
-  N modla, M svatyně, K humno, O ohrada (modla, svatyně a humno se umisťují půdorysem jako obydlí – `PlacementMode`
+  N modla, M svatyně, K humno, O ohrada, panely J Kronika a U Upozornění (`lib/panel-keys.ts`) (modla, svatyně a humno se umisťují půdorysem jako obydlí – `PlacementMode`
   `sacred` a `threshing-floor`; ohrada po čtvercích – O i tlačítko otevřou v mřížce rozcestník druhů zvířat (ovce,
   kozy, prasata, skot, spřežení – bez zkratek), nad ohradou téhož druhu se chytí její mřížky). V otevřené nabídce hry žádná klávesa hry neběží – F10 nebo Esc ji zavře (Tab jen
   po jejích položkách). Rozhraní
@@ -1073,8 +1073,8 @@ existující kronikou vsi (`state.chronicle`, nejvýš `CHRONICLE_MAX_EVENTS` = 
 nová pravidla (návrh Clauda).
 
 - **Lišta:** kniha `icons/resources/chronicle.png` (`chronicle-toggle`, popisek „Kronika“) vlevo od
-  praporu rodu; bez vsi nebo u vymřelé vsi chybí. Bez klávesy – jako panely rodu a války (klávesa
-  je jen F10 nabídky). Panel leží vpravo nahoře jako panely rodu a války a střídá se s nimi
+  praporu rodu; bez vsi nebo u vymřelé vsi chybí. Klávesa **J** (popisek „Kronika [J]“,
+  `aria-keyshortcuts`) – viz Zkratky panelů Kronika a Upozornění níž. Panel leží vpravo nahoře jako panely rodu a války a střídá se s nimi
   i s nabídkou: otevření kroniky je zavře (`closeOthers`), otevření jiného zavře kroniku
   (`othersOpen` – úprava stavu při vykreslení v `hooks/use-chronicle.ts`). Esc a křížek zavřou.
 - **Data na vyžádání:** server action `getChronicle({ villageId, before? })` →
@@ -1113,7 +1113,7 @@ z `playerNoticeText`), žádná nová pravidla (návrh Clauda). Upozornění vsi
 se neukládají a panel je nemá.
 
 - **Lišta:** zvonek `icons/resources/bell.png` (`notices-toggle`, popisek „Upozornění“) vlevo od knihy
-  kroniky; číslo nepřečtených (`notices-unread`) se ukáže jen se zavřeným panelem. Panel vpravo
+  kroniky, klávesa **U** (popisek „Upozornění [U]“); číslo nepřečtených (`notices-unread`) se ukáže jen se zavřeným panelem. Panel vpravo
   nahoře se střídá s kronikou, rodem, válkou a nabídkou (`othersOpen` / `closeOthers` ve
   `hooks/use-notices.ts`, kronika se zavírá přes `closeNoticesRef` ve `VillageGame`). Esc a křížek zavřou.
 - **Data:** server action `getNotices({ before? })` → `NoticeRepository.page` (nejnovější první,
@@ -1130,6 +1130,23 @@ se neukládají a panel je nemá.
 - **Testy:** `lib/__tests__/notice-page.test.ts`, `hud/__tests__/NoticesPanel.behavior.test.tsx`,
   `hooks/__tests__/use-notices.behavior.test.tsx`, `notice-repository.db.test.ts` (stránkování,
   omezení), e2e `multiplayer.spec.ts` – „pomoc na žádost“ (zvonek, zvýrazněné upozornění).
+
+## Zkratky panelů Kronika a Upozornění (`lib/panel-keys.ts`, `hooks/use-panel-hotkeys.ts`)
+
+Martin 9. 11. 2026: „Na písmenech mi nezáleží, takže jo“ – k návrhu Clauda **J** = panel Kronika,
+**U** = panel Upozornění. Ostatní písmena drží stavby (Z X C V B N M F G H T K L O P – `BUILD_ITEMS`)
+a kamera (W A S D Q E R).
+
+- `panelForKey` – jen bez modifikátorů a bez opakování držené klávesy; `PANEL_HOTKEYS` nese kód
+  klávesy a písmeno do popisku. Test `lib/__tests__/panel-keys.test.ts` hlídá i kolize se
+  stavbami a kamerou.
+- `usePanelHotkeys(toggle, enabled)` ve `VillageGame` přepne panel jako tlačítko v liště (druhý
+  stisk zavře, otevření vystřídá ostatní panely – `useChronicle` / `useNotices`). Při psaní do pole
+  nic; v otevřené nabídce hry a po konci hry vypnuté (`enabled`), nabídka navíc klávesy zachytí
+  dřív (`GameMenu`). Kronika jen u živé vsi (jako tlačítko).
+- Popisky tlačítek „Kronika [J]“, „Upozornění [U]“ a „Nabídka [F10]“ – `HotkeyTip` v `TopBar`.
+- Testy: `hooks/__tests__/use-panel-hotkeys.behavior.test.tsx` (jsdom), e2e `village.spec.ts` –
+  „panel Kronika“ (J otevře a zavře, U vystřídá) a `multiplayer.spec.ts` – „pomoc na žádost“ (U).
 
 ## Ikony z Blenderu místo ručních SVG (`tools/blender/icons.py` – sekce Ikony rozhraní)
 
