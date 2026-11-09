@@ -184,8 +184,20 @@ export type VillageEventBody =
       foodKg: number;
       herd: Record<HerdSpecies, number>;
     }
-  /** Vojsko skupinu dostihlo a vzala se: `killed` padli, `led` odvedeni; ostatní jdou dál. */
-  | { kind: 'refuge-caught'; campaignId: string; refId: string; killed: number[]; led: number[] }
+  /**
+   * Vojsko skupinu dostihlo a vzala se: `killed` padli, `led` odvedeni, `captured` – muži rodu
+   * a šlechtici zajati do vsi `captorVillageId` pod klíčem zajetí `prisonerId` (Úloha 8 – jako
+   * posel); ostatní jdou dál.
+   */
+  | {
+      kind: 'refuge-caught';
+      campaignId: string;
+      refId: string;
+      killed: number[];
+      led: number[];
+      captured?: { personId: number; prisonerId: string }[];
+      captorVillageId?: string;
+    }
   /**
    * Uprchlíci z vsi `fromVillageId` došli do hradiště (hostitel): hosté druhu `refuge` a pobyt
    * `RefugeStay` s jejich zásobami a stádem.

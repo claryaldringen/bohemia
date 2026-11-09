@@ -263,7 +263,8 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
     snědí – jedí napřed své, pak ze zásob vsi. Návrat z hradiště (Ú10 – use-case
     `returnFromRefuge`) odebere hosty a pobyt (`departRefuge`) a do `refugeLeaving` hostitele zapíše,
     co lidé nesou, dokud událost `refuge-back` nestojí ve schránce domova (pak záznam zmizí);
-    simulace ho nečte.
+    simulace ho nečte. Dostižená skupina (Ú8 – `refuge-caught`) může mít i zajaté muže rodu
+    a šlechtice (`captured` – `markCaptive` u věznitele jako po nájezdu).
 
 - **Výkon dopočtu** (Vlkov, 44 lidí, rok vcelku): po stálých trasách (A4) ≈ 49 s, po mřížce
   a trasách vozu v paměti a chůzi s horní mezí napřed (B1 – village-roads.md, Trasy v paměti)

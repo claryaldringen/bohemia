@@ -336,6 +336,8 @@ export async function computeCampaign(
   /** Vsi, které se už zkusily načíst (i neexistující). */
   const tried = new Set<string>();
   const watchers = new Map<string, { playerId: string; name: string }>();
+  /** Jména načtených vsí (kronika a upozornění uprchlíků – Úloha 8 plánu 2026-11-09). */
+  const names = new Map<string, string>();
   const harmlessTo = new Map<string, boolean>();
   const alarms = deps.alarmOwners ? alarmWorld(deps.alarmOwners) : null;
   const key = (c: GridCell): string => `${c.x},${c.y}`;
@@ -350,6 +352,7 @@ export async function computeCampaign(
     watcherOf: (villageId: string): { playerId: string; name: string } | null =>
       watchers.get(villageId) ?? null,
     harmless: (villageId: string): boolean => harmlessTo.get(villageId) ?? false,
+    villageNameOf: (villageId: string): string | null => names.get(villageId) ?? null,
     ...(alarms ? alarms.world : {}),
     ...(deps.memory ? { grids: deps.memory.grids } : {}),
   };
@@ -380,6 +383,7 @@ export async function computeCampaign(
       const cached = villages.get(villageId);
       if (cached && record.state.lastDay <= cached.lastDay) continue;
       villages.set(villageId, record.state);
+      names.set(villageId, record.name);
       loaded = true;
       if (cached) continue;
       const watcher = (await deps.watchers?.watcherOf(villageId)) ?? null;

@@ -40,6 +40,7 @@ import {
   prisonerKey,
   raidChronicle,
   raidLoot,
+  sumLoot,
   type CampaignReturn,
   type RaidResult,
 } from './raid-apply';
@@ -62,14 +63,21 @@ import {
   type AlarmIntentBody,
 } from './alarm';
 import {
-  alarmTaken,
   catchMessengers,
   moveMessengers,
   recallMessengers,
   sendMessenger,
   warnDomain,
-  withoutTaken,
 } from './messenger';
+import {
+  alarmTaken,
+  catchFlights,
+  departFlight,
+  flightFoodDay,
+  moveFlights,
+  settleFlights,
+  withoutTaken,
+} from './evacuation';
 import {
   cellKey,
   gridOf,
@@ -265,11 +273,13 @@ function campaignTick(
       break;
   }
   // po pohybu: spatření vesničany (varování – Úloha 2 plánu 2026-11-09), posli (pohyb, chycení –
-  // Úloha 5), pak dny nájezdu
+  // Úloha 5), skupiny uprchlíků (pohyb, dostižení – Úloha 8), pak dny nájezdu
   if (s.phase !== 'assembling' && s.phase !== 'done') {
     sightAlarms(s, tick, ctx, out);
     moveMessengers(s, ctx, out);
     catchMessengers(s, ctx, out);
+    moveFlights(s, ctx, out);
+    catchFlights(s, ctx, out);
     watchVillages(s, ctx, out);
   }
   // boj skončil (výhra, porážka, ústup) – výsledek nájezdu do vsí jednou (Ú6.10)
@@ -311,9 +321,11 @@ function watchVillages(s: CampaignState, ctx: TickContext, out: TickOut): void {
 /**
  * Denní krok na začátku herního dne `s.day` (war.md – Pohyb – Zásoby, Zima): mráz venku (ve
  * shromaždišti se muži zotaví) a jídlo – 1 kg na muže a den. Když jídlo dojde na pochodu,
- * vojsko se obrátí domů (Martin 2. 11. 2026).
+ * vojsko se obrátí domů (Martin 2. 11. 2026). Skupiny uprchlíků na cestě do hradiště jedí ze svých
+ * zásob (Úloha 8 plánu 2026-11-09).
  */
 function dailyStep(s: CampaignState, out: TickOut): void {
+  flightFoodDay(s);
   const outside = s.phase !== 'assembling' && s.phase !== 'done';
   const active = s.members.filter((m) => m.status === 'active');
   for (const m of active) {
@@ -395,7 +407,9 @@ function applyAlarm(
       // hradiště hráče rozešle posly do vybraných vsí domény (Úloha 6, Otevřené 5)
       warnDomain(s, v.villageId, ctx, out, body.to);
       return;
-    case 'alarm-flee': // evakuace – Úloha 8
+    case 'alarm-flee':
+      // evakuace do hradiště nebo do lesa (Úloha 8, Otevřené 7)
+      departFlight(s, v.villageId, body.mode, ctx, out, { by: 'player' });
       return;
   }
 }
@@ -857,8 +871,10 @@ function leaveBattle(s: CampaignState): void {
  */
 function finish(s: CampaignState, ctx: TickContext, out: TickOut): void {
   reportRaid(s, ctx, out);
-  // posli, kteří ještě běží, se vrátí domů – další takty nebudou (Úloha 5)
+  // posli, kteří ještě běží, se vrátí domů, skupiny uprchlíků dojdou – další takty nebudou
+  // (Úloha 5, 8)
   recallMessengers(s, ctx, out);
+  settleFlights(s, ctx, out);
   // po rozpadu jen muži domů – kronika a upozornění šly už při rozpadu
   const disbanded = s.phase === 'disbanded';
   s.phase = 'done';
@@ -940,7 +956,9 @@ function reportRaid(s: CampaignState, ctx: TickContext, out: TickOut): void {
   }
   s.raidDay = s.day;
   if (village === null) return;
-  const full = raidResultOf(s, b, village, ctx);
+  // co tažení z vsi dnes odvedlo (posel, skupina uprchlíků – Úloha 8), stav vsi ještě nezná
+  const home = withoutTaken(village, alarmTaken(s, s.target.villageId, s.day, ctx.world.clock));
+  const full = raidResultOf(s, b, home, ctx);
   // hosté z ochrany: ztráty jdou do domovských vsí, napadená ves dostane jen své lidi
   const guards = new Map((s.guards ?? []).map((g) => [g.id, g]));
   const own = (ids: readonly number[]): number[] => ids.filter((id) => !guards.has(id));
@@ -969,16 +987,17 @@ function reportRaid(s: CampaignState, ctx: TickContext, out: TickOut): void {
   });
   const totals = lootTotals(result.loot);
   const prisoners = [
-    ...capturedPrisoners(s, village, hostCaptured),
+    ...capturedPrisoners(s, home, hostCaptured),
     ...guardCaptured.map((g) => guardPrisoner(s, g)),
   ];
-  const people = [...(s.loot.people ?? []), ...ledPeople(village, result.led)];
+  const people = [...(s.loot.people ?? []), ...ledPeople(home, result.led)];
   const allPrisoners = [...(s.loot.prisoners ?? []), ...prisoners];
   s.loot = {
     foodKg: s.loot.foodKg + totals.foodKg,
     herd: s.loot.herd + totals.herd,
-    detail: structuredClone(result.loot),
-    // odvedení a zajatí poslové (Úloha 5) zůstávají v kořisti
+    // kořist z dostižených uprchlíků (Úloha 8) se sloučí
+    detail: s.loot.detail ? sumLoot(s.loot.detail, result.loot) : structuredClone(result.loot),
+    // odvedení a zajatí poslové a uprchlíci (Úloha 5, 8) zůstávají v kořisti
     ...(people.length > 0 ? { people } : {}),
     ...(allPrisoners.length > 0 ? { prisoners: allPrisoners } : {}),
   };
@@ -1044,7 +1063,7 @@ function guardPrisoner(s: CampaignState, g: CampaignGuard): Prisoner {
   };
 }
 
-/** Padlí, ranění, odvedení a kořist z boje a stavu napadené vsi v den konce boje. */
+/** Padlí, ranění, odvedení a kořist z boje a stavu napadené vsi v den konce boje (bez toho, co tažení dnes odvedlo). */
 function raidResultOf(
   s: CampaignState,
   b: BattleState,
@@ -1124,7 +1143,8 @@ function raidResultOf(
     day: s.day,
     shelter,
     refugeTaken,
-    capacityKg: lootCapacity(fit, s.supplies.foodKg),
+    // nosnost bez kořisti, kterou už nesou (dostižení uprchlíci – Úloha 8)
+    capacityKg: Math.max(0, lootCapacity(fit, s.supplies.foodKg) - s.loot.foodKg),
     seed: s.seed,
     daysInVillage: (b.ticks * hoursPerTick(ctx.world.clock)) / 24,
   });

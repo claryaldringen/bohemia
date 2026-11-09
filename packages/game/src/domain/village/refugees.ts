@@ -79,8 +79,10 @@ export function applyRefugeHidden(
 
 /**
  * Vojsko skupinu dostihlo (`refuge-caught`; mutuje stav): padlí zemřou bez pohřbu (padli mimo ves;
- * muž rodu – nástupnictví jako `line-man-fell`), odvedení z vsi zmizí. Ostatní zůstávají pryč –
- * jdou dál. Nezbyl-li ze skupiny nikdo a nic neukryla, ves už na útěku není.
+ * muž rodu – nástupnictví jako `line-man-fell`), odvedení z vsi zmizí, zajatí (muži rodu
+ * a šlechtici – Úloha 8) jsou v zajetí u `captorVillageId` jako po nájezdu (`markCaptive`; bez
+ * věznitele jako odvedení). Ostatní zůstávají pryč – jdou dál. Nezbyl-li ze skupiny nikdo a nic
+ * neukryla, ves už na útěku není.
  */
 export function applyRefugeCaught(
   state: VillageState,
@@ -91,10 +93,23 @@ export function applyRefugeCaught(
   const killed = [...new Set(body.killed)].filter((id) => inGroup.has(id));
   const dead = new Set(killed);
   const led = [...new Set(body.led)].filter((id) => inGroup.has(id) && !dead.has(id));
-  if (killed.length === 0 && led.length === 0) return [];
+  const gone = new Set([...killed, ...led]);
+  const captured = (body.captured ?? []).filter((c, i, all) => {
+    const first = all.findIndex((x) => x.personId === c.personId) === i;
+    return first && inGroup.has(c.personId) && !gone.has(c.personId);
+  });
+  if (killed.length === 0 && led.length === 0 && captured.length === 0) return [];
   const events: ChronicleEvent[] = [];
   for (const personId of killed) events.push(...applyLineManFell(state, day, { personId }));
   removePeople(state, new Set(led));
+  const captor = body.captorVillageId;
+  if (captor === undefined) removePeople(state, new Set(captured.map((c) => c.personId)));
+  else {
+    for (const c of captured) {
+      const p = state.people.find((x) => x.id === c.personId);
+      if (p) markCaptive(state, day, p, captor, c.prisonerId);
+    }
+  }
   if (
     state.refuge?.refId === body.refId &&
     state.refuge.hidden === undefined &&
@@ -102,7 +117,13 @@ export function applyRefugeCaught(
   ) {
     delete state.refuge;
   }
-  events.push({ day, kind: 'refuge-caught', killed: killed.length, led: led.length });
+  events.push({
+    day,
+    kind: 'refuge-caught',
+    killed: killed.length,
+    led: led.length,
+    ...(captured.length > 0 ? { captured: captured.length } : {}),
+  });
   return events;
 }
 
@@ -146,8 +167,11 @@ function refugeesOf(state: VillageState, refId: string): Person[] {
   return state.people.filter((p) => p.away?.kind === 'refuge' && p.away.refId === refId);
 }
 
-/** Odebere nesené obilí (nejvýš volné – bez osiva a zapečetěných jam); otevřená jáma se doplní. */
-function takeGrain(state: VillageState, kg: number): void {
+/**
+ * Odebere nesené obilí (mutuje; nejvýš volné – bez osiva a zapečetěných jam); otevřená jáma se
+ * doplní. Tažení tak v den odchodu odečte, co skupina odnesla (`withoutTaken` – Úloha 8).
+ */
+export function takeGrain(state: VillageState, kg: number): void {
   let sealed = 0;
   for (const pit of state.grainPits ?? []) if (pit.state === 'sealed') sealed += pit.grainKg;
   const free = Math.max(0, state.storesKg - Math.max(0, state.reservedSeedKg ?? 0) - sealed);
@@ -157,8 +181,8 @@ function takeGrain(state: VillageState, kg: number): void {
   drawGrainPits(state);
 }
 
-/** Odebere sehnané kusy – napřed dospělé, pak mláďata (nejvýš co ves má). */
-function takeHerd(state: VillageState, herd: Record<HerdSpecies, number>): void {
+/** Odebere sehnané kusy (mutuje) – napřed dospělé, pak mláďata (nejvýš co ves má). */
+export function takeHerd(state: VillageState, herd: Record<HerdSpecies, number>): void {
   const herds = state.livestock;
   if (!herds) return;
   for (const sp of SPECIES) {

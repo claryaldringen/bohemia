@@ -737,6 +737,9 @@ návrat za 1 den), `WAR.surrenderRatio`, `WAR.pitFoundChance`.
 - Zapojení: `application/step-campaigns.ts` – `StepCampaignsDeps.watchers` (volitelné),
   `villageWatchers(...)` je složí z portů (majitel sídla vsi, `isHarmlessArmy` nad `edgesNear`
   do 8 kroků); worker je předává v `apps/worker/src/main.ts`.
+- Včasný útěk skupinou (do hradiště, do lesa) před bojem: [Varování, poslové a útěk do
+  hradiště](#varování-poslové-a-útěk-do-hradiště) – Evakuace v tažení (Ú8); `planDefense` platí pro
+  ves, která se nerozhodla včas.
 - Zjednodušení proti návrhu: rozhodnutí o postoji padá při otevření boje (všichni útočníci na mapě
   jsou „v dohledu“), utíkající lidé se nedohání, domy uvnitř obvodu (zásoby v bezpečí) se
   neodlišují od přibíhajících zvenku, vozy a koně se do útěku nepočítají (jen stáda ovcí, koz, prasat
@@ -829,8 +832,10 @@ null }`); pozdější spatření s kratším doběhem `warnTick` zkrátí. V tak
   {jméno}.“ – volitelné `hostName` v těle, návrh Clauda), do lesa bez zápisu. **Les** `refuge-hidden`
   – `refuge.hidden = { foodKg, herd }` jednou; kronika „Lidé se ukryli v lese.“. **Dostižení**
   `refuge-caught` – padlí zemřou bez pohřbu (`applyLineManFell` – muž rodu = nástupnictví), odvedení
-  zmizí (`removePeople`), ostatní zůstávají pryč (jdou dál); nezbyl-li nikdo a nic neukryli, `refuge`
-  zmizí; kronika „Vojsko dostihlo uprchlíky: padli N, odvedeno M.“. **Hradiště** `refuge-arrive` –
+  zmizí (`removePeople`), zajatí (Ú8 – `captured` s klíčem zajetí `prisonerId`, muži rodu
+  a šlechtici) jsou v zajetí u `captorVillageId` (`markCaptive`; bez věznitele zmizí), ostatní
+  zůstávají pryč (jdou dál); nezbyl-li nikdo a nic neukryli, `refuge` zmizí; kronika „Vojsko
+  dostihlo uprchlíky: padli N, odvedeno M, zajato K.“. **Hradiště** `refuge-arrive` –
   hosté druhu `refuge` s `bornDay`, `untilDay = WAR.alarm.openUntilDay`; pobyt `RefugeStay` (nové
   pole `people` – id uprchlíků, podle nich jídlo a odchod) se zásobami a stádem – stádo se pase
   u hradiště, do stád hostitele nepřibude; týž `refId` podruhé nic; kronika `guests-came`.
@@ -847,8 +852,10 @@ null }`); pozdější spatření s kratším doběhem `warnTick` zkrátí. V tak
   jezdeckém koni (`Horse.riderId`), jinak na nejlépe vycvičeném volném – `away.horseId` (nové
   volitelné pole `PersonAway`); kdo je pryč jinak, posla nedělá. `messenger-back` – doma i s koněm
   (kronika `people-back` druhu `messenger`); `messenger-caught` – `killed` padne (bez pohřbu),
-  `led` zmizí, kůň `horseId` se nevrátí (z ohrady i bez ohrady); kronika „Posel {jméno} padl.“ /
-  „Posla {jméno} odvedlo vojsko.“ (bez jména vesničan). Po kouscích dopočtu 1 / 3 / 10 dní = vcelku.
+  `led` zmizí, `captured` (Ú5 – muž rodu, šlechtic) zajat u `captorVillageId` (`markCaptive` jako po
+  nájezdu; bez věznitele zmizí), kůň `horseId` se nevrátí (z ohrady i bez ohrady); kronika „Posel
+  {jméno} padl.“ / „Posla {jméno} odvedlo vojsko.“ / „Posla {jméno} zajalo vojsko.“ (bez jména
+  vesničan). Po kouscích dopočtu 1 / 3 / 10 dní = vcelku.
 - **Bariéra a dotaz na varované vsi (Ú3).** Tažení drží (`db/adapters/village-holds.ts`, mez
   `throughDay` jako u skupin, i daleko od vojska) vsi ve varování (`alarm.villages[].villageId` –
   i ty, ke kterým vesničan ještě běží), kandidáty hradišť (`alarm.villages[].hosts` – zapisuje Ú6)
@@ -862,10 +869,6 @@ null }`); pozdější spatření s kratším doběhem `warnTick` zkrátí. V tak
   hradištěm skupiny (kandidáti hradišť ne), od nejstaršího (`@>` nad `state->'alarm'`); pro pohled
   na varování (Ú12) a návrat (Ú10). In-memory `InMemoryCampaigns.activeAlarming` totéž. Testy
   `village-holds.db.test.ts` (Ú3), `campaign-repository.db.test.ts`.
-  `led` zmizí, `captured` (Ú5 – muž rodu, šlechtic) zajat u `captorVillageId` (`markCaptive` jako po
-  nájezdu; bez věznitele zmizí), kůň `horseId` se nevrátí (z ohrady i bez ohrady); kronika „Posel
-  {jméno} padl.“ / „Posla {jméno} odvedlo vojsko.“ / „Posla {jméno} zajalo vojsko.“ (bez jména
-  vesničan). Po kouscích dopočtu 1 / 3 / 10 dní = vcelku.
 - **Posel z vsi (Ú5).** Pohyb po mapách `domain/war/movement.ts` (`Mover`, `stepMover(m, goal,
 stepM, day, ctx)` → `moved` | `crossed` | `arrived` | `stuck`, `planMoverLeg`) – vytažený
   z `moveGroups` / `planLeg`, skupiny vojska bit po bitu stejně. `domain/war/messenger.ts`: záměr
@@ -957,6 +960,48 @@ stepM, day, ctx)` → `moved` | `crossed` | `arrived` | `stuck`, `planMoverLeg`)
   pátá a vzdálená ne, B už ví; hradiště hráče až záměrem, cizí záměr, mez 4; bez portu nic, nenačtená
   doména čeká; po 1 / 7 / 40 taktech přes JSON = vcelku), `application/__tests__/alarm-world.test.ts`
   (smyčka `stepCampaigns` s portem v paměti = vcelku s daty předem, dotazy jen na potřebné).
+- **Evakuace v tažení (Ú8).** `domain/war/evacuation.ts` (test `evacuation.test.ts`). Záměr
+  `alarm-flee` (`mode` – **Do hradiště – jen lidé** `people`, **Do hradiště – se vším** `all`,
+  **Ukrýt v lese** `forest`) platí od majitele varované vsi (`applyAlarm`) → `departFlight(s, ves,
+mode, ctx, out, { by })` (správce – Ú11): ves ještě neodešla (`AlarmVillage.flight`), boj u ní
+  nezačal (pak rozhoduje postoj – `planDefense`) a `refugeOptions` volbu pustí (kandidáti hradišť
+  `refugeHosts` – přesunuto z `messenger.ts` do `alarm.ts`; les je nepotřebuje). Složení
+  `flightLoad` ze stavu vsi bez toho, co tažení dnes odvedlo; `AlarmFlight` (`refId` `<tažení>:a<n>`,
+  `people` – kdo odešel, `carried` – co odnesli, `wounded`, cíl střed útočiště hradiště po trase
+  `refugeRoute`, nebo nejbližší hustý les mapy vsi – `nearestForest`), `refuge-depart` domů na týž
+  den s `hostName` (nový volitelný port `CampaignWorld.villageNameOf` – jména načtených vsí;
+  `computeCampaign` je plní spolu se stavem vsi, takže výsledek nezávisí na kouscích). Skupina do
+  hradiště sní hned jídlo dne odchodu (doma už nejí), pak v denním kroku (`flightFoodDay`
+  v `dailyStep`) každý den podle věku (`guestFoodNeed`) ze svých zásob; bez jídla jde dál. Skupina
+  do lesa jí doma (Ú7) – vynechá se. **Cesta** (`moveFlights` po poslech): `stepMover` tempem
+  `marchSpeed` (pěší, ranění pomaleji, dobytek a vozy tempem stáda); v lese `hidden` +
+  `refuge-hidden` domů na týž den (zásoby a stádo, které donesli), v hradišti `arrived` +
+  `refuge-arrive` hostiteli den nato (zbylí lidé, zásoby po jídle, stádo; `fromName`) a majiteli
+  upozornění `refuge-arrived` (`hostName`). Nemá-li kudy, nebo tažení skončí (`finish` →
+  `settleFlights`), skupina dojde, kam šla (návrh Clauda – zbytek cesty se nesimuluje). **Dostižení**
+  (`catchFlights` po pohybu, Otevřené 8): skupiny vojska s aktivním mužem na mapě skupiny do
+  `WAR.alarm.catchM` (cíleně je nepronásleduje); přesila (`isOverpowered` – jejich muži proti mužům
+  uprchlíků) → skupina se vzdá jednou (`caughtTick`): lidé podle `CampaignState.surrendered`
+  (výchozí odvést) – pobít padnou, odvést: vesničan do `CampaignLoot.people`, muž rodu a šlechtic do
+  zajetí (`CampaignLoot.prisoners`, klíč `guardPrisonerKey` `<tažení>:<ves>:<osoba>` – osoba není
+  z napadené vsi; NPC velitel zajme vždy), nechat – jdou dál; **poslední muž rodu** vsi se nevzdá
+  a jde dál sám (návrh Clauda – „uteče lesem“; jinak by zůstal pryč navždy). Zásoby do nosnosti
+  (`lootCapacity` bez už nesené kořisti) a celé stádo do kořisti (`takeLoot` – `CampaignLoot.detail`
+  se sčítá – `sumLoot`; `reportRaid` ho už nepřepíše a nosnost nájezdu odečte kořist z uprchlíků),
+  zbytek zásob zahodí; kdo padl, byl odveden nebo zajat, je v `AlarmFlight.lost`, nikdo nejde dál →
+  `caught`. Domů `refuge-caught` den nato (nové volitelné `captured` a `captorVillageId` –
+  `applyRefugeCaught` zajatce `markCaptive`), majiteli upozornění `refuge-caught` (počty). Bez
+  přesily jde dál. **Den odchodu** (Review Focus 2): `alarmTaken(s, ves, den)` vrací i lidi, nesené
+  obilí a sehnané stádo skupin, které odešly v den `den` (`carried`; stav vsi ode dne nato odchod
+  zná), `withoutTaken` je odečte stejně jako `applyRefugeDepart` (`takeGrain`, `takeHerd` –
+  exportované z `village/refugees.ts`); `campaignBattle` i `reportRaid` (kořist, odvedení, zajatí)
+  počítají se stavem bez nich. **Prázdná ves**: odešli-li všichni, v boji nikdo nestojí a útočník
+  vezme, co zůstalo (zásoby mimo nesené, nesehnaný dobytek, osivo a zapečetěné jámy jako dřív).
+  `alarmTaken` / `withoutTaken` jsou nově v `evacuation.ts` (`messenger.ts` je reexportuje). Testy
+  `evacuation.test.ts` (se vším – zásoby po jídle v hradišti, prázdná ves a bilance obilí; jen lidé
+  – rychleji, kořist vezme stádo a zásoby; les týž den; přesila – kořist, odvedení, poslední muž rodu
+  jde dál; bez přesily dál; pobít; zajetí mužů rodu; den odchodu – boj téhož dne; blokovaná volba
+  a cizí záměr; po 1 / 7 / 40 / 400 taktech přes JSON = vcelku).
 
 ## Výsledky nájezdu a kořist (Ú6.10)
 

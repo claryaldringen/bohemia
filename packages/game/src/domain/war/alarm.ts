@@ -4,6 +4,7 @@ import { cellKey, gridOf, MissingData, villageEvent } from './campaign-tick';
 import type { TickContext, TickOut } from './campaign-tick';
 import type { CampaignState, IntentBody } from './campaign-types';
 import { villageLookouts, runTicks, type Lookout } from './lookouts';
+import { refugeHostOf, type RefugeHost } from './refuge-choice';
 import type { MarchGrid, Pos } from './march-grid';
 import type { GridCell } from '../village/world-grid';
 import { WAR } from './rules-war';
@@ -200,6 +201,34 @@ export function hostCandidates(
     .filter((c) => cellsBetween(c.cell, cell) <= WAR.alarm.refugeMaxCells)
     .map((c) => c.villageId)
     .sort();
+}
+
+/**
+ * Hradiště pro ves (Otevřené 1): kandidáti ze světa (`CampaignWorld.refugeHostsOf` – Úloha 6; bez
+ * portu žádní = „Pán nemá hradiště“) do `WAR.alarm.refugeMaxCells` políček, s hotovým opevněním
+ * s plochou ke dni tažení. `ids` = všichni kandidáti v dosahu (čte se jejich stav – bariéra).
+ */
+export function refugeHosts(
+  s: CampaignState,
+  villageId: string,
+  cell: GridCell,
+  ctx: TickContext,
+): { hosts: RefugeHost[]; ids: string[] } {
+  const ask = ctx.world.refugeHostsOf;
+  if (!ask) return { hosts: [], ids: [] };
+  const candidates = ask(villageId);
+  if (candidates === null) throw new MissingData([], [villageId]);
+  const near = candidates.filter((c) => cellsBetween(c.cell, cell) <= WAR.alarm.refugeMaxCells);
+  const hosts: RefugeHost[] = [];
+  for (const c of near) {
+    const map = ctx.world.landscapeOf(c.cell);
+    if (map === null) throw new MissingData([{ ...c.cell }], []);
+    const state = ctx.world.villageAt(c.villageId, s.day);
+    if (state === null) throw new MissingData([], [c.villageId]);
+    const host = refugeHostOf(c.villageId, state, map.landscape, c.cell, s.day);
+    if (host) hosts.push(host);
+  }
+  return { hosts, ids: near.map((c) => c.villageId).sort() };
 }
 
 /** Vzdálenost políček (nejvíc kroků po řádku nebo sloupci – i úhlopříčně jeden krok). */
