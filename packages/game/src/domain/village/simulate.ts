@@ -89,6 +89,7 @@ import { damageWindowStart, wildlifeDamageDay, wildlifeSeasonEnd } from './wildl
 import { lordFieldMode, trainLordDay, updateLordTraining } from './lord';
 import { dynastyDay } from './succession';
 import { markSunnyOrchards, premiumSacredHappiness } from './premium-effects';
+import { noticeStatesDay } from './lasting-notices';
 
 /**
  * Dopočítá ves do dne `toDay` včetně – den po dni od `lastDay + 1`. Vstup nemění.
@@ -447,4 +448,6 @@ function* simulateDaySteps(
   // chátrat, každý den spadnou ty, jejichž stav došel na nulu
   if (visits) abandonmentCheck(state, day, visits);
   state.chronicle.push(...abandonmentDay(state, day, landscape));
+  // trvalé stavy z upozornění – začátek a konec do kroniky (absence.md)
+  state.chronicle.push(...noticeStatesDay(state, day));
 }
