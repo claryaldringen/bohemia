@@ -37,7 +37,8 @@ podmínek:
 - **Nová jednání** čekají na hráče; bez odpovědi do lhůty vyprší (návrh Clauda: 1 herní rok).
 
 **Implementováno 8. 11. 2026** (kód: [vazalství](../code/vassalage.md) – Správce za nepřítomného
-hráče). Podrobnosti a lhůty jsou návrh Clauda (`ABSENT_VASSAL` v `rules-absence.ts`):
+hráče). Podrobnosti a lhůty jsou návrh Clauda (`ABSENT_VASSAL` v `rules-absence.ts`), lhůty
+Martin 9. 11. 2026 potvrdil: „Sedí, nech je tak“:
 
 | Co                  | Lhůta                                    | Skutečný čas | Co udělá správce / svět                                                                  |
 | ------------------- | ---------------------------------------- | ------------ | ---------------------------------------------------------------------------------------- |

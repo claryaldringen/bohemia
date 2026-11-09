@@ -212,6 +212,27 @@ místo“ (návrh Clauda) neplatí. Zásah zůstává `10 × síla útočníka` 
    jako vesničan (návrh Clauda). Obránce na ochozu kryje předprseň – střela nebo hod
    zespodu na něj padne jen s losem 1 : 3 místo 1 : 1 (otázka 2). Ochoz má palisáda s ochozem,
    koruna roštové a komorové hradby, ramena klešťové brány a věž.
+   **Kryt pod palbou a bod zlomu jen v útoku (9. 11. 2026, implementace čeká).** Martin: „Musíme
+   to změnit, jinak by útočník mohl vyhrát pouze tím, že bude dostatečně dlouho postřelovat
+   obránce na hradbách.“ a „ano“ k návrhu Clauda: dokud útočník jen střílí, obránci se kryjí
+   (slezou z ochozu nebo se skrčí za předprseň) a šíp je zasáhne jen výjimečně; jakmile útočník
+   opře žebřík, kope, seká nebo pálí hradbu, obránci se vrátí na to místo a brání ho (střílejí
+   a házejí na útočníky); bod zlomu obránců za hradbou (45 %) se počítá jen ze ztrát v útoku –
+   u žebříků, v průlomu a uvnitř –, ne z ostřelování přes hradbu. Samotné ostřelování tak
+   obránce jen drží v krytu.
+   **Bod zlomu a probíjení (9. 11. 2026, implementace čeká).** Martin: „Obránci se pokusí
+   uniknout pryč nějakou bránou, která zrovna není hlídaná nebo se z ní dá nejlépe probít“,
+   upřesnění: „Bod zlomu je totální chaos, takže někdo se pokusí nekoordinovaně utéct a někdo se
+   vzdá. Probíjení pryč bude muset řídit velitel – to je koordinovaná vojenská akce“ a „Ano, ať
+   to rozhodne velitel sám.“ Nahrazuje „jinak se vzdá“ v Postojích vsi:
+   - **bod zlomu = chaos, nikdo nevelí** (návrh Clauda podle Martina): zdraví běží každý sám
+     k nejbližší bráně a ven do lesa (kdo narazí na útočníky, padne nebo je zajat); ranění
+     a odříznutí se vzdají; lidé v útočišti stejně – zdraví dospělí utíkají, děti s matkami,
+     staří, ranění a kdo nestihne, se vzdají; útočiště je dobyté, až je útočník uvnitř;
+   - **probíjení = rozkaz velitele** před bodem zlomu: skupina se probije pohromadě vybranou
+     branou do lesa; přítomný hráč rozkáže sám, jinak rozhodne velitel obrany (muž rodu, jinak
+     správce) – návrh Clauda: když ztráty v útoku dosáhnou ≈ 30 % a některá brána je volná nebo
+     slabě hlídaná.
 4. **Souboj u žebříku** (Martin – „A“): lezec je znevýhodněný – slabší a neuhne; obránce ho může
    shodit i se žebříkem; nahoru se dostane jen přes sraženého obránce nebo na neobsazeném místě.
    Návrh Clauda: lezec má sílu × 0,5 a každá rána obránce na něj padne; místo rány smí obránce
