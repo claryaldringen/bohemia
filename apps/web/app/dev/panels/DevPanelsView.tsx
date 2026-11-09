@@ -26,6 +26,10 @@ const wait = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 3
 const refuse = (): Promise<string> =>
   new Promise((resolve) => setTimeout(() => resolve('Tolik lidí soused letos nemá.'), 300));
 
+/** Příkaz varování – nic neudělá a ikona zašedne s důvodem (ukázka po odeslání). */
+const alarmRefuse = (): Promise<string> =>
+  new Promise((resolve) => setTimeout(() => resolve('Ukázka – nic se nestalo.'), 300));
+
 export function DevPanelsView({ initial }: { initial: string | null }): ReactElement {
   const [menu, setMenu] = useState<GameMenuStep | null>(null);
   const [villages, setVillages] = useState(false);
@@ -120,6 +124,11 @@ export function DevPanelsView({ initial }: { initial: string | null }): ReactEle
         onPlantRoadApples={wait}
         onBuildTrail={wait}
         onSendExpedition={refuse}
+        alarm={
+          sample.alarm
+            ? { view: sample.alarm, onCommand: alarmRefuse, onReturn: alarmRefuse }
+            : undefined
+        }
       />
       <BuildGrid
         options={BUILD_OPTIONS}

@@ -29,6 +29,8 @@ import {
   buildTrail,
   declareHunt,
   orderBreakout,
+  commandAlarm,
+  returnFromRefuge,
   setDefenseStance,
   decidePrisonerAction,
   abandonFieldParts,
@@ -163,7 +165,7 @@ import { premiumIntroNotice } from '@/lib/premium-view';
 import {
   isVillageNone,
   mergeNoticeLines,
-  noticePanel,
+  noticeOpener,
   playerNoticeLine,
   type NoticePanel,
 } from '@/lib/player-notices';
@@ -195,6 +197,8 @@ import { ChroniclePanel } from './hud/ChroniclePanel';
 import { NoticesPanel } from './hud/NoticesPanel';
 import { useNotices } from '@/hooks/use-notices';
 import { useChronicle } from '@/hooks/use-chronicle';
+import { useAlarm } from '@/hooks/use-alarm';
+import type { AlarmActions } from './hud/AlarmButtons';
 import { usePanelHotkeys } from '@/hooks/use-panel-hotkeys';
 import { LevyDialog } from './hud/LevyDialog';
 import { EscheatDialog } from './hud/EscheatDialog';
@@ -721,6 +725,9 @@ export function VillageGame({
   const pushNotice = useCallback((notice: Omit<NoticeLine, 'id'>): void => {
     setNotices((list) => [...list, { ...notice, id: ++noticeId.current }].slice(-MAX_NOTICES));
   }, []);
+  // Klik na upozornění varování otevře panel dvorce té vsi (plán 2026-11-09 – Úloha 13); funkce
+  // vzniká až u přepínání vsí níž, upozornění ji volají přes ref
+  const openAlarmRef = useRef<(villageId: string) => void>(() => undefined);
   // Upozornění mezi hráči přicházejí v odpovědi dotazu na ves (server je tím označí za přečtená).
   const openNoticePanel = useCallback(
     (panel: NoticePanel): void => {
@@ -735,10 +742,14 @@ export function VillageGame({
       if (!received || received.length === 0) return;
       void refreshHouse();
       setNoticeTick((t) => t + 1);
-      const lines = received.map((n) => {
-        const panel = noticePanel(n.kind);
-        return { ...playerNoticeLine(n), onOpen: panel ? () => openNoticePanel(panel) : undefined };
-      });
+      const open = {
+        village: (villageId: string) => openAlarmRef.current(villageId),
+        panel: openNoticePanel,
+      };
+      const lines = received.map((n) => ({
+        ...playerNoticeLine(n),
+        onOpen: noticeOpener(n, open),
+      }));
       setNotices((list) => mergeNoticeLines(list, lines, MAX_NOTICES));
     },
     [openNoticePanel, refreshHouse],
@@ -746,6 +757,41 @@ export function VillageGame({
   const expireNotice = useCallback((id: number): void => {
     setNotices((list) => list.filter((n) => n.id !== id));
   }, []);
+  // Varování a útěk v panelu dvorce (war.md – Varování, poslové a útěk do hradiště; plán
+  // 2026-11-09 – Úloha 13): pohled se načítá, jen když je panel dvorce otevřený
+  const manorDwellingId = view?.manor?.dwellingId ?? null;
+  const alarmVillageId =
+    selected?.kind === 'dwelling' && selected.id === manorDwellingId ? (view?.id ?? null) : null;
+  const alarm = useAlarm(alarmVillageId);
+  const refreshAlarm = alarm.refresh;
+  const alarmActions = useMemo<AlarmActions>(() => {
+    // odpověď akce: chyba se ukáže řádkem nahoře i u kurzoru; pak se pohled zeptá hned znovu
+    const answer = async (
+      order: () => Promise<{ ok: true } | { error: string }>,
+    ): Promise<string | null> => {
+      let failure: string | null;
+      try {
+        const result = await order();
+        failure = 'error' in result ? result.error : null;
+      } catch {
+        failure = CONNECTION_FAILED;
+      }
+      if (failure !== null) pushNotice({ kind: 'error', tone: 'error', text: failure });
+      refreshAlarm();
+      return failure;
+    };
+    return {
+      view: alarm.view,
+      onCommand: (command) =>
+        alarmVillageId === null
+          ? Promise.resolve(null)
+          : answer(() => commandAlarm({ villageId: alarmVillageId, command })),
+      onReturn: () =>
+        alarmVillageId === null
+          ? Promise.resolve(null)
+          : answer(() => returnFromRefuge({ villageId: alarmVillageId })),
+    };
+  }, [alarm.view, alarmVillageId, refreshAlarm, pushNotice]);
   // představení prémiové krajiny při prvním vstupu do hry, až je scéna (premium-landscapes.md)
   const introShown = useRef(false);
   const hasVillage = view !== null;
@@ -1562,6 +1608,30 @@ export function VillageGame({
     if (first) scene?.moveCameraTo(first.x, first.z);
   };
 
+  // Klik na upozornění varování (`alarmNoticeVillage`): vybere dvorec té vsi – jiná ves rodu se
+  // napřed přepne a dvorec se vybere, až se načte
+  const [alarmPending, setAlarmPending] = useState<string | null>(null);
+  useEffect(() => {
+    openAlarmRef.current = (villageId: string): void => {
+      const shown = viewRef.current;
+      if (!shown) return;
+      if (shown.id !== villageId) {
+        const target = shown.villages.find((v) => v.id === villageId);
+        if (!target) return;
+        switchVillage(target);
+      }
+      setAlarmPending(villageId);
+    };
+  });
+  useEffect(() => {
+    if (alarmPending === null || view?.id !== alarmPending) return;
+    const manor = view.manor?.dwellingId;
+    setAlarmPending(null);
+    if (manor === undefined) return;
+    cancelPlacement();
+    setSelected({ kind: 'dwelling', id: manor });
+  }, [alarmPending, view, cancelPlacement]);
+
   /** Vývojový režim: vynutí letošní zlý rok, nebo zítřejší pohromu (disasters.md – plán P10). */
   const forceDisasterChoice = (choice: DevDisasterChoice): void => {
     const villageId = viewRef.current?.id;
@@ -1772,6 +1842,7 @@ export function VillageGame({
             />
             <SelectionPanel
               details={selectionDetails(view, sceneVillage, current, personState, draftState)}
+              alarm={alarmActions}
               ennoble={{
                 targets: (view?.villages ?? []).filter((v) => v.awaitingLord && v.id !== view?.id),
                 onEnnoble: ennoble,

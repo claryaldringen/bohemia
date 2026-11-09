@@ -5213,6 +5213,163 @@ def icon_execute():
     return True
 
 
+# ------------------------------------------- varování a útěk do hradiště ----
+# Ikony v panelu dvorce při varování (war.md – Varování, poslové a útěk do hradiště; plán 2026-11-09,
+# Úloha 13): Poslat posla, Ukrýt v lese, Do hradiště – jen lidé / se vším, Vrátit se, Varovat doménu
+# a zaškrtnutí po příchodu. Lidé jsou vesničané hry (`models/people/`), ovce model stád, brána
+# a palisáda díly scény (`fortifications.glb`), smrky modely krajiny, zemnice model stavby.
+
+
+def walker(name="man", loc=(0.0, 0.0, 0.0), turn=-100.0, clip="walk", phase=0.3, lean=0.0, scale=1.0):
+    """Vesničan v kroku: klip `clip` na podílu `phase` délky klipu, předklon `lean` stupňů ve směru
+    chůze (běh). Vrátí meshe a armaturu (ruce pro hůl)."""
+    meshes = place_person(name, loc=loc, scale=scale, turn=turn, clip=clip)
+    rig = next(m.find_armature() for m in meshes if m.find_armature() is not None)
+    act = rig.animation_data.action
+    lo, hi = act.frame_range
+    bpy.context.scene.frame_set(int(lo + (hi - lo) * phase))
+    if lean:
+        bpy.context.view_layer.update()
+        # směr chůze = osa +Y kostry po natočení; předklon kolem vodorovné osy kolmé k němu
+        ahead = rig.matrix_world.to_3x3() @ Vector((0.0, 1.0, 0.0))
+        ahead.z = 0.0
+        axis = Vector((0.0, 0.0, 1.0)).cross(ahead.normalized())
+        at = Vector(loc)
+        rig.matrix_world = (Matrix.Translation(at) @ Matrix.Rotation(math.radians(lean), 4, axis)
+                            @ Matrix.Translation(-at) @ rig.matrix_world)
+    bpy.context.view_layer.update()
+    return meshes, rig
+
+
+def staff_in_hand(rig, side="R", length=1.75, name="staff"):
+    """Hůl posla v ruce: šikmo před tělem, spodní konec před chodidly."""
+    hand = rig.matrix_world @ rig.pose.bones[f"hand_{side}"].head
+    ahead = rig.matrix_world.to_3x3() @ Vector((0.0, 1.0, 0.0))
+    k = ahead.length  # měřítko postavy (zvětšený posel v ikoně domény)
+    ahead.z = 0.0
+    ahead.normalize()
+    foot = Vector((hand.x, hand.y, 0.02)) + ahead * 0.42 * k
+    d = (hand - foot).normalized()
+    bm = bmesh.new()
+    cyl(bm, foot, foot + d * length * k, 0.026 * k, 0.021 * k, 10)
+    return to_obj(bm, name, mat(name, (0.36, 0.23, 0.12), rough=0.7))
+
+
+def runner(loc=(0.0, 0.0, 0.0), turn=-100.0, scale=1.0):
+    """Posel: vesničan v dlouhém kroku s předklonem a holí."""
+    meshes, rig = walker(loc=loc, turn=turn, phase=0.25, lean=10.0, scale=scale)
+    return meshes + [staff_in_hand(rig)]
+
+
+def hillfort_gate(rng, half=3.4):
+    """Brána hradiště dokořán mezi dvěma úseky palisády (jako Probít se, bez šipky)."""
+    parts = fort_parts()
+    palisade_run(parts, seg_points((-half, 0.0), (-2.35, 0.0)), rng)
+    palisade_run(parts, seg_points((2.35, 0.0), (half, 0.0)), rng)
+    gate(parts, 0, 0, open_angle=1.25)
+    return [Vector((-half, 0.4, 0.0)), Vector((half, 0.4, 0.0)), Vector((-half, 0.4, 4.0)), Vector((half, 0.4, 4.0))]
+
+
+def icon_alarm_messenger():
+    """Poslat posla: vesničan v běhu s holí."""
+    objs = runner()
+    hud_light(az=-40, el=40, strength=4.4)
+    camera(world_points(objs), az=0, el=8, margin=1.02)
+    return True
+
+
+def icon_alarm_forest():
+    """Ukrýt v lese: muž, žena a dítě mezi dvěma smrky."""
+    trees = []
+    for name, loc, height in (("spruce-1", (-1.0, 0.6, 0), 3.1), ("spruce-2", (1.05, 0.45, 0), 2.7)):
+        objs = place_model(name, folder=TREES)
+        bpy.context.view_layer.update()
+        top = max(p.z for p in world_points(objs)) or 1.0
+        for o in objs:
+            o.location = Vector(loc)
+            o.scale = (height / top,) * 3
+        trees += objs
+    bpy.context.view_layer.update()
+    people = place_person("man", loc=(-0.3, -0.35, 0), turn=-12)
+    people += place_person("woman", loc=(0.35, -0.2, 0), turn=-28)
+    people += place_person("man", loc=(0.05, -0.85, 0), scale=0.6, turn=-18)
+    hud_light(az=-50, el=46, strength=4.2)
+    camera(world_points(trees) + world_points(people), az=8, el=12, margin=1.0)
+    return True
+
+
+def icon_alarm_people():
+    """Do hradiště – jen lidé: brána hradiště dokořán a vesničan, který do ní jde."""
+    frame = hillfort_gate(random.Random(31))
+    man, _ = walker(loc=(0.55, -2.2, 0), turn=-165, phase=0.3, scale=1.75)
+    woman, _ = walker("woman", loc=(-1.0, -2.9, 0), turn=-160, phase=0.3, scale=1.75)
+    hud_light(az=-40, el=42)
+    camera(frame + world_points(man + woman), az=14, el=26, margin=1.0)
+    return True
+
+
+def icon_alarm_all():
+    """Do hradiště – se vším: brána hradiště, vesničan, ovce a vůz s nákladem."""
+    frame = hillfort_gate(random.Random(32))
+    man, _ = walker(loc=(1.3, -2.0, 0), turn=-165, phase=0.3, scale=1.7)
+    sheep = stand_animal("sheep", turn=-75, loc=(-0.1, -2.9), scale=1.7)
+    wood = bmesh.new()
+    two_wheel_cart(wood, rot=math.radians(80))
+    cart = to_obj(wood, "cart", mat("oak", (0.55, 0.37, 0.2), 0.8, noise=24, bump=0.3))
+    load = bmesh.new()
+    rng = random.Random(5)
+    for k, (dx, dy) in enumerate(((-0.25, -0.25), (0.25, -0.2), (0.0, 0.3), (-0.2, 0.25))):
+        sack(load, Vector((dx, dy, 1.05 + (0.18 if k > 1 else 0.0))), 0.36, rng.uniform(0, 3), rng)
+    sacks = to_obj(load, "sacks", mat("linen", (0.72, 0.62, 0.45), 0.9, noise=30, bump=0.2))
+    move([cart, sacks], loc=(-2.3, -4.0, 0.0), scale=1.45)
+    hud_light(az=-40, el=42)
+    camera(frame + world_points(man + sheep + [cart, sacks]), az=14, el=26, margin=0.98)
+    return True
+
+
+def icon_alarm_return():
+    """Vrátit se: zemnice a zelená šipka k ní (lidé zpět domů)."""
+    objs, pts = house_model()
+    lo = [min(p[i] for p in pts) for i in range(2)]
+    hi = [max(p[i] for p in pts) for i in range(2)]
+    cx = (lo[0] + hi[0]) / 2
+    w = hi[0] - lo[0]
+    arrow = bmesh.new()
+    lying_plate(arrow, flat_arrow((cx, lo[1] - w * 1.05), (cx, lo[1] - w * 0.08), w * 0.28, w * 0.62, w * 0.38),
+                0.15, w * 0.06)
+    bmesh.ops.recalc_face_normals(arrow, faces=arrow.faces)
+    to_obj(arrow, "arrow", green_mark("back"), smooth=False)
+    hud_light(az=-55, el=46)
+    camera(pts + [Vector((cx - w * 0.3, lo[1] - w * 1.08, 0)), Vector((cx + w * 0.3, lo[1] - w * 1.08, 0))],
+           az=20, el=34, margin=1.0)
+    return True
+
+
+def icon_alarm_domain():
+    """Varovat doménu: posel s holí běží ke dvěma zemnicím vsi."""
+    houses = []
+    for loc, rot in (((2.2, 4.2, 0.0), 0.4), ((-1.4, 5.4, 0.0), -0.3)):
+        objs, _ = house_model()
+        move(objs, loc=loc, rot=(0, 0, rot), scale=0.55)
+        houses += objs
+    objs = runner(loc=(-0.6, -0.6, 0.0), turn=-150.0, scale=2.0)
+    hud_light(az=-45, el=42)
+    camera(world_points(houses + objs), az=10, el=20, margin=1.0)
+    return True
+
+
+def icon_alarm_done():
+    """Lidé došli (zaškrtnutí): zelená fajfka."""
+    bm = bmesh.new()
+    flat_plate(bm, [(-1.0, 0.25), (-0.62, 0.62), (-0.28, 0.24), (0.72, 1.32), (1.08, 0.96), (-0.28, -0.52)], 0.0,
+               0.22)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    objs = [to_obj(bm, "tick", green_mark("tick"), smooth=False)]
+    hud_light(az=-40, el=42)
+    camera(world_points(objs), az=0, el=14, margin=1.04)
+    return True
+
+
 # Výstup do podsložek (`house/aid.png`…) – klíč = cesta bez přípony. Obilí, klády a přesýpací hodiny
 # panelů rodu jsou ikony surovin (`food`, `wood`, `hourglass`).
 PANELS = {
@@ -5251,6 +5408,13 @@ PANELS = {
     "war/release": icon_release,
     "war/shield-wall": icon_shield_wall,
     "war/white-flag": icon_white_flag,
+    "war/alarm-messenger": icon_alarm_messenger,
+    "war/alarm-forest": icon_alarm_forest,
+    "war/alarm-people": icon_alarm_people,
+    "war/alarm-all": icon_alarm_all,
+    "war/alarm-return": icon_alarm_return,
+    "war/alarm-domain": icon_alarm_domain,
+    "war/alarm-done": icon_alarm_done,
     "newcomer/banner-crown": icon_banner_crown,
     "newcomer/banner-free": icon_banner_free,
 }

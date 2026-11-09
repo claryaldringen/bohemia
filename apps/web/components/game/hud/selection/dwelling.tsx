@@ -8,6 +8,7 @@ import type { DwellingResident } from '@/lib/person-view';
 import { Tooltip } from '../Tooltip';
 import { StewardToggle } from '../StewardToggle';
 import { ManorUpgrades } from '../ManorPanel';
+import { AlarmButtons, type AlarmActions } from '../AlarmButtons';
 import type { PrisonerAction } from '../PrisonersPanel';
 import { TradePanel } from '../TradePanel';
 import { LeaveControls } from '../RelocationControls';
@@ -42,6 +43,11 @@ export interface ManorActions {
   onSetStance?: (stance: DefenseStance) => Promise<string | null | void>;
   onDecidePrisoner?: (id: string, action: PrisonerAction) => Promise<string | null | void>;
   /**
+   * Varování a útěk (war.md – Varování, poslové a útěk do hradiště): pohled a příkazy – řádek
+   * ikon pod postojem vsi, jen když ves o vojsku ví nebo má lidi na útěku.
+   */
+  alarm?: AlarmActions;
+  /**
    * Vyšle výpravu k sousedovi (server action) – hotovo, až se vrátí; vrátí důvod, proč ji server
    * odmítl, nebo null (panel obchodu ho ukáže pod tlačítkem).
    */
@@ -69,6 +75,7 @@ export function DwellingBody({
   onSetStance,
   onDecidePrisoner,
   onSendExpedition,
+  alarm,
   steward,
   onSetSteward,
 }: {
@@ -145,6 +152,7 @@ export function DwellingBody({
               )}
             />
           )}
+          {details.manor && alarm && <AlarmButtons {...alarm} />}
           {details.leave && <LeaveControls leave={details.leave} onLeave={onLeave} />}
         </Commands>
       )}

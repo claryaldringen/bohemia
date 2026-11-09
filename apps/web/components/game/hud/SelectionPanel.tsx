@@ -100,6 +100,7 @@ export function SelectionPanel({
   onSetStance,
   onDecidePrisoner,
   onSendExpedition,
+  alarm,
   onSetSteward,
   onFortAction,
   onFortDemolish,
@@ -367,6 +368,7 @@ export function SelectionPanel({
         onSetStance={onSetStance}
         onDecidePrisoner={onDecidePrisoner}
         onSendExpedition={onSendExpedition}
+        alarm={alarm}
         steward={details.steward}
         onSetSteward={onSetSteward}
       />

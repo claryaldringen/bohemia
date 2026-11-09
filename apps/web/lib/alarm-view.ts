@@ -117,3 +117,39 @@ export function returnText(ret: AlarmReturn): AlarmOptionText {
   }
   return { label, denied: ret.blocked, detail: null };
 }
+
+/** Číslo na ikoně stavu (dny do příchodu, lhůta): „<1“ pod půl dne, jinak zaokrouhlené dny. */
+export function daysBadge(days: number): string {
+  return days < 0.5 ? '<1' : String(Math.round(days));
+}
+
+/** Stav posla (popisek ikony Poslat posla – návrh Clauda): běží, doběhl, chytili ho. */
+export function messengerText(view: AlarmView): string | null {
+  const m = view.messenger;
+  if (!m) return null;
+  const host = view.host ? `do hradiště ${view.host.name}` : 'do hradiště';
+  switch (m.status) {
+    case 'running':
+      return m.mounted ? `Posel jede na koni ${host}.` : `Posel běží ${host}.`;
+    case 'arrived':
+      return `Posel doběhl ${host}.`;
+    case 'caught':
+      return 'Posla chytili.';
+    case 'recalled':
+      return 'Vojsko odtáhlo dřív, než posel doběhl.';
+  }
+}
+
+/** Lhůta hráče bez správce (návrh Clauda): „Nerozhodneš-li, ves se zařídí sama za ≈ 1 den.“ */
+export function graceText(days: number): string {
+  return `Nerozhodneš-li, ves se zařídí sama ${days < 0.5 ? 'dřív než za den' : `za ${daysText(days)}`}.`;
+}
+
+/** Název ikony hradiště hráče, které varuje vsi domény (návrh Clauda). */
+export const ALARM_DOMAIN_LABEL = 'Varovat doménu';
+
+/** Popisek tlačítka odeslání poslů do domény: „Poslat posly (2) – smíš ještě 3.“ */
+export function domainSendText(chosen: number, left: number): string {
+  const rest = `smíš ještě ${left}`;
+  return chosen === 0 ? `Vyber vsi – ${rest}.` : `Poslat posly (${chosen}) – ${rest}.`;
+}

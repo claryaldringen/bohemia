@@ -4,6 +4,7 @@ import { ABANDON_FOUNDING, DIRECTIONS, type TrailOption } from '@bohemia/game';
 import type { VillageManor, VillageNeighbour } from '@/lib/manor-view';
 import type { SelectionDetails, SelectionLeave } from '@/lib/selection-details';
 import type { VillageListItem } from '@/lib/village-list';
+import type { AlarmView } from '@/lib/alarm-view';
 
 // Ukázková data panelu výběru pro vývojovou stránku /dev/panels – nejbohatší objekty (dvorec
 // s vylepšeními a obchodem, obydlí s rodinami a přestavbou, víc obydlí, dílny, ohrada, pole a díly
@@ -280,7 +281,66 @@ const pen = (over: Partial<Extract<SelectionDetails, { kind: 'pen' }>> = {}): Se
 });
 
 /** Ukázky panelu – klíč (`?panel=`), popisek tlačítka na stránce a data. */
-export const DEV_PANELS: readonly { key: string; label: string; details: SelectionDetails }[] = [
+/**
+ * Varování dvorce (war.md – Varování, poslové a útěk do hradiště; plán 2026-11-09 – Úloha 13):
+ * ves ví o vojsku, posel jde (víc možných poslů), útěk se vším nestihnou, hradiště hráče může
+ * varovat doménu a lhůta hráče běží.
+ */
+const alarmWarned: AlarmView = {
+  campaignId: 'c-1',
+  villageId: 'v-1',
+  warned: true,
+  decided: null,
+  graceDays: 0.7,
+  armyEtaDays: 2.2,
+  options: {
+    messenger: { blocked: null, etaDays: 0.8 },
+    forest: { blocked: null, etaDays: 0.1 },
+    people: { blocked: null, etaDays: 1.6, leaveDays: 0.4 },
+    all: { blocked: 'too-late', etaDays: 3.1, leaveDays: 2.6 },
+  },
+  runners: [
+    { personId: 11, name: null, line: false, mounted: false, etaDays: 0.8 },
+    { personId: 1, name: 'Bořek', line: true, mounted: true, etaDays: 0.3 },
+    { personId: 3, name: 'Kojata', line: true, mounted: false, etaDays: 0.8 },
+  ],
+  host: { villageId: 'v-2', name: 'Budeč' },
+  messenger: null,
+  flight: null,
+  ret: null,
+  domain: [
+    { villageId: 'v-5', name: 'Kněžice', warned: true },
+    { villageId: 'v-6', name: 'Lhota', warned: false },
+    { villageId: 'v-7', name: 'Stará Boleslav nad Labem pod Hradištěm', warned: false },
+  ],
+  domainLeft: 3,
+};
+
+/** Po útěku: posel doběhl, lidé jdou do hradiště, Vrátit se zatím nejde. */
+const alarmFled: AlarmView = {
+  ...alarmWarned,
+  graceDays: null,
+  decided: 'player',
+  options: {
+    messenger: { blocked: 'sent' },
+    forest: { blocked: 'gone' },
+    people: { blocked: 'gone' },
+    all: { blocked: 'gone' },
+  },
+  messenger: { status: 'arrived', mounted: true },
+  flight: { mode: 'people', status: 'marching', etaDays: 1.2 },
+  ret: { blocked: 'Lidé ještě nedorazili.' },
+  domain: undefined,
+  domainLeft: undefined,
+};
+
+export const DEV_PANELS: readonly {
+  key: string;
+  label: string;
+  details: SelectionDetails;
+  /** Varování a útěk v panelu dvorce (jen dvorec). */
+  alarm?: AlarmView;
+}[] = [
   {
     key: 'dvorec',
     label: 'Dvorec',
@@ -315,6 +375,18 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
         ],
       },
     }),
+  },
+  {
+    key: 'varovani',
+    label: 'Dvorec – varování',
+    details: dwelling({ type: 'dvorec', manor, leave: null }),
+    alarm: alarmWarned,
+  },
+  {
+    key: 'utek',
+    label: 'Dvorec – po útěku',
+    details: dwelling({ type: 'dvorec', manor, leave: null }),
+    alarm: alarmFled,
   },
   {
     key: 'obydli',
