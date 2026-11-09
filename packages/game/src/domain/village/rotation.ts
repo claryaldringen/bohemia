@@ -280,8 +280,12 @@ export function turnSelection(
   for (const id of lateSpringCrop(state)?.partIds ?? []) inSeason.add(id);
   const kindOf = new Map<number, SowingKind | null>();
   const kind = (p: FieldPart): SowingKind | null => {
-    if (!kindOf.has(p.id)) kindOf.set(p.id, inSeason.has(p.id) ? null : nextSowing(p));
-    return kindOf.get(p.id)!;
+    let k = kindOf.get(p.id);
+    if (k === undefined) {
+      k = inSeason.has(p.id) ? null : nextSowing(p);
+      kindOf.set(p.id, k);
+    }
+    return k;
   };
   // obilí dnes podle druhu osevu – jen druh a den, tak jednou za druh (jen zrychlení)
   const cropToday = new Map<SowingKind | null, 'winter' | 'spring' | null>();

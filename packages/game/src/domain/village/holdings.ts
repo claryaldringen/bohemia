@@ -426,15 +426,17 @@ export function sowingBlocks(
   const area = new Map<number | null, number>();
   const blocks: SowingBlock[] = [];
   for (const sector of holdings.sectors) {
-    const list = sector.partIds.flatMap((id) => {
+    const list: FieldPart[] = [];
+    for (const id of sector.partIds) {
       const part = byId.get(id);
-      return part ? [part] : [];
-    });
+      if (part) list.push(part);
+    }
     const holding = sector.dwellingId;
     area.set(holding, (area.get(holding) ?? 0) + list.reduce((sum, p) => sum + p.areaM2, 0));
-    const inUse = list.some((p) => sowingGroup(p) === 1);
-    // skupina každého dílu jednou (ne pro každou skupinu znovu) – tytéž bloky
+    // skupina každého dílu jednou (ne pro každou skupinu znovu) – tytéž bloky; skupina 1 je
+    // osévaný díl (`sowingGroup` 1 – nouzová skupina ji nepřekrývá)
     const groupOf = list.map(blockGroup);
+    const inUse = groupOf.includes(1);
     for (const group of groups) {
       const first = groupOf.indexOf(group);
       if (first < 0) continue;
