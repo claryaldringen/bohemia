@@ -547,6 +547,24 @@ Martin 2. 11. 2026 – „ok“ (podrobnosti návrh Clauda):
   nájezdy a cizí vojska spatřená u vsi zvedají **hrozbu**, podle které staví opevnění správce
   ([fortifications.md](fortifications.md) – Správce).
 
+## Varování, poslové a útěk do hradiště (9. 11. 2026, rozpracováno – implementace čeká)
+
+Vychází z rešerše, kterou Martin přinesl 9. 11. 2026 (proč slovanské vsi neměly palisádu – útočištěm
+kraje bylo hradiště: „Obyvatelé okolních neopevněných vesnic v případě nebezpečí sbalili dobytek,
+zásoby a cennosti a utekli do nejbližšího hradiště“).
+
+- **Kdo smí do hradiště:** vlastní vsi pána **i vsi jeho vazalů** – Martin 9. 11. 2026: „I vsi
+  vazalů – ochrana je základem středověké společenské smlouvy mezi šlechtou a poddanými“.
+- **Varování:** ves se o vojsku dozví, až ho spatří vesničan (Martin 18. 10. 2026) – kdekoli na
+  mapě, i v lese; ten pak doběhne do vsi a varuje ji. Martin 9. 11. 2026: „Napadená vesnice může
+  klidně stihnout utéct i celá (např. pokud se o nepřátelském vojsku v lese dozví uhlíř, který
+  stihne doběhnout do vesnice).“
+- **Poslové:** „O vyslání posla rozhoduje hráč nebo správce. Každá vesnice, kterou posel projde, se
+  dozví o hrozícím nebezpečí a zařídí se podle toho.“ (Martin 9. 11. 2026)
+- **Kam utéct:** „Pak je otázkou, jestli se vesničany pokusí hráč evakuovat do nějaké sousední
+  vesnice, či je ukryje někde v lese na mapě.“ (Martin 9. 11. 2026) – volba hráče; co udělá
+  správce, čeká na Martina.
+
 ## Co hráč vidí (UI jako 0 A.D.)
 
 - **Horní lišta** (Martin 2. 11. 2026 – „ok, zkusme to“): **zkřížené oštěpy** s počtem válek
