@@ -415,7 +415,8 @@ Martin 8. 11. 2026 – ceny „**komplet, včetně kácení a odvozu**“: palis
   cena; rozdělané stavby ze starších vsí se dostaví za uloženou cenu, nic se nepřepočítá.
   Správce na typických vsích (Správce, měřítko 0,06): ves 60 lidí dál nepostaví nic, ves 150 lidí
   dál palisádu, ale s malou rezervou (přínos × 20 let ≈ 4 140 čd proti ceně ≈ 4 050 čd, dřív
-  2 880 čd) a ochoz se jí už nevyplatí.
+  2 880 čd) a ochoz se jí už nevyplatí. Od 9. 11. 2026 (ochrana jen s obránci, měřítko 0,2) má
+  palisáda vsi 150 lidí hodnotu + 759 čd ([Správce](#správce)).
 
 - **Ochoz 15 h na 1 m** (návrh Clauda z rešerše): násyp zevnitř ≈ 450 m³ hlíny na 100 m ≈ 110 čd,
   pochozí fošny a schůdky ≈ 10 čd + 10 klád, s kácením ≈ 130 čd → zaokrouhleno 150 čd. Palisáda
@@ -474,33 +475,74 @@ Vše kromě Martinových životností je návrh Clauda.
 - Martin: „**To, že vesnice hradbu nepostaví, je spíš věcí správce – prostě usoudí, že se mu
   nevyplatí.**“ Žádný druh není zakázaný; správce ho nepostaví, protože mu vyjde nevýhodný.
 - **Ochrana druhu** (návrh Clauda, nahrazuje `1 − 1 ÷ násobek` v [Hrozbě](#hrozba--jak-se-počítá-návrh-clauda)):
-  podíl ztráty nájezdu, který opevnění ušetří = **pasivní + aktivní × obsazenost**, obsazenost
-  = min(1, muži 16–44 × 5 m ÷ délka obvodu). Výchozí čísla: plot 0 + 0,1; palisáda 0,2 + 0,2;
-  s ochozem 0,2 + 0,5; roštová 0,3 + 0,55; komorová 0,35 + 0,55; val přidá 0,05 + 0,1.
+  podíl ztráty nájezdu, který opevnění ušetří = **ochrana druhu × obsazenost**, obsazenost
+  = min(1, muži 16–44 × 5 m ÷ délka obvodu). Čísla: **plot 0,04; palisáda 0,4; s ochozem 0,5;
+  roštová 0,55; komorová 0,55; val přidá 0,1, vodní příkop 0,1** (nejvýš 1). ~~Do 9. 11. 2026
+  pasivní + aktivní × obsazenost: plot 0 + 0,1; palisáda 0,2 + 0,2; s ochozem 0,2 + 0,5; roštová
+  0,3 + 0,55; komorová 0,35 + 0,55; val 0,05 + 0,1; vodní příkop pasivní 0,1.~~
   **Přínos za rok** = H × ztráta nájezdu × ochrana; horizont nejvýš životnost druhu (roštová 30,
   komorová 50 let); cena = stavba + údržba za horizont.
-  **Jen s obránci (9. 11. 2026, implementace čeká):** Martin: „Hradba je prostě jen fyzická
-  překážka“ a „Ano, jen s obránci“ – správce počítá jen ochranu, kterou dají obránci na překážce
-  (aktivní × obsazenost); **pasivní část se ruší** (u všech druhů i valu a příkopu) – neobsazenou
-  hradbu útočník přeleze za pár minut (boj to tak dělá od 9. 11.). Měřítko 0,06 se přepočte tak,
-  aby dál platily Martinovy cíle (ves 60 lidí nic, ves 150 lidí palisádu, roštová a komorová se
-  běžné vsi nevyplatí), nebo zmizí, vyjde-li to samo (návrh Clauda).
-- **Vodní příkop** přidá pasivní ochranu **0,1** (návrh Clauda – doladit měřením nájezdů NPC, jen
-  na pokyn).
-- **Měřítko přínosu 0,06** (návrh Clauda – doladit měřením nájezdů NPC, jen na pokyn): přínos se
-  násobí 0,06. S hrozbou 1 (nájezd každý rok) a dnešní ztrátou nájezdu – u typické vsi 60 lidí
-  ≈ 5 800 čd, u vsi 150 lidí ≈ 14 000 čd, hlavně dobytek – by se plnou ochranou vyplatila palisáda
-  i malé vsi s dvěma domy. S měřítkem na typických vsích (polovina dospělých, kráva na 6 lidí,
-  obvod správce 600 m u 60 lidí a 900 m u 150 lidí, Růst) platí Martinovy cíle: ves 60 lidí
-  nepostaví nic, ves 150 lidí palisádu (ochoz, val i hradby by jí vyšly hůř), roštová a komorová
-  se nevyplatí ani jí.
+  **Jen s obránci (9. 11. 2026, implementováno):** Martin: „Hradba je prostě jen fyzická
+  překážka“ a „Ano, jen s obránci“ – správce počítá jen ochranu, kterou dají obránci na překážce;
+  **pasivní část se ruší** (u všech druhů i valu a příkopu) – neobsazenou hradbu útočník přeleze
+  za pár minut (boj to tak dělá od 9. 11.).
+  Samotné škrtnutí pasivní části by Martinovy cíle nesplnilo **pro žádné měřítko** (návrh Clauda
+  – ověřeno výpočtem): s palisádou 0,2 a ochozem 0,5 vychází vsi 150 lidí při malém měřítku nejlíp
+  plot, při větším ochoz nebo roštová – palisáda nikdy. Proto čísla druhů (návrh Clauda podle
+  [Přechodu hradby](#přechod-hradby-návrh-clauda) a Martinových slov u druhů):
+  - **Palisáda 0,4** (dřív 0,2 + 0,2): bez ochozu potřebuje útočník druhý žebřík dolů a kdo leze,
+    nebojuje – obránci u paty ho berou po jednom. Dřívější „pasivní“ část palisády tak byla ve
+    skutečnosti práce obránců; bez nich slezou za pár vteřin.
+  - **S ochozem 0,5** (dřív 0,2 + 0,5): Martin – „útočník nepotřebuje druhý žebřík a obránce může
+    palisádu aktivně bránit“ – ochoz výhodu druhého žebříku vymění za boj shora, proti palisádě
+    přidá jen 0,1.
+  - **Plot 0,04** (dřív 0,1): Martin – „jde poměrně snadno probodnout z obou stran, čili je to jen
+    fyzická bariéra“ – obránce získá jen na lezci (přelezení 2 mužohodiny). S 0,1 by plot vyšel
+    nejlíp středním vsím (levný, poměr přínosu k ceně lepší než palisáda) – proti cíli „plot se
+    nevyplatí“ (Martin 8. 11. 2026); s 0,04 nevyjde nejlíp nikdy.
+  - **Roštová a komorová 0,55, val 0,1** – jen aktivní část jako dřív (z koruny jako z ochozu;
+    nesekatelnost a nehořlavost je čistá překážka).
+- **Vodní příkop** přidá **0,1 × obsazenost** (návrh Clauda, 9. 11. 2026 – dřív pasivní 0,1): kdo
+  příkop zasypává (48 mužohodin na místo), nebojuje – s obránci na ochozu jsou to hodiny pod palbou,
+  bez obránců ho jen zasypou a projdou. Smysl tedy má, ale jen s obránci; kdyby zmizel, správce by
+  vodní příkop nepostavil nikdy, ačkoli v boji obráncům pomáhá. Správce ho zvažuje jen u stojícího
+  valu (napuštění je levné – ¼ čd na 1 m).
+- **Měřítko přínosu 0,2** (návrh Clauda, 9. 11. 2026 – dřív 0,06; měření nájezdů NPC se nedělá):
+  přínos se násobí 0,2. S hrozbou 1 (nájezd každý rok) a dnešní ztrátou nájezdu – u typické vsi
+  60 lidí ≈ 5 800 čd, u vsi 150 lidí ≈ 14 200 čd, hlavně dobytek – by se bez měřítka vyplatila vsi
+  60 lidí palisáda s ochozem a valem (+ 3 908 čd) a vsi 150 lidí roštová s valem (+ 36 468 čd);
+  měřítko proto zůstává. Cíle platí pro měřítko ≈ 0,17–0,24 (pod ním se vsi 150 lidí nevyplatí
+  nic, nad ním i val k palisádě nebo ochoz); 0,2 je uprostřed. Na typických vsích (polovina dospělých, kráva
+  na 6 lidí, obvod správce 600 m u 60 lidí a 900 m u 150 lidí, Růst, hrozba 1) platí Martinovy
+  cíle: ves 60 lidí (i 100 lidí na 730 m) nepostaví nic, ves 150 lidí palisádu (plot, ochoz, val
+  i hradby by jí vyšly hůř; stojící palisádě se nevyplatí ochoz ani val – − 328 a − 297 čd),
+  roštová a komorová se nevyplatí ani jí.
+
+  Hodnota nového opevnění = přínos × horizont − cena (čd; ves 60 lidí: 15 mužů, obsazenost
+  0,125, ztráta nájezdu 5 845 čd; ves 150 lidí: 38 mužů, obsazenost 0,211, ztráta 14 238 čd):
+
+  | Plán               | Ves 60 – do 9. 11. | Ves 60 – od 9. 11. | Ves 150 – do 9. 11. | Ves 150 – od 9. 11. |
+  | ------------------ | -----------------: | -----------------: | ------------------: | ------------------: |
+  | plot               |              − 234 |              − 212 |               − 179 |                − 89 |
+  | palisáda           |            − 1 122 |            − 1 531 |              **88** |             **759** |
+  | palisáda s ochozem |            − 1 879 |            − 2 259 |               − 360 |                 431 |
+  | roštová            |            − 3 817 |            − 5 041 |             − 1 688 |             − 2 309 |
+  | komorová           |            − 5 779 |            − 7 441 |             − 4 221 |             − 5 909 |
+  | val                |              − 652 |              − 835 |               − 281 |               − 297 |
+  | val s plotem       |              − 985 |            − 1 073 |               − 888 |               − 808 |
+  | val s palisádou    |            − 1 823 |            − 2 379 |               − 407 |                 251 |
+  | val s ochozem      |            − 2 580 |            − 3 107 |               − 855 |                − 76 |
+  | val s roštovou     |            − 4 469 |            − 5 875 |             − 1 970 |             − 2 606 |
+  | val s komorovou    |            − 6 431 |            − 8 275 |             − 4 502 |             − 6 206 |
+
 - ~~Ochrana se doladí **měřením nájezdů NPC** na vsi s hradbou (jen na pokyn), aby platily Martinovy
   cíle: plot se nevyplatí, palisáda jen velké vsi pod stropem mapy, hradby běžná ves ne.~~
   Martin 9. 11. 2026: „Měření nespouštěj, je zbytečné“ – měřítko 0,06 i příkop 0,1 zůstávají, měření
   nájezdů NPC se nedělá. K probrání (návrh Clauda podle rešerše, kterou Martin přinesl 9. 11. 2026 –
   proč slovanské vsi neměly palisádu: drahá a hnije, bez obránců k ničemu, útočištěm kraje bylo
   hradiště, hrozili spíš zloději dobytka): palisáda bez obránců by nechránila vůbec (pasivní ochrana 0) a vsi domény by při nájezdu utíkaly i se stády do hradiště pána – pak by měřítko nejspíš nebylo
-  potřeba.
+  potřeba. Od 9. 11. 2026 palisáda bez obránců nechrání (Jen s obránci výš) – měřítko je potřeba
+  dál (0,2), útěk do hradiště pána zatím ne.
 - Správce staví nový druh, vylepšení, ochoz, doplnění valu i vodní příkop – vždy celý obvod;
   klešťovou bránu a věž v první verzi jen hráč (návrh Clauda). Plán s víc kroky staví po etapách
   (návrh Clauda): napřed val, nebo hradbu (ochoz jen z palisády, jinak napřed palisáda), pak val
@@ -536,28 +578,28 @@ Vše kromě Martinových životností je návrh Clauda.
 
 ### Čísla hradeb (návrh – do `FORTIFICATIONS`)
 
-| Co                          | Číslo                                                                                                  | Kdo                           |
-| --------------------------- | ------------------------------------------------------------------------------------------------------ | ----------------------------- |
-| Násobek obrany za opevněním | žádný                                                                                                  | Martin 8. 11.                 |
-| Cena na 1 m komplet         | palisáda ~~30 h~~ 43 h (9. 11.), roštová 105 h, komorová 145 h                                         | Martin 8. 11., 9. 11.         |
-| Ochoz (vylepšení palisády)  | 15 h na 1 m + 10 klád na 100 m (palisáda s ochozem 58 h)                                               | návrh Clauda                  |
-| Klády na 100 m              | palisáda ~~70~~ 200 (Martin 9. 11.), ochoz 10, roštová 330, komorová 350                               | návrh Clauda                  |
-| Kámen na 100 m              | roštová 100 m³, komorová 320 m³                                                                        | návrh Clauda                  |
-| Z hromady ušetří            | kláda 1 čd, kámen 1 čd na m³                                                                           | návrh Clauda                  |
-| Klešťová brána              | ulička 4 × 12 m, k vratům 4 muži; cena 24 m hradby s ochozem                                           | návrh Clauda                  |
-| Věž nad branou              | 4 obránci, dohled 250 m, luk 80 m; 120 čd + 30 klád                                                    | návrh Clauda                  |
-| Vodní příkop                | do 30 m od vody, strouha ¼ čd na 1 m                                                                   | návrh Clauda                  |
-| Přechod hradby              | práce a časy – tabulky v [Přechod hradby](#přechod-hradby-návrh-clauda); podkop komorové 1,5 × roštová | návrh Clauda (1,5 × Martin)   |
-| Pás a nejmenší ohyb         | tabulka v [Druhy a postup vylepšení](#druhy-a-postup-vylepšení); s valem 7 m + hradba, nejméně 10 m    | návrh Clauda                  |
-| Lezec                       | síla × 0,5, rána obránce padne vždy; shození 1 : 3 s lezcem, 1 : 1 bez; pád −20 zdraví                 | návrh Clauda                  |
-| Hod vesničana z ochozu      | kameny a oštěpy do 15 m poloviční zásah ≈ 4 s; k patě plný ≈ 2 s                                       | návrh Clauda                  |
-| Kryt předprsní              | střela a hod zespodu padne 1 : 3                                                                       | návrh Clauda                  |
-| Únava po valu               | síla × 0,85, zpět za 30 s; tempo přes val ÷ (1 + 3 × výška)                                            | návrh Clauda                  |
-| Obsazení                    | obránce brání ≈ 5 m; brány po 2 mužích; stanoviště 1 m za čarou hradby                                 | návrh Clauda (Martin – „Ano“) |
-| Životnost                   | roštová 30 let, komorová 50 let, věž 20 let                                                            | návrh Clauda                  |
-| Údržba na 100 m ročně       | plot 1, palisáda 1, ochoz +1, val 2, roštová 5, komorová 5 čd                                          | návrh Clauda                  |
-| Přestavba hradby            | roštová a komorová ⅓ ceny, kámen zůstane                                                               | návrh Clauda                  |
-| Ochrana pro správce         | pasivní + aktivní × obsazenost (Správce); příkop 0,1; měřítko 0,06 – doladit měřením nájezdů NPC       | návrh Clauda                  |
+| Co                          | Číslo                                                                                                                        | Kdo                                               |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| Násobek obrany za opevněním | žádný                                                                                                                        | Martin 8. 11.                                     |
+| Cena na 1 m komplet         | palisáda ~~30 h~~ 43 h (9. 11.), roštová 105 h, komorová 145 h                                                               | Martin 8. 11., 9. 11.                             |
+| Ochoz (vylepšení palisády)  | 15 h na 1 m + 10 klád na 100 m (palisáda s ochozem 58 h)                                                                     | návrh Clauda                                      |
+| Klády na 100 m              | palisáda ~~70~~ 200 (Martin 9. 11.), ochoz 10, roštová 330, komorová 350                                                     | návrh Clauda                                      |
+| Kámen na 100 m              | roštová 100 m³, komorová 320 m³                                                                                              | návrh Clauda                                      |
+| Z hromady ušetří            | kláda 1 čd, kámen 1 čd na m³                                                                                                 | návrh Clauda                                      |
+| Klešťová brána              | ulička 4 × 12 m, k vratům 4 muži; cena 24 m hradby s ochozem                                                                 | návrh Clauda                                      |
+| Věž nad branou              | 4 obránci, dohled 250 m, luk 80 m; 120 čd + 30 klád                                                                          | návrh Clauda                                      |
+| Vodní příkop                | do 30 m od vody, strouha ¼ čd na 1 m                                                                                         | návrh Clauda                                      |
+| Přechod hradby              | práce a časy – tabulky v [Přechod hradby](#přechod-hradby-návrh-clauda); podkop komorové 1,5 × roštová                       | návrh Clauda (1,5 × Martin)                       |
+| Pás a nejmenší ohyb         | tabulka v [Druhy a postup vylepšení](#druhy-a-postup-vylepšení); s valem 7 m + hradba, nejméně 10 m                          | návrh Clauda                                      |
+| Lezec                       | síla × 0,5, rána obránce padne vždy; shození 1 : 3 s lezcem, 1 : 1 bez; pád −20 zdraví                                       | návrh Clauda                                      |
+| Hod vesničana z ochozu      | kameny a oštěpy do 15 m poloviční zásah ≈ 4 s; k patě plný ≈ 2 s                                                             | návrh Clauda                                      |
+| Kryt předprsní              | střela a hod zespodu padne 1 : 3                                                                                             | návrh Clauda                                      |
+| Únava po valu               | síla × 0,85, zpět za 30 s; tempo přes val ÷ (1 + 3 × výška)                                                                  | návrh Clauda                                      |
+| Obsazení                    | obránce brání ≈ 5 m; brány po 2 mužích; stanoviště 1 m za čarou hradby                                                       | návrh Clauda (Martin – „Ano“)                     |
+| Životnost                   | roštová 30 let, komorová 50 let, věž 20 let                                                                                  | návrh Clauda                                      |
+| Údržba na 100 m ročně       | plot 1, palisáda 1, ochoz +1, val 2, roštová 5, komorová 5 čd                                                                | návrh Clauda                                      |
+| Přestavba hradby            | roštová a komorová ⅓ ceny, kámen zůstane                                                                                     | návrh Clauda                                      |
+| Ochrana pro správce         | jen s obránci: druh × obsazenost (Správce); plot 0,04, palisáda 0,4, ochoz 0,5, hradby 0,55, val i příkop + 0,1; měřítko 0,2 | Martin 9. 11. (jen s obránci); čísla návrh Clauda |
 
 ### Střelba a viditelná plocha (Martin 8. 11. 2026)
 

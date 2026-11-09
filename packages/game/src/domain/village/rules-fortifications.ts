@@ -14,32 +14,34 @@ export interface FortCostPer100M {
 export const FORTIFICATIONS = {
   /**
    * Ochrana druhu pro správce (Hradby a obrana – Správce; návrh Clauda – nahrazuje násobek, zrušený
-   * 8. 11. 2026): podíl ztráty nájezdu, který opevnění ušetří = pasivní + aktivní × obsazenost
-   * (`fortOccupancy`). Plot 0 + 0,1, palisáda 0,2 + 0,2, s ochozem 0,2 + 0,5, roštová 0,3 + 0,55,
-   * komorová 0,35 + 0,55; val s příkopem přidá 0,05 + 0,1. Doladit měřením nájezdů NPC (jen na
-   * pokyn).
+   * 8. 11. 2026): podíl ztráty nájezdu, který opevnění ušetří = ochrana × obsazenost
+   * (`fortOccupancy`) – jen s obránci, pasivní část se ruší (Martin 9. 11. 2026: „Hradba je prostě
+   * jen fyzická překážka“, „Ano, jen s obránci“). Plot 0,04 (probodne se z obou stran – obránce
+   * získá jen na lezci), palisáda 0,4 (druhý žebřík dolů – lezce po jednom berou obránci u paty),
+   * s ochozem 0,5 (druhý žebřík odpadá, obránce bojuje shora), roštová a komorová 0,55 (z koruny
+   * jako z ochozu); val s příkopem přidá 0,1.
    */
   protection: {
-    fence: { passive: 0, active: 0.1 },
-    palisade: { passive: 0.2, active: 0.2 },
-    walkway: { passive: 0.2, active: 0.5 },
-    crib: { passive: 0.3, active: 0.55 },
-    chamber: { passive: 0.35, active: 0.55 },
-    rampart: { passive: 0.05, active: 0.1 },
-  } satisfies Record<WallKind | 'rampart', { passive: number; active: number }>,
+    fence: 0.04,
+    palisade: 0.4,
+    walkway: 0.5,
+    crib: 0.55,
+    chamber: 0.55,
+    rampart: 0.1,
+  } satisfies Record<WallKind | 'rampart', number>,
   /**
-   * Vodní příkop přidá pasivní ochranu 0,1 (Hradby a obrana – Správce; návrh Clauda – návrh číslo
-   * nedává, doladit měřením nájezdů NPC, jen na pokyn).
+   * Vodní příkop přidá ochranu 0,1 × obsazenost (Hradby a obrana – Správce; návrh Clauda): kdo
+   * příkop zasypává, nebojuje – bez obránců ho jen zasypou a projdou.
    */
   protectionMoat: 0.1,
   /**
    * Měřítko přínosu ochrany v odhadu správce (Hradby a obrana – Správce; návrh Clauda – návrh číslo
    * nedává): s hrozbou 1 (nájezd každý rok) a ztrátou nájezdu v tisících čd (dobytek, kořist,
-   * lidé) by se plnou ochranou vyplatila palisáda i malé vsi. 0,06 splní Martinovy cíle (8. 11.
-   * 2026) na typických vsích – plot se nevyplatí, palisáda jen vsi ≈ 150 lidí, roštová a komorová
-   * běžné vsi ne. Doladit měřením nájezdů NPC (jen na pokyn).
+   * lidé) by se bez měřítka vyplatila vsi 60 lidí i palisáda a hradby. 0,2 splní Martinovy cíle
+   * (8. 11. 2026) na typických vsích – ves 60 lidí nic, ves 150 lidí palisádu, plot nikdy, roštová
+   * a komorová běžné vsi ne (Martin 9. 11. 2026: měření nájezdů NPC se nedělá).
    */
-  protectionScale: 0.06,
+  protectionScale: 0.2,
   /**
    * Cena komplet na 100 m obvodu – včetně kácení a odvozu (Hradby a obrana – Cena; Martin 8. 11.
    * 2026): plot 35 čd + 15 klád (20 čd + kácení, Martin 3. 11.), palisáda 430 čd + 200 klád
