@@ -762,10 +762,11 @@ výnosy vlákna ze Skotska a Irska).
   úrodnosti – ves 30 lidí ≈ 0,1 ha ≈ 5 dílů.
 - **Zahrádka u obydlí** (Martin 9. 11. 2026: „Nebylo by lepší, kdyby si lidé řešili len sami
   podobně, jako luštěniny?“; podrobnosti ve [fields.md](fields.md) – Zahrádka u obydlí): domácnost
-  na pozemku polozemnice seje na záhonech (≈ 150 m², návrh Clauda) napřed len na oděv **své**
-  domácnosti, na zbytku luštěniny; práce jde bokem jako domácí výroba. Zemnice pozemek nemá –
-  domácnost v ní len nemá. Při přirozené úrodnosti 56 dají záhony ≈ 6 kg lnu – oděv pro ≈ 3
-  dospělé; větší domácnosti len chybí (návrh Clauda – zbytek lnu chybí, luštěniny pak nic).
+  na pozemku polozemnice seje na záhonech (pozemek bez domu a cestičky ≈ 195 m², hnojené –
+  úrodnost nejméně 70; návrh Clauda k Martinově kontrole) napřed len na oděv **své** domácnosti,
+  na zbytku luštěniny; práce jde bokem jako domácí výroba. Zemnice pozemek nemá – domácnost v ní
+  len nemá. Záhony polozemnice dají ≈ 8,8 kg lnu – oděv pro ≈ 4 dospělé; větší domácnosti len
+  chybí (návrh Clauda – zbytek lnu chybí, luštěniny pak nic).
 - **Kdy se rozhodne:** při trhání 31. 7. – len ze zahrádek (a dorůstající len na poli starších
   vsí) ÷ potřeba všech lidí v ten den (`VillageState.linen`), platí do dalšího trhání. Ves
   založená po konci setí (30. 4.) se do prvního trhání příští rok nemění.

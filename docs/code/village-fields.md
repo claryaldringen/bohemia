@@ -181,9 +181,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     i s přípravou půdy, výběr z paměti se lnem propadne. **Zahrádka u obydlí** (`garden.ts`, čísla
     `GARDEN` v `rules-fields.ts`): `harvestGardens` (31. 7. v `harvestWinter` – dostane `landscape`
     ze `simulateDaySteps`) – obydlí s `plot`, obyvateli a bez `disusedDay`: `gardenYield` (záhony
-    `GARDEN.bedAreaM2` napřed lnem do `flaxNeedKg` domácnosti, zbytek luštěniny čistě bez osiva),
-    úrodnost `gardenFertility` (`landscape.fertility` políčka `plot.cell`, bez krajiny
-    `GARDEN.fertilityWithoutLandscape`), počasí `gardenWeather` (`partWeatherFactor` bez ochrany,
+    `gardenBedAreaM2` – políčko `CELL_SIZE_M`² bez `shapedFootprint` domu a cestičky
+    `GARDEN.pathWidthM` × vzdálenost čela domu od okraje podle `PLOT_HOUSE_OFFSET_M`, dvůr dvorce
+    ne – napřed lnem do `flaxNeedKg` domácnosti, zbytek luštěniny čistě bez osiva), úrodnost
+    `gardenFertility` (`landscape.fertility` políčka `plot.cell`, nejméně
+    `GARDEN.manuredFertility` – hnojená; bez krajiny `manuredFertility`), počasí `gardenWeather` (`partWeatherFactor` bez ochrany,
     pohromy dílů ne); luštěniny do `legumesKg`, zápis `Dwelling.garden` (panel obydlí – ikony
     `flax` a `legumes`), kronika `garden-harvest` (souhrn za ves); ves založená po
     `GARDEN.sowingEnd` (`gardensSown`) nic – null. `harvestFlax(state, day, final, gardenKg)` –
