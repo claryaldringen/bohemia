@@ -1394,6 +1394,7 @@ extrémně náročná plodina na kvalitu půdy. Tam, kde už jednou rostl, se m�
 letech, takže se bude pěstovat na polích. Sklízí se v srpnu, ale obilí má vždy absolutní přednost –
 pokud se nesklidí len, tak lidé budou maximálně chodit v potrhaných šatech, ale neumřou hlady.“
 Pravidla (podrobnosti návrh Clauda):
+
 - **Len na poli**, ne na zahrádce – zahrádka dál dává jen **luštěniny** (celé záhony).
 - **Na tentýž díl nejdřív po 7 letech** (Martin „6 nebo 7“ – návrh Clauda bere 7); len si bere
   jarní díly (setí v dubnu jako dřív) s nejlepší úrodností, na kterých len 7 let nerostl, jen do
