@@ -24,7 +24,7 @@ export interface ArmsSnapshot {
 
 /** Měření jednoho roku (člověkodny, kg, dny). */
 export interface LordYear {
-  /** Práce rodiny, která cvičí (čd): výcvik, a když jde na pole (hlad), pole. */
+  /** Práce rodiny, která cvičí (čd): výcvik, a když jde na pole (žně, které ves nestíhá), pole. */
   trainingCd: number;
   fieldCd: number;
   /** Kapacita cvičících mužů a domácnosti dvorce (čd) – podíl na kapacitě vsi je `familyCd / kapacita`. */
@@ -72,8 +72,13 @@ export function addLordStep(
     const cd =
       [...family.trainees, ...family.household].reduce((s, p) => s + laborPerDay(p, day), 0) * days;
     out.familyCd += cd;
-    if (after.lord?.field) out.fieldCd += cd;
-    else out.trainingCd += cd;
+    // podíl rodiny na poli podle počtů posledního dne kroku (`LaborDay.lord` – ženy, muži,
+    // vojvoda ve žních; lord.md – Kdy jde rodina na pole)
+    const counts = after.labor?.day === day ? after.labor.lord : undefined;
+    const people = counts ? counts.training + counts.field + counts.household : 0;
+    const fieldCd = counts && people > 0 ? (cd * counts.field) / people : 0;
+    out.fieldCd += fieldCd;
+    out.trainingCd += cd - fieldCd;
     const men = family.trainees.filter((p) => ageYears(p.bornDay, day) >= 14 && p.arms);
     out.arms = {
       bow: men.reduce((s, p) => s + (p.arms?.best?.bow ?? p.arms?.bow ?? 0), 0) / (men.length || 1),

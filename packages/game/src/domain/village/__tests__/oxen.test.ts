@@ -582,17 +582,6 @@ describe('orba rádlem', () => {
     const spring = pairs([...parts(1, 5), ...parts(100, 70, { next: 'spring' })]);
     expect(spring).toBeGreaterThan(1);
     expect(spring).toBeLessThanOrEqual(autumn);
-    // pod pojistkou zásob i nutné díly mimo postup – nouzové přílohy (oxen.md – Kolik volů ves
-    // chce, Pod pojistkou; Martin 27. 10. 2026)
-    const fallows = parts(100, 500, resting);
-    s.parts = [...parts(1, 5), ...fallows];
-    const needed = fallows.map((p) => ({ id: p.id, crop: 'winter' as const }));
-    expect(ploughPairsForRotation(s, day, 0, null, needed)).toBeGreaterThan(1);
-    // díl na řadě se podruhé nepočítá
-    const twice = [...needed, { id: 1, crop: 'winter' as const }];
-    expect(ploughPairsForRotation(s, day, 0, null, twice)).toBe(
-      ploughPairsForRotation(s, day, 0, null, needed),
-    );
   });
 
   it('páry k rádlům nepřesáhnou to, co ves s lidmi obslouží', () => {

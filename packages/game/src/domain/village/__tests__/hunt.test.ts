@@ -272,22 +272,11 @@ describe('slabý jezdec a hladová rodina (recenze W4)', () => {
     expect(t.riders.map((r) => r.personId)).toContain(SON_ID);
   });
 
-  it('rodina na poli kvůli hladu neloví ani pěšky, odešlý syn ano', () => {
-    const s = huntVillage(3, 3);
-    s.lord = { ...s.lord!, field: { since: START_WINTER - 3, reason: 'hunger' } };
-    updateLordTraining(s, START_WINTER);
-    planHuntDay(s, START_WINTER);
-    const t = s.wildlife!.hunt!.today!;
-    expect(t.riders).toHaveLength(0);
-    expect(t.foot).toEqual([AWAY_ID]);
-  });
-
-  it('rodina strhnutá polem v den lovu: huntDay vyřadí i pěší muže dvorce', () => {
+  it('rodina strhnutá polem (žně) v den lovu: huntDay vyřadí i pěší muže dvorce', () => {
     const s = huntVillage(0, 3);
     updateLordTraining(s, START_WINTER);
     planHuntDay(s, START_WINTER);
     expect(s.wildlife!.hunt!.today!.foot).toContain(LORD_ID);
-    s.lord = { ...s.lord!, field: { since: START_WINTER, reason: 'hunger' } };
     huntDay(s, START_WINTER, 0.5);
     expect(s.wildlife!.hunt!.today!.foot).toEqual([AWAY_ID]);
   });

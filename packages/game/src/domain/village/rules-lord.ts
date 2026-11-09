@@ -53,8 +53,6 @@ export const LORD = {
   decayPerYear: 0.05,
   /** lord.md – Výcvik a zkušenost: úbytek se zastaví na tomto podílu nejvyšší dosažené. */
   floorShare: 0.5,
-  /** lord.md – Kdy jde rodina na pole: dní s plným přídělem po sobě do návratu k výcviku. */
-  backToTrainingDays: 30,
   /** lord.md – Rod vojvody, Manželky: muž rodu má nejvýš tolik žijících manželek (Martin). */
   maxWives: 4,
   /** lord.md – Manželky: další manželka z okolí přijde s touto pravděpodobností ročně (≈ 30 %). */

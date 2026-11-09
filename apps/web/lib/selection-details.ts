@@ -248,10 +248,11 @@ type SelectionKinds =
       crops: { crop: Crop; count: number }[];
       /**
        * Na řadě (fields.md – Osevní postup po dílech, bod 6): díly mimo letošní práci, které čekají
-       * na ozim či jař (jen nenulové, i když jsou nad potřebu jen díly letošní práce), a kolik dílů
-       * letošní práce té plodiny je nad potřebu.
+       * na ozim či jař (jen nenulové).
        */
-      turn: { crop: 'winter' | 'spring'; count: number; surplus: number }[];
+      turn: { crop: 'winter' | 'spring'; count: number }[];
+      /** Hromada osiva vsi (`VillageView.sowingSeed`); bez osiva null. */
+      seed: NonNullable<VillageView['sowingSeed']> | null;
       /** Odpočívající příloh (pod 95 %) – díly. */
       resting: number;
       /** Díly s popelem z vymýceného lesa (fields.md – Úroda). */
@@ -326,8 +327,6 @@ type SelectionKinds =
       next: NextCrop | null;
       /** Úhor: odpočinek k 95 % (0–1) a roky do osevu (≈); jinak null. */
       rest: { share: number; years: number } | null;
-      /** Díl letošní práce nad potřebu – jen z volné práce, stavby mají přednost. */
-      surplus: boolean;
       /** Zakládá se – průběh, zbývající práce (člověkodny) a stromy na klády; jinak null. */
       founding: NonNullable<VillageFieldPart['founding']> | null;
       /** Škoda zvěře letos (wildlife.md – Co hráč vidí); díl mimo ohrožení null. */
@@ -1182,9 +1181,9 @@ function selectionKinds(
     }),
     turn: (['winter', 'spring'] as const).flatMap((crop) => {
       const count = field.turn[crop];
-      const surplus = field.turn.surplus[crop];
-      return count > 0 ? [{ crop, count, surplus }] : [];
+      return count > 0 ? [{ crop, count }] : [];
     }),
+    seed: view?.sowingSeed ?? null,
     resting: field.turn.resting,
     ashParts: field.ashParts,
     ...(field.clearing ? { clearing: field.clearing } : {}),
@@ -1463,7 +1462,6 @@ function fieldPartDetails(
     mow: part.work?.mow ?? null,
     next: part.next ?? null,
     rest: part.rest ?? null,
-    surplus: part.work?.surplus === true,
     founding: part.founding ?? null,
     ...(part.outlook ? { outlook: part.outlook } : {}),
     fieldIds: view?.fields.map((f) => f.id) ?? [],

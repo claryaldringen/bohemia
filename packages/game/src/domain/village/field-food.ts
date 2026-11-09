@@ -12,22 +12,19 @@ import { ageGroup } from './people';
 import { storageLossPerYear } from './productivity';
 import { FIELD_FOOD, FIELD_STORES, FOOD_NEED_KG_PER_YEAR, LEGUMES } from './rules';
 import { sheavesOutlook } from './threshing';
-import { bufferEnergyYearsOf, sowingYieldFactor } from './weather-effects';
+import { bufferEnergyYearsOf } from './weather-effects';
 import type { DietDay, VillageState } from './types';
 
 /** Dní v roce – úroda a potřeba se počítají na rok (365 dní jako roční potřeba jídla). */
 const DAYS_PER_YEAR = 365;
 
-// Osev podle stravy (fields.md – Kolik ves oseje; Martin 19. 10. 2026: „Zatím udělejme osev podle
-// stravy“). Ves nejí jen obilí – maso, mléko a sýr, vejce a ovoce pokryjí velkou část energie
-// (diet.md) a obilí s luštěninami jen dorovná zbytek. Kolik toho zbytku za uplynulý hospodářský
-// rok (1. 9. – 31. 8.) potřebovala, tolik (podílem dnešní potřeby) oseje na příští rok – nejméně
-// podíl FIELD_FOOD.minShare (pojistka – co maso a mléko na stropech nepokryjí). Měří se potřeba, ne
-// snědené obilí: když ves hladoví, sní obilí méně, ale pole jí pořád má dát celý zbytek – jinak by
-// hlad snížil osev a s ním přinesl další hlad.
-// Osev podle zásob (Martin 19. 10. 2026): ves seje jen tolik, aby po příští sklizni měla na rok
-// spotřeby a pojistku – co má v zásobách navíc, oseje méně a práce se uvolní na stavby.
-// Hlad, příděl a nasycení dál počítá strava ze skutečné energie (diet.ts); tady je jen plán.
+// Potřeba z pole podle stravy (fields.md – Výhled zásob k sklizni; Martin 19. 10. 2026). Ves
+// nejí jen obilí – maso, mléko a sýr, vejce a ovoce pokryjí velkou část energie (diet.md) a obilí
+// s luštěninami jen dorovná zbytek. Kolik toho zbytku za uplynulý hospodářský rok (1. 9. – 31. 8.)
+// potřebovala, tolik (podílem dnešní potřeby) bere z pole – nejméně podíl FIELD_FOOD.minShare
+// (pojistka – co maso a mléko na stropech nepokryjí). Měří se potřeba, ne snědené obilí. Z ní
+// výhled zásob k příští sklizni (`storesOutlook`) – pojistka pro sňatky, správce, nákupy a platby.
+// Hlad, příděl a nasycení dál počítá strava ze skutečné energie (diet.ts).
 
 /** Roční potřeba energie vsi (kg obilí) – kolik by snědla, kdyby jedla jen obilí. */
 export function yearlyFoodNeed(state: Pick<VillageState, 'people'>, day: number): number {
@@ -121,51 +118,35 @@ export function storesNeeded(
   return (left + perYear / rate) * Math.exp(rate * years) - perYear / rate;
 }
 
-/** Cíle plánu osevu (fields.md – Kolik ves oseje, Osev podle zásob). */
-export interface SowingTargets {
-  /**
-   * Kolik energie má dát úroda plánu (kg obilí) – cíl osevu (`neededSelection`); když ho díly od
-   * 70 % nepokryjí, ves seje i přílohy pod 70 % (fields.md – Nouzový osev). Luštěniny ves na poli
-   * nepěstuje (fields.md – Luštěniny, zrušeno; Martin 9. 11. 2026).
-   */
-  harvestKg: number;
-  /** Roční potřeba bez rezervy – do ní obilí před lnem nepřibírá (nejvýš cíl osevu). */
-  energyFloorKg: number;
+/** Výhled zásob z pole k příští sklizni (fields.md – Výhled zásob k sklizni). */
+export interface StoresOutlook {
   /** Roční potřeba z pole v roce po příští sklizni – podle růstu vsi (kg obilí). */
   needKg: number;
   /** Zásoby z pole, které zbudou k příští sklizni (kg obilí). */
   leftKg: number;
   /**
    * Kolik zásob z pole do příští sklizně chybí (kg obilí): potřeba z pole do sklizně i se ztrátami
-   * bez zásob, které ves smí sníst (bez osiva, které na setí čeká), a bez luštěnin nad strop;
+   * bez zásob, které ves smí sníst (bez osiva, které ještě zaseje), a bez luštěnin nad strop;
    * 0 = vystačí (správce – Obilí v nouzi).
    */
   shortKg: number;
   /** Pojistka – zásoba z pole, která má zbýt před další sklizní (kg obilí). */
   bufferKg: number;
-  /** Zásoby z pole, které má ves mít po příští sklizni – rok spotřeby a cílová zásoba (kg obilí). */
-  afterHarvestKg: number;
 }
 
 /**
- * Cíle osevu podle zásob (fields.md – Kolik ves oseje, Osev podle zásob; Martin 19. 10. 2026:
- * „Ať se osev řídí také zásobami“ a „Ano, plynulejší osev určitě.“). Ves seje rok co rok zhruba
- * stejně – úrodu, která při dlouhodobé spotřebě z pole (`fieldFoodShare`) a ztrátách skladováním
- * udrží k další sklizni cílovou zásobu (pojistka `bufferKg` + FIELD_STORES.cushionYears roční
- * potřeby z pole). Odchylku zásob k příští sklizni od cílové vyrovnává pozvolna – přebytek
- * i schodek nad pojistkou po FIELD_STORES.balanceYears letech (jen třetinu za rok); co chybí do
- * pojistky, doplní hned. Luštěniny (zboží – ves je na poli nepěstuje, fields.md – Luštěniny,
- * zrušeno) se ze zásoby jí rovným dílem až do stropu, takže zásoba nad strop přetrvá a sní se
- * příště; pojistku drží obilí, které dorovná cokoli. `potteryCoverage` – nádoby od hrnčíře
- * zmenšují ztráty (crafts.md). Potřeba podle růstu vsi (fields.md – Osev podle růstu vsi): do
- * příští sklizně a rok po ní podle výhledu lidí (`expectedYearlyFoodNeed` – děti dorostou, narodí
- * se další), ne podle dnešního počtu. Obilí jezdeckých koní (horses.md – Krmení: 1,5 kg denně) se
- * přičte do příští sklizně i rok po ní celé – koně jedí jen obilí z pole. Osivo, které na setí
- * ještě čeká (`seedAheadKg` – energie, fields.md – Úroda, Osivo ze zásob), zásoby k sklizni
- * neuživí – díly plánu se pak počítají čistou úrodou (hrubá − osivo), jako by osivo dalšího osevu
- * odložila sklizeň.
+ * Výhled zásob z pole k příští sklizni (fields.md – Výhled zásob k sklizni): zásoby obilí,
+ * nevymlácené snopy, které ves smí vymlátit, a luštěniny ubývají do sklizně potřebou z pole
+ * (`fieldFoodShare`) a ztrátami skladováním. Luštěniny (zboží – ves je na poli nepěstuje,
+ * fields.md – Luštěniny, zrušeno) se jí rovným dílem až do stropu, takže zásoba nad strop přetrvá.
+ * `potteryCoverage` – nádoby od hrnčíře zmenšují ztráty (crafts.md). Potřeba podle růstu vsi
+ * (fields.md – Osev podle růstu vsi): do příští sklizně a rok po ní podle výhledu lidí
+ * (`expectedYearlyFoodNeed` – děti dorostou, narodí se další). Obilí jezdeckých koní (horses.md –
+ * Krmení: 1,5 kg denně) a psů dvorce se přičte celé. Osivo, které ves ještě zaseje (`seedKg` –
+ * `seedOutsideFoodKg`), zásoby k sklizni neuživí. Pojistka (`bufferKg`) – po krutém roce
+ * v paměti hladu větší (disasters.md – Dopady, Zásoby a pojistka).
  */
-export function sowingTargets(
+export function storesOutlook(
   state: Pick<
     VillageState,
     'people' | 'fieldFood' | 'pens' | 'wildlife' | 'weatherSeed' | 'disasters'
@@ -173,10 +154,9 @@ export function sowingTargets(
     FieldStoresState,
   day: number,
   potteryCoverage: number,
-  seedAheadKg = 0,
-): SowingTargets {
-  // potřeba podle růstu vsi (Osev podle růstu vsi): do příští sklizně se jí ze zásob, úroda plánu
-  // se jí rok po ní – děti mezitím dorostou a narodí se další
+  seedKg = 0,
+): StoresOutlook {
+  // potřeba podle růstu vsi: do příští sklizně se jí ze zásob, rok po ní podle výhledu lidí
   const harvestDay = day + daysUntilHarvest(day) - 1;
   const yearly = expectedYearlyFoodNeed(state, day, day, harvestDay);
   const yearlyAfter = expectedYearlyFoodNeed(
@@ -206,13 +186,13 @@ export function sowingTargets(
   // zásoby z pole k příští sklizni: obilí a luštěniny, které se do ní snědí, ubývají potřebou
   // z pole a ztrátami; luštěniny nad strop zůstanou celé
   const years = daysUntilHarvest(day) / DAYS_PER_YEAR;
-  // osivo, které na setí ještě čeká, zásoby k sklizni neuživí (fields.md – Úroda, Osivo ze zásob)
+  // osivo, které ves ještě zaseje, zásoby k sklizni neuživí (fields.md – Výhled zásob k sklizni)
   const eatenStock = Math.max(
     0,
     state.storesKg +
       sheaves.grainKg +
       legumeEnergy(Math.max(0, legumesKg - legumesLeftKg)) -
-      seedAheadKg,
+      seedKg,
   );
   const left = storesLeft(eatenStock, need, years, loss) + legumeEnergy(legumesLeftKg);
   // co do sklizně chybí: potřeba do ní i se ztrátami bez všeho, co ves smí sníst
@@ -225,26 +205,7 @@ export function sowingTargets(
     yearlyAfter,
     bufferEnergyYearsOf(state, day, FIELD_STORES.bufferEnergyYears),
   );
-  const keep = storesTargetKg(needAfter, buffer);
-  // úroda rok co rok: po sklizni tolik, aby po roce spotřeby a ztrát zbyla cílová zásoba
-  const afterHarvest = storesNeeded(keep, needAfter, 1, loss);
-  const steady = afterHarvest - keep;
-  // odchylka od cílové zásoby po třetinách; pod pojistkou se chybějící doplní hned
-  const correction =
-    left >= buffer
-      ? (keep - left) / FIELD_STORES.balanceYears
-      : buffer - left + (keep - buffer) / FIELD_STORES.balanceYears;
-  // ves s počasím kraje seje s průměrem let – hrubá úroda ≈ 0,95 (disasters.md – Co z toho plyne)
-  const harvest = Math.max(0, (steady + correction) / sowingYieldFactor(state));
-  return {
-    harvestKg: harvest,
-    energyFloorKg: Math.min(harvest, needAfter),
-    needKg: needAfter,
-    leftKg: left,
-    shortKg: short,
-    bufferKg: buffer,
-    afterHarvestKg: afterHarvest,
-  };
+  return { needKg: needAfter, leftKg: left, shortKg: short, bufferKg: buffer };
 }
 
 /**
@@ -253,9 +214,9 @@ export function sowingTargets(
  * (kinship.md – Sňatky čekají na zásoby) a ves chce páry k rádlům i na nouzový osev (oxen.md –
  * Kolik volů ves chce, Pod pojistkou). Ves bez lidí (pojistka 0) ji má.
  */
-export function bufferFill(targets: Pick<SowingTargets, 'leftKg' | 'bufferKg'>): number {
-  if (targets.bufferKg <= 0) return 1;
-  return Math.min(1, Math.max(0, targets.leftKg / targets.bufferKg));
+export function bufferFill(outlook: Pick<StoresOutlook, 'leftKg' | 'bufferKg'>): number {
+  if (outlook.bufferKg <= 0) return 1;
+  return Math.min(1, Math.max(0, outlook.leftKg / outlook.bufferKg));
 }
 
 /**
@@ -282,7 +243,7 @@ export function bufferKg(
 /**
  * Kolik úrody z pole (kg obilí) ves sklízí rok co rok, když má cílovou zásobu – roční potřeba
  * z pole `needKg`, pojistka `bufferKgValue` (cílová zásoba `storesTargetKg`) a ztráty skladováním
- * (`sowingTargets` v ustáleném stavu; kalibrace, kalkulačka).
+ * (kalibrace, kalkulačka, kapacita polí).
  */
 export function steadyHarvestKg(
   needKg: number,

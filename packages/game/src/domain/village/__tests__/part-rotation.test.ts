@@ -41,13 +41,12 @@ function seasonWith(
   crop: 'winter' | 'spring',
   day: number,
   sown: number,
-  surplus = false,
 ): FarmSeason {
   sowParts(parts, crop);
   const work = createCropWork(parts, day, 1, false, (p) => [...p], crop);
   work.done.dig = work.required.dig;
   work.done.sow = work.required.sow * sown;
-  return { startDay: day, crops: [{ crop, ...work, ...(surplus ? { surplus: true } : {}) }] };
+  return { startDay: day, crops: [{ crop, ...work }] };
 }
 
 describe('partRotation – co poroste příště', () => {
@@ -97,13 +96,6 @@ describe('partRotation – co poroste příště', () => {
     const a = part(1);
     const shown = partRotation(village([a], seasonWith([a], 'spring', day, 1)), day);
     expect(shown.get(1)).toEqual({ next: 'winter', round: 1 });
-  });
-
-  it('díl letošní práce nad potřebu', () => {
-    const day = at(600, 9, 5);
-    const a = part(1);
-    const shown = partRotation(village([a], seasonWith([a], 'winter', day, 0, true)), day);
-    expect(shown.get(1)).toEqual({ next: 'winter', round: 1, surplus: true });
   });
 
   it('zakládaný díl nic neukazuje', () => {

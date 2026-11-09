@@ -22,7 +22,7 @@ import { CARTS } from './rules-crafts';
 import { FIELD_LIMITS, FOOD_NEED_KG_PER_YEAR, START_SEED_YEARS } from './rules-fields';
 import { AGE } from './rules-people';
 import { STEWARD } from './rules-steward';
-import { fieldSowingTargets } from './simulate-plan';
+import { fieldStoresOutlook } from './simulate-plan';
 import { departWithSon, leadingSons, sonDeparturePreview } from './son-departure';
 import { fieldCellValue, fieldCells, takenTiles, villageTerritory } from './steward-land';
 import {
@@ -260,7 +260,7 @@ export function departingSon(state: VillageState, day: number): Person | null {
   for (const e of viable) {
     // akce běží na vsi dopočítané do dneška (`lastDay` uprostřed dopočtu drží den jeho začátku)
     const { state: after, settlers } = departWithSon({ ...state, lastDay: day }, day, e.son.id);
-    const fill = bufferFill(fieldSowingTargets(after, day, craftCoverage(after, day)));
+    const fill = bufferFill(fieldStoresOutlook(after, day, craftCoverage(after, day)));
     if (fill < STEWARD.departureMotherFill) continue;
     const fed = departureFed(state, after, settlers, day);
     if (fed.mother >= STEWARD.departureFeedShare && fed.colony >= STEWARD.departureFeedShare) {

@@ -9,11 +9,13 @@ import { dayMealInput } from '../emergency-slaughter';
 import { baseMealInput } from '../meal-input';
 import {
   foodUntilHarvestKg,
-  seedAheadKg,
   seedKeepKg,
-  seedReserve,
+  settleSowingSeed,
   sowableSeedKg,
-  sowingOver,
+  sowingSeedDay,
+  sowingWindowCrop,
+  uneatenSeedKg,
+  windowSeedNeedKg,
   workSeedKg,
 } from '../seed';
 import { advanceVillage } from '../simulate';
@@ -115,6 +117,9 @@ describe('osev má přednost (fields.md – Osivo ze zásob; Martin 6. 11. 2026)
     bare.meatKg = 0;
     const fed = structuredClone(s);
     fed.meatKg = 300;
+    // bez hromady osiva okna (1. 9.) – jen zrno nad přežívací zásobu
+    delete bare.sowingSeed;
+    delete fed.sowingSeed;
     const keepBare = seedKeepKg(bare, START);
     const keepFed = seedKeepKg(fed, START);
     expect(keepFed).toBeLessThan(keepBare);
@@ -126,7 +131,7 @@ describe('osev má přednost (fields.md – Osivo ze zásob; Martin 6. 11. 2026)
     );
     // ves s mlékem a masem a zrnem jen na přežívací zásobu a osivo dojde do žní bez úmrtí hladem
     const planned = advanceVillage({ ...village(0), meatKg: 300 }, START, null);
-    const floor = planned.season?.seedFloorKg ?? 0;
+    const floor = windowSeedNeedKg(planned, 'winter');
     let v: VillageState = { ...planned, storesKg: seedKeepKg(planned, START) + floor };
     let maxHunger = 0;
     for (let day = START + 5; day <= at(601, 8, 31); day += 5) {
@@ -140,7 +145,7 @@ describe('osev má přednost (fields.md – Osivo ze zásob; Martin 6. 11. 2026)
     expect(deaths).toEqual([]);
   }, 120_000);
 
-  it('nezaseté osivo se po okně setí vrátí do zásob jako obyčejné zrno', () => {
+  it('nezaseté osivo se na konci okna setí vrátí do zásob jako obyčejné zrno', () => {
     const s = village(5_000);
     const parts = s.parts.slice(0, 4);
     const work = createCropWork(parts, at(600, 9, 15), 0, false, undefined, 'winter');
@@ -150,27 +155,35 @@ describe('osev má přednost (fields.md – Osivo ze zásob; Martin 6. 11. 2026)
     work.done.sow = work.required.sow / 2;
     work.seedKg = workSeedKg(work, byId, 'winter') / 2;
     s.season = { startDay: START, crops: [{ crop: 'winter', ...work }] };
-    // poslední den okna ozimu ves nezasetou polovinu nejí, den po něm ji jí
+    s.sowingSeed = { crop: 'winter', totalKg: 2 * work.seedKg, days: 61, kg: work.seedKg };
+    // poslední den okna ozimu ves nezasetou polovinu nejí, po práci dne se vrátí do jídla
     const lastDay = at(600, 10, 31);
-    expect(seedAheadKg(s, false, lastDay).grain).toBeCloseTo(work.seedKg, 6);
-    expect(seedReserve(s, 0, lastDay).grain).toBeCloseTo(work.seedKg, 6);
-    expect(seedAheadKg(s, false, lastDay + 1).grain).toBe(0);
-    expect(seedReserve(s, 0, lastDay + 1).grain).toBe(0);
-    expect(dayMealInput(s, lastDay + 1, 0, 1).grainKg).toBe(s.storesKg);
-    // jař: po dubnu (bez dlouhé zimy) totéž
-    expect(sowingOver(s, 'spring', at(601, 4, 30))).toBe(false);
-    expect(sowingOver(s, 'spring', at(601, 6, 1))).toBe(true);
-    expect(sowingOver(s, 'winter', at(601, 3, 1))).toBe(true);
-    expect(sowingOver(s, 'spring', at(600, 11, 1))).toBe(false);
+    expect(sowingWindowCrop(s, lastDay)).toBe('winter');
+    expect(uneatenSeedKg(s)).toBeCloseTo(work.seedKg, 6);
+    settleSowingSeed(s, lastDay);
+    expect(uneatenSeedKg(s)).toBe(0);
+    // den po okně drží ves zimní osivo na jarní díly (fields.md – Zimní osivo) – jí jen zbytek
+    expect(sowingWindowCrop(s, lastDay + 1)).toBeNull();
+    sowingSeedDay(s, lastDay + 1);
+    expect(s.sowingSeed?.beforeWindow).toBe(true);
+    expect(dayMealInput(s, lastDay + 1, 0, 1).grainKg).toBeCloseTo(
+      s.storesKg - s.sowingSeed!.kg,
+      6,
+    );
+    // jař: okno do konce dubna (bez dlouhé zimy), mimo okna nic
+    expect(sowingWindowCrop(s, at(601, 4, 30))).toBe('spring');
+    expect(sowingWindowCrop(s, at(601, 5, 1))).toBeNull();
+    expect(sowingWindowCrop(s, at(601, 2, 28))).toBeNull();
+    expect(sowingWindowCrop(s, at(600, 11, 1))).toBeNull();
   });
 
   it('ves s málem zrna oseje víc než dřív a nikdo do žní neumře hlady', () => {
-    // plán bez zásob – osivo do roční potřeby z pole (`seedFloorKg`) celé
+    // plán bez zásob – osivo na třetinu dílů na řadě v okně ozimu (ves s málem zrna)
     const planned = advanceVillage(village(0), START, null);
-    const floor = planned.season?.seedFloorKg ?? 0;
+    const floor = windowSeedNeedKg(planned, 'winter') / 3;
     expect(floor).toBeGreaterThan(0);
-    // zásoby na rok do žní a osivo do roční potřeby – past osiva (dřív: osivo do roční potřeby
-    // `seedFloorKg` z úrody bez ztrát a nad ni jen zrno nad celý příděl do žní)
+    // zásoby na rok do žní a osivo dílů na řadě – past osiva (dřív: osivo do roční potřeby z úrody
+    // bez ztrát a nad ni jen zrno nad celý příděl do žní)
     const food = foodUntilHarvestKg(planned, START);
     const s: VillageState = { ...planned, storesKg: food + floor };
     const before = Math.max(s.storesKg - food, Math.min(floor, s.storesKg - 0.5 * food));
@@ -202,9 +215,8 @@ describe('osev má přednost (fields.md – Osivo ze zásob; Martin 6. 11. 2026)
     let unsown = 0;
     for (const { crop, work } of seasonCrops(s.season!)) {
       if (crop === 'flax' || work.seedKg === undefined) continue;
-      // nutná jař (okno do konce dubna) zasetá celá; obilí nad potřebu jen, kolik práce po stavbách
-      // stihla (rozsetý díl nad potřebu po okně zůstane)
-      if (crop !== 'winter' && !work.surplus) expect(sownShare(work)).toBeGreaterThan(0.99);
+      // jař (okno do konce dubna) zasetá, kolik stačila práce – ves bere všechny díly na řadě
+      if (crop !== 'winter') expect(sownShare(work)).toBeGreaterThan(0.8);
       // osivo vzal jen zasetý podíl – ostatní zrno zůstalo v zásobách
       const total = workSeedKg(work, byId, crop);
       expect(work.seedKg).toBeCloseTo(sownShare(work) * total, 6);
@@ -214,14 +226,14 @@ describe('osev má přednost (fields.md – Osivo ze zásob; Martin 6. 11. 2026)
     expect(plan).toBeGreaterThan(0);
     // osivo nebylo mezí – ves ho drží nejvýš na nezasetý podíl plánů, zbytek je jídlo
     const keep = seedKeepKg(s, at(601, 5, 2));
-    expect(seedReserve(s, keep, at(601, 5, 2)).grain).toBeLessThanOrEqual(unsown + 1e-6);
+    expect(uneatenSeedKg(s)).toBeLessThanOrEqual(unsown + 1e-6);
     expect(s.storesKg - unsown).toBeGreaterThan(keep);
   }, 120_000);
 
   it('dopočet po kouscích dá totéž jako najednou (ves s málem zrna)', () => {
     const planned = advanceVillage(village(0), START, null);
     const food = foodUntilHarvestKg(planned, START);
-    const s: VillageState = { ...planned, storesKg: food + (planned.season?.seedFloorKg ?? 0) };
+    const s: VillageState = { ...planned, storesKg: food + windowSeedNeedKg(planned, 'winter') };
     const end = at(601, 5, 10);
     const whole = advanceVillage(s, end, null);
     let pieces = s;

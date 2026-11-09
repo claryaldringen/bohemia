@@ -399,8 +399,7 @@ Seno, dvě seče).
      orby); další díl přibude, až čelo dávku dodělá – díl tak projde přípravou půdy až k setí,
      než ves vezme další. Na podzim brzdí ozim jen jeho vlastní čelo (len, luštěniny a jař
      s kopáním do listopadu ozim nepředběhnou). Žádný strop podle plánu: dokud je okno otevřené
-     a potřeba trvá, ves bere další díly. Díly výběru, které na čelo ještě nepřibyly, počítá
-     podíl vojvodovy rodiny jako práci, která zbývá (lord.md – Kdy jde rodina na pole).
+     a potřeba trvá, ves bere další díly.
    - **Výběr jen s místem na čele** (úspora výkonu – Martin 31. 10. 2026: „úspory jsme se snad
      shodli, že uděláme“; návrh Clauda): ve dny, kdy na čele není místo pro žádnou plodinu, by
      stejně žádný díl nepřibyl – ves nový výběr nedělá a čekající díly (osivo pro ně, podíl
@@ -419,68 +418,33 @@ Seno, dvě seče).
      uvolní (nezasetá jař 1. 5., velká zásoba), vrátí se jako příloh bez lesa a křovin a klády
      podruhé nedá.
 
-3. **Nutné díly – práce proti hladu má přednost před stavbami:**
-   - **Potřeba úrody** je dosavadní cíl osevu bez plánu: energie, kterou má dát příští sklizeň
-     (`sowingTargets` – podíl jídla z pole, zásoby a pojistka, plynulejší osev, výhled lidí)
-     a potřeba lnu na oděv; ~~cíl luštěnin~~ padl s luštěninami na poli (9. 11. 2026). Ves ji počítá ze
-     stavu dne, kdykoli o dílech rozhoduje (každý den 1. 9. – 30. 4., jako dosud zkrácení plánu),
-     ne jednou k 1. 9.
-   - **Nutné díly** hospodářského roku (ozim zasetý na podzim, jař a len zasetý na jaře
-     – sklizeň do 31. 8.): díly, na kterých už je letošní práce, a za nimi díly na řadě v pořadí
-     přílohové soustavy po úsecích hospodářství od domu (díly po ozimu, čerstvě založené, odpočaté
-     – nejmladší první), dokud jejich očekávaná úroda (plná práce, dnešní úrodnost – jako ji
-     počítal plán) nepokryje potřebu úrody; len podle své potřeby. Když běžné díly
-     nestačí, přijdou na řadu přílohy zotavené na 70–95 % a pak nouzové přílohy (Přílohová
-     soustava – Pořadí, body 4 a 5; Nouzový osev viz bod 1). Všechna práce nutných
-     dílů – příprava půdy, setí, pletí, žně, odnos a výmlat – je **potřebná sezónní úloha**
-     (Práce, bod 3) a jde před stavbami.
-   - **Díly nad potřebu** – ostatní díly na řadě, jen obilí (jako osev navíc): **všechna** jejich
-     práce na poli – příprava půdy, setí, pletí, žně a odnos – jde až **po stavbách a opravách
-     obydlí** (Práce, bod 6). Když stavba přijde, ves o část jejich úrody přijde – nevypletý díl
-     dá jen část úrody (Pletí), co žně do konce okna nesklidí, propadne. Výmlat na humně je
-     společný pro všechny snopy jako dosud (humno nerozlišuje, odkud snopy jsou; v okně výmlatu
-     snopy nehnijí – návrh Clauda). **Asymetrie (návrh Clauda, 25. 10. 2026):** výmlat snopů
-     z dílů nad potřebu je nutná práce před stavbami – úroda už je sklizená a snopy by po okně
-     výmlatu shnily; pomocné ruce na žně (dílny a vojvodova rodina – Žně všemi rukama) ale
-     pomáhají jen nutným dílům – žně nad potřebu dostanou jen práci, která po stavbách zbude, a co
-     nesklidí, propadne.
-     Nový díl nad potřebu začne, jen když po stavbách práce zbude
-     (nejvýš jeden rozpracovaný na plodinu, jako osev navíc); spřežení orají napřed nutné díly,
-     díly nad potřebu jen kapacitou, která zbude. **Změna proti osevu navíc:** setí až odnos
-     začatého dílu nad potřebu už nemá přednost před stavbami (Martin 25. 10. 2026 – „ve chvíli,
-     kdy stavba přijde, prostě vesnice o část úrody přijde“).
-     **Výjimka – okno setí (Martin 6. 11. 2026: ves „oře a zasívá, dokud trvá časové okno pro
-     orbu a zasetí, nebo dokud se neobhospodaří plocha, co se má obhospodařit, nebo dokud nedojde
-     osivo“; oprava, návrh Clauda):** ve dnech, kdy okno setí plodiny běží (ozim září–říjen, jařiny
-     březen–duben, po dlouhé zimě do 14. 5.), jde příprava půdy a setí jejích dílů nad potřebu
-     i začátek nových dílů **hned za nutnými úlohami, před stavbami** – nutné díly napřed, pak nad
-     potřebu; rozdělení na nutné a nad potřebu zůstává jen pořadím v rámci setí. Pletí, žně a odnos
-     dílů nad potřebu a podzimní příprava jaře (mimo její okno setí) jdou dál až po stavbách.
-     Stavba, která přijde v okně setí, tak počká na zbytek práce po setí – v říjnu a dubnu i stavba
-     obydlí pro novou domácnost.
-     Podrobnosti (návrh Clauda, Úloha 4 plánu): díly nad potřebu jsou díly na řadě s obilím
-     (první osev, jař po ozimu, ozim po jaři) – přílohy 70–95 % a nouzové ne, ať ves nevyčerpá
-     přílohy, ze kterých oseje příští rok. Berou se v pořadí přílohové soustavy od domu, po
-     jednom na plodinu: další díl začne, až má rozpracovaný díl hotovou přípravu půdy (setí, pletí
-     a žně hotových dílů mají přednost před novým dílem). Nový díl nad potřebu nezačne, dokud
-     nutné díly čekají na čelo práce (Postup práce po dílech) – díly nad potřebu berou práci až
-     za čelem nutných. Ozim nad potřebu, na kterém do konce října setí nezačalo, se oseje na jaře
-     jaří nad potřebu (zkopaná část se počítá); jař nad potřebu nezasetá do konce dubna čeká na
-     další sezónu – jako u nutných dílů. Přídělový výhled do sklizně (Ozim a jař) počítá jen nutný
-     ozim – úroda nad potřebu není jistá, stavba ji může vzít.
-   - **Díl, na kterém začala práce jako na nutném, nutným zůstane** – co ves začala proti hladu,
-     dodělá. Díl nad potřebu se stane nutným, když potřeba vzroste (narození, díl zabraný stavbou,
-     slabší úroda), v pořadí od domu – napřed díly nad potřebu, na kterých práce už začala (na čelo
-     nečekají, plodina zůstává a hotová práce včetně setí jde s nimi), pak další díly na řadě
-     (návrh Clauda). Díl, na kterém práce ještě nezačala a který ves už
-     nepotřebuje, prostě čeká jako díl nad potřebu – zkrácení plánu odpadá. Nutný ho ves přestane
-     brát, až když úroda nutných dílů převyšuje potřebu o víc než desetinu roční potřeby z pole
-     (`FIELD_STORES.trimMarginYears`, jako dosud zkrácení plánu), aby díly mezi nutnými a nad
-     potřebu nepřebíhaly den co den (návrh Clauda); nejdřív nouzový příloh, pak nejdál od domu.
-   - **Vojvodova rodina** ([lord.md](lord.md) – Kdy jde rodina na pole, bod 1) pomáhá s prací
-     nutných dílů, kterou ves sama do konce okna nestihne: podíl dne mužů rodiny se počítá každý
-     den v oknech ze zbývající nutné práce okna a volné práce vsi do jeho konce (jako dosavadní
-     jarní přepočet), ne z plánu.
+3. **Díly jsou jedna fronta – všechna polní práce má přednost před stavbami (9. 11. 2026):**
+   - ~~Nutné díly podle potřeby úrody a díly nad potřebu po stavbách~~ (25. 10. – 9. 11. 2026):
+     potřeba úrody byla cíl osevu pod jiným jménem. Martin 25. 10. 2026: „ves by měla vyrobit
+     maximum obilí a maximum sena, kolik jí umožňuje rozloha polí a množství lidí“; 9. 11. 2026:
+     „vyser se už na ten cíl osevu, kolikrát to ještě musím zopakovat?“ Výběr podle odhadu úrody,
+     uvolňování nepotřebných dílů, povýšení dílů nad potřebu i strop zmizely.
+   - **Výběr bez stropu:** ves bere díly v pořadí osevního postupu (bod 2 – Pořadí dávek), dokud
+     stačí lidé (čelo práce), spřežení a osivo (Osivo bez cíle osevu). Len dál jen podle své
+     potřeby na oděv – je to rozdělení jarních dílů, ne strop. **Otevřené:** ves bez stropu oseje díly s prvním osevem často už na podzim ozimem a na jaře pak len nemá díl (malá ves ve zkoušce rok bez lnu) – možné řešení (návrh Clauda, neschválené): len nakonec i na díl po jaři místo ozimu.
+   - **Na řadě** (návrh Clauda, 9. 11. 2026): odpočatý příloh (≥ 95 %) a díly v osevním postupu.
+     Zotavený příloh 70–95 % až když jsou díly na řadě oseté (žádný díl na řadě nečeká a plodiny,
+     jejichž okno setí běží, mají zaseto) a okno setí ještě běží – osivo z toho, co zbude nad
+     přežívací zásobou. Nouzový příloh 40–70 % jen při **skutečném nedostatku**: zrno k sklizni
+     (zásoby i s hromadou osiva okna a snopy, bez osiva jen na setí) je pod přežívací zásobou do
+     žní – ne kvůli hromadě osiva. Při nedostatku přibudou přílohy 70–95 % i nouzové hned za díly
+     na řadě.
+   - **Přednost před stavbami** (Martin 9. 11. 2026: „Tak jediné kritické období jsou žně ne?“,
+     „Setí – to přece obstará pár mužů s voly a ženy, pletí obstarají ženy a děti. Na sklizni se
+     pak podílejí úplně všichni“ a „Ano, platí“ k návrhu): **všechna polní práce** – příprava půdy,
+     orba, setí, žně, odnos a výmlat – jde před stavbami, stavby dostanou, co zbude. **Muži plejí
+     jen to, co ženy a děti nestihnou, a až po stavbách** (Pletí jednou a rychle) – dřív plely před
+     stavbami.
+   - Starší vsi (převod jednou a idempotentně, návrh Clauda): ozim a jař nad potřebu se slijí
+     s ozimem a jaří i s hotovou prací, osivem a úrodou ve snopech (letošní rok i rok u výmlatu);
+     roční potřeba z pole ve výběru dílů zmizí.
+   - **Vojvodova rodina** ([lord.md](lord.md) – Kdy jde rodina na pole) s osevem nepomáhá (od 9. 11. 2026 – Martin: „setí by mělo být v pohodě ne? Problém je spíš se žněmi“); jde jen na
+     žně, které ves sama nestíhá.
    - **Páry k rádlům** ([oxen.md](oxen.md) – Kolik volů ves chce): tolik párů, kolik v oknech orby
      zorá všechny díly na řadě v příštím hospodářském roce – nutné i nad potřebu, ves chce zorat
      všechno (návrh Clauda) –, nejvýš `OXEN.maxPairs`; mění se jako dosud, až když potřeba trvá dva
@@ -500,13 +464,13 @@ Seno, dvě seče).
    - **Panel dílu:** nový údaj **Příště** – ikona toho, co na dílu poroste příště (ozim, jař,
      luštěniny nebo len, když už je určené; úhor ikonou přílohu); u úhoru procento odpočinku
      k 95 % a v popisku „Osev za ≈ N let“. Osetý díl ukazuje **1. nebo 2. osev oběhu** (místo
-     kolikátého roku v osevu). Díl nad potřebu má v popisku „Jen z volné práce – stavby mají
-     přednost“ (dosud „čeká na volnou práci“).
+     kolikátého roku v osevu). ~~Díl nad potřebu má v popisku „Jen z volné práce – stavby mají
+     přednost“~~ (zmizelo 9. 11. 2026 s díly nad potřebu – Díly jsou jedna fronta, bod 3).
    - **Panel pole:** vedle osetých dílů podle plodiny **na řadě** – počet dílů na řadě s ozimem,
-     s jaří a odpočívajících; v popisku, kolik z dílů na řadě je nad potřebu. Upřesnění (návrh
-     Clauda, 25. 10. 2026): na řadě jsou díly, které čekají mimo letošní práci (díly letošní
-     práce ukazují plodiny), a nad potřebu díly, které ves z řady vzala k letošní práci nad
-     potřebu.
+     s jaří a odpočívajících; ~~v popisku, kolik z dílů na řadě je nad potřebu~~ (zmizelo 9. 11.
+     2026). Upřesnění (návrh Clauda, 25. 10. 2026): na řadě jsou díly, které čekají mimo letošní
+     práci (díly letošní práce ukazují plodiny). Vedle nich **hromada osiva** vsi (návrh Clauda, 9. 11. 2026 – Osivo bez cíle osevu, Zimní osivo): ikona obilí s kg, v popisku osivo na ozim
+     či jař, které ves nejí (v zimě zimní osivo na jař).
    - Scéna beze změny – díl ukazuje svůj stav (strniště po ozimu do podzimní orby, zkopaná zem,
      příloh) a práce postupuje po čtvercích. Upozornění beze změny (hlad, chybí len na oděv).
 
@@ -575,9 +539,10 @@ dostane ozim.“ – bod 1, Jař jako první osev). Ověření na Vlkově ukáž
 ### ~~Kolik ves oseje (rozhodují obyvatelé)~~
 
 > **Nahrazeno 25. 10. 2026** osevním postupem po dílech (Osevní postup po dílech a setí do
-> konce okna výše) – roční plán osevu k 1. 9., jeho kapacita, zkrácení i osev navíc se ruší;
-> potřeba úrody (cíl podle stravy, zásob a růstu vsi) zůstává. Text níže je historie a platí do
-> implementace.
+> konce okna výše) – roční plán osevu k 1. 9., jeho kapacita, zkrácení i osev navíc se ruší.
+> **Potřeba úrody (cíl podle stravy, zásob a růstu vsi) zrušena 9. 11. 2026** (Úroda – Osivo bez
+> cíle osevu, Zimní osivo a Výhled zásob k sklizni); ze stravy, pojistky a růstu vsi zůstává jen
+> výhled zásob k sklizni. Text níže je historie.
 
 - Každý rok k **1. září** (po sklizni, před podzimním kopáním) ves sama rozhodne, kolik na
   příští rok oseje (návrh Clauda, vychází z Martinova cíle uvolňovat práci): od 19. 10. 2026
@@ -665,9 +630,13 @@ Vlkov (24 lidí) měl v březnu 752 ≈ 11 200 kg obilí (3,4 roku celé potřeb
 masa, a přesto od 1. 3. kopal ≈ 9,7 člověkodne denně – volná práce nulová, tři stavby stály na
 82–94 %.
 
+> **Cíl osevu zrušen 9. 11. 2026** (Úroda – Osivo bez cíle osevu, Výhled zásob k sklizni): ves
+> seje všechny díly na řadě, kolik stihne; z pravidel níže platí jen pojistka a výhled zásob
+> k sklizni (`storesOutlook` ve `field-food.ts`). Text níže je historie.
+
 **Pravidla:**
 
-- **Cíl osevu k 1. 9.** (`sowingTargets` ve `field-food.ts`) = zásoby z pole, které má ves mít po
+- **Cíl osevu k 1. 9.** (dřív `sowingTargets` ve `field-food.ts`) = zásoby z pole, které má ves mít po
   **příští sklizni** (31. 8.) – tolik, aby po roce spotřeby z pole a ztrát skladováním zbyla
   **pojistka** –, bez toho, co z dnešních zásob k příští sklizni zbude (zásoba − spotřeba z pole do
   sklizně − ztráty skladováním, spojitě jako den po dni v simulaci). Nejméně 0 – ves s velkou
@@ -1002,6 +971,15 @@ Výchozí osevní systém je přílohová soustava raných Slovanů (Martin). Pr
 
 ### Práce
 
+**Setí týž den hned za orbou a motykou** (Martin 9. 11. 2026: „Setí by mělo probíhat ihned po
+orbě. Za oráčem by měl jít někdo z rodiny a rovnou zasívat“): za každým spřežením i za motykou
+jde setí stejným tempem týž den – práce orby a kopání nese i práci setí za sebou (kolik dovolí
+osivo); když práce nestačí, ubude obojího stejně. Zpracovaná půda, kterou ves nestihla zasít,
+se zaseje příští den napřed. Díl proto smí začít i v poslední den okna (dřív se selo zkopané do
+včerejška a ozim musel začít den před koncem okna). Výmlat na dnešní jídlo jde i před orbou
+a počítá jen zrno, které ves jí – hromada osiva okna smí držet všechno vymlácené zrno, ale ves
+kvůli osivu nikdy nejí pod přežívací zásobu (návrh Clauda).
+
 Navazuje na pracovní sílu z [populace](population.md) – Práce (na polích a stavbách jen dospělý
 1 člověkoden za den; starší 0,5 jen na denní minimum své domácnosti, výrostci 7–13 let jen pasou).
 Pole jsou společná, a proto se práce počítá **za celou ves**: dospělí všech domácností pracují na
@@ -1163,16 +1141,16 @@ vesnice populačně roste i bez zásahu hráče, za předpokladu, že má dostat
   co sklízet nebo **opravdu jde mlátit** (snopy a humno s kapacitou, nebo nouzový výmlat; ves
   bez humna se snopy, které nesmí mlátit, žňový den nemá – řemeslo a výcvik běží).
 - Ve žňový den jdou na žeň a výmlat i **řemeslníci se syny** ([crafts.md](crafts.md) –
-  Řemeslníci na žních; řemeslo ten den stojí, ženy řemeslníků dál domácnost a lehčí práce) a
-  **cvičící muži vojvodovy rodiny** ([lord.md](lord.md) – Kdy jde rodina na pole, bod 3; ženy
-  rodiny dál jen domácnost). Mimo žňové dny dělají řemeslo a cvičí.
+  Řemeslníci na žních; řemeslo ten den stojí, ženy řemeslníků dál domácnost a lehčí práce).
+  Mimo žňové dny dělají řemeslo. ~~Cvičící muži vojvodovy rodiny ve každý žňový den~~ – od 9. 11. 2026 jde na žně **celá vojvodova rodina, jen když je ves sama nestíhá**, a jen kolik
+  chybí ([lord.md](lord.md) – Kdy jde rodina na pole).
 - **Výrostci a starší** (Martin 24. 10. 2026): výrostci od 10 let a starší dají ve žňový den po
   **0,5 člověkodne celkem** – vázání, odnos, paběrky ([rešerše](research/2026-10-17-zemedelstvi-populace.md)
   §5: dítě 7–13 let 0,3, starší 0,5). Chlapci a starší cvičící vojvodovy rodiny ne (cvičí, kryjí
   dvorec). Je to **celkem** 0,5 čd, ne navíc k tomu, co už dělají: starší, kteří kryjí denní minimum
   domácnosti, žeň nepřidají (dají jen to, co jim nad minimum zbude), výrostek pasoucí stáda dá
-  žeň jen do 0,5 čd (po odečtení pasení). Cvičící muži vojvodovy rodiny na poli ve žňový den
-  nejezdí na koních (kůň stojí).
+  žeň jen do 0,5 čd (po odečtení pasení). Vojvodova rodina na poli ve žňový den nejezdí na
+  koních (kůň stojí).
 - Jejich práce jde **jen na žeň a výmlat, před prací vsi** – ves má o to víc práce na setí,
   stavby a opravy; co žně a výmlat nespotřebují, řemeslu propadne (návrh Clauda).
 - **Plán osevu** (Kolik ves oseje) s nimi počítá v červenci a srpnu a ve výmlatu jaře v září
@@ -1570,17 +1548,58 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
   - Setí bere osivo ze zásob **v den setí dílu** – obilí (ozim, jař, obilí nad potřebu) ze zásob
     obilí, luštěniny ze zásob luštěnin; luštěnin, které chybí, ves vymění u sousedů za obilí.
     Sklizeň osivo neodečítá. Ves zaseje jen tolik dílů, na kolik má osivo.
-  - **Osivo bez cíle osevu (9. 11. 2026, implementace čeká).** Cíl osevu přežil v kódu jako
-    „potřeba úrody“ a dál určoval nutné díly a osivo za čekající díly – Vlkov kvůli němu od 1. 10.
-    do 30. 11. jedl na příděl 0,88 s 9,5 t v zásobách (5,5 t drželo osivo za díly, na které
-    orba nedošla). Martin 9. 11. 2026: „Ne dopíči, plán už jsme asi desetkrát zavrhli a ty ho tam
-    vždycky nějak znova namrdáš“ a „Fajn, prostě před osevem odečti minimální zásobu jídla
-    a zbytek do osevu. Po měsíci se do zásob vrátí to, co se nezaselo.“ Pravidlo: na začátku okna
-    setí (ozim 1. 9., jař, luštěniny a len 1. 3.) se ze zásob odečte přežívací zásoba do žní
-    (níž – hlad, ale nikdo neumře) a všechno ostatní obilí je osivo; ves oře a seje díly v pořadí
-    osevního postupu, dokud stačí lidé, spřežení a osivo; nezaseté osivo se vrátí do zásob na
-    konci okna (31. 10., 30. 4., po dlouhé zimě 14. 5. – návrh Clauda, Martinovo „po měsíci“
-    čteno jako konec okna jako dřív u 30. 4.). Cíl osevu ani pojistka v něm osev neomezují.
+  - **Osivo bez cíle osevu (9. 11. 2026).** Cíl osevu přežil v kódu jako „potřeba úrody“ a dál
+    určoval osivo za čekající díly – Vlkov kvůli němu od 1. 10. do 30. 11. jedl na příděl 0,88
+    s 9,5 t v zásobách. Martin 9. 11. 2026: „Ne dopíči, plán už jsme asi desetkrát zavrhli a ty ho
+    tam vždycky nějak znova namrdáš“, „Fajn, prostě před osevem odečti minimální zásobu jídla
+    a zbytek do osevu. Po měsíci se do zásob vrátí to, co se nezaselo.“ a k celému pravidlu „Ano,
+    platí“. Osivo za čekající díly zmizelo, osivo drží **hromada osiva okna**:
+    1. Na začátku okna setí (ozim 1. 9., jař a len 1. 3.) ves odloží osivo na **všechny díly na
+       řadě**, nejvýš zásoby − přežívací zásoba do žní (níž). Zbytek zásob je jídlo – příděl podle
+       něj (Martin: „Na všechny díly. Bude hladovět max ty dva měsíce – to není hladovění, ale spíš
+       půst“). Osivo se počítá průběžně, jak přibývá vymlácené zrno (1. 9. leží úroda ještě ve
+       snopech) – hromada je nejvýš vymlácené zrno a nejvýš zásoby i snopy bez přežívací zásoby.
+       Osivo, které ves má jen na setí (koupené, osadníků, zakladatelů), se do hromady počítá.
+    2. Každý den se zasetá plocha porovná s **ideálním denním dílem** (osivo na řadě ÷ dny setí
+       okna); osivo za nestihnutou část se hned po práci dne vrátí do jídla (Martin: „v ideálním
+       případě se za den zorá 100 %… reálně voli stihnou míň, třeba jen 80 %. 20 % osiva tak zbyde
+       a může se vrátit do jídla“). Hromada tak drží jen osivo ideálního zbytku okna, nejvýš osivo
+       dílů, které zasít ještě zbývá.
+    3. **Setí týž den hned za orbou** (Martin: „Setí by mělo probíhat ihned po orbě. Za oráčem by
+       měl jít někdo z rodiny a rovnou zasívat“) – viz Práce.
+    4. Na konci okna (31. 10., 30. 4., po dlouhé zimě 14. 5.) se nezaseté vrátí do zásob. Dny, kdy
+       dlouhá zima setí jařin drží (do 22. 3.), se do dnů setí okna nepočítají.
+    5. **Na řadě** (návrh Clauda): odpočatý příloh (≥ 95 %) a díly v osevním postupu – pro ozim
+       první osev a díly po jaři, pro jař i díly po ozimu – a nezasetá letošní práce plodiny.
+       Zotavený příloh 70–95 % až když jsou díly na řadě oseté a v okně zbývá čas – osivo z toho,
+       co zbude nad přežívací zásobou; nouzový příloh jen při hladu.
+    6. ~~Mimo okno se osivo zvlášť nedrží~~ – od 1. 11. do konce února drží ves **zimní osivo**
+       (níž). Od konce jarního okna do září se osivo zvlášť nedrží.
+       Nákup osiva (Osivo pro ves bez zásob) kupuje osivo na díly na řadě; osivo zakladatelů si ves
+       při šetření přídělem nechá na díly na řadě příštího okna (návrh Clauda).
+  - **Zimní osivo (9. 11. 2026).** Měření Vlkova: po slabé sklizni 871 zasel 17 ha ozimu, v zimě
+    jedl plný příděl a 1. 3. 872 měl nad přežívací zásobou jen 0,36 t – 4,9 ha jaře. Martin 9. 11. 2026: „Tak když věděli, že mají málo jídla, proč žrali jak protržení? Zaslouží si
+    chcípnout“. Pravidlo:
+    1. Od konce podzimního okna setí (1. 11.) do začátku jarního (1. 3.) drží ves osivo na **jarní
+       díly na řadě** (jař a len – jako hromada jarního okna, bod 5), nejvýš zásoby − přežívací
+       zásoba do žní, a stejně jako v okně nejvýš vymlácené zrno. Osivo jen na setí se počítá.
+    2. Ves jí jen **zbytek** – když na plný příděl do žní nestačí, **šetří (příděl) už v zimě**.
+       Výmlat na dnešní jídlo a platby zimní osivo za jídlo nepočítají (jako hromadu okna).
+    3. V zimě se neseje, takže se zimní osivo nevrací. **1. 3.** ho převezme hromada jarního okna
+       (bod 1 – ideální denní díl a průběžné vracení). Září a říjen beze změny (hromada ozimu).
+  - **Výhled zásob k sklizni (9. 11. 2026, místo potřeby úrody).** Z dřívějšího cíle osevu zůstal
+    jen výhled zásob z pole k příští sklizni: kolik zbude (`leftKg`), kolik do žní chybí
+    (`shortKg`), pojistka (`bufferKg` – 0,5 roční potřeby celé energie, v paměti hladu 0,75) a
+    potřeba z pole rok po sklizni (`needKg`) – podle stravy (Osev podle stravy) a růstu vsi (Osev
+    podle růstu vsi). Řídí sňatky ([příbuzenství](kinship.md) – Sňatky čekají na zásoby), režim
+    správce a jeho nákup obilí, odchod syna a potřebu polí správce ([správce](steward.md)), lov,
+    platby, jídlo domény a zakládání polí. Osivo v okně i zimní osivo se ve výhledu počítá jako
+    zásoba **kromě osiva, které ves ještě zaseje** (návrh Clauda – jinak by v každém okně stály
+    svatby a nákupy a každá ves by žádala jídlo domény): v okně osivo plochy, kterou ves dnešním
+    tempem zorá a zaseje do konce okna (spřežení po 0,3 ha za den podle síly volů, ves bez
+    spřežení motykou všemi dospělými – stejné tempo jako průběžné vracení, bod 2); v zimě osivo
+    jarních dílů, které ves stihne za celé jarní okno. Zbytek hromady se do jídla vrátí – výhled
+    s ním počítá jako se zásobou. Osivo jen na setí a osivo zakladatelů v lhůtě jídlem není.
   - **Osev má přednost – kolik si ves nechá na jídlo** (6. 11. 2026). Martin: „Pojďme se podívat
     na ten osev – to se přece nemusí plánovat: ves vezme z obilí tolik osiva, aby jí to vystačilo
     do žní, a pak se oře a zasívá, dokud trvá časové okno pro orbu a zasetí, nebo dokud se
@@ -1626,10 +1645,10 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
       o 15–25 % nižší (sucho, zvěř, ztráty skladováním), takže ves pojistku nikdy nedoplnila
       a z pasti osiva vyšla jen vymíráním (Vlkov, 6. 11. 2026). Potřeba z pole podle většího
       z dlouhodobého podílu pole ve stravě a včerejší stravy (po úbytku stád jí ves obilí víc).
-    - **Odhad osiva do roční potřeby** (`seedFloorKg`) zůstává jen pro osivo zakladatelů – kolik si
-      ho ves nechá, když v lhůtě šetří přídělem (níže); osev neomezuje.
-  - **Osivo se šetří:** osivo dílů v plánu, které na setí čeká (i vybraných dílů, které na čelo
-    práce teprve přijdou), ves nejí – nejvýš zrno nad přežívací zásobu; tu jí vždy. Ves tedy do
+    - **Osivo zakladatelů** si ves, když v lhůtě šetří přídělem, nechá na díly na řadě příštího
+      okna setí (do 9. 11. 2026 odhad osiva do roční potřeby – zrušený s cílem osevu).
+  - **Osivo se šetří:** hromadu osiva okna setí (Osivo bez cíle osevu výš) ves nejí – nejvýš zrno
+    nad přežívací zásobu; tu jí vždy. Ves tedy do
     žní hladoví nejvýš do prahu přežívací zásoby a nikdo hlady neumře. Rezervu osiva jen na setí
     sní dál při skutečném hladu (5 dnů bez jídla – níže); s přežívací zásobou počítanou k tomuto
     prahu k tomu nedojde, leda by sklizeň přišla později nebo menší, než ves čekala (pohroma).
@@ -2315,8 +2334,8 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
     (stejně jako Kdy jde rodina na pole – lord.md). Když nestačí, ukáže díl ikonu práce
     s chybějícími člověkodny červeně a v popisku u kurzoru okna a kroky („Práce nestačí: příprava
     a setí do konce dubna – chybí 40 člověkodnů“). Díl hlásí jen kroky, které sám ještě nemá
-    hotové (zasetý díl setí nehlásí). Díl nad potřebu (jen z volné práce po stavbách) varování
-    nemá – práci mu dají stavby, ne okno. Pod půl člověkodne se nehlásí.
+    hotové (zasetý díl setí nehlásí); od 9. 11. 2026 hlásí všechny díly (jedna fronta – ~~díl
+    nad potřebu varování nemá~~). Pod půl člověkodne se nehlásí.
   - Chybějící práce okna je za celou ves (plodiny okna se dělí o tytéž ruce), ne za díl – které
     díly na konci zůstanou, určí postup práce po dílech (díly nejdál od domu poslední).
 - **Horní lišta:** zásoby obilí, volná společná práce za den, nasycení (barva ikony); výměra polí
@@ -2586,3 +2605,4 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Zakladatelé první vsi: jídlo na 3 roky a osivo na 2 roky potřeby; osivo jen na setí, 15 let se neuvolní a cíle osevu ho nepočítají za jídlo                                                                                                                               | Martin (2. 11. 2026), čísla návrh Clauda             |
 | Osev má přednost (Martin 6. 11. 2026): ves si do žní nechá jen přežívací zásobu (hlad do žní pod prahem úmrtí nejcitlivější skupiny bez 1 dne), ostatní zrno je osivo bez stropu podle jídla; co nezaseje, zůstane v zásobách                                             |
 | Luštěniny z polí vyřazené – ves je nesel, výběr dílů je nepřidělí; zásoba luštěnin zůstává zbožím (strava, obchod, platby); zasetá luštěnina starší vsi doroste, nezasetý díl přejde do jaře; zahrádky u obydlí později                                                   | Martin (9. 11. 2026), převod návrh Clauda            |
+| Díly jedna fronta (9. 11. 2026): výběr dílů bez stropu a bez potřeby úrody, všechna polní práce před stavbami, muži plejí až po stavbách; na řadě přílohy 70–95 % až po oseté řadě, nouzové jen při nedostatku                                                            | Martin (25. 10. a 9. 11. 2026), na řadě návrh Clauda |

@@ -80,7 +80,7 @@ import {
   threshingFloorsOf,
 } from './village-view-buildings';
 import { fortificationViews, fortStoneSupply, fortWoodSupply } from './fort-view';
-import { fieldViews, orchardSquareView } from './village-view-fields';
+import { fieldViews, orchardSquareView, sowingSeedView } from './village-view-fields';
 import { manorView } from './manor-view';
 import { wildlifeView, type VillageWildlife } from './wildlife-view';
 import { disasterChronicleFields, weatherView, type WeatherView } from './disasters-view';
@@ -408,6 +408,7 @@ export function buildVillageView(
       };
     }),
     storesKg: summary.storesKg,
+    ...sowingSeedView(state),
     applesKg: summary.applesKg,
     meatKg: summary.meatKg,
     legumesKg: summary.legumesKg,

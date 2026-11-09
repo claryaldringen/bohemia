@@ -221,37 +221,31 @@ describe('ves bez synů hlavních manželek mimo dvorec – beze změny', () => 
 
   /** `manorLabor` před elitou (8. 11. 2026) – musí vyjít bit po bitu stejně. */
   const golden: [number, number, ManorLabor][] = [
-    [1, 0, { dailyMin: 0.5, uncovered: 0, field: 0, harvest: 0, help: 0, free: 5.5, freeMen: 1 }],
-    [1, 1, { dailyMin: 0.45, uncovered: 0, field: 0, harvest: 0, help: 0, free: 5.55, freeMen: 1 }],
+    [1, 0, { dailyMin: 0.5, uncovered: 0, help: 0, free: 5.5, freeMen: 1, freeLord: 0 }],
+    [1, 1, { dailyMin: 0.45, uncovered: 0, help: 0, free: 5.55, freeMen: 1, freeLord: 0 }],
     [
       0.2,
       0,
       {
         dailyMin: 0.6000000000000001,
         uncovered: 0.29999999999999993,
-        field: 0,
-        harvest: 0,
         help: 0,
         free: 0.6,
         freeMen: 0.2,
+        freeLord: 0,
       },
     ],
-    [
-      0.2,
-      1,
-      { dailyMin: 0.55, uncovered: 0.25, field: 0, harvest: 0, help: 0, free: 0.65, freeMen: 0.2 },
-    ],
+    [0.2, 1, { dailyMin: 0.55, uncovered: 0.25, help: 0, free: 0.65, freeMen: 0.2, freeLord: 0 }],
     [
       0.73,
       0,
       {
         dailyMin: 0.635,
         uncovered: 0,
-        field: 0,
-        harvest: 0,
         help: 0,
         free: 3.7449999999999997,
         freeMen: 0.73,
+        freeLord: 0,
       },
     ],
     [
@@ -260,11 +254,10 @@ describe('ves bez synů hlavních manželek mimo dvorec – beze změny', () => 
       {
         dailyMin: 0.535,
         uncovered: 0,
-        field: 0,
-        harvest: 0,
         help: 0,
         free: 3.8449999999999998,
         freeMen: 0.73,
+        freeLord: 0,
       },
     ],
   ];
@@ -289,16 +282,16 @@ describe('ves bez synů hlavních manželek mimo dvorec – beze změny', () => 
       markElite(s);
       expect(manorLabor(s, DAY, pottery, productivity, lordFamily(s, DAY))).toEqual(expected);
     }
+    // ve žňový den s pomocí rodiny (lord.md – Kdy jde rodina na pole) dá podíl celé rodiny
     const s = manor();
-    s.lord = { trains: true, field: { since: 0, reason: 'hunger' } };
+    s.lord = { trains: true };
     expect(manorLabor(s, DAY, 0.5, 0.9, lordFamily(s, DAY))).toEqual({
       dailyMin: 0.49999999999999994,
       uncovered: 0,
-      field: 4.8999999999999995,
-      harvest: 0,
       help: 0,
       free: 4.8999999999999995,
       freeMen: 0.9,
+      freeLord: 0,
     });
   });
 

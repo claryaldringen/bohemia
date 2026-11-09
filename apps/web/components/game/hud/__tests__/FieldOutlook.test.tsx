@@ -43,7 +43,6 @@ const part = (outlook: PartOutlookView | undefined): SelectionDetails => ({
   mow: null,
   next: null,
   rest: null,
-  surplus: false,
   founding: null,
   ...(outlook ? { outlook } : {}),
 });
@@ -61,6 +60,7 @@ const field = (outlook: FieldOutlookView | undefined): SelectionDetails => ({
   ],
   turn: [],
   resting: 0,
+  seed: null,
   ashParts: 0,
   ashBonus: 0,
   overgrowingM2: 0,

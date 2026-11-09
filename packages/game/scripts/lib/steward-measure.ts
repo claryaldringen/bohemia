@@ -37,7 +37,7 @@ import {
   FOUNDING_COST_PER_HA,
   RECLAIM_COST_PER_HA,
 } from '../../src/domain/village/rules-fields';
-import { fieldSowingTargets } from '../../src/domain/village/simulate-plan';
+import { fieldStoresOutlook } from '../../src/domain/village/simulate-plan';
 import { realLand, type CalibrationLand } from './calibration-land';
 import { steadyState } from './steady-state';
 
@@ -417,7 +417,7 @@ export function runDynasty(opts: RunOptions): DynastyResult {
         countLabor(tally, after, days);
         countJune(tally, after, to, mother, (to - foundDay) / DAYS_PER_YEAR, opts.years);
         if (to - foundDay > DAYS_PER_YEAR) {
-          const fill = bufferFill(fieldSowingTargets(after, to, craftCoverage(after, to)));
+          const fill = bufferFill(fieldStoresOutlook(after, to, craftCoverage(after, to)));
           tally.buffer[mother ? 'mother' : 'sons'].push(fill);
           result.bufferMin = Math.min(result.bufferMin, fill);
         }

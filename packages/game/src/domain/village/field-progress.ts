@@ -550,10 +550,6 @@ export interface PartYearWork {
     harvest: number;
   };
   mow?: number;
-  /**
-   * Díl nad potřebu (fields.md – Osevní postup po dílech, bod 3) – jeho práce jde až po stavbách.
-   */
-  surplus?: true;
 }
 
 /**
@@ -594,7 +590,6 @@ export function partYearWork(state: VillageState, day: number): Map<number, Part
           sow: harvested ? 1 : (share('sow', id) ?? 0),
           harvest: harvested ? 1 : (share('harvest', id) ?? 0),
         },
-        ...(work.surplus ? { surplus: true as const } : {}),
       });
     }
   }

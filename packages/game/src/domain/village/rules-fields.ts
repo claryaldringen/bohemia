@@ -29,7 +29,7 @@ export const START_SEED_YEARS = 0.5;
 // praotec Čech do Čech“; čísla návrh Clauda z měření správce): vojvoda s manželkami (lord.md –
 // Zakladatelé) přinese jídlo na `foodYears` roční potřeby zakladatelů a osivo na `seedYears` roční
 // potřeby (osivo jen na setí – `VillageState.reservedSeedKg`); osivo se do `seedKeepYears` let od
-// založení neuvolní 1. 6. ani 1. 12. (SEED_BUYING) a cíle osevu ho nepočítají za jídlo – slouží na
+// založení neuvolní 1. 6. ani 1. 12. (SEED_BUYING) a výhled zásob ho nepočítá za jídlo – slouží na
 // víc osevů, dokud nedorostou první děti; sní se jen ve skutečném hladu. Ztráty skladováním
 // (STORAGE_LOSS_PER_YEAR) jdou z celé zásoby obilí – rezerva je nejvýš tolik, kolik obilí zbývá.
 // Měření správce 6 × 25 let (2. 11. 2026): s ochranou osiva past zmizí už s 18 měsíci a půl rokem
@@ -41,22 +41,16 @@ export const FOUNDERS_STORES = { foodYears: 3, seedYears: 2, seedKeepYears: 15 }
 // a luštěnin, × dnešní roční potřeba; podíl nejméně minShare = 1 − strop masa (0,4) − strop
 // mléka a sýra (0,3) z diet.md – ovoce, vejce a med se do pojistky nepočítají (hlídá test)
 export const FIELD_FOOD = { minShare: 0.3 } as const;
-// fields.md – Kolik ves oseje, Osev podle zásob (Martin 19. 10. 2026: „Ať se osev řídí také
-// zásobami“ a „Ano“ ke zkrácení plánu uprostřed sezóny; čísla návrh Clauda): po příští sklizni má
-// ves zásoby z pole na rok spotřeby a k tomu pojistku, která zbude před další sklizní – 0,5 roční
-// potřeby celé energie (≈ půl roku celé stravy; se stády podle bílkovin – maso ≈ 11 %, mléko ≈ 10 %
-// energie – rostoucí ves, které nestačí práce, ji vybere; kalibrace 20 × 20: hráč staví nasycení
-// ≥ 0,95 v 97,1 % let, s 0,3 v 94,2 %); rozjetý plán zkrátí, když převyšuje cíl o víc než desetinu
-// roční potřeby z pole (ať ho podzimní mléko a ovoce neubírají po kouscích).
-// Plynulejší osev (Martin 19. 10. 2026: „Ano, plynulejší osev určitě.“; čísla návrh Clauda): ves
-// seje podle dlouhodobého podílu jídla z pole (každý rok o třetinu rozdílu – balanceYears) na
-// cílovou zásobu = pojistka + třetina roční potřeby z pole (cushionYears); odchylku od ní vyrovná
-// po třetinách za rok (balanceYears), pod pojistkou doplní chybějící do pojistky hned
+// fields.md – Výhled zásob k sklizni (čísla návrh Clauda): pojistka – zásoba z pole, která má
+// zbýt před další sklizní – 0,5 roční potřeby celé energie (≈ půl roku celé stravy; kalibrace
+// 20 × 20: hráč staví nasycení ≥ 0,95 v 97,1 % let, s 0,3 v 94,2 %); podle ní sňatky, správce,
+// nákupy a platby (`storesOutlook`). Dlouhodobý podíl jídla z pole se posouvá o třetinu rozdílu
+// za rok (balanceYears). Kapacita polí (`steadyHarvestKg` – správce, kalkulačka) počítá s cílovou
+// zásobou = pojistka + třetina roční potřeby z pole (cushionYears).
 export const FIELD_STORES = {
   bufferEnergyYears: 0.5,
   balanceYears: 3,
   cushionYears: 1 / 3,
-  trimMarginYears: 0.1,
 } as const;
 // fields.md – Osevní postup po dílech, Postup práce po dílech (návrh Clauda v duchu Martina
 // 25. 10. 2026: „orají a sejí od začátku okna do konce okna všechno připravené, dokud stačí lidé

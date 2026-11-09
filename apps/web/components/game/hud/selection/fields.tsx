@@ -43,6 +43,16 @@ function cropShort(crop: keyof typeof CROP_LABELS): string {
 }
 
 /**
+ * Popisek hromady osiva (fields.md – Osivo bez cíle osevu, Zimní osivo): osivo okna, které běží,
+ * nebo zimní osivo na jař (návrh Clauda).
+ */
+function seedName(seed: NonNullable<Extract<SelectionDetails, { kind: 'field' }>['seed']>): string {
+  return seed.winter
+    ? 'Zimní osivo na jař (kg) – přes zimu ho ves nejí'
+    : `Osivo na ${cropShort(seed.crop)} (kg) – ves ho nejí; co nezaseje, vrátí do jídla`;
+}
+
+/**
  * Práce do konce okna nestačí (fields.md – Co hráč vidí, Očekávaná úroda a jestli práce stačí):
  * ikona práce s chybějícími člověkodny červeně, okna a kroky v popisku u kurzoru.
  */
@@ -223,17 +233,13 @@ export function FieldBody({
           </li>
         ))}
       </ul>
-      {(details.turn.length > 0 || details.resting > 0) && (
+      {(details.turn.length > 0 || details.resting > 0 || details.seed !== null) && (
         <ul aria-label="Na řadě" className={ROW}>
-          {details.turn.map(({ crop, count, surplus }) => (
+          {details.turn.map(({ crop, count }) => (
             <li key={crop}>
               <Stat
                 icon={CROP_LABELS[crop].icon}
-                name={`Na řadě – ${cropShort(crop)}${
-                  surplus > 0
-                    ? `; nad potřebu letos ${surplus} ${plural(surplus, 'díl', 'díly', 'dílů')}`
-                    : ''
-                }`}
+                name={`Na řadě – ${cropShort(crop)}`}
                 testId={`selection-turn-${crop}`}
               >
                 {count}
@@ -245,6 +251,13 @@ export function FieldBody({
               <FallowStat name="Odpočívá – příloh pod 95 %" testId="selection-resting">
                 {details.resting}
               </FallowStat>
+            </li>
+          )}
+          {details.seed && (
+            <li>
+              <Stat icon="food" name={seedName(details.seed)} testId="selection-seed">
+                {formatInteger(details.seed.kg)}
+              </Stat>
             </li>
           )}
         </ul>
@@ -338,7 +351,7 @@ export const PREP_LOOKS: Record<'reclaim' | 'plough' | 'dig', { icon: string; na
  * jen to jedno políčko s parametry.“): výměra, úrodnost (v popisku přirozená), cesta z domu
  * a hospodářství – ikona domu, kliknutím vybere dům; osetý díl letošní práci (příprava půdy,
  * setí s ikonou plodiny, sklizeň); osevní postup – kolikátý osev oběhu, co poroste příště (u úhoru
- * odpočinek k 95 %) a díl nad potřebu (fields.md – Osevní postup po dílech, bod 6); příloh roky
+ * odpočinek k 95 % – fields.md, Osevní postup po dílech, bod 6); příloh roky
  * ladem, zarůstání, pastvu a seč; zakládaný díl průběh, zbývající práci a stromy na klády.
  */
 export function FieldPartBody({
@@ -473,7 +486,7 @@ export function FieldPartBody({
           {details.outlook?.short && <WorkShort short={details.outlook.short} />}
         </div>
       )}
-      {(next !== null || details.sownYears !== null || details.surplus) && (
+      {(next !== null || details.sownYears !== null) && (
         <div className={ROW}>
           {details.sownYears !== null && (
             <Stat
@@ -497,13 +510,6 @@ export function FieldPartBody({
               icon={CROP_LABELS[next].icon}
               name={`Příště – ${cropShort(next)}`}
               testId="selection-next"
-            />
-          )}
-          {details.surplus && (
-            <Flag
-              icon="hourglass"
-              name="Jen z volné práce – stavby mají přednost"
-              testId="selection-surplus"
             />
           )}
         </div>

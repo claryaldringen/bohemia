@@ -25,7 +25,7 @@ import {
   stewardSonDay,
 } from '../steward-son';
 import { bufferFill } from '../field-food';
-import { fieldSowingTargets } from '../simulate-plan';
+import { fieldStoresOutlook } from '../simulate-plan';
 import { craftCoverage } from '../crafts';
 import { averageRotationShare } from '../field-capacity';
 import type { Dwelling, FieldPart, Person, VillageState } from '../types';
@@ -249,7 +249,7 @@ describe('odchod syna (krok 2)', () => {
   /** Pojistka mateřské vsi po odchodu syna `sonId` (jako `departingSon`). */
   const motherFill = (s: VillageState, sonId: number): number => {
     const after = departWithSon({ ...s, lastDay: AUG31 }, AUG31, sonId).state;
-    return bufferFill(fieldSowingTargets(after, AUG31, craftCoverage(after, AUG31)));
+    return bufferFill(fieldStoresOutlook(after, AUG31, craftCoverage(after, AUG31)));
   };
 
   /** Kolikrát osev vlastní prací uživí obě vsi po odchodu syna `sonId` (jako `departingSon`). */

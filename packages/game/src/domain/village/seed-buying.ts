@@ -2,12 +2,19 @@ import { dateOfDayIndex } from '../calendar';
 import { surplusCows } from './husbandry';
 import { neighbourStock } from './neighbours';
 import { NEIGHBOR_DIRECTIONS, SEED_BUYING } from './rules';
-import { reservedSeedKg, seedAheadKg, seedKeepKg, sowableSeedKg } from './seed';
+import {
+  reservedSeedKg,
+  seedKeepKg,
+  sowableSeedKg,
+  sowingWindowCrop,
+  windowSeedNeedKg,
+  type SowingCrop,
+} from './seed';
 import { addGood, buyPrice, goodWorth, sellPrice, storeStock } from './trade';
 import type { ChronicleEvent, NeighbourStock, VillageState } from './types';
 
 // Osivo pro ves bez zásob (fields.md – Osivo ze zásob, Osivo pro ves bez zásob; Martin 27. 10.
-// 2026: „ok, jak navrhuješ“; pravidla návrh Clauda). Ves, které na setí nutných dílů v plánu
+// 2026: „ok, jak navrhuješ“; pravidla návrh Clauda). Ves, které na setí dílů na řadě
 // chybí osivo (zásoby pod přežívací zásobou – po požáru, krutém roce, dceřiná ves), ho sama koupí
 // u sousedů (princip „vesničané sami používají, co jim ulehčí práci“ – hráč nic nezadává):
 // v den SEED_BUYING.days (1. 9. před setím ozimu, 1. 3. před setím jaře) jen tolik obilí, kolik
@@ -28,20 +35,20 @@ function isOn(day: number, target: { month: number; day: number }): boolean {
 }
 
 /**
- * Kolik osiva nutným dílům plánu chybí (kg obilí, stav nemění): osivo nutných dílů, které čeká na
- * setí (`seedAheadKg` bez prací nad potřebu – jen obilí; luštěniny ves na poli nepěstuje – fields.md,
- * Luštěniny, zrušeno), bez osiva, které smí do země (`sowableSeedKg` – i osivo, které ves má jen
- * na setí) a bez zrna ve nevymlácených snopech (`VillageState.sheaves`).
+ * Kolik osiva chybí (kg obilí, stav nemění – fields.md, Osivo bez cíle osevu): osivo na všechny
+ * díly na řadě v okně setí, které dnes běží (`windowSeedNeedKg` – luštěniny ves na poli nepěstuje,
+ * fields.md – Luštěniny, zrušeno), bez osiva, které smí do země (`sowableSeedKg` – i osivo, které
+ * ves má jen na setí), a bez zrna ve nevymlácených snopech (`VillageState.sheaves`). Mimo okno 0.
  */
 export function seedShortKg(state: VillageState, day: number): number {
-  if (!state.season) return 0;
-  const ahead = seedAheadKg(state, true, day);
-  // nevymlácené snopy dají osivo výmlatem stejně jako v `seedPrepShares` – ves je nekupuje
-  const sheaves = state.sheaves;
-  const need = ahead.grain;
+  const crop = sowingWindowCrop(state, day);
+  if (crop === null) return 0;
+  const need = windowSeedNeedKg(state, crop);
   if (need <= EPSILON) return 0;
+  // nevymlácené snopy dají osivo výmlatem stejně jako v `seedPrepShares` – ves je nekupuje
   const grainSowable =
-    sowableSeedKg(state, 'grain', seedKeepKg(state, day)) + Math.max(0, sheaves?.grainKg ?? 0);
+    sowableSeedKg(state, 'grain', seedKeepKg(state, day)) +
+    Math.max(0, state.sheaves?.grainKg ?? 0);
   return Math.max(0, need - grainSowable);
 }
 
@@ -125,20 +132,26 @@ export function buySeed(state: VillageState, day: number, shortKg: number): Chro
   ];
 }
 
+/** Obilí příštího okna setí – ozim od května do října, jinak jař. */
+function nextSowingCrop(day: number): SowingCrop {
+  const month = dateOfDayIndex(day).month;
+  return month >= 5 && month <= 10 ? 'winter' : 'spring';
+}
+
 /**
  * Osivo příštího osevu, které si ves z osiva zakladatelů nechá, i když šetří přídělem (kg obilí –
- * fields.md, Zásoby a nasycení, Start): roční osivo do potřeby z pole podle cílů osevu
- * (`FarmSeason.seedFloorKg`), nejméně osivo nutných dílů, které na setí čeká (`seedAheadKg`).
+ * fields.md, Zásoby a nasycení, Start): osivo na díly na řadě v příštím okně setí
+ * (`windowSeedNeedKg`).
  */
-export function foundersSeedKeepKg(state: VillageState): number {
-  return Math.max(state.season?.seedFloorKg ?? 0, seedAheadKg(state, true).grain);
+export function foundersSeedKeepKg(state: VillageState, day: number): number {
+  return windowSeedNeedKg(state, nextSowingCrop(day));
 }
 
 /**
  * Osivo dne (mutuje stav): 1. 6. (SEED_BUYING.releaseDay) je nezaseté osivo, které ves měla jen na
  * setí, obyčejné zrno; osivo zakladatelů (`reservedSeedUntilDay` – FOUNDERS_STORES) až po své
  * lhůtě – v ní, když ves šetří přídělem (`hungry`), jen nad osivo příštího osevu
- * (`foundersSeedKeepKg`); v den nákupu (SEED_BUYING.days) ves koupí osivo, které nutným dílům chybí.
+ * (`foundersSeedKeepKg`); v den nákupu (SEED_BUYING.days) ves koupí osivo, které dílům na řadě chybí.
  */
 export function seedBuyingDay(state: VillageState, day: number): ChronicleEvent[] {
   if (state.reservedSeedKg === undefined) {
@@ -154,7 +167,7 @@ export function seedBuyingDay(state: VillageState, day: number): ChronicleEvent[
       // lhůta osiva zakladatelů ještě běží – když ves šetří přídělem, sní rezervu nad osivo
       // příštího osevu (návrh Clauda 2. 11. 2026 – velká zásoba má vsi pomoct, ne způsobit hlad)
       if (state.hungry) {
-        const keep = foundersSeedKeepKg(state);
+        const keep = foundersSeedKeepKg(state, day);
         if (keep <= EPSILON) {
           delete state.reservedSeedKg;
           delete state.reservedSeedUntilDay;
@@ -165,7 +178,7 @@ export function seedBuyingDay(state: VillageState, day: number): ChronicleEvent[
       delete state.reservedSeedUntilDay;
     } else if (isOn(day, SEED_BUYING.winterReleaseDay)) {
       // po setí ozimu zůstane rezerva jen na osivo jaře
-      const keep = Math.min(state.reservedSeedKg, seedAheadKg(state).grain);
+      const keep = Math.min(state.reservedSeedKg, windowSeedNeedKg(state, 'spring'));
       if (keep > EPSILON) state.reservedSeedKg = keep;
       else delete state.reservedSeedKg;
     }

@@ -6,8 +6,8 @@ import { emptyTaskRecord, ploughRemaining, seasonCrop, type PartWork } from './y
 
 // Okna volné práce a zátěž osevu (fields.md – Ozim a jař, Osevní postup po dílech): kolik dnů
 // okna ještě zbývá (`windowDaysLeft`), práce, kterou rozběhnutý hospodářský rok ještě nese
-// (`planLoad`, `cropLoadOf`), a podíl dne rodiny vojvody na osevu, když ves bez ní nutnou práci
-// nestihne (`lordSowingHelp`, `lordHelpShare`). Které díly se osejí, určuje osevní postup
+// (`planLoad`, `cropLoadOf`), a podíl dne rodiny vojvody na žních, když je ves sama nestíhá
+// (`lordHarvestHelp`, `lordHelpShare`). Které díly se osejí, určuje osevní postup
 // (`rotation.ts`); tady zůstalo jen pořadí dílů pro len (`flaxOrder`).
 // Ves se spřežením (oxen.md – Jen rádlo) orá všechno a nekope; orba se počítá do práce lidí
 // (oráč a honáček) jako kopání.
@@ -186,7 +186,7 @@ function withoutMonths(
  * Měsíce oken volné práce `SowingCapacity` (lidé): podzim ozimu září–říjen, vrácení přílohu
  * a kopání září–listopad i březen–duben, jaro březen–duben, červenec (žeň ozimu, luštěnin a lnu
  * před oknem žně jaře), sklizeň jaře, zbytek žně z července a výmlat srpen. Podle nich
- * `sowingCapacity` i podíl dne rodiny na osevu (`lordHelpShare`).
+ * `sowingCapacity` i podíl dne rodiny na žních (`lordHelpShare`).
  */
 export const SOWING_CAPACITY_WINDOWS: Readonly<Record<LordHelpWindow, readonly WindowSegment[]>> = {
   autumnWinter: WINTER_WINDOWS.sow,
@@ -205,19 +205,19 @@ export function harvestOverflow(load: CropLoad, julyWork: number): number {
   return Math.max(0, load.july - julyWork);
 }
 
+/** Okna žní, ve kterých pomáhá vojvodova rodina (lord.md – Kdy jde rodina na pole). */
+export const HARVEST_HELP_WINDOWS: readonly LordHelpWindow[] = ['july', 'august'];
+
 /**
- * Podíl dne mužů cvičící vojvodovy rodiny po oknech, aby ves stihla výběr osevu `load`
- * (lord.md – Kdy jde rodina na pole, bod 1): chybějící práce (zátěž nad volnou prací vsi bez
- * rodiny `village`) ÷ práce rodiny v okně (`withLord − village`), nejvýš 1. Podzim ozimu,
- * červenec a srpen přímo – žeň, kterou červenec nestihne ani s rodinou, přejde do srpna
- * (`harvestOverflow`). Jař jako `fitsSpring` – vrácení a kopání na podzim, kolik po ozimu
- * zbude (i s pomocí rodiny v září–říjnu), zbytek se setím na jaře: co chybí, dá rodina napřed na
- * jaře (`lordHelpDay` ho každý den přepočítá podle skutečného zbytku) a co jaro nepokryje ani
- * s celou rodinou, z podzimu jaře (návrh Clauda). Podzim jaře zahrnuje i září–říjen, kde už rodina
- * pomáhá s ozimem – jeho podíl kryje obojí (den bere nejvyšší podíl, `lordHelpShare`). Okna, kde
- * nic nechybí, chybí; ves, která stihne vše sama, dostane {}.
+ * Podíl práce vojvodovy rodiny ve žních, aby ves stihla sklidit (lord.md – Kdy jde rodina na
+ * pole; Martin 9. 11. 2026): chybějící práce (zátěž `load` nad volnou prací vsi bez rodiny
+ * `village`) ÷ práce rodiny v okně (`withLord − village`), nejvýš 1 – jen tolik, kolik chybí. Kdo
+ * z rodiny jde (ženy a dcery, pak muži, vojvoda nakonec), určí den (`lordFieldShares`).
+ * Červenec a srpen; žeň, kterou červenec nestihne ani s rodinou, přejde do srpna
+ * (`harvestOverflow`). S osevem rodina nepomáhá. Okna, kde nic nechybí, chybí; ves, která žně
+ * stihne sama, dostane {}.
  */
-export function lordSowingHelp(
+export function lordHarvestHelp(
   load: CropLoad,
   village: SowingCapacity,
   withLord: SowingCapacity,
@@ -231,29 +231,23 @@ export function lordSowingHelp(
     help[window] = share;
     return share * family;
   };
-  const autumnWinter = add('autumnWinter', load.winterAutumn - village.autumnWinter);
   // co červenec nestihne ani s rodinou, se žne v srpnu (fields.md – Žně i v srpnu)
   const july = add('july', load.july - village.july);
   add('august', load.august + harvestOverflow(load, village.july + july) - village.august);
-  const autumnLeft = Math.max(0, village.autumn + autumnWinter - load.winterAutumn);
-  const over = Math.max(0, load.springReclaim + load.springDig - autumnLeft);
-  const short = load.springSow + over - village.spring;
-  const rest = Math.min(over, short - add('spring', short));
-  if (rest > EPSILON) add('autumn', autumnWinter + rest);
   return help;
 }
 
 /**
- * Podíl dnešního dne, který muži cvičící rodiny dají potřebnému osevu (`FarmSeason.lordHelp`,
- * lord.md – Kdy jde rodina na pole, bod 1): nejvyšší podíl oken, do kterých dnešek padne. Mimo
- * okna (zima, květen–červen) a v plánu bez pomoci (i u starších vsí) 0.
+ * Podíl dnešního dne, který cvičící rodina dá žním (`FarmSeason.lordHelp`, lord.md – Kdy jde
+ * rodina na pole): nejvyšší podíl oken žní (`HARVEST_HELP_WINDOWS`), do kterých dnešek padne.
+ * Mimo žně a v plánu bez pomoci 0.
  */
 export function lordHelpShare(plan: FarmSeason | null, day: number): number {
   const help = plan?.lordHelp;
   if (!help) return 0;
   const { month } = dateOfDayIndex(day);
   let share = 0;
-  for (const window of Object.keys(SOWING_CAPACITY_WINDOWS) as LordHelpWindow[]) {
+  for (const window of HARVEST_HELP_WINDOWS) {
     const inWindow = SOWING_CAPACITY_WINDOWS[window].some(
       ([from, to]) => month >= from && month <= to,
     );

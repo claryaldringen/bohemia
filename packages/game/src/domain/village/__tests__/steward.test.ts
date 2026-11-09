@@ -17,7 +17,7 @@ import { LUCKY_STARVATION_CAP } from '../population';
 import { craftCoverage } from '../crafts';
 import { STEWARD } from '../rules-steward';
 import { advanceVillage } from '../simulate';
-import { fieldSowingTargets } from '../simulate-plan';
+import { fieldStoresOutlook } from '../simulate-plan';
 import {
   chooseDwellingType,
   fieldTarget,
@@ -464,7 +464,7 @@ describe('den správce – dlouhý běh na skutečné krajině', () => {
       modes.set(mode, [...(modes.get(mode) ?? []), kg]);
       if (mode !== 'recovery') continue;
       // stará Nouze (pojistka bez osiva pod polovinou) – teď Obnova, osivo by ji pokrylo
-      expect(bufferFill(fieldSowingTargets(v, day, NO_CRAFTS, false))).toBeGreaterThanOrEqual(
+      expect(bufferFill(fieldStoresOutlook(v, day, NO_CRAFTS, false))).toBeGreaterThanOrEqual(
         STEWARD.emergencyFill,
       );
     }
@@ -474,7 +474,7 @@ describe('den správce – dlouhý běh na skutečné krajině', () => {
     expect(
       recovery.some(
         (kg) =>
-          bufferFill(fieldSowingTargets({ ...s, storesKg: kg }, day, NO_CRAFTS)) <
+          bufferFill(fieldStoresOutlook({ ...s, storesKg: kg }, day, NO_CRAFTS)) <
           STEWARD.emergencyFill,
       ),
     ).toBe(true);

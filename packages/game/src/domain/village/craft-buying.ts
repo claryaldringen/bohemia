@@ -5,13 +5,15 @@ import { createRandom, deriveSeed } from '../landscape/random';
 import { CELL_SIZE_M, LANDSCAPE_SIZE } from '../landscape/types';
 import { craftNeeds, craftStocks, craftTargets, occupiedWorkshops } from './crafts';
 import { toolEquipmentKg } from './iron';
-import { sowingTargets } from './field-food';
+import { storesOutlook } from './field-food';
 import { expectedNetKg } from './fields';
 import { villageLaborFactor } from './happiness';
 import { lordApartIds } from './lord';
 import { villageFoodCosts } from './husbandry';
-import { legumeEnergy, villageLegumesKg } from './legumes';
-import { seedAheadKg } from './seed';
+import { villageLegumesKg } from './legumes';
+import { seedOutsideFoodKg, uneatenSeedKg } from './seed';
+import { foodGrainReserveKg } from './threshing';
+import { villageFoodNeed } from './diet';
 import { villageManor } from './manor';
 import { neighbourKind } from './neighbours';
 import { ageGroup, laborPerDay } from './people';
@@ -287,9 +289,12 @@ export interface PaymentPool {
 }
 
 /**
- * Přebytek obilí a luštěnin nad pojistkou zásob (field-food.ts – `sowingTargets`). S `intoBuffer`
+ * Přebytek obilí a luštěnin nad pojistkou zásob (výhled zásob – field-food.ts, `storesOutlook`). S `intoBuffer`
  * smí platba sáhnout i do pojistky – ne pod nulu zásob k příští sklizni (nutný malý výdaj, např.
- * kování koní – horses.md, Kování).
+ * kování koní – horses.md, Kování). Vymlácené zrno k platbě je bez zrna na dnešní jídlo
+ * (`foodGrainReserveKg` – jako výmlat na dnešní jídlo), hromady osiva (okno i zimní osivo) a osiva jen na setí
+ * (oprava, návrh Clauda 9. 11. 2026: Vlkov 1. 8. 873 zaplatil kování 41 kg vymláceného zrna
+ * a příděl dne spadl na 0,55 – pojistka počítá i snopy, které se teprve vymlátí).
  */
 export function paymentPool(
   state: VillageState,
@@ -297,17 +302,19 @@ export function paymentPool(
   coverage: CraftCoverage,
   intoBuffer = false,
 ): PaymentPool {
-  // osivo, které čeká na setí, ves nezaplatí (jako `fieldSowingTargets`)
-  const seed = seedAheadKg(state, false, day);
-  const targets = sowingTargets(
+  // osivo, které ves ještě zaseje, a osivo jen na setí ves nezaplatí (jako `fieldStoresOutlook`)
+  const outlook = storesOutlook(
     state,
     day,
     coverage.pottery,
-    seed.grain + legumeEnergy(seed.legumes),
+    seedOutsideFoodKg(state, day, coverage.tools),
   );
   return {
-    energyKg: Math.max(0, targets.leftKg - (intoBuffer ? 0 : targets.bufferKg)),
-    grainKg: Math.max(0, state.storesKg),
+    energyKg: Math.max(0, outlook.leftKg - (intoBuffer ? 0 : outlook.bufferKg)),
+    grainKg: Math.max(
+      0,
+      state.storesKg - uneatenSeedKg(state) - foodGrainReserveKg(villageFoodNeed(state, day)),
+    ),
     legumesKg: villageLegumesKg(state),
   };
 }

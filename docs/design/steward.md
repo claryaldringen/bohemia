@@ -150,7 +150,7 @@ a překážek a dřevo. Staví napřed to, co má nejvyšší hodnotu na cenu, a
 | Rodina čeká na dům           | `waitingHouseholds`, `availableSettlers` (`households.ts`)                 | obydlí a dílny                |
 | Pole uživí podle dnešní půdy | `fieldCapacity` × min(1; dnešní ÷ ustálený podíl) (fields.md – Pole uživí) | nová pole, odchod syna        |
 | Kolik lidí bude za 1–2 roky  | `expectedYearlyFoodNeed` (`food-outlook.ts`)                               | cíl polí s předstihem         |
-| Pojistka zásob               | `bufferFill(fieldSowingTargets(…))` (`field-food.ts`, `simulate-plan.ts`)  | režim správce                 |
+| Pojistka zásob               | `bufferFill(fieldStoresOutlook(…))` (`field-food.ts`, `simulate-plan.ts`)  | režim správce                 |
 | Hlad a paměť hladu           | `starvationDays`, `famineMemoryDay` (disasters.md – Zásoby a pojistka)     | režim správce                 |
 | Volná práce                  | `commonLaborHistory` (volná práce v liště)                                 | rozpočet práce                |
 | Okna roku                    | `PLANNING_DAY`, okna setí a žní (`year-plan.ts`)                           | kdy zakládat pole, kdy klučit |
@@ -329,7 +329,7 @@ Kroky 3 a 4 (`domain/village/steward.ts` – `stewardDay`):
 - **Režim:** Nouze = hlad roste (`starvationDays` nad `steward.lastHunger` – hladem v minulý den
   správce); Růst s plnou pojistkou (`bufferFill`, osivo stranou); hladovějící ves, které hlad
   neroste, Obnova; jinak Nouze, když je pojistka pod `emergencyFill` (0,5), i když se osivo, které
-  na setí čeká, počítá jako jídlo (`fieldSowingTargets(…, reserveSeed = false)`), jinak Obnova.
+  ves ještě zaseje, počítá jako jídlo (`fieldStoresOutlook(…, reserveSeed = false)`), jinak Obnova.
   `lastHunger` se zapíše každý den správce – režim nezávisí na kouscích dopočtu.
 - **Rozpočet práce:** průměr volné práce posledních 30 dní × `laborHorizonDays` (120) minus
   zbývající práce všech rozestavěných staveb (hráčových, vesničanů i správcových). Nová ves bez
@@ -397,7 +397,8 @@ Správce jedná **stejnými akcemi jako hráč** – výprava za obchodem (`trad
 stavbami; rozhoduje jen ze stavu vsi a dne, bez náhody.
 
 - **Kdy hrozí hlad:** z výhledu zásob do žní, ze kterého správce počítá režim a pojistku
-  (`fieldSowingTargets` – osivo, které na setí čeká, se nejí): potřeba z pole do příští sklizně
+  (`fieldStoresOutlook` – osivo, které ves z hromady okna nebo zimního osiva ještě zaseje, se nejí;
+  [pole](fields.md) – Výhled zásob k sklizni): potřeba z pole do příští sklizně
   i se ztrátami skladováním bez zásob, které ves smí sníst (obilí, snopy, luštěniny), chybí aspoň
   o `STEWARD.grainMinKg` (25 kg – náklad jednoho nosiče, `TRADE.porterKg`).
 - **Komu:** sousedovi, který obilí nabízí (obilnáři), s hotovou zemskou stezkou a bez výpravy na

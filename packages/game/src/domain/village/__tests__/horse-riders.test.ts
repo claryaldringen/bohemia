@@ -3,7 +3,7 @@ import { assignRiders, riderPower, trainHorsesDay } from '../horse-riders';
 import { villageHorses } from '../horses';
 import { lordFamily, lordRides, trainLordDay } from '../lord';
 import { HORSE_SHOEING, HORSES } from '../rules';
-import type { ChronicleEvent, Horse, Trail, TradeExpedition, VillageState } from '../types';
+import type { ChronicleEvent, Horse, Person, Trail, TradeExpedition, VillageState } from '../types';
 import { horse, horseVillage, LORD_ID, SON_ID, START, YEAR, YOUTH_ID } from './horse-fixtures';
 
 // Jezdci a výcvik koně (horses.md – Výcvik koně a jezdec): přidělení koní od vojvody, výcvik
@@ -81,10 +81,9 @@ describe('výcvik koně (horses.md – Výcvik koně a jezdec)', () => {
     trainHorsesDay(s, START, new Map([[LORD_ID, 1]]));
     s.horsesCaredToday = 1;
     trainHorsesDay(s, START, new Map([[SON_ID, 1]]));
-    s.lord = { trains: true, field: { since: START, reason: 'hunger' } };
-    trainHorsesDay(s, START, new Map([[LORD_ID, 1]]));
+    // v den na poli nikdo nejezdí (`trainLordDay` – prázdné jízdy), výcvik stojí
+    trainHorsesDay(s, START, new Map());
     expect(villageHorses(s)[0]!.training).toBe(0);
-    delete s.lord;
     trainHorsesDay(s, START, new Map([[LORD_ID, 1]]));
     expect(villageHorses(s)[0]!.training).toBeGreaterThan(0);
   });
@@ -141,17 +140,22 @@ describe('jízdy dne (horses.md – Kdy a kam se jezdí, dokud není lov)', () =
     expect(rides.escort).toBeNull();
   });
 
-  it('v dnech na poli nikdo nejezdí – kůň stojí a jízda neroste', () => {
-    // chlapec 11 let cvičí i v dnech na poli – na koni ale ne, místo jízdy luk
+  it('v dnech na poli nejezdí, kdo je na poli – chlapec a muži mimo pole jezdí dál', () => {
+    // ženy a muži rodiny na poli, vojvoda ne (lord.md – Kdy jde rodina na pole; návrh Clauda:
+    // nejezdí jen ten, kdo je ten den na poli)
     const s = riding([horse(1, 5), horse(2, 6), horse(3, 7)]);
     expect(villageHorses(s).some((h) => h.riderId === YOUTH_ID)).toBe(true);
-    s.lord = { trains: true, field: { since: START, reason: 'hunger' } };
-    const youth = s.people.find((p) => p.id === YOUTH_ID)!;
-    const before = { ...youth.arms! };
-    trainLordDay(s, START + 1, 1);
-    expect(youth.arms!.riding).toBeLessThanOrEqual(before.riding);
-    expect(youth.arms!.bow).toBeGreaterThan(before.bow);
-    expect(lordRides(s, START + 1)).toBeNull();
+    s.lord = { trains: true };
+    const arms = (id: number): NonNullable<Person['arms']> => ({
+      ...s.people.find((p) => p.id === id)!.arms!,
+    });
+    const before = { lord: arms(LORD_ID), son: arms(SON_ID), youth: arms(YOUTH_ID) };
+    trainLordDay(s, START + 1, { women: 1, men: 1, lord: 0 });
+    // syn celý den na poli: necvičí, nejezdí
+    expect(arms(SON_ID).riding).toBeLessThanOrEqual(before.son.riding);
+    // chlapec cvičí vždy a na poli není – jezdí; vojvoda mimo pole jezdí
+    expect(arms(YOUTH_ID).riding).toBeGreaterThan(before.youth.riding);
+    expect(arms(LORD_ID).riding).toBeGreaterThan(before.lord.riding);
   });
 
   it('nepodkutý kůň: jezdec nedostává hodiny jízdy, cvičí luk a boj (horses.md – Kování)', () => {

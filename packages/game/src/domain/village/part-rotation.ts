@@ -12,7 +12,7 @@ import type { Crop, FieldPart, VillageState } from './types';
 
 // Co hráč vidí u dílu z osevního postupu (fields.md – Osevní postup po dílech a setí do konce
 // okna, bod 6 – návrh Clauda): co na dílu poroste příště, kolikátý osev oběhu, úhor s odpočinkem
-// k 95 % a díly na řadě či nad potřebu. Jen čte stav – žádná náhoda, pravidla z `rotation.ts`.
+// k 95 % a díly na řadě. Jen čte stav – žádná náhoda, pravidla z `rotation.ts`.
 
 /** Tolerance porovnání úrodnosti a práce. */
 const EPSILON = 1e-9;
@@ -35,8 +35,6 @@ export interface PartRotation {
   round?: number;
   /** Díl na řadě mimo letošní práci – čeká na ozim či jař. */
   onTurn?: true;
-  /** Díl letošní práce nad potřebu – jen z volné práce, stavby mají přednost. */
-  surplus?: true;
 }
 
 /** Úhor: odpočinek k `FERTILITY.fallowReady` a roky do osevu (příloh +2,5 % ročně 1. 9.). */
@@ -103,9 +101,8 @@ export function partRotation(
     const work = yearWork.get(part.id);
     const crop = work?.crop;
     const round = { round: part.sownYears + 1 };
-    const surplus = work?.surplus ? { surplus: true as const } : {};
     if (crop && crop.sow < 1 - EPSILON && crop.harvest < 1 - EPSILON) {
-      result.set(part.id, { next: crop.crop, ...round, ...surplus });
+      result.set(part.id, { next: crop.crop, ...round });
       continue;
     }
     // zaseto: co přijde po sezóně – postup na kopii dílu (stav se nemění)
@@ -115,7 +112,6 @@ export function partRotation(
     result.set(part.id, {
       ...waiting(after, 1, Math.max(day, seasonEndAfter(day))),
       ...round,
-      ...surplus,
     });
   }
   return result;

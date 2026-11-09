@@ -13,8 +13,15 @@ import { ageGroup, ageYears, isInjured, laborPerDay } from './people';
 import { dailyMinPerHousehold } from './productivity';
 import { AGE, ARMS_CAPS, HORSES, LORD, type ArmsSource } from './rules';
 import { HUNT } from './rules-wildlife';
-import { lordHelpShare } from './sowing';
-import type { ArmsSkills, ChronicleEvent, Person, VillageState } from './types';
+import { HARVEST_HELP_WINDOWS, lordHelpShare } from './sowing';
+import type {
+  ArmsSkills,
+  ChronicleEvent,
+  LordHelp,
+  LordState,
+  Person,
+  VillageState,
+} from './types';
 
 /** Co z vsi rodina potřebuje – lidé a dvorec. */
 type LordView = Pick<
@@ -348,26 +355,94 @@ export interface ManorLabor {
   dailyMin: number;
   /** Denní minimum, na které rodina nestačí – jde z práce vsi (`allocateDay` – `manorMin`). */
   uncovered: number;
-  /** Co dospělí rodiny dají do sezónních úloh při hladu (`allocateDay` – `lordField`); jinak 0. */
-  field: number;
   /**
-   * Pomoc s potřebným osevem (`allocateDay` – `lordHelp`): podíl dne z plánu (`lordHelpShare`) ×
-   * `freeMen`; při hladu a mimo okna pomoci 0.
+   * Pomoc ve žních (`allocateDay` – `lordHelp`, lord.md – Kdy jde rodina na pole): podíl dne
+   * z plánu (`lordHelpShare`) × `free` ve žňový den (`harvestHandsDay`); jinak 0.
    */
   help: number;
   /**
-   * Žňový den (fields.md – Žně všemi rukama, `harvestHandsDay`): cvičící muži dají `freeMen` na žeň
-   * a výmlat (`allocateDay` – `lordHarvest`), pomoc s osevem pak 0; při hladu a mimo žně 0.
+   * Práce dospělých rodiny přítomných ve vsi po denním minimu dvorce – muži, ženy i dcery (z ní
+   * podíly dne na poli – `lordFieldShares`).
    */
-  harvest: number;
-  /** Práce dospělých rodiny po denním minimu dvorce – celý den rodiny při hladu (podíl ÷ `free`). */
   free: number;
-  /**
-   * Práce cvičících mužů po minimu dvorce (minimum kryjí napřed ženy) – jen ta jde na pomoc s
-   * osevem; ženy na pole nechodí (Martin 23. 10. 2026: „Jen domácnost“), jen při hladu.
-   */
+  /** Z toho práce cvičících mužů po minimu dvorce (minimum kryjí napřed ženy). */
   freeMen: number;
+  /** Z `freeMen` práce samotného vojvody (minimum, na které ženy nestačí, kryjí napřed synové). */
+  freeLord: number;
 }
+
+/**
+ * Podíly dne skupin cvičící rodiny na poli ve žních (lord.md – Kdy jde rodina na pole; Martin
+ * 9. 11. 2026): ženy a dcery, muži rodiny (synové, vnuci), samotný vojvoda – 0–1.
+ */
+export interface LordFieldShares {
+  women: number;
+  men: number;
+  lord: number;
+}
+
+/** Nikdo z rodiny na poli. */
+export const NO_LORD_FIELD: LordFieldShares = { women: 0, men: 0, lord: 0 };
+
+/**
+ * Kdo z rodiny jde na pole, když ves žně sama nestíhá (lord.md – Kdy jde rodina na pole; Martin
+ * 9. 11. 2026: „Pokud se nestíhá, jdou ženy z vojvodovy rodiny, pokud se i tak nestíhá, jdou muži
+ * z vojvodovy rodiny, samotný vojvoda až úplně nakonec“): práci `used` (po štěstí), kterou žně
+ * dnes z rodiny vzaly, kryjí napřed ženy a dcery, pak muži a vojvoda až nakonec – každá skupina
+ * jen tolik, kolik po předchozí ještě chybí.
+ */
+export function lordFieldShares(
+  manor: Pick<ManorLabor, 'free' | 'freeMen' | 'freeLord'>,
+  used: number,
+): LordFieldShares {
+  let left = Math.max(0, used);
+  const take = (free: number): number => {
+    if (free <= FIELD_EPSILON || left <= FIELD_EPSILON) return 0;
+    const share = Math.min(1, left / free);
+    left -= share * free;
+    return share;
+  };
+  const women = take(manor.free - manor.freeMen);
+  const men = take(manor.freeMen - manor.freeLord);
+  return { women, men, lord: take(manor.freeLord) };
+}
+
+/** Podíly dne na poli – číslo = celá rodina týmž podílem (testy a starší volání). */
+function fieldSharesOf(field: number | LordFieldShares): LordFieldShares {
+  if (typeof field !== 'number') return field;
+  const share = Math.min(1, Math.max(0, field));
+  return { women: share, men: share, lord: share };
+}
+
+/** Podíl dne na poli cvičícího `person` (vojvoda, nebo muž rodiny); chlapci 7–13 let pole nemají. */
+function traineeFieldShare(
+  person: Person,
+  day: number,
+  family: LordFamily,
+  shares: LordFieldShares,
+): number {
+  if (ageGroup(person, day) === 'child') return 0;
+  return person.id === family.lord?.id ? shares.lord : shares.men;
+}
+
+/**
+ * Cvičící, kteří jsou dnes na poli (podíl dne > 0) – nejezdí a neloví (horses.md – Výcvik koně
+ * a jezdec, wildlife.md – Lov rodu; návrh Clauda: jen kdo je ten den na poli).
+ */
+export function lordFieldIds(
+  family: LordFamily,
+  day: number,
+  field: number | LordFieldShares,
+): Set<number> {
+  const shares = fieldSharesOf(field);
+  return new Set(
+    family.trainees
+      .filter((p) => traineeFieldShare(p, day, family, shares) > FIELD_EPSILON)
+      .map((p) => p.id),
+  );
+}
+
+const FIELD_EPSILON = 1e-9;
 
 /**
  * Práce dvorce, když rodina cvičí (lord.md – Den rodiny; jako `workshopLabor` dílen): denní
@@ -376,9 +451,9 @@ export interface ManorLabor {
  * domů vedlejších manželek vojvody (`wivesApart`) kryjí stejně ony, nekryté platí ves. Dům elity
  * (`eliteHomes`, hillfort.md – Elita) kryje své minimum jako dvorec jeho lidé z rodiny. Co ženám
  * zbude, je domácí výroba dvorce a do práce vsi nejde (Martin 23. 10. 2026: „Jen domácnost“).
- * Na poli (hlad – `state.lord.field`) dají všichni dospělí rodiny vše po minimu. Ve žňový den
- * (`harvestHandsDay`) dají cvičící muži `freeMen` na žeň a výmlat. Jinak s potřebným
- * osevem jen podíl dne z plánu, a to jen práce cvičících mužů (`freeMen`; ženy a dcery jen při hladu; lord.md – Kdy jde rodina na pole, bod 1; `FarmSeason.lordHelp`).
+ * Ve žňový den (`harvestHandsDay`), kdy ves žně sama nestíhá, dá rodina přítomná ve vsi podíl
+ * dne z plánu (`FarmSeason.lordHelp`; lord.md – Kdy jde rodina na pole) – napřed ženy a dcery,
+ * pak muži, vojvoda až nakonec (`lordFieldShares`). Kdo je pryč (tažení, výprava), práci nemá.
  */
 export function manorLabor(
   state: VillageState,
@@ -407,6 +482,7 @@ export function manorLabor(
   let homesMin = 0;
   let homesFree = 0;
   let freeMen = 0;
+  let freeLord = 0;
   for (const home of [manor, ...family.eliteHomes]) {
     const inHome = (p: Person): boolean =>
       home === manor ? !eliteHomes.has(p.dwellingId) : p.dwellingId === home;
@@ -417,10 +493,14 @@ export function manorLabor(
     need += homeMin;
     homesMin += covered;
     homesFree += capacity - covered;
-    freeMen += Math.min(capacity - covered, labor(trainees));
+    const men = Math.min(capacity - covered, labor(trainees));
+    freeMen += men;
+    // minimum, na které ženy nestačí, kryjí napřed synové – vojvoda jde na pole poslední
+    const lord = trainees.filter((p) => p.id === family.lord?.id);
+    freeLord += Math.min(men, labor(lord));
   }
   // domy vedlejších manželek vojvody (lord.md – Rod vojvody, Manželky – Práce): minimum kryjí ony,
-  // co nestačí, platí ves; co jim zbude, je domácí výroba – na pole jen při hladu
+  // co nestačí, platí ves; co jim zbude, je domácí výroba – na pole jen ve žních s rodinou
   let apartNeed = 0;
   let apartMin = 0;
   let apartFree = 0;
@@ -433,47 +513,46 @@ export function manorLabor(
   }
   const dailyMin = homesMin + apartMin;
   const free = homesFree + apartFree;
-  const hunger = state.lord?.field?.reason === 'hunger';
-  const field = hunger ? free : 0;
-  // ve žňový den jdou cvičící muži na žeň a výmlat (Martin 24. 10. 2026: „Dílny i vojvodova
-  // rodina“) – ženy rodiny dál jen domácnost
-  const harvest = !hunger && harvestHandsDay(state, day) ? freeMen : 0;
-  const help = hunger || harvest > 0 ? 0 : lordHelpShare(state.season, day) * freeMen;
-  return {
-    dailyMin,
-    uncovered: need + apartNeed - dailyMin,
-    field,
-    harvest,
-    help,
-    free,
-    freeMen,
-  };
+  // ve žňový den, kdy ves žně sama nestíhá, rodina – jen podíl, který chybí (kdo jde, určí
+  // `lordFieldShares`: ženy, muži, vojvoda)
+  const help = harvestHandsDay(state, day) ? lordHelpShare(state.season, day) * free : 0;
+  return { dailyMin, uncovered: need + apartNeed - dailyMin, help, free, freeMen, freeLord };
 }
 
 /**
- * Kdy jde rodina na pole kvůli hladu (lord.md – Kdy jde rodina na pole; volá se po jídle dne,
- * mutuje `state.lord`): ves šetří jídlem nebo hladoví (`state.hungry`) → rodina jde od zítřka na
- * pole a počítadlo plných dní se vynuluje; jinak přibude den plného přídělu a po
- * `LORD.backToTrainingDays` dnech po sobě se rodina vrátí k výcviku. Kronika jen při změně. Jen
- * když rodina cvičí – jinak pracuje jako ostatní.
+ * Převod (lord.md – Kdy jde rodina na pole; Martin 9. 11. 2026): rodina nejde na pole při hladu
+ * (`LordState.field`, `fedDays` zmizí) a s osevem nepomáhá (okna setí z `FarmSeason.lordHelp`
+ * zmizí – zůstanou jen žně). Jednou, idempotentně; vstupní stav nemění.
  */
-export function lordFieldMode(state: VillageState, day: number): ChronicleEvent[] {
-  const lord = state.lord;
-  if (lord?.trains !== true) return [];
-  if (state.hungry) {
-    const events: ChronicleEvent[] = lord.field
-      ? []
-      : [{ day, kind: 'lord-to-field', reason: 'hunger' }];
-    if (lord.field?.reason !== 'hunger') lord.field = { since: day, reason: 'hunger' };
-    lord.fedDays = 0;
-    return events;
+export function withoutSowingHelp(state: VillageState): VillageState {
+  const lord = state.lord as (LordState & { field?: unknown; fedDays?: unknown }) | undefined;
+  const lordLegacy = lord !== undefined && ('field' in lord || 'fedDays' in lord);
+  const stale = (season: VillageState['season']): boolean =>
+    season?.lordHelp !== undefined &&
+    Object.keys(season.lordHelp).some(
+      (w) => !(HARVEST_HELP_WINDOWS as readonly string[]).includes(w),
+    );
+  if (!lordLegacy && !stale(state.season)) return state;
+  const next = { ...state };
+  if (lord && lordLegacy) {
+    const rest = { ...lord };
+    delete rest.field;
+    delete rest.fedDays;
+    next.lord = rest;
   }
-  if (!lord.field) return [];
-  lord.fedDays = (lord.fedDays ?? 0) + 1;
-  if (lord.fedDays < LORD.backToTrainingDays) return [];
-  delete lord.field;
-  delete lord.fedDays;
-  return [{ day, kind: 'lord-to-training' }];
+  const season = state.season;
+  if (season && stale(season)) {
+    const help: LordHelp = {};
+    for (const w of HARVEST_HELP_WINDOWS) {
+      const share = season.lordHelp?.[w];
+      if (share !== undefined) help[w] = share;
+    }
+    const rest = { ...season };
+    if (Object.keys(help).length > 0) rest.lordHelp = help;
+    else delete rest.lordHelp;
+    next.season = rest;
+  }
+  return next;
 }
 
 const NO_ARMS: ArmsSkills = { bow: 0, combat: 0, riding: 0 };
@@ -481,23 +560,32 @@ const NO_ARMS: ArmsSkills = { bow: 0, combat: 0, riding: 0 };
 /**
  * Výcvik dne (lord.md – Výcvik a zkušenost; mutuje lidi a koně): cvičící rodiny dostanou
  * `trainArms` podle hodin dne – jízdu jen jezdec s koněm (horses.md – Výcvik koně a jezdec, páry
- * `assignRiders` drží i mimo výcvik); dospělí na poli jen `1 − fieldShare` dne (podíl práce
- * rodiny, který dnes spotřebovaly úlohy), chlapci 7–13 let cvičí vždy. Kdo dnes necvičí (rodina
+ * `assignRiders` drží i mimo výcvik); muži na poli jen `1 −` svůj podíl dne na poli (`field` –
+ * `lordFieldShares`: muži rodiny, vojvoda), chlapci 7–13 let cvičí vždy. Kdo dnes necvičí (rodina
  * celý den na poli, muž mimo dvorec, rodina pracuje jako ostatní), zapomíná (`decayArms`). Koně
  * se cvičí pod jezdci, kteří dnes jezdili (`trainHorsesDay`); vrací události kroniky.
  */
-export function trainLordDay(state: VillageState, day: number, fieldShare = 0): ChronicleEvent[] {
+export function trainLordDay(
+  state: VillageState,
+  day: number,
+  field: number | LordFieldShares = 0,
+): ChronicleEvent[] {
   const family = trainingFamily(state, day);
   const trainees = new Set(family ? family.trainees.map((p) => p.id) : []);
-  const onField = Math.min(1, Math.max(0, fieldShare));
+  const shares = fieldSharesOf(field);
   const paired =
     horsePens(state).length > 0
       ? assignRiders(state, day, family ?? lordFamily(state, day))
       : NO_RIDERS;
-  // dny na poli (horses.md – Výcvik koně a jezdec): koně stojí v ohradě, nikdo nejezdí – i chlapci,
-  // kteří cvičí vždy, cvičí místo jízdy luk a boj jako jezdec bez koně
-  // totéž platí, když kůň není podkutý (horses.md – Kování): jezdec cvičí místo jízdy luk a boj
-  const mounted = state.lord?.field || isUnshod(state, day) ? NO_RIDERS : paired;
+  // dny na poli – žně s rodinou (horses.md – Výcvik koně a jezdec): kdo je dnes na poli, nejezdí
+  // (jen on – návrh Clauda); když kůň není podkutý (horses.md – Kování), nejezdí nikdo – jezdec
+  // cvičí místo jízdy luk a boj
+  const onField = family ? lordFieldIds(family, day, shares) : new Set<number>();
+  const mounted = isUnshod(state, day)
+    ? NO_RIDERS
+    : onField.size > 0
+      ? new Set([...paired].filter((id) => !onField.has(id)))
+      : paired;
   const riding = new Map<number, number>();
   // den lovu je výcvik (wildlife.md – Lov rodu): jezdec jízda 3 h a luk 3 h, pěší luk 2 h a boj 4 h
   const hunt = state.wildlife?.hunt?.today;
@@ -507,7 +595,7 @@ export function trainLordDay(state: VillageState, day: number, fieldShare = 0): 
     // zraněný na lovu necvičí (wildlife.md – Nebezpečí pro lidi) a nezapomíná
     if (isInjured(p, day)) continue;
     if (family && trainees.has(p.id)) {
-      const share = ageGroup(p, day) === 'child' ? 1 : 1 - onField;
+      const share = 1 - traineeFieldShare(p, day, family, shares);
       const hunting = huntRiders.has(p.id) || huntFoot.has(p.id);
       const h = hunting
         ? HUNT.training[huntRiders.has(p.id) ? 'rider' : 'foot']
@@ -530,6 +618,18 @@ export function trainLordDay(state: VillageState, day: number, fieldShare = 0): 
     } else if (p.arms) p.arms = decayArms(p.arms);
   }
   return family ? trainHorsesDay(state, day, riding) : [];
+}
+
+/**
+ * Cvičící, kteří jdou ve žňový den podle plánu pomoci na pole (`FarmSeason.lordHelp` × `free`,
+ * pořadí `lordFieldShares`); mimo dny pomoci prázdné. Odhad bez nádob od hrnčíře (minimum dvorce
+ * jako bez keramiky – `craftCoverage` by s `crafts.ts` udělal kruh importů; návrh Clauda). Jen
+ * čte stav.
+ */
+export function harvestFieldIds(state: VillageState, day: number, family: LordFamily): Set<number> {
+  if (!harvestHandsDay(state, day) || lordHelpShare(state.season, day) <= 0) return new Set();
+  const manor = manorLabor(state, day, 0, 1, family);
+  return lordFieldIds(family, day, lordFieldShares(manor, manor.help));
 }
 
 /** Jezdec dne (`lordRides`): kdo, na kterém koni, výcvik koně a hodiny jízdy dne. */
@@ -555,19 +655,19 @@ export interface LordRides {
 /**
  * Kdo dnes jede a na kterém koni (horses.md – Výcvik koně a jezdec, Kdy a kam se jezdí): stejné
  * jako jízda v `trainLordDay` – jezdec z cvičící rodiny se svým koněm (`Horse.riderId`, kůň ve
- * službě) a hodinami jízdy dne (`trainingHours`), vojvoda první, pak od nejstaršího. V dnech na poli
- * (hlad, žňový den cvičících mužů) a bez cvičící rodiny null; ves bez jezdců prázdné `riders`. Jen čte stav (pro scénu).
+ * službě) a hodinami jízdy dne (`trainingHours`), vojvoda první, pak od nejstaršího. Ve žňový den,
+ * kdy rodina pomáhá, nejede, kdo je na poli (`harvestFieldIds`); bez cvičící rodiny null; ves bez
+ * jezdců prázdné `riders`. Jen čte stav (pro scénu a hlídky polí).
  */
 export function lordRides(state: VillageState, day: number): LordRides | null {
   const family = trainingFamily(state, day);
-  if (!family || state.lord?.field) return null;
+  if (!family) return null;
   // nepodkuté koně nikdo nevyvádí (horses.md – Kování)
   if (isUnshod(state, day)) return null;
-  // ve žňový den jdou cvičící muži na žeň (`manorLabor` – `harvest`) a nejezdí (kůň stojí)
-  if (harvestHandsDay(state, day) && family.trainees.some((p) => ageGroup(p, day) !== 'child')) {
-    return null;
-  }
-  const trainees = new Map(family.trainees.map((p) => [p.id, p]));
+  // ve žňový den, kdy rodina pomáhá (`manorLabor` – `help`), nejezdí, kdo jde podle plánu pomoci
+  // na pole (`lordFieldShares` – ženy, muži, vojvoda; kůň stojí)
+  const onField = harvestFieldIds(state, day, family);
+  const trainees = new Map(family.trainees.filter((p) => !onField.has(p.id)).map((p) => [p.id, p]));
   const hunting = new Set(huntToday(state, day)?.riders.map((r) => r.personId));
   const lordId = family.lord?.id;
   const riders: (LordRide & { bornDay: number })[] = [];
@@ -622,20 +722,23 @@ export function lordRides(state: VillageState, day: number): LordRides | null {
 
 /**
  * Počty lidí cvičící rodiny dne (`LaborDay.lord` – pro scénu a lištu): na poli je podíl
- * `fieldShare` dospělých mužů a podíl `womenShare` žen rodiny (zaokrouhleno; ženy jen při hladu,
- * u pomoci s osevem 0), ostatní muži a chlapci cvičí a ženy vedou domácnost dvorce.
+ * `field.women` dospělých žen, `field.men` dospělých mužů rodiny a vojvoda podle `field.lord`
+ * (zaokrouhleno – `lordFieldShares`), ostatní muži a chlapci cvičí a ženy vedou domácnost dvorce.
  */
 export function lordDayCounts(
   family: LordFamily,
   day: number,
-  fieldShare: number,
-  womenShare = fieldShare,
+  field: number | LordFieldShares,
 ): { training: number; field: number; household: number } {
-  const adults = (people: Person[]): number =>
-    people.filter((p) => ageGroup(p, day) !== 'child').length;
-  const share = Math.min(1, Math.max(0, fieldShare));
-  const men = Math.round(adults(family.trainees) * share);
-  const women = Math.round(adults(family.household) * Math.min(1, Math.max(0, womenShare)));
+  const shares = fieldSharesOf(field);
+  const adults = (people: Person[]): Person[] => people.filter((p) => ageGroup(p, day) !== 'child');
+  const grown = adults(family.trainees);
+  const lordOnField = grown.some((p) => p.id === family.lord?.id) ? Math.round(shares.lord) : 0;
+  const sons = grown.filter((p) => p.id !== family.lord?.id).length;
+  const men = Math.round(sons * Math.min(1, Math.max(0, shares.men))) + lordOnField;
+  const women = Math.round(
+    adults(family.household).length * Math.min(1, Math.max(0, shares.women)),
+  );
   return {
     training: family.trainees.length - men,
     field: men + women,

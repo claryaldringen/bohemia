@@ -1032,10 +1032,12 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
         { crop: 'flax', count: 56 },
       ],
       turn: [
-        { crop: 'winter', count: 22, surplus: 6 },
-        { crop: 'spring', count: 12, surplus: 3 },
+        { crop: 'winter', count: 22 },
+        { crop: 'spring', count: 12 },
       ],
       resting: 327,
+      // hromada osiva okna ozimu (fields.md – Osivo bez cíle osevu)
+      seed: { crop: 'winter', kg: 3840, winter: false },
       ashParts: 24,
       ashBonus: 40,
       overgrowingM2: 13_050,
@@ -1083,7 +1085,6 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       mow: null,
       next: 'fallow',
       rest: { share: 0.81, years: 8 },
-      surplus: true,
       founding: null,
       // škoda zvěře letos, díl se hlídá (wildlife.md – Co hráč vidí)
       damage: { percent: 12, kg: 41, edgeM: 80, watched: true },
@@ -1128,7 +1129,6 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       mow: null,
       next: 'spring',
       rest: null,
-      surplus: false,
       founding: null,
     },
   },
@@ -1163,7 +1163,6 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       mow: 0.6,
       next: 'fallow',
       rest: { share: 0.91, years: 2 },
-      surplus: false,
       founding: null,
     },
   },
@@ -1198,7 +1197,6 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       mow: null,
       next: 'fallow',
       rest: null,
-      surplus: false,
       founding: null,
     },
   },
@@ -1233,7 +1231,6 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       mow: null,
       next: null,
       rest: null,
-      surplus: false,
       founding: { progress: 0.35, laborLeft: 12.6, trees: 4 },
     },
   },
@@ -1268,7 +1265,6 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       mow: null,
       next: null,
       rest: null,
-      surplus: false,
       founding: {
         progress: 0.2,
         laborLeft: 5.4,
@@ -1308,7 +1304,6 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       mow: null,
       next: null,
       rest: null,
-      surplus: false,
       founding: {
         progress: 0.6,
         laborLeft: 2.3,
@@ -1348,7 +1343,6 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       mow: null,
       next: null,
       rest: null,
-      surplus: false,
       founding: {
         progress: 0.85,
         laborLeft: 0.9,

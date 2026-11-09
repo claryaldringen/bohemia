@@ -129,6 +129,27 @@ export interface ArmySeen {
   fromVillageId: string;
 }
 
+/**
+ * Hromada osiva okna setí (fields.md – Osivo bez cíle osevu; Martin 9. 11. 2026): ozim v září–říjnu,
+ * jař v březnu–dubnu (po dlouhé zimě do 14. 5.). Ideální denní díl je `totalKg` / `days`. Od
+ * listopadu do konce února zimní osivo (`beforeWindow`; fields.md – Zimní osivo, Martin 9. 11. 2026).
+ */
+export interface SowingSeed {
+  /** Obilí okna – ozim (podzim), nebo jař (jaro; i zimní osivo). */
+  crop: 'winter' | 'spring';
+  /** Osivo na všechny díly na řadě v první den okna (kg obilí; v zimě dnes). */
+  totalKg: number;
+  /** Dny setí okna od jeho prvního dne (bez dní, kdy dlouhá zima setí drží; v zimě 0). */
+  days: number;
+  /** Odložené osivo dnes (kg obilí ve `storesKg`, bez `reservedSeedKg`). */
+  kg: number;
+  /**
+   * Zimní osivo – osivo na jarní díly na řadě, které ves drží od konce podzimního okna do začátku
+   * jarního (listopad – únor); 1. 3. ho převezme hromada jarního okna. Chybí = hromada okna.
+   */
+  beforeWindow?: true;
+}
+
 export interface VillageState {
   seed: number;
   foundedDay: number;
@@ -150,10 +171,16 @@ export interface VillageState {
   reservedSeedKg?: number;
   /**
    * Osivo zakladatelů první vsi (fields.md – Zásoby a nasycení, Start; FOUNDERS_STORES): před tímto
-   * dnem se `reservedSeedKg` neuvolní 1. 6. ani 1. 12. a cíle osevu ho nepočítají za jídlo – slouží
+   * dnem se `reservedSeedKg` neuvolní 1. 6. ani 1. 12. a výhled zásob ho nepočítá za jídlo – slouží
    * na víc osevů. Ve skutečném hladu ves rezervu sní i dřív. Chybí = rezerva bez ochrany.
    */
   reservedSeedUntilDay?: number;
+  /**
+   * Hromada osiva okna setí (fields.md – Osivo bez cíle osevu; Martin 9. 11. 2026): obilí ve
+   * `storesKg` odložené na setí v okně, které dnes běží, v zimě na jarní okno (zimní osivo). Ves
+   * ho nejí; od konce jarního okna do září chybí.
+   */
+  sowingSeed?: SowingSeed;
   /**
    * Den, kdy do vsi naposledy přišlo jídlo domény (zásilka s `domain`; hillfort.md – Hradiště
    * staví hráč). Chybí = nikdy.
@@ -690,13 +717,6 @@ export interface Trail {
 export interface LordState {
   /** Rodina cvičí místo práce (`familyTrains` s hysterezí); chybí = pracuje jako ostatní. */
   trains?: true;
-  /**
-   * Rodina je na poli (lord.md – Kdy jde rodina na pole): od kterého dne a proč – hlad (výhled pod
-   * plný příděl); `sowing` přidá pomoc s potřebným osevem. Chybí = rodina cvičí.
-   */
-  field?: { since: number; reason: 'hunger' | 'sowing' };
-  /** Dní s plným přídělem po sobě, co je rodina na poli – návrat po `LORD.backToTrainingDays`. */
-  fedDays?: number;
 }
 
 /** Vystěhovaná domácnost (`VillageState.displaced`). */

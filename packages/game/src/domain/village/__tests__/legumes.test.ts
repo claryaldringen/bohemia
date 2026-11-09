@@ -247,19 +247,16 @@ describe('luštěniny z polí vyřazené (Martin 9. 11. 2026)', () => {
     expect(next.parts.some((p) => p.crop === 'legume')).toBe(false);
   });
 
-  it('převod: výběr dílů z paměti s luštěninami propadne i s osivem, ves vybere znovu', () => {
+  it('převod: výběr dílů z paměti s luštěninami propadne, ves vybere znovu', () => {
     const planned = advanceVillage(found(at(600, 3, 1)), at(601, 3, 10), null);
     const legacy = structuredClone(planned);
     const id = legacy.parts.find((p) => p.state !== 'sown')?.id ?? 0;
     legacy.season!.selection = {
       window: 'x',
       waiting: [{ id, crop: 'legume' }],
-      floorKg: null,
     };
-    legacy.season!.seedWaitingKg = { grain: 0, legumes: 5 };
     const converted = withoutFieldLegumes(legacy);
     expect(converted.season!.selection).toBeUndefined();
-    expect(converted.season!.seedWaitingKg).toBeUndefined();
   });
 
   it('zasetá luštěnina starší vsi doroste, sklidí se do snopů a vymlátí do zásoby', () => {

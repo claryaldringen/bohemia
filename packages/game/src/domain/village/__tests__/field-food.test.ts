@@ -4,13 +4,11 @@ import { foundVillage } from '../actions';
 import type { PartInput } from '../actions';
 import { DIET } from '../diet';
 import {
-  bufferKg,
   closeFieldFoodYear,
   fieldFoodShare,
   fieldShareOf,
-  fieldStoresKg,
   recordFieldFood,
-  sowingTargets,
+  storesOutlook,
   steadyHarvestKg,
   storesTargetKg,
   storesLeft,
@@ -21,15 +19,13 @@ import {
 import { expectedYearlyFoodNeed } from '../food-outlook';
 import { hasGoodStores } from '../happiness';
 import { daysUntilHarvest } from '../food';
-import { daysUntilLegumeHarvest, expectedLegumeKg, legumeEnergy } from '../legumes';
+import { daysUntilLegumeHarvest, legumeEnergy } from '../legumes';
 import { expectedNetKg } from '../fields';
 import { NO_CRAFTS, storageLossPerYear } from '../productivity';
 import { FIELD_FOOD, FIELD_STORES, FOOD_NEED_KG_PER_YEAR, LEGUMES } from '../rules';
-import { neededSelection } from '../rotation';
 import { advanceVillage } from '../simulate';
-import { fieldSowingTargets } from '../simulate-plan';
 import { withThreshingFloor, withoutSmallGame } from './village-fixtures';
-import type { Crop, DietDay, VillageState } from '../types';
+import type { DietDay, VillageState } from '../types';
 import { seasonCrops } from '../year-plan';
 
 // Osev podle stravy a podle zásob (fields.md – Kolik ves oseje, Osev podle stravy, Osev podle
@@ -80,32 +76,6 @@ function village(stores = 0): VillageState {
   const s = found(at(600, 3, 1));
   s.storesKg = stores;
   return { ...s, lastDay: day - 1 };
-}
-
-/** Očekávaná energie plánu (kg obilí) – obilí a luštěniny jejich energií. */
-/**
- * Energie dílů, které ves k osevu vybrala – přibraných na čelo práce i čekajících na něj ve výběru
- * (fields.md – Osevní postup po dílech, bod 3).
- */
-function planEnergy(s: VillageState, day: number): number {
-  const byId = new Map(s.parts.map((p) => [p.id, p]));
-  const energy = (id: number, crop: Crop): number => {
-    const part = byId.get(id)!;
-    return crop === 'legume' ? legumeEnergy(expectedLegumeKg(part, day)) : expectedNetKg(part, day);
-  };
-  let kg = 0;
-  for (const { crop, work } of seasonCrops(s.season!)) {
-    for (const id of work.partIds) kg += energy(id, crop);
-  }
-  const t = fieldSowingTargets(s, day, NO_CRAFTS);
-  const { join } = neededSelection(s, day, {
-    harvestKg: t.harvestKg,
-    energyFloorKg: t.energyFloorKg,
-    needKg: t.needKg,
-    flaxNeedKg: s.season?.flaxNeedKg ?? 0,
-  });
-  for (const { id, crop } of join) kg += energy(id, crop);
-  return kg;
 }
 
 describe('podíl jídla z pole', () => {
@@ -161,98 +131,55 @@ describe('zásoby za rok – spotřeba a ztráty skladováním', () => {
   });
 });
 
-describe('cíl osevu podle zásob', () => {
+describe('výhled zásob k sklizni', () => {
   const day = at(600, 9, 1);
   const loss = storageLossPerYear(NO_CRAFTS.pottery);
-  const targetsOf = (s: VillageState): ReturnType<typeof sowingTargets> =>
-    sowingTargets(s, day, NO_CRAFTS.pottery);
+  const targetsOf = (s: VillageState): ReturnType<typeof storesOutlook> =>
+    storesOutlook(s, day, NO_CRAFTS.pottery);
   // potřeba podle růstu vsi – do sklizně 31. 8. a rok po ní (Osev podle růstu vsi)
   const harvestDay = day + daysUntilHarvest(day) - 1;
   const yearlyNow = (s: VillageState): number => expectedYearlyFoodNeed(s, day, day, harvestDay);
   const yearlyNext = (s: VillageState): number =>
     expectedYearlyFoodNeed(s, day, harvestDay + 1, harvestDay + 365);
 
-  it('prázdné zásoby: úroda rok co rok, pojistka hned, cílová zásoba nad ní po třetinách', () => {
+  it('prázdné zásoby: potřeba podle růstu vsi, pojistka z celé energie, nic nezbude', () => {
     const s = village(0);
     const today = s.people.reduce((sum, p) => sum + (day - p.bornDay < 14 * 365.25 ? 100 : 180), 0);
     expect(yearlyFoodNeed(s, day)).toBe(today);
     expect(today).toBe(2 * FOOD_NEED_KG_PER_YEAR.adult + 2 * FOOD_NEED_KG_PER_YEAR.child);
-    // děti (12 a 13 let) do roku po sklizni dorostou – ves seje na větší potřebu než dnešní
+    // děti (12 a 13 let) do roku po sklizni dorostou – potřeba větší než dnešní
     const need = yearlyNext(s);
     expect(need).toBeGreaterThan(today * 1.15);
     // bez změřeného podílu celá potřeba energie
     const t = targetsOf(s);
     const buffer = FIELD_STORES.bufferEnergyYears * need;
-    const keep = storesTargetKg(need, buffer);
-    expect(keep).toBeCloseTo(buffer + FIELD_STORES.cushionYears * need, 9);
     expect(t.needKg).toBeCloseTo(need, 9);
     expect(t.bufferKg).toBeCloseTo(buffer, 9);
     expect(t.leftKg).toBe(0);
-    const steady = storesNeeded(keep, need, 1, loss) - keep;
-    expect(t.harvestKg).toBeCloseTo(
-      steady + buffer + (keep - buffer) / FIELD_STORES.balanceYears,
-      9,
-    );
-    expect(t.energyFloorKg).toBeCloseTo(need, 9);
+    const years = daysUntilHarvest(day) / 365;
+    expect(t.shortKg).toBeCloseTo(storesNeeded(0, yearlyNow(s), years, loss), 6);
   });
 
-  it('zásoby na cílové zásobě: úroda rok co rok jako ustálený stav; pojistka z celé energie', () => {
+  it('zásoby na cílové zásobě: zbude cílová zásoba, nic nechybí; pojistka z celé energie', () => {
     const s = village(0);
     s.fieldFood = { needKg: 0, fieldKg: 0, share: 0.4 };
     const yearly = yearlyNext(s);
     const need = 0.4 * yearly;
     const buffer = FIELD_STORES.bufferEnergyYears * yearly;
     const keep = storesTargetKg(need, buffer);
+    expect(keep).toBeCloseTo(buffer + FIELD_STORES.cushionYears * need, 9);
     const years = daysUntilHarvest(day) / 365;
     // zásoba, ze které k příští sklizni zbude právě cílová zásoba – do sklizně jí dnešní lidé
     s.storesKg = storesNeeded(keep, 0.4 * yearlyNow(s), years, loss);
     const t = targetsOf(s);
     expect(t.bufferKg).toBeCloseTo(buffer, 9);
     expect(t.leftKg).toBeCloseTo(keep, 6);
-    expect(t.harvestKg).toBeCloseTo(steadyHarvestKg(need, buffer, NO_CRAFTS.pottery), 6);
-    expect(t.harvestKg).toBeGreaterThan(need);
-    // navíc jen ztráty skladováním potřeby a cílové zásoby
-    expect(t.harvestKg).toBeLessThan(need * 1.06 + keep * 0.11);
-  });
-
-  it('přebytek i schodek nad pojistkou vyrovná po třetinách, pod pojistkou doplní hned', () => {
-    const s = village(0);
-    s.fieldFood = { needKg: 0, fieldKg: 0, share: 0.4 };
-    const need = 0.4 * yearlyNext(s);
-    const buffer = FIELD_STORES.bufferEnergyYears * yearlyNext(s);
-    const keep = storesTargetKg(need, buffer);
-    const steady = steadyHarvestKg(need, buffer, NO_CRAFTS.pottery);
-    const needNow = 0.4 * yearlyNow(s);
-    // pod pojistkou: co chybí do ní hned, zbytek do cílové zásoby po třetinách
-    s.storesKg = 0.5 * need;
-    const short = targetsOf(s);
-    expect(short.leftKg).toBeLessThan(short.bufferKg);
-    expect(short.harvestKg).toBeCloseTo(
-      steady + (buffer - short.leftKg) + (keep - buffer) / FIELD_STORES.balanceYears,
-      6,
-    );
-    // nad pojistkou, pod cílovou zásobou: jen třetina schodku
-    const years = daysUntilHarvest(day) / 365;
-    s.storesKg = storesNeeded((buffer + keep) / 2, needNow, years, loss);
-    const between = targetsOf(s);
-    expect(between.leftKg).toBeGreaterThan(between.bufferKg);
-    expect(between.leftKg).toBeLessThan(keep);
-    expect(between.harvestKg).toBeCloseTo(
-      steady + (keep - between.leftKg) / FIELD_STORES.balanceYears,
-      6,
-    );
-    // přebytek: třetina za rok
-    s.storesKg = 4 * need;
-    const rich = targetsOf(s);
-    expect(rich.leftKg).toBeGreaterThan(keep);
-    expect(rich.harvestKg).toBeCloseTo(
-      steady - (rich.leftKg - keep) / FIELD_STORES.balanceYears,
-      6,
-    );
-    expect(rich.energyFloorKg).toBe(rich.harvestKg); // pod potřebou
-    // obrovské zásoby: obilí nic – luštěniny ves na poli nepěstuje (9. 11. 2026)
-    s.storesKg = 20 * need;
-    expect(targetsOf(s).harvestKg).toBe(0);
+    expect(t.shortKg).toBe(0);
+    // osivo, které ves ještě zaseje, zásoby k sklizni neuživí
+    const seeded = storesOutlook(s, day, NO_CRAFTS.pottery, s.storesKg);
+    expect(seeded.leftKg).toBe(0);
+    expect(seeded.shortKg).toBeGreaterThan(0);
+    expect(steadyHarvestKg(need, buffer, NO_CRAFTS.pottery)).toBeGreaterThan(need);
   });
 
   it('dlouhodobý podíl z pole: každý rok o třetinu rozdílu, starší ves začne ročním podílem', () => {
@@ -275,7 +202,7 @@ describe('cíl osevu podle zásob', () => {
     expect(fresh.fieldFood.longShare).toBe(0.55);
   });
 
-  it('zásoba luštěnin (zboží) – nad strop zbude a sní se příště, zmenší cíl obilí', () => {
+  it('zásoba luštěnin (zboží) – nad strop zbude a sní se příště', () => {
     const s = village(0);
     s.fieldFood = { needKg: 0, fieldKg: 0, share: 0.5 };
     const yearly = yearlyFoodNeed(s, day);
@@ -289,7 +216,6 @@ describe('cíl osevu podle zásob', () => {
     const withLegumes = targetsOf(s);
     const without = targetsOf({ ...s, legumesKg: 0 });
     expect(withLegumes.leftKg).toBeGreaterThan(without.leftKg + legumeEnergy(left));
-    expect(withLegumes.harvestKg).toBeLessThan(without.harvestKg);
   });
 
   it('dobré zásoby (štěstí) – zásoby z pole proti potřebě z pole, ne proti celé energii', () => {
@@ -312,28 +238,6 @@ describe('cíl osevu podle zásob', () => {
 });
 
 describe('osev podle stravy v simulaci', () => {
-  it('druhý rok ves oseje podle toho, co z pole opravdu jedla – méně než ves bez podílu', () => {
-    const start = found(at(600, 3, 15));
-    // první 1. 9. po založení: součty začnou, plán ještě jako dřív (jen obilí)
-    const first = advanceVillage(start, at(600, 9, 1), null);
-    expect(first.fieldFood).toEqual(expect.objectContaining({ needKg: expect.any(Number) }));
-    expect(first.fieldFood?.share).toBeUndefined();
-    // rok se stády – mléko, vejce a od listopadu maso pokryjí část energie
-    const lean = advanceVillage(first, at(601, 8, 31), null);
-    // zásoba navíc, ať plán neomezí práce osadníků (ves seje na potřebu po růstu – děti dorostou)
-    const before = { ...lean, storesKg: lean.storesKg + 600 };
-    const day = at(601, 9, 1);
-    const measured = advanceVillage(before, day, null);
-    const share = measured.fieldFood!.share!;
-    expect(share).toBeGreaterThan(0);
-    expect(share).toBeLessThan(0.9);
-    expect(share).toBeCloseTo(before.fieldFood!.fieldKg / before.fieldFood!.needKg, 12);
-    // stejná ves, která podíl nezná (starší ves), oseje víc
-    const grainOnly = advanceVillage({ ...before, fieldFood: undefined }, day, null);
-    expect(grainOnly.fieldFood?.share).toBeUndefined();
-    expect(planEnergy(measured, day)).toBeLessThan(planEnergy(grainOnly, day));
-  });
-
   it('podíl jídla z pole nezávisí na kouscích dopočtu', () => {
     const start = found(at(600, 3, 15));
     const end = at(603, 10, 1);
@@ -352,63 +256,35 @@ describe('osev podle stravy v simulaci', () => {
     expect(whole.fieldFood?.share).toBeLessThan(1);
   });
 
-  it('ves s velkou zásobou nejdřív obilí neseje, pak plynule přidává – nehladoví, nezávisí na kouscích', () => {
+  it('ves s velkou zásobou seje obilí každý rok – nehladoví, nezávisí na kouscích', () => {
     // ves za 10 let vyroste na 8 lidí – pole ≈ 6 ha, ať ani pak osev neomezuje půda (len
     // vysiluje půdu a díly déle leží ladem – fields.md, Len)
     const start = found(at(600, 3, 15), 270);
     start.storesKg = 8 * yearlyFoodNeed(start, start.foundedDay);
-    const grain: number[] = [];
-    // nutné i nad potřebu zasetá do 1. 7. (nezasetá jař nad potřebu 1. 5. vypadne) – osev obilí
-    // nesmí po prvním roce vypadnout ani jednou
+    // obilí zasetá do 1. 7. – velká zásoba osev nebrzdí (fields.md – Osevní postup po dílech,
+    // bod 3; Martin 25. 10. 2026: „maximum obilí“)
     const allGrain: number[] = [];
     let s = start;
-    const grainKg = (day: number, withSurplus: boolean): number => {
+    const grainKg = (day: number): number => {
       const byId = new Map(s.parts.map((p) => [p.id, p]));
       return seasonCrops(s.season!)
-        .filter(
-          ({ crop, work }) =>
-            crop !== 'legume' && crop !== 'flax' && (withSurplus || !work.surplus),
-        )
+        .filter(({ crop }) => crop !== 'legume' && crop !== 'flax')
         .reduce(
           (sum, { work }) =>
             sum + work.partIds.reduce((kg, id) => kg + expectedNetKg(byId.get(id)!, day), 0),
           0,
         );
     };
-    // zásoby z pole nad cílem (pojistka + rezerva) 1. 9. i 1. 7. příštího roku (kdy se měří
-    // zasetá plocha) – jen tehdy ves nemusí ten rok sít obilí
-    const covered: boolean[] = [];
-    const coversNeed = (day: number): boolean =>
-      fieldStoresKg(s, day) >=
-      storesTargetKg(yearlyFieldNeed(s, day), bufferKg(yearlyFoodNeed(s, day)));
     for (let year = 600; year <= 610; year++) {
-      const day = at(year, 9, 2);
-      s = advanceVillage(s, day, null);
-      grain.push(grainKg(day, false));
-      const coveredSept = coversNeed(day);
       s = advanceVillage(s, at(year + 1, 7, 1), null);
-      covered.push(coveredSept && coversNeed(at(year + 1, 7, 1)));
-      allGrain.push(grainKg(at(year + 1, 7, 1), true));
+      allGrain.push(grainKg(at(year + 1, 7, 1)));
     }
-    // první roky jen luštěniny, nutné obilí až zásoby klesnou k cíli; s díly nad potřebu (fields.md
-    // – Osevní postup po dílech, bod 5; 25. 10. 2026) zásoby zase rostou a nutné obilí smí pár let
-    // ustat (dřív každý rok od prvního) – obilí (nutné i nad potřebu) ale seje každý rok od prvního
-    // a nutné ke konci zase
-    // 26. 10. 2026 (W4, wildlife.md – Psi): obilí psů dvorce (0,3 kg denně na psa) se sije z pole jako
-    // obilí koní – první rok proto nenulový osev jen kvůli psům. Smečka (2 psi × 0,3 kg × 365 ≈
-    // 219 kg obilí za rok) se z velké části kryje ze zásob, zasetá plocha proto čeká ≈ 30 kg čistého
-    // výnosu (naměřeno); práh 40 kg = „jen psi“, osev pro lidi je řádově výš
-    const dogsKg = 40;
-    expect(grain[0]).toBeLessThan(dogsKg);
-    const first = grain.findIndex((kg) => kg > dogsKg);
-    expect(first).toBeGreaterThan(0);
-    expect(allGrain.every((kg, i) => i < first || kg > 0 || covered[i])).toBe(true);
-    expect(grain.slice(-3).every((kg) => kg > 0)).toBe(true);
+    expect(allGrain.every((kg) => kg > 0)).toBe(true);
     // bez hladu: nikdo hladem neumřel a hlad se nenahromadil (energie dne pod 0,9 – population.md);
     // v září a říjnu, než porážka dá maso, smí ves krátce šetřit
     expect(s.chronicle.filter((e) => e.kind === 'death' && e.cause === 'hunger')).toHaveLength(0);
     expect(s.starvationDays ?? 0).toBe(0);
-    // stejný stav po kouscích (i se zkracováním plánu)
+    // stejný stav po kouscích
     let pieces = start;
     const steps = [400, 1, 33, 365, 2, 180];
     for (let i = 0; pieces.lastDay < s.lastDay; i++) {

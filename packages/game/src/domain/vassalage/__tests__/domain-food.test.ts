@@ -3,7 +3,7 @@ import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../../village/actions';
 import { craftCoverage } from '../../village/crafts';
 import { yearlyFieldNeed } from '../../village/field-food';
-import { fieldSowingTargets } from '../../village/simulate-plan';
+import { fieldStoresOutlook } from '../../village/simulate-plan';
 import { stewardOutlook } from '../../village/steward-outlook';
 import { SEED_KG_PER_HA } from '../../village/rules-fields';
 import type { FarmSeason, FieldPart, VillageState } from '../../village/types';
@@ -107,7 +107,7 @@ describe('domainNeedKg', () => {
     const s = village(OCT_1);
     s.storesKg = 10;
     const need = domainNeedKg(s, OCT_1);
-    expect(need).toBe(fieldSowingTargets(s, OCT_1, craftCoverage(s, OCT_1)).shortKg);
+    expect(need).toBe(fieldStoresOutlook(s, OCT_1, craftCoverage(s, OCT_1)).shortKg);
     expect(need).toBeGreaterThan(0);
   });
 

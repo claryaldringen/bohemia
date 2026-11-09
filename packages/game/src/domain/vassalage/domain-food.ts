@@ -9,7 +9,7 @@ import { meatEnergy } from '../village/diet';
 import { SEED_KG_PER_HA } from '../village/rules-fields';
 import { seedStore } from '../village/seed';
 import { stewardOutlook } from '../village/steward-outlook';
-import { fieldSowingTargets } from '../village/simulate-plan';
+import { fieldStoresOutlook } from '../village/simulate-plan';
 import type { CattleGood, VillageState } from '../village/types';
 import { seasonCrops } from '../village/year-plan';
 import type { MacroGoods } from './macro';
@@ -81,11 +81,11 @@ export function domainOffer(
 
 /**
  * Kolik jídla vsi chybí do příští sklizně (kg obilí): týž výhled, ze kterého správce kupuje obilí
- * (`fieldSowingTargets(…).shortKg`). Ves bez lidí 0.
+ * (`fieldStoresOutlook(…).shortKg`). Ves bez lidí 0.
  */
 export function domainNeedKg(state: VillageState, day: number): number {
   if (state.people.length === 0) return 0;
-  return fieldSowingTargets(state, day, craftCoverage(state, day)).shortKg;
+  return fieldStoresOutlook(state, day, craftCoverage(state, day)).shortKg;
 }
 
 /**

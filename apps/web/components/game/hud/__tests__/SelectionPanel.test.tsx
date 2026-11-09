@@ -339,6 +339,7 @@ describe('SelectionPanel – obydlí a staveniště bez Přestěhovat (demolitio
       crops: [],
       turn: [],
       resting: 0,
+      seed: null,
       ashParts: 0,
       ashBonus: 0,
       overgrowingM2: 0,
@@ -366,7 +367,7 @@ describe('SelectionPanel – obydlí a staveniště bez Přestěhovat (demolitio
 });
 
 describe('panel pole – na řadě (fields.md – Osevní postup po dílech)', () => {
-  it('díly na řadě s ozimem a jaří, odpočívající příloh; nad potřebu v popisku', () => {
+  it('díly na řadě s ozimem a jaří, odpočívající příloh, hromada osiva', () => {
     const html = render({
       kind: 'field',
       id: 5,
@@ -376,10 +377,11 @@ describe('panel pole – na řadě (fields.md – Osevní postup po dílech)', (
       surfaces: [],
       crops: [{ crop: 'winter', count: 3 }],
       turn: [
-        { crop: 'winter', count: 4, surplus: 2 },
-        { crop: 'spring', count: 0, surplus: 1 },
+        { crop: 'winter', count: 4 },
+        { crop: 'spring', count: 0 },
       ],
       resting: 7,
+      seed: { crop: 'winter', kg: 1234.4, winter: false },
       ashParts: 0,
       ashBonus: 0,
       overgrowingM2: 0,
@@ -387,11 +389,36 @@ describe('panel pole – na řadě (fields.md – Osevní postup po dílech)', (
     });
     expect(html).toContain('aria-label="Na řadě"');
     expect(html).toMatch(/ozim\.png.*data-testid="selection-turn-winter"[^>]*>4</);
-    expect(html).toContain('Na řadě – ozim; nad potřebu letos 2 díly');
+    expect(html).toContain('Na řadě – ozim');
     expect(text(html, 'selection-turn-spring')).toBe('0');
-    expect(html).toContain('Na řadě – jař; nad potřebu letos 1 díl');
+    expect(html).toContain('Na řadě – jař');
+    expect(html).not.toContain('nad potřebu');
     expect(text(html, 'selection-resting')).toBe('7');
     expect(html).toContain('Odpočívá – příloh pod 95 %');
+    // hromada osiva okna – ikona obilí s kg, slova jen v popisku (fields.md – Osivo bez cíle osevu)
+    expect(html).toMatch(/food\.png.*data-testid="selection-seed"[^>]*>1\s?234</);
+    expect(html).toContain('Osivo na ozim (kg) – ves ho nejí; co nezaseje, vrátí do jídla');
+  });
+
+  it('zimní osivo na jař má vlastní popisek', () => {
+    const html = render({
+      kind: 'field',
+      id: 5,
+      areaM2: 2250,
+      fertility: 70,
+      stages: [],
+      surfaces: [],
+      crops: [],
+      turn: [],
+      resting: 0,
+      seed: { crop: 'spring', kg: 300, winter: true },
+      ashParts: 0,
+      ashBonus: 0,
+      overgrowingM2: 0,
+      founding: null,
+    });
+    expect(text(html, 'selection-seed')).toBe('300');
+    expect(html).toContain('Zimní osivo na jař (kg) – přes zimu ho ves nejí');
   });
 
   it('bez dílů na řadě a odpočívajících řádek chybí', () => {
@@ -405,6 +432,7 @@ describe('panel pole – na řadě (fields.md – Osevní postup po dílech)', (
       crops: [],
       turn: [],
       resting: 0,
+      seed: null,
       ashParts: 0,
       ashBonus: 0,
       overgrowingM2: 0,
@@ -431,6 +459,7 @@ describe('panel pole – plodiny (fields.md – Luštěniny)', () => {
       ],
       turn: [],
       resting: 0,
+      seed: null,
       ashParts: 0,
       ashBonus: 0,
       overgrowingM2: 0,
@@ -475,7 +504,6 @@ describe('SelectionPanel – díl pole a čtverec sadu (klik – fields.md, Co h
     mow: null,
     next: 'fallow',
     rest: { share: 0.81, years: 8 },
-    surplus: false,
     founding: null,
     ...over,
   });
@@ -519,16 +547,13 @@ describe('SelectionPanel – díl pole a čtverec sadu (klik – fields.md, Co h
     expect(founding).toContain('Díl se teprve zakládá.');
   });
 
-  it('osevní postup: kolikátý osev oběhu, příště úhor s odpočinkem, díl nad potřebu', () => {
-    const html = render(part({ surplus: true }));
+  it('osevní postup: kolikátý osev oběhu, příště úhor s odpočinkem', () => {
+    const html = render(part());
     expect(text(html, 'selection-sown-years')).toBe('2.');
     expect(html).toContain('2. osev oběhu');
     // úhor ikonou přílohu, číslo = odpočinek k 95 %, slova jen v popisku
     expect(text(html, 'selection-next')).toBe('81 %');
     expect(html).toContain('Příště úhor – odpočinek k 95 %, osev za ≈ 8 let');
-    expect(html).toContain('data-testid="selection-surplus"');
-    expect(html).toContain('Jen z volné práce – stavby mají přednost');
-    expect(render(part())).not.toContain('selection-surplus');
   });
 
   it('díl na řadě po ozimu: příště jař ikonou plodiny, strniště, bez kolikátého osevu', () => {
@@ -545,7 +570,6 @@ describe('SelectionPanel – díl pole a čtverec sadu (klik – fields.md, Co h
     expect(html).toMatch(/src="\/icons\/resources\/jar\.png"[^>]*data-testid="selection-next"/);
     expect(html).toContain('Příště – jař');
     expect(html).not.toContain('selection-sown-years');
-    expect(html).not.toContain('selection-surplus');
   });
 
   it('příloh: roky ladem, zarůstání, pastva a seč; bez hospodářství bez domu', () => {
@@ -622,6 +646,7 @@ describe('SelectionPanel – díl pole a čtverec sadu (klik – fields.md, Co h
       crops: [],
       turn: [],
       resting: 0,
+      seed: null,
       ashParts: 0,
       ashBonus: 0,
       overgrowingM2: 0,
@@ -906,6 +931,7 @@ describe('SelectionPanel – rozvržení', () => {
       crops: [{ crop: 'winter', count: 204 }],
       turn: [],
       resting: 0,
+      seed: null,
       ashParts: 0,
       ashBonus: 0,
       overgrowingM2: 13_050,
@@ -1657,6 +1683,7 @@ describe('panel pole – označit všechna pole (Martin 24. 10. 2026)', () => {
     crops: [],
     turn: [],
     resting: 0,
+    seed: null,
     ashParts: 0,
     ashBonus: 0,
     overgrowingM2: 0,

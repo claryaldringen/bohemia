@@ -420,7 +420,7 @@ Horse[]` (`id`, `bornDay`, `sex`, `training`, `riderId?`). `horses.ts` – `hors
   1. 3. `horsesWinterEnd` (nejmladší napřed, kronika `horse-starved`). Seč 1. 6. s koňmi
      (`winterHayNeedKg`), zimní stádo po koních (`WinterInput.horsePastureHa` / `horseHayKg`). Pastva
      1 ha na koně (`grazingDemandHa(…, horses)` – zarůstání, pěšiny, souhrn). Plán osevu přičte obilí
-     koní za rok do potřeby do sklizně i po ní (`sowingTargets`). Nouzová porážka koně nebere.
+     koní za rok do potřeby do sklizně i po ní (`storesOutlook`). Nouzová porážka koně nebere.
 - **Chov koní, výcvik koně a jezdci** (horses.md – Chov, Výcvik koně a jezdec; issue #5):
   `horse-breeding.ts` – `horsesDay` v `husbandryDay` (po úhynu 1. 3., před porážkou stád). Hříbata
   dne 1. 5. (`horseBirths`): klisna 4–20 let rodí, když `(rok + id) % 2 === 0` a ves má samce od
@@ -432,8 +432,10 @@ Horse[]` (`id`, `bornDay`, `sex`, `training`, `riderId?`). `horses.ts` – `hors
   3 roky ještě slouží; strop místa (jezdečtí, klisny, hříbata). `horse-riders.ts` – `assignRiders`
   (pár drží, volné koně od nejlépe vycvičeného vojvodovi a synům od nejstaršího), `trainHorsesDay`
   z `trainLordDay`: přírůstek 100 / (9 × 365,25) denně × podíl dne jezdce, bez obilí ½, stojí při
-  `horsesCaredToday` < 1 a `lord.field`; plný výcvik → `horse-trained`. V dnech na poli
-  (`lord.field`) `trainLordDay` nikoho nepočítá jako jezdce – i chlapci cvičí luk a boj bez koně.
+  `horsesCaredToday` < 1; plný výcvik → `horse-trained`. V dnech na poli (žně s rodinou) nejezdí
+  jen cvičící na poli (`lordFieldIds` – podíl skupiny > 0; návrh Clauda 9. 11. 2026), chlapci
+  a ostatní jezdí; `lordRides` ve žňový den s pomocí rodiny vynechá, kdo jde podle plánu na pole
+  (`harvestFieldIds` – `manorLabor.help` a `lordFieldShares`).
   `lord.ts` – `lordRides(state, day)` (pro scénu, jen čte): jezdci rodiny se svým koněm a hodinami
   jízdy (vojvoda první, pak od nejstaršího), každý `HORSES.borderRideEveryDays` (7.) den hotová
   zemská stezka k hranici (`trailId`, střídají se po id), doprovod výpravy, která dnes vyráží

@@ -3,7 +3,7 @@ import { addThreshedGrain } from './grain-pits';
 import { villageLegumesKg } from './legumes';
 import { CROP_ORDER, CROP_WINDOWS, THRESHING, type WindowSegment } from './rules';
 import type { Sheaves, ThreshedCrop, VillageState } from './types';
-import { neededTaskRemaining, seasonCrops } from './year-plan';
+import { cropTaskRemaining, seasonCrops } from './year-plan';
 
 // Snopy a výmlat hned po žni (production-chains.md – Humno; Martin 20. 10. 2026: „Humno je
 // podmínka“, „Staří slované se snažili dělat výmlat hned. Klasy neskladovali.“). Sklizeň jde do
@@ -157,7 +157,7 @@ interface ThreshHands {
 
 /**
  * Ruce pro výmlat (návrh Clauda): práce vsi ve žních (`VillageState.threshHands` –
- * `harvestLaborPerDay`) bez zbytku nutné žně rozloženého do konce okna žně jaře (srpen) – jaře
+ * `harvestLaborPerDay`) bez zbytku žně rozloženého do konce okna žně jaře (srpen) – jaře
  * i ozimu, luštěnin a lnu, které červenec nedosklidil (fields.md – Žně i v srpnu); žeň má
  * přednost před výmlatem (`work()`), po jejím okně dostane výmlat všechno.
  */
@@ -169,7 +169,7 @@ function threshHands(state: OutlookState, day: number, perDay: number): ThreshHa
   if (current && state.season) {
     for (const { crop, work } of seasonCrops(state.season)) {
       const reaping = CROP_WINDOWS[crop].harvest.some(([from, to]) => month >= from && month <= to);
-      if (reaping) ahead += neededTaskRemaining(work, 'harvest');
+      if (reaping) ahead += cropTaskRemaining(work, 'harvest');
     }
   }
   const aheadDays = current && ahead > EPSILON ? afterMonth(year, current[1]) - day : 0;
@@ -431,15 +431,23 @@ export function threshTasks(state: ThreshState, day: number, foodKg = 0): Thresh
 }
 
 /**
+ * Zrno na dnešní jídlo (kg – výmlat na dnešní jídlo, production-chains.md – Humno): potřeba energie
+ * vsi `needPerDayKg` na URGENT_FOOD_DAYS dní (celá potřeba počítaná jako obilí – jiné jídlo potřebu
+ * obilí jen zmenší). Tolik zrna ves nevymění ani nezaplatí (`paymentPool`).
+ */
+export function foodGrainReserveKg(needPerDayKg: number): number {
+  return needPerDayKg * URGENT_FOOD_DAYS;
+}
+
+/**
  * Kolik zrna obilí vymlátit na jídlo (kg – výmlat na dnešní jídlo, production-chains.md – Humno):
- * co ze zásob chybí do potřeby energie vsi `needPerDayKg` na URGENT_FOOD_DAYS dní (celá potřeba
- * počítaná jako obilí – jiné jídlo potřebu obilí jen zmenší). Se zásobami na dva dny nic.
+ * co ze zásob chybí do zrna na dnešní jídlo (`foodGrainReserveKg`). Se zásobami na dva dny nic.
  */
 export function threshForFoodKg(
   state: Pick<VillageState, 'storesKg'>,
   needPerDayKg: number,
 ): number {
-  return Math.max(0, needPerDayKg * URGENT_FOOD_DAYS - state.storesKg);
+  return Math.max(0, foodGrainReserveKg(needPerDayKg) - state.storesKg);
 }
 
 /**

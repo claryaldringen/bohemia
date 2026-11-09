@@ -23,15 +23,7 @@ import { advanceVillage } from '../simulate';
 import type { DayTask } from '../simulate-plan';
 import { dayTaskOrder } from '../simulate-work';
 import type { CropWork, FieldPart, VillageState } from '../types';
-import { surplusFieldDay } from '../surplus-fields';
-import {
-  addToCropWork,
-  createCropWork,
-  seasonCrop,
-  seasonCrops,
-  springCrop,
-  surplusCrop,
-} from '../year-plan';
+import { addToCropWork, createCropWork, seasonCrop, seasonCrops, springCrop } from '../year-plan';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Co nejdelší brázda (oxen.md; Martin, 19. 10. 2026: „Volské spřežení chce rýt co nejdelší
@@ -323,7 +315,7 @@ describe('výkon spřežení za den', () => {
     expect(plough.trip.home).toBe(last);
   });
 
-  it('zoráno, ale nutné díly plodiny čekají na čelo – spřežení zůstane na poli (Martin, 24. 10. 2026)', () => {
+  it('zoráno, ale díly plodiny čekají na čelo – spřežení zůstane na poli (Martin, 24. 10. 2026)', () => {
     const parts = rect(1, 0, 0, 4, 1);
     const s = village(parts);
     const work = createCropWork(parts, DAY, 0, true, undefined, 'spring');
@@ -333,13 +325,9 @@ describe('výkon spřežení za den', () => {
     plough.trip = { block: 0, costM: 60, arrived: { day: DAY - 3, from: null } };
     settlePloughTeams(s, DAY, new Map(), false, new Set(['spring']));
     expect(plough.trip.home).toBeUndefined();
-    // čeká jen ozim – jař má zoráno a jde domů; nad potřebu na nutné díly nečeká
+    // čeká jen ozim – jař má zoráno a jde domů
     settlePloughTeams(s, DAY + 1, new Map(), false, new Set(['winter']));
     expect(plough.trip.home).toBe(DAY + 1);
-    s.season.crops[0]!.surplus = true;
-    plough.trip = { block: 0, costM: 60, arrived: { day: DAY - 3, from: null } };
-    settlePloughTeams(s, DAY + 2, new Map(), false, new Set(['spring']));
-    expect(plough.trip.home).toBe(DAY + 2);
   });
 
   it('ves orá: spřežení vyjede první den orby, zůstane na poli; dopočet najednou = po kouscích', () => {
@@ -503,24 +491,9 @@ describe('orba po dávkách dílů (fields.md – Osevní postup po dílech; oxe
     return { season: sum / weight, whole };
   }
 
-  it('díly nad potřebu orá spřežení jen kapacitou, která po nutné orbě zbude', () => {
-    const s = advanceVillage(village(), at(600, 9, 2), null);
-    const day = at(600, 9, 3);
-    const ploughed = (teamDays: number): number => {
-      const c = structuredClone(s);
-      const before = surplusCrop(c.season!, 'winter')?.plough?.done ?? 0;
-      const input = { labor: 1e6, teamDays, ploughFactor: () => 1, toolCoverage: 0 };
-      surplusFieldDay(c, day, { ...input, neededWaiting: false });
-      return (surplusCrop(c.season!, 'winter')?.plough?.done ?? 0) - before;
-    };
-    expect(ploughed(0)).toBe(0);
-    expect(ploughed(2)).toBeGreaterThan(0);
-    expect(ploughed(2)).toBeLessThanOrEqual(2 + 1e-9);
-  });
-
   it('díly přibývající po dávkách orá spřežení v pásech – brázda jako najednou', () => {
-    // dřív dávka dne s vlastními bloky: ozim k 31. 10. jen 0,60 výkonu proti 1,02 najednou, díly
-    // nad potřebu po jednom 0,44 proti 1,10 – teď díl přibude s celým pásem výběru
+    // dřív dávka dne s vlastními bloky: ozim k 31. 10. jen 0,60 výkonu proti 1,02 najednou – teď
+    // díl přibude s celým pásem výběru
     const first = advanceVillage(village(), at(600, 9, 2), null);
     const october = advanceVillage(first, at(600, 10, 31), null);
     const april = advanceVillage(october, at(601, 4, 30), null);
@@ -531,14 +504,13 @@ describe('orba po dávkách dílů (fields.md – Osevní postup po dílech; oxe
     const crops = [october, april].flatMap((s) =>
       seasonCrops(s.season!)
         .filter(({ work }) => work.partIds.length > 4 && work.plough?.bands)
-        .map(({ crop, work }) => ({ s, crop, surplus: work.surplus === true, work })),
+        .map(({ crop, work }) => ({ s, crop, work })),
     );
-    expect(crops.some((c) => c.crop === 'winter' && !c.surplus)).toBe(true);
-    expect(crops.some((c) => c.surplus)).toBe(true);
-    for (const { s, crop, surplus, work } of crops) {
-      // díly, o které potřeba během podzimu vzroste, se k zoraným pásům nepřipojí – nejvýš −10 %
+    expect(crops.some((c) => c.crop === 'winter')).toBe(true);
+    for (const { s, crop, work } of crops) {
+      // díly, které během podzimu přibudou, se k zoraným pásům nepřipojí – nejvýš −10 %
       const { season, whole } = furrows(s, work);
-      expect(season, `${crop}${surplus ? ' nad potřebu' : ''}`).toBeGreaterThanOrEqual(0.9 * whole);
+      expect(season, crop).toBeGreaterThanOrEqual(0.9 * whole);
     }
   }, 120_000);
 });

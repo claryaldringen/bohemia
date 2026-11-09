@@ -106,42 +106,43 @@ má ves ≥ 4 dospělé mimo rodinu“ (volba z nabídky).
   minima (návrh Clauda).
 - **Péče o koně** nedělá rodina, ale ves ([koně](horses.md) – Péče).
 
-## Kdy jde rodina na pole (návrh Clauda)
+## Kdy jde rodina na pole
 
-Martin: „pokud by měla ves hladovět, tak ano“; ženy a dcery „stejně jako vojvoda se syny“. Ves
-pozná hrozbu ze dvou odhadů, které už počítá – nový odhad nevzniká.
+**Jen ve žních, které ves sama nestíhá** (Martin 9. 11. 2026). K návrhu Clauda, že s osevem
+rodina pomáhat nemusí, Martin: „setí by mělo být v pohodě ne? Problém je spíš se žněmi“ a „Pokud
+by se nestíhala sklizeň, ať se zapojí i celá vojvodova rodina, pokud je zrovna ve vsi“. K pomoci
+při hladu: „A co by na tom poli asi tak dělali? Čuměli, jak roste obilí?“ a „ano“ k jejímu
+zrušení. K pořadí (Martin 9. 11. 2026, místo celé rodiny naráz): „Je to vlastně přesně napak.
+Pokud se nestíhá, jdou ženy z vojvodovy rodiny, pokud se i tak nestíhá, jdou muži z vojvodovy
+rodiny, samotný vojvoda až úplně nakonec“.
 
-1. **Ves nestihne potřebný osev.** Osevní postup po dílech ([pole](fields.md), od 25. 10. 2026;
-   ~~plán osevu k 1. 9. a jeho jarní úprava~~ se ruší) počítá práci ve špičkách **bez rodiny**. Když by bez ní nestihla **potřebný
-   osev** (tolik, aby neměla hlad), započítá rodinu – ale jen kolik chybí: v okně, kde práce
-   chybí (podzim, jaro, žně), dá každý cvičící muž rodiny (vojvoda a synové) podíl dne = chybějící práce ÷ práce mužů
-   rodiny, zbytek dne cvičí. Ženy a dcery s osevem nepomáhají – Martin 23. 10. 2026 zvolil pro
-   ně „Jen domácnost“: „Na pole nechodí vůbec, jen při hrozícím hladu (stejně jako vojvoda se
-   syny)“; pomoc s osevem hlad není (jdou jen v bodu 2). Osev navíc, stavby ani opravy rodina nedělá nikdy.
-   - Podíl dne dá rodina **až po práci vsi** – jen co ves ten den sama nestihne, takže vsi
-     neuvolní práci na stavby ani osev navíc; pomoc jde jen na práce osevu (vrácení, kopání, plet,
-     orba, setí), ne na seč, porážku ani péči o sad. Jař, která se nevejde, dá rodina napřed na jaře
-     (jarní úprava plánu podíl přepočítá podle skutečného zbytku), co jaro nepokryje, na podzim
-     (návrh Clauda).
-2. **Výhled jídla nevychází.** Když ves i po nouzové porážce šetří jídlem nebo hladoví (příděl pod
-   plný – [populace](population.md), Stupně upozornění), jdou všichni dospělí rodiny (muži i ženy
-   od 14 let) celý den do **potřebných sezónních úloh** (krok 3 pořadí práce – pole, seč, sklizeň,
-   výmlat). Mimo sezónu, kdy na poli práce není, cvičí dál. Chlapci 7–13 let cvičí vždy (do práce
-   vsi nejdou ani ostatní výrostci).
-   - **Ve dnech na poli nikdo nejezdí, ani chlapci** (návrh Clauda): koně stojí a jízda ani
-     výcvik koně nepostupují; luk a boj chlapci cvičí dál. (Dřív jim jízda rostla na stojícím koni.)
-   - **Návrat k výcviku**, až výhled vychází s plným přídělem **30 dní po sobě** (hystereze – ať
-     rodina neskáče mezi polem a dvorkem den po dni).
-
-3. **Žně a výmlat** (Martin 24. 10. 2026: „Dílny i vojvodova rodina“ – ves hladověla, protože
-   žně stihla jen část dospělých). Ve **žňový den** ([pole](fields.md) – Žně všemi rukama: okna
-   žní a výmlatu červenec–září, dokud je co sklízet nebo opravdu jde mlátit) dají cvičící muži rodiny celou
-   práci po denním minimu dvorce na žeň a výmlat – před prací vsi; co žně nespotřebují, cvičí
-   (podíl dne jako u pomoci s osevem). Pomoc s osevem (bod 1) ten den není – muži jsou na žních a nejezdí na koních.
-   Ženy a dcery dál jen domácnost, chlapci 7–13 let cvičí; při hladu platí bod 2.
-
-- Proč tyto dva: první chrání před hladem příští rok (osev), druhý před hladem teď; oba jsou čistá
-  funkce stavu a dne, takže výsledek nezávisí na tom, po jakých kouscích se ves dopočítá.
+- **Žně.** Ves počítá práci žní (červenec – žeň ozimu a lnu, srpen – žeň jaře, zbytek července
+  a výmlat) **bez rodiny**. Když by je bez ní nestihla, pomůže rodina – kdo je **zrovna ve vsi**
+  (ne na tažení, výpravě ani v jiné vsi) – jen prací, která chybí (chybějící práce ÷ práce rodiny
+  po denním minimu dvorce, nejvýš celý den). Ves ji přepočítá každý den žní ze zbývající práce –
+  když zaostává, rodina pomůže víc, když dohnala, méně.
+  - **Pořadí** (Martin 9. 11. 2026): napřed **ženy a dcery** (žena vojvody, snachy, dcery od
+    14 let a vedlejší manželky); když ani to nestačí, **muži rodiny** (synové a vnuci od 14 let);
+    **samotný vojvoda až úplně nakonec**. Každá skupina dá jen tolik, kolik po předchozí ještě
+    chybí; kdo na pole nejde, cvičí (ženy vedou domácnost). Chlapci 7–13 let cvičí vždy.
+  - Denní minimum dvorce, na které ženy nestačí, kryjí napřed synové – vojvoda až po nich (návrh
+    Clauda; vojvoda je poslední i tady).
+  - Rodina jde na pole **až po práci vsi a žňových rukou** ([pole](fields.md) – Žně všemi
+    rukama) – jen žeň a výmlat, které ves ten den sama nestihne, takže vsi neuvolní práci na
+    stavby ani setí (návrh Clauda).
+  - **Kdo je ten den na poli, nejezdí ani neloví** (návrh Clauda, 9. 11. 2026 – dřív nejezdil
+    nikdo z rodiny, ani chlapci): jeho kůň stojí a jízda ani výcvik koně nepostupují. Chlapci,
+    muži, na které pole nedošlo, a vojvoda, dokud na pole nejde, jezdí a loví jako jindy (odešlí
+    synové smějí vždy).
+- **S osevem rodina nepomáhá** – ~~bod 1: ves nestihne potřebný osev~~ (zrušeno 9. 11. 2026;
+  potřeba úrody zmizela s cílem osevu – [pole](fields.md), Osivo bez cíle osevu).
+- **Při hladu rodina na pole nejde** – ~~bod 2: výhled jídla nevychází, celá rodina celý den do
+  sezónních úloh, návrat po 30 dnech plného přídělu~~ (zrušeno 9. 11. 2026). Hladu brání zimní
+  osivo a příděl ([pole](fields.md) – Zimní osivo).
+- ~~Bod 3: ve každý žňový den cvičící muži celou prací po minimu dvorce před prací vsi~~ (Martin 24. 10. 2026: „Dílny i vojvodova rodina“) – od 9. 11. 2026 jen podle žní výše; řemeslníci
+  a žňové ruce dál ve každý žňový den.
+- Převod: uložená ves z doby pomoci při hladu (rodina na poli, počítadlo dní) a s pomocí s osevem
+  v plánu je jednou a idempotentně zbaví – zůstane jen podíl žní.
 - Denní minimum dvorce kryjí dál ženy rodiny – na poli dávají jen zbytek jako ostatní dospělí.
 
 ## Výcvik a zkušenost (návrh Clauda)
@@ -199,9 +200,10 @@ pozná hrozbu ze dvou odhadů, které už počítá – nový odhad nevzniká.
   koni“, „pomáhá na poli“, „vede domácnost“; tři ikony dovedností – luk, štít s mečem, podkova – s čísly (popisek „Lukostřelba 64 / 100“),
   jízda jen u toho, kdo koně má nebo už jezdil.
 - **Horní lišta:** volná práce je už bez rodiny; popisek pracovní síly doplní řádek s ikonou
-  dvorce a číslem („Vojvodova rodina: 5 cvičí“, při hladu „5 na poli“).
-- **Zprávy** (ne varování): „Vojvodova rodina jde na pole“ (popisek: ves nestihne osev / ves
-  šetří jídlem) a „Vojvodova rodina se vrací k výcviku“ – jen při změně.
+  dvorce a číslem („Vojvodova rodina: 5 cvičí“, ve žních s pomocí „5 na poli“).
+- **Zprávy** (ne varování): ~~„Vojvodova rodina jde na pole“ a „Vojvodova rodina se vrací
+  k výcviku“~~ – s pomocí při hladu zrušené 9. 11. 2026; starší zápisy kroniky zůstávají. Pomoc
+  ve žních ukazuje lišta (počet na poli).
 - Hráč nic nezadává (anti-cíl).
 
 ## Ve scéně (návrh Clauda)
@@ -258,8 +260,8 @@ Příklad: ves 40 lidí, ≈ 20 dospělých. Dvorec s 8 lidmi – vojvoda 42, ž
 - **Nově** nic: ženy (3) kryjí denní minimum dvorce, muži (3) cvičí. Ves přijde o ≈ 5,5 z ≈ 19
   člověkodní – **≈ 25–30 % práce** – a v létě o jednoho pasáčka (syn 11).
 - **Kde to ves pocítí:** napřed na **stavbách** – volná práce ubude. Potřebný osev ves obvykle
-  stihne dál (bez staveb má rezervu na osev navíc); kde ne, pomůže rodina (Kdy jde rodina na pole,
-  bod 1). Velký dvorec (10 lidí) víc, malý rod s jedním synem jen ≈ 10 %.
+  stihne dál (bez staveb má rezervu na osev navíc); žně, které ves nestíhá, pomůže sklidit rodina
+  (Kdy jde rodina na pole). Velký dvorec (10 lidí) víc, malý rod s jedním synem jen ≈ 10 %.
 - Skutečný dopad ověří kalibrace `measure-village` – jen na Martinův pokyn.
 
 ### Naměřeno na Vlkově (24. 10. 2026, návrh Clauda)
@@ -421,7 +423,7 @@ Clauda.
   odcházejí. Zemře-li a zůstanou jen děti (nikdo od 16 let), jdou **k otci** do jeho domu, i do
   přeplněného (návrh Clauda – otec je nejbližší příbuzný; v dvorci synové zase cvičí).
 - **Práce** (Martin): **manželky vojvody vedou domácnost** – hlavní i vedlejší, i ve vlastním
-  domě; na pole jen při hrozícím hladu (Kdy jde rodina na pole). **Manželky ostatních mužů rodu
+  domě; na pole jen ve žních, které ves nestíhá (Kdy jde rodina na pole; Martin 9. 11. 2026). **Manželky ostatních mužů rodu
   mimo dvorec pracují** jako ostatní vesničanky; v dvorci (ženatý syn čeká na dům) jsou snachy –
   jen domácnost.
 - **Výcvik** (Martin): cvičí **všichni synové vojvody, kteří bydlí v dvorci**, ať je jejich matkou
@@ -954,7 +956,7 @@ dílu – 1 ÷ (vojvoda + synové od 16 let ve vsi), lidé z obydlí nejblíž d
 | Rodina = domácnost dvorce; cvičí potomci po meči, snachy jen domácnost, zeť pracuje                                                                                                                  | návrh Clauda           |
 | Výcvik od 7 let (luk), od 10 boj a jízda; 2 / 4 / 6 h denně, od 45 let 3 h; synové nepasou                                                                                                           | návrh Clauda           |
 | Dva bloky denně, luk hlavní, cvičné zbraně ze dřeva a proutí – bez zbraní jako surovin                                                                                                               | návrh Clauda (rešerše) |
-| Na pole: chybí práce na potřebný osev (jen podíl dne), nebo nevychází výhled jídla; návrat po 30 dnech                                                                                               | návrh Clauda           |
+| ~~Na pole: chybí práce na potřebný osev, nebo nevychází výhled jídla~~ – jen žně, které ves nestíhá, celá rodina ve vsi                                                                              | Martin (9. 11. 2026)   |
 | Dovednosti luk / boj / jízda 0–100 u člověka; 29 % zbytku za rok při 2 h; stropy 40 / 100 / −3 ročně                                                                                                 | návrh Clauda           |
 | Bez výcviku −5 % ročně, nejníž polovina nejvyšší dosažené                                                                                                                                            | návrh Clauda           |
 | 2 slaměné terče, střelnice 20 m, cvičný kůl, stojan, kůl na koně; bez ceny; bez dvorce 1 terč u zemnice                                                                                              | návrh Clauda           |

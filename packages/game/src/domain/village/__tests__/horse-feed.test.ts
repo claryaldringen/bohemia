@@ -4,7 +4,7 @@ import { packObstacles } from '../../landscape';
 import { foundVillage } from '../actions';
 import { eatDiet } from '../diet';
 import { dayMealInput, emergencySlaughter } from '../emergency-slaughter';
-import { sowingTargets } from '../field-food';
+import { storesOutlook } from '../field-food';
 import { feedHay, herdHayCoverage, horsesHayCoverage, winterHayKg, HAY_WINTER_DAYS } from '../hay';
 import { horsesWinterEnd } from '../horse-feed';
 import { horseCareLabor, horseGrainToday, horseHayDailyKg, villageHorses } from '../horses';
@@ -246,19 +246,16 @@ describe('pastva a plán osevu', () => {
     expect(grazingDemandHa(h, 0, 3)).toBeCloseTo(grazingDemandHa(h, 0) + 3 * HORSES.pastureHa, 9);
   });
 
-  it('plán osevu se 3 jezdeckými koňmi chce o ≈ 1 650 kg víc', () => {
+  it('výhled zásob se 3 jezdeckými koňmi potřebuje o ≈ 1 650 kg víc', () => {
     const day = dayIndexOf({ year: 600, month: 8, day: 20 });
     const bare = village();
     bare.storesKg = 2_000;
     const s = village(riders(3).map((h) => ({ ...h, bornDay: h.bornDay + (day - DAY) })));
     s.storesKg = 2_000;
-    const without = sowingTargets(bare, day, 0, POTTERY);
-    const withHorses = sowingTargets(s, day, 0, POTTERY);
+    const without = storesOutlook(bare, day, 0, POTTERY);
+    const withHorses = storesOutlook(s, day, 0, POTTERY);
     expect(withHorses.needKg - without.needKg).toBeCloseTo(3 * HORSES.grainKgPerDay * 365, 6);
-    // úroda o obilí koní za rok (≈ 1 650 kg) a ztráty ve stohu, k tomu třetina pojistky zásob
-    // podle větší roční potřeby (FIELD_STORES.balanceYears)
-    const more = withHorses.harvestKg - without.harvestKg;
-    expect(more).toBeGreaterThan(3 * HORSES.grainKgPerDay * 365);
-    expect(more).toBeLessThan(2_100);
+    // koně jedí ze zásob do sklizně – k ní zbude méně
+    expect(withHorses.leftKg).toBeLessThan(without.leftKg);
   });
 });

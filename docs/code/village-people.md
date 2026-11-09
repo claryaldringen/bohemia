@@ -55,12 +55,15 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     s hysterezí; chybí = rodina pracuje jako ostatní, i ve starší vsi – převod netřeba).
     Cvičící rodina je mimo práci vsi, `manorLabor` kryje minimum dvorce (starší, pak dospělí
     rodiny; zbytek žen propadne). `LaborDay.lord` = počty `{ training, field, household }`.
-  - **Hlad:** `lordFieldMode` po jídle dne – `state.hungry` → `lord.field = { since, reason:
-'hunger' }` (kronika `lord-to-field`), rodina dá od zítřka práci dospělých po minimu do úloh
-    dne (`lordField`); po `LORD.backToTrainingDays` (30) dnech plného přídělu po sobě
-    (`lord.fedDays`) zpět (`lord-to-training`).
+  - **Na pole jen ve žních** (lord.md – Kdy jde rodina na pole; Martin 9. 11. 2026): rodina ve
+    vsi dá ve žňový den podíl z plánu (`manorLabor.help` – `lordHelpDay`,
+    [village-fields.md](village-fields.md) – Rodina ve žních) v pořadí ženy a dcery → muži →
+    vojvoda (`lordFieldShares`; `ManorLabor.freeLord` – minimum, na které ženy nestačí, kryjí
+    napřed synové). `lordFieldIds` = cvičící dnes na poli – nejezdí ani neloví. Pomoc při hladu (`lordFieldMode`,
+    `lord.field`, `lord.fedDays`, kronika `lord-to-field` / `lord-to-training`) zrušená – převod
+    `withoutSowingHelp` (`lord.ts`) je smaže; staré zápisy kroniky web dál umí.
   - **Výcvik:** `trainLordDay` po jídle – cvičící `trainArms`, dospělí jen
-    `1 − podíl práce na poli`, chlapci 7–13 vždy; kdo necvičí a má `arms`, `decayArms`. Jízdu
+    `1 −` podíl své skupiny na poli (muži rodiny `men`, vojvoda `lord`), chlapci 7–13 vždy; kdo necvičí a má `arms`, `decayArms`. Jízdu
     (`trainingHours(…, hasHorse)`) cvičí jen jezdec s koněm – páry `assignRiders`
     (`horse-riders.ts`, i když rodina necvičí); bez koně jízda 0 a hodiny jdou do luku a boje.
     Koně pod jezdci, kteří dnes jezdili, cvičí `trainHorsesDay` – `trainLordDay` vrací kroniku.
@@ -204,7 +207,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   vdova, dědička ani žena z domu bez mužů ne); v hladu a do přeplněného domu z okolí nikdo.
   **Čekání na zásoby** (kinship.md – Sňatky čekají na zásoby; Martin 27. 10. 2026):
   `arrangeMarriages(state, day, storesFill)` a `extraWivesDay(…, storesFill)` – `simulate.ts`
-  předá líně počítané naplnění pojistky `bufferFill(fieldSowingTargets(…))` (`field-food.ts`,
+  předá líně počítané naplnění pojistky `bufferFill(fieldStoresOutlook(…))` (`field-food.ts`,
   výhled `leftKg` / `bufferKg`, jednou za den, jen když je svatba na řadě; v hájení – `inLuckyYears`
   – vždy 1). Pod 1 se svatba ve vsi
   koná s denní šancí `weddingChancePerDay(null, fill)` (střední odklad

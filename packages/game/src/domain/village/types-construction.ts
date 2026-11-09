@@ -382,23 +382,14 @@ export interface PloughBand {
   sweep: 1 | -1;
   block: number;
 }
-/** Obilí, které ves oseje i nad potřebu (fields.md – Osevní postup po dílech, bod 3). */
-export type SurplusCrop = 'winter' | 'spring';
 /** Práce jedné plodiny hospodářského roku (fields.md – Osevní postup po dílech). */
 export interface SeasonCrop extends CropWork {
   crop: Crop;
-  /**
-   * Díly nad potřebu (fields.md – Osevní postup po dílech, bod 3; jen ozim a jař): všechna jejich
-   * práce na poli – příprava půdy, setí, pletí, žně a odnos – jde až po stavbách a opravách
-   * obydlí (Martin 25. 10. 2026: „ve chvíli, kdy stavba přijde, prostě vesnice o část úrody
-   * přijde“). Chybí = nutné díly (práce proti hladu před stavbami).
-   */
-  surplus?: true;
 }
 /**
  * Hospodářský rok 1. 9. – 31. 8. (název `FarmSeason`, protože `Season` je roční období
- * kalendáře): evidence práce dílů po plodinách v pořadí ozim, luštěniny, len, jař, za nimi ozim
- * a jař nad potřebu (`SeasonCrop.surplus`) – plodina v `crops` je jen, když ji ves má.
+ * kalendáře): evidence práce dílů po plodinách v pořadí ozim, luštěniny, len, jař – plodina
+ * v `crops` je jen, když ji ves má.
  */
 export interface FarmSeason {
   startDay: number;
@@ -416,44 +407,29 @@ export interface FarmSeason {
    */
   flaxNeedKg?: number;
   /**
-   * Podíl dne mužů cvičící vojvodovy rodiny na nutné práci po oknech (lord.md – Kdy jde rodina
-   * na pole, bod 1; `lordSowingHelp`): jen když by ves bez rodiny nutnou práci nestihla. Přepočet
-   * každý den v oknech (`lordHelpDay`). Chybí = 0 (i plány starších vsí).
+   * Podíl dne celé cvičící vojvodovy rodiny ve žních po oknech (lord.md – Kdy jde rodina na pole;
+   * `lordHarvestHelp`): jen když by ves bez rodiny žně nestihla (červenec, srpen). Přepočet každý
+   * den ve žních (`lordHelpDay`). Chybí = 0. Plány starších vsí s pomocí s osevem převod zbaví
+   * oken setí (`withoutSowingHelp`).
    */
   lordHelp?: LordHelp;
   /**
-   * Osivo dílů, které ves ve dni osevu vybrala, ale na čelo práce ještě nepřišly (kg po
-   * zásobách – fields.md, Úroda, Osivo ze zásob). Přepočte se každý den, kdy smí začít díl
-   * (`seasonDay`), mimo ty dny chybí. Ves ho nejí (`seedReserve`) a počítá s ním ve výhledu
-   * zásob k příští sklizni (`sowingTargets`).
-   */
-  seedWaitingKg?: SeedKg;
-  /**
-   * Osivo obilí na díly do roční potřeby z pole (kg – fields.md, Úroda, Osivo ze zásob): odhad
-   * osiva příštího osevu, které si ves z osiva zakladatelů nechá, i když šetří přídělem
-   * (`foundersSeedKeepKg`); kolik osiva smí do země, už neomezuje (osev má přednost – 6. 11. 2026).
-   * Přepočte se každý den, kdy smí začít díl (`seasonDay` – roční potřeba × osivo na kg čisté úrody
-   * dílů plánu). Chybí = 0.
-   */
-  seedFloorKg?: number;
-  /**
    * Výběr dílů z posledního dne, kdy bylo na čele práce místo (fields.md – Postup práce po dílech,
-   * výkon): čekající díly a roční potřeba z pole. Ve dny bez místa na čele ves nový výběr nedělá
+   * výkon): čekající díly. Ve dny bez místa na čele ves nový výběr nedělá
    * a počítá s tímto; platí jen ve stejném měsíci a se stejnými plodinami, které smí začít
    * (`window`). Mimo dny, kdy smí začít díl, chybí; chybí-li, ves vybírá znovu (starší ves taky).
    */
   selection?: {
     window: string;
     waiting: { id: number; crop: Crop }[];
-    floorKg: number | null;
   };
 }
-/** Osivo po zásobách (kg): obilí (ozim, jař, obilí nad potřebu) a luštěniny. */
+/** Osivo po zásobách (kg): obilí (ozim, jař) a luštěniny. */
 export interface SeedKg {
   grain: number;
   legumes: number;
 }
 /** Okna volné práce plánu osevu (`SowingCapacity` bez orby). */
 export type LordHelpWindow = 'autumnWinter' | 'autumn' | 'spring' | 'july' | 'august';
-/** Podíl dne rodiny 0–1 po oknech; okno bez pomoci chybí. */
+/** Podíl dne rodiny 0–1 po oknech žní (`HARVEST_HELP_WINDOWS`); okno bez pomoci chybí. */
 export type LordHelp = Partial<Record<LordHelpWindow, number>>;

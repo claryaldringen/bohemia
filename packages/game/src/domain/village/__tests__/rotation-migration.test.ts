@@ -65,11 +65,9 @@ type OldWork = Omit<FarmSeason['crops'][number], 'crop'>;
 /** Hospodářský rok zpět do tvaru ročního plánu z feat/landscape (jař nahoře, ozim, luštěniny, len). */
 function legacyPlan(season: FarmSeason | null): unknown {
   if (!season) return null;
-  expect(season.crops.some((c) => c.surplus)).toBe(false);
+  expect(season.crops.some((c) => 'surplus' in c)).toBe(false);
   // osivo plánu (fields.md – Úroda, Osivo ze zásob) je novější než roční plán – ten ho nezná
   const { startDay, crops, ...rest } = season;
-  delete rest.seedWaitingKg;
-  delete rest.seedFloorKg;
   delete rest.selection;
   const work = (crop: string): OldWork | undefined => {
     const found = crops.find((c) => c.crop === crop);
@@ -114,8 +112,6 @@ function withSeedPlan(s: VillageState, from: VillageState): VillageState {
   const copy = (season: FarmSeason | null, source: FarmSeason | null): FarmSeason | null =>
     season && {
       ...season,
-      ...(source?.seedWaitingKg ? { seedWaitingKg: source.seedWaitingKg } : {}),
-      ...(source?.seedFloorKg !== undefined ? { seedFloorKg: source.seedFloorKg } : {}),
       ...(source?.selection ? { selection: source.selection } : {}),
     };
   return {

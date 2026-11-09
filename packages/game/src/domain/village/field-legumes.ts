@@ -24,10 +24,7 @@ export function withoutFieldLegumes(state: VillageState): VillageState {
   if (unsown.length === 0 && !waiting) return state;
   const next = cloneState(state);
   const plan = next.season!;
-  if (waiting) {
-    delete plan.selection;
-    delete plan.seedWaitingKg;
-  }
+  if (waiting) delete plan.selection;
   const from = seasonCrop(plan, 'legume');
   if (from && unsown.length > 0) {
     moveParts(next, plan, from, springCrop(plan), unsown, day, craftCoverage(next, day).tools);

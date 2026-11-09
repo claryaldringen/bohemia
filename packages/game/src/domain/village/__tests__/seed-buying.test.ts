@@ -5,9 +5,9 @@ import { departVillage } from '../departure';
 import { breedingCows, oxenCalvesWanted, surplusCows } from '../husbandry';
 import { neighbourStock } from '../neighbours';
 import { LEAVING, NEIGHBOR_DIRECTIONS, SEED_BUYING, TRADE } from '../rules';
-import { reservedSeedKg, sowableSeedKg, foodUntilHarvestKg } from '../seed';
+import { reservedSeedKg, sowableSeedKg, foodUntilHarvestKg, windowSeedNeedKg } from '../seed';
 import { buySeed, seedBuyingDay, seedShortKg } from '../seed-buying';
-import { fieldSowingTargets } from '../simulate-plan';
+import { fieldStoresOutlook } from '../simulate-plan';
 import { NO_CRAFTS } from '../productivity';
 import { advanceVillage } from '../simulate';
 import { buyPrice, sellPrice } from '../trade';
@@ -178,13 +178,20 @@ describe('osivo pro ves bez zásob (fields.md – Osivo pro ves bez zásob)', ()
     expect(s.reservedSeedKg).toBeUndefined();
   });
 
-  it('1. 12. se uvolní rezerva nad osivo jaře (bez čekajícího osiva celá)', () => {
+  it('1. 12. se uvolní rezerva nad osivo jaře na díly na řadě (bez dílů na řadě celá)', () => {
     const s = village(4, 300, 4);
     s.reservedSeedKg = 100;
     seedBuyingDay(s, at(600, 11, 30));
     expect(s.reservedSeedKg).toBe(100);
+    const spring = windowSeedNeedKg(s, 'spring');
+    expect(spring).toBeGreaterThan(0);
     seedBuyingDay(s, at(600, 12, 1));
-    expect(s.reservedSeedKg).toBeUndefined();
+    expect(s.reservedSeedKg).toBe(Math.min(100, spring));
+    const bare = village(4, 300, 4);
+    bare.parts = [];
+    bare.reservedSeedKg = 100;
+    seedBuyingDay(bare, at(600, 12, 1));
+    expect(bare.reservedSeedKg).toBeUndefined();
   });
 
   it('osivo zakladatelů se do lhůty neuvolní 1. 6. ani 1. 12., po ní jako každá rezerva', () => {
@@ -196,8 +203,8 @@ describe('osivo pro ves bez zásob (fields.md – Osivo pro ves bez zásob)', ()
       expect(s.reservedSeedKg).toBe(1000);
     }
     // lhůta osiva cíle osevu: osivo zakladatelů jídlem není, po lhůtě ano
-    const before = fieldSowingTargets(s, at(601, 9, 1), NO_CRAFTS).leftKg;
-    const after = fieldSowingTargets(s, at(602, 9, 1), NO_CRAFTS).leftKg;
+    const before = fieldStoresOutlook(s, at(601, 9, 1), NO_CRAFTS).leftKg;
+    const after = fieldStoresOutlook(s, at(602, 9, 1), NO_CRAFTS).leftKg;
     expect(after).toBeGreaterThan(before);
     // po lhůtě 1. 6. obyčejné zrno a značka lhůty zmizí
     seedBuyingDay(s, at(602, 6, 1));
@@ -217,22 +224,27 @@ describe('osivo pro ves bez zásob (fields.md – Osivo pro ves bez zásob)', ()
     const s = village(4, 4000, 4);
     s.reservedSeedKg = 1800;
     s.reservedSeedUntilDay = at(610, 1, 1);
-    s.season = { startDay: at(600, 9, 1), crops: [], seedFloorKg: 300 };
+    s.season = { startDay: at(600, 9, 1), crops: [] };
     const day = at(601, 2, 10);
+    // osivo příštího osevu – jař na díly na řadě
+    const next = windowSeedNeedKg(s, 'spring');
+    expect(next).toBeGreaterThan(0);
+    expect(next).toBeLessThan(1800);
     // ves nešetří – rezerva celá
     seedBuyingDay(s, day);
     expect(s.reservedSeedKg).toBe(1800);
-    // ves šetří – běžné obilí k jídlu, rezerva jen na roční osivo podle cílů osevu
+    // ves šetří – běžné obilí k jídlu, rezerva jen na osivo příštího osevu
     s.hungry = true;
     seedBuyingDay(s, day + 1);
-    expect(s.reservedSeedKg).toBe(300);
+    expect(s.reservedSeedKg).toBe(next);
     expect(s.reservedSeedUntilDay).toBe(at(610, 1, 1));
     expect(s.storesKg).toBe(4000);
     // rezerva pod osivo příštího osevu zůstane celá
     seedBuyingDay(s, day + 2);
-    expect(s.reservedSeedKg).toBe(300);
-    // ves bez plánu osevu šetří – rezervu sní celou
+    expect(s.reservedSeedKg).toBe(next);
+    // ves bez dílů na řadě šetří – rezervu sní celou
     const plain = village(4, 4000, 4);
+    plain.parts = [];
     plain.reservedSeedKg = 1800;
     plain.reservedSeedUntilDay = at(610, 1, 1);
     plain.hungry = true;
@@ -359,7 +371,7 @@ describe('osivo pro ves bez zásob (fields.md – Osivo pro ves bez zásob)', ()
     const whole = advanceVillage(s, end, null);
     const pieces = advanceVillage(advanceVillage(s, at(600, 9, 20), null), end, null);
     expect(JSON.stringify(pieces)).toBe(JSON.stringify(whole));
-    const winter = whole.season!.crops.find((c) => c.crop === 'winter' && !c.surplus);
+    const winter = whole.season!.crops.find((c) => c.crop === 'winter');
     expect(winter?.seedKg ?? 0).toBeGreaterThan(SEED_BUYING.minKg);
     expect(whole.reservedSeedKg).toBeCloseTo(reserved, 6);
   }, 120_000);

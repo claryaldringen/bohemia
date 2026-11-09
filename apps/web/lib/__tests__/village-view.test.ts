@@ -341,28 +341,27 @@ describe('buildVillageView – očekávaná úroda a práce (fields.md – Co hr
 });
 
 describe('buildVillageView – osevní postup v panelu (fields.md – Osevní postup po dílech)', () => {
-  it('díl: co poroste příště, úhor s odpočinkem, nad potřebu; pole: na řadě a odpočívá', () => {
+  it('díl: co poroste příště, úhor s odpočinkem; pole: na řadě a odpočívá', () => {
     const s = settled();
     s.constructions = s.constructions.filter((c) => c.kind !== 'field');
     for (const p of s.parts) {
       p.foundingDone = p.foundingCost;
       p.state = 'ready';
     }
-    const [afterWinter, resting, surplus] = s.parts;
+    const [afterWinter, resting, waiting] = s.parts;
     afterWinter!.next = 'spring';
     afterWinter!.sownYears = 1;
     resting!.state = 'fallow';
     resting!.fertilityShare = 0.76;
     resting!.fallowSinceDay = DAY - 400;
-    surplus!.state = 'sown';
-    surplus!.crop = 'winter';
+    waiting!.state = 'sown';
+    waiting!.crop = 'winter';
     s.season = {
       startDay: DAY - 200,
       crops: [
         {
           crop: 'winter',
-          surplus: true,
-          ...createCropWork([surplus!], DAY - 200, 1, false, undefined, 'winter'),
+          ...createCropWork([waiting!], DAY - 200, 1, false, undefined, 'winter'),
         },
       ],
     };
@@ -373,12 +372,30 @@ describe('buildVillageView – osevní postup v panelu (fields.md – Osevní po
       next: 'fallow',
       rest: { share: 0.8, years: 4 },
     });
-    // nezasetý díl nad potřebu – příště jeho plodina
-    expect(shown.get(surplus!.id)).toMatchObject({ next: 'winter', work: { surplus: true } });
+    // nezasetý díl letošní práce – příště jeho plodina
+    expect(shown.get(waiting!.id)).toMatchObject({ next: 'winter' });
     expect(field.turn.resting).toBe(1);
     expect(field.turn.winter + field.turn.spring).toBe(s.parts.length - 2);
     expect(field.turn.spring).toBeGreaterThan(0);
-    expect(field.turn.surplus).toEqual({ winter: 1, spring: 0 });
+  });
+
+  it('hromada osiva: osivo okna a zimní osivo; bez osiva chybí (fields.md – Osivo bez cíle osevu)', () => {
+    const s = settled();
+    expect(buildVillageView(record(s), landscape, DAY).sowingSeed).toBeUndefined();
+    s.sowingSeed = { crop: 'winter', totalKg: 600, days: 61, kg: 420 };
+    expect(buildVillageView(record(s), landscape, DAY).sowingSeed).toEqual({
+      crop: 'winter',
+      kg: 420,
+      winter: false,
+    });
+    s.sowingSeed = { crop: 'spring', totalKg: 300, days: 0, kg: 300, beforeWindow: true };
+    expect(buildVillageView(record(s), landscape, DAY).sowingSeed).toEqual({
+      crop: 'spring',
+      kg: 300,
+      winter: true,
+    });
+    s.sowingSeed = { crop: 'spring', totalKg: 300, days: 61, kg: 0.2 };
+    expect(buildVillageView(record(s), landscape, DAY).sowingSeed).toBeUndefined();
   });
 });
 
@@ -671,7 +688,7 @@ describe('buildVillageView', () => {
         stages: { founding: 5 },
         surfaces: { meadow: 5 },
         crops: {},
-        turn: { winter: 0, spring: 0, resting: 0, surplus: { winter: 0, spring: 0 } },
+        turn: { winter: 0, spring: 0, resting: 0 },
         ashParts: 0,
         ashBonus: 0,
         overgrowingM2: 0,
