@@ -5,6 +5,7 @@ import { parseArgs } from 'node:util';
 import { Client, type PoolClient } from 'pg';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import {
+  createAlarmOwners,
   createDatabase,
   createHouseRepository,
   createSettlementRepository,
@@ -301,6 +302,7 @@ async function main(): Promise<void> {
       houses: createHouseRepository(db),
       vassalages: createVassalageRepository(db),
     }),
+    alarmOwners: createAlarmOwners(db),
     world,
     memory: newCampaignMemory(),
   };

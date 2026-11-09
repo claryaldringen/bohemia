@@ -8,6 +8,8 @@ import {
   MarchGridMemo,
   stepCampaign,
   tickOfMs,
+  UNKNOWN_ALARM_OWNER,
+  type AlarmOwner,
   type CampaignIntent,
   type CampaignMap,
   type CampaignOutbox,
@@ -15,7 +17,13 @@ import {
   type CampaignStep,
   type CampaignWorld,
 } from '../domain/war';
-import type { CampaignCells, CampaignLock, CampaignRepository } from './campaigns';
+import type {
+  AlarmOwnerPort,
+  CampaignCells,
+  CampaignLock,
+  CampaignRepository,
+  VillageCell,
+} from './campaigns';
 import type { HouseRepository } from './houses';
 import type { NoticeRepository } from './notices';
 import { passageCovers, type PassageRepository } from './passages';
@@ -45,6 +53,12 @@ export interface StepCampaignsDeps {
    * (`isHarmlessArmy`).
    */
   watchers?: VillageWatchers;
+  /**
+   * Kdo za varovanou ves rozhoduje, kandidáti hradišť a doména hradiště (war.md – Varování, poslové
+   * a útěk do hradiště; plán 2026-11-09 – Úloha 6). Bez toho rod vsi neznámý (rozhoduje pravidlo),
+   * hradiště ani doména žádné.
+   */
+  alarmOwners?: AlarmOwnerPort;
   /** Skončené tažení ukončí svá ohlášení průchodu (war.md – Pohyb). */
   passages?: Pick<PassageRepository, 'voidOfCampaign'>;
   /**
@@ -309,17 +323,21 @@ async function stepOne(
  * čeká, ves se v dalším kole načte znovu.
  */
 export async function computeCampaign(
-  deps: Pick<StepCampaignsDeps, 'cells' | 'villages' | 'world' | 'watchers' | 'memory'>,
+  deps: Pick<
+    StepCampaignsDeps,
+    'cells' | 'villages' | 'world' | 'watchers' | 'alarmOwners' | 'memory'
+  >,
   state: CampaignState,
   toTick: number,
   intents: readonly CampaignIntent[],
 ): Promise<CampaignStep> {
   const maps = new Map<string, CampaignMap>();
   const villages = new Map<string, VillageState>();
-  /** Vsi, které se už zkusily načíst (i neexistující) – pro posla. */
+  /** Vsi, které se už zkusily načíst (i neexistující). */
   const tried = new Set<string>();
   const watchers = new Map<string, { playerId: string; name: string }>();
   const harmlessTo = new Map<string, boolean>();
+  const alarms = deps.alarmOwners ? alarmWorld(deps.alarmOwners) : null;
   const key = (c: GridCell): string => `${c.x},${c.y}`;
   const world: CampaignWorld = {
     clock: deps.world,
@@ -332,14 +350,7 @@ export async function computeCampaign(
     watcherOf: (villageId: string): { playerId: string; name: string } | null =>
       watchers.get(villageId) ?? null,
     harmless: (villageId: string): boolean => harmlessTo.get(villageId) ?? false,
-    // posel jde z jiné vsi téhož hráče (rodu) jako cíl; bez `watchers` se nic neví – posel nejde
-    messengerTo: (from: string, to: string): boolean | null => {
-      if (!deps.watchers) return false;
-      if (!tried.has(from) || !tried.has(to)) return null;
-      const a = watchers.get(from);
-      const b = watchers.get(to);
-      return a !== undefined && b !== undefined && a.playerId === b.playerId;
-    },
+    ...(alarms ? alarms.world : {}),
     ...(deps.memory ? { grids: deps.memory.grids } : {}),
   };
   const result: CampaignStep = { state, villageEvents: [], notices: [], waiting: null };
@@ -379,9 +390,65 @@ export async function computeCampaign(
         }
       }
     }
+    if (alarms && (await alarms.load())) loaded = true;
     if (!loaded) break;
   }
   return result;
+}
+
+/** Odpovědi portu varování pro synchronní svět tažení a jejich dočtení, když na ně takt čeká. */
+interface AlarmWorld {
+  world: Required<Pick<CampaignWorld, 'alarmOf' | 'refugeHostsOf' | 'domainOf'>>;
+  /** Načte, na co se takt ptal a svět ještě neznal; true, když něco načetl. */
+  load(): Promise<boolean>;
+}
+
+/**
+ * Svět varování nad portem `AlarmOwnerPort` (vzor `watcherOf` / `harmless`): synchronní dotaz vrátí,
+ * co je načtené, jinak si dotaz zapamatuje a vrátí null (takt čeká – `MissingData`); `load` pak
+ * dotazy načte. Neznámá ves = neznámý rod (`UNKNOWN_ALARM_OWNER` – rozhoduje pravidlo).
+ */
+function alarmWorld(port: AlarmOwnerPort): AlarmWorld {
+  const owners = new Map<string, AlarmOwner>();
+  const hosts = new Map<string, VillageCell[]>();
+  const domains = new Map<string, VillageCell[]>();
+  const asked = { owners: new Set<string>(), hosts: new Set<string>(), domains: new Set<string>() };
+  const lookup =
+    <T>(known: Map<string, T>, want: Set<string>) =>
+    (villageId: string): T | null => {
+      const value = known.get(villageId);
+      if (value !== undefined) return value;
+      want.add(villageId);
+      return null;
+    };
+  const fill = async <T>(
+    known: Map<string, T>,
+    want: Set<string>,
+    read: (villageId: string) => Promise<T>,
+  ): Promise<boolean> => {
+    const ids = [...want].filter((id) => !known.has(id));
+    want.clear();
+    for (const id of ids) known.set(id, await read(id));
+    return ids.length > 0;
+  };
+  return {
+    world: {
+      alarmOf: lookup(owners, asked.owners),
+      refugeHostsOf: lookup(hosts, asked.hosts),
+      domainOf: lookup(domains, asked.domains),
+    },
+    load: async () => {
+      // ves vstupuje do varování s vlastníkem i kandidáty hradišť – načtou se spolu (jedno kolo)
+      for (const id of asked.owners) asked.hosts.add(id);
+      for (const id of asked.hosts) asked.owners.add(id);
+      const a = await fill(owners, asked.owners, async (id) => {
+        return (await port.ownerOf(id)) ?? { ...UNKNOWN_ALARM_OWNER };
+      });
+      const b = await fill(hosts, asked.hosts, (id) => port.refugeHostsOf(id));
+      const c = await fill(domains, asked.domains, (id) => port.domainOf(id));
+      return a || b || c;
+    },
+  };
 }
 
 /**

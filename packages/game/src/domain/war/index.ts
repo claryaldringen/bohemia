@@ -28,5 +28,11 @@ export { breakoutChoice, type BreakoutBlock, type BreakoutChoice } from './rout'
 export * from './alarm-types';
 export * from './refuge-choice';
 export { villageLookouts, runTicks, type Lookout, type LookoutKind } from './lookouts';
-export { alarmVillage, isAlarmIntent, isDefenderIntent, isWarned } from './alarm';
+export {
+  alarmVillage,
+  isAlarmIntent,
+  isDefenderIntent,
+  isWarned,
+  UNKNOWN_ALARM_OWNER,
+} from './alarm';
 export { alarmTaken, withoutTaken, type AlarmTaken } from './messenger';

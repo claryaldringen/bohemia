@@ -759,7 +759,7 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
   `warnTick`, `by`, posel, skupina, `decided`, kandidáti hradišť `hosts`), `AlarmMover` (políčko,
   poloha, `route`, `leg`, `target` – jako `CampaignGroup`), `AlarmMessenger`, `AlarmFlight`. Záměry
   obránce `IntentBody`: `alarm-messenger`, `alarm-flee` (`FlightMode` = `forest` | `people` | `all`),
-  `alarm-domain`. Porty světa (volitelné, dodá Ú6): `CampaignWorld.alarmOf`, `refugeHostsOf`,
+  `alarm-domain`. Porty světa (volitelné, Ú6 – níž): `CampaignWorld.alarmOf`, `refugeHostsOf`,
   `domainOf`. Upozornění `army-warned`, `refuge-arrived`, `refuge-caught`, `messenger-caught`
   (texty `apps/web/lib/player-notices.ts`, panel války). Stav vsi: `AwayKind` + `refuge` |
   `messenger`, `Guest.bornDay?`, `VillageState.refuge?` (`VillageRefuge` – domov), `refugeStays?`
@@ -900,6 +900,38 @@ stepM, day, ctx)` → `moved` | `crossed` | `arrived` | `stuck`, `planMoverLeg`)
   zatím neposílají (Ú11). Test `messenger.test.ts` (tři mapy v řadě: záměr majitele, cizí záměr,
   neškodné vojsko, jezdec z rodu rychleji, bez muže / bez hradiště nic, chycení do 30 m a jezdcem
   na dohled, zajetí muže rodu, po 1 / 7 / 40 taktech přes JSON = vcelku, den odchodu).
+- **Hradiště varuje doménu a svět varování (Ú6).** **Porty světa** `CampaignWorld.alarmOf`,
+  `refugeHostsOf`, `domainOf` (`null` = svět ještě nenačetl – takt čeká; bez portu rod neznámý
+  `UNKNOWN_ALARM_OWNER` – rozhoduje pravidlo, hradiště ani doména žádné); port `messengerTo` zmizel.
+  Port aplikace `AlarmOwnerPort` (`application/campaigns.ts`: `ownerOf`, `refugeHostsOf`, `domainOf`
+  → `VillageCell`), `StepCampaignsDeps.alarmOwners` – `computeCampaign` (`alarmWorld`) odpovídá
+  synchronně z načteného, jinak si dotaz zapamatuje a po `MissingData` ho dočte (vlastník
+  a kandidáti hradišť vsi spolu – jedno kolo; neznámá ves = neznámý rod). Adaptér
+  `db/adapters/alarm-owners.ts` (`createAlarmOwners`; test `alarm-owners.db.test.ts`): rod vsi = živý
+  rod hráče, kterému patří sídlo vsi (`settlement.owner_id` → `house`), `npc` = ves spravuje NPC rod
+  (živá `stewardship` druhu `npc` – rozhoduje pravidlo správce; návrh Clauda), hráč bez rodu
+  `houseId: null`, neznámá ves null; `refugeHostsOf` = vsi rodu kromě ní a přímých pánů (živé hrany
+  `vassalage`, jeden stupeň) do `WAR.alarm.refugeMaxCells`, `domainOf` = vsi rodu (i ona) a přímých
+  vazalů – vazal vazala ne; obojí bez archivovaných sídel, spících vsí a vsí bez políčka, od nejbližší
+  (shoda – menší id). Zapojení ve workeru (`apps/worker/src/main.ts`) a `measure-campaign-db.ts`;
+  `measure-campaigns.ts` má porty v paměti (každá ves NPC bez hradiště). **Kandidáti hradišť**
+  (`hostCandidates` v `alarm.ts`) se do `AlarmVillage.hosts` zapíší, jakmile ves do varování vstoupí
+  (`sightAlarms`, posel – `warnByMessenger`) – všichni v dosahu, i bez opevnění (tažení čte jejich
+  stav – bariéra Ú3 je drží už před volbou); `sendMessenger` je přepíše týmiž. **Hradiště varuje
+  doménu** (`warnDomain` v `messenger.ts`, Otevřené 5): vsi z `domainOf` do
+  `WAR.alarm.domainRadiusCells` políček od místa spatření (`seenAt` hradiště), které nevědí, nikdo
+  k nim neběží a vojsko jim škodí, nejbližší k místu spatření první (čtverec vzdálenosti políček,
+  shoda – menší id), celkem nejvýš `WAR.alarm.hillfortMessengers` poslů (`AlarmVillage.domain` –
+  jejich `refId`); každý posel jiný muž hradiště (`messengerOf` bez volby – nejmladší vesničan pěšky,
+  `alarmTaken` vynechá ty, kdo už běží), cíl střed vsi domény, trasa `refugeRoute`, `messenger-out`
+  hradišti na týž den; běží, varuje mapy a vrací se jako posel vsi (společné `launch`). **NPC hradiště**
+  (`owner.npc`) rozešle posly hned, jak doběhne posel vsi (ne posel hradiště – `AlarmVillage.messenger`
+  odesílatele), jednou; vyběhnou až další takt. **Hradiště hráče** čeká na záměr `alarm-domain`
+  (`to` – vybrané vsi, v pořadí podle vzdálenosti; platí od majitele varované vsi, i opakovaně do
+  součtu 4) – správce hradiště a lhůta hráče: Ú11. Testy `messenger.test.ts` (NPC hradiště – 4 nejbližší,
+  pátá a vzdálená ne, B už ví; hradiště hráče až záměrem, cizí záměr, mez 4; bez portu nic, nenačtená
+  doména čeká; po 1 / 7 / 40 taktech přes JSON = vcelku), `application/__tests__/alarm-world.test.ts`
+  (smyčka `stepCampaigns` s portem v paměti = vcelku s daty předem, dotazy jen na potřebné).
 
 ## Výsledky nájezdu a kořist (Ú6.10)
 

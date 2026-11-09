@@ -122,6 +122,10 @@ const campaignWorld: CampaignWorld = {
   clock: world,
   landscapeOf: (cell) => maps.get(keyOf(cell)) ?? emptyMap(cell),
   villageAt: (id) => villages.get(id) ?? null,
+  // svět varování v paměti (plán 2026-11-09 – Úloha 6): každá ves je NPC rodu bez hradiště a domény
+  alarmOf: () => ({ playerId: null, npc: true, houseId: null }),
+  refugeHostsOf: () => [],
+  domainOf: () => [],
 };
 
 function members(villageId: string): CampaignMember[] {

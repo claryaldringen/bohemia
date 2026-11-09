@@ -3,6 +3,7 @@
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
+  createAlarmOwners,
   createCampaignLock,
   createCampaignRepository,
   createDatabase,
@@ -218,6 +219,8 @@ async function main(): Promise<void> {
       vassalages: gameDeps.vassalages,
       passages: gameDeps.passages,
     }),
+    // kdo za varovanou ves rozhoduje, kandidáti hradišť a doména hradiště (war.md – Varování)
+    alarmOwners: createAlarmOwners(db),
     // poslední spočtený stav tažení napříč koly (docs/code/worker.md – Výkon – Tažení)
     memory: newCampaignMemory(),
   };

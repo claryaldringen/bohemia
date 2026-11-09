@@ -22,7 +22,6 @@ function worldWith(overrides: Partial<CampaignWorld> = {}): CampaignWorld {
     clock: world,
     landscapeOf: (c) => (c.x === PASSED.x && c.y === PASSED.y ? vlkovMap : MEADOW),
     villageAt: (id) => (id === 'vlkov' || id === 'knezice' ? vlkov : null),
-    messengerTo: (from, to) => from === 'vlkov' && to === 'knezice',
     ...overrides,
   };
 }
@@ -113,13 +112,8 @@ describe('posel z prošlé vsi (Ú6.7) zmizel', () => {
     const step = stepCampaign(start, start.tick + 400, [], worldWith());
     expect(kinds(step.villageEvents, 'knezice')).toEqual([]);
     expect(step.state.messengerSent).toBeUndefined();
-    const unknown = stepCampaign(
-      start,
-      start.tick + 40,
-      [],
-      worldWith({ messengerTo: () => null }),
-    );
-    expect(unknown.waiting).toBeNull();
-    expect(unknown.state.tick).toBe(start.tick + 40);
+    // port `messengerTo` zmizel s porty varování (plán 2026-11-09 – Úloha 6)
+    expect(step.waiting).toBeNull();
+    expect(step.state.tick).toBe(start.tick + 400);
   });
 });
