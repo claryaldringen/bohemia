@@ -8,7 +8,13 @@ import { partYearWork, type PartYearWork } from './field-progress';
 import { effectiveFertility, isWeedFree } from './fields';
 import { CROP_WINDOWS } from './rules';
 import { orchardHarvestLoad, sowingCapacity } from './simulate-plan';
-import { SOWING_CAPACITY_WINDOWS, cropLoadOf, planLoad, windowDaysLeft } from './sowing';
+import {
+  SOWING_CAPACITY_WINDOWS,
+  cropLoadOf,
+  harvestOverflow,
+  planLoad,
+  windowDaysLeft,
+} from './sowing';
 import type { Landscape } from '../landscape';
 import type { CraftCoverage, Crop, FieldPart, SeasonCrop, VillageState } from './types';
 import {
@@ -36,8 +42,9 @@ export type OutlookStep = 'prep' | 'sow' | 'harvest';
 /**
  * Práce, která do konce okna nestačí (zátěž okna nad volnou prací vsi i s pomocí cvičící rodiny
  * vojvody – `sowingCapacity` s `lord`, jako `lordSowingHelp`). Příprava a setí mají jedno okno
- * (ozim září–říjen, jař, luštěniny a len do konce dubna – podzim napřed), sklizeň své (ozim,
- * luštěniny a len červenec, jař srpen s výmlatem ozimu).
+ * (ozim září–říjen, jař, luštěniny a len do konce dubna – podzim napřed), sklizeň všech plodin
+ * jedno do konce srpna (ozim, luštěniny a len v červenci, co nestihnou, v srpnu před jaří –
+ * fields.md, Žně i v srpnu; v srpnu i výmlat ozimu).
  */
 export interface WorkShortfall {
   steps: readonly OutlookStep[];
@@ -69,20 +76,17 @@ export interface PartOutlook {
 }
 
 /** Okno práce, kterou výhled hlídá – klíč chybějící práce (`WorkShortfall`). */
-type OutlookWindow = 'autumnWinter' | 'spring' | 'july' | 'august';
+type OutlookWindow = 'autumnWinter' | 'spring' | 'august';
 
 const WINDOW_END: Record<OutlookWindow, number> = {
   autumnWinter: 10,
   spring: 4,
-  july: 7,
   august: 8,
 };
 
-/** Okna kroků plodiny: příprava a setí, sklizeň. */
+/** Okna kroků plodiny: příprava a setí, sklizeň (všechny plodiny do konce srpna). */
 function cropWindows(crop: Crop): { sow: OutlookWindow; harvest: OutlookWindow } {
-  if (crop === 'winter') return { sow: 'autumnWinter', harvest: 'july' };
-  if (crop === 'spring') return { sow: 'spring', harvest: 'august' };
-  return { sow: 'spring', harvest: 'july' };
+  return { sow: crop === 'winter' ? 'autumnWinter' : 'spring', harvest: 'august' };
 }
 
 /**
@@ -90,7 +94,7 @@ function cropWindows(crop: Crop): { sow: OutlookWindow; harvest: OutlookWindow }
  * letošní nutné práce (`planLoad` – bez dílů nad potřebu, i se sklizní jablek) proti volné práci
  * vsi do konce hospodářského roku (`sowingCapacity` i s cvičící rodinou – ta pomáhá, když ves
  * nestíhá). Jař jako `lordSowingHelp`: vrácení a kopání napřed na podzim, co po ozimu zbude,
- * zbytek se setím na jaře.
+ * zbytek se setím na jaře; žeň, kterou červenec nestihne, se žne v srpnu (`harvestOverflow`).
  */
 function seasonShortfalls(
   state: VillageState,
@@ -110,8 +114,7 @@ function seasonShortfalls(
   const people: Record<OutlookWindow, number> = {
     autumnWinter: load.winterAutumn - cap.autumnWinter,
     spring: load.springSow + springOver - cap.spring,
-    july: load.july - cap.july,
-    august: load.august - cap.august,
+    august: load.august + harvestOverflow(load, cap.july) - cap.august,
   };
   const ploughs: Partial<Record<OutlookWindow, number>> = cap.plough
     ? {

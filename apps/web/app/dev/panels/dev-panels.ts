@@ -1029,7 +1029,7 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
       crops: [
         { crop: 'winter', count: 204 },
         { crop: 'spring', count: 158 },
-        { crop: 'legume', count: 56 },
+        { crop: 'flax', count: 56 },
       ],
       turn: [
         { crop: 'winter', count: 22, surplus: 6 },
@@ -1044,7 +1044,7 @@ export const DEV_PANELS: readonly { key: string; label: string; details: Selecti
         crops: [
           { crop: 'winter', kg: 41_200 },
           { crop: 'spring', kg: 28_900 },
-          { crop: 'legume', kg: 4_300 },
+          { crop: 'flax', kg: 430 },
         ],
         short: [{ steps: ['harvest'], endMonth: 7, manDays: 64 }],
       },

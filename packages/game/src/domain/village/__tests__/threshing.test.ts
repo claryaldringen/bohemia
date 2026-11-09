@@ -159,13 +159,14 @@ describe('sklizeň jde do snopů', () => {
 });
 
 describe('výmlat v srpnu a září na humně', () => {
-  it('ozim a luštěniny v srpnu, jař v září; co okno nestihne, dobíhá na podzim, na jaře a v létě až nakonec', () => {
+  it('ozim a luštěniny v srpnu a září, jař v září; co okno nestihne, dobíhá na podzim, na jaře a v létě až nakonec', () => {
     const sheaves = { grainKg: 1000, legumesKg: 100, work: { winter: 10, spring: 20, legume: 5 } };
     // tři humna – kapacita na všechno (jinak by ji vzaly plodiny první v pořadí)
     const august = threshTasks(withSheaves(at(601, 8, 10), sheaves, 3), at(601, 8, 10));
+    // okno ozimu a luštěnin srpen–září (srpnová žeň se mlátí v září – fields.md, Žně i v srpnu)
     expect(august.map((t) => [t.crop, t.end, t.overdue])).toEqual([
-      ['winter', 8, false],
-      ['legume', 8, false],
+      ['winter', 9, false],
+      ['legume', 9, false],
       // jař v srpnu ještě nebývá – snopy mimo okno se mlátí jako zpožděné, v létě po všem
       ['spring', THRESH_OVERDUE_END, true],
     ]);
@@ -178,9 +179,16 @@ describe('výmlat v srpnu a září na humně', () => {
       ['spring', 0], // zbytek nouzově na udusané zemi
     ]);
     expect(september.map((t) => [t.crop, t.end, t.overdue])).toEqual([
-      ['winter', 9, true],
-      ['legume', 9, true],
+      ['winter', 9, false],
+      ['legume', 9, false],
       ['spring', 9, false],
+    ]);
+    // v říjnu dobíhá, co okno nestihlo – s koncem v dnešním měsíci
+    const october = threshTasks(withSheaves(at(601, 10, 10), sheaves, 3), at(601, 10, 10));
+    expect(october.map((t) => [t.crop, t.end, t.overdue])).toEqual([
+      ['winter', 10, true],
+      ['legume', 10, true],
+      ['spring', 10, true],
     ]);
     // zbytky na jaře – za setím a ostatními pracemi
     const march = threshTasks(withSheaves(at(602, 3, 10), sheaves, 3), at(602, 3, 10));
@@ -201,7 +209,7 @@ describe('výmlat v srpnu a září na humně', () => {
     // 10 kg ze 1 000 kg snopů = 1 % práce obilí (0,4 čd) – ozim první, na humně
     expect(tasks[0]).toMatchObject({ crop: 'winter', urgent: true, end: THRESH_URGENT_END });
     expect(tasks[0]!.remaining).toBeCloseTo(0.4, 9);
-    expect(tasks[1]).toMatchObject({ crop: 'winter', end: 8 });
+    expect(tasks[1]).toMatchObject({ crop: 'winter', end: 9 });
     expect(tasks[1]!.remaining).toBeCloseTo(10 - 0.4, 9);
     const stores = s.storesKg;
     threshCrop(s, tasks[0]!, tasks[0]!.remaining);
@@ -234,16 +242,16 @@ describe('výmlat v srpnu a září na humně', () => {
   it('výmlat ve svém okně je pro dřinu sezónní úlohou s koncem okna – po okně ne', () => {
     const day = at(601, 8, 10);
     const sheaves = { grainKg: 1000, legumesKg: 0, work: { winter: 120, spring: 40 } };
-    // ozim v srpnu do 31. 8.; jař má okno až v září
+    // ozim v srpnu a září do 30. 9.; jař má okno až v září
     expect(threshSeasonTasks(withSheaves(day, sheaves), day)).toEqual([
-      { remaining: 120, endDay: at(601, 8, 31) },
+      { remaining: 120, endDay: at(601, 9, 30) },
     ]);
     // bez humna nouzově (vždy, i bez odkladu) – víc práce
     expect(threshSeasonTasks(withSheaves(day, sheaves, 0, day + 100), day)).toEqual([
-      { remaining: 120 * (1 + THRESHING.emergencyWork), endDay: at(601, 8, 31) },
+      { remaining: 120 * (1 + THRESHING.emergencyWork), endDay: at(601, 9, 30) },
     ]);
     expect(threshSeasonTasks(withSheaves(day, sheaves, 0), day)).toEqual([
-      { remaining: 120 * (1 + THRESHING.emergencyWork), endDay: at(601, 8, 31) },
+      { remaining: 120 * (1 + THRESHING.emergencyWork), endDay: at(601, 9, 30) },
     ]);
     // v říjnu už žádné okno
     expect(threshSeasonTasks(withSheaves(at(601, 10, 5), sheaves), at(601, 10, 5))).toEqual([]);
@@ -429,10 +437,10 @@ describe('výhled jídla a plán osevu', () => {
       9,
     );
     // plán osevu počítá snopy jako zásobu – cíl osevu menší
-    const withSheavesTarget = sowingTargets(floor, day, 0, NO_CRAFTS.pottery);
-    const withoutTarget = sowingTargets(none, day, 0, NO_CRAFTS.pottery);
+    const withSheavesTarget = sowingTargets(floor, day, NO_CRAFTS.pottery);
+    const withoutTarget = sowingTargets(none, day, NO_CRAFTS.pottery);
     expect(withSheavesTarget.leftKg).toBeGreaterThanOrEqual(withoutTarget.leftKg);
-    expect(withSheavesTarget.targetKg).toBeLessThanOrEqual(withoutTarget.targetKg);
+    expect(withSheavesTarget.harvestKg).toBeLessThanOrEqual(withoutTarget.harvestKg);
   });
 
   it('jídlo: výhled se snopy nehladoví, jí se jen vymlácené obilí', () => {
@@ -540,12 +548,16 @@ describe('výhled jídla a plán osevu', () => {
 
   it('výhled s rukama vsi: v srpnu má přednost žeň jaře – výmlat dostane jen zbytek rukou', () => {
     const day = at(601, 8, 10);
-    const sheaves = { grainKg: 1000, legumesKg: 0, work: { winter: 40 } };
+    const hands = handsPerDay(withSheaves(day, { grainKg: 1000, legumesKg: 0 }), day);
+    // výmlat na 50 dní rukou: v okně ozimu (10. 8. – 30. 9., 52 dní – fields.md, Žně i v srpnu)
+    // se stihne, v září samotném ne
+    const sheaves = { grainKg: 1000, legumesKg: 0, work: { winter: hands * 50 } };
     const idle = withThreshHands(withSheaves(day, sheaves), day);
+    expect(idle.threshHands).toBeCloseTo(hands, 9);
     // bez žně stihnou ruce výmlat v okně – bez ztrát
-    expect(idle.threshHands! * 22).toBeGreaterThan(40);
     expect(sheavesOutlook(idle, day).grainKg).toBeCloseTo(1000, 9);
-    // žeň jaře vezme všechny ruce do konce srpna – ozim se pak kazí, než ho vymlátí
+    // žeň jaře vezme všechny ruce do konce srpna – ozim na humně čeká v okně bez ztrát, v září
+    // ho ruce nestihnou a zbytek se kazí, než ho vymlátí
     const busy = structuredClone(idle);
     busy.season = {
       startDay: at(600, 9, 1),
@@ -561,11 +573,9 @@ describe('výhled jídla a plán osevu', () => {
     };
     const outlook = sheavesOutlook(busy, day);
     expect(outlook.grainKg).toBeLessThan(1000 - 10);
-    // po konci srpna všechny ruce: jako výmlat po dnech od 1. 9. po 22 dnech ubytku
-    const september = structuredClone(idle);
-    for (let d = 1; d <= 22; d++) spoilSheaves(september, day + d);
+    // po konci srpna všechny ruce: jako výmlat po dnech od 1. 9. (srpen v okně bez ubytku)
     expect(outlook.grainKg).toBeCloseTo(
-      threshByDays(september, at(601, 9, 1), idle.threshHands!).grainKg,
+      threshByDays(structuredClone(idle), at(601, 9, 1), idle.threshHands!).grainKg,
       6,
     );
   });

@@ -157,6 +157,17 @@ describe('podíl dne rodiny po oknech (lordSowingHelp)', () => {
     expect(both.autumn).toBeCloseTo(80 / 200, 12);
     expect(both.autumnWinter).toBeUndefined();
   });
+
+  it('žeň, kterou červenec nestihne ani s rodinou, přejde do srpna (fields.md – Žně i v srpnu)', () => {
+    // červenec 50 + rodina 40 = 90, žeň 100 → 10 do srpna: 60 + 10 = 70 ≤ 80 – srpen bez rodiny
+    const fits = lordSowingHelp(load({ july: 100 }), village, withLord);
+    expect(fits.july).toBe(1);
+    expect(fits.august).toBeUndefined();
+    // žeň 120 → 30 do srpna: 60 + 30 = 90, chybí 10 z 60 práce rodiny v srpnu
+    const short = lordSowingHelp(load({ july: 120 }), village, withLord);
+    expect(short.july).toBe(1);
+    expect(short.august).toBeCloseTo(10 / 60, 12);
+  });
 });
 
 describe('podíl dnešního dne (lordHelpShare)', () => {
@@ -286,7 +297,6 @@ describe('nutná práce s rodinou (lordHelpDay)', () => {
     const { join } = neededSelection(planned, PLAN_DAY, {
       harvestKg: t.harvestKg,
       energyFloorKg: t.energyFloorKg,
-      legumeKg: t.legumeKg,
       needKg: t.needKg,
       flaxNeedKg: planned.season!.flaxNeedKg ?? 0,
     });

@@ -8,8 +8,8 @@ váhy**; bílkoviny dává obilí, mléko a sýr, maso a vejce („Ovce, kozy i 
 zvířata“) a **práce se zvířaty se počítá** – viz Bílkoviny, Mléko a sýr, Práce se zvířaty
 (implementováno; čísla z [rešerše](research/2026-10-18-dairy-protein.md)). **Další změna
 (Martin, 18. 10. 2026):** „c) ale maso bude mírně zvyšovat štěstí“ – 1,6 g/kg zůstává, přidají
-se **luštěniny** jako plodina na poli a **maso mírně zvyšuje štěstí** – viz Luštěniny
-(implementováno, `legumes.ts`; [rešerše](research/2026-10-18-legumes.md)). **Stáda
+se **luštěniny** jako plodina na poli (od 9. 11. 2026 už jen zboží – Martin je z polí vyřadil)
+a **maso mírně zvyšuje štěstí** – viz Luštěniny (implementováno, `legumes.ts`; [rešerše](research/2026-10-18-legumes.md)). **Stáda
 realističtěji (Martin, 19. 10. 2026):** roční ztráty stáda, seno pro všechny druhy, trvanlivost
 uzeného masa, chovné stádo podle potřeby, pasáci a skladba stáda – viz Stáda realističtěji
 (implementováno, `herding.ts`, `livestock.ts`, `hay.ts`, `diet.ts`;
@@ -72,11 +72,17 @@ Raně středověká strava nebyla jen obilí. Plné nasycení potřebuje kombina
 
 ### Luštěniny a štěstí z masa (Martin, 18. 10. 2026; čísla rešerše a návrh Clauda)
 
-- **Luštěniny** (hrách a čočka – pole: [fields.md](fields.md), Luštěniny): **22 % bílkovin**,
+- **Luštěniny už ne z pole (Martin, 9. 11. 2026):** „Luštěniny jsou podle mě píčovina. Co vím,
+  tak je lidi pěstovali spíš doma na zahrádkách než na velkých polích…“ – ves je na poli nesel
+  ([fields.md](fields.md), Luštěniny, zrušeno; zahrádky u obydlí probereme později). Zůstávají
+  **zbožím**: zásoba (obchod, platby, dávky, dorůstající luštěniny starších vsí) se jí jako dosud
+  – rovným dílem do července, nejvýš strop, bílkoviny navíc proti obilí. Ves bez zásoby jí obilí;
+  bílkoviny, které chybí, dorovná maso a mléko stád (Chovné stádo podle potřeby).
+- **Luštěniny** (hrách a čočka): **22 % bílkovin**,
   energie jako obilí (3 400 kcal/kg). Strop **25 % energie** ze stravy (dospělý ≈ 45 kg ročně;
   rešerše: chléb čeledi v Mordenu 17–26 % hrachu – strop je návrh Clauda).
-- **Kolik jich ves chce:** každý kg luštěnin místo obilí se stejnou energií dá o **12 dkg bílkovin
-  víc** (22 % proti 10 %). Od 19. 10. 2026 rozhodne **Rovnovážné hospodaření** (níž) – luštěniny
+- ~~**Kolik jich ves chce**~~ (do 9. 11. 2026 – cíl osevu luštěnin padl): každý kg luštěnin místo
+  obilí se stejnou energií dá o **12 dkg bílkovin víc** (22 % proti 10 %). Od 19. 10. 2026 rozhodne **Rovnovážné hospodaření** (níž) – luštěniny
   soupeří cenou v práci se stády a ves je oseje k 1. 9., jen kde jsou levnější. Dřív: bílkoviny,
   které chybí po obilí (odhad obilí na 70 % energie), mléku stád a vejcích, nejvýš strop – s 1,6
   g/kg šly luštěniny ke stropu skoro vždy (cíl + rezerva 15 %); obilí má přednost dál.
@@ -607,7 +613,10 @@ nezmenšuje** – ves chová co největší stáda, kolik uživí seno, pastva, 
 v ohradách (oxen.md – Co nejvíc sena a co největší stáda). Z rovnovážného hospodaření zůstává
 **plán luštěnin**: celé stádo v nosnosti dá bílkoviny a luštěniny dorovnají jen to, co chybí
 do potřeby s rezervou, a jen když jsou levnější než bílkoviny z obilí (nad 88 % potřeby) –
-pravidla 1 a 2 níž platí už jen pro luštěniny. Když stádo potřebu nepokryje, jdou při porážce
+pravidla 1 a 2 níž platí už jen pro luštěniny. **Od 9. 11. 2026 ani plán luštěnin** (luštěniny
+z polí vyřazené – fields.md, Luštěniny, zrušeno): zůstává jen pokrytí bílkovin stádem v nosnosti,
+vejci a zásobou luštěnin; cena jídla v práci už luštěniny nepočítá (platba luštěninami stojí
+obilí, které ves místo nich sní – návrh Clauda). Když stádo potřebu nepokryje, jdou při porážce
 na maso i letošní mláďata navíc (Chovné stádo podle potřeby) – v opačném pořadí přednosti
 (prasata, kozy, ovce, krávy).
 

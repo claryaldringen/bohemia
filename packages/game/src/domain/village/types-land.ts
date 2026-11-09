@@ -19,7 +19,8 @@ export type OvergrowthStage = 'meadow' | 'shrubs' | 'young-forest' | 'forest';
  * Plodina osetého dílu (fields.md – Ozim a jař, Luštěniny, Len): **ozim** (`winter` – žito
  * a pšenice, kopá se a seje na podzim, sklízí v červenci), **jař** (`spring` – ječmen, kopá se na
  * podzim nebo na jaře, seje na jaře, sklízí v srpnu), **luštěniny** (`legume` – hrách a čočka; jař
- * – kopá se jako jař, seje na jaře, sklízí v červenci; diet.md – Luštěniny) a **len** (`flax` – na
+ * – kopá se jako jař, seje na jaře, sklízí v červenci; diet.md – Luštěniny; od 9. 11. 2026 jen
+ * dorůstající ve starších vsích – fields.md, Luštěniny, zrušeno) a **len** (`flax` – na
  * plátno; jař se setím na jaře a trháním v červenci jako luštěniny, nejí se – diet.md, Oděv).
  */
 export type Crop = 'winter' | 'spring' | 'legume' | 'flax';

@@ -399,21 +399,6 @@ export function proteinBudget(
 }
 
 /**
- * Kolik luštěnin ves chce sníst za rok (kg – diet.md, Luštěniny): bílkoviny, které chybí po obilí,
- * mléku stád a vejcích, v luštěninách místo obilí, nejvýš strop podílu energie. Podle toho ves
- * oseje díly luštěninami (plán osevu k 1. 9.).
- */
-export function legumeNeedPerYear(
-  state: ProteinVillage,
-  day: number,
-  herds?: Record<HerdSpecies, number>,
-): number {
-  const b = proteinBudget(state, day, herds);
-  const missing = Math.max(0, b.need - b.grain - b.milk - b.eggs);
-  return Math.min(missing / LEGUME_PROTEIN_GAIN, legumeCapPerYear(state, day));
-}
-
-/**
  * Roční potřeba masa vsi (kg) – bílkoviny, které chybí po obilí, mléku stád, vejcích
  * a luštěninách (diet.md – Bílkoviny, Luštěniny), v mase.
  */
@@ -554,15 +539,11 @@ export function roomForWinter(
 }
 
 /**
- * Volby chovu z údajů porážky (`WinterInput`). Seč (1. 6.), osev (1. 9.) i porážka (1. 11.) počítají
- * týž plán i s luštěninami (`planLegumes`) – zásoba luštěnin stádo nezmenší: sní se tak jako tak,
- * ale stádo dává bílkoviny i příští rok (diet.md – Rovnovážné hospodaření).
+ * Volby chovu z údajů porážky (`WinterInput`). Seč (1. 6.) i porážka (1. 11.) počítají týž plán –
+ * luštěniny jen ze zásoby (ves je na poli nepěstuje – fields.md, Luštěniny, zrušeno).
  */
 function balanceOptions(input: WinterInput): BalanceOptions {
-  return {
-    ...(input.costs ? { costs: input.costs } : {}),
-    planLegumes: true,
-  };
+  return input.costs ? { costs: input.costs } : {};
 }
 
 /**
@@ -991,13 +972,11 @@ export function herdProteinNeed(state: ProteinVillage, day: number): number {
  * stravy, ale aby jí zároveň zbylo co nejvíce volného času na rozvoj“; čísla návrh Clauda):
  * bílkoviny se plánují s rezervou 10 % (růst vsi do příští porážky – dřív 25 %), nejméně na 88 %
  * potřeby (kvalita stravy 0,9 – pod ní nasycení ubírá štěstí) a dál jen ze zdrojů, jejichž
- * kilogram bílkovin nestojí víc práce než kilogram bílkovin z obilí; luštěniny se plánují po
- * 25 kg.
+ * kilogram bílkovin nestojí víc práce než kilogram bílkovin z obilí.
  */
 export const BALANCE = {
   proteinReserve: 0.1,
   minProteinCoverage: 0.88,
-  legumeStepKg: 25,
 } as const;
 
 /** Co dá a co stojí chovný kus za rok (diet.md – Rovnovážné hospodaření). */
@@ -1038,23 +1017,16 @@ export function headEconomy(species: HerdSpecies, costs: FoodCosts): HeadEconomy
 /** Chovné stádo podle potřeby – cíle po druzích a jestli stádo potřebu (s rezervou) pokryje. */
 export interface SizedHerds {
   keep: Record<HerdSpecies, number>;
-  /** Stádo v nosnosti (s luštěninami plánu) dá bílkovin aspoň potřebu s rezervou. */
+  /** Stádo v nosnosti (s luštěninami ze zásoby) dá bílkovin aspoň potřebu s rezervou. */
   sufficient: boolean;
-  /** Luštěniny, které ves chce sníst za rok (kg) – jen při plánu osevu (`legumes`), jinak 0. */
-  legumeKg: number;
   /** Pokrytí bílkovin plánu (0–1+). */
   coverage: number;
 }
-
-/** Pojistka proti nekonečné smyčce plánu (kusy a dávky luštěnin). */
-const MAX_PLAN_STEPS = 100_000;
 
 /** Rozhodnutí chovu – co ves k plánu ví (diet.md – Rovnovážné hospodaření). */
 export interface BalanceOptions {
   /** Cena jídla v práci (`foodCosts`); bez údaje typická ves bez řemesel. */
   costs?: FoodCosts;
-  /** Plánuje i luštěniny (osev 1. 9.); jinak luštěniny podle zásoby. */
-  planLegumes?: boolean;
 }
 
 /**
@@ -1064,18 +1036,16 @@ export interface BalanceOptions {
  */
 export const TYPICAL_FOOD_COSTS: FoodCosts = {
   grainPerKg: 0.508,
-  legumePerKg: 0.729,
   hayPerKg: 0.0127,
 };
 
 /**
  * Rovnovážné hospodaření (diet.md – Rovnovážné hospodaření; Martin 19. 10. 2026) – od 24. 10. 2026
- * jen plán luštěnin: celé stádo v nosnosti (`keep` – pastva, les, seno, pasáci, místa v ohradách –
+ * jen plán luštěnin, od 9. 11. 2026 jen pokrytí bílkovin: celé stádo v nosnosti (`keep` – pastva, les, seno, pasáci, místa v ohradách –
  * `winterTargets`) dá bílkoviny v pořadí přednosti (`HERD_PRIORITY`) a cena jídla v práci ho
  * nezmenšuje (oxen.md – Co nejvíc sena a co největší stáda; návrh Clauda, schválený Martinem).
- * Luštěniny (po 25 kg, jen s `planLegumes`): 1. co práci šetří (záporná cena – nahradí dražší
- * obilí), vždy do stropu podílu energie; 2. do potřeby bílkovin s rezervou, nad 88 % potřeby jen
- * když jejich bílkoviny nejsou dražší než bílkoviny z obilí. Deterministické, bez stavu navíc.
+ * Luštěniny jen ze zásoby (do stropu podílu energie) – ves je na poli nepěstuje (fields.md –
+ * Luštěniny, zrušeno; Martin 9. 11. 2026). Deterministické, bez stavu navíc.
  */
 export function sizeHerdsToNeed(
   state: ProteinVillage,
@@ -1095,106 +1065,36 @@ export function sizeHerdsToNeed(
   // bílkoviny, kdyby ves jedla jen obilí, a co k nim dají vejce a luštěniny ze zásoby (navíc proti
   // obilí se stejnou energií)
   const grainProtein = PROTEIN.perKg.grain;
-  const stockLegumes = options.planLegumes
-    ? 0
-    : Math.min(legumeSupplyPerYear(state, day, DAYS_PER_YEAR), legumeCapPerYear(state, day));
+  const stockLegumes = Math.min(
+    legumeSupplyPerYear(state, day, DAYS_PER_YEAR),
+    legumeCapPerYear(state, day),
+  );
   let protein =
     energyNeed * grainProtein +
     eggsKg * (PROTEIN.perKg.eggs - DIET.energy.eggs * grainProtein) +
     stockLegumes * LEGUME_PROTEIN_GAIN;
-  const caps = {
-    meat: DIET.caps.meat * energyNeed,
-    dairy: DIET.caps.dairy * energyNeed,
-    legume: DIET.caps.legumes * energyNeed,
-  };
-  const used = { meat: 0, dairy: 0, legume: stockLegumes * LEGUMES.energy };
-  const worth = costs.grainPerKg / grainProtein;
-  const heads: Record<HerdSpecies, HeadEconomy> = {
-    sheep: headEconomy('sheep', costs),
-    goat: headEconomy('goat', costs),
-    pig: headEconomy('pig', costs),
-    cow: headEconomy('cow', costs),
-  };
-  const targets = herdRecord(() => 0);
-  let legumeKg = 0;
-
-  /** Co přinese `unit` kusů druhu (nebo kg luštěnin) – po stropech energie. */
-  interface Offer {
-    species: HerdSpecies | 'legume';
-    unit: number;
-    netLabor: number;
-    netProtein: number;
-    meat: number;
-    dairy: number;
-    legume: number;
-  }
-  const offer = (species: HerdSpecies, unit: number): Offer => {
-    const head = heads[species];
+  const caps = { meat: DIET.caps.meat * energyNeed, dairy: DIET.caps.dairy * energyNeed };
+  const used = { meat: 0, dairy: 0 };
+  // celé stádo v nosnosti v pořadí přednosti (oxen.md – Co nejvíc sena a co největší stáda) –
+  // maso a mléko po stropech energie
+  for (const species of HERD_PRIORITY) {
+    const unit = keep[species];
+    if (unit <= EPSILON) continue;
+    const head = headEconomy(species, costs);
     const meat = Math.min(head.meatEnergy * unit, Math.max(0, caps.meat - used.meat));
     const dairy = Math.min(head.dairyEnergy * unit, Math.max(0, caps.dairy - used.dairy));
     const meatShare = head.meatEnergy > 0 ? meat / (head.meatEnergy * unit) : 0;
     const dairyShare = head.dairyEnergy > 0 ? dairy / (head.dairyEnergy * unit) : 0;
-    const proteinGain =
+    protein +=
       head.meatProtein * unit * meatShare +
       head.dairyProtein * unit * dairyShare -
       (meat + dairy) * grainProtein;
-    const netLabor = head.labor * unit - (meat + dairy) * costs.grainPerKg;
-    return { species, unit, netLabor, netProtein: proteinGain, meat, dairy, legume: 0 };
-  };
-  const legumeOffer = (unit: number): Offer => {
-    const kg = Math.min(unit, Math.max(0, caps.legume - used.legume) / LEGUMES.energy);
-    return {
-      species: 'legume',
-      unit: kg,
-      netLabor: kg * (costs.legumePerKg - costs.grainPerKg * LEGUMES.energy),
-      netProtein: kg * LEGUME_PROTEIN_GAIN,
-      meat: 0,
-      dairy: 0,
-      legume: kg * LEGUMES.energy,
-    };
-  };
-  const apply = (o: Offer): void => {
-    if (o.species === 'legume') legumeKg += o.unit;
-    else targets[o.species] += o.unit;
-    protein += o.netProtein;
-    used.meat += o.meat;
-    used.dairy += o.dairy;
-    used.legume += o.legume;
-  };
-  // celé stádo v nosnosti v pořadí přednosti (oxen.md – Co nejvíc sena a co největší stáda)
-  for (const species of HERD_PRIORITY) {
-    if (keep[species] > EPSILON) apply(offer(species, keep[species]));
-  }
-  const price = (o: Offer): number =>
-    o.netLabor < 0 ? o.netLabor : o.netLabor / Math.max(o.netProtein, EPSILON);
-  // 1. luštěniny, co práci šetří (nahradí dražší obilí) – i nad potřebu, do stropu podílu energie
-  for (let guard = 0; options.planLegumes && guard < MAX_PLAN_STEPS; guard++) {
-    const legume = legumeOffer(BALANCE.legumeStepKg);
-    if (legume.unit <= EPSILON || legume.netLabor >= -EPSILON) break;
-    apply(legume);
-  }
-  // 2. luštěniny do potřeby bílkovin s rezervou; nad 88 % potřeby jen levnější než bílkoviny
-  // z obilí
-  for (
-    let guard = 0;
-    options.planLegumes && guard < MAX_PLAN_STEPS && protein < required - EPSILON;
-    guard++
-  ) {
-    const best = legumeOffer(BALANCE.legumeStepKg);
-    if (best.unit <= EPSILON || best.netProtein <= EPSILON) break;
-    if (protein / required >= BALANCE.minProteinCoverage && price(best) > worth) break;
-    // jen do potřeby – poslední kus podílem
-    const share = Math.min(1, (required - protein) / Math.max(best.netProtein, EPSILON));
-    if (share < 1 - EPSILON) {
-      apply(legumeOffer(best.unit * share));
-      break;
-    }
-    apply(best);
+    used.meat += meat;
+    used.dairy += dairy;
   }
   return {
     keep: herdRecord((s) => keep[s]),
     sufficient: protein >= required - EPSILON,
-    legumeKg,
     coverage: protein / required,
   };
 }
@@ -1212,8 +1112,7 @@ export function wantedWinterHerds(
 }
 
 /**
- * Plán chovu a luštěnin bez ohledu na seno (podle něj se seče – 1. 6.; luštěniny podle něj ves
- * oseje – 1. 9.) – diet.md, Rovnovážné hospodaření.
+ * Plán chovu bez ohledu na seno (podle něj se seče – 1. 6.) – diet.md, Rovnovážné hospodaření.
  */
 export function balancedPlan(
   state: VillageState,
@@ -1290,7 +1189,7 @@ export function meatEatableKg(state: Pick<VillageState, 'people'>, day: number):
  * půjde na maso. Co je nad tím (staré kusy, kusy nad nosnost), jde na maso vždy; stádo v nosnosti
  * zůstane celé (co největší stáda – oxen.md, Co nejvíc sena a co největší stáda; dřív ho
  * rovnovážné hospodaření zmenšovalo podle ceny jídla v práci). Když stádo potřebu bílkovin
- * nepokryje (`sizeHerdsToNeed` – s luštěninami plánu) a maso v zásobě s porážkou roční potřebu masa
+ * nepokryje (`sizeHerdsToNeed` – s luštěninami ze zásoby) a maso v zásobě s porážkou roční potřebu masa
  * (bílkoviny po obilí, mléku, vejcích a luštěninách) taky ne, jdou na maso i letošní mláďata navíc
  * (prasata první, krávy naposled – `MEAT_ORDER`, nejvýš polovina
  * mláďat – druhá stádo rozšíří). Chovný pár, krávy na mléko a voly (`minCows`) a ovce na vlnu
@@ -1309,7 +1208,7 @@ export function slaughter(
   // loňské čekající kusy (porážka končí 31. 3.) – rozhoduje se znovu
   delete livestock.culling;
   // co největší stádo – cena jídla v práci ho nezmenšuje (oxen.md – Co nejvíc sena a co největší
-  // stáda); plán luštěnin řekne, jestli stádo dá bílkovin dost
+  // stáda); plán řekne, jestli stádo dá bílkovin dost
   const sized = sizeHerdsToNeed(
     state,
     day,

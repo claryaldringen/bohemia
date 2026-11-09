@@ -238,27 +238,31 @@ export const WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
 };
 // fields.md – Ozim a jař (návrh Clauda, Martin schválil směr 18. 10. 2026): ozim se vrací
 // z přílohu, kope a seje v září–říjnu, neplete se (fields.md – Pletí jednou a rychle, Martin
-// 25. 10. 2026: „v dubnu už je tak velký, že plevel udusí“), sklízí v červenci a mlátí hned po
-// žni v srpnu (production-chains.md – Výmlat hned po žni)
+// 25. 10. 2026: „v dubnu už je tak velký, že plevel udusí“), sklízí v červenci a co červenec
+// nestihne, v srpnu (fields.md – Žně i v srpnu, Martin 9. 11. 2026: „Ať sklízí i v srpnu“);
+// mlátí hned po žni – červencová žeň v srpnu, srpnová v září (production-chains.md – Výmlat
+// hned po žni)
 export const WINTER_WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
   reclaim: [[9, 10]],
   dig: [[9, 10]],
   sow: [[9, 10]],
   weed: [],
-  harvest: [[7, 7]],
-  thresh: [[8, 8]],
+  harvest: [[7, 8]],
+  thresh: [[8, 9]],
 };
 // fields.md – Luštěniny (rešerše 2026-10-18-legumes.md): luštěniny jsou jař – kopou se na podzim
-// nebo na jaře, sejí v březnu–dubnu, pletou v květnu, sklízejí (trhají) v červenci a mlátí
-// hned po sklizni v srpnu na humně jako obilí (production-chains.md – Humno, návrh Clauda)
+// nebo na jaře, sejí v březnu–dubnu, pletou v květnu, sklízejí (trhají) v červenci, co červenec
+// nestihne, v srpnu (fields.md – Žně i v srpnu), a mlátí hned po sklizni v srpnu a září na humně
+// jako obilí (production-chains.md – Humno, návrh Clauda). Z polí vyřazené (Martin 9. 11. 2026 –
+// fields.md, Luštěniny, zrušeno): okna platí už jen pro dorůstající luštěniny starších vsí a len.
 export const LEGUME_WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
   ...WINDOWS,
-  harvest: [[7, 7]],
-  thresh: [[8, 8]],
+  harvest: WINTER_WINDOWS.harvest,
+  thresh: WINTER_WINDOWS.thresh,
 };
 // fields.md – Len (rešerše 2026-10-19-flax.md): jarní len se seje v dubnu (okno jaře březen–duben),
-// trhá se po ≈ 100 dnech koncem července – okna jako luštěniny; nemlátí se (semena se drhnou
-// v domácí práci)
+// trhá se po ≈ 100 dnech koncem července, co červenec nestihne, v srpnu – okna jako luštěniny;
+// nemlátí se (semena se drhnou v domácí práci)
 export const FLAX_WINDOWS: Record<TaskName, readonly WindowSegment[]> = LEGUME_WINDOWS;
 /** Okna prací podle plodiny (fields.md – Ozim a jař, Luštěniny, Len). */
 export const CROP_WINDOWS: Record<Crop, Record<TaskName, readonly WindowSegment[]>> = {
@@ -269,7 +273,9 @@ export const CROP_WINDOWS: Record<Crop, Record<TaskName, readonly WindowSegment[
 };
 /**
  * Pořadí plodin při shodě konce okna – len první (je ho málo a bez něj chybí oděv – trhá se
- * v červenci se ozimem a luštěninami), pak ozim (sklízí se dřív), luštěniny před jaří.
+ * v červenci se ozimem a luštěninami), pak ozim (sklízí se dřív), luštěniny před jaří. Žně
+ * ozimu, luštěnin a lnu i jaře končí v srpnu – v srpnu se proto napřed dosklízí, co červenec
+ * nestihl, a teprve pak jař (návrh Clauda – fields.md, Žně i v srpnu).
  */
 export const CROP_ORDER: readonly Crop[] = ['flax', 'winter', 'legume', 'spring'];
 /**
@@ -279,7 +285,9 @@ export const CROP_ORDER: readonly Crop[] = ['flax', 'winter', 'legume', 'spring'
  * 150 kg/ha, 22 % bílkovin, energie jako obilí (3 400 kcal/kg); ztráta skladováním jako obilí
  * (STORAGE_LOSS_PER_YEAR – zrnokaz se ve skladu nemnoží); neopletý díl dá 50 % (obilí 60 %);
  * osev úrodnost neubere, ale vrátí 0,03 (`fertilityGain` – poutá dusík, ≈ rok přílohu); strop
- * podílu energie z luštěnin ve stravě 25 % (dospělý ≈ 45 kg ročně).
+ * podílu energie z luštěnin ve stravě 25 % (dospělý ≈ 45 kg ročně). Od 9. 11. 2026 ves luštěniny
+ * na poli nepěstuje (fields.md – Luštěniny, zrušeno): výnos, osivo a úrodnost platí jen pro
+ * dorůstající luštěniny starších vsí, energie, bílkoviny a strop pro zásobu (zboží).
  */
 export const LEGUMES = {
   yieldShare: 0.8,
@@ -393,10 +401,12 @@ export const APPLE_ROT_DAY = { month: 3, day: 1 } as const;
 export const ORCHARD_SEASON = { startMonth: 3, autumnPlantingFromMonth: 9 } as const;
 
 // fields.md – Kolik ves oseje (k 1. září), Práce a Včasnost (sklizeň jaře do konce srpna, ozimu
-// do konce července, výmlat jaře v září). Musí souhlasit s okny: sklizeň je poslední den okna
-// harvest své plodiny, plán den po sklizni jaře, konec výmlatu den po konci okna thresh jaře
-// (hlídá rules.test.ts) – tehdy se zahodí loňský plán u výmlatu (`threshingSeason`); snopy, které
-// výmlat nestihl, zůstávají (Sheaves – mlátí se dál).
+// a luštěnin v červenci, co červenec nestihne, v srpnu – Žně i v srpnu; výmlat jaře v září).
+// Musí souhlasit s okny: sklizeň (HARVEST_DAY) je poslední den okna harvest všech plodin,
+// WINTER_HARVEST_DAY poslední den prvního měsíce okna ozimu – do snopů jde, co je do té doby
+// sklizené (výmlat v srpnu), zbytek až s jaří 31. 8.; plán den po sklizni jaře, konec výmlatu
+// den po konci okna thresh (hlídá rules.test.ts) – tehdy se zahodí loňský plán u výmlatu
+// (`threshingSeason`); snopy, které výmlat nestihl, zůstávají (Sheaves – mlátí se dál).
 export const HARVEST_DAY = { month: 8, day: 31 } as const;
 export const WINTER_HARVEST_DAY = { month: 7, day: 31 } as const;
 export const PLANNING_DAY = { month: 9, day: 1 } as const;

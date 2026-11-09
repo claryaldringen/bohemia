@@ -3,7 +3,7 @@ import { addThreshedGrain } from './grain-pits';
 import { villageLegumesKg } from './legumes';
 import { CROP_ORDER, CROP_WINDOWS, THRESHING, type WindowSegment } from './rules';
 import type { Sheaves, ThreshedCrop, VillageState } from './types';
-import { neededTaskRemaining, seasonCrop } from './year-plan';
+import { neededTaskRemaining, seasonCrops } from './year-plan';
 
 // Snopy a výmlat hned po žni (production-chains.md – Humno; Martin 20. 10. 2026: „Humno je
 // podmínka“, „Staří slované se snažili dělat výmlat hned. Klasy neskladovali.“). Sklizeň jde do
@@ -157,16 +157,22 @@ interface ThreshHands {
 
 /**
  * Ruce pro výmlat (návrh Clauda): práce vsi ve žních (`VillageState.threshHands` –
- * `harvestLaborPerDay`) bez zbytku nutné žně jaře rozloženého do konce jejího okna (srpen) – žeň
- * má přednost před výmlatem téhož konce okna (`work()`), po jejím okně dostane výmlat všechno.
+ * `harvestLaborPerDay`) bez zbytku nutné žně rozloženého do konce okna žně jaře (srpen) – jaře
+ * i ozimu, luštěnin a lnu, které červenec nedosklidil (fields.md – Žně i v srpnu); žeň má
+ * přednost před výmlatem (`work()`), po jejím okně dostane výmlat všechno.
  */
 function threshHands(state: OutlookState, day: number, perDay: number): ThreshHands {
-  const spring = seasonCrop(state.season, 'spring');
   const segments = CROP_WINDOWS.spring.harvest;
-  const month = dateOfDayIndex(day).month;
+  const { year, month } = dateOfDayIndex(day);
   const current = segments.find(([from, to]) => month >= from && month <= to);
-  const aheadDays = spring && current ? afterMonth(dateOfDayIndex(day).year, current[1]) - day : 0;
-  const ahead = spring && aheadDays > 0 ? neededTaskRemaining(spring, 'harvest') : 0;
+  let ahead = 0;
+  if (current && state.season) {
+    for (const { crop, work } of seasonCrops(state.season)) {
+      const reaping = CROP_WINDOWS[crop].harvest.some(([from, to]) => month >= from && month <= to);
+      if (reaping) ahead += neededTaskRemaining(work, 'harvest');
+    }
+  }
+  const aheadDays = current && ahead > EPSILON ? afterMonth(year, current[1]) - day : 0;
   return { perDay, aheadPerDay: aheadDays > 0 ? ahead / aheadDays : 0, aheadDays };
 }
 

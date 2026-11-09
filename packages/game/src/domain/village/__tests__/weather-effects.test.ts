@@ -17,7 +17,7 @@ import {
   springSowingHeld,
   threshWorkFactor,
 } from '../weather-effects';
-import { seasonCrops } from '../year-plan';
+import { surplusCrop } from '../year-plan';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Sucho, deštivé léto a krutá zima (disasters.md – Léto, Zima, Ochrana dílu, Dopady).
@@ -273,7 +273,10 @@ describe('dlouhá zima – co je vidět a dohra setí jařin', () => {
 });
 
 describe('dohra setí jařin v simulaci', () => {
-  /** Ves 25. 4. s rozsetým luštěninovým dílem (setí zbývá dlouho) a vynuceným počasím zimy. */
+  /**
+   * Ves 25. 4. s rozsetou jaří nad potřebu (setí zbývá dlouho) a vynuceným počasím zimy – dřív
+   * rozsetý díl luštěnin (luštěniny z polí vyřazené 9. 11. 2026).
+   */
   const start = (winter: 'normal' | 'long'): VillageState => {
     const s = withBuiltFirstDwelling(
       foundVillage({ seed: 7, day: at(600, 8, 25), dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
@@ -297,12 +300,11 @@ describe('dohra setí jařin v simulaci', () => {
     }));
     s.disasters = { override: { weather: { 601: { summer: 'normal', winter } } } };
     const spring = advanceVillage(s, at(601, 4, 25), null);
-    const legume = seasonCrops(spring.season!).find((c) => c.crop === 'legume')!.work;
-    legume.required.sow *= 200;
+    const sowing = surplusCrop(spring.season, 'spring')!;
+    sowing.required.sow *= 200;
     return spring;
   };
-  const sowDone = (s: VillageState): number =>
-    seasonCrops(s.season!).find((c) => c.crop === 'legume')?.work.done.sow ?? -1;
+  const sowDone = (s: VillageState): number => surplusCrop(s.season, 'spring')?.done.sow ?? -1;
 
   it('v dlouhé zimě se rozpracovaný díl dosévá i 1.–14. 5., v normální zimě ne; po kouscích stejně', () => {
     const long = start('long');

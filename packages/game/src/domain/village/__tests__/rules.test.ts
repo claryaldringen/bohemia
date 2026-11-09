@@ -45,13 +45,21 @@ describe('data polního roku souhlasí s okny prací', () => {
     expect({ month: next.month, day: next.day }).toEqual(PLANNING_DAY);
   });
 
-  it('sklizeň ozimu je poslední den jeho okna sklizně, setí ozimu končí před koncem podzimu jaře', () => {
+  it('červencová žeň ozimu je poslední den prvního měsíce jeho okna, okno končí sklizní jaře (fields.md – Žně i v srpnu), setí ozimu končí před koncem podzimu jaře', () => {
     const inWinter = (task: keyof typeof WINTER_WINDOWS, month: number): boolean =>
       WINTER_WINDOWS[task].some(([from, to]) => month >= from && month <= to);
-    const harvest = dayIndexOf({ year: 601, ...WINTER_HARVEST_DAY });
-    expect(inWinter('harvest', WINTER_HARVEST_DAY.month)).toBe(true);
+    const july = dayIndexOf({ year: 601, ...WINTER_HARVEST_DAY });
+    expect(WINTER_WINDOWS.harvest[0]![0]).toBe(WINTER_HARVEST_DAY.month);
+    expect(dateOfDayIndex(july + 1).day).toBe(1);
+    // srpen je ještě v okně – žne se, co červenec nestihl; okno končí s žní jaře
+    expect(inWinter('harvest', dateOfDayIndex(july + 1).month)).toBe(true);
+    const harvest = dayIndexOf({ year: 601, ...HARVEST_DAY });
+    expect(inWinter('harvest', HARVEST_DAY.month)).toBe(true);
     expect(inWinter('harvest', dateOfDayIndex(harvest + 1).month)).toBe(false);
     expect(WINTER_HARVEST_DAY.month).toBeLessThan(HARVEST_DAY.month);
+    for (const crop of ['legume', 'flax'] as const) {
+      expect(CROP_WINDOWS[crop].harvest).toEqual(WINTER_WINDOWS.harvest);
+    }
     const sowEnd = Math.max(...WINTER_WINDOWS.sow.map(([, to]) => to));
     expect(sowEnd).toBeLessThan(Math.max(...WINDOWS.dig.filter(([f]) => f >= 9).map(([, t]) => t)));
   });
@@ -75,12 +83,15 @@ describe('data polního roku souhlasí s okny prací', () => {
   });
 
   it('výmlat hned po žni – měsíc po sklizni plodiny (production-chains.md – Výmlat hned po žni)', () => {
-    const after = (harvest: { month: number }): [number, number][] => [
-      [harvest.month + 1, harvest.month + 1],
-    ];
-    expect(WINTER_WINDOWS.thresh).toEqual(after(WINTER_HARVEST_DAY));
-    expect(WINDOWS.thresh).toEqual(after(HARVEST_DAY));
-    expect(LEGUME_WINDOWS.thresh).toEqual(after({ month: LEGUME_WINDOWS.harvest[0]![1] }));
+    // okno výmlatu = okno žně posunuté o měsíc: červencová žeň ozimu a luštěnin v srpnu, srpnová
+    // (i jaře) v září (fields.md – Žně i v srpnu)
+    const after = (harvest: readonly (readonly [number, number])[]): [number, number][] =>
+      harvest.map(([from, to]) => [from + 1, to + 1]);
+    expect(WINTER_WINDOWS.thresh).toEqual(after(WINTER_WINDOWS.harvest));
+    expect(WINDOWS.thresh).toEqual(after(WINDOWS.harvest));
+    expect(LEGUME_WINDOWS.thresh).toEqual(after(LEGUME_WINDOWS.harvest));
+    expect(WINTER_WINDOWS.thresh[0]![0]).toBe(WINTER_HARVEST_DAY.month + 1);
+    expect(WINDOWS.thresh).toEqual([[HARVEST_DAY.month + 1, HARVEST_DAY.month + 1]]);
   });
 
   it('konec výmlatu je den po konci okna výmlatu', () => {

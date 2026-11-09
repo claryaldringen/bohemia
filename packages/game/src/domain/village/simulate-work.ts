@@ -129,6 +129,7 @@ import {
   addCropTaskWork,
   cropTaskDone,
   cropTaskWindows,
+  seasonCrop,
   seasonCrops,
   neededTaskRemaining,
   windowEndOf,
@@ -256,18 +257,16 @@ export function fieldTasks(
 }
 
 /**
- * Čeká ves letos ještě na žeň jaře (plán letošního roku jař nesklidil – do HARVEST_DAY)? Pak
- * přijde další vymlácené zrno a neúplná obilná jáma počká (production-chains.md – Obilné jámy).
+ * Čeká ves letos ještě na žeň obilí (plán letošního roku jař, nebo ozim žatý i v srpnu – fields.md,
+ * Žně i v srpnu – nesklidil, do HARVEST_DAY)? Pak přijde další vymlácené zrno a neúplná obilná
+ * jáma počká (production-chains.md – Obilné jámy).
  */
 export function springHarvestAhead(state: VillageState, month: number): boolean {
   const plan = state.season;
-  const spring = plan ? springCrop(plan) : null;
-  return (
-    month <= HARVEST_DAY.month &&
-    spring !== null &&
-    spring.harvestedKg === null &&
-    spring.partIds.length > 0
-  );
+  if (!plan || month > HARVEST_DAY.month) return false;
+  const ahead = (work: CropWork | undefined): boolean =>
+    work !== undefined && work.harvestedKg === null && work.partIds.length > 0;
+  return ahead(springCrop(plan)) || ahead(seasonCrop(plan, 'winter'));
 }
 
 /**
@@ -359,8 +358,9 @@ export function work(
     field,
   }));
   // výmlat snopů na humnech, v roce odkladu i nouzově na udusané zemi (production-chains.md –
-  // Humno): ozim a luštěniny v srpnu, jař v září – za polními úlohami téhož konce okna (žeň má
-  // přednost); výmlat, který okno nestihl, po všech pracích. Chybí-li v zásobách zrno na dnešní
+  // Humno): ozim a luštěniny v srpnu a září (srpnová žeň – fields.md, Žně i v srpnu), jař v září
+  // – za polními úlohami téhož konce okna (žeň má přednost); výmlat, který okno nestihl, po všech
+  // pracích. Chybí-li v zásobách zrno na dnešní
   // jídlo, vymlátí se napřed – před žní i ostatními úlohami (výmlat na dnešní jídlo)
   const threshes = threshTasks(state, day, threshForFoodKg(state, villageFoodNeed(state, day)));
   for (const thresh of threshes) {

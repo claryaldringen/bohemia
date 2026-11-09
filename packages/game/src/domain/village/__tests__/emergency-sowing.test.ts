@@ -73,7 +73,6 @@ function chosenIds(start: VillageState, day: number): Set<number> {
   const { join } = neededSelection(s, day, {
     harvestKg: t.harvestKg,
     energyFloorKg: t.energyFloorKg,
-    legumeKg: t.legumeKg,
     needKg: t.needKg,
     flaxNeedKg: s.season?.flaxNeedKg ?? 0,
   });

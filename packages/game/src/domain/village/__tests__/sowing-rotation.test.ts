@@ -4,7 +4,6 @@ import { foundVillage, type PartInput } from '../actions';
 import { expectedNetKg, sowingGroup } from '../fields';
 import { expectedFlaxKg } from '../flax';
 import { sowingBlocks, villageHoldings } from '../holdings';
-import { expectedLegumeKg, legumeEnergy } from '../legumes';
 import {
   neededSelection,
   nextSowing,
@@ -91,12 +90,9 @@ const blockOrder = (s: VillageState): number[] =>
     .flat()
     .map((p) => p.id);
 
-// bez rezervy (`energyFloorKg` 0) jdou luštěniny před obilím – pořadí obilí do rezervy hlídá
-// test „obilí do roční potřeby před luštěninami“
 const NO_NEED: NeededTargets = {
   harvestKg: 0,
   energyFloorKg: 0,
-  legumeKg: 0,
   flaxNeedKg: 0,
   needKg: 1_000,
 };
@@ -309,20 +305,35 @@ describe('výběr nutných dílů', () => {
     const late = neededSelection(s, at(600, 11, 5), { ...NO_NEED, harvestKg }).join;
     expect(late.map((j) => j.id).sort()).toEqual([...ids].sort());
     expect(late.every((j) => j.crop === 'spring')).toBe(true);
-    // len ani luštěniny díl po jaři neberou – jsou místo jaře, ne místo ozimu
-    const side = neededSelection(s, at(601, 3, 10), { ...NO_NEED, legumeKg: 1e9, flaxNeedKg: 1e9 });
+    // len díl po jaři nebere – je místo jaře, ne místo ozimu
+    const side = neededSelection(s, at(601, 3, 10), { ...NO_NEED, flaxNeedKg: 1e9 });
     expect(side.join.filter((j) => ids.includes(j.id))).toEqual([]);
   });
 
-  it('len a luštěniny jen v den, kdy může začít jař', () => {
+  it('len jen v den, kdy může začít jař', () => {
     const s = village(8);
-    const targets = { ...NO_NEED, legumeKg: 1e9, flaxNeedKg: 1e9 };
+    const targets = { ...NO_NEED, flaxNeedKg: 1e9 };
     expect(neededSelection(s, at(600, 12, 15), targets).join).toEqual([]);
     expect(neededSelection(s, at(601, 4, 30), targets).join).toEqual([]);
     const crops = new Set(
       neededSelection(s, at(601, 4, 29), { ...targets, flaxNeedKg: 1 }).join.map((j) => j.crop),
     );
-    expect(crops).toEqual(new Set(['legume', 'flax']));
+    expect(crops).toEqual(new Set(['flax']));
+  });
+
+  it('luštěniny výběr dílů nepřidělí nikdy – na jaře, na podzim ani hladové vsi (Martin 9. 11. 2026)', () => {
+    const s = village(8);
+    for (const p of s.parts.slice(0, 4)) Object.assign(p, { next: 'spring', sownYears: 1 });
+    for (const day of [SEPT_1, at(600, 11, 5), at(601, 3, 10), at(601, 4, 29)]) {
+      for (const targets of [
+        { ...NO_NEED, harvestKg: 1e9, flaxNeedKg: 1e9 },
+        { ...NO_NEED, harvestKg: 1e9, energyFloorKg: 1e9 },
+        { ...NO_NEED, flaxNeedKg: 1e9 },
+      ]) {
+        const { join } = neededSelection(s, day, targets);
+        expect(join.map((j) => j.crop)).not.toContain('legume');
+      }
+    }
   });
 
   it('díly po ozimu jsou na řadě před čerstvými – s jaří', () => {
@@ -334,7 +345,7 @@ describe('výběr nutných dílů', () => {
     expect(join.every((j) => j.crop === 'spring')).toBe(true);
   });
 
-  it('len od konce, luštěniny od domu – napřed díly po ozimu, pak první osev', () => {
+  it('len od konce – napřed díly po ozimu, pak první osev', () => {
     const s = village(8);
     const after = s.parts.slice(0, 4);
     for (const p of after) Object.assign(p, { next: 'spring', sownYears: 1 });
@@ -343,72 +354,9 @@ describe('výběr nutných dílů', () => {
     const targets: NeededTargets = {
       ...NO_NEED,
       flaxNeedKg: expectedFlaxKg(byId(order.at(-1)!), SEPT_1) - 0.01,
-      legumeKg: expectedLegumeKg(byId(order[0]!), SEPT_1) - 0.01,
     };
     const { join } = neededSelection(s, SEPT_1, targets);
-    expect(join).toContainEqual({ id: order.at(-1)!, crop: 'flax' });
-    expect(join).toContainEqual({ id: order[0]!, crop: 'legume' });
-    expect(join.filter((j) => j.crop === 'flax')).toHaveLength(1);
-    expect(join.filter((j) => j.crop === 'legume')).toHaveLength(1);
-
-    // bez dílů po ozimu vezmou luštěniny díl prvního osevu nejblíž domu (ten pak není ozim)
-    const fresh = village(8);
-    const first = blockOrder(fresh)[0]!;
-    const legumeKg =
-      expectedLegumeKg(
-        fresh.parts.find((p) => p.id === first)!,
-        SEPT_1,
-      ) - 0.01;
-    expect(neededSelection(fresh, SEPT_1, { ...NO_NEED, legumeKg }).join).toEqual([
-      { id: first, crop: 'legume' },
-    ]);
-  });
-
-  it('obilí do roční potřeby před luštěninami – hladová ves luštěniny nevezme (obilí má přednost)', () => {
-    const s = village(8);
-    const order = blockOrder(s);
-    const legumeKg =
-      expectedLegumeKg(
-        s.parts.find((p) => p.id === order[0])!,
-        SEPT_1,
-      ) - 0.01;
-    // roční potřeba bez rezervy pokryje celé pole – na luštěniny díl nezbude
-    const hungry = neededSelection(s, SEPT_1, {
-      ...NO_NEED,
-      legumeKg,
-      harvestKg: 1e9,
-      energyFloorKg: 1e9,
-    });
-    expect(hungry.join.map((j) => j.crop)).not.toContain('legume');
-    expect(hungry.join.map((j) => j.id)).toEqual(order);
-    // potřebu bez rezervy kryjí dva díly – luštěniny až za nimi, pak obilí do rezervy
-    const floorKg = netOf(s, order.slice(0, 2));
-    const fed = neededSelection(s, SEPT_1, {
-      ...NO_NEED,
-      legumeKg,
-      harvestKg: floorKg + netOf(s, order.slice(3, 4)) + legumeEnergy(legumeKg),
-      energyFloorKg: floorKg,
-    });
-    expect(fed.join).toEqual([
-      { id: order[0]!, crop: 'winter' },
-      { id: order[1]!, crop: 'winter' },
-      { id: order[2]!, crop: 'legume' },
-      { id: order[3]!, crop: 'winter' },
-    ]);
-  });
-
-  it('luštěniny se počítají do energie – obilí doplní jen zbytek', () => {
-    const s = village(8);
-    const order = blockOrder(s);
-    const legume = s.parts.find((p) => p.id === order[0])!;
-    const legumeKg = expectedLegumeKg(legume, SEPT_1) - 0.01;
-    const harvestKg = legumeEnergy(legumeKg) + netOf(s, order.slice(1, 3));
-    const { join } = neededSelection(s, SEPT_1, { ...NO_NEED, legumeKg, harvestKg });
-    expect(join).toEqual([
-      { id: order[0]!, crop: 'legume' },
-      { id: order[1]!, crop: 'winter' },
-      { id: order[2]!, crop: 'winter' },
-    ]);
+    expect(join).toEqual([{ id: order.at(-1)!, crop: 'flax' }]);
   });
 
   it('přílohy 70–95 % a nouzové přílohy jen při nedostatku', () => {
@@ -459,7 +407,6 @@ describe('výběr nutných dílů', () => {
     const targets: NeededTargets = {
       harvestKg: 1e9,
       energyFloorKg: 0,
-      legumeKg: 5,
       flaxNeedKg: 2,
       needKg: 1_000,
     };

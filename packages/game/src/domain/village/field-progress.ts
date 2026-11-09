@@ -7,6 +7,7 @@ import { PLOUGH_SOD_FACTOR } from './plough';
 import { partStage } from './summary';
 import type { Crop, CropWork, FieldPart, PloughBand, TileCell, VillageState } from './types';
 import { cropTaskRemaining, cropTaskWindows, seasonCrops } from './year-plan';
+import { partsByIdOf } from './parts-by-id';
 
 // Postup práce po čtvercích (fields.md – Postup práce po čtvercích; Martin, 18. 10. 2026): plán
 // vede práci za celou plodinu, díl po dílu ji odvozuje odsud – díly plodiny v pořadí `partIds`
@@ -191,6 +192,19 @@ function bandSpans(
     i = j;
   }
   return spans;
+}
+
+/** Díly plodiny, na kterých setí nezačalo (úloha setí nedošla na začátek jejich úseku). */
+export function unsownPartIds(
+  state: Pick<VillageState, 'parts'>,
+  work: CropWork,
+  day: number,
+): number[] {
+  const partsById = partsByIdOf(state.parts);
+  const position = taskPosition(work, 'sow');
+  return taskSpans(work, partsById, 'sow', day)
+    .filter((span) => position <= span.start + EPSILON)
+    .map((span) => span.id);
 }
 
 /** Kam úloha došla – podíl hotové práce úlohy 0–1 (úloha bez práce 1). */

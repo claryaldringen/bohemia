@@ -202,8 +202,9 @@ describe('osev má přednost (fields.md – Osivo ze zásob; Martin 6. 11. 2026)
     let unsown = 0;
     for (const { crop, work } of seasonCrops(s.season!)) {
       if (crop === 'flax' || work.seedKg === undefined) continue;
-      // jař (okno do konce dubna) zasetá celá; ozim nad potřebu jen, kolik práce po stavbách stihla
-      if (crop !== 'winter') expect(sownShare(work)).toBeGreaterThan(0.99);
+      // nutná jař (okno do konce dubna) zasetá celá; obilí nad potřebu jen, kolik práce po stavbách
+      // stihla (rozsetý díl nad potřebu po okně zůstane)
+      if (crop !== 'winter' && !work.surplus) expect(sownShare(work)).toBeGreaterThan(0.99);
       // osivo vzal jen zasetý podíl – ostatní zrno zůstalo v zásobách
       const total = workSeedKg(work, byId, crop);
       expect(work.seedKg).toBeCloseTo(sownShare(work) * total, 6);

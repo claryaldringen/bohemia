@@ -283,6 +283,12 @@ export interface CropWork {
   done: Record<TaskName, number>;
   harvestedKg: number | null; // úroda ze sklizně do snopů (pro ztrátu nevymláceného 1. 3.)
   /**
+   * Červencová žeň plodiny, kterou červenec nedosklidil (fields.md – Žně i v srpnu): 31. 7. šla
+   * do snopů úroda `kg` z hotové práce žně `harvest` (člověkodny), zbytek se žne v srpnu a do snopů
+   * jde 31. 8. – teprve pak je plodina sklizená (`harvestedKg`). Chybí = 31. 7. nic do snopů nešlo.
+   */
+  sheaved?: { harvest: number; kg: number };
+  /**
    * Osivo, které ves pro plodinu vzala ze zásob při setí (kg – fields.md, Úroda, Osivo ze zásob;
    * Martin 27. 10. 2026): roste se zasetým podílem, sklizeň pak osivo neodečítá. Chybí = práce
    * z doby před osivem ze zásob – převod (`withSeedForgiven`) jí osivo zaseté části odpustí.

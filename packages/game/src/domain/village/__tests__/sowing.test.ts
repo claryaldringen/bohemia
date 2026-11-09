@@ -97,10 +97,11 @@ describe('roční plán s ozimem', () => {
     expect(activeTasks(springCrop(plan), at(601, 9, 10), 'spring')).toEqual(['dig']);
     expect(activeTasks(winter, at(601, 11, 10), 'winter')).toEqual([]);
     expect(activeTasks(springCrop(plan), at(601, 11, 10), 'spring')).toEqual(['dig']);
-    // sklizeň: ozim v červenci, jař v srpnu
+    // sklizeň: ozim v červenci a co nestihne, v srpnu (fields.md – Žně i v srpnu), jař v srpnu
     const sown = { ...winter, done: { ...winter.required, harvest: 0, thresh: 0 } };
     expect(activeTasks(sown, at(602, 7, 10), 'winter')).toEqual(['harvest']);
-    expect(activeTasks(sown, at(602, 8, 10), 'winter')).toEqual([]);
+    expect(activeTasks(sown, at(602, 8, 10), 'winter')).toEqual(['harvest']);
+    expect(activeTasks(sown, at(602, 9, 10), 'winter')).toEqual([]);
     const spring = {
       ...springCrop(plan),
       done: { ...springCrop(plan).required, harvest: 0, thresh: 0 },

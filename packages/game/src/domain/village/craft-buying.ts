@@ -12,7 +12,6 @@ import { lordApartIds } from './lord';
 import { villageFoodCosts } from './husbandry';
 import { legumeEnergy, villageLegumesKg } from './legumes';
 import { seedAheadKg } from './seed';
-import { legumeNeedPerYear } from './livestock';
 import { villageManor } from './manor';
 import { neighbourKind } from './neighbours';
 import { ageGroup, laborPerDay } from './people';
@@ -241,7 +240,6 @@ interface BuyingContext {
   yearlyLabor: number;
   /** Cena jídla v práci (čd na kg) při dnešním pokrytí nástroji. */
   grainPerKg: number;
-  legumePerKg: number;
 }
 
 /**
@@ -277,7 +275,7 @@ function yearlySaving(
 /** Cena jídla v práci při jiném pokrytí nástroji (obilí na platbu za nástroje). */
 function withToolCoverage(state: VillageState, ctx: BuyingContext, tools: number): BuyingContext {
   const costs = villageFoodCosts(state, ctx.day, tools);
-  return { ...ctx, grainPerKg: costs.grainPerKg, legumePerKg: costs.legumePerKg };
+  return { ...ctx, grainPerKg: costs.grainPerKg };
 }
 
 /** Čím ves může platit – přebytek obilí a luštěnin nad pojistkou zásob (kg) a cena v práci. */
@@ -304,7 +302,6 @@ export function paymentPool(
   const targets = sowingTargets(
     state,
     day,
-    legumeNeedPerYear(state, day),
     coverage.pottery,
     seed.grain + legumeEnergy(seed.legumes),
   );
@@ -338,7 +335,9 @@ function pay(
     {
       key: 'legumesKg' as const,
       value: sellPrice('legumes') * goodWorth(state, 'legumes', ctx.day),
-      labor: ctx.legumePerKg + carry,
+      // luštěniny ves na poli nepěstuje (fields.md – Luštěniny, zrušeno) – kilogram stojí obilí,
+      // které ves místo nich sní (návrh Clauda 9. 11. 2026)
+      labor: ctx.grainPerKg * LEGUMES.energy + carry,
       energy: LEGUMES.energy,
     },
   ].sort((a, b) => a.labor / a.value - b.labor / b.value);
@@ -434,7 +433,6 @@ export function planPurchases(
       DAYS_PER_YEAR *
       villageLaborFactor(state),
     grainPerKg: costs.grainPerKg,
-    legumePerKg: costs.legumePerKg,
   };
   const pool = paymentPool(state, day, coverage);
   const cap = groupCap(state, day);
