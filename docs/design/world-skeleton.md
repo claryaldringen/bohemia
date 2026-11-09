@@ -239,7 +239,9 @@ kdekoli“ → jen na suchých mapách):
        přiblížení níž po proudu, než k ní dovedla trasa (ne blíž okraji než 20 políček); brod
        hlavního toku je od soutoku aspoň 8 + 10 políček;
      - **pramen:** řeka bez vtoku začíná v šířce potoka mapy (15 m), který do ní ústí, a k výtoku
-       se plynule rozšíří na šířku výřezu (mez `RIVER.width.minM` 25 m tu neplatí);
+       se plynule rozšíří na šířku výřezu (mez `RIVER.width.minM` 25 m tu neplatí); šířku pramene
+       se neladí – Martin 9. 11. 2026: „Pramen bych neřešil. V česku jsou prameny v horách, kde
+       stejně žádné sídlo stát nemůže, pramen tak nikdy nebude vykreslený“;
   3. **potok mapy je přítok:** teče od okraje mapy (ne do 20 políček od bodu řeky) do řeky; na mapě
      s pramenem je potok počátkem řeky. Potok tedy zůstává, jen nevytéká za okraj;
   4. místo pro vesnici jako dnes u potoka a navíc aspoň 300 m od osy řeky
