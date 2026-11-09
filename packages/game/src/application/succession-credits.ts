@@ -18,6 +18,7 @@ import {
   type QuietWarsDeps,
 } from './declare-war';
 import { sendDomainFood, type DomainFoodDeps } from './domain-food';
+import { returnStewardRefugees, type StewardRefugeDeps } from './refuge-return';
 import { reconcileShipments, type ShipmentDeps } from './shipments';
 import { answerAbsentSummons, lapseSummons, type SummonsDeps } from './summons';
 
@@ -70,6 +71,11 @@ export async function grantSuccessionCredits(
 /** Závislosti úloh světa; `shipments` jen tam, kde se zásilky obnovují (worker). */
 export type WorldTaskDeps = SuccessionCreditDeps & {
   shipments?: ShipmentDeps;
+  /**
+   * Návrat uprchlíků (war.md – Varování, poslové a útěk do hradiště): správce a NPC rod vrátí lidi
+   * domů po odtažení vojska, návrat po pádu se dopíše (`returnStewardRefugees`).
+   */
+  refugees?: StewardRefugeDeps;
   levies?: AnnualLevyDeps;
   /** Války a ochrana nováčka (war.md): utichání válek, upozornění na konec ochrany. */
   wars?: QuietWarsDeps & ProtectionNoticeDeps;
@@ -90,7 +96,7 @@ export type WorldTaskDeps = SuccessionCreditDeps & {
 
 /**
  * Úlohy světa, které worker pouští jednou za minutu mezi koly: kredity nástupnictví, obnova
- * zásilek po pádu (`reconcileShipments`), jídlo domény po žních (`sendDomainFood` – po obnově
+ * zásilek po pádu (`reconcileShipments`), návrat uprchlíků za správce (`returnStewardRefugees`), jídlo domény po žních (`sendDomainFood` – po obnově
  * zásilek, ať vidí, co je na cestě), správce za nepřítomné (Odvody před otevřením nového roku,
  * ať loňský dialog nenaroste; Svolání před propadnutím s koncem války), vypršení jednání a konec
  * týdne čekání nováčků (`expireNewcomerWaits`).
@@ -101,6 +107,7 @@ export async function runWorldTasks(
 ): Promise<void> {
   await grantSuccessionCredits(deps, input);
   if (deps.shipments) await reconcileShipments(deps.shipments, input.today);
+  if (deps.refugees) await returnStewardRefugees(deps.refugees, { today: input.today });
   if (deps.domainFood) await sendDomainFood(deps.domainFood, { today: input.today });
   if (deps.stewards) await answerAbsentLevies(deps.stewards.levies, { today: input.today });
   if (deps.levies) await openAnnualDialogs(deps.levies, { today: input.today });

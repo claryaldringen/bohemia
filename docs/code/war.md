@@ -900,6 +900,31 @@ stepM, day, ctx)` → `moved` | `crossed` | `arrived` | `stuck`, `planMoverLeg`)
   zatím neposílají (Ú11). Test `messenger.test.ts` (tři mapy v řadě: záměr majitele, cizí záměr,
   neškodné vojsko, jezdec z rodu rychleji, bez muže / bez hradiště nic, chycení do 30 m a jezdcem
   na dohled, zajetí muže rodu, po 1 / 7 / 40 taktech přes JSON = vcelku, den odchodu).
+- **Návrat (Ú10).** Use-case mimo tažení `application/refuge-return.ts` (test
+  `application/__tests__/refuge-return.test.ts`), čistá pravidla `domain/war/refuge-return.ts`
+  (`armyOnCell`, `armyApproaching`, `refugeReturnDays`, `stewardMayReturn` – test
+  `war/__tests__/refuge-return.test.ts`). `returnFromRefuge(deps, { playerId, villageId, today })`
+  (tlačítko **Vrátit se** – web zapojí Ú12) – právo `war` (`requireRight`; klíč `ACTION_RIGHTS`
+  přidá až akce webu – test action-rights chce akci ve village.ts), ves má `refuge`, skupina
+  dorazila (les – `refuge.hidden`; hradiště – pobyt `RefugeStay` u hostitele) a žádné tažení
+  z `activeAlarming(ves)` nemá skupinu s aktivním mužem na políčku vsi; důvody (návrh Clauda)
+  „Ves nikoho neodvedla.“, „Lidé ještě nedorazili.“, „Vojsko je ještě na mapě.“. **Les:**
+  `refuge-back` s 0 domů na dnešek (ukryté vrátí ves sama). **Hradiště:** pod zámkem držitele
+  hradiště `updateVillage` s `departRefuge` (`leaveRefuge` + záznam `VillageState.refugeLeaving` –
+  `RefugeLeaving` se zbylými zásobami, stádem a dnem příchodu; simulace ho nečte), pak `refuge-back`
+  domů (`ref` = `refuge-back:<refId>`, den = dnes + `refugeReturnDays` – `flightEtaTicks` ÷ takty
+  herního dne, středy map, se stádem tempem stáda) a druhé uložení hradiště záznam smaže
+  (`clearRefugeLeaving`). Návrh Clauda nad plán: po `leaveRefuge` by opakování po pádu mezi uložením
+  hradiště a zápisem události nevědělo, co lidé nesou (pobyt zmizel) – záznam to drží a opakování
+  dopíše událost z něj (bez kontroly vojska – rozhodnuto bylo). Opakování (dvojklik, souběh hráče
+  a úlohy světa) najde nespotřebovanou událost ve schránce domova a vrátí její den – jedna událost.
+  Hradiště zaniklé i se sídlem – lidé se vrátí s prázdnou. **Správce a NPC rod** – úloha světa
+  `returnStewardRefugees` (`runWorldTasks` po `reconcileShipments`; port `RefugeRepository.awayVillages`
+  – adaptér `db/adapters/refuge-repository.ts` nad `village.state ? 'refuge'`, spící vsi ne): ves se
+  zapnutým správcem (`steward.on`) nebo se správou NPC rodu vrátí, když `stewardMayReturn` – vojsko
+  na mapě nestojí, **na ves teprve netáhne** (cíl tažení ve shromáždění, na pochodu nebo v nájezdu –
+  návrh Clauda nad plán, jinak by lidi vrátil vstříc vojsku) a uplynul den po posledním dni nájezdu (`returnDayAfter` – `raidDay`, bez nájezdu den odchodu); tělo nese `steward: true` → kronika `people-back` se `steward` („Správce
+  vrátil lidi domů.“). Hráčovu ves bez správce nevrací – jen jí dopíše návrat po pádu.
 
 ## Výsledky nájezdu a kořist (Ú6.10)
 

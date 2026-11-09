@@ -260,7 +260,10 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
     (`guestFoodNeed`) a pracuje jen jako dospělý 14–44 let; hosté bez něj se počítají jako dřív
     (počet × dospělý – bit po bitu). Krok dne `refugeFoodDay` těsně před jídlem (`simulate.ts`):
     z `refuge.hidden.foodKg` a z `RefugeStay.foodKg` přesune do zásob tolik, kolik dnes uprchlíci
-    snědí – jedí napřed své, pak ze zásob vsi.
+    snědí – jedí napřed své, pak ze zásob vsi. Návrat z hradiště (Ú10 – use-case
+    `returnFromRefuge`) odebere hosty a pobyt (`departRefuge`) a do `refugeLeaving` hostitele zapíše,
+    co lidé nesou, dokud událost `refuge-back` nestojí ve schránce domova (pak záznam zmizí);
+    simulace ho nečte.
 
 - **Výkon dopočtu** (Vlkov, 44 lidí, rok vcelku): po stálých trasách (A4) ≈ 49 s, po mřížce
   a trasách vozu v paměti a chůzi s horní mezí napřed (B1 – village-roads.md, Trasy v paměti)

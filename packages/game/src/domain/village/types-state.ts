@@ -171,6 +171,22 @@ export interface RefugeStay {
   arrivedDay: number;
 }
 
+/**
+ * Uprchlíci, kteří z hradiště odešli domů (`VillageState.refugeLeaving` – hostitel; use-case
+ * návratu – plán 2026-11-09, Úloha 10): co nesou, dokud událost `refuge-back` nestojí ve schránce
+ * domova. Po pádu mezi uložením hradiště a zápisem události ji opakování dopíše odsud; po zápisu
+ * záznam zmizí. Simulace ho nečte.
+ */
+export interface RefugeLeaving {
+  refId: string;
+  /** Domov uprchlíků. */
+  toVillageId: string;
+  foodKg: number;
+  herd: Record<HerdSpecies, number>;
+  /** Den příchodu domů (den události `refuge-back`). */
+  arrivesDay: number;
+}
+
 /** Zpráva posla o cizím vojsku (`VillageState.armySeen`): den příchodu, tažení a odkud posel šel. */
 export interface ArmySeen {
   day: number;
@@ -684,6 +700,11 @@ export interface VillageState {
    * skupiny. Zapisuje schránka (`refuge-arrive`); chybí – žádní.
    */
   refugeStays?: RefugeStay[];
+  /**
+   * Uprchlíci na cestě z hradiště domů, jejichž událost návratu se ještě nezapsala (`RefugeLeaving`);
+   * chybí – nikdo.
+   */
+  refugeLeaving?: RefugeLeaving[];
   /**
    * Klíč založení vsi ze schránky odchodu syna (`settleStewardDepartures` – mateřská ves a id
    * záznamu): podle něj úložiště ves nezaloží dvakrát. Simulace ho nečte. Chybí – ves vznikla jinak.

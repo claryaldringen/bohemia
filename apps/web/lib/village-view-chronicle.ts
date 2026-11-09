@@ -533,6 +533,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'people-away':
       return `${peopleCountText(event.people)} ${plural(event.people, 'odešel', 'odešli', 'odešlo')} ${AWAY_TEXTS[event.away]} do vsi ${event.villageName} – doma ${plural(event.people, 'bude', 'budou', 'bude')} nejpozději ${formatGameDate(dateOfDayIndex(event.untilDay))}.`;
     case 'people-back':
+      // uprchlíky vrátil správce (war.md – Varování, poslové a útěk do hradiště; návrh Clauda)
+      if (event.steward) return 'Správce vrátil lidi domů.';
       return `${peopleCountText(event.people)} se ${plural(event.people, 'vrátil', 'vrátili', 'vrátilo')} domů ${AWAY_BACK_TEXTS[event.away]}.`;
     case 'guests-came':
       return `Z vsi ${event.villageName} ${plural(event.people, 'přišel', 'přišli', 'přišlo')} ${peopleCountText(event.people).toLowerCase()} ${AWAY_TEXTS[event.away]}.`;
