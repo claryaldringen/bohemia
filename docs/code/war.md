@@ -911,8 +911,8 @@ stepM, day, ctx)` → `moved` | `crossed` | `arrived` | `stuck`, `planMoverLeg`)
   `application/__tests__/refuge-return.test.ts`), čistá pravidla `domain/war/refuge-return.ts`
   (`armyOnCell`, `armyApproaching`, `refugeReturnDays`, `stewardMayReturn` – test
   `war/__tests__/refuge-return.test.ts`). `returnFromRefuge(deps, { playerId, villageId, today })`
-  (tlačítko **Vrátit se** – web zapojí Ú12) – právo `war` (`requireRight`; klíč `ACTION_RIGHTS`
-  přidá až akce webu – test action-rights chce akci ve village.ts), ves má `refuge`, skupina
+  (tlačítko **Vrátit se** – web zapojí Ú12) – právo `war` (`requireRight`; klíč
+  `ACTION_RIGHTS.returnFromRefuge` – Ú12, akce webu bez zámku hráče), ves má `refuge`, skupina
   dorazila (les – `refuge.hidden`; hradiště – pobyt `RefugeStay` u hostitele) a žádné tažení
   z `activeAlarming(ves)` nemá skupinu s aktivním mužem na políčku vsi; důvody (návrh Clauda)
   „Ves nikoho neodvedla.“, „Lidé ještě nedorazili.“, „Vojsko je ještě na mapě.“. **Les:**
@@ -1054,6 +1054,38 @@ tick, ctx, out)` v každém taktu po poslech (`campaignTick`: pohyb → spatřen
   uprchlíků při dobytí hradiště – Později). Test `refuge-defense.test.ts` (20 domácích a 15
   uprchlíků – 6 mužů na hradbě; malé útočiště – domácí, uprchlíci, dobytek venku; boj u hradiště –
   ztráty domů, zajetí muže rodu, vesničan zůstane; po kouscích přes JSON = vcelku).
+- **Pohled na varování a příkazy obránce (Ú12).** `application/alarm-view.ts` (test
+  `application/__tests__/alarm-view.test.ts`; rozhraní – web-ui.md, Varování a útěk v rozhraní).
+  Volby počítá táž doména jako pravidlo správce: `alarmChoices(s, v, tick, ctx, messengerId?)`
+  (`alarm-steward.ts` – stav bez toho, co tažení dnes odvedlo, kandidáti hradišť, mřížka, spatření,
+  běžící posel a odešlá skupina → `refugeOptions`; `decideVillage` ho volá bit po bitu stejně).
+  `villageAlarmView(deps, { playerId, villageId, today })` – vidí, kdo ves vidí (`villageAccess`;
+  odchylka od plánu, ten chtěl právo `war` – rozhraní Ú13 zašedne ikony důvodem práva), cizí null;
+  tažení z `activeAlarming` s nejnovějším varováním vsi, za kterou rozhoduje držitel
+  (`AlarmVillage.owner.playerId`), ves v taktu kontrolního bodu ví (`warnTick ≤ tick`). Svět pro
+  výpočet (`AlarmWorld`) načítá mapy (`CampaignCells`) a vsi, když na ně výpočet čeká (`MissingData`,
+  jako `computeCampaign`), **bez bariéry** – uložený stav vsi je odhad, tažení volbu ověří znovu;
+  kandidáti hradišť = `AlarmVillage.hosts` s políčky sídel. Odhady v herních dnech (takty ÷ takty dne,
+  2 desetinná místa); útěk při boji u vsi zašedne `battle` (rozhoduje postoj – jako `departFlight`);
+  `runners` – `messengerCandidates(state, day)` (`refuge-choice.ts`: výchozí posel, pak každý muž
+  rodu, který běžet může – návrh Clauda: ostatní vesničany hráč nevybírá), odhad zvlášť pro pěšího
+  a jezdce; `graceDays` – zbytek lhůty hráče bez správce (`playerGraceTicks`); skupina na cestě –
+  `flightEtaTicks` od polohy tempem `flightPace` (exportované z `evacuation.ts`); `ret` –
+  `refugeReturnState` (`refuge-return.ts`, tytéž podmínky jako `returnFromRefuge`, rozhodnutý návrat
+  „Lidé se už vracejí.“ – nový důvod `REFUGE_RETURN_REASONS.returning`, návrh Clauda), i po skončeném
+  tažení. **Hradiště hráče** (doběhl k němu posel vsi – `heardTick`, poslů do domény méně než
+  `hillfortMessengers`): `domain` = `domainTargets(s, av, domainOf(...))` (`messenger.ts` – vsi domény
+  v dosahu od místa spatření, nejbližší první, `warned` – ví, nebo k ní posel běží; `warnDomain` z nich
+  bere nevarované – bit po bitu stejně) přes volitelný port `AlarmOwnerPort.domainOf`.
+  `commandAlarm(deps, { playerId, villageId, command, today, nowMs })` – právo `war`
+  (`ACTION_RIGHTS.commandAlarm`), totéž tažení, volba znovu nad kontrolním bodem (zablokovaná – důvod
+  `ALARM_BLOCKED`, žádný záměr; doména – jen nevarované vsi z výběru, prázdný výběr jde) a záměr
+  `alarm-messenger` / `alarm-flee` / `alarm-domain` na takt teď + 2 (`queueCampaignIntent`; tažení
+  skončilo – „Vojsko už odtáhlo.“). `returnFromRefuge` bere právo z `ACTION_RIGHTS.returnFromRefuge`.
+  Důvody pohledu (návrh Clauda kromě doslovných ze specu): „Pán nemá hradiště.“, „Nestihnou to.“
+  (rozhraní doplní odhad), „Na mapě není les.“, „Nikdo nemůže běžet.“, „Lidé už odešli.“, „Posel už
+  běží.“, „Ves o vojsku neví.“, „U vsi se už bojuje.“, „Do domény není koho varovat.“, „Vojsko už
+  odtáhlo.“.
 
 ## Výsledky nájezdu a kořist (Ú6.10)
 

@@ -230,7 +230,7 @@ function remaining(f: AlarmFlight): RefugeePerson[] {
 }
 
 /** Tempo skupiny: pěší (ranění pomaleji); dobytek a vozy na tempo stáda (jako `flightLoad`). */
-function flightPace(f: AlarmFlight): GroupPace {
+export function flightPace(f: AlarmFlight): GroupPace {
   const people = remaining(f).length;
   const wounded = Math.min(f.wounded ?? 0, people);
   let heads = f.carts;

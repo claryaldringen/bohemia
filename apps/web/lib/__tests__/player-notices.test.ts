@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { PlayerNotice } from '@bohemia/game';
 import {
   accusativeOf,
+  alarmNoticeVillage,
   mergeNoticeLines,
   noticePanel,
   isVillageNone,
@@ -97,8 +98,14 @@ describe('playerNoticeLine', () => {
       'refuge-arrived',
       'refuge-caught',
       'messenger-caught',
-    ] as const)
+    ] as const) {
       expect(noticePanel(kind)).toBe('war');
+      // klik otevře panel dvorce vsi (Úloha 12 – data pro Úlohu 13)
+      expect(alarmNoticeVillage(notice({ kind, payload: { villageId: 'v1' } }))).toBe('v1');
+    }
+    expect(alarmNoticeVillage(notice({ kind: 'foreign-army', payload: { villageId: 'v1' } }))).toBe(
+      null,
+    );
   });
 
   it('každý druh míří na panel (zatím jen Rod a vazalové)', () => {

@@ -12,7 +12,7 @@ import {
 import type { CampaignRepository } from './campaigns';
 import { settlementLandscape } from './enter-game';
 import type { PlayerLock } from './locks';
-import { requireRight, type RightsDeps } from './rights';
+import { ACTION_RIGHTS, requireRight, type RightsDeps } from './rights';
 import type { LandscapeSource } from './settlements';
 import { settlementCell } from './shipments';
 import type { StewardshipRepository } from './stewardships';
@@ -32,6 +32,7 @@ export const REFUGE_RETURN_REASONS = {
   none: 'Ves nikoho neodvedla.',
   notArrived: 'Lidé ještě nedorazili.',
   army: 'Vojsko je ještě na mapě.',
+  returning: 'Lidé se už vracejí.',
 } as const;
 
 /** Ves, jejíž lidé jsou na útěku (`VillageState.refuge`); hradiště null – les. */
@@ -74,10 +75,8 @@ export async function returnFromRefuge(
   deps: RefugeReturnDeps,
   input: { playerId: string; villageId: string; today: number },
 ): Promise<ReturnFromRefugeResult> {
-  // obrana je válka – jen držitel vsi; klíč `ACTION_RIGHTS.returnFromRefuge` přidá až akce webu
-  // (Úloha 12 – test action-rights hlídá, že každý klíč má akci ve village.ts), do té doby jako
-  // `orderBreakout` přímo právo `war`
-  const found = await requireRight(deps, { ...input, right: 'war' });
+  // obrana je válka – jen držitel vsi (tlačítko Vrátit se – akce webu `returnFromRefuge`)
+  const found = await requireRight(deps, { ...input, right: ACTION_RIGHTS.returnFromRefuge });
   if (typeof found === 'string') return { ok: false, reason: found };
   return returnRefugees(deps, { villageId: found.village.id, today: input.today, steward: false });
 }
@@ -231,6 +230,44 @@ async function threatOf(
     approaching ||= armyApproaching(s, villageId);
   }
   return { onMap, approaching };
+}
+
+/** Tlačítko **Vrátit se** v pohledu na varování (Úloha 12). */
+export interface RefugeReturnState {
+  /** Proč návrat teď nejde (`REFUGE_RETURN_REASONS`); null – jde. */
+  blocked: string | null;
+  /** Lidé už jdou domů – den příchodu (návrat je rozhodnutý). */
+  arrivesDay?: number;
+}
+
+/**
+ * Jde návrat vsi `home` (stejné podmínky jako `returnFromRefuge`, bez práva – to ukáže rozhraní)?
+ * Ves bez `refuge` null. Rozhodnutý návrat (událost ve schránce) – „Lidé se už vracejí.“ s dnem
+ * příchodu; po pádu rozdělaný návrat (záznam u hradiště) jde vždy.
+ */
+export async function refugeReturnState(
+  deps: Pick<RefugeReturnDeps, 'villages' | 'settlements' | 'campaigns'>,
+  home: VillageRecord,
+): Promise<RefugeReturnState | null> {
+  const refuge = home.state.refuge;
+  if (!refuge) return null;
+  const pending = await pendingReturn(deps, home, refuge.refId);
+  if (pending !== null) return { blocked: REFUGE_RETURN_REASONS.returning, arrivesDay: pending };
+  const hostId = refuge.hostVillageId;
+  const host = hostId === undefined ? null : await deps.villages.find(hostId);
+  if (host && refugeLeavingOf(host.state, refuge.refId)) return { blocked: null };
+  const settlement = await deps.settlements.find(home.settlementId);
+  const cell = settlement ? settlementCell(settlement) : null;
+  if (cell && (await threatOf(deps, home.id, cell)).onMap) {
+    return { blocked: REFUGE_RETURN_REASONS.army };
+  }
+  if (hostId === undefined) {
+    return { blocked: refuge.hidden ? null : REFUGE_RETURN_REASONS.notArrived };
+  }
+  // hradiště zaniklo – lidé se vrátí s prázdnou (jako `returnRefugees`)
+  if (!host) return { blocked: null };
+  const arrived = host.state.refugeStays?.some((s) => s.refId === refuge.refId) === true;
+  return { blocked: arrived ? null : REFUGE_RETURN_REASONS.notArrived };
 }
 
 export interface StewardRefugeDeps extends RefugeReturnDeps {

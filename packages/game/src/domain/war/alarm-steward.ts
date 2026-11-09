@@ -1,14 +1,20 @@
+import type { Landscape } from '../landscape';
 import { villageCentre } from '../village/departure';
 import type { VillageState } from '../village/types';
 import { alarmCellOf, alarmVillage, refugeHosts } from './alarm';
 import type { AlarmOwner, AlarmVillage } from './alarm-types';
 import { gridOf, MissingData } from './campaign-tick';
 import type { TickContext, TickOut } from './campaign-tick';
-import type { CampaignState } from './campaign-types';
+import type { CampaignPlace, CampaignState } from './campaign-types';
 import { alarmTaken, departFlight, withoutTaken } from './evacuation';
 import { stanceOf } from './flight';
 import { sendMessenger, warnDomain } from './messenger';
-import { refugeHostOf, refugeOptions, stewardAlarmChoice } from './refuge-choice';
+import {
+  refugeHostOf,
+  refugeOptions,
+  stewardAlarmChoice,
+  type RefugeOptions,
+} from './refuge-choice';
 import { WAR } from './rules-war';
 
 // Kdo za varovanou ves rozhoduje (war.md – Varování, poslové a útěk do hradiště: „Správce za
@@ -73,27 +79,58 @@ function decideVillage(
 ): void {
   const state = stateOf(s, v.villageId, ctx);
   if (!stewardDecides(v.owner, state, tick, v.warnTick)) return;
+  const { options, home, village, landscape } = alarmChoices(s, v, tick, ctx);
+  const ownRefuge = refugeHostOf(v.villageId, home, landscape, village.cell, s.day) !== null;
+  const choice = stewardAlarmChoice(options, stanceOf(home), ownRefuge);
+  if (choice.messenger) sendMessenger(s, v.villageId, ctx, out, { by: 'steward' });
+  if (choice.flee !== null) departFlight(s, v.villageId, choice.flee, ctx, out, { by: 'steward' });
+  v.decided ??= 'steward';
+}
+
+/** Co varovaná ves v taktu může – `alarmChoices`. */
+export interface AlarmChoices {
+  options: RefugeOptions;
+  /** Stav vsi bez lidí, zásob a dobytka, které tažení dnes už odvedlo (posel, skupina). */
+  home: VillageState;
+  /** Políčko a střed vsi. */
+  village: CampaignPlace;
+  /** Krajina mapy vsi (vlastní útočiště – `refugeHostOf`). */
+  landscape: Landscape;
+}
+
+/**
+ * Co varovaná ves `v` v taktu `tick` může (`refugeOptions`) – pravidlo správce i pohled hráče
+ * (Úloha 12 – zašedlé volby s důvodem a odhady): stav vsi bez toho, co tažení dnes odvedlo,
+ * kandidáti hradišť (`refugeHosts`), mřížka mapy vsi, místo a čas spatření, běžící posel a odešlá
+ * skupina. `messengerId` = posel, kterého vybral hráč. Chybí-li data, takt čeká (`MissingData`).
+ */
+export function alarmChoices(
+  s: CampaignState,
+  v: AlarmVillage,
+  tick: number,
+  ctx: TickContext,
+  messengerId?: number,
+): AlarmChoices {
+  const state = stateOf(s, v.villageId, ctx);
   const cell = alarmCellOf(v);
   const map = ctx.world.landscapeOf(cell);
   if (map === null) throw new MissingData([{ ...cell }], []);
   const home = withoutTaken(state, alarmTaken(s, v.villageId, s.day, ctx.world.clock));
   const { hosts } = refugeHosts(s, v.villageId, cell, ctx);
+  const village = { cell, pos: villageCentre(state) };
   const options = refugeOptions({
     state: home,
     day: s.day,
-    village: { cell, pos: villageCentre(state) },
+    village,
     grid: gridOf(cell, s.day, ctx),
     seenAt: v.seenAt,
     sinceSeenTicks: tick - v.seenTick,
     hosts,
     messengerSent: v.messenger !== undefined,
     fled: v.flight !== undefined,
+    ...(messengerId === undefined ? {} : { messengerId }),
   });
-  const ownRefuge = refugeHostOf(v.villageId, home, map.landscape, cell, s.day) !== null;
-  const choice = stewardAlarmChoice(options, stanceOf(home), ownRefuge);
-  if (choice.messenger) sendMessenger(s, v.villageId, ctx, out, { by: 'steward' });
-  if (choice.flee !== null) departFlight(s, v.villageId, choice.flee, ctx, out, { by: 'steward' });
-  v.decided ??= 'steward';
+  return { options, home, village, landscape: map.landscape };
 }
 
 /**

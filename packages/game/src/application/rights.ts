@@ -118,6 +118,10 @@ export const ACTION_RIGHTS = {
   requestProtection: 'war',
   // postoj vsi před cizím vojskem (war.md – Obránci) – obrana je válka: jen držitel vsi
   setDefenseStance: 'war',
+  // varování, posel a útěk do hradiště, návrat (war.md – Varování, poslové a útěk do hradiště) –
+  // obrana je válka: jen držitel vsi
+  commandAlarm: 'war',
+  returnFromRefuge: 'war',
 } as const satisfies Record<string, VillageRight>;
 
 /** Jméno akce nad vsí. */

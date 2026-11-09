@@ -323,6 +323,24 @@ export function messengerOf(
   return runner ? pick(runner) : null;
 }
 
+/**
+ * Koho může hráč poslat (Martin 9. 11. 2026: „Kdo je poslem, volí hráč“; pohled – Úloha 12):
+ * napřed výchozí posel (`messengerOf` bez volby – nejmladší zdravý vesničan pěšky, bez něj muž
+ * rodu), pak každý další muž rodu, který běžet může (na koni, umí-li jezdit), v pořadí lidí vsi.
+ * Ostatní vesničany hráč nevybírá – běží nejzdatnější (návrh Clauda). Nikdo – [].
+ */
+export function messengerCandidates(state: VillageState, day: number): MessengerPick[] {
+  const first = messengerOf(state, day);
+  if (!first) return [];
+  const out = [first];
+  for (const p of state.people) {
+    if (!isLineMan(p) || p.id === first.personId) continue;
+    const pick = messengerOf(state, day, p.id);
+    if (pick) out.push(pick);
+  }
+  return out;
+}
+
 /** Proč volba nejde (texty – rozhraní, plán Ú12). */
 export type AlarmBlock = 'no-hillfort' | 'too-late' | 'no-forest' | 'no-runner' | 'gone' | 'sent';
 

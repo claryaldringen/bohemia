@@ -193,27 +193,10 @@ export function warnDomain(
   const domain = ask(villageId);
   if (domain === null) throw new MissingData([], [villageId]);
   const sent = (av.domain ??= []);
-  const seen = av.seenAt.cell;
-  const running = new Set(
-    s.alarm!.messengers.filter((m) => m.status === 'running').map((m) => m.toVillageId),
-  );
   const chosen = only === null ? null : new Set(only);
-  const dist = (c: GridCell): number =>
-    (c.x - seen.x) * (c.x - seen.x) + (c.y - seen.y) * (c.y - seen.y);
-  const targets = domain
-    .filter(
-      (d) =>
-        d.villageId !== villageId &&
-        (chosen === null || chosen.has(d.villageId)) &&
-        cellsBetween(d.cell, seen) <= WAR.alarm.domainRadiusCells &&
-        !isWarned(s, d.villageId, s.tick) &&
-        !running.has(d.villageId),
-    )
-    .sort(
-      (a, b) =>
-        dist(a.cell) - dist(b.cell) ||
-        (a.villageId < b.villageId ? -1 : a.villageId > b.villageId ? 1 : 0),
-    );
+  const targets = domainTargets(s, av, domain).filter(
+    (d) => (chosen === null || chosen.has(d.villageId)) && !d.warned,
+  );
   let count = 0;
   for (const target of targets) {
     if (sent.length >= WAR.alarm.hillfortMessengers) break;
@@ -242,6 +225,49 @@ export function warnDomain(
     count++;
   }
   return count;
+}
+
+/** Ves domény hradiště v dosahu varování (`domainTargets`). */
+export interface DomainTarget {
+  villageId: string;
+  cell: GridCell;
+  /** Ves o vojsku už ví, nebo k ní posel běží – posla nepotřebuje. */
+  warned: boolean;
+}
+
+/**
+ * Vsi domény hradiště `av` (`domain` ze světa – `CampaignWorld.domainOf`) do
+ * `WAR.alarm.domainRadiusCells` políček od místa spatření, kromě hradiště samého, nejbližší
+ * k místu spatření první (čtverec vzdálenosti políček, shoda – menší id). `warned` – ví o vojsku
+ * (`isWarned`), nebo k ní posel běží. Komu hradiště posly pošle (`warnDomain`) a co hráč vybírá
+ * (pohled – Úloha 12).
+ */
+export function domainTargets(
+  s: CampaignState,
+  av: AlarmVillage,
+  domain: readonly { villageId: string; cell: GridCell }[],
+): DomainTarget[] {
+  const seen = av.seenAt.cell;
+  const running = new Set(
+    (s.alarm?.messengers ?? []).filter((m) => m.status === 'running').map((m) => m.toVillageId),
+  );
+  const dist = (c: GridCell): number =>
+    (c.x - seen.x) * (c.x - seen.x) + (c.y - seen.y) * (c.y - seen.y);
+  return domain
+    .filter(
+      (d) =>
+        d.villageId !== av.villageId && cellsBetween(d.cell, seen) <= WAR.alarm.domainRadiusCells,
+    )
+    .sort(
+      (a, b) =>
+        dist(a.cell) - dist(b.cell) ||
+        (a.villageId < b.villageId ? -1 : a.villageId > b.villageId ? 1 : 0),
+    )
+    .map((d) => ({
+      villageId: d.villageId,
+      cell: { ...d.cell },
+      warned: isWarned(s, d.villageId, s.tick) || running.has(d.villageId),
+    }));
 }
 
 /** Vsi na mapě posla (kromě hradiště – to se dozví, až posel doběhne) se o vojsku dozví. */

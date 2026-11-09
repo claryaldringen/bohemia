@@ -1008,6 +1008,37 @@ se ukáže stejně – platí, dokud server nepošle jiný důvod, nejdéle 10 s
 → řádek `campaign_intent` s `breakout` od hráče B; obránce v krytu a vzdaný ve scéně, snímek
 `probijeni.png` v `test-results`). Popisek tlačítka u levého okraje: `Tooltip` `below-right`.
 
+## Varování a útěk v rozhraní (war.md – Varování, poslové a útěk do hradiště; plán 2026-11-09)
+
+**Data a akce (Úloha 12).** Use-case `villageAlarmView` (`application/alarm-view.ts`, podrobnosti
+`docs/code/war.md` – Varování: pohled a příkazy) vrací `AlarmView`: `warned`, `campaignId`
+(nevarovaná ves null – nerozliší se od vsi, na kterou nikdo netáhne), `options` pro `messenger`,
+`forest`, `people`, `all` (`ALARM_CHOICES` – pořadí ikon) s kódem důvodu `blocked`
+(`AlarmViewBlock`, texty `ALARM_BLOCKED` z jádra) a odhady v herních dnech `etaDays` / `leaveDays`,
+`armyEtaDays`, `runners` (koho lze poslat – výchozí vesničan, pak muži rodu, `mounted`, `etaDays`),
+`host`, `messenger`, `flight` (stav skupiny, na cestě odhad), `decided` a `graceDays` (za kolik dní
+rozhodne pravidlo správce), `ret` (Vrátit se – důvod `REFUGE_RETURN_REASONS`, „Lidé se už vracejí.“
+s `backInDays`) a u hradiště hráče `domain` / `domainLeft` (vsi domény k výběru poslů). Dívat se smí
+každý, kdo ves vidí (i bez práva `war` – ikony zašedne důvod práva), cizí hráč dostane null.
+
+- **Server:** `lib/alarm.ts` (composition root – `alarmViewForPlayer`, `commandAlarmForPlayer`,
+  `returnFromRefugeForPlayer`; port domény `createAlarmOwners`, mapy `campaignCells`). Server actions
+  (`app/game/actions.ts`): `getAlarmView({ villageId })`, `commandAlarm({ villageId, command })` –
+  `command` = `{ kind: 'messenger', personId? }` | `{ kind: 'flee', mode }` | `{ kind: 'domain', to }`
+  (tvar `lib/alarm-input.ts`), `returnFromRefuge({ villageId })` → `{ ok, arrivesDay }`. Obě akce
+  jdou přes `unlockedAction` ve `village.ts` (klíče `ACTION_RIGHTS.commandAlarm` a
+  `returnFromRefuge` – právo `war`) **bez zámku hráče**: příkaz je záměr do tažení na takt teď + 2
+  (jako „Probít se“) a návrat si bere zámek držitele hradiště sám (jeden zámek, nikdy vnořený;
+  `exclusivePlayer` – i fronta v procesu). Test `action-rights.test.ts` hlídá i `unlockedAction`.
+- **Klient:** `lib/alarm-view.ts` (čistý modul) – názvy ikon `ALARM_LABELS` doslovně ze specu,
+  `alarmOptionText` (důvod u kurzoru – „Nestihnou to – vojsko tu bude za ≈ 2 dny, z mapy jim to
+  potrvá ≈ 3 dny.“, nebo odhad „Do hradiště Hradec ≈ 3 dny – vojsko tu bude za ≈ 2 dny.“),
+  `daysText` („méně než den“, „≈ 1 den“, „≈ 3 dny“, „≈ 5 dní“), `runnerText`, `flightText`,
+  `returnText`, `alarmPollMs`. Hook `hooks/use-alarm.ts` (`useAlarm(villageId)` → `{ view, error,
+refresh }`): první dotaz hned, pak při varování nebo s lidmi na útěku každé 2 s, jinak 10 s.
+  Upozornění varování nesou `villageId` – `alarmNoticeVillage` (`lib/player-notices.ts`) pro klik na
+  panel dvorce vsi. Test `lib/__tests__/alarm-view.test.ts` (odhad ve dnech, texty, vstup akcí).
+
 ## Prémiová krajina v rozhraní
 
 Premium-landscapes.md – Co hráč vidí. Texty typů (krátký název, „hned“, „později“) a jediná věta
