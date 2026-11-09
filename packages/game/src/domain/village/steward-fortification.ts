@@ -62,20 +62,20 @@ export function samePlan(a: FortPlan, b: FortPlan): boolean {
 }
 
 /**
- * Ochrana plánu (Hradby a obrana – Správce): podíl ztráty nájezdu, který opevnění ušetří =
- * Σ (pasivní + aktivní × obsazenost) hradby a valu, vodní příkop přidá pasivní
- * `protectionMoat`; nejvýš 1.
+ * Ochrana plánu (Hradby a obrana – Správce): podíl ztráty nájezdu, který opevnění ušetří = jen
+ * s obránci – Σ ochrany hradby, valu a vodního příkopu (`protectionMoat`) × obsazenost; nejvýš 1.
+ * Neobsazenou hradbu útočník přeleze (Martin 9. 11. 2026: „Hradba je prostě jen fyzická překážka“).
  */
 export function planProtection(plan: FortPlan, occupancy: number): number {
   const p = FORTIFICATIONS.protection;
   const occ = Math.min(1, Math.max(0, occupancy));
   let sum = 0;
-  if (plan.wall !== null) sum += p[plan.wall].passive + p[plan.wall].active * occ;
+  if (plan.wall !== null) sum += p[plan.wall];
   if (plan.rampart) {
-    sum += p.rampart.passive + p.rampart.active * occ;
+    sum += p.rampart;
     if (plan.water) sum += FORTIFICATIONS.protectionMoat;
   }
-  return Math.min(1, sum);
+  return Math.min(1, sum * occ);
 }
 
 /** Údržba plánu v čd na 100 m ročně (Hradby a obrana – Životnost a údržba): hradba a val zvlášť. */

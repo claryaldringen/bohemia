@@ -114,12 +114,13 @@ describe('steward-fortification – opevnění podle hrozby', () => {
   }
 
   /**
-   * Ves s hrozbou nájezdu a stádem 12 krav navíc – ztráta nájezdu ≈ 6 000 čd, aby se palisáda
-   * vyplatila (malé vsi bez dobytka se opevnění nevyplatí – Martinovy cíle 8. 11. 2026).
+   * Ves s hrozbou nájezdu a stádem 30 krav navíc – ztráta nájezdu ≈ 12 000 čd, aby se palisáda
+   * vyplatila i se 2 obránci na ≈ 200–270 m (malé vsi bez dobytka se opevnění nevyplatí – Martinovy
+   * cíle 8. 11. 2026; ochrana jen s obránci od 9. 11. 2026 – se 12 kravami jako dřív už ne).
    */
   const rich = (s: VillageState): VillageState => {
     const herds = s.livestock!.herds;
-    s.livestock = { ...s.livestock!, herds: { ...herds, cow: herds.cow + 12 } };
+    s.livestock = { ...s.livestock!, herds: { ...herds, cow: herds.cow + 30 } };
     return s;
   };
 
@@ -172,11 +173,12 @@ describe('steward-fortification – opevnění podle hrozby', () => {
     const fence = fortValue(s, day, plan('fence'), 1, input);
     const palisade = fortValue(s, day, plan('palisade'), 1, input);
     expect(palisade.gain * 20 - palisade.cost).toBeGreaterThan(0);
-    // palisáda chrání víc (0,2 + 0,2 × obsazenost proti 0,1 × obsazenost) a stojí víc
+    // palisáda chrání víc (0,4 proti 0,04 × obsazenost) a stojí víc
     expect(palisade.gain).toBeGreaterThan(fence.gain);
     expect(palisade.cost).toBeGreaterThan(fence.cost);
-    // plot se nevyplatí (Martin 8. 11. 2026)
-    expect(fence.gain * 15 - fence.cost).toBeLessThan(0);
+    // plot vyjde hůř než palisáda – správce ho nepostaví (Martin 8. 11. 2026: plot se nevyplatí;
+    // na typických vsích je záporný – Martinovy cíle níž)
+    expect(fence.gain * 15 - fence.cost).toBeLessThan(palisade.gain * 20 - palisade.cost);
     // hrozba 0,001: přínos nepokryje cenu
     const weak = fortValue(s, day, plan('palisade'), 0.001, input);
     expect(weak.gain * 20 - weak.cost).toBeLessThan(0);
@@ -274,13 +276,17 @@ describe('steward-fortification – opevnění podle hrozby', () => {
     expect(upgrade?.fortificationId).toBe(fort.id);
   });
 
-  it('k vlastní palisádě doplní val s příkopem, když se vyplatí (velká ztráta nájezdu)', () => {
+  it('k vlastní palisádě s ochozem doplní val s příkopem, když se vyplatí (velká ztráta nájezdu)', () => {
     const s = threatened();
     s.livestock!.herds.cow += 40;
+    // val vně palisády by s větším útočištěm křížil modlu – test měří rozhodnutí, ne polohu
+    // posvátných míst (jako „po kouscích“)
+    delete s.sacredBuildings;
     fortificationStep(s, ctxOf(day));
     const fort = s.fortifications![0]!;
-    // dostavěná palisáda bez valu (druh vynutíme)
-    fort.kind = 'palisade';
+    // dostavěná palisáda s ochozem bez valu (druh vynutíme) – před rokem 790 jí zbývá jen val;
+    // holé palisádě vyjde podle ztráty líp ochoz nebo ochoz s valem (obojí + 0,1 × obsazenost)
+    fort.kind = 'walkway';
     delete fort.top;
     for (const seg of fort.segments) {
       seg.builtDay = 0;
@@ -289,7 +295,7 @@ describe('steward-fortification – opevnění podle hrozby', () => {
       delete seg.topBuiltDay;
     }
     s.constructions = s.constructions.filter((c) => c.kind !== 'fortification');
-    expect(fortPlanOf(fort)).toEqual({ wall: 'palisade', rampart: false, water: false });
+    expect(fortPlanOf(fort)).toEqual({ wall: 'walkway', rampart: false, water: false });
     fortificationStep(s, ctxOf(day + STEWARD.everyDays));
     const c = s.constructions.find((x) => x.kind === 'fortification');
     expect(c?.fortWork).toBe('rampart');
@@ -401,37 +407,57 @@ describe('ochrana druhu – Martinovy cíle (fortifications.md – Hradby a obra
     expect(fortOccupancy(100, 400)).toBe(1);
   });
 
-  it('ochrana = pasivní + aktivní × obsazenost, val a vodní příkop přidají', () => {
+  it('ochrana jen s obránci = (hradba + val + vodní příkop) × obsazenost, neobsazená nechrání', () => {
     expect(planProtection({ wall: 'fence', rampart: false, water: false }, 0.25)).toBeCloseTo(
-      0.025,
+      0.01,
       9,
     );
     expect(planProtection({ wall: 'walkway', rampart: false, water: false }, 0.5)).toBeCloseTo(
-      0.45,
+      0.25,
       9,
     );
-    expect(planProtection({ wall: 'palisade', rampart: true, water: true }, 0)).toBeCloseTo(
-      0.35,
+    expect(planProtection({ wall: 'palisade', rampart: true, water: true }, 0)).toBe(0);
+    expect(planProtection({ wall: 'palisade', rampart: true, water: true }, 0.5)).toBeCloseTo(
+      0.3,
       9,
     );
-    expect(planProtection({ wall: 'chamber', rampart: true, water: true }, 1)).toBe(1);
+    expect(planProtection({ wall: 'chamber', rampart: true, water: true }, 1)).toBeCloseTo(0.75, 9);
     expect(planProtection(NO_FORT, 1)).toBe(0);
   });
 
-  it('ves 60 lidí: nevyplatí se plot, palisáda, val ani hradby', () => {
+  it('ves 60 lidí (i 100 lidí na 730 m): nevyplatí se plot, palisáda, val ani hradby', () => {
     const v = village(60, 10, 600);
     expect(v.men).toBe(15);
     for (const plan of plans()) expect(value(v, plan), JSON.stringify(plan)).toBeLessThan(0);
+    const mid = village(100, 17, 730);
+    for (const plan of plans()) expect(value(mid, plan), JSON.stringify(plan)).toBeLessThan(0);
   });
 
-  it('ves 150 lidí blízko stropu: vyplatí se palisáda (s ochozem), roštová a komorová ne', () => {
+  it('ves 150 lidí blízko stropu: vyplatí se palisáda – plot, ochoz, val i hradby vyjdou hůř', () => {
     const v = village(150, 25, 900);
     const ranked = plans()
       .map((plan) => ({ plan, value: value(v, plan) }))
       .sort((a, b) => b.value - a.value);
     const best = ranked[0]!;
     expect(best.value).toBeGreaterThan(0);
-    expect(['palisade', 'walkway']).toContain(best.plan.wall);
+    expect(best.plan).toEqual({ wall: 'palisade', rampart: false, water: false });
+    expect(value(v, { ...NO_FORT, wall: 'fence' })).toBeLessThan(0);
+    // stojící palisádě se nevyplatí ani ochoz, ani val
+    const palisade: FortPlan = { ...NO_FORT, wall: 'palisade' };
+    for (const plan of [
+      { ...palisade, wall: 'walkway' as const },
+      { ...palisade, rampart: true },
+    ]) {
+      const years = fortHorizonYears(plan, palisade, 'growth');
+      const { gain, cost } = fortValue(v.state, DAY, plan, 1, {
+        lengthM: v.lengthM,
+        kgPerManDay: kg,
+        from: palisade,
+        years,
+        men: v.men,
+      });
+      expect(gain * years - cost, JSON.stringify(plan)).toBeLessThan(0);
+    }
     for (const r of ranked) {
       if (r.plan.wall === 'crib' || r.plan.wall === 'chamber') expect(r.value).toBeLessThan(0);
     }
