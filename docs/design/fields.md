@@ -1159,6 +1159,30 @@ Len (0,2 ha) se trhá celý vždy. Bez luštěnin ves sklidí za tři roky 26,2 
 Ozim se dožne celý; jař 873 (24 ha, z toho velká část nad potřebu) zůstane z velké části
 nesklizená – srpen dál nestačí na všechno, co ves v hladovém roce oseje.
 
+#### Pořadí důležitosti polních prací a výmlat do zimy (9. 11. 2026, implementace čeká)
+
+Martin 9. 11. 2026: „Je lepší za každou cenu sklidit to, co už vyrostlo, než začínat pěstování
+úplně od začátku“, „Výmlat prý počká i docela hluboko do zimy“ a „Pořadí důležitosti: 1. sklizeň
+obilí 2. sklizeň lnu 3. sklizeň sena 4. orba a setí 5. výmlat. Zapomněl jsem na něco?“ – doplněno
+návrhem Clauda, Martin „Ano, jak navrhuješ“. Pořadí práce dne (kdo dostane práci napřed, když jí
+nestačí na všechno):
+
+0. **výmlat na dnešní jídlo** (jen kolik se dnes sní – jinak lidé nemají co jíst),
+1. **sklizeň obilí** (žeň a odnos – ozim, jař, i dosklizeň v srpnu a září),
+2. **sklizeň lnu** (trhání),
+3. **sklizeň sena** (seč),
+4. **sklizeň jablek**,
+5. **pletí** (ženy a děti – muži jen zbytek a až po stavbách),
+6. **orba, příprava půdy a setí** (vrácení přílohu, klučení, kopání, orba, setí),
+7. **noční hlídka polí** proti zvěři,
+8. **výmlat**.
+
+Stavby a opravy až po všech polních pracích (Osevní postup po dílech, bod 3). **Výmlat do zimy:**
+okno výmlatu ozimu i jaře až do **konce února**; snopy se v okně nekazí (kazí se až po něm –
+`THRESHING.spoilPerMonth`); mlátí se hlavně v zimě, kdy jiná práce venku není. Nahrazuje Martinovo
+„Staří slované se snažili dělat výmlat hned“ (20. 10. 2026) a „orba má přednost“ (24. 10. 2026)
+pro střet s žněmi.
+
 #### Žeň jaře i v září (9. 11. 2026)
 
 **Martin (9. 11. 2026): „Ano, ať se jař sklízí i v září“** – na otázku, jestli dosklízet v září jař,
