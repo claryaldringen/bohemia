@@ -355,9 +355,9 @@ Seno, dvě seče).
      nezačne, oseje se díl na jaře jaří (bod 2) a po ní jde do úhoru – v oběhu jsou vždy nejvýš dva
      osevy (návrh Clauda). Luštěniny a len jako první osev mají po sobě úhor (jsou místo jaře, ne
      zmeškaný ozim).
-   - **Luštěniny a len jsou místo jaře:** berou díly na řadě s jaří – len od konce pořadí (nejdál
-     od domu, jako dosud), luštěniny od domu –, dokud nepokryjí svou potřebu (bod 3); zbytek je
-     obilní jař. Když díly na řadě s jaří nestačí, vezmou i díly na řadě s prvním osevem (ty pak
+   - **Len je místo jaře** (do 9. 11. 2026 i ~~luštěniny od domu~~ – Luštěniny, zrušeno): bere
+     díly na řadě s jaří od konce pořadí (nejdál od domu, jako dosud), dokud nepokryje svou
+     potřebu (bod 3); zbytek je obilní jař. Když díly na řadě s jaří nestačí, vezmou i díly na řadě s prvním osevem (ty pak
      nejsou ozim – kopou se na podzim po ozimu a sejí na jaře). Plodinu určí ves, když díl
      přibude k letošní práci, a pak ji nemění – jen ozim, který do konce října nezasela, se oseje
      jaří (bod 2; návrh Clauda).
@@ -409,7 +409,8 @@ Seno, dvě seče).
      nepotřebný se uvolní) až první den s místem na čele. Díly přibývají ve stejné dny jako dřív;
      Vlkov: rok beze změny úrody, hladu, orby i zásob (čelo bez místa 82 ze 151 dní výběru).
    - **Pořadí dávek:** len (je ho málo, bez něj chybí oděv), **obilí do roční potřeby bez
-     rezervy** (proti hladu – obilí má přednost), luštěniny, pak obilí do celé potřeby úrody;
+     rezervy** (proti hladu – obilí má přednost), ~~luštěniny~~ (zrušeno 9. 11. 2026), pak obilí
+     do celé potřeby úrody;
      obilí v pořadí přílohové soustavy (připravené díly a díly s nejmenší prací přípravy, blíž
      k domu, nouzové přílohy až po nich), v dávce ozim před jaří (jeho okno končí dřív). Dávka
      dne jde po úsecích od domu ven (Postup práce po čtvercích).
@@ -420,15 +421,15 @@ Seno, dvě seče).
 
 3. **Nutné díly – práce proti hladu má přednost před stavbami:**
    - **Potřeba úrody** je dosavadní cíl osevu bez plánu: energie, kterou má dát příští sklizeň
-     (`sowingTargets` – podíl jídla z pole, zásoby a pojistka, plynulejší osev, výhled lidí), cíl
-     luštěnin (rovnovážné hospodaření – [diet.md](diet.md)) a potřeba lnu na oděv. Ves ji počítá ze
+     (`sowingTargets` – podíl jídla z pole, zásoby a pojistka, plynulejší osev, výhled lidí)
+     a potřeba lnu na oděv; ~~cíl luštěnin~~ padl s luštěninami na poli (9. 11. 2026). Ves ji počítá ze
      stavu dne, kdykoli o dílech rozhoduje (každý den 1. 9. – 30. 4., jako dosud zkrácení plánu),
      ne jednou k 1. 9.
-   - **Nutné díly** hospodářského roku (ozim zasetý na podzim, jař, luštěniny a len zasetý na jaře
+   - **Nutné díly** hospodářského roku (ozim zasetý na podzim, jař a len zasetý na jaře
      – sklizeň do 31. 8.): díly, na kterých už je letošní práce, a za nimi díly na řadě v pořadí
      přílohové soustavy po úsecích hospodářství od domu (díly po ozimu, čerstvě založené, odpočaté
      – nejmladší první), dokud jejich očekávaná úroda (plná práce, dnešní úrodnost – jako ji
-     počítal plán) nepokryje potřebu úrody; len a luštěniny podle své potřeby. Když běžné díly
+     počítal plán) nepokryje potřebu úrody; len podle své potřeby. Když běžné díly
      nestačí, přijdou na řadu přílohy zotavené na 70–95 % a pak nouzové přílohy (Přílohová
      soustava – Pořadí, body 4 a 5; Nouzový osev viz bod 1). Všechna práce nutných
      dílů – příprava půdy, setí, pletí, žně, odnos a výmlat – je **potřebná sezónní úloha**
@@ -1102,8 +1103,10 @@ ozimu, luštěnin a lnu chtěly 820–1 030 čd: ozim (má přednost) stihl 75�
   loňský) – len není zásoba, nedělí se.
 - **Výmlat ozimu a luštěnin** má okno **srpen–září** (výmlat hned po žni – srpnová žeň se mlátí
   v září s jaří; v září ozim, luštěniny, jař). Snopy v okně čekají bez ztráty.
-- **Pořadí v srpnu** (návrh Clauda): napřed se dožne, co červenec nestihl – len, ozim,
-  luštěniny (pořadí plodin `CROP_ORDER`) –, pak jař; výmlat až po žni.
+- **Pořadí v srpnu** (návrh Clauda): napřed se dožne, co červenec nestihl – len a ozim (pořadí
+  plodin `CROP_ORDER`; dorůstající luštěniny starších vsí za ozimem) –, pak jař; výmlat až po žni.
+  Otázka, jestli v srpnu pustit jař před luštěniny, padla – luštěniny ves na poli nepěstuje
+  (Luštěniny, zrušeno; Martin 9. 11. 2026).
 - **Příděl** dál počítá se sklizní ozimu 31. 7. (odhad plné žně ozimu – zbytek přijde v září
   z výmlatu srpnové žně). Plán osevu a pomoc rodiny počítají červencovou žeň do volné práce
   července, co přeteče, do srpna před žní jaře; výhled dílu hlásí nedostatek práce na žeň do konce
@@ -1126,8 +1129,26 @@ Srpen žně nestihne – **nedostatek se jen posunul na jař**: ozim i luštěni
 zůstane nesklizená (9 %, 26 %, 0 %) a úroda vsi klesne o 0,8–1,1 t za rok, protože luštěniny dají
 na člověkoden žně ≈ 2,2× méně jídla než jař (0,8 úrody obilí za 68 místo 38 čd/ha). Pro srovnání
 (jen měření, nezavedeno): kdyby v srpnu šla jař před luštěninami, dalo by to 6,3 / 11,1 / 9,2 t
-(ozim celý, luštěniny 33 %, 60 %, 0 %, jař 100 %, 100 %, 51 %). Rozhodnutí o pořadí čeká na
-Martina.
+(ozim celý, luštěniny 33 %, 60 %, 0 %, jař 100 %, 100 %, 51 %). ~~Rozhodnutí o pořadí čeká na
+Martina.~~ Martin místo toho luštěniny z polí vyřadil (9. 11. 2026 – Luštěniny, zrušeno).
+
+**Naměřeno bez luštěnin na poli** (týž Vlkov a týž postup; jeho uložený plán měl 195 dílů
+luštěnin, ≈ 6 ha, ještě nezasetých – převod je dal jaři i s rozkopáním; ha = oseto k 31. 7. včetně
+obilí nad potřebu; feat/landscape = před žněmi v srpnu i s luštěninami):
+
+| Rok | Verze          | Ozim 31. 7. → 31. 8. | Jař 31. 8. | Úroda ozim / luštěniny / jař (t) | Oseto ozim / luštěniny / jař (ha) | Příděl (dní) |
+| --- | -------------- | -------------------- | ---------- | -------------------------------- | --------------------------------- | ------------ |
+| 871 | feat/landscape | 1,00                 | 1,00       | 3,7 / 0,1 / 2,2 = 6,0            | 10,2 / 6,0 / 7,6                  | 43           |
+| 871 | bez luštěnin   | 1,00                 | 0,75       | 3,7 / – / 2,8 = 6,5              | 10,2 / – / 14,1                   | 0            |
+| 872 | feat/landscape | 0,82                 | 1,00       | 5,9 / 0,0 / 4,7 = 10,6           | 16,3 / 5,6 / 10,7                 | 214          |
+| 872 | bez luštěnin   | 1,00                 | 0,96       | 5,7 / – / 6,2 = 11,9             | 12,3 / – / 14,4                   | 228          |
+| 873 | feat/landscape | 0,75                 | 0,52       | 4,5 / 0,0 / 3,5 = 8,0            | 15,1 / 7,4 / 18,3                 | 149          |
+| 873 | bez luštěnin   | 0,78 → 1,00          | 0,30       | 5,0 / – / 2,8 = 7,8              | 13,8 / – / 24,1                   | 32           |
+
+Len (0,2 ha) se trhá celý vždy. Bez luštěnin ves sklidí za tři roky 26,2 t proti 24,6 t
+(feat/landscape) a 21,6 t (žně v srpnu s luštěninami) a přídělem šetří 260 dní proti 406 a 538.
+Ozim se dožne celý; jař 873 (24 ha, z toho velká část nad potřebu) zůstane z velké části
+nesklizená – srpen dál nestačí na všechno, co ves v hladovém roce oseje.
 
 #### Žně všemi rukama
 
@@ -1361,6 +1382,29 @@ pro raný středověk ale nemám – zůstává návrhem Clauda jako dosavadní 
   (`WINDOWS.reclaim`). Orba rádlem má jarní okno už dřív (`fitsSpringPlough`), beze změny.
 
 ### Luštěniny
+
+**Zrušeno – luštěniny z polí vyřazené.** Martin (9. 11. 2026): „Luštěniny jsou podle mě píčovina.
+Co vím, tak je lidi pěstovali spíš doma na zahrádkách než na velkých polích, přesně protože sice
+měly dobré výnosy, ale potřebovaly mnohem víc práce“ a „Ano“ k návrhu luštěniny z polí úplně
+vyřadit a zahrádky u obydlí probrat zvlášť později (nová mechanika, teď ne). Sedí s rešerší
+([2026-10-18-legumes.md](research/2026-10-18-legumes.md) – luskoviny hlavně zahradnicky u obydlí).
+Důvod v simulaci: Vlkov luštěniny sel (≈ 6 ha), ale nestihl je sklidit – trhání 68 čd/ha proti 38
+u obilí dá na člověkoden žně ≈ 2,2× méně jídla; osivo luštěnin měnil u sousedů za obilí (≈ 1 t
+ročně) a se žněmi v srpnu luštěniny braly práci jaři (Žně i v srpnu).
+
+- **Na poli už ne:** výběr dílů luštěniny nikomu nepřidělí, cíl luštěnin v osevu ani v plánu
+  chovu není (rovnovážné hospodaření – [diet.md](diet.md) – jen pokrytí bílkovin stádem
+  a zásobou), osivo luštěnin se za obilí nevyměňuje.
+- **Zboží zůstává:** zásoba luštěnin se dojí (strava, bílkoviny – diet.md), obchod, platby a dávky
+  luštěninami fungují dál – jen z pole nové nepřibudou. Platí-li ves luštěninami, stojí jí kilogram
+  obilí, které místo nich sní (návrh Clauda – dřív cena práce pěstování).
+- **Převod uložených vsí** (jednou, idempotentně, při načtení): díl, který plán chystal na
+  luštěniny a setí na něm nezačalo, přejde do jaře i s hotovou přípravou půdy (jako ozim po konci
+  okna setí – osivo z něj ves ještě nevzala); výběr dílů z paměti s luštěninami propadne. Zasetá
+  a rozsetá luštěnina doroste a sklidí se podle pravidel níže (návrh Clauda – osivo je v zemi,
+  převod by ho ztratil; okna, výnos, práce a úrodnost luštěnin proto zůstávají jen pro ni).
+
+Dřívější pravidla (platí už jen pro dorůstající luštěniny starších vsí):
 
 Stav: **Martin, 18. 10. 2026:** „c) ale maso bude mírně zvyšovat štěstí“ – bílkoviny 1,6 g na kg
 tělesné váhy zůstávají a přidají se luštěniny jako plodina na poli (strava – [diet.md](diet.md),
@@ -2459,13 +2503,13 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Pole jako krajina – na pole smí cokoli kromě jiného pole                                                                                                                                                                                                                  | Martin (18. 10. 2026)                                |
 | Sad, hřbitov a ohrada vezmou celý čtverec, modla a svatyně průnik půdorysu, jabloň a strom u cesty 20 m²                                                                                                                                                                  | návrh Clauda                                         |
 | Nálet stromů u cest na poli jen na mezi (místa 2,5–4 m od osy); jabloně kdekoli podél cesty                                                                                                                                                                               | návrh Clauda                                         |
-| Luštěniny jako plodina na poli kvůli bílkovinám (1,6 g/kg zůstává); maso mírně zvyšuje štěstí                                                                                                                                                                             | Martin (18. 10. 2026)                                |
+| ~~Luštěniny jako plodina na poli~~ (zrušeno 9. 11. 2026) kvůli bílkovinám (1,6 g/kg zůstává); maso mírně zvyšuje štěstí                                                                                                                                                   | Martin (18. 10. 2026)                                |
 | Všechny stavby jde natáčet po 15°, plošné stavby každá ve vlastní natočené mřížce; pozemek se natočí celý, místo domu Tab                                                                                                                                                 | Martin (18. 10. 2026)                                |
 | Mřížka na pole / sad (počátek, natočení 15–75°), čtverce v ní; krajina pod čtvercem 5 × 5 body; překryvy ze skutečných ploch                                                                                                                                              | návrh Clauda                                         |
 | Navazování jen ve stejné mřížce; stavba přes pole v jiné mřížce mu vezme průnik; les vsi pole vymýtí jen po jeho čtvercích                                                                                                                                                | návrh Clauda                                         |
 | Hřbitov a ohrada se natáčejí taky – hřbitov ve vlastní mřížce jako pole, ohrada jako čtverec natočené mřížky                                                                                                                                                              | Martin (19. 10. 2026), návrh Clauda                  |
 | Ohrada bez volného středu (malování jednoho čtverce, střed ve středu políčka); model dat volný střed unese                                                                                                                                                                | rozhodnutí Clauda                                    |
-| Luštěniny = hrách a čočka, jař se sklizní v červenci; úroda 0,8 obilí, osivo 150 kg/ha, práce a neopletý díl podle rešerše                                                                                                                                                | návrh Clauda (rešerše)                               |
+| Luštěniny = hrách a čočka, jař se sklizní v červenci (od 9. 11. 2026 jen dorůstající ve starších vsích); úroda 0,8 obilí, osivo 150 kg/ha, práce a neopletý díl podle rešerše                                                                                             | návrh Clauda (rešerše)                               |
 | Osev luštěniny úrodnost vrátí o 0,03 (obilí −0,12); ztráta skladováním jako obilí                                                                                                                                                                                         | návrh Clauda (rešerše)                               |
 | Obilí má přednost: luštěniny na díly výběru od domu, obilí doplní energii, luštěniny smějí jít na rezervu osevu, ne pod potřebu                                                                                                                                           | návrh Clauda                                         |
 | Střídání: díly s loňskými luštěninami až nakonec; díly hotové během roku jen do jaře                                                                                                                                                                                      | návrh Clauda                                         |
@@ -2526,3 +2570,4 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Osivo pro ves bez zásob: osadníci nesou osivo na první osev (půl roční potřeby, 20 kg na nosiče, zbytek na voze); ves 1. 9. a 1. 3. koupí chybějící osivo za hřivny a krávy nad chovné (nejvýš jedna za nákup); to ves nesní (do 1. 6., při hladu ano)                    | Martin (27. 10. 2026), pravidla a čísla návrh Clauda |
 | Zakladatelé první vsi: jídlo na 3 roky a osivo na 2 roky potřeby; osivo jen na setí, 15 let se neuvolní a cíle osevu ho nepočítají za jídlo                                                                                                                               | Martin (2. 11. 2026), čísla návrh Clauda             |
 | Osev má přednost (Martin 6. 11. 2026): ves si do žní nechá jen přežívací zásobu (hlad do žní pod prahem úmrtí nejcitlivější skupiny bez 1 dne), ostatní zrno je osivo bez stropu podle jídla; co nezaseje, zůstane v zásobách                                             |
+| Luštěniny z polí vyřazené – ves je nesel, výběr dílů je nepřidělí; zásoba luštěnin zůstává zbožím (strava, obchod, platby); zasetá luštěnina starší vsi doroste, nezasetý díl přejde do jaře; zahrádky u obydlí později                                                   | Martin (9. 11. 2026), převod návrh Clauda            |

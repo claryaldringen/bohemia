@@ -43,7 +43,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`clearedLogs`) za díly, přes které došlo čelo vracení přílohu (`taskSpans('reclaim')`),
   a `fallowBeforeSeason.overgrowthYears` pryč (uvolněný díl se vrátí bez lesa). Ve dnech, kdy může
   začít ozim nebo jař (`sowingCropToday('first')`), `fieldSowingTargets` → `neededSelection`
-  (pořadí: len, obilí do `energyFloorKg`, luštěniny, obilí do `harvestKg`; v dávce obilí ozim
+  (pořadí: len, obilí do `energyFloorKg`, obilí do `harvestKg` – luštěniny nikdy; v dávce obilí ozim
   před jaří) → **čelo práce** (`workFront`, `frontRoom`, `WORK_FRONT_DAYS`): díl přibude, jen
   když rozdělaná příprava a setí v dnes otevřených oknech plodin se stejným nebo dřívějším
   koncem okna přípravy (`prepEnd`) je pod 3 dny volné práce (`freeLabor`) a orby
@@ -71,8 +71,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   začne ročním `share`) – úroda rok co rok na cílovou zásobu `storesTargetKg` = pojistka (`bufferKg`
   – `bufferEnergyYears` celé potřeby) + `cushionYears` roční potřeby z pole (zásoby z pole – obilí
   a luštěniny, `fieldStoresKg`; `storesNeeded` / `storesLeft` se ztrátami), odchylku od ní (přebytek
-  i schodek) vyrovná po třetinách, pod pojistkou doplní do pojistky hned; luštěniny potřeba bez
-  zbytku zásoby. **Ves s počasím kraje** (disasters.md – Co z toho plyne, Dopady) seje s průměrem
+  i schodek) vyrovná po třetinách, pod pojistkou doplní do pojistky hned (cíl luštěnin padl 9. 11. 2026 – `sowingTargets` vrací jen `harvestKg`). **Ves s počasím kraje** (disasters.md – Co z toho plyne, Dopady) seje s průměrem
   let – úroda obilí cíle ÷ `WEATHER.expectedYield` 0,95 (`sowingYieldFactor`) – a po krutém roce
   drží 10 let pojistku 0,75 (`bufferEnergyYearsOf`, paměť hladu – [village-disasters.md](village-disasters.md)).
   Nutné díly navíc ves uvolní (`neededSelection.release` v `seasonDay` – nouzové první, pak nejdál
@@ -177,10 +176,14 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     ([village-disasters.md](village-disasters.md) – Sucho, deštivé léto, krutá zima). Plán po plodinách
     prochází `seasonCrops`, všechny díly `seasonPartIds`. **Luštěniny** (fields.md – Luštěniny, Martin 18. 10. 2026): třetí plodina `legume` (`SeasonCrop` s `crop: 'legume'`, `LEGUME_WINDOWS` – jař se sklizní
     v červenci, `LEGUMES` a `LEGUME_WORK_PER_HA` v `rules*.ts`, úroda `cropGrossPerHa` /
-    `cropSeedPerHa`, `partWork(…, crop)`); cíl luštěnin `legumeTargetKg`
-    (`plannedLegumeKg` – rovnovážné hospodaření, diet.md, bez zásoby – `sowingTargets`) a `energyFloorKg`
-    pokrývá `neededSelection` (luštěniny od domu, loňské až nakonec – `sideCropOrder`);
-    sklizeň 31. 7. (zbytek 31. 8.) do `VillageState.legumesKg` (`harvestWinter`), osev úrodnost vrátí
+    `cropSeedPerHa`, `partWork(…, crop)`). **Z polí vyřazené (Martin 9. 11. 2026, fields.md –
+    Luštěniny, zrušeno):** `neededSelection` je nepřidělí, cíl luštěnin, `plannedLegumeKg`,
+    `legumeNeedPerYear` a `FoodCosts.legumePerKg` jsou pryč; pravidla a okna zůstala jen pro
+    dorůstající luštěniny starších vsí. Převod `withoutFieldLegumes` (`field-legumes.ts`, řetěz
+    převodů na začátku `advanceVillageSteps`, den `lastDay`): nezaseté díly luštěnin
+    (`unsownPartIds` z `field-progress.ts`) přejdou `moveParts` do nutné jaře i s přípravou půdy,
+    `part.crop = 'spring'`, prázdná plodina luštěnin zmizí; výběr z paměti (`season.selection`)
+    s luštěninami propadne i se `seedWaitingKg`. Zasetá luštěnina dál – sklizeň 31. 7. (zbytek 31. 8.) do `VillageState.legumesKg` (`harvestWinter`), osev úrodnost vrátí
     (`LEGUMES.fertilityGain` v `endOfSeason`). Scéna: `SceneFieldPart.crop: 'legume'` – trsy
     hrachu `crop-pea-green` / `crop-pea-ripe` a hromádky `pea-heap` v `crops.glb`.
     **Len** (fields.md – Len, diet.md – Oděv; Martin 19. 10. 2026: „na částech pole musí být zasetý
@@ -191,8 +194,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     (31. 7. v `harvestWinter`, nedotržený 31. 8. – `VillageState.linen` = podíl oděvu vůči `FarmSeason.flaxNeedKg`
     zapsané v `startSeason`; rok bez ní – starší ves, ves založená během roku – nic nezapíše, kronika
     `linen-short`), `linenUnhappiness` (`HappinessFactors.linen`, až `FLAX.unhappiness` 4).
-    Len a luštěniny bere `neededSelection` (místo jaře, len od konce – vysiluje půdu, delší příloh
-    neleží domům v cestě; luštěniny od domu – `sideCropOrder`; loňská plodina až nakonec). Trhání
+    Len bere `neededSelection` (místo jaře, od konce – vysiluje půdu, delší příloh neleží domům
+    v cestě; loňský len až nakonec – `flaxOrder` v `sowing.ts`). Trhání
     v červenci napřed (`CROP_ORDER` – len první); díly nad potřebu len neubírají. Zpracování je v domácí výrobě
     (přerozdělení), žádná zásoba v liště. Web: `SceneFieldPart.crop: 'flax'` a `bloom` (červen –
     `FLAX_BLOOM_MONTH` ve `village-view-fields.ts`), scéna `FLAX_STYLES` / `FLAX_BLOOM` ve `field-crops.ts`
@@ -209,8 +212,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `rest`; díl v sezóně null), `sowingCropToday` (ozim, dokud po dnešku zbývá den setí ozimu, pak
   jař v oknech kopání; díl po ozimu jen jař), `rotateAfterSeason` (1. 9.: úrodnost jako `endOfSeason`, ozim / obilní jař jako první
   osev od 70 % → `ready` + `FieldPart.next`, jinak úhor bez bonusu) a `neededSelection` (k práci
-  plánu přibírá díly na řadě v pořadí `sowingBlocks` – len od konce, luštěniny od domu, napřed
-  díly po ozimu (`sideCropOrder` v `sowing.ts`), obilí do `harvestKg`, nouzové přílohy až za
+  plánu přibírá díly na řadě v pořadí `sowingBlocks` – len od konce, napřed díly po ozimu
+  (`flaxOrder` v `sowing.ts`), obilí do `harvestKg`, nouzové přílohy až za
   ostatními; nezačaté obilí nad toleranci `FIELD_STORES.trimMarginYears` vrátí v `release`).
   `sowingGroup` dává připravenému dílu s `next` skupinu 1. Sem se přesunuly i `sowParts`
   a `reclaimedLogs`.
@@ -233,7 +236,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   plánu, tj. osivo zaseté části odpustí; `harvestKg` osivo neodečítá nikdy). Polní úlohy
   (`fieldTasks` v `simulate-work.ts`) omezí setí na `seedSowCap` (zasetý podíl ≤ (vzaté +
   `sowableSeedKg`) / osivo plánu); po práci `takeSeed` vezme osivo zasetého podílu (obilí ze
-  `storesKg` + `drawGrainPits`, luštěniny z `legumesKg`, chybějící luštěniny za obilí). Obilí nad
+  `storesKg` + `drawGrainPits`, dosévané luštěniny starších vsí jen z `legumesKg` – výměna za
+  obilí zrušená 9. 11. 2026). Obilí nad
   potřebu (`surplus-fields.ts`, `sowableSeedKg(…, false, day)`) jen z osiva, na které nutné díly
   nečekají (`seedAheadKg(state, true, day)`). **Osev má přednost** (6. 11. 2026): `sowableSeedKg(state,
 store, keepKg)` = osivo jen na setí + všechno zrno nad přežívací zásobu `keepKg` = `seedKeepKg`
@@ -261,7 +265,7 @@ store, keepKg)` = osivo jen na setí + všechno zrno nad přežívací zásobu `
   rezervu, pak zbytek zásob (oprava 2. 11. 2026, dřív rezervu napřed).
   `seed-buying.ts` (`seedBuyingDay` v `simulateDay` po `startPurchases`): 1. 6.
   (`SEED_BUYING.releaseDay`) ho smaže; 1. 9. a 1. 3. (`SEED_BUYING.days`) `seedShortKg` = osivo
-  nutných dílů (`seedAheadKg(state, true)` – bez `surplus`, chybějící luštěniny za obilí) −
+  nutných dílů (`seedAheadKg(state, true).grain` – bez `surplus`) −
   `sowableSeedKg`; od `minKg` `buySeed`: zásoba obilí sousedů (`neighbourStock` ve směrech
   `NEIGHBOR_DIRECTIONS`, ubude `storeStock`), cena `buyPrice('grain')`, platba hřivny → krávy
   `surplusCows` (husbandry.ts – nad krávy na mléko a voly, jako porážka; od 2. 11. 2026, dřív
