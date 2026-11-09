@@ -429,7 +429,8 @@ function* simulateDaySteps(
     return;
   }
   // Sklizeň a ztráta nevymláceného až po jídle (Ruling 13) – 31. 8. se jí ještě z loňských
-  // zásob, jak počítá daysUntilHarvest (31. 8. → 1 den); ozim stejně 31. 7.
+  // zásob, jak počítá daysUntilHarvest (31. 8. → 1 den); ozim stejně 31. 7. (co červenec
+  // nedosklidil, 31. 8. s jaří – fields.md, Žně i v srpnu)
   if (isOn(date, WINTER_HARVEST_DAY)) harvestWinter(state, day);
   if (isOn(date, HARVEST_DAY)) {
     harvest(state, day);

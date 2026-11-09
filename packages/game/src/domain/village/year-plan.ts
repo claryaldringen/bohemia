@@ -506,6 +506,8 @@ export function activeTasks(
  * práce z doby před tím – převod `withSeedForgiven`). Pletí a sklizeň se měří jen
  * vůči zaseté části (Ruling 17) – částečné setí se tak nepromítne do úrody dvakrát. Díl
  * v první sezóně po vymýcení lesa pletí nepotřebuje, nedodělané pletí ostatních ho nesráží.
+ * `fromDone` – práce žně (člověkodny), jejíž úroda už je ve snopech (červencová žeň –
+ * `CropWork.sheaved`): úroda jen ze žně po ní.
  */
 export function harvestKg(
   work: CropWork,
@@ -513,17 +515,32 @@ export function harvestKg(
   day: number,
   crop: Crop = 'spring',
   losses?: PartLosses,
+  fromDone = 0,
 ): number {
+  const workable = workableRequired(work, 'harvest');
+  const before = workable > 0 ? Math.min(1, fromDone / workable) : 0;
   // osivo vzala ze zásob už setí
   return cropYieldKg(
     work,
     parts,
     day,
     planShare(work, 'sow'),
-    workedShare(work, 'harvest'),
+    Math.max(0, workedShare(work, 'harvest') - before),
     crop,
     losses,
   );
+}
+
+/**
+ * Práce výmlatu sklizené úrody plodiny (člověkodny – `taskRemaining` výmlatu) bez výmlatu úrody,
+ * která už je ve snopech (`fromDone` – práce žně červencové žně, `CropWork.sheaved`).
+ */
+export function threshRemainingAfter(work: CropWork, fromDone = 0): number {
+  const sheaved =
+    work.required.harvest > 0
+      ? (work.required.thresh * Math.min(fromDone, work.required.harvest)) / work.required.harvest
+      : 0;
+  return Math.max(0, taskRemaining(work, 'thresh') - sheaved);
 }
 
 /**

@@ -208,9 +208,18 @@ describe('díly nad potřebu po stavbách', () => {
     const reaped = advanceVillage(june, at(601, 7, 31), null);
     const lost = advanceVillage(july, at(601, 7, 31), null);
     expect(surplusCrop(reaped.season!, 'winter')!.harvestedKg).toBeGreaterThan(0);
-    // co žně do konce okna nesklidí, propadne
-    expect(surplusCrop(lost.season!, 'winter')!.done.harvest).toBe(0);
-    expect(surplusCrop(lost.season!, 'winter')!.harvestedKg).toBe(0);
+    // co červenec nesklidí, zůstane na poli a žne se v srpnu (fields.md – Žně i v srpnu)
+    const standing = surplusCrop(lost.season!, 'winter')!;
+    expect(standing.done.harvest).toBe(0);
+    expect(standing.harvestedKg).toBeNull();
+    expect(standing.sheaved).toEqual({ harvest: 0, kg: 0 });
+    // co žně do konce okna (31. 8.) nesklidí, propadne
+    const august = structuredClone(lost);
+    august.constructions = [bigBuild(at(601, 7, 31))];
+    const late = advanceVillage(august, at(601, 8, 31), null);
+    const unreaped = surplusCrop(late.threshingSeason, 'winter')!;
+    expect(unreaped.done.harvest).toBe(0);
+    expect(unreaped.harvestedKg).toBe(0);
   }, 120_000);
 
   it('díl nad potřebu se stane nutným, když potřeba vzroste – hotová práce zůstane', () => {

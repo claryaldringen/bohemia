@@ -52,9 +52,12 @@ export interface SowingCapacity {
   autumn: number;
   /** Březen–duben: setí jaře a kopání, které podzim nestihl. */
   spring: number;
-  /** Červenec: sklizeň ozimu a luštěnin. */
+  /** Červenec: žeň ozimu, luštěnin a lnu (co nestihne, přejde do srpna – `harvestOverflow`). */
   july: number;
-  /** Srpen: sklizeň jaře a výmlat ozimu a luštěnin hned po žni (production-chains.md – Humno). */
+  /**
+   * Srpen: žeň jaře, zbytek žně ozimu, luštěnin a lnu z července (fields.md – Žně i v srpnu)
+   * a výmlat ozimu a luštěnin hned po žni (production-chains.md – Humno).
+   */
   august: number;
   /**
    * Orba spřežení v člověkodnech orby (oxen.md – Jen rádlo) – jen ves, která orá: září–říjen
@@ -179,23 +182,53 @@ export function cropLoadOf(planned: SowingLoad): CropLoad {
 }
 
 /**
+ * Úseky okna `segments` bez měsíců okna `other` (měsíce včetně; úseky po sobě).
+ */
+function withoutMonths(
+  segments: readonly WindowSegment[],
+  other: readonly WindowSegment[],
+): WindowSegment[] {
+  const result: [number, number][] = [];
+  for (const [from, to] of segments) {
+    for (let month = from; month <= to; month++) {
+      if (other.some(([a, b]) => month >= a && month <= b)) continue;
+      const last = result.at(-1);
+      if (last && last[1] === month - 1) last[1] = month;
+      else result.push([month, month]);
+    }
+  }
+  return result;
+}
+
+/**
  * Měsíce oken volné práce `SowingCapacity` (lidé): podzim ozimu září–říjen, vrácení přílohu
- * a kopání září–listopad i březen–duben, jaro březen–duben, sklizeň ozimu červenec, sklizeň jaře
- * a výmlat srpen. Podle nich `sowingCapacity` i podíl dne rodiny na osevu (`lordHelpShare`).
+ * a kopání září–listopad i březen–duben, jaro březen–duben, červenec (žeň ozimu, luštěnin a lnu
+ * před oknem žně jaře), sklizeň jaře, zbytek žně z července a výmlat srpen. Podle nich
+ * `sowingCapacity` i podíl dne rodiny na osevu (`lordHelpShare`).
  */
 export const SOWING_CAPACITY_WINDOWS: Readonly<Record<LordHelpWindow, readonly WindowSegment[]>> = {
   autumnWinter: WINTER_WINDOWS.sow,
   autumn: WINDOWS.reclaim,
   spring: WINDOWS.sow,
-  july: WINTER_WINDOWS.harvest,
+  july: withoutMonths(WINTER_WINDOWS.harvest, WINDOWS.harvest),
   august: WINDOWS.harvest,
 };
+
+/**
+ * Žeň ozimu, luštěnin a lnu, kterou červenec nestihne (člověkodny – fields.md, Žně i v srpnu):
+ * zátěž července nad volnou prací července (`julyWork` – i s prací rodiny, která v červenci
+ * pomůže) přejde do srpna, kde jde před žní jaře (CROP_ORDER).
+ */
+export function harvestOverflow(load: CropLoad, julyWork: number): number {
+  return Math.max(0, load.july - julyWork);
+}
 
 /**
  * Podíl dne mužů cvičící vojvodovy rodiny po oknech, aby ves stihla výběr osevu `load`
  * (lord.md – Kdy jde rodina na pole, bod 1): chybějící práce (zátěž nad volnou prací vsi bez
  * rodiny `village`) ÷ práce rodiny v okně (`withLord − village`), nejvýš 1. Podzim ozimu,
- * červenec a srpen přímo. Jař jako `fitsSpring` – vrácení a kopání na podzim, kolik po ozimu
+ * červenec a srpen přímo – žeň, kterou červenec nestihne ani s rodinou, přejde do srpna
+ * (`harvestOverflow`). Jař jako `fitsSpring` – vrácení a kopání na podzim, kolik po ozimu
  * zbude (i s pomocí rodiny v září–říjnu), zbytek se setím na jaře: co chybí, dá rodina napřed na
  * jaře (`lordHelpDay` ho každý den přepočítá podle skutečného zbytku) a co jaro nepokryje ani
  * s celou rodinou, z podzimu jaře (návrh Clauda). Podzim jaře zahrnuje i září–říjen, kde už rodina
@@ -217,8 +250,9 @@ export function lordSowingHelp(
     return share * family;
   };
   const autumnWinter = add('autumnWinter', load.winterAutumn - village.autumnWinter);
-  add('july', load.july - village.july);
-  add('august', load.august - village.august);
+  // co červenec nestihne ani s rodinou, se žne v srpnu (fields.md – Žně i v srpnu)
+  const july = add('july', load.july - village.july);
+  add('august', load.august + harvestOverflow(load, village.july + july) - village.august);
   const autumnLeft = Math.max(0, village.autumn + autumnWinter - load.winterAutumn);
   const over = Math.max(0, load.springReclaim + load.springDig - autumnLeft);
   const short = load.springSow + over - village.spring;

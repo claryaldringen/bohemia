@@ -24,8 +24,8 @@ const inSegments = (segments: readonly WindowSegment[], month: number): boolean 
   segments.some(([from, to]) => month >= from && month <= to);
 
 /**
- * Měsíce oken žní a výmlatu všech plodin (CROP_WINDOWS – ozim a luštěniny žeň v červenci, výmlat
- * v srpnu, jař žeň v srpnu, výmlat v září).
+ * Měsíce oken žní a výmlatu všech plodin (CROP_WINDOWS – ozim, luštěniny a len žeň v červenci
+ * a srpnu, výmlat v srpnu a září; jař žeň v srpnu, výmlat v září – fields.md, Žně i v srpnu).
  */
 export const HARVEST_HANDS_MONTHS: ReadonlySet<number> = new Set(
   CROP_ORDER.flatMap((crop) =>
