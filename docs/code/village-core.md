@@ -558,7 +558,8 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
 - **Upozornění vsi do kroniky** (absence.md – Upozornění vsi do kroniky,
   `domain/village/lasting-notices.ts`): podmínky trvalých stavů jsou v jádře –
   `lastingNotices(state, day)` vrací `LastingNotice[]` v pořadí `LASTING_NOTICES`: stupně hladu
-  vnořeně (`rationing` ⊂ `hungry` ⊂ `starving` z `hungerLevel`), `stalled`
+  vnořeně (`rationing` ⊂ `hungry` ⊂ `starving` z `hungerLevel`; `seed-rationing` místo
+  `rationing`, když ves šetří jen kvůli osivu – `VillageState.seedRation`), `stalled`
   (`constructionsStalled`), dílny bez vstupu (`no-charcoal`, `no-ore`, `no-clay`, `no-wood`,
   `carpenter-no-wood` – jen obydlené, `workshopActivity`), `pen-short` (`herdsOverRoom` – jeden stav za všechny druhy, stáda přerůstají ohrady každé jaro),
   `oxen-short` (`oxenOverRoom`), `horses-short` (`horsesOverRoom`), `horses-ungrained`
@@ -573,6 +574,11 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   `noticeStates` (uložená dřív) začne sledovat od prvního dopočítaného dne – převod není
   potřeba; prázdné stavy se neukládají. Denní `hunger-began` / `hunger-ended` zůstávají pro
   deník vsí (`year-log.ts`), panel Kronika je neukazuje.
+- **Šetří na osivo** (`VillageState.seedRation?: true`; absence.md – Upozornění vsi do kroniky):
+  `eat` (`simulate-food.ts`) v den, kdy ves šetří a drží osivo, které nejí (`seedGrain` –
+  `uneatenSeedKg` v `dayMealInput`), spočte jídlo ještě jednou se zrnem celých zásob (`eatsFull`);
+  jedla by plně → `seedRation`, jinak se smaže. Starší vsi ho dostanou s jídlem dalšího dne.
+  Web: `VillageView.seedRationing` → řádek „Ves šetří na osivo“ (`village-notices.ts`).
 
 - **Krajina sídla** se na serveru drží v LRU mezipaměti (`packages/server/src/landscape-cache.ts`, port
   `LandscapeSource` v `enterGame`) – negeneruje se při každé akci a dotazu. Vrstva překážek

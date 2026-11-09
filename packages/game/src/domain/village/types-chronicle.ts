@@ -44,12 +44,15 @@ export interface WeddingCouple {
 
 /**
  * Trvalé stavy vsi z upozornění, které se zapisují do kroniky (absence.md – Upozornění vsi do
- * kroniky): stupně hladu (vnořené – hladovějící ves i šetří), stavby stojí, dílny bez vstupu,
+ * kroniky): stupně hladu (vnořené – hladovějící ves i šetří; šetření jen kvůli osivu je
+ * `seed-rationing`), stavby stojí, dílny bez vstupu,
  * stáda bez místa v ohradách (jeden stav za všechny druhy), voli a koně bez místa, koně a psi bez obilí, výmlat bez
  * humna a humno nestačí. Pořadí je pořadí zápisu v jednom dni.
  */
 export type LastingNotice =
   | 'rationing'
+  /** Ves šetří jen kvůli osivu, které nejí – půst do setí (`VillageState.seedRation`). */
+  | 'seed-rationing'
   | 'hungry'
   | 'starving'
   | 'stalled'

@@ -457,6 +457,7 @@ export function buildVillageView(
     hungry: summary.hungry,
     starving: summary.starving,
     hunger: summary.hunger,
+    ...(state.seedRation === true ? { seedRationing: true } : {}),
     constructionsStalled: summary.constructionsStalled,
     happiness: {
       value: summary.happiness.value,

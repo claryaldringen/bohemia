@@ -3,8 +3,10 @@ import { dayIndexOf } from '../../calendar';
 import { foundVillage, type PartInput } from '../actions';
 import { newWorkshop } from '../crafts';
 import { lastingNotices, noticeStatesDay } from '../lasting-notices';
+import { NO_CRAFTS } from '../productivity';
 import { NOTICE_CHRONICLE_MIN_DAYS, STARVATION } from '../rules';
 import { advanceVillage } from '../simulate';
+import { eat } from '../simulate-food';
 import type {
   ChronicleEvent,
   Craft,
@@ -106,6 +108,45 @@ describe('lastingNotices – trvalé stavy vsi z upozornění', () => {
     expect(lastingNotices(s, START).slice(0, 2)).toEqual(['rationing', 'hungry']);
     s.starvationDays = Math.max(...Object.values(STARVATION.threshold)) + 1;
     expect(lastingNotices(s, START).slice(0, 3)).toEqual(['rationing', 'hungry', 'starving']);
+  });
+
+  it('šetření jen kvůli osivu je „šetří na osivo“ – hlad a umírání hlady zůstanou', () => {
+    const s = village();
+    setHunger(s, 'rationing');
+    s.seedRation = true;
+    expect(lastingNotices(s, START).filter((n) => n.endsWith('ing'))).toEqual(['seed-rationing']);
+    setHunger(s, 'hungry');
+    expect(lastingNotices(s, START).slice(0, 2)).toEqual(['seed-rationing', 'hungry']);
+    s.starvationDays = Math.max(...Object.values(STARVATION.threshold)) + 1;
+    expect(lastingNotices(s, START).slice(0, 3)).toEqual(['seed-rationing', 'hungry', 'starving']);
+  });
+
+  it('jídlo dne: šetří na osivo, jen když by se snědeným osivem jedla plně', () => {
+    // dost obilí do sklizně, skoro všechno osivo jen na setí – ves šetří kvůli osivu
+    const seed = village();
+    seed.storesKg = 20_000;
+    seed.reservedSeedKg = 19_900;
+    eat(seed, START, NO_CRAFTS);
+    expect(seed.hungry).toBe(true);
+    expect(seed.seedRation).toBe(true);
+    expect(lastingNotices(seed, START)).toContain('seed-rationing');
+    expect(lastingNotices(seed, START)).not.toContain('rationing');
+    // obilí nestačí ani s osivem – ves šetří jídlem
+    const short = village();
+    short.storesKg = 100;
+    short.reservedSeedKg = 50;
+    eat(short, START, NO_CRAFTS);
+    expect(short.hungry).toBe(true);
+    expect(short.seedRation).toBeUndefined();
+    expect(lastingNotices(short, START)).toContain('rationing');
+    // dost jídla i bez osiva – nešetří, příznak zmizí
+    const fed = village();
+    fed.storesKg = 20_000;
+    fed.reservedSeedKg = 100;
+    fed.seedRation = true;
+    eat(fed, START, NO_CRAFTS);
+    expect(fed.hungry).toBe(false);
+    expect(fed.seedRation).toBeUndefined();
   });
 
   it('dílny bez vstupu – jen obydlené; tesař bez dřeva zvlášť', () => {
@@ -227,5 +268,26 @@ describe('advanceVillage – trvalé stavy', () => {
         (e) => e.kind === 'notice-began' && e.notice === 'rationing',
       ),
     ).toBe(true);
+  }, 120_000);
+
+  it('šetření na osivo: po kouscích stejně jako vcelku, do kroniky „seed-rationing“', () => {
+    const start = village();
+    start.storesKg = 20_000;
+    start.reservedSeedKg = 19_900;
+    const end = start.lastDay + 40;
+    const whole = advanceVillage(start, end, null);
+    let chunked = start;
+    const steps = [1, 3, 10];
+    for (let i = 0; chunked.lastDay < end; i++) {
+      chunked = advanceVillage(
+        chunked,
+        Math.min(end, chunked.lastDay + steps[i % steps.length]!),
+        null,
+      );
+    }
+    expect(chunked).toEqual(whole);
+    const began = noticeEvents(whole.chronicle).filter((e) => e.kind === 'notice-began');
+    expect(began.map((e) => e.notice)).toContain('seed-rationing');
+    expect(began.map((e) => e.notice)).not.toContain('rationing');
   }, 120_000);
 });

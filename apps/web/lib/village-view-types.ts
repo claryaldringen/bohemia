@@ -624,6 +624,11 @@ export interface VillageView {
    * hladoví (pod 90 %), lidé umírají hlady.
    */
   hunger: HungerLevel;
+  /**
+   * Ves šetří jen kvůli osivu, které nejí (`VillageState.seedRation` – absence.md, Upozornění vsi
+   * do kroniky): řádek „Ves šetří na osivo“ místo „Ves šetří jídlem“; chybí = ne.
+   */
+  seedRationing?: true;
   /** Stavby stojí – několik dní po sobě nezbyla žádná společná práce. */
   constructionsStalled: boolean;
   /** Štěstí obyvatel (happiness.md) – horní lišta. */

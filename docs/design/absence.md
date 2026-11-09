@@ -86,7 +86,7 @@ a kroniku.“
   nebyla zaplavená; půst v okně setí a zimní šetření na osivo nejsou hlad – zapíší se jako „Ves
   šetří na osivo“). Hráč, který se vrátí po delší době, tak v kronice uvidí, co se mezitím dělo.
   - **Stavy a zápisy** (začátek / konec): ves šetří jídlem – zásoby nevystačí do sklizně / už
-    nešetří; ves hladoví / hlad skončil; lidé umírají hlady / už neumírají (stupně jsou vnořené –
+    nešetří; ves šetří na osivo / už nešetří na osivo; ves hladoví / hlad skončil; lidé umírají hlady / už neumírají (stupně jsou vnořené –
     hladovějící ves i šetří); stavby stojí / zase se na nich pracuje; kovář nemá uhlí, rudu,
     hrnčíř hlínu, dílna nemá co kácet, tesař nemá klády / … má zase …; stáda se nevejdou do ohrad
     (jeden zápis za všechny druhy – návrh Clauda), voli a koně se nevejdou do ohrady / zase se
@@ -100,9 +100,13 @@ a kroniku.“
     úhyn, škody zvěře a vlci, počasí a pohromy – jsou v kronice jako události samy; rodina čeká na
     dům je běžný stav růstu vsi, ne nouze. Dřívější denní zápisy začátku a konce hladu kronika
     neukazuje (zůstávají pro deník vsí).
-  - **Ves šetří na osivo – otevřené:** dnešní stav vsi půst kvůli osivu od hladu neodliší
-    (příděl ze zásob do sklizně osivo vždy vynechá); zapíše se, až osivo v okně setí přinese
-    vlastní údaj ve stavu vsi.
+  - **Ves šetří na osivo** (Martin 9. 11. 2026: „Bude hladovět max ty dva měsíce – to není
+    hladovění, ale spíš půst“; ~~otevřené~~ – uzavřeno 9. 11. 2026, implementováno): ves, která jí
+    na příděl jen proto, že drží osivo (hromada osiva okna setí, zimní osivo, osivo jen na setí) –
+    se snědeným osivem by jedla plně –, šetří **na osivo**: řádek „Ves šetří na osivo“ a v kronice
+    „Ves šetří na osivo.“ / „Ves už nešetří na osivo.“ místo „Ves šetří jídlem“. Jinak dosavadní
+    „Ves šetří jídlem“. Hlad (příděl pod 90 %) a umírání hlady zůstávají, i když je způsobí osivo
+    – hlad se sčítá stejně (návrh Clauda).
 
 ## Opuštěný rod
 
