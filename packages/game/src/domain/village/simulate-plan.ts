@@ -890,4 +890,9 @@ export interface DayTask {
   field?: FieldTaskEntry;
   /** Výmlat snopů plodiny (production-chains.md – Humno). */
   thresh?: ThreshTask;
+  /**
+   * Seč je otava (2. seč – oxen.md, Seno, dvě seče): jde až za orbou a setím ozimu
+   * (`DAY_WORK_ORDER` – fields.md, Pořadí důležitosti polních prací a výmlat do zimy).
+   */
+  aftermath?: true;
 }

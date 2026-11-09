@@ -63,7 +63,7 @@ import {
   type PloughTravels,
 } from './plough-trip';
 import { isToilDay, windowEndDay } from './happiness';
-import { mow, mowingNeededRemaining, mowingRemaining, recordMowingLabor } from './hay';
+import { mow, mowingCut, mowingNeededRemaining, mowingRemaining, recordMowingLabor } from './hay';
 import { adultHerding, herdingDay, recordHerding } from './herding';
 import { horseCareLabor, villageHorses } from './horses';
 import { finishShoeing, planShoeing } from './horse-shoeing';
@@ -386,7 +386,7 @@ export function dayWorkGroup(task: DayTask): DayWorkGroup {
     case 'thresh':
       return 'thresh';
     case 'mow':
-      return 'hay';
+      return task.aftermath ? 'aftermath' : 'hay';
     case 'orchard-harvest':
       return 'apples';
     case 'orchard-care':
@@ -406,11 +406,11 @@ export function dayWorkGroup(task: DayTask): DayWorkGroup {
  * Pořadí úloh dne v rozdělení práce (fields.md – Pořadí důležitosti polních prací a výmlat do
  * zimy; Martin 9. 11. 2026: „Je lepší za každou cenu sklidit to, co už vyrostlo, než začínat
  * pěstování úplně od začátku“): napřed skupina úlohy (`DAY_WORK_ORDER` – výmlat na dnešní jídlo,
- * porážka, žeň obilí, trhání lnu, nutná seč, jablka, pletí, výmlat na osivo, příprava půdy
- * a setí, péče o sad,
- * hlídka polí, výmlat, obilné jámy, dospělý pasák), v přípravě půdy orba rádlem první (oxen.md –
- * Orba má přednost; Martin 24. 10. 2026: „Co může být přednějšího než orba?“ – spřežení potřebuje
- * jen oráče, jinak voli stojí), pak nejbližší konec okna, přednost (`tie`) a pořadí úloh.
+ * porážka, žeň obilí, trhání lnu, nutná 1. seč, jablka, pletí, výmlat na osivo, příprava půdy
+ * a setí, nutná otava, péče o sad, hlídka polí, výmlat, obilné jámy, dospělý pasák), v přípravě
+ * půdy orba rádlem první (oxen.md – Orba má přednost; Martin 24. 10. 2026: „Co může být
+ * přednějšího než orba?“ – spřežení potřebuje jen oráče, jinak voli stojí), pak nejbližší konec
+ * okna, přednost (`tie`) a pořadí úloh.
  */
 export function dayTaskOrder(a: DayTask, b: DayTask): number {
   const group = (t: DayTask): number => DAY_WORK_ORDER.indexOf(dayWorkGroup(t));
@@ -546,12 +546,21 @@ export function work(
     const tie = orchard.name === ORCHARD_TASK_NAMES.harvest ? 0 : 2;
     dayTasks.push({ ...orchard, tie, rank: 0 });
   }
-  // seč (oxen.md – Seno, dvě seče): nutné seno (dnešní stádo) za žní obilí a trháním lnu, před
-  // jablky, pletím, orbou a setím i výmlatem (fields.md – Pořadí důležitosti polních prací –
-  // 3. sklizeň sena); seč navíc pro růst stád až z práce po stavbách (níž)
+  // seč (oxen.md – Seno, dvě seče): nutné seno (dnešní stádo) 1. seče za žní obilí a trháním lnu,
+  // před jablky, pletím, orbou a setím i výmlatem (fields.md – Pořadí důležitosti polních prací –
+  // 3. sklizeň sena); otava až po orbě a setí ozimu (Martin 9. 11. 2026); seč navíc pro růst stád
+  // až z práce po stavbách (níž)
   const neededMowing = mowingNeededRemaining(state, day);
   if (neededMowing > EPSILON) {
-    dayTasks.push({ name: 'mow', remaining: neededMowing, end: Infinity, tie: 3, rank: 1 });
+    const cut = state.hay?.mowing ? mowingCut(state.hay.mowing) : 1;
+    dayTasks.push({
+      name: 'mow',
+      remaining: neededMowing,
+      end: Infinity,
+      tie: 3,
+      rank: 1,
+      ...(cut === 2 ? { aftermath: true as const } : {}),
+    });
   }
   // porážka a uzení – maso se musí zpracovat hned, hned za výmlatem na dnešní jídlo (diet.md)
   const butchery = slaughterRemaining(state, day);

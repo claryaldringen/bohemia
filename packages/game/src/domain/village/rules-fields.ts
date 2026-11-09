@@ -312,9 +312,11 @@ export const CROP_ORDER: readonly Crop[] = ['flax', 'winter', 'legume', 'spring'
  * důležitosti: 1. sklizeň obilí 2. sklizeň lnu 3. sklizeň sena 4. orba a setí 5. výmlat“; doplněno
  * návrhem Clauda, Martin „Ano, jak navrhuješ“): skupiny úloh dne v pořadí, ve kterém dostanou práci,
  * když jí ves nemá na všechno – výmlat na dnešní jídlo, žeň a odnos obilí (i luštěnin), trhání lnu,
- * nutná seč, sklizeň jablek, pletí, příprava půdy a setí (vrácení přílohu s klučením, kopání, orba,
- * setí), noční hlídka polí, výmlat. Uvnitř skupiny nejbližší konec okna; v přípravě půdy orba
- * rádlem první (oxen.md – Orba má přednost: spřežení potřebuje jen oráče, jinak voli stojí).
+ * nutná seč (jen 1. seč), sklizeň jablek, pletí, příprava půdy a setí (vrácení přílohu s klučením,
+ * kopání, orba, setí), noční hlídka polí, výmlat. Nutná otava (2. seč – oxen.md, Seno, dvě seče)
+ * až po orbě a setí ozimu (Martin 9. 11. 2026: „Otava až po orbě a setí ozimu“; návrh Clauda: hned
+ * za přípravou půdy). Uvnitř skupiny nejbližší konec okna; v přípravě půdy orba rádlem první
+ * (oxen.md – Orba má přednost: spřežení potřebuje jen oráče, jinak voli stojí).
  * Návrh Clauda pro úlohy mimo seznam: porážka hned za výmlatem na jídlo (maso se musí zpracovat
  * hned), výmlat na osivo (THRESHING.seedDays – ve snopech zrno na setí není) před přípravou půdy,
  * péče o sad za přípravou půdy, obilné jámy (zrno z výmlatu) a dospělý pasák za výmlatem.
@@ -330,6 +332,7 @@ export const DAY_WORK_ORDER = [
   'weeding',
   'seed-thresh',
   'tillage',
+  'aftermath',
   'orchard-care',
   'watch',
   'thresh',

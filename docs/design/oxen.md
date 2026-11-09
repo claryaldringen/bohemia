@@ -410,6 +410,11 @@ schválený Martinem 25. 10. 2026 (nahrazují seč 1. 6. – 31. 7. a „seč co
    práce** na hektar – kosí se celá plocha (≈ 2,5 čd/ha), obracení, hrabání a svoz jen podle
    hmoty a otava v kratších a rosnějších dnech schne pomaleji (návrh Clauda). Tuna sena z otavy
    tak stojí ≈ 1,5× víc práce – napřed se seče 1. seč, otava jen dorovná, co ve stohu chybí.
+   **Od 9. 11. 2026 jde nutná otava až po orbě a setí ozimu** (Martin 9. 11. 2026: „Otava až po
+   orbě a setí ozimu“; [fields.md](fields.md) – Pořadí důležitosti polních prací a výmlat do
+   zimy): v pořadí práce dne hned za přípravou půdy a setím, 1. seč dál před nimi. V září, kdy ves
+   orá a seje ozim, otava dostane jen práci, která zbude – Vlkov 871: otava 309 → 12 čd, seno
+   k 30. 9. o 9,7 t méně, k 31. 3. zbylo 0,6 t (dřív 9,8 t); zimní krmení i tak celé.
 2. **Kolik.** Seče se tolik, kolik stáda sní: **strop** = seno na zimu pro stáda v cílové velikosti
    (co dovolí pastva, les, pasáci a místa v ohradách – pořadí voli → krávy → ovce → kozy →
    prasata, i s letošními mláďaty), voly ohrad a koně **a 20 % rezervy**, bez zásoby ve stohu.
@@ -832,9 +837,9 @@ Kapacita rádel (`ploughCap`) se nemění.
 **Nahrazeno (9. 11. 2026)** pořadím důležitosti polních prací ([fields.md](fields.md) – Pořadí
 důležitosti polních prací a výmlat do zimy; Martin 9. 11. 2026: „Je lepší za každou cenu sklidit
 to, co už vyrostlo, než začínat pěstování úplně od začátku“): orba a setí jdou za sklizní obilí,
-lnu, sena a jablek, za pletím a výmlatem na osivo, před noční hlídkou polí a výmlatem. **Uvnitř
-přípravy půdy a setí má orba rádlem přednost dál** (návrh Clauda – spřežení potřebuje jen oráče,
-jinak voli stojí).
+lnu, sena (jen 1. seč – otava až za orbou a setím ozimu, Martin 9. 11. 2026) a jablek, za pletím
+a výmlatem na osivo, před noční hlídkou polí a výmlatem. **Uvnitř přípravy půdy a setí má orba
+rádlem přednost dál** (návrh Clauda – spřežení potřebuje jen oráče, jinak voli stojí).
 
 ## Co hráč vidí
 
