@@ -121,7 +121,13 @@ export interface DayAllocationInput {
    * `householdElders` – `householdWaterLabor`); bez údaje 0. Kryjí ji starší jako zbytek minima.
    */
   householdWater?: readonly number[];
-  tasks: { name: LaborTaskName; remaining: number }[];
+  /**
+   * Úlohy dne v pořadí přednosti. `follow` – setí týž den hned za orbou nebo motykou (fields.md –
+   * Práce; Martin 9. 11. 2026: „Za oráčem by měl jít někdo z rodiny a rovnou zasívat“): úloha
+   * dostane práci i na setí za sebou (`ratio` člověkodnů setí na člověkoden úlohy) a ta připadne
+   * úloze setí `index` – setí jde stejným tempem jako příprava půdy, i když práce nestačí.
+   */
+  tasks: { name: LaborTaskName; remaining: number; follow?: { index: number; ratio: number } }[];
   /** Pokrytí nádobami 0–1 – posouvá denní minimum mezi mezemi (crafts.md). */
   potteryCoverage: number;
   /**
@@ -297,11 +303,15 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
           0,
           weedLeft - weedPace * Math.max(0, input.weedDaysLeft - 1 - WEEDING_WOMEN.spareDays),
         );
-  const allot = (task: { name: LaborTaskName; remaining: number }, i: number): void => {
+  // práce setí za orbou a motykou (`follow`) – přičte se úloze setí po rozdělení
+  const followAmounts = input.tasks.map(() => 0);
+  const allot = (task: DayAllocationInput['tasks'][number], i: number): void => {
     let amount = taskAmounts[i] ?? 0;
+    // s úlohou i setí za ní – práce úlohy a setí v poměru `ratio`
+    const pair = 1 + Math.max(0, task.follow?.ratio ?? 0);
     // pletí mužů (a vše za ním) jen do jejich dílu
     const remaining =
-      task.name === 'weed' ? Math.min(task.remaining, amount + menWeed) : task.remaining;
+      (task.name === 'weed' ? Math.min(task.remaining, amount + menWeed) : task.remaining) * pair;
     const before = amount;
     if (LIGHT_LABOR_TASKS.has(task.name)) {
       const light = Math.max(0, Math.min(remaining - amount, lightLeft));
@@ -325,6 +335,11 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
       : 0;
     helpLeft -= help;
     amount += help;
+    if (task.follow && pair > 1) {
+      const own = before + (amount - before) / pair;
+      followAmounts[task.follow.index] = (followAmounts[task.follow.index] ?? 0) + amount - own;
+      amount = own;
+    }
     if (task.name === 'weed') menWeed -= amount - before;
     taskAmounts[i] = amount;
   };
@@ -336,6 +351,7 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     if (task.name === 'weed') allot(task, i);
   });
   input.tasks.forEach((task, i) => {
+    taskAmounts[i] = (taskAmounts[i] ?? 0) + (followAmounts[i] ?? 0);
     tasks[task.name] += taskAmounts[i] ?? 0;
   });
   return {

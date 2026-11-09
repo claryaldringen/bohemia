@@ -1002,6 +1002,13 @@ Výchozí osevní systém je přílohová soustava raných Slovanů (Martin). Pr
 
 ### Práce
 
+**Setí týž den hned za orbou a motykou** (Martin 9. 11. 2026: „Setí by mělo probíhat ihned po
+orbě. Za oráčem by měl jít někdo z rodiny a rovnou zasívat“): za každým spřežením i za motykou
+jde setí stejným tempem týž den – práce orby a kopání nese i práci setí za sebou (kolik dovolí
+osivo); když práce nestačí, ubude obojího stejně. Zpracovaná půda, kterou ves nestihla zasít,
+se zaseje příští den napřed. Díl proto smí začít i v poslední den okna (dřív se selo zkopané do
+včerejška a ozim musel začít den před koncem okna).
+
 Navazuje na pracovní sílu z [populace](population.md) – Práce (na polích a stavbách jen dospělý
 1 člověkoden za den; starší 0,5 jen na denní minimum své domácnosti, výrostci 7–13 let jen pasou).
 Pole jsou společná, a proto se práce počítá **za celou ves**: dospělí všech domácností pracují na
@@ -1555,17 +1562,34 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
   - Setí bere osivo ze zásob **v den setí dílu** – obilí (ozim, jař, obilí nad potřebu) ze zásob
     obilí, luštěniny ze zásob luštěnin; luštěnin, které chybí, ves vymění u sousedů za obilí.
     Sklizeň osivo neodečítá. Ves zaseje jen tolik dílů, na kolik má osivo.
-  - **Osivo bez cíle osevu (9. 11. 2026, implementace čeká).** Cíl osevu přežil v kódu jako
-    „potřeba úrody“ a dál určoval nutné díly a osivo za čekající díly – Vlkov kvůli němu od 1. 10.
-    do 30. 11. jedl na příděl 0,88 s 9,5 t v zásobách (5,5 t drželo osivo za díly, na které
-    orba nedošla). Martin 9. 11. 2026: „Ne dopíči, plán už jsme asi desetkrát zavrhli a ty ho tam
-    vždycky nějak znova namrdáš“ a „Fajn, prostě před osevem odečti minimální zásobu jídla
-    a zbytek do osevu. Po měsíci se do zásob vrátí to, co se nezaselo.“ Pravidlo: na začátku okna
-    setí (ozim 1. 9., jař, luštěniny a len 1. 3.) se ze zásob odečte přežívací zásoba do žní
-    (níž – hlad, ale nikdo neumře) a všechno ostatní obilí je osivo; ves oře a seje díly v pořadí
-    osevního postupu, dokud stačí lidé, spřežení a osivo; nezaseté osivo se vrátí do zásob na
-    konci okna (31. 10., 30. 4., po dlouhé zimě 14. 5. – návrh Clauda, Martinovo „po měsíci“
-    čteno jako konec okna jako dřív u 30. 4.). Cíl osevu ani pojistka v něm osev neomezují.
+  - **Osivo bez cíle osevu (9. 11. 2026).** Cíl osevu přežil v kódu jako „potřeba úrody“ a dál
+    určoval osivo za čekající díly – Vlkov kvůli němu od 1. 10. do 30. 11. jedl na příděl 0,88
+    s 9,5 t v zásobách. Martin 9. 11. 2026: „Ne dopíči, plán už jsme asi desetkrát zavrhli a ty ho
+    tam vždycky nějak znova namrdáš“, „Fajn, prostě před osevem odečti minimální zásobu jídla
+    a zbytek do osevu. Po měsíci se do zásob vrátí to, co se nezaselo.“ a k celému pravidlu „Ano,
+    platí“. Osivo za čekající díly zmizelo, osivo drží **hromada osiva okna**:
+    1. Na začátku okna setí (ozim 1. 9., jař a len 1. 3.) ves odloží osivo na **všechny díly na
+       řadě**, nejvýš zásoby − přežívací zásoba do žní (níž). Zbytek zásob je jídlo – příděl podle
+       něj (Martin: „Na všechny díly. Bude hladovět max ty dva měsíce – to není hladovění, ale spíš
+       půst“). Osivo se počítá průběžně, jak přibývá vymlácené zrno (1. 9. leží úroda ještě ve
+       snopech) – hromada je nejvýš vymlácené zrno a nejvýš zásoby i snopy bez přežívací zásoby.
+       Osivo, které ves má jen na setí (koupené, osadníků, zakladatelů), se do hromady počítá.
+    2. Každý den se zasetá plocha porovná s **ideálním denním dílem** (osivo na řadě ÷ dny setí
+       okna); osivo za nestihnutou část se hned po práci dne vrátí do jídla (Martin: „v ideálním
+       případě se za den zorá 100 %… reálně voli stihnou míň, třeba jen 80 %. 20 % osiva tak zbyde
+       a může se vrátit do jídla“). Hromada tak drží jen osivo ideálního zbytku okna, nejvýš osivo
+       dílů, které zasít ještě zbývá.
+    3. **Setí týž den hned za orbou** (Martin: „Setí by mělo probíhat ihned po orbě. Za oráčem by
+       měl jít někdo z rodiny a rovnou zasívat“) – viz Práce.
+    4. Na konci okna (31. 10., 30. 4., po dlouhé zimě 14. 5.) se nezaseté vrátí do zásob. Dny, kdy
+       dlouhá zima setí jařin drží (do 22. 3.), se do dnů setí okna nepočítají.
+    5. **Na řadě** (návrh Clauda): odpočatý příloh (≥ 95 %) a díly v osevním postupu – pro ozim
+       první osev a díly po jaři, pro jař i díly po ozimu – a nezasetá letošní práce plodiny.
+       Zotavený příloh 70–95 % až když jsou díly na řadě oseté a v okně zbývá čas – osivo z toho,
+       co zbude nad přežívací zásobou; nouzový příloh jen při hladu.
+    6. Mimo okno se osivo zvlášť nedrží.
+       Nákup osiva (Osivo pro ves bez zásob) kupuje osivo na díly na řadě; osivo zakladatelů si ves
+       při šetření přídělem nechá na díly na řadě příštího okna (návrh Clauda).
   - **Osev má přednost – kolik si ves nechá na jídlo** (6. 11. 2026). Martin: „Pojďme se podívat
     na ten osev – to se přece nemusí plánovat: ves vezme z obilí tolik osiva, aby jí to vystačilo
     do žní, a pak se oře a zasívá, dokud trvá časové okno pro orbu a zasetí, nebo dokud se
@@ -1611,10 +1635,10 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
       o 15–25 % nižší (sucho, zvěř, ztráty skladováním), takže ves pojistku nikdy nedoplnila
       a z pasti osiva vyšla jen vymíráním (Vlkov, 6. 11. 2026). Potřeba z pole podle většího
       z dlouhodobého podílu pole ve stravě a včerejší stravy (po úbytku stád jí ves obilí víc).
-    - **Odhad osiva do roční potřeby** (`seedFloorKg`) zůstává jen pro osivo zakladatelů – kolik si
-      ho ves nechá, když v lhůtě šetří přídělem (níže); osev neomezuje.
-  - **Osivo se šetří:** osivo dílů v plánu, které na setí čeká (i vybraných dílů, které na čelo
-    práce teprve přijdou), ves nejí – nejvýš zrno nad přežívací zásobu; tu jí vždy. Ves tedy do
+    - **Osivo zakladatelů** si ves, když v lhůtě šetří přídělem, nechá na díly na řadě příštího
+      okna setí (do 9. 11. 2026 odhad osiva do roční potřeby – zrušený s cílem osevu).
+  - **Osivo se šetří:** hromadu osiva okna setí (Osivo bez cíle osevu výš) ves nejí – nejvýš zrno
+    nad přežívací zásobu; tu jí vždy. Ves tedy do
     žní hladoví nejvýš do prahu přežívací zásoby a nikdo hlady neumře. Rezervu osiva jen na setí
     sní dál při skutečném hladu (5 dnů bez jídla – níže); s přežívací zásobou počítanou k tomuto
     prahu k tomu nedojde, leda by sklizeň přišla později nebo menší, než ves čekala (pohroma).

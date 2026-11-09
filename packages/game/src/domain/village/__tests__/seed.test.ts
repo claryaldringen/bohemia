@@ -8,10 +8,10 @@ import { NO_CRAFTS } from '../productivity';
 import { SEED_KG_PER_HA } from '../rules';
 import {
   seedKeepKg,
-  seedAheadKg,
   seedSowCap,
   sowableSeedKg,
   takeSeed,
+  windowSeedNeedKg,
   withSeedForgiven,
   workSeedKg,
 } from '../seed';
@@ -95,7 +95,7 @@ describe('osivo ze zásob při setí (fields.md – Úroda, Osivo ze zásob)', (
     work.done.sow = work.required.sow;
     expect(takeSeed(s, work, 'winter', byId(s), 0)).toBeCloseTo(total / 2, 9);
     expect(s.storesKg).toBeCloseTo(1000 - total, 9);
-    expect(seedAheadKg(s)).toEqual({ grain: 0, legumes: 0 });
+    expect(windowSeedNeedKg(s, 'winter')).toBeCloseTo(0, 9);
   });
 
   it('bez osiva se nezaseje – setí jen na tolik dílů, na kolik osivo stačí', () => {
@@ -325,11 +325,11 @@ describe('osivo – nálezy recenze', () => {
     expect(to.seedKg).toBeCloseTo(2 * PART_HA * SEED_KG_PER_HA, 9);
   });
 
-  it('platba řemesel nezaplatí osivem, které čeká na setí', () => {
+  it('platba řemesel nezaplatí hromadou osiva okna setí', () => {
     const { s } = withWinter(4, 100_000);
-    const day = at(600, 11, 15);
+    const day = at(600, 9, 15);
     const free = paymentPool(s, day, NO_CRAFTS).energyKg;
-    s.season!.seedWaitingKg = { grain: 2000, legumes: 0 };
+    s.sowingSeed = { crop: 'winter', totalKg: 2000, days: 61, kg: 2000 };
     expect(paymentPool(s, day, NO_CRAFTS).energyKg).toBeLessThan(free);
   });
 });

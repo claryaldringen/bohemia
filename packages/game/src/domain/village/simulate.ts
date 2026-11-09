@@ -29,7 +29,7 @@ import { villageSacredOaks } from './sacred';
 import { moveGrainFromCoveredPits } from './grain-pit-site';
 import { withThreshingGrace, spoilSheaves } from './threshing';
 import { withSeason } from './year-plan';
-import { withSeedForgiven } from './seed';
+import { settleSowingSeed, withSeedForgiven, withoutSeedTarget } from './seed';
 import { withoutFieldLegumes } from './field-legumes';
 import { seedBuyingDay } from './seed-buying';
 import { withSowingRotation } from './rotation';
@@ -151,8 +151,9 @@ export function* advanceVillageSteps(
   // suroviny), řemeslníci z doby před učením řemesla praxi (crafts.md – Učení řemesla) a ves z doby
   // před snopy rok odkladu mlácení (production-chains.md – Starší vsi) a ves s ročním plánem osevní
   // postup po dílech (fields.md – Osevní postup po dílech, bod 7), plán z doby před osivem ze
-  // zásob odpuštěné osivo zaseté části (fields.md – Osivo ze zásob, Převod) a nezasetý díl
-  // luštěnin jař (fields.md – Luštěniny, zrušeno) – jednou, idempotentně
+  // zásob odpuštěné osivo zaseté části (fields.md – Osivo ze zásob, Převod), plán z doby cíle
+  // osevu bez osiva čekajících dílů (fields.md – Osivo bez cíle osevu) a nezasetý díl luštěnin jař
+  // (fields.md – Luštěniny, zrušeno) – jednou, idempotentně
   const next = cloneState(
     withSteward(
       withWildlife(
@@ -170,7 +171,9 @@ export function* advanceVillageSteps(
                               withDynasty(
                                 withKinship(
                                   withoutFieldLegumes(
-                                    withSeedForgiven(withSowingRotation(withSeason(start))),
+                                    withoutSeedTarget(
+                                      withSeedForgiven(withSowingRotation(withSeason(start))),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -320,6 +323,8 @@ function* simulateDaySteps(
     landscape,
     new Set(waiting.map((j) => j.crop)),
   );
+  // osivo za nestihnutou část dne zpět do jídla (fields.md – Osivo bez cíle osevu)
+  settleSowingSeed(state, day);
   yield;
   // nástroje a nádoby v užívání se opotřebí (crafts.md – Účinek)
   wearCraftStocks(state, day);

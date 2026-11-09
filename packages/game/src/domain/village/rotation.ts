@@ -57,20 +57,22 @@ export function windowOpen(crop: Crop, task: 'reclaim' | 'dig' | 'sow', day: num
   return windowEndOf(CROP_WINDOWS[crop][task], dateOfDayIndex(day).month) !== null;
 }
 
-/** Ozim smí na dílu dnes začít – po dnešku zbývá den setí (seje se zkopané do včerejška). */
+/**
+ * Ozim smí na dílu dnes začít – celé okno setí: seje se týž den hned za orbou a motykou (fields.md –
+ * Práce; Martin 9. 11. 2026: „Setí by mělo probíhat ihned po orbě“).
+ */
 function winterStartable(day: number): boolean {
-  return windowOpen('winter', 'sow', day) && windowOpen('winter', 'sow', day + 1);
+  return windowOpen('winter', 'sow', day);
 }
 
-/** Jař smí dnes začít – v oknech kopání, na jaře jen dokud po dnešku zbývá den setí. */
+/** Jař smí dnes začít – v oknech kopání (seje se týž den hned za orbou a motykou). */
 function springStartable(day: number): boolean {
-  if (!windowOpen('spring', 'dig', day)) return false;
-  return !windowOpen('spring', 'sow', day) || windowOpen('spring', 'sow', day + 1);
+  return windowOpen('spring', 'dig', day);
 }
 
 /**
  * Obilí, které dnes začne na dílu na řadě (fields.md – Osevní postup po dílech, bod 2): první
- * osev (i po jaři, příloh 70–95 % a nouzový) ozim, dokud po dnešku zbývá den setí ozimu, potom
+ * osev (i po jaři, příloh 70–95 % a nouzový) ozim, dokud běží okno setí ozimu, potom
  * jař – díl, na kterém setí ozimu do konce října nezačne, se oseje na jaře jaří; díl po ozimu
  * jen jař. Jinak null (okna zavřená, díl odpočívá).
  */

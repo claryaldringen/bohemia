@@ -14,7 +14,7 @@ import {
 } from './livestock';
 import { EMERGENCY_SLAUGHTER } from './rules';
 import { baseMealInput } from './meal-input';
-import { seedKeepKg, seedReserve } from './seed';
+import { uneatenSeedKg } from './seed';
 import type { ChronicleEvent, HerdSpecies, VillageState } from './types';
 import { woolSheep } from './wool';
 
@@ -54,14 +54,9 @@ export function dayMealInput(
   dams: Record<HerdSpecies, number> = villageDams(state),
 ): DietInput {
   const base = baseMealInput(state, day, potteryCoverage, milked, dams);
-  // osivo, které na setí čeká, ves nejí – jí přežívací zásobu do žní (z téže stravy) a to, co na
-  // setí nečeká (fields.md – Úroda, Osivo ze zásob)
-  const seed = seedReserve(state, seedKeepKg(state, day, base), day);
-  return {
-    ...base,
-    grainKg: base.grainKg - seed.grain,
-    legumesKg: (base.legumesKg ?? 0) - seed.legumes,
-  };
+  // hromadu osiva okna setí a osivo jen na setí ves nejí – zbytek zásob je jídlo, příděl podle něj
+  // (fields.md – Osivo bez cíle osevu)
+  return { ...base, grainKg: Math.max(0, base.grainKg - uneatenSeedKg(state)) };
 }
 
 /**

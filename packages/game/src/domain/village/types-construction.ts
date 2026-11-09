@@ -422,21 +422,6 @@ export interface FarmSeason {
    */
   lordHelp?: LordHelp;
   /**
-   * Osivo dílů, které ves ve dni osevu vybrala, ale na čelo práce ještě nepřišly (kg po
-   * zásobách – fields.md, Úroda, Osivo ze zásob). Přepočte se každý den, kdy smí začít díl
-   * (`seasonDay`), mimo ty dny chybí. Ves ho nejí (`seedReserve`) a počítá s ním ve výhledu
-   * zásob k příští sklizni (`sowingTargets`).
-   */
-  seedWaitingKg?: SeedKg;
-  /**
-   * Osivo obilí na díly do roční potřeby z pole (kg – fields.md, Úroda, Osivo ze zásob): odhad
-   * osiva příštího osevu, které si ves z osiva zakladatelů nechá, i když šetří přídělem
-   * (`foundersSeedKeepKg`); kolik osiva smí do země, už neomezuje (osev má přednost – 6. 11. 2026).
-   * Přepočte se každý den, kdy smí začít díl (`seasonDay` – roční potřeba × osivo na kg čisté úrody
-   * dílů plánu). Chybí = 0.
-   */
-  seedFloorKg?: number;
-  /**
    * Výběr dílů z posledního dne, kdy bylo na čele práce místo (fields.md – Postup práce po dílech,
    * výkon): čekající díly a roční potřeba z pole. Ve dny bez místa na čele ves nový výběr nedělá
    * a počítá s tímto; platí jen ve stejném měsíci a se stejnými plodinami, které smí začít

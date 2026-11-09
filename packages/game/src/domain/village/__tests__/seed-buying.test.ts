@@ -5,7 +5,7 @@ import { departVillage } from '../departure';
 import { breedingCows, oxenCalvesWanted, surplusCows } from '../husbandry';
 import { neighbourStock } from '../neighbours';
 import { LEAVING, NEIGHBOR_DIRECTIONS, SEED_BUYING, TRADE } from '../rules';
-import { reservedSeedKg, sowableSeedKg, foodUntilHarvestKg } from '../seed';
+import { reservedSeedKg, sowableSeedKg, foodUntilHarvestKg, windowSeedNeedKg } from '../seed';
 import { buySeed, seedBuyingDay, seedShortKg } from '../seed-buying';
 import { fieldSowingTargets } from '../simulate-plan';
 import { NO_CRAFTS } from '../productivity';
@@ -178,13 +178,20 @@ describe('osivo pro ves bez zásob (fields.md – Osivo pro ves bez zásob)', ()
     expect(s.reservedSeedKg).toBeUndefined();
   });
 
-  it('1. 12. se uvolní rezerva nad osivo jaře (bez čekajícího osiva celá)', () => {
+  it('1. 12. se uvolní rezerva nad osivo jaře na díly na řadě (bez dílů na řadě celá)', () => {
     const s = village(4, 300, 4);
     s.reservedSeedKg = 100;
     seedBuyingDay(s, at(600, 11, 30));
     expect(s.reservedSeedKg).toBe(100);
+    const spring = windowSeedNeedKg(s, 'spring');
+    expect(spring).toBeGreaterThan(0);
     seedBuyingDay(s, at(600, 12, 1));
-    expect(s.reservedSeedKg).toBeUndefined();
+    expect(s.reservedSeedKg).toBe(Math.min(100, spring));
+    const bare = village(4, 300, 4);
+    bare.parts = [];
+    bare.reservedSeedKg = 100;
+    seedBuyingDay(bare, at(600, 12, 1));
+    expect(bare.reservedSeedKg).toBeUndefined();
   });
 
   it('osivo zakladatelů se do lhůty neuvolní 1. 6. ani 1. 12., po ní jako každá rezerva', () => {
@@ -217,22 +224,27 @@ describe('osivo pro ves bez zásob (fields.md – Osivo pro ves bez zásob)', ()
     const s = village(4, 4000, 4);
     s.reservedSeedKg = 1800;
     s.reservedSeedUntilDay = at(610, 1, 1);
-    s.season = { startDay: at(600, 9, 1), crops: [], seedFloorKg: 300 };
+    s.season = { startDay: at(600, 9, 1), crops: [] };
     const day = at(601, 2, 10);
+    // osivo příštího osevu – jař na díly na řadě
+    const next = windowSeedNeedKg(s, 'spring');
+    expect(next).toBeGreaterThan(0);
+    expect(next).toBeLessThan(1800);
     // ves nešetří – rezerva celá
     seedBuyingDay(s, day);
     expect(s.reservedSeedKg).toBe(1800);
-    // ves šetří – běžné obilí k jídlu, rezerva jen na roční osivo podle cílů osevu
+    // ves šetří – běžné obilí k jídlu, rezerva jen na osivo příštího osevu
     s.hungry = true;
     seedBuyingDay(s, day + 1);
-    expect(s.reservedSeedKg).toBe(300);
+    expect(s.reservedSeedKg).toBe(next);
     expect(s.reservedSeedUntilDay).toBe(at(610, 1, 1));
     expect(s.storesKg).toBe(4000);
     // rezerva pod osivo příštího osevu zůstane celá
     seedBuyingDay(s, day + 2);
-    expect(s.reservedSeedKg).toBe(300);
-    // ves bez plánu osevu šetří – rezervu sní celou
+    expect(s.reservedSeedKg).toBe(next);
+    // ves bez dílů na řadě šetří – rezervu sní celou
     const plain = village(4, 4000, 4);
+    plain.parts = [];
     plain.reservedSeedKg = 1800;
     plain.reservedSeedUntilDay = at(610, 1, 1);
     plain.hungry = true;

@@ -319,7 +319,8 @@ describe('plán osevu (sowingCapacity)', () => {
     expect(helpers).toBeGreaterThan(0);
     expect(helpers).toBeLessThanOrEqual(HARVEST_HELPERS.perDay * p + 1e-9);
     const hands = labor.craft + labor.harvest + manor.freeMen + helpers;
-    const springPerDay = capacity.spring / (30 + 31 - 1);
+    // seje se týž den hned za orbou – celé jarní okno
+    const springPerDay = capacity.spring / (30 + 31);
     expect(capacity.july / 31 - springPerDay).toBeCloseTo(hands, 9);
     expect(capacity.august / 31 - springPerDay).toBeCloseTo(hands, 9);
   });

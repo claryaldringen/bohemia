@@ -6,7 +6,7 @@ import { nextPloughPairs } from './draft';
 import { craftHouseholds, workshopLabor } from './crafts';
 import { harvestHelperLabor } from './harvest-hands';
 import { bufferFill, closeFieldFoodYear, sowingTargets, type SowingTargets } from './field-food';
-import { expectedNetKg, sowingGroup } from './fields';
+import { sowingGroup } from './fields';
 import { taskPosition, taskSpans, unsownPartIds } from './field-progress';
 import { dropFromWork, moveParts, shrinkInPlan } from './land-taken';
 import { ploughLayout } from './plough-blocks';
@@ -65,8 +65,7 @@ import type {
 } from './types';
 import { addLogs } from './wood';
 import { partCenter } from './forest-clearing';
-import { keptSeedKg, partsSeedKg, seedAheadKg, seedStore } from './seed';
-import { legumeEnergy } from './legumes';
+import { seedOutsideFoodKg, sowingSeedDay } from './seed';
 import {
   addToCropWork,
   createCropWork,
@@ -395,60 +394,15 @@ function fellReclaimed(state: VillageState, season: FarmSeason, day: number): vo
  * potřebu úrody ze stavu dne a vybere díly na řadě, které ji pokryjí (`neededSelection` – nutné
  * obilí napřed), nebo uvolní nezačaté díly, které ves už nepotřebuje. K práci přibere z výběru
  * jen dávku na čele (`workFront`) – další díly, až čelo dávku dodělá; co do konce okna nepřibere,
- * počká. Ves bez hospodářského roku (založená během roku) ho dostane s prvním dílem. Vrací díly
- * výběru, které čekají (pro podíl rodiny – `lordHelpDay`).
+ * počká. Ves bez hospodářského roku (založená během roku) ho dostane s prvním dílem. Nakonec
+ * hromada osiva okna setí (`sowingSeedDay`). Vrací díly výběru, které čekají (pro podíl rodiny –
+ * `lordHelpDay`).
  */
 export function seasonDay(state: VillageState, day: number, coverage: CraftCoverage): NeededJoin[] {
-  const { waiting, floorKg } = seasonJoins(state, day, coverage);
-  const season = state.season;
-  if (season) recordSeedPlan(state, season, day, waiting, floorKg);
+  const { waiting } = seasonJoins(state, day, coverage);
+  // hromada osiva okna setí po výběru dílů dne (fields.md – Osivo bez cíle osevu)
+  sowingSeedDay(state, day);
   return waiting;
-}
-
-/**
- * Osivo plánu (fields.md – Úroda, Osivo ze zásob; mutuje `season`): osivo vybraných dílů, které
- * na čelo ještě nepřišly (`seedWaitingKg` – ves ho nejí a počítá s ním ve výhledu zásob), a osivo
- * obilí do roční potřeby z pole (`seedFloorKg` = `floorKg` × osivo na kg čisté úrody dílů obilí
- * plánu a čekajících – jen pro osivo zakladatelů, `foundersSeedKeepKg`; osev neomezuje) – v den,
- * kdy díl nesmí začít, se čekající smaže a osivo do potřeby zůstane.
- */
-function recordSeedPlan(
-  state: VillageState,
-  season: FarmSeason,
-  day: number,
-  waiting: readonly NeededJoin[],
-  floorKg: number | null,
-): void {
-  const seed = { grain: 0, legumes: 0 };
-  let grainSeed = 0;
-  let grainNet = 0;
-  const partsById = partsByIdOf(state.parts);
-  const addGrain = (part: FieldPart): void => {
-    const net = expectedNetKg(part, day);
-    if (net <= 0) return;
-    grainSeed += partsSeedKg([part], 'spring');
-    grainNet += net;
-  };
-  for (const j of waiting) {
-    const part = partsById.get(j.id);
-    const store = seedStore(j.crop);
-    if (!part || !store) continue;
-    seed[store] += partsSeedKg([part], j.crop);
-    if (store === 'grain') addGrain(part);
-  }
-  if (seed.grain + seed.legumes > EPSILON) season.seedWaitingKg = seed;
-  else delete season.seedWaitingKg;
-  if (floorKg === null) return;
-  for (const { crop, work } of seasonCrops(season)) {
-    if (work.surplus || seedStore(crop) !== 'grain') continue;
-    for (const id of work.partIds) {
-      const part = partsById.get(id);
-      if (part) addGrain(part);
-    }
-  }
-  const floor = grainNet > 0 ? (floorKg * grainSeed) / grainNet : 0;
-  if (floor > EPSILON) season.seedFloorKg = floor;
-  else delete season.seedFloorKg;
 }
 
 /**
@@ -591,10 +545,10 @@ function joinBands(
 /**
  * Cíle osevu (fields.md – Kolik ves oseje, Osev podle zásob): úroda na rok spotřeby z pole
  * a pojistku bez toho, co ze zásob k příští sklizni zbude (luštěniny ves na poli nepěstuje –
- * fields.md, Luštěniny, zrušeno; jí je jen ze zásoby). Osivo, které
- * na setí čeká, ani osivo zakladatelů v lhůtě (`keptSeedKg`), zásoby k sklizni nekrmí; s
- * `reserveSeed = false` krmí (správce – vystačí zásoby
- * do žní, i kdyby ves snědla osivo? steward.md – Cíl, Režim správce).
+ * fields.md, Luštěniny, zrušeno; jí je jen ze zásoby). Hromadu osiva okna setí a osivo jen na setí
+ * (`seedOutsideFoodKg` – i osivo zakladatelů v lhůtě) zásoby k sklizni nekrmí; s `reserveSeed = false`
+ * krmí (správce – vystačí zásoby do žní, i kdyby ves snědla osivo? steward.md – Cíl, Režim
+ * správce).
  */
 export function fieldSowingTargets(
   state: VillageState,
@@ -602,14 +556,11 @@ export function fieldSowingTargets(
   coverage: CraftCoverage,
   reserveSeed = true,
 ): SowingTargets {
-  const seed = reserveSeed ? seedAheadKg(state, false, day) : null;
-  // osivo zakladatelů na víc osevů (FOUNDERS_STORES) jídlem není, ani když ho plán ještě nevzal
-  const kept = seed ? keptSeedKg(state, day) : 0;
   return sowingTargets(
     state,
     day,
     coverage.pottery,
-    seed ? Math.max(seed.grain, kept) + legumeEnergy(seed.legumes) : 0,
+    reserveSeed ? seedOutsideFoodKg(state, day) : 0,
   );
 }
 
@@ -668,12 +619,6 @@ export function lordHelpDay(
   if (Object.keys(help).length > 0) season.lordHelp = help;
   else delete season.lordHelp;
 }
-
-/**
- * Seje se, co je zkopané do včerejška (TASK_ORDER) – v okně setí proto plán počítá s jedním dnem
- * méně, aby se zasel i pruh zkopaný poslední den kopání.
- */
-export const SOW_AFTER_DIG_DAYS = 1;
 
 /** Volná práce vsi za den a z čeho se počítá (viz `freeLaborPerDay`). */
 interface FreeLabor {
@@ -767,8 +712,8 @@ export function harvestLaborPerDay(
  * v září přijdou žňové ruce (fields.md – Žně všemi rukama: řemeslníci se syny, cvičící muži rodiny,
  * výrostci a starší); práce se zvířaty (diet.md) jde napřed.
  * Ves, která orá (`plough`), má navíc kapacitu spřežení v oknech orby (oxen.md – Jen rádlo):
- * denní orba všech spřežení krát dny oken kopání – září–říjen pro ozim (bez posledního dne, ať se
- * zaseje i poslední zoraný pruh), září–listopad a březen–duben pro jař a luštěniny. Cvičící
+ * denní orba všech spřežení krát dny oken kopání – září–říjen pro ozim (i poslední den – seje se
+ * týž den hned za orbou), září–listopad a březen–duben pro jař a luštěniny. Cvičící
  * vojvodova rodina je mimo práci vsi; s `lord` se přičte i práce jejích mužů po minimu dvorce
  * (`manorLabor` – `freeMen`, lord.md – Kdy jde rodina na pole, bod 1) – jen do plánu potřebného osevu.
  * `ploughCapacity` – orba spřežení z jiného volání téhož dne a vsi (na `lord` nezávisí), jen se
@@ -791,12 +736,9 @@ export function sowingCapacity(
   const free = (villageFree + lordFree) * PEAK_CAPACITY_SHARE;
   const hands = harvestHands(state, day, coverage, labor);
   const harvestFree = (villageFree + hands) * PEAK_CAPACITY_SHARE;
-  const days = (
-    segments: Parameters<typeof windowDaysLeft>[1],
-    sowing = false,
-    perDay = free,
-  ): number =>
-    perDay * Math.max(0, windowDaysLeft(day, segments) - (sowing ? SOW_AFTER_DIG_DAYS : 0));
+  // seje se týž den hned za orbou a motykou (fields.md – Práce) – celé okno
+  const days = (segments: Parameters<typeof windowDaysLeft>[1], perDay = free): number =>
+    perDay * windowDaysLeft(day, segments);
   // výmlat snopů hned po žni (production-chains.md – Humno) bere podzimní práci: co z něj zbývá
   // (na humnech nejvýš jejich kapacita za dny okna, v roce odkladu i nouzově), ubere podzim ozimu
   // i celý podzim – mlátí se před setím ozimu; žňové ruce mlátí se vsí, ves dá jen svůj díl
@@ -805,11 +747,11 @@ export function sowingCapacity(
     pendingThreshLabor(state, day, windowDaysLeft(day, segments)) * villageShare;
   const w = SOWING_CAPACITY_WINDOWS;
   const people: SowingCapacity = {
-    autumnWinter: Math.max(0, days(w.autumnWinter, true) - threshing(w.autumnWinter)),
+    autumnWinter: Math.max(0, days(w.autumnWinter) - threshing(w.autumnWinter)),
     autumn: Math.max(0, days(w.autumn) - threshing(w.autumn)),
-    spring: days(w.spring, true),
-    july: days(w.july, false, harvestFree),
-    august: days(w.august, false, harvestFree),
+    spring: days(w.spring),
+    july: days(w.july, harvestFree),
+    august: days(w.august, harvestFree),
   };
   if (!plough) return people;
   if (options.ploughCapacity) return { ...people, plough: { ...options.ploughCapacity } };
@@ -822,15 +764,15 @@ export function sowingCapacity(
       state,
       landscape,
     );
-  const ploughDays = (segments: Parameters<typeof windowDaysLeft>[1], sowing = false): number =>
-    perDay * Math.max(0, windowDaysLeft(day, segments) - (sowing ? SOW_AFTER_DIG_DAYS : 0));
+  const ploughDays = (segments: Parameters<typeof windowDaysLeft>[1]): number =>
+    perDay * windowDaysLeft(day, segments);
   // okna kopání jaře: podzim jako vracení přílohu, jaro jako setí
   return {
     ...people,
     plough: {
-      autumnWinter: ploughDays(WINTER_WINDOWS.dig, true),
+      autumnWinter: ploughDays(WINTER_WINDOWS.dig),
       autumn: ploughDays(WINDOWS.reclaim),
-      spring: ploughDays(WINDOWS.sow, true),
+      spring: ploughDays(WINDOWS.sow),
     },
   };
 }
@@ -886,7 +828,7 @@ export function ploughPairsForRotation(
   if (perPair <= 0) return cap;
   // dny oken orby do konce hospodářského roku – ozim jen na podzim, jař na podzim i na jaře
   const days = (crop: Crop): number =>
-    Math.max(1, windowDaysLeft(day, cropTaskWindows(crop, 'plough')) - SOW_AFTER_DIG_DAYS);
+    Math.max(1, windowDaysLeft(day, cropTaskWindows(crop, 'plough')));
   const pairs = Math.max(
     autumnLoad / (perPair * days('winter')),
     allLoad / (perPair * days('spring')),
@@ -939,6 +881,11 @@ export interface FieldTaskEntry {
   rank: number;
   /** Orba: kolik kapacity spřežení úloha dnes bere (člověkodny orby při plném výkonu). */
   teamDays?: number;
+  /**
+   * Orba a kopání: setí týž den hned za úlohou (fields.md – Práce) – člověkodny setí na člověkoden
+   * úlohy, kolik dnes dovolí osivo. Chybí = za úlohou se dnes neseje.
+   */
+  sowRatio?: number;
 }
 
 /**

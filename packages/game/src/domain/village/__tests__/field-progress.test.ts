@@ -88,7 +88,10 @@ describe('postup po čtvercích', () => {
     // od obydlí: nejdřív zasetí, pak zkopaní, pak loňské strniště – nikdy naopak
     const levels = states.map((x) => AUTUMN[x]!);
     expect(levels).toEqual([...levels].sort((a, b) => b - a));
-    expect(states).toContain('plowed');
+    // seje se týž den hned za orbou a motykou (fields.md – Práce) – na konci dne zoraný díl bez
+    // setí nezůstane
+    expect(states).not.toContain('plowed');
+    expect(states).toContain('sown');
     expect(states).toContain('stubble');
     // díly přibývají den po dni – čerstvě založené díly (holá zem) ještě čekají jako strniště;
     // podíl dílů od podílu práce nejvýš o rozpracovaný díl (osivo ze zásob s přídělem 0,75 –
@@ -99,7 +102,9 @@ describe('postup po čtvercích', () => {
     const frontier = frontierPart(winter, byId(s), 'dig', s.lastDay)!;
     expect(fieldFrontiers(s, s.lastDay).get(frontier)).toContain('dig');
     const view = fieldPartLooks(s, s.lastDay).get(frontier)!;
-    expect(view).toMatchObject({ look: 'plowed', before: 'stubble' });
+    // za motykou se týž den seje – čelo kopání je zoraný, nebo už zasetý díl
+    expect(['plowed', 'sown']).toContain(view.look);
+    expect(view.before).toBe(view.look === 'sown' ? 'plowed' : 'stubble');
     expect(view.work).toBeGreaterThanOrEqual(0);
     expect(view.work).toBeLessThan(1);
   });
@@ -338,7 +343,8 @@ describe('letošní práce na dílu (panel dílu – fields.md, Co hráč vidí)
     const work = partYearWork(s, s.lastDay);
     const looks = fieldPartLooks(s, s.lastDay);
     const seen = new Set(winter.partIds.map((id) => looks.get(id)!.look));
-    expect([...seen]).toEqual(expect.arrayContaining(['sown', 'plowed', 'stubble']));
+    // seje se týž den hned za orbou – zoraný nezasetý díl na konci dne nezůstane
+    expect([...seen]).toEqual(expect.arrayContaining(['sown', 'stubble']));
     for (const id of winter.partIds) {
       const crop = work.get(id)!.crop!;
       expect(crop.crop).toBe('winter');

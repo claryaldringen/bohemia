@@ -128,10 +128,13 @@ import {
   activeTasks,
   addCropTaskWork,
   cropTaskDone,
+  cropTaskRemaining,
   cropTaskWindows,
+  ploughRemaining,
   seasonCrop,
   seasonCrops,
   neededTaskRemaining,
+  sowPerTill,
   windowEndOf,
   type CropTask,
   springCrop,
@@ -173,7 +176,10 @@ import { partsByIdOf } from './parts-by-id';
  * Polní úlohy dne: práce plánu po plodinách (bez výmlatu – ten mlátí snopy, `threshTasks`), orba
  * rádlem v oknech kopání (spřežení zvládnou nejvýš `ploughCap` člověkodní za den – oxen.md).
  * Nejbližší konec okna první, při shodě ozim před jaří a pořadí úloh (TASK_ORDER; orba před
- * kopáním).
+ * kopáním). Setí týž den hned za orbou a motykou (fields.md – Práce; Martin 9. 11. 2026: „Setí by
+ * mělo probíhat ihned po orbě. Za oráčem by měl jít někdo z rodiny a rovnou zasívat“): úloha setí
+ * nese jen zpracovanou půdu do včerejška, orba a kopání nesou setí za sebou (`sowRatio` – kolik
+ * dovolí osivo).
  */
 export function fieldTasks(
   state: VillageState,
@@ -186,7 +192,7 @@ export function fieldTasks(
   // setí jen na tolik dílů, na kolik má ves osivo (fields.md – Úroda, Osivo ze zásob)
   let seed: { byId: ReadonlyMap<number, FieldPart>; sowable: SeedKg } | null = null;
   const seedCap = (crop: Crop, work: CropWork, wanted: number): number => {
-    if (work.seedKg === undefined) return wanted;
+    if (work.seedKg === undefined || wanted <= 0) return wanted;
     if (!seed) {
       const keep = seedKeepKg(state, day);
       seed = {
@@ -214,7 +220,6 @@ export function fieldTasks(
       TASK_ORDER.indexOf(name === 'plough' ? 'dig' : name) - (name === 'plough' ? 0.5 : 0);
     const rank = CROP_ORDER.indexOf(crop) * TASK_ORDER.length + order;
     let remaining = neededTaskRemaining(work, name);
-    if (name === 'sow' && remaining > 0) remaining = seedCap(crop, work, remaining);
     // příprava půdy jaře jen na díly, na které je osivo (`seedPrepShares`)
     const prep =
       name === 'sow' || name === 'weed' || name === 'harvest' ? undefined : prepShares?.get(work);
@@ -222,7 +227,9 @@ export function fieldTasks(
       const required = name === 'plough' ? (work.plough?.required ?? 0) : work.required[name];
       remaining = Math.min(remaining, Math.max(0, prep * required - cropTaskDone(work, name)));
     }
-    if (remaining > 0) entries.push({ name, crop, remaining, work, end, rank });
+    // setí i bez zpracované půdy do včerejška – může jít za dnešní orbou a motykou
+    const sowing = name === 'sow' && work.done.sow < work.required.sow - EPSILON;
+    if (remaining > 0 || sowing) entries.push({ name, crop, remaining, work, end, rank });
   };
   // jarní okno setí: příprava jaře, luštěnin a lnu jen na díly s osivem (oprava, návrh Clauda
   // 2. 11. 2026 – fields.md, Osivo ze zásob)
@@ -236,7 +243,12 @@ export function fieldTasks(
       if (work.surplus) continue;
       // dlouhá zima drží setí jařin do 22. 3. (disasters.md – Zima)
       const held = springSowingHeld(state, day, crop);
-      for (const name of activeTasks(work, day, crop, springSowingExtended(state, day, crop))) {
+      const names = activeTasks(work, day, crop, springSowingExtended(state, day, crop));
+      // setí za orbou a motykou i bez zpracované půdy do včerejška
+      if (!names.includes('sow') && neededTaskRemaining(work, 'dig') + ploughRemaining(work) > 0) {
+        names.push('sow');
+      }
+      for (const name of names) {
         if (name !== 'thresh' && !(held && name === 'sow')) add(crop, work, name);
       }
       if (neededTaskRemaining(work, 'plough') > 0) add(crop, work, 'plough');
@@ -253,7 +265,29 @@ export function fieldTasks(
     entry.teamDays = entry.remaining / factor;
     capLeft = Math.max(0, capLeft - entry.teamDays);
   }
-  return entries.filter((e) => e.name !== 'plough' || e.remaining > 0);
+  // setí: zpracovaná půda do včerejška a setí za dnešní orbou a motykou, kolik dovolí osivo
+  for (const entry of entries) {
+    if (entry.name !== 'sow') continue;
+    const tillage = (name: CropTask): FieldTaskEntry | undefined =>
+      entries.find((e) => e.work === entry.work && e.name === name && e.remaining > 0);
+    const plough = tillage('plough');
+    const dig = tillage('dig');
+    const per = sowPerTill(entry.work);
+    const behind = per.plough * (plough?.remaining ?? 0) + per.dig * (dig?.remaining ?? 0);
+    const allowed = seedCap(entry.crop, entry.work, entry.remaining + behind);
+    const backlog = Math.min(entry.remaining, allowed);
+    const share = behind > EPSILON ? (allowed - backlog) / behind : 0;
+    entry.remaining = backlog;
+    if (share <= EPSILON) continue;
+    if (plough && per.plough > 0) plough.sowRatio = per.plough * share;
+    if (dig && per.dig > 0) dig.sowRatio = per.dig * share;
+  }
+  return entries.filter(
+    (e) =>
+      e.remaining > 0 ||
+      (e.name === 'sow' &&
+        entries.some((t) => t.work === e.work && (t.sowRatio ?? 0) > 0 && t.remaining > 0)),
+  );
 }
 
 /**
@@ -598,7 +632,15 @@ export function work(
       // chůze pro vodu nad denní minimum (population.md – Práce, paths.md – Pochůzky pro vodu); vodu,
       // kterou přivezl vůz, nenosí a platí díl práce posádky (wagons.md – Co vozy vozí)
       householdWater: jobs.water ? jobs.water.water : waterNeeds.map((h) => h.labor),
-      tasks: dayTasks.map(({ name, remaining }) => ({ name, remaining })),
+      // setí týž den hned za orbou a motykou (`FieldTaskEntry.sowRatio`) – práce úlohy setí plodiny
+      tasks: dayTasks.map(({ name, remaining, field }) => {
+        const ratio = field?.sowRatio ?? 0;
+        const index =
+          ratio > 0
+            ? dayTasks.findIndex((t) => t.name === 'sow' && t.field?.work === field?.work)
+            : -1;
+        return index >= 0 ? { name, remaining, follow: { index, ratio } } : { name, remaining };
+      }),
       potteryCoverage: coverage.pottery,
       productivity,
       // lidé na výpravách k sousedům (trade.md – Doprava, Martin 19. 10. 2026): jejich práce jde po
@@ -685,7 +727,21 @@ export function work(
   // co dnes pásl dospělý (plných pasáků – diet.md, Pasáci, Dospělý pasák)
   let adultHerded = 0;
   const mowingBefore = state.hay?.mowing?.done ?? 0;
+  // setí plodiny až po její orbě a kopání – seje se i půda zpracovaná dnes (`fieldTasks`)
+  const applyOrder = dayTasks.map((_, i) => i);
   dayTasks.forEach((task, i) => {
+    if (task.name !== 'sow' || !task.field) return;
+    const work = task.field.work;
+    let last = -1;
+    dayTasks.forEach((t, j) => {
+      if (t.name === 'dig' && t.field?.work === work) last = j;
+    });
+    if (last <= i) return;
+    applyOrder.splice(applyOrder.indexOf(i), 1);
+    applyOrder.splice(applyOrder.indexOf(last) + 1, 0, i);
+  });
+  for (const i of applyOrder) {
+    const task = dayTasks[i]!;
     const labor = allocation.taskAmounts[i] ?? 0;
     // s vozy úloha postoupí víc, než na ni ves dala práce (wagons.md – Vůz)
     const haul = hauls.get(task);
@@ -747,7 +803,12 @@ export function work(
     }
     if (task.field) {
       const before = cropTaskDone(task.field.work, task.field.name);
-      addCropTaskWork(task.field.work, task.field.name, amount);
+      // seje se jen zpracovaná půda – i dnes zoraná a zkopaná
+      const done =
+        task.field.name === 'sow'
+          ? Math.min(amount, cropTaskRemaining(task.field.work, 'sow'))
+          : amount;
+      addCropTaskWork(task.field.work, task.field.name, done);
       const after = cropTaskDone(task.field.work, task.field.name);
       // osivo zaseté části ze zásob v den setí (fields.md – Úroda, Osivo ze zásob)
       if (task.field.name === 'sow' && after > before) {
@@ -781,7 +842,7 @@ export function work(
     } else {
       workOrchards(state, amount);
     }
-  });
+  }
   // humna, na kterých se dnes mlátilo, nechátrají (demolition.md – Chátrání humna)
   markThreshed(state, threshing.floor);
   // uhlí a ruda vozem (crafts.md – Uhlí a ruda kováře): sedlák jede z práce vsi – vozy v pořadí

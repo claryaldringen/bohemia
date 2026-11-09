@@ -195,7 +195,9 @@ describe('len napřed – výběr s kapacitou (do Úlohy 5 pro páry k rádlům)
     // zásoby k 1. 9. a jiný výběr dílů; dřív 158:fbeb05f6
     // 152:979c21c8 (9. 11. 2026, luštěniny z polí vyřazené – fields.md, Luštěniny, zrušeno; žně
     // i v srpnu): plán bez luštěnin, díly jaře místo nich; dřív 162:a9a20af5
-    expect(fingerprint(plans)).toBe('152:979c21c8');
+    // 154:0b8371f9 (9. 11. 2026, osivo bez cíle osevu a setí týž den za orbou – fields.md, Osivo
+    // bez cíle osevu): hromada osiva okna, díl smí začít i v poslední den okna; dřív 152:979c21c8
+    expect(fingerprint(plans)).toBe('154:0b8371f9');
   });
 });
 

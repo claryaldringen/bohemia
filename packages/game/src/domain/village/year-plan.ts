@@ -393,6 +393,26 @@ export function tilledShare(work: CropWork): number {
 }
 
 /**
+ * Setí za přípravou půdy (fields.md – Práce, setí týž den hned za orbou a motykou): člověkodny
+ * setí, které otevře člověkoden orby (`plough`) nebo kopání (`dig`) – zpracovaný podíl
+ * (`tilledShare`) roste s orbou i kopáním lineárně.
+ */
+export function sowPerTill(work: CropWork): { plough: number; dig: number } {
+  const sow = work.required.sow;
+  const dig = work.required.dig;
+  const plough = work.plough;
+  if (!plough) return { plough: 0, dig: dig > 0 ? sow / dig : 0 };
+  const digWeight = plough.digWeight ?? 0;
+  const perPlough = plough.required > 0 ? sow / plough.required : 0;
+  if (digWeight <= 0) return { plough: perPlough, dig: 0 };
+  const total = plough.weight + digWeight;
+  return {
+    plough: (perPlough * plough.weight) / total,
+    dig: dig > 0 ? (sow * digWeight) / total / dig : 0,
+  };
+}
+
+/**
  * Kolik práce úlohy se letos opravdu dělá (Ruling 17): setí jen na zkopané (zorané) části, pletí
  * a sklizeň jen na zasetou, výmlat jen sklizenou úrodu. Nezasetá půda se neplete ani nesklízí.
  */

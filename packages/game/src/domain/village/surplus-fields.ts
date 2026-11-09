@@ -119,6 +119,13 @@ function surplusTasks(state: VillageState, day: number): SurplusTask[] {
         TASK_ORDER.indexOf(name === 'plough' ? 'dig' : name) - (name === 'plough' ? 0.5 : 0);
       tasks.push({ name, work, end, rank: CROP_ORDER.indexOf(crop) * TASK_ORDER.length + order });
     }
+    // setí týž den hned za orbou a motykou (fields.md – Práce; Martin 9. 11. 2026: „Za oráčem by
+    // měl jít někdo z rodiny a rovnou zasívat“) – ještě jednou po přípravě půdy plodiny
+    const sowEnd = windowEndOf(cropTaskWindows(crop, 'sow'), month);
+    if (!held && sowEnd !== null && work.done.sow < work.required.sow - EPSILON) {
+      const rank = CROP_ORDER.indexOf(crop) * TASK_ORDER.length + TASK_ORDER.length - 0.5;
+      tasks.push({ name: 'sow', work, end: sowEnd, rank });
+    }
   }
   return tasks.sort((a, b) => a.end - b.end || a.rank - b.rank);
 }
@@ -218,10 +225,10 @@ export function surplusFieldDay(
     if (task === 'sow' && work.seedKg !== undefined) {
       partsById ??= new Map(state.parts.map((p) => [p.id, p]));
       keep ??= seedKeepKg(state, day);
-      // obilí nad potřebu – jen osivo, na které nutné díly nečekají (nutné mají přednost)
+      // obilí nad potřebu – z hromady osiva okna a zrna nad přežívací zásobu, ne z osiva jen na setí
       const sowable = {
-        grain: sowableSeedKg(state, 'grain', keep, false, day),
-        legumes: sowableSeedKg(state, 'legumes', keep, false, day),
+        grain: sowableSeedKg(state, 'grain', keep, false),
+        legumes: sowableSeedKg(state, 'legumes', keep, false),
       };
       wanted = Math.min(wanted, seedSowCap(work, work.crop, partsById, sowable));
     }

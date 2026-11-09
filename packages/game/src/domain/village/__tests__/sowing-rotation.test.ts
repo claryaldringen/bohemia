@@ -245,14 +245,16 @@ describe('postup dílu – co poroste příště', () => {
 
 describe('plodina dne', () => {
   const kinds: SowingKind[] = ['first', 'winter', 'late', 'emergency'];
-  it('první osev: ozim, dokud po dnešku zbývá den setí ozimu, pak jař v oknech kopání', () => {
+  // seje se týž den hned za orbou a motykou (fields.md – Práce; Martin 9. 11. 2026) – díl smí
+  // začít i v poslední den okna
+  it('první osev: ozim, dokud běží okno setí ozimu, pak jař v oknech kopání', () => {
     for (const kind of kinds) {
-      expect(sowingCropToday(kind, at(600, 10, 29))).toBe('winter');
       expect(sowingCropToday(kind, at(600, 10, 30))).toBe('winter');
-      expect(sowingCropToday(kind, at(600, 10, 31))).toBe('spring');
+      expect(sowingCropToday(kind, at(600, 10, 31))).toBe('winter');
+      expect(sowingCropToday(kind, at(600, 11, 1))).toBe('spring');
       expect(sowingCropToday(kind, at(601, 3, 1))).toBe('spring');
-      expect(sowingCropToday(kind, at(601, 4, 29))).toBe('spring');
-      expect(sowingCropToday(kind, at(601, 4, 30))).toBeNull();
+      expect(sowingCropToday(kind, at(601, 4, 30))).toBe('spring');
+      expect(sowingCropToday(kind, at(601, 5, 1))).toBeNull();
     }
   });
 
@@ -263,8 +265,8 @@ describe('plodina dne', () => {
     expect(sowingCropToday('spring', at(600, 10, 31))).toBe('spring');
     expect(sowingCropToday('spring', at(600, 12, 15))).toBeNull();
     expect(sowingCropToday('spring', at(601, 3, 1))).toBe('spring');
-    expect(sowingCropToday('spring', at(601, 4, 29))).toBe('spring');
-    expect(sowingCropToday('spring', at(601, 4, 30))).toBeNull();
+    expect(sowingCropToday('spring', at(601, 4, 30))).toBe('spring');
+    expect(sowingCropToday('spring', at(601, 5, 1))).toBeNull();
     expect(sowingCropToday('rest', at(600, 9, 1))).toBeNull();
     expect(sowingCropToday(null, at(600, 9, 1))).toBeNull();
   });
@@ -314,9 +316,9 @@ describe('výběr nutných dílů', () => {
     const s = village(8);
     const targets = { ...NO_NEED, flaxNeedKg: 1e9 };
     expect(neededSelection(s, at(600, 12, 15), targets).join).toEqual([]);
-    expect(neededSelection(s, at(601, 4, 30), targets).join).toEqual([]);
+    expect(neededSelection(s, at(601, 5, 1), targets).join).toEqual([]);
     const crops = new Set(
-      neededSelection(s, at(601, 4, 29), { ...targets, flaxNeedKg: 1 }).join.map((j) => j.crop),
+      neededSelection(s, at(601, 4, 30), { ...targets, flaxNeedKg: 1 }).join.map((j) => j.crop),
     );
     expect(crops).toEqual(new Set(['flax']));
   });

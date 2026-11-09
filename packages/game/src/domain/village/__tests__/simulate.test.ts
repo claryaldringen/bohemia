@@ -272,7 +272,10 @@ describe('advanceVillage – dopočítání', () => {
       .map((e) => e.crop ?? 'spring');
     expect(crops).toContain('winter');
     expect(crops.filter((c) => c === 'spring').length).toBe(2);
-    expect(count(s, 'hunger-began')).toBe(0);
+    // nanejvýš den na hraně plného přídělu (zaokrouhlení) – nikdo nehladoví (fields.md – Osivo bez
+    // cíle osevu: osivo na všechny díly na řadě, zbytek je jídlo)
+    expect(count(s, 'hunger-began')).toBeLessThanOrEqual(1);
+    expect(s.starvationDays ?? 0).toBe(0);
     expect(s.hungry).toBe(false);
   });
 
@@ -402,7 +405,10 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     expect(villageSheaves(threshed)).toEqual({ grainKg: 0, legumesKg: 0 });
     const need = s.people.reduce((sum, p) => sum + foodNeedPerDay(p, s.lastDay), 0);
     const seed = seasonCrops(threshed.season!).reduce((sum, c) => sum + (c.work.seedKg ?? 0), 0);
-    expect(threshed.storesKg).toBeGreaterThan(s.storesKg + (harvest?.kg ?? 0) - 30 * need - seed);
+    // a bez snopů zkažených, než na ně výmlat došel (setí týž den za orbou bere září práci) – 1 %
+    expect(threshed.storesKg).toBeGreaterThan(
+      s.storesKg + 0.99 * (harvest?.kg ?? 0) - 30 * need - seed,
+    );
     expect(threshed.threshingSeason).not.toBeNull();
     expect(advanceVillage(threshed, at(600, 10, 1), null).threshingSeason).toBeNull();
   });

@@ -129,6 +129,21 @@ export interface ArmySeen {
   fromVillageId: string;
 }
 
+/**
+ * Hromada osiva okna setí (fields.md – Osivo bez cíle osevu; Martin 9. 11. 2026): ozim v září–říjnu,
+ * jař v březnu–dubnu (po dlouhé zimě do 14. 5.). Ideální denní díl je `totalKg` / `days`.
+ */
+export interface SowingSeed {
+  /** Obilí okna – ozim (podzim), nebo jař (jaro). */
+  crop: 'winter' | 'spring';
+  /** Osivo na všechny díly na řadě v první den okna (kg obilí). */
+  totalKg: number;
+  /** Dny setí okna od jeho prvního dne (bez dní, kdy dlouhá zima setí drží). */
+  days: number;
+  /** Odložené osivo dnes (kg obilí ve `storesKg`, bez `reservedSeedKg`). */
+  kg: number;
+}
+
 export interface VillageState {
   seed: number;
   foundedDay: number;
@@ -154,6 +169,11 @@ export interface VillageState {
    * na víc osevů. Ve skutečném hladu ves rezervu sní i dřív. Chybí = rezerva bez ochrany.
    */
   reservedSeedUntilDay?: number;
+  /**
+   * Hromada osiva okna setí (fields.md – Osivo bez cíle osevu; Martin 9. 11. 2026): obilí ve
+   * `storesKg` odložené na setí v okně, které dnes běží. Ves ho nejí; mimo okna setí chybí.
+   */
+  sowingSeed?: SowingSeed;
   /**
    * Den, kdy do vsi naposledy přišlo jídlo domény (zásilka s `domain`; hillfort.md – Hradiště
    * staví hráč). Chybí = nikdy.

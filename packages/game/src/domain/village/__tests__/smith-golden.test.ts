@@ -143,6 +143,8 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
       'seedKg',
       'seedWaitingKg',
       'seedFloorKg',
+      // hromada osiva okna setí (fields.md – Osivo bez cíle osevu, 9. 11. 2026)
+      'sowingSeed',
       // výběr dílů z posledního dne s místem na čele (fields.md – Postup práce po dílech, výkon)
       'selection',
       // ruce pro výmlat dne (production-chains.md – Humno, Výhled jídla; 2. 11. 2026) – podle nich
