@@ -396,7 +396,10 @@ export function applyMessengerCaught(
   if (body.fate === 'captured') {
     // bez věznitele (tělo bez `captorVillageId`) jako odvedený – z vsi zmizí
     if (body.captorVillageId === undefined) removePeople(state, new Set([p.id]));
-    else markCaptive(state, day, p, body.captorVillageId, prisonerKey(body.campaignId, p.id));
+    else {
+      const key = body.prisonerId ?? prisonerKey(body.campaignId, p.id);
+      markCaptive(state, day, p, body.captorVillageId, key);
+    }
   }
   if (horseId !== undefined) removeHorse(state, horseId);
   events.push({ day, kind: 'messenger-caught', fate: body.fate, ...name });

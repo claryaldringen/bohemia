@@ -17,7 +17,7 @@ import { gridOf, MissingData, sameCell, villageEvent } from './campaign-tick';
 import type { TickContext, TickOut } from './campaign-tick';
 import type { CampaignState } from './campaign-types';
 import { stepMover } from './movement';
-import { prisonerKey } from './raid-apply';
+import { guardPrisonerKey } from './raid-apply';
 import { alarmTaken, messengerBackTick, withoutTaken } from './evacuation';
 import { messengerOf, messengerSpeed, refugeOptions, refugeRoute } from './refuge-choice';
 import { WAR } from './rules-war';
@@ -338,13 +338,15 @@ export function catchMessengers(s: CampaignState, ctx: TickContext, out: TickOut
     m.status = 'caught';
     m.doneTick = s.tick;
     const ref = { villageId: m.fromVillageId, personId: m.personId };
+    // klíč zajetí s vsí posla – číslo osoby by se mohlo potkat s lidmi napadené vsi (jako uprchlíci)
+    const prisonerId = guardPrisonerKey(s.id, ref);
     if (fate === 'led' && p) {
       s.loot.people = [...(s.loot.people ?? []), structuredClone(p)];
       s.captives.push(ref);
     }
     if (fate === 'captured' && p) {
       const prisoner: Prisoner = {
-        id: prisonerKey(s.id, p.id),
+        id: prisonerId,
         ref,
         ...(p.name === undefined ? {} : { name: p.name }),
         ...(p.noble ? { noble: true as const } : {}),
@@ -359,7 +361,7 @@ export function catchMessengers(s: CampaignState, ctx: TickContext, out: TickOut
       refId: m.refId,
       personId: m.personId,
       fate,
-      ...(fate === 'captured' ? { captorVillageId: s.assembly.villageId } : {}),
+      ...(fate === 'captured' ? { captorVillageId: s.assembly.villageId, prisonerId } : {}),
     });
     const watcher = ctx.world.watcherOf?.(m.fromVillageId);
     if (watcher && watcher.playerId !== s.playerId) {

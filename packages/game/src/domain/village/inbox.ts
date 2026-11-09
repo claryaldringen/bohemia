@@ -159,6 +159,11 @@ export type VillageEventBody =
       personId: number;
       fate: 'killed' | 'led' | 'captured';
       captorVillageId?: string;
+      /**
+       * Klíč zajetí (`guardPrisonerKey` – `<tažení>:<ves>:<osoba>`); chybí ve starších událostech –
+       * pak `prisonerKey` (`<tažení>:<osoba>`).
+       */
+      prisonerId?: string;
     }
   /**
    * Lidé `people` odešli skupinou do hradiště `hostVillageId`, nebo (null) do lesa, s `carriedKg`
