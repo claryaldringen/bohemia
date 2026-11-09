@@ -519,7 +519,7 @@ const THRESHING_FLOOR: BuildItem & { placement: 'threshing-floor' } = {
 const QUARRY: BuildItem & { placement: 'quarry' } = {
   kind: 'quarry',
   name: 'Lom',
-  icon: 'lom.svg',
+  icon: 'lom',
   hotkey: 'KeyL',
   hotkeyLabel: 'L',
   placement: 'quarry',
@@ -581,14 +581,13 @@ export function penVariantSpecies(variant: string | undefined): PenSpecies {
 /**
  * Druhy opevnění v pořadí rozcestníku mřížky staveb (fortifications.md – Rozhraní; Hradby a obrana
  * – Druhy): plot, palisáda, roštová a komorová hradba, val – ikony `public/icons/resources/fort-*`.
- * Palisáda s ochozem vzniká jen vylepšením palisády, v rozcestníku není. Roštová a komorová mají
- * zatím ikonu palisády – vlastní ikony přidá rozhraní hradeb (plán hradeb, Úloha 17).
+ * Palisáda s ochozem vzniká jen vylepšením palisády, v rozcestníku není.
  */
 export const FORT_VARIANTS: readonly (SquaresVariant & { id: FortKind })[] = [
   { id: 'fence', icon: 'fort-fence', name: 'Polský plot' },
   { id: 'palisade', icon: 'fort-palisade', name: 'Palisáda' },
-  { id: 'crib', icon: 'fort-palisade', name: 'Roštová hradba' },
-  { id: 'chamber', icon: 'fort-palisade', name: 'Komorová hradba' },
+  { id: 'crib', icon: 'fort-crib', name: 'Roštová hradba' },
+  { id: 'chamber', icon: 'fort-chamber', name: 'Komorová hradba' },
   { id: 'rampart', icon: 'fort-rampart', name: 'Val s příkopem' },
 ];
 

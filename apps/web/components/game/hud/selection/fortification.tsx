@@ -45,9 +45,9 @@ export const FORT_NAMES: Record<FortKind, string> = {
 export const FORT_ICON_SRC: Record<FortKind, string> = {
   fence: '/icons/resources/fort-fence.png',
   palisade: '/icons/resources/fort-palisade.png',
-  walkway: '/icons/resources/fort-walkway.svg',
-  crib: '/icons/resources/fort-crib.svg',
-  chamber: '/icons/resources/fort-chamber.svg',
+  walkway: '/icons/resources/fort-walkway.png',
+  crib: '/icons/resources/fort-crib.png',
+  chamber: '/icons/resources/fort-chamber.png',
   rampart: '/icons/resources/fort-rampart.png',
 };
 
@@ -62,7 +62,7 @@ export const FORT_GATE_NAMES: Record<FortKind, string> = {
 };
 
 /** Ikona brány (portrét panelu brány, tlačítko Přidat bránu). */
-export const FORT_GATE_ICON = '/icons/house/gate.svg';
+export const FORT_GATE_ICON = '/icons/resources/fort-gate.png';
 
 /** Cílová hradba v nabídce Vylepšit (popisek tlačítka). */
 const UPGRADE_NAMES: Record<WallKind, string> = {
@@ -92,10 +92,10 @@ export type FortActionHandler = (
 
 /** Ikony postupů útočníka (žebřík, sekera, oheň, rýč – vlastní kresba CC0). */
 const ASSAULT_SRC: Record<FortAssaultIcon, string> = {
-  ladder: '/icons/resources/assault-ladder.svg',
-  cut: '/icons/resources/assault-axe.svg',
-  burn: '/icons/resources/assault-fire.svg',
-  dig: '/icons/resources/assault-spade.svg',
+  ladder: '/icons/resources/assault-ladder.png',
+  cut: '/icons/resources/assault-axe.png',
+  burn: '/icons/resources/assault-fire.png',
+  dig: '/icons/resources/assault-spade.png',
 };
 
 /** Název postupu jádra v popisku. */
@@ -161,7 +161,7 @@ function AssaultStats({ assault }: { assault: readonly FortAssaultView[] }): Rea
 function OccupancyStat({ occupancy }: { occupancy: FortOccupancyView }): ReactElement {
   return (
     <Stat
-      src="/icons/resources/fort-occupancy.svg"
+      src="/icons/resources/fort-occupancy.png"
       name={`Obsazení hradby – ${formatInteger(occupancy.men)} mužů na ${formatInteger(occupancy.lengthM)} m`}
       testId="selection-fort-occupancy"
       alert={occupancy.share < 1}
@@ -193,7 +193,7 @@ function WorkTooltip({ name, option }: { name: string; option: FortWorkOption })
           )}
           {(option.cost.stoneM3 ?? 0) > 0 && (
             <span className="flex items-center gap-1" data-testid="fort-stone">
-              <img src="/icons/resources/stone.svg" alt="" width={16} height={16} />
+              <img src="/icons/resources/stone.png" alt="" width={16} height={16} />
               {formatInteger(option.cost.stoneM3!)}
             </span>
           )}
@@ -354,7 +354,7 @@ function FortActionCommands({
           <CommandButton
             testId="fort-rampart-add"
             name={all ? 'Doplnit val s příkopem pod celé opevnění' : 'Doplnit val s příkopem'}
-            icon="/icons/resources/fort-rampart-add.svg"
+            icon="/icons/resources/fort-rampart-add.png"
             option={rampartAdd}
             disabled={rampartAdd.blocked !== null || busy || !onRun}
             busy={busy}
@@ -366,7 +366,7 @@ function FortActionCommands({
           <CommandButton
             testId="fort-moat"
             name="Napustit příkop"
-            icon="/icons/resources/fort-moat.svg"
+            icon="/icons/resources/fort-moat.png"
             option={moat}
             disabled={moat.blocked !== null || busy || !onRun}
             busy={busy}
@@ -603,7 +603,7 @@ export function FortSectionBody({
         <CommandButton
           testId="fort-demolish"
           name={name}
-          icon="/icons/resources/demolish.svg"
+          icon="/icons/resources/demolish.png"
           tooltip={<DemolishTooltip name={name} option={section.demolish} />}
           disabled={section.demolish.blocked !== null || busy || !onDemolish}
           busy={busy}
@@ -648,8 +648,8 @@ export function FortGateBody({
   const reroutes = details.reroutes ?? [];
   const levels = (
     [
-      ['pincer', gate.pincer, 'Klešťová brána', '/icons/resources/gate-pincer.svg'],
-      ['tower', gate.tower, 'Věž nad branou', '/icons/resources/gate-tower.svg'],
+      ['pincer', gate.pincer, 'Klešťová brána', '/icons/resources/gate-pincer.png'],
+      ['tower', gate.tower, 'Věž nad branou', '/icons/resources/gate-tower.png'],
     ] as const
   ).filter((x) => x[1] !== null);
   const body = (

@@ -29,7 +29,7 @@ describe('tlačítko „Probít se“', () => {
     const onOrder = vi.fn(() => Promise.resolve(null));
     const { host, root } = await mount(<BreakoutButton denied={null} onOrder={onOrder} />);
     expect(button(host).getAttribute('aria-label')).toBe('Probít se');
-    expect(host.querySelector('img')?.getAttribute('src')).toBe('/icons/war/breakout.svg');
+    expect(host.querySelector('img')?.getAttribute('src')).toBe('/icons/resources/breakout.png');
     expect(button(host).disabled).toBe(false);
     await act(async () => button(host).click());
     expect(onOrder).toHaveBeenCalledTimes(1);

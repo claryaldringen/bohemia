@@ -43,7 +43,13 @@ export function ChroniclePanel({
     >
       <div className="flex items-center gap-1.5 pb-2">
         <Tooltip content="Kronika">
-          <img src={`${ICON}/chronicle.svg`} alt="" width={24} height={24} draggable={false} />
+          <img
+            src="/icons/resources/chronicle.png"
+            alt=""
+            width={24}
+            height={24}
+            draggable={false}
+          />
         </Tooltip>
         <Tooltip content="Zavřít">
           <button

@@ -195,6 +195,7 @@ import { ChroniclePanel } from './hud/ChroniclePanel';
 import { NoticesPanel } from './hud/NoticesPanel';
 import { useNotices } from '@/hooks/use-notices';
 import { useChronicle } from '@/hooks/use-chronicle';
+import { usePanelHotkeys } from '@/hooks/use-panel-hotkeys';
 import { LevyDialog } from './hud/LevyDialog';
 import { EscheatDialog } from './hud/EscheatDialog';
 import { RightsProvider, VillageIdProvider, rightDeniedReason } from './hud/rights';
@@ -676,6 +677,11 @@ export function VillageGame({
   useEffect(() => {
     closeNoticesRef.current = noticeHistory.close;
   }, [noticeHistory.close]);
+  // Zkratky J (Kronika) a U (Upozornění) jako tlačítka v liště – kronika jen u živé vsi
+  usePanelHotkeys((panel) => {
+    if (panel === 'notices') noticeHistory.toggle();
+    else if (view && !view.extinct) chronicle.toggle();
+  }, !menuShown && !gameOver);
 
   // Jména rodu (lord.md – Kde se jméno zadává). Bez vsi hráč nejdřív pojmenuje vojvodu – jméno
   // odejde na server se založením vsi (zavře-li stránku dřív, panel se ukáže znovu). Ve vsi čeká

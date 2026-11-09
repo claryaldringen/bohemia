@@ -22,6 +22,7 @@ import { useDismiss } from '@/hooks/use-dismiss';
 import { useSkipProgress } from '@/hooks/use-skip-progress';
 import { dateRefreshDelay, formatWorldState } from '@/lib/game-date';
 import { MENU_HOTKEY } from '@/lib/game-menu';
+import { PANEL_HOTKEYS } from '@/lib/panel-keys';
 import { formatDecimal, formatInteger, formatPercent, plural } from '@/lib/village-format';
 import type { VillageListItem } from '@/lib/village-list';
 import type { VillageView } from '@/lib/village-view';
@@ -297,6 +298,15 @@ export function WeatherIcons({ weather }: { weather: WeatherView }): ReactElemen
         </span>
       )}
     </>
+  );
+}
+
+/** Popisek tlačítka se zkratkou – „Kronika [J]“ jako `[P]` u staveb. */
+function HotkeyTip({ name, hotkey }: { name: string; hotkey: string }): ReactElement {
+  return (
+    <span className="whitespace-nowrap">
+      {name} <span className="text-[#bfa77a]">[{hotkey}]</span>
+    </span>
   );
 }
 
@@ -669,7 +679,7 @@ export function TopBar({
             {formatInteger(view.woodLogs)}
           </Resource>
           {view.stoneSupply && (view.stoneSupply.m3 >= 0.5 || view.stoneSupply.quarry) && (
-            <Resource icon="stone.svg" name="Kámen na hromadách (m³)" testId="village-stone">
+            <Resource icon="stone" name="Kámen na hromadách (m³)" testId="village-stone">
               {formatInteger(view.stoneSupply.m3)}
             </Resource>
           )}
@@ -705,13 +715,14 @@ export function TopBar({
         {chronicle && (
           <IconButton
             label="Kronika"
-            tooltip="Kronika"
+            tooltip={<HotkeyTip name="Kronika" hotkey={PANEL_HOTKEYS.chronicle.label} />}
+            keyshortcuts={PANEL_HOTKEYS.chronicle.label}
             testId="chronicle-toggle"
             expanded={chronicle.open}
             onClick={chronicle.onToggle}
           >
             <img
-              src="/icons/house/chronicle.svg"
+              src="/icons/resources/chronicle.png"
               alt=""
               width={22}
               height={22}
@@ -722,14 +733,15 @@ export function TopBar({
         {notices && (
           <IconButton
             label="Upozornění"
-            tooltip="Upozornění"
+            tooltip={<HotkeyTip name="Upozornění" hotkey={PANEL_HOTKEYS.notices.label} />}
+            keyshortcuts={PANEL_HOTKEYS.notices.label}
             testId="notices-toggle"
             expanded={notices.open}
             onClick={notices.onToggle}
           >
             <span className="relative flex h-6 items-center">
               <img
-                src="/icons/house/bell.svg"
+                src="/icons/resources/bell.png"
                 alt=""
                 width={22}
                 height={22}
@@ -854,11 +866,7 @@ export function TopBar({
         </IconButton>
         <IconButton
           label="Nabídka"
-          tooltip={
-            <span className="whitespace-nowrap">
-              Nabídka <span className="text-[#bfa77a]">[{MENU_HOTKEY}]</span>
-            </span>
-          }
+          tooltip={<HotkeyTip name="Nabídka" hotkey={MENU_HOTKEY} />}
           expanded={menuOpen}
           keyshortcuts={MENU_HOTKEY}
           onClick={onToggleMenu}

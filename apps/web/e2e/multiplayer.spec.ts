@@ -519,6 +519,12 @@ test('pomoc na žádost: B požádá A o obilí, A dá půjčku, B přijme → z
   await b.getByTestId('notices-close').click();
   await expect(noticesPanel).toHaveCount(0);
   await expect(b.getByTestId('notices-unread')).toHaveCount(0);
+  // zkratka U otevře panel Upozornění a druhým stiskem ho zavře
+  await expect(b.getByTestId('notices-toggle')).toHaveAttribute('aria-keyshortcuts', 'U');
+  await b.keyboard.press('u');
+  await expect(noticesPanel).toBeVisible();
+  await b.keyboard.press('u');
+  await expect(noticesPanel).toHaveCount(0);
 
   await Promise.all(ctxs.map((ctx) => ctx.close()));
 });

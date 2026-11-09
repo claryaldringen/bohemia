@@ -1876,6 +1876,18 @@ test('panel Kronika – ikona v liště otevře kroniku vsi se zápisem o založ
   await expect(page.getByTestId('house-panel')).toHaveCount(0);
   await page.keyboard.press('Escape');
   await expect(panel).toHaveCount(0);
+  // zkratka J (popisek „Kronika [J]“) otevře a druhým stiskem zavře; U ji vystřídá Upozorněními
+  await expect(toggle).toHaveAttribute('aria-keyshortcuts', 'J');
+  await page.keyboard.press('j');
+  await expect(panel).toBeVisible();
+  await page.keyboard.press('j');
+  await expect(panel).toHaveCount(0);
+  await page.keyboard.press('j');
+  await page.keyboard.press('u');
+  await expect(page.getByTestId('notices-panel')).toBeVisible();
+  await expect(panel).toHaveCount(0);
+  await page.keyboard.press('u');
+  await expect(page.getByTestId('notices-panel')).toHaveCount(0);
 
   // trvalý stav vsi z upozornění v kronice s dnem začátku (absence.md – Upozornění vsi do kroniky)
   const state = await villageState(s.settlementId);

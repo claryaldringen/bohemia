@@ -51,8 +51,8 @@ describe('opevnění v katalogu staveb', () => {
     expect(FORT_VARIANTS.map((v) => v.icon)).toEqual([
       'fort-fence',
       'fort-palisade',
-      'fort-palisade',
-      'fort-palisade',
+      'fort-crib',
+      'fort-chamber',
       'fort-rampart',
     ]);
     expect(

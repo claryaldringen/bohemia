@@ -28,9 +28,9 @@ export interface StructureUseActions {
 }
 
 const ICONS: Record<StructureUseAction, string> = {
-  abandon: '/icons/resources/abandon-structure.svg',
-  demolish: '/icons/resources/demolish.svg',
-  restore: '/icons/resources/restore.svg',
+  abandon: '/icons/resources/abandon-structure.png',
+  demolish: '/icons/resources/demolish.png',
+  restore: '/icons/resources/restore.png',
 };
 
 const NAMES: Record<StructureUseAction, string> = {

@@ -7,7 +7,7 @@ import { Tooltip } from './Tooltip';
 // Opuštění dílu pole (fields.md – Opuštěný díl; Martin 8. 11. 2026: „A“): přepínač v panelu dílu
 // – opuštěný díl svítí, díl v osevu je tlumený (jako přepínač správce). Slova jen v popisku.
 
-const ICON = '/icons/resources/abandon-part.svg';
+const ICON = '/icons/resources/abandon-part.png';
 
 /** Popisek přepínače podle stavu dílu – co klik udělá. */
 export function abandonPartLabel(abandoned: boolean, sown: boolean): string {

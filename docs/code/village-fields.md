@@ -430,7 +430,7 @@ tools)` = s hromadou `pileSowsKg` (osivo, které ves ještě zaseje: `sowingHaPe
   `abandonFieldParts` (`parseAbandonFieldPartsInput` – `{ partIds, abandon }`,
   `abandonFieldPartsForPlayer`). Panel dílu: `VillageFieldPart.abandoned`, v detailech výběru
   `partId`, `abandoned`, `abandonBlock`; přepínač `AbandonPartButton` (ikona
-  `resources/abandon-part.svg`, `aria-pressed`, popisek `abandonPartLabel`) vpravo nahoře
+  `resources/abandon-part.png`, `aria-pressed`, popisek `abandonPartLabel`) vpravo nahoře
   v `SelectionPanel` (`onAbandonPart`). Scéna kreslí podle stavu dílu – beze změny.
   `/dev/panels?panel=pole-dil-opusteny`.
 

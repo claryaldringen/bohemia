@@ -203,7 +203,7 @@ export function SelectionPanel({
     portrait = <Portrait icon="humno" name="Humno" />;
     body = <ThreshingFloorBody details={details} />;
   } else if (details.kind === 'quarry') {
-    portrait = <Portrait icon="lom" name="Lom" src="/icons/build/lom.svg" />;
+    portrait = <Portrait icon="lom" name="Lom" src="/icons/build/lom.png" />;
     body = <QuarryBody details={details} onOrder={onOrderQuarrying} />;
   } else if (details.kind === 'fortification') {
     portrait = (

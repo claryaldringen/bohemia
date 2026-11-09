@@ -26,7 +26,7 @@ export function QuarryBody({
     <div className="flex min-w-0 flex-col justify-center gap-1.5">
       <div className={ROW}>
         <Stat
-          src="/icons/resources/stone.svg"
+          src="/icons/resources/stone.png"
           name="Kámen na hromadách (m³)"
           testId="selection-quarry-stone"
         >
@@ -48,7 +48,7 @@ export function QuarryBody({
                   void onOrder(details.outcropId, m3).finally(() => setBusy(false));
                 }}
               >
-                <img src="/icons/resources/stone.svg" alt="" width={20} height={20} />
+                <img src="/icons/resources/stone.png" alt="" width={20} height={20} />
                 <span className="text-sm font-semibold tabular-nums">+{m3}</span>
               </button>
             </Tooltip>
