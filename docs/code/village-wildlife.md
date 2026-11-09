@@ -129,7 +129,7 @@ windowDays` (ozim 61, jař 92) denně na každý nesklizený ohrožený díl. Mi
   musí cvičit (`trainingFamily`). Jezdec = muž s koněm po `assignRiders` (nepodkutý kůň –
   `isUnshod` – nejezdí, všichni pěšky); jezdec jede jen když `ridesBetter` (příspěvek na prasata
   i jeleny podle `HUNT.base` ≥ pěšího se psem), jinak jde pěšky. Rodina na poli ve žních –
-  `huntDay` při `lordFieldShare > 0` vyřadí jezdce i pěší muže dvorce, odešlí synové ano. Cíl: **medvěd** (listopad, každý druhý lov, jen když je;
+  `huntDay` vyřadí jezdce i pěší z rodiny, kteří jsou dnes na poli (`lordFieldIds`), ostatní a odešlí synové ano. Cíl: **medvěd** (listopad, každý druhý lov, jen když je;
   všichni pěšky), **vlci** (aspoň 2 dny škod v `predation.killDays` za 30 dní, ≥ 1 vlk), jinak
   **prasata a jeleni zároveň**. Pěší jsou mimo `villagersToday` (`huntFootIds`) – nepracují.
 - **Úlovek** (`huntDay` před `trainLordDay`, dostane `lordField`): síla jezdce `riderPower ÷ 100 × (0,5 + 0,5 × luk ÷ 100)`, pěšího `(luk + boj) ÷ 200`

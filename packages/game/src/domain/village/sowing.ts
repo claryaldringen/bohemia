@@ -209,10 +209,10 @@ export function harvestOverflow(load: CropLoad, julyWork: number): number {
 export const HARVEST_HELP_WINDOWS: readonly LordHelpWindow[] = ['july', 'august'];
 
 /**
- * Podíl dne celé vojvodovy rodiny ve žních, aby ves stihla sklidit (lord.md – Kdy jde rodina na
- * pole; Martin 9. 11. 2026: „Pokud by se nestíhala sklizeň, ať se zapojí i celá vojvodova rodina,
- * pokud je zrovna ve vsi“): chybějící práce (zátěž `load` nad volnou prací vsi bez rodiny
- * `village`) ÷ práce rodiny v okně (`withLord − village`), nejvýš 1 – jen tolik, kolik chybí.
+ * Podíl práce vojvodovy rodiny ve žních, aby ves stihla sklidit (lord.md – Kdy jde rodina na
+ * pole; Martin 9. 11. 2026): chybějící práce (zátěž `load` nad volnou prací vsi bez rodiny
+ * `village`) ÷ práce rodiny v okně (`withLord − village`), nejvýš 1 – jen tolik, kolik chybí. Kdo
+ * z rodiny jde (ženy a dcery, pak muži, vojvoda nakonec), určí den (`lordFieldShares`).
  * Červenec a srpen; žeň, kterou červenec nestihne ani s rodinou, přejde do srpna
  * (`harvestOverflow`). S osevem rodina nepomáhá. Okna, kde nic nechybí, chybí; ves, která žně
  * stihne sama, dostane {}.

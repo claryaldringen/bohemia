@@ -94,7 +94,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   chybějící práce ÷ práce rodiny, nejvýš 1); necvičící rodina pomoc nemá. Den: ve žňový den
   (`harvestHandsDay`) `lordHelpShare` × `free` = `manorLabor.help` → `allocateDay` – `lordHelp` až
   po práci vsi a žňových rukou, jen žeň a výmlat (`HARVEST_HANDS_TASKS`; jen co ves dnes nestihne);
-  podíl dne na poli pro `trainLordDay` a `lordDayCounts` = spotřeba ÷ `free` (muži i ženy). Pomoc
+  kdo jde na pole, určí `lordFieldShares` (`lord.ts`) ze spotřeby: napřed ženy a dcery
+  (`free − freeMen`), pak muži rodiny (`freeMen − freeLord`), vojvoda až nakonec (`freeLord`;
+  Martin 9. 11. 2026) – podíly `LordFieldShares` pro `trainLordDay`, `huntDay` a `lordDayCounts`. Pomoc
   s osevem (`lordSowingHelp`, `SOWING_HELP_TASKS`) a při hladu (`lordFieldMode`, `lord.field`,
   zásobníky `lordField` a `lordHarvest`) zrušené; převod `withoutSowingHelp` (`lord.ts`).
   **Pletí – děti** (fields.md – Pletí – děti, 25. 10. 2026): `weedingChildren` (harvest-hands.ts)

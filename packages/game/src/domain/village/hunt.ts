@@ -10,7 +10,7 @@ import { assignRiders, riderPower } from './horse-riders';
 import { isUnshod } from './horse-shoeing-term';
 import { huntingDogs, huntPool } from './hunt-party';
 import { villageHerds, butcher } from './livestock';
-import { trainingFamily } from './lord';
+import { lordFieldIds, trainingFamily, type LordFieldShares } from './lord';
 import { ageGroup, ageYears } from './people';
 import { HUNT, HUNT_RISK, PREDATION } from './rules-wildlife';
 import type {
@@ -155,17 +155,21 @@ function takeWhole(hope: number, limit: number): { kills: number; hope: number }
  * a uzení – Martin 26. 10. 2026). Rodina na poli ve žních (`lordFieldShare` > 0) neloví
  * (ani na koních, ani pěšky; odešlí synové smějí). Jedna událost kroniky za den se jménem nejlepšího lovce.
  */
-export function huntDay(state: VillageState, day: number, lordFieldShare = 0): ChronicleEvent[] {
+export function huntDay(
+  state: VillageState,
+  day: number,
+  lordField: number | LordFieldShares = 0,
+): ChronicleEvent[] {
   const w = state.wildlife;
   const hunt = w?.hunt;
   const today = hunt?.today;
   if (!w || !hunt || !today || today.day !== day) return [];
-  if (lordFieldShare > 0) {
-    // rodina se dnes nechala strhnout polem: jezdci nejedou a pěší muži dvorce také ne
-    today.riders = [];
-    const family = trainingFamily(state, day);
-    const manorIds = new Set(family ? family.trainees.map((p) => p.id) : []);
-    today.foot = today.foot.filter((id) => !manorIds.has(id));
+  const family = trainingFamily(state, day);
+  const onField = family ? lordFieldIds(family, day, lordField) : new Set<number>();
+  if (onField.size > 0) {
+    // kdo z rodiny je dnes na poli, neloví – ani na koni, ani pěšky (ostatní smějí)
+    today.riders = today.riders.filter((r) => !onField.has(r.personId));
+    today.foot = today.foot.filter((id) => !onField.has(id));
   }
   const caps = wildlifeCaps(w.land, villageHerds(state).pig);
   const people = new Map(state.people.map((p) => [p.id, p]));

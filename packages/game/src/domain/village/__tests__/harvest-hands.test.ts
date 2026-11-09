@@ -4,7 +4,7 @@ import { foundVillage, type PartInput } from '../actions';
 import { craftCoverage, craftHarvestLabor, newWorkshop, workshopLabor } from '../crafts';
 import { harvestHandsDay, harvestHelperLabor, HARVEST_HANDS_MONTHS } from '../harvest-hands';
 import { allocateDay } from '../labor';
-import { lordApartIds, lordRides, manorLabor } from '../lord';
+import { harvestFieldIds, lordApartIds, lordFamily, lordRides, manorLabor } from '../lord';
 import { NO_CRAFTS } from '../productivity';
 import { CRAFT_BASE, FIELD_WORK_PER_HA, HARVEST_HELPERS, HARVEST_WORK_PER_HA } from '../rules';
 import { advanceVillage } from '../simulate';
@@ -146,7 +146,7 @@ describe('žňový den (harvestHandsDay)', () => {
 });
 
 describe('jízdy vojvodovy rodiny ve žních (lordRides)', () => {
-  it('ve žňový den, kdy rodina pomáhá na poli, nikdo nejezdí; bez pomoci se jezdí', () => {
+  it('ve žňový den, kdy rodina pomáhá na poli, nejezdí jen ten, kdo jde na pole', () => {
     const s = advanceVillage(harvestVillage(), at(600, 9, 1), null, null);
     s.lord = { trains: true };
     for (const { work } of seasonCrops(s.season!)) {
@@ -158,10 +158,17 @@ describe('jízdy vojvodovy rodiny ve žních (lordRides)', () => {
     s.sheaves = { grainKg: 0, legumesKg: 0 };
     const harvestDay = [at(601, 7, 10), at(601, 8, 10)].find((d) => harvestHandsDay(s, d))!;
     expect(harvestDay).toBeDefined();
+    const family = lordFamily(s, harvestDay);
     delete s.season!.lordHelp;
     expect(lordRides(s, harvestDay)).not.toBeNull();
-    s.season!.lordHelp = { july: 0.5, august: 0.5 };
-    expect(lordRides(s, harvestDay)).toBeNull();
+    expect(harvestFieldIds(s, harvestDay, family)).toEqual(new Set());
+    // malá pomoc pokryjí ženy rodiny – muži jezdí (lord.md – Kdy jde rodina na pole, pořadí)
+    s.season!.lordHelp = { july: 0.05, august: 0.05 };
+    expect(harvestFieldIds(s, harvestDay, family)).toEqual(new Set());
+    // celá rodina na poli: syn i vojvoda nejezdí, jízdy dne zůstávají pro ostatní
+    s.season!.lordHelp = { july: 1, august: 1 };
+    expect(harvestFieldIds(s, harvestDay, family)).toEqual(new Set([10, 12]));
+    expect(lordRides(s, harvestDay)).not.toBeNull();
     // mimo žně se jezdí (výcvik běží)
     expect(lordRides(s, at(601, 5, 10))).not.toBeNull();
   });

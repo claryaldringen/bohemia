@@ -42,7 +42,15 @@ import {
   type SmithSupply,
 } from './crafts';
 import { harvestHandsDay, harvestHelperLabor, weedingChildren } from './harvest-hands';
-import { lordApartIds, lordDayCounts, manorLabor, trainingFamily } from './lord';
+import {
+  lordApartIds,
+  lordDayCounts,
+  lordFieldShares,
+  manorLabor,
+  NO_LORD_FIELD,
+  trainingFamily,
+  type LordFieldShares,
+} from './lord';
 import { nextYearlyCommonLabor, repairNeedPerDay, yearlyCommonLabor } from './dwellings';
 import { animalCareNeed, dailyMilk } from './dairy';
 import { DIET, villageFoodNeed } from './diet';
@@ -361,8 +369,8 @@ export function dayTaskOrder(a: DayTask, b: DayTask): number {
  * (fields.md – Osevní postup po dílech, bod 3; Martin 9. 11. 2026: „Setí – to přece obstará pár
  * mužů s voly a ženy, pletí obstarají ženy a děti. Na sklizni se pak podílejí úplně všichni“) –
  * stavby dostanou, co zbude; muži plejí jen, co ženy a děti nestihnou, a až po stavbách.
- * Vrací, jestli ves dnes nestíhá polní práce v období (dřina), a podíl práce rodiny na poli, který
- * dnes úlohy spotřebovaly (`trainLordDay`).
+ * Vrací, jestli ves dnes nestíhá polní práce v období (dřina), a podíly dne skupin rodiny na poli
+ * z práce, kterou dnes úlohy spotřebovaly (`lordFieldShares` – ženy, muži, vojvoda; `trainLordDay`).
  */
 export function work(
   state: VillageState,
@@ -371,7 +379,7 @@ export function work(
   coverage: CraftCoverage,
   landscape: Landscape | null,
   waiting: ReadonlySet<Crop> = new Set(),
-): { toil: boolean; lordField: number } {
+): { toil: boolean; lordField: LordFieldShares } {
   const month = dateOfDayIndex(day).month;
   // starší hospodářský rok s pletím ozimu – ozim se neplete; pletí jaře, luštěnin a lnu ze
   // starších sazeb na nové (fields.md – Pletí jednou a rychle)
@@ -1045,10 +1053,9 @@ export function work(
   // všechny jízdy dne do provozu cest na jednom místě (wagons.md)
   flushCartTrips(state, cartLog);
   const hayMowing = state.hay?.mowing;
-  // podíl práce rodiny na poli, který dnes žně spotřebovaly – zbytek dne cvičí (`trainLordDay`);
-  // ve žních celá rodina – muži, ženy i dcery (÷ `free`)
-  const lordBase = manor ? manor.free : 0;
-  const lordField = lordBase > 0 ? allocation.lordField / lordBase : 0;
+  // práce rodiny, kterou dnes žně spotřebovaly – napřed ženy a dcery, pak muži, vojvoda až
+  // nakonec (`lordFieldShares`); zbytek dne cvičí (`trainLordDay`)
+  const lordField = manor ? lordFieldShares(manor, allocation.lordField) : NO_LORD_FIELD;
   state.labor = laborDay(state, day, {
     allocation,
     ...(family && manor

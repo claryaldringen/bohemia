@@ -112,20 +112,28 @@ má ves ≥ 4 dospělé mimo rodinu“ (volba z nabídky).
 rodina pomáhat nemusí, Martin: „setí by mělo být v pohodě ne? Problém je spíš se žněmi“ a „Pokud
 by se nestíhala sklizeň, ať se zapojí i celá vojvodova rodina, pokud je zrovna ve vsi“. K pomoci
 při hladu: „A co by na tom poli asi tak dělali? Čuměli, jak roste obilí?“ a „ano“ k jejímu
-zrušení.
+zrušení. K pořadí (Martin 9. 11. 2026, místo celé rodiny naráz): „Je to vlastně přesně napak.
+Pokud se nestíhá, jdou ženy z vojvodovy rodiny, pokud se i tak nestíhá, jdou muži z vojvodovy
+rodiny, samotný vojvoda až úplně nakonec“.
 
 - **Žně.** Ves počítá práci žní (červenec – žeň ozimu a lnu, srpen – žeň jaře, zbytek července
-  a výmlat) **bez rodiny**. Když by je bez ní nestihla, dá **celá rodina** – vojvoda, synové,
-  ženy, snachy a dcery od 14 let, kdo je **zrovna ve vsi** (ne na tažení, výpravě ani v jiné vsi)
-  – podíl dne = chybějící práce ÷ práce rodiny po denním minimu dvorce, nejvýš celý den; zbytek
-  dne cvičí (ženy vedou domácnost). Podíl ves přepočítá každý den žní ze zbývající práce – když
-  zaostává, rodina pomůže víc, když dohnala, méně. Chlapci 7–13 let cvičí vždy.
+  a výmlat) **bez rodiny**. Když by je bez ní nestihla, pomůže rodina – kdo je **zrovna ve vsi**
+  (ne na tažení, výpravě ani v jiné vsi) – jen prací, která chybí (chybějící práce ÷ práce rodiny
+  po denním minimu dvorce, nejvýš celý den). Ves ji přepočítá každý den žní ze zbývající práce –
+  když zaostává, rodina pomůže víc, když dohnala, méně.
+  - **Pořadí** (Martin 9. 11. 2026): napřed **ženy a dcery** (žena vojvody, snachy, dcery od
+    14 let a vedlejší manželky); když ani to nestačí, **muži rodiny** (synové a vnuci od 14 let);
+    **samotný vojvoda až úplně nakonec**. Každá skupina dá jen tolik, kolik po předchozí ještě
+    chybí; kdo na pole nejde, cvičí (ženy vedou domácnost). Chlapci 7–13 let cvičí vždy.
+  - Denní minimum dvorce, na které ženy nestačí, kryjí napřed synové – vojvoda až po nich (návrh
+    Clauda; vojvoda je poslední i tady).
   - Rodina jde na pole **až po práci vsi a žňových rukou** ([pole](fields.md) – Žně všemi
     rukama) – jen žeň a výmlat, které ves ten den sama nestihne, takže vsi neuvolní práci na
     stavby ani setí (návrh Clauda).
-  - **Ve dnech na poli nikdo nejezdí, ani chlapci** (návrh Clauda): koně stojí a jízda ani
-    výcvik koně nepostupují; luk a boj chlapci cvičí dál. Rodina na poli ten den neloví (odešlí
-    synové smějí).
+  - **Kdo je ten den na poli, nejezdí ani neloví** (návrh Clauda, 9. 11. 2026 – dřív nejezdil
+    nikdo z rodiny, ani chlapci): jeho kůň stojí a jízda ani výcvik koně nepostupují. Chlapci,
+    muži, na které pole nedošlo, a vojvoda, dokud na pole nejde, jezdí a loví jako jindy (odešlí
+    synové smějí vždy).
 - **S osevem rodina nepomáhá** – ~~bod 1: ves nestihne potřebný osev~~ (zrušeno 9. 11. 2026;
   potřeba úrody zmizela s cílem osevu – [pole](fields.md), Osivo bez cíle osevu).
 - **Při hladu rodina na pole nejde** – ~~bod 2: výhled jídla nevychází, celá rodina celý den do

@@ -3,7 +3,7 @@ import { dayIndexOf } from '../../calendar';
 import { foundVillage, type PartInput } from '../actions';
 import { craftCoverage } from '../crafts';
 import { allocateDay } from '../labor';
-import { manorLabor } from '../lord';
+import { lordDayCounts, lordFieldShares, manorLabor, type LordFamily } from '../lord';
 import { NO_CRAFTS } from '../productivity';
 import { advanceVillage } from '../simulate';
 import { lordHelpDay, villageProductivity } from '../simulate-plan';
@@ -14,9 +14,10 @@ import { dwelling } from './kin-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
 // Vojvodova rodina ve žních (lord.md – Kdy jde rodina na pole; Martin 9. 11. 2026: „Pokud by se
-// nestíhala sklizeň, ať se zapojí i celá vojvodova rodina, pokud je zrovna ve vsi“): když ves žně
-// sama nestíhá, dá celá rodina jen podíl dne, který chybí – zbytek dne cvičí. S osevem a při hladu
-// rodina nepomáhá.
+// nestíhala sklizeň, ať se zapojí i celá vojvodova rodina, pokud je zrovna ve vsi“ a „Pokud se
+// nestíhá, jdou ženy z vojvodovy rodiny, pokud se i tak nestíhá, jdou muži z vojvodovy rodiny,
+// samotný vojvoda až úplně nakonec“): když ves žně sama nestíhá, dá rodina jen práci, která chybí –
+// napřed ženy a dcery, pak muži, vojvoda nakonec; zbytek dne cvičí. S osevem a při hladu nepomáhá.
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const START = at(600, 8, 31);
@@ -231,5 +232,55 @@ describe('rodina ve žních (lordHelpDay)', () => {
     }
     expect(pieces).toEqual(once);
     expect(once.sowingSeed?.beforeWindow).toBe(true);
+  });
+});
+
+describe('pořadí rodiny ve žních (lord.md – Kdy jde rodina na pole; Martin 9. 11. 2026)', () => {
+  // ženy a dcery 3 člověkodny po minimu dvorce, synové 2, vojvoda 1
+  const manor = { free: 6, freeMen: 3, freeLord: 1 };
+
+  it('napřed ženy a dcery, pak muži, vojvoda až nakonec – každá skupina jen kolik chybí', () => {
+    expect(lordFieldShares(manor, 0)).toEqual({ women: 0, men: 0, lord: 0 });
+    expect(lordFieldShares(manor, 1.5)).toEqual({ women: 0.5, men: 0, lord: 0 });
+    expect(lordFieldShares(manor, 4)).toEqual({ women: 1, men: 0.5, lord: 0 });
+    expect(lordFieldShares(manor, 5.5)).toEqual({ women: 1, men: 1, lord: 0.5 });
+    // víc, než rodina má, nedá
+    expect(lordFieldShares(manor, 9)).toEqual({ women: 1, men: 1, lord: 1 });
+  });
+
+  it('bez žen jdou napřed muži, vojvoda zase poslední', () => {
+    expect(lordFieldShares({ free: 3, freeMen: 3, freeLord: 1 }, 1)).toEqual({
+      women: 0,
+      men: 0.5,
+      lord: 0,
+    });
+  });
+
+  it('počty na poli podle skupin – vojvoda jen, když na něj dojde', () => {
+    const adult = (id: number, sex: 'male' | 'female'): Person =>
+      ({ id, sex, bornDay: -30 * 365 }) as Person;
+    const family = {
+      lord: adult(1, 'male'),
+      trainees: [adult(1, 'male'), adult(2, 'male'), adult(3, 'male')],
+      household: [adult(4, 'female'), adult(5, 'female')],
+      others: [],
+      wivesApart: [],
+      eliteHomes: [],
+    } satisfies LordFamily;
+    expect(lordDayCounts(family, 0, { women: 1, men: 0, lord: 0 })).toEqual({
+      training: 3,
+      field: 2,
+      household: 0,
+    });
+    expect(lordDayCounts(family, 0, { women: 1, men: 1, lord: 0 })).toEqual({
+      training: 1,
+      field: 4,
+      household: 0,
+    });
+    expect(lordDayCounts(family, 0, { women: 1, men: 1, lord: 1 })).toEqual({
+      training: 0,
+      field: 5,
+      household: 0,
+    });
   });
 });
