@@ -1,12 +1,15 @@
 import {
   battleForts,
   isCampaignParticipant,
+  sceneFolkOf,
+  shownBattle,
   warSceneView,
   type BattleFort,
   type BattleSide,
   type CampaignState,
   type Pos,
   type WarSceneBuilding,
+  type WarSceneFolk,
   type WarSceneView,
 } from '../domain/war';
 import { sameCell, type GridCell } from '../domain/village/world-grid';
@@ -22,12 +25,13 @@ import type { VillageRepository } from './villages';
 
 /**
  * Napadená ves v jednom herním dni: oči obránce (domy), domy pro útočníka (scéna z nich ukáže jen
- * objevené) a opevnění bojiště.
+ * objevené), opevnění bojiště a lidé vsi pro útěk do lesa (jen obránci – `sceneFolkOf`).
  */
 export interface WarSceneDefender {
   eyes: Pos[];
   forts: BattleFort[];
   buildings: WarSceneBuilding[];
+  folk: WarSceneFolk[];
 }
 
 /**
@@ -83,6 +87,7 @@ export async function warSceneFor(
       eyes: [],
       forts: [],
       buildings: [],
+      folk: [],
     });
     if (view) views.push(view);
   }
@@ -106,9 +111,8 @@ export async function warSceneOnMap(
   if (state.phase === 'done' || state.phase === 'disbanded' || !present(state, cell)) return null;
   const onTarget = sameCell(state.target.cell, cell);
   const target = onTarget ? await defenderOf(deps, state.target.villageId, cell, state.day) : null;
-  // dohled v lese jako v pohledu na tažení – mřížka mapy cíle jen při boji
-  const grid =
-    onTarget && state.battle?.outcome === 'ongoing' ? await sightGrid(deps, state) : null;
+  // dohled v lese jako v pohledu na tažení – mřížka mapy cíle jen při boji (i rozhodnutém dnes)
+  const grid = onTarget && shownBattle(state) !== null ? await sightGrid(deps, state) : null;
   return warSceneView(state, {
     cell,
     side: 'attack',
@@ -119,12 +123,15 @@ export async function warSceneOnMap(
   });
 }
 
-/** Je vojsko tažení na mapě – skupina na ní stojí, nebo tu běží boj. */
+/**
+ * Je vojsko tažení na mapě – skupina na ní stojí, nebo tu běží boj (či dnes skončil – padlí leží
+ * do konce dne, `shownBattle`).
+ */
 function present(state: CampaignState, cell: GridCell): boolean {
   const onTarget = state.target.cell.x === cell.x && state.target.cell.y === cell.y;
   return (
     state.groups.some((g) => g.cell.x === cell.x && g.cell.y === cell.y) ||
-    (onTarget && state.battle?.outcome === 'ongoing')
+    (onTarget && shownBattle(state) !== null)
   );
 }
 
@@ -135,10 +142,18 @@ async function viewOn(
   side: BattleSide,
   defender: WarSceneDefender,
 ): Promise<WarSceneView | null> {
-  // dohled v lese jen pro obránce na mapě cíle (útočník vidí celé vlastní vojsko)
+  // dohled v lese jen pro obránce na mapě cíle (útočník vidí celé vlastní vojsko); z mřížky i les,
+  // kam ves utekla
   const onTarget = state.target.cell.x === cell.x && state.target.cell.y === cell.y;
   const grid = side === 'defend' && onTarget ? await sightGrid(deps, state) : null;
-  return warSceneView(state, { cell, side, grid, eyes: defender.eyes, forts: defender.forts });
+  return warSceneView(state, {
+    cell,
+    side,
+    grid,
+    eyes: defender.eyes,
+    forts: defender.forts,
+    ...(side === 'defend' ? { folk: defender.folk } : {}),
+  });
 }
 
 /** Domy a opevnění napadené vsi v den `day` – z mezipaměti, jinak jednou ze stavu vsi. */
@@ -165,6 +180,7 @@ async function defenderOf(
       fortifications.length > 0
         ? battleForts((await deps.cells.mapOf(cell)).landscape, fortifications)
         : [],
+    folk: sceneFolkOf(village.state, day),
   };
   deps.defenders?.set(key, defender);
   return defender;

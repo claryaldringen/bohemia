@@ -9,6 +9,7 @@ import {
   type CampaignMember,
   type CampaignState,
   type ShelterReport,
+  type WarSceneView,
 } from '@bohemia/game';
 import { E2E_ENV } from '../playwright.config';
 import { useUniqueClientIp } from './helpers';
@@ -278,6 +279,19 @@ test('válka dvou hráčů: A přepadne B, B uteče do lesa i s dobytkem, kronik
         { timeout: 60_000 },
       )
       .toBeGreaterThan(0);
+    // i útěk vsi do lesa se stádem (war.md – Ve scéně – Napadená ves): ovce, které ves odehnala
+    // do lesa, jdou za lidmi (útočníci jsou pěší a kořist bez dobytka – krávy jsou jen útěk)
+    await expect
+      .poll(
+        () =>
+          b.evaluate(() =>
+            window.__bohemiaE2E!.armyStats!()
+              .filter((m) => m.name.startsWith('army-cow'))
+              .reduce((n, m) => n + m.count, 0),
+          ),
+        { timeout: 30_000 },
+      )
+      .toBe(herds.sheep);
     if (process.env.WAR_SHOT_DIR) {
       // snímek vsi s vojskem: výchozí záběr na ves, pak přiblížit k vojsku pod ní
       const dir = process.env.WAR_SHOT_DIR;
@@ -293,6 +307,29 @@ test('válka dvou hráčů: A přepadne B, B uteče do lesa i s dobytkem, kronik
       await b.mouse.move(640, 300);
       await b.waitForTimeout(2_000);
       await b.screenshot({ path: `${dir}/napadena-ves.png` });
+      // útěk vsi: záběr na cestu od domu k okraji lesa, kam ves utíká (pohled ze serveru)
+      const way = await b.evaluate(async (id) => {
+        const res = await fetch(`/api/war-scene/${id}`);
+        const { war } = (await res.json()) as { war: WarSceneView | null };
+        const home = war?.flight?.people[0]?.home;
+        const forest = war?.flight?.forests[0];
+        // třetina cesty – lidé vyšli při otevření boje před pár desítkami sekund
+        const at = (k: number): { x: number; z: number } | null =>
+          home && forest
+            ? { x: home.x + (forest.x - home.x) * k, z: home.z + (forest.z - home.z) * k }
+            : null;
+        return at(0.3);
+      }, seatB.settlementId);
+      if (way) {
+        await b.evaluate(({ x, z }) => window.__bohemiaE2E!.moveCameraTo!(x, z), way);
+        await b.mouse.move(640, 360);
+        for (let i = 0; i < 4; i++) {
+          await b.mouse.wheel(0, 300);
+          await b.waitForTimeout(150);
+        }
+        await b.waitForTimeout(2_000);
+        await b.screenshot({ path: `${dir}/utek-vsi.png` });
+      }
     }
 
     // vojsko obrátilo – zkrátíme cestu domů: skupiny rovnou ve shromaždišti

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CampaignMap, CampaignState } from '../../domain/war';
-import type { Dwelling } from '../../domain/village/types';
+import type { Dwelling, Person } from '../../domain/village/types';
 import { attacker, battle, defender, land } from '../../domain/war/__tests__/battle-fixtures';
 import { campaign, member } from '../../domain/war/__tests__/campaign-fixtures';
 import type { Settlement } from '../settlements';
@@ -42,12 +42,21 @@ const settlement = (id: string, ownerId: string, x: number): Settlement =>
 async function setup(
   state: CampaignState,
   dwellings: Dwelling[],
+  people: Person[] = [],
 ): Promise<{ deps: WarSceneDeps; campaigns: InMemoryCampaigns; reads: string[] }> {
   const campaigns = new InMemoryCampaigns();
   await campaigns.create(state);
   const villages: Record<string, VillageRecord> = {
-    s9: { id: 'knezice', settlementId: 's9', state: { dwellings } } as unknown as VillageRecord,
-    s1: { id: 'lhota', settlementId: 's1', state: { dwellings: [] } } as unknown as VillageRecord,
+    s9: {
+      id: 'knezice',
+      settlementId: 's9',
+      state: { dwellings, people },
+    } as unknown as VillageRecord,
+    s1: {
+      id: 'lhota',
+      settlementId: 's1',
+      state: { dwellings: [], people: [] },
+    } as unknown as VillageRecord,
   };
   const settlements: Record<string, Settlement> = {
     s9: settlement('s9', 'p9', 1),
@@ -143,6 +152,42 @@ describe('warSceneFor', () => {
     const view = await warSceneFor(deps, { playerId: 'p9', settlementId: 's9' });
     expect(view?.battle).toBeNull();
     expect(view?.march?.members).toHaveLength(2);
+  });
+
+  it('padlí leží do konce dne i po odchodu vojska z mapy; ves utekla do lesa ze stavu vsi', async () => {
+    const state = raiding([defender(101, { x: 40, z: 0 })]);
+    const d = state.battle!.fighters.find((f) => f.id === 'd:101')!;
+    Object.assign(d, { state: 'down', killed: true, health: 0 });
+    state.battle!.outcome = 'attackers';
+    state.battle!.openTick = state.tick - 10;
+    state.battle!.shelter = {
+      stance: 'flee',
+      refuge: [],
+      forest: [5],
+      surrendered: [],
+      carriedKg: 25,
+      livestockRefuge: { sheep: 0, goat: 0, pig: 0, cow: 0 },
+      livestockForest: { sheep: 6, goat: 0, pig: 0, cow: 0 },
+    };
+    // vojsko už je na sousední mapě, výsledek nájezdu odešel dnes
+    const gone: CampaignState = {
+      ...state,
+      phase: 'returning',
+      raidDay: state.day,
+      groups: state.groups.map((g) => ({ ...g, cell: { x: 0, y: 0 } })),
+    };
+    const woman = { id: 5, dwellingId: 7, bornDay: state.day - 30 * 365, sex: 'female' } as Person;
+    const { deps, campaigns } = await setup(gone, [house(7, 60, 0)], [woman]);
+    const view = await warSceneFor(deps, { playerId: 'p9', settlementId: 's9' });
+    expect(view?.march).toBeNull();
+    expect(view?.battle?.fighters.map((f) => f.id)).toEqual(['d:101']);
+    expect(view?.flight).toMatchObject({ startTick: state.tick - 10, herd: 6 });
+    expect(view?.flight?.people.map((p) => [p.id, p.kind, p.carries])).toEqual([
+      [5, 'woman', true],
+    ]);
+    // další den – nic (lidé se vrátí se vsí)
+    await campaigns.create({ ...gone, day: gone.day + 1 });
+    expect(await warSceneFor(deps, { playerId: 'p9', settlementId: 's9' })).toBeNull();
   });
 
   it('útočník vidí vlastní vojsko na pochodu na své mapě, jinde nic', async () => {

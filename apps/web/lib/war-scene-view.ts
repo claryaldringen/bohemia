@@ -1,5 +1,6 @@
 import {
   dateOfDayIndex,
+  msOfTick,
   realTimeOf,
   type GridCell,
   type Pos,
@@ -11,6 +12,7 @@ import type { CampaignView } from './campaign-view';
 import type { ForeignMap } from './foreign-map';
 import { sceneBattle } from './scene/army';
 import type { SceneWar } from './scene/army-renderer';
+import { planFlight, type FleeWalk } from './scene/villager-plan';
 import type { SceneVillage } from './village-view-scene-types';
 
 // Válka ve scéně vlastní mapy (war.md – Ve scéně – napojení na hru): odpověď serveru
@@ -40,8 +42,8 @@ export interface WatchedMap {
  * Snímek války pro scénu: boj (hradby z odpovědi), nebo pochod. Na vlastní mapě bez závoje mlhy
  * (návrh Clauda – svou zem hráč zná; cizí muže mimo dohled server neposlal), na cizí mapě
  * (`foreign`) se závojem z pohledu strany hráče (war.md – Ve scéně: mlha války na cizí mapě).
- * Padlí leží do konce herního dne boje. Útěk vsi a odehnané stádo zatím ne (scéna je umí –
- * `planFlight`, `drivenHerd`).
+ * Padlí leží do konce herního dne boje (server pošle rozhodnutý boj jen s padlými a raněnými).
+ * Útěk vsi do lesa (`flightOf`) a odehnané stádo s vojskem (`herdOf`).
  */
 export function sceneWarOf(
   view: WarSceneView | null,
@@ -61,10 +63,54 @@ export function sceneWarOf(
           })),
         }
       : null,
-    flight: null,
-    herd: null,
+    flight: flightOf(view, world),
+    herd: herdOf(view),
     fog: foreign ? { side: view.side } : null,
     dayEndMs: realTimeOf(dateOfDayIndex(view.day + 1), world),
+  };
+}
+
+/** Nejvýš tolik kusů dobytka kreslí scéna ve stádu (výkon – víc kusů je jen hustší hlouček). */
+export const SCENE_HERD_MAX = 24;
+
+/**
+ * Útěk vsi do lesa pro scénu (war.md – Napadená ves): každý od svého domu k okraji lesa své skupiny
+ * domů (`planFlight` po okrajích lesa), od taktu, kdy ves utekla. Takt neznámý (`startTick` null –
+ * starší stav tažení) – lidé už stojí u lesa (`startMs` −∞).
+ */
+export function flightOf(view: WarSceneView, world: WorldClock): SceneWar['flight'] {
+  const f = view.flight;
+  if (!f || f.people.length === 0) return null;
+  const walks: FleeWalk[] = f.forests.flatMap((forest, i) =>
+    planFlight(
+      f.people
+        .filter((p) => p.forest === i)
+        .map((p) => ({
+          id: p.id,
+          home: { x: p.home.x, z: p.home.z },
+          kind: p.kind,
+          child: p.child,
+          carries: p.carries,
+        })),
+      forest,
+    ),
+  );
+  return {
+    walks,
+    startMs: f.startTick === null ? -Infinity : msOfTick(f.startTick, world),
+    herd: Math.min(f.herd, SCENE_HERD_MAX),
+  };
+}
+
+/** Odehnané stádo za skupinou vojska, se kterou jde (poloha a směr chůze skupiny). */
+export function herdOf(view: WarSceneView): SceneWar['herd'] {
+  const h = view.march?.herd;
+  const g = h ? view.march?.groups.find((x) => x.id === h.group) : undefined;
+  if (!h || !g || h.count <= 0) return null;
+  return {
+    lead: { x: g.pos.x, z: g.pos.z },
+    heading: { x: g.heading.x, z: g.heading.z },
+    count: Math.min(h.count, SCENE_HERD_MAX),
   };
 }
 

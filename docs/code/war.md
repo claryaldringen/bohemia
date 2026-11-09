@@ -938,20 +938,40 @@ Scéna hry ukazuje **mapu sídla hráče** – vojsko je v ní vidět, když na 
   (`Fighter.hits` – přičte `takeHit`; scéna podle něj pozná ránu – `strikesOf`); cizímu se domov
   nahradí polohou a cíl (`aim`, `climber`) mimo dohled se smaže. Průlomy
   a žebříky obránce vidí v dohledu, zavřené brány a hradby všichni (stavba, ne vojsko). Boj jen na
-  mapě cíle a jen běžící (`outcome = 'ongoing'`), jinak pochod – skupiny na mapě a jejich aktivní
-  muži se směrem chůze (`heading`). Hradby bojiště počítá `battleWallsOf` (web `battleWalls` ji
-  volá).
+  mapě cíle (`shownBattle`): běžící celý; **rozhodnutý do konce dne rozhodnutí** (`raidDay = day`)
+  jen padlí a ranění (`down`, bez skupin) vedle pochodu – padlí leží, ranění sedí u domů (vlastní
+  strana nese domov), druhá strana jen v dohledu; další den zmizí (bez nového stavu). Jinak pochod
+  – skupiny na mapě a jejich aktivní muži se směrem chůze (`heading`). Hradby bojiště počítá
+  `battleWallsOf` (web `battleWalls` ji volá).
+- **Odehnané stádo** (`WarSceneMarch.herd { group, count }`): kořist `CampaignLoot.herd` jde se
+  skupinou s nejmenším id, ve které je muž na nohou (návrh Clauda – kořist nese vojsko jako celek);
+  pošle se jen s tou skupinou – obránce ho tak vidí jen v dohledu jako ostatní cizí, útočník vždy.
+- **Útěk vsi do lesa** (`WarSceneView.flight` – `WarSceneFlight`; jen obránce na mapě své vsi, vedle
+  boje či pochodu): kdo utekl (`ShelterReport.forest`) – dům, postava, dítě, nese zásoby (lidé vsi
+  `sceneFolkOf` – přítomní, skupiny domů `houseGroups`, věk jako `fleeParty`); každá skupina domů
+  k okraji lesa nejbližšímu jejímu prvnímu člověku (`nearestForest` nad mřížkou dohledu jako
+  v `planDefense`), dobytek do lesa (`livestockForest` – součet kusů). Začátek = takt otevření boje
+  `BattleState.openTick` (volitelné, zapíše `raidTick`; návrh Clauda – boj, ve kterém všichni utekli,
+  se rozhodne hned prvním taktem a bez něj by se chůze k lesu nikdy neukázala); starší stav – běžící
+  boj z počtu taktů, rozhodnutý null (lidé stojí u lesa). Útočník útěk nedostane (návrh Clauda –
+  ves utekla, než dohlédl). Do útočiště (`refuge`) se útěk nekreslí.
 - **Use-case** (`application/war-scene.ts` – `warSceneFor(deps, { playerId, settlementId })`):
   sídlo musí být hráče a ležet v mřížce světa; tažení proti vsi sídla
   (`CampaignRepository.activeAgainst` – `state->'target'->>'villageId'`) z pohledu obránce (mřížka
   pro dohled v lese `sightGrid`, opevnění `battleForts` jen při boji), pak tažení hráče
   (`activeOf`) z pohledu útočníka. Boj má přednost, napadení před vlastním vojskem; jeden pohled.
-  Ves sídla se hledá otiskem bez stavu (`stampsOf`); domy a opevnění obránce (`WarSceneDefender`)
-  se čtou ze stavu vsi jednou za herní den – mezipaměť `defenders` (klíč `ves@den`, web LRU 16).
+  Vojsko je na mapě (`present`), stojí-li tu skupina, nebo je tu boj (`shownBattle` – i rozhodnutý
+  dnes). Ves sídla se hledá otiskem bez stavu (`stampsOf`); domy, opevnění a lidé obránce
+  (`WarSceneDefender` – `folk` jen pro obránce) se čtou ze stavu vsi jednou za herní den –
+  mezipaměť `defenders` (klíč `ves@den`, web LRU 16).
 - **Web:** route `GET /api/war-scene/<sídlo>` (`lib/war-scene.ts`, `no-store`) → `{ war }`; cizí
   sídlo i mapa bez války = `{ war: null }`. `useWarScene` (web-ui.md – Dotazování na tažení)
   a `sceneWarOf` (`lib/war-scene-view.ts`) → `LandscapeScene.setWar` ve `VillageGame`. Na vlastní
   mapě bez závoje mlhy (svou zem hráč zná; cizí mimo dohled server neposlal), padlí do konce dne.
+  Útěk `flightOf` – `planFlight` po okrajích lesa, `startMs = msOfTick(startTick)` (null → −∞,
+  stojí u lesa), dobytek žene poslední, kdo z vsi vyšel (renderer – `drivenHerd` za ním); stádo
+  s vojskem `herdOf` za skupinou (poloha a směr chůze). Scéna kreslí nejvýš `SCENE_HERD_MAX` (24)
+  kusů – krávy (jiný dobytek scéna vojska nemá).
 - **Cizí mapa** (`warSceneOnMap(deps, { playerId, campaignId, cell })`; web `?scene=x,y` na route
   tažení, web-ui.md – Cizí mapa ve scéně): útočník – účastník tažení (vůdce i vazal ve službě,
   `isCampaignParticipant`) – vidí ve 3D mapu, na které jeho vojsko stojí. Pohled `attack`: vojsko
@@ -962,18 +982,24 @@ Scéna hry ukazuje **mapu sídla hráče** – vojsko je v ní vidět, když na 
   (`done`, `disbanded`) nebo vojsko na mapě nestojí → scéna se vrátí na ves. Scéna se závojem mlhy
   (design „Mlha války na cizí mapě“); vlastní vsi útočník vidí jen na své mapě. Vazal vidí jako
   vlastní stranu celé vojsko tažení i se zdravím mužů pána (návrh Clauda – je jeho součástí).
-- **Zatím ne:** lidé cizí vsi mimo boj (útěk vsi se nekreslí ani obránci), pole a další stavby cizí
-  vsi, útěk vsi a odehnané stádo (`planFlight`, `drivenHerd`), plynulý pochod mezi dotazy (skupina
-  poskočí po 0,5 s), rány mezi dvěma dotazy (dotaz nese každý druhý takt – `strikesOf` vidí jen
-  údery v taktu snímku).
-- **Testy:** `application/__tests__/war-scene.test.ts` (obránce – útočníci v dohledu mužů i domů,
-  mlha, cíl mimo dohled, cizí bez zdraví se zásahy, ves jednou za herní den; po boji pochod;
+- **Zatím ne:** lidé cizí vsi mimo boj (útěk útočník nevidí), cesta do útočiště, pole a další stavby
+  cizí vsi, plynulý pochod mezi dotazy (skupina poskočí po 0,5 s), rány mezi dvěma dotazy (dotaz
+  nese každý druhý takt – `strikesOf` vidí jen údery v taktu snímku), padlí po skončení tažení týž
+  den (`done` – `activeAgainst` ho nevrátí), ranění vesničané po dni boje (`woundedUntil` – scéna
+  vsi je nekreslí zvlášť).
+- **Testy:** `domain/war/__tests__/scene-view.test.ts` (padlí a ranění do konce dne vedle pochodu,
+  další den ne, mlha padlých; `sceneFolkOf`; útěk – kdo, kam, od kdy, dobytek, rozhodnutý boj,
+  starší stav, útočník ani bez lesa nic; odehnané stádo – útočník vždy, obránce jen v dohledu),
+  `application/__tests__/war-scene.test.ts` (obránce – útočníci v dohledu mužů i domů,
+  mlha, cíl mimo dohled, cizí bez zdraví se zásahy, ves jednou za herní den; po boji pochod; padlí
+  a útěk ze stavu vsi i po odchodu vojska, další den nic;
   útočník na své mapě; cizí sídlo; `warSceneOnMap` – obránci v dohledu, jen objevené domy, obránce
   cizí domy nedostane, cizí hráč / jiná mapa / konec tažení = null, vazal ve službě), web
   `lib/__tests__/war-scene-view.test.ts` (i výběr mapy `watchCellOf`, závoj na cizí mapě, cizí ves
-  z domů),
+  z domů, útěk po okrajích lesa, stádo za skupinou, rozhodnutý boj s padlými),
   `battle-fx.test.ts` (rána podle zásahů), e2e `multiplayer-war.spec.ts` (napadená ves B má ve
-  scéně vojsko – `data-war-men` na plátně, vojsko doma u A, B ho pak nevidí; útočník A přepne
+  scéně vojsko – `data-war-men` na plátně, útěk do lesa se stádem – `armyStats` `army-cow` = ovce
+  v lese, vojsko doma u A, B ho pak nevidí; útočník A přepne
   scénu na mapu vsi B – `foreign-scene`, `data-war-men`, `armyStats`, po odchodu vojska zpět), db
   `campaign-repository.db.test.ts` (`activeAgainst`).
 
