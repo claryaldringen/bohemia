@@ -144,11 +144,19 @@ export type CampaignReturnReason = 'arrived' | 'supplies' | 'order' | 'routed';
 /** Host (z ochrany pánem nebo ze svolání) v boji: záporné číslo bojovníka, domovská osoba a co potřebuje zajetí. */
 export interface CampaignGuard {
   id: number;
-  /** Druh hosta; chybí = ochrana (starší stav tažení). */
-  kind?: 'service';
+  /**
+   * Druh hosta; chybí = ochrana (starší stav tažení); `refuge` – muž uprchlíků v hradišti (war.md –
+   * Varování, poslové a útěk do hradiště – Místo v hradišti).
+   */
+  kind?: 'service' | 'refuge';
   ref: PersonRef;
   name?: string;
   noble?: true;
+  /**
+   * Muž uprchlíků, který není muž rodu ani šlechtic – vzdaného útočník nezajme (pobít = padne;
+   * odvést ho z hradiště zatím nelze – jako ženy a děti uprchlíků, Později).
+   */
+  villager?: true;
 }
 
 export interface CampaignState {

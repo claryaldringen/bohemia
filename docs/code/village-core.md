@@ -264,7 +264,10 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
     `returnFromRefuge`) odebere hosty a pobyt (`departRefuge`) a do `refugeLeaving` hostitele zapíše,
     co lidé nesou, dokud událost `refuge-back` nestojí ve schránce domova (pak záznam zmizí);
     simulace ho nečte. Dostižená skupina (Ú8 – `refuge-caught`) může mít i zajaté muže rodu
-    a šlechtice (`captured` – `markCaptive` u věznitele jako po nájezdu).
+    a šlechtice (`captured` – `markCaptive` u věznitele jako po nájezdu). Chycený posel
+    (`messenger-caught`) nese klíč zajetí `prisonerId` (`<tažení>:<ves>:<osoba>`; starší událost bez
+    něj `<tažení>:<osoba>`). Muži uprchlíků od 16 let hradiště brání a jejich ztráty dojdou domů
+    jako ztráty hostů z ochrany (`guard-losses` – Ú9, war.md – Pobyt v hradišti).
 
 - **Výkon dopočtu** (Vlkov, 44 lidí, rok vcelku): po stálých trasách (A4) ≈ 49 s, po mřížce
   a trasách vozu v paměti a chůzi s horní mezí napřed (B1 – village-roads.md, Trasy v paměti)

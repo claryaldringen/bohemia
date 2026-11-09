@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dwelling, kin, village } from '../../village/__tests__/kin-fixtures';
-import type { NewVillageEvent } from '../../village/inbox';
+import { applyInboxDay, type NewVillageEvent, type VillageEventBody } from '../../village/inbox';
 import type { Person, VillageState } from '../../village/types';
 import type { GridCell } from '../../village/world-grid';
 import { alarmVillage } from '../alarm';
@@ -15,6 +15,7 @@ import type {
 } from '../campaign-types';
 import { MarchGridMemo } from '../march-grid';
 import { alarmTaken, withoutTaken } from '../messenger';
+import { guardPrisonerKey } from '../raid-apply';
 import { dayOfTick } from '../ticks';
 import { land, palisade } from './battle-fixtures';
 import { campaign, intent, MEADOW, SUMMER, world } from './campaign-fixtures';
@@ -375,18 +376,38 @@ describe('chycení posla (Otevřené 4)', () => {
   it('muže rodu NPC velitel zajme – do zajetí ve vsi shromaždiště', () => {
     const start = running(LORD, [{ pos: { x: 0, z: 20 } }]);
     const step = stepCampaign(start, start.tick + 1, [], worldWith());
-    expect(step.villageEvents.find((e) => e.villageId === 'a')!.body).toEqual({
+    // klíč zajetí s vsí posla (nález z Úlohy 8 – `<tažení>:<osoba>` by se mohl potkat s lidmi
+    // napadené vsi; jako u uprchlíků `guardPrisonerKey`)
+    const key = guardPrisonerKey('c1', { villageId: 'a', personId: LORD });
+    expect(key).toBe('c1:a:2');
+    const event = step.villageEvents.find((e) => e.villageId === 'a')!;
+    expect(event.body).toEqual({
       kind: 'messenger-caught',
       campaignId: 'c1',
       refId: 'c1:a0',
       personId: LORD,
       fate: 'captured',
       captorVillageId: 'lhota',
+      prisonerId: key,
     });
     expect(step.state.loot.prisoners).toEqual([
-      { id: 'c1:2', ref: { villageId: 'a', personId: LORD }, sinceDay: start.day + 1 },
+      { id: key, ref: { villageId: 'a', personId: LORD }, sinceDay: start.day + 1 },
     ]);
     expect(step.state.loot.people).toBeUndefined();
+    // domov posla: zajetí pod týmž klíčem, jaký nese vězeň v kořisti
+    const home = villageA();
+    const lord = home.people.find((p) => p.id === LORD)!;
+    lord.away = { kind: 'messenger', hostVillageId: 'c', refId: 'c1:a0' };
+    applyInboxDay(home, event.day, [{ id: 'e1', seq: 1, ...event }]);
+    expect(lord.away).toEqual({ kind: 'captive', hostVillageId: 'lhota', refId: key });
+    // starší událost bez klíče – zajetí jako dřív (`<tažení>:<osoba>`)
+    const old = villageA();
+    const oldLord = old.people.find((p) => p.id === LORD)!;
+    oldLord.away = { kind: 'messenger', hostVillageId: 'c', refId: 'c1:a0' };
+    const body = { ...event.body } as Extract<VillageEventBody, { kind: 'messenger-caught' }>;
+    delete body.prisonerId;
+    applyInboxDay(old, event.day, [{ ...event, id: 'e1', seq: 1, body }]);
+    expect(oldLord.away).toEqual({ kind: 'captive', hostVillageId: 'lhota', refId: 'c1:2' });
   });
 });
 

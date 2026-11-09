@@ -42,6 +42,11 @@ export interface Defender {
   lastLine: boolean;
   /** Host z ochrany pánem (`GuardGuest`) – `personId` je jeho záporné číslo v boji. */
   guest?: true;
+  /**
+   * Host je muž uprchlíků v hradišti (`GuardGuest.refugee`) – do útočiště až za domácími
+   * (`planDefense`).
+   */
+  refugee?: true;
   /** Muž v opevnění: stanoviště na hradbě, nebo záloha ve středu (`planDefense`); jinak chybí. */
   post?: Pos;
   /** Stanoviště je na ochozu či koruně hradby (`crownAt`). */
@@ -56,6 +61,12 @@ export interface Defender {
 export interface GuardGuest {
   id: number;
   person: Person;
+  /**
+   * Muž uprchlíků v hradišti (war.md – Varování, poslové a útěk do hradiště – Místo v hradišti;
+   * host druhu `refuge`): brání jako host, ale silou vesničana – luk a sílu muže rodu má jen muž
+   * rodu. Chybí – host z ochrany nebo ze svolání (muž rodu pána).
+   */
+  refugee?: true;
 }
 
 /** Volby soupisu obránců. */
@@ -65,7 +76,10 @@ export interface RosterOptions {
    * ves, a tak je posledním každý jediný muž rodu ve vsi (ochrana spícího hráče má přednost).
    */
   lineMenElsewhere?: number;
-  /** Hosté z ochrany pánem – brání se se vsí od dvorce (první obydlí) jako muži rodu s lukem. */
+  /**
+   * Hosté z ochrany pánem – brání se se vsí od dvorce (první obydlí) jako muži rodu s lukem; muži
+   * uprchlíků (`refugee`) od dvorce silou vesničana vsi, muž rodu jako muž rodu.
+   */
   guests?: readonly GuardGuest[];
 }
 
@@ -141,20 +155,23 @@ export function defenderRoster(
       lastLine: line && lastLine,
     });
   }
-  // hosté z ochrany (návrh Clauda): stojí u prvního obydlí, nejsou „poslední doma“ – nejsou doma
+  // hosté z ochrany (návrh Clauda): stojí u prvního obydlí, nejsou „poslední doma“ – nejsou doma;
+  // muž uprchlíků, který není muž rodu, bojuje silou vesničana (štěstí hradiště – návrh Clauda)
   for (const g of options.guests ?? []) {
     if (isInjured(g.person, day)) continue;
+    const line = g.refugee !== true || isLineMan(g.person);
     roster.push({
       personId: g.id,
       pos: fallback ? { x: fallback.position.x, z: fallback.position.z } : { x: 0, z: 0 },
       houseGroup: fallback ? (groups.get(fallback.id) ?? 0) : 0,
-      strength: lineManStrength(g.person, null),
-      line: true,
-      bow: true,
-      bowSkill: bowSkillOf(g.person),
+      strength: line ? lineManStrength(g.person, null) : villager,
+      line,
+      bow: line,
+      ...(line ? { bowSkill: bowSkillOf(g.person) } : {}),
       atHouseOnly: false,
       lastLine: false,
       guest: true,
+      ...(g.refugee ? { refugee: true as const } : {}),
     });
   }
   return roster;
