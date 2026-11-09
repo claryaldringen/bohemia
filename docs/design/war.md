@@ -583,7 +583,8 @@ zásoby a cennosti a utekli do nejbližšího hradiště“).
   Navíc bude muset koni dát minimálně uzdu, když už ne sedlo“ (návrh plánu „s koněm jede“ zamítnut).
   **Kdo je poslem, volí hráč** – Martin 9. 11. 2026: „hráč by měl mít možnost rozhodnout, kdo bude
   poslem. Může vyslat někoho z rodu, kdo jezdit umí“ – muž rodu, který umí jezdit a má jezdeckého
-  koně, jede na koni (rychleji); jinak a za správce jde pěšky vesničan.
+  koně, jede na koni (rychleji); jinak a za správce jde pěšky vesničan. Nemá-li ves vesničana,
+  jde jako posel muž rodu – na koni, umí-li jezdit (návrh Clauda, Martin 9. 11. 2026: „Ano“).
 - **Lhůta hráče:** ves bez správce čeká na rozhodnutí hráče nejvýš 1 herní den (≈ 86 s), pak se
   zařídí podle pravidla správce (Martin 9. 11. 2026: „Ok, nechme to, jak jsi navrhl“).
 - **Posel** je dospělý muž vsi, běží nejkratší cestou po stezkách (pochodová mřížka jako vojsko,
