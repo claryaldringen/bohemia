@@ -537,7 +537,9 @@ test('nájezd na ves s palisádou s ochozem: obránci na hradbě, útočníci p�
   fort.kind = 'walkway';
   fort.gates = [];
   for (const seg of fort.segments) {
-    seg.builtDay = stateB.lastDay;
+    // hotová už včera i předevčírem: tažení (16 000 taktů zpět) může začít i předchozí herní den,
+    // a hradba musí stát od prvního taktu boje, ať se spustí test v kteroukoli hodinu dne
+    seg.builtDay = Math.max(0, stateB.lastDay - 2);
     seg.state = 1;
   }
   await writeVillageState(seatB.settlementId, stateB);
