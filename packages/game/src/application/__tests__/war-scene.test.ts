@@ -284,3 +284,67 @@ describe('warSceneOnMap – útočník na cizí mapě', () => {
     expect(view!.battle!.fighters.length).toBeGreaterThan(0);
   });
 });
+
+describe('warSceneFor – průvod uprchlíků (Ú14)', () => {
+  /** Tažení p1 na Brod jde jinudy; Kněžice (p9) varované, jejich skupina jde přes svou mapu. */
+  function passing(): CampaignState {
+    const base = campaign({ members: [member(1, 0, true)] });
+    return {
+      ...base,
+      phase: 'marching',
+      target: { villageId: 'brod', cell: { x: 3, y: 0 }, pos: { x: 0, z: 0 } },
+      groups: base.groups.map((g) => ({ ...g, cell: { x: 0, y: 0 }, pos: { x: 0, z: 0 } })),
+      alarm: {
+        villages: [
+          {
+            villageId: 'knezice',
+            owner: { playerId: 'p9', npc: false, houseId: 'h9' },
+            seenTick: base.tick,
+            seenAt: { cell: { x: 1, y: 0 }, pos: { x: 0, z: 0 } },
+            warnTick: base.tick,
+            by: 'villager',
+            flight: 'c1:a1',
+          },
+        ],
+        messengers: [],
+        flights: [
+          {
+            refId: 'c1:a1',
+            villageId: 'knezice',
+            mode: 'people',
+            hostVillageId: 'hradek',
+            cell: { x: 1, y: 0 },
+            pos: { x: 300, z: 0 },
+            route: [{ x: 2, y: 0 }],
+            leg: null,
+            target: { cell: { x: 2, y: 0 }, pos: { x: 0, z: 0 } },
+            people: [{ id: 1, bornDay: base.day - 30 * 365, man: true, line: true }],
+            foodKg: 0,
+            herd: { sheep: 0, goat: 0, pig: 0, cow: 0 },
+            carts: 0,
+            status: 'marching',
+            departTick: base.tick,
+          },
+        ],
+        nextRef: 2,
+      },
+    };
+  }
+
+  it('obránce vidí svou skupinu i z tažení, které ves jen varovalo (vojsko jinde)', async () => {
+    const { deps } = await setup(passing(), [house(1, -600, -600)]);
+    const view = await warSceneFor(deps, { playerId: 'p9', settlementId: 's9' });
+    expect(view?.side).toBe('defend');
+    expect(view?.march).toBeNull();
+    expect(view?.refugeMarch?.map((m) => [m.refId, m.own, m.people.length])).toEqual([
+      ['c1:a1', true, 1],
+    ]);
+  });
+
+  it('skupina v hradišti – na mapě nic', async () => {
+    const state = passing();
+    state.alarm!.flights[0]!.status = 'arrived';
+    const { deps } = await setup(state, [house(1, -600, -600)]);
+    expect(await warSceneFor(deps, { playerId: 'p9', settlementId: 's9' })).toBeNull();
+  });
+});

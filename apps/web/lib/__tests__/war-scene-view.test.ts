@@ -399,3 +399,58 @@ describe('cizí mapa ve scéně (war.md – Ve scéně – cizí mapa)', () => {
     expect(armyFocusOf(view)).toEqual({ x: 20, z: 0 });
   });
 });
+
+describe('průvod uprchlíků a posel ve scéně (Ú14)', () => {
+  const refugees: NonNullable<WarSceneView['refugeMarch']> = [
+    {
+      refId: 'c1:a1',
+      own: true,
+      mode: 'all',
+      pos: { x: 120, z: -40 },
+      heading: { x: 1, z: 0 },
+      moving: true,
+      people: [
+        { kind: 'man', child: false, carries: true },
+        { kind: 'woman', child: true, carries: false },
+      ],
+      herd: 40,
+      carts: 1,
+    },
+  ];
+  const messengers: NonNullable<WarSceneView['messengers']> = [
+    { refId: 'c1:a2', own: true, pos: { x: 0, z: 300 }, heading: { x: 0, z: 1 }, mounted: false },
+  ];
+
+  it('scéna se zapne i bez boje a pochodu – lidé, stádo nejvýš SCENE_HERD_MAX, posel, takt', () => {
+    const war = sceneWarOf(
+      { ...BASE, battle: null, march: null, refugeMarch: refugees, messengers },
+      OFFICIAL_WORLD,
+    )!;
+    expect(war.battle).toBeNull();
+    expect(war.march).toBeNull();
+    expect(war.alarm).toEqual({
+      tick: BASE.tick,
+      refugees: [
+        {
+          key: 'c1:a1',
+          mode: 'all',
+          pos: { x: 120, z: -40 },
+          heading: { x: 1, z: 0 },
+          moving: true,
+          people: refugees[0]!.people,
+          herd: SCENE_HERD_MAX,
+        },
+      ],
+      messengers: [
+        { key: 'c1:a2', pos: { x: 0, z: 300 }, heading: { x: 0, z: 1 }, mounted: false },
+      ],
+    });
+  });
+
+  it('bez průvodu, posla, boje i pochodu nic', () => {
+    expect(sceneWarOf({ ...BASE, battle: null, march: null }, OFFICIAL_WORLD)).toBeNull();
+    expect(
+      sceneWarOf({ ...BASE, battle: null, march: null, refugeMarch: [] }, OFFICIAL_WORLD),
+    ).toBeNull();
+  });
+});

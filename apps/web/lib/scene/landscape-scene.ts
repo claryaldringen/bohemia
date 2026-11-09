@@ -883,6 +883,13 @@ export class LandscapeScene {
     const men = war ? (war.battle?.fighters.length ?? 0) + (war.march?.members.length ?? 0) : 0;
     if (men > 0) this.canvas.dataset.warMen = String(men);
     else delete this.canvas.dataset.warMen;
+    // lidé průvodů uprchlíků a poslové (Ú14) – pro e2e
+    const alarm = war?.alarm;
+    const refugees = alarm
+      ? alarm.refugees.reduce((n, r) => n + r.people.length, 0) + alarm.messengers.length
+      : 0;
+    if (refugees > 0) this.canvas.dataset.warRefugees = String(refugees);
+    else delete this.canvas.dataset.warRefugees;
     if (
       this.army?.set(war, Date.now(), !!this.reducedMotion?.matches, this.rtsCamera?.camera ?? null)
     ) {
