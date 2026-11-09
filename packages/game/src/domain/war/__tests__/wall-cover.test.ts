@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { battleTick, orderDefenderBreakout, type BattleField, type BattleState } from '../battle';
 import type { Pos } from '../march-grid';
-import { refugeRout } from '../rout';
+import { breakoutChoice, refugeRout } from '../rout';
 import { WAR } from '../rules-war';
 import { tickRandom, TICKS_PER_SECOND } from '../ticks';
 import { wallPosts, withinWalls } from '../wall-defense';
@@ -260,6 +260,28 @@ describe('probíjení', () => {
     expect(orderDefenderBreakout(b, f, 0, 999)).toBe(false);
     b.routed = [0];
     expect(orderDefenderBreakout(b, f, 0)).toBe(false);
+  });
+
+  it('rozkaz hráče jde i hlídanou branou – velitel obrany sám ne', () => {
+    const { b, f } = siege({ x: -2, z: -45 });
+    expect(orderDefenderBreakout(b, f, 0)).toBe(true);
+    expect(b.breakouts?.[0]?.segment).toBe(f.forts[0]!.fort.gates[0]!.segment);
+  });
+
+  it('komu rozkázat „Probít se“ – opevnění s branou, jinak proč ne', () => {
+    const { b, f } = siege(null);
+    expect(breakoutChoice(b, f.forts)).toEqual({ fort: 0 });
+    // bez brány rozkaz není
+    expect(breakoutChoice(b, field([fortOf('walkway')], forestSouth).forts)).toBeNull();
+    expect(breakoutChoice({ ...b, breakoutOrder: { fort: 0 } }, f.forts)).toEqual({
+      blocked: 'underway',
+    });
+    expect(breakoutChoice({ ...b, outcome: 'attackers' }, f.forts)).toEqual({ blocked: 'over' });
+    expect(breakoutChoice({ ...b, routed: [0] }, f.forts)).toEqual({ blocked: 'routed' });
+    const fled = defenders(b).map((d) => ({ ...d, state: 'fled' as const }));
+    expect(breakoutChoice({ ...b, fighters: fled }, f.forts)).toEqual({ blocked: 'undefended' });
+    orderDefenderBreakout(b, f, 0);
+    expect(breakoutChoice(b, f.forts)).toEqual({ blocked: 'underway' });
   });
 });
 

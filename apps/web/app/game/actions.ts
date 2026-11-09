@@ -58,6 +58,7 @@ import {
   type ProtectionView,
 } from '@/lib/protection';
 import { decidePrisonerForPlayer } from '@/lib/prisoners';
+import { orderBreakoutForPlayer } from '@/lib/war-scene';
 import {
   consentEscheatForPlayer,
   escheatDialogsForPlayer,
@@ -725,6 +726,17 @@ export async function chooseSurrendered(input: unknown): Promise<{ ok: true } | 
 /** Hráč je u tažení `{ campaignId }` – posílá jen otevřené tažení (bez ní po 1 dni zástupce). */
 export async function presence(input: unknown): Promise<{ ok: true } | { error: string }> {
   return campaignCommand(input, parsePresenceInput);
+}
+
+/**
+ * Rozkaz „Probít se“ obráncům napadené vsi `{ villageId }` (fortifications.md – Obrana bez násobku
+ * 3, Bod zlomu a probíjení): jen držitel vsi (právo `war`) při boji u ní; jinak důvod česky.
+ */
+export async function orderBreakout(input: unknown): Promise<{ ok: true } | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  if (!isRecord(input) || !isId(input.villageId)) return { error: INVALID_INPUT };
+  return orderBreakoutForPlayer(id, input.villageId);
 }
 
 /**

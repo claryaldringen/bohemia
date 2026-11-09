@@ -50,6 +50,7 @@ import {
   type TimeSkip,
   type VillageAccess,
   type VillageRecord,
+  type RightsDeps,
   type VillageRight,
   villageAccess,
 } from '@bohemia/game';
@@ -252,11 +253,16 @@ export function requireVillageRight(
   right: VillageRight,
   today: number,
 ): Promise<PlayerVillage | string> {
-  const db = getDatabase();
-  return requireRight(
-    { ...playerVillagesDeps(), houses: createHouseRepository(db), stewardships: stewardships() },
-    { playerId, villageId, right, today },
-  );
+  return requireRight(villageRightsDeps(), { playerId, villageId, right, today });
+}
+
+/** Repozitáře práv hráče ve vsi (`requireRight`, `villageAccess`) – i pro use-casy, které je ověří samy. */
+export function villageRightsDeps(): RightsDeps {
+  return {
+    ...playerVillagesDeps(),
+    houses: createHouseRepository(getDatabase()),
+    stewardships: stewardships(),
+  };
 }
 
 /** Práva hráče ve vsi `villageId` a senior rodu (rights.ts); null, když ves hráči nepatří. */
@@ -265,11 +271,7 @@ export function villageAccessForPlayer(
   villageId: string,
   today: number,
 ): Promise<VillageAccess | null> {
-  const db = getDatabase();
-  return villageAccess(
-    { ...playerVillagesDeps(), houses: createHouseRepository(db), stewardships: stewardships() },
-    { playerId, villageId, today },
-  );
+  return villageAccess(villageRightsDeps(), { playerId, villageId, today });
 }
 
 /**
