@@ -351,6 +351,34 @@ zbytku rodiny.“
   a co zbude i po nich, propadne (místo pro polní práci navíc – [fields.md](fields.md), Kolik
   ves oseje, Osev navíc).
 
+### Skladba dne podle ročního období (9. 11. 2026, implementace čeká)
+
+Martin 9. 11. 2026: „Jde mi o tu skladbu dne v létě a v zimě. Jde o to, že zatím co v létě byli
+všichni co nejdéle venku a o žnách sklízeli obilí, za zimních večerů předli, tkali, vyráběli
+drobné předměty atd. Další věc – v létě se nosí voda, v zimě se nosí dřevo – pokud je sníh, voda
+se nosit nemusí (ani nemůže, protože vodní zdroj je zamrzlý)“ a ke žním: „O žních si ženy braly
+děti na pole. Byla to fakt ta největší práce (a v zemědělství dodnes je) v roce. V té době se
+omezuje i vaření. Nošení vody – pokud je tam pauza, jako tady mezi ozimí a jaří, měla by se
+nanosit voda do zásoby. Navíc v průběhu žní se nenosí voda domů, ale spíš na pole.“ Schváleno
+(„Já měl za to, že jsme to teď podrobně probrali“). Podrobnosti a čísla jsou návrh Clauda.
+
+- **Venkovní práce podle světla:** dnes dá dospělý každý den 1 člověkoden (10 h). Nově se práce
+  vsi venku (pole, stavby, cesty, kácení, vozy) řídí délkou světlého dne v Čechách (50° s. š.)
+  bez jídla a přestávek: prosinec–leden ≈ 7 h, listopad a únor ≈ 8–9 h, březen a září ≈ 10–11 h,
+  květen ≈ 13 h, červen–srpen 13–14 h – den dá (hodiny ÷ 10) dnešního člověkodne (zima ≈ 0,7,
+  žně ≈ 1,4). Sazby prací na hektar zůstávají – vznikly z měření po hodinách přepočtených na 10 h
+  (srp ≈ 60–80 m² za hodinu – rešerše 2026-10-17).
+- **Zimní večery** patří domácí výrobě (předení, tkaní, drobné předměty) – ta už teď práci vsi
+  nebere (bokem, Martin 19. 10. 2026); mění se jen scéna (ženy v zimě doma).
+- **Denní minimum podle období:**
+  - **léto:** vaření, oheň, malé děti a nošení vody (jako dnes);
+  - **žňové dny:** vaří se méně (minimum ≈ poloviční) a voda se nosí na pole, ne domů – chůze pro
+    vodu se do minima nepočítá (nosí ji děti a pomocníci se žní); ženy berou malé děti na pole;
+  - **přestávka mezi žní ozimu a jaře:** volná práce nanosí vodu do zásoby na žňové dny;
+  - **zima:** místo vody se nosí dříví na topení – chůze k okraji lesa (`forestWalkM`) se přičte
+    jako dnes voda; **když leží sníh**, voda se nenosí (rozpouští se sníh, potok je zamrzlý).
+    Sníh v simulaci podle stejného výpočtu jako ve scéně (roční období).
+
 ### Růst populace
 
 - **Porody:** každý **manželský pár** v jedné domácnosti (žena **16–44 let**, muž od 16 let bez
