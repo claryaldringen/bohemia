@@ -967,8 +967,14 @@ na které stojí.
   mlhy strany hráče; objevené domy `foreignVillageOf` → `setVillage` (jen stojící domy, bez lidí,
   polí a všeho dalšího; přestaví se jen novým objevem). Kamera poprvé na vojsko (`armyFocusOf`,
   R se k němu vrací). Rozhraní: ⌂ zpět na ves (`foreign-back`), ⚔ mapa tažení (`CampaignMap` –
-  živé vedení dál). `war === null` (vojsko odešlo, tažení skončilo) = scéna se vrátí na ves sama.
-  E2e háček `armyStats` míří na scénu cizí mapy.
+  živé vedení dál). `war === null` (vojsko z mapy odešlo, tažení skončilo) → jednou
+  `GET /api/campaign/<id>` a `followCellOf(view, cell, home)`: vojsko stojí na jiné cizí mapě =
+  scéna jde za ním (`SceneWatch.watch` – nový klíč, nová krajina z `?map=` a kamera znovu na
+  vojsko), jinak (konec tažení, vojsko na mapě sídla, chyba) zpět na ves. Pochod i boj jdou mezi
+  snímky plynule a rány z vynechaných taktů se nakreslí (war.md – Ve scéně – Plynulost mezi
+  snímky). E2e háček `armyStats` míří na scénu cizí mapy.
+- **Oko** v `CampaignMap` je jednobarevná maska `public/icons/war/eye.svg` (CC0, `LICENSES.md`)
+  v barvě textu tlačítka (`EYE_ICON`) – jako znaky ⌂, ⚔, ✕ ostatních tlačítek.
 
 ## Postoj vsi ve dvorci (úloha 6.9, `hud/ManorPanel.tsx`)
 

@@ -11,6 +11,7 @@ import {
 } from '@bohemia/game';
 import {
   armyFocusOf,
+  followCellOf,
   foreignVillageOf,
   SCENE_HERD_MAX,
   sceneWarOf,
@@ -123,6 +124,8 @@ describe('sceneWarOf', () => {
     );
     expect(war?.battle).toBeNull();
     expect(war?.march?.members).toHaveLength(2);
+    // takt snímku – plynulý pochod mezi dvěma dotazy
+    expect(war?.march?.tick).toBe(BASE.tick);
     expect(war?.march?.groups[0]).toEqual({
       id: 0,
       order: 'attack-all',
@@ -268,6 +271,18 @@ describe('cizí mapa ve scéně (war.md – Ve scéně – cizí mapa)', () => {
     expect(watchCellOf(campaign([man(1, AWAY, { status: 'captive' })]), HOME)).toBeNull();
     // odříznuté sídlo – jakákoli mapa vojska
     expect(watchCellOf(campaign([man(1, HOME)]), null)).toEqual(HOME);
+  });
+
+  it('scéna jde za vojskem na další mapu; konec tažení a návrat domů = zpět na ves', () => {
+    const NEXT = { x: 2, y: 0 };
+    // velitel přešel na sousední mapu – scéna za ním
+    expect(followCellOf(campaign([man(1, NEXT, { commander: true })]), AWAY, HOME)).toEqual(NEXT);
+    // vojsko přišlo na mapu sídla ve scéně, tažení skončilo, nikdo nestojí – zpět na ves
+    expect(followCellOf(campaign([man(1, HOME, { commander: true })]), AWAY, HOME)).toBeNull();
+    expect(followCellOf(campaign([man(1, NEXT)], { phase: 'done' }), AWAY, HOME)).toBeNull();
+    expect(followCellOf(campaign([man(1, NEXT, { status: 'fallen' })]), AWAY, HOME)).toBeNull();
+    // pohled ho má pořád na téže mapě – nic nového, zpět na ves
+    expect(followCellOf(campaign([man(1, AWAY)]), AWAY, HOME)).toBeNull();
   });
 
   it('na cizí mapě závoj mlhy ze strany hráče, na vlastní ne', () => {

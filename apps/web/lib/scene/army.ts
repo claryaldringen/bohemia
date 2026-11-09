@@ -4,6 +4,7 @@
 // a ikona rozkazu nad skupinou. Bez Babylonu – vstup je stav jádra (`BattleState`, skupiny
 // a muži `CampaignState`) zúžený na to, co scéna kreslí; vykresluje army-renderer.ts.
 import {
+  TICK_MS,
   TICKS_PER_SECOND,
   WAR,
   FORTIFICATIONS,
@@ -123,6 +124,8 @@ export type SceneMarchGroup = Pick<CampaignGroup, 'id' | 'order' | 'pos' | 'arri
 export interface SceneMarch {
   members: SceneMarchMember[];
   groups: SceneMarchGroup[];
+  /** Takt snímku – mezi dvěma snímky jdou skupiny plynule (`marchAt`); chybí – bez plynulosti. */
+  tick?: number;
 }
 
 /**
@@ -379,6 +382,63 @@ export function marchFigures(march: SceneMarch): { figures: ArmyFigure[]; animal
     });
   }
   return { figures, animals };
+}
+
+/** Nejdelší plynulý posun k novému snímku (ms) – server stav uloží po ≤ 40 taktech (10 s). */
+export const GLIDE_MAX_MS = 15_000;
+/** Nejkratší posun (ms). */
+const GLIDE_MIN_MS = 100;
+
+/**
+ * Jak dlouho jdou muži k novému snímku boje či pochodu (ms): tolik, kolik taktů mezi snímky uběhlo
+ * (`gapTicks` × `TICK_MS`), ale nejvýš o polovinu déle, než trvalo od předchozího snímku
+ * (`sinceLastMs`; null – první dvojice) – po přestávce worker dopočítává a snímky chodí rychleji, než
+ * běží takty, scéna tak nezaostává. Nejvýš `GLIDE_MAX_MS`.
+ */
+export function glideMs(gapTicks: number, sinceLastMs: number | null): number {
+  const ticks = gapTicks * TICK_MS;
+  const seen = sinceLastMs === null ? ticks : sinceLastMs * 1.5;
+  return Math.max(GLIDE_MIN_MS, Math.min(GLIDE_MAX_MS, ticks, seen));
+}
+
+/**
+ * Nejvyšší rychlost (m/s), kterou skupina mezi dvěma snímky ještě jde plynule – rychlejší posun
+ * (odchod na jinou mapu a návrat) skočí rovnou na nový snímek. Jezdec klusá ≈ 3–4 m/s.
+ */
+export const MARCH_GLIDE_M_S = 12;
+
+/**
+ * Pochod v podílu `t` mezi nakresleným `from` a novým snímkem `to` (0 = `from`, 1 = `to`; dotaz scény
+ * přijde po několika taktech): skupina se posune rovnoměrně a jde ve směru posunu, i když v `to` už
+ * stojí. Nová skupina (přišla z jiné mapy) a skok rychlejší než `MARCH_GLIDE_M_S` za `spanS` sekund
+ * stojí rovnou v `to`. Jen zobrazení – kde skupina je, rozhodl server.
+ */
+export function marchAt(
+  from: SceneMarch | null,
+  to: SceneMarch,
+  t: number,
+  spanS: number,
+): SceneMarch {
+  if (!from || !(t < 1) || spanS <= 0) return to;
+  const k = Math.max(0, t);
+  const before = new Map(from.groups.map((g) => [g.id, g]));
+  return {
+    ...to,
+    groups: to.groups.map((g) => {
+      const was = before.get(g.id);
+      if (!was) return g;
+      const dx = g.pos.x - was.pos.x;
+      const dz = g.pos.z - was.pos.z;
+      const d = Math.hypot(dx, dz);
+      if (d < 0.05 || d > MARCH_GLIDE_M_S * spanS) return g;
+      return {
+        ...g,
+        pos: { x: was.pos.x + dx * k, z: was.pos.z + dz * k },
+        arrived: false,
+        heading: { x: dx / d, z: dz / d },
+      };
+    }),
+  };
 }
 
 function rank(m: SceneMarchMember): number {

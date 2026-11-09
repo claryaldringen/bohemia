@@ -18,13 +18,16 @@ import {
   battleFigures,
   battleFortifications,
   fighterClip,
+  glideMs,
   huddleSlots,
+  marchAt,
   marchFigures,
   orderIcons,
   sceneBattle,
   sceneMarch,
   type SceneBattle,
   type SceneFighter,
+  type SceneMarch,
   type SceneMarchMember,
 } from '../army';
 import { arrowAt, dustAt, fallenShown, strikesOf, type Shot } from '../battle-fx';
@@ -140,6 +143,46 @@ function group(): Parameters<typeof sceneMarch>[0]['groups'][number] {
     },
   };
 }
+
+describe('plynulý pochod mezi snímky', () => {
+  const at = (x: number, z: number, arrived = false): SceneMarch => ({
+    members: [member({})],
+    groups: [{ id: 0, order: 'follow-leader', pos: { x, z }, arrived, heading: { x: 0, z: 1 } }],
+    tick: 0,
+  });
+
+  it('skupina jde rovnoměrně ve směru posunu, i když v novém snímku už stojí', () => {
+    const half = marchAt(at(0, 0), at(6, 8, true), 0.5, 2);
+    expect(half.groups[0]!.pos).toEqual({ x: 3, z: 4 });
+    expect(half.groups[0]!.arrived).toBe(false);
+    expect(half.groups[0]!.heading.x).toBeCloseTo(0.6);
+    expect(half.groups[0]!.heading.z).toBeCloseTo(0.8);
+    expect(marchFigures(half).figures[0]!.clip).toBe('walk-spear');
+    // na konci posunu nový snímek beze změny
+    const end = marchAt(at(0, 0), at(6, 8, true), 1, 2);
+    expect(end.groups[0]!.pos).toEqual({ x: 6, z: 8 });
+    expect(end.groups[0]!.arrived).toBe(true);
+  });
+
+  it('posun trvá takty mezi snímky; po přestávce (dopočet) nejvýš o polovinu déle než snímek', () => {
+    // 40 taktů za 10 s – posun 10 s
+    expect(glideMs(40, 10_000)).toBe(10_000);
+    // první dvojice – podle taktů
+    expect(glideMs(2, null)).toBe(500);
+    // dopočet: 400 taktů za 0,5 s – posun 0,75 s, scéna nezaostává
+    expect(glideMs(400, 500)).toBe(750);
+    // dlouhá přestávka – nejvýš 15 s
+    expect(glideMs(4_000, 60_000)).toBe(15_000);
+  });
+
+  it('bez předchozího snímku, nová skupina a skok z jiné mapy stojí rovnou v novém snímku', () => {
+    expect(marchAt(null, at(6, 8), 0.5, 2).groups[0]!.pos).toEqual({ x: 6, z: 8 });
+    const other = { ...at(0, 0), groups: [{ ...at(0, 0).groups[0]!, id: 7 }] };
+    expect(marchAt(other, at(6, 8), 0.5, 2).groups[0]!.pos).toEqual({ x: 6, z: 8 });
+    // 300 m za 2 s – skupina přešla na jinou mapu a zpět
+    expect(marchAt(at(0, 0), at(300, 0), 0.5, 2).groups[0]!.pos).toEqual({ x: 300, z: 0 });
+  });
+});
 
 describe('postavy boje', () => {
   it('poloha mezi takty plynule, pohled ke směru chůze', () => {

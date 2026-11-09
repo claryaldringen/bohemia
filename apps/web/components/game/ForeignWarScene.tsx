@@ -4,11 +4,13 @@ import { useEffect, useRef, useState, type ReactElement } from 'react';
 import type { WorldClock } from '@bohemia/game';
 import { useArmyActions } from '@/hooks/use-army';
 import { useWarScene } from '@/hooks/use-war-scene';
+import type { CampaignResponse } from '@/lib/campaign-view';
 import { setE2EHook } from '@/lib/e2e-hooks';
 import type { LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import {
   armyFocusOf,
+  followCellOf,
   foreignVillageOf,
   sceneWarOf,
   type ForeignMapResponse,
@@ -23,7 +25,8 @@ import { Tooltip } from './hud/Tooltip';
 // (veřejná, překážky si prohlížeč vygeneruje ze seedu vrstvy), válka z `?scene=x,y` – po mlze války
 // ze serveru (vojsko celé, obránci v dohledu, z cizí vsi jen objevené domy). Jen pohled: žádné
 // panely ani akce cizí vsi, jen mapa tažení (živé vedení) a návrat na ves. Když vojsko z mapy
-// odejde nebo tažení skončí, scéna se vrátí na vlastní ves sama.
+// odejde, scéna jde za ním na mapu, kde stojí (nová krajina, mapu po mapě); když tažení skončí
+// nebo vojsko přijde domů, vrátí se na vlastní ves sama.
 
 export function ForeignWarScene({
   watch,
@@ -43,7 +46,8 @@ export function ForeignWarScene({
   const [landscape, setLandscape] = useState<LandscapeTransfer | null>(null);
   const [scene, setScene] = useState<LandscapeScene | null>(null);
   const [mapOpen, setMapOpen] = useState(true);
-  const actions = useArmyActions()?.campaign;
+  const army = useArmyActions();
+  const actions = army?.campaign;
   const onBackRef = useRef(onBack);
   useEffect(() => {
     onBackRef.current = onBack;
@@ -68,10 +72,35 @@ export function ForeignWarScene({
   }, [campaignId, at]);
 
   const war = useWarScene(`/api/campaign/${campaignId}?scene=${at}`, true);
-  // vojsko z mapy odešlo, tažení skončilo, nebo ho hráč nezná – zpět na vlastní ves
+  // vojsko z mapy odešlo: scéna jde za ním na mapu, kde teď stojí (pohled na tažení –
+  // `followCellOf`); tažení skončilo, vojsko je doma, nebo ho hráč nezná – zpět na vlastní ves
+  const sceneWatch = army?.scene ?? null;
+  const followRef = useRef(sceneWatch);
   useEffect(() => {
-    if (war === null) onBackRef.current();
-  }, [war]);
+    followRef.current = sceneWatch;
+  }, [sceneWatch]);
+  useEffect(() => {
+    if (war !== null) return;
+    let live = true;
+    void fetch(`/api/campaign/${campaignId}`, { cache: 'no-store' })
+      .then((response) => response.json() as Promise<CampaignResponse>)
+      .then((body) => {
+        if (!live) return;
+        const follow = followRef.current;
+        const next =
+          'error' in body || !follow
+            ? null
+            : followCellOf(body.view, { x: cell.x, y: cell.y }, follow.home);
+        if (next && follow) follow.watch({ campaignId, cell: next });
+        else onBackRef.current();
+      })
+      .catch(() => {
+        if (live) onBackRef.current();
+      });
+    return () => {
+      live = false;
+    };
+  }, [war, campaignId, cell.x, cell.y]);
 
   useEffect(() => {
     scene?.setWorldClock(clock);

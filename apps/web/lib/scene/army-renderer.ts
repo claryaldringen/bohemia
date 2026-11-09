@@ -25,6 +25,8 @@ import {
   battleFigures,
   breachFagots,
   breachFires,
+  glideMs,
+  marchAt,
   marchFigures,
   minePits,
   orderIcons,
@@ -144,6 +146,12 @@ export class ArmyRenderer {
   private prev: SceneBattle | null = null;
   /** Kdy přišel poslední snímek boje (ms – výkonový čas, plynulost mezi takty). */
   private receivedAt = 0;
+  /** Doba plynulého posunu k poslednímu snímku boje (ms) – takty mezi snímky × `TICK_MS`. */
+  private battleSpanMs = TICK_MS;
+  /** Pochod nakreslený, když přišel nový snímek – odtud jdou skupiny k němu (`marchAt`). */
+  private marchFrom: SceneMarch | null = null;
+  private marchReceivedAt = 0;
+  private marchSpanMs = 0;
   private shots: Shot[] = [];
   private clashes: Clash[] = [];
   private readonly figures = new Map<FigureKind, BakedKind>();
@@ -180,15 +188,31 @@ export class ArmyRenderer {
     const last = this.war?.battle ?? null;
     if (cur && (!last || cur.ticks !== last.ticks)) {
       this.prev = last && cur.ticks > last.ticks ? last : null;
-      this.receivedAt = performance.now();
+      const now = performance.now();
+      // dotaz scény vynechá takty – muži jdou k novému snímku tak dlouho, kolik taktů uběhlo
+      this.battleSpanMs = this.prev
+        ? glideMs(cur.ticks - this.prev.ticks, now - this.receivedAt)
+        : TICK_MS;
+      this.receivedAt = now;
       if (!frozen) {
         const nowS = villagerSeconds(nowMs);
-        const fresh = strikesOf(this.prev, cur, nowS);
+        const fresh = strikesOf(this.prev, cur, nowS, this.battleSpanMs / 1000);
         this.shots.push(...fresh.shots);
         this.clashes.push(...fresh.clashes);
       }
     }
     if (!cur) this.prev = null;
+    const march = war?.march ?? null;
+    const lastMarch = this.war?.march ?? null;
+    if (march?.tick !== undefined && lastMarch?.tick !== march.tick) {
+      const now = performance.now();
+      const gap = lastMarch?.tick !== undefined ? march.tick - lastMarch.tick : 0;
+      // odtud, kde je pochod nakreslený teď, k novému snímku za dobu taktů mezi nimi
+      this.marchFrom = lastMarch && gap > 0 && !frozen ? this.marchShown(lastMarch, now) : null;
+      this.marchSpanMs = gap > 0 ? glideMs(gap, now - this.marchReceivedAt) : 0;
+      this.marchReceivedAt = now;
+    }
+    if (!march) this.marchFrom = null;
     this.war = war;
     if (!war) {
       this.shots = [];
@@ -278,6 +302,13 @@ export class ArmyRenderer {
     veil.mesh.setEnabled(true);
   }
 
+  /** Pochod `march` (poslední snímek) nakreslený v okamžiku `perfMs` (výkonový čas). */
+  private marchShown(march: SceneMarch, perfMs: number): SceneMarch {
+    const span = this.marchSpanMs;
+    if (span <= 0) return march;
+    return marchAt(this.marchFrom, march, (perfMs - this.marchReceivedAt) / span, span / 1000);
+  }
+
   /** Zapíše postavy, zvířata, šípy, prach a ikony v okamžiku `nowMs`. True – něco se hýbe. */
   private write(nowMs: number, frozen: boolean, camera: Camera | null): boolean {
     const war = this.war;
@@ -289,7 +320,7 @@ export class ArmyRenderer {
     let moving = false;
     const battle = war.battle;
     if (battle) {
-      const f = frozen ? 1 : (performance.now() - this.receivedAt) / TICK_MS;
+      const f = frozen ? 1 : (performance.now() - this.receivedAt) / this.battleSpanMs;
       const fog = this.fog;
       const seen = this.seen;
       const side = war.fog?.side;
@@ -308,11 +339,13 @@ export class ArmyRenderer {
       moving ||= battle.outcome === 'ongoing' && f < 1.5;
     }
     this.writeSiege(battle, ladders);
-    if (war.march) {
-      const out = marchFigures(war.march);
+    // pochod plynule mezi snímky; při omezeném pohybu stojí na posledním
+    const march = war.march && !frozen ? this.marchShown(war.march, performance.now()) : war.march;
+    if (march) {
+      const out = marchFigures(march);
       figures.push(...out.figures);
       animals.push(...out.animals);
-      moving ||= war.march.groups.some((g) => !g.arrived);
+      moving ||= march.groups.some((g) => !g.arrived);
     }
     if (war.flight) {
       const ft = (nowMs - war.flight.startMs) / 1000;
@@ -365,7 +398,7 @@ export class ArmyRenderer {
         });
       });
     }
-    const icons = orderIcons(battle, war.march);
+    const icons = orderIcons(battle, march);
     this.writeFigures(figures, t, frozen);
     this.writeAnimals(animals, t, frozen);
     this.writeShadows(figures, animals);
