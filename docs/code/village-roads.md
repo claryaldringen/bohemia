@@ -229,7 +229,11 @@ cesty, půda)`; graf a půda (`walkGroundOf` + `withFieldWalk` – pole v `Villa
   zániku kusů a vzniku z vyšlapanosti pustí `tidyMonth` – jen když se od posledního úklidu změnily
   osy úseků (`VillageRoads.tidyKey`, otisk FNV-1a `networkKey`), nebo nové kotvy a trasy dají práci
   (`tidyDue` – okruh, díra, pahýl, copánek přes křižovatku `hasRingBraid`; `accessDue` – vchod bez cesty, počítá tutéž cestu jako `accessRoads` přes `accessPlan`, takže vchod bez možné cesty úklid nespouští); jinak nic, ani kontext míst na
-  stromy (čítač `TIDY_RUNS` pro testy). Pořadí: `tidyRoads` s kotvami a čarami tras (`StubNetwork`):
+  stromy (čítač `TIDY_RUNS` pro testy). Ploty pro osy tras (`fencesOf`), stavby pro copánek
+  (`ringBuildingsOf`), vchody (`entrancesOf`) a stavby s ploty pro ohyb ramene (`footprintOf`) bere
+  měsíční kontrola i `tidyRoadsNow` z jedné vsi pro pěšiny (`monthLayoutOf` – `pathVillageOf` líně
+  a jednou, dřív až čtyřikrát za měsíc); zánik, vznik a úklid cest stavby, pozemky ani ploty
+  nemění, takže je jedno, kdo ji spočte první (jen zrychlení, výsledek týž). Pořadí: `tidyRoads` s kotvami a čarami tras (`StubNetwork`):
   okruh přes jeden uzel se rozdělí v nejvzdálenějším bodě (`splitLoops`, `roads-stubs.ts`) →
   souběžné → díry (`joinRoadGaps` už nespojí konec zpět do uzlu, ze kterého úsek vychází – vznikal
   okruh tam a zpět) → copánky (mezi týmiž uzly, pak **přes křižovatku** – `ringBraid`: slabší úsek
