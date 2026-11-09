@@ -1454,6 +1454,17 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
   - Setí bere osivo ze zásob **v den setí dílu** – obilí (ozim, jař, obilí nad potřebu) ze zásob
     obilí, luštěniny ze zásob luštěnin; luštěnin, které chybí, ves vymění u sousedů za obilí.
     Sklizeň osivo neodečítá. Ves zaseje jen tolik dílů, na kolik má osivo.
+  - **Osivo bez cíle osevu (9. 11. 2026, implementace čeká).** Cíl osevu přežil v kódu jako
+    „potřeba úrody“ a dál určoval nutné díly a osivo za čekající díly – Vlkov kvůli němu
+    1. 10. – 30. 11. jedl na příděl 0,88 s 9,5 t v zásobách (5,5 t drželo osivo za díly, na které
+    orba nedošla). Martin 9. 11. 2026: „Ne dopíči, plán už jsme asi desetkrát zavrhli a ty ho tam
+    vždycky nějak znova namrdáš“ a „Fajn, prostě před osevem odečti minimální zásobu jídla
+    a zbytek do osevu. Po měsíci se do zásob vrátí to, co se nezaselo.“ Pravidlo: na začátku okna
+    setí (ozim 1. 9., jař, luštěniny a len 1. 3.) se ze zásob odečte přežívací zásoba do žní
+    (níž – hlad, ale nikdo neumře) a všechno ostatní obilí je osivo; ves oře a seje díly v pořadí
+    osevního postupu, dokud stačí lidé, spřežení a osivo; nezaseté osivo se vrátí do zásob na
+    konci okna (31. 10., 30. 4., po dlouhé zimě 14. 5. – návrh Clauda, Martinovo „po měsíci“
+    čteno jako konec okna jako dřív u 30. 4.). Cíl osevu ani pojistka v něm osev neomezují.
   - **Osev má přednost – kolik si ves nechá na jídlo** (6. 11. 2026). Martin: „Pojďme se podívat
     na ten osev – to se přece nemusí plánovat: ves vezme z obilí tolik osiva, aby jí to vystačilo
     do žní, a pak se oře a zasívá, dokud trvá časové okno pro orbu a zasetí, nebo dokud se
