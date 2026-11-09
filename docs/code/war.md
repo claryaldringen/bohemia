@@ -301,15 +301,20 @@ group, order, at)` – před bitvou kdykoli, v boji jen na doslech (jinak false)
   `deputy`, `closedGates` `<opevnění>:<úsek>`, `breaches` (`BattleBreach` – místo, `at`, postup,
   fáze, `BreachProgress` – viz Prolomení v boji), `outcome` `ongoing` | `attackers` | `defenders` | `withdrawn`. `openBattle`
   (útočníci u skupin, obránci u domů), `battleTick(b, field, rng)` mění `b` na místě:
-  brány do 30 m od útočníka se zavřou → stěny taktu → bod zlomu (padlí a ranění ÷ `entered`,
-  30 % útok, 45 % obrana; velitel neuteče sám) → muži v pevném pořadí (plán, krok) → práce na
+  brány do 30 m od útočníka se zavřou (ne ty, které otevřeli obránci – `openedGates`) → bod zlomu
+  (padlí a ranění ÷ `entered`, 30 % útok, 45 % obrana; velitel neuteče sám; obránci za hradbou po
+  opevněních jen ze ztrát v útoku – [Kryt pod palbou, bod zlomu za hradbou a
+  probíjení](#kryt-pod-palbou-bod-zlomu-za-hradbou-a-probíjení-9-11-2026)) a probíjení → stěny
+  taktu → muži v pevném pořadí (plán, krok) → práce na
   průlomech (`breachWorkStep`, nejvýš 4 na místo, `hoursPerTick` z `ticks.ts`) → rány (cooldown 8 / 16
   taktů; zblízka los 1 : 1, šíp `bowShot` z `aim.ts` – viz Střelba podle dovednosti;
   `hitDamage(síla, luk)` = `10 × síla`, luk polovina – **násobek obrany zrušen 8. 11. 2026**, i u
   domu) se sečtou a použijí až po všech – kdo padne, v tomto taktu ještě udeřil → výsledek (útočníci bez bojujících = `defenders`; obránci bez bojujících
-  i prchajících = `attackers`). Na nule `down`, `killed` losem (vesničan 1 : 1, muž rodu 1 ze 3);
-  `lastLine` neklesne pod 10, pak uteče (i `controlled`). Útěk: útočník do `home`, obránce do
-  nejbližší buňky hustého lesa (bez lesa hned `fled`); kdo se nepohne, je `fled`. Pohyb tempem
+  i prchajících a všechna útočiště dobytá = `attackers`). Na nule `down`, `killed` losem (vesničan 1 : 1, muž rodu 1 ze 3);
+  `lastLine` neklesne pod 10, pak uteče (i `controlled`). Útěk (`rout.ts` – `startFlee`, `battle.ts`
+  – `fleeStep`): útočník do `home`, obránce do nejbližší buňky hustého lesa (bez lesa hned
+  `fled`); obránce za hradbou napřed nejbližším průchodem (body před a za ním), bez průchodu je
+  odříznutý a vzdá se; kdo se nepohne, je `fled`. Pohyb tempem
   pochodu (3,5 m/s ÷ 4, jezdec × 1,5, terén z `MarchGrid` – val ¼; voda a sráz neprůchodné).
 - **Opevnění v boji** – `battleForts(geo, forts)` (tvar úseků a střed); stěny jsou úsečky úseků,
   které stojí (ne holý val, ne mezera, prolomený úsek = `breachedDay` dne boje), s výřezem otevřené
@@ -328,7 +333,8 @@ group, order, at)` – před bitvou kdykoli, v boji jen na doslech (jinak false)
   plocha; Martin 8. 11. 2026): `spreadRadiusM(dovednost, d)` = `(2 − 1,5 × dovednost ÷ 100) × d ÷ 30`
   (mistr 0,5 m na 30 m, nováček 2 m); `poseOf(f, field, b, zespodu = true)` – lezec na žebříku
   a přes plot `climbing` (`onLadder`), obránce na ochozu (`Fighter.onWall`) proti ráně přes hradbu
-  `parapet`, jinak `standing` (podkop doplní Úloha 14 plánu hradeb), `visibleAreaM2` 0,85 / 0,25 / 0,85 / 0;
+  `parapet`, v krytu pod palbou (`Fighter.cover`) `cover`, jinak `standing`, `visibleAreaM2`
+  0,85 / 0,25 / 0,025 / 0,85 / 0;
   `shotCandidates` – všichni na nohou obou stran (ne `down` ani `fled`) se středem v kruhu kolem cíle,
   v pořadí bojovníků, bez střelce; `shotChance` = Σ ploch ÷ π r² (nejvýš 1); `shotHit(kandidáti, r,
 roll, pick)` – zásah, když `roll` < šance, zasažený váhou podle plochy. `bowShot(střelec, cíl,
@@ -466,7 +472,9 @@ počet, den)` po řadě podle id: napřed věže nad branami po 4, pak brány po
   ve stavu `fight` uvnitř obvodu (`withinWalls`), bez stěny mezi, v dohledu, do 40 m od stanoviště
   nebo útočí na něj – boj jako u domů (vodítko 40 m od stanoviště), a nedosáhne-li odsud, sleze
   z ochozu; (2) rána zblízka přes hradbu (lezec, muž u paty); (3) posila (`reinforceTarget`) – na
-  místě nebo cestou; (4) na místě střela či hod odsud; (5) zpět na stanoviště. `walkTo`: podél
+  místě nebo cestou; kdo posilou není a na opevnění dopadají šípy, je v krytu (`cover`) a na
+  ochozu nestřílí ani nehází; (4) na místě střela či hod odsud; (5) zpět na stanoviště. Probíjení
+  opevnění má přednost (`breakoutPlan`). `walkTo`: podél
   hradby (střed cesty do 2 m od čáry) zůstane na ochozu polovičním tempem (`stepToward` × 0,5), přes
   nádvoří sleze a jde po zemi plným; na místě s korunou na ochoz vystoupí.
 - **Posily** – `reinforceTarget(f, w)` čte přidělení taktu (`assign`, jednou za takt v `WallWorld`):
@@ -491,6 +499,67 @@ počet, den)` po řadě podle id: napřed věže nad branami po 4, pak brány po
   luk z ochozu ano a přes palisádu ne, kameny na prolamujícího, Review Focus 5, bitva po 1 / 7 / 40
   přes JSON = vcelku); `battle.test.ts` – obránce za palisádou šípem ne, na ochozu poloviční zásah;
   `stance.test.ts` – muži v útočišti obsadí hradbu.
+
+## Kryt pod palbou, bod zlomu za hradbou a probíjení (9. 11. 2026)
+
+fortifications.md – Obrana bez násobku 3 (Kryt pod palbou a bod zlomu jen v útoku; Bod zlomu
+a probíjení). Logika v `domain/war/rout.ts`, plán obránce ve `wall-defense.ts`, takt v `battle.ts`.
+Čísla `FORTIFICATIONS.defense.coverSeconds` (30 s), `WAR.combat.aim.visibleM2.cover` (0,025 –
+los 1 : 10 proti předprsni), `WAR.rout` (útěk od 50 zdraví, matky dětí do 7 let, staří od 60),
+`WAR.breakout` (30 % ztrát, brána do 30 m, slabě hlídaná = nejvýš ½ útočníků proti probíjejícím,
+shromáždění do 6 m nejvýš 60 s).
+
+- **Stav** (vše volitelné, staré boje beze změny): `Fighter.cover` (v krytu – plán ho nastaví každý
+  takt), `shotDown` (srazilo ho ostřelování přes hradbu mimo místo útoku), `surrendered` (vzdal se –
+  stav `fled`); `BattleState.underFire` (opevnění → takt posledního šípu přes hradbu na jeho
+  obránce), `openedGates` (otevřeli obránci – nezavřou se), `routed`, `breakouts`
+  (`BattleBreakout` – opevnění, úsek brány, les `to`, takt, `gathered`), `taken` (dobytá útočiště);
+  `ShelterReport.refugeAt` (opevnění každého z `refuge`).
+- **Kryt pod palbou** – výstřel útočníka přes hradbu (`strike.across`) na obránce se stanovištěm
+  zapíše `underFire[opevnění]`; `wallDefenderPlan`: obránce bez posily (`reinforceTarget` null) je
+  do 30 s po posledním šípu v krytu – na ochozu a koruně nestřílí ani nehází (`poseOf` → `cover`).
+  Kdo jde k žebříku či průlomu nebo ho brání, nebo bojuje s útočníkem uvnitř či zblízka, kryt nemá.
+- **Bod zlomu jen v útoku** – zásahy taktu se značí: šíp či hod přes hradbu na obránce se
+  stanovištěm bez posily (`fromAfar`) je ostřelování; kdo padne jen od takových zásahů, má
+  `shotDown`. `breakpoints`: skupiny domů bez obránců se stanovištěm; `fortBreakpoints` – obránci
+  opevnění (stanoviště podle `fortOfPost`) = jeden celek, `assaultLossShare` = padlí a ranění bez
+  `shotDown` ÷ všichni.
+- **Chaos** (`routFort` při 45 %) – `routed`, brány opevnění se otevřou (`openGates`), probíjení
+  končí; pod 50 zdraví `surrender`, jinak `startFlee`. `fleeStep`: obránce se stanovištěm jde
+  `openingRoute` (nejbližší průchod, body před a za ním), bez průchodu nebo zaseknutý na cestě
+  `cutOff` (vzdá se; poslední muž rodu bojuje dál).
+- **Probíjení** – `orderBreakout(stav, bojiště, opevnění, úsek)` otevře bránu a zapíše
+  `BattleBreakout`; veřejně `orderDefenderBreakout(stav, bojiště, opevnění, úsek?)` (bez úseku
+  volí `breakoutGate` – nejméně útočníků do 30 m, nejvýš ½ proti probíjejícím). Velitel obrany
+  (`fortBreakpoints`) při 30 % ztrát v útoku, jednou na opevnění. Hráč obránců: záměr tažení
+  `{ kind: 'breakout', fort, segment? }` (`campaign-types.ts`) zapíše `BattleState.breakoutOrder`,
+  takt ho na začátku provede (před bodem zlomu). `breakoutStep` (před stěnami
+  taktu): `gathered`, když jsou všichni na nohou do 6 m od brány nebo uplynulo 60 s; kdo je venku
+  u lesa (bez lesa hned venku), je `fled`. `breakoutPlan`: z ochozu dolů, útočníka do 3 m bije,
+  jinak k bodu uvnitř průchodu (`WallWorld.exits`), po vyražení po ose průchodu ven a do lesa.
+- **Dobytí útočiště** – `refugeForts` (opevnění s obránci se stanovištěm nebo s lidmi
+  v útočišti), `markTaken` po ranách (útočník ve stavu `fight` uvnitř obvodu – `withinWalls`).
+  Výsledek `attackers` až bez obránců a s dobytými útočišti; mezitím jdou neřízení útočníci
+  (kromě „držet místo“) dovnitř (`enterRefuge` – k průchodu kolem hradby `leadTo`, jím dovnitř;
+  bez průchodu přes hradbu). NPC velitel (`npc-commander.ts` – `emptyRefuge`): nedobyté útočiště
+  bez obránců s nejrychlejším postupem nad 1 herní den → `plunder`. `fortPassages` bere otevřené
+  brány jako průchod.
+- **Po boji** (`campaign.ts` – `raidResultOf`): útočiště dobyté = `taken` neprázdné (dřív stačilo,
+  že někdo z útočiště bojoval); vzdaní z boje a lidé dobytého útočiště podle `refugeRout`
+  (`rout.ts`) se odvedou jako vzdaní.
+- **Zatím chybí** – use-case, kterým přítomný držitel napadené vsi (právo `war`) pošle záměr
+  `breakout` do cizího tažení (`commandCampaign` bere jen příkazy velitele tažení), a tlačítko
+  „Probít se“ – obrana panel rozkazů v boji nemá; scéna krytu (skrčení) a vzdaných (zmizí jako
+  utečení).
+- **Testy** – `__tests__/wall-cover.test.ts` (půl hodiny ostřelování 12 obránců šesti lučištníky –
+  kryt, bez bodu zlomu, padlí jen `shotDown`, pod 60 zásahů; padlí ostřelováním do bodu zlomu
+  nejdou; po žebříku obránce u vrcholu bez krytu, jinde kryt; chaos – brána otevřená, raněný se
+  vzdá, zdraví utečou branou; útočiště dobyté až s útočníkem uvnitř; bez brány odříznutí; po
+  kouscích přes JSON = vcelku; probíjení velitelem při 30 % volnou branou do lesa, hlídanou ne,
+  rozkaz s branou a před bodem zlomu, záměr hráče přes `breakoutOrder`; `refugeRout`). Nájezd na
+  palisádu s ochozem (`palisade-walkway-raid.test.ts`) dál končí žebříky a útočníkem uvnitř;
+  `npc-commander.test.ts` – NPC velitel na palisádu s ochozem a bránou: proseknutí, bod zlomu
+  v útoku, útočiště dobyté s útočníkem uvnitř.
 
 ## Brány v bitvě – ulička a věž (hradby Ú19)
 
@@ -627,13 +696,15 @@ co se stalo, a pošle to do schránek vsí na **následující den** (rozhodnut�
   jen jednou (`CampaignState.raidDay`); i z `finish`. Ves čte stavem `villageAt(cíl, s.day)` jako
   bojiště (chybí-li, takt se zastaví – `MissingData`).
 - **`raid-result`** do napadené vsi (`RaidResult`): padlí a ranění obránci z bojovníků `down`
-  (`killed`); drží-li útočníci bojiště, i odvedení – vzdaní z `ShelterReport.surrendered` podle
+  (`killed`); drží-li útočníci bojiště, i odvedení – vzdaní (`yieldedOf`: `ShelterReport.surrendered`,
+  obránci s `Fighter.surrendered` a lidé dobytého útočiště, kteří neutekli – `refugeRout`) podle
   `CampaignState.surrendered` (výchozí `lead`; `kill` = padlí; muže rodu a šlechtice zajme Ú6.11,
   zatím zůstanou) – a kořist `raidLoot`:
   - jídlo ze zásob (obilí, luštěniny, maso, sýr) do nosnosti `lootCapacity` – 25 kg na muže na
     nohou (`WAR.carryKg.man`, raněný nenese) minus zbylé jídlo tažení; po druzích ve stejném poměru;
   - zůstane: odnesené do lesa (`fleeParty` lesních), do útočiště, které útočník nedobyl (dobyté =
-    někdo z útočiště bojoval nebo se vzdal), osivo `reservedSeedKg` a zapečetěné jámy, které útočník
+    útočník stál uvnitř obvodu – `BattleState.taken`, 9. 11. 2026), osivo `reservedSeedKg`
+    a zapečetěné jámy, které útočník
     nenajde (`pitFound(seed tažení, jáma, dny boje)` – dny = takty boje × `hoursPerTick` ÷ 24);
   - dobytek (ovce, kozy, prasata, krávy) celý kromě útočiště a lesa. Koně a voli zatím ne.
 - **`applyRaidResult`**: padlí zemřou (`death`, `cause: 'war'`) a pohřbí se (`bury`), ranění

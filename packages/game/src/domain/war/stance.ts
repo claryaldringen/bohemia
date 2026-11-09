@@ -28,6 +28,11 @@ export interface ShelterReport {
   stance: DefenseStance;
   /** Lidé (id), kteří se schovali v útočišti. */
   refuge: number[];
+  /**
+   * Opevnění útočiště (pořadí na bojišti) pro každého z `refuge` ve stejném pořadí – dobytí
+   * útočiště (`rout.ts`); chybí u starších bojů.
+   */
+  refugeAt?: number[];
   /** Lidé (id), kteří utekli do lesa. */
   forest: number[];
   /** Lidé (id), kteří se vzdali (skupina domů vzdala). */
@@ -192,6 +197,7 @@ export function planDefense(input: StanceInput): StancePlan {
       }
     }
     shelter.refuge = [...inRefuge.keys()];
+    shelter.refugeAt = shelter.refuge.map((id) => field.forts.indexOf(inRefuge.get(id)!));
     shelter.carriedKg = Math.min(shelter.carriedKg, Math.max(0, state.storesKg));
   }
 

@@ -11,14 +11,18 @@ import { WAR } from './rules-war';
 // koho šíp trefí, určí los váhou podle plochy – hlouček je snadný cíl a šíp smí trefit i vlastního.
 // Jsou-li v kruhu jen vlastní, střelec nestřílí. Los ze seedu války v pořadí mužů. Jen det-math.
 
-/** Jak je cíl vidět: stojí, kryje se předprsní na ochozu, leze po žebříku, je v podkopu. */
-export type TargetPose = 'standing' | 'parapet' | 'climbing' | 'underground';
+/**
+ * Jak je cíl vidět: stojí, kryje se předprsní na ochozu, skrčený v krytu pod palbou, leze po
+ * žebříku, je v podkopu.
+ */
+export type TargetPose = 'standing' | 'parapet' | 'cover' | 'climbing' | 'underground';
 
 /**
  * Poloha muže na bojišti pro střelbu: kopáč v podkopu po pětině práce (`Fighter.underground` –
  * nevidí ho nikdo), lezec na žebříku a přes plot (`ladders.ts`), obránce na ochozu a koruně
  * (`Fighter.onWall`) kryje předprseň – jen proti střele a hodu zespodu, přes hradbu (`below`;
- * zevnitř opevnění je vidět celý). `b` – žebříky boje.
+ * zevnitř opevnění je vidět celý); v krytu pod palbou (`Fighter.cover`) je skrčený. `b` – žebříky
+ * boje.
  */
 export function poseOf(
   f: Fighter,
@@ -28,10 +32,11 @@ export function poseOf(
 ): TargetPose {
   if (f.underground) return 'underground';
   if (onLadder(f, b)) return 'climbing';
-  return f.onWall && below ? 'parapet' : 'standing';
+  if (!f.onWall || !below) return 'standing';
+  return f.cover ? 'cover' : 'parapet';
 }
 
-/** Viditelná plocha cíle v m² (stojící 0,85, za předprsní 0,25, lezec 0,85, v podkopu 0). */
+/** Viditelná plocha cíle v m² (stojící 0,85, za předprsní 0,25, v krytu 0,025, lezec 0,85, v podkopu 0). */
 export function visibleAreaM2(pose: TargetPose): number {
   return pose === 'underground' ? 0 : WAR.combat.aim.visibleM2[pose];
 }

@@ -12,11 +12,12 @@ import {
 import type { FortSegmentShape } from '../village/fortification';
 import { FORTIFICATIONS } from '../village/rules-fortifications';
 import type { WallKind } from '../village/types';
-import type { BattleFort, BattleState, Fighter } from './battle';
+import type { BattleBreakout, BattleFort, BattleState, Fighter } from './battle';
 import { onLadder, outward } from './ladders';
 import type { Pos } from './march-grid';
 import { canAttack, dist2, nearest, returnTo, type FighterPlan, type PlanContext } from './orders';
 import { WAR } from './rules-war';
+import { TICKS_PER_SECOND } from './ticks';
 
 // Obránci na hradbě (fortifications.md – Obrana bez násobku 2, 3, 6; Střelba a viditelná plocha;
 // Martin 8. 11. 2026): když ves spatří vojsko, muži v opevnění obsadí napřed brány (po 2), pak
@@ -429,7 +430,7 @@ function walkPace(forts: readonly BattleFort[], f: Fighter, to: Pos): number {
 }
 
 /** Leží bod `p` uvnitř obvodu opevnění (za čarou nejbližšího kusu, nejvýš půl metru před ní)? */
-function withinWalls(bf: BattleFort, p: Pos): boolean {
+export function withinWalls(bf: BattleFort, p: Pos): boolean {
   const hit = bf.shapes.length > 0 ? nearestPiece(ringOf(bf), p) : null;
   if (!hit) return false;
   const q = inward(hit.piece, hit.t, 0);
@@ -522,6 +523,15 @@ export interface WallWorld {
   walled: (p: Pos, q: Pos) => boolean;
   /** Přidělení posil v tomto taktu (`reinforceTarget` – počítá se jednou za takt). */
   assigned?: Map<string, Pos>;
+  /** Průchody opevnění v tomto taktu (brány, mezery, průlomy) – body vně a uvnitř; chybí = žádné. */
+  exits?: (fort: number) => readonly Exit[];
+}
+
+/** Průchod opevněním – body vně a uvnitř, úsek. */
+export interface Exit {
+  out: Pos;
+  in: Pos;
+  segment: number;
 }
 
 /** Místo na hradbě, kde útočníci lezou nebo prolamují. */
@@ -576,7 +586,7 @@ function places(w: WallWorld): Place[] {
 }
 
 /** Opevnění stanoviště – nejbližší střed. */
-function fortOfPost(forts: readonly BattleFort[], post: Pos): number {
+export function fortOfPost(forts: readonly BattleFort[], post: Pos): number {
   let best = -1;
   let bestD = Infinity;
   forts.forEach((bf, i) => {
@@ -655,12 +665,16 @@ export function reinforceTarget(f: Fighter, w: WallWorld): Pos | null {
  * útočník uvnitř obvodu do 40 m od stanoviště (nebo ten, kdo útočí na něj) – boj jako u domů, a
  * nedosáhne-li na něj odsud, sleze z ochozu; jinak rána zblízka přes hradbu (lezec, muž u paty);
  * jinak posila k žebříku či průlomu; jinak (i na místě posily) střela či hod odsud; jinak zpět na
- * stanoviště (`walkTo`).
+ * stanoviště (`walkTo`). Kdo posilou není a na opevnění dopadají šípy, je v krytu (`Fighter.cover`)
+ * a na ochozu nestřílí ani nehází (Kryt pod palbou). Probíjení opevnění má přednost (`breakoutPlan`).
  */
 export function wallDefenderPlan(f: Fighter, ctx: PlanContext, w: WallWorld): FighterPlan {
   const post = f.post ?? f.home;
   const zone = WAR.houseGroupM * WAR.houseGroupM;
-  const fort = w.forts[fortOfPost(w.forts, post)];
+  const fi = fortOfPost(w.forts, post);
+  const fort = w.forts[fi];
+  const breakout = (w.b.breakouts ?? []).find((x) => x.fort === fi);
+  if (breakout && fort) return breakoutPlan(f, ctx, w, breakout, fort);
   const inside = ctx.fighters.filter(
     (e) =>
       canAttack(f, e, false) &&
@@ -673,27 +687,93 @@ export function wallDefenderPlan(f: Fighter, ctx: PlanContext, w: WallWorld): Fi
   );
   const foe = nearest(f.pos, inside);
   if (foe) {
+    delete f.cover;
     if (f.onWall && w.strike(f, foe) === null) delete f.onWall;
     return { target: foe, moveTo: null, leash: { at: [post], radiusM: WAR.houseGroupM } };
   }
-  const m2 = WAR.combat.meleeM * WAR.combat.meleeM;
-  const close = nearest(
-    f.pos,
-    ctx.fighters.filter(
-      (e) => canAttack(f, e, false) && dist2(f.pos, e.pos) <= m2 && w.strike(f, e) !== null,
-    ),
-  );
-  if (close) return { target: close, moveTo: null, leash: null };
+  const close = closeFoe(f, ctx, w);
+  if (close) {
+    delete f.cover;
+    return { target: close, moveTo: null, leash: null };
+  }
   // posila jde na místo; na místě (i na stanovišti) střílí a hází, kam dosáhne
   const to = reinforceTarget(f, w);
+  // kryt pod palbou (Obrana bez násobku 3): kdo nebrání místo útoku, kryje se, dokud dopadají šípy
+  if (to === null && underFire(w.b, fi)) f.cover = true;
+  else delete f.cover;
   const move = to ? walkTo(f, to, w) : null;
   if (move) return { target: null, moveTo: move, leash: null };
+  // na ochozu a koruně v krytu nestřílí ani nehází – skrčený za předprsní, nebo pod ochozem
+  if (f.cover && f.onWall) return { target: null, moveTo: walkTo(f, post, w), leash: null };
   const far = nearest(
     f.pos,
     ctx.fighters.filter((e) => canAttack(f, e, false) && w.strike(f, e) !== null),
   );
   if (far) return { target: far, moveTo: null, leash: null };
   return { target: null, moveTo: to ? null : walkTo(f, post, w), leash: null };
+}
+
+/** Nejbližší nepřítel na ránu zblízka (do 3 m, i přes hradbu – lezec, muž u paty). */
+function closeFoe(f: Fighter, ctx: PlanContext, w: WallWorld): Fighter | null {
+  const m2 = WAR.combat.meleeM * WAR.combat.meleeM;
+  return nearest(
+    f.pos,
+    ctx.fighters.filter(
+      (e) => canAttack(f, e, false) && dist2(f.pos, e.pos) <= m2 && w.strike(f, e) !== null,
+    ),
+  );
+}
+
+/**
+ * Dopadají na opevnění `fort` šípy – útočník naposled vystřelil přes hradbu na jeho obránce před
+ * nejvýš 30 s (`BattleState.underFire`)?
+ */
+export function underFire(b: Pick<BattleState, 'underFire' | 'ticks'>, fort: number): boolean {
+  const last = b.underFire?.[fort];
+  return last !== undefined && b.ticks - last <= D.coverSeconds * TICKS_PER_SECOND;
+}
+
+/** Leží `p` na ose průchodu `a` → `e` (mezi body, nejvýš 1 m stranou)? */
+function onAxis(p: Pos, a: Pos, e: Pos): boolean {
+  const dx = e.x - a.x;
+  const dz = e.z - a.z;
+  const len2 = dx * dx + dz * dz;
+  if (len2 <= 1e-9) return false;
+  const t = ((p.x - a.x) * dx + (p.z - a.z) * dz) / len2;
+  if (t < 0 || t > 1) return false;
+  const q = { x: a.x + dx * t, z: a.z + dz * t };
+  return dist2(p, q) <= 1;
+}
+
+/**
+ * Probíjení (fortifications.md – Obrana bez násobku 3, Bod zlomu a probíjení; návrh Clauda):
+ * obránce sleze z hradby a jde k vybrané bráně; dokud skupina nevyrazí (`gathered`), čeká u ní,
+ * pak projde branou ven a do lesa. Útočníka na ránu zblízka cestou bije (probíjí se), střílet se
+ * nezastavuje.
+ */
+function breakoutPlan(
+  f: Fighter,
+  ctx: PlanContext,
+  w: WallWorld,
+  bo: BattleBreakout,
+  fort: BattleFort,
+): FighterPlan {
+  delete f.cover;
+  delete f.onWall;
+  const close = closeFoe(f, ctx, w);
+  if (close) return { target: close, moveTo: null, leash: null };
+  let exit: Exit | null = null;
+  for (const o of w.exits?.(bo.fort) ?? []) {
+    if (o.segment !== bo.segment) continue;
+    if (!exit || dist2(f.pos, o.in) < dist2(f.pos, exit.in)) exit = o;
+  }
+  if (!exit) return { target: null, moveTo: null, leash: null };
+  if (!withinWalls(fort, f.pos)) return { target: null, moveTo: bo.to ?? exit.out, leash: null };
+  if (bo.gathered && onAxis(f.pos, exit.in, exit.out)) {
+    return { target: null, moveTo: exit.out, leash: null };
+  }
+  const at = returnTo(f, exit.in);
+  return { target: null, moveTo: at ?? (bo.gathered ? exit.out : null), leash: null };
 }
 
 /**

@@ -1,5 +1,5 @@
 import { fortHasWall, fortsContaining } from '../village/fortification';
-import type { BattleField, BattleState, Fighter } from './battle';
+import { untakenRefuges, type BattleField, type BattleState, type Fighter } from './battle';
 import type {
   CampaignGroup,
   CampaignMember,
@@ -194,7 +194,7 @@ function leaderIntents(
   if (chosen && chosen.side === 'defend' && inFight(chosen)) return [];
   const army = b.fighters.filter((f) => f.side === 'attack' && inFight(f));
   const foes = b.fighters.filter((f) => f.side === 'defend' && inFight(f));
-  if (foes.length === 0) return [];
+  if (foes.length === 0) return emptyRefuge(field, b, army.length, leader);
   const seen = foes.filter((d) => army.some((a) => dist2(a.pos, d.pos) <= SIGHT2));
   if (seen.length === 0) {
     const near = nearest(leader.pos, foes)!;
@@ -229,6 +229,22 @@ function leaderIntents(
   const next = approachStep(field, leader.pos, way);
   if (leader.goal && dist2(leader.goal, next) <= AT_APPROACH_M * AT_APPROACH_M) return [];
   return [{ kind: 'march', to: { cell: { ...s.target.cell }, pos: next } }];
+}
+
+/**
+ * Nikdo už nebojuje, ale útočiště je nedobyté (fortifications.md – Bod zlomu a probíjení – dobyté,
+ * až je útočník uvnitř): muži jdou dovnitř sami (`battle.ts`); trvá-li nejrychlejší postup přes
+ * hradbu déle než 1 herní den, velitel vezme, co je venku (`plunder`).
+ */
+function emptyRefuge(
+  field: BattleField | null,
+  b: BattleState,
+  men: number,
+  leader: Fighter,
+): IntentBody[] {
+  if (!field || untakenRefuges(field, b).length === 0) return [];
+  const way = fastestApproach(field, b, men, leader.pos);
+  return !way || way.hours > WAR.npc.maxAssaultHours + 1e-9 ? [{ kind: 'plunder' }] : [];
 }
 
 /**

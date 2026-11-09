@@ -32,6 +32,7 @@ import {
 import { defenderRoster, type GuardGuest } from './defenders';
 import { ageYears, isAway } from '../village/people';
 import { stanceOf } from './flight';
+import { refugeRout } from './rout';
 import { planDefense } from './stance';
 import {
   lootCapacity,
@@ -418,6 +419,14 @@ function applyBody(s: CampaignState, body: IntentBody, out: TickOut, npc: boolea
       s.surrendered = body.choice;
       return;
     case 'presence':
+      return;
+    case 'breakout':
+      // rozkaz obráncům – platí na začátku příštího taktu boje (`battleTick` má bojiště)
+      if (s.phase !== 'raiding' || s.battle?.outcome !== 'ongoing') return;
+      s.battle.breakoutOrder = {
+        fort: body.fort,
+        ...(body.segment === undefined ? {} : { segment: body.segment }),
+      };
       return;
     case 'plunder':
       // jen NPC velitel: silné opevnění nenapadne a drží ves mimo útočiště (war.md – Velení)
@@ -1033,7 +1042,7 @@ function raidResultOf(
     };
     // host z ochrany je muž rodu pána – zajme se jako muž rodu
     const guard = new Set((s.guards ?? []).map((g) => g.id));
-    for (const id of shelter?.surrendered ?? []) {
+    for (const id of yieldedOf(b, village, s.day)) {
       if (guard.has(id)) {
         takeMan(id);
         continue;
@@ -1073,14 +1082,9 @@ function raidResultOf(
       : {}),
   };
   if (!won) return { ...base, loot: noLoot(), pitsFound: [] };
-  const refuge = new Set(shelter?.refuge ?? []);
-  const surrendered = new Set(shelter?.surrendered ?? []);
+  // útočiště je dobyté, až útočník stál uvnitř obvodu (fortifications.md – Bod zlomu a probíjení);
   // NPC velitel silné opevnění nenapadl – vzal jen, co je venku (`plunder`)
-  const refugeTaken =
-    b.plundered !== true &&
-    [...refuge].some(
-      (id) => surrendered.has(id) || b.fighters.some((f) => f.side === 'defend' && f.ref === id),
-    );
+  const refugeTaken = b.plundered !== true && (b.taken ?? []).length > 0;
   const fit = s.members.filter((m) => m.status === 'active' && !m.wounded).length;
   const { loot, pitsFound } = raidLoot({
     village,
@@ -1092,6 +1096,30 @@ function raidResultOf(
     daysInVillage: (b.ticks * hoursPerTick(ctx.world.clock)) / 24,
   });
   return { ...base, loot, pitsFound };
+}
+
+/**
+ * Vzdaní (id): skupiny domů před bojem (`ShelterReport.surrendered`), obránci za hradbou, kteří se
+ * při bodu zlomu vzdali (`Fighter.surrendered`), a lidé v dobytém útočišti, kteří neutekli
+ * (`refugeRout` – děti, matky malých dětí, staří, ranění; zdraví dospělí utečou).
+ */
+function yieldedOf(b: BattleState, village: VillageState, day: number): number[] {
+  const shelter = b.shelter;
+  const out = [...(shelter?.surrendered ?? [])];
+  const fighters = new Set<number>();
+  for (const f of b.fighters) {
+    if (f.side !== 'defend') continue;
+    fighters.add(f.ref);
+    if (f.surrendered && !out.includes(f.ref)) out.push(f.ref);
+  }
+  const taken = new Set(b.taken ?? []);
+  if (b.plundered === true || taken.size === 0 || !shelter) return out;
+  const at = shelter.refugeAt;
+  const inside = shelter.refuge.filter(
+    (id, i) =>
+      !fighters.has(id) && !out.includes(id) && (at === undefined || taken.has(at[i] ?? -1)),
+  );
+  return [...out, ...refugeRout(village.people, day, inside).surrendered];
 }
 
 /** Průlomy opevnění pro schránku vsi: prolomené díly, z nich vypálené a díly s vypálenou branou. */

@@ -216,6 +216,42 @@ describe('NPC velitel – silnější vojsko u palisády (plán hradeb, Úloha 2
   });
 });
 
+describe('NPC velitel – palisáda s ochozem (kryt pod palbou, bod zlomu jen v útoku)', () => {
+  // jako výš, ale palisáda s ochozem: obránci z ochozu brání, samotné ostřelování je nezlomí
+  const walkway = (): VillageState => {
+    const v = hradek();
+    return { ...v, fortifications: [{ ...palisade(true), kind: 'walkway' }] };
+  };
+  const fortWorld = worldWith(
+    'hradek',
+    { landscape: land((_tx, ty) => ty < 61), obstacles: null, villageIds: ['hradek'] },
+    walkway(),
+  );
+  const start = campaign({
+    liveCommand: false,
+    foodKg: 60,
+    members: [
+      member(1, 0, true),
+      member(2, 1, false),
+      member(3, 1, false),
+      member(11, 1, false),
+      member(12, 1, false),
+    ],
+    target: { villageId: 'hradek', name: 'Hrádek', cell: { x: 1, y: 0 }, pos: { x: -200, z: 0 } },
+  });
+  const whole = stepCampaign(start, END, SET_OUT, fortWorld);
+
+  // brána se prosekne, obránci dosáhnou bodu zlomu v útoku (chaos) a útočník vstoupí dovnitř
+  it('nájezd skončí dobytím útočiště – útočník uvnitř', () => {
+    const b = whole.state.battle;
+    expect(b?.outcome).toBe('attackers');
+    expect(b?.plundered).toBeUndefined();
+    expect(b?.routed).toEqual([0]);
+    expect(b?.taken).toEqual([0]);
+    expect(whole.villageEvents.some((e) => e.body.kind === 'raid-result')).toBe(true);
+  });
+});
+
 // --- Obrat při polovině vojska, plné nosnosti a jídle na cestu domů ------------------------------
 
 describe('NPC velitel – obrat', () => {
