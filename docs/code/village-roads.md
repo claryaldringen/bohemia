@@ -900,12 +900,38 @@ Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
     Vlkov 20 let a nová ves se správcem 15 let: každá změna starého klíče = změna otisku a naopak).
   - `routeMapKey` – obydlí a staveniště (poloha, natočení, druh, pozemek – bez obyvatel a stáří),
     díly polí (políčka, bez stadia), sady, hřbitovy, posvátná místa, ohrady (políčka, hotová),
-    les vsi, milíře, humna, obilné jámy od vykopání po zánik (ne otevřená / zavřená), pevné cesty
+    les vsi, milíře, humna, pevné cesty
     (`roadsKey` – olemování je součást cesty, v klíči zvlášť není), zemní práce a překážky
     k poslednímu 1. 11. bez stromů u cest (`routeTreesDay`, `routeTreesKey`; síť i `pathVillageOf`
     berou pařezy a mladé stromy přes `routeObstacleChanges` k témuž dni). Paseka rozestavěného
     pole v lese je les, dokud pole nedohoří (Klučení a mapa tras níž). Opuštění cesty síť nezná
     (`pathVillageOf` ho nepředává), stav kusů a provoz také ne.
+  - **Obilné jámy mimo otisk** (Martin 9. 11. 2026 – [paths.md – Obilné jámy a vzdálenosti
+    chůze](../design/paths.md#obilné-jámy-a-vzdálenosti-chůze-9-11-2026)): síť je bere jako cíle
+    (`pathVillageOf` → `grainPits`, `network-targets.ts` – `grain-pit:<id>`), ale vykopání ani
+    zánik jámy přepočet nespustí – trasa k nové jámě vznikne s nejbližším přepočtem z jiného
+    důvodu. Mřížka převážení (`WEIGHT_GRIDS`, klíč `routeMapKey`) jámy nenese (`cellsAround` jen
+    čte průchodnost), proto klíč bez jam stačí. Trasa k zaniklé jámě dostane převážením 0 cest
+    (skupina `grain-pit:<id>` chybí); práce u jámy bez trasy do vyšlapanosti nic nepřidá
+    (`laborCells` cíl nenajde) – nic nepředpokládá, že k jámě trasa vede (scéna `grain-pit` nezná).
+  - **Otisk jen, když je potřeba** (9. 11. 2026, jen zrychlení): `refreshWalkDistancesSteps`
+    počítá `routeMapKey` líně (`keyOf`) – 1. dne v měsíci, s `now`, u neplatných tras (otisk tras
+    jiný než `walkLayoutKey`) a pro mřížku převážení při změně obsazenosti (`moved`). Jiný den
+    s platnými trasami a stejnou obsazeností skončí bez klíče (dřív ≈ 0,25 s za rok Vlkova).
+  - **Otisk vzdáleností chůze** (`VillageState.walkDistanceKey`, Martin 9. 11. 2026 – paths.md
+    tamtéž): přepočet tras změří vzdálenosti (`walkDistanceKey` v `paths/village.ts`) jen při jiném otisku než
+    uloženém. Otisk obsahuje vše, z čeho se staví graf chůze, půda a cíle, kromě čar pěšin
+    (`villageRouteLines`): `WALK_VERSION`; obydlí (id, poloha – palivo a voda) a rozestavěná obydlí
+    (poloha – `dwellingOrigins`); díly polí s políčkem (id, pole, políčko, mřížka pole –
+    `squareCenter` cíle i `withFieldWalk`); zarostlý díl (`isCropPart` po dílech `PathVillage.fields`
+    – rychlost chůze přes pole); čtverce sadů (id, mřížka, políčka); pevné cesty včetně opuštěných
+    (id, stupeň, hať, všechny body osy, mokřina a brody `Road.ground`, olemování `Road.lined` –
+    `roadPieceCost`); opevnění (`fortLayoutKey` – `withFortWalk`). Terén okna (`walkGroundOf`),
+    okraj lesa a voda jsou z krajiny. Ves bez otisku (uložená dřív) změří vzdálenosti s nejbližším
+    přepočtem tras a otisk uloží (jednou a idempotentně, převod není potřeba); bez sítě (`!network`)
+    se vzdálenosti i otisk smažou. `now` (oprava, přestavba cest) vzdálenosti nevynutí (návrh
+    Clauda) – jiné cesty změní otisk. Otisk se uloží až po změření (přerušený dopočet nenechá
+    otisk bez vzdáleností).
   - **Jen stavba nebo zánik** (Martin 31. 10. 2026 – [paths.md, pravidlo 5](../design/paths.md#stálé-trasy-25-10-2026)):
     stálé trasy se hledají nad `establishedVillage` (`network.ts`) – každé hotové obydlí jako
     obydlené (lidé vsi rozdělení na všechna), každá hotová ohrada se zvířaty, každá obilná jáma
@@ -924,7 +950,8 @@ Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
     úprava před vozovou cestou ve `wagon-rebuild.ts`), další přepočet chůze ho určí znovu.
     Převod `withPlannedLining` (v `updateVillage`) jednou – značka `VillageRoads.liningPlanned`.
   - Změna otisku = stálé trasy znovu (`computeStableNetwork` – síť bez práce dne, `stableVillage`)
-    - vzdálenosti chůze (`villageRouteLines`). **Trasy k práci dne a na pastvu se nehledají**
+    - vzdálenosti chůze (`villageRouteLines`) – od 9. 11. 2026 jen s jiným otiskem vzdáleností
+      (`walkDistanceKey` výš). **Trasy k práci dne a na pastvu se nehledají**
       (Martin 31. 10. 2026 – `routes-v9`; dřívější `computeWorkRoutes`, `StoredRoute.daily`,
       `routes.workKey`, `routeMonthKey` zmizely, vsi uložené s nimi je zahodí přepočtem).
       Práce k cílům bez stálé trasy (kácení, seč, úprava cesty, opravy, humno, kovář…) do

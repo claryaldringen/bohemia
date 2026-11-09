@@ -86,7 +86,7 @@ import { routePaths } from './route-paths';
 import { villageGrid } from './network-grid';
 import { villageBuildings } from './network-search';
 import { storedRoutes } from './routes';
-import { roadTreeSpeed } from './walk-speed';
+import { isCropPart, roadTreeSpeed } from './walk-speed';
 import {
   accrueVisits,
   laborTripsPerDay,
@@ -659,9 +659,11 @@ function* computeVillageNetworkSteps(
  * ceny buněk pro chůzi a vůz – obydlí a staveniště (poloha, natočení, druh, pozemek), díly polí
  * (políčka – bez stadia), sady, hřbitovy, posvátná místa, ohrady, les vsi, milíře, humna, pevné
  * cesty (osa, druh, stupeň, mokřina – olemování je jejich součást; ne stav kusů, provoz ani opuštění),
- * zemní práce (profil, brody, hotové úseky – ne průběh), otevřené obilné jámy (stálý cíl) a pařezy
- * k poslednímu 1. 11.; paseka rozestavěného pole v lese až s dohořením pole (`routeTreesKey`).
- * Neobsahuje stadia dílů, lidi, stáří spojení, stáda, práci dne ani den. Vrací rovnou otisk
+ * zemní práce (profil, brody, hotové úseky – ne průběh) a pařezy k poslednímu 1. 11.; paseka
+ * rozestavěného pole v lese až s dohořením pole (`routeTreesKey`). Neobsahuje stadia dílů, lidi,
+ * stáří spojení, stáda, práci dne, den ani obilné jámy – k jámě chodí ves zřídka a pěšina k ní
+ * nevznikne, trasa k nové jámě se najde s nejbližším přepočtem z jiného důvodu (Martin 9. 11.
+ * 2026; mřížka převážení jámy nenese – `cellsAround` jen čte průchodnost). Vrací rovnou otisk
  * (`walkLayoutHash` proudu klíče, 16 šestnáctkových číslic).
  */
 export function routeMapKey(state: VillageState, day: number): string {
@@ -686,7 +688,6 @@ export function routeMapKey(state: VillageState, day: number): string {
     text(k.kilns ?? '-') +
     text(k.floors ?? '-') +
     text(earthworksKey(state)) +
-    list((state.grainPits ?? []).map((p) => `${p.id}:${p.x},${p.z}`)) +
     text(routeTreesKey(state, day)) +
     // opevnění (fortifications.md – Brány) – proud vsi bez opevnění beze změny
     (fort === null ? '' : text(fort));
@@ -941,6 +942,52 @@ function dwellingOrigins(state: VillageState): Position[] {
 }
 
 /**
+ * Otisk vstupů vzdáleností chůze kromě pěšin (paths.md – Obilné jámy a vzdálenosti chůze, Martin
+ * 9. 11. 2026): vše, z čeho se staví graf chůze, půda a cíle v `refreshWalkDistancesSteps`, kromě
+ * čar stálých tras (`villageRouteLines`) – verze tras, obydlí (palivo a voda) a rozestavěná obydlí
+ * (`dwellingOrigins`), díly polí s políčkem a mřížkou pole (cíle), čtverce polí s rychlostí chůze
+ * (`withFieldWalk` – zarostlý díl), čtverce sadů, pevné cesty (`roadPieceCost` – osa, stupeň, hať,
+ * mokřina a brody, olemování) a opevnění (`withFortWalk` – `fortLayoutKey`). Terén okna, okraj lesa
+ * a voda jsou z krajiny. Stejný otisk = stejné vzdálenosti až na pěšiny.
+ */
+function walkDistanceKey(state: VillageState, village: PathVillage): string {
+  const at = (p: PathPoint): string => `${p.x},${p.z}`;
+  const grids = fieldGrids(state);
+  const dwellings = state.dwellings.map((d) => `${d.id}:${at(d.position)}`);
+  const sites = state.constructions.flatMap((c) =>
+    c.dwellingType !== null && c.position !== null ? [at(c.position)] : [],
+  );
+  const parts = state.parts.flatMap((p) =>
+    p.cell ? [`${p.id}/${p.fieldId}:${p.cell.x},${p.cell.y}${turned(grids.get(p.fieldId))}`] : [],
+  );
+  const fields = village.fields.map(
+    (f) =>
+      `${f.id}:${f.parts.map((p) => `${at(p)},${p.rotation ?? ''}${isCropPart(p) ? '' : 'o'}`).join(';')}`,
+  );
+  const orchards = villageOrchards(state).map(
+    (o) => `${o.id}${turned(o.grid)}:${o.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(';')}`,
+  );
+  const roads = (state.roads?.roads ?? []).map(
+    (r) =>
+      `${r.id}:${r.grade}${r.unbridged ? 'u' : ''}:${r.points.map(at).join(';')}:${
+        r.ground ? `${r.ground.wet.join(';')}/${r.ground.fords.join(',')}` : ''
+      }:${r.lined ? `${r.lined.trees},${r.lined.apples}` : ''}`,
+  );
+  return walkLayoutHash(
+    [
+      WALK_VERSION,
+      dwellings.join('|'),
+      sites.join('|'),
+      parts.join('|'),
+      fields.join('|'),
+      orchards.join('|'),
+      roads.join('|'),
+      fortLayoutKey(state) ?? '-',
+    ].join('\x1e'),
+  );
+}
+
+/**
  * Vzdálenosti chůze z obydlí vsi k bodům `targets` (m, paths.md – Pěšiny a práce) – stejná síť
  * a stejné měření jako u dílů pole: po pěšinách a pevných cestách podle stupně, rovně s mokřinou
  * a brody (`walking.ts`). Bez sítě (ves bez obydlí) null. Seč přirozených luk (hay.ts –
@@ -1095,9 +1142,11 @@ const WEIGHT_GRIDS = new WeakMap<
  * z obydlí k nejbližší vodě (`Dwelling.waterWalkM` – `waterWalkDistance`). S nimi trasy vsi
  * (`VillageState.routes` – paths.md, Stálé trasy, pravidlo 5):
  *
- * - stálé trasy a vzdálenosti chůze se přepočítají, jen když se změní mapa tras (`routeMapKey` –
- *   stavby a pole od postavení po zánik, pevné cesty, pařezy k 1. 11.); obsazenost domácností,
- *   ohrad a jam ani stadia dílů nic nehledají (Martin 31. 10. 2026);
+ * - stálé trasy se přepočítají, jen když se změní mapa tras (`routeMapKey` – stavby a pole od
+ *   postavení po zánik, pevné cesty, pařezy k 1. 11.; obilné jámy ne – Martin 9. 11. 2026);
+ *   obsazenost domácností, ohrad a jam ani stadia dílů nic nehledají (Martin 31. 10. 2026);
+ * - vzdálenosti chůze s nimi, jen když se změní i jejich otisk bez pěšin (`walkDistanceKey` –
+ *   obydlí, pole, sady, pevné cesty, opevnění; Martin 9. 11. 2026), jinak zůstanou;
  * - změna mapy tras během měsíce se projeví až 1. dne dalšího měsíce – za všechny změny najednou,
  *   do té doby se chodí po staré mapě (Martin 8. 11. 2026); hned jen ves bez platných tras (nová,
  *   starší uložení) a s `now` (oprava a přestavba cest – trasy po nové síti hned);
@@ -1139,21 +1188,26 @@ export function* refreshWalkDistancesSteps(
   // měsíční převážení 1. dne v měsíci
   const monthly = dateOfDayIndex(day).day === 1;
   lineRoads(state);
-  const key = walkLayoutHash(`${routeMapKey(state, day)}|${WALK_VERSION}`);
+  // otisk mapy tras jen, když je potřeba (jen zrychlení – výsledek týž): 1. dne v měsíci, s `now`,
+  // u neplatných tras a jako klíč mřížky převážení při změně obsazenosti – jindy se nepoužije
+  let mapKey: string | undefined;
+  const keyOf = (): string =>
+    (mapKey ??= walkLayoutHash(`${routeMapKey(state, day)}|${WALK_VERSION}`));
   // platné trasy staré mapy: změna mapy počká na 1. den dalšího měsíce (Martin 8. 11. 2026) – den
   // přepočtu určuje kalendář, ne kousky dopočtu
   const valid = routes !== undefined && routes.key === state.walkLayoutKey;
-  if (routes && valid && (routes.key === key || (!monthly && !now))) {
+  if (routes && valid && ((!monthly && !now) || routes.key === keyOf())) {
     // obsazenost (nastěhování, vyhnání stáda, otevřená jáma) jen převáží – nic se nehledá
     const placesKey = walkLayoutHash(routePlacesKey(state));
     const moved = routes.placesKey !== placesKey;
     if (!monthly && !moved) return;
     // vyšlapanost do dneška ještě s dosavadními trasami a vahami (paths.md)
     settleVillageWear(state, day, landscape);
-    const list = reweighRoutes(state, day, landscape, obstacles, routes.list, key);
+    const list = reweighRoutes(state, day, landscape, obstacles, routes.list, keyOf());
     if (list !== routes.list || moved) state.routes = { ...routes, list, placesKey };
     return;
   }
+  const key = keyOf();
   state.walkLayoutKey = key;
   // vyšlapanost do dneška ještě se starými trasami – nové trasy se po ní slévají (paths.md)
   settleVillageWear(state, day, landscape);
@@ -1170,8 +1224,13 @@ export function* refreshWalkDistancesSteps(
       delete d.forestWalkM;
       delete d.waterWalkM;
     }
+    delete state.walkDistanceKey;
     return;
   }
+  // vzdálenosti chůze jen při změně obydlí, polí, sadů, pevných cest nebo opevnění (Martin 9. 11.
+  // 2026) – nové pěšiny samy ne; ves bez otisku (uložená dřív) je změří a otisk uloží
+  const distanceKey = walkDistanceKey(state, village);
+  if (state.walkDistanceKey === distanceKey) return;
   // stěny opevnění – chodec jimi jde jen branou (fortifications.md – Brány)
   const ground = withFortWalk(
     withFieldWalk(walkGroundOf(landscape), village.fields),
@@ -1216,6 +1275,8 @@ export function* refreshWalkDistancesSteps(
     if (water !== null) d.waterWalkM = rounded(water);
     else delete d.waterWalkM;
   }
+  // otisk až po změření – přerušený dopočet nenechá otisk bez vzdáleností
+  state.walkDistanceKey = distanceKey;
 }
 
 /**

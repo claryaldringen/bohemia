@@ -172,7 +172,9 @@ Beze změny proti dřívějšku (Martin 18.–19. 10. 2026, čísla návrh Claud
   **Od 8. 11. 2026 jednou za měsíc:** změna mapy tras během měsíce se jen projeví v klíči
   a přepočet proběhne 1. dne dalšího měsíce – najednou za všechny změny; vesničané do té doby
   chodí po staré mapě (Martin 8. 11. 2026: „a“). Hned jen ves bez platných tras (nová, starší
-  uložení) a oprava či přestavba cest.
+  uložení) a oprava či přestavba cest. **Od 9. 11. 2026** obilné jámy mapu tras nemění a vzdálenosti
+  chůze se s trasami přepočítají, jen když se změnilo, na čem závisí kromě pěšin
+  ([Obilné jámy a vzdálenosti chůze](#obilné-jámy-a-vzdálenosti-chůze-9-11-2026)).
 - **Uložení (návrh Clauda):** `VillageState.routes` – den výpočtu, otisk rozložení a seznam tras:
   odkud (vchod obydlí nebo stavby), kam (cíl – `field:<id>`, `water`, `wood`, `cemetery:<id>`,
   `edge:<směr>`…), účel, cesty za den (setiny) a **buňky trasy** jako řetězový kód (počáteční
@@ -326,7 +328,9 @@ změně stadia hledaly znovu (měření 25. 10. 2026: hledání tras vozů 67 % 
      **postavení nebo zánik stavby** – Martin 31. 10. 2026: „Ta věc (dům, ohrada, hřbitov) se
      prostě postaví a dál se s ní nic neděje, pokud nespadne.“ Stálé trasy vedou ze **všech
      hotových obydlí** (i prázdných) ke **všem stavbám** (i k ohradě bez zvířat a zapečetěné
-     obilné jámě – mapa bere jámu od vykopání po zánik, ne to, jestli je otevřená).
+     obilné jámě – ~~mapa bere jámu od vykopání po zánik, ne to, jestli je otevřená~~; od 9. 11.
+     2026 obilné jámy v mapě tras nejsou a trasa k nové jámě vznikne s nejbližším přepočtem
+     z jiného důvodu – [Obilné jámy a vzdálenosti chůze](#obilné-jámy-a-vzdálenosti-chůze-9-11-2026)).
    - **Stadia dílů mapu nemění** – `walkStageKey` a přepočet 1. dne v měsíci kvůli nim zmizí.
    - **Lidé, stáda a obsazenost** (počet v domácnosti, stáří spojení, počet stád, nastěhování
      a vystěhování, zvířata v ohradě, otevřená jáma) mění jen **cesty za den** uložených tras –
@@ -374,6 +378,34 @@ změně stadia hledaly znovu (měření 25. 10. 2026: hledání tras vozů 67 % 
    dne z odvedené práce intervalu (`wear.labor`) jako vyšlapanost. Vlkov (rok po dnech): stálé
    trasy se hledaly 11× → 7× (1× převod, ostatní jiná síť cest, pařezy k 1. 11., nové stavby
    a domácnosti), trasy k práci dne a na pastvu 3×.
+
+### Obilné jámy a vzdálenosti chůze (9. 11. 2026)
+
+Rok Vlkova (stav z DB 9. 11. 2026, 39 lidí) trval 9,0 s, z toho přepočet tras 2,7 s. Návrh Clauda
+– Martin 9. 11. 2026: „Ok, udělejme to tak jak říkáš“ a „Zační na tom pracovat“:
+
+1. **Obilné jámy nejsou v mapě tras.** Vykopaná, vyprázdněná nebo zaniklá jáma dřív spustila
+   prvního dne dalšího měsíce celý přepočet sítě pěšin, tras i vzdáleností chůze – přitom k jámě
+   chodí celá ves jen ≈ 0,6× za den a pěšina k ní nevznikne. Trasa k nové jámě (`grain-pit:<id>`)
+   se najde s nejbližším přepočtem z jiného důvodu (obvykle 1. 11. s pařezy); do té doby práce
+   u jámy pěšinu nevyšlape (jako práce bez stálé trasy). Trasa k zaniklé jámě zůstane do přepočtu
+   s 0 cestami (převážení ji nenajde). Zavřená / otevřená jáma dál jen převáží (obsazenost).
+2. **Vzdálenosti chůze jen při změně toho, na čem závisí kromě pěšin.** Přepočet tras dřív vždy
+   znovu změřil vzdálenost chůze ke všem dílům polí (Vlkov 4 754 dílů), čtvercům sadů, k lesu
+   a k vodě – 1,0 s za rok. Za tři přepočty roku zůstalo 94–98 % dílů beze změny, změny měly
+   medián ≈ 4 m z průměrných 391 m, les a voda se nezměnily. Nově se vzdálenosti přepočítají,
+   jen když se změní obydlí (i rozestavěná – výchozí body), díly polí (políčko, pole, mřížka,
+   zarostlý díl), sady, pevné cesty (osa, stupeň, mokřina a brody, hať, olemování) nebo opevnění.
+   Nová síť pěšin sama vzdálenosti nemění – s pěšinami se zpřesní při nejbližší takové změně.
+   Návrh Clauda: oprava a přestavba cest (přepočet tras hned) vzdálenosti nevynutí – změní-li
+   cesty, přepočítají se samy; ves uložená dřív si je spočítá s nejbližším přepočtem tras.
+
+_Naměřeno 9. 11. 2026 (Vlkov, 4 roky):_ jámy ušetřily v roce 1 přepočet 1. 10., v dalších letech
+se jámy neměnily. Vzdálenosti se zatím měří při každém přepočtu tras – vstupy se při něm vždy
+opravdu změnily (díly pole přestaly být nebo začaly být zarostlé, zkracovaná vozová cesta).
+Zahřátý rok 5,63 → 5,49 s. Otevřená otázka pro Martina: brát zarostlý díl jako stadium (bez vlivu
+na otisk vzdáleností, jako u mapy tras) – v rocích 2–4 by ušetřilo 3 z 5 měření (podrobnosti
+[village-core.md – Výkon dopočtu, kolo 6](../code/village-core.md)).
 
 ### Co to udělá ve hře
 
