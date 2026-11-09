@@ -980,6 +980,17 @@ včerejška a ozim musel začít den před koncem okna). Výmlat na dnešní jí
 a počítá jen zrno, které ves jí – hromada osiva okna smí držet všechno vymlácené zrno, ale ves
 kvůli osivu nikdy nejí pod přežívací zásobu (návrh Clauda).
 
+**Jeden rozsévač za spřežením** (9. 11. 2026 – Martin: „Setí – to přece obstará pár mužů s voly
+a ženy“, „Za oráčem by měl jít někdo z rodiny a rovnou zasívat“ a „Ano, jeden rozsévač za
+spřežením“): za každým orajícím spřežením jde **1 rozsévač** – setí stojí 1 člověkoden na den
+spřežení. Pár zorá ≈ 0,3 ha za den ([oxen.md](oxen.md) – Účinek na práci), setí za rádlem tedy
+≈ 3,3 čd/ha bez ohledu na nástroje (ty zlevní orbu, ne tempo volů); na drnu, kde spřežení orá
+křížem 2,5× pomaleji, 8,3 čd/ha. Dřív setí stálo 10 čd/ha – tempem spřežení ≈ 3 lidé za
+spřežením. Ves bez spřežení (motyka): rozsévač zaseje za den, co by spřežení zoralo – 0,3 ha,
+tedy 1 / 0,3 ≈ **3,3 čd/ha** (návrh Clauda). Přijde-li ves během roku o poslední spřežení,
+setí zbytku plodiny se přepočte na sazbu motyky s hotovým podílem (návrh Clauda). Nošení osiva
+vozem (crafts.md) bere dál desetinu práce setí.
+
 Navazuje na pracovní sílu z [populace](population.md) – Práce (na polích a stavbách jen dospělý
 1 člověkoden za den; starší 0,5 jen na denní minimum své domácnosti, výrostci 7–13 let jen pasou).
 Pole jsou společná, a proto se práce počítá **za celou ves**: dospělí všech domácností pracují na
@@ -1042,12 +1053,15 @@ souvislých blocích a pásech v ose s delší brázdou (po blocích, i sever �
 | Práce                      | Kdy – ozim     | Kdy – jař                                   | Člověkodny / ha | Zdroj                 |
 | -------------------------- | -------------- | ------------------------------------------- | --------------- | --------------------- |
 | kopání motykou             | září–říjen     | podzim (září–listopad), zbytek březen–duben | 100 (50)        | Semjonov 1974         |
-| setí a zahrabání           | září–říjen     | březen–duben                                | 10              | nedohledáno           |
+| setí a zahrabání           | září–říjen     | březen–duben                                | 3,3 \*          | Martin 9. 11. 2026    |
 | pletí (jen jař – jednou)   | neplete se     | květen                                      | 8 (5)           | Martin 25. 10. 2026   |
 | sklizeň srpem a vázání     | červenec–srpen | srpen                                       | 20 (15)         | Halstead a Jones 1989 |
 | odnos úrody v nůších       | červenec–srpen | srpen                                       | 10              | nedohledáno           |
 | výmlat cepem a převívání   | srpen–září     | září                                        | 15 (10)         | Clark 2007 (EB 1911)  |
-| **celkem na osetý hektar** |                |                                             | **163 (100)**   |                       |
+| **celkem na osetý hektar** |                |                                             | **156 (93)**    |                       |
+
+\* Motykou i za rádlem (jeden rozsévač za spřežením – 1 člověkoden na den spřežení), na drnu za
+rádlem 8,3 (Jeden rozsévač za spřežením výš). Dřív 10 čd/ha (celkem 163 (100)).
 
 Ozim a jař se liší kalendářem (viz Ozim a jař) a pletím – ozim se neplete (Pletí jednou a rychle);
 ostatní sazby práce, osivo a úroda jsou stejné. Žeň ozimu (i luštěnin a lnu) jde v červenci, co

@@ -1035,7 +1035,8 @@ export interface BalanceOptions {
  * livestock.ts).
  */
 export const TYPICAL_FOOD_COSTS: FoodCosts = {
-  grainPerKg: 0.508,
+  // 0,508 do 9. 11. 2026 – setí zlevnilo (rozsévač za spřežením, fields.md – Práce)
+  grainPerKg: 0.491,
   hayPerKg: 0.0127,
 };
 

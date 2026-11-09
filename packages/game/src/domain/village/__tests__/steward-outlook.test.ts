@@ -3,6 +3,7 @@ import { dayIndexOf } from '../../calendar';
 import { averageRotationShare } from '../field-capacity';
 import { foundVillage } from '../actions';
 import { NO_CRAFTS } from '../productivity';
+import { SOWERS } from '../rules';
 import { STEWARD } from '../rules-steward';
 import { fieldTarget } from '../steward';
 import { stewardOutlook } from '../steward-outlook';
@@ -52,8 +53,9 @@ describe('výhled vsi – model kapacity (steward.md – Model kapacity vsi)', (
     expect(o.lasting).toBe('labor');
     expect(o.laborHa).toBeLessThan(o.landHa);
     expect(o.sustainablePeople).toBeLessThan(o.landPeople);
-    // kopání + setí + vracení přílohu jednou za roky osevu, ≥ kopání a setí bez nástrojů
-    expect(o.workPerHa).toBeGreaterThanOrEqual(110);
+    // kopání + setí + vracení přílohu jednou za roky osevu, ≥ kopání a setí bez nástrojů (100 + 3,3
+    // – setí motykou 1 / 0,3 čd/ha od 9. 11. 2026, dřív 100 + 10)
+    expect(o.workPerHa).toBeGreaterThanOrEqual(100 + 1 / SOWERS.hoeHaPerDay - 1e-9);
     const target = fieldTarget(s, SEPT, NO_CRAFTS, o);
     expect(target.need).toBeLessThanOrEqual(
       ((o.landPeople * o.laborHa) / o.landHa) * STEWARD.fieldReserve + 1e-9,

@@ -153,10 +153,18 @@ const GRAIN_WEEDING_PER_HA: Bounds = { worst: 8, best: 5 };
 export const LEGACY_WEEDING_WORST_PER_HA = { grain: 30, lowCrop: 40 } as const;
 // fields.md – Pletí jednou a rychle: luštěniny a len zastíní pole méně – 10 / 6 (dřív 40 / 20)
 const LOW_CROP_WEEDING_PER_HA: Bounds = { worst: 10, best: 6 };
-// fields.md – Práce (člověkodny na osetý hektar – meze)
+// fields.md – Práce, setí; oxen.md – Účinek na práci (Martin 9. 11. 2026: „Setí – to přece obstará
+// pár mužů s voly a ženy“, „Ano, jeden rozsévač za spřežením“): za každým orajícím spřežením jde
+// `perTeam` rozsévač – setí stojí `perTeam` člověkoden na den spřežení (pár zorá 0,3 ha za den,
+// drn křížem 2,5× pomaleji – 3,3 a 8,3 čd/ha) a jde týž den za orbou (`partWork`; dřív 10 čd/ha
+// – ≈ 3 lidé za spřežením). Ves bez spřežení (motyka): rozsévač zaseje za den, co by spřežení
+// zoralo (`hoeHaPerDay` = PLOUGH_HA_PER_DAY 0,3 ha; návrh Clauda) – 1 / 0,3 ≈ 3,3 čd/ha
+export const SOWERS = { perTeam: 1, hoeHaPerDay: 0.3 } as const;
+// fields.md – Práce (člověkodny na osetý hektar – meze); setí motykou podle `SOWERS`, za rádlem
+// podle orby (`partWork`)
 export const FIELD_WORK_PER_HA: Record<FieldTask, Bounds> = {
   dig: { worst: 100, best: 50 },
-  sow: { worst: 10, best: 10 },
+  sow: { worst: 1 / SOWERS.hoeHaPerDay, best: 1 / SOWERS.hoeHaPerDay },
   weed: GRAIN_WEEDING_PER_HA,
   harvest: {
     worst: HARVEST_WORK_PER_HA.reap.worst + HARVEST_WORK_PER_HA.carry.worst,

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SOWERS } from '../../src/domain/village/rules';
 import {
   formatCompare,
   formatRows,
@@ -179,10 +180,12 @@ describe('měření správce – tabulka', () => {
   });
 
   it('cíl založení + vracení: vracení přílohu oběhu (1 ze 2 let osevu) a zakládání při růstu', () => {
-    // bez nástrojů: vracení louky 100 ÷ 2 = 50 čd na osetý ha z polní práce 209 čd
-    expect(overheadTarget(0)).toBeCloseTo(50 / 209, 6);
+    // bez nástrojů: vracení louky 100 ÷ 2 = 50 čd na osetý ha z polní práce 202,3 čd (setí
+    // motykou 3,3 místo 10 čd/ha – rozsévač za spřežením, 9. 11. 2026; dřív 209)
+    const fieldWork = 199 + 1 / SOWERS.hoeHaPerDay;
+    expect(overheadTarget(0)).toBeCloseTo(50 / fieldWork, 6);
     // růst 5 % za rok: zakládání 0,05 × 3,5 × 100 = 17,5 čd navíc
-    expect(overheadTarget(0.05)).toBeCloseTo(67.5 / 209, 6);
+    expect(overheadTarget(0.05)).toBeCloseTo(67.5 / fieldWork, 6);
   });
 
   it('starší kontrolní bod bez nových kritérií: pomlčka, ne chyba', () => {

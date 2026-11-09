@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import type { FieldPart, TaskName, FarmSeason, VillageState } from '../types';
 import { NO_CRAFTS } from '../productivity';
+import { SOWERS } from '../rules';
 import {
   activeTasks,
   createPlan as createPlanWith,
@@ -14,6 +15,9 @@ import {
   withoutWinterWeeding,
   withSeason,
 } from '../year-plan';
+
+/** Setí motykou – rozsévač zaseje 0,3 ha za den (fields.md – Práce, setí; dřív 10 čd/ha). */
+const SOW = 1 / SOWERS.hoeHaPerDay;
 
 /** Plán bez řemesel (pokrytí nástroji 0 – horní mez práce). */
 const createPlan = (parts: FieldPart[], day: number): FarmSeason =>
@@ -56,10 +60,11 @@ function finished(plan: FarmSeason): FarmSeason {
 
 describe('createPlan', () => {
   const day = at(506, 9, 1);
-  it('1 ha ve 100 m: sazby bez příplatku (bez řemesel horní mez, celkem 163)', () => {
+  it('1 ha ve 100 m: sazby bez příplatku (bez řemesel horní mez, celkem 156)', () => {
     const plan = createPlan([part()], day);
     expect(springCrop(plan).required.dig).toBeCloseTo(100);
-    expect(springCrop(plan).required.sow).toBeCloseTo(10);
+    // setí motykou ≈ 3,3 čd/ha (Martin 9. 11. 2026 – rozsévač za spřežením; dřív 10)
+    expect(springCrop(plan).required.sow).toBeCloseTo(SOW);
     expect(springCrop(plan).required.weed).toBeCloseTo(8);
     expect(springCrop(plan).required.harvest).toBeCloseTo(30);
     expect(springCrop(plan).required.thresh).toBeCloseTo(15);
@@ -69,11 +74,12 @@ describe('createPlan', () => {
     expect(springCrop(plan).done.dig).toBe(0);
     expect(springCrop(plan).harvestedKg).toBeNull();
   });
-  it('s plným pokrytím nástroji dolní mez – celkem 100 na hektar', () => {
+  it('s plným pokrytím nástroji dolní mez – celkem 93 na hektar', () => {
     const { required } = springCrop(createPlanWith([part()], day, 1));
-    expect(required).toMatchObject({ dig: 50, sow: 10, weed: 5, harvest: 25, thresh: 10 });
+    expect(required).toMatchObject({ dig: 50, sow: SOW, weed: 5, harvest: 25, thresh: 10 });
     const total = required.dig + required.sow + required.weed + required.harvest + required.thresh;
-    expect(total).toBeCloseTo(100, 9);
+    // dřív 100 – setí 10 → 3,3 čd/ha (rozsévač za spřežením, Martin 9. 11. 2026)
+    expect(total).toBeCloseTo(90 + SOW, 9);
   });
   it('ve 500 m je kopání o 40 % dražší', () => {
     expect(springCrop(createPlan([part({ distanceM: 500 })], day)).required.dig).toBeCloseTo(140);
@@ -108,8 +114,8 @@ describe('taskRemaining a activeTasks', () => {
   const plan = createPlan([part()], at(500, 9, 1));
   it('sow nepřeroste hotové kopání', () => {
     const p = withDone(plan, { dig: 50 });
-    expect(taskRemaining(springCrop(p), 'sow')).toBeCloseTo(5);
-    expect(taskRemaining(springCrop(withDone(p, { sow: 5 })), 'sow')).toBeCloseTo(0);
+    expect(taskRemaining(springCrop(p), 'sow')).toBeCloseTo(SOW / 2);
+    expect(taskRemaining(springCrop(withDone(p, { sow: SOW / 2 })), 'sow')).toBeCloseTo(0);
     expect(taskRemaining(springCrop(plan), 'sow')).toBe(0);
     expect(taskRemaining(springCrop(plan), 'dig')).toBeCloseTo(100);
   });
@@ -127,13 +133,13 @@ describe('taskRemaining a activeTasks', () => {
     expect(activeTasks(springCrop(plan), at(501, 4, 10))).toEqual(['dig']);
   });
   it('květen: pletí jaře, v červnu už ne (fields.md – Pletí jednou a rychle)', () => {
-    const sown = withDone(plan, { dig: 100, sow: 10 });
+    const sown = withDone(plan, { dig: 100, sow: SOW });
     expect(activeTasks(springCrop(finished(plan)), at(501, 5, 10))).toEqual([]);
     expect(activeTasks(springCrop(sown), at(501, 5, 10))).toEqual(['weed']);
     expect(activeTasks(springCrop(sown), at(501, 6, 10))).toEqual([]);
   });
   it('nezasetá půda se neplete ani nesklízí (Ruling 17)', () => {
-    const halfSown = withDone(plan, { dig: 50, sow: 5 });
+    const halfSown = withDone(plan, { dig: 50, sow: SOW / 2 });
     expect(taskRemaining(springCrop(halfSown), 'weed')).toBeCloseTo(4);
     expect(taskRemaining(springCrop(halfSown), 'harvest')).toBeCloseTo(15);
     expect(taskRemaining(springCrop(withDone(halfSown, { weed: 4 })), 'weed')).toBeCloseTo(0);
@@ -146,7 +152,7 @@ describe('taskRemaining a activeTasks', () => {
     expect(activeTasks(springCrop(plan), at(501, 8, 10))).toEqual([]);
   });
   it('výmlat jen sklizené části (Ruling 17)', () => {
-    const halfHarvested = withDone(plan, { dig: 50, sow: 5, weed: 4, harvest: 15 });
+    const halfHarvested = withDone(plan, { dig: 50, sow: SOW / 2, weed: 4, harvest: 15 });
     expect(taskRemaining(springCrop(halfHarvested), 'thresh')).toBeCloseTo(7.5);
     expect(
       taskRemaining(springCrop(withDone(halfHarvested, { thresh: 7.5 })), 'thresh'),
@@ -179,7 +185,7 @@ describe('harvestKg', () => {
     delete legacy.seedKg;
     expect(harvestKg(legacy, [part()], day)).toBeCloseTo(623.2, 1);
     const legacyHalf = {
-      ...springCrop(withDone(plan, { dig: 50, sow: 5, weed: 4, harvest: 25 })),
+      ...springCrop(withDone(plan, { dig: 50, sow: SOW / 2, weed: 4, harvest: 25 })),
     };
     delete legacyHalf.seedKg;
     expect(harvestKg(legacyHalf, [part()], day)).toBeCloseTo(623.2 * 0.5, 1);
@@ -215,33 +221,44 @@ describe('harvestKg', () => {
   });
   it('starší rok jaře, luštěnin a lnu se staršími sazbami pletí se přepočte na nové – jednou a idempotentně', () => {
     // starší sazby (fields.md – Pletí jednou a rychle, „Dřív“): jař 30 čd/ha, luštěniny a len 40
-    // čd/ha při nejhorší mezi; setí 10 čd/ha – stejné jako dnes
+    // čd/ha při nejhorší mezi; setí tehdy 10 čd/ha (dnes jinak – starší rok se pozná podle sklizně,
+    // jejíž sazby jsou stejné: 1 ha – jař 30, luštěniny 55 čd/ha)
     const spring = springCrop(plan);
-    const sow = spring.required.sow;
     const old: FarmSeason = {
       ...plan,
       crops: [
         {
           ...spring,
           crop: 'legume',
-          required: { ...spring.required, weed: sow * 4 },
+          // sklizeň luštěnin 55 čd/ha
+          required: { ...spring.required, sow: 10, weed: 40, harvest: 55 },
           done: { ...spring.done, weed: 0 },
         },
         {
           ...spring,
-          required: { ...spring.required, weed: sow * 3 },
-          done: { ...spring.done, weed: sow * 1.5 },
+          required: { ...spring.required, sow: 10, weed: 30 },
+          done: { ...spring.done, weed: 15 },
         },
       ],
     };
     const converted = withOnceWeedingRates(old);
     // nová nejhorší mez 8 (jař) a 10 (luštěniny) čd/ha – hotový podíl pletí zůstane
-    expect(springCrop(converted).required.weed).toBeCloseTo(sow * 0.8, 9);
-    expect(springCrop(converted).done.weed).toBeCloseTo(sow * 0.4, 9);
-    expect(converted.crops[0]!.required.weed).toBeCloseTo(sow * 1, 9);
+    expect(springCrop(converted).required.weed).toBeCloseTo(8, 9);
+    expect(springCrop(converted).done.weed).toBeCloseTo(4, 9);
+    expect(converted.crops[0]!.required.weed).toBeCloseTo(10, 9);
     expect(withOnceWeedingRates(converted)).toBe(converted);
-    // nový rok zůstane, jak je
+    // starší rok s plným pokrytím nástroji (pletí 15, sklizeň 25) se pozná taky – podle setí by
+    // vyšel jako nový (10 čd/ha setí × 8 / 3,3 = 24 > 15)
+    const tooled = springCrop(createPlanWith([part()], day, 1));
+    const oldTooled: FarmSeason = {
+      ...plan,
+      crops: [{ ...tooled, required: { ...tooled.required, sow: 10, weed: 15 } }],
+    };
+    expect(springCrop(withOnceWeedingRates(oldTooled)).required.weed).toBeCloseTo(4, 9);
+    // nový rok zůstane, jak je – i s plným pokrytím nástroji
     expect(withOnceWeedingRates(plan)).toBe(plan);
+    const newTooled = createPlanWith([part()], day, 1);
+    expect(withOnceWeedingRates(newTooled)).toBe(newTooled);
   });
   it('nic neosetého = 0, nikdy záporné', () => {
     expect(harvestKg(springCrop(plan), [part()], day)).toBe(0);
@@ -249,7 +266,7 @@ describe('harvestKg', () => {
   it('polovina zasetá a celá opletá i sklizená: úroda poloviny bez další srážky (Ruling 17)', () => {
     // 0,5 ha × 623,2 kg (osivo vzalo setí); dřív pletí a sklizeň měřené vůči celému
     // hektaru srazily úrodu podruhé (≈ 68 kg)
-    const halfSown = withDone(plan, { dig: 50, sow: 5, weed: 4, harvest: 25 });
+    const halfSown = withDone(plan, { dig: 50, sow: SOW / 2, weed: 4, harvest: 25 });
     expect(harvestKg(springCrop(halfSown), [part()], day)).toBeCloseTo(623.2 * 0.5, 1);
     expect(harvestKg(springCrop(finished(plan)), [part()], day)).toBeCloseTo(
       2 * harvestKg(springCrop(halfSown), [part()], day),
@@ -257,7 +274,7 @@ describe('harvestKg', () => {
     );
   });
   it('na polovině zaseté půdy neopletá polovina dá úrodu jako napůl opletý hektar', () => {
-    const halfSown = withDone(plan, { dig: 50, sow: 5, weed: 2, harvest: 25 });
+    const halfSown = withDone(plan, { dig: 50, sow: SOW / 2, weed: 2, harvest: 25 });
     expect(harvestKg(springCrop(halfSown), [part()], day)).toBeCloseTo(623.2 * 0.5 * 0.8, 1);
   });
   it('díl v první sezóně po vymýcení lesa: bonus +40 a plná úroda bez pletí', () => {

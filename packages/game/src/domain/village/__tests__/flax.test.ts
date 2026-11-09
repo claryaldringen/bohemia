@@ -200,7 +200,10 @@ describe('len napřed – výběr s kapacitou (do Úlohy 5 pro páry k rádlům)
     // 149:b60f2983 (9. 11. 2026, zimní osivo a výhled zásob bez osiva, které ves ještě zaseje –
     // fields.md, Zimní osivo a Výhled zásob k sklizni): ves v zimě šetří na jař – jiné zásoby
     // a osev; dřív 123:ac9d7796
-    expect(fingerprint(plans)).toBe('149:b60f2983');
+    // 139:21239494 (9. 11. 2026, rozsévač za spřežením – fields.md, Práce, setí 10 → 3,3 čd/ha):
+    // ves oseje víc dílů (rok 601/602: ozim 58 a jař 120 místo 54 a 113 ze 180) – v roce 602 už na len
+    // nezbude díl (otevřené výš); dřív 149:b60f2983
+    expect(fingerprint(plans)).toBe('139:21239494');
   });
 });
 

@@ -402,7 +402,8 @@ export const CART_DEMAND = {
 //   hromada u jámy pak počká, až bude vůz volný (ve žni a při orbě vozí jinde),
 // - `clay` – hlína z hliniště k hrnčíři (crafts.md – Hlína hrnčíře): jako ruda – hrnčíř (nebo syn
 //   od 14) a sedlák s vozem pro hromadu hlíny u jámy, `reserveDays` jako u rudy,
-// - `seed` – osivo na pole: z práce setí (FIELD_WORK_PER_HA.sow – 10 čd/ha) je `carryShare` nošení
+// - `seed` – osivo na pole: z práce setí (motykou FIELD_WORK_PER_HA.sow ≈ 3,3 čd/ha, za rádlem
+//   rozsévač za spřežením – SOWERS) je `carryShare` nošení
 //   osiva v pytlích ze sýpky na pole a doplňování osévací plachty (SEED_KG_PER_HA ≈ 5 pytlů po
 //   35 kg na hektar, pole 100–600 m od domů),
 // - `water` – voda v sudech: člověk spotřebuje `litresPerPerson` (pití, vaření, mytí; WHO: při
