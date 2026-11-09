@@ -1455,8 +1455,8 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
     obilí, luštěniny ze zásob luštěnin; luštěnin, které chybí, ves vymění u sousedů za obilí.
     Sklizeň osivo neodečítá. Ves zaseje jen tolik dílů, na kolik má osivo.
   - **Osivo bez cíle osevu (9. 11. 2026, implementace čeká).** Cíl osevu přežil v kódu jako
-    „potřeba úrody“ a dál určoval nutné díly a osivo za čekající díly – Vlkov kvůli němu
-    1. 10. – 30. 11. jedl na příděl 0,88 s 9,5 t v zásobách (5,5 t drželo osivo za díly, na které
+    „potřeba úrody“ a dál určoval nutné díly a osivo za čekající díly – Vlkov kvůli němu od 1. 10.
+    do 30. 11. jedl na příděl 0,88 s 9,5 t v zásobách (5,5 t drželo osivo za díly, na které
     orba nedošla). Martin 9. 11. 2026: „Ne dopíči, plán už jsme asi desetkrát zavrhli a ty ho tam
     vždycky nějak znova namrdáš“ a „Fajn, prostě před osevem odečti minimální zásobu jídla
     a zbytek do osevu. Po měsíci se do zásob vrátí to, co se nezaselo.“ Pravidlo: na začátku okna
