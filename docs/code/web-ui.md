@@ -307,6 +307,11 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   `wild-*` a kusy, které jsou vidět) a `moveCameraTo` (zvěř bývá u lesa mimo výchozí záběr).
   Testy vývojové ukázky (`slaughter.spec.ts`, `wildlife-scene.spec.ts`) běží jen proti
   vývojovému serveru (`SLAUGHTER_DEV_URL`, `WILDLIFE_DEV_URL`), jinak se přeskočí.
+  **Práce v boji je v e2e ≈ 200× pomalejší vůči boji:** výroba žebříku a prolamování se počítají
+  v herních hodinách, boj v taktech skutečného času – v pomalém světě trvá žebřík ≈ 11 500 taktů
+  (v ostrém ≈ 58). Test s prací v boji ať nestojí na souboji, který se rozhodne dřív (např. lučištníci
+  – los taktu podle hodiny spuštění), a ať čeká na rozhodnutý boj; hradbu stavět s `builtDay` pár dní
+  zpátky (tažení začíná i včera). Vzor: `multiplayer-war.spec.ts` – nájezd na palisádu s ochozem.
 
 - **e2e a `test:db` souběžně z víc pracovních stromů:** port `next start` a testovací databázi
   čtou `playwright.config.ts` (a přes něj e2e pomocníci i worker v e2e) a testy adaptérů
