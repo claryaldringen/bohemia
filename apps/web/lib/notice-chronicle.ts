@@ -14,6 +14,7 @@ export const NOTICE_CHRONICLE_TEXTS: Record<LastingNotice, NoticeChronicleText> 
     began: 'Ves šetří jídlem – zásoby nevystačí do sklizně.',
     ended: 'Ves už nešetří jídlem.',
   },
+  'seed-rationing': { began: 'Ves šetří na osivo.', ended: 'Ves už nešetří na osivo.' },
   hungry: { began: 'Ves hladoví.', ended: 'Hlad skončil.' },
   starving: { began: 'Lidé umírají hlady.', ended: 'Lidé už neumírají hlady.' },
   stalled: { began: 'Stavby stojí.', ended: 'Na stavbách se zase pracuje.' },

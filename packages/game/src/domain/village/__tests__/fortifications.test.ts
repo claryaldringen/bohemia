@@ -65,7 +65,7 @@ function sq(cells: readonly TileCell[], kind: FortKind): Point[] {
   return points;
 }
 
-function village(logs = 200, day = DAY): VillageState {
+function village(logs = 600, day = DAY): VillageState {
   const s = withBuiltFirstDwelling(foundVillage({ seed: 5, day, dwellingPosition: FAR }));
   s.woodLogs = logs;
   return s;
@@ -321,11 +321,11 @@ describe('cena komplet a nové druhy (Hradby a obrana – Cena, Druhy)', () => {
 
   it('palisáda z hromady 230 čd na 100 m; kácení za 1 čd × vzdálenost (ne 2 čd)', () => {
     const len = lengthOf('palisade');
-    const fromPile = fortWork(start(village(400), 'palisade'));
+    const fromPile = fortWork(start(village(1200), 'palisade'));
     expect(fromPile.wood).toMatchObject({ fell: [] });
     expect(fromPile.cost).toBeCloseTo((230 * len) / 100, 6);
-    // bez klád: stromy háje stranou se kácí za 1 čd × vzdálenost – cena komplet 300 čd na 100 m
-    const grove = Array.from({ length: 200 }, (_, k) =>
+    // bez klád: stromy háje stranou se kácí za 1 čd × vzdálenost – cena komplet 430 čd na 100 m
+    const grove = Array.from({ length: 500 }, (_, k) =>
       tree(100 + k, 70 + (k % 10) * 4, 70 + Math.floor(k / 10) * 2.5),
     );
     const layer = packObstacles(grove, 16, 15);
@@ -338,7 +338,7 @@ describe('cena komplet a nové druhy (Hradby a obrana – Cena, Druhy)', () => {
         }),
       ),
     );
-    expect(c.wood!.fell).toHaveLength(Math.ceil((70 * len) / 100));
+    expect(c.wood!.fell).toHaveLength(Math.ceil((200 * len) / 100));
     for (const t of c.wood!.fell) {
       const at = grove.find((g) => g.id === t.id)!;
       const d = fromCenter('palisade', at);
@@ -435,7 +435,7 @@ describe('cena komplet a nové druhy (Hradby a obrana – Cena, Druhy)', () => {
   });
 
   it('rozdělané vylepšení plotu ze staré vsi se dostaví za uloženou cenu (Review Focus 3)', () => {
-    const built = finish(start(village(800), 'fence', AREA, 'palisade'));
+    const built = finish(start(village(2400), 'fence', AREA, 'palisade'));
     const up = ok(
       startFortificationUpgrade(built, built.lastDay, landscape, EMPTY, {
         fortificationId: built.fortifications![0]!.id,
@@ -512,7 +512,7 @@ describe('stavba po úsecích', () => {
 describe('vylepšení, nástavba a zrušení', () => {
   it('plot na palisádu – plot úseku stojí, dokud palisáda není hotová, nic nevrací', () => {
     // ohyby pro palisádu (3 m) – plot s ostřejšími ohyby by na palisádu vylepšit nešel
-    const built = finish(start(village(400), 'fence', AREA, 'palisade'));
+    const built = finish(start(village(1200), 'fence', AREA, 'palisade'));
     const logs = built.woodLogs ?? 0;
     const up = ok(
       startFortificationUpgrade(built, built.lastDay, landscape, EMPTY, {
@@ -520,8 +520,8 @@ describe('vylepšení, nástavba a zrušení', () => {
         work: 'upgrade',
       }),
     );
-    // palisáda 234,85 m → 164,4 klády → 165 z hromady, plot nic nevrátil
-    expect(up.woodLogs).toBe(logs - 165);
+    // palisáda 234,85 m → 469,7 klády → 470 z hromady, plot nic nevrátil
+    expect(up.woodLogs).toBe(logs - 470);
     const half = until(up, somePalisade);
     const segs = half.fortifications![0]!.segments;
     expect(half.fortifications![0]!.kind).toBe('fence');
@@ -613,7 +613,7 @@ describe('celý obvod blokuje od zahájení stavby (Martin 6. 11. 2026)', () => 
 
   it('vylepšení plotu blokuje od zahájení pásem palisády', () => {
     // ohyby pro palisádu (3 m) – plot s ostřejšími ohyby by na palisádu vylepšit nešel
-    const built = finish(start(village(400), 'fence', AREA, 'palisade'));
+    const built = finish(start(village(1200), 'fence', AREA, 'palisade'));
     expect(new Set(blocking(built).map((b) => b.kind))).toEqual(new Set(['fence']));
     const up = ok(
       startFortificationUpgrade(built, built.lastDay, landscape, EMPTY, {

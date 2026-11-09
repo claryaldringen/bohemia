@@ -144,6 +144,20 @@ const HUNGER_NOTICES: Record<Exclude<HungerLevel, 'fed'>, VillageNotice> = {
   starving: { kind: 'starving', tone: 'warn', text: 'Lidé umírají hlady' },
 };
 
+/** Ves šetří jen kvůli osivu (absence.md – Upozornění vsi do kroniky) – místo „Ves šetří jídlem“. */
+const SEED_RATIONING_NOTICE: VillageNotice = {
+  kind: 'rationing',
+  tone: 'info',
+  text: 'Ves šetří na osivo',
+};
+
+/** Řádek stupně hladu vsi `view` – šetření jen kvůli osivu má vlastní text. */
+function hungerNotice(view: VillageView, level: Exclude<HungerLevel, 'fed'>): VillageNotice {
+  return level === 'rationing' && view.seedRationing === true
+    ? SEED_RATIONING_NOTICE
+    : HUNGER_NOTICES[level];
+}
+
 /** Totéž z jiné vsi hráče – krátký řádek se jménem vsi. */
 const OTHER_HUNGER_NOTICES: Record<
   Exclude<HungerLevel, 'fed'>,
@@ -183,7 +197,7 @@ const WILDLIFE_DAMAGE_NOTICE_SHARE = 0.05;
 export function villageNotices(view: VillageView): VillageNotice[] {
   const notices: VillageNotice[] = [];
   if (view.extinct) return notices;
-  if (view.hunger !== 'fed') notices.push(HUNGER_NOTICES[view.hunger]);
+  if (view.hunger !== 'fed') notices.push(hungerNotice(view, view.hunger));
   if (view.constructionsStalled) {
     notices.push({ kind: 'stalled', tone: 'warn', text: 'Stavby stojí' });
   }
@@ -350,7 +364,7 @@ function ownNotices(previous: VillageView, next: VillageView): VillageNotice[] {
     (n) => !before.has(n.kind) && !HUNGER_KINDS.has(n.kind),
   );
   if (!next.extinct && next.hunger !== 'fed' && worse(next.hunger, previous.hunger)) {
-    notices.unshift(HUNGER_NOTICES[next.hunger]);
+    notices.unshift(hungerNotice(next, next.hunger));
   }
   // posvátná místa vznikají jednou – fakt, když přibudou (happiness.md)
   if (next.sacred.oaks.length > previous.sacred.oaks.length) {

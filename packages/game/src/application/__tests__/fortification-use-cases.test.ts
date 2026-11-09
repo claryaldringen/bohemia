@@ -37,7 +37,7 @@ async function settled(): Promise<{ villages: InMemoryVillages; villageId: strin
   const villageId = founded.village.id;
   villages.edit(villageId, (state) => {
     Object.assign(state, withBuiltFirstDwelling(state));
-    state.woodLogs = 300;
+    state.woodLogs = 900;
   });
   return { villages, villageId };
 }
@@ -155,7 +155,7 @@ describe('opevnění – use-casy', () => {
         seg.builtDay = TODAY;
         seg.state = 1;
       }
-      state.woodLogs = 300;
+      state.woodLogs = 900;
     });
     const fortificationId = placed.village.state.fortifications![0]!.id;
     const base = { villageId, landscape, today: TODAY + 1, fortificationId };

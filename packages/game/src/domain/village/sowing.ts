@@ -1,14 +1,13 @@
 import { dateOfDayIndex, isLeapYear } from '../calendar';
-import { isSowableFertility } from './fields';
 import { PLANNING_DAY, WINDOWS, WINTER_WINDOWS, type WindowSegment } from './rules';
-import type { CropWork, FieldPart, LordHelp, LordHelpWindow, TaskName, FarmSeason } from './types';
+import type { CropWork, LordHelp, LordHelpWindow, TaskName, FarmSeason } from './types';
 import { emptyTaskRecord, ploughRemaining, seasonCrop, type PartWork } from './year-plan';
 
 // Okna volné práce a zátěž osevu (fields.md – Ozim a jař, Osevní postup po dílech): kolik dnů
 // okna ještě zbývá (`windowDaysLeft`), práce, kterou rozběhnutý hospodářský rok ještě nese
 // (`planLoad`, `cropLoadOf`), a podíl dne rodiny vojvody na žních, když je ves sama nestíhá
 // (`lordHarvestHelp`, `lordHelpShare`). Které díly se osejí, určuje osevní postup
-// (`rotation.ts`); tady zůstalo jen pořadí dílů pro len (`flaxOrder`).
+// (`rotation.ts`).
 // Ves se spřežením (oxen.md – Jen rádlo) orá všechno a nekope; orba se počítá do práce lidí
 // (oráč a honáček) jako kopání.
 
@@ -128,16 +127,6 @@ function addSideCrop(load: CropLoad, work: PartWork): void {
   load.july += work.harvest;
   load.august += work.thresh;
   load.ploughSpring += work.plough;
-}
-
-/**
- * Pořadí dílů pro len z dílů seřazených od domu (fields.md – Len): od konce – vysiluje půdu, jeho
- * delší příloh tak neleží domům v cestě; jen díly od 70 % (nouzový příloh jen na obilí) a se
- * střídáním plodin – napřed díly, které loni len neměly.
- */
-export function flaxOrder(fromHome: readonly FieldPart[]): FieldPart[] {
-  const sowable = fromHome.filter(isSowableFertility).reverse();
-  return [...sowable.filter((p) => p.crop !== 'flax'), ...sowable.filter((p) => p.crop === 'flax')];
 }
 
 /** Práce v oknech, kterou ves už má (`SowingLoad`) – zátěž oken pro pomoc rodiny. */

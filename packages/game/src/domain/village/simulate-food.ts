@@ -1,7 +1,9 @@
 // Sklizeň, výmlat a jídlo dne.
-import { eatDiet, villageFoodNeed } from './diet';
+import { eatDiet, villageFoodNeed, type DietInput } from './diet';
 import { recordFieldFood } from './field-food';
 import { harvestFlax } from './flax';
+import { harvestGardens } from './garden';
+import type { Landscape } from '../landscape';
 import { dayMealInput, emergencySlaughter } from './emergency-slaughter';
 import { drawGrainPits, settleGrainPits } from './grain-pits';
 import { feedHorseGrain } from './horse-feed';
@@ -62,12 +64,18 @@ function sheaveCrop(
 /**
  * Žeň ozimu, luštěnin a lnu (po jídle dne): úroda ozimu a luštěnin do snopů – vymlátí se hned po
  * žni na humně (fields.md – Ozim a jař, Luštěniny; production-chains.md – Humno), a trhání lnu –
- * podíl oděvu, na který len je (fields.md – Len). 31. 7. (`final` false) do snopů, co červenec
- * sklidil (nedosklizená plodina zůstává na poli a žne se v srpnu, len se zapíše až po dotrhání);
- * 31. 8. (`final`) zbytek žatý v srpnu (fields.md – Žně i v srpnu).
+ * podíl oděvu, na který len ze zahrádek (`gardenFlaxKg`) a z pole je (fields.md – Len, Zahrádka
+ * u obydlí). 31. 7. (`final` false) do snopů, co červenec sklidil (nedosklizená plodina zůstává na
+ * poli a žne se v srpnu, len z pole se přičte po dotrhání); 31. 8. (`final`) zbytek žatý v srpnu
+ * (fields.md – Žně i v srpnu). Luštěniny a len na poli jen dorůstající ve starších vsích.
  */
-function harvestEarlyCrops(state: VillageState, day: number, final: boolean): void {
-  const linen = harvestFlax(state, day, final);
+function harvestEarlyCrops(
+  state: VillageState,
+  day: number,
+  final: boolean,
+  gardenFlaxKg: number | null,
+): void {
+  const linen = harvestFlax(state, day, final, gardenFlaxKg);
   if (linen) state.chronicle.push(linen);
   // 31. 7. nedosklizená plodina s nulovou úrodou do kroniky nejde (zapíše se 31. 8.)
   const record = (work: CropWork): boolean => final || work.harvestedKg !== null;
@@ -95,9 +103,17 @@ function harvestEarlyCrops(state: VillageState, day: number, final: boolean): vo
   }
 }
 
-/** 31. 7. (po jídle dne): červencová žeň ozimu, luštěnin a lnu (`harvestEarlyCrops`). */
-export function harvestWinter(state: VillageState, day: number): void {
-  harvestEarlyCrops(state, day, false);
+/**
+ * 31. 7. (po jídle dne): sklizeň zahrádek u obydlí (`harvestGardens` – fields.md, Zahrádka
+ * u obydlí; `landscape` – úrodnost políček pozemků) a červencová žeň ozimu, luštěnin a lnu
+ * (`harvestEarlyCrops`).
+ */
+export function harvestWinter(
+  state: VillageState,
+  day: number,
+  landscape: Landscape | null = null,
+): void {
+  harvestEarlyCrops(state, day, false, harvestGardens(state, day, landscape));
 }
 
 /**
@@ -108,7 +124,7 @@ export function harvest(state: VillageState, day: number): void {
   const plan = state.season;
   if (plan === null) return;
   // co červenec nedosklidil – ozim, luštěniny a len žaté v srpnu – napřed (pořadí CROP_ORDER)
-  harvestEarlyCrops(state, day, true);
+  harvestEarlyCrops(state, day, true, null);
   const spring = springCrop(plan);
   const losses = dayPartLosses(state, day, 'spring', spring.partIds, state.wildlife?.damage?.parts);
   spring.harvestedKg = harvestKg(spring, state.parts, day, 'spring', losses);
@@ -136,6 +152,12 @@ export function harvest(state: VillageState, day: number): void {
  */
 export function endThreshing(state: VillageState): void {
   state.threshingSeason = null;
+}
+
+/** Jedla by ves se vstupem jídla `input` plně – příděl do sklizně i dnešní energie celé? */
+function eatsFull(input: DietInput): boolean {
+  const meal = eatDiet(input);
+  return Math.min(meal.outlook, meal.diet.energy) >= 1 - SATIATION_EPSILON;
 }
 
 /**
@@ -194,6 +216,15 @@ export function eat(
   // příděl do sklizně, když ves šetří – stupeň upozornění (population.md – Co hráč vidí)
   if (hungry) state.ration = ration;
   else delete state.ration;
+  // šetří jen kvůli osivu, které nejí – se snědeným osivem by jedla plně (absence.md – Upozornění
+  // vsi do kroniky): stejný vstup jídla se zrnem celých zásob, jen v den, kdy ves šetří
+  if (
+    hungry &&
+    seedGrain > EPSILON &&
+    eatsFull({ ...mealInput, grainKg: mealInput.grainKg + seedGrain })
+  ) {
+    state.seedRation = true;
+  } else delete state.seedRation;
   if (hungry !== state.hungry) {
     state.hungry = hungry;
     state.chronicle.push({ day, kind: hungry ? 'hunger-began' : 'hunger-ended' });

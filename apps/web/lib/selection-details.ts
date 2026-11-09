@@ -177,6 +177,8 @@ type SelectionKinds =
       ageYears: number;
       full: boolean;
       overcrowded: boolean;
+      /** Letošní sklizeň zahrádky (kg lnu a luštěnin – fields.md, Zahrádka u obydlí); jinak chybí. */
+      garden?: { flaxKg: number; legumeKg: number };
       /**
        * Obyvatelé obydlí přestavují (průběh 0–1, nový typ a stromy, které ještě musí skácet),
        * jinak null.
@@ -1007,6 +1009,7 @@ function selectionKinds(
       ageYears: household.ageYears,
       full: household.full,
       overcrowded: household.overcrowded,
+      ...(household.garden ? { garden: household.garden } : {}),
       rebuild: rebuild
         ? {
             progress: rebuild.progress,

@@ -68,7 +68,7 @@ const isEmergency = (p: FieldPart): boolean => !isSowableFertility(p);
  */
 function chosenIds(start: VillageState, day: number): Set<number> {
   const s = advanceVillage(start, day, null);
-  const join = turnSelection(s, day, { flaxNeedKg: s.season?.flaxNeedKg ?? 0, shortage: true });
+  const join = turnSelection(s, day, { shortage: true });
   return new Set([...(s.season ? seasonPartIds(s.season) : []), ...join.map((j) => j.id)]);
 }
 
@@ -88,7 +88,7 @@ describe('nouzový osev přílohu pod 70 %', () => {
     // 2026); bez nedostatku nouzový příloh nepřibude
     const s = advanceVillage(poorVillage(10, 0), at(600, 9, 1), null);
     const byId = new Map(s.parts.map((p) => [p.id, p]));
-    const join = turnSelection(s, at(600, 9, 1), { flaxNeedKg: 1e9, shortage: true });
+    const join = turnSelection(s, at(600, 9, 1), { shortage: true });
     const emergency = join.filter((j) => isEmergency(byId.get(j.id)!));
     expect(emergency.length).toBeGreaterThan(0);
     // přílohy 70–95 % napřed, nouzové až za nimi – nejvíc zotavený první
@@ -100,7 +100,7 @@ describe('nouzový osev přílohu pod 70 %', () => {
     }
     // jen obilí – luštěniny a len na nouzový příloh nejdou
     expect(emergency.every((j) => j.crop === 'winter' || j.crop === 'spring')).toBe(true);
-    const calm = turnSelection(s, at(600, 9, 1), { flaxNeedKg: 0, shortage: false });
+    const calm = turnSelection(s, at(600, 9, 1), { shortage: false });
     expect(calm.some((j) => isEmergency(byId.get(j.id)!))).toBe(false);
   }, 60_000);
 

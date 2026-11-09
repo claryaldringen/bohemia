@@ -405,6 +405,7 @@ export function buildVillageView(
         ageYears: dwelling ? Math.max(0, Math.floor((day - dwelling.builtDay) / DAYS_PER_YEAR)) : 0,
         relocationBlock: relocationBlock(state, h.dwellingId),
         ...structureUseOf(state, summary, { structure: 'dwelling', id: h.dwellingId }, day),
+        ...(dwelling?.garden ? { garden: { ...dwelling.garden } } : {}),
       };
     }),
     storesKg: summary.storesKg,
@@ -457,6 +458,7 @@ export function buildVillageView(
     hungry: summary.hungry,
     starving: summary.starving,
     hunger: summary.hunger,
+    ...(state.seedRation === true ? { seedRationing: true } : {}),
     constructionsStalled: summary.constructionsStalled,
     happiness: {
       value: summary.happiness.value,

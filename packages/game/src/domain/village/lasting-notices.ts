@@ -18,6 +18,7 @@ import type { ChronicleEvent, LastingNotice, LastingNoticeState, VillageState } 
 /** Trvalé stavy v pevném pořadí – v tomto pořadí se zapisují začátky jednoho dne. */
 export const LASTING_NOTICES: readonly LastingNotice[] = [
   'rationing',
+  'seed-rationing',
   'hungry',
   'starving',
   'stalled',
@@ -42,6 +43,18 @@ const HUNGER_NOTICES: Record<HungerLevel, readonly LastingNotice[]> = {
   hungry: ['rationing', 'hungry'],
   starving: ['rationing', 'hungry', 'starving'],
 };
+
+/**
+ * Stupně hladu dne: ves, která šetří jen kvůli osivu (`VillageState.seedRation` – se snědeným
+ * osivem by jedla plně), šetří na osivo místo jídlem (absence.md – Upozornění vsi do kroniky;
+ * Martin 9. 11. 2026: „Bude hladovět max ty dva měsíce – to není hladovění, ale spíš půst“).
+ * Hlad a umírání hlady zůstávají, i když je způsobí osivo – hlad se sčítá stejně (návrh Clauda).
+ */
+function hungerNotices(state: VillageState): readonly LastingNotice[] {
+  const notices = HUNGER_NOTICES[hungerLevel(state)];
+  if (state.seedRation !== true) return notices;
+  return notices.map((notice) => (notice === 'rationing' ? 'seed-rationing' : notice));
+}
 
 /** Celé kusy psů dvorce – zlomek se nepočítá (technická mez zaokrouhlení). */
 const DOG_EPSILON = 1e-6;
@@ -83,7 +96,7 @@ function workshopNotices(state: VillageState): LastingNotice[] {
 export function lastingNotices(state: VillageState, day: number): LastingNotice[] {
   if (state.extinctDay !== undefined) return [];
   const active = new Set<LastingNotice>([
-    ...HUNGER_NOTICES[hungerLevel(state)],
+    ...hungerNotices(state),
     ...(constructionsStalled(state) ? (['stalled'] as const) : []),
     ...workshopNotices(state),
     // jeden stav za všechny druhy – stáda přerůstají ohrady každé jaro (návrh Clauda)

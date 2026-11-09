@@ -346,7 +346,7 @@ dřevěná věž nad samotnou branou.**“ Výklad níž Martin schválil („An
   vejde jen pár útočníků. Návrh Clauda: ulička 4 m široká a 12 m dlouhá, k vratům nejvýš 4 muži;
   ramena mají vždy ochoz (u palisády v ceně brány); za vnitřním okrajem pásu musí být 12 m volného
   místa podél cesty – jinak zašedlé „Za branou není místo.“. **Cena:** 24 m hradby druhu úseku
-  s ochozem – u palisády ≈ 110 čd + 20 klád.
+  s ochozem – u palisády ≈ 140 čd + 50 klád (dřív 110 čd + 20 klád; klády palisády 9. 11. 2026).
 - **Věž nad branou** (2. úroveň, po klešťové): shora zasahuje ty, kdo vrata sekají nebo
   zapalují, dál vidí a dostřelí. Návrh Clauda: nejvýš 4 obránci, dohled 250 m (jinak 150 m), luk
   do 80 m (jinak 60 m), kryt jako ochoz; **cena** 120 čd komplet + 30 klád; hoří s branou.
@@ -377,16 +377,26 @@ Martin 8. 11. 2026 – ceny „**komplet, včetně kácení a odvozu**“: palis
 | Na 100 m                   | Práce komplet            | Klády | Kámen  | Kdo                                  |
 | -------------------------- | ------------------------ | ----- | ------ | ------------------------------------ |
 | polský plot                | ≈ 35 čd (20 čd + kácení) | 15    | –      | Martin 3. 11.                        |
-| palisáda                   | 300 čd                   | 70    | –      | Martin 8. 11. (klády 3. 11.)         |
+| palisáda                   | 430 čd (dřív 300)        | 200   | –      | Martin 8. 11. (klády 9. 11.)         |
 | ochoz (vylepšení palisády) | 150 čd                   | 10    | –      | návrh Clauda                         |
-| palisáda s ochozem celkem  | 450 čd                   | 80    | –      | návrh Clauda                         |
+| palisáda s ochozem celkem  | 580 čd (dřív 450)        | 210   | –      | návrh Clauda                         |
 | val s příkopem             | 150 čd                   | –     | –      | Martin 3. 11.                        |
 | roštová hradba             | 1 050 čd                 | 330   | 100 m³ | Martin 8. 11. (klády, kámen rešerše) |
 | komorová hradba            | 1 450 čd                 | 350   | 320 m³ | Martin 8. 11. (klády, kámen rešerše) |
 
+- **Klády palisády 9. 11. 2026** – Martin: „**Uvažujme, že kmen má cca 10 metrů, to dá dva kůly**“.
+  Návrh Clauda: 2 kmeny na 1 m (3–4 kůly ≈ 25–30 cm na 1 m), Martin „a“ k variantě: **200 klád
+  na 100 m místo 70** a cena komplet **≈ 43 h na 1 m (430 čd na 100 m)** – přibude jen kácení
+  (1 čd na kládu), výkop, osazení a zašpičatění zůstávají 230 čd na 100 m. Palisáda s ochozem
+  580 čd + 210 klád, zboření ¼ ceny komplet (107,5 čd na 100 m), přestavba dožilého úseku plná
+  cena; rozdělané stavby ze starších vsí se dostaví za uloženou cenu, nic se nepřepočítá.
+  Správce na typických vsích (Správce, měřítko 0,06): ves 60 lidí dál nepostaví nic, ves 150 lidí
+  dál palisádu, ale s malou rezervou (přínos × 20 let ≈ 4 140 čd proti ceně ≈ 4 050 čd, dřív
+  2 880 čd) a ochoz se jí už nevyplatí.
+
 - **Ochoz 15 h na 1 m** (návrh Clauda z rešerše): násyp zevnitř ≈ 450 m³ hlíny na 100 m ≈ 110 čd,
   pochozí fošny a schůdky ≈ 10 čd + 10 klád, s kácením ≈ 130 čd → zaokrouhleno 150 čd. Palisáda
-  s ochozem tak stojí 45 h na 1 m – blíž palisádě (30) než roštové (105), protože je to palisáda
+  s ochozem tak stojí 58 h na 1 m (do 9. 11. 45 h) – blíž palisádě (43) než roštové (105), protože je to palisáda
   s hliněným náspem, ne nová konstrukce.
 - **Kláda z hromady ušetří 1 čd** – kácení a svoz jednoho stromu (návrh Clauda; dřív navržené
   2 čd by roštovou hradbu z hromady srazily na 390 čd, méně než její zemní práce ≈ 500 čd podle
@@ -403,7 +413,7 @@ Martin 8. 11. 2026 – ceny „**komplet, včetně kácení a odvozu**“: palis
     ~~v nejbližším skalním výchozu za 1 čd na m³~~ v **lomu vsi** za 1 čd na m³ × příplatek za
     vzdálenost (vzdušnou; Kámen – Martin 8. 11. 2026) – bez lomu a bez kamene na hromadách stavba
     nejde („Chybí N m³ kamene. Ves nemá lom.“); lámání je v práci úseků podle jejich kamene;
-  - **zboření** stojí ¼ práce stavby komplet (palisáda 75 čd na 100 m, plot 8,75 čd) – dřív ¼ práce
+  - **zboření** stojí ¼ práce stavby komplet (palisáda 107,5 čd na 100 m – do 9. 11. 75 čd, plot 8,75 čd) – dřív ¼ práce
     bez kácení;
   - roštová a komorová hradba (pás 7–8 m) **vezmou díly polí a sadů pod pásem** jako val;
   - cena u kurzoru ukazuje práci bez kácení a lámání (100 m: plot 20, palisáda 230, roštová 620,
@@ -431,7 +441,7 @@ Vše kromě Martinových životností je návrh Clauda.
   prolomení (Obrana bez násobku).
 - **Přestavba po dílech** (návrh Clauda): obyvatelé přestavují a udržují každý díl zvlášť – blokuje
   je jen stavba, která na tom dílu běží, ne jiná stavba na opevnění. **Dožilý ochoz** se přestaví
-  jako palisáda (30 h na 1 m) s novými fošnami ochozu (2 h na 1 m); násyp zůstane (Martin: „nevím,
+  jako palisáda (43 h na 1 m, do 9. 11. 30 h) s novými fošnami ochozu (2 h na 1 m); násyp zůstane (Martin: „nevím,
   něco navrhni“).
 - Údržba je třetí cena hradby vedle stavby a obsazení – u komorové hradby kolem velké vsi
   (≈ 400 m) 20 čd ročně, u palisády s ochozem 8 čd.
@@ -500,9 +510,9 @@ Vše kromě Martinových životností je návrh Clauda.
 | Co                          | Číslo                                                                                                  | Kdo                           |
 | --------------------------- | ------------------------------------------------------------------------------------------------------ | ----------------------------- |
 | Násobek obrany za opevněním | žádný                                                                                                  | Martin 8. 11.                 |
-| Cena na 1 m komplet         | palisáda 30 h, roštová 105 h, komorová 145 h                                                           | Martin 8. 11.                 |
-| Ochoz (vylepšení palisády)  | 15 h na 1 m + 10 klád na 100 m (palisáda s ochozem 45 h)                                               | návrh Clauda                  |
-| Klády na 100 m              | palisáda 70 (Martin 3. 11.), ochoz 10, roštová 330, komorová 350                                       | návrh Clauda                  |
+| Cena na 1 m komplet         | palisáda ~~30 h~~ 43 h (9. 11.), roštová 105 h, komorová 145 h                                         | Martin 8. 11., 9. 11.         |
+| Ochoz (vylepšení palisády)  | 15 h na 1 m + 10 klád na 100 m (palisáda s ochozem 58 h)                                               | návrh Clauda                  |
+| Klády na 100 m              | palisáda ~~70~~ 200 (Martin 9. 11.), ochoz 10, roštová 330, komorová 350                               | návrh Clauda                  |
 | Kámen na 100 m              | roštová 100 m³, komorová 320 m³                                                                        | návrh Clauda                  |
 | Z hromady ušetří            | kláda 1 čd, kámen 1 čd na m³                                                                           | návrh Clauda                  |
 | Klešťová brána              | ulička 4 × 12 m, k vratům 4 muži; cena 24 m hradby s ochozem                                           | návrh Clauda                  |
@@ -566,13 +576,13 @@ odkopaná z příkopu vytvoří val. Na koruně valu pak budu moci postavit pols
 palisádu.**“ Plot nebo palisáda na valu je volitelná – „**hráč se může rozhodnout, že val
 stačí**“.
 
-| Druh            | Jak vzniká                                     | Násobek    | Cena na 100 m              | Životnost         |
-| --------------- | ---------------------------------------------- | ---------- | -------------------------- | ----------------- |
-| polský plot     | pletený plot jako u pozemků, kolem části vsi   | ~~× 1,25~~ | 20 čd + 15 klád            | ≈ 15 let          |
-| palisáda        | nová, nebo vylepšením plotu (plot nevrací nic) | ~~× 2~~    | ~~80 čd~~ 300 čd + 70 klád | ≈ 20 let          |
-| val s příkopem  | hlína z příkopu tvoří val                      | ~~× 1,5~~  | 150 čd (jen hlína)         | nehnije, údržba   |
-| val s plotem    | val + plot na koruně                           | ~~× 2~~    | val + plot                 | val / plot zvlášť |
-| val s palisádou | val + palisáda na koruně                       | ~~× 3~~    | val + palisáda             | val / palisáda    |
+| Druh            | Jak vzniká                                     | Násobek    | Cena na 100 m                                    | Životnost         |
+| --------------- | ---------------------------------------------- | ---------- | ------------------------------------------------ | ----------------- |
+| polský plot     | pletený plot jako u pozemků, kolem části vsi   | ~~× 1,25~~ | 20 čd + 15 klád                                  | ≈ 15 let          |
+| palisáda        | nová, nebo vylepšením plotu (plot nevrací nic) | ~~× 2~~    | ~~80 čd~~ ~~300 čd + 70 klád~~ 430 čd + 200 klád | ≈ 20 let          |
+| val s příkopem  | hlína z příkopu tvoří val                      | ~~× 1,5~~  | 150 čd (jen hlína)                               | nehnije, údržba   |
+| val s plotem    | val + plot na koruně                           | ~~× 2~~    | val + plot                                       | val / plot zvlášť |
+| val s palisádou | val + palisáda na koruně                       | ~~× 3~~    | val + palisáda                                   | val / palisáda    |
 
 Násobky, ceny a životnosti jsou Martinovy (3. 11. 2026); ~~jak násobek působí v boji, je
 v Obraně.~~ Nahrazeno 8. 11. 2026: násobky zrušeny, palisáda 300 čd komplet (Martin), nové druhy
@@ -957,33 +967,33 @@ Podrobnosti (návrh Clauda):
 
 ## Čísla (návrh – do `rules-fortifications.ts`, `FORTIFICATIONS`)
 
-| Co                                    | Číslo                                                                              | Kdo           |
-| ------------------------------------- | ---------------------------------------------------------------------------------- | ------------- |
-| ~~Násobek opevnění~~                  | ~~plot 1,25; palisáda 2; val 1,5; val s plotem 2; s palisádou 3~~ – zrušeno 8. 11. | Martin 3. 11. |
-| ~~Obránce za opevněním~~              | ~~× 1,5 (zná místo) × násobek opevnění~~ – zrušeno 8. 11.                          | návrh Clauda  |
-| Cena na 100 m                         | plot 20 čd + 15 klád; palisáda ~~80~~ 300 čd komplet + 70 (8. 11.); val 150 čd     | Martin 3. 11. |
-| Vylepšení plotu na palisádu           | ~~80 čd~~ cena palisády + 70 klád na 100 m, plot nevrací nic                       | Martin 3. 11. |
-| Životnost                             | plot 15 let, palisáda 20 let                                                       | Martin 3. 11. |
-| Chátrání za životností bez dřeva      | stav 100 → 0 % za 5 let                                                            | návrh Clauda  |
-| Val bez údržby                        | za 50 let výška 0,5, ~~násobek 1,5 → 1,25~~ přínos valu na polovinu                | Martin 3. 11. |
-| Údržba valu                           | 2 čd na 100 m ročně; obnova pod 0,75 za ½ ceny                                     | návrh Clauda  |
-| Útočiště                              | 10 m² na člověka, 20 m² na kus (ovce, koza, prase čtvrt)                           | návrh Clauda  |
-| Pás                                   | plot 1 m, palisáda 1,5 m, val 10 m (příkop 4, val 6)                               | návrh Clauda  |
-| Nejmenší poloměr ohybu                | plot 1,25 m, palisáda 3 m, val 8 m (na vnějším okraji)                             | návrh Clauda  |
-| Odstup návrhu od jádra                | šířka pásu + 3 m; správce po 5 m víc, nevejde-li se útočiště                       | návrh Clauda  |
-| Body obvodu                           | nejvýš ≈ 15 m od sebe, nejméně 4                                                   | návrh Clauda  |
-| Úsek                                  | stejně dlouhé, ≈ 15 m                                                              | návrh Clauda  |
-| Plocha                                | nejméně 900 m²                                                                     | návrh Clauda  |
-| Brána                                 | 4 m, nic navíc nestojí, nejvýš 1 na úsek                                           | návrh Clauda  |
-| Brány se zavřou                       | první útočník do 30 m od brány                                                     | návrh Clauda  |
-| Prolomení (mužohodin)                 | brána plotu 0, plot 2, brána palisády 12, palisáda 96                              | návrh Clauda  |
-| Na jedno místo prolomení              | nejvýš 4 muži, průlom 4 m                                                          | návrh Clauda  |
-| Val útokem                            | čtvrtinové tempo přes pás                                                          | návrh Clauda  |
-| Hrozba – váhy signálů                 | nájezd 1; ves rodu do 3 políček 0,5; vojsko 0,3; válka do 5 0,5                    | návrh Clauda  |
-| Hrozba – poločas, paměť               | 10 herních let, 50 let                                                             | návrh Clauda  |
-| Ztráta nájezdu pro správce            | 20 mužů × 25 kg, 10 % dospělých                                                    | návrh Clauda  |
-| Horizont správce (`rules-steward.ts`) | Růst 25 let, Obnova 5 let, nejvýš životnost; Nouze ne                              | návrh Clauda  |
-| Útočiště správce                      | lidé a dobytek vsi + 20 %                                                          | návrh Clauda  |
+| Co                                    | Číslo                                                                                        | Kdo           |
+| ------------------------------------- | -------------------------------------------------------------------------------------------- | ------------- |
+| ~~Násobek opevnění~~                  | ~~plot 1,25; palisáda 2; val 1,5; val s plotem 2; s palisádou 3~~ – zrušeno 8. 11.           | Martin 3. 11. |
+| ~~Obránce za opevněním~~              | ~~× 1,5 (zná místo) × násobek opevnění~~ – zrušeno 8. 11.                                    | návrh Clauda  |
+| Cena na 100 m                         | plot 20 čd + 15 klád; palisáda ~~80~~ ~~300~~ 430 čd komplet + 200 (8. a 9. 11.); val 150 čd | Martin 3. 11. |
+| Vylepšení plotu na palisádu           | ~~80 čd~~ cena palisády + 200 klád na 100 m (9. 11.), plot nevrací nic                       | Martin 3. 11. |
+| Životnost                             | plot 15 let, palisáda 20 let                                                                 | Martin 3. 11. |
+| Chátrání za životností bez dřeva      | stav 100 → 0 % za 5 let                                                                      | návrh Clauda  |
+| Val bez údržby                        | za 50 let výška 0,5, ~~násobek 1,5 → 1,25~~ přínos valu na polovinu                          | Martin 3. 11. |
+| Údržba valu                           | 2 čd na 100 m ročně; obnova pod 0,75 za ½ ceny                                               | návrh Clauda  |
+| Útočiště                              | 10 m² na člověka, 20 m² na kus (ovce, koza, prase čtvrt)                                     | návrh Clauda  |
+| Pás                                   | plot 1 m, palisáda 1,5 m, val 10 m (příkop 4, val 6)                                         | návrh Clauda  |
+| Nejmenší poloměr ohybu                | plot 1,25 m, palisáda 3 m, val 8 m (na vnějším okraji)                                       | návrh Clauda  |
+| Odstup návrhu od jádra                | šířka pásu + 3 m; správce po 5 m víc, nevejde-li se útočiště                                 | návrh Clauda  |
+| Body obvodu                           | nejvýš ≈ 15 m od sebe, nejméně 4                                                             | návrh Clauda  |
+| Úsek                                  | stejně dlouhé, ≈ 15 m                                                                        | návrh Clauda  |
+| Plocha                                | nejméně 900 m²                                                                               | návrh Clauda  |
+| Brána                                 | 4 m, nic navíc nestojí, nejvýš 1 na úsek                                                     | návrh Clauda  |
+| Brány se zavřou                       | první útočník do 30 m od brány                                                               | návrh Clauda  |
+| Prolomení (mužohodin)                 | brána plotu 0, plot 2, brána palisády 12, palisáda 96                                        | návrh Clauda  |
+| Na jedno místo prolomení              | nejvýš 4 muži, průlom 4 m                                                                    | návrh Clauda  |
+| Val útokem                            | čtvrtinové tempo přes pás                                                                    | návrh Clauda  |
+| Hrozba – váhy signálů                 | nájezd 1; ves rodu do 3 políček 0,5; vojsko 0,3; válka do 5 0,5                              | návrh Clauda  |
+| Hrozba – poločas, paměť               | 10 herních let, 50 let                                                                       | návrh Clauda  |
+| Ztráta nájezdu pro správce            | 20 mužů × 25 kg, 10 % dospělých                                                              | návrh Clauda  |
+| Horizont správce (`rules-steward.ts`) | Růst 25 let, Obnova 5 let, nejvýš životnost; Nouze ne                                        | návrh Clauda  |
+| Útočiště správce                      | lidé a dobytek vsi + 20 %                                                                    | návrh Clauda  |
 
 Změna čísla = i text v tomto návrhu (`CLAUDE.md`). Čísla nových druhů, přechodu hradby a obrany
 bez násobku (8. 11. 2026) – [Čísla hradeb](#čísla-hradeb-návrh--do-fortifications).
@@ -1097,6 +1107,7 @@ bez násobku (8. 11. 2026) – [Čísla hradeb](#čísla-hradeb-návrh--do-forti
 | Násobek obrany zrušen – hradba jako překážka, správce usoudí, zda se vyplatí                                                    | Martin 8. 11.         |
 | Stupně na valu: plot, palisáda, palisáda s ochozem (jen vylepšením), roštová, komorová; val i dodatečně                         | Martin 8. 11.         |
 | Ceny komplet: palisáda 30, roštová 105, komorová 145 h na 1 m; kámen nová surovina                                              | Martin 8. 11.         |
+| Palisáda 2 kmeny na 1 m: 200 klád na 100 m, komplet 43 h na 1 m (430 čd na 100 m)                                               | Martin 9. 11.         |
 | Přechod podle druhu: plot přelézt / prosekat; palisáda žebříky, sekání, oheň, odkopání; hradby žebřík a podkop (komorová 1,5 ×) | Martin 8. 11.         |
 | Val: pomalý sestup a výstup, únava, oheň až po zasypání, odkopání ze dna; vodní příkop                                          | Martin 8. 11.         |
 | Ochoz – luk mužů rodu, kameny a oštěpy vesničanů, shazování žebříků; lezec znevýhodněný („A“); obsazení                         | Martin 8. 11.         |

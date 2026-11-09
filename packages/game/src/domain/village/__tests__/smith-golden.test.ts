@@ -174,6 +174,7 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
     // hash 13eb70fa (26. 10. 2026, W7 ryby a oka; wildlife.md – Drobná zvěř a ryby): vesničané chytají ryby a zajíce z volné práce (nebo při hladu před stavbami), maso jde do zásoby bez porážky – jiná práce vsi, zásoby a stav zvěře; dřív c3eb2c09
     // hash 7bf72274 (26. 10. 2026, oprava po recenzi W7): roční kvóta ryb a zajíců, čerstvé maso a brzda letošním úlovkem – jiný úlovek, jídlo a stav zvěře; dřív 13eb70fa
     // hash d6a17a0c (6. 11. 2026, Ú6.1 stropy výcviku; war.md – Síla): rodina cvičí doma nejvýš do 50 (dřív 100), takže jezdci a lovci jsou slabší – jiný lov a práce vsi; dřív 7bf72274
-    expect(hash(stripped)).toBe('d6a17a0c');
+    // hash b19ba3eb (9. 11. 2026, len z polí vyřazený – fields.md, Zahrádka u obydlí): plán bez dílů lnu, jař místo nich, oděv ze zahrádek – jiný osev, práce a štěstí; dřív d6a17a0c
+    expect(hash(stripped)).toBe('b19ba3eb');
   }, 120_000);
 });

@@ -135,7 +135,11 @@ async function startPalisade(page: Page): Promise<Pt[]> {
   await grid.getByRole('button', { name: 'Palisáda' }).click();
   await page.mouse.move(640, 360);
   await page.mouse.move(650, 365);
-  await expect.poll(async () => (await fortPoints(page)).length).toBeGreaterThanOrEqual(4);
+  // návrh vznikne až v dalším snímku s kurzorem nad krajinou – na vytíženém stroji trvá snímek
+  // softwarového kreslení i několik sekund, výchozích 5 s nestačí
+  await expect
+    .poll(async () => (await fortPoints(page)).length, { timeout: 20_000 })
+    .toBeGreaterThanOrEqual(4);
   return fortPoints(page);
 }
 
@@ -162,6 +166,8 @@ function centroid(points: readonly Pt[]): Pt {
 test('návrh palisády kolem vsi – tah bodu mění cenu, klik přidá a Ctrl + klik ubere bod, kladivo položí, brány na cestě, panel', async ({
   page,
 }) => {
+  // nejdelší test souboru – na vytíženém stroji (souběžné běhy z víc stromů) přes 180 s
+  test.setTimeout(300_000);
   const { settlementId, home, showVillage } = await villageWithRoad(page, 'opevneni');
   const points = await startPalisade(page);
   await closeUp(page, home);
@@ -258,9 +264,15 @@ test('návrh palisády kolem vsi – tah bodu mění cenu, klik přidá a Ctrl +
         if (!edge) return null;
         await page.mouse.move(edge.x + 2, edge.y);
         await page.mouse.dblclick(edge.x, edge.y);
-        return panel.getAttribute('data-kind', { timeout: 500 }).catch(() => null);
+        // panel na vytíženém stroji naskočí i za několik sekund – další dvojklik až po nich
+        return expect(panel)
+          .toHaveAttribute('data-kind', 'fortification', { timeout: 5_000 })
+          .then(
+            () => 'fortification',
+            () => null,
+          );
       },
-      { timeout: 30_000 },
+      { timeout: 60_000 },
     )
     .toBe('fortification');
   const length = Number.parseInt(

@@ -44,12 +44,15 @@ export interface WeddingCouple {
 
 /**
  * Trvalé stavy vsi z upozornění, které se zapisují do kroniky (absence.md – Upozornění vsi do
- * kroniky): stupně hladu (vnořené – hladovějící ves i šetří), stavby stojí, dílny bez vstupu,
+ * kroniky): stupně hladu (vnořené – hladovějící ves i šetří; šetření jen kvůli osivu je
+ * `seed-rationing`), stavby stojí, dílny bez vstupu,
  * stáda bez místa v ohradách (jeden stav za všechny druhy), voli a koně bez místa, koně a psi bez obilí, výmlat bez
  * humna a humno nestačí. Pořadí je pořadí zápisu v jednom dni.
  */
 export type LastingNotice =
   | 'rationing'
+  /** Ves šetří jen kvůli osivu, které nejí – půst do setí (`VillageState.seedRation`). */
+  | 'seed-rationing'
   | 'hungry'
   | 'starving'
   | 'stalled'
@@ -341,6 +344,11 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'harvest'; kg: number; crop?: Crop }
   /** Konec sklizně jablek (1. 11.) – kolik kg se sklidilo. */
   | { kind: 'apple-harvest'; kg: number }
+  /**
+   * Sklizeň zahrádek u obydlí (31. 7. – fields.md, Zahrádka u obydlí): souhrn za ves – kg
+   * třeného lnu a čistých luštěnin (do zásoby luštěnin).
+   */
+  | { kind: 'garden-harvest'; flaxKg: number; legumeKg: number }
   /**
    * Při trhání lnu (31. 7.): ves sklidila jen `kg` třeného lnu z `neededKg`, které potřebuje na
    * oděv (fields.md – Len, diet.md – Oděv).

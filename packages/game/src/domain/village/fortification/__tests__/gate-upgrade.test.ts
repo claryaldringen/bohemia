@@ -121,8 +121,8 @@ describe('klešťová brána (Hradby a obrana – Brány)', () => {
     });
     const full = fortificationCost('walkway', 24);
     expect(cost).toEqual(full);
-    // komplet ≈ 108 čd + 19,2 klády (Brány – „u palisády ≈ 110 čd + 20 klád“)
-    expect(full.laborManDays + full.logs).toBeCloseTo(108, 6);
+    // komplet ≈ 139,2 čd + 50,4 klády (Brány – „u palisády ≈ 140 čd + 50 klád“)
+    expect(full.laborManDays + full.logs).toBeCloseTo(139.2, 6);
     const next = ok(upgrade(s, 'pincer'));
     expect(gateOf(next).pincerDay).toBeNull();
     const c = works(next)[0]!;
@@ -131,8 +131,8 @@ describe('klešťová brána (Hradby a obrana – Brány)', () => {
       fortGate: { segment: gateOf(s).segment, level: 'pincer' },
       fortSegments: [{ index: gateOf(s).segment, cost: full.laborManDays }],
     });
-    // klády z hromady – 20 celých
-    expect(next.woodLogs).toBe((s.woodLogs ?? 0) - 20);
+    // klády z hromady – 51 celých
+    expect(next.woodLogs).toBe((s.woodLogs ?? 0) - 51);
     expect(gateOf(s).pincerDay).toBeUndefined();
   });
 

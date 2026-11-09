@@ -694,6 +694,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return `Lnu je na oděv málo – vytrhali ${formatInteger(event.kg)} kg z ${formatInteger(event.neededKg)} kg, které lidé potřebují.`;
     case 'apple-harvest':
       return `Sklizeň ovoce: ${formatInteger(event.kg)} kg.`;
+    case 'garden-harvest':
+      return `Sklizeň zahrádek: ${formatInteger(event.flaxKg)} kg lnu a ${formatInteger(event.legumeKg)} kg luštěnin.`;
     case 'slaughter':
       return `Podzimní porážka: ${formatInteger(event.kg)} kg masa.`;
     case 'emergency-slaughter': {
