@@ -191,4 +191,26 @@ describe('délka brázdy pásu přes cestu', () => {
     );
     expect(sowingFurrowEfficiency(larger, state([]), land)).not.toBe(open);
   });
+
+  it('výkon orby bez krajiny (výhled správce) z paměti – týž jako bez ní, se změnou dílů se přepočte', () => {
+    const plain = plannedFurrowEfficiency(parts, state([]), null);
+    expect(sowingFurrowEfficiency(parts, state([]), null)).toBe(plain);
+    expect(sowingFurrowEfficiency(parts, state([]), null)).toBe(plain);
+    // paměť s krajinou a bez ní se nepletou
+    const land = { size: 64, cellSizeM: 15 } as Landscape;
+    expect(sowingFurrowEfficiency(parts, state([]), land)).toBe(
+      plannedFurrowEfficiency(parts, state([]), land),
+    );
+    expect(sowingFurrowEfficiency(parts, state([]), null)).toBe(plain);
+    // jiná plocha i jiná vzdálenost chůze dílu – přepočet, ne paměť
+    const larger = parts.map((p) => (p.id === 1 ? { ...p, areaM2: 400 } : p));
+    expect(sowingFurrowEfficiency(larger, state([]), null)).toBe(
+      plannedFurrowEfficiency(larger, state([]), null),
+    );
+    expect(sowingFurrowEfficiency(larger, state([]), null)).not.toBe(plain);
+    const farther = parts.map((p) => (p.id === 1 ? { ...p, walkDistanceM: 900 } : p));
+    expect(sowingFurrowEfficiency(farther, state([]), null)).toBe(
+      plannedFurrowEfficiency(farther, state([]), null),
+    );
+  });
 });

@@ -381,23 +381,29 @@ function furrowInputs(
 const furrowMemo = new WeakMap<Landscape, { inputs: number[]; value: number }>();
 
 /**
+ * Poslední výpočet bez krajiny (výhled správce – `stewardOutlook`): bez krajiny výpočet nečte nic
+ * mimo díly (délka brázdy z ploch dílů), výsledek je tedy týž pro každou ves se stejnými vstupy.
+ */
+let plainFurrowMemo: { inputs: number[]; value: number } | null = null;
+
+/**
  * `plannedFurrowEfficiency` plánu osevu (`sowingCapacity` – každý den oken setí) s pamětí: když se
- * od posledního výpočtu nad touž krajinou nezměnilo nic, co výpočet čte (`furrowInputs` – díly na
- * řadě, mřížky polí, pevné cesty; porovnává se přesně číslo po čísle), vezme se minulý výsledek.
- * Výsledek je tedy týž jako bez paměti a nezávisí na kouscích dopočtu; přepočítá se jen se změnou
- * dílů, vzdáleností nebo cest (u Vlkova 5 přepočtů z 214 volání za rok).
+ * od posledního výpočtu nad touž krajinou (nebo bez krajiny) nezměnilo nic, co výpočet čte
+ * (`furrowInputs` – díly na řadě, mřížky polí, pevné cesty; porovnává se přesně číslo po čísle),
+ * vezme se minulý výsledek. Výsledek je tedy týž jako bez paměti a nezávisí na kouscích dopočtu;
+ * přepočítá se jen se změnou dílů, vzdáleností nebo cest (u Vlkova 5 přepočtů z 214 volání za rok).
  */
 export function sowingFurrowEfficiency(
   parts: readonly FieldPart[],
   state: Pick<VillageState, 'fields' | 'roads'>,
   landscape: Landscape | null,
 ): number {
-  if (!landscape) return plannedFurrowEfficiency(parts, state, landscape);
   const inputs = furrowInputs(parts, state);
-  const last = furrowMemo.get(landscape);
+  const last = landscape ? furrowMemo.get(landscape) : plainFurrowMemo;
   if (last && sameNumbers(last.inputs, inputs)) return last.value;
   const value = plannedFurrowEfficiency(parts, state, landscape);
-  furrowMemo.set(landscape, { inputs, value });
+  if (landscape) furrowMemo.set(landscape, { inputs, value });
+  else plainFurrowMemo = { inputs, value };
   return value;
 }
 
