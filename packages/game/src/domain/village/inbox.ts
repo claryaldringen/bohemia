@@ -204,7 +204,14 @@ export type VillageEventBody =
    * Uprchlíci se vrátili domů (domov) se zbylými zásobami a stádem z hradiště (`leaveRefuge`);
    * z lesa jen s tím, co ukryli (`refuge.hidden`).
    */
-  | { kind: 'refuge-back'; refId: string; foodKg: number; herd: Record<HerdSpecies, number> };
+  | {
+      kind: 'refuge-back';
+      refId: string;
+      foodKg: number;
+      herd: Record<HerdSpecies, number>;
+      /** Vrátil je správce (nebo NPC rod) – kronika „Správce vrátil lidi domů.“ (Úloha 10). */
+      steward?: true;
+    };
 
 /**
  * Událost ve schránce vsi `villageId`. `day` = herní den, na jehož začátku se použije (nikdy ne

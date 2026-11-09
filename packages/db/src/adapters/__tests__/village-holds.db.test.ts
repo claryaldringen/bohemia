@@ -236,6 +236,7 @@ function messenger(x: number, status: AlarmMessenger['status']): AlarmMessenger 
     toVillageId: 'y',
     mounted: false,
     status,
+    departTick: 3_399_999_600,
   };
 }
 

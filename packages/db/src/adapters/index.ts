@@ -19,6 +19,7 @@ export { createVassalageRepository } from './vassalage-repository';
 export { createNegotiationRepository } from './negotiation-repository';
 export { createShipmentRepository } from './shipment-repository';
 export { createDomainFoodRepository } from './domain-food-repository';
+export { createRefugeRepository } from './refuge-repository';
 export { createDialogRepository } from './dialog-repository';
 export { createDisputeRepository } from './dispute-repository';
 export { createPrisonerRepository } from './prisoner-repository';

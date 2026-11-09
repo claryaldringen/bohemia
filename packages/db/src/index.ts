@@ -10,6 +10,7 @@ export {
   createAccountProviders,
   createShipmentRepository,
   createDomainFoodRepository,
+  createRefugeRepository,
   createDialogRepository,
   createDisputeRepository,
   createPrisonerRepository,

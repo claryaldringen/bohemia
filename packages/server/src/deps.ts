@@ -4,6 +4,7 @@ import {
   createPlayerLock,
   createActivityRepository,
   createDomainFoodRepository,
+  createRefugeRepository,
   createShipmentRepository,
   createDialogRepository,
   createDisputeRepository,
@@ -32,6 +33,7 @@ import { cedeVillages, checkCede, type CedeHooks, type LanguageGroup } from '@bo
 import type {
   ActivityRepository,
   DomainFoodRepository,
+  RefugeRepository,
   ShipmentRepository,
   DialogRepository,
   DisputeRepository,
@@ -120,6 +122,8 @@ export interface GameDeps {
   shipments: ShipmentRepository;
   /** Kola jídla domény – rozhodnutí vsí na rok (`docs/code/vassalage.md`). */
   domainFood: DomainFoodRepository;
+  /** Vsi na útěku – úloha světa návratu uprchlíků (`docs/code/war.md` – Varování: návrat). */
+  refugees: RefugeRepository;
   /** Dialogy hráče – roční Odvody (`docs/code/vassalage.md`). */
   dialogs: DialogRepository;
   /** Půjčky mezi rody – splátky v Odvodech (`docs/code/vassalage.md`). */
@@ -194,6 +198,7 @@ export function createGameDeps(
     successionCredits: createSuccessionCreditRepository(db),
     shipments: createShipmentRepository(db),
     domainFood: createDomainFoodRepository(db),
+    refugees: createRefugeRepository(db),
     dialogs,
     loans,
     stewardships,

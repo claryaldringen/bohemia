@@ -124,7 +124,13 @@ export type ChronicleEvent = { day: number } & (
    */
   | { kind: 'people-away'; away: AwayKind; people: number; villageName: string; untilDay: number }
   /** Lidé se vrátili domů (robota odpracovaná…) – `people` lidí, druh `away`. */
-  | { kind: 'people-back'; away: AwayKind; people: number }
+  | {
+      kind: 'people-back';
+      away: AwayKind;
+      people: number;
+      /** Uprchlíky vrátil domů správce (war.md – Varování: návrat; Úloha 10); chybí – hráč, jiný návrat. */
+      steward?: true;
+    }
   /** Do vsi přišli hosté z vsi `villageName` – `people` lidí na čas, druh `away`. */
   | { kind: 'guests-came'; away: AwayKind; people: number; villageName: string }
   /**

@@ -14,6 +14,7 @@ import type {
   Horse,
   Person,
   PersonAway,
+  RefugeLeaving,
   VillageState,
 } from './types';
 
@@ -129,7 +130,15 @@ export function applyRefugeBack(
     delete state.refuge;
   }
   if (back.length === 0) return [];
-  return [{ day, kind: 'people-back', away: 'refuge', people: back.length }];
+  return [
+    {
+      day,
+      kind: 'people-back',
+      away: 'refuge',
+      people: back.length,
+      ...(body.steward ? { steward: true as const } : {}),
+    },
+  ];
 }
 
 /** Lidé skupiny `refId`, kteří jsou ještě pryč (v pořadí lidí vsi). */
@@ -226,6 +235,38 @@ export function leaveRefuge(
   if (rest.length === 0) delete host.refugeStays;
   else host.refugeStays = rest;
   return { foodKg: Math.max(0, stay.foodKg), herd: { ...stay.herd } };
+}
+
+/**
+ * Uprchlíci pobytu `refId` odcházejí z hradiště domů `toVillageId` (use-case návratu – Úloha 10;
+ * mutuje stav hostitele): `leaveRefuge` a zbylé zásoby se stádem zapíše do `refugeLeaving`, dokud
+ * se událost `refuge-back` nezapíše do schránky domova (`clearRefugeLeaving`). Bez pobytu null.
+ */
+export function departRefuge(
+  host: VillageState,
+  refId: string,
+  toVillageId: string,
+  arrivesDay: number,
+): RefugeLeaving | null {
+  const left = leaveRefuge(host, refId);
+  if (left === null) return null;
+  const leaving: RefugeLeaving = { refId, toVillageId, ...left, arrivesDay };
+  host.refugeLeaving = [...(host.refugeLeaving ?? []).filter((l) => l.refId !== refId), leaving];
+  return leaving;
+}
+
+/** Záznam odchodu `refId` z hradiště, jehož událost návratu se ještě nezapsala; jinak null. */
+export function refugeLeavingOf(host: VillageState, refId: string): RefugeLeaving | null {
+  return host.refugeLeaving?.find((l) => l.refId === refId) ?? null;
+}
+
+/** Událost návratu `refId` je ve schránce domova – záznam odchodu zmizí (mutuje stav). */
+export function clearRefugeLeaving(host: VillageState, refId: string): boolean {
+  const rest = (host.refugeLeaving ?? []).filter((l) => l.refId !== refId);
+  if (rest.length === (host.refugeLeaving?.length ?? 0)) return false;
+  if (rest.length === 0) delete host.refugeLeaving;
+  else host.refugeLeaving = rest;
+  return true;
 }
 
 // --- Jídlo uprchlíků ---------------------------------------------------------------------------

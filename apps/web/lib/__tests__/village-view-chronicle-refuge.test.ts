@@ -20,6 +20,10 @@ describe('kronika – útěk do hradiště a posel', () => {
     expect(text({ day: 1, kind: 'people-back', away: 'refuge', people: 5 })).toBe(
       '5 lidí se vrátilo domů z útočiště.',
     );
+    // Úloha 10 – vrátil je správce
+    expect(text({ day: 1, kind: 'people-back', away: 'refuge', people: 5, steward: true })).toBe(
+      'Správce vrátil lidi domů.',
+    );
   });
 
   it('dostižení a chycený posel', () => {
