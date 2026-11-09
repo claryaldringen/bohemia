@@ -748,8 +748,10 @@ práci.
 
 #### Len
 
-Martin k ovcím na vlnu: „**A to mi připomíná, že na částech pole musí být zasetý len.**“ Od 9. 11.
-2026 je len na zahrádce u obydlí. Pravidla jsou ve [fields.md](fields.md) – Zahrádka u obydlí a Len, čísla **návrh Clauda** podle
+Martin k ovcím na vlnu: „**A to mi připomíná, že na částech pole musí být zasetý len.**“ 9. 11.
+2026 odpoledne šel len na zahrádku u obydlí, večer zpět na pole (Martin: „Len je extrémně náročná
+plodina na kvalitu půdy. Tam, kde už jednou rostl, se může vrátit až po 6 nebo 7 letech, takže se
+bude pěstovat na polích.“). Pravidla jsou ve [fields.md](fields.md) – Len, čísla **návrh Clauda** podle
 [rešerše](research/2026-10-19-flax.md) (experimentální košile z Viborgu – Ribe 2011, historické
 výnosy vlákna ze Skotska a Irska).
 
@@ -757,19 +759,15 @@ výnosy vlákna ze Skotska a Irska).
   (≈ 1 kg látky) na dospělého: košile (u žen dlouhá košile jako hlavní oděv), díl spodního oděvu,
   šátků, ručníků a plachet; lněná košile nošená denně vydrží rok až dva. Na kg látky ≈ 2 kg
   třeného lnu (z vochlování ≈ 46 % dlouhého vlákna, část koudele na hrubé plátno).
-- ~~**Pole:**~~ (zrušeno 9. 11. 2026 – len z polí vyřazený, fields.md – Len) len je plodina na
-  dílech pole (jař se setím na jaře a trháním v červenci), ≈ 550 kg třeného lnu z hektaru při plné
-  úrodnosti – ves 30 lidí ≈ 0,1 ha ≈ 5 dílů.
-- **Zahrádka u obydlí** (Martin 9. 11. 2026: „Nebylo by lepší, kdyby si lidé řešili len sami
-  podobně, jako luštěniny?“; podrobnosti ve [fields.md](fields.md) – Zahrádka u obydlí): domácnost
-  na pozemku polozemnice seje na záhonech (pozemek bez domu a cestičky ≈ 195 m², hnojené –
-  úrodnost nejméně 70; návrh Clauda k Martinově kontrole) napřed len na oděv **své** domácnosti,
-  na zbytku luštěniny; práce jde bokem jako domácí výroba. Zemnice pozemek nemá – domácnost v ní
-  len nemá. Záhony polozemnice dají ≈ 8,8 kg lnu – oděv pro ≈ 4 dospělé; větší domácnosti len
-  chybí (návrh Clauda – zbytek lnu chybí, luštěniny pak nic).
-- **Kdy se rozhodne:** při trhání 31. 7. – len ze zahrádek (a dorůstající len na poli starších
-  vsí) ÷ potřeba všech lidí v ten den (`VillageState.linen`), platí do dalšího trhání. Ves
-  založená po konci setí (30. 4.) se do prvního trhání příští rok nemění.
+- **Pole:** len je jař na dílech pole – setí na jaře, **trhání jen v srpnu**, ≈ 550 kg třeného
+  lnu z hektaru při plné úrodnosti; ves bere jarní díly s nejlepší úrodností, na kterých len
+  **7 let** nerostl, jen do potřeby na oděv (ves 30 lidí ≈ 0,1 ha). **Obilí má přednost** – len se
+  trhá z práce, která po žních obilí zbude; co srpen nevytrhá, propadne (fields.md – Len).
+- ~~**Zahrádka u obydlí**~~ (9. 11. 2026 odpoledne – večer zrušeno, len je zpět na poli): zahrádka
+  dává už jen luštěniny (fields.md – Zahrádka u obydlí).
+- **Kdy se rozhodne:** na konci trhání 31. 8. – vytrhaný len ÷ potřeba zapsaná v plánu k 1. 9.
+  (`VillageState.linen`), platí do dalšího trhání. Ves založená během roku (plán bez potřeby) se
+  do prvního trhání po plánu k 1. 9. nemění.
 - **Když lnu není dost:** kronika `linen-short` a krátký řádek **„Chybí len na oděv“**; štěstí
   ubere **až 4** podle chybějícího podílu (vlna až 6 – svrchní oděv je proti zimě důležitější).
   Nemoci ani úmrtí ne (anti-cíl: ves nevymře kvůli oděvu).

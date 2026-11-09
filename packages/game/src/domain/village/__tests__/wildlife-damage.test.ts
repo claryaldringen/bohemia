@@ -15,7 +15,7 @@ import { forestEdgeDistances } from '../wildlife-land';
 import { withWildlife } from '../wildlife';
 import { expectedWinterKg, seasonCrops, seasonCrop } from '../year-plan';
 import { makeLandscape } from './placement-fixtures';
-import { withBuiltFirstDwelling } from './village-fixtures';
+import { flaxIntoSpring, withBuiltFirstDwelling } from './village-fixtures';
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const JUNE = at(600, 6, 1);
@@ -54,7 +54,8 @@ function juneVillage(areaM2 = 5000): VillageState {
     p.state = 'sown';
     p.crop = 'spring';
   });
-  s = advanceVillage(s, JUNE - 1, null);
+  // len na poli (fields.md – Len) – testy počítají s obilím na všech osetých dílech
+  s = flaxIntoSpring(advanceVillage(s, JUNE - 1, null));
   // setí je 1. 6. hotové
   cerealsOf(s).forEach((w) => (w.done.sow = w.required.sow));
   s.parts.forEach((p) => {

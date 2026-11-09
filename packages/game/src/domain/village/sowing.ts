@@ -163,13 +163,20 @@ export interface CropLoad {
   ploughSpring: number;
 }
 
-/** Jařina místo jaře (len, dorůstající luštěniny starších vsí) – práce v oknech jako luštěniny. */
-function addSideCrop(load: CropLoad, work: PartWork): void {
+/**
+ * Jařina místo jaře (len, dorůstající luštěniny starších vsí) – příprava půdy a setí v oknech jaře;
+ * žeň a výmlat luštěnin v červenci a srpnu. Trhání lnu do zátěže žní nejde (`harvest` false) – len
+ * se trhá jen z práce, která po obilí zbude, a rodina vojvody s ním nepomáhá (fields.md – Len,
+ * návrh Clauda).
+ */
+function addSideCrop(load: CropLoad, work: PartWork, harvest: boolean): void {
   load.springReclaim += work.reclaim;
   load.springDig += work.dig + work.plough;
   load.springSow += work.sow;
-  load.july += work.harvest;
-  load.august += work.thresh;
+  if (harvest) {
+    load.july += work.harvest;
+    load.august += work.thresh;
+  }
   load.ploughSpring += work.plough;
 }
 
@@ -192,8 +199,8 @@ export function cropLoadOf(planned: SowingLoad): CropLoad {
     ploughWinter: planned.winter.plough,
     ploughSpring: planned.spring.plough,
   };
-  if (planned.legume) addSideCrop(load, planned.legume);
-  if (planned.flax) addSideCrop(load, planned.flax);
+  if (planned.legume) addSideCrop(load, planned.legume, true);
+  if (planned.flax) addSideCrop(load, planned.flax, false);
   return load;
 }
 

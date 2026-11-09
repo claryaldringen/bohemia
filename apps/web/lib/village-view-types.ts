@@ -460,10 +460,10 @@ export interface VillageView {
     /** Opustit, zbourat, vrátit (demolition.md); dvorec údaj nemá. */
     use?: StructureUseView;
     /**
-     * Letošní sklizeň zahrádky pozemku – kg lnu a luštěnin (fields.md – Zahrádka u obydlí); chybí,
-     * když obydlí letos nesklízelo (zemnice, prázdné obydlí).
+     * Letošní sklizeň zahrádky pozemku – kg luštěnin (fields.md – Zahrádka u obydlí; len je na
+     * poli); chybí, když obydlí letos nesklízelo (zemnice, prázdné obydlí).
      */
-    garden?: { flaxKg: number; legumeKg: number };
+    garden?: { legumeKg: number };
   }[];
   storesKg: number;
   /**

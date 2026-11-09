@@ -3,37 +3,27 @@ import { dayIndexOf } from '../../calendar';
 import type { Landscape } from '../../landscape';
 import { foundVillage } from '../actions';
 import type { PartInput } from '../actions';
-import { withoutFieldFlax } from '../field-legumes';
-import { flaxNeedKg, harvestFlax } from '../flax';
 import {
   gardenBedAreaM2,
   gardenFertility,
-  gardenYield,
+  gardenLegumeKg,
   gardensSown,
   harvestGardens,
+  withoutGardenFlax,
 } from '../garden';
-import { moveParts } from '../land-taken';
-import { NO_CRAFTS } from '../productivity';
 import { GARDEN, LEGUMES } from '../rules';
 import { advanceVillage } from '../simulate';
-import type { ChronicleEvent, PlotVariant, SeasonCrop, VillageState } from '../types';
-import {
-  createCropWork,
-  cropGrossPerHa,
-  nearestFirst,
-  putSeasonCrop,
-  seasonCrop,
-  seasonCrops,
-  springCrop,
-} from '../year-plan';
+import type { ChronicleEvent, Dwelling, PlotVariant, VillageState } from '../types';
+import { cropGrossPerHa } from '../year-plan';
 import { withThreshingFloor } from './village-fixtures';
 
-// Zahrádka u obydlí (fields.md – Zahrádka u obydlí; Martin 9. 11. 2026): len z polí vyřazený,
-// domácnost na pozemku polozemnice pěstuje napřed len na oděv a na zbytku luštěniny; zemnice
+// Zahrádka u obydlí (fields.md – Zahrádka u obydlí; Martin 9. 11. 2026): domácnost na pozemku
+// polozemnice pěstuje luštěniny; len je od večera 9. 11. 2026 zpět na poli („Tak změna. … takže se
+// bude pěstovat na polích“ – flax.test.ts) – zahrádka dává jen luštěniny z celých záhonů; zemnice
 // zahrádku nemá.
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
-const NO_WEATHER = { flax: 1, legume: 1 } as const;
+const NO_WEATHER = 1;
 const M2_PER_HA = 10_000;
 
 const bigField = (count = 180): PartInput[] =>
@@ -80,43 +70,24 @@ type GardenEvent = Extract<ChronicleEvent, { kind: 'garden-harvest' }>;
 const gardenEvents = (s: VillageState): GardenEvent[] =>
   s.chronicle.filter((e): e is GardenEvent => e.kind === 'garden-harvest');
 
-describe('úroda zahrádky – napřed len na oděv domácnosti, na zbytku luštěniny', () => {
-  const flaxPerM2 = (f: number): number => cropGrossPerHa('flax', f) / M2_PER_HA;
+describe('úroda zahrádky – luštěniny z celých záhonů', () => {
   const legumeNetPerM2 = (f: number): number =>
     (cropGrossPerHa('legume', f) - LEGUMES.seedKgPerHa) / M2_PER_HA;
 
   const BED = 190;
 
-  it('bez potřeby lnu jsou celé záhony luštěniny (čisté – osivo si domácnost nechá)', () => {
-    const y = gardenYield(BED, 0, 70, NO_WEATHER);
-    expect(y.flaxKg).toBe(0);
-    expect(y.legumeKg).toBeCloseTo(BED * legumeNetPerM2(70), 9);
+  it('celé záhony luštěniny (čisté – osivo si domácnost nechá)', () => {
+    expect(gardenLegumeKg(BED, 70, NO_WEATHER)).toBeCloseTo(BED * legumeNetPerM2(70), 9);
+    // ≈ 195 m² hnojených záhonů (úrodnost 70) ≈ 6,8 kg čistých luštěnin
+    expect(gardenLegumeKg(195, 70, NO_WEATHER)).toBeCloseTo(6.8, 1);
   });
 
-  it('malá potřeba: len přesně na ni, luštěniny na zbytku plochy', () => {
-    const y = gardenYield(BED, 3, 70, NO_WEATHER);
-    expect(y.flaxKg).toBeCloseTo(3, 9);
-    const flaxArea = 3 / flaxPerM2(70);
-    expect(y.legumeKg).toBeCloseTo((BED - flaxArea) * legumeNetPerM2(70), 9);
-  });
-
-  it('velká domácnost: celé záhony lnem, zbytek lnu chybí a luštěniny nic', () => {
-    const y = gardenYield(BED, 100, 70, NO_WEATHER);
-    expect(y.flaxKg).toBeCloseTo(BED * flaxPerM2(70), 9);
-    expect(y.legumeKg).toBe(0);
-    // ≈ 195 m² hnojených záhonů (úrodnost 70) ≈ 8,8 kg lnu – oděv pro ≈ 4 dospělé
-    expect(gardenYield(195, 100, 70, NO_WEATHER).flaxKg).toBeCloseTo(8.8, 1);
-  });
-
-  it('úrodnější políčko dá víc; počasí kraje ubere úrodu (plocha lnu podle potřeby bez počasí)', () => {
-    expect(gardenYield(BED, 0, 90, NO_WEATHER).legumeKg).toBeGreaterThan(
-      gardenYield(BED, 0, 70, NO_WEATHER).legumeKg,
+  it('úrodnější políčko dá víc; počasí kraje ubere úrodu', () => {
+    expect(gardenLegumeKg(BED, 90, NO_WEATHER)).toBeGreaterThan(
+      gardenLegumeKg(BED, 70, NO_WEATHER),
     );
-    const dry = gardenYield(BED, 3, 70, { flax: 0.5, legume: 0.5 });
-    expect(dry.flaxKg).toBeCloseTo(1.5, 9);
-    const legumeArea = BED - 3 / flaxPerM2(70);
     const net = Math.max(0, cropGrossPerHa('legume', 70) * 0.5 - LEGUMES.seedKgPerHa) / M2_PER_HA;
-    expect(dry.legumeKg).toBeCloseTo(legumeArea * net, 9);
+    expect(gardenLegumeKg(BED, 70, 0.5)).toBeCloseTo(BED * net, 9);
   });
 
   it('záhony hnojí domácnost: přirozená úrodnost políčka, nejméně 70; bez krajiny 70', () => {
@@ -128,7 +99,6 @@ describe('úroda zahrádky – napřed len na oděv domácnosti, na zbytku lušt
     expect(gardenFertility(plot, null)).toBe(GARDEN.manuredFertility);
     expect(GARDEN.manuredFertility).toBe(70);
   });
-
   it('plocha záhonů: políčko bez půdorysu domu a cestičky k brance (podle varianty a druhu)', () => {
     const at0 = { x: 0, z: 0, rotation: Math.PI };
     const house = (variant: PlotVariant): number =>
@@ -161,33 +131,27 @@ describe('úroda zahrádky – napřed len na oděv domácnosti, na zbytku lušt
 });
 
 describe('sklizeň zahrádek 31. 7.', () => {
-  it('polozemnice s pozemkem sklidí len a luštěniny; luštěniny do zásoby, souhrn do kroniky', () => {
+  it('polozemnice s pozemkem sklidí jen luštěniny – do zásoby, souhrn do kroniky; len ne', () => {
     const s = advanceVillage(withHomestead(), at(600, 7, 30), null);
     const day = at(600, 7, 31);
     const legumesBefore = s.legumesKg ?? 0;
-    const flax = harvestGardens(s, day, fertileLandscape(70))!;
-    const need = flaxNeedKg(s, day);
-    const expected = gardenYield(gardenBedAreaM2(s.dwellings[0]!), need, 70, NO_WEATHER);
-    expect(flax).toBeCloseTo(expected.flaxKg, 9);
-    expect(s.legumesKg! - legumesBefore).toBeCloseTo(expected.legumeKg, 9);
-    expect(s.dwellings[0]!.garden).toEqual({
-      flaxKg: Math.round(expected.flaxKg),
-      legumeKg: Math.round(expected.legumeKg),
-    });
+    const linenBefore = s.linen;
+    harvestGardens(s, day, fertileLandscape(70));
+    const expected = gardenLegumeKg(gardenBedAreaM2(s.dwellings[0]!), 70, NO_WEATHER);
+    expect(s.legumesKg! - legumesBefore).toBeCloseTo(expected, 9);
+    expect(s.dwellings[0]!.garden).toEqual({ legumeKg: Math.round(expected) });
     expect(gardenEvents(s)).toEqual([
-      {
-        day,
-        kind: 'garden-harvest',
-        flaxKg: Math.round(expected.flaxKg),
-        legumeKg: Math.round(expected.legumeKg),
-      },
+      { day, kind: 'garden-harvest', legumeKg: Math.round(expected) },
     ]);
+    expect(s.linen).toBe(linenBefore);
   });
 
   it('zemnice pozemek nemá – zahrádku nemá, ves nic nesklidí a do kroniky nic', () => {
     const s = advanceVillage(found(at(600, 3, 1)), at(600, 7, 30), null);
     expect(s.dwellings.every((d) => d.plot === undefined)).toBe(true);
-    expect(harvestGardens(s, at(600, 7, 31), null)).toBe(0);
+    const legumes = s.legumesKg;
+    harvestGardens(s, at(600, 7, 31), null);
+    expect(s.legumesKg).toBe(legumes);
     expect(gardenEvents(s)).toEqual([]);
     expect(s.dwellings.some((d) => d.garden !== undefined)).toBe(false);
   });
@@ -195,79 +159,41 @@ describe('sklizeň zahrádek 31. 7.', () => {
   it('prázdné obydlí s pozemkem nesklízí (a starý zápis zahrádky zmizí)', () => {
     const s = advanceVillage(withHomestead(), at(600, 7, 30), null);
     const home = s.dwellings[0]!;
-    home.garden = { flaxKg: 1, legumeKg: 1 };
+    home.garden = { legumeKg: 1 };
     for (const p of s.people) p.dwellingId = home.id + 1000;
-    expect(harvestGardens(s, at(600, 7, 31), null)).toBe(0);
+    harvestGardens(s, at(600, 7, 31), null);
     expect(home.garden).toBeUndefined();
+    expect(gardenEvents(s)).toEqual([]);
   });
 
-  it('ves založená po konci setí (30. 4.) letos zahrádky neosela – oděv nezapíše', () => {
+  it('ves založená po konci setí (30. 4.) letos zahrádky neosela', () => {
     expect(gardensSown({ foundedDay: at(600, 4, 30) }, at(600, 7, 31))).toBe(true);
     expect(gardensSown({ foundedDay: at(600, 5, 1) }, at(600, 7, 31))).toBe(false);
     expect(gardensSown({ foundedDay: at(600, 5, 1) }, at(601, 7, 31))).toBe(true);
-    const late = advanceVillage(found(at(600, 5, 1)), at(600, 8, 1), null);
-    expect(late.linen).toBeUndefined();
-    expect(late.chronicle.some((e) => e.kind === 'linen-short')).toBe(false);
-  });
-});
-
-describe('oděv ze lnu zahrádek', () => {
-  it('len zahrádek na celou potřebu – oděv celý, bez upozornění', () => {
-    const s = advanceVillage(found(at(600, 3, 1)), at(600, 7, 31), null);
-    const need = flaxNeedKg(s, s.lastDay);
-    expect(harvestFlax(s, s.lastDay, false, need)).toBeNull();
-    expect(s.linen).toBe(1);
   });
 
-  it('lnu ze zahrádek málo – podíl oděvu a upozornění do kroniky', () => {
-    const s = advanceVillage(found(at(600, 3, 1)), at(600, 7, 31), null);
-    const need = flaxNeedKg(s, s.lastDay);
-    const event = harvestFlax(s, s.lastDay, false, need / 4);
-    expect(s.linen).toBeCloseTo(0.25, 9);
-    expect(event).toEqual({
-      day: s.lastDay,
-      kind: 'linen-short',
-      kg: Math.round(need / 4),
-      neededKg: Math.round(need),
-    });
-  });
-
-  it('ves jen se zemnicemi lnu nemá – podíl 0 a „Chybí len“', () => {
-    const s = advanceVillage(found(at(600, 3, 1)), at(600, 8, 1), null);
-    expect(s.linen).toBe(0);
-    expect(s.chronicle.some((e) => e.kind === 'linen-short')).toBe(true);
-  });
-
-  it('ves s polozemnicí: 31. 7. len ze zahrádky na oděv, luštěniny do zásoby', () => {
+  it('ves s polozemnicí: 31. 7. luštěniny do zásoby, oděv ze zahrádky ne (len je na poli)', () => {
     const s = advanceVillage(withHomestead(), at(600, 8, 1), null);
     const [event] = gardenEvents(s);
     expect(event).toBeDefined();
-    expect(event!.flaxKg).toBeGreaterThan(0);
-    const need = flaxNeedKg(s, at(600, 7, 31));
-    expect(s.linen).toBeCloseTo(
-      Math.min(
-        1,
-        gardenYield(gardenBedAreaM2(s.dwellings[0]!), need, GARDEN.manuredFertility, NO_WEATHER)
-          .flaxKg / need,
-      ),
-      6,
-    );
-  });
-});
-
-describe('len z polí vyřazený (Martin 9. 11. 2026)', () => {
-  it('výběr dílů len nepřidělí – 3 roky bez dílu lnu', () => {
-    const s = advanceVillage(withHomestead(), at(603, 3, 1), null);
-    expect(s.parts.some((p) => p.crop === 'flax')).toBe(false);
-    expect(s.chronicle.some((e) => e.kind === 'harvest' && e.crop === 'flax')).toBe(false);
-    expect(gardenEvents(s).length).toBe(3);
+    expect(event!.legumeKg).toBeGreaterThan(0);
+    expect(event!.flaxKg).toBeUndefined();
+    // ves založená během roku (plán bez potřeby lnu) oděv nezapíše
+    expect(s.linen).toBeUndefined();
+    expect(s.chronicle.some((e) => e.kind === 'linen-short')).toBe(false);
   });
 
   it('po kouscích s JSON mezi nimi dá stejný stav jako jedním voláním (2 roky)', () => {
     const start = withHomestead();
-    const whole = advanceVillage(start, at(602, 8, 1), null);
+    const whole = advanceVillage(start, at(602, 9, 2), null);
     let chunked = start;
-    for (const day of [at(600, 7, 30), at(600, 7, 31), at(601, 5, 1), at(602, 8, 1)]) {
+    for (const day of [
+      at(600, 7, 30),
+      at(600, 7, 31),
+      at(601, 5, 1),
+      at(602, 8, 31),
+      at(602, 9, 2),
+    ]) {
       chunked = JSON.parse(JSON.stringify(advanceVillage(chunked, day, null))) as VillageState;
     }
     expect(chunked).toEqual(JSON.parse(JSON.stringify(whole)));
@@ -275,73 +201,39 @@ describe('len z polí vyřazený (Martin 9. 11. 2026)', () => {
   });
 });
 
-/**
- * Starší ves s lnem v plánu (před 9. 11. 2026): prvních `count` dílů jaře přejde do lnu i s hotovou
- * přípravou půdy; se `sown` je len zasetý.
- */
-function withLegacyFlax(s: VillageState, count: number, sown = false): VillageState {
-  const next = structuredClone(s);
-  const season = next.season!;
-  const spring = springCrop(season);
-  const day = next.lastDay;
-  const plough = spring.plough !== undefined;
-  const flax: SeasonCrop = {
-    crop: 'flax',
-    ...createCropWork([], day, NO_CRAFTS.tools, plough, nearestFirst, 'flax'),
-  };
-  putSeasonCrop(season, flax);
-  const ids = spring.partIds.slice(0, count);
-  moveParts(next, season, spring, flax, ids, day, NO_CRAFTS.tools);
-  for (const p of next.parts) if (ids.includes(p.id)) p.crop = 'flax';
-  if (sown) {
-    for (const task of ['reclaim', 'dig', 'sow'] as const) flax.done[task] = flax.required[task];
-    if (flax.plough) flax.plough.done = flax.plough.required;
-  }
-  return next;
-}
-
-const doneOf = (s: VillageState, task: 'dig' | 'reclaim'): number =>
-  seasonCrops(s.season!).reduce((sum, c) => sum + c.work.done[task], 0);
-
-describe('převod – len na poli starších vsí', () => {
-  it('nezasetý díl lnu přejde do jaře i s přípravou půdy; vstup nemění, idempotentní', () => {
-    const planned = advanceVillage(found(at(600, 3, 1)), at(601, 11, 30), null);
-    const legacy = withLegacyFlax(planned, 3);
-    const flax = seasonCrop(legacy.season, 'flax')!;
-    expect(flax.partIds).toHaveLength(3);
-    const dig = doneOf(legacy, 'dig');
+describe('převod – zahrádka z doby lnu na zahrádkách', () => {
+  it('zápis zahrádky ztratí len, luštěniny zůstanou; vstup nemění, idempotentní', () => {
+    const s = advanceVillage(withHomestead(), at(600, 8, 1), null);
+    const legacy = structuredClone(s);
+    (legacy.dwellings[0] as Dwelling & { garden: { flaxKg?: number } }).garden = {
+      flaxKg: 7,
+      legumeKg: 3,
+    };
     const copy = structuredClone(legacy);
-    const converted = withoutFieldFlax(legacy);
+    const converted = withoutGardenFlax(legacy);
     expect(legacy).toEqual(copy);
-    expect(seasonCrop(converted.season, 'flax')).toBeUndefined();
-    const spring = seasonCrop(converted.season, 'spring')!;
-    expect(flax.partIds.every((id) => spring.partIds.includes(id))).toBe(true);
-    const byId = new Map(converted.parts.map((p) => [p.id, p]));
-    expect(flax.partIds.every((id) => byId.get(id)?.crop === 'spring')).toBe(true);
-    expect(doneOf(converted, 'dig')).toBeCloseTo(dig, 6);
-    expect(withoutFieldFlax(converted)).toBe(converted);
-    const next = advanceVillage(legacy, at(602, 9, 2), null);
-    expect(next.chronicle.some((e) => e.kind === 'harvest' && e.crop === 'flax')).toBe(false);
+    expect(converted.dwellings[0]!.garden).toEqual({ legumeKg: 3 });
+    expect(withoutGardenFlax(converted)).toBe(converted);
+    expect(withoutGardenFlax(s)).toBe(s);
+    // převod při načtení – dál se simuluje bez lnu na zahrádce
+    const next = advanceVillage(legacy, at(600, 8, 2), null);
+    expect(next.dwellings[0]!.garden).toEqual({ legumeKg: 3 });
   });
 
-  it('výběr dílů z paměti se lnem propadne', () => {
-    const planned = advanceVillage(found(at(600, 3, 1)), at(601, 3, 10), null);
-    const legacy = structuredClone(planned);
-    const id = legacy.parts.find((p) => p.state !== 'sown')?.id ?? 0;
-    legacy.season!.selection = { window: 'x', waiting: [{ id, crop: 'flax' }] };
-    expect(withoutFieldFlax(legacy).season!.selection).toBeUndefined();
-  });
-
-  it('zasetý len starší vsi doroste, vytrhá se a přičte se k oděvu', () => {
-    const spring = advanceVillage(found(at(600, 3, 1)), at(602, 5, 10), null);
-    const legacy = withLegacyFlax(spring, 4, true);
-    expect(withoutFieldFlax(legacy)).toBe(legacy);
-    const pulled = advanceVillage(legacy, at(602, 9, 2), null);
-    const flax = pulled.threshingSeason ? seasonCrop(pulled.threshingSeason, 'flax') : undefined;
-    expect(flax?.harvestedKg).toBeGreaterThan(0);
-    // ves jen se zemnicí – len je jen z pole
-    const need = flaxNeedKg(pulled, at(602, 7, 31));
-    expect(pulled.linen).toBeGreaterThan(0);
-    expect(pulled.linen).toBeLessThanOrEqual(Math.min(1, flax!.harvestedKg! / need) + 1e-6);
+  it('plán z doby zahrádek (bez potřeby lnu) len nevybírá a oděv nezapíše – podíl zůstává', () => {
+    // 1. 9. 600: díly po ozimu ves ještě nemá – len zatím nikde
+    const s = advanceVillage(found(at(600, 3, 1)), at(600, 9, 1), null);
+    expect(s.season!.crops.some((c) => c.crop === 'flax')).toBe(false);
+    const legacy = structuredClone(s);
+    delete legacy.season!.flaxNeedKg;
+    legacy.linen = 0.6;
+    const after = advanceVillage(legacy, at(601, 9, 2), null);
+    expect(after.chronicle.some((e) => e.kind === 'harvest' && e.crop === 'flax')).toBe(false);
+    expect(after.chronicle.some((e) => e.kind === 'linen-short' && e.day > legacy.lastDay)).toBe(
+      false,
+    );
+    expect(after.linen).toBe(0.6);
+    // od 1. 9. plán s potřebou – len zase na poli
+    expect(after.season!.flaxNeedKg).toBeGreaterThan(0);
   });
 });

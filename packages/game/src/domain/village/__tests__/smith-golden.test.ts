@@ -178,6 +178,9 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
     // hash d7b0bb8d (9. 11. 2026, skladba dne podle období – population.md: venkovní práce podle
     // délky dne, poloviční minimum ve žních, dříví v zimě, se sněhem bez vody): jiná práce, osev
     // a zásoby; dřív b19ba3eb
-    expect(hash(stripped)).toBe('d7b0bb8d');
+    // hash d0039846 (9. 11. 2026 večer, len zpět na poli – fields.md, Len): díly lnu do potřeby na
+    // oděv, trhání v srpnu za žněmi obilí, zahrádka jen luštěniny – jiný osev, práce a štěstí; dřív
+    // d7b0bb8d
+    expect(hash(stripped)).toBe('d0039846');
   }, 120_000);
 });

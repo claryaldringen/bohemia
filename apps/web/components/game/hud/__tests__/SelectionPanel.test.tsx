@@ -869,14 +869,14 @@ describe('SelectionPanel – rozvržení', () => {
     expect(html).toMatch(/<h2 class="[^"]*whitespace-nowrap[^"]*">Dvorec vojvody<\/h2>/);
   });
 
-  it('obydlí se zahrádkou: ikona lnu a luštěnin s kg letošní sklizně; bez ní nic', () => {
-    const html = render(dwelling({ type: 'polozemnice', garden: { flaxKg: 6, legumeKg: 2 } }));
-    expect(html).toContain('data-testid="selection-garden-flax"');
+  it('obydlí se zahrádkou: ikona luštěnin s kg letošní sklizně (len je na poli); bez ní nic', () => {
+    const html = render(dwelling({ type: 'polozemnice', garden: { legumeKg: 2 } }));
     expect(html).toContain('data-testid="selection-garden-legumes"');
-    expect(html).toContain('/icons/resources/flax.png');
     expect(html).toContain('/icons/resources/legumes.png');
+    expect(html).not.toContain('selection-garden-flax');
+    expect(html).not.toContain('/icons/resources/flax.png');
     const plain = render(dwelling({ type: 'zemnice' }));
-    expect(plain).not.toContain('selection-garden-flax');
+    expect(plain).not.toContain('selection-garden-legumes');
   });
 
   it('obydlí: údaje vlevo, příkazy (dvorec, přestěhovat, odejít) vpravo za čarou', () => {

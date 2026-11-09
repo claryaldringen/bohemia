@@ -358,8 +358,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   u pletí dospělých bere `LaborShare.women` z jádra – fields.md, Pletí jednou a rychle); domácí práce a nečinní venku
   jen z části, v zimě méně; práce bokem – dojení, péče o zvířata, domácí výroba žen a denní
   minimum starších – přijde z `LaborDay.aside` mezi podíly, `sceneLabor` ji připojí (zahrádka
-  u obydlí – len a luštěniny domácnosti, `garden.ts`, village-fields.md – jde bokem bez vlastní
-  práce a postav); **každá
+  u obydlí – luštěniny domácnosti, `garden.ts`, village-fields.md – jde bokem bez vlastní
+  práce a postav; len je od 9. 11. 2026 večer zpět na poli); **každá
   stavba s dnešní prací má aspoň jednoho člověka** – `LaborShare.construction` z jádra,
   `withBuilderAtEachConstruction`, náhradní místo `builderNearby`) a rozestaví
   je (postavy stylizovaně o 20 % větší – `FIGURE_SCALE`, rozestupy s nimi): řady na polích

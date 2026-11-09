@@ -405,7 +405,7 @@ export function buildVillageView(
         ageYears: dwelling ? Math.max(0, Math.floor((day - dwelling.builtDay) / DAYS_PER_YEAR)) : 0,
         relocationBlock: relocationBlock(state, h.dwellingId),
         ...structureUseOf(state, summary, { structure: 'dwelling', id: h.dwellingId }, day),
-        ...(dwelling?.garden ? { garden: { ...dwelling.garden } } : {}),
+        ...(dwelling?.garden ? { garden: { legumeKg: dwelling.garden.legumeKg } } : {}),
       };
     }),
     storesKg: summary.storesKg,

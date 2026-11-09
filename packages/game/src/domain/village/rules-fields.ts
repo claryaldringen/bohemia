@@ -264,10 +264,14 @@ export const LEGUME_WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
   harvest: WINTER_WINDOWS.harvest,
   thresh: WINTER_WINDOWS.thresh,
 };
-// fields.md – Len (rešerše 2026-10-19-flax.md): jarní len se seje v dubnu (okno jaře březen–duben),
-// trhá se po ≈ 100 dnech koncem července, co červenec nestihne, v srpnu – okna jako luštěniny;
-// nemlátí se (semena se drhnou v domácí práci)
-export const FLAX_WINDOWS: Record<TaskName, readonly WindowSegment[]> = LEGUME_WINDOWS;
+// fields.md – Len (rešerše 2026-10-19-flax.md): jarní len se seje v dubnu (okno jaře březen–duben,
+// příprava půdy jako luštěniny), trhá se jen v srpnu (Martin 9. 11. 2026: „Sklízí se v srpnu, ale
+// obilí má vždy absolutní přednost“ – co srpen nevytrhá, propadne); nemlátí se (semena se drhnou
+// v domácí práci)
+export const FLAX_WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
+  ...LEGUME_WINDOWS,
+  harvest: [[8, 8]],
+};
 /** Okna prací podle plodiny (fields.md – Ozim a jař, Luštěniny, Len). */
 export const CROP_WINDOWS: Record<Crop, Record<TaskName, readonly WindowSegment[]>> = {
   winter: WINTER_WINDOWS,
@@ -276,10 +280,11 @@ export const CROP_WINDOWS: Record<Crop, Record<TaskName, readonly WindowSegment[
   flax: FLAX_WINDOWS,
 };
 /**
- * Pořadí plodin při shodě konce okna – len první (je ho málo a bez něj chybí oděv – trhá se
- * v červenci se ozimem a luštěninami), pak ozim (sklízí se dřív), luštěniny před jaří. Žně
- * ozimu, luštěnin a lnu končí v srpnu, jaře v září – v srpnu se napřed dosklízí, co červenec
- * nestihl (dřívější konec okna), a teprve pak jař (návrh Clauda – fields.md, Žně i v srpnu).
+ * Pořadí plodin při shodě konce okna – len první (příprava půdy a setí – je ho málo a bez něj chybí
+ * oděv), pak ozim (sklízí se dřív), luštěniny před jaří. Žně ozimu a luštěnin končí v srpnu, jaře
+ * v září – v srpnu se napřed dosklízí, co červenec nestihl (dřívější konec okna), a teprve pak jař
+ * (návrh Clauda – fields.md, Žně i v srpnu). Trhání lnu jde za žněmi obilí bez ohledu na pořadí
+ * (`simulate-work.ts`, `fieldTasks`; fields.md – Len, Martin 9. 11. 2026).
  */
 export const CROP_ORDER: readonly Crop[] = ['flax', 'winter', 'legume', 'spring'];
 /**
@@ -320,16 +325,19 @@ export const LEGUME_WORK_PER_HA: Record<FieldTask, Bounds> = {
 };
 /**
  * fields.md – Len a diet.md – Oděv (Martin 19. 10. 2026: „A to mi připomíná, že na částech pole
- * musí být zasetý len.“; čísla návrh Clauda podle rešerše 2026-10-19-flax.md): len na plátno –
+ * musí být zasetý len.“; 9. 11. 2026: „Len je extrémně náročná plodina na kvalitu půdy. Tam, kde
+ * už jednou rostl, se může vrátit až po 6 nebo 7 letech“ – `returnYears` 7 návrh Clauda; ostatní
+ * čísla návrh Clauda podle rešerše 2026-10-19-flax.md): len na plátno –
  * spodní oděv (košile), šátky, ručníky, plachty. Potřeba třeného lnu (vlákno po lámání a třepení)
  * za rok – dospělý a starší 2 kg (≈ 3 m² hrubého plátna ≈ 1 kg látky), dítě 1 kg; výnos 550 kg
  * třeného lnu na hektar při plné úrodnosti (× 0,4 + 0,6 × úrodnost jako obilí – při úrodnosti 70
  * ≈ 450 kg, Skotsko 18. st. 440–550, Irsko 1892 429 kg/ha); osivo je lněné semeno z vlastní
  * úrody (sedmina dílu dozraje) – zásoby neubírá; neopletý díl dá 50 % (len snáší plevel špatně);
  * osev ubere úrodnost dílu 0,18 přirozené (obilí 0,12 – len vysiluje půdu); bez lnu na oděv ubere
- * štěstí až 4 podle chybějícího podílu (vlna až 6). Máčení, lámání, třepení, vochlování, předení
- * a tkaní jsou součástí domácí výroby (`DOMESTIC` – přerozdělení, ne práce navíc: ≈ 20 čd na
- * dospělého za rok, s vlnou ≈ 45 z ≈ 125 čd domácí výroby na dospělého).
+ * štěstí až 4 podle chybějícího podílu (vlna až 6); na tentýž díl se len vrátí nejdřív za
+ * `returnYears` let od posledního lnu (`FieldPart.flaxYear`). Máčení, lámání, třepení, vochlování,
+ * předení a tkaní jsou součástí domácí výroby (`DOMESTIC` – přerozdělení, ne práce navíc: ≈ 20 čd
+ * na dospělého za rok, s vlnou ≈ 45 z ≈ 125 čd domácí výroby na dospělého).
  */
 export const FLAX = {
   kgPerYear: { child: 1, adult: 2, elder: 2 },
@@ -337,6 +345,7 @@ export const FLAX = {
   unweededYield: 0.5,
   sowDepletion: 0.18,
   unhappiness: 4,
+  returnYears: 7,
 } as const;
 // fields.md – Len (rešerše: len se vytrhává i s kořenem a váže do hrstí – pokus Ribe ≈ 68 čd/ha
 // začátečníků, nástroje nepomohou; pletí jako luštěniny – v pokusu 4×; příprava půdy a setí jako
@@ -350,18 +359,18 @@ export const FLAX_WORK_PER_HA: Record<FieldTask, Bounds> = {
 };
 /**
  * fields.md – Zahrádka u obydlí (Martin 9. 11. 2026: „Nebylo by lepší, kdyby si lidé řešili len
- * sami podobně, jako luštěniny?“; čísla návrh Clauda): domácnost na pozemku polozemnice (políčko
- * 15 × 15 m) pěstuje na záhonech napřed len na oděv své domácnosti (`FLAX.kgPerYear`), na zbytku
- * luštěniny. Záhony = políčko domu bez půdorysu domu (`DWELLING_FOOTPRINT_M` s variantou rozměrů)
+ * sami podobně, jako luštěniny?“; čísla návrh Clauda; večer: „Tak změna. … takže se bude pěstovat
+ * na polích“ – len zpět na pole): domácnost na pozemku polozemnice (políčko 15 × 15 m) pěstuje na
+ * celých záhonech luštěniny. Záhony = políčko domu bez půdorysu domu (`DWELLING_FOOTPRINT_M` s variantou rozměrů)
  * a bez cestičky od branky ke dveřím široké `pathWidthM` (polozemnice ≈ 192–197 m², dvorec
  * ≈ 165 m² – dvůr zůstává dvorem; scéna kreslí záhony jen jako ukázku). Záhony hnojí domácnost
  * (hnůj, odpad, popel): úrodnost = přirozená úrodnost políčka pozemku, nejméně `manuredFertility`,
  * nevyčerpávají se; ves bez krajiny (testy, skripty) `manuredFertility`. Úroda na hektar jako na
- * poli (len `FLAX`, luštěniny `LEGUMES`). Osivo luštěnin si domácnost nechá z vlastní úrody (čistá
- * úroda = hrubá − `LEGUMES.seedKgPerHa`). Práce je ženská a jde bokem jako domácí výroba (práci vsi
- * nebere) – záhony se plejí, plná úroda. Okna jako dřív na poli: len se seje v dubnu, luštěniny
- * v březnu–dubnu, sklizeň (trhání lnu koncem července, luštěniny v červenci) jeden den 31. 7.
- * (`WINTER_HARVEST_DAY`); ves založená po konci setí (`sowingEnd` – 30. 4.) letos nic nesklidí.
+ * poli (`LEGUMES`). Osivo luštěnin si domácnost nechá z vlastní úrody (čistá úroda = hrubá −
+ * `LEGUMES.seedKgPerHa`). Práce je ženská a jde bokem jako domácí výroba (práci vsi nebere) –
+ * záhony se plejí, plná úroda. Okna jako dřív na poli: luštěniny se sejí v březnu–dubnu, sklízejí
+ * v červenci – jeden den 31. 7. (`WINTER_HARVEST_DAY`); ves založená po konci setí (`sowingEnd`
+ * – 30. 4.) letos nic nesklidí.
  */
 export const GARDEN = {
   pathWidthM: 1,

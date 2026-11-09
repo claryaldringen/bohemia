@@ -1461,7 +1461,7 @@ pro raný středověk ale nemám – zůstává návrhem Clauda jako dosavadní 
 
 ### Zahrádka u obydlí – len a luštěniny (9. 11. 2026, implementováno)
 
-**Změna 9. 11. 2026 večer – len zpět na pole (implementace čeká):** Martin: „Tak změna. Len je
+**Změna 9. 11. 2026 večer – len zpět na pole (implementováno 9. 11. 2026):** Martin: „Tak změna. Len je
 extrémně náročná plodina na kvalitu půdy. Tam, kde už jednou rostl, se může vrátit až po 6 nebo 7
 letech, takže se bude pěstovat na polích. Sklízí se v srpnu, ale obilí má vždy absolutní přednost –
 pokud se nesklidí len, tak lidé budou maximálně chodit v potrhaných šatech, ale neumřou hlady.“
@@ -1474,6 +1474,13 @@ Pravidla (podrobnosti návrh Clauda):
 - **Trhání lnu v srpnu**; **obilí má vždy absolutní přednost** – len dostane práci až po všech
   pracích na obilí (žeň, odnos, výmlat); co se do konce srpna nevytrhá, propadne a lnu na oděv
   chybí (potrhané šaty – dosavadní upozornění a štěstí), nikdo kvůli tomu nehladoví.
+
+Zahrádka od té doby dává jen **luštěniny z celých záhonů** (polozemnice ≈ 195 m² při úrodnosti 70
+≈ 6,8 kg čistých luštěnin); pravidla lnu jsou v sekci Len níž. **Převod uložených vsí** (jednou,
+idempotentně): zápis letošní zahrádky (`Dwelling.garden`) ztratí len; díly bez paměti lnu smí len
+hned; plán z doby lnu na zahrádkách nemá potřebu lnu (`flaxNeedKg`) – len do něj nepřibude a 31. 8.
+se oděv nezapíše (platí podíl ze zahrádek), od dalšího 1. 9. len zase na poli (návrh Clauda – ať
+ves za přechod netrpí bez lnu). Odstavce níž o lnu na zahrádce platily od odpoledne do večera 9. 11. 2026.
 
 Původní zadání zahrádky (len už neplatí):
 
@@ -1619,7 +1626,55 @@ Luštěniny). Čísla podle [rešerše](research/2026-10-18-legumes.md), kde chy
 
 ### Len
 
-**Zrušeno – len z polí vyřazený.** Martin (9. 11. 2026): „Nebylo by lepší, kdyby si lidé řešili len
+**Zpět na poli (Martin 9. 11. 2026 večer, implementováno):** „Tak změna. Len je extrémně náročná
+plodina na kvalitu půdy. Tam, kde už jednou rostl, se může vrátit až po 6 nebo 7 letech, takže se
+bude pěstovat na polích. Sklízí se v srpnu, ale obilí má vždy absolutní přednost – pokud se nesklidí
+len, tak lidé budou maximálně chodit v potrhaných šatech, ale neumřou hlady.“ (Odpoledne téhož dne
+byl len krátce na zahrádce – Zahrádka u obydlí výš.) Platí místo „Kolik ves oseje“, „Len napřed“
+a „Trhání“ níž; potřeba, výnos, práce, vyčerpání půdy, zpracování a štěstí beze změny.
+
+- **Kolik:** k 1. 9. se do plánu zapíše potřeba lnu na oděv (`FLAX.kgPerYear` lidí – 2 kg
+  dospělý, 1 kg dítě). Len bere díly **jen do ní** (očekávaná úroda dílu = 550 kg/ha × úrodnost
+  jako obilí) a **napřed před obilím** – v den, kdy smí začít jař (okna kopání září–listopad
+  a březen–duben); setí v dubnu jako dřív.
+- **Které díly** (podrobnosti návrh Clauda): díly, na kterých by dnes začala jař, **s nejlepší
+  úrodností**, na kterých len **7 let nerostl** (Martin „6 nebo 7“ – návrh Clauda 7: díl si pamatuje
+  rok posledního lnu, len smí znovu na sklizeň o 7 let později; díl s osetým lnem si rok zapíše
+  1. 9. i tehdy, když se len nevytrhal). Napřed díly **druhého osevu** oběhu (jař po ozimu, jař po
+     jaři, které okno ozimu skončilo – díl pak stejně jde do přílohu, len mu nic nebere), teprve když
+     nestačí, díly **prvního osevu** (čerstvý díl, příloh 70–95 %) – len jim vezme jedno kolo obilí.
+     Nouzový příloh pod 70 % ne. Proč i první osev: ves s prvním osevem jaří (založená na jaře) nemá
+     díly po ozimu – jař po jaři čeká na ozim a len by neměl kam (ves z testů by v roce 603 lnu neměla).
+- **Trhání jen v srpnu**; **obilí má přednost** (návrh Clauda k Martinově kontrole): trhání dostane
+  práci dne za **všemi žněmi obilí** (žeň a odnos ozimu, luštěnin i jaře, jejíž okno běží do září),
+  za výmlatem na dnešní jídlo a výmlatem, jehož okno tento měsíc končí – ale **před výmlatem, jehož
+  okno běží i v září** (snopy v okně čekají bez ztráty, výmlat se jen o kousek odsune). Přísnější
+  pořadí (len až po veškerém výmlatu) ve Vlkově nikdy nedostalo práci – ves v srpnu mlátí ozim
+  celou prací vsi (≈ 350 čd výmlatu proti ≈ 10 čd trhání) a lnu by chyběl každý rok.
+  **Rodina vojvody** s lnem nepomáhá (pomáhá „se sklizní“ obilí – návrh Clauda) a trhání lnu
+  nepřidá dřinu.
+- **Co srpen nevytrhá, propadne:** 31. 8. se zapíše podíl oděvu = vytrhaný len ÷ potřeba z plánu
+  k 1. 9.; při nedostatku „Chybí len na oděv“ a štěstí až −4 – nikdo nehladoví (obilí nic neztratí,
+  hlídá test). Plán bez potřeby (ves založená během roku, plán z doby zahrádek) oděv nezapíše.
+- **Naměřeno – Vlkov** (kopie stavu, 3 roky od 3. 3. 871, 39–42 lidí; před = len na zahrádkách):
+
+  | rok                        | 871           | 872             | 873             |
+  | -------------------------- | ------------- | --------------- | --------------- |
+  | len oseto (ha / dílů)      | 0,16 / 7 (¹)  | 0,14 / 6        | 0,15 / 7        |
+  | vytrháno                   | 100 %         | 100 %           | 0 %             |
+  | oděv `linen` (před)        | 0,65 (1,00)   | 1,00 (0,72)     | 0,00 (0,63)     |
+  | luštěniny ze zahrádek (kg) | 15 (2)        | 39 (6)          | 31 (4)          |
+  | žeň obilí (kg, před)       | 8 090 (8 090) | 13 713 (14 279) | 17 743 (18 672) |
+  | dny přídělu (před)         | 61 (70)       | 213 (213)       | 0 (0)           |
+
+  (¹) len z plánu uloženého před zahrádkami (díly s úrodností 4–56); zahrádka už len nedá – oděv
+  0,65. V roce 873 velká žeň jaře zabrala celý srpen a na len nezbylo nic (obilí přednost). Žeň
+  obilí o 4–5 % nižší – nejspíš štěstí bez lnu (871 a 873) ubírá práci vsi, takže ves v říjnu 871
+  zasela o ≈ 2 ha ozimu méně; zásoby 31. 12. o 0,6–1,8 % nižší, lidí stejně.
+
+Dřívější stav:
+
+**Zrušeno 9. 11. 2026 odpoledne, večer znovu na poli – len z polí vyřazený.** Martin (9. 11. 2026): „Nebylo by lepší, kdyby si lidé řešili len
 sami podobně, jako luštěniny?“ a „Ano“ k návrhu Clauda – len pěstuje domácnost na zahrádce u obydlí
 (Zahrádka u obydlí výš). Výběr dílů len nepřidělí, potřeba lnu se do plánu k 1. 9. nezapisuje;
 potřeba, výnos, práce, okna a vyčerpání půdy níž platí už jen pro dorůstající len starších vsí

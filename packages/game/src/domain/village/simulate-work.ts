@@ -223,13 +223,16 @@ export function fieldTasks(
     return allowed;
   };
   const add = (crop: Crop, work: CropWork, name: CropTask): void => {
-    const end =
+    const windowEnd =
       windowEndOf(cropTaskWindows(crop, name), month) ??
       (name === 'sow' && springSowingExtended(state, day, crop) ? month : null);
-    if (end === null) return;
+    if (windowEnd === null) return;
     const order =
       TASK_ORDER.indexOf(name === 'plough' ? 'dig' : name) - (name === 'plough' ? 0.5 : 0);
-    const rank = CROP_ORDER.indexOf(crop) * TASK_ORDER.length + order;
+    // trhání lnu až za žněmi obilí (`flaxHarvestOrder`)
+    const { end, rank } = flaxHarvest(crop, name)
+      ? flaxHarvestOrder(month)
+      : { end: windowEnd, rank: CROP_ORDER.indexOf(crop) * TASK_ORDER.length + order };
     let remaining = cropTaskRemaining(work, name);
     // příprava půdy jaře jen na díly, na které je osivo (`seedPrepShares`)
     const prep =
@@ -306,6 +309,24 @@ export function fieldTasks(
       (e.name === 'sow' &&
         entries.some((t) => t.work === e.work && (t.sowRatio ?? 0) > 0 && t.remaining > 0)),
   );
+}
+
+/** Úloha je trhání lnu – jde za žněmi obilí (`flaxHarvestOrder`; fields.md – Len). */
+function flaxHarvest(crop: Crop, name: CropTask): boolean {
+  return crop === 'flax' && name === 'harvest';
+}
+
+/**
+ * Místo trhání lnu v pořadí úloh dne (fields.md – Len; Martin 9. 11. 2026: „Sklízí se v srpnu, ale
+ * obilí má vždy absolutní přednost – pokud se nesklidí len, tak lidé budou maximálně chodit
+ * v potrhaných šatech, ale neumřou hlady“): za všemi žněmi obilí (žeň a odnos – i jař, jejíž okno
+ * běží do září), za výmlatem na dnešní jídlo a výmlatem, jehož okno tento měsíc končí; před
+ * výmlatem, jehož okno běží i příští měsíc – snopy v okně čekají bez ztráty (návrh Clauda: Vlkov
+ * mlátí v srpnu ozim celou prací vsi a za výmlatem by len nevytrhal nikdy). Konec okna jako úlohy
+ * příštího měsíce, pořadí těsně před výmlatem (`THRESH_RANK`).
+ */
+function flaxHarvestOrder(month: number): { end: number; rank: number } {
+  return { end: month + 1, rank: THRESH_RANK - 0.5 };
 }
 
 /**
@@ -680,14 +701,19 @@ export function work(
       ),
       minimumShare: chores.minimumShare,
       daylight,
-      // setí týž den hned za orbou a motykou (`FieldTaskEntry.sowRatio`) – práce úlohy setí plodiny
+      // setí týž den hned za orbou a motykou (`FieldTaskEntry.sowRatio`) – práce úlohy setí plodiny;
+      // s trháním lnu rodina vojvody nepomáhá (fields.md – Len, návrh Clauda)
       tasks: dayTasks.map(({ name, remaining, field }) => {
         const ratio = field?.sowRatio ?? 0;
         const index =
           ratio > 0
             ? dayTasks.findIndex((t) => t.name === 'sow' && t.field?.work === field?.work)
             : -1;
-        return index >= 0 ? { name, remaining, follow: { index, ratio } } : { name, remaining };
+        const noLordHelp =
+          field && flaxHarvest(field.crop, field.name) ? { noLordHelp: true as const } : {};
+        return index >= 0
+          ? { name, remaining, follow: { index, ratio }, ...noLordHelp }
+          : { name, remaining, ...noLordHelp };
       }),
       potteryCoverage: coverage.pottery,
       productivity,
@@ -1143,15 +1169,18 @@ export function work(
     (sum, task) => sum + task.amount,
     threshing.floor + threshing.ground,
   );
+  // trhání lnu dřinu nepřidá – jde jen z práce, která po obilí zbude (fields.md – Len, návrh Clauda)
   const seasonTasks = [
-    ...owned.map((task) => ({
-      remaining: cropTaskRemaining(task.work, task.name),
-      endDay:
-        windowEndDay(cropTaskWindows(task.crop, task.name), day) ??
-        (task.name === 'sow' && springSowingExtended(state, day, task.crop)
-          ? day + WEATHER_EFFECTS.longWinterSpringSowExtraDays - dateOfDayIndex(day).day
-          : day),
-    })),
+    ...owned
+      .filter((task) => !flaxHarvest(task.crop, task.name))
+      .map((task) => ({
+        remaining: cropTaskRemaining(task.work, task.name),
+        endDay:
+          windowEndDay(cropTaskWindows(task.crop, task.name), day) ??
+          (task.name === 'sow' && springSowingExtended(state, day, task.crop)
+            ? day + WEATHER_EFFECTS.longWinterSpringSowExtraDays - dateOfDayIndex(day).day
+            : day),
+      })),
     ...threshSeasonTasks(state, day),
   ];
   return { toil: isToilDay(seasonTasks, pace, day), lordField };

@@ -22,7 +22,7 @@ import {
 import { seasonCrops } from '../year-plan';
 import { horse, horseVillage, LORD_ID, SON_ID, START, YOUTH_ID } from './horse-fixtures';
 import { dwelling } from './kin-fixtures';
-import { withBuiltFirstDwelling } from './village-fixtures';
+import { flaxIntoSpring, withBuiltFirstDwelling } from './village-fixtures';
 
 // Obrana polí (wildlife.md – Obrana polí): jezdecká hlídka objížďkou polí, noční hlídka vesničanů
 // (staří a výrostci napřed, dospělí z práce vsi nad ně), úlovek z hlídky, determinismus po kouscích.
@@ -71,7 +71,8 @@ function guardVillage(horses: number, dogs: number, areaM2 = 5000): VillageState
     p.state = 'sown';
     p.crop = 'spring';
   });
-  s = advanceVillage(s, JUNE - 1, null);
+  // len na poli (fields.md – Len) – testy počítají s obilím na všech osetých dílech
+  s = flaxIntoSpring(advanceVillage(s, JUNE - 1, null));
   cerealsOf(s).forEach((w) => (w.done.sow = w.required.sow));
   // dvorec a koně z fixtury, posunuté o rok (věk ke dni 1. 6. 600 = věk fixtury)
   const list = Array.from({ length: horses }, (_, i) => ({
