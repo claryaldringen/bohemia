@@ -62,6 +62,7 @@ import {
   sightAlarms,
   type AlarmIntentBody,
 } from './alarm';
+import { decideAlarms } from './alarm-steward';
 import {
   catchMessengers,
   moveMessengers,
@@ -273,11 +274,13 @@ function campaignTick(
       break;
   }
   // po pohybu: spatření vesničany (varování – Úloha 2 plánu 2026-11-09), posli (pohyb, chycení –
-  // Úloha 5), skupiny uprchlíků (pohyb, dostižení – Úloha 8), pak dny nájezdu
+  // Úloha 5), rozhodnutí správce a NPC (Úloha 11), skupiny uprchlíků (pohyb, dostižení – Úloha 8),
+  // pak dny nájezdu
   if (s.phase !== 'assembling' && s.phase !== 'done') {
     sightAlarms(s, tick, ctx, out);
     moveMessengers(s, ctx, out);
     catchMessengers(s, ctx, out);
+    decideAlarms(s, tick, ctx, out);
     moveFlights(s, ctx, out);
     catchFlights(s, ctx, out);
     watchVillages(s, ctx, out);

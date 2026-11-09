@@ -565,7 +565,11 @@ zásoby a cennosti a utekli do nejbližšího hradiště“).
   vesnice, či je ukryje někde v lese na mapě.“ (Martin 9. 11. 2026) – volba hráče.
 - **Správce za nepřítomného hráče** (návrh Clauda, Martin 9. 11. 2026: „ano platí“): jakmile ves
   vojsko spatří, pošle posla do hradiště pána; lidi evakuuje do hradiště, když tam podle
-  vzdálenosti stihnou dojít dřív než vojsko, jinak je ukryje v lese na mapě.
+  vzdálenosti stihnou dojít dřív než vojsko, jinak je ukryje v lese na mapě. Ves se zapnutým
+  správcem a vsi NPC rodů rozhodnou hned; ves bez správce čeká na rozhodnutí hráče nejvýš 1 herní
+  den (≈ 86 s), pak se zařídí podle tohoto pravidla (návrh Clauda, Martin 9. 11. 2026: „Ok, nechme
+  to, jak jsi navrhl“). Posel za správce je vždy vesničan pěšky; nemá-li ves vesničana, jde muž
+  rodu – na koni, umí-li jezdit (Martin 9. 11. 2026: „Ano“).
 - **Co si vezmou:** Martin 9. 11. 2026: „To rozhodne hráč. Někdy může rozhodnout, ať se evakuují
   jenom lidé (spasí holý život), pokud usoudí, že je dost času, tak nechá lidi vzít vše, co unesou,
   a sehnat dobytek.“ – dvě volby: **jen lidé** (rychle), nebo **lidé s tím, co unesou, a stáda**
