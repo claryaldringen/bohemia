@@ -1,5 +1,5 @@
 import type { DwellingType } from '../village/types';
-import type { GridCell } from '../village/world-grid';
+import { sameCell, type GridCell } from '../village/world-grid';
 import type { BattleOutcome, Fighter, FighterState } from './battle';
 import type {
   CampaignMemberStatus,
@@ -81,6 +81,23 @@ export interface CampaignViewGroup {
   own: boolean;
 }
 
+/**
+ * Skupina uprchlíků nebo posel cizí vsi v dohledu vlastních mužů (war.md – Varování, poslové a útěk
+ * do hradiště; Ú14 – ikona na mapě tažení): kde je, kolik lidí a kusů dobytka – nic dalšího.
+ */
+export interface CampaignViewFlight {
+  refId: string;
+  kind: 'refugees' | 'messenger';
+  cell: GridCell;
+  pos: Pos;
+  /** Lidí (posel 1). */
+  people: number;
+  /** Kusů dobytka (posel 0). */
+  herd: number;
+  /** Posel na koni. */
+  mounted: boolean;
+}
+
 /** Pohled hráče na tažení – jen co smí vidět. */
 export interface CampaignView {
   id: string;
@@ -102,6 +119,11 @@ export interface CampaignView {
   men: CampaignViewMan[];
   allies: CampaignViewAlly[];
   foreign: CampaignViewForeign[];
+  /**
+   * Skupiny uprchlíků a běžící poslové v dohledu vlastních mužů na nohou (na kterékoli mapě; mimo
+   * mapu cíle dohled jako v lese). Chybí – žádné.
+   */
+  flights?: CampaignViewFlight[];
   discovered: CampaignViewBuilding[];
   /** Volba ke vzdaným (u živého vedení). */
   surrendered: SurrenderOrder | null;
@@ -207,6 +229,7 @@ export function campaignView(state: CampaignState, input: CampaignViewInput): Ca
       pos: { ...f.pos },
     });
   }
+  const flights = flightsInSight(state, men, input.grid);
   const known = new Set(state.discovered);
   const discovered = input.buildings
     .filter((b) => known.has(b.id))
@@ -236,9 +259,63 @@ export function campaignView(state: CampaignState, input: CampaignViewInput): Ca
     men,
     allies,
     foreign,
+    ...(flights.length > 0 ? { flights } : {}),
     discovered,
     surrendered: state.surrendered ?? null,
     battle: state.battle ? { outcome: state.battle.outcome } : null,
     returnReason: state.returnReason,
   };
+}
+
+/**
+ * Skupiny uprchlíků na cestě a běžící poslové v dohledu (`inSight`) vlastních mužů na nohou na téže
+ * mapě – mřížka jen na mapě cíle, jinde dohled jako v lese (raději skryje víc). Mlha jako ve scéně
+ * (`warSceneView`): ukrytí v lese, skupina v hradišti a posel v cíli vidět nejsou.
+ */
+function flightsInSight(
+  state: CampaignState,
+  men: readonly CampaignViewMan[],
+  grid: MarchGrid | null,
+): CampaignViewFlight[] {
+  const alarm = state.alarm;
+  if (!alarm) return [];
+  const eyes = men.filter(
+    (m) =>
+      m.status === 'active' &&
+      (m.fight === null || m.fight === 'fight' || m.fight === 'breach' || m.fight === 'climb'),
+  );
+  const sees = (cell: GridCell, pos: Pos): boolean =>
+    eyes.some(
+      (m) =>
+        m.cell.x === cell.x &&
+        m.cell.y === cell.y &&
+        inSight(sameCell(cell, state.target.cell) ? grid : null, m.pos, pos),
+    );
+  const out: CampaignViewFlight[] = [];
+  for (const f of alarm.flights) {
+    if (f.status !== 'marching' || !sees(f.cell, f.pos)) continue;
+    const lost = new Set(f.lost ?? []);
+    out.push({
+      refId: f.refId,
+      kind: 'refugees',
+      cell: { ...f.cell },
+      pos: { ...f.pos },
+      people: f.people.filter((p) => !lost.has(p.id)).length,
+      herd: Object.values(f.herd).reduce((n, k) => n + k, 0),
+      mounted: false,
+    });
+  }
+  for (const m of alarm.messengers) {
+    if (m.status !== 'running' || !sees(m.cell, m.pos)) continue;
+    out.push({
+      refId: m.refId,
+      kind: 'messenger',
+      cell: { ...m.cell },
+      pos: { ...m.pos },
+      people: 1,
+      herd: 0,
+      mounted: m.mounted,
+    });
+  }
+  return out;
 }

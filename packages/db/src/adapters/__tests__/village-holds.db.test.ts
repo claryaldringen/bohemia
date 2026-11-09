@@ -5,7 +5,15 @@ import path from 'node:path';
 import { sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { CURRENT_LAYER_VERSIONS, foundVillage, type CampaignState } from '@bohemia/game';
+import {
+  CURRENT_LAYER_VERSIONS,
+  foundVillage,
+  type AlarmFlight,
+  type AlarmMessenger,
+  type AlarmVillage,
+  type CampaignAlarm,
+  type CampaignState,
+} from '@bohemia/game';
 import { createDatabase } from '../../client';
 import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
@@ -143,6 +151,19 @@ describe('VillageHolds a přednostní vsi', () => {
     expect(limits.get(ids.far)).toBe(DAY - 3);
   });
 
+  it('bod bez varování i s prázdným varováním – meze jako dřív (Ú3 f)', async () => {
+    const repo = createCampaignRepository(db);
+    await repo.create(campaign({ alarm: alarm({}) }), NOW);
+    const all = [ids.near, ids.adjacent, ids.far];
+    expect(await holds.limitOf(all)).toEqual(
+      new Map([
+        [ids.near, DAY - 1],
+        [ids.adjacent, DAY - 1],
+      ]),
+    );
+    expect((await villagesNearCampaigns(db)).sort()).toEqual([ids.near, ids.adjacent].sort());
+  });
+
   it('fronta: ves na mezi není pozadu, hráč s vsí pod mezí jde první', async () => {
     const queue = createWorldQueue(db);
     const today = DAY + 3;
@@ -157,5 +178,132 @@ describe('VillageHolds a přednostní vsi', () => {
     expect(await queue.behind(today, 5, below)).toEqual([
       { playerId: 'd', today, oldestDay: LAST },
     ]);
+  });
+});
+
+// Varování a útěk do hradiště (plán 2026-11-09 – Úloha 3; war.md – Varování, poslové a útěk do
+// hradiště): tažení drží i vsi ve varování, hostitele skupin uprchlíků, kandidáty hradišť a vsi
+// u běžícího posla – mez = `throughDay` jako u skupin vojska.
+
+const PLACE = { cell: { x: 5, y: 0 }, pos: { x: 0, z: 0 } };
+
+function alarm(extra: Partial<CampaignAlarm>): CampaignAlarm {
+  return { villages: [], messengers: [], flights: [], nextRef: 0, ...extra };
+}
+
+function alarmVillage(villageId: string, extra: Partial<AlarmVillage> = {}): AlarmVillage {
+  return {
+    villageId,
+    owner: { playerId: 'd', npc: false, houseId: null },
+    seenTick: 3_399_999_000,
+    seenAt: PLACE,
+    warnTick: 3_399_999_500,
+    by: 'villager',
+    ...extra,
+  };
+}
+
+function flight(hostVillageId: string | null, extra: Partial<AlarmFlight> = {}): AlarmFlight {
+  return {
+    ...PLACE,
+    route: [],
+    leg: null,
+    target: PLACE,
+    refId: `${CAMPAIGN}:a0`,
+    villageId: 'x',
+    mode: 'people',
+    hostVillageId,
+    people: [{ id: 1, bornDay: 0, man: true, line: false }],
+    foodKg: 0,
+    herd: { sheep: 0, goat: 0, pig: 0, cow: 0 },
+    carts: 0,
+    status: 'marching',
+    departTick: 3_399_999_600,
+    ...extra,
+  };
+}
+
+function messenger(x: number, status: AlarmMessenger['status']): AlarmMessenger {
+  return {
+    cell: { x, y: 0 },
+    pos: { x: 0, z: 0 },
+    route: [],
+    leg: null,
+    target: PLACE,
+    refId: `${CAMPAIGN}:a1`,
+    fromVillageId: 'x',
+    personId: 1,
+    toVillageId: 'y',
+    mounted: false,
+    status,
+    departTick: 3_399_999_600,
+  };
+}
+
+/** Tažení se skupinou daleko od všech vsí (políčko 0) – drží jen varování. */
+function alarming(a: CampaignAlarm, extra: Partial<CampaignState> = {}): CampaignState {
+  const base = campaign(extra);
+  return { ...base, groups: base.groups.map((g) => ({ ...g, cell: { x: 0, y: 0 } })), alarm: a };
+}
+
+describe('VillageHolds – varování (Ú3)', () => {
+  it('ves ve varování daleko od vojska drží do throughDay a jde přednostně (a)', async () => {
+    await createCampaignRepository(db).create(
+      alarming(alarm({ villages: [alarmVillage(ids.far)] })),
+      NOW,
+    );
+    const all = [ids.near, ids.adjacent, ids.far];
+    expect(await holds.limitOf(all)).toEqual(new Map([[ids.far, DAY - 1]]));
+    expect(await villagesNearCampaigns(db)).toEqual([ids.far]);
+  });
+
+  it('hostitel skupiny uprchlíků na cestě drží; skupina do lesa nic (b)', async () => {
+    await createCampaignRepository(db).create(
+      alarming(alarm({ flights: [flight(ids.adjacent), flight(null, { refId: 'z' })] })),
+      NOW,
+    );
+    expect(await holds.limitOf([ids.near, ids.adjacent, ids.far])).toEqual(
+      new Map([[ids.adjacent, DAY - 1]]),
+    );
+  });
+
+  it('kandidát hradiště cizí vsi (id mimo uuid) drží (c)', async () => {
+    await createCampaignRepository(db).create(
+      alarming(alarm({ villages: [alarmVillage('x', { hosts: [ids.near, 'ne-uuid'] })] })),
+      NOW,
+    );
+    expect(await holds.limitOf([ids.near, ids.adjacent, ids.far])).toEqual(
+      new Map([[ids.near, DAY - 1]]),
+    );
+    expect(await villagesNearCampaigns(db)).toEqual([ids.near]);
+  });
+
+  it('běžící posel drží vsi na své mapě a políčko od ní, doběhlý ne (návrh Clauda)', async () => {
+    const repo = createCampaignRepository(db);
+    await repo.create(
+      alarming(alarm({ messengers: [messenger(7, 'running'), messenger(4, 'arrived')] })),
+      NOW,
+    );
+    expect(await holds.limitOf([ids.near, ids.adjacent, ids.far])).toEqual(
+      new Map([
+        [ids.adjacent, DAY - 1],
+        [ids.far, DAY - 1],
+      ]),
+    );
+  });
+
+  it('skončené tažení varováním nedrží (d)', async () => {
+    await createCampaignRepository(db).create(
+      alarming(
+        alarm({
+          villages: [alarmVillage(ids.far, { hosts: [ids.near] })],
+          flights: [flight(ids.adjacent)],
+        }),
+        { phase: 'done' },
+      ),
+      NOW,
+    );
+    expect(await holds.limitOf([ids.near, ids.adjacent, ids.far])).toEqual(new Map());
+    expect(await villagesNearCampaigns(db)).toEqual([]);
   });
 });

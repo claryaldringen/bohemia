@@ -93,6 +93,20 @@ export function lootTotals(loot: RaidLoot): { foodKg: number; herd: number } {
   return { foodKg: loot.grainKg + loot.legumesKg + loot.meatKg + loot.cheeseKg, herd };
 }
 
+/**
+ * Součet dvou kořistí po druzích (kořist z dostižené skupiny uprchlíků a z nájezdu – Úloha 8 plánu
+ * 2026-11-09).
+ */
+export function sumLoot(a: RaidLoot, b: RaidLoot): RaidLoot {
+  const out = noLoot();
+  out.grainKg = a.grainKg + b.grainKg;
+  out.legumesKg = a.legumesKg + b.legumesKg;
+  out.meatKg = a.meatKg + b.meatKg;
+  out.cheeseKg = a.cheeseKg + b.cheeseKg;
+  for (const sp of SPECIES) out.livestock[sp] = a.livestock[sp] + b.livestock[sp];
+  return out;
+}
+
 // --- Kořist (tažení) --------------------------------------------------------------------------
 
 export interface RaidLootInput {
@@ -285,7 +299,7 @@ export function guardPrisonerKey(
 }
 
 /** Zajme osobu (mutuje): `away` zajetí u věznitele; zajatý vojvoda – ves řídí správce. */
-function markCaptive(
+export function markCaptive(
   state: VillageState,
   day: number,
   p: Person,

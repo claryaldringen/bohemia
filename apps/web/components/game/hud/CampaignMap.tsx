@@ -4,14 +4,15 @@ import { useState, type CSSProperties, type MouseEvent, type ReactElement } from
 import type { GroupOrder, LeaderTarget, Pos, SurrenderOrder } from '@bohemia/game';
 import { useCampaign } from '@/hooks/use-campaign';
 import { useArmyActions } from '@/hooks/use-army';
-import type { CampaignView } from '@/lib/campaign-view';
+import type { CampaignView, CampaignViewFlight } from '@/lib/campaign-view';
 import { watchCellOf } from '@/lib/war-scene-view';
 import { Tooltip } from './Tooltip';
 
 // Mapa tažení (war.md – Na mapě s vojskem, Mlha války; plán 2026-11-03 – Úloha 6.14): minimální
 // pohled shora na mapu, na které stojí velitel – vlastní muži, spojenci, cizí v dohledu a objevené
 // stavby jako značky. Klik na mapu = velitel jde (záměr na takt teď + 2), klik na cizího = napadne,
-// klik na stavbu = jde k ní. Tlačítko oka přepne 3D scénu na cizí mapu, na které vojsko stojí,
+// klik na stavbu = jde k ní. Uprchlíci a poslové cizích vsí v dohledu jsou ikony varování (plán
+// 2026-11-09 – Ú14, Ú15). Tlačítko oka přepne 3D scénu na cizí mapu, na které vojsko stojí,
 // a zpět na ves (war.md – Ve scéně – cizí mapa; `ArmyActions.scene` z kontextu).
 
 type Result = Promise<{ ok: true } | { error: string }>;
@@ -54,6 +55,60 @@ const EYE_ICON: CSSProperties = {
   WebkitMaskPosition: 'center',
   verticalAlign: '-0.125em',
 };
+
+/** Strana ikony uprchlíků a posla na mapě (m) – mapa má 1920 m, velitel má průměr 68 m. */
+const FLIGHT_ICON_M = 110;
+
+/** Ikona skupiny – stejné jako volby v panelu vsi (`AlarmButtons`), jen zmenšené. */
+function flightIcon(f: CampaignViewFlight): string {
+  if (f.kind === 'messenger') return '/icons/war/alarm-messenger.png';
+  return f.herd > 0 ? '/icons/war/alarm-all.png' : '/icons/war/alarm-people.png';
+}
+
+/** Popisek ikony (jen při najetí myší – `title`). */
+function flightLabel(f: CampaignViewFlight): string {
+  if (f.kind === 'messenger') return f.mounted ? 'Posel na koni' : 'Posel';
+  return f.herd > 0
+    ? `Uprchlíci – lidí ${f.people}, dobytka ${f.herd}`
+    : `Uprchlíci – lidí ${f.people}`;
+}
+
+/**
+ * Skupiny uprchlíků a běžící poslové cizích vsí v dohledu vlastních mužů na ukázané mapě
+ * (`CampaignView.flights`, war.md – Varování, poslové a útěk do hradiště): ikona varování na
+ * místě skupiny, počty jen v popisku.
+ */
+export function FlightMarks({
+  flights,
+  here,
+}: {
+  flights: readonly CampaignViewFlight[] | undefined;
+  here: (c: { x: number; y: number }) => boolean;
+}): ReactElement | null {
+  const shown = (flights ?? []).filter((f) => here(f.cell));
+  if (shown.length === 0) return null;
+  const h = FLIGHT_ICON_M / 2;
+  return (
+    <g data-testid="campaign-flights">
+      {shown.map((f) => (
+        <image
+          key={f.refId}
+          data-testid={`campaign-flight-${f.kind}`}
+          data-people={f.people}
+          data-herd={f.herd}
+          href={flightIcon(f)}
+          x={f.pos.x - h}
+          y={f.pos.z - h}
+          width={FLIGHT_ICON_M}
+          height={FLIGHT_ICON_M}
+          aria-label={flightLabel(f)}
+        >
+          <title>{flightLabel(f)}</title>
+        </image>
+      ))}
+    </g>
+  );
+}
 
 /** Políčko, jehož mapu ukázat: velitelovo, jinak prvního vlastního muže, jinak mapa cíle. */
 function shownCell(view: CampaignView): { x: number; y: number } {
@@ -275,6 +330,7 @@ export function CampaignMap({
               onClick={lead({ kind: 'fighter', id: f.id })}
             />
           ))}
+        <FlightMarks flights={view.flights} here={here} />
         {goal && (
           <g data-testid="campaign-goal" data-x={goal.x.toFixed(0)} data-z={goal.z.toFixed(0)}>
             <line

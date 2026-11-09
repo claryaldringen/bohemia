@@ -1,7 +1,15 @@
 import { crossingLayers } from '../village/fortification';
 import { ageYears, isAway } from '../village/people';
-import type { DwellingType, Position, VillageState, WallKind } from '../village/types';
+import type {
+  DwellingType,
+  FlightMode,
+  Position,
+  RefugeePerson,
+  VillageState,
+  WallKind,
+} from '../village/types';
 import { sameCell, type GridCell } from '../village/world-grid';
+import type { AlarmMover } from './alarm-types';
 import type {
   BattleBreach,
   BattleFort,
@@ -11,7 +19,7 @@ import type {
   BattleState,
   Fighter,
 } from './battle';
-import type { CampaignGroup, CampaignMember, CampaignState } from './campaign-types';
+import type { CampaignGroup, CampaignLeg, CampaignMember, CampaignState } from './campaign-types';
 import { houseGroups } from './defenders';
 import { nearestForest } from './flight';
 import type { BattleLadder } from './ladders';
@@ -131,6 +139,42 @@ export interface WarSceneFlight {
   herd: number;
 }
 
+/** Člověk v průvodu uprchlíků – jen vzhled: postava, dítě, nese zásoby. */
+export type WarSceneRefugee = Pick<WarSceneFolk, 'kind' | 'child' | 'carries'>;
+
+/**
+ * Průvod uprchlíků na mapě (war.md – Varování, poslové a útěk do hradiště: evakuace; `AlarmFlight`)
+ * – hlouček lidí s nákladem, za nimi stádo a vozy. Vlastní (`own` – ves hráče) vidí hráč vždy,
+ * cizí jen v dohledu vlastních očí.
+ */
+export interface WarSceneRefugeMarch {
+  refId: string;
+  /** Skupina z vsi hráče, který se dívá. */
+  own: boolean;
+  mode: FlightMode;
+  pos: Pos;
+  /** Směr chůze (jednotkový) – k dalšímu bodu úseku, jinak k cíli. */
+  heading: Pos;
+  /** Jdou (`marching`); false – stojí ukrytí u lesa (`hidden`, jen vlastní). */
+  moving: boolean;
+  /** Kdo jde (bez padlých a odvedených – `lost`), vzestupně podle id. */
+  people: WarSceneRefugee[];
+  /** Hnaný dobytek (kusů všech druhů). */
+  herd: number;
+  /** Vozy se spřežením. */
+  carts: number;
+}
+
+/** Posel na mapě (`AlarmMessenger`, jen běžící) – jedna postava během, nebo jezdec. */
+export interface WarSceneMessenger {
+  refId: string;
+  /** Posel z vsi hráče, který se dívá. */
+  own: boolean;
+  pos: Pos;
+  heading: Pos;
+  mounted: boolean;
+}
+
 /** Dům cílové vsi, který útočník objevil (`CampaignState.discovered`) – jen co scéna kreslí. */
 export interface WarSceneBuilding {
   id: number;
@@ -161,6 +205,13 @@ export interface WarSceneView {
    * (`breakoutChoice`). Chybí – ves nemá opevnění s branou, nebo se nebojuje.
    */
   breakout?: { blocked: BreakoutBlock | null };
+  /**
+   * Průvody uprchlíků na mapě (Ú14): vlastní vždy, cizí jen v dohledu (`inSight`). Chybí – žádný
+   * vidět není.
+   */
+  refugeMarch?: WarSceneRefugeMarch[];
+  /** Běžící poslové na mapě – vlastní vždy, cizí jen v dohledu. Chybí – žádný vidět není. */
+  messengers?: WarSceneMessenger[];
 }
 
 /** Vstup: mapa, strana hráče, mřížka mapy (dohled v lese) a oči mimo boj (domy vsi obránce). */
@@ -177,6 +228,11 @@ export interface WarSceneInput {
   buildings?: readonly WarSceneBuilding[];
   /** Lidé napadené vsi (`sceneFolkOf`) – jen obránce, pro útěk do lesa. */
   folk?: readonly WarSceneFolk[];
+  /**
+   * Hráč, který se dívá – skupiny uprchlíků a posly svých vsí (`AlarmVillage.owner`) vidí vždy;
+   * chybí – všechny jen v dohledu.
+   */
+  playerId?: string;
 }
 
 /**
@@ -230,7 +286,8 @@ export function warSceneView(state: CampaignState, input: WarSceneInput): WarSce
   const battle = shown ? battleView(shown, state.day, input, fight === null) : null;
   // po konci boje se kreslí pochod – vojsko jde dál (vedle padlých do konce dne)
   const march = fight ? null : marchView(state, input);
-  if (!battle && !march) return null;
+  const alarm = alarmView(state, input, shown);
+  if (!battle && !march && !alarm.refugeMarch && !alarm.messengers) return null;
   const view: WarSceneView = {
     campaignId: state.id,
     tick: state.tick,
@@ -256,6 +313,8 @@ export function warSceneView(state: CampaignState, input: WarSceneInput): WarSce
   if (flight) view.flight = flight;
   const breakout = side === 'defend' && shown ? breakoutChoice(shown, input.forts) : null;
   if (breakout) view.breakout = { blocked: 'blocked' in breakout ? breakout.blocked : null };
+  if (alarm.refugeMarch) view.refugeMarch = alarm.refugeMarch;
+  if (alarm.messengers) view.messengers = alarm.messengers;
   return view;
 
   function marchView(s: CampaignState, inp: WarSceneInput): WarSceneMarch | null {
@@ -452,14 +511,123 @@ function battleView(
 
 /** Směr chůze skupiny – k dalšímu bodu úseku pochodu, stojí-li k cíli, jinak na sever. */
 function headingOf(g: CampaignGroup): Pos {
-  const next = g.leg?.points.find((p) => {
-    const px = p.x - g.pos.x;
-    const pz = p.z - g.pos.z;
+  return moverHeading(g.pos, g.leg, g.goal?.pos ?? null);
+}
+
+/**
+ * Směr chůze z `pos` – k dalšímu bodu úseku `leg` před ušlými metry (`walkedM`) dál než 1 m, jinak
+ * k `goal`, jinak na sever.
+ */
+function moverHeading(pos: Pos, leg: CampaignLeg | null, goal: Pos | null): Pos {
+  const next = leg?.points.find((p, i) => {
+    if ((leg.meadowM[i] ?? 0) <= leg.walkedM) return false;
+    const px = p.x - pos.x;
+    const pz = p.z - pos.z;
     return px * px + pz * pz > 1;
   });
-  const to = next ?? g.goal?.pos ?? { x: g.pos.x, z: g.pos.z + 1 };
-  const dx = to.x - g.pos.x;
-  const dz = to.z - g.pos.z;
+  const to = next ?? goal ?? { x: pos.x, z: pos.z + 1 };
+  const dx = to.x - pos.x;
+  const dz = to.z - pos.z;
   const d = Math.sqrt(dx * dx + dz * dz);
   return d > 1e-9 ? { x: dx / d, z: dz / d } : { x: 0, z: 1 };
+}
+
+/** Kam jde posel nebo skupina uprchlíků na své mapě (`AlarmMover`) – cíl jen na mapě cíle. */
+function alarmHeading(m: AlarmMover): Pos {
+  return moverHeading(m.pos, m.leg, sameCell(m.target.cell, m.cell) ? m.target.pos : null);
+}
+
+/**
+ * Odkud strana vidí na mapě `input.cell` (mlha jako `campaignView`): oči `eyes` (u obránce domy),
+ * vlastní bojovníci na nohou v boji na mapě a u útočníka skupiny s aktivním mužem.
+ */
+function sightEyes(state: CampaignState, input: WarSceneInput, shown: BattleState | null): Pos[] {
+  const eyes: Pos[] = [...input.eyes];
+  for (const f of shown?.fighters ?? []) {
+    if (f.side === input.side && STANDING.has(f.state)) eyes.push(f.pos);
+  }
+  if (input.side === 'attack') {
+    const active = new Set(state.members.filter((m) => m.status === 'active').map((m) => m.group));
+    for (const g of state.groups) {
+      if (active.has(g.id) && sameCell(g.cell, input.cell)) eyes.push(g.pos);
+    }
+  }
+  return eyes;
+}
+
+/**
+ * Vzhled uprchlíka v den `day`: skupina pohlaví nenese – muž od 16 let (`man`), jiná dospělá je
+ * žena, dítě podle id (návrh Clauda – jen vzhled); zásoby nese od `WAR.flight.childFromYears`,
+ * „jen lidé“ nenesou nic.
+ */
+function refugeeLook(p: RefugeePerson, mode: FlightMode, day: number): WarSceneRefugee {
+  const age = ageYears(p.bornDay, day);
+  const child = age < WAR.flight.adultFromYears;
+  const kind = p.man || (child && p.id % 2 === 1) ? 'man' : 'woman';
+  return { kind, child, carries: mode !== 'people' && age >= WAR.flight.childFromYears };
+}
+
+/**
+ * Průvody uprchlíků a běžící poslové na mapě `input.cell` (war.md – Varování, poslové a útěk do
+ * hradiště; Ú14): z vsí hráče `input.playerId` vždy (ukrytí v lese stojí u lesa), cizí jen
+ * v dohledu (`sightEyes`, `inSight`) – ukrytí v lese ani na dohled ne. Skupina v hradišti nebo
+ * dostižená a posel, který doběhl nebo byl chycen, na mapě nejsou.
+ */
+function alarmView(
+  state: CampaignState,
+  input: WarSceneInput,
+  shown: BattleState | null,
+): Pick<WarSceneView, 'refugeMarch' | 'messengers'> {
+  const alarm = state.alarm;
+  if (!alarm) return {};
+  const { cell, grid } = input;
+  const flights = alarm.flights.filter(
+    (f) => sameCell(f.cell, cell) && (f.status === 'marching' || f.status === 'hidden'),
+  );
+  const runners = alarm.messengers.filter((m) => sameCell(m.cell, cell) && m.status === 'running');
+  if (flights.length === 0 && runners.length === 0) return {};
+  const owners = new Map(alarm.villages.map((v) => [v.villageId, v.owner.playerId]));
+  const own = (villageId: string): boolean =>
+    input.playerId !== undefined && owners.get(villageId) === input.playerId;
+  const eyes = sightEyes(state, input, shown);
+  const sees = (p: Pos): boolean => eyes.some((e) => inSight(grid, e, p));
+  const refugeMarch = flights.flatMap((f): WarSceneRefugeMarch[] => {
+    const mine = own(f.villageId);
+    if (!mine && (f.status === 'hidden' || !sees(f.pos))) return [];
+    const lost = new Set(f.lost ?? []);
+    const people = f.people
+      .filter((p) => !lost.has(p.id))
+      .map((p) => refugeeLook(p, f.mode, state.day));
+    if (people.length === 0) return [];
+    return [
+      {
+        refId: f.refId,
+        own: mine,
+        mode: f.mode,
+        pos: { x: f.pos.x, z: f.pos.z },
+        heading: alarmHeading(f),
+        moving: f.status === 'marching',
+        people,
+        herd: Object.values(f.herd).reduce((n, k) => n + k, 0),
+        carts: f.carts,
+      },
+    ];
+  });
+  const messengers = runners.flatMap((m): WarSceneMessenger[] => {
+    const mine = own(m.fromVillageId);
+    if (!mine && !sees(m.pos)) return [];
+    return [
+      {
+        refId: m.refId,
+        own: mine,
+        pos: { x: m.pos.x, z: m.pos.z },
+        heading: alarmHeading(m),
+        mounted: m.mounted,
+      },
+    ];
+  });
+  return {
+    ...(refugeMarch.length > 0 ? { refugeMarch } : {}),
+    ...(messengers.length > 0 ? { messengers } : {}),
+  };
 }

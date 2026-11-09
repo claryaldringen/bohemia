@@ -4,7 +4,7 @@ import {
   refugeAdmit,
   refugeCapacity,
 } from '../village/fortification';
-import type { Arrival } from '../village/fortification';
+import type { Arrival, RefugeResult } from '../village/fortification';
 import { FORTIFICATIONS } from '../village/rules-fortifications';
 import { ageYears, isAway } from '../village/people';
 import type { DefenseStance, HerdSpecies, VillageState } from '../village/types';
@@ -42,6 +42,28 @@ export interface ShelterReport {
   /** Dobytek v útočišti a v lese (kusy podle druhu); zbytek zůstal ve vsi. */
   livestockRefuge: Record<HerdSpecies, number>;
   livestockForest: Record<HerdSpecies, number>;
+  /**
+   * Uprchlíci v hradišti bez mužů (`StanceInput.refugeLoad` – ženy, děti, starší) a jejich dobytek:
+   * kolik je v útočišti a kolik stojí venku (war.md – Varování, poslové a útěk do hradiště – Místo
+   * v hradišti). Muži uprchlíků jsou v `refuge` pod zápornými čísly jako hosté. Chybí bez uprchlíků.
+   */
+  refugees?: RefugeesPlace;
+}
+
+/** Místo uprchlíků v útočišti hradiště (`ShelterReport.refugees`). */
+export interface RefugeesPlace {
+  inside: number;
+  outside: number;
+  herdInside: Record<HerdSpecies, number>;
+  herdOutside: Record<HerdSpecies, number>;
+}
+
+/** Uprchlíci v hradišti, kteří nebojují (`StanceInput.refugeLoad`). */
+export interface RefugeLoad {
+  /** Ženy, děti, starší a ranění muži uprchlíků. */
+  people: number;
+  /** Stáda uprchlíků (pasou se u hradiště – `RefugeStay.herd`). */
+  herd: Record<HerdSpecies, number>;
 }
 
 /** Útočník pro rozhodování vsi – poloha a jezdec. */
@@ -59,11 +81,20 @@ export interface StanceInput {
   attackers: readonly Sighted[];
   field: BattleField;
   /**
-   * Posel z jiné vsi rodu ohlásil vojsko předem (war.md – Obránci, Kdy; `VillageState.armySeen`):
-   * ves se zachovala podle postoje dřív, než vojsko spatřila – do útočiště doběhnou všichni, kdo se
-   * vejdou (brány se zavřou až za nimi).
+   * Ves o vojsku věděla předem – spatřil ho vesničan, nebo ho ohlásil posel (war.md – Varování,
+   * poslové a útěk do hradiště; `isWarned` v tažení, ze starých bodů `VillageState.armySeen`): ves
+   * se zachovala podle postoje dřív – do útočiště doběhnou všichni, kdo se vejdou (brány se zavřou
+   * až za nimi).
    */
   warned?: boolean;
+  /**
+   * Uprchlíci v hradišti, kteří nebojují, a jejich stádo (war.md – Varování, poslové a útěk do
+   * hradiště – Místo v hradišti; plán 2026-11-09, Úloha 9): do útočiště nejbližšího dvorci až za
+   * domácími a muži uprchlíků (obránci `Defender.refugee` – návrh Clauda: muži napřed, obsadí
+   * hradbu), dobytek za dobytkem vsi; co se nevejde, stojí venku (stáda první). Uprchlíci v útočišti
+   * bydlí – brána je nezastaví. Chybí – bez uprchlíků (rozdělení jako dřív).
+   */
+  refugeLoad?: RefugeLoad;
 }
 
 export interface StancePlan {
@@ -116,6 +147,7 @@ export function planDefense(input: StanceInput): StancePlan {
         pos,
         group: home ? (groupOf.get(home.id) ?? 0) : 0,
         age: ageYears(p.bornDay, day),
+        refugee: false,
       };
     });
   // hosté z ochrany jednají se skupinou svého místa (útočiště, les, vzdání) jako dospělí
@@ -126,6 +158,7 @@ export function planDefense(input: StanceInput): StancePlan {
         pos: { ...d.pos },
         group: d.houseGroup,
         age: WAR.flight.adultFromYears,
+        refugee: d.refugee === true,
       });
     }
   }
@@ -140,12 +173,21 @@ export function planDefense(input: StanceInput): StancePlan {
     livestockForest: none(),
   };
   const inRefuge = new Map<number, BattleFort>();
+  const load = input.refugeLoad;
+  if (load) {
+    shelter.refugees = {
+      inside: 0,
+      outside: load.people,
+      herdInside: none(),
+      herdOutside: { ...load.herd },
+    };
+  }
 
   // --- útočiště: nejbližší opevnění s plochou ---
   const forts = field.forts
     .map((bf) => ({ bf, capacity: refugeCapacity(field.geo, bf.fort) }))
     .filter((f) => f.capacity > 0 && f.bf.shapes.length > 0);
-  if (forts.length > 0 && people.length > 0) {
+  if (forts.length > 0 && (people.length > 0 || load)) {
     const nearest = (p: Pos): (typeof forts)[number] =>
       forts.reduce((a, b) => (dist2(b.bf.center, p) < dist2(a.bf.center, p) ? b : a));
     const byFort = new Map<(typeof forts)[number], typeof people>();
@@ -155,11 +197,14 @@ export function planDefense(input: StanceInput): StancePlan {
     }
     const centre = state.dwellings[0]?.position ?? { x: 0, z: 0 };
     const herdFort = nearest({ x: centre.x, z: centre.z });
+    // uprchlíci bydlí v útočišti u dvorce, i když z vsi nikdo nepřiběhne
+    if (load && !byFort.has(herdFort)) byFort.set(herdFort, []);
     let livestockLeft = fleeParty(state, day).livestock;
     for (const [fort, members] of byFort) {
       const close = input.warned ? Infinity : gateCloseTick(fort.bf, attackers);
       const arrivals: Arrival[] = [];
       const order = members
+        .filter((p) => !p.refugee)
         .map((p) => ({ p, tick: ticksFor(Math.sqrt(dist2(p.pos, fort.bf.center))) }))
         .sort((a, b) => a.tick - b.tick || a.p.id - b.p.id);
       for (const o of order)
@@ -179,13 +224,36 @@ export function planDefense(input: StanceInput): StancePlan {
             });
         }
       }
-      const result = refugeAdmit(fort.capacity, arrivals, close);
+      // muži uprchlíků v pořadí hostů (−1, −2, …), ostatní uprchlíci a stádo jen u dvorce
+      const men = members.filter((p) => p.refugee).sort((a, b) => b.id - a.id);
+      const extra = fort === herdFort ? load : undefined;
+      let result: RefugeResult;
+      let menIn = 0;
+      if (men.length === 0 && extra === undefined) {
+        result = refugeAdmit(fort.capacity, arrivals, close);
+      } else {
+        const admitted = admitWithRefugees(fort.capacity, arrivals, close, men.length, extra);
+        result = admitted.home;
+        menIn = admitted.men;
+        if (extra && shelter.refugees) {
+          shelter.refugees = {
+            inside: admitted.people,
+            outside: extra.people - admitted.people,
+            herdInside: admitted.herd,
+            herdOutside: Object.fromEntries(
+              SPECIES.map((sp) => [sp, extra.herd[sp] - admitted.herd[sp]]),
+            ) as Record<HerdSpecies, number>,
+          };
+        }
+      }
       // lidé: stejný druh místa, přijatí jsou první z těch, kdo stihli doběhnout
       const admittedPeople = result.admitted
         .filter((a) => a.kind === 'adult' || a.kind === 'child')
         .reduce((n, a) => n + a.count, 0);
       const early = order.filter((o) => o.tick <= close).slice(0, admittedPeople);
       for (const o of early) inRefuge.set(o.p.id, fort.bf);
+      // muži uprchlíků za domácími – i stanoviště na hradbě dostanou až po nich
+      for (const p of men.slice(0, menIn)) inRefuge.set(p.id, fort.bf);
       for (const a of result.admitted) {
         if (a.kind === 'adult' || a.kind === 'child') continue;
         shelter.livestockRefuge[a.kind as HerdSpecies] += a.count;
@@ -284,6 +352,60 @@ export function planDefense(input: StanceInput): StancePlan {
     }
   }
   return { fighters, shelter };
+}
+
+/**
+ * Útočiště s uprchlíky (war.md – Místo v hradišti; návrh Clauda): napřed lidé vsi (kdo stihne
+ * doběhnout před zavřením brány), pak muži uprchlíků, pak ostatní uprchlíci (bydlí uvnitř – brána
+ * je nezastaví, nic nenesou), pak dobytek vsi a nakonec stádo uprchlíků. Vrací výsledek pro ves
+ * (lidé a dobytek vsi jako `refugeAdmit`) a kolik uprchlíků a jejich kusů se vešlo.
+ */
+function admitWithRefugees(
+  capacityM2: number,
+  arrivals: readonly Arrival[],
+  close: number,
+  men: number,
+  load: RefugeLoad | undefined,
+): { home: RefugeResult; men: number; people: number; herd: Record<HerdSpecies, number> } {
+  const isPerson = (a: Arrival): boolean => a.kind === 'adult' || a.kind === 'child';
+  const homePeople = refugeAdmit(capacityM2, arrivals.filter(isPerson), close);
+  let left = capacityM2 - homePeople.usedM2;
+  const refugees = refugeAdmit(
+    left,
+    [
+      { kind: 'adult', count: men, tick: 0, homeInside: true },
+      { kind: 'adult', count: load?.people ?? 0, tick: 1, homeInside: true },
+    ],
+    Infinity,
+  );
+  left -= refugees.usedM2;
+  const homeHerd = refugeAdmit(
+    left,
+    arrivals.filter((a) => !isPerson(a)),
+    close,
+  );
+  left -= homeHerd.usedM2;
+  const theirHerd = refugeAdmit(
+    left,
+    SPECIES.map((sp) => ({ kind: sp, count: load?.herd[sp] ?? 0, tick: 0 })),
+    Infinity,
+  );
+  const count = (r: RefugeResult, tick: number): number =>
+    r.admitted.filter((a) => a.tick === tick).reduce((n, a) => n + a.count, 0);
+  const herd = none();
+  for (const a of theirHerd.admitted) herd[a.kind as HerdSpecies] += a.count;
+  return {
+    home: {
+      admitted: [...homePeople.admitted, ...homeHerd.admitted],
+      outside: [...homePeople.outside, ...homeHerd.outside],
+      capacityM2,
+      usedM2: homePeople.usedM2 + homeHerd.usedM2,
+      carriedKg: homePeople.carriedKg + homeHerd.carriedKg,
+    },
+    men: count(refugees, 0),
+    people: count(refugees, 1),
+    herd,
+  };
 }
 
 /**

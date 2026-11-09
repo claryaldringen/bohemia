@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { PlayerNotice } from '@bohemia/game';
 import {
   accusativeOf,
+  alarmNoticeVillage,
   mergeNoticeLines,
+  noticeOpener,
   noticePanel,
   isVillageNone,
   wantsPlayerNotices,
@@ -73,6 +75,56 @@ describe('playerNoticeLine', () => {
     const alert = notice({ kind: 'foreign-army', payload: { villageId: 'v-1', name: 'Kněžice' } });
     expect(playerNoticeLine(alert).text).toBe('Cizí vojsko u vsi Kněžice!');
     expect(noticePanel('foreign-army')).toBe('war');
+  });
+
+  it('varování a útěk do hradiště – texty a panel války (war.md, plán 2026-11-09 – Ú1)', () => {
+    const text = (kind: PlayerNotice['kind'], payload: Record<string, unknown>): string =>
+      playerNoticeLine(notice({ kind, payload })).text;
+    expect(text('army-warned', { name: 'Kněžice' })).toBe(
+      'Vesničan spatřil cizí vojsko u vsi Kněžice!',
+    );
+    expect(text('army-warned', {})).toBe('Vesničan spatřil cizí vojsko!');
+    expect(text('refuge-arrived', { name: 'Kněžice', hostName: 'Lhota' })).toBe(
+      'Uprchlíci z vsi Kněžice došli do vsi Lhota.',
+    );
+    expect(text('refuge-arrived', { name: 'Kněžice' })).toBe(
+      'Uprchlíci z vsi Kněžice došli do hradiště.',
+    );
+    expect(text('refuge-caught', { name: 'Kněžice' })).toBe(
+      'Uprchlíci z vsi Kněžice byli dostiženi.',
+    );
+    expect(text('messenger-caught', {})).toBe('Posel byl chycen.');
+    for (const kind of [
+      'army-warned',
+      'refuge-arrived',
+      'refuge-caught',
+      'messenger-caught',
+    ] as const) {
+      expect(noticePanel(kind)).toBe('war');
+      // klik otevře panel dvorce vsi (Úloha 12 – data pro Úlohu 13)
+      expect(alarmNoticeVillage(notice({ kind, payload: { villageId: 'v1' } }))).toBe('v1');
+    }
+    expect(alarmNoticeVillage(notice({ kind: 'foreign-army', payload: { villageId: 'v1' } }))).toBe(
+      null,
+    );
+  });
+
+  it('klik na varování otevře panel dvorce vsi, jiné upozornění svůj panel (Úloha 13)', () => {
+    const village = vi.fn();
+    const panel = vi.fn();
+    noticeOpener(notice({ kind: 'army-warned', payload: { villageId: 'v7' } }), {
+      village,
+      panel,
+    })?.();
+    expect(village).toHaveBeenCalledWith('v7');
+    expect(panel).not.toHaveBeenCalled();
+    noticeOpener(notice({ kind: 'war-declared', payload: {} }), { village, panel })?.();
+    expect(panel).toHaveBeenCalledWith('war');
+    expect(village).toHaveBeenCalledTimes(1);
+    // varování bez vsi v datech – panel války jako dřív
+    noticeOpener(notice({ kind: 'refuge-caught', payload: {} }), { village, panel })?.();
+    expect(panel).toHaveBeenLastCalledWith('war');
+    expect(noticeOpener(notice({ kind: 'player-succession' }), { village, panel })).toBeUndefined();
   });
 
   it('každý druh míří na panel (zatím jen Rod a vazalové)', () => {

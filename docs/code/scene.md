@@ -446,6 +446,19 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   s `BATTLE_DEV_URL`). **Ve hře** (war.md – Ve scéně – napojení na hru): `VillageGame` předává
   `sceneWarOf(useWarScene(sídlo))` – válku na mapě sídla po mlze války ze serveru (napadená ves,
   vlastní vojsko); `setWar` zapíše na plátno `data-war-men` (počet mužů snímku, e2e).
+- **Průvod uprchlíků a posel** (war.md – Varování, poslové a útěk do hradiště, Ve scéně; Ú14;
+  `refugee-march.ts` čisté, kreslí `army-renderer.ts`): `SceneWar.alarm` (`SceneAlarm` – takt
+  snímku, průvody `SceneRefugees`, poslové `SceneMessenger`; web `alarmOf`). Lidé vsi jdou hloučkem
+  (`huddleSlots`, rozestup 1,9 m – návrh Clauda) oděvem vsi (`ARMY_LOOKS.folk`), dospělí vpředu,
+  děti menší vzadu (`ArmyFigure.scale` – `CHILD_FIGURE_SCALE` 0,68), kdo nese zásoby, klipem
+  `carry`; stádo za hloučkem (`drivenHerd` jako odehnané stádo, krávy – nejvýš `SCENE_HERD_MAX`);
+  ukrytí u lesa stojí (`idle`). Posel pěšky zrychlenou chůzí (`walk` × 1,9 – postava nemá klip
+  běhu), na koni jako jezdec (`ride`, kůň, oděv muže rodu). Mezi snímky plynule (`alarmAt` – jako
+  `marchAt`: posun ve směru posunu po `glideMs`, nový a skok přes mapu stojí rovnou); při
+  omezeném pohybu stojí. Žádný nový mesh ani vertex buffer – tytéž instance postav a zvířat vojska.
+  Scéna se zapne i bez vojska na mapě (`sceneWarOf`); `setWar` zapíše `data-war-refugees` (lidé
+  průvodů + poslové, e2e). **Zatím ne:** vozy průvodu (`carts` jde v pohledu, ale `CartRenderer`
+  patří scéně vsi – návrh Clauda: později).
 - **Boj u hradby** (fortifications.md – Hradby a obrana, Ve scéně; plán hradeb Úloha 21; `army.ts`,
   `battle-fx.ts`, kreslí `army-renderer.ts`): `sceneBattle(b, walls)` nese žebříky (`ladders` –
   `BattleLadder`), lezce (`Fighter.climb` – fáze a zbývající takty), `onWall`, `underground`,

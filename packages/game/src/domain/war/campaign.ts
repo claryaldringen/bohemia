@@ -1,14 +1,15 @@
 import type { WorldClock } from '../calendar';
 import type { NewVillageEvent, VillageEventBody } from '../village/inbox';
-import type { Person, PersonRef, Prisoner, VillageState } from '../village/types';
+import type { HerdSpecies, Person, PersonRef, Prisoner, VillageState } from '../village/types';
+import { isLineMan } from '../village/dynasty';
+import { AGE } from '../village/rules';
 import { createRandom, deriveSeed } from '../landscape/random';
 import { surrenders } from './surrender';
-import { directionBetween, type GridCell } from '../village/world-grid';
+import type { GridCell } from '../village/world-grid';
 import type {
   CampaignGroup,
   CampaignGuard,
   CampaignIntent,
-  CampaignLeg,
   CampaignMember,
   CampaignNotice,
   CampaignPlace,
@@ -26,14 +27,13 @@ import {
   commandFighter,
   openBattle,
   type BattleField,
-  type BattleFort,
   type BattleState,
 } from './battle';
-import { defenderRoster, type GuardGuest } from './defenders';
+import { defenderRoster, type Defender, type GuardGuest } from './defenders';
 import { ageYears, isAway } from '../village/people';
 import { stanceOf } from './flight';
 import { refugeRout } from './rout';
-import { planDefense } from './stance';
+import { planDefense, type RefugeLoad } from './stance';
 import {
   lootCapacity,
   lootTotals,
@@ -42,51 +42,61 @@ import {
   prisonerKey,
   raidChronicle,
   raidLoot,
+  sumLoot,
   type CampaignReturn,
   type RaidResult,
 } from './raid-apply';
-import { marchGrid, type MarchGrid, type Pos } from './march-grid';
-import { marchPath, marchPathToEdge, marchProgress, marchSpeed, type GroupPace } from './march';
+import type { Pos } from './march-grid';
+import { marchSpeed, type GroupPace } from './march';
+import { stepMover } from './movement';
 import { WAR } from './rules-war';
 import { discoverBuildings } from './sight';
 import { frostDay } from './season';
 import { npcIntents, npcLeader } from './npc-commander';
 import { inFight, setGroupOrder } from './orders';
 import { dayOfTick, hoursPerTick, TICKS_PER_SECOND, tickRandom } from './ticks';
-import { edgeCrossing, worldRoute } from './world-route';
+import { worldRoute } from './world-route';
+import {
+  alarmVillage,
+  isAlarmIntent,
+  isDefenderIntent,
+  isWarned,
+  sightAlarms,
+  type AlarmIntentBody,
+} from './alarm';
+import { decideAlarms } from './alarm-steward';
+import {
+  catchMessengers,
+  moveMessengers,
+  recallMessengers,
+  sendMessenger,
+  warnDomain,
+} from './messenger';
+import {
+  alarmTaken,
+  catchFlights,
+  departFlight,
+  flightFoodDay,
+  moveFlights,
+  settleFlights,
+  withoutTaken,
+} from './evacuation';
+import {
+  cellKey,
+  gridOf,
+  MissingData,
+  sameCell,
+  tickContext,
+  villageEvent,
+  type TickContext,
+  type TickOut,
+} from './campaign-tick';
 
 // Tažení po taktech (plán 2026-11-03 – rozhodnutí 12, Úloha 6.5): čistá funkce výchozího stavu,
 // seedu a záznamu záměrů s číslem taktu. Takt po taktu: denní krok (jídlo, mráz) na začátku
 // nového dne, záměry taktu podle `seq`, pak fáze (pochod, nájezd, návrat). Výsledek nezávisí na
 // tom, po jakých kouscích taktů se počítá – stav je JSON a takt čte jen stav, záměry a svět.
 // Jen det-math (`domain/war/**`): tažení počítá worker i web.
-
-/** Data, bez kterých takt nejde spočítat – takt se zahodí a volající je načte. */
-class MissingData {
-  constructor(
-    readonly cells: GridCell[],
-    readonly villageIds: string[],
-  ) {}
-}
-
-/** Výstup jednoho taktu – do výsledku se přidá, jen když takt doběhne. */
-interface TickOut {
-  events: NewVillageEvent[];
-  notices: CampaignNotice[];
-}
-
-/** Mřížky pochodu jednoho volání (políčko a den; napříč voláními `world.grids`). */
-interface TickContext {
-  world: CampaignWorld;
-  grids: Map<string, MarchGrid>;
-  /** Opevnění vsi pro bojiště (ves a den). */
-  forts: Map<string, BattleFort[]>;
-  /** Dříví vsi na otepi (`fuelOf`) podle klíče vsi a dne jako `forts`. */
-  fuel: Map<string, Pos[]>;
-}
-
-const cellKey = (c: GridCell): string => `${c.x},${c.y}`;
-const sameCell = (a: GridCell, b: GridCell): boolean => a.x === b.x && a.y === b.y;
 
 /** Vstup nového tažení (vyslání – Ú6.6): muži stojí ve shromaždišti, skupiny podle `member.group`. */
 export interface NewCampaign {
@@ -157,9 +167,9 @@ export function campaignFinished(state: CampaignState): boolean {
 
 /**
  * Dopočte tažení z `state` do taktu `toTick` (včetně). Záměry s taktem nejvýš `state.tick`
- * (v minulosti) a cizí záměry se zahodí – kromě rozkazu obráncům `breakout`, který dává držitel
- * napadené vsi (právo ověřil use-case `orderBreakout`), nikdy vůdce tažení; ostatní platí přesně
- * ve svém taktu v pořadí `seq`.
+ * (v minulosti) a cizí záměry se zahodí – kromě záměrů obránce (`isDefenderIntent`): rozkaz
+ * obráncům `breakout` dává držitel napadené vsi (právo ověřil use-case `orderBreakout`), `alarm-*`
+ * majitel varované vsi – nikdy vůdce tažení; ostatní platí přesně ve svém taktu v pořadí `seq`.
  * Chybí-li mapa nebo ves (`waiting`), výsledek je stav na konci posledního celého taktu.
  * Vstupní stav ani záměry nemění.
  */
@@ -174,10 +184,10 @@ export function stepCampaign(
       (i) =>
         i.tick > state.tick &&
         i.tick <= toTick &&
-        (i.body.kind === 'breakout') !== (i.byPlayer === state.playerId),
+        isDefenderIntent(i.body) !== (i.byPlayer === state.playerId),
     )
     .sort((a, b) => a.tick - b.tick || a.seq - b.seq);
-  const ctx: TickContext = { world, grids: new Map(), forts: new Map(), fuel: new Map() };
+  const ctx = tickContext(world);
   const villageEvents: NewVillageEvent[] = [];
   const notices: CampaignNotice[] = [];
   let current = state;
@@ -238,7 +248,7 @@ function campaignTick(
     s.day++;
     dailyStep(s, out);
   }
-  for (const intent of intents) applyIntent(s, intent, out);
+  for (const intent of intents) applyIntent(s, intent, ctx, out);
   command(s, tick, ctx, out);
   if (npcLeads(s)) {
     // NPC velitel rozhoduje ze stavu na začátku taktu; opevnění cíle musí být načtené
@@ -265,18 +275,30 @@ function campaignTick(
       if (allArrived(s)) finish(s, ctx, out);
       break;
   }
-  if (s.phase !== 'assembling' && s.phase !== 'done') watchVillages(s, ctx, out);
+  // po pohybu: spatření vesničany (varování – Úloha 2 plánu 2026-11-09), posli (pohyb, chycení –
+  // Úloha 5), rozhodnutí správce a NPC (Úloha 11), skupiny uprchlíků (pohyb, dostižení – Úloha 8),
+  // pak dny nájezdu
+  if (s.phase !== 'assembling' && s.phase !== 'done') {
+    sightAlarms(s, tick, ctx, out);
+    moveMessengers(s, ctx, out);
+    catchMessengers(s, ctx, out);
+    decideAlarms(s, tick, ctx, out);
+    moveFlights(s, ctx, out);
+    catchFlights(s, ctx, out);
+    watchVillages(s, ctx, out);
+  }
   // boj skončil (výhra, porážka, ústup) – výsledek nájezdu do vsí jednou (Ú6.10)
   reportRaid(s, ctx, out);
   return s;
 }
 
 /**
- * Vsi, na jejichž mapě vojsko po taktu stojí (Ú6.7 – war.md, Ves během nájezdu nepracuje a Obránci:
- * Kdy). Ves, které vojsko škodí, dostane na každý den, kdy na její mapě stojí, `raid-day` na týž
- * den (bariéra drží ves před tím dnem – ještě ho nespočítala) a poprvé i signál hrozby `army-seen`
- * pro správce. Jiná ves téhož rodu jako cíl pošle do cíle posla – `army-seen` a signál hrozby na
- * následující den (rozhodnutí 13), jednou za tažení.
+ * Vsi, na jejichž mapě vojsko po taktu stojí (Ú6.7 – war.md, Ves během nájezdu nepracuje). Ves,
+ * které vojsko škodí, dostane na každý den, kdy na její mapě stojí, `raid-day` na týž den (bariéra
+ * drží ves před tím dnem – ještě ho nespočítala) – až od chvíle, kdy o vojsku ví (`isWarned` –
+ * war.md, Varování: „Do té doby lidé pracují dál“), nebo když se na její mapě bojuje (cíl
+ * v nájezdu). Signál hrozby `army-seen` jde s varováním (`sightAlarms`). Automatický posel z prošlé
+ * vsi (Ú6.7) zmizel – posla posílá hráč nebo správce (plán 2026-11-09 – Úloha 5).
  */
 function watchVillages(s: CampaignState, ctx: TickContext, out: TickOut): void {
   const cells = new Map<string, GridCell>();
@@ -290,53 +312,25 @@ function watchVillages(s: CampaignState, ctx: TickContext, out: TickOut): void {
     for (const villageId of map.villageIds) {
       if (ctx.world.villageAt(villageId, s.day) === null) throw new MissingData([], [villageId]);
       if (ctx.world.harmless?.(villageId, s.playerId)) continue;
+      const fighting = s.phase === 'raiding' && villageId === s.target.villageId;
+      if (!fighting && !isWarned(s, villageId, s.tick)) continue;
       const days = (s.raidDays ??= {});
       if (days[villageId] !== s.day) {
-        const first = days[villageId] === undefined;
         days[villageId] = s.day;
         villageEvent(s, out, villageId, s.day, { kind: 'raid-day', campaignId: s.id });
-        if (first) {
-          const signal = { kind: 'army-seen' as const, day: s.day };
-          villageEvent(s, out, villageId, s.day, { kind: 'threat-signal', signal });
-        }
       }
-      if (s.messengerSent || villageId === s.target.villageId) continue;
-      const ask = ctx.world.messengerTo;
-      const messenger = ask ? ask(villageId, s.target.villageId) : false;
-      if (messenger === null) throw new MissingData([], [villageId, s.target.villageId]);
-      if (!messenger) continue;
-      s.messengerSent = true;
-      const target = s.target.villageId;
-      villageEvent(s, out, target, s.day + 1, {
-        kind: 'army-seen',
-        campaignId: s.id,
-        fromVillageId: villageId,
-      });
-      villageEvent(s, out, target, s.day + 1, {
-        kind: 'threat-signal',
-        signal: { kind: 'army-seen', day: s.day },
-      });
     }
   }
-}
-
-/** Událost do schránky vsi – `ref` je jedinečný: takt a pořadí v něm. */
-function villageEvent(
-  s: CampaignState,
-  out: TickOut,
-  villageId: string,
-  day: number,
-  body: VillageEventBody,
-): void {
-  out.events.push({ villageId, day, ref: `camp:${s.id}:${s.tick}:${out.events.length}`, body });
 }
 
 /**
  * Denní krok na začátku herního dne `s.day` (war.md – Pohyb – Zásoby, Zima): mráz venku (ve
  * shromaždišti se muži zotaví) a jídlo – 1 kg na muže a den. Když jídlo dojde na pochodu,
- * vojsko se obrátí domů (Martin 2. 11. 2026).
+ * vojsko se obrátí domů (Martin 2. 11. 2026). Skupiny uprchlíků na cestě do hradiště jedí ze svých
+ * zásob (Úloha 8 plánu 2026-11-09).
  */
 function dailyStep(s: CampaignState, out: TickOut): void {
+  flightFoodDay(s);
   const outside = s.phase !== 'assembling' && s.phase !== 'done';
   const active = s.members.filter((m) => m.status === 'active');
   for (const m of active) {
@@ -376,12 +370,53 @@ function desert(s: CampaignState, out: TickOut): void {
  * Záměr hráče v taktu – každý jeho záměr je i přítomnost u tažení (war.md – Velení: Hráč odejde
  * od tažení); vrátí-li se, převezme velení od zástupce.
  */
-function applyIntent(s: CampaignState, intent: CampaignIntent, out: TickOut): void {
+function applyIntent(
+  s: CampaignState,
+  intent: CampaignIntent,
+  ctx: TickContext,
+  out: TickOut,
+): void {
+  // záměr obránce varované vsi – hráč obránce u tažení není
+  if (isAlarmIntent(intent.body)) {
+    applyAlarm(s, intent.byPlayer, intent.body, ctx, out);
+    return;
+  }
   if (s.liveCommand) {
     s.presenceTick = intent.tick;
     delete s.absent;
   }
   applyBody(s, intent.body, out, false);
+}
+
+/**
+ * Záměr obránce varované vsi (plán 2026-11-09 – Rozhodnutí plánu): platí jen od hráče, kterému ves
+ * patří (`AlarmVillage.owner`), a jen když ves o vojsku ví; co nejde (`refugeOptions`), se zahodí.
+ */
+function applyAlarm(
+  s: CampaignState,
+  byPlayer: string,
+  body: AlarmIntentBody,
+  ctx: TickContext,
+  out: TickOut,
+): void {
+  const v = alarmVillage(s, body.village);
+  if (!v || v.owner.playerId !== byPlayer || !isWarned(s, v.villageId, s.tick)) return;
+  switch (body.kind) {
+    case 'alarm-messenger':
+      sendMessenger(s, v.villageId, ctx, out, {
+        by: 'player',
+        ...(body.personId === undefined ? {} : { personId: body.personId }),
+      });
+      return;
+    case 'alarm-domain':
+      // hradiště hráče rozešle posly do vybraných vsí domény (Úloha 6, Otevřené 5)
+      warnDomain(s, v.villageId, ctx, out, body.to);
+      return;
+    case 'alarm-flee':
+      // evakuace do hradiště nebo do lesa (Úloha 8, Otevřené 7)
+      departFlight(s, v.villageId, body.mode, ctx, out, { by: 'player' });
+      return;
+  }
 }
 
 /** Úkon tažení od hráče, nebo od NPC velitele (`npc`) – co ve fázi nedává smysl, se zahodí. */
@@ -712,21 +747,34 @@ function campaignBattle(s: CampaignState, ctx: TickContext, field: BattleField):
   });
   // Ú6.10 / aplikace: muži rodu v jiných vsích hráče (`lineMenElsewhere`) – zatím jen tato ves.
   // Ves se podle postoje rozdělí dřív, než dojde na boj (útěk, útočiště, vzdání – Ú6.9).
-  // hosté z ochrany pánem se brání se vsí podle jejího postoje (vassalage.md – Ochrana vojskem)
-  const guests = village ? guardGuestsOf(s, village, ctx) : [];
+  // hosté z ochrany pánem se brání se vsí podle jejího postoje (vassalage.md – Ochrana vojskem);
+  // muži uprchlíků v hradišti také (war.md – Varování – Místo v hradišti; plán 2026-11-09, Úloha 9)
+  const { guests, refugees } = village
+    ? guardGuestsOf(s, village, ctx)
+    : { guests: [], refugees: 0 };
   if (guests.length > 0) {
     s.guards = guests.map(({ guard }) => guard);
   }
-  const plan = village
+  // kdo dnes s tažením odešel (posel – Úloha 5), v boji nestojí (stav vsi je ze včerejška)
+  const home = village
+    ? withoutTaken(village, alarmTaken(s, s.target.villageId, s.day, ctx.world.clock))
+    : null;
+  const defenders = home
+    ? defenderRoster(home, s.day, { guests: guests.map(({ guest }) => guest) })
+    : [];
+  const refugeLoad = home ? refugeLoadOf(home, guests, defenders, refugees) : undefined;
+  const plan = home
     ? planDefense({
-        state: village,
+        state: home,
         day: s.day,
-        stance: stanceOf(village),
-        defenders: defenderRoster(village, s.day, { guests: guests.map(({ guest }) => guest) }),
+        stance: stanceOf(home),
+        defenders,
         attackers: fighters.map((a) => ({ pos: a.pos, mounted: a.mounted })),
         field,
-        // posel z jiné vsi rodu, kterou toto vojsko prošlo – postoj dřív (Ú6.7)
-        warned: village.armySeen?.campaignId === s.id,
+        // ves o vojsku ví (vesničan, posel – Úloha 2 plánu 2026-11-09), nebo ji varoval posel
+        // starého tažení (Ú6.7 – `armySeen` jen ze starých bodů) – postoj dřív
+        warned: isWarned(s, s.target.villageId, s.tick) || home.armySeen?.campaignId === s.id,
+        ...(refugeLoad ? { refugeLoad } : {}),
       })
     : null;
   return openBattle({
@@ -748,16 +796,18 @@ function campaignBattle(s: CampaignState, ctx: TickContext, field: BattleField):
 /**
  * Hosté z ochrany i ze svolání v cílové vsi (`guests` druhu `protection` / `service`), kteří jsou
  * opravdu tam: osoba ve stavu domovské vsi (ke dni `s.day − 1` – jinak takt čeká) je pryč u této vsi s týmž druhem a od 16 let.
+ * Uprchlíci v hradišti (druh `refuge` – war.md, Varování – Místo v hradišti): muži od 16 let
+ * (`refugeeFighter`) jsou hosté v boji, ostatní přítomní jen v počtu `refugees` (zabírají útočiště).
  * Pořadí podle domovské vsi a osoby; čísla v boji −1, −2, …
  */
 function guardGuestsOf(
   s: CampaignState,
   village: VillageState,
   ctx: TickContext,
-): { guest: GuardGuest; guard: CampaignGuard }[] {
+): { guests: { guest: GuardGuest; guard: CampaignGuard }[]; refugees: number } {
   const entries = (village.guests ?? [])
-    .filter((g) => g.kind === 'protection' || g.kind === 'service')
-    .map((g) => ({ ref: g.ref, kind: g.kind as 'protection' | 'service' }))
+    .filter((g) => g.kind === 'protection' || g.kind === 'service' || g.kind === 'refuge')
+    .map((g) => ({ ref: g.ref, kind: g.kind as 'protection' | 'service' | 'refuge' }))
     .sort((a, b) =>
       a.ref.villageId === b.ref.villageId
         ? a.ref.personId - b.ref.personId
@@ -771,24 +821,63 @@ function guardGuestsOf(
   );
   if (missing.length > 0) throw new MissingData([], missing);
   const out: { guest: GuardGuest; guard: CampaignGuard }[] = [];
+  let refugees = 0;
   for (const { ref, kind } of entries) {
     const home = ctx.world.villageAt(ref.villageId, s.day)!;
     const p = home.people.find((x) => x.id === ref.personId);
     if (!p || p.away?.kind !== kind || p.away.hostVillageId !== s.target.villageId) continue;
-    if (!isAway(p, s.day) || ageYears(p.bornDay, s.day) < WAR.army.minAge) continue;
+    if (!isAway(p, s.day)) continue;
+    const refugee = kind === 'refuge';
+    if (refugee && !refugeeFighter(p, s.day)) {
+      refugees++;
+      continue;
+    }
+    if (ageYears(p.bornDay, s.day) < WAR.army.minAge) continue;
     const id = -(out.length + 1);
     out.push({
-      guest: { id, person: structuredClone(p) },
+      guest: { id, person: structuredClone(p), ...(refugee ? { refugee: true as const } : {}) },
       guard: {
         id,
-        ...(kind === 'service' ? { kind } : {}),
+        ...(kind === 'protection' ? {} : { kind }),
         ref: { ...ref },
         ...(p.name === undefined ? {} : { name: p.name }),
         ...(p.noble ? { noble: true as const } : {}),
+        ...(refugee && !p.line && !p.noble ? { villager: true as const } : {}),
       },
     });
   }
-  return out;
+  return { guests: out, refugees };
+}
+
+/**
+ * Bojuje uprchlík v hradišti (plán 2026-11-09 – Otevřené 9)? Muž od 16 let (`WAR.army.minAge`) – muž
+ * rodu v každém věku, vesničan do stáří (`AGE.elder` – jako obránce doma); ženy, děti a starší
+ * nebojují.
+ */
+function refugeeFighter(p: Person, day: number): boolean {
+  const age = ageYears(p.bornDay, day);
+  return p.sex === 'male' && age >= WAR.army.minAge && (isLineMan(p) || age < AGE.elder);
+}
+
+/**
+ * Uprchlíci v hradišti, kteří nebojují (`StanceInput.refugeLoad`): ženy, děti a starší (`refugees`)
+ * a ranění muži (host bez místa v soupisu obránců), se stády pobytů (`RefugeStay.herd`). Bez
+ * uprchlíků undefined – rozdělení vsi jako dřív.
+ */
+function refugeLoadOf(
+  village: VillageState,
+  guests: readonly { guest: GuardGuest }[],
+  defenders: readonly Defender[],
+  refugees: number,
+): RefugeLoad | undefined {
+  const men = guests.filter(({ guest }) => guest.refugee).length;
+  const herd: Record<HerdSpecies, number> = { sheep: 0, goat: 0, pig: 0, cow: 0 };
+  for (const stay of village.refugeStays ?? []) {
+    for (const sp of Object.keys(herd) as HerdSpecies[]) herd[sp] += Math.max(0, stay.herd[sp]);
+  }
+  if (men === 0 && refugees === 0 && !Object.values(herd).some((n) => n > 0)) return undefined;
+  const wounded = men - defenders.filter((d) => d.refugee).length;
+  return { people: refugees + wounded, herd };
 }
 
 function indexOf(s: CampaignState, ref: PersonRef): number | null {
@@ -836,6 +925,10 @@ function leaveBattle(s: CampaignState): void {
  */
 function finish(s: CampaignState, ctx: TickContext, out: TickOut): void {
   reportRaid(s, ctx, out);
+  // posli, kteří ještě běží, se vrátí domů, skupiny uprchlíků dojdou – další takty nebudou
+  // (Úloha 5, 8)
+  recallMessengers(s, ctx, out);
+  settleFlights(s, ctx, out);
   // po rozpadu jen muži domů – kronika a upozornění šly už při rozpadu
   const disbanded = s.phase === 'disbanded';
   s.phase = 'done';
@@ -917,7 +1010,9 @@ function reportRaid(s: CampaignState, ctx: TickContext, out: TickOut): void {
   }
   s.raidDay = s.day;
   if (village === null) return;
-  const full = raidResultOf(s, b, village, ctx);
+  // co tažení z vsi dnes odvedlo (posel, skupina uprchlíků – Úloha 8), stav vsi ještě nezná
+  const home = withoutTaken(village, alarmTaken(s, s.target.villageId, s.day, ctx.world.clock));
+  const full = raidResultOf(s, b, home, ctx);
   // hosté z ochrany: ztráty jdou do domovských vsí, napadená ves dostane jen své lidi
   const guards = new Map((s.guards ?? []).map((g) => [g.id, g]));
   const own = (ids: readonly number[]): number[] => ids.filter((id) => !guards.has(id));
@@ -946,15 +1041,19 @@ function reportRaid(s: CampaignState, ctx: TickContext, out: TickOut): void {
   });
   const totals = lootTotals(result.loot);
   const prisoners = [
-    ...capturedPrisoners(s, village, hostCaptured),
+    ...capturedPrisoners(s, home, hostCaptured),
     ...guardCaptured.map((g) => guardPrisoner(s, g)),
   ];
+  const people = [...(s.loot.people ?? []), ...ledPeople(home, result.led)];
+  const allPrisoners = [...(s.loot.prisoners ?? []), ...prisoners];
   s.loot = {
     foodKg: s.loot.foodKg + totals.foodKg,
     herd: s.loot.herd + totals.herd,
-    detail: structuredClone(result.loot),
-    ...(result.led.length > 0 ? { people: ledPeople(village, result.led) } : {}),
-    ...(prisoners.length > 0 ? { prisoners } : {}),
+    // kořist z dostižených uprchlíků (Úloha 8) se sloučí
+    detail: s.loot.detail ? sumLoot(s.loot.detail, result.loot) : structuredClone(result.loot),
+    // odvedení a zajatí poslové a uprchlíci (Úloha 5, 8) zůstávají v kořisti
+    ...(people.length > 0 ? { people } : {}),
+    ...(allPrisoners.length > 0 ? { prisoners: allPrisoners } : {}),
   };
   for (const personId of [...result.led, ...hostCaptured]) {
     s.captives.push({ villageId: s.target.villageId, personId });
@@ -996,7 +1095,7 @@ function reportGuards(
       captorVillageId: s.assembly.villageId,
     });
   }
-  for (const away of ['protection', 'service'] as const) {
+  for (const away of ['protection', 'service', 'refuge'] as const) {
     const gone = [...fallen, ...captured]
       .filter((g) => (g.kind ?? 'protection') === away)
       .map((g) => ({ ...g.ref }));
@@ -1018,7 +1117,7 @@ function guardPrisoner(s: CampaignState, g: CampaignGuard): Prisoner {
   };
 }
 
-/** Padlí, ranění, odvedení a kořist z boje a stavu napadené vsi v den konce boje. */
+/** Padlí, ranění, odvedení a kořist z boje a stavu napadené vsi v den konce boje (bez toho, co tažení dnes odvedlo). */
 function raidResultOf(
   s: CampaignState,
   b: BattleState,
@@ -1047,9 +1146,15 @@ function raidResultOf(
       else return;
       if (w >= 0) wounded.splice(w, 1);
     };
-    // host z ochrany je muž rodu pána – zajme se jako muž rodu
+    // host z ochrany je muž rodu pána – zajme se jako muž rodu; muž uprchlíků, který není muž rodu
+    // ani šlechtic, padne při „pobít“, jinak zůstane v hradišti (odvést ho zatím nelze – Později)
     const guard = new Set((s.guards ?? []).map((g) => g.id));
+    const villagers = new Set((s.guards ?? []).filter((g) => g.villager).map((g) => g.id));
     for (const id of yieldedOf(b, village, s.day)) {
+      if (villagers.has(id)) {
+        if (order === 'kill') fallen.push(id);
+        continue;
+      }
       if (guard.has(id)) {
         takeMan(id);
         continue;
@@ -1064,7 +1169,8 @@ function raidResultOf(
     for (const f of b.fighters) {
       if (f.side !== 'defend' || f.state !== 'down' || f.killed) continue;
       const p = people.get(f.ref);
-      const lineMan = guard.has(f.ref) || (p !== undefined && (p.line || p.noble));
+      const lineMan =
+        (guard.has(f.ref) && !villagers.has(f.ref)) || (p !== undefined && (p.line || p.noble));
       if (!lineMan || captured.includes(f.ref) || fallen.includes(f.ref)) continue;
       const rng = createRandom(deriveSeed(s.seed, `surrender:${f.ref}`));
       if (surrenders({ mounted: false }, { hopeless: true, freeRoute: false }, rng)) {
@@ -1098,7 +1204,8 @@ function raidResultOf(
     day: s.day,
     shelter,
     refugeTaken,
-    capacityKg: lootCapacity(fit, s.supplies.foodKg),
+    // nosnost bez kořisti, kterou už nesou (dostižení uprchlíci – Úloha 8)
+    capacityKg: Math.max(0, lootCapacity(fit, s.supplies.foodKg) - s.loot.foodKg),
     seed: s.seed,
     daysInVillage: (b.ticks * hoursPerTick(ctx.world.clock)) / 24,
   });
@@ -1227,63 +1334,7 @@ function moveGroups(s: CampaignState, ctx: TickContext): void {
       g.arrived = true;
       continue;
     }
-    if (g.leg === null) {
-      g.leg = planLeg(g, s.day, ctx);
-      if (g.leg === null) {
-        g.arrived = true;
-        continue;
-      }
-    }
-    const leg = g.leg;
-    const end = leg.meadowM[leg.meadowM.length - 1]!;
-    const walked = leg.walkedM + marchSpeed(pace, s.day) / TICKS_PER_SECOND;
-    if (walked < end) {
-      leg.walkedM = walked;
-      g.pos = marchProgress(leg, walked);
-      continue;
-    }
-    g.pos = { ...leg.points[leg.points.length - 1]! };
-    g.leg = null;
-    const nextCell = g.route.shift();
-    if (nextCell === undefined) {
-      g.arrived = true;
-      continue;
-    }
-    g.pos = edgeCrossing(g.cell, nextCell, g.pos);
-    g.cell = nextCell;
+    const step = stepMover(g, g.goal.pos, marchSpeed(pace, s.day) / TICKS_PER_SECOND, s.day, ctx);
+    if (step === 'arrived' || step === 'stuck') g.arrived = true;
   }
-}
-
-/** Úsek po mapě skupiny: k okraji ve směru dalšího políčka trasy, nebo k cíli; null = nemá kudy. */
-function planLeg(g: CampaignGroup, day: number, ctx: TickContext): CampaignLeg | null {
-  const grid = gridOf(g.cell, day, ctx);
-  const nextCell = g.route[0];
-  let path;
-  if (nextCell !== undefined) {
-    const direction = directionBetween(g.cell, nextCell);
-    path = direction === null ? null : marchPathToEdge(grid, g.pos, direction);
-  } else {
-    path = g.goal ? marchPath(grid, g.pos, g.goal.pos) : null;
-  }
-  return path ? { points: path.points, meadowM: path.meadowM, walkedM: 0 } : null;
-}
-
-/** Mřížka pochodu mapy políčka v den `day` – krajina, překážky a první ves na mapě. */
-function gridOf(cell: GridCell, day: number, ctx: TickContext): MarchGrid {
-  const key = `${cellKey(cell)}@${day}`;
-  const cached = ctx.grids.get(key);
-  if (cached) return cached;
-  const map = ctx.world.landscapeOf(cell);
-  if (map === null) throw new MissingData([{ ...cell }], []);
-  const villageId = map.villageIds[0];
-  let village = null;
-  if (villageId !== undefined) {
-    village = ctx.world.villageAt(villageId, day);
-    if (village === null) throw new MissingData([], [villageId]);
-  }
-  const grid = ctx.world.grids
-    ? ctx.world.grids.gridOf(map.landscape, map.obstacles, village, day)
-    : marchGrid(map.landscape, map.obstacles, village, { day });
-  ctx.grids.set(key, grid);
-  return grid;
 }

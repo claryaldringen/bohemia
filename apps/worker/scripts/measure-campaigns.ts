@@ -23,18 +23,21 @@ import {
   type CampaignState,
   type CampaignWorld,
   type StepCampaignsDeps,
+  type AlarmOwnerPort,
   type GridCell,
+  type VillageCell,
   type VillageState,
 } from '@bohemia/game';
 
 // Měření tažení (plán 2026-11-03 – Úloha 6.17; docs/code/worker.md – Výkon): 1 / 5 / 20 tažení
-// × 60 mužů na pochodu přes skutečné krajiny prázdných políček a 5 tažení u opevněných vsí
-// (prolamování, útočiště). Všechno v paměti – žádná databáze. Smyčka je worker: `stepCampaigns`
-// každých 250 ms nad porty v paměti (kontrolní bod jako JSON – jsonb) s pamětí workeru
-// (`newCampaignMemory` – pokračuje od posledního spočteného stavu); `--no-memory` = bez ní, každé
-// kolo znovu od bodu (bod se ukládá po ≥ 40 taktech nebo s událostí). „Takty/s“ = takty tažení za
-// sekundu času procesoru jednoho jádra; „jádro“ = čas procesoru ÷ skutečný čas, který kola
-// představují.
+// × 60 mužů na pochodu přes skutečné krajiny prázdných políček, 5 tažení u opevněných vsí
+// (prolamování, útočiště), 5 tažení na varované vsi (posel a útěk do hradiště – plán 2026-11-09,
+// Úloha 11) a 20 tažení, z toho 5 na varované vsi (Úloha 15). Všechno v paměti – žádná databáze.
+// Smyčka je worker: `stepCampaigns` každých 250 ms nad porty v paměti (kontrolní bod jako JSON –
+// jsonb) s pamětí workeru (`newCampaignMemory` – pokračuje od posledního spočteného stavu);
+// `--no-memory` = bez ní, každé kolo znovu od bodu (bod se ukládá po ≥ 40 taktech nebo
+// s událostí). „Takty/s“ = takty tažení za sekundu času procesoru jednoho jádra; „jádro“ = čas
+// procesoru ÷ skutečný čas, který kola představují.
 //
 //   npx tsx apps/worker/scripts/measure-campaigns.ts [--ticks 480] [--profile] [--no-memory]
 
@@ -75,6 +78,14 @@ function emptyMap(cell: GridCell): CampaignMap {
 
 /** Opevněná ves na políčku: zakladatelé v dostavěné zemnici, palisáda kolem jádra (r = 35 m). */
 function fortifiedVillage(cell: GridCell, id: string): void {
+  settledVillage(cell, id, true);
+}
+
+/**
+ * Ves na políčku: zakladatelé v dostavěné zemnici; `fortified` – palisáda kolem jádra (r = 35 m)
+ * a postoj „bránit“, jinak bez opevnění s výchozím postojem (při varování utíká).
+ */
+function settledVillage(cell: GridCell, id: string, fortified: boolean): void {
   const cl = emptyCellLandscape(WORLD_SEED, cell);
   const founded = foundVillage({
     seed: cell.x * 1000 + cell.y,
@@ -102,26 +113,50 @@ function fortifiedVillage(cell: GridCell, id: string): void {
         position: site.position,
       },
     ],
-    defense: { stance: 'defend' },
-    fortifications: [
-      {
-        id: 1,
-        grid: null,
-        points: circlePoints([0, 0], 35),
-        kind: 'palisade',
-        segments: fortSegments(outline).map((s) => ({ index: s.index, builtDay: 0, state: 1 })),
-        gates: [],
-      },
-    ],
+    ...(fortified
+      ? {
+          defense: { stance: 'defend' as const },
+          fortifications: [
+            {
+              id: 1,
+              grid: null,
+              points: circlePoints([0, 0], 35),
+              kind: 'palisade' as const,
+              segments: fortSegments(outline).map((s) => ({
+                index: s.index,
+                builtDay: 0,
+                state: 1,
+              })),
+              gates: [],
+            },
+          ],
+        }
+      : {}),
   };
   villages.set(id, state);
   maps.set(keyOf(cell), { landscape: cl.landscape, obstacles: cl.obstacles, villageIds: [id] });
 }
 
+/** Hradiště vsí scénáře s varováním (ves → kandidáti); ostatní vsi hradiště nemají. */
+const hostsOf = new Map<string, VillageCell[]>();
+const NPC_OWNER = { playerId: null, npc: true, houseId: null };
+
 const campaignWorld: CampaignWorld = {
   clock: world,
   landscapeOf: (cell) => maps.get(keyOf(cell)) ?? emptyMap(cell),
   villageAt: (id) => villages.get(id) ?? null,
+  // svět varování v paměti (plán 2026-11-09 – Úloha 6, 11): každá ves je NPC rodu bez domény,
+  // hradiště mají jen vsi scénáře s varováním
+  alarmOf: () => ({ ...NPC_OWNER }),
+  refugeHostsOf: (id) => hostsOf.get(id) ?? [],
+  domainOf: () => [],
+};
+
+/** Týž svět varování pro smyčku workeru (`StepCampaignsDeps.alarmOwners`). */
+const alarmOwners: AlarmOwnerPort = {
+  ownerOf: () => Promise.resolve({ ...NPC_OWNER }),
+  refugeHostsOf: (id) => Promise.resolve(hostsOf.get(id) ?? []),
+  domainOf: () => Promise.resolve([]),
 };
 
 function members(villageId: string): CampaignMember[] {
@@ -204,6 +239,69 @@ function besieging(k: number): CampaignState {
   };
 }
 
+/**
+ * Varovaná ves (plán 2026-11-09 – Úloha 11; měří Úloha 15): vojsko stojí na západním okraji mapy
+ * neopevněné vsi NPC rodu na (2, 20 + k) a táhne k ní; ves ho tam viděla. Správce hned pošle posla
+ * a lidi „se vším“ do hradiště na (3, 20 + k) – posel i skupina jdou po mapách vedle vojska.
+ */
+function warned(k: number): CampaignState {
+  const y = 20 + k;
+  const cell = { x: 2, y };
+  const id = `v${k}`;
+  const hillfort = { villageId: `hf${k}`, cell: { x: 3, y } };
+  settledVillage(cell, id, false);
+  settledVillage(hillfort.cell, hillfort.villageId, true);
+  hostsOf.set(id, [hillfort]);
+  const at = { x: -900, z: 0 };
+  const goal = { cell: { ...cell }, pos: { x: 0, z: 0 } };
+  const base = newCampaign(
+    {
+      id: `w${k}`,
+      warId: 'w',
+      seed: 200 + k,
+      tick: START_TICK,
+      playerId: 'p',
+      leaderName: 'Bořivoj',
+      commander: { villageId: `home${k}`, personId: 1 },
+      deputy: { villageId: `home${k}`, personId: 2 },
+      assembly: { villageId: `home${k}`, cell: { x: 1, y }, pos: { x: 0, z: 0 } },
+      target: { villageId: id, ...goal },
+      members: members(`home${k}`),
+      foodKg: 600,
+      liveCommand: false,
+    },
+    world,
+  );
+  return {
+    ...base,
+    phase: 'marching',
+    groups: base.groups.map((g) => ({
+      ...g,
+      cell: { ...cell },
+      pos: { ...at },
+      goal: structuredClone(goal),
+      route: [],
+      arrived: false,
+    })),
+    alarm: {
+      villages: [
+        {
+          villageId: id,
+          owner: { ...NPC_OWNER },
+          seenTick: START_TICK,
+          seenAt: { cell: { ...cell }, pos: { ...at } },
+          warnTick: START_TICK + 1,
+          by: 'villager',
+          hosts: [hillfort.villageId],
+        },
+      ],
+      messengers: [],
+      flights: [],
+      nextRef: 0,
+    },
+  };
+}
+
 const SET_OUT: CampaignIntent[] = [
   { tick: START_TICK + 1, seq: 1, byPlayer: 'p', body: { kind: 'set-out' } },
 ];
@@ -234,6 +332,7 @@ function memoryRepository(rows: Map<string, Row>, saves: { n: number }): Campaig
     create: none,
     activeOf: none,
     activeAgainst: none,
+    activeAlarming: none,
     addIntent: none,
     active: () =>
       Promise.resolve([...rows].filter(([, r]) => !r.done || r.outbox).map(([id]) => id)),
@@ -298,6 +397,7 @@ async function run(starts: readonly CampaignState[]): Promise<Result> {
       inbox: EMPTY_INBOX,
     },
     notices: { post: () => Promise.resolve() },
+    alarmOwners,
     world,
     ...(args['no-memory'] ? {} : { memory: newCampaignMemory() }),
   };
@@ -380,6 +480,15 @@ async function main(): Promise<void> {
     ['pochod 5', () => Array.from({ length: 5 }, (_, k) => marching(k))],
     ['pochod 20', () => Array.from({ length: 20 }, (_, k) => marching(k))],
     ['opevněné 5', () => Array.from({ length: 5 }, (_, k) => besieging(k))],
+    ['varování 5', () => Array.from({ length: 5 }, (_, k) => warned(k))],
+    // 20 tažení, z toho 5 na varované vsi s oky, poslem a evakuací (plán 2026-11-09 – Úloha 15)
+    [
+      'pochod 15 + varování 5',
+      () => [
+        ...Array.from({ length: 15 }, (_, k) => marching(k)),
+        ...Array.from({ length: 5 }, (_, k) => warned(k)),
+      ],
+    ],
   ];
   console.log(`takty ${TICKS} (${(TICKS * TICK_S).toFixed(0)} s skutečného času), ${MEN} mužů`);
   for (const [name, make] of scenarios) {
@@ -394,11 +503,11 @@ async function main(): Promise<void> {
     // takty tažení za sekundu procesoru (každé tažení posune každé kolo o jeden takt)
     const ticks = r.campaigns * TICKS;
     const line =
-      `${name.padEnd(11)} takty/s ${(ticks / r.cpuS).toFixed(0).padStart(6)}, ` +
+      `${name.padEnd(22)} takty/s ${(ticks / r.cpuS).toFixed(0).padStart(6)}, ` +
       `jádro ${((100 * r.cpuS) / r.realS).toFixed(1).padStart(5)} % (${r.cpuS.toFixed(1)} s), ` +
       `bodů ${r.saves}, otisk ${r.digest} – ${r.phases}`;
     console.log(line);
-    if (args.profile) console.log(`            profil: ${await profiled(starts)}`);
+    if (args.profile) console.log(`  profil: ${await profiled(starts)}`);
   }
 }
 

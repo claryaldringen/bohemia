@@ -267,6 +267,8 @@ export interface ArmyFigure {
   lying: boolean;
   side: BattleSide | 'folk';
   look: FigureLook;
+  /** Měřítko postavy (dítě menší – refugee-march.ts); chybí – 1. */
+  scale?: number;
 }
 
 /** Zvíře u vojska – kůň muže rodu, nebo kus odehnaného stáda. */

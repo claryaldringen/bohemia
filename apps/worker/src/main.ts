@@ -3,6 +3,7 @@
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
+  createAlarmOwners,
   createCampaignLock,
   createCampaignRepository,
   createDatabase,
@@ -172,6 +173,19 @@ async function main(): Promise<void> {
             dayOf: dayOfAt,
           },
           shipments: worldShipments,
+          // návrat uprchlíků za správce a NPC rody, obnova návratu po pádu (war.md – Varování)
+          refugees: {
+            refugees: gameDeps.refugees,
+            settlements: gameDeps.settlements,
+            villages: gameDeps.villages,
+            houses: gameDeps.houses,
+            stewardships: gameDeps.stewardships,
+            campaigns: gameDeps.campaigns,
+            locks,
+            landscapes: gameDeps.landscapes,
+            world: currentWorld(),
+            pause: gameDeps.pause,
+          },
           domainFood: {
             settlements: gameDeps.settlements,
             villages: gameDeps.villages,
@@ -218,6 +232,8 @@ async function main(): Promise<void> {
       vassalages: gameDeps.vassalages,
       passages: gameDeps.passages,
     }),
+    // kdo za varovanou ves rozhoduje, kandidáti hradišť a doména hradiště (war.md – Varování)
+    alarmOwners: createAlarmOwners(db),
     // poslední spočtený stav tažení napříč koly (docs/code/worker.md – Výkon – Tažení)
     memory: newCampaignMemory(),
   };

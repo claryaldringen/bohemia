@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { Person, VillageState } from '../../village/types';
+import type { AlarmFlight, AlarmMessenger } from '../alarm-types';
 import type { CampaignState } from '../campaign-types';
 import { marchGrid } from '../march-grid';
 import { sceneFolkOf, warSceneView, type WarSceneFolk, type WarSceneInput } from '../scene-view';
 import type { ShelterReport } from '../stance';
+import { campaignView } from '../view';
 import { wallPosts } from '../wall-defense';
 import { attacker, battle, defender, field, land, palisade } from './battle-fixtures';
 import { campaign, member } from './campaign-fixtures';
@@ -261,5 +263,216 @@ describe('warSceneView – kryt, vzdaní a rozkaz „Probít se“', () => {
     // vzdaný daleko mimo dohled se nepošle
     expect(seen.has('d:299')).toBe(false);
     expect(view.breakout).toBeUndefined();
+  });
+});
+
+// Ú14 – průvod uprchlíků a posel ve scéně (war.md – Varování, poslové a útěk do hradiště)
+
+const YEAR = 365;
+
+/** Kněžice (hráč p9) varované; skupina uprchlíků a posel na mapě vsi; vojsko p1 u (0, 0) nebo jinde. */
+function alarmed(
+  o: {
+    flight?: Partial<AlarmFlight>;
+    messenger?: Partial<AlarmMessenger>;
+    army?: 'here' | 'away';
+  } = {},
+): CampaignState {
+  const base = campaign({ members: [member(1, 0, true), member(2, 0, false)] });
+  const cell = base.target.cell;
+  const day = base.day;
+  const flight: AlarmFlight = {
+    refId: 'c1:a1',
+    villageId: 'knezice',
+    mode: 'all',
+    hostVillageId: 'hradek',
+    cell: { ...cell },
+    pos: { x: 120, z: -40 },
+    route: [{ x: 2, y: 0 }],
+    leg: {
+      points: [
+        { x: 100, z: -40 },
+        { x: 300, z: -40 },
+      ],
+      meadowM: [0, 200],
+      walkedM: 20,
+    },
+    target: { cell: { x: 2, y: 0 }, pos: { x: 0, z: 0 } },
+    people: [
+      { id: 1, bornDay: day - 30 * YEAR, man: true, line: true },
+      { id: 2, bornDay: day - 28 * YEAR, man: false, line: false },
+      { id: 3, bornDay: day - 9 * YEAR, man: false, line: false },
+      { id: 4, bornDay: day - 4 * YEAR, man: false, line: false },
+      { id: 5, bornDay: day - 40 * YEAR, man: true, line: false },
+    ],
+    foodKg: 300,
+    herd: { sheep: 3, goat: 1, pig: 0, cow: 2 },
+    carts: 1,
+    status: 'marching',
+    departTick: base.tick,
+    lost: [5],
+    ...o.flight,
+  };
+  const messenger: AlarmMessenger = {
+    refId: 'c1:a2',
+    fromVillageId: 'knezice',
+    personId: 1,
+    toVillageId: 'hradek',
+    mounted: true,
+    status: 'running',
+    departTick: base.tick,
+    cell: { ...cell },
+    pos: { x: -200, z: 300 },
+    route: [{ x: 2, y: 0 }],
+    leg: null,
+    target: { cell: { x: 2, y: 0 }, pos: { x: 0, z: 0 } },
+    ...o.messenger,
+  };
+  const armyCell = o.army === 'here' ? { ...cell } : { ...base.assembly.cell };
+  return {
+    ...base,
+    phase: 'marching',
+    groups: base.groups.map((g) => ({ ...g, cell: armyCell, pos: { x: 0, z: 0 } })),
+    alarm: {
+      villages: [
+        {
+          villageId: 'knezice',
+          owner: { playerId: 'p9', npc: false, houseId: 'h9' },
+          seenTick: base.tick,
+          seenAt: { cell: { ...cell }, pos: { x: 0, z: 0 } },
+          warnTick: base.tick,
+          by: 'villager',
+          messenger: 'c1:a2',
+          flight: 'c1:a1',
+        },
+      ],
+      messengers: [messenger],
+      flights: [flight],
+      nextRef: 3,
+    },
+  };
+}
+
+/** Pohled hráče `playerId` ze strany `side` na mapě Kněžic (domy daleko od skupiny). */
+const onKnezice = (
+  state: CampaignState,
+  side: 'attack' | 'defend',
+  playerId: string,
+): WarSceneInput => ({
+  cell: state.target.cell,
+  side,
+  grid: GRID,
+  eyes: side === 'defend' ? [{ x: -900, z: -900 }] : [],
+  forts: [],
+  playerId,
+});
+
+describe('warSceneView – průvod uprchlíků a posel (Ú14)', () => {
+  it('obránce vidí svou skupinu vždy – lidé, vzhled, směr, stádo a vozy; vojsko jinde', () => {
+    const s = alarmed();
+    const view = warSceneView(s, onKnezice(s, 'defend', 'p9'))!;
+    expect(view.battle).toBeNull();
+    expect(view.march).toBeNull();
+    const [m] = view.refugeMarch!;
+    expect(m).toMatchObject({
+      refId: 'c1:a1',
+      own: true,
+      mode: 'all',
+      pos: { x: 120, z: -40 },
+      heading: { x: 1, z: 0 },
+      moving: true,
+      herd: 6,
+      carts: 1,
+    });
+    // padlý (`lost`) nejde; dítě 4 let nic nenese, dívka 9 let ano (id liché = chlapec)
+    expect(m!.people).toEqual([
+      { kind: 'man', child: false, carries: true },
+      { kind: 'woman', child: false, carries: true },
+      { kind: 'man', child: true, carries: true },
+      { kind: 'woman', child: true, carries: false },
+    ]);
+    expect(view.messengers).toEqual([
+      {
+        refId: 'c1:a2',
+        own: true,
+        pos: { x: -200, z: 300 },
+        heading: { x: 0, z: 1 },
+        mounted: true,
+      },
+    ]);
+  });
+
+  it('„jen lidé“ nic nenesou; ukrytí v lese stojí – vlastní je vidí', () => {
+    const s = alarmed({ flight: { mode: 'people', status: 'hidden', leg: null } });
+    const [m] = warSceneView(s, onKnezice(s, 'defend', 'p9'))!.refugeMarch!;
+    expect(m!.moving).toBe(false);
+    expect(m!.people.every((p) => !p.carries)).toBe(true);
+  });
+
+  it('útočník průvod a posla mimo dohled nevidí; bez vojska na mapě nic', () => {
+    const away = alarmed();
+    expect(warSceneView(away, onKnezice(away, 'attack', 'p1'))).toBeNull();
+    const here = alarmed({ army: 'here' });
+    const view = warSceneView(here, onKnezice(here, 'attack', 'p1'))!;
+    expect(view.march).not.toBeNull();
+    // skupina 126 m od vojska (dohled 150 m), posel 360 m – jen skupina
+    expect(view.refugeMarch?.map((m) => [m.refId, m.own])).toEqual([['c1:a1', false]]);
+    expect(view.messengers).toBeUndefined();
+  });
+
+  it('útočník v dohledu vidí posla; ukrytou skupinu ani na dohled ne', () => {
+    const s = alarmed({
+      army: 'here',
+      flight: { status: 'hidden' },
+      messenger: { pos: { x: 60, z: 30 } },
+    });
+    const view = warSceneView(s, onKnezice(s, 'attack', 'p1'))!;
+    expect(view.refugeMarch).toBeUndefined();
+    expect(view.messengers?.map((m) => [m.refId, m.own, m.mounted])).toEqual([
+      ['c1:a2', false, true],
+    ]);
+  });
+
+  it('cizí hráč na mapě vsi vidí jen v dohledu svých domů; jiná mapa, hradiště a chycení nic', () => {
+    const s = alarmed();
+    // jiný hráč, domy daleko – nic
+    expect(warSceneView(s, onKnezice(s, 'defend', 'p7'))).toBeNull();
+    // domy u skupiny – vidí ji jako cizí
+    const near = { ...onKnezice(s, 'defend', 'p7'), eyes: [{ x: 100, z: -40 }] };
+    expect(warSceneView(s, near)?.refugeMarch?.[0]?.own).toBe(false);
+    const elsewhere = { ...onKnezice(s, 'defend', 'p9'), cell: { x: 5, y: 5 } };
+    expect(warSceneView(s, elsewhere)).toBeNull();
+    const done = alarmed({ flight: { status: 'arrived' }, messenger: { status: 'caught' } });
+    expect(warSceneView(done, onKnezice(done, 'defend', 'p9'))).toBeNull();
+  });
+});
+
+describe('campaignView – uprchlíci a poslové v dohledu (Ú14 – mapa tažení)', () => {
+  const input = { playerId: 'p1', sinceTick: 0, grid: GRID, buildings: [] };
+
+  it('útočník vidí skupinu v dohledu svých mužů – poloha, lidí, kusů; posla mimo dohled ne', () => {
+    const view = campaignView(alarmed({ army: 'here' }), input)!;
+    expect(view.flights).toEqual([
+      {
+        refId: 'c1:a1',
+        kind: 'refugees',
+        cell: { x: 1, y: 0 },
+        pos: { x: 120, z: -40 },
+        people: 4,
+        herd: 6,
+        mounted: false,
+      },
+    ]);
+  });
+
+  it('posel v dohledu; vojsko na jiné mapě ani ukrytí nic', () => {
+    const near = campaignView(
+      alarmed({ army: 'here', flight: { status: 'hidden' }, messenger: { pos: { x: 40, z: 0 } } }),
+      input,
+    )!;
+    expect(near.flights?.map((f) => [f.kind, f.people, f.mounted])).toEqual([
+      ['messenger', 1, true],
+    ]);
+    expect(campaignView(alarmed(), input)!.flights).toBeUndefined();
   });
 });

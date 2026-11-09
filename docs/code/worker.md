@@ -29,7 +29,8 @@ vstupní bod (composition root) jako web – žádná herní logika, jen plánov
   a `negotiationExpiry`, `vassalage.md` – Správce za nepřítomného hráče; jídlo
   domény po žních `sendDomainFood` – `vassalage.md`, Jídlo domény – krok světa; člen `domainFood`
   skládá `main.ts`: `loadVillage` s dopočtem do dneška a uložením, `gameDeps.domainFood`, mapa
-  pokusů `attempts` drží proces) nejvýš jednou za minutu (`WORLD_TASKS_MS`, podle
+  pokusů `attempts` drží proces; návrat uprchlíků za správce a NPC rody `returnStewardRefugees` –
+  člen `refugees`, `war.md` – Varování: návrat) nejvýš jednou za minutu (`WORLD_TASKS_MS`, podle
   hodin `deps.now`); jejich chyba kolo nezastaví.
 - `src/campaign-loop.ts` – `runCampaignLoop(deps, { campaignMs }, signal)`: **smyčka tažení**
   vedle smyčky vsí (`main.ts` je pouští spolu přes `Promise.all`, signál ukončí obě). Kolo
@@ -235,8 +236,9 @@ Akce i otevření jsou s workerem v cíli pro 1 / 5 / 20 vsí a na počtu vsí u
 
 `apps/worker/scripts/measure-campaigns.ts` – v paměti (žádná databáze): 1 / 5 / 20 tažení × 60
 mužů (3 skupiny, NPC velitel) na pochodu přes skutečné krajiny prázdných políček
-(`emptyCellLandscape`) a 5 tažení u opevněných vsí (palisáda z bodů kolem jádra, postoj bránit –
-útočiště, prolamování). Smyčka je skutečné `stepCampaigns` každých 250 ms nad porty v paměti
+(`emptyCellLandscape`), 5 tažení u opevněných vsí (palisáda z bodů kolem jádra, postoj bránit –
+útočiště, prolamování) a 5 tažení na varované vsi („varování 5“ – správce NPC pošle posla a lidi
+„se vším“ do hradiště o políčko dál; plán 2026-11-09, Úloha 11). Smyčka je skutečné `stepCampaigns` každých 250 ms nad porty v paměti
 (kontrolní bod jako JSON – jsonb, bod po ≥ 40 taktech nebo s událostí) s pamětí workeru;
 `--no-memory` = bez ní (každé kolo znovu od bodu – stav do 7. 11. 2026). „Otisk“ uložených bodů
 musí být s pamětí i bez ní tentýž. `--ticks` (výchozí 480 = 2 min), `--profile` = podíl hledání
@@ -315,3 +317,54 @@ před i po `e79f0cb0`):
 Před tím kolo trvalo déle než perioda smyčky (1 s). Zbylá data po zrychlení jsou skutečné změny:
 uložení bodu po 40 taktech doručí události nájezdu do schránek vsí (verze +1) a další kolo vsi
 jednou načte celé.
+
+### Varování a útěk do hradiště (plán 2026-11-09 – Úloha 15)
+
+**Tažení s varováním** – `measure-campaigns.ts` jako výš, scénáře „varování 5“ (5 tažení na
+varované vsi NPC – oči vsi, posel a útěk „se vším“ do hradiště o políčko dál) a „pochod 15 +
+varování 5“ (20 tažení × 60 mužů, z toho 5 s varováním). Změřeno 10. 11. 2026 (M-série, jedno
+jádro):
+
+| scénář                 | tažení | jádro | cesta (A\*) | nejdražší sami                              |
+| ---------------------- | -----: | ----: | ----------: | ------------------------------------------- |
+| pochod                 |     20 | 4,5 % |        13 % | `structuredClone` 46 %, čtení bodu 38 %     |
+| opevněné vsi (nájezd)  |      5 | 5,4 % |         1 % | `nearestForestOf` 23 %, `campaignTick` 21 % |
+| varování               |      5 | 2,4 % |        12 % | `campaignTick` 48 %, čtení bodu 25 %        |
+| pochod 15 + varování 5 |     20 | 5,6 % |        12 % | `structuredClone` 51 %, čtení bodu 33 %     |
+
+**Cíl plánu ≤ 6 % jádra pro 20 tažení s varováním je splněn (5,6 %)** – mezipaměť očí po dnech ani
+zkrácení dohledu (Rizika plánu) nejsou potřeba: oči vsi a doběh jsou v `TickContext` po dnech
+(`lookouts`, `runs`) a dohled se počítá jen od skupin. Tažení na varované vsi stojí ≈ 1,5× pochod
+(takty/s 828 proti 1 279). Pozn.: „opevněné 5“ stojí 5,4 % proti 2,5 % ze 7. 11. – čas je
+v `nearestForestOf` (les na žebříky – `ladders.ts`, `npc-assault.ts`) a `distanceToSegment`, ne
+ve varování; pod cílem 25 %.
+
+**Pohled na varování** – panel dvorce se při varování ptá každé 2 s (`use-alarm.ts`) a server
+pokaždé spočte `villageAlarmView`: přístup k vsi, Vrátit se, tažení s varováním (kontrolní bod),
+kandidáti hradišť, mapy políček a volby (`alarmChoices`). `apps/worker/scripts/measure-alarm-view.ts`
+– nad skutečnou databází `bohemia_measure_alarm` (vytvoří a zmigruje; zdroj = největší ves `bohemia`,
+jen čtení): ves hráče a jeho hradiště jako kopie zdroje, tažení 60 mužů s varováním vsi; čas dotazu
+a jeho části (repozitáře obalené měřičem), „před“ = paměť vsí jen na jeden dotaz (`withVillageCache`),
+„po“ = jako `apps/web/lib/alarm.ts`. Databázi po měření zruš (`DROP DATABASE bohemia_measure_alarm`).
+
+```bash
+nice npx tsx apps/worker/scripts/measure-alarm-view.ts --rounds 20
+```
+
+Změřeno 9. 11. 2026 (Vlkov 3,14 MB, 20 dotazů po prvním):
+
+| varianta                                   | dotaz (průměr) | úložiště | výpočet | načtení stavu vsi          |
+| ------------------------------------------ | -------------: | -------: | ------: | -------------------------- |
+| před – paměť na dotaz (`withVillageCache`) |        76,1 ms |  59,9 ms | 16,2 ms | 2× `find` (ves + hradiště) |
+| po – paměť přes dotazy + mřížky            |     **4,2 ms** |   3,7 ms |  0,5 ms | 3× `stampsOf` (otisk)      |
+
+Dřív stál dotaz ≈ 76 ms (3 % jádra na jednoho hráče s otevřeným panelem při varování): dvakrát
+3 MB JSON (ves a hradiště) a mřížka pochodu mapy vsi v každém dotazu. Teď:
+
+- **Paměť vsí přes dotazy** (`VillageMemory` v `packages/server/village-cache.ts`, `withVillageMemory`):
+  `alarmViewForPlayer` běží v rozsahu paměti, která přežije dotaz – `cachedVillages` vrátí týž
+  záznam, dokud levný otisk (`stampsOf` – verze a jméno) sedí, jinak načte znovu. Nejvýš 8 vsí
+  (naposledy použité), stav vsi je neměnný – výsledek je tentýž jako s načtením.
+- **Mřížky pochodu** (`AlarmViewDeps.grids` – `MarchGridMemo` jako ve workeru): klíč je identita
+  krajiny, překážek a stavu vsi a den – s pamětí vsí týž objekt, takže se mřížka staví jednou za den
+  nebo změnu vsi.

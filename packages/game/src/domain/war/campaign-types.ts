@@ -3,7 +3,9 @@ import type { Landscape, ObstacleLayer } from '../landscape';
 import type { AssaultMethod } from '../village/fortification/assault';
 import type { NewVillageEvent } from '../village/inbox';
 import type { Person, PersonRef, Prisoner, RaidLoot, VillageState } from '../village/types';
+import type { FlightMode } from '../village/types';
 import type { GridCell } from '../village/world-grid';
+import type { AlarmOwner, CampaignAlarm } from './alarm-types';
 import type { BattleState } from './battle';
 import type { MarchGridMemo, Pos } from './march-grid';
 
@@ -123,11 +125,15 @@ export interface CampaignLoot {
   /** Rozpis kořisti po druzích (`foodKg` a `herd` jsou jeho součty); chybí – nic nevzali. */
   detail?: RaidLoot;
   /**
-   * Odvedení lidé – snímek ze stavu napadené vsi v den nájezdu (id patří jí); ve vsi útočníka
-   * přijdou jako noví vesničané s novými id (`campaign-return`). Chybí – nikdo.
+   * Odvedení lidé – snímek ze stavu napadené vsi v den nájezdu (id patří jí), i chycení poslové
+   * (Úloha 5 plánu 2026-11-09 – snímek z jejich vsi); ve vsi útočníka přijdou jako noví vesničané
+   * s novými id (`campaign-return`). Chybí – nikdo.
    */
   people?: Person[];
-  /** Zajatí muži rodu a šlechtici – přibudou do `VillageState.prisoners` vsi shromaždiště. */
+  /**
+   * Zajatí muži rodu a šlechtici (z nájezdu i chycení poslové) – přibudou do `VillageState.prisoners`
+   * vsi shromaždiště.
+   */
   prisoners?: Prisoner[];
 }
 
@@ -138,11 +144,19 @@ export type CampaignReturnReason = 'arrived' | 'supplies' | 'order' | 'routed';
 /** Host (z ochrany pánem nebo ze svolání) v boji: záporné číslo bojovníka, domovská osoba a co potřebuje zajetí. */
 export interface CampaignGuard {
   id: number;
-  /** Druh hosta; chybí = ochrana (starší stav tažení). */
-  kind?: 'service';
+  /**
+   * Druh hosta; chybí = ochrana (starší stav tažení); `refuge` – muž uprchlíků v hradišti (war.md –
+   * Varování, poslové a útěk do hradiště – Místo v hradišti).
+   */
+  kind?: 'service' | 'refuge';
   ref: PersonRef;
   name?: string;
   noble?: true;
+  /**
+   * Muž uprchlíků, který není muž rodu ani šlechtic – vzdaného útočník nezajme (pobít = padne;
+   * odvést ho z hradiště zatím nelze – jako ženy a děti uprchlíků, Později).
+   */
+  villager?: true;
 }
 
 export interface CampaignState {
@@ -198,7 +212,10 @@ export interface CampaignState {
    * Ú6.7) – bere se `day − 1` a doplní ji první takt.
    */
   throughDay?: number;
-  /** Posel do cílové vsi už šel (`army-seen` – war.md, Obránci: Kdy); chybí – ještě ne. */
+  /**
+   * Posel do cílové vsi už šel (`army-seen` – war.md, Obránci: Kdy); chybí – ještě ne. Jen ze starých
+   * bodů – od Úlohy 2 plánu 2026-11-09 se nezapisuje.
+   */
   messengerSent?: true;
   /**
    * Domovské vsi mužů (id vsi → místo) – kam jdou hloučky po rozpadu (war.md – Velení: Rozpad);
@@ -212,6 +229,11 @@ export interface CampaignState {
   presenceTick?: number;
   /** Hráč je pryč déle než 1 herní den a vede zástupce (NPC); po návratu hráč velení převezme. */
   absent?: true;
+  /**
+   * Varování, poslové a útěk do hradiště (war.md; plán 2026-11-09): vsi, které vojsko spatřily,
+   * jejich poslové a skupiny uprchlíků. Chybí – nikdo vojsko zatím nespatřil (i starší bod).
+   */
+  alarm?: CampaignAlarm;
 }
 
 /**
@@ -246,7 +268,21 @@ export type IntentBody =
    * bez něj tou s nejméně útočníky (`breakoutGate` – i hlídanou). Dává ho přítomný držitel
    * napadené vsi use-casem `orderBreakout` (jediný cizí záměr, který tažení přijme).
    */
-  | { kind: 'breakout'; fort: number; segment?: number };
+  | { kind: 'breakout'; fort: number; segment?: number }
+  /*
+   * Záměry obránce varované vsi (war.md – Varování, poslové a útěk do hradiště; plán 2026-11-09):
+   * dává je hráč, kterému ves patří (`AlarmVillage.owner`), ne vůdce tažení – jako `breakout`.
+   */
+  /**
+   * „Poslat posla“ – ves `village` pošle posla do hradiště pána: `personId` = muž, kterého hráč
+   * vybral (muž rodu, který umí jezdit, jede na koni – Martin 9. 11. 2026); chybí – vesničan pěšky
+   * (`messengerOf`).
+   */
+  | { kind: 'alarm-messenger'; village: string; personId?: number }
+  /** „Ukrýt v lese“, „Do hradiště – jen lidé“, „Do hradiště – se vším“. */
+  | { kind: 'alarm-flee'; village: string; mode: FlightMode }
+  /** Hradiště `village` hráče pošle posly do vybraných vsí domény `to`. */
+  | { kind: 'alarm-domain'; village: string; to: string[] };
 
 /** Záměr s taktem, ve kterém platí (teď + 2), a pořadím zápisu `seq` (v taktu podle něj). */
 export interface CampaignIntent {
@@ -287,12 +323,28 @@ export interface CampaignWorld {
    * Neví-li svět, vojsko škodí.
    */
   harmless?(villageId: string, armyPlayerId: string): boolean;
-  /**
-   * Pošle ves `passedVillageId`, kterou vojsko prošlo, posla do cílové vsi `targetVillageId` – je to
-   * jiná ves téhož rodu (war.md – Obránci, Kdy)? `null` = svět vsi ještě nenačetl (takt se zastaví
-   * a obě se načtou). Neví-li svět vůbec, nikdo posla neposílá.
+  /*
+   * Varování, poslové a útěk do hradiště (plán 2026-11-09 – Úloha 6; worker je skládá z portu
+   * `AlarmOwnerPort`): `null` = svět ještě nenačetl (takt se zastaví a volající je načte). Bez portu
+   * rod vsi neznámý (rozhoduje pravidlo), hradiště ani doména žádné.
    */
-  messengerTo?(passedVillageId: string, targetVillageId: string): boolean | null;
+  /** Kdo za ves rozhoduje (hráč, NPC rod). */
+  alarmOf?(villageId: string): AlarmOwner | null;
+  /**
+   * Kandidáti hradišť vsi – vsi vlastního rodu (kromě ní) a přímých pánů (Otevřené 1); tažení si
+   * vybere ty do `WAR.alarm.refugeMaxCells` políček.
+   */
+  refugeHostsOf?(villageId: string): { villageId: string; cell: GridCell }[] | null;
+  /**
+   * Vsi domény hradiště – vlastní rod a přímí vazalové (Otevřené 5); tažení si vybere ty do
+   * `WAR.alarm.domainRadiusCells` políček od místa spatření.
+   */
+  domainOf?(villageId: string): { villageId: string; cell: GridCell }[] | null;
+  /**
+   * Jméno vsi (kronika a upozornění – „Lidé odešli do hradiště {jméno}.“; Úloha 8). Svět ho zná
+   * s načteným stavem vsi; neví-li, null – text bez jména.
+   */
+  villageNameOf?(villageId: string): string | null;
   /**
    * Mřížky pochodu napříč voláními (worker) – jen zrychlení; bez ní se mřížka staví jednou na
    * volání.
@@ -301,7 +353,15 @@ export interface CampaignWorld {
 }
 
 /** Druhy upozornění tažení (aplikace je přidá do `PlayerNoticeKind`). */
-export type CampaignNoticeKind = 'campaign-returned' | 'foreign-army' | 'campaign-disbanded';
+export type CampaignNoticeKind =
+  | 'campaign-returned'
+  | 'foreign-army'
+  | 'campaign-disbanded'
+  /** Varování, poslové a útěk do hradiště (war.md): ves ví o vojsku, uprchlíci došli / dostiženi, posel chycen. */
+  | 'army-warned'
+  | 'refuge-arrived'
+  | 'refuge-caught'
+  | 'messenger-caught';
 
 /** Upozornění pro hráče z taktu tažení. */
 export interface CampaignNotice {

@@ -547,7 +547,7 @@ Martin 2. 11. 2026 – „ok“ (podrobnosti návrh Clauda):
   nájezdy a cizí vojska spatřená u vsi zvedají **hrozbu**, podle které staví opevnění správce
   ([fortifications.md](fortifications.md) – Správce).
 
-## Varování, poslové a útěk do hradiště (schváleno 9. 11. 2026 – implementace čeká)
+## Varování, poslové a útěk do hradiště (schváleno 9. 11. 2026 – implementováno)
 
 Vychází z rešerše, kterou Martin přinesl 9. 11. 2026 (proč slovanské vsi neměly palisádu – útočištěm
 kraje bylo hradiště: „Obyvatelé okolních neopevněných vesnic v případě nebezpečí sbalili dobytek,
@@ -565,7 +565,11 @@ zásoby a cennosti a utekli do nejbližšího hradiště“).
   vesnice, či je ukryje někde v lese na mapě.“ (Martin 9. 11. 2026) – volba hráče.
 - **Správce za nepřítomného hráče** (návrh Clauda, Martin 9. 11. 2026: „ano platí“): jakmile ves
   vojsko spatří, pošle posla do hradiště pána; lidi evakuuje do hradiště, když tam podle
-  vzdálenosti stihnou dojít dřív než vojsko, jinak je ukryje v lese na mapě.
+  vzdálenosti stihnou dojít dřív než vojsko, jinak je ukryje v lese na mapě. Ves se zapnutým
+  správcem a vsi NPC rodů rozhodnou hned; ves bez správce čeká na rozhodnutí hráče nejvýš 1 herní
+  den (≈ 86 s), pak se zařídí podle tohoto pravidla (návrh Clauda, Martin 9. 11. 2026: „Ok, nechme
+  to, jak jsi navrhl“). Posel za správce je vždy vesničan pěšky; nemá-li ves vesničana, jde muž
+  rodu – na koni, umí-li jezdit (Martin 9. 11. 2026: „Ano“).
 - **Co si vezmou:** Martin 9. 11. 2026: „To rozhodne hráč. Někdy může rozhodnout, ať se evakuují
   jenom lidé (spasí holý život), pokud usoudí, že je dost času, tak nechá lidi vzít vše, co unesou,
   a sehnat dobytek.“ – dvě volby: **jen lidé** (rychle), nebo **lidé s tím, co unesou, a stáda**
@@ -603,6 +607,37 @@ zásoby a cennosti a utekli do nejbližšího hradiště“).
   jen lidé**, **Do hradiště – se vším** (zašedlé s důvodem, když nejde – „Pán nemá hradiště“,
   „Nestihnou to“ s odhadem času), po útěku **Vrátit se**; ve scéně průvod uprchlíků se stády k okraji
   mapy, na mapě tažení ikona skupiny.
+
+**Implementace** (plán `docs/superpowers/plans/2026-11-09-hillfort-refuge.md`, úlohy Ú1–Ú15; kód
+`docs/code/war.md` – Varování, poslové a útěk do hradiště). Co spec nerozhodl, volí návrh Clauda:
+
+- **Hradiště** je kterákoli jiná ves vlastního rodu nebo přímého pána (jeden stupeň vazalství)
+  s hotovým opevněním s plochou do 8 políček; víc kandidátů – nejkratší cesta. Jinak „Pán nemá
+  hradiště“.
+- **„Stihnou to“:** skupina opustí mapu vsi dřív, než vojsko dojde od místa, kde ho viděli
+  (vzdušně × 1,3 ÷ tempo skupiny), a trasa nevede přes políčko vojska – obránce zná jen místo
+  spatření, ne trasu.
+- **Oči vsi:** domy a dvorec vždy, mimo zimu i pole, milíře, lomy, klády, sady a ohrady; ves, která
+  se schovává, jen domy. Vesničan běží 2× tempem pěších, vojsko ho nechytá.
+- **Posel** je chycen do 30 m od skupiny vojska (s jezdcem v dohledu); osud podle volby ke vzdaným
+  té skupiny. Po doručení se vrátí domů za tolik dní, kolik běžel.
+- **Hradiště varuje doménu:** vsi vlastního rodu a přímých vazalů do 3 políček od místa spatření,
+  nejvýš 4 poslové, nejbližší první.
+- **Správce za hráče:** posel vždy (je-li hradiště a kdo běžet), útěk jen s postojem „utéct“ –
+  „bránit“ a „vzdát se“ platí; ves s vlastním útočištěm neevakuuje.
+- **Co nesou:** jen lidé = bez zásob a dobytka; se vším = co unesou (dospělý 25 kg, dítě 10 kg),
+  každý vůz se spřežením 400 kg a stáda; osivo a zapečetěné jámy zůstávají.
+- **Dostižení:** skupina vojska do 30 m od uprchlíků; přesila → vzdají se (lidé podle volby ke
+  vzdaným, zásoby do nosnosti a stáda do kořisti), jinak jdou dál; poslední muž rodu se nevzdá a
+  uteče do lesa.
+- **Pobyt:** do útočiště napřed domácí, pak uprchlíci podle příchodu, stáda až za lidmi; muži
+  uprchlíků od 16 let brání hradiště, dospělí pracují pro hradiště jako hosté (napřed opevnění).
+- **Návrat:** jen po příchodu a jen když na mapě vsi nestojí žádná skupina vojska; z lesa týž den,
+  z hradiště za dny cesty. Dvě tažení najednou – druhé ves jen varuje.
+
+**Později:** boj v poli při dostižení skupiny bez přesily; kořist zásob a stád uprchlíků
+v dobytém hradišti; posel na koni k pánovi přes víc hradišť; hlad uprchlíků na dlouhé cestě; stáda
+uprchlíků u hradiště jedí seno hostitele.
 
 ## Co hráč vidí (UI jako 0 A.D.)
 
@@ -690,6 +725,7 @@ Martin 2. 11. 2026 – „ok“ (doplňky návrh Clauda):
 | Dosah zblízka                  | 3 m – oštěp a sekera dosáhnou přes plot, ~~i přes palisádu~~ přes palisádu ne (Martin 8. 11.)                                                                                                                                          |
 | Zda rána padne                 | zblízka los 1 : 1 každé rány (návrh Clauda); na dálku kruh rozptylu `(2 − 1,5 × dovednost ÷ 100) × vzdálenost ÷ 30` m, šance = viditelné plochy v kruhu ÷ plocha kruhu, vesničan jako dovednost 20 (Martin 8. 11., čísla návrh Clauda) |
 | Dohled v lese                  | 50 m (jinak ≈ 150 m; návrh Clauda)                                                                                                                                                                                                     |
+| Varování a útěk do hradiště    | vesničan i posel běží 2× tempem vojska; dostižení do 30 m; hráč volí 1 herní den (344 taktů), pak správce; hradiště do 8 políček, cesta = vzdušná čára × 1,3; doména do 3 políček, nejvýš 4 posly                                      |
 
 Z 18. 10. beze změny: skupina domů 40 m, dohled 150 m, nosnost 25 kg, ochota a dezerce, kovárna
 × 1,5, ~~obrana u domu × 1,5~~ (zrušeno 8. 11. 2026), nucený × 0,5 / 0,3, štěstí × 0,8–1,1.

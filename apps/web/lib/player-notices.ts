@@ -55,6 +55,10 @@ export function noticePanel(kind: PlayerNoticeKind): NoticePanel | null {
     case 'campaign-returned':
     case 'campaign-disbanded':
     case 'foreign-army':
+    case 'army-warned':
+    case 'refuge-arrived':
+    case 'refuge-caught':
+    case 'messenger-caught':
       return 'war';
     case 'levy-pending':
     case 'summons-open':
@@ -62,6 +66,43 @@ export function noticePanel(kind: PlayerNoticeKind): NoticePanel | null {
     case 'player-succession':
       return null;
   }
+}
+
+/**
+ * Ves upozornění varování a útěku (`army-warned`, `refuge-arrived`, `refuge-caught`,
+ * `messenger-caught` – payload `villageId`): klik otevře panel dvorce té vsi s ikonami varování
+ * (plán 2026-11-09 – Úloha 12 data, Úloha 13 panel). Jiné upozornění null.
+ */
+export function alarmNoticeVillage(n: Pick<PlayerNotice, 'kind' | 'payload'>): string | null {
+  switch (n.kind) {
+    case 'army-warned':
+    case 'refuge-arrived':
+    case 'refuge-caught':
+    case 'messenger-caught':
+      return stringOf(n.payload.villageId);
+    default:
+      return null;
+  }
+}
+
+/**
+ * Co udělá klik na upozornění: varování a útěk otevřou panel dvorce své vsi (`village`), ostatní
+ * panel podle druhu (`panel`); upozornění bez panelu nic (undefined).
+ */
+export function noticeOpener(
+  n: Pick<PlayerNotice, 'kind' | 'payload'>,
+  open: { village: (villageId: string) => void; panel: (panel: NoticePanel) => void },
+): (() => void) | undefined {
+  const villageId = alarmNoticeVillage(n);
+  if (villageId !== null) return () => open.village(villageId);
+  const panel = noticePanel(n.kind);
+  return panel ? () => open.panel(panel) : undefined;
+}
+
+/** „ z vsi Kněžice“ (jméno vsi se neskloňuje); bez jména nic. */
+function fromVillage(payload: Record<string, unknown>): string {
+  const name = stringOf(payload.name);
+  return name === null ? '' : ` z vsi ${name}`;
 }
 
 function nameOf(payload: Record<string, unknown>): string {
@@ -184,6 +225,20 @@ function textOf(n: PlayerNotice): string {
     case 'foreign-army':
       // jméno vsi se neskloňuje (2. pád jmen vsí nejde spolehlivě odvodit) – „u vsi Kněžice“
       return `Cizí vojsko u vsi ${stringOf(n.payload.name) ?? ''}!`.replace(' !', '!');
+    // Varování, poslové a útěk do hradiště (war.md) – texty návrh Clauda; upozornění posílá tažení
+    // od Úlohy 2 a 5–8 (plán 2026-11-09), pohled a klik na panel doplní Úloha 12.
+    case 'army-warned': {
+      const name = stringOf(n.payload.name);
+      return `Vesničan spatřil cizí vojsko${name === null ? '' : ` u vsi ${name}`}!`;
+    }
+    case 'refuge-arrived': {
+      const host = stringOf(n.payload.hostName);
+      return `Uprchlíci${fromVillage(n.payload)} došli ${host === null ? 'do hradiště' : `do vsi ${host}`}.`;
+    }
+    case 'refuge-caught':
+      return `Uprchlíci${fromVillage(n.payload)} byli dostiženi.`;
+    case 'messenger-caught':
+      return `Posel${fromVillage(n.payload)} byl chycen.`;
     case 'vassalage-renounced': {
       const lord = stringOf(n.payload.lordName) ?? 'Pán';
       const vassal = stringOf(n.payload.vassalName) ?? 'Vazal';

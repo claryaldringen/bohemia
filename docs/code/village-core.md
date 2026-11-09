@@ -252,6 +252,22 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
     `vassalage/__tests__/guests.test.ts`).
   - **Příchod hostů:** tělo schránky `guests-arrive` (`fromVillageId`, `fromName`, `guests`) –
     `hostGuests` přidá ty, kdo ještě neodešli a ve vsi nejsou; kronika `guests-came`.
+  - **Uprchlíci a posel** (war.md – Varování, poslové a útěk do hradiště; plán 2026-11-09 – Ú7,
+    kód `domain/village/refugees.ts`, podrobně docs/code/war.md – Ves na útěku): `away` druhu
+    `refuge` (s `hostVillageId` v hradišti, bez něj ukrytý v lese) a `messenger` nemá `untilDay` –
+    končí událostí schránky. **Uprchlík v lese** (`hidesInForest`) nepracuje, ale **jí doma**
+    (`foodNeedPerDay`). **Host se dnem narození** (`Guest.bornDay` – uprchlíci) jí podle věku
+    (`guestFoodNeed`) a pracuje jen jako dospělý 14–44 let; hosté bez něj se počítají jako dřív
+    (počet × dospělý – bit po bitu). Krok dne `refugeFoodDay` těsně před jídlem (`simulate.ts`):
+    z `refuge.hidden.foodKg` a z `RefugeStay.foodKg` přesune do zásob tolik, kolik dnes uprchlíci
+    snědí – jedí napřed své, pak ze zásob vsi. Návrat z hradiště (Ú10 – use-case
+    `returnFromRefuge`) odebere hosty a pobyt (`departRefuge`) a do `refugeLeaving` hostitele zapíše,
+    co lidé nesou, dokud událost `refuge-back` nestojí ve schránce domova (pak záznam zmizí);
+    simulace ho nečte. Dostižená skupina (Ú8 – `refuge-caught`) může mít i zajaté muže rodu
+    a šlechtice (`captured` – `markCaptive` u věznitele jako po nájezdu). Chycený posel
+    (`messenger-caught`) nese klíč zajetí `prisonerId` (`<tažení>:<ves>:<osoba>`; starší událost bez
+    něj `<tažení>:<osoba>`). Muži uprchlíků od 16 let hradiště brání a jejich ztráty dojdou domů
+    jako ztráty hostů z ochrany (`guard-losses` – Ú9, war.md – Pobyt v hradišti).
 
 - **Výkon dopočtu** (Vlkov, 44 lidí, rok vcelku): po stálých trasách (A4) ≈ 49 s, po mřížce
   a trasách vozu v paměti a chůzi s horní mezí napřed (B1 – village-roads.md, Trasy v paměti)

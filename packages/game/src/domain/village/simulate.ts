@@ -51,6 +51,7 @@ import { isVillageDormant } from './departure';
 import { applyInboxDay, inboxByDay, type VillageEvent } from './inbox';
 import { woundDeathsDay } from '../war/raid-apply';
 import { returnHome } from '../vassalage/guests';
+import { refugeFoodDay } from './refugees';
 import { withAwaitingLord } from './appoint-lord';
 import { withArmsCaps } from './arms-caps';
 import { withDynasty } from './dynasty';
@@ -396,6 +397,11 @@ function* simulateDaySteps(
   state.chronicle.push(...ensureMainWives(state, day));
   state.chronicle.push(...arrangeMarriages(state, day, storesFill));
   state.chronicle.push(...extraWivesDay(state, day, storesFill));
+  // uprchlíci jedí napřed své – v lese z ukrytého, v hradišti ze zásob pobytu (war.md – Varování,
+  // poslové a útěk do hradiště); bez útěku a hostů uprchlíků nic
+  if (state.refuge?.hidden !== undefined || state.refugeStays !== undefined) {
+    refugeFoodDay(state, day);
+  }
   const { satiation, energy, fruit, meat } = eat(state, day, coverage);
   yield;
   // nouzová porážka běží až v `eat()`, po `work()` – doplnit hlášení kusů do dnešního rozvrhu práce

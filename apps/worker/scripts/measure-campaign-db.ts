@@ -5,6 +5,7 @@ import { parseArgs } from 'node:util';
 import { Client, type PoolClient } from 'pg';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import {
+  createAlarmOwners,
   createDatabase,
   createHouseRepository,
   createSettlementRepository,
@@ -222,6 +223,7 @@ function memoryCampaigns(rows: Map<string, Row>, saves: { n: number }): Campaign
     create: none,
     activeOf: none,
     activeAgainst: none,
+    activeAlarming: none,
     addIntent: none,
     active: () =>
       Promise.resolve([...rows].filter(([, r]) => !r.done || r.outbox).map(([id]) => id)),
@@ -300,6 +302,7 @@ async function main(): Promise<void> {
       houses: createHouseRepository(db),
       vassalages: createVassalageRepository(db),
     }),
+    alarmOwners: createAlarmOwners(db),
     world,
     memory: newCampaignMemory(),
   };

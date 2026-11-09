@@ -1,4 +1,5 @@
 import type {
+  AlarmOwner,
   CampaignIntent,
   CampaignMap,
   CampaignOutbox,
@@ -41,6 +42,13 @@ export interface CampaignRepository {
    * nejstaršího.
    */
   activeAgainst(villageId: string): Promise<string[]>;
+  /**
+   * Id běžících tažení, která se vsi `villageId` týkají varováním (war.md – Varování, poslové
+   * a útěk do hradiště; plán 2026-11-09 – Úloha 3): ves je cílem, je ve varování
+   * (`alarm.villages`), nebo je hradištěm skupiny uprchlíků (`alarm.flights[].hostVillageId`) –
+   * pohled na varování a návrat z útěku. Kandidáti hradišť (`hosts`) ne. Od nejstaršího.
+   */
+  activeAlarming(villageId: string): Promise<string[]>;
   checkpoint(campaignId: string): Promise<CampaignCheckpoint | null>;
   /** Záměry s taktem větším než `tick`, podle taktu a `seq`. */
   intentsAfter(campaignId: string, tick: number): Promise<CampaignIntent[]>;
@@ -82,6 +90,38 @@ export interface CampaignLock {
 /** Mapy políček světa pro tažení – krajina (se vsí z uloženého seedu) a vsi na ní. */
 export interface CampaignCells {
   mapOf(cell: GridCell): Promise<CampaignMap>;
+}
+
+/** Ves s políčkem světa, na kterém stojí. */
+export interface VillageCell {
+  villageId: string;
+  cell: GridCell;
+}
+
+/**
+ * Kdo za ves při varování rozhoduje a kam se utíká (war.md – Varování, poslové a útěk do hradiště;
+ * plán 2026-11-09 – Úloha 6, Otevřené 1, 5, 6). Tažení se ptá synchronně (`CampaignWorld.alarmOf`,
+ * `refugeHostsOf`, `domainOf`) – smyčka tažení odpovědi načte, když na ně takt čeká
+ * (`computeCampaign`). Rod vsi = živý rod hráče, kterému ves patří (držitel sídla); vsi bez políčka
+ * světa, archivované a spící (vymřelé, opuštěné) se nepočítají.
+ */
+export interface AlarmOwnerPort {
+  /**
+   * Kdo za ves rozhoduje: držitel vsi (`playerId`) a jeho rod (`houseId`; hráč bez živého rodu
+   * null), `npc` – ves spravuje NPC rod (povýšený vesničan – rozhoduje pravidlo správce). Neznámá ves
+   * null.
+   */
+  ownerOf(villageId: string): Promise<AlarmOwner | null>;
+  /**
+   * Kandidáti hradišť (Otevřené 1): vsi vlastního rodu kromě `villageId` a vsi přímých pánů rodu
+   * (jeden stupeň vazalství), od nejbližší (shoda – menší id). Tažení si vybere ty v dosahu.
+   */
+  refugeHostsOf(villageId: string): Promise<VillageCell[]>;
+  /**
+   * Doména hradiště (Otevřené 5): vsi rodu `villageId` (i ona) a jeho přímých vazalů – vazal vazala
+   * ne; od nejbližší (shoda – menší id).
+   */
+  domainOf(villageId: string): Promise<VillageCell[]>;
 }
 
 /**

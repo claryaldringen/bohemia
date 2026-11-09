@@ -19,11 +19,24 @@ import {
   type RaidResult,
 } from '../war/raid-apply';
 import { applyCaptiveReturns, type CaptiveReturns } from '../war/captives';
+import {
+  applyMessengerBack,
+  applyMessengerCaught,
+  applyMessengerOut,
+  applyRefugeArrive,
+  applyRefugeBack,
+  applyRefugeCaught,
+  applyRefugeDepart,
+  applyRefugeHidden,
+} from './refugees';
 import type {
   AwayKind,
   ChronicleEvent,
+  FlightMode,
   Guest,
+  HerdSpecies,
   PersonRef,
+  RefugeePerson,
   ShipmentBody,
   ThreatSignal,
   VillageState,
@@ -115,6 +128,106 @@ export type VillageEventBody =
       segments: number[];
       burned?: number[];
       gatesBurned?: number[];
+    }
+  /*
+   * Varování, poslové a útěk do hradiště (war.md; plán 2026-11-09 – Úloha 1 tvar, Úloha 7 aplikace
+   * v `refugees.ts`).
+   * `refId` = posel nebo skupina uprchlíků v tažení `campaignId` (`AlarmMessenger`, `AlarmFlight`).
+   */
+  /**
+   * Posel vyběhl z vsi do hradiště `toVillageId` (na koni vsi, je-li `mounted`): osoba `personId`
+   * je pryč (`away` druhu `messenger`).
+   */
+  | {
+      kind: 'messenger-out';
+      campaignId: string;
+      refId: string;
+      personId: number;
+      toVillageId: string;
+      mounted: boolean;
+    }
+  /** Posel se po doručení vrátil domů. */
+  | { kind: 'messenger-back'; campaignId: string; refId: string; personId: number }
+  /**
+   * Vojsko posla chytilo: `killed` – padl, `led` – odveden (z vsi zmizí), `captured` – muž rodu
+   * nebo šlechtic zajat do vsi `captorVillageId` (war.md – Vzdaní, zajetí a výkupné).
+   */
+  | {
+      kind: 'messenger-caught';
+      campaignId: string;
+      refId: string;
+      personId: number;
+      fate: 'killed' | 'led' | 'captured';
+      captorVillageId?: string;
+      /**
+       * Klíč zajetí (`guardPrisonerKey` – `<tažení>:<ves>:<osoba>`); chybí ve starších událostech –
+       * pak `prisonerKey` (`<tažení>:<osoba>`).
+       */
+      prisonerId?: string;
+    }
+  /**
+   * Lidé `people` odešli skupinou do hradiště `hostVillageId`, nebo (null) do lesa, s `carriedKg`
+   * zásob a stádem `herd` – ves je odečte a zapíše `VillageState.refuge`.
+   */
+  | {
+      kind: 'refuge-depart';
+      campaignId: string;
+      refId: string;
+      mode: FlightMode;
+      hostVillageId: string | null;
+      people: number[];
+      carriedKg: number;
+      herd: Record<HerdSpecies, number>;
+      /** Jméno hradiště do kroniky (Úloha 7); chybí – kronika bez jména. */
+      hostName?: string;
+    }
+  /** Skupina došla do lesa a ukryla se se zásobami a stádem (`VillageRefuge.hidden`). */
+  | {
+      kind: 'refuge-hidden';
+      campaignId: string;
+      refId: string;
+      foodKg: number;
+      herd: Record<HerdSpecies, number>;
+    }
+  /**
+   * Vojsko skupinu dostihlo a vzala se: `killed` padli, `led` odvedeni, `captured` – muži rodu
+   * a šlechtici zajati do vsi `captorVillageId` pod klíčem zajetí `prisonerId` (Úloha 8 – jako
+   * posel); ostatní jdou dál.
+   */
+  | {
+      kind: 'refuge-caught';
+      campaignId: string;
+      refId: string;
+      killed: number[];
+      led: number[];
+      captured?: { personId: number; prisonerId: string }[];
+      captorVillageId?: string;
+    }
+  /**
+   * Uprchlíci z vsi `fromVillageId` došli do hradiště (hostitel): hosté druhu `refuge` a pobyt
+   * `RefugeStay` s jejich zásobami a stádem.
+   */
+  | {
+      kind: 'refuge-arrive';
+      campaignId: string;
+      refId: string;
+      fromVillageId: string;
+      fromName: string;
+      people: RefugeePerson[];
+      foodKg: number;
+      herd: Record<HerdSpecies, number>;
+    }
+  /**
+   * Uprchlíci se vrátili domů (domov) se zbylými zásobami a stádem z hradiště (`leaveRefuge`);
+   * z lesa jen s tím, co ukryli (`refuge.hidden`).
+   */
+  | {
+      kind: 'refuge-back';
+      refId: string;
+      foodKg: number;
+      herd: Record<HerdSpecies, number>;
+      /** Vrátil je správce (nebo NPC rod) – kronika „Správce vrátil lidi domů.“ (Úloha 10). */
+      steward?: true;
     };
 
 /**
@@ -190,6 +303,22 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
     case 'fortification-breach':
       applyFortificationBreach(state, day, body);
       return [];
+    case 'messenger-out':
+      return applyMessengerOut(state, day, body);
+    case 'messenger-back':
+      return applyMessengerBack(state, day, body);
+    case 'messenger-caught':
+      return applyMessengerCaught(state, day, body);
+    case 'refuge-depart':
+      return applyRefugeDepart(state, day, body);
+    case 'refuge-hidden':
+      return applyRefugeHidden(state, day, body);
+    case 'refuge-caught':
+      return applyRefugeCaught(state, day, body);
+    case 'refuge-arrive':
+      return applyRefugeArrive(state, day, body);
+    case 'refuge-back':
+      return applyRefugeBack(state, day, body);
     default:
       return unknownBody(body);
   }

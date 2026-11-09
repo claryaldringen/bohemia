@@ -124,9 +124,26 @@ export type ChronicleEvent = { day: number } & (
    */
   | { kind: 'people-away'; away: AwayKind; people: number; villageName: string; untilDay: number }
   /** Lidé se vrátili domů (robota odpracovaná…) – `people` lidí, druh `away`. */
-  | { kind: 'people-back'; away: AwayKind; people: number }
+  | {
+      kind: 'people-back';
+      away: AwayKind;
+      people: number;
+      /** Uprchlíky vrátil domů správce (war.md – Varování: návrat; Úloha 10); chybí – hráč, jiný návrat. */
+      steward?: true;
+    }
   /** Do vsi přišli hosté z vsi `villageName` – `people` lidí na čas, druh `away`. */
   | { kind: 'guests-came'; away: AwayKind; people: number; villageName: string }
+  /**
+   * Útěk před vojskem (war.md – Varování, poslové a útěk do hradiště): `people` lidí odešlo skupinou
+   * do hradiště `villageName` (bez jména – jméno neznámé).
+   */
+  | { kind: 'refuge-left'; people: number; villageName?: string }
+  /** Skupina uprchlíků došla do lesa na mapě vsi a ukryla se – `people` lidí. */
+  | { kind: 'refuge-hidden'; people: number }
+  /** Vojsko dostihlo skupinu uprchlíků: `killed` padlo, `led` odvedlo, `captured` zajalo (muži rodu). */
+  | { kind: 'refuge-caught'; killed: number; led: number; captured?: number }
+  /** Vojsko chytilo posla `name` (bez jména vesničan): padl, odvedlo ho, nebo ho zajalo (muž rodu). */
+  | { kind: 'messenger-caught'; fate: 'killed' | 'led' | 'captured'; name?: string }
   /**
    * Do vsi, která už vojvodu má, přišel z jiné vsi rodu muž `name` s rodinou (dosazení vojvody
    * přišlo pozdě) – žije v dvorci jako ostatní muži rodu.

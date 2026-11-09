@@ -950,6 +950,9 @@ se vykreslí i v testech bez serveru.
   na mapu = velitel jde. Ikony Domů, tři rozkazy skupiny velitele a v boji Pobít / Odvést / Nechat,
   slova jen v `Tooltip`; nevede-li hráč živě, vše zašedlé („Velí jiný muž.“). Oko
   (`campaign-watch`, „Ve scéně“ / „Zpět na ves“, `aria-pressed`) přepne scénu na cizí mapu – výš.
+  Pohled nese i `CampaignView.flights` (Ú14 – skupiny uprchlíků na cestě a běžící poslové v dohledu
+  vlastních mužů: políčko, poloha, lidí, kusů, posel na koni); ikonu na `CampaignMap` doplní práce
+  na rozhraní (ikony Ú13).
 
 - **Válka ve scéně** (`hooks/use-war-scene.ts`, war.md – Ve scéně – napojení na hru):
   `useWarScene(url, enabled)` – vlastní mapa `GET /api/war-scene/<sídlo>`, cizí mapa
@@ -1007,6 +1010,92 @@ se ukáže stejně – platí, dokud server nepošle jiný důvod, nejdéle 10 s
 – „obránce za hradbou s branou rozkáže ‚Probít se‘“ (boj zapsaný do kontrolního bodu bez workeru, klik
 → řádek `campaign_intent` s `breakout` od hráče B; obránce v krytu a vzdaný ve scéně, snímek
 `probijeni.png` v `test-results`). Popisek tlačítka u levého okraje: `Tooltip` `below-right`.
+
+## Varování a útěk v rozhraní (war.md – Varování, poslové a útěk do hradiště; plán 2026-11-09)
+
+**Data a akce (Úloha 12).** Use-case `villageAlarmView` (`application/alarm-view.ts`, podrobnosti
+`docs/code/war.md` – Varování: pohled a příkazy) vrací `AlarmView`: `warned`, `campaignId`
+(nevarovaná ves null – nerozliší se od vsi, na kterou nikdo netáhne), `options` pro `messenger`,
+`forest`, `people`, `all` (`ALARM_CHOICES` – pořadí ikon) s kódem důvodu `blocked`
+(`AlarmViewBlock`, texty `ALARM_BLOCKED` z jádra) a odhady v herních dnech `etaDays` / `leaveDays`,
+`armyEtaDays`, `runners` (koho lze poslat – výchozí vesničan, pak muži rodu, `mounted`, `etaDays`),
+`host`, `messenger`, `flight` (stav skupiny, na cestě odhad), `decided` a `graceDays` (za kolik dní
+rozhodne pravidlo správce), `ret` (Vrátit se – důvod `REFUGE_RETURN_REASONS`, „Lidé se už vracejí.“
+s `backInDays`) a u hradiště hráče `domain` / `domainLeft` (vsi domény k výběru poslů). Dívat se smí
+každý, kdo ves vidí (i bez práva `war` – ikony zašedne důvod práva), cizí hráč dostane null.
+
+- **Server:** `lib/alarm.ts` (composition root – `alarmViewForPlayer`, `commandAlarmForPlayer`,
+  `returnFromRefugeForPlayer`; port domény `createAlarmOwners`, mapy `campaignCells`). Server actions
+  (`app/game/actions.ts`): `getAlarmView({ villageId })`, `commandAlarm({ villageId, command })` –
+  `command` = `{ kind: 'messenger', personId? }` | `{ kind: 'flee', mode }` | `{ kind: 'domain', to }`
+  (tvar `lib/alarm-input.ts`), `returnFromRefuge({ villageId })` → `{ ok, arrivesDay }`. Obě akce
+  jdou přes `unlockedAction` ve `village.ts` (klíče `ACTION_RIGHTS.commandAlarm` a
+  `returnFromRefuge` – právo `war`) **bez zámku hráče**: příkaz je záměr do tažení na takt teď + 2
+  (jako „Probít se“) a návrat si bere zámek držitele hradiště sám (jeden zámek, nikdy vnořený;
+  `exclusivePlayer` – i fronta v procesu). Test `action-rights.test.ts` hlídá i `unlockedAction`.
+- **Klient:** `lib/alarm-view.ts` (čistý modul) – názvy ikon `ALARM_LABELS` doslovně ze specu,
+  `alarmOptionText` (důvod u kurzoru – „Nestihnou to – vojsko tu bude za ≈ 2 dny, z mapy jim to
+  potrvá ≈ 3 dny.“, nebo odhad „Do hradiště Hradec ≈ 3 dny – vojsko tu bude za ≈ 2 dny.“),
+  `daysText` („méně než den“, „≈ 1 den“, „≈ 3 dny“, „≈ 5 dní“), `runnerText`, `flightText`,
+  `returnText`, `alarmPollMs`. Hook `hooks/use-alarm.ts` (`useAlarm(villageId)` → `{ view, error,
+refresh }`): první dotaz hned, pak při varování nebo s lidmi na útěku každé 2 s, jinak 10 s.
+  Upozornění varování nesou `villageId` – `alarmNoticeVillage` (`lib/player-notices.ts`) pro klik na
+  panel dvorce vsi. Test `lib/__tests__/alarm-view.test.ts` (odhad ve dnech, texty, vstup akcí).
+
+**Ikony v panelu dvorce (Úloha 13).** `hud/AlarmButtons.tsx` (`AlarmButtons`, `AlarmActions`,
+`ALARM_ICONS`) – řádek v příkazech panelu dvorce pod vylepšeními a postojem vsi
+(`selection/dwelling.tsx`, prop `alarm` v `ManorActions` / `SelectionPanel`), jen když
+`AlarmView.warned` nebo `ret`. Jako v 0 A.D. jen ikony 40 px (`war/alarm-*.png` z Blenderu – Ikony
+z Blenderu níž), název, odhad a stav šedě v `Tooltip`, důvod červeně (`alarmOptionText` – „Nestihnou
+to – vojsko tu bude za ≈ 2 dny, z mapy jim to potrvá ≈ 3 dny.“):
+
+- **Poslat posla**, **Ukrýt v lese**, **Do hradiště – jen lidé**, **Do hradiště – se vším** v pořadí
+  `ALARM_CHOICES`. Posel: s jedním možným poslem klik pošle výchozího (`{ kind: 'messenger' }`),
+  s víc `runners` otevře nabídku nad panelem (`hud-popup` – vesničan `alarm-messenger`, muž rodu
+  pěšky portrét `man`, na koni `horse`, popisek `runnerText`; muž rodu jde s `personId`). Stav posla
+  znakem vpravo dole (hodiny běží, fajfka doběhl, křížek chycen) a větou `messengerText` v popisku.
+- **Po útěku** (`flight`) místo tří ikon útěku jedna ikona zvolené cesty se stavem – hodiny s počtem
+  dní (`daysBadge`: „<1“, jinak zaokrouhleně), fajfka (došli, ukryli se), křížek (dostiženi) – a věta
+  `flightText`. **Vrátit se** (`ret`, i po skončeném tažení – pak jediná ikona): důvod červeně
+  (`returnText`), rozhodnutý návrat hodiny s dny do příchodu.
+- **Varovat doménu** (hradiště hráče – `domain`; návrh Clauda): ikona `alarm-domain` s počtem
+  zbývajících poslů (`domainLeft`) otevře seznam vsí domény s portrétem zemnice a zaškrtnutím –
+  varované zaškrtnuté a zamčené, víc než `domainLeft` nejde; odeslání ikonou posla (popisek
+  `domainSendText`). Všichni už vědí, nebo hradiště nemá posly – „Do domény není koho varovat.“
+- **Lhůta hráče bez správce** (`graceDays`, nikdo nerozhodl): ikona správce s počtem dní a popisek
+  `graceText` („Nerozhodneš-li, ves se zařídí sama za ≈ 1 den.“ – návrh Clauda).
+- Klik pošle akci jednou a zašedne svou skupinu (posel, útěk, návrat, doména) s větou, co se děje
+  („Posel už běží.“, „Lidé už odešli.“, „Lidé se už vracejí.“), nebo s chybou serveru – dokud se
+  otisk stavu ze serveru nezmění (`stateKey`), nejdéle 10 s (vzor `BreakoutButton`). Bez práva `war`
+  zašednou všechny ikony s důvodem práva (`useRightDenied('war')`).
+- **VillageGame:** `useAlarm` se ptá jen s otevřeným panelem dvorce (vybrané obydlí =
+  `view.manor.dwellingId`); akce `commandAlarm` / `returnFromRefuge` – chyba i řádkem nahoře, po
+  odpovědi `refresh`. **Klik na upozornění** varování a útěku (`noticeOpener` v
+  `lib/player-notices.ts` – `alarmNoticeVillage`, jinak panel podle druhu) vybere dvorec té vsi;
+  jiná ves téže mapy se napřed přepne (`switchVillage`) a dvorec se vybere, až se načte (ves na jiné
+  mapě stránku načte znovu – pak se jen přepne).
+- Dev panel `/dev/panels?panel=varovani` (varování – víc poslů, „Nestihnou to“, doména, lhůta)
+  a `?panel=utek` (posel doběhl, lidé na cestě, Vrátit se zatím ne).
+- Testy: `hud/__tests__/AlarmButtons.behavior.test.tsx` (ikony a pořadí, důvod s odhadem, klik
+  jednou a zašednutí skupiny, chyba serveru, výběr posla, stav po útěku a Vrátit se, doména, lhůta,
+  bez práva), `lib/__tests__/alarm-view.test.ts` (texty), `lib/__tests__/player-notices.test.ts`
+  (`noticeOpener`).
+
+**Mapa tažení, výkon a e2e (Úloha 15).** `CampaignMap` kreslí skupiny uprchlíků a běžící posly
+cizích vsí v dohledu vlastních mužů (`CampaignView.flights`, jen na ukázané mapě) ikonami z panelu
+dvorce zmenšenými na 110 m mapy (`FlightMarks`: uprchlíci se stádem `alarm-all`, jen lidé
+`alarm-people`, posel `alarm-messenger`); počty lidí a dobytka jen v popisku (`title`),
+`interpolateCampaign` je posouvá mezi dotazy jako muže. Test `hud/__tests__/CampaignMap.test.tsx`.
+**Dotazování na varování** (každé 2 s) čte stavy vsi a hradiště z paměti přes dotazy
+(`VillageMemory` 8 vsí – `withVillageMemory` v `lib/alarm.ts`, platnost hlídá otisk verze jako
+`withVillageCache`) a mřížky pochodu z `MarchGridMemo` (`AlarmViewDeps.grids`) – u vsi velikosti
+Vlkova 76 → 4 ms na dotaz (worker.md – Výkon – Pohled na varování). E2E `multiplayer-war.spec.ts` –
+„ves B varovaná utíká do hradiště pána a po odtažení vojska se vrátí“ (vazal B, pán C s hotovou
+palisádou na políčku vedle, tažení A s varováním B v kontrolním bodu, worker vedle `next start`):
+upozornění, ikony v panelu dvorce, „Do hradiště – se vším“ → záměr `alarm-flee`, průvod přenesený
+k hradišti → `refuge-arrive`, hosté `refuge` v C a lidé B pryč, Vrátit se zašedlé „Vojsko je ještě
+na mapě.“, po odtažení vojska klik → `refuge-back` a lidé doma; snímky `varovani-ikony.png`
+a `utek-do-hradiste.png`.
 
 ## Prémiová krajina v rozhraní
 
@@ -1184,6 +1273,13 @@ všech ručních SVG; slovník `PANELS` v `tools/blender/icons.py`, 64 × 64 jak
   (sekera ve špalku), `forest` (smrky krajiny), `hold` (visací zámek), `release` (otevřené pouto
   a zelená šipka), `shield-wall`, `white-flag`. **`newcomer/banner-crown.png`, `banner-free.png`**,
   **`resources/steward.png`** (klíč).
+- **Varování a útěk (Úloha 13 plánu 2026-11-09)** – `war/alarm-messenger` (vesničan v běhu – klip
+  `walk` s předklonem, hůl v ruce – `walker`, `runner`, `staff_in_hand`), `alarm-forest` (muž, žena
+  a dítě mezi smrky), `alarm-people` (brána hradiště dokořán – `hillfort_gate` – a dva vesničané),
+  `alarm-all` (brána, vesničan, ovce `sheep.glb` a vůz s pytli), `alarm-return` (zemnice a zelená
+  šipka k ní), `alarm-domain` (posel běží ke dvěma zemnicím), `alarm-done` (zelená fajfka). Jen ony:
+  `blender -b --factory-startup --python tools/blender/icons.py -- apps/web/public/icons
+war/alarm-messenger,war/alarm-forest,war/alarm-people,war/alarm-all,war/alarm-return,war/alarm-domain,war/alarm-done`.
 - Obilí, klády a přesýpací hodiny rodu jsou ikony surovin: `houseIconSrc` v `TermsForm.tsx` (sdílí
   `HouseIcon`, `TermIconImg` i `Icon` panelu rodu) mapuje `grain` → `resources/food.png`, `log` →
   `wood.png`, `hourglass` → `hourglass.png` (a vůz `cart`).

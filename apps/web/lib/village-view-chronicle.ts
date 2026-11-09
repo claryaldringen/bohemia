@@ -340,6 +340,8 @@ const AWAY_TEXTS: Record<AwayKind, string> = {
   campaign: 'na tažení',
   captive: 'do zajetí',
   protection: 'pod ochranu',
+  refuge: 'do útočiště',
+  messenger: 's poselstvím',
 };
 
 /** Odkud se lidé vrátili. */
@@ -349,6 +351,8 @@ const AWAY_BACK_TEXTS: Record<AwayKind, string> = {
   campaign: 'z tažení',
   captive: 'ze zajetí',
   protection: 'z ochrany',
+  refuge: 'z útočiště',
+  messenger: 'z cesty s poselstvím',
 };
 
 /** „1 člověk“, „3 lidé“, „5 lidí“. */
@@ -529,9 +533,37 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'people-away':
       return `${peopleCountText(event.people)} ${plural(event.people, 'odešel', 'odešli', 'odešlo')} ${AWAY_TEXTS[event.away]} do vsi ${event.villageName} – doma ${plural(event.people, 'bude', 'budou', 'bude')} nejpozději ${formatGameDate(dateOfDayIndex(event.untilDay))}.`;
     case 'people-back':
+      // uprchlíky vrátil správce (war.md – Varování, poslové a útěk do hradiště; návrh Clauda)
+      if (event.steward) return 'Správce vrátil lidi domů.';
       return `${peopleCountText(event.people)} se ${plural(event.people, 'vrátil', 'vrátili', 'vrátilo')} domů ${AWAY_BACK_TEXTS[event.away]}.`;
     case 'guests-came':
       return `Z vsi ${event.villageName} ${plural(event.people, 'přišel', 'přišli', 'přišlo')} ${peopleCountText(event.people).toLowerCase()} ${AWAY_TEXTS[event.away]}.`;
+    case 'refuge-left':
+      return event.villageName === undefined
+        ? 'Lidé odešli do hradiště.'
+        : `Lidé odešli do hradiště ${event.villageName}.`;
+    case 'refuge-hidden':
+      return 'Lidé se ukryli v lese.';
+    case 'refuge-caught':
+      return `Vojsko dostihlo uprchlíky: ${[
+        event.killed > 0 ? `padli ${formatInteger(event.killed)}` : '',
+        event.led > 0 ? `odvedeno ${formatInteger(event.led)}` : '',
+        (event.captured ?? 0) > 0 ? `zajato ${formatInteger(event.captured ?? 0)}` : '',
+      ]
+        .filter((part) => part !== '')
+        .join(', ')}.`;
+    case 'messenger-caught':
+      if (event.fate === 'killed') {
+        return event.name === undefined ? 'Posel padl.' : `Posel ${event.name} padl.`;
+      }
+      if (event.fate === 'captured') {
+        return event.name === undefined
+          ? 'Posla zajalo vojsko.'
+          : `Posla ${event.name} zajalo vojsko.`;
+      }
+      return event.name === undefined
+        ? 'Posla odvedlo vojsko.'
+        : `Posla ${event.name} odvedlo vojsko.`;
     case 'line-arrived':
       return event.name === undefined
         ? 'Z jiné vsi rodu přišel muž s rodinou.'
