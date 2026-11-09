@@ -959,6 +959,12 @@ Data `SceneVillage.tornado` (den, síla, stopa, prvních pár dní vývraty) –
     a vodou v polovině příkopu (tlačítko Zima – led), ochoz s valem vně, klešťovou bránou a věží,
     palisáda s klešťovou bránou (vrata zavřená), roštová s klešťovou bránou a věží a palisáda,
     ke které se val vně dosypává. Ukázka prořízne příkopy nejblíž cíli kamery (`setView`).
+  - **Hradba na koruně valu** (Martin 9. 11. 2026: „Pokud se jedná o palisádu nebo polský plot,
+    má stát na koruně valu“): scéna vsi ji tak kreslí – na valu na křivce kůly na koruně 7 m od
+    křivky, na valu vně na místě zvednuté o korunu (`crownLift`, ověřeno snímkem 9. 11.: kůly
+    stojí na koruně, průchod valem v bráně). Scéna boje (`army.ts`) bere čáru hradby z bojiště
+    (`battleWallsOf` – u valu na křivce koruna, dřív vnější okraj příkopu, kde lezci a žebříky
+    zvednutí o val viseli nad příkopem).
   - Testy `__tests__/rampart-mesh.test.ts` a `fortification-layout.test.ts` (klešťová brána).
 - **Výkon** (`measure-scenery-culling.ts`, Vlkov 1138310652): palisáda 355 m (6 × 6 čtverců,
   2 brány) = 1376 instancí v 6 dílech, 39,9 k trojúhelníků a 6 draw callů kamery (+ 6 do stínové

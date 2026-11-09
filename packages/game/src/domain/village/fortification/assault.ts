@@ -166,9 +166,14 @@ const TPS = WAR.campaign.ticksPerSecond;
 
 /**
  * Pohyb jednoho muže v taktech: opřít žebřík, vylézt, přetáhnout druhý žebřík (jen palisáda bez
- * ochozu, jednou) a slézt dovnitř; plot se jen přelézá (`up`).
+ * ochozu, jednou) a slézt dovnitř; plot se jen přelézá (`up`). Hradba na koruně valu výšky
+ * `rampart` (0–1; Martin 9. 11. 2026) – žebřík je o výšku valu delší, výstup o `upRampart` s ×
+ * výška déle; plot na valu se přelézá jako na zemi (na val se vyleze chůzí – `rampartPace`).
  */
-export function climbTicks(wall: WallKind): {
+export function climbTicks(
+  wall: WallKind,
+  rampart: number | null = null,
+): {
   lean: number;
   up: number;
   overLadder: number;
@@ -178,7 +183,7 @@ export function climbTicks(wall: WallKind): {
   if (wall === 'fence') return { lean: 0, up: c.fence * TPS, overLadder: 0, down: 0 };
   return {
     lean: c.lean * TPS,
-    up: c.up[wall] * TPS,
+    up: c.up[wall] * TPS + Math.round(c.upRampart * (rampart ?? 0) * TPS),
     overLadder: wall === 'palisade' ? c.overLadder * TPS : 0,
     down: c.down[wall] * TPS,
   };

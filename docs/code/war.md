@@ -461,7 +461,7 @@ v `domain/war/wall-defense.ts`, `battle.ts`, `stance.ts` a `defenders.ts` jen vo
   `openBattle` je převezme. Staré boje beze změny.
 - **Rozestavění** – `planDefense`: muži v útočišti (bez vzdaných) dostanou `wallPosts([opevnění],
 počet, den)` po řadě podle id: napřed věže nad branami po 4, pak brány po 2 (± ¼ šířky
-  brány od středu; u klešťové brány po jednom na rameni – Brány v bitvě), zbytek po obvodu podle
+  brány od středu; u klešťové brány ramena jeden na 5 m – Brány v bitvě), zbytek po obvodu podle
   délky – mezi branami v mezerách podle délky mezery (brány jsou kotvy), bez bran rovnoměrně; nejvýš ⌊obvod ÷ 5⌋ mimo brány, kdo nedostane, je záloha ve středu. Obvod =
   stěny bitvy (čáry úseků a tětivy rohů); stanoviště 1 m za čarou hradby; `onWall` =
   `crownAt` (do 1,25 m od čáry hradby s korunou – `walkway`, `crib`, `chamber`; druh v místě
@@ -579,6 +579,36 @@ villageId, today, nowMs })`): právo `war` ověří use-case sám (`requireRight
   `npc-commander.test.ts` – NPC velitel na palisádu s ochozem a bránou: proseknutí, bod zlomu
   v útoku, útočiště dobyté s útočníkem uvnitř.
 
+## Hradba na koruně valu (9. 11. 2026)
+
+fortifications.md – Hradby a obrana, Druhy – Pás s valem (Martin 9. 11. 2026: „Pokud se jedná
+o palisádu nebo polský plot, má stát na koruně valu“). Čísla `FORTIFICATIONS.defense.crest`
+a `assault.climbSeconds.upRampart`; testy `__tests__/rampart-crest.test.ts`.
+
+- **Čára hradby** – `wallLineInM(opevnění)` (`fortification/band.ts`): val na křivce (opevnění
+  druhu `rampart`) 7 m od křivky (`rampartBand.ditchM` + `footM` ÷ 2), jinak 0 (val vně má korunu
+  na křivce). `battleForts` posune úseky na čáru hradby (`onWallLine` – body `bandLine` na ose
+  ohybu, nejmenší ohyb valu 8 m se nepřehne) a brány v kopii opevnění bojiště poměrně s délkou
+  úseku (`offsetM × nová ÷ stará tětiva`) – stěny, stanoviště, žebříky (vrchol na koruně, pata 1 m
+  vně na vnějším svahu), místa prolomení, klešťová brána i scéna boje (`battleWallsOf` – lezci
+  a obránci zvednutí o val stojí na koruně) tak berou korunu. Klešťová brána: `endM` = pás − čára
+  hradby + ulička (`battlePincers`).
+- **Obránce na koruně** – `crestAt(opevnění, bod)`: do 1,25 m za čarou hradby (ne víc než
+  0,5 m před ní) dílu s hotovým nezbořeným valem (`segmentRampart`), mimo průchod brány valem
+  (½ šířky brány od středu); mezipaměť na objekt polohy (`WeakMap` – poloha se nemění na místě).
+  `towerReach` – obránce na koruně dohled `sight.openM` + 25 m a luk `bowMaxM` + 5 m (věž má
+  přednost); `reachOf` přidá dohoz – z ochozu na koruně `throwM` + 2 m (`strikeReach(…, bowMaxM,
+throwM)`). `ctx.sees` v taktu – z věže `tower.sightM`, z koruny `openM + crest.sightM` (jen
+  když bojiště val má).
+- **Útočník přes val** – `fortCells` vrátí i `crest` (buňky dílů se stojící hradbou na hotovém
+  valu); `marchGrid` jim k `MARCH_WALL` přidá `MARCH_RAMPART` (tempo 0 – pochod neprojde, jen
+  branou). V boji `paceAt(…, útočník)`: buňka stěny s valem → útočník `rampartPace(1)` (¼, plnou
+  výškou – mřížka nese u stěny jen příznak), obránce plné tempo; `rampartFatigueStep` po sestupu
+  z takové buňky unaví jen útočníka. Žebřík: `climbTicks(druh, výška valu)` – `up` + `upRampart`
+  (2 s) × výška (`ladders.ts` – `climbTotal`, `climbStep`; plot beze změny – na val se vyleze
+  chůzí). NPC odhad hodin (`npc-assault.ts` – `climbHours`) val nepočítá (2 s proti hodinám
+  výroby nehrají roli).
+
 ## Brány v bitvě – ulička a věž (hradby Ú19)
 
 fortifications.md – Hradby a obrana, Brány. Geometrie a obránci ve `wall-defense.ts`, stěny
@@ -600,9 +630,10 @@ a místo prolomení v `battle.ts` (`wallsOf`), pochod v `march-grid.ts`. Čísla
 - **Vrata** – místo `gate` 1 m před vraty v uličce; `Spot.maxMen` = `pincerGate.maxMen` (4) –
   víc prolamujících se k vratům nevejde (`chooseSpot`).
 - **Obránci** – `wallPosts(opevnění, muži, den)`: napřed věže (`towerPosts` – 4 rovnoměrně přes
-  uličku 1 m za vraty), pak brány; klešťová brána místo 2 v hradbě po jednom na rameni (1 m od
-  uličky uprostřed její délky za pásem) – odtud zasahují útočníky v uličce z obou stran (hod do
-  15 m, luk). `planDefense` (`stance.ts`) dá na věž napřed muže rodu (jen když věž stojí – jinak
+  uličku 1 m za vraty), pak brány; klešťová brána místo 2 v hradbě ramena – na každém jeden na
+  5 m ochozu jako na hradbě (⌊`endM` ÷ 5⌋, nejméně 1; Martin 9. 11. 2026: „Ramena jsou součástí
+  brány. Obránce jak říkáš“), rovnoměrně po délce ramene 1 m od uličky, po dvojicích (levé, pravé)
+  od středu uličky za pásem – odtud zasahují útočníky v uličce z obou stran (hod do 15 m, luk). `planDefense` (`stance.ts`) dá na věž napřed muže rodu (jen když věž stojí – jinak
   pořadí beze změny). `crownAt` – rameno i plošina věže jsou ochoz (`onWall`). Posila k vratům
   (`placeAt`): s věží na ni, bez věže na rameno vedle vrat.
 - **Věž** – `towerReach(f, {forts, day})`: obránce na ochozu věže (`towerAt`) vidí

@@ -6,8 +6,11 @@ import {
   gateTowerStands,
   hasGateParts,
   pincerArmKind,
+  layerBuilt,
   pincerBandInM,
+  segmentRampart,
   segmentWall,
+  wallLineInM,
 } from '../village/fortification';
 import type { FortSegmentShape } from '../village/fortification';
 import { FORTIFICATIONS } from '../village/rules-fortifications';
@@ -114,7 +117,8 @@ export function battlePincers(bf: BattleFort, day: number): BattlePincer[] {
       uz: l.dz,
       nx: -n.x,
       nz: -n.z,
-      endM: band + FORTIFICATIONS.pincerGate.alleyLengthM,
+      // pás od křivky, čára úseku na bojišti je čára hradby (u valu na křivce koruna valu)
+      endM: band - wallLineInM(bf.fort) + FORTIFICATIONS.pincerGate.alleyLengthM,
       kind: pincerArmKind(segmentWall(bf.fort, seg)?.kind ?? 'palisade'),
       tower: gateTowerStands(gate, day),
     });
@@ -180,13 +184,65 @@ export function towerReach(
   if (f.side === 'defend' && f.onWall && towerAt(field.forts, f.pos, field.day)) {
     return { sightM: FORTIFICATIONS.tower.sightM, bowMaxM: FORTIFICATIONS.tower.bowMaxM };
   }
+  if (f.side === 'defend' && crestAt(field.forts, f.pos)) {
+    return { sightM: WAR.sight.openM + CREST.sightM, bowMaxM: WAR.combat.bowMaxM + CREST.bowM };
+  }
   return { sightM: WAR.sight.openM, bowMaxM: WAR.combat.bowMaxM };
+}
+
+const CREST = D.crest;
+/**
+ * Opevnění bojiště (jeho tvar úseků) → poloha → stojí na koruně valu (`crestAt`). Poloha muže je
+ * pokaždé nový objekt (nemění se na místě) a val se v boji nemění – stačí jednou na polohu.
+ */
+const crestCache = new WeakMap<readonly FortSegmentShape[], WeakMap<Pos, boolean>>();
+
+/** Stojí bod `at` na koruně valu opevnění `bf` (`crestAt`)? */
+function crestOn(bf: BattleFort, at: Pos): boolean {
+  let byPos = crestCache.get(bf.shapes);
+  if (!byPos) {
+    byPos = new WeakMap();
+    crestCache.set(bf.shapes, byPos);
+  }
+  const cached = byPos.get(at);
+  if (cached !== undefined) return cached;
+  const near = D.postInsideM + POST_SLACK_M;
+  const hit = nearestPiece(ringOf(bf), at);
+  const seg = hit ? bf.fort.segments.find((s) => s.index === hit.piece.segment) : undefined;
+  const layer = seg && seg.demolishedDay === undefined ? segmentRampart(bf.fort, seg) : null;
+  let out = false;
+  if (hit && seg && hit.d2 <= near * near && layerBuilt(layer)) {
+    // ne před hradbou (pata žebříku je vně, na vnějším svahu valu)
+    const q = inward(hit.piece, hit.t, 0);
+    const before = (at.x - q.x) * hit.piece.nx + (at.z - q.z) * hit.piece.nz > OUTSIDE_M;
+    const gate = bf.fort.gates.find((g) => g.segment === seg.index);
+    const along = hit.piece.along + hit.t;
+    const passage =
+      gate !== undefined && Math.abs(along - gate.offsetM) <= FORTIFICATIONS.gate.widthM / 2;
+    out = !before && !passage;
+  }
+  byPos.set(at, out);
+  return out;
+}
+
+/**
+ * Stojí bod `at` na koruně valu pod hradbou (fortifications.md – Hradby a obrana, Druhy – Pás
+ * s valem; Martin 9. 11. 2026: „Pokud se jedná o palisádu nebo polský plot, má stát na koruně
+ * valu“)? Do 1,25 m za čarou hradby dílu s hotovým nezbořeným valem (čára hradby je na koruně –
+ * `wallLineInM`), ne víc než 0,5 m před ní, mimo průchod valem v bráně. Obránce tam stojí
+ * o korunu výš – dál dohlédne, dostřelí a dohodí (`FORTIFICATIONS.defense.crest`).
+ */
+export function crestAt(forts: readonly BattleFort[], at: Pos): boolean {
+  return forts.some((bf) => bf.shapes.length > 0 && crestOn(bf, at));
 }
 
 /**
  * Stanoviště klešťové brány (návrh Clauda): na věži `tower.defenders` (4) 1 m za vraty rovnoměrně
- * přes šířku uličky; místo 2 obránců brány po jednom na každém rameni – 1 m od uličky uprostřed
- * její délky za pásem, odkud zasahují útočníky v uličce z obou stran.
+ * přes šířku uličky; místo 2 obránců brány ramena – na každém jeden na 5 m ochozu jako na hradbě
+ * (Martin 9. 11. 2026: „Ramena jsou součástí brány. Obránce jak říkáš“), nejméně jeden, rovnoměrně
+ * po délce ramene od čáry hradby po vrata, 1 m od uličky. Pořadí po dvojicích (levé, pravé rameno)
+ * od středu uličky za pásem – při málo mužích stojí první dvojice tam, odkud zasahují útočníky
+ * v uličce z obou stran.
  */
 function pincerPosts(p: BattlePincer): { tower: Pos[]; arms: Pos[] } {
   const tower: Pos[] = [];
@@ -199,7 +255,11 @@ function pincerPosts(p: BattlePincer): { tower: Pos[]; arms: Pos[] } {
   }
   const mid = p.endM - FORTIFICATIONS.pincerGate.alleyLengthM / 2;
   const side = ALLEY_HALF_M + D.postInsideM;
-  return { tower, arms: [pincerPoint(p, -side, mid), pincerPoint(p, side, mid)] };
+  const k = Math.max(1, Math.floor(p.endM / D.perDefenderM + 1e-9));
+  const at = Array.from({ length: k }, (_, i) => (p.endM * (i + 0.5)) / k).sort(
+    (a, b) => Math.abs(a - mid) - Math.abs(b - mid) || a - b,
+  );
+  return { tower, arms: at.flatMap((m) => [pincerPoint(p, -side, m), pincerPoint(p, side, m)]) };
 }
 
 /**
@@ -354,7 +414,7 @@ function gateStations(bf: BattleFort, ring: Ring): { s: number; segment: number 
 /**
  * Stanoviště `men` obránců (fortifications.md – Obrana bez násobku 6; návrh Clauda): napřed věže
  * nad branami po 4 (`towerPosts`), pak brány po 2 (1 m vlevo a vpravo od středu brány, u klešťové
- * brány po jednom na rameni), zbytek rovnoměrně po obvodu podle délky – nejvýš jeden na 5 m; kdo
+ * brány ramena – jeden na 5 m ochozu ramene), zbytek rovnoměrně po obvodu podle délky – nejvýš jeden na 5 m; kdo
  * stanoviště nedostane, zůstane v záloze. Stanoviště leží 1 m za čarou hradby (`postInsideM`) – na
  * ochozu a koruně (`crownAt`), nebo na zemi za stěnou. Bez dne `day` bez klešťových bran a věží.
  */
@@ -468,13 +528,27 @@ export function strikeReach(
   f: Fighter,
   t: Fighter,
   bowMaxM: number = WAR.combat.bowMaxM,
+  throwM: number = D.throwM,
 ): StrikeKind | null {
   const d2 = dist2(f.pos, t.pos);
   const c = WAR.combat;
   if (d2 <= c.meleeM * c.meleeM) return 'melee';
   if (f.bow && d2 >= c.bowMinM * c.bowMinM && d2 <= bowMaxM * bowMaxM) return 'bow';
-  if (f.onWall && d2 <= D.throwM * D.throwM) return 'throw';
+  if (f.onWall && d2 <= throwM * throwM) return 'throw';
   return null;
+}
+
+/**
+ * Dohled, dostřel a dohoz muže (`towerReach`; z koruny valu hod o `crest.throwM` dál – Martin
+ * 9. 11. 2026, hradba na koruně valu).
+ */
+export function reachOf(
+  f: Fighter,
+  field: { readonly forts: readonly BattleFort[]; readonly day: number },
+): { sightM: number; bowMaxM: number; throwM: number } {
+  const r = towerReach(f, field);
+  const raised = f.side === 'defend' && f.onWall && crestAt(field.forts, f.pos);
+  return { ...r, throwM: D.throwM + (raised ? CREST.throwM : 0) };
 }
 
 /**

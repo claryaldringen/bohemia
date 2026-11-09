@@ -433,6 +433,11 @@ scéně.
   (hráz), objížďka (`detourPoints`) u dílu s valem vně a u jeho sousedů o 7 m dál; `fortLayoutKey`
   přidá `:o7/3` jen u nich. Pochod (`march-grid.ts`) tím dostane buňky valu vně – se stojící
   hradbou stěna, bez ní pás valu.
+- **Čára hradby** (`band.ts` – `wallLineInM`; Martin 9. 11. 2026 – hradba na koruně valu): hradba
+  na valu stojí na koruně – u valu na křivce (opevnění druhu val) 7 m od křivky (příkop 4 m + půl
+  paty 3 m), u valu doplněného vně na křivce (0) – hradba se nehýbe, val se nasype pod ni a před ni
+  (pás výš). Pás, stěny a pochod beze změny; čáru čte bitva (`docs/code/war.md` – Hradba na koruně
+  valu), scéna vsi kreslí hradbu na koruně odjakživa (`crownLift`).
 - **Vodní příkop** (`fortification/moat.ts`): osa příkopu `moatAxisOffsetM` = −`outM` + 2 m (val na
   křivce 2 m uvnitř, val vně 5 m vně). `moatSource` – nejbližší vodní políčko (potok, řeka, tůň) do
   `moat.reachM` (30 m) od osy dílu (střed políčka, při shodě menší index): hladina `levelM` = výška

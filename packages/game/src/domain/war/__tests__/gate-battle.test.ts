@@ -106,6 +106,24 @@ describe('klešťová brána na bojišti', () => {
     expect(fighter(b, 'a:0').health).toBeLessThan(100);
   });
 
+  it('ramena obsadí jeden obránce na 5 m ochozu ramene (Martin 9. 11. 2026)', () => {
+    const f = field([pincerFort()]);
+    const p = pincerOf(f);
+    // palisáda: rameno od čáry hradby po vrata 1,5 + 12 = 13,5 m → 2 na rameni
+    const perArm = Math.floor(p.endM / FORTIFICATIONS.defense.perDefenderM);
+    expect(perArm).toBe(2);
+    const posts = wallPosts(f.forts, 100, DAY);
+    const onArms = posts.filter((q) => {
+      const along = (q.x - p.mx) * p.ux + (q.z - p.mz) * p.uz;
+      const inM = (q.x - p.mx) * p.nx + (q.z - p.mz) * p.nz;
+      return Math.abs(Math.abs(along) - (2 + 1)) < 1e-6 && inM >= 0 && inM <= p.endM;
+    });
+    expect(onArms).toHaveLength(2 * perArm);
+    // první dvojice po jednom na každém rameni, všichni na ochozu
+    expect(posts.slice(0, 2 * perArm)).toEqual(onArms);
+    for (const q of onArms) expect(crownAt(f.forts, q, DAY)).toBe(true);
+  });
+
   it('bez klešťové brány stojí obránci brány po 2 v hradbě, ne na ramenech', () => {
     const f = field([palisade(true)]);
     expect(battlePincers(f.forts[0]!, DAY)).toEqual([]);

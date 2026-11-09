@@ -16,6 +16,7 @@ import type { GroupAssault } from './campaign-types';
 import {
   MARCH_FOREST,
   MARCH_RAMPART,
+  MARCH_WALL,
   marchCellAt,
   marchCellCenter,
   type MarchGrid,
@@ -108,10 +109,14 @@ function rampartHeightOfPace(pace: number): number {
   return pace > 0 ? Math.min(1, Math.max(0, (1 / pace - 1) / A.rampartSlowdown)) : 1;
 }
 
-/** Muž sešel z příkopu a valu (z buňky valu na jinou) – je unavený podle výšky valu. */
+/**
+ * Muž sešel z příkopu a valu (z buňky valu na jinou) – je unavený podle výšky valu. Val pod
+ * stojící hradbou (buňka stěny) unaví jen útočníka – obránce chodí po svém valu.
+ */
 export function rampartFatigueStep(f: Fighter, from: Pos, grid: MarchGrid, tick: number): void {
   const c0 = marchCellAt(grid, from);
   if ((grid.flags[c0]! & MARCH_RAMPART) === 0) return;
+  if ((grid.flags[c0]! & MARCH_WALL) !== 0 && f.side !== 'attack') return;
   const c1 = marchCellAt(grid, f.pos);
   if ((grid.flags[c1]! & MARCH_RAMPART) !== 0) return;
   f.fatigue = { factor: rampartFatigue(rampartHeightOfPace(grid.pace[c0]!)), tick };
@@ -234,8 +239,8 @@ function wallKindOf(
 }
 
 /** Takty jednoho přechodu po žebříku (opřít, vylézt, přetáhnout, slézt). */
-function climbTotal(kind: WallKind): number {
-  const c = climbTicks(kind);
+function climbTotal(kind: WallKind, rampart: number | null): number {
+  const c = climbTicks(kind, rampart);
   return c.lean + c.up + c.overLadder + c.down;
 }
 
@@ -329,7 +334,7 @@ export function startCrossing(
     // nejrychlejší: vyrobit žebřík a přelézt, nebo prolomit
     const metersPerTick = WAR.pace.metersPerSecond / TICKS_PER_SECOND;
     const walkM = Math.sqrt(dist2(f.pos, forest!)) + Math.sqrt(dist2(forest!, top));
-    const ticks = walkM / metersPerTick + climbTotal(wall.kind);
+    const ticks = walkM / metersPerTick + climbTotal(wall.kind, wall.rampart);
     const hours = A.manHours.ladder + ticks * cw.field.hoursPerTick;
     if (breachHours !== null && breachHours <= hours) return false;
   }
@@ -417,7 +422,7 @@ export function climbStep(f: Fighter, cw: ClimbWorld): void {
     return;
   }
   const near = (p: Pos): boolean => dist2(f.pos, p) <= AT_M * AT_M;
-  const ticks = climbTicks(wall.kind);
+  const ticks = climbTicks(wall.kind, wall.rampart);
   switch (c.phase) {
     case 'make': {
       if (c.at && !near(c.at)) {
