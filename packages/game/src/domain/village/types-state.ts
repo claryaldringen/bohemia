@@ -41,6 +41,7 @@ import type {
   FieldFoodYear,
   HappinessState,
   HayState,
+  HerdSpecies,
   Horse,
   LivestockState,
   Ox,
@@ -125,6 +126,47 @@ export type DefenseStance = 'defend' | 'surrender' | 'flee';
 /** Obrana vsi – postoj nastavený hráčem. */
 export interface VillageDefense {
   stance: DefenseStance;
+}
+
+/**
+ * Volba útěku (war.md – Varování, poslové a útěk do hradiště): „Ukrýt v lese“, „Do hradiště – jen
+ * lidé“, „Do hradiště – se vším“.
+ */
+export type FlightMode = 'forest' | 'people' | 'all';
+
+/** Uprchlík ve skupině (tažení – `AlarmFlight`, událost `refuge-arrive`): id osoby domovské vsi. */
+export interface RefugeePerson {
+  id: number;
+  bornDay: number;
+  man: boolean;
+  /** Muž rodu. */
+  line: boolean;
+}
+
+/**
+ * Ves na útěku (`VillageState.refuge` – domov): lidé odešli skupinou `refId` tažení `campaignId`
+ * do hradiště `hostVillageId`, nebo (bez něj) do lesa; `hidden` = co ukryli v lese (jedí z toho).
+ */
+export interface VillageRefuge {
+  refId: string;
+  campaignId: string;
+  mode: FlightMode;
+  hostVillageId?: string;
+  departedDay: number;
+  hidden?: { foodKg: number; herd: Record<HerdSpecies, number> };
+}
+
+/**
+ * Pobyt uprchlíků v hradišti (`VillageState.refugeStays` – hostitel): jejich zásoby (jedí napřed
+ * z nich) a stádo (pase se u hradiště); lidé jsou hosté druhu `refuge`.
+ */
+export interface RefugeStay {
+  refId: string;
+  fromVillageId: string;
+  fromName: string;
+  foodKg: number;
+  herd: Record<HerdSpecies, number>;
+  arrivedDay: number;
 }
 
 /** Zpráva posla o cizím vojsku (`VillageState.armySeen`): den příchodu, tažení a odkud posel šel. */
@@ -629,6 +671,17 @@ export interface VillageState {
    * schránka (`army-seen`); chybí – žádný posel.
    */
   armySeen?: ArmySeen;
+  /**
+   * Ves na útěku (war.md – Varování, poslové a útěk do hradiště): lidé odešli do hradiště nebo do
+   * lesa a ještě se nevrátili. Zapisuje schránka (`refuge-depart`), maže návrat (`refuge-back`);
+   * chybí – nikdo neutekl.
+   */
+  refuge?: VillageRefuge;
+  /**
+   * Uprchlíci z jiných vsí v útočišti této vsi (hradiště – tamtéž): jejich zásoby a stádo podle
+   * skupiny. Zapisuje schránka (`refuge-arrive`); chybí – žádní.
+   */
+  refugeStays?: RefugeStay[];
   /**
    * Klíč založení vsi ze schránky odchodu syna (`settleStewardDepartures` – mateřská ves a id
    * záznamu): podle něj úložiště ves nezaloží dvakrát. Simulace ho nečte. Chybí – ves vznikla jinak.

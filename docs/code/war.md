@@ -735,6 +735,33 @@ návrat za 1 den), `WAR.surrenderRatio`, `WAR.pitFoundChance`.
   neodlišují od přibíhajících zvenku, vozy a koně se do útěku nepočítají (jen stáda ovcí, koz, prasat
   a krav). Zásoby a jámy aplikuje Ú6.10 (utečení lidé ve stavu vsi zůstávají).
 
+## Varování, poslové a útěk do hradiště
+
+Návrh: [war.md – Varování, poslové a útěk do hradiště](../design/war.md#varování-poslové-a-útěk-do-hradiště-schváleno-9-11-2026--implementace-čeká);
+plán `docs/superpowers/plans/2026-11-09-hillfort-refuge.md` (úlohy Ú1–Ú15, volby „Otevřené – návrh
+Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina uprchlíků), žije v tažení
+útočníka (`CampaignState.alarm`); do stavů vsí jdou jen události schránky.
+
+- **Čísla, typy a události (Ú1).** Čísla `WAR.alarm` (`rules-war.ts`; war.md – Čísla): běh 2× pěší
+  tempo (`runFactor`), dostižení do 30 m (`catchM`), lhůta hráče 344 taktů = 1 herní den
+  (`playerGraceTicks`), hradiště do 8 políček (`refugeMaxCells`), odhad cesty × 1,3 (`routeFactor`),
+  doména do 3 políček a nejvýš 4 poslové hradiště (`domainRadiusCells`, `hillfortMessengers`), hosté
+  uprchlíků do `openUntilDay` (odejdou jen návratem). Typy tažení `domain/war/alarm-types.ts`:
+  `CampaignAlarm` (`villages` podle `villageId`, `messengers` a `flights` podle `refId`, `nextRef` –
+  `refId` = `<tažení>:a<n>`), `AlarmVillage` (vlastník `AlarmOwner`, spatření `seenTick` / `seenAt`,
+  `warnTick`, `by`, posel, skupina, `decided`, kandidáti hradišť `hosts`), `AlarmMover` (políčko,
+  poloha, `route`, `leg`, `target` – jako `CampaignGroup`), `AlarmMessenger`, `AlarmFlight`. Záměry
+  obránce `IntentBody`: `alarm-messenger`, `alarm-flee` (`FlightMode` = `forest` | `people` | `all`),
+  `alarm-domain`. Porty světa (volitelné, dodá Ú6): `CampaignWorld.alarmOf`, `refugeHostsOf`,
+  `domainOf`. Upozornění `army-warned`, `refuge-arrived`, `refuge-caught`, `messenger-caught`
+  (texty `apps/web/lib/player-notices.ts`, panel války). Stav vsi: `AwayKind` + `refuge` |
+  `messenger`, `Guest.bornDay?`, `VillageState.refuge?` (`VillageRefuge` – domov), `refugeStays?`
+  (`RefugeStay` – hradiště); `FlightMode` a `RefugeePerson` jsou ve vesnických typech
+  (`types-state.ts` – typy vsi válku neimportují). Události schránky `messenger-out` / `-back` /
+  `-caught`, `refuge-depart` / `-hidden` / `-caught` / `-arrive` / `-back` – `applyInboxDay` je zatím
+  přeskočí (aplikace Ú7). Test `alarm-types.test.ts` hlídá tvar přes JSON a zlatý otisk tažení bez
+  varování.
+
 ## Výsledky nájezdu a kořist (Ú6.10)
 
 `domain/war/raid-apply.ts` (war.md – Ztráty, Kořist; fortifications.md – Prolomení). Tažení spočte,

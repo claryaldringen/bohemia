@@ -682,6 +682,7 @@ Martin 2. 11. 2026 – „ok“ (doplňky návrh Clauda):
 | Dosah zblízka                  | 3 m – oštěp a sekera dosáhnou přes plot, ~~i přes palisádu~~ přes palisádu ne (Martin 8. 11.)                                                                                                                                          |
 | Zda rána padne                 | zblízka los 1 : 1 každé rány (návrh Clauda); na dálku kruh rozptylu `(2 − 1,5 × dovednost ÷ 100) × vzdálenost ÷ 30` m, šance = viditelné plochy v kruhu ÷ plocha kruhu, vesničan jako dovednost 20 (Martin 8. 11., čísla návrh Clauda) |
 | Dohled v lese                  | 50 m (jinak ≈ 150 m; návrh Clauda)                                                                                                                                                                                                     |
+| Varování a útěk do hradiště    | vesničan i posel běží 2× tempem vojska; dostižení do 30 m; hráč volí 1 herní den (344 taktů), pak správce; hradiště do 8 políček, cesta = vzdušná čára × 1,3; doména do 3 políček, nejvýš 4 posly                                      |
 
 Z 18. 10. beze změny: skupina domů 40 m, dohled 150 m, nosnost 25 kg, ochota a dezerce, kovárna
 × 1,5, ~~obrana u domu × 1,5~~ (zrušeno 8. 11. 2026), nucený × 0,5 / 0,3, štěstí × 0,8–1,1.

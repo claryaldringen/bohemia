@@ -3,7 +3,9 @@ import type { Landscape, ObstacleLayer } from '../landscape';
 import type { AssaultMethod } from '../village/fortification/assault';
 import type { NewVillageEvent } from '../village/inbox';
 import type { Person, PersonRef, Prisoner, RaidLoot, VillageState } from '../village/types';
+import type { FlightMode } from '../village/types';
 import type { GridCell } from '../village/world-grid';
+import type { AlarmOwner, CampaignAlarm } from './alarm-types';
 import type { BattleState } from './battle';
 import type { MarchGridMemo, Pos } from './march-grid';
 
@@ -212,6 +214,11 @@ export interface CampaignState {
   presenceTick?: number;
   /** Hráč je pryč déle než 1 herní den a vede zástupce (NPC); po návratu hráč velení převezme. */
   absent?: true;
+  /**
+   * Varování, poslové a útěk do hradiště (war.md; plán 2026-11-09): vsi, které vojsko spatřily,
+   * jejich poslové a skupiny uprchlíků. Chybí – nikdo vojsko zatím nespatřil (i starší bod).
+   */
+  alarm?: CampaignAlarm;
 }
 
 /**
@@ -246,7 +253,17 @@ export type IntentBody =
    * bez něj tou s nejméně útočníky (`breakoutGate` – i hlídanou). Dává ho přítomný držitel
    * napadené vsi use-casem `orderBreakout` (jediný cizí záměr, který tažení přijme).
    */
-  | { kind: 'breakout'; fort: number; segment?: number };
+  | { kind: 'breakout'; fort: number; segment?: number }
+  /*
+   * Záměry obránce varované vsi (war.md – Varování, poslové a útěk do hradiště; plán 2026-11-09):
+   * dává je hráč, kterému ves patří (`AlarmVillage.owner`), ne vůdce tažení – jako `breakout`.
+   */
+  /** „Poslat posla“ – ves `village` pošle posla do hradiště pána. */
+  | { kind: 'alarm-messenger'; village: string }
+  /** „Ukrýt v lese“, „Do hradiště – jen lidé“, „Do hradiště – se vším“. */
+  | { kind: 'alarm-flee'; village: string; mode: FlightMode }
+  /** Hradiště `village` hráče pošle posly do vybraných vsí domény `to`. */
+  | { kind: 'alarm-domain'; village: string; to: string[] };
 
 /** Záměr s taktem, ve kterém platí (teď + 2), a pořadím zápisu `seq` (v taktu podle něj). */
 export interface CampaignIntent {
@@ -293,6 +310,16 @@ export interface CampaignWorld {
    * a obě se načtou). Neví-li svět vůbec, nikdo posla neposílá.
    */
   messengerTo?(passedVillageId: string, targetVillageId: string): boolean | null;
+  /*
+   * Varování, poslové a útěk do hradiště (plán 2026-11-09 – Úloha 6 dodá porty; do té doby chybí):
+   * `null` = svět ještě nenačetl (takt se zastaví a volající je načte).
+   */
+  /** Kdo za ves rozhoduje (hráč, NPC rod). */
+  alarmOf?(villageId: string): AlarmOwner | null;
+  /** Kandidáti hradišť vsi – vlastní rod a přímí páni do `WAR.alarm.refugeMaxCells` (Otevřené 1). */
+  refugeHostsOf?(villageId: string): { villageId: string; cell: GridCell }[] | null;
+  /** Vsi domény hradiště – vlastní rod a přímí vazalové (Otevřené 5). */
+  domainOf?(villageId: string): { villageId: string; cell: GridCell }[] | null;
   /**
    * Mřížky pochodu napříč voláními (worker) – jen zrychlení; bez ní se mřížka staví jednou na
    * volání.
@@ -301,7 +328,15 @@ export interface CampaignWorld {
 }
 
 /** Druhy upozornění tažení (aplikace je přidá do `PlayerNoticeKind`). */
-export type CampaignNoticeKind = 'campaign-returned' | 'foreign-army' | 'campaign-disbanded';
+export type CampaignNoticeKind =
+  | 'campaign-returned'
+  | 'foreign-army'
+  | 'campaign-disbanded'
+  /** Varování, poslové a útěk do hradiště (war.md): ves ví o vojsku, uprchlíci došli / dostiženi, posel chycen. */
+  | 'army-warned'
+  | 'refuge-arrived'
+  | 'refuge-caught'
+  | 'messenger-caught';
 
 /** Upozornění pro hráče z taktu tažení. */
 export interface CampaignNotice {

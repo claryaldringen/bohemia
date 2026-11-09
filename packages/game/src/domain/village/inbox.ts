@@ -22,8 +22,11 @@ import { applyCaptiveReturns, type CaptiveReturns } from '../war/captives';
 import type {
   AwayKind,
   ChronicleEvent,
+  FlightMode,
   Guest,
+  HerdSpecies,
   PersonRef,
+  RefugeePerson,
   ShipmentBody,
   ThreatSignal,
   VillageState,
@@ -115,7 +118,76 @@ export type VillageEventBody =
       segments: number[];
       burned?: number[];
       gatesBurned?: number[];
-    };
+    }
+  /*
+   * Varování, poslové a útěk do hradiště (war.md; plán 2026-11-09 – Úloha 1 tvar, Úloha 7 aplikace).
+   * `refId` = posel nebo skupina uprchlíků v tažení `campaignId` (`AlarmMessenger`, `AlarmFlight`).
+   */
+  /**
+   * Posel vyběhl z vsi do hradiště `toVillageId` (na koni vsi, je-li `mounted`): osoba `personId`
+   * je pryč (`away` druhu `messenger`).
+   */
+  | {
+      kind: 'messenger-out';
+      campaignId: string;
+      refId: string;
+      personId: number;
+      toVillageId: string;
+      mounted: boolean;
+    }
+  /** Posel se po doručení vrátil domů. */
+  | { kind: 'messenger-back'; campaignId: string; refId: string; personId: number }
+  /** Vojsko posla chytilo: `killed` – padl, `led` – odveden (z vsi zmizí). */
+  | {
+      kind: 'messenger-caught';
+      campaignId: string;
+      refId: string;
+      personId: number;
+      fate: 'killed' | 'led';
+    }
+  /**
+   * Lidé `people` odešli skupinou do hradiště `hostVillageId`, nebo (null) do lesa, s `carriedKg`
+   * zásob a stádem `herd` – ves je odečte a zapíše `VillageState.refuge`.
+   */
+  | {
+      kind: 'refuge-depart';
+      campaignId: string;
+      refId: string;
+      mode: FlightMode;
+      hostVillageId: string | null;
+      people: number[];
+      carriedKg: number;
+      herd: Record<HerdSpecies, number>;
+    }
+  /** Skupina došla do lesa a ukryla se se zásobami a stádem (`VillageRefuge.hidden`). */
+  | {
+      kind: 'refuge-hidden';
+      campaignId: string;
+      refId: string;
+      foodKg: number;
+      herd: Record<HerdSpecies, number>;
+    }
+  /** Vojsko skupinu dostihlo a vzala se: `killed` padli, `led` odvedeni; ostatní jdou dál. */
+  | { kind: 'refuge-caught'; campaignId: string; refId: string; killed: number[]; led: number[] }
+  /**
+   * Uprchlíci z vsi `fromVillageId` došli do hradiště (hostitel): hosté druhu `refuge` a pobyt
+   * `RefugeStay` s jejich zásobami a stádem.
+   */
+  | {
+      kind: 'refuge-arrive';
+      campaignId: string;
+      refId: string;
+      fromVillageId: string;
+      fromName: string;
+      people: RefugeePerson[];
+      foodKg: number;
+      herd: Record<HerdSpecies, number>;
+    }
+  /**
+   * Uprchlíci se vrátili domů (domov) se zbylými zásobami a stádem z hradiště (`leaveRefuge`);
+   * z lesa jen s tím, co ukryli (`refuge.hidden`).
+   */
+  | { kind: 'refuge-back'; refId: string; foodKg: number; herd: Record<HerdSpecies, number> };
 
 /**
  * Událost ve schránce vsi `villageId`. `day` = herní den, na jehož začátku se použije (nikdy ne
@@ -189,6 +261,16 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
       return applyGuardLosses(state, day, body);
     case 'fortification-breach':
       applyFortificationBreach(state, day, body);
+      return [];
+    case 'messenger-out':
+    case 'messenger-back':
+    case 'messenger-caught':
+    case 'refuge-depart':
+    case 'refuge-hidden':
+    case 'refuge-caught':
+    case 'refuge-arrive':
+    case 'refuge-back':
+      // Ú7 (plán 2026-11-09) – aplikace v `refugees.ts`; zatím ves beze změny.
       return [];
     default:
       return unknownBody(body);

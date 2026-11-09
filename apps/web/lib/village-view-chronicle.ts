@@ -340,6 +340,8 @@ const AWAY_TEXTS: Record<AwayKind, string> = {
   campaign: 'na tažení',
   captive: 'do zajetí',
   protection: 'pod ochranu',
+  refuge: 'do útočiště',
+  messenger: 's poselstvím',
 };
 
 /** Odkud se lidé vrátili. */
@@ -349,6 +351,8 @@ const AWAY_BACK_TEXTS: Record<AwayKind, string> = {
   campaign: 'z tažení',
   captive: 'ze zajetí',
   protection: 'z ochrany',
+  refuge: 'z útočiště',
+  messenger: 'z cesty s poselstvím',
 };
 
 /** „1 člověk“, „3 lidé“, „5 lidí“. */

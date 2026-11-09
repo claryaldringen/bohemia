@@ -75,6 +75,32 @@ describe('playerNoticeLine', () => {
     expect(noticePanel('foreign-army')).toBe('war');
   });
 
+  it('varování a útěk do hradiště – texty a panel války (war.md, plán 2026-11-09 – Ú1)', () => {
+    const text = (kind: PlayerNotice['kind'], payload: Record<string, unknown>): string =>
+      playerNoticeLine(notice({ kind, payload })).text;
+    expect(text('army-warned', { name: 'Kněžice' })).toBe(
+      'Vesničan spatřil cizí vojsko u vsi Kněžice!',
+    );
+    expect(text('army-warned', {})).toBe('Vesničan spatřil cizí vojsko!');
+    expect(text('refuge-arrived', { name: 'Kněžice', hostName: 'Lhota' })).toBe(
+      'Uprchlíci z vsi Kněžice došli do vsi Lhota.',
+    );
+    expect(text('refuge-arrived', { name: 'Kněžice' })).toBe(
+      'Uprchlíci z vsi Kněžice došli do hradiště.',
+    );
+    expect(text('refuge-caught', { name: 'Kněžice' })).toBe(
+      'Uprchlíci z vsi Kněžice byli dostiženi.',
+    );
+    expect(text('messenger-caught', {})).toBe('Posel byl chycen.');
+    for (const kind of [
+      'army-warned',
+      'refuge-arrived',
+      'refuge-caught',
+      'messenger-caught',
+    ] as const)
+      expect(noticePanel(kind)).toBe('war');
+  });
+
   it('každý druh míří na panel (zatím jen Rod a vazalové)', () => {
     expect(noticePanel('invite-accepted')).toBe('house');
     expect(noticePanel('invitee-played')).toBe('house');

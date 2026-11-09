@@ -124,8 +124,13 @@ export interface Person {
   away?: PersonAway;
 }
 
-/** Proč je člověk pryč jen na čas (rozhodnutí 11). */
-export type AwayKind = 'labor' | 'service' | 'campaign' | 'captive' | 'protection';
+/**
+ * Proč je člověk pryč jen na čas (rozhodnutí 11). `refuge` – uprchlík (war.md – Varování, poslové
+ * a útěk do hradiště): s `hostVillageId` v hradišti, bez něj ukrytý v lese; `messenger` – posel
+ * běží do hradiště a zpět.
+ */
+export type AwayKind =
+  'labor' | 'service' | 'campaign' | 'captive' | 'protection' | 'refuge' | 'messenger';
 
 /** Nepřítomnost na čas: druh, den návratu domů, hostitelská ves a odkaz na důvod (dialog…). */
 export interface PersonAway {
@@ -152,6 +157,11 @@ export interface Guest {
   kind: AwayKind;
   untilDay: number;
   adult: true;
+  /**
+   * Den narození – host jí a pracuje podle věku, dítě nepracuje (uprchlíci druhu `refuge` – war.md,
+   * Varování, poslové a útěk do hradiště). Chybí – dospělý jako dřív.
+   */
+  bornDay?: number;
 }
 /** Luk, boj a jízda 0–100; `best` je nejvyšší dosažená hodnota (spodní hranice úbytku). */
 export interface ArmsSkills {

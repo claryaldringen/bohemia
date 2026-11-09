@@ -55,6 +55,10 @@ export function noticePanel(kind: PlayerNoticeKind): NoticePanel | null {
     case 'campaign-returned':
     case 'campaign-disbanded':
     case 'foreign-army':
+    case 'army-warned':
+    case 'refuge-arrived':
+    case 'refuge-caught':
+    case 'messenger-caught':
       return 'war';
     case 'levy-pending':
     case 'summons-open':
@@ -62,6 +66,12 @@ export function noticePanel(kind: PlayerNoticeKind): NoticePanel | null {
     case 'player-succession':
       return null;
   }
+}
+
+/** „ z vsi Kněžice“ (jméno vsi se neskloňuje); bez jména nic. */
+function fromVillage(payload: Record<string, unknown>): string {
+  const name = stringOf(payload.name);
+  return name === null ? '' : ` z vsi ${name}`;
 }
 
 function nameOf(payload: Record<string, unknown>): string {
@@ -184,6 +194,20 @@ function textOf(n: PlayerNotice): string {
     case 'foreign-army':
       // jméno vsi se neskloňuje (2. pád jmen vsí nejde spolehlivě odvodit) – „u vsi Kněžice“
       return `Cizí vojsko u vsi ${stringOf(n.payload.name) ?? ''}!`.replace(' !', '!');
+    // Varování, poslové a útěk do hradiště (war.md) – texty návrh Clauda; upozornění posílá tažení
+    // od Úlohy 2 a 5–8 (plán 2026-11-09), pohled a klik na panel doplní Úloha 12.
+    case 'army-warned': {
+      const name = stringOf(n.payload.name);
+      return `Vesničan spatřil cizí vojsko${name === null ? '' : ` u vsi ${name}`}!`;
+    }
+    case 'refuge-arrived': {
+      const host = stringOf(n.payload.hostName);
+      return `Uprchlíci${fromVillage(n.payload)} došli ${host === null ? 'do hradiště' : `do vsi ${host}`}.`;
+    }
+    case 'refuge-caught':
+      return `Uprchlíci${fromVillage(n.payload)} byli dostiženi.`;
+    case 'messenger-caught':
+      return `Posel${fromVillage(n.payload)} byl chycen.`;
     case 'vassalage-renounced': {
       const lord = stringOf(n.payload.lordName) ?? 'Pán';
       const vassal = stringOf(n.payload.vassalName) ?? 'Vazal';
