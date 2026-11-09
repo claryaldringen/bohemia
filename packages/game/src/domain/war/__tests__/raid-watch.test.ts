@@ -1,16 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { village, kin } from '../../village/__tests__/kin-fixtures';
+import { dwelling, village, kin } from '../../village/__tests__/kin-fixtures';
 import type { NewVillageEvent } from '../../village/inbox';
 import { stepCampaign } from '../campaign';
 import type { CampaignMap, CampaignState, CampaignWorld } from '../campaign-types';
 import { campaign, flat, MEADOW, SUMMER, world } from './campaign-fixtures';
 
-// Dny nájezdu a posel (Ú6.7 – war.md, Ves během nájezdu nepracuje; Obránci – Kdy): vojsko na mapě
-// cizí vsi posílá `raid-day` na každý den, poprvé i signál hrozby; ves téhož rodu jako cíl pošle do
-// cíle posla na následující den.
+// Dny nájezdu (Ú6.7 – war.md, Ves během nájezdu nepracuje): vojsko na mapě cizí vsi posílá
+// `raid-day` na každý den – war.md – Varování, 9. 11. 2026: až od chvíle, kdy ves o vojsku ví
+// (spatřil ho vesničan – `sightAlarms`), signál hrozby jednou s varováním. Automatický posel
+// z prošlé vsi do cíle (Ú6.7) zmizel – posla posílá hráč nebo správce (plán 2026-11-09 – Úloha 5).
 
 const PASSED = { x: 1, y: 0 };
-const vlkov = village([kin({ id: 1, age: 30, sex: 'male', home: 1 }, SUMMER)], [], {
+// dům ve středu mapy – odtud vesničan vojsko spatří (war.md – Varování, 9. 11. 2026)
+const vlkov = village([kin({ id: 1, age: 30, sex: 'male', home: 1 }, SUMMER)], [dwelling(1)], {
   lastDay: SUMMER,
 });
 const vlkovMap: CampaignMap = { landscape: flat(), obstacles: null, villageIds: ['vlkov'] };
@@ -25,8 +27,11 @@ function worldWith(overrides: Partial<CampaignWorld> = {}): CampaignWorld {
   };
 }
 
-/** Vojsko na pochodu stojí na mapě Vlkova a míří dál na Kněžice (políčko 2, 0). */
-function passing(): CampaignState {
+/**
+ * Vojsko na pochodu stojí na mapě Vlkova (dům ve 0, 0) v bodě `x` a míří dál na Kněžice (políčko
+ * 2, 0); z −200 m ho vesničan u domu spatří hned (war.md – Varování, 9. 11. 2026).
+ */
+function passing(x = -200): CampaignState {
   const s = campaign({
     liveCommand: false,
     target: { villageId: 'knezice', cell: { x: 2, y: 0 }, pos: { x: 0, z: 0 } },
@@ -34,7 +39,7 @@ function passing(): CampaignState {
   s.phase = 'marching';
   for (const g of s.groups) {
     g.cell = { ...PASSED };
-    g.pos = { x: -900, z: 0 };
+    g.pos = { x, z: 0 };
     g.goal = { cell: { x: 2, y: 0 }, pos: { x: 0, z: 0 } };
     g.route = [{ x: 2, y: 0 }];
     g.arrived = false;
@@ -46,21 +51,31 @@ const kinds = (events: readonly NewVillageEvent[], villageId: string): string[] 
   events.filter((e) => e.villageId === villageId).map((e) => `${e.body.kind}@${e.day}`);
 
 describe('dny nájezdu (raid-day)', () => {
-  it('ves na mapě vojska dostane raid-day na každý den, signál hrozby jednou', () => {
+  it('ves na mapě vojska dostane raid-day na každý den až od varování, signál hrozby jednou', () => {
     const start = passing();
     const step = stepCampaign(start, start.tick + 400, [], worldWith());
     expect(step.waiting).toBeNull();
     const day = start.day;
     expect(kinds(step.villageEvents, 'vlkov')).toEqual([
-      `raid-day@${day}`,
       `threat-signal@${day}`,
+      `raid-day@${day}`,
       `raid-day@${day + 1}`,
     ]);
     expect(step.state.raidDays).toEqual({ vlkov: day + 1 });
-    // ref = camp:<id>:<takt>:<n> – jedinečný
+    // ref = camp:<id>:<takt>:<n> – jedinečný; první v taktu spatření
     const refs = step.villageEvents.map((e) => e.ref);
     expect(new Set(refs).size).toBe(refs.length);
-    expect(refs[0]).toBe(`camp:c1:${start.tick + 1}:0`);
+    const seen = step.state.alarm!.villages[0]!.warnTick;
+    expect(refs[0]).toBe(`camp:c1:${seen}:0`);
+  });
+
+  it('vojsko na mapě, které ještě nikdo nespatřil – ves pracuje dál (žádný raid-day)', () => {
+    // war.md – Varování, 9. 11. 2026: „Do té doby lidé pracují dál“
+    const start = passing(-900);
+    const step = stepCampaign(start, start.tick + 400, [], worldWith());
+    expect(step.waiting).toBeNull();
+    expect(step.villageEvents).toEqual([]);
+    expect(step.state.raidDays).toBeUndefined();
   });
 
   it('po kouscích taktů i přes JSON stejné události', () => {
@@ -91,31 +106,20 @@ describe('dny nájezdu (raid-day)', () => {
   });
 });
 
-describe('posel (army-seen)', () => {
-  it('ves téhož rodu pošle do cíle posla na následující den, jednou', () => {
+describe('posel z prošlé vsi (Ú6.7) zmizel', () => {
+  // war.md – Varování, 9. 11. 2026: posla do hradiště posílá hráč nebo správce (Úloha 5)
+  it('ves téhož rodu jako cíl do cíle nic neposílá a takt na rod nečeká', () => {
     const start = passing();
     const step = stepCampaign(start, start.tick + 400, [], worldWith());
-    const day = start.day;
-    expect(kinds(step.villageEvents, 'knezice')).toEqual([
-      `army-seen@${day + 1}`,
-      `threat-signal@${day + 1}`,
-    ]);
-    const seen = step.villageEvents.find((e) => e.body.kind === 'army-seen');
-    expect(seen?.body).toEqual({ kind: 'army-seen', campaignId: 'c1', fromVillageId: 'vlkov' });
-    expect(step.state.messengerSent).toBe(true);
-  });
-
-  it('ves jiného rodu posla neposílá; neznámé vsi se načtou', () => {
-    const start = passing();
-    const other = stepCampaign(start, start.tick + 40, [], worldWith({ messengerTo: () => false }));
-    expect(kinds(other.villageEvents, 'knezice')).toEqual([]);
+    expect(kinds(step.villageEvents, 'knezice')).toEqual([]);
+    expect(step.state.messengerSent).toBeUndefined();
     const unknown = stepCampaign(
       start,
       start.tick + 40,
       [],
       worldWith({ messengerTo: () => null }),
     );
-    expect(unknown.state.tick).toBe(start.tick);
-    expect(unknown.waiting?.villageIds).toEqual(['vlkov', 'knezice']);
+    expect(unknown.waiting).toBeNull();
+    expect(unknown.state.tick).toBe(start.tick + 40);
   });
 });

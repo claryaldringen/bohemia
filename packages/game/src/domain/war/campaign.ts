@@ -26,7 +26,6 @@ import {
   commandFighter,
   openBattle,
   type BattleField,
-  type BattleFort,
   type BattleState,
 } from './battle';
 import { defenderRoster, type GuardGuest } from './defenders';
@@ -45,7 +44,7 @@ import {
   type CampaignReturn,
   type RaidResult,
 } from './raid-apply';
-import { marchGrid, type MarchGrid, type Pos } from './march-grid';
+import type { Pos } from './march-grid';
 import { marchPath, marchPathToEdge, marchProgress, marchSpeed, type GroupPace } from './march';
 import { WAR } from './rules-war';
 import { discoverBuildings } from './sight';
@@ -54,39 +53,23 @@ import { npcIntents, npcLeader } from './npc-commander';
 import { inFight, setGroupOrder } from './orders';
 import { dayOfTick, hoursPerTick, TICKS_PER_SECOND, tickRandom } from './ticks';
 import { edgeCrossing, worldRoute } from './world-route';
+import { isWarned, sightAlarms } from './alarm';
+import {
+  cellKey,
+  gridOf,
+  MissingData,
+  sameCell,
+  tickContext,
+  villageEvent,
+  type TickContext,
+  type TickOut,
+} from './campaign-tick';
 
 // Tažení po taktech (plán 2026-11-03 – rozhodnutí 12, Úloha 6.5): čistá funkce výchozího stavu,
 // seedu a záznamu záměrů s číslem taktu. Takt po taktu: denní krok (jídlo, mráz) na začátku
 // nového dne, záměry taktu podle `seq`, pak fáze (pochod, nájezd, návrat). Výsledek nezávisí na
 // tom, po jakých kouscích taktů se počítá – stav je JSON a takt čte jen stav, záměry a svět.
 // Jen det-math (`domain/war/**`): tažení počítá worker i web.
-
-/** Data, bez kterých takt nejde spočítat – takt se zahodí a volající je načte. */
-class MissingData {
-  constructor(
-    readonly cells: GridCell[],
-    readonly villageIds: string[],
-  ) {}
-}
-
-/** Výstup jednoho taktu – do výsledku se přidá, jen když takt doběhne. */
-interface TickOut {
-  events: NewVillageEvent[];
-  notices: CampaignNotice[];
-}
-
-/** Mřížky pochodu jednoho volání (políčko a den; napříč voláními `world.grids`). */
-interface TickContext {
-  world: CampaignWorld;
-  grids: Map<string, MarchGrid>;
-  /** Opevnění vsi pro bojiště (ves a den). */
-  forts: Map<string, BattleFort[]>;
-  /** Dříví vsi na otepi (`fuelOf`) podle klíče vsi a dne jako `forts`. */
-  fuel: Map<string, Pos[]>;
-}
-
-const cellKey = (c: GridCell): string => `${c.x},${c.y}`;
-const sameCell = (a: GridCell, b: GridCell): boolean => a.x === b.x && a.y === b.y;
 
 /** Vstup nového tažení (vyslání – Ú6.6): muži stojí ve shromaždišti, skupiny podle `member.group`. */
 export interface NewCampaign {
@@ -177,7 +160,7 @@ export function stepCampaign(
         (i.body.kind === 'breakout') !== (i.byPlayer === state.playerId),
     )
     .sort((a, b) => a.tick - b.tick || a.seq - b.seq);
-  const ctx: TickContext = { world, grids: new Map(), forts: new Map(), fuel: new Map() };
+  const ctx = tickContext(world);
   const villageEvents: NewVillageEvent[] = [];
   const notices: CampaignNotice[] = [];
   let current = state;
@@ -265,18 +248,23 @@ function campaignTick(
       if (allArrived(s)) finish(s, ctx, out);
       break;
   }
-  if (s.phase !== 'assembling' && s.phase !== 'done') watchVillages(s, ctx, out);
+  // po pohybu: spatření vesničany (varování – Úloha 2 plánu 2026-11-09), pak dny nájezdu
+  if (s.phase !== 'assembling' && s.phase !== 'done') {
+    sightAlarms(s, tick, ctx, out);
+    watchVillages(s, ctx, out);
+  }
   // boj skončil (výhra, porážka, ústup) – výsledek nájezdu do vsí jednou (Ú6.10)
   reportRaid(s, ctx, out);
   return s;
 }
 
 /**
- * Vsi, na jejichž mapě vojsko po taktu stojí (Ú6.7 – war.md, Ves během nájezdu nepracuje a Obránci:
- * Kdy). Ves, které vojsko škodí, dostane na každý den, kdy na její mapě stojí, `raid-day` na týž
- * den (bariéra drží ves před tím dnem – ještě ho nespočítala) a poprvé i signál hrozby `army-seen`
- * pro správce. Jiná ves téhož rodu jako cíl pošle do cíle posla – `army-seen` a signál hrozby na
- * následující den (rozhodnutí 13), jednou za tažení.
+ * Vsi, na jejichž mapě vojsko po taktu stojí (Ú6.7 – war.md, Ves během nájezdu nepracuje). Ves,
+ * které vojsko škodí, dostane na každý den, kdy na její mapě stojí, `raid-day` na týž den (bariéra
+ * drží ves před tím dnem – ještě ho nespočítala) – až od chvíle, kdy o vojsku ví (`isWarned` –
+ * war.md, Varování: „Do té doby lidé pracují dál“), nebo když se na její mapě bojuje (cíl
+ * v nájezdu). Signál hrozby `army-seen` jde s varováním (`sightAlarms`). Automatický posel z prošlé
+ * vsi (Ú6.7) zmizel – posla posílá hráč nebo správce (plán 2026-11-09 – Úloha 5).
  */
 function watchVillages(s: CampaignState, ctx: TickContext, out: TickOut): void {
   const cells = new Map<string, GridCell>();
@@ -290,45 +278,15 @@ function watchVillages(s: CampaignState, ctx: TickContext, out: TickOut): void {
     for (const villageId of map.villageIds) {
       if (ctx.world.villageAt(villageId, s.day) === null) throw new MissingData([], [villageId]);
       if (ctx.world.harmless?.(villageId, s.playerId)) continue;
+      const fighting = s.phase === 'raiding' && villageId === s.target.villageId;
+      if (!fighting && !isWarned(s, villageId, s.tick)) continue;
       const days = (s.raidDays ??= {});
       if (days[villageId] !== s.day) {
-        const first = days[villageId] === undefined;
         days[villageId] = s.day;
         villageEvent(s, out, villageId, s.day, { kind: 'raid-day', campaignId: s.id });
-        if (first) {
-          const signal = { kind: 'army-seen' as const, day: s.day };
-          villageEvent(s, out, villageId, s.day, { kind: 'threat-signal', signal });
-        }
       }
-      if (s.messengerSent || villageId === s.target.villageId) continue;
-      const ask = ctx.world.messengerTo;
-      const messenger = ask ? ask(villageId, s.target.villageId) : false;
-      if (messenger === null) throw new MissingData([], [villageId, s.target.villageId]);
-      if (!messenger) continue;
-      s.messengerSent = true;
-      const target = s.target.villageId;
-      villageEvent(s, out, target, s.day + 1, {
-        kind: 'army-seen',
-        campaignId: s.id,
-        fromVillageId: villageId,
-      });
-      villageEvent(s, out, target, s.day + 1, {
-        kind: 'threat-signal',
-        signal: { kind: 'army-seen', day: s.day },
-      });
     }
   }
-}
-
-/** Událost do schránky vsi – `ref` je jedinečný: takt a pořadí v něm. */
-function villageEvent(
-  s: CampaignState,
-  out: TickOut,
-  villageId: string,
-  day: number,
-  body: VillageEventBody,
-): void {
-  out.events.push({ villageId, day, ref: `camp:${s.id}:${s.tick}:${out.events.length}`, body });
 }
 
 /**
@@ -725,8 +683,9 @@ function campaignBattle(s: CampaignState, ctx: TickContext, field: BattleField):
         defenders: defenderRoster(village, s.day, { guests: guests.map(({ guest }) => guest) }),
         attackers: fighters.map((a) => ({ pos: a.pos, mounted: a.mounted })),
         field,
-        // posel z jiné vsi rodu, kterou toto vojsko prošlo – postoj dřív (Ú6.7)
-        warned: village.armySeen?.campaignId === s.id,
+        // ves o vojsku ví (vesničan, posel – Úloha 2 plánu 2026-11-09), nebo ji varoval posel
+        // starého tažení (Ú6.7 – `armySeen` jen ze starých bodů) – postoj dřív
+        warned: isWarned(s, s.target.villageId, s.tick) || village.armySeen?.campaignId === s.id,
       })
     : null;
   return openBattle({
@@ -1266,24 +1225,4 @@ function planLeg(g: CampaignGroup, day: number, ctx: TickContext): CampaignLeg |
     path = g.goal ? marchPath(grid, g.pos, g.goal.pos) : null;
   }
   return path ? { points: path.points, meadowM: path.meadowM, walkedM: 0 } : null;
-}
-
-/** Mřížka pochodu mapy políčka v den `day` – krajina, překážky a první ves na mapě. */
-function gridOf(cell: GridCell, day: number, ctx: TickContext): MarchGrid {
-  const key = `${cellKey(cell)}@${day}`;
-  const cached = ctx.grids.get(key);
-  if (cached) return cached;
-  const map = ctx.world.landscapeOf(cell);
-  if (map === null) throw new MissingData([{ ...cell }], []);
-  const villageId = map.villageIds[0];
-  let village = null;
-  if (villageId !== undefined) {
-    village = ctx.world.villageAt(villageId, day);
-    if (village === null) throw new MissingData([], [villageId]);
-  }
-  const grid = ctx.world.grids
-    ? ctx.world.grids.gridOf(map.landscape, map.obstacles, village, day)
-    : marchGrid(map.landscape, map.obstacles, village, { day });
-  ctx.grids.set(key, grid);
-  return grid;
 }

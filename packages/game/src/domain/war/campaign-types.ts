@@ -200,7 +200,10 @@ export interface CampaignState {
    * Ú6.7) – bere se `day − 1` a doplní ji první takt.
    */
   throughDay?: number;
-  /** Posel do cílové vsi už šel (`army-seen` – war.md, Obránci: Kdy); chybí – ještě ne. */
+  /**
+   * Posel do cílové vsi už šel (`army-seen` – war.md, Obránci: Kdy); chybí – ještě ne. Jen ze starých
+   * bodů – od Úlohy 2 plánu 2026-11-09 se nezapisuje.
+   */
   messengerSent?: true;
   /**
    * Domovské vsi mužů (id vsi → místo) – kam jdou hloučky po rozpadu (war.md – Velení: Rozpad);
@@ -306,8 +309,8 @@ export interface CampaignWorld {
   harmless?(villageId: string, armyPlayerId: string): boolean;
   /**
    * Pošle ves `passedVillageId`, kterou vojsko prošlo, posla do cílové vsi `targetVillageId` – je to
-   * jiná ves téhož rodu (war.md – Obránci, Kdy)? `null` = svět vsi ještě nenačetl (takt se zastaví
-   * a obě se načtou). Neví-li svět vůbec, nikdo posla neposílá.
+   * jiná ves téhož rodu (war.md – Obránci, Kdy)? Od Úlohy 2 plánu 2026-11-09 ho tažení nevolá –
+   * posla do hradiště posílá hráč nebo správce (Úloha 5); port zmizí s porty varování (Úloha 6).
    */
   messengerTo?(passedVillageId: string, targetVillageId: string): boolean | null;
   /*

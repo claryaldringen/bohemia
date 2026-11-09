@@ -167,11 +167,12 @@ async function seedWorld(): Promise<Map<Label, string>> {
     },
     world,
   );
-  // vojsko už táhne – stojí na mapě Vlkova u východního okraje, míří na Kněžice
+  // vojsko už táhne – stojí na mapě Vlkova na dohled domů (dům −50, −50), míří na Kněžice;
+  // war.md – Varování, 9. 11. 2026: dny nájezdu až od varování – vesničan ho spatří hned
   const marching: CampaignState = { ...state, phase: 'marching' };
   for (const g of marching.groups) {
     g.cell = { x: 1, y: 0 };
-    g.pos = { x: 700, z: 0 };
+    g.pos = { x: 60, z: 0 };
     g.goal = { cell: { x: 2, y: 0 }, pos: { x: -700, z: 0 } };
     g.route = [{ x: 2, y: 0 }];
   }
@@ -385,18 +386,16 @@ describe('souběh vsí a tažení – bariéra (Úloha 6.7)', () => {
       expect(raced.states[label].lastDay).toBe(campaign.throughDay);
     }
 
-    // Vlkov: vojsko na mapě – dny nájezdu (ten den ves nepracuje) a signál hrozby
+    // Vlkov: vesničan vojsko na mapě spatřil – signál hrozby a dny nájezdu (ten den ves nepracuje)
     const vlkov = raced.inbox.filter((e) => e.label === 'vlkov');
-    expect(vlkov[0]).toEqual({ label: 'vlkov', day: D0, kind: 'raid-day' });
-    expect(vlkov.some((e) => e.kind === 'threat-signal')).toBe(true);
-    // Kněžice: posel z Vlkova (téhož rodu) na následující den – postoj dřív
-    const knezice = raced.inbox.filter((e) => e.label === 'knezice');
-    expect(knezice).toContainEqual({ label: 'knezice', day: D0 + 1, kind: 'army-seen' });
-    expect(raced.states.knezice.armySeen).toEqual({
-      day: D0 + 1,
-      campaignId: CAMPAIGN_ID,
-      fromVillageId: ids2.get('vlkov'),
-    });
+    expect(vlkov.slice(0, 2)).toEqual([
+      { label: 'vlkov', day: D0, kind: 'threat-signal' },
+      { label: 'vlkov', day: D0, kind: 'raid-day' },
+    ]);
+    // Kněžice: automatický posel z Vlkova zmizel (war.md – Varování, 9. 11. 2026 – posla posílá
+    // hráč nebo správce); vojsko k ní nedošlo
+    expect(raced.inbox.some((e) => e.label === 'knezice')).toBe(false);
+    expect(raced.states.knezice.armySeen).toBeUndefined();
     // ves bez tažení: nic jí nepřišlo a stojí na dnešku jako bez bariéry
     expect(raced.inbox.some((e) => e.label === 'daleko')).toBe(false);
   }, 180_000);

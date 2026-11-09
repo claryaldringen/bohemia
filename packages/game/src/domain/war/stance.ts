@@ -59,9 +59,10 @@ export interface StanceInput {
   attackers: readonly Sighted[];
   field: BattleField;
   /**
-   * Posel z jiné vsi rodu ohlásil vojsko předem (war.md – Obránci, Kdy; `VillageState.armySeen`):
-   * ves se zachovala podle postoje dřív, než vojsko spatřila – do útočiště doběhnou všichni, kdo se
-   * vejdou (brány se zavřou až za nimi).
+   * Ves o vojsku věděla předem – spatřil ho vesničan, nebo ho ohlásil posel (war.md – Varování,
+   * poslové a útěk do hradiště; `isWarned` v tažení, ze starých bodů `VillageState.armySeen`): ves
+   * se zachovala podle postoje dřív – do útočiště doběhnou všichni, kdo se vejdou (brány se zavřou
+   * až za nimi).
    */
   warned?: boolean;
 }
