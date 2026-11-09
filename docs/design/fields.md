@@ -1389,6 +1389,21 @@ pro raný středověk ale nemám – zůstává návrhem Clauda jako dosavadní 
 
 ### Zahrádka u obydlí – len a luštěniny (9. 11. 2026, implementováno)
 
+**Změna 9. 11. 2026 večer – len zpět na pole (implementace čeká):** Martin: „Tak změna. Len je
+extrémně náročná plodina na kvalitu půdy. Tam, kde už jednou rostl, se může vrátit až po 6 nebo 7
+letech, takže se bude pěstovat na polích. Sklízí se v srpnu, ale obilí má vždy absolutní přednost –
+pokud se nesklidí len, tak lidé budou maximálně chodit v potrhaných šatech, ale neumřou hlady.“
+Pravidla (podrobnosti návrh Clauda):
+- **Len na poli**, ne na zahrádce – zahrádka dál dává jen **luštěniny** (celé záhony).
+- **Na tentýž díl nejdřív po 7 letech** (Martin „6 nebo 7“ – návrh Clauda bere 7); len si bere
+  jarní díly (setí v dubnu jako dřív) s nejlepší úrodností, na kterých len 7 let nerostl, jen do
+  potřeby lnu na oděv.
+- **Trhání lnu v srpnu**; **obilí má vždy absolutní přednost** – len dostane práci až po všech
+  pracích na obilí (žeň, odnos, výmlat); co se do konce srpna nevytrhá, propadne a lnu na oděv
+  chybí (potrhané šaty – dosavadní upozornění a štěstí), nikdo kvůli tomu nehladoví.
+
+Původní zadání zahrádky (len už neplatí):
+
 Martin 9. 11. 2026: „Nebylo by lepší, kdyby si lidé řešili len sami podobně, jako luštěniny?“,
 „Ale ta zahrádka už je tam nakreslená :D“ a „Ano“ k návrhu Clauda: **len z polí vyřazený** jako
 luštěniny; domácnost na **zahrádce svého pozemku** (polozemnice – políčko 15 × 15 m s plotem,
