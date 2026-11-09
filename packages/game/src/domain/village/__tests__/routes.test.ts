@@ -25,6 +25,7 @@ import {
   withRoutes,
 } from '../paths/village';
 import { advanceVillage } from '../simulate';
+import { partStage } from '../summary';
 import type { LaborShare, Person, StoredRoute, VillageState } from '../types';
 import { LANDSCAPE } from './paths-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
@@ -644,6 +645,23 @@ describe('trasy jen při změně mapy (paths.md – Stálé trasy, pravidlo 5)',
 describe('vzdálenosti chůze jen při změně jejich otisku (walkDistanceKey)', () => {
   /** Značka ve vzdálenosti dílu – přepočet vzdáleností by ji přepsal. */
   const MARK = 12345;
+
+  // Martin 9. 11. 2026: „Ano, vynech je“ – zarostlý díl jako stadium u mapy tras
+  it('zarostlý díl otisk vzdáleností nemění', () => {
+    const s = advanceVillage(withField(), DAY + 3, null, LANDSCAPE);
+    const key = s.walkDistanceKey;
+    const [grown, other] = s.parts.filter((p) => p.cell && p.walkDistanceM !== undefined);
+    grown!.state = 'fallow';
+    grown!.fallowSinceDay = DAY - 50 * YEAR;
+    grown!.overgrowthYears = 50;
+    expect(['shrubs', 'young-forest']).toContain(partStage(grown!, DAY + 4));
+    other!.walkDistanceM = MARK;
+    s.walkLayoutKey = 'jiny';
+    refreshWalkDistances(s, DAY + 4, LANDSCAPE, null);
+    expect(s.routes!.day).toBe(DAY + 4);
+    expect(s.walkDistanceKey).toBe(key);
+    expect(other!.walkDistanceM).toBe(MARK);
+  }, 30_000);
 
   it('přepočet tras se stejným otiskem vzdálenosti nechá, nové obydlí je změří znovu', () => {
     const s = advanceVillage(withField(), DAY + 3, null, LANDSCAPE);
