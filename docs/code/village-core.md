@@ -433,6 +433,15 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   projeví se ve vsích, kde přepočet spustí ohrada, hřbitov, posvátné místo nebo pařezy bez změny
   polí a cest. Bez zarostlých dílů v otisku (rychlost chůze přes díl – změna pravidla, jen na
   pokyn) by roky 2–4 ušetřily 3 z 5 měření (≈ 0,2–0,3 s každé).
+  **Zarostlé díly mimo otisk vzdáleností** (Martin 9. 11. 2026: „Ano, vynech je“): otisk roku
+  Vlkova `8a445a6b87a5` → `39ed37c46b1c` (rok 1 – stejné dny měření, liší se jen text
+  `walkDistanceKey` ve stavu; týž vcelku, po dnech i po 37 dnech), nová ves se správcem 5 let
+  `c24778b28a59` → `1d4bf0017c43` (týž vcelku i po 37 dnech). Měření vzdáleností v rocích 2–4
+  5 → 2 (odpadla všechna 1. 11., zbyla 1. 1. v roce 3 a 1. 3. v roce 4 – jiná cesta), rok 1 beze
+  změny (1. 4. převod, 1. 11. a 1. 2. jiná cesta); den přepočtu 1. 11. 0,6–0,7 → 0,5 s. Zahřáté
+  roky 2–4 (`years.mts`, střídavě před `d9f61153` / po, zátěž 7,9 → 4,1): 4,94 / 5,98 / 5,11
+  a 4,89 / 6,10 / 5,17 s → 4,76 / 5,93 / 4,93 a 4,88 / 6,08 / 5,11 s (průměr 5,37 → 5,28 s,
+  −1,7 %); rok 1 8,66–8,70 → 8,68–8,82 s (v šumu – v roce 1 se nic neušetří).
 
 - **Čísla** pravidel jsou jen v `rules*.ts` (u každého odkaz na sekci návrhu); změna čísla = i
   text v návrhu. Kalibrace: `measure-village.ts` nasimuluje stovky vsí a vypíše cíle z Kalibrace

@@ -86,7 +86,7 @@ import { routePaths } from './route-paths';
 import { villageGrid } from './network-grid';
 import { villageBuildings } from './network-search';
 import { storedRoutes } from './routes';
-import { isCropPart, roadTreeSpeed } from './walk-speed';
+import { roadTreeSpeed } from './walk-speed';
 import {
   accrueVisits,
   laborTripsPerDay,
@@ -945,12 +945,14 @@ function dwellingOrigins(state: VillageState): Position[] {
  * Otisk vstupů vzdáleností chůze kromě pěšin (paths.md – Obilné jámy a vzdálenosti chůze, Martin
  * 9. 11. 2026): vše, z čeho se staví graf chůze, půda a cíle v `refreshWalkDistancesSteps`, kromě
  * čar stálých tras (`villageRouteLines`) – verze tras, obydlí (palivo a voda) a rozestavěná obydlí
- * (`dwellingOrigins`), díly polí s políčkem a mřížkou pole (cíle), čtverce polí s rychlostí chůze
- * (`withFieldWalk` – zarostlý díl), čtverce sadů, pevné cesty (`roadPieceCost` – osa, stupeň, hať,
- * mokřina a brody, olemování) a opevnění (`withFortWalk` – `fortLayoutKey`). Terén okna, okraj lesa
- * a voda jsou z krajiny. Stejný otisk = stejné vzdálenosti až na pěšiny.
+ * (`dwellingOrigins`), díly polí s políčkem a mřížkou pole (cíle i čtverce `withFieldWalk`), čtverce
+ * sadů, pevné cesty (`roadPieceCost` – osa, stupeň, hať, mokřina a brody, olemování) a opevnění
+ * (`withFortWalk` – `fortLayoutKey`). Terén okna, okraj lesa a voda jsou z krajiny. Zarostlý díl
+ * (rychlost chůze přes díl ve `withFieldWalk`) v otisku není – jako stadium u mapy tras (Martin
+ * 9. 11. 2026: „Ano, vynech je“); zarůstání a vyčištění dílu se do vzdáleností promítne s další
+ * změnou otisku. Stejný otisk = stejné vzdálenosti až na pěšiny a zarostlé díly.
  */
-function walkDistanceKey(state: VillageState, village: PathVillage): string {
+function walkDistanceKey(state: VillageState): string {
   const at = (p: PathPoint): string => `${p.x},${p.z}`;
   const grids = fieldGrids(state);
   const dwellings = state.dwellings.map((d) => `${d.id}:${at(d.position)}`);
@@ -959,10 +961,6 @@ function walkDistanceKey(state: VillageState, village: PathVillage): string {
   );
   const parts = state.parts.flatMap((p) =>
     p.cell ? [`${p.id}/${p.fieldId}:${p.cell.x},${p.cell.y}${turned(grids.get(p.fieldId))}`] : [],
-  );
-  const fields = village.fields.map(
-    (f) =>
-      `${f.id}:${f.parts.map((p) => `${at(p)},${p.rotation ?? ''}${isCropPart(p) ? '' : 'o'}`).join(';')}`,
   );
   const orchards = villageOrchards(state).map(
     (o) => `${o.id}${turned(o.grid)}:${o.squares.map((s) => `${s.cell.x},${s.cell.y}`).join(';')}`,
@@ -979,7 +977,6 @@ function walkDistanceKey(state: VillageState, village: PathVillage): string {
       dwellings.join('|'),
       sites.join('|'),
       parts.join('|'),
-      fields.join('|'),
       orchards.join('|'),
       roads.join('|'),
       fortLayoutKey(state) ?? '-',
@@ -1229,7 +1226,7 @@ export function* refreshWalkDistancesSteps(
   }
   // vzdálenosti chůze jen při změně obydlí, polí, sadů, pevných cest nebo opevnění (Martin 9. 11.
   // 2026) – nové pěšiny samy ne; ves bez otisku (uložená dřív) je změří a otisk uloží
-  const distanceKey = walkDistanceKey(state, village);
+  const distanceKey = walkDistanceKey(state);
   if (state.walkDistanceKey === distanceKey) return;
   // stěny opevnění – chodec jimi jde jen branou (fortifications.md – Brány)
   const ground = withFortWalk(

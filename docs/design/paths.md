@@ -394,18 +394,20 @@ Rok Vlkova (stav z DB 9. 11. 2026, 39 lidí) trval 9,0 s, z toho přepočet tras
    znovu změřil vzdálenost chůze ke všem dílům polí (Vlkov 4 754 dílů), čtvercům sadů, k lesu
    a k vodě – 1,0 s za rok. Za tři přepočty roku zůstalo 94–98 % dílů beze změny, změny měly
    medián ≈ 4 m z průměrných 391 m, les a voda se nezměnily. Nově se vzdálenosti přepočítají,
-   jen když se změní obydlí (i rozestavěná – výchozí body), díly polí (políčko, pole, mřížka,
-   zarostlý díl), sady, pevné cesty (osa, stupeň, mokřina a brody, hať, olemování) nebo opevnění.
-   Nová síť pěšin sama vzdálenosti nemění – s pěšinami se zpřesní při nejbližší takové změně.
-   Návrh Clauda: oprava a přestavba cest (přepočet tras hned) vzdálenosti nevynutí – změní-li
-   cesty, přepočítají se samy; ves uložená dřív si je spočítá s nejbližším přepočtem tras.
+   jen když se změní obydlí (i rozestavěná – výchozí body), díly polí (políčko, pole, mřížka),
+   sady, pevné cesty (osa, stupeň, mokřina a brody, hať, olemování) nebo opevnění. Nová síť
+   pěšin sama vzdálenosti nemění – s pěšinami se zpřesní při nejbližší takové změně. **Zarostlý
+   díl** (rychlost chůze přes díl) se bere jako stadium u mapy tras – zarůstání ani vyčištění
+   dílu vzdálenosti nepřepočítá až do další změny obydlí, polí, sadů, pevných cest nebo hradeb
+   (na otázku Clauda Martin 9. 11. 2026: „Ano, vynech je“). Návrh Clauda: oprava a přestavba
+   cest (přepočet tras hned) vzdálenosti nevynutí – změní-li cesty, přepočítají se samy; ves
+   uložená dřív si je spočítá s nejbližším přepočtem tras.
 
 _Naměřeno 9. 11. 2026 (Vlkov, 4 roky):_ jámy ušetřily v roce 1 přepočet 1. 10., v dalších letech
-se jámy neměnily. Vzdálenosti se zatím měří při každém přepočtu tras – vstupy se při něm vždy
-opravdu změnily (díly pole přestaly být nebo začaly být zarostlé, zkracovaná vozová cesta).
-Zahřátý rok 5,63 → 5,49 s. Otevřená otázka pro Martina: brát zarostlý díl jako stadium (bez vlivu
-na otisk vzdáleností, jako u mapy tras) – v rocích 2–4 by ušetřilo 3 z 5 měření (podrobnosti
-[village-core.md – Výkon dopočtu, kolo 6](../code/village-core.md)).
+se jámy neměnily. Se zarostlými díly v otisku se vzdálenosti měřily při každém přepočtu tras
+(díly pole přestávaly být nebo začaly být zarostlé, zkracovaná vozová cesta); bez nich odpadla
+v rocích 2–4 tři z pěti měření (každý rok 1. 11.), zbývající dvě a rok 1 mají jinou cestu.
+Podrobnosti [village-core.md – Výkon dopočtu, kolo 6](../code/village-core.md).
 
 ### Co to udělá ve hře
 

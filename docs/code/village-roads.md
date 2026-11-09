@@ -921,17 +921,21 @@ Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
   - **Otisk vzdáleností chůze** (`VillageState.walkDistanceKey`, Martin 9. 11. 2026 – paths.md
     tamtéž): přepočet tras změří vzdálenosti (`walkDistanceKey` v `paths/village.ts`) jen při jiném otisku než
     uloženém. Otisk obsahuje vše, z čeho se staví graf chůze, půda a cíle, kromě čar pěšin
-    (`villageRouteLines`): `WALK_VERSION`; obydlí (id, poloha – palivo a voda) a rozestavěná obydlí
-    (poloha – `dwellingOrigins`); díly polí s políčkem (id, pole, políčko, mřížka pole –
-    `squareCenter` cíle i `withFieldWalk`); zarostlý díl (`isCropPart` po dílech `PathVillage.fields`
-    – rychlost chůze přes pole); čtverce sadů (id, mřížka, políčka); pevné cesty včetně opuštěných
+    (`villageRouteLines`) a zarostlých dílů: `WALK_VERSION`; obydlí (id, poloha – palivo a voda)
+    a rozestavěná obydlí (poloha – `dwellingOrigins`); díly polí s políčkem (id, pole, políčko,
+    mřížka pole – `squareCenter` cíle i čtverce `withFieldWalk`); čtverce sadů (id, mřížka,
+    políčka); pevné cesty včetně opuštěných
     (id, stupeň, hať, všechny body osy, mokřina a brody `Road.ground`, olemování `Road.lined` –
     `roadPieceCost`); opevnění (`fortLayoutKey` – `withFortWalk`). Terén okna (`walkGroundOf`),
     okraj lesa a voda jsou z krajiny. Ves bez otisku (uložená dřív) změří vzdálenosti s nejbližším
     přepočtem tras a otisk uloží (jednou a idempotentně, převod není potřeba); bez sítě (`!network`)
     se vzdálenosti i otisk smažou. `now` (oprava, přestavba cest) vzdálenosti nevynutí (návrh
     Clauda) – jiné cesty změní otisk. Otisk se uloží až po změření (přerušený dopočet nenechá
-    otisk bez vzdáleností).
+    otisk bez vzdáleností). **Zarostlý díl** (rychlost chůze přes díl – `isCropPart`
+    ve `withFieldWalk`) v otisku není, jako stadium u mapy tras (Martin 9. 11. 2026: „Ano, vynech
+    je“): zarůstání ani vyčištění dílu vzdálenosti nepřepočítá, promítne se až s další změnou
+    otisku (obydlí, pole, sady, pevné cesty, opevnění). Test „zarostlý díl otisk vzdáleností
+    nemění“ v `routes.test.ts`.
   - **Jen stavba nebo zánik** (Martin 31. 10. 2026 – [paths.md, pravidlo 5](../design/paths.md#stálé-trasy-25-10-2026)):
     stálé trasy se hledají nad `establishedVillage` (`network.ts`) – každé hotové obydlí jako
     obydlené (lidé vsi rozdělení na všechna), každá hotová ohrada se zvířaty, každá obilná jáma
