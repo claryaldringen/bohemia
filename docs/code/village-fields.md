@@ -155,7 +155,20 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     (konec okna, ozim před jaří); `allocateDay` vrací i `taskAmounts` po úlohách vstupu (stejný
     název víckrát). Sklizeň ozimu 31. 7. (`harvestWinter`), jaře 31. 8. – do snopů, výmlat hned
     po žni (Snopy a výmlat níž); příděl počítá do sklizně
-    podle `daysUntilFoodHarvest` (31. 7., když ozim podle odhadu uživí srpen). **Kde se násobí
+    podle `daysUntilFoodHarvest` (31. 7., když ozim podle odhadu uživí srpen). **Žně i v srpnu**
+    (fields.md, Martin 9. 11. 2026): okno žně ozimu, luštěnin a lnu je červenec–srpen
+    (`WINTER_WINDOWS.harvest` [7, 8], luštěniny a len sdílí), výmlat srpen–září
+    (`WINTER_WINDOWS.thresh` [8, 9]). `harvestEarlyCrops` (`simulate-food.ts`) 31. 7. dá do snopů
+    úrodu červencové žně (`sheaveCrop` – `harvestKg(…, fromDone)` a `threshRemainingAfter`
+    v `year-plan.ts`); nedosklizená plodina dostane `CropWork.sheaved` (práce žně a kg v snopech)
+    a `harvestedKg` zůstane null – plodina je dál na poli (zvěř, pohromy, scéna, výhled). `harvest` 31. 8. zavolá `harvestEarlyCrops(…, true)` před jaří – zbytek do snopů, nesklizené propadne.
+    Len nedotržený 31. 7. se zapíše až 31. 8. (`harvestFlax(…, final)`). V srpnu má zbytek ozimu,
+    luštěnin a lnu přednost před jaří samo – stejný konec okna, pořadí `CROP_ORDER` (návrh Clauda).
+    Plán a výhled: `SOWING_CAPACITY_WINDOWS.july` = okno žně ozimu bez měsíců žně jaře
+    (`withoutMonths`), přetečení července do srpna `harvestOverflow` (`lordSowingHelp`,
+    `seasonShortfalls` – výhled dílu má jedno okno žně do konce srpna); ruce výmlatu
+    (`threshHands`) odečtou v srpnu nutnou žeň všech plodin, obilné jámy čekají i na zbytek ozimu
+    (`springHarvestAhead`). **Kde se násobí
     úroda:** `cropYieldKg` (`year-plan.ts`) – hrubá úroda dílu × `kept` = 1 − `PartLosses[id].share`,
     osivo se odečte celé. Ztráty skládá `dayPartLosses` (`disasters.ts`) – počasí dílu
     (`partWeatherFactor`) × (1 − škoda zvěře); volají ho `harvestWinter` (ozim, luštěniny),
@@ -167,7 +180,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     `cropSeedPerHa`, `partWork(…, crop)`); cíl luštěnin `legumeTargetKg`
     (`plannedLegumeKg` – rovnovážné hospodaření, diet.md, bez zásoby – `sowingTargets`) a `energyFloorKg`
     pokrývá `neededSelection` (luštěniny od domu, loňské až nakonec – `sideCropOrder`);
-    sklizeň 31. 7. do `VillageState.legumesKg` (`harvestWinter`), osev úrodnost vrátí
+    sklizeň 31. 7. (zbytek 31. 8.) do `VillageState.legumesKg` (`harvestWinter`), osev úrodnost vrátí
     (`LEGUMES.fertilityGain` v `endOfSeason`). Scéna: `SceneFieldPart.crop: 'legume'` – trsy
     hrachu `crop-pea-green` / `crop-pea-ripe` a hromádky `pea-heap` v `crops.glb`.
     **Len** (fields.md – Len, diet.md – Oděv; Martin 19. 10. 2026: „na částech pole musí být zasetý
@@ -175,7 +188,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     (`SeasonCrop` s `crop: 'flax'`, `FLAX_WINDOWS` = okna luštěnin, `FLAX` a `FLAX_WORK_PER_HA` v `rules*.ts` –
     potřeba 2 / 1 kg třeného lnu na dospělého / dítě, 550 kg/ha, osivo 0, neopletý 50 %, úrodnost
     −0,18 v `endOfSeason`, nemlátí se); `flax.ts` – `flaxNeedKg`, `expectedFlaxKg`, `harvestFlax`
-    (31. 7. v `harvestWinter` – `VillageState.linen` = podíl oděvu vůči `FarmSeason.flaxNeedKg`
+    (31. 7. v `harvestWinter`, nedotržený 31. 8. – `VillageState.linen` = podíl oděvu vůči `FarmSeason.flaxNeedKg`
     zapsané v `startSeason`; rok bez ní – starší ves, ves založená během roku – nic nezapíše, kronika
     `linen-short`), `linenUnhappiness` (`HappinessFactors.linen`, až `FLAX.unhappiness` 4).
     Len a luštěniny bere `neededSelection` (místo jaře, len od konce – vysiluje půdu, delší příloh
@@ -538,8 +551,8 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   rešerše – Výmlat na humně): `threshing.ts`. Sklizeň jde do snopů `VillageState.sheaves`
   (`Sheaves` – kg zrna obilí a luštěnin a zbývající práce výmlatu po plodinách `work` – sklizená
   část práce `thresh` plánu; `addSheaves` v `harvestWinter` / `harvest`), ne do `storesKg`.
-  Okna `thresh`: ozim a luštěniny srpen, jař září (`WINTER_WINDOWS`, `LEGUME_WINDOWS`,
-  `WINDOWS`); `threshTasks` (úlohy dne v `work()` – za polními úlohami téhož konce okna, žeň má
+  Okna `thresh`: ozim a luštěniny srpen–září (srpnová žeň – Žně i v srpnu), jař září
+  (`WINTER_WINDOWS`, `LEGUME_WINDOWS`, `WINDOWS`); `threshTasks` (úlohy dne v `work()` – za polními úlohami téhož konce okna, žeň má
   přednost – `THRESH_RANK`; po konci okna se mlátí dál – září–únor s koncem v dnešním měsíci,
   březen–srpen `THRESH_OVERDUE_END` po všech pracích; **výmlat na dnešní jídlo** napřed –
   `threshForFoodKg`: chybí-li zrno na 2 dny jídla, úloha `urgent` s `THRESH_URGENT_END` před

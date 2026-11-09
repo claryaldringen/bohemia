@@ -171,7 +171,7 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
   převodem tam zůstane.
 - **Výmlat hned po žni** (Martin, 20. 10. 2026: „Staří slované se snažili dělat výmlat hned.
   Klasy neskladovali.“): snopy jdou z pole rovnou na humno a mlátí se hned – ozim a luštěniny
-  v srpnu, jař v září (dřív se mlátilo v zimě – okno úlohy `thresh` je hned za sklizní, fields.md
+  v srpnu (co se žalo v srpnu, v září – fields.md, Žně i v srpnu), jař v září (dřív se mlátilo v zimě – okno úlohy `thresh` je hned za sklizní, fields.md
   – Výmlat hned po žni). Stohy snopů se nedělají; zrno jde rovnou do jam. Práce výmlatu je
   stejná, jen přijde v době podzimní orby a setí – ves ji musí stihnout: plán osevu ji odečte
   z podzimní práce (výmlat jaře v září se mlátí před setím ozimu) a výmlat ozimu a luštěnin
@@ -186,7 +186,8 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
   hned nouzově. **Oprava (návrh Clauda 2. 11. 2026) – ruce do konce okna:** výhled už nepočítá,
   že se všechno vymlátí dnes. Výmlat jde den po dni s rukama vsi – práce vsi ve žních (volná
   práce po denním minimu a žňové ruce, stejná jako v plánu osevu), v srpnu bez zbytku žně jaře
-  rozloženého do konce srpna (žeň má přednost); každý den napřed humna do jejich kapacity, zbytek
+  (i zbytku ozimu, luštěnin a lnu z července – fields.md, Žně i v srpnu) rozloženého do konce
+  srpna (žeň má přednost); každý den napřed humna do jejich kapacity, zbytek
   rukou nouzově. Ves, která mlátí víc dní, tak vymlátí víc na humnech (příklad: 200 čd výmlatu,
   jedno humno, ≈ 30 čd rukou denně – dřív výhled 90,6 %, teď 94,8 %, stejně jako výmlat po dnech).
   Co ruce do konce okna nestihnou, se kazí 10 % za měsíc, než to vymlátí (stejnýma rukama) –

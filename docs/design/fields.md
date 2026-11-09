@@ -1060,22 +1060,74 @@ souvislých blocích a pásech v ose s delší brázdou (po blocích, i sever �
 (méně obratů) zorá za den víc
 (Martin: „Volské spřežení chce rýt co nejdelší brázdu“ – oxen.md, Co nejdelší brázda).
 
-| Práce                      | Kdy – ozim | Kdy – jař                                   | Člověkodny / ha | Zdroj                 |
-| -------------------------- | ---------- | ------------------------------------------- | --------------- | --------------------- |
-| kopání motykou             | září–říjen | podzim (září–listopad), zbytek březen–duben | 100 (50)        | Semjonov 1974         |
-| setí a zahrabání           | září–říjen | březen–duben                                | 10              | nedohledáno           |
-| pletí (jen jař – jednou)   | neplete se | květen                                      | 8 (5)           | Martin 25. 10. 2026   |
-| sklizeň srpem a vázání     | červenec   | srpen                                       | 20 (15)         | Halstead a Jones 1989 |
-| odnos úrody v nůších       | červenec   | srpen                                       | 10              | nedohledáno           |
-| výmlat cepem a převívání   | srpen      | září                                        | 15 (10)         | Clark 2007 (EB 1911)  |
-| **celkem na osetý hektar** |            |                                             | **163 (100)**   |                       |
+| Práce                      | Kdy – ozim     | Kdy – jař                                   | Člověkodny / ha | Zdroj                 |
+| -------------------------- | -------------- | ------------------------------------------- | --------------- | --------------------- |
+| kopání motykou             | září–říjen     | podzim (září–listopad), zbytek březen–duben | 100 (50)        | Semjonov 1974         |
+| setí a zahrabání           | září–říjen     | březen–duben                                | 10              | nedohledáno           |
+| pletí (jen jař – jednou)   | neplete se     | květen                                      | 8 (5)           | Martin 25. 10. 2026   |
+| sklizeň srpem a vázání     | červenec–srpen | srpen                                       | 20 (15)         | Halstead a Jones 1989 |
+| odnos úrody v nůších       | červenec–srpen | srpen                                       | 10              | nedohledáno           |
+| výmlat cepem a převívání   | srpen–září     | září                                        | 15 (10)         | Clark 2007 (EB 1911)  |
+| **celkem na osetý hektar** |                |                                             | **163 (100)**   |                       |
 
 Ozim a jař se liší kalendářem (viz Ozim a jař) a pletím – ozim se neplete (Pletí jednou a rychle);
-ostatní sazby práce, osivo a úroda jsou stejné. Pletí dřív 30 (15) čd/ha v květnu–červnu (FAO).
+ostatní sazby práce, osivo a úroda jsou stejné. Žeň ozimu (i luštěnin a lnu) jde v červenci, co
+červenec nestihne, v srpnu, a mlátí se hned po žni – červencová v srpnu, srpnová v září (Žně
+i v srpnu). Pletí dřív 30 (15) čd/ha v květnu–červnu (FAO).
 
 Žeň 24. 10. 2026 zlevnila (Martin schválil, Žně všemi rukama): sklizeň srpem a vázání 30 → 20
 podle [rešerše](research/2026-10-17-zemedelstvi-populace.md) (doporučení 3: ≈ 20), odnos v nůších
 20 → 10 – návrh Clauda bez opory v rešerši (údaj se nepodařilo dohledat).
+
+#### Žně i v srpnu (9. 11. 2026)
+
+**Martin (9. 11. 2026): „Ať sklízí i v srpnu“** – na otázku, co má ves dělat, když v červenci
+nestihne sklidit všechno, co zasela. Dřív okno žně ozimu, luštěnin a lnu končilo 31. 7. a co se
+nesklidilo, propadlo. Vlkov (simulace 871–873 ze stavu DB) měl v červenci na žně ≈ 400 čd, žně
+ozimu, luštěnin a lnu chtěly 820–1 030 čd: ozim (má přednost) stihl 75–82 %, luštěniny (trhání
+68 čd/ha proti 38 u obilí) 0–7 %.
+
+| Kdy                  | Ozim a jař                                | Luštěniny      | Len                       |
+| -------------------- | ----------------------------------------- | -------------- | ------------------------- |
+| žeň                  | ozim červenec–srpen, jař srpen            | červenec–srpen | červenec–srpen            |
+| do snopů / zapíše se | 31. 7. sklizené v červenci, 31. 8. zbytek | jako ozim      | 31. 7., nedotržený 31. 8. |
+| výmlat hned po žni   | ozim srpen–září, jař září                 | srpen–září     | nemlátí se                |
+
+- **Okno žně** ozimu, luštěnin a lnu je **červenec–srpen** (dřív jen červenec); jař dál srpen.
+- **Do snopů** jde 31. 7. (po jídle dne) úroda části sklizené v červenci – vymlátí se v srpnu
+  jako dřív. Plodina, kterou červenec nedosklidil, zůstává na poli (dál ji můžou poškodit zvěř
+  a pohromy jako jař) a žne se v srpnu; **31. 8.** (s jaří) jde do snopů úroda srpnové žně a co
+  nesklidí ani srpen, propadne. Plodina sklizená celá do 31. 7. jde do snopů celá jako dřív.
+- **Len** nedotržený 31. 7. se trhá v srpnu a podíl oděvu se zapíše až 31. 8. (do té doby platí
+  loňský) – len není zásoba, nedělí se.
+- **Výmlat ozimu a luštěnin** má okno **srpen–září** (výmlat hned po žni – srpnová žeň se mlátí
+  v září s jaří; v září ozim, luštěniny, jař). Snopy v okně čekají bez ztráty.
+- **Pořadí v srpnu** (návrh Clauda): napřed se dožne, co červenec nestihl – len, ozim,
+  luštěniny (pořadí plodin `CROP_ORDER`) –, pak jař; výmlat až po žni.
+- **Příděl** dál počítá se sklizní ozimu 31. 7. (odhad plné žně ozimu – zbytek přijde v září
+  z výmlatu srpnové žně). Plán osevu a pomoc rodiny počítají červencovou žeň do volné práce
+  července, co přeteče, do srpna před žní jaře; výhled dílu hlásí nedostatek práce na žeň do konce
+  srpna u všech plodin.
+- Ztráty přezráním (vypadávání zrna, praskání lusků) model nemá – Martin je nechtěl.
+
+**Naměřeno** (Vlkov, ze stavu DB, 3 roky po dnech; podíl hotové žně 31. 7. → 31. 8.; t úrody do
+snopů; luštěniny v zásobách 30. 9.; dny přídělu pod plný v roce do 31. 10.):
+
+| Rok | Verze | Ozim        | Luštěniny   | Jař  | Úroda ozim / luštěniny / jař (t) | Luštěniny 30. 9. | Příděl (dní) |
+| --- | ----- | ----------- | ----------- | ---- | -------------------------------- | ---------------- | ------------ |
+| 871 | dřív  | 1,00        | 0,07        | 1,00 | 3,7 / 0,1 / 2,2 = 6,0            | 0,1 t            | 43           |
+| 871 | nyní  | 1,00        | 0,07 → 1,00 | 0,09 | 3,7 / 1,3 / 0,2 = 5,2            | 1,2 t            | 45           |
+| 872 | dřív  | 0,82        | 0,00        | 1,00 | 5,9 / 0,0 / 4,7 = 10,6           | 0,0 t            | 214          |
+| 872 | nyní  | 0,90 → 1,00 | 0,00 → 1,00 | 0,26 | 6,6 / 2,1 / 0,8 = 9,5            | 2,1 t            | 217          |
+| 873 | dřív  | 0,75        | 0,00        | 0,52 | 4,5 / 0,0 / 3,5 = 8,0            | 0,0 t            | 149          |
+| 873 | nyní  | 0,84 → 1,00 | 0,00 → 0,63 | 0,00 | 5,6 / 1,3 / 0,0 = 6,9            | 0,9 t            | 276          |
+
+Srpen žně nestihne – **nedostatek se jen posunul na jař**: ozim i luštěniny se dožnou, ale jař
+zůstane nesklizená (9 %, 26 %, 0 %) a úroda vsi klesne o 0,8–1,1 t za rok, protože luštěniny dají
+na člověkoden žně ≈ 2,2× méně jídla než jař (0,8 úrody obilí za 68 místo 38 čd/ha). Pro srovnání
+(jen měření, nezavedeno): kdyby v srpnu šla jař před luštěninami, dalo by to 6,3 / 11,1 / 9,2 t
+(ozim celý, luštěniny 33 %, 60 %, 0 %, jař 100 %, 100 %, 51 %). Rozhodnutí o pořadí čeká na
+Martina.
 
 #### Žně všemi rukama
 
@@ -1085,7 +1137,8 @@ vesnice populačně roste i bez zásahu hráče, za předpokladu, že má dostat
 žním: „Dílny i vojvodova rodina.“
 
 - **Žňový den** = den v oknech žní a výmlatu kterékoli plodiny (červenec – žeň ozimu, luštěnin
-  a lnu; srpen – výmlat ozimu a luštěnin, žeň jaře; září – výmlat jaře), kdy má ves v okně ještě
+  a lnu; srpen – výmlat ozimu a luštěnin, žeň jaře a zbytku ozimu, luštěnin a lnu; září – výmlat
+  jaře a srpnové žně – Žně i v srpnu), kdy má ves v okně ještě
   co sklízet nebo **opravdu jde mlátit** (snopy a humno s kapacitou, nebo nouzový výmlat; ves
   bez humna se snopy, které nesmí mlátit, žňový den nemá – řemeslo a výcvik běží).
 - Ve žňový den jdou na žeň a výmlat i **řemeslníci se syny** ([crafts.md](crafts.md) –
@@ -1261,8 +1314,9 @@ podzimní kopání tradiční praxe (mráz rozdrobí hroudy, půda zadrží zimn
 pro raný středověk ale nemám – zůstává návrhem Clauda jako dosavadní okno kopání září–listopad.
 
 - **Dvě plodiny** (zatím bez druhů – „ozim“ je žito a pšenice, „jař“ ječmen):
-  - **ozim** – vrácení přílohu, kopání a setí v **září–říjnu**, sklizeň v **červenci**, výmlat
-    hned po žni v **srpnu** (viz Výmlat hned po žni),
+  - **ozim** – vrácení přílohu, kopání a setí v **září–říjnu**, sklizeň v **červenci**, co
+    červenec nestihne, v **srpnu** (Žně i v srpnu, Martin 9. 11. 2026), výmlat hned po žni
+    v **srpnu**, srpnové žně v **září** (viz Výmlat hned po žni),
   - **jař** – kopání na podzim (**září–listopad**), co se nestihne, v **březnu–dubnu**; setí
     v **březnu–dubnu**, sklizeň v **srpnu**, výmlat v **září**.
   - Pletí jen jaře v **květnu**, ozim se neplete (Pletí jednou a rychle, Martin 25. 10. 2026).
@@ -1286,7 +1340,8 @@ pro raný středověk ale nemám – zůstává návrhem Clauda jako dosavadní 
   Osevní postup po dílech, bod 1)
   (do konce dubna) jdou do plánu jako jař, pokud se vejdou do zbývající
   práce – počítají se jen dny, které z oken ještě zbývají, a práce, kterou plán ještě má.
-- **Jídlo:** sklizeň ozimu jde do zásob **31. 7.** (po jídle dne), jaře 31. 8. Přídělový systém
+- **Jídlo:** sklizeň ozimu jde do zásob **31. 7.** (po jídle dne; co se žne v srpnu, 31. 8. –
+  Žně i v srpnu), jaře 31. 8. Přídělový systém
   počítá do 31. 7., když ozim podle odhadu (zasetá plocha – do konce října celá –, plná sklizeň,
   pletí, kolik je hotové) uživí ves od 1. 8. do 31. 8.; jinak do 31. 8.
 - **Díly nesou plodinu**; vyčerpání úrodnosti a příloh se počítají po dílech beze změny. Starší
@@ -1340,7 +1395,8 @@ Luštěniny). Čísla podle [rešerše](research/2026-10-18-legumes.md), kde chy
   (od 19. 10. 2026 na doplnění pojistky zásob), ne pod roční potřebu (potřebu z pole – Osev podle
   stravy) – jinak díl zůstane obilím a luštěnin je méně. Díly hotové během roku
   jdou jen do jaře (luštěniny až s ročním plánem).
-- **Zásoba luštěnin** (kg): sklizeň **31. 7.** (po jídle dne, jako ozim), nevymlácená část se
+- **Zásoba luštěnin** (kg): sklizeň **31. 7.** (po jídle dne, jako ozim; co červenec nestihne,
+  se trhá v srpnu a do snopů jde 31. 8. – Žně i v srpnu), nevymlácená část se
   1. 3. zkazí jako u obilí. Ztráta skladováním jako obilí (10 %, s hrnčířem 5 % ročně – zrnokaz
      napadá semena na poli, ve skladu se nemnoží). Jí se rovným dílem celý rok do příští sklizně.
 - **Ve scéně** hrách tvoří nízkou hustou rohož – zelený kvetoucí v květnu–červnu, zralý hnědý
@@ -1356,7 +1412,8 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
 - **Plodina:** len setý na plátno – spodní oděv (košile), šátky, ručníky, plachty; vlna je svrchní
   oděv. **Jař se stejnými okny jako luštěniny:** kopání (orba) na podzim, co se nestihne, v březnu–
   dubnu, setí v **březnu–dubnu** (v praxi v polovině dubna), pletí jednou v květnu, **trhání
-  v červenci** (≈ 100 dní po setí). Nemlátí se – semena se drhnou v domácí práci.
+  v červenci** (≈ 100 dní po setí), co červenec nestihne, v srpnu (Žně i v srpnu). Nemlátí se –
+  semena se drhnou v domácí práci.
 - **Kolik ho ves potřebuje:** třeného lnu (vlákno po lámání a třepení) za rok **dospělý a starší
   2 kg, dítě 1 kg** (≈ 3 m² hrubého plátna ≈ 1 kg látky na dospělého – košile, díl spodního oděvu,
   šátků, ručníků a plachet; na kg látky ≈ 2 kg třeného lnu i s koudelí).
@@ -1407,15 +1464,15 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
     sklidí celý – oděv má každý rok celý, „Chybí len na oděv“ už nepřijde. Obilí 1. 9. 803 o 148 kg
     (2,7 %) méně, lidí stejně.
 - **Trhání** jde v červenci napřed (před sklizní ozimu a luštěnin – je ho málo, bez něj chybí
-  oděv).
+  oděv), v srpnu stejně před ozimem, luštěninami i jaří (Žně i v srpnu).
 - **Zpracování** – rosení (máčení), sušení, lámání, třepení, vochlování, předení, tkaní a šití – je
   součástí **domácí výroby** (`DOMESTIC`, Práce – Bokem: „oděv, …“): **přerozdělení, ne práce
   navíc** (rozhodnutí Clauda jako u vlny). Dospělý ≈ 1 kg látky × ≈ 200 h ≈ 20 člověkodní za rok –
   s vlnou ≈ 45 z ≈ 125 člověkodní domácí výroby na dospělého. Od 19. 10. 2026 jde domácí výroba
   celá bokem – z práce vsi nebere (Práce).
 - **Žádná zásoba v liště** (Martin nechce nové suroviny): len se v rámci roku zpracuje. Při
-  trhání 31. 7. se zapíše, **na jaký podíl oděvu len je** (sklizený len ÷ potřeba při plánu
-  k 1. 9.) – platí do dalšího trhání.
+  trhání 31. 7. (nedotržený len 31. 8.) se zapíše, **na jaký podíl oděvu len je** (sklizený len
+  ÷ potřeba při plánu k 1. 9.) – platí do dalšího trhání.
 - **Ves bez lnu** (rozhodnutí Clauda): jen **štěstí – až −4** podle chybějícího podílu (vlna až −6)
   a krátký řádek **„Chybí len na oděv“** (kronika `linen-short`). Pomalejší domácí práce ani nemoci
   ne (anti-cíl: ves nevymře kvůli oděvu). Ves, která k 1. 9. nemá pole k osevu, len nezaseje – při
