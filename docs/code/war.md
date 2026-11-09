@@ -419,7 +419,7 @@ z `assault.ts` (`crossingLayers`, `assaultSteps`, `assaultHours`, `mineUndergrou
 - **Volba** (`chooseSpot(w, opevnění, odkud, volba skupiny, muži)`) – nejméně hodin
   (`assaultHours` s muži skupiny v boji, nejvýš 4; rozdělaný průlom – zbývajících, `breachHoursLeft`),
   pak nejblíž, pak klíč; nejvýš 4 prolamující na místo. Oheň jen s otepi: nejbližší buňka
-  `MARCH_FOREST` (`nearestForestOf`, vzdálenost se pamatuje na mřížku a místo) nebo hromada klád vsi
+  `MARCH_FOREST` (`nearestForestOf` – středy lesa jednou na mřížku v kbelících 8 × 8 buněk, hledání po prstencích kbelíků, dokud dolní mez prstence nepřekročí nejlepší `dist2`; výsledek týž jako lineární průchod včetně shody – vyhraje nejmenší index buňky; vzdálenost se pamatuje na mřížku a místo) nebo hromada klád vsi
   (`BattleField.fuel` – `campaign.ts` `fuelOf`, `logStacks` s kládami); keře zatím ne. Bez valu
   vyhraje oheň (12 h), s valem odkopání (20 h; oheň napřed zasypat val 20 h), bez otepí odkopání.
 - **`BattleBreach`** – `method` (`cut` | `burn` | `dig` | `mine` | `ladder`), `phase` (`fill` →

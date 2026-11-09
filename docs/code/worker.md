@@ -338,6 +338,11 @@ zkrácení dohledu (Rizika plánu) nejsou potřeba: oči vsi a doběh jsou v `Ti
 (takty/s 828 proti 1 279). Pozn.: „opevněné 5“ stojí 5,4 % proti 2,5 % ze 7. 11. – čas je
 v `nearestForestOf` (les na žebříky – `ladders.ts`, `npc-assault.ts`) a `distanceToSegment`, ne
 ve varování; pod cílem 25 %.
+**Oprava 10. 11. 2026 (`perf/war-forest`):** `nearestForestOf` hledá po kbelících 8 × 8 buněk místo
+průchodu všemi středy lesa (výsledek bit po bitu týž, otisk „opevněné 5“ `669e1e4e` beze změny).
+„Opevněné 5“ (strojová zátěž kolísala, load 50–110): jádro 6,6 % → 4,8 %, takty/s 301 → 418,
+`nearestForestOf` 10 % → mimo první řádky profilu; zbytek je `campaignTick` 29 %, `distanceToSegment`
+9 % (`Math.hypot` v `village/polygon.ts`, bez změny výsledku nezrychlitelné).
 
 **Pohled na varování** – panel dvorce se při varování ptá každé 2 s (`use-alarm.ts`) a server
 pokaždé spočte `villageAlarmView`: přístup k vsi, Vrátit se, tažení s varováním (kontrolní bod),
