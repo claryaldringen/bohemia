@@ -11,7 +11,7 @@ import {
 } from './rules';
 import { herdingDay, isYoungster, type HerdingState } from './herding';
 import { lordTraineeIds } from './lord';
-import { householdWater } from './labor';
+import { HARVEST_CHORES, householdMinimum } from './labor';
 import { villageOxen } from './oxen';
 import { dailyMinPerHousehold } from './productivity';
 import { sheafWork, threshTasks, THRESHED_CROPS } from './threshing';
@@ -105,12 +105,19 @@ export function harvestHelperLabor(
     total -= Math.min(total, herdingDay(state, day, villageOxen(state)).free);
   }
   if (elders.size > 0 && productivity > 0) {
+    // žňový den (population.md – Skladba dne podle ročního období): poloviční minimum, voda se
+    // domů nenosí
     const minimum = dailyMinPerHousehold(potteryCoverage);
-    const water = new Map(
-      householdWater(state.people, state.dwellings).map((h) => [h.dwellingId, h.labor]),
-    );
+    const members = new Map<number, number>();
+    for (const p of state.people) members.set(p.dwellingId, (members.get(p.dwellingId) ?? 0) + 1);
+    const dwellings = new Map(state.dwellings.map((d) => [d.id, d]));
     for (const [id, count] of elders) {
-      const own = minimum + (water.get(id) ?? 0);
+      const own = householdMinimum(
+        minimum,
+        members.get(id) ?? 0,
+        dwellings.get(id),
+        HARVEST_CHORES,
+      );
       // starší kryjí minimum po `elder` × produktivita; nad ně žeň
       const spare = count * LABOR_PER_DAY.elder - own / productivity;
       total += Math.min(count * HARVEST_HELPERS.perDay, Math.max(0, spare));

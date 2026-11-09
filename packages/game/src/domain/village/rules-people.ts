@@ -161,6 +161,41 @@ export const WATER_FETCHING = {
   speedMps: 1,
   dayHours: 10,
 } as const;
+/**
+ * population.md – Skladba dne podle ročního období (Martin 9. 11. 2026: „zatím co v létě byli
+ * všichni co nejdéle venku a o žnách sklízeli obilí, za zimních večerů předli, tkali…“; čísla
+ * návrh Clauda): hodiny venkovní práce dospělého v polovině měsíce (leden … prosinec) – světlý den
+ * v Čechách (50° s. š., východ až západ slunce v polovině měsíce ≈ 8,5 / 10 / 11,8 / 13,6 / 15,2 /
+ * 16,2 / 15,8 / 14,4 / 12,6 / 10,9 / 9,2 / 8,2 h) bez jídla a přestávek (v zimě ≈ 1–1,5 h, v létě
+ * ≈ 2–2,5 h s polední přestávkou), nejvýš 14 h – prosinec–leden 7 h, listopad a únor 8–8,5 h,
+ * březen a září 10–11 h, květen 13 h, červen–srpen 13–14 h. Mezi polovinami měsíců lineárně
+ * (`daylightFactor` – bez skoku 1. dne v měsíci, plán i práce dne z téže funkce). Den venkovní
+ * práce dá (hodiny ÷ `referenceHours`) člověkodne – sazby prací na hektar vznikly z měření po
+ * hodinách přepočtených na 10 h (rešerše 2026-10-17), proto se nemění.
+ */
+export const DAYLIGHT_WORK = {
+  hours: [7, 8.5, 10, 11.5, 13, 14, 14, 13, 11, 9.5, 8, 7],
+  referenceHours: 10,
+} as const;
+/**
+ * population.md – Skladba dne podle ročního období (Martin 9. 11. 2026: „V té době se omezuje
+ * i vaření“, „v zimě se nosí dřevo – pokud je sníh, voda se nosit nemusí“; čísla návrh Clauda):
+ * - ve žňový den (`harvestHandsDay`) se vaří méně – denní minimum domácnosti ×
+ *   `harvestMinimumShare` – a voda se nosí na pole, ne domů: přirážka za chůzi pro vodu se
+ *   nepočítá (nosí ji děti a pomocníci se žní; zásobu domů nanosila volná práce předem);
+ * - v topné sezóně (`heatingMonths`, listopad–březen) se nosí dříví na topení – `woodTrips` cest
+ *   (tam a zpět) na domácnost a den k okraji lesa (`Dwelling.forestWalkM`; ohniště zemnice spálí
+ *   v zimě ≈ 15–25 kg dříví denně, otep klestí na zádech ≈ 20–30 kg), prvních
+ *   WATER_FETCHING.includedM v ceně minima, chůze a den jako u vody;
+ * - když leží sníh (`snowCover` ≥ `snowLies` – týž výpočet jako scéna), voda se nenosí – rozpouští
+ *   se sníh, potok je zamrzlý.
+ */
+export const DAY_CHORES = {
+  harvestMinimumShare: 0.5,
+  heatingMonths: [11, 12, 1, 2, 3],
+  woodTrips: 1,
+  snowLies: 0.5,
+} as const;
 // population.md – Práce (domácí výroba – obstarají ji z většiny ženy bokem, z práce vsi nebere:
 // Martin 19. 10. 2026; čísla jen pro postavy žen u domů – labor-report.ts); oděv z vlny a lnu
 // – praní, česání, předení, tkaní a šití – je její součástí (diet.md – Oděv: vlna ≈ 21 čd na

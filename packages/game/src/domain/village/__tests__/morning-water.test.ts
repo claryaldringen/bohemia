@@ -254,6 +254,8 @@ function ploughVillage(day: number, hands = 8): VillageState {
     startDay: at(600, 9, 1),
     crops: [{ crop: 'spring', ...createCropWork(s.parts, at(600, 9, 1), 0, true) }],
   };
+  // 1. 3. bez sněhu (holomráz) – voda se nosí (population.md – Skladba dne podle ročního období)
+  s.disasters = { override: { weather: { 601: { winter: 'blackFrost' } } } };
   return s;
 }
 

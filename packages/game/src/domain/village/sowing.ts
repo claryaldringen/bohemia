@@ -1,4 +1,5 @@
 import { dateOfDayIndex, isLeapYear } from '../calendar';
+import { monthDaylight } from './daylight';
 import { PLANNING_DAY, WINDOWS, WINTER_WINDOWS, type WindowSegment } from './rules';
 import type { CropWork, LordHelp, LordHelpWindow, TaskName, FarmSeason } from './types';
 import { emptyTaskRecord, ploughRemaining, seasonCrop, type PartWork } from './year-plan';
@@ -33,6 +34,39 @@ export function windowDaysLeft(day: number, segments: readonly WindowSegment[]):
     days += y === year && m === month ? length - dayOfMonth + 1 : length;
   }
   return days;
+}
+
+/**
+ * „Světlé dny“ okna (population.md – Skladba dne podle ročního období): součet `daylightFactor`
+ * dnů, které počítá `windowDaysLeft` – kolik dnešních člověkodnů dá jeden dospělý venku do konce
+ * oken. Plán (kapacita setí, páry k rádlům) tak počítá se stejnou délkou dne jako práce dne.
+ */
+export function windowDaylightLeft(day: number, segments: readonly WindowSegment[]): number {
+  const { year, month, day: dayOfMonth } = dateOfDayIndex(day);
+  const startYear = month >= PLANNING_DAY.month ? year : year - 1;
+  let light = 0;
+  for (let i = 0; i < MONTHS_PER_YEAR; i++) {
+    const m = ((PLANNING_DAY.month - 1 + i) % MONTHS_PER_YEAR) + 1;
+    const y = m >= PLANNING_DAY.month ? startYear : startYear + 1;
+    if (y < year || (y === year && m < month)) continue;
+    if (!segments.some(([from, to]) => m >= from && m <= to)) continue;
+    light += monthDaylight(y, m, y === year && m === month ? dayOfMonth : 1);
+  }
+  return light;
+}
+
+/**
+ * Světlé dny okna bez `spareDays` dní rezervy (`SOW_AFTER_DIG_DAYS`): rezerva ubere poměrný díl
+ * světlých dnů okna (`windowDaylightLeft` × (dny − rezerva) ÷ dny), nejméně 0.
+ */
+export function windowDaylightWithout(
+  day: number,
+  segments: readonly WindowSegment[],
+  spareDays: number,
+): number {
+  const days = windowDaysLeft(day, segments);
+  if (days <= 0) return 0;
+  return (windowDaylightLeft(day, segments) * Math.max(0, days - spareDays)) / days;
 }
 
 /** Volná práce vsi (člověkodny) v oknech polních prací od dneška do konce hospodářského roku. */

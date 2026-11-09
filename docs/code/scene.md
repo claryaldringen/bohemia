@@ -205,7 +205,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   korun ani nové síti pěšin.
 
 - **Roční období** (jen vzhled, žádná pravidla): `season-look.ts` (čisté funkce, testy) z dne
-  v roce spočítá sníh, led na vodě, suchou / svěží trávu, množství, podzimní barvu a mladost listí, květy,
+  v roce spočítá sníh (stopy sněhu, holomrazu a dlouhé zimy a `seasonTrack` jsou v jádře –
+  `packages/game/.../village/snow.ts`, simulace podle nich pozná, kdy leží sníh – `snowLies`; test
+  hlídá, že `seasonLook(…).snow` = `snowCover`), led na vodě, suchou / svěží trávu, množství, podzimní barvu a mladost listí, květy,
   světlo, opar, vodu a zvuky – plynulé přechody 2–5 týdnů, **léto (`REFERENCE_DAY`) je
   výchozí vzhled a nesmí se měnit**. `LandscapeScene.updateSeason` se jednou za sekundu podívá
   na herní datum (celé dny, svět mimo běh = léto) a jen při znatelné změně nastaví světlo,

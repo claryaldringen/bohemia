@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { OFFICIAL_WORLD, realTimeOf, type WorldClock } from '@bohemia/game';
+import { OFFICIAL_WORLD, realTimeOf, snowCover, type WorldClock } from '@bohemia/game';
 import {
   REFERENCE_DAY,
   dateOfDayOfYear,
@@ -293,5 +293,16 @@ describe('vzhled roku podle počasí', () => {
     expect(sheltered[1] / sheltered[0]).toBeGreaterThan(open[1] / open[0] + 0.2);
     // po čtvrtinách – den náběhu sucha díly nepřestaví
     expect(droughtPartTint(0.52, 2)).toEqual(droughtPartTint(0.48, 2));
+  });
+});
+
+describe('sníh scény = sníh simulace (population.md – Skladba dne podle ročního období)', () => {
+  it('seasonLook má po celý rok týž sníh jako snowCover z jádra – i s dlouhou zimou a holomrazem', () => {
+    for (const winter of ['normal', 'long', 'blackFrost'] as const) {
+      for (let day = 1; day <= 366; day++) {
+        const weather: LookWeather = winter === 'normal' ? {} : { winter };
+        expect(seasonLook(day, weather).snow).toBeCloseTo(snowCover(day, winter), 12);
+      }
+    }
   });
 });

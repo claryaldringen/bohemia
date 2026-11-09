@@ -1,7 +1,17 @@
 // Vzhled krajiny podle ročního období – čisté funkce bez enginu (jen vzhled, žádná herní
 // pravidla). Z herního data (den v roce) spočítá parametry, které scéna předá shaderům, světlu,
 // oparu, vodě a zvukům. Všechno se mění plynule – přechody trvají 2–4 týdny, nic se nepřepíná.
-import { dateOfDayIndex, getWorldState, TOTAL_GAME_DAYS, type WorldClock } from '@bohemia/game';
+import {
+  dateOfDayIndex,
+  FROST_TRACK,
+  getWorldState,
+  LONG_WINTER_DELAY_TRACK,
+  seasonTrack,
+  SNOW_TRACK,
+  TOTAL_GAME_DAYS,
+  type SeasonTrack,
+  type WorldClock,
+} from '@bohemia/game';
 import type { SceneWeather } from '../village-view';
 
 export type Rgb = readonly [number, number, number];
@@ -77,21 +87,19 @@ const YEAR_DAYS = 365;
 
 /**
  * Klíčové body ročního průběhu: [den v roce, hodnota]. Mezi body se hodnota mění hladce
- * (smoothstep), za posledním bodem pokračuje k prvnímu dalšího roku.
+ * (smoothstep), za posledním bodem pokračuje k prvnímu dalšího roku (`seasonTrack` z jádra).
  */
-export type Track = readonly (readonly [day: number, value: number])[];
+export type Track = SeasonTrack;
 
 // Dny v roce (nepřestupném): 1. 3. = 60, 1. 4. = 91, 1. 6. = 152, 1. 9. = 244, 1. 12. = 335.
 // Období se v kalendáři střídají 1. 3., 1. 6., 1. 9. a 1. 12. (docs/design/calendar.md) –
 // přechody vzhledu jsou kolem těchto dat.
 
-/** Sníh napadne koncem listopadu (souvislý od 10. 12.), taje od 20. 2. do poloviny března. */
-const SNOW: Track = [
-  [51, 1],
-  [72, 0],
-  [324, 0],
-  [344, 1],
-];
+/**
+ * Sníh napadne koncem listopadu (souvislý od 10. 12.), taje od 20. 2. do poloviny března – stopa
+ * je v jádře (`SNOW_TRACK`), simulace podle ní pozná, kdy leží sníh (`snowLies`).
+ */
+const SNOW: Track = SNOW_TRACK;
 /**
  * Led na vodě jde za sněhem: zamrzá v prosinci (tůně a okraje první), roztaje v březnu, až sníh
  * skoro zmizí.
@@ -252,24 +260,10 @@ const WET: Track = [
   [244, 1],
   [274, 0],
 ];
-/** Holomráz: od 1. 2. za 5 dní sníh zmizí a zem pokryje jinovatka, v březnu povolí. */
-const FROST: Track = [
-  [32, 0],
-  [37, 1],
-  [62, 1],
-  [82, 0],
-];
-/**
- * Dlouhá zima: o kolik dní se jaro opozdí – od 1. 3. za 6 dní se vrátí sníh (zpoždění 3 týdny),
- * sníh leží do dubna, listí a tráva jdou o 3 týdny později; do poloviny července se rok srovná
- * (zpoždění ubývá pomaleji než den – vzhled nejde zpátky).
- */
-const LONG_WINTER_DELAY: Track = [
-  [60, 0],
-  [66, 21],
-  [140, 21],
-  [200, 0],
-];
+/** Holomráz: od 1. 2. za 5 dní sníh zmizí a zem pokryje jinovatka, v březnu povolí (jádro). */
+const FROST: Track = FROST_TRACK;
+/** Dlouhá zima: o kolik dní se jaro opozdí (jádro – `LONG_WINTER_DELAY_TRACK`). */
+const LONG_WINTER_DELAY: Track = LONG_WINTER_DELAY_TRACK;
 
 /** Síla léta bez údaje: sucho a deštivé léto 0,6, kruté sucho a mokré žně 1. */
 const DEFAULT_STRENGTH = 0.6;
@@ -507,18 +501,7 @@ function wrapDay(day: number): number {
 
 /** Hodnota stopy v den `d` (1–366): hladký přechod mezi sousedními body, přes konec roku dokola. */
 export function track(points: Track, d: number): number {
-  const n = points.length;
-  for (let i = 0; i < n; i++) {
-    const [fromDay, from] = points[i]!;
-    const [toDayRaw, to] = points[(i + 1) % n]!;
-    const toDay = i + 1 < n ? toDayRaw : toDayRaw + YEAR_DAYS;
-    // den v úseku – úsek přes konec roku zachytí i dny na začátku dalšího roku
-    const day = d < fromDay ? d + YEAR_DAYS : d;
-    if (day >= fromDay && day < toDay) {
-      return from + (to - from) * smoothstep(fromDay, toDay, day);
-    }
-  }
-  return points[0]![1];
+  return seasonTrack(points, d);
 }
 
 /** Podíl období [jaro, léto, podzim, zima] v den `d` (součet 1). */

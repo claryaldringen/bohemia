@@ -42,6 +42,8 @@ import {
   type SmithSupply,
 } from './crafts';
 import { harvestHandsDay, harvestHelperLabor, weedingChildren } from './harvest-hands';
+import { dayChores } from './day-chores';
+import { daylightFactor } from './daylight';
 import {
   lordApartIds,
   lordDayCounts,
@@ -392,7 +394,10 @@ export function work(
   // přežívací zásoba do žní, nad kterou díly sejí z běžného zrna (`takeSeed`) – jednou za den,
   // před prvním osivem dne
   let sowKeepKg: number | null = null;
-  const teamsCap = ploughCapacityPerDay(state, coverage.tools, day);
+  // voli orají za světla (population.md – Skladba dne podle ročního období) – kapacita spřežení
+  // i práce vsi venku podle délky dne
+  const daylight = daylightFactor(day);
+  const teamsCap = ploughCapacityPerDay(state, coverage.tools, day) * daylight;
   const ploughCap = teamsCap * teamsHomeShare(state, day);
   // spřežení na poli od rána (oxen.md – Spřežení zůstane na poli) – cesta dne jednou za den
   const afield = ploughTeamsAfield(state, day);
@@ -539,8 +544,14 @@ export function work(
   // kdo pracuje se vsí a chůze pro vodu – týž výběr jako scéna (`villagersToday`)
   const family = trainingFamily(state, day);
   const { villagers, manorSkip } = villagersToday(state, day, crafts);
-  const waterNeeds = householdWater(villagers, state.dwellings, manorSkip);
-  const manor = family ? manorLabor(state, day, coverage.pottery, productivity, family) : null;
+  // skladba dne podle období (population.md – Skladba dne podle ročního období): ve žních
+  // poloviční minimum a voda na pole, v zimě dříví, se sněhem bez vody
+  const harvestDay = harvestHandsDay(state, day);
+  const chores = dayChores(state, day, harvestDay);
+  const waterNeeds = householdWater(villagers, state.dwellings, manorSkip, chores);
+  const manor = family
+    ? manorLabor(state, day, coverage.pottery, productivity, family, chores)
+    : null;
   // uhlí ke kováři (crafts.md – Uhlí a ruda kováře): co dnes uhlíři vytahají z vypálených milířů
   // a do které kovárny se to nese
   const deliveries = charcoalDeliveries(
@@ -596,7 +607,7 @@ export function work(
   const shoeingPlan = planShoeing(state, day, coverage, landscape);
   // žně všemi rukama (fields.md – Žně všemi rukama): ve žňový den řemeslníci se syny, výrostci
   // a starší jen na žeň a výmlat (cvičící rodina – chlapci cvičí, starší kryjí dvorec – ne)
-  const harvestHands = harvestHandsDay(state, day)
+  const harvestHands = harvestDay
     ? craftHarvestLabor(state, day, crafts, coverage.pottery, productivity) +
       harvestHelperLabor(state, day, lordApartIds(state, day), productivity, coverage.pottery)
     : 0;
@@ -644,7 +655,11 @@ export function work(
       shoeing: shoeingPlan?.own ? shoeingPlan.manDays : 0,
       // chůze pro vodu nad denní minimum (population.md – Práce, paths.md – Pochůzky pro vodu); vodu,
       // kterou přivezl vůz, nenosí a platí díl práce posádky (wagons.md – Co vozy vozí)
-      householdWater: jobs.water ? jobs.water.water : waterNeeds.map((h) => h.labor),
+      householdWater: (jobs.water ? jobs.water.water : waterNeeds.map((h) => h.labor)).map(
+        (labor, k) => labor + (waterNeeds[k]?.wood ?? 0),
+      ),
+      minimumShare: chores.minimumShare,
+      daylight,
       // setí týž den hned za orbou a motykou (`FieldTaskEntry.sowRatio`) – práce úlohy setí plodiny
       tasks: dayTasks.map(({ name, remaining, field }) => {
         const ratio = field?.sowRatio ?? 0;
@@ -923,7 +938,7 @@ export function work(
   // práce hostů jde napřed do rozestavěného opevnění vsi (veřejná stavba, rovným dílem po úsecích),
   // co zbude, do společné práce – ostatní stavby rovným dílem, opravy obydlí, údržba valu, pletí
   // mužů a seč navíc; polní úlohy dne hosté nedělají
-  const guestLabor = guestLaborToday(state, day);
+  const guestLabor = guestLaborToday(state, day) * daylight;
   const corvee = guestLabor > EPSILON ? build(state, day, guestLabor, 0, 'fortification') : [];
   if (guestLabor > EPSILON) {
     common += Math.max(0, guestLabor - corvee.reduce((sum, c) => sum + c.manDays, 0));
@@ -1078,6 +1093,7 @@ export function work(
     purchases,
     hauls: haulWork,
     toolCoverage: coverage.tools,
+    daylight,
     herders: herding.freeHerders,
     threshing,
     ...(grainPits ? { grainPits } : {}),

@@ -5,7 +5,8 @@ import { fireFighting } from './firefighting';
 import { huntFootIds } from './hunt-party';
 import { isAdult } from './people';
 import { raidHiding } from './raid-day';
-import { householdWater, type HouseholdWater } from './labor';
+import { householdWater, type DayChores, type HouseholdWater } from './labor';
+import { dayChores } from './day-chores';
 import { familyHomes, lordApartIds, trainingFamily } from './lord';
 import { MORNING_WATER } from './rules';
 import type { CropWork, Person, VillageState } from './types';
@@ -49,16 +50,18 @@ export function villagersToday(
 }
 
 /**
- * Domácnosti vsi a jejich chůze pro vodu dnes (`householdWater` lidí `villagersToday`) – podklad pro
- * vodu vozem v simulaci i ve scéně (wagons.md – Co vozy vozí).
+ * Domácnosti vsi a jejich chůze pro vodu dnes (`householdWater` lidí `villagersToday` podle
+ * skladby dne – ve žních a se sněhem se voda domů nenosí) – podklad pro vodu vozem v simulaci i ve
+ * scéně (wagons.md – Co vozy vozí).
  */
 export function waterHouseholdsToday(
   state: VillageState,
   day: number,
   crafts: ReadonlySet<number>,
+  chores: DayChores = dayChores(state, day),
 ): HouseholdWater[] {
   const { villagers, manorSkip } = villagersToday(state, day, crafts);
-  return householdWater(villagers, state.dwellings, manorSkip);
+  return householdWater(villagers, state.dwellings, manorSkip, chores);
 }
 
 /** Okno orby jedné plodiny – kolik orby zbývá (součtem s dřívějšími okny) a kolik dní po dnešku. */

@@ -313,7 +313,8 @@ bude ve vsi málo vhodných dětí na pasení, tak to omezí i velikost stád.�
 o zvířata – to obvykle dělají ženy. Starší lidé se zase starají o malé děti, a uvolňují práci
 zbytku rodiny.“
 
-- **Pracovní síla vsi** (pole, stavby, opravy) za den: **dospělý 1 člověkoden**, nikdo jiný –
+- **Pracovní síla vsi** (pole, stavby, opravy) za den: **dospělý 1 člověkoden** (venku podle
+  délky dne – Skladba dne podle ročního období), nikdo jiný –
   jen ve žňový den dají výrostci od 10 let a starší po 0,5 člověkodne na žeň a výmlat
   ([pole](fields.md) – Žně všemi rukama, Martin 24. 10. 2026).
   - **Starší** dají 0,5 člověkodne, ale jen na **denní minimum své domácnosti** – hlídání malých
@@ -353,7 +354,7 @@ zbytku rodiny.“
   a co zbude i po nich, propadne (místo pro polní práci navíc – [fields.md](fields.md), Kolik
   ves oseje, Osev navíc).
 
-### Skladba dne podle ročního období (9. 11. 2026, implementace čeká)
+### Skladba dne podle ročního období (9. 11. 2026, implementováno)
 
 Martin 9. 11. 2026: „Jde mi o tu skladbu dne v létě a v zimě. Jde o to, že zatím co v létě byli
 všichni co nejdéle venku a o žnách sklízeli obilí, za zimních večerů předli, tkali, vyráběli
@@ -380,6 +381,38 @@ nanosit voda do zásoby. Navíc v průběhu žní se nenosí voda domů, ale sp�
   - **zima:** místo vody se nosí dříví na topení – chůze k okraji lesa (`forestWalkM`) se přičte
     jako dnes voda; **když leží sníh**, voda se nenosí (rozpouští se sníh, potok je zamrzlý).
     Sníh v simulaci podle stejného výpočtu jako ve scéně (roční období).
+
+**Implementace (9. 11. 2026, čísla návrh Clauda – `DAYLIGHT_WORK`, `DAY_CHORES` v
+`rules-people.ts`):**
+
+- **Hodiny venkovní práce** v polovině měsíce (leden … prosinec): 7 / 8,5 / 10 / 11,5 / 13 / 14 /
+  14 / 13 / 11 / 9,5 / 8 / 7 h – světlý den na 50° s. š. (v polovině měsíce 8,5 / 10 / 11,8 /
+  13,6 / 15,2 / 16,2 / 15,8 / 14,4 / 12,6 / 10,9 / 9,2 / 8,2 h) bez jídla a přestávek (v zimě
+  ≈ 1–1,5 h, v létě ≈ 2–2,5 h s polední přestávkou), nejvýš 14 h. **Mezi polovinami měsíců
+  lineárně** (návrh Clauda): bez skoku o 1,5–2 h prvního dne v měsíci – plán by jinak počítal
+  okna, která 1. den v měsíci skokem zkrátí nebo prodlouží. Rok vychází ≈ 10,5 h (× 1,05).
+- **Co je venkovní práce** (návrh Clauda): práce vsi, která zbude po pracích „za den“ – pole,
+  stavby, cesty, kácení, opevnění, opravy, seč, hlídka, pasení dospělým, ryby –, zásobníky polní
+  práce (lehká práce žen řemeslníků, žňové ruce, děti při pletí, práce žen při pletí, pomoc
+  vojvodovy rodiny ve žních), robota hostů a kapacita spřežení (voli orají za světla). **Za den**
+  (nenásobí se): denní minimum domácností (vaření, oheň, malé děti, voda – trvá celý den, ať je
+  světla kolik chce), péče o koně, kování, lidé na výpravách (jsou pryč celé dny) a sedláci
+  s vozy pro uhlí a rudu kováře (jízda domluvená na celý den). Řemeslo v dílně a domácí výroba se
+  nemění (pod střechou, zimní večery). Kolik jízd vůz za den udělá, se zatím nemění.
+- **Žňový den** (`harvestHandsDay`): denní minimum × 0,5 a bez přirážky za vodu – i u starších,
+  kteří tím dají žni víc, u dílen a ve dvorci.
+- **Přestávka mezi žní ozimu a jaře** (návrh Clauda): zásoba vody na žně se z volné práce
+  přestávky neodečítá – přirážka za vodu je u domácnosti setiny člověkodne, za žně dohromady
+  desetiny, a dny přestávky jsou ve vsi ty s nejvíc volnou prací; samostatná evidence zásoby vody
+  by stála víc, než váží.
+- **Topná sezóna listopad–březen:** 1 cesta pro dříví na domácnost a den tam a zpět k okraji lesa
+  (`forestWalkM`, otep klestí ≈ 20–30 kg na ohniště, které v zimě spálí ≈ 15–25 kg denně),
+  prvních 100 m v ceně minima, 1 m/s, den 10 h – jako voda. Vůz s vodou ji neušetří.
+- **Sníh leží**, když je sníh scény (`snowCover` – stopa sněhu, dlouhá zima ji opozdí, holomráz ji
+  vezme) aspoň 0,5: v normální zimě ≈ 30. 11. – 2. 3., v dlouhé zimě do ≈ 23. 3., v holomrazu od
+  ≈ 3. 2. bez sněhu. Výpočet je jeden (`snow.ts` v jádře), scéna ho importuje.
+- **Scéna:** ve žních a se sněhem nikdo nenosí vodu (`waterHouseholdsToday` podle skladby dne).
+  Ženy v zimě doma – zatím ne (námět: postavy žen ve scéně v zimních měsících jen u domů).
 
 ### Růst populace
 

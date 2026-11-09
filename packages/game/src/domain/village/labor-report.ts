@@ -79,6 +79,11 @@ export interface HaulWork {
 /** Co krok práce simulace dnes rozdělil. */
 export interface DayWork {
   allocation: DayAllocation;
+  /**
+   * Délka dne (`daylightFactor` – population.md, Skladba dne podle ročního období): venkovní práce
+   * vsi je v rozdělení práce ÷ délka dne – podíly jsou lidé (postavy), ne práce. Bez údaje 1.
+   */
+  daylight?: number;
   /** Polní úlohy dne po plodinách (bez nich se práce polí dělí podle plochy plánu). */
   fieldWork?: FieldTaskWork[];
   /**
@@ -164,6 +169,10 @@ const FIELD_ACTIVITIES: readonly LaborTaskName[] = ['reclaim', 'dig', 'sow', 'we
  */
 export function laborDay(state: VillageState, day: number, work: DayWork): LaborDay {
   const shares: LaborShare[] = [];
+  // venkovní práce ÷ délka dne – podíly jsou lidé, ne práce (léto 10 lidí udělá 14 čd venku);
+  // práce „za den“ (domácnost, koně, dílny, výpravy, vozy pro kováře) beze změny
+  const outdoor = work.daylight && work.daylight > 0 ? 1 / work.daylight : 1;
+  let scale = outdoor;
   const add = (
     activity: LaborActivity,
     target: LaborTarget,
@@ -174,7 +183,7 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
     ages?: readonly number[],
     fourWheel?: number,
   ): void => {
-    const rounded = Math.round(manDays * 1000) / 1000;
+    const rounded = Math.round(manDays * scale * 1000) / 1000;
     if (rounded < MIN_MAN_DAYS) return;
     shares.push({
       activity,
@@ -208,6 +217,8 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
         job === 'seed' || job === 'water' || job === 'charcoal' || job === 'ore' || job === 'clay'
           ? job
           : undefined;
+      // posádka vozu pro vodu (denní minimum) a sedláci s vozy pro kováře jsou „za den“
+      scale = cartJob && cartJob !== 'seed' ? 1 : outdoor;
       add(
         'haul',
         place ?? { kind: 'village' },
@@ -218,6 +229,7 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
         undefined,
         haul.four,
       );
+      scale = outdoor;
     }
     return total;
   };
@@ -303,7 +315,9 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   const workshops = work.workshops ?? [];
   // voda v sudech (wagons.md – Co vozy vozí): posádka vozu je v denním minimu – u břehu, ne doma
   const waterCrew = haulTo('water', null, allocation.dailyMin);
-  // denní minimum vsi i domácností dílen (z práce dospělých – co po starších zbude)
+  // denní minimum vsi i domácností dílen (z práce dospělých – co po starších zbude), péče o koně,
+  // dílny a výpravy jsou „za den“
+  scale = 1;
   add(
     'domestic',
     { kind: 'village' },
@@ -391,6 +405,7 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   }
   // nákup u sousedů – malá skupina po stezce nebo krajinou ke kraji mapy (crafts.md)
   for (const p of work.purchases ?? []) add('trade', p.target, p.manDays);
+  scale = outdoor;
   // opravy obydlí jdou ze společné práce po stavbách (population.md – Práce), pletí mužů z toho,
   // co zbude po nich (fields.md – Pletí jednou a rychle)
   let invested =

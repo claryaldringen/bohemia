@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { daylightFactor } from '../daylight';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import type { PartInput } from '../actions';
@@ -171,13 +172,17 @@ describe('laborReport – rozdělení práce dne', () => {
       {
         activity: 'fell',
         target: { kind: 'trees', ids: [102] },
-        manDays: 0.25,
+        // podíly jsou lidé – venkovní práce ÷ délka dne (population.md – Skladba dne)
+        manDays: Math.round((0.25 / daylightFactor(day)) * 1000) / 1000,
         construction: 90,
       },
     ]);
     expect(of(labor.shares, 'build')[0]?.construction).toBe(90);
     const common = s.commonLaborHistory.at(-1)!;
-    expect(of(labor.shares, 'build')[0]?.manDays).toBeCloseTo(common - 0.25, 3);
+    expect(of(labor.shares, 'build')[0]?.manDays).toBeCloseTo(
+      (common - 0.25) / daylightFactor(day),
+      3,
+    );
     expect(of(labor.shares, 'build')[0]?.target).toEqual({ kind: 'site', id: 90 });
   });
 

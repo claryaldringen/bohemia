@@ -34,7 +34,25 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   Martin 19. 10. 2026): `householdWaterLabor` / `waterFetchingLabor` z `Dwelling.waterWalkM` –
   cesty (`WATER_FETCHING` 0,4 na člověka) × 2 × (chůze − 100 m) ÷ 1 m/s ÷ 10 h; starší ji kryjí
   jako zbytek minima, i v plánu osevu (`sowingCapacity`) a v dílnách (`workshopLabor`); bez
-  krajiny 0. Před prací dne (`simulate.ts`): 1. 9. `startSeason`, každý den `seasonDay` (konce oken
+  krajiny 0. **Skladba dne podle období** (population.md – Skladba dne podle ročního období;
+  `day-chores.ts` – `dayChores`, `DayChores`, `DAY_CHORES`): žňový den (`harvestHandsDay`)
+  `HARVEST_CHORES` – minimum × 0,5 a bez vody (`allocateDay` – `minimumShare`, `harvestHelperLabor`
+  vždy, dílny, dvorec); listopad–březen dříví – `woodFetchingLabor` z `Dwelling.forestWalkM` v
+  `HouseholdWater.wood` (vůz s vodou ho neušetří, `work()` ho přičte k vodě domácnosti); když leží
+  sníh (`snowLies` – `snow.ts`, týž výpočet jako scéna, zima roku z `weatherOf`), voda 0 – vozy pro
+  vodu nejedou. Minimum domácnosti podle období počítá `householdMinimum` (dvorec – `manorLabor`
+  s `chores`, dílny – `workshopLabor`). Plán: okna setí letní skladba (`SUMMER_CHORES`), žně
+  `HARVEST_CHORES` (`freeLabor` s `chores`), čelo práce dnešní. **Délka dne**
+  (`daylight.ts` – `daylightFactor`, `DAYLIGHT_WORK`; lineárně mezi polovinami měsíců):
+  `allocateDay` – `daylight` násobí `left` po kování, výpravách a vozech pro kováře a zásobníky
+  `light`, `harvestHands`, `weedChildren`, `lordHelp` a práci žen při pletí; `work()` násobí
+  kapacitu spřežení (`teamsCap`) a robotu hostů. Plán: `sowingCapacity` a `ploughPairsForRotation`
+  světlými dny oken (`windowDaylightLeft` / `windowDaylightWithout` v sowing.ts), čelo práce
+  (`workFront`), ruce pro výmlat (`harvestLaborPerDay`) a tempo setí (`sowingHaPerDay`) dnešní
+  délkou dne. Bez délky dne zůstávají řemeslo v dílnách, tesařova pomoc stavbám, jízdy vozu za den
+  a roční odhady správce (`sacredLaborGainPerYear`, `raidLossManDays`). Rozdělení práce pro
+  postavy (`laborDay`, `DayWork.daylight`) dělí venkovní podíly délkou dne – podíly jsou lidé, ne
+  práce (domácnost, koně, dílny, výpravy a vozy pro kováře beze změny). Před prací dne (`simulate.ts`): 1. 9. `startSeason`, každý den `seasonDay` (konce oken
   setí, nutné díly podle potřeby úrody – fields.md, Osevní postup po dílech) a `lordHelpDay`
   (podíl dne rodiny na nutné práci) a 1. 5. `wildlifeYearDay` (roční přepočet zvěře; hned za ním `weatherDay` – kronika počasí kraje v den odhalení, `village-disasters.md` –, `dogsYear` smečka dvorce a `planHuntDay` ranní plán lovu, W4), 1. 6. `damageWindowStart` (ohrožené díly polí pro zvěř – wildlife.md, Škody); po `lordHelpDay` `settlePatrol` (jezdecká hlídka polí, W6), po práci dne `wildlifeDamageDay` (škoda zvěře a vran na nesklizených dílech, před jídlem) dále v závěru dne `huntDay` (úlovek velkého lovu), `patrolHuntDay` (úlovek z hlídky), při jídle `feedDogs` (obilí psů dvorce, `simulate-food.ts`) a po sklizni jaře `wildlifeSeasonEnd` (kronika, vynulování ztrát dílů – podrobnosti `village-wildlife.md`); potřebné sezónní úlohy jsou práce nutných dílů – plodiny
   hospodářského roku (`fieldTasks` – všechny díly jedna fronta, díly nad potřebu zrušené 9. 11. 2026). `allocateDay`: denní minimum → péče o koně (`horseCare` – `horseCareLabor`, horses.md – Péče; pokrytí v `state.horsesCaredToday`) → výpravy (`away`) → potřebné sezónní úlohy v pořadí `dayTaskOrder` – **orba rádlem první** (oxen.md – Orba má přednost, Martin 24. 10. 2026; překrývá se jen s osevem, výmlatem jaře a jablky, žeň ne), pak nejbližší konec okna (žeň a výmlat napřed ze žňových rukou – `harvestHands`, `lordHarvest`, fields.md – Žně všemi rukama) → noční hlídka polí (úloha `'watch'`, `end` Infinity, `tie` 4 – za polními úlohami dne i za nutnou sečí (`mow`, `tie` 3), wildlife.md – Noční hlídka vesničanů; v žních soupeří se sklizní) → `common` (volná práce

@@ -7,7 +7,7 @@ import { currentLord, isDynastyTracked, isElite, isLineMan, lineMen } from './dy
 import { harvestHandsDay } from './harvest-hands';
 import { huntToday } from './hunt-party';
 import { householdHead } from './households';
-import { adultDailyMin, waterFetchingLabor } from './labor';
+import { adultDailyMin, householdMinimum, SUMMER_CHORES, type DayChores } from './labor';
 import { villageManorId } from './manor';
 import { ageGroup, ageYears, isInjured, laborPerDay } from './people';
 import { dailyMinPerHousehold } from './productivity';
@@ -461,6 +461,7 @@ export function manorLabor(
   potteryCoverage: number,
   productivity = 1,
   family: LordFamily = lordFamily(state, day),
+  chores: DayChores = SUMMER_CHORES,
 ): ManorLabor {
   const manor = villageManorId(state);
   const labor = (people: readonly Person[]): number =>
@@ -469,9 +470,13 @@ export function manorLabor(
   const homeNeed = (home: number | null): number => {
     const members = home === null ? [] : state.people.filter((p) => p.dwellingId === home);
     const elders = members.filter((p) => ageGroup(p, day) === 'elder').length;
-    const walk = state.dwellings.find((d) => d.id === home)?.waterWalkM;
-    const minimum =
-      dailyMinPerHousehold(potteryCoverage) + waterFetchingLabor(members.length, walk);
+    // podle skladby dne (population.md – Skladba dne podle ročního období)
+    const minimum = householdMinimum(
+      dailyMinPerHousehold(potteryCoverage),
+      members.length,
+      state.dwellings.find((d) => d.id === home),
+      chores,
+    );
     return adultDailyMin(minimum, elders, productivity);
   };
   // dvorec a domy elity (hillfort.md – Elita: „stejné pravidlo jako rodina ve dvorci“) – každý dům

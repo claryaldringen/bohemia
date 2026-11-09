@@ -194,7 +194,10 @@ describe('zlatý otisk – výběr dílů a práce vsi k 2. 9.', () => {
     // dílů lnu, díly jaře místo nich; dřív 149:b60f2983
     // 124:fe7ca4e9 (9. 11. 2026, rozsévač za spřežením – fields.md, Práce, setí 10 → 3,3 čd/ha): ves
     // oseje víc dílů – jiné zásoby a výběr dílů; dřív 120:58a8e173
-    expect(fingerprint(plans)).toBe('124:fe7ca4e9');
+    // 139:0eabfd7a (9. 11. 2026, skladba dne podle období – population.md: venkovní práce podle
+    // délky dne, poloviční minimum ve žních): žně stihnou víc, ves oseje víc dílů; dřív
+    // 124:fe7ca4e9
+    expect(fingerprint(plans)).toBe('139:0eabfd7a');
   });
 });
 

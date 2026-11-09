@@ -230,7 +230,8 @@ describe('simulace – seno za rok', () => {
     const s = village(at(600, 5, 1));
     s.parts = [meadow(1, 100), meadow(2, 150), meadow(3, 200)];
     s.livestock!.herds.cow = 2;
-    const june = advanceVillage(s, at(600, 6, 10), null);
+    // v červnu je den delší (population.md – Skladba dne podle ročního období) – 6. 6. ještě seče
+    const june = advanceVillage(s, at(600, 6, 6), null);
     // seno na stádo ze dvou dílů nejblíž, třetí z volné práce (24. 10. 2026)
     expect(june.hay!.mowing!.partIds).toEqual([1, 2, 3]);
     expect(june.hay!.mowing!.needed!).toBeLessThan(june.hay!.mowing!.required);
