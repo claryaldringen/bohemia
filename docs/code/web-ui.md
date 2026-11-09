@@ -1077,7 +1077,8 @@ nová pravidla (návrh Clauda).
 - **Trvalé stavy vsi** (absence.md – Upozornění vsi do kroniky; jádro `lasting-notices.ts`,
   viz `village-core.md`): `notice-began` / `notice-ended` s textem z `lib/notice-chronicle.ts`
   (`NOTICE_CHRONICLE_TEXTS` – začátek jako řádek upozornění s tečkou, konec „… zase …“, např.
-  „Kovář nemá uhlí.“ / „Kovář má zase uhlí.“, „Ves hladoví.“ / „Hlad skončil.“). Začátek má den
+  „Kovář nemá uhlí.“ / „Kovář má zase uhlí.“, „Ves hladoví.“ / „Hlad skončil.“, „Ves šetří na
+  osivo.“ / „Ves už nešetří na osivo.“). Začátek má den
   začátku stavu, i když se zapsal o týden později – stránka ho zařadí podle dne. Denní
   `hunger-began` / `hunger-ended` panel neukazuje (`HIDDEN_KINDS` – návrh Clauda: hlad nesou
   trvalé stavy, denní zápisy zůstávají pro deník vsí).

@@ -111,7 +111,8 @@ Dřívější obvod po čtvercích zůstal jen pro převod (`squares-outline.ts`
 ## Cena (`cost.ts`; Hradby a obrana – Cena, Martin 8. 11. 2026 – „komplet“)
 
 - **Ceny komplet** (`FORTIFICATIONS.costPer100M`, na 100 m úměrně délce, i s kácením a odvozem):
-  plot 35 čd + 15 klád, palisáda 300 + 70, s ochozem 450 + 80, roštová 1 050 + 330 + 100 m³
+  plot 35 čd + 15 klád, palisáda 430 + 200 (Martin 9. 11. 2026 – 2 kmeny na 1 m; dřív 300 + 70),
+  s ochozem 580 + 210, roštová 1 050 + 330 + 100 m³
   kamene, komorová 1 450 + 350 + 320 m³, val 150 čd. `walkwayAddPer100M` – ochoz na palisádu
   150 čd + 10 klád.
 - **`fortificationFullCost(target, lengthM, from?)`** → `FortCost { laborManDays, logs, stoneM3 }`
@@ -180,7 +181,7 @@ platí dál, staré vsi se nepřevádějí.
   a `fortGate?: { segment, level: 'pincer' | 'tower' }`; `FortBuildWork` + `rampart` | `moat` |
   `gate`. Nic z toho zatím nevzniká.
 - **Čísla** (`FORTIFICATIONS`): `bandM`, `minBendM`, `cornerM`, `lifeYears` (s ochozem 20,
-  roštová 30, komorová 50) a `costPer100M` (s ochozem 450 čd + 80 klád, roštová 1 050 + 330
+  roštová 30, komorová 50) a `costPer100M` (s ochozem 580 čd + 210 klád, roštová 1 050 + 330
   - 100 m³ kamene, komorová 1 450 + 350 + 320 m³ – `FortCostPer100M.stoneM3?`) pro nové druhy;
     `wallOnRampartBandM`, `rampartOutside { outM: 7, minInM: 3 }`, `wallFromYear { crib: 790,
 chamber: 830 }`, `walkwayAddPer100M` (150 čd + 10 klád), `pileSaves { logManDays: 1,
@@ -480,7 +481,7 @@ tlačítka Úloha 17.
   rozestavěná), jen na stojící klešťové bráně (`FORT_TOWER_NO_PINCER` „Věž stojí jen na klešťové
   bráně.“).
 - **Cena**: klešťová = `fortificationCost(pincerArmKind(hradba), pincerGate.wallM)` – 24 m hradby
-  druhu dílu s ochozem (plot a palisáda → palisáda s ochozem: ≈ 108 čd komplet + 19,2 klády;
+  druhu dílu s ochozem (plot a palisáda → palisáda s ochozem: ≈ 139,2 čd komplet + 50,4 klády;
   roštová a komorová svůj druh i s kamenem); věž `towerCost` = 120 čd komplet − 30 čd za klády
   z hromady + 30 klád.
 - **Zahájení** (`startGateUpgrade(state, day, landscape, obstacles, input, walk?)`): klešťová –

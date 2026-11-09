@@ -30,14 +30,14 @@ const landscape = makeLandscape();
 const AREA = block(8, 8, 4, 4);
 const YEAR = 365;
 
-function village(logs = 400): VillageState {
+function village(logs = 1200): VillageState {
   const s = withBuiltFirstDwelling(foundVillage({ seed: 5, day: DAY, dwellingPosition: FAR }));
   s.woodLogs = logs;
   return s;
 }
 
 /** Opevnění `kind` s úseky dokončenými před `ageDays` dny (bez simulace stavby). */
-function aged(kind: FortKind, ageDays: number, logs = 400): VillageState {
+function aged(kind: FortKind, ageDays: number, logs = 1200): VillageState {
   const result = startFortification(village(), DAY, landscape, EMPTY, {
     points: squarePoints(AREA, null, landscape, kind)!,
     kind,
@@ -118,7 +118,7 @@ describe('přestavba dožilých úseků', () => {
     expect(fortWalls(geo, fortOf(dead)).walls).toHaveLength(0);
     expect(fortWalls(geo, fortOf(s)).walls.length).toBeGreaterThan(0);
     // dřevo přišlo – přestaví se
-    dead.woodLogs = 400;
+    dead.woodLogs = 1200;
     expect(decideFortRebuilds(dead, DAY, landscape, EMPTY)).toHaveLength(1);
   });
 

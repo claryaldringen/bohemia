@@ -51,7 +51,7 @@ const YEAR = 365;
  * Hotové opevnění `kind` s úseky starými `ageDays` dní; jedna brána u dvorce. Body obvodu podle
  * palisády (plot jde vylepšit – ohyby projdou i pásem palisády).
  */
-function built(kind: FortKind, ageDays = 0, logs = 400): VillageState {
+function built(kind: FortKind, ageDays = 0, logs = 1200): VillageState {
   const s = withBuiltFirstDwelling(foundVillage({ seed: 5, day: DAY, dwellingPosition: FAR }));
   s.woodLogs = logs;
   const result = startFortification(s, DAY, landscape, EMPTY, {

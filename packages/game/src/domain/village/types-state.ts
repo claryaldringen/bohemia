@@ -203,6 +203,13 @@ export interface VillageState {
    */
   ration?: number;
   /**
+   * Ves šetří jen kvůli osivu, které nejí (`uneatenSeedKg` – hromada osiva okna setí, zimní
+   * osivo, osivo jen na setí): se snědeným osivem by jedla plně (absence.md – Upozornění vsi do
+   * kroniky; Martin 9. 11. 2026: „to není hladovění, ale spíš půst“). Jen spolu s `ration`;
+   * jinak chybí – starší vsi ho dostanou s jídlem dalšího dne.
+   */
+  seedRation?: true;
+  /**
    * Nahromaděný hlad ve „dnech bez jídla“ (population.md – Hlad a vymření). U vsí uložených
    * před zavedením hladovění chybí (= 0).
    */

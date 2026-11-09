@@ -1,5 +1,5 @@
 // Sklizeň, výmlat a jídlo dne.
-import { eatDiet, villageFoodNeed } from './diet';
+import { eatDiet, villageFoodNeed, type DietInput } from './diet';
 import { recordFieldFood } from './field-food';
 import { harvestFlax } from './flax';
 import { dayMealInput, emergencySlaughter } from './emergency-slaughter';
@@ -138,6 +138,12 @@ export function endThreshing(state: VillageState): void {
   state.threshingSeason = null;
 }
 
+/** Jedla by ves se vstupem jídla `input` plně – příděl do sklizně i dnešní energie celé? */
+function eatsFull(input: DietInput): boolean {
+  const meal = eatDiet(input);
+  return Math.min(meal.outlook, meal.diet.energy) >= 1 - SATIATION_EPSILON;
+}
+
 /**
  * Krok 8: jídlo dne ze zásob (diet.md) – ovoce přednostně do zkažení, čerstvé mléko (dojí se
  * vždy celé – ženy bokem, population.md – Práce) a vejce, maso do porážky, sýr do dojení a luštěniny do sklizně, obilí dorovná;
@@ -194,6 +200,15 @@ export function eat(
   // příděl do sklizně, když ves šetří – stupeň upozornění (population.md – Co hráč vidí)
   if (hungry) state.ration = ration;
   else delete state.ration;
+  // šetří jen kvůli osivu, které nejí – se snědeným osivem by jedla plně (absence.md – Upozornění
+  // vsi do kroniky): stejný vstup jídla se zrnem celých zásob, jen v den, kdy ves šetří
+  if (
+    hungry &&
+    seedGrain > EPSILON &&
+    eatsFull({ ...mealInput, grainKg: mealInput.grainKg + seedGrain })
+  ) {
+    state.seedRation = true;
+  } else delete state.seedRation;
   if (hungry !== state.hungry) {
     state.hungry = hungry;
     state.chronicle.push({ day, kind: hungry ? 'hunger-began' : 'hunger-ended' });

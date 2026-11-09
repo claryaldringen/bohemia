@@ -210,6 +210,15 @@ describe('villageNotices – hlad a vymření', () => {
     expect(
       villageNotices(view({ hungry: true, starving: true, hunger: 'starving', satiation: 0 })),
     ).toEqual([{ kind: 'starving', tone: 'warn', text: 'Lidé umírají hlady' }]);
+    // šetření jen kvůli osivu (absence.md – Upozornění vsi do kroniky) – hlad zůstane hladem
+    const seed = view({ hungry: true, hunger: 'rationing', seedRationing: true });
+    expect(villageNotices(seed)).toEqual([
+      { kind: 'rationing', tone: 'info', text: 'Ves šetří na osivo' },
+    ]);
+    expect(newNotices(view(), seed).map((n) => n.text)).toEqual(['Ves šetří na osivo']);
+    expect(villageNotices(view({ hungry: true, hunger: 'hungry', seedRationing: true }))).toEqual([
+      { kind: 'hungry', tone: 'warn', text: 'Ves hladoví' },
+    ]);
   });
 
   it('stádo se nevejde do ohrad (oxen.md – Ohrady podle druhu): jeden druh jménem, víc „stáda“', () => {

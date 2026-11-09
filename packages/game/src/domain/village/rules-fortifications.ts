@@ -42,16 +42,17 @@ export const FORTIFICATIONS = {
   protectionScale: 0.06,
   /**
    * Cena komplet na 100 m obvodu – včetně kácení a odvozu (Hradby a obrana – Cena; Martin 8. 11.
-   * 2026): plot 35 čd + 15 klád (20 čd + kácení, Martin 3. 11.), palisáda 300 čd + 70 klád,
-   * palisáda s ochozem 450 čd + 80 klád, roštová 1 050 čd + 330 klád + 100 m³ kamene, komorová
+   * 2026): plot 35 čd + 15 klád (20 čd + kácení, Martin 3. 11.), palisáda 430 čd + 200 klád
+   * (Martin 9. 11. 2026 – kmen ≈ 10 m dá dva kůly, 2 kmeny na 1 m; práce bez kácení zůstává
+   * 230 čd), palisáda s ochozem 580 čd + 210 klád, roštová 1 050 čd + 330 klád + 100 m³ kamene, komorová
    * 1 450 čd + 350 klád + 320 m³ (klády a kámen návrh Clauda), val 150 čd (jen hlína, Martin
    * 3. 11.). Vylepšení stojí cenu cílového (nižší stupeň nic nevrací), hradba na valu jako
    * samotná; z hromady ušetří `pileSaves`. Cena roste s délkou úměrně.
    */
   costPer100M: {
     fence: { laborManDays: 35, wood: 15 },
-    palisade: { laborManDays: 300, wood: 70 },
-    walkway: { laborManDays: 450, wood: 80 },
+    palisade: { laborManDays: 430, wood: 200 },
+    walkway: { laborManDays: 580, wood: 210 },
     crib: { laborManDays: 1050, wood: 330, stoneM3: 100 },
     chamber: { laborManDays: 1450, wood: 350, stoneM3: 320 },
     rampart: { laborManDays: 150, wood: 0 },

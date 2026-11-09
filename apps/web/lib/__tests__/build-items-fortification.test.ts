@@ -92,7 +92,7 @@ describe('opevnění v katalogu staveb', () => {
     expect(after.cost!.laborManDays).toBeGreaterThan(before.cost!.laborManDays);
     expect(after.cost!.logs).toBeGreaterThan(before.cost!.logs!);
     expect(after.cost!.refuge).toBeGreaterThan(before.cost!.refuge!);
-    // obvod 2π · 25 ≈ 157 m palisády: 70 klád na 100 m
+    // obvod 2π · 25 ≈ 157 m palisády: 200 klád na 100 m
     expect(before.cost!.logs).toBeGreaterThan(100);
     // obrys: vnější okraj a vnitřní okraj pásu – uzavřené čáry
     expect(before.outline).toHaveLength(2);
