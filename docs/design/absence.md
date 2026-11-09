@@ -77,8 +77,14 @@ a kroniku.“
 - **Panel Upozornění** (implementováno, návrh Clauda): zvonek vedle knihy kroniky otevře uložená
   upozornění mezi hráči (jednání, vazalství, válka, odvody…) od nejnovějších, s herním datem, po
   stránkách ze serveru; nová od posledního otevření jsou zvýrazněná a jejich počet je číslem u
-  ikony. Upozornění vsi (hlad, nedostatek surovin…) se neukládají – odvozují se z pohledu a stav
-  vsi ukazují řádky nahoře. Kód: `docs/code/web-ui.md` – Panel Upozornění.
+  ikony. Upozornění vsi (hlad, nedostatek surovin…) se odvozují z pohledu a stav vsi ukazují
+  řádky nahoře. Kód: `docs/code/web-ui.md` – Panel Upozornění.
+- **Upozornění vsi do kroniky** (Martin 9. 11. 2026: „Ano, ať se zapisují do kroniky“;
+  implementace čeká): trvalé stavy vsi z upozornění (hlad a šetření jídlem, chybějící suroviny
+  dílen, koně bez obilí, stáda bez místa…) zapíše simulace do kroniky vsi **při začátku a konci
+  stavu** s herním datem – ne denně (návrh Clauda: kratší stav než 7 dní se nezapíše, aby kronika
+  nebyla zaplavená; půst v okně setí a zimní šetření na osivo nejsou hlad – zapíší se jako „Ves
+  šetří na osivo“). Hráč, který se vrátí po delší době, tak v kronice uvidí, co se mezitím dělo.
 
 ## Opuštěný rod
 
