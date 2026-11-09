@@ -122,8 +122,8 @@ počasí počítá jako dřív** (zlaté otisky beze změny). Funkce v `weather-
   díly se po 30. 4. nepřidávají (okno `CROP_WINDOWS` se nemění). Zasahuje `activeTasks` (parametr
   `sowExtended`), `fieldTasks`, `surplusTasks`, `fieldFrontiers`, dřinu a `sowingJustEnded`
   (`simulate-plan.ts`; nerozseté díly se uvolní až 15. 5.). Číslo `longWinterSpringSowExtraDays` 14.
-- **Osev s průměrem let** – `sowingTargets` dělí úrodu obilí `sowingYieldFactor` (0,95) – ves
-  zaseje ≈ 5 % víc. **Paměť hladu** – `famineMemoryDay` (1. 9. v `simulateDay` před
+- **Osev s průměrem let** – `sowingYieldFactor` (0,95): s cílem osevu (zrušen 9. 11. 2026) dělil
+  úrodu obilí; dnes jen potřeba polí správce (`steward.ts`). **Paměť hladu** – `famineMemoryDay` (1. 9. v `simulateDay` před
   `startSeason`): po krutém roce (`isCruelYear`) `disasters.famineMemoryUntilYear` = rok + 10;
   `bufferEnergyYearsOf` pak dává pojistku 0,75 místo 0,5.
 - **Čísla** – `WEATHER_EFFECTS`: `blackFrostWinterCrop` 0,65, `wetThreshWork` 0,2, `hayReserve`

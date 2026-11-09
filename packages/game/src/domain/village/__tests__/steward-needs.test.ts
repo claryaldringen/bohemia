@@ -18,7 +18,7 @@ import { NEIGHBOR_DIRECTIONS } from '../rules';
 import { STEWARD } from '../rules-steward';
 import { WILDLIFE_LAND } from '../rules-wildlife';
 import { advanceVillage } from '../simulate';
-import { fieldSowingTargets } from '../simulate-plan';
+import { fieldStoresOutlook } from '../simulate-plan';
 import { newSteward } from '../steward-state';
 import {
   constructionLogsLeft,
@@ -87,7 +87,7 @@ function ctxOf(state: VillageState, day = DAY): NeedContext {
 }
 
 function shortOf(state: VillageState, day = DAY): number {
-  return fieldSowingTargets(state, day, craftCoverage(state, day)).shortKg;
+  return fieldStoresOutlook(state, day, craftCoverage(state, day)).shortKg;
 }
 
 describe('obilí v nouzi – výprava za obchodem (steward.md – Obilí a lov v nouzi)', () => {

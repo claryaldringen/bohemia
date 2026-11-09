@@ -356,8 +356,8 @@ export function dayTaskOrder(a: DayTask, b: DayTask): number {
  * pracují zvlášť – jen v dílně (crafts.md, `workCrafts`); opravy jejich obydlí platí ves. Zvířata
  * (dojení a péči ženy, pasení výrostci) a domácí výrobu ženy – obojí bokem, z práce vsi
  * nebere (rozdělení práce je má jen pro postavy – `LaborDay.aside`). Cvičící vojvodova rodina
- * je mimo práci vsi (lord.md – Den rodiny), na pole jde jen při hladu (zásobník `lordField`)
- * a s osevem, který ves sama nestihne (`lordHelp`). Všechna polní práce má přednost před stavbami
+ * je mimo práci vsi (lord.md – Den rodiny), na pole jde jen ve žních, které ves sama nestíhá
+ * (zásobník `lordHelp`). Všechna polní práce má přednost před stavbami
  * (fields.md – Osevní postup po dílech, bod 3; Martin 9. 11. 2026: „Setí – to přece obstará pár
  * mužů s voly a ženy, pletí obstarají ženy a děti. Na sklizni se pak podílejí úplně všichni“) –
  * stavby dostanou, co zbude; muži plejí jen, co ženy a děti nestihnou, a až po stavbách.
@@ -620,18 +620,14 @@ export function work(
       capacity: Math.max(0, villageLabor - restingCarry),
       // ženy řemeslníků: zbytek po domácnosti jde jen na lehčí polní práce se vsí (crafts.md)
       light: craftLightLabor(state, day, crafts, coverage.pottery, productivity),
-      // vojvodova rodina na poli při hladu – jen úlohy dne (lord.md – Kdy jde rodina na pole); co
-      // z minima dvorce rodina nepokryje, platí ves
-      lordField: manor && productivity > 0 ? manor.field / productivity : 0,
       harvestHands,
       weedChildren: weeders.length * WEEDING_CHILDREN.perDay,
       womenLabor,
       ...(weedDaysLeft === undefined ? {} : { weedDaysLeft }),
       // muži plejí až po stavbách (fields.md – Pletí jednou a rychle; Martin 9. 11. 2026)
       menWeedLater: true,
-      // cvičící muži rodiny ve žňový den – za žňovými rukama vsi, jen žeň a výmlat
-      lordHarvest: manor && productivity > 0 ? manor.harvest / productivity : 0,
-      // pomoc rodiny s potřebným osevem – jen co ves nestihne (lord.md – Kdy jde rodina na pole)
+      // celá rodina ve žních – jen žeň a výmlat, které ves nestihne (lord.md – Kdy jde rodina na
+      // pole); co z minima dvorce rodina nepokryje, platí ves
       lordHelp: manor && productivity > 0 ? manor.help / productivity : 0,
       manorMin: manor?.uncovered ?? 0,
       householdElders: householdElders(villagers, day, manorSkip),
@@ -1049,10 +1045,9 @@ export function work(
   // všechny jízdy dne do provozu cest na jednom místě (wagons.md)
   flushCartTrips(state, cartLog);
   const hayMowing = state.hay?.mowing;
-  // podíl práce rodiny na poli, který dnes úlohy spotřebovaly – zbytek dne cvičí (`trainLordDay`)
-  // při hladu celá rodina (÷ `free`), u pomoci s osevem a ve žních jen muži (÷ `freeMen`), ženy 0
-  const lordHunger = manor !== null && manor.field > 0;
-  const lordBase = manor ? (lordHunger ? manor.free : manor.freeMen) : 0;
+  // podíl práce rodiny na poli, který dnes žně spotřebovaly – zbytek dne cvičí (`trainLordDay`);
+  // ve žních celá rodina – muži, ženy i dcery (÷ `free`)
+  const lordBase = manor ? manor.free : 0;
   const lordField = lordBase > 0 ? allocation.lordField / lordBase : 0;
   state.labor = laborDay(state, day, {
     allocation,
@@ -1060,7 +1055,7 @@ export function work(
       ? {
           lord: {
             domestic: manor.dailyMin,
-            counts: lordDayCounts(family, day, lordField, lordHunger ? lordField : 0),
+            counts: lordDayCounts(family, day, lordField),
           },
         }
       : {}),

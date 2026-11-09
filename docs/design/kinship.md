@@ -80,7 +80,8 @@ dědictví, sňatky a nástupnictví potřebují vědět, kdo je čí. Postavy v
   nejdřív za 9 měsíců (population.md – rozestup porodů).
 - **Sňatky čekají na zásoby (27. 10. 2026)** – návrh Clauda po recenzi pohrom (P3), **Martin 27. 10. 2026: „Ano“**: ves rostla až k mezi jídla (sňatky brzdil jen hlad), takže pojistku zásob
   nikdy neměla a po jednom krutém roce hladověla. Teď **nový sňatek jen tehdy, když výhled zásob
-  z pole k příští sklizni** (jako v plánu osevu – [pole](fields.md), Osev podle zásob) **dosáhne
+  z pole k příští sklizni** ([pole](fields.md) – Výhled zásob k sklizni; osivo v okně setí a zimní
+  osivo se počítá jako zásoba kromě osiva, které ves ještě zaseje) **dosáhne
   pojistky** (0,5 roční potřeby, v paměti hladu po krutém roce 0,75 – [pohromy](disasters.md),
   Zásoby a pojistka). Pod pojistkou svatba **jen čeká, nikdy se nezruší**: navíc průměrně
   **3 roky × (1 − naplnění pojistky)** (`MARRIAGE_STORES.waitYears`; los dne – při prázdných

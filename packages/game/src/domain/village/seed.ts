@@ -5,7 +5,8 @@
 // ves odloží osivo na všechny díly na řadě, nejvýš zásoby bez přežívací zásoby do žní
 // (`seedKeepKg`); hromada osiva okna (`sowingSeedDay`) drží každý den jen osivo ideálního zbytku
 // okna – za nestihnutou část dne se osivo hned vrátí do jídla (`settleSowingSeed`), na konci okna
-// všechno nezaseté. Práce z doby před osivem ze zásob (`CropWork.seedKg` chybí) má zasetou část
+// všechno nezaseté. Od listopadu do konce února drží ves zimní osivo na jarní díly na řadě
+// (Martin 9. 11. 2026: „Tak když věděli, že mají málo jídla, proč žrali jak protržení?“). Práce z doby před osivem ze zásob (`CropWork.seedKg` chybí) má zasetou část
 // odpuštěnou – převod `withSeedForgiven`.
 import { craftCoverage } from './crafts';
 import { grainAheadForOutlookKg, grainKeepPerDay, villageFoodNeed, type DietInput } from './diet';
@@ -13,8 +14,12 @@ import { winterEstimateLosses } from './disasters';
 import { fieldFoodShare } from './field-food';
 import { drawGrainPits } from './grain-pits';
 import { dateOfDayIndex } from '../calendar';
-import { ageGroup } from './people';
-import { CROP_WINDOWS, SEED_BUYING, SEED_STORES, STARVATION } from './rules';
+import { ableTeams, oxenStrength } from './oxen';
+import { ageGroup, laborPerDay } from './people';
+import { PLOUGH_HA_PER_DAY } from './plough';
+import { fieldWorkPerHa } from './productivity';
+import { CROP_WINDOWS, PEAK_CAPACITY_SHARE, SEED_BUYING, SEED_STORES, STARVATION } from './rules';
+import { windowDaysLeft } from './sowing';
 import { nextSowing, onTurn } from './rotation';
 import { sheavesOutlook } from './threshing';
 import { springSowingExtended, springSowingHeld } from './weather-effects';
@@ -209,12 +214,58 @@ export function uneatenSeedKg(
 }
 
 /**
- * Obilí, které zásoby k příští sklizni nekrmí (kg – výhled zásob `sowingTargets`; fields.md,
- * Osivo bez cíle osevu): v okně setí hromada osiva a osivo jen na setí (`uneatenSeedKg`), mimo
- * okna nic – jen osivo zakladatelů v lhůtě (`keptSeedKg`) jídlem není nikdy.
+ * Kolik hektarů jařiny nebo ozimu ves za den zorá a zaseje (výhled zásob – `pileSowsKg`; návrh
+ * Clauda 9. 11. 2026): spřežení, která dnes orají (`ableTeams`), po PLOUGH_HA_PER_DAY podle síly
+ * volů; ves bez spřežení zkope a zaseje motykou všechnou prací dospělých (PEAK_CAPACITY_SHARE ÷
+ * kopání a setí hektaru).
  */
-export function seedOutsideFoodKg(state: VillageState, day: number): number {
-  return Math.max(state.sowingSeed ? uneatenSeedKg(state) : 0, keptSeedKg(state, day));
+function sowingHaPerDay(
+  state: VillageState,
+  day: number,
+  crop: SowingCrop,
+  toolCoverage: number,
+): number {
+  const teams = ableTeams(state, day);
+  if (teams > 0) return teams * PLOUGH_HA_PER_DAY * oxenStrength(state, day);
+  const perHa =
+    fieldWorkPerHa('dig', toolCoverage, crop) + fieldWorkPerHa('sow', toolCoverage, crop);
+  if (perHa <= EPSILON) return Infinity;
+  const labor = state.people.reduce((sum, p) => sum + laborPerDay(p, day), 0);
+  return (labor * PEAK_CAPACITY_SHARE) / perHa;
+}
+
+/**
+ * Osivo hromady, které ves ještě zaseje (kg – výhled zásob, fields.md – Výhled zásob k sklizni;
+ * návrh Clauda 9. 11. 2026): v okně setí nejvýš osivo plochy, kterou ves dnešním tempem
+ * (`sowingHaPerDay`) zorá a zaseje do konce okna (`sowingDaysLeft`) – stejné tempo jako průběžné
+ * vracení osiva (`settleSowingSeed`); v zimě (zimní osivo) osivo jarních dílů, které ves stihne
+ * za celé jarní okno. Zbytek hromady se do jídla vrátí – výhled ho počítá jako zásobu.
+ */
+export function pileSowsKg(state: VillageState, day: number, toolCoverage: number): number {
+  const pile = state.sowingSeed;
+  const kg = sowingSeedKg(state);
+  if (!pile || kg <= EPSILON) return 0;
+  const days = pile.beforeWindow
+    ? windowDaysLeft(day, CROP_WINDOWS.spring.sow)
+    : sowingDaysLeft(state, pile.crop, day);
+  const ha = sowingHaPerDay(state, day, pile.crop, toolCoverage) * days;
+  return Math.min(kg, ha * cropSeedPerHa(pile.crop));
+}
+
+/**
+ * Obilí, které zásoby k příští sklizni nekrmí (kg – výhled zásob `storesOutlook`; fields.md,
+ * Výhled zásob k sklizni): s hromadou osiva (okno setí i zimní osivo) osivo, které ves ještě
+ * zaseje (`pileSowsKg`), a osivo jen na setí (`reservedSeedKg`); bez hromady nic – jen osivo
+ * zakladatelů v lhůtě (`keptSeedKg`) jídlem není nikdy. Nejvýš zásoby obilí.
+ */
+export function seedOutsideFoodKg(state: VillageState, day: number, toolCoverage: number): number {
+  const pile = state.sowingSeed
+    ? Math.min(
+        Math.max(0, state.storesKg),
+        pileSowsKg(state, day, toolCoverage) + reservedSeedKg(state),
+      )
+    : 0;
+  return Math.max(pile, keptSeedKg(state, day));
 }
 
 /**
@@ -424,23 +475,55 @@ export function windowSeedNeedKg(
 }
 
 /**
+ * Den patří k zimě mezi podzimním a jarním oknem setí (listopad – únor, podle CROP_WINDOWS): ves
+ * drží zimní osivo (`sowingSeedDay`).
+ */
+function winterSeedMonth(day: number): boolean {
+  const month = dateOfDayIndex(day).month;
+  const autumnEnd = Math.max(...CROP_WINDOWS.winter.sow.map(([, to]) => to));
+  const springStart = Math.min(...CROP_WINDOWS.spring.sow.map(([from]) => from));
+  return month > autumnEnd || month < springStart;
+}
+
+/**
+ * Osivo nad přežívací zásobu do žní (kg): nejvýš `wantKg`, zásoby a snopy, které ves vymlátí, bez
+ * přežívací zásoby (`seedKeepKg`), a nejvýš vymlácené zrno – bez osiva jen na setí.
+ */
+function pileKg(state: VillageState, day: number, wantKg: number): number {
+  const ordinary = Math.max(0, state.storesKg - reservedSeedKg(state));
+  if (wantKg <= EPSILON || ordinary <= EPSILON) return 0;
+  const aboveKeep = ordinary + sheavesOutlook(state, day).grainKg - seedKeepKg(state, day);
+  return Math.max(0, Math.min(wantKg, aboveKeep, ordinary));
+}
+
+/**
  * Hromada osiva okna ráno (fields.md – Osivo bez cíle osevu; Martin 9. 11. 2026: „Na všechny
  * díly. Bude hladovět max ty dva měsíce – to není hladovění, ale spíš půst“; mutuje stav). V první
  * den okna si ves zapíše osivo na všechny díly na řadě (`windowSeedNeedKg`) a dny setí okna; každý
  * den pak drží osivo ideálního zbytku okna – celé osivo × zbývající dny setí / dny okna, nejvýš
  * osivo dílů, které ještě zasít zbývá –, bez osiva, které má jen na setí (`reservedSeedKg`).
  * Nejvýš zásoby a snopy, které ves vymlátí, bez přežívací zásoby do žní (`seedKeepKg`), a nejvýš
- * vymlácené zrno – osivo přibývá, jak přibývá vymláceného zrna. Mimo okna setí se osivo zvlášť
- * nedrží (hromada zmizí – na konci okna se nezaseté vrátí do zásob).
+ * vymlácené zrno – osivo přibývá, jak přibývá vymláceného zrna. Od listopadu do konce února drží
+ * zimní osivo (fields.md – Zimní osivo; Martin 9. 11. 2026: „Tak když věděli, že mají málo jídla,
+ * proč žrali jak protržení? Zaslouží si chcípnout“): každý den osivo na jarní díly na řadě
+ * (`windowSeedNeedKg` jaře) se stejnými mezemi – ves jí jen zbytek a šetří už v zimě; 1. 3. ho
+ * převezme hromada jarního okna. Od konce jarního okna do září se osivo zvlášť nedrží (hromada
+ * zmizí – na konci okna se nezaseté vrátí do zásob).
  */
 export function sowingSeedDay(state: VillageState, day: number): void {
   const crop = sowingWindowCrop(state, day);
   if (crop === null) {
-    delete state.sowingSeed;
+    if (!winterSeedMonth(day)) {
+      delete state.sowingSeed;
+      return;
+    }
+    const totalKg = windowSeedNeedKg(state, 'spring');
+    const kg = pileKg(state, day, totalKg - reservedSeedKg(state));
+    state.sowingSeed = { crop: 'spring', totalKg, days: 0, kg, beforeWindow: true };
     return;
   }
   let pile = state.sowingSeed;
-  if (!pile || pile.crop !== crop) {
+  if (!pile || pile.crop !== crop || pile.beforeWindow) {
     pile = {
       crop,
       totalKg: windowSeedNeedKg(state, crop),
@@ -449,16 +532,9 @@ export function sowingSeedDay(state: VillageState, day: number): void {
     };
     state.sowingSeed = pile;
   }
-  const reserved = reservedSeedKg(state);
   const ideal = (pile.totalKg * Math.min(pile.days, sowingDaysLeft(state, crop, day))) / pile.days;
-  const want = Math.min(ideal, windowSeedNeedKg(state, crop)) - reserved;
-  const ordinary = Math.max(0, state.storesKg - reserved);
-  if (want <= EPSILON || ordinary <= EPSILON) {
-    pile.kg = 0;
-    return;
-  }
-  const aboveKeep = ordinary + sheavesOutlook(state, day).grainKg - seedKeepKg(state, day);
-  pile.kg = Math.max(0, Math.min(want, aboveKeep, ordinary));
+  const want = Math.min(ideal, windowSeedNeedKg(state, crop)) - reservedSeedKg(state);
+  pile.kg = pileKg(state, day, want);
 }
 
 /**
@@ -470,7 +546,8 @@ export function sowingSeedDay(state: VillageState, day: number): void {
  */
 export function settleSowingSeed(state: VillageState, day: number): void {
   const pile = state.sowingSeed;
-  if (!pile) return;
+  // zimní osivo se nevrací – v zimě se nic neseje
+  if (!pile || pile.beforeWindow) return;
   const left = Math.min(pile.days, sowingDaysLeft(state, pile.crop, day + 1));
   const ideal = (pile.totalKg * left) / pile.days;
   pile.kg = Math.max(0, Math.min(pile.kg, ideal - reservedSeedKg(state)));

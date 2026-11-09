@@ -71,7 +71,7 @@ import { localDisastersDay } from './local-disasters';
 import { decideRebuilds, finishConstructions } from './simulate-build';
 import { eat, endThreshing, harvest, harvestWinter } from './simulate-food';
 import {
-  fieldSowingTargets,
+  fieldStoresOutlook,
   harvestLaborPerDay,
   isOn,
   lordHelpDay,
@@ -87,7 +87,7 @@ import { weatherDay } from './weather';
 import { partProtectionDay } from './part-protection';
 import { famineMemoryDay } from './weather-effects';
 import { damageWindowStart, wildlifeDamageDay, wildlifeSeasonEnd } from './wildlife-damage';
-import { lordFieldMode, trainLordDay, updateLordTraining } from './lord';
+import { trainLordDay, updateLordTraining, withoutSowingHelp } from './lord';
 import { dynastyDay } from './succession';
 import { markSunnyOrchards, premiumSacredHappiness } from './premium-effects';
 
@@ -154,8 +154,9 @@ export function* advanceVillageSteps(
   // postup po dílech (fields.md – Osevní postup po dílech, bod 7), plán z doby před osivem ze
   // zásob odpuštěné osivo zaseté části (fields.md – Osivo ze zásob, Převod), plán z doby cíle
   // osevu bez osiva čekajících dílů (fields.md – Osivo bez cíle osevu), nezasetý díl luštěnin jař
-  // (fields.md – Luštěniny, zrušeno) a díly nad potřebu jednou frontou (fields.md – Osevní postup
-  // po dílech, bod 3) – jednou, idempotentně
+  // (fields.md – Luštěniny, zrušeno), díly nad potřebu jednou frontou (fields.md – Osevní postup
+  // po dílech, bod 3) a vojvodova rodina bez pomoci s osevem a při hladu (lord.md – Kdy jde rodina
+  // na pole) – jednou, idempotentně
   const next = cloneState(
     withSteward(
       withWildlife(
@@ -173,9 +174,11 @@ export function* advanceVillageSteps(
                               withDynasty(
                                 withKinship(
                                   withoutFieldLegumes(
-                                    withoutSeedTarget(
-                                      withoutSurplusCrops(
-                                        withSeedForgiven(withSowingRotation(withSeason(start))),
+                                    withoutSowingHelp(
+                                      withoutSeedTarget(
+                                        withoutSurplusCrops(
+                                          withSeedForgiven(withSowingRotation(withSeason(start))),
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -299,14 +302,14 @@ function* simulateDaySteps(
   // ušetřené posvátné duby stářím usychají a souše padají – den plyne z dubu (happiness.md)
   state.chronicle.push(...sacredOakEvents(villageSacredOaks(state), obstacles, day));
   // 1. 9. nový hospodářský rok a postup dílů, každý den nutné díly a konce oken setí (fields.md –
-  // Osevní postup po dílech); podíl dne rodiny na nutné práci (lord.md – Kdy jde rodina na pole)
+  // Osevní postup po dílech); podíl dne rodiny ve žních (lord.md – Kdy jde rodina na pole)
   // paměť hladu: po krutém roce drží ves 10 let vyšší pojistku – před plánem osevu
   // (disasters.md – Dopady, Zásoby a pojistka)
   famineMemoryDay(state, day);
   if (isOn(date, PLANNING_DAY)) startSeason(state, day, coverage, landscape);
   const waiting = seasonDay(state, day, coverage);
   yield;
-  lordHelpDay(state, day, coverage, landscape, waiting);
+  lordHelpDay(state, day, coverage, landscape);
   // zvěř: 1. 6. ohrožené díly polí podle vzdálenosti od lesa (wildlife.md – Škody)
   damageWindowStart(state, day, landscape);
   // místní pohromy (disasters.md – Místní pohromy – jedna ves): smršť, kroupy, povodeň, požár –
@@ -384,7 +387,7 @@ function* simulateDaySteps(
   let fill: number | undefined;
   const lucky = inLuckyYears(state.foundedDay, day);
   const storesFill = (): number =>
-    (fill ??= lucky ? 1 : bufferFill(fieldSowingTargets(state, day, coverage)));
+    (fill ??= lucky ? 1 : bufferFill(fieldStoresOutlook(state, day, coverage)));
   state.chronicle.push(...ensureMainWives(state, day));
   state.chronicle.push(...arrangeMarriages(state, day, storesFill));
   state.chronicle.push(...extraWivesDay(state, day, storesFill));
@@ -396,9 +399,7 @@ function* simulateDaySteps(
   if (state.labor?.day === day && slaughteredToday?.day === day) {
     state.labor.slaughterHeads = { ...slaughteredToday.heads };
   }
-  // vojvodova rodina (lord.md): při hladu jde od zítřka na pole, po 30 dnech plného přídělu zpět;
-  // výcvik dne – kdo necvičil, zapomíná
-  state.chronicle.push(...lordFieldMode(state, day));
+  // vojvodova rodina (lord.md): výcvik dne – kdo necvičil (na poli ve žních), zapomíná
   // úlovek velkého lovu a maso do zásoby; den lovu je výcvik (wildlife.md – Lov rodu)
   const huntEvents = huntDay(state, day, lordField);
   state.chronicle.push(...huntEvents);

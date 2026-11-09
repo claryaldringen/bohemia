@@ -5,7 +5,7 @@ import type { PartInput } from '../actions';
 import { endOfSeason, expectedNetKg } from '../fields';
 import { expectedFlaxKg, flaxNeedKg, harvestFlax, linenCoverage, linenUnhappiness } from '../flax';
 import { happinessFactors } from '../happiness';
-import { sowingTargets } from '../field-food';
+import { storesOutlook } from '../field-food';
 
 import { ageGroup } from '../people';
 import { NO_CRAFTS } from '../productivity';
@@ -197,7 +197,10 @@ describe('len napřed – výběr s kapacitou (do Úlohy 5 pro páry k rádlům)
     // bez cíle osevu): hromada osiva okna, díl smí začít i v poslední den okna; dřív 152:979c21c8
     // 123:ac9d7796 (9. 11. 2026, díly jedna fronta bez stropu – fields.md, Osevní postup po
     // dílech, bod 3): ves bere všechny díly na řadě, pletí mužů po stavbách; dřív 154:0b8371f9
-    expect(fingerprint(plans)).toBe('123:ac9d7796');
+    // 149:b60f2983 (9. 11. 2026, zimní osivo a výhled zásob bez osiva, které ves ještě zaseje –
+    // fields.md, Zimní osivo a Výhled zásob k sklizni): ves v zimě šetří na jař – jiné zásoby
+    // a osev; dřív 123:ac9d7796
+    expect(fingerprint(plans)).toBe('149:b60f2983');
   });
 });
 
@@ -259,10 +262,10 @@ describe('len v simulaci', () => {
     const poor = JSON.parse(JSON.stringify(before)) as VillageState;
     poor.storesKg = 0;
     poor.legumesKg = 0;
-    const targets = sowingTargets(poor, at(601, 9, 1), 0, NO_CRAFTS.pottery);
+    const targets = storesOutlook(poor, at(601, 9, 1), 0, NO_CRAFTS.pottery);
     expect(targets.leftKg).toBeLessThan(targets.bufferKg);
     const all = poor.parts.reduce((sum, p) => sum + expectedNetKg(p, at(601, 9, 1)), 0);
-    expect(all).toBeLessThan(targets.energyFloorKg);
+    expect(all).toBeLessThan(targets.needKg);
     const planned = advanceVillage(poor, at(601, 9, 2), null);
     const flax = seasonCrop(planned.season, 'flax');
     expect(flax).toBeDefined();

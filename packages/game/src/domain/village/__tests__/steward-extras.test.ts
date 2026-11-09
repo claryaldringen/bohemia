@@ -13,7 +13,7 @@ import { bufferFill } from '../field-food';
 import { fieldWorkPerHa, NO_CRAFTS } from '../productivity';
 import { STEWARD } from '../rules-steward';
 import { advanceVillage } from '../simulate';
-import { fieldSowingTargets } from '../simulate-plan';
+import { fieldStoresOutlook } from '../simulate-plan';
 import { planSettlement } from '../steward-plan';
 import { newSteward } from '../steward-state';
 import {
@@ -586,7 +586,7 @@ describe('steward-extras – humno, ohrady, posvátná místa a cesty', () => {
   });
 
   it('pojistka: bufferFill mimo Nouzi (hlídá spuštění testu)', () => {
-    expect(bufferFill(fieldSowingTargets(grown, grown.lastDay, NO_CRAFTS))).toBeGreaterThanOrEqual(
+    expect(bufferFill(fieldStoresOutlook(grown, grown.lastDay, NO_CRAFTS))).toBeGreaterThanOrEqual(
       0,
     );
   });

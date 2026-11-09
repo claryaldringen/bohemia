@@ -19,7 +19,7 @@ import { fieldWorkPerHa } from './productivity';
 import { FIELD_LIMITS, FIELD_STORES, STORAGE_LOSS_PER_YEAR } from './rules-fields';
 import { DWELLINGS } from './rules-people';
 import { STEWARD, type StewardMonthDay, type StewardWindow } from './rules-steward';
-import { fieldSowingTargets } from './simulate-plan';
+import { fieldStoresOutlook } from './simulate-plan';
 import { fieldCells, planCentre, takenTiles, villageTerritory } from './steward-land';
 import { abandonStep } from './steward-abandon';
 import { extraSteps } from './steward-extras';
@@ -163,9 +163,9 @@ export function stewardMode(
 ): StewardMode {
   const hunger = state.starvationDays ?? 0;
   if (hunger > (state.steward?.lastHunger ?? 0)) return 'emergency';
-  if (bufferFill(fieldSowingTargets(state, day, coverage)) >= 1) return 'growth';
+  if (bufferFill(fieldStoresOutlook(state, day, coverage)) >= 1) return 'growth';
   if (hunger > 0) return 'recovery';
-  const withSeed = bufferFill(fieldSowingTargets(state, day, coverage, false));
+  const withSeed = bufferFill(fieldStoresOutlook(state, day, coverage, false));
   return withSeed < STEWARD.emergencyFill ? 'emergency' : 'recovery';
 }
 
@@ -238,7 +238,7 @@ export function fieldTarget(
     bufferKg(foodNeed),
     coverage.pottery,
   );
-  const targets = fieldSowingTargets(state, day, coverage);
+  const targets = fieldStoresOutlook(state, day, coverage);
   const missingKg = Math.max(0, targets.bufferKg - targets.leftKg);
   const refill =
     perPerson > 0 && outlook.bottleneck === 'land'

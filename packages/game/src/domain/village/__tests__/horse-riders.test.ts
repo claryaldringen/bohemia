@@ -81,10 +81,9 @@ describe('výcvik koně (horses.md – Výcvik koně a jezdec)', () => {
     trainHorsesDay(s, START, new Map([[LORD_ID, 1]]));
     s.horsesCaredToday = 1;
     trainHorsesDay(s, START, new Map([[SON_ID, 1]]));
-    s.lord = { trains: true, field: { since: START, reason: 'hunger' } };
-    trainHorsesDay(s, START, new Map([[LORD_ID, 1]]));
+    // v den na poli nikdo nejezdí (`trainLordDay` – prázdné jízdy), výcvik stojí
+    trainHorsesDay(s, START, new Map());
     expect(villageHorses(s)[0]!.training).toBe(0);
-    delete s.lord;
     trainHorsesDay(s, START, new Map([[LORD_ID, 1]]));
     expect(villageHorses(s)[0]!.training).toBeGreaterThan(0);
   });
@@ -145,13 +144,12 @@ describe('jízdy dne (horses.md – Kdy a kam se jezdí, dokud není lov)', () =
     // chlapec 11 let cvičí i v dnech na poli – na koni ale ne, místo jízdy luk
     const s = riding([horse(1, 5), horse(2, 6), horse(3, 7)]);
     expect(villageHorses(s).some((h) => h.riderId === YOUTH_ID)).toBe(true);
-    s.lord = { trains: true, field: { since: START, reason: 'hunger' } };
+    s.lord = { trains: true };
     const youth = s.people.find((p) => p.id === YOUTH_ID)!;
     const before = { ...youth.arms! };
     trainLordDay(s, START + 1, 1);
     expect(youth.arms!.riding).toBeLessThanOrEqual(before.riding);
     expect(youth.arms!.bow).toBeGreaterThan(before.bow);
-    expect(lordRides(s, START + 1)).toBeNull();
   });
 
   it('nepodkutý kůň: jezdec nedostává hodiny jízdy, cvičí luk a boj (horses.md – Kování)', () => {

@@ -7,7 +7,7 @@ import { neighbourStock } from '../neighbours';
 import { LEAVING, NEIGHBOR_DIRECTIONS, SEED_BUYING, TRADE } from '../rules';
 import { reservedSeedKg, sowableSeedKg, foodUntilHarvestKg, windowSeedNeedKg } from '../seed';
 import { buySeed, seedBuyingDay, seedShortKg } from '../seed-buying';
-import { fieldSowingTargets } from '../simulate-plan';
+import { fieldStoresOutlook } from '../simulate-plan';
 import { NO_CRAFTS } from '../productivity';
 import { advanceVillage } from '../simulate';
 import { buyPrice, sellPrice } from '../trade';
@@ -203,8 +203,8 @@ describe('osivo pro ves bez zásob (fields.md – Osivo pro ves bez zásob)', ()
       expect(s.reservedSeedKg).toBe(1000);
     }
     // lhůta osiva cíle osevu: osivo zakladatelů jídlem není, po lhůtě ano
-    const before = fieldSowingTargets(s, at(601, 9, 1), NO_CRAFTS).leftKg;
-    const after = fieldSowingTargets(s, at(602, 9, 1), NO_CRAFTS).leftKg;
+    const before = fieldStoresOutlook(s, at(601, 9, 1), NO_CRAFTS).leftKg;
+    const after = fieldStoresOutlook(s, at(602, 9, 1), NO_CRAFTS).leftKg;
     expect(after).toBeGreaterThan(before);
     // po lhůtě 1. 6. obyčejné zrno a značka lhůty zmizí
     seedBuyingDay(s, at(602, 6, 1));

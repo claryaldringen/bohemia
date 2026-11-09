@@ -3,13 +3,12 @@ import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import { craftCoverage, craftHouseholds, craftLightLabor } from '../crafts';
 import { allocateDay } from '../labor';
-import { lordFieldMode, manorLabor, trainLordDay } from '../lord';
+import { manorLabor, trainLordDay, withoutSowingHelp } from '../lord';
 import { laborPerDay } from '../people';
 import { dailyMinPerHousehold, NO_CRAFTS } from '../productivity';
-import { LORD } from '../rules';
 import { advanceVillage } from '../simulate';
 import { sowingCapacity, villageProductivity } from '../simulate-plan';
-import type { Person, VillageState } from '../types';
+import type { FarmSeason, Person, VillageState } from '../types';
 import { DAY, couple, dwelling, kin, village, type KinSpec } from './kin-fixtures';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
@@ -64,7 +63,7 @@ describe('rodina mimo práci vsi (lord.md – Den rodiny)', () => {
     const p = villageProductivity(s, coverage);
     const manor = manorLabor(s, START + 1, coverage.pottery, p);
     expect(manor.dailyMin).toBeGreaterThan(0);
-    expect(manor.field).toBe(0);
+    expect(manor.help).toBe(0);
     const next = advanceVillage(s, START + 1, null);
     // ves dala jen práci 4 dospělých mimo rodinu (dřív 8), k tomu minimum dvorce v domácí práci
     expect(sumShares(next)).toBeCloseTo(4 * p + manor.dailyMin, 1);
@@ -90,30 +89,22 @@ describe('rodina mimo práci vsi (lord.md – Den rodiny)', () => {
   }, 60_000);
 });
 
-describe('zásobník lordField v rozdělení dne', () => {
+describe('zásobník lordHelp v rozdělení dne (rodina ve žních)', () => {
   const base = { householdElders: [0], potteryCoverage: NO_CRAFTS.pottery };
-  it('nepokryje stavby, pokryje sklizeň; co nevyužije, propadne', () => {
+  it('pokryje jen žeň a výmlat, které ves nestihne; co nevyužije, propadne', () => {
     const r = allocateDay({
       ...base,
       capacity: 0,
-      lordField: 3,
-      tasks: [{ name: 'harvest', remaining: 1 }],
+      lordHelp: 3,
+      tasks: [
+        { name: 'sow', remaining: 1 },
+        { name: 'harvest', remaining: 1 },
+      ],
     });
+    expect(r.tasks.sow).toBe(0);
     expect(r.tasks.harvest).toBeCloseTo(1);
     expect(r.lordField).toBeCloseTo(1);
     expect(r.common).toBe(0);
-  });
-  it('pořadí: lehká práce, rodina, obecná kapacita', () => {
-    const r = allocateDay({
-      ...base,
-      capacity: 2,
-      light: 0.5,
-      lordField: 0.25,
-      tasks: [{ name: 'sow', remaining: 1 }],
-    });
-    expect(r.tasks.sow).toBeCloseTo(1);
-    expect(r.lordField).toBeCloseTo(0.25);
-    expect(r.common).toBeCloseTo(2 - dailyMinPerHousehold(NO_CRAFTS.pottery) - 0.25);
   });
   it('minimum dvorce, které rodina nepokryje, jde z práce vsi', () => {
     const r = allocateDay({ ...base, capacity: 2, manorMin: 0.3, tasks: [] });
@@ -121,40 +112,30 @@ describe('zásobník lordField v rozdělení dne', () => {
   });
 });
 
-describe('hlad – rodina na poli (lord.md – Kdy jde rodina na pole)', () => {
-  it('den po začátku hladu na poli, návrat po 30 dnech plného přídělu; kronika dvakrát', () => {
+describe('hlad – rodina na pole nejde (lord.md – Kdy jde rodina na pole; Martin 9. 11. 2026)', () => {
+  it('při hladu rodina cvičí dál – na pole jde jen ve žních', () => {
     const s = lordVillage();
     s.storesKg = 0;
     const hungry = advanceVillage(s, START + 3, null);
     expect(hungry.chronicle.filter((e) => e.kind === 'hunger-began')).toHaveLength(1);
-    const began = hungry.chronicle.find((e) => e.kind === 'lord-to-field')!;
-    expect(began.day).toBe(START + 1);
-    expect(hungry.lord?.field).toEqual({ since: START + 1, reason: 'hunger' });
-    const fed = structuredClone(hungry);
-    fed.storesKg = 50_000;
-    const almost = advanceVillage(fed, START + 3 + LORD.backToTrainingDays - 1, null);
-    expect(almost.lord?.field).toBeDefined();
-    const back = advanceVillage(almost, START + 3 + LORD.backToTrainingDays, null);
-    expect(back.lord).toEqual({ trains: true });
-    expect(back.chronicle.filter((e) => e.kind.startsWith('lord-')).map((e) => e.kind)).toEqual([
-      'lord-to-field',
-      'lord-to-training',
-    ]);
-    // chlapec 11 cvičí i při hladu
-    expect(back.people.find((p) => p.id === 14)?.arms?.bow).toBeGreaterThan(0);
+    expect(hungry.chronicle.some((e) => e.kind === 'lord-to-field')).toBe(false);
+    expect(hungry.lord).toEqual({ trains: true });
+    expect(hungry.labor?.lord?.field).toBe(0);
   }, 60_000);
 
-  it('střídání přídělu nevrátí rodinu dřív (hystereze)', () => {
+  it('převod: rodina na poli z doby pomoci při hladu a pomoc s osevem zmizí – jednou', () => {
     const s = village([kin({ id: 1, age: 40, sex: 'male' })], [dwelling(1)], {
       lord: { trains: true },
     });
-    const kinds: string[] = [];
-    for (let d = 0; d < 60; d++) {
-      s.hungry = d % 20 === 0;
-      kinds.push(...lordFieldMode(s, DAY + d).map((e) => e.kind));
-    }
-    expect(kinds).toEqual(['lord-to-field']);
-    expect(s.lord?.fedDays).toBe(19);
+    const legacy = s as VillageState & { lord: { field?: unknown; fedDays?: number } };
+    legacy.lord.field = { since: DAY, reason: 'hunger' };
+    legacy.lord.fedDays = 3;
+    s.season = { startDay: DAY, lordHelp: { autumnWinter: 0.3, july: 0.2 } } as FarmSeason;
+    const next = withoutSowingHelp(s);
+    expect(next.lord).toEqual({ trains: true });
+    expect(next.season?.lordHelp).toEqual({ july: 0.2 });
+    expect(legacy.lord.fedDays).toBe(3);
+    expect(withoutSowingHelp(next)).toBe(next);
   });
 });
 
@@ -183,13 +164,13 @@ describe('výcvik den po dni (lord.md – Výcvik a zkušenost)', () => {
     expect(arms(10).combat).toBeLessThan(15);
     expect(arms(30).bow).toBeCloseTo(76, 0);
   });
-  it('na poli celý den muži zapomínají, chlapci cvičí dál', () => {
+  it('na poli celý den (žně) muži zapomínají, chlapci cvičí dál', () => {
     const s = village(
       [...specs, { id: 13, age: 9, sex: 'male' as const, father: 10, mother: 11 }].map((k) =>
         kin(k),
       ),
       [dwelling(1), dwelling(2)],
-      { lord: { trains: true, field: { since: DAY, reason: 'hunger' } } },
+      { lord: { trains: true } },
     );
     s.people.find((p) => p.id === 12)!.arms = { bow: 50, combat: 50, riding: 0 };
     trainLordDay(s, DAY + 1, 1);
@@ -245,11 +226,10 @@ describe('cvičící rodina a plánování (lord.md – Den rodiny)', () => {
     expect(craftLightLabor(s, day, craftHouseholds(s), coverage.pottery, p)).toBe(0);
     const boy = s.people.find((x) => x.id === 14)!;
     expect(laborPerDay(boy, day)).toBe(0);
-    const hungry = lordVillage();
-    hungry.lord = { trains: true, field: { since: START, reason: 'hunger' } };
-    const field = manorLabor(hungry, day, coverage.pottery, p).field;
-    const adults = hungry.people.filter((x) => [10, 11, 12, 13].includes(x.id));
+    // ve žních dá rodina podíl dne celé práce dospělých po minimu dvorce (muži i ženy)
+    const manor = manorLabor(s, day, coverage.pottery, p);
+    const adults = s.people.filter((x) => [10, 11, 12, 13].includes(x.id));
     const capacity = adults.reduce((sum, x) => sum + laborPerDay(x, day), 0) * p;
-    expect(field).toBeCloseTo(capacity - manorLabor(hungry, day, coverage.pottery, p).dailyMin, 5);
+    expect(manor.free).toBeCloseTo(capacity - manor.dailyMin, 5);
   });
 });

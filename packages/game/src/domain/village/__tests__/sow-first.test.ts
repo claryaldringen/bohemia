@@ -162,11 +162,14 @@ describe('osev má přednost (fields.md – Osivo ze zásob; Martin 6. 11. 2026)
     expect(uneatenSeedKg(s)).toBeCloseTo(work.seedKg, 6);
     settleSowingSeed(s, lastDay);
     expect(uneatenSeedKg(s)).toBe(0);
-    // den po okně se osivo zvlášť nedrží
+    // den po okně drží ves zimní osivo na jarní díly (fields.md – Zimní osivo) – jí jen zbytek
     expect(sowingWindowCrop(s, lastDay + 1)).toBeNull();
     sowingSeedDay(s, lastDay + 1);
-    expect(s.sowingSeed).toBeUndefined();
-    expect(dayMealInput(s, lastDay + 1, 0, 1).grainKg).toBe(s.storesKg);
+    expect(s.sowingSeed?.beforeWindow).toBe(true);
+    expect(dayMealInput(s, lastDay + 1, 0, 1).grainKg).toBeCloseTo(
+      s.storesKg - s.sowingSeed!.kg,
+      6,
+    );
     // jař: okno do konce dubna (bez dlouhé zimy), mimo okna nic
     expect(sowingWindowCrop(s, at(601, 4, 30))).toBe('spring');
     expect(sowingWindowCrop(s, at(601, 5, 1))).toBeNull();

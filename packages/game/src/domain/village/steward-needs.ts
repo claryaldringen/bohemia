@@ -6,7 +6,7 @@ import { ageGroup } from './people';
 import { NEIGHBOR_DIRECTIONS } from './rules';
 import { STEWARD } from './rules-steward';
 import { FIELD_DAMAGE } from './rules-wildlife';
-import { fieldSowingTargets } from './simulate-plan';
+import { fieldStoresOutlook } from './simulate-plan';
 import { stewardAction, type StewardContext } from './steward';
 import {
   buyPrice,
@@ -44,10 +44,10 @@ export interface GrainDeal {
 
 /**
  * Krok 2a (mutuje stav): výprava za obilím, když hrozí hlad, a lov navíc, když zvěř škodí. Oba
- * podle výhledu zásob do žní (`fieldSowingTargets` – tentýž, ze kterého počítá režim a pojistku).
+ * podle výhledu zásob do žní (`fieldStoresOutlook` – tentýž, ze kterého počítá režim a pojistku).
  */
 export function needSteps(state: VillageState, ctx: NeedContext): void {
-  const targets = fieldSowingTargets(state, ctx.day, ctx.coverage);
+  const targets = fieldStoresOutlook(state, ctx.day, ctx.coverage);
   grainStep(state, ctx, targets.shortKg);
   if (huntWanted(state, ctx.day, targets.needKg) && declareHunt(state, ctx.day) === null) {
     countSummerHunt(state, ctx.day);

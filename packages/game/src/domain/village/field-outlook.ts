@@ -40,8 +40,8 @@ const EPSILON = 1e-9;
 export type OutlookStep = 'prep' | 'sow' | 'harvest';
 
 /**
- * Práce, která do konce okna nestačí (zátěž okna nad volnou prací vsi i s pomocí cvičící rodiny
- * vojvody – `sowingCapacity` s `lord`, jako `lordSowingHelp`). Příprava a setí mají jedno okno
+ * Práce, která do konce okna nestačí (zátěž okna nad volnou prací vsi, ve žních i s pomocí
+ * cvičící rodiny vojvody – `sowingCapacity` s `lord`, jako `lordHarvestHelp`). Příprava a setí mají jedno okno
  * (ozim září–říjen, jař, luštěniny a len do konce dubna – podzim napřed), sklizeň všech plodin
  * jedno do konce srpna (ozim, luštěniny a len v červenci, co nestihnou, v srpnu před jaří –
  * fields.md, Žně i v srpnu; v srpnu i výmlat ozimu).
@@ -92,8 +92,8 @@ function cropWindows(crop: Crop): { sow: OutlookWindow; harvest: OutlookWindow }
 /**
  * Chybějící práce po oknech (jen okna, která letos ještě běží nebo přijdou, a kde chybí): zbytek
  * letošní práce (`planLoad` – i se sklizní jablek) proti volné práci
- * vsi do konce hospodářského roku (`sowingCapacity` i s cvičící rodinou – ta pomáhá, když ves
- * nestíhá). Jař jako `lordSowingHelp`: vrácení a kopání napřed na podzim, co po ozimu zbude,
+ * vsi do konce hospodářského roku (`sowingCapacity` i s cvičící rodinou – ta pomáhá jen ve žních,
+ * když ves nestíhá). Jař: vrácení a kopání napřed na podzim, co po ozimu zbude,
  * zbytek se setím na jaře; žeň, kterou červenec nestihne, se žne v srpnu (`harvestOverflow`).
  */
 function seasonShortfalls(

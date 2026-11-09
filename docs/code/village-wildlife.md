@@ -121,16 +121,15 @@ windowDays` (ozim 61, jař 92) denně na každý nesklizený ohrožený díl. Mi
   jednou, `dogs` pak existuje) a dál 1. 5. (`wildlifeYearDay`: −10 %, nakrmená smečka dostane nejvýš 2 štěňata do chtěného počtu). `feedDogs` (`simulate-food.ts`,
   za `feedHorseGrain`) odebírá 0,3 kg obilí na psa ze zásob; hladová ves nebo nedostatek do sklizně
   (po odečtení obilí koní) = `fed = false`, štěňata nepřibudou. Obilí psů je i ve výhledu osevu
-  (`sowingTargets` – `dogGrainToday`). Do lovu jde `huntingDogs` = celé kusy; psi jdou k pěším od
+  (`storesOutlook` – `dogGrainToday`). Do lovu jde `huntingDogs` = celé kusy; psi jdou k pěším od
   nejsilnějšího, pěší bez psa má poloviční sílu.
 - **Ráno** (`planHuntDay` v `simulateDay` po `wildlifeYearDay`, před `work()`): `hunt.today`
   (`HuntDay { target, riders, foot, extra }`). Kalendář `huntSeasonIndex`: 1. 11. + 7k dní do
   konce února (18 dní, leden a únor se počítají od 61. dne sezóny); mimo ně `extraDay` (W5). Rodina
   musí cvičit (`trainingFamily`). Jezdec = muž s koněm po `assignRiders` (nepodkutý kůň –
   `isUnshod` – nejezdí, všichni pěšky); jezdec jede jen když `ridesBetter` (příspěvek na prasata
-  i jeleny podle `HUNT.base` ≥ pěšího se psem), jinak jde pěšky. Rodina na poli (`state.lord.field`)
-  neloví vůbec (`pool.manor` se přeskočí), odešlí synové ano; `huntDay` při
-  `lordFieldShare > 0` vyřadí i pěší muže dvorce. Cíl: **medvěd** (listopad, každý druhý lov, jen když je;
+  i jeleny podle `HUNT.base` ≥ pěšího se psem), jinak jde pěšky. Rodina na poli ve žních –
+  `huntDay` při `lordFieldShare > 0` vyřadí jezdce i pěší muže dvorce, odešlí synové ano. Cíl: **medvěd** (listopad, každý druhý lov, jen když je;
   všichni pěšky), **vlci** (aspoň 2 dny škod v `predation.killDays` za 30 dní, ≥ 1 vlk), jinak
   **prasata a jeleni zároveň**. Pěší jsou mimo `villagersToday` (`huntFootIds`) – nepracují.
 - **Úlovek** (`huntDay` před `trainLordDay`, dostane `lordField`): síla jezdce `riderPower ÷ 100 × (0,5 + 0,5 × luk ÷ 100)`, pěšího `(luk + boj) ÷ 200`

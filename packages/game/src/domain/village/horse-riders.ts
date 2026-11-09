@@ -71,7 +71,8 @@ export function assignRiders(
  * Výcvik koní dne (horses.md – Výcvik koně a jezdec; mutuje stav): kůň roste o denní přírůstek
  * krát podíl dne, který jeho jezdec dnes cvičil (`riding` – id jezdce → podíl 0–1). Bez obilí
  * (`horsesFed === false`) polovičním tempem (Martin 22. 10. 2026: „zpomalí“), bez plné péče
- * (`horsesCaredToday` < 1 – recenze úlohy 5) a ve dnech rodiny na poli (`lord.field`) stojí.
+ * (`horsesCaredToday` < 1 – recenze úlohy 5) a ve dnech rodiny na poli (žně – nikdo nejezdí,
+ * `riding` prázdné) stojí.
  * Plný výcvik zůstane; při jeho dosažení kronika `horse-trained`.
  */
 export function trainHorsesDay(
@@ -79,7 +80,7 @@ export function trainHorsesDay(
   day: number,
   riding: ReadonlyMap<number, number>,
 ): ChronicleEvent[] {
-  if (riding.size === 0 || state.lord?.field) return [];
+  if (riding.size === 0) return [];
   if ((state.horsesCaredToday ?? 0) < 1 - EPSILON) return [];
   // nepodkuté koně nejezdí, výcvik stojí (horses.md – Kování)
   if (isUnshod(state, day)) return [];

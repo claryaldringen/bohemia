@@ -154,8 +154,6 @@ describe('jezdecká hlídka (wildlife.md – Jezdecká hlídka)', () => {
     expect(riderPatrol(none, JUNE).cut).toBeLessThan(riderPatrol(dogs, JUNE).cut);
     expect(riderPatrol(guardVillage(0, 3), JUNE).cut).toBe(0);
     expect(riderPatrol(dogs, at(600, 11, 5)).cut).toBe(0);
-    dogs.lord!.field = { since: JUNE, reason: 'hunger' };
-    expect(riderPatrol(dogs, JUNE).cut).toBe(0);
   });
 
   it('hlídka sníží denní hrozbu dílů o svůj podíl', () => {

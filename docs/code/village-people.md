@@ -55,10 +55,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     s hysterezí; chybí = rodina pracuje jako ostatní, i ve starší vsi – převod netřeba).
     Cvičící rodina je mimo práci vsi, `manorLabor` kryje minimum dvorce (starší, pak dospělí
     rodiny; zbytek žen propadne). `LaborDay.lord` = počty `{ training, field, household }`.
-  - **Hlad:** `lordFieldMode` po jídle dne – `state.hungry` → `lord.field = { since, reason:
-'hunger' }` (kronika `lord-to-field`), rodina dá od zítřka práci dospělých po minimu do úloh
-    dne (`lordField`); po `LORD.backToTrainingDays` (30) dnech plného přídělu po sobě
-    (`lord.fedDays`) zpět (`lord-to-training`).
+  - **Na pole jen ve žních** (lord.md – Kdy jde rodina na pole; Martin 9. 11. 2026): celá
+    rodina ve vsi dá ve žňový den podíl z plánu (`manorLabor.help` – `lordHelpDay`,
+    [village-fields.md](village-fields.md) – Rodina ve žních). Pomoc při hladu (`lordFieldMode`,
+    `lord.field`, `lord.fedDays`, kronika `lord-to-field` / `lord-to-training`) zrušená – převod
+    `withoutSowingHelp` (`lord.ts`) je smaže; staré zápisy kroniky web dál umí.
   - **Výcvik:** `trainLordDay` po jídle – cvičící `trainArms`, dospělí jen
     `1 − podíl práce na poli`, chlapci 7–13 vždy; kdo necvičí a má `arms`, `decayArms`. Jízdu
     (`trainingHours(…, hasHorse)`) cvičí jen jezdec s koněm – páry `assignRiders`
@@ -204,7 +205,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   vdova, dědička ani žena z domu bez mužů ne); v hladu a do přeplněného domu z okolí nikdo.
   **Čekání na zásoby** (kinship.md – Sňatky čekají na zásoby; Martin 27. 10. 2026):
   `arrangeMarriages(state, day, storesFill)` a `extraWivesDay(…, storesFill)` – `simulate.ts`
-  předá líně počítané naplnění pojistky `bufferFill(fieldSowingTargets(…))` (`field-food.ts`,
+  předá líně počítané naplnění pojistky `bufferFill(fieldStoresOutlook(…))` (`field-food.ts`,
   výhled `leftKg` / `bufferKg`, jednou za den, jen když je svatba na řadě; v hájení – `inLuckyYears`
   – vždy 1). Pod 1 se svatba ve vsi
   koná s denní šancí `weddingChancePerDay(null, fill)` (střední odklad

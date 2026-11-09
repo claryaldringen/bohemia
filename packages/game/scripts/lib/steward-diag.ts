@@ -15,7 +15,7 @@ import {
   yearlyFoodNeed,
   type VillageState,
 } from '../../src/domain/village';
-import { fieldSowingTargets, sowingCapacity } from '../../src/domain/village/simulate-plan';
+import { fieldStoresOutlook, sowingCapacity } from '../../src/domain/village/simulate-plan';
 import { stewardOutlook, type StewardOutlook } from '../../src/domain/village/steward-outlook';
 import { stewardCrowded, stewardFieldRoom } from '../../src/domain/village/steward-son';
 import type { ChunkView } from './steward-measure';
@@ -33,7 +33,6 @@ export interface SeptemberView {
   storesKg: number;
   needYearKg: number;
   fieldShare: number;
-  plannedKg: number;
   leftKg: number;
   bufferKg: number;
   /** Cíl polí v lidech – potřeba / uživí. */
@@ -130,7 +129,7 @@ export function stewardDiag(foundDay: number): {
     if (s.hungry) r.hungryChunks++;
     const coverage = craftCoverage(s, view.to);
     r.mode[stewardMode(s, view.to, coverage)]++;
-    const targets = fieldSowingTargets(s, view.to, coverage);
+    const targets = fieldStoresOutlook(s, view.to, coverage);
     r.bufferSum += bufferFill(targets);
     const days = view.to - view.from;
     for (const share of s.labor?.shares ?? []) {
@@ -168,7 +167,7 @@ function september(
   view: ChunkView,
   s: VillageState,
   coverage: ReturnType<typeof craftCoverage>,
-  targets: ReturnType<typeof fieldSowingTargets>,
+  targets: ReturnType<typeof fieldStoresOutlook>,
 ): SeptemberView {
   const day = view.to;
   const outlook = stewardOutlook(s, day, coverage);
@@ -186,7 +185,6 @@ function september(
     storesKg: Math.round(s.storesKg),
     needYearKg: Math.round(yearlyFoodNeed(s, day)),
     fieldShare: Math.round(fieldFoodShare(s) * 100) / 100,
-    plannedKg: Math.round(targets.harvestKg),
     leftKg: Math.round(targets.leftKg),
     bufferKg: Math.round(targets.bufferKg),
     targetNeed: Math.round(target.need * 10) / 10,
@@ -237,7 +235,7 @@ export function formatDiag(villages: readonly DiagVillage[]): string {
   for (const v of villages) {
     lines.push(`--- ves ${v.index}${v.index === 0 ? ' (mateřská)' : ''} od roku ${v.foundYear}`);
     lines.push(
-      ' rok lidé dosp  zásoby potřeba plán sklizeň  ha/oseto/zakl  chůze pojistka hlad† N/O/R  cíl potř/uživí  kapacita pod/jaro  výhled práce/osivo/půda ha hrdlo  přelid/kam  práce  stavby',
+      ' rok lidé dosp  zásoby potřeba sklizeň  ha/oseto/zakl  chůze pojistka hlad† N/O/R  cíl potř/uživí  kapacita pod/jaro  výhled práce/osivo/půda ha hrdlo  přelid/kam  práce  stavby',
     );
     for (const y of v.years) {
       const s = y.sep;
@@ -247,7 +245,7 @@ export function formatDiag(villages: readonly DiagVillage[]): string {
         [
           String(y.year).padStart(3),
           s ? `${s.people} ${s.adults}` : '- -',
-          s ? `${s.storesKg} ${s.needYearKg} ${s.plannedKg}` : '- - -',
+          s ? `${s.storesKg} ${s.needYearKg}` : '- -',
           String(Math.round(y.harvestKg)),
           `${s?.ha ?? '-'}/${y.june?.haSown ?? '-'}/${s?.haFounding ?? '-'}`,
           `${s?.walkM ?? '-'}m`,

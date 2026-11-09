@@ -40,8 +40,9 @@ export const HARVEST_HANDS_MONTHS: ReadonlySet<number> = new Set(
 /**
  * Je dnes žňový den (fields.md – Žně všemi rukama)? Měsíc okna žní nebo výmlatu a ves má v jeho
  * okně ještě co sklízet (plán) nebo opravdu jde mlátit (snopy a humno či nouzový výmlat –
- * `threshTasks`; ves bez humna se snopy, které nesmí mlátit, žňový den nemá) – pak jdou na pole i řemeslníci se syny
- * a cvičící muži vojvodovy rodiny; jinak dělají řemeslo a cvičí.
+ * `threshTasks`; ves bez humna se snopy, které nesmí mlátit, žňový den nemá) – pak jdou na pole i
+ * řemeslníci se syny (jinak dělají řemeslo) a vojvodova rodina, když ves žně sama nestíhá
+ * (`manorLabor` – `help`).
  */
 export function harvestHandsDay(state: VillageState, day: number): boolean {
   const { month } = dateOfDayIndex(day);

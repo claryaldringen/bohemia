@@ -5,7 +5,7 @@ import { createRandom, deriveSeed } from '../landscape/random';
 import { CELL_SIZE_M, LANDSCAPE_SIZE } from '../landscape/types';
 import { craftNeeds, craftStocks, craftTargets, occupiedWorkshops } from './crafts';
 import { toolEquipmentKg } from './iron';
-import { sowingTargets } from './field-food';
+import { storesOutlook } from './field-food';
 import { expectedNetKg } from './fields';
 import { villageLaborFactor } from './happiness';
 import { lordApartIds } from './lord';
@@ -289,10 +289,10 @@ export interface PaymentPool {
 }
 
 /**
- * Přebytek obilí a luštěnin nad pojistkou zásob (field-food.ts – `sowingTargets`). S `intoBuffer`
+ * Přebytek obilí a luštěnin nad pojistkou zásob (výhled zásob – field-food.ts, `storesOutlook`). S `intoBuffer`
  * smí platba sáhnout i do pojistky – ne pod nulu zásob k příští sklizni (nutný malý výdaj, např.
  * kování koní – horses.md, Kování). Vymlácené zrno k platbě je bez zrna na dnešní jídlo
- * (`foodGrainReserveKg` – jako výmlat na dnešní jídlo), hromady osiva okna a osiva jen na setí
+ * (`foodGrainReserveKg` – jako výmlat na dnešní jídlo), hromady osiva (okno i zimní osivo) a osiva jen na setí
  * (oprava, návrh Clauda 9. 11. 2026: Vlkov 1. 8. 873 zaplatil kování 41 kg vymláceného zrna
  * a příděl dne spadl na 0,55 – pojistka počítá i snopy, které se teprve vymlátí).
  */
@@ -302,10 +302,15 @@ export function paymentPool(
   coverage: CraftCoverage,
   intoBuffer = false,
 ): PaymentPool {
-  // hromadu osiva okna setí a osivo jen na setí ves nezaplatí (jako `fieldSowingTargets`)
-  const targets = sowingTargets(state, day, coverage.pottery, seedOutsideFoodKg(state, day));
+  // osivo, které ves ještě zaseje, a osivo jen na setí ves nezaplatí (jako `fieldStoresOutlook`)
+  const outlook = storesOutlook(
+    state,
+    day,
+    coverage.pottery,
+    seedOutsideFoodKg(state, day, coverage.tools),
+  );
   return {
-    energyKg: Math.max(0, targets.leftKg - (intoBuffer ? 0 : targets.bufferKg)),
+    energyKg: Math.max(0, outlook.leftKg - (intoBuffer ? 0 : outlook.bufferKg)),
     grainKg: Math.max(
       0,
       state.storesKg - uneatenSeedKg(state) - foodGrainReserveKg(villageFoodNeed(state, day)),

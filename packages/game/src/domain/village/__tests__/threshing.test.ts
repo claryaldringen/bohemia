@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage, type PartInput } from '../actions';
 import { eatDiet } from '../diet';
-import { fieldStoresKg, sowingTargets } from '../field-food';
+import { fieldStoresKg, storesOutlook } from '../field-food';
 import { NO_CRAFTS, storageLossPerYear } from '../productivity';
 import { THRESHING } from '../rules';
 import { advanceVillage } from '../simulate';
@@ -436,11 +436,10 @@ describe('výhled jídla a plán osevu', () => {
       none.storesKg + 800 * (1 - THRESHING.emergencyLoss) + 50,
       9,
     );
-    // plán osevu počítá snopy jako zásobu – cíl osevu menší
-    const withSheavesTarget = sowingTargets(floor, day, NO_CRAFTS.pottery);
-    const withoutTarget = sowingTargets(none, day, NO_CRAFTS.pottery);
+    // výhled zásob počítá snopy jako zásobu
+    const withSheavesTarget = storesOutlook(floor, day, NO_CRAFTS.pottery);
+    const withoutTarget = storesOutlook(none, day, NO_CRAFTS.pottery);
     expect(withSheavesTarget.leftKg).toBeGreaterThanOrEqual(withoutTarget.leftKg);
-    expect(withSheavesTarget.harvestKg).toBeLessThanOrEqual(withoutTarget.harvestKg);
   });
 
   it('jídlo: výhled se snopy nehladoví, jí se jen vymlácené obilí', () => {

@@ -146,7 +146,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   řemeslníka (`ownCraftsmanWorks` – dílna bez vstupů se nepočítá) chybí do `craftTargets` –
   nejbližší soused s řemeslníkem (`purchaseRoute`: po hotové stezce `trailTripDays`, jinak krajinou
   ke kraji mapy × 1,5 a den navíc), cena `productPrice` (0,96 hodnoty), platba obilím nebo
-  luštěninami z přebytku nad pojistkou (`sowingTargets` – `leftKg − bufferKg`) nejlevnější v práci
+  luštěninami z přebytku nad pojistkou (`storesOutlook` – `leftKg − bufferKg`) nejlevnější v práci
   (`villageFoodCosts`; u nástrojů při pokrytí po nákupu), skupina polovina dospělých (nejvýš 8)
   po 25 kg, nejvýš 60 dní; koupí, když práce ušetřená za dobu služby (1 ÷ opotřebení let –
   nástroje polní práce a seč, keramika ztráty zásob a denní minimum, dřevěné nářadí práce vsi)

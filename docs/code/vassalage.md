@@ -514,7 +514,7 @@ kroku (`domain-allocation.ts`), rozhodnutí a doprava v kroku světa.
   (osivo, jídlo do žní a doplnění pojistky dohromady = pojistka vazalství, návrh Clauda k otázce 1
   plánu) a dobytek `cattleSpare` (nad chovné jádro; export ze `spare.ts`). Ves v hladu nic.
   Pravidlo „napřed obilí, dobytek jen na to, co obilí nepokryje“ (otázka 2) patří do rozdělení.
-- `domainNeedKg` – `fieldSowingTargets(…).shortKg`, týž výhled jako správce v nouzi; ves bez lidí 0.
+- `domainNeedKg` – `fieldStoresOutlook(…).shortKg`, týž výhled jako správce v nouzi; ves bez lidí 0.
   Mezi vsemi se bere jen potřeba od `DOMAIN_FOOD.minNeedKg` (rozdělení).
 - `cattleFoodKg` – kus dobytka = `meatEnergy(LIVESTOCK.meatKg.cow)` kg obilí (72).
 - `villageFoodBalance` – `{ growsKg, needsKg }` pro panel rodu: průměrná čistá sklizeň

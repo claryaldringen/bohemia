@@ -8,7 +8,7 @@ import {
   fieldFoodShare,
   fieldShareOf,
   recordFieldFood,
-  sowingTargets,
+  storesOutlook,
   steadyHarvestKg,
   storesTargetKg,
   storesLeft,
@@ -131,98 +131,55 @@ describe('zásoby za rok – spotřeba a ztráty skladováním', () => {
   });
 });
 
-describe('cíl osevu podle zásob', () => {
+describe('výhled zásob k sklizni', () => {
   const day = at(600, 9, 1);
   const loss = storageLossPerYear(NO_CRAFTS.pottery);
-  const targetsOf = (s: VillageState): ReturnType<typeof sowingTargets> =>
-    sowingTargets(s, day, NO_CRAFTS.pottery);
+  const targetsOf = (s: VillageState): ReturnType<typeof storesOutlook> =>
+    storesOutlook(s, day, NO_CRAFTS.pottery);
   // potřeba podle růstu vsi – do sklizně 31. 8. a rok po ní (Osev podle růstu vsi)
   const harvestDay = day + daysUntilHarvest(day) - 1;
   const yearlyNow = (s: VillageState): number => expectedYearlyFoodNeed(s, day, day, harvestDay);
   const yearlyNext = (s: VillageState): number =>
     expectedYearlyFoodNeed(s, day, harvestDay + 1, harvestDay + 365);
 
-  it('prázdné zásoby: úroda rok co rok, pojistka hned, cílová zásoba nad ní po třetinách', () => {
+  it('prázdné zásoby: potřeba podle růstu vsi, pojistka z celé energie, nic nezbude', () => {
     const s = village(0);
     const today = s.people.reduce((sum, p) => sum + (day - p.bornDay < 14 * 365.25 ? 100 : 180), 0);
     expect(yearlyFoodNeed(s, day)).toBe(today);
     expect(today).toBe(2 * FOOD_NEED_KG_PER_YEAR.adult + 2 * FOOD_NEED_KG_PER_YEAR.child);
-    // děti (12 a 13 let) do roku po sklizni dorostou – ves seje na větší potřebu než dnešní
+    // děti (12 a 13 let) do roku po sklizni dorostou – potřeba větší než dnešní
     const need = yearlyNext(s);
     expect(need).toBeGreaterThan(today * 1.15);
     // bez změřeného podílu celá potřeba energie
     const t = targetsOf(s);
     const buffer = FIELD_STORES.bufferEnergyYears * need;
-    const keep = storesTargetKg(need, buffer);
-    expect(keep).toBeCloseTo(buffer + FIELD_STORES.cushionYears * need, 9);
     expect(t.needKg).toBeCloseTo(need, 9);
     expect(t.bufferKg).toBeCloseTo(buffer, 9);
     expect(t.leftKg).toBe(0);
-    const steady = storesNeeded(keep, need, 1, loss) - keep;
-    expect(t.harvestKg).toBeCloseTo(
-      steady + buffer + (keep - buffer) / FIELD_STORES.balanceYears,
-      9,
-    );
-    expect(t.energyFloorKg).toBeCloseTo(need, 9);
+    const years = daysUntilHarvest(day) / 365;
+    expect(t.shortKg).toBeCloseTo(storesNeeded(0, yearlyNow(s), years, loss), 6);
   });
 
-  it('zásoby na cílové zásobě: úroda rok co rok jako ustálený stav; pojistka z celé energie', () => {
+  it('zásoby na cílové zásobě: zbude cílová zásoba, nic nechybí; pojistka z celé energie', () => {
     const s = village(0);
     s.fieldFood = { needKg: 0, fieldKg: 0, share: 0.4 };
     const yearly = yearlyNext(s);
     const need = 0.4 * yearly;
     const buffer = FIELD_STORES.bufferEnergyYears * yearly;
     const keep = storesTargetKg(need, buffer);
+    expect(keep).toBeCloseTo(buffer + FIELD_STORES.cushionYears * need, 9);
     const years = daysUntilHarvest(day) / 365;
     // zásoba, ze které k příští sklizni zbude právě cílová zásoba – do sklizně jí dnešní lidé
     s.storesKg = storesNeeded(keep, 0.4 * yearlyNow(s), years, loss);
     const t = targetsOf(s);
     expect(t.bufferKg).toBeCloseTo(buffer, 9);
     expect(t.leftKg).toBeCloseTo(keep, 6);
-    expect(t.harvestKg).toBeCloseTo(steadyHarvestKg(need, buffer, NO_CRAFTS.pottery), 6);
-    expect(t.harvestKg).toBeGreaterThan(need);
-    // navíc jen ztráty skladováním potřeby a cílové zásoby
-    expect(t.harvestKg).toBeLessThan(need * 1.06 + keep * 0.11);
-  });
-
-  it('přebytek i schodek nad pojistkou vyrovná po třetinách, pod pojistkou doplní hned', () => {
-    const s = village(0);
-    s.fieldFood = { needKg: 0, fieldKg: 0, share: 0.4 };
-    const need = 0.4 * yearlyNext(s);
-    const buffer = FIELD_STORES.bufferEnergyYears * yearlyNext(s);
-    const keep = storesTargetKg(need, buffer);
-    const steady = steadyHarvestKg(need, buffer, NO_CRAFTS.pottery);
-    const needNow = 0.4 * yearlyNow(s);
-    // pod pojistkou: co chybí do ní hned, zbytek do cílové zásoby po třetinách
-    s.storesKg = 0.5 * need;
-    const short = targetsOf(s);
-    expect(short.leftKg).toBeLessThan(short.bufferKg);
-    expect(short.harvestKg).toBeCloseTo(
-      steady + (buffer - short.leftKg) + (keep - buffer) / FIELD_STORES.balanceYears,
-      6,
-    );
-    // nad pojistkou, pod cílovou zásobou: jen třetina schodku
-    const years = daysUntilHarvest(day) / 365;
-    s.storesKg = storesNeeded((buffer + keep) / 2, needNow, years, loss);
-    const between = targetsOf(s);
-    expect(between.leftKg).toBeGreaterThan(between.bufferKg);
-    expect(between.leftKg).toBeLessThan(keep);
-    expect(between.harvestKg).toBeCloseTo(
-      steady + (keep - between.leftKg) / FIELD_STORES.balanceYears,
-      6,
-    );
-    // přebytek: třetina za rok
-    s.storesKg = 4 * need;
-    const rich = targetsOf(s);
-    expect(rich.leftKg).toBeGreaterThan(keep);
-    expect(rich.harvestKg).toBeCloseTo(
-      steady - (rich.leftKg - keep) / FIELD_STORES.balanceYears,
-      6,
-    );
-    expect(rich.energyFloorKg).toBe(rich.harvestKg); // pod potřebou
-    // obrovské zásoby: obilí nic – luštěniny ves na poli nepěstuje (9. 11. 2026)
-    s.storesKg = 20 * need;
-    expect(targetsOf(s).harvestKg).toBe(0);
+    expect(t.shortKg).toBe(0);
+    // osivo, které ves ještě zaseje, zásoby k sklizni neuživí
+    const seeded = storesOutlook(s, day, NO_CRAFTS.pottery, s.storesKg);
+    expect(seeded.leftKg).toBe(0);
+    expect(seeded.shortKg).toBeGreaterThan(0);
+    expect(steadyHarvestKg(need, buffer, NO_CRAFTS.pottery)).toBeGreaterThan(need);
   });
 
   it('dlouhodobý podíl z pole: každý rok o třetinu rozdílu, starší ves začne ročním podílem', () => {
@@ -245,7 +202,7 @@ describe('cíl osevu podle zásob', () => {
     expect(fresh.fieldFood.longShare).toBe(0.55);
   });
 
-  it('zásoba luštěnin (zboží) – nad strop zbude a sní se příště, zmenší cíl obilí', () => {
+  it('zásoba luštěnin (zboží) – nad strop zbude a sní se příště', () => {
     const s = village(0);
     s.fieldFood = { needKg: 0, fieldKg: 0, share: 0.5 };
     const yearly = yearlyFoodNeed(s, day);
@@ -259,7 +216,6 @@ describe('cíl osevu podle zásob', () => {
     const withLegumes = targetsOf(s);
     const without = targetsOf({ ...s, legumesKg: 0 });
     expect(withLegumes.leftKg).toBeGreaterThan(without.leftKg + legumeEnergy(left));
-    expect(withLegumes.harvestKg).toBeLessThan(without.harvestKg);
   });
 
   it('dobré zásoby (štěstí) – zásoby z pole proti potřebě z pole, ne proti celé energii', () => {

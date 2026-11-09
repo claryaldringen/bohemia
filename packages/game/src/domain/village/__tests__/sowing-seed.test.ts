@@ -3,10 +3,15 @@ import { dayIndexOf } from '../../calendar';
 import { foundVillage, type PartInput } from '../actions';
 import { allocateDay } from '../labor';
 import { dayTaskOrder, threshForFoodToday } from '../simulate-work';
+import { dayMealInput } from '../emergency-slaughter';
 import {
+  pileSowsKg,
+  seedKeepKg,
+  seedOutsideFoodKg,
   settleSowingSeed,
   sowingDaysLeft,
   sowingSeedDay,
+  uneatenSeedKg,
   windowSeedNeedKg,
   withoutSeedTarget,
 } from '../seed';
@@ -124,6 +129,66 @@ describe('hromada osiva okna (fields.md – Osivo bez cíle osevu)', () => {
     expect(once.season).toEqual({ startDay: at(600, 9, 1), crops: [] });
     expect(withoutSeedTarget(once)).toBe(once);
     expect(s.season).toBe(legacy);
+  });
+});
+
+describe('zimní osivo (fields.md – Zimní osivo; Martin 9. 11. 2026)', () => {
+  it('od 1. 11. do konce února drží osivo na jarní díly; 1. 3. ho převezme hromada okna', () => {
+    const s = village(50_000);
+    const need = windowSeedNeedKg(s, 'spring');
+    expect(need).toBeCloseTo(8 * 0.25 * 175, 6);
+    // 31. 10. se nezaseté osivo ozimu vrátí, 1. 11. přijde zimní osivo jaře
+    sowingSeedDay(s, at(600, 10, 31));
+    expect(s.sowingSeed).toMatchObject({ crop: 'winter' });
+    sowingSeedDay(s, at(600, 11, 1));
+    expect(s.sowingSeed).toEqual({
+      crop: 'spring',
+      totalKg: need,
+      days: 0,
+      kg: need,
+      beforeWindow: true,
+    });
+    // v zimě se nic neseje – zimní osivo se nevrací
+    settleSowingSeed(s, at(600, 11, 1));
+    expect(s.sowingSeed!.kg).toBeCloseTo(need, 6);
+    sowingSeedDay(s, at(601, 2, 28));
+    expect(s.sowingSeed!.beforeWindow).toBe(true);
+    // 1. 3. hromada jarního okna – ideální denní díl
+    sowingSeedDay(s, at(601, 3, 1));
+    expect(s.sowingSeed).toEqual({ crop: 'spring', totalKg: need, days: 61, kg: need });
+    // po jarním okně do září nic
+    sowingSeedDay(s, at(601, 6, 1));
+    expect(s.sowingSeed).toBeUndefined();
+  });
+
+  it('chudá ves drží osivo jen nad přežívací zásobu – jí jen zbytek, šetří už v zimě', () => {
+    const day = at(600, 12, 1);
+    const keep = seedKeepKg(village(0), day);
+    const s = village(keep + 200);
+    sowingSeedDay(s, day);
+    expect(s.sowingSeed!.kg).toBeCloseTo(200, 6);
+    expect(uneatenSeedKg(s)).toBeCloseTo(200, 6);
+    // jídlo dne zimní osivo nevidí
+    const without = dayMealInput({ ...s, sowingSeed: undefined }, day, 0, 0);
+    expect(dayMealInput(s, day, 0, 0).grainKg).toBeCloseTo(without.grainKg - 200, 6);
+  });
+
+  it('výhled zásob: jídlem není jen osivo, které ves v jarním okně zaseje', () => {
+    const day = at(600, 12, 1);
+    const s = village(50_000);
+    sowingSeedDay(s, day);
+    // ves bez spřežení motykou za jarní okno všechny 2 ha nezkope – zbytek je pro výhled jídlem
+    const sows = pileSowsKg(s, day, 0);
+    expect(sows).toBeGreaterThan(0);
+    expect(sows).toBeLessThan(s.sowingSeed!.kg);
+    expect(seedOutsideFoodKg(s, day, 0)).toBeCloseTo(sows, 6);
+    // s nástroji zkope víc
+    expect(pileSowsKg(s, day, 1)).toBeGreaterThan(sows);
+    // bez lidí nic nezaseje – celá hromada je pro výhled jídlem
+    const empty = { ...s, people: [] };
+    expect(pileSowsKg(empty, day, 0)).toBe(0);
+    // bez hromady nic
+    expect(seedOutsideFoodKg({ ...s, sowingSeed: undefined }, day, 0)).toBe(0);
   });
 });
 
