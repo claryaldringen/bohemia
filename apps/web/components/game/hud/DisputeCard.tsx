@@ -13,10 +13,10 @@ import { Tooltip } from './Tooltip';
 type VerdictKind = Verdict['kind'];
 
 const KINDS: { kind: VerdictKind; label: string; icon: string }[] = [
-  { kind: 'compensation', label: 'Náhrada zbožím', icon: '/icons/house/gift.svg' },
+  { kind: 'compensation', label: 'Náhrada zbožím', icon: '/icons/house/gift.png' },
   { kind: 'return-people', label: 'Vrácení lidí', icon: '/icons/resources/people.png' },
-  { kind: 'peace', label: 'Mír', icon: '/icons/house/handshake.svg' },
-  { kind: 'dismiss', label: 'Zamítnout', icon: '/icons/house/cross.svg' },
+  { kind: 'peace', label: 'Mír', icon: '/icons/house/handshake.png' },
+  { kind: 'dismiss', label: 'Zamítnout', icon: '/icons/house/cross.png' },
 ];
 
 const GOODS_FIELDS = [
@@ -146,7 +146,7 @@ function VerdictForm({
           onClick={() => onJudge(verdict())}
           className="hud-icon-button flex h-8 w-10 items-center justify-center"
         >
-          <img src="/icons/house/scales.svg" alt="" width={22} height={22} draggable={false} />
+          <img src="/icons/house/scales.png" alt="" width={22} height={22} draggable={false} />
         </button>
       </Tooltip>
     </div>
@@ -181,7 +181,7 @@ function StatementForm({
           onClick={() => onAnswer(text)}
           className="hud-icon-button flex h-8 w-10 items-center justify-center"
         >
-          <img src="/icons/house/seal-pen.svg" alt="" width={22} height={22} draggable={false} />
+          <img src="/icons/house/seal-pen.png" alt="" width={22} height={22} draggable={false} />
         </button>
       </Tooltip>
     </div>
@@ -208,7 +208,7 @@ export function DisputeCard({
       className="flex flex-col gap-1.5 rounded-sm border border-[#5c4526] p-1.5 text-xs"
     >
       <div className="flex items-center gap-1.5">
-        <img src="/icons/house/scales.svg" alt="" width={18} height={18} draggable={false} />
+        <img src="/icons/house/scales.png" alt="" width={18} height={18} draggable={false} />
         <span data-testid="dispute-title" className="font-semibold">
           {dispute.plaintiffName} – {dispute.defendantName}
         </span>

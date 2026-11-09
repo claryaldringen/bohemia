@@ -52,7 +52,7 @@ vojska mapu po mapě (Ú6.4), tažení po taktech, boj a dohra (Ú6.5–Ú6.17) 
   se zbývajícími dny (`protection-shield`); `WarPanel.tsx` – textový přehled válek (z `HouseView.wars`);
   `HousePanel` – tlačítko opovědi (`house-war`, zašedlé s důvodem z `actions.war`), formulář `TermsForm`
   s volitelným požadavkem vazalství a vzkazem; server action `declareWarOnHouse`. Ikony
-  `house/spears.svg`, `house/shield-hourglass.svg`.
+  `house/spears.png`, `house/shield-hourglass.png`.
 
 ## Mírové jednání (Ú6.3)
 
@@ -967,7 +967,7 @@ expected, reply?)` (odpověď se přidá do `body` – `body || reply`).
   (štít s muži schopnými služby `war-vassal-shield`, roh `war-summon-vassal`, bez služby zašedlý),
   ohlášení průchodu `war-passage` (podání ruky – vzít na vědomí, zlomená pečeť – Nevěřit).
   `LevyDialog` – řádek `summons-row` (muži rodu se zaškrtnutím, předvybraní nejzdatnější, štít
-  vybraní / domluvení, hodiny s dny, vzkaz, roh Odeslat). Ikona `house/horn.svg` (CC0).
+  vybraní / domluvení, hodiny s dny, vzkaz, roh Odeslat). Ikona `house/horn.png`.
 - **Testy** – `application/__tests__/summons.test.ts` (jen muži rodu, nejzdatnější první, víc svolání
   do vyčerpání dnů, vazal vazala do služby B, míň = neplnění, propadnutí s koncem války – kronika
   a neplnění jednou), `passage.test.ts` (ohlášení, neškodné na ohlášené mapě, „Nevěřit“, jedna

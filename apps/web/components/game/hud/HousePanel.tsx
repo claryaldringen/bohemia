@@ -26,7 +26,7 @@ import { NegotiationCard, type NegotiationReply } from './NegotiationCard';
 import { LanguageIcon } from './LanguageChoice';
 import { NewcomerWaiting } from './NewcomerPanel';
 import { newcomerWaiting, type NewcomerStatusView } from '@/lib/newcomer-view';
-import { Chip, TermsForm, type TermsContext } from './TermsForm';
+import { Chip, HouseIcon, TermsForm, type TermsContext } from './TermsForm';
 import { Tooltip } from './Tooltip';
 import { DomainFoodRows } from './DomainFood';
 
@@ -39,13 +39,7 @@ import { DomainFoodRows } from './DomainFood';
 const ICON = '/icons/house';
 
 function Icon({ name, size = 20 }: { name: string; size?: number }): ReactElement {
-  // vůz (obchod) je ikona zdroje, ne kresba rodu
-  if (name === 'cart') {
-    return (
-      <img src="/icons/resources/cart.png" alt="" width={size} height={size} draggable={false} />
-    );
-  }
-  return <img src={`${ICON}/${name}.svg`} alt="" width={size} height={size} draggable={false} />;
+  return <HouseIcon name={name} size={size} />;
 }
 
 function Portrait({ icon, size = 36 }: { icon: string; size?: number }): ReactElement {
@@ -118,7 +112,7 @@ function Man({
         <Portrait icon={man.icon} />
         {man.senior && (
           <img
-            src={`${ICON}/throne.svg`}
+            src={`${ICON}/throne.png`}
             alt=""
             data-testid="house-senior-mark"
             width={18}
@@ -128,7 +122,7 @@ function Man({
         )}
         {man.lord && (
           <img
-            src={`${ICON}/banner.svg`}
+            src={`${ICON}/banner.png`}
             alt=""
             data-testid="house-lord-mark"
             width={18}
@@ -176,7 +170,7 @@ function HouseLink({
         </span>
         <span className="absolute -right-1.5 -bottom-1.5 flex h-5 w-5 items-center justify-center">
           <img
-            src={`${ICON}/shield.svg`}
+            src={`${ICON}/shield.png`}
             alt=""
             width={20}
             height={20}

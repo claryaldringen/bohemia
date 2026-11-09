@@ -65,7 +65,7 @@ export function VillageList({
               {village.playerLord && (
                 <Tooltip content="Tvůj muž" placement="below">
                   <img
-                    src="/icons/house/banner.svg"
+                    src="/icons/house/banner.png"
                     alt="Tvůj muž"
                     data-testid="player-lord-banner"
                     width={16}
@@ -77,7 +77,7 @@ export function VillageList({
               {village.stewarded && (
                 <Tooltip content="Spravuješ pro jiný rod" placement="below">
                   <img
-                    src="/icons/house/village-key.svg"
+                    src="/icons/house/village-key.png"
                     alt="Spravuješ pro jiný rod"
                     data-testid="steward-key"
                     width={16}
@@ -89,7 +89,7 @@ export function VillageList({
               {village.npcSteward && (
                 <Tooltip content="Ves řídí povýšený šlechtic" placement="below">
                   <img
-                    src="/icons/house/village-key.svg"
+                    src="/icons/house/village-key.png"
                     alt="Ves řídí povýšený šlechtic"
                     data-testid="npc-steward-key"
                     width={16}
@@ -101,7 +101,7 @@ export function VillageList({
               {village.senior && (
                 <Tooltip content="Senior rodu" placement="below">
                   <img
-                    src="/icons/house/throne.svg"
+                    src="/icons/house/throne.png"
                     alt="Senior rodu"
                     data-testid="senior-throne"
                     width={16}

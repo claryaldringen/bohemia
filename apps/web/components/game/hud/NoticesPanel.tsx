@@ -55,7 +55,7 @@ export function NoticesPanel({
             className="hud-icon-button ml-auto flex h-6 w-6 items-center justify-center"
             onClick={onClose}
           >
-            <img src={`${ICON}/cross.svg`} alt="" width={12} height={12} draggable={false} />
+            <img src={`${ICON}/cross.png`} alt="" width={12} height={12} draggable={false} />
           </button>
         </Tooltip>
       </div>

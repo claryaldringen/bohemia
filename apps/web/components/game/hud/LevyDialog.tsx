@@ -429,19 +429,25 @@ function SummonsRow({
           }
         >
           <span tabIndex={0} className="inline-flex items-center gap-1">
-            <img src="/icons/house/horn.svg" alt="" width={18} height={18} draggable={false} />
+            <img src="/icons/house/horn.png" alt="" width={18} height={18} draggable={false} />
             <span className="font-semibold">{dialog.lordName}</span>
           </span>
         </Tooltip>
         <Tooltip content="Domluvení muži">
           <span tabIndex={0} className="ml-auto inline-flex items-center gap-0.5 text-xs">
-            <img src="/icons/house/shield.svg" alt="" width={14} height={14} draggable={false} />
+            <img src="/icons/house/shield.png" alt="" width={14} height={14} draggable={false} />
             {picked.size}/{dialog.men}
           </span>
         </Tooltip>
         <Tooltip content="Dny služby">
           <span tabIndex={0} className="inline-flex items-center gap-0.5 text-xs">
-            <img src="/icons/house/hourglass.svg" alt="" width={14} height={14} draggable={false} />
+            <img
+              src="/icons/resources/hourglass.png"
+              alt=""
+              width={14}
+              height={14}
+              draggable={false}
+            />
             {dialog.days}
           </span>
         </Tooltip>
@@ -449,7 +455,7 @@ function SummonsRow({
       {state === 'sent' ? (
         <Tooltip content="Muži vyrazili.">
           <span tabIndex={0} data-testid="summons-sent" className="inline-flex self-end">
-            <img src="/icons/house/shield.svg" alt="" width={18} height={18} draggable={false} />
+            <img src="/icons/house/shield.png" alt="" width={18} height={18} draggable={false} />
           </span>
         </Tooltip>
       ) : (
@@ -469,7 +475,7 @@ function SummonsRow({
                   <Tooltip content="Síla">
                     <span tabIndex={0} className="inline-flex items-center gap-0.5">
                       <img
-                        src="/icons/house/sword.svg"
+                        src="/icons/house/sword.png"
                         alt=""
                         width={12}
                         height={12}
@@ -498,7 +504,7 @@ function SummonsRow({
               onClick={() => void send()}
               className="hud-icon-button flex h-8 w-10 items-center justify-center self-end disabled:opacity-40"
             >
-              <img src="/icons/house/horn.svg" alt="" width={22} height={22} draggable={false} />
+              <img src="/icons/house/horn.png" alt="" width={22} height={22} draggable={false} />
             </button>
           </Tooltip>
         </>

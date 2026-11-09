@@ -36,20 +36,27 @@ import { Tooltip } from './Tooltip';
 
 const ICON = '/icons/house';
 
-export function HouseIcon({ name, size = 20 }: { name: string; size?: number }): ReactElement {
-  // vůz (obchod) je ikona zdroje, ne kresba rodu
-  if (name === 'cart') {
-    return (
-      <img src="/icons/resources/cart.png" alt="" width={size} height={size} draggable={false} />
-    );
-  }
-  return <img src={`${ICON}/${name}.svg`} alt="" width={size} height={size} draggable={false} />;
+// Ikony rodu, které jsou zároveň ikonami zdrojů – vůz (obchod), obilí, klády a přesýpací hodiny
+const RESOURCE_ICON: Readonly<Record<string, string>> = {
+  cart: 'cart',
+  grain: 'food',
+  log: 'wood',
+  hourglass: 'hourglass',
+};
+
+/** Cesta k ikoně rodu (`public/icons/house/*.png` z Blenderu – tools/blender/icons.py). */
+export function houseIconSrc(name: string): string {
+  const resource = RESOURCE_ICON[name];
+  return resource ? `/icons/resources/${resource}.png` : `${ICON}/${name}.png`;
 }
 
-/** Ikona podmínky: kresba rodu, nebo ikona zdroje. */
+export function HouseIcon({ name, size = 20 }: { name: string; size?: number }): ReactElement {
+  return <img src={houseIconSrc(name)} alt="" width={size} height={size} draggable={false} />;
+}
+
+/** Ikona podmínky: ikona rodu, nebo ikona zdroje. */
 export function TermIconImg({ icon, size = 20 }: { icon: TermIcon; size?: number }): ReactElement {
-  const src =
-    icon.set === 'house' ? `${ICON}/${icon.name}.svg` : `/icons/resources/${icon.name}.png`;
+  const src = icon.set === 'house' ? houseIconSrc(icon.name) : `/icons/resources/${icon.name}.png`;
   return <img src={src} alt="" width={size} height={size} draggable={false} />;
 }
 
@@ -657,7 +664,7 @@ function RansomRow({ item, label, onChange, context }: TermRowProps): ReactEleme
       <div data-testid="term-row-ransom" className="flex items-center gap-1">
         <Tooltip content={label}>
           <span tabIndex={0} aria-label={label} className="inline-flex items-center gap-1">
-            <img src="/icons/war/captive.svg" alt="" width={20} height={20} />
+            <img src="/icons/war/captive.png" alt="" width={20} height={20} />
           </span>
         </Tooltip>
         <span className="text-xs">{parts.join(', ')}</span>
@@ -676,7 +683,7 @@ function RansomRow({ item, label, onChange, context }: TermRowProps): ReactEleme
     <div data-testid="term-row-ransom" className="flex flex-wrap items-center gap-1.5">
       <Tooltip content={label}>
         <span tabIndex={0} aria-label={label} className="inline-flex">
-          <img src="/icons/war/captive.svg" alt="" width={22} height={22} />
+          <img src="/icons/war/captive.png" alt="" width={22} height={22} />
         </span>
       </Tooltip>
       {captives.map((c) => {
@@ -692,7 +699,7 @@ function RansomRow({ item, label, onChange, context }: TermRowProps): ReactEleme
               className={`hud-icon-button flex h-7 w-7 items-center justify-center ${chosen ? 'opacity-100' : 'opacity-40'}`}
               onClick={() => toggle(c.id)}
             >
-              <img src="/icons/war/captive.svg" alt="" width={18} height={18} />
+              <img src="/icons/war/captive.png" alt="" width={18} height={18} />
             </button>
           </Tooltip>
         );

@@ -768,7 +768,7 @@ export function TopBar({
           >
             <span className="relative flex h-6 items-center gap-0.5">
               <img
-                src="/icons/house/banner.svg"
+                src="/icons/house/banner.png"
                 alt=""
                 width={22}
                 height={22}
@@ -782,7 +782,7 @@ export function TopBar({
                   data-testid="house-waiting"
                   className="absolute -top-2 -right-3 flex items-center"
                 >
-                  <img src="/icons/house/seal.svg" alt="" width={14} height={14} />
+                  <img src="/icons/house/seal.png" alt="" width={14} height={14} />
                   <span className="text-[10px] font-bold tabular-nums">{house.waiting}</span>
                 </span>
               )}
@@ -803,7 +803,7 @@ export function TopBar({
               className={`relative flex h-6 items-center gap-0.5 ${war.wars === 0 ? 'opacity-40' : ''}`}
             >
               <img
-                src="/icons/house/spears.svg"
+                src="/icons/house/spears.png"
                 alt=""
                 width={22}
                 height={22}
@@ -827,7 +827,7 @@ export function TopBar({
               className="flex h-6 items-center gap-0.5"
             >
               <img
-                src="/icons/house/shield-hourglass.svg"
+                src="/icons/house/shield-hourglass.png"
                 alt=""
                 width={22}
                 height={22}

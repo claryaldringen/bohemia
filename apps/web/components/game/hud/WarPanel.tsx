@@ -92,7 +92,7 @@ function PeaceForm({
   return (
     <div data-testid="peace-form" className="flex flex-col gap-1 pt-1 text-xs">
       <label className="flex items-center gap-1">
-        <img src={`${ICON}/grain.svg`} alt="" width={16} height={16} draggable={false} />
+        <img src="/icons/resources/food.png" alt="" width={16} height={16} draggable={false} />
         <input
           data-testid="peace-fee"
           type="number"
@@ -138,7 +138,7 @@ function PeaceForm({
         ))}
       </div>
       <label className="flex items-center gap-1">
-        <img src={`${ICON}/grain.svg`} alt="" width={16} height={16} draggable={false} />
+        <img src="/icons/resources/food.png" alt="" width={16} height={16} draggable={false} />
         <input
           data-testid="peace-tribute"
           type="number"
@@ -213,7 +213,7 @@ function PeaceForm({
         className="hud-icon-button flex h-7 items-center justify-center gap-1 px-2"
         onClick={submit}
       >
-        <img src={`${ICON}/seal.svg`} alt="" width={16} height={16} draggable={false} />
+        <img src={`${ICON}/seal.png`} alt="" width={16} height={16} draggable={false} />
         Nabídnout mír
       </button>
     </div>
@@ -260,7 +260,7 @@ function SummonList({
                 data-testid="war-vassal-shield"
                 className="inline-flex items-center gap-0.5"
               >
-                <img src={`${ICON}/shield.svg`} alt="" width={14} height={14} draggable={false} />
+                <img src={`${ICON}/shield.png`} alt="" width={14} height={14} draggable={false} />
                 {node.shield}
               </span>
             </Tooltip>
@@ -280,7 +280,7 @@ function SummonList({
                 className="hud-icon-button flex h-6 w-6 items-center justify-center disabled:opacity-40"
                 onClick={() => void summon([node.vassalageId])}
               >
-                <img src={`${ICON}/horn.svg`} alt="" width={14} height={14} draggable={false} />
+                <img src={`${ICON}/horn.png`} alt="" width={14} height={14} draggable={false} />
               </button>
             </Tooltip>
           </div>
@@ -347,7 +347,7 @@ function PassageAnnounce({
                 })
               }
             >
-              <Icon src={`${ICON}/passage.svg`} />
+              <Icon src={`${ICON}/passage.png`} />
             </button>
           </Tooltip>
         </div>
@@ -389,7 +389,7 @@ function ProtectionRows({
       <div className="flex items-center gap-1.5 text-xs">
         <Tooltip content="Muži pána na ochraně této vsi">
           <span tabIndex={0} data-testid="war-guards" className="inline-flex items-center gap-0.5">
-            <Icon src={`${ICON}/shield.svg`} />
+            <Icon src={`${ICON}/shield.png`} />
             {protection.guards}
           </span>
         </Tooltip>
@@ -415,7 +415,7 @@ function ProtectionRows({
                 )
               }
             >
-              <Icon src={`${ICON}/hands.svg`} />
+              <Icon src={`${ICON}/hands.png`} />
             </button>
           </Tooltip>
         ))}
@@ -437,7 +437,7 @@ function ProtectionRows({
                 data-testid="war-guard-sent"
                 className="inline-flex items-center gap-0.5"
               >
-                <Icon src={`${ICON}/shield.svg`} />
+                <Icon src={`${ICON}/shield.png`} />
                 {v.sent}
               </span>
             </Tooltip>
@@ -461,7 +461,7 @@ function ProtectionRows({
                 className={iconButton}
                 onClick={() => run(onSend(v.vassalageId, v.villageId, count))}
               >
-                <Icon src={`${ICON}/guard-send.svg`} />
+                <Icon src={`${ICON}/guard-send.png`} />
               </button>
             </Tooltip>
             <Tooltip content="Odvolat muže">
@@ -473,7 +473,7 @@ function ProtectionRows({
                 className={iconButton}
                 onClick={() => run(onRecall(v.vassalageId, v.villageId))}
               >
-                <Icon src={`${ICON}/guard-recall.svg`} />
+                <Icon src={`${ICON}/guard-recall.png`} />
               </button>
             </Tooltip>
           </div>
@@ -518,7 +518,7 @@ function PassageRows({
               className="hud-icon-button flex h-6 w-6 items-center justify-center"
               onClick={() => onAnswer(p.passageId, true)}
             >
-              <img src={`${ICON}/handshake.svg`} alt="" width={14} height={14} draggable={false} />
+              <img src={`${ICON}/handshake.png`} alt="" width={14} height={14} draggable={false} />
             </button>
           </Tooltip>
           <Tooltip content="Nevěřit">
@@ -530,7 +530,7 @@ function PassageRows({
               onClick={() => onAnswer(p.passageId, false)}
             >
               <img
-                src={`${ICON}/seal-broken.svg`}
+                src={`${ICON}/seal-broken.png`}
                 alt=""
                 width={14}
                 height={14}
@@ -598,7 +598,7 @@ export function WarPanel({
     >
       <div className="flex items-center gap-1.5 pb-2">
         <Tooltip content="Válka">
-          <img src={`${ICON}/spears.svg`} alt="" width={24} height={24} draggable={false} />
+          <img src={`${ICON}/spears.png`} alt="" width={24} height={24} draggable={false} />
         </Tooltip>
         <Tooltip content="Zavřít">
           <button
@@ -608,7 +608,7 @@ export function WarPanel({
             className="hud-icon-button ml-auto flex h-6 w-6 items-center justify-center"
             onClick={onClose}
           >
-            <img src={`${ICON}/cross.svg`} alt="" width={12} height={12} draggable={false} />
+            <img src={`${ICON}/cross.png`} alt="" width={12} height={12} draggable={false} />
           </button>
         </Tooltip>
       </div>
@@ -645,7 +645,7 @@ export function WarPanel({
                       onClick={() => setSummoning(summoning === war.warId ? null : war.warId)}
                     >
                       <img
-                        src={`${ICON}/horn.svg`}
+                        src={`${ICON}/horn.png`}
                         alt=""
                         width={16}
                         height={16}
@@ -668,7 +668,7 @@ export function WarPanel({
                       className="hud-icon-button mt-1 flex h-6 w-6 items-center justify-center"
                       onClick={() => setAnnouncing(announcing === war.warId ? null : war.warId)}
                     >
-                      <Icon src={`${ICON}/passage.svg`} size={16} />
+                      <Icon src={`${ICON}/passage.png`} size={16} />
                     </button>
                   </Tooltip>
                   {announcing === war.warId && (
@@ -697,7 +697,7 @@ export function WarPanel({
                       }
                     >
                       <img
-                        src={`${ICON}/seal.svg`}
+                        src={`${ICON}/seal.png`}
                         alt=""
                         width={16}
                         height={16}

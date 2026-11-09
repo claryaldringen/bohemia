@@ -318,7 +318,7 @@ export function PlayerDeparturePanel({
           tabIndex={0}
           className="flex items-center gap-1 font-serif text-base text-[#f3dfb0] tabular-nums"
         >
-          <img src="/icons/house/hourglass.svg" alt="Zbývající dny" width={28} height={28} />
+          <img src="/icons/resources/hourglass.png" alt="Zbývající dny" width={28} height={28} />
           {days}
         </span>
       </Tooltip>

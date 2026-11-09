@@ -65,6 +65,8 @@ ve skalnatém hřbetu, náplav se zlatem, řeka s molem a člunem, černozem s m
 pahorkem, sedlo s mohylou, hromada krevelu, jámy v šedém jílu, dub a buk s prasetem, niva se
 senem, jižní svah s jabloněmi, vrch s kamenným kruhem, tůňka pod skalkou, soutok, ostrožna nad
 meandrem, slanisko, brť s úly, mokřad s jelenem a lom (modely z `apps/web/public/models/`).
+(64 × 64 PNG) – `house/`, `war/`, `newcomer/` ikony panelů rodu, vazalství, války a nováčka
+(slovník `PANELS`, klíč s podsložkou, např. `house/seal`, `war/captive`) a `resources/steward.png`.
 Bez druhého argumentu vše, jinak čárkami oddělený výběr (např. `pole,hrbitov,food`).
 
 Postup: portréty staveb a ikony `food`, `wood`, `labor`, `satiation`, `date`, `apples` se vyrenderují v Cycles
@@ -1009,6 +1011,14 @@ def icon_junction(shape):
 
 def icon_walk():
     """Cesta z domu (chůze po pěšinách – paths.md): dvě šlépěje bosých nohou ve vyšlapané hlíně."""
+    walk_prints()
+    sun(az=-55, el=46)
+    camera([Vector((-1.15, -1.15, 0)), Vector((1.15, 1.15, 0.05))], az=0, el=70, margin=1.0)
+    return True
+
+
+def walk_prints():
+    """Vyšlapaná hlína a dvě šlépěje bosých nohou šikmo přes střed (i do ikony průchodu)."""
     ground(1.6, mat("g", tex=f"{TEX}/mud.jpg", scale=0.8, tint=(1.0, 0.8, 0.56)), z=0.0, fade=0.66)
     prints = bmesh.new()
     # obrys chodidla (pravá noha, špička k +Y): pata úzká, přední část široká, klenba uvnitř
@@ -1035,9 +1045,6 @@ def icon_walk():
         foot((c.x, c.y), ang, mirror)
     bmesh.ops.recalc_face_normals(prints, faces=prints.faces)
     to_obj(prints, "prints", mat("print", (0.05, 0.03, 0.016), 0.98), smooth=False)
-    sun(az=-55, el=46)
-    camera([Vector((-1.15, -1.15, 0)), Vector((1.15, 1.15, 0.05))], az=0, el=70, margin=1.0)
-    return True
 
 
 def icon_jablone():
@@ -1802,6 +1809,14 @@ def glass_mat(name):
 def icon_hourglass():
     """Přesýpací hodiny: dřevěný rám (dvě desky, tři sloupky), skleněné baňky, písek dole
     v kopečku, nahoře ubývá a tenký proud mezi nimi – čas, který zbývá."""
+    objs = hourglass_objs()
+    sun(az=-40, el=35, strength=4.5)
+    camera(world_points(objs), az=20, el=14, margin=1.04)
+    return True
+
+
+def hourglass_objs():
+    """Díly přesýpacích hodin (rám, písek, sklo) – i do ikony štítu s hodinami."""
     H, NECK = 0.62, 0.045
 
     def bulb_r(t):
@@ -1846,14 +1861,12 @@ def icon_hourglass():
         to_obj(sand, "sand", mat("sand", (0.88, 0.56, 0.22), 0.9, noise=60)),
         to_obj(glass, "glass", glass_mat("glass")),
     ]
-    sun(az=-40, el=35, strength=4.5)
-    camera(world_points(objs), az=20, el=14, margin=1.04)
-    return True
+    return objs
 
 
-def icon_balance():
+def icon_balance(grain_in_pan=True):
     """Váhy (bilance obchodu se sousedem – trade.md): dřevěný sloupek s vahadlem, na krajích na
-    šňůrách dvě bronzové misky, v jedné hromádka obilí."""
+    šňůrách dvě bronzové misky, v jedné hromádka obilí (bez obilí – váhy rozsudku pána)."""
     wood, beam, pans, cords, grain = (bmesh.new() for _ in range(5))
     cyl(wood, (0, 0, 0), (0, 0, 0.08), 0.42, 0.4, 32)
     cyl(wood, (0, 0, 0.08), (0, 0, 1.28), 0.085, 0.07, 16)
@@ -1876,7 +1889,7 @@ def icon_balance():
             rim = (x + math.cos(a) * 0.3, math.sin(a) * 0.3, pan_z + 0.13)
             cyl(cords, (x * 1.1, 0, 1.2), rim, 0.016, 0.016, 5)
     rng = random.Random(9)
-    for k in range(26):
+    for k in range(26 if grain_in_pan else 0):
         a = rng.uniform(0, 6.28)
         r = rng.uniform(0.0, 0.2)
         blob(grain, ((-0.78 + math.cos(a) * r, math.sin(a) * r, pan_z + 0.12 + (0.2 - r) * 0.45),
@@ -4404,6 +4417,845 @@ def icon_lom():
     return True
 
 
+# ------------------------------------------- panely rodu, vazalství a války ----
+# Druhá várka ručních SVG (5.–7. 11. 2026) – panely rodu, vazalství, války, nováčka a správce vsi.
+# Martin 9. 11. 2026: „ano“ k předělání všech ručně kreslených ikon v Blenderu stejně jako ostatní
+# ikony. Stejná scéna, světlo a zmenšení jako ikony surovin (64 × 64, `small`); zbraně, štíty,
+# prapory, pečeti a nářadí jsou jednoduché modelované tvary (výcvikové rekvizity postav jsou na ikonu
+# moc hrubé), brána a palisáda jsou díly scény (`fortifications.glb`), smrky modely krajiny
+# a zajatec i prosebník vesničan hry (`models/people/`). Výstup do `house/`, `war/`, `newcomer/`.
+
+PAINT_RED = (0.46, 0.06, 0.035)
+
+
+def move(objs, loc=(0.0, 0.0, 0.0), rot=(0.0, 0.0, 0.0), scale=1.0):
+    """Posune, natočí a zvětší hotové objekty jako celek (skládání ikony z dílů)."""
+    m = Matrix.Translation(Vector(loc)) @ Euler(rot).to_matrix().to_4x4() @ Matrix.Scale(scale, 4)
+    for o in objs:
+        o.matrix_world = m @ o.matrix_world
+    bpy.context.view_layer.update()
+    return objs
+
+
+def wood_mat(name="wood", color=(0.46, 0.3, 0.15)):
+    return mat(name, color, 0.8, noise=20, bump=0.3)
+
+
+def iron_mat(name="iron"):
+    return metal(name, (0.36, 0.36, 0.38), 0.42, 0.65)
+
+
+def gold_metal(name="gilt"):
+    return metal(name, (0.8, 0.56, 0.2), 0.3, 0.9)
+
+
+def parchment_mat(name="parchment"):
+    return mat(name, (0.93, 0.85, 0.66), 0.9, noise=8, bump=0.15)
+
+
+def wax_mat(name="wax"):
+    return mat(name, (0.42, 0.03, 0.02), 0.32, noise=24, bump=0.15)
+
+
+def red_mark(name="red"):
+    """Červená značka (křížek zrušení, šipka ven) – stejná jako šipka Probít se."""
+    return glow_mat(name, (0.85, 0.12, 0.06), 0.5)
+
+
+def green_mark(name="green"):
+    """Zelená značka (šipka zpět) – stejná jako šipka Vrátit stavbu."""
+    return glow_mat(name, (0.22, 0.62, 0.12), 0.45)
+
+
+def sweep(bm, pts, radius, seg=10, closed=False):
+    """Trubka podél lomené čáry `pts` (poloměr číslo nebo funkce t 0…1) – článek, roh, popruh."""
+    n = len(pts) - (0 if closed else 1)
+    for i in range(n):
+        j = (i + 1) % len(pts)
+        r0 = radius(i / n) if callable(radius) else radius
+        r1 = radius((i + 1) / n) if callable(radius) else radius
+        cyl(bm, pts[i], pts[j], r0, r1, seg)
+
+
+def ellipse_arc(centre, a, b, t0, t1, rot=(0.0, 0.0, 0.0), n=28):
+    """Body oblouku elipsy (poloosy a, b) v rovině XZ od úhlu t0 do t1, natočené a posunuté."""
+    m = Euler(rot).to_matrix()
+    return [Vector(centre) + m @ Vector((math.cos(t) * a, 0.0, math.sin(t) * b))
+            for t in (t0 + (t1 - t0) * i / n for i in range(n + 1))]
+
+
+def ring_pts(centre, a, b, rot=(0.0, 0.0, 0.0), n=28):
+    """Body celé elipsy bez opakovaného posledního bodu (pro `sweep(..., closed=True)`)."""
+    return ellipse_arc(centre, a, b, 0.0, 2 * math.pi, rot, n)[:-1]
+
+
+def shield_objs(paint=PAINT_RED, name="shield"):
+    """Kulatý štít z prken: natřený líc s klenbou, železná puklice, kožený lem a nýty – líc k −Y."""
+    face, boss, rim, rivets = bmesh.new(), bmesh.new(), bmesh.new(), bmesh.new()
+    revolve(face, [(0.0, 1.0), (0.07, 1.0), (0.12, 0.86), (0.16, 0.56), (0.18, 0.04)], 64,
+            cap_bottom=True, cap_top=True)
+    revolve(boss, [(0.16, 0.32), (0.21, 0.32), (0.28, 0.26), (0.36, 0.14), (0.38, 0.02)], 40, cap_top=True)
+    sweep(rim, ring_pts((0, 0, 0.07), 1.0, 1.0, rot=(math.pi / 2, 0, 0), n=64), 0.055, 8, closed=True)
+    for k in range(10):
+        a = 2 * math.pi * k / 10 + 0.3
+        blob(rivets, ((math.cos(a) * 0.82, math.sin(a) * 0.82, 0.13), (0, 0, 0)), (0.04, 0.04, 0.03), 8, 5)
+    objs = [to_obj(face, name, mat(name, paint, 0.75, noise=10, bump=0.25)),
+            to_obj(boss, "boss", iron_mat()),
+            to_obj(rim, "rim", mat("rim", (0.22, 0.14, 0.08), 0.7, noise=20, bump=0.2)),
+            to_obj(rivets, "rivets", iron_mat("rivet"))]
+    return move(objs, rot=(math.pi / 2, 0, 0))
+
+
+def sword_objs():
+    """Meč: dvojbřitá čepel se žlábkem, bronzová záštita a hlavice, rukojeť ovinutá kůží – svisle (XZ)."""
+    blade, fuller, grip, gilt = bmesh.new(), bmesh.new(), bmesh.new(), bmesh.new()
+    L = 2.0
+    flat_plate(blade, [(-0.12, 0.0), (0.12, 0.0), (0.105, L * 0.82), (0.06, L * 0.95), (0.0, L),
+                       (-0.06, L * 0.95), (-0.105, L * 0.82)], 0.0, 0.05)
+    flat_plate(fuller, [(-0.035, 0.06), (0.035, 0.06), (0.02, L * 0.78), (-0.02, L * 0.78)], -0.028, 0.006)
+    box(gilt, (0, 0, -0.03), (0.66, 0.13, 0.1))
+    cyl(grip, (0, 0, -0.08), (0, 0, -0.52), 0.065, 0.06, 10)
+    blob(gilt, ((0, 0, -0.6), (0, 0, 0)), (0.17, 0.09, 0.11), 12, 8)
+    bmesh.ops.recalc_face_normals(blade, faces=blade.faces)
+    return [to_obj(blade, "blade", metal("blade", (0.7, 0.71, 0.74), 0.28, 0.85), smooth=False),
+            to_obj(fuller, "fuller", metal("fuller", (0.3, 0.31, 0.34), 0.4, 0.7), smooth=False),
+            to_obj(grip, "grip", mat("grip", (0.3, 0.17, 0.08), 0.7, noise=30, bump=0.4)),
+            to_obj(gilt, "guard", gold_metal())]
+
+
+def spear_into(wood, iron, h0, h1, y=0.0):
+    """Oštěp do dvou bmesh: násada h0 → h1 a listovitý hrot s objímkou (rovina XZ v hloubce y)."""
+    h0, h1 = Vector(h0), Vector(h1)
+    cyl(wood, h0, h1, 0.07, 0.06, 10)
+    d = (h1 - h0).normalized()
+    n = Vector((d.z, 0, -d.x))
+    cyl(iron, h1 - d * 0.05, h1 + d * 0.16, 0.1, 0.085, 10)
+    base = h1 + d * 0.14
+    blade = [(0.0, -0.1), (0.2, -0.2), (0.5, -0.17), (0.82, 0.0), (0.5, 0.17), (0.2, 0.2), (0.0, 0.1)]
+    flat_plate(iron, [((base + d * u * 1.1 + n * v * 1.1).x, (base + d * u * 1.1 + n * v * 1.1).z)
+                      for u, v in blade], y, 0.07)
+
+
+def cloth_wave(x, z, amp=0.14):
+    return amp * math.sin(x * 3.1 - 0.5) * min(1.0, x / 0.5) + 0.03 * math.sin(z * 5.0 + x * 2.0)
+
+
+def banner_objs(color, emblem=None, notch=0.42, L=1.7, H=1.05, top=1.55, pole=(-0.75, 1.8)):
+    """Prapor na žerdi: látka s vlnou (vlaštovčí ocas o hloubce `notch`), volitelně zlaté znamení
+    `emblem` (obrys v rovině látky, střed a velikost v látce) – žerď v ose Z, látka k +X."""
+    staff, cloth, gilt, sign = bmesh.new(), bmesh.new(), bmesh.new(), bmesh.new()
+    cyl(staff, (0, 0, pole[0]), (0, 0, pole[1]), 0.05, 0.045, 10)
+    blob(gilt, ((0, 0, pole[1] + 0.05), (0, 0, 0)), (0.085, 0.085, 0.1), 12, 8)
+
+    def sag(x):
+        return 0.14 * max(0.0, (x - 0.05) / (L - 0.05)) ** 1.5
+
+    nu, nv = 30, 16
+    rows = []
+    for j in range(nv + 1):
+        v = j / nv
+        z = top - H * v
+        xend = L - notch * (1 - abs(2 * v - 1))
+        row = []
+        for i in range(nu + 1):
+            x = 0.05 + (xend - 0.05) * i / nu
+            row.append(cloth.verts.new((x, cloth_wave(x, z), z - sag(x))))
+        rows.append(row)
+    for j in range(nv):
+        for i in range(nu):
+            cloth.faces.new((rows[j][i], rows[j][i + 1], rows[j + 1][i + 1], rows[j + 1][i]))
+    objs = [to_obj(staff, "staff", wood_mat("staff", (0.4, 0.26, 0.13))),
+            to_obj(cloth, "cloth", mat("cloth", color, 0.88, noise=14, bump=0.2)),
+            to_obj(gilt, "finial", gold_metal())]
+    if emblem:
+        pts, (cx, cz), size = emblem
+        f = sign.faces.new([sign.verts.new((cx + x * size, 0.0, cz + z * size)) for x, z in pts])
+        bmesh.ops.triangulate(sign, faces=[f])
+        bmesh.ops.subdivide_edges(sign, edges=sign.edges[:], cuts=3, use_grid_fill=True)
+        for vv in sign.verts:
+            x, z = vv.co.x, vv.co.z
+            vv.co = Vector((x, cloth_wave(x, z) - 0.018, z - sag(x)))
+        objs.append(to_obj(sign, "sign", mat("sign", (0.86, 0.62, 0.2), 0.45, noise=20)))
+    return objs
+
+
+CROWN = [(-1.0, -0.6), (1.0, -0.6), (1.0, 0.55), (0.55, 0.05), (0.0, 0.8), (-0.55, 0.05), (-1.0, 0.55)]
+DIAMOND = [(0.0, -1.0), (0.68, 0.0), (0.0, 1.0), (-0.68, 0.0)]
+
+
+def banner_icon(color, emblem=None, notch=0.42):
+    objs = banner_objs(color, emblem, notch)
+    move(objs, rot=(0, math.radians(-8), 0))
+    hud_light(az=-40, el=40, strength=4.4)
+    camera(world_points(objs), az=-18, el=10, margin=1.04)
+    return True
+
+
+def seal_outline(r, rng, n=44):
+    return [(math.cos(2 * math.pi * i / n) * r * (1 + 0.035 * math.sin(5 * 2 * math.pi * i / n) + rng.uniform(-0.015, 0.015)),
+             math.sin(2 * math.pi * i / n) * r * (1 + 0.035 * math.sin(5 * 2 * math.pi * i / n) + rng.uniform(-0.015, 0.015)))
+            for i in range(n)]
+
+
+SEAL_CRACK = [(0.04, 1.0), (-0.07, 0.62), (0.09, 0.28), (-0.06, -0.05), (0.08, -0.4), (-0.05, -0.72), (0.03, -1.0)]
+
+
+def seal_objs(broken=False, rng=None):
+    """Vosková pečeť na pergamenu se šňůrou: okraj s raženým kruhem a křížem; rozlomená = dvě
+    poloviny od sebe s klikatým lomem."""
+    rng = rng or random.Random(31)
+    wax, sheet, cord = bmesh.new(), bmesh.new(), bmesh.new()
+    lying_plate(sheet, [(-1.25, -0.95), (1.2, -1.0), (1.25, 0.9), (-1.2, 0.95)], -0.04, 0.03)
+    sweep(cord, [Vector((0.2, -0.5, 0.0)), Vector((0.55, -1.05, 0.0)), Vector((0.75, -1.4, -0.02))], 0.04, 8)
+    sweep(cord, [Vector((-0.1, -0.5, 0.0)), Vector((-0.25, -1.1, 0.0)), Vector((-0.2, -1.45, -0.02))], 0.04, 8)
+    if not broken:
+        lying_plate(wax, seal_outline(0.82, rng), 0.0, 0.14)
+        lying_plate(wax, seal_outline(0.62, rng, 40), 0.14, 0.04)
+        sweep(wax, [Vector((math.cos(a) * 0.5, math.sin(a) * 0.5, 0.2)) for a in
+                    (2 * math.pi * i / 40 for i in range(40))], 0.03, 6, closed=True)
+        box(wax, (0, 0, 0.21), (0.08, 0.62, 0.05))
+        box(wax, (0, 0.05, 0.21), (0.46, 0.08, 0.05))
+    else:
+        for side, shift, turn in ((1, (0.2, -0.05), -0.16), (-1, (-0.17, 0.05), 0.12)):
+            half = bmesh.new()
+            for r, z, h in ((0.82, 0.0, 0.14), (0.62, 0.14, 0.04)):
+                arc = [(math.cos(a) * r, math.sin(a) * r) for a in
+                       (math.radians(-86 + 172 * i / 24) for i in range(25))]
+                crack = [(x * r, y * r) for x, y in SEAL_CRACK if abs(y) < 0.97]
+                if side > 0:
+                    pts = arc + crack
+                else:
+                    pts = [(-x, -y) for x, y in arc] + [(x * r, y * r) for x, y in SEAL_CRACK[::-1] if abs(y) < 0.97]
+                lying_plate(half, pts, z, h)
+            bmesh.ops.rotate(half, verts=half.verts, cent=(0, 0, 0), matrix=Matrix.Rotation(turn, 3, "Z"))
+            bmesh.ops.translate(half, verts=half.verts, vec=(shift[0], shift[1], 0))
+            bmesh.ops.recalc_face_normals(half, faces=half.faces)
+            me = bpy.data.meshes.new("tmp")
+            half.to_mesh(me)
+            half.free()
+            wax.from_mesh(me)
+            bpy.data.meshes.remove(me)
+    bmesh.ops.recalc_face_normals(wax, faces=wax.faces)
+    bmesh.ops.recalc_face_normals(sheet, faces=sheet.faces)
+    return [to_obj(wax, "wax", wax_mat(), smooth=False),
+            to_obj(sheet, "sheet", parchment_mat(), smooth=False),
+            to_obj(cord, "cord", mat("cord", (0.72, 0.6, 0.3), 0.85, noise=40))]
+
+
+def quill_objs():
+    """Husí brk: světlý prapor pera podél stvolu, tmavý seříznutý hrot – rovina XZ, hrot dole vlevo."""
+    shaft, vane, nib = bmesh.new(), bmesh.new(), bmesh.new()
+    a, b = Vector((-0.95, 0.0, -1.0)), Vector((0.85, 0.0, 1.05))
+    d = (b - a).normalized()
+    n = Vector((d.z, 0, -d.x))
+    cyl(shaft, a + d * 0.12, b, 0.03, 0.012, 8)
+    cyl(nib, a, a + d * 0.14, 0.004, 0.03, 8)
+    L = (b - a).length
+    left, right = [], []
+    for i in range(25):
+        t = 0.28 + 0.72 * i / 24
+        w = max(0.0, math.sin(math.pi * (t - 0.28) / 0.72)) ** 0.55
+        p = a + d * (t * L)
+        left.append(p - n * (0.3 * w) + d * 0.04 * w)
+        right.append(p + n * (0.17 * w) + d * 0.03 * w)
+    pts = [(p.x, p.z) for p in left] + [(p.x, p.z) for p in right[::-1]]
+    flat_plate(vane, pts, 0.0, 0.02)
+    bmesh.ops.recalc_face_normals(vane, faces=vane.faces)
+    return [to_obj(shaft, "quill", mat("quill", (0.9, 0.86, 0.74), 0.6)),
+            to_obj(vane, "vane", mat("vane", (0.92, 0.89, 0.8), 0.85, noise=40, bump=0.4), smooth=False),
+            to_obj(nib, "nib", mat("nib", (0.08, 0.06, 0.05), 0.5))]
+
+
+def key_objs():
+    """Kovaný klíč: kruhové oko, dřík a zub s vruby – rovina XZ, oko nahoře."""
+    iron = bmesh.new()
+    sweep(iron, ring_pts((0, 0, 0.62), 0.3, 0.3, n=32), 0.075, 10, closed=True)
+    cyl(iron, (0, 0, 0.32), (0, 0, -1.05), 0.075, 0.07, 12)
+    box(iron, (0, 0, 0.28), (0.24, 0.24, 0.08))
+    box(iron, (0.2, 0, -0.82), (0.3, 0.09, 0.42))
+    box(iron, (0.36, 0, -0.95), (0.1, 0.09, 0.16))
+    return [to_obj(iron, "key", metal("key", (0.4, 0.38, 0.36), 0.4, 0.7))]
+
+
+def chain_objs(n=4, gap_at=None):
+    """Řetěz ze `n` článků podél osy X (každý druhý natočený); článek `gap_at` je uprostřed
+    rozetnutý a obě půlky řetězu od sebe."""
+    iron = bmesh.new()
+    pitch = 0.62
+    for k in range(n):
+        x = (k - (n - 1) / 2) * pitch
+        rot = (math.pi / 2, 0, 0) if k % 2 else (0, 0, 0)
+        if k == gap_at:
+            # levá půlka článku (oblouk vlevo) a pravá půlka, mezi nimi mezera
+            sweep(iron, ellipse_arc((x - 0.16, 0, 0), 0.42, 0.24, math.pi / 2 + 0.35, 3 * math.pi / 2 - 0.35, rot, 14),
+                  0.1, 10)
+            sweep(iron, ellipse_arc((x + 0.16, 0, 0), 0.42, 0.24, -math.pi / 2 + 0.35, math.pi / 2 - 0.35, rot, 14),
+                  0.1, 10)
+        else:
+            shift = 0.0 if gap_at is None else (0.16 if k > gap_at else -0.16)
+            sweep(iron, ring_pts((x + shift, 0, 0), 0.42, 0.24, rot=rot, n=28), 0.1, 10, closed=True)
+    return [to_obj(iron, "chain", metal("chain", (0.38, 0.38, 0.4), 0.42, 0.7))]
+
+
+def cuff_objs(centre, axis, open_angle=0.0, r=0.16, tube=0.05):
+    """Železné pouto (obruč) kolem zápěstí s osou `axis`; otevřené = horní půlka odklopená."""
+    iron = bmesh.new()
+    axis = Vector(axis).normalized()
+    q = axis.to_track_quat("Y", "Z")
+    lower = [Vector(centre) + q @ Vector((math.cos(t) * r, 0, math.sin(t) * r))
+             for t in (math.pi + math.pi * i / 12 for i in range(13))]
+    hinge = Vector(centre) + q @ Vector((r, 0, 0))
+    rot = Matrix.Rotation(open_angle, 3, q @ Vector((0, 1, 0)))
+    upper = [hinge + rot @ (Vector(centre) + q @ Vector((math.cos(t) * r, 0, math.sin(t) * r)) - hinge)
+             for t in (math.pi * i / 12 for i in range(13))]
+    sweep(iron, lower, tube, 8)
+    sweep(iron, upper, tube, 8)
+    for p in (lower[0], lower[-1]):
+        blob(iron, ((p.x, p.y, p.z), (0, 0, 0)), (tube * 1.4, tube * 1.4, tube * 1.4), 8, 6)
+    return [to_obj(iron, "cuff", metal("cuff", (0.34, 0.33, 0.33), 0.45, 0.7))]
+
+
+# -------------------------------------------------------------- rod a vazalství ----
+
+
+def icon_house_banner():
+    """Rod a páni: červený prapor s vlaštovčím ocasem na žerdi se zlatou hlavicí."""
+    return banner_icon(PAINT_RED)
+
+
+def icon_banner_crown():
+    """Nováček – Vybrat pána: modrý prapor se zlatou korunou."""
+    return banner_icon((0.12, 0.2, 0.45), (CROWN, (0.84, 1.02), 0.36))
+
+
+def icon_banner_free():
+    """Nováček – Svobodný: zelený prapor se zlatým kosočtvercem."""
+    return banner_icon((0.13, 0.34, 0.14), (DIAMOND, (0.84, 1.02), 0.36))
+
+
+def icon_white_flag():
+    """Vzdát se při přesile: bílá plachetka na šikmé žerdi."""
+    objs = banner_objs((0.9, 0.88, 0.8), None, notch=0.0)
+    move(objs, rot=(0, math.radians(-16), 0))
+    hud_light(az=-40, el=40, strength=4.0)
+    camera(world_points(objs), az=-18, el=10, margin=1.04)
+    return True
+
+
+def icon_seal():
+    objs = seal_objs()
+    hud_light(az=-40, el=50, strength=4.2)
+    camera(world_points(objs), az=0, el=52, margin=1.0)
+    return True
+
+
+def icon_seal_broken():
+    objs = seal_objs(broken=True)
+    hud_light(az=-40, el=50, strength=4.2)
+    camera(world_points(objs), az=0, el=52, margin=1.0)
+    return True
+
+
+def icon_seal_pen():
+    """Nové podmínky: pečeť na pergamenu a přes ni položený brk."""
+    objs = seal_objs()
+    q = quill_objs()
+    move(q, loc=(0.35, -0.15, 0.32), rot=(-math.pi / 2, 0, math.radians(-15)), scale=0.85)
+    hud_light(az=-40, el=50, strength=4.2)
+    camera(world_points(objs + q), az=0, el=52, margin=1.0)
+    return True
+
+
+def icon_pen():
+    """Protinávrh: brk namočený v hliněném kalamáři."""
+    q = quill_objs()
+    move(q, loc=(0.95, 0.0, 1.4))
+    ink = bmesh.new()
+    revolve(ink, [(0.0, 0.32), (0.08, 0.42), (0.3, 0.46), (0.48, 0.36), (0.56, 0.2), (0.62, 0.22), (0.66, 0.2),
+                  (0.6, 0.15)], 36, cap_bottom=True, cap_top=True)
+    pot = to_obj(ink, "inkwell", mat("pot", (0.5, 0.3, 0.18), 0.7, noise=12, bump=0.2))
+    hud_light(az=-40, el=40)
+    camera(world_points(q + [pot]), az=10, el=14, margin=1.04)
+    return True
+
+
+def icon_copy():
+    """Kopírovat odkaz: dva listy pergamenu přes sebe, horní s řádky písma."""
+    rng = random.Random(33)
+    sheets, ink = bmesh.new(), bmesh.new()
+    for (ox, oy, z, turn) in ((-0.3, 0.28, 0.0, 0.08), (0.25, -0.22, 0.05, -0.06)):
+        m = Matrix.Rotation(turn, 3, "Z")
+        corner = [(-0.75, -1.0), (0.75, -1.0), (0.75, 1.0), (-0.75, 1.0)]
+        lying_plate(sheets, [((m @ Vector((x, y, 0))).x + ox, (m @ Vector((x, y, 0))).y + oy) for x, y in corner],
+                    z, 0.03)
+        for j in range(7):
+            y = 0.72 - j * 0.24
+            x1 = 0.55 if j < 6 else rng.uniform(-0.1, 0.2)
+            line = [(-0.55, y - 0.035), (x1, y - 0.035), (x1, y + 0.035), (-0.55, y + 0.035)]
+            lying_plate(ink, [((m @ Vector((x, yy, 0))).x + ox, (m @ Vector((x, yy, 0))).y + oy) for x, yy in line],
+                        z + 0.03, 0.004)
+    bmesh.ops.recalc_face_normals(sheets, faces=sheets.faces)
+    objs = [to_obj(sheets, "sheets", parchment_mat(), smooth=False),
+            to_obj(ink, "ink", mat("ink", (0.16, 0.1, 0.07), 0.9), smooth=False)]
+    hud_light(az=-40, el=55)
+    camera(world_points(objs), az=0, el=58, margin=1.0)
+    return True
+
+
+def icon_cross():
+    """Zrušit / zavřít: červený křížek ze dvou břeven."""
+    bm = bmesh.new()
+    for a, t in ((math.radians(45), 0.3), (math.radians(-45), 0.36)):  # různá tloušťka – líce se nepřekrývají
+        box(bm, (0, 0, 0), (2.2, t, 0.42), rot=(0, a, 0))
+    to_obj(bm, "cross", mat("cross", (0.55, 0.05, 0.03), 0.55), smooth=False)
+    hud_light(az=-35, el=45)
+    camera([Vector((-0.95, -0.3, -0.95)), Vector((0.95, 0.3, 0.95))], az=0, el=8, margin=1.02)
+    return True
+
+
+def gate_icon(closed):
+    """Brána v palisádě: zavřená se závorou (Blokovat), nebo obě křídla dokořán (Odblokovat)."""
+    rng = random.Random(7)
+    parts = fort_parts()
+    palisade_run(parts, seg_points((-3.4, 0.0), (-2.35, 0.0)), rng)
+    palisade_run(parts, seg_points((2.35, 0.0), (3.4, 0.0)), rng)
+    gate(parts, 0, 0, open_angle=0.0 if closed else 1.25)
+    if closed:
+        bar = bmesh.new()
+        box(bar, (0, -0.42, 1.9), (4.6, 0.32, 0.36))
+        for x in (-1.6, 1.6):
+            box(bar, (x, -0.3, 1.9), (0.22, 0.2, 0.62))
+        to_obj(bar, "bar", wood_mat("bar", (0.34, 0.22, 0.12)), smooth=False)
+    hud_light()
+    camera([Vector((-3.5, -2.4, 0)), Vector((3.5, 0.3, 0)), Vector((-3.5, -2.4, 4.2)), Vector((3.5, 0.3, 4.2))],
+           az=12, el=26, margin=1.0)
+    return True
+
+
+def icon_gift():
+    """Dar: dřevěná truhlička s kováním a zámkem."""
+    wood, iron = bmesh.new(), bmesh.new()
+    box(wood, (0, 0, 0.32), (1.4, 0.9, 0.64))
+    box(wood, (0, 0, 0.74), (1.46, 0.96, 0.2))
+    box(wood, (0, 0, 0.88), (1.3, 0.8, 0.1))
+    for x in (-0.48, 0.48):
+        box(iron, (x, 0, 0.47), (0.1, 0.94, 0.95))
+        box(iron, (x, 0, 0.94), (0.1, 0.84, 0.06))
+    box(iron, (0, -0.47, 0.58), (0.24, 0.04, 0.3))
+    box(iron, (0, -0.5, 0.56), (0.05, 0.03, 0.1))
+    bmesh.ops.recalc_face_normals(wood, faces=wood.faces)
+    objs = [to_obj(wood, "chest", wood_mat("chest", (0.5, 0.3, 0.14)), smooth=False),
+            to_obj(iron, "bands", iron_mat("bands"), smooth=False)]
+    hud_light()
+    camera(world_points(objs), az=28, el=24, margin=1.04)
+    return True
+
+
+def icon_loan():
+    """Půjčka a splátky: sloupek stříbrných denárů a kolem dvě šipky dokola (dát a vrátit)."""
+    coins, arrows = bmesh.new(), bmesh.new()
+    rng = random.Random(34)
+    for k in range(6):
+        cyl(coins, (rng.uniform(-0.03, 0.03), rng.uniform(-0.03, 0.03), k * 0.09),
+            (rng.uniform(-0.03, 0.03), rng.uniform(-0.03, 0.03), k * 0.09 + 0.08), 0.34, 0.34, 32)
+    for a0, a1 in ((math.radians(200), math.radians(340)), (math.radians(20), math.radians(160))):
+        lying_plate(arrows, arc_arrow(0.95, 0.18, a0, a1), 0.05, 0.08)
+    bmesh.ops.recalc_face_normals(arrows, faces=arrows.faces)
+    objs = [to_obj(coins, "coins", metal("silver", (0.78, 0.78, 0.8), 0.3, 0.9), smooth=False),
+            to_obj(arrows, "arrows", glow_mat("loan", (0.85, 0.6, 0.12), 0.35), smooth=False)]
+    hud_light(az=-40, el=50)
+    camera(world_points(objs), az=0, el=46, margin=1.0)
+    return True
+
+
+def icon_aid():
+    """Žádost o pomoc: otevřený pytel obilí a v něm dřevěná naběračka."""
+    rng = random.Random(35)
+    sack_bm, grain, scoop = bmesh.new(), bmesh.new(), bmesh.new()
+    revolve(sack_bm, [(0.0, 0.42), (0.18, 0.62), (0.55, 0.68), (0.88, 0.58), (1.02, 0.52), (1.1, 0.6),
+                      (1.14, 0.56), (1.06, 0.48), (0.98, 0.45)], 36, cap_bottom=True)
+    off = Vector((rng.uniform(0, 50), rng.uniform(0, 50), 0))
+    for v in sack_bm.verts:
+        flat = Vector((v.co.x, v.co.y, 0))
+        if flat.length > 0.01:
+            v.co += flat.normalized() * 0.05 * noise.noise(v.co * 3.5 + off)
+    lumpy_heap(grain, 0.5, 0.22, rng, amp=0.03)
+    bmesh.ops.translate(grain, verts=grain.verts, vec=(0, 0, 0.97))
+    cyl(scoop, (0.12, -0.05, 1.05), (0.55, -0.35, 1.7), 0.04, 0.035, 8)
+    blob(scoop, ((0.06, 0.0, 1.06), (0.4, -0.5, 0)), (0.2, 0.15, 0.1), 12, 8)
+    objs = [to_obj(sack_bm, "sack", mat("burlap", (0.62, 0.5, 0.32), 0.95, noise=60, bump=0.5)),
+            to_obj(grain, "grain", mat("grain", (0.86, 0.66, 0.3), 0.8, noise=40, bump=0.4)),
+            to_obj(scoop, "scoop", wood_mat("scoop", (0.55, 0.36, 0.18)))]
+    hud_light()
+    camera(world_points(objs), az=14, el=26, margin=1.04)
+    return True
+
+
+def icon_hunger():
+    """Hlad: prázdná dřevěná mísa a vedle ní lžíce."""
+    bowl, spoon = bmesh.new(), bmesh.new()
+    revolve(bowl, [(0.0, 0.3), (0.05, 0.42), (0.22, 0.64), (0.5, 0.8), (0.66, 0.86), (0.66, 0.8),
+                   (0.52, 0.73), (0.26, 0.56), (0.12, 0.3), (0.12, 0.02)], 48, cap_bottom=True, cap_top=True)
+    cyl(spoon, (0.65, -0.55, 0.03), (1.45, -0.95, 0.03), 0.035, 0.03, 8)
+    blob(spoon, ((0.55, -0.48, 0.04), (0, 0, math.radians(-27))), (0.17, 0.11, 0.04), 12, 6)
+    objs = [to_obj(bowl, "bowl", wood_mat("bowl", (0.55, 0.35, 0.17))),
+            to_obj(spoon, "spoon", wood_mat("spoon", (0.6, 0.4, 0.2)))]
+    hud_light(az=-40, el=50)
+    camera(world_points(objs), az=0, el=32, margin=1.04)
+    return True
+
+
+def icon_chain_broken():
+    """Vypovězení: rozetnutý železný řetěz – prostřední článek přerušený, půlky od sebe."""
+    objs = chain_objs(4, gap_at=2)
+    move(objs, rot=(0, math.radians(-28), 0))
+    hud_light(az=-40, el=45)
+    camera(world_points(objs), az=0, el=14, margin=1.04)
+    return True
+
+
+def icon_horn():
+    """Svolání: zahnutý volský roh s bronzovým nátrubkem, kováním a koženým popruhem."""
+    horn, tip, band, strap, inner = bmesh.new(), bmesh.new(), bmesh.new(), bmesh.new(), bmesh.new()
+    pts = [Vector((math.cos(a) * 1.0, 0, math.sin(a) * 0.62)) for a in
+           (math.radians(200 + 150 * i / 30) for i in range(31))]
+
+    def rad(t):
+        return 0.05 + 0.31 * t ** 1.5
+
+    sweep(tip, pts[:6], lambda t: rad(t * 5 / 30), 16)
+    sweep(horn, pts[5:], lambda t: rad((5 + t * 25) / 30), 20)
+    for k in (11, 24):
+        d = (pts[k + 1] - pts[k]).normalized()
+        cyl(band, pts[k] - d * 0.05, pts[k] + d * 0.05, rad(k / 30) + 0.03, rad(k / 30) + 0.03, 20)
+    d = (pts[-1] - pts[-2]).normalized()
+    cyl(inner, pts[-1] - d * 0.02, pts[-1] + d * 0.002, rad(1.0) * 0.86, rad(1.0) * 0.86, 24)
+    a, b = pts[11], pts[24]
+    sweep(strap, [a.lerp(b, t) + Vector((0, 0.05, 0.55 * math.sin(math.pi * t) + 0.1)) for t in
+                  (i / 12 for i in range(13))], 0.03, 6)
+    objs = [to_obj(horn, "horn", mat("horn", (0.86, 0.76, 0.56), 0.45, noise=18, bump=0.15)),
+            to_obj(tip, "tip", gold_metal("mouth")),
+            to_obj(band, "bands", gold_metal("band")),
+            to_obj(strap, "strap", mat("strap", (0.3, 0.17, 0.08), 0.7)),
+            to_obj(inner, "bell", mat("bell", (0.06, 0.04, 0.03), 0.9))]
+    hud_light(az=-40, el=45)
+    camera(world_points(objs), az=0, el=12, margin=1.04)
+    return True
+
+
+def icon_passage():
+    """Ohlášení průchodu: šlépěje přes hranici – řada mezníků napříč vyšlapanou hlínou."""
+    walk_prints()
+    rng = random.Random(36)
+    stones = bmesh.new()
+    d = Vector((0.45, 1.0, 0)).normalized()
+    side = Vector((d.y, -d.x, 0))
+    for k in range(-3, 4):
+        c = side * (k * 0.36) + d * rng.uniform(-0.04, 0.04)
+        blob(stones, ((c.x, c.y, 0.05), (0, 0, rng.uniform(0, 3))), (0.13, 0.1, 0.12 if k else 0.3), 10, 7)
+    for v in stones.verts:
+        v.co += Vector((0, 0, 0.02 * noise.noise(v.co * 6)))
+    to_obj(stones, "stones", mat("stone", (0.55, 0.53, 0.5), 0.9, noise=12, bump=0.5))
+    hud_light(az=-55, el=46)
+    camera([Vector((-1.15, -1.15, 0)), Vector((1.15, 1.15, 0.05))], az=0, el=62, margin=1.0)
+    return True
+
+
+def icon_scales():
+    """Rozsudek pána: tytéž váhy jako bilance obchodu, misky prázdné."""
+    return icon_balance(grain_in_pan=False)
+
+
+def icon_shield():
+    objs = shield_objs()
+    hud_light(az=-40, el=40)
+    camera(world_points(objs), az=-22, el=12, margin=1.04)
+    return True
+
+
+def icon_shield_hourglass():
+    """Ochrana nového rodu: štít a před ním přesýpací hodiny."""
+    objs = shield_objs()
+    h = hourglass_objs()
+    move(h, loc=(0.62, -0.75, -0.45), scale=0.62)
+    hud_light(az=-40, el=40)
+    camera(world_points(objs + h), az=-14, el=12, margin=1.04)
+    return True
+
+
+def guard_icon(back):
+    """Poslat muže na ochranu (šipka ze štítu ven) / odvolat (zelená šipka zpět ke štítu)."""
+    objs = shield_objs()
+    move(objs, loc=(-0.45, 0, 0), scale=0.85)
+    arrow = bmesh.new()
+    if back:
+        pts = [(x + 0.75, z + 0.1) for x, z in arc_arrow(0.75, 0.24, math.radians(-30), math.radians(190), head=2.2)]
+    else:
+        pts = flat_arrow((0.05, -0.15), (1.75, 0.45), 0.3, 0.72, 0.5)
+    flat_plate(arrow, pts, -0.4, 0.1)
+    bmesh.ops.recalc_face_normals(arrow, faces=arrow.faces)
+    objs.append(to_obj(arrow, "arrow", green_mark() if back else red_mark(), smooth=False))
+    hud_light(az=-40, el=40)
+    camera(world_points(objs), az=-10, el=10, margin=1.04)
+    return True
+
+
+def icon_spears():
+    """Válka a opověď: dva zkřížené oštěpy."""
+    wood, iron = bmesh.new(), bmesh.new()
+    spear_into(wood, iron, (-1.0, 0.0, -1.0), (0.62, 0.0, 0.62), y=0.06)
+    spear_into(wood, iron, (1.0, 0.0, -1.0), (-0.62, 0.0, 0.62), y=-0.06)
+    objs = [to_obj(wood, "shafts", wood_mat("shaft")), to_obj(iron, "heads", iron_mat("head"))]
+    hud_light(az=-45, el=45)
+    camera(world_points(objs), az=0, el=12, margin=1.02)
+    return True
+
+
+def icon_sword():
+    objs = sword_objs()
+    move(objs, rot=(0, math.radians(38), 0))
+    hud_light(az=-40, el=42, strength=4.4)
+    camera(world_points(objs), az=0, el=10, margin=1.02)
+    return True
+
+
+def icon_succession():
+    """Nástupnictví: zlatá čelenka koruny s pěti hroty zakončenými kuličkou a kameny na obruči."""
+    gilt, gems = bmesh.new(), bmesh.new()
+    revolve(gilt, [(0.0, 0.78), (0.36, 0.78), (0.36, 0.7), (0.0, 0.7), (0.0, 0.78)], 64)
+    for k in range(5):
+        a = 2 * math.pi * k / 5 + math.pi / 2 + math.radians(18)
+        base = Vector((math.cos(a) * 0.75, math.sin(a) * 0.75, 0.34))
+        tip = Vector((math.cos(a) * 0.86, math.sin(a) * 0.86, 0.92))
+        cyl(gilt, base, tip, 0.16, 0.02, 12)
+        blob(gilt, ((tip.x, tip.y, tip.z + 0.04), (0, 0, 0)), (0.08, 0.08, 0.08), 10, 6)
+        g = a + math.pi / 5
+        blob(gems, ((math.cos(g) * 0.79, math.sin(g) * 0.79, 0.18), (0, 0, g)), (0.05, 0.09, 0.09), 10, 6)
+    objs = [to_obj(gilt, "crown", gold_metal("crown")),
+            to_obj(gems, "gems", mat("gem", (0.62, 0.05, 0.08), 0.15))]
+    hud_light(az=-40, el=45, strength=4.4)
+    camera(world_points(objs), az=0, el=22, margin=1.04)
+    return True
+
+
+def icon_throne():
+    """Senior rodu: vyřezávaný stolec s vysokým opěradlem, područkami a červeným polštářem."""
+    wood, cushion = bmesh.new(), bmesh.new()
+    box(wood, (0, 0, 0.9), (1.1, 1.0, 0.14))
+    for x in (-0.48, 0.48):
+        for y in (-0.42, 0.42):
+            top = 2.25 if y > 0 else 1.35
+            cyl(wood, (x, y, 0.0), (x, y, top), 0.07, 0.065, 10)
+            blob(wood, ((x, y, top + 0.06), (0, 0, 0)), (0.1, 0.1, 0.1), 10, 6)
+        box(wood, (x, 0, 1.3), (0.12, 0.92, 0.1))
+    for z in (1.55, 2.08):
+        box(wood, (0, 0.42, z), (0.96, 0.08, 0.16))
+    for x in (-0.24, 0.0, 0.24):
+        box(wood, (x, 0.42, 1.8), (0.08, 0.06, 0.42))
+    box(wood, (0, -0.42, 0.25), (0.9, 0.06, 0.08))
+    blob(cushion, ((0, -0.02, 1.02), (0, 0, 0)), (0.5, 0.44, 0.09), 20, 10)
+    objs = [to_obj(wood, "throne", wood_mat("throne", (0.4, 0.24, 0.11)), smooth=False),
+            to_obj(cushion, "cushion", mat("cushion", PAINT_RED, 0.85, noise=12))]
+    hud_light()
+    camera(world_points(objs), az=-30, el=16, margin=1.04)
+    return True
+
+
+def icon_village_key():
+    """Správa vsi: zemnice a před ní velký kovaný klíč."""
+    house, pts = house_model()
+    lo = [min(p[i] for p in pts) for i in range(3)]
+    hi = [max(p[i] for p in pts) for i in range(3)]
+    h = hi[2] - lo[2]
+    k = key_objs()
+    move(k, loc=(hi[0] - h * 0.15, lo[1] - h * 0.5, h * 0.62), rot=(0, math.radians(-20), 0), scale=h * 0.7)
+    hud_light(az=-45, el=42)
+    camera(pts + world_points(k), az=-12, el=16, margin=1.0)
+    return True
+
+
+def icon_steward():
+    """Správce vsi: kovaný klíč."""
+    k = key_objs()
+    move(k, rot=(0, math.radians(-35), 0))
+    hud_light(az=-40, el=42, strength=4.4)
+    camera(world_points(k), az=0, el=12, margin=1.04)
+    return True
+
+
+def person_hands(name, clip, frame):
+    """Vesničan v pozici klipu a světové polohy jeho zápěstí (kost `hand_L` / `hand_R`)."""
+    meshes = place_person(name, clip=clip, frame=frame, turn=-20)
+    rig = next(o for o in bpy.data.objects if o.type == "ARMATURE")
+    wrist = {s: rig.matrix_world @ rig.pose.bones[f"hand_{s}"].head for s in ("L", "R")}
+    fore = {s: rig.matrix_world @ rig.pose.bones[f"forearm_{s}"].head for s in ("L", "R")}
+    return meshes, wrist, fore
+
+
+def icon_hands():
+    """Požádat o přijetí: vesničan klečí na koleni se skloněnou hlavou (klip `bind`, prostřední snímek)."""
+    meshes = place_person("man", clip="bind", frame=12, turn=-60)
+    act = next(a for a in bpy.data.actions if a.name.startswith("bind"))
+    bpy.context.scene.frame_set(int((act.frame_range[0] + act.frame_range[1]) / 2))
+    bpy.context.view_layer.update()
+    sun(az=-40, el=40, strength=4.4)
+    camera(box_points(meshes), az=0, el=8, margin=1.02)
+    return True
+
+
+def icon_handshake():
+    """Přijmout jednání: dvě předloktí v rukávech (červený a modrý) a stisk rukou uprostřed."""
+    cloth_a, cloth_b, skin = bmesh.new(), bmesh.new(), bmesh.new()
+    cyl(cloth_a, (-1.45, 0, -0.85), (-0.38, 0, -0.12), 0.24, 0.19, 16)
+    cyl(cloth_b, (1.45, 0, -0.85), (0.38, 0, -0.12), 0.24, 0.19, 16)
+    cyl(cloth_a, (-0.52, 0, -0.2), (-0.36, 0, -0.1), 0.22, 0.22, 16)
+    cyl(cloth_b, (0.52, 0, -0.2), (0.36, 0, -0.1), 0.22, 0.22, 16)
+    blob(skin, ((-0.16, 0.02, 0.0), (0, math.radians(-30), 0)), (0.17, 0.15, 0.25), 14, 10)
+    blob(skin, ((0.14, -0.06, 0.02), (0, math.radians(30), 0)), (0.17, 0.15, 0.25), 14, 10)
+    cyl(skin, (-0.22, -0.13, 0.08), (0.06, -0.2, 0.2), 0.055, 0.045, 8)
+    for k in range(3):
+        cyl(skin, (0.2, -0.16, 0.12 - k * 0.1), (-0.06, -0.22, 0.16 - k * 0.1), 0.045, 0.04, 8)
+    objs = [to_obj(cloth_a, "sleeve-a", mat("sleeve-a", PAINT_RED, 0.9, noise=16, bump=0.2)),
+            to_obj(cloth_b, "sleeve-b", mat("sleeve-b", (0.15, 0.24, 0.48), 0.9, noise=16, bump=0.2)),
+            to_obj(skin, "hands", mat("skin", (0.8, 0.56, 0.42), 0.6))]
+    hud_light(az=-35, el=45)
+    camera(world_points(objs), az=0, el=14, margin=1.02)
+    return True
+
+
+# --------------------------------------------------------------------- válka ----
+
+
+def icon_shield_wall():
+    """Bránit se: tři štíty vedle sebe, prostřední vpředu."""
+    objs = []
+    for x, y, paint in ((-1.2, 0.25, (0.42, 0.05, 0.03)), (1.2, 0.25, (0.44, 0.07, 0.035)), (0.0, -0.1, PAINT_RED)):
+        objs += move(shield_objs(paint, f"shield{x}"), loc=(x, y, 0))
+    hud_light(az=-40, el=40)
+    camera(world_points(objs), az=-8, el=12, margin=1.02)
+    return True
+
+
+def icon_forest():
+    """Raději utéct: dva smrky z modelů krajiny."""
+    objs = []
+    for name, loc, scale in (("spruce-1", (-0.9, 0.4, 0), 1.0), ("spruce-2", (0.8, -0.4, 0), 0.85)):
+        for o in place_model(name, folder=TREES):
+            o.location = Vector(loc)
+            o.scale = (scale, scale, scale)
+            objs.append(o)
+    bpy.context.view_layer.update()
+    hud_light(az=-50, el=46, strength=4.0)
+    camera(world_points(objs), az=10, el=12, margin=1.04)
+    return True
+
+
+def icon_captive():
+    """Zajatec: vesničan s rukama před sebou spoutanýma železnými pouty s řetízkem."""
+    meshes, wrist, fore = person_hands("man", "pray", 20)
+    cuffs = []
+    for s in ("L", "R"):
+        cuffs += cuff_objs(wrist[s] - (wrist[s] - fore[s]) * 0.12, wrist[s] - fore[s], r=0.06, tube=0.02)
+    chain = bmesh.new()
+    a, b = wrist["L"], wrist["R"]
+    mid = (a + b) / 2 - Vector((0, 0, 0.12))
+    sweep(chain, [a, mid, b], 0.025, 6)
+    cuffs.append(to_obj(chain, "chain", metal("chain", (0.34, 0.33, 0.33), 0.45, 0.7)))
+    sun(az=-40, el=40, strength=4.4)
+    camera(box_points(meshes, 0.42, 1.0), az=12, el=6, margin=1.0)
+    return True
+
+
+def icon_hold():
+    """Držet zajatce: železný visací zámek se třmenem a klíčovou dírkou."""
+    iron, trim, dark = bmesh.new(), bmesh.new(), bmesh.new()
+    cyl(iron, (0, -0.22, 0.0), (0, 0.22, 0.0), 0.6, 0.6, 40)
+    sweep(iron, ellipse_arc((0, 0, 0.45), 0.36, 0.55, -0.1, math.pi + 0.1, n=24), 0.09, 12)
+    cyl(trim, (0, -0.25, 0.0), (0, -0.2, 0.0), 0.62, 0.62, 40)
+    cyl(trim, (0, 0.2, 0.0), (0, 0.25, 0.0), 0.62, 0.62, 40)
+    cyl(dark, (0, -0.27, 0.02), (0, -0.25, 0.02), 0.09, 0.09, 16)
+    box(dark, (0, -0.26, -0.13), (0.08, 0.02, 0.26))
+    objs = [to_obj(iron, "lock", iron_mat("lock")), to_obj(trim, "trim", gold_metal("trim")),
+            to_obj(dark, "hole", mat("hole", (0.03, 0.02, 0.02), 0.9), smooth=False)]
+    hud_light(az=-40, el=42)
+    camera(world_points(objs), az=-15, el=12, margin=1.04)
+    return True
+
+
+def icon_release():
+    """Propustit zajatce: otevřené železné pouto s řetízkem a zelená šipka ven."""
+    objs = cuff_objs((0.0, 0.0, 0.0), (0, 1, 0), open_angle=math.radians(70), tube=0.065)
+    move(objs, scale=3.0)
+    chain = chain_objs(3)
+    move(chain, loc=(-1.25, 0.05, -0.7), rot=(0, math.radians(20), 0), scale=0.75)
+    arrow = bmesh.new()
+    flat_plate(arrow, flat_arrow((0.0, 0.2), (1.35, 1.3), 0.26, 0.66, 0.45), -0.3, 0.1)
+    bmesh.ops.recalc_face_normals(arrow, faces=arrow.faces)
+    objs += chain + [to_obj(arrow, "arrow", green_mark(), smooth=False)]
+    hud_light(az=-40, el=42)
+    camera(world_points(objs), az=0, el=14, margin=1.04)
+    return True
+
+
+def icon_execute():
+    """Popravit zajatce: sekera zaťatá do špalku."""
+    block, end, wood, iron, edge = bmesh.new(), bmesh.new(), bmesh.new(), bmesh.new(), bmesh.new()
+    cyl(block, (0, 0, 0), (0, 0, 0.8), 0.78, 0.74, 32)
+    cyl(end, (0, 0, 0.8), (0, 0, 0.81), 0.73, 0.73, 32)
+    axe(wood, iron, edge, Vector((-1.45, -0.05, 1.62)), Vector((0.5, -0.05, 1.42)))
+    to_obj(block, "block", mat("bark", (0.3, 0.2, 0.12), 0.95, noise=30, bump=0.6))
+    to_obj(end, "end", mat("endgrain", (0.72, 0.55, 0.34), 0.85, noise=40, bump=0.2))
+    to_obj(wood, "handle", mat("haft", (0.66, 0.45, 0.24), 0.75, noise=18, bump=0.3))
+    iron_objs(iron, edge)
+    hud_light(az=-40, el=45, strength=4.4)
+    camera([Vector((-1.5, -0.8, 0)), Vector((0.85, 0.8, 0)), Vector((-1.5, -0.8, 1.9)), Vector((0.85, 0.8, 1.9))],
+           az=0, el=16, margin=1.02)
+    return True
+
+
+# Výstup do podsložek (`house/aid.png`…) – klíč = cesta bez přípony. Obilí, klády a přesýpací hodiny
+# panelů rodu jsou ikony surovin (`food`, `wood`, `hourglass`).
+PANELS = {
+    "house/aid": icon_aid,
+    "house/banner": icon_house_banner,
+    "house/copy": icon_copy,
+    "house/cross": icon_cross,
+    "house/gate": lambda: gate_icon(True),
+    "house/gate-open": lambda: gate_icon(False),
+    "house/gift": icon_gift,
+    "house/guard-recall": lambda: guard_icon(True),
+    "house/guard-send": lambda: guard_icon(False),
+    "house/hands": icon_hands,
+    "house/handshake": icon_handshake,
+    "house/horn": icon_horn,
+    "house/hunger": icon_hunger,
+    "house/chain-broken": icon_chain_broken,
+    "house/loan": icon_loan,
+    "house/passage": icon_passage,
+    "house/pen": icon_pen,
+    "house/scales": icon_scales,
+    "house/seal": icon_seal,
+    "house/seal-broken": icon_seal_broken,
+    "house/seal-pen": icon_seal_pen,
+    "house/shield": icon_shield,
+    "house/shield-hourglass": icon_shield_hourglass,
+    "house/spears": icon_spears,
+    "house/succession": icon_succession,
+    "house/sword": icon_sword,
+    "house/throne": icon_throne,
+    "house/village-key": icon_village_key,
+    "war/captive": icon_captive,
+    "war/execute": icon_execute,
+    "war/forest": icon_forest,
+    "war/hold": icon_hold,
+    "war/release": icon_release,
+    "war/shield-wall": icon_shield_wall,
+    "war/white-flag": icon_white_flag,
+    "newcomer/banner-crown": icon_banner_crown,
+    "newcomer/banner-free": icon_banner_free,
+}
+
+
 HUD = {
     "fort-walkway": icon_fort_walkway,
     "fort-crib": icon_fort_crib,
@@ -4426,6 +5278,7 @@ HUD = {
     "abandon-structure": icon_abandon_structure,
     "restore": icon_restore,
     "abandon-part": icon_abandon_part,
+    "steward": icon_steward,
 }
 RESOURCES.update(HUD)
 BUILD["lom"] = icon_lom
@@ -4499,6 +5352,17 @@ for key, fn in PREMIUM.items():
     raw = f"{TMP}/premium-{key}.png"
     render(raw)
     backdrop(raw, f"{OUT}/premium/{key}.png", 128)
+    print("hotovo", key)
+for key, fn in PANELS.items():
+    # panely rodu, vazalství, války a nováčka – `house/…`, `war/…`, `newcomer/…` (64 × 64 jako suroviny)
+    if not want(key):
+        continue
+    reset()
+    fn()
+    raw = f"{TMP}/{key.replace('/', '-')}.png"
+    render(raw)
+    os.makedirs(os.path.dirname(f"{OUT}/{key}.png"), exist_ok=True)
+    small(raw, f"{OUT}/{key}.png", 64)
     print("hotovo", key)
 if want("people"):
     pop = f"{TMP}/population.png"
