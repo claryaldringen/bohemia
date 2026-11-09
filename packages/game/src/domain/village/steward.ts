@@ -331,19 +331,23 @@ function replaceState(target: VillageState, source: VillageState): void {
 }
 
 /**
- * Akce správce, která není stavba (mutuje stav – výprava za obilím): akce hráče `act` v den
- * správce na vsi dopočítané do něj (`asOf`), vyšlapanost cest napřed do stavu (`flushWear`) jako
- * u `startStewardBuild`; `lastDay` dopočtu zůstane.
+ * Akce správce, která není stavba (mutuje stav – výprava za obilím): mutující jádro akce hráče
+ * `act` (`launchExpedition`) v den správce na vsi dopočítané do něj (`lastDay` jako u `asOf`);
+ * `lastDay` dopočtu zůstane i po chybě akce. Ves se nekopíruje (village-core.md – Výkon dopočtu),
+ * a tak vyšlapanost cest smí zůstat v pracovních políčkách dopočtu (bez `flushWear`).
  */
 export function stewardAction(
   state: VillageState,
   day: number,
-  act: (asOfDay: VillageState) => VillageState,
+  act: (asOfDay: VillageState) => void,
 ): void {
-  if (state.roads?.wear) flushWear(state.roads.wear);
   const lastDay = state.lastDay;
-  replaceState(state, act(asOf(state, day)));
-  state.lastDay = lastDay;
+  state.lastDay = day;
+  try {
+    act(state);
+  } finally {
+    state.lastDay = lastDay;
+  }
 }
 
 /**

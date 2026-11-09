@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LANDSCAPE_SIZE } from '../../../landscape/types';
 import { SKELETON, trailEdgeExists, trailNode, trailPortAt, trailSides } from '..';
-import { skeletonSlice } from '..';
+import { createSkeletonCache, skeletonSlice } from '..';
 
 const SEAT = 20270101;
 
@@ -50,14 +50,18 @@ describe('stezky kostry', () => {
   });
 
   it('body stezky na společné hraně se shodují u obou políček', () => {
+    // jedna mezipaměť kostry pro celé okno – bez ní každý výřez (≈ 19 000) počítá povodí řek
+    // znovu od začátku a test pod zátěží stroje přesáhl 5 s; výsledek mezipaměť nemění
+    // (drainage.test.ts – „bez mezipaměti stejně jako s ní“)
+    const cache = createSkeletonCache(7);
     for (let x = -40; x < 40; x++) {
       for (let y = -40; y < 40; y++) {
-        const a = skeletonSlice(7, { x, y });
-        const e = skeletonSlice(7, { x: x + 1, y });
+        const a = skeletonSlice(7, { x, y }, cache);
+        const e = skeletonSlice(7, { x: x + 1, y }, cache);
         const pa = a?.trails.find((p) => p.side === 'E');
         const pe = e?.trails.find((p) => p.side === 'W');
         expect(pa?.at).toBe(pe?.at);
-        const n = skeletonSlice(7, { x, y: y + 1 });
+        const n = skeletonSlice(7, { x, y: y + 1 }, cache);
         expect(a?.trails.find((p) => p.side === 'N')?.at).toBe(
           n?.trails.find((p) => p.side === 'S')?.at,
         );
