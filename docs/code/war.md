@@ -461,7 +461,7 @@ v `domain/war/wall-defense.ts`, `battle.ts`, `stance.ts` a `defenders.ts` jen vo
   `openBattle` je převezme. Staré boje beze změny.
 - **Rozestavění** – `planDefense`: muži v útočišti (bez vzdaných) dostanou `wallPosts([opevnění],
 počet, den)` po řadě podle id: napřed věže nad branami po 4, pak brány po 2 (± ¼ šířky
-  brány od středu; u klešťové brány po jednom na rameni – Brány v bitvě), zbytek po obvodu podle
+  brány od středu; u klešťové brány ramena jeden na 5 m – Brány v bitvě), zbytek po obvodu podle
   délky – mezi branami v mezerách podle délky mezery (brány jsou kotvy), bez bran rovnoměrně; nejvýš ⌊obvod ÷ 5⌋ mimo brány, kdo nedostane, je záloha ve středu. Obvod =
   stěny bitvy (čáry úseků a tětivy rohů); stanoviště 1 m za čarou hradby; `onWall` =
   `crownAt` (do 1,25 m od čáry hradby s korunou – `walkway`, `crib`, `chamber`; druh v místě
@@ -600,9 +600,10 @@ a místo prolomení v `battle.ts` (`wallsOf`), pochod v `march-grid.ts`. Čísla
 - **Vrata** – místo `gate` 1 m před vraty v uličce; `Spot.maxMen` = `pincerGate.maxMen` (4) –
   víc prolamujících se k vratům nevejde (`chooseSpot`).
 - **Obránci** – `wallPosts(opevnění, muži, den)`: napřed věže (`towerPosts` – 4 rovnoměrně přes
-  uličku 1 m za vraty), pak brány; klešťová brána místo 2 v hradbě po jednom na rameni (1 m od
-  uličky uprostřed její délky za pásem) – odtud zasahují útočníky v uličce z obou stran (hod do
-  15 m, luk). `planDefense` (`stance.ts`) dá na věž napřed muže rodu (jen když věž stojí – jinak
+  uličku 1 m za vraty), pak brány; klešťová brána místo 2 v hradbě ramena – na každém jeden na
+  5 m ochozu jako na hradbě (⌊`endM` ÷ 5⌋, nejméně 1; Martin 9. 11. 2026: „Ramena jsou součástí
+  brány. Obránce jak říkáš“), rovnoměrně po délce ramene 1 m od uličky, po dvojicích (levé, pravé)
+  od středu uličky za pásem – odtud zasahují útočníky v uličce z obou stran (hod do 15 m, luk). `planDefense` (`stance.ts`) dá na věž napřed muže rodu (jen když věž stojí – jinak
   pořadí beze změny). `crownAt` – rameno i plošina věže jsou ochoz (`onWall`). Posila k vratům
   (`placeAt`): s věží na ni, bez věže na rameno vedle vrat.
 - **Věž** – `towerReach(f, {forts, day})`: obránce na ochozu věže (`towerAt`) vidí

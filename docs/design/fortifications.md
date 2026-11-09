@@ -374,9 +374,11 @@ dřevěná věž nad samotnou branou.**“ Výklad níž Martin schválil („An
 - **Bitva – implementováno 8. 11. 2026** (plán hradeb, Úloha 19). Návrh Clauda: ústí uličky
   v hradbě je otevřené, zavřená vrata stojí na vnitřním konci uličky; ramena se nepřelézají a stojí
   i na prolomeném dílu (vlastní stěny s ochozem – zboří se jen s dílem, zvlášť zatím ne); obránci
-  brány stojí u klešťové brány po jednom na každém rameni (Martin 9. 11. 2026: „Ramena jsou
-  součástí brány. Obránce jak říkáš“ – ramena se zboří a prolomí jen s branou; obránců na ramenech
-  podle délky jako na hradbě – jeden na 5 m ochozu, implementace čeká); na věž jdou 4 obránci jako první, napřed
+  brány stojí u klešťové brány na ramenech (Martin 9. 11. 2026: „Ramena jsou součástí brány.
+  Obránce jak říkáš“ – ramena se zboří a prolomí jen s branou; obránců na ramenech podle délky jako
+  na hradbě – jeden na 5 m ochozu; implementováno 9. 11. 2026 – návrh Clauda: nejméně jeden na
+  rameni, rovnoměrně po délce ramene od čáry hradby po vrata, první dvojice uprostřed uličky za
+  pásem); na věž jdou 4 obránci jako první, napřed
   muži rodu; posila k vratům jde na věž, bez věže na rameno vedle vrat; ramena blokují pochod i při
   zavřené bráně.
 

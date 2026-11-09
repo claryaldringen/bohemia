@@ -185,8 +185,11 @@ export function towerReach(
 
 /**
  * Stanoviště klešťové brány (návrh Clauda): na věži `tower.defenders` (4) 1 m za vraty rovnoměrně
- * přes šířku uličky; místo 2 obránců brány po jednom na každém rameni – 1 m od uličky uprostřed
- * její délky za pásem, odkud zasahují útočníky v uličce z obou stran.
+ * přes šířku uličky; místo 2 obránců brány ramena – na každém jeden na 5 m ochozu jako na hradbě
+ * (Martin 9. 11. 2026: „Ramena jsou součástí brány. Obránce jak říkáš“), nejméně jeden, rovnoměrně
+ * po délce ramene od čáry hradby po vrata, 1 m od uličky. Pořadí po dvojicích (levé, pravé rameno)
+ * od středu uličky za pásem – při málo mužích stojí první dvojice tam, odkud zasahují útočníky
+ * v uličce z obou stran.
  */
 function pincerPosts(p: BattlePincer): { tower: Pos[]; arms: Pos[] } {
   const tower: Pos[] = [];
@@ -199,7 +202,11 @@ function pincerPosts(p: BattlePincer): { tower: Pos[]; arms: Pos[] } {
   }
   const mid = p.endM - FORTIFICATIONS.pincerGate.alleyLengthM / 2;
   const side = ALLEY_HALF_M + D.postInsideM;
-  return { tower, arms: [pincerPoint(p, -side, mid), pincerPoint(p, side, mid)] };
+  const k = Math.max(1, Math.floor(p.endM / D.perDefenderM + 1e-9));
+  const at = Array.from({ length: k }, (_, i) => (p.endM * (i + 0.5)) / k).sort(
+    (a, b) => Math.abs(a - mid) - Math.abs(b - mid) || a - b,
+  );
+  return { tower, arms: at.flatMap((m) => [pincerPoint(p, -side, m), pincerPoint(p, side, m)]) };
 }
 
 /**
@@ -354,7 +361,7 @@ function gateStations(bf: BattleFort, ring: Ring): { s: number; segment: number 
 /**
  * Stanoviště `men` obránců (fortifications.md – Obrana bez násobku 6; návrh Clauda): napřed věže
  * nad branami po 4 (`towerPosts`), pak brány po 2 (1 m vlevo a vpravo od středu brány, u klešťové
- * brány po jednom na rameni), zbytek rovnoměrně po obvodu podle délky – nejvýš jeden na 5 m; kdo
+ * brány ramena – jeden na 5 m ochozu ramene), zbytek rovnoměrně po obvodu podle délky – nejvýš jeden na 5 m; kdo
  * stanoviště nedostane, zůstane v záloze. Stanoviště leží 1 m za čarou hradby (`postInsideM`) – na
  * ochozu a koruně (`crownAt`), nebo na zemi za stěnou. Bez dne `day` bez klešťových bran a věží.
  */
