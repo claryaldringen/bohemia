@@ -1170,7 +1170,8 @@ nestačí na všechno):
 0. **výmlat na dnešní jídlo** (jen kolik se dnes sní – jinak lidé nemají co jíst),
 1. **sklizeň obilí** (žeň a odnos – ozim, jař, i dosklizeň v srpnu a září),
 2. **sklizeň lnu** (trhání),
-3. **sklizeň sena** (seč),
+3. **sklizeň sena** (seč) – jen první seč; **otava (druhá seč v září) až po orbě a setí ozimu**
+   (Martin 9. 11. 2026: „Otava až po orbě a setí ozimu“ – implementace čeká),
 4. **sklizeň jablek**,
 5. **pletí** (ženy a děti – muži jen zbytek a až po stavbách),
 6. **orba, příprava půdy a setí** (vrácení přílohu, klučení, kopání, orba, setí),
