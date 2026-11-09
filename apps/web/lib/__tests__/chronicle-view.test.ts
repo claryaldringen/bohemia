@@ -52,6 +52,30 @@ describe('stránka kroniky', () => {
     expect(page.years.map((y) => y.year)).toEqual([502, 501, 500]);
   });
 
+  it('trvalé stavy vsi s datem začátku a konce; denní zápisy hladu panel neukazuje (absence.md)', () => {
+    // začátek se zapíše až týden po začátku s jeho dnem, konce téhož dne od nejhoršího stupně
+    const events: ChronicleEvent[] = [
+      { day: day(500), kind: 'village-founded' },
+      { day: day(501, 2, 1), kind: 'hunger-began' },
+      { day: day(501, 2, 3), kind: 'notice-began', notice: 'no-charcoal' },
+      { day: day(501, 2, 1), kind: 'notice-began', notice: 'rationing' },
+      { day: day(501, 3, 1), kind: 'notice-began', notice: 'hungry' },
+      { day: day(501, 5, 10), kind: 'hunger-ended' },
+      { day: day(501, 5, 10), kind: 'notice-ended', notice: 'hungry' },
+      { day: day(501, 5, 10), kind: 'notice-ended', notice: 'rationing' },
+      { day: day(501, 6, 2), kind: 'notice-ended', notice: 'no-charcoal' },
+    ];
+    const page = chroniclePage(events, 'Lhota', { before: null });
+    expect(page.years[0]!.entries.map((e) => `${e.dateLabel}: ${e.text}`)).toEqual([
+      '2. června: Kovář má zase uhlí.',
+      '10. května: Ves už nešetří jídlem.',
+      '10. května: Hlad skončil.',
+      '1. března: Ves hladoví.',
+      '3. února: Kovář nemá uhlí.',
+      '1. února: Ves šetří jídlem – zásoby nevystačí do sklizně.',
+    ]);
+  });
+
   it('stránka bere celé roky, dokud nemá CHRONICLE_PAGE_ENTRIES zápisů; další stránka navazuje', () => {
     const events = births(500, 529, 7); // 30 let po 7 zápisech (+ založení)
     const first = chroniclePage(events, 'Lhota', { before: null });

@@ -19,7 +19,10 @@ import { disasterNotices, weatherNotices, type DisasterNoticeKind } from './disa
 // Humno). Vymřelá ves žádná nemá. Odvozují se z pohledu na ves a ukážou se jednou, když nově
 // vzniknou – jako krátký mizející řádek nahoře uprostřed (jako oznámení v 0 A.D.). Jen fakt, žádná
 // rada – kromě humna („Před žněmi postav humno“): bez něj ves nemlátí a nesmí zahynout hladem jen
-// proto, že hráč o humnu nevěděl (production-chains.md – anti-cíl).
+// proto, že hráč o humnu nevěděl (production-chains.md – anti-cíl). Trvalé stavy (hlad, stavby
+// stojí, dílny bez vstupu, ohrady, koně a psi bez obilí, výmlat) mají podmínky v jádře
+// (`lastingNotices` – pohled je skládá z týchž funkcí) a simulace je zapisuje i do kroniky
+// (absence.md – Upozornění vsi do kroniky; texty `notice-chronicle.ts`).
 
 export type NoticeKind =
   | 'full-household'
@@ -233,7 +236,7 @@ export function villageNotices(view: VillageView): VillageNotice[] {
   if (view.horses?.overRoom) {
     notices.push({ kind: 'horses-short', tone: 'warn', text: 'Koně se nevejdou do ohrady' });
   }
-  if (view.horses && !view.horses.fed && view.horses.grainKgPerDay > 0) {
+  if (view.horses?.ungrained) {
     notices.push({ kind: 'horses-ungrained', tone: 'warn', text: 'Koně jsou bez obilí' });
   }
   // divoká zvěř (wildlife.md – Co hráč vidí)

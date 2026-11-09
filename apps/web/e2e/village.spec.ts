@@ -1876,4 +1876,15 @@ test('panel Kronika – ikona v liště otevře kroniku vsi se zápisem o založ
   await expect(page.getByTestId('house-panel')).toHaveCount(0);
   await page.keyboard.press('Escape');
   await expect(panel).toHaveCount(0);
+
+  // trvalý stav vsi z upozornění v kronice s dnem začátku (absence.md – Upozornění vsi do kroniky)
+  const state = await villageState(s.settlementId);
+  state.chronicle.push({ day: state.lastDay, kind: 'notice-began', notice: 'no-charcoal' });
+  await writeVillageState(s.settlementId, state);
+  await page.waitForFunction(() => typeof window.__bohemiaE2E?.pollVillage === 'function');
+  await pollVillage(page);
+  await toggle.click();
+  await expect(
+    panel.locator('[data-testid="chronicle-entry"][data-kind="notice-began"]'),
+  ).toHaveText(/Kovář nemá uhlí\./);
 });

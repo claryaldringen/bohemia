@@ -454,6 +454,7 @@ describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
       overRoom: false,
       fed: true,
       grainKgPerDay: 3,
+      ungrained: false,
       hayWinterKg: 2000,
       horses: [],
     };
@@ -461,17 +462,15 @@ describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
     expect(villageNotices(view({ horses: { ...horses, overRoom: true } }))).toEqual([
       { kind: 'horses-short', tone: 'warn', text: 'Koně se nevejdou do ohrady' },
     ]);
-    // bez obilí jen když nějaký kůň obilí jí
-    expect(villageNotices(view({ horses: { ...horses, fed: false } }))).toEqual([
+    // bez obilí podle podmínky jádra (`horsesUngrained` – jen když nějaký kůň obilí jí)
+    const ungrained = { ...horses, fed: false, ungrained: true };
+    expect(villageNotices(view({ horses: ungrained }))).toEqual([
       { kind: 'horses-ungrained', tone: 'warn', text: 'Koně jsou bez obilí' },
     ]);
-    expect(villageNotices(view({ horses: { ...horses, fed: false, grainKgPerDay: 0 } }))).toEqual(
-      [],
-    );
     // nově vzniklé se ohlásí jednou
-    expect(
-      newNotices(view({ horses }), view({ horses: { ...horses, fed: false } })).map((n) => n.text),
-    ).toEqual(['Koně jsou bez obilí']);
+    expect(newNotices(view({ horses }), view({ horses: ungrained })).map((n) => n.text)).toEqual([
+      'Koně jsou bez obilí',
+    ]);
     const entry = (
       day: number,
       kind: VillageView['chronicle'][number]['kind'],

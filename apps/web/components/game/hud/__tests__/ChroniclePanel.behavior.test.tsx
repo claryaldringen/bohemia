@@ -73,6 +73,25 @@ describe('panel Kronika', () => {
     expect(entry?.textContent).toContain('Narodilo se dítě.');
   });
 
+  it('ukáže začátek a konec trvalého stavu vsi s datem (absence.md – Upozornění vsi do kroniky)', () => {
+    const list: ChronicleEvent[] = [
+      { day: day(500, 1, 1), kind: 'village-founded' },
+      { day: day(500, 3, 2), kind: 'notice-began', notice: 'hungry' },
+      { day: day(500, 3, 2), kind: 'hunger-began' },
+      { day: day(500, 6, 9), kind: 'notice-ended', notice: 'hungry' },
+    ];
+    render({ page: chroniclePage(list, 'Lhota', { before: null }) });
+    const texts = [...host.querySelectorAll('[data-testid="chronicle-entry"]')].map(
+      (el) => `${el.getAttribute('data-kind')} ${el.textContent}`,
+    );
+    expect(texts).toHaveLength(3);
+    expect(texts[0]).toContain('notice-ended');
+    expect(texts[0]).toContain('9. června');
+    expect(texts[0]).toContain('Hlad skončil.');
+    expect(texts[1]).toContain('2. března');
+    expect(texts[1]).toContain('Ves hladoví.');
+  });
+
   it('tlačítko starších zápisů načte další stránku; na konci zmizí a ukáže se založení vsi', () => {
     const all = events();
     let page: ChroniclePage = chroniclePage(all, 'Lhota', { before: null });

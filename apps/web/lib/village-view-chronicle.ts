@@ -31,6 +31,7 @@ import {
 } from '@bohemia/game';
 
 import { formatGameDate } from './game-date';
+import { noticeChronicleText } from './notice-chronicle';
 
 import { DIRECTION_NAMES, NEWCOMER_TEXTS, goodsText, peopleText } from './trade-names';
 
@@ -796,6 +797,9 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return 'Ve vsi začal hlad – zásoby nevystačí do sklizně.';
     case 'hunger-ended':
       return 'Hlad skončil.';
+    case 'notice-began':
+    case 'notice-ended':
+      return noticeChronicleText(event.notice, event.kind === 'notice-ended');
     case 'lord-to-field':
       return event.reason === 'sowing'
         ? 'Vojvodova rodina jde na pole – ves nestihne osev.'

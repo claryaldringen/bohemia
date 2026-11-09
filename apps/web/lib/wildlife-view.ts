@@ -9,6 +9,7 @@ import {
   PREDATION,
   crowFlocks,
   dateOfDayIndex,
+  dogsUngrained,
   dogsWanted,
   fishingPools,
   huntPool,
@@ -169,7 +170,7 @@ export function wildlifeView(state: VillageState, day: number): VillageWildlife 
     species,
     damageShare: damageShareOf(state, w),
     wolvesTroubling: wolvesTroubling(w, day),
-    dogsUnfed: w.dogs !== undefined && Math.floor(w.dogs.count + EPSILON) >= 1 && !w.dogs.fed,
+    dogsUnfed: dogsUngrained(state),
   };
 }
 
