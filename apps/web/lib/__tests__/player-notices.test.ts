@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { PlayerNotice } from '@bohemia/game';
 import {
   accusativeOf,
   alarmNoticeVillage,
   mergeNoticeLines,
+  noticeOpener,
   noticePanel,
   isVillageNone,
   wantsPlayerNotices,
@@ -106,6 +107,24 @@ describe('playerNoticeLine', () => {
     expect(alarmNoticeVillage(notice({ kind: 'foreign-army', payload: { villageId: 'v1' } }))).toBe(
       null,
     );
+  });
+
+  it('klik na varování otevře panel dvorce vsi, jiné upozornění svůj panel (Úloha 13)', () => {
+    const village = vi.fn();
+    const panel = vi.fn();
+    noticeOpener(notice({ kind: 'army-warned', payload: { villageId: 'v7' } }), {
+      village,
+      panel,
+    })?.();
+    expect(village).toHaveBeenCalledWith('v7');
+    expect(panel).not.toHaveBeenCalled();
+    noticeOpener(notice({ kind: 'war-declared', payload: {} }), { village, panel })?.();
+    expect(panel).toHaveBeenCalledWith('war');
+    expect(village).toHaveBeenCalledTimes(1);
+    // varování bez vsi v datech – panel války jako dřív
+    noticeOpener(notice({ kind: 'refuge-caught', payload: {} }), { village, panel })?.();
+    expect(panel).toHaveBeenLastCalledWith('war');
+    expect(noticeOpener(notice({ kind: 'player-succession' }), { village, panel })).toBeUndefined();
   });
 
   it('každý druh míří na panel (zatím jen Rod a vazalové)', () => {

@@ -7,8 +7,12 @@ import {
   ALARM_POLL_MS,
   alarmOptionText,
   alarmPollMs,
+  daysBadge,
   daysText,
+  domainSendText,
   flightText,
+  graceText,
+  messengerText,
   returnText,
   runnerText,
 } from '../alarm-view';
@@ -184,5 +188,36 @@ describe('vstup server actions', () => {
     ).toEqual({ villageId: 'v1', command: { kind: 'domain', to: ['a', 'b'] } });
     expect(parseAlarmCommand({ villageId: 'v1', command: { kind: 'domain', to: [1] } })).toBeNull();
     expect(parseAlarmCommand({ villageId: 'v1', command: { kind: 'return' } })).toBeNull();
+  });
+});
+
+describe('texty ikon v panelu dvorce (Úloha 13)', () => {
+  it('číslo na ikoně stavu – pod půl dne „<1“, jinak zaokrouhlené dny', () => {
+    expect(daysBadge(0.2)).toBe('<1');
+    expect(daysBadge(0.6)).toBe('1');
+    expect(daysBadge(2.4)).toBe('2');
+  });
+
+  it('stav posla podle hradiště a koně', () => {
+    expect(messengerText(view())).toBeNull();
+    expect(messengerText(view({ messenger: { status: 'running', mounted: false } }))).toBe(
+      'Posel běží do hradiště Hradec.',
+    );
+    expect(messengerText(view({ messenger: { status: 'running', mounted: true } }))).toBe(
+      'Posel jede na koni do hradiště Hradec.',
+    );
+    expect(messengerText(view({ messenger: { status: 'arrived', mounted: false } }))).toBe(
+      'Posel doběhl do hradiště Hradec.',
+    );
+    expect(messengerText(view({ messenger: { status: 'caught', mounted: false } }))).toBe(
+      'Posla chytili.',
+    );
+  });
+
+  it('lhůta hráče a odeslání poslů do domény', () => {
+    expect(graceText(0.2)).toBe('Nerozhodneš-li, ves se zařídí sama dřív než za den.');
+    expect(graceText(1)).toBe('Nerozhodneš-li, ves se zařídí sama za ≈ 1 den.');
+    expect(domainSendText(0, 3)).toBe('Vyber vsi – smíš ještě 3.');
+    expect(domainSendText(2, 3)).toBe('Poslat posly (2) – smíš ještě 3.');
   });
 });

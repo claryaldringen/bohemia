@@ -1086,6 +1086,12 @@ tick, ctx, out)` v každém taktu po poslech (`campaignTick`: pohyb → spatřen
   (rozhraní doplní odhad), „Na mapě není les.“, „Nikdo nemůže běžet.“, „Lidé už odešli.“, „Posel už
   běží.“, „Ves o vojsku neví.“, „U vsi se už bojuje.“, „Do domény není koho varovat.“, „Vojsko už
   odtáhlo.“.
+- **Ikony v panelu dvorce (Ú13).** `hud/AlarmButtons.tsx` – řádek ikon pod postojem vsi (Poslat
+  posla s výběrem posla, Ukrýt v lese, Do hradiště – jen lidé / se vším, po útěku stav skupiny
+  a Vrátit se, Varovat doménu u hradiště hráče, lhůta hráče); zašedlé s důvodem a odhadem, bez práva
+  `war` důvodem práva; klik na upozornění varování vybere dvorec vsi (`noticeOpener`). Ikony
+  `public/icons/war/alarm-*.png` z Blenderu (`tools/blender/icons.py`). Podrobnosti web-ui.md –
+  Varování a útěk v rozhraní.
 
 ## Výsledky nájezdu a kořist (Ú6.10)
 

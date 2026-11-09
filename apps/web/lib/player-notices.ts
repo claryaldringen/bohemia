@@ -85,6 +85,20 @@ export function alarmNoticeVillage(n: Pick<PlayerNotice, 'kind' | 'payload'>): s
   }
 }
 
+/**
+ * Co udělá klik na upozornění: varování a útěk otevřou panel dvorce své vsi (`village`), ostatní
+ * panel podle druhu (`panel`); upozornění bez panelu nic (undefined).
+ */
+export function noticeOpener(
+  n: Pick<PlayerNotice, 'kind' | 'payload'>,
+  open: { village: (villageId: string) => void; panel: (panel: NoticePanel) => void },
+): (() => void) | undefined {
+  const villageId = alarmNoticeVillage(n);
+  if (villageId !== null) return () => open.village(villageId);
+  const panel = noticePanel(n.kind);
+  return panel ? () => open.panel(panel) : undefined;
+}
+
 /** „ z vsi Kněžice“ (jméno vsi se neskloňuje); bez jména nic. */
 function fromVillage(payload: Record<string, unknown>): string {
   const name = stringOf(payload.name);
