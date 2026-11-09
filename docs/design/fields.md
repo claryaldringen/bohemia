@@ -1381,6 +1381,21 @@ pro raný středověk ale nemám – zůstává návrhem Clauda jako dosavadní 
   přílohu přenese na jaro; vrácení přílohu pod jař má od teď také okno v březnu–dubnu
   (`WINDOWS.reclaim`). Orba rádlem má jarní okno už dřív (`fitsSpringPlough`), beze změny.
 
+### Zahrádka u obydlí – len a luštěniny (9. 11. 2026, implementace čeká)
+
+Martin 9. 11. 2026: „Nebylo by lepší, kdyby si lidé řešili len sami podobně, jako luštěniny?“,
+„Ale ta zahrádka už je tam nakreslená :D“ a „Ano“ k návrhu Clauda: **len z polí vyřazený** jako
+luštěniny; domácnost na **zahrádce svého pozemku** (polozemnice – políčko 15 × 15 m s plotem,
+záhony kolem domu, ve scéně už nakreslené – `homestead-layout.ts`) pěstuje **napřed len na oděv**
+své domácnosti a **na zbytku luštěniny**. Práce na zahrádce je ženská a jde **bokem** jako domácí
+výroba – práci vsi nebere. Zemnice pozemek nemá – domácnost v zemnici zahrádku nemá.
+Podrobnosti návrh Clauda: záhony ≈ plocha pozemku bez domu a cestičky (≈ 150 m²); len na oděv
+domácnosti (5–6 lidí ≈ 9 kg vlákna ročně – `FLAX`) při 550 kg/ha ≈ 160 m², takže zahrádka dá
+zhruba len pro svou domácnost a na luštěniny zbude málo (Vlkov: 7 obydlí ≈ 0,1 ha záhonů); úroda
+podle úrodnosti políčka pozemku a počasí kraje jako pole; okna jako dřív na poli (len setí
+v dubnu, trhání koncem července; luštěniny setí březen–duben, sklizeň červenec) – práce bokem je
+nebrzdí.
+
 ### Luštěniny
 
 **Zrušeno – luštěniny z polí vyřazené.** Martin (9. 11. 2026): „Luštěniny jsou podle mě píčovina.
