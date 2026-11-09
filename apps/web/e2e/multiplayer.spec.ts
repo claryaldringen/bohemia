@@ -1213,6 +1213,23 @@ test('svolání: pán ve válce svolá vazala rohem, vazal dialog vidí, potvrd�
   await war.getByTestId('war-summon').click();
   await expect(war.getByTestId('war-vassal-shield')).toBeVisible();
   await war.getByTestId('war-summon-vassal').click();
+  // Vazal se zeptá, až server svolání zapíše. Server actions jednoho klienta jdou za sebou, takže
+  // svolání čeká za načtením, které panel války spustil při otevření (rod, průchody, ochrana) –
+  // pod zátěží stroje doběhne až po dotazu vazala, který upozornění ještě nenajde, a další dotaz
+  // přijde v pomalém světě e2e až s dalším herním dnem (≤ 86 s), déle než čekání níž.
+  await expect
+    .poll(
+      async () =>
+        (
+          await query<{ n: number }>(
+            `SELECT count(*)::int AS n FROM player_notice
+              WHERE kind = 'summons-open' AND player_id = (SELECT player_id FROM house WHERE id = $1)`,
+            [idB],
+          )
+        )[0]?.n,
+      { timeout: 60_000 },
+    )
+    .toBe(1);
   await expect(war.getByTestId('war-summon-error')).toHaveCount(0);
 
   // B dostane upozornění „Bořivoj svolává.“, otevře z něj dialog s předvybraným mužem a odešle
