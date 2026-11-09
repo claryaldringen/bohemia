@@ -3,6 +3,7 @@ import type {
   CampaignView,
   CampaignViewAlly,
   CampaignViewBuilding,
+  CampaignViewFlight,
   CampaignViewForeign,
   CampaignViewGroup,
   CampaignViewMan,
@@ -18,6 +19,7 @@ export type {
   CampaignView,
   CampaignViewAlly,
   CampaignViewBuilding,
+  CampaignViewFlight,
   CampaignViewForeign,
   CampaignViewGroup,
   CampaignViewMan,
@@ -42,7 +44,7 @@ const sameCell = (a: { x: number; y: number }, b: { x: number; y: number }): boo
 
 /**
  * Pohled mezi stavem `prev` a `next` v podílu `t` (0 = `prev`, 1 = `next`): polohy vlastních mužů,
- * spojenců, skupin a cizích v dohledu se posunou rovnoměrně; kdo v `prev` chybí nebo přešel na jinou
+ * spojenců, skupin, cizích, uprchlíků a poslů v dohledu se posunou rovnoměrně; kdo v `prev` chybí nebo přešel na jinou
  * mapu, stojí rovnou v `next`. Ostatní údaje jsou z `next`.
  */
 export function interpolateCampaign(
@@ -56,6 +58,7 @@ export function interpolateCampaign(
   const allies = new Map(prev.allies.map((m) => [m.member, m]));
   const groups = new Map(prev.groups.map((g) => [g.id, g]));
   const foreign = new Map(prev.foreign.map((f) => [f.id, f]));
+  const flights = new Map((prev.flights ?? []).map((f) => [f.refId, f]));
   const move = <T extends { cell: { x: number; y: number }; pos: Pos }>(
     from: T | undefined,
     to: T,
@@ -69,5 +72,6 @@ export function interpolateCampaign(
       const from = foreign.get(f.id);
       return from ? { ...f, pos: lerp(from.pos, f.pos, k) } : f;
     }),
+    ...(next.flights ? { flights: next.flights.map((f) => move(flights.get(f.refId), f)) } : {}),
   };
 }
