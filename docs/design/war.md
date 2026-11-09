@@ -581,6 +581,11 @@ zásoby a cennosti a utekli do nejbližšího hradiště“).
   do vsi rychlostí běhu (≈ 2× chůze); ves je varovaná, až doběhne. Do té doby lidé pracují dál.
 - **Posel jde pěšky** – Martin 9. 11. 2026: „obyčejný vesničan pravděpodobně nebude umět jezdit.
   Navíc bude muset koni dát minimálně uzdu, když už ne sedlo“ (návrh plánu „s koněm jede“ zamítnut).
+  **Kdo je poslem, volí hráč** – Martin 9. 11. 2026: „hráč by měl mít možnost rozhodnout, kdo bude
+  poslem. Může vyslat někoho z rodu, kdo jezdit umí“ – muž rodu, který umí jezdit a má jezdeckého
+  koně, jede na koni (rychleji); jinak a za správce jde pěšky vesničan.
+- **Lhůta hráče:** ves bez správce čeká na rozhodnutí hráče nejvýš 1 herní den (≈ 86 s), pak se
+  zařídí podle pravidla správce (Martin 9. 11. 2026: „Ok, nechme to, jak jsi navrhl“).
 - **Posel** je dospělý muž vsi, běží nejkratší cestou po stezkách (pochodová mřížka jako vojsko,
   ≈ 2× rychleji než pochod vojska) do hradiště pána; každá ves na mapách, kterými proběhne, je
   varovaná. Hradiště pak pošle posly do vsí domény, ke kterým vojsko míří (správce hradiště
