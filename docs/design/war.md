@@ -547,7 +547,7 @@ Martin 2. 11. 2026 – „ok“ (podrobnosti návrh Clauda):
   nájezdy a cizí vojska spatřená u vsi zvedají **hrozbu**, podle které staví opevnění správce
   ([fortifications.md](fortifications.md) – Správce).
 
-## Varování, poslové a útěk do hradiště (9. 11. 2026 – návrh ke schválení)
+## Varování, poslové a útěk do hradiště (schváleno 9. 11. 2026 – implementace čeká)
 
 Vychází z rešerše, kterou Martin přinesl 9. 11. 2026 (proč slovanské vsi neměly palisádu – útočištěm
 kraje bylo hradiště: „Obyvatelé okolních neopevněných vesnic v případě nebezpečí sbalili dobytek,
@@ -575,7 +575,7 @@ zásoby a cennosti a utekli do nejbližšího hradiště“).
   pak je živí hradiště ze svých zásob (ochrana je povinnost pána); bydlí v útočišti za hradbou
   hradiště; domů se vrátí, až vojsko odtáhne z jejich mapy – rozhodne hráč, za nepřítomného správce.
 
-**Podrobnosti k provedení (návrh Clauda – ke schválení celku):**
+**Podrobnosti k provedení (návrh Clauda, Martin 9. 11. 2026 „Ano“ k celku):**
 
 - **Vesničan, který vojsko spatří** (do 150 m od kteréhokoli muže vojska – dohled jako dnes), běží
   do vsi rychlostí běhu (≈ 2× chůze); ves je varovaná, až doběhne. Do té doby lidé pracují dál.
