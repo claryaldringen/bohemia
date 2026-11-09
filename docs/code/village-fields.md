@@ -208,7 +208,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   kopii dílu přes `rotateAfterSeason` k dalšímu 1. 9., díl na řadě ozim / jař podle
   `sowingCropToday` den po dni dopředu), `rest` (úhor: `fertilityShare / FERTILITY.fallowReady`
   na setiny a roky do osevu po `fallowRecovery`), `round` (kolikátý osev oběhu), `onTurn` (na
-  řadě mimo letošní práci), `surplus` (díl letošní práce nad potřebu). Zakládaný díl chybí. Jen
+  řadě mimo letošní práci). Zakládaný díl chybí. Jen
   čte stav. `fieldPartLooks`: připravený díl s `next` (po prvním osevu) je strniště, dokud na něj
   nepřijde podzimní práce.
 
@@ -259,7 +259,7 @@ tools)` = s hromadou `pileSowsKg` (osivo, které ves ještě zaseje: `sowingHaPe
   (`sowPerTill` v `year-plan.ts` × podíl, který dovolí osivo); `allocateDay` (`labor.ts`) dá úloze
   s `follow` práci i na setí za sebou v poměru `ratio` a přičte ji úloze setí. V `work()` se setí
   plodiny použije až po jejím kopání (`applyOrder`) a nejvýš na zpracovanou půdu
-  (`cropTaskRemaining`). Díly nad potřebu (`surplusTasks`) mají setí ještě jednou po přípravě půdy.
+  (`cropTaskRemaining`).
   `winterStartable` / `springStartable` (`rotation.ts`) – díl smí začít i v poslední den okna.
   Plán kapacity (`sowingCapacity`, páry k rádlům) dál počítá s dnem rezervy `SOW_AFTER_DIG_DAYS`
   (návrh Clauda – celé okno posouvá zakládání polí správcem, samostatná změna). Výmlat na dnešní
@@ -678,7 +678,7 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   luštěnin, lnu), `august` (sklizeň jaře a výmlat ozimu); orba zvlášť (`plough.autumnWinter`,
   zbytek podzimu + jaro); okno, které letos už neběží (`SOWING_CAPACITY_WINDOWS`), se nehlásí.
   `PartOutlook.short` = `WorkShortfall` (`steps`, `endMonth`, `manDays`, `ploughManDays`) jen pro
-  kroky, které díl podle `partYearWork` ještě nemá hotové; díly nad potřebu (`surplus`) bez
-  varování. Simulace výhled nepoužívá. Testy `field-outlook.test.ts` (den před žní výhled ozimu
+  kroky, které díl podle `partYearWork` ještě nemá hotové – všechny díly (jedna fronta, 9. 11.
+  2026). Simulace výhled nepoužívá. Testy `field-outlook.test.ts` (den před žní výhled ozimu
   ≈ sklizeň do 5 %, pletí po okně, setí nad síly). Zobrazení: `web-ui.md` – Panel pole a dílu –
   očekávaná úroda.

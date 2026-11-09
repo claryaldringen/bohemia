@@ -464,13 +464,13 @@ Seno, dvě seče).
    - **Panel dílu:** nový údaj **Příště** – ikona toho, co na dílu poroste příště (ozim, jař,
      luštěniny nebo len, když už je určené; úhor ikonou přílohu); u úhoru procento odpočinku
      k 95 % a v popisku „Osev za ≈ N let“. Osetý díl ukazuje **1. nebo 2. osev oběhu** (místo
-     kolikátého roku v osevu). Díl nad potřebu má v popisku „Jen z volné práce – stavby mají
-     přednost“ (dosud „čeká na volnou práci“).
+     kolikátého roku v osevu). ~~Díl nad potřebu má v popisku „Jen z volné práce – stavby mají
+     přednost“~~ (zmizelo 9. 11. 2026 s díly nad potřebu – Díly jsou jedna fronta, bod 3).
    - **Panel pole:** vedle osetých dílů podle plodiny **na řadě** – počet dílů na řadě s ozimem,
-     s jaří a odpočívajících; v popisku, kolik z dílů na řadě je nad potřebu. Upřesnění (návrh
-     Clauda, 25. 10. 2026): na řadě jsou díly, které čekají mimo letošní práci (díly letošní
-     práce ukazují plodiny), a nad potřebu díly, které ves z řady vzala k letošní práci nad
-     potřebu.
+     s jaří a odpočívajících; ~~v popisku, kolik z dílů na řadě je nad potřebu~~ (zmizelo 9. 11.
+     2026). Upřesnění (návrh Clauda, 25. 10. 2026): na řadě jsou díly, které čekají mimo letošní
+     práci (díly letošní práce ukazují plodiny). Vedle nich **hromada osiva** vsi (návrh Clauda, 9. 11. 2026 – Osivo bez cíle osevu, Zimní osivo): ikona obilí s kg, v popisku osivo na ozim
+     či jař, které ves nejí (v zimě zimní osivo na jař).
    - Scéna beze změny – díl ukazuje svůj stav (strniště po ozimu do podzimní orby, zkopaná zem,
      příloh) a práce postupuje po čtvercích. Upozornění beze změny (hlad, chybí len na oděv).
 
@@ -2319,8 +2319,8 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
     (stejně jako Kdy jde rodina na pole – lord.md). Když nestačí, ukáže díl ikonu práce
     s chybějícími člověkodny červeně a v popisku u kurzoru okna a kroky („Práce nestačí: příprava
     a setí do konce dubna – chybí 40 člověkodnů“). Díl hlásí jen kroky, které sám ještě nemá
-    hotové (zasetý díl setí nehlásí). Díl nad potřebu (jen z volné práce po stavbách) varování
-    nemá – práci mu dají stavby, ne okno. Pod půl člověkodne se nehlásí.
+    hotové (zasetý díl setí nehlásí); od 9. 11. 2026 hlásí všechny díly (jedna fronta – ~~díl
+    nad potřebu varování nemá~~). Pod půl člověkodne se nehlásí.
   - Chybějící práce okna je za celou ves (plodiny okna se dělí o tytéž ruce), ne za díl – které
     díly na konci zůstanou, určí postup práce po dílech (díly nejdál od domu poslední).
 - **Horní lišta:** zásoby obilí, volná společná práce za den, nasycení (barva ikony); výměra polí

@@ -88,6 +88,18 @@ export function scenePart(
   return scene;
 }
 
+/**
+ * Hromada osiva pro rozhraní (`VillageView.sowingSeed`) – osivo okna, které běží, nebo zimní osivo
+ * na jař; pod 1 kg chybí.
+ */
+export function sowingSeedView(state: VillageState): Pick<VillageView, 'sowingSeed'> {
+  const pile = state.sowingSeed;
+  if (!pile || Math.round(pile.kg) < 1) return {};
+  return {
+    sowingSeed: { crop: pile.crop, kg: pile.kg, winter: pile.beforeWindow === true },
+  };
+}
+
 /** Měsíc, kdy zelený len kvete – pole zmodrá (fields.md – Len, Co hráč vidí). */
 export const FLAX_BLOOM_MONTH = 6;
 
@@ -125,7 +137,7 @@ export function fieldViews(
     const stages: Partial<Record<PartStage, number>> = {};
     const surfaces: Partial<Record<FieldSurface, number>> = {};
     const crops: Partial<Record<Crop, number>> = {};
-    const turn = { winter: 0, spring: 0, resting: 0, surplus: { winter: 0, spring: 0 } };
+    const turn = { winter: 0, spring: 0, resting: 0 };
     let ashParts = 0;
     const clearing: Record<ClearingStage, number> = { fell: 0, dry: 0, burn: 0 };
     let ashBonus = 0;
@@ -146,8 +158,6 @@ export function fieldViews(
       const r = rotation.get(p.id);
       if (r?.onTurn && (r.next === 'winter' || r.next === 'spring')) turn[r.next]++;
       else if (r?.next === 'fallow' && p.state === 'fallow') turn.resting++;
-      // díly nad potřebu zrušené (fields.md – Osevní postup po dílech, bod 3, 9. 11. 2026) –
-      // `turn.surplus` zůstává nulový, rozhraní ho odstraní krok 4
       if (p.bonusUntilDay !== null && p.bonusUntilDay >= day) ashParts++;
       ashBonus = Math.max(ashBonus, forestBonus(p, day));
     }

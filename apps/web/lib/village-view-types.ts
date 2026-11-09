@@ -461,6 +461,12 @@ export interface VillageView {
     use?: StructureUseView;
   }[];
   storesKg: number;
+  /**
+   * Hromada osiva ve `storesKg` (fields.md – Osivo bez cíle osevu, Zimní osivo): obilí odložené na
+   * setí okna, které běží (`winter` false), nebo zimní osivo na jař (listopad – únor). Chybí bez
+   * osiva (pod 1 kg).
+   */
+  sowingSeed?: { crop: 'winter' | 'spring'; kg: number; winter: boolean };
   /** Zásoby ovoce – jablek (kg; v rozhraní „ovoce“ – diet.md). */
   applesKg: number;
   /** Zásoba sýra (kg) a mléko dne (l, když se podojí všechny dojné samice – diet.md). */
@@ -583,14 +589,9 @@ export interface VillageView {
     crops: Partial<Record<Crop, number>>;
     /**
      * Na řadě (fields.md – Osevní postup po dílech, bod 6): díly mimo letošní práci, které čekají
-     * na ozim či jař, odpočívající příloh (pod 95 %) a díly letošní práce nad potřebu podle obilí.
+     * na ozim či jař, a odpočívající příloh (pod 95 %).
      */
-    turn: {
-      winter: number;
-      spring: number;
-      resting: number;
-      surplus: { winter: number; spring: number };
-    };
+    turn: { winter: number; spring: number; resting: number };
     /** Díly v okně bonusu úrodnosti po vymýcení lesa (fields.md – Úroda). */
     ashParts: number;
     /** Zakládané díly v lese po fázích klučení (kácí se / schne / pálí se); chybí bez nich. */

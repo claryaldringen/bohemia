@@ -57,6 +57,7 @@ const LEAVE_DIRECTIONS = [{ direction: 'N' as const, days: 2, blocked: null }];
 const view = {
   people: { children: 2, adults: 4, elders: 0 },
   storesKg: 1000,
+  sowingSeed: { crop: 'winter', kg: 120, winter: false },
   meatKg: 0,
   cheeseKg: 0,
   legumesKg: 0,
@@ -150,7 +151,7 @@ const view = {
       stages: { sown: 6, founding: 4 },
       surfaces: { meadow: 10 },
       crops: { spring: 1, legume: 1, winter: 4 },
-      turn: { winter: 2, spring: 0, resting: 3, surplus: { winter: 1, spring: 0 } },
+      turn: { winter: 2, spring: 0, resting: 3 },
       ashParts: 0,
       ashBonus: 0,
     },
@@ -161,7 +162,7 @@ const view = {
       stages: { ready: 6 },
       surfaces: { forest: 4, meadow: 1, shrub: 1 },
       crops: {},
-      turn: { winter: 0, spring: 0, resting: 0, surplus: { winter: 0, spring: 0 } },
+      turn: { winter: 0, spring: 0, resting: 0 },
       ashParts: 4,
       ashBonus: 40,
     },
@@ -410,9 +411,11 @@ describe('selectionDetails', () => {
         { crop: 'spring', count: 1 },
         { crop: 'legume', count: 1 },
       ],
-      // na řadě jen nenulové; nad potřebu v popisku (fields.md – Osevní postup po dílech)
-      turn: [{ crop: 'winter', count: 2, surplus: 1 }],
+      // na řadě jen nenulové (fields.md – Osevní postup po dílech)
+      turn: [{ crop: 'winter', count: 2 }],
       resting: 3,
+      // hromada osiva vsi (fields.md – Osivo bez cíle osevu)
+      seed: { crop: 'winter', kg: 120, winter: false },
       ashParts: 0,
       ashBonus: 0,
       founding: 0.25,
@@ -588,7 +591,6 @@ describe('selectionDetails – díl pole a čtverec sadu (klik – fields.md, Co
       mow: null,
       next: 'fallow',
       rest: { share: 0.81, years: 8 },
-      surplus: false,
       founding: null,
       fieldIds: [5],
     });
@@ -635,7 +637,6 @@ describe('selectionDetails – díl pole a čtverec sadu (klik – fields.md, Co
       mow: 0.25,
       next: 'fallow',
       rest: { share: 0.77, years: 7 },
-      surplus: false,
     });
   });
 
