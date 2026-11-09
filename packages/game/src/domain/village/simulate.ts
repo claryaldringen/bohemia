@@ -30,7 +30,7 @@ import { moveGrainFromCoveredPits } from './grain-pit-site';
 import { withThreshingGrace, spoilSheaves } from './threshing';
 import { withSeason } from './year-plan';
 import { settleSowingSeed, withSeedForgiven, withoutSeedTarget } from './seed';
-import { withoutFieldLegumes } from './field-legumes';
+import { withoutFieldFlax, withoutFieldLegumes } from './field-legumes';
 import { withoutSurplusCrops } from './merge-surplus';
 import { seedBuyingDay } from './seed-buying';
 import { withSowingRotation } from './rotation';
@@ -154,8 +154,8 @@ export function* advanceVillageSteps(
   // před snopy rok odkladu mlácení (production-chains.md – Starší vsi) a ves s ročním plánem osevní
   // postup po dílech (fields.md – Osevní postup po dílech, bod 7), plán z doby před osivem ze
   // zásob odpuštěné osivo zaseté části (fields.md – Osivo ze zásob, Převod), plán z doby cíle
-  // osevu bez osiva čekajících dílů (fields.md – Osivo bez cíle osevu), nezasetý díl luštěnin jař
-  // (fields.md – Luštěniny, zrušeno), díly nad potřebu jednou frontou (fields.md – Osevní postup
+  // osevu bez osiva čekajících dílů (fields.md – Osivo bez cíle osevu), nezasetý díl luštěnin a lnu
+  // jař (fields.md – Luštěniny, zrušeno; Len, zrušeno), díly nad potřebu jednou frontou (fields.md – Osevní postup
   // po dílech, bod 3) a vojvodova rodina bez pomoci s osevem a při hladu (lord.md – Kdy jde rodina
   // na pole) – jednou, idempotentně
   const next = cloneState(
@@ -174,11 +174,13 @@ export function* advanceVillageSteps(
                             withArmsCaps(
                               withDynasty(
                                 withKinship(
-                                  withoutFieldLegumes(
-                                    withoutSowingHelp(
-                                      withoutSeedTarget(
-                                        withoutSurplusCrops(
-                                          withSeedForgiven(withSowingRotation(withSeason(start))),
+                                  withoutFieldFlax(
+                                    withoutFieldLegumes(
+                                      withoutSowingHelp(
+                                        withoutSeedTarget(
+                                          withoutSurplusCrops(
+                                            withSeedForgiven(withSowingRotation(withSeason(start))),
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -446,7 +448,7 @@ function* simulateDaySteps(
   // Sklizeň a ztráta nevymláceného až po jídle (Ruling 13) – 31. 8. se jí ještě z loňských
   // zásob, jak počítá daysUntilHarvest (31. 8. → 1 den); ozim stejně 31. 7. (co červenec
   // nedosklidil, 31. 8. s jaří – fields.md, Žně i v srpnu)
-  if (isOn(date, WINTER_HARVEST_DAY)) harvestWinter(state, day);
+  if (isOn(date, WINTER_HARVEST_DAY)) harvestWinter(state, day, landscape);
   if (isOn(date, HARVEST_DAY)) {
     harvest(state, day);
     wildlifeSeasonEnd(state, day);

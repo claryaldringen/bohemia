@@ -1359,7 +1359,7 @@ pro raný středověk ale nemám – zůstává návrhem Clauda jako dosavadní 
   přílohu přenese na jaro; vrácení přílohu pod jař má od teď také okno v březnu–dubnu
   (`WINDOWS.reclaim`). Orba rádlem má jarní okno už dřív (`fitsSpringPlough`), beze změny.
 
-### Zahrádka u obydlí – len a luštěniny (9. 11. 2026, implementace čeká)
+### Zahrádka u obydlí – len a luštěniny (9. 11. 2026, implementováno)
 
 Martin 9. 11. 2026: „Nebylo by lepší, kdyby si lidé řešili len sami podobně, jako luštěniny?“,
 „Ale ta zahrádka už je tam nakreslená :D“ a „Ano“ k návrhu Clauda: **len z polí vyřazený** jako
@@ -1373,6 +1373,67 @@ zhruba len pro svou domácnost a na luštěniny zbude málo (Vlkov: 7 obydlí �
 podle úrodnosti políčka pozemku a počasí kraje jako pole; okna jako dřív na poli (len setí
 v dubnu, trhání koncem července; luštěniny setí březen–duben, sklizeň červenec) – práce bokem je
 nebrzdí.
+
+**Implementováno (9. 11. 2026)** – pravidla, čísla návrh Clauda (`GARDEN` v `rules-fields.ts`):
+
+- **Kdo má zahrádku:** obydlí s pozemkem (polozemnice, dvorec vojvody), které se používá a někdo
+  v něm bydlí; domácnost = lidé obydlí. Zemnice, dílna bez pozemku, prázdné a opuštěné obydlí ne.
+- **Záhony z pozemku** (návrh Clauda k Martinově kontrole, 9. 11. 2026): políčko domu
+  15 × 15 m bez půdorysu domu (`DWELLING_FOOTPRINT_M` s variantou rozměrů – polozemnice ≈ 25 m²,
+  dvorec 57,6 m²) a bez cestičky od branky ke dveřím široké 1 m (délka podle varianty polohy domu:
+  uprostřed 5 m, vpředu 2,7 m, vzadu 8,2 m). Polozemnice ≈ 192–197 m², dvorec ≈ 165 m² – dvůr
+  dvorce zůstává dvorem. Scéna kreslí záhony jen jako ukázku (užší pásy s uličkami) – plocha se
+  z ní neodvozuje, scéna zůstává ve webu.
+- **Len napřed:** plocha lnu = potřeba lnu domácnosti (`FLAX.kgPerYear` podle věku lidí v den
+  sklizně) ÷ výnos na m² bez počasí, nejvýš celé záhony; **zbytek záhonů luštěniny**. Domácnost,
+  které záhony na len nestačí, má zbytek lnu chybět (dosavadní „Chybí len na oděv“ a štěstí až −4)
+  a luštěniny nic. Na len sousedů zahrádka nepěstuje.
+- **Úroda:** na hektar jako na poli – len 550 kg třeného lnu, luštěniny 0,8 obilí –
+  (× 0,4 + 0,6 × úrodnost). **Hnojená zahrádka** (návrh Clauda k Martinově kontrole): záhony hnojí
+  domácnost (hnůj, odpad, popel) – úrodnost záhonu = přirozená úrodnost políčka pozemku z krajiny,
+  **nejméně 70** (`GARDEN.manuredFertility`); nevyčerpávají se. Plejí se (práce bokem) – plná
+  úroda. Luštěniny čisté: osivo 150 kg/ha si domácnost nechá z vlastní úrody (len seje vlastní
+  semeno jako na poli). Polozemnice (≈ 195 m², úrodnost 70) dá ≈ 8,8 kg lnu (oděv pro ≈ 4
+  dospělé) nebo ≈ 6,8 kg čistých luštěnin; při plné úrodnosti ≈ 10,7 kg lnu.
+- **Počasí kraje** roku sklizně jako u dílu pole bez ochrany (sucho, deštivé léto – jařina);
+  kroupy, povodeň a smršť se počítají po dílech polí a zahrádky neberou.
+- **Kdy:** sklizeň jeden den **31. 7.** po jídle (trhání lnu koncem července, luštěniny
+  v červenci) – práce bokem, okna setí (len duben, luštěniny březen–duben) se nesledují. Ves
+  založená po **30. 4.** letos nesela – sklidí až příští rok a oděv do té doby nezapíše (jako dřív
+  ves bez plánu lnu). Obydlí postavené po dubnu sklidí už letos (zjednodušení – domácnost
+  přichází z jiného domu).
+- **Kam:** luštěniny do zásoby luštěnin (`legumesKg` – jí se, obchod, platby jako dřív); len se
+  v rámci roku zpracuje v domácí výrobě – 31. 7. se zapíše podíl oděvu = len ze zahrádek (a
+  dorůstající len na poli starší vsi) ÷ potřeba **všech** lidí vsi (i v zemnicích).
+- **Kronika:** jeden souhrnný zápis za ves – „Sklizeň zahrádek: 40 kg lnu a 12 kg luštěnin.“
+  (`garden-harvest`), když ves nějakou zahrádku má.
+- **Panel obydlí:** ikona lnu a luštěnin s kg z letošní sklizně zahrádky (`Dwelling.garden`
+  – zemnice a obydlí, které letos nesklízelo, ikony nemá).
+- **Scéna:** beze změny – záhony se zeleninou už jsou nakreslené; len na záhonech v létě je
+  námět (modře kvetoucí pás v červnu).
+- **Převod uložených vsí:** jako u luštěnin – díl, který plán chystal na len a setí na něm
+  nezačalo, přejde do jaře i s hotovou přípravou půdy, výběr dílů z paměti se lnem propadne
+  (`withoutFieldFlax`); zasetý len doroste, vytrhá se a přičte se k oděvu (nedotržený 31. 7. až 31. 8.). Starší plány nesou `flaxNeedKg` dál, nové ho nemají.
+- **Naměřeno – Vlkov** (kopie stavu, 3 roky od 3. 3. 871, 39–42 lidí, 6 obydlí s pozemkem
+  a 1 polozemnice bez pozemku – 5 lidí bez zahrádky; přirozená úrodnost políček pozemků 24–46,
+  díly polí medián 35):
+
+  | rok                         | 871                        | 872         | 873         |
+  | --------------------------- | -------------------------- | ----------- | ----------- |
+  | len ze zahrádek (kg)        | 25 (+ 35 zasetých na poli) | 44          | 38          |
+  | luštěniny ze zahrádek (kg)  | 2                          | 6           | 4           |
+  | oděv `linen` (dřív na poli) | 1,00 (0,65)                | 0,72 (1,00) | 0,63 (0,91) |
+  | dny přídělu (dřív)          | 60 (62)                    | 269 (274)   | 113 (113)   |
+
+  Zahrádka dá 4–7 kg lnu (dvorec méně – menší záhony; v létě 873 sucho), domácnosti po 3–9
+  lidech potřebují 5–16 kg – lnu je v letech 872 a 873 málo („Chybí len na oděv“, štěstí ≈ −1,1
+  až −1,5). Zásoby 31. 12. o 0,3–1,6 % nižší, lidí stejně. První verze (150 m², přirozená
+  úrodnost) dala jen 17, 30 a 26 kg lnu a oděv 0,88, 0,49 a 0,43.
+
+- **Kdo nemá zahrádku nebo mu nestačí** (návrh Clauda k Martinově kontrole): len dál jen pro
+  vlastní domácnost – zemnice, polozemnice bez pozemku a velké domácnosti mají lnu málo
+  a upozornění zůstává (alternativy – větší záhony i za plotem nebo chybějící len dál na poli – jsou
+  odložené).
 
 ### Luštěniny
 
@@ -1441,6 +1502,12 @@ Luštěniny). Čísla podle [rešerše](research/2026-10-18-legumes.md), kde chy
   ukáže díly luštěnin (ikona a počet).
 
 ### Len
+
+**Zrušeno – len z polí vyřazený.** Martin (9. 11. 2026): „Nebylo by lepší, kdyby si lidé řešili len
+sami podobně, jako luštěniny?“ a „Ano“ k návrhu Clauda – len pěstuje domácnost na zahrádce u obydlí
+(Zahrádka u obydlí výš). Výběr dílů len nepřidělí, potřeba lnu se do plánu k 1. 9. nezapisuje;
+potřeba, výnos, práce, okna a vyčerpání půdy níž platí už jen pro dorůstající len starších vsí
+(převod jako u luštěnin), potřeba lnu na oděv a štěstí bez lnu dál pro zahrádky.
 
 Stav: **Martin, 19. 10. 2026:** „A to mi připomíná, že na částech pole musí být zasetý len.“ (k ovcím
 na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** podle
