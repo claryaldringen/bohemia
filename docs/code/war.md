@@ -579,6 +579,36 @@ villageId, today, nowMs })`): právo `war` ověří use-case sám (`requireRight
   `npc-commander.test.ts` – NPC velitel na palisádu s ochozem a bránou: proseknutí, bod zlomu
   v útoku, útočiště dobyté s útočníkem uvnitř.
 
+## Hradba na koruně valu (9. 11. 2026)
+
+fortifications.md – Hradby a obrana, Druhy – Pás s valem (Martin 9. 11. 2026: „Pokud se jedná
+o palisádu nebo polský plot, má stát na koruně valu“). Čísla `FORTIFICATIONS.defense.crest`
+a `assault.climbSeconds.upRampart`; testy `__tests__/rampart-crest.test.ts`.
+
+- **Čára hradby** – `wallLineInM(opevnění)` (`fortification/band.ts`): val na křivce (opevnění
+  druhu `rampart`) 7 m od křivky (`rampartBand.ditchM` + `footM` ÷ 2), jinak 0 (val vně má korunu
+  na křivce). `battleForts` posune úseky na čáru hradby (`onWallLine` – body `bandLine` na ose
+  ohybu, nejmenší ohyb valu 8 m se nepřehne) a brány v kopii opevnění bojiště poměrně s délkou
+  úseku (`offsetM × nová ÷ stará tětiva`) – stěny, stanoviště, žebříky (vrchol na koruně, pata 1 m
+  vně na vnějším svahu), místa prolomení, klešťová brána i scéna boje (`battleWallsOf` – lezci
+  a obránci zvednutí o val stojí na koruně) tak berou korunu. Klešťová brána: `endM` = pás − čára
+  hradby + ulička (`battlePincers`).
+- **Obránce na koruně** – `crestAt(opevnění, bod)`: do 1,25 m za čarou hradby (ne víc než
+  0,5 m před ní) dílu s hotovým nezbořeným valem (`segmentRampart`), mimo průchod brány valem
+  (½ šířky brány od středu); mezipaměť na objekt polohy (`WeakMap` – poloha se nemění na místě).
+  `towerReach` – obránce na koruně dohled `sight.openM` + 25 m a luk `bowMaxM` + 5 m (věž má
+  přednost); `reachOf` přidá dohoz – z ochozu na koruně `throwM` + 2 m (`strikeReach(…, bowMaxM,
+throwM)`). `ctx.sees` v taktu – z věže `tower.sightM`, z koruny `openM + crest.sightM` (jen
+  když bojiště val má).
+- **Útočník přes val** – `fortCells` vrátí i `crest` (buňky dílů se stojící hradbou na hotovém
+  valu); `marchGrid` jim k `MARCH_WALL` přidá `MARCH_RAMPART` (tempo 0 – pochod neprojde, jen
+  branou). V boji `paceAt(…, útočník)`: buňka stěny s valem → útočník `rampartPace(1)` (¼, plnou
+  výškou – mřížka nese u stěny jen příznak), obránce plné tempo; `rampartFatigueStep` po sestupu
+  z takové buňky unaví jen útočníka. Žebřík: `climbTicks(druh, výška valu)` – `up` + `upRampart`
+  (2 s) × výška (`ladders.ts` – `climbTotal`, `climbStep`; plot beze změny – na val se vyleze
+  chůzí). NPC odhad hodin (`npc-assault.ts` – `climbHours`) val nepočítá (2 s proti hodinám
+  výroby nehrají roli).
+
 ## Brány v bitvě – ulička a věž (hradby Ú19)
 
 fortifications.md – Hradby a obrana, Brány. Geometrie a obránci ve `wall-defense.ts`, stěny

@@ -313,3 +313,16 @@ export function segmentBand(
     outM: 0,
   };
 }
+
+/**
+ * Čára hradby od křivky dovnitř (m; fortifications.md – Hradby a obrana, Druhy – Pás s valem):
+ * hradba na valu stojí na koruně valu (Martin 9. 11. 2026: „Pokud se jedná o palisádu nebo polský
+ * plot, má stát na koruně valu“). Val na křivce (opevnění druhu val) má korunu za příkopem
+ * a polovinou paty valu – 4 + 3 = 7 m; val doplněný vně hradby korunu na křivce – 0, jako hradba
+ * bez valu. Návrh Clauda: celé opevnění s valem na křivce má čáru na koruně, i díl postavený
+ * znovu bez valu.
+ */
+export function wallLineInM(fort: Pick<Fortification, 'kind'>): number {
+  const r = FORTIFICATIONS.rampartBand;
+  return fort.kind === 'rampart' ? r.ditchM + r.footM / 2 : 0;
+}

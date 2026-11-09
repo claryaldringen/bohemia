@@ -720,7 +720,8 @@ export function climberPose(
   const ladder = c.ladder === null ? null : (b.ladders.find((l) => l.key === c.ladder) ?? null);
   const wall = ladder ? wallOf(b, ladder.fort, ladder.segment) : null;
   const kind: WallKind = wall?.kind ?? (ladder ? 'palisade' : 'fence');
-  const t = climbTicks(kind);
+  // na hradbu na koruně valu je výstup delší (jádro – `climbTicks` s výškou valu)
+  const t = climbTicks(kind, wall?.rampart ?? null);
   const share = (total: number): number =>
     total > 0 ? Math.min(1, Math.max(0, (total - ticks) / total)) : 1;
   if (!ladder) {

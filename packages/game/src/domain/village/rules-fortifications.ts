@@ -306,6 +306,12 @@ export const FORTIFICATIONS = {
       up: { palisade: 4, walkway: 4, crib: 5, chamber: 6 },
       overLadder: 4,
       down: { palisade: 4, walkway: 2, crib: 3, chamber: 3 },
+      /**
+       * Hradba na koruně valu (Martin 9. 11. 2026: „Pokud se jedná o palisádu nebo polský plot, má
+       * stát na koruně valu“; číslo návrh Clauda): žebřík od paty na vnějším svahu je o výšku valu
+       * (2 m) delší – výstup o 2 s déle při plném valu (poměrně s výškou valu).
+       */
+      upRampart: 2,
     },
     rampartSlowdown: 3,
     rampartFatigue: 0.15,
@@ -343,5 +349,11 @@ export const FORTIFICATIONS = {
      * mimo místo útoku se kryjí, dokud na opevnění dopadají šípy, a ještě 30 s po posledním.
      */
     coverSeconds: 30,
+    /**
+     * Obránce na koruně valu pod hradbou (Hradby a obrana – Druhy, Pás s valem; Martin 9. 11.
+     * 2026 – hradba na koruně valu; čísla návrh Clauda): stojí o 2 m výš – dohlédne o 25 m dál,
+     * lukem dostřelí o 5 m dál a z ochozu dohodí o 2 m dál (hod 15 → 17 m jako vrh z 2 m výšky).
+     */
+    crest: { sightM: 25, bowM: 5, throwM: 2 },
   },
 } as const;

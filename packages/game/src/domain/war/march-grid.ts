@@ -290,10 +290,13 @@ function fortCells(
 ): {
   wall: number[];
   rampart: { cell: number; height: number }[];
+  crest: number[];
   open: Set<number>;
   water: number[];
 } {
   const wall: FortSegment[] = [];
+  // hradba na koruně valu – stěna, přes kterou útočník v boji napřed leze po valu (Martin 9. 11.)
+  const crest: FortSegment[] = [];
   // holý val po výškách dílů (tempo podle výšky – `rampartPace`)
   const rampart = new Map<number, FortSegment[]>();
   const gaps: FortSegment[] = [];
@@ -305,8 +308,10 @@ function fortCells(
         layerBuilt(segmentWall(fort, seg)) &&
         seg.breachedDay === undefined &&
         segmentState(fort, seg, day) > 0;
-      if (topStands) wall.push(withoutBreach(seg));
-      else {
+      if (topStands) {
+        wall.push(withoutBreach(seg));
+        crest.push(withoutBreach(seg));
+      } else {
         const list = rampart.get(layer.height) ?? [];
         list.push(withoutBreach(seg));
         rampart.set(layer.height, list);
@@ -329,6 +334,7 @@ function fortCells(
   };
   for (const c of cellsOf(gaps, false)) open.add(c);
   const wallCells = cellsOf(wall, true);
+  const crestCells = cellsOf(crest, true);
   const rampartCells = [...rampart].map(([height, segs]) => ({
     height,
     cells: cellsOf(segs, true),
@@ -350,6 +356,7 @@ function fortCells(
     rampart: rampartCells.flatMap(({ height, cells }) =>
       cells.filter((c) => !open.has(c)).map((cell) => ({ cell, height })),
     ),
+    crest: crestCells.filter((c) => !open.has(c)),
     open,
     water,
   };
@@ -463,6 +470,9 @@ export function marchGrid(
       grid.pace[c] = 0;
       grid.flags[c] = grid.flags[c]! | MARCH_WALL;
     }
+    // stěna s valem pod hradbou – pochod ji neprojde (tempo 0), útočník v boji po ní leze tempem
+    // plného valu (`battle.ts` – `paceAt`) a po sestupu je unavený (`rampartFatigueStep`)
+    for (const c of cells.crest) grid.flags[c] = grid.flags[c]! | MARCH_RAMPART;
     for (const c of cells.open) grid.flags[c] = grid.flags[c]! | MARCH_GATE;
     for (const c of cells.water) {
       grid.pace[c] = 0;

@@ -94,8 +94,18 @@ roštová ≈ 7 m, komorová ≈ 8 m, komory po 5–6 m).
 - **Pás s valem** = příkop 4 m + vnější svah valu 3 m + hradba na koruně, nejméně 10 m jako
   samotný val (návrh Clauda). Martin 9. 11. 2026: „Pokud se jedná o palisádu nebo polský plot, má
   stát na koruně valu“ – plot i palisáda (i s ochozem) s valem stojí na koruně valu (≈ 2 m nad
-  terénem), ne na zemi za valem (implementace čeká – dnes stojí na zemi); obránce stojí o korunu
-  výš a útočník musí napřed vylézt na val, pak na hradbu.
+  terénem), ne na zemi za valem; obránce stojí o korunu výš a útočník musí napřed vylézt na val,
+  pak na hradbu. **Implementováno 9. 11. 2026.** Scéna vsi už hradbu na koruně kreslila (val na
+  křivce – koruna 7 m od křivky, val vně – koruna na křivce); na zemi stála jen v bitvě. Návrh
+  Clauda: čára hradby na bojišti je koruna valu – u valu na křivce 7 m od křivky (příkop 4 m +
+  půl paty valu 3 m; celé opevnění, i díl postavený znovu bez valu), brány se posunou poměrně
+  s úsekem; val doplněný vně má korunu na křivce, hradba se nehýbe a val se nasype pod ni a před
+  ni (pás 7 m ven, dovnitř šířka hradby, nejméně 3 m – beze změny). Obránce na koruně valu
+  dohlédne o 25 m dál, lukem dostřelí o 5 m dál a z ochozu dohodí o 2 m dál (hod 15 → 17 m jako
+  vrh z 2 m výšky); útočník leze pásem valu pod hradbou tempem plného valu (¼), po sestupu je
+  unavený (obránce chodí po svém valu plným tempem a neunaví se) a žebřík na hradbu na valu je
+  o výšku valu delší – výstup o 2 s déle (poměrně s výškou valu); plot na valu se přelézá jako na
+  zemi – na val se vyleze chůzí. Pochod (mimo boj) pásem se stojící hradbou neprojde, jen branou.
 - **Po úsecích mezi branami** (Martin 8. 11. 2026 – [bourání](demolition.md): „Hráč pak bude
   moci každý z těch úseků zbořit nebo vylepšit.“): vylepšení i doplnění valu se zadává na úsek;
   obvod smí mít po úsecích různé druhy, rozhraní je vždy brána. „Vylepšit vše“ zadá všechny úseky.

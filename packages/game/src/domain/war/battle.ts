@@ -4,11 +4,14 @@ import {
   assaultSteps,
   crossingLayers,
   mineUnderground,
+  rampartPace,
   gatePartView,
   hasGateParts,
   wallSpotSegment,
   type GatePart,
+  bandLine,
   fortOutlineOf,
+  wallLineInM,
   fortSegments,
   layerBuilt,
   segmentIsGap,
@@ -40,6 +43,7 @@ import {
 } from './ladders';
 import {
   MARCH_BUILDING,
+  MARCH_RAMPART,
   MARCH_WALL,
   marchCellAt,
   moatFillPace,
@@ -81,7 +85,8 @@ import {
   reinforceTarget,
   strikeReach,
   towerAt,
-  towerReach,
+  crestAt,
+  reachOf,
   wallKindAt,
   type BattlePincer,
   type StrikeKind,
@@ -367,12 +372,60 @@ export function hitDamage(strength: number, bow: boolean): number {
   return c.hitPerStrength * strength * (bow ? c.bowFactor : 1);
 }
 
-/** Opevnění vsi s tvarem úseků pro bojiště. */
+/**
+ * Úseky posunuté na čáru hradby `inM` m od křivky (body na ose ohybu – `bandLine`; nejmenší ohyb
+ * valu 8 m je víc než 7 m, posun se nepřehne) a brány opevnění na téže poměrné poloze úseku.
+ */
+function onWallLine(
+  outline: NonNullable<ReturnType<typeof fortOutlineOf>>,
+  fort: Fortification,
+  shapes: FortSegmentShape[],
+  inM: number,
+): { fort: Fortification; shapes: FortSegmentShape[] } {
+  if (inM === 0) return { fort, shapes };
+  const scale = new Map<number, number>();
+  const moved = shapes.map((s): FortSegmentShape => {
+    const path = bandLine(outline, s.index, inM);
+    const a = path[0];
+    const b = path[path.length - 1];
+    if (!a || !b) return s;
+    const dx = b[0] - a[0];
+    const dz = b[1] - a[1];
+    const length = Math.sqrt(dx * dx + dz * dz);
+    if (length <= 1e-6 || s.line.length <= 1e-6) return s;
+    scale.set(s.index, length / s.line.length);
+    let lengthM = 0;
+    for (let i = 1; i < path.length; i++) {
+      const ex = path[i]![0] - path[i - 1]![0];
+      const ez = path[i]![1] - path[i - 1]![1];
+      lengthM += Math.sqrt(ex * ex + ez * ez);
+    }
+    return {
+      ...s,
+      lengthM,
+      path,
+      line: { x: a[0], z: a[1], dx: dx / length, dz: dz / length, length },
+      mid: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2],
+    };
+  });
+  const gates = fort.gates.map((g) => ({ ...g, offsetM: g.offsetM * (scale.get(g.segment) ?? 1) }));
+  return { fort: { ...fort, gates }, shapes: moved };
+}
+
+/**
+ * Opevnění vsi s tvarem úseků pro bojiště – čára úseku je čára hradby (`wallLineInM`; u valu na
+ * křivce koruna valu, brány posunuté poměrně s úsekem).
+ */
 export function battleForts(geo: GridGeometry, forts: readonly Fortification[]): BattleFort[] {
-  return forts.map((fort) => {
-    const outline = fortOutlineOf(geo, fort);
-    if (!outline) return { fort, shapes: [], center: { x: 0, z: 0 } };
-    const shapes = fortSegments(outline);
+  return forts.map((stored) => {
+    const outline = fortOutlineOf(geo, stored);
+    if (!outline) return { fort: stored, shapes: [], center: { x: 0, z: 0 } };
+    const { fort, shapes } = onWallLine(
+      outline,
+      stored,
+      fortSegments(outline),
+      wallLineInM(stored),
+    );
     let x = 0;
     let z = 0;
     for (const s of shapes) {
@@ -783,9 +836,15 @@ function firstWall(
  * Tempo buňky mřížky; stěny opevnění řeší úsečky, ne buňky; boj ve vsi stavby neblokují; zasypaný
  * kus vodního příkopu se přejde jako suchý (`moatFillPace`).
  */
-function paceAt(grid: MarchGrid, p: Pos, fills: readonly MoatFill[]): number {
+function paceAt(grid: MarchGrid, p: Pos, fills: readonly MoatFill[], attacker = false): number {
   const c = marchCellAt(grid, p);
-  if ((grid.flags[c]! & (MARCH_WALL | MARCH_BUILDING)) !== 0) return 1;
+  const flags = grid.flags[c]!;
+  if ((flags & (MARCH_WALL | MARCH_BUILDING)) !== 0) {
+    // hradba na koruně valu (Martin 9. 11. 2026): útočník leze přes příkop a val tempem plného
+    // valu, obránce chodí po svém valu plným
+    const crest = (flags & MARCH_WALL) !== 0 && (flags & MARCH_RAMPART) !== 0;
+    return attacker && crest ? rampartPace(1) : 1;
+  }
   return fills.length > 0 ? moatFillPace(grid, p, fills) : grid.pace[c]!;
 }
 
@@ -810,7 +869,7 @@ function stepToward(
   const dz = to.z - f.pos.z;
   const d = Math.sqrt(dx * dx + dz * dz);
   if (d < 1e-9) return false;
-  const here = paceAt(field.grid, f.pos, walls.fills);
+  const here = paceAt(field.grid, f.pos, walls.fills, f.side === 'attack');
   const speed =
     (WAR.pace.metersPerSecond / TICKS_PER_SECOND) *
     (f.mounted ? WAR.pace.riders : 1) *
@@ -884,7 +943,8 @@ function strikeOf(
   t: Fighter,
   w: TickWorld,
 ): { kind: StrikeKind; across: boolean } | null {
-  const kind = strikeReach(f, t, towerReach(f, w.wall).bowMaxM);
+  const reach = reachOf(f, w.wall);
+  const kind = strikeReach(f, t, reach.bowMaxM, reach.throwM);
   if (kind === null) return null;
   if (onWallTop(f, w.b) || onWallTop(t, w.b)) return { kind, across: false };
   const range = kind === 'melee' ? 'melee' : 'ranged';
@@ -1544,14 +1604,26 @@ export function battleTick(b: BattleState, field: BattleField, rng: Random): voi
   }
   const towers = forts.some((bf) => battlePincers(bf, field.day).some((p) => p.tower));
   const towerSightM = FORTIFICATIONS.tower.sightM;
+  // z koruny valu pod hradbou je vidět o kus dál (`crestAt`; Martin 9. 11. 2026)
+  const crests = forts.some(
+    (bf) => bf.fort.kind === 'rampart' || bf.fort.segments.some((s) => s.rampartOutside),
+  );
+  const crestSightM = WAR.sight.openM + FORTIFICATIONS.defense.crest.sightM;
+  const sightFrom = (p: Pos): number | undefined =>
+    towers && towerAt(forts, p, field.day)
+      ? towerSightM
+      : crests && crestAt(forts, p)
+        ? crestSightM
+        : undefined;
   const ctx: PlanContext = {
     fighters: b.fighters,
     byId,
     leader: battleLeader(b, byId),
     // z věže nad branou je vidět dál (`towerReach`)
-    sees: towers
-      ? (p, q) => inSight(field.grid, p, q, towerAt(forts, p, field.day) ? towerSightM : undefined)
-      : (p, q) => inSight(field.grid, p, q),
+    sees:
+      towers || crests
+        ? (p, q) => inSight(field.grid, p, q, sightFrom(p))
+        : (p, q) => inSight(field.grid, p, q),
     houses: (g) => houses.get(g) ?? [],
     reaches: (p, q) => reachable(p, q, w),
   };
