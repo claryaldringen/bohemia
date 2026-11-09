@@ -60,6 +60,7 @@ import { createAnimalMesh, standOnGround, writeAnimalPose } from './livestock';
 import { createBakedFigure, createBlobShadow, type BakedKind } from './plough-team-renderer';
 import { villagerSeconds } from './villager-motion';
 import { FIGURE_SCALE, fleeWalkAt, drivenHerd, type FleeWalk } from './villager-plan';
+import { alarmAt, alarmFigures, alarmMoving, type SceneAlarm } from './refugee-march';
 import { loadBakedModel } from './villagers';
 
 /** Válka ve scéně – co kreslit (vstup odvozený z jádra – army.ts, villager-plan.ts). */
@@ -75,6 +76,11 @@ export interface SceneWar {
   flight: { walks: readonly FleeWalk[]; startMs: number; herd?: number } | null;
   /** Odehnané stádo za skupinou vojska (villager-plan.ts – `drivenHerd`). */
   herd: { lead: Pos; heading: Pos; count: number } | null;
+  /**
+   * Průvody uprchlíků a běžící poslové (refugee-march.ts; Ú14); null – žádné. Chybí – jako null
+   * (starší snímky v testech).
+   */
+  alarm?: SceneAlarm | null;
   /** Mlha války z pohledu strany `side` (útočník na cizí mapě); null – bez mlhy. */
   fog: { side: BattleSide } | null;
   /** Konec herního dne (ms) – padlí leží do něj; null – leží, dokud je boj ve scéně. */
@@ -152,6 +158,10 @@ export class ArmyRenderer {
   private marchFrom: SceneMarch | null = null;
   private marchReceivedAt = 0;
   private marchSpanMs = 0;
+  /** Průvody a poslové nakreslení, když přišel nový snímek – odtud jdou k němu (`alarmAt`). */
+  private alarmFrom: SceneAlarm | null = null;
+  private alarmReceivedAt = 0;
+  private alarmSpanMs = 0;
   private shots: Shot[] = [];
   private clashes: Clash[] = [];
   private readonly figures = new Map<FigureKind, BakedKind>();
@@ -213,6 +223,17 @@ export class ArmyRenderer {
       this.marchReceivedAt = now;
     }
     if (!march) this.marchFrom = null;
+    const alarm = war?.alarm ?? null;
+    const lastAlarm = this.war?.alarm ?? null;
+    if (alarm && lastAlarm?.tick !== alarm.tick) {
+      const now = performance.now();
+      const gap = lastAlarm ? alarm.tick - lastAlarm.tick : 0;
+      // jako pochod: od nakresleného k novému snímku za dobu taktů mezi nimi
+      this.alarmFrom = lastAlarm && gap > 0 && !frozen ? this.alarmShown(lastAlarm, now) : null;
+      this.alarmSpanMs = gap > 0 ? glideMs(gap, now - this.alarmReceivedAt) : 0;
+      this.alarmReceivedAt = now;
+    }
+    if (!alarm) this.alarmFrom = null;
     this.war = war;
     if (!war) {
       this.shots = [];
@@ -309,6 +330,13 @@ export class ArmyRenderer {
     return marchAt(this.marchFrom, march, (perfMs - this.marchReceivedAt) / span, span / 1000);
   }
 
+  /** Průvody a poslové `alarm` (poslední snímek) nakreslení v okamžiku `perfMs`. */
+  private alarmShown(alarm: SceneAlarm, perfMs: number): SceneAlarm {
+    const span = this.alarmSpanMs;
+    if (span <= 0) return alarm;
+    return alarmAt(this.alarmFrom, alarm, (perfMs - this.alarmReceivedAt) / span, span / 1000);
+  }
+
   /** Zapíše postavy, zvířata, šípy, prach a ikony v okamžiku `nowMs`. True – něco se hýbe. */
   private write(nowMs: number, frozen: boolean, camera: Camera | null): boolean {
     const war = this.war;
@@ -397,6 +425,14 @@ export class ArmyRenderer {
           speed: 1.4,
         });
       });
+    }
+    // průvod uprchlíků a posel plynule mezi snímky; při omezeném pohybu stojí na posledním
+    const alarm = war.alarm && !frozen ? this.alarmShown(war.alarm, performance.now()) : war.alarm;
+    if (alarm) {
+      const out = alarmFigures(alarm);
+      figures.push(...out.figures);
+      animals.push(...out.animals);
+      moving ||= alarmMoving(alarm);
     }
     const icons = orderIcons(battle, march);
     this.writeFigures(figures, t, frozen);
@@ -910,7 +946,7 @@ function writeFigure(
 ): void {
   const m = k.matrices;
   const o = slot * 16;
-  const s = FIGURE_SCALE;
+  const s = FIGURE_SCALE * (fig.scale ?? 1);
   if (fig.lying) {
     // osa postavy (nahoru) leží ve směru pohledu, dopředu míří do země
     m.set(

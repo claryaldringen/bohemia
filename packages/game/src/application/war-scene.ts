@@ -47,16 +47,21 @@ export interface WarSceneDeps {
   settlements: Pick<SettlementRepository, 'find'>;
   /** `stampsOf` – id vsi sídla bez stavu; `find` – stav vsi jen při novém dni (a mřížka dohledu). */
   villages: Pick<VillageRepository, 'stampsOf' | 'find'>;
-  campaigns: Pick<CampaignRepository, 'activeOf' | 'activeAgainst' | 'checkpoint'>;
+  /** `activeAlarming` – tažení, kde je ves ve varování nebo hradištěm skupiny (průvod, posel). */
+  campaigns: Pick<
+    CampaignRepository,
+    'activeOf' | 'activeAgainst' | 'activeAlarming' | 'checkpoint'
+  >;
   cells: CampaignCells;
   grids?: SightGridCache;
   defenders?: WarSceneDefenderCache;
 }
 
 /**
- * Válka na mapě sídla `settlementId`, kterou hráč vidí ve scéně: napadená ves z pohledu obránce,
- * jinak vlastní vojsko na mapě (pochod). Boj má přednost před pochodem, napadení před vlastním
- * vojskem. null – sídlo není hráče, nebo na mapě žádná válka vidět není.
+ * Válka na mapě sídla `settlementId`, kterou hráč vidí ve scéně: napadená ves z pohledu obránce
+ * (i tažení, které ves jen varovalo – průvod uprchlíků a posel na mapě, Ú14), jinak vlastní vojsko
+ * na mapě (pochod). Boj má přednost před pochodem, napadení před vlastním vojskem. null – sídlo
+ * není hráče, nebo na mapě žádná válka vidět není.
  */
 export async function warSceneFor(
   deps: WarSceneDeps,
@@ -68,27 +73,38 @@ export async function warSceneFor(
   const [village] = await deps.villages.stampsOf([settlement.id]);
   const views: WarSceneView[] = [];
   if (village) {
-    for (const id of await deps.campaigns.activeAgainst(village.id)) {
+    // napřed tažení proti vsi (pořadí repozitáře), pak ta, která ves jen varovala
+    const ids = new Set([
+      ...(await deps.campaigns.activeAgainst(village.id)),
+      ...(await deps.campaigns.activeAlarming(village.id)),
+    ]);
+    for (const id of ids) {
       const point = await deps.campaigns.checkpoint(id);
       // vlastní vojsko proti vlastní vsi nejde – útočník je jiný hráč (nebo NPC)
-      if (!point || point.state.playerId === input.playerId || !present(point.state, cell)) {
+      if (
+        !point ||
+        point.state.playerId === input.playerId ||
+        !(present(point.state, cell) || alarmOn(point.state, cell))
+      ) {
         continue;
       }
       const defender = await defenderOf(deps, village.id, cell, point.state.day);
       if (!defender) continue;
-      const view = await viewOn(deps, point.state, cell, 'defend', defender);
+      const view = await viewOn(deps, point.state, cell, 'defend', defender, input.playerId);
       if (view) views.push(view);
     }
   }
   for (const id of await deps.campaigns.activeOf(input.playerId)) {
     const point = await deps.campaigns.checkpoint(id);
     if (!point || !present(point.state, cell)) continue;
-    const view = await viewOn(deps, point.state, cell, 'attack', {
-      eyes: [],
-      forts: [],
-      buildings: [],
-      folk: [],
-    });
+    const view = await viewOn(
+      deps,
+      point.state,
+      cell,
+      'attack',
+      { eyes: [], forts: [], buildings: [], folk: [] },
+      input.playerId,
+    );
     if (view) views.push(view);
   }
   return views.find((v) => v.battle !== null) ?? views[0] ?? null;
@@ -120,6 +136,7 @@ export async function warSceneOnMap(
     eyes: [],
     forts: target?.forts ?? [],
     buildings: target?.buildings ?? [],
+    playerId: input.playerId,
   });
 }
 
@@ -135,12 +152,27 @@ function present(state: CampaignState, cell: GridCell): boolean {
   );
 }
 
+/**
+ * Je na mapě průvod uprchlíků na cestě nebo ukrytý u lesa, nebo běžící posel (Ú14)? Kdo z nich je
+ * vidět (vlastní vždy, cizí v dohledu), rozhodne `warSceneView`.
+ */
+function alarmOn(state: CampaignState, cell: GridCell): boolean {
+  const alarm = state.alarm;
+  if (!alarm) return false;
+  return (
+    alarm.flights.some(
+      (f) => sameCell(f.cell, cell) && (f.status === 'marching' || f.status === 'hidden'),
+    ) || alarm.messengers.some((m) => sameCell(m.cell, cell) && m.status === 'running')
+  );
+}
+
 async function viewOn(
   deps: WarSceneDeps,
   state: CampaignState,
   cell: GridCell,
   side: BattleSide,
   defender: WarSceneDefender,
+  playerId: string,
 ): Promise<WarSceneView | null> {
   // dohled v lese jen pro obránce na mapě cíle (útočník vidí celé vlastní vojsko); z mřížky i les,
   // kam ves utekla
@@ -153,6 +185,7 @@ async function viewOn(
     eyes: defender.eyes,
     forts: defender.forts,
     ...(side === 'defend' ? { folk: defender.folk } : {}),
+    playerId,
   });
 }
 

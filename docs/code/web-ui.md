@@ -950,6 +950,9 @@ se vykreslí i v testech bez serveru.
   na mapu = velitel jde. Ikony Domů, tři rozkazy skupiny velitele a v boji Pobít / Odvést / Nechat,
   slova jen v `Tooltip`; nevede-li hráč živě, vše zašedlé („Velí jiný muž.“). Oko
   (`campaign-watch`, „Ve scéně“ / „Zpět na ves“, `aria-pressed`) přepne scénu na cizí mapu – výš.
+  Pohled nese i `CampaignView.flights` (Ú14 – skupiny uprchlíků na cestě a běžící poslové v dohledu
+  vlastních mužů: políčko, poloha, lidí, kusů, posel na koni); ikonu na `CampaignMap` doplní práce
+  na rozhraní (ikony Ú13).
 
 - **Válka ve scéně** (`hooks/use-war-scene.ts`, war.md – Ve scéně – napojení na hru):
   `useWarScene(url, enabled)` – vlastní mapa `GET /api/war-scene/<sídlo>`, cizí mapa

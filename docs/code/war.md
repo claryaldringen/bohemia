@@ -1093,6 +1093,34 @@ tick, ctx, out)` v každém taktu po poslech (`campaignTick`: pohyb → spatřen
   `public/icons/war/alarm-*.png` z Blenderu (`tools/blender/icons.py`). Podrobnosti web-ui.md –
   Varování a útěk v rozhraní.
 
+- **Průvod uprchlíků a posel ve scéně (Ú14).** `warSceneView` (`domain/war/scene-view.ts`) nese
+  `refugeMarch` (`WarSceneRefugeMarch` – `refId`, `own`, `mode`, poloha, směr chůze, `moving`,
+  lidé jen vzhledem `WarSceneRefugee` – postava, dítě, nese zásoby; kusů dobytka, vozů)
+  a `messengers` (`WarSceneMessenger` – poloha, směr, `mounted`). Na mapě jen skupina na cestě
+  (`marching`) nebo ukrytá u lesa (`hidden`) a běžící posel; v hradišti, dostižená, doručený
+  a chycený ne. **Mlha:** skupiny a posly vsí hráče, který se dívá (`WarSceneInput.playerId` =
+  `AlarmVillage.owner.playerId`), vidí vždy – i na mapě své jiné vsi (hradiště); cizí jen
+  v dohledu (`inSight`) – obránce z domů a svých bojovníků na nohou, útočník ze skupin s aktivním
+  mužem a bojovníků na nohou; ukrytou skupinu cizí nevidí ani na dohled. Pohlaví uprchlík nenese
+  – muž od 16 let `man`, jiná dospělá žena, dítě podle id (návrh Clauda – jen vzhled); zásoby
+  nese od `WAR.flight.childFromYears`, „jen lidé“ nic. Směr chůze `moverHeading` – k dalšímu
+  bodu úseku **před ušlými metry** (`walkedM`; dřív první bod dál než 1 m – u skupiny vojska
+  uprostřed úseku to byl bod za ní), jinak k cíli na mapě cíle. Pohled vznikne i bez boje
+  a pochodu. `warSceneFor` bere i tažení z `activeAlarming(ves)` (ves ve varování, hradiště
+  skupiny) – vojsko na mapě být nemusí, stačí průvod nebo posel (`alarmOn`). **Mapa tažení:**
+  `campaignView` – `CampaignView.flights` (`CampaignViewFlight` – `refugees` | `messenger`,
+  políčko, poloha, lidí, kusů, `mounted`) jen v dohledu vlastních mužů na nohou na téže mapě
+  (mřížka jen na mapě cíle, jinde dohled jako v lese); ikona v `CampaignMap` zatím ne – HUD
+  dělá Ú13 souběžně (odchylka od plánu). Scéna: scene.md – Průvod uprchlíků a posel. Testy
+  `scene-view.test.ts` (vlastní vždy – vzhled, směr, stádo, vozy, bez padlých; „jen lidé“
+  a ukrytí; útočník mimo dohled nic, v dohledu skupina, posel; ukrytou ne; cizí hráč jen
+  z domů; jiná mapa, hradiště a chycení nic; `campaignView.flights`),
+  `application/__tests__/war-scene.test.ts` (tažení, které ves jen varovalo, vojsko jinde;
+  v hradišti nic), web `war-scene-view.test.ts` (`alarmOf`, scéna bez boje a pochodu),
+  `refugee-march.test.ts` (hlouček, děti, stádo za lidmi, posel pěšky i na koni, `alarmAt`), e2e
+  `multiplayer-war.spec.ts` (varovaná ves B – deset uprchlíků se stádem a posel, vojsko A doma –
+  `data-war-refugees`, `army-cow`, snímek `uprchlici.png`).
+
 ## Výsledky nájezdu a kořist (Ú6.10)
 
 `domain/war/raid-apply.ts` (war.md – Ztráty, Kořist; fortifications.md – Prolomení). Tažení spočte,
@@ -1476,7 +1504,8 @@ Scéna hry ukazuje **mapu sídla hráče** – vojsko je v ní vidět, když na 
   ze serveru ne (návrh Clauda): server zná jen poslední bod – rány mezi body by musel stav boje
   zapisovat do bodu (stovky ran za 40 taktů v jsonb, čteno 2× za sekundu); rytmus ran určuje jádro
   (`cooldown`), scéna ho z bodu dopočte sama a zásahy zná ze součtu `hits` / zdraví.
-- **Zatím ne:** lidé cizí vsi mimo boj (útěk útočník nevidí), cesta do útočiště, pole a další stavby
+- **Zatím ne:** lidé cizí vsi mimo boj (útěk útočník nevidí – průvod uprchlíků a posla
+  v dohledu ano, Ú14), vozy průvodu uprchlíků, pole a další stavby
   cizí vsi, padlí po skončení tažení týž den (`done` – `activeAgainst` ho nevrátí), ranění
   vesničané po dni boje (`woundedUntil` – scéna vsi je nekreslí zvlášť); stádo za vojskem bere
   polohu skupiny ze snímku, ne plynulou.

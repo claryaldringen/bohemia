@@ -13,6 +13,7 @@ import type { CampaignView } from './campaign-view';
 import type { ForeignMap } from './foreign-map';
 import { sceneBattle } from './scene/army';
 import type { SceneWar } from './scene/army-renderer';
+import type { SceneAlarm } from './scene/refugee-march';
 import { planFlight, type FleeWalk } from './scene/villager-plan';
 import type { SceneVillage } from './village-view-scene-types';
 
@@ -44,14 +45,16 @@ export interface WatchedMap {
  * (návrh Clauda – svou zem hráč zná; cizí muže mimo dohled server neposlal), na cizí mapě
  * (`foreign`) se závojem z pohledu strany hráče (war.md – Ve scéně: mlha války na cizí mapě).
  * Padlí leží do konce herního dne boje (server pošle rozhodnutý boj jen s padlými a raněnými).
- * Útěk vsi do lesa (`flightOf`) a odehnané stádo s vojskem (`herdOf`).
+ * Útěk vsi do lesa (`flightOf`), odehnané stádo s vojskem (`herdOf`), průvod uprchlíků a posel
+ * (`alarmOf`) – scéna se zapne i bez vojska na mapě.
  */
 export function sceneWarOf(
   view: WarSceneView | null,
   world: WorldClock,
   foreign = false,
 ): SceneWar | null {
-  if (!view || (!view.battle && !view.march)) return null;
+  const alarm = view ? alarmOf(view) : null;
+  if (!view || (!view.battle && !view.march && !alarm)) return null;
   return {
     battle: view.battle ? sceneBattle(view.battle, view.battle.walls) : null,
     march: view.march
@@ -68,6 +71,7 @@ export function sceneWarOf(
       : null,
     flight: flightOf(view, world),
     herd: herdOf(view),
+    alarm,
     fog: foreign ? { side: view.side } : null,
     dayEndMs: realTimeOf(dateOfDayIndex(view.day + 1), world),
   };
@@ -115,6 +119,31 @@ export function herdOf(view: WarSceneView): SceneWar['herd'] {
     heading: { x: g.heading.x, z: g.heading.z },
     count: Math.min(h.count, SCENE_HERD_MAX),
   };
+}
+
+/**
+ * Průvody uprchlíků a běžící poslové na mapě pro scénu (war.md – Varování, poslové a útěk do
+ * hradiště; Ú14): lidé s nůšemi, stádo za nimi (nejvýš `SCENE_HERD_MAX` kusů), posel; takt snímku
+ * pro plynulý posun (`alarmAt`). null – žádné.
+ */
+export function alarmOf(view: WarSceneView): SceneAlarm | null {
+  const refugees = (view.refugeMarch ?? []).map((r) => ({
+    key: r.refId,
+    mode: r.mode,
+    pos: { x: r.pos.x, z: r.pos.z },
+    heading: { x: r.heading.x, z: r.heading.z },
+    moving: r.moving,
+    people: r.people.map((p) => ({ kind: p.kind, child: p.child, carries: p.carries })),
+    herd: Math.min(r.herd, SCENE_HERD_MAX),
+  }));
+  const messengers = (view.messengers ?? []).map((m) => ({
+    key: m.refId,
+    pos: { x: m.pos.x, z: m.pos.z },
+    heading: { x: m.heading.x, z: m.heading.z },
+    mounted: m.mounted,
+  }));
+  if (refugees.length === 0 && messengers.length === 0) return null;
+  return { tick: view.tick, refugees, messengers };
 }
 
 /**

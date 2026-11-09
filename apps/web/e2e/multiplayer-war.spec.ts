@@ -1133,3 +1133,185 @@ test('obránce za hradbou s branou rozkáže „Probít se“ – záměr v taž
   }
   await ctxs[1]!.close();
 });
+
+// Průvod uprchlíků a posel ve scéně (war.md – Varování, poslové a útěk do hradiště; Ú14): vojsko A
+// táhne na B, ale stojí ještě doma; ves B je varovaná a její lidé jdou se stádem přes svou mapu
+// k hradišti, posel běží napřed (stav zapsaný do kontrolního bodu, bez workeru). B vidí ve scéně
+// průvod i posla, i když vojsko na mapě není.
+test('varovaná ves – průvod uprchlíků se stádem a posel ve scéně obránce', async ({ browser }) => {
+  test.setTimeout(420_000);
+  await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
+  const ctxs = await Promise.all([browser.newContext(), browser.newContext()]);
+  for (const ctx of ctxs) await useUniqueClientIp(ctx);
+  const [a, b] = (await Promise.all(ctxs.map((ctx) => ctx.newPage()))) as [Page, Page];
+  for (const page of [a, b]) await page.setViewportSize({ width: 1280, height: 720 });
+  const { email: emailA, seat: seatA } = await newPlayer(a, 'uprchlicia');
+  await found(a, villageSpots(seatA.landscape).dwelling, 'Soběslav');
+  const { email: emailB, seat: seatB } = await newPlayer(b, 'uprchlicib');
+  await found(b, villageSpots(seatB.landscape).dwelling, 'Vratislav');
+  await ctxs[0]!.close();
+  const [idA, idB] = [await houseIdOf(emailA), await houseIdOf(emailB)];
+  const [placeA, placeB] = [await placeOf(seatA.settlementId), await placeOf(seatB.settlementId)];
+  const [playerA] = await query<{ id: string }>(`SELECT id FROM "user" WHERE email = $1`, [emailA]);
+  const [playerB] = await query<{ id: string }>(`SELECT id FROM "user" WHERE email = $1`, [emailB]);
+  // ves B s hotovou zemnicí (průvod vychází od domu)
+  const stateB = withBuiltFirstDwelling(await villageState(seatB.settlementId));
+  await writeVillageState(seatB.settlementId, stateB);
+  await pollVillage(b);
+  const d = stateB.dwellings[0]!;
+  const home = { x: d.position.x, z: d.position.z };
+  const today = stateB.lastDay;
+  const [war] = await query<{ id: string }>(
+    `INSERT INTO war (house_low, house_high, how, started_at, started_day, last_clash_day)
+     VALUES (LEAST($1::uuid, $2::uuid), GREATEST($1::uuid, $2::uuid), 'ambush', now(), $3, $3)
+     RETURNING id`,
+    [idA, idB, today],
+  );
+  const world = resolveWorldClock(E2E_ENV);
+  const tick = tickOfMs(Date.now(), world);
+  const villager = 1_000_000;
+  const member = (personId: number): CampaignMember => ({
+    ref: { villageId: placeA.villageId, personId },
+    playerId: playerA!.id,
+    line: false,
+    mounted: false,
+    forced: false,
+    strength: 1,
+    health: 100,
+    vigor: 1,
+    wounded: false,
+    group: 0,
+    status: 'active',
+  });
+  const campaignId = randomUUID();
+  const base = newCampaign(
+    {
+      id: campaignId,
+      warId: war!.id,
+      seed: 37,
+      tick,
+      playerId: playerA!.id,
+      leaderName: 'Soběslav',
+      commander: { villageId: placeA.villageId, personId: villager },
+      deputy: null,
+      assembly: { villageId: placeA.villageId, cell: placeA.cell, pos: { x: 0, z: 0 } },
+      target: { villageId: placeB.villageId, cell: placeB.cell, pos: home, name: 'Hradec' },
+      members: [member(villager), member(villager + 1)],
+      foodKg: 20,
+      liveCommand: false,
+    },
+    world,
+  );
+  const day = base.day;
+  // lidé průvodu (jen vzhled – muži, ženy, děti) jdou od domu na východ k okraji mapy
+  const YEAR = 365;
+  const ages = [34, 31, 52, 29, 45, 12, 9, 5, 3, 17];
+  const people = ages.map((age, i) => ({
+    id: 900 + i,
+    bornDay: day - age * YEAR - 30,
+    man: age >= 16 && i % 2 === 0,
+    line: i === 0,
+  }));
+  const at = { x: home.x + 28, z: home.z + 14 };
+  const edge = { x: home.x + 1500, z: home.z + 14 };
+  const cellOf = (c: { x: number; y: number }): { x: number; y: number } => ({ x: c.x, y: c.y });
+  const host = { cell: { x: placeB.cell.x + 1, y: placeB.cell.y }, pos: { x: 0, z: 0 } };
+  const state: CampaignState = {
+    ...base,
+    phase: 'marching',
+    alarm: {
+      villages: [
+        {
+          villageId: placeB.villageId,
+          owner: { playerId: playerB!.id, npc: false, houseId: idB },
+          seenTick: tick - 40,
+          seenAt: { cell: cellOf(placeB.cell), pos: { x: home.x - 300, z: home.z } },
+          warnTick: tick - 30,
+          by: 'villager',
+          messenger: `${campaignId}:a0`,
+          flight: `${campaignId}:a1`,
+          decided: 'player',
+        },
+      ],
+      messengers: [
+        {
+          refId: `${campaignId}:a0`,
+          fromVillageId: placeB.villageId,
+          personId: 950,
+          toVillageId: placeA.villageId,
+          mounted: false,
+          status: 'running',
+          departTick: tick - 20,
+          cell: cellOf(placeB.cell),
+          pos: { x: home.x + 70, z: home.z - 6 },
+          route: [host.cell],
+          leg: {
+            points: [home, { x: edge.x, z: home.z - 6 }],
+            meadowM: [0, 1500],
+            walkedM: 70,
+          },
+          target: host,
+        },
+      ],
+      flights: [
+        {
+          refId: `${campaignId}:a1`,
+          villageId: placeB.villageId,
+          mode: 'all',
+          hostVillageId: placeA.villageId,
+          cell: cellOf(placeB.cell),
+          pos: at,
+          route: [host.cell],
+          leg: { points: [{ x: home.x, z: at.z }, edge], meadowM: [0, 1500], walkedM: 28 },
+          target: host,
+          people,
+          foodKg: 400,
+          herd: { sheep: 6, goat: 2, pig: 0, cow: 4 },
+          carts: 0,
+          status: 'marching',
+          departTick: tick - 10,
+        },
+      ],
+      nextRef: 2,
+    },
+  };
+  await query(`UPDATE campaign SET status = 'done' WHERE status = 'active'`, []);
+  await query(
+    `INSERT INTO campaign (id, war_id, player_id, status, created_at)
+     VALUES ($1, $2, $3, 'active', now())`,
+    [campaignId, war!.id, playerA!.id],
+  );
+  await query(
+    `INSERT INTO campaign_checkpoint (campaign_id, tick, state) VALUES ($1, $2, $3::jsonb)`,
+    [campaignId, tick, JSON.stringify(state)],
+  );
+
+  try {
+    // B vidí ve scéně deset uprchlíků a posla – vojsko na mapě není (scéna se ptá nejdéle po 5 s)
+    const canvas = b.locator('canvas[data-scene]');
+    await expect(canvas).toHaveAttribute('data-war-refugees', '11', { timeout: 30_000 });
+    await expect(canvas).not.toHaveAttribute('data-war-men', /.*/);
+    // stádo za lidmi (12 kusů – scéna vojska kreslí krávy) a postavy průvodu
+    await expect
+      .poll(
+        () =>
+          b.evaluate(() =>
+            window.__bohemiaE2E!.armyStats!()
+              .filter((m) => m.name.startsWith('army-cow'))
+              .reduce((n, m) => n + m.count, 0),
+          ),
+        { timeout: 30_000 },
+      )
+      .toBe(12);
+    await b.waitForTimeout(1_500);
+    await b.screenshot({ path: test.info().outputPath('uprchlici.png'), scale: 'css' });
+    // přiblížení k průvodu (vpravo nad domem)
+    await b.mouse.move(950, 240);
+    for (let i = 0; i < 6; i++) await b.mouse.wheel(0, -300);
+    await b.waitForTimeout(1_000);
+    await b.screenshot({ path: test.info().outputPath('uprchlici-blizko.png'), scale: 'css' });
+  } finally {
+    await query(`UPDATE campaign SET status = 'done' WHERE id = $1`, [campaignId]);
+  }
+  await ctxs[1]!.close();
+});
