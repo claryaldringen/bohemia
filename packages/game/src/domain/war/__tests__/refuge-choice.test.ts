@@ -260,6 +260,29 @@ describe('co nesou (Otevřené 7)', () => {
     expect(load.pace.herd).toBeGreaterThan(0);
     const seed = flightLoad(home({ storesKg: 100, reservedSeedKg: 60 }), DAY, 'all');
     expect(seed.foodKg).toBe(40);
+    // zapečetěné jámy zůstávají ve vsi (Otevřené 7; Ú7 – odchod je ve vsi neodečte)
+    const pits = flightLoad(
+      home({
+        storesKg: 100,
+        reservedSeedKg: 20,
+        grainPits: [
+          {
+            id: 9,
+            x: 0,
+            z: 0,
+            capacityKg: 80,
+            grainKg: 50,
+            state: 'sealed',
+            dugDay: 0,
+            filledDay: 0,
+          },
+          { id: 8, x: 0, z: 0, capacityKg: 80, grainKg: 10, state: 'open', dugDay: 0 },
+        ],
+      }),
+      DAY,
+      'all',
+    );
+    expect(pits.foodKg).toBe(30);
   });
 
   it('(e) vůz se spřežením přidá 400 kg, vůz bez spřežení nic; les bez vozů', () => {

@@ -536,6 +536,26 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return `${peopleCountText(event.people)} se ${plural(event.people, 'vrátil', 'vrátili', 'vrátilo')} domů ${AWAY_BACK_TEXTS[event.away]}.`;
     case 'guests-came':
       return `Z vsi ${event.villageName} ${plural(event.people, 'přišel', 'přišli', 'přišlo')} ${peopleCountText(event.people).toLowerCase()} ${AWAY_TEXTS[event.away]}.`;
+    case 'refuge-left':
+      return event.villageName === undefined
+        ? 'Lidé odešli do hradiště.'
+        : `Lidé odešli do hradiště ${event.villageName}.`;
+    case 'refuge-hidden':
+      return 'Lidé se ukryli v lese.';
+    case 'refuge-caught':
+      return `Vojsko dostihlo uprchlíky: ${[
+        event.killed > 0 ? `padli ${formatInteger(event.killed)}` : '',
+        event.led > 0 ? `odvedeno ${formatInteger(event.led)}` : '',
+      ]
+        .filter((part) => part !== '')
+        .join(', ')}.`;
+    case 'messenger-caught':
+      if (event.fate === 'killed') {
+        return event.name === undefined ? 'Posel padl.' : `Posel ${event.name} padl.`;
+      }
+      return event.name === undefined
+        ? 'Posla odvedlo vojsko.'
+        : `Posla ${event.name} odvedlo vojsko.`;
     case 'line-arrived':
       return event.name === undefined
         ? 'Z jiné vsi rodu přišel muž s rodinou.'

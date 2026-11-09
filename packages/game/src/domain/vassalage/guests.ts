@@ -19,7 +19,15 @@ import { VASSALAGE } from './rules-vassalage';
 // v obou vsích zvlášť, bez události schránky – výsledek nezávisí na kouscích dopočtu.
 
 /** Pořadí druhů nepřítomnosti v kronice návratu. */
-const AWAY_KINDS: readonly AwayKind[] = ['labor', 'service', 'campaign', 'captive', 'protection'];
+const AWAY_KINDS: readonly AwayKind[] = [
+  'labor',
+  'service',
+  'campaign',
+  'captive',
+  'protection',
+  'refuge',
+  'messenger',
+];
 
 /**
  * Pošle lidi `ids` pryč na čas (mutuje stav): dostanou `away` a zůstanou ve stavu vsi. Kdo je

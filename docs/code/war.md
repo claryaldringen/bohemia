@@ -763,8 +763,7 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
   `messenger`, `Guest.bornDay?`, `VillageState.refuge?` (`VillageRefuge` – domov), `refugeStays?`
   (`RefugeStay` – hradiště); `FlightMode` a `RefugeePerson` jsou ve vesnických typech
   (`types-state.ts` – typy vsi válku neimportují). Události schránky `messenger-out` / `-back` /
-  `-caught`, `refuge-depart` / `-hidden` / `-caught` / `-arrive` / `-back` – `applyInboxDay` je zatím
-  přeskočí (aplikace Ú7). Test `alarm-types.test.ts` hlídá tvar přes JSON a zlatý otisk tažení bez
+  `-caught`, `refuge-depart` / `-hidden` / `-caught` / `-arrive` / `-back` – aplikace Ú7 (níž). Test `alarm-types.test.ts` hlídá tvar přes JSON a zlatý otisk tažení bez
   varování.
 - **Hradiště, odhady a volba správce (Ú4).** Čistá doména `domain/war/refuge-choice.ts` (test
   `refuge-choice.test.ts`), tažení ji zatím nevolá (posel Ú5, evakuace Ú8, správce Ú11, pohled Ú12).
@@ -775,7 +774,7 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
   (`RefugeePerson` – `man` od 16 let, `line`); „jen lidé“ bez zásob a dobytka; les = `fleeParty`;
   „se vším“ navíc vozy se spřežením (`teamedCarts` – vycvičení voli doma i bez ohrady napřed na
   dvoukoláky, pak čtyřkoláky; vůz na výpravě nebo s platbou za kování doma není) po
-  `WAR.carryKg.cart`; zásoby nejvýš `storesKg − reservedSeedKg`; tempo `GroupPace` – ranění
+  `WAR.carryKg.cart`; zásoby nejvýš `storesKg − reservedSeedKg −` zrno zapečetěných jam (Ú7); tempo `GroupPace` – ranění
   zpomalí, dobytek i vůz jdou tempem stáda. Odhady vzdušnou čarou mezi místy světa (políčko =
   1920 m): `flightEtaTicks` × `routeFactor` ÷ `marchSpeed`, `leaveMapTicks` k okraji mapy ve směru
   dalšího políčka trasy (úhlopříčně do rohu), `armyEtaTicks` od místa spatření ÷ pěší tempo (bez
@@ -813,6 +812,37 @@ null }`); pozdější spatření s kratším doběhem `warnTick` zkrátí. V tak
   `alarm-sight.test.ts` (dům 140 m, uhlíř 600 m – varování o doběh dřív než z domů, les 50 m,
   `raid-day` až od varování, neškodné vojsko, po 1 / 7 / 40 taktech přes JSON = vcelku, upozornění
   jednou, nenačtený vlastník).
+- **Ves na útěku – události schránky, jídlo a hosté (Ú7).** `domain/village/refugees.ts` (test
+  `village/__tests__/refugees.test.ts`); `applyInboxDay` volá pro každou z osmi událostí funkci
+  `apply…` – mutují stav jako kroky dne, idempotentně (kdo je už pryč nebo doma, se přeskočí;
+  zásoby a dobytek nejvýš co ves má). **Odchod** `refuge-depart` – lidé ze seznamu, kteří jsou
+  doma, dostanou `away` `{ kind: 'refuge', hostVillageId?, refId }` (bez hradiště = les), zásoby
+  ubudou o `carriedKg` – jen obilí, nejvýš volné (bez `reservedSeedKg` a zapečetěných jam; otevřená
+  jáma přes `drawGrainPits`), stádo o `herd` (napřed dospělé kusy), ves zapíše `refuge` (první
+  skupina, druhá ho nepřepíše – Otevřené 12); kronika `refuge-left` („Lidé odešli do hradiště
+  {jméno}.“ – volitelné `hostName` v těle, návrh Clauda), do lesa bez zápisu. **Les** `refuge-hidden`
+  – `refuge.hidden = { foodKg, herd }` jednou; kronika „Lidé se ukryli v lese.“. **Dostižení**
+  `refuge-caught` – padlí zemřou bez pohřbu (`applyLineManFell` – muž rodu = nástupnictví), odvedení
+  zmizí (`removePeople`), ostatní zůstávají pryč (jdou dál); nezbyl-li nikdo a nic neukryli, `refuge`
+  zmizí; kronika „Vojsko dostihlo uprchlíky: padli N, odvedeno M.“. **Hradiště** `refuge-arrive` –
+  hosté druhu `refuge` s `bornDay`, `untilDay = WAR.alarm.openUntilDay`; pobyt `RefugeStay` (nové
+  pole `people` – id uprchlíků, podle nich jídlo a odchod) se zásobami a stádem – stádo se pase
+  u hradiště, do stád hostitele nepřibude; týž `refId` podruhé nic; kronika `guests-came`.
+  `leaveRefuge(host, refId)` (pro use-case návratu Ú10) odebere hosty a pobyt a vrátí zbylé zásoby
+  a stádo (bez pobytu null). **Návrat** `refuge-back` – `away` skupiny zmizí, zásoby + `foodKg`
+  (jako obilí) a stádo + `herd` (jako dospělé kusy), z lesa navíc `refuge.hidden` (tělo z lesa nese
+  0 – ukryté vrátí ves sama), `refuge` zmizí; kronika `people-back` druhu `refuge`. **Jídlo**
+  `refugeFoodDay` (krok dne těsně před `eat()`): lidé v lese jedí doma (`foodNeedPerDay` –
+  `hidesInForest`) napřed z `refuge.hidden.foodKg`, hosté pobytu napřed ze `RefugeStay.foodKg`
+  (dítě jí podle věku, robotu dělá jen dospělý 14–44 let – `guestFoodNeed`, `guestLaborToday`), pak ze
+  zásob vsi. Skupina do lesa jí doma už od odchodu – Ú8 ji v `flightFoodDay` vynechá. **Posel**
+  `messenger-out` – `away` `{ kind: 'messenger', hostVillageId: hradiště, refId }`; s `mounted`
+  (Martin 9. 11. 2026: na koni jen muž rodu, který umí jezdit a má jezdeckého koně) jede na svém
+  jezdeckém koni (`Horse.riderId`), jinak na nejlépe vycvičeném volném – `away.horseId` (nové
+  volitelné pole `PersonAway`); kdo je pryč jinak, posla nedělá. `messenger-back` – doma i s koněm
+  (kronika `people-back` druhu `messenger`); `messenger-caught` – `killed` padne (bez pohřbu),
+  `led` zmizí, kůň `horseId` se nevrátí (z ohrady i bez ohrady); kronika „Posel {jméno} padl.“ /
+  „Posla {jméno} odvedlo vojsko.“ (bez jména vesničan). Po kouscích dopočtu 1 / 3 / 10 dní = vcelku.
 
 ## Výsledky nájezdu a kořist (Ú6.10)
 

@@ -161,9 +161,9 @@ describe('Ú1 – události útěku ve schránce vsi', () => {
     { kind: 'refuge-back', refId: 'c1:a1', foodKg: 20, herd: NO_HERD },
   ];
 
-  it('(c) dokud je Úloha 7 nepoužije, ves zůstane beze změny', () => {
+  // Úloha 7 (9. 11. 2026): ves události použije – podrobně `village/__tests__/refugees.test.ts`.
+  it('(c) Úloha 7 je použije – posel doma, skupina dostižená, návrat vrátí ukryté', () => {
     const state = village(people);
-    const before = structuredClone(state);
     const events: VillageEvent[] = bodies.map((body, i) => ({
       id: `e${i}`,
       villageId: 'knezice',
@@ -171,7 +171,12 @@ describe('Ú1 – události útěku ve schránce vsi', () => {
       seq: i,
       body,
     }));
-    expect(applyInboxDay(state, DAY + 1, events)).toEqual([]);
-    expect(state).toStrictEqual(before);
+    applyInboxDay(state, DAY + 1, events);
+    // posel se vrátil, pak skupinu (oba) vojsko dostihlo – padlý a odvedená
+    expect(state.people).toEqual([]);
+    // pobyt (ves je tu i hradištěm), návrat vrátil ukryté a zbytek z hradiště
+    expect(state.refugeStays).toHaveLength(1);
+    expect(state.refuge).toBeUndefined();
+    expect(state.storesKg).toBe(55);
   });
 });

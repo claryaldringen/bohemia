@@ -128,6 +128,17 @@ export type ChronicleEvent = { day: number } & (
   /** Do vsi přišli hosté z vsi `villageName` – `people` lidí na čas, druh `away`. */
   | { kind: 'guests-came'; away: AwayKind; people: number; villageName: string }
   /**
+   * Útěk před vojskem (war.md – Varování, poslové a útěk do hradiště): `people` lidí odešlo skupinou
+   * do hradiště `villageName` (bez jména – jméno neznámé).
+   */
+  | { kind: 'refuge-left'; people: number; villageName?: string }
+  /** Skupina uprchlíků došla do lesa na mapě vsi a ukryla se – `people` lidí. */
+  | { kind: 'refuge-hidden'; people: number }
+  /** Vojsko dostihlo skupinu uprchlíků: `killed` padlo, `led` odvedlo. */
+  | { kind: 'refuge-caught'; killed: number; led: number }
+  /** Vojsko chytilo posla `name` (bez jména vesničan): padl, nebo ho odvedlo. */
+  | { kind: 'messenger-caught'; fate: 'killed' | 'led'; name?: string }
+  /**
    * Do vsi, která už vojvodu má, přišel z jiné vsi rodu muž `name` s rodinou (dosazení vojvody
    * přišlo pozdě) – žije v dvorci jako ostatní muži rodu.
    */
