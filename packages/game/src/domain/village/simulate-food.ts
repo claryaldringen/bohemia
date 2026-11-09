@@ -67,20 +67,17 @@ function sheaveCrop(
 
 /**
  * Žeň ozimu, luštěnin a lnu (po jídle dne): úroda ozimu a luštěnin do snopů – vymlátí se hned po
- * žni na humně (fields.md – Ozim a jař, Luštěniny; production-chains.md – Humno), a trhání lnu –
- * podíl oděvu, na který len ze zahrádek (`gardenFlaxKg`) a z pole je (fields.md – Len, Zahrádka
- * u obydlí). 31. 7. (`final` false) do snopů, co červenec sklidil (nedosklizená plodina zůstává na
- * poli a žne se v srpnu, len z pole se přičte po dotrhání); 31. 8. (`final`) zbytek žatý v srpnu
- * (fields.md – Žně i v srpnu). Luštěniny a len na poli jen dorůstající ve starších vsích.
+ * žni na humně (fields.md – Ozim a jař, Luštěniny; production-chains.md – Humno). 31. 7. (`final`
+ * false) do snopů, co červenec sklidil (nedosklizená plodina zůstává na poli a žne se v srpnu);
+ * 31. 8. (`final`) zbytek žatý v srpnu (fields.md – Žně i v srpnu) a konec trhání lnu – podíl
+ * oděvu, na který len je (`harvestFlax`; fields.md – Len, trhá se jen v srpnu). Luštěniny na poli
+ * jen dorůstající ve starších vsích.
  */
-function harvestEarlyCrops(
-  state: VillageState,
-  day: number,
-  final: boolean,
-  gardenFlaxKg: number | null,
-): void {
-  const linen = harvestFlax(state, day, final, gardenFlaxKg);
-  if (linen) state.chronicle.push(linen);
+function harvestEarlyCrops(state: VillageState, day: number, final: boolean): void {
+  if (final) {
+    const linen = harvestFlax(state, day);
+    if (linen) state.chronicle.push(linen);
+  }
   // 31. 7. nedosklizená plodina s nulovou úrodou do kroniky nejde (zapíše se 31. 8.)
   const record = (work: CropWork): boolean => final || work.harvestedKg !== null;
   const legume = state.season ? seasonCrop(state.season, 'legume') : undefined;
@@ -108,8 +105,8 @@ function harvestEarlyCrops(
 }
 
 /**
- * 31. 7. (po jídle dne): sklizeň zahrádek u obydlí (`harvestGardens` – fields.md, Zahrádka
- * u obydlí; `landscape` – úrodnost políček pozemků) a červencová žeň ozimu, luštěnin a lnu
+ * 31. 7. (po jídle dne): sklizeň zahrádek u obydlí – luštěniny (`harvestGardens` – fields.md,
+ * Zahrádka u obydlí; `landscape` – úrodnost políček pozemků) a červencová žeň ozimu a luštěnin
  * (`harvestEarlyCrops`).
  */
 export function harvestWinter(
@@ -117,7 +114,8 @@ export function harvestWinter(
   day: number,
   landscape: Landscape | null = null,
 ): void {
-  harvestEarlyCrops(state, day, false, harvestGardens(state, day, landscape));
+  harvestGardens(state, day, landscape);
+  harvestEarlyCrops(state, day, false);
 }
 
 /** Sklizeň jaře do kroniky – plán jen s ozimem jař nesklízí (sklizeň bez plodiny). */
@@ -131,7 +129,8 @@ function recordSpring(state: VillageState, plan: FarmSeason, day: number, kg: nu
 
 /**
  * 31. 8. (po jídle dne): úroda jaře do snopů – vymlátí se v září na humně (production-chains.md
- * – Humno) – i se zbytkem ozimu, luštěnin a lnu žatým v srpnu; plán (i s ozimem) jde k výmlatu.
+ * – Humno) – i se zbytkem ozimu a luštěnin žatým v srpnu, len vytrhaný v srpnu (co nevytrhal,
+ * propadne); plán (i s ozimem) jde k výmlatu.
  * Jař, kterou srpen nedosklidil, dá do snopů jen srpnovou žeň (`CropWork.sheaved`) a zůstává na
  * poli – dožne se v září (`harvestLateSpring`; fields.md – Žeň jaře i v září); do kroniky až
  * celá. Je-li jař sklizená, končí sezóna škod zvěře (`wildlifeSeasonEnd`).
@@ -139,8 +138,9 @@ function recordSpring(state: VillageState, plan: FarmSeason, day: number, kg: nu
 export function harvest(state: VillageState, day: number): void {
   const plan = state.season;
   if (plan === null) return;
-  // co červenec nedosklidil – ozim, luštěniny a len žaté v srpnu – napřed (pořadí CROP_ORDER)
-  harvestEarlyCrops(state, day, true, null);
+  // co červenec nedosklidil – ozim a luštěniny žaté v srpnu – napřed (pořadí CROP_ORDER) a len
+  // vytrhaný v srpnu
+  harvestEarlyCrops(state, day, true);
   const spring = springCrop(plan);
   const losses = dayPartLosses(state, day, 'spring', spring.partIds, state.wildlife?.damage?.parts);
   const kg = sheaveCrop(state, day, 'spring', spring, false, losses);

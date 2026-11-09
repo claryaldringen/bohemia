@@ -6,7 +6,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   Úloha 2 plánu `docs/superpowers/plans/2026-10-25-sowing-rotation.md`): evidence práce od 1. 9.
   do 31. 8. – `startDay`, `crops: SeasonCrop[]` (`SeasonCrop` = `CropWork` + `crop`; pořadí
   ozim, luštěniny, len, jař; jař je vždy; `putSeasonCrop` / `dropSeasonCrop`), `ard`, `flaxNeedKg`
-  (jen plány starších vsí – od zahrádek se nezapisuje),
+  (potřeba lnu k 1. 9. – `startSeason`; chybí u plánů z doby lnu na zahrádkách a vsí založených
+  během roku),
   `lordHelp`. Stav vsi nese `VillageState.season`
   a `threshingSeason` (dřív `plan`, `threshingFromPlan`). Název `FarmSeason`, protože `Season`
   je roční období kalendáře. Přístup: `seasonCrop(season, crop)`, `springCrop(season)`,
@@ -138,14 +139,14 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     název víckrát). Sklizeň ozimu 31. 7. (`harvestWinter`), jaře 31. 8. – do snopů, výmlat hned
     po žni (Snopy a výmlat níž); příděl počítá do sklizně
     podle `daysUntilFoodHarvest` (31. 7., když ozim podle odhadu uživí srpen). **Žně i v srpnu**
-    (fields.md, Martin 9. 11. 2026): okno žně ozimu, luštěnin a lnu je červenec–srpen
-    (`WINTER_WINDOWS.harvest` [7, 8], luštěniny a len sdílí), výmlat srpen–září
+    (fields.md, Martin 9. 11. 2026): okno žně ozimu a luštěnin je červenec–srpen
+    (`WINTER_WINDOWS.harvest` [7, 8], luštěniny sdílí; len jen srpen – Len níž), výmlat srpen–září
     (`WINTER_WINDOWS.thresh` [8, 9]). `harvestEarlyCrops` (`simulate-food.ts`) 31. 7. dá do snopů
     úrodu červencové žně (`sheaveCrop` – `harvestKg(…, fromDone)` a `threshRemainingAfter`
     v `year-plan.ts`); nedosklizená plodina dostane `CropWork.sheaved` (práce žně a kg v snopech)
     a `harvestedKg` zůstane null – plodina je dál na poli (zvěř, pohromy, scéna, výhled). `harvest` 31. 8. zavolá `harvestEarlyCrops(…, true)` před jaří – zbytek do snopů, nesklizené propadne.
-    Len nedotržený 31. 7. se zapíše až 31. 8. (`harvestFlax(…, final)`). V srpnu má zbytek ozimu,
-    luštěnin a lnu přednost před jaří samo – stejný konec okna, pořadí `CROP_ORDER` (návrh Clauda).
+    Len se zapíše 31. 8. (`harvestFlax`). V srpnu má zbytek ozimu a luštěnin přednost před jaří
+    samo – stejný konec okna, pořadí `CROP_ORDER` (návrh Clauda).
     Plán a výhled: `SOWING_CAPACITY_WINDOWS.july` = okno žně ozimu bez měsíců žně jaře
     (`withoutMonths`), přetečení července do srpna `harvestOverflow` (`lordHarvestHelp`,
     `seasonShortfalls` – výhled dílu má jedno okno žně do konce srpna); ruce výmlatu
@@ -173,26 +174,35 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     len“, čísla návrh Clauda podle rešerše `research/2026-10-19-flax.md`): čtvrtá plodina `flax`
     (`SeasonCrop` s `crop: 'flax'`, `FLAX_WINDOWS` = okna luštěnin, `FLAX` a `FLAX_WORK_PER_HA` v `rules*.ts` –
     potřeba 2 / 1 kg třeného lnu na dospělého / dítě, 550 kg/ha, osivo 0, neopletý 50 %, úrodnost
-    −0,18 v `endOfSeason`, nemlátí se). **Z polí vyřazený (Martin 9. 11. 2026, fields.md – Len,
-    zrušeno; Zahrádka u obydlí):** `turnSelection` ho nepřidělí (`TurnOptions` bez `flaxNeedKg`,
-    `flaxOrder` a `expectedFlaxKg` pryč), `startSeason` potřebu lnu do plánu nezapisuje; pravidla
-    a okna zůstala pro dorůstající len starších vsí. Převod `withoutFieldFlax` (`field-legumes.ts`,
-    společný `withoutFieldCrop` s luštěninami, řetěz v `advanceVillageSteps`): nezasetý len → jař
-    i s přípravou půdy, výběr z paměti se lnem propadne. **Zahrádka u obydlí** (`garden.ts`, čísla
+    −0,18 v `endOfSeason`, nemlátí se). **Zpět na poli (Martin 9. 11. 2026 večer, fields.md –
+    Len):** `startSeason` zapíše `FarmSeason.flaxNeedKg` (`flaxNeedKg` lidí k 1. 9.);
+    `turnSelection` (`rotation.ts`, `TurnOptions.flaxNeedKg`) vybere len napřed – jen když jař
+    smí začít (okna kopání), do potřeby (`expectedFlaxKg` lnu letošní práce + nových dílů) –
+    z `flaxCandidates`: díly, na kterých by dnes začala jař, napřed druhý osev oběhu (`spring`,
+    `winter` po okně ozimu), pak první osev (`first`, příloh 70–95 % `late`), v obou od nejlepší
+    `effectiveFertility` (při shodě id), jen `isSowableFertility` a `flaxAllowed` (rok sklizně
+    `seasonHarvestYear` − `FieldPart.flaxYear` ≥ `FLAX.returnYears` 7; chybí = smí).
+    `rotateAfterSeason` 1. 9. zapíše `flaxYear` osetému lnu (i nevytrhanému). Trhání:
+    `FLAX_WINDOWS.harvest` [8, 8]; ve `fieldTasks` (`simulate-work.ts`) má trhání pořadí
+    `flaxHarvestOrder` – konec okna příští měsíc a pořadí těsně před `THRESH_RANK`: za všemi žněmi
+    obilí (i jař s oknem do září), výmlatem na dnešní jídlo a výmlatem, jehož okno tento měsíc
+    končí, před výmlatem s oknem i v září (návrh Clauda); rodina vojvody nepomáhá
+    (`noLordHelp` v `allocateDay`, `addSideCrop(…, false)` – trhání lnu není v zátěži žní
+    `cropLoadOf`), dřinu (`isToilDay`) nepřidá. `harvestFlax(state, day)` v `harvestEarlyCrops` 31. 8. (`final`): `harvestKg` vytrhané části (zbytek propadne), `VillageState.linen` = kg ÷
+    `flaxNeedKg` plánu, `linen-short` při nedostatku; plán bez `flaxNeedKg` nic. `linenUnhappiness`
+    (`HappinessFactors.linen`, až `FLAX.unhappiness` 4). **Zahrádka u obydlí** (`garden.ts`, čísla
     `GARDEN` v `rules-fields.ts`): `harvestGardens` (31. 7. v `harvestWinter` – dostane `landscape`
-    ze `simulateDaySteps`) – obydlí s `plot`, obyvateli a bez `disusedDay`: `gardenYield` (záhony
-    `gardenBedAreaM2` – políčko `CELL_SIZE_M`² bez `shapedFootprint` domu a cestičky
+    ze `simulateDaySteps`) – obydlí s `plot`, obyvateli a bez `disusedDay`: `gardenLegumeKg`
+    (celé záhony `gardenBedAreaM2` – políčko `CELL_SIZE_M`² bez `shapedFootprint` domu a cestičky
     `GARDEN.pathWidthM` × vzdálenost čela domu od okraje podle `PLOT_HOUSE_OFFSET_M`, dvůr dvorce
-    ne – napřed lnem do `flaxNeedKg` domácnosti, zbytek luštěniny čistě bez osiva), úrodnost
-    `gardenFertility` (`landscape.fertility` políčka `plot.cell`, nejméně
-    `GARDEN.manuredFertility` – hnojená; bez krajiny `manuredFertility`), počasí `gardenWeather` (`partWeatherFactor` bez ochrany,
-    pohromy dílů ne); luštěniny do `legumesKg`, zápis `Dwelling.garden` (panel obydlí – ikony
-    `flax` a `legumes`), kronika `garden-harvest` (souhrn za ves); ves založená po
-    `GARDEN.sowingEnd` (`gardensSown`) nic – null. `harvestFlax(state, day, final, gardenKg)` –
-    `VillageState.linen` = (len zahrádek + dotržený len z pole) ÷ `flaxNeedKg` všech lidí v den
-    trhání; nedotržený len z pole se přičte 31. 8. (upozornění až pak); bez zahrádek i bez lnu na
-    poli nic. `linenUnhappiness` (`HappinessFactors.linen`, až `FLAX.unhappiness` 4).
-    Trhání lnu starších vsí v červenci napřed (`CROP_ORDER` – len první); Zpracování je v domácí výrobě
+    ne – čisté luštěniny bez osiva), úrodnost `gardenFertility` (`landscape.fertility` políčka
+    `plot.cell`, nejméně `GARDEN.manuredFertility` – hnojená; bez krajiny `manuredFertility`),
+    počasí `gardenWeather` (`partWeatherFactor` luštěnin bez ochrany, pohromy dílů ne); luštěniny
+    do `legumesKg`, zápis `Dwelling.garden` (`{ legumeKg }` – panel obydlí, ikona `legumes`),
+    kronika `garden-harvest` (souhrn za ves; `flaxKg` jen ve starších zápisech); ves založená po
+    `GARDEN.sowingEnd` (`gardensSown`) nic. Převod `withoutGardenFlax` (`garden.ts`, řetěz
+    v `advanceVillageSteps` místo dřívějšího `withoutFieldFlax`): zápis zahrádky ztratí `flaxKg`.
+    Zpracování lnu je v domácí výrobě
     (přerozdělení), žádná zásoba v liště. Web: `SceneFieldPart.crop: 'flax'` a `bloom` (červen –
     `FLAX_BLOOM_MONTH` ve `village-view-fields.ts`), scéna `FLAX_STYLES` / `FLAX_BLOOM` ve `field-crops.ts`
     (druhy trsů `flax-green` / `flax-bloom` / `flax-ripe` – kopie uzlu `crop-sprout` s vlastní

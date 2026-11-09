@@ -77,6 +77,8 @@ import {
   DWELLINGS,
   FERTILITY,
   FLAX,
+  cropGrossPerHa,
+  flaxNeedKg,
   FIELD_FOOD,
   FIELD_LIMITS,
   FOOD_NEED_KG_PER_YEAR,
@@ -285,12 +287,12 @@ function annualNeed(people: Person[], day: number): number {
  * z roční potřeby celé energie `yearly`, ztráty skladováním) / čistá úroda hektaru v průměru tří
  * let osevu – a k tomu len na oděv (`flaxKg` třeného lnu – fields.md, Len).
  */
-// len na poli ves nepěstuje – domácnost ho má na zahrádce u obydlí (fields.md – Zahrádka u obydlí)
-function neededFieldHa(need: number, yearly: number, fertility: number): number {
+function neededFieldHa(need: number, yearly: number, fertility: number, flaxKg = 0): number {
   const averageShare = 1 - FERTILITY.sowDepletion; // průměr tří let osevu (1, 0,88, 0,76)
   const netPerHa = grossYieldPerHa(fertility * averageShare) - SEED_KG_PER_HA;
   const harvest = steadyHarvestKg(need, bufferKg(yearly), NO_CRAFTS.pottery);
-  return (harvest / netPerHa) * ROTATION_FACTOR;
+  const flaxHa = flaxKg / cropGrossPerHa('flax', fertility * averageShare);
+  return (harvest / netPerHa + flaxHa) * ROTATION_FACTOR;
 }
 
 /** Plocha pole, kterou hráč počítá: zakládané, připravené, oseté díly a přílohy ≥ 0,7. */
@@ -1185,6 +1187,7 @@ function runVillage(start: VillageState, startLand: number, opts: RunOptions): R
             yearlyFieldNeed(after, day),
             annualNeed(after.people, day),
             averageFertility(after, opts.land, land),
+            flaxNeedKg(after, day),
           ) - countedFieldHa(after);
         const count = Math.max(MIN_FIELD_PARTS, Math.ceil((missing * M2_PER_HA) / PART_M2));
         const batch = missing > 0 ? opts.land.take(after, day, land, count) : null;

@@ -62,9 +62,9 @@ describe('data polního roku souhlasí s okny prací', () => {
     expect(inWinter('harvest', HARVEST_DAY.month)).toBe(true);
     expect(inWinter('harvest', dateOfDayIndex(harvest + 1).month)).toBe(false);
     expect(WINTER_HARVEST_DAY.month).toBeLessThan(HARVEST_DAY.month);
-    for (const crop of ['legume', 'flax'] as const) {
-      expect(CROP_WINDOWS[crop].harvest).toEqual(WINTER_WINDOWS.harvest);
-    }
+    expect(CROP_WINDOWS.legume.harvest).toEqual(WINTER_WINDOWS.harvest);
+    // len se trhá jen v srpnu (fields.md – Len, Martin 9. 11. 2026 večer)
+    expect(CROP_WINDOWS.flax.harvest).toEqual([[HARVEST_DAY.month, HARVEST_DAY.month]]);
     const sowEnd = Math.max(...WINTER_WINDOWS.sow.map(([, to]) => to));
     expect(sowEnd).toBeLessThan(Math.max(...WINDOWS.dig.filter(([f]) => f >= 9).map(([, t]) => t)));
   });

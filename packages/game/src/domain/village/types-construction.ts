@@ -401,9 +401,11 @@ export interface FarmSeason {
    */
   ard?: true;
   /**
-   * Kolik třeného lnu ves při plánu potřebovala na oděv za rok (kg – fields.md, Len): podle toho
-   * se při trhání zapíše, na jaký podíl oděvu len je (`VillageState.linen`). Chybí u plánů
-   * starších vsí a plánů mimo 1. 9. (ves založená během roku) – ty oděv nezapíší.
+   * Kolik třeného lnu ves při plánu potřebovala na oděv za rok (kg – fields.md, Len): do ní ves
+   * vybírá díly lnu (`turnSelection`) a podle ní se při trhání zapíše, na jaký podíl oděvu len je
+   * (`VillageState.linen`). Chybí u plánů starších vsí, plánů z doby lnu na zahrádkách
+   * (9. 11. 2026) a plánů mimo 1. 9. (ves založená během roku) – ty len nevybírají a oděv
+   * nezapíší.
    */
   flaxNeedKg?: number;
   /**

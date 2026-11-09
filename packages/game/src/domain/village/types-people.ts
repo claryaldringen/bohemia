@@ -270,15 +270,16 @@ export interface Dwelling {
    */
   disusedDay?: number;
   /**
-   * Letošní sklizeň zahrádky pozemku (fields.md – Zahrádka u obydlí): kg třeného lnu a čistých
-   * luštěnin, zapsané 31. 7. Chybí = obydlí letos nesklízelo (zemnice, prázdné obydlí, vsi
-   * uložené dřív).
+   * Letošní sklizeň zahrádky pozemku (fields.md – Zahrádka u obydlí): kg čistých luštěnin,
+   * zapsané 31. 7. Chybí = obydlí letos nesklízelo (zemnice, prázdné obydlí, vsi uložené dřív).
    */
   garden?: GardenHarvest;
 }
-/** Sklizeň zahrádky jednoho obydlí (kg, celá čísla). */
+/**
+ * Sklizeň zahrádky jednoho obydlí (kg, celá čísla) – jen luštěniny (len je od 9. 11. 2026 večer
+ * zpět na poli; starší zápis se lnem převede `withoutGardenFlax`).
+ */
 export interface GardenHarvest {
-  flaxKg: number;
   legumeKg: number;
 }
 /**

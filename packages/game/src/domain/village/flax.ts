@@ -1,23 +1,52 @@
+import { dateOfDayIndex } from '../calendar';
 import { dayPartLosses } from './disasters';
+import { effectiveFertility } from './fields';
 import { ageGroup } from './people';
-import { FLAX } from './rules';
-import type { ChronicleEvent, CropWork, VillageState } from './types';
-import { harvestKg, seasonCrop, taskRemaining } from './year-plan';
+import { FLAX, PLANNING_DAY } from './rules';
+import type { ChronicleEvent, FieldPart, VillageState } from './types';
+import { cropGrossPerHa, harvestKg, seasonCrop } from './year-plan';
 
-// Len na oděv (fields.md – Len a Zahrádka u obydlí, diet.md – Oděv). Od 9. 11. 2026 ho ves na poli
-// nepěstuje (Martin: „Nebylo by lepší, kdyby si lidé řešili len sami podobně, jako luštěniny?“) –
-// domácnost ho seje na zahrádce svého pozemku (`garden.ts`); zasetý len na poli starší vsi doroste
-// a sklidí se. Len není zásoba (Martin nechce nové suroviny): sklidí se 31. 7. (co červenec na poli
-// nedotrhá, 31. 8.) a v rámci roku se zpracuje v domácí práci (`DOMESTIC` – přerozdělení). Při
-// trhání se zapíše, na jaký podíl oděvu len je (`VillageState.linen`) – platí do dalšího trhání;
-// když nestačí, ubere štěstí.
+// Len na oděv (fields.md – Len, diet.md – Oděv; Martin 19. 10. 2026: „A to mi připomíná, že na
+// částech pole musí být zasetý len.“; 9. 11. 2026 večer: „Len je extrémně náročná plodina na kvalitu
+// půdy. Tam, kde už jednou rostl, se může vrátit až po 6 nebo 7 letech, takže se bude pěstovat na
+// polích. Sklízí se v srpnu, ale obilí má vždy absolutní přednost“). Ves oseje len na jarních dílech
+// s nejlepší úrodností, na kterých 7 let nerostl (`turnSelection`), jen do potřeby na plátno pro
+// všechny (spodní oděv, šátky, ručníky, plachty). Trhá se jen v srpnu z práce, která zbude po
+// obilí; co se nevytrhá, propadne. Len není zásoba (Martin nechce nové suroviny): 31. 8. se zapíše,
+// na jaký podíl oděvu je (`VillageState.linen`) – platí do dalšího trhání; když nestačí, ubere
+// štěstí, nikdo kvůli němu nehladoví. Zpracuje se v rámci roku v domácí práci (`DOMESTIC`).
 
+const M2_PER_HA = 10_000;
 /** Tolerance proti chybám desetinných čísel. */
 const EPSILON = 1e-9;
 
 /** Kolik třeného lnu ves potřebuje na oděv za rok (kg) – podle věku lidí v den `day`. */
 export function flaxNeedKg(state: Pick<VillageState, 'people'>, day: number): number {
   return state.people.reduce((sum, p) => sum + FLAX.kgPerYear[ageGroup(p, day)], 0);
+}
+
+/** Očekávaný třený len dílu (kg) při plné a včasné práci – odhad při výběru dílů. */
+export function expectedFlaxKg(part: FieldPart, day: number): number {
+  return cropGrossPerHa('flax', effectiveFertility(part, day)) * (part.areaM2 / M2_PER_HA);
+}
+
+/**
+ * Rok sklizně plodiny, která dnes přibude k práci: hospodářský rok začíná 1. 9. (`PLANNING_DAY`) –
+ * díl vybraný na podzim se sklidí příští rok, na jaře letos.
+ */
+export function seasonHarvestYear(day: number): number {
+  const { year, month, day: dom } = dateOfDayIndex(day);
+  const autumn =
+    month > PLANNING_DAY.month || (month === PLANNING_DAY.month && dom >= PLANNING_DAY.day);
+  return autumn ? year + 1 : year;
+}
+
+/**
+ * Smí na díl len, který dnes přibude k práci (fields.md – Len)? Nejdřív `FLAX.returnYears` let od
+ * posledního lnu na dílu (`FieldPart.flaxYear` – chybí = smí hned).
+ */
+export function flaxAllowed(part: Pick<FieldPart, 'flaxYear'>, day: number): boolean {
+  return part.flaxYear === undefined || seasonHarvestYear(day) - part.flaxYear >= FLAX.returnYears;
 }
 
 /**
@@ -33,52 +62,35 @@ export function linenUnhappiness(state: Pick<VillageState, 'linen'>): number {
   return FLAX.unhappiness * (1 - linenCoverage(state));
 }
 
-/** Trhání dorůstajícího lnu na poli (mutuje práci plodiny) – úroda s počasím roku jako jař. */
-function fieldFlaxKg(state: VillageState, day: number, flax: CropWork): number {
-  // len je jařina – počasí roku jako jař (disasters.md – Léto)
-  const kg = harvestKg(
-    flax,
-    state.parts,
-    day,
-    'flax',
-    dayPartLosses(state, day, 'flax', flax.partIds, undefined),
-  );
-  flax.harvestedKg = kg;
-  return kg;
-}
-
 /**
- * Len na oděv (31. 7. a 31. 8., po jídle dne – mutuje stav): zapíše, na jaký podíl oděvu ves len
- * má (`VillageState.linen`) – len ze zahrádek (`gardenKg` – fields.md, Zahrádka u obydlí) a
- * dorůstající len na poli starší vsi (fields.md – Len, zrušeno: zasetý len doroste a sklidí se)
- * vůči potřebě všech lidí v den zápisu (`flaxNeedKg` – i lidí v zemnicích, které zahrádku nemají).
- * Len na poli, který červenec nedotrhal, se trhá i v srpnu a 31. 8. (`final`) se přičte (fields.md
- * – Žně i v srpnu); upozornění pak až 31. 8. Ves, která letos zahrádky neosela (`gardenKg` null)
- * a len na poli nemá, oděv nezapíše. Když lnu nestačí, vrátí událost kroniky `linen-short`.
+ * Konec trhání lnu (31. 8., po jídle dne – mutuje stav): len letošního plánu jde z pole – úroda
+ * podle vytrhané části (co srpen nevytrhal, propadne), počasí roku jako jař – a zapíše se, na jaký
+ * podíl oděvu je (`VillageState.linen`) vůči potřebě zapsané v plánu k 1. 9. (`flaxNeedKg`). Plán
+ * bez potřeby (ves založená během roku, plán z doby lnu na zahrádkách – fields.md, Zahrádka
+ * u obydlí) oděv nezapíše – platí dosavadní podíl. Když lnu nestačí, vrátí událost kroniky
+ * `linen-short`.
  */
-export function harvestFlax(
-  state: VillageState,
-  day: number,
-  final: boolean,
-  gardenKg: number | null,
-): ChronicleEvent | null {
-  const flax = state.season ? seasonCrop(state.season, 'flax') : undefined;
-  const field = flax && flax.harvestedKg === null ? flax : undefined;
-  const need = flaxNeedKg(state, day);
-  let kg: number;
-  let pending = false;
-  if (final) {
-    // 31. 8. jen len na poli, který 31. 7. nebyl dotržený – k podílu zapsanému 31. 7.
-    if (!field) return null;
-    kg = linenCoverage(state) * need + fieldFlaxKg(state, day, field);
-  } else {
-    if (gardenKg === null && !field) return null;
-    kg = gardenKg ?? 0;
-    if (field && taskRemaining(field, 'harvest') > EPSILON) pending = true;
-    else if (field) kg += fieldFlaxKg(state, day, field);
+export function harvestFlax(state: VillageState, day: number): ChronicleEvent | null {
+  const plan = state.season;
+  if (!plan || plan.flaxNeedKg === undefined) return null;
+  const flax = seasonCrop(plan, 'flax');
+  // len už sklizený (stav uložený mezi trháním a koncem srpna) se znovu nezapisuje
+  if (flax && flax.harvestedKg !== null) return null;
+  let kg = 0;
+  if (flax) {
+    // len je jařina – počasí roku jako jař (disasters.md – Léto)
+    kg = harvestKg(
+      flax,
+      state.parts,
+      day,
+      'flax',
+      dayPartLosses(state, day, 'flax', flax.partIds, undefined),
+    );
+    flax.harvestedKg = kg;
   }
+  const need = plan.flaxNeedKg;
   const coverage = need > EPSILON ? Math.min(1, kg / need) : 1;
   state.linen = coverage;
-  if (pending || coverage >= 1 - EPSILON) return null;
+  if (coverage >= 1 - EPSILON) return null;
   return { day, kind: 'linen-short', kg: Math.round(kg), neededKg: Math.round(need) };
 }

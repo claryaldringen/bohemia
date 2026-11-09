@@ -125,34 +125,43 @@ describe('žně i v srpnu (fields.md – Žně i v srpnu)', () => {
     expect(villageSheaves(s).legumesKg).toBeCloseTo(sheaves.legumesKg, 9);
   });
 
-  it('len nedotržený 31. 7. se trhá v srpnu – přičte se k oděvu 31. 8.', () => {
-    const s = village({ winter: 1, legume: 1, flax: 0.5 });
+  it('len se trhá jen v srpnu: 31. 7. zůstává na poli, 31. 8. vytrhaná část k oděvu, zbytek propadne', () => {
+    const s = village({ winter: 1, legume: 1, flax: 0 });
     s.linen = 0.3;
     const flax = crop(s, 'flax');
     harvestWinter(s, at(601, 7, 31));
     expect(flax.harvestedKg).toBeNull();
-    // 31. 7. platí len ze zahrádek (ves bez obydlí – žádný, fields.md – Zahrádka u obydlí),
-    // upozornění počká na dotrhání
-    expect(s.linen).toBe(0);
+    // 31. 7. oděv beze změny (len je na poli, zahrádka len nedává – fields.md, Len)
+    expect(s.linen).toBe(0.3);
     expect(s.chronicle.some((e) => e.kind === 'linen-short')).toBe(false);
-    flax.done.harvest = flax.required.harvest;
+    // úroda celého lnu (kopie s celým trháním)
+    const full = structuredClone(s);
+    crop(full, 'flax').done.harvest = crop(full, 'flax').required.harvest;
+    harvest(full, at(601, 8, 31));
+    // 31. 8. plán jde k výmlatu (`threshingSeason`)
+    const fullKg = seasonCrop(full.threshingSeason!, 'flax')!.harvestedKg!;
+    expect(fullKg).toBeGreaterThan(0);
+    // srpen vytrhal polovinu – druhá propadne
+    s.season!.flaxNeedKg = fullKg;
+    flax.done.harvest = flax.required.harvest / 2;
     harvest(s, at(601, 8, 31));
-    expect(flax.harvestedKg).toBeGreaterThan(0);
-    expect(s.linen).toBe(1);
+    expect(flax.harvestedKg).toBeCloseTo(fullKg / 2, 6);
+    expect(s.linen).toBeCloseTo(0.5, 6);
+    expect(s.chronicle.filter((e) => e.kind === 'linen-short')).toHaveLength(1);
   });
 
-  it('v srpnu se napřed dožne len, ozim a luštěniny, pak jař (CROP_ORDER – návrh Clauda)', () => {
-    const s = village({ winter: 0.6, legume: 0.25, flax: 0.5 });
+  it('v srpnu se napřed dožne ozim a luštěniny, pak jař; len až za obilím (fields.md – Len)', () => {
+    const s = village({ winter: 0.6, legume: 0.25, flax: 0 });
     harvestWinter(s, at(601, 7, 31));
     s.lastDay = at(601, 8, 9);
     const tasks = fieldTasks(s, at(601, 8, 10), 0).filter((t) => t.name === 'harvest');
     expect(tasks.map((t) => [t.crop, t.end])).toEqual([
-      ['flax', 8],
       ['winter', 8],
       ['legume', 8],
       ['spring', 9],
+      ['flax', 9],
     ]);
     // zbývá jen nesklizená část
-    expect(tasks[1]!.remaining).toBeCloseTo(0.4 * crop(s, 'winter').required.harvest, 9);
+    expect(tasks[0]!.remaining).toBeCloseTo(0.4 * crop(s, 'winter').required.harvest, 9);
   });
 });

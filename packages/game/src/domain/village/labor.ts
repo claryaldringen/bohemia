@@ -146,7 +146,13 @@ export interface DayAllocationInput {
    * dostane práci i na setí za sebou (`ratio` člověkodnů setí na člověkoden úlohy) a ta připadne
    * úloze setí `index` – setí jde stejným tempem jako příprava půdy, i když práce nestačí.
    */
-  tasks: { name: LaborTaskName; remaining: number; follow?: { index: number; ratio: number } }[];
+  tasks: {
+    name: LaborTaskName;
+    remaining: number;
+    follow?: { index: number; ratio: number };
+    /** Rodina vojvody s úlohou nepomáhá (`lordHelp` – trhání lnu; fields.md – Len). */
+    noLordHelp?: true;
+  }[];
   /** Pokrytí nádobami 0–1 – posouvá denní minimum mezi mezemi (crafts.md). */
   potteryCoverage: number;
   /**
@@ -355,9 +361,10 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
       menWeed -= men;
     } else amount += take(remaining - amount);
     // pomoc rodiny ve žních až po práci vsi – jen co ves dnes nestihne
-    const help = HARVEST_HANDS_TASKS.has(task.name)
-      ? Math.max(0, Math.min(remaining - amount, helpLeft))
-      : 0;
+    const help =
+      HARVEST_HANDS_TASKS.has(task.name) && task.noLordHelp !== true
+        ? Math.max(0, Math.min(remaining - amount, helpLeft))
+        : 0;
     helpLeft -= help;
     amount += help;
     if (task.follow && pair > 1) {

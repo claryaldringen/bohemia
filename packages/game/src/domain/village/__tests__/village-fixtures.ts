@@ -1,6 +1,9 @@
+import { moveParts } from '../land-taken';
+import { NO_CRAFTS } from '../productivity';
 import { WILDLIFE_LAND } from '../rules-wildlife';
 import type { VillageState } from '../types';
 import { freshWildlife } from '../wildlife';
+import { dropSeasonCrop, seasonCrop, springCrop } from '../year-plan';
 
 /**
  * Ves, ve které první zemnice už stojí – jako vsi uložené dřív, než si ji zakladatelé začali
@@ -114,4 +117,19 @@ export function withoutNoticeChronicle(state: VillageState): VillageState {
   };
   delete next.noticeStates;
   return next;
+}
+
+/**
+ * Ves bez lnu v letošní práci (mutuje): díly lnu přejdou do jaře i s hotovou prací (`moveParts`) –
+ * pro testy, které počítají jen s obilím na všech osetých dílech (len na poli – fields.md, Len).
+ */
+export function flaxIntoSpring(state: VillageState): VillageState {
+  const season = state.season;
+  const flax = season ? seasonCrop(season, 'flax') : undefined;
+  if (!season || !flax) return state;
+  const ids = [...flax.partIds];
+  moveParts(state, season, flax, springCrop(season), ids, state.lastDay, NO_CRAFTS.tools);
+  for (const part of state.parts) if (ids.includes(part.id)) part.crop = 'spring';
+  dropSeasonCrop(season, 'flax');
+  return state;
 }

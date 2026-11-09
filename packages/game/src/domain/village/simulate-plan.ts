@@ -18,6 +18,7 @@ import {
 import { villageLaborFactor } from './happiness';
 import { familyHomes, lordApartIds, manorLabor, trainingFamily } from './lord';
 import { villageHoldings, workOrder } from './holdings';
+import { flaxNeedKg } from './flax';
 import { ableTeams, oxPens, pairCapacityPerDay, ploughCapacityPerDay } from './oxen';
 import {
   clearedLogs,
@@ -144,6 +145,9 @@ export function startSeason(
   // práce (i orba – železná špička rádla od kováře) platí podle pokrytí nástroji dne, kdy díl
   // přibude
   state.season = createSeason({ winter: [], spring: [] }, day, coverage.tools, plough);
+  // len do potřeby na oděv k 1. 9. – podle ní ves vybírá díly lnu a při trhání zapíše, na kolik
+  // oděvu len je (fields.md – Len)
+  state.season.flaxNeedKg = flaxNeedKg(state, day);
   // páry k rádlům, které ves chce (oxen.md – Kolik volů ves chce) – podle nich cvičí voly; nahoru
   // hned, dolů po dvou plánech (`nextPloughPairs`); z celého pořadí dílů na řadě po postupu
   if (oxPens(state).length > 0) {
@@ -406,7 +410,10 @@ function seasonSelection(
   day: number,
   coverage: CraftCoverage,
 ): { waiting: SeasonJoin[] } {
-  const join = turnSelection(state, day, { shortage: grainShortage(state, day) });
+  const join = turnSelection(state, day, {
+    flaxNeedKg: state.season?.flaxNeedKg ?? 0,
+    shortage: grainShortage(state, day),
+  });
   if (join.length === 0) return { waiting: [] };
   // jař se buď celá orá, nebo celá kope (oxen.md – Jen rádlo) – nové plodiny jako jař
   const plough = state.season

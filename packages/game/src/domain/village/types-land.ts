@@ -21,7 +21,7 @@ export type OvergrowthStage = 'meadow' | 'shrubs' | 'young-forest' | 'forest';
  * podzim nebo na jaře, seje na jaře, sklízí v srpnu), **luštěniny** (`legume` – hrách a čočka; jař
  * – kopá se jako jař, seje na jaře, sklízí v červenci; diet.md – Luštěniny; od 9. 11. 2026 jen
  * dorůstající ve starších vsích – fields.md, Luštěniny, zrušeno) a **len** (`flax` – na
- * plátno; jař se setím na jaře a trháním v červenci jako luštěniny, nejí se – diet.md, Oděv).
+ * plátno; jař se setím na jaře, trhá se jen v srpnu po obilí, nejí se – diet.md, Oděv).
  */
 export type Crop = 'winter' | 'spring' | 'legume' | 'flax';
 /** Políčko krajiny – sloupec x a řádek y mřížky. */
@@ -84,6 +84,13 @@ export interface FieldPart {
    * oběhu (čerstvě založený díl), u přílohu podle úrodnosti (`nextSowing`).
    */
   next?: 'spring' | 'winter';
+  /**
+   * Rok sklizně posledního lnu na dílu (fields.md – Len; Martin 9. 11. 2026: „Tam, kde už jednou
+   * rostl, se může vrátit až po 6 nebo 7 letech“): len se na díl vrátí nejdřív za
+   * `FLAX.returnYears` let. Zapíše `rotateAfterSeason` 1. 9. po osetém lnu (i nevytrhaném).
+   * Chybí = len tu nerostl nebo ves uložená dřív – len smí hned.
+   */
+  flaxYear?: number;
   fallowSinceDay: number | null; // od kdy leží v přílohu
   foundingCost: number; // člověkodny (povrch × plocha + překážky)
   foundingDone: number;

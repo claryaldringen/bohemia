@@ -695,7 +695,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'apple-harvest':
       return `Sklizeň ovoce: ${formatInteger(event.kg)} kg.`;
     case 'garden-harvest':
-      return `Sklizeň zahrádek: ${formatInteger(event.flaxKg)} kg lnu a ${formatInteger(event.legumeKg)} kg luštěnin.`;
+      // starší zápisy z doby lnu na zahrádkách nesou i len
+      return event.flaxKg !== undefined
+        ? `Sklizeň zahrádek: ${formatInteger(event.flaxKg)} kg lnu a ${formatInteger(event.legumeKg)} kg luštěnin.`
+        : `Sklizeň zahrádek: ${formatInteger(event.legumeKg)} kg luštěnin.`;
     case 'slaughter':
       return `Podzimní porážka: ${formatInteger(event.kg)} kg masa.`;
     case 'emergency-slaughter': {

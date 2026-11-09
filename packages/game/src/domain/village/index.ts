@@ -9,7 +9,7 @@ export * from './field-capacity';
 export * from './dairy';
 export * from './legumes';
 export { flaxNeedKg, linenCoverage, linenUnhappiness } from './flax';
-export { gardenYield, harvestGardens } from './garden';
+export { gardenLegumeKg, harvestGardens } from './garden';
 export * from './livestock';
 export * from './rules-wildlife';
 export * from './wildlife';

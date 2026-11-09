@@ -99,18 +99,13 @@ export function DwellingBody({
             {details.ageYears}
           </Stat>
           {details.garden && (
-            <>
-              <Stat icon="flax" name="Len ze zahrádky (kg)" testId="selection-garden-flax">
-                {details.garden.flaxKg}
-              </Stat>
-              <Stat
-                icon="legumes"
-                name="Luštěniny ze zahrádky (kg)"
-                testId="selection-garden-legumes"
-              >
-                {details.garden.legumeKg}
-              </Stat>
-            </>
+            <Stat
+              icon="legumes"
+              name="Luštěniny ze zahrádky (kg)"
+              testId="selection-garden-legumes"
+            >
+              {details.garden.legumeKg}
+            </Stat>
           )}
           {details.use?.lodgers !== undefined && (
             <Stat icon="family" name={lodgersLabel(details.use.lodgers)} testId="selection-lodgers">

@@ -147,6 +147,9 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
     // hash 5a2a134f (9. 11. 2026, skladba dne podle období – population.md: venkovní práce podle
     // délky dne, poloviční minimum ve žních, dříví v zimě, se sněhem bez vody): jiná práce, osev
     // a zásoby; dřív 52acb247
-    expect(hash(stripped)).toBe('5a2a134f');
+    // hash 7450793f (9. 11. 2026 večer, len zpět na poli – fields.md, Len): díly lnu do potřeby na
+    // oděv, trhání v srpnu za žněmi obilí, zahrádka jen luštěniny – jiný osev, práce a štěstí; dřív
+    // 5a2a134f
+    expect(hash(stripped)).toBe('7450793f');
   }, 120_000);
 });

@@ -30,7 +30,8 @@ import { moveGrainFromCoveredPits } from './grain-pit-site';
 import { withThreshingGrace, spoilSheaves } from './threshing';
 import { withSeason } from './year-plan';
 import { settleSowingSeed, withSeedForgiven, withoutSeedTarget } from './seed';
-import { withoutFieldFlax, withoutFieldLegumes } from './field-legumes';
+import { withoutFieldLegumes } from './field-legumes';
+import { withoutGardenFlax } from './garden';
 import { withoutSurplusCrops } from './merge-surplus';
 import { seedBuyingDay } from './seed-buying';
 import { withSowingRotation } from './rotation';
@@ -155,9 +156,9 @@ export function* advanceVillageSteps(
   // před snopy rok odkladu mlácení (production-chains.md – Starší vsi) a ves s ročním plánem osevní
   // postup po dílech (fields.md – Osevní postup po dílech, bod 7), plán z doby před osivem ze
   // zásob odpuštěné osivo zaseté části (fields.md – Osivo ze zásob, Převod), plán z doby cíle
-  // osevu bez osiva čekajících dílů (fields.md – Osivo bez cíle osevu), nezasetý díl luštěnin a lnu
-  // jař (fields.md – Luštěniny, zrušeno; Len, zrušeno), díly nad potřebu jednou frontou (fields.md – Osevní postup
-  // po dílech, bod 3) a vojvodova rodina bez pomoci s osevem a při hladu (lord.md – Kdy jde rodina
+  // osevu bez osiva čekajících dílů (fields.md – Osivo bez cíle osevu), nezasetý díl luštěnin jař
+  // (fields.md – Luštěniny, zrušeno), zahrádka bez lnu (fields.md – Zahrádka u obydlí, len zpět na
+  // pole), díly nad potřebu jednou frontou (fields.md – Osevní postup po dílech, bod 3) a vojvodova rodina bez pomoci s osevem a při hladu (lord.md – Kdy jde rodina
   // na pole) – jednou, idempotentně
   const next = cloneState(
     withSteward(
@@ -175,7 +176,7 @@ export function* advanceVillageSteps(
                             withArmsCaps(
                               withDynasty(
                                 withKinship(
-                                  withoutFieldFlax(
+                                  withoutGardenFlax(
                                     withoutFieldLegumes(
                                       withoutSowingHelp(
                                         withoutSeedTarget(
