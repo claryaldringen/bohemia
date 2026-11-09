@@ -464,8 +464,12 @@ describe('humno (production-chains.md – Humno)', () => {
     const later = buildVillageView(record(built), landscape, DAY + 400);
     // hotové humno nese i stoh slámy a zrno na humně (podle data a výmlatu)
     expect(later.scene.threshingFloors).toMatchObject([{ id, position, built: true, progress: 1 }]);
+    // celá kronika – pohled ukazuje jen posledních CHRONICLE_LENGTH zápisů a za 400 dní je
+    // vytlačí i trvalé stavy vsi
     expect(
-      later.chronicle.some((e) => e.text === 'Humno je dostavěné – dá se na něm mlátit.'),
+      built.chronicle.some(
+        (e) => chronicleText(e, 'X') === 'Humno je dostavěné – dá se na něm mlátit.',
+      ),
     ).toBe(true);
   });
 
