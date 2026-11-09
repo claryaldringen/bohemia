@@ -455,8 +455,14 @@ Vše kromě Martinových životností je návrh Clauda.
   obvod správce 600 m u 60 lidí a 900 m u 150 lidí, Růst) platí Martinovy cíle: ves 60 lidí
   nepostaví nic, ves 150 lidí palisádu (ochoz, val i hradby by jí vyšly hůř), roštová a komorová
   se nevyplatí ani jí.
-- Ochrana se doladí **měřením nájezdů NPC** na vsi s hradbou (jen na pokyn), aby platily Martinovy
-  cíle: plot se nevyplatí, palisáda jen velké vsi pod stropem mapy, hradby běžná ves ne.
+- ~~Ochrana se doladí **měřením nájezdů NPC** na vsi s hradbou (jen na pokyn), aby platily Martinovy
+  cíle: plot se nevyplatí, palisáda jen velké vsi pod stropem mapy, hradby běžná ves ne.~~
+  Martin 9. 11. 2026: „Měření nespouštěj, je zbytečné“ – měřítko 0,06 i příkop 0,1 zůstávají, měření
+  nájezdů NPC se nedělá. K probrání (návrh Clauda podle rešerše, kterou Martin přinesl 9. 11. 2026 –
+  proč slovanské vsi neměly palisádu: drahá a hnije, bez obránců k ničemu, útočištěm kraje bylo
+  hradiště, hrozili spíš zloději dobytka): palisáda bez obránců by nechránila vůbec (pasivní ochrana
+  0) a vsi domény by při nájezdu utíkaly i se stády do hradiště pána – pak by měřítko nejspíš nebylo
+  potřeba.
 - Správce staví nový druh, vylepšení, ochoz, doplnění valu i vodní příkop – vždy celý obvod;
   klešťovou bránu a věž v první verzi jen hráč (návrh Clauda). Plán s víc kroky staví po etapách
   (návrh Clauda): napřed val, nebo hradbu (ochoz jen z palisády, jinak napřed palisáda), pak val
