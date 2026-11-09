@@ -679,22 +679,27 @@ Plán 2026-11-03 – rozhodnutí 13, Úloha 6.7. Ves čeká jen na tažení u se
   kde stojí skupina s aktivním mužem a které vojsko škodí (`harmless`), dostane na každý den
   `raid-day { campaignId }` **na týž den** (bariéra ji před tím dnem drží) – `VillageState.raidDay`;
   `raidHiding(state, day)` (`domain/village/raid-day.ts`) zastaví práci jako hašení požáru (dílny,
-  milíře, `villagersToday` prázdné). Den po odchodu vojska ves pracuje. Poprvé i `threat-signal`
-  `army-seen` (správce staví podle hrozby). Paměť `CampaignState.raidDays` (ves → poslední den).
-- **Posel** – ves, kterou vojsko prošlo a patří témuž hráči jako cíl (`CampaignWorld.messengerTo` –
-  `null` = vsi se ještě nenačetly, takt čeká), pošle do cíle `army-seen { campaignId, fromVillageId }`
-  a `threat-signal` na následující den, jednou (`messengerSent`). Cíl si ho zapíše
-  (`VillageState.armySeen`); při otevření boje `planDefense({ warned })` – postoj platí dřív, do
-  útočiště doběhnou všichni, kdo se vejdou (brány se zavřou až za nimi).
+  milíře, `villagersToday` prázdné). Den po odchodu vojska ves pracuje. **Od 9. 11. 2026 až od
+  varování** (`isWarned` – [Varování, poslové a útěk do hradiště](#varování-poslové-a-útěk-do-hradiště),
+  Ú2) nebo když se na mapě vsi bojuje (cíl ve fázi `raiding`); do té doby lidé pracují dál. Signál
+  hrozby `threat-signal` `army-seen` jde s varováním (`sightAlarms`). Paměť `CampaignState.raidDays`
+  (ves → poslední den).
+- **Posel** (do 9. 11. 2026) – ves, kterou vojsko prošlo a patřila témuž hráči jako cíl, posílala do
+  cíle `army-seen` (`CampaignWorld.messengerTo`, `messengerSent`). **Zrušeno v Ú2** plánu 2026-11-09:
+  posla do hradiště posílá hráč nebo správce (Ú5); `messengerTo` tažení už nevolá, `messengerSent`
+  a `VillageState.armySeen` zůstaly kvůli starým bodům (čtou se – nedoručený `army-seen` ves zapíše,
+  `campaignBattle` ho bere jako varování). Při otevření boje `planDefense({ warned })` – postoj platí
+  dřív, do útočiště doběhnou všichni, kdo se vejdou (brány se zavřou až za nimi).
 - **Worker** – přednostní vsi `WorldQueue.priorityVillages()` a jejich meze jdou do
   `behind(worldDay, limit, holds)` (docs/code/worker.md – Přednostní vsi).
 - **Testy** – `domain/village/__tests__/raid-day.test.ts` (den nájezdu bez práce, den nato práce, po
-  kouscích = vcelku, posel), `domain/war/__tests__/raid-watch.test.ts` (dny nájezdu, signál jednou,
-  neškodné vojsko, bariéra zastaví takt, posel jednou na další den, cizí rod, načtení vsí),
-  `stance.test.ts` (posel – útočiště i s útočníky u brány), `apps/worker` `loop.test.ts` (krátký spánek),
-  `packages/server/src/__tests__/campaign-race.db.test.ts` (souběh worker vsí + tažení + web = jeden
-  proces, do 60 s, dny nájezdu, posel, ves daleko na dnešku; oba světy mají pevný `weather_seed`
-  sídel – v DB je náhodný a jiné počasí by vsi rozešlo).
+  kouscích = vcelku, starý posel), `domain/war/__tests__/raid-watch.test.ts` (dny nájezdu až od
+  varování, signál jednou, nespatřené vojsko – ves pracuje, neškodné vojsko, bariéra zastaví takt,
+  posel z prošlé vsi zmizel), `stance.test.ts` (varovaná ves – útočiště i s útočníky u brány),
+  `apps/worker` `loop.test.ts` (krátký spánek), `packages/server/src/__tests__/campaign-race.db.test.ts`
+  (souběh worker vsí + tažení + web = jeden proces, do 60 s, dny nájezdu – vojsko stojí na dohled
+  staveniště zakladatelů Vlkova, posel do Kněžic už nejde, ves daleko na dnešku; oba
+  světy mají pevný `weather_seed` sídel – v DB je náhodný a jiné počasí by vsi rozešlo).
 
 ## Postoje vsi a včasný útěk (Ú6.9)
 
@@ -761,6 +766,28 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
   `-caught`, `refuge-depart` / `-hidden` / `-caught` / `-arrive` / `-back` – `applyInboxDay` je zatím
   přeskočí (aplikace Ú7). Test `alarm-types.test.ts` hlídá tvar přes JSON a zlatý otisk tažení bez
   varování.
+- **Oči vsi a varování během do vsi (Ú2).** `domain/war/lookouts.ts`: `villageLookouts(state, day)`
+  – kde vesničané jsou (`Lookout { kind, id, pos }`, pořadí druh, pak id): domy (obydlí i dvorec;
+  bez obydlí staveniště zakladatelů – návrh Clauda) vždy, díly polí s políčkem mimo zimu tažení (`isMarchWinter`, ne opuštěné), milíře uhlířů s místem,
+  lomy, hromady klád s kládami, sady (první čtverec), ohrady; ves, která se dnes skrývá
+  (`raidHiding`), má oči jen v domech, ves bez přítomného člověka žádné. `runTicks(grid, from, to)` –
+  doběh po mřížce (`marchPath`, metry louky) tempem `WAR.pace.metersPerSecond × WAR.alarm.runFactor`,
+  nahoru na takty; bez cesty vzdušnou čarou. `domain/war/alarm.ts`: `sightAlarms(s, tick, ctx, out)`
+  v každém taktu po pohybu (`campaignTick`: pohyb → spatření → dny nájezdu): pro ves na mapě se
+  skupinou s aktivním mužem (kromě `harmless`), která ještě neví, oči × polohy skupin (`inSight` –
+  150 m, v lese 50 m); první spatření zapíše `AlarmVillage` (`seenTick`, `seenAt` = poloha skupiny,
+  `warnTick` = takt + doběh od oka do `villageCentre` – z domu 0, `by: 'villager'`, vlastník
+  z `CampaignWorld.alarmOf` – `null` = takt čeká, bez portu `{ playerId: null, npc: true, houseId:
+null }`); pozdější spatření s kratším doběhem `warnTick` zkrátí. V taktu `warnTick` (i když vojsko
+  už mapu opustilo) `threat-signal` `army-seen` na týž den a majiteli (`watcherOf`, jen cizí vojsko)
+  upozornění `army-warned` `{ villageId, name, campaignId }`. `isWarned(s, villageId, tick)`,
+  `alarmVillage(s, villageId)`. Mezipaměti volání v `TickContext` (`lookouts` – ves@den, `runs` –
+  ves@den:oko). Společné součástky taktu (`MissingData`, `TickOut`, `TickContext`, `tickContext`,
+  `gridOf`, `villageEvent`, `cellKey`, `sameCell`) jsou v `domain/war/campaign-tick.ts`.
+  `campaignBattle`: `warned` = `isWarned(cíl)` nebo starý `armySeen`. Testy `lookouts.test.ts`,
+  `alarm-sight.test.ts` (dům 140 m, uhlíř 600 m – varování o doběh dřív než z domů, les 50 m,
+  `raid-day` až od varování, neškodné vojsko, po 1 / 7 / 40 taktech přes JSON = vcelku, upozornění
+  jednou, nenačtený vlastník).
 
 ## Výsledky nájezdu a kořist (Ú6.10)
 

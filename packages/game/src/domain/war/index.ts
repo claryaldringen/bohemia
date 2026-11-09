@@ -26,3 +26,5 @@ export * from './view';
 export * from './scene-view';
 export { breakoutChoice, type BreakoutBlock, type BreakoutChoice } from './rout';
 export * from './alarm-types';
+export { villageLookouts, runTicks, type Lookout, type LookoutKind } from './lookouts';
+export { alarmVillage, isWarned } from './alarm';

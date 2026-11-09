@@ -231,7 +231,7 @@ describe('postoje s opevněním (fortifications.md – Postoje vsi s opevněním
     const outside = foes(20, { x: 0, z: -800 });
     expect(plan(near(), 'surrender', outside, true).fighters).toHaveLength(5);
     expect(plan(near(), 'surrender', foes(200, { x: 0, z: -800 }), true).fighters).toHaveLength(5);
-    // jeden z dvaceti už stojí uvnitř obvodu – posel ohlásil vojsko předem, všichni jsou v útočišti
+    // jeden z dvaceti už stojí uvnitř obvodu – ves o vojsku věděla předem, všichni jsou v útočišti
     const inside = [...foes(19, { x: 0, z: -800 }), { pos: { x: 0, z: 10 }, mounted: false }];
     const r = plan(near(), 'surrender', inside, true, true, true);
     expect(r.shelter.refuge).toHaveLength(6);
@@ -253,8 +253,9 @@ describe('postoje s opevněním (fortifications.md – Postoje vsi s opevněním
     expect(flee.shelter.forest).toEqual([1, 2, 3, 4, 5]);
   });
 
-  it('posel ohlásil vojsko předem – do útočiště doběhnou všichni, i když jsou útočníci u brány', () => {
-    // Ú6.7: posel z jiné vsi rodu spustí postoj dřív (war.md – Obránci, Kdy)
+  it('ves o vojsku ví předem – do útočiště doběhnou všichni, i když jsou útočníci u brány', () => {
+    // war.md – Varování, 9. 11. 2026: vesničan, který vojsko spatřil, nebo posel spustí postoj dřív
+    // (`isWarned` v tažení; dřív jen posel z jiné vsi rodu – Ú6.7)
     const far = eastVillage();
     const attackers = foes(2, { x: 0, z: -60 });
     for (const stance of ['defend', 'flee'] as const) {

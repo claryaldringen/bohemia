@@ -59,6 +59,8 @@ describe('den nájezdu (raid-day)', () => {
 });
 
 describe('posel (army-seen)', () => {
+  // war.md – Varování, 9. 11. 2026: tažení `army-seen` už neposílá (posla posílá hráč nebo správce –
+  // plán 2026-11-09, Úloha 5); ves ho zapíše dál, je-li ještě v nedoručených událostech starého bodu
   it('zapíše posla s tažením a vsí, odkud šel', () => {
     const inbox = [
       event(1, FOUNDED + 3, { kind: 'army-seen', campaignId: 'c1', fromVillageId: 'v2' }),
