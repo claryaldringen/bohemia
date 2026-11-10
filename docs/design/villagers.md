@@ -27,8 +27,8 @@ Hráč má vidět, **kde ves dnes pracuje** – kam jde práce lidí, kterou po�
 - **Kde kdo je:**
   - pole – řady lidí na osévaných čtvercích: okopávání motykou (kopání i vracení přílohu), setí
     z nůše, pletí v předklonu, žeň srpem; skupiny se po pár dnech posunou po poli dál,
-  - odnos úrody – nosiči s nůší mezi polem a nejbližším obydlím (sklizeň 30 + odnos 20 člověkodní
-    na hektar – fields.md) – po pěšinách, na vzdálený díl po pěšině k poli a pak přes pole,
+  - odnos úrody – nosiči s nůší mezi polem a nejbližším obydlím (sklizeň 15 + odnos 8 člověkodní
+    na hektar – fields.md, Práce) – po pěšinách, na vzdálený díl po pěšině k poli a pak přes pole,
   - zakládání pole – dřevorubci u stromů na zakládaném čtverci, ostatní okopávají drn,
   - výmlat – v zimě u vsi na udusaném místě mimo pole (cep zatím nahrazuje palička),
   - stavba obydlí – nejdřív dřevorubci u stromů vyhrazených pro stavbu (forest.md), přebyteční

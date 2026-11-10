@@ -121,13 +121,15 @@ export const FOREST_BONUS = { bySeason: [40, 20], windowYears: 3 } as const;
 export const FOREST_CLEARING = { fellShare: 0.6, dryDays: 30, smolderDays: 2 } as const;
 /** Okno pálení větví a pařezů – březen až říjen (měsíce 1–12). */
 export const BURN_WINDOWS: readonly WindowSegment[] = [[3, 10]];
-// fields.md – Práce: sklizeň srpem a vázání 20 (s řemesly 15; rešerše 2026-10-17, dop. 3 – dřív
-// 30) + odnos úrody v nůších 10 člověkodní na hektar (návrh Clauda, Martin schválil 24. 10. 2026 –
-// dřív 20) – meze (simulace je počítá jako jednu úlohu sklizně, rozdělení práce pro scénu je
-// dělí – postavy)
+// fields.md – Práce, Zprůměrovaná žeň (návrh Clauda podle Martina 10. 11. 2026: „snopy necháme,
+// ale tu práci bych chtěl zprůměrovat“): průměr žetí pod klasem do nůší (≈ 10 / 8 a odnos klasů
+// ≈ 6 – odhad podle Steensberga, rešerše 2026-10-17) a žetí nízko s vázáním snopů (20 / 15
+// a odnos 10 – Martin 24. 10. 2026) – sklizeň srpem a vázání 15 (s řemesly 12) + odnos úrody
+// v nůších 8 člověkodní na hektar – meze (simulace je počítá jako jednu úlohu sklizně, rozdělení
+// práce pro scénu je dělí – postavy)
 export const HARVEST_WORK_PER_HA: Record<'reap' | 'carry', Bounds> = {
-  reap: { worst: 20, best: 15 },
-  carry: { worst: 10, best: 10 },
+  reap: { worst: 15, best: 12 },
+  carry: { worst: 8, best: 8 },
 };
 // fields.md – Žně všemi rukama (Martin 24. 10. 2026; rešerše 2026-10-17 §5 – dítě 7–13 let 0,3,
 // starší 0,5 člověkodne): výrostci od 10 let a starší dají ve žňové dny po 0,5 člověkodne na žeň
@@ -285,8 +287,9 @@ export const LEGUME_WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
 };
 // fields.md – Len (rešerše 2026-10-19-flax.md): jarní len se seje v dubnu (okno jaře březen–duben,
 // příprava půdy jako luštěniny), trhá se jen v srpnu (Martin 9. 11. 2026: „Sklízí se v srpnu, ale
-// obilí má vždy absolutní přednost“ – co srpen nevytrhá, propadne); nemlátí se (semena se drhnou
-// v domácí práci)
+// obilí má vždy absolutní přednost“ – co srpen nevytrhá, propadne; 10. 11. 2026: trhají ženy a děti
+// souběžně s koncem žní – „Mezi jednotlivými sklizněmi tak vznikaly přirozené mezery právě na
+// vytrhání lnu.“); nemlátí se (semena se drhnou v domácí práci)
 export const FLAX_WINDOWS: Record<TaskName, readonly WindowSegment[]> = {
   ...LEGUME_WINDOWS,
   harvest: [[8, 8]],
@@ -302,8 +305,9 @@ export const CROP_WINDOWS: Record<Crop, Record<TaskName, readonly WindowSegment[
  * Pořadí plodin při shodě konce okna – len první (příprava půdy a setí – je ho málo a bez něj chybí
  * oděv), pak ozim (sklízí se dřív), luštěniny před jaří. Žně ozimu a luštěnin končí v srpnu, jaře
  * v září – v srpnu se napřed dosklízí, co červenec nestihl (dřívější konec okna), a teprve pak jař
- * (návrh Clauda – fields.md, Žně i v srpnu). Trhání lnu jde za žněmi obilí bez ohledu na pořadí
- * (`simulate-work.ts`, `fieldTasks`; fields.md – Len, Martin 9. 11. 2026).
+ * (návrh Clauda – fields.md, Žně i v srpnu). Trhání lnu jde za žněmi obilí bez ohledu na pořadí,
+ * ženy a děti ale trhají napřed (`simulate-work.ts`, `fieldTasks`; fields.md – Len, Martin 9.
+ * a 10. 11. 2026).
  */
 export const CROP_ORDER: readonly Crop[] = ['flax', 'winter', 'legume', 'spring'];
 /**
@@ -311,12 +315,13 @@ export const CROP_ORDER: readonly Crop[] = ['flax', 'winter', 'legume', 'spring'
  * každou cenu sklidit to, co už vyrostlo, než začínat pěstování úplně od začátku“, „Pořadí
  * důležitosti: 1. sklizeň obilí 2. sklizeň lnu 3. sklizeň sena 4. orba a setí 5. výmlat“; doplněno
  * návrhem Clauda, Martin „Ano, jak navrhuješ“): skupiny úloh dne v pořadí, ve kterém dostanou práci,
- * když jí ves nemá na všechno – výmlat na dnešní jídlo, žeň a odnos obilí (i luštěnin), trhání lnu,
- * nutná seč (jen 1. seč), sklizeň jablek, pletí, příprava půdy a setí (vrácení přílohu s klučením,
- * kopání, orba, setí), noční hlídka polí, výmlat. Nutná otava (2. seč – oxen.md, Seno, dvě seče)
- * až po orbě a setí ozimu (Martin 9. 11. 2026: „Otava až po orbě a setí ozimu“; návrh Clauda: hned
- * za přípravou půdy). Uvnitř skupiny nejbližší konec okna; v přípravě půdy orba rádlem první
- * (oxen.md – Orba má přednost: spřežení potřebuje jen oráče, jinak voli stojí).
+ * když jí ves nemá na všechno – výmlat na dnešní jídlo, žeň a odnos obilí (i luštěnin), trhání lnu
+ * (ženy a děti napřed – `allocateDay`, `womenFirst`; Martin 10. 11. 2026), nutná seč (1. seč
+ * i otava), sklizeň jablek, pletí, příprava půdy a setí (vrácení přílohu s klučením, kopání, orba,
+ * setí), noční hlídka polí, výmlat. Nutná otava (2. seč – oxen.md, Seno, dvě seče) hned za 1. sečí,
+ * před orbou a setím ozimu (Martin 10. 11. 2026 – žeň → len → otava → orba a setí; dřív ~~otava až
+ * po orbě a setí ozimu~~, 9. 11. 2026). Uvnitř skupiny nejbližší konec okna; v přípravě půdy orba
+ * rádlem první (oxen.md – Orba má přednost: spřežení potřebuje jen oráče, jinak voli stojí).
  * Návrh Clauda pro úlohy mimo seznam: porážka hned za výmlatem na jídlo (maso se musí zpracovat
  * hned), výmlat na osivo (THRESHING.seedDays – ve snopech zrno na setí není) před přípravou půdy,
  * péče o sad za přípravou půdy, obilné jámy (zrno z výmlatu) a dospělý pasák za výmlatem.
@@ -328,11 +333,11 @@ export const DAY_WORK_ORDER = [
   'grain-harvest',
   'flax-harvest',
   'hay',
+  'aftermath',
   'apples',
   'weeding',
   'seed-thresh',
   'tillage',
-  'aftermath',
   'orchard-care',
   'watch',
   'thresh',

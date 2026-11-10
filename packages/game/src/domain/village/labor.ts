@@ -83,6 +83,11 @@ export interface DayAllocationInput {
    */
   harvestHands?: number;
   /**
+   * Díl žňových rukou od výrostků a starších (`harvestHelperLabor`, člověkodny před štěstím; zbytek
+   * `harvestHands` jsou řemeslníci se syny) – trhání lnu (`womenFirst`) ho bere napřed. Bez údaje 0.
+   */
+  harvestYouth?: number;
+  /**
    * Děti při pletí (fields.md – Pletí – děti; `weedingChildren` × `WEEDING_CHILDREN.perDay`,
    * člověkodny před štěstím) – zásobník mimo `capacity` jako `harvestHands`, pokryje jen pletí, před
    * prací dospělých; co nevyužije, propadne. Bez údaje 0.
@@ -94,7 +99,7 @@ export interface DayAllocationInput {
    * bere po dětech a lehké práci žen řemeslníků jen jejich práci nad tento díl (nejvýš co vsi
    * zbylo po minimu, koních, výpravách a vozech), i před úlohami, které jsou v pořadí dřív; co
    * nedoplejí, doplejí muži až po ostatních úlohách dne (seč, setí, orba) – s `menWeedLater` až po
-   * stavbách. Bez údaje 0 – pleje se jen z toho, co úlohy nechají.
+   * stavbách. Totéž trhání lnu (`womenFirst`). Bez údaje 0 – pleje se jen z toho, co úlohy nechají.
    */
   womenLabor?: number;
   /**
@@ -152,6 +157,14 @@ export interface DayAllocationInput {
     follow?: { index: number; ratio: number };
     /** Rodina vojvody s úlohou nepomáhá (`lordHelp` – trhání lnu; fields.md – Len). */
     noLordHelp?: true;
+    /**
+     * Úlohu dělají napřed ženy a děti (trhání lnu – fields.md, Len; Martin 10. 11. 2026: „Mezi
+     * jednotlivými sklizněmi tak vznikaly přirozené mezery právě na vytrhání lnu.“): výrostci
+     * a starší ze žňových rukou (`harvestYouth`), ženy řemeslníků (`light`) a ženy vsi nad svůj
+     * díl denního minima (jako při pletí) jdou na ni před všemi úlohami dne – muži dál žnou obilí;
+     * zbytek dostane úloha ve svém pořadí.
+     */
+    womenFirst?: true;
   }[];
   /** Pokrytí nádobami 0–1 – posouvá denní minimum mezi mezemi (crafts.md). */
   potteryCoverage: number;
@@ -315,6 +328,23 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     const women = take(Math.min(task.remaining - amount, womenLeft));
     womenLeft -= women;
     weedWomen += women;
+    taskAmounts[i] = amount + women;
+  });
+  // trhání lnu napřed (`womenFirst` – fields.md, Len; Martin 10. 11. 2026): výrostci a starší ze
+  // žňových rukou, ženy řemeslníků, pak ženy vsi nad svůj díl minima – muži dál žnou obilí
+  let youthLeft = Math.min(handsLeft, Math.max(0, (input.harvestYouth ?? 0) * outdoor));
+  input.tasks.forEach((task, i) => {
+    if (task.womenFirst !== true) return;
+    let amount = taskAmounts[i] ?? 0;
+    const youth = Math.min(task.remaining - amount, youthLeft);
+    youthLeft -= youth;
+    handsLeft -= youth;
+    amount += youth;
+    const light = Math.min(task.remaining - amount, lightLeft);
+    lightLeft -= light;
+    amount += light;
+    const women = take(Math.min(task.remaining - amount, womenLeft));
+    womenLeft -= women;
     taskAmounts[i] = amount + women;
   });
   // muži plejí jen, co by děti a ženy do konce okna nestihly (bez údaje o okně všechno) – odhad

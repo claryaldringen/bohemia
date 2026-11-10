@@ -197,7 +197,8 @@ describe('postup po čtvercích', () => {
   });
 
   it('sklizeň ozimu v červenci: sklizené díly s panáky, nesklizené zůstanou zralé', () => {
-    const s = advanceVillage(penned(), at(602, 7, 5), null);
+    // 3. 7. – zprůměrovaná žeň (fields.md – Práce, 10. 11. 2026) žne rychleji, dřív 5. 7.
+    const s = advanceVillage(penned(), at(602, 7, 3), null);
     const states = statesInOrder(s, seasonCrop(s.season!, 'winter')!.partIds);
     expect(states).toContain('harvesting');
     expect(states).toContain('ripe');
@@ -391,7 +392,8 @@ describe('letošní práce na dílu (panel dílu – fields.md, Co hráč vidí)
   });
 
   it('sklizeň ozimu v červenci po dílech: sklizené díly 1, nezačaté 0', () => {
-    const s = advanceVillage(penned(), at(602, 7, 5), null);
+    // 3. 7. – zprůměrovaná žeň (fields.md – Práce, 10. 11. 2026) žne rychleji, dřív 5. 7.
+    const s = advanceVillage(penned(), at(602, 7, 3), null);
     const looks = fieldPartLooks(s, s.lastDay);
     const work = partYearWork(s, s.lastDay);
     const harvests = seasonCrop(s.season!, 'winter')!.partIds.map(

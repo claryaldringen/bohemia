@@ -314,8 +314,9 @@ export function fieldTasks(
 }
 
 /**
- * Úloha je trhání lnu – jde za žněmi obilí (`DAY_WORK_ORDER`; fields.md – Len, Martin 9. 11. 2026:
- * „Sklízí se v srpnu, ale obilí má vždy absolutní přednost“) a dřinu nepřidá.
+ * Úloha je trhání lnu – z obecné práce jde za žněmi obilí (`DAY_WORK_ORDER`; fields.md – Len, Martin
+ * 9. 11. 2026: „Sklízí se v srpnu, ale obilí má vždy absolutní přednost“), ženy a děti ale trhají
+ * napřed (`womenFirst` – Martin 10. 11. 2026), a dřinu nepřidá.
  */
 function flaxHarvest(crop: Crop, name: CropTask): boolean {
   return crop === 'flax' && name === 'harvest';
@@ -406,8 +407,8 @@ export function dayWorkGroup(task: DayTask): DayWorkGroup {
  * Pořadí úloh dne v rozdělení práce (fields.md – Pořadí důležitosti polních prací a výmlat do
  * zimy; Martin 9. 11. 2026: „Je lepší za každou cenu sklidit to, co už vyrostlo, než začínat
  * pěstování úplně od začátku“): napřed skupina úlohy (`DAY_WORK_ORDER` – výmlat na dnešní jídlo,
- * porážka, žeň obilí, trhání lnu, nutná 1. seč, jablka, pletí, výmlat na osivo, příprava půdy
- * a setí, nutná otava, péče o sad, hlídka polí, výmlat, obilné jámy, dospělý pasák), v přípravě
+ * porážka, žeň obilí, trhání lnu, nutná 1. seč, nutná otava, jablka, pletí, výmlat na osivo,
+ * příprava půdy a setí, péče o sad, hlídka polí, výmlat, obilné jámy, dospělý pasák), v přípravě
  * půdy orba rádlem první (oxen.md – Orba má přednost; Martin 24. 10. 2026: „Co může být
  * přednějšího než orba?“ – spřežení potřebuje jen oráče, jinak voli stojí), pak nejbližší konec
  * okna, přednost (`tie`) a pořadí úloh.
@@ -546,10 +547,10 @@ export function work(
     const tie = orchard.name === ORCHARD_TASK_NAMES.harvest ? 0 : 2;
     dayTasks.push({ ...orchard, tie, rank: 0 });
   }
-  // seč (oxen.md – Seno, dvě seče): nutné seno (dnešní stádo) 1. seče za žní obilí a trháním lnu,
-  // před jablky, pletím, orbou a setím i výmlatem (fields.md – Pořadí důležitosti polních prací –
-  // 3. sklizeň sena); otava až po orbě a setí ozimu (Martin 9. 11. 2026); seč navíc pro růst stád
-  // až z práce po stavbách (níž)
+  // seč (oxen.md – Seno, dvě seče): nutné seno (dnešní stádo) 1. seče i otavy za žní obilí
+  // a trháním lnu, před jablky, pletím, orbou a setím i výmlatem (fields.md – Pořadí důležitosti
+  // polních prací – 3. sklizeň sena; otava před orbou a setím ozimu – Martin 10. 11. 2026); seč
+  // navíc pro růst stád až z práce po stavbách (níž)
   const neededMowing = mowingNeededRemaining(state, day);
   if (neededMowing > EPSILON) {
     const cut = state.hay?.mowing ? mowingCut(state.hay.mowing) : 1;
@@ -691,9 +692,12 @@ export function work(
   const shoeingPlan = planShoeing(state, day, coverage, landscape);
   // žně všemi rukama (fields.md – Žně všemi rukama): ve žňový den řemeslníci se syny, výrostci
   // a starší jen na žeň a výmlat (cvičící rodina – chlapci cvičí, starší kryjí dvorec – ne)
+  // – výrostci a starší (`harvestYouth`) jdou napřed na trhání lnu (fields.md – Len)
+  const harvestYouth = harvestDay
+    ? harvestHelperLabor(state, day, lordApartIds(state, day), productivity, coverage.pottery)
+    : 0;
   const harvestHands = harvestDay
-    ? craftHarvestLabor(state, day, crafts, coverage.pottery, productivity) +
-      harvestHelperLabor(state, day, lordApartIds(state, day), productivity, coverage.pottery)
+    ? craftHarvestLabor(state, day, crafts, coverage.pottery, productivity) + harvestYouth
     : 0;
   // děti 7–13 let, které nepasou, plejí (fields.md – Pletí – děti) – jen když je co plet
   const weeders = dayTasks.some((t) => t.name === 'weed' && t.remaining > EPSILON)
@@ -724,6 +728,7 @@ export function work(
       // ženy řemeslníků: zbytek po domácnosti jde jen na lehčí polní práce se vsí (crafts.md)
       light: craftLightLabor(state, day, crafts, coverage.pottery, productivity),
       harvestHands,
+      harvestYouth,
       weedChildren: weeders.length * WEEDING_CHILDREN.perDay,
       womenLabor,
       ...(weedDaysLeft === undefined ? {} : { weedDaysLeft }),
@@ -745,18 +750,21 @@ export function work(
       minimumShare: chores.minimumShare,
       daylight,
       // setí týž den hned za orbou a motykou (`FieldTaskEntry.sowRatio`) – práce úlohy setí plodiny;
-      // s trháním lnu rodina vojvody nepomáhá (fields.md – Len, návrh Clauda)
+      // s trháním lnu rodina vojvody nepomáhá (fields.md – Len, návrh Clauda), trhají napřed ženy
+      // a děti (Martin 10. 11. 2026)
       tasks: dayTasks.map(({ name, remaining, field }) => {
         const ratio = field?.sowRatio ?? 0;
         const index =
           ratio > 0
             ? dayTasks.findIndex((t) => t.name === 'sow' && t.field?.work === field?.work)
             : -1;
-        const noLordHelp =
-          field && flaxHarvest(field.crop, field.name) ? { noLordHelp: true as const } : {};
+        const flax =
+          field && flaxHarvest(field.crop, field.name)
+            ? { noLordHelp: true as const, womenFirst: true as const }
+            : {};
         return index >= 0
-          ? { name, remaining, follow: { index, ratio }, ...noLordHelp }
-          : { name, remaining, ...noLordHelp };
+          ? { name, remaining, follow: { index, ratio }, ...flax }
+          : { name, remaining, ...flax };
       }),
       potteryCoverage: coverage.pottery,
       productivity,
@@ -1212,7 +1220,8 @@ export function work(
     (sum, task) => sum + task.amount,
     threshing.floor + threshing.ground,
   );
-  // trhání lnu dřinu nepřidá – jde jen z práce, která po obilí zbude (fields.md – Len, návrh Clauda)
+  // trhání lnu dřinu nepřidá – trhají ženy a děti a práce, která po obilí zbude (fields.md – Len,
+  // návrh Clauda)
   const seasonTasks = [
     ...owned
       .filter((task) => !flaxHarvest(task.crop, task.name))

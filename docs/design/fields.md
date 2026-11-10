@@ -1066,18 +1066,19 @@ souvislých blocích a pásech v ose s delší brázdou (po blocích, i sever �
 (méně obratů) zorá za den víc
 (Martin: „Volské spřežení chce rýt co nejdelší brázdu“ – oxen.md, Co nejdelší brázda).
 
-| Práce                      | Kdy – ozim     | Kdy – jař                                   | Člověkodny / ha | Zdroj                 |
-| -------------------------- | -------------- | ------------------------------------------- | --------------- | --------------------- |
-| kopání motykou             | září–říjen     | podzim (září–listopad), zbytek březen–duben | 100 (50)        | Semjonov 1974         |
-| setí a zahrabání           | září–říjen     | březen–duben                                | 3,3 \*          | Martin 9. 11. 2026    |
-| pletí (jen jař – jednou)   | neplete se     | květen                                      | 8 (5)           | Martin 25. 10. 2026   |
-| sklizeň srpem a vázání     | červenec–srpen | srpen–září                                  | 20 (15)         | Halstead a Jones 1989 |
-| odnos úrody v nůších       | červenec–srpen | srpen–září                                  | 10              | nedohledáno           |
-| výmlat cepem a převívání   | srpen–září     | září–říjen                                  | 15 (10)         | Clark 2007 (EB 1911)  |
-| **celkem na osetý hektar** |                |                                             | **156 (93)**    |                       |
+| Práce                      | Kdy – ozim     | Kdy – jař                                   | Člověkodny / ha | Zdroj                |
+| -------------------------- | -------------- | ------------------------------------------- | --------------- | -------------------- |
+| kopání motykou             | září–říjen     | podzim (září–listopad), zbytek březen–duben | 100 (50)        | Semjonov 1974        |
+| setí a zahrabání           | září–říjen     | březen–duben                                | 3,3 \*          | Martin 9. 11. 2026   |
+| pletí (jen jař – jednou)   | neplete se     | květen                                      | 8 (5)           | Martin 25. 10. 2026  |
+| sklizeň srpem a vázání     | červenec–srpen | srpen–září                                  | 15 (12)         | průměr, níž          |
+| odnos úrody v nůších       | červenec–srpen | srpen–září                                  | 8               | průměr, níž          |
+| výmlat cepem a převívání   | srpen–září     | září–říjen                                  | 15 (10)         | Clark 2007 (EB 1911) |
+| **celkem na osetý hektar** |                |                                             | **149 (88)**    |                      |
 
 \* Motykou i za rádlem (jeden rozsévač za spřežením – 1 člověkoden na den spřežení), na drnu za
-rádlem 8,3 (Jeden rozsévač za spřežením výš). Dřív 10 čd/ha (celkem 163 (100)).
+rádlem 8,3 (Jeden rozsévač za spřežením výš). Dřív 10 čd/ha (celkem 163 (100)); do 10. 11. 2026
+sklizeň 20 (15) a odnos 10 – celkem 156 (93).
 
 Ozim a jař se liší kalendářem (viz Ozim a jař) a pletím – ozim se neplete (Pletí jednou a rychle);
 ostatní sazby práce, osivo a úroda jsou stejné. Žeň ozimu (i luštěnin a lnu) jde v červenci, co
@@ -1088,6 +1089,18 @@ Pletí dřív 30 (15) čd/ha v květnu–červnu (FAO).
 Žeň 24. 10. 2026 zlevnila (Martin schválil, Žně všemi rukama): sklizeň srpem a vázání 30 → 20
 podle [rešerše](research/2026-10-17-zemedelstvi-populace.md) (doporučení 3: ≈ 20), odnos v nůších
 20 → 10 – návrh Clauda bez opory v rešerši (údaj se nepodařilo dohledat).
+
+**Zprůměrovaná žeň (10. 11. 2026, implementováno):** raní Slované žali dvojím způsobem – těsně
+pod klasem do nůší (rychle, bez vázání, sláma zůstala na poli – hlavně proso), nebo níž a vázali
+snopy. Martin 10. 11. 2026: „Ohledně toho obilí, snopy necháme, ale tu práci bych chtěl
+zprůměrovat. Zatím moc nechci rozlišovat druhy obilí, aby hráč nebyl zahlcen.“ Snopy ve hře
+zůstávají (výmlat, humno, snopy na poli), sazba je průměr obou způsobů (návrh Clauda podle
+Martina): **sklizeň srpem a vázání 20 / 15 → 15 / 12 čd/ha, odnos 10 → 8 čd/ha** (žeň 30 / 25 →
+23 / 20). Žetí pod klasem ≈ 10 / 8 a odnos klasů ≈ 6 čd/ha je vlastní odhad podle Steensberga
+([rešerše](research/2026-10-17-zemedelstvi-populace.md) – železný srp ≈ 60–80 m²/h při nízkém
+řezu; pod klasem se neváže a nese se jen klas). Plán hospodářského roku zapsaný před změnou
+dožne svou úrodu staršími sazbami, další plány nesou nové. Měření – Pořadí důležitosti polních
+prací, Pozdní léto.
 
 #### Žně i v srpnu (9. 11. 2026)
 
@@ -1169,9 +1182,11 @@ nestačí na všechno):
 
 0. **výmlat na dnešní jídlo** (jen kolik se dnes sní – jinak lidé nemají co jíst),
 1. **sklizeň obilí** (žeň a odnos – ozim, jař, i dosklizeň v srpnu a září),
-2. **sklizeň lnu** (trhání),
-3. **sklizeň sena** (seč) – jen první seč; **otava (druhá seč v srpnu a září) až po orbě a setí
-   ozimu** (Martin 9. 11. 2026: „Otava až po orbě a setí ozimu“ – implementováno, níž),
+2. **sklizeň lnu** (trhání) – **ženy a děti trhají souběžně s koncem žní** (Martin 10. 11. 2026,
+   Pozdní léto níž),
+3. **sklizeň sena** (seč) – první seč i **otava (druhá seč v srpnu a září) před orbou a setím
+   ozimu** (Martin 10. 11. 2026, Pozdní léto níž); ~~otava až po orbě a setí ozimu~~
+   (Martin 9. 11. 2026: „Otava až po orbě a setí ozimu“ – platilo 9.–10. 11. 2026, nahrazeno),
 4. **sklizeň jablek**,
 5. **pletí** (ženy a děti – muži jen zbytek a až po stavbách),
 6. **orba, příprava půdy a setí** (vrácení přílohu, klučení, kopání, orba, setí),
@@ -1184,13 +1199,51 @@ okno výmlatu ozimu i jaře až do **konce února**; snopy se v okně nekazí (k
 „Staří slované se snažili dělat výmlat hned“ (20. 10. 2026) a „orba má přednost“ (24. 10. 2026)
 pro střet s žněmi.
 
+**Pozdní léto – len a otava (Martin 10. 11. 2026, implementováno):** po Martinově konzultaci
+o pořadí letních a podzimních prací raných Slovanů – „Sklizeň na etapy … Mezi jednotlivými
+sklizněmi tak vznikaly přirozené mezery právě na vytrhání lnu.“ – Martin schválil („Ano“) návrh
+Clauda: **žeň (ozim, jař) → len → otava → orba, příprava půdy a setí → …** Otava přichází (konec
+srpna – září) po žních a lnu, ale před orbou a setím ozimu; orba a setí ozimu jdou až po otavě
+a žni jaře (v praxi říjen). Okno ozimu (září–říjen) se nemění, jen pořadí důležitosti.
+
+- **Len – ženy a děti napřed** (`womenFirst` v `allocateDay`; návrh Clauda): ve dni, kdy je len
+  zralý (srpen), jdou na trhání **před všemi úlohami dne** výrostci a starší ze žňových rukou
+  (Žně všemi rukama), ženy řemeslníků a ženy vsi prací nad svůj díl denního minima (jako při
+  pletí). Muži a řemeslníci se syny dál žnou a svážejí. Co ženy a děti nestihnou, dostane len
+  z obecné práce dál za žněmi obilí. Len je malý (Vlkov 0,1–0,2 ha ≈ 6–11 čd za rok) – ženy
+  a děti ho vytrhají v prvních srpnových dnech.
+- **Otava** hned za 1. sečí – před jablky, pletím, výmlatem na osivo i přípravou půdy a setím
+  (`DAY_WORK_ORDER`: … `flax-harvest`, `hay`, `aftermath`, `apples` …).
+- **Naměřeno** (Vlkov, kopie stavu DB, 3 roky po dnech od 3. 3. 871; před = feat/landscape
+  f6408cfc, po = pořadí 10. 11. a zprůměrovaná žeň – Práce; „jen žeň a len“ = sazby žně a len
+  napřed, otava dál až po orbě; ozim = oseto k 1. 7. dalšího roku, u 873 k 31. 10.; příděl = dny
+  pod plným přídělem):
+
+  | Ukazatel                       | před               | jen žeň a len         | po                    |
+  | ------------------------------ | ------------------ | --------------------- | --------------------- |
+  | ozim 871 / 872 / 873 (ha)      | 22,6 / 22,4 / 13   | 22,7 / 22,9 / 14      | 16,3 / 25,0 / 18      |
+  | září 871: otava / orba a setí  | 12 / 310 čd        | 11 / 311 čd           | 289 / 73 čd           |
+  | otava 871 (t sena)             | 0,4                | 0,9                   | 9,9                   |
+  | seno 1. 4. 872 / 1. 4. 873 (t) | 0,6 / 8,3          | 1,2 / 8,3             | 9,8 / 8,5             |
+  | len vytrhaný 871 / 872 / 873   | 89 % / 100 % / 0 % | 100 % / 100 % / 100 % | 100 % / 100 % / 100 % |
+  | úroda 871 / 872 / 873 (t)      | 8,1 / 15,2 / 19,5  | 8,1 / 15,2 / 20,4     | 8,1 / 14,9 / 19,5     |
+  | úroda za 3 roky (t)            | 42,7               | 43,7                  | 42,5                  |
+  | příděl 871 / 872 (dní)         | 58 / 213           | 58 / 213              | 50 / 213              |
+  | z toho kvůli osivu 871 / 872   | 58 / 91            | 58 / 91               | 50 / 104              |
+
+  Otava v září 871 (hubený rok) vezme orbě a setí ozimu ≈ 240 čd – ozimu 871 je **o 6,3 ha méně**
+  (víc jde pod jař 872: 11,3 → 16,8 ha), úroda 872 o 0,3 t nižší. Seno po zimě 872 zůstane 9,8 t
+  místo 0,6 t, hlad v prosinci 871 začne o 8 dní později. V dalších letech ozimu přibude (872
+  +2,6 ha, 873 +5 ha) – zprůměrovaná žeň uvolní září (žeň 873 v září 438 → 123 čd). Len vytrhá
+  ves každý rok celý (dřív 873 nic – srpen bral žeň jaře); nedostatek oděvu 871 (35 / 54 kg) a 873
+  (58 / 62 kg) je už jen z malé plochy lnu.
+
 **Implementace** (`DAY_WORK_ORDER` v rules-fields.ts, `dayTaskOrder` v simulate-work.ts; volby
 návrhem Clauda):
 
 - **Otava** (nutná 2. seč – [oxen.md](oxen.md), Seno, dvě seče; `DayTask.aftermath` podle čísla
-  seče v plánu, `mowingCut`): vlastní skupina hned za přípravou půdy a setím, před péčí o sad,
-  hlídkou a výmlatem (návrh Clauda). 1. seč zůstává před jablky, pletím i orbou. Vlkov 871–874
-  (před → po): v září 871 orba a setí 47 → 310 čd, otava 309 → 12 čd; ozim 15,5 → 22,4 ha
+  seče v plánu, `mowingCut`): vlastní skupina hned za 1. sečí, před jablky a přípravou půdy (od 10. 11. 2026 – Pozdní léto výš). ~~Hned za přípravou půdy a setím, před péčí o sad, hlídkou
+  a výmlatem~~ (9.–10. 11. 2026). Měření změny z 9. 11. 2026, Vlkov 871–874 (před → po): v září 871 orba a setí 47 → 310 čd, otava 309 → 12 čd; ozim 15,5 → 22,4 ha
   (jař 872 17,4 → 11,3 ha – víc dílů jde pod ozim), sklizeň 872 + 873 o 1,0 t víc. Seno 30. 9.
   871 36,5 → 26,7 t, k 31. 3. zbylo 0,6 t místo 9,8 t – zimní krmení i tak 100 % (voli i stáda),
   stáda beze změny; dní s přídělem v hubeném roce 871/872 227 → 236 (víc osiva ozimu). V roce
@@ -1561,8 +1614,9 @@ Pravidla (podrobnosti návrh Clauda):
 - **Na tentýž díl nejdřív po 7 letech** (Martin „6 nebo 7“ – návrh Clauda bere 7); len si bere
   jarní díly (setí v dubnu jako dřív) s nejlepší úrodností, na kterých len 7 let nerostl, jen do
   potřeby lnu na oděv.
-- **Trhání lnu v srpnu**; **obilí má vždy absolutní přednost** – len dostane práci až po všech
-  pracích na obilí (žeň, odnos, výmlat); co se do konce srpna nevytrhá, propadne a lnu na oděv
+- **Trhání lnu v srpnu**; ~~**obilí má vždy absolutní přednost** – len dostane práci až po všech
+  pracích na obilí (žeň, odnos, výmlat)~~ – od 10. 11. 2026 trhají **ženy a děti souběžně
+  s koncem žní** (Len – Trhání níž); co se do konce srpna nevytrhá, propadne a lnu na oděv
   chybí (potrhané šaty – dosavadní upozornění a štěstí), nikdo kvůli tomu nehladoví.
 
 Zahrádka od té doby dává jen **luštěniny z celých záhonů** (polozemnice ≈ 195 m² při úrodnosti 70
@@ -1735,6 +1789,13 @@ a „Trhání“ níž; potřeba, výnos, práce, vyčerpání půdy, zpracován
      nestačí, díly **prvního osevu** (čerstvý díl, příloh 70–95 %) – len jim vezme jedno kolo obilí.
      Nouzový příloh pod 70 % ne. Proč i první osev: ves s prvním osevem jaří (založená na jaře) nemá
      díly po ozimu – jař po jaři čeká na ozim a len by neměl kam (ves z testů by v roce 603 lnu neměla).
+- **Ženy a děti trhají souběžně s koncem žní** (Martin 10. 11. 2026: „Sklizeň na etapy … Mezi
+  jednotlivými sklizněmi tak vznikaly přirozené mezery právě na vytrhání lnu.“ – schválený návrh
+  Clauda, Pořadí důležitosti polních prací, Pozdní léto): ve dni, kdy je len zralý, jdou na trhání
+  napřed výrostci a starší ze žňových rukou, ženy řemeslníků a ženy vsi prací nad svůj díl denního
+  minima (jako při pletí) – muži dál žnou a svážejí. Len nezůstane nevytrhaný jen kvůli pořadí
+  (Vlkov 871–873 vytrhá 100 % každý rok, dřív 89 %, 100 %, 0 %). Ve srovnání níž platí pro práci,
+  kterou ženy a děti nestihnou.
 - **Trhání jen v srpnu**; **obilí má přednost** (návrh Clauda, Martin 9. 11. 2026: „Ano. Výmlat
   prý počká i docela hluboko do zimy“): trhání dostane
   práci dne za **všemi žněmi obilí** (žeň a odnos ozimu, luštěnin i jaře, jejíž okno běží do září),
@@ -1745,8 +1806,8 @@ a „Trhání“ níž; potřeba, výnos, práce, vyčerpání půdy, zpracován
   **Rodina vojvody** s lnem nepomáhá (pomáhá „se sklizní“ obilí – návrh Clauda) a trhání lnu
   nepřidá dřinu.
 - **Co srpen nevytrhá, propadne:** 31. 8. se zapíše podíl oděvu = vytrhaný len ÷ potřeba z plánu
-  k 1. 9.; při nedostatku „Chybí len na oděv“ a štěstí až −4 – nikdo nehladoví (obilí nic neztratí,
-  hlídá test). Plán bez potřeby (ves založená během roku, plán z doby zahrádek) oděv nezapíše.
+  k 1. 9.; při nedostatku „Chybí len na oděv“ a štěstí až −4 – nikdo nehladoví (obilí přijde nejvýš
+  o práci žen a dětí – i s lnem ×1000 sklidí aspoň 97 %, hlídá test). Plán bez potřeby (ves založená během roku, plán z doby zahrádek) oděv nezapíše.
 - **Naměřeno – Vlkov** (kopie stavu, 3 roky od 3. 3. 871, 39–42 lidí; před = len na zahrádkách):
 
   | rok                        | 871           | 872             | 873             |
@@ -2824,7 +2885,7 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Ovládání (čtverce na mřížce, panely, vzhled) – ladí se na prototypu                                                                                                                                                                                                       | návrh Clauda                                         |
 | Meze produktivity: čísla s rozpětím mají nejhorší mez (bez řemesel) a nejlepší (s řemesly)                                                                                                                                                                                | Martin (17. 10. 2026)                                |
 | Zatím jen motyky; rádlo a voli později                                                                                                                                                                                                                                    | Martin (17. 10. 2026)                                |
-| Polní práce 163 (s řemesly 100) člověkodní/ha: kopání 100 (50), pletí 8 (5), sklizeň 20 (15) + odnos 10, výmlat 15 (10) – od 25. 10. 2026                                                                                                                                 | Martin – oprava podle rešerše 17. 10. 2026           |
+| Polní práce 163 (s řemesly 100) člověkodní/ha: kopání 100 (50), pletí 8 (5), sklizeň 20 (15) + odnos 10, výmlat 15 (10) – od 25. 10. 2026; od 10. 11. 2026 sklizeň 15 (12) + odnos 8 (Zprůměrovaná žeň)                                                                   | Martin – oprava podle rešerše 17. 10. 2026           |
 | Pletí jednou a rychle: jař, luštěniny a len v květnu (8 / 5, 10 / 6), ozim se neplete; plejí děti → ženy → muži (zbytek po ostatních úlohách)                                                                                                                             | návrh Clauda podle Martina 25. 10. 2026              |
 | Pletí: ženy nesou 3/4 denního minima a plejí prací nad něj; muži plejí s rezervou (tempo žen a dětí × 0,8, bez posledních 5 dní okna)                                                                                                                                     | návrh Clauda                                         |
 | Založení a vrácení přílohu: louka 100 (90), nálet a křoviny 100 (60), les 250 (150) člověkodní/ha                                                                                                                                                                         | Martin – oprava podle rešerše 17. 10. 2026           |
@@ -2935,3 +2996,5 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 | Osev má přednost (Martin 6. 11. 2026): ves si do žní nechá jen přežívací zásobu (hlad do žní pod prahem úmrtí nejcitlivější skupiny bez 1 dne), ostatní zrno je osivo bez stropu podle jídla; co nezaseje, zůstane v zásobách                                             |
 | Luštěniny z polí vyřazené – ves je nesel, výběr dílů je nepřidělí; zásoba luštěnin zůstává zbožím (strava, obchod, platby); zasetá luštěnina starší vsi doroste, nezasetý díl přejde do jaře; zahrádky u obydlí později                                                   | Martin (9. 11. 2026), převod návrh Clauda            |
 | Díly jedna fronta (9. 11. 2026): výběr dílů bez stropu a bez potřeby úrody, všechna polní práce před stavbami, muži plejí až po stavbách; na řadě přílohy 70–95 % až po oseté řadě, nouzové jen při nedostatku                                                            | Martin (25. 10. a 9. 11. 2026), na řadě návrh Clauda |
+| Pozdní léto (10. 11. 2026): žeň (ozim, jař) → len → otava → orba, příprava půdy a setí → …; len trhají ženy a děti napřed souběžně s koncem žní; ~~otava až po orbě a setí ozimu~~ (9. 11. 2026)                                                                          | Martin (10. 11. 2026, „Ano“ k návrhu Clauda)         |
+| Zprůměrovaná žeň (10. 11. 2026): snopy zůstávají, sazba průměr žetí pod klasem a vázání snopů – srp a vázání 15 / 12, odnos 8 čd/ha (dřív 20 / 15 + 10)                                                                                                                   | návrh Clauda podle Martina (10. 11. 2026)            |

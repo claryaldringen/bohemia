@@ -410,11 +410,12 @@ schválený Martinem 25. 10. 2026 (nahrazují seč 1. 6. – 31. 7. a „seč co
    práce** na hektar – kosí se celá plocha (≈ 2,5 čd/ha), obracení, hrabání a svoz jen podle
    hmoty a otava v kratších a rosnějších dnech schne pomaleji (návrh Clauda). Tuna sena z otavy
    tak stojí ≈ 1,5× víc práce – napřed se seče 1. seč, otava jen dorovná, co ve stohu chybí.
-   **Od 9. 11. 2026 jde nutná otava až po orbě a setí ozimu** (Martin 9. 11. 2026: „Otava až po
-   orbě a setí ozimu“; [fields.md](fields.md) – Pořadí důležitosti polních prací a výmlat do
-   zimy): v pořadí práce dne hned za přípravou půdy a setím, 1. seč dál před nimi. V září, kdy ves
-   orá a seje ozim, otava dostane jen práci, která zbude – Vlkov 871: otava 309 → 12 čd, seno
-   k 30. 9. o 9,7 t méně, k 31. 3. zbylo 0,6 t (dřív 9,8 t); zimní krmení i tak celé.
+   **Od 10. 11. 2026 jde nutná otava před orbou a setím ozimu** (Martin 10. 11. 2026 – žeň → len
+   → otava → orba a setí; [fields.md](fields.md) – Pořadí důležitosti polních prací a výmlat do
+   zimy, Pozdní léto): v pořadí práce dne hned za 1. sečí, před jablky a přípravou půdy. Vlkov
+   871: otava v září 12 → 289 čd (≈ 9,9 t sena), seno k 1. 4. 872 0,6 → 9,8 t; ozimu 871 o 6,3 ha
+   méně. ~~Od 9. 11. 2026 jde nutná otava až po orbě a setí ozimu~~ (Martin 9. 11. 2026: „Otava až
+   po orbě a setí ozimu“ – platilo do 10. 11. 2026).
 2. **Kolik.** Seče se tolik, kolik stáda sní: **strop** = seno na zimu pro stáda v cílové velikosti
    (co dovolí pastva, les, pasáci a místa v ohradách – pořadí voli → krávy → ovce → kozy →
    prasata, i s letošními mláďaty), voly ohrad a koně **a 20 % rezervy**, bez zásoby ve stohu.
