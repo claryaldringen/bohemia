@@ -126,11 +126,12 @@ from, direction)` (k nejlevnější buňce okraje, úhlopříčně do rohu). `Ma
   po ušlých metrech louky).
 - **Cíl v neprůchodné buňce** (design war.md – Pohyb; jako v 0 A.D., návrh Clauda 10. 11. 2026) –
   `reachableGoal(grid, from, to)` v `march.ts`: cíl v neprůchodné buňce (voda bez brodu, sráz,
-  hotová hradba; po `outOfBuilding`) posune na střed nejbližší průchodné buňky dosažitelné z `from`
-  (zaplavení `reachableCells` se stejným pravidlem sousedů jako A*; nejbližší podle čtverce
-  vzdálenosti v buňkách, remíza – nejmenší index; jen celočíselná matematika). Průchodný cíl a cíl
-  ve stavbě vrátí beze změny (týž objekt) – i průchodný, ale nedosažitelný (za řekou bez brodu)
-  dál končí `stuck`. Null = z `from` není dosažitelná žádná průchodná buňka. V tažení
+  hotová hradba; po `outOfBuilding`) i v průchodné, kam z `from` cesta nevede (za řekou bez
+  brodu), posune na střed nejbližší průchodné buňky dosažitelné z `from` (zaplavení
+  `reachableCells` se stejným pravidlem sousedů jako A*; nejbližší podle čtverce vzdálenosti
+  v buňkách, remíza – nejmenší index; jen celočíselná matematika). Dosažitelný průchodný cíl a cíl
+  ve stavbě vrátí beze změny (týž objekt). Null = z `from` není dosažitelná žádná průchodná buňka.
+  Zaplavení běží jen při plánování úseku na mapě cíle (`settleGoal`), ne každý takt. V tažení
   `settleGoal` (`campaign.ts`, `moveGroups`): skupina na mapě cíle bez úseku (hned po záměru `march`,
   `turnBack`, rozpadu, nebo po vstupu na mapu cíle) si cíl posune před plánováním úseku – stav pak
   nese posunutý cíl a mapa tažení ho ukáže. Use-case `commandCampaign` záměr k místu na mapě

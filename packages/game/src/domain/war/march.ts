@@ -228,20 +228,22 @@ function reachableCells(grid: MarchGrid, start: number): Uint8Array {
 
 /**
  * Cíl pochodu jako v 0 A.D. (war.md – Pohyb – Cíl v neprůchodné buňce; návrh Clauda): cíl
- * v neprůchodné buňce (voda bez brodu, sráz, hotová hradba) se posune na střed nejbližší průchodné
- * buňky dosažitelné z `from` (`reachableCells`). Nejbližší podle čtverce vzdálenosti v buňkách,
- * remíza – nejmenší index (determinismus). Průchodný cíl a cíl ve stavbě (`outOfBuilding` ho
- * v `marchPath` vyřeší) vrátí beze změny – týž objekt. Null = dosažitelná průchodná buňka není
- * žádná (vojsko stojí v neprůchodné buňce sevřené ze všech stran).
+ * v neprůchodné buňce (voda bez brodu, sráz, hotová hradba) nebo v průchodné, kam z `from` cesta
+ * nevede (za řekou bez brodu), se posune na střed nejbližší průchodné buňky dosažitelné z `from`
+ * (`reachableCells`). Nejbližší podle čtverce vzdálenosti v buňkách, remíza – nejmenší index
+ * (determinismus). Dosažitelný průchodný cíl a cíl ve stavbě (`outOfBuilding` ho v `marchPath`
+ * vyřeší) vrátí beze změny – týž objekt. Null = dosažitelná průchodná buňka není žádná (vojsko
+ * stojí v neprůchodné buňce sevřené ze všech stran).
  */
 export function reachableGoal(grid: MarchGrid, from: Pos, to: Pos): Pos | null {
   const start = outOfBuilding(grid, marchCellAt(grid, from));
   const target = outOfBuilding(grid, marchCellAt(grid, to));
-  if (target === start || grid.pace[target]! > 0) return to;
+  if (target === start) return to;
+  const seen = reachableCells(grid, start);
+  if (grid.pace[target]! > 0 && seen[target] === 1) return to;
   const w = grid.width;
   const ti = target % w;
   const tj = (target - ti) / w;
-  const seen = reachableCells(grid, start);
   let best = -1;
   let bestD = Infinity;
   for (let c = 0; c < seen.length; c++) {

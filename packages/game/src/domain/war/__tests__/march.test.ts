@@ -233,14 +233,27 @@ describe('řeky kostry jen přes brod (war.md – Pohyb – Terén, world-skelet
     expect(reachableGoal(grid, from, click)).toEqual(goal);
   });
 
+  it('průchodný cíl za řekou bez brodu se posune na nejbližší dosažitelný břeh', () => {
+    const grid = marchGrid({ ...flat(), rivers: [main(null)] }, null, null);
+    const from = { x: 0, z: 0 };
+    const across = { x: 500, z: 0 };
+    expect(grid.pace[marchCellAt(grid, across)]!).toBeGreaterThan(0);
+    expect(marchPath(grid, from, across)).toBeNull();
+    const goal = reachableGoal(grid, from, across)!;
+    // západní břeh, kde vojsko stojí – co nejblíž cíli za řekou
+    expect(goal.x).toBeLessThan(247.5);
+    expect(goal.x).toBeGreaterThan(200);
+    expect(Math.abs(goal.z - across.z)).toBeLessThan(10);
+    expect(marchPath(grid, from, goal)).not.toBeNull();
+    // z východního břehu je týž cíl dosažitelný – beze změny
+    expect(reachableGoal(grid, { x: 600, z: 0 }, across)).toBe(across);
+  });
+
   it('průchodný cíl a cíl, kde vojsko stojí, se nemění', () => {
     const grid = marchGrid({ ...flat(), rivers: [main(null)] }, null, null);
     const from = { x: 0, z: 0 };
     const meadow = { x: -300, z: 300 };
     expect(reachableGoal(grid, from, meadow)).toBe(meadow);
-    // průchodný, ale za řekou bez brodu – beze změny (posouvá se jen cíl v neprůchodné buňce)
-    const across = { x: 500, z: 0 };
-    expect(reachableGoal(grid, from, across)).toBe(across);
     const water = { x: 247.5, z: 0 };
     expect(reachableGoal(grid, water, water)).toBe(water);
   });
