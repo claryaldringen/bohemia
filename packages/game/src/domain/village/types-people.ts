@@ -26,6 +26,9 @@ export type Sex = 'male' | 'female';
  * jihovýchod, jih, jihozápad, západ, severozápad.
  */
 export type NeighborDirection = 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SW' | 'W' | 'NW';
+/** Víra (christianity.md – Víra vesničanů). Chybí = pohan. */
+export type Faith = 'christian';
+
 export interface Person {
   id: number;
   bornDay: number;
@@ -39,6 +42,8 @@ export interface Person {
    * `withKinship`.
    */
   sex?: Sex;
+  /** Víra člověka (christianity.md); chybí = pohan. */
+  faith?: Faith;
   /** Matka a otec (id) – chybí, když jsou neznámí (zakladatelé, lidé z okolí, starší vsi). */
   motherId?: number;
   fatherId?: number;

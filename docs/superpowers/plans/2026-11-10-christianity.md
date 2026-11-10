@@ -85,15 +85,15 @@ toYear: number): number | null` (první rok ≤ `toYear`, kdy los padl; rok po r
     `threeFieldAllowed(year: number, baptized: boolean): boolean` (rok ≥ `THREE_FIELD_FROM_YEAR` a
     pokřtěný – zatím nikde nevolané).
 
-- [ ] **Step 1:** Testy: `christianityChance(500) === 0`; kumulativně do roku 600 ≈ 1 % (0,8–1,2),
+- [x] **Step 1:** Testy: `christianityChance(500) === 0`; kumulativně do roku 600 ≈ 1 % (0,8–1,2),
       do 800 ≈ 51 % (48–54), do 900 ≥ 98,5 % (spočti `1 − Π(1 − p)`); `discoveryYear` deterministický
       a `discoveryYear(s, 500, 900)` = první rok, kdy padne los rok po roku (porovnej s ruční smyčkou);
       `threeFieldAllowed(1099, true) === false`, `(1100, false) === false`, `(1100, true) === true`.
-- [ ] **Step 2:** Spusť `npx vitest run src/domain/village/__tests__/faith.test.ts` (v `packages/game`) –
+- [x] **Step 2:** Spusť `npx vitest run src/domain/village/__tests__/faith.test.ts` (v `packages/game`) –
       FAIL.
-- [ ] **Step 3:** Implementuj `rules-faith.ts`, `faith.ts` a typy.
-- [ ] **Step 4:** Testy PASS; `npm run typecheck` z kořene.
-- [ ] **Step 5:** Commit `feat(game): víra – pravidla, typy a los objevu křesťanství`.
+- [x] **Step 3:** Implementuj `rules-faith.ts`, `faith.ts` a typy.
+- [x] **Step 4:** Testy PASS; `npm run typecheck` z kořene.
+- [x] **Step 5:** Commit `feat(game): víra – pravidla, typy a los objevu křesťanství`.
 
 ### K2: Rodové příznaky v DB
 
