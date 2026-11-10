@@ -5,6 +5,7 @@ import { HERD_LABELS, type SelectionDetails } from '@/lib/selection-details';
 import { formatDecimal, formatInteger, formatPercent, plural } from '@/lib/village-format';
 import type { ArmsView } from '@/lib/person-view';
 import { CartGoal } from '@/lib/draft-activity';
+import { BaptizeButton, FaithCross } from '../BaptizeButton';
 import { useRightDenied } from '../rights';
 import { Tooltip } from '../Tooltip';
 import { TargetButton, Stat, ROW, Flag } from './parts';
@@ -139,16 +140,20 @@ export interface EnnobleActions {
 
 /**
  * Člověk vsi (villagers.md – Výběr postavy): co právě dělá (jediný řádek slov), věk, dům (tlačítko
- * ho vybere) a u pasáka zvíře stáda.
+ * ho vybere), u pasáka zvíře stáda, u pokřtěného kříž víry a u vojvody, který se smí nechat
+ * pokřtít, tlačítko křtu (christianity.md – Křest rodu).
  */
 export function PersonBody({
   details,
   onSelectTarget,
   ennoble,
+  onBaptize,
 }: {
   details: Extract<SelectionDetails, { kind: 'person' }>;
   onSelectTarget?: ((target: VillageTarget) => void) | undefined;
   ennoble?: EnnobleActions | undefined;
+  /** Křest vojvody (server action) – vrací důvod odmítnutí, nebo null. */
+  onBaptize?: (() => Promise<string | null>) | undefined;
 }): ReactElement {
   const home = details.home;
   const denied = useRightDenied('ennoble');
@@ -166,6 +171,13 @@ export function PersonBody({
         <Stat icon="date" name="Věk (roky)" testId="selection-person-age">
           {formatInteger(details.age)}
         </Stat>
+        {details.christian && (
+          <Tooltip content="Křesťan" placement="above">
+            <span data-testid="selection-person-christian" tabIndex={0} className="h-5 w-5">
+              <FaithCross size={20} />
+            </span>
+          </Tooltip>
+        )}
         {details.arms && <PersonArms arms={details.arms} horse={details.horse === true} />}
         {details.mount && <PersonMount mount={details.mount} />}
         {home !== null && details.homeIcon && (
@@ -227,6 +239,7 @@ export function PersonBody({
             </button>
           </Tooltip>
         ))}
+        {details.baptizable && onBaptize && <BaptizeButton onBaptize={onBaptize} />}
         {details.draft && (
           <TargetButton
             src={`/icons/resources/${details.draft.kind === 'cart' ? 'cart' : 'ox'}.png`}

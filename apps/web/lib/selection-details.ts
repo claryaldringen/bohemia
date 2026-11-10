@@ -364,6 +364,8 @@ type SelectionKinds =
       abandoned: boolean;
       /** Oprava plotu (abandonment.md – Oprava) – průběh 0–1; bez opravy null. */
       repair: number | null;
+      /** Zbourat (zaorat) – jen pokřtěný rod (christianity.md). */
+      use?: StructureUseView;
     }
   | {
       kind: 'orchard';
@@ -567,6 +569,10 @@ type SelectionKinds =
       herd: HerdSpecies | null;
       /** Smí ho hráč povýšit do šlechtického stavu (vassalage.md – Povýšení vesničana). */
       ennobleable?: boolean;
+      /** Pokřtěný (christianity.md – Víra vesničanů) – malý kříž v panelu; pohan nic. */
+      christian?: boolean;
+      /** Vojvoda se smí nechat pokřtít (christianity.md – Křest rodu) – tlačítko „Nechat se pokřtít“. */
+      baptizable?: boolean;
       /** Dovednosti, když se člověk cvičil (lord.md – Dovednosti); jinak null. */
       arms?: ArmsView | null;
       /** Má koně (jezdec – horses.md). */
@@ -1047,6 +1053,7 @@ function selectionKinds(
       condition: cemetery.fenceCondition,
       abandoned: cemetery.abandoned,
       repair: cemetery.repair,
+      ...(cemetery.use ? { use: cemetery.use } : {}),
     };
   }
   if (target.kind === 'sacred-oak') {
@@ -1324,6 +1331,8 @@ function personDetails(
     herd: herding ? (figure?.herd ?? null) : null,
     arms: person.arms ?? null,
     ennobleable: person.ennobleable === true,
+    christian: person.christian === true,
+    baptizable: person.baptizable === true,
     horse: person.horse === true,
     mount: mountOf(view, id),
     draft:

@@ -1,5 +1,6 @@
 import {
   ALL_RIGHTS,
+  rodBaptized,
   PEN_BY_SPECIES,
   HORSE_PEN_NO_SURPLUS,
   horsePenPayment,
@@ -308,6 +309,8 @@ export interface VillageViewContext {
   rights?: VillageRightsView;
   /** Čekající odchod mladšího syna po pohřbu (`House.pendingDeparture`) – ukáže se v jeho vsi. */
   pendingDeparture?: PendingDeparture | null;
+  /** Vojvoda vsi se smí nechat pokřtít (`VillageAccess.baptizable` – christianity.md). */
+  baptizable?: boolean;
 }
 
 /**
@@ -464,6 +467,11 @@ export function buildVillageView(
       value: summary.happiness.value,
       target: summary.happiness.target,
       laborFactor: summary.happiness.laborFactor,
+      // víra (christianity.md – Štěstí): jen když je co ukázat
+      ...(summary.happiness.christianShare > 0
+        ? { christianShare: summary.happiness.christianShare }
+        : {}),
+      ...(summary.happiness.desecration > 0 ? { desecration: summary.happiness.desecration } : {}),
     },
     sacred: sacredView(state, summary, obstacles, day),
     extinct: villageLifespan(state),
@@ -486,6 +494,10 @@ export function buildVillageView(
         fenceCondition: structureCondition(wear, 'cemetery-fence', day),
         abandoned: isAbandoned(wear),
         repair: repairProgress(summary.constructions, 'cemetery-fence', c.id),
+        // zbourat (zaorat) smí jen pokřtěný rod – pohanovi se tlačítko neukáže (christianity.md)
+        ...(rodBaptized(state)
+          ? structureUseOf(state, summary, { structure: 'cemetery', id: c.id }, day)
+          : {}),
       };
     }),
     orchards: summary.orchards.map((o) => {
@@ -515,7 +527,12 @@ export function buildVillageView(
     roads: roadViews(state, landscape, day, summary),
     ...fortificationsOf(state, landscape, day, obstacles),
     scene: {
-      ...sceneWithCartWorld(sceneVillage(state, landscape, day, summary), state, landscape, day),
+      ...sceneWithCartWorld(
+        sceneVillage(state, landscape, day, summary, context.baptizable === true),
+        state,
+        landscape,
+        day,
+      ),
       trails: sceneTrails(state),
       expeditions: sceneExpeditions(state),
     },

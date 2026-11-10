@@ -26,6 +26,7 @@ import { PANEL_HOTKEYS } from '@/lib/panel-keys';
 import { formatDecimal, formatInteger, formatPercent, plural } from '@/lib/village-format';
 import type { VillageListItem } from '@/lib/village-list';
 import type { VillageView } from '@/lib/village-view';
+import { FaithCross } from './BaptizeButton';
 import { Tooltip } from './Tooltip';
 import { VillageSwitcher } from './VillageSwitcher';
 
@@ -209,6 +210,36 @@ export function SatiationTooltip({ view }: { view: VillageView }): ReactElement 
           </span>
         ))}
       </span>
+    </span>
+  );
+}
+
+/**
+ * Popisek štěstí (happiness.md; christianity.md – Štěstí): pod názvem podíl křesťanů (kříž víry)
+ * a nespokojenost pohanů se zničenými posvátnými místy (háj) – každý řádek jen, když je nad nulou.
+ */
+export function HappinessTooltip({
+  happiness,
+}: {
+  happiness: Pick<VillageView['happiness'], 'christianShare' | 'desecration'>;
+}): ReactElement {
+  const christians = happiness.christianShare ?? 0;
+  const desecration = Math.round(happiness.desecration ?? 0);
+  return (
+    <span className="flex flex-col gap-0.5" data-testid="happiness-tooltip">
+      <span>Štěstí</span>
+      {christians > 0 && (
+        <span data-testid="happiness-christians" className="flex items-center gap-1 tabular-nums">
+          <FaithCross size={16} className="h-4 w-4" />
+          Křesťané {formatPercent(christians)}
+        </span>
+      )}
+      {desecration > 0 && (
+        <span data-testid="happiness-desecration" className="flex items-center gap-1 tabular-nums">
+          <img src="/icons/build/haj.png" alt="" width={16} height={16} className="h-4 w-4" />
+          Pohané – zničená posvátná místa −{desecration}
+        </span>
+      )}
     </span>
   );
 }
@@ -695,7 +726,11 @@ export function TopBar({
               filter={SATIATION_GLOW[satiation]}
             />
           </span>
-          <Resource icon="happiness" name="Štěstí" testId="village-happiness">
+          <Resource
+            icon="happiness"
+            name={<HappinessTooltip happiness={view.happiness} />}
+            testId="village-happiness"
+          >
             {Math.round(view.happiness.value)}
           </Resource>
           {view.weather && <WeatherIcons weather={view.weather} />}

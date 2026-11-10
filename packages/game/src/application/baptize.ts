@@ -1,6 +1,6 @@
 import { sendRodBaptized, type RodBaptizedDeps } from './advance-christianity';
 import type { HouseRepository } from './houses';
-import { requireRight, type RightsDeps } from './rights';
+import { ACTION_RIGHTS, requireRight, type RightsDeps } from './rights';
 import type { StewardshipRepository } from './stewardships';
 
 // Křest vojvody (christianity.md – Křest rodu): hráč nechá svého vojvodu pokřtít – rod je od toho
@@ -31,7 +31,7 @@ export async function baptizeLord(
   deps: BaptizeDeps,
   input: { playerId: string; villageId: string; today: number },
 ): Promise<BaptizeResult> {
-  const found = await requireRight(deps, { ...input, right: 'ennoble' });
+  const found = await requireRight(deps, { ...input, right: ACTION_RIGHTS.baptizeLord });
   if (typeof found === 'string') return { ok: false, reason: found };
   const house = await deps.houses.activeOf(input.playerId);
   if (!house || house.christianityKnownYear === null) {

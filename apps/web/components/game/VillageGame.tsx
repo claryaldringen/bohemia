@@ -44,6 +44,7 @@ import {
   leaveVillage,
   choosePlayerDeparture,
   nameLineMan,
+  baptizeLord,
   ennobleVillager,
   settleJourney,
   placeCemetery,
@@ -1732,6 +1733,13 @@ export function VillageGame({
     return runAction(() => ennobleVillager({ villageId, personId, targetVillageId }));
   };
 
+  /** Hráč nechá pokřtít vojvodu (server ověří právo, znalost a že vojvoda žije tady). */
+  const baptize = (): Promise<string | null> => {
+    const villageId = viewRef.current?.id;
+    if (!villageId) return Promise.resolve(CONNECTION_FAILED);
+    return runAction(() => baptizeLord({ villageId }));
+  };
+
   /** Zavře panel jména – vojvoda bez jména se sám znovu nenabídne, čeká upozornění. */
   const closeLineName = (): void => {
     setNamingId(null);
@@ -1856,6 +1864,7 @@ export function VillageGame({
                 targets: (view?.villages ?? []).filter((v) => v.awaitingLord && v.id !== view?.id),
                 onEnnoble: ennoble,
               }}
+              onBaptize={baptize}
               onSelectTarget={setSelected}
               onSetSteward={(on) => {
                 const villageId = viewRef.current?.id;
