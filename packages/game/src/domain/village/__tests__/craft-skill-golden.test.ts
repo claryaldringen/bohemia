@@ -150,6 +150,9 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
     // hash 7450793f (9. 11. 2026 večer, len zpět na poli – fields.md, Len): díly lnu do potřeby na
     // oděv, trhání v srpnu za žněmi obilí, zahrádka jen luštěniny – jiný osev, práce a štěstí; dřív
     // 5a2a134f
-    expect(hash(stripped)).toBe('7450793f');
+    // hash 84a9a56 (10. 11. 2026, zima bez sena – diet.md a oxen.md, Zima bez sena): seč srpem
+    // (menší seno z volné práce `mowCapacityKg`, dražší vůl `oxCost`), stádo žere jen ve sněhu
+    // (`herdNeedKg`); stáda, lidé a zásoby beze změny; dřív 7450793f
+    expect(hash(stripped)).toBe('84a9a56');
   }, 120_000);
 });

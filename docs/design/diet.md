@@ -393,6 +393,43 @@ jen po seči na otavě“ (18. 10. 2026). Detaily návrh Clauda:
   v sadu ani na záhonech pozemků (pozemek je oplocený); přechody mezi pastvinami vedou kolem.
 - Slepice kolem domů a voli nebo krávy v ohradě pasáka nepotřebují.
 
+#### Zima bez sena – pastva, sláma a chovné jádro (Martin 10. 11. 2026, schváleno)
+
+Martin, 10. 11. 2026: „**zjistil jsem totiž, že ranní slované neměli kosu a senoseč tak byla cca
+2x náročnější než sklizeň obilí**“ (seč srpem – [oxen.md](oxen.md), Zima bez sena). Ke konzultaci
+o zimním režimu dobytka (podzimní porážka na chovné jádro, celoroční pastva v lese, sláma
+a plevy, seno jako vzácnost pro tažné voly): „**Stačí to bez letniny – byla by to další
+komplexita navíc**“; k celku: „**vyzkoušíme to rovnou na Vlkově**“. Čísla a podrobnosti jsou
+návrh Clauda:
+
+- **Seno celou zimu jen voli a koně** – mají ze sena přednost. Ostatní dobytek senem jen
+  přilepšuje, když napadne sníh.
+- **Krávy, ovce a kozy se v zimě pasou** v lese a na úhorech jako prasata a krmí se **jen ve
+  dnech, kdy leží sníh** – týž sníh jako ve scéně (běžná zima ≈ od začátku prosince do začátku
+  března, **93 dní**; dlouhá zima déle, holomráz bez sněhu). Dávky beze změny – kráva 5 kg, ovce
+  a koza 1 kg sena denně; **bez letniny** (Martin).
+- **Sláma** z výmlatu obilí – **0,75 kg slámy na kg vymláceného zrna** (obilí má ≈ 1,5 kg slámy
+  na kg zrna, ale do snopů jde jen polovina sklizně – druhá se žne pod klasem a sláma zůstane na
+  strništi; [fields.md](fields.md) – Zprůměrovaná žeň). **2 kg slámy nahradí 1 kg sena** (sláma
+  má asi polovinu živin sena). Ve sněhu žerou krávy, ovce a kozy **napřed slámu, pak seno**.
+  Sláma z luštěnin ani plevy se nepočítají.
+- **Sláma ve stohu** ztrácí jako seno (10 % ročně) a **zbytek jde 25. 5. s loňským senem na
+  podestýlku** – jedno pravidlo pro oba stohy a sláma z jedné úrody je na jednu zimu (rozhodnutí
+  Clauda). Sláma není surovina hráče ani zboží – jen krmivo, v rozhraní se neukazuje (jako
+  v 0 A.D. bez popisků).
+- **Chovné jádro.** Porážka 1. 11. (Porážka v zimě, Chovné stádo podle potřeby) nechá krav, ovcí
+  a koz jen tolik, kolik **seno po volech a koních a sláma** (zásoba i snopy obilí před výmlatem)
+  uživí na dny se sněhem běžné zimy; přebytek jde na maso jako dosud (napřed čeká na zimní porážku
+  – Porážka v zimě). Přes zimu ves každý den přepočítá zbývající dny se sněhem (od 1. 3. v odhalené
+  dlouhé zimě déle) a co seno a sláma neuživí, hned porazí – chovný pár zůstane
+  ([oxen.md](oxen.md) – Co nejvíc sena a co největší stáda). Voli a koně se neporážejí; když jim
+  chybí přes polovinu sena, hynou jako dosud.
+- **Kolik se seče** – [oxen.md](oxen.md), Zima bez sena (dny se sněhem bez slámy z loňského
+  výmlatu).
+
+Zrušeno: ~~seno pro krávy, ovce a kozy celou zimu (listopad–březen)~~ a ~~letnina počítaná jako
+seno~~ (Zimní krmení a zimní úhyn níž, oxen.md – Seno).
+
 #### Zimní krmení a zimní úhyn
 
 **Změna (24. 10. 2026, návrh Clauda, schválený Martinem):** zimní úhyn nahradila porážka – když seno během zimy nevystačí do konce března, ves hned porazí tolik koz, ovcí a krav (v tomto pořadí), aby ostatní měli celou dávku; chovný pár zůstane. Martin: „Když se v zimě zjistí, že pro krávy není krmení, tak se dají prodat nebo porazit.“ Prodává jen hráč (oxen.md – Co nejvíc sena a co největší stáda). Odstavec o úhynu níž platil do té doby.
@@ -400,8 +437,9 @@ jen po seči na otavě“ (18. 10. 2026). Detaily návrh Clauda:
 Martin: „**Nezdá se mi, že bychom sklízeli tolik sena, že by to stáda uživilo.**“
 
 - Seno přes zimu (listopad–březen) žerou **krávy (5 kg denně), voli (6 kg), ovce a kozy (1 kg)** –
-  dávky malého raně středověkého skotu (≈ 200–250 kg); letnina pro ovce a kozy je počítaná jako
-  seno. Výnos, práce seče a ztráty ve stohu – [orání rádlem](oxen.md), Seno.
+  dávky malého raně středověkého skotu (≈ 200–250 kg); ~~letnina pro ovce a kozy je počítaná jako
+  seno~~. Od 10. 11. 2026 celou zimu jen voli a koně, krávy, ovce a kozy jen ve sněhu a napřed
+  slámu (Zima bez sena výš). Výnos, práce seče a ztráty ve stohu – [orání rádlem](oxen.md), Seno.
 - **Nosnost přes zimu** bere seno pro všechny, kdo ho jedí (voli první, pořadí výš).
 - **Zimní úhyn (1. 3.):** krávy, ovce a kozy přežijí zimu i o polovičním přídělu sena (zhubnou);
   když dostaly méně, stádo se zmenší na tolik kusů, kolik by polovinu přídělu mělo – **chovný pár
@@ -447,7 +485,8 @@ výrostků, které se do hry nedostalo.
 - **Porážka jen v zimě** – od 1. 11. do konce zimního krmení (31. 3.); na jaře ani v létě ne.
   Výjimkou zůstává nouzová porážka (Nouzová porážka, selata od 1. 9.).
 - **1. 11. ves rozhodne, co nechá přes zimu:**
-  - nejvýš tolik, kolik uživí pastva, seno a les a kolik výrostci přes rok uhlídali (Stáda
+  - nejvýš tolik, kolik uživí pastva, seno (od 10. 11. 2026 i sláma, krávy, ovce a kozy jen na
+    dny se sněhem – Zima bez sena) a les a kolik výrostci přes rok uhlídali (Stáda
     realističtěji, Pasáci);
   - **místo pro mláďata:** stádo přes zimu i s jarními mláďaty (porody z pravidel) nesmí
     přesáhnout, co uhlídají výrostci příštího léta – ves je odhadne z věku dnešních dětí (kdo
@@ -470,7 +509,8 @@ výrostků, které se do hry nedostalo.
   kg masa (prasata v lese, krávy, ovce, kozy), porážejí se v opačném pořadí (kozy, ovce, krávy,
   prasata nakonec), aby spotřebovaly co nejméně sena – tak se vyváží „porazíš hned na začátku
   zimy – nemusíš ho krmit senem“ s „ideálně čerstvé“. Kus čekající na porážku žere seno nebo les
-  (prasata jen do nosnosti lesa vedle stáda přes zimu) až do dne porážky.
+  (prasata jen do nosnosti lesa vedle stáda přes zimu) až do dne porážky – od 10. 11. 2026 krávy,
+  ovce a kozy seno jen ve sněhu (Zima bez sena).
 - **Seno:** když seno na čekající kusy nestačí, ves ty, které neuživí, porazí hned (od posledních
   na řadě – krávy, ovce, kozy) a jejich maso udí. Seč 1. 6. počítá i se senem pro kusy, které
   budou čekat (odhad z dnešního stáda a plánu stáda přes zimu).
@@ -1262,3 +1302,4 @@ výsledek porážky (kusy, maso) nemá vliv. Podrobnosti a soubory: `docs/code/s
 | Místa jsou tvrdá mez i pro ovce na vlnu a krávy na mléko a voly; kusy čekající na zimní porážku jen do volných míst                                                                                              | rozhodnutí Clauda                                 |
 | Roční odklad míst – porážka aspoň 365 dní po založení vsi nebo zavedení pravidla; upozornění i během odkladu                                                                                                     | návrh Clauda                                      |
 | Kráva navíc na každé 4 voly (býčci ≈ 0,4 na krávu a rok, obměna desetiny volů ročně); bez ohrady skotu krávy nejsou                                                                                              | návrh Clauda, Martin („Ano, udělej to jak říkáš“) |
+| Zima bez sena: krávy, ovce a kozy se pasou, krmí se jen ve sněhu – napřed sláma (0,75 kg na kg zrna, 2 : 1 za seno), chovné jádro podle krmení; bez letniny                                                      | Martin (10. 11. 2026), čísla návrh Clauda         |

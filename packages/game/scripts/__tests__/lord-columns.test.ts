@@ -10,6 +10,9 @@ const EMPTY = packObstacles([], 16, 15);
 describe('sloupce rodiny a koní', () => {
   it('ves s ohradou koní a koupenými koňmi: rodina cvičí, koně a obilí koní se počítají', () => {
     let s = horseVillage([horse(1, 6, 'male', 20), horse(2, 5, 'female')]);
+    // seno na zimu i pro koně – osadníci přivezli jen seno stáda na dny se sněhem (diet.md – Zima
+    // bez sena)
+    s.hay = { kg: 5_000, mowing: null };
     // koupě (obchod): dva koně navíc do ohrady koní
     addHorses(
       s,

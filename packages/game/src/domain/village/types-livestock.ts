@@ -85,6 +85,21 @@ export interface HayState {
    * cílových stád (`mowingCapacityKg`). Chybí = ves ještě sezónu nezapsala, stáda bez stropu.
    */
   mowCapacityKg?: number;
+  /**
+   * Sláma z výmlatu obilí (diet.md – Zima bez sena) – krmivo krav, ovcí a koz ve dnech se sněhem
+   * (napřed před senem), ne surovina hráče. Chybí = ves zatím nemlátila (starší ves – bez slámy).
+   */
+  straw?: StrawState;
+}
+
+/** Sláma ve stohu (kg) – zásoba, letošní výmlat a loňský výmlat (odhad pro plán seče). */
+export interface StrawState {
+  /** Zásoba slámy (kg) – ztrácí jako seno, 25. 5. jde zbytek na podestýlku. */
+  kg: number;
+  /** Sláma vymlácená od letošního plánu 1. seče (25. 5.). */
+  yearKg: number;
+  /** Sláma vymlácená za loňský rok (do 25. 5.) – s ní počítá plán seče; chybí = zatím nevíme. */
+  lastYearKg?: number;
 }
 
 /**

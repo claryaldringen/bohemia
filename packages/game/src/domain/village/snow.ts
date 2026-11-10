@@ -2,7 +2,7 @@
 // docs/code/scene.md, Roční období): jeden výpočet pro scénu (`seasonLook` v apps/web) i simulaci
 // (když leží sníh, voda se nenosí – `dayChores`). Jen deterministická matematika.
 
-import { dateOfDayIndex } from '../calendar';
+import { dateOfDayIndex, isLeapYear } from '../calendar';
 import { smoothstep } from '../landscape/det-math';
 import { DAY_CHORES } from './rules';
 import type { WinterWeather } from './types-disasters';
@@ -84,4 +84,48 @@ export function snowCover(dayOfYear: number, winter: WinterWeather = 'normal'): 
  */
 export function snowLies(day: number, winter: WinterWeather = 'normal'): boolean {
   return snowCover(dateOfDayIndex(day).dayOfYear, winter) >= DAY_CHORES.snowLies;
+}
+
+/** Leží sníh v den roku 1–366 (index) – po zimách, spočítané při prvním dotazu (`snowLies`). */
+const SNOW_DAYS = new Map<WinterWeather, readonly boolean[]>();
+
+function snowDays(winter: WinterWeather): readonly boolean[] {
+  let days = SNOW_DAYS.get(winter);
+  if (!days) {
+    days = Array.from(
+      { length: SEASON_YEAR_DAYS + 2 },
+      (_, d) => d >= 1 && snowCover(d, winter) >= DAY_CHORES.snowLies,
+    );
+    SNOW_DAYS.set(winter, days);
+  }
+  return days;
+}
+
+/**
+ * Kolik z `days` dní od dne `day` (index herního dne, včetně) leží sníh se zimou `winter` – týž sníh
+ * jako `snowLies` (diet.md – Zima bez sena: krávy, ovce a kozy se krmí jen ve sněhu).
+ */
+export function snowDaysAhead(day: number, days: number, winter: WinterWeather = 'normal'): number {
+  const table = snowDays(winter);
+  const date = dateOfDayIndex(day);
+  let dayOfYear = date.dayOfYear;
+  let year = date.year;
+  let count = 0;
+  for (let i = 0; i < days; i++) {
+    if (table[dayOfYear]) count++;
+    dayOfYear++;
+    if (dayOfYear > (isLeapYear(year) ? 366 : 365)) {
+      dayOfYear = 1;
+      year++;
+    }
+  }
+  return count;
+}
+
+/** Dní nepřestupného roku, kdy se zimou `winter` leží sníh. */
+export function snowDaysOfYear(winter: WinterWeather = 'normal'): number {
+  const table = snowDays(winter);
+  let count = 0;
+  for (let d = 1; d <= SEASON_YEAR_DAYS; d++) if (table[d]) count++;
+  return count;
 }

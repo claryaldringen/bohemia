@@ -1,5 +1,6 @@
 import { TOTAL_GAME_DAYS, dateOfDayIndex, dayIndexOf } from '../calendar';
 import { addThreshedGrain } from './grain-pits';
+import { addStraw } from './hay';
 import { villageLegumesKg } from './legumes';
 import { CROP_ORDER, CROP_WINDOWS, PLANNING_DAY, THRESHING, type WindowSegment } from './rules';
 import type { Sheaves, ThreshedCrop, VillageState } from './types';
@@ -593,6 +594,8 @@ export function threshCrop(state: VillageState, task: ThreshTask, labor: number)
     state.storesKg += threshed;
     // vymlácené zrno čeká na humně na uložení do jam (production-chains.md – Obilné jámy)
     addThreshedGrain(state, threshed);
+    // sláma do stohu – zimní krmivo krav, ovcí a koz (diet.md – Zima bez sena)
+    addStraw(state, threshed);
   } else state.legumesKg = villageLegumesKg(state) + threshed;
   return { floor, ground };
 }

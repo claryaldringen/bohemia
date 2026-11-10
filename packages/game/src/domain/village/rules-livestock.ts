@@ -207,20 +207,31 @@ export const HOMESTEAD_HERD = { sheep: 2, goat: 1, pig: 1, cow: 0 } as const;
  * ohradu před 1. 11. nestihla, Vlkov by přišel o stáda přes noc).
  */
 export const PEN_GRACE = { graceDays: 365 } as const;
-// oxen.md – Seno (Martin 19. 10. 2026: „Nezdá se mi, že bychom sklízeli tolik sena, že by to stáda
-// uživilo“; čísla návrh Clauda podle rešerše research/2026-10-19-herds-hay-meat.md): seč kosou
-// ≈ akr (0,4 ha) za den, krátkou kosou a srpem méně, obracení, sušení, hrabání do kup, svoz
-// a stohování – celkem 10–15 člověkodní na hektar louky. Nejlepší mez s nástroji od kováře (kosy),
-// nejhorší bez nich. Dřív 6 člověkodní (jen seč).
-export const HAY_WORK_PER_HA: Bounds = { worst: 15, best: 10 };
+// oxen.md – Seno, Zima bez sena (Martin 10. 11. 2026: „zjistil jsem totiž, že ranní slované neměli
+// kosu a senoseč tak byla cca 2x náročnější než sklizeň obilí“; čísla návrh Clauda): seč srpem,
+// obracení, sušení, hrabání do kup, svoz a stohování – 2× zprůměrovaná žeň obilí (HARVEST_WORK_PER_HA
+// 23 / 20 člověkodní na hektar, fields.md – Zprůměrovaná žeň). Nejlepší mez s nástroji od kováře
+// (srpy), nejhorší bez nich; kosa se zatím nezavádí. Dřív 15 / 10 (seč kosou ≈ akr za den – od
+// 19. 10. 2026) a předtím 6 člověkodní (jen seč).
+export const HAY_WORK_PER_HA: Bounds = { worst: 46, best: 40 };
+/**
+ * diet.md – Zima bez sena (Martin 10. 11. 2026: „Stačí to bez letniny“; čísla návrh Clauda):
+ * krávy, ovce a kozy se ve dnech se sněhem krmí napřed slámou z výmlatu. `perGrainKg` – kg slámy na
+ * kg vymláceného zrna: obilí má ≈ 1,5 kg slámy na kg zrna, ale do snopů jde jen polovina sklizně
+ * (druhá se žne pod klasem a sláma zůstane na strništi – fields.md, Zprůměrovaná žeň). `perHayKg` –
+ * kg slámy nahradí kg sena (sláma má asi polovinu živin sena). Sláma ve stohu ztrácí jako seno
+ * (HAY.storageLossPerYear) a zbytek jde 25. 5. s loňským senem na podestýlku.
+ */
+export const STRAW = { perGrainKg: 0.75, perHayKg: 2 } as const;
 /**
  * oxen.md – Seno, dvě seče (Martin 25. 10. 2026: „Tak ony jsou v roce 2 senoseče: 1. konec května
  * – konec června 2. srpen – září.“; čísla návrh Clauda schválený Martinem 25. 10. 2026):
  * 1. seč v okně 25. 5. – 30. 6., 2. seč (otava) 1. 8. – 30. 9. jen na loukách posečených letos
  * v 1. seči. Otava dá ≈ 40 % sena 1. seče (`aftermathYieldShare`) a stojí 60 % práce na hektar
- * (`aftermathWorkShare` – kosí se celá plocha, ≈ 2,5 čd/ha, obracení, hrabání a svoz jen podle
- * hmoty, ≈ 40 %; zaokrouhleno nahoru, otava v kratších a rosnějších dnech schne pomaleji). Seče se
- * na zimu stád v cílové velikosti a 20 % rezervy navíc (`reserve`).
+ * (`aftermathWorkShare` – seče se celá plocha, obracení, hrabání a svoz jen podle hmoty;
+ * zaokrouhleno nahoru, otava v kratších a rosnějších dnech schne pomaleji). Seče se na zimu stád
+ * v cílové velikosti a 20 % rezervy navíc (`reserve`) – voli a koně celou zimu, krávy, ovce a kozy
+ * jen na dny se sněhem, bez očekávané slámy (diet.md – Zima bez sena).
  */
 export const HAY_CUTS = {
   first: { from: { month: 5, day: 25 }, to: { month: 6, day: 30 } },

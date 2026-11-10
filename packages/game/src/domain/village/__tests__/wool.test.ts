@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import { happinessFactors } from '../happiness';
-import { winterHayKg } from '../hay';
+import { PLAN_HAY_KEEP, winterHayKg } from '../hay';
 import { LIVESTOCK, slaughter, winterTargets } from '../livestock';
 import { WOOL } from '../rules';
 import { advanceVillage } from '../simulate';
@@ -50,7 +50,7 @@ describe('vlna na oděv', () => {
   it('osadníci nové vsi mají ovcí na vlnu pro všechny a seno na první zimu', () => {
     const s = village();
     expect(s.livestock!.herds.sheep).toBeGreaterThanOrEqual(woolSheep(s, s.lastDay));
-    expect(s.hay?.kg).toBeCloseTo(winterHayKg(s.livestock!.herds, 0), 9);
+    expect(s.hay?.kg).toBeCloseTo(winterHayKg(s.livestock!.herds, 0) / PLAN_HAY_KEEP, 9);
     // ves založená na podzim přezimuje i s ovcemi na vlnu – když má ohradu ovcí (oxen.md – Ohrady
     // podle druhu)
     const autumn = withRoomyPens(
