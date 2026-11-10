@@ -85,6 +85,7 @@ import { work } from './simulate-work';
 import { patrolHuntDay, settlePatrol } from './field-patrol';
 import { huntDay, planHuntDay } from './hunt';
 import { dogsYear } from './manor-dogs';
+import { conversionDay } from './conversion';
 import { wildlifeYearDay, withWildlife } from './wildlife';
 import { weatherDay } from './weather';
 import { partProtectionDay } from './part-protection';
@@ -338,6 +339,8 @@ function* simulateDaySteps(
   // paměť hladu: po krutém roce drží ves 10 let vyšší pojistku – před plánem osevu
   // (disasters.md – Dopady, Zásoby a pojistka)
   famineMemoryDay(state, day);
+  // 1. 1.: dospělí pohané se v pokřtěném rodě obracejí (christianity.md – Obrácení)
+  state.chronicle.push(...conversionDay(state, day));
   if (isOn(date, PLANNING_DAY)) startSeason(state, day, coverage, landscape);
   const waiting = seasonDay(state, day, coverage);
   yield;

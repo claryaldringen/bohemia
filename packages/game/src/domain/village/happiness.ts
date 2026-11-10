@@ -1,5 +1,6 @@
 import { TOTAL_GAME_DAYS, dateOfDayIndex, dayIndexOf } from '../calendar';
 import type { ObstacleLayer } from '../landscape';
+import { christianShare, hasChurch } from './conversion';
 import { DIET, meatHappiness } from './diet';
 import { isOvercrowded } from './dwellings';
 import { fieldFoodShare, fieldStoresKg } from './field-food';
@@ -12,6 +13,7 @@ import {
   HAPPINESS_PENALTY,
   type WindowSegment,
 } from './rules';
+import { FAITH } from './rules-faith';
 import { sacredHappiness } from './sacred';
 import { woolUnhappiness } from './wool';
 import type { ChronicleEvent, HappinessState, VillageState } from './types';
@@ -66,8 +68,14 @@ export interface HappinessFactors {
   fruit: number;
   /** Lidé jedí maso – až +3 podle podílu energie z masa (diet.md – Luštěniny, Martin). */
   meat: number;
-  /** Posvátná místa – nejvýš +40. */
+  /** Posvátná místa pohanů – nejvýš +40 (křesťanům 0). */
   sacred: number;
+  /** Nespokojenost pohanů se zničenými posvátnými místy (christianity.md), nejvýš 30; chybí = 0. */
+  desecration?: number;
+  /** Kostel přidá křesťanům jako posvátná místa (jen s kostelem, nejvýš 40); chybí = 0. */
+  church?: number;
+  /** Podíl křesťanů mezi lidmi vsi (0–1); chybí = 0. */
+  christianShare?: number;
   /** Chybí vlna na oděv – až 6 podle podílu, na který ovce vlnu nedají (diet.md – Oděv). */
   wool: number;
   /** Chybí len na oděv – až 4 podle podílu, na který lnu není (fields.md – Len, diet.md – Oděv). */
@@ -75,13 +83,12 @@ export interface HappinessFactors {
 }
 
 /**
- * Cílové štěstí = 50 + posvátná místa + zásoby + ovoce + maso − hlad − úmrtí − přeplněnost − dřina
+ * Cílové štěstí = vážený průměr cíle pohanů a křesťanů (jedna skupina = její cíl); cíl skupiny = 50 + posvátná místa + zásoby + ovoce + maso − hlad − úmrtí − přeplněnost − dřina
  * − chybějící vlna a len (0–100).
  */
 export function happinessTarget(f: HappinessFactors): number {
-  const value =
+  const common =
     HAPPINESS.base +
-    f.sacred +
     f.stores +
     f.fruit +
     f.meat -
@@ -91,7 +98,12 @@ export function happinessTarget(f: HappinessFactors): number {
     f.toil -
     f.wool -
     f.linen;
-  return Math.min(HAPPINESS.max, Math.max(HAPPINESS.min, value));
+  const clamp = (v: number): number => Math.min(HAPPINESS.max, Math.max(HAPPINESS.min, v));
+  const pagan = clamp(common + f.sacred - (f.desecration ?? 0));
+  const share = f.christianShare ?? 0;
+  if (share <= 0) return pagan;
+  // vážený průměr cíle pohanů a křesťanů podle počtu lidí (christianity.md – Štěstí)
+  return (1 - share) * pagan + share * clamp(common + (f.church ?? 0));
 }
 
 /** Hlad: nasycení pod 0,9 ubere lineárně až 40 (při nulovém nasycení). */
@@ -138,6 +150,25 @@ export function hasGoodStores(state: VillageState, day: number): boolean {
   return need > 0 && fieldStoresKg(state, day) > need * DAYS_PER_YEAR * HAPPINESS_BONUS.storesYears;
 }
 
+/** Složky víry: podíl křesťanů, nespokojenost pohanů a kostel křesťanů (jen když se liší od 0). */
+function faithFactors(
+  state: VillageState,
+): Pick<HappinessFactors, 'desecration' | 'church' | 'christianShare'> {
+  const d = state.faith?.desecrated;
+  const desecration = d
+    ? Math.min(
+        FAITH.desecration.max,
+        FAITH.desecration.oakOrGrove * d.oaksOrGroves + FAITH.desecration.cemetery * d.cemeteries,
+      )
+    : 0;
+  const share = christianShare(state);
+  return {
+    ...(desecration > 0 ? { desecration } : {}),
+    ...(share > 0 ? { christianShare: share } : {}),
+    ...(share > 0 && hasChurch(state) ? { church: FAITH.churchHappiness } : {}),
+  };
+}
+
 /**
  * Složky cílového štěstí vsi v den `day` při nasycení `satiation`; `fruit` – lidé dnes jedí ovoce,
  * `meatShare` – podíl energie dne z masa (diet.md); `obstacles` – vrstva překážek krajiny (stáří
@@ -163,6 +194,7 @@ export function happinessFactors(
     fruit: fruit ? DIET.fruitHappiness : 0,
     meat: meatHappiness(meatShare),
     sacred: sacredHappiness(state, day, obstacles, premiumSacred),
+    ...faithFactors(state),
     wool: woolUnhappiness(state),
     linen: linenUnhappiness(state),
   };

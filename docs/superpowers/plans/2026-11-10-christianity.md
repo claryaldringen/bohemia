@@ -227,13 +227,13 @@ dvorce jako vdovy po vojvodech (`lordWidows`). Ves na cestě použije ze schrán
   Cílové štěstí = vážený průměr cíle pohanů (posvátná místa − nespokojenost z `faith.desecrated`)
   a křesťanů (kostel `FAITH.churchHappiness`, posvátná místa 0) podle počtu lidí.
 
-- [ ] **Step 1:** Testy: ves bez křtu – štěstí přesně jako dnes (zlatý otisk beze změny); ves samých
+- [x] **Step 1:** Testy: ves bez křtu – štěstí přesně jako dnes (zlatý otisk beze změny); ves samých
       pohanů po zničení háje −15 bez časové meze; 2 háje + hřbitov = −30 (strop); ves samých křesťanů
       nespokojenost 0 (kostel zatím není – posvátná místa jim 0); půl na půl = průměr; obrácení: 1 000
       pohanů bez kostela a 0 % křesťanů → za rok ≈ 5 (1–10); bez křtu rodu nikdo; vcelku = po kouscích.
-- [ ] **Step 2:** FAIL → implementace → PASS.
-- [ ] **Step 3:** `npx vitest run` v `packages/game`.
-- [ ] **Step 4:** Commit `feat(game): obrácení vesničanů a štěstí pohanů a křesťanů`.
+- [x] **Step 2:** FAIL → implementace → PASS.
+- [x] **Step 3:** `npx vitest run` v `packages/game`.
+- [x] **Step 4:** Commit `feat(game): obrácení vesničanů a štěstí pohanů a křesťanů`.
 
 ### K6: Posvátná místa a hřbitov po křtu
 
