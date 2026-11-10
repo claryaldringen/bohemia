@@ -223,6 +223,9 @@ hráč)`) a rod s `house.placed_at` null. Pozvaný je na mapě hned (`placed_at`
   `house.succession_day`, upozornění `'player-succession'`): `village-people.md` – „Nástupnictví hráče“.
   Konec rodu (hráčova i NPC) jde jediným místem `endHouse` (`application/escheat.ts`) – rod s pánem
   nechá vsi a vazaly pánovi jako odúmrť: `vassalage.md` – „Vymření rodu a odúmrť“.
+- Křesťanství rodu (`christianity.md`): `house.christianity_known_year` (objev, nezmizí) a
+  `house.baptized_day` (křest); `HouseRepository.markChristianityKnown` / `markBaptized` zapisují
+  podmíněně (jen poprvé, křest až po objevu).
 - Rod vsi pro varování před vojskem (kdo rozhoduje, hradiště pána, doména hradiště – port
   `AlarmOwnerPort`, adaptér `db/adapters/alarm-owners.ts`): `war.md` – „Varování, poslové a útěk do
   hradiště“ (Ú6).
