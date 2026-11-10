@@ -4,6 +4,7 @@ import { isOvercrowded } from './dwellings';
 import { isDynastyTracked, isLineMan, markNewborn } from './dynasty';
 import { removePeople } from './kinship';
 import { ageGroup, ageYears, canBear, canFather, householdBreaksUp, occupants } from './people';
+import { isChristian } from './faith';
 import {
   ADULT_DEATHS_PER_YEAR,
   AGE,
@@ -426,6 +427,8 @@ export function populationDay(
         sex: random.next() < BOY_SHARE ? 'male' : 'female',
         motherId: mother.id,
         fatherId: father.id,
+        // děti pokřtěných jsou pokřtěné (christianity.md – Křest rodu)
+        ...(isChristian(mother) || isChristian(father) ? { faith: 'christian' as const } : {}),
       };
       state.people.push(child);
       events.push({ day, kind: 'birth' });

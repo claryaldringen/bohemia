@@ -142,6 +142,23 @@ describe('HouseRepository (Drizzle)', () => {
     expect(await houses.claimEnnoble(house.id, 101)).toBe(true);
   });
 
+  it('rod zná křesťanství a je pokřtěný jen jednou, křest až po objevu', async () => {
+    const house = await houses.create({ playerId: 'p1', kind: 'player', createdAt: NOW });
+    expect(house.christianityKnownYear).toBeNull();
+    expect(house.baptizedDay).toBeNull();
+    expect(await houses.markBaptized(house.id, 50)).toBe(false);
+    expect(await houses.markChristianityKnown(house.id, 700)).toBe(true);
+    expect(await houses.markChristianityKnown(house.id, 705)).toBe(false);
+    expect((await houses.byId(house.id))?.christianityKnownYear).toBe(700);
+    const results = await Promise.all([
+      houses.markBaptized(house.id, 100),
+      houses.markBaptized(house.id, 100),
+    ]);
+    expect(results.filter(Boolean)).toHaveLength(1);
+    expect(await houses.markBaptized(house.id, 200)).toBe(false);
+    expect((await houses.byId(house.id))?.baptizedDay).toBe(100);
+  });
+
   it('NPC rod nemá hráče', async () => {
     const npc = await houses.create({ playerId: null, kind: 'npc', createdAt: NOW });
     expect(npc).toMatchObject({ kind: 'npc', playerId: null });

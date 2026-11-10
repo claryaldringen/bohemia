@@ -216,6 +216,14 @@ export type ChronicleEvent = { day: number } & (
       led: number;
       loot: RaidLoot;
     }
+  /** Rod se dozvěděl o křesťanství (christianity.md – Objev křesťanství) – ve vsi vojvody. */
+  | { kind: 'christianity-known' }
+  /** Vojvoda se dal pokřtít (christianity.md – Křest rodu). */
+  | { kind: 'lord-baptized' }
+  /** Roční obrácení vesničanů na křesťanství (christianity.md – Obrácení). */
+  | { kind: 'converted'; count: number }
+  /** Pokřtěný vojvoda propustil vedlejší manželky (christianity.md – Jediná manželka). */
+  | { kind: 'wives-released'; count: number }
   /** Dohoda z jednání: rod `vassal` přísahal rodu `lord` (jména hlav rodů). */
   | { kind: 'negotiation-accepted'; lord: string; vassal: string }
   /** Vazalství skončilo formálním vypovězením (jména hlav rodů; text je neutrální, bez viníka). */
@@ -490,6 +498,10 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'sacred-oak-died'; id: number }
   /** Posvátná souš padla – místo už není posvátný dub (happiness.md) – id dubu. */
   | { kind: 'sacred-snag-fell'; id: number }
+  /** Pokřtěný rod vykácel posvátný dub nebo dubový háj (christianity.md – Co křest rodu umožní). */
+  | { kind: 'sacred-felled'; site: 'oak' | 'grove' }
+  /** Pokřtěný rod zbořil (zaoral) starý hřbitov (christianity.md – Co křest rodu umožní). */
+  | { kind: 'cemetery-ploughed' }
   /** Z dlouhodobého provozu vznikla pevná cesta (roads.md) – id úseku. */
   | { kind: 'road-formed'; roadId: number }
   /** Nepoužívaná vyšlapaná cesta zarostla (roads.md – Zarůstání) – id úseku. */

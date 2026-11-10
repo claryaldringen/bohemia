@@ -1,4 +1,5 @@
 import {
+  demolitionBlock,
   demolitionCost,
   demolitionOf,
   disuseBlock,
@@ -42,10 +43,17 @@ export function structureUseView(
     };
   }
   const abandoned = isDisused(target.item);
+  // hřbitov se neopouští, jen zbourá (zaorá), smí-li zmizet (christianity.md) – důvod bourání
+  const block =
+    target.structure === 'cemetery'
+      ? demolitionBlock(state, ref, day)
+      : abandoned
+        ? null
+        : disuseBlock(state, ref, day);
   return {
     ...base,
     state: abandoned ? 'abandoned' : 'in-use',
-    block: abandoned ? null : disuseBlock(state, ref, day),
+    block,
     demolition: demolitionCost(state, ref, day),
     demolishing: null,
   };

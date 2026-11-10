@@ -33,6 +33,10 @@ export interface House {
   placedAt: Date | null;
   /** Kdy odříznutý nováček poprvé požádal o pána (začátek týdne na odpověď); null – dosud ne. */
   newcomerSince: Date | null;
+  /** Herní rok, kdy rod objevil křesťanství (christianity.md – Objev); null – dosud ne, nezmizí. */
+  christianityKnownYear: number | null;
+  /** Herní den křtu rodu (christianity.md – Křest rodu); null – rod je pohanský. */
+  baptizedDay: number | null;
 }
 
 /**
@@ -93,6 +97,16 @@ export interface HouseRepository {
    * ještě nepovýšil; true jen když zapsal (ze souběžných volání uspěje jedno).
    */
   claimEnnoble(houseId: string, year: number): Promise<boolean>;
+  /**
+   * Zapíše objev křesťanství v herním roce `year` (christianity.md – Objev): podmíněně – jen když
+   * rod dosud nic neobjevil; true jen když zapsal (ze souběžných volání uspěje jedno).
+   */
+  markChristianityKnown(houseId: string, year: number): Promise<boolean>;
+  /**
+   * Zapíše křest rodu v herním dni `day` (christianity.md – Křest rodu): podmíněně – jen když rod
+   * křesťanství zná a ještě není pokřtěný; true jen když zapsal.
+   */
+  markBaptized(houseId: string, day: number): Promise<boolean>;
   /**
    * Živé hráčovy rody umístěné na mapu světa po `since` (ochrana nováčka běží od umístění –
    * upozornění na konec); odříznuté rody ne.

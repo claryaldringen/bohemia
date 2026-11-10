@@ -64,6 +64,7 @@ export function noticePanel(kind: PlayerNoticeKind): NoticePanel | null {
     case 'summons-open':
       return 'levy';
     case 'player-succession':
+    case 'christianity-known':
       return null;
   }
 }
@@ -289,6 +290,8 @@ function textOf(n: PlayerNotice): string {
       const short = parts.some((p) => p.sent < p.agreed) ? ' Míň, než bylo domluveno.' : '';
       return `Správce za tebe poslal ${noun} – ${lord}${what === '' ? ': tentokrát nic' : `: ${what}`}.${short}`;
     }
+    case 'christianity-known':
+      return 'Rod se dozvěděl o novém Bohu.';
     case 'player-succession': {
       const dead = stringOf(n.payload.deadName) ?? 'Tvůj muž';
       const next = stringOf(n.payload.newName);

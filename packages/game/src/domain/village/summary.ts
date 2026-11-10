@@ -342,6 +342,10 @@ export interface HappinessSummary {
   target: number;
   /** Z čeho se cíl skládá (body; ubírající kladně). */
   factors: HappinessFactors;
+  /** Podíl křesťanů mezi lidmi vsi (0–1; christianity.md – Štěstí). */
+  christianShare: number;
+  /** Nespokojenost pohanů se zničenými posvátnými místy (body, nejvýš 30). */
+  desecration: number;
   /** Násobek veškeré práce vsi (0,8–1,1). */
   laborFactor: number;
 }
@@ -1038,6 +1042,8 @@ function happinessSummary(
     value,
     target: happinessTarget(factors),
     factors,
+    christianShare: factors.christianShare ?? 0,
+    desecration: factors.desecration ?? 0,
     laborFactor: happinessLaborFactor(value),
   };
 }

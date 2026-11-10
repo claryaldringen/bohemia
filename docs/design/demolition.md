@@ -57,7 +57,7 @@ vylepšit jen celé.
 | Humno, obilná jáma                       | ano     | ano        | obilí z jámy se přesune do ostatních zásob vsi |
 | Sad                                      | ano     | ano        | zbourat = vykácet, klády žádné (Martin: „C“)   |
 | Modla, svatyně                           | ano     | ano        | štěstí vsi, jako by nestály                    |
-| Hřbitov                                  | ne      | ne         | hroby zůstávají (návrh Clauda)                 |
+| Hřbitov                                  | ne      | po křtu    | níž – Hřbitov                                  |
 | Opevnění                                 | –       | po úsecích | níž – Opevnění                                 |
 
 ## Obydlí
@@ -72,6 +72,17 @@ vylepšit jen celé.
   nebo opustí (Martin).
 - **Přestěhovat zaniká** – tlačítko u obydlí i u výběru víc obydlí. Rozestavěné přestěhování ve
   starých vsích se dostaví a domácnost se přestěhuje jako dřív (převod – návrh Clauda).
+
+## Hřbitov
+
+- **Opustit ne, zbourat po křtu** – „Slovanský hřbitov“ (Martin, [křesťanství](christianity.md) –
+  Co křest rodu umožní): plný nebo nepoužívaný hřbitov smí pokřtěný rod zaorat nebo zastavět
+  (bourání jako u ostatních staveb). Nepoužívaný = poslední pohřeb před aspoň 10 lety; jinak
+  „Hřbitov ještě slouží.“ Nepokřtěný rod hřbitov zbourat nesmí – hroby zůstávají (návrh Clauda).
+- Bourání stojí podíl ceny založení hotových čtverců, pletený plot klády nedá; bouraný hřbitov už
+  mrtvé nepřijímá a po dobourání zmizí i s hroby (návrh Clauda). Pole nebo stavba hráče přes
+  takový hřbitov ho zaorá hned. Pohané to vsi nezapomenou – nespokojenost ve
+  [štěstí](christianity.md) (Víra vesničanů).
 
 ## Opevnění
 

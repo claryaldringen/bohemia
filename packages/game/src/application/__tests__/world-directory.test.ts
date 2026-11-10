@@ -71,6 +71,8 @@ async function setup(): Promise<{
         language: 'cs',
         placedAt: new Date(0),
         newcomerSince: null,
+        christianityKnownYear: null,
+        baptizedDay: null,
       },
       seat: { x, y },
       digests,

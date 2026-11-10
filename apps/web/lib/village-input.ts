@@ -539,6 +539,11 @@ export function parseEnnobleInput(
     : null;
 }
 
+/** Vstup křtu vojvody `{}` (jen `villageId`, který čte `villageAction` – christianity.md), jinak null. */
+export function parseBaptizeInput(value: unknown): Record<string, never> | null {
+  return isRecord(value) ? {} : null;
+}
+
 /** Vstup přepínače správce `{ on }` (steward.md), jinak null. */
 export function parseSetStewardInput(value: unknown): { on: boolean } | null {
   if (!isRecord(value)) return null;
@@ -574,6 +579,7 @@ const USABLE_STRUCTURES: readonly UsableStructure[] = [
   'threshing-floor',
   'grain-pit',
   'orchard',
+  'cemetery',
 ];
 
 /**

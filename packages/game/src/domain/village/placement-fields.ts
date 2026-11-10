@@ -10,7 +10,8 @@ import {
   obstaclesOf,
   tileCenterWorld,
 } from '../landscape';
-import { NO_SPARED, type SparedSacred, sacredSitesOf, sparedWarning } from './sacred';
+import { NO_SPARED, type SparedSacred, sparedWarning } from './sacred';
+import { sacredSitesFor } from './desecration';
 import { type TakenLand } from './land-taken';
 import {
   cellObstacles,
@@ -399,7 +400,7 @@ export function cemeteryPartsFromCells(
   const onFieldAt = ownedAt(landscape, village, ['field']);
   const takenLand: TakenLand[] = [];
   const status = obstacleStatus(village?.obstacleChanges);
-  const sites = sacredSitesOf(obstacles);
+  const sites = sacredSitesFor(village, obstacles);
   // čtverce háje se z hřbitova vyjmou; hroby jdou v pevné mřížce, proto čtverec s posvátným
   // dubem hřbitov mít nesmí (jako výchoz) – dub zůstane stát
   const sacred = sacredSelection(

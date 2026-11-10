@@ -152,8 +152,16 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `alive` / `snag` / `fallen`, stáří (souš – ve kterém uschla), štěstí (`oakAgeHappiness` 1–10
   podle logaritmu stáří, souš 1, padlá 0; započítají se 3 nejvyšší). Simulace i souhrn proto
   dostávají vrstvu překážek (`happinessFactors(…, obstacles)`, `summarizeVillage(state, day,
-obstacles)` – bez ní se dub počítá jako nejmladší); krok simulace `sacredOakEvents` zapíše do
-  kroniky `sacred-oak-died` / `sacred-snag-fell` (upozornění přes `CHRONICLE_NOTICES`). Padlá
+- **Víra a štěstí** ([christianity.md](../design/christianity.md), `conversion.ts`, `happiness.ts`):
+  `conversionDay` (1. 1. v `simulateDaySteps`, jen `rodBaptized`) obrací dospělé pohany s šancí
+  `(hasChurch ? withChurch : withoutChurch) × (1 + podíl křesťanů)`, los `convert:rok:id`; kronika
+  `converted`. `hasChurch` je zatím vždy false. Cíl štěstí (`happinessTarget`) je vážený průměr cíle
+  pohanů (`sacred` − `desecration` z `faith.desecrated`, nejvýš 30) a křesťanů (posvátná místa 0,
+  `church` jen s kostelem) podle `christianShare`; bez křesťanů a zničených míst přesně jako dřív.
+  Rozpis (`HappinessSummary`) nese `christianShare` a `desecration`. Správce (`sacredLaborGainPerYear`)
+  počítá zisk jen z podílu pohanů.
+  obstacles)`– bez ní se dub počítá jako nejmladší); krok simulace`sacredOakEvents`zapíše do
+kroniky`sacred-oak-died`/`sacred-snag-fell`(upozornění přes`CHRONICLE_NOTICES`). Padlá
   souš už posvátným dubem není (panel, výběr, štěstí), místo ale zůstává chráněné vrstvou.
 
 - **Hráč staví kdy chce** (Martin) – stavbu smí zablokovat jen **cena předem** (`costs.ts`:

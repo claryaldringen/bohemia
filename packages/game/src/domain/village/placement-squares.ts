@@ -31,9 +31,9 @@ import {
   type SparedSacred,
   grovesOfTiles,
   sacredFootprint,
-  sacredSitesOf,
   sparedSacred,
 } from './sacred';
+import { sacredSitesFor } from './desecration';
 import { type Shape, plotShapes } from './plot-cells';
 import { TAKEN_LAND_EPSILON_M2 } from './land-taken';
 import { dwellingShape } from './dwelling-shape';
@@ -476,7 +476,7 @@ export function buildSquares(
 } {
   const status = obstacleStatus(village?.obstacleChanges);
   const flagsOf = squareFlags(landscape, village, dwellingPositions);
-  const sites = sacredSitesOf(obstacles);
+  const sites = sacredSitesFor(village, obstacles);
   const sacred = sacredSelection(
     landscape,
     obstacles,

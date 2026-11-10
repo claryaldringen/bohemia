@@ -61,6 +61,7 @@ import { DIET } from './diet';
 import { OXEN } from './rules-livestock';
 import { CART_SPEED, TEAM_TRAVEL, WAGON_ROAD } from './rules-roads';
 import { STEWARD } from './rules-steward';
+import { christianShare } from './conversion';
 import { hasShrine, sacredBuildingHappiness, sacredHappiness } from './sacred';
 import { planCentre, takenTiles, walkDaysPerYear, cellHa } from './steward-land';
 import {
@@ -454,9 +455,11 @@ export function sacredLaborGainPerYear(
     Math.min(HAPPINESS_BONUS.sacredMax, sacred + sacredBuildingHappiness(kind)) - sacred;
   if (points <= 0) return 0;
   const happiness = villageHappiness(state);
+  // posvátná místa dávají štěstí jen pohanům (christianity.md – Štěstí) – zisk jen jejich podíl
   const gain =
-    happinessLaborFactor(Math.min(HAPPINESS.max, happiness + points)) -
-    happinessLaborFactor(happiness);
+    happinessLaborFactor(
+      Math.min(HAPPINESS.max, happiness + points * (1 - christianShare(state))),
+    ) - happinessLaborFactor(happiness);
   const labor = state.people.reduce((sum, p) => sum + laborPerDay(p, day), 0);
   return Math.max(0, gain) * labor * DAYS_PER_YEAR;
 }

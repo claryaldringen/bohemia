@@ -223,6 +223,25 @@ hráč)`) a rod s `house.placed_at` null. Pozvaný je na mapě hned (`placed_at`
   `house.succession_day`, upozornění `'player-succession'`): `village-people.md` – „Nástupnictví hráče“.
   Konec rodu (hráčova i NPC) jde jediným místem `endHouse` (`application/escheat.ts`) – rod s pánem
   nechá vsi a vazaly pánovi jako odúmrť: `vassalage.md` – „Vymření rodu a odúmrť“.
+- Křesťanství rodu (`christianity.md`): `house.christianity_known_year` (objev, nezmizí) a
+  `house.baptized_day` (křest); `HouseRepository.markChristianityKnown` / `markBaptized` zapisují
+  podmíněně (jen poprvé, křest až po objevu). Roční úloha světa `advanceChristianity`
+  (`application/advance-christianity.ts`, v `runWorldTasks`): rodům bez objevu přehraje los
+  `discoveryYear(houseFaithSeed(worldSeed, id), firstDiscoveryYear(den založení), letošní rok)`
+  (seed rodu `deriveSeed(worldSeed, 'house:' + id)`; los roku Y padá 1. 1. Y – rod založený během
+  roku losuje poprvé příští 1. 1.), zapíše rok objevu, hráči pošle upozornění `'christianity-known'`
+  a do kroniky vsi vojvody schránkou `christianity-known` („Rod se dozvěděl o novém Bohu.“, `ref`
+  `christianity-known:<rod>:<ves>`). NPC rod (`kind: 'npc'`, živé vazalství – povýšení) se pokřtí
+  k 1. 1. roku `npcBaptismYear` (objev a k tomu 1–20 let, los `'npc-baptism'` ze seedu rodu):
+  nejdřív `sendRodBaptized` (událost `{ kind: 'rod-baptized', houseId, npc?, lord? }` do schránky
+  všech vsí rodu, `ref` `rod-baptized:<rod>:<ves>`), pak `markBaptized`. Vsi rodu: NPC rod –
+  spravované vsi (`listByStewardHouse`, `npc`), hráč – všechny vsi aktivních sídel i ty, které řídí
+  NPC rod, ves vojvody (`House.lord`) s `lord`. Co ves s událostí udělá (`baptizeVillage`) a křest
+  hráčova rodu (`baptizeLord`): `village-people.md` – Křest a víra. Výpis rodů
+  bez nové metody portu: hráčovy `playerHousesSince(new Date(0))` a `waitingNewcomers()`, NPC přes
+  `vassalages.allActive()`. Worker drží v paměti rok, za který úloha proběhla (`doneYear`) – jinak
+  by každou minutu přehrával los neznalých rodů (1 000 rodů od 520: první běh v roce 870 ≈ 95 ms,
+  opakovaný bez paměti 8–50 ms, s pamětí ≈ 0); opakovaný běh bez paměti nic nezdvojí.
 - Rod vsi pro varování před vojskem (kdo rozhoduje, hradiště pána, doména hradiště – port
   `AlarmOwnerPort`, adaptér `db/adapters/alarm-owners.ts`): `war.md` – „Varování, poslové a útěk do
   hradiště“ (Ú6).
@@ -355,8 +374,9 @@ Pravidla: [vassalage.md](../design/vassalage.md) – Pozvaný jako vazal. Typy a
   vazalství – kód přežije vypovězení, přechod pod jiného pána i vymření pána (pozvaný je pak
   nezávislý, kredit pozvateli přesto patří). `consumeOne(playerId, deathDay)` kredit použije
   (zatím nikdo nevolá – nástupnictví bez losu je fáze 2); `SKIP LOCKED` brání dvojímu použití.
-- **`runWorldTasks(deps, { now, today })`** – úlohy světa; zatím jen `grantSuccessionCredits`. Worker
-  je pouští jednou za minutu mezi koly (`worker.md`).
+- **`runWorldTasks(deps, { now, today })`** – úlohy světa (`grantSuccessionCredits`, zásilky, Odvody,
+  války, Svolání, jednání, nováčci a na konci roční los křesťanství `advanceChristianity` – „Rod“).
+  Worker je pouští jednou za minutu mezi koly (`worker.md`).
 
 ## Panel „Rod a vazalové“ – data a akce (úloha 1.10)
 

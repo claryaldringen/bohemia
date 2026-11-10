@@ -49,6 +49,8 @@ import { sceneWildTrees } from './village-view-wild';
 import {
   wagonHome,
   ableTeams,
+  cemeteryMayGo,
+  rodBaptized,
   oxPens,
   ploughPairsHome,
   ploughsThisYear,
@@ -104,11 +106,16 @@ import { sceneFlood, sceneHail, sceneTornado, sceneWeather } from './weather-vie
 import { sceneFire } from './fire-view';
 import { sceneFortifications } from './fort-view';
 
+/**
+ * Scéna vsi v den `day`. `baptizable` – vojvoda vsi se smí nechat pokřtít
+ * (`VillageAccess.baptizable` – christianity.md, Křest rodu); jeho postava nese tlačítko křtu.
+ */
 export function sceneVillage(
   state: VillageState,
   landscape: Landscape,
   day: number,
   summary: VillageSummary,
+  baptizable = false,
 ): SceneVillage {
   const constructions = summary.constructions;
   const occupied = new Set(state.people.map((p) => p.dwellingId));
@@ -235,6 +242,7 @@ export function sceneVillage(
     graves: oldGraves(c),
     ...(c.mounds?.length ? { mounds: c.mounds.map((m) => sceneMound(m, day)) } : {}),
     ...wearOf(structureCondition(c.fenceWear, 'cemetery-fence', day), 'fence'),
+    ...(cemeteryMayGo(state, c, day) ? { mayGo: true as const } : {}),
   }));
   const orchards = villageOrchards(state).map((o) => ({
     id: o.id,
@@ -250,7 +258,7 @@ export function sceneVillage(
   const funerals = sceneFunerals(state, day);
   const weddings = sceneWeddings(state, day, landscape);
   const reserved = [...reservedTrees(state)].sort((a, b) => a - b);
-  const labor = sceneLabor(state, { ...summary.people, ...summary.family }, landscape);
+  const labor = sceneLabor(state, { ...summary.people, ...summary.family }, landscape, baptizable);
   const sacred = sceneSacred(state, landscape, day, summary);
   const obstacles = obstacleChangesAt(state, day);
   const wildTrees = sceneWildTrees(state, day, obstacles);
@@ -369,6 +377,7 @@ export function sceneVillage(
     ...(pens.length > 0 ? { pens } : {}),
     ...(summary.crafts.coverage.tools > 0 ? { toolCoverage: summary.crafts.coverage.tools } : {}),
     ...(ableTeams(state, day) > 0 ? { ploughTeam: true as const } : {}),
+    ...(rodBaptized(state) ? { sacredFree: true as const } : {}),
     ...(oxPens(state).length > 0 ? { ploughPairs: ploughPairsHome(state, day) } : {}),
     ...(roads.length > 0 ? { roads } : {}),
     ...(state.roads?.junctions ? { junctions: state.roads.junctions } : {}),
@@ -462,6 +471,7 @@ export function sceneLabor(
   state: VillageState,
   people: SceneLabor['people'],
   landscape: Landscape | null = null,
+  baptizable = false,
 ): SceneLabor | null {
   const labor = laborReport(state);
   if (!labor) return null;
@@ -478,7 +488,7 @@ export function sceneLabor(
     return [{ ...share, manDays }];
   });
   const homes = sceneLaborHomes(state, labor.shares);
-  const persons = scenePersons(state, labor.day);
+  const persons = scenePersons(state, labor.day, baptizable);
   const lord = sceneLord(state, labor.lord, labor.day);
   const shoeing = sceneShoeing(state, labor.day, landscape);
   return {
@@ -784,10 +794,13 @@ function scenePlacementVillage(scene: SceneVillage): PlacementVillage {
         areaM2: p.size * p.size,
       })),
     ),
-    cemeteries: (scene.cemeteries ?? []).map((c) => ({
-      ...(c.grid ? { grid: c.grid } : {}),
-      squares: c.squares.map((s) => ({ cell: s.cell })),
-    })),
+    // hřbitov, který pokřtěný rod smí zaorat, stavbám hráče nebrání (jako `playerPlacementVillage`)
+    cemeteries: (scene.cemeteries ?? [])
+      .filter((c) => !(scene.sacredFree && c.mayGo))
+      .map((c) => ({
+        ...(c.grid ? { grid: c.grid } : {}),
+        squares: c.squares.map((s) => ({ cell: s.cell })),
+      })),
     // plocha čtverce (políčko) pro varování, že sad stavbou obydlí zanikne
     orchards: (scene.orchards ?? []).map((o) => ({
       ...(o.grid ? { grid: o.grid } : {}),
@@ -823,6 +836,8 @@ function scenePlacementVillage(scene: SceneVillage): PlacementVillage {
       : {}),
     ...(scene.toolCoverage ? { toolCoverage: scene.toolCoverage } : {}),
     ...(scene.ploughTeam ? { ploughTeam: true } : {}),
+    // pokřtěný rod – posvátná místa stavbám hráče nebrání (jako `playerPlacementVillage`)
+    ...(scene.sacredFree ? { sacredFree: true } : {}),
     // pevné cesty – kácení u kurzoru chůzí jako na serveru (roads.md)
     ...(scene.roads ? { walkRoads: scene.roads } : {}),
     // milíře uhlířů – samostatné stavby, přes ně stavět nejde (crafts.md – Milíř u skácených buků)

@@ -1,4 +1,5 @@
 import { graveRank, placeMound, usedPlaces } from './burials';
+import { isChristian } from './faith';
 import { BUILD_COSTS } from './costs';
 import { CEMETERY, CEMETERY_DISTANCE_M, HYGIENE_DEATH_EXTRA } from './rules';
 import { fencedSquareEquivalents, SQUARE_SIDES } from './fence-cost';
@@ -49,9 +50,11 @@ export function freePlaces(cemetery: Pick<Cemetery, 'squares' | 'graves' | 'moun
   return Math.max(0, cemeteryCapacity(cemetery) - usedPlaces(cemetery));
 }
 
-/** Pohřebiště přijímá mrtvé: je vytyčené a ohrazené a má volné místo. */
+/** Pohřebiště přijímá mrtvé: je vytyčené a ohrazené, nebourá se a má volné místo. */
 export function acceptsBurials(cemetery: Cemetery): boolean {
-  return cemetery.builtDay !== null && freePlaces(cemetery) > 0;
+  return (
+    cemetery.builtDay !== null && cemetery.disusedDay === undefined && freePlaces(cemetery) > 0
+  );
 }
 
 /**
@@ -177,7 +180,8 @@ export function burialOrder(
 /**
  * Pohřeb zemřelého (mutuje stav – volá se za života, člověk je ještě ve stavu): v hotovém
  * pohřebišti s volným místem nejblíž k obydlím dostane mohylu podle významu (burials.ts –
- * vojvodova rodina, hlava rodiny, dospělý, dítě; velká se zmenší, když se nevejde). Když se tím
+ * vojvodova rodina, hlava rodiny, dospělý, dítě; velká se zmenší, když se nevejde); zemřelý
+ * křesťan (`faith`) dostane kostrový hrob bez mohyly (`rite`, jedno místo). Když se tím
  * pohřebiště zaplní (žádné volné místo), vrátí událost kroniky. Bez volného místa se nic nestane
  * – je to, jako by ves pohřebiště neměla. Bez člověka (testy) běžná mohyla dospělého. Mohyla
  * si zapíše domácnost zemřelého (`from`) – odtud ve scéně vyjde pohřební průvod.
@@ -189,7 +193,9 @@ export function bury(state: VillageState, day: number, person?: Person): Chronic
   const target = burialOrder(open, dwellings)[0];
   if (!target) return null;
   const rank = person ? graveRank(state, person, day) : 'adult';
-  const mound = placeMound(target, rank, day, dwellings);
+  // křesťan se na starém hřbitově pohřbívá kostrově, bez mohyly (christianity.md – Pohřby)
+  const rite = person && isChristian(person) ? 'inhumation' : undefined;
+  const mound = placeMound(target, rank, day, dwellings, rite);
   if (!mound) return null;
   // odkud vyjde pohřební průvod – domácnost zemřelého (scéna, cemetery.md – Pohřeb ve scéně)
   if (person) mound.from = person.dwellingId;

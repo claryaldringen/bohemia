@@ -1,4 +1,4 @@
-import { and, eq, gt, isNull, lt, or, sql } from 'drizzle-orm';
+import { and, eq, gt, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
 import type { House, HouseRepository } from '@bohemia/game';
 import type { Database } from '../client';
 import { house } from '../schema';
@@ -28,6 +28,8 @@ export function toHouse(row: HouseRow): House {
     language: row.language,
     placedAt: row.placedAt,
     newcomerSince: row.newcomerSince,
+    christianityKnownYear: row.christianityKnownYear,
+    baptizedDay: row.baptizedDay,
   };
 }
 
@@ -124,6 +126,30 @@ export function createHouseRepository(db: Database): HouseRepository {
           and(
             eq(house.id, houseId),
             or(isNull(house.lastEnnobleYear), lt(house.lastEnnobleYear, year)),
+          ),
+        )
+        .returning({ id: house.id });
+      return rows.length > 0;
+    },
+    async markChristianityKnown(houseId, year): Promise<boolean> {
+      // Podmíněný UPDATE: objev zapíše jen jedno ze souběžných volání.
+      const rows = await db
+        .update(house)
+        .set({ christianityKnownYear: year })
+        .where(and(eq(house.id, houseId), isNull(house.christianityKnownYear)))
+        .returning({ id: house.id });
+      return rows.length > 0;
+    },
+    async markBaptized(houseId, day): Promise<boolean> {
+      // Podmíněný UPDATE: křtí se jen rod, který křesťanství zná a ještě není pokřtěný.
+      const rows = await db
+        .update(house)
+        .set({ baptizedDay: day })
+        .where(
+          and(
+            eq(house.id, houseId),
+            isNotNull(house.christianityKnownYear),
+            isNull(house.baptizedDay),
           ),
         )
         .returning({ id: house.id });

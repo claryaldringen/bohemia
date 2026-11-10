@@ -762,6 +762,45 @@ cellDistance` sídel), 2. spočte družinu a pošle `lord-arrives` do schránky 
 Muž (s manželkou a svobodnými dětmi) putuje do vsi bez vojvody schránkou jako dosazený vojvoda (`noble-arrives`,
 `Person.noble`, `VillageState.nobles`) – podrobnosti a pravidla v [vassalage.md](vassalage.md#povýšení-vesničana-a-npc-rod-vassalagemd--povýšení-vesničana-úloha-49).
 
+## Křest a víra (christianity.md – Křest rodu; plán 2026-11-10 – K4)
+
+- **Stav:** `Person.faith?: 'christian'` (chybí = pohan), `VillageState.faith?: VillageFaith` –
+  `rodBaptizedDay` (křest rodu hráče, kterému ves patří) a `nobles: { houseId, baptizedDay }` (křest
+  NPC rodu, který ves řídí – `VillageState.nobles`). `rodBaptized(state)` (`faith.ts`): ves NPC rodu
+  podle jeho křtu, jinak podle rodu hráče – po konci NPC rodu (`endNobleHouse`, dosazení vojvody)
+  platí zase křest rodu hráče, nic se nepřepočítává (návrh Clauda). Starší vsi nic nemají – převod
+  netřeba.
+- **Use-case** `baptizeLord` (`application/baptize.ts`): právo `ennoble` (jen držitel vlastní vsi),
+  důvody `BAPTIZE_REASONS` (rod nezná, už pokřtěný, vojvoda rodu `House.lord` žije jinde); nejdřív
+  `sendRodBaptized` (`advance-christianity.ts`), pak `markBaptized`.
+- **Ves** (`domain/village/baptism.ts` `baptizeVillage`, ze schránky `rod-baptized`; idempotentní):
+  rod hráče – den do `faith.rodBaptizedDay`; s `lord` a bez `nobles` se vojvoda (`currentLord`)
+  pokřtí (kronika `lord-baptized`), zůstane mu hlavní manželka (zemřela-li, napřed
+  `ensureMainWives`) a ostatní ztratí `spouseId` (kronika `wives-released` s počtem) – zůstávají
+  ve svých domech, mohou se vdát (`isSingle`), z rodiny vojvody (`lordFamily`) zmizí; jejich synové
+  zůstávají `line`. Z přeplněného domu odcházejí jako vdovy po vojvodech (`lordWidows` – svobodná
+  matka dítěte kteréhokoli vojvody z `dynasty.lords`). NPC rod (`npc`) – jen ve vsi, kterou ještě
+  řídí: `faith.nobles` a křest hlavy vsi bez kroniky.
+- **Pokřtěný rod ve vsi:** `extraWivesDay` nic nepřidá (ani za nástupce narozeného před křtem);
+  dítě je křesťan, je-li křesťan aspoň jeden rodič (`populationDay`).
+- **Nová ves rodu:** `departLeavers` dá osadníkům `Settlers.rodBaptizedDay`, `travellingVillage`,
+  `settlersOf` a `foundVillage` ho nesou (`faithOfSettlers` – bez `desecrated`); ves na cestě
+  použije ze schránky jen `rod-baptized` bez `lord` (`withJourneyInbox`; `arrive` v `simulate.ts`
+  – při příjezdu se správcem jen dny před založením, ať den křtu přinesou osadníci).
+- **Změna držitele vsi** (odúmrť, postoupení, věnování dílu – `vassalage.md` – Převod držitele):
+  `acceptHolderTransfers` (`application/escheat.ts`, 2. krok převodu pod zámkem nového držitele –
+  `advancePlayer`, `advanceDynasty`, `transferVillages`) dá vsím převzatých sídel křest nového rodu
+  (`withHolderFaith(state, House.baptizedDay)` v `faith.ts`): pokřtěný → jeho den křtu, jinak
+  `rodBaptizedDay` zmizí. `desecrated` zůstává (lid si zničená místa pamatuje) a `nobles` také.
+  Verzovaný zápis, beze změny nic neukládá (návrh Clauda). Událost `rod-baptized` starého rodu,
+  která ve schránce čeká na den po křtu, by ves převzatou ještě před ním označila – okno jednoho
+  dne se neřeší.
+- **Obrácení vesničanů** (`conversion.ts`, 1. 1., jen `rodBaptized`) a štěstí pohanů a křesťanů:
+  `village-core.md` – Víra a štěstí. Kostrové pohřby a hřbitov po křtu: `village-buildings.md`.
+- **Testy:** `domain/village/__tests__/baptism.test.ts` (i vcelku = po kouscích přes JSON),
+  `faith.test.ts` (`withHolderFaith`), `application/__tests__/baptize.test.ts`,
+  `escheat.test.ts` (víra vsi při změně držitele).
+
 ## Dočasné ubytování (demolition.md – Obydlí s obyvateli)
 
 Soubor `domain/village/displaced.ts`, stav `VillageState.displaced?: DisplacedHousehold[]`

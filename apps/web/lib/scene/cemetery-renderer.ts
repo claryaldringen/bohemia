@@ -2,6 +2,8 @@ import type { Material } from '@babylonjs/core/Materials/material';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
+import { Matrix } from '@babylonjs/core/Maths/math.vector';
+import { CreateBoxVertexData } from '@babylonjs/core/Meshes/Builders/boxBuilder';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { Scene } from '@babylonjs/core/scene';
@@ -9,16 +11,19 @@ import { cemeteryEntrance, type MoundSize } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import {
   CEMETERY_FENCE,
+  FLAT_GRAVE,
   FRESH_GRAVES,
   MOUND_SHAPES,
   cemeteryConstruction,
   cemeteryFenceGone,
   fenceLayout,
+  graveCross,
   gravePlacements,
   moundPlacements,
   type CemeteryConstruction,
   type FenceLayout,
   type GravePlacement,
+  type MoundPlacement,
 } from './cemetery-layout';
 import { cellsBounds, cellsContain, type CellSquare } from './field-cells';
 import { instanceMatrices, type ModelInstance } from './instanced-model';
@@ -64,6 +69,11 @@ const POST_SNOW = 0.5;
 /** Barva kůlu (zšedlý dub) a podíl okolního světla v jeho barvě – jako kolíky vytyčení (staking.ts). */
 const POST_COLOR = new Color3(0.3, 0.24, 0.18);
 const POST_AMBIENT_SHARE = 0.6;
+/** Kříž kostrového hrobu – světlejší, mladší dřevo než zšedlý kůl vojvody. */
+const CROSS_COLOR = new Color3(0.38, 0.27, 0.17);
+/** Plochý hrob: body obrysu (zaoblený obdélník – superelipsa s exponentem). */
+const FLAT_GRAVE_SEGMENTS = 16;
+const FLAT_GRAVE_ROUNDNESS = 0.3;
 
 interface CemeteryView {
   key: string;
@@ -77,13 +87,17 @@ interface CemeteryView {
   mounds: Map<string, ModelInstance[]>;
   /** Kůly na mohylách vojvodů (největší mohyly). */
   posts: ModelInstance[];
+  /** Dřevěné kříže kostrových hrobů. */
+  crosses: ModelInstance[];
 }
 
 type MoundLook = 'grass' | 'earth';
-const MOUND_KEYS: readonly { look: MoundLook; size: MoundSize }[] = (
+/** Tvar hrobu: mohyla podle velikosti, nebo plochý kostrový hrob (`flat`). */
+type MoundForm = MoundSize | 'flat';
+const MOUND_KEYS: readonly { look: MoundLook; size: MoundForm }[] = (
   ['grass', 'earth'] as const
 ).flatMap((look) =>
-  (['small', 'normal', 'large', 'great'] as const).map((size) => ({ look, size })),
+  (['small', 'normal', 'large', 'great', 'flat'] as const).map((size) => ({ look, size })),
 );
 
 /**
@@ -92,7 +106,8 @@ const MOUND_KEYS: readonly { look: MoundLook; size: MoundSize }[] = (
  * z holé hlíny, starší zarostlé travou). Založení po fázích: čára vytyčení s kolíky, zatloukání
  * kůlů, pletení plotu zdola. Plot je sdílený pletený plot (woven-fence-renderer.ts), mohylky
  * sdílené meshe v instancích. V zimě mohyly zapadají sněhem jako terén kolem (stejný šum,
- * na strmé straně méně – `applySeasonRelief`), kůl vojvody jen nahoře.
+ * na strmé straně méně – `applySeasonRelief`), kůl vojvody jen nahoře. Kostrový hrob křesťana
+ * (christianity.md – Pohřby) je plochý hrob s malým dřevěným křížem v čele.
  */
 export class CemeteryRenderer {
   private readonly views = new Map<number, CemeteryView>();
@@ -101,6 +116,7 @@ export class CemeteryRenderer {
   /** Sdílené sítě mohyl podle vzhledu a velikosti (vznikají až s první mohylou té velikosti). */
   private readonly moundMeshes = new Map<string, Mesh>();
   private postMesh: Mesh | null = null;
+  private crossMesh: Mesh | null = null;
 
   constructor(
     private readonly scene: Scene,
@@ -157,6 +173,7 @@ export class CemeteryRenderer {
     for (const mesh of this.moundMeshes.values()) mesh.dispose();
     this.moundMeshes.clear();
     this.postMesh?.dispose();
+    this.crossMesh?.dispose();
   }
 
   /** Zruší sítě pohřebiště a jeho ploty ze sdílených pletených plotů. */
@@ -239,6 +256,7 @@ export class CemeteryRenderer {
 
     const mounds = new Map<string, ModelInstance[]>();
     const posts: ModelInstance[] = [];
+    const crosses: ModelInstance[] = [];
     if (cemetery.built) {
       const add = (grave: GravePlacement, size: MoundSize): void => {
         const shape = MOUND_SHAPES[size];
@@ -275,14 +293,51 @@ export class CemeteryRenderer {
       for (const grave of gravePlacements(ready, cemetery.graves, cemetery.id, fresh)) {
         add(grave, 'normal');
       }
-      for (const mound of moundPlacements(ready, mounded, cemetery.id)) add(mound, mound.size);
+      // plochý kostrový hrob: pata v nejnižším rohu, kříž v čele zaražený do země
+      const addFlat = (grave: MoundPlacement): void => {
+        const a = FLAT_GRAVE.halfLength * grave.scale;
+        const b = FLAT_GRAVE.halfWidth * grave.scale;
+        const c = Math.cos(grave.rotationY);
+        const s = Math.sin(grave.rotationY);
+        let y = height(grave.x, grave.z);
+        for (const [u, v] of [
+          [a, b],
+          [a, -b],
+          [-a, b],
+          [-a, -b],
+        ] as const) {
+          y = Math.min(y, height(grave.x + u * c + v * s, grave.z - u * s + v * c));
+        }
+        const instance = {
+          x: grave.x,
+          y: y - MOUND_SETTLE_M * overgrown * grave.scale,
+          z: grave.z,
+          rotationY: grave.rotationY,
+          scale: grave.scale,
+        };
+        const look: MoundLook = grave.fresh && overgrown < FRESH_OVERGROWN ? 'earth' : 'grass';
+        const key = `${look}-flat`;
+        mounds.set(key, [...(mounds.get(key) ?? []), instance]);
+        const foot = graveCross(grave);
+        crosses.push({
+          x: foot.x,
+          y: height(foot.x, foot.z) - FLAT_GRAVE.cross.sinkM,
+          z: foot.z,
+          rotationY: grave.rotationY,
+          scale: 1,
+        });
+      };
+      for (const mound of moundPlacements(ready, mounded, cemetery.id)) {
+        if (mound.rite === 'inhumation') addFlat(mound);
+        else add(mound, mound.size);
+      }
     }
 
     const shape: HideShape = {
       bounds: cellsBounds(squares, HIDE_MARGIN_M),
       contains: cellsContain(squares, HIDE_MARGIN_M),
     };
-    return { key, meshes, shape, fences: owners, pegs, mounds, posts };
+    return { key, meshes, shape, fences: owners, pegs, mounds, posts, crosses };
   }
 
   /** Sdílené meshe kolíků, mohyl a kůlů dostanou instance všech pohřebišť, ploty se přepíšou. */
@@ -295,7 +350,7 @@ export class CemeteryRenderer {
       const instances = views.flatMap((v) => v.mounds.get(key) ?? []);
       let mesh = this.moundMeshes.get(key);
       if (!mesh && instances.length > 0) {
-        mesh = this.createMoundMesh(look, size);
+        mesh = size === 'flat' ? this.createFlatGraveMesh(look) : this.createMoundMesh(look, size);
         this.moundMeshes.set(key, mesh);
       }
       if (mesh) setInstances(mesh, instances);
@@ -303,6 +358,9 @@ export class CemeteryRenderer {
     const posts = views.flatMap((v) => v.posts);
     if (posts.length > 0) this.postMesh ??= this.createPostMesh();
     if (this.postMesh) setInstances(this.postMesh, posts);
+    const crosses = views.flatMap((v) => v.crosses);
+    if (crosses.length > 0) this.crossMesh ??= this.createCrossMesh();
+    if (this.crossMesh) setInstances(this.crossMesh, crosses);
   }
 
   /** Světlá čára vytyčení po obrysu čtverců (provázek, naražená tráva). */
@@ -366,6 +424,58 @@ export class CemeteryRenderer {
         indices.push(inner + s, inner + s1, outer + s, inner + s1, outer + s1, outer + s);
       }
     }
+    const name = size === 'normal' ? look : `${look}-${size}`;
+    return this.moundMesh(`village-cemetery-mounds-${name}`, look, positions, uvs, indices);
+  }
+
+  /**
+   * Plochý kostrový hrob (christianity.md – Pohřby): nízký zaoblený obdélník hlíny či drnu se
+   * zkosenou hranou, podél místní osy x (`FLAT_GRAVE`), okraj o kousek v zemi; vršek lehce vypouklý.
+   */
+  private createFlatGraveMesh(look: MoundLook): Mesh {
+    const { halfLength, halfWidth, height, bevel } = FLAT_GRAVE;
+    const n = FLAT_GRAVE_SEGMENTS;
+    const positions: number[] = [];
+    const uvs: number[] = [];
+    const indices: number[] = [];
+    // vrchol a prstence od vršku k patě: zkosení horní hrany, pata v zemi
+    const rings: readonly { inset: number; y: number }[] = [
+      { inset: bevel, y: height },
+      { inset: bevel * 0.35, y: height * 0.75 },
+      { inset: 0, y: -0.06 },
+    ];
+    positions.push(0, height + 0.02, 0);
+    uvs.push(0.5, 0.5);
+    const shaped = (v: number): number => Math.sign(v) * Math.abs(v) ** FLAT_GRAVE_ROUNDNESS;
+    for (const { inset, y } of rings) {
+      for (let k = 0; k < n; k++) {
+        const angle = (k / n) * Math.PI * 2;
+        const x = shaped(Math.cos(angle)) * (halfLength - inset);
+        const z = shaped(Math.sin(angle)) * (halfWidth - inset);
+        positions.push(x, y, z);
+        uvs.push(0.5 + x / 1.6, 0.5 + z / 1.6);
+      }
+    }
+    for (let k = 0; k < n; k++) indices.push(0, 1 + ((k + 1) % n), 1 + k);
+    for (let ring = 1; ring < rings.length; ring++) {
+      const inner = 1 + (ring - 1) * n;
+      const outer = 1 + ring * n;
+      for (let k = 0; k < n; k++) {
+        const k1 = (k + 1) % n;
+        indices.push(inner + k, inner + k1, outer + k, inner + k1, outer + k1, outer + k);
+      }
+    }
+    return this.moundMesh(`village-cemetery-mounds-${look}-flat`, look, positions, uvs, indices);
+  }
+
+  /** Síť mohyly či hrobu se sdíleným materiálem podle vzhledu (zarostlá, čerstvá hlína). */
+  private moundMesh(
+    name: string,
+    look: MoundLook,
+    positions: number[],
+    uvs: number[],
+    indices: number[],
+  ): Mesh {
     const normals = new Float32Array(positions.length);
     VertexData.ComputeNormals(positions, indices, normals);
     const data = new VertexData();
@@ -373,8 +483,7 @@ export class CemeteryRenderer {
     data.normals = normals;
     data.uvs = uvs;
     data.indices = indices;
-    const name = size === 'normal' ? look : `${look}-${size}`;
-    const mesh = new Mesh(`village-cemetery-mounds-${name}`, this.scene);
+    const mesh = new Mesh(name, this.scene);
     data.applyToMesh(mesh);
     mesh.material = this.material(`mound-${look}`, () => {
       const m = new StandardMaterial(`village-cemetery-mound-${look}`, this.scene);
@@ -450,6 +559,35 @@ export class CemeteryRenderer {
     return mesh;
   }
 
+  /**
+   * Malý dřevěný latinský kříž v čele kostrového hrobu (`FLAT_GRAVE.cross`): svislé břevno
+   * s kusem v zemi, příčné napříč hrobem (místní z – čelem k nohám hrobu); počátek = pata
+   * břevna v zemi.
+   */
+  private createCrossMesh(): Mesh {
+    const { heightM, sinkM, postM, barM, barAtM } = FLAT_GRAVE.cross;
+    const tall = heightM + sinkM;
+    const post = CreateBoxVertexData({ width: postM.depth, height: tall, depth: postM.width });
+    post.transform(Matrix.Translation(0, tall / 2, 0));
+    const bar = CreateBoxVertexData({ width: barM.depth, height: barM.height, depth: barM.length });
+    bar.transform(Matrix.Translation(0, sinkM + barAtM, 0));
+    post.merge(bar);
+    const mesh = new Mesh('village-cemetery-grave-crosses', this.scene);
+    post.applyToMesh(mesh);
+    mesh.material = this.material('grave-cross', () => {
+      const m = new StandardMaterial('village-cemetery-grave-cross', this.scene);
+      m.diffuseColor = CROSS_COLOR.clone();
+      m.specularColor = Color3.Black();
+      m.ambientColor = CROSS_COLOR.scale(POST_AMBIENT_SHARE);
+      applySeasonRelief(m, POST_SNOW);
+      return m;
+    });
+    mesh.isPickable = false;
+    mesh.receiveShadows = true;
+    this.context.addShadowCaster(mesh);
+    return mesh;
+  }
+
   private material(key: string, create: () => Material): Material {
     let material = this.materials.get(key);
     if (!material) {
@@ -474,9 +612,12 @@ function cemeteryKey(c: SceneCemetery, gate: Point | null): string {
     // průběh po 2 % – plot nepřibývá plynule, ale ani se nepřestavuje při každém dotazu
     building ? Math.round(c.progress * 50) : '',
     c.graves,
-    // mohyly podle významu – místo, velikost a čerstvost
+    // mohyly podle významu – místo, velikost, čerstvost a kostrový hrob
     (c.mounds ?? [])
-      .map((m) => `${m.cell.x},${m.cell.y}:${m.column},${m.row}${m.size[0]}${m.fresh ? 'f' : ''}`)
+      .map(
+        (m) =>
+          `${m.cell.x},${m.cell.y}:${m.column},${m.row}${m.size[0]}${m.fresh ? 'f' : ''}${m.rite ? 'i' : ''}`,
+      )
       .join(';'),
     gate ? `${Math.round(gate[0])},${Math.round(gate[1])}` : '',
     // rozpad plotu opuštěného hřbitova po dvacetinách (abandonment.md)

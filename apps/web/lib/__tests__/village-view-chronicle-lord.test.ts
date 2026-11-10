@@ -28,6 +28,19 @@ describe('kronika – vojvodova rodina', () => {
     ).toBe('Výprava Bořivoje se rozpadla.');
   });
 
+  it('rod se dozvěděl o křesťanství (christianity.md – Objev)', () => {
+    expect(chronicleText({ day: 7, kind: 'christianity-known' }, 'Ves')).toBe(
+      'Rod se dozvěděl o novém Bohu.',
+    );
+  });
+
+  it('křest vojvody a propuštěné vedlejší manželky (christianity.md – Křest rodu)', () => {
+    expect(chronicleText({ day: 8, kind: 'lord-baptized' }, 'Ves')).toBe('Vojvoda se dal pokřtít.');
+    expect(chronicleText({ day: 8, kind: 'wives-released', count: 2 }, 'Ves')).toBe(
+      'Vojvoda propustil vedlejší manželky (2).',
+    );
+  });
+
   it('jméno muže rodu v 1. pádu (lord.md – Jména)', () => {
     expect(chronicleText({ day: 3, kind: 'line-named', name: 'Mrdomír' }, 'Ves')).toBe(
       'Muž rodu dostal jméno – Mrdomír.',

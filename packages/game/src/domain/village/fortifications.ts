@@ -1,3 +1,4 @@
+import type { PlacementVillage } from './placement-types';
 import type { Landscape, ObstacleLayer } from '../landscape';
 import { cloneState } from './clone';
 import {
@@ -381,13 +382,14 @@ export function startFortification(
   obstacles: ObstacleLayer,
   input: FortificationInput,
   walk?: Walk,
+  placement?: PlacementVillage,
 ): FortificationResult {
   if (input.kind === 'walkway') return { ok: false, reason: FORT_WALKWAY_NEW };
   const year = wallYearReason(input.kind, day);
   if (year) return { ok: false, reason: year };
   const check = checkFortificationPlacement(
     landscape,
-    placementVillageOf(state, day),
+    placement ?? placementVillageOf(state, day),
     obstacles,
     input.points,
     input.kind,
@@ -449,6 +451,7 @@ export function startFortificationUpgrade(
   obstacles: ObstacleLayer,
   input: FortificationUpgradeInput,
   walk?: Walk,
+  placement?: PlacementVillage,
 ): FortificationResult {
   const fort = villageFortifications(state).find((f) => f.id === input.fortificationId);
   if (!fort) return { ok: false, reason: FORT_UNKNOWN };
@@ -461,7 +464,7 @@ export function startFortificationUpgrade(
       };
     }
     // širší pás palisády – kontrola bez sebe sama (vlastní pás plotu ji neblokuje)
-    const village = placementVillageOf(state, day);
+    const village = placement ?? placementVillageOf(state, day);
     const check = checkFortificationPlacement(
       landscape,
       { ...village, fortifications: villageFortifications(state).filter((f) => f.id !== fort.id) },

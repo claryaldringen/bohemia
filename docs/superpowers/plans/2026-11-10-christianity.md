@@ -1,5 +1,8 @@
 # Křesťanství – plán implementace
 
+**Stav:** hotovo 10. 11. 2026 – K1–K10 (kostel, kněz a hřbitůvek u kostela jsou samostatné téma
+po kamenném zdivu; `hasChurch` zůstává false).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Každý rod jednou za rok losuje, jestli narazil na křesťanství (šance exponenciálně roste
@@ -85,15 +88,15 @@ toYear: number): number | null` (první rok ≤ `toYear`, kdy los padl; rok po r
     `threeFieldAllowed(year: number, baptized: boolean): boolean` (rok ≥ `THREE_FIELD_FROM_YEAR` a
     pokřtěný – zatím nikde nevolané).
 
-- [ ] **Step 1:** Testy: `christianityChance(500) === 0`; kumulativně do roku 600 ≈ 1 % (0,8–1,2),
+- [x] **Step 1:** Testy: `christianityChance(500) === 0`; kumulativně do roku 600 ≈ 1 % (0,8–1,2),
       do 800 ≈ 51 % (48–54), do 900 ≥ 98,5 % (spočti `1 − Π(1 − p)`); `discoveryYear` deterministický
       a `discoveryYear(s, 500, 900)` = první rok, kdy padne los rok po roku (porovnej s ruční smyčkou);
       `threeFieldAllowed(1099, true) === false`, `(1100, false) === false`, `(1100, true) === true`.
-- [ ] **Step 2:** Spusť `npx vitest run src/domain/village/__tests__/faith.test.ts` (v `packages/game`) –
+- [x] **Step 2:** Spusť `npx vitest run src/domain/village/__tests__/faith.test.ts` (v `packages/game`) –
       FAIL.
-- [ ] **Step 3:** Implementuj `rules-faith.ts`, `faith.ts` a typy.
-- [ ] **Step 4:** Testy PASS; `npm run typecheck` z kořene.
-- [ ] **Step 5:** Commit `feat(game): víra – pravidla, typy a los objevu křesťanství`.
+- [x] **Step 3:** Implementuj `rules-faith.ts`, `faith.ts` a typy.
+- [x] **Step 4:** Testy PASS; `npm run typecheck` z kořene.
+- [x] **Step 5:** Commit `feat(game): víra – pravidla, typy a los objevu křesťanství`.
 
 ### K2: Rodové příznaky v DB
 
@@ -112,13 +115,13 @@ toYear: number): number | null` (první rok ≤ `toYear`, kdy los padl; rok po r
   když je null – vzor `claimEnnoble`), `markBaptized(houseId: string, day: number): Promise<boolean>`
   (jen když zná a ještě není pokřtěný).
 
-- [ ] **Step 1:** Test DB: nový rod má obojí null; `markChristianityKnown` podruhé vrátí false a rok
+- [x] **Step 1:** Test DB: nový rod má obojí null; `markChristianityKnown` podruhé vrátí false a rok
       nezmění; `markBaptized` bez znalosti false, po ní true a podruhé false.
-- [ ] **Step 2:** `TEST_DATABASE=bohemia_test_faith npm run test:db` – FAIL.
-- [ ] **Step 3:** Sloupce `christianity_known_year integer`, `baptized_day integer` (null), adaptér,
+- [x] **Step 2:** `TEST_DATABASE=bohemia_test_faith npm run test:db` – FAIL.
+- [x] **Step 3:** Sloupce `christianity_known_year integer`, `baptized_day integer` (null), adaptér,
       in-memory. **`bohemia` nemigrovat** (migraci pouští hlavní relace).
-- [ ] **Step 4:** test:db PASS (DB pak zrušit `dropdb`).
-- [ ] **Step 5:** Commit `feat(db): rod zná křesťanství a den křtu`.
+- [x] **Step 4:** test:db PASS (DB pak zrušit `dropdb`).
+- [x] **Step 5:** Commit `feat(db): rod zná křesťanství a den křtu`.
 
 ### K3: Roční úloha světa – objev a NPC křest
 
@@ -143,15 +146,22 @@ letošní rok)`; padne-li → `markChristianityKnown`, upozornění hráči, zá
   - `sendRodBaptized(deps, houseId: string, day: number): Promise<void>` – událost `rod-baptized`
     do schránky všech vsí rodu (K4 ji použije pro hráče a doplní, co ves s událostí udělá).
 
-- [ ] **Step 1:** Testy: rod založený 520 při běhu v roce 870 – výsledek = smyčka rok po roku;
+- [x] **Step 1:** Testy: rod založený 520 při běhu v roce 870 – výsledek = smyčka rok po roku;
       druhý běh téhož dne nic nezapíše (idempotence); upozornění a událost schránky jen jednou;
       NPC rod známý v roce X je pokřtěný nejdřív X+1 a nejpozději X+20.
-- [ ] **Step 2:** FAIL.
-- [ ] **Step 3:** Implementace + zapojení do `runWorldTasks` (vzor `openAnnualDialogs` v
+- [x] **Step 2:** FAIL.
+- [x] **Step 3:** Implementace + zapojení do `runWorldTasks` (vzor `openAnnualDialogs` v
       `annual-levies.ts`). Text kroniky „Rod se dozvěděl o novém Bohu.“ v
       `apps/web/lib/village-view-chronicle.ts` (`chronicleText`).
-- [ ] **Step 4:** PASS, `npx vitest run` v `packages/game` a `apps/worker`.
-- [ ] **Step 5:** Commit `feat(game): rod se dozví o křesťanství – roční los a NPC křest`.
+- [x] **Step 4:** PASS, `npx vitest run` v `packages/game` a `apps/worker`.
+- [x] **Step 5:** Commit `feat(game): rod se dozví o křesťanství – roční los a NPC křest`.
+
+**Provedeno jinak než výš (návrh Clauda):** seed rodu `houseFaithSeed` = `deriveSeed(worldSeed,
+'house:' + id)` (los roku z `'faith:' + rok` dělá `discoveryYear`); první los `firstDiscoveryYear`
+– rod založený během roku losuje poprvé příští 1. 1.; kronika jde obecnou událostí `chronicle`
+(nový druh kroniky `christianity-known`, ne nový druh schránky); deps navíc `settlements`,
+`villages`, `stewardships`, `vassalages` (výpis NPC rodů), `dayOf` a paměť workeru `doneYear`.
+NPC rod objev ani křest do kroniky nepíše.
 
 ### K4: Křest vojvody a rodu
 
@@ -179,15 +189,26 @@ Promise<{ ok: true } | { ok: false; reason: string }>` (vzor `order-breakout.ts`
     zůstává), kronika `lord-baptized` a `wives-released` (počet).
   - Novorozenec je `faith: 'christian'`, je-li křesťan aspoň jeden rodič.
 
-- [ ] **Step 1:** Testy domény: po `baptizeVillage` vojvoda křesťan, `wivesOf(lord)` jen hlavní,
+- [x] **Step 1:** Testy domény: po `baptizeVillage` vojvoda křesťan, `wivesOf(lord)` jen hlavní,
       propuštěné nejsou v `lordFamily`/`isElite`; syn vedlejší manželky dál `isLineMan`; dítě narozené
       po křtu je křesťan; `extraWivesDay` v pokřtěné vsi nic nepřidá ani po smrti vojvody (nástupce
       pohan); idempotence (událost dvakrát = jednou); vcelku = po kouscích přes JSON.
-- [ ] **Step 2:** Testy use-casu: bez znalosti důvod, podruhé důvod, rod se dvěma vsemi → obě
+- [x] **Step 2:** Testy use-casu: bez znalosti důvod, podruhé důvod, rod se dvěma vsemi → obě
       dostanou `faith.rodBaptizedDay`; ves založená rodem po křtu ho má.
-- [ ] **Step 3:** FAIL → implementace → PASS.
-- [ ] **Step 4:** `npx vitest run` v `packages/game` (zlaté otisky beze změny – stará ves nic nemá).
-- [ ] **Step 5:** Commit `feat(game): křest vojvody – jediná manželka, pokřtěné děti, příznak ve vsích rodu`.
+- [x] **Step 3:** FAIL → implementace → PASS.
+- [x] **Step 4:** `npx vitest run` v `packages/game` (zlaté otisky beze změny – stará ves nic nemá).
+- [x] **Step 5:** Commit `feat(game): křest vojvody – jediná manželka, pokřtěné děti, příznak ve vsích rodu`.
+
+**Provedeno jinak než výš (návrh Clauda):** `baptizeVillage(state, day, { houseId, npc?, lord? })`
+mutuje stav a vrací kroniku jako ostatní kroky schránky. Ves NPC rodu: křest rodu hráče jde do všech
+vsí jeho sídel (i těch, které řídí NPC rod – úprava `sendRodBaptized` z K3), NPC rod píše zvlášť
+`faith.nobles`; `rodBaptized` platí podle rodu, který ves řídí – po konci NPC rodu zase rod hráče
+(oprava nálezu z K3: příznak NPC rodu po vrácení vsi nezůstane). Křtí se jen vojvoda ve vsi
+`House.lord` (`lord`), v ostatních vsích jen den křtu. Propuštěné ženy odcházejí z přeplněného
+dvorce jako vdovy po vojvodech (`lordWidows`). Ves na cestě použije ze schránky `rod-baptized`
+(`withJourneyInbox`). Převody netřeba – stará ves bez `faith` je pohanská. Právo `baptizeLord` je
+`ennoble` (do `ACTION_RIGHTS` ho přidá K8 s tlačítkem). Převod sídla jinému držiteli (odúmrť,
+postoupení vsi) – vyřešeno v K10.
 
 ### K5: Obrácení vesničanů a štěstí
 
@@ -209,13 +230,13 @@ Promise<{ ok: true } | { ok: false; reason: string }>` (vzor `order-breakout.ts`
   Cílové štěstí = vážený průměr cíle pohanů (posvátná místa − nespokojenost z `faith.desecrated`)
   a křesťanů (kostel `FAITH.churchHappiness`, posvátná místa 0) podle počtu lidí.
 
-- [ ] **Step 1:** Testy: ves bez křtu – štěstí přesně jako dnes (zlatý otisk beze změny); ves samých
+- [x] **Step 1:** Testy: ves bez křtu – štěstí přesně jako dnes (zlatý otisk beze změny); ves samých
       pohanů po zničení háje −15 bez časové meze; 2 háje + hřbitov = −30 (strop); ves samých křesťanů
       nespokojenost 0 (kostel zatím není – posvátná místa jim 0); půl na půl = průměr; obrácení: 1 000
       pohanů bez kostela a 0 % křesťanů → za rok ≈ 5 (1–10); bez křtu rodu nikdo; vcelku = po kouscích.
-- [ ] **Step 2:** FAIL → implementace → PASS.
-- [ ] **Step 3:** `npx vitest run` v `packages/game`.
-- [ ] **Step 4:** Commit `feat(game): obrácení vesničanů a štěstí pohanů a křesťanů`.
+- [x] **Step 2:** FAIL → implementace → PASS.
+- [x] **Step 3:** `npx vitest run` v `packages/game`.
+- [x] **Step 4:** Commit `feat(game): obrácení vesničanů a štěstí pohanů a křesťanů`.
 
 ### K6: Posvátná místa a hřbitov po křtu
 
@@ -240,14 +261,14 @@ day): VillageState` (+1 do `faith.desecrated`, kronika `sacred-felled` / `cemete
   `cemeteryMayGo(state, cemetery, day): boolean` = pokřtěný rod a (`freePlaces` 0 nebo poslední
   pohřeb před ≥ 10 lety).
 
-- [ ] **Step 1:** Testy: nepokřtěná ves – stavba na háji odmítnuta jako dnes; pokřtěná – povolena
+- [x] **Step 1:** Testy: nepokřtěná ves – stavba na háji odmítnuta jako dnes; pokřtěná – povolena
       a po dokončení `desecrated.oaksOrGroves` +1; pole přes háj v pokřtěné vsi bez odečtu koruny; zaorání
       plného hřbitova povoleno, hřbitova s volným místem a pohřbem loni ne; vesničané na dřevo posvátný dub
       nevezmou ani v pokřtěné vsi; zlaté otisky překážek, pěšin a vozové sítě beze změny.
-- [ ] **Step 2:** FAIL → implementace → PASS.
-- [ ] **Step 3:** `npx vitest run` v `packages/game`; scéna zrušený strom nakreslí jako dnes
+- [x] **Step 2:** FAIL → implementace → PASS.
+- [x] **Step 3:** `npx vitest run` v `packages/game`; scéna zrušený strom nakreslí jako dnes
       (`clearedObstacles`).
-- [ ] **Step 4:** Commit `feat(game): pokřtěný rod smí kácet posvátná místa a zaorat hřbitov`.
+- [x] **Step 4:** Commit `feat(game): pokřtěný rod smí kácet posvátná místa a zaorat hřbitov`.
 
 ### K7: Kostrové pohřby křesťanů
 
@@ -267,10 +288,10 @@ day): VillageState` (+1 do `faith.desecrated`, kronika `sacred-felled` / `cemete
 - Produces: křesťan se pohřbí na starém slovanském hřbitově **kostrově** (`rite: 'inhumation'`,
   bez mohyly – zabere jedno místo jako dnes hrob bez mohyly); pohan dál žárově jako dnes.
 
-- [ ] **Step 1:** Testy: křesťan → hrob s `rite: 'inhumation'` bez mohyly; pohan beze změny; plnost
+- [x] **Step 1:** Testy: křesťan → hrob s `rite: 'inhumation'` bez mohyly; pohan beze změny; plnost
       hřbitova se počítá stejně; vcelku = po kouscích.
-- [ ] **Step 2:** FAIL → implementace → PASS; `npx vitest run` v `packages/game`.
-- [ ] **Step 3:** Commit `feat(game): křesťané se pohřbívají kostrově`.
+- [x] **Step 2:** FAIL → implementace → PASS; `npx vitest run` v `packages/game`.
+- [x] **Step 3:** Commit `feat(game): křesťané se pohřbívají kostrově`.
 
 ### K8: Rozhraní
 
@@ -293,10 +314,20 @@ day): VillageState` (+1 do `faith.desecrated`, kronika `sacred-felled` / `cemete
   pokřtít“), jen když `baptizable`; zašedlé s důvodem jinak se neukazuje; po kliknutí dialog
   „Křest nejde vzít zpět. Vedlejší manželky budou propuštěny.“ a potvrzení.
 
-- [ ] **Step 1:** Testy komponent: tlačítko jen u vojvody rodu, který zná a není pokřtěný; dialog;
+- [x] **Step 1:** Testy komponent: tlačítko jen u vojvody rodu, který zná a není pokřtěný; dialog;
       volání akce; texty kroniky.
-- [ ] **Step 2:** FAIL → implementace → PASS; `npx vitest run` v `apps/web`.
-- [ ] **Step 3:** Commit `feat(web): křest vojvody a texty kroniky`.
+- [x] **Step 2:** FAIL → implementace → PASS; `npx vitest run` v `apps/web`.
+- [x] **Step 3:** Commit `feat(web): křest vojvody a texty kroniky`.
+
+**Provedeno jinak než výš (návrh Clauda):** texty kroniky už byly z K3–K7. Kdo se smí nechat
+pokřtít, říká `VillageAccess.baptizable` (`villageAccess` už rod načítá – žádný dotaz navíc);
+tlačítko je u vojvody vsi (`currentLord` – toho `baptizeVillage` křtí), právo
+`ACTION_RIGHTS.baptizeLord` = `ennoble`. Ikona `house/faith-cross.png` zatím chybí – `FaithCross`
+přejde na zvon (`resources/bell.png`), K9 dodá soubor. Navíc: kříž „Křesťan“ v panelu osoby, rozpis
+víry v popisku štěstí, Zbourat u hřbitova pokřtěného rodu (pohanský rod tlačítko nemá) a varování
+u kurzoru „Vykácí posvátný háj.“ / „Vykácí posvátný dub.“ / „Zaorá starý hřbitov.“ – táž kontrola
+jádra s vsí pohanského rodu (`lib/desecration-warning.ts`); `docs/code/web-ui.md` – Křesťanství
+v rozhraní.
 
 ### K9: Scéna, ikona a e2e
 
@@ -313,11 +344,12 @@ day): VillageState` (+1 do `faith.desecrated`, kronika `sacred-felled` / `cemete
 
 - Consumes: K7 hroby, K8 rozhraní.
 
-- [ ] **Step 1:** Ikona z Blenderu; snímek tlačítka a kostrového hrobu do scratchpadu ke kontrole
+- [x] **Step 1:** Ikona z Blenderu; snímek tlačítka a kostrového hrobu do scratchpadu ke kontrole
       Martinem.
-- [ ] **Step 2:** Test plánu pohřbu (kostrový bez hranice) – FAIL → PASS.
-- [ ] **Step 3:** e2e na vlastním portu a DB (`E2E_PORT`, `TEST_DATABASE`) – PASS.
-- [ ] **Step 4:** Commit `feat(web): ikona křtu a kostrové pohřby ve scéně`.
+- [x] **Step 2:** Test plánu pohřbu (kostrový bez hranice) – FAIL → PASS.
+- [x] **Step 3:** e2e na vlastním portu a DB (`E2E_PORT`, `TEST_DATABASE`) – PASS (test křtu rodu
+      ve `village.spec.ts`, samostatná úloha po K8).
+- [x] **Step 4:** Commit `feat(web): ikona křtu a kostrové pohřby ve scéně`.
 
 ### K10: Dokumentace a integrace
 
@@ -327,9 +359,16 @@ day): VillageState` (+1 do `faith.desecrated`, kronika `sacred-felled` / `cemete
   `village-core.md` (štěstí), `world.md` (roční úloha), `web-ui.md` (tlačítko),
   `docs/design/christianity.md` (Stav: implementováno, odškrtnuté body), tento plán (odškrtnout).
 
-- [ ] **Step 1:** Zápisy do `docs/code/` (jen potřebné sekce).
-- [ ] **Step 2:** Z kořene `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run test`.
-- [ ] **Step 3:** Commit `docs: křesťanství – mapa kódu a stav návrhu`.
+- [x] **Step 1:** Zápisy do `docs/code/` (jen potřebné sekce).
+- [x] **Step 2:** Z kořene `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run test`.
+- [x] **Step 3:** Commit `docs: křesťanství – mapa kódu a stav návrhu`.
+
+**Provedeno navíc (návrh Clauda):** otevřený bod z K4 – ves, která přejde k jinému držiteli
+(odúmrť, postoupení, věnování dílu), dostane při převzetí sídla (`acceptHolderTransfers`, 2. krok
+převodu) křest nového rodu (`withHolderFaith` – den křtu, nebo příznak zmizí; `desecrated`
+zůstává). Prázdné ikony v potvrzení křtu na snímku K9: snímek vznikl dřív, než server poslal
+obrázky (dopočítával ves) – e2e teď na ikony počká; náhradní zvon `FaithCross` zrušen (kříž víry
+už existuje).
 
 ## Pořadí a souběh
 

@@ -78,6 +78,8 @@ async function main(): Promise<void> {
     );
   };
 
+  // los křesťanství padá 1. 1. – herní rok, za který už úloha proběhla (christianity.md – Objev)
+  const christianityYear: { year: number | null } = { year: null };
   // herní den okamžiku (tribut z míru, kola jednání)
   const dayOfAt = (at: Date): number => {
     const day = worldDayOf(at.getTime(), currentWorld());
@@ -200,6 +202,17 @@ async function main(): Promise<void> {
             rounds: gameDeps.domainFood,
             attempts: domainFoodAttempts,
             log: (message) => log.warn(message),
+          },
+          christianity: {
+            houses: gameDeps.houses,
+            vassalages: gameDeps.vassalages,
+            notices: gameDeps.notices,
+            settlements: gameDeps.settlements,
+            villages: gameDeps.villages,
+            stewardships: gameDeps.stewardships,
+            worldSeed: gameDeps.worldSeed,
+            dayOf: dayOfAt,
+            doneYear: christianityYear,
           },
         },
         input,

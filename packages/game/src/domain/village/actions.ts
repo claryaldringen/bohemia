@@ -36,7 +36,7 @@ import { orchardPlantingCost, villageOrchards } from './orchard';
 import { copyPlot } from './plots';
 import type { Walk } from './paths/walking';
 import { ageGroup } from './people';
-import { settlersMaxId, type Settlers } from './departure';
+import { faithOfSettlers, settlersMaxId, type Settlers } from './departure';
 import { isLineMan } from './dynasty';
 import { checkPersonName, normalizePersonName } from './dynasty-names';
 import { replacementAffordability, relocationBlock } from './relocation';
@@ -550,6 +550,8 @@ export function foundVillage(input: {
       : (founders?.dynasty ?? { lordId: null, lords: [] }),
     // ves syna (`departWithSon`) řídí správce od založení, první ves hráče ne (steward.md)
     steward: newSteward(day, settlers?.stewarded === true),
+    // nová ves pokřtěného rodu je pokřtěná (christianity.md – Křest rodu)
+    ...(settlers ? faithOfSettlers(settlers) : {}),
     dwellings: [],
     fields: [],
     parts: [],

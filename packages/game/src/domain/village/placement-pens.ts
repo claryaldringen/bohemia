@@ -15,7 +15,8 @@ import { type Shape } from './plot-cells';
 import { type TakenLand } from './land-taken';
 import { cellObstacles, obstacleStatus, outcropUnder, squareObstacles } from './obstacles';
 import { normalizeGrid } from './square-grid';
-import { sacredOaksInTile, sacredSitesOf } from './sacred';
+import { sacredOaksInTile } from './sacred';
+import { sacredSitesFor } from './desecration';
 import {
   FIELD_LAND,
   checkFootprintFree,
@@ -87,7 +88,7 @@ export function checkPenPlacement(
   if (outcropUnder(obstacles, status, square)) {
     return { ...fail('Stojí tu skalní výchoz – ten osadníci neodstraní.'), ...none };
   }
-  const sites = sacredSitesOf(obstacles);
+  const sites = sacredSitesFor(village, obstacles);
   const index = cellIndex(landscape, cell);
   if (sites.groveByTile.has(index)) {
     return { ...fail('Roste tu posvátný dubový háj – ten vesničané nevykácejí.'), ...none };
@@ -141,7 +142,7 @@ function checkTurnedPen(
   if (outcropUnder(obstacles, status, square.corners)) {
     return { ...fail('Stojí tu skalní výchoz – ten osadníci neodstraní.'), ...none };
   }
-  const sites = sacredSitesOf(obstacles);
+  const sites = sacredSitesFor(village, obstacles);
   const sacred = sacredInShape(landscape, obstacles, sites, square);
   if (sacred.groveTiles.length > 0) {
     return { ...fail('Roste tu posvátný dubový háj – ten vesničané nevykácejí.'), ...none };

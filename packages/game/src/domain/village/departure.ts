@@ -36,6 +36,7 @@ import type {
   NeighborDirection,
   Ox,
   Person,
+  VillageFaith,
   VillageJourney,
   VillageState,
 } from './types';
@@ -94,6 +95,11 @@ export interface Settlers {
    * (`VillageState.looseHorses`). Bez koně chybí.
    */
   horse?: Horse;
+  /**
+   * Den křtu rodu hráče (christianity.md – Křest rodu; `VillageFaith.rodBaptizedDay`): nová ves
+   * rodu založená po křtu ho zdědí (plán 2026-11-10 – Review Focus 1). Chybí – rod nepokřtěný.
+   */
+  rodBaptizedDay?: number;
 }
 
 /** Ves je opuštěná – odešli všichni (dál se nesimuluje). */
@@ -433,8 +439,23 @@ export function departLeavers(
         : {}),
       ...(options.stewarded ? { stewarded: true as const } : {}),
       ...(horse ? { horse } : {}),
+      ...settlersFaith(state),
     },
   };
+}
+
+/** Den křtu rodu hráče, který si osadníci nesou do nové vsi (`Settlers.rodBaptizedDay`). */
+function settlersFaith(state: Pick<VillageState, 'faith'>): { rodBaptizedDay?: number } {
+  const day = state.faith?.rodBaptizedDay;
+  return day === undefined ? {} : { rodBaptizedDay: day };
+}
+
+/** Víra nové vsi z osadníků – jen den křtu rodu (zničená posvátná místa patří staré vsi). */
+export function faithOfSettlers(settlers: Pick<Settlers, 'rodBaptizedDay'>): {
+  faith?: VillageFaith;
+} {
+  const day = settlers.rodBaptizedDay;
+  return day === undefined ? {} : { faith: { rodBaptizedDay: day } };
 }
 
 /** Odebere koně `horseId` z ohrady koní (mutuje stav) a vrátí ho; bez něj undefined. */
@@ -525,6 +546,7 @@ export function travellingVillage(
     ...(settlers.horse && horseId !== null
       ? { looseHorses: [{ ...settlers.horse, id: horseId }] }
       : {}),
+    ...faithOfSettlers(settlers),
     // vůdce odchodu ves na cestě drží až do založení (`settlersOf`)
     journey: {
       ...journey,
@@ -563,6 +585,7 @@ export function settlersOf(state: VillageState): Settlers {
       ? { stewarded: true as const }
       : {}),
     ...(state.looseHorses?.[0] ? { horse: { ...state.looseHorses[0] } } : {}),
+    ...settlersFaith(state),
   };
 }
 

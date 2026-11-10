@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  parseBaptizeInput,
   parseDemolishFortificationSectionInput,
   parseFoundVillageInput,
   parseCells,
@@ -230,7 +231,11 @@ describe('vstupy víc vsí a přestěhování (migration.md)', () => {
       structure: 'shrine',
       id: 9,
     });
-    expect(parseStructureUseInput({ structure: 'cemetery', id: 5 })).toBeNull();
+    // hřbitov zbourá pokřtěný rod (christianity.md) – o tom, jestli smí, rozhodne server
+    expect(parseStructureUseInput({ structure: 'cemetery', id: 5 })).toEqual({
+      structure: 'cemetery',
+      id: 5,
+    });
     expect(parseStructureUseInput({ structure: 'pen', id: 0 })).toBeNull();
     expect(parseStructureUseInput({ structure: 'pen', id: '3' })).toBeNull();
     expect(parseStructureUseInput(null)).toBeNull();
@@ -400,5 +405,14 @@ describe('vstupy odchodu do nové vsi (migration.md – fáze 3 a 4)', () => {
     expect(parseSettleJourneyInput({ dwelling })).toEqual({ dwelling });
     expect(parseSettleJourneyInput({ dwelling: { x: 1 } })).toBeNull();
     expect(parseSettleJourneyInput(null)).toBeNull();
+  });
+});
+
+describe('parseBaptizeInput – křest vojvody (christianity.md – Křest rodu)', () => {
+  it('stačí objekt s villageId (ten čte villageAction), cokoli jiného neprojde', () => {
+    expect(parseBaptizeInput({ villageId: 'v-1' })).toEqual({});
+    expect(parseBaptizeInput({})).toEqual({});
+    expect(parseBaptizeInput(null)).toBeNull();
+    expect(parseBaptizeInput('v-1')).toBeNull();
   });
 });

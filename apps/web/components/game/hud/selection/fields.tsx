@@ -639,6 +639,7 @@ export function CemeteryBody({
       </div>
       {details.building !== null && <Bar value={details.building} name="Rozšíření" />}
       {details.repair !== null && <RepairBar value={details.repair} name="Oprava plotu" />}
+      <DemolitionBar use={details.use} />
     </div>
   );
 }

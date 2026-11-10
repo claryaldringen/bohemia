@@ -90,6 +90,11 @@ export type PlayerNoticeKind =
   | 'protection-sent'
   | 'protection-recalled'
   /**
+   * Rod se dozvěděl o křesťanství (christianity.md – Objev křesťanství; `advanceChristianity`) –
+   * payload `{ year }` (herní rok objevu).
+   */
+  | 'christianity-known'
+  /**
    * Tažení (`stepCampaigns`): `campaign-returned` – vojsko se vrátilo domů, payload
    * `{ campaignId, reason }` (`CampaignReturnReason`).
    */

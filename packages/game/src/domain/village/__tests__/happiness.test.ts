@@ -214,3 +214,48 @@ describe('štěstí ve vsi', () => {
     expect(summary.happiness.laborFactor).toBe(villageLaborFactor(whole));
   });
 });
+
+describe('štěstí – víra (christianity.md – Štěstí; K5)', () => {
+  const sacredBase = { ...NONE, sacred: 20 };
+
+  it('bez křesťanů a bez zničených míst přesně jako dnes', () => {
+    expect(happinessTarget({ ...sacredBase })).toBe(70);
+    expect(happinessTarget({ ...sacredBase, christianShare: 0 })).toBe(70);
+  });
+
+  it('pohané: zničený háj −15, 2 háje + hřbitov strop −30', () => {
+    expect(happinessTarget({ ...sacredBase, desecration: 15 })).toBe(55);
+    expect(happinessTarget({ ...sacredBase, desecration: 30 })).toBe(40);
+  });
+
+  it('desecrated ve stavu: 2 háje + hřbitov = −30 (strop)', () => {
+    const s = village();
+    s.faith = { desecrated: { oaksOrGroves: 2, cemeteries: 1 } };
+    expect(happinessFactors(s, DAY, 1).desecration).toBe(30);
+    s.faith = { desecrated: { oaksOrGroves: 1, cemeteries: 0 } };
+    expect(happinessFactors(s, DAY, 1).desecration).toBe(15);
+    s.faith = undefined;
+    expect(happinessFactors(s, DAY, 1).desecration).toBeUndefined();
+  });
+
+  it('samí křesťané: bez nespokojenosti a bez posvátných míst, kostel zatím není', () => {
+    expect(happinessTarget({ ...sacredBase, desecration: 30, christianShare: 1 })).toBe(50);
+    expect(happinessTarget({ ...sacredBase, christianShare: 1, church: 40 })).toBe(90);
+  });
+
+  it('půl na půl = průměr cíle pohanů a křesťanů', () => {
+    expect(happinessTarget({ ...sacredBase, desecration: 10, christianShare: 0.5 })).toBe(55);
+  });
+
+  it('podíl křesťanů ve vsi se propíše do složek a rozpisu', () => {
+    const s = village();
+    s.people = s.people.map((p, i) => (i % 2 === 0 ? { ...p, faith: 'christian' as const } : p));
+    const f = happinessFactors(s, DAY, 1);
+    expect(f.christianShare).toBeCloseTo(
+      s.people.filter((p) => p.faith).length / s.people.length,
+      9,
+    );
+    expect(f.church).toBeUndefined();
+    expect(summarizeVillage(s, DAY).happiness.christianShare).toBeCloseTo(f.christianShare ?? 0, 9);
+  });
+});

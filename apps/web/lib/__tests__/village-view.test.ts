@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { panelOptionsOf, parsePanelAsk } from '../panel-options';
 import {
+  currentLord,
   CART_JOBS,
   ROAD_TREE_ID_BASE,
   advanceVillage,
@@ -26,6 +27,8 @@ import {
   villageCartRoutes,
   CARTS,
   placementVillageOf,
+  playerPlacementVillage,
+  sacredSitesFor,
   reservedTrees,
   sacredOakLife,
   sacredOakNow,
@@ -58,6 +61,7 @@ import {
 import { manorHousehold, visitedWives } from '../village-view-scene';
 import { protectionLevel, sceneWeather } from '../weather-view';
 import type { SceneVillage, ScenePloughLegs } from '../village-view-scene-types';
+import type { ScenePerson } from '../person-view';
 import {
   cartRoutesRequest,
   simplifiedRoute,
@@ -1027,6 +1031,116 @@ describe('buildVillageView', () => {
     const server = fieldPartsFromCells(landscape, placementVillageOf(s, DAY), cells, positions);
     expect(browser.foundingCost).toBe(0);
     expect(server.foundingCost).toBe(0);
+  });
+
+  it('pokřtěný rod: prohlížeč i server pustí stavby hráče přes posvátná místa stejně', () => {
+    const layer = obstaclesOf(landscape);
+    // plný hřbitov – pokřtěný rod ho smí zaorat, kontrola umístění ho pak nezná
+    const full = {
+      id: 900,
+      squares: [{ cell: { x: 2, y: 2 }, x: -82.5, z: -82.5, waterDistanceM: 500 }],
+      squareSizeM: 15,
+      graves: 56,
+      builtDay: DAY - 3000,
+    };
+    const pagan: VillageState = { ...state(), cemeteries: [full] };
+    const baptized: VillageState = { ...pagan, faith: { rodBaptizedDay: DAY - 10 } };
+    for (const s of [pagan, baptized]) {
+      const { scene } = buildVillageView(record(s), landscape, DAY);
+      const browser = placementVillageFromScene(scene);
+      const server = playerPlacementVillage(s, DAY);
+      expect(browser.sacredFree).toBe(server.sacredFree);
+      expect(sacredSitesFor(browser, layer)).toBe(sacredSitesFor(server, layer));
+      expect(browser.cemeteries?.length).toBe(server.cemeteries?.length);
+    }
+    expect(playerPlacementVillage(pagan, DAY).cemeteries).toHaveLength(1);
+    expect(playerPlacementVillage(baptized, DAY).cemeteries).toEqual([]);
+    expect(playerPlacementVillage(baptized, DAY).sacredFree).toBe(true);
+    expect(sacredSitesFor(playerPlacementVillage(baptized, DAY), layer).protectedTrees.size).toBe(
+      0,
+    );
+    // správce a vesničané – ves bez `sacredFree`
+    expect(placementVillageOf(baptized, DAY).sacredFree).toBeUndefined();
+  });
+
+  it('kronika: vykácené posvátné místo a zaoraný hřbitov', () => {
+    expect(chronicleText({ day: DAY, kind: 'sacred-felled', site: 'oak' }, 'X')).toBe(
+      'Vykáceli posvátný dub.',
+    );
+    expect(chronicleText({ day: DAY, kind: 'sacred-felled', site: 'grove' }, 'X')).toBe(
+      'Vykáceli posvátný háj.',
+    );
+    expect(chronicleText({ day: DAY, kind: 'cemetery-ploughed' }, 'X')).toBe(
+      'Zaorali starý hřbitov.',
+    );
+  });
+
+  it('křest v pohledu: tlačítko u vojvody, kříž u křesťana, štěstí a Zbourat hřbitova', () => {
+    // den simulace – lidé ve scéně jsou z hlášení práce dne
+    const s = advanceVillage(
+      foundVillage({
+        seed: 5,
+        day: DAY - 1,
+        dwellingPosition: { x: -50, z: -50, rotation: 0.5 },
+        firstField: { parts },
+        lord: {},
+      }),
+      DAY,
+      null,
+    );
+    const lordId = currentLord(s)!.id;
+    const persons = (view: ReturnType<typeof buildVillageView>): ScenePerson[] =>
+      view.scene.labor?.persons ?? [];
+    // tlačítko jen u vojvody a jen s `baptizable` (rod zná, není pokřtěný, vojvoda tady)
+    const open = buildVillageView(record(s), landscape, DAY, { baptizable: true });
+    expect(
+      persons(open)
+        .filter((p) => p.baptizable)
+        .map((p) => p.id),
+    ).toEqual([lordId]);
+    const closed = buildVillageView(record(s), landscape, DAY);
+    expect(persons(closed).some((p) => p.baptizable)).toBe(false);
+    // pohanská ves: bez kříže, štěstí bez řádků víry, hřbitov bez Zbourat
+    expect(persons(closed).some((p) => p.christian)).toBe(false);
+    expect(closed.happiness.christianShare).toBeUndefined();
+    expect(closed.happiness.desecration).toBeUndefined();
+    const full = {
+      id: 900,
+      squares: [{ cell: { x: 2, y: 2 }, x: -82.5, z: -82.5, waterDistanceM: 500 }],
+      squareSizeM: 15,
+      graves: 56,
+      builtDay: DAY - 3000,
+    };
+    const pagan: VillageState = { ...s, cemeteries: [full] };
+    expect(buildVillageView(record(pagan), landscape, DAY).cemeteries[0]?.use).toBeUndefined();
+    // pokřtěný rod: vojvoda křesťan, nespokojenost pohanů z vykáceného háje, plný hřbitov k zaorání
+    const baptized: VillageState = {
+      ...pagan,
+      people: pagan.people.map((p) => (p.id === lordId ? { ...p, faith: 'christian' } : p)),
+      faith: { rodBaptizedDay: DAY - 10, desecrated: { oaksOrGroves: 1, cemeteries: 0 } },
+    };
+    const view = buildVillageView(record(baptized), landscape, DAY);
+    expect(
+      persons(view)
+        .filter((p) => p.christian)
+        .map((p) => p.id),
+    ).toEqual([lordId]);
+    expect(view.happiness.christianShare).toBeCloseTo(1 / baptized.people.length, 6);
+    expect(view.happiness.desecration).toBeGreaterThan(0);
+    expect(view.cemeteries[0]?.use).toMatchObject({
+      structure: 'cemetery',
+      id: 900,
+      state: 'in-use',
+      block: null,
+    });
+    // hřbitov s volným místem a nedávným pohřbem ještě slouží
+    const serving: VillageState = {
+      ...baptized,
+      cemeteries: [{ ...full, graves: 10, builtDay: DAY - 300 }],
+    };
+    expect(buildVillageView(record(serving), landscape, DAY).cemeteries[0]?.use?.block).toBe(
+      'Hřbitov ještě slouží.',
+    );
   });
 
   it('ze scény jde složit data pro kontrolu umístění v prohlížeči', () => {

@@ -215,6 +215,19 @@ export interface SowingSeed {
   beforeWindow?: true;
 }
 
+/** Víra vsi (christianity.md) – u vsí uložených před křesťanstvím chybí (= pohané). */
+export interface VillageFaith {
+  /**
+   * Herní den křtu rodu hráče, kterému ves patří; chybí = pokřtěný není. Ve vsi, kterou řídí NPC
+   * rod (`nobles`), platí místo něj `nobles` – po konci NPC rodu znovu tento (`rodBaptized`).
+   */
+  rodBaptizedDay?: number;
+  /** Den křtu NPC rodu `houseId`, který ves řídí (`VillageState.nobles`; christianity.md). */
+  nobles?: { houseId: string; baptizedDay: number };
+  /** Zničená posvátná místa (christianity.md – Víra vesničanů, Štěstí). */
+  desecrated?: { oaksOrGroves: number; cemeteries: number };
+}
+
 export interface VillageState {
   seed: number;
   foundedDay: number;
@@ -293,6 +306,8 @@ export interface VillageState {
    */
   commonLaborYearly?: number;
   chronicle: ChronicleEvent[];
+  /** Víra vsi a křest rodu (christianity.md) – chybí = pohané bez křesťanství. */
+  faith?: VillageFaith;
   /** Pohřebiště – u vsí uložených před zavedením pohřebišť chybí (= žádné). */
   cemeteries?: Cemetery[];
   /**

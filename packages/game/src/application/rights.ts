@@ -104,6 +104,8 @@ export const ACTION_RIGHTS = {
   nameLineMan: 'nameSons',
   // povýšení vesničana (vassalage.md) – jen držitel vlastní vsi; správce ani senior ne
   ennobleVillager: 'ennoble',
+  // křest vojvody (christianity.md – Křest rodu) – rozhodnutí rodu jako povýšení
+  baptizeLord: 'ennoble',
   setSteward: 'steward',
   // řízení vsi, které senior v cizí vsi nemá: lov, jméno vsi, vývojové pohromy
   declareHunt: 'steward',
@@ -209,6 +211,12 @@ export interface VillageAccess {
   senior: PersonRef | null;
   /** Odchod mladšího syna po pohřbu, na jehož volbu hráč čeká (seniorate.md, bod 4), nebo null. */
   pendingDeparture: PendingDeparture | null;
+  /**
+   * Vojvoda rodu se tu smí nechat pokřtít (christianity.md – Křest rodu): rod křesťanství zná, ještě
+   * není pokřtěný a vojvoda rodu (`House.lord`) žije v téhle vsi – tlačítko u vojvody. Správce
+   * cizí vsi nikdy; právo (`ACTION_RIGHTS.baptizeLord`) je v `rights`.
+   */
+  baptizable?: true;
 }
 
 /**
@@ -273,6 +281,12 @@ export async function villageAccess(
     rights,
     senior: house?.senior ?? null,
     pendingDeparture: house?.pendingDeparture ?? null,
+    ...(house &&
+    house.christianityKnownYear !== null &&
+    house.baptizedDay === null &&
+    house.lord?.villageId === found.village.id
+      ? { baptizable: true as const }
+      : {}),
   };
 }
 

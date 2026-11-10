@@ -232,6 +232,11 @@ export interface Cemetery {
    * a rozpadne se – hroby zůstávají a pohřbívá se dál. Chybí = celý plot.
    */
   fenceWear?: StructureWear;
+  /**
+   * Den, kdy pokřtěný rod začal hřbitov bourat (christianity.md – Co křest rodu umožní) – od té
+   * doby se na něj nepohřbívá. Chybí = slouží.
+   */
+  disusedDay?: number;
 }
 /**
  * Druh pohřbeného (cemetery.md – Mohyly podle významu): vojvoda a jeho žena (`voivode`), ostatní
@@ -255,6 +260,11 @@ export interface GraveMound {
   size: MoundSize;
   rank: GraveRank;
   day: number;
+  /**
+   * Obřad: `inhumation` = kostrový hrob křesťana (christianity.md – Pohřby) – bez mohyly, zabere
+   * jedno místo (`size` 'small'); chybí = žárový pohřeb pod mohylou (pohané a hroby uložené dřív).
+   */
+  rite?: 'inhumation';
   /**
    * Domácnost (id obydlí) zemřelého v den pohřbu – odtud vychází pohřební průvod ve scéně
    * (cemetery.md – Pohřeb ve scéně). Mohyly uložené dřív ho nemají (průvod pak vyjde od obydlí
@@ -501,9 +511,12 @@ export interface SacredBuilding {
  */
 export type AbandonedStructure = 'idol' | 'shrine' | 'cemetery-fence' | 'pen';
 
-/** Stavby, které jde opustit a vrátit (demolition.md – Opuštění). */
+/**
+ * Stavby, které jde opustit a vrátit (demolition.md – Opuštění); hřbitov jen zbourat, a to jen
+ * pokřtěný rod (christianity.md – Co křest rodu umožní).
+ */
 export type UsableStructure =
-  'dwelling' | 'pen' | 'idol' | 'shrine' | 'threshing-floor' | 'grain-pit' | 'orchard';
+  'dwelling' | 'pen' | 'idol' | 'shrine' | 'threshing-floor' | 'grain-pit' | 'orchard' | 'cemetery';
 
 /**
  * Chátrání stavby (abandonment.md – Chátrání): stav 0–1 a od kdy je stavba opuštěná. Opuštěná

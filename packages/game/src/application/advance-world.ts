@@ -1,5 +1,6 @@
 import { pendingStewardDepartures } from '../domain/village';
 import { settlementLandscape } from './enter-game';
+import { acceptHolderTransfers } from './escheat';
 import { loadVillage } from './load-village';
 import type { PlayerLock } from './locks';
 import { settleSuccessionOf } from './player-departure';
@@ -101,7 +102,7 @@ export async function advancePlayer(
   try {
     // 2. krok převodu odúmrti: sídla čekající na hráče převezme pod jeho zámkem (escheat.ts)
     const accepted = await deps.locks.tryRun(input.playerId, () =>
-      deps.settlements.acceptTransfers(input.playerId),
+      acceptHolderTransfers(deps, input.playerId),
     );
     if (!accepted.ran) {
       step.outcome = 'busy';

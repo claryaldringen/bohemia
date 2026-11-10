@@ -1,3 +1,4 @@
+import { recordFelledSacredOn } from './desecration';
 import { TOTAL_GAME_DAYS, dateOfDayIndex } from '../calendar';
 import type { Landscape, ObstacleLayer } from '../landscape';
 import { abandonmentCheck, abandonmentDay } from './abandonment';
@@ -47,8 +48,8 @@ import { roadSwathDay } from './road-swath';
 import { wagonRoadsDay } from './wagon-road';
 import { decideFortRebuilds } from './fortification/decay';
 import { gateRoadCrossings } from './fortifications';
-import { isVillageDormant } from './departure';
-import { applyInboxDay, inboxByDay, type VillageEvent } from './inbox';
+import { isVillageDormant, isVillageTravelling } from './departure';
+import { applyInboxDay, inboxByDay, withJourneyInbox, type VillageEvent } from './inbox';
 import { woundDeathsDay } from '../war/raid-apply';
 import { returnHome } from '../vassalage/guests';
 import { refugeFoodDay } from './refugees';
@@ -85,6 +86,7 @@ import { work } from './simulate-work';
 import { patrolHuntDay, settlePatrol } from './field-patrol';
 import { huntDay, planHuntDay } from './hunt';
 import { dogsYear } from './manor-dogs';
+import { conversionDay } from './conversion';
 import { wildlifeYearDay, withWildlife } from './wildlife';
 import { weatherDay } from './weather';
 import { partProtectionDay } from './part-protection';
@@ -146,9 +148,8 @@ export function* advanceVillageSteps(
   if (toDay < state.lastDay) {
     throw new RangeError(`Ves je dopočítaná do dne ${state.lastDay}, nelze zpět na ${toDay}.`);
   }
-  // ves na cestě se správcem se v den příjezdu založí sama (steward.md – Kde správce běží) a dál
-  // se simuluje jako nová ves
-  const start = stewardArrival(state, toDay, landscape, obstacles) ?? state;
+  // ves na cestě se správcem se v den příjezdu založí sama a křest rodu ji zastihne i na cestě
+  const start = arrive(state, toDay, landscape, obstacles, inbox);
   // ves z doby před příbuzenstvím dostane pohlaví a manžele (kinship.md), ves z doby před rodem
   // rod vojvody (lord.md – Převod starších vsí), dobytek v obchodu tři
   // druhy (trade.md – Dobytek ve třech druzích), hřivny místo nástrojů v obchodu i ve vsi
@@ -230,6 +231,9 @@ export function* advanceVillageSteps(
     // úmrtí na rány z nájezdu (war.md – Ztráty) – nástupnictví po nich ještě týž den (`dynastyDay`)
     next.chronicle.push(...woundDeathsDay(next, day));
     yield* simulateDaySteps(next, day, obstacles, landscape);
+    // pokřtěný rod: posvátné stromy, které dnes odstranilo zakládání polí, sadů a hřbitovů hráče
+    // (christianity.md – Co křest rodu umožní)
+    if (obstacles) recordFelledSacredOn(next, obstacles, day);
     yield day;
   }
   next.lastDay = toDay;
@@ -237,6 +241,29 @@ export function* advanceVillageSteps(
   // vyšlapanost drží dopočet v paměti – do stavu ji zapíše až teď (paths.md – Výkon)
   if (next.roads?.wear) flushWear(next.roads.wear);
   return next;
+}
+
+/**
+ * Ves na cestě: křest rodu ji zastihne i na cestě (christianity.md – Křest rodu; `withJourneyInbox`)
+ * – do dne před jejím založením, ať ho osadníci přinesou do nové vsi. Ves se správcem se v den
+ * příjezdu založí sama (steward.md – Kde správce běží) a dál se simuluje jako nová ves. Jiná ves
+ * beze změny.
+ */
+function arrive(
+  state: VillageState,
+  toDay: number,
+  landscape: Landscape | null,
+  obstacles: ObstacleLayer | null,
+  inbox: readonly VillageEvent[],
+): VillageState {
+  if (!isVillageTravelling(state)) return state;
+  const byDay = inboxByDay(inbox);
+  const arrived = stewardArrival(state, toDay, landscape, obstacles);
+  if (!arrived) return withJourneyInbox(state, toDay, byDay);
+  const baptized = withJourneyInbox(state, arrived.lastDay, byDay);
+  return baptized === state
+    ? arrived
+    : (stewardArrival(baptized, toDay, landscape, obstacles) ?? baptized);
 }
 
 /** Kronika drží jen posledních CHRONICLE_MAX_EVENTS událostí (mutuje stav). */
@@ -316,6 +343,8 @@ function* simulateDaySteps(
   // paměť hladu: po krutém roce drží ves 10 let vyšší pojistku – před plánem osevu
   // (disasters.md – Dopady, Zásoby a pojistka)
   famineMemoryDay(state, day);
+  // 1. 1.: dospělí pohané se v pokřtěném rodě obracejí (christianity.md – Obrácení)
+  state.chronicle.push(...conversionDay(state, day));
   if (isOn(date, PLANNING_DAY)) startSeason(state, day, coverage, landscape);
   const waiting = seasonDay(state, day, coverage);
   yield;

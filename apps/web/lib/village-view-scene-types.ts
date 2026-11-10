@@ -181,6 +181,11 @@ export interface SceneVillage {
     id: number;
     /** Natočená mřížka hřbitova (fields.md – Natočené stavby); bez údaje mřížka krajiny. */
     grid?: SquareGrid;
+    /**
+     * Pokřtěný rod ho smí zbourat nebo zaorat (`cemeteryMayGo` – christianity.md) – kontrola
+     * umístění v prohlížeči ho jako server nezná. Bez údaje ne.
+     */
+    mayGo?: true;
     squares: {
       cell: TileCell;
       x: number;
@@ -302,6 +307,12 @@ export interface SceneVillage {
    * počítá louku bez motyky (jen překážky) jako server. Bez údaje ne.
    */
   ploughTeam?: true;
+  /**
+   * Rod, který ves řídí, je pokřtěný (christianity.md – Co křest rodu umožní): posvátná místa
+   * stavbám a polím hráče nebrání – kontrola umístění v prohlížeči jako na serveru
+   * (`playerPlacementVillage`). Bez údaje brání.
+   */
+  sacredFree?: true;
   /**
    * Páry volů s rádlem doma (oxen.md – Voli po kusech, `ploughPairsHome`) – kolik spřežení scéna
    * pošle k orbě; bez údaje (ukázky) ohrady s vycvičenými voly.
@@ -1264,7 +1275,8 @@ export interface SceneKilnRemnant {
  * Mohyla na hřbitově pro scénu (cemetery.md – Mohyly podle významu): čtverec hřbitova, první místo
  * mřížky 7 × 8 (sloupec, řada) a velikost – vojvoda a jeho žena `great` (2 × 2 místa, s kůlem),
  * dospělí z dvorce a hlava rodiny `large` (2 místa za sebou), dospělý a dítě z dvorce `normal`,
- * dítě `small`. Čerstvá = z holé hlíny.
+ * dítě `small`. Čerstvá = z holé hlíny. Kostrový hrob křesťana (`rite: 'inhumation'` –
+ * christianity.md – Pohřby) je plochý hrob s dřevěným křížem místo mohyly.
  */
 export interface SceneGraveMound {
   cell: TileCell;
@@ -1272,12 +1284,13 @@ export interface SceneGraveMound {
   row: number;
   size: MoundSize;
   fresh?: true;
+  rite?: GraveMound['rite'];
 }
 
 /** Jak dlouho je mohyla po pohřbu z holé hlíny, než zaroste trávou (herní dny – jen vzhled). */
 export const FRESH_MOUND_DAYS = 365;
 
-/** Mohyla ze stavu vsi pro scénu – čerstvá první rok po pohřbu. */
+/** Mohyla ze stavu vsi pro scénu – čerstvá první rok po pohřbu, kostrový hrob s obřadem. */
 export function sceneMound(m: GraveMound, day: number): SceneGraveMound {
   return {
     cell: { x: m.cell.x, y: m.cell.y },
@@ -1285,6 +1298,7 @@ export function sceneMound(m: GraveMound, day: number): SceneGraveMound {
     row: m.row,
     size: m.size,
     ...(day - m.day < FRESH_MOUND_DAYS ? { fresh: true as const } : {}),
+    ...(m.rite ? { rite: m.rite } : {}),
   };
 }
 

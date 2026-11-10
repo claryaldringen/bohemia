@@ -36,6 +36,9 @@ export const house = pgTable(
     placedAt: timestamp('placed_at', { withTimezone: true }).defaultNow(),
     // Kdy odříznutý nováček poprvé požádal o pána – od té chvíle běží týden (newcomers.md).
     newcomerSince: timestamp('newcomer_since', { withTimezone: true }),
+    // Křesťanství (christianity.md): herní rok objevu a herní den křtu rodu; null – dosud ne.
+    christianityKnownYear: integer('christianity_known_year'),
+    baptizedDay: integer('baptized_day'),
   },
   (table) => [
     // Hráč má nejvýš jeden živý rod – hlídá databáze, i při souběžných požadavcích.
