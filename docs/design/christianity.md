@@ -78,7 +78,11 @@ trojpolí, ale stojí ho vedlejší manželky a nespokojenost pohanů, když jim
   běžné vesničanky (domácnost ve vsi, práce jako ostatní, mohou se znovu vdát). Synové narození
   před propuštěním zůstávají členy rodu (Martin), dcery také (návrh Clauda). Nové vedlejší
   manželky už nepřibudou. Elita hradiště ([hradiště](hillfort.md) – Elita) pak nerozlišuje
-  manželky – rozdíl zmizí.
+  manželky – rozdíl zmizí. Propuštěná s dětmi odchází z přeplněného dvorce jako vdova po
+  vojvodovi (návrh Clauda).
+- **Vsi rodu:** křest platí ve všech vsích rodu a ves založená rodem po křtu je pokřtěná (osadníci
+  ho přinesou i z cesty). Ves, kterou za hráče řídí NPC rod, se řídí křtem toho NPC rodu; po jeho
+  konci zase křtem rodu hráče (návrh Clauda).
 - **NPC rody** se po objevu pokřtí samy – náhodně do 1–20 let (návrh Clauda): k 1. 1. roku, který
   je 1–20 let po roce objevu, los `'npc-baptism'` ze seedu rodu (návrh Clauda). Objev ani křest
   NPC rodu se do kroniky nepíše – kroniku jeho vsi čte držitel a „Rod“ by v ní mátl (návrh

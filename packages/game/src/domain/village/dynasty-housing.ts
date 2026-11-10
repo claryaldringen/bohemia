@@ -36,14 +36,13 @@ function byOldestSon(a: Family, b: Family): number {
 /**
  * Vdovy po dřívějších vojvodech v domácnosti `members` (lord.md – Nástupnictví: „odchází jako
  * vedlejší manželka nejdřív vdova s nejstarším synem (ne matka vojvody)“) – svobodné ženy, jejichž
- * dítě z domácnosti má za otce dřívějšího vojvodu (`dynasty.lords`), kromě matky dnešního vojvody.
- * Bezdětnou vdovu nic nepozná – vdá se (kinship.md – Sňatky).
+ * dítě z domácnosti má za otce vojvodu (`dynasty.lords`), kromě matky dnešního vojvody. Patří sem
+ * i vedlejší manželky propuštěné pokřtěným vojvodou (christianity.md – Jediná manželka; návrh
+ * Clauda) – jeho manželky `spouseId` mají, svobodná matka jeho dítěte je propuštěná. Bezdětnou
+ * vdovu nic nepozná – vdá se (kinship.md – Sňatky).
  */
 function lordWidows(state: VillageState, members: readonly Person[]): Person[] {
-  const lordId = state.dynasty?.lordId;
-  const former = new Set(
-    (state.dynasty?.lords ?? []).map((l) => l.id).filter((id) => id !== lordId),
-  );
+  const former = new Set((state.dynasty?.lords ?? []).map((l) => l.id));
   const lordMother = currentLord(state)?.motherId;
   return members.filter(
     (w) =>

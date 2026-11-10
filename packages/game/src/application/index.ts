@@ -79,6 +79,7 @@ export * from './domain-food';
 export * from './dialogs';
 export * from './annual-levies';
 export * from './advance-christianity';
+export * from './baptize';
 export * from './loans';
 export * from './loan-house-ended';
 export * from './stewardships';

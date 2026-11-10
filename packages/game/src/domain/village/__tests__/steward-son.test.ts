@@ -28,6 +28,7 @@ import { bufferFill } from '../field-food';
 import { fieldStoresOutlook } from '../simulate-plan';
 import { craftCoverage } from '../crafts';
 import { averageRotationShare } from '../field-capacity';
+import type { VillageEvent } from '../inbox';
 import type { Dwelling, FieldPart, Person, VillageState } from '../types';
 import { DAY, kin, trackedVillage, type KinSpec } from './kin-fixtures';
 import { makeLandscape } from './placement-fixtures';
@@ -119,6 +120,7 @@ function lordVillage(day = AUG31 - 2, on = true, fieldM2 = 150_000): VillageStat
 }
 
 const json = (s: VillageState): string => JSON.stringify(s);
+const json2 = (s: VillageState): VillageState => JSON.parse(json(s)) as VillageState;
 
 describe('jména synů (krok 1)', () => {
   const newborn = (s: VillageState): Person => {
@@ -467,6 +469,30 @@ describe('ves na cestě se správcem (příjezd)', () => {
     );
     expect(json(chunked)).toBe(json(arrived));
     expect(json(onEdge)).toBe(json(arrived));
+  });
+
+  it('křest rodu na cestě i po příjezdu (christianity.md – Křest rodu): vcelku = po kouscích', () => {
+    const t = travelling();
+    const baptized = (day: number): VillageEvent => ({
+      id: `b${day}`,
+      villageId: 'v2',
+      day,
+      seq: day,
+      body: { kind: 'rod-baptized', houseId: 'h1', lord: true },
+    });
+    for (const day of [AUG31 + 1, AUG31 + 3]) {
+      const events = [baptized(day)];
+      const whole = advanceVillage(t, AUG31 + 5, fertileObstacles, fertile, events);
+      expect(whole.faith?.rodBaptizedDay).toBe(day);
+      // na cestě se vojvoda nekřtí, po založení ano (ves vojvody rodu)
+      const lord = whole.people.find((p) => p.id === whole.dynasty?.lordId);
+      expect(lord?.faith === 'christian').toBe(day > AUG31 + 2);
+      for (const cut of [AUG31 + 1, AUG31 + 2, AUG31 + 3]) {
+        const part = advanceVillage(t, cut, fertileObstacles, fertile, events);
+        const rest = advanceVillage(json2(part), AUG31 + 5, fertileObstacles, fertile, events);
+        expect(json(rest)).toBe(json(whole));
+      }
+    }
   });
 
   it('ves na cestě, kde hráč správce vypnul, čeká na hráče a po založení zůstane vypnutá', () => {

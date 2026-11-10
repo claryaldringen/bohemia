@@ -283,20 +283,31 @@ describe('advanceChristianity – NPC křest', () => {
       expect(events.find((e) => e.villageId === steward!.villageId)?.body).toEqual({
         kind: 'rod-baptized',
         houseId: h.id,
+        npc: true,
       });
     }
   });
 });
 
 describe('sendRodBaptized', () => {
-  it('hráčův rod: událost do všech jeho vsí kromě vsí NPC rodů, opakování nic nezdvojí', async () => {
+  it('hráčův rod: událost do všech jeho vsí i vsí NPC rodů, vojvoda ve své vsi; jednou', async () => {
     const w = await world(1, 2, firstDay(520));
     const player = w.players[0]!;
     await sendRodBaptized(w.deps, player.id, firstDay(700));
     await sendRodBaptized(w.deps, player.id, firstDay(700));
     const events = w.villages.inbox.events.filter((e) => e.body.kind === 'rod-baptized');
-    expect(events.map((e) => e.villageId)).toEqual([w.seats.get(player.id)]);
-    expect(events[0]!.body).toEqual({ kind: 'rod-baptized', houseId: player.id });
+    const seat = w.seats.get(player.id)!;
+    const npcRun = await Promise.all(
+      w.npcs.map(async (h) => (await w.stewardships.listByStewardHouse(h.id))[0]!.villageId),
+    );
+    expect(events.map((e) => e.villageId).sort()).toEqual([seat, ...npcRun].sort());
+    for (const e of events) {
+      expect(e.body).toEqual({
+        kind: 'rod-baptized',
+        houseId: player.id,
+        ...(e.villageId === seat ? { lord: true } : {}),
+      });
+    }
   });
 });
 

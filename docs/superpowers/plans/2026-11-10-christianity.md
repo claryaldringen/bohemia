@@ -186,15 +186,26 @@ Promise<{ ok: true } | { ok: false; reason: string }>` (vzor `order-breakout.ts`
     zůstává), kronika `lord-baptized` a `wives-released` (počet).
   - Novorozenec je `faith: 'christian'`, je-li křesťan aspoň jeden rodič.
 
-- [ ] **Step 1:** Testy domény: po `baptizeVillage` vojvoda křesťan, `wivesOf(lord)` jen hlavní,
+- [x] **Step 1:** Testy domény: po `baptizeVillage` vojvoda křesťan, `wivesOf(lord)` jen hlavní,
       propuštěné nejsou v `lordFamily`/`isElite`; syn vedlejší manželky dál `isLineMan`; dítě narozené
       po křtu je křesťan; `extraWivesDay` v pokřtěné vsi nic nepřidá ani po smrti vojvody (nástupce
       pohan); idempotence (událost dvakrát = jednou); vcelku = po kouscích přes JSON.
-- [ ] **Step 2:** Testy use-casu: bez znalosti důvod, podruhé důvod, rod se dvěma vsemi → obě
+- [x] **Step 2:** Testy use-casu: bez znalosti důvod, podruhé důvod, rod se dvěma vsemi → obě
       dostanou `faith.rodBaptizedDay`; ves založená rodem po křtu ho má.
-- [ ] **Step 3:** FAIL → implementace → PASS.
-- [ ] **Step 4:** `npx vitest run` v `packages/game` (zlaté otisky beze změny – stará ves nic nemá).
-- [ ] **Step 5:** Commit `feat(game): křest vojvody – jediná manželka, pokřtěné děti, příznak ve vsích rodu`.
+- [x] **Step 3:** FAIL → implementace → PASS.
+- [x] **Step 4:** `npx vitest run` v `packages/game` (zlaté otisky beze změny – stará ves nic nemá).
+- [x] **Step 5:** Commit `feat(game): křest vojvody – jediná manželka, pokřtěné děti, příznak ve vsích rodu`.
+
+**Provedeno jinak než výš (návrh Clauda):** `baptizeVillage(state, day, { houseId, npc?, lord? })`
+mutuje stav a vrací kroniku jako ostatní kroky schránky. Ves NPC rodu: křest rodu hráče jde do všech
+vsí jeho sídel (i těch, které řídí NPC rod – úprava `sendRodBaptized` z K3), NPC rod píše zvlášť
+`faith.nobles`; `rodBaptized` platí podle rodu, který ves řídí – po konci NPC rodu zase rod hráče
+(oprava nálezu z K3: příznak NPC rodu po vrácení vsi nezůstane). Křtí se jen vojvoda ve vsi
+`House.lord` (`lord`), v ostatních vsích jen den křtu. Propuštěné ženy odcházejí z přeplněného
+dvorce jako vdovy po vojvodech (`lordWidows`). Ves na cestě použije ze schránky `rod-baptized`
+(`withJourneyInbox`). Převody netřeba – stará ves bez `faith` je pohanská. Právo `baptizeLord` je
+`ennoble` (do `ACTION_RIGHTS` ho přidá K8 s tlačítkem). Nevyřešeno: převod sídla jinému držiteli
+(odúmrť, postoupení vsi) – ves si nese den křtu starého rodu; patří k integraci K10.
 
 ### K5: Obrácení vesničanů a štěstí
 

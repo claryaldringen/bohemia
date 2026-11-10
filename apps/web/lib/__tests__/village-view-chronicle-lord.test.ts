@@ -34,6 +34,13 @@ describe('kronika – vojvodova rodina', () => {
     );
   });
 
+  it('křest vojvody a propuštěné vedlejší manželky (christianity.md – Křest rodu)', () => {
+    expect(chronicleText({ day: 8, kind: 'lord-baptized' }, 'Ves')).toBe('Vojvoda se dal pokřtít.');
+    expect(chronicleText({ day: 8, kind: 'wives-released', count: 2 }, 'Ves')).toBe(
+      'Vojvoda propustil vedlejší manželky (2).',
+    );
+  });
+
   it('jméno muže rodu v 1. pádu (lord.md – Jména)', () => {
     expect(chronicleText({ day: 3, kind: 'line-named', name: 'Mrdomír' }, 'Ves')).toBe(
       'Muž rodu dostal jméno – Mrdomír.',
