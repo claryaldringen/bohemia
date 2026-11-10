@@ -163,4 +163,58 @@ describe('stepCampaign', () => {
     expect(JSON.stringify(rest.state)).toBe(JSON.stringify(whole.state));
     expect([...partial.villageEvents, ...rest.villageEvents]).toEqual(whole.villageEvents);
   });
+
+  it('zmražený vstupní stav a záměry: stejný výsledek, výsledek nesdílí se vstupem žádný objekt', () => {
+    const start = deepFreeze(campaign());
+    const intents = deepFreeze(structuredClone(LIVE));
+    const step = stepCampaign(start, END, intents, worldOf());
+    expect(JSON.stringify(step.state)).toBe(JSON.stringify(whole.state));
+    expect(step.villageEvents).toEqual(whole.villageEvents);
+    const input = new Set(objectsOf(start));
+    expect(objectsOf(step.state).filter((o) => input.has(o))).toEqual([]);
+  });
+
+  it('chybějící mapa uprostřed vícetaktového kroku: výsledek = stav na konci posledního celého taktu', () => {
+    // takt, ve kterém mapa chybí, už stav změnil (takt, pohyb) – výsledkem je stav taktu před ním
+    const start = deepFreeze(campaign());
+    const partial = stepCampaign(
+      start,
+      END,
+      LIVE,
+      worldOf((c) => c.x === 0),
+    );
+    const last = partial.state.tick;
+    expect(partial.waiting?.cells).toEqual([{ x: 1, y: 0 }]);
+    expect(last).toBeGreaterThan(LAUNCH + 10);
+    const upTo = stepCampaign(start, last, LIVE, worldOf());
+    expect(partial.state).toStrictEqual(upTo.state);
+    expect(partial.villageEvents).toEqual(upTo.villageEvents);
+    expect(partial.notices).toEqual(upTo.notices);
+    // další krok bez mapy spadne hned v prvním taktu: stav (vstup i výsledek) zůstane týž
+    const json = JSON.stringify(partial.state);
+    const again = stepCampaign(
+      deepFreeze(partial.state),
+      END,
+      LIVE,
+      worldOf((c) => c.x === 0),
+    );
+    expect(JSON.stringify(again.state)).toBe(json);
+    expect(again.waiting?.cells).toEqual([{ x: 1, y: 0 }]);
+  });
 });
+
+/** Zmrazí hodnotu do hloubky – zápis do ní v taktu spadne (moduly jsou ve striktním režimu). */
+function deepFreeze<T>(value: T): T {
+  if (typeof value !== 'object' || value === null || Object.isFrozen(value)) return value;
+  Object.freeze(value);
+  for (const v of Object.values(value)) deepFreeze(v);
+  return value;
+}
+
+/** Všechny objekty a pole v hodnotě. */
+function objectsOf(value: unknown, out: object[] = []): object[] {
+  if (typeof value !== 'object' || value === null) return out;
+  out.push(value);
+  for (const v of Object.values(value)) objectsOf(v, out);
+  return out;
+}

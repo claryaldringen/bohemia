@@ -33,6 +33,17 @@ export function cloneState<T>(value: T): T {
 }
 
 /**
+ * Kopie čistých dat jako JSON (objekty, pole, primitivní hodnoty) bez sdílení – každý objekt
+ * a pole je nové. Proti `structuredClone` několikrát rychlejší (stav tažení ≈ 5×); výsledek je
+ * tentýž, jen sdílené odkazy uvnitř dat se rozdělí na samostatné kopie – stejně jako při uložení
+ * do JSON a načtení. Cokoli jiného (Map, Set, Date, instance třídy) zkopíruje `structuredClone`.
+ */
+export function cloneData<T>(value: T): T {
+  if (typeof value !== 'object' || value === null) return value;
+  return cloneObject(value) as T;
+}
+
+/**
  * Seznamy stavu vsi, jejichž záznamy se nikdy nemění na místě (viz `cloneState`): překážky
  * odstraněné natrvalo, pokácené stromy (sazenici na pařez zapíše nový záznam – `plantOnStump`)
  * a kronika.
