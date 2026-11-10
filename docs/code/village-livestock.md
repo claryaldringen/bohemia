@@ -69,6 +69,12 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     (`input.strawKg`) ÷ `herdWinterHayKg`; `winterWait(…, strawKg)`; `hayShortSlaughter` – seno
     po volech a koních na `hayWinterDaysLeft` + sláma (`strawComingKg`) proti dávce × zbývající dny
     se sněhem (`snowDaysAhead`, odhalená dlouhá zima `'long'`, jinak běžná). Rozhraní slámu neukazuje.
+    **Přednost zimního krmení** (Martin 10. 11. 2026): `oxenRenewalCows(state)` (husbandry.ts – voli
+    ves nebo `oxenTrainingTarget`, co víc, ÷ `OXEN.serviceYears` ÷ (`LIVESTOCK.growth.cow` ×
+    `OXEN.bullCalfShare`), aspoň chovný pár, bez volů 0) → `WinterInput.oxenCows` (`farmInput`);
+    `winterTargets` – `take('cow', oxenCows)`, `take('sheep', minSheep)`, pak `HERD_PRIORITY`
+    (pastva, seno, sláma i `mowKg`); `hayShortSlaughter(…, first)` – `feed` krávy k obnově volů, ovce
+    na vlnu (`woolSheep`), pak `HAY_EATERS`.
 
 - **Strava a dobytek** ([diet.md](../design/diet.md)): jídlo dne `eatDiet` / `villageMeal`
   (`diet.ts`) – ovoce (jablka; v rozhraní „ovoce“) rovným dílem do zkažení 1. 3., čerstvé mléko

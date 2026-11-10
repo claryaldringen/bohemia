@@ -88,7 +88,7 @@ describe('vlna na oděv', () => {
     expect(s.livestock!.herds.sheep).toBeCloseTo(8, 9);
   });
 
-  it('pastva a seno napřed kravám, pak ovcím – i ovcím na vlnu (24. 10. 2026)', () => {
+  it('pastva a seno: krávy k obnově volů, ovce na vlnu, pak ostatní krávy (10. 11. 2026)', () => {
     const s = village(at(600, 11, 1));
     const day = s.lastDay;
     s.livestock!.herds = herds({ sheep: 20, cow: 6 });
@@ -97,10 +97,21 @@ describe('vlna na oděv', () => {
       meadowHa: 4 * LIVESTOCK.pastureHa.cow + 10 * LIVESTOCK.pastureHa.sheep,
       forestHa: 0,
     };
-    const wool = winterTargets(s, day, { oxen: 0, hayKg: Infinity, minCows: 4, minSheep: 20 });
-    // krávy mají přednost (oxen.md – Co nejvíc sena a co největší stáda) – ovce na vlnu nepomůžou
-    expect(wool.cow).toBeCloseTo(6, 9);
-    expect(wool.sheep).toBeCloseTo(LIVESTOCK.breedingMin, 9);
+    const plain = winterTargets(s, day, { oxen: 0, hayKg: Infinity, minCows: 4 });
+    // bez ovcí na vlnu mají krávy přednost (oxen.md – Co nejvíc sena a co největší stáda)
+    expect(plain.cow).toBeCloseTo(6, 9);
+    expect(plain.sheep).toBeCloseTo(LIVESTOCK.breedingMin, 9);
+    // Martin 10. 11. 2026: „Ano, ovce na vlnu před kravami, ale je potřeba nechat dostatek krav
+    // k obnově volů“ (diet.md – Zima bez sena; do té doby krávy napřed – 24. 10. 2026)
+    const wool = winterTargets(s, day, {
+      oxen: 0,
+      hayKg: Infinity,
+      minCows: 4,
+      minSheep: 20,
+      oxenCows: 3,
+    });
+    expect(wool.cow).toBeCloseTo(3, 9);
+    expect(wool.sheep).toBeCloseTo(15, 9);
   });
 
   it('pasáci hlídají napřed ovce, pak prasata – ovce na vlnu nic nemění (24. 10. 2026)', () => {

@@ -379,7 +379,8 @@ vracelo na chovný pár):
    **Zbytek luk jen z volné práce:** za všemi úlohami dne (pletí, žně, orba, výmlat), před
    stavbami; co volná práce do konce července nestihne, zůstane neposečené. Odvoz sena stejně
    (vozem, na zádech).
-2. **Co největší stáda podle přednosti:** **voli → krávy → ovce → kozy → prasata**. V tomto
+2. **Co největší stáda podle přednosti:** **voli → krávy → ovce → kozy → prasata** (od 10. 11.
+   2026 přes zimu krávy k obnově volů a ovce na vlnu před ostatními kravami – Zima bez sena). V tomto
    pořadí jde seno na zimu, pastva i pasáci (dřív ovce na vlnu před kravami nad chovné stádo).
    Stáda drží tolik, kolik uživí seno, pastva, les, pasáci a místa v ohradách – **ne podle ceny
    jídla v práci** (rovnovážné hospodaření stádo už nezmenšuje – diet.md).
@@ -530,19 +531,36 @@ sena:
    podle práce na seč (Stáda podle práce na seč – seno, které ves stihne posekat, a loňská sláma).
 6. **Porážka podle krmení** – chovné jádro krav, ovcí a koz podle sena a slámy na dny se sněhem
    (diet.md – Zima bez sena). Voli a koně se neporážejí.
+7. **Přednost zimního krmení** (Martin, 10. 11. 2026: „**Ano, ovce na vlnu před kravami, ale je
+   potřeba nechat dostatek krav k obnově volů**“): voli a koně (seno celou zimu) → **krávy
+   k obnově volů** → **ovce na vlnu** do potřeby vlny vsi → ostatní krávy (mléko), zbytek ovcí
+   a kozy. Platí pro nosnost přes zimu (pastva, seno, sláma i seno, které ves stihne posekat –
+   tedy i pro plán seče) a pro porážku podle krmení 1. 11. i v zimě; chovný pár každého druhu
+   zůstane vždy. Krávy k obnově volů (návrh Clauda, odvozené z pravidel): voli, které ves drží
+   (i na cestě a bez ohrady) nebo chce, co je víc, ÷ služba vola (10 let) ÷ býčci na kus skotu
+   za rok (odchovaná telata 0,4 – polovina krav rodí, 20 % telat uhyne – a z nich polovina
+   býčků) = **0,5 kusu skotu na vola**, aspoň chovný pár; ves bez volů, která je ani nechce, jen
+   chovný pár. Dřív (od 24. 10. 2026) krávy před ovcemi na vlnu.
 
 Zrušeno (texty výš přeškrtnuté): ~~seč kosou 15 → 10 čd/ha~~, ~~krávy, ovce a kozy na seně celou
 zimu~~, ~~letnina počítaná jako seno~~.
 
-**Naměřeno (10. 11. 2026):** Vlkov ze stavu jara 871, 3 roky (před → po). Práce seče skoro beze
+**Naměřeno (10. 11. 2026, před přednostmi bodu 7):** Vlkov ze stavu jara 871, 3 roky (před → po). Práce seče skoro beze
 změny – 1. seč 871 416 čd (416), otava 305 čd (306), 1. seč 872 345 čd (340), 873 327 čd a otava
 228 čd (388 a 23) – ale seno srpem dá třetinu: k 1. 11. 871 11,8 t (35,9 t), k 1. 4. 872 0 t
 (9,8 t). Sláma z výmlatu úrody 871 6,1 t, 872 11,9 t; k 1. 4. 872 snědená celá. První zima
 (31. 10. 871 → 1. 4. 872, po jarních mláďatech): krávy 11,6 → 6,7, ovce 49,9 → 3,2, kozy 3,4 →
 3,5 – seno po 9 volech a koních a sláma uživily ≈ 5 krav, 1. 11. šly na maso skoro všechny ovce
-(47,9) a v zimě 6 krav; voli bez úhynu, chyběla vlna. **Otevřené (otázka na Martina):** ovce jsou
-v přednosti zimního krmení až za kravami – mají mít ovce na vlnu krmení před kravami nad chovné
-minimum?
+(47,9) a v zimě 6 krav; voli bez úhynu, chyběla vlna. ~~**Otevřené (otázka na Martina):** ovce
+jsou v přednosti zimního krmení až za kravami – mají mít ovce na vlnu krmení před kravami nad
+chovné minimum?~~ Rozhodnuto 10. 11. 2026 – bod 7.
+
+**Naměřeno (10. 11. 2026, s přednostmi bodu 7):** týž Vlkov. Krávy k obnově volů 4,5 (9 volů). 31. 10. 871 krávy 11,6, ovce 49,9, kozy 3,4; 1. 11. si ves nechala 4,5 krávy, 35,8 ovce a 2 kozy
+(ovcí na vlnu by bylo třeba 61 – vlna chyběla); 4. 12. porazila 3,2 krávy čekající na porážku
+a 1 ovci, chovné jádro přezimovalo – 1. 4. 872 (po jarních mláďatech) krávy 6,2, ovce 37,1, kozy
+3,5. Seno k 1. 4. 872 0 t, sláma snědená celá, voli bez úhynu. Vlna chybí i 1. 11. 872 (35 ovcí
+z 62) a 873 (52,5 z 58) – stádo ovcí se obnovuje. Práce 1. seče 871 416 čd a otavy 305 čd, 872
+455 čd, 873 408 čd a otava 185 čd.
 
 ## Účinek na práci
 

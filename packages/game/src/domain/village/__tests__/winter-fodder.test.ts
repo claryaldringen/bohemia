@@ -17,9 +17,10 @@ import {
   winterHayAvailable,
   winterHayKg,
 } from '../hay';
-import { hayShortSlaughter, slaughter } from '../livestock';
+import { oxenRenewalCows } from '../husbandry';
+import { LIVESTOCK, hayShortSlaughter, slaughter, winterTargets } from '../livestock';
 import { hayWorkPerHa } from '../productivity';
-import { FIELD_WORK_PER_HA, STRAW } from '../rules';
+import { FIELD_WORK_PER_HA, OXEN, STRAW } from '../rules';
 import { advanceVillage } from '../simulate';
 import { snowDaysAhead, snowDaysOfYear, snowLies } from '../snow';
 import type { HerdSpecies, VillageState } from '../types';
@@ -200,5 +201,64 @@ describe('chovné jádro – porážka podle zimního krmení', () => {
       },
     };
     expect(hayShortSlaughter(t, day, 2)).toBeNull();
+  });
+});
+
+describe('přednost zimního krmení (Martin 10. 11. 2026: „Ano, ovce na vlnu před kravami, ale je potřeba nechat dostatek krav k obnově volů“)', () => {
+  it('krávy k obnově volů z doby služby vola a býčků mezi telaty; bez volů žádné', () => {
+    const s = village(at(600, 9, 2));
+    expect(oxenRenewalCows(s)).toBe(0);
+    s.looseOxen = Array.from({ length: 6 }, () => ({ trainedDay: at(598, 4, 1) }));
+    const perOx = 1 / OXEN.serviceYears / (LIVESTOCK.growth.cow * OXEN.bullCalfShare);
+    expect(oxenRenewalCows(s)).toBeCloseTo(6 * perOx, 9);
+    // týž výsledek jako krávy na obměnu volů (diet.md – Krávy na obměnu volů)
+    expect(perOx).toBeCloseTo(OXEN.cowsPerOx, 9);
+    // aspoň chovný pár
+    s.looseOxen = s.looseOxen.slice(0, 1);
+    expect(oxenRenewalCows(s)).toBe(LIVESTOCK.breedingMin);
+  });
+
+  it('nosnost přes zimu: voli → krávy k obnově volů → ovce na vlnu → ostatní krávy, ovce a kozy', () => {
+    const day = at(600, 11, 1);
+    const s = village(day);
+    s.livestock!.land = { meadowHa: 1_000, forestHa: 1_000 };
+    s.livestock!.herds = herds({ cow: 20, sheep: 40, goat: 5 });
+    const perCow = HAY.dailyKg.cow * SNOW_FEED_DAYS;
+    const perSheep = HAY.dailyKg.sheep * SNOW_FEED_DAYS;
+    // seno pro 2 voly celou zimu, 7 krav a 10 ovcí na dny se sněhem
+    const hayKg =
+      (2 * HAY.dailyKg.ox * HAY_WINTER_DAYS + 7 * perCow + 10 * perSheep) / winterHayAvailable(1);
+    const ordered = winterTargets(s, day, { oxen: 2, hayKg, oxenCows: 4, minSheep: 10 });
+    expect(ordered.cow).toBeCloseTo(7, 6);
+    expect(ordered.sheep).toBeCloseTo(10, 6);
+    expect(ordered.goat).toBe(LIVESTOCK.breedingMin);
+    // bez přednosti by krávy snědly i seno ovcí na vlnu
+    const plain = winterTargets(s, day, { oxen: 2, hayKg });
+    expect(plain.cow).toBeCloseTo(7 + (10 * perSheep) / perCow, 6);
+    expect(plain.sheep).toBe(LIVESTOCK.breedingMin);
+    // ovcí na vlnu víc, než seno uživí – krávy k obnově volů zůstanou
+    const wool = winterTargets(s, day, { oxen: 2, hayKg, oxenCows: 4, minSheep: 40 });
+    expect(wool.cow).toBeCloseTo(4, 6);
+    expect(wool.sheep).toBeCloseTo((3 * perCow + 10 * perSheep) / perSheep, 6);
+  });
+
+  it('v zimě porážka podle krmení nechá napřed krávy k obnově volů a ovce na vlnu', () => {
+    const day = at(601, 2, 1);
+    const days = hayWinterDaysLeft(day);
+    const snow = snowDaysAhead(day, days);
+    const run = (first?: { cow: number; sheep: number }): unknown => {
+      const s = village(day);
+      s.livestock!.herds = herds({ cow: 8, sheep: 12, goat: 3 });
+      // seno pro 2 voly do konce zimy a 26 kg denně na dny se sněhem (≈ 4 krávy a 6 ovcí)
+      s.hay = {
+        kg: (2 * HAY.dailyKg.ox * days + 26 * snow) / hayLeftAvailable(1, days),
+        mowing: null,
+      };
+      const event = hayShortSlaughter(s, day, 2, 0, first);
+      return event?.kind === 'hay-slaughter' ? event.animals : null;
+    };
+    expect(run({ cow: 3, sheep: 6 })).toEqual({ cow: 4, sheep: 6, goat: 1 });
+    // bez přednosti krávy napřed – ovcím jen chovný pár
+    expect(run()).toEqual({ cow: 2, sheep: 10, goat: 1 });
   });
 });
