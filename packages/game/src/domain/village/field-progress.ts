@@ -96,19 +96,19 @@ const EPSILON = 1e-9;
 
 /**
  * Váha dílu v úloze – jeho práce (plocha × vzdálenost, orba drnu `PLOUGH_SOD_FACTOR`× víc –
- * `sod`); díl, kterého se úloha netýká, 0.
+ * `sod`); díl, kterého se úloha netýká, 0. `reclaim` – díly zakládání (jen u úlohy `reclaim`).
  */
 function partWeight(
-  work: CropWork,
   part: FieldPart,
   task: PartTask,
   day: number,
-  sod: ReadonlySet<number>,
+  reclaim: ReadonlySet<number> | null,
+  sod: ReadonlySet<number> | null,
 ): number {
-  if (task === 'reclaim' && !(work.reclaimIds ?? []).includes(part.id)) return 0;
+  if (reclaim && !reclaim.has(part.id)) return 0;
   if (task === 'weed' && isWeedFree(part, day)) return 0;
   const weight = (part.areaM2 / M2_PER_HA) * distanceFactor(partWalkDistance(part));
-  return sod.has(part.id) ? weight * PLOUGH_SOD_FACTOR : weight;
+  return sod?.has(part.id) ? weight * PLOUGH_SOD_FACTOR : weight;
 }
 
 /**
@@ -124,7 +124,10 @@ function taskPartIds(work: CropWork, task: PartTask): readonly number[] {
   return work.partIds.filter((id) => !ploughed.has(id));
 }
 
-/** Úseky dílů práce plodiny v úloze v pořadí postupu (díly s nulovou vahou vynechané). */
+/**
+ * Úseky dílů práce plodiny v úloze v pořadí postupu (díly s nulovou vahou vynechané). Díly a váhy
+ * v souběžných polích, součty ve stejném pořadí jako dřív (jen zrychlení – volá se mnohokrát denně).
+ */
 export function taskSpans(
   work: CropWork,
   partsById: ReadonlyMap<number, FieldPart>,
@@ -134,25 +137,33 @@ export function taskSpans(
   // orba a setí za ní ve vsi s pásy orby: díl s drnem váží jako v orbě (orba křížem), ať setí
   // dojde přesně tam, kam orba (seje se, co je zorané – `tilledShare`)
   const banded = work.plough?.bands !== undefined;
-  const sod = new Set(
-    task === 'plough' || (task === 'sow' && banded) ? (work.plough?.sodIds ?? []) : [],
-  );
-  const weighted = taskPartIds(work, task).flatMap((id) => {
+  const sodIds = task === 'plough' || (task === 'sow' && banded) ? (work.plough?.sodIds ?? []) : [];
+  const sod = sodIds.length > 0 ? new Set(sodIds) : null;
+  const reclaim = task === 'reclaim' ? new Set(work.reclaimIds ?? []) : null;
+  const parts: FieldPart[] = [];
+  const weights: number[] = [];
+  let total = 0;
+  for (const id of taskPartIds(work, task)) {
     const part = partsById.get(id);
-    const weight = part ? partWeight(work, part, task, day, sod) : 0;
-    return part && weight > 0 ? [{ part, weight }] : [];
-  });
-  const total = weighted.reduce((sum, w) => sum + w.weight, 0);
+    if (!part) continue;
+    const weight = partWeight(part, task, day, reclaim, sod);
+    if (!(weight > 0)) continue;
+    parts.push(part);
+    weights.push(weight);
+    total += weight;
+  }
   // orba a setí za ní jdou po pásech – díly pásu postupují spolu (oxen.md – Co nejdelší brázda)
   const bands = task === 'plough' || task === 'sow' ? work.plough?.bands : undefined;
-  if (bands) return bandSpans(weighted, total, bands);
+  if (bands) return bandSpans(parts, weights, total, bands);
+  const spans: PartSpan[] = new Array(parts.length);
   let start = 0;
-  return weighted.map(({ part, weight }) => {
-    const end = start + weight / total;
-    const span = { id: part.id, fieldId: part.fieldId, start, end };
+  for (let k = 0; k < parts.length; k++) {
+    const part = parts[k]!;
+    const end = start + weights[k]! / total;
+    spans[k] = { id: part.id, fieldId: part.fieldId, start, end };
     start = end;
-    return span;
-  });
+  }
+  return spans;
 }
 
 /**
@@ -160,7 +171,8 @@ export function taskSpans(
  * a podíl své váhy; díl mimo pás je úsek sám.
  */
 function bandSpans(
-  weighted: readonly { part: FieldPart; weight: number }[],
+  parts: readonly FieldPart[],
+  weights: readonly number[],
   total: number,
   bands: readonly PloughBand[],
 ): PartSpan[] {
@@ -170,23 +182,22 @@ function bandSpans(
   });
   const spans: PartSpan[] = [];
   let start = 0;
-  for (let i = 0; i < weighted.length;) {
-    const band = bandOf.get(weighted[i]!.part.id);
+  for (let i = 0; i < parts.length;) {
+    const band = bandOf.get(parts[i]!.id);
     let j = i + 1;
-    while (j < weighted.length && band !== undefined && bandOf.get(weighted[j]!.part.id) === band) {
+    while (j < parts.length && band !== undefined && bandOf.get(parts[j]!.id) === band) {
       j++;
     }
-    const group = weighted.slice(i, j);
-    const weight = group.reduce((sum, w) => sum + w.weight, 0);
+    let weight = 0;
+    for (let k = i; k < j; k++) weight += weights[k]!;
     const end = start + weight / total;
-    for (const w of group) {
-      spans.push({
-        id: w.part.id,
-        fieldId: w.part.fieldId,
-        start,
-        end,
-        ...(group.length > 1 ? { share: w.weight / weight } : {}),
-      });
+    for (let k = i; k < j; k++) {
+      const part = parts[k]!;
+      spans.push(
+        j - i > 1
+          ? { id: part.id, fieldId: part.fieldId, start, end, share: weights[k]! / weight }
+          : { id: part.id, fieldId: part.fieldId, start, end },
+      );
     }
     start = end;
     i = j;
