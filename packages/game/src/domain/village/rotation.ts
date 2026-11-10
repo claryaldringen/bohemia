@@ -8,7 +8,7 @@ import {
   isSowableFertility,
   partOvergrowthYears,
 } from './fields';
-import { expectedFlaxKg, flaxAllowed } from './flax';
+import { expectedFlaxKg, flaxAllowedIn, seasonHarvestYear } from './flax';
 import { EMERGENCY_GROUP, sowingBlocks, villageHoldings } from './holdings';
 import { partsByIdOf } from './parts-by-id';
 import { CROP_WINDOWS, FERTILITY } from './rules';
@@ -254,12 +254,20 @@ export function turnSelection(
 ): SeasonJoin[] {
   const parts = byId(state.parts);
   const holdings = villageHoldings(parts === state.parts ? state : { ...state, parts: [...parts] });
-  const inSeason = new Set<number>();
+  // druh osevu a vybrané díly v polích podle id místo map (jen zrychlení – díly jsou seřazené,
+  // poslední má největší id); id mimo rozsah dílů žádný díl nemá
+  const size = idSlots(parts);
+  const inSeason = size > 0 ? new Uint8Array(size) : null;
+  const inSeasonSet = inSeason ? null : new Set<number>();
+  const mark = (id: number): void => {
+    if (!inSeason) inSeasonSet!.add(id);
+    else if (Number.isInteger(id) && id >= 0 && id < size) inSeason[id] = 1;
+  };
   // len letošní práce, který ještě poroste – kolik ho ves čeká
   let flaxKg = 0;
   const partsById = partsByIdOf(parts);
   for (const { crop, work } of state.season ? seasonCrops(state.season) : []) {
-    for (const id of work.partIds) inSeason.add(id);
+    for (const id of work.partIds) mark(id);
     if (crop !== 'flax' || work.harvestedKg !== null) continue;
     for (const id of work.partIds) {
       const part = partsById.get(id);
@@ -268,13 +276,22 @@ export function turnSelection(
   }
   // jař, kterou srpen nedosklidil, je na poli – díl přijde na řadu, až se sklidí (fields.md – Žeň
   // jaře i v září)
-  for (const id of lateSpringCrop(state)?.partIds ?? []) inSeason.add(id);
-  const kindOf = new Map<number, SowingKind | null>();
+  for (const id of lateSpringCrop(state)?.partIds ?? []) mark(id);
+  // druh osevu podle id dílu (KIND_UNKNOWN = ještě nezjištěný); bez polí podle id mapa
+  const kindSlots = size > 0 ? new Uint8Array(size) : null;
+  const kindOf = kindSlots ? null : new Map<number, SowingKind | null>();
   const kind = (p: FieldPart): SowingKind | null => {
-    let k = kindOf.get(p.id);
+    if (kindSlots) {
+      const code = kindSlots[p.id]!;
+      if (code !== KIND_UNKNOWN) return KIND_OF_CODE[code] ?? null;
+      const k = inSeason![p.id] ? null : nextSowing(p);
+      kindSlots[p.id] = CODE_OF_KIND.get(k)!;
+      return k;
+    }
+    let k = kindOf!.get(p.id);
     if (k === undefined) {
-      k = inSeason.has(p.id) ? null : nextSowing(p);
-      kindOf.set(p.id, k);
+      k = inSeasonSet!.has(p.id) ? null : nextSowing(p);
+      kindOf!.set(p.id, k);
     }
     return k;
   };
@@ -291,10 +308,17 @@ export function turnSelection(
   const blocks = sowingBlocks(parts, holdings).flat();
   const turn = blocks.filter((p) => onTurn(kind(p)));
   const join: SeasonJoin[] = [];
-  const used = new Set<number>();
+  const usedSlots = size > 0 ? new Uint8Array(size) : null;
+  const usedSet = usedSlots ? null : new Set<number>();
+  const isUsed = (id: number): boolean => (usedSlots ? usedSlots[id] === 1 : usedSet!.has(id));
+  const use = (id: number): void => {
+    if (usedSlots) usedSlots[id] = 1;
+    else usedSet!.add(id);
+  };
   // len místo jaře do potřeby na oděv – jen když jař dnes smí začít; na podzim (jař ještě ne) si ves
-  // díly na příští jarní len jen odloží (`used` bez zápisu do `join`) – ozim je nedostane
-  if (options.flaxNeedKg > KG_EPSILON) {
+  // díly na příští jarní len jen odloží (`used` bez zápisu do `join`) – ozim je nedostane; s lnem,
+  // který potřebu už pokryje, se díly pro len nehledají (jen zrychlení – nevzal by žádný)
+  if (options.flaxNeedKg > KG_EPSILON && flaxKg < options.flaxNeedKg - KG_EPSILON) {
     // dokud běží okno ozimu, díl na řadě dostává ozim – len se tehdy jen odkládá
     const reserving = winterStartable(day);
     const sowNow = !reserving && springStartable(day);
@@ -302,7 +326,7 @@ export function turnSelection(
       for (const p of flaxCandidates(blocks, kind, cropOf, day)) {
         if (flaxKg >= options.flaxNeedKg - KG_EPSILON) break;
         if (sowNow) join.push({ id: p.id, crop: 'flax' });
-        used.add(p.id);
+        use(p.id);
         flaxKg += expectedFlaxKg(p, day);
       }
     }
@@ -311,14 +335,14 @@ export function turnSelection(
   const grain = (list: readonly FieldPart[]): number => {
     const batch: SeasonJoin[] = [];
     for (const p of list) {
-      if (used.has(p.id)) continue;
+      if (isUsed(p.id)) continue;
       const crop = cropOf(kind(p));
       if (!crop) continue;
       batch.push({ id: p.id, crop });
-      used.add(p.id);
+      use(p.id);
     }
-    join.push(...batch.filter((j) => j.crop === 'winter'));
-    join.push(...batch.filter((j) => j.crop !== 'winter'));
+    for (const j of batch) if (j.crop === 'winter') join.push(j);
+    for (const j of batch) if (j.crop !== 'winter') join.push(j);
     return batch.length;
   };
   const onTurnJoins = grain(turn);
@@ -336,6 +360,36 @@ export function turnSelection(
   return join;
 }
 
+/** Druh osevu dílu ještě nezjištěný (pole druhů v `turnSelection`). */
+const KIND_UNKNOWN = 0;
+/** Druhy osevu podle kódu v poli druhů (`turnSelection`; 0 = nezjištěný). */
+const KIND_OF_CODE: readonly (SowingKind | null)[] = [
+  null,
+  null,
+  'first',
+  'again',
+  'late',
+  'emergency',
+  'rest',
+];
+const CODE_OF_KIND = new Map<SowingKind | null, number>(
+  KIND_OF_CODE.map((k, code) => [k, code] as const).filter(([, code]) => code > 0),
+);
+
+/**
+ * Velikost polí podle id dílu (`turnSelection`) – největší id + 1 u dílů seřazených podle id
+ * s celými nezápornými id a rozumným rozsahem; jinak 0 (výběr pak jede přes mapy).
+ */
+function idSlots(parts: readonly FieldPart[]): number {
+  if (parts.length === 0) return 0;
+  const lastId = parts[parts.length - 1]!.id;
+  const firstId = parts[0]!.id;
+  if (!Number.isInteger(firstId) || firstId < 0 || !Number.isInteger(lastId)) return 0;
+  if (lastId >= 64 * parts.length + 4096) return 0;
+  for (const p of parts) if (!Number.isInteger(p.id)) return 0;
+  return lastId + 1;
+}
+
 /**
  * Díly, které smí dostat len (fields.md – Len; Martin 9. 11. 2026: „Len je extrémně náročná
  * plodina na kvalitu půdy.“), v pořadí, ve kterém je len bere: všechny díly na řadě (díly v osevu,
@@ -344,25 +398,54 @@ export function turnSelection(
  * řekli, len je extrémně náročná plodina, ale zase ho není potřeba moc“; dřívější přednost dílů
  * v osevu před prvním osevem je pryč – návrh Clauda); jen díly od 70 % (`isSowableFertility`),
  * na kterých len 7 let nerostl (`flaxAllowed`). Nouzový příloh ne. Stejné pořadí slouží na jaře
- * k setí a na podzim k odložení dílů před ozimem (`turnSelection`).
+ * k setí a na podzim k odložení dílů před ozimem (`turnSelection`). Vydává díly postupně z haldy
+ * (len bere jen pár nejlepších – celé řazení by bylo zbytečné; pořadí jako stabilní řazení podle
+ * úrodnosti a id, při shodě obojího podle pořadí v blocích).
  */
-function flaxCandidates(
+function* flaxCandidates(
   blocks: readonly FieldPart[],
   kind: (p: FieldPart) => SowingKind | null,
   cropOf: (k: SowingKind | null) => 'winter' | 'spring' | null,
   day: number,
-): FieldPart[] {
+): Generator<FieldPart, void, void> {
   const list: FieldPart[] = [];
+  const fertility: number[] = [];
+  const harvestYear = seasonHarvestYear(day);
   for (const p of blocks) {
     const k = kind(p);
     if (k !== 'again' && k !== 'first' && k !== 'late') continue;
-    if (cropOf(k) === null || !isSowableFertility(p) || !flaxAllowed(p, day)) continue;
+    if (cropOf(k) === null || !isSowableFertility(p) || !flaxAllowedIn(p, harvestYear)) continue;
     list.push(p);
+    fertility.push(effectiveFertility(p, day));
   }
-  return list
-    .map((p) => ({ p, fertility: effectiveFertility(p, day) }))
-    .sort((a, b) => b.fertility - a.fertility || a.p.id - b.p.id)
-    .map(({ p }) => p);
+  // halda indexů do `list` – nahoře díl, který by stabilní řazení dalo první
+  const before = (a: number, b: number): boolean => {
+    const d = fertility[b]! - fertility[a]! || list[a]!.id - list[b]!.id;
+    return d < 0 || (d === 0 && a < b);
+  };
+  const heap = list.map((_, i) => i);
+  const down = (from: number, size: number): void => {
+    let i = from;
+    for (;;) {
+      const l = 2 * i + 1;
+      if (l >= size) return;
+      const r = l + 1;
+      const c = r < size && before(heap[r]!, heap[l]!) ? r : l;
+      if (!before(heap[c]!, heap[i]!)) return;
+      const t = heap[i]!;
+      heap[i] = heap[c]!;
+      heap[c] = t;
+      i = c;
+    }
+  };
+  for (let i = (heap.length >> 1) - 1; i >= 0; i--) down(i, heap.length);
+  for (let size = heap.length; size > 0;) {
+    const top = heap[0]!;
+    size--;
+    heap[0] = heap[size]!;
+    down(0, size);
+    yield list[top]!;
+  }
 }
 
 /** Díl na řadě s obilím – první osev a díl v osevu (ne příloh 70–95 % ani nouzový). */
