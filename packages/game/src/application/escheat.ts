@@ -10,7 +10,7 @@ import {
   type EscheatScope,
 } from '../domain/vassalage/escheat';
 import type { VillageGiftLine } from '../domain/negotiation';
-import { isVillageDormant } from '../domain/village';
+import { isVillageDormant, withHolderFaith } from '../domain/village';
 import type { DialogRepository } from './dialogs';
 import { settlementLandscape } from './enter-game';
 import type { HouseRepository } from './houses';
@@ -296,12 +296,42 @@ export async function endNegotiationsOf(
   });
 }
 
-/** Převzetí sídel, která na hráče čekají (2. krok převodu); volající drží zámek hráče. */
-export function acceptHolderTransfers(
-  deps: { settlements: Pick<SettlementRepository, 'acceptTransfers'> },
+/** Kolikrát se zkusí verzovaný zápis víry vsi při souběžné změně. */
+const FAITH_SAVE_ATTEMPTS = 5;
+
+/** Závislosti převzetí sídel (`acceptHolderTransfers`). */
+export interface AcceptTransfersDeps {
+  settlements: Pick<SettlementRepository, 'acceptTransfers'>;
+  villages: Pick<VillageRepository, 'listBySettlement' | 'find' | 'save'>;
+  /** Rod nového držitele – bez něj se víra vsí nepřepočte (testy bez rodů). */
+  houses?: Pick<HouseRepository, 'activeOf'>;
+}
+
+/**
+ * Převzetí sídel, která na hráče čekají (2. krok převodu – odúmrť, postoupení, věnování); volající
+ * drží zámek hráče. Vsi převzatých sídel dostanou křest nového rodu (`withHolderFaith` –
+ * christianity.md – Vsi rodu): pokřtěný → den jeho křtu, jinak příznak zmizí; zničená posvátná
+ * místa zůstanou. Zápis je verzovaný a opakování nic nezmění. Vrací převzatá sídla.
+ */
+export async function acceptHolderTransfers(
+  deps: AcceptTransfersDeps,
   playerId: string,
-): Promise<unknown> {
-  return deps.settlements.acceptTransfers(playerId);
+): Promise<Settlement[]> {
+  const accepted = await deps.settlements.acceptTransfers(playerId);
+  if (accepted.length === 0 || !deps.houses) return accepted;
+  const baptizedDay = (await deps.houses.activeOf(playerId))?.baptizedDay ?? null;
+  for (const settlement of accepted) {
+    for (const village of await deps.villages.listBySettlement(settlement.id)) {
+      let current: VillageRecord | null = village;
+      for (let attempt = 0; current && attempt < FAITH_SAVE_ATTEMPTS; attempt++) {
+        const next = withHolderFaith(current.state, baptizedDay);
+        if (next === current.state) break;
+        if (await deps.villages.save(current.id, next, current.version)) break;
+        current = await deps.villages.find(village.id);
+      }
+    }
+  }
+  return accepted;
 }
 
 // --- rozhodnutí pánů ---
@@ -314,7 +344,7 @@ export interface EscheatDeps {
   dialogs: Pick<DialogRepository, 'dropFor'>;
   negotiations: NegotiationRepository;
   settlements: Pick<SettlementRepository, 'find' | 'transferHolder' | 'acceptTransfers'>;
-  villages: Pick<VillageRepository, 'find'>;
+  villages: Pick<VillageRepository, 'find' | 'listBySettlement' | 'save'>;
   /** Zámky hráčů – převod jde postupně pod zámkem starého a pak nového držitele, nikdy naráz. */
   locks: PlayerLock;
 }
@@ -332,7 +362,9 @@ export interface EscheatContext {
 
 /** Odúmrť, o které hráč rozhoduje (jeho rod je mezi pány); jinak důvod. */
 export async function escheatFor(
-  deps: Pick<EscheatDeps, 'houses' | 'escheats' | 'vassalages' | 'villages'>,
+  deps: Pick<EscheatDeps, 'houses' | 'escheats' | 'vassalages'> & {
+    villages: Pick<VillageRepository, 'find'>;
+  },
   input: { playerId: string; escheatId: string },
 ): Promise<{ ok: true; context: EscheatContext } | { ok: false; reason: string }> {
   const house = await deps.houses.activeOf(input.playerId);
@@ -345,7 +377,7 @@ export async function escheatFor(
 
 /** Rozsah odúmrti: mapa každé vsi a vazalové pánů (smějí dostat věnování). */
 async function scopeOf(
-  deps: Pick<EscheatDeps, 'vassalages' | 'villages'>,
+  deps: Pick<EscheatDeps, 'vassalages'> & { villages: Pick<VillageRepository, 'find'> },
   escheat: Escheat,
 ): Promise<EscheatScope> {
   const mapOf: Record<string, string> = {};
@@ -510,17 +542,18 @@ async function moveVassal(
 /**
  * Převod vsí (po celých mapách) od hráče `from` k hráči `to`: pod zámkem `from` nejdřív převezme,
  * co na něj čeká (technický držitel ještě nemusel), a dá sídlům čekajícího držitele; zámek uvolní
- * a teprve pak pod zámkem `to` sídla převezme. Dva zámky nikdy naráz.
+ * a teprve pak pod zámkem `to` sídla převezme. Dva zámky nikdy naráz. Převzaté vsi dostanou křest
+ * rodu svého držitele (`acceptHolderTransfers`).
  */
 export async function transferVillages(
-  deps: Pick<EscheatDeps, 'locks' | 'settlements' | 'villages'>,
+  deps: Pick<EscheatDeps, 'locks' | 'settlements' | 'villages' | 'houses'>,
   villageIds: readonly string[],
   from: string,
   to: string,
 ): Promise<void> {
   if (villageIds.length === 0 || from === to) return;
   await deps.locks.run(from, async () => {
-    await deps.settlements.acceptTransfers(from);
+    await acceptHolderTransfers(deps, from);
     const maps = new Set<string>();
     for (const id of villageIds) {
       const village = await deps.villages.find(id);
@@ -528,7 +561,7 @@ export async function transferVillages(
     }
     for (const map of maps) await deps.settlements.transferHolder(map, from, to);
   });
-  await deps.locks.run(to, () => deps.settlements.acceptTransfers(to));
+  await deps.locks.run(to, () => acceptHolderTransfers(deps, to));
 }
 
 /**

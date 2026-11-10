@@ -10,6 +10,7 @@ import {
   npcBaptismYear,
   rodBaptized,
   threeFieldAllowed,
+  withHolderFaith,
 } from '../faith';
 import type { Person, VillageState } from '../types';
 
@@ -122,5 +123,43 @@ describe('los rodu (christianity.md – Objev, Křest rodu)', () => {
       years.add(year);
     }
     expect(years.size).toBe(20);
+  });
+});
+
+describe('withHolderFaith – ves přejde k jinému držiteli (christianity.md – Vsi rodu)', () => {
+  const base = { seed: 1, people: [] } as unknown as VillageState;
+  const desecrated = { oaksOrGroves: 1, cemeteries: 1 };
+
+  it('nepokřtěný nový rod – příznak starého rodu zmizí, zničená posvátná místa zůstanou', () => {
+    const state = { ...base, faith: { rodBaptizedDay: 100, desecrated } };
+    const next = withHolderFaith(state, null);
+    expect(next.faith).toEqual({ desecrated });
+    expect(rodBaptized(next)).toBe(false);
+    expect(state.faith.rodBaptizedDay).toBe(100); // vstup beze změny
+  });
+
+  it('pokřtěný nový rod – jeho den křtu, i ve vsi bez víry', () => {
+    expect(withHolderFaith({ ...base, faith: { rodBaptizedDay: 100 } }, 250).faith).toEqual({
+      rodBaptizedDay: 250,
+    });
+    const fresh = withHolderFaith(base, 250);
+    expect(fresh.faith).toEqual({ rodBaptizedDay: 250 });
+    expect(rodBaptized(fresh)).toBe(true);
+  });
+
+  it('křest NPC rodu, který ves řídí, zůstává; prázdná víra zmizí celá', () => {
+    const nobles = { houseId: 'npc', baptizedDay: 50 };
+    expect(
+      withHolderFaith({ ...base, faith: { rodBaptizedDay: 100, nobles } }, null).faith,
+    ).toEqual({ nobles });
+    expect('faith' in withHolderFaith({ ...base, faith: { rodBaptizedDay: 100 } }, null)).toBe(
+      false,
+    );
+  });
+
+  it('beze změny vrací týž stav (opakování nic nezapíše)', () => {
+    const baptized = { ...base, faith: { rodBaptizedDay: 100 } };
+    expect(withHolderFaith(baptized, 100)).toBe(baptized);
+    expect(withHolderFaith(base, null)).toBe(base);
   });
 });

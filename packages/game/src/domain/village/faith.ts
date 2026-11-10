@@ -4,7 +4,7 @@ import { dateOfDayIndex, dayIndexOf } from '../calendar';
 import { createRandom, deriveSeed } from '../landscape/random';
 import { FAITH } from './rules-faith';
 import { THREE_FIELD_FROM_YEAR } from './rules-fields';
-import type { Person, VillageState } from './types';
+import type { Person, VillageFaith, VillageState } from './types';
 
 /** Roční šance, že rod narazí na křesťanství (christianity.md – Objev); v roce 500 nulová. */
 export function christianityChance(year: number): number {
@@ -65,6 +65,24 @@ export function isChristian(p: Person): boolean {
 export function rodBaptized(state: Pick<VillageState, 'faith' | 'nobles'>): boolean {
   if (state.nobles) return state.faith?.nobles?.houseId === state.nobles.houseId;
   return state.faith?.rodBaptizedDay !== undefined;
+}
+
+/**
+ * Ves přešla k jinému držiteli (odúmrť, postoupení – christianity.md – Vsi rodu): křest rodu hráče
+ * se přepočte podle nového rodu – `baptizedDay` je den jeho křtu, null = nepokřtěný (příznak
+ * zmizí). Zničená posvátná místa (`desecrated`) zůstávají – lid si je pamatuje – a křest NPC rodu,
+ * který ves řídí (`nobles`), také. Beze změny vrací týž stav; jinak kopii (vstup nemění).
+ */
+export function withHolderFaith(state: VillageState, baptizedDay: number | null): VillageState {
+  if ((state.faith?.rodBaptizedDay ?? null) === baptizedDay) return state;
+  const rest: VillageFaith = { ...state.faith };
+  delete rest.rodBaptizedDay;
+  const faith: VillageFaith =
+    baptizedDay === null ? rest : { ...rest, rodBaptizedDay: baptizedDay };
+  if (Object.keys(faith).length > 0) return { ...state, faith };
+  const next = { ...state };
+  delete next.faith;
+  return next;
 }
 
 /** Trojpolí smí od roku 1100 jen pokřtěný rod (christianity.md – Co křest rodu umožní). */
