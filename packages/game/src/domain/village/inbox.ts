@@ -228,7 +228,13 @@ export type VillageEventBody =
       herd: Record<HerdSpecies, number>;
       /** Vrátil je správce (nebo NPC rod) – kronika „Správce vrátil lidi domů.“ (Úloha 10). */
       steward?: true;
-    };
+    }
+  /**
+   * Rod `houseId` se pokřtil (christianity.md – Křest rodu; `sendRodBaptized`): ves zapíše den křtu
+   * do `VillageState.faith.rodBaptizedDay`, pokud ho ještě nemá. Co dál křest ve vsi změní, doplní
+   * plán 2026-11-10 – K4.
+   */
+  | { kind: 'rod-baptized'; houseId: string };
 
 /**
  * Událost ve schránce vsi `villageId`. `day` = herní den, na jehož začátku se použije (nikdy ne
@@ -319,6 +325,11 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
       return applyRefugeArrive(state, day, body);
     case 'refuge-back':
       return applyRefugeBack(state, day, body);
+    case 'rod-baptized':
+      if (state.faith?.rodBaptizedDay === undefined) {
+        state.faith = { ...state.faith, rodBaptizedDay: day };
+      }
+      return [];
     default:
       return unknownBody(body);
   }

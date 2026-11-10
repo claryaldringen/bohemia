@@ -28,6 +28,12 @@ describe('kronika – vojvodova rodina', () => {
     ).toBe('Výprava Bořivoje se rozpadla.');
   });
 
+  it('rod se dozvěděl o křesťanství (christianity.md – Objev)', () => {
+    expect(chronicleText({ day: 7, kind: 'christianity-known' }, 'Ves')).toBe(
+      'Rod se dozvěděl o novém Bohu.',
+    );
+  });
+
   it('jméno muže rodu v 1. pádu (lord.md – Jména)', () => {
     expect(chronicleText({ day: 3, kind: 'line-named', name: 'Mrdomír' }, 'Ves')).toBe(
       'Muž rodu dostal jméno – Mrdomír.',

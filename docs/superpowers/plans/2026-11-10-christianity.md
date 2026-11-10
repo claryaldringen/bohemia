@@ -143,15 +143,22 @@ letošní rok)`; padne-li → `markChristianityKnown`, upozornění hráči, zá
   - `sendRodBaptized(deps, houseId: string, day: number): Promise<void>` – událost `rod-baptized`
     do schránky všech vsí rodu (K4 ji použije pro hráče a doplní, co ves s událostí udělá).
 
-- [ ] **Step 1:** Testy: rod založený 520 při běhu v roce 870 – výsledek = smyčka rok po roku;
+- [x] **Step 1:** Testy: rod založený 520 při běhu v roce 870 – výsledek = smyčka rok po roku;
       druhý běh téhož dne nic nezapíše (idempotence); upozornění a událost schránky jen jednou;
       NPC rod známý v roce X je pokřtěný nejdřív X+1 a nejpozději X+20.
-- [ ] **Step 2:** FAIL.
-- [ ] **Step 3:** Implementace + zapojení do `runWorldTasks` (vzor `openAnnualDialogs` v
+- [x] **Step 2:** FAIL.
+- [x] **Step 3:** Implementace + zapojení do `runWorldTasks` (vzor `openAnnualDialogs` v
       `annual-levies.ts`). Text kroniky „Rod se dozvěděl o novém Bohu.“ v
       `apps/web/lib/village-view-chronicle.ts` (`chronicleText`).
-- [ ] **Step 4:** PASS, `npx vitest run` v `packages/game` a `apps/worker`.
-- [ ] **Step 5:** Commit `feat(game): rod se dozví o křesťanství – roční los a NPC křest`.
+- [x] **Step 4:** PASS, `npx vitest run` v `packages/game` a `apps/worker`.
+- [x] **Step 5:** Commit `feat(game): rod se dozví o křesťanství – roční los a NPC křest`.
+
+**Provedeno jinak než výš (návrh Clauda):** seed rodu `houseFaithSeed` = `deriveSeed(worldSeed,
+'house:' + id)` (los roku z `'faith:' + rok` dělá `discoveryYear`); první los `firstDiscoveryYear`
+– rod založený během roku losuje poprvé příští 1. 1.; kronika jde obecnou událostí `chronicle`
+(nový druh kroniky `christianity-known`, ne nový druh schránky); deps navíc `settlements`,
+`villages`, `stewardships`, `vassalages` (výpis NPC rodů), `dayOf` a paměť workeru `doneYear`.
+NPC rod objev ani křest do kroniky nepíše.
 
 ### K4: Křest vojvody a rodu
 

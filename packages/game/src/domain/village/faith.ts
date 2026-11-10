@@ -1,5 +1,6 @@
 // Víra a objev křesťanství (christianity.md) – čisté funkce.
 
+import { dateOfDayIndex, dayIndexOf } from '../calendar';
 import { createRandom, deriveSeed } from '../landscape/random';
 import { FAITH } from './rules-faith';
 import { THREE_FIELD_FROM_YEAR } from './rules-fields';
@@ -24,6 +25,32 @@ export function discoveryYear(seed: number, fromYear: number, toYear: number): n
     }
   }
   return null;
+}
+
+/** Seed rodu pro los víry (christianity.md – Objev; návrh Clauda): ze seedu světa a id rodu. */
+export function houseFaithSeed(worldSeed: number, houseId: string): number {
+  return deriveSeed(worldSeed, 'house:' + houseId);
+}
+
+/**
+ * První rok losu objevu rodu založeného ve dni `foundedDay` (christianity.md – Objev): los roku Y
+ * padá 1. 1. Y rodům, které tehdy žijí – rod založený během roku losuje poprvé příští 1. 1.
+ * (návrh Clauda). Den před začátkem světa = rok 500.
+ */
+export function firstDiscoveryYear(foundedDay: number): number {
+  const day = Math.max(0, foundedDay);
+  const { year } = dateOfDayIndex(day);
+  return day === dayIndexOf({ year, month: 1, day: 1 }) ? year : year + 1;
+}
+
+/**
+ * Rok křtu NPC rodu, který zná křesťanství od roku `knownYear` (christianity.md – Křest rodu):
+ * `knownYear` + 1–20 let, los ze seedu rodu (`houseFaithSeed`).
+ */
+export function npcBaptismYear(houseSeed: number, knownYear: number): number {
+  const { min, max } = FAITH.npcBaptismYears;
+  const roll = createRandom(deriveSeed(houseSeed, 'npc-baptism')).next();
+  return knownYear + min + Math.floor(roll * (max - min + 1));
 }
 
 export function isChristian(p: Person): boolean {

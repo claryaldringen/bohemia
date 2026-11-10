@@ -142,3 +142,22 @@ describe('schránka vsi – dopočet', () => {
     );
   });
 });
+
+describe('schránka vsi – rod-baptized', () => {
+  const baptized = (seq: number, day: number): VillageEvent => ({
+    id: `b${seq}`,
+    villageId: 'v1',
+    day,
+    seq,
+    body: { kind: 'rod-baptized', houseId: 'house-1' },
+  });
+
+  it('zapíše den křtu rodu jednou – opakovaná událost ho nezmění', () => {
+    const state = village();
+    expect(state.faith).toBeUndefined();
+    expect(applyInboxDay(state, 300, [baptized(1, 300)])).toEqual([]);
+    expect(state.faith?.rodBaptizedDay).toBe(300);
+    applyInboxDay(state, 301, [baptized(2, 301)]);
+    expect(state.faith?.rodBaptizedDay).toBe(300);
+  });
+});

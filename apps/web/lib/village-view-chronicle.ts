@@ -611,6 +611,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       }
     case 'raid':
       return raidText(event);
+    case 'christianity-known':
+      return 'Rod se dozvěděl o novém Bohu.';
     case 'negotiation-accepted':
       return `${event.vassal} se stal vazalem ${genitiveOf(event.lord)}.`;
     case 'vassalage-renounced':

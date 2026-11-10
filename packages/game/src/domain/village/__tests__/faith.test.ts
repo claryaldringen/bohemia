@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { createRandom, deriveSeed } from '../../landscape/random';
+import { dayIndexOf } from '../../calendar';
 import {
   christianityChance,
   discoveryYear,
+  firstDiscoveryYear,
+  houseFaithSeed,
   isChristian,
+  npcBaptismYear,
   rodBaptized,
   threeFieldAllowed,
 } from '../faith';
@@ -76,5 +80,32 @@ describe('víra', () => {
     expect(threeFieldAllowed(1099, true)).toBe(false);
     expect(threeFieldAllowed(1100, false)).toBe(false);
     expect(threeFieldAllowed(1100, true)).toBe(true);
+  });
+});
+
+describe('los rodu (christianity.md – Objev, Křest rodu)', () => {
+  it('seed rodu je ze seedu světa a id rodu', () => {
+    expect(houseFaithSeed(1, 'house-1')).toBe(deriveSeed(1, 'house:house-1'));
+    expect(houseFaithSeed(1, 'house-1')).not.toBe(houseFaithSeed(1, 'house-2'));
+  });
+
+  it('první los objevu: rok založení jen pro rod žijící 1. 1., jinak příští rok; nejdřív 500', () => {
+    expect(firstDiscoveryYear(0)).toBe(500);
+    expect(firstDiscoveryYear(-30)).toBe(500);
+    expect(firstDiscoveryYear(dayIndexOf({ year: 869, month: 1, day: 1 }))).toBe(869);
+    expect(firstDiscoveryYear(dayIndexOf({ year: 869, month: 1, day: 2 }))).toBe(870);
+    expect(firstDiscoveryYear(dayIndexOf({ year: 869, month: 12, day: 31 }))).toBe(870);
+  });
+
+  it('NPC rod se pokřtí 1–20 let po objevu, pevně ze seedu rodu', () => {
+    const years = new Set<number>();
+    for (let seed = 1; seed <= 400; seed++) {
+      const year = npcBaptismYear(seed, 700);
+      expect(year).toBeGreaterThanOrEqual(701);
+      expect(year).toBeLessThanOrEqual(720);
+      expect(npcBaptismYear(seed, 700)).toBe(year);
+      years.add(year);
+    }
+    expect(years.size).toBe(20);
   });
 });
