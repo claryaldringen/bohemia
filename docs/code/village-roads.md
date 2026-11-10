@@ -1187,6 +1187,36 @@ studeným startem každý den; `cart-memo.test.ts`).
   10 obydlí), 2,13 mil. délek rovně přes paměť (258 tis. různých úseček); z paměti 81,5 % (46 %
   tatáž generace, 35,6 % ověřeno proti změnám), 7 % změněno, 11,5 % nových; půda se změnila jen
   v 5 z 10 přepnutí. `groundWalkLength` 4,1 s → 0,75 s, `walkingDistances` 4,9 s → 2,3 s.
+- **Paměť chůze ve workeru** (měření 10. 11. 2026, `scratchpad/walkmemo/worker.mts`, zátěž 25–40
+  na 10 jádrech): worker dopočítává vsi na střídačku (`WORKER_STEP_DAYS` 10, v reálném čase po
+  dni), takže paměť pro 2 krajiny (`MEMO_LANDSCAPES`) se při víc než 2 vsích dalšího přepočtu téže
+  vsi nedočká – a při vsích procházených dokola nepomůže ani mez C krajin, dokud je C menší než
+  počet vsí v kole. Napodobení: K kopií Vlkova, každá s vlastním objektem krajiny ze stejného seedu
+  (oddělená paměť), po 10 dnech na střídačku, `MEMO_LANDSCAPES` 2 proti K (přepínané jen pro
+  měření). Otisk všech stavů je v obou nastaveních stejný – paměť výsledek nemění.
+  - Vzdálenosti chůze se přepočítají jen se změnou `walkDistanceKey` (obydlí, díly, sady, pevné
+    cesty, opevnění – 9. 11.). Rok ze stavu po převodu (`vlkov1.json`) žádnou nemá: paměť chůze
+    tam použije jen seč luk (`walkDistancesTo`, jednou za rok, 9,7 tis. úseček, studeně v obou
+    nastaveních) – obě nastavení spočítají stejně úseček i stejně dlouho.
+  - První rok ze stavu z DB (převod a 2 změny cest = 3 přepočty na ves), K = 4, 2 běhy střídavě:
+    2 krajiny 25,25 / 25,70 s, K krajin 24,89 / 24,02 s; kroky s přepočtem 11,25 / 11,67 →
+    10,98 / 10,37 s; spočtených úseček 795 → 539 tis. Zisk ≈ 0,2 s na ves a rok (≈ 3 % roku vsi
+    6,0–6,4 s).
+  - Horní mez – přepočet vynucený každých 60 dní (smazané `walkLayoutKey` i `walkDistanceKey`,
+    půda beze změny, takže v teplé paměti jsou všechny úsečky): krok s přepočtem tras studeně
+    ≈ 0,84 s, teple ≈ 0,69 s – paměť ušetří ≈ 0,16 s na přepočet. K = 4: 32,38 / 31,71 → 28,04 /
+    27,89 s (−12 %), K = 8: 60,34 → 52,98 s (−12 %), K = 16 (180 dní, 2 přepočty, první studený
+    v obou): 47,16 → 44,25 s (−6 %). Se skutečnou změnou půdy je z paměti ≈ 80 % úseček (rozbor
+    C2 výš), zisk je tedy menší.
+  - Paměť: tabulka a buňky půdy ≈ 8–9 MB na krajinu (`arrayBuffers` po gc: K = 4 +17–18 MB za
+    2 krajiny navíc, K = 8 +55 MB za 6, K = 16 +109 MB za 14; `rss` v šumu – 945 / 949 MB,
+    1 352 / 1 361 MB). Paměť pro všechny vsi kola ≈ 9 MB na ves: 50 vsí (`WORKER_LIMIT`)
+    ≈ 450 MB, 128 krajin (`WORKER_LANDSCAPES`) ≈ 1,1 GB.
+  - **Návrh Clauda: beze změny.** Teplá paměť ušetří ≈ 0,16 s CPU na přepočet vzdáleností (stavba
+    hráče nebo správce), v přirozeném roce ≈ 3 % roku vsi – pod 10 %; přes 10 % by to bylo až
+    s ≥ 6 změnami za herní rok v každé vsi. Mez v MB (např. 128 MB ≈ 14 krajin) by při stovkách
+    vsí procházených dokola neušetřila nic a paměť pro všechny vsi je řádově GB. Worker v reálném
+    čase má rezervu (rok vsi ≈ 6 s CPU za 8 h 46 min).
 - **Naměřeno C2** (Vlkov `diag-stable/vlkov.json`, den 116 771, rok vcelku, `diag-b3/cpu.mts`,
   střídavě před / po 2× při zátěži 8–23; od C1 přibyla divoká zvěř a klučení lesa – otisk proto
   jiný než u C1): stěna 29,0–29,4 s → 22,0 s, CPU 33,9–34,4 s → 27,1–27,2 s (≈ −20 % CPU). Otisk
