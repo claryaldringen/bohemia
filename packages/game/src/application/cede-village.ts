@@ -23,7 +23,7 @@ import type { VillageRecord, VillageRepository } from './villages';
 // správce. Opakované volání nic nezdvojí (jedinečné `ref` příchodů, převod držitele je podmíněný).
 
 export interface CedeDeps {
-  houses: Pick<HouseRepository, 'byId'>;
+  houses: Pick<HouseRepository, 'byId' | 'activeOf'>;
   settlements: Pick<
     SettlementRepository,
     'find' | 'listActive' | 'transferHolder' | 'acceptTransfers'

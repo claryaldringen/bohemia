@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
 import { checkEscheatPlan, ESCHEAT_REASONS, type EscheatScope } from '../../domain/vassalage';
-import type { Person, VillageState } from '../../domain/village';
+import type { Person, VillageFaith, VillageState } from '../../domain/village';
 import { DAY, kin, village } from '../../domain/village/__tests__/kin-fixtures';
-import { consentEscheat, escheatDialogs, giveEscheatPart, proposeEscheat } from '../escheat';
+import {
+  acceptHolderTransfers,
+  consentEscheat,
+  escheatDialogs,
+  giveEscheatPart,
+  proposeEscheat,
+  transferVillages,
+} from '../escheat';
 import { acceptNegotiation, rejectNegotiation } from '../negotiate';
 import { closeDynastyDay, type DynastyDeps } from '../restart-game';
 import { InMemoryDialogs } from './in-memory-dialogs';
@@ -41,7 +48,7 @@ function widowVillage(extra: Partial<VillageState> = {}): VillageState {
   });
 }
 
-async function world(options: { lords?: number; villages?: number } = {}) {
+async function world(options: { lords?: number; villages?: number; faith?: VillageFaith } = {}) {
   const houses = new InMemoryHouses();
   const settlements = new InMemorySettlements();
   const villages = new InMemoryVillages();
@@ -86,7 +93,8 @@ async function world(options: { lords?: number; villages?: number } = {}) {
     landscapeSeed: 5,
     layerVersions: CURRENT_LAYER_VERSIONS,
   });
-  const first = await villages.add(seat.id, 'Vdovín', widowVillage());
+  const extra = options.faith ? { faith: options.faith } : {};
+  const first = await villages.add(seat.id, 'Vdovín', widowVillage(extra));
   const maps = [seat];
   const records = [first];
   for (let i = 1; i < (options.villages ?? 2); i++) {
@@ -97,7 +105,7 @@ async function world(options: { lords?: number; villages?: number } = {}) {
       worldCell: { x: i, y: 0 },
     });
     maps.push(map!);
-    records.push(await villages.add(map!.id, `Dcerov ${i}`, widowVillage()));
+    records.push(await villages.add(map!.id, `Dcerov ${i}`, widowVillage(extra)));
   }
   const ending = {
     houses,
@@ -484,5 +492,47 @@ describe('dělení odúmrti (doména)', () => {
         { toHouseId: 'L2', villageIds: [], vassalIds: ['V'] },
       ]),
     ).toBe(ESCHEAT_REASONS.oneVillage);
+  });
+});
+
+describe('víra vsi při změně držitele (christianity.md – Vsi rodu)', () => {
+  it('ves nese křest nového držitele – nepokřtěný příznak smaže, pokřtěný dá svůj den; zničená místa zůstanou', async () => {
+    const desecrated = { oaksOrGroves: 1, cemeteries: 0 };
+    const w = await world({ faith: { rodBaptizedDay: DAY - 100, desecrated } });
+    const faiths = async (): Promise<(VillageFaith | undefined)[]> =>
+      Promise.all(w.records.map(async (r) => (await w.villages.find(r.id))?.state.faith));
+
+    // odúmrť: sídla čekají na technického držitele (pán, nepokřtěný), převezme je jeho dopočet
+    await w.close();
+    expect(await faiths()).toEqual([
+      { rodBaptizedDay: DAY - 100, desecrated },
+      { rodBaptizedDay: DAY - 100, desecrated },
+    ]);
+    expect(await acceptHolderTransfers(w.escheatDeps, LORD)).toHaveLength(2);
+    expect(await faiths()).toEqual([{ desecrated }, { desecrated }]);
+
+    // pán vsi postoupí pokřtěnému rodu
+    await w.houses.markChristianityKnown(w.giftee.id, 600);
+    await w.houses.markBaptized(w.giftee.id, DAY - 5);
+    await transferVillages(
+      w.escheatDeps,
+      w.records.map((r) => r.id),
+      LORD,
+      GIFTEE,
+    );
+    expect((await w.settlements.find(w.maps[0]!.id))?.ownerId).toBe(GIFTEE);
+    expect(await faiths()).toEqual([
+      { rodBaptizedDay: DAY - 5, desecrated },
+      { rodBaptizedDay: DAY - 5, desecrated },
+    ]);
+
+    // opakování nic nepřevezme ani nezapíše
+    const versions = await Promise.all(
+      w.records.map(async (r) => (await w.villages.find(r.id))?.version),
+    );
+    expect(await acceptHolderTransfers(w.escheatDeps, GIFTEE)).toEqual([]);
+    expect(
+      await Promise.all(w.records.map(async (r) => (await w.villages.find(r.id))?.version)),
+    ).toEqual(versions);
   });
 });
