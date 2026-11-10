@@ -365,6 +365,72 @@ describe('domácnost zemřelého – odkud vyjde průvod (cemetery.md – Pohře
   }, 120_000);
 });
 
+describe('kostrové pohřby křesťanů (christianity.md – Pohřby)', () => {
+  it('křesťan dostane kostrový hrob bez mohyly na jedno místo; pohan beze změny', () => {
+    const s = village(DAY);
+    s.manorId = 1;
+    s.cemeteries = [cemetery([square(4, -2, 67.5, -22.5)])];
+    const c = s.cemeteries[0]!;
+    const pagan = s.people.find((p) => p.dwellingId === 2)!;
+    const christian = { ...pagan, id: 9001, faith: 'christian' as const };
+    bury(s, DAY, pagan);
+    bury(s, DAY + 1, christian);
+    const [a, b] = c.mounds!;
+    expect(a).not.toHaveProperty('rite');
+    expect(b).toMatchObject({ rite: 'inhumation', size: 'small', day: DAY + 1, from: 2 });
+    expect(c.graves).toBe(2);
+    // jedno místo, nepřekrývá žárový hrob
+    expect(usedPlaces(c)).toBe(2);
+    expect(`${b!.column},${b!.row}`).not.toBe(`${a!.column},${a!.row}`);
+  });
+
+  it('pokřtěný vojvoda se pohřbí kostrově na jedno místo, na místě podle významu', () => {
+    const s = village(DAY);
+    s.manorId = 1;
+    s.cemeteries = [cemetery([square(4, -2, 67.5, -22.5)])];
+    const lord = { ...s.people.find((p) => p.dwellingId === 1)!, faith: 'christian' as const };
+    bury(s, DAY, lord);
+    const m = s.cemeteries[0]!.mounds![0]!;
+    expect(m).toMatchObject({ rank: 'voivode', rite: 'inhumation', size: 'small' });
+    expect(usedPlaces(s.cemeteries[0]!)).toBe(1);
+  });
+
+  it('plnost se počítá jako u jednoho hrobu: 56 křesťanů zaplní čtverec', () => {
+    const s = village(DAY);
+    s.cemeteries = [cemetery([square(4, -2, 67.5, -22.5)])];
+    const c = s.cemeteries[0]!;
+    const christian = { ...s.people[0]!, faith: 'christian' as const };
+    for (let k = 0; k < 55; k++) expect(bury(s, DAY + k, christian)).toBeNull();
+    expect(freePlaces(c)).toBe(1);
+    expect(bury(s, DAY + 55, christian)).toMatchObject({ kind: 'cemetery-full' });
+    expect(acceptsBurials(c)).toBe(false);
+    expect(c.graves).toBe(56);
+  });
+
+  it('v simulaci: pokřtěná ves se pohřbívá kostrově; vcelku = po kouscích', () => {
+    const start = village(DAY);
+    start.manorId = 1;
+    start.foundedDay = DAY - Math.ceil(60 * YEAR);
+    for (const p of start.people) {
+      p.bornDay -= Math.ceil(35 * YEAR);
+      p.faith = 'christian';
+    }
+    start.cemeteries = [cemetery([square(4, -2, 67.5, -22.5), square(4, -1, 67.5, -7.5)])];
+    const end = DAY + Math.round(8 * YEAR);
+    const whole = advanceVillage(start, end, null);
+    const mounds = whole.cemeteries![0]!.mounds!;
+    expect(mounds.length).toBeGreaterThan(0);
+    expect(mounds.every((m) => m.rite === 'inhumation' && m.size === 'small')).toBe(true);
+    let chunked = json(start);
+    for (let i = 0; chunked.lastDay < end; i++) {
+      chunked = json(
+        advanceVillage(chunked, Math.min(end, chunked.lastDay + [37, 91, 13][i % 3]!), null),
+      );
+    }
+    expect(chunked).toEqual(json(whole));
+  }, 120_000);
+});
+
 describe('mohyly v simulaci', () => {
   /** Stará ves se hřbitovem a starými hroby – lidé umírají. */
   function aging(): VillageState {

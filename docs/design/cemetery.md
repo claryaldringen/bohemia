@@ -226,6 +226,14 @@ Academia 1996). Hra začíná v roce 500, proto žárový pohřeb.
 vývojová kapitola, takže to necháme na později“): přechod na kostrové hroby (9.–10. století – ve
 hře zhruba po čtyřech měsících skutečného času) patří ke křesťanství – do té doby žárový pohřeb
 a mohyly.
+Rozhodnutí o pohřbech křesťanů: [christianity.md](christianity.md) – Pohřby (Martin 10. 11. 2026:
+„Pohřbívat se bude u kostela. Pokud kostel není, pohřbívá se na starém slovanském hřbitově, ale
+kostrově.“). **Platí teď:** zemřelý pokřtěný se na tomto hřbitově pohřbí **kostrově** – hrob
+nese `rite: 'inhumation'`, **bez mohyly**, zabere **jedno místo** (jako dnes hrob bez mohyly) na
+místě podle významu a počítá se do plnosti jako jeden hrob; pohan dál žárově pod mohylou. Pokřtěný
+vojvoda se pohřbívá také kostrově bez mohyly (návrh Clauda: velká mohyla je pohanský žárový
+pomník, kostrový hrob mohylu nemá – vojvoda si místo na prominentním místě ponechá). Hřbitov
+u kostela je samostatné téma po kamenném zdivu.
 
 ## Naměřeno
 

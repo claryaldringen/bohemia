@@ -256,6 +256,11 @@ export interface GraveMound {
   rank: GraveRank;
   day: number;
   /**
+   * Obřad: `inhumation` = kostrový hrob křesťana (christianity.md – Pohřby) – bez mohyly, zabere
+   * jedno místo (`size` 'small'); chybí = žárový pohřeb pod mohylou (pohané a hroby uložené dřív).
+   */
+  rite?: 'inhumation';
+  /**
    * Domácnost (id obydlí) zemřelého v den pohřbu – odtud vychází pohřební průvod ve scéně
    * (cemetery.md – Pohřeb ve scéně). Mohyly uložené dřív ho nemají (průvod pak vyjde od obydlí
    * nejblíž k brance hřbitova); bez člověka (testy) taky ne.

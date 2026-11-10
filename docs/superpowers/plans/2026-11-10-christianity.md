@@ -285,10 +285,10 @@ day): VillageState` (+1 do `faith.desecrated`, kronika `sacred-felled` / `cemete
 - Produces: křesťan se pohřbí na starém slovanském hřbitově **kostrově** (`rite: 'inhumation'`,
   bez mohyly – zabere jedno místo jako dnes hrob bez mohyly); pohan dál žárově jako dnes.
 
-- [ ] **Step 1:** Testy: křesťan → hrob s `rite: 'inhumation'` bez mohyly; pohan beze změny; plnost
+- [x] **Step 1:** Testy: křesťan → hrob s `rite: 'inhumation'` bez mohyly; pohan beze změny; plnost
       hřbitova se počítá stejně; vcelku = po kouscích.
-- [ ] **Step 2:** FAIL → implementace → PASS; `npx vitest run` v `packages/game`.
-- [ ] **Step 3:** Commit `feat(game): křesťané se pohřbívají kostrově`.
+- [x] **Step 2:** FAIL → implementace → PASS; `npx vitest run` v `packages/game`.
+- [x] **Step 3:** Commit `feat(game): křesťané se pohřbívají kostrově`.
 
 ### K8: Rozhraní
 
