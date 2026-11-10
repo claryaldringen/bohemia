@@ -113,6 +113,12 @@ trojpolí, ale stojí ho vedlejší manželky a nespokojenost pohanů, když jim
 
 ## Kostel
 
+> **Samostatné téma** – Martin, 10. 11. 2026: „Podle mě jsou kostely velké téma, které bude potřeba
+> probrat zvlášť. Navíc ještě předtím musíme vytvořit celou infrastrukturu pro stavbu kamenného
+> zdiva.“ Body níž jsou jen dosavadní rozhodnutí a návrh Clauda – kostel, kněz, hřbitůvek
+> a svatby u kostela přijdou až s vlastním návrhem po kamenném zdivu. Do té doby se vesničané
+> obracejí jen „bez kostela“ (0,5 % ročně) a křesťané se pohřbívají kostrově na starém hřbitově.
+
 - **Staví jen pokřtěný rod** (návrh Clauda, Martin „Ano“) – první kamenná stavba (Martin).
   Rotunda jako na Levém Hradci (kolem roku 884) – rozměry, cena v kameni, dřevě a člověkodnech
   podle rešerše (dohledat).
