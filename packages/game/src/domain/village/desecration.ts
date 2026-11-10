@@ -154,6 +154,8 @@ export function lastBurialDay(cemetery: Pick<Cemetery, 'mounds' | 'builtDay'>): 
 
 /** Je den `day` aspoň `years` celých let po dni `from`? */
 function yearsSince(from: number, day: number, years: number): boolean {
+  // den před začátkem světa (starý hrob před rokem 500) je jistě dávno – kalendář ho nezná
+  if (from < 0) return true;
   const d = dateOfDayIndex(from);
   const year = d.year + years;
   return (
