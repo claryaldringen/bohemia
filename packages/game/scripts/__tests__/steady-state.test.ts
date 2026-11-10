@@ -36,13 +36,18 @@ const START: SteadyInput = {
 };
 
 describe('ustálený oběh z pravidel', () => {
-  it('oběh odpočatého dílu: dva osevy (95 → 83 → 71 %) a příloh do 95 % přirozené úrodnosti', () => {
-    expect(ROTATION.sown).toBe(2);
-    expect(ROTATION.fallow).toBe(5);
-    let share: number = FERTILITY.fallowReady - FERTILITY.sowDepletion * ROTATION.sown;
-    expect(share).toBeGreaterThanOrEqual(FERTILITY.sowableMin - 1e-9);
-    share += FERTILITY.fallowRecovery * ROTATION.fallow;
-    expect(share).toBeGreaterThanOrEqual(FERTILITY.fallowReady - 1e-9);
+  it('oběh odpočatého dílu: osev rok po roku do 70 % (95 → 83 → 71 → 59 %) a příloh do 95 %', () => {
+    expect(ROTATION.sown).toBe(3);
+    // příloh 7–8 let podle toho, odkud oběh začne (95–99 %), průměr 7,2
+    expect(ROTATION.fallow).toBeCloseTo(7.2, 9);
+    // poslední osev začne ještě od 70 %, po něm je díl pod 70 %
+    const last: number = FERTILITY.fallowReady - FERTILITY.sowDepletion * (ROTATION.sown - 1);
+    expect(last).toBeGreaterThanOrEqual(FERTILITY.sowableMin - 1e-9);
+    const share = last - FERTILITY.sowDepletion;
+    expect(share).toBeLessThan(FERTILITY.sowableMin);
+    expect(share + FERTILITY.fallowRecovery * Math.ceil(ROTATION.fallow)).toBeGreaterThanOrEqual(
+      FERTILITY.fallowReady - 1e-9,
+    );
     expect(ROTATION_FACTOR).toBeCloseTo((ROTATION.sown + ROTATION.fallow) / ROTATION.sown);
   });
 

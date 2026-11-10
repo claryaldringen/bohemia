@@ -454,7 +454,8 @@ export function sowingDaysLeft(state: WeatherState, crop: SowingCrop, day: numbe
 /**
  * Osivo na všechny díly na řadě pro obilí okna (kg – fields.md, Osivo bez cíle osevu; „na řadě“
  * návrh Clauda): nezasetý podíl letošní práce plodiny a díly mimo letošní
- * práci na řadě (`nextSowing`) – pro ozim první osev a díly po jaři, pro jař i díly po ozimu.
+ * práci na řadě (`nextSowing` – první osev i díly v osevu; plodinu dostanou podle prvního okna, takže
+ * pro ozim i jař všechny).
  * Přílohy 70–95 % a nouzové přílohy se nepočítají – sejí se z toho, co zbude nad přežívací zásobu.
  */
 export function windowSeedNeedKg(
@@ -477,9 +478,7 @@ export function windowSeedNeedKg(
   for (const part of state.parts) {
     if (inSeason.has(part.id)) continue;
     const kind = nextSowing(part);
-    if (crop === 'winter' ? kind === 'first' || kind === 'winter' : onTurn(kind)) {
-      onTurnParts.push(part);
-    }
+    if (onTurn(kind)) onTurnParts.push(part);
   }
   return kg + partsSeedKg(onTurnParts, crop);
 }

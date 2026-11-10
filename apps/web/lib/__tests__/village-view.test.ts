@@ -348,9 +348,10 @@ describe('buildVillageView – osevní postup v panelu (fields.md – Osevní po
       p.foundingDone = p.foundingCost;
       p.state = 'ready';
     }
-    const [afterWinter, resting, waiting] = s.parts;
-    afterWinter!.next = 'spring';
-    afterWinter!.sownYears = 1;
+    // díl v osevu (přílohová soustava – fields.md, 10. 11. 2026): po okně ozimu jař
+    const [inSowing, resting, waiting] = s.parts;
+    inSowing!.sownYears = 1;
+    inSowing!.fertilityShare = 0.83;
     resting!.state = 'fallow';
     resting!.fertilityShare = 0.76;
     resting!.fallowSinceDay = DAY - 400;
@@ -367,7 +368,7 @@ describe('buildVillageView – osevní postup v panelu (fields.md – Osevní po
     };
     const field = buildVillageView(record(s), landscape, DAY).fields[0]!;
     const shown = new Map(field.parts.map((p) => [p.id, p]));
-    expect(shown.get(afterWinter!.id)).toMatchObject({ next: 'spring' });
+    expect(shown.get(inSowing!.id)).toMatchObject({ next: 'spring' });
     expect(shown.get(resting!.id)).toMatchObject({
       next: 'fallow',
       rest: { share: 0.8, years: 4 },

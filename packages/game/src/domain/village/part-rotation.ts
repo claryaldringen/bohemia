@@ -31,13 +31,13 @@ export interface PartRotation {
   next: NextCrop;
   /** Úhor: odpočinek k 95 % (podíl 0–1, setiny) a celé roky do osevu (≈). */
   rest?: { share: number; years: number };
-  /** Díl letošní práce: kolikátý osev oběhu (1., 2.). */
+  /** Díl letošní práce: kolikátý osev oběhu (1., 2., 3. …). */
   round?: number;
   /** Díl na řadě mimo letošní práci – čeká na ozim či jař. */
   onTurn?: true;
 }
 
-/** Úhor: odpočinek k `FERTILITY.fallowReady` a roky do osevu (příloh +2,5 % ročně 1. 9.). */
+/** Úhor: odpočinek k `FERTILITY.fallowReady` a roky do osevu (příloh +`fallowRecovery` ročně 1. 9.). */
 function restOf(part: FieldPart, extraYears: number): { share: number; years: number } {
   const share = Math.min(1, part.fertilityShare / FERTILITY.fallowReady);
   const missing = Math.max(0, FERTILITY.fallowReady - part.fertilityShare);
@@ -60,7 +60,7 @@ function cropFrom(kind: SowingKind, day: number): 'winter' | 'spring' {
     const crop = sowingCropToday(kind, d);
     if (crop) return crop;
   }
-  return kind === 'spring' ? 'spring' : 'winter';
+  return 'winter';
 }
 
 /**

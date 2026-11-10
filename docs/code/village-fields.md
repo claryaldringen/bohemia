@@ -23,8 +23,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`CropWork.extraLeft`) je v potřebné práci, převod jen smaže klíč. Nezačaté díly osevu navíc
   (starší tvar stavu): osévaný díl, který ležel ladem jen od plánu (`sownYears` v záznamu), je
   `ready` s léty v řadě, příloh leží dál. `fallowBeforePlan` → `FieldPart.fallowBeforeSeason`.
-  Postup (`next`) převod nenastavuje – 1. 9. ho z `sownYears` dopočítá `rotateAfterSeason`
-  (osévané díly s víc lety v řadě jdou do úhoru). Při chybě vrátí vstup se značkou (jako
+  Zda se díl osévá dál, rozhodne 1. 9. `rotateAfterSeason` podle úrodnosti (přílohová soustava). Při chybě vrátí vstup se značkou (jako
   `withRoadsRebuilt`). Testy `rotation-migration.test.ts`: stav nové vsi převedený zpět do tvaru
   plánu (1. 9., 25. 10., 15. 3., 15. 6., 10. 8.) se převede na totéž a dopočte do 31. 8. stejně.
 - **Ozim a jař – osevní postup po dílech** (fields.md – Osevní postup po dílech a setí do konce
@@ -32,7 +31,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   práci dílů po plodinách jako `SeasonCrop`; díly osevu mají `crop?` (chybí = jař). Okna prací
   `CROP_WINDOWS` (`WINDOWS` = jař, `WINTER_WINDOWS`) v `rules*.ts`. Krok 1 `startSeason`
   (`simulate-plan.ts`, 1. 9.): `closeFieldFoodYear`, `rotateAfterSeason` všech dílů (`rotation.ts`
-  – ozim i jař jako první osev → `ready` s `FieldPart.next`, jinak úhor), prázdný rok
+  – díl, kterému po osevu zůstalo aspoň 70 %, `ready` v osevu, jinak příloh – přílohová soustava), prázdný rok
   (`createSeason`, `ard` podle spřežení); pak páry k rádlům z `ploughPairsForRotation`
   (`nextPloughPairs` v `draft.ts`; pod pojistkou i s nutnými díly mimo postup a nahoru hned –
   `village-livestock.md`). Krok 2 `seasonDay` (každý den): konce oken setí – první den po setí
@@ -40,7 +39,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`moveParts` v `land-taken.ts`: příprava půdy podle úseků `taskSpans`, na začátek pořadí jaře,
   `crop: 'spring'`); první den po setí jaře, luštěnin a lnu vypadnou nezasetí z práce
   (`releasePart` – `shrinkInPlan`, `dropFromWork`, `returnPart`: příloh podle
-  `fallowBeforeSeason`, jinak `ready`, `next` zůstane). Napřed `fellReclaimed` – klády
+  `fallowBeforeSeason`, jinak `ready`, `sownYears` zůstanou). Napřed `fellReclaimed` – klády
   (`clearedLogs`) za díly, přes které došlo čelo vracení přílohu (`taskSpans('reclaim')`),
   a `fallowBeforeSeason.overgrowthYears` pryč (uvolněný díl se vrátí bez lesa). Ve dnech, kdy může
   začít ozim nebo jař (`sowingCropToday('first')`), `turnSelection`
@@ -50,7 +49,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   koncem okna přípravy (`prepEnd`) je pod 3 dny volné práce (`freeLabor`) a orby
   (`ploughCapacityPerDay`); ostatní čekají – `seasonDay` je vrátí a `lordHelpDay` je přičte
   k zátěži (`partWork`). Přibrané díly `addToCropWork` / `putSeasonCrop` (dávka dne
-  `workOrder`), `sowParts` (`next` zůstává do konce sezóny); `release` (nezačaté díly nad
+  `workOrder`), `sowParts`; `release` (nezačaté díly nad
   potřebu + `FIELD_STORES.trimMarginYears`, jen když nepřibírá obilí) → `releasePart`. Ves bez roku (založená během roku) ho dostane
   s prvním dílem. **Výběr jen s místem na čele** (`seasonJoins` → `seasonSelection`, výkon 31. 10. 2026): napřed čelo (`workFront`); nemá-li místo pro žádnou plodinu a ve stavu je
   `FarmSeason.selection` téhož `window` (`selectionWindow` – měsíc a plodiny, které smí začít),
@@ -178,8 +177,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     Len):** `startSeason` zapíše `FarmSeason.flaxNeedKg` (`flaxNeedKg` lidí k 1. 9.);
     `turnSelection` (`rotation.ts`, `TurnOptions.flaxNeedKg`) vybere len napřed – jen když jař
     smí začít (okna kopání), do potřeby (`expectedFlaxKg` lnu letošní práce + nových dílů) –
-    z `flaxCandidates`: díly, na kterých by dnes začala jař, napřed druhý osev oběhu (`spring`,
-    `winter` po okně ozimu), pak první osev (`first`, příloh 70–95 % `late`), v obou od nejlepší
+    z `flaxCandidates`: díly, na kterých by dnes začala jař (v září–říjnu žádné – ozim), napřed
+    díly v osevu (`again`), pak první osev (`first`, příloh 70–95 % `late`), v obou od nejlepší
     `effectiveFertility` (při shodě id), jen `isSowableFertility` a `flaxAllowed` (rok sklizně
     `seasonHarvestYear` − `FieldPart.flaxYear` ≥ `FLAX.returnYears` 7; chybí = smí).
     `rotateAfterSeason` 1. 9. zapíše `flaxYear` osetému lnu (i nevytrhanému). Trhání:
@@ -214,30 +213,42 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     `fieldPartName` („Zelený / Kvetoucí / Zralý len“, „Trhání lnu“), upozornění „Chybí len na oděv“,
     `/dev/buildings` pole **Len** (`FLAX_SHOWCASE_PHASES`).
 
+- **Přílohová soustava do roku 1100** (fields.md – Přílohová soustava do roku 1100, Martin 10. 11. 2026; nahrazuje pevný sled ozim → jař → úhor z 25. 10. 2026): `rotation.ts` –
+  `nextSowing` (`first` čerstvý díl a příloh ≥ `fallowReady`, `again` díl v osevu – `ready`
+  s `sownYears` > 0, `late` příloh 70–95 %, `emergency` 40–70 %, `rest`; díl v sezóně null),
+  `sowingCropToday` (každý díl na řadě ozim, dokud běží okno setí ozimu, pak jař v oknech kopání
+  – `springStartable`; žádný předepsaný sled), `rotateAfterSeason` (1. 9.: úrodnost jako
+  `endOfSeason`; díl s ≥ `sowableMin` → `ready` v osevu, jinak ho `endOfSeason` pošle do přílohu
+  – platí pro obilí, len, luštěniny i nouzový osev), `onTurn` (`first` a `again`). `sowingGroup`
+  dává připravenému dílu se `sownYears` > 0 skupinu 1. Převod starších vsí `withoutRotationNext`
+  (v řetězu převodů `advanceVillage` za `withSowingRotation`): smaže `FieldPart.next` (pole z typu
+  zmizelo), díl na řadě pod 70 % pošle od `lastDay` do přílohu; bez `next` vrátí tentýž stav.
+  `ploughPairsForRotation`: `first` do podzimního okna orby ozimu, `again` do všech oken orby.
+  `THREE_FIELD_FROM_YEAR` = 1100 (`rules-fields.ts`) – jen mez pro budoucí trojpolí. Testy
+  `sowing-rotation.test.ts` (rok po roku do 70 %, ozim po ozimu, příloh do 95 %, převod `next`).
 - **Osevní postup po dílech** (fields.md – Osevní postup po dílech a setí do konce okna, 25. 10.
-  2026; plán `2026-10-25-sowing-rotation`, Úloha 1 – **zatím nezapojené**, ves dál osévá podle
-  plánu): `rotation.ts` – `nextSowing` (co je na dílu na řadě: `first`, `spring` po ozimu,
-  `winter` po jaři jako prvním osevu – Martin 25. 10. 2026, `late` příloh 70–95 %, `emergency`,
-  `rest`; díl v sezóně null), `sowingCropToday` (ozim, dokud po dnešku zbývá den setí ozimu, pak
-  jař v oknech kopání; díl po ozimu jen jař), `rotateAfterSeason` (1. 9.: úrodnost jako `endOfSeason`, ozim / obilní jař jako první
-  osev od 70 % → `ready` + `FieldPart.next`, jinak úhor bez bonusu) a `neededSelection` (k práci
+  2026; plán `2026-10-25-sowing-rotation`, Úloha 1; pevný sled na dílu od 10. 11. 2026 nahradila
+  přílohová soustava – výše): `rotation.ts` – `neededSelection` (k práci
   plánu přibírá díly na řadě v pořadí `sowingBlocks` – len od konce, napřed díly po ozimu
   (`flaxOrder` v `sowing.ts` – od 9. 11. 2026 pryč, len je na zahrádce), obilí do `harvestKg`, nouzové přílohy až za
   ostatními; nezačaté obilí nad toleranci `FIELD_STORES.trimMarginYears` vrátí v `release`).
-  `sowingGroup` dává připravenému dílu s `next` skupinu 1. Sem se přesunuly i `sowParts`
-  a `reclaimedLogs`.
+  Sem se přesunuly i `sowParts` a `reclaimedLogs`.
   **Panel – Příště a Na řadě** (fields.md – Osevní postup po dílech, bod 6; Úloha 7):
   Obnova přílohu `FERTILITY.fallowRecovery` = 0,05 ročně (26. 10. 2026, dřív 0,025): odpočatý díl
-  95 → 83 → 71 % a 5 let úhoru, `field-capacity.ts` (`rotationYears`, `ROTATION_FACTOR` 7 / 2,
-  `averageSownShare` 0,89) počítá oběh odpočatého dílu (začíná na `fallowReady`), ne čerstvého.
+  95 → 83 → 71 → 59 % a 7–8 let přílohu, `field-capacity.ts` počítá z ustálené dráhy odpočatého
+  dílu (`steadyPath` – osev rok po roku do `sowableMin`, příloh do `fallowReady`, perioda 51 let =
+  5 oběhů): `rotationYears` / `ROTATION` průměr na oběh (3 osevy, 7,2 roku přílohu),
+  `ROTATION_FACTOR` 3,4, `averageSownShare` 0,85, `averageRotationShare` 0,79,
+  `STEADY_PATH_YEARS` 51 (do 10. 11. 2026 2 osevy a 5 let, 7 / 2, 0,89). Kalkulačka
+  (`steady-state.ts` – `winterHectares` až celý osev v ozimu) i měření berou `ROTATION`.
   `part-rotation.ts` – `partRotation(state, day, yearWork?)` → díl id → `PartRotation`: `next`
   (`NextCrop` – plodina nebo `'fallow'`; nezasetý díl letošní práce svou plodinu, zasetý postup na
   kopii dílu přes `rotateAfterSeason` k dalšímu 1. 9., díl na řadě ozim / jař podle
   `sowingCropToday` den po dni dopředu), `rest` (úhor: `fertilityShare / FERTILITY.fallowReady`
   na setiny a roky do osevu po `fallowRecovery`), `round` (kolikátý osev oběhu), `onTurn` (na
   řadě mimo letošní práci). Zakládaný díl chybí. Jen
-  čte stav. `fieldPartLooks`: připravený díl s `next` (po prvním osevu) je strniště, dokud na něj
-  nepřijde podzimní práce.
+  čte stav. `fieldPartLooks`: připravený díl v osevu (`sownYears` > 0) je strniště, dokud na něj
+  nepřijde další práce.
 
 - **Osivo ze zásob** (fields.md – Úroda, Osivo ze zásob; Martin 27. 10. 2026): `seed.ts`.
   `CropWork.seedKg` = osivo vzaté ze zásob (`createCropWork` dá 0; chybí = práce z doby před
@@ -258,7 +269,7 @@ store, keepKg, needed)` = `reservedSeedKg` (jen `needed`) + max(hromada, běžn�
   v okně setí (`sowingWindowCrop`: ozim září–říjen, jař březen–duben a po dlouhé zimě do 14. 5. –
   `springSowingExtended`) a jako zimní osivo (níž), od konce jarního okna do září chybí. `sowingSeedDay` (konec `seasonDay`, po výběru dílů dne):
   první den okna zapíše `totalKg` = `windowSeedNeedKg` (nezasetý podíl letošní práce plodiny i nad
-  potřebu + díly mimo práci na řadě podle `nextSowing` – ozim `first`/`winter`, jař `onTurn`)
+  potřebu + díly mimo práci na řadě podle `nextSowing` – pro ozim i jař `onTurn`)
   a `days` = `sowingDaysLeft` (dny setí do konce okna bez dní `springSowingHeld`); každé ráno
   `kg` = min(`totalKg` × dny setí zbývající / `days`, `windowSeedNeedKg`) − `reservedSeedKg`, nejvýš
   běžné zrno a běžné zrno + `sheavesOutlook` − `seedKeepKg`. `settleSowingSeed` (v `simulateDay`

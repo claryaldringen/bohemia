@@ -1,84 +1,68 @@
 import { grossYieldPerHa, isOvergrown } from './fields';
 import { bufferKg, steadyHarvestKg, yearlyFoodNeed, fieldFoodShare } from './field-food';
 import { NO_CRAFTS } from './productivity';
-import { FERTILITY, SEED_KG_PER_HA, SOWN_ROUNDS } from './rules';
+import { FERTILITY, SEED_KG_PER_HA } from './rules';
 import type { VillageState } from './types';
 
 const EPSILON = 1e-9;
 
-/**
- * Oběh odpočatého dílu podle pravidel (fields.md – Osevní postup po dílech, Přílohová soustava):
- * ustálená ves síje díl, který se právě zotavil na `fallowReady` (95 %): dva osevy (`SOWN_ROUNDS`,
- * úrodnost 95 → 83 → 71 %) a příloh zpět do 95 % (5 let při obnově 5 bodů ročně).
- */
-export function rotationYears(): { sown: number; fallow: number } {
-  let share: number = FERTILITY.fallowReady;
-  let sown = 0;
-  while (sown < SOWN_ROUNDS && share >= FERTILITY.sowableMin - EPSILON) {
-    share -= FERTILITY.sowDepletion;
-    sown++;
-  }
-  let fallow = 0;
-  while (share < FERTILITY.fallowReady - EPSILON) {
-    share = Math.min(1, share + FERTILITY.fallowRecovery);
-    fallow++;
-  }
-  return { sown, fallow };
-}
-
-export const ROTATION = rotationYears();
-/** Pole na celý oběh ÷ osev (dnes 7 / 2 = 3,5). */
-export const ROTATION_FACTOR = (ROTATION.sown + ROTATION.fallow) / ROTATION.sown;
-
-/**
- * Průměrný podíl přirozené úrodnosti za roky osevu odpočatého dílu (0,95; 0,83 → 0,89). Úroda je
- * lineární v úrodnosti, takže úroda při průměrném podílu = průměr úrod.
- */
-export function averageSownShare(): number {
-  let sum = 0;
-  for (let year = 0; year < ROTATION.sown; year++)
-    sum += FERTILITY.fallowReady - FERTILITY.sowDepletion * year;
-  return sum / ROTATION.sown;
+/** Součty ustálené dráhy odpočatého dílu za periodu (podíl úrodnosti na začátku roku). */
+interface SteadyPath {
+  /** Počet oběhů (osev a příloh) v periodě. */
+  rounds: number;
+  /** Roky osevu a jejich součet podílů úrodnosti. */
+  sown: number;
+  sownSum: number;
+  /** Roky přílohu. */
+  fallow: number;
+  /** Součet podílů přes všechny roky (osev i příloh). */
+  sum: number;
 }
 
 /**
- * Skutečná ustálená dráha odpočatého dílu podle pravidel (fields.md – Pole uživí podle dnešní půdy):
- * podíl se mění jednou ročně 1. 9. – osev `SOWN_ROUNDS` let ubírá `sowDepletion`, příloh po
- * `sowableMin` přidává `fallowRecovery`, a díl se osévá znovu, jakmile dosáhne `fallowReady`.
- * Obnova se zaokrouhluje nahoru (5 let příloh z 71 % dá 96 %, ne 95 %), takže oběh nezačíná pořád
- * na 95 %, ale posouvá se (95, 96 … 99 %), dokud se start neopakuje. Průměr se bere přes celou
- * periodu, podíl je na začátku roku (změna se projeví až 1. 9.). Čistě deterministická smyčka.
+ * Skutečná ustálená dráha odpočatého dílu podle přílohové soustavy (fields.md – Přílohová soustava
+ * do roku 1100, Pole uživí podle dnešní půdy): podíl se mění jednou ročně 1. 9. – díl se osévá rok
+ * po roku, dokud mu před osevem zbývá aspoň `sowableMin` (každý osev ubere `sowDepletion`), pak leží
+ * ladem a přibývá mu `fallowRecovery`, dokud nedosáhne `fallowReady`, a osévá se znovu. Obnova se
+ * zaokrouhluje nahoru (8 let přílohu z 59 % dá 99 %, ne 95 %), takže oběh nezačíná pořád na 95 %,
+ * ale posouvá se (95, 99, 98 … 96 %), dokud se start neopakuje. Průměry se berou přes celou
+ * periodu. Čistě deterministická smyčka.
  */
-function steadyPath(): { sum: number; years: number } {
+function steadyPath(): SteadyPath {
   const starts: number[] = [];
-  const rotations: { sum: number; years: number }[] = [];
+  const rounds: Omit<SteadyPath, 'rounds'>[] = [];
   let start: number = FERTILITY.fallowReady;
   for (let guard = 0; guard < 1000; guard++) {
     // klíč zaokrouhlený kvůli plovoucí čárce
     const key = Math.round(start * 1e6);
     const seen = starts.indexOf(key);
     if (seen >= 0) {
-      const cycle = rotations.slice(seen);
+      const cycle = rounds.slice(seen);
+      const total = (pick: (r: Omit<SteadyPath, 'rounds'>) => number): number =>
+        cycle.reduce((sum, r) => sum + pick(r), 0);
       return {
-        sum: cycle.reduce((total, r) => total + r.sum, 0),
-        years: cycle.reduce((total, r) => total + r.years, 0),
+        rounds: cycle.length,
+        sown: total((r) => r.sown),
+        sownSum: total((r) => r.sownSum),
+        fallow: total((r) => r.fallow),
+        sum: total((r) => r.sum),
       };
     }
     starts.push(key);
     let share = start;
-    let sum = 0;
-    let years = 0;
-    for (let year = 0; year < ROTATION.sown; year++) {
-      sum += share;
-      years++;
+    const round = { sown: 0, sownSum: 0, fallow: 0, sum: 0 };
+    while (share >= FERTILITY.sowableMin - EPSILON) {
+      round.sown++;
+      round.sownSum += share;
+      round.sum += share;
       share = Math.max(0, share - FERTILITY.sowDepletion);
     }
     while (share < FERTILITY.fallowReady - EPSILON) {
-      sum += share;
-      years++;
+      round.fallow++;
+      round.sum += share;
       share = Math.min(1, share + FERTILITY.fallowRecovery);
     }
-    rotations.push({ sum, years });
+    rounds.push(round);
     start = share;
   }
   throw new Error('Dráha oběhu se neuzavřela.');
@@ -86,16 +70,40 @@ function steadyPath(): { sum: number; years: number } {
 
 const STEADY_PATH = steadyPath();
 
-/** Počet let periody ustálené dráhy odpočatého dílu (dnes 34 let = 5 oběhů po 6–7 letech). */
-export const STEADY_PATH_YEARS = STEADY_PATH.years;
+/**
+ * Oběh odpočatého dílu podle přílohové soustavy (fields.md – Přílohová soustava do roku 1100) –
+ * průměr na jeden oběh ustálené dráhy (`steadyPath`): dnes 3 osevy (95 → 83 → 71 → 59 %) a příloh
+ * zpět na 95 % 7–8 let (průměr 7,2 při obnově 5 bodů ročně).
+ */
+export function rotationYears(): { sown: number; fallow: number } {
+  return {
+    sown: STEADY_PATH.sown / STEADY_PATH.rounds,
+    fallow: STEADY_PATH.fallow / STEADY_PATH.rounds,
+  };
+}
+
+export const ROTATION = rotationYears();
+/** Pole na celý oběh ÷ osev (dnes 10,2 / 3 = 3,4). */
+export const ROTATION_FACTOR = (ROTATION.sown + ROTATION.fallow) / ROTATION.sown;
+
+/**
+ * Průměrný podíl přirozené úrodnosti za roky osevu ustálené dráhy (dnes 0,85 – osevy 95–99 %,
+ * 83–87 % a 71–75 %). Úroda je lineární v úrodnosti, takže úroda při průměrném podílu = průměr úrod.
+ */
+export function averageSownShare(): number {
+  return STEADY_PATH.sownSum / STEADY_PATH.sown;
+}
+
+/** Počet let periody ustálené dráhy odpočatého dílu (dnes 51 let = 5 oběhů po 10–11 letech). */
+export const STEADY_PATH_YEARS = STEADY_PATH.sown + STEADY_PATH.fallow;
 
 /**
  * Průměrný podíl přirozené úrodnosti přes periodu skutečné ustálené dráhy odpočatého dílu (osev i
- * příloh, podíl na začátku roku) → ≈ 0,85. Do tohoto podílu se ustálí díl v oběhu; porovnává se
- * s ním dnešní půda.
+ * příloh, podíl na začátku roku). Do tohoto podílu se ustálí díl v oběhu; porovnává se s ním
+ * dnešní půda.
  */
 export function averageRotationShare(): number {
-  return STEADY_PATH.sum / STEADY_PATH.years;
+  return STEADY_PATH.sum / STEADY_PATH_YEARS;
 }
 
 /** Čistá úroda hektaru (kg) v průměru let osevu při plné a včasné práci. */

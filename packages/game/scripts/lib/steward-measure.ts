@@ -595,8 +595,8 @@ export function hardFailures(rows: readonly Row[]): Row[] {
 }
 
 /**
- * Cíl „založení + vracení přílohu ÷ polní práce“ (plán úloh správce, úloha 3): vracení pětiletého
- * přílohu (stadium louka – drn jako založení louky) je součást oběhu – ročně se vrací 1 ÷
+ * Cíl „založení + vracení přílohu ÷ polní práce“ (plán úloh správce, úloha 3): vracení přílohu po
+ * 7–8 letech (stadium louka – drn jako založení louky) je součást oběhu – ročně se vrací 1 ÷
  * `ROTATION.sown` oseté plochy; k tomu zakládání nových dílů celého oběhu (`ROTATION_FACTOR`) při
  * růstu osevu `growth` za rok. Sazby bez nástrojů (worst); jmenovatel je polní práce na osetý
  * hektar (vracení, kopání, setí, pletí jen jaře – ozim se neplete, žně, mlácení) – zakládání v něm

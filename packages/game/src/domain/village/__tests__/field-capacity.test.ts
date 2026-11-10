@@ -38,34 +38,35 @@ const state = (
 });
 
 describe('oběh odpočatého dílu', () => {
-  it('ozim 95 %, jař 83 %, úhor 5 let zpět na 95 % – pole ≈ 3,5× osevu, průměr osevu 0,89', () => {
-    expect(ROTATION).toEqual({ sown: 2, fallow: 5 });
-    expect(ROTATION_FACTOR).toBeCloseTo(3.5, 9);
-    expect(averageSownShare()).toBeCloseTo(0.89, 9);
+  it('přílohová soustava: 3 osevy do 70 %, příloh 7–8 let zpět na 95 % – pole ≈ 3,4× osevu', () => {
+    expect(ROTATION.sown).toBe(3);
+    expect(ROTATION.fallow).toBeCloseTo(7.2, 9);
+    expect(ROTATION_FACTOR).toBeCloseTo(3.4, 9);
+    expect(averageSownShare()).toBeCloseTo(0.85, 9);
   });
 });
 
 describe('ustálený podíl oběhu', () => {
-  it('průměr přes periodu skutečné dráhy ≈ 0,85 (34 let), pod průměrem osevu', () => {
-    expect(STEADY_PATH_YEARS).toBe(34);
-    expect(averageRotationShare()).toBeCloseTo(0.85, 6);
+  it('průměr přes periodu skutečné dráhy ≈ 0,79 (51 let), pod průměrem osevu', () => {
+    expect(STEADY_PATH_YEARS).toBe(51);
+    expect(averageRotationShare()).toBeCloseTo(0.79, 6);
     expect(averageRotationShare()).toBeLessThan(averageSownShare());
   });
 
   it('dráha je periodická: roční simulace stavového automatu dá stejný průměr', () => {
-    // stav na začátku roku: osev 2 roky od podílu ≥ 0,95, pak příloh po +0,05 ročně zpět na ≥ 0,95
+    // stav na začátku roku: osev rok po roku, dokud podíl před osevem ≥ 0,7, pak příloh po +0,05
+    // ročně zpět na ≥ 0,95
     let share = 0.95;
-    let sownLeft = 2;
+    let sowing = true;
     const history: number[] = [];
     for (let year = 0; year < 1000; year++) {
       history.push(share);
-      if (sownLeft > 0) {
+      if (sowing) {
         share -= 0.12;
-        sownLeft--;
-        if (sownLeft === 0 && share >= 0.95 - 1e-9) sownLeft = 2;
+        sowing = share >= 0.7 - 1e-9;
       } else {
         share = Math.min(1, share + 0.05);
-        if (share >= 0.95 - 1e-9) sownLeft = 2;
+        sowing = share >= 0.95 - 1e-9;
       }
     }
     const tail = history.slice(-STEADY_PATH_YEARS * 10);

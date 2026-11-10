@@ -415,29 +415,33 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     expect(advanceVillage(threshed, at(600, 11, 1), null).threshingSeason).toBeNull();
   });
 
-  it('1. 9. díly po dvou osevech jdou do úhoru, připravené čekají na řadě (fields.md – Osevní postup po dílech)', () => {
+  it('1. 9. díl pod 70 % jde do přílohu, od 70 % se osévá dál, připravené čekají na řadě (fields.md – Přílohová soustava do roku 1100)', () => {
     const day = at(600, 9, 1);
     const start = found(at(600, 6, 1));
     start.constructions = [];
     start.lastDay = day - 1;
-    start.storesKg = 5000; // zásoby nad prahem – cíl osevu je jen potřeba, nezávisle na rezervě
+    start.storesKg = 5000; // zásoby nad prahem – bez nedostatku, nouzový příloh se neoseje
     start.parts.forEach((p, i) => {
       p.foundingDone = p.foundingCost;
       p.state = i < 70 ? 'sown' : 'ready';
-      p.sownYears = i < 70 ? 1 : 0;
+      p.sownYears = i < 60 ? 2 : i < 70 ? 1 : 0;
+      // třetí osev z 80 % → 68 % (pod 70 % – příloh); druhý ze 100 % → 88 % (osévá se dál)
+      if (i < 60) p.fertilityShare = 0.8;
     });
     const s = advanceVillage(start, day, null);
     const selected = new Set(seasonPartIds(s.season!));
     expect(selected.size).toBeGreaterThan(0);
     s.parts.forEach((p, i) => {
-      if (selected.has(p.id)) expect(p.state).toBe('sown');
-      else if (i < 70)
+      if (i < 60) {
         expect(p).toMatchObject({ state: 'fallow', fallowSinceDay: day, sownYears: 0 });
-      // nepotřebný připravený díl už do přílohu nejde – čeká na řadě
+        expect(p.fertilityShare).toBeCloseTo(0.68, 9);
+      } else if (selected.has(p.id)) expect(p.state).toBe('sown');
+      else if (i < 70) expect(p).toMatchObject({ state: 'ready', sownYears: 2 });
+      // nepotřebný připravený díl do přílohu nejde – čeká na řadě
       else expect(p).toMatchObject({ state: 'ready', sownYears: 0 });
     });
-    const ready = s.parts.slice(70);
-    expect(ready.every((p) => p.fertilityShare === 1)).toBe(true);
+    expect(s.parts.slice(60, 70).every((p) => Math.abs(p.fertilityShare - 0.88) < 1e-9)).toBe(true);
+    expect(s.parts.slice(70).every((p) => p.fertilityShare === 1)).toBe(true);
   });
 
   /** Všechny díly v přílohu od 1. 9. roku `sinceYear`, ves dopočtená na 1. 9. 620. */
@@ -1493,7 +1497,7 @@ describe('advanceVillage – ozim a jař (fields.md – Ozim a jař)', () => {
       expect(springCrop(november.season!).done.dig).toBeGreaterThan(0);
   });
 
-  it('31. 7. sklizeň ozimu do snopů, 31. 8. jař, výmlat obou hned po žni do konce září', () => {
+  it('31. 7. sklizeň ozimu do snopů, 31. 8. jař, výmlat obou po žni do konce října', () => {
     const july = advanceVillage(settled(), at(602, 7, 30), null);
     const harvested = advanceVillage(july, at(602, 7, 31), null);
     const winterHarvest = harvests(harvested).at(-1)!;
@@ -1516,12 +1520,13 @@ describe('advanceVillage – ozim a jař (fields.md – Ozim a jař)', () => {
       seasonCrop(harvested.season!, 'winter')!.harvestedKg,
     );
     expect(sheafWork(august, 'spring')).toBeGreaterThan(0);
-    // do konce září (okno jaře) je vymláceno všechno a zásoby mají obě úrody
-    const september = advanceVillage(august, at(602, 9, 30), null);
-    expect(villageSheaves(september)).toEqual({ grainKg: 0, legumesKg: 0 });
+    // výmlat čeká za přípravou půdy pod ozim (fields.md – Pořadí důležitosti polních prací); od
+    // přílohové soustavy (10. 11. 2026) jde ozim i na díly v osevu, takže podzimní práce je víc –
+    // do konce října je vymláceno všechno (zásoby přitom berou osivo na víc dílů ozimu)
+    const october = advanceVillage(august, at(602, 10, 31), null);
+    expect(villageSheaves(october)).toEqual({ grainKg: 0, legumesKg: 0 });
     expect(august.storesKg).toBeGreaterThan(harvested.storesKg);
-    expect(september.storesKg).toBeGreaterThan(august.storesKg);
-    expect(advanceVillage(september, at(602, 11, 1), null).threshingSeason).toBeNull();
+    expect(advanceVillage(october, at(602, 11, 1), null).threshingSeason).toBeNull();
   });
 
   it('starší ves bez plodin na dílech a bez ozimu v plánu dopočítá dál (díl bez plodiny = jař)', () => {

@@ -34,7 +34,7 @@ import { withoutFieldLegumes } from './field-legumes';
 import { withoutGardenFlax } from './garden';
 import { withoutSurplusCrops } from './merge-surplus';
 import { seedBuyingDay } from './seed-buying';
-import { withSowingRotation } from './rotation';
+import { withoutRotationNext, withSowingRotation } from './rotation';
 import { sacredOakEvents } from './sacred-life';
 import { orchardSeasonDay } from './orchard';
 import { inLuckyYears, nextStarvationDays, populationDay } from './population';
@@ -182,7 +182,11 @@ export function* advanceVillageSteps(
                                       withoutSowingHelp(
                                         withoutSeedTarget(
                                           withoutSurplusCrops(
-                                            withSeedForgiven(withSowingRotation(withSeason(start))),
+                                            withSeedForgiven(
+                                              withoutRotationNext(
+                                                withSowingRotation(withSeason(start)),
+                                              ),
+                                            ),
                                           ),
                                         ),
                                       ),

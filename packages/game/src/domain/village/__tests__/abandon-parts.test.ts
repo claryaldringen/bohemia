@@ -71,7 +71,6 @@ describe('opuštění dílu pole', () => {
       fallowSinceDay: DAY,
       sownYears: 0,
     });
-    expect(p.next).toBeUndefined();
     expect(next.chronicle.at(-1)).toEqual({ day: DAY, kind: 'parts-abandoned', parts: 1 });
   });
 
@@ -97,10 +96,9 @@ describe('opuštění dílu pole', () => {
     const p = partOf(next, a!);
     expect(p).toMatchObject({ abandoned: true, state: 'sown', crop: 'winter' });
     rotateAfterSeason(p, at(600, 9, 1));
-    // bez opuštění by čekal na jař (první osev oběhu) – opuštěný jde do přílohu
+    // bez opuštění by se osíval dál (díl v osevu) – opuštěný jde do přílohu
     expect(p).toMatchObject({ abandoned: true, state: 'fallow', fallowSinceDay: at(600, 9, 1) });
     expect(p.crop).toBeUndefined();
-    expect(p.next).toBeUndefined();
   });
 
   it('díl vyřazený z letošní práce zůstane přílohem, ne připraveným dílem', () => {

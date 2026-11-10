@@ -642,7 +642,10 @@ describe('výhled jídla a plán osevu', () => {
     busy.threshingGraceUntil = at(602, 6, 1);
     busy.sheaves = { grainKg: 50_000, legumesKg: 0, work: { spring: 5000 } };
     expect(winterSown(free)).toBeGreaterThan(0);
-    expect(winterSown(busy)).toBeCloseTo(winterSown(free), 9);
+    // výmlat přípravě nic nevezme: ves se snopy připraví aspoň tolik jako ves bez nich – od
+    // přílohové soustavy (10. 11. 2026) dostanou ozim i díly v osevu a ves bez snopů (bez osiva)
+    // má čelo práce plné nezasetých dílů, takže připraví méně
+    expect(winterSown(busy)).toBeGreaterThanOrEqual(winterSown(free) - 1e-9);
   });
 });
 

@@ -84,14 +84,14 @@ describe('žeň jaře i v září (fields.md – Žeň jaře i v září)', () =
     // v září: dokud není dožatá, do snopů nic nejde
     harvestLateSpring(s, at(601, 9, 5), false);
     expect(spring.harvestedKg).toBeNull();
-    // dožatá – do snopů zářijová žeň, díly končí hospodářský rok (první osev oběhu → ozim)
+    // dožatá – do snopů zářijová žeň, díly končí hospodářský rok (osévají se dál – díly v osevu)
     spring.done.harvest = spring.required.harvest;
     harvestLateSpring(s, at(601, 9, 12), false);
     expect(spring.harvestedKg).toBeCloseTo(GRAIN_KG, 6);
     expect(villageSheaves(s).grainKg).toBeCloseTo(GRAIN_KG, 6);
     expect(villageSheaves(s).work!.spring).toBeCloseTo(spring.required.thresh, 9);
     expect(lateSpringCrop(s)).toBeUndefined();
-    expect(s.parts.every((p) => p.state === 'ready' && p.next === 'winter')).toBe(true);
+    expect(s.parts.every((p) => p.state === 'ready' && p.sownYears === 1)).toBe(true);
     const reaps = s.chronicle.filter((e) => e.kind === 'harvest');
     expect(reaps.map((e) => e.day)).toEqual([at(601, 8, 31), at(601, 9, 12)]);
     // podruhé nic

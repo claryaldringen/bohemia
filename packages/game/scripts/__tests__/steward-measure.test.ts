@@ -128,7 +128,7 @@ describe('měření správce – tabulka', () => {
     const status = (prefix: string): string | undefined =>
       rows.find((r) => r.name.startsWith(prefix))?.status;
     expect(status('Využití oběhu')).toBe('MIMO');
-    // založení + vracení jen info; vracení 30 % nad mez oběhu motykou (24 %)
+    // založení + vracení jen info; vracení 30 % nad mez oběhu motykou (≈ 19 %)
     expect(status('Založení + vracení')).toBe('info');
     expect(rows.find((r) => r.name.startsWith('Založení + vracení'))?.measured).toBe(
       '40 % (založení 10 %, 50 čd na ha polí)',
@@ -144,7 +144,8 @@ describe('měření správce – tabulka', () => {
       result({
         restedIdleShare: 0.1,
         fieldOverhead: 0.3,
-        labor: { founding: 100, reclaim: 200, field: 1000 },
+        // vracení 15 % pod mez oběhu motykou (≈ 19 % – 3 osevy, přílohová soustava 10. 11. 2026)
+        labor: { founding: 100, reclaim: 150, field: 1000 },
         departureSizes: [6],
         tinyVillages: 0,
       }),
@@ -173,20 +174,22 @@ describe('měření správce – tabulka', () => {
     expect(rows.find((r) => r.name.startsWith('Využití oběhu'))?.measured).toContain(
       '(0,90 0,80 0,70)',
     );
-    // osev ÷ ustálený oběh = podíl × ROTATION_FACTOR (3,5) – jen info, s orbou bývá nad 1
+    // osev ÷ ustálený oběh = podíl × ROTATION_FACTOR (3,4) – jen info, s orbou bývá nad 1
     const sown = rows.find((r) => r.name.startsWith('Osev ÷ osev ustáleného'));
-    expect(sown?.measured).toContain('(0,35 0,70 1,05)');
+    expect(sown?.measured).toContain('(0,34 0,68 1,02)');
     expect(sown?.status).toBe('info');
   });
 
-  it('cíl založení + vracení: vracení přílohu oběhu (1 ze 2 let osevu) a zakládání při růstu', () => {
-    // bez nástrojů: vracení louky 100 ÷ 2 = 50 čd na osetý ha z polní práce 195,3 čd (setí
-    // motykou 3,3 místo 10 čd/ha – rozsévač za spřežením, 9. 11. 2026; dřív 209; zprůměrovaná žeň
-    // 23 místo 30 čd/ha – fields.md, Práce, 10. 11. 2026; dřív 202,3)
-    const fieldWork = 192 + 1 / SOWERS.hoeHaPerDay;
-    expect(overheadTarget(0)).toBeCloseTo(50 / fieldWork, 6);
-    // růst 5 % za rok: zakládání 0,05 × 3,5 × 100 = 17,5 čd navíc
-    expect(overheadTarget(0.05)).toBeCloseTo(67.5 / fieldWork, 6);
+  it('cíl založení + vracení: vracení přílohu oběhu (1 ze 3 let osevu) a zakládání při růstu', () => {
+    // bez nástrojů: vracení louky 100 ÷ 3 = 33,3 čd na osetý ha (přílohová soustava – 3 osevy,
+    // 10. 11. 2026; dřív 100 ÷ 2) z polní práce 178,7 čd (setí motykou 3,3 místo 10 čd/ha –
+    // rozsévač za spřežením, 9. 11. 2026; zprůměrovaná žeň 23 místo 30 čd/ha – fields.md, Práce,
+    // 10. 11. 2026)
+    const reclaim = 100 / 3;
+    const fieldWork = 142 + reclaim + 1 / SOWERS.hoeHaPerDay;
+    expect(overheadTarget(0)).toBeCloseTo(reclaim / fieldWork, 6);
+    // růst 5 % za rok: zakládání 0,05 × 3,4 × 100 = 17 čd navíc
+    expect(overheadTarget(0.05)).toBeCloseTo((reclaim + 17) / fieldWork, 6);
   });
 
   it('starší kontrolní bod bez nových kritérií: pomlčka, ne chyba', () => {

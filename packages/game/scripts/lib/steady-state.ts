@@ -211,9 +211,10 @@ function lastSeasonIndex(segments: readonly WindowSegment[]): number {
 }
 
 /**
- * Ozim v ustáleném osevním postupu (fields.md – Osevní postup po dílech): polovina osevu je
- * v ozimu a polovina v jaři (první osev ozim → druhý jař, nebo naopak). Kapacita jen omezuje,
- * kolik ozimu ves stihne – díly, které se osévají dál (bez vrácení přílohu), první, pak vrácené
+ * Ozim v ustálené přílohové soustavě (fields.md – Přílohová soustava do roku 1100): plodinu dostane
+ * díl podle prvního okna, ve kterém na něj ves práci dotáhne – žádný pevný sled, ozim smí být celý
+ * osev. Kapacita jen omezuje, kolik ozimu ves stihne – díly, které se osévají dál (bez vrácení
+ * přílohu), první, pak vrácené
  * z přílohu; podzimní práce (září–říjen, poslední den setí ne) a červencová sklizeň. Co ozim
  * nestihne, jde na jaro jako jař. Spojitě po hektarech.
  */
@@ -240,7 +241,7 @@ function winterHectares(
       Math.max(0, sown - w) * threshPerHa;
     return need <= autumnCapacity + EPSILON;
   };
-  const upper = Math.min(sown / 2, byJuly);
+  const upper = Math.min(sown, byJuly);
   if (fitsAutumn(upper)) return upper;
   let low = 0;
   let high = upper;

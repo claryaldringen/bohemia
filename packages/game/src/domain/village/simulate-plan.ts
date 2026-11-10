@@ -28,6 +28,7 @@ import {
   rotateAfterSeason,
   sowingCropToday,
   sowParts,
+  springStartable,
   turnSelection,
   windowOpen,
   type SeasonJoin,
@@ -400,8 +401,7 @@ function seasonJoins(
 /** Měsíc a plodiny, které dnes smí začít – výběr dílů z paměti platí jen ve stejném. */
 function selectionWindow(day: number): string {
   const first = sowingCropToday('first', day);
-  const spring = sowingCropToday('spring', day);
-  return `${dateOfDayIndex(day).month}:${first}:${spring}`;
+  return `${dateOfDayIndex(day).month}:${first}:${springStartable(day)}`;
 }
 
 /** Výběr dílů dne a přibrání dávky na čelo (viz `seasonDay`). */
@@ -784,9 +784,10 @@ export function sowingCapacity(
  * Páry k rádlům, které ves chce (oxen.md – Kolik volů ves chce; fields.md – Osevní postup po dílech,
  * Páry k rádlům): nejméně párů (nejvýš OXEN.maxPairs), které v oknech orby zorají všechny díly na
  * řadě v hospodářském roce od `day` (1. 9. po postupu dílů) – celé pořadí, ves chce zorat
- * všechno (návrh Clauda). Ozim (první osev, ozim po jaři) se orá v podzimním okně ozimu, jař po
- * ozimu na podzim po ozimu nebo na jaře; výkon páru `ploughCapacityPerDay` podle délky brázd dílů
- * (`plannedFurrowEfficiency`); nejvýš tolik párů, kolik ves obslouží lidmi (`OXEN.crewPerPair`).
+ * všechno (návrh Clauda). První osev oběhu (odpočatý příloh, nový díl) se orá v podzimním okně
+ * ozimu, díl v osevu kdykoli v oknech orby za rok – na podzim pod ozim nebo jař, na jaře pod jař
+ * (fields.md – Přílohová soustava do roku 1100; návrh Clauda – páry jako za pevného sledu); výkon
+ * páru `ploughCapacityPerDay` podle délky brázd dílů (`plannedFurrowEfficiency`); nejvýš tolik párů, kolik ves obslouží lidmi (`OXEN.crewPerPair`).
  * Přílohy 70–95 % (až po dílech na řadě) a nouzové (jen při nedostatku) nepočítá.
  */
 export function ploughPairsForRotation(
@@ -796,20 +797,20 @@ export function ploughPairsForRotation(
   landscape: Landscape | null,
 ): number {
   const autumn: FieldPart[] = [];
-  const spring: FieldPart[] = [];
+  const anytime: FieldPart[] = [];
   for (const part of state.parts) {
     const kind = nextSowing(part);
     if (!onTurn(kind)) continue;
-    (kind === 'spring' ? spring : autumn).push(part);
+    (kind === 'again' ? anytime : autumn).push(part);
   }
-  if (autumn.length + spring.length === 0) return 1;
+  if (autumn.length + anytime.length === 0) return 1;
   const load = (parts: readonly FieldPart[], crop: Crop): number =>
     parts.reduce((sum, p) => sum + partWork(p, day, toolCoverage, true, crop).plough, 0);
   const autumnLoad = load(autumn, 'winter');
-  const allLoad = autumnLoad + load(spring, 'spring');
+  const allLoad = autumnLoad + load(anytime, 'spring');
   const perPair =
     pairCapacityPerDay(toolCoverage) *
-    plannedFurrowEfficiency([...autumn, ...spring], state, landscape);
+    plannedFurrowEfficiency([...autumn, ...anytime], state, landscape);
   // páry, které ves s lidmi, co má, obslouží: oráč na pár a setí za ním (`OXEN.crewPerPair`)
   const crew = state.people.reduce((sum, p) => sum + laborPerDay(p, day), 0);
   const staffed = Math.max(1, Math.floor(crew / OXEN.crewPerPair + EPSILON));
