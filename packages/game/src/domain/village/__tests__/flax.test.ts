@@ -8,7 +8,7 @@ import { allocateDay } from '../labor';
 
 import { ageGroup } from '../people';
 import { NO_CRAFTS } from '../productivity';
-import { FERTILITY, FLAX, FLAX_WINDOWS, YIELD_BASE_KG_PER_HA } from '../rules';
+import { FERTILITY, FLAX, FLAX_WINDOWS, WEEDING_WOMEN, YIELD_BASE_KG_PER_HA } from '../rules';
 import { advanceVillage } from '../simulate';
 import { villageSheaves } from '../threshing';
 import { withThreshingFloor } from './village-fixtures';
@@ -107,8 +107,8 @@ describe('kolik lnu ves potřebuje a výnos', () => {
     expect(flax.dig).toBeCloseTo(grain.dig, 9);
     expect(flax.sow).toBeCloseTo(grain.sow, 9);
     expect(flax.weed / grain.weed).toBeCloseTo(10 / 8, 9);
-    // obilí: sklizeň 20 + odnos 10 (fields.md – Žně všemi rukama)
-    expect(flax.harvest / grain.harvest).toBeCloseTo(55 / 30, 9);
+    // obilí: sklizeň 15 + odnos 8 (fields.md – Práce, Zprůměrovaná žeň, 10. 11. 2026)
+    expect(flax.harvest / grain.harvest).toBeCloseTo(55 / 23, 9);
     expect(flax.thresh).toBe(0);
   });
 
@@ -287,10 +287,11 @@ describe('len v simulaci', () => {
     }
   });
 
-  it('trhání lnu v srpnu až za žněmi obilí, před sečí a výmlatem; rodina nepomáhá', () => {
+  it('trhání lnu v srpnu – ženy a děti napřed, jinak za žněmi obilí, před sečí a výmlatem; rodina nepomáhá', () => {
     expect(FLAX_WINDOWS.harvest).toEqual([[8, 8]]);
-    const s = advanceVillage(withFlax(), at(602, 8, 10), null);
-    const tasks = fieldTasks(s, s.lastDay, 0);
+    // 1. 8. – ženy a děti len v prvních srpnových dnech vytrhají (Martin 10. 11. 2026)
+    const s = advanceVillage(withFlax(), at(602, 7, 31), null);
+    const tasks = fieldTasks(s, at(602, 8, 1), 0);
     const flax = tasks.find((t) => t.crop === 'flax' && t.name === 'harvest');
     expect(flax).toBeDefined();
     const task = (
@@ -329,14 +330,50 @@ describe('len v simulaci', () => {
       ],
     });
     expect(allocation.taskAmounts).toEqual([5, 0]);
+    // ženy a děti trhají napřed (fields.md – Len; Martin 10. 11. 2026): výrostci a starší ze
+    // žňových rukou, ženy řemeslníků, ženy vsi nad svůj díl minima – muži (zbytek vsi) žnou obilí;
+    // řemeslníci se syny (zbytek žňových rukou) jdou na žeň obilí
+    const women = allocateDay({
+      householdElders: [0],
+      potteryCoverage: NO_CRAFTS.pottery,
+      capacity: 6,
+      harvestHands: 2,
+      harvestYouth: 1,
+      light: 0.5,
+      womenLabor: 3,
+      tasks: [
+        { name: 'harvest', remaining: 20 },
+        { name: 'harvest', remaining: 2, noLordHelp: true, womenFirst: true },
+      ],
+    });
+    const minimum = women.dailyMin;
+    const womenFree = Math.max(0, 3 - WEEDING_WOMEN.dailyMinShare * minimum);
+    expect(womenFree).toBeGreaterThan(0.5);
+    expect(women.taskAmounts[1]).toBeCloseTo(2, 9);
+    expect(women.harvestHands).toBeCloseTo(2, 9);
+    // obilí: řemeslníci (1) a zbytek vsi po lnu (ženy vsi daly 0,5)
+    expect(women.taskAmounts[0]).toBeCloseTo(1 + 6 - minimum - 0.5, 9);
+    // bez lnu: len jen z práce, která po obilí zbude
+    const after = allocateDay({
+      householdElders: [0],
+      potteryCoverage: NO_CRAFTS.pottery,
+      capacity: 6,
+      harvestHands: 2,
+      tasks: [
+        { name: 'harvest', remaining: 20 },
+        { name: 'harvest', remaining: 2, noLordHelp: true },
+      ],
+    });
+    expect(after.taskAmounts[1]).toBe(0);
   });
 
-  it('nevytrhaný len 31. 8. propadne – oděvu chybí, obilí ani jídlo o nic nepřijde', () => {
+  it('nevytrhaný len 31. 8. propadne – oděvu chybí; muži dál žnou obilí, nikdo nehladoví', () => {
     const base = advanceVillage(withFlax(), at(602, 7, 31), null);
-    // len, který ves v srpnu nestihne: trhání ×100
+    // len, který ves v srpnu nestihne ani se všemi ženami a dětmi: trhání ×1000 (dřív ×100 – ženy
+    // a děti trhají od 10. 11. 2026 napřed a ×100 vytrhají)
     const heavy = JSON.parse(JSON.stringify(base)) as VillageState;
     const flax = seasonCrop(heavy.season!, 'flax')!;
-    flax.required.harvest *= 100;
+    flax.required.harvest *= 1000;
     // bez lnu v letošní práci (díly zůstanou bez práce)
     const none = JSON.parse(JSON.stringify(base)) as VillageState;
     none.season!.crops = none.season!.crops.filter((c) => c.crop !== 'flax');
@@ -349,16 +386,16 @@ describe('len v simulaci', () => {
     expect(a.chronicle.some((e) => e.kind === 'linen-short' && e.day === at(602, 8, 31))).toBe(
       true,
     );
-    // obilí: žeň stejná jako bez lnu; výmlat s oknem i v září len jen odsune – zrno je ve snopech
-    const grain = (v: VillageState): unknown[] =>
-      v.chronicle.filter((e) => e.kind === 'harvest' && e.day > base.lastDay);
-    expect(grain(a)).toEqual(grain(b));
-    expect(seasonCrop(a.threshingSeason!, 'spring')!.done).toEqual(
-      seasonCrop(b.threshingSeason!, 'spring')!.done,
-    );
+    // obilí: ženy a děti trhají napřed (Martin 10. 11. 2026), muži dál žnou – žeň skoro stejná jako
+    // bez lnu i s takovým lnem; výmlat s oknem i v září len jen odsune – zrno je ve snopech
+    const grainKg = (v: VillageState): number =>
+      v.chronicle
+        .filter((e) => e.kind === 'harvest' && e.day > base.lastDay)
+        .reduce((sum, e) => sum + (e.kind === 'harvest' ? e.kg : 0), 0);
+    expect(grainKg(b)).toBeGreaterThan(0);
+    expect(grainKg(a)).toBeGreaterThan(grainKg(b) * 0.97);
     const total = (v: VillageState): number => v.storesKg + villageSheaves(v).grainKg;
-    // (zrno ve snopech se ve skladu neztrácí – rozdíl jen ztráta skladováním)
-    expect(Math.abs(total(a) - total(b))).toBeLessThan(total(b) * 0.005);
+    expect(total(a)).toBeGreaterThan(total(b) * 0.97);
     // nikdo nehladoví – jídlo dne celé
     expect(a.ration ?? null).toEqual(b.ration ?? null);
   });

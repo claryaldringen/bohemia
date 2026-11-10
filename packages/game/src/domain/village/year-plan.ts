@@ -668,9 +668,10 @@ export function withoutWinterWeeding(season: FarmSeason): FarmSeason {
  * Pletí jednou a rychle (fields.md): práce jaře, luštěnin a lnu ze starších sazeb (30 / 15 a 40 /
  * 20 čd/ha v květnu–červnu) by se v jediném květnovém okně nestihla – úroda by klesla. Požadované
  * i hotové pletí se přepočte na nové sazby (× nová ÷ stará nejhorší mez, hotový podíl zůstane).
- * Starší práce se pozná podle pletí na sklizeň: víc, než dá nová nejhorší mez (sazby sklizně se od
- * té doby nezměnily; setí ne – za rádlem jde podle orby, fields.md – Práce, setí). Idempotentní –
- * rok s novými sazbami vrací týž.
+ * Starší práce se pozná podle pletí na sklizeň: víc, než dá nová nejhorší mez (setí ne – za rádlem
+ * jde podle orby, fields.md – Práce, setí). Zprůměrovaná žeň obilí (10. 11. 2026 – 30 → 23 čd/ha)
+ * mez jen zvedne: pletí podle nových sazeb ji s plánem ze starších i nových sazeb sklizně nepřekročí,
+ * pletí starších sazeb (30 čd/ha) ano. Idempotentní – rok s novými sazbami vrací týž.
  */
 export function withOnceWeedingRates(season: FarmSeason): FarmSeason {
   const rescale = (work: SeasonCrop): SeasonCrop => {

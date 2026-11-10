@@ -8,13 +8,14 @@ import { dayTaskOrder, dayWorkGroup } from '../simulate-work';
 import type { FieldPart, VillageState } from '../types';
 import { withBuiltFirstDwelling } from './village-fixtures';
 
-// Otava až po orbě a setí ozimu (fields.md – Pořadí důležitosti polních prací a výmlat do zimy,
-// bod 3; Martin 9. 11. 2026: „Otava až po orbě a setí ozimu“): nutná 1. seč má přednost před orbou
-// a setím, nutná otava (2. seč – oxen.md, Seno, dvě seče) jde hned za přípravou půdy.
+// Otava před orbou a setím ozimu (fields.md – Pořadí důležitosti polních prací a výmlat do zimy,
+// bod 3; Martin 10. 11. 2026 – žeň → len → otava → orba a setí; dřív ~~otava až po orbě a setí
+// ozimu~~, 9. 11. 2026): nutná 1. seč i nutná otava (2. seč – oxen.md, Seno, dvě seče) mají
+// přednost před jablky, výmlatem na osivo, orbou a setím; otava hned za 1. sečí.
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 
-describe('pořadí práce dne – otava za orbou a setím ozimu', () => {
+describe('pořadí práce dne – otava před orbou a setím ozimu', () => {
   const task = (name: DayTask['name'], end: number, extra: Partial<DayTask> = {}): DayTask => ({
     name,
     remaining: 10,
@@ -41,10 +42,15 @@ describe('pořadí práce dne – otava za orbou a setím ozimu', () => {
     expect(dayWorkGroup(aftermath)).toBe('aftermath');
   });
 
-  it('1. seč před orbou a setím, otava hned za přípravou půdy – před sadem, hlídkou a výmlatem', () => {
-    const ordered = [plough, reclaim, sow, dig, aftermath, orchardCare, watch, thresh];
+  it('1. seč a otava před orbou a setím, otava za žní obilí a lnem', () => {
+    const ordered = [aftermath, plough, reclaim, sow, dig, orchardCare, watch, thresh];
     expect([...ordered].reverse().sort(dayTaskOrder)).toEqual(ordered);
     expect([sow, plough, firstCut].sort(dayTaskOrder)).toEqual([firstCut, plough, sow]);
+    const apples = task('orchard-harvest', 10, { tie: 0 });
+    expect([apples, aftermath].sort(dayTaskOrder)).toEqual([aftermath, apples]);
+    expect([aftermath, firstCut].sort(dayTaskOrder)).toEqual([firstCut, aftermath]);
+    const reap = task('harvest', 9, { rank: 4 });
+    expect([aftermath, reap].sort(dayTaskOrder)).toEqual([reap, aftermath]);
   });
 });
 

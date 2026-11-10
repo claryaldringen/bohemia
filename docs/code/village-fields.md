@@ -184,8 +184,12 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     `seasonHarvestYear` − `FieldPart.flaxYear` ≥ `FLAX.returnYears` 7; chybí = smí).
     `rotateAfterSeason` 1. 9. zapíše `flaxYear` osetému lnu (i nevytrhanému). Trhání:
     `FLAX_WINDOWS.harvest` [8, 8]; v pořadí práce dne (`dayTaskOrder`) má trhání
-    skupinu `flax-harvest` (`DAY_WORK_ORDER`) – za výmlatem na dnešní jídlo a všemi žněmi obilí
-    (i jař s oknem do září), před sečí a výmlatem; rodina vojvody nepomáhá
+    skupinu `flax-harvest` (`DAY_WORK_ORDER`) – z obecné práce za výmlatem na dnešní jídlo a všemi
+    žněmi obilí (i jař s oknem do září), před sečí a výmlatem; **ženy a děti trhají napřed**
+    (`womenFirst` v `allocateDay` – před všemi úlohami dne výrostci a starší ze žňových rukou
+    `harvestYouth` = `harvestHelperLabor`, ženy řemeslníků `light`, ženy vsi nad
+    `WEEDING_WOMEN.dailyMinShare` minima jako při pletí; řemeslníci se syny a muži dál žnou obilí;
+    Martin 10. 11. 2026); rodina vojvody nepomáhá
     (`noLordHelp` v `allocateDay`, `addSideCrop(…, false)` – trhání lnu není v zátěži žní
     `cropLoadOf`), dřinu (`isToilDay`) nepřidá. `harvestFlax(state, day)` v `harvestEarlyCrops` 31. 8. (`final`): `harvestKg` vytrhané části (zbytek propadne), `VillageState.linen` = kg ÷
     `flaxNeedKg` plánu, `linen-short` při nedostatku; plán bez `flaxNeedKg` nic. `linenUnhappiness`

@@ -294,10 +294,12 @@ describe('výrostci a starší ve žních (harvestHelperLabor)', () => {
 });
 
 describe('práce žní na hektar (fields.md – Práce)', () => {
-  it('sklizeň srpem a vázání 20 (s řemesly 15), odnos 10 – žeň 30 (25)', () => {
-    expect(HARVEST_WORK_PER_HA.reap).toEqual({ worst: 20, best: 15 });
-    expect(HARVEST_WORK_PER_HA.carry).toEqual({ worst: 10, best: 10 });
-    expect(FIELD_WORK_PER_HA.harvest).toEqual({ worst: 30, best: 25 });
+  // zprůměrovaná žeň (fields.md – Práce; návrh Clauda podle Martina 10. 11. 2026 – dřív 20 / 15
+  // a odnos 10, žeň 30 / 25)
+  it('sklizeň srpem a vázání 15 (s řemesly 12), odnos 8 – žeň 23 (20)', () => {
+    expect(HARVEST_WORK_PER_HA.reap).toEqual({ worst: 15, best: 12 });
+    expect(HARVEST_WORK_PER_HA.carry).toEqual({ worst: 8, best: 8 });
+    expect(FIELD_WORK_PER_HA.harvest).toEqual({ worst: 23, best: 20 });
   });
 });
 

@@ -60,13 +60,14 @@ function finished(plan: FarmSeason): FarmSeason {
 
 describe('createPlan', () => {
   const day = at(506, 9, 1);
-  it('1 ha ve 100 m: sazby bez příplatku (bez řemesel horní mez, celkem 156)', () => {
+  it('1 ha ve 100 m: sazby bez příplatku (bez řemesel horní mez, celkem 149)', () => {
     const plan = createPlan([part()], day);
     expect(springCrop(plan).required.dig).toBeCloseTo(100);
     // setí motykou ≈ 3,3 čd/ha (Martin 9. 11. 2026 – rozsévač za spřežením; dřív 10)
     expect(springCrop(plan).required.sow).toBeCloseTo(SOW);
     expect(springCrop(plan).required.weed).toBeCloseTo(8);
-    expect(springCrop(plan).required.harvest).toBeCloseTo(30);
+    // zprůměrovaná žeň 15 + 8 (fields.md – Práce, 10. 11. 2026; dřív 30)
+    expect(springCrop(plan).required.harvest).toBeCloseTo(23);
     expect(springCrop(plan).required.thresh).toBeCloseTo(15);
     expect(springCrop(plan).required.reclaim).toBe(0);
     expect(springCrop(plan).partIds).toEqual([1]);
@@ -74,12 +75,13 @@ describe('createPlan', () => {
     expect(springCrop(plan).done.dig).toBe(0);
     expect(springCrop(plan).harvestedKg).toBeNull();
   });
-  it('s plným pokrytím nástroji dolní mez – celkem 93 na hektar', () => {
+  it('s plným pokrytím nástroji dolní mez – celkem 88 na hektar', () => {
     const { required } = springCrop(createPlanWith([part()], day, 1));
-    expect(required).toMatchObject({ dig: 50, sow: SOW, weed: 5, harvest: 25, thresh: 10 });
+    expect(required).toMatchObject({ dig: 50, sow: SOW, weed: 5, harvest: 20, thresh: 10 });
     const total = required.dig + required.sow + required.weed + required.harvest + required.thresh;
-    // dřív 100 – setí 10 → 3,3 čd/ha (rozsévač za spřežením, Martin 9. 11. 2026)
-    expect(total).toBeCloseTo(90 + SOW, 9);
+    // dřív 100 – setí 10 → 3,3 čd/ha (rozsévač za spřežením, Martin 9. 11. 2026); 93 – žeň 25 → 20
+    // (zprůměrovaná žeň, 10. 11. 2026)
+    expect(total).toBeCloseTo(85 + SOW, 9);
   });
   it('ve 500 m je kopání o 40 % dražší', () => {
     expect(springCrop(createPlan([part({ distanceM: 500 })], day)).required.dig).toBeCloseTo(140);
@@ -97,7 +99,7 @@ describe('createPlan', () => {
     expect(springCrop(createPlan([cleared], day)).required).toMatchObject({
       weed: 0,
       dig: 100,
-      harvest: 30,
+      harvest: 23,
     });
     const pasture = createPlan([oldFallow], at(516, 9, 1));
     expect(springCrop(pasture).required.weed).toBeCloseTo(8);
@@ -141,10 +143,10 @@ describe('taskRemaining a activeTasks', () => {
   it('nezasetá půda se neplete ani nesklízí (Ruling 17)', () => {
     const halfSown = withDone(plan, { dig: 50, sow: SOW / 2 });
     expect(taskRemaining(springCrop(halfSown), 'weed')).toBeCloseTo(4);
-    expect(taskRemaining(springCrop(halfSown), 'harvest')).toBeCloseTo(15);
+    expect(taskRemaining(springCrop(halfSown), 'harvest')).toBeCloseTo(11.5);
     expect(taskRemaining(springCrop(withDone(halfSown, { weed: 4 })), 'weed')).toBeCloseTo(0);
     expect(activeTasks(springCrop(withDone(halfSown, { weed: 4 })), at(501, 5, 10))).toEqual([]);
-    expect(activeTasks(springCrop(withDone(halfSown, { harvest: 15 })), at(501, 8, 10))).toEqual(
+    expect(activeTasks(springCrop(withDone(halfSown, { harvest: 11.5 })), at(501, 8, 10))).toEqual(
       [],
     );
     // nic nezaseto – v létě není co dělat
@@ -152,7 +154,7 @@ describe('taskRemaining a activeTasks', () => {
     expect(activeTasks(springCrop(plan), at(501, 8, 10))).toEqual([]);
   });
   it('výmlat jen sklizené části (Ruling 17)', () => {
-    const halfHarvested = withDone(plan, { dig: 50, sow: SOW / 2, weed: 4, harvest: 15 });
+    const halfHarvested = withDone(plan, { dig: 50, sow: SOW / 2, weed: 4, harvest: 11.5 });
     expect(taskRemaining(springCrop(halfHarvested), 'thresh')).toBeCloseTo(7.5);
     expect(
       taskRemaining(springCrop(withDone(halfHarvested, { thresh: 7.5 })), 'thresh'),
