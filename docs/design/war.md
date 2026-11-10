@@ -295,6 +295,11 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
   z „Bez časosběru“ (vojáci jdou rychleji než lidé ve vsi).
 - **Terén** (Martin 18. 10.): **hustý les ≈ 1/4** tempa, **voda jen po brodech**; pevná cesta
   a zemská stezka × 1,5 ([cesty](roads.md), [obchod](trade.md)) (návrh Clauda).
+- **Cíl v neprůchodné buňce** (návrh Clauda 10. 11. 2026, jako v 0 A.D. – jednotka jde na
+  nejbližší dosažitelné místo): klik do vody bez brodu, na sráz nebo na hradbu vojsko neodmítne
+  ani tiše nestojí – cíl se posune na nejbližší průchodné místo, kam skupina dojde, a mapa tažení
+  ukáže posunutý cíl. Jen když skupina nedojde vůbec nikam (stojí sevřená ve vodě), rozkaz se
+  neprovede a u kurzoru je důvod „Tam vojsko nedojde.“
 - **Skupina jde tempem nejpomalejšího** (návrh Clauda): skupina jen z jezdců × 1,5; se stádem
   × 0,5 (18. 10.); s pěšími raněnými × 0,75 (Ztráty); zima výš.
 - **Zásoby tažení** (Martin 2. 11. 2026 – „Ano“): jídlo pro muže (v zimě i seno pro koně) na

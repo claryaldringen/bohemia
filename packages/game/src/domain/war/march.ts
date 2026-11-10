@@ -195,6 +195,71 @@ export function marchPath(grid: MarchGrid, from: Pos, to: Pos): MarchPath | null
 }
 
 /**
+ * Buňky dosažitelné z buňky `start` – zaplavení po sousedech ve stálém pořadí (`NEIGHBOURS`) se
+ * stejným pravidlem jako A* (`search`): start průchodný vždy, úhlopříčně jen kolem průchodných rohů.
+ */
+function reachableCells(grid: MarchGrid, start: number): Uint8Array {
+  const w = grid.width;
+  const h = grid.height;
+  const seen = new Uint8Array(w * h);
+  const queue = new Int32Array(w * h);
+  const passable = (c: number): boolean => c === start || grid.pace[c]! > 0;
+  let head = 0;
+  let tail = 0;
+  seen[start] = 1;
+  queue[tail++] = start;
+  while (head < tail) {
+    const c = queue[head++]!;
+    const i = c % w;
+    const j = (c - i) / w;
+    for (const [di, dj] of NEIGHBOURS) {
+      const ii = i + di;
+      const jj = j + dj;
+      if (ii < 0 || jj < 0 || ii >= w || jj >= h) continue;
+      const n = jj * w + ii;
+      if (seen[n] === 1 || !passable(n)) continue;
+      if (di !== 0 && dj !== 0 && (!passable(j * w + ii) || !passable(jj * w + i))) continue;
+      seen[n] = 1;
+      queue[tail++] = n;
+    }
+  }
+  return seen;
+}
+
+/**
+ * Cíl pochodu jako v 0 A.D. (war.md – Pohyb – Cíl v neprůchodné buňce; návrh Clauda): cíl
+ * v neprůchodné buňce (voda bez brodu, sráz, hotová hradba) se posune na střed nejbližší průchodné
+ * buňky dosažitelné z `from` (`reachableCells`). Nejbližší podle čtverce vzdálenosti v buňkách,
+ * remíza – nejmenší index (determinismus). Průchodný cíl a cíl ve stavbě (`outOfBuilding` ho
+ * v `marchPath` vyřeší) vrátí beze změny – týž objekt. Null = dosažitelná průchodná buňka není
+ * žádná (vojsko stojí v neprůchodné buňce sevřené ze všech stran).
+ */
+export function reachableGoal(grid: MarchGrid, from: Pos, to: Pos): Pos | null {
+  const start = outOfBuilding(grid, marchCellAt(grid, from));
+  const target = outOfBuilding(grid, marchCellAt(grid, to));
+  if (target === start || grid.pace[target]! > 0) return to;
+  const w = grid.width;
+  const ti = target % w;
+  const tj = (target - ti) / w;
+  const seen = reachableCells(grid, start);
+  let best = -1;
+  let bestD = Infinity;
+  for (let c = 0; c < seen.length; c++) {
+    if (seen[c] !== 1 || grid.pace[c]! <= 0) continue;
+    const i = c % w;
+    const di = i - ti;
+    const dj = (c - i) / w - tj;
+    const d = di * di + dj * dj;
+    // vzestupně po indexech – při shodě zůstane nižší index
+    if (d < bestD) {
+      bestD = d;
+      best = c;
+    }
+  }
+  return best < 0 ? null : marchCellCenter(grid, best);
+}
+
+/**
  * Trasa k okraji mapy ve směru `direction` (war.md – Přechod okrajem): k nejlevnější buňce okraje
  * (sever = +z, východ = +x – `GRID_STEPS`); úhlopříčný směr vede do rohu mapy. Konec trasy je
  * střed okrajové buňky – odtud `edgeCrossing` převede vojsko na sousední mapu. Nedosažitelný

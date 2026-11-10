@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { StreamPoint } from '../../domain/landscape';
 import type { CampaignMap, CampaignState } from '../../domain/war';
 import { tickOfMs } from '../../domain/war';
 import type { Dwelling } from '../../domain/village/types';
@@ -7,7 +8,7 @@ import { campaign, member, world } from '../../domain/war/__tests__/campaign-fix
 import {
   campaignsOf,
   campaignViewFor,
-  commandCampaign,
+  commandCampaign as commandCampaignResult,
   type CampaignCommand,
 } from '../campaign-view';
 import type { VillageRecord } from '../villages';
@@ -54,7 +55,17 @@ function raiding(overrides: Partial<CampaignState> = {}): CampaignState {
   };
 }
 
-async function setup(state: CampaignState = raiding()): Promise<{
+/** Pokyn zapsán (true), nebo odmítnut (false) – důvod odmítnutí ověřují testy `unreachable`. */
+async function commandCampaign(
+  ...args: Parameters<typeof commandCampaignResult>
+): Promise<boolean> {
+  return (await commandCampaignResult(...args)).queued;
+}
+
+async function setup(
+  state: CampaignState = raiding(),
+  map: CampaignMap = TARGET_MAP,
+): Promise<{
   deps: Parameters<typeof commandCampaign>[0];
   campaigns: InMemoryCampaigns;
   nowMs: number;
@@ -67,7 +78,7 @@ async function setup(state: CampaignState = raiding()): Promise<{
   } as unknown as VillageRecord;
   const deps = {
     campaigns,
-    cells: { mapOf: (): Promise<CampaignMap> => Promise.resolve(TARGET_MAP) },
+    cells: { mapOf: (): Promise<CampaignMap> => Promise.resolve(map) },
     villages: {
       find: (id: string): Promise<VillageRecord | null> =>
         Promise.resolve(id === target.id ? target : null),
@@ -205,6 +216,60 @@ describe('commandCampaign', () => {
     expect(await as('p1', lead({ kind: 'place', place: off }))).toBe(false);
     expect(await as('p1', { kind: 'order', group: 9, order: 'attack-all' })).toBe(false);
     expect(campaigns.intents).toHaveLength(0);
+  });
+
+  describe('místo ve vodě (war.md – Pohyb – Cíl v neprůchodné buňce)', () => {
+    // řeka bez brodu od severu k jihu ve sloupci políček 80 (svět x ≈ 247,5 m), 30 m široká
+    const river: StreamPoint[] = Array.from({ length: 128 }, (_, y) => ({
+      x: 80,
+      y: 127 - y,
+      halfWidthLeft: 1,
+      halfWidthRight: 1,
+      level: 5 - y / 127,
+      shallow: false,
+      bankLeft: 0,
+      bankRight: 0,
+    }));
+    const RIVER_MAP: CampaignMap = {
+      landscape: { ...land(() => false), rivers: [river] },
+      obstacles: null,
+      villageIds: [],
+    };
+    /** Tažení na pochodu, skupiny velitele stojí v `pos` na mapě (0, 0). */
+    const marching = (pos: { x: number; z: number }): CampaignState => {
+      const base = campaign();
+      return {
+        ...base,
+        phase: 'marching',
+        groups: base.groups.map((g) => ({ ...g, cell: { x: 0, y: 0 }, pos: { ...pos } })),
+      };
+    };
+    const water = lead({ kind: 'place', place: { cell: { x: 0, y: 0 }, pos: { x: 247.5, z: 0 } } });
+
+    it('ze břehu záměr přijme s místem kliku a vrátí takt záměru – cíl posune tažení', async () => {
+      const { deps, campaigns, nowMs } = await setup(marching({ x: 0, z: 0 }), RIVER_MAP);
+      const input = { playerId: 'p1', campaignId: 'c1', nowMs };
+      const result = await commandCampaignResult(deps, { ...input, command: water });
+      expect(result).toEqual({ queued: true, tick: tickOfMs(nowMs, world) + 2 });
+      expect(campaigns.intents[0]!.body).toEqual({
+        kind: 'march',
+        to: { cell: { x: 0, y: 0 }, pos: { x: 247.5, z: 0 } },
+      });
+    });
+
+    it('skupina sevřená ve vodě nedojde nikam – odmítnutí s důvodem', async () => {
+      const { deps, campaigns, nowMs } = await setup(marching({ x: 245, z: 0 }), RIVER_MAP);
+      const input = { playerId: 'p1', campaignId: 'c1', nowMs };
+      const deep = lead({
+        kind: 'place',
+        place: { cell: { x: 0, y: 0 }, pos: { x: 245, z: 200 } },
+      });
+      expect(await commandCampaignResult(deps, { ...input, command: deep })).toEqual({
+        queued: false,
+        reason: 'unreachable',
+      });
+      expect(campaigns.intents).toHaveLength(0);
+    });
   });
 
   it('padlý nebo zajatý velitel a tažení vedené jiným mužem – žádný pokyn', async () => {

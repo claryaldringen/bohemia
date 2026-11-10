@@ -694,17 +694,23 @@ export async function getMyCampaigns(): Promise<CampaignSummary[] | { error: str
 
 /** Odmítnutý pokyn do tažení – jedna odpověď pro každý důvod (nic se neprozradí). */
 const COMMAND_REFUSED = 'Rozkaz nelze dát.';
+/** Místo, kam vojsko z mapy, na které stojí, nedojde (war.md – Pohyb – Cíl v neprůchodné buňce). */
+const COMMAND_UNREACHABLE = 'Tam vojsko nedojde.';
+
+/** Pokyn do tažení přijat – `tick` = takt záměru (mapa tažení do něj ukazuje cíl z kliku). */
+type CampaignCommandReply = { ok: true; tick: number } | { error: string };
 
 async function campaignCommand(
   input: unknown,
   parse: (value: unknown) => { campaignId: string; command: CampaignCommand } | null,
-): Promise<{ ok: true } | { error: string }> {
+): Promise<CampaignCommandReply> {
   const id = await playerId();
   if (id === null) return { error: NOT_SIGNED_IN };
   const parsed = parse(input);
   if (parsed === null) return { error: INVALID_INPUT };
-  const queued = await commandCampaignForPlayer(id, parsed.campaignId, parsed.command);
-  return queued ? { ok: true } : { error: COMMAND_REFUSED };
+  const result = await commandCampaignForPlayer(id, parsed.campaignId, parsed.command);
+  if (result.queued) return { ok: true, tick: result.tick };
+  return { error: result.reason === 'unreachable' ? COMMAND_UNREACHABLE : COMMAND_REFUSED };
 }
 
 /**
@@ -712,22 +718,22 @@ async function campaignCommand(
  * stavbě, napadne muže v dohledu, nebo obrátí domů. Záměr na takt teď + 2; jen vlastní živý
  * nezajatý velitel a cíl, který hráč zná.
  */
-export async function commandLeader(input: unknown): Promise<{ ok: true } | { error: string }> {
+export async function commandLeader(input: unknown): Promise<CampaignCommandReply> {
   return campaignCommand(input, parseLeaderInput);
 }
 
 /** Rozkaz skupině `{ campaignId, group, order, at? }` (war.md – Boj – Změna rozkazu). */
-export async function setGroupOrder(input: unknown): Promise<{ ok: true } | { error: string }> {
+export async function setGroupOrder(input: unknown): Promise<CampaignCommandReply> {
   return campaignCommand(input, parseGroupOrderInput);
 }
 
 /** Volba ke vzdaným `{ campaignId, group, choice }` – pobít / odvést / nechat (war.md – Velení). */
-export async function chooseSurrendered(input: unknown): Promise<{ ok: true } | { error: string }> {
+export async function chooseSurrendered(input: unknown): Promise<CampaignCommandReply> {
   return campaignCommand(input, parseSurrenderedInput);
 }
 
 /** Hráč je u tažení `{ campaignId }` – posílá jen otevřené tažení (bez ní po 1 dni zástupce). */
-export async function presence(input: unknown): Promise<{ ok: true } | { error: string }> {
+export async function presence(input: unknown): Promise<CampaignCommandReply> {
   return campaignCommand(input, parsePresenceInput);
 }
 

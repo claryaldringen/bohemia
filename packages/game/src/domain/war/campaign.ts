@@ -48,7 +48,7 @@ import {
   type RaidResult,
 } from './raid-apply';
 import type { Pos } from './march-grid';
-import { marchSpeed, type GroupPace } from './march';
+import { marchSpeed, reachableGoal, type GroupPace } from './march';
 import { stepMover } from './movement';
 import { WAR } from './rules-war';
 import { discoverBuildings } from './sight';
@@ -605,6 +605,20 @@ function sendGroup(g: CampaignGroup, to: CampaignPlace): void {
   g.route = worldRoute(g.cell, to.cell, () => false).slice(1);
   g.leg = null;
   g.arrived = false;
+}
+
+/**
+ * Cíl skupiny jako v 0 A.D. (war.md – Pohyb – Cíl v neprůchodné buňce; návrh Clauda): stojí-li
+ * skupina na mapě cíle a úsek k němu ještě nemá (hned po záměru, nebo po vstupu na mapu cíle), cíl
+ * v neprůchodné buňce (voda, sráz, hradba) se posune na nejbližší místo dosažitelné ze skupiny
+ * (`reachableGoal`) – mapa tažení pak ukáže posunutý cíl. Průchodný cíl beze změny; když dosažitelné
+ * místo není žádné, cíl zůstane a skupina stojí (záměr hráče k takovému místu odmítne už use-case).
+ */
+function settleGoal(g: CampaignGroup, day: number, ctx: TickContext): void {
+  const goal = g.goal;
+  if (goal === null || g.leg !== null || g.route.length > 0 || !sameCell(g.cell, goal.cell)) return;
+  const pos = reachableGoal(gridOf(g.cell, day, ctx), g.pos, goal.pos);
+  if (pos !== null && pos !== goal.pos) g.goal = { cell: { ...goal.cell }, pos };
 }
 
 /** Obrat domů ke shromaždišti (rozpad po hloučcích do domovských vsí – `disband`). */
@@ -1332,7 +1346,8 @@ function paceOf(s: CampaignState, g: CampaignGroup): GroupPace {
 /**
  * Pohyb skupin o jeden takt: metry louky tempem skupiny (`marchSpeed` ÷ takty za sekundu) po
  * úseku mapy. Konec úseku na okraji = přechod na sousední mapu (zbytek taktu se nevyužije), konec
- * úseku v cíli = skupina stojí. Skupina bez mužů, nebo která nemá kudy, stojí.
+ * úseku v cíli = skupina stojí. Skupina bez mužů, nebo která nemá kudy, stojí. Před úsekem k cíli
+ * se cíl v neprůchodné buňce posune na nejbližší dosažitelné místo (`settleGoal`).
  */
 function moveGroups(s: CampaignState, ctx: TickContext): void {
   for (const g of s.groups) {
@@ -1342,6 +1357,7 @@ function moveGroups(s: CampaignState, ctx: TickContext): void {
       g.arrived = true;
       continue;
     }
+    settleGoal(g, s.day, ctx);
     const step = stepMover(g, g.goal.pos, marchSpeed(pace, s.day) / TICKS_PER_SECOND, s.day, ctx);
     if (step === 'arrived' || step === 'stuck') g.arrived = true;
   }

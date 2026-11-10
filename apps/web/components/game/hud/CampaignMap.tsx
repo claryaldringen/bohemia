@@ -15,7 +15,18 @@ import { Tooltip } from './Tooltip';
 // 2026-11-09 – Ú14, Ú15). Tlačítko oka přepne 3D scénu na cizí mapu, na které vojsko stojí,
 // a zpět na ves (war.md – Ve scéně – cizí mapa; `ArmyActions.scene` z kontextu).
 
-type Result = Promise<{ ok: true } | { error: string }>;
+/** Odpověď serveru – přijatý pokyn nese takt záměru (`tick`), odmítnutý důvod u kurzoru. */
+type Result = Promise<{ ok: true; tick?: number } | { error: string }>;
+
+/**
+ * Cíl z kliku, než ho tažení zpracuje: do taktu záměru (`until`; null = odpověď ještě nepřišla)
+ * ho mapa ukazuje na místě kliku, potom cíl ze stavu – posunutý z vody na nejbližší dosažitelné
+ * místo (war.md – Pohyb – Cíl v neprůchodné buňce).
+ */
+interface PendingGoal {
+  pos: Pos;
+  until: number | null;
+}
 
 /** Volání serveru pro živé vedení (server actions) – z kontextu, aby šla mapa vykreslit v testech. */
 export interface CampaignActions {
@@ -127,12 +138,18 @@ export function CampaignMap({
 }): ReactElement {
   const { view, gone, refresh } = useCampaign(campaignId, actions.presence);
   const sceneWatch = useArmyActions()?.scene ?? null;
-  const [pending, setPending] = useState<Pos | null>(null);
+  const [pending, setPending] = useState<PendingGoal | null>(null);
   const [reason, setReason] = useState<string | null>(null);
 
-  const send = (result: Result): void => {
+  /** Pošle pokyn; `place` = cíl z kliku čekající na odpověď (odmítnutý zmizí). */
+  const send = (result: Result, place: PendingGoal | null = null): void => {
     void result.then((r) => {
       setReason('error' in r ? r.error : null);
+      if (place) {
+        setPending((p) =>
+          p !== place ? p : 'error' in r ? null : { pos: place.pos, until: r.tick ?? null },
+        );
+      }
       refresh();
     });
   };
@@ -148,8 +165,10 @@ export function CampaignMap({
   const here = (c: { x: number; y: number }): boolean => c.x === cell.x && c.y === cell.y;
   const commander = view.men.find((m) => m.commander && m.status === 'active');
   const group = commander ? view.groups.find((g) => g.id === commander.group) : undefined;
+  const clicked =
+    pending && (pending.until === null || view.tick < pending.until) ? pending.pos : null;
   const goal =
-    pending ?? (group?.goal && here(group.goal.cell) && !group.arrived ? group.goal.pos : null);
+    clicked ?? (group?.goal && here(group.goal.cell) && !group.arrived ? group.goal.pos : null);
   const live = view.liveCommand;
   const onTarget = here(view.target.cell);
 
@@ -160,14 +179,18 @@ export function CampaignMap({
       x: ((e.clientX - r.left) / r.width) * 2 * HALF_M - HALF_M,
       z: ((e.clientY - r.top) / r.height) * 2 * HALF_M - HALF_M,
     };
-    setPending(pos);
-    send(actions.lead({ campaignId, target: { kind: 'place', place: { cell, pos } } }));
+    const place: PendingGoal = { pos, until: null };
+    setPending(place);
+    send(actions.lead({ campaignId, target: { kind: 'place', place: { cell, pos } } }), place);
   };
   const lead =
     (target: LeaderTarget) =>
     (e: MouseEvent): void => {
       e.stopPropagation();
-      if (live) send(actions.lead({ campaignId, target }));
+      if (!live) return;
+      // jiný cíl než místo – dřívější klik už mapa neukazuje
+      setPending(null);
+      send(actions.lead({ campaignId, target }));
     };
   const denied = live ? null : 'Velí jiný muž.';
   const watching = sceneWatch?.watching?.campaignId === campaignId;

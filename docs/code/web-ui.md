@@ -950,12 +950,17 @@ se vykreslí i v testech bez serveru.
   (`PRESENCE_EVERY_MS`) jen při viditelném panelu – zavřená stránka = žádná přítomnost.
 - **Server actions** (`app/game/actions.ts`, vstup `lib/campaign-input.ts`, composition root
   `lib/campaign.ts`): `getMyCampaigns`, `commandLeader` (`{ campaignId, target }`), `setGroupOrder`,
-  `chooseSurrendered`, `presence`; odmítnutí vždy „Rozkaz nelze dát.“ (nic neprozradí).
+  `chooseSurrendered`, `presence`; přijatý pokyn `{ ok: true, tick }` (takt záměru), odmítnutí
+  „Rozkaz nelze dát.“ (nic neprozradí) – kromě místa, kam skupina velitele nedojde vůbec
+  (`commandCampaign` → `unreachable`): „Tam vojsko nedojde.“ (war.md – Pohyb – Cíl v neprůchodné
+  buňce).
 - **Mapa tažení** (minimální, scénu vojska kreslí `lib/scene`): v panelu Vojsko řádek běžících
   tažení (`army-campaign`, ikona s cílem v popisku) → `CampaignMap` – pohled shora na mapu velitele
   (SVG v metrech mapy): velitel (`campaign-commander`, `data-x` / `data-z`), vlastní muži, spojenci,
   cizí v dohledu (klik = napadni), objevené domy (klik = jdi k domu), cíl (`campaign-goal`); klik
-  na mapu = velitel jde. Ikony Domů, tři rozkazy skupiny velitele a v boji Pobít / Odvést / Nechat,
+  na mapu = velitel jde. Cíl ukazuje místo kliku jen do taktu záměru z odpovědi (`PendingGoal.until`;
+  odmítnutý klik značku nenechá, důvod je v `campaign-reason`), pak cíl skupiny velitele ze stavu
+  – klik do vody tak ukáže cíl posunutý na nejbližší dosažitelné místo (jako v 0 A.D.). Ikony Domů, tři rozkazy skupiny velitele a v boji Pobít / Odvést / Nechat,
   slova jen v `Tooltip`; nevede-li hráč živě, vše zašedlé („Velí jiný muž.“). Oko
   (`campaign-watch`, „Ve scéně“ / „Zpět na ves“, `aria-pressed`) přepne scénu na cizí mapu – výš.
   Pohled nese i `CampaignView.flights` (Ú14 – skupiny uprchlíků na cestě a běžící poslové v dohledu
