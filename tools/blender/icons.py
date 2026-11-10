@@ -4891,6 +4891,24 @@ def icon_aid():
     return True
 
 
+def icon_faith_cross():
+    """Křest rodu (christianity.md): jednoduchý dřevěný latinský kříž – svislé břevno, kratší
+    příčné v horní třetině a ovázání provazem v místě spoje (`house/cross` je červený křížek
+    „zavřít“)."""
+    beam, bar, rope = bmesh.new(), bmesh.new(), bmesh.new()
+    box(beam, (0, 0, 0), (0.3, 0.26, 2.5))
+    box(bar, (0, -0.02, 0.52), (1.5, 0.26, 0.28))
+    # ovázání přes spoj do kříže – dva šikmé pásky provazu na líci
+    for a in (math.radians(40), math.radians(-40)):
+        box(rope, (0, -0.16, 0.52), (0.5, 0.04, 0.07), rot=(0, a, 0))
+    objs = [to_obj(beam, "beam", wood_mat("beam", (0.36, 0.22, 0.1)), smooth=False),
+            to_obj(bar, "bar", wood_mat("bar", (0.39, 0.24, 0.11)), smooth=False),
+            to_obj(rope, "rope", mat("rope", (0.62, 0.52, 0.34), 0.95, noise=80, bump=0.3), smooth=False)]
+    hud_light(az=-35, el=45)
+    camera(world_points(objs), az=18, el=10, margin=1.04)
+    return True
+
+
 def icon_hunger():
     """Hlad: prázdná dřevěná mísa a vedle ní lžíce."""
     bowl, spoon = bmesh.new(), bmesh.new()
@@ -5377,6 +5395,7 @@ PANELS = {
     "house/banner": icon_house_banner,
     "house/copy": icon_copy,
     "house/cross": icon_cross,
+    "house/faith-cross": icon_faith_cross,
     "house/gate": lambda: gate_icon(True),
     "house/gate-open": lambda: gate_icon(False),
     "house/gift": icon_gift,

@@ -8,12 +8,15 @@
 // Mohyly podle významu (cemetery.md – Martin 19. 10. 2026): místo a velikost určí jádro
 // (`placeMound`), tady se jen spočítá střed (`gravePlaceCenter` z jádra), natočení a měřítko;
 // staré hroby (pohřbení před mohylami) zůstávají po řadách jako dřív (`gravePlacements`).
+// Kostrový hrob křesťana (christianity.md – Pohřby; `rite: 'inhumation'`) je místo mohyly plochý
+// hrob s malým dřevěným křížem v čele (`FLAT_GRAVE`), po řadách čtverce.
 import {
   CEMETERY_FENCE_INSET_M,
   CEMETERY_GATE,
   GRAVE_PLACES,
   MOUND_SIZES,
   gravePlaceCenter,
+  type GraveMound,
   type MoundSize,
 } from '@bohemia/game';
 import { gridFrame, type CellSquare, type GridFrame } from './field-cells';
@@ -128,25 +131,72 @@ export const MOUND_SHAPES: Record<
   great: { radius: 1.65, length: 1.65, height: 1.1, post: true },
 };
 
-/** Mohyla ve světě – střed, natočení, měřítko, velikost a jestli je čerstvá. */
+/**
+ * Plochý kostrový hrob (návrh Clauda – christianity.md – Pohřby): nízký obdélník hlíny či drnu
+ * podél místní osy x (přes sloupec místa, ≈ 2 m před `GRAVE_SCALE`) – poloviny délky a šířky,
+ * výška a o kolik se zkosí horní hrana (m); dřevěný kříž v čele (`crossM` od středu k čelu) –
+ * výška nad zemí, kus v zemi, průřez svislého břevna, délka a výška příčného a jak vysoko je.
+ */
+export const FLAT_GRAVE = {
+  halfLength: 0.92,
+  halfWidth: 0.4,
+  height: 0.14,
+  bevel: 0.1,
+  crossM: 0.78,
+  cross: {
+    heightM: 0.95,
+    sinkM: 0.2,
+    postM: { width: 0.09, depth: 0.07 },
+    barM: { length: 0.5, height: 0.08, depth: 0.06 },
+    barAtM: 0.66,
+  },
+} as const;
+
+/** Mohyla ve světě – střed, natočení, měřítko, velikost, jestli je čerstvá a obřad. */
 export interface MoundPlacement extends GravePlacement {
   size: MoundSize;
+  rite?: GraveMound['rite'];
 }
 
-/** Mohyla podle významu ze scény vsi (místo ve čtverci, velikost, čerstvá). */
+/** Mohyla podle významu ze scény vsi (místo ve čtverci, velikost, čerstvá, obřad). */
 export interface MoundSpot {
   cell: { x: number; y: number };
   column: number;
   row: number;
   size: MoundSize;
   fresh?: boolean;
+  rite?: GraveMound['rite'];
+}
+
+/**
+ * Kde stojí kříž plochého hrobu: v čele hrobu (místní −x, `FLAT_GRAVE.crossM` × měřítko od středu)
+ * – natočení jako Babylon (`rotationY` kolem svislé osy: místní +x → (cos, −sin)).
+ */
+export function graveCross(grave: Pick<GravePlacement, 'x' | 'z' | 'rotationY' | 'scale'>): {
+  x: number;
+  z: number;
+} {
+  const a = FLAT_GRAVE.crossM * grave.scale;
+  return {
+    x: grave.x - a * Math.cos(grave.rotationY),
+    z: grave.z + a * Math.sin(grave.rotationY),
+  };
+}
+
+/** Poloměr mohyly či hrobu ve světě – kolik místa kolem středu zabere (překážka v kruhu pohřbu). */
+export function moundReach(m: Pick<MoundPlacement, 'size' | 'scale' | 'rite'>): number {
+  if (m.rite === 'inhumation')
+    return Math.max(FLAT_GRAVE.halfLength, FLAT_GRAVE.halfWidth) * m.scale;
+  const shape = MOUND_SHAPES[m.size];
+  return Math.max(shape.radius, shape.length) * m.scale;
 }
 
 /**
  * Mohyly podle významu: střed bloku míst ve svém čtverci (`gravePlaceCenter` z jádra – stejná
  * mřížka jako pro výběr místa, i natočený čtverec), drobné rozházení a natočení deterministicky
- * podle hřbitova a místa. Kulaté mohyly natočené náhodně, podlouhlá po řadách čtverce. Mohyla ve
- * čtverci, který mezi `squares` není (rozšíření ve stavbě), se nekreslí.
+ * podle hřbitova a místa. Kulaté mohyly natočené náhodně, podlouhlá po řadách čtverce, plochý
+ * kostrový hrob v ose čtverce (kříže v řadě – čelo vždy na stejné straně). Mohyla ve čtverci,
+ * který mezi `squares` není (rozšíření ve stavbě), se nekreslí.
  */
 export function moundPlacements(
   squares: readonly CellSquare[],
@@ -171,21 +221,26 @@ export function moundPlacements(
     );
     const step = (square.size - 2 * GRAVE_MARGIN_M) / GRAVE_GRID.rows;
     const jitter = (): number => (random() - 0.5) * step * 0.2;
+    const flat = m.rite === 'inhumation';
     const along = m.size === 'large';
-    const big = along || m.size === 'great';
+    const big = along || m.size === 'great' || flat;
     const turn = random();
     return [
       {
         x: center.x + jitter(),
         z: center.z + jitter(),
-        // podlouhlá mohyla po řadách čtverce (místní +z), jinak natočená jakkoli
-        rotationY: along
-          ? (square.rotation ?? 0) + (turn < 0.5 ? 0 : Math.PI) + (random() - 0.5) * 0.12
-          : turn * Math.PI * 2,
-        // velké mohyly zaberou svá místa celá – menší rozptyl velikosti
+        // podlouhlá mohyla po řadách čtverce (místní +z), plochý hrob v ose čtverce (čelo s křížem
+        // na místní −x), jinak natočená jakkoli
+        rotationY: flat
+          ? (square.rotation ?? 0) + (turn - 0.5) * 0.08
+          : along
+            ? (square.rotation ?? 0) + (turn < 0.5 ? 0 : Math.PI) + (random() - 0.5) * 0.12
+            : turn * Math.PI * 2,
+        // velké mohyly a ploché hroby zaberou svá místa celá – menší rozptyl velikosti
         scale: (big ? 0.96 + random() * 0.08 : 0.9 + random() * 0.2) * GRAVE_SCALE,
         fresh: m.fresh === true,
         size: m.size,
+        ...(flat ? { rite: m.rite } : {}),
       },
     ];
   });

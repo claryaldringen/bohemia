@@ -5,11 +5,14 @@
 // nimi domácnost a lidé z ostatních domácností –, pak hranice hoří, lidé stojí v kruhu, druhý
 // den uhlíky dohasínají, lidé odejdou domů a nasype se mohyla. Všechno je čistá funkce času
 // (skutečný čas jako u ostatních postav – stejný okamžik = stejná póza): začátek je začátek
-// herního dne pohřbu (okno dne z hodin světa), průvod jde skutečnou chůzí.
+// herního dne pohřbu (okno dne z hodin světa), průvod jde skutečnou chůzí. Kostrový pohřeb
+// křesťana (christianity.md – Pohřby; Martin: „pohřbívá se na starém slovanském hřbitově, ale
+// kostrově“) je bez hranice: máry nesou rovnou k hrobu, zemřelého spustí do země, lidé chvíli
+// stojí u hrobu (FUNERAL_TIMING.graveS) a pak se hrob zahrne – plochý hrob s křížem.
 import { cemeteryEntrance, type Entrance } from '@bohemia/game';
 import { FUNERAL_BEARERS, funeralKey, type SceneFuneral, type SceneMourner } from '../funeral-view';
 import type { SceneVillage } from '../village-view';
-import { MOUND_SHAPES, gravePlacements, moundPlacements } from './cemetery-layout';
+import { MOUND_SHAPES, gravePlacements, moundPlacements, moundReach } from './cemetery-layout';
 import { LIVESTOCK_EPOCH_MS } from './livestock-motion';
 import {
   alongRoute,
@@ -53,6 +56,11 @@ export const FUNERAL_TIMING = {
   /** Kdo došel ke kruhu dřív, jde na své místo po příchodu průvodu (s, po řadách). */
   ringStartS: 1,
   ringStepS: 0.35,
+  /**
+   * Kostrový pohřeb (návrh Clauda): po spuštění do hrobu stojí lidé u hrobu tolik sekund, pak se
+   * hrob zahrne a jdou domů – bez hoření a doutnání.
+   */
+  graveS: 40,
 } as const;
 
 /**
@@ -92,14 +100,16 @@ export interface FuneralTimeline {
   departMs: number;
   /** Máry u hranice (čelo průvodu se zastaví). */
   arriveMs: number;
-  /** Zemřelý leží na hranici – zapálí se. */
+  /** Zemřelý leží na hranici – zapálí se (u kostrového pohřbu leží u hrobu – spustí se). */
   litMs: number;
-  /** Dohořelo – uhlíky. */
+  /** Dohořelo – uhlíky (u kostrového pohřbu konec obřadu u hrobu). */
   outMs: number;
-  /** Vychladlo – nasype se mohyla. */
+  /** Vychladlo – nasype se mohyla (u kostrového pohřbu = `outMs`, hrob se zahrne). */
   coldMs: number;
   /** Tempo průvodu (m/s). */
   pace: number;
+  /** Kostrový pohřeb – bez hranice (christianity.md – Pohřby). */
+  inhumation?: true;
 }
 
 /** Člověk v průvodu: nosič, nebo člověk za márami (pohlaví, věk, kam se vrátí). */
@@ -138,7 +148,10 @@ export interface FuneralPlan {
   headS: number;
   timeline: FuneralTimeline;
   members: FuneralMember[];
-  /** Hranice: střed na místě mohyly a natočení podél posledního úseku trasy. */
+  /**
+   * Hranice: střed na místě mohyly a natočení podél posledního úseku trasy (u kostrového pohřbu
+   * střed hrobu – hranice tu nestojí).
+   */
   pyre: { x: number; z: number; headingX: number; headingZ: number };
   /** Obdélník trasy, kruhu a cest domů – obal pro ořez záběrem. */
   extent: { minX: number; maxX: number; minZ: number; maxZ: number };
@@ -191,15 +204,24 @@ export function processionPace(lengthM: number): number {
 /**
  * Časy obřadu z okna dne pohřbu a délky chůze průvodu (m od výchozího místa čela k zastavení):
  * schází se od začátku dne, jde tempem `processionPace`, hoří do konce dne (nejméně
- * MIN_BURN_S), doutná délku herního dne (nejméně MIN_SMOULDER_S).
+ * MIN_BURN_S), doutná délku herního dne (nejméně MIN_SMOULDER_S). Kostrový pohřeb (`rite`
+ * 'inhumation'): po spuštění do hrobu GRAVE_S u hrobu, pak se hrob hned zahrne.
  */
-export function funeralTimeline(window: DayWindow, walkM: number): FuneralTimeline {
+export function funeralTimeline(
+  window: DayWindow,
+  walkM: number,
+  rite?: SceneFuneral['rite'],
+): FuneralTimeline {
   const t = FUNERAL_TIMING;
   const pace = processionPace(walkM);
   const startMs = window.startMs;
   const departMs = startMs + t.gatherS * 1000;
   const arriveMs = departMs + (Math.max(0, walkM) / pace) * 1000;
   const litMs = arriveMs + t.layS * 1000;
+  if (rite === 'inhumation') {
+    const outMs = litMs + t.graveS * 1000;
+    return { startMs, departMs, arriveMs, litMs, outMs, coldMs: outMs, pace, inhumation: true };
+  }
   const outMs = Math.max(window.endMs, litMs + t.minBurnS * 1000);
   const dayMs = Math.max(1, window.endMs - window.startMs);
   const coldMs = outMs + Math.max(dayMs, t.minSmoulderS * 1000);
@@ -251,7 +273,8 @@ const SMOULDER = { glowUntil: 0.85, flickerUntil: 0.25 };
 
 export function pyreState(t: FuneralTimeline, nowMs: number): PyreState {
   const none = { stack: 0, bier: 0, fire: 0, remains: 0, glow: 0, ash: 0, smoke: 0 };
-  if (nowMs >= t.coldMs) return none;
+  // kostrový pohřeb hranici nemá – nic nehoří ani nedoutná
+  if (t.inhumation || nowMs >= t.coldMs) return none;
   if (nowMs < t.litMs) return { ...none, stack: 1 };
   if (nowMs < t.outMs) {
     const u = (nowMs - t.litMs) / Math.max(1, t.outMs - t.litMs);
@@ -282,7 +305,8 @@ export function pyreState(t: FuneralTimeline, nowMs: number): PyreState {
 /**
  * Máry v okamžiku `nowMs`: střed tyčí (x, z), výška nad terénem pod nimi (m) a směr vpřed; mimo
  * průvod a pokládání (a po shoření) skryté. Nesou je nosiči na ramenou, při pokládání se zvednou
- * na hranici a s ní se propadají do ohně.
+ * na hranici a s ní se propadají do ohně. Kostrový pohřeb: položí je na zem u hrobu a zemřelého
+ * spustí do hrobu (GRAVE_LOWER – propadne se pod zem), pak zmizí.
  */
 export interface BierPose {
   visible: boolean;
@@ -299,6 +323,12 @@ export interface BierPose {
 export function createBierPose(): BierPose {
   return { visible: false, x: 0, z: 0, lift: 0, onPyre: false, headingX: 0, headingZ: 1 };
 }
+
+/**
+ * Spuštění do hrobu u kostrového pohřbu: za jaký podíl doby u hrobu a jak hluboko pod zem (m –
+ * pak máry zmizí).
+ */
+const GRAVE_LOWER = { until: 0.25, depthM: 0.7 } as const;
 
 /** Kde je čelo průvodu (střed már) – vzdálenost po trase v okamžiku `nowMs`. */
 function headAt(plan: FuneralPlan, nowMs: number): number {
@@ -324,14 +354,30 @@ export function bierPose(plan: FuneralPlan, nowMs: number, out: BierPose): BierP
     return out;
   }
   if (nowMs < t.litMs) {
-    // nosiči zvednou máry z ramen na hranici (oblouk nahoru a dolů)
+    // nosiči zvednou máry z ramen na hranici (oblouk nahoru a dolů); u kostrového pohřbu je
+    // z ramen položí na zem k hrobu
     const u = smooth((nowMs - t.arriveMs) / Math.max(1, t.litMs - t.arriveMs));
     alongRoute(plan.path, plan.stopS, false, tmp);
     out.visible = true;
     out.x = tmp.x + (plan.pyre.x - tmp.x) * u;
     out.z = tmp.z + (plan.pyre.z - tmp.z) * u;
-    out.lift = BIER.carryM + (PYRE.heightM - BIER.carryM) * u + 0.35 * Math.sin(Math.PI * u);
+    out.lift = t.inhumation
+      ? BIER.carryM * (1 - u)
+      : BIER.carryM + (PYRE.heightM - BIER.carryM) * u + 0.35 * Math.sin(Math.PI * u);
     out.onPyre = u >= 1;
+    out.headingX = plan.pyre.headingX;
+    out.headingZ = plan.pyre.headingZ;
+    return out;
+  }
+  if (t.inhumation) {
+    // spustí do hrobu – propadá se pod zem, pak zmizí
+    const v = (nowMs - t.litMs) / Math.max(1, t.outMs - t.litMs) / GRAVE_LOWER.until;
+    if (v >= 1) return out;
+    out.visible = true;
+    out.x = plan.pyre.x;
+    out.z = plan.pyre.z;
+    out.onPyre = true;
+    out.lift = -GRAVE_LOWER.depthM * smooth(v);
     out.headingX = plan.pyre.headingX;
     out.headingZ = plan.pyre.headingZ;
     return out;
@@ -404,10 +450,7 @@ function cemeteryMounds(
         ),
     ),
     cemetery.id,
-  ).map((m) => {
-    const shape = MOUND_SHAPES[m.size];
-    return { x: m.x, z: m.z, r: Math.max(shape.radius, shape.length) * m.scale };
-  });
+  ).map((m) => ({ x: m.x, z: m.z, r: moundReach(m) }));
   const graves = gravePlacements(squares, cemetery.graves, cemetery.id).map((g) => ({
     x: g.x,
     z: g.z,
@@ -565,7 +608,7 @@ export function funeralPlan(
   const heading = unit(pyre.x - last[0], pyre.z - last[1]);
   const stopS = Math.max(0, path.length - STOP_M);
   const headS = Math.min(HEAD_START_M, stopS);
-  const timeline = funeralTimeline(window, stopS - headS);
+  const timeline = funeralTimeline(window, stopS - headS, funeral.rite);
   alongRoute(path, stopS, false, TMP_POSE);
   const stopPoint = { x: TMP_POSE.x, z: TMP_POSE.z };
   const t = FUNERAL_TIMING;

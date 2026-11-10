@@ -99,7 +99,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   podle významu (`SceneVillage.cemeteries[].mounds` – místo, velikost, `fresh` první rok –
   `FRESH_MOUND_DAYS`; `moundPlacements` se středem z jádra `gravePlaceCenter`, tvary
   `MOUND_SHAPES`: malá dítěte, běžná, podlouhlá hlavy rodiny po řadách, největší vojvody
-  a jeho ženy s dřevěným kůlem; sítě po vzhledu a velikosti) a staré hroby (`graves` – pohřbení před
+  a jeho ženy s dřevěným kůlem; sítě po vzhledu a velikosti; kostrový hrob křesťana
+  – `rite: 'inhumation'`, christianity.md – Pohřby – je plochý hrob `FLAT_GRAVE` v ose čtverce s malým
+  dřevěným křížem v čele `graveCross`, síť `flat` a kříže v instancích; pohřeb bez hranice –
+  `funeralTimeline(…, rite)`: máry položí k hrobu a spustí do země, `FUNERAL_TIMING.graveS` u hrobu,
+  `pyreState` nic nezapálí) a staré hroby (`graves` – pohřbení před
   mohylami, mřížka 7 × 8 po řadách jako dřív, `gravePlacements`, čerstvé jen bez mohyl);
   založení vytyčení (kolíky a provázek po ostrém obrysu) → kůly → pletení; rozšíření ve stavbě
   má vlastní kus plotu bez branky jen tam, kde plot ještě není (na starý jen navazuje), po

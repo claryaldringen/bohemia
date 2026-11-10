@@ -10,14 +10,17 @@ import {
 import {
   CEMETERY_FENCE,
   CEMETERY_PHASES,
+  FLAT_GRAVE,
   FRESH_GRAVES,
   GRAVE_GRID,
   MOUND_SHAPES,
   cemeteryConstruction,
   cemeteryFenceGone,
   fenceLayout,
+  graveCross,
   gravePlacements,
   moundPlacements,
+  moundReach,
 } from '../cemetery-layout';
 import type { CellSquare } from '../field-cells';
 import { PLOT_FENCE } from '../homestead-layout';
@@ -130,6 +133,50 @@ describe('moundPlacements (cemetery.md – Mohyly podle významu)', () => {
     // natočení po řadách (± půl otočky a drobná odchylka)
     const off = Math.abs(((m!.rotationY - rotation + Math.PI / 2) % Math.PI) - Math.PI / 2);
     expect(off).toBeLessThan(0.07);
+  });
+
+  it('kostrový hrob (christianity.md – Pohřby): plochý v ose čtverce, kříž v čele', () => {
+    const rotation = turnRotation(3);
+    const turned: CellSquare[] = [{ ...square(0, 0), rotation }];
+    const spots = [
+      {
+        cell: { x: 0, y: 0 },
+        column: 1,
+        row: 4,
+        size: 'small' as const,
+        rite: 'inhumation' as const,
+      },
+      {
+        cell: { x: 0, y: 0 },
+        column: 5,
+        row: 4,
+        size: 'small' as const,
+        rite: 'inhumation' as const,
+      },
+      { cell: { x: 0, y: 0 }, column: 3, row: 1, size: 'small' as const },
+    ];
+    const [a, b, pagan] = moundPlacements(turned, spots, 2);
+    expect(a!.rite).toBe('inhumation');
+    expect(pagan).not.toHaveProperty('rite');
+    // na středu svého místa, natočený jako čtverec – čelo s křížem vždy na stejné straně
+    const center = gravePlaceCenter(turned[0]!, 15, rotation, 1, 4, 1, 1);
+    expect(Math.hypot(a!.x - center.x, a!.z - center.z)).toBeLessThan(0.2);
+    expect(Math.abs(a!.rotationY - rotation)).toBeLessThan(0.05);
+    expect(Math.abs(b!.rotationY - rotation)).toBeLessThan(0.05);
+    // kříž v čele hrobu – na místní −x, kus od středu
+    const cross = graveCross(a!);
+    const d = Math.hypot(cross.x - a!.x, cross.z - a!.z);
+    expect(d).toBeCloseTo(FLAT_GRAVE.crossM * a!.scale, 6);
+    expect(FLAT_GRAVE.crossM).toBeLessThan(FLAT_GRAVE.halfLength);
+    const local =
+      (cross.x - a!.x) * Math.cos(a!.rotationY) - (cross.z - a!.z) * Math.sin(a!.rotationY);
+    expect(local).toBeCloseTo(-d, 6);
+    // hrob se vejde na jedno místo (≈ 2 × 1,75 m před zmenšením) a je nízký – ne mohyla
+    expect(2 * FLAT_GRAVE.halfLength * 1.04).toBeLessThan(2);
+    expect(2 * FLAT_GRAVE.halfWidth * 1.04).toBeLessThan(1.75);
+    expect(FLAT_GRAVE.height).toBeLessThan(MOUND_SHAPES.small.height);
+    expect(moundReach(a!)).toBeCloseTo(FLAT_GRAVE.halfLength * a!.scale, 6);
+    expect(moundReach(pagan!)).toBeCloseTo(MOUND_SHAPES.small.radius * pagan!.scale, 6);
   });
 });
 

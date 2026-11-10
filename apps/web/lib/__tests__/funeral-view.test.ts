@@ -14,6 +14,7 @@ import {
   funeralMourners,
   sceneFunerals,
 } from '../funeral-view';
+import { sceneMound } from '../village-view-scene-types';
 
 // Pohřeb ve scéně (cemetery.md – Pohřeb ve scéně; Martin 20. 10. 2026: „Když je pohřeb, chtěl bych
 // vidět průvod lidí na hřbitov a pak na hřbitově hranici.“).
@@ -107,6 +108,29 @@ describe('pohřby do scény (sceneFunerals)', () => {
     expect([...perHome.keys()].sort()).toEqual([1, 2, 3, 4]);
     for (const n of perHome.values()) expect(n).toBeGreaterThanOrEqual(1);
     for (const n of perHome.values()) expect(n).toBeLessThanOrEqual(2);
+  });
+
+  it('kostrový hrob křesťana nese obřad – scéna nezapálí hranici (christianity.md – Pohřby)', () => {
+    const funerals = sceneFunerals(
+      {
+        people: PEOPLE,
+        cemeteries: [
+          cemetery([
+            mound(0, DAY, { size: 'small', rite: 'inhumation', from: 1 }),
+            mound(2, DAY, { from: 2 }),
+          ]),
+        ],
+      },
+      DAY,
+    );
+    expect(funerals.map((f) => f.rite)).toEqual(['inhumation', undefined]);
+    expect(funerals[1]).not.toHaveProperty('rite');
+    // hrob do scény hřbitova (plochý s křížem) – obřad jde i tam
+    expect(sceneMound(mound(0, DAY, { size: 'small', rite: 'inhumation' }), DAY)).toMatchObject({
+      rite: 'inhumation',
+      fresh: true,
+    });
+    expect(sceneMound(mound(2, DAY), DAY)).not.toHaveProperty('rite');
   });
 });
 

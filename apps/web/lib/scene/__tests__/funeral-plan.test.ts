@@ -270,6 +270,59 @@ describe('pohyb průvodu a már v čase', () => {
   });
 });
 
+describe('kostrový pohřeb křesťana (christianity.md – Pohřby) – bez hranice', () => {
+  const CHRISTIAN: SceneFuneral = { ...FUNERAL, size: 'small', rite: 'inhumation' };
+
+  it('nic se nezapálí: po spuštění do hrobu chvíli u hrobu, hrob se zahrne hned', () => {
+    const t = funeralTimeline(windowOf(DAY), 20, 'inhumation');
+    expect(t.inhumation).toBe(true);
+    expect(t.outMs - t.litMs).toBe(FUNERAL_TIMING.graveS * 1000);
+    expect(t.coldMs).toBe(t.outMs);
+    // bez doutnání – o herní den dřív než po žárovém pohřbu
+    expect(t.coldMs).toBeLessThan(funeralTimeline(windowOf(DAY), 20).outMs);
+    const none = { stack: 0, bier: 0, fire: 0, remains: 0, glow: 0, ash: 0, smoke: 0 };
+    for (const at of [t.startMs, t.arriveMs + 1, t.litMs + 1, (t.litMs + t.outMs) / 2, t.outMs]) {
+      expect(pyreState(t, at)).toEqual(none);
+    }
+    // žárový pohřeb na stejném místě hranici má
+    expect(funeralTimeline(windowOf(DAY), 20).inhumation).toBeUndefined();
+  });
+
+  it('máry nesou rovnou k hrobu, položí je na zem a zemřelého spustí do hrobu', () => {
+    const p = plan(CHRISTIAN);
+    const t = p.timeline;
+    expect(t.inhumation).toBe(true);
+    const carried = bierPose(p, (t.departMs + t.arriveMs) / 2, createBierPose());
+    expect(carried).toMatchObject({ visible: true, lift: BIER.carryM, onPyre: false });
+    // pokládání: z ramen dolů, nikdy nahoru na hranici
+    const laying = bierPose(p, (t.arriveMs + t.litMs) / 2, createBierPose());
+    expect(laying.lift).toBeLessThan(BIER.carryM);
+    expect(laying.lift).toBeGreaterThan(0);
+    const down = bierPose(p, t.litMs + 1, createBierPose());
+    expect(down).toMatchObject({ visible: true, onPyre: true, x: FUNERAL.x, z: FUNERAL.z });
+    expect(down.lift).toBeLessThanOrEqual(0);
+    const lowered = bierPose(p, t.litMs + (t.outMs - t.litMs) * 0.2, createBierPose());
+    expect(lowered.lift).toBeLessThan(down.lift);
+    expect(bierPose(p, (t.litMs + t.outMs) / 2, createBierPose()).visible).toBe(false);
+  });
+
+  it('lidé stojí kolem hrobu, pak jdou domů; hrob se ukáže, jak odcházejí', () => {
+    const christian = plan(CHRISTIAN);
+    const pagan = plan();
+    const t = christian.timeline;
+    expect(moundHidden(christian, t.litMs + 1)).toBe(true);
+    expect(moundHidden(christian, t.outMs)).toBe(false);
+    const m = christian.members[5]!;
+    expect(m.leaveMs).toBeGreaterThan(t.outMs);
+    expect(m.leaveMs).toBeLessThan(pagan.members[5]!.leaveMs);
+    const pose = funeralPose(christian, 5, 'woman', 1.2);
+    const praying = pose(villagerSeconds((t.litMs + t.outMs) / 2), [], createVillagerPose());
+    expect(praying.clip).toBe('idle');
+    expect(Math.hypot(praying.x - m.ring.x, praying.z - m.ring.z)).toBeLessThan(1e-6);
+    expect(christian.figuresUntilMs).toBeLessThan(pagan.figuresUntilMs);
+  });
+});
+
 describe('mohyla až po dohoření (withoutHiddenMounds)', () => {
   it('hřbitov ve scéně bez mohyly pohřbu, dokud hranice nevychladne', () => {
     const p = plan();
