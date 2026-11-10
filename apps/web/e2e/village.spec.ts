@@ -1897,3 +1897,100 @@ test('panel Kronika – ikona v liště otevře kroniku vsi se zápisem o založ
     panel.locator('[data-testid="chronicle-entry"][data-kind="notice-began"]'),
   ).toHaveText(/Kovář nemá uhlí\./);
 });
+
+test('křest rodu – tlačítko u vojvody, potvrzení, zápis v kronice a kříž „Křesťan“ v panelu', async ({
+  page,
+}) => {
+  test.setTimeout(240_000);
+  const { email, seat: s } = await newPlayer(page, 'krest');
+  await found(page, villageSpots(s.landscape).dwelling);
+  const houseOf = (): Promise<{ known: number | null; baptized: number | null }[]> =>
+    query(
+      `SELECT h.christianity_known_year AS known, h.baptized_day AS baptized
+         FROM house h JOIN "user" u ON u.id = h.player_id
+        WHERE u.email = $1 AND h.ended_at IS NULL`,
+      [email],
+    );
+  expect((await houseOf())[0]?.baptized ?? null).toBeNull();
+
+  // rod se o křesťanství dozvěděl – bez toho tlačítko není
+  await query(
+    `UPDATE house SET christianity_known_year = 520
+      WHERE ended_at IS NULL AND player_id = (SELECT id FROM "user" WHERE email = $1)`,
+    [email],
+  );
+  const lordId = (await villageState(s.settlementId)).dynasty!.lordId!;
+  const villageIdOf = async (settlementId: string): Promise<string | undefined> =>
+    (
+      await query<{ id: string }>(
+        `SELECT id FROM village WHERE settlement_id = $1 ORDER BY created_at, id LIMIT 1`,
+        [settlementId],
+      )
+    )[0]?.id;
+  await page.waitForFunction(() => typeof window.__bohemiaE2E?.pollVillage === 'function', null, {
+    timeout: 120_000,
+  });
+  const selection = page.getByTestId('selection-panel');
+  const button = selection.getByTestId('selection-person-baptize');
+  // dotaz na ves a znovu výběr vojvody, dokud se v panelu nezobrazí tlačítko (pohled vsi se
+  // po přímé změně rodu v DB obnoví až dotazem)
+  await expect
+    .poll(
+      async () => {
+        await pollVillage(page);
+        await page.evaluate((id) => window.__bohemiaE2E!.selectPerson!(id), lordId);
+        return button.isVisible();
+      },
+      { timeout: 90_000, intervals: [1_500] },
+    )
+    .toBe(true);
+  await expect(button).toHaveAttribute('aria-label', 'Nechat se pokřtít');
+  await expect(selection.getByTestId('selection-person-christian')).toHaveCount(0);
+
+  await button.click();
+  const dialog = page.getByTestId('baptize-dialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByTestId('baptize-warning')).toHaveText(
+    'Křest nejde vzít zpět. Vedlejší manželky budou propuštěny.',
+  );
+  await page.screenshot({ path: test.info().outputPath('krest-dialog.png'), scale: 'css' });
+  await dialog.getByTestId('baptize-confirm').click();
+  await expect(dialog).toHaveCount(0);
+
+  // křest se zapíše hned, tlačítko zmizí
+  await expect.poll(async () => (await houseOf())[0]?.baptized ?? null).not.toBeNull();
+  await expect(button).toHaveCount(0);
+
+  // ves vojvody se pokřtí na začátku svého dne (den po křtu; pohled vsi ji dopočítá do dneška)
+  // Zpráva o křtu platí od zítřka a den v testovacím světě trvá hodiny – zpráva se přesune na dnešek
+  // a uložená ves se vrátí o den (zápis zvýší verzi a zahodí dopočtenou paměť), ves křest dopočte.
+  await query(
+    `UPDATE village_inbox SET day = day - 1
+      WHERE village_id = $1 AND body->>'kind' = 'rod-baptized'`,
+    [(await villageIdOf(s.settlementId)) ?? ''],
+  );
+  const rewound = await villageState(s.settlementId);
+  rewound.lastDay -= 1;
+  await writeVillageState(s.settlementId, rewound);
+  const entry = page
+    .getByTestId('chronicle-panel')
+    .locator('[data-testid="chronicle-entry"][data-kind="lord-baptized"]');
+  await page.getByTestId('chronicle-toggle').click();
+  await expect
+    .poll(
+      async () => {
+        await pollVillage(page);
+        return entry.count();
+      },
+      { timeout: 120_000, intervals: [2_000] },
+    )
+    .toBeGreaterThan(0);
+  await expect(entry).toHaveText(/Vojvoda se dal pokřtít\.$/);
+  await page.keyboard.press('Escape');
+  await page.evaluate((id) => window.__bohemiaE2E!.selectPerson!(id), lordId);
+  const christian = selection.getByTestId('selection-person-christian');
+  await expect(christian).toBeVisible();
+  await christian.hover();
+  await expect(page.getByRole('tooltip').filter({ hasText: 'Křesťan' }).first()).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath('krest-panel.png'), scale: 'css' });
+});

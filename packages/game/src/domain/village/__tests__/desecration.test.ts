@@ -221,6 +221,8 @@ describe('hřbitov po křtu', () => {
     expect(cemeteryMayGo(pagan(), full, DAY)).toBe(false);
     expect(cemeteryMayGo(baptized(), cemetery(3, DAY - YEAR), DAY)).toBe(false);
     expect(cemeteryMayGo(baptized(), cemetery(3, DAY - 11 * YEAR), DAY)).toBe(true);
+    // poslední pohřeb před začátkem světa (den < 0) nehodí výjimku a je dávno
+    expect(cemeteryMayGo(baptized(), cemetery(3, -5), DAY)).toBe(true);
     // jen staré hroby bez dne – počítá se od dokončení
     expect(lastBurialDay(cemetery(3, null))).toBe(DAY - 100 * YEAR);
   });

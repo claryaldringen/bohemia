@@ -344,8 +344,8 @@ v rozhraní.
 - [x] **Step 1:** Ikona z Blenderu; snímek tlačítka a kostrového hrobu do scratchpadu ke kontrole
       Martinem.
 - [x] **Step 2:** Test plánu pohřbu (kostrový bez hranice) – FAIL → PASS.
-- [ ] **Step 3:** e2e na vlastním portu a DB (`E2E_PORT`, `TEST_DATABASE`) – PASS. _e2e
-      v samostatné úloze po K8._
+- [x] **Step 3:** e2e na vlastním portu a DB (`E2E_PORT`, `TEST_DATABASE`) – PASS (test křtu rodu
+      ve `village.spec.ts`, samostatná úloha po K8).
 - [x] **Step 4:** Commit `feat(web): ikona křtu a kostrové pohřby ve scéně`.
 
 ### K10: Dokumentace a integrace
