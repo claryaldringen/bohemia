@@ -292,14 +292,16 @@ export function turnSelection(
   const turn = blocks.filter((p) => onTurn(kind(p)));
   const join: SeasonJoin[] = [];
   const used = new Set<number>();
-  // len místo jaře do potřeby na oděv – jen když jař dnes smí začít
-  if (options.flaxNeedKg > KG_EPSILON && springStartable(day)) {
-    // skupina prvního osevu se řadí, jen když díly v osevu potřebu nepokryjí (jen zrychlení)
-    for (const group of flaxCandidates(blocks, kind, cropOf, day)) {
-      if (flaxKg >= options.flaxNeedKg - KG_EPSILON) break;
-      for (const p of group()) {
+  // len místo jaře do potřeby na oděv – jen když jař dnes smí začít; na podzim (jař ještě ne) si ves
+  // díly na příští jarní len jen odloží (`used` bez zápisu do `join`) – ozim je nedostane
+  if (options.flaxNeedKg > KG_EPSILON) {
+    // dokud běží okno ozimu, díl na řadě dostává ozim – len se tehdy jen odkládá
+    const reserving = winterStartable(day);
+    const sowNow = !reserving && springStartable(day);
+    if (sowNow || reserving) {
+      for (const p of flaxCandidates(blocks, kind, cropOf, day)) {
         if (flaxKg >= options.flaxNeedKg - KG_EPSILON) break;
-        join.push({ id: p.id, crop: 'flax' });
+        if (sowNow) join.push({ id: p.id, crop: 'flax' });
         used.add(p.id);
         flaxKg += expectedFlaxKg(p, day);
       }
@@ -336,39 +338,31 @@ export function turnSelection(
 
 /**
  * Díly, které smí dostat len (fields.md – Len; Martin 9. 11. 2026: „Len je extrémně náročná
- * plodina na kvalitu půdy.“), v pořadí, ve kterém je len bere: díly, na kterých by dnes začala jař
- * – napřed díly v osevu (`again` – len zabere jen jejich jarní osev, odpočatý příloh nechá obilí),
- * pak díly prvního osevu (`first` a příloh 70–95 % `late` – len jim vezme kolo obilí; návrh
- * Clauda), v obou skupinách od nejlepší úrodnosti (při shodě podle id); jen díly od 70 %
- * (`isSowableFertility`), na kterých len 7 let nerostl (`flaxAllowed`). Nouzový příloh ne. Vrací
- * obě skupiny zvlášť – každá se seřadí až při zavolání (jen zrychlení: ves, které len pokryjí už
- * díly v osevu, první osev neřadí).
+ * plodina na kvalitu půdy.“), v pořadí, ve kterém je len bere: všechny díly na řadě (díly v osevu,
+ * první osev, příloh 70–95 %) od nejlepší úrodnosti (při shodě podle id) – len je na půdu
+ * nejnáročnější, tak mu patří nejlepší díly, ať jsou kdekoli (Martin 10. 11. 2026: „Ano. Jak jsme
+ * řekli, len je extrémně náročná plodina, ale zase ho není potřeba moc“; dřívější přednost dílů
+ * v osevu před prvním osevem je pryč – návrh Clauda); jen díly od 70 % (`isSowableFertility`),
+ * na kterých len 7 let nerostl (`flaxAllowed`). Nouzový příloh ne. Stejné pořadí slouží na jaře
+ * k setí a na podzim k odložení dílů před ozimem (`turnSelection`).
  */
 function flaxCandidates(
   blocks: readonly FieldPart[],
   kind: (p: FieldPart) => SowingKind | null,
   cropOf: (k: SowingKind | null) => 'winter' | 'spring' | null,
   day: number,
-): (() => FieldPart[])[] {
-  // jedním průchodem do dvou skupin (díly v osevu, první osev); řadí se až na požádání
-  const again: FieldPart[] = [];
-  const first: FieldPart[] = [];
+): FieldPart[] {
+  const list: FieldPart[] = [];
   for (const p of blocks) {
     const k = kind(p);
-    if (k === null) continue;
-    const group = k === 'again' ? again : k === 'first' || k === 'late' ? first : null;
-    if (!group || cropOf(k) !== 'spring' || !isSowableFertility(p) || !flaxAllowed(p, day)) {
-      continue;
-    }
-    group.push(p);
+    if (k !== 'again' && k !== 'first' && k !== 'late') continue;
+    if (cropOf(k) === null || !isSowableFertility(p) || !flaxAllowed(p, day)) continue;
+    list.push(p);
   }
-  // od nejlepší úrodnosti, při shodě podle id (úplné pořadí – nezávisí na pořadí bloků)
-  const ranked = (list: readonly FieldPart[]): FieldPart[] =>
-    list
-      .map((p) => ({ p, fertility: effectiveFertility(p, day) }))
-      .sort((a, b) => b.fertility - a.fertility || a.p.id - b.p.id)
-      .map(({ p }) => p);
-  return [(): FieldPart[] => ranked(again), (): FieldPart[] => ranked(first)];
+  return list
+    .map((p) => ({ p, fertility: effectiveFertility(p, day) }))
+    .sort((a, b) => b.fertility - a.fertility || a.p.id - b.p.id)
+    .map(({ p }) => p);
 }
 
 /** Díl na řadě s obilím – první osev a díl v osevu (ne příloh 70–95 % ani nouzový). */

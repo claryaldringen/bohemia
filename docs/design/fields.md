@@ -341,6 +341,8 @@ díl se osévá, dokud dává, a pak leží ladem, dokud se neodpočine.
    na kterých by dnes začala jař – napřed **díly v osevu** (len zabere jen jejich jarní osev),
    pak díly prvního osevu, v obou skupinách od nejlepší úrodnosti (návrh Clauda). V září a říjnu
    dostane díl na řadě ozim, len tedy přibývá až v listopadu (kopání pod jař) a na jaře.
+   **Změna 10. 11. 2026:** ves si díly na příští len **odloží předem** – viz Len, „Díly na len
+   si ves odloží na podzim“; pořadí „napřed díly v osevu“ je pryč, len bere nejúrodnější díly na řadě.
 5. **Páry k rádlům** ([oxen.md](oxen.md) – Kolik volů ves chce; návrh Clauda – páry jako za
    pevného sledu): první osev oběhu (odpočatý příloh, nový díl) se počítá do podzimního okna orby
    ozimu, díl v osevu do všech oken orby za rok (na podzim i na jaře).
@@ -1879,6 +1881,18 @@ a „Trhání“ níž; potřeba, výnos, práce, vyčerpání půdy, zpracován
      nestačí, díly **prvního osevu** (čerstvý díl, příloh 70–95 %) – len jim vezme jedno kolo obilí.
      Nouzový příloh pod 70 % ne. Proč i první osev: ves s prvním osevem jaří (založená na jaře) nemá
      díly po ozimu – jař po jaři čeká na ozim a len by neměl kam (ves z testů by v roce 603 lnu neměla).
+- **Díly na len si ves odloží na podzim** (Martin 10. 11. 2026, otázka „Má si ves díly na len
+  odkládat předem?“: „Ano. Jak jsme řekli, len je extrémně náročná plodina, ale zase ho není potřeba
+  moc“; návrh Clauda – provedení): dokud běží okno setí ozimu (září–říjen), ves před přidělením
+  ozimu **vyřadí z ozimu díly na příští jarní len** – jen do potřeby lnu na oděv (očekávaná úroda
+  dílu jako výše) a z dílů na řadě s **nejvyšší úrodností**, na kterých len 7 let nerostl. Stejný
+  seznam bere len v listopadu (kopání) a v dubnu, odložené díly se tedy do jara připravují (podzimní
+  nebo jarní příprava půdy) a osejí se lnem. Dnešní pořadí „napřed díly v osevu, pak první osev“
+  návrh Clauda **obrací**: len je „extrémně náročný na kvalitu půdy“ (Martin 9. 11. 2026), proto mu
+  patří nejlepší díly ať jsou čerstvé, odpočaté nebo v osevu (díl v osevu pak jde obilí dál).
+  Odložení se nikam neukládá – každý den se odvodí ze stavu dílů (`flaxCandidates`); díl, který
+  ozim už dostal, je v hospodářském roce a odložit se nedá. Není-li díl s úrodností od 70 %, len se
+  nezaseje (nedostatek oděvu jako dosud).
 - **Ženy a děti trhají souběžně s koncem žní** (Martin 10. 11. 2026: „Sklizeň na etapy … Mezi
   jednotlivými sklizněmi tak vznikaly přirozené mezery právě na vytrhání lnu.“ – schválený návrh
   Clauda, Pořadí důležitosti polních prací, Pozdní léto): ve dni, kdy je len zralý, jdou na trhání
