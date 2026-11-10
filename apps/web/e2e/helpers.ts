@@ -42,7 +42,9 @@ export async function openGameMenu(page: Page): Promise<ReturnType<Page['getByRo
 export async function signOut(page: Page): Promise<void> {
   const menu = await openGameMenu(page);
   await menu.getByRole('button', { name: 'Odhlásit' }).click();
-  await expect(page).toHaveURL(/\/$/);
+  // první vykreslení scény v headless prohlížeči (softwarová grafika) drží hlavní vlákno ≈ 7 s –
+  // přesměrování po odhlášení na něj počká
+  await expect(page).toHaveURL(/\/$/, { timeout: 30_000 });
 }
 
 export async function login(page: Page, email: string, password: string): Promise<void> {
