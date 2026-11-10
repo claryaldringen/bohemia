@@ -3,6 +3,7 @@ import { isOvergrown, overgrowthStage, partOvergrowthYears } from './fields';
 import { mownPartIds } from './hay';
 import { herdingCoverage } from './herding';
 import { grazingDemandHa, naturalPastureHa, villageHerds } from './livestock';
+import { partsByIdOf } from './parts-by-id';
 import { pastureGrazing } from './pasture';
 import { keepSwathsClearOfWoods } from './road-swath';
 import { villageOxen } from './oxen';
@@ -35,10 +36,13 @@ export function isGrazeableFallow(part: Pick<FieldPart, 'state' | 'overgrowthYea
  * plochy (OVERGROWTH.grazedMinShare).
  */
 export function grazedPartIds(state: VillageState, day: number, demandHa: number): Set<number> {
-  const areas = new Map(state.parts.map((p) => [p.id, p.areaM2 / M2_PER_HA]));
+  // plocha dílu z mapy dílů z paměti (`partsByIdOf` – při dvojím id platí poslední jako dřív
+  // u nové mapy ploch; jen zrychlení)
+  const byId = partsByIdOf(state.parts);
   const grazed = new Set<number>();
   for (const [id, ha] of pastureGrazing(state, day, demandHa, naturalPastureHa(state))) {
-    const area = areas.get(id) ?? 0;
+    const part = byId.get(id);
+    const area = part ? part.areaM2 / M2_PER_HA : 0;
     if (area > 0 && ha >= OVERGROWTH.grazedMinShare * area - EPSILON) grazed.add(id);
   }
   return grazed;
