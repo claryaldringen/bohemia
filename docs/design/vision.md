@@ -126,3 +126,5 @@ Mechaniky probereme postupně. Zatím nerozhodnuto:
     skupiny ([vstup do světa](newcomers.md)).
 11. **Konec světa** – co nastane v roce 1500: vyhodnocení, nový svět?
 12. **Historická věrnost vs. hratelnost** – v roce 500 v Čechách ještě feudální struktury nejsou.
+13. ~~**Křesťanství**~~ – rozhodnuto 10. 11. 2026 (Martin): objev s dobou, křest rodu tlačítkem
+    u vojvody, pomalé obrácení lidu s kostelem ([křesťanství](christianity.md)).

@@ -1,6 +1,6 @@
 # Křesťanství
 
-Stav: **návrh ke schválení** (10. 11. 2026). Zadání je Martinovo (citace níž), podrobnosti jsou
+Stav: **schváleno 10. 11. 2026** (Martin: „Takhle je to ok“). Zadání je Martinovo (citace níž), podrobnosti jsou
 návrh Clauda. Navazuje na [štěstí a posvátná místa](happiness.md), [hřbitov](cemetery.md),
 [vojvodovu rodinu](lord.md), [hradiště](hillfort.md), [příbuzenství a sňatky](kinship.md)
 a [pole](fields.md) (trojpolí od roku 1100).

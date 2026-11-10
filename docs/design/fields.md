@@ -353,7 +353,7 @@ díl se osévá, dokud dává, a pak leží ladem, dokud se neodpočine.
    a plodinu dostane podle prvního okna; díl na řadě pod 70 % jde ode dneška do přílohu. Zasetý
    díl jen ztratí `next`; ves bez `next` se nemění.
 8. **Od roku 1100 možnost trojpolí – návrh se připravuje** (`THREE_FIELD_FROM_YEAR` = 1100 v
-   `rules-fields.ts` – dnes se podle ní nic nepřepíná).
+   `rules-fields.ts` – dnes se podle ní nic nepřepíná). Podmínkou je i pokřtěný rod (Martin 10. 11. 2026: „Také bude podmínkou k přechodu na trojpolní systém“ – [křesťanství](christianity.md)).
 
 **Krátký příloh ve Vlkově (ověřeno 10. 11. 2026):** v měření Vlkova 871–873 šlo ≈ 3 ha ročně
 (≈ 8 % prvních osevů) na díly jen 0,6–2,5 roku ladem. Všechny měly při osevu 96–99 % – byly to
