@@ -220,6 +220,8 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'christianity-known' }
   /** Vojvoda se dal pokřtít (christianity.md – Křest rodu). */
   | { kind: 'lord-baptized' }
+  /** Roční obrácení vesničanů na křesťanství (christianity.md – Obrácení). */
+  | { kind: 'converted'; count: number }
   /** Pokřtěný vojvoda propustil vedlejší manželky (christianity.md – Jediná manželka). */
   | { kind: 'wives-released'; count: number }
   /** Dohoda z jednání: rod `vassal` přísahal rodu `lord` (jména hlav rodů). */

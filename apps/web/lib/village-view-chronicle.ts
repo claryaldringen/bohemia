@@ -615,6 +615,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return 'Rod se dozvěděl o novém Bohu.';
     case 'lord-baptized':
       return 'Vojvoda se dal pokřtít.';
+    case 'converted':
+      return event.count === 1 ? 'Pokřtil se 1 vesničan.' : `Pokřtilo se ${event.count} vesničanů.`;
     case 'wives-released':
       return `Vojvoda propustil vedlejší manželky (${event.count}).`;
     case 'negotiation-accepted':
