@@ -312,6 +312,14 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   (v ostrém ≈ 58). Test s prací v boji ať nestojí na souboji, který se rozhodne dřív (např. lučištníci
   – los taktu podle hodiny spuštění), a ať čeká na rozhodnutý boj; hradbu stavět s `builtDay` pár dní
   zpátky (tažení začíná i včera). Vzor: `multiplayer-war.spec.ts` – nájezd na palisádu s ochozem.
+  **Výběr klikem po přímé změně uložené vsi** (`writeVillageState` + `pollVillage`): ves dorazí
+  dotazem až za chvíli a klik ještě vybere starý stav – zmizí-li cíl s novou vsí (staveniště
+  obydlí má id stavby, hotové obydlí id obydlí), zmizí i panel. V `expect.poll` na panel nečekat
+  (`getAttribute('data-kind', { timeout: 500 }).catch(() => null)`) a klikat po vteřině
+  (`intervals: [1_000]` – rychlé kliky jsou dvojklik). **Cíle v krajině nováčka** (každá
+  registrace je jiná) nedávat pevným posunem – 150 m od zemnice padne občas do vody a A* cestu
+  nenajde; ověřit je mřížkou pochodu jako worker (`marchGrid` + `marchPath` nad krajinou a vsí
+  ze zápisu). Vzor: `multiplayer.spec.ts` – živé vedení.
 
 - **e2e a `test:db` souběžně z víc pracovních stromů:** port `next start` a testovací databázi
   čtou `playwright.config.ts` (a přes něj e2e pomocníci i worker v e2e) a testy adaptérů
