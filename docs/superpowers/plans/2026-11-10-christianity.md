@@ -311,10 +311,20 @@ day): VillageState` (+1 do `faith.desecrated`, kronika `sacred-felled` / `cemete
   pokřtít“), jen když `baptizable`; zašedlé s důvodem jinak se neukazuje; po kliknutí dialog
   „Křest nejde vzít zpět. Vedlejší manželky budou propuštěny.“ a potvrzení.
 
-- [ ] **Step 1:** Testy komponent: tlačítko jen u vojvody rodu, který zná a není pokřtěný; dialog;
+- [x] **Step 1:** Testy komponent: tlačítko jen u vojvody rodu, který zná a není pokřtěný; dialog;
       volání akce; texty kroniky.
-- [ ] **Step 2:** FAIL → implementace → PASS; `npx vitest run` v `apps/web`.
-- [ ] **Step 3:** Commit `feat(web): křest vojvody a texty kroniky`.
+- [x] **Step 2:** FAIL → implementace → PASS; `npx vitest run` v `apps/web`.
+- [x] **Step 3:** Commit `feat(web): křest vojvody a texty kroniky`.
+
+**Provedeno jinak než výš (návrh Clauda):** texty kroniky už byly z K3–K7. Kdo se smí nechat
+pokřtít, říká `VillageAccess.baptizable` (`villageAccess` už rod načítá – žádný dotaz navíc);
+tlačítko je u vojvody vsi (`currentLord` – toho `baptizeVillage` křtí), právo
+`ACTION_RIGHTS.baptizeLord` = `ennoble`. Ikona `house/faith-cross.png` zatím chybí – `FaithCross`
+přejde na zvon (`resources/bell.png`), K9 dodá soubor. Navíc: kříž „Křesťan“ v panelu osoby, rozpis
+víry v popisku štěstí, Zbourat u hřbitova pokřtěného rodu (pohanský rod tlačítko nemá) a varování
+u kurzoru „Vykácí posvátný háj.“ / „Vykácí posvátný dub.“ / „Zaorá starý hřbitov.“ – táž kontrola
+jádra s vsí pohanského rodu (`lib/desecration-warning.ts`); `docs/code/web-ui.md` – Křesťanství
+v rozhraní.
 
 ### K9: Scéna, ikona a e2e
 

@@ -171,6 +171,7 @@ import {
   playerNoticeLine,
   type NoticePanel,
 } from '@/lib/player-notices';
+import { checkWithDesecration, squaresWithDesecration } from '@/lib/desecration-warning';
 import { lastLordName, rememberLordName } from '@/lib/lord-name-memory';
 import { personPortrait } from '@/lib/person-view';
 import {
@@ -1079,10 +1080,14 @@ export function VillageGame({
   }, [scene, gateFort, runBuildAction]);
 
   /** Ves pro kontrolu umístění v prohlížeči – i s obydlími, která ještě čekají na server. */
-  const placementVillage = useCallback(() => {
-    const scene = withPending(viewRef.current?.scene ?? EMPTY_SCENE, pendingRef.current);
-    return placementVillageFromScene(scene);
-  }, []);
+  const placementScene = useCallback(
+    () => withPending(viewRef.current?.scene ?? EMPTY_SCENE, pendingRef.current),
+    [],
+  );
+  const placementVillage = useCallback(
+    () => placementVillageFromScene(placementScene()),
+    [placementScene],
+  );
 
   /**
    * Úsek od brány k bráně jinudy (demolition.md – Rozhodnutí): editor trasy s konci pevně
@@ -1241,7 +1246,9 @@ export function VillageGame({
         kind: 'plot',
         type,
         check: (plot) =>
-          item.check(decoded, placementVillage(), plot, viewRef.current?.woodLogs ?? 0),
+          checkWithDesecration(placementScene(), (village) =>
+            item.check(decoded, village, plot, viewRef.current?.woodLogs ?? 0),
+          ),
       };
     }
     if (item.placement !== 'footprint') throw new Error(`${type} se neumisťuje jako obydlí.`);
@@ -1249,7 +1256,9 @@ export function VillageGame({
       kind: 'dwelling',
       type,
       check: (position) =>
-        item.check(decoded, placementVillage(), position, viewRef.current?.woodLogs ?? 0),
+        checkWithDesecration(placementScene(), (village) =>
+          item.check(decoded, village, position, viewRef.current?.woodLogs ?? 0),
+        ),
     };
   };
 
@@ -1378,10 +1387,14 @@ export function VillageGame({
               sceneVillageRef.current?.grainPits,
             ),
           preview: (points) => ({
-            ...item.check(decoded, placementVillage(), points, fortVariant.id, {
-              woodSupply: viewRef.current?.woodSupply ?? 0,
-              ...(viewRef.current?.stoneSupply ? { stoneSupply: viewRef.current.stoneSupply } : {}),
-            }),
+            ...squaresWithDesecration(placementScene(), (village) =>
+              item.check(decoded, village, points, fortVariant.id, {
+                woodSupply: viewRef.current?.woodSupply ?? 0,
+                ...(viewRef.current?.stoneSupply
+                  ? { stoneSupply: viewRef.current.stoneSupply }
+                  : {}),
+              }),
+            ),
             label: '',
           }),
         },
@@ -1412,9 +1425,11 @@ export function VillageGame({
         {
           kind: 'squares',
           preview: (cells, grid, kindVariant) => ({
-            ...item.check(decoded, placementVillage(), cells, grid, kindVariant, {
-              woodSupply: viewRef.current?.woodSupply ?? 0,
-            }),
+            ...squaresWithDesecration(placementScene(), (village) =>
+              item.check(decoded, village, cells, grid, kindVariant, {
+                woodSupply: viewRef.current?.woodSupply ?? 0,
+              }),
+            ),
             label: '',
           }),
           ...(item.variants ? { variants: item.variants, ...(variant ? { variant } : {}) } : {}),
@@ -1457,7 +1472,9 @@ export function VillageGame({
           craft: item.craft,
           type: item.dwellingType,
           check: (position) =>
-            item.check(decoded, placementVillage(), position, viewRef.current?.woodLogs ?? 0),
+            checkWithDesecration(placementScene(), (village) =>
+              item.check(decoded, village, position, viewRef.current?.woodLogs ?? 0),
+            ),
         },
         (result) => {
           if (result.kind === 'workshop') buildWorkshop(result.craft, result.position);
@@ -1470,7 +1487,10 @@ export function VillageGame({
         {
           kind: 'sacred',
           type: item.sacredKind,
-          check: (position) => item.check(decoded, placementVillage(), position),
+          check: (position) =>
+            checkWithDesecration(placementScene(), (village) =>
+              item.check(decoded, village, position),
+            ),
         },
         (result) => {
           if (result.kind === 'sacred') buildSacred(result.type, result.position);
@@ -1492,7 +1512,9 @@ export function VillageGame({
         {
           kind: 'threshing-floor',
           check: (position) =>
-            item.check(decoded, placementVillage(), position, viewRef.current?.woodLogs ?? 0),
+            checkWithDesecration(placementScene(), (village) =>
+              item.check(decoded, village, position, viewRef.current?.woodLogs ?? 0),
+            ),
         },
         (result) => {
           if (result.kind === 'threshing-floor') buildThreshingFloor(result.position);
