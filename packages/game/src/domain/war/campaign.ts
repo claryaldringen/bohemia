@@ -1,5 +1,6 @@
 import type { WorldClock } from '../calendar';
 import type { NewVillageEvent, VillageEventBody } from '../village/inbox';
+import { cloneData } from '../village/clone';
 import type { HerdSpecies, Person, PersonRef, Prisoner, VillageState } from '../village/types';
 import { isLineMan } from '../village/dynasty';
 import { AGE } from '../village/rules';
@@ -232,7 +233,14 @@ function missingMaps(state: CampaignState, world: CampaignWorld): GridCell[] {
   return [...missing.values()];
 }
 
-/** Jeden takt – na kopii stavu (když chybí data, kopie se zahodí). */
+/**
+ * Jeden takt – na kopii stavu (když chybí data, kopie se zahodí). Kopie chrání i stav předchozího
+ * taktu a vše, co do něj takt vložil (události a upozornění ven, data ze světa a záměrů). Ruční
+ * kopie čistých dat (`cloneData`) je ≈ 5× rychlejší než `structuredClone` (u pochodu 20 tažení byla
+ * kopie polovina času smyčky); sdílené odkazy uvnitř stavu rozdělí jako kontrolní bod v JSON – stav
+ * sdílí jen záznamy, které se nemění na místě (prázdná `route` bojovníků z `openBattle`, `seenAt`
+ * varovaných vsí, `PersonRef` zajatců).
+ */
 function campaignTick(
   state: CampaignState,
   tick: number,
@@ -240,7 +248,7 @@ function campaignTick(
   ctx: TickContext,
   out: TickOut,
 ): CampaignState {
-  const s = structuredClone(state);
+  const s = cloneData(state);
   s.tick = tick;
   const day = dayOfTick(tick, ctx.world.clock);
   s.throughDay = dayOfTick(tick + 1, ctx.world.clock) - 1;

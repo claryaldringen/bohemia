@@ -280,6 +280,7 @@ a čtení bodu z JSON (≈ 35 %). Kopii na hranici kola **neodstraňujeme** (ná
 splněn s rezervou 5×, zisk by byl ≈ 2 % jádra a takt by přišel o zahození rozpracované kopie,
 když mu uprostřed chybí mapa nebo ves (`MissingData`) – bez kopie by se musel přepočítat znovu
 od začátku volání a upozornění taktu by sdílela objekty se stavem, který další takty mění.
+Od 10. 11. 2026 je kopie ruční a ≈ 5× levnější (`cloneData`) – viz níž „Kopie stavu za takt“.
 
 **Načítání vsí z databáze** (7. 11. 2026). Měření v paměti výš to nezachytí: každé kolo (1× za
 sekundu) načetlo celé stavy vsí, kterých se tažení týká – mapa políčka (`listBySettlement`), ves
@@ -343,6 +344,47 @@ průchodu všemi středy lesa (výsledek bit po bitu týž, otisk „opevněné 
 „Opevněné 5“ (strojová zátěž kolísala, load 50–110): jádro 6,6 % → 4,8 %, takty/s 301 → 418,
 `nearestForestOf` 10 % → mimo první řádky profilu; zbytek je `campaignTick` 29 %, `distanceToSegment`
 9 % (`Math.hypot` v `village/polygon.ts`, bez změny výsledku nezrychlitelné).
+
+**Kopie stavu za takt (10. 11. 2026, `perf/campaign-clone`).** Worker i měření volají
+`stepCampaigns` každých 250 ms, takže `stepCampaign` počítá skoro vždy **jeden takt**: za takt ho
+kolo volá 2× (první volání vrátí hned `waiting` – mapy si `computeCampaign` načítá v každém kole
+znovu; bez taktu, bez kopie), s vesnicí na cestě 3× (druhé spadne na `MissingData` hned v prvním
+taktu – ves; kopie se zahodí). Kopie „jednou za volání“ místo za takt by proto nepomohla.
+
+- **Úprava:** `campaignTick` kopíruje stav ručně – `cloneData` z `domain/village/clone.ts` (obecná
+  část `cloneState` vsi, bez sdílení) místo `structuredClone`: stav pochodu 60 mužů (≈ 28 kB JSON)
+  ≈ 40 µs místo ≈ 210 µs. Výsledek je tentýž – jen sdílené odkazy uvnitř stavu rozdělí jako JSON
+  kontrolního bodu; v testech a měření stav sdílí jen záznamy, které se nemění na místě (prázdná
+  `route` bojovníků z `openBattle` – `...base`, `seenAt` varovaných vsí, `PersonRef` zajatce
+  v `captives` i `loot.prisoners`). Všechny testy `packages/game` (zlaté otisky tažení, války,
+  opevnění a útěku) i otisky měření beze změny; nové testy (`campaign.test.ts`, `clone.test.ts`):
+  zmražený vstup `stepCampaign` (stejný výsledek, žádný sdílený objekt), `MissingData` uprostřed
+  vícetaktového kroku (výsledek = stav posledního celého taktu) a `cloneData` = `structuredClone`.
+- **Proč ne předání vlastnictví** (use-case smí stav měnit na místě, při `MissingData` se vrátí
+  k JSON bodu a takty přehraje; návrh Clauda – zamítnuto): `MissingData` v prvním taktu volání
+  přichází u nájezdu a varování v každém kole, takže by se pokaždé četl bod znovu (≈ 95 µs, víc
+  než ruční kopie) a přehrávalo od něj – s jinými načtenými vsemi než při prvním výpočtu. Stav by
+  navíc sdílel objekty s událostmi a upozorněními taktu, se záměry i se světem (vsi v paměti
+  workeru) a každé vložení do stavu by se muselo hlídat. Ušetřilo by se už jen ≈ 40 µs za takt.
+
+Měřeno střídavě před / po (2 dvojice, load 30–40 – souběžně e2e a jiný agent; M-série, jedno
+jádro). Otisky beze změny:
+
+| scénář                 | tažení | jádro před |      jádro po | takty/s před |  takty/s po | otisk      |
+| ---------------------- | -----: | ---------: | ------------: | -----------: | ----------: | ---------- |
+| pochod                 |      1 |  0,4–0,5 % |     0,3–0,4 % |      808–969 | 1 097–1 238 | `9c402aa9` |
+| pochod                 |      5 |  1,7–1,9 % |     1,3–1,4 % |  1 053–1 195 | 1 464–1 525 | `57f37aaf` |
+| pochod                 |     20 |  5,1–5,3 % | **3,3–3,4 %** |  1 508–1 556 | 2 344–2 455 | `7dea2bb5` |
+| opevněné vsi (nájezd)  |      5 |  5,2–5,5 % |     4,5–5,2 % |      364–383 |     384–443 | `669e1e4e` |
+| varování               |      5 |      2,9 % |     1,8–1,9 % |      687–700 | 1 045–1 143 | `3826f1c5` |
+| pochod 15 + varování 5 |     20 |      6,7 % | **4,0–4,4 %** |  1 189–1 198 | 1 827–2 013 | `d3a14f56` |
+
+Profil po (pochod 20): `(anonymní)` 57–60 % – čtení bodu (`JSON.parse` v portu, ≈ 95 µs) a otisk
+bodu (`JSON.stringify(from)` v `stepOne`, ≈ 120 µs – v každém kole bez uložení), hledání cesty
+(`search`) 16–18 %, `cloneObject` 13–14 %; u nájezdu `cloneObject` 18 % (dřív `campaignTick` 29 %
+– do něj profil připisoval `structuredClone`). **Další kandidát:** otisk bodu bez
+`JSON.stringify` (verze bodu z úložiště – změna portu a adaptéru DB), pak čtení bodu jen při
+změně verze.
 
 **Pohled na varování** – panel dvorce se při varování ptá každé 2 s (`use-alarm.ts`) a server
 pokaždé spočte `villageAlarmView`: přístup k vsi, Vrátit se, tažení s varováním (kontrolní bod),

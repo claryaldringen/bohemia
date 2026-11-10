@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
-import { cloneState } from '../clone';
+import { cloneData, cloneState } from '../clone';
 import { ROAD_TREE_ID_BASE } from '../road-trees';
 import { advanceVillage } from '../simulate';
 import type { VillageRoads, VillageState } from '../types';
@@ -93,6 +93,48 @@ describe('cloneState', () => {
     if (ids.kind === 'trees') ids.ids.push(13);
     expect(state).toEqual(before);
     expect(copy).not.toEqual(before);
+  });
+});
+
+describe('cloneData', () => {
+  /** Všechny objekty a pole v hodnotě. */
+  function objectsOf(value: unknown, out: object[] = []): object[] {
+    if (typeof value !== 'object' || value === null) return out;
+    out.push(value);
+    for (const v of Object.values(value)) objectsOf(v, out);
+    return out;
+  }
+
+  it('zkopíruje vše jako structuredClone a nesdílí s originálem žádný objekt ani pole', () => {
+    const data = {
+      tick: 7,
+      missing: undefined,
+      ratio: -0,
+      nan: Number.NaN,
+      groups: [{ id: 1, cell: { x: 2, y: 3 }, route: [{ x: 3, y: 3 }], leg: null }],
+      // klíče roads / parts / chronicle cloneState sdílí – cloneData ne
+      roads: { roads: [{ points: [{ x: 1, z: 2 }] }] },
+      parts: [{ cell: { x: 1, y: 1 } }],
+      chronicle: [{ year: 500 }],
+    };
+    const copy = cloneData(data);
+    expect(copy).toStrictEqual(structuredClone(data));
+    expect(Object.keys(copy)).toEqual(Object.keys(data));
+    expect(Object.is(copy.ratio, -0)).toBe(true);
+    const original = new Set(objectsOf(data));
+    expect(objectsOf(copy).filter((o) => original.has(o))).toEqual([]);
+    expect(cloneData(5)).toBe(5);
+    expect(cloneData(null)).toBeNull();
+  });
+
+  it('sdílený odkaz uvnitř dat rozdělí na dvě kopie (jako JSON), Map kopíruje přes structuredClone', () => {
+    const ref = { villageId: 'lhota', personId: 1 };
+    const data = { captives: [ref], prisoners: [{ ref }], byId: new Map([[1, { a: 1 }]]) };
+    const copy = cloneData(data);
+    expect(copy.captives[0]).toEqual(ref);
+    expect(copy.captives[0]).not.toBe(copy.prisoners[0]!.ref);
+    expect(copy.byId).not.toBe(data.byId);
+    expect(copy.byId.get(1)).toEqual({ a: 1 });
   });
 });
 
