@@ -216,6 +216,8 @@ export type ChronicleEvent = { day: number } & (
       led: number;
       loot: RaidLoot;
     }
+  /** Rod se dozvěděl o křesťanství (christianity.md – Objev křesťanství) – ve vsi vojvody. */
+  | { kind: 'christianity-known' }
   /** Dohoda z jednání: rod `vassal` přísahal rodu `lord` (jména hlav rodů). */
   | { kind: 'negotiation-accepted'; lord: string; vassal: string }
   /** Vazalství skončilo formálním vypovězením (jména hlav rodů; text je neutrální, bez viníka). */

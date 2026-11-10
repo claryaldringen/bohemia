@@ -57,6 +57,9 @@ trojpolí, ale stojí ho vedlejší manželky a nespokojenost pohanů, když jim
   | ---------------------- | ----- | --- | ----- | ----- | ------ | ------ | ------ | ------ |
   | rod už zná křesťanství | 0,2 % | 1 % | 3,4 % | 9,6 % | 23,9 % | 50,8 % | 83,7 % | 99,0 % |
 
+- **Seed losu:** seed rodu = `deriveSeed(seed světa, 'house:' + id rodu)`, los roku Y z
+  `'faith:' + Y` (návrh Clauda). Los roku Y padá 1. 1. Y rodům, které tehdy žijí – rod založený
+  během roku losuje poprvé příští 1. 1. (návrh Clauda).
 - **Jednou objevené nezmizí** (Martin) – ani po smrti vojvody; nástupce tlačítko zdědí.
 - **Kronika rodu:** „Rod se dozvěděl o novém Bohu.“ (návrh Clauda); upozornění ve vsi vojvody.
 - **Rody, které už žijí** (vývojový svět je kolem roku 870): při prvním načtení se los přehraje
@@ -76,7 +79,10 @@ trojpolí, ale stojí ho vedlejší manželky a nespokojenost pohanů, když jim
   před propuštěním zůstávají členy rodu (Martin), dcery také (návrh Clauda). Nové vedlejší
   manželky už nepřibudou. Elita hradiště ([hradiště](hillfort.md) – Elita) pak nerozlišuje
   manželky – rozdíl zmizí.
-- **NPC rody** se po objevu pokřtí samy – náhodně do 1–20 let (návrh Clauda).
+- **NPC rody** se po objevu pokřtí samy – náhodně do 1–20 let (návrh Clauda): k 1. 1. roku, který
+  je 1–20 let po roce objevu, los `'npc-baptism'` ze seedu rodu (návrh Clauda). Objev ani křest
+  NPC rodu se do kroniky nepíše – kroniku jeho vsi čte držitel a „Rod“ by v ní mátl (návrh
+  Clauda).
 
 ## Co křest rodu umožní
 

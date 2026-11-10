@@ -61,6 +61,9 @@ describe('playerNoticeLine', () => {
     const declared = notice({ kind: 'war-declared', payload: { name: 'Bořivoj' } });
     expect(playerNoticeLine(declared).text).toBe('Bořivoj opověděl válku.');
     expect(noticePanel('war-declared')).toBe('war');
+    const faith = notice({ kind: 'christianity-known', payload: { year: 700 } });
+    expect(playerNoticeLine(faith).text).toBe('Rod se dozvěděl o novém Bohu.');
+    expect(noticePanel('christianity-known')).toBeNull();
     const ending = notice({ kind: 'protection-ending', payload: {} });
     expect(playerNoticeLine(ending).text).toBe('Ochrana končí za 1 den.');
     const back = notice({ kind: 'campaign-returned', payload: { reason: 'supplies' } });
