@@ -850,6 +850,10 @@ hladu po ≈ 6 letech, osetá plocha ÷ pole a zásoby ÷ potřeba po 20. roce.
   stavby, ne průměr; Martin 19. 10. 2026 –, nasycení, datum), minimapa, panel
   vybraného obydlí (obyvatelé s věkem, stav, stáří, průběh stavby) a mřížka staveb. Žádný
   průvodce ani nápovědy.
+- **Výběr staveniště po dostavění** (návrh Clauda 10. 11. 2026, jako v 0 A.D. – výběr přejde ze
+  základů na hotovou budovu): vybrané staveniště obydlí, řemeslné dílny či přestavby zůstane po
+  dostavění vybrané jako hotová stavba – panel se z průběhu stavby přepne na obydlí, výběr tiše
+  nezmizí.
 - Krátké mizející upozornění, že rodina čeká na dům, že ves šetří jídlem, hladoví a že lidé
   umírají hlady (jen nejvyšší stupeň – Hlad a vymření), že byla svatba a že přišla nevěsta či
   ženich z okolí (fakt, ne rada).

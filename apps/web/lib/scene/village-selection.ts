@@ -58,6 +58,50 @@ export function allDwellingsTarget(village: SceneVillage): VillageTarget | null 
 }
 
 /**
+ * Id hotového obydlí, které stojí na místě dostavěného staveniště `id` (jinak null): staveniště
+ * bylo v `previous` (ne bourání), v `next` už není a v `next` je na jeho poloze hotové obydlí
+ * stejného typu a řemesla.
+ */
+function builtFrom(previous: SceneVillage, next: SceneVillage, id: number): number | null {
+  const site = previous.dwellings.find((d) => d.id === id);
+  if (!site || site.built || site.demolition !== undefined) return null;
+  if (next.dwellings.some((d) => d.id === id)) return null;
+  const { x, z } = site.position;
+  const done = next.dwellings.find(
+    (d) =>
+      d.built &&
+      d.type === site.type &&
+      d.craft === site.craft &&
+      d.position.x === x &&
+      d.position.z === z,
+  );
+  return done?.id ?? null;
+}
+
+/**
+ * Dostavěné staveniště (jako v 0 A.D. – výběr přejde ze základů na hotovou budovu; návrh Clauda,
+ * web-ui.md – Výběr): staveniště obydlí, řemeslné dílny i přestavby na novém pozemku je ve scéně
+ * pod id stavby, hotová stavba pod id obydlí (stavba 6 → obydlí 1). Vybrané staveniště, které
+ * mezi obnovenými stavy vsi `previous` → `next` zmizelo a na jeho místě stojí hotové obydlí
+ * stejného druhu, se vymění za to obydlí (i ve výběru víc obydlí). Nic k výměně → null.
+ * Modla, svatyně, humno a ohrada si id stavby nechají – výběr na ně trvá sám.
+ */
+export function followConstruction(
+  previous: SceneVillage,
+  next: SceneVillage,
+  target: VillageTarget,
+): VillageTarget | null {
+  if (target.kind === 'dwelling') {
+    const id = builtFrom(previous, next, target.id);
+    return id === null ? null : { kind: 'dwelling', id };
+  }
+  if (target.kind !== 'dwellings') return null;
+  const ids = target.ids.map((id) => builtFrom(previous, next, id) ?? id);
+  if (ids.every((id, k) => id === target.ids[k])) return null;
+  return dwellingsTarget([...new Set(ids)]);
+}
+
+/**
  * Bouraná stavba ve scéně zmizí a nahradí ji staveniště pod id stavby bourání (demolition-view.ts)
  * – vybraný dům, humno, modla či svatyně tak po pokynu Zbourat zůstane vybraný jako staveniště
  * bourání (panel ukáže průběh a Zrušit). Jiný cíl, nebo stavba, která ve vsi ještě je, → null.

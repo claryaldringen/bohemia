@@ -313,10 +313,10 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   – los taktu podle hodiny spuštění), a ať čeká na rozhodnutý boj; hradbu stavět s `builtDay` pár dní
   zpátky (tažení začíná i včera). Vzor: `multiplayer-war.spec.ts` – nájezd na palisádu s ochozem.
   **Výběr klikem po přímé změně uložené vsi** (`writeVillageState` + `pollVillage`): ves dorazí
-  dotazem až za chvíli a klik ještě vybere starý stav – zmizí-li cíl s novou vsí (staveniště
-  obydlí má id stavby, hotové obydlí id obydlí), zmizí i panel. V `expect.poll` na panel nečekat
-  (`getAttribute('data-kind', { timeout: 500 }).catch(() => null)`) a klikat po vteřině
-  (`intervals: [1_000]` – rychlé kliky jsou dvojklik). **Cíle v krajině nováčka** (každá
+  dotazem až za chvíli a klik ještě vybere starý stav – zmizí-li cíl s novou vsí, zmizí i panel
+  (dostavěné staveniště ne – výběr přejde na hotovou stavbu, viz Výběr staveniště po dostavění).
+  V `expect.poll` na panel nečekat (`getAttribute('data-kind', { timeout: 500 }).catch(() => null)`)
+  a klikat po vteřině (`intervals: [1_000]` – rychlé kliky jsou dvojklik). **Cíle v krajině nováčka** (každá
   registrace je jiná) nedávat pevným posunem – 150 m od zemnice padne občas do vody a A* cestu
   nenajde; ověřit je mřížkou pochodu jako worker (`marchGrid` + `marchPath` nad krajinou a vsí
   ze zápisu). Vzor: `multiplayer.spec.ts` – živé vedení.
@@ -438,6 +438,20 @@ Klik pošle `onSelectTarget({ kind: 'fields', ids })` – `ids` jsou `fieldIds` 
 zahodí zaniklá pole (jedno zbylé je pole) a panel `FieldsBody` ukáže součet výměry
 (`selection-area`) a počet polí (`selection-fields-count`). Výměru jednoho pole ukazuje
 `selection-area` v panelu pole (ha) a dílu (m²).
+
+## Výběr staveniště po dostavění (`followConstruction` v `lib/scene/village-selection.ts`)
+
+Jako v 0 A.D. přejde výběr ze základů na hotovou budovu (návrh Clauda 10. 11. 2026). Staveniště
+obydlí, řemeslné dílny i přestavby na novém pozemku je ve scéně (`SceneVillage.dwellings`,
+`built: false`) pod id stavby, hotová stavba pod id obydlí (stavba 6 → obydlí 1) – bez přechodu by
+výběr s novou vsí zmizel (`presentTarget` → null). `VillageGame` drží předchozí `sceneVillage`
+ve stavu (`selectionScene`) a při jeho změně ještě během vykreslení (panel neblikne) zavolá
+`followConstruction(předchozí, nová, vybraný)`: staveniště (ne bourání), které v nové vsi chybí,
+se vymění za hotové obydlí stejného typu a řemesla na téže poloze (`x`, `z` – stavba je přebírá
+ze stavby beze změny); ve výběru víc obydlí se vymění jen dostavěná id. Modla, svatyně, humno
+a ohrada si id stavby nechají (výběr trvá sám), bourání řeší `followDemolition`. Testy:
+`lib/scene/__tests__/village-selection.test.ts`, e2e `village.spec.ts` (založení vsi – vybrané
+staveniště zemnice přejde po dostavění na zemnici).
 
 ## Panel pole a dílu – osevní postup
 

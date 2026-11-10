@@ -149,6 +149,7 @@ import { DIRECTION_NAMES } from '@/lib/trade-names';
 import {
   allDwellingsTarget,
   describeTarget,
+  followConstruction,
   nextSelection,
   presentTarget,
   selectsAllDwellings,
@@ -885,6 +886,14 @@ export function VillageGame({
       }),
     [scene],
   );
+  // Dostavěné staveniště (jako v 0 A.D.): výběr přejde ze základů na hotové obydlí hned při
+  // obnovení vsi – už během vykreslení, ať panel výběru neblikne (web-ui.md – Výběr)
+  const [selectionScene, setSelectionScene] = useState(sceneVillage);
+  if (selectionScene !== sceneVillage) {
+    setSelectionScene(sceneVillage);
+    const built = selected && followConstruction(selectionScene, sceneVillage, selected);
+    if (built) setSelected(built);
+  }
   const current = useMemo(() => presentTarget(sceneVillage, selected), [sceneVillage, selected]);
   // Brána opevnění (fortifications.md – Rozhraní): tlačítko v panelu zapne klikání na obvod – další
   // levé kliknutí do krajiny přidá bránu, pravé a Esc zruší; změna výběru režim vypne.

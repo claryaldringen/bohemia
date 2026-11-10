@@ -203,22 +203,15 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   await page.mouse.click(point!.x, point!.y, { button: 'right' });
   await expect(panel).toHaveCount(0);
 
-  // Dostavěná zemnice (i ves uložená dřív se zemnicí od založení): osadníci v ní bydlí.
+  // Dostavěná zemnice (i ves uložená dřív se zemnicí od založení): osadníci v ní bydlí. Vybrané
+  // staveniště (id stavby) po dostavění přejde na hotovou zemnici (id obydlí) – jako v 0 A.D.
+  // výběr ze základů na budovu (web-ui.md – Výběr); klik po vteřině, dva rychlé by byly dvojklik.
+  await page.waitForTimeout(1_000);
+  await clickZemnice();
+  await expect(panel).toHaveAttribute('data-kind', 'site');
   await writeVillageState(s.settlementId, withBuiltFirstDwelling(founded));
   await pollVillage(page);
-  await expect
-    .poll(
-      async () => {
-        await clickZemnice();
-        // Ves se zemnicí dorazí dotazem až za chvíli: klik ještě vybere staveniště (id stavby),
-        // a dorazí-li ves hned po kliku, staveniště i panel zmizí (zemnice má id obydlí) – na
-        // panel nečekat, kliknout znovu.
-        return panel.getAttribute('data-kind', { timeout: 500 }).catch(() => null);
-      },
-      // klik po vteřině – dva rychlé kliky by byly dvojklik
-      { timeout: 20_000, intervals: [1_000] },
-    )
-    .toBe('dwelling');
+  await expect(panel).toHaveAttribute('data-kind', 'dwelling', { timeout: 20_000 });
   // ves zakládá vojvoda s hlavní a třemi vedlejšími manželkami (lord.md – Zakladatelé)
   await expect(panel.getByTestId('selection-occupants')).toHaveText('5/6');
   // zemnice zakladatelů je dvorec – obyvatelé jako rodina; dovednosti jen v panelu osoby (lord.md)
