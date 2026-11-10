@@ -605,6 +605,43 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   (`turnSelection` 0,57 s – druh osevu a bloky osevu všech dílů každý den oken setí), práce dne
   1,47 s (dosah vozů `reachOf` 0,39 s, cesta orby `travelToday` 0,30 s – první volání dne po
   změně stadia dílů přestaví půdu vozu), správce 1,17 s a měsíc cest 1,13 s.
+  **Kolo 12 (10. 11. 2026, fronta zrychlení výpočtu – Martin schválil):** navazuje na kolo 11 po
+  přílohové soustavě, zimě bez sena, lnu a křesťanství; stav Vlkova z DB 9. 11. (skripty
+  `scratchpad/prof12`, strom před změnami `prof12/base`, mikroměření funkcí na stavu ze 14. 9.
+  `bench.mts` a úplného přepočtu tras `bench2.mts`). Jen zrychlení – otisk stavu po 1, 2 a 3
+  letech před i po každé úpravě týž vcelku i po 37 dnech (sha256 `68650dfcae5f`, `fd83bf7e3fac`,
+  `1f72d30671ed` – nové otisky po změně pravidel od kola 11), zlaté otisky testů beze změny. Nové
+  kroky jsou levné: `recordFelledSacredOn` po každém dni, štěstí se dvěma skupinami
+  (`updateHappiness` 0,04 s) a `snowDaysAhead` v profilu zahřátých roků 2–4 pod 0,01 s. Tři
+  úpravy: **výhled ozimu přídělu** (`daysUntilFoodHarvest` – jídlo dne a přežívací zásoba
+  `seedKeepKg` ho volají ≈ 5× denně) potřebuje jen vědět, zda odhad ozimu (`expectedWinterKg`)
+  dosáhne potřeby do sklizně jaře – sčítání úrody dílů skončí, jakmile ji dosáhne (sčítance nejsou
+  záporné, sčítání je monotónní, porovnání dopadne stejně; `cropYieldKg` s `stopAtKg`); **výběr
+  dílů dne** (`turnSelection` – každý den oken setí, ≈ 2 200 dílů ve výběru) drží druh osevu,
+  díly letošní práce a vybrané díly v polích podle id místo map a množin (díly jsou seřazené podle
+  id; id mimo rozsah nebo necelá – mapy jako dřív), díly pro len hledá, jen když len letošní práce
+  potřebu nepokryje, a vydává je z haldy v pořadí stabilního řazení (úrodnost, id, pořadí v blocích
+  – len bere jen pár nejlepších z ≈ 2 000 kandidátů; rok sklizně lnu `flaxAllowedIn` jednou za
+  den) – na stavu ze 14. 9. 2,78 → 1,34 ms za volání; **ves pro pěšiny a pastva**
+  (`pathVillageOf` – měsíční úklid cest, převážení tras) rozdělí díly po polích jedním průchodem
+  (dřív průchod všemi díly pro každé pole s prázdným polem pro každý cizí díl), `grazedPartIds`
+  bere plochu z mapy dílů z paměti (`partsByIdOf`) místo nové mapy ploch – 5,2 → 4,7 ms za volání
+  (`pastureGrazedParts` 1,86 → 1,54 ms); `windowSeedNeedKg` sčítá plochu dílů na řadě bez
+  seznamu (beze změřitelného zisku – čas nese čtení dílů různých tvarů, `nextSowing` a množina).
+  Zkoušeno a vráceno: hledání sítě pěšin bez kontroly okraje u vnitřních buněk (`search`) – úplný
+  přepočet tras ≈ 270 ms před i po, v šumu. Profil zahřátých roků 2–4 před / po hned po sobě
+  (zátěž 8,5 / 7,7; celkem 11,46 → 11,12 s, −3 %): sezóna 2,18 → 1,77 s (výběr dílů
+  `seasonSelection` 1,32 → 0,97, `turnSelection` 0,78 → 0,48, `flaxCandidates` 0,18 → 0,03 s),
+  `baseMealInput` 0,57 → 0,39 s (`daysUntilFoodHarvest` 0,34 → 0,17 s), `pathVillageOf` 0,48 →
+  0,42 s. Rok Vlkova (`years.mts`) střídavě před / po (zátěž 10,7–12,4): roky 2–4 3,06 / 3,71 /
+  4,32 a 3,25 / 3,88 / 4,44 s → 3,02 / 3,61 / 4,46 a 2,93 / 3,59 / 4,15 s (průměr 3,78 → 3,63 s,
+  −4 %), studený rok 1 6,90 / 6,93 → 6,86 / 6,70 s. Nejvíc dál bere (zahřáté roky 2–4 po úpravách)
+  přepočet tras 2,11 s (`routeAllSteps` 1,09 s, převážení `reweighedList` 0,47 s), sezóna 1,77 s,
+  práce dne 1,59 s (odhad jízd vozů `villageCartEstimates` 0,65 s – ≈ 100 volání za rok, čas nesou
+  úsečky mimo paměť po změně půdy vozu), správce 1,27 s a měsíc cest 1,21 s (úklid `tidyMonth`
+  0,53 s – copánek přes křižovatku `ringBraid` 0,31 s, z toho ves pro pěšiny 0,19 s; vyšlapané kusy
+  `eachWearRun` 0,33 s); konce oken setí (`shrinkInPlan` 0,25 s – úseky práce pro každý vrácený
+  díl znovu) a denní kontroly změn po všech dílech (`roadFieldsDay` 0,36 s, `updateRuins` 0,25 s).
 
 - **Čísla** pravidel jsou jen v `rules*.ts` (u každého odkaz na sekci návrhu); změna čísla = i
   text v návrhu. Kalibrace: `measure-village.ts` nasimuluje stovky vsí a vypíše cíle z Kalibrace

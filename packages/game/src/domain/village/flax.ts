@@ -46,7 +46,12 @@ export function seasonHarvestYear(day: number): number {
  * posledního lnu na dílu (`FieldPart.flaxYear` – chybí = smí hned).
  */
 export function flaxAllowed(part: Pick<FieldPart, 'flaxYear'>, day: number): boolean {
-  return part.flaxYear === undefined || seasonHarvestYear(day) - part.flaxYear >= FLAX.returnYears;
+  return flaxAllowedIn(part, seasonHarvestYear(day));
+}
+
+/** `flaxAllowed` s rokem sklizně spočteným předem (`seasonHarvestYear` – jen zrychlení). */
+export function flaxAllowedIn(part: Pick<FieldPart, 'flaxYear'>, harvestYear: number): boolean {
+  return part.flaxYear === undefined || harvestYear - part.flaxYear >= FLAX.returnYears;
 }
 
 /**

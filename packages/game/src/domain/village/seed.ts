@@ -474,13 +474,13 @@ export function windowSeedNeedKg(
       kg += workSeedKg(work, byId, crop) * (1 - sownShare(work));
     }
   }
-  const onTurnParts: FieldPart[] = [];
+  // jako `partsSeedKg` dílů na řadě – plocha sčítaná po dílech v témže pořadí, bez seznamu dílů
+  let ha = 0;
   for (const part of state.parts) {
-    if (inSeason.has(part.id)) continue;
-    const kind = nextSowing(part);
-    if (onTurn(kind)) onTurnParts.push(part);
+    if (inSeason.size > 0 && inSeason.has(part.id)) continue;
+    if (onTurn(nextSowing(part))) ha += part.areaM2 / M2_PER_HA;
   }
-  return kg + partsSeedKg(onTurnParts, crop);
+  return kg + ha * cropSeedPerHa(crop);
 }
 
 /**

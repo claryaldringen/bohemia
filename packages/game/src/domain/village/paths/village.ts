@@ -19,6 +19,7 @@ import { gridKey, squareCenter } from '../square-grid';
 import { fieldGrids } from '../squares';
 import type {
   DwellingPlot,
+  FieldPart,
   HerdSpecies,
   Pen,
   PenSquare,
@@ -218,18 +219,22 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
   ];
   const grazed = pastureGrazedParts(state, day);
   // stadium dílu – cenu pole nemění (paths.md – Stálé trasy), jen zarostlý díl a úhor pro pastvu
+  // díly s políčkem po polích v pořadí stavu – jedním průchodem místo průchodu všemi díly pro
+  // každé pole (jen zrychlení)
+  const partsOfField = new Map<number, FieldPart[]>();
+  for (const p of state.parts) {
+    if (p.cell === undefined) continue;
+    const list = partsOfField.get(p.fieldId);
+    if (list) list.push(p);
+    else partsOfField.set(p.fieldId, [p]);
+  }
   const fields = state.fields.map((f) => ({
     id: f.id,
-    parts: state.parts.flatMap((p) => {
-      if (p.fieldId !== f.id || p.cell === undefined) return [];
-      return [
-        {
-          ...square(landscape, p.cell, f.grid),
-          stage: partStage(p, day),
-          ...(isGrazeableFallow(p) ? { grazed: grazed.has(p.id) } : {}),
-        },
-      ];
-    }),
+    parts: (partsOfField.get(f.id) ?? []).map((p) => ({
+      ...square(landscape, p.cell!, f.grid),
+      stage: partStage(p, day),
+      ...(isGrazeableFallow(p) ? { grazed: grazed.has(p.id) } : {}),
+    })),
   }));
   const woods = villageWoods(state).map((w) => ({
     ...square(landscape, w.cell, w.grid),

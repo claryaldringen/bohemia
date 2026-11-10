@@ -720,6 +720,7 @@ function cropYieldKg(
   crop: Crop = 'spring',
   losses?: PartLosses,
   seedFrac = 0,
+  stopAtKg = Infinity,
 ): number {
   const weedFrac = workedShare(work, 'weed');
   // díly podle id z paměti po seznamu dílů (`partsByIdOf` – jako mapa jen dílů plánu: při dvojím
@@ -739,19 +740,24 @@ function cropYieldKg(
       harvestFrac;
     const kept = 1 - (losses?.[id]?.share ?? 0);
     total += Math.max(0, ha * gross * kept - ha * cropSeedPerHa(crop) * seedFrac);
+    // sčítance nejsou záporné a sčítání je monotónní – součet už pod `stopAtKg` neklesne
+    if (total >= stopAtKg) return total;
   }
   return total;
 }
 
 /**
  * Odhad, o kolik ozim zvětší zásoby (příděl): bez osiva, které zásoby ještě vezmou; sklizeň celá, pletí jen kolik je hotové (před pletím
- * neopletá úroda – opatrně) a setí do konce okna setí celé, potom jen zasetá část.
+ * neopletá úroda – opatrně) a setí do konce okna setí celé, potom jen zasetá část. `stopAtKg` –
+ * stačí vědět, zda odhad dosáhne tolika: sčítání skončí, jakmile ho dosáhne (vrátí částečný
+ * součet, aspoň `stopAtKg` – jen zrychlení, porovnání dopadne stejně).
  */
 export function expectedWinterKg(
   work: CropWork,
   parts: FieldPart[],
   day: number,
   losses?: PartLosses,
+  stopAtKg = Infinity,
 ): number {
   const sowing = taskWindowEnd('sow', dateOfDayIndex(day).month, 'winter') !== null;
   const sown = planShare(work, 'sow');
@@ -766,6 +772,7 @@ export function expectedWinterKg(
     'spring',
     losses,
     sowing ? 1 - sown : 0,
+    stopAtKg,
   );
 }
 
@@ -787,9 +794,8 @@ export function daysUntilFoodHarvest(
   if (!winter || winter.harvestedKg !== null || winter.partIds.length === 0) return late;
   const early = daysUntilWinterHarvest(day);
   if (early >= late) return late;
-  return expectedWinterKg(winter, parts, day, losses) >= needPerDayKg * (late - early)
-    ? early
-    : late;
+  const neededKg = needPerDayKg * (late - early);
+  return expectedWinterKg(winter, parts, day, losses, neededKg) >= neededKg ? early : late;
 }
 
 /** Roční plán uložený před hospodářským rokem (jař na nejvyšší úrovni, ozim, luštěniny, len zvlášť). */
