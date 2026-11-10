@@ -554,9 +554,10 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   5,36 s, následující zahřátý 6,10 / 5,90 → 5,60 / 5,57 s – nový proces se stavem po převodu je
   tedy po úpravě terénu stejně rychlý jako zahřátý; rozdíl 7,6 proti 4,5 s nesou převod stavu
   z DB a dva přepočty tras roku 1, ne mezipaměti. Objížďku stěn zkrátit dolní mezí podle dosahu
-  nejde (dosah 98 % bodů je pod nalezenou mezí – 15,96 z 16,29 mil.). Pozor do provozu: paměť
-  chůze drží jen 2 krajiny (`MEMO_LANDSCAPES`) – worker s mnoha vsemi bude přepočty vzdáleností
-  počítat studeně (jako den 1. 4. bez převodu), to stojí za změření. Nejvíc dál bere (zahřáté roky
+  nejde (dosah 98 % bodů je pod nalezenou mezí – 15,96 z 16,29 mil.). Paměť chůze drží jen
+  2 krajiny (`MEMO_LANDSCAPES`) – worker s mnoha vsemi přepočty vzdáleností počítá studeně;
+  změřeno 10. 11. (village-roads.md – Paměť chůze ve workeru): ≈ 0,16 s na přepočet, v přirozeném
+  roce ≈ 3 % roku vsi, beze změny. Nejvíc dál bere (zahřáté roky
   2–4 po úpravách) přepočet tras 2,39 s (hledání sítě pěšin `routeAllSteps` 1,12 s, převážení tras
   0,68 s – `tripGroups` 0,32 s, z toho textový klíč `squareCellsOf` 0,20 s), sezóna 2,18 s (výběr
   dílů 1,34 s – `turnSelection` 0,67, pásy dávky `joinBands` 0,33 s – rozvržení orby dílů výběru
