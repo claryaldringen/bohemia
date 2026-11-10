@@ -2,7 +2,15 @@ import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { test, expect, type Page } from '@playwright/test';
-import { newCampaign, resolveWorldClock, tickOfMs, type CampaignMember } from '@bohemia/game';
+import {
+  marchGrid,
+  marchPath,
+  newCampaign,
+  obstaclesOf,
+  resolveWorldClock,
+  tickOfMs,
+  type CampaignMember,
+} from '@bohemia/game';
 import { E2E_ENV } from '../playwright.config';
 import { registerAndEnterGame, uniqueEmail, useUniqueClientIp } from './helpers';
 import { linkFromLastMail } from './mail';
@@ -1465,11 +1473,45 @@ test('živé vedení: hráčův muž vede tažení, hráč klikne cíl na mapě 
     });
     const from = await at();
 
-    // klik 150 m ke středu mapy – velitel jde
-    const goal = {
-      x: from.x - Math.sign(from.x || 1) * 150,
-      z: from.z,
-    };
+    // klik 150 m od velitele (přednostně ke středu mapy), kam vede krátká cesta – velitel jde.
+    // Krajina je u každé registrace náhodná: bod 150 m ke středu mapy padl ve ≈ 7 % krajin do
+    // vody (potok, rybník), A* (`marchPath`) k němu cestu nenašel a velitel stál. Cíl i jeho okolí
+    // (klik na mapě široké 1920 m má zrnitost pár metrů) proto ověří stejná mřížka pochodu jako
+    // ve workeru (krajina a ves A).
+    const grid = marchGrid(seatA.landscape, obstaclesOf(seatA.landscape), stateA, {
+      day: stateA.lastDay,
+    });
+    const toCenter = -Math.sign(from.x || 1);
+    const goal = [
+      { x: toCenter, z: 0 },
+      { x: toCenter, z: 1 },
+      { x: toCenter, z: -1 },
+      { x: 0, z: 1 },
+      { x: 0, z: -1 },
+      { x: -toCenter, z: 1 },
+      { x: -toCenter, z: -1 },
+      { x: -toCenter, z: 0 },
+    ]
+      .map((d) => {
+        const k = 150 / Math.hypot(d.x, d.z);
+        return { x: from.x + d.x * k, z: from.z + d.z * k };
+      })
+      .find(
+        (g) =>
+          Math.max(Math.abs(g.x), Math.abs(g.z)) < 900 &&
+          [
+            [0, 0],
+            [8, 0],
+            [-8, 0],
+            [0, 8],
+            [0, -8],
+          ].every(([dx, dz]) => {
+            const path = marchPath(grid, from, { x: g.x + dx!, z: g.z + dz! });
+            // krátká trasa – za 60 s (≈ 200 m louky) dojde velitel skoro k cíli
+            return path !== null && path.meadowM[path.meadowM.length - 1]! < 200;
+          }),
+      );
+    if (!goal) throw new Error('Kolem velitele není 150 m daleko místo s krátkou cestou.');
     const box = (await map.getByTestId('campaign-svg').boundingBox())!;
     await a.mouse.click(
       box.x + ((goal.x + 960) / 1920) * box.width,
