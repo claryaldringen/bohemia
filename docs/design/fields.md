@@ -298,6 +298,89 @@ Clauda**; implementace v `square-grid.ts` a `squares.ts` (jádro), ve scéně `f
   (testy a kalibrace beze změny); dopočet po kouscích dává totéž jako vcelku i s natočenými
   stavbami.
 
+### Přílohová soustava do roku 1100 (Martin 10. 11. 2026)
+
+Stav: **Martin, 10. 11. 2026:** „Postupnými úpravami jsme podle mě omylem zavedli trojpolní systém
+místo přílohového“ – „Takže teď máme hybridní systém?“ – „Pojďme to udělat takto: od roku 500 do
+roku 1100 bude přílohový systém. Od roku 1100 výš bude možnost přejít na trojpolní systém, ale bude
+to mít svá úskalí“. Podrobnosti jsou **návrh Clauda** – vrací původní pravidlo Přílohové soustavy
+„Osev rok po roku do 70 %“.
+
+**Proč:** pevný sled na dílu **ozim → jař → úhor** (Osevní postup po dílech, bod 1, od 25. 10. 2026) je pořadí z trojpolí – jen s víc lety úhoru. Přílohová soustava pořadí plodin nezná:
+díl se osévá, dokud dává, a pak leží ladem, dokud se neodpočine.
+
+**Pravidla (platí od roku 500 do konce roku 1099 herního kalendáře):**
+
+1. **Osev rok po roku do 70 %:** díl se osévá rok co rok, dokud jeho úrodnost před osevem
+   neklesne pod **70 %** přirozené (`FERTILITY.sowableMin`); každý osev obilí ubere 12 %
+   (`sowDepletion`), len 18 %, luštěniny starších vsí přidají 3 % (beze změny). Pak leží ladem
+   jako **příloh**, dokud se neodpočine na **95 %** (`fallowReady`, obnova 5 % ročně – Martin 26. 10. 2026). Platí pro každý osev – obilí, len i nouzový příloh (ten po osevu klesne pod 70 %
+   a jde rovnou zpět do přílohu).
+2. **Plodina podle prvního okna – žádný předepsaný sled:** díl na řadě (odpočatý příloh, nový díl
+   i díl v osevu) dostane **ozim**, když setí ozimu začne v okně ozimu (září–říjen), jinak na jaře
+   **jař** (jako dřív první osev oběhu). Po žni ozimu (červenec–srpen) tak díl může na podzim dostat
+   zase ozim, po jaři ozim (stihne-li ho ves) nebo na jaře jař. Ruší se Osevní postup po dílech,
+   bod 1 – Po ozimu jař, Po jaři úhor, Jař jako první osev – pak ozim a Kolik je čeho.
+3. **Kolik je čeho** (dnešní čísla, odvozená z `FERTILITY` – `field-capacity.ts`):
+   - odpočatý díl **95 → 83 → 71 → 59 %** = **3 osevy** a příloh **8 let** (59 → 99 %); další
+     oběh začne výš (99, 98, 97, 96 %) a příloh trvá 7 let. Ustálená dráha je 51 let = 5 oběhů,
+     15 osevů a 36 let přílohu – průměrně **3 osevy a 7,2 roku přílohu**;
+   - čerstvý díl **100 → 88 → 76 → 64 %** = 3 osevy a příloh **7 let** (64 → 99 %);
+   - ustálená ves má osetých **≈ 29 % plochy v oběhu** (15/51, pole ≈ **3,4×** osevu –
+     `ROTATION_FACTOR`) – stejně jako pevný sled (34 let, 10 osevů): plochu osevu určuje poměr
+     ztráty a návratu úrodnosti (12 : 5), ne počet osevů. Rozdíl proti pevnému sledu: osévá se
+     o něco horší půda (průměr osevu **85 %** přirozené místo 89 % – úroda z osetého hektaru
+     ≈ −2–3 %), příloh se vrací po třech osevech místo dvou (vracení přílohu na osetý hektar
+     ≈ −1/3) a leží 7–8 let místo 5 (víc zarůstá, kde se nepase ani neseče). Průměrná úrodnost
+     dílu v oběhu klesne z ≈ 85 % na 79 % (Pole uživí podle dnešní půdy).
+4. **Zůstává:** pořadí výběru (díly v osevu, čerstvé díly, odpočaté přílohy, pak přílohy 70–95 %
+   a nouzové – Osevní postup po dílech, body 2 a 3), setí do konce okna, postup práce po dílech od
+   čela, přednost polní práce před stavbami, okna a sazby práce, osivo bez cíle osevu. **Nouzový
+   příloh** (40–70 %, jen při skutečném nedostatku) dá jeden osev – po něm je pod 70 % a jde do
+   přílohu samo. **Len je místo jaře** (nejlepší díly, na dílu nejdřív za 7 let – Len): bere díly,
+   na kterých by dnes začala jař – napřed **díly v osevu** (len zabere jen jejich jarní osev),
+   pak díly prvního osevu, v obou skupinách od nejlepší úrodnosti (návrh Clauda). V září a říjnu
+   dostane díl na řadě ozim, len tedy přibývá až v listopadu (kopání pod jař) a na jaře.
+5. **Páry k rádlům** ([oxen.md](oxen.md) – Kolik volů ves chce; návrh Clauda – páry jako za
+   pevného sledu): první osev oběhu (odpočatý příloh, nový díl) se počítá do podzimního okna orby
+   ozimu, díl v osevu do všech oken orby za rok (na podzim i na jaře).
+6. **Co hráč vidí:** panel dílu ukazuje kolikátý osev oběhu (1., 2., 3.) a **Příště** podle
+   prvního okna; díl v osevu po sklizni je ve scéně strniště do další práce.
+7. **Starší vsi** (převod jednou a idempotentně, návrh Clauda – `withoutRotationNext`): díl s
+   pevným sledem (`FieldPart.next` – po ozimu jař, po jaři ozim) se osévá dál, má-li aspoň 70 %,
+   a plodinu dostane podle prvního okna; díl na řadě pod 70 % jde ode dneška do přílohu. Zasetý
+   díl jen ztratí `next`; ves bez `next` se nemění.
+8. **Od roku 1100 možnost trojpolí – návrh se připravuje** (`THREE_FIELD_FROM_YEAR` = 1100 v
+   `rules-fields.ts` – dnes se podle ní nic nepřepíná).
+
+**Krátký příloh ve Vlkově (ověřeno 10. 11. 2026):** v měření Vlkova 871–873 šlo ≈ 3 ha ročně
+(≈ 8 % prvních osevů) na díly jen 0,6–2,5 roku ladem. Všechny měly při osevu 96–99 % – byly to
+díly po **luštěninách** z doby před 9. 11. 2026 (+3 % úrodnosti, po nich podle pevného sledu
+úhor): díl šel do přílohu s 86–94 % (po ozimu 83 + 3 %, nebo luštěniny jako první osev) a na 95 %
+se odpočinul za 0–2 roky. Nebyla to chyba ani nouzový osev či naplavenina – pevný sled tak
+posílal do úhoru díly, které úrodnost ještě měly. S luštěninami na poli zrušenými (9. 11. 2026)
+dobíhá jen rok převodu a v přílohové soustavě díl s ≥ 70 % zůstane v osevu.
+
+**Naměřeno – Vlkov 871–873** (10. 11. 2026, kopie stavu od 3. 3. 871, 105 ha dílů, dopočet den
+po dni bez zásahu hráče, ne kalibrace; pevný sled → přílohová soustava). Osev podle roku setí
+(jař na jaře, ozim na podzim téhož roku), osev v řadě = kolikátý rok se díl osévá bez přílohu:
+
+| Rok | Oseto ha    | Ozim ha     | Jař ha      | 1. / 2. / 3. osev v řadě ha          |
+| --- | ----------- | ----------- | ----------- | ------------------------------------ |
+| 871 | 33,4 → 39,3 | 16,5 → 17,4 | 16,9 → 21,8 | 18,8 / 14,6 / – → 16,0 / 12,9 / 10,4 |
+| 872 | 44,6 → 39,9 | 25,0 → 29,1 | 19,6 → 10,6 | 25,8 / 18,8 / – → 14,3 / 11,0 / 14,6 |
+| 873 | 44,6 → 45,0 | 18,2 → 17,2 | 26,3 → 27,7 | 22,2 / 22,4 / – → 21,3 / 16,5 / 7,2  |
+
+- Úroda za 3 roky (žně 871–873 a zářijová jař) **42,5 → 43,4 t**; dny přídělu (energie pod 1)
+  **263 → 262** – skoro všechny v letech 870/871 a 871/872 z úrody osevu ještě podle pevného
+  sledu, 872–874 žádné.
+- První osevy na dílech jen 0,5–3 roky ladem: 3,3 / 2,6 / 3,0 ha → 4,0 / 0,8 / 0,8 ha – zbytek
+  jsou díly po luštěninách z doby před převodem (výše).
+- Práce za 3 roky: orba a setí 3 762 → 3 462 čd (vrací se méně přílohu), nevyužito
+  1 508 → 1 633 čd; len 0,1–0,2 ha ročně jako dosud.
+- Ozim po ozimu: v roce 872 dostalo ozim 29 ha (dřív 25 ha) a jař jen 11 ha – díly v osevu po žni
+  ozimu stihne ves na podzim osít znovu ozimem.
+
 ### Osevní postup po dílech a setí do konce okna (25. 10. 2026)
 
 Stav: **Martin, 25. 10. 2026:** „Tím pádem by teď ves měla vyrobit maximum obilí a maximum sena,
@@ -307,7 +390,9 @@ přijde.“ – „Proč se pořád vymýšlí nějaký plán osevu 1. září?�
 K otevřené otázce dílu, který nestihl ozim (Martin, 25. 10. 2026): „Jestli bude možné mu dát
 ozim, ať dostane ozim.“
 Pravidla jsou **návrh Clauda, schválený Martinem 25. 10. 2026**; podrobnosti, které v návrhu
-nebyly, jsou označené jako návrh Clauda. Implementace podle plánu
+nebyly, jsou označené jako návrh Clauda. **Od 10. 11. 2026 platí místo pevného sledu na dílu
+(bod 1) [Přílohová soustava do roku 1100](#přílohová-soustava-do-roku-1100-martin-10-11-2026)**;
+setí do konce okna, výběr dílů a ostatní body platí dál. Implementace podle plánu
 [2026-10-25-sowing-rotation](../superpowers/plans/2026-10-25-sowing-rotation.md).
 
 **Proč:** roční plán osevu k 1. 9. odhadoval dopředu, kolik ves oseje a co stihne (cíl podle
@@ -336,18 +421,19 @@ Seno, dvě seče).
 **Pravidla:**
 
 1. **Postup dílu – co na něm poroste příště** (stav dílu, žádný roční plán):
-   - **První osev oběhu** – čerstvě založený díl a příloh odpočatý aspoň na 95 % přirozené
-     (`FERTILITY.fallowReady`, Martin 24. 10. 2026): **ozim**, když na něj práce dojde v okně
+   - **První osev oběhu** (od 10. 11. 2026 platí pro každý díl na řadě i díl v osevu –
+     Přílohová soustava do roku 1100, bod 2) – čerstvě založený díl a příloh odpočatý aspoň na
+     95 % přirozené (`FERTILITY.fallowReady`, Martin 24. 10. 2026): **ozim**, když na něj práce dojde v okně
      ozimu (vrácení přílohu, kopání nebo orba a setí září–říjen). Díl, na kterém setí ozimu do
      konce okna nezačne, se oseje na jaře **jaří**.
-   - **Po ozimu jař** – díl se po sklizni ozimu (31. 7.) kope nebo orá na podzim po ozimu
+   - ~~**Po ozimu jař**~~ (zrušeno 10. 11. 2026 – pevný sled z trojpolí, Přílohová soustava do roku 1100) – díl se po sklizni ozimu (31. 7.) kope nebo orá na podzim po ozimu
      (září–listopad), zbytek v březnu–dubnu, a seje v březnu–dubnu. Jen když díl smí dál (aspoň
      70 % přirozené, `FERTILITY.sowableMin`) – odpočatý díl má po ozimu 83 %, mez se uplatní jen
      u dílů starších vsí, které se osévaly víc let v řadě.
-   - **Po jaři úhor** – i po luštěninách a lnu. Úhor je příloh (Přílohová soustava, Příloh
+   - ~~**Po jaři úhor**~~ (zrušeno 10. 11. 2026 – pevný sled z trojpolí, Přílohová soustava do roku 1100) – i po luštěninách a lnu. Úhor je příloh (Přílohová soustava, Příloh
      a pastva, Zarůstání beze změny): pase se, seče, zarůstá a vrací se mu 5 % přirozené ročně;
      odpočatý je zase na řadě s prvním osevem.
-   - **Jař jako první osev – pak ozim** (Martin 25. 10. 2026: „Jestli bude možné mu dát ozim, ať
+   - ~~**Jař jako první osev – pak ozim**~~ (zrušeno 10. 11. 2026 – pevný sled z trojpolí, Přílohová soustava do roku 1100; Martin 25. 10. 2026: „Jestli bude možné mu dát ozim, ať
      dostane ozim.“): díl, který ozim nestihl a jako první osev oběhu dostal jař, dostane po její
      sklizni ozim, když smí dál (aspoň 70 % přirozené, `FERTILITY.sowableMin` – stejná mez jako po
      ozimu; odpočatý díl má po jaři 83 %), a teprve po něm jde do úhoru. Oběh je tak stejně dlouhý
@@ -363,8 +449,9 @@ Seno, dvě seče).
      jaří (bod 2; návrh Clauda).
    - **Nouzový příloh** (40–70 %, Přílohová soustava – Nouzový osev) jen pro nutné díly (bod 3),
      jen obilí, jeden osev (ozim, nebo jař podle okna) a pak zase úhor.
-   - **Kolik je čeho** (upřesnění „po ozimu jař, po jaři úhor“ podle dnešních čísel – návrh
-     Clauda): oběh odpočatého dílu je ozim 95 → 83 %, jař 83 → 71 % a úhor **5 let** (71 → 95 %,
+   - ~~**Kolik je čeho**~~ (neplatí od 10. 11. 2026 – čísla přílohové soustavy jsou v Přílohová
+     soustava do roku 1100, bod 3; upřesnění „po ozimu jař, po jaři úhor“ podle dnešních čísel –
+     návrh Clauda): oběh odpočatého dílu je ozim 95 → 83 %, jař 83 → 71 % a úhor **5 let** (71 → 95 %,
      obnova 5 bodů ročně – Martin 26. 10. 2026, viz Přílohová soustava), celkem 7 let; čerstvý díl
      100 → 88 → 76 % a úhor 4 roky. Ustálená ves má osetou **≈ 2/7 dílů v oběhu – ≈ 14 % ozim,
      ≈ 14 % jař (s luštěninami a lnem) a ≈ 71 % úhor** (dřív s obnovou 2,5 %: úhor 10 let, oseto
@@ -463,8 +550,8 @@ Seno, dvě seče).
 6. **Co hráč vidí** (jako v 0 A.D. – ikony s čísly, slova jen v popiscích; návrh Clauda):
    - **Panel dílu:** nový údaj **Příště** – ikona toho, co na dílu poroste příště (ozim, jař,
      luštěniny nebo len, když už je určené; úhor ikonou přílohu); u úhoru procento odpočinku
-     k 95 % a v popisku „Osev za ≈ N let“. Osetý díl ukazuje **1. nebo 2. osev oběhu** (místo
-     kolikátého roku v osevu). ~~Díl nad potřebu má v popisku „Jen z volné práce – stavby mají
+     k 95 % a v popisku „Osev za ≈ N let“. Osetý díl ukazuje **kolikátý osev oběhu** (místo
+     kolikátého roku v osevu; do 10. 11. 2026 1. nebo 2., v přílohové soustavě 1.–3.). ~~Díl nad potřebu má v popisku „Jen z volné práce – stavby mají
      přednost“~~ (zmizelo 9. 11. 2026 s díly nad potřebu – Díly jsou jedna fronta, bod 3).
    - **Panel pole:** vedle osetých dílů podle plodiny **na řadě** – počet dílů na řadě s ozimem,
      s jaří a odpočívajících; ~~v popisku, kolik z dílů na řadě je nad potřebu~~ (zmizelo 9. 11.
@@ -891,14 +978,17 @@ jenom natolik, aby vesnice neměla hlad.“ Martin schválil návrh, podrobnosti
 
 Výchozí osevní systém je přílohová soustava raných Slovanů (Martin). Pravidla (návrh Clauda):
 
-- ~~**Osev:**~~ (od 25. 10. 2026 ozim, jař, úhor – Osevní postup po dílech, bod 1)
+- **Osev** (platí znovu od 10. 11. 2026 – Přílohová soustava do roku 1100; 25. 10. – 10. 11. 2026
+  místo něj pevný sled ozim, jař, úhor – Osevní postup po dílech, bod 1):
   díl se osévá rok po roku, dokud jeho aktuální úrodnost neklesne pod **70 %**
   přirozené. Osetý rok ji sníží o 12 % přirozené, takže čerstvý díl se oseje **3 roky** po sobě
-  (100 → 88 → 76 → 64 %). Pak jde do **přílohu**.
-- **Příloh (od 26. 10. 2026 obnova 5 bodů ročně):** ustálená ves síje odpočatý díl: ozim a jař
-  (úrodnost 95 → 83 → 71 %, průměr osevu 0,89) a pak leží **5 let** (z 71 % na 95 %): oběh 7 let,
-  pole **≈ 3,5× osevu** (`ROTATION_FACTOR` = 7 / 2, `SOWN_ROUNDS`), oseto ≈ 2/7 polí (dřív 10 let
-  ladem, 5,0× a ≈ 1/6). Martin 26. 10. 2026: „Teď si musíme vystačit s dvojpolím a zkalibrovat to,
+  (100 → 88 → 76 → 64 %), odpočatý také (95 → 83 → 71 → 59 %). Pak jde do **přílohu**. Plodinu
+  dostane podle prvního okna, ve kterém na něj ves práci dotáhne (ozim, jinak jař).
+- **Příloh (od 26. 10. 2026 obnova 5 bodů ročně):** ustálená ves síje odpočatý díl 3 roky
+  (úrodnost 95 → 83 → 71 → 59 %, průměr osevu ustálené dráhy 0,85) a pak leží **7–8 let** (z 59–63 %
+  na 95–99 %, průměr 7,2): pole **≈ 3,4× osevu** (`ROTATION_FACTOR` z ustálené dráhy 51 let / 15
+  osevů), oseto ≈ 29 % polí (od 10. 11. 2026 – Přílohová soustava do roku 1100, bod 3; 25. 10. – 10. 11. 2026 ozim a jař 95 → 83 → 71 % a 5 let ladem, pole 3,5× osevu; dřív 10 let ladem,
+  5,0× a ≈ 1/6). Martin 26. 10. 2026: „Teď si musíme vystačit s dvojpolím a zkalibrovat to,
   aby vesnice za normálních okolností nehladověla, protože až přidáme přírodní katastrofy, bude
   to hukot.“ a „Trojpolí teď řešit nebudeme, mělo by se začít postupně objevovat na konci 12. století.“ Zvolil **variantu 1** („Ok, pojďme do varianty 1“): obnova 0,025 → 0,05 ročně
   (`FERTILITY.fallowRecovery`). Terminologie: české zdroje berou dvoupolní soustavu jako
