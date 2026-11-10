@@ -5,6 +5,7 @@ import {
   isCampaignParticipant,
   leadsLive,
   marchGrid,
+  reachableGoal,
   type CampaignPlace,
   type CampaignState,
   type CampaignView,
@@ -15,14 +16,15 @@ import {
   type SurrenderOrder,
 } from '../domain/war';
 import type { Dwelling } from '../domain/village/types';
-import { directionBetween, sameCell } from '../domain/village/world-grid';
+import { directionBetween, sameCell, type GridCell } from '../domain/village/world-grid';
 import { queueCampaignIntent, type CampaignCells, type CampaignRepository } from './campaigns';
 import type { VillageRepository } from './villages';
 
 // Živé vedení a pohled na tažení (war.md – Velení, Mlha války; plán 2026-11-03 – Úloha 6.14):
 // pohled hráče (vlastní muži celí, cizí jen v dohledu, stavby jen objevené) a záměry hráče
 // – vést muže, rozkaz skupině, volba ke vzdaným, přítomnost. Server záměr ověří a odmítnutí
-// nic neprozradí (jedna odpověď `false` pro každý důvod).
+// nic neprozradí (jedna odpověď `refused` pro každý důvod) – kromě místa, kam se vojsko hráče
+// nedostane (`unreachable`, hráč ho vidí na své mapě).
 
 /** Mezipaměť mřížek pochodu mapy cíle – pohled se ptá 2× za sekundu, mřížka se mění po dnech. */
 export interface SightGridCache {
@@ -64,17 +66,26 @@ async function viewOf(
 }
 
 /** Mřížka mapy cíle v den tažení (dohled v lese) – jako ji bere boj (`gridOf`). */
-export async function sightGrid(
+export function sightGrid(
   deps: Pick<CampaignViewDeps, 'cells' | 'villages' | 'grids'>,
   state: CampaignState,
 ): Promise<MarchGrid> {
-  const key = `${state.id}@${state.day}`;
+  return mapGrid(deps, state.target.cell, state.day);
+}
+
+/** Mřížka pochodu mapy políčka v den `day` – krajina, překážky a první ves na mapě (`gridOf`). */
+async function mapGrid(
+  deps: Pick<CampaignViewDeps, 'cells' | 'villages' | 'grids'>,
+  cell: GridCell,
+  day: number,
+): Promise<MarchGrid> {
+  const key = `${cell.x},${cell.y}@${day}`;
   const cached = deps.grids?.get(key);
   if (cached) return cached;
-  const map = await deps.cells.mapOf(state.target.cell);
+  const map = await deps.cells.mapOf(cell);
   const villageId = map.villageIds[0];
   const village = villageId === undefined ? null : await deps.villages.find(villageId);
-  const grid = marchGrid(map.landscape, map.obstacles, village?.state ?? null, { day: state.day });
+  const grid = marchGrid(map.landscape, map.obstacles, village?.state ?? null, { day });
   deps.grids?.set(key, grid);
   return grid;
 }
@@ -141,27 +152,39 @@ const GROUP_ORDERS: readonly GroupOrder[] = ['follow-leader', 'attack-all', 'hol
 const SURRENDER_ORDERS: readonly SurrenderOrder[] = ['kill', 'lead', 'leave'];
 
 /**
- * Zapíše pokyn hráče jako záměr na takt teď + 2. Odmítne (false) pokyn hráče, který tažení
- * nevede živě (velí jiný muž, velitel padl nebo je zajat), cíl, který hráč nezná (neobjevená
- * stavba, muž mimo dohled, místo mimo dosah), a pokyn do skončeného tažení. Přítomnost smí
- * poslat jen vůdce živého tažení.
+ * Výsledek pokynu: takt, na který se záměr zapsal (mapa tažení do něj ukazuje cíl z kliku, pak cíl
+ * ze stavu), nebo odmítnutí. `unreachable` – místo na mapě skupiny velitele, ke kterému ani
+ * k jeho okolí skupina nedojde (stojí sevřená v neprůchodných buňkách; důvod u kurzoru); ostatní
+ * důvody jedna odpověď `refused` (nic se neprozradí).
+ */
+export type CampaignCommandResult =
+  { queued: true; tick: number } | { queued: false; reason: 'refused' | 'unreachable' };
+
+const REFUSED: CampaignCommandResult = { queued: false, reason: 'refused' };
+
+/**
+ * Zapíše pokyn hráče jako záměr na takt teď + 2. Odmítne pokyn hráče, který tažení nevede živě
+ * (velí jiný muž, velitel padl nebo je zajat), cíl, který hráč nezná (neobjevená stavba, muž mimo
+ * dohled, místo mimo dosah), pokyn do skončeného tažení a místo, kam skupina velitele nedojde
+ * (`unreachable`). Přítomnost smí poslat jen vůdce živého tažení.
  */
 export async function commandCampaign(
   deps: CampaignCommandDeps,
   input: { playerId: string; campaignId: string; command: CampaignCommand; nowMs: number },
-): Promise<boolean> {
+): Promise<CampaignCommandResult> {
   const checkpoint = await deps.campaigns.checkpoint(input.campaignId);
-  if (!checkpoint) return false;
+  if (!checkpoint) return REFUSED;
   const state = checkpoint.state;
   const body = await intentOf(deps, state, input.playerId, input.command);
-  if (body === null) return false;
+  if (body === null) return REFUSED;
+  if (body === 'unreachable') return { queued: false, reason: 'unreachable' };
   const queued = await queueCampaignIntent(deps, {
     campaignId: input.campaignId,
     playerId: input.playerId,
     body,
     nowMs: input.nowMs,
   });
-  return queued !== null;
+  return queued === null ? REFUSED : { queued: true, tick: queued.tick };
 }
 
 async function intentOf(
@@ -169,7 +192,7 @@ async function intentOf(
   state: CampaignState,
   playerId: string,
   command: CampaignCommand,
-): Promise<IntentBody | null> {
+): Promise<IntentBody | 'unreachable' | null> {
   if (command.kind === 'presence') {
     const running = state.phase !== 'done' && state.phase !== 'disbanded';
     return state.playerId === playerId && state.liveCommand && running
@@ -193,13 +216,31 @@ async function intentOf(
   }
 }
 
+/**
+ * Dojde skupina velitele na místo? Jen na pochodu (záměr `march` jinde pohne bojovníkem, nebo se
+ * zahodí) a na mapě, na které skupina stojí: cíl v neprůchodné buňce posune tažení na nejbližší
+ * dosažitelné místo (`reachableGoal`, war.md – Pohyb – Cíl v neprůchodné buňce); žádné = nedojde.
+ * Na jiné mapě se cíl posune, až na ni skupina vstoupí.
+ */
+async function reachable(
+  deps: CampaignViewDeps,
+  state: CampaignState,
+  groupId: number,
+  place: CampaignPlace,
+): Promise<boolean> {
+  const group = state.groups.find((g) => g.id === groupId);
+  if (state.phase !== 'marching' || !group || !sameCell(group.cell, place.cell)) return true;
+  const grid = await mapGrid(deps, place.cell, state.day);
+  return reachableGoal(grid, group.pos, place.pos) !== null;
+}
+
 /** Záměr velitele k cíli, který hráč zná (vidí ho, nebo ho objevil). */
 async function leadIntent(
   deps: CampaignViewDeps,
   state: CampaignState,
   playerId: string,
   target: LeaderTarget,
-): Promise<IntentBody | null> {
+): Promise<IntentBody | 'unreachable' | null> {
   if (target.kind === 'home') return { kind: 'turn-back' };
   const view = await viewOf(deps, state, playerId, state.tick);
   const commander = view?.men.find((m) => m.commander);
@@ -212,6 +253,7 @@ async function leadIntent(
       const near =
         sameCell(cell, commander.cell) || directionBetween(commander.cell, cell) !== null;
       if (!near && !sameCell(cell, state.target.cell)) return null;
+      if (!(await reachable(deps, state, commander.group, target.place))) return 'unreachable';
       return { kind: 'march', to: { cell: { x: cell.x, y: cell.y }, pos: { x: pos.x, z: pos.z } } };
     }
     case 'building': {

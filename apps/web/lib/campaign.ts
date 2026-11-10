@@ -6,6 +6,7 @@ import {
   type CampaignCells,
   type CampaignCommand,
   type CampaignCommandDeps,
+  type CampaignCommandResult,
   type MarchGrid,
 } from '@bohemia/game';
 import { createCampaignCells, currentWorld, LruCache } from '@bohemia/server';
@@ -53,12 +54,15 @@ export function campaignViewForPlayer(
   return campaignViewFor(commandDeps(), { playerId, campaignId, sinceTick });
 }
 
-/** Pokyn hráče do tažení na takt teď + 2; false = odmítnut (důvod se neprozradí). */
+/**
+ * Pokyn hráče do tažení na takt teď + 2 – takt záměru, nebo odmítnutí (důvod se neprozradí, kromě
+ * místa, kam vojsko nedojde).
+ */
 export function commandCampaignForPlayer(
   playerId: string,
   campaignId: string,
   command: CampaignCommand,
-): Promise<boolean> {
+): Promise<CampaignCommandResult> {
   return commandCampaign(commandDeps(), { playerId, campaignId, command, nowMs: Date.now() });
 }
 

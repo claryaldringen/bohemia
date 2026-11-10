@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { realTimeOf } from '../../calendar';
+import type { StreamPoint } from '../../landscape';
 import { stepCampaign } from '../campaign';
-import type { CampaignIntent, CampaignState, CampaignStep } from '../campaign-types';
+import type {
+  CampaignIntent,
+  CampaignMap,
+  CampaignState,
+  CampaignStep,
+  CampaignWorld,
+} from '../campaign-types';
 import { dayOfTick, msOfTick, TICK_MS, tickOfMs } from '../ticks';
 import {
   campaign,
+  flat,
   intent,
   LAUNCH,
   LIVE,
@@ -200,6 +208,47 @@ describe('stepCampaign', () => {
     );
     expect(JSON.stringify(again.state)).toBe(json);
     expect(again.waiting?.cells).toEqual([{ x: 1, y: 0 }]);
+  });
+
+  it('cíl ve vodě: skupiny jdou na nejbližší dosažitelný břeh, nestojí (jako v 0 A.D.)', () => {
+    // řeka kostry bez brodu od severu k jihu ve sloupci políček 80 (svět x ≈ 247,5 m), 30 m široká
+    const river: StreamPoint[] = Array.from({ length: 128 }, (_, y) => ({
+      x: 80,
+      y: 127 - y,
+      halfWidthLeft: 1,
+      halfWidthRight: 1,
+      level: 5 - y / 127,
+      shallow: false,
+      bankLeft: 0,
+      bankRight: 0,
+    }));
+    const map: CampaignMap = {
+      landscape: { ...flat(), rivers: [river] },
+      obstacles: null,
+      villageIds: [],
+    };
+    const riverWorld: CampaignWorld = { ...worldOf(), landscapeOf: () => map };
+    const click = { x: 247.5, z: 0 };
+    const order = intent(LAUNCH + 40, 2, {
+      kind: 'march',
+      to: { cell: { x: 0, y: 0 }, pos: click },
+    });
+    const intents = [...LIVE, order];
+    const at = stepCampaign(campaign(), LAUNCH + 40, intents, riverWorld).state;
+    for (const g of at.groups) {
+      // východní břeh, na kterém skupiny stojí; mapa tažení ukáže tento cíl ze stavu
+      expect(g.goal!.pos.x).toBeGreaterThan(247.5);
+      expect(g.goal!.pos.x).toBeLessThan(290);
+      expect(g.arrived).toBe(false);
+    }
+    const later = stepCampaign(at, LAUNCH + 1000, intents, riverWorld).state;
+    for (const g of later.groups) {
+      expect(g.arrived).toBe(true);
+      expect(g.pos).toEqual(at.groups[0]!.goal!.pos);
+    }
+    // po kouscích = vcelku
+    const whole = stepCampaign(campaign(), LAUNCH + 1000, intents, riverWorld).state;
+    expect(JSON.stringify(whole)).toBe(JSON.stringify(later));
   });
 });
 

@@ -124,6 +124,18 @@ from, direction)` (k nejlevnější buňce okraje, úhlopříčně do rohu). `Ma
   a cíl přesně, mezi nimi středy buněk), buňky, `meadowM` (metry louky od startu – délka ÷
   násobek tempa) a `lengthM`; `marchSeconds(path, speed)`, `marchProgress(path, meadow)` (poloha
   po ušlých metrech louky).
+- **Cíl v neprůchodné buňce** (design war.md – Pohyb; jako v 0 A.D., návrh Clauda 10. 11. 2026) –
+  `reachableGoal(grid, from, to)` v `march.ts`: cíl v neprůchodné buňce (voda bez brodu, sráz,
+  hotová hradba; po `outOfBuilding`) posune na střed nejbližší průchodné buňky dosažitelné z `from`
+  (zaplavení `reachableCells` se stejným pravidlem sousedů jako A*; nejbližší podle čtverce
+  vzdálenosti v buňkách, remíza – nejmenší index; jen celočíselná matematika). Průchodný cíl a cíl
+  ve stavbě vrátí beze změny (týž objekt) – i průchodný, ale nedosažitelný (za řekou bez brodu)
+  dál končí `stuck`. Null = z `from` není dosažitelná žádná průchodná buňka. V tažení
+  `settleGoal` (`campaign.ts`, `moveGroups`): skupina na mapě cíle bez úseku (hned po záměru `march`,
+  `turnBack`, rozpadu, nebo po vstupu na mapu cíle) si cíl posune před plánováním úseku – stav pak
+  nese posunutý cíl a mapa tažení ho ukáže. Use-case `commandCampaign` záměr k místu na mapě
+  skupiny velitele na pochodu odmítne jako `unreachable`, když `reachableGoal` vrátí null.
+  Otisky tažení se nezměnily – mění se jen případy, které dřív skončily `stuck`.
 - **Tempo** – `marchSpeed(group: GroupPace, day)` (m/s skutečného času): 3,5 m/s, nejpomalejší
   z jezdců × 1,5, pěších × 1, pěších raněných × 0,75 a stáda × 0,5; v zimě sníh × 0,75. 1 km po
   louce ≈ 286 s ≈ 4,8 min ≈ 3,3 herního dne, hustým lesem čtyřikrát déle (≈ 19 min ≈ 13 dní).
@@ -139,7 +151,8 @@ outside, day)` → `MemberDelta` (`health`, `vigor` = podíl plné síly): v zim
   i s `obstaclesOf`), `settledCellLandscape(seed, versions)` (políčko se vsí – uložený seed),
   `emptyCellMarchGrid`.
 - **Testy** – `domain/war/__tests__/march.test.ts` (tempo, les, brod, řeky kostry jen přes brod
-  – umělé i mapa se soutokem, opevnění, cesta, zima,
+  – umělé i mapa se soutokem, cíl ve vodě – posun na dosažitelný břeh, remíza, sevřené vojsko,
+  opevnění, cesta, zima,
   zlatá cesta na seedech 1–3 – otisk počtu brodů a trasy přes mapu, determinismus, paseka, okraj),
   `world-route.test.ts`, `application/__tests__/cell-landscape.test.ts`. Změna mřížky nebo A*
   změní zlatý otisk – zapsat nový jen se záměrem.
@@ -1434,12 +1447,16 @@ expected, reply?)` (odpověď se přidá do `body` – `body || reply`).
   hráč bez vůdcovství i bez vlastního muže dostane null.
 - **Use-casy** (`application/campaign-view.ts`): `campaignViewFor(deps, { playerId, campaignId,
 sinceTick })` – kontrolní bod z úložiště, mřížka mapy cíle jen při boji (mezipaměť `grids`, klíč
-  `tažení@den`), domy cílové vsi jen s něčím objeveným. `commandCampaign` – pokyn
+  `políčko@den`), domy cílové vsi jen s něčím objeveným. `commandCampaign` – pokyn
   (`CampaignCommand`: `lead` s cílem `place` / `building` / `fighter` / `home`, `order`,
-  `surrendered`, `presence`) → záměr na takt teď + 2 (`queueCampaignIntent`). Odmítne (`false`, bez
-  důvodu): hráč, který živě nevede (vazal, cizí hráč, velí jiný muž, padlý či zajatý velitel), místo
-  mimo mapu nebo dál než sousední políčko velitele (kromě mapy cíle), neobjevený dům, cizí muž mimo
-  dohled nebo ležící, neznámá skupina. Přítomnost smí poslat jen vůdce živého tažení.
+  `surrendered`, `presence`) → záměr na takt teď + 2 (`queueCampaignIntent`), výsledek
+  `CampaignCommandResult` – `{ queued: true, tick }` (takt záměru), nebo `{ queued: false, reason }`.
+  Odmítne (`refused`, bez důvodu): hráč, který živě nevede (vazal, cizí hráč, velí jiný muž, padlý
+  či zajatý velitel), místo mimo mapu nebo dál než sousední políčko velitele (kromě mapy cíle),
+  neobjevený dům, cizí muž mimo dohled nebo ležící, neznámá skupina. `unreachable` (důvod u kurzoru):
+  místo na mapě, na které skupina velitele na pochodu stojí, kam nedojde vůbec (`reachableGoal` →
+  null – Pohyb vojska); cíl ve vodě, ke kterému dosažitelné místo je, přijme s místem kliku a posune
+  ho tažení. Přítomnost smí poslat jen vůdce živého tažení.
 - **Seznam v panelu Vojsko** (`campaignsOf` → `CampaignSummary` s `leads`; Úloha 6.17, návrh
   Clauda v mezích specu – vlastní muže hráč vidí vždy): běžící tažení, která hráč vede, i ta, ve
   kterých jdou jeho muži jako vazala ve službě. Vazal tažení otevře a sleduje svými muži (pohled
@@ -1451,7 +1468,9 @@ sinceTick })` – kontrolní bod z úložiště, mřížka mapy cíle jen při b
   `LandscapeTransfer`; vrstvu překážek si prohlížeč vygeneruje ze seedu vrstvy. Jen pro účastníka
   a jen mapu cíle, políčko vlastního muže a jeho sousedy; stavby nese jen `CampaignView.discovered`.
 - **Testy:** `application/__tests__/campaign-view.test.ts` (Review Focus 4 – cizí muž, mrtvý
-  a zajatý velitel, neobjevený dům, obránce skrytý v lese, cizí hráč = null),
+  a zajatý velitel, neobjevený dům, obránce skrytý v lese, cizí hráč = null; místo ve vodě – takt
+  záměru a `unreachable`), `domain/war/__tests__/campaign.test.ts` (cíl ve vodě – skupiny dojdou na
+  břeh),
   `domain/war/__tests__/sight.test.ts`, `raid-campaign.test.ts` (objevený dům), e2e
   `multiplayer.spec.ts` („živé vedení: …“ – tažení zapsané přímo do DB, worker vedle).
 

@@ -36,6 +36,7 @@ import {
   marchProgress,
   marchSeconds,
   marchSpeed,
+  reachableGoal,
   type GroupPace,
   type MarchPath,
 } from '../march';
@@ -214,6 +215,36 @@ describe('řeky kostry jen přes brod (war.md – Pohyb – Terén, world-skelet
     expect(grid.flags[marchCellAt(grid, { x: -300, z: -502.5 })]! & MARCH_WATER).toBe(MARCH_WATER);
   });
 
+  it('cíl ve vodě se posune na nejbližší dosažitelný břeh (jako v 0 A.D.)', () => {
+    const grid = marchGrid({ ...flat(), rivers: [main(null)] }, null, null);
+    const from = { x: 0, z: 0 };
+    const click = { x: 247.5, z: 0 };
+    expect(grid.flags[marchCellAt(grid, click)]! & MARCH_WATER).toBe(MARCH_WATER);
+    expect(marchPath(grid, from, click)).toBeNull();
+    const goal = reachableGoal(grid, from, click)!;
+    // západní břeh, na kterém vojsko stojí – ne východní za řekou bez brodu
+    expect(goal.x).toBeLessThan(247.5);
+    expect(Math.hypot(goal.x - click.x, goal.z - click.z)).toBeLessThan(40);
+    expect(grid.pace[marchCellAt(grid, goal)]!).toBeGreaterThan(0);
+    expect(marchPath(grid, from, goal)).not.toBeNull();
+    // z východního břehu (přes řeku se nedostane) na východní břeh
+    expect(reachableGoal(grid, { x: 500, z: 0 }, click)!.x).toBeGreaterThan(247.5);
+    // determinismus – stejný vstup, stejný cíl
+    expect(reachableGoal(grid, from, click)).toEqual(goal);
+  });
+
+  it('průchodný cíl a cíl, kde vojsko stojí, se nemění', () => {
+    const grid = marchGrid({ ...flat(), rivers: [main(null)] }, null, null);
+    const from = { x: 0, z: 0 };
+    const meadow = { x: -300, z: 300 };
+    expect(reachableGoal(grid, from, meadow)).toBe(meadow);
+    // průchodný, ale za řekou bez brodu – beze změny (posouvá se jen cíl v neprůchodné buňce)
+    const across = { x: 500, z: 0 };
+    expect(reachableGoal(grid, from, across)).toBe(across);
+    const water = { x: 247.5, z: 0 };
+    expect(reachableGoal(grid, water, water)).toBe(water);
+  });
+
   it('mapa se soutokem řek kostry: osy obou řek jsou voda, kromě brodů', () => {
     const landscape = generateLandscape(1, { ...CURRENT_LAYER_VERSIONS, skeleton: 1 }, undefined, {
       world: 1,
@@ -273,6 +304,36 @@ const fortVillage = (f: Fortification, extra: Partial<VillageState> = {}): Villa
   village([], [], { fortifications: [f], lastDay: 10, ...extra });
 const OUT = { x: 0, z: -200 };
 const IN = { x: 0, z: 0 };
+
+describe('cíl v neprůchodné buňce (war.md – Pohyb – Cíl v neprůchodné buňce)', () => {
+  /** Mřížka 5 × 5 buněk po 10 m od (0, 0); `blocked` = neprůchodné buňky (sloupec, řádek). */
+  const tiny = (blocked: (i: number, j: number) => boolean): MarchGrid => {
+    const pace = new Float32Array(25);
+    for (let j = 0; j < 5; j++) for (let i = 0; i < 5; i++) pace[j * 5 + i] = blocked(i, j) ? 0 : 1;
+    return {
+      width: 5,
+      height: 5,
+      originX: 0,
+      originZ: 0,
+      cellM: 10,
+      pace,
+      flags: new Uint16Array(25),
+    };
+  };
+
+  it('remíza vzdáleností – buňka s nejmenším indexem', () => {
+    const grid = tiny((i, j) => i === 2 && j === 2);
+    // čtyři sousedé cíle stejně daleko: (2, 1) má index 7, (1, 2) 11, (3, 2) 13, (2, 3) 17
+    expect(reachableGoal(grid, { x: 0, z: 0 }, { x: 20, z: 20 })).toEqual({ x: 20, z: 10 });
+  });
+
+  it('vojsko sevřené v neprůchodných buňkách – dosažitelné místo není žádné', () => {
+    const grid = tiny((i, j) => !(i === 4 && j === 4));
+    expect(reachableGoal(grid, { x: 0, z: 0 }, { x: 20, z: 20 })).toBeNull();
+    // z volné buňky cíl dojde k ní samé
+    expect(reachableGoal(grid, { x: 40, z: 40 }, { x: 20, z: 20 })).toEqual({ x: 40, z: 40 });
+  });
+});
 
 describe('do opevněné vsi (fortifications.md – Obrana, Prolomení)', () => {
   it('palisáda jen branou', () => {

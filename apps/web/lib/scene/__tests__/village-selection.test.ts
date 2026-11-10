@@ -6,6 +6,7 @@ import {
   describeTarget,
   allDwellingsTarget,
   dwellingsTarget,
+  followConstruction,
   nextSelection,
   presentTarget,
   selectedDwellingIds,
@@ -292,5 +293,62 @@ describe('výběr bourané stavby', () => {
     });
     expect(presentTarget(more, { kind: 'sacred', id: 8 })).toEqual({ kind: 'sacred', id: 92 });
     expect(presentTarget(more, { kind: 'dwelling', id: 1 })).toBeNull();
+  });
+});
+
+describe('výběr staveniště po dostavění (jako v 0 A.D. – web-ui.md, Výběr)', () => {
+  // staveniště 40 (id stavby) se dostavělo na obydlí 7 (id obydlí) na stejném místě
+  const site = dwelling(40, false);
+  const done: SceneVillage = {
+    ...village,
+    dwellings: [dwelling(1), dwelling(2), dwelling(3), { ...dwelling(7), position: site.position }],
+  };
+
+  it('vybrané staveniště přejde na hotové obydlí na jeho místě', () => {
+    expect(followConstruction(village, done, { kind: 'dwelling', id: 40 })).toEqual({
+      kind: 'dwelling',
+      id: 7,
+    });
+    // bez přechodu by výběr zmizel
+    expect(presentTarget(done, { kind: 'dwelling', id: 40 })).toBeNull();
+  });
+
+  it('dílna: přejde jen na hotovou dílnu stejného řemesla; ve výběru víc obydlí také', () => {
+    const smithy = { ...site, craft: 'smith' as const };
+    const before: SceneVillage = { ...village, dwellings: [dwelling(1), smithy] };
+    const built = (craft?: 'smith' | 'potter'): SceneVillage => ({
+      ...village,
+      dwellings: [
+        dwelling(1),
+        { ...dwelling(7), position: site.position, ...(craft && { craft }) },
+      ],
+    });
+    expect(followConstruction(before, built('smith'), { kind: 'dwelling', id: 40 })).toEqual({
+      kind: 'dwelling',
+      id: 7,
+    });
+    expect(followConstruction(before, built('potter'), { kind: 'dwelling', id: 40 })).toBeNull();
+    expect(followConstruction(before, built(), { kind: 'dwelling', id: 40 })).toBeNull();
+    expect(followConstruction(before, built('smith'), { kind: 'dwellings', ids: [1, 40] })).toEqual(
+      { kind: 'dwellings', ids: [1, 7] },
+    );
+  });
+
+  it('staveniště trvá, jiná poloha, jiný typ nebo bourání – výběr se nemění (null)', () => {
+    const target: VillageTarget = { kind: 'dwelling', id: 40 };
+    expect(followConstruction(village, village, target)).toBeNull();
+    const elsewhere: SceneVillage = { ...village, dwellings: [dwelling(1), dwelling(7)] };
+    expect(followConstruction(village, elsewhere, target)).toBeNull();
+    const other: SceneVillage = {
+      ...village,
+      dwellings: [{ ...dwelling(7), type: 'polozemnice', position: site.position }],
+    };
+    expect(followConstruction(village, other, target)).toBeNull();
+    // dobourané obydlí (staveniště bourání zmizí) se za nic nevymění
+    const razing: SceneVillage = { ...village, dwellings: [{ ...site, demolition: 0.5 }] };
+    expect(followConstruction(razing, done, target)).toBeNull();
+    // hotové obydlí a jiné cíle beze změny
+    expect(followConstruction(village, done, { kind: 'dwelling', id: 1 })).toBeNull();
+    expect(followConstruction(village, done, { kind: 'field', id: 5 })).toBeNull();
   });
 });
