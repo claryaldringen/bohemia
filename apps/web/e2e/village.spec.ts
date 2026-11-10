@@ -210,9 +210,13 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
     .poll(
       async () => {
         await clickZemnice();
-        return panel.getAttribute('data-kind');
+        // Ves se zemnicí dorazí dotazem až za chvíli: klik ještě vybere staveniště (id stavby),
+        // a dorazí-li ves hned po kliku, staveniště i panel zmizí (zemnice má id obydlí) – na
+        // panel nečekat, kliknout znovu.
+        return panel.getAttribute('data-kind', { timeout: 500 }).catch(() => null);
       },
-      { timeout: 20_000 },
+      // klik po vteřině – dva rychlé kliky by byly dvojklik
+      { timeout: 20_000, intervals: [1_000] },
     )
     .toBe('dwelling');
   // ves zakládá vojvoda s hlavní a třemi vedlejšími manželkami (lord.md – Zakladatelé)
