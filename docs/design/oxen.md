@@ -534,6 +534,16 @@ sena:
 Zrušeno (texty výš přeškrtnuté): ~~seč kosou 15 → 10 čd/ha~~, ~~krávy, ovce a kozy na seně celou
 zimu~~, ~~letnina počítaná jako seno~~.
 
+**Naměřeno (10. 11. 2026):** Vlkov ze stavu jara 871, 3 roky (před → po). Práce seče skoro beze
+změny – 1. seč 871 416 čd (416), otava 305 čd (306), 1. seč 872 345 čd (340), 873 327 čd a otava
+228 čd (388 a 23) – ale seno srpem dá třetinu: k 1. 11. 871 11,8 t (35,9 t), k 1. 4. 872 0 t
+(9,8 t). Sláma z výmlatu úrody 871 6,1 t, 872 11,9 t; k 1. 4. 872 snědená celá. První zima
+(31. 10. 871 → 1. 4. 872, po jarních mláďatech): krávy 11,6 → 6,7, ovce 49,9 → 3,2, kozy 3,4 →
+3,5 – seno po 9 volech a koních a sláma uživily ≈ 5 krav, 1. 11. šly na maso skoro všechny ovce
+(47,9) a v zimě 6 krav; voli bez úhynu, chyběla vlna. **Otevřené (otázka na Martina):** ovce jsou
+v přednosti zimního krmení až za kravami – mají mít ovce na vlnu krmení před kravami nad chovné
+minimum?
+
 ## Účinek na práci
 
 - **Zpracování půdy na dílech v oběhu** (zkopaný díl po sklizni, mladý úhor 1–2 roky): místo kopání
