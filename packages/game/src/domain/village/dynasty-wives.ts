@@ -3,6 +3,7 @@
 // symetrie platí jen pro hlavní (docs/code/village-people.md – Příbuzenství). Kroky dne mutují stav.
 import { createRandom, deriveSeed } from '../landscape/random';
 import { isDynastyTracked, isLineMan, wivesOf } from './dynasty';
+import { rodBaptized } from './faith';
 import { neighbor, weddingChancePerDay } from './marriage';
 import { ageYears } from './people';
 import { BIRTH_SPACING } from './rules';
@@ -49,14 +50,16 @@ function extraWifeHome(state: VillageState, man: Person): number | undefined {
  * (`'wife:' + den`), takže sňatky ani porody vsi se nemění. V hladu nepřijde, jinak bydlí v domě
  * muže (`extraWifeHome`). Hlavní manželka muže (`spouseId`) zůstává. Pod pojistkou zásob
  * (`storesFill` < 1) přijde se šancí `weddingChancePerDay` jako svatba z okolí (kinship.md –
- * Sňatky čekají na zásoby). Ves bez rodu – nic. Mutuje stav, vrací kroniku.
+ * Sňatky čekají na zásoby). Ves bez rodu a ves pokřtěného rodu (christianity.md – Jediná manželka:
+ * nové vedlejší manželky už nepřibudou, ani za nástupce narozeného před křtem) – nic. Mutuje stav,
+ * vrací kroniku.
  */
 export function extraWivesDay(
   state: VillageState,
   day: number,
   storesFill: () => number = () => 1,
 ): ChronicleEvent[] {
-  if (!isDynastyTracked(state)) return [];
+  if (!isDynastyTracked(state) || rodBaptized(state)) return [];
   const men = state.people
     .filter((p) => isLineMan(p) && ageYears(p.bornDay, day) >= LORD.extraWifeFromAge)
     .sort((a, b) => a.id - b.id);

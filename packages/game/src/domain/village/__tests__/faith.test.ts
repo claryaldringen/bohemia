@@ -76,6 +76,21 @@ describe('víra', () => {
     expect(rodBaptized({ faith: { rodBaptizedDay: 0 } } as VillageState)).toBe(true);
   });
 
+  it('ves NPC rodu podle jeho křtu, po jeho konci zase podle rodu hráče', () => {
+    const nobles = { houseId: 'npc-1', headId: 5 };
+    const baptizedNpc = { houseId: 'npc-1', baptizedDay: 9 };
+    // rod hráče pokřtěný, NPC rod ne – ves řídí NPC rod
+    expect(rodBaptized({ nobles, faith: { rodBaptizedDay: 3 } })).toBe(false);
+    expect(rodBaptized({ nobles, faith: { nobles: baptizedNpc } })).toBe(true);
+    // křest jiného (dřívějšího) NPC rodu neplatí
+    expect(
+      rodBaptized({ nobles: { ...nobles, houseId: 'npc-2' }, faith: { nobles: baptizedNpc } }),
+    ).toBe(false);
+    // NPC rod skončil (`nobles` zmizí) – platí křest rodu hráče
+    expect(rodBaptized({ faith: { nobles: baptizedNpc } })).toBe(false);
+    expect(rodBaptized({ faith: { rodBaptizedDay: 3, nobles: baptizedNpc } })).toBe(true);
+  });
+
   it('trojpolí vyžaduje rok 1100 a pokřtěný rod', () => {
     expect(threeFieldAllowed(1099, true)).toBe(false);
     expect(threeFieldAllowed(1100, false)).toBe(false);

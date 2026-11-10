@@ -218,6 +218,10 @@ export type ChronicleEvent = { day: number } & (
     }
   /** Rod se dozvěděl o křesťanství (christianity.md – Objev křesťanství) – ve vsi vojvody. */
   | { kind: 'christianity-known' }
+  /** Vojvoda se dal pokřtít (christianity.md – Křest rodu). */
+  | { kind: 'lord-baptized' }
+  /** Pokřtěný vojvoda propustil vedlejší manželky (christianity.md – Jediná manželka). */
+  | { kind: 'wives-released'; count: number }
   /** Dohoda z jednání: rod `vassal` přísahal rodu `lord` (jména hlav rodů). */
   | { kind: 'negotiation-accepted'; lord: string; vassal: string }
   /** Vazalství skončilo formálním vypovězením (jména hlav rodů; text je neutrální, bez viníka). */

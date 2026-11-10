@@ -57,8 +57,13 @@ export function isChristian(p: Person): boolean {
   return p.faith === 'christian';
 }
 
-/** Je rod pokřtěný (christianity.md – Křest rodu). */
-export function rodBaptized(state: VillageState): boolean {
+/**
+ * Je rod, který ves řídí, pokřtěný (christianity.md – Křest rodu)? Rod hráče, kterému ves patří
+ * (`faith.rodBaptizedDay`); ves, kterou řídí NPC rod (`nobles`), podle jeho křtu (`faith.nobles`) –
+ * po konci NPC rodu zase podle rodu hráče.
+ */
+export function rodBaptized(state: Pick<VillageState, 'faith' | 'nobles'>): boolean {
+  if (state.nobles) return state.faith?.nobles?.houseId === state.nobles.houseId;
   return state.faith?.rodBaptizedDay !== undefined;
 }
 

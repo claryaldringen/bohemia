@@ -22,7 +22,7 @@ export interface RodBaptizedDeps {
   houses: Pick<HouseRepository, 'byId'>;
   settlements: Pick<SettlementRepository, 'listActive'>;
   villages: Pick<VillageRepository, 'find' | 'listBySettlement' | 'inbox'>;
-  stewardships: Pick<StewardshipRepository, 'listByHolderHouse' | 'listByStewardHouse'>;
+  stewardships: Pick<StewardshipRepository, 'listByStewardHouse'>;
 }
 
 /** Závislosti roční úlohy světa (worker: úlohy světa). */
@@ -82,10 +82,11 @@ export async function advanceChristianity(
 }
 
 /**
- * Křest rodu `houseId` ve dni `day` do schránky všech jeho vsí (událost `rod-baptized`; co ves
- * udělá, doplní K4). Vsi rodu: NPC rod – vsi, které spravuje; hráč – vsi jeho aktivních sídel
- * kromě vsí, které za něj spravuje NPC rod (ty patří tomu rodu). Jedinečný `ref` – opakování nic
- * nezdvojí.
+ * Křest rodu `houseId` ve dni `day` do schránky všech jeho vsí (událost `rod-baptized`; ves zapíše
+ * den křtu a ve vsi vojvody ho pokřtí – `baptizeVillage`). Vsi rodu: NPC rod – vsi, které spravuje
+ * (`npc`, jeho hlava v nich je vojvodou vsi); hráč – všechny vsi jeho aktivních sídel, i ty, které
+ * za něj řídí NPC rod (příznak tam platí až po konci NPC rodu – `rodBaptized`), a ves vojvody
+ * (`House.lord`) dostane `lord`. Jedinečný `ref` – opakování nic nezdvojí.
  */
 export async function sendRodBaptized(
   deps: RodBaptizedDeps,
@@ -94,13 +95,20 @@ export async function sendRodBaptized(
 ): Promise<void> {
   const house = await deps.houses.byId(houseId);
   if (!house) return;
+  const npc = house.kind === 'npc';
   for (const villageId of await houseVillageIds(deps, house)) {
+    const lord = !npc && house.lord?.villageId === villageId;
     try {
       await deps.villages.inbox.post({
         villageId,
         day,
         ref: `rod-baptized:${houseId}:${villageId}`,
-        body: { kind: 'rod-baptized', houseId },
+        body: {
+          kind: 'rod-baptized',
+          houseId,
+          ...(npc ? { npc: true as const } : {}),
+          ...(lord ? { lord: true as const } : {}),
+        },
       });
     } catch {
       // ves mezitím zanikla – zpráva nemá kam
@@ -153,16 +161,9 @@ async function houseVillageIds(deps: RodBaptizedDeps, house: House): Promise<str
     return run.filter((s) => s.kind === 'npc').map((s) => s.villageId);
   }
   if (house.playerId === null) return [];
-  const npcRun = new Set(
-    (await deps.stewardships.listByHolderHouse(house.id))
-      .filter((s) => s.kind === 'npc')
-      .map((s) => s.villageId),
-  );
   const ids: string[] = [];
   for (const settlement of await deps.settlements.listActive(house.playerId)) {
-    for (const village of await deps.villages.listBySettlement(settlement.id)) {
-      if (!npcRun.has(village.id)) ids.push(village.id);
-    }
+    for (const village of await deps.villages.listBySettlement(settlement.id)) ids.push(village.id);
   }
   return ids;
 }

@@ -4,6 +4,8 @@
 // dopočítá – události dne patří k tomu dni, ne k dopočtu.
 
 import { settleAppointee, type AppointeeParty } from './appoint-lord';
+import { baptizeVillage, type RodBaptism } from './baptism';
+import { cloneState } from './clone';
 import { settleNoble } from '../vassalage/ennoble';
 import { dismissGuests, endAway, hostGuests } from '../vassalage/guests';
 import { receiveShipment } from '../vassalage/shipment';
@@ -231,10 +233,9 @@ export type VillageEventBody =
     }
   /**
    * Rod `houseId` se pokřtil (christianity.md – Křest rodu; `sendRodBaptized`): ves zapíše den křtu
-   * do `VillageState.faith.rodBaptizedDay`, pokud ho ještě nemá. Co dál křest ve vsi změní, doplní
-   * plán 2026-11-10 – K4.
+   * a ve vsi vojvody ho pokřtí a propustí vedlejší manželky (`baptizeVillage`); idempotentní.
    */
-  | { kind: 'rod-baptized'; houseId: string };
+  | ({ kind: 'rod-baptized' } & RodBaptism);
 
 /**
  * Událost ve schránce vsi `villageId`. `day` = herní den, na jehož začátku se použije (nikdy ne
@@ -326,10 +327,7 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
     case 'refuge-back':
       return applyRefugeBack(state, day, body);
     case 'rod-baptized':
-      if (state.faith?.rodBaptizedDay === undefined) {
-        state.faith = { ...state.faith, rodBaptizedDay: day };
-      }
-      return [];
+      return baptizeVillage(state, day, body);
     default:
       return unknownBody(body);
   }
@@ -368,6 +366,33 @@ function recordThreat(state: VillageState, day: number, signal: ThreatSignal): v
 
 function unknownBody(body: never): never {
   throw new Error(`Neznámý druh události schránky vsi: ${JSON.stringify(body)}`);
+}
+
+/**
+ * Ves na cestě (migration.md) se nesimuluje a schránku nepoužívá – jen křest rodu ji zastihne
+ * i na cestě (christianity.md – Křest rodu), ať ves založená po příjezdu nezůstane pohanská: den
+ * křtu z událostí dnů `lastDay < den ≤ toDay` (dny cesty; vojvoda se na cestě nekřtí – bez `lord`).
+ * Vrací nový stav, bez událostí týž.
+ */
+export function withJourneyInbox(
+  state: VillageState,
+  toDay: number,
+  byDay: ReadonlyMap<number, readonly VillageEvent[]>,
+): VillageState {
+  const days = [...byDay.keys()].filter(
+    (d) =>
+      d > state.lastDay && d <= toDay && byDay.get(d)?.some((e) => e.body.kind === 'rod-baptized'),
+  );
+  if (days.length === 0) return state;
+  const next = cloneState(state);
+  for (const day of days.sort((a, b) => a - b)) {
+    const events = [...(byDay.get(day) ?? [])].sort((a, b) => a.seq - b.seq);
+    for (const { body } of events) {
+      if (body.kind !== 'rod-baptized') continue;
+      baptizeVillage(next, day, { houseId: body.houseId, ...(body.npc ? { npc: true } : {}) });
+    }
+  }
+  return next;
 }
 
 /** Události podle dne – dopočet je hledá den po dni. */

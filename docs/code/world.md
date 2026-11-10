@@ -233,10 +233,11 @@ hráč)`) a rod s `house.placed_at` null. Pozvaný je na mapě hned (`placed_at`
   a do kroniky vsi vojvody schránkou `christianity-known` („Rod se dozvěděl o novém Bohu.“, `ref`
   `christianity-known:<rod>:<ves>`). NPC rod (`kind: 'npc'`, živé vazalství – povýšení) se pokřtí
   k 1. 1. roku `npcBaptismYear` (objev a k tomu 1–20 let, los `'npc-baptism'` ze seedu rodu):
-  nejdřív `sendRodBaptized` (událost `{ kind: 'rod-baptized', houseId }` do schránky všech vsí
-  rodu, `ref` `rod-baptized:<rod>:<ves>`), pak `markBaptized`. Vsi rodu: NPC rod – spravované vsi
-  (`listByStewardHouse`), hráč – vsi aktivních sídel kromě vsí NPC rodů. Ves zapíše den z události
-  do `faith.rodBaptizedDay`, jen když ho ještě nemá (`applyInboxDay`; zbytek křtu K4). Výpis rodů
+  nejdřív `sendRodBaptized` (událost `{ kind: 'rod-baptized', houseId, npc?, lord? }` do schránky
+  všech vsí rodu, `ref` `rod-baptized:<rod>:<ves>`), pak `markBaptized`. Vsi rodu: NPC rod –
+  spravované vsi (`listByStewardHouse`, `npc`), hráč – všechny vsi aktivních sídel i ty, které řídí
+  NPC rod, ves vojvody (`House.lord`) s `lord`. Co ves s událostí udělá (`baptizeVillage`) a křest
+  hráčova rodu (`baptizeLord`): `village-people.md` – Křest a víra. Výpis rodů
   bez nové metody portu: hráčovy `playerHousesSince(new Date(0))` a `waitingNewcomers()`, NPC přes
   `vassalages.allActive()`. Worker drží v paměti rok, za který úloha proběhla (`doneYear`) – jinak
   by každou minutu přehrával los neznalých rodů (1 000 rodů od 520: první běh v roce 870 ≈ 95 ms,
