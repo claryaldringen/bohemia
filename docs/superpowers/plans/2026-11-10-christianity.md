@@ -112,13 +112,13 @@ toYear: number): number | null` (první rok ≤ `toYear`, kdy los padl; rok po r
   když je null – vzor `claimEnnoble`), `markBaptized(houseId: string, day: number): Promise<boolean>`
   (jen když zná a ještě není pokřtěný).
 
-- [ ] **Step 1:** Test DB: nový rod má obojí null; `markChristianityKnown` podruhé vrátí false a rok
+- [x] **Step 1:** Test DB: nový rod má obojí null; `markChristianityKnown` podruhé vrátí false a rok
       nezmění; `markBaptized` bez znalosti false, po ní true a podruhé false.
-- [ ] **Step 2:** `TEST_DATABASE=bohemia_test_faith npm run test:db` – FAIL.
-- [ ] **Step 3:** Sloupce `christianity_known_year integer`, `baptized_day integer` (null), adaptér,
+- [x] **Step 2:** `TEST_DATABASE=bohemia_test_faith npm run test:db` – FAIL.
+- [x] **Step 3:** Sloupce `christianity_known_year integer`, `baptized_day integer` (null), adaptér,
       in-memory. **`bohemia` nemigrovat** (migraci pouští hlavní relace).
-- [ ] **Step 4:** test:db PASS (DB pak zrušit `dropdb`).
-- [ ] **Step 5:** Commit `feat(db): rod zná křesťanství a den křtu`.
+- [x] **Step 4:** test:db PASS (DB pak zrušit `dropdb`).
+- [x] **Step 5:** Commit `feat(db): rod zná křesťanství a den křtu`.
 
 ### K3: Roční úloha světa – objev a NPC křest
 

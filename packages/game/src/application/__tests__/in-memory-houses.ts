@@ -41,6 +41,8 @@ export class InMemoryHouses implements HouseRepository {
       language: input.language ?? 'cs',
       placedAt: input.placedAt === undefined ? input.createdAt : input.placedAt,
       newcomerSince: null,
+      christianityKnownYear: null,
+      baptizedDay: null,
     };
     this.houses.push(house);
     return house;
@@ -121,6 +123,22 @@ export class InMemoryHouses implements HouseRepository {
     const house = this.houses.find((h) => h.id === houseId);
     if (!house || (house.lastEnnobleYear !== null && house.lastEnnobleYear >= year)) return false;
     house.lastEnnobleYear = year;
+    return true;
+  }
+
+  async markChristianityKnown(houseId: string, year: number): Promise<boolean> {
+    await Promise.resolve();
+    const house = this.houses.find((h) => h.id === houseId);
+    if (!house || house.christianityKnownYear !== null) return false;
+    house.christianityKnownYear = year;
+    return true;
+  }
+
+  async markBaptized(houseId: string, day: number): Promise<boolean> {
+    await Promise.resolve();
+    const house = this.houses.find((h) => h.id === houseId);
+    if (!house || house.christianityKnownYear === null || house.baptizedDay !== null) return false;
+    house.baptizedDay = day;
     return true;
   }
 
