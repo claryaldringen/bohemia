@@ -7,6 +7,7 @@ import {
   bandPartWeight,
   furrowAxis,
   furrowEfficiency,
+  ploughBandFinder,
   ploughLayout,
 } from '../plough-blocks';
 import {
@@ -515,4 +516,40 @@ describe('orba po dávkách dílů (fields.md – Osevní postup po dílech; oxe
       expect(season, crop).toBeGreaterThanOrEqual(0.9 * whole);
     }
   }, 120_000);
+});
+
+describe('pás dílu líně (ploughBandFinder)', () => {
+  it('dá tytéž pásy jako celé rozvržení orby – i s dvojím políčkem a díly bez políčka', () => {
+    // deterministická „náhoda“ – díly na mřížce 14 × 14 ve třech polích, část vynechaná
+    let seed = 7;
+    const next = (): number => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed / 2147483648;
+    };
+    for (let round = 0; round < 40; round++) {
+      const selected: FieldPart[] = [];
+      let id = 1;
+      for (let x = 0; x < 14; x++) {
+        for (let y = 0; y < 14; y++) {
+          if (next() < 0.35) continue;
+          const fieldId = 1 + Math.floor(next() * 3);
+          selected.push(part(id++, x, y, { fieldId, distanceM: 40 + next() * 200 }));
+          // dvojí políčko – platí poslední díl
+          if (next() < 0.03) selected.push(part(id++, x, y, { fieldId }));
+        }
+      }
+      // díly bez políčka a promíchané pořadí výběru
+      selected.push(part(id++, 0, 0, { cell: undefined }), part(id++, 0, 0, { cell: undefined }));
+      selected.sort(() => next() - 0.5);
+      const bandOf = new Map<number, readonly number[]>();
+      for (const band of ploughLayout(selected).bands) {
+        for (const member of band.partIds) bandOf.set(member, band.partIds);
+      }
+      const find = ploughBandFinder(selected);
+      for (const p of [...selected].sort(() => next() - 0.5)) {
+        expect(find(p.id)).toEqual(bandOf.get(p.id));
+      }
+      expect(find(id + 1)).toBeUndefined();
+    }
+  });
 });

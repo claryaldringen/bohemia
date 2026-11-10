@@ -9,7 +9,7 @@ import { closeFieldFoodYear, storesOutlook, type StoresOutlook } from './field-f
 import { sowingGroup } from './fields';
 import { taskPosition, taskSpans, unsownPartIds } from './field-progress';
 import { dropFromWork, moveParts, shrinkInPlan } from './land-taken';
-import { ploughLayout } from './plough-blocks';
+import { ploughBandFinder } from './plough-blocks';
 import {
   plannedFurrowEfficiency,
   relayUntouchedBands,
@@ -434,7 +434,7 @@ function seasonSelection(
       waiting.push(j);
       continue;
     }
-    for (const id of bandOf?.get(j.id) ?? [j.id]) {
+    for (const id of bandOf?.(j) ?? [j.id]) {
       if (inTaken.has(id)) continue;
       inTaken.add(id);
       taken.push({ id, crop: j.crop });
@@ -483,21 +483,24 @@ function grainShortage(state: VillageState, day: number): boolean {
 
 /**
  * Pás každého dílu výběru (díly téže plodiny pásu v pořadí orby) z rozvržení orby dílů výběru po
- * plodinách (`ploughLayout`).
+ * plodinách (`ploughLayout`) – líně, jen bloky dílů, na které se volající zeptá
+ * (`ploughBandFinder`; id ve výběru jsou různá – `turnSelection`). Díl bez pásu undefined.
  */
 function joinBands(
   join: readonly SeasonJoin[],
   partsById: ReadonlyMap<number, FieldPart>,
-): Map<number, number[]> {
-  const bandOf = new Map<number, number[]>();
-  for (const crop of SEASON_CROPS) {
-    const parts = join.filter((j) => j.crop === crop).map((j) => partsById.get(j.id)!);
-    if (parts.length === 0) continue;
-    for (const band of ploughLayout(parts).bands) {
-      for (const id of band.partIds) bandOf.set(id, band.partIds);
+): (j: SeasonJoin) => readonly number[] | undefined {
+  const finders = new Map<Crop, (id: number) => readonly number[] | undefined>();
+  return (j) => {
+    if (!SEASON_CROPS.includes(j.crop)) return undefined;
+    let find = finders.get(j.crop);
+    if (!find) {
+      const parts = join.filter((x) => x.crop === j.crop).map((x) => partsById.get(x.id)!);
+      find = ploughBandFinder(parts);
+      finders.set(j.crop, find);
     }
-  }
-  return bandOf;
+    return find(j.id);
+  };
 }
 
 /**
