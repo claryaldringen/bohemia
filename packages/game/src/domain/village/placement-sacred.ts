@@ -11,7 +11,8 @@ import {
 } from '../landscape';
 import { type Point, rectangleCorners } from './polygon';
 import { type Position, type SacredBuildingKind } from './types';
-import { type SparedSacred, mergeSpared, sacredFootprint, sacredSitesOf } from './sacred';
+import { type SparedSacred, mergeSpared, sacredFootprint } from './sacred';
+import { sacredSitesFor } from './desecration';
 import { obstacleStatus, outcropUnder, polygonsObstacles } from './obstacles';
 import { threshingFloorFootprint } from './threshing-floors';
 import {
@@ -114,7 +115,7 @@ export function checkSacredBuildingPlacement(
   if (outcropUnder(obstacles, status, footprint)) {
     return { ...fail('Stojí tu skalní výchoz – ten osadníci neodstraní.'), ...none };
   }
-  const sites = sacredSitesOf(obstacles);
+  const sites = sacredSitesFor(village, obstacles);
   const sacredProblem = sacredUnder(landscape, obstacles, sites, [footprint]);
   if (sacredProblem) return { ...fail(sacredProblem), ...none };
   // překážky vrstvy na čtvercích polí patří poli (založený díl je už nemá)
@@ -199,7 +200,7 @@ export function checkThreshingFloorPlacement(
   if (outcropUnder(obstacles, status, footprint)) {
     return { ...fail('Stojí tu skalní výchoz – ten osadníci neodstraní.'), ...none };
   }
-  const sites = sacredSitesOf(obstacles);
+  const sites = sacredSitesFor(village, obstacles);
   const sacredProblem = sacredUnder(landscape, obstacles, sites, [footprint]);
   if (sacredProblem) return { ...fail(sacredProblem), ...none };
   // překážky vrstvy na čtvercích polí patří poli (založený díl je už nemá)

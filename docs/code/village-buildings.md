@@ -119,6 +119,24 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   Čtverce navazující stranou na hřbitov ho **rozšíří** (`foundCemetery`: stejné id, čtverce na
   konec s `constructionId`, dokud se ohrazují, a nepočítají se); na dva hřbitovy navázat nejde.
   Hráči se říká vždy **Hřbitov** (texty), v kódu zůstává `cemetery`.
+- **Hřbitov a posvátná místa po křtu** (`desecration.ts`, christianity.md – Co křest rodu umožní):
+  `cemeteryMayGo(state, cemetery, day)` – pokřtěný rod (`rodBaptized`), hotový hřbitov bez
+  rozšíření ve stavbě, plný (`freePlaces` 0) nebo poslední pohřeb (`lastBurialDay` – nejpozdější
+  mohyla, bez mohyl den dokončení) před ≥ `FAITH.cemeteryUnusedYears` lety. Takový hřbitov jde
+  zbourat (Bourání níž) a v `playerPlacementVillage` chybí – stavba nebo pole hráče přes něj projde
+  a `applyBuildIntent` (hráč) ho zaorá: hřbitov, bez kterého by záměr neprošel (druhý běh s ním),
+  zmizí i s hroby. Jinak „Hřbitov ještě slouží.“ (`CEMETERY_IN_USE`) a dnešní důvody překryvu.
+  Posvátná místa: `sacredSitesFor(village, layer)` / `protectedTreesFor` – ves s `sacredFree`
+  (jen `playerPlacementVillage` pokřtěného rodu; prohlížeč `SceneVillage.sacredFree`) dostane
+  prázdná místa, takže háj, dub ani koruna dubu stavbám a polím nebrání a jejich stromy se odstraní
+  jako ostatní. Volají je jen `placement-*.ts`; `wood.ts`, `crafts.ts`, `charcoal.ts`, `trail.ts`,
+  `road-swath.ts`, `wagon-road.ts`, milíř (`checkKilnSite`), převody a správce (`placementVillageOf`,
+  `applyBuildIntent(…, 'steward')`) zůstávají na `sacredSitesOf`. Zápis `recordDesecration`
+  (`faith.desecrated` +1, kronika `sacred-felled` s `site` / `cemetery-ploughed`):
+  `recordFelledSacredSince` po akci hráče (stavby odstraní překážky hned), `recordFelledSacredOn`
+  po každém dni simulace (díly polí, sady a hřbitovy je odstraní až při zakládání) – dub jednou za
+  strom, háj jednou (dřív odstraněný strom háje = už zapsaný), `finishDemolition` hřbitova a zaorání
+  v `applyBuildIntent`.
   **Hygiena** (`villageHygiene`, 0 bez hřbitova s místem, jinak podle vzdálenosti od hotových
   obydlí a vody – vzdálenost od vody se ukládá u čtverce při založení, simulace krajinu nemá)
   násobí úmrtnost, hájení chrání. Je jen vnitřní – **nikdy ji neukazovat hráči** (Martin), panel
@@ -310,7 +328,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 ## Opuštění a vrácení stavby
 
 [demolition.md](../design/demolition.md) – Opuštění (Martin 8. 11. 2026). Stavba má volitelný
-`disusedDay` (`Dwelling`, `Pen`, `SacredBuilding`): od něj stojí, ale nepoužívá se. Čte ho
+`disusedDay` (`Dwelling`, `Pen`, `SacredBuilding`; `Cemetery` jen při bourání – nepohřbívá se
+na něj, `acceptsBurials`): od něj stojí, ale nepoužívá se. Čte ho
 `isDisused` (`disused.ts`, bez závislostí kvůli cyklům). Akce v `structure-use.ts`:
 `disuseBlock(state, ref)` (důvod odmítnutí česky), `beginDisuse` (mutuje klon), `abandonStructure`,
 `restoreStructure` (vstup nemění, kronika `structure-abandoned` / `structure-restored`).
@@ -345,7 +364,10 @@ správce Ú6), `demolitionOf` (v `disused.ts`, kvůli cyklům), `demolitionNeed`
 `ALREADY_DEMOLISHING`, `DEMOLISHING` (Vrátit při bourání, `structure-use.ts`).
 
 - **Založení:** ještě neopuštěná stavba se napřed opustí (`disuseBlock` – obydlí s lidmi musí mít
-  volná místa, Ú2); opuštěná se rovnou boří. Dvorec a hřbitov nejdou. Práce =
+  volná místa, Ú2); opuštěná se rovnou boří. Dvorec nejde; hřbitov jen při `cemeteryMayGo`
+  (jinak „Hřbitov ještě slouží.“), opustit ho nejde (`CEMETERY_STAYS`), práce = cena založení hotových
+  čtverců × `laborShare`, klády žádné; dobouraný zmizí i s hroby a zapíše se `recordDesecration`
+  (kronika „Zaorali starý hřbitov.“ místo „Stavba zbourána.“). Práce =
   `DEMOLITION.laborShare` × `BUILD_COSTS` (obydlí podle typu, dílna podle řemesla, ohrada
   `PEN.laborManDays`, modla a svatyně `SACRED_BUILDINGS`); stavba má `position` stavby (místo
   práce, `labor-report` ji počítá jako stavbu na staveništi).

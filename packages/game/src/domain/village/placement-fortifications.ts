@@ -26,7 +26,7 @@ import { withWarning } from './placement-fields';
 import { type PlacementCheck, type PlacementVillage, fail } from './placement-types';
 import { type Point, polygonsOverlap } from './polygon';
 import { FORTIFICATIONS } from './rules-fortifications';
-import { sacredSitesOf } from './sacred';
+import { sacredSitesFor } from './desecration';
 import { tilesUnder } from './squares';
 import type { FortKind } from './types';
 
@@ -228,7 +228,7 @@ export function checkFortificationPlacement(
   if (band.some((polygon) => outcropUnder(obstacles, status, polygon))) {
     return { ...fail('Stojí tu skalní výchoz – ten osadníci neodstraní.'), ...shaped };
   }
-  const sites = sacredSitesOf(obstacles);
+  const sites = sacredSitesFor(village, obstacles);
   for (const shape of shapes) {
     const sacred = sacredInShape(landscape, obstacles, sites, shape);
     if (sacred.groveTiles.length > 0) {
