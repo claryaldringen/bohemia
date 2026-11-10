@@ -177,9 +177,12 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     Len):** `startSeason` zapíše `FarmSeason.flaxNeedKg` (`flaxNeedKg` lidí k 1. 9.);
     `turnSelection` (`rotation.ts`, `TurnOptions.flaxNeedKg`) vybere len napřed – jen když jař
     smí začít (okna kopání), do potřeby (`expectedFlaxKg` lnu letošní práce + nových dílů) –
-    z `flaxCandidates`: díly, na kterých by dnes začala jař (v září–říjnu žádné – ozim), napřed
-    díly v osevu (`again`), pak první osev (`first`, příloh 70–95 % `late`), v obou od nejlepší
-    `effectiveFertility` (při shodě id), jen `isSowableFertility` a `flaxAllowed` (rok sklizně
+    z `flaxCandidates` (jeden seznam: všechny díly na řadě `again` / `first` / `late` bez ohledu
+    na druh osevu, od nejlepší `effectiveFertility`, při shodě id; Martin 10. 11. 2026 „Ano. Jak jsme
+    řekli, len je extrémně náročná plodina, ale zase ho není potřeba moc“ – napřed díly v osevu je
+    pryč). **Odložení na podzim:** dokud běží okno ozimu (`winterStartable`), `turnSelection` projde
+    stejný seznam do potřeby a díly jen přidá do `used` (bez `join`) – ozim je nedostane, len
+    se jim přidělí v listopadu / dubnu; nic se neukládá, odvodí se ze stavu dílů; jen `isSowableFertility` a `flaxAllowed` (rok sklizně
     `seasonHarvestYear` − `FieldPart.flaxYear` ≥ `FLAX.returnYears` 7; chybí = smí).
     `rotateAfterSeason` 1. 9. zapíše `flaxYear` osetému lnu (i nevytrhanému). Trhání:
     `FLAX_WINDOWS.harvest` [8, 8]; v pořadí práce dne (`dayTaskOrder`) má trhání

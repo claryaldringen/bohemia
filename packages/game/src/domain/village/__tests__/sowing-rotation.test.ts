@@ -341,38 +341,57 @@ describe('výběr dílů na řadě – bez stropu', () => {
     expect(turnSelection(s, at(601, 4, 30), CALM).map((j) => j.crop)).not.toContain('flax');
   });
 
-  it('len bere napřed nejúrodnější díly v osevu, pak první osev, a jen do potřeby', () => {
+  it('len bere nejúrodnější díly na řadě (i první osev před díly v osevu) a jen do potřeby', () => {
     const s = village(8);
     const after = s.parts.slice(0, 4);
     const shares = [0.8, 0.95, 0.85, 0.9];
     after.forEach((p, i) => Object.assign(p, { sownYears: 1, fertilityShare: shares[i] }));
     const [a, b, c, d] = after;
-    // v září dostanou všechny díly na řadě ozim – len (místo jaře) nic
-    const september = turnSelection(s, SEPT_1, { ...CALM, flaxNeedKg: 1e9 });
-    expect(september.every((j) => j.crop === 'winter')).toBe(true);
-    // po konci okna ozimu: díl v osevu s nejlepší úrodností první, pak další podle úrodnosti
-    const november = at(600, 11, 5);
-    const need = expectedFlaxKg(b!, november) + expectedFlaxKg(d!, november) - 0.01;
-    const join = turnSelection(s, november, { ...CALM, flaxNeedKg: need });
-    expect(join.filter((j) => j.crop === 'flax')).toEqual([
-      { id: b!.id, crop: 'flax' },
-      { id: d!.id, crop: 'flax' },
-    ]);
-    // ostatní díly v osevu i čerstvé díly jař
-    expect(join.filter((j) => j.crop === 'spring')).toHaveLength(6);
-    expect(join.map((j) => j.id)).toContain(a!.id);
-    expect(join.map((j) => j.id)).toContain(c!.id);
-    // na jaře, když díly v osevu nestačí, i čerstvé díly
+    // na jaře při velké potřebě všechny díly, od nejúrodnějších: čerstvé díly (první osev) před díly v osevu
     const spring = turnSelection(s, at(601, 3, 10), { ...CALM, flaxNeedKg: 1e9 });
     const flaxIds = spring.filter((j) => j.crop === 'flax').map((j) => j.id);
-    expect(flaxIds.slice(0, 4)).toEqual([b!.id, d!.id, c!.id, a!.id]);
     expect(flaxIds).toHaveLength(8);
+    const fresh = s.parts.slice(4).map((p) => p.id);
+    expect(new Set(flaxIds.slice(0, 4))).toEqual(new Set(fresh));
+    expect(flaxIds.slice(4)).toEqual([b!.id, d!.id, c!.id, a!.id]);
+    // po konci okna ozimu len jen do potřeby – dva nejúrodnější díly
+    const november = at(600, 11, 5);
+    const need =
+      expectedFlaxKg(s.parts[4]!, november) + expectedFlaxKg(s.parts[5]!, november) - 0.01;
+    const join = turnSelection(s, november, { ...CALM, flaxNeedKg: need });
+    expect(join.filter((j) => j.crop === 'flax')).toHaveLength(2);
+    expect(join.filter((j) => j.crop === 'spring')).toHaveLength(6);
   });
 
-  it('len na jaře: napřed díly v osevu, pak první osev a příloh 70–95 %, nouzový ne', () => {
+  it('na podzim si ves díly na příští len odloží před ozimem – nejúrodnější, jen do potřeby (Martin 10. 11. 2026)', () => {
+    const s = village(8);
+    s.parts
+      .slice(0, 4)
+      .forEach((p, i) =>
+        Object.assign(p, { sownYears: 1, fertilityShare: [0.8, 0.95, 0.85, 0.9][i] }),
+      );
+    // čerstvé díly 4–7 mají nejvyšší úrodnost – nejmenší potřeba (jeden díl) odloží jen první z nich
+    const one = turnSelection(s, SEPT_1, { ...CALM, flaxNeedKg: 1 });
+    const spring = turnSelection(s, at(601, 3, 10), { ...CALM, flaxNeedKg: 1 });
+    const reserved = spring.filter((j) => j.crop === 'flax').map((j) => j.id);
+    expect(reserved).toHaveLength(1);
+    expect(one.some((j) => j.crop !== 'winter')).toBe(false);
+    expect(one.map((j) => j.id)).not.toContain(reserved[0]);
+    expect(one).toHaveLength(7);
+    // dvě potřeby = dva díly, bez potřeby se neodkládá nic
+    const need = expectedFlaxKg(s.parts[4]!, SEPT_1) * 1.5;
+    expect(turnSelection(s, SEPT_1, { ...CALM, flaxNeedKg: need })).toHaveLength(6);
+    expect(turnSelection(s, SEPT_1, CALM)).toHaveLength(8);
+    // díl, na kterém len před méně než 7 lety rostl, se neodloží (první z čerstvých vynechán)
+    s.parts[4]!.flaxYear = 598;
+    const skip = turnSelection(s, SEPT_1, { ...CALM, flaxNeedKg: 1 });
+    expect(skip.map((j) => j.id)).toContain(s.parts[4]!.id);
+    expect(skip).toHaveLength(7);
+  });
+
+  it('len na jaře: nejúrodnější díly na řadě bez ohledu na druh osevu, nouzový ne', () => {
     const s = village(7);
     const [a, b, c, d, e, f, g] = s.parts;
-    // a, b – díly v osevu (okno ozimu skončilo – jař), nižší úrodnost
     Object.assign(a!, { sownYears: 1, fertilityShare: 0.75 });
     Object.assign(b!, { sownYears: 1, fertilityShare: 0.8 });
     // c, d – příloh 70–95 %; e – nouzový příloh 40–70 %
@@ -387,7 +406,7 @@ describe('výběr dílů na řadě – bez stropu', () => {
     const flax = turnSelection(s, at(601, 3, 10), { ...CALM, flaxNeedKg: 1e9 })
       .filter((j) => j.crop === 'flax')
       .map((j) => j.id);
-    expect(flax).toEqual([b!.id, a!.id, f!.id, g!.id, c!.id, d!.id]);
+    expect(flax).toEqual([f!.id, g!.id, c!.id, d!.id, b!.id, a!.id]);
   });
 
   it('na díl se len vrátí nejdřív po 7 letech (Martin 9. 11. 2026: „6 nebo 7“ – návrh Clauda 7)', () => {

@@ -217,7 +217,9 @@ describe('zlatý otisk – výběr dílů a práce vsi k 2. 9.', () => {
     // 152:9a7a02d5 (10. 11. 2026, přílohová soustava do roku 1100 – fields.md): díl se osévá rok po
     // roku do 70 % a plodinu dostane podle prvního okna (ozim i po ozimu) – jiný výběr dílů;
     // dřív 169:c1ff75b5
-    expect(fingerprint(plans)).toBe('152:9a7a02d5');
+    // 152:21f1a713 (10. 11. 2026, díly na len se odloží před ozimem – fields.md, Len): plán k 1. 9.
+    // nezahrnuje do ozimu díly odložené na jarní len; dřív 152:9a7a02d5
+    expect(fingerprint(plans)).toBe('152:21f1a713');
   });
 });
 
