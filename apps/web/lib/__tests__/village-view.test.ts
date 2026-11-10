@@ -939,8 +939,10 @@ describe('buildVillageView', () => {
   });
 
   it('osetá pole po čtvercích: vzhled, rozpracovaný díl a rozdělení práce na dílech čela', () => {
-    // ves s 5 díly dopočtená do podzimního kopání ozimu (1. 9. 504 – plán s ozimem)
-    const day = dayIndexOf({ year: 504, month: 9, day: 3 });
+    // ves s 5 díly dopočtená do podzimního kopání ozimu (2. 9. 504 – plán s ozimem). Ves si na jarní
+    // len odloží díly do své potřeby (fields.md – Len: 2 z 5 dílů), ozim tak dostanou jen 3 díly
+    // a jejich kopání je hotové už 3. 9. – rozpracovaný díl je proto vidět dřív (2. 9.)
+    const day = dayIndexOf({ year: 504, month: 9, day: 2 });
     const s = advanceVillage(settled(), day, null);
     const scene = buildVillageView(record(s), landscape, day).scene;
     const parts = scene.fields[0]!.parts;
