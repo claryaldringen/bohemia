@@ -5,6 +5,7 @@ import { cattleRoom } from '../cattle-trade';
 import {
   HAY,
   HAY_WINTER_DAYS,
+  SNOW_FEED_DAYS,
   PLAN_HAY_KEEP,
   mowingCapacityKg,
   mowingRemaining,
@@ -32,7 +33,8 @@ import { withBuiltFirstDwelling } from './village-fixtures';
 // v plánu seče a místa v ohradách před senem.
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
-const winterHay = (s: 'sheep' | 'goat' | 'cow'): number => HAY.dailyKg[s] * HAY_WINTER_DAYS;
+// krávy, ovce a kozy jen na dny se sněhem (diet.md – Zima bez sena)
+const winterHay = (s: 'sheep' | 'goat' | 'cow'): number => HAY.dailyKg[s] * SNOW_FEED_DAYS;
 
 function meadow(id: number, distanceM: number): FieldPart {
   return {

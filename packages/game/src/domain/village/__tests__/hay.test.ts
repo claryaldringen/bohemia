@@ -6,6 +6,7 @@ import {
   HAY,
   HAY_WINTER_DAYS,
   PLAN_HAY_KEEP,
+  SNOW_FEED_DAYS,
   feedHay,
   herdHayCoverage,
   isHayMeadow,
@@ -168,9 +169,9 @@ describe('plán seče', () => {
     expect(planAftermath(s, need(1000, 4500))).toBeNull();
   });
 
-  it('seno na zimu: kráva 5, vůl 6, ovce a koza 1 kg denně listopad–březen; prasata nic', () => {
+  it('seno na zimu: vůl 6 kg listopad–březen; kráva 5, ovce a koza 1 kg jen ve sněhu; prasata nic', () => {
     expect(winterHayKg(herds({ cow: 2, sheep: 10, goat: 4, pig: 30 }), 2)).toBeCloseTo(
-      (2 * 5 + 10 + 4 + 2 * 6) * HAY_WINTER_DAYS,
+      (2 * 5 + 10 + 4) * SNOW_FEED_DAYS + 2 * 6 * HAY_WINTER_DAYS,
       9,
     );
   });
@@ -232,18 +233,19 @@ describe('simulace – seno za rok', () => {
     s.livestock!.herds.cow = 2;
     // v červnu je den delší (population.md – Skladba dne podle ročního období) – 6. 6. ještě seče
     const june = advanceVillage(s, at(600, 6, 6), null);
-    // seno na stádo ze dvou dílů nejblíž, třetí z volné práce (24. 10. 2026)
-    expect(june.hay!.mowing!.partIds).toEqual([1, 2, 3]);
-    expect(june.hay!.mowing!.needed!).toBeLessThan(june.hay!.mowing!.required);
+    // seno na stádo (krávy, ovce a kozy na dny se sněhem) ze dvou dílů nejblíž – celé nutné;
+    // třetí díl stádo nepotřebuje (diet.md – Zima bez sena, 10. 11. 2026; dřív třetí z volné práce)
+    expect(june.hay!.mowing!.partIds).toEqual([1, 2]);
+    expect(june.hay!.mowing!.needed!).toBeCloseTo(june.hay!.mowing!.required, 9);
     const looks = fieldPartLooks(june, june.lastDay);
     expect(looks.get(1)?.look).toBe('mown');
-    expect(looks.get(3)?.look).toBe('meadow'); // v plánu seče, ještě neposečený
+    expect(looks.get(2)?.look).toBe('meadow'); // v plánu seče, ještě neposečený
     const summer = advanceVillage(june, at(600, 8, 1), null);
-    // posečené seno už ve stohu trochu ztratilo
-    expect(summer.hay!.kg).toBeGreaterThan(4400);
-    expect(summer.hay!.kg).toBeLessThan(4500);
+    // seč srpem je pomalá – do 30. 6. ves posekala většinu, seno ve stohu trochu ztratilo
+    expect(summer.hay!.kg).toBeGreaterThan(2000);
+    expect(summer.hay!.kg).toBeLessThan(3000);
     expect(summer.labor).toBeDefined();
-    expect(fieldPartLooks(summer, summer.lastDay).get(2)?.look).toBe('haystacks');
+    expect(fieldPartLooks(summer, summer.lastDay).get(1)?.look).toBe('haystacks');
     const spring = advanceVillage(summer, at(601, 4, 1), null);
     expect(spring.hay!.kg).toBeLessThan(summer.hay!.kg);
   });

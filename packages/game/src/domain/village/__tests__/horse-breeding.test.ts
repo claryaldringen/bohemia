@@ -172,11 +172,16 @@ describe('čekající kůň stárne (horses.md – Chov)', () => {
 });
 
 describe('chov den po dni', () => {
-  const horses = (): VillageState =>
-    horseVillage(
+  const horses = (): VillageState => {
+    const s = horseVillage(
       [horse(1, 8, 'male', 30), horse(3, 6, 'female'), horse(5, 7, 'female'), horse(7, 21)],
       3,
     );
+    // seno na zimu i pro koně – osadníci přivezli jen seno stáda na dny se sněhem (diet.md – Zima
+    // bez sena)
+    s.hay = { kg: 5_000, mowing: null };
+    return s;
+  };
   const TO = at(601, 11, 5);
 
   it('dopočet po kouscích dá stejný stav', () => {

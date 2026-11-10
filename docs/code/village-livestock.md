@@ -47,6 +47,34 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `hay-slaughter`, upozornění „Chybí seno – porazili …“. Zimní úhyn `starveHerds` zrušen (kronika
   `herd-starved` jen ze starších vsí). Náhrada posledního páru (`oxenTraining` – `lastPair`) platí
   i po rozpadu páru, když ves má rádlo (`villageArds`). Ves sama nekupuje ani neprodává.
+- **Zima bez sena – pastva, sláma a chovné jádro** (diet.md a oxen.md – Zima bez sena; Martin 10. 11. 2026, čísla návrh Clauda): seč srpem `HAY_WORK_PER_HA` 46 / 40 čd/ha (rules-livestock.ts
+  – 2× `HARVEST_WORK_PER_HA`). **Sníh:** `snowDaysAhead(day, days, winter)` a `snowDaysOfYear`
+  (snow.ts – tabulka `snowLies` po dnech roku a zimách, přestupný rok jako scéna);
+  `SNOW_FEED_DAYS` (hay.ts – 93 dní běžné zimy), `herdsOnSnow(state, day)` (sníh se zimou roku
+  z `weatherOf` – jako `dayChores`). **Krmení:** `feedHay(…, snow)` – voli, koně celou zimu;
+  krávy, ovce a kozy jen `snow` (husbandryDay – `herdsOnSnow`), napřed `HayState.straw` (2 kg za
+  kg sena – `STRAW.perHayKg`, `strawAsHayKg`), pak seno; `winter.herdNeedKg` / `herdEatenKg` jen
+  ve sněhu, sláma v kg sena. **Sláma** (`StrawState` v `HayState.straw` – volitelná, starší ves
+  bez ní krmí senem a slámu založí první výmlat, převod není): `threshCrop` (threshing.ts) →
+  `addStraw` (`STRAW.perGrainKg` 0,75 kg na kg vymláceného zrna, jen obilí) do `kg` a `yearKg`;
+  `rotHay` ztrácí jako seno; `spoilOldHay` (25. 5.) – zbytek pryč, `lastYearKg = yearKg`.
+  `strawComingKg` = zásoba + snopy obilí × 0,75 (porážka 1. 11. – `WinterInput.strawKg`,
+  `hayShortSlaughter`); `expectedStrawKg` = `lastYearKg` (plán seče). **Potřeba sena:**
+  `winterHayKg(herds, oxen, horsesKg, strawHayKg)` – stádo × `SNOW_FEED_DAYS` bez slámy (ne pod 0)
+  - voli a koně × `HAY_WINTER_DAYS`; `herdWinterHayKg` (kus za zimu – `winterTargets`, krávy na
+    cestě, `headEconomy`), `waitingHerdHayKg` (čekající na porážku × podíl dní se sněhem –
+    `waitingHayKg`). `winterHayNeedKg` a `mowingNeed` (husbandry.ts) odečtou `expectedStrawHayKg`
+    (loňská sláma po ztrátách ve stohu), `mowableHerdHayKg` ji přičte ke stropu stád.
+    **Chovné jádro:** `winterTargets` – seno po volech, koních a kravách na cestě + sláma
+    (`input.strawKg`) ÷ `herdWinterHayKg`; `winterWait(…, strawKg)`; `hayShortSlaughter` – seno
+    po volech a koních na `hayWinterDaysLeft` + sláma (`strawComingKg`) proti dávce × zbývající dny
+    se sněhem (`snowDaysAhead`, odhalená dlouhá zima `'long'`, jinak běžná). Rozhraní slámu neukazuje.
+    **Přednost zimního krmení** (Martin 10. 11. 2026): `oxenRenewalCows(state)` (husbandry.ts – voli
+    ves nebo `oxenTrainingTarget`, co víc, ÷ `OXEN.serviceYears` ÷ (`LIVESTOCK.growth.cow` ×
+    `OXEN.bullCalfShare`), aspoň chovný pár, bez volů 0) → `WinterInput.oxenCows` (`farmInput`);
+    `winterTargets` – `take('cow', oxenCows)`, `take('sheep', minSheep)`, pak `HERD_PRIORITY`
+    (pastva, seno, sláma i `mowKg`); `hayShortSlaughter(…, first)` – `feed` krávy k obnově volů, ovce
+    na vlnu (`woolSheep`), pak `HAY_EATERS`.
 
 - **Strava a dobytek** ([diet.md](../design/diet.md)): jídlo dne `eatDiet` / `villageMeal`
   (`diet.ts`) – ovoce (jablka; v rozhraní „ovoce“) rovným dílem do zkažení 1. 3., čerstvé mléko

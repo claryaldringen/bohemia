@@ -15,7 +15,7 @@ import {
 import { craftCoverage } from './crafts';
 import { HORSE_PEN_NO_SURPLUS, horsePenPayment, payHorsePen } from './horse-pen-payment';
 import { isVillageExtinct } from './extinction';
-import { winterHayKg } from './hay';
+import { PLAN_HAY_KEEP, winterHayKg } from './hay';
 import { foundingLivestock } from './livestock';
 import { ableTeams, startPen, type PenInput } from './oxen';
 import {
@@ -600,8 +600,11 @@ export function foundVillage(input: {
     // doplní use-case
     livestock,
     // noví osadníci si přivedli i seno na první zimu stáda (diet.md – Oděv: jinak by ves založená
-    // po seči přišla v zimě o ovce na vlnu); co nesnědí, shnije s příští sečí
-    ...(settlers ? {} : { hay: { kg: winterHayKg(livestock.herds, 0), mowing: null } }),
+    // po seči přišla v zimě o ovce na vlnu) – na dny se sněhem i se ztrátou ve stohu jako plán seče
+    // (diet.md – Zima bez sena); co nesnědí, shnije s příští sečí
+    ...(settlers
+      ? {}
+      : { hay: { kg: winterHayKg(livestock.herds, 0) / PLAN_HAY_KEEP, mowing: null } }),
     meatKg: food ? food.meatKg : 0,
     ...(food && food.cheeseKg > 0 ? { cheeseKg: food.cheeseKg } : {}),
     ...(food && food.legumesKg > 0 ? { legumesKg: food.legumesKg } : {}),

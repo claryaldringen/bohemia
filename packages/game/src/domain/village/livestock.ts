@@ -20,11 +20,16 @@ import {
   HAY_WINTER_DAYS,
   hayLeftAvailable,
   hayWinterDaysLeft,
+  herdWinterHayKg,
   isHayWinter,
+  strawAsHayKg,
+  strawComingKg,
   villageHayKg,
+  waitingHerdHayKg,
   winterHayAvailable,
   winterHayKg,
 } from './hay';
+import { snowDaysAhead } from './snow';
 import {
   hasWeather,
   isLongWinterRevealed,
@@ -495,12 +500,22 @@ export interface WinterInput {
   oxen: number;
   /** Zásoba sena k začátku zimy (kg); bez omezení Infinity. */
   hayKg: number;
+  /**
+   * Sláma na zimu (kg – zásoba a snopy obilí před výmlatem, `strawComingKg`) – krávy, ovce a kozy
+   * ji ve sněhu žerou před senem (diet.md – Zima bez sena). Bez údaje 0.
+   */
+  strawKg?: number;
   /** Krávy, které ves drží vždy (`breedingCows` – mléko a telata pro voly); bez údaje pár. */
   minCows?: number;
   /** Podíl stáda, který pasáci přes rok uhlídali (diet.md – Pasáci); bez údaje vše. */
   herding?: number;
   /** Ovce na vlnu pro oděv všech (`woolSheep` – diet.md, Oděv); bez údaje jen chovný pár. */
   minSheep?: number;
+  /**
+   * Krávy k obnově volů (`oxenRenewalCows` – diet.md, Zima bez sena): v zimním krmení hned po volech
+   * a koních, před ovcemi na vlnu (`minSheep`); bez údaje žádné.
+   */
+  oxenCows?: number;
   /** Cena jídla v práci (`foodCosts` – Rovnovážné hospodaření); bez údaje typická. */
   costs?: FoodCosts;
   /**
@@ -578,7 +593,8 @@ function watchedShares(
 /**
  * Co stáda unesou přes zimu – kusy po druzích (aspoň chovný pár, který ves má). Pastva, seno
  * a seno, které ves stihne posekat (`mowKg` – oxen.md, Stáda podle práce na seč), se dělí podle
- * přednosti (`HERD_PRIORITY` – voli první, krávy na cestě, pak krávy, ovce a kozy – ty spásají
+ * přednosti – voli první, krávy na cestě, krávy k obnově volů (`oxenCows`), ovce na vlnu
+ * (`minSheep` – diet.md, Zima bez sena), pak krávy, ovce a kozy (`HERD_PRIORITY` – kozy spásají
  * napřed křoviny); prasata podle lesa (pasou se v něm celý rok – žaludy, bukvice, kořínky); a jen
  * tolik, kolik pasáci uhlídali (`herding` – co nikdo neuhlídal, jde na maso) – pasáci hlídají
  * v pořadí přednosti (`watchedShares`). Nejvýš tolik, kolik se i s jarními mláďaty vejde do ohrad
@@ -595,7 +611,7 @@ export function winterTargets(
   const breeding = (s: HerdSpecies): number => Math.min(herds[s], LIVESTOCK.breedingMin);
   // krávy na cestě mají místo, pastvu i seno první z krav (koupené – trade.md)
   const coming = Math.max(0, input.cowsComing ?? 0);
-  const comingHay = coming * HAY.dailyKg.cow * HAY_WINTER_DAYS;
+  const comingHay = coming * herdWinterHayKg('cow');
   let pasture = Math.max(
     0,
     pastureHa(state, day) -
@@ -604,26 +620,28 @@ export function winterTargets(
       coming * LIVESTOCK.pastureHa.cow,
   );
   let browse = goatBrowseHa(state);
-  let hay = Math.max(
-    0,
-    winterHayAvailable(input.hayKg) -
-      input.oxen * HAY.dailyKg.ox * HAY_WINTER_DAYS -
-      (input.horseHayKg ?? 0) -
-      comingHay,
-  );
+  // krávy, ovce a kozy: seno po volech a koních a sláma (jen jejich – diet.md, Zima bez sena)
+  let hay =
+    Math.max(
+      0,
+      winterHayAvailable(input.hayKg) -
+        input.oxen * HAY.dailyKg.ox * HAY_WINTER_DAYS -
+        (input.horseHayKg ?? 0) -
+        comingHay,
+    ) + strawAsHayKg(winterHayAvailable(input.strawKg ?? 0));
   let mow = input.mowKg === undefined ? Infinity : Math.max(0, input.mowKg - comingHay);
   const room = (s: HerdSpecies): number =>
     Math.max(0, roomForWinter(input.room, s) - (s === 'cow' ? coming : 0));
   const targets = herdRecord(() => 0);
-  const take = (species: Exclude<HerdSpecies, 'pig'>): void => {
+  const take = (species: Exclude<HerdSpecies, 'pig'>, upTo = Infinity): void => {
     const per = LIVESTOCK.pastureHa[species];
-    const winterHay = HAY.dailyKg[species] * HAY_WINTER_DAYS;
+    const winterHay = herdWinterHayKg(species);
     const own = species === 'goat' ? browse : 0;
     const heads = Math.max(
       0,
       Math.min(
-        herds[species] * watched[species],
-        room(species),
+        Math.min(herds[species] * watched[species], upTo) - targets[species],
+        room(species) - targets[species],
         (pasture + own) / per,
         hay / winterHay,
         mow / winterHay,
@@ -637,6 +655,11 @@ export function winterTargets(
     mow = Math.max(0, mow - heads * winterHay);
     targets[species] += heads;
   };
+  // krávy k obnově volů, ovce na vlnu, pak zbytek v pořadí přednosti (diet.md – Zima bez sena;
+  // Martin 10. 11. 2026: „Ano, ovce na vlnu před kravami, ale je potřeba nechat dostatek krav
+  // k obnově volů“)
+  take('cow', input.oxenCows ?? 0);
+  take('sheep', input.minSheep ?? 0);
   for (const species of HERD_PRIORITY) if (species !== 'pig') take(species);
   targets.pig = Math.min(
     herds.pig * watched.pig,
@@ -773,7 +796,7 @@ function waitingHayKg(wait: Readonly<Record<HerdSpecies, number>>, perDayKg: num
   let hay = 0;
   for (const species of WINTER_SLAUGHTER_ORDER) {
     const days = (wait[species] * LIVESTOCK.meatKg[species]) / perDayKg;
-    if (species !== 'pig') hay += HAY.dailyKg[species] * wait[species] * (start + days / 2);
+    if (species !== 'pig') hay += waitingHerdHayKg(species, wait[species], start + days / 2);
     start += days;
   }
   return hay;
@@ -799,6 +822,7 @@ export function winterWait(
   hayKg: number,
   oxen: number,
   room?: Readonly<Record<HerdSpecies, number>>,
+  strawKg = 0,
 ): Record<HerdSpecies, number> {
   const perDayKg = freshMeatPerDayKg(state, day);
   let freshKg = perDayKg * HAY_WINTER_DAYS;
@@ -811,7 +835,10 @@ export function winterWait(
     wait[species] = Math.max(0, heads);
     freshKg -= wait[species] * LIVESTOCK.meatKg[species];
   }
-  const hayLeft = winterHayAvailable(hayKg) - winterHayKg(keep, oxen);
+  // stádo přes zimu žere ve sněhu napřed slámu (`strawKg`), čekající kusy seno po něm
+  const hayLeft =
+    winterHayAvailable(hayKg) -
+    winterHayKg(keep, oxen, 0, strawAsHayKg(winterHayAvailable(strawKg)));
   // seno nestačí – ubrat čekající přežvýkavce od posledních na řadě
   for (const species of ['cow', 'sheep', 'goat'] as const) {
     if (waitingHayKg(wait, perDayKg) <= hayLeft + EPSILON) break;
@@ -1010,7 +1037,7 @@ export function headEconomy(species: HerdSpecies, costs: FoodCosts): HeadEconomy
     dairyProtein: milk.proteinKg * LIVESTOCK.milkProteinKept,
   };
   if (species === 'pig') return { ...base, labor: slaughterWork };
-  const hay = HAY.dailyKg[species] * HAY_WINTER_DAYS * costs.hayPerKg;
+  const hay = herdWinterHayKg(species) * costs.hayPerKg;
   return { ...base, labor: hay + slaughterWork };
 }
 
@@ -1038,7 +1065,8 @@ export const TYPICAL_FOOD_COSTS: FoodCosts = {
   // 0,508 do 9. 11. 2026 – setí zlevnilo (rozsévač za spřežením, fields.md – Práce); 0,491 do
   // 10. 11. 2026 – zprůměrovaná žeň (fields.md – Práce)
   grainPerKg: 0.472,
-  hayPerKg: 0.0127,
+  // 0,0127 do 10. 11. 2026 – seč srpem 46 čd/ha místo kosou 15 (oxen.md – Zima bez sena)
+  hayPerKg: 0.039,
 };
 
 /**
@@ -1130,7 +1158,9 @@ export function balancedPlan(
  * Zimní krmení; Martin 24. 10. 2026: „Když se v zimě zjistí, že pro krávy není krmení, tak se dají
  * prodat nebo porazit.“ – prodává jen hráč): každý den zimy ves spočítá, komu zásoba sena vystačí do
  * konce března – voli a koně první (`oxen`, `horsesKg` – dávka koní za den), pak v pořadí přednosti
- * krávy, ovce a kozy (`HERD_PRIORITY`; bez kusů, které už čekají na zimní porážku – `culling`).
+ * krávy k obnově volů a ovce na vlnu (`first`), pak krávy, ovce a kozy (`HERD_PRIORITY`; bez kusů,
+ * které už čekají na zimní porážku – `culling`) na zbývající dny se sněhem se slámou napřed
+ * (diet.md – Zima bez sena: chovné jádro).
  * Chybí-li seno aspoň na celý kus, ves hned porazí celé kusy, na které seno nezbude (kozy, ovce,
  * krávy), a s nimi i všechny čekající kusy – zvířata nehladoví; maso jde do uzení. Chovný pár zůstane
  * (přežije o větvích a slámě – dřív zimní úhyn 1. 3.). Vrátí událost kroniky, nebo null.
@@ -1140,23 +1170,40 @@ export function hayShortSlaughter(
   day: number,
   oxen: number,
   horsesKg = 0,
+  first: Partial<Record<'cow' | 'sheep', number>> = {},
 ): ChronicleEvent | null {
   const livestock = state.livestock;
   // v dlouhé zimě do konce dubna (disasters.md – Zima) – co seno nevydrží, řeší porážka
-  const days = hayWinterDaysLeft(day, isLongWinterRevealed(state, day));
+  const longWinter = isLongWinterRevealed(state, day);
+  const days = hayWinterDaysLeft(day, longWinter);
   if (!livestock || days <= 0) return null;
   const waiting = herdRecord((s) => Math.min(livestock.herds[s], livestock.culling?.[s] ?? 0));
-  let hay = hayLeftAvailable(villageHayKg(state), days) - (oxen * HAY.dailyKg.ox + horsesKg) * days;
+  // krávy, ovce a kozy jen na zbývající dny se sněhem (běžná zima, odhalená dlouhá déle) – seno po
+  // volech a koních a sláma, i ze snopů před výmlatem (diet.md – Zima bez sena)
+  const snowDays = snowDaysAhead(day, days, longWinter ? 'long' : 'normal');
+  let hay =
+    Math.max(
+      0,
+      hayLeftAvailable(villageHayKg(state), days) - (oxen * HAY.dailyKg.ox + horsesKg) * days,
+    ) + strawAsHayKg(hayLeftAvailable(strawComingKg(state), snowDays));
+  const kept = herdRecord((s) => livestock.herds[s] - waiting[s]);
+  const fed = herdRecord(() => 0);
+  const feed = (species: Exclude<HerdSpecies, 'pig'>, upTo = Infinity): void => {
+    const winter = HAY.dailyKg[species] * snowDays;
+    const want = Math.max(0, Math.min(kept[species], upTo) - fed[species]);
+    const heads = winter <= EPSILON ? want : Math.min(want, hay / winter);
+    fed[species] += heads;
+    hay = Math.max(0, hay - heads * winter);
+  };
+  // krávy k obnově volů, ovce na vlnu, pak zbytek v pořadí přednosti (diet.md – Zima bez sena)
+  feed('cow', first.cow ?? 0);
+  feed('sheep', first.sheep ?? 0);
+  for (const species of HAY_EATERS) feed(species);
   const cut = herdRecord(() => 0);
-  for (const species of HERD_PRIORITY) {
-    if (species === 'pig') continue;
-    const kept = livestock.herds[species] - waiting[species];
-    const winter = HAY.dailyKg[species] * days;
-    const fed = Math.min(kept, Math.max(0, hay) / winter);
-    hay -= fed * winter;
+  for (const species of HAY_EATERS) {
     // celé kusy nad seno – chovný pár zůstane
-    const keep = Math.max(fed, Math.min(kept, LIVESTOCK.breedingMin));
-    cut[species] = Math.floor(kept - keep + EPSILON);
+    const keep = Math.max(fed[species], Math.min(kept[species], LIVESTOCK.breedingMin));
+    cut[species] = Math.floor(kept[species] - keep + EPSILON);
   }
   if (HAY_EATERS.every((s) => cut[s] <= 0)) return null;
   const animals: Partial<Record<HerdSpecies, number>> = {};
@@ -1240,7 +1287,16 @@ export function slaughter(
   }
   // kusy na maso: kolik ves přes zimu sní čerstvého, počká na porážku – zbytek hned do uzení
   const killed = herdRecord((s) => Math.max(0, herds[s] - keep[s]));
-  const wait = winterWait(state, day, keep, killed, input.hayKg, input.oxen, input.room);
+  const wait = winterWait(
+    state,
+    day,
+    keep,
+    killed,
+    input.hayKg,
+    input.oxen,
+    input.room,
+    input.strawKg,
+  );
   const animals: Partial<Record<HerdSpecies, number>> = {};
   let smoked = 0;
   let fresh = 0;

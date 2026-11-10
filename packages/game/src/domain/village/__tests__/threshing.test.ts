@@ -4,7 +4,7 @@ import { foundVillage, type PartInput } from '../actions';
 import { eatDiet } from '../diet';
 import { fieldStoresKg, storesOutlook } from '../field-food';
 import { NO_CRAFTS, storageLossPerYear } from '../productivity';
-import { THRESHING } from '../rules';
+import { STRAW, THRESHING } from '../rules';
 import { advanceVillage } from '../simulate';
 import { seedThreshKg } from '../seed';
 import {
@@ -300,9 +300,12 @@ describe('výmlat v srpnu a září na humně', () => {
     expect(villageSheaves(s).grainKg).toBeCloseTo(800, 9);
     expect(sheafWork(s, 'winter')).toBeCloseTo(2, 9);
     expect(sheafWork(s, 'spring')).toBe(30);
-    // luštěniny celé – do zásoby luštěnin
+    // sláma do stohu – 0,75 kg na kg vymláceného zrna (diet.md – Zima bez sena)
+    expect(s.hay?.straw?.kg).toBeCloseTo(200 * STRAW.perGrainKg, 9);
+    // luštěniny celé – do zásoby luštěnin (sláma jen z obilí)
     const legumes = threshTasks(s, day).find((t) => t.crop === 'legume')!;
     threshCrop(s, legumes, 4);
+    expect(s.hay?.straw?.kg).toBeCloseTo(200 * STRAW.perGrainKg, 9);
     expect(s.legumesKg).toBeCloseTo(200, 9);
     expect(villageSheaves(s).legumesKg).toBe(0);
     expect(sheafWork(s, 'legume')).toBe(0);

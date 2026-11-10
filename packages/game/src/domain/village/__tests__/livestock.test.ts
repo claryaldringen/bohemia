@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
 import { foundVillage } from '../actions';
 import { PROTEIN } from '../diet';
-import { hayLeftAvailable, hayWinterDaysLeft, winterHayAvailable } from '../hay';
+import { SNOW_FEED_DAYS, hayLeftAvailable, hayWinterDaysLeft, winterHayAvailable } from '../hay';
+import { snowDaysAhead } from '../snow';
 import { mergeHaySlaughter } from '../husbandry';
 import { youngsterHerders } from '../herding';
 import { predationDay } from '../predators';
@@ -202,8 +203,9 @@ describe('růst a nosnost', () => {
     s.livestock!.land = { meadowHa: 9, forestHa: 3 };
     const more = winterTargets(s, s.lastDay, { oxen: 0, hayKg: Infinity });
     expect(more).toEqual(herds({ sheep: 15, goat: LIVESTOCK.breedingMin, pig: 3, cow: 6 }));
-    // seno na zimu jen pro 3 krávy (po ztrátách ve stohu) – ovce a kozy jen chovný pár
-    const hayFor3 = (3 * 5 * 151) / winterHayAvailable(1);
+    // seno na zimu jen pro 3 krávy na dny se sněhem (po ztrátách ve stohu) – ovce a kozy jen
+    // chovný pár
+    const hayFor3 = (3 * 5 * SNOW_FEED_DAYS) / winterHayAvailable(1);
     const hay = winterTargets(s, s.lastDay, { oxen: 0, hayKg: hayFor3 });
     expect(hay.cow).toBeCloseTo(3, 9);
     expect(hay.sheep).toBeCloseTo(LIVESTOCK.breedingMin, 9);
@@ -384,11 +386,13 @@ describe('porážka při nedostatku sena (24. 10. 2026)', () => {
     s.livestock!.herds = herds({ sheep: 20, goat: 3, pig: 8, cow: 6 });
     const days = hayWinterDaysLeft(day);
     expect(days).toBe(59);
+    // krávy, ovce a kozy jen na zbývající dny se sněhem (diet.md – Zima bez sena)
+    const snow = snowDaysAhead(day, days);
     // seno dost – nic
     s.hay = { kg: 10_000, mowing: null };
     expect(hayShortSlaughter(s, day, 0)).toBeNull();
-    // seno na 4,5 krávy do konce března: krávy napřed (celé kusy – 1 navíc), ovcím a kozám nic
-    s.hay.kg = (4.5 * 5 * days) / hayLeftAvailable(1, days);
+    // seno na 4,5 krávy do konce sněhu: krávy napřed (celé kusy – 1 navíc), ovcím a kozám nic
+    s.hay.kg = (4.5 * 5 * snow) / hayLeftAvailable(1, days);
     const event = hayShortSlaughter(s, day, 0);
     expect(s.livestock!.herds).toEqual(herds({ sheep: 2, goat: 2, pig: 8, cow: 5 }));
     expect(event).toEqual({
@@ -422,7 +426,8 @@ describe('zlé roky – bez úniku budoucnosti (disasters.md – Kdy je vidět)'
       const s = village(march);
       s.disasters = { override: { weather: { 601: { winter } } } };
       s.livestock!.herds = herds({ sheep: 20, goat: 3, pig: 8, cow: 6 });
-      s.hay = { kg: 1_500, mowing: null };
+      // v běžné zimě už sníh neleží – stádo se pase; v dlouhé leží do dubna
+      s.hay = { kg: 300, mowing: null };
       hayShortSlaughter(s, march, 0);
       const h = s.livestock!.herds;
       return h.sheep + h.goat + h.cow;

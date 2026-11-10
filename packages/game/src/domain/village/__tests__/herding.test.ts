@@ -12,7 +12,7 @@ import {
   recordHerding,
   youngsterHerders,
 } from '../herding';
-import { HAY, HAY_WINTER_DAYS } from '../hay';
+import { HAY, SNOW_FEED_DAYS } from '../hay';
 import {
   LIVESTOCK,
   headEconomy,
@@ -161,9 +161,9 @@ describe('rovnovážné hospodaření – pasáci (diet.md)', () => {
       yearlyMeatPerHead(sp) / LIVESTOCK.slaughterKgPerManDay;
     // prase: jen porážka a uzení
     expect(headEconomy('pig', TYPICAL_FOOD_COSTS).labor).toBeCloseTo(slaughter('pig'), 9);
-    // kráva: zimní seno a porážka – dojení, sýr ani péče ne
+    // kráva: seno na dny se sněhem a porážka – dojení, sýr ani péče ne
     expect(headEconomy('cow', TYPICAL_FOOD_COSTS).labor).toBeCloseTo(
-      HAY.dailyKg.cow * HAY_WINTER_DAYS * TYPICAL_FOOD_COSTS.hayPerKg + slaughter('cow'),
+      HAY.dailyKg.cow * SNOW_FEED_DAYS * TYPICAL_FOOD_COSTS.hayPerKg + slaughter('cow'),
       9,
     );
   });
