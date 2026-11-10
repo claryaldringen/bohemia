@@ -10,6 +10,7 @@ import {
   type VillageState,
 } from '../../domain/village';
 import { BAPTIZE_REASONS, baptizeLord, type BaptizeDeps } from '../baptize';
+import { villageAccess } from '../rights';
 import { InMemoryHouses } from './in-memory-houses';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryStewardships } from './in-memory-stewardships';
@@ -105,5 +106,22 @@ describe('baptizeLord', () => {
     expect(isChristian(currentLord(seat)!)).toBe(true);
     expect(seat.chronicle.map((e) => e.kind)).toContain('lord-baptized');
     expect(other.chronicle.map((e) => e.kind)).not.toContain('lord-baptized');
+  });
+});
+
+// Tlačítko „Nechat se pokřtít“ (K8): přístup ke vsi řekne, jestli se vojvoda tady smí nechat
+// pokřtít – stejné podmínky jako use-case.
+describe('villageAccess – baptizable', () => {
+  const access = async (s: Setup, villageId: string): Promise<true | undefined> =>
+    (await villageAccess(s.deps, { playerId: PLAYER, villageId, today: TODAY }))?.baptizable;
+
+  it('jen ve vsi vojvody rodu, který křesťanství zná a ještě není pokřtěný', async () => {
+    const unknown = await setup(false);
+    expect(await access(unknown, unknown.seat)).toBeUndefined();
+    const s = await setup(true);
+    expect(await access(s, s.seat)).toBe(true);
+    expect(await access(s, s.other)).toBeUndefined();
+    await baptizeLord(s.deps, { playerId: PLAYER, villageId: s.seat, today: TODAY });
+    expect(await access(s, s.seat)).toBeUndefined();
   });
 });

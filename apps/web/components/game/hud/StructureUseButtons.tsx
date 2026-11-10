@@ -108,6 +108,8 @@ export function StructureUseButtons({
     use.demolition ? demolishLabel(use.demolition) : NAMES.demolish,
     use.block,
   );
+  // hřbitov se neopouští – jen Zbourat (zaorat), smí-li zmizet (christianity.md)
+  if (use.structure === 'cemetery') return demolish;
   return (
     <>
       {use.state === 'abandoned'

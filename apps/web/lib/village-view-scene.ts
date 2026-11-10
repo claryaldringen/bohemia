@@ -106,11 +106,16 @@ import { sceneFlood, sceneHail, sceneTornado, sceneWeather } from './weather-vie
 import { sceneFire } from './fire-view';
 import { sceneFortifications } from './fort-view';
 
+/**
+ * Scéna vsi v den `day`. `baptizable` – vojvoda vsi se smí nechat pokřtít
+ * (`VillageAccess.baptizable` – christianity.md, Křest rodu); jeho postava nese tlačítko křtu.
+ */
 export function sceneVillage(
   state: VillageState,
   landscape: Landscape,
   day: number,
   summary: VillageSummary,
+  baptizable = false,
 ): SceneVillage {
   const constructions = summary.constructions;
   const occupied = new Set(state.people.map((p) => p.dwellingId));
@@ -253,7 +258,7 @@ export function sceneVillage(
   const funerals = sceneFunerals(state, day);
   const weddings = sceneWeddings(state, day, landscape);
   const reserved = [...reservedTrees(state)].sort((a, b) => a - b);
-  const labor = sceneLabor(state, { ...summary.people, ...summary.family }, landscape);
+  const labor = sceneLabor(state, { ...summary.people, ...summary.family }, landscape, baptizable);
   const sacred = sceneSacred(state, landscape, day, summary);
   const obstacles = obstacleChangesAt(state, day);
   const wildTrees = sceneWildTrees(state, day, obstacles);
@@ -466,6 +471,7 @@ export function sceneLabor(
   state: VillageState,
   people: SceneLabor['people'],
   landscape: Landscape | null = null,
+  baptizable = false,
 ): SceneLabor | null {
   const labor = laborReport(state);
   if (!labor) return null;
@@ -482,7 +488,7 @@ export function sceneLabor(
     return [{ ...share, manDays }];
   });
   const homes = sceneLaborHomes(state, labor.shares);
-  const persons = scenePersons(state, labor.day);
+  const persons = scenePersons(state, labor.day, baptizable);
   const lord = sceneLord(state, labor.lord, labor.day);
   const shoeing = sceneShoeing(state, labor.day, landscape);
   return {

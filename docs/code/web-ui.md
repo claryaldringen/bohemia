@@ -1184,6 +1184,47 @@ jsou v `lib/premium-view.ts` (`PREMIUM_TEXTS`, `premiumIntroNotice`); portréty 
   dvojklik Zbourat, dvorec), `StructureUseButtons.behavior.test.tsx`, e2e `village.spec.ts` –
   „hráč zboří obydlí – lidé bydlí dočasně jinde – a opustí a vrátí ohradu“.
 
+## Křesťanství v rozhraní (christianity.md; plán 2026-11-10 – K8, `hud/BaptizeButton.tsx`)
+
+- **Tlačítko křtu** „Nechat se pokřtít“ (ikona kříže víry, `selection-person-baptize`) v panelu
+  osoby u vojvody vsi (`currentLord`), když `VillageAccess.baptizable` – rod křesťanství zná, ještě
+  není pokřtěný a vojvoda rodu (`House.lord`) žije v téhle vsi. Cesta dat: `villageAccess`
+  (`application/rights.ts`) → `viewOf` (`lib/village.ts`, kontext `baptizable`) →
+  `sceneVillage` / `sceneLabor` → `scenePersons(state, day, baptizable)` (`ScenePerson.baptizable`)
+  → `selection-details.ts` → `PersonBody`. Bez práva `ennoble` (`ACTION_RIGHTS.baptizeLord`)
+  zašedne s důvodem. Klik otevře potvrzení (`baptize-dialog`, portál do `body` – panel výběru je
+  posunutý transformací): „Křest nejde vzít zpět. Vedlejší manželky budou propuštěny.“, ikony kříž
+  (`baptize-confirm`) a křížek „Zrušit“ (`baptize-cancel`), klik mimo okno a Esc zavřou. Server
+  action `baptizeLord` (`app/game/actions.ts`, parser `parseBaptizeInput` – jen `villageId`) →
+  `baptizeLordForPlayer` (`actOn`) → use-case `baptizeLord`; odmítnutí u kurzoru. Ves vojvody se
+  pokřtí na začátku svého dne (schránka `rod-baptized`), tlačítko zmizí hned (`House.baptizedDay`).
+- **Ikona:** `FAITH_CROSS_ICON` = `/icons/house/faith-cross.png` (vykreslí K9 z Blenderu; pozor,
+  `house/cross.png` je křížek „zavřít“). Dokud soubor není, `FaithCross` přejde při chybě načtení
+  na `FAITH_CROSS_FALLBACK` (`resources/bell.png`).
+- **Víra v panelu osoby:** pokřtěný (`isChristian` → `ScenePerson.christian`) má malý kříž víry
+  s popiskem „Křesťan“ (`selection-person-christian`), pohan nic.
+- **Štěstí:** popisek v liště `HappinessTooltip` (`hud/TopBar.tsx`) – pod „Štěstí“ řádek „Křesťané
+  N %“ (kříž víry, `happiness-christians`) a „Pohané – zničená posvátná místa −N“ (ikona háje,
+  `happiness-desecration`), každý jen nad nulou (`VillageHappiness.christianShare` / `desecration`
+  z `HappinessSummary`).
+- **Hřbitov:** ves pokřtěného rodu (`rodBaptized`) dává hřbitovu `use` (`structureUseOf`); hřbitov
+  se neopouští, proto `StructureUseButtons` ukáže jen Zbourat a `block` je důvod bourání
+  (`demolitionBlock` – „Hřbitov ještě slouží.“, dokud `cemeteryMayGo` neplatí). Pohanský rod
+  tlačítko nemá vůbec (návrh Clauda – v 0 A.D. se příkaz, který entita nemá, neukazuje; zašedlé
+  „slouží“ by pohana mátlo, zbourat ho nesmí nikdy). Průběh bourání `DemolitionBar` v `CemeteryBody`.
+- **Varování u kurzoru** (`lib/desecration-warning.ts`): u pokřtěného rodu (`SceneVillage.sacredFree`)
+  pustí `checkWithDesecration` / `squaresWithDesecration` (obydlí, pozemek, dílna, modla
+  a svatyně, humno, stavby po čtvercích, obvod opevnění) tutéž kontrolu jádra ještě s vsí, jak ji
+  vidí pohanský rod (bez `sacredFree`; ves na scénu jednou ve `WeakMap`): neprošla nebo ušetřila
+  („… zůstane stát“ – `sparedWarning`) háj → „Vykácí posvátný háj.“, dub → „Vykácí posvátný
+  dub.“; s hřbitovem, který smí zmizet (scéna `mayGo`, pokřtěná ves ho vynechá), neprošla →
+  „Zaorá starý hřbitov.“ – jako server v `applyBuildIntent`. Stavba zůstává povolená; řádek se
+  připojí k ostatním varováním. Pohanská ves kontrolu znovu nepouští.
+- **Testy:** `BaptizeButton.behavior.test.tsx`, `SelectionPanel.test.tsx` (víra a křest),
+  `TopBar.test.tsx` (`HappinessTooltip`), `village-view.test.ts` (křest v pohledu),
+  `village-input.test.ts`, `village-baptize.test.ts` (vstupní bod), `desecration-warning.test.ts`,
+  `application/__tests__/baptize.test.ts` (`villageAccess.baptizable`).
+
 ## Panel Kronika (absence.md – Návrat, `hud/ChroniclePanel.tsx`, `lib/chronicle-view.ts`)
 
 Martin 8. 11. 2026: „může si přece sám zobrazit panel s notifikacemi a kroniku“ – rozhraní nad

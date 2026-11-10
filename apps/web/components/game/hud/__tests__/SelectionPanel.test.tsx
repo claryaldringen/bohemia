@@ -1718,3 +1718,87 @@ describe('panel pole – označit všechna pole (Martin 24. 10. 2026)', () => {
     expect(text(html, 'selection-fields-count')).toBe('3');
   });
 });
+
+// Křesťanství v panelu výběru (christianity.md): kříž víry u pokřtěného, tlačítko křtu u vojvody
+// rodu, který křesťanství zná, a Zbourat u hřbitova pokřtěného rodu.
+describe('SelectionPanel – víra a křest', () => {
+  const lord = (
+    over: Partial<Extract<SelectionDetails, { kind: 'person' }>> = {},
+  ): SelectionDetails => ({
+    kind: 'person',
+    id: 1,
+    portrait: 'man',
+    role: 'Vojvoda',
+    activity: 'doma',
+    age: 34,
+    home: 2,
+    homeIcon: 'zemnice',
+    herd: null,
+    ...over,
+  });
+  const baptizeHtml = (details: SelectionDetails): string =>
+    renderToStaticMarkup(
+      <SelectionPanel details={details} onBaptize={() => Promise.resolve(null)} />,
+    );
+
+  it('tlačítko „Nechat se pokřtít“ jen u vojvody, který smí (baptizable)', () => {
+    const html = baptizeHtml(lord({ baptizable: true }));
+    expect(html).toContain('data-testid="selection-person-baptize"');
+    expect(html).toContain('aria-label="Nechat se pokřtít"');
+    expect(html).toContain('src="/icons/house/faith-cross.png"');
+    expect(baptizeHtml(lord())).not.toContain('selection-person-baptize');
+    // bez akce (náhled) tlačítko není
+    expect(render(lord({ baptizable: true }))).not.toContain('selection-person-baptize');
+  });
+
+  it('pokřtěný má kříž víry s popiskem „Křesťan“, pohan nic', () => {
+    const html = render(lord({ christian: true }));
+    expect(html).toContain('data-testid="selection-person-christian"');
+    expect(html).toContain('Křesťan');
+    expect(render(lord())).not.toContain('selection-person-christian');
+  });
+
+  const cemetery = (
+    over: Partial<Extract<SelectionDetails, { kind: 'cemetery' }>> = {},
+  ): SelectionDetails => ({
+    kind: 'cemetery',
+    id: 30,
+    squares: 1,
+    capacity: 56,
+    graves: 56,
+    usedPlaces: 56,
+    freePlaces: 0,
+    yearsLeft: 0,
+    built: true,
+    building: null,
+    condition: 1,
+    abandoned: false,
+    repair: null,
+    ...over,
+  });
+  const use = (block: string | null): Extract<SelectionDetails, { kind: 'cemetery' }>['use'] => ({
+    structure: 'cemetery',
+    id: 30,
+    state: 'in-use',
+    block,
+    demolition: { laborManDays: 1.5, logs: 0 },
+    demolishing: null,
+  });
+  const withUse = (details: SelectionDetails): string =>
+    renderToStaticMarkup(
+      <SelectionPanel details={details} onStructureUse={() => Promise.resolve()} />,
+    );
+
+  it('hřbitov pokřtěného rodu: jen Zbourat (bez Opustit); slouží-li, zašedlé s důvodem', () => {
+    const free = withUse(cemetery({ use: use(null) }));
+    expect(button(free, 'structure-demolish')).toBeDefined();
+    expect(button(free, 'structure-demolish')).not.toContain('disabled=""');
+    expect(free).toContain('Zbourat – 1,5 čd, bez klád');
+    expect(free).not.toContain('structure-abandon');
+    const serving = withUse(cemetery({ use: use('Hřbitov ještě slouží.') }));
+    expect(button(serving, 'structure-demolish')).toContain('disabled=""');
+    expect(serving).toContain('Hřbitov ještě slouží.');
+    // pohanský rod tlačítko nemá
+    expect(withUse(cemetery())).not.toContain('structure-demolish');
+  });
+});

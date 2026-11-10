@@ -108,6 +108,7 @@ export function SelectionPanel({
   gateFort = null,
   onGateMode,
   ennoble,
+  onBaptize,
   onAbandonPart,
   onStructureUse,
   onOrderQuarrying,
@@ -119,6 +120,8 @@ export function SelectionPanel({
   onAbandonPart?: (partId: number, abandon: boolean) => Promise<void>;
   /** Povýšení vesničana (vassalage.md): cílové vsi bez vojvody a akce – klíč v panelu muže. */
   ennoble?: EnnobleActions;
+  /** Křest vojvody (christianity.md – Křest rodu) – vrací důvod odmítnutí, nebo null. */
+  onBaptize?: () => Promise<string | null>;
   /**
    * Akce panelu opevnění (server action) – vylepšit úsek či vše, doplnit val, napustit příkop,
    * vylepšit bránu; hotovo, až se vrátí.
@@ -183,6 +186,7 @@ export function SelectionPanel({
         details={details}
         onSelectTarget={onSelectTarget}
         ennoble={ennoble}
+        onBaptize={onBaptize}
       />
     );
   } else if (details.kind === 'plough-team') {
@@ -382,7 +386,8 @@ export function SelectionPanel({
     details.kind === 'threshing-floor' ||
     details.kind === 'grain-pit' ||
     details.kind === 'orchard' ||
-    details.kind === 'orchard-square'
+    details.kind === 'orchard-square' ||
+    details.kind === 'cemetery'
       ? details.use
       : undefined;
   // Panel roste s obsahem (w-max) do mezí `hud-selection` (globals.css – mezi minimapou a mřížkou

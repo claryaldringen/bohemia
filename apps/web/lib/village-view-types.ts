@@ -125,6 +125,13 @@ export interface VillageHappiness {
   target: number;
   /** Násobek veškeré práce vsi (0,8–1,1). */
   laborFactor: number;
+  /** Podíl křesťanů mezi lidmi vsi 0–1 (christianity.md – Štěstí); bez křesťanů chybí. */
+  christianShare?: number;
+  /**
+   * Nespokojenost pohanů se zničenými posvátnými místy (body štěstí jejich cíle, nejvýš 30 –
+   * christianity.md – Štěstí); bez zničených míst chybí.
+   */
+  desecration?: number;
 }
 
 /**
@@ -140,7 +147,10 @@ export interface StructureUseView {
   structure: UsableStructure;
   id: number;
   state: 'in-use' | 'abandoned' | 'demolishing';
-  /** Proč stavbu v provozu teď nejde opustit ani zbourat (důvod u kurzoru); jde-li, null. */
+  /**
+   * Proč stavbu v provozu teď nejde opustit ani zbourat (důvod u kurzoru); jde-li, null. Hřbitov
+   * se neopouští – důvod, proč ho nejde zbourat („Hřbitov ještě slouží.“).
+   */
   block: string | null;
   /** Bourání dnes – práce (člověkodny) a klády zpět na hromadu; bouraná stavba null. */
   demolition: { laborManDays: number; logs: number } | null;
@@ -818,6 +828,11 @@ export interface VillageCemetery {
    * jinak null.
    */
   repair: number | null;
+  /**
+   * Zbourat (zaorat) – jen ves pokřtěného rodu (christianity.md – Co křest rodu umožní); pohanský
+   * rod tlačítko nemá.
+   */
+  use?: StructureUseView;
 }
 
 /**

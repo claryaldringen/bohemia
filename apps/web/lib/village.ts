@@ -7,6 +7,7 @@ import {
   createVillageRepository,
 } from '@bohemia/db';
 import {
+  baptizeLord,
   ennobleVillager,
   NOT_PLAYER_VILLAGE,
   NO_VILLAGE,
@@ -252,6 +253,7 @@ async function viewOf(
       ? { rights: { allowed: [...access.rights.allowed], reason: access.rights.reason } }
       : {}),
     ...(access?.pendingDeparture ? { pendingDeparture: access.pendingDeparture } : {}),
+    ...(access?.baptizable ? { baptizable: true } : {}),
     ownMaps: stewarding
       ? {}
       : ownMapsAround(status.settlements, status.villages, current.settlementId),
@@ -756,6 +758,32 @@ export function ennobleVillagerForPlayer(
         today: ctx.day,
         at: new Date(),
       },
+    );
+    if (!done.ok) return done;
+    const village = await villages().find(ctx.villageId);
+    return village ? { ok: true, village } : { ok: false, reason: NO_VILLAGE };
+  });
+}
+
+/**
+ * Hráč nechá pokřtít vojvodu svého rodu (christianity.md – Křest rodu) – právo `ennoble` ověří
+ * `actOn`, zbytek (rod zná, není pokřtěný, vojvoda tu žije) use-case. Vsi rodu se to dozvědí
+ * schránkou – ves vojvody se pokřtí na začátku svého dne.
+ */
+export function baptizeLordForPlayer(
+  playerId: string,
+  villageId: string,
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, 'baptizeLord', async (ctx): Promise<VillageResult> => {
+    const db = getDatabase();
+    const done = await baptizeLord(
+      {
+        settlements: createSettlementRepository(db),
+        villages: villages(),
+        houses: createHouseRepository(db),
+        stewardships: createStewardshipRepository(db),
+      },
+      { playerId: ctx.playerId, villageId: ctx.villageId, today: ctx.day },
     );
     if (!done.ok) return done;
     const village = await villages().find(ctx.villageId);

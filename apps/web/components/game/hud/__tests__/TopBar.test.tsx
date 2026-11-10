@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { VillageView } from '@/lib/village-view';
 import {
   FieldCapacityTooltip,
+  HappinessTooltip,
   LaborTooltip,
   SatiationTooltip,
   fieldCapacityShort,
@@ -265,5 +266,24 @@ describe('Lidé a kolik jich pole uživí v jedné ikoně (Martin 24. 10. 2026)'
       expect(html).not.toContain(`data-testid="${id}"`);
     }
     expect(html).toContain('data-testid="village-iron-bars"');
+  });
+});
+
+// Popisek štěstí (christianity.md – Štěstí): podíl křesťanů a nespokojenost pohanů jen nad nulou.
+describe('HappinessTooltip – víra', () => {
+  it('pohanská ves – jen „Štěstí“', () => {
+    const html = renderToStaticMarkup(<HappinessTooltip happiness={{}} />);
+    expect(html).toContain('Štěstí');
+    expect(html).not.toContain('happiness-christians');
+    expect(html).not.toContain('happiness-desecration');
+  });
+
+  it('křesťané v procentech a nespokojenost pohanů se zničenými místy', () => {
+    const html = renderToStaticMarkup(
+      <HappinessTooltip happiness={{ christianShare: 0.25, desecration: 15 }} />,
+    );
+    expect(html).toMatch(/data-testid="happiness-christians"[^>]*>.*Křesťané 25 %/);
+    expect(html).toContain('src="/icons/house/faith-cross.png"');
+    expect(html).toMatch(/data-testid="happiness-desecration"[^>]*>.*−15/);
   });
 });

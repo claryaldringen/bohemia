@@ -124,6 +124,7 @@ import {
   declareHuntForPlayer,
   setDefenseStanceForPlayer,
   nameLineManForPlayer,
+  baptizeLordForPlayer,
   ennobleVillagerForPlayer,
   setStewardForPlayer,
   renameVillageForPlayer,
@@ -180,6 +181,7 @@ import {
   parseDeclareHuntInput,
   parseSetDefenseStanceInput,
   parseNameLineManInput,
+  parseBaptizeInput,
   parseEnnobleInput,
   parseSetStewardInput,
   parseRenameVillageInput,
@@ -821,6 +823,16 @@ export async function placeWorkshop(input: unknown): Promise<VillageActionResult
 /** Povýšení vesničana do šlechtického stavu pro ves bez vojvody (vassalage.md). */
 export async function ennobleVillager(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parseEnnobleInput, ennobleVillagerForPlayer);
+}
+
+/**
+ * Křest vojvody (christianity.md – Křest rodu): `{ villageId }`. Rod, který křesťanství nezná, je
+ * už pokřtěný nebo jehož vojvoda žije jinde, odmítne use-case s důvodem česky.
+ */
+export async function baptizeLord(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parseBaptizeInput, (id, villageId) =>
+    baptizeLordForPlayer(id, villageId),
+  );
 }
 
 export async function nameLineMan(input: unknown): Promise<VillageActionResult> {

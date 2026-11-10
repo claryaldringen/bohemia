@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  parseBaptizeInput,
   parseDemolishFortificationSectionInput,
   parseFoundVillageInput,
   parseCells,
@@ -404,5 +405,14 @@ describe('vstupy odchodu do nové vsi (migration.md – fáze 3 a 4)', () => {
     expect(parseSettleJourneyInput({ dwelling })).toEqual({ dwelling });
     expect(parseSettleJourneyInput({ dwelling: { x: 1 } })).toBeNull();
     expect(parseSettleJourneyInput(null)).toBeNull();
+  });
+});
+
+describe('parseBaptizeInput – křest vojvody (christianity.md – Křest rodu)', () => {
+  it('stačí objekt s villageId (ten čte villageAction), cokoli jiného neprojde', () => {
+    expect(parseBaptizeInput({ villageId: 'v-1' })).toEqual({});
+    expect(parseBaptizeInput({})).toEqual({});
+    expect(parseBaptizeInput(null)).toBeNull();
+    expect(parseBaptizeInput('v-1')).toBeNull();
   });
 });

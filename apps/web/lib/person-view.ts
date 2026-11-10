@@ -4,7 +4,9 @@
 import {
   AGE,
   ageYears,
+  currentLord,
   ennobleBlock,
+  isChristian,
   villageManorId,
   type Craft,
   type Sex,
@@ -57,16 +59,25 @@ export interface ScenePerson {
   horse?: true;
   /** Smí ho hráč povýšit do šlechtického stavu (vassalage.md): muž od 16 let mimo rod vojvody. */
   ennobleable?: true;
+  /** Pokřtěný (christianity.md – Víra vesničanů); pohan bez údaje. */
+  christian?: true;
+  /**
+   * Vojvoda, který se smí nechat pokřtít (christianity.md – Křest rodu): rod křesťanství zná, ještě
+   * není pokřtěný a vojvoda rodu žije v téhle vsi (`VillageAccess.baptizable`).
+   */
+  baptizable?: true;
 }
 
 /**
  * Lidé vsi pro scénu v den `day` (věk ke dni) seřazení podle id. Ves uložená před pohlavím
  * (`Person.sex` chybí) má pohlaví střídavě podle id – jako průvod pohřbu (funeral-view.ts).
+ * `baptizable` – vojvoda vsi (role vojvody) se smí nechat pokřtít (`VillageAccess.baptizable`).
  */
 export function scenePersons(
   state: Pick<VillageState, 'people' | 'dwellings' | 'manorId' | 'constructions'> &
     Partial<Pick<VillageState, 'pens' | 'dynasty'>>,
   day: number,
+  baptizable = false,
 ): ScenePerson[] {
   const crafts = new Map<number, Craft>();
   for (const d of state.dwellings) if (d.workshop) crafts.set(d.id, d.workshop.craft);
@@ -100,6 +111,9 @@ export function scenePersons(
   const names = new Map(
     state.people.flatMap((p) => (p.name !== undefined ? [[p.id, p.name] as const] : [])),
   );
+  const christians = new Set(state.people.flatMap((p) => (isChristian(p) ? [p.id] : [])));
+  // křtí se vojvoda vsi (`baptizeVillage` – `currentLord`), tlačítko jen u něj
+  const baptizableId = baptizable ? (currentLord(state)?.id ?? null) : null;
   return people
     .map((p) => ({
       id: p.id,
@@ -111,6 +125,8 @@ export function scenePersons(
       ...(arms.has(p.id) ? { arms: arms.get(p.id)! } : {}),
       ...(riders.has(p.id) ? { horse: true as const } : {}),
       ...(ennobleable.has(p.id) ? { ennobleable: true as const } : {}),
+      ...(christians.has(p.id) ? { christian: true as const } : {}),
+      ...(p.id === baptizableId ? { baptizable: true as const } : {}),
     }))
     .sort((a, b) => a.id - b.id);
 }
