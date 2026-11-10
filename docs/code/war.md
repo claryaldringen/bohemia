@@ -165,8 +165,14 @@ Plán 2026-11-03 – rozhodnutí 12; Review bod 5. Čísla ve `WAR.campaign`.
   (Ú6.8 – Boj muž po muži).
 - **Krok** – `domain/war/campaign.ts`: `newCampaign(input, clock)` (muži ve shromaždišti, skupiny
   podle `member.group`), `stepCampaign(state, toTick, intents, world)` → `{ state, villageEvents,
-notices, waiting }` – čistá, vstup nemění. Takt na kopii stavu: na začátku nového herního dne
-  denní krok (mráz `frostDay` – venku, ve shromaždišti zotavení; jídlo 1 kg na aktivního muže, bez
+notices, waiting }` – čistá, vstup nemění. Takt na kopii stavu (`cloneData` z `village/clone.ts`
+  – ruční kopie čistých dat, ≈ 5× rychlejší než `structuredClone`; sdílené odkazy uvnitř stavu
+  rozdělí jako JSON kontrolního bodu): když taktu uprostřed chybí mapa nebo ves (`MissingData`),
+  kopie se zahodí a výsledkem je stav na konci posledního celého taktu; kopie zároveň odděluje stav
+  předchozího taktu a vše, co z něj takt vydal (události, upozornění), od dalších taktů. Kopie za
+  takt zůstává i ve workeru, kde je volání skoro vždy na jeden takt – předání vlastnictví stavu
+  (měnit na místě) by ušetřilo už jen ≈ 40 µs za takt, a ne zadarmo (`docs/code/worker.md` – Kopie
+  stavu za takt). Na začátku nového herního dne denní krok (mráz `frostDay` – venku, ve shromaždišti zotavení; jídlo 1 kg na aktivního muže, bez
   jídla na pochodu obrat `supplies`), záměry taktu podle `seq` (záměr s taktem ≤ `state.tick`
   a cizí hráč se zahodí), pak fáze. **Pohyb:** skupina jde tempem `marchSpeed ÷ 4` metrů louky za
   takt po `leg` (`marchPathToEdge` k okraji ve směru `route[0]`, na posledním políčku `marchPath`
@@ -1551,7 +1557,8 @@ Scéna hry ukazuje **mapu sídla hráče** – vojsko je v ní vidět, když na 
   **splněn**; bez paměti workeru 2,4 / 10,5 / 39,7 %), 5 tažení u opevněných vsí (15 průlomů,
   útočiště) 2,5 % (dřív 16,2 %). Zrychlení: worker pokračuje od posledního spočteného stavu místo
   opakování taktů od kontrolního bodu a mřížky pochodu drží napříč koly (`MarchGridMemo`); kopie
-  stavu v každém taktu zůstává (≈ 45 % zbytku – proč, viz worker.md).
+  stavu v každém taktu zůstává (≈ 45 % zbytku – proč, viz worker.md), od 10. 11. 2026 ruční
+  `cloneData` ≈ 5× levnější (pochod 20 tažení 5,2 → 3,4 % jádra, výsledek beze změny).
 - **e2e** `apps/web/e2e/multiplayer-war.spec.ts`: A přepadne B (tažení zapsané rovnou u vsi B,
   velí vesničan – NPC), B s výchozím postojem útěk uteče do lesa i se stádem
   (`battle.shelter`), B má upozornění „Cizí vojsko u vsi …“, A po návratu (vojsko přenesené do
