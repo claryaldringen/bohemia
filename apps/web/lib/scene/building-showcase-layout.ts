@@ -690,11 +690,17 @@ const SHOWCASE_DEATHS: readonly GraveRank[] = [
 ];
 /** Kolik posledních mohyl ukázky je čerstvých (z holé hlíny). */
 const SHOWCASE_FRESH_MOUNDS = 3;
+/**
+ * Od jakého podílu míst hřbitova ukázky se ves dala pokřtít – pohřbívá kostrově (christianity.md
+ * – Pohřby): plochý hrob s křížem místo mohyly.
+ */
+const SHOWCASE_CHRISTIAN_FROM = 0.6;
 
 /**
  * Mohyly ukázky: pohřby v pořadí SHOWCASE_DEATHS, dokud obsazená místa nedosáhnou `places`
  * (nebo není kam) – místo a velikost vybírá herní jádro (`placeMound`) s brankou k bodu `toward`
- * (jako k nejbližšímu obydlí ve vsi). Vrátí mohyly pro scénu a počet pohřbených.
+ * (jako k nejbližšímu obydlí ve vsi); od SHOWCASE_CHRISTIAN_FROM míst kostrové hroby. Vrátí
+ * mohyly pro scénu a počet pohřbených.
  */
 export function showcaseMounds(
   squares: readonly { cell: TileCell; x: number; z: number; size: number }[],
@@ -710,9 +716,13 @@ export function showcaseMounds(
     mounds: [],
   };
   const dwellings = [{ x: toward.x, z: toward.z, rotation: 0 }];
+  const christianFrom = Math.round(
+    squares.length * CEMETERY.gravesPerSquare * SHOWCASE_CHRISTIAN_FROM,
+  );
   for (let i = 0; usedPlaces(cemetery) < places; i++) {
     const rank = SHOWCASE_DEATHS[i % SHOWCASE_DEATHS.length]!;
-    const mound = placeMound(cemetery, rank, i, dwellings);
+    const rite = usedPlaces(cemetery) >= christianFrom ? ('inhumation' as const) : undefined;
+    const mound = placeMound(cemetery, rank, i, dwellings, rite);
     if (!mound) break;
     cemetery.mounds!.push(mound);
     cemetery.graves += 1;
@@ -725,6 +735,7 @@ export function showcaseMounds(
       row: m.row,
       size: m.size,
       ...(i >= all.length - SHOWCASE_FRESH_MOUNDS ? { fresh: true as const } : {}),
+      ...(m.rite ? { rite: m.rite } : {}),
     })),
     burials: cemetery.graves,
   };
@@ -855,7 +866,7 @@ export function showcaseGrounds(progress: number): {
     : { mounds: [], burials: 0 };
   const cemeteryLabel = built
     ? p >= 1
-      ? `plný hřbitov – ${burials} pohřbených na ${capacity} místech (u branky vojvoda a jeho rodina, po ose hlavy rodin, vzadu děti)`
+      ? `plný hřbitov – ${burials} pohřbených na ${capacity} místech (u branky vojvoda a jeho rodina, po ose hlavy rodin, vzadu děti; po křtu ploché hroby s křížem)`
       : `pohřby – mohyly podle významu přibývají (${burials} pohřbených)`
     : (CEMETERY_PHASES.find((phase) => founding < phase.to)?.label ?? '');
 

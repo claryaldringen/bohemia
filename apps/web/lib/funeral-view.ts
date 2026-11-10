@@ -9,6 +9,7 @@ import {
   ageYears,
   gravePlaceCenter,
   villageCemeteries,
+  type GraveMound,
   type GraveRank,
   type MoundSize,
   type Person,
@@ -46,7 +47,9 @@ export interface SceneMourner {
  * čtverec, první místo a velikost – podle nich scéna mohylu do dohoření hranice nekreslí), střed
  * mohyly ve světě (tam stojí hranice), druh pohřbeného, den pohřbu (= den úmrtí), domácnost
  * zemřelého (`from` – odtud vyjde průvod; mohyly uložené dřív ji nemají) a lidé za márami
- * (domácnost zemřelého a z dalších domácností 1–2 lidé, za vojvodu celá ves).
+ * (domácnost zemřelého a z dalších domácností 1–2 lidé, za vojvodu celá ves). Kostrový pohřeb
+ * křesťana (`rite: 'inhumation'` – christianity.md – Pohřby) je bez hranice – zemřelého nesou
+ * rovnou do hrobu.
  */
 export interface SceneFuneral {
   /** Stálý klíč – hřbitov, čtverec a místo mohyly. */
@@ -61,6 +64,7 @@ export interface SceneFuneral {
   x: number;
   z: number;
   from?: number;
+  rite?: GraveMound['rite'];
   mourners: SceneMourner[];
 }
 
@@ -187,6 +191,7 @@ export function sceneFunerals(
         x: Math.round(center.x * 100) / 100,
         z: Math.round(center.z * 100) / 100,
         ...(m.from !== undefined ? { from: m.from } : {}),
+        ...(m.rite ? { rite: m.rite } : {}),
         mourners: funeralMourners(state.people, m, day, seed),
       });
     }
