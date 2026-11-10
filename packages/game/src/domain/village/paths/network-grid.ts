@@ -172,9 +172,66 @@ export function squareCells(
   return { inside, edge };
 }
 
+/**
+ * Paměť podle okna mřížky a čtverců (políčko, poloha, velikost, natočení) – nejdéle nepoužitý
+ * záznam vypadne. Klíčem jsou čísla, ne text (skládání textu z desetinných čísel bylo dražší než
+ * samo hledání v paměti): záznam se najde podle součtu (`hash`) a pak se porovná číslo po čísle –
+ * shoda znamená totéž co shoda textu dřívějšího klíče (každé číslo má jiný zápis, jen −0 a 0
+ * stejný, `===` je bere za shodná; NaN se rovná NaN). Jen zrychlení.
+ */
+class SquaresMemo<T> {
+  private readonly byHash = new Map<number, SquaresEntry<T>[]>();
+  /** Záznamy od nejdéle nepoužitého. */
+  private readonly order = new Set<SquaresEntry<T>>();
+
+  constructor(private readonly limit: number) {}
+
+  get(key: SquaresKey): T | undefined {
+    for (const entry of this.byHash.get(key.hash) ?? []) {
+      if (!sameSquaresKey(entry.key, key)) continue;
+      this.order.delete(entry);
+      this.order.add(entry);
+      return entry.value;
+    }
+    return undefined;
+  }
+
+  set(key: SquaresKey, value: T): void {
+    if (this.order.size >= this.limit) {
+      const oldest = this.order.values().next().value!;
+      this.order.delete(oldest);
+      const bucket = this.byHash.get(oldest.key.hash)!;
+      bucket.splice(bucket.indexOf(oldest), 1);
+      if (bucket.length === 0) this.byHash.delete(oldest.key.hash);
+    }
+    const entry = { key, value };
+    const bucket = this.byHash.get(key.hash);
+    if (bucket) bucket.push(entry);
+    else this.byHash.set(key.hash, [entry]);
+    this.order.add(entry);
+  }
+
+  clear(): void {
+    this.byHash.clear();
+    this.order.clear();
+  }
+}
+
+interface SquaresEntry<T> {
+  key: SquaresKey;
+  value: T;
+}
+
+/** Klíč paměti čtverců: čísla okna a čtverců, příznak natočení po čtvercích a jejich součet. */
+interface SquaresKey {
+  values: Float64Array;
+  turned: Uint8Array;
+  hash: number;
+}
+
 /** Polí v paměti buněk polí (`fieldCellsOf`) – nejdéle nepoužité vypadne. */
 const FIELD_CELLS_MEMO = 256;
-const fieldCellsMemo = new Map<string, FieldCells>();
+const fieldCellsMemo = new SquaresMemo<FieldCells>(FIELD_CELLS_MEMO);
 
 /** Buňky pole v mřížce (`fieldCellsOf`). */
 export interface FieldCells {
@@ -195,11 +252,7 @@ export interface FieldCells {
 export function fieldCellsOf(grid: GridWindow, parts: readonly Square[]): FieldCells {
   const key = squaresKey(grid, parts);
   const known = fieldCellsMemo.get(key);
-  if (known) {
-    fieldCellsMemo.delete(key);
-    fieldCellsMemo.set(key, known);
-    return known;
-  }
+  if (known) return known;
   const { inside, edge } = squareCells(grid, parts);
   const nearestPart = nearestPartFinder(
     parts.map((p, k) => ({ x: p.x, z: p.z, k })),
@@ -210,25 +263,65 @@ export function fieldCellsOf(grid: GridWindow, parts: readonly Square[]): FieldC
     nearest[n] = nearestPart(cellX(grid, inside[n]!), cellZ(grid, inside[n]!)).k;
   }
   const out: FieldCells = { inside, edge, nearest };
-  if (fieldCellsMemo.size >= FIELD_CELLS_MEMO) {
-    fieldCellsMemo.delete(fieldCellsMemo.keys().next().value!);
-  }
   fieldCellsMemo.set(key, out);
   return out;
 }
 
-/** Klíč paměti buněk čtverců: okno mřížky a čtverce (políčko, poloha, velikost, natočení). */
-function squaresKey(grid: GridWindow, squares: readonly Square[]): string {
-  let key = `${grid.originX},${grid.originZ},${grid.cellM},${grid.width},${grid.height}`;
-  for (const p of squares) {
-    key += `|${p.cell.x}/${p.cell.y}:${p.x},${p.z},${p.size},${p.rotation ?? ''}`;
+/** Čísel okna mřížky na začátku klíče a čísel na čtverec (`squaresKey`). */
+const WINDOW_VALUES = 5;
+const SQUARE_VALUES = 6;
+
+/**
+ * Klíč paměti buněk čtverců: okno mřížky a čtverce (políčko, poloha, velikost, natočení – bez
+ * natočení 0 a příznak 0). Součet míchá celé části čísel (stejná čísla – stejný součet).
+ */
+function squaresKey(grid: GridWindow, squares: readonly Square[]): SquaresKey {
+  const values = new Float64Array(WINDOW_VALUES + squares.length * SQUARE_VALUES);
+  const turned = new Uint8Array(squares.length);
+  values[0] = grid.originX;
+  values[1] = grid.originZ;
+  values[2] = grid.cellM;
+  values[3] = grid.width;
+  values[4] = grid.height;
+  for (let k = 0; k < squares.length; k++) {
+    const p = squares[k]!;
+    const at = WINDOW_VALUES + k * SQUARE_VALUES;
+    values[at] = p.cell.x;
+    values[at + 1] = p.cell.y;
+    values[at + 2] = p.x;
+    values[at + 3] = p.z;
+    values[at + 4] = p.size;
+    // bez natočení (i null z JSON) jako dřív prázdný text
+    const rotation = p.rotation ?? null;
+    if (rotation !== null) {
+      values[at + 5] = rotation;
+      turned[k] = 1;
+    }
   }
-  return key;
+  let hash = squares.length | 0;
+  for (let i = 0; i < values.length; i++) {
+    hash = (Math.imul(hash, 31) + ((values[i]! * 64) | 0)) | 0;
+  }
+  return { values, turned, hash };
+}
+
+/** Dva klíče paměti čtverců jsou tytéž (číslo po čísle – jako dřív text klíče). */
+function sameSquaresKey(a: SquaresKey, b: SquaresKey): boolean {
+  if (a.hash !== b.hash || a.values.length !== b.values.length) return false;
+  for (let i = 0; i < a.values.length; i++) {
+    const x = a.values[i]!;
+    const y = b.values[i]!;
+    if (x !== y && !(Number.isNaN(x) && Number.isNaN(y))) return false;
+  }
+  for (let k = 0; k < a.turned.length; k++) if (a.turned[k] !== b.turned[k]) return false;
+  return true;
 }
 
 /** Staveb v paměti buněk čtverců (`squareCellsOf`) – nejdéle nepoužitá vypadne. */
 const SQUARE_CELLS_MEMO = 256;
-const squareCellsMemo = new Map<string, { inside: readonly number[]; edge: readonly number[] }>();
+const squareCellsMemo = new SquaresMemo<{ inside: readonly number[]; edge: readonly number[] }>(
+  SQUARE_CELLS_MEMO,
+);
 
 /**
  * `squareCells` přes paměť podle okna mřížky a čtverců (nic jiného nečte) – cíle tras
@@ -241,15 +334,8 @@ export function squareCellsOf(
 ): { inside: readonly number[]; edge: readonly number[] } {
   const key = squaresKey(grid, squares);
   const known = squareCellsMemo.get(key);
-  if (known) {
-    squareCellsMemo.delete(key);
-    squareCellsMemo.set(key, known);
-    return known;
-  }
+  if (known) return known;
   const out = squareCells(grid, squares);
-  if (squareCellsMemo.size >= SQUARE_CELLS_MEMO) {
-    squareCellsMemo.delete(squareCellsMemo.keys().next().value!);
-  }
   squareCellsMemo.set(key, out);
   return out;
 }

@@ -61,7 +61,7 @@ import {
 } from './roads-tidy';
 import { SpotContext, plantingBlocker, rootTrees } from './roads-trees';
 import { type RoadAnchors, roadAnchors } from './road-anchors';
-import { routeLine } from './routes';
+import { type RouteCode, routeLine } from './routes';
 import { pathCellM, trailTerrain } from './terrain';
 import { type FenceOutline } from './entrances';
 import { fenceClearance, villageFences } from './fences';
@@ -150,8 +150,14 @@ interface MonthRoutes {
   anchors: RoadAnchors;
 }
 
-/** Čáry a kotvy posledních sad tras podle `routes.key` – mezi přepočty tras se nemění. */
-const MONTH_ROUTES = new Map<string, { check: string; value: MonthRoutes }>();
+/**
+ * Čáry a kotvy posledních sad tras podle `routes.key` – mezi přepočty tras se nemění. `lines` – čára
+ * každé trasy podle její geometrie (`routeLineKey`) při plotech `fences` (klíč rozložení plotů).
+ */
+const MONTH_ROUTES = new Map<
+  string,
+  { check: string; value: MonthRoutes; fences: string; lines: Map<string, RoadPoint[]> }
+>();
 const MONTH_ROUTES_KEPT = 8;
 
 /** Čáry tras a kotvy (`roadAnchors`) – jednou pro sadu tras (`routes.key`, jako `trafficField`). */
@@ -170,21 +176,37 @@ function monthRoutes(
   }
   // ploty se mění s rozložením, tedy s `routes.key` – klíč plotů jistí, že čáry nezávisí na tom,
   // kdy se spočítají (stavba dokončená před přepočtem tras)
-  const check = `${routes.list.length}/${trips}/${steps}/${fences.key()}`;
+  const fenceKey = fences.key();
+  const check = `${routes.list.length}/${trips}/${steps}/${fenceKey}`;
   const cached = MONTH_ROUTES.get(key);
   if (cached && cached.check === check) return cached.value;
+  // čára trasy čte jen její buňky, buňku mřížky a ploty – převážení (jiné cesty za den, jiné
+  // pořadí) čáry nemění, takže se berou z minula (jen zrychlení)
+  const known = cached && cached.fences === fenceKey ? cached.lines : null;
+  const kept = new Map<string, RoadPoint[]>();
+  let fenced: readonly FenceOutline[] | null = null;
   // nejsilnější trasy napřed (stálé pořadí – stejné trasy, stejné cesty); osa drží odstup od
   // plotů (paths.md – Odstup od plotu) – ploty jsou v rozložení, tedy v `routes.key`
-  const fenced = fences.outlines();
   const lines = routes.list
     .map((route, k) => ({ route, k }))
     .sort((a, b) => b.route.trips - a.route.trips || a.k - b.k)
-    .map(({ route }) => routeLine(route, cellM, fenced));
+    .map(({ route }) => {
+      const lineKey = routeLineKey(route);
+      let line = kept.get(lineKey) ?? known?.get(lineKey);
+      if (!line) line = routeLine(route, cellM, (fenced ??= fences.outlines()));
+      kept.set(lineKey, line);
+      return line;
+    });
   const value = { lines, anchors: roadAnchors(routes.list, landscape) };
   MONTH_ROUTES.delete(key);
-  MONTH_ROUTES.set(key, { check, value });
+  MONTH_ROUTES.set(key, { check, value, fences: fenceKey, lines: kept });
   if (MONTH_ROUTES.size > MONTH_ROUTES_KEPT) MONTH_ROUTES.delete(MONTH_ROUTES.keys().next().value!);
   return value;
+}
+
+/** Klíč geometrie trasy pro paměť čar (`monthRoutes`): první buňka a kroky. */
+function routeLineKey(route: RouteCode): string {
+  return `${route.start[0]},${route.start[1]}:${route.steps}`;
 }
 
 /** Ploty vsi pro osy tras: klíč rozložení plotů a jejich obrysy – obojí líně. */

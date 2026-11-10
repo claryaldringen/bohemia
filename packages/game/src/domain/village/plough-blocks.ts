@@ -161,6 +161,91 @@ export function ploughLayout(selected: readonly FieldPart[]): PloughLayout {
   };
 }
 
+/**
+ * Pás dílu z rozvržení orby `ploughLayout(selected)` líně (díly `selected` s různými id): rozvrhne
+ * jen blok, ve kterém díl leží – díly bloku v pořadí jako `ploughLayout` (od dílu s nejmenším id
+ * po sousedech), tedy tytéž pásy. Díl bez políčka je pás sám pro sebe; díl, který v žádném pásu
+ * není (při dvojím políčku platí poslední díl), nebo který ve výběru není, undefined. Jen
+ * zrychlení – výběr dílů sezóny potřebuje každý den pásy jen dílů, které přibudou (≈ 6 % výběru).
+ */
+export function ploughBandFinder(
+  selected: readonly FieldPart[],
+): (id: number) => readonly number[] | undefined {
+  const byId = new Map<number, FieldPart>();
+  const byField = new Map<number, FieldPart[]>();
+  for (const part of selected) {
+    byId.set(part.id, part);
+    const list = byField.get(part.fieldId);
+    if (list) list.push(part);
+    else byField.set(part.fieldId, [part]);
+  }
+  // díl podle políčka po sloupcích a řádcích pro každé pole – až je potřeba (jako `ploughLayout`)
+  const cellsOf = new Map<number, Map<number, Map<number, FieldPart>>>();
+  const fieldCells = (fieldId: number): Map<number, Map<number, FieldPart>> => {
+    let byCell = cellsOf.get(fieldId);
+    if (byCell) return byCell;
+    byCell = new Map();
+    for (const p of byField.get(fieldId)!) {
+      if (!p.cell) continue;
+      let column = byCell.get(p.cell.x);
+      if (!column) {
+        column = new Map();
+        byCell.set(p.cell.x, column);
+      }
+      column.set(p.cell.y, p);
+    }
+    cellsOf.set(fieldId, byCell);
+    return byCell;
+  };
+  const found = new Map<number, readonly number[]>();
+  return (id) => {
+    const known = found.get(id);
+    if (known) return known;
+    const part = byId.get(id);
+    if (!part) return undefined;
+    if (!part.cell) {
+      const band = [part.id];
+      found.set(id, band);
+      return band;
+    }
+    const byCell = fieldCells(part.fieldId);
+    const at = (x: number, y: number): FieldPart | undefined => byCell.get(x)?.get(y);
+    if (at(part.cell.x, part.cell.y) !== part) return undefined;
+    const neighbours = (p: FieldPart): (FieldPart | undefined)[] => {
+      const { x, y } = p.cell!;
+      return [at(x + 1, y), at(x - 1, y), at(x, y + 1), at(x, y - 1)];
+    };
+    // blok – souvislá oblast dílu; v `ploughLayout` ho projde hledání od dílu s nejmenším id
+    let start = part;
+    const reached = new Set<number>([part.id]);
+    const queue = [part];
+    for (let head = 0; head < queue.length; head++) {
+      for (const next of neighbours(queue[head]!)) {
+        if (!next || reached.has(next.id)) continue;
+        reached.add(next.id);
+        queue.push(next);
+        if (next.id < start.id) start = next;
+      }
+    }
+    const block: FieldPart[] = [];
+    const seen = new Set<number>([start.id]);
+    const order = [start];
+    for (let head = 0; head < order.length; head++) {
+      const p = order[head]!;
+      block.push(p);
+      for (const next of neighbours(p)) {
+        if (!next || seen.has(next.id)) continue;
+        seen.add(next.id);
+        order.push(next);
+      }
+    }
+    for (const band of blockLayout(block, furrowAxis(block)).bands) {
+      for (const member of band.partIds) found.set(member, band.partIds);
+    }
+    return found.get(id);
+  };
+}
+
 /** Pásy bloku podél osy `axis`, napříč od strany blíž vsi; díly v pořadí orby. */
 function blockLayout(
   block: readonly FieldPart[],

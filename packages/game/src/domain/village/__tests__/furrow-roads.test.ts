@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import type { Landscape } from '../../landscape';
 import { capsuleRange, roadCapsules, roadFreeRuns, roadLandWidthM } from '../paths/road-land';
 import { bandLengthM } from '../plough-blocks';
-import { bandFurrowM, plannedFurrowEfficiency, sowingFurrowEfficiency } from '../plough-trip';
+import {
+  bandFurrowM,
+  furrowInputs,
+  plannedFurrowEfficiency,
+  sameFurrowInputs,
+  sowingFurrowEfficiency,
+} from '../plough-trip';
 import type { FieldPart, PloughBand, Road, VillageState } from '../types';
 
 // Brázdy končí na cestě (oxen.md – Co nejdelší brázda; Martin, 19. 10. 2026: „pokud oráč
@@ -190,6 +196,53 @@ describe('délka brázdy pásu přes cestu', () => {
       plannedFurrowEfficiency(larger, state([]), land),
     );
     expect(sowingFurrowEfficiency(larger, state([]), land)).not.toBe(open);
+  });
+
+  it('vstupy výkonu orby porovnané během průchodu – shoda jen při stejné řadě čísel', () => {
+    const roads = [
+      road([
+        [30, -50],
+        [30, 50],
+      ]),
+    ];
+    const base = state(roads);
+    const known = furrowInputs(parts, base);
+    expect(sameFurrowInputs(known, parts, base)).toBe(true);
+    expect(sameFurrowInputs(known, parts, state(roads.map((r) => ({ ...r }))))).toBe(true);
+    const part = (change: Partial<FieldPart>): FieldPart[] =>
+      parts.map((p, k) => (k === parts.length - 1 ? { ...p, ...change } : p));
+    const changed: [readonly FieldPart[], Pick<VillageState, 'fields' | 'roads'>][] = [
+      [parts.slice(1), base],
+      [part({ id: 999 }), base],
+      [part({ fieldId: 7 }), base],
+      [part({ cell: { x: 50, y: 0 } }), base],
+      [part({ cell: undefined }), base],
+      [part({ areaM2: 1 }), base],
+      [part({ distanceM: 1 }), base],
+      [part({ walkDistanceM: 1 }), base],
+      [parts, state([])],
+      [parts, state([{ ...roads[0]!, grade: 'improved' }])],
+      [parts, state([{ ...roads[0]!, cart: true }])],
+      [
+        parts,
+        state([
+          {
+            ...roads[0]!,
+            points: [
+              { x: 30, z: -50 },
+              { x: 31, z: 50 },
+            ],
+          },
+        ]),
+      ],
+      [parts, { ...base, fields: [] }],
+      [parts, { ...base, fields: base.fields.map((f) => ({ ...f, id: f.id + 1 })) }],
+    ];
+    for (const [p, s] of changed) {
+      expect(furrowInputs(p, s)).not.toEqual(known);
+      expect(sameFurrowInputs(known, p, s)).toBe(false);
+      expect(sameFurrowInputs(furrowInputs(p, s), p, s)).toBe(true);
+    }
   });
 
   it('výkon orby bez krajiny (výhled správce) z paměti – týž jako bez ní, se změnou dílů se přepočte', () => {

@@ -563,6 +563,40 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   dílů 1,34 s – `turnSelection` 0,67, pásy dávky `joinBands` 0,33 s – rozvržení orby dílů výběru
   každý den), práce dne 1,78 s (cesta orby `travelToday` a dosah vozů po ≈ 0,45 s), měsíc cest
   1,50 s a správce 1,39 s.
+  **Kolo 11 (10. 11. 2026, fronta zrychlení výpočtu – Martin schválil):** navazuje na kolo 10;
+  stav Vlkova z DB 9. 11. (skripty `scratchpad/prof11` – kopie `prof10`, strom před změnami
+  `prof11/base`). Jen zrychlení – otisk stavu po 1, 2 a 3 letech před i po každé úpravě týž
+  vcelku i po 37 dnech (sha256 `d1c7bf955acd`, `c02e0b05790f`, `9c4e1cdb2d58`), zlaté otisky testů
+  beze změny. Pět úprav: **úseky dílů úlohy** (`taskSpans` – volá je přenos práce na díly,
+  zmenšení plánu po dílech, začaté díly pásů a čelo orby mnohokrát denně) počítají díly a váhy
+  v souběžných polích místo `flatMap` s objektem na díl, díly zakládání berou z množiny (dřív
+  `includes` pro každý díl) a množinu drnu staví, jen když drn je; součty ve stejném pořadí;
+  **čáry tras měsíce** (`monthRoutes`) – převážení tras každý 1. v měsíci mění cesty za den
+  a pořadí tras, ne jejich buňky, a čára trasy (`routeLine`) čte jen buňky, buňku mřížky a ploty:
+  čára se bere z minula podle první buňky a kroků trasy při stejném klíči plotů, obrysy plotů se
+  počítají, jen když některá čára chybí; **číselný klíč paměti buněk čtverců** (`fieldCellsOf`,
+  `squareCellsOf`) – dřív text z desetinných čísel všech čtverců, teď čísla v poli se součtem
+  pro vyhledání a porovnáním číslo po čísle (shoda znamená totéž co shoda textu); **pásy výběru
+  dílů sezóny líně** – `seasonSelection` rozvrhovala každý den orbu celého výběru (≈ 1 300 dílů,
+  ≈ 90 dní oken setí za rok), pásy ale potřebuje jen u dílů, které se vejdou na čelo práce (bloky
+  s nimi mají ≈ 6 % výběru); `ploughBandFinder` rozvrhne jen blok dílu, díly bloku v pořadí jako
+  `ploughLayout` (od dílu s nejmenším id po sousedech) – tytéž pásy (test proti celému rozvržení
+  i s dvojím políčkem a díly bez políčka); **vstupy výkonu orby plánu** (`sowingFurrowEfficiency`)
+  porovná s pamětí číslo po čísle přímo (`sameFurrowInputs`, napřed délka řady), řadu vstupů
+  skládá jen při změně (test: každá změna vstupu se pozná). Profil zahřátých roků 2–4 před / po
+  hned po sobě (zátěž 2,3; celkem 10,62 → 9,77 s, −8 %): `taskSpans` 0,56 → 0,22 s, čáry tras
+  měsíce 0,48 → 0,08 s (`routeLine` 0,35 → 0,11 s – zbytek volají přístupy k vchodům a roční konce tras), pásy výběru
+  0,30 → ≈ 0,07 s (`ploughLayout` 0,24 → 0,06 s), `squareCellsOf` 0,19 → 0,11 s (zbytek jsou
+  skutečné změny polí – ≈ 5 za rok, pole až 4 520 čtverců), `sowingFurrowEfficiency` 0,23 →
+  0,13 s; po částech dne sezóna 1,92 → 1,56 s (výběr dílů 1,19 → 0,92 s), měsíc cest 1,37 →
+  1,13 s, práce dne 1,55 → 1,47 s, přepočet tras 2,16 → 2,11 s, správce 1,19 → 1,17 s. Rok Vlkova
+  (`years.mts`) střídavě před / po (zátěž 2,1–2,3): roky 2–4 3,19 / 3,72 / 3,90 a 3,17 / 3,78 /
+  3,86 s → 2,90 / 3,51 / 3,93 a 2,80 / 3,47 / 3,70 s (průměr 3,60 → 3,38 s, −6 %), rok 1 6,61 /
+  6,58 → 6,21 / 6,27 s. Nejvíc dál bere (zahřáté roky 2–4) přepočet tras 2,11 s (hledání sítě
+  pěšin `routeAllSteps` 1,02 s – Dijkstra z brány, ceny se mezi domácnostmi mění), sezóna 1,56 s
+  (`turnSelection` 0,57 s – druh osevu a bloky osevu všech dílů každý den oken setí), práce dne
+  1,47 s (dosah vozů `reachOf` 0,39 s, cesta orby `travelToday` 0,30 s – první volání dne po
+  změně stadia dílů přestaví půdu vozu), správce 1,17 s a měsíc cest 1,13 s.
 
 - **Čísla** pravidel jsou jen v `rules*.ts` (u každého odkaz na sekci návrhu); změna čísla = i
   text v návrhu. Kalibrace: `measure-village.ts` nasimuluje stovky vsí a vypíše cíle z Kalibrace

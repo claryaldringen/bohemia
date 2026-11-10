@@ -8,7 +8,15 @@ import { villageCartEstimates } from './paths/cart-estimate';
 import { TEAM_TRAVEL } from './rules';
 import { fieldGridOf } from './squares';
 import { rotationCosSin, squareCenter } from './square-grid';
-import type { Crop, CropWork, FieldPart, PloughBand, PloughWork, VillageState } from './types';
+import type {
+  Crop,
+  CropWork,
+  FieldPart,
+  PloughBand,
+  PloughWork,
+  Road,
+  VillageState,
+} from './types';
 import { cropTaskWindows, cropTaskRemaining, seasonCrops, windowEndOf } from './year-plan';
 
 // Výkon spřežení za den (oxen.md – Co nejdelší brázda): kromě sazby orby ho ubírají obraty na
@@ -354,8 +362,9 @@ const NONE = -1e308;
 /**
  * Všechno, co `plannedFurrowEfficiency` čte, jako řada čísel: díly v pořadí (id, pole, buňka,
  * plocha, vzdálenost a vzdálenost chůzí), mřížky polí a pevné cesty (stupeň, vozová, body).
+ * Pořadí čísel musí odpovídat `sameFurrowInputs`.
  */
-function furrowInputs(
+export function furrowInputs(
   parts: readonly FieldPart[],
   state: Pick<VillageState, 'fields' | 'roads'>,
 ): number[] {
@@ -370,11 +379,53 @@ function furrowInputs(
   const roads = state.roads?.roads ?? [];
   out.push(roads.length);
   for (const road of roads) {
-    out.push(road.grade === 'trodden' ? 1 : road.grade === 'improved' ? 2 : 3, road.cart ? 1 : 0);
+    out.push(roadGradeInput(road), road.cart ? 1 : 0);
     out.push(road.points.length);
     for (const point of road.points) out.push(point.x, point.z);
   }
   return out;
+}
+
+function roadGradeInput(road: Road): number {
+  return road.grade === 'trodden' ? 1 : road.grade === 'improved' ? 2 : 3;
+}
+
+/**
+ * Vstupy (`furrowInputs`) jsou tytéž jako `known` – porovná je přesně číslo po čísle ve stejném
+ * pořadí, bez skládání řady (paměť u Vlkova platí ve 209 z 214 volání za rok). Napřed délka řady.
+ */
+export function sameFurrowInputs(
+  known: readonly number[],
+  parts: readonly FieldPart[],
+  state: Pick<VillageState, 'fields' | 'roads'>,
+): boolean {
+  const roads = state.roads?.roads ?? [];
+  let length = 3 + parts.length * 7 + state.fields.length * 4;
+  for (const road of roads) length += 3 + road.points.length * 2;
+  if (known.length !== length) return false;
+  let k = 0;
+  if (known[k++] !== parts.length) return false;
+  for (const p of parts) {
+    if (known[k++] !== p.id || known[k++] !== p.fieldId) return false;
+    if (known[k++] !== (p.cell?.x ?? NONE) || known[k++] !== (p.cell?.y ?? NONE)) return false;
+    if (known[k++] !== p.areaM2 || known[k++] !== p.distanceM) return false;
+    if (known[k++] !== (p.walkDistanceM ?? NONE)) return false;
+  }
+  if (known[k++] !== state.fields.length) return false;
+  for (const f of state.fields) {
+    if (known[k++] !== f.id || known[k++] !== (f.grid?.x ?? NONE)) return false;
+    if (known[k++] !== (f.grid?.z ?? NONE)) return false;
+  }
+  for (const f of state.fields) if (known[k++] !== (f.grid?.rotation ?? NONE)) return false;
+  if (known[k++] !== roads.length) return false;
+  for (const road of roads) {
+    if (known[k++] !== roadGradeInput(road) || known[k++] !== (road.cart ? 1 : 0)) return false;
+    if (known[k++] !== road.points.length) return false;
+    for (const point of road.points) {
+      if (known[k++] !== point.x || known[k++] !== point.z) return false;
+    }
+  }
+  return k === known.length;
 }
 
 /** Poslední výpočet `plannedFurrowEfficiency` plánu osevu po krajině – vstupy a výsledek. */
@@ -398,19 +449,13 @@ export function sowingFurrowEfficiency(
   state: Pick<VillageState, 'fields' | 'roads'>,
   landscape: Landscape | null,
 ): number {
-  const inputs = furrowInputs(parts, state);
   const last = landscape ? furrowMemo.get(landscape) : plainFurrowMemo;
-  if (last && sameNumbers(last.inputs, inputs)) return last.value;
+  if (last && sameFurrowInputs(last.inputs, parts, state)) return last.value;
+  const inputs = furrowInputs(parts, state);
   const value = plannedFurrowEfficiency(parts, state, landscape);
   if (landscape) furrowMemo.set(landscape, { inputs, value });
   else plainFurrowMemo = { inputs, value };
   return value;
-}
-
-function sameNumbers(a: readonly number[], b: readonly number[]): boolean {
-  if (a.length !== b.length) return false;
-  for (let k = 0; k < a.length; k++) if (a[k] !== b[k]) return false;
-  return true;
 }
 
 /**
