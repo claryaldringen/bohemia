@@ -1322,10 +1322,10 @@ test('varovaná ves – průvod uprchlíků se stádem a posel ve scéně obrán
 // do DB jako v testu hradeb). Tažení A je zapsané do kontrolního bodu s varováním vsi B (vojsko
 // viděli tři políčka za B na druhé straně než hradiště – „se vším“ to stihnou), worker vedle `next
 // start` ho počítá. B dostane upozornění, v panelu dvorce ikony voleb, „Do hradiště – se vším“ =
-// záměr `alarm-flee`; průvod se přenese až k hradišti (pochod přes mapu by trval minuty), po
-// příchodu má C hosty `refuge` a B lidi pryč (tažení obě vsi drží bariérou – test ho na to ukončí).
-// Vrátit se je zašedlé, dokud vojsko stojí na mapě B (tažení zase běží); po jeho odtažení klik
-// Vrátit se → lidé doma.
+// záměr `alarm-flee`; průvod se přenese rovnou do středu hradiště (pochod přes mapu by trval
+// minuty), po příchodu má C hosty `refuge` a B lidi pryč (tažení obě vsi drží bariérou – test ho
+// na to ukončí). Vrátit se je zašedlé, dokud vojsko stojí na mapě B (tažení zase běží); po jeho
+// odtažení klik Vrátit se → lidé doma.
 test('ves B varovaná utíká do hradiště pána a po odtažení vojska se vrátí', async ({ browser }) => {
   test.setTimeout(600_000);
   await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
@@ -1560,7 +1560,9 @@ test('ves B varovaná utíká do hradiště pána a po odtažení vojska se vrá
         message: worker.output(),
       })
       .toBe('marching');
-    // pochod přes mapu by trval minuty – průvod přeneseme k hradišti
+    // pochod přes mapu by trval minuty – průvod přeneseme rovnou do středu hradiště (cíl skupiny),
+    // dojde hned v prvním taktu. Kousek vedle středu bývá za palisádou: kolem ní k bráně jde
+    // průvod se stádem (1,75 m/s) podle krajiny až ≈ 72 s – déle než čekání na příchod.
     await worker.stop();
     await editPoint((s) => ({
       ...s,
@@ -1569,7 +1571,7 @@ test('ves B varovaná utíká do hradiště pána a po odtažení vojska se vrá
         flights: s.alarm!.flights.map((f) => ({
           ...f,
           cell: { ...f.target.cell },
-          pos: { x: f.target.pos.x + 15, z: f.target.pos.z },
+          pos: { ...f.target.pos },
           route: [],
           leg: null,
         })),
