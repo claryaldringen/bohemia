@@ -321,6 +321,8 @@ interface Row {
   tick: number;
   outbox: string | null;
   done: boolean;
+  /** Verze bodu – roste s každým zápisem (v DB `xmin` řádku). */
+  version: number;
 }
 
 /** Úložiště tažení v paměti – stav jako JSON (jako jsonb), záměr vyrazit pro každé tažení. */
@@ -341,13 +343,16 @@ function memoryRepository(rows: Map<string, Row>, saves: { n: number }): Campaig
       return Promise.resolve({
         state: JSON.parse(row.state) as CampaignState,
         outbox: row.outbox === null ? null : (JSON.parse(row.outbox) as CampaignOutbox),
+        version: String(row.version),
       });
     },
+    checkpointVersion: (id) => Promise.resolve(String(rows.get(id)!.version)),
     intentsAfter: (_id, tick) => Promise.resolve(SET_OUT.filter((i) => i.tick > tick)),
     saveCheckpoint: (id, input) => {
       const row = rows.get(id)!;
       if (row.tick !== input.fromTick) return Promise.resolve('stale');
       saves.n++;
+      row.version++;
       row.tick = input.state.tick;
       row.state = JSON.stringify(input.state);
       row.outbox = input.outbox ? JSON.stringify(input.outbox) : null;
@@ -356,7 +361,10 @@ function memoryRepository(rows: Map<string, Row>, saves: { n: number }): Campaig
     },
     clearOutbox: (id, tick) => {
       const row = rows.get(id)!;
-      if (row.tick === tick) row.outbox = null;
+      if (row.tick === tick) {
+        row.outbox = null;
+        row.version++;
+      }
       return Promise.resolve();
     },
   };
@@ -370,7 +378,7 @@ async function run(starts: readonly CampaignState[]): Promise<Result> {
   const rows = new Map<string, Row>(
     starts.map((s) => [
       s.id,
-      { state: JSON.stringify(s), tick: s.tick, outbox: null, done: false },
+      { state: JSON.stringify(s), tick: s.tick, outbox: null, done: false, version: 0 },
     ]),
   );
   const saves = { n: 0 };

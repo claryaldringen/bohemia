@@ -11,6 +11,15 @@ import type { Database } from '../client';
 import { campaign, campaignCheckpoint, campaignIntent } from '../schema';
 
 /**
+ * Verze kontrolního bodu = `xmin` řádku (transakce, která zapsala jeho současnou podobu): mění se
+ * s každým UPDATE (uložení bodu, `clearOutbox`), zámky řádku (`FOR UPDATE`, `FOR SHARE` u záměru)
+ * ji nemění. Bez sloupce a migrace a bez spoléhání na to, že každý zápis verzi zvedne. Táž hodnota
+ * by se mohla vrátit až po obrátce čísel transakcí (2³² transakcí) – paměť workeru drží bod jen
+ * běžícího tažení.
+ */
+const CHECKPOINT_VERSION = sql<string>`${campaignCheckpoint}.xmin::text`;
+
+/**
  * Drizzle adaptér portu CampaignRepository (plán 2026-11-03 – Úloha 6.5). Souběh záměru
  * a kontrolního bodu: `addIntent` sdílí řádek bodu (`FOR SHARE`), `saveCheckpoint` ho zamkne
  * (`FOR UPDATE`) a záměry spočítá až pod zámkem – záměr do už spočtených taktů tak buď bod
@@ -106,10 +115,22 @@ export function createCampaignRepository(db: Database): CampaignRepository {
 
     async checkpoint(campaignId: string): Promise<CampaignCheckpoint | null> {
       const [row] = await db
-        .select({ state: campaignCheckpoint.state, outbox: campaignCheckpoint.outbox })
+        .select({
+          state: campaignCheckpoint.state,
+          outbox: campaignCheckpoint.outbox,
+          version: CHECKPOINT_VERSION,
+        })
         .from(campaignCheckpoint)
         .where(eq(campaignCheckpoint.campaignId, campaignId));
-      return row ? { state: row.state, outbox: row.outbox ?? null } : null;
+      return row ? { state: row.state, outbox: row.outbox ?? null, version: row.version } : null;
+    },
+
+    async checkpointVersion(campaignId: string): Promise<string | null> {
+      const [row] = await db
+        .select({ version: CHECKPOINT_VERSION })
+        .from(campaignCheckpoint)
+        .where(eq(campaignCheckpoint.campaignId, campaignId));
+      return row?.version ?? null;
     },
 
     async intentsAfter(campaignId: string, tick: number): Promise<CampaignIntent[]> {

@@ -212,6 +212,8 @@ interface Row {
   tick: number;
   outbox: string | null;
   done: boolean;
+  /** Verze bodu – roste s každým zápisem (v DB `xmin` řádku). */
+  version: number;
 }
 
 /** Úložiště tažení v paměti – bod jako JSON (jako jsonb), bez záměrů. */
@@ -232,13 +234,16 @@ function memoryCampaigns(rows: Map<string, Row>, saves: { n: number }): Campaign
       return Promise.resolve({
         state: JSON.parse(row.state) as CampaignState,
         outbox: row.outbox === null ? null : (JSON.parse(row.outbox) as CampaignOutbox),
+        version: String(row.version),
       });
     },
+    checkpointVersion: (id) => Promise.resolve(String(rows.get(id)!.version)),
     intentsAfter: () => Promise.resolve([]),
     saveCheckpoint: (id, input) => {
       const row = rows.get(id)!;
       if (row.tick !== input.fromTick) return Promise.resolve('stale');
       saves.n++;
+      row.version++;
       row.tick = input.state.tick;
       row.state = JSON.stringify(input.state);
       row.outbox = input.outbox ? JSON.stringify(input.outbox) : null;
@@ -247,7 +252,10 @@ function memoryCampaigns(rows: Map<string, Row>, saves: { n: number }): Campaign
     },
     clearOutbox: (id, tick) => {
       const row = rows.get(id)!;
-      if (row.tick === tick) row.outbox = null;
+      if (row.tick === tick) {
+        row.outbox = null;
+        row.version++;
+      }
       return Promise.resolve();
     },
   };
@@ -282,7 +290,13 @@ async function main(): Promise<void> {
   const rows = new Map<string, Row>();
   for (const [k, v] of villages.entries()) {
     const state = besieging(k, v.id, v.x, start);
-    rows.set(state.id, { state: JSON.stringify(state), tick: start, outbox: null, done: false });
+    rows.set(state.id, {
+      state: JSON.stringify(state),
+      tick: start,
+      outbox: null,
+      done: false,
+      version: 0,
+    });
   }
   const saves = { n: 0 };
   const deps: StepCampaignsDeps = {

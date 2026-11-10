@@ -2,7 +2,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
-import type { CampaignState } from '@bohemia/game';
+import type { CampaignOutbox, CampaignState } from '@bohemia/game';
 import { createDatabase, createLockPool } from '../../client';
 import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
@@ -209,6 +209,36 @@ describe('campaign repository', () => {
     await campaigns.clearOutbox(ID, 150);
     expect(await campaigns.active()).toEqual([]);
     expect(await campaigns.addIntent(ID, { tick: 999, byPlayer: 'a', body: SET_OUT })).toBeNull();
+  });
+
+  it('verze bodu: mění ji uložení i smazání událostí, záměr ani odmítnuté uložení ne', async () => {
+    await campaigns.create(state(100), NOW);
+    const created = await campaigns.checkpointVersion(ID);
+    expect(created).toEqual(expect.any(String));
+    expect((await campaigns.checkpoint(ID))?.version).toBe(created);
+    // záměr bod jen sdílí (FOR SHARE), odmítnuté uložení ho jen zamkne (FOR UPDATE)
+    await campaigns.addIntent(ID, { tick: 120, byPlayer: 'a', body: SET_OUT });
+    const save = (seenIntents: number, outbox: CampaignOutbox | null): Promise<string> =>
+      campaigns.saveCheckpoint(ID, { fromTick: 100, seenIntents, state: state(140), outbox });
+    expect(await save(0, null)).toBe('stale');
+    expect(await campaigns.checkpointVersion(ID)).toBe(created);
+
+    const outbox = {
+      villageEvents: [],
+      notices: [{ playerId: 'a', kind: 'campaign-returned' as const, payload: {}, gameDay: 3 }],
+    };
+    expect(await save(1, outbox)).toBe('saved');
+    const saved = await campaigns.checkpointVersion(ID);
+    expect(saved).not.toBe(created);
+    expect((await campaigns.checkpoint(ID))?.version).toBe(saved);
+    // smazání událostí jiného bodu nic nezapíše, tohoto bodu verzi změní
+    await campaigns.clearOutbox(ID, 139);
+    expect(await campaigns.checkpointVersion(ID)).toBe(saved);
+    await campaigns.clearOutbox(ID, 140);
+    const cleared = await campaigns.checkpointVersion(ID);
+    expect(cleared).not.toBe(saved);
+    expect(cleared).not.toBe(created);
+    expect(await campaigns.checkpointVersion('00000000-0000-4000-8000-0000000000ff')).toBeNull();
   });
 
   it('souběh záměrů s uložením bodu: každý záměr buď bod zastaví, nebo se nezapíše', async () => {
