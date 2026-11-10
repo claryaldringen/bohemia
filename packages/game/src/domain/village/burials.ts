@@ -271,12 +271,15 @@ export function placeMound(
   rank: GraveRank,
   day: number,
   dwellings: readonly Position[],
+  rite?: GraveMound['rite'],
 ): GraveMound | null {
   const ready = cemetery.squares.filter((q) => q.constructionId === undefined);
   if (ready.length === 0) return null;
   const taken = occupancy(cemetery, ready);
   const gate = entranceOf(cemetery, ready, dwellings);
-  for (const size of GRAVE_RANK_MOUNDS[rank]) {
+  // kostrový hrob (christianity.md – Pohřby): bez mohyly, jedno místo na místě podle významu
+  const sizes: readonly MoundSize[] = rite === 'inhumation' ? ['small'] : GRAVE_RANK_MOUNDS[rank];
+  for (const size of sizes) {
     const spots = freeSpots(cemetery, ready, taken, gate, size).sort(byScore);
     let spot: Spot | undefined;
     if (rank === 'child') spot = spots[spots.length - 1];
@@ -293,6 +296,7 @@ export function placeMound(
       size,
       rank,
       day,
+      ...(rite ? { rite } : {}),
     };
   }
   return null;

@@ -116,6 +116,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   místech po řadách jako dřív – hřbitov uložený dřív se načte a vypadá stejně. Kapacita
   v místech: `cemeteryCapacity`, `usedPlaces`, `freePlaces` (i `acceptsBurials`, hygiena,
   `CemeterySummary.usedPlaces` / `freePlaces`, `yearsLeft` s průměrnou velikostí mohyl).
+  **Kostrové pohřby křesťanů** (christianity.md – Pohřby, K7): `bury` dá zemřelému s
+  `faith: 'christian'` (`isChristian`) do `placeMound` obřad `rite: 'inhumation'` – hrob je
+  záznam v `mounds` (místo podle významu, jako dřív) s `rite` a velikostí `small` (jedno místo),
+  kreslí se bez mohyly (scéna K9); chybí `rite` = žárový pohřeb pod mohylou. Plnost se počítá
+  jako u jednoho hrobu (`usedPlaces`). Pohan a staré hroby beze změny.
   Čtverce navazující stranou na hřbitov ho **rozšíří** (`foundCemetery`: stejné id, čtverce na
   konec s `constructionId`, dokud se ohrazují, a nepočítají se); na dva hřbitovy navázat nejde.
   Hráči se říká vždy **Hřbitov** (texty), v kódu zůstává `cemetery`.
