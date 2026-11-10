@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactElement, type SyntheticEvent } from 'react';
+import { useState, type ReactElement } from 'react';
 import { createPortal } from 'react-dom';
 import { useRightDenied } from './rights';
 import { Tooltip } from './Tooltip';
@@ -10,19 +10,11 @@ import { Tooltip } from './Tooltip';
 // Krok nejde vzít zpět, proto napřed potvrzení (návrh Clauda); odmítnutí serveru (rod nezná, už
 // pokřtěný, vojvoda jinde) u kurzoru.
 
-/** Ikona kříže víry (K9 ji vykreslí z Blenderu – `house/cross.png` je křížek „zavřít“). */
+/** Ikona kříže víry (z Blenderu – `tools/blender/icons.py`; `house/cross.png` je křížek „zavřít“). */
 export const FAITH_CROSS_ICON = '/icons/house/faith-cross.png';
-/** Náhradní ikona, dokud kříž víry není – kostelní zvon. */
-export const FAITH_CROSS_FALLBACK = '/icons/resources/bell.png';
 
 export const BAPTIZE_LABEL = 'Nechat se pokřtít';
 export const BAPTIZE_WARNING = 'Křest nejde vzít zpět. Vedlejší manželky budou propuštěny.';
-
-/** Chybí-li kříž víry, obrázek přejde na náhradní ikonu (jen jednou). */
-function toFallback(event: SyntheticEvent<HTMLImageElement>): void {
-  const img = event.currentTarget;
-  if (!img.src.endsWith(FAITH_CROSS_FALLBACK)) img.src = FAITH_CROSS_FALLBACK;
-}
 
 /** Kříž víry – tlačítko křtu, pokřtěný člověk v panelu, křesťané v popisku štěstí. */
 export function FaithCross({
@@ -32,16 +24,7 @@ export function FaithCross({
   size: number;
   className?: string;
 }): ReactElement {
-  return (
-    <img
-      src={FAITH_CROSS_ICON}
-      alt=""
-      width={size}
-      height={size}
-      className={className}
-      onError={toFallback}
-    />
-  );
+  return <img src={FAITH_CROSS_ICON} alt="" width={size} height={size} className={className} />;
 }
 
 /**

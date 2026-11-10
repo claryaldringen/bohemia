@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Locator } from '@playwright/test';
 import {
   buyPrice,
   dateOfDayIndex,
@@ -1898,6 +1898,19 @@ test('panel Kronika – ikona v liště otevře kroniku vsi se zápisem o založ
   ).toHaveText(/Kovář nemá uhlí\./);
 });
 
+/** Počká, až se načtou všechny ikony v `scope` (chybějící soubor má `naturalWidth` 0 – test spadne). */
+async function iconsLoaded(scope: Locator): Promise<void> {
+  await expect
+    .poll(() =>
+      scope
+        .locator('img')
+        .evaluateAll((imgs) =>
+          (imgs as HTMLImageElement[]).every((img) => img.complete && img.naturalWidth > 0),
+        ),
+    )
+    .toBe(true);
+}
+
 test('křest rodu – tlačítko u vojvody, potvrzení, zápis v kronice a kříž „Křesťan“ v panelu', async ({
   page,
 }) => {
@@ -1953,6 +1966,9 @@ test('křest rodu – tlačítko u vojvody, potvrzení, zápis v kronice a kří
   await expect(dialog.getByTestId('baptize-warning')).toHaveText(
     'Křest nejde vzít zpět. Vedlejší manželky budou propuštěny.',
   );
+  // ikony okna se načtou, než se udělá snímek – server mezitím dopočítává ves a obrázky přijdou
+  // později (snímek hned po otevření měl obě tlačítka prázdná); chybějící soubor = naturalWidth 0
+  await iconsLoaded(dialog);
   await page.screenshot({ path: test.info().outputPath('krest-dialog.png'), scale: 'css' });
   await dialog.getByTestId('baptize-confirm').click();
   await expect(dialog).toHaveCount(0);
@@ -1992,5 +2008,6 @@ test('křest rodu – tlačítko u vojvody, potvrzení, zápis v kronice a kří
   await expect(christian).toBeVisible();
   await christian.hover();
   await expect(page.getByRole('tooltip').filter({ hasText: 'Křesťan' }).first()).toBeVisible();
+  await iconsLoaded(christian);
   await page.screenshot({ path: test.info().outputPath('krest-panel.png'), scale: 'css' });
 });
