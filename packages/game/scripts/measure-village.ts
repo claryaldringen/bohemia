@@ -2063,15 +2063,13 @@ function report(villages: VillageResult[], probes: Record<ProbeName, ProbeSummar
   );
   const sownMedian = quantile(start.sownRuns, 0.5);
   const fallowMedian = quantile(start.fallowRuns, 0.5);
+  // příloh ustálené dráhy trvá celé roky kolem průměru (dnes 7–8 let, průměr 7,2)
+  const fallowLow = Math.floor(ROTATION.fallow);
   row(
     'Oběh dílu: roky osevu / přílohu (medián)',
-    `${ROTATION.sown} / ${ROTATION.fallow}–${ROTATION.fallow + 1}`,
+    `${ROTATION.sown} / ${fallowLow}–${fallowLow + 1}`,
     `${fmt(sownMedian, 0)} / ${fmt(fallowMedian, 0)} (příloh p10–p90 ${fmt(quantile(start.fallowRuns, 0.1), 0)}–${fmt(quantile(start.fallowRuns, 0.9), 0)})`,
-    ok(
-      sownMedian === ROTATION.sown &&
-        fallowMedian >= ROTATION.fallow &&
-        fallowMedian <= ROTATION.fallow + 1,
-    ),
+    ok(sownMedian === ROTATION.sown && fallowMedian >= fallowLow && fallowMedian <= fallowLow + 1),
   );
   row(
     'Pole o polovinu větší: nadbytek leží jako pastvina',

@@ -214,7 +214,10 @@ describe('zlatý otisk – výběr dílů a práce vsi k 2. 9.', () => {
     // 169:c1ff75b5 (9. 11. 2026, pořadí důležitosti polních prací a výmlat do zimy – fields.md):
     // výmlat čeká za přípravou půdy, plán osevu ho z podzimu neodečítá – jiné zásoby a výběr dílů;
     // dřív 154:7d382a45
-    expect(fingerprint(plans)).toBe('169:c1ff75b5');
+    // 152:9a7a02d5 (10. 11. 2026, přílohová soustava do roku 1100 – fields.md): díl se osévá rok po
+    // roku do 70 % a plodinu dostane podle prvního okna (ozim i po ozimu) – jiný výběr dílů;
+    // dřív 169:c1ff75b5
+    expect(fingerprint(plans)).toBe('152:9a7a02d5');
   });
 });
 
@@ -246,10 +249,13 @@ describe('oděv ze lnu – trhání a štěstí', () => {
   });
 });
 
-/** Ves po 1. 9. 601 s lnem v letošní práci (k trhání v srpnu 602). */
+/**
+ * Ves po listopadu 601 s lnem v letošní práci (k trhání v srpnu 602) – v září a říjnu dostanou
+ * díly na řadě ozim, len (místo jaře) přibývá až s kopáním pod jař (přílohová soustava).
+ */
 let planned: VillageState | null = null;
 function withFlax(): VillageState {
-  planned ??= advanceVillage(found(at(600, 3, 1)), at(601, 9, 30), null);
+  planned ??= advanceVillage(found(at(600, 3, 1)), at(601, 11, 30), null);
   return JSON.parse(JSON.stringify(planned)) as VillageState;
 }
 

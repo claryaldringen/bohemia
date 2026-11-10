@@ -587,10 +587,14 @@ describe('orba rádlem', () => {
     expect(autumn).toBeGreaterThan(1);
     expect(pairs(parts(1, 80))).toBeGreaterThanOrEqual(autumn);
     expect(pairs(parts(1, 5000))).toBe(OXEN.maxPairs);
-    // úhor, který odpočívá, se neorá; jař po ozimu se orá i na jaře – na hektar méně párů než ozim
+    // úhor, který odpočívá, se neorá; díl v osevu se orá i na jaře – na hektar méně párů než první
+    // osev (ten se orá v okně ozimu)
     const resting = { state: 'fallow' as const, fallowSinceDay: day - 100, fertilityShare: 0.3 };
     expect(pairs([...parts(1, 5), ...parts(100, 500, resting)])).toBe(1);
-    const spring = pairs([...parts(1, 5), ...parts(100, 70, { next: 'spring' })]);
+    const spring = pairs([
+      ...parts(1, 5),
+      ...parts(100, 70, { sownYears: 1, fertilityShare: 0.83 }),
+    ]);
     expect(spring).toBeGreaterThan(1);
     expect(spring).toBeLessThanOrEqual(autumn);
   });

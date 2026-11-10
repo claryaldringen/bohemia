@@ -11,6 +11,7 @@ import {
   sowParts,
   sowingCropToday,
   turnSelection,
+  withoutRotationNext,
   type SowingKind,
   type TurnOptions,
 } from '../rotation';
@@ -18,8 +19,8 @@ import { FERTILITY } from '../rules';
 import type { FieldPart, VillageState } from '../types';
 import { createSeason, seasonCrop } from '../year-plan';
 
-// Osevní postup po dílech (fields.md – Osevní postup po dílech a setí do konce okna, 25. 10. 2026):
-// co na dílu poroste příště, plodina dne a výběr dílů na řadě – čisté funkce.
+// Přílohová soustava do roku 1100 (fields.md, Martin 10. 11. 2026) a setí do konce okna (Osevní
+// postup po dílech, 25. 10. 2026): co je na dílu na řadě, plodina dne a výběr dílů – čisté funkce.
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 
@@ -93,11 +94,10 @@ const blockOrder = (s: VillageState): number[] =>
 const CALM: TurnOptions = { flaxNeedKg: 0, shortage: false };
 const SEPT_1 = at(600, 9, 1);
 
-describe('postup dílu – co poroste příště', () => {
+describe('přílohová soustava – díl se osévá rok po roku do 70 %', () => {
   it('stav dílu určí, co je na řadě', () => {
     expect(nextSowing(part(1))).toBe('first');
-    expect(nextSowing(part(1, { next: 'spring' }))).toBe('spring');
-    expect(nextSowing(part(1, { next: 'winter' }))).toBe('winter');
+    expect(nextSowing(part(1, { sownYears: 1, fertilityShare: 0.83 }))).toBe('again');
     expect(nextSowing(fallow(1, FERTILITY.fallowReady))).toBe('first');
     expect(nextSowing(fallow(1, 0.8))).toBe('late');
     expect(nextSowing(fallow(1, 0.5))).toBe('emergency');
@@ -106,102 +106,93 @@ describe('postup dílu – co poroste příště', () => {
     expect(nextSowing(part(1, { state: 'founding', foundingDone: 0 }))).toBeNull();
   });
 
-  it('díl po ozimu i po jaři je v pořadí jako osévaný díl, čerstvý jako připravený', () => {
-    expect(sowingGroup(part(1, { next: 'spring' }))).toBe(1);
-    expect(sowingGroup(part(1, { next: 'winter' }))).toBe(1);
+  it('díl v osevu je v pořadí jako osévaný díl, čerstvý jako připravený', () => {
+    expect(sowingGroup(part(1, { sownYears: 1, fertilityShare: 0.83 }))).toBe(1);
     expect(sowingGroup(part(1))).toBe(2);
   });
 
-  it('odpočatý díl 95 %: ozim, jař, 5 let úhoru – za 7 sezón zase první osev', () => {
+  it('odpočatý díl 95 %: ozim po ozimu 3 roky (95 → 83 → 71 → 59 %), pak příloh 8 let', () => {
     const p = fallow(1, FERTILITY.fallowReady);
     season(p, 'winter', 601);
-    expect(p).toMatchObject({ state: 'ready', next: 'spring', sownYears: 1 });
+    expect(p).toMatchObject({ state: 'ready', sownYears: 1 });
     expect(p.crop).toBeUndefined();
     expect(p.fertilityShare).toBeCloseTo(0.83, 9);
-    season(p, 'spring', 602);
-    expect(p).toMatchObject({ state: 'fallow', sownYears: 0, fallowSinceDay: at(602, 9, 1) });
-    expect(p.next).toBeUndefined();
-    expect(p.crop).toBeUndefined();
-    expect(p.fertilityShare).toBeCloseTo(0.71, 9);
-    for (let year = 603; year <= 606; year++) season(p, null, year);
-    expect(nextSowing(p)).toBe('late');
-    season(p, null, 607);
-    expect(nextSowing(p)).toBe('first');
-  });
-
-  it('čerstvý díl 100 %: ozim, jař a úhor 4 roky', () => {
-    const p = part(1, { bonusUntilDay: at(602, 9, 1) });
-    season(p, 'winter', 601);
-    expect(p.bonusUntilDay).toBe(at(602, 9, 1));
-    season(p, 'spring', 602);
-    expect(p.bonusUntilDay).toBeNull();
-    for (let year = 603; year <= 605; year++) season(p, null, year);
-    expect(nextSowing(p)).toBe('late');
-    season(p, null, 606);
-    expect(nextSowing(p)).toBe('first');
-  });
-
-  it('jař jako první osev (ozim nestihla) dostane příště ozim, pak úhor (Martin 25. 10. 2026)', () => {
-    const p = fallow(1, FERTILITY.fallowReady);
-    season(p, 'spring', 601);
-    expect(p).toMatchObject({ state: 'ready', next: 'winter', sownYears: 1 });
-    expect(nextSowing(p)).toBe('winter');
+    expect(nextSowing(p)).toBe('again');
+    // žádný předepsaný sled – na podzim zase ozim
+    expect(sowingCropToday(nextSowing(p), at(601, 9, 15))).toBe('winter');
     season(p, 'winter', 602);
-    expect(p).toMatchObject({ state: 'fallow', sownYears: 0 });
+    expect(p).toMatchObject({ state: 'ready', sownYears: 2 });
     expect(p.fertilityShare).toBeCloseTo(0.71, 9);
+    expect(nextSowing(p)).toBe('again');
+    season(p, 'winter', 603);
+    expect(p).toMatchObject({ state: 'fallow', sownYears: 0, fallowSinceDay: at(603, 9, 1) });
+    expect(p.crop).toBeUndefined();
+    expect(p.fertilityShare).toBeCloseTo(0.59, 9);
+    for (let year = 604; year <= 610; year++) season(p, null, year);
+    expect(p.fertilityShare).toBeCloseTo(0.94, 9);
+    expect(nextSowing(p)).toBe('late');
+    season(p, null, 611);
+    expect(nextSowing(p)).toBe('first');
   });
 
-  it('starší díl, který po jaři prvním osevem nesmí dál (pod 70 %), jde do úhoru', () => {
+  it('čerstvý díl 100 %: 3 osevy s plodinou podle okna (100 → 88 → 76 → 64 %), příloh 7 let', () => {
+    const p = part(1, { bonusUntilDay: at(602, 9, 1) });
+    season(p, 'spring', 601);
+    expect(p.bonusUntilDay).toBe(at(602, 9, 1));
+    expect(nextSowing(p)).toBe('again');
+    season(p, 'winter', 602);
+    expect(nextSowing(p)).toBe('again');
+    season(p, 'spring', 603);
+    expect(p.state).toBe('fallow');
+    expect(p.fertilityShare).toBeCloseTo(0.64, 9);
+    expect(p.bonusUntilDay).toBeNull();
+    for (let year = 604; year <= 609; year++) season(p, null, year);
+    expect(nextSowing(p)).toBe('late');
+    season(p, null, 610);
+    expect(nextSowing(p)).toBe('first');
+  });
+
+  it('příloh 70–95 % po osevu pod 70 % jde zase do přílohu', () => {
     const p = part(1, { state: 'fallow', fertilityShare: 0.8, fallowSinceDay: at(590, 9, 1) });
     season(p, 'spring', 601);
     expect(p.state).toBe('fallow');
     expect(nextSowing(p)).toBe('emergency');
   });
 
-  it('luštěniny po ozimu: úhor 2 roky; len po ozimu: úhor 6 let', () => {
+  it('luštěniny i len se osévají dál, dokud úrodnost stačí; nouzový osev jde do přílohu', () => {
     const legume = fallow(1, FERTILITY.fallowReady);
     season(legume, 'winter', 601);
     season(legume, 'legume', 602);
-    expect(legume.state).toBe('fallow');
+    expect(legume).toMatchObject({ state: 'ready', sownYears: 2 });
     expect(legume.fertilityShare).toBeCloseTo(0.86, 9);
-    for (let year = 603; year <= 603; year++) season(legume, null, year);
-    expect(nextSowing(legume)).toBe('late');
-    season(legume, null, 604);
-    expect(nextSowing(legume)).toBe('first');
 
     const flax = fallow(2, FERTILITY.fallowReady);
-    season(flax, 'winter', 601);
-    season(flax, 'flax', 602);
+    season(flax, 'flax', 601);
+    expect(flax).toMatchObject({ state: 'ready', sownYears: 1, flaxYear: 601 });
+    expect(flax.fertilityShare).toBeCloseTo(0.77, 9);
+    season(flax, 'winter', 602);
     expect(flax.state).toBe('fallow');
-    for (let year = 603; year <= 607; year++) season(flax, null, year);
-    expect(nextSowing(flax)).not.toBe('first');
-    season(flax, null, 608);
-    expect(nextSowing(flax)).toBe('first');
-  });
+    expect(flax.fertilityShare).toBeCloseTo(0.65, 9);
 
-  it('luštěniny ani len jako první osev nemají druhý osev; nouzový osev jde do úhoru', () => {
-    const legume = fallow(1, FERTILITY.fallowReady);
-    season(legume, 'legume', 601);
-    expect(legume.state).toBe('fallow');
-    const emergency = fallow(2, 0.6);
+    const emergency = fallow(3, 0.6);
     season(emergency, 'winter', 601);
     expect(emergency.state).toBe('fallow');
     expect(emergency.fertilityShare).toBeCloseTo(0.48, 9);
   });
 
-  it('díl na řadě, který se v sezóně neosel, čeká dál; `next` zmizí až s koncem sezóny', () => {
-    const p = part(1, { next: 'spring', sownYears: 1, fertilityShare: 0.83 });
+  it('díl v osevu, který se v sezóně neosel, čeká dál bez odpočinku', () => {
+    const p = part(1, { sownYears: 1, fertilityShare: 0.83 });
     rotateAfterSeason(p, at(601, 9, 1));
-    expect(p).toMatchObject({ state: 'ready', next: 'spring', fertilityShare: 0.83 });
+    expect(p).toMatchObject({ state: 'ready', sownYears: 1, fertilityShare: 0.83 });
     sowParts([p], 'spring');
-    expect(p).toMatchObject({ state: 'sown', crop: 'spring', next: 'spring' });
+    expect(p).toMatchObject({ state: 'sown', crop: 'spring', sownYears: 1 });
     rotateAfterSeason(p, at(602, 9, 1));
-    expect(p.next).toBeUndefined();
-    expect(p.state).toBe('fallow');
+    expect(p).toMatchObject({ state: 'ready', sownYears: 2 });
+    expect(p.fertilityShare).toBeCloseTo(0.71, 9);
   });
 
-  it('vyřazený díl se vrátí, jak byl – příloh ladem od dřív, hotový díl na řadě', () => {
-    const ready = part(1, { next: 'spring', sownYears: 1, fertilityShare: 0.83 });
+  it('vyřazený díl se vrátí, jak byl – příloh ladem od dřív, díl v osevu na řadě', () => {
+    const ready = part(1, { sownYears: 1, fertilityShare: 0.83 });
     const lying = part(2, {
       state: 'fallow',
       fallowSinceDay: at(590, 9, 1),
@@ -212,7 +203,8 @@ describe('postup dílu – co poroste příště', () => {
     expect(lying).toMatchObject({ state: 'sown', fallowSinceDay: null });
     returnPart(ready, at(600, 9, 1));
     returnPart(lying, at(600, 9, 1));
-    expect(ready).toMatchObject({ state: 'ready', next: 'spring', sownYears: 1 });
+    expect(ready).toMatchObject({ state: 'ready', sownYears: 1 });
+    expect(nextSowing(ready)).toBe('again');
     expect(ready.crop).toBeUndefined();
     expect(lying).toMatchObject({
       state: 'fallow',
@@ -226,12 +218,48 @@ describe('postup dílu – co poroste příště', () => {
   });
 });
 
+describe('starší vsi s pevným sledem (`next`)', () => {
+  /** Díl uložený s pevným sledem ozim → jař → úhor. */
+  type Sequenced = FieldPart & { next?: 'spring' | 'winter' };
+  const legacy = (): VillageState => {
+    const s = village(4);
+    s.lastDay = at(600, 10, 1);
+    const [a, b, c] = s.parts as Sequenced[];
+    Object.assign(a!, { sownYears: 1, fertilityShare: 0.83, next: 'spring' });
+    Object.assign(b!, { sownYears: 1, fertilityShare: 0.65, next: 'winter' });
+    Object.assign(c!, { state: 'sown', crop: 'spring', sownYears: 1, next: 'spring' });
+    return s;
+  };
+
+  it('díl s `next` od 70 % zůstane v osevu, pod 70 % jde do přílohu, zasetý jen ztratí `next`', () => {
+    const before = legacy();
+    const after = withoutRotationNext(before);
+    const [a, b, c, d] = after.parts as Sequenced[];
+    for (const p of after.parts as Sequenced[]) expect(p.next).toBeUndefined();
+    expect(a).toMatchObject({ state: 'ready', sownYears: 1, fertilityShare: 0.83 });
+    expect(nextSowing(a!)).toBe('again');
+    expect(b).toMatchObject({ state: 'fallow', sownYears: 0, fallowSinceDay: at(600, 10, 1) });
+    expect(c).toMatchObject({ state: 'sown', crop: 'spring', sownYears: 1 });
+    expect(d).toBe(before.parts[3]);
+    // vstupní stav se nemění
+    expect((before.parts[0] as Sequenced).next).toBe('spring');
+  });
+
+  it('převod je idempotentní – ves bez `next` se nemění', () => {
+    const once = withoutRotationNext(legacy());
+    expect(withoutRotationNext(once)).toBe(once);
+    const fresh = village(2);
+    expect(withoutRotationNext(fresh)).toBe(fresh);
+  });
+});
+
 describe('plodina dne', () => {
-  const kinds: SowingKind[] = ['first', 'winter', 'late', 'emergency'];
+  const kinds: SowingKind[] = ['first', 'again', 'late', 'emergency'];
   // seje se týž den hned za orbou a motykou (fields.md – Práce; Martin 9. 11. 2026) – díl smí
   // začít i v poslední den okna
-  it('první osev: ozim, dokud běží okno setí ozimu, pak jař v oknech kopání', () => {
+  it('každý díl na řadě: ozim, dokud běží okno setí ozimu, pak jař v oknech kopání', () => {
     for (const kind of kinds) {
+      expect(sowingCropToday(kind, at(600, 9, 1))).toBe('winter');
       expect(sowingCropToday(kind, at(600, 10, 30))).toBe('winter');
       expect(sowingCropToday(kind, at(600, 10, 31))).toBe('winter');
       expect(sowingCropToday(kind, at(600, 11, 1))).toBe('spring');
@@ -241,15 +269,7 @@ describe('plodina dne', () => {
     }
   });
 
-  it('díl po ozimu jen jař; odpočívající nic', () => {
-    expect(sowingCropToday('spring', at(600, 9, 1))).toBe('spring');
-    expect(sowingCropToday('spring', at(600, 10, 29))).toBe('spring');
-    expect(sowingCropToday('spring', at(600, 10, 30))).toBe('spring');
-    expect(sowingCropToday('spring', at(600, 10, 31))).toBe('spring');
-    expect(sowingCropToday('spring', at(600, 12, 15))).toBeNull();
-    expect(sowingCropToday('spring', at(601, 3, 1))).toBe('spring');
-    expect(sowingCropToday('spring', at(601, 4, 30))).toBe('spring');
-    expect(sowingCropToday('spring', at(601, 5, 1))).toBeNull();
+  it('odpočívající díl nic', () => {
     expect(sowingCropToday('rest', at(600, 9, 1))).toBeNull();
     expect(sowingCropToday(null, at(600, 9, 1))).toBeNull();
   });
@@ -321,42 +341,40 @@ describe('výběr dílů na řadě – bez stropu', () => {
     expect(turnSelection(s, at(601, 4, 30), CALM).map((j) => j.crop)).not.toContain('flax');
   });
 
-  it('len bere napřed nejúrodnější díly po ozimu, pak první osev, a jen do potřeby', () => {
+  it('len bere napřed nejúrodnější díly v osevu, pak první osev, a jen do potřeby', () => {
     const s = village(8);
     const after = s.parts.slice(0, 4);
     const shares = [0.8, 0.95, 0.85, 0.9];
-    after.forEach((p, i) =>
-      Object.assign(p, { next: 'spring', sownYears: 1, fertilityShare: shares[i] }),
-    );
+    after.forEach((p, i) => Object.assign(p, { sownYears: 1, fertilityShare: shares[i] }));
     const [a, b, c, d] = after;
-    // v září: díl po ozimu s nejlepší úrodností první, pak další podle úrodnosti
-    const need = expectedFlaxKg(b!, SEPT_1) + expectedFlaxKg(d!, SEPT_1) - 0.01;
-    const join = turnSelection(s, SEPT_1, { ...CALM, flaxNeedKg: need });
+    // v září dostanou všechny díly na řadě ozim – len (místo jaře) nic
+    const september = turnSelection(s, SEPT_1, { ...CALM, flaxNeedKg: 1e9 });
+    expect(september.every((j) => j.crop === 'winter')).toBe(true);
+    // po konci okna ozimu: díl v osevu s nejlepší úrodností první, pak další podle úrodnosti
+    const november = at(600, 11, 5);
+    const need = expectedFlaxKg(b!, november) + expectedFlaxKg(d!, november) - 0.01;
+    const join = turnSelection(s, november, { ...CALM, flaxNeedKg: need });
     expect(join.filter((j) => j.crop === 'flax')).toEqual([
       { id: b!.id, crop: 'flax' },
       { id: d!.id, crop: 'flax' },
     ]);
-    // ostatní díly po ozimu jař, čerstvé díly ozim (len čerstvé díly na podzim nebere)
-    expect(
-      join
-        .filter((j) => j.crop === 'spring')
-        .map((j) => j.id)
-        .sort(),
-    ).toEqual([a!.id, c!.id].sort());
-    expect(join.filter((j) => j.crop === 'winter')).toHaveLength(4);
-    // na jaře, když díly po ozimu nestačí, i čerstvé díly (ozim jim skončil)
+    // ostatní díly v osevu i čerstvé díly jař
+    expect(join.filter((j) => j.crop === 'spring')).toHaveLength(6);
+    expect(join.map((j) => j.id)).toContain(a!.id);
+    expect(join.map((j) => j.id)).toContain(c!.id);
+    // na jaře, když díly v osevu nestačí, i čerstvé díly
     const spring = turnSelection(s, at(601, 3, 10), { ...CALM, flaxNeedKg: 1e9 });
     const flaxIds = spring.filter((j) => j.crop === 'flax').map((j) => j.id);
     expect(flaxIds.slice(0, 4)).toEqual([b!.id, d!.id, c!.id, a!.id]);
     expect(flaxIds).toHaveLength(8);
   });
 
-  it('len na jaře: napřed díly druhého osevu (i po jaři), pak první osev a příloh 70–95 %, nouzový ne', () => {
+  it('len na jaře: napřed díly v osevu, pak první osev a příloh 70–95 %, nouzový ne', () => {
     const s = village(7);
     const [a, b, c, d, e, f, g] = s.parts;
-    // a, b – po jaři prvním osevem čekají na ozim (okno ozimu skončilo – jař), nižší úrodnost
-    Object.assign(a!, { next: 'winter', sownYears: 1, fertilityShare: 0.75 });
-    Object.assign(b!, { next: 'winter', sownYears: 1, fertilityShare: 0.8 });
+    // a, b – díly v osevu (okno ozimu skončilo – jař), nižší úrodnost
+    Object.assign(a!, { sownYears: 1, fertilityShare: 0.75 });
+    Object.assign(b!, { sownYears: 1, fertilityShare: 0.8 });
     // c, d – příloh 70–95 %; e – nouzový příloh 40–70 %
     for (const [p, share] of [
       [c!, 0.9],
@@ -374,9 +392,9 @@ describe('výběr dílů na řadě – bez stropu', () => {
 
   it('na díl se len vrátí nejdřív po 7 letech (Martin 9. 11. 2026: „6 nebo 7“ – návrh Clauda 7)', () => {
     const s = village(4);
-    for (const p of s.parts) Object.assign(p, { next: 'spring', sownYears: 1 });
+    for (const p of s.parts) Object.assign(p, { sownYears: 1 });
     const [a, b] = s.parts;
-    // díl a měl len v roce 595: na podzim 601 (sklizeň 602 = 7 let) smí, na jaře 601 (6 let) ne
+    // díl a měl len v roce 595: v listopadu 601 (sklizeň 602 = 7 let) smí, na jaře 601 (6 let) ne
     a!.flaxYear = 595;
     // díl b měl len v roce 600 – smí až na sklizeň 607
     b!.flaxYear = 600;
@@ -385,8 +403,8 @@ describe('výběr dílů na řadě – bez stropu', () => {
         .filter((j) => j.crop === 'flax')
         .map((j) => j.id);
     expect(flaxOf(at(601, 3, 10))).not.toContain(a!.id);
-    expect(flaxOf(at(601, 9, 1))).toContain(a!.id);
-    expect(flaxOf(at(606, 9, 1))).toContain(b!.id);
+    expect(flaxOf(at(601, 11, 5))).toContain(a!.id);
+    expect(flaxOf(at(606, 11, 5))).toContain(b!.id);
     expect(flaxOf(at(606, 4, 1))).not.toContain(b!.id);
     // díly bez paměti lnu (vsi uložené dřív) smí hned
     expect(flaxOf(at(601, 3, 10))).toContain(s.parts[2]!.id);
@@ -396,21 +414,23 @@ describe('výběr dílů na řadě – bez stropu', () => {
     const flax = part(1, { state: 'sown', crop: 'flax', sownYears: 1 });
     rotateAfterSeason(flax, at(602, 9, 1));
     expect(flax.flaxYear).toBe(602);
-    expect(flax.state).toBe('fallow');
+    // 100 → 82 % – osévá se dál
+    expect(flax.state).toBe('ready');
     const spring = part(2, { state: 'sown', crop: 'spring', sownYears: 1, flaxYear: 590 });
     rotateAfterSeason(spring, at(602, 9, 1));
     expect(spring.flaxYear).toBe(590);
   });
 
-  it('díly po ozimu jsou na řadě před čerstvými – s jaří', () => {
+  it('díly v osevu jsou na řadě před čerstvými – a na podzim dostanou zase ozim', () => {
     const s = village(8);
     const after = s.parts.slice(4).map((p) => p.id);
-    for (const p of s.parts.slice(4)) Object.assign(p, { next: 'spring', sownYears: 1 });
+    for (const p of s.parts.slice(4)) Object.assign(p, { sownYears: 1, fertilityShare: 0.83 });
     const join = turnSelection(s, SEPT_1, CALM);
-    // ozim čerstvých dílů v dávce před jaří, jař po ozimu v pořadí bloků za ním
+    // žádný předepsaný sled – ozim po ozimu, díly v osevu v pořadí bloků první
+    expect(join.every((j) => j.crop === 'winter')).toBe(true);
     expect(
       join
-        .filter((j) => j.crop === 'spring')
+        .slice(0, 4)
         .map((j) => j.id)
         .sort(),
     ).toEqual([...after].sort());

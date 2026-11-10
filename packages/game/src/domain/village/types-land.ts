@@ -77,14 +77,6 @@ export interface FieldPart {
   /** Co je na osetém dílu zaseto; chybí u dílů mimo osev a u starších vsí (= jař). */
   crop?: Crop;
   /**
-   * Co na připraveném dílu poroste příště (fields.md – Osevní postup po dílech a setí do konce
-   * okna, bod 1): `'spring'` – díl po ozimu čeká na jař, `'winter'` – díl po jaři, která byla
-   * prvním osevem oběhu, čeká na ozim (Martin 25. 10. 2026: „Jestli bude možné mu dát ozim, ať
-   * dostane ozim.“). Nastaví `rotateAfterSeason`, smaže osev (`sowParts`). Chybí = první osev
-   * oběhu (čerstvě založený díl), u přílohu podle úrodnosti (`nextSowing`).
-   */
-  next?: 'spring' | 'winter';
-  /**
    * Rok sklizně posledního lnu na dílu (fields.md – Len; Martin 9. 11. 2026: „Tam, kde už jednou
    * rostl, se může vrátit až po 6 nebo 7 letech“): len se na díl vrátí nejdřív za
    * `FLAX.returnYears` let. Zapíše `rotateAfterSeason` 1. 9. po osetém lnu (i nevytrhaném).

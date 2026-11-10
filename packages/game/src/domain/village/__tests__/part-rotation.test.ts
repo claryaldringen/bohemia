@@ -50,16 +50,15 @@ function seasonWith(
 }
 
 describe('partRotation – co poroste příště', () => {
-  it('díl po ozimu čeká na jař, po jaři prvního osevu na ozim', () => {
-    const day = at(600, 12, 1);
-    const shown = partRotation(
-      village([part(1, { next: 'spring', sownYears: 1 }), part(2, { next: 'winter' })]),
-      day,
-    );
-    expect(shown.get(1)).toEqual({ next: 'spring', onTurn: true });
-    expect(shown.get(2)).toMatchObject({ next: 'spring', onTurn: true }); // ozim už nestihne
-    expect(partRotation(village([part(2, { next: 'winter' })]), at(600, 9, 10)).get(2)).toEqual({
+  it('díl v osevu dostane plodinu podle prvního okna – na podzim ozim, po říjnu jař', () => {
+    const again = (): FieldPart => part(1, { sownYears: 1, fertilityShare: 0.83 });
+    expect(partRotation(village([again()]), at(600, 9, 10)).get(1)).toEqual({
       next: 'winter',
+      onTurn: true,
+    });
+    // ozim už nestihne
+    expect(partRotation(village([again()]), at(600, 12, 1)).get(1)).toEqual({
+      next: 'spring',
       onTurn: true,
     });
   });
@@ -85,10 +84,15 @@ describe('partRotation – co poroste příště', () => {
     expect(unsown.get(1)).toEqual({ next: 'winter', round: 1 });
     const b = part(2);
     const sown = partRotation(village([b], seasonWith([b], 'winter', day, 1)), day + 30);
-    expect(sown.get(2)).toEqual({ next: 'spring', round: 1 });
+    // ozim po ozimu – žádný předepsaný sled
+    expect(sown.get(2)).toEqual({ next: 'winter', round: 1 });
     const c = part(3, { sownYears: 1, fertilityShare: 0.88 });
     const second = partRotation(village([c], seasonWith([c], 'spring', day, 1)), day + 30);
-    expect(second.get(3)).toMatchObject({ next: 'fallow', round: 2 });
+    expect(second.get(3)).toEqual({ next: 'winter', round: 2 });
+    // po třetím osevu pod 70 % – příloh
+    const d = part(4, { sownYears: 2, fertilityShare: 0.76 });
+    const third = partRotation(village([d], seasonWith([d], 'winter', day, 1)), day + 30);
+    expect(third.get(4)).toMatchObject({ next: 'fallow', round: 3 });
   });
 
   it('první osev jaří zasetý na jaře: příště ozim, ne jař (setí až od 1. 9.)', () => {
@@ -104,9 +108,9 @@ describe('partRotation – co poroste příště', () => {
   });
 });
 
-describe('fieldPartLooks – strniště po prvním osevu', () => {
-  it('díl na řadě po ozimu či jaři vypadá jako strniště, nový hotový díl jako rozrytý drn', () => {
-    const state = village([part(1, { next: 'spring', sownYears: 1 }), part(2)]);
+describe('fieldPartLooks – strniště dílu v osevu', () => {
+  it('díl v osevu po sklizni vypadá jako strniště, nový hotový díl jako rozrytý drn', () => {
+    const state = village([part(1, { sownYears: 1 }), part(2)]);
     const looks = fieldPartLooks(state, at(600, 9, 5), true);
     expect(looks.get(1)).toEqual({ look: 'stubble' });
     expect(looks.get(2)).toEqual({ look: 'bare' });

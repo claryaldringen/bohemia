@@ -150,7 +150,7 @@ function main(): void {
   );
   const limit = maxSownHa(input);
   console.log(
-    `Osev ${ha(r.sownHa)} (ozim ${ha(r.winterHa)}, jař ${ha(r.sownHa - r.winterHa)}) | pole s přílohem ${ha(r.fieldHa)} (× ${fmt(ROTATION_FACTOR, 2)}, oběh ${ROTATION.sown} + ${ROTATION.fallow} let) | práce stihne nejvýš ${ha(limit)} osevu${r.unfinished > 1e-6 ? ` – NESTIHNE ${fmt(r.unfinished, 0)} člověkodní` : ''}`,
+    `Osev ${ha(r.sownHa)} (ozim ${ha(r.winterHa)}, jař ${ha(r.sownHa - r.winterHa)}) | pole s přílohem ${ha(r.fieldHa)} (× ${fmt(ROTATION_FACTOR, 2)}, oběh ${ROTATION.sown} + ${fmt(ROTATION.fallow, 1)} let) | práce stihne nejvýš ${ha(limit)} osevu${r.unfinished > 1e-6 ? ` – NESTIHNE ${fmt(r.unfinished, 0)} člověkodní` : ''}`,
   );
   console.log(
     `Zásoby po sklizni v rovnováze: podle zásob ${fmt(steadyStores(r.needKg, input), 2)}, jen potřeba ${fmt(equilibriumStores(1), 2)} roční potřeby z pole | pásmo 1–1,5 chce sklizeň ${fmt(harvestForStores(1), 3)}–${fmt(harvestForStores(1.5), 3)} × potřeba`,

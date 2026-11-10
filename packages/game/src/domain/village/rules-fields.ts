@@ -98,11 +98,13 @@ export const SEED_BUYING = {
 export const UNWEEDED_YIELD = 0.6; // neopletý díl dá 60 % (návrh Clauda, kalibrace)
 // fields.md – Přílohová soustava (osev, příloh), Úroda (úrodnost). Obnova v přílohu 5 %
 // přirozené za rok (Martin 26. 10. 2026: varianta 1 – dvoupolí = přílohový systém, ladem 3–10 let;
-// dřív 2,5 %): z 0,71 na 0,95 za 5 let. Nouzově (Nouzový
+// dřív 2,5 %): z 0,59 na 0,95 za 8 let. Nouzově (Nouzový
 // osev) smí ves osít jen příloh aspoň na `emergencyMin` přirozené – Martin 19. 10. 2026: „ves
 // neoseje díly pod 40 % úrodnosti“ (díl na nule by se na 70 % vracel 28 let).
-// Osevní postup (fields.md – Osevní postup po dílech): díl dá dva osevy (ozim a jař) a jde do úhoru.
-export const SOWN_ROUNDS = 2;
+// Přílohová soustava do roku 1100 (fields.md; Martin 10. 11. 2026): díl se osévá rok po roku, dokud
+// jeho úrodnost před osevem neklesne pod `sowableMin` (odpočatý 95 → 83 → 71 → 59 % = 3 osevy),
+// pak leží ladem, dokud se neodpočine na `fallowReady` – počet osevů i délku přílohu dávají jen
+// tato čísla (žádný pevný sled plodin).
 export const FERTILITY = {
   sowDepletion: 0.12,
   fallowRecovery: 0.05,
@@ -110,6 +112,11 @@ export const FERTILITY = {
   emergencyMin: 0.4,
   fallowReady: 0.95,
 } as const;
+// fields.md – Přílohová soustava do roku 1100 (Martin 10. 11. 2026: „od roku 500 do roku 1100 bude
+// přílohový systém. Od roku 1100 výš bude možnost přejít na trojpolní systém, ale bude to mít svá
+// úskalí“): herní rok, od kterého půjde přejít na trojpolí – návrh se teprve připravuje, dnes se
+// podle něj nic nepřepíná (přílohová soustava platí dál).
+export const THREE_FIELD_FROM_YEAR = 1100;
 // fields.md – Úroda (vymýcený les; oprava podle rešerše, bylo +20 na 3 roky): bonus úrodnosti
 // podle sezóny osevu po vymýcení (1. +40, 2. +20, pak 0) a první sezónu se neplete. Bonus platí
 // jen do `windowYears` let od vymýcení – díl, který ves do té doby neoseje, o popel přijde.

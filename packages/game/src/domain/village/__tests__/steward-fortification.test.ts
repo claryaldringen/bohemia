@@ -114,13 +114,15 @@ describe('steward-fortification – opevnění podle hrozby', () => {
   }
 
   /**
-   * Ves s hrozbou nájezdu a stádem 30 krav navíc – ztráta nájezdu ≈ 12 000 čd, aby se palisáda
+   * Ves s hrozbou nájezdu a stádem 50 krav navíc (do 10. 11. 2026 30 – přílohová soustava dává
+   * z čtverce 3 osevy, kg na člověkoden je vyšší a ztráta v člověkodnech menší) – ztráta nájezdu
+   * ≈ 12 000 čd, aby se palisáda
    * vyplatila i se 2 obránci na ≈ 200–270 m (malé vsi bez dobytka se opevnění nevyplatí – Martinovy
    * cíle 8. 11. 2026; ochrana jen s obránci od 9. 11. 2026 – se 12 kravami jako dřív už ne).
    */
   const rich = (s: VillageState): VillageState => {
     const herds = s.livestock!.herds;
-    s.livestock = { ...s.livestock!, herds: { ...herds, cow: herds.cow + 30 } };
+    s.livestock = { ...s.livestock!, herds: { ...herds, cow: herds.cow + 50 } };
     return s;
   };
 
@@ -278,7 +280,9 @@ describe('steward-fortification – opevnění podle hrozby', () => {
 
   it('k vlastní palisádě s ochozem doplní val s příkopem, když se vyplatí (velká ztráta nájezdu)', () => {
     const s = threatened();
-    s.livestock!.herds.cow += 40;
+    // přílohová soustava (10. 11. 2026): 3 osevy z čtverce – kg na člověkoden vyšší, ztráta
+    // nájezdu v člověkodnech menší; val se vyplatí s větším stádem (dřív +40)
+    s.livestock!.herds.cow += 160;
     // val vně palisády by s větším útočištěm křížil modlu – test měří rozhodnutí, ne polohu
     // posvátných míst (jako „po kouscích“)
     delete s.sacredBuildings;

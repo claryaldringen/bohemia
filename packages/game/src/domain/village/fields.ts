@@ -207,16 +207,16 @@ export function endOfSeason(part: FieldPart, day: number): void {
 
 /**
  * Skupina dílu v pořadí přílohové soustavy (fields.md – Přílohová soustava): 1 osévaný díl, který
- * smí dál (≥ 0,7) – i připravený díl po prvním osevu oběhu (`FieldPart.next`, fields.md – Osevní
- * postup po dílech) –, 2 čerstvě založený (připravený), 3 příloh zotavený aspoň na 0,95, 4 příloh
- * 0,7–0,95; jiný díl (zakládaný, vyčerpaný příloh, opuštěný – fields.md, Opuštěný díl) null.
+ * smí dál (≥ 0,7) – i připravený díl v osevu po sklizni (`sownYears` > 0, fields.md – Přílohová
+ * soustava do roku 1100) –, 2 čerstvě založený (připravený), 3 příloh zotavený aspoň na 0,95,
+ * 4 příloh 0,7–0,95; jiný díl (zakládaný, vyčerpaný příloh, opuštěný – fields.md, Opuštěný díl) null.
  */
 export type SowingGroup = 1 | 2 | 3 | 4;
 export function sowingGroup(p: FieldPart): SowingGroup | null {
   if (p.abandoned) return null;
   const sowable = isSowableFertility(p);
   if (p.state === 'sown') return sowable ? 1 : null;
-  if (p.state === 'ready') return p.next ? 1 : 2;
+  if (p.state === 'ready') return p.sownYears > 0 ? 1 : 2;
   if (p.state !== 'fallow' || !sowable) return null;
   return p.fertilityShare >= FERTILITY.fallowReady - EPSILON ? 3 : 4;
 }
