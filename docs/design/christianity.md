@@ -32,7 +32,7 @@ Martin, 10. 11. 2026:
 Svět začíná roku 500 u pohanských Slovanů a do roku 1500 projde christianizací. Křest pána
 nezmění víru lidu přes noc – na hradišti může sedět pokřtěná elita nad pohanskou vsí. Pro hráče
 je křest volba: uvolní mu půdu pod posvátnými místy a hřbitovem, otevře kamenné stavby a pozdější
-trojpolí, ale stojí ho vedlejší manželky a hněv pohanů, když jim sáhne na posvátná místa.
+trojpolí, ale stojí ho vedlejší manželky a nespokojenost pohanů, když jim sáhne na posvátná místa.
 
 ## Cíle, ne-cíle, anti-cíle
 
@@ -96,12 +96,20 @@ trojpolí, ale stojí ho vedlejší manželky a hněv pohanů, když jim sáhne 
   se pokřtít – **0,5 % bez kostela, 3 % s kostelem ve vsi**, obojí × (1 + podíl křesťanů
   ve vsi). Ves s kostelem se obrátí zhruba za 2–3 generace, bez kostela prakticky vůbec.
   Obracet se začne jen ve vsích rodu, který je pokřtěný.
-- **Štěstí** ([štěstí](happiness.md)): pohané dál potřebují posvátná místa; křesťanům je dává
-  kostel (strop stejný jako posvátná místa). Ves počítá štěstí jako dosud z podílu obou skupin
-  (návrh Clauda).
-- **Hněv pohanů** (návrh Clauda, Martin „Ano“): vykácení posvátného dubu nebo háje a zaorání či
-  zastavění hřbitova sníží štěstí vsi na 5 let – úměrně podílu pohanů ve vsi (čísla dohledat
-  a zkalibrovat s [štěstím](happiness.md)).
+- **Štěstí** ([štěstí](happiness.md)) – Martin, 10. 11. 2026: „Vzpoury zatím nemáme definované.
+  Ať se sníží štěstí. To se bude průměrovat. Křesťané s kostelem budou spokojenější, pohané bez
+  posvátných míst budou nespokojení. Jak bude přibývat křesťanů, nespokojenost časem odejde.
+  Takže pětiletý limit zruš.“
+  - Cílové štěstí vsi je **průměr cílového štěstí pohanů a křesťanů vážený jejich počtem**
+    (Martin); ostatní složky (hlad, úmrtí, zásoby, …) jsou pro obě skupiny stejné.
+  - **Pohané:** posvátná místa přidávají jako dosud (nejvýš +40). **Zničená posvátná místa**
+    (vykácený posvátný dub nebo háj, zaoraný či zastavěný slovanský hřbitov) jim ubírají
+    **bez časové meze**, dokud jsou pohany – −15 za dub nebo háj, −20 za hřbitov, dohromady
+    nejvýš −30 (čísla návrh Clauda, doladí se kalibrací se [štěstím](happiness.md)).
+  - **Křesťané:** posvátná místa jim nepřidávají; kostel ve vsi jim přidá jako posvátná místa
+    (+40, strop stejný – návrh Clauda).
+  - Jak křesťanů přibývá, váha nespokojených pohanů klesá – nespokojenost odejde sama (Martin).
+    Vzpoury nejsou (Martin – zatím nedefinované).
 
 ## Kostel
 
@@ -119,5 +127,5 @@ trojpolí, ale stojí ho vedlejší manželky a hněv pohanů, když jim sáhne 
 ## Otevřené otázky
 
 - Kostel z kamene – co když ves nemá kámen? (dřevěný kostelík jako levnější varianta?)
-- Čísla hněvu pohanů a štěstí z kostela – kalibrace se [štěstím](happiness.md).
+- Čísla nespokojenosti pohanů a štěstí z kostela – kalibrace se [štěstím](happiness.md).
 - Jak se víra promítne do sňatků mezi rody hráčů (sňatky v další verzi – [vazalství](vassalage.md)).
