@@ -1,5 +1,8 @@
 # Křesťanství – plán implementace
 
+**Stav:** hotovo 10. 11. 2026 – K1–K10 (kostel, kněz a hřbitůvek u kostela jsou samostatné téma
+po kamenném zdivu; `hasChurch` zůstává false).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Každý rod jednou za rok losuje, jestli narazil na křesťanství (šance exponenciálně roste
@@ -204,8 +207,8 @@ vsí jeho sídel (i těch, které řídí NPC rod – úprava `sendRodBaptized` 
 `House.lord` (`lord`), v ostatních vsích jen den křtu. Propuštěné ženy odcházejí z přeplněného
 dvorce jako vdovy po vojvodech (`lordWidows`). Ves na cestě použije ze schránky `rod-baptized`
 (`withJourneyInbox`). Převody netřeba – stará ves bez `faith` je pohanská. Právo `baptizeLord` je
-`ennoble` (do `ACTION_RIGHTS` ho přidá K8 s tlačítkem). Nevyřešeno: převod sídla jinému držiteli
-(odúmrť, postoupení vsi) – ves si nese den křtu starého rodu; patří k integraci K10.
+`ennoble` (do `ACTION_RIGHTS` ho přidá K8 s tlačítkem). Převod sídla jinému držiteli (odúmrť,
+postoupení vsi) – vyřešeno v K10.
 
 ### K5: Obrácení vesničanů a štěstí
 
@@ -356,9 +359,16 @@ v rozhraní.
   `village-core.md` (štěstí), `world.md` (roční úloha), `web-ui.md` (tlačítko),
   `docs/design/christianity.md` (Stav: implementováno, odškrtnuté body), tento plán (odškrtnout).
 
-- [ ] **Step 1:** Zápisy do `docs/code/` (jen potřebné sekce).
-- [ ] **Step 2:** Z kořene `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run test`.
-- [ ] **Step 3:** Commit `docs: křesťanství – mapa kódu a stav návrhu`.
+- [x] **Step 1:** Zápisy do `docs/code/` (jen potřebné sekce).
+- [x] **Step 2:** Z kořene `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run test`.
+- [x] **Step 3:** Commit `docs: křesťanství – mapa kódu a stav návrhu`.
+
+**Provedeno navíc (návrh Clauda):** otevřený bod z K4 – ves, která přejde k jinému držiteli
+(odúmrť, postoupení, věnování dílu), dostane při převzetí sídla (`acceptHolderTransfers`, 2. krok
+převodu) křest nového rodu (`withHolderFaith` – den křtu, nebo příznak zmizí; `desecrated`
+zůstává). Prázdné ikony v potvrzení křtu na snímku K9: snímek vznikl dřív, než server poslal
+obrázky (dopočítával ves) – e2e teď na ikony počká; náhradní zvon `FaithCross` zrušen (kříž víry
+už existuje).
 
 ## Pořadí a souběh
 

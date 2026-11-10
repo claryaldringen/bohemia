@@ -445,8 +445,9 @@ Pravidla: [vassalage.md](../design/vassalage.md) – Vymření rodu – odúmrť
   1. krok pod zámkem **starého** držitele: `SettlementRepository.transferHolder(sídlo, starý, nový)` –
      podmíněný UPDATE (drží starý, nic nečeká), sídlo přestane být sídelní; `listActive` čekající sídlo
      nevrací nikomu, fronta workeru (`world-queue.ts`) ho počítá u nového (`coalesce(pending, owner)`).
-  2. krok pod zámkem **nového**: `acceptTransfers(nový)` – na začátku `advancePlayer` (worker, `tryRun`)
-     a `advanceDynasty` (web); idempotentní.
+  2. krok pod zámkem **nového**: `acceptHolderTransfers(nový)` (`acceptTransfers` + křest nového rodu
+     ve vsích – `village-people.md` – Křest a víra) – na začátku `advancePlayer` (worker, `tryRun`),
+     `advanceDynasty` (web) a v `transferVillages`; idempotentní.
      Pád mezi kroky: sídlo čeká, nikdo ho nepočítá, nejbližší dopočet nového držitele ho převezme. Verze vsi
      se převodem nemění – rozběhnutý dopočet vsi uloží (db test `escheat-repository.db.test.ts`).
 - **Rozhodnutí:** `escheatDialogs` (pohled `EscheatView`), `proposeEscheat` (díly `EscheatPart` po celých

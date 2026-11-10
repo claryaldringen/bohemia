@@ -1,7 +1,9 @@
 # Křesťanství
 
-Stav: **schváleno 10. 11. 2026** (Martin: „Takhle je to ok“). Zadání je Martinovo (citace níž), podrobnosti jsou
-návrh Clauda. Navazuje na [štěstí a posvátná místa](happiness.md), [hřbitov](cemetery.md),
+Stav: **implementováno 10. 11. 2026 (bez kostela – samostatné téma)**; schváleno 10. 11. 2026
+(Martin: „Takhle je to ok“). Zadání je Martinovo (citace níž), podrobnosti jsou návrh Clauda.
+Plán: [2026-11-10-christianity.md](../superpowers/plans/2026-11-10-christianity.md). Navazuje
+na [štěstí a posvátná místa](happiness.md), [hřbitov](cemetery.md),
 [vojvodovu rodinu](lord.md), [hradiště](hillfort.md), [příbuzenství a sňatky](kinship.md)
 a [pole](fields.md) (trojpolí od roku 1100).
 
@@ -82,7 +84,9 @@ trojpolí, ale stojí ho vedlejší manželky a nespokojenost pohanů, když jim
   vojvodovi (návrh Clauda).
 - **Vsi rodu:** křest platí ve všech vsích rodu a ves založená rodem po křtu je pokřtěná (osadníci
   ho přinesou i z cesty). Ves, kterou za hráče řídí NPC rod, se řídí křtem toho NPC rodu; po jeho
-  konci zase křtem rodu hráče (návrh Clauda).
+  konci zase křtem rodu hráče (návrh Clauda). Ves, která přejde k jinému rodu (odúmrť, postoupení,
+  věnování dílu odúmrti), se řídí křtem nového držitele – nepokřtěný rod ji vrátí mezi pohanské;
+  zničená posvátná místa si lid pamatuje dál (návrh Clauda).
 - **NPC rody** se po objevu pokřtí samy – náhodně do 1–20 let (návrh Clauda): k 1. 1. roku, který
   je 1–20 let po roce objevu, los `'npc-baptism'` ze seedu rodu (návrh Clauda). Objev ani křest
   NPC rodu se do kroniky nepíše – kroniku jeho vsi čte držitel a „Rod“ by v ní mátl (návrh
@@ -139,6 +143,29 @@ trojpolí, ale stojí ho vedlejší manželky a nespokojenost pohanů, když jim
   Kostrové pohřby později).
 - **Sňatky:** křesťané se oddávají v kostele (návrh Clauda; dnes u posvátného místa –
   [příbuzenství](kinship.md) – Místo obřadu).
+
+## Rozhodnutí z implementace
+
+Návrh Clauda při implementaci (plán – poznámky „Provedeno jinak“):
+
+- **Los objevu:** seed rodu je `deriveSeed(seed světa, 'house:' + id)`, los roku Y z `'faith:' + Y`;
+  rod založený během roku losuje poprvé příští 1. 1. Zápis „Rod se dozvěděl o novém Bohu.“ jde
+  do kroniky obecnou událostí schránky (nový druh zápisu, ne nová událost); NPC rod nepíše nic.
+- **Kdo se křtí:** vojvoda rodu (`House.lord`) ve vsi, kde žije – tlačítko je u vojvody vsi
+  a rozhoduje o něm právo rodu (jako povýšení vesničana, jen držitel). Ostatní vsi rodu dostanou
+  jen den křtu. Křest rodu hráče dorazí i do vsí, které za něj řídí NPC rod – platí tam až po konci
+  NPC rodu; NPC rod má vlastní den křtu.
+- **Propuštěné manželky** zůstávají ve svých domech; z přeplněného dvorce odcházejí s dětmi jako
+  vdovy po vojvodovi.
+- **Ves na cestě** (osadníci nové vsi) si křest rodu vezme ze schránky – ves založená po křtu je
+  pokřtěná.
+- **Rozhraní navíc:** malý kříž „Křesťan“ v panelu osoby, podíl křesťanů a nespokojenost pohanů
+  v popisku štěstí, tlačítko Zbourat u hřbitova jen u pokřtěného rodu (pohanský rod ho nemá – jako
+  v 0 A.D. se příkaz, který nejde nikdy, neukazuje) a varování u kurzoru „Vykácí posvátný háj.“,
+  „Vykácí posvátný dub.“, „Zaorá starý hřbitov.“ – stavba zůstává povolená.
+- **Změna držitele vsi:** křest se přepočte podle nového rodu (Vsi rodu výš). Ves převzatá v den
+  mezi křtem starého rodu a jeho zápisem do vsi (zpráva platí od zítřka) by si křest starého rodu
+  ještě zapsala – okno jednoho dne se neřeší.
 
 ## Otevřené otázky
 

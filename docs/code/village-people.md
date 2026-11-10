@@ -787,8 +787,19 @@ Muž (s manželkou a svobodnými dětmi) putuje do vsi bez vojvody schránkou ja
   `settlersOf` a `foundVillage` ho nesou (`faithOfSettlers` – bez `desecrated`); ves na cestě
   použije ze schránky jen `rod-baptized` bez `lord` (`withJourneyInbox`; `arrive` v `simulate.ts`
   – při příjezdu se správcem jen dny před založením, ať den křtu přinesou osadníci).
+- **Změna držitele vsi** (odúmrť, postoupení, věnování dílu – `vassalage.md` – Převod držitele):
+  `acceptHolderTransfers` (`application/escheat.ts`, 2. krok převodu pod zámkem nového držitele –
+  `advancePlayer`, `advanceDynasty`, `transferVillages`) dá vsím převzatých sídel křest nového rodu
+  (`withHolderFaith(state, House.baptizedDay)` v `faith.ts`): pokřtěný → jeho den křtu, jinak
+  `rodBaptizedDay` zmizí. `desecrated` zůstává (lid si zničená místa pamatuje) a `nobles` také.
+  Verzovaný zápis, beze změny nic neukládá (návrh Clauda). Událost `rod-baptized` starého rodu,
+  která ve schránce čeká na den po křtu, by ves převzatou ještě před ním označila – okno jednoho
+  dne se neřeší.
+- **Obrácení vesničanů** (`conversion.ts`, 1. 1., jen `rodBaptized`) a štěstí pohanů a křesťanů:
+  `village-core.md` – Víra a štěstí. Kostrové pohřby a hřbitov po křtu: `village-buildings.md`.
 - **Testy:** `domain/village/__tests__/baptism.test.ts` (i vcelku = po kouscích přes JSON),
-  `application/__tests__/baptize.test.ts`.
+  `faith.test.ts` (`withHolderFaith`), `application/__tests__/baptize.test.ts`,
+  `escheat.test.ts` (víra vsi při změně držitele).
 
 ## Dočasné ubytování (demolition.md – Obydlí s obyvateli)
 

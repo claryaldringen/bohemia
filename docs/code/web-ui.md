@@ -1198,9 +1198,9 @@ jsou v `lib/premium-view.ts` (`PREMIUM_TEXTS`, `premiumIntroNotice`); portréty 
   action `baptizeLord` (`app/game/actions.ts`, parser `parseBaptizeInput` – jen `villageId`) →
   `baptizeLordForPlayer` (`actOn`) → use-case `baptizeLord`; odmítnutí u kurzoru. Ves vojvody se
   pokřtí na začátku svého dne (schránka `rod-baptized`), tlačítko zmizí hned (`House.baptizedDay`).
-- **Ikona:** `FAITH_CROSS_ICON` = `/icons/house/faith-cross.png` (vykreslí K9 z Blenderu; pozor,
-  `house/cross.png` je křížek „zavřít“). Dokud soubor není, `FaithCross` přejde při chybě načtení
-  na `FAITH_CROSS_FALLBACK` (`resources/bell.png`).
+- **Ikona:** `FAITH_CROSS_ICON` = `/icons/house/faith-cross.png` (z Blenderu, `tools/blender/icons.py`;
+  pozor, `house/cross.png` je křížek „zavřít“) – `FaithCross` ji kreslí v tlačítku, v potvrzení,
+  v panelu osoby a v popisku štěstí.
 - **Víra v panelu osoby:** pokřtěný (`isChristian` → `ScenePerson.christian`) má malý kříž víry
   s popiskem „Křesťan“ (`selection-person-christian`), pohan nic.
 - **Štěstí:** popisek v liště `HappinessTooltip` (`hud/TopBar.tsx`) – pod „Štěstí“ řádek „Křesťané
@@ -1223,7 +1223,11 @@ jsou v `lib/premium-view.ts` (`PREMIUM_TEXTS`, `premiumIntroNotice`); portréty 
 - **Testy:** `BaptizeButton.behavior.test.tsx`, `SelectionPanel.test.tsx` (víra a křest),
   `TopBar.test.tsx` (`HappinessTooltip`), `village-view.test.ts` (křest v pohledu),
   `village-input.test.ts`, `village-baptize.test.ts` (vstupní bod), `desecration-warning.test.ts`,
-  `application/__tests__/baptize.test.ts` (`villageAccess.baptizable`).
+  `application/__tests__/baptize.test.ts` (`villageAccess.baptizable`); e2e „křest rodu – …“
+  (`e2e/village.spec.ts`: znalost zapsaná do DB → tlačítko → potvrzení → kronika `lord-baptized`
+  → kříž „Křesťan“). Snímky `krest-dialog.png` / `krest-panel.png` až po načtení ikon
+  (`iconsLoaded` – server mezitím dopočítává ves a obrázky přijdou později; chybějící soubor test
+  shodí).
 
 ## Panel Kronika (absence.md – Návrat, `hud/ChroniclePanel.tsx`, `lib/chronicle-view.ts`)
 

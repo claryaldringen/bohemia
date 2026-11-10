@@ -111,7 +111,7 @@ název). Pravidla a rozhodnutí jsou v `docs/design/`.
 | `docs/code/village-crafts.md`         | řemesla – dílny, uhlíř a milíř, kovář (uhlí, ruda), hrnčíř (hlína), nákup u sousedů, učení, tesař, vozy, kování                      |
 | `docs/code/village-fields.md`         | pole – ozim a jař, osev, postup práce po čtvercích, hospodářství, zarůstání, pole ve scéně, výběr dílu                               |
 | `docs/code/village-livestock.md`      | strava a dobytek, ohrady, voli a spřežení, orba rádlem, vozy se spřežením ve scéně                                                   |
-| `docs/code/village-people.md`         | příbuzenství, domácnosti, sňatky, stěhování, víc vsí, odchod, postavy ve scéně                                                       |
+| `docs/code/village-people.md`         | příbuzenství, domácnosti, sňatky, stěhování, víc vsí, odchod, postavy ve scéně, křest a víra                                         |
 | `docs/code/village-roads.md`          | pěšiny, pevné cesty, vylepšení, vozová síť, cesta přes pole, jabloně u cest, vozová cesta                                            |
 | `docs/code/village-trade.md`          | dvorec vojvody, zemská stezka, sousedé a obchod, dobytek, výměna lidí                                                                |
 | `docs/code/village-steward.md`        | správce vsi – stav, příkaz stavby, mapa hodnot a plán, den správce, přestavba a veto, synové a schránka odchodů, rozhraní, měření    |
