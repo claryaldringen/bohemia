@@ -40,7 +40,8 @@ vstupní bod (composition root) jako web – žádná herní logika, jen plánov
   kolo jeden dotaz (`active()`). Zámek tažení má vlastní pool (`CAMPAIGN_LOCK_POOL_SIZE` = 2), vsi
   tažení jdou úložištěm bez paměti dávky (`createVillageRepository`), mapy políček
   `createCampaignCells` (`packages/server`). Paměť tažení napříč koly (`newCampaignMemory` – poslední
-  spočtený stav a mřížky pochodu, Výkon – Tažení) drží proces; restart ji zahodí (počítá od bodu).
+  spočtený stav, kontrolní bod podle verze, mapy a vsi minulého kola a mřížky pochodu, Výkon –
+  Tažení) drží proces; restart ji zahodí (počítá od bodu).
 - `src/wake.ts` – `nextWakeMs` (do 1 s po začátku dalšího herního dne, nejvýš `idleMs`) a
   `SkipTable` (odklady: zámek ve webu 2 s, chyba 1 min zdvojováním do 15 min; use-case dostane
   množinu `skip`).
@@ -265,8 +266,9 @@ něj (průměrně ≈ 20 taktů za kolo místo jednoho), u nájezdu ještě v **
 (`marchGrid` 18–20 %), která se stavěla v každém volání znovu. Oprava:
 
 - **Paměť workeru** (`newCampaignMemory`, `StepCampaignsDeps.memory` – `apps/worker/src/main.ts`):
-  poslední spočtený, ještě neuložený stav tažení (`CampaignMemo` – otisk bodu = JSON jeho stavu,
-  záměry do jeho taktu `seq@takt`). Další kolo pokračuje od něj, platí-li pro načtený bod i záměry
+  poslední spočtený, ještě neuložený stav tažení (`CampaignMemo` – verze bodu z úložiště, dřív
+  otisk = JSON jeho stavu; záměry do jeho taktu `seq@takt`). Další kolo pokračuje od něj, platí-li
+  pro načtený bod i záměry
   a není-li za teď; jinak počítá od bodu jako dřív. Uložení bodu, `stale` i chyba paměť tažení
   zahodí, skončená tažení se zapomenou na konci kola. Výsledek je tentýž (po kouscích = vcelku);
   zápis bodu, `CampaignLock`, bariéra a `outbox` beze změny – bod se ukládá stejně často.
@@ -384,7 +386,55 @@ bodu (`JSON.stringify(from)` v `stepOne`, ≈ 120 µs – v každém kole bez ul
 (`search`) 16–18 %, `cloneObject` 13–14 %; u nájezdu `cloneObject` 18 % (dřív `campaignTick` 29 %
 – do něj profil připisoval `structuredClone`). **Další kandidát:** otisk bodu bez
 `JSON.stringify` (verze bodu z úložiště – změna portu a adaptéru DB), pak čtení bodu jen při
-změně verze.
+změně verze – hotovo, viz níž „Paměť kontrolního bodu“.
+
+**Paměť kontrolního bodu a mapy předem (10. 11. 2026, `perf/campaign-checkpoint`).** Kolo četlo
+kontrolní bod z JSON (≈ 95 µs, v DB navíc přenos celého `state` jsonb) a pro paměť workeru počítalo
+jeho otisk `JSON.stringify` (≈ 120 µs) – v každém kole, i když se bod 40 taktů neměnil.
+
+- **Verze bodu z úložiště:** `CampaignCheckpoint.version` a `CampaignRepository.checkpointVersion`
+  (jen verze, bez stavu). V DB je verze `xmin` řádku `campaign_checkpoint` – mění ho každý UPDATE
+  (uložení bodu, `clearOutbox`), zámky řádku (`FOR UPDATE` při uložení, `FOR SHARE` u záměru) ani
+  záměry ne; **bez sloupce a migrace** a bez spoléhání na to, že každý zápis verzi zvedne (takt
+  bodu by stačil jen, kdyby se týž takt nikdy neuložil s jiným stavem – port to nevylučuje;
+  `updated_at` nemění `clearOutbox`). Táž hodnota by se vrátila až po obrátce čísel transakcí
+  (2³²) – paměť drží bod jen běžícího tažení. Porty v paměti: testy verzi = obsah řádku (i přímá
+  úprava řádku v testu), měření číslo zápisu.
+- **Paměť bodu** (`CampaignMemory.points`, `readCheckpoint`): známý bod → jen dotaz na verzi; stav
+  z JSON se čte, jen když se verze liší (uložení, doručení událostí, jiný proces). Uložení bodu
+  a doručení starého `outbox` bod z paměti zahodí (další kolo ho přečte rovnou celý), skončená
+  tažení se zapomenou na konci kola. `CampaignMemo.checkpoint` = verze bodu místo jeho JSON. Bod
+  se nemění na místě – `stepCampaign` vstup nemění (takty kopírují), test se zmraženými body
+  (`Object.freeze` do hloubky) dá tytéž body jako bez paměti.
+- **Mapy a vsi předem** (`CampaignMemory.needs`): `computeCampaign` zapíše políčka map a vsi, na
+  které se takty kola ptaly (i ves, která neexistuje), a další kolo je načte **před prvním krokem**
+  stejnou cestou jako na vyžádání – mapu znovu z `CampaignCells.mapOf` (může se změnit: nové sídlo
+  na políčku, nová ves), ves podle otisku (`loadVillages` – celý stav jen při jiné verzi či jménu),
+  vlastníka a vztahy (`watchers`) znovu. Bariéra beze změny – `villageAt` dá ves jen s `lastDay ≥ d − 1`,
+  jinak takt čeká a ves se načte znovu. Mapa nebo ves, na kterou se takty přestaly ptát, vypadne. Dřív první `stepCampaign` kola vracel hned `waiting` (mapy) a u vsi na cestě druhý
+  zkopíroval stav a spadl na `MissingData` (ves) – kopie zahozena. Dotazy varování (`alarmOf`,
+  `refugeHostsOf`, `domainOf`) se předem **nenačítají** – takt je potřebuje jen při vstupu vsi do
+  varování, předem by šly do úložiště dotazy navíc (`alarm-world.test.ts` – na každou odpověď jen
+  jednou).
+
+Výsledek je tentýž: všechny testy `packages/game` (zlaté otisky tažení, války, opevnění a útěku),
+otisky měření, `test:db` (nový test verze bodu) i e2e `multiplayer-war.spec.ts` beze změny.
+Měřeno střídavě před / po (2 dvojice, load 2–7; M-série, jedno jádro):
+
+| scénář                 | tažení | jádro před |      jádro po | takty/s před |  takty/s po | otisk      |
+| ---------------------- | -----: | ---------: | ------------: | -----------: | ----------: | ---------- |
+| pochod                 |      1 |      0,3 % |         0,2 % |  1 330–1 368 | 1 814–1 875 | `9c402aa9` |
+| pochod                 |      5 |  1,1–1,2 % |     0,7–0,8 % |  1 696–1 744 | 2 626–2 783 | `57f37aaf` |
+| pochod                 |     20 |  2,9–3,0 % | **1,3–1,4 %** |  2 711–2 786 | 5 898–5 933 | `7dea2bb5` |
+| opevněné vsi (nájezd)  |      5 |  3,9–4,0 % |         3,1 % |      502–515 |     642–653 | `669e1e4e` |
+| varování               |      5 |      1,9 % |         1,3 % |  1 048–1 079 | 1 512–1 523 | `3826f1c5` |
+| pochod 15 + varování 5 |     20 |  3,9–4,0 % |     **2,2 %** |  2 017–2 073 | 3 596–3 656 | `d3a14f56` |
+
+U pochodu je zisk skoro celý z paměti bodu, u nájezdu a varování přidají mapy a vsi předem (jen
+paměť bodu, jedno měření při load ≈ 20: opevněné 593, varování 1 357 taktů/s; s mapami předem
+641 a 1 525 – `cloneObject` u nájezdu 24 % → 14 %). Profil po: pochod 20 – hledání cesty
+(`search`) 38 %, `cloneObject` 32 %, `(anonymní)` 9–10 % (dřív 61 %); nájezd – `(anonymní)`
+18–19 % (bod se ukládá a čte často – události), `distanceToSegment` 15 %, `cloneObject` 14 %.
 
 **Pohled na varování** – panel dvorce se při varování ptá každé 2 s (`use-alarm.ts`) a server
 pokaždé spočte `villageAlarmView`: přístup k vsi, Vrátit se, tažení s varováním (kontrolní bod),

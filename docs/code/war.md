@@ -205,13 +205,15 @@ notices, waiting }` – čistá, vstup nemění. Takt na kopii stavu (`cloneData
   vsi; výsledek se tím nezmění. Mřížka bere cesty a opevnění **první** vsi mapy; `villageAt` dá stav
   vsi ke konci dne `d − 1` (bariéra – Ú6.7).
 - **Use-case** – `application/step-campaigns.ts`: `stepCampaigns(deps, { nowMs })` – pro každé
-  `campaigns.active()` pod `CampaignLock.tryRun` (jinak `busy`): kontrolní bod → nejdřív doručí
-  starý `outbox`, záměry `intentsAfter(tick)`, `computeCampaign` (načítá chybějící mapy
+  `campaigns.active()` pod `CampaignLock.tryRun` (jinak `busy`): kontrolní bod (s pamětí workeru
+  `readCheckpoint` – jen verze `checkpointVersion`, stav z JSON jen při jiné verzi) → nejdřív
+  doručí starý `outbox`, záměry `intentsAfter(tick)`, `computeCampaign` (načítá chybějící mapy
   `CampaignCells.mapOf` a vsi a pokračuje, nejvýš 8 kol; s pamětí workeru vsi téže verze jen
-  otiskem `stampsOfVillages` – docs/code/worker.md – Výkon – Tažení) do `tickOfMs(now)`. Bod se uloží, když
+  otiskem `stampsOfVillages` a mapy a vsi, které tažení četlo minulé kolo, načte předem –
+  `CampaignMemory.needs`; docs/code/worker.md – Výkon – Tažení) do `tickOfMs(now)`. Bod se uloží, když
   přibylo ≥ 40 taktů, vznikly události nebo tažení skončilo (jinak `computed` – další kolo počítá
   znovu z bodu, s pamětí workeru `memory` od posledního spočteného stavu, platí-li pro týž bod –
-  otisk JSON – a tytéž záměry do jeho taktu; docs/code/worker.md – Výkon – Tažení); `saveCheckpoint` uloží stav i `outbox` (události a upozornění) atomicky a odmítne
+  jeho verzi – a tytéž záměry do jeho taktu; docs/code/worker.md – Výkon – Tažení); `saveCheckpoint` uloží stav i `outbox` (události a upozornění) atomicky a odmítne
   (`stale`), když se bod posunul nebo přibyl záměr do spočtených taktů (počet záměrů v rozsahu ≠
   `seenIntents`). Po uložení doručí `outbox` (`villages.inbox.post` – stejný `ref` podruhé zahozen,
   `notices.post`) a smaže ho (`clearOutbox`); pád mezi uložením a doručením → další kolo doručí
@@ -223,7 +225,9 @@ campaignId, playerId, body, nowMs })` – záměr na takt `tickOfMs(now) + 2`; �
   jiné, takt na něm nezávisí; `outbox` jsonb), `campaign_intent` (`seq` serial, takt, hráč, tělo).
   Adaptér `adapters/campaign-repository.ts`: `addIntent` = `INSERT … SELECT … FOR SHARE OF cp`
   (takt > bod, tažení aktivní), `saveCheckpoint` v transakci `FOR UPDATE` na bodu a počet záměrů až
-  pod zámkem; `active()` = aktivní nebo s `outbox`. Zámek `adapters/campaign-lock.ts`
+  pod zámkem; `active()` = aktivní nebo s `outbox`. Verze bodu (`CampaignCheckpoint.version`,
+  `checkpointVersion`) = `xmin` řádku – mění ji každý UPDATE (uložení, `clearOutbox`), zámky řádku
+  ani záměry ne; bez sloupce a migrace. Zámek `adapters/campaign-lock.ts`
   (`createCampaignLock(pool)` – advisory zámek zámku hráče v prostoru `CAMPAIGN_LOCK_NAMESPACE`).
   Mapy políček `packages/server/src/campaign-cells.ts` (`createCampaignCells` – políčko se sídlem
   z uloženého seedu a jeho vsi, prázdné políčko `emptyCellLandscape` v LRU 16).
@@ -234,9 +238,10 @@ campaignId, playerId, body, nowMs })` – záměr na takt `tickOfMs(now) + 2`; �
   `application/__tests__/step-campaigns.test.ts` (kola po 1 s s restartem portů = vcelku, bod
   nejvýš po 40 taktech; pád po uložení před doručením – nic se nezdvojí; záměr ≤ bod odmítnut,
   teď + 2 použit v něm; záměr do spočteného taktu → `stale` a další kolo ho použije; chyba
-  a cizí zámek jednoho tažení nezastaví ostatní), `db/adapters/__tests__/campaign-repository.db.test.ts`
-  (bod bit po bitu, odmítnutí záměru, `stale`, `outbox`, souběh záměru s uložením, dva workery –
-  tažení počítá jen jeden).
+  a cizí zámek jednoho tažení nezastaví ostatní; paměť workeru se zmraženými body = bez paměti,
+  bod téže verze se nečte znovu), `db/adapters/__tests__/campaign-repository.db.test.ts`
+  (bod bit po bitu, odmítnutí záměru, `stale`, `outbox`, verze bodu, souběh záměru s uložením, dva
+  workery – tažení počítá jen jeden).
 
 ## Příprava a vyslání tažení (Ú6.6)
 
@@ -1578,7 +1583,11 @@ Scéna hry ukazuje **mapu sídla hráče** – vojsko je v ní vidět, když na 
   útočiště) 2,5 % (dřív 16,2 %). Zrychlení: worker pokračuje od posledního spočteného stavu místo
   opakování taktů od kontrolního bodu a mřížky pochodu drží napříč koly (`MarchGridMemo`); kopie
   stavu v každém taktu zůstává (≈ 45 % zbytku – proč, viz worker.md), od 10. 11. 2026 ruční
-  `cloneData` ≈ 5× levnější (pochod 20 tažení 5,2 → 3,4 % jádra, výsledek beze změny).
+  `cloneData` ≈ 5× levnější (pochod 20 tažení 5,2 → 3,4 % jádra, výsledek beze změny). Také
+  od 10. 11. 2026 drží worker kontrolní bod v paměti podle verze z úložiště (`xmin` řádku – stav z
+  JSON jen při změně, bez `JSON.stringify` otisku) a mapy a vsi z minulého kola načte předem:
+  pochod 20 tažení 2,9 → 1,3 % jádra, pochod 15 + varování 5 3,9 → 2,2 %, opevněné 5 3,9 → 3,1 %,
+  výsledek beze změny.
 - **e2e** `apps/web/e2e/multiplayer-war.spec.ts`: A přepadne B (tažení zapsané rovnou u vsi B,
   velí vesničan – NPC), B s výchozím postojem útěk uteče do lesa i se stádem
   (`battle.shelter`), B má upozornění „Cizí vojsko u vsi …“, A po návratu (vojsko přenesené do

@@ -6,6 +6,14 @@ import type {
   CheckpointSave,
 } from '../campaigns';
 
+/**
+ * Verze bodu v paměti = obsah řádku: změní ji každý zápis, i přímá úprava řádku v testu (v DB
+ * `xmin` – mění ho každý UPDATE).
+ */
+function versionOf(row: { tick: number; state: string; outbox: string | null }): string {
+  return JSON.stringify([row.tick, row.state, row.outbox]);
+}
+
 /** Úložiště tažení v paměti – stav ukládá jako JSON (jako jsonb v DB). */
 export class InMemoryCampaigns implements CampaignRepository {
   readonly rows = new Map<
@@ -76,13 +84,27 @@ export class InMemoryCampaigns implements CampaignRepository {
     );
   }
 
+  /** Kolikrát se kontrolní bod četl celý (stav z JSON). */
+  checkpointReads = 0;
+
   checkpoint(campaignId: string): Promise<CampaignCheckpoint | null> {
+    this.checkpointReads++;
     const row = this.rows.get(campaignId);
     if (!row) return Promise.resolve(null);
     return Promise.resolve({
       state: JSON.parse(row.state) as CampaignState,
       outbox: row.outbox === null ? null : (JSON.parse(row.outbox) as CampaignOutbox),
+      version: versionOf(row),
     });
+  }
+
+  /** Kolikrát se ptal na verzi bodu (paměť workeru). */
+  versionQueries = 0;
+
+  checkpointVersion(campaignId: string): Promise<string | null> {
+    this.versionQueries++;
+    const row = this.rows.get(campaignId);
+    return Promise.resolve(row ? versionOf(row) : null);
   }
 
   intentsAfter(campaignId: string, tick: number): Promise<CampaignIntent[]> {

@@ -213,6 +213,21 @@ describe('stepCampaigns', () => {
       return saved;
     }
 
+    /** Zmrazí čtené kontrolní body – paměť bodu by jinak skryla úpravu bodu na místě. */
+    function freezeCheckpoints(campaigns: InMemoryCampaigns): void {
+      const deepFreeze = (value: unknown): void => {
+        if (typeof value !== 'object' || value === null || Object.isFrozen(value)) return;
+        Object.freeze(value);
+        for (const inner of Object.values(value)) deepFreeze(inner);
+      };
+      const read = campaigns.checkpoint.bind(campaigns);
+      campaigns.checkpoint = async (id): ReturnType<typeof read> => {
+        const point = await read(id);
+        deepFreeze(point);
+        return point;
+      };
+    }
+
     it.each([1, 3, 7, 13])(
       'kola po %i taktech: s pamětí tytéž body i konec jako bez ní (= vcelku)',
       async (every) => {
@@ -222,6 +237,7 @@ describe('stepCampaigns', () => {
         const remembering = setup();
         await remembering.campaigns.create(campaign({ liveCommand: false }));
         const memorySaves = recordSaves(remembering.campaigns);
+        freezeCheckpoints(remembering.campaigns);
         for (const { campaigns } of [plain, remembering]) {
           await campaigns.addIntent('c1', {
             tick: LAUNCH + 2,
@@ -242,8 +258,10 @@ describe('stepCampaigns', () => {
         expect(remembering.villages.inbox.events.map((e) => e.body)).toEqual(
           whole.villageEvents.map((e) => e.body),
         );
-        // skončené tažení z paměti zmizí
+        // skončené tažení z paměti zmizí (stav, bod i co četlo)
         expect(memory.states.size).toBe(0);
+        expect(memory.points.size).toBe(0);
+        expect(memory.needs.size).toBe(0);
       },
     );
 
@@ -271,6 +289,7 @@ describe('stepCampaigns', () => {
             body: { kind: 'set-out' },
           });
           const saves = recordSaves(campaigns);
+          if (memory) freezeCheckpoints(campaigns);
           const used = { ...deps, cells, ...(memory ? { memory } : {}) };
           await rounds(used, LAUNCH + 1, END + 40, every);
           runs.push(saves);
@@ -280,6 +299,33 @@ describe('stepCampaigns', () => {
         expect(remembering).toEqual(plain);
       },
     );
+
+    it('bod téže verze se znovu nečte (jen verze); po uložení ho kolo přečte celý', async () => {
+      const { deps, campaigns } = setup();
+      await campaigns.create(campaign({ liveCommand: false }));
+      const used = { ...deps, memory: newCampaignMemory() };
+      const outcomes: string[] = [];
+      /** Za kolo: [celé čtení bodu, dotaz jen na verzi]. */
+      const reads: number[][] = [];
+      for (let tick = LAUNCH + 4; tick <= LAUNCH + 52; tick += 4) {
+        const [full, version] = [campaigns.checkpointReads, campaigns.versionQueries];
+        outcomes.push(...(await rounds(used, tick, tick)).outcomes);
+        reads.push([campaigns.checkpointReads - full, campaigns.versionQueries - version]);
+      }
+      // bod po 40 taktech (LAUNCH + 40) – další kolo ho přečte celý, pak zase jen verze
+      expect(outcomes).toEqual([
+        ...Array<string>(9).fill('computed'),
+        'saved',
+        ...Array<string>(3).fill('computed'),
+      ]);
+      expect(reads).toEqual([
+        [1, 0],
+        ...Array.from({ length: 9 }, () => [0, 1]),
+        [1, 0],
+        [0, 1],
+        [0, 1],
+      ]);
+    });
 
     it('ves téže verze se znovu nenačítá (jen otisk); uložení i post do schránky ji načtou', async () => {
       const { deps, campaigns, villages } = setup();
@@ -326,6 +372,9 @@ describe('stepCampaigns', () => {
         return loads;
       };
       expect(await round(LAUNCH + 4)).toBe(1);
+      // co kolo četlo (mapa vsi, ves) – další kolo to načte předem, ves jen podle otisku
+      expect(memory.needs.get('c1')?.cells).toContainEqual({ x: 1, y: 0 });
+      expect(memory.needs.get('c1')?.villageIds).toEqual(['knezice']);
       for (let tick = LAUNCH + 8; tick <= LAUNCH + 24; tick += 4) await round(tick);
       const record = villages.records.get('knezice')!;
       await villages.save('knezice', record.state, record.version);

@@ -17,6 +17,11 @@ import type { GridCell } from '../domain/village/world-grid';
 export interface CampaignCheckpoint {
   state: CampaignState;
   outbox: CampaignOutbox | null;
+  /**
+   * Verze bodu – mění se s každým zápisem řádku bodu (uložení, smazání doručených událostí),
+   * záměry ji nemění. Táž verze = týž bod (paměť workeru čte stav z JSON jen při změně).
+   */
+  version: string;
 }
 
 /** Výsledek uložení kontrolního bodu. */
@@ -50,6 +55,11 @@ export interface CampaignRepository {
    */
   activeAlarming(villageId: string): Promise<string[]>;
   checkpoint(campaignId: string): Promise<CampaignCheckpoint | null>;
+  /**
+   * Jen verze kontrolního bodu (`CampaignCheckpoint.version`) bez jeho stavu – levný dotaz, ať
+   * paměť workeru nečte stav v každém kole; tažení bez bodu null.
+   */
+  checkpointVersion(campaignId: string): Promise<string | null>;
   /** Záměry s taktem větším než `tick`, podle taktu a `seq`. */
   intentsAfter(campaignId: string, tick: number): Promise<CampaignIntent[]>;
   /**
