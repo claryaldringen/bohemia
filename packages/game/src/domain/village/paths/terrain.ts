@@ -162,6 +162,59 @@ export function windowContains(outer: PathWindow, inner: PathWindow): boolean {
   );
 }
 
+/** Index políčka krajiny (souřadnice oříznuté na krajinu). */
+function tileIndex(l: Landscape, tx: number, ty: number): number {
+  return Math.min(l.size - 1, Math.max(0, ty)) * l.size + Math.min(l.size - 1, Math.max(0, tx));
+}
+
+/** Výška políčka krajiny (souřadnice oříznuté na krajinu). */
+function tileHeight(l: Landscape, x: number, y: number): number {
+  return l.heights[tileIndex(l, x, y)]!;
+}
+
+/** Výška bodu mřížky pěšin – bilineárně mezi středy políček (zlomky po čtvrtinách – přesně). */
+function gridHeight(l: Landscape, gi: number, gj: number): number {
+  const per = PATH_GRID_PER_TILE;
+  const ci = Math.min((l.size - 1) * per, Math.max(0, gi));
+  const cj = Math.min((l.size - 1) * per, Math.max(0, gj));
+  const tx = Math.min(l.size - 2, Math.floor(ci / per));
+  const ty = Math.min(l.size - 2, Math.floor(cj / per));
+  const fx = (ci - tx * per) / per;
+  const fy = (cj - ty * per) / per;
+  const top = tileHeight(l, tx, ty) + (tileHeight(l, tx + 1, ty) - tileHeight(l, tx, ty)) * fx;
+  const bottom =
+    tileHeight(l, tx, ty + 1) + (tileHeight(l, tx + 1, ty + 1) - tileHeight(l, tx, ty + 1)) * fx;
+  return top + (bottom - top) * fy;
+}
+
+/** Bod mřížky daleko od vody (`waterAround`). */
+const WATER_NONE = 0;
+/** Bod mřížky u vodního políčka, sám na suchém políčku. */
+const WATER_NEAR = 1;
+/** Bod mřížky na vodním políčku. */
+const WATER_IN = 2;
+
+/**
+ * Vodní políčka a jejich sousedé – jen tam se ptá osy potoka (dotaz je drahý): WATER_IN, když
+ * je vodní políčko bodu; WATER_NEAR, když je vodní jen některý soused; jinak WATER_NONE.
+ */
+function waterAround(l: Landscape, gi: number, gj: number): number {
+  const per = PATH_GRID_PER_TILE;
+  const tx = Math.round(gi / per);
+  const ty = Math.round(gj / per);
+  let near = false;
+  for (let dy = -1; dy <= 1 && !near; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (l.surface[tileIndex(l, tx + dx, ty + dy)] === SURFACE_CODES.water) {
+        near = true;
+        break;
+      }
+    }
+  }
+  if (!near) return WATER_NONE;
+  return l.surface[tileIndex(l, tx, ty)] === SURFACE_CODES.water ? WATER_IN : WATER_NEAR;
+}
+
 /**
  * Terén pěšin v okně: rovina 1, sklon zdražuje se čtvercem (sráz neprůchodný), les o třetinu
  * dražší, voda neprůchodná kromě brodů. Příznaky: suchý břeh u vody (pro vodu), okraj lesa (pro
@@ -169,7 +222,6 @@ export function windowContains(outer: PathWindow, inner: PathWindow): boolean {
  */
 export function buildPathTerrain(l: Landscape, window: PathWindow): PathTerrain {
   const { originX, originZ, step } = gridOf(l);
-  const per = PATH_GRID_PER_TILE;
   const width = window.i1 - window.i0 + 1;
   const height = window.j1 - window.j0 + 1;
   const cost = new Float32Array(width * height);
@@ -182,36 +234,9 @@ export function buildPathTerrain(l: Landscape, window: PathWindow): PathTerrain 
   // Potok i řeka prémiové krajiny – voda obou je pro vesnici překážkou (brody jen mělké a úzké).
   const stream = l.stream.length >= 2 ? watersCenterline(l) : null;
   const field = buildForestField(l, { remember: false });
-  const tile = (tx: number, ty: number): number =>
-    Math.min(l.size - 1, Math.max(0, ty)) * l.size + Math.min(l.size - 1, Math.max(0, tx));
-  // výška bodu mřížky – bilineárně mezi středy políček (zlomky po čtvrtinách – přesně)
-  const h = (gi: number, gj: number): number => {
-    const ci = Math.min((l.size - 1) * per, Math.max(0, gi));
-    const cj = Math.min((l.size - 1) * per, Math.max(0, gj));
-    const tx = Math.min(l.size - 2, Math.floor(ci / per));
-    const ty = Math.min(l.size - 2, Math.floor(cj / per));
-    const fx = (ci - tx * per) / per;
-    const fy = (cj - ty * per) / per;
-    const v = (x: number, y: number): number => l.heights[tile(x, y)]!;
-    const top = v(tx, ty) + (v(tx + 1, ty) - v(tx, ty)) * fx;
-    const bottom = v(tx, ty + 1) + (v(tx + 1, ty + 1) - v(tx, ty + 1)) * fx;
-    return top + (bottom - top) * fy;
-  };
-  // vodní políčka a jejich sousedé – jen tam se ptá osy potoka (dotaz je drahý)
-  const nearWater = (gi: number, gj: number): { water: boolean; near: boolean } => {
-    const tx = Math.round(gi / per);
-    const ty = Math.round(gj / per);
-    let near = false;
-    for (let dy = -1; dy <= 1 && !near; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        if (l.surface[tile(tx + dx, ty + dy)] === SURFACE_CODES.water) {
-          near = true;
-          break;
-        }
-      }
-    }
-    return { water: l.surface[tile(tx, ty)] === SURFACE_CODES.water, near };
-  };
+  // výška bodu mřížky a voda kolem – funkce mimo smyčku (`gridHeight`, `waterAround`): žádné
+  // uzávěry vytvořené pro každou buňku (jen zrychlení – výpočet týž)
+  const h = (gi: number, gj: number): number => gridHeight(l, gi, gj);
   for (let j = 0; j < height; j++) {
     for (let i = 0; i < width; i++) {
       const gi = window.i0 + i;
@@ -224,8 +249,8 @@ export function buildPathTerrain(l: Landscape, window: PathWindow): PathTerrain 
         cost[c] = Infinity;
         continue;
       }
-      const water = nearWater(gi, gj);
-      if (water.near) {
+      const water = waterAround(l, gi, gj);
+      if (water !== WATER_NONE) {
         if (stream) {
           const sample = stream.nearest(x, z, BANK_REACH_M);
           if (sample.bankDistance < 0) {
@@ -235,7 +260,7 @@ export function buildPathTerrain(l: Landscape, window: PathWindow): PathTerrain 
             if (ford) flags[c] = flags[c]! | PATH_FORD;
             continue;
           }
-        } else if (water.water) {
+        } else if (water === WATER_IN) {
           wet[c] = 1;
           cost[c] = Infinity;
           continue;

@@ -522,6 +522,46 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   roky – každý den oken setí), hledání sítě pěšin (≈ 1,0 s), výkon orby plánu osevu (tři přepočty
   za tři roky po ≈ 0,2 s – mění se díly na řadě a jejich vzdálenosti) a úseky úloh při zmenšení
   plánu na konci oken setí (`shrinkInPlan` – každý uvolněný díl přepočítá úseky všech úloh).
+  **Kolo 10 – studený rok a správce (10. 11. 2026, fronta zrychlení výpočtu – Martin schválil):**
+  po otavě, setí ozimu za orbou a útěku do hradiště; stav Vlkova z DB 9. 11. (4 754 dílů, 39 lidí;
+  skripty `scratchpad/prof10` – `hash.mts`, `days.mts`, `cold.mts`, `cold2.mts`, `diff.mjs`). Jen
+  zrychlení – otisk stavu po 1, 2 a 3 letech před i po každé úpravě týž vcelku i po 37 dnech
+  (sha256 `d1c7bf955acd`, `c02e0b05790f`, `9c4e1cdb2d58`), zlaté otisky testů beze změny. Pět
+  úprav: **terén pěšin** (`buildPathTerrain`) – výška bodu mřížky a voda kolem jako funkce mimo
+  smyčku, žádné uzávěry ani objekty pro každou buňku (pod `tsx` workeru je každá uzávěra navíc
+  pojmenovaná přes `defineProperty` – ve studeném roce 0,45–0,8 s jen na tom); terén celé krajiny
+  Vlkova bajt po bajtu týž, 420 → 200 ms; **výkon orby ve výhledu správce** – `stewardOutlook`
+  volá `sowingCapacity` bez krajiny každý den a `plannedFurrowEfficiency` (rozvržení orby všech
+  dílů na řadě) se dřív počítal pokaždé; bez krajiny čte jen díly, takže stačí poslední výpočet se
+  stejnými `furrowInputs` (paměť zvlášť od paměti po krajině; test ve `furrow-roads.test.ts`);
+  **cena předem** (`buildAffordability`) zjišťuje dřevo a duby (počítání stromů ve vrstvě
+  překážek), jen když je cena chce – zásoba je vždy aspoň 0, surovina bez ceny nikdy nechybí;
+  **škody zvěře** berou díly podle id z `partsByIdOf` místo dvou nových map denně; **bloky osevu**
+  (`sowingBlocks`) počítají skupinu dílu jednou a druh osevu ve výběru dne (`turnSelection`) jde
+  jedním dotazem do mapy. Profil zahřátých roků 2–4 (zátěž 44, celkem 13,14 → 12,05 s): správce
+  2,05 → 1,39 s (`stewardOutlook` 0,80 → 0,27, `plannedFurrowEfficiency` 0,63 → 0,02,
+  `buildAffordability` 0,37 → 0,20 s), sezóna 2,33 → 2,18 s (`turnSelection` 0,81 → 0,67,
+  `sowingBlocks` 0,34 → 0,18 s), škody zvěře 0,46 → 0,26 s. Rok Vlkova (`years.mts`) střídavě
+  před / po (stroj silně vytížený, zátěž 46–71): roky 2–4 6,58 / 7,39 / 8,55 a 7,20 / 6,96 /
+  7,44 s → 6,11 / 6,40 / 7,50 a 5,16 / 6,32 / 6,49 s (průměr 7,35 → 6,33 s; v šumu zátěže – profil
+  říká −8 %), rok 1 13,29 / 12,71 → 12,50 / 10,30 s. **Proč je první rok dražší:** po dnech
+  (zátěž 33–35) 9,54 → 8,97 s; drahé dny 4. 3. (první den – stavba terénu pěšin, mezipaměti)
+  557 → 330 ms, 1. 4. 1,8 s, 1. 11. ≈ 1,0 s a 1. 2. ≈ 0,6 s (přepočet tras – jiná cesta). Den 1. 4.
+  je jednorázový převod: stav z DB nemá `walkDistanceKey`, vzdálenosti chůze se měří celé
+  s prázdnou pamětí úseček chůze a objížděk stěn – v roce 1 `wallCrossing` 667 885× a 144 225
+  hledání objížďky přes 154 bodů, v roce 2 39 842× a 10 hledání. Studený rok ze stavu po převodu
+  (stav po roce 1, nový proces, `cold2.mts` / `years2.mts`, zátěž 30–39) 6,87 / 5,83 → 5,83 /
+  5,36 s, následující zahřátý 6,10 / 5,90 → 5,60 / 5,57 s – nový proces se stavem po převodu je
+  tedy po úpravě terénu stejně rychlý jako zahřátý; rozdíl 7,6 proti 4,5 s nesou převod stavu
+  z DB a dva přepočty tras roku 1, ne mezipaměti. Objížďku stěn zkrátit dolní mezí podle dosahu
+  nejde (dosah 98 % bodů je pod nalezenou mezí – 15,96 z 16,29 mil.). Pozor do provozu: paměť
+  chůze drží jen 2 krajiny (`MEMO_LANDSCAPES`) – worker s mnoha vsemi bude přepočty vzdáleností
+  počítat studeně (jako den 1. 4. bez převodu), to stojí za změření. Nejvíc dál bere (zahřáté roky
+  2–4 po úpravách) přepočet tras 2,39 s (hledání sítě pěšin `routeAllSteps` 1,12 s, převážení tras
+  0,68 s – `tripGroups` 0,32 s, z toho textový klíč `squareCellsOf` 0,20 s), sezóna 2,18 s (výběr
+  dílů 1,34 s – `turnSelection` 0,67, pásy dávky `joinBands` 0,33 s – rozvržení orby dílů výběru
+  každý den), práce dne 1,78 s (cesta orby `travelToday` a dosah vozů po ≈ 0,45 s), měsíc cest
+  1,50 s a správce 1,39 s.
 
 - **Čísla** pravidel jsou jen v `rules*.ts` (u každého odkaz na sekci návrhu); změna čísla = i
   text v návrhu. Kalibrace: `measure-village.ts` nasimuluje stovky vsí a vypíše cíle z Kalibrace

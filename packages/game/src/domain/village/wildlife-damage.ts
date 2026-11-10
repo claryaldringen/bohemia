@@ -6,6 +6,7 @@ import type { Landscape } from '../landscape';
 import { effectiveFertility } from './fields';
 import { taskPosition, taskSpans } from './field-progress';
 import { patrolOfDay } from './field-patrol';
+import { partsByIdOf } from './parts-by-id';
 import { lordTraineeIds } from './lord';
 import { ageGroup } from './people';
 import { isYoungster } from './herding';
@@ -64,7 +65,7 @@ export function damageWindowStart(
   // ves s `wildlifeFailed` krajinu nepřepočítává (jako bez krajiny)
   const distances =
     landscape && state.wildlifeFailed === undefined ? forestEdgeDistances(landscape, state) : null;
-  const byId = new Map(state.parts.map((p) => [p.id, p]));
+  const byId = partsByIdOf(state.parts);
   const risk: FieldDamage['risk'] = [];
   for (const { work } of cerealCrops(state)) {
     if (work.harvestedKg !== null) continue;
@@ -108,7 +109,7 @@ function planWatch(state: VillageState, w: WildlifeState, day: number): void {
   const cropOf = new Map<number, DamageCrop>();
   for (const { crop, work } of cerealCrops(state))
     for (const id of work.partIds) cropOf.set(id, crop);
-  const byId = new Map(state.parts.map((p) => [p.id, p]));
+  const byId = partsByIdOf(state.parts);
   const candidates: FieldWatch['parts'] = [];
   for (const risk of damage.risk) {
     const crop = cropOf.get(risk.partId);
@@ -169,7 +170,7 @@ export function watchWanted(state: VillageState, day: number): number {
   const month = dateOfDayIndex(day).month;
   const { fromMonth, toMonth } = FIELD_GUARD.night;
   if (month < fromMonth || month > toMonth || day < watch.fromDay) return 0;
-  const byId = new Map(state.parts.map((p) => [p.id, p]));
+  const byId = partsByIdOf(state.parts);
   const harvested = new Set<number>();
   for (const { work } of cerealCrops(state)) {
     if (work.harvestedKg !== null) for (const id of work.partIds) harvested.add(id);
@@ -269,7 +270,7 @@ export function dailyThreatShare(
     ({ work, late }) => work.harvestedKg === null && (!lateOnly || late),
   );
   if (crops.length === 0) return shares;
-  const byId = new Map(state.parts.map((p) => [p.id, p]));
+  const byId = partsByIdOf(state.parts);
   const open: { id: number; crop: DamageCrop; weightHa: number; grossKg: number }[] = [];
   for (const { crop, work } of crops) {
     const harvested = harvestedPartIds(work, byId, day);
@@ -307,7 +308,7 @@ export function wildlifeDamageDay(state: VillageState, day: number): void {
   if (!damage) return;
   const threat = dailyThreatShare(state, day);
   if (threat.size === 0) return;
-  const byId = new Map(state.parts.map((p) => [p.id, p]));
+  const byId = partsByIdOf(state.parts);
   const cropOf = new Map<number, DamageCrop>();
   for (const { crop, work } of cerealCrops(state)) {
     for (const id of work.partIds) cropOf.set(id, crop);

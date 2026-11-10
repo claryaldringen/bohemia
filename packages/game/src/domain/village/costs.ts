@@ -211,7 +211,9 @@ export function affordability(
 
 /**
  * Má ves na stavbu suroviny a lidi předem? `obstacles` = vrstva překážek krajiny (dřevo ke
- * kácení), `costs` jen pro testy (hypotetické ceny).
+ * kácení), `costs` jen pro testy (hypotetické ceny). Dřevo a duby (`villageStock` – počítání
+ * stromů ve vrstvě překážek) se zjišťují, jen když je cena chce: zásoba dřeva i dubů je vždy
+ * aspoň 0, surovina bez ceny tedy nikdy nechybí (jen zrychlení – výsledek týž).
  */
 export function buildAffordability(
   state: VillageState,
@@ -219,7 +221,13 @@ export function buildAffordability(
   obstacles?: ObstacleLayer | null,
   costs: Record<BuildKind, BuildCost> = BUILD_COSTS,
 ): Affordability {
-  return affordability(villageStock(state, obstacles), costs[kind].upfront);
+  const cost = costs[kind].upfront;
+  const stock: Record<StockResource, number> = {
+    grain: state.storesKg,
+    wood: (cost.wood ?? 0) > 0 ? woodSupply(state, obstacles) : 0,
+    oaks: (cost.oaks ?? 0) > 0 ? oakSupply(state, obstacles) : 0,
+  };
+  return affordability(stock, cost);
 }
 
 /**
