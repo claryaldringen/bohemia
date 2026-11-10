@@ -708,6 +708,11 @@ stovky vsí a ověří cíle:
   za pár dní nepřítomnosti se nic takového nestane (anti-cíl). Jak často vymře jediná
   domácnost bez nových staveb, je jen informace, ne cíl (hrubá simulace ≈ 90 % do 1000 let,
   měření níže).
+  **Upřesnění 10. 11. 2026:** kalibrační robot ves nikdy nerozdělí (odchod syna dělá jen hráč
+  a správce), takže v měření `--quick` se ves po vyčerpání půdy na dosah hroutí (vymření 30 %,
+  půda došla 18 vsím z 50). Martin 10. 11. 2026: „Stačí, že ves rozdělí hráč/NPC“ a „pokud ves
+  začne stagnovat až když přeroste mapu, tak je to ok“ – cíl vymření platí pro hru s dělením vsi,
+  robota se dělit neučí.
 
 **Naměřeno** (`packages/game/scripts/measure-village.ts 200 60`, 17. 10. 2026 po opravě podle
 rešerše – úmrtnost 2 %, porody od 16 let, zemnice 18 let a opravy polí z [fields.md](fields.md);
