@@ -1,3 +1,4 @@
+import { recordFelledSacredOn } from './desecration';
 import { TOTAL_GAME_DAYS, dateOfDayIndex } from '../calendar';
 import type { Landscape, ObstacleLayer } from '../landscape';
 import { abandonmentCheck, abandonmentDay } from './abandonment';
@@ -230,6 +231,9 @@ export function* advanceVillageSteps(
     // úmrtí na rány z nájezdu (war.md – Ztráty) – nástupnictví po nich ještě týž den (`dynastyDay`)
     next.chronicle.push(...woundDeathsDay(next, day));
     yield* simulateDaySteps(next, day, obstacles, landscape);
+    // pokřtěný rod: posvátné stromy, které dnes odstranilo zakládání polí, sadů a hřbitovů hráče
+    // (christianity.md – Co křest rodu umožní)
+    if (obstacles) recordFelledSacredOn(next, obstacles, day);
     yield day;
   }
   next.lastDay = toDay;

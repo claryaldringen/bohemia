@@ -230,7 +230,11 @@ describe('vstupy víc vsí a přestěhování (migration.md)', () => {
       structure: 'shrine',
       id: 9,
     });
-    expect(parseStructureUseInput({ structure: 'cemetery', id: 5 })).toBeNull();
+    // hřbitov zbourá pokřtěný rod (christianity.md) – o tom, jestli smí, rozhodne server
+    expect(parseStructureUseInput({ structure: 'cemetery', id: 5 })).toEqual({
+      structure: 'cemetery',
+      id: 5,
+    });
     expect(parseStructureUseInput({ structure: 'pen', id: 0 })).toBeNull();
     expect(parseStructureUseInput({ structure: 'pen', id: '3' })).toBeNull();
     expect(parseStructureUseInput(null)).toBeNull();

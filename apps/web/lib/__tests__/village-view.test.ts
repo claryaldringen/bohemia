@@ -26,6 +26,8 @@ import {
   villageCartRoutes,
   CARTS,
   placementVillageOf,
+  playerPlacementVillage,
+  sacredSitesFor,
   reservedTrees,
   sacredOakLife,
   sacredOakNow,
@@ -1027,6 +1029,48 @@ describe('buildVillageView', () => {
     const server = fieldPartsFromCells(landscape, placementVillageOf(s, DAY), cells, positions);
     expect(browser.foundingCost).toBe(0);
     expect(server.foundingCost).toBe(0);
+  });
+
+  it('pokřtěný rod: prohlížeč i server pustí stavby hráče přes posvátná místa stejně', () => {
+    const layer = obstaclesOf(landscape);
+    // plný hřbitov – pokřtěný rod ho smí zaorat, kontrola umístění ho pak nezná
+    const full = {
+      id: 900,
+      squares: [{ cell: { x: 2, y: 2 }, x: -82.5, z: -82.5, waterDistanceM: 500 }],
+      squareSizeM: 15,
+      graves: 56,
+      builtDay: DAY - 3000,
+    };
+    const pagan: VillageState = { ...state(), cemeteries: [full] };
+    const baptized: VillageState = { ...pagan, faith: { rodBaptizedDay: DAY - 10 } };
+    for (const s of [pagan, baptized]) {
+      const { scene } = buildVillageView(record(s), landscape, DAY);
+      const browser = placementVillageFromScene(scene);
+      const server = playerPlacementVillage(s, DAY);
+      expect(browser.sacredFree).toBe(server.sacredFree);
+      expect(sacredSitesFor(browser, layer)).toBe(sacredSitesFor(server, layer));
+      expect(browser.cemeteries?.length).toBe(server.cemeteries?.length);
+    }
+    expect(playerPlacementVillage(pagan, DAY).cemeteries).toHaveLength(1);
+    expect(playerPlacementVillage(baptized, DAY).cemeteries).toEqual([]);
+    expect(playerPlacementVillage(baptized, DAY).sacredFree).toBe(true);
+    expect(sacredSitesFor(playerPlacementVillage(baptized, DAY), layer).protectedTrees.size).toBe(
+      0,
+    );
+    // správce a vesničané – ves bez `sacredFree`
+    expect(placementVillageOf(baptized, DAY).sacredFree).toBeUndefined();
+  });
+
+  it('kronika: vykácené posvátné místo a zaoraný hřbitov', () => {
+    expect(chronicleText({ day: DAY, kind: 'sacred-felled', site: 'oak' }, 'X')).toBe(
+      'Vykáceli posvátný dub.',
+    );
+    expect(chronicleText({ day: DAY, kind: 'sacred-felled', site: 'grove' }, 'X')).toBe(
+      'Vykáceli posvátný háj.',
+    );
+    expect(chronicleText({ day: DAY, kind: 'cemetery-ploughed' }, 'X')).toBe(
+      'Zaorali starý hřbitov.',
+    );
   });
 
   it('ze scény jde složit data pro kontrolu umístění v prohlížeči', () => {

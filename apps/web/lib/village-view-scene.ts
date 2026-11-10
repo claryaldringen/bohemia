@@ -49,6 +49,8 @@ import { sceneWildTrees } from './village-view-wild';
 import {
   wagonHome,
   ableTeams,
+  cemeteryMayGo,
+  rodBaptized,
   oxPens,
   ploughPairsHome,
   ploughsThisYear,
@@ -235,6 +237,7 @@ export function sceneVillage(
     graves: oldGraves(c),
     ...(c.mounds?.length ? { mounds: c.mounds.map((m) => sceneMound(m, day)) } : {}),
     ...wearOf(structureCondition(c.fenceWear, 'cemetery-fence', day), 'fence'),
+    ...(cemeteryMayGo(state, c, day) ? { mayGo: true as const } : {}),
   }));
   const orchards = villageOrchards(state).map((o) => ({
     id: o.id,
@@ -369,6 +372,7 @@ export function sceneVillage(
     ...(pens.length > 0 ? { pens } : {}),
     ...(summary.crafts.coverage.tools > 0 ? { toolCoverage: summary.crafts.coverage.tools } : {}),
     ...(ableTeams(state, day) > 0 ? { ploughTeam: true as const } : {}),
+    ...(rodBaptized(state) ? { sacredFree: true as const } : {}),
     ...(oxPens(state).length > 0 ? { ploughPairs: ploughPairsHome(state, day) } : {}),
     ...(roads.length > 0 ? { roads } : {}),
     ...(state.roads?.junctions ? { junctions: state.roads.junctions } : {}),
@@ -784,10 +788,13 @@ function scenePlacementVillage(scene: SceneVillage): PlacementVillage {
         areaM2: p.size * p.size,
       })),
     ),
-    cemeteries: (scene.cemeteries ?? []).map((c) => ({
-      ...(c.grid ? { grid: c.grid } : {}),
-      squares: c.squares.map((s) => ({ cell: s.cell })),
-    })),
+    // hřbitov, který pokřtěný rod smí zaorat, stavbám hráče nebrání (jako `playerPlacementVillage`)
+    cemeteries: (scene.cemeteries ?? [])
+      .filter((c) => !(scene.sacredFree && c.mayGo))
+      .map((c) => ({
+        ...(c.grid ? { grid: c.grid } : {}),
+        squares: c.squares.map((s) => ({ cell: s.cell })),
+      })),
     // plocha čtverce (políčko) pro varování, že sad stavbou obydlí zanikne
     orchards: (scene.orchards ?? []).map((o) => ({
       ...(o.grid ? { grid: o.grid } : {}),
@@ -823,6 +830,8 @@ function scenePlacementVillage(scene: SceneVillage): PlacementVillage {
       : {}),
     ...(scene.toolCoverage ? { toolCoverage: scene.toolCoverage } : {}),
     ...(scene.ploughTeam ? { ploughTeam: true } : {}),
+    // pokřtěný rod – posvátná místa stavbám hráče nebrání (jako `playerPlacementVillage`)
+    ...(scene.sacredFree ? { sacredFree: true } : {}),
     // pevné cesty – kácení u kurzoru chůzí jako na serveru (roads.md)
     ...(scene.roads ? { walkRoads: scene.roads } : {}),
     // milíře uhlířů – samostatné stavby, přes ně stavět nejde (crafts.md – Milíř u skácených buků)

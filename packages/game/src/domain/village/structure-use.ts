@@ -12,7 +12,9 @@ import { villageOrchards } from './orchard';
 import { clearWildTrees } from './wild-orchard';
 import { villageGrainPits } from './grain-pits';
 import { villageThreshingFloors } from './threshing-floors';
+import { villageCemeteries } from './cemetery';
 import type {
+  Cemetery,
   Dwelling,
   GrainPit,
   Orchard,
@@ -46,6 +48,8 @@ export const STRUCTURE_BUSY = 'Na stavbě se staví – nejdřív stavbu dokonč
 export const ALREADY_DISUSED = 'Stavba už je opuštěná.';
 export const DEMOLISHING = 'Stavba se bourá – nejdřív bourání zruš.';
 export const NOT_DISUSED = 'Stavba se používá.';
+/** Hřbitov se neopouští – jen zbourá (christianity.md; demolition.md – Hřbitov). */
+export const CEMETERY_STAYS = 'Hřbitov opustit nejde – hroby zůstávají.';
 
 export type Target =
   | { structure: 'dwelling'; item: Dwelling }
@@ -53,7 +57,8 @@ export type Target =
   | { structure: 'idol' | 'shrine'; item: SacredBuilding }
   | { structure: 'threshing-floor'; item: ThreshingFloor }
   | { structure: 'grain-pit'; item: GrainPit }
-  | { structure: 'orchard'; item: Orchard };
+  | { structure: 'orchard'; item: Orchard }
+  | { structure: 'cemetery'; item: Cemetery };
 
 export function targetOf(state: VillageState, ref: UsableRef): Target | null {
   if (ref.structure === 'dwelling') {
@@ -75,6 +80,10 @@ export function targetOf(state: VillageState, ref: UsableRef): Target | null {
   if (ref.structure === 'orchard') {
     const item = villageOrchards(state).find((o) => o.id === ref.id);
     return item ? { structure: 'orchard', item } : null;
+  }
+  if (ref.structure === 'cemetery') {
+    const item = villageCemeteries(state).find((c) => c.id === ref.id);
+    return item ? { structure: 'cemetery', item } : null;
   }
   const item = (state.sacredBuildings ?? []).find(
     (b) => b.id === ref.id && b.kind === ref.structure,
@@ -103,6 +112,7 @@ export function disuseBlock(
   if (!target) return STRUCTURE_MISSING;
   if (isManorTarget(state, target)) return MANOR_STAYS;
   if (isDisused(target.item)) return ALREADY_DISUSED;
+  if (target.structure === 'cemetery') return CEMETERY_STAYS;
   if (target.structure === 'dwelling') {
     // obyvatelé se rozejdou do volných míst v ostatních obydlích (displaced.ts)
     const missing = lodgingShortfall(state, target.item.id, day);
@@ -160,6 +170,8 @@ export function beginDisuse(next: VillageState, day: number, ref: UsableRef): vo
     beginFarmDisuse(day, target);
     return;
   }
+  // bouraný hřbitov jen přestane přijímat mrtvé (`acceptsBurials`), plot chátrá po svém
+  if (target.structure === 'cemetery') return;
   cancelRepair(next, { structure: target.structure, id: target.item.id });
   const condition = structureCondition(target.item.wear, target.structure, day);
   target.item.wear = { condition, abandonedDay: day };
@@ -233,7 +245,8 @@ export function restoreStructure(state: VillageState, day: number, ref: UsableRe
   } else if (
     restored.structure !== 'dwelling' &&
     restored.structure !== 'grain-pit' &&
-    restored.structure !== 'orchard'
+    restored.structure !== 'orchard' &&
+    restored.structure !== 'cemetery'
   ) {
     const condition = structureCondition(restored.item.wear, restored.structure, day);
     if (condition >= 1) delete restored.item.wear;

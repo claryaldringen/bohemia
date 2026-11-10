@@ -32,7 +32,15 @@ import { checkSacredBuildingPlacement, checkThreshingFloorPlacement } from './pl
 import { forestEdgeDistanceM, waterDistanceM } from './placement-squares';
 import { startQuarry } from './quarry';
 import type { DwellingPlacementCheck } from './placement-types';
-import { placementVillageOf, villageDwellingPositions } from './placement-village';
+import {
+  placementVillageOf,
+  playerPlacementVillage,
+  villageDwellingPositions,
+} from './placement-village';
+import type { PlacementVillage } from './placement-types';
+import { recordDesecration, recordFelledSacredSince } from './desecration';
+import { villageCemeteries } from './cemetery';
+import { rodBaptized } from './faith';
 import type { Point } from './polygon';
 import { relocationBlock, replacementAffordability } from './relocation';
 import { NO_ROAD, roadApplesOption, startRoadApples } from './road-apples';
@@ -280,6 +288,47 @@ export function applyBuildIntent(
   landscape: Landscape,
   obstacles: ObstacleLayer,
   intent: BuildIntent,
+  actor: BuildActor = 'player',
+): BuildResult {
+  // posvátná místa nebrání jen stavbám hráče pokřtěného rodu – správce je obchází (christianity.md)
+  const free = actor === 'player' && rodBaptized(state);
+  // ves pro kontrolu umístění jen pro záměry, které ji potřebují (cesty ne), jednou
+  const placed: { village?: PlacementVillage } = {};
+  const place = (): PlacementVillage =>
+    (placed.village ??= free ? playerPlacementVillage(state, day) : placementVillageOf(state, day));
+  const result = applyIntent(state, day, landscape, obstacles, intent, place);
+  if (!result.ok || !free) return result;
+  // posvátné stromy, které stavba hráče hned odstranila; pole, sady a hřbitovy je odstraní až při
+  // zakládání (simulace – `recordFelledSacredOn`)
+  recordFelledSacredSince(state, result.state, obstacles, day);
+  const village = placed.village;
+  if (!village) return result;
+  // hřbitov, který smí zmizet, ves hráče nezná (`playerPlacementVillage`) – stavba, která by s ním
+  // neprošla, stojí přes něj: hřbitov se zaorá (christianity.md – Co křest rodu umožní)
+  const shown = new Set<object>(village.cemeteries ?? []);
+  for (const cemetery of villageCemeteries(state)) {
+    if (shown.has(cemetery)) continue;
+    const blocking = (): PlacementVillage => ({
+      ...village,
+      cemeteries: [...(village.cemeteries ?? []), cemetery],
+    });
+    if (applyIntent(state, day, landscape, obstacles, intent, blocking).ok) continue;
+    result.state.cemeteries = villageCemeteries(result.state).filter((c) => c.id !== cemetery.id);
+    recordDesecration(result.state, 'cemetery', day);
+  }
+  return result;
+}
+
+/** Kdo stavbu zahajuje: hráč (pokřtěnému rodu posvátná místa nebrání), nebo správce vsi. */
+export type BuildActor = 'player' | 'steward';
+
+function applyIntent(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer,
+  intent: BuildIntent,
+  place: () => PlacementVillage,
 ): BuildResult {
   switch (intent.kind) {
     case 'fortification': {
@@ -290,6 +339,7 @@ export function applyBuildIntent(
         obstacles,
         { points: intent.points, kind: intent.fortKind },
         villageRoadWalk(state, landscape),
+        place(),
       );
       return r.ok ? r : { ok: false, reason: r.reason };
     }
@@ -306,6 +356,7 @@ export function applyBuildIntent(
             target: intent.target,
           },
           villageRoadWalk(state, landscape),
+          place(),
         );
       }
       return startFortificationUpgrade(
@@ -315,6 +366,7 @@ export function applyBuildIntent(
         obstacles,
         { fortificationId: intent.fortificationId, work: intent.work, top: intent.top },
         villageRoadWalk(state, landscape),
+        place(),
       );
     case 'fortification-rampart':
       return startRampartAddition(
@@ -324,6 +376,7 @@ export function applyBuildIntent(
         obstacles,
         { fortificationId: intent.fortificationId, segment: intent.segment },
         villageRoadWalk(state, landscape),
+        place(),
       );
     case 'fortification-moat':
       return startMoatFill(state, day, landscape, {
@@ -331,25 +384,25 @@ export function applyBuildIntent(
         segment: intent.segment,
       });
     case 'dwelling':
-      return buildDwelling(state, day, landscape, obstacles, intent);
+      return buildDwelling(state, day, landscape, obstacles, intent, place);
     case 'replacement':
-      return buildReplacement(state, day, landscape, obstacles, intent);
+      return buildReplacement(state, day, landscape, obstacles, intent, place);
     case 'workshop':
-      return buildWorkshop(state, day, landscape, obstacles, intent);
+      return buildWorkshop(state, day, landscape, obstacles, intent, place);
     case 'sacred':
-      return buildSacred(state, day, landscape, obstacles, intent);
+      return buildSacred(state, day, landscape, obstacles, intent, place);
     case 'threshing-floor':
-      return buildThreshingFloor(state, day, landscape, obstacles, intent);
+      return buildThreshingFloor(state, day, landscape, obstacles, intent, place);
     case 'quarry':
       return startQuarry(state, day, obstacles, intent.position);
     case 'field':
-      return buildField(state, day, landscape, obstacles, intent);
+      return buildField(state, day, landscape, obstacles, intent, place);
     case 'orchard':
-      return buildOrchard(state, day, landscape, obstacles, intent);
+      return buildOrchard(state, day, landscape, obstacles, intent, place);
     case 'cemetery':
-      return buildCemetery(state, day, landscape, obstacles, intent);
+      return buildCemetery(state, day, landscape, obstacles, intent, place);
     case 'pen':
-      return buildPen(state, day, landscape, obstacles, intent);
+      return buildPen(state, day, landscape, obstacles, intent, place);
     case 'trail':
       return buildTrail(state, day, landscape, obstacles, intent);
     case 'wagon-road':
@@ -381,8 +434,9 @@ function dwellingSite(
   type: BuildableDwellingType,
   at: Position,
   requested: DwellingPlot | undefined,
+  place: () => PlacementVillage,
 ): DwellingSite | { ok: false; reason: string } {
-  const village = placementVillageOf(state, day);
+  const village = place();
   const plot = PLOT_TYPES[type] && requested ? canonicalPlot(landscape, requested) : undefined;
   if (PLOT_TYPES[type] && !requested) return { ok: false, reason: NO_PLOT };
   if (plot === null) return { ok: false, reason: BAD_PLOT };
@@ -404,6 +458,7 @@ function buildDwelling(
   landscape: Landscape,
   obstacles: ObstacleLayer,
   intent: DwellingIntent,
+  place: () => PlacementVillage,
 ): BuildResult {
   const { affordable, missing } = buildAffordability(state, intent.type, obstacles);
   if (!affordable) {
@@ -418,6 +473,7 @@ function buildDwelling(
     intent.type,
     intent.position,
     intent.plot,
+    place,
   );
   if (!site.ok) return site;
   const { check, position, plot } = site;
@@ -456,6 +512,7 @@ function buildReplacement(
   landscape: Landscape,
   obstacles: ObstacleLayer,
   intent: ReplacementIntent,
+  place: () => PlacementVillage,
 ): BuildResult {
   const block = relocationBlock(state, intent.dwellingId);
   if (block !== null) return { ok: false, reason: REPLACEMENT_BLOCKED };
@@ -470,6 +527,7 @@ function buildReplacement(
     intent.type,
     intent.position,
     intent.plot,
+    place,
   );
   if (!site.ok) return site;
   const { check, position, plot } = site;
@@ -512,6 +570,7 @@ function buildWorkshop(
   landscape: Landscape,
   obstacles: ObstacleLayer,
   intent: WorkshopIntent,
+  place: () => PlacementVillage,
 ): BuildResult {
   if (!CRAFTS.includes(intent.craft)) return { ok: false, reason: UNKNOWN_CRAFT };
   const { affordable, missing } = buildAffordability(state, intent.craft, obstacles);
@@ -519,7 +578,7 @@ function buildWorkshop(
     const reason = missing.wood ? NO_WOOD : CANNOT_AFFORD;
     return { ok: false, reason };
   }
-  const village = placementVillageOf(state, day);
+  const village = place();
   const position = { ...intent.position };
   const check = checkWorkshopPlacement(landscape, village, intent.craft, position, obstacles);
   if (!check.ok) return { ok: false, reason: check.reason ?? 'Sem dílna nepatří.' };
@@ -557,13 +616,14 @@ function buildSacred(
   landscape: Landscape,
   obstacles: ObstacleLayer,
   intent: SacredIntent,
+  place: () => PlacementVillage,
 ): BuildResult {
   if (intent.building === 'shrine' && hasShrine(state)) return { ok: false, reason: SHRINE_EXISTS };
   const { affordable, missing } = buildAffordability(state, intent.building, obstacles);
   if (!affordable) return { ok: false, reason: missing.oaks ? NO_OAKS : CANNOT_AFFORD };
   const check = checkSacredBuildingPlacement(
     landscape,
-    placementVillageOf(state, day),
+    place(),
     intent.building,
     intent.position,
     obstacles,
@@ -605,16 +665,12 @@ function buildThreshingFloor(
   landscape: Landscape,
   obstacles: ObstacleLayer,
   intent: ThreshingFloorIntent,
+  place: () => PlacementVillage,
 ): BuildResult {
   const { affordable, missing } = buildAffordability(state, 'threshing-floor', obstacles);
   if (!affordable) return { ok: false, reason: missing.wood ? NO_WOOD : CANNOT_AFFORD };
   const position = { ...intent.position };
-  const check = checkThreshingFloorPlacement(
-    landscape,
-    placementVillageOf(state, day),
-    position,
-    obstacles,
-  );
+  const check = checkThreshingFloorPlacement(landscape, place(), position, obstacles);
   if (!check.ok) return { ok: false, reason: check.reason ?? 'Sem humno nepatří.' };
   try {
     return {
@@ -641,11 +697,12 @@ function buildField(
   landscape: Landscape,
   obstacles: ObstacleLayer,
   intent: FieldIntent,
+  place: () => PlacementVillage,
 ): BuildResult {
   if (!buildAffordability(state, 'field').affordable) return { ok: false, reason: CANNOT_AFFORD };
   const field = fieldPartsFromCells(
     landscape,
-    placementVillageOf(state, day),
+    place(),
     intent.cells,
     villageDwellingPositions(state),
     obstacles,
@@ -671,13 +728,14 @@ function buildOrchard(
   landscape: Landscape,
   obstacles: ObstacleLayer,
   intent: OrchardIntent,
+  place: () => PlacementVillage,
 ): BuildResult {
   if (!buildAffordability(state, 'orchard').affordable) {
     return { ok: false, reason: CANNOT_AFFORD };
   }
   const orchard = orchardPartsFromCells(
     landscape,
-    placementVillageOf(state, day),
+    place(),
     intent.cells,
     villageDwellingPositions(state),
     obstacles,
@@ -705,10 +763,11 @@ function buildCemetery(
   landscape: Landscape,
   obstacles: ObstacleLayer,
   intent: CemeteryIntent,
+  place: () => PlacementVillage,
 ): BuildResult {
   const preview = cemeteryPartsFromCells(
     landscape,
-    placementVillageOf(state, day),
+    place(),
     intent.cells,
     villageDwellingPositions(state),
     obstacles,
@@ -738,13 +797,14 @@ function buildPen(
   landscape: Landscape,
   obstacles: ObstacleLayer,
   intent: PenIntent,
+  place: () => PlacementVillage,
 ): BuildResult {
   if (!buildAffordability(state, 'pen', obstacles).affordable) {
     return { ok: false, reason: NO_WOOD };
   }
   const check = penSquaresFromCells(
     landscape,
-    placementVillageOf(state, day),
+    place(),
     intent.cells,
     intent.species,
     obstacles,

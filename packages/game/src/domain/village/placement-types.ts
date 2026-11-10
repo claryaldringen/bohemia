@@ -170,6 +170,12 @@ export interface PlacementVillage {
    * ně nejde. Bez údaje žádné.
    */
   readonly kilns?: readonly { readonly x: number; readonly z: number }[];
+  /**
+   * Posvátná místa stavbám a polím nebrání (christianity.md – Co křest rodu umožní): ves
+   * pokřtěného rodu při umístění hráčem (`playerPlacementVillage`). Správce, vesničané a převody
+   * starých vsí ho nemají – posvátná místa obcházejí. Bez údaje ne.
+   */
+  readonly sacredFree?: boolean;
 }
 
 /** Kontrola umístění obydlí s cenou překážek na vyklízené ploše. */

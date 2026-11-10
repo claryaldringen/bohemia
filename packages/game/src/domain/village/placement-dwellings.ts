@@ -38,6 +38,7 @@ import {
   sparedSacred,
   sparedWarning,
 } from './sacred';
+import { sacredSitesFor } from './desecration';
 import { PLAIN_SHAPE, dwellingShape, isPlainShape, shapedFootprint } from './dwelling-shape';
 import { type Point } from './polygon';
 import { type Shape, plotShapes } from './plot-cells';
@@ -141,7 +142,7 @@ export function checkDwellingPlacement(
   if (outcropUnder(obstacles, status, footprint)) {
     return { ...fail('Stojí tu skalní výchoz – ten osadníci neodstraní.'), ...none };
   }
-  const sites = sacredSitesOf(obstacles);
+  const sites = sacredSitesFor(village, obstacles);
   const sacredProblem = sacredUnder(landscape, obstacles, sites, [footprint]);
   if (sacredProblem) return { ...fail(sacredProblem), ...none };
   const gate = gateProblem(landscape, village, { type, position });
@@ -213,7 +214,7 @@ export function dwellingShapeFits(
   }
   const status = obstacleStatus(village.obstacleChanges);
   if (houses.some((f) => outcropUnder(obstacles, status, f))) return misfit;
-  const sites = sacredSitesOf(obstacles);
+  const sites = sacredSitesFor(village, obstacles);
   if (sacredUnder(landscape, obstacles, sites, houses)) return misfit;
   // dům na pozemku vyklidil celé políčko – nic nového nezabere
   if (d.plot && !d.craft) return fits;
@@ -286,7 +287,7 @@ export function checkWorkshopPlacement(
   if (footprints.some((f) => outcropUnder(obstacles, status, f))) {
     return { ...fail('Stojí tu skalní výchoz – ten osadníci neodstraní.'), ...none };
   }
-  const sites = sacredSitesOf(obstacles);
+  const sites = sacredSitesFor(village, obstacles);
   const sacredProblem = sacredUnder(landscape, obstacles, sites, footprints);
   if (sacredProblem) return { ...fail(sacredProblem), ...none };
   const gate = gateProblem(landscape, village, { type, position, craft });
@@ -463,7 +464,7 @@ export function checkPlotPlacement(
   const samples = footprintSamples(type, position, shape);
   const terrain = checkFootprintTerrain(landscape, samples, 'Obydlí', takeLand);
   if (!terrain.ok) return { ...terrain, ...none };
-  const sites = sacredSitesOf(obstacles);
+  const sites = sacredSitesFor(village, obstacles);
   for (const shape of shapes) {
     const taken = plotSquareProblem(landscape, village, shape, obstacles, sites, takeLand);
     if (taken) return { ...fail(taken), ...none };

@@ -88,6 +88,7 @@ export * from './population';
 export * from './kinship';
 export * from './dynasty';
 export * from './faith';
+export * from './desecration';
 export * from './baptism';
 export * from './dynasty-names';
 export * from './seniority';

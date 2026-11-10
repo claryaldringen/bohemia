@@ -574,6 +574,7 @@ const USABLE_STRUCTURES: readonly UsableStructure[] = [
   'threshing-floor',
   'grain-pit',
   'orchard',
+  'cemetery',
 ];
 
 /**

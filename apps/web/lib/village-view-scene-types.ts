@@ -181,6 +181,11 @@ export interface SceneVillage {
     id: number;
     /** Natočená mřížka hřbitova (fields.md – Natočené stavby); bez údaje mřížka krajiny. */
     grid?: SquareGrid;
+    /**
+     * Pokřtěný rod ho smí zbourat nebo zaorat (`cemeteryMayGo` – christianity.md) – kontrola
+     * umístění v prohlížeči ho jako server nezná. Bez údaje ne.
+     */
+    mayGo?: true;
     squares: {
       cell: TileCell;
       x: number;
@@ -302,6 +307,12 @@ export interface SceneVillage {
    * počítá louku bez motyky (jen překážky) jako server. Bez údaje ne.
    */
   ploughTeam?: true;
+  /**
+   * Rod, který ves řídí, je pokřtěný (christianity.md – Co křest rodu umožní): posvátná místa
+   * stavbám a polím hráče nebrání – kontrola umístění v prohlížeči jako na serveru
+   * (`playerPlacementVillage`). Bez údaje brání.
+   */
+  sacredFree?: true;
   /**
    * Páry volů s rádlem doma (oxen.md – Voli po kusech, `ploughPairsHome`) – kolik spřežení scéna
    * pošle k orbě; bez údaje (ukázky) ohrady s vycvičenými voly.

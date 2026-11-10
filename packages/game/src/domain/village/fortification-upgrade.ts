@@ -1,3 +1,4 @@
+import type { PlacementVillage } from './placement-types';
 import type { Landscape, ObstacleLayer } from '../landscape';
 import { cloneState } from './clone';
 import {
@@ -185,6 +186,7 @@ export function startSectionUpgrade(
   obstacles: ObstacleLayer,
   input: SectionUpgradeStart,
   walk?: Walk,
+  placement?: PlacementVillage,
 ): FortificationResult {
   if (!WALL_ORDER.includes(input.target)) return { ok: false, reason: FORT_UNKNOWN };
   const plan = upgradePlan(state, landscape, input);
@@ -220,7 +222,7 @@ export function startSectionUpgrade(
   let cleared: { ids: readonly number[]; trees: number } = { ids: [], trees: 0 };
   let taken: Parameters<typeof giveWayToBuilding>[2] = [];
   if (only.size > 0) {
-    const village = placementVillageOf(state, day);
+    const village = placement ?? placementVillageOf(state, day);
     const check = checkFortificationPlacement(
       landscape,
       { ...village, fortifications: villageFortifications(state).filter((f) => f.id !== fort.id) },

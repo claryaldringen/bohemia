@@ -1,3 +1,4 @@
+import type { PlacementVillage } from './placement-types';
 import type { Landscape, ObstacleLayer } from '../landscape';
 import { cloneState } from './clone';
 import {
@@ -148,6 +149,7 @@ export function startRampartAddition(
   obstacles: ObstacleLayer,
   input: RampartAdditionInput,
   walk?: Walk,
+  placement?: PlacementVillage,
 ): FortificationResult {
   const fort = villageFortifications(state).find((f) => f.id === input.fortificationId);
   if (!fort) return { ok: false, reason: FORT_UNKNOWN };
@@ -174,7 +176,7 @@ export function startRampartAddition(
     const was = only.get(p.index);
     only.set(p.index, was && was.inM > span.inM ? was : span);
   }
-  const village = placementVillageOf(state, day);
+  const village = placement ?? placementVillageOf(state, day);
   const check = checkFortificationPlacement(
     landscape,
     { ...village, fortifications: villageFortifications(state).filter((f) => f.id !== fort.id) },

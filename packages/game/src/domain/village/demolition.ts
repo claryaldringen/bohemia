@@ -29,6 +29,8 @@ import {
 } from './structure-use';
 import { addLogs } from './wood';
 import { clearWildTrees } from './wild-orchard';
+import { readySquares } from './cemetery';
+import { CEMETERY_IN_USE, cemeteryMayGo, recordDesecration } from './desecration';
 import type { ChronicleEvent, Construction, VillageState } from './types';
 
 // Bourání stavby (docs/design/demolition.md – Bourání; Martin 8. 11. 2026: „Hráč/správce může nechat
@@ -67,6 +69,13 @@ function buildPrice(target: Target): { laborManDays: number; trees: number } {
       trees: 0,
     };
   }
+  // hřbitov: cena založení hotových čtverců, pletený plot klády nedá (návrh Clauda)
+  if (target.structure === 'cemetery') {
+    return {
+      laborManDays: readySquares(target.item.squares).length * BUILD_COSTS.cemetery.laborManDays,
+      trees: 0,
+    };
+  }
   const spec = SACRED_BUILDINGS[target.structure];
   return { laborManDays: spec.laborManDays, trees: spec.oaks };
 }
@@ -77,7 +86,8 @@ function conditionOf(target: Target, day: number): number {
   if (
     target.structure === 'threshing-floor' ||
     target.structure === 'grain-pit' ||
-    target.structure === 'orchard'
+    target.structure === 'orchard' ||
+    target.structure === 'cemetery'
   ) {
     return 1;
   }
@@ -92,6 +102,10 @@ function placeOf(target: Target): { x: number; z: number } {
   if (target.structure === 'orchard') {
     const first = target.item.squares[0];
     return first ? orchardSquareCenter(target.item, first) : { x: 0, z: 0 };
+  }
+  if (target.structure === 'cemetery') {
+    const first = target.item.squares[0];
+    return first ? { x: first.x, z: first.z } : { x: 0, z: 0 };
   }
   return { x: target.item.position.x, z: target.item.position.z };
 }
@@ -124,6 +138,10 @@ export function demolitionBlock(
   if (!target) return STRUCTURE_MISSING;
   if (demolitionOf(state, ref)) return ALREADY_DEMOLISHING;
   if (isManorTarget(state, target)) return MANOR_STAYS;
+  // hřbitov zbourá (zaorá) jen pokřtěný rod, a to plný nebo nepoužívaný (christianity.md)
+  if (target.structure === 'cemetery') {
+    return cemeteryMayGo(state, target.item, day) ? null : CEMETERY_IN_USE;
+  }
   if (target.item.disusedDay !== undefined) return null;
   // stavba se napřed opustí (obyvatelé se rozejdou, ohrada nesmí být ve stavbě)
   return disuseBlock(state, ref, day);
@@ -177,7 +195,9 @@ export function isDemolitionFinished(state: VillageState, c: Construction): bool
 /**
  * Dokončené bourání (mutuje stav): stavba zmizí bez zříceniny a klády jdou na hromadu u cesty.
  * Stavba, která mezitím zanikla (prázdné obydlí zchátralo, opuštěná ohrada spadla), nic – bez klád
- * a bez kroniky. Obydlí, ve kterém by ještě někdo bydlel, zůstane stát (nic se nestane).
+ * a bez kroniky. Obydlí, ve kterém by ještě někdo bydlel, zůstane stát (nic se nestane). Zbouraný
+ * hřbitov zmizí i s hroby a zapíše se jako zničené posvátné místo – kroniku „Zaorali starý hřbitov.“
+ * zapíše `recordDesecration`, vrátí se null.
  */
 export function finishDemolition(
   next: VillageState,
@@ -211,6 +231,11 @@ export function finishDemolition(
     if (next.threshingFloors.length === 0) delete next.threshingFloors;
   } else if (target.structure === 'grain-pit') {
     next.grainPits = (next.grainPits ?? []).filter((p) => p.id !== ref.id);
+  } else if (target.structure === 'cemetery') {
+    // zaoraný hřbitov zmizí i s hroby; pohané to vesnici nezapomenou (christianity.md – Štěstí)
+    next.cemeteries = (next.cemeteries ?? []).filter((c) => c.id !== ref.id);
+    recordDesecration(next, 'cemetery', day);
+    return null;
   } else if (target.structure === 'orchard') {
     // vykácený sad nedá klády ani z náletu (demolition.md – Rozhodnutí)
     clearWildTrees(next, target.item);

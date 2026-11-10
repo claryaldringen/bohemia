@@ -367,7 +367,14 @@ export function startStewardBuild(
   const lastDay = state.lastDay;
   let result;
   try {
-    result = applyBuildIntent(asOf(state, ctx.day), ctx.day, ctx.landscape, ctx.obstacles, intent);
+    result = applyBuildIntent(
+      asOf(state, ctx.day),
+      ctx.day,
+      ctx.landscape,
+      ctx.obstacles,
+      intent,
+      'steward',
+    );
   } catch (error) {
     // kontrola vstupu akce (díl pole dál než 800 m, …) – místo neprošlo jako u hráče; v měření se
     // počítá, aby chyba ve správci (špatné souřadnice) nezůstala skrytá

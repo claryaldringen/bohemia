@@ -861,6 +861,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
       return 'Posvátný dub stářím uschl – zůstala posvátná souš.';
     case 'sacred-snag-fell':
       return 'Posvátná souš padla.';
+    case 'sacred-felled':
+      return event.site === 'oak' ? 'Vykáceli posvátný dub.' : 'Vykáceli posvátný háj.';
+    case 'cemetery-ploughed':
+      return 'Zaorali starý hřbitov.';
     case 'road-formed':
       return 'Kudy se chodí léta, vyšlapala se pevná cesta.';
     case 'road-overgrown':

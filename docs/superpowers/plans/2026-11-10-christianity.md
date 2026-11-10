@@ -258,14 +258,14 @@ day): VillageState` (+1 do `faith.desecrated`, kronika `sacred-felled` / `cemete
   `cemeteryMayGo(state, cemetery, day): boolean` = pokřtěný rod a (`freePlaces` 0 nebo poslední
   pohřeb před ≥ 10 lety).
 
-- [ ] **Step 1:** Testy: nepokřtěná ves – stavba na háji odmítnuta jako dnes; pokřtěná – povolena
+- [x] **Step 1:** Testy: nepokřtěná ves – stavba na háji odmítnuta jako dnes; pokřtěná – povolena
       a po dokončení `desecrated.oaksOrGroves` +1; pole přes háj v pokřtěné vsi bez odečtu koruny; zaorání
       plného hřbitova povoleno, hřbitova s volným místem a pohřbem loni ne; vesničané na dřevo posvátný dub
       nevezmou ani v pokřtěné vsi; zlaté otisky překážek, pěšin a vozové sítě beze změny.
-- [ ] **Step 2:** FAIL → implementace → PASS.
-- [ ] **Step 3:** `npx vitest run` v `packages/game`; scéna zrušený strom nakreslí jako dnes
+- [x] **Step 2:** FAIL → implementace → PASS.
+- [x] **Step 3:** `npx vitest run` v `packages/game`; scéna zrušený strom nakreslí jako dnes
       (`clearedObstacles`).
-- [ ] **Step 4:** Commit `feat(game): pokřtěný rod smí kácet posvátná místa a zaorat hřbitov`.
+- [x] **Step 4:** Commit `feat(game): pokřtěný rod smí kácet posvátná místa a zaorat hřbitov`.
 
 ### K7: Kostrové pohřby křesťanů
 

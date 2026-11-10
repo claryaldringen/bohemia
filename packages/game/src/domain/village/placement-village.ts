@@ -8,6 +8,9 @@ import { craftCoverage } from './crafts';
 import { obstacleChangesAt } from './obstacles';
 import { reservedTrees } from './wood';
 import { sacredBuildingPlots } from './sacred';
+import { rodBaptized } from './faith';
+import { villageCemeteries } from './cemetery';
+import { cemeteryMayGo } from './desecration';
 import { type PlacementVillage } from './placement-types';
 
 /**
@@ -30,6 +33,19 @@ export function placementVillageOf(state: VillageState, day: number): PlacementV
       ? { threshingFloors: state.threshingFloors.map((f) => ({ position: f.position })) }
       : {}),
   };
+}
+
+/**
+ * Ves pro kontrolu umístění stavby nebo pole hráče (`applyBuildIntent` hráče): jako
+ * `placementVillageOf`, ve vsi pokřtěného rodu navíc posvátná místa nebrání (`sacredFree` –
+ * christianity.md, Co křest rodu umožní) a hřbitov, který smí zmizet (`cemeteryMayGo`), v ní není –
+ * stavba nebo pole přes něj ho zaorá. Správce, vesničané a převody berou `placementVillageOf`.
+ */
+export function playerPlacementVillage(state: VillageState, day: number): PlacementVillage {
+  const village = placementVillageOf(state, day);
+  if (!rodBaptized(state)) return village;
+  const cemeteries = villageCemeteries(state).filter((c) => !cemeteryMayGo(state, c, day));
+  return { ...village, sacredFree: true, cemeteries };
 }
 
 /** Středy milířů uhlířů vsi (crafts.md – Milíř u skácených buků); milíř bez polohy se nepočítá. */

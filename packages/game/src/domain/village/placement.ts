@@ -36,7 +36,12 @@ export {
 export type { PlotPlacementCheck } from './placement-dwellings';
 export { checkPenPlacement, penSquaresFromCells } from './placement-pens';
 export type { PenPlacementCheck, PenSquaresCheck } from './placement-pens';
-export { placementVillageOf, placementWalk, villageDwellingPositions } from './placement-village';
+export {
+  placementVillageOf,
+  placementWalk,
+  playerPlacementVillage,
+  villageDwellingPositions,
+} from './placement-village';
 export {
   forestEdgeDistanceM,
   livestockLandAt,

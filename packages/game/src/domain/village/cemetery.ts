@@ -50,9 +50,11 @@ export function freePlaces(cemetery: Pick<Cemetery, 'squares' | 'graves' | 'moun
   return Math.max(0, cemeteryCapacity(cemetery) - usedPlaces(cemetery));
 }
 
-/** Pohřebiště přijímá mrtvé: je vytyčené a ohrazené a má volné místo. */
+/** Pohřebiště přijímá mrtvé: je vytyčené a ohrazené, nebourá se a má volné místo. */
 export function acceptsBurials(cemetery: Cemetery): boolean {
-  return cemetery.builtDay !== null && freePlaces(cemetery) > 0;
+  return (
+    cemetery.builtDay !== null && cemetery.disusedDay === undefined && freePlaces(cemetery) > 0
+  );
 }
 
 /**

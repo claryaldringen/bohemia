@@ -498,6 +498,10 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'sacred-oak-died'; id: number }
   /** Posvátná souš padla – místo už není posvátný dub (happiness.md) – id dubu. */
   | { kind: 'sacred-snag-fell'; id: number }
+  /** Pokřtěný rod vykácel posvátný dub nebo dubový háj (christianity.md – Co křest rodu umožní). */
+  | { kind: 'sacred-felled'; site: 'oak' | 'grove' }
+  /** Pokřtěný rod zbořil (zaoral) starý hřbitov (christianity.md – Co křest rodu umožní). */
+  | { kind: 'cemetery-ploughed' }
   /** Z dlouhodobého provozu vznikla pevná cesta (roads.md) – id úseku. */
   | { kind: 'road-formed'; roadId: number }
   /** Nepoužívaná vyšlapaná cesta zarostla (roads.md – Zarůstání) – id úseku. */
