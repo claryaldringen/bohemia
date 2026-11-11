@@ -111,6 +111,7 @@ export {
 export * from './people/marriage';
 export * from './core/extinction';
 export * from './buildings/cemetery';
+export * from './buildings/church-geometry';
 export * from './people/burials';
 // sady – jen čisté funkce; kroky simulace (výsadba, práce a sezóna sadů) zůstávají uvnitř
 export {
