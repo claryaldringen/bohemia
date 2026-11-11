@@ -186,7 +186,7 @@ export function withFortPoints(
   geo: GridGeometry,
 ): void {
   const forts = state.fortifications;
-  if (!forts || !forts.some((f) => f.points === undefined && f.cells !== undefined)) return;
+  if (!forts || !needsFortPoints(state)) return;
   state.fortifications = forts.map((fort) => {
     if (fort.points !== undefined || fort.cells === undefined) return fort;
     const converted = convertFortification(geo, fort);
@@ -199,6 +199,13 @@ export function withFortPoints(
     }
     return converted.fort;
   });
+}
+
+/** Ves má opevnění po čtvercích k převodu na body (`withFortPoints`) – seznam převodů podle toho klonuje. */
+export function needsFortPoints(state: Pick<VillageState, 'fortifications'>): boolean {
+  return (
+    state.fortifications?.some((f) => f.points === undefined && f.cells !== undefined) ?? false
+  );
 }
 
 /** Obvod opevnění druhu `kind` (bez údaje druh opevnění) – z bodů, u nepřevedeného ze čtverců. */

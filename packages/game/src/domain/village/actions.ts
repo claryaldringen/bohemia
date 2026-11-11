@@ -1,3 +1,4 @@
+import { withArmsCaps } from './arms-caps';
 import { cloneState } from './clone';
 import { TOTAL_GAME_DAYS } from '../calendar';
 import { newSteward } from './steward-state';
@@ -647,7 +648,9 @@ export function foundVillage(input: {
   zemnice.wood = takeWood(state, plan, dwellingPosition);
   zemnice.cost = dwellingLaborManDays('zemnice', dwellingObstacleCost, plan);
   if (input.dwellingSpared) recordSpared(state, input.dwellingSpared, day);
-  return state;
+  // strop dovedností (war.md – Síla) platí od založení – dřív ho nové vsi dal až první dopočet
+  // (převod `arms-caps`): dovednosti osadníků nad strop se srazí jako tehdy, ves dostane příznak
+  return withArmsCaps(state);
 }
 
 /**

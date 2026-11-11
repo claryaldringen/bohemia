@@ -145,6 +145,8 @@ export {
 export * from './actions';
 export * from './build-intent';
 export * from './simulate';
+// převody starších vsí – jeden seznam pro načtení i dopočet (village-core.md – Převody starších vsí)
+export * from './migrations';
 export * from './inbox';
 export * from './appoint-lord';
 export * from './polygon';
