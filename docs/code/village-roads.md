@@ -58,7 +58,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   víc než rovně – čistá funkce pro každého, kdo měří cestu na pole)
   a `village.ts` (`pathVillageOf` ze stavu vsi jako scéna i s pevnými cestami, `refreshWalkDistances`
   – den po dni v `simulateDay` při změně `walkLayoutKey` (i pevné cesty), jen s krajinou;
-  **stadia dílů, rychlost chůze přes ně (osev, strniště) a pastva úhoru (`walkStageKey`) se do klíče promítají jen 1. dne v měsíci**
+  **stadia dílů, rychlost chůze přes ně (osev, strniště) a pastva úhoru se do klíče promítají jen 1. dne v měsíci**
   (Martin, 18. 10. 2026 – osev postupuje po dílech a síť se přepočítávala každých pár dní; otisk
   stadií z posledního 1. dne je ve stavu `walkStages`), strukturální změny hned; ve stavu jen
   otisky `walkLayoutHash`; `villagePathNetwork` si pamatuje poslední síť po krajinách (otisk `pathVillageOf`) –
@@ -149,7 +149,7 @@ cesty, půda)`; graf a půda (`walkGroundOf` + `withFieldWalk` – pole v `Villa
   `withRoadsV2`) a práce roku cest
   po místech `labor` (od 1. 11., z rozdělení práce dne). Roční
   kontrola 1. 11. (`updateRoads`; roční síť pěšin se od Úlohy 6 nepočítá, terén dává `annualTerrain`):
-  provoz cest z provozního pole uložených tras (`fieldTraffic` – medián `trafficAt` po ose, `TrafficOf`)
+  provoz cest z provozního pole uložených tras (`fieldTraffic` – medián `trafficAt` po ose)
   (zarůstání je od Úlohy 7 měsíční – `road-condition.ts`, `roads-overgrow.ts`, bod **Stav cest**
   níž) → (cesty pěších roční kontrola nezakládá –
   vznikají měsíčně z vyšlapanosti, bod Vznik cest z vyšlapanosti níž; konec nové cesty se připojí
@@ -216,7 +216,7 @@ cesty, půda)`; graf a půda (`walkGroundOf` + `withFieldWalk` – pole v `Villa
   `roadAnchors(routes, landscape)` – začátek trasy (brána domu) vchod, konec podle cíle
   (`anchorKindOf`: `edge:*` kraj mapy, voda, dřevo, pastva, pole, sad, louka… cíl, stavby se vchodem
   – `d`, `cemetery`, `pen`, `threshing-floor`, `idol`, `shrine`… – vchod), dosah `ROAD_ANCHORS`
-  (vchod 3 m, cíl 7,5 m; kraj mapy = pás `EDGE_MARGIN_M` + `TRAIL.edgeBandM` + 7,5 m od okraje, `nearAnchor`, směr `edgeDirectionAt`; `RoadAnchor.place` – klíč trasy pro konce cesty v panelu, `paths/road-ends.ts` – [web-ui.md – Konce cesty](web-ui.md#konce-cesty-v-panelu-cesty)). Roční kandidáti (`formRoads`, `hotRuns`, `MATCH_M` u pěších)
+  (vchod 3 m, cíl 7,5 m; kraj mapy = pás `EDGE_MARGIN_M` + `TRAIL.edgeBandM` + 7,5 m od okraje, `nearAnchor`, směr `edgeDirectionAt`; `RoadAnchor.place` – klíč trasy pro konce cesty v panelu, `paths/road-ends.ts` – [web-ui.md – Konce cesty](web-ui.md#konce-cesty-v-panelu-cesty)). Roční kandidáti (`MATCH_M` u pěších)
   zrušeni. **Stavba přes cestu:** objížďka dál než 5 m od staré osy se po vyšlapání stane cestou
   napojenou rozcestími na zbytky staré cesty (test `road-form-wear.test.ts`); kus pod stavbou zatím
   zůstává a úklid ho bere jako starší (silnější) – objížďku souběžnou s ním (Vlkov – polozemnice)
@@ -279,7 +279,7 @@ cesty, půda)`; graf a půda (`walkGroundOf` + `withFieldWalk` – pole v `Villa
   (i zarůstající bez provozu – zanikne až s ním; spojka `link` vždy), stejná množina jako při
   spojování úseků (`chainPair` v `roads-form.ts`), takže uzel se 2 rameny se spojí a „cesta na
   cestě bez křižovatky“ (`road-ends.ts`, `kind: 'road'`) v uzlu nevzniká (Vlkov 1. 11. 2026 – dřív
-  ramena jen z provozu tras, `liveRoadEnd`, a uzel se zarůstající třetí cestou zůstal bez
+  ramena jen z provozu tras a uzel se zarůstající třetí cestou zůstal bez
   křižovatky i bez spojení; paths.md – Křižovatka i se zarůstající cestou). Test
   `road-stubs.test.ts` – „křižovatka se zarůstající cestou“. **Osa vede přesně do vchodu a odtud rovně po rameni do středu**
   (`bendEnd`) – úseky dál sdílejí bod uzlu, takže spojení, pahýly, copánky i díry v úklidu se
@@ -323,7 +323,7 @@ cesty, půda)`; graf a půda (`walkGroundOf` + `withFieldWalk` – pole v `Villa
   `joinTarget` (`roads-form.ts`, vznik z vyšlapanosti) a `joinRoadGaps` (`roads-tidy.ts`, ne do
   vlastního uzlu): bod blíž než `junctionSpacingM` od konce úseku s 3–4 rameny → střed uzlu, úsek se
   nerozdělí. Testy `junctions-snap.test.ts` (Vlkov 1131 + 1619, po kouscích = vcelku). **Odsunutí**
-  (`moveHub`) jinak: oba uzly po spojnici o půl chybějícího rozestupu + `SPACING_TIE` (2 cm – po
+  (`moveHub`) jinak: oba uzly po spojnici o půl chybějícího rozestupu + 2 cm (po
   zaokrouhlení na cm nad rozestupem, podruhé nic); konce úseků i `junction.x/z` se posunou, ohnuté
   konce `fitNode` ohne znovu. Kotva `net.anchor` (`tidyMonth`: do `ROAD_ANCHORS.entranceM` od vchodu
   – `nearEntrance` v `road-condition.ts`) se nehýbe; dvě kotvy zůstanou. Starší vsi se srovnají
@@ -437,7 +437,7 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   vozů, `Road.cartTraffic`, příznak `Road.cart` (`markCartRoads` – 2 roky nad 0,25 jízdy denně,
   5 let pod polovinou pryč); **vůz přebije vyšlapanou** (Martin, 19. 10. 2026: „pokud nějakou
   cestu vyjezdí vůz, bude to vyježděná cesta. Pokud vůz takhle vyjezdí vyšlapanou cestu, tak to
-  vozová cesta přebije.“) – `formCartRoads` s `cartCandidates` třídí body tras po trasách
+  vozová cesta přebije.“) – úklid s `cartCandidates` třídí body tras po trasách
   (`CartPoint`): po cestě, kterou vozy mají, provoz patří jí; po vyšlapané (do 5 m, stejným směrem)
   ji převezmou (`takeOverRoads` – kus od 15 m dostane `cart`, úsek se rozdělí); souběžně vedle
   (5–12 m) od 25 m nová cesta po ose vozu (souběžnou vyšlapanou pak vyřízne `mergeParallelRoads`),
@@ -594,7 +594,7 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   délky po desetinách – `Road.lined` (`RoadLining`, `paths/road-lining.ts`: `roadLining` –
   místa `Road.spots` se stromem ve stadiu `tree`, živé jabloně úseku, jabloně mají přednost;
   `lineRoads` v `refreshWalkDistances` 1. dne v měsíci, chybějící hned – rozdělený či spojený úsek
-  ho smaže; klíč `walkStageKey` a `liningKey` v `pathNetworkKey`). Rychlost `roadTreeSpeed`
+  ho smaže; klíč `liningKey` v `pathNetworkKey`). Rychlost `roadTreeSpeed`
   (walk-speed.ts) bere `roadWalkSpeed` / `roadPieceCost` (walking.ts), `cartRoadSpeed` (cart.ts)
   a buňky sítě pěšin (`roadTreeSpeedMask` → `roadCellCost`) – mimo mokřinu a brod; dosah seče
   `fastestWalkShare`. Do sítě (`pathVillageOf`) a scény (`SceneRoad.lined`) jde jen nenulové –
@@ -664,7 +664,7 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   - `originX / cellM`, mřížka je vůči krajině pevná; kroky po 8 směrech, 3 bity, dva kroky na znak
     base64, lichý konec `=`), `routeCells`, `routePoints` (středy buněk), `routeLine`
     (`simplifyPathLine` + `smoothPathLine`), `storedRoutes`. Ukládá je `refreshWalkDistances` při
-    přepočtu chůze (`key` = `walkLayoutKey`, síť serveru `computeVillageNetwork` vždy s
+    přepočtu chůze (`key` = `walkLayoutKey`, síť serveru vždy s
     `keepRoutes`); stará ves bez tras nebo s jiným otiskem je dostane při načtení – `withRoutes`
     v `updateVillage` po dopočtu (síť dne `lastDay`, bez posunu dne, jednou a idempotentně). Testy
     `routes.test.ts`, use-case ve `villages.test.ts`. **Trasy a z nich vyšlapané čáry se aktualizují
@@ -766,7 +766,7 @@ cellM)` (`road-condition.ts`, index buněk tras v `WeakMap` podle pole tras) –
   „souběžná se starou cestou“ a vznikne. `withRoadCondition` (`update-village.ts`, jednou, příznak
   `VillageRoads.conditionSeeded`, nová ves ho má z `emptyRoads`): kus s provozem loni nad `keep`
   plný, jinak plný × (1 − tiché roky / roky druhu), nejvýš `years − 1` tichých let – nic nezmizí
-  hned. Starý `Road.quiet`, `overgrowRoads`, `keepingApples` a roční zarůstání zanikly (jabloně
+  hned. Starý `Road.quiet` a roční zarůstání zanikly (jabloně
   cestu nedrží, péče a sklizeň jsou trasy). Web: `SceneRoad.fade` (bledé kusy – krytí od poloviny
   stavu úměrně, `fadeOf` ve `village-view-roads.ts`) → `roadBands` je dá do `strength`;
   `SceneRoad.abandoned` – `nearestRoad` ho nevybere.
@@ -775,14 +775,14 @@ landscape, obstacles)` v `paths/roads-v2.ts`, `updateVillage` ho volá po `withR
   Starší ves bez `roads.v2` dostane hned `tidyRoadsNow` (`roads.ts`, týž úklid jako měsíční
   `tidyMonth` bez ohledu na `tidyKey`: souběžné cesty, copánky, díry, spojení, pahýly, cesty k
   vchodům, křižovatky; bez tras jen `tidyRoads` bez kotev), smažou se stará pole `LegacyRoadFields`
-  (`candidates`, `endsChecked`, `parallelsChecked` – typy jen pro převody; `withJoinedRoads` zanikl)
+  (`candidates`, `endsChecked`, `parallelsChecked` – typy jen pro převody)
   a nastaví se `v2` (nová ves ho má z `emptyRoads`). Upravené a vozové cesty zůstanou, nepoužívané
   bledne dál (`withRoadCondition`). `cutEnds` a `cartCandidates` zůstávají – pořád je čte a píše
   úklid a převzetí vyšlapaných cest vozy. Ves bez cest a ves s `v2` vrací týž objekt. Test
   `roads-v2.test.ts`.
 - **Jednorázová přestavba sítě (Úloha R1, Martin 24. 10. 2026 – varianta A):** `withRoadsRebuilt(state,
 landscape, obstacles)` v `paths/roads-rebuild.ts`; `updateVillage` volá po `withRoadsV2` jeho
-  kroky `withRoadsRebuiltSteps` (`rebuiltWithPauses` – port `Pause` mezi průchody a kolem přepočtu
+  kroky `withRoadsRebuiltSteps` (port `Pause` mezi průchody a kolem přepočtu
   vozových cest, generátor `rebuildRoadsSteps`). `roads.rebuilt` je verze přestavby
   (`ROAD_REBUILD.version`, 26. 10. 2026 verze 2 – paths.md, Jednorázová přestavba podle nových
   pravidel): přestaví se ves s `roads.v2`, s trasami a s nižší nebo chybějící verzí (nová ves má
@@ -866,7 +866,7 @@ Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
   v `rules-roads.ts`. `partWalkSpeed` / `isCropPart` (`paths/walk-speed.ts`) i `cartPartSpeed`
   (`paths/cart.ts`) znají jen zarostlý díl (křoviny, mladý les – chůze jako louka × `OVERGROWN_COST`,
   vůz neprojede); jinak stálá cena a pěšina dne přes pole nezrychlí. Dvoukolák i čtyřkolák stejně
-  (`CartRoutesInput.fourWheel` zmizel), `harvestReachState` zmizel. `pathVillageOf` už nenese
+  (`CartRoutesInput.fourWheel` zmizel). `pathVillageOf` už nenese
   vzhled dílů (`look`, `work`, `before`, `partId`).
 - **Trasa na pole jako celek:** cíl `field:<id>` jsou všechny buňky dílů (`network-targets.ts`) –
   s jednou cenou končí trasa na téže buňce v každém stadiu (`stable-routes.test.ts`).
@@ -878,7 +878,7 @@ Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
   `quantizedStep`, `trodden` bere sílu pěšiny po setinách; ze stejně drahých předchůdců vyhraje
   **vyšší** index (návrh Clauda – s nižším se v „jedna pěšina“ trasy sousedů nesejdou; každé pevné
   pravidlo dá přednost jednomu směru, slévání v zrcadleném rozložení není zaručené ani dřív).
-- **Pošlapání zmizelo:** `CART_TRAMPLE`, `trampleSownParts`, `FieldPart.trampledM2`,
+- **Pošlapání zmizelo:** `FieldPart.trampledM2`,
   `CartRoute.sown`, `RoadCartTrips.sown/spare`; `flushCartTrips(state, log)` jen sečte provoz cest.
   Starší ves převede `withoutTrampledParts` (`cart-jobs.ts`, v `updateVillage`) jednou
   a idempotentně.
@@ -894,7 +894,7 @@ Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
     kalendáře, ne kousku dopočtu (test `změna mapy v půli měsíce – dopočet po kouscích`). Scéna
     trasy jen čte (`SceneVillage.routes`), vidí tedy tutéž starou mapu jako server.
   - **Denní kontrola mapy bez skládání klíče** (31. 10. 2026): `routeMapKey` vrací rovnou otisk
-    (`KeyHash` – tytéž dvě FNV-1a jako `walkLayoutHash`, části klíče se míchají po řetězcích
+    (dvě FNV-1a jako `walkLayoutHash`, části klíče se míchají po řetězcích
     s oddělovači, celý JSON se neskládá). Zemní práce v klíči bez celého profilu – id, počet bodů
     a konce osy (`earthworksKey`; profil se určí se založením, nové zemní práce = nové id – u
     Vlkova byl profil 83 % klíče). Vlkov: klíč 303 kB → 64 kB, 2,8 → ≈ 0,7 ms za den.
@@ -960,8 +960,8 @@ Návrh `docs/design/paths.md` – Stálé trasy (25. 10. 2026), Úloha A1.
   - Změna otisku = stálé trasy znovu (`computeStableNetwork` – síť bez práce dne, `stableVillage`)
     - vzdálenosti chůze (`villageRouteLines`) – od 9. 11. 2026 jen s jiným otiskem vzdáleností
       (`walkDistanceKey` výš). **Trasy k práci dne a na pastvu se nehledají**
-      (Martin 31. 10. 2026 – `routes-v9`; dřívější `computeWorkRoutes`, `StoredRoute.daily`,
-      `routes.workKey`, `routeMonthKey` zmizely, vsi uložené s nimi je zahodí přepočtem).
+      (Martin 31. 10. 2026 – `routes-v9`; dřívější `StoredRoute.daily` a
+      `routes.workKey` zmizely, vsi uložené s nimi je zahodí přepočtem).
       Práce k cílům bez stálé trasy (kácení, seč, úprava cesty, opravy, humno, kovář…) do
       vyšlapanosti nic nepřidá (`laborCells` cíl nenajde).
   - 1. dne v měsíci beze změny otisku: `reweighRoutes` převáží stálé trasy (`stableRouteWeights` –
@@ -1149,7 +1149,7 @@ studeným startem každý den; `cart-memo.test.ts`).
   roku 3,45 s → 0,93 s (`cart-routes-fast.test.ts` – 80 náhodných map, `cart-memo.test.ts`).
 - **Voda vozem jen k nejlevnějšímu břehu** (`waterCartDrive` volá `CartDrives` s `nearest`,
   `cartRoutesOn(…, nearestM)`): ze 40 břehů se bere nejlevnější (po centimetrech, při remíze
-  první v pořadí) – hledání skončí `NEAREST_DRIVE_M` (1 m) za prvním dosaženým břehem místo za
+  první v pořadí) – hledání skončí 1 m za prvním dosaženým břehem místo za
   posledním. Trasy do té ceny jsou bit po bitu tytéž (všechny stavy do ní jsou vytažené,
   předchůdci i remízy rozhodnuté), dražší břehy vrátí „nedojede“ a do paměti tras se nezapíšou.
   Rozbor: 22 hledání za rok (dvoukolák i čtyřkolák po změně rozložení vsi), dřív 3,4 s.
@@ -1272,8 +1272,7 @@ studeným startem každý den; `cart-memo.test.ts`).
   paměť, díl posunutý na místě).
 - **Orba v plánu osevu jednou** (C3, `lordHelpDay` v `simulate-plan.ts`): `sowingCapacity` se
   volá dvakrát (bez rodiny a s ní) a orba spřežení (`plannedFurrowEfficiency` – brázdy po pásech
-  přes pevné cesty) na rodině nezávisí – podruhé se převezme (`ploughCapacity`; test
-  `lord-sowing.test.ts`). Dřív ≈ 5 % roku, polovina zbytečně.
+  přes pevné cesty) na rodině nezávisí – podruhé se převezme (`ploughCapacity`). Dřív ≈ 5 % roku, polovina zbytečně.
 - **Naměřeno C3** (Vlkov `diag-stable/vlkov.json`, rok vcelku, `diag-b3/cpu.mts`, střídavě před /
   po 2× při zátěži 2–3; hlava před C3 je pomalejší než C2 – přibyla scéna humna, rekvizity
   a další mechaniky): stěna 27,0–27,2 s → 18,9–19,0 s, CPU 32,4–32,8 s → 24,0–24,1 s (≈ −26 %
@@ -1282,7 +1281,7 @@ studeným startem každý den; `cart-memo.test.ts`).
   dnech `d3f7d44c5d6a` – před i po stejný. Zbývá (profil roku, 19,7 s): přepočet chůze 42 % –
   `walkingDistances` 15 %, síť pěšin 11 %, trasy k práci 6 %, `routeMapKey` 3 %; `work` 26 % –
   hledání tras vozu (`cartRoutesOn`, svoz a voda) 13 %, ceny přesunů spřežení 4 %, mřížka vozu
-  4,5 %; plán sezóny 7 % (`neededSelection` 3 %).
+  4,5 %; plán sezóny 7 % (výběr nutných dílů 3 %).
 
 ## Brány opevnění v síti (Ú5.3, 6. 11. 2026)
 

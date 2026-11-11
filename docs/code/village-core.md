@@ -6,7 +6,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `summary.ts`), use-casy a port `VillageRepository` v `application/`, tabulka `village`.
   Ves se dopočítá při každém načtení a akci (mezitím ji posouvá worker – `docs/code/worker.md`).
 
-- **API jádra:** `foundVillage` (4 lidé, zásoby – zakladatelé s vojvodou `FOUNDERS_STORES`: jídlo `foodYears` + osivo `seedYears` roční potřeby, osivo jako `reservedSeedKg` s lhůtou `reservedSeedUntilDay` = den založení + `seedKeepYears`; `seedBuyingDay` ji 1. 6. ani 1. 12. před lhůtou neuvolní, jen ve skutečném hladu; `takeSeed` na ni sáhne, až když běžné zrno nad `keepRation` nestačí (village-fields.md – Osivo pro ves bez zásob); ves, která šetří (`hungry`), ji v lhůtě zkrátí na `foundersSeedKeepKg` (seed-buying.ts – osivo na díly na řadě příštího okna, `windowSeedNeedKg`); `fieldStoresOutlook` ji v lhůtě nepočítá za jídlo – `keptSeedKg`, seed.ts; ves bez rodu `START_STORES_MONTHS` + `START_SEED_YEARS`, ves z výpravy svůj náklad –, stavba první zemnice, volitelně první pole),
+- **API jádra:** `foundVillage` (4 lidé, zásoby – zakladatelé s vojvodou `FOUNDERS_STORES`: jídlo `foodYears` + osivo `seedYears` roční potřeby, osivo jako `reservedSeedKg` s lhůtou `reservedSeedUntilDay` = den založení + `seedKeepYears`; `seedBuyingDay` ji 1. 6. ani 1. 12. před lhůtou neuvolní, jen ve skutečném hladu; `takeSeed` na ni sáhne, až když běžné zrno nad `keepKg` nestačí (village-fields.md – Osivo pro ves bez zásob); ves, která šetří (`hungry`), ji v lhůtě zkrátí na `foundersSeedKeepKg` (seed-buying.ts – osivo na díly na řadě příštího okna, `windowSeedNeedKg`); `fieldStoresOutlook` ji v lhůtě nepočítá za jídlo – `keptSeedKg`, seed.ts; ves bez rodu `START_STORES_MONTHS` + `START_SEED_YEARS`, ves z výpravy svůj náklad –, stavba první zemnice, volitelně první pole),
   `advanceVillage(state, toDay)` (dopočítá ves do dne včetně) a akce hráče `startNewDwelling`,
   `startWorkshop`, `foundField`, `foundCemetery`, `foundOrchard`, `foundPen`, `startTrail`
   a `startExpedition` (trade.md); spřežení se cvičí samo (`trainTeamsWhenReady`). Stav
@@ -23,7 +23,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   [village-fortifications.md](village-fortifications.md#stáří-přestavba-a-údržba-valu-ú54)):
   `decideFortRebuilds` běží v `simulate.ts` hned za `decideRebuilds` (přestavby obydlí) a před
   `occupyEmptyDwellings`; údržba opevnění po úsecích (`fortUpkeep`) v `work()` hned za opravami obydlí –
-  bere ze zbytku společné práce (`afterBuild.left`), co zbude, jde dál (díly nad potřebu, seč).
+  bere ze zbytku společné práce (`afterBuild.left`), co zbude, jde dál (seč navíc).
   Ves bez opevnění nebo bez krajiny: žádný krok nic nemění.
 
 - **Pořadí práce dne** (population.md a fields.md – Práce; Martin 19. 10. 2026: „pokud se něco
@@ -55,7 +55,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   práce (domácnost, koně, dílny, výpravy a vozy pro kováře beze změny). Před prací dne (`simulate.ts`): 1. 9. `startSeason`, každý den `seasonDay` (konce oken
   setí, nutné díly podle potřeby úrody – fields.md, Osevní postup po dílech) a `lordHelpDay`
   (podíl dne rodiny na nutné práci) a 1. 5. `wildlifeYearDay` (roční přepočet zvěře; hned za ním `weatherDay` – kronika počasí kraje v den odhalení, `village-disasters.md` –, `dogsYear` smečka dvorce a `planHuntDay` ranní plán lovu, W4), 1. 6. `damageWindowStart` (ohrožené díly polí pro zvěř – wildlife.md, Škody); po `lordHelpDay` `settlePatrol` (jezdecká hlídka polí, W6), po práci dne `wildlifeDamageDay` (škoda zvěře a vran na nesklizených dílech, před jídlem) dále v závěru dne `huntDay` (úlovek velkého lovu), `patrolHuntDay` (úlovek z hlídky), při jídle `feedDogs` (obilí psů dvorce, `simulate-food.ts`) a po sklizni jaře `wildlifeSeasonEnd` (kronika, vynulování ztrát dílů – podrobnosti `village-wildlife.md`); potřebné sezónní úlohy jsou práce nutných dílů – plodiny
-  hospodářského roku (`fieldTasks` – všechny díly jedna fronta, díly nad potřebu zrušené 9. 11. 2026). `allocateDay`: denní minimum → péče o koně (`horseCare` – `horseCareLabor`, horses.md – Péče; pokrytí v `state.horsesCaredToday`) → výpravy (`away`) → potřebné sezónní úlohy v pořadí `dayTaskOrder` – **pevné pořadí skupin** `DAY_WORK_ORDER` (rules-fields.ts; `dayWorkGroup` v simulate-work.ts; fields.md – Pořadí důležitosti polních prací a výmlat do zimy, Martin 9. 11. 2026): výmlat na dnešní jídlo → porážka → žeň a odnos obilí (i luštěnin) → trhání lnu (ženy a děti napřed před všemi úlohami – `womenFirst`, Martin 10. 11. 2026) → nutná 1. seč (`mow`) → nutná otava (`mow` s `DayTask.aftermath` – skupina `'aftermath'` podle `mowingCut` plánu seče; Martin 10. 11. 2026: před orbou a setím ozimu, dřív ~~až po nich~~) → sklizeň jablek → pletí → výmlat na osivo (`ThreshTask.seed`, `seedThreshKg` v seed.ts) → příprava půdy a setí (vrácení přílohu, kopání, orba, setí – **orba rádlem první** uvnitř skupiny, oxen.md – Orba má přednost) → péče o sad → noční hlídka polí (`'watch'`, wildlife.md – Noční hlídka vesničanů) → výmlat → obilné jámy → dospělý pasák; uvnitř skupiny nejbližší konec okna, `tie` a `rank` (žeň a výmlat napřed ze žňových rukou – `harvestHands`, `lordHarvest`, fields.md – Žně všemi rukama) → `common` (volná práce
+  hospodářského roku (`fieldTasks` – všechny díly jedna fronta, díly nad potřebu zrušené 9. 11. 2026). `allocateDay`: denní minimum → péče o koně (`horseCare` – `horseCareLabor`, horses.md – Péče; pokrytí v `state.horsesCaredToday`) → výpravy (`away`) → potřebné sezónní úlohy v pořadí `dayTaskOrder` – **pevné pořadí skupin** `DAY_WORK_ORDER` (rules-fields.ts; `dayWorkGroup` v simulate-work.ts; fields.md – Pořadí důležitosti polních prací a výmlat do zimy, Martin 9. 11. 2026): výmlat na dnešní jídlo → porážka → žeň a odnos obilí (i luštěnin) → trhání lnu (ženy a děti napřed před všemi úlohami – `womenFirst`, Martin 10. 11. 2026) → nutná 1. seč (`mow`) → nutná otava (`mow` s `DayTask.aftermath` – skupina `'aftermath'` podle `mowingCut` plánu seče; Martin 10. 11. 2026: před orbou a setím ozimu, dřív ~~až po nich~~) → sklizeň jablek → pletí → výmlat na osivo (`ThreshTask.seed`, `seedThreshKg` v seed.ts) → příprava půdy a setí (vrácení přílohu, kopání, orba, setí – **orba rádlem první** uvnitř skupiny, oxen.md – Orba má přednost) → péče o sad → noční hlídka polí (`'watch'`, wildlife.md – Noční hlídka vesničanů) → výmlat → obilné jámy → dospělý pasák; uvnitř skupiny nejbližší konec okna, `tie` a `rank` (žeň a výmlat napřed ze žňových rukou – `harvestHands`, `lordHelp`, fields.md – Žně všemi rukama) → `common` (volná práce
   v liště, `commonLaborHistory`) do staveb (`build`) → z toho, co stavby nespotřebovaly, opravy
   obydlí (`afterConstructions`) → **pletí mužů** (`allocateDay` s `menWeedLater` vrátí jejich díl
   v `menWeed`, `work()` ho dá ze zbytku po stavbách, opravách a údržbě opevnění; `DayWork.weedMen` –
@@ -248,8 +248,8 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
     jí jako dospělý ze zásob hostitele (`villageFoodNeed` ho přičte) a pracuje 1 čd denně.
     Práce hostů ve `work()` (`simulate-work.ts`) jde **napřed do rozestavěného opevnění**
     (`build(…, 'fortification')` – rovným dílem po úsecích, bez tesaře), co zbude, se přičte ke
-    společné práci před stavbami – ostatní stavby rovným dílem, opravy obydlí, údržba valu, díly
-    nad potřebu, seč navíc (návrh Clauda podle fortifications.md – Robota vazalů). Polní úlohy
+    společné práci před stavbami – ostatní stavby rovným dílem, opravy obydlí, údržba valu,
+    seč navíc (návrh Clauda podle fortifications.md – Robota vazalů). Polní úlohy
     dne hosté nedělají; ukazatel volné práce na seč (`recordMowingLabor`) práci hostů nepočítá.
     Rozdělení práce dne (`labor-report.ts`) dostane práci hostů na opevnění jako další řádky
     staveb.
@@ -307,7 +307,7 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   otiskem bez skládání klíče, převážení s mřížkou z paměti, chůze s jedním napojením na síť. Rok
   Vlkova střídavě před / po (zátěž 5–19): 23,4–24,3 s → 19,0–19,6 s (−19 %, CPU 28,4–30,0 →
   23,7–24,4 s); přepočet chůze (`refreshWalkDistances`) 8,1 → 4,4 s (`walkingDistances` 2,2 →
-  1,1 s, převážení 1,4 → 0,7 s, `routeMapKey` 0,9 → 0,4 s, `workRoutesOf` 1,7 s → 0). Nejvíc teď
+  1,1 s, převážení 1,4 → 0,7 s, `routeMapKey` 0,9 → 0,4 s). Nejvíc teď
   bere sezóna (`seasonDay` 3,6 s), měsíc cest (`roadsMonth` 3,0 s), práce dne (`work` 2,1 s)
   a kopie stavu (`cloneState` 1,5 s).
   Sezóna a měsíc cest (Martin 31. 10. 2026 – „úspory jsme se snad shodli, že uděláme“; rok
@@ -345,7 +345,7 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   pro nouzovou porážku i jídlo, hledání masa porážky přepočítá jen mléko (`withMealDams`); výkon
   orby plánu osevu z paměti po krajině, dokud se díly, mřížky polí a cesty nezmění
   (`sowingFurrowEfficiency` – přesné porovnání vstupů, 5 přepočtů z 214 volání za rok); zbytky jam
-  pod stavbou jen se změnou vstupů kontroly (`updateRuins` – `coverInputs`, kontrola, která nic
+  pod stavbou jen se změnou vstupů kontroly (`updateRuins` – kontrola, která nic
   nenašla, si je pamatuje). Pátou – chůzi rovně po celých buňkách místo půlbuněk – jsem vrátil
   (revert): měnila výsledek (úsečky Vlkova medián 0,09 %, nejvíc 3,2 %, u brodu ±30 m) a za rok
   nic měřitelného nepřinesla (chůze rovně je po kolu 1 skoro celá v paměti); chůze dál krokuje
@@ -383,8 +383,8 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   vnořené funkce odhadu. Rok Vlkova po dnech střídavě / souběžně před / po (zátěž 5–20):
   33,9–42,3 s → 14,0–14,5 s (CPU 38,3–41,9 → 18,4–19,0 s, nejdražší den 7,7–9,7 → 2,3–2,5 s).
   **Cíl < 10 s splněn není.** Zbytek (profil ≈ 15 s): tři přepočty mapy tras za rok po ≈ 2,1 s
-  (6,5 s – hledání sítě pěšin 3,0 s, chůze 2,4 s, z toho objížďky stěn 2,1 s), práce dne 1,6 s
-  (`surplusFieldDay` 0,9 s), sezóna 1,2 s, kopie stavu 1,0 s, odhady vozu při orbě 0,9 s, správce
+  (6,5 s – hledání sítě pěšin 3,0 s, chůze 2,4 s, z toho objížďky stěn 2,1 s), práce dne 1,6 s,
+  sezóna 1,2 s, kopie stavu 1,0 s, odhady vozu při orbě 0,9 s, správce
   0,6 s – zbylých 362 dní ≈ 7,9 s rozprostřeno po desítkách funkcí. Pod 10 s bez změny pravidel
   nevidím: návrh Clauda – (a) hrubší body objížďky stěn (`DETOUR_STEP_M` 5 → 10 m, graf 210 →
   ≈ 110 bodů – objížďky ±1–2 m, nová verze tras) nebo (b) přepočet mapy tras po změně stavby až
@@ -428,7 +428,7 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
      kolo hledání místo dvou (`PASSES` 2 → 1) – hledání −50 %, ≈ −5 s, pěšiny se slévají jen
      v rámci kola; (c) hrubší mřížka sítě pěšin (`PATH_GRID_PER_TILE` 4 → 3 – buněk −44 %, hledání
      ≈ −40 %, ≈ −4 s; nová verze tras, pěšiny ve scéně hrubší); (d) silnější odhad A*
-     (`A_STAR_WEIGHT` 0,5 → 1) jen −8 % instrukcí sítě – nevyplatí se.
+     (váha 0,5 → 1) jen −8 % instrukcí sítě – nevyplatí se.
      Souběžné požadavky téhož hráče dopočet nezdvojují: web je řadí do fronty (`apps/web/lib/exclusive.ts`,
      web-ui.md – Jeden dopočet vsí naráz), druhý jen dopočte zbytek do svého dne.
 
