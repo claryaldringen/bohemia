@@ -15,6 +15,38 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   funkce). `app/game/actions.ts` je tenký re-export `export * from './actions/…'` bez
   `'use server'`, takže importy `@/app/game/actions` i `vi.mock` v testech zůstaly. Novou akci
   přidat do souboru své oblasti a do tohoto přehledu; nový soubor doplnit do re-exportu.
+- **Rozložení `VillageGame`** (refaktoring 11. 11. 2026, chování ani vzhled beze změny):
+  `components/game/VillageGame.tsx` jen skládá hooky a panely z `components/game/village-game/`
+  (props i pořadí prvků v DOM jako dřív). Hooky podle skutečných vazeb mezi stavy:
+  `use-village-sync.ts` (`useVillageSync` – stav vsi, `viewRef`, `applyVillage` s trasami vozů
+  z `cartRouter`, `poll` + `usePolling`, fronta `runAction` / `runBuildAction`, háčky
+  `cartRoutes` a `pollVillage`), `use-notice-lines.ts` (mizející řádky nahoře – `pushNotice`,
+  `mergeNotices`), `use-house.ts` (`useHouse` – pohled rodu, `refreshHouse`, stav nováčka
+  a nové načtení po umístění, odúmrti, pozvánky, `negotiate`), `use-panels.ts` (`usePanels` –
+  nabídka, rod, válka a odvody se střídají; průchody, ochrana, `warAction`, dialog Odvody),
+  `use-player-notices.ts` (`noticeTick`, `showPlayerNotices`, `openNoticePanel`),
+  `use-history-panels.ts` (kronika a upozornění, `closeNoticesRef`, zkratky J / U),
+  `use-war-watch.ts` (`useWarScene` → `setWar`, „Probít se“, sledování cizí mapy,
+  `armyActions`), `use-line-naming.ts` (jména rodu, `founderNameRef`), `use-pending-sites.ts`
+  (staveniště čekající na server, `sceneVillage`, `placementScene`, `buildDwelling` …),
+  `use-scene-sync.ts` (hodiny, ves a návrat R do scény; e2e háčky scény), `use-selection.ts`
+  (výběr, `followConstruction` při vykreslení, postava a spřežení, `sonPreview`),
+  `use-wagon-preview.ts`, `use-gate-mode.ts` (`gateFort`), `use-build-mode.ts`
+  (`useBuildMode` – `SUBMIT_SQUARES`, `buildGroup`, `startBuild`, `startReroute`, konec
+  umisťování ve vymřelé vsi), `use-village-hotkeys.ts` (F10, Esc, Ctrl + A, zkratky staveb přes
+  ref), `use-village-switch.ts` (`switchVillage`, výběr dvorce z upozornění varování),
+  `use-alarm-actions.ts`, `use-dev-controls.ts`, `use-panel-source.ts`, `use-premium-intro.ts`,
+  `use-sound-toggle.ts`. Bez hooků: `village-commands.ts` (`villageCommands` – obsluhy panelu
+  výběru a akce vsi, `STRUCTURE_USE_ACTIONS`; vznikají při každém vykreslení jako dřív),
+  `session.ts` (Začít znovu, odhlášení), `scene-village.ts` (`withPending`,
+  `squareStructures`, `extendsSelectedPen`), `village-data.ts` (`VillageData`,
+  `CONNECTION_FAILED`). Komponenty: `VillagePanels.tsx` (nabídka, válka, kronika, upozornění,
+  rod, odúmrť, odvody – v tomto pořadí), `FoundingPanels.tsx` (jazyk, nováček, jména),
+  `GameOverScreen.tsx`. **Pořadí hooků = pořadí efektů scény** (válka → hodiny → ves → R →
+  výběr → náhled vozové cesty → brána) – nový hook se scénou zařadit podle toho. Cyklus „dotaz
+  na ves potřebuje obsluhu upozornění, panely potřebují `viewRef`“ řeší ref
+  `playerNoticesRef` ve `VillageGame` (jako dřív `openAlarmRef`). ESLint hlídá hooky
+  i v `apps/web/components/**/*.ts`.
 - **Web:** server actions `app/game/actions.ts` (`getVillageView`, `selectVillage`, `foundVillage`,
   `placeDwelling`, `cancelConstruction`, `leaveVillage`,
   `settleJourney`, `placeWorkshop`,
@@ -46,7 +78,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   ves pro mřížku vozu, ohrady se spřežením, změny překážek; jen u vsi s jízdou dne). Díly polí ve
   vstupu se neposílají, když jsou výběrem dílů scény (`fieldsAsScene` – `cartFieldsOf`), změny
   překážek, když jsou tytéž jako `scene.obstacles` (`'obstacles'`). Klient po každém pohledu
-  (`VillageGame` – `applyVillage` i první pohled) zavolá `withCartRoutes`: `cartGoalRoute` →
+  (`useVillageSync` – `applyVillage` i první pohled) zavolá `withCartRoutes`: `cartGoalRoute` →
   `cartWorldRoutes` (stejná mřížka a paměť mřížek jako `villageCartRoutes`, test
   `cart-memo.test.ts` – tytéž trasy) → `simplifiedRoute`, a doplní `SceneCart.route`
   a `ploughLegs.out` / `home` (stání `stand` jen bez cesty tam i zpět) – scéna je čte beze změny.
@@ -171,7 +203,7 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   hráč, spící vsi, chyba jednoho hráče, po 1 / 3 / 10 dnech i se zbytkem ve webu = dopočet
   najednou, schránka, příjezd se správcem, konec rodu jen ze stejného dne),
   `world-queue.db.test.ts`.
-- **Dotazování na ves** (`VillageGame` + `hooks/use-polling.ts`): klient se zeptá na začátku
+- **Dotazování na ves** (`village-game/use-village-sync.ts` + `hooks/use-polling.ts`): klient se zeptá na začátku
   dalšího herního dne hráče (`nextPollDelayMs` v `lib/village-polling.ts` – začátek dne po dni
   pohledu přes `realTimeOf` + 1 s, nejdřív za 5 s, nejpozději za 86 s; po návratu do panelu hned). Pošle
   `{ villageId, known }` – `known` = `VillageView.stamp`, otisk pohledu (`villageViewStamp`
@@ -239,7 +271,7 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   i když je díl jen rodina syna; počítá se jen pro syna, který smí vést) → `SelectionSon` v detailech dvorce (`sonDetails`
   v `lib/selection-details.ts`) → řada ikon `SonsRow` (`hud/selection/sons.tsx`; nástupce a syn bez
   jména zašedlí s důvodem, klik = rámeček + růžice `LeaveCompass`, kůň v popisku); obrys obydlí
-  dílu a domů rodiny syna mimo dvorec = `sonPreview` ve `VillageGame` (`setSelection` cíle `dwellings`); `leave` i `leaveWithSon` = jeden tok
+  dílu a domů rodiny syna mimo dvorec = `sonPreview` v `useSelection` (`setSelection` cíle `dwellings`); `leave` i `leaveWithSon` = jeden tok
   `departFromVillage` (`dwellingIds` nebo `sonId`) → server action `leaveVillage` (`{ villageId, sonId, destination }`,
   `parseLeaveVillageInput`) → `leaveVillageForPlayer`; ves na cestě
   ukáže řádek `JourneyBanner` a po příjezdu nabídne jen zemnici – `settleJourney`; pohled
@@ -262,11 +294,11 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
 
 - **Katalog staveb** `lib/build-items.ts` (název, ikona, zkratka, umístění `footprint` /
   `plot` / `squares` / `sacred` / `workshop` / `threshing-floor`, kontrola) – nová stavba = záznam tam, cena v `BUILD_COSTS` a server action
-  v `SUBMIT_SQUARES` (`VillageGame`); mřížka, zkratky i malování po čtvercích se nemění. Stavba
+  v `SUBMIT_SQUARES` (`village-game/use-build-mode.ts`); mřížka, zkratky i malování po čtvercích se nemění. Stavba
   po čtvercích s druhy (`variants` – ohrada: `PEN_VARIANTS` ovce, kozy, prasata, skot, spřežení, koně – ikona `horse`, název „Ohrada koní“; Tab přepíná druhy v malování)
   dostane v kontrole druh; tlačítko stavby je jen **rozcestník** (oxen.md – Ohrady podle druhu,
   Martin 20. 10. 2026): kliknutí i zkratka otevře v mřížce druhy (`BuildGrid` `group`,
-  `VillageGame` `buildGroup` – první tlačítko stavba sama zpět, druhy `buildVariantName` bez
+  `useBuildMode` `buildGroup` – první tlačítko stavba sama zpět, druhy `buildVariantName` bez
   zkratek), druh spustí malování (`startBuild(kind, variant)`), Esc rozcestník zavře; u kurzoru
   ikona druhu (`PlacementPreview.variant`). Stavba,
   kterou nejde zahájit z jiného důvodu než surovin (druhá svatyně), má v `BuildOption.blocked`
@@ -311,7 +343,7 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   `sacred` a `threshing-floor`; ohrada po čtvercích – O i tlačítko otevřou v mřížce rozcestník druhů zvířat (ovce,
   kozy, prasata, skot, spřežení – bez zkratek), nad ohradou téhož druhu se chytí její mřížky). V otevřené nabídce hry žádná klávesa hry neběží – F10 nebo Esc ji zavře (Tab jen
   po jejích položkách). Rozhraní
-  obydlí hned ukáže jako staveniště a akce posílá na server za sebou (fronta v `VillageGame`).
+  obydlí hned ukáže jako staveniště a akce posílá na server za sebou (fronta `runAction` v `useVillageSync`).
 
 - **e2e:** testy běží v běžícím pomalém světě (2000–2200). Kliknutí do scény při umisťování
   nahrazuje háček `window.__bohemiaE2E.confirmPlacement`, kam kliknout myší pro výběr řekne
@@ -457,7 +489,7 @@ zahodí zaniklá pole (jedno zbylé je pole) a panel `FieldsBody` ukáže souče
 Jako v 0 A.D. přejde výběr ze základů na hotovou budovu (návrh Clauda 10. 11. 2026). Staveniště
 obydlí, řemeslné dílny i přestavby na novém pozemku je ve scéně (`SceneVillage.dwellings`,
 `built: false`) pod id stavby, hotová stavba pod id obydlí (stavba 6 → obydlí 1) – bez přechodu by
-výběr s novou vsí zmizel (`presentTarget` → null). `VillageGame` drží předchozí `sceneVillage`
+výběr s novou vsí zmizel (`presentTarget` → null). `useSelection` drží předchozí `sceneVillage`
 ve stavu (`selectionScene`) a při jeho změně ještě během vykreslení (panel neblikne) zavolá
 `followConstruction(předchozí, nová, vybraný)`: staveniště (ne bourání), které v nové vsi chybí,
 se vymění za hotové obydlí stejného typu a řemesla na téže poloze (`x`, `z` – stavba je přebírá
@@ -524,7 +556,7 @@ Panely dílny keramiky a tesaře zásobu výrobku neukazují; simulace je beze z
 ## Výpis výběru do konzole
 
 Martin (24. 10. 2026): „když označím nějaký objekt, chtěl bych vidět v konzoli jeho typ a ID – abych
-ti třeba mohl říct, který úsek cesty zlobí“. Klik do scény (`VillageGame` – `scene.onSelect`) vypíše
+ti třeba mohl říct, který úsek cesty zlobí“. Klik do scény (`useSelection` – `scene.onSelect`) vypíše
 `console.info('[výběr]', …)` z `describeTarget` (`lib/scene/village-selection.ts`): typ cíle
 (`VillageTarget.kind`) a jeho id, u cesty id cesty hráče, všechny úseky řetězu (`roadChainIds`),
 úsek pod kurzorem (`segment` – nastavuje `pickVillageTarget`) a oba konce cesty z pohledu na ves
@@ -635,7 +667,7 @@ Návrh: [disasters.md – Co hráč vidí](../design/disasters.md). Jádro a č�
 
 ## Správce vsi v rozhraní (S8, `hud/StewardToggle.tsx`)
 
-- Server action `setSteward({ villageId, on })` → `VillageGame.toggleSteward` (`runAction`, pohled se obnoví).
+- Server action `setSteward({ villageId, on })` → `toggleSteward` z `villageCommands` (`runAction`, pohled se obnoví).
   `VillageView.steward = { on, built }` (`built` = id staveb a dílů se značkou, `isStewardBuilt`).
 - **Přepínač** `StewardToggle` (ikona klíče `public/icons/resources/steward.png`, zapnutý svítí,
   vypnutý `opacity-40`, popisek „Správce“): v `VillageList` u každé žijící vsi (`VillageListItem.steward`)
@@ -648,6 +680,11 @@ Návrh: [disasters.md – Co hráč vidí](../design/disasters.md). Jádro a č�
 
 ## Panel „Rod a vazalové“ (úloha 1.10, `hud/HousePanel.tsx`)
 
+- **Soubory** (refaktoring 11. 11. 2026): `HousePanel.tsx` drží stav panelu (vybraný hráč,
+  rozpracovaná nabídka, vybraná dohoda) a skládá části z `hud/house/` – `parts.tsx` (`Icon`,
+  `Portrait`, `Row`, `Man`, `HouseLink`, `PlayerAction`, `StatusMarks`), `agreements.tsx`
+  (`AgreementEntry`, `LevyMark`, `AgreementActions`), `FellowComplaint.tsx` a `invites.tsx`
+  (`InviteRow`, `inviteLink` – reexport z `HousePanel.tsx` kvůli testům).
 - **Lišta:** tlačítko praporu (`TopBar` prop `house`, `data-testid="house-toggle"`) s počtem vazalů;
   pečeť s počtem čekajících věcí (`house-waiting`) se ukáže, až když něco čeká (první verze: nikdy,
   jednání přijdou ve fázi 3). Otevřený panel zavře nabídku hry a naopak; Esc panel zavře.
@@ -660,7 +697,7 @@ Návrh: [disasters.md – Co hráč vidí](../design/disasters.md). Jádro a č�
   portrét pozvaného a ikona nástupnictví, když se rozehrál). Důvod odmítnutí (limit kódů) je
   v popisku tlačítka a pod ním. Tlačítka Vypovědět, Nabídnout vazalství, Obchod, Blokovat a jednání
   zatím nejsou.
-- **Data:** `VillageGame` načte `HouseView` při otevření hry (počet vazalů v liště), při otevření
+- **Data:** `useHouse` načte `HouseView` při otevření hry (počet vazalů v liště), při otevření
   panelu, po vydání a zrušení kódu a po každém novém upozornění mezi hráči. Klik na upozornění
   `invite-accepted` / `invitee-played` (`noticePanel` = `'house'`) panel otevře.
 - **Ikony** `public/icons/house/` (banner, seal, shield, hourglass, cross, succession, copy, hands, handshake, pen, gate – vlastní
@@ -712,7 +749,7 @@ Pravidla a use-casy: [world.md](world.md) – Vstup nováčka. Web jen zobrazuje
   `newcomerUndecided` (odříznutý bez čekající žádosti – i po odmítnutí všemi v témže týdnu).
 - **Server actions** (`app/game/actions.ts` → `lib/house.ts`): `newcomerStatusAction()`,
   `requestLordsAction(houseIds)`, `startFreeAction()`.
-- **`VillageGame`:** `refreshHouse` načte panel rodu a u odříznutého rodu (`HouseView.isolated`) i stav
+- **`useHouse`:** `refreshHouse` načte panel rodu a u odříznutého rodu (`HouseView.isolated`) i stav
   nováčka. Odříznutý bez rozhodnutí vidí `NewcomerPanel` (ikony „Vybrat pána“ / „Svobodný“, nabídka
   s ikonou jazyka, nejvýš 5) **místo** `LineNamePanel`; jméno vojvody přijde po volbě. Panel jména
   při zakládání čeká na načtený stav nováčka (při chybě se nečeká). Důvod odmítnutí ze serveru je
@@ -894,7 +931,7 @@ Návrh: [fortifications.md – Rozhraní](../design/fortifications.md); jádro a
   brána `fort-gate-pincer`, `fort-gate-tower` a postupy přes bránu. Popisek tlačítka: název, práce,
   klády, kámen (`resources/stone.png`) a důvod červeně. Jedna obsluha `onFortAction(fortificationId,
 segment | null, FortAction)` (`upgrade` s `target`, `rampart`, `moat`, `gate` s `level`) –
-  `VillageGame` ji rozešle na server actions `upgradeFortification` (`target`, `segment`),
+  `villageCommands` (`onFortAction`) ji rozešle na server actions `upgradeFortification` (`target`, `segment`),
   `addFortificationRampart`, `fillFortificationMoat`, `upgradeFortificationGate` (vstupy
   `parseUpgradeFortificationInput`, `parseFortificationRampartInput`,
   `parseDemolishFortificationSectionInput`, `parseFortificationGateUpgradeInput`; práva `build`).
@@ -1108,7 +1145,7 @@ to – vojsko tu bude za ≈ 2 dny, z mapy jim to potrvá ≈ 3 dny.“):
   („Posel už běží.“, „Lidé už odešli.“, „Lidé se už vracejí.“), nebo s chybou serveru – dokud se
   otisk stavu ze serveru nezmění (`stateKey`), nejdéle 10 s (vzor `BreakoutButton`). Bez práva `war`
   zašednou všechny ikony s důvodem práva (`useRightDenied('war')`).
-- **VillageGame:** `useAlarm` se ptá jen s otevřeným panelem dvorce (vybrané obydlí =
+- **`useAlarmActions`:** `useAlarm` se ptá jen s otevřeným panelem dvorce (vybrané obydlí =
   `view.manor.dwellingId`); akce `commandAlarm` / `returnFromRefuge` – chyba i řádkem nahoře, po
   odpovědi `refresh`. **Klik na upozornění** varování a útěku (`noticeOpener` v
   `lib/player-notices.ts` – `alarmNoticeVillage`, jinak panel podle druhu) vybere dvorec té vsi;
@@ -1145,7 +1182,7 @@ Premium-landscapes.md – Co hráč vidí. Texty typů (krátký název, „hned
 jsou v `lib/premium-view.ts` (`PREMIUM_TEXTS`, `premiumIntroNotice`); portréty 19 typů
 `public/icons/premium/<typ>.png` z `tools/blender/icons.py` (`PREMIUM`).
 
-- **Představení:** `VillageGame` po připravení scény jednou za načtení pošle `premiumIntroNotice`
+- **Představení:** `usePremiumIntro` po připravení scény jednou za načtení pošle `premiumIntroNotice`
   (sídlo s `landscape.premium`, ves ještě není) do `NoticeLines` – řádek `premium-intro` s ikonou
   (`NoticeLine.icon`, `village-notice-icon`), mizí po `NOTICE_MS`.
 - **Výběr prvku:** cíl `{ kind: 'premium-site', type, site, index }` (`village-picking.ts`) z
@@ -1185,7 +1222,7 @@ jsou v `lib/premium-view.ts` (`PREMIUM_TEXTS`, `premiumIntroNotice`); portréty 
   chátrat“, „Zbourat – 7,5 čd, 2 klády zpět na hromadu“ (bez klád „bez klád“), „Vrátit – stavba se
   zase bude používat“. `block` a chybějící právo `build` zašední s důvodem u kurzoru; během akce
   stojí všechna tlačítka (`busy`). `data-testid`: `structure-abandon`, `structure-demolish`,
-  `structure-restore`. `VillageGame` posílá `onStructureUse` přes `runBuildAction`.
+  `structure-restore`. `villageCommands` posílá `onStructureUse` přes `runBuildAction`.
 - **Panely:** průběh bourání `DemolitionBar` („Bourání“, `selection-demolition`) v obydlí, ohradě,
   modle a svatyni; v obydlí ikona `family` s počtem dočasně ubytovaných (`selection-lodgers`,
   popisek „Dočasně tu bydlí N lidí z opuštěného domu“).
@@ -1291,7 +1328,7 @@ se neukládají a panel je nemá.
 - **Lišta:** zvonek `icons/resources/bell.png` (`notices-toggle`, popisek „Upozornění“) vlevo od knihy
   kroniky, klávesa **U** (popisek „Upozornění [U]“); číslo nepřečtených (`notices-unread`) se ukáže jen se zavřeným panelem. Panel vpravo
   nahoře se střídá s kronikou, rodem, válkou a nabídkou (`othersOpen` / `closeOthers` ve
-  `hooks/use-notices.ts`, kronika se zavírá přes `closeNoticesRef` ve `VillageGame`). Esc a křížek zavřou.
+  `hooks/use-notices.ts`, kronika se zavírá přes `closeNoticesRef` v `useHistoryPanels`). Esc a křížek zavřou.
 - **Data:** server action `getNotices({ before? })` → `NoticeRepository.page` (nejnovější první,
   `NOTICE_PAGE_SIZE` = 30 + řádek navíc pro `olderThan`) → `noticePage`; hráč je jen ze session,
   cizí upozornění se vrátit nedají. Stránkování **nic neoznačuje za přečtené**.
@@ -1300,7 +1337,7 @@ se neukládají a panel je nemá.
   (`bohemia:notices-seen`, jen tento prohlížeč); otevřený panel vše do nejnovějšího považuje za
   viděné, zvýrazní (`data-unread`) ta novější než při otevření. Číslo u ikony se počítá z načtené
   první stránky (strop 30). První stránka se načte po startu a kdykoli klientovi dorazí nové
-  upozornění (`noticeTick` ve `VillageGame`).
+  upozornění (`noticeTick` v `usePlayerNotices`).
 - **Omezení historie:** upozornění se nikde nemažou, jen označují; `post` smaže starší než
   posledních `NOTICES_KEPT_PER_PLAYER` = 500 na hráče (bez migrace, index `(player_id, id)`).
 - **Testy:** `lib/__tests__/notice-page.test.ts`, `hud/__tests__/NoticesPanel.behavior.test.tsx`,
@@ -1316,7 +1353,7 @@ a kamera (W A S D Q E R).
 - `panelForKey` – jen bez modifikátorů a bez opakování držené klávesy; `PANEL_HOTKEYS` nese kód
   klávesy a písmeno do popisku. Test `lib/__tests__/panel-keys.test.ts` hlídá i kolize se
   stavbami a kamerou.
-- `usePanelHotkeys(toggle, enabled)` ve `VillageGame` přepne panel jako tlačítko v liště (druhý
+- `usePanelHotkeys(toggle, enabled)` v `useHistoryPanels` přepne panel jako tlačítko v liště (druhý
   stisk zavře, otevření vystřídá ostatní panely – `useChronicle` / `useNotices`). Při psaní do pole
   nic; v otevřené nabídce hry a po konci hry vypnuté (`enabled`), nabídka navíc klávesy zachytí
   dřív (`GameMenu`). Kronika jen u živé vsi (jako tlačítko).

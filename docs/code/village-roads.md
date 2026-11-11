@@ -580,7 +580,7 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   (`earthworkReachedM`, `SceneEarthwork.shownM`). Use-case `buildWagonRoad`, server action
   `buildWagonRoad({ villageId, roadId })`. Web: `VillageRoad.wagon` (`wagonView`), panel – tlačítko
   „Upravit pro vozy“ (`road-wagon`, ikona `cesta-vozova`, `WagonTooltip`), náhled trasy
-  `VillageGame` → `LandscapeScene.previewWagonRoad` (plán i vytyčení – `setWagonPreview`), průběh `selection-wagon-progress`. Scéna: `terrain-edits.ts`
+  `useWagonPreview` → `LandscapeScene.previewWagonRoad` (plán i vytyčení – `setWagonPreview`), průběh `selection-wagon-progress`. Scéna: `terrain-edits.ts`
   (`editSurfaceHeights`, `recomputeNormals` jako Babylon), `TerrainMesh.setTerrainEdits`,
   `applyTerrainEdits` v `landscape-scene.ts` před obnovou vsi, `terrainChanged` (pole po blocích –
   `#t` v klíči bloku, pěšiny, cesty), pás `roadBands` `wagon` + `gravel` (`WAGON_*_LAYER`), svahy

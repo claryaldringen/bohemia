@@ -1,0 +1,442 @@
+'use client';
+
+import { useEffect, useState, type RefObject } from 'react';
+import {
+  FORTIFICATIONS,
+  rerouteProposal,
+  sectionOf,
+  type BuildableDwellingType,
+  type Landscape,
+  type SquareGrid,
+  type TileCell,
+  type WallKind,
+} from '@bohemia/game';
+import {
+  placeCemetery,
+  placeField,
+  placeFortification,
+  placeOrchard,
+  placePen,
+  rerouteFortificationSection,
+} from '@/app/game/actions';
+import type { Placement } from '@/hooks/use-placement';
+import {
+  buildItem,
+  fortVariantKind,
+  fortVariantsBlocked,
+  penVariantSpecies,
+  type WebBuildKind,
+} from '@/lib/build-items';
+import { checkWithDesecration, squaresWithDesecration } from '@/lib/desecration-warning';
+import { fortReroutePreview } from '@/lib/fort-reroute';
+import { structureGridAt } from '@/lib/scene/field-cells';
+import type { LandscapeScene } from '@/lib/scene/landscape-scene';
+import { wholeTarget, type VillageTarget } from '@/lib/scene/village-picking';
+import type { PlacementMode, PlacementResult } from '@/lib/scene/village-types';
+import {
+  isBuildAffordable,
+  type BuildOption,
+  type SceneVillage,
+  type VillageView,
+} from '@/lib/village-view';
+import { rightDeniedReason } from '../hud/rights';
+import { extendsSelectedPen, squareStructures } from './scene-village';
+import type { PendingSites } from './use-pending-sites';
+import type { ActionResult } from './village-data';
+
+/**
+ * Server action staveb malovaných po čtvercích podle druhu (obydlí jdou přes `placeDwelling`).
+ * Nová stavba po čtvercích = nový řádek tady a záznam v `lib/build-items.ts`.
+ */
+const SUBMIT_SQUARES: Partial<
+  Record<
+    WebBuildKind,
+    (
+      villageId: string,
+      cells: TileCell[],
+      grid?: SquareGrid,
+      variant?: string,
+    ) => Promise<ActionResult>
+  >
+> = {
+  // všechny i v natočené mřížce (fields.md – Natočené stavby)
+  field: (villageId, cells, grid) => placeField({ villageId, cells, ...(grid ? { grid } : {}) }),
+  cemetery: (villageId, cells, grid) =>
+    placeCemetery({ villageId, cells, ...(grid ? { grid } : {}) }),
+  orchard: (villageId, cells, grid) =>
+    placeOrchard({ villageId, cells, ...(grid ? { grid } : {}) }),
+  // ohrada podle druhu (oxen.md – Ohrady podle druhu): druh z rozcestníku mřížky staveb
+  pen: (villageId, cells, grid, variant) =>
+    placePen({
+      villageId,
+      cells,
+      species: penVariantSpecies(variant),
+      ...(grid ? { grid } : {}),
+    }),
+};
+
+export interface BuildMode {
+  /** Co hráč umisťuje (tlačítko svítí v mřížce, dokud umisťování běží). */
+  placingItem: WebBuildKind | null;
+  /** Otevřený rozcestník mřížky staveb – stavba s druhy (ohrada, opevnění). */
+  buildGroup: WebBuildKind | null;
+  setBuildGroup: (kind: WebBuildKind | null) => void;
+  /** Nabídka staveb (mřížka i zkratky) – vymřelá a opuštěná ves nic nestaví. */
+  options: Partial<Record<WebBuildKind, BuildOption | null>>;
+  /** Vybraná ohrada koní: její rozšíření koně neplatí (horses.md – Koně se stavbou ohrady). */
+  extendingVariant: 'horse' | null;
+  /** Tlačítko nebo zkratka stavby – rozcestník druhů, nebo umisťování ve scéně. */
+  startBuild: (kind: WebBuildKind, variant?: string) => void;
+  /** Úsek opevnění od brány k bráně jinudy – editor trasy. */
+  startReroute: (fortificationId: number, segment: number, target: WallKind) => void;
+}
+
+/**
+ * Stavební režim (web-ui.md – Stavba, mřížka staveb): nabídka staveb, rozcestník druhů
+ * a umisťování ve scéně podle druhu umístění (`buildItem(kind).placement`) – obydlí, pozemek,
+ * dílna, posvátná stavba, lom, humno, stavby po čtvercích a obvod opevnění z bodů. Hráč staví,
+ * kdy chce – zablokovat smí jen cena předem a práva seniorátu. Ve vymřelé vsi umisťování skončí.
+ */
+export function useBuildMode({
+  scene,
+  decoded,
+  view,
+  viewRef,
+  villageError,
+  placement,
+  selected,
+  setSelected,
+  sceneVillageRef,
+  foundingName,
+  sites,
+  runBuildAction,
+}: {
+  scene: LandscapeScene | null;
+  decoded: Landscape;
+  view: VillageView | null;
+  viewRef: RefObject<VillageView | null>;
+  villageError: string | null;
+  placement: Placement;
+  selected: VillageTarget | null;
+  setSelected: (target: VillageTarget | null) => void;
+  sceneVillageRef: RefObject<SceneVillage>;
+  /** Vojvoda ještě nemá jméno – ves se nezakládá. */
+  foundingName: boolean;
+  sites: PendingSites;
+  runBuildAction: (action: () => Promise<ActionResult>) => Promise<void>;
+}): BuildMode {
+  const [placingItem, setPlacingItem] = useState<WebBuildKind | null>(null);
+  // otevřený rozcestník mřížky staveb – stavba s druhy (ohrada – oxen.md, Ohrady podle druhu)
+  const [buildGroup, setBuildGroup] = useState<WebBuildKind | null>(null);
+  const { placementScene, placementVillage } = sites;
+  const cancelPlacement = placement.cancel;
+
+  // Ves vymřela uprostřed umisťování – stavba už nejde, umisťování skončí.
+  const extinct = Boolean(view?.extinct);
+  useEffect(() => {
+    if (extinct) cancelPlacement();
+  }, [extinct, cancelPlacement]);
+
+  // vybraná ohrada koní: její rozšíření koně neplatí (horses.md – Koně se stavbou ohrady)
+  const extendingVariant = extendsSelectedPen(
+    sceneVillageRef.current,
+    selected && wholeTarget(selected),
+    'horse',
+  )
+    ? 'horse'
+    : null;
+
+  /**
+   * Úsek od brány k bráně jinudy (demolition.md – Rozhodnutí): editor trasy s konci pevně
+   * v okrajích bran – návrh je původní trasa úseku, hráč body táhne a přidává, Enter (kladivo)
+   * pošle body mezi konci serveru.
+   */
+  const startReroute = (fortificationId: number, segment: number, target: WallKind): void => {
+    const fort = sceneVillageRef.current?.forts?.find((f) => f.id === fortificationId);
+    const section = fort ? sectionOf(fort, segment) : null;
+    const proposal = fort && section ? rerouteProposal(fort, decoded, section) : null;
+    const item = buildItem('fortification');
+    if (!scene || !fort || !proposal || item.placement !== 'fort-points') return;
+    const variant =
+      item.variants.find((v) => fortVariantKind(v.id) === target) ?? item.variants[0]!;
+    setBuildGroup(null);
+    setSelected(null);
+    setPlacingItem('fortification');
+    placement.start(
+      {
+        kind: 'fort-points',
+        variant,
+        bandM: FORTIFICATIONS.bandM[target],
+        fixedEnds: true,
+        propose: () => proposal,
+        preview: (points) =>
+          fortReroutePreview(decoded, placementVillage(), points, {
+            fort,
+            segment,
+            target,
+            day: viewRef.current?.dayIndex ?? 0,
+            woodSupply: viewRef.current?.woodSupply ?? 0,
+            ...(viewRef.current?.stoneSupply ? { stoneSupply: viewRef.current.stoneSupply } : {}),
+          }),
+      },
+      (result) => {
+        const villageId = viewRef.current?.id;
+        if (result.kind === 'fort-points' && villageId) {
+          void runBuildAction(() =>
+            rerouteFortificationSection({
+              villageId,
+              fortificationId,
+              segment,
+              points: result.points.slice(1, -1),
+              target,
+            }),
+          );
+        }
+      },
+    );
+  };
+
+  // vymřelá a opuštěná ves nic nestaví – nabídka staveb je prázdná (i zkratky); lidé na cestě
+  // po příjezdu umisťují první zemnici (migration.md – fáze 4)
+  const options: Partial<Record<WebBuildKind, BuildOption | null>> = view
+    ? view.extinct || view.abandoned
+      ? {}
+      : view.journey
+        ? view.journey.arrived
+          ? { zemnice: null }
+          : {}
+        : // opevnění nemá pevnou cenu – cena je u kurzoru podle délky obvodu
+          { ...view.build, fortification: null }
+    : villageError === null
+      ? { zemnice: null }
+      : {};
+
+  /** Umisťování obydlí: zemnice půdorysem u kurzoru, polozemnice na pozemku (políčku). */
+  const dwellingMode = (type: BuildableDwellingType): PlacementMode => {
+    const item = buildItem(type);
+    if (item.placement === 'plot') {
+      return {
+        kind: 'plot',
+        type,
+        check: (plot) =>
+          checkWithDesecration(placementScene(), (village) =>
+            item.check(decoded, village, plot, viewRef.current?.woodLogs ?? 0),
+          ),
+      };
+    }
+    if (item.placement !== 'footprint') throw new Error(`${type} se neumisťuje jako obydlí.`);
+    return {
+      kind: 'dwelling',
+      type,
+      check: (position) =>
+        checkWithDesecration(placementScene(), (village) =>
+          item.check(decoded, village, position, viewRef.current?.woodLogs ?? 0),
+        ),
+    };
+  };
+
+  const startBuild = (kind: WebBuildKind, variant?: string): void => {
+    // dokud se nepojmenuje vojvoda, ves se nezakládá – ani zkratkou, ani klikem mimo panel jména
+    if (!scene || foundingName || !(kind in options)) return;
+    // seniorát: stavět v cizí vsi rodu smí jen senior (zkratka nesmí obejít zašedlé tlačítko)
+    if (rightDeniedReason(view?.rights, 'build') !== null) return;
+    const item = buildItem(kind);
+    // stavba s druhy je rozcestník: tlačítko i zkratka otevřou v mřížce druhy, znovu je zavřou
+    if (
+      (item.placement === 'squares' || item.placement === 'fort-points') &&
+      item.variants &&
+      variant === undefined
+    ) {
+      if (buildGroup !== kind) placement.cancel();
+      setBuildGroup(buildGroup === kind ? null : kind);
+      return;
+    }
+    // roštová a komorová hradba až od svého roku – zašedlé tlačítko druhu nejde obejít
+    if (
+      kind === 'fortification' &&
+      variant &&
+      view &&
+      fortVariantsBlocked(view.dayIndex)[variant]
+    ) {
+      return;
+    }
+    setBuildGroup(null);
+    const option = options[kind];
+    // vybraný díl pole či čtverec sadu patří své stavbě (mřížka rozšíření)
+    const chosen = selected && wholeTarget(selected);
+    if (
+      !isBuildAffordable(
+        option,
+        variant,
+        extendsSelectedPen(sceneVillageRef.current, chosen, variant),
+      )
+    ) {
+      return;
+    }
+    setSelected(null);
+    setPlacingItem(kind);
+    if (item.placement === 'fort-points') {
+      // obvod z bodů (fortifications.md – Obvod): návrh hry u kurzoru, body upraví hráč
+      const fortVariant = item.variants.find((v) => v.id === variant) ?? item.variants[0]!;
+      const fortKind = fortVariantKind(fortVariant.id);
+      placement.start(
+        {
+          kind: 'fort-points',
+          variant: fortVariant,
+          bandM: FORTIFICATIONS.bandM[fortKind],
+          propose: ([x, z]) =>
+            item.propose(
+              decoded,
+              placementVillage(),
+              { x, z },
+              fortVariant.id,
+              sceneVillageRef.current?.grainPits,
+            ),
+          preview: (points) => ({
+            ...squaresWithDesecration(placementScene(), (village) =>
+              item.check(decoded, village, points, fortVariant.id, {
+                woodSupply: viewRef.current?.woodSupply ?? 0,
+                ...(viewRef.current?.stoneSupply
+                  ? { stoneSupply: viewRef.current.stoneSupply }
+                  : {}),
+              }),
+            ),
+            label: '',
+          }),
+        },
+        (result) => {
+          const villageId = viewRef.current?.id;
+          if (result.kind === 'fort-points' && villageId) {
+            void runBuildAction(() =>
+              placeFortification({
+                villageId,
+                points: result.points,
+                kind: fortVariantKind(result.variant),
+              }),
+            );
+          }
+        },
+      );
+      return;
+    }
+    if (item.placement === 'squares') {
+      const submit = SUBMIT_SQUARES[kind];
+      if (!submit) throw new Error(`Stavba ${kind} nemá server action.`);
+      // vybraná stavba stejného druhu: malování začne v její mřížce (rozšíření); u ohrady jen
+      // ohrada druhu vybraného v rozcestníku (oxen.md – Ohrady podle druhu)
+      const structures = squareStructures(sceneVillageRef.current, kind, variant);
+      const chosenId = chosen && chosen.kind === kind && 'id' in chosen ? chosen.id : null;
+      const start = chosenId === null ? undefined : structures.find((s) => s.id === chosenId)?.grid;
+      placement.start(
+        {
+          kind: 'squares',
+          preview: (cells, grid, kindVariant) => ({
+            ...squaresWithDesecration(placementScene(), (village) =>
+              item.check(decoded, village, cells, grid, kindVariant, {
+                woodSupply: viewRef.current?.woodSupply ?? 0,
+              }),
+            ),
+            label: '',
+          }),
+          ...(item.variants ? { variants: item.variants, ...(variant ? { variant } : {}) } : {}),
+          ...(item.rotatable
+            ? {
+                rotatable: true,
+                gridAt: (x: number, z: number, kindVariant?: string) =>
+                  structureGridAt(
+                    squareStructures(sceneVillageRef.current, kind, kindVariant),
+                    x,
+                    z,
+                  ),
+                ...(start ? { grid: start } : {}),
+              }
+            : {}),
+        },
+        (result) => {
+          const villageId = viewRef.current?.id;
+          if (result.kind === 'squares' && villageId) {
+            void runBuildAction(() => submit(villageId, result.cells, result.grid, result.variant));
+          }
+        },
+      );
+      return;
+    }
+    const onDwelling = (result: PlacementResult): void => {
+      // dvorec hráč nestaví – vznikne přestavbou dvorce vsi (trade.md)
+      if (result.kind === 'dwelling' && result.type !== 'dvorec') {
+        sites.buildDwelling(result.type, result.position, result.plot);
+      }
+    };
+    if (item.placement === 'plot' || item.placement === 'footprint') {
+      placement.start(dwellingMode(item.dwellingType), onDwelling);
+      return;
+    }
+    if (item.placement === 'workshop') {
+      placement.start(
+        {
+          kind: 'workshop',
+          craft: item.craft,
+          type: item.dwellingType,
+          check: (position) =>
+            checkWithDesecration(placementScene(), (village) =>
+              item.check(decoded, village, position, viewRef.current?.woodLogs ?? 0),
+            ),
+        },
+        (result) => {
+          if (result.kind === 'workshop') sites.buildWorkshop(result.craft, result.position);
+        },
+      );
+      return;
+    }
+    if (item.placement === 'sacred') {
+      placement.start(
+        {
+          kind: 'sacred',
+          type: item.sacredKind,
+          check: (position) =>
+            checkWithDesecration(placementScene(), (village) =>
+              item.check(decoded, village, position),
+            ),
+        },
+        (result) => {
+          if (result.kind === 'sacred') sites.buildSacred(result.type, result.position);
+        },
+      );
+      return;
+    }
+    if (item.placement === 'quarry') {
+      placement.start(
+        { kind: 'quarry', check: (position) => item.check(decoded, placementVillage(), position) },
+        (result) => {
+          if (result.kind === 'quarry') sites.buildQuarry(result.position);
+        },
+      );
+      return;
+    }
+    if (item.placement === 'threshing-floor') {
+      placement.start(
+        {
+          kind: 'threshing-floor',
+          check: (position) =>
+            checkWithDesecration(placementScene(), (village) =>
+              item.check(decoded, village, position, viewRef.current?.woodLogs ?? 0),
+            ),
+        },
+        (result) => {
+          if (result.kind === 'threshing-floor') sites.buildThreshingFloor(result.position);
+        },
+      );
+      return;
+    }
+  };
+
+  return {
+    placingItem,
+    buildGroup,
+    setBuildGroup,
+    options,
+    extendingVariant,
+    startBuild,
+    startReroute,
+  };
+}

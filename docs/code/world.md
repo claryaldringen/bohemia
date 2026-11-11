@@ -284,7 +284,7 @@ hráč)`) a rod s `house.placed_at` null. Pozvaný je na mapě hned (`placed_at`
   `apps/web/lib/player-notices.ts` (`playerNoticeLine`); nový druh = nová větev v `textOf` i
   `noticePanel` (kompilátor ohlídá úplnost).
 - **Doručení v odpovědi dotazu na ves:** upozornění se nepushují a nemají vlastní akci (server
-  actions jednoho klienta jedou ve frontě po jedné). `poll` ve `VillageGame` posílá
+  actions jednoho klienta jedou ve frontě po jedné). `poll` v `useVillageSync` posílá
   `getVillageView({ …, withNotices: true })`; odpověď (`VillageView` i `VillageUnchanged`, ne
   `null`/chyba) nese `playerNotices` – výsledek `NoticeRepository.takeUnread(playerId,
 NOTICE_BATCH = 20)`, tedy nepřečtená od nejstaršího, která se tím zároveň označí za přečtená (jedno
@@ -295,7 +295,7 @@ NOTICE_BATCH = 20)`, tedy nepřečtená od nejstaršího, která se tím zárove
   se nečte (`wantsPlayerNotices`). `after` a `markRead` v portu zůstávají pro panel s historií.
 - **Id řádku:** řádek hráčského upozornění má id `-id` upozornění, vesnické řádky kladné id z
   čítače – řady se nesrazí.
-- **Klik:** `noticePanel(kind)` vrací panel, který řádek otevírá; `VillageGame.openNoticePanel` zatím
+- **Klik:** `noticePanel(kind)` vrací panel, který řádek otevírá; `openNoticePanel` (`usePlayerNotices`) zatím
   nic neotevře (panel „Rod a vazalové“ vznikne v úloze 1.10).
 
 ## Schránka vsi
