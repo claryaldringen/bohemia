@@ -3,6 +3,13 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { Client, type PoolClient } from 'pg';
+import {
+  VILLAGE_STATE_SQL_COLUMNS,
+  villageStateOfSqlRow,
+  villageStateSelect,
+  villageStateSizeSql,
+  villageStateSqlValues,
+} from '@bohemia/db/village-state';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import {
   createAlarmOwners,
@@ -26,6 +33,7 @@ import {
   type CampaignRepository,
   type CampaignState,
   type StepCampaignsDeps,
+  type VillageState,
 } from '@bohemia/game';
 import { cachedLandscapes, createCampaignCells } from '@bohemia/server';
 
@@ -92,15 +100,19 @@ async function querySource(): Promise<Source> {
   await client.connect();
   try {
     const found = await client.query(
-      `select v.state::text as state, s.landscape_seed, s.layer_versions
+      `select ${villageStateSelect('v')}, s.landscape_seed, s.layer_versions
        from village v join settlement s on s.id = v.settlement_id
        where ($1::uuid is null or v.id = $1) and s.archived_at is null
-       order by length(v.state::text) desc limit 1`,
+       order by ${villageStateSizeSql('v')} desc limit 1`,
       [args.village ?? null],
     );
     const row = found.rows[0];
     if (!row) throw new Error('Zdrojová ves nenalezena.');
-    return { state: row.state, seed: row.landscape_seed, versions: row.layer_versions };
+    return {
+      state: JSON.stringify(villageStateOfSqlRow(row)),
+      seed: row.landscape_seed,
+      versions: row.layer_versions,
+    };
   } finally {
     await client.end();
   }
@@ -136,7 +148,7 @@ async function seed(source: Source, count: number): Promise<{ id: string; x: num
     // klíč založení je unikátní – kopie ho nesmí nést
     const state = JSON.parse(source.state) as Record<string, unknown>;
     delete state.origin;
-    const json = JSON.stringify(state);
+    const values = villageStateSqlValues(state as unknown as VillageState);
     for (let i = 0; i < count; i++) {
       const settlement = await client.query(
         `insert into settlement (owner_id, is_seat, landscape_seed, layer_versions, weather_seed,
@@ -144,9 +156,9 @@ async function seed(source: Source, count: number): Promise<{ id: string; x: num
         [PLAYER, i === 0, source.seed, JSON.stringify(source.versions), 2 * i, GRID_Y],
       );
       const village = await client.query(
-        `insert into village (settlement_id, name, state, created_at)
-         values ($1, $2, $3::jsonb, now()) returning id`,
-        [settlement.rows[0].id, `Měřená ${i + 1}`, json],
+        `insert into village (settlement_id, name, created_at, ${VILLAGE_STATE_SQL_COLUMNS})
+         values ($1, $2, now(), $3, $4, $5, $6, $7, $8, $9, $10, $11) returning id`,
+        [settlement.rows[0].id, `Měřená ${i + 1}`, ...values],
       );
       out.push({ id: village.rows[0].id, x: 2 * i });
     }

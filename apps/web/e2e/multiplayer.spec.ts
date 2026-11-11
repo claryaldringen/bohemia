@@ -15,6 +15,7 @@ import { E2E_ENV } from '../playwright.config';
 import { registerAndEnterGame, uniqueEmail, useUniqueClientIp } from './helpers';
 import { linkFromLastMail } from './mail';
 import {
+  changeVillageState,
   confirmPlacement,
   found,
   newPlayer,
@@ -25,6 +26,7 @@ import {
   villageSpots,
   withBuiltFirstDwelling,
   villageState,
+  villageStateById,
   writeVillageState,
 } from './village-helpers';
 
@@ -394,11 +396,7 @@ test('Odvody 1. 11.: vazal ubere obilí a odešle, pán dostane upozornění a p
   );
 
   // čerstvá ves nemá společnou práci, z níž se platí doprava dávky – dopřejeme jí ji zápisem
-  await query(
-    `UPDATE village SET state = jsonb_set(state, '{commonLaborYearly}', '30'), version = version + 1
-      WHERE settlement_id = $1`,
-    [seatB.settlementId],
-  );
+  await changeVillageState(seatB.settlementId, (s) => ({ ...s, commonLaborYearly: 30 }));
 
   // pán vidí u vazala přesýpací hodiny
   const panelA2 = await reopenHousePanel(a);
@@ -453,12 +451,7 @@ test('pomoc na žádost: B požádá A o obilí, A dá půjčku, B přijme → z
   await expect(panelB.getByTestId('house-lord')).toHaveCount(1);
 
   // čerstvá ves nemá společnou práci, z níž se platí doprava – dopřejeme ji věřiteli
-  await query(
-    `UPDATE village SET state = jsonb_set(state, '{commonLaborYearly}', '30'),
-            version = version + 1, digest_version = version + 1
-      WHERE settlement_id = $1`,
-    [seatA.settlementId],
-  );
+  await changeVillageState(seatA.settlementId, (s) => ({ ...s, commonLaborYearly: 30 }));
 
   // B požádá pána o pomoc: 6 kg obilí
   await panelB.getByTestId('house-lord').click();
@@ -556,20 +549,10 @@ test('obchod mezi hráči: A nabídne C obilí za klády, C přijme → oba maj�
 
   // čerstvé vsi nemají společnou práci, z níž se platí doprava – dopřejeme ji oběma
   for (const settlementId of [seatA.settlementId, seatC.settlementId]) {
-    await query(
-      `UPDATE village SET state = jsonb_set(state, '{commonLaborYearly}', '30'),
-              version = version + 1, digest_version = version + 1
-        WHERE settlement_id = $1`,
-      [settlementId],
-    );
+    await changeVillageState(settlementId, (s) => ({ ...s, commonLaborYearly: 30 }));
   }
   // C má co poslat za obilí: čerstvá ves nemá žádné klády
-  await query(
-    `UPDATE village SET state = jsonb_set(state, '{woodLogs}', '10'),
-            version = version + 1, digest_version = version + 1
-      WHERE settlement_id = $1`,
-    [seatC.settlementId],
-  );
+  await changeVillageState(seatC.settlementId, (s) => ({ ...s, woodLogs: 10 }));
 
   // A nabídne C obchod bez vazalství: dá 6 kg obilí, dostane 4 klády
   const panelA = await openHousePanel(a);
@@ -735,11 +718,7 @@ test('povýšení vesničana: hráč povýší rolníka pro druhou ves bez vojvo
     `SELECT settlement_id FROM village WHERE id = $1`,
     [second.id],
   );
-  const waiting = await query<{ state: VillageStateJson }>(
-    `SELECT state FROM village WHERE id = $1`,
-    [second.id],
-  );
-  const empty = waiting[0]!.state;
+  const empty: VillageStateJson = await villageStateById(second.id);
   for (const p of empty.people) delete p.line;
   empty.dynasty = {
     lordId: null,
@@ -1065,12 +1044,7 @@ test('rozsudek pána: spoluvazal žaluje druhého, ten se vyjádří, pán rozho
     );
   }
   // obžalovaný má co dát
-  await query(
-    `UPDATE village SET state = jsonb_set(state, '{commonLaborYearly}', '30'),
-            version = version + 1, digest_version = version + 1
-      WHERE settlement_id = $1`,
-    [seatD.settlementId],
-  );
+  await changeVillageState(seatD.settlementId, (s) => ({ ...s, commonLaborYearly: 30 }));
 
   // žalobce podá žalobu na spoluvazala
   const panelP = await openHousePanel(plaintiff);

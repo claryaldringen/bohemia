@@ -22,10 +22,18 @@ import { Client } from 'pg';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { createDatabase } from '@bohemia/db';
 import {
+  VILLAGE_STATE_SQL_COLUMNS,
+  villageStateOfSqlRow,
+  villageStateSelect,
+  villageStateSizeSql,
+  villageStateSqlValues,
+} from '@bohemia/db/village-state';
+import {
   TOTAL_GAME_DAYS,
   advanceWorldStep,
   type LandscapeSource,
   type WorldStepDeps,
+  type VillageState,
 } from '@bohemia/game';
 import {
   WORKER_LOCK_POOL_SIZE,
@@ -69,17 +77,17 @@ async function loadSource(villageId: string | null): Promise<Source> {
   await client.connect();
   try {
     const found = await client.query(
-      `select v.name, v.state::text as state, s.landscape_seed, s.layer_versions, s.weather_seed
+      `select v.name, ${villageStateSelect('v')}, s.landscape_seed, s.layer_versions, s.weather_seed
        from village v join settlement s on s.id = v.settlement_id
        where ($1::uuid is null or v.id = $1) and s.archived_at is null
-       order by length(v.state::text) desc limit 1`,
+       order by ${villageStateSizeSql('v')} desc limit 1`,
       [villageId],
     );
     const row = found.rows[0];
     if (!row) throw new Error('Zdrojová ves nenalezena.');
     return {
       name: row.name,
-      state: row.state,
+      state: JSON.stringify(villageStateOfSqlRow(row)),
       settlement: {
         landscape_seed: row.landscape_seed,
         layer_versions: row.layer_versions,
@@ -129,9 +137,14 @@ async function seedDynasty(client: Client, source: Source, count: number): Promi
     const state = JSON.parse(source.state) as Record<string, unknown>;
     delete state.origin;
     await client.query(
-      `insert into village (settlement_id, name, state, created_at)
-       values ($1, $2, $3::jsonb, now() + ($4 || ' seconds')::interval)`,
-      [settlement.rows[0].id, `${source.name} ${i + 1}`, JSON.stringify(state), String(i)],
+      `insert into village (settlement_id, name, created_at, ${VILLAGE_STATE_SQL_COLUMNS})
+       values ($1, $2, now() + ($3 || ' seconds')::interval, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      [
+        settlement.rows[0].id,
+        `${source.name} ${i + 1}`,
+        String(i),
+        ...villageStateSqlValues(state as unknown as VillageState),
+      ],
     );
   }
 }

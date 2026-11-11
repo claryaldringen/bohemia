@@ -3,6 +3,12 @@
 import { expect, type Page } from '@playwright/test';
 import { Client } from 'pg';
 import {
+  VILLAGE_STATE_SQL_COLUMNS,
+  readVillageState,
+  updateVillageState,
+  writeVillageState as writeStoredVillageState,
+} from '@bohemia/db/village-state';
+import {
   checkDwellingPlacement,
   checkPlotPlacement,
   fieldPartsFromCells,
@@ -29,10 +35,15 @@ export interface Seat {
 }
 
 export async function query<T extends object>(sql: string, params: unknown[]): Promise<T[]> {
+  return withClient(async (client) => (await client.query<T>(sql, params)).rows);
+}
+
+/** Jedno spojení na testovací databázi (transakce pomocníků stavu vsi). */
+async function withClient<T>(run: (client: Client) => Promise<T>): Promise<T> {
   const client = new Client({ connectionString: TEST_DATABASE_URL });
   await client.connect();
   try {
-    return (await client.query<T>(sql, params)).rows;
+    return await run(client);
   } finally {
     await client.end();
   }
@@ -89,37 +100,57 @@ export async function villageOnNextMap(
     [settlementId],
   );
   const [village] = await query<{ id: string; name: string }>(
-    `INSERT INTO village (settlement_id, name, state)
-       SELECT $2, $3, state FROM village WHERE settlement_id = $1
+    `INSERT INTO village (settlement_id, name, ${VILLAGE_STATE_SQL_COLUMNS})
+       SELECT $2, $3, ${VILLAGE_STATE_SQL_COLUMNS} FROM village WHERE settlement_id = $1
      RETURNING id, name`,
     [settlementId, map!.id, name],
   );
   if (!village) throw new Error('Druhá ves nevznikla.');
   if (options.own) {
+    const lordId = (await villageStateById(village.id)).dynasty?.lordId ?? null;
     await query(
-      `UPDATE house SET lord_village_id = $1,
-         lord_person_id = (SELECT (state->'dynasty'->>'lordId')::int FROM village WHERE id = $1)
+      `UPDATE house SET lord_village_id = $1, lord_person_id = $3
        WHERE ended_at IS NULL AND player_id = (SELECT owner_id FROM settlement WHERE id = $2)`,
-      [village.id, settlementId],
+      [village.id, settlementId, lordId],
     );
   }
   return village;
 }
 
-/** Uložený stav vsi sídla (jedna ves, jedna mapa – migration.md). */
-export async function villageState(settlementId: string): Promise<VillageState> {
-  const [row] = await query<{ state: VillageState }>(
-    'SELECT state FROM village WHERE settlement_id = $1 ORDER BY created_at, id LIMIT 1',
+/** Id vsi sídla (jedna ves, jedna mapa – migration.md). */
+export async function villageIdOf(settlementId: string): Promise<string> {
+  const [row] = await query<{ id: string }>(
+    'SELECT id FROM village WHERE settlement_id = $1 ORDER BY created_at, id LIMIT 1',
     [settlementId],
   );
   if (!row) throw new Error('Ves není založená.');
-  return row.state;
+  return row.id;
 }
 
-/**
- * Uloží upravený stav vsi sídla (jako by ho zapsal server) – ukáže ho až další dotaz na ves
- * (`pollVillage`; sám by přišel až s dalším herním dnem).
- */
+/** Uložený stav vsi podle id (kodek `@bohemia/db/village-state` – stav je v DB komprimovaný). */
+export async function villageStateById(villageId: string): Promise<VillageState> {
+  const state = await withClient((client) => readVillageState(client, villageId));
+  if (!state) throw new Error(`Ves ${villageId} neexistuje.`);
+  return state;
+}
+
+/** Uložený stav vsi sídla. */
+export async function villageState(settlementId: string): Promise<VillageState> {
+  return villageStateById(await villageIdOf(settlementId));
+}
+
+/** Ves sídla – id, jméno a uložený stav. */
+export async function villageOf(
+  settlementId: string,
+): Promise<{ id: string; name: string; state: VillageState }> {
+  const [row] = await query<{ id: string; name: string }>(
+    'SELECT id, name FROM village WHERE settlement_id = $1 ORDER BY created_at, id LIMIT 1',
+    [settlementId],
+  );
+  if (!row) throw new Error('Ves není založená.');
+  return { ...row, state: await villageStateById(row.id) };
+}
+
 /**
  * Zeptá se na ves hned (háček dotazování) – po přímé změně uložené vsi. Dotaz sám jde až na
  * začátku dalšího herního dne (v pomalém světě testů nejpozději za 86 s).
@@ -128,12 +159,36 @@ export async function pollVillage(page: Page): Promise<void> {
   await page.evaluate(() => window.__bohemiaE2E!.pollVillage!());
 }
 
+/**
+ * Uloží upravený stav vsi sídla (jako by ho zapsal server) – ukáže ho až další dotaz na ves
+ * (`pollVillage`; sám by přišel až s dalším herním dnem).
+ */
 export async function writeVillageState(settlementId: string, state: VillageState): Promise<void> {
-  await query(
-    `UPDATE village SET state = $2::jsonb, version = version + 1
-      WHERE id = (SELECT id FROM village WHERE settlement_id = $1 ORDER BY created_at, id LIMIT 1)`,
-    [settlementId, JSON.stringify(state)],
-  );
+  await writeVillageStateById(await villageIdOf(settlementId), state);
+}
+
+/** Zapíše stav vsi podle id jako server (kodek, odvozené sloupce, souhrn; verze + 1). */
+export async function writeVillageStateById(villageId: string, state: VillageState): Promise<void> {
+  await withClient((client) => writeStoredVillageState(client, villageId, state));
+}
+
+/**
+ * Atomická úprava uloženého stavu vsi podle id (náhrada `jsonb_set` – stav je v DB komprimovaný);
+ * verze + 1 jako zápis serveru. Vrátí nový stav.
+ */
+export async function changeVillageStateById(
+  villageId: string,
+  change: (state: VillageState) => VillageState,
+): Promise<VillageState> {
+  return withClient((client) => updateVillageState(client, villageId, change));
+}
+
+/** Atomická úprava uloženého stavu vsi sídla. */
+export async function changeVillageState(
+  settlementId: string,
+  change: (state: VillageState) => VillageState,
+): Promise<VillageState> {
+  return changeVillageStateById(await villageIdOf(settlementId), change);
 }
 
 /**

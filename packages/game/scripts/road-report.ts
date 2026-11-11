@@ -2,7 +2,8 @@
 // npx tsx packages/game/scripts/road-report.ts <soubor.json> [--years N] [--roads cesty.json]
 //
 // Soubor: { "state": <stav vsi>, "landscapeSeed": číslo, "layerVersions": {…}, "name"?: text } –
-// tedy sloupce `village.state`, `settlement.landscape_seed` a `settlement.layer_versions` z DB.
+// tedy stav vsi (v DB komprimovaný – `storedVillageState` z `@bohemia/db/village-state`),
+// `settlement.landscape_seed` a `settlement.layer_versions` z DB.
 // Ves se načte use-casem `updateVillage` (stejné převody jako ve hře) a dopočte N let (výchozí 1).
 // Výpis: čas generování krajiny, načtení a dopočtu (ms), velikost stavu (kB), cesty po druzích
 // (počet, km), křižovatky (body, kde se potkají ≥ 3 konce úseků), pahýly (krátký úsek s volným

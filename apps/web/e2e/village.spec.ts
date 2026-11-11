@@ -33,6 +33,8 @@ import {
 import { openGameMenu, useUniqueClientIp } from './helpers';
 import {
   block,
+  changeVillageState,
+  changeVillageStateById,
   confirmPlacement,
   found,
   freeHomes,
@@ -45,9 +47,12 @@ import {
   twoHouseholds,
   villageSpots,
   villageOnNextMap,
+  villageOf,
   villageState,
+  villageStateById,
   withBuiltFirstDwelling,
   writeVillageState,
+  writeVillageStateById,
 } from './village-helpers';
 
 // Ves projde celou cestou hráče (rozhraní jako v 0 A.D., server actions, scéna) – jen kliknutí
@@ -429,11 +434,7 @@ test('upozornění vsi se ukáže krátkým řádkem nahoře a samo zmizí', asy
   await found(page, villageSpots(s.landscape).dwelling);
   // Hlad nastavený přímo v uložené vsi – další dotaz na ves ho ohlásí. „Ves hladoví“ je stupeň
   // s příděl pod 90 % (population.md – Co hráč vidí); samotný příznak `hungry` je jen šetření.
-  await query(
-    `UPDATE village SET state = state || '{"hungry": true, "ration": 0.5}'::jsonb, version = version + 1
-      WHERE settlement_id = $1`,
-    [s.settlementId],
-  );
+  await changeVillageState(s.settlementId, (v) => ({ ...v, hungry: true, ration: 0.5 }));
   await pollVillage(page);
   const notice = page.locator('[data-testid="village-notice"][data-kind="hungry"]');
   await expect(notice).toHaveText('Ves hladoví', { timeout: 20_000 });
@@ -476,10 +477,7 @@ test('hráč založí hřbitov po čtvercích a vybere ho – panel ukáže hrob
   cemetery.builtDay = state.lastDay;
   cemetery.graves = 3;
   state.constructions = state.constructions.filter((c) => c.kind !== 'cemetery');
-  await query('UPDATE village SET state = $2, version = version + 1 WHERE settlement_id = $1', [
-    s.settlementId,
-    JSON.stringify(state),
-  ]);
+  await writeVillageState(s.settlementId, state);
   await pollVillage(page);
   await expect(panel.getByTestId('selection-graves')).toHaveText('3/56', { timeout: 20_000 });
   await expect(panel.getByTestId('selection-years')).toBeVisible();
@@ -648,10 +646,7 @@ test('hráč vysadí sad po čtvercích a vybere ho – panel ukáže výsadbu, 
     delete square.trees;
   }
   state.constructions = state.constructions.filter((c) => c.kind !== 'orchard');
-  await query('UPDATE village SET state = $2, version = version + 1 WHERE settlement_id = $1', [
-    s.settlementId,
-    JSON.stringify(state),
-  ]);
+  await writeVillageState(s.settlementId, state);
   await pollVillage(page);
   await expect(panel.getByTestId('selection-age')).toHaveText(/^(29|30)$/, { timeout: 20_000 });
   await expect(panel.getByTestId('selection-progress')).toHaveCount(0);
@@ -1050,14 +1045,12 @@ test('seniorát – v cizí vsi rodu stavební lišta zašedne s důvodem, senio
   // starší – senior rodu, takže hráč jen sleduje.
   const two = await villageOnNextMap(s.settlementId, 'Budeč', { own: true });
   const older = async (villageId: string, years: number): Promise<void> => {
-    await query(
-      `UPDATE village SET version = version + 1, state = jsonb_set(state, '{people}',
-         (SELECT jsonb_agg(CASE WHEN (p->>'id')::int = (state->'dynasty'->>'lordId')::int
-            THEN jsonb_set(p, '{bornDay}', to_jsonb((p->>'bornDay')::int - $2::int)) ELSE p END)
-            FROM jsonb_array_elements(state->'people') p))
-       WHERE id = $1`,
-      [villageId, years * 365],
-    );
+    await changeVillageStateById(villageId, (v) => ({
+      ...v,
+      people: v.people.map((p) =>
+        p.id === v.dynasty?.lordId ? { ...p, bornDay: p.bornDay - years * 365 } : p,
+      ),
+    }));
   };
   await older(one!.id, 20);
   await page.reload();
@@ -1216,12 +1209,9 @@ test('lidé odejdou na novou mapu – po cestě umístí první zemnici', async 
   ).toBeLessThanOrEqual(WORLD.sonDryRings);
   expect(east!.has_skeleton).toBe(false);
   expect(east!.layer_versions).not.toHaveProperty('skeleton');
-  const [travelling] = await query<{ id: string; name: string; state: VillageState }>(
-    'SELECT id, name, state FROM village WHERE settlement_id = $1',
-    [east!.id],
-  );
-  expect(travelling!.state.journey?.direction).toBe('E');
-  expect(travelling!.state.people).toHaveLength(before.people.length);
+  const travelling = await villageOf(east!.id);
+  expect(travelling.state.journey?.direction).toBe('E');
+  expect(travelling.state.people).toHaveLength(before.people.length);
   await expect(
     page.locator('[data-testid="village-notice"][data-kind="households-left"]'),
   ).toBeVisible();
@@ -1237,20 +1227,17 @@ test('lidé odejdou na novou mapu – po cestě umístí první zemnici', async 
   ).toHaveAttribute('data-state', 'abandoned');
   await page
     .getByTestId('village-list')
-    .locator(`[data-village="${travelling!.id}"] [data-testid="village-select"]`)
+    .locator(`[data-village="${travelling.id}"] [data-testid="village-select"]`)
     .click();
   await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByTestId('village-name')).toHaveText(travelling!.name, { timeout: 30_000 });
+  await expect(page.getByTestId('village-name')).toHaveText(travelling.name, { timeout: 30_000 });
   await expect(page.getByTestId('journey-banner')).toHaveAttribute('data-arrived', 'false');
   await expect(page.getByTestId('build-grid').getByRole('button')).toHaveCount(0);
 
   // Lidé dorazili (příjezd posunutý na den odchodu) – jediná stavba je první zemnice.
-  const arrived = structuredClone(travelling!.state);
+  const arrived = structuredClone(travelling.state);
   arrived.journey!.arrivalDay = arrived.journey!.departedDay;
-  await query('UPDATE village SET state = $2::jsonb, version = version + 1 WHERE id = $1', [
-    travelling!.id,
-    JSON.stringify(arrived),
-  ]);
+  await writeVillageStateById(travelling.id, arrived);
   await page.reload();
   await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
   await expect(page.getByTestId('journey-banner')).toHaveAttribute('data-arrived', 'true');
@@ -1261,15 +1248,7 @@ test('lidé odejdou na novou mapu – po cestě umístí první zemnici', async 
   await grid.getByRole('button', { name: 'Zemnice' }).click();
   await confirmPlacement(page, { kind: 'dwelling', type: 'zemnice', position: first });
   await expect
-    .poll(
-      async () =>
-        (
-          await query<{ state: VillageState }>('SELECT state FROM village WHERE id = $1', [
-            travelling!.id,
-          ])
-        )[0]!.state.journey,
-      { timeout: 30_000 },
-    )
+    .poll(async () => (await villageStateById(travelling.id)).journey, { timeout: 30_000 })
     .toBeUndefined();
   await expect(page.getByTestId('journey-banner')).toHaveCount(0);
 });
@@ -1335,19 +1314,16 @@ test('mladší syn po pohřbu zvolí směr – výprava vyrazí hned, mateřská
     );
   await expect.poll(async () => (await maps()).length, { timeout: 30_000 }).toBe(2);
   const [, east] = await maps();
-  const [travelling] = await query<{ id: string; state: VillageState }>(
-    'SELECT id, state FROM village WHERE settlement_id = $1',
-    [east!.id],
-  );
-  expect(travelling!.state.journey).toMatchObject({ direction: 'E', lordId: sonId });
+  const travelling = await villageOf(east!.id);
+  expect(travelling.state.journey).toMatchObject({ direction: 'E', lordId: sonId });
   // výprava vyrazila hned, správce na cestě vypnutý; hráčův muž přešel na novou ves
-  expect(travelling!.state.steward?.on).toBe(false);
+  expect(travelling.state.steward?.on).toBe(false);
   const [house] = await query<{ lord_village_id: string; pending: unknown }>(
     `SELECT lord_village_id, pending_departure AS pending FROM house
       WHERE ended_at IS NULL AND player_id = (SELECT id FROM "user" WHERE email = $1)`,
     [email],
   );
-  expect(house).toMatchObject({ lord_village_id: travelling!.id, pending: null });
+  expect(house).toMatchObject({ lord_village_id: travelling.id, pending: null });
   // mateřská ves dál s nástupcem Bořkem a zapnutým správcem
   const left = await villageState(s.settlementId);
   expect(left.dynasty?.lordId).toBe(heirId);

@@ -5,6 +5,8 @@
  */
 import { execFileSync } from 'node:child_process';
 import { performance } from 'node:perf_hooks';
+// stav vsi je v DB komprimovaný po částech (kodek adaptéru) – skript jen dekóduje
+import { storedVillageState } from '@bohemia/db/village-state';
 import { generateLandscapeAttempt } from '../src/domain/landscape';
 import { updateVillage } from '../src/application/update-village';
 import type { Pause } from '../src/application/villages';
@@ -28,13 +30,23 @@ const row = execFileSync(
     '-F',
     '\t',
     '-c',
-    `select s.landscape_seed, s.layer_versions::text, v.state::text from village v join settlement s on s.id = v.settlement_id where v.id='3af7269a-5efd-4755-bb08-2dc45aa21ea5'`,
+    `select s.landscape_seed, s.layer_versions::text, coalesce(v.state::text, 'null'), coalesce(encode(v.state_day, 'hex'), ''), coalesce(encode(v.state_land, 'hex'), '') from village v join settlement s on s.id = v.settlement_id where v.id='3af7269a-5efd-4755-bb08-2dc45aa21ea5'`,
   ],
   { maxBuffer: 1 << 28, encoding: 'utf8' },
 ).trimEnd();
-const [seed, versions, stateText] = row.split('\t') as [string, string, string];
+const [seed, versions, stateText, dayHex, landHex] = row.split('\t') as [
+  string,
+  string,
+  string,
+  string,
+  string,
+];
 const landscape = generateLandscapeAttempt(Number(seed), JSON.parse(versions));
-const original = JSON.parse(stateText) as VillageState;
+const original: VillageState = storedVillageState({
+  state: JSON.parse(stateText) as VillageState | null,
+  stateDay: dayHex ? Buffer.from(dayHex, 'hex') : null,
+  stateLand: landHex ? Buffer.from(landHex, 'hex') : null,
+});
 const days = Number(arg('days', '365'));
 const runs = Number(arg('runs', '3'));
 const usePauses = !process.argv.includes('--no-pause');
