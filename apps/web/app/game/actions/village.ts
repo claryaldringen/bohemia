@@ -20,6 +20,7 @@ import {
   placeSacredForPlayer,
   placeThreshingFloorForPlayer,
   placeQuarryForPlayer,
+  placeChurchForPlayer,
   inviteLodgeForPlayer,
   inviteMasterForPlayer,
   orderStoneQuarryingForPlayer,
@@ -52,6 +53,7 @@ import {
   parsePlacePenInput,
   parsePlaceSacredInput,
   parsePlaceThreshingFloorInput,
+  parsePlaceChurchInput,
   parseOrderQuarryingInput,
   parsePlaceWorkshopInput,
   parseLeaveVillageInput,
@@ -185,6 +187,14 @@ export async function placeThreshingFloor(input: unknown): Promise<VillageAction
 /** Hráč zahájí stavbu lomu na skalním výchozu (fortifications.md – Kámen); server místo ověří. */
 export async function placeQuarry(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parsePlaceThreshingFloorInput, placeQuarryForPlayer);
+}
+
+/**
+ * Stavba kostela (churches.md – Stavba): `{ villageId, type, dims, position }` – rozměry
+ * `{ kind: 'round', diameter, height }` nebo `{ kind: 'long', width, length, height }`.
+ */
+export async function placeChurch(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parsePlaceChurchInput, placeChurchForPlayer);
 }
 
 /** Hráč zadá v lomu „nalámat do zásoby“ (fortifications.md – Kámen). */

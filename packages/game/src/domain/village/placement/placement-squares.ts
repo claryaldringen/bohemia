@@ -47,6 +47,7 @@ import {
   squareTile,
 } from './square-grid';
 import { threshingFloorFootprint } from '../fields/threshing-floors';
+import { churchyardWorld } from './church-plot';
 import { workshopFootprints } from '../crafts/crafts';
 import {
   M2_PER_HA,
@@ -259,6 +260,8 @@ export interface SquareFlags {
   sacred: boolean;
   /** Humno i rozestavěné (production-chains.md – Humno). */
   threshing: boolean;
+  /** Kostel s hřbitůvkem i rozestavěný (churches.md – Stavba). */
+  church: boolean;
   woodEdge: boolean;
 }
 
@@ -290,6 +293,10 @@ export function squareFlags(
     landscape,
     (village?.threshingFloors ?? []).map((f) => freeShape(threshingFloorFootprint(f.position))),
   );
+  const churches = new PolygonIndex(
+    landscape,
+    (village?.churches ?? []).map((c) => freeShape(churchyardWorld(c.type, c.dims, c.position))),
+  );
   // pramen a slanisko prémiové krajiny jsou voda – pole, sad ani hřbitov na ně nesmí
   const springShapes = premiumSpringShapes(landscape);
   const springs =
@@ -313,6 +320,7 @@ export function squareFlags(
       pen: kinds.has('pen'),
       sacred: sacred.overlapping(square.corners, square.tile).length > 0,
       threshing: floors.overlapping(square.corners, square.tile).length > 0,
+      church: churches.overlapping(square.corners, square.tile).length > 0,
       woodEdge: woods.some((w) => !sameSquare(w, square)),
       ground,
       woodExact,
@@ -495,6 +503,7 @@ export function buildSquares(
     pen: false,
     sacred: false,
     threshing: false,
+    church: false,
     woodEdge: false,
     far: false,
   };

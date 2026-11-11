@@ -69,6 +69,8 @@ export const ACTION_RIGHTS = {
   placeSacred: 'build',
   placeThreshingFloor: 'build',
   placeQuarry: 'build',
+  // stavba kostela (churches.md – Stavba)
+  placeChurch: 'build',
   // pozvání stavební huti a mistra (stone-masonry.md) – rozhodnutí rodu jako křest vojvody
   inviteLodge: 'ennoble',
   inviteMaster: 'ennoble',

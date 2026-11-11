@@ -379,7 +379,7 @@ export function rectangleSamples(width: number, depth: number, position: Positio
 export function checkFootprintTerrain(
   landscape: Landscape,
   samples: readonly Point[],
-  what: 'Obydlí' | 'Milíř' = 'Obydlí',
+  what: 'Obydlí' | 'Milíř' | 'Kostel' = 'Obydlí',
   clearForest = true,
 ): PlacementCheck {
   let lowest = Infinity;

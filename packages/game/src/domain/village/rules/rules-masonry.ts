@@ -144,6 +144,9 @@ export const CHURCH = {
   },
   // churches.md – Stavba: zdí se (a pálí vápno) jen duben–říjen
   season: { fromMonth: 4, toMonth: 10 },
+  // churches.md – Stavba: dřevo na krov a pálení vápna v kládách po 100 kg (kláda jako v obchodu –
+  // trade.md; návrh Clauda)
+  woodKgPerLog: 100,
   // churches.md – Co kostel dává
   m2PerPerson: 0.75,
   happinessPerCoverage: 40,

@@ -152,6 +152,12 @@ export * from './core/inbox';
 export * from './people/appoint-lord';
 export * from './people/lodge';
 export * from './people/lodge-life';
+export * from './buildings/church-build';
+export {
+  checkChurchPlacement,
+  churchyardWorld,
+  type ChurchPlacementCheck,
+} from './placement/placement-church';
 export * from './placement/polygon';
 export * from './placement/placement';
 export * from './buildings/dwelling-shape';

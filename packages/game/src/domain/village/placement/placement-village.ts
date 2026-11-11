@@ -32,7 +32,22 @@ export function placementVillageOf(state: VillageState, day: number): PlacementV
     ...(state.threshingFloors
       ? { threshingFloors: state.threshingFloors.map((f) => ({ position: f.position })) }
       : {}),
+    // kostely i rozestavěné (churches.md – Stavba) – zabírají hřbitůvek
+    ...churchPlots(state),
   };
+}
+
+/** Kostely a staveniště kostelů vsi pro kontrolu umístění; ves bez kostela nic. */
+function churchPlots(state: VillageState): Pick<PlacementVillage, 'churches'> {
+  const churches = [
+    ...(state.churches ?? []).map((c) => ({ type: c.type, dims: c.dims, position: c.position })),
+    ...state.constructions.flatMap((c) =>
+      c.church && c.position && !(state.churches ?? []).some((k) => k.id === c.id)
+        ? [{ type: c.church.type, dims: c.church.dims, position: c.position }]
+        : [],
+    ),
+  ];
+  return churches.length > 0 ? { churches } : {};
 }
 
 /**
