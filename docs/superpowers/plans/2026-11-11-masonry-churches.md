@@ -212,7 +212,7 @@ sandPit: { x; z }; quarryId?: number }`.
 - Štěstí křesťanů = `happinessPerCoverage × coverage + decorHappinessPerCoverage × decorated`;
   obrácení = `conversion.base + conversion.perCoverage × coverage`, × (1 + podíl křesťanů).
 - Kněz: `priestDay(state, day, random)` – kostel bez kněze dostane `LodgeArrival { role: 'priest',
-churchId }` na `finishedDay + priestAfterDays`, po smrti na den smrti + `newPriestAfterDays`;
+churchId }` na `finishedDay + priestAfterDays` (= 0, hned – Martin), po smrti na den smrti + `newPriestAfterDays`;
   příchod přes `arriveFromAbroad`, nežení se, nepracuje.
 - Pohřeb křesťana: kostel s knězem a volným hrobem (`churchyardGraves`; hrob starší než
   `CHURCH.graveReuseYears` = 30 let se uvolní – Martin „Ať se po čase uvolní“) nejblíž domu →
