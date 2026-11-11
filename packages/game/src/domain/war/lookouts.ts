@@ -1,7 +1,7 @@
-import { partCenter } from '../village/forest-clearing';
-import { orchardSquareCenter } from '../village/orchard';
-import { isAway } from '../village/people';
-import { raidHiding } from '../village/raid-day';
+import { partCenter } from '../village/forest/forest-clearing';
+import { orchardSquareCenter } from '../village/buildings/orchard';
+import { isAway } from '../village/people/people';
+import { raidHiding } from '../village/fortification/state/raid-day';
 import type { VillageState } from '../village/types';
 import type { MarchGrid, Pos } from './march-grid';
 import { marchPath } from './march';

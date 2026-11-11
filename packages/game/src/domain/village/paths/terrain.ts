@@ -11,9 +11,9 @@ import {
   type ObstacleKind,
   type ObstacleLayer,
 } from '../../landscape';
-import { obstacleStatus, type ObstacleChanges } from '../obstacles';
+import { obstacleStatus, type ObstacleChanges } from '../core/obstacles';
 import { OUTCROP_RADIUS_M } from '../rules';
-import { isWoodTreeId } from '../woods';
+import { isWoodTreeId } from '../forest/woods';
 
 // Terén pro vyšlapané pěšiny (docs/design/paths.md) – cena chůze po buňkách hrubé mřížky kolem
 // vsi. Mřížka sedí na body sítě vykreslení scény (střed políčka + k × čtvrtina políčka, ≈ 3,75 m),

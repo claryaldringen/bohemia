@@ -1,12 +1,12 @@
 import type { WorldClock } from '../calendar';
-import type { NewVillageEvent, VillageEventBody } from '../village/inbox';
-import { cloneData } from '../village/clone';
+import type { NewVillageEvent, VillageEventBody } from '../village/core/inbox';
+import { cloneData } from '../village/core/clone';
 import type { HerdSpecies, Person, PersonRef, Prisoner, VillageState } from '../village/types';
-import { isLineMan } from '../village/dynasty';
+import { isLineMan } from '../village/people/dynasty';
 import { AGE } from '../village/rules';
 import { createRandom, deriveSeed } from '../landscape/random';
 import { surrenders } from './surrender';
-import type { GridCell } from '../village/world-grid';
+import type { GridCell } from '../village/people/world-grid';
 import type {
   CampaignGroup,
   CampaignGuard,
@@ -31,7 +31,7 @@ import {
   type BattleState,
 } from './battle';
 import { defenderRoster, type Defender, type GuardGuest } from './defenders';
-import { ageYears, isAway } from '../village/people';
+import { ageYears, isAway } from '../village/people/people';
 import { stanceOf } from './flight';
 import { refugeRout } from './rout';
 import { planDefense, type RefugeLoad } from './stance';

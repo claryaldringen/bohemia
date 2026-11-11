@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
 import { dwelling, kin, village } from '../../domain/village/__tests__/kin-fixtures';
-import { applyRefugeDepart } from '../../domain/village/refugees';
+import { applyRefugeDepart } from '../../domain/village/fortification/state/refugees';
 import type { VillageState } from '../../domain/village/types';
-import type { GridCell } from '../../domain/village/world-grid';
+import type { GridCell } from '../../domain/village/people/world-grid';
 import { msOfTick, tickOfMs, WAR, type AlarmVillage, type CampaignState } from '../../domain/war';
 import { land, palisade } from '../../domain/war/__tests__/battle-fixtures';
 import { campaign, member, SUMMER, world } from '../../domain/war/__tests__/campaign-fixtures';

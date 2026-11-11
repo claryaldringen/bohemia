@@ -8,7 +8,7 @@ import {
   type FortGate,
 } from '../../fortification';
 import type { Fortification } from '../../fortification/types';
-import type { Point } from '../../polygon';
+import type { Point } from '../../placement/polygon';
 import { house, LANDSCAPE, part, pathTestTerrain } from '../../__tests__/paths-fixtures';
 import { computePathNetwork } from '../network';
 import type { PathPoint, PathVillage } from '../network-types';

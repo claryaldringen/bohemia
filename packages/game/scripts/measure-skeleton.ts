@@ -8,7 +8,7 @@ import {
   type SeatSlot,
 } from '../src/domain/world/skeleton';
 import type { SkeletonSlice } from '../src/domain/landscape/skeleton/types';
-import type { GridCell } from '../src/domain/village/world-grid';
+import type { GridCell } from '../src/domain/village/people/world-grid';
 
 function arg(name: string, fallback: string): string {
   const i = process.argv.indexOf(`--${name}`);

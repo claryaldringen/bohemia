@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
-import { foundVillage } from '../../village/actions';
-import { yearlyFieldNeed } from '../../village/field-food';
+import { foundVillage } from '../../village/core/actions';
+import { yearlyFieldNeed } from '../../village/fields/field-food';
 import type { VillageState } from '../../village/types';
 import { withBuiltFirstDwelling } from '../../village/__tests__/village-fixtures';
 import { noMacroGoods } from '../macro';

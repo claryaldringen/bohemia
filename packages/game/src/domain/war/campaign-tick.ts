@@ -1,5 +1,5 @@
-import type { NewVillageEvent, VillageEventBody } from '../village/inbox';
-import type { GridCell } from '../village/world-grid';
+import type { NewVillageEvent, VillageEventBody } from '../village/core/inbox';
+import type { GridCell } from '../village/people/world-grid';
 import type { BattleFort } from './battle';
 import type { CampaignNotice, CampaignState, CampaignWorld } from './campaign-types';
 import { marchGrid, type MarchGrid, type Pos } from './march-grid';

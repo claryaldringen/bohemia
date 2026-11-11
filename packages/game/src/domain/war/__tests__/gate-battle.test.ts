@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { village } from '../../village/__tests__/kin-fixtures';
 import { fortPincerArms, pincerBandInM } from '../../village/fortification';
 import type { Fortification } from '../../village/fortification/types';
-import { FORTIFICATIONS } from '../../village/rules-fortifications';
+import { FORTIFICATIONS } from '../../village/rules/rules-fortifications';
 import { battleTick, type BattleField, type BattleState } from '../battle';
 import { MARCH_WALL, marchCellAt, marchGrid, type Pos } from '../march-grid';
 import { dist2 } from '../orders';

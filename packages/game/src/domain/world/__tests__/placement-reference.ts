@@ -1,6 +1,6 @@
 /** Stará (lineární) verze umístění – reference pro test rovnosti a měření; v produkci se nepoužívá. */
-import type { GridCell } from '../../village/world-grid';
-import { SEAT_CELL, sameCell } from '../../village/world-grid';
+import type { GridCell } from '../../village/people/world-grid';
+import { SEAT_CELL, sameCell } from '../../village/people/world-grid';
 import type { OccupiedCell, PlacementRequest } from '../placement';
 import { cellDistance, ringCells } from '../placement';
 import { WORLD } from '../rules-world';

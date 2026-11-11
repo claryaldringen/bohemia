@@ -4,7 +4,7 @@
 // `villageCartRoutes` (`cartWorldRoutes`) – stejné funkce, stejná paměť mřížek.
 
 import { type Landscape, type ObstacleLayer } from '../../landscape';
-import { obstacleChangesAt, type ObstacleChanges } from '../obstacles';
+import { obstacleChangesAt, type ObstacleChanges } from '../core/obstacles';
 import type { CartKind, VillageState } from '../types';
 import {
   cartDepots,

@@ -1,8 +1,8 @@
 import { horse, horseVillage, START } from '../../village/__tests__/horse-fixtures';
-import { villageHorses } from '../../village/horses';
-import { villageOxen } from '../../village/oxen';
+import { villageHorses } from '../../village/livestock/horses';
+import { villageOxen } from '../../village/livestock/oxen';
 import type { Person, VillageState } from '../../village/types';
-import { woodLogs } from '../../village/wood';
+import { woodLogs } from '../../village/forest/wood';
 import { noMacroGoods, type MacroBundle } from '../macro';
 
 // Vsi pro testy zásilek (shipment.test.ts, application/__tests__/shipments.test.ts): odesílatel

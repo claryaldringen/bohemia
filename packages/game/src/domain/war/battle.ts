@@ -20,9 +20,9 @@ import {
   type FortSegmentShape,
 } from '../village/fortification';
 import type { Fortification, FortSegment } from '../village/fortification/types';
-import { FORTIFICATIONS } from '../village/rules-fortifications';
+import { FORTIFICATIONS } from '../village/rules/rules-fortifications';
 import type { WallKind } from '../village/types';
-import type { GridGeometry } from '../village/square-grid';
+import type { GridGeometry } from '../village/placement/square-grid';
 import { bowShot, poseOf, type TargetPose } from './aim';
 import type { GroupAssault, GroupOrder } from './campaign-types';
 import { defenderPlan, type Defender } from './defenders';

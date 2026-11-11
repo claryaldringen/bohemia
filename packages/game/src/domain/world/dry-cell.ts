@@ -1,4 +1,4 @@
-import type { GridCell } from '../village/world-grid';
+import type { GridCell } from '../village/people/world-grid';
 import { cellDistance, ringCells } from './placement';
 import { WORLD } from './rules-world';
 import { skeletonContext, type SkeletonCache } from './skeleton/drainage';

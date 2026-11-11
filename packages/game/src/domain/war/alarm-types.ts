@@ -1,5 +1,5 @@
 import type { FlightMode, HerdSpecies, RefugeePerson } from '../village/types';
-import type { GridCell } from '../village/world-grid';
+import type { GridCell } from '../village/people/world-grid';
 import type { CampaignLeg, CampaignPlace } from './campaign-types';
 import type { Pos } from './march-grid';
 

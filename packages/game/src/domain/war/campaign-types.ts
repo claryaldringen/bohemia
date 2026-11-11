@@ -1,10 +1,10 @@
 import type { WorldClock } from '../calendar';
 import type { Landscape, ObstacleLayer } from '../landscape';
 import type { AssaultMethod } from '../village/fortification/assault';
-import type { NewVillageEvent } from '../village/inbox';
+import type { NewVillageEvent } from '../village/core/inbox';
 import type { Person, PersonRef, Prisoner, RaidLoot, VillageState } from '../village/types';
 import type { FlightMode } from '../village/types';
-import type { GridCell } from '../village/world-grid';
+import type { GridCell } from '../village/people/world-grid';
 import type { AlarmOwner, CampaignAlarm } from './alarm-types';
 import type { BattleState } from './battle';
 import type { MarchGridMemo, Pos } from './march-grid';

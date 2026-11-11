@@ -1,6 +1,6 @@
 import type { WorldClock } from '../domain/calendar';
 import type { FlightMode, VillageState } from '../domain/village/types';
-import type { GridCell } from '../domain/village/world-grid';
+import type { GridCell } from '../domain/village/people/world-grid';
 import { alarmVillage } from '../domain/war/alarm';
 import { alarmChoices, heardTick } from '../domain/war/alarm-steward';
 import type { AlarmFlight, AlarmMessenger, AlarmVillage } from '../domain/war/alarm-types';

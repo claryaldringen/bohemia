@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { GridCell } from '../../village/world-grid';
+import type { GridCell } from '../../village/people/world-grid';
 import { edgeCrossing, worldRoute } from '../world-route';
 
 // Cesta mapu po mapě (war.md – Pohyb – mapu po mapě, Přechod okrajem).

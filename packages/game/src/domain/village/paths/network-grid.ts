@@ -2,8 +2,8 @@
 // Součást výpočtu sítě pěšin – rozcestník je network.ts (komentář k celku tam).
 
 import { detCos, detSin, length2, tileCenterWorld, type Landscape } from '../../landscape';
-import { rotatedSquareCorners, rotationCosSin, rotationTurn } from '../square-grid';
-import { dwellingFrame, shapeRect, shapeZ, type ShapeFrame } from '../dwelling-shape';
+import { rotatedSquareCorners, rotationCosSin, rotationTurn } from '../placement/square-grid';
+import { dwellingFrame, shapeRect, shapeZ, type ShapeFrame } from '../buildings/dwelling-shape';
 import {
   CEMETERY_FENCE_INSET_M,
   DWELLING_CLEARING_M,
@@ -30,9 +30,9 @@ import {
   type FenceOutline,
 } from './entrances';
 import { quadTouchesSquare, type FortWalls } from '../fortification/walls';
-import type { Point } from '../polygon';
+import type { Point } from '../placement/polygon';
 import { villageFences } from './fences';
-import { FENCE_CLEARANCE } from '../rules-roads';
+import { FENCE_CLEARANCE } from '../rules/rules-roads';
 import { PATH_WATER, PATH_WETLAND, type PathTerrain } from './terrain';
 import { isCropPart, partWalkSpeed, roadTreeSpeed, roadWalkSpeed } from './walk-speed';
 import {

@@ -1,4 +1,4 @@
-import type { GridCell } from '../../village/world-grid';
+import type { GridCell } from '../../village/people/world-grid';
 import type { OccupiedCell } from '../placement';
 
 /** Malý deterministický generátor (LCG) pro testy a měření – žádné Math.random. */

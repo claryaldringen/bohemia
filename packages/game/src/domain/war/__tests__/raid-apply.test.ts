@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { foundVillage } from '../../village/actions';
-import { applyInboxDay, type VillageEvent } from '../../village/inbox';
-import { isInjured, laborPerDay } from '../../village/people';
-import { advanceVillage } from '../../village/simulate';
-import { dynastyDay } from '../../village/succession';
+import { foundVillage } from '../../village/core/actions';
+import { applyInboxDay, type VillageEvent } from '../../village/core/inbox';
+import { isInjured, laborPerDay } from '../../village/people/people';
+import { advanceVillage } from '../../village/core/simulate';
+import { dynastyDay } from '../../village/people/succession';
 import type { Cemetery, GrainPit, Person, VillageState } from '../../village/types';
 import { DAY, dwelling, kin, trackedVillage, village } from '../../village/__tests__/kin-fixtures';
 import { withBuiltFirstDwelling } from '../../village/__tests__/village-fixtures';

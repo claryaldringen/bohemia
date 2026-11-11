@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { village } from '../../domain/village/__tests__/kin-fixtures';
-import type { GridCell } from '../../domain/village/world-grid';
+import type { GridCell } from '../../domain/village/people/world-grid';
 import { msOfTick, stepCampaign, type CampaignState } from '../../domain/war';
 import {
   campaign,

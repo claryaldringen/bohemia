@@ -1,5 +1,5 @@
 import { TOTAL_GAME_DAYS } from '../domain/calendar';
-import { cloneState } from '../domain/village/clone';
+import { cloneState } from '../domain/village/core/clone';
 import {
   currentLord,
   isStewardOn,

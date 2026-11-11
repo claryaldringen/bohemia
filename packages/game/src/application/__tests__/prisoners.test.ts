@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
-import { applyInboxDay } from '../../domain/village/inbox';
+import { applyInboxDay } from '../../domain/village/core/inbox';
 import type { VillageState } from '../../domain/village';
 import { DAY, bundle, sender } from '../../domain/vassalage/__tests__/shipment-fixtures';
 import { decidePrisoner, ransomHooks, type PrisonerDeps, type RansomDeps } from '../prisoners';

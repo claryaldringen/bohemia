@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { VillageEventBody } from '../../village/inbox';
+import type { VillageEventBody } from '../../village/core/inbox';
 import type { ChronicleEvent, VillageState } from '../../village/types';
 import { kin, village } from '../../village/__tests__/kin-fixtures';
 import { stepCampaign } from '../campaign';

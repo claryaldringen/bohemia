@@ -1,5 +1,5 @@
 import { obstaclesOf, type Landscape } from '../domain/landscape';
-import { cloneState } from '../domain/village/clone';
+import { cloneState } from '../domain/village/core/clone';
 import {
   DIRECTIONS,
   builtTrail,

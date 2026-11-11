@@ -4,7 +4,7 @@ import {
   firstDiscoveryYear,
   houseFaithSeed,
   npcBaptismYear,
-} from '../domain/village/faith';
+} from '../domain/village/people/faith';
 import type { House, HouseRepository } from './houses';
 import { chronicleHouses } from './negotiation-chronicle';
 import type { NoticeRepository } from './notices';

@@ -1,4 +1,4 @@
-import { directionBetween, type GridCell } from '../village/world-grid';
+import { directionBetween, type GridCell } from '../village/people/world-grid';
 import { gridOf, type TickContext } from './campaign-tick';
 import type { CampaignLeg } from './campaign-types';
 import { marchPath, marchPathToEdge, marchProgress } from './march';

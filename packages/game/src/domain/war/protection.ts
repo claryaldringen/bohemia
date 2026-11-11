@@ -1,4 +1,4 @@
-import { inDisasterProtection } from '../village/disaster-schedule';
+import { inDisasterProtection } from '../village/disasters/disaster-schedule';
 import { WAR } from './rules-war';
 
 // Ochrana nového hráče a nové vsi před válkou (docs/design/war.md – Ochrana nového hráče).

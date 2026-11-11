@@ -1,9 +1,9 @@
 import type { WorldClock } from '../calendar';
-import { villageCentre } from '../village/departure';
-import { isLineMan, lineMen } from '../village/dynasty';
-import type { VillageEventBody } from '../village/inbox';
-import { guestFoodNeed } from '../village/people';
-import { takeGrain, takeHerd } from '../village/refugees';
+import { villageCentre } from '../village/people/departure';
+import { isLineMan, lineMen } from '../village/people/dynasty';
+import type { VillageEventBody } from '../village/core/inbox';
+import { guestFoodNeed } from '../village/people/people';
+import { takeGrain, takeHerd } from '../village/fortification/state/refugees';
 import type {
   FlightMode,
   HerdSpecies,

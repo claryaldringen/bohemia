@@ -1,4 +1,4 @@
-import { villageCentre } from '../village/departure';
+import { villageCentre } from '../village/people/departure';
 import type { AlarmOwner, AlarmVillage, CampaignAlarm } from './alarm-types';
 import { cellKey, gridOf, MissingData, villageEvent } from './campaign-tick';
 import type { TickContext, TickOut } from './campaign-tick';
@@ -6,7 +6,7 @@ import type { CampaignState, IntentBody } from './campaign-types';
 import { villageLookouts, runTicks, type Lookout } from './lookouts';
 import { refugeHostOf, type RefugeHost } from './refuge-choice';
 import type { MarchGrid, Pos } from './march-grid';
-import type { GridCell } from '../village/world-grid';
+import type { GridCell } from '../village/people/world-grid';
 import { WAR } from './rules-war';
 import { inSight } from './sight';
 

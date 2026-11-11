@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { packObstacles } from '../../../landscape';
-import { foundVillage } from '../../actions';
+import { foundVillage } from '../../core/actions';
 import {
   finishFortification,
   outlineOf,
   startSectionDemolition,
   villageFortifications,
-} from '../../fortifications';
-import { startSectionUpgrade } from '../../fortification-upgrade';
-import { advanceVillage } from '../../simulate';
+} from '../state/fortifications';
+import { startSectionUpgrade } from '../state/fortification-upgrade';
+import { advanceVillage } from '../../core/simulate';
 import type { Construction, Fortification, VillageState, WallKind } from '../../types';
 import { makeLandscape } from '../../__tests__/placement-fixtures';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';

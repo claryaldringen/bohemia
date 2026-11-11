@@ -1,5 +1,5 @@
 import { dayIndexOf } from '../../calendar';
-import { foundVillage } from '../actions';
+import { foundVillage } from '../core/actions';
 import type { Cemetery, Dwelling, Pen, Person, SacredBuilding, VillageState } from '../types';
 import { withBuiltFirstDwelling } from './village-fixtures';
 

@@ -1,9 +1,9 @@
 // Vznik pevných cest z roční sítě: provoz cest, nové a dělené úseky, slučování úseků v uzlu bez odbočky (roads.md).
 
 import { length2, type Landscape, type ObstacleLayer } from '../../landscape';
-import { cloneState } from '../clone';
-import { restoredTrailPieces } from '../trail-axis';
-import { obstacleChangesAt, type ObstacleChanges } from '../obstacles';
+import { cloneState } from '../core/clone';
+import { restoredTrailPieces } from '../trade/trail-axis';
+import { obstacleChangesAt, type ObstacleChanges } from '../core/obstacles';
 import { ROAD_REBUILD, WEAR } from '../rules';
 import {
   type Construction,

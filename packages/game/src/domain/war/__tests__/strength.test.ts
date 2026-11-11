@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { HORSES } from '../../village/rules';
-import { armsCap, trainArms, trainingCap } from '../../village/lord';
-import { withArmsCaps } from '../../village/arms-caps';
+import { armsCap, trainArms, trainingCap } from '../../village/people/lord';
+import { withArmsCaps } from '../../village/people/arms-caps';
 import { DAY, kin, village } from '../../village/__tests__/kin-fixtures';
 import { armyStrength, lineManStrength, militaryExperience, villagerStrength } from '../strength';
 

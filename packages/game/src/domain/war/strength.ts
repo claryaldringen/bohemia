@@ -1,7 +1,7 @@
 // Síla vojska (war.md – Síla): dvě stupnice – vesničan pevně malá, muž rodu podle vojenské
 // zkušenosti – a kůň, výzbroj a štěstí. Čisté deterministické funkce (jen det-math, žádné I/O).
-import { riderPower } from '../village/horse-riders';
-import { happinessLaborFactor } from '../village/happiness';
+import { riderPower } from '../village/livestock/horse-riders';
+import { happinessLaborFactor } from '../village/people/happiness';
 import type { ArmsSkills, Person } from '../village/types';
 import { WAR } from './rules-war';
 

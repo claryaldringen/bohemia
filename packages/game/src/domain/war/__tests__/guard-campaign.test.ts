@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { applyInboxDay, type VillageEventBody } from '../../village/inbox';
-import { dynastyDay } from '../../village/succession';
+import { applyInboxDay, type VillageEventBody } from '../../village/core/inbox';
+import { dynastyDay } from '../../village/people/succession';
 import type { Person, VillageState } from '../../village/types';
 import { DAY, kin, trackedVillage, village } from '../../village/__tests__/kin-fixtures';
 import { stepCampaign } from '../campaign';

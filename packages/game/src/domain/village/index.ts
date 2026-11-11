@@ -1,33 +1,33 @@
 export * from './types';
 export * from './rules';
-export * from './productivity';
-export * from './people';
-export * from './food';
-export * from './diet';
-export * from './field-food';
-export * from './field-capacity';
-export * from './dairy';
-export * from './legumes';
-export { flaxNeedKg, linenCoverage, linenUnhappiness } from './flax';
-export { gardenLegumeKg, harvestGardens } from './garden';
-export * from './livestock';
-export * from './rules-wildlife';
-export * from './wildlife';
-export * from './rules-disasters';
-export * from './rules-fortifications';
-export * from './weather';
-export * from './disasters';
-export * from './part-protection';
-export { hailZone, type HailZone } from './hail';
+export * from './core/productivity';
+export * from './people/people';
+export * from './core/food';
+export * from './core/diet';
+export * from './fields/field-food';
+export * from './fields/field-capacity';
+export * from './livestock/dairy';
+export * from './fields/legumes';
+export { flaxNeedKg, linenCoverage, linenUnhappiness } from './fields/flax';
+export { gardenLegumeKg, harvestGardens } from './fields/garden';
+export * from './livestock/livestock';
+export * from './rules/rules-wildlife';
+export * from './wildlife/wildlife';
+export * from './rules/rules-disasters';
+export * from './rules/rules-fortifications';
+export * from './disasters/weather';
+export * from './disasters/disasters';
+export * from './disasters/part-protection';
+export { hailZone, type HailZone } from './disasters/hail';
 export {
   cropWeatherOf,
   harvestYearOf,
   hasWeather,
   partWeatherFactor,
   weatherChangesCrop,
-} from './weather-effects';
-export * from './hunt';
-export { dogsYear, feedDogs } from './manor-dogs';
+} from './disasters/weather-effects';
+export * from './wildlife/hunt';
+export { dogsYear, feedDogs } from './wildlife/manor-dogs';
 export {
   dogGrainToday,
   dogsWanted,
@@ -35,69 +35,69 @@ export {
   huntingDogs,
   huntPool,
   huntToday,
-} from './hunt-party';
-export { fishingPools, wildlifeLandAt, type FishingPool } from './wildlife-land';
-export * from './hay';
-export * from './plough';
-export * from './plough-blocks';
-export * from './plough-trip';
-export * from './oxen';
-export * from './fence-cost';
+} from './wildlife/hunt-party';
+export { fishingPools, wildlifeLandAt, type FishingPool } from './wildlife/wildlife-land';
+export * from './livestock/hay';
+export * from './livestock/plough';
+export * from './livestock/plough-blocks';
+export * from './livestock/plough-trip';
+export * from './livestock/oxen';
+export * from './buildings/fence-cost';
 export * from './fortification';
-export * from './draft';
-export * from './pens';
-export { breedingCows, herdPlaces, winterHayNeedKg, type HerdPlaces } from './husbandry';
-export * from './herding';
-export { woolCoverage, woolNeedKg, woolSheep, woolUnhappiness } from './wool';
-export * from './dwellings';
-export * from './manor';
-export * from './lord';
-export * from './arms-caps';
-export * from './abandon-parts';
-export * from './cancel-construction';
-export * from './fortifications';
-export * from './fortification-upgrade';
-export * from './fortification-rampart';
-export * from './fortification-gate';
-export * from './fortification-proposal';
-export * from './fortification-reroute';
-export { fortDefenders } from './steward-fortification';
-export { raidHiding } from './raid-day';
-export * from './relocation';
-export * from './departure';
-export * from './digest';
-export * from './year-log';
-export * from './son-departure';
-export * from './player-lot';
-export * from './world-grid';
-export * from './village-site';
-export * from './fields';
-export * from './holdings';
-export * from './year-plan';
-export { withSowingRotation } from './rotation';
-export * from './sowing';
-export * from './daylight';
-export * from './snow';
-export * from './day-chores';
-export * from './field-progress';
-export * from './field-outlook';
-export * from './part-rotation';
-export * from './labor';
-export { LABOR_TREES_SHOWN, laborReport } from './labor-report';
-export * from './population';
-export * from './kinship';
-export * from './dynasty';
-export * from './faith';
-export * from './desecration';
-export * from './baptism';
-export * from './dynasty-names';
-export * from './seniority';
-export * from './steward-state';
-export * from './steward-land';
-export * from './steward-plan';
-export * from './steward';
-export * from './rules-steward';
-export * from './households';
+export * from './livestock/draft';
+export * from './livestock/pens';
+export { breedingCows, herdPlaces, winterHayNeedKg, type HerdPlaces } from './livestock/husbandry';
+export * from './livestock/herding';
+export { woolCoverage, woolNeedKg, woolSheep, woolUnhappiness } from './livestock/wool';
+export * from './buildings/dwellings';
+export * from './people/manor';
+export * from './people/lord';
+export * from './people/arms-caps';
+export * from './fields/abandon-parts';
+export * from './buildings/cancel-construction';
+export * from './fortification/state/fortifications';
+export * from './fortification/state/fortification-upgrade';
+export * from './fortification/state/fortification-rampart';
+export * from './fortification/state/fortification-gate';
+export * from './fortification/state/fortification-proposal';
+export * from './fortification/state/fortification-reroute';
+export { fortDefenders } from './steward/steward-fortification';
+export { raidHiding } from './fortification/state/raid-day';
+export * from './people/relocation';
+export * from './people/departure';
+export * from './core/digest';
+export * from './core/year-log';
+export * from './people/son-departure';
+export * from './people/player-lot';
+export * from './people/world-grid';
+export * from './people/village-site';
+export * from './fields/fields';
+export * from './fields/holdings';
+export * from './core/year-plan';
+export { withSowingRotation } from './fields/rotation';
+export * from './fields/sowing';
+export * from './core/daylight';
+export * from './disasters/snow';
+export * from './core/day-chores';
+export * from './fields/field-progress';
+export * from './fields/field-outlook';
+export * from './fields/part-rotation';
+export * from './core/labor';
+export { LABOR_TREES_SHOWN, laborReport } from './core/labor-report';
+export * from './people/population';
+export * from './people/kinship';
+export * from './people/dynasty';
+export * from './people/faith';
+export * from './people/desecration';
+export * from './people/baptism';
+export * from './people/dynasty-names';
+export * from './people/seniority';
+export * from './steward/steward-state';
+export * from './steward/steward-land';
+export * from './steward/steward-plan';
+export * from './steward/steward';
+export * from './rules/rules-steward';
+export * from './people/households';
 export {
   displacedCount,
   lodgersIn,
@@ -107,11 +107,11 @@ export {
   rehouseDisplaced,
   vacateDwelling,
   freePlaces as freeDwellingPlaces,
-} from './displaced';
-export * from './marriage';
-export * from './extinction';
-export * from './cemetery';
-export * from './burials';
+} from './people/displaced';
+export * from './people/marriage';
+export * from './core/extinction';
+export * from './buildings/cemetery';
+export * from './people/burials';
 // sady – jen čisté funkce; kroky simulace (výsadba, práce a sezóna sadů) zůstávají uvnitř
 export {
   ORCHARD_TASK_NAMES,
@@ -141,24 +141,24 @@ export {
   squareYieldKg,
   villageApplesKg,
   villageOrchards,
-} from './orchard';
-export * from './actions';
-export * from './build-intent';
-export * from './simulate';
+} from './buildings/orchard';
+export * from './core/actions';
+export * from './buildings/build-intent';
+export * from './core/simulate';
 // převody starších vsí – jeden seznam pro načtení i dopočet (village-core.md – Převody starších vsí)
-export * from './migrations';
-export * from './inbox';
-export * from './appoint-lord';
-export * from './polygon';
-export * from './placement';
-export * from './dwelling-shape';
-export { withDwellingShapes } from './shape-migration';
-export * from './plots';
-export * from './plot-cells';
-export * from './square-grid';
-export * from './squares';
-export { TAKEN_LAND_EPSILON_M2, landLeftM2, type TakenLand } from './land-taken';
-export * from './ruins';
+export * from './core/migrations';
+export * from './core/inbox';
+export * from './people/appoint-lord';
+export * from './placement/polygon';
+export * from './placement/placement';
+export * from './buildings/dwelling-shape';
+export { withDwellingShapes } from './buildings/shape-migration';
+export * from './buildings/plots';
+export * from './placement/plot-cells';
+export * from './placement/square-grid';
+export * from './placement/squares';
+export { TAKEN_LAND_EPSILON_M2, landLeftM2, type TakenLand } from './buildings/land-taken';
+export * from './buildings/ruins';
 // opuštěné stavby – čisté funkce stavu; kroky simulace (roční kontrola, pád) zůstávají uvnitř
 export {
   isAbandoned,
@@ -167,25 +167,35 @@ export {
   structureCondition,
   structureFallDay,
   visitKey,
-} from './abandonment';
+} from './buildings/abandonment';
 // oprava staveb, ke kterým se zase chodí – čisté funkce; práce a dokončení zůstávají uvnitř
-export { fullRepairManDays, repairOf, repairedCondition, type StructureRef } from './repair';
-export * from './obstacles';
-export * from './summary';
+export {
+  fullRepairManDays,
+  repairOf,
+  repairedCondition,
+  type StructureRef,
+} from './buildings/repair';
+export * from './core/obstacles';
+export * from './core/summary';
 // trvalé stavy z upozornění – podmínky pro web i simulaci (absence.md – Upozornění vsi do kroniky)
-export { LASTING_NOTICES, dogsUngrained, horsesUngrained, lastingNotices } from './lasting-notices';
-export * from './names';
-export * from './costs';
-export * from './wood';
-export * from './stone';
-export * from './rules-stone';
-export * from './quarry';
-export * from './forest-clearing';
-export * from './log-piles';
-export * from './log-piles-migration';
-export * from './sacred';
-export * from './sacred-life';
-export * from './threshing-floors';
+export {
+  LASTING_NOTICES,
+  dogsUngrained,
+  horsesUngrained,
+  lastingNotices,
+} from './core/lasting-notices';
+export * from './people/names';
+export * from './buildings/costs';
+export * from './forest/wood';
+export * from './fortification/state/stone';
+export * from './rules/rules-stone';
+export * from './fortification/state/quarry';
+export * from './forest/forest-clearing';
+export * from './forest/log-piles';
+export * from './forest/log-piles-migration';
+export * from './people/sacred';
+export * from './people/sacred-life';
+export * from './fields/threshing-floors';
 // snopy a výmlat (production-chains.md – Humno) – kroky dne (sklizeň do snopů, výmlat, ubytek)
 // volá simulate.ts
 export {
@@ -200,7 +210,7 @@ export {
   withThreshingGrace,
   type ThreshingCapacity,
   type ThreshingStatus,
-} from './threshing';
+} from './fields/threshing';
 // obilné jámy (production-chains.md – Obilné jámy) – kroky dne (ztráty, odběr, plnění jam,
 // jámy pod stavbou) volá simulate.ts
 export {
@@ -211,7 +221,7 @@ export {
   looseGrainKg,
   openGrainPits,
   villageGrainPits,
-} from './grain-pits';
+} from './fields/grain-pits';
 export {
   chooseGrainPitSite,
   coveredGrainPitIds,
@@ -219,12 +229,12 @@ export {
   grainPitSites,
   withGrainPits,
   withoutBuiltOverGrainPits,
-} from './grain-pit-site';
-export * from './happiness';
-export * from './crafts';
+} from './fields/grain-pit-site';
+export * from './people/happiness';
+export * from './crafts/crafts';
 // kovář – tavba, houba, hřivny, nástroje jako vybavení (production-chains.md – Kovář)
-export * from './iron';
-export { FORGE, ORE_KG_PER_TOOL_KG, REFINE, SMELT, smeltOreKg } from './iron-rates';
+export * from './crafts/iron';
+export { FORGE, ORE_KG_PER_TOOL_KG, REFINE, SMELT, smeltOreKg } from './crafts/iron-rates';
 // kování vozů (wagons.md – Kování vozů) – krok dne volá simulate.ts
 export {
   cartIronKg,
@@ -242,7 +252,7 @@ export {
   withoutSameMapVillages,
   type IronPlan,
   type IronRoute,
-} from './cart-iron';
+} from './crafts/cart-iron';
 // učení řemesla (crafts.md – Učení řemesla) – den praxe volá simulate.ts
 export {
   craftApprentices,
@@ -252,9 +262,9 @@ export {
   withCraftSkill,
   workshopSkill,
   type CraftSkillSummary,
-} from './craft-skill';
-export * from './charcoal';
-export * from './smith-supply';
+} from './crafts/craft-skill';
+export * from './crafts/charcoal';
+export * from './crafts/smith-supply';
 // nákup u sousedů (crafts.md) – kroky simulace (odchod, cesta, návrat) volá simulate.ts
 export {
   CRAFT_PRODUCTS,
@@ -274,7 +284,7 @@ export {
   type CraftSource,
   type PurchasePlan,
   type PurchaseRoute,
-} from './craft-buying';
+} from './crafts/craft-buying';
 // tesař a vozy (wagons.md) – kroky simulace (pomoc stavbám, výroba, svoz) volá simulate.ts
 export {
   NO_HELP,
@@ -284,7 +294,7 @@ export {
   restingCarpenters,
   woodworkPending,
   type CarpentryHelp,
-} from './carpentry';
+} from './crafts/carpentry';
 export {
   CART_KINDS,
   CART_NAMES,
@@ -311,7 +321,7 @@ export {
   villageCarts,
   type CartAccess,
   type HaulPlan,
-} from './carts';
+} from './crafts/carts';
 export {
   cartTripManDays,
   cartTripSeconds,
@@ -328,7 +338,7 @@ export {
   type CartDrives,
   type SmithCart,
   type WaterCartPlan,
-} from './cart-jobs';
+} from './crafts/cart-jobs';
 export {
   morningWater,
   ploughWindowsToday,
@@ -336,10 +346,10 @@ export {
   waterHouseholdsToday,
   type MorningWater,
   type PloughWindow,
-} from './morning-water';
+} from './core/morning-water';
 export * from './paths';
-export * from './road-trees';
-export * from './road-upgrades';
+export * from './roads/road-trees';
+export * from './roads/road-upgrades';
 // vozová cesta (roads.md – Vozová cesta) – kroky simulace (úseky, dokončení) zůstávají uvnitř
 export {
   WAGON_BUILDING,
@@ -365,10 +375,10 @@ export {
   type WagonPlanInput,
   type WagonPlanRoad,
   type WagonRoadPlan,
-} from './wagon-road';
-export * from './trail';
-export * from './neighbours';
-export * from './trade';
+} from './roads/wagon-road';
+export * from './trade/trail';
+export * from './trade/neighbours';
+export * from './trade/trade';
 // dobytek v obchodu – příchod a odchod dobytka (`addCattle`, `removeCattle`) jsou kroky obchodu
 export {
   NO_COW_ROOM,
@@ -378,7 +388,7 @@ export {
   cattleRoom,
   cattleRoomBlocked,
   withCattleKinds,
-} from './cattle-trade';
+} from './trade/cattle-trade';
 // koně v obchodu (horses.md – Nákup a prodej) – příchod a odchod koní (`addHorses`,
 // `removeHorses`) jsou kroky obchodu
 export {
@@ -389,7 +399,7 @@ export {
   horsesForSale,
   horsesSaleValues,
   offeredHorses,
-} from './horse-trade';
+} from './trade/horse-trade';
 // koně po kusech (horses.md – Koně po kusech): věk, druh a místa ohrad koní pro scénu a rozhraní
 export {
   horseAgeYears,
@@ -405,8 +415,8 @@ export {
   stallionId,
   villageHorses,
   type HorseKind,
-} from './horses';
-export { horsesOverRoom, horsesWanted } from './horse-breeding';
+} from './livestock/horses';
+export { horsesOverRoom, horsesWanted } from './livestock/horse-breeding';
 export {
   finishShoeing,
   isUnshod,
@@ -418,10 +428,10 @@ export {
   type ShoeingDay,
   type ShoeingPlan,
   type ShoeingView,
-} from './horse-shoeing';
-export { horsePenValueKg, withHorsePenStock } from './horse-stock';
-export { withForestClearing } from './forest-clearing-migration';
-export { HORSE_PEN_NO_SURPLUS, horsePenPayment } from './horse-pen-payment';
+} from './livestock/horse-shoeing';
+export { horsePenValueKg, withHorsePenStock } from './livestock/horse-stock';
+export { withForestClearing } from './forest/forest-clearing-migration';
+export { HORSE_PEN_NO_SURPLUS, horsePenPayment } from './livestock/horse-pen-payment';
 // výměna lidí se sousedem – příchod lidí (`settleNewcomers`) je krok simulace a zůstává uvnitř
 export {
   NO_PEOPLE,
@@ -437,7 +447,7 @@ export {
   type Emigrants,
   type NewcomerMember,
   type NewcomerProfile,
-} from './people-trade';
+} from './trade/people-trade';
 // jabloně u cest – kroky simulace (práce a dokončení výsadby) zůstávají uvnitř
 export {
   chainAppleSpots,
@@ -447,14 +457,14 @@ export {
   villageRoadApples,
   type ChainAppleSpot,
   type RoadApplesOption,
-} from './road-apples';
-export * from './overgrowth';
-export * from './pasture';
-export * from './woods';
-export * from './wild-orchard';
-export * from './road-fields';
-export * from './road-swath';
-export * from './founding';
-export * from './steward-son';
-export * from './structure-use';
-export * from './demolition';
+} from './roads/road-apples';
+export * from './fields/overgrowth';
+export * from './fields/pasture';
+export * from './forest/woods';
+export * from './buildings/wild-orchard';
+export * from './roads/road-fields';
+export * from './roads/road-swath';
+export * from './steward/founding';
+export * from './steward/steward-son';
+export * from './buildings/structure-use';
+export * from './buildings/demolition';

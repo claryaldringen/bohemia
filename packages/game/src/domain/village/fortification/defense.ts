@@ -1,6 +1,6 @@
-import { FORTIFICATIONS } from '../rules-fortifications';
-import { pointInPolygon } from '../polygon';
-import type { GridGeometry } from '../square-grid';
+import { FORTIFICATIONS } from '../rules/rules-fortifications';
+import { pointInPolygon } from '../placement/polygon';
+import type { GridGeometry } from '../placement/square-grid';
 import type { RoadPoint } from '../types';
 import {
   gatePartPieces,

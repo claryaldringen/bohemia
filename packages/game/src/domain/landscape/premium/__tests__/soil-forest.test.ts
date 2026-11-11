@@ -11,7 +11,7 @@ import { transferPrecision } from '../../quantize';
 import { buildRelief } from '../../relief';
 import { CURRENT_LAYER_VERSIONS, SURFACE_CODES, type Landscape } from '../../types';
 import { tileCenterWorld, tileOfWorldPoint } from '../../world';
-import { sacredSitesOf } from '../../../village/sacred';
+import { sacredSitesOf } from '../../../village/people/sacred';
 import { premiumFeaturesOf } from '../generate';
 import type { PremiumSite, PremiumSiteKind, PremiumType } from '../types';
 

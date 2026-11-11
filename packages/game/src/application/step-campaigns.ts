@@ -1,6 +1,6 @@
 import type { WorldClock } from '../domain/calendar';
 import type { VillageState } from '../domain/village/types';
-import type { GridCell } from '../domain/village/world-grid';
+import type { GridCell } from '../domain/village/people/world-grid';
 import {
   campaignFinished,
   CHECKPOINT_TICKS,

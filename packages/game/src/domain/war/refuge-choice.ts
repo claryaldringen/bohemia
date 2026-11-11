@@ -1,14 +1,14 @@
 import { CELL_SIZE_M, LANDSCAPE_SIZE } from '../landscape';
-import { isLineMan } from '../village/dynasty';
+import { isLineMan } from '../village/people/dynasty';
 import { refugeCapacity } from '../village/fortification/refuge';
 import type { Fortification } from '../village/fortification/types';
 import { fortOutlineOf } from '../village/fortification/convert';
-import { isUnshod } from '../village/horse-shoeing-term';
-import { isGrainHorse, villageHorses } from '../village/horses';
-import { isTrained, oxenHome } from '../village/oxen';
-import { ageYears, isAway, isInjured } from '../village/people';
+import { isUnshod } from '../village/livestock/horse-shoeing-term';
+import { isGrainHorse, villageHorses } from '../village/livestock/horses';
+import { isTrained, oxenHome } from '../village/livestock/oxen';
+import { ageYears, isAway, isInjured } from '../village/people/people';
 import { DRAFT_OXEN } from '../village/rules';
-import type { GridGeometry } from '../village/square-grid';
+import type { GridGeometry } from '../village/placement/square-grid';
 import type {
   Cart,
   DefenseStance,
@@ -18,7 +18,7 @@ import type {
   RefugeePerson,
   VillageState,
 } from '../village/types';
-import type { GridCell } from '../village/world-grid';
+import type { GridCell } from '../village/people/world-grid';
 import type { CampaignPlace } from './campaign-types';
 import { fleeParty, nearestForest } from './flight';
 import { marchSpeed, type GroupPace } from './march';

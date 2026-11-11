@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { addStone, stoneOnHand } from '../../village/stone';
-import { addGood, buyPrice, sellPrice, villageGoodStock } from '../../village/trade';
+import { addStone, stoneOnHand } from '../../village/fortification/state/stone';
+import { addGood, buyPrice, sellPrice, villageGoodStock } from '../../village/trade/trade';
 import { dispatchShipment, receiveShipment } from '../shipment';
 import { noMacroGoods, stoneOf } from '../macro';
 import { VASSALAGE } from '../rules-vassalage';

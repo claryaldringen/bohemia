@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
-import { advanceVillage } from '../../domain/village/simulate';
-import { applyInboxDay } from '../../domain/village/inbox';
+import { advanceVillage } from '../../domain/village/core/simulate';
+import { applyInboxDay } from '../../domain/village/core/inbox';
 import type { Person, VillageState } from '../../domain/village';
 import {
   DAY,

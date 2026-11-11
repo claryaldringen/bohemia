@@ -6,7 +6,7 @@ import {
   PEN_FENCE_INSET_M,
   SACRED_BUILDINGS,
 } from '../rules';
-import type { PartStage } from '../summary';
+import type { PartStage } from '../core/summary';
 import type { CartKind, RoadGrade, RoadGround } from '../types';
 import {
   PathHeap,

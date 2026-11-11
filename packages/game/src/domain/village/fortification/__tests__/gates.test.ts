@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
-import { FORTIFICATIONS } from '../../rules-fortifications';
+import { FORTIFICATIONS } from '../../rules/rules-fortifications';
 import type { RoadPoint, TileCell } from '../../types';
 import {
   addGate,

@@ -13,7 +13,7 @@ import {
   wallLineInM,
 } from '../village/fortification';
 import type { FortSegmentShape } from '../village/fortification';
-import { FORTIFICATIONS } from '../village/rules-fortifications';
+import { FORTIFICATIONS } from '../village/rules/rules-fortifications';
 import type { WallKind } from '../village/types';
 import type { BattleBreakout, BattleFort, BattleState, Fighter } from './battle';
 import { onLadder, outward } from './ladders';

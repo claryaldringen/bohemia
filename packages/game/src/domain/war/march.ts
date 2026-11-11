@@ -1,7 +1,7 @@
 import { length2 } from '../landscape';
 import { PathHeap, quantizedStep } from '../village/paths/network-search';
 import type { Direction8 } from '../village/types';
-import { GRID_STEPS } from '../village/world-grid';
+import { GRID_STEPS } from '../village/people/world-grid';
 import {
   MARCH_BUILDING,
   marchCellAt,

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { packObstacles, type Landscape } from '../../../landscape';
 import { MARCH_GATE, MARCH_WATER, marchCellAt, marchGrid } from '../../../war/march-grid';
-import { foundVillage } from '../../actions';
-import { cancelConstruction } from '../../cancel-construction';
+import { foundVillage } from '../../core/actions';
+import { cancelConstruction } from '../../buildings/cancel-construction';
 import {
   addGateToFortification,
   finishFortification,
@@ -11,15 +11,15 @@ import {
   outlineOf,
   startFortification,
   villageFortifications,
-} from '../../fortifications';
+} from '../state/fortifications';
 import {
   FORT_MOAT_DONE,
   FORT_MOAT_NO_RAMPART,
   FORT_MOAT_NO_WATER,
   startMoatFill,
   startRampartAddition,
-} from '../../fortification-rampart';
-import { FORTIFICATIONS } from '../../rules-fortifications';
+} from '../state/fortification-rampart';
+import { FORTIFICATIONS } from '../../rules/rules-fortifications';
 import type { Construction, FortKind, Fortification, VillageState } from '../../types';
 import { block, makeLandscape } from '../../__tests__/placement-fixtures';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';

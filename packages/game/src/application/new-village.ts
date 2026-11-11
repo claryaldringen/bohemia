@@ -10,7 +10,7 @@ import {
 } from '../domain/world';
 import type { HouseRepository } from './houses';
 import { SEAT_CELL, neighbourCell, sameCell, type Direction8 } from '../domain/village';
-import type { GridCell } from '../domain/village/world-grid';
+import type { GridCell } from '../domain/village/people/world-grid';
 import type { Settlement, SettlementRepository, WorldCell } from './settlements';
 import type { VillageRepository } from './villages';
 

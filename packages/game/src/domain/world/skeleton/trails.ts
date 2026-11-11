@@ -1,5 +1,5 @@
 import type { MapSide } from '../../landscape/skeleton/types';
-import type { GridCell } from '../../village/world-grid';
+import type { GridCell } from '../../village/people/world-grid';
 import { cellUnit, SKELETON_SALT, skeletonBase } from './hash';
 import { SKELETON } from './rules-skeleton';
 

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { foundVillage } from '../../village/actions';
-import { departAppointee } from '../../village/appoint-lord';
-import type { VillageEvent } from '../../village/inbox';
-import { lordFamily } from '../../village/lord';
-import { advanceVillage } from '../../village/simulate';
+import { foundVillage } from '../../village/core/actions';
+import { departAppointee } from '../../village/people/appoint-lord';
+import type { VillageEvent } from '../../village/core/inbox';
+import { lordFamily } from '../../village/people/lord';
+import { advanceVillage } from '../../village/core/simulate';
 import {
   DAY,
   kin,

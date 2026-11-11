@@ -1,6 +1,6 @@
 import { CELL_SIZE_M, LANDSCAPE_SIZE } from '../landscape';
 import { PathHeap } from '../village/paths/network-search';
-import { directionBetween, GRID_STEPS, type GridCell } from '../village/world-grid';
+import { directionBetween, GRID_STEPS, type GridCell } from '../village/people/world-grid';
 import type { Pos } from './march-grid';
 import { WAR } from './rules-war';
 

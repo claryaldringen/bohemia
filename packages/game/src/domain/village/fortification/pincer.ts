@@ -1,5 +1,5 @@
-import type { Point } from '../polygon';
-import { FORTIFICATIONS } from '../rules-fortifications';
+import type { Point } from '../placement/polygon';
+import { FORTIFICATIONS } from '../rules/rules-fortifications';
 import type { Construction, WallKind } from '../types';
 import { gateChord, type FortGate } from './gates';
 import { FORT_DAYS_PER_YEAR } from './life';

@@ -1,4 +1,4 @@
-import { FORTIFICATIONS } from '../rules-fortifications';
+import { FORTIFICATIONS } from '../rules/rules-fortifications';
 import type { FortGate } from './gates';
 
 // Úseky opevnění na obvodu, jak je hráč vidí (fortifications.md – Rozhraní, Úseky; Martin

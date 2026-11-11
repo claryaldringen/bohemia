@@ -1,5 +1,5 @@
 import type { Landscape } from '../landscape';
-import { villageCentre } from '../village/departure';
+import { villageCentre } from '../village/people/departure';
 import type { VillageState } from '../village/types';
 import { alarmCellOf, alarmVillage, refugeHosts } from './alarm';
 import type { AlarmOwner, AlarmVillage } from './alarm-types';

@@ -1,6 +1,6 @@
-import { villageCentre } from '../village/departure';
+import { villageCentre } from '../village/people/departure';
 import type { Prisoner } from '../village/types';
-import type { GridCell } from '../village/world-grid';
+import type { GridCell } from '../village/people/world-grid';
 import {
   addVillage,
   alarmCellOf,

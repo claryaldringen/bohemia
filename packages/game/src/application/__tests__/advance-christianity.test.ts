@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dateOfDayIndex, dayIndexOf } from '../../domain/calendar';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
 import { foundVillage, type ChronicleEvent } from '../../domain/village';
-import { FAITH } from '../../domain/village/rules-faith';
+import { FAITH } from '../../domain/village/rules/rules-faith';
 import {
   advanceChristianity,
   sendRodBaptized,

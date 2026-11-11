@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fenceOutline } from '../../paths/entrances';
-import { FORTIFICATIONS } from '../../rules-fortifications';
-import { turnRotation } from '../../square-grid';
+import { FORTIFICATIONS } from '../../rules/rules-fortifications';
+import { turnRotation } from '../../placement/square-grid';
 import type { FortKind, SquareGrid, TileCell } from '../../types';
 import {
   fortificationArea,

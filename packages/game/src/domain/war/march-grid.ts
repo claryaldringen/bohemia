@@ -14,7 +14,7 @@ import {
   obstacleChangesAt,
   obstacleStatus,
   type ObstacleChanges,
-} from '../village/obstacles';
+} from '../village/core/obstacles';
 import {
   fortPincerArms,
   fortWalls,
@@ -42,7 +42,7 @@ import { penPathSquares } from '../village/paths/network-keys';
 import { villageBuildings } from '../village/paths/network-search';
 import { pathVillageOf } from '../village/paths/village';
 import { PEN_FENCE_INSET_M } from '../village/rules';
-import { FORTIFICATIONS } from '../village/rules-fortifications';
+import { FORTIFICATIONS } from '../village/rules/rules-fortifications';
 import { PATH_SLOPE_MAX } from '../village/paths/terrain';
 import type { VillageState } from '../village/types';
 import { WAR } from './rules-war';

@@ -6,7 +6,7 @@
 
 import { length2 } from '../../landscape';
 import { insideQuad, type FortWalls } from '../fortification/walls';
-import type { Point } from '../polygon';
+import type { Point } from '../placement/polygon';
 import { CEMETERY_FENCE_INSET_M, PEN_FENCE_INSET_M } from '../rules';
 import {
   cemeteryEntrance,

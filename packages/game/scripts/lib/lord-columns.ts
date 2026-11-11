@@ -12,7 +12,7 @@ import {
   villageManorId,
   type VillageState,
 } from '../../src/domain/village';
-import { ageYears } from '../../src/domain/village/people';
+import { ageYears } from '../../src/domain/village/people/people';
 
 /** Dovednosti cvičících mužů od 14 let na konci roku (průměr nejlepších hodnot a počet). */
 export interface ArmsSnapshot {

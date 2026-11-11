@@ -2,7 +2,7 @@
 // síla je vyšlapanost / práh cesty. Jeden zdroj pro chůzi (`walking.ts`) i scénu – nic se
 // nepočítá znovu, jen se dekódují trasy.
 
-import { WEAR } from '../rules-roads';
+import { WEAR } from '../rules/rules-roads';
 import type { StoredRoute } from '../types';
 import { type GridWindow } from './network-grid';
 import { extractLines } from './network-lines';

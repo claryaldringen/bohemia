@@ -3,7 +3,7 @@
 // startu (prázdná paměť uprostřed dopočtu).
 
 import type { Landscape, ObstacleLayer } from '../../landscape';
-import type { ObstacleChanges } from '../obstacles';
+import type { ObstacleChanges } from '../core/obstacles';
 import type { CartKind } from '../types';
 import {
   cartCostOn,

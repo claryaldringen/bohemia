@@ -2,8 +2,8 @@
 // Součást výpočtu sítě pěšin – rozcestník je network.ts (komentář k celku tam).
 
 import { WATER_FETCHING } from '../rules';
-import { type ObstacleChanges } from '../obstacles';
-import { type PartStage } from '../summary';
+import { type ObstacleChanges } from '../core/obstacles';
+import { type PartStage } from '../core/summary';
 import {
   type Craft,
   type DwellingType,

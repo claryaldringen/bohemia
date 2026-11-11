@@ -1,5 +1,5 @@
 import type { FortWalls } from '../fortification/walls';
-import type { Point } from '../polygon';
+import type { Point } from '../placement/polygon';
 import { length2 } from '../../landscape';
 import type { PathPoint } from './network-types';
 import { SegmentMemo } from './segment-memo';

@@ -1,8 +1,8 @@
 import { dateOfDayIndex, monthLength } from '../calendar';
-import { tradeCarts } from '../village/carts';
-import { yearlyCommonLabor } from '../village/dwellings';
+import { tradeCarts } from '../village/crafts/carts';
+import { yearlyCommonLabor } from '../village/buildings/dwellings';
 import type { TradePeople, VillageState } from '../village/types';
-import type { GridCell } from '../village/world-grid';
+import type { GridCell } from '../village/people/world-grid';
 import { cellDistance } from '../world/placement';
 import {
   addMacro,

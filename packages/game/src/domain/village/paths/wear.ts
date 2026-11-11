@@ -4,7 +4,7 @@
 // (provoz − 1 cesta) × dny oříznutá na 0 a strop, přesně jako den po dni. Provoz tras po políčkách
 // (provozní pole) se spočítá jednou pro sadu tras (`routes.key`) a drží v paměti, ne ve stavu.
 
-import { WEAR } from '../rules-roads';
+import { WEAR } from '../rules/rules-roads';
 import type {
   LaborDay,
   LegacyRoadFields,

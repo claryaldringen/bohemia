@@ -1,7 +1,7 @@
-import { cloneState } from '../domain/village/clone';
-import { villageHappiness } from '../domain/village/happiness';
+import { cloneState } from '../domain/village/core/clone';
+import { villageHappiness } from '../domain/village/people/happiness';
 import { sendAway } from '../domain/vassalage';
-import { isAway } from '../domain/village/people';
+import { isAway } from '../domain/village/people/people';
 import type { VillageState } from '../domain/village/types';
 import { bowSkillOf, newCampaign, tickOfMs, WAR, type CampaignMember } from '../domain/war';
 import { houseName } from './negotiation-chronicle';

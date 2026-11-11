@@ -1,7 +1,7 @@
 import { length2, tileCenterWorld, type Landscape } from '../../landscape';
 import { CART_ROUTES, CART_SPEED } from '../rules';
-import { squareCenter } from '../square-grid';
-import { partStage } from '../summary';
+import { squareCenter } from '../placement/square-grid';
+import { partStage } from '../core/summary';
 import type { CartKind, Road, VillageState } from '../types';
 import { cartPartSpeed, cartRoadSpeed, type CartTarget } from './cart';
 import { PathHeap, type PathPoint } from './network';

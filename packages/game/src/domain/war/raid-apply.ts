@@ -1,14 +1,14 @@
 import { createRandom, deriveSeed } from '../landscape/random';
-import { bury } from '../village/cemetery';
-import { drawGrainPits } from '../village/grain-pits';
-import { currentLord } from '../village/dynasty';
-import { removePeople } from '../village/kinship';
-import { ensureLivestock } from '../village/livestock';
-import { ageGroup, ageYears, isAway } from '../village/people';
-import { newcomerHome } from '../village/people-trade';
+import { bury } from '../village/buildings/cemetery';
+import { drawGrainPits } from '../village/fields/grain-pits';
+import { currentLord } from '../village/people/dynasty';
+import { removePeople } from '../village/people/kinship';
+import { ensureLivestock } from '../village/livestock/livestock';
+import { ageGroup, ageYears, isAway } from '../village/people/people';
+import { newcomerHome } from '../village/trade/people-trade';
 import { segmentBuilt } from '../village/fortification';
-import { setStewardOn } from '../village/steward-state';
-import { rehomePeople } from '../village/transfer-people';
+import { setStewardOn } from '../village/steward/steward-state';
+import { rehomePeople } from '../village/people/transfer-people';
 import type {
   ChronicleEvent,
   HerdSpecies,

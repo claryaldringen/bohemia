@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { daylightFactor } from '../../village/daylight';
+import { daylightFactor } from '../../village/core/daylight';
 import { dayIndexOf } from '../../calendar';
 import { packObstacles } from '../../landscape';
-import { foundVillage } from '../../village/actions';
-import { startFortification } from '../../village/fortifications';
+import { foundVillage } from '../../village/core/actions';
+import { startFortification } from '../../village/fortification/state/fortifications';
 import { squarePoints } from '../../village/fortification/convert';
 import { block, makeLandscape } from '../../village/__tests__/placement-fixtures';
 import { withBuiltFirstDwelling } from '../../village/__tests__/village-fixtures';
-import { villageFoodNeed } from '../../village/diet';
-import type { VillageEvent } from '../../village/inbox';
-import { guestLaborToday, laborPerDay } from '../../village/people';
-import { advanceVillage } from '../../village/simulate';
+import { villageFoodNeed } from '../../village/core/diet';
+import type { VillageEvent } from '../../village/core/inbox';
+import { guestLaborToday, laborPerDay } from '../../village/people/people';
+import { advanceVillage } from '../../village/core/simulate';
 import type { Guest, VillageState } from '../../village/types';
 import {
   CORVEE_NO_HANDS,

@@ -1,6 +1,6 @@
 import type { FenceArc, FenceCorners, FenceSegment } from '../paths/entrances';
-import type { Point } from '../polygon';
-import { FORTIFICATIONS } from '../rules-fortifications';
+import type { Point } from '../placement/polygon';
+import { FORTIFICATIONS } from '../rules/rules-fortifications';
 import type { FortKind } from '../types';
 import {
   normalizeFortPoints,

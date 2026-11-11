@@ -22,7 +22,7 @@ import {
   type PlacementRequest,
   type SeatSlot,
 } from '../domain/world';
-import type { GridCell } from '../domain/village/world-grid';
+import type { GridCell } from '../domain/village/people/world-grid';
 import { cellSkeletonVersions } from './cell-landscape';
 
 // Sídelní sídlo lidského hráče na mapě světa (world-skeleton.md – Hustota a stejné podmínky):

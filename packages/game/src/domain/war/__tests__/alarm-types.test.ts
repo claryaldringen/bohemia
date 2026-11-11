@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyInboxDay, type VillageEvent, type VillageEventBody } from '../../village/inbox';
+import { applyInboxDay, type VillageEvent, type VillageEventBody } from '../../village/core/inbox';
 import { DAY, kin, village } from '../../village/__tests__/kin-fixtures';
 import type { CampaignAlarm } from '../alarm-types';
 import { stepCampaign } from '../campaign';

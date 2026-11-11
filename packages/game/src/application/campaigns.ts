@@ -8,7 +8,7 @@ import type {
 } from '../domain/war';
 import { INTENT_LEAD_TICKS, tickOfMs } from '../domain/war';
 import type { WorldClock } from '../domain/calendar';
-import type { GridCell } from '../domain/village/world-grid';
+import type { GridCell } from '../domain/village/people/world-grid';
 
 // Porty tažení (plán 2026-11-03 – Úloha 6.5): úložiště tažení s kontrolními body a záměry, zámek
 // tažení a mapy políček světa.
