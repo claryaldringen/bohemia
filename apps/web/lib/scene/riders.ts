@@ -163,13 +163,6 @@ export function isLed(plan: RidePlan, t: number): boolean {
 /** Délka herního dne bez hodin světa (s – ukázky): 365 skutečných dní = 1000 herních let. */
 export const FALLBACK_DAY_S = 86.4;
 
-/** Hodina herního dne v čase `t` – z hodin světa, bez nich dokola po `FALLBACK_DAY_S`. */
-export function dayHour(window: DayWindow | null, t: number): number {
-  const hour = hourOfDay(window, t);
-  if (hour !== null) return hour;
-  return ((((t % FALLBACK_DAY_S) + FALLBACK_DAY_S) % FALLBACK_DAY_S) / FALLBACK_DAY_S) * 24;
-}
-
 /** Skutečných sekund na herní hodinu (bez hodin světa podle `FALLBACK_DAY_S`). */
 export function hourSeconds(window: DayWindow | null): number {
   return window && window.endMs > window.startMs

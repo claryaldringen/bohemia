@@ -13,7 +13,6 @@ import type { Bounds, FieldPart } from './types';
  */
 export const PLOUGH_WORK_PER_HA: Bounds = { worst: 10, best: 6 };
 export const PLOUGH_HA_PER_DAY = 0.3;
-export const PLOUGH_CREW = 2;
 /**
  * oxen.md – Jen rádlo (Martin, 19. 10. 2026: „Pokud je k dispozici rádlo, kopání motykou úplně
  * vynech.“; číslo návrh Clauda podle rešerše 2026-10-17-zemedelstvi-populace.md): drn – louka

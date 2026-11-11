@@ -5,12 +5,6 @@ import type { LanguageGroup, NewcomerStatus } from '@bohemia/game';
 
 type IsolatedStatus = Extract<NewcomerStatus, { phase: 'isolated' }>;
 
-/** Řádek nabídky pánů: rod, jméno vojvody a jazyková skupina rodu. */
-export type NewcomerOfferView = IsolatedStatus['offer'][number];
-
-/** Odeslaná žádost nováčka – čeká, nebo ji rod odmítl. */
-export type NewcomerRequestView = IsolatedStatus['requests'][number];
-
 /**
  * Stav nováčka pro klienta: `NewcomerStatus` z jádra, `deadline` je konec týdne čekání (ISO čas),
  * null dokud žádná žádost neběží.

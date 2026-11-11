@@ -16,7 +16,6 @@ import { route, stand, type PoseFn, type Route, type VillagerClip } from './vill
 import {
   HOUSE_MARGIN_M,
   ROUTE_STEP_M,
-  ROW_MARGIN_M,
   SITE_FRONT_M,
   gap,
   type Box,
@@ -336,16 +335,6 @@ export const TRAFFIC_DOOR_REACH_M = 16;
 export function trafficDoor(ctx: Context, home: House): Point | null {
   const door = doorPoint(home);
   return nearestFree(ctx, door.x, door.z, TRAFFIC_DOOR_REACH_M);
-}
-
-/** Bod na kraji čtverce nejblíž bodu `p` (v osách čtverce – i natočeného). */
-export function squareEdge(square: Square, p: Point): Point {
-  const half = square.size / 2 - ROW_MARGIN_M;
-  const [u, v] = squareLocal(square, p.x, p.z);
-  const [ax, az] = squareAxes(square);
-  const cu = Math.min(half, Math.max(-half, u));
-  const cv = Math.min(half, Math.max(-half, v));
-  return { x: square.x + ax.x * cu + az.x * cv, z: square.z + ax.z * cu + az.z * cv };
 }
 
 /**

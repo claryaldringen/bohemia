@@ -220,11 +220,6 @@ export function wearCraftStocks(state: VillageState, day: number): void {
   }
 }
 
-/** Řemeslo obydlí; obyčejné obydlí null. */
-export function dwellingCraft(dwelling: Pick<Dwelling, 'workshop'>): Craft | null {
-  return dwelling.workshop?.craft ?? null;
-}
-
 /** Nová dílna řemesla `craft` po dostavění – zatím nic nekácí ani nevyrábí. */
 export function newWorkshop(craft: Craft, waterDistanceM?: number): Workshop {
   return {

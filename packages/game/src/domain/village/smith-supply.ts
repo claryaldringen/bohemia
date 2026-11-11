@@ -120,11 +120,6 @@ export function dugBasketManDaysPerKg(material: DugMaterial, walkM: number): num
   return basketManDaysPerKg(walkM, DUG[material].basketKg);
 }
 
-/** Kopání suroviny (čd na kg) s přirážkou za chůzi `walkM` m. */
-export function dugManDaysPerKg(material: DugMaterial, walkM: number): number {
-  return DUG[material].digPerKg(walkM);
-}
-
 /** Člověk z kovárny – id a věk v letech. */
 export interface SmithMember {
   id: number;
@@ -622,11 +617,6 @@ export function updateOrePits(state: VillageState, day: number): void {
   if (kept.length === pits.length) return;
   if (kept.length > 0) state.orePits = kept;
   else delete state.orePits;
-}
-
-/** Poslední jáma kovárny (kde se právě kope); bez jam null. */
-export function currentOrePit(state: VillageState, smithId: number): OrePit | null {
-  return currentDugPit(state, smithId, 'ore');
 }
 
 /** Poslední jáma suroviny `material` dílny (kde se právě kope); bez jam null. */

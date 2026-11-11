@@ -973,15 +973,6 @@ export function yearlyMeatPerHead(species: HerdSpecies): number {
 }
 
 /**
- * Bílkoviny (kg za rok), které dá kus přezimujícího stáda: mléko (85 % bílkovin – syrovátka
- * odteče) a maso z mláďat (`yearlyMeatPerHead`).
- */
-export function proteinPerHead(species: HerdSpecies): number {
-  const milk = yearlyMilk(dairyDams(herdRecord((s) => (s === species ? 1 : 0)))).proteinKg;
-  return milk * LIVESTOCK.milkProteinKept + yearlyMeatPerHead(species) * PROTEIN.perKg.meat;
-}
-
-/**
  * Bílkoviny ze stád, které ves potřebuje (kg za rok – diet.md, Bílkoviny): potřeba bez obilí,
  * luštěnin a vajec.
  */

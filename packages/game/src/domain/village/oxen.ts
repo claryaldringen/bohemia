@@ -122,11 +122,6 @@ export function trainedOxen(state: Pick<VillageState, 'pens'>, day: number): num
   return n;
 }
 
-/** Telata ve výcviku v den `day`. */
-export function oxenInTraining(state: Pick<VillageState, 'pens'>, day: number): number {
-  return villageOxen(state) - trainedOxen(state, day);
-}
-
 /** Místa ohrad volů (hotové čtverce × 6 – voli i s telaty ve výcviku; oxen.md – Ohrada volů). */
 export function oxPlaces(state: Pick<VillageState, 'pens'>): number {
   return oxPens(state).reduce(

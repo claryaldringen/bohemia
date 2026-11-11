@@ -264,11 +264,6 @@ export interface VillageState {
    * staví hráč). Chybí = nikdy.
    */
   domainFoodDay?: number;
-  /**
-   * Nedodělek domácí výroby – jen ve vsích uložených před 19. 10. 2026; domácí výroba z práce
-   * vsi nebere (population.md – Práce), simulace ho nečte ani nepíše.
-   */
-  domesticBacklog?: number;
   hungry: boolean;
   /**
    * Příděl energie do sklizně podle výhledu z jídla posledního dne (0–1) – jen když ves šetří

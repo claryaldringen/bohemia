@@ -1148,27 +1148,6 @@ export function battleFortifications<
   });
 }
 
-/** Meshe vojska (draw cally, když jsou vidět) – pro měření a dokumentaci (docs/code/scene.md). */
-export const ARMY_MESHES = [
-  'army-man',
-  'army-woman',
-  'army-horse',
-  'army-cow',
-  'army-shadow',
-  'army-arrow',
-  'army-stone',
-  'army-javelin',
-  'army-dust',
-  'army-ladder-5',
-  'army-ladder-7',
-  'army-fagot',
-  'army-pit',
-  'army-order-follow-leader',
-  'army-order-attack-all',
-  'army-order-hold-place',
-  'fog-veil',
-] as const;
-
 /**
  * Draw cally vojska: jeden na druh postavy a zvířete, stíny, šípy a prach (jen když letí / práší),
  * jeden na každý použitý rozkaz a závoj mlhy; u hradby kameny, oštěpy, díl žebříku, otepi a jámy

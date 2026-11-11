@@ -78,17 +78,6 @@ export function builtThreshingFloorCount(state: Pick<VillageState, 'threshingFlo
 }
 
 /**
- * Je den `day` v roce odkladu starší vsi (`threshingGraceUntil` – production-chains.md, Starší
- * vsi)? Nová ves odklad nemá.
- */
-export function inThreshingGrace(
-  state: Pick<VillageState, 'threshingGraceUntil'>,
-  day: number,
-): boolean {
-  return state.threshingGraceUntil !== undefined && day < state.threshingGraceUntil;
-}
-
-/**
  * Jak ves v den `day` mlátí: kolik práce výmlatu za den zvládnou hotová humna (THRESHING –
  * kapacita se sčítá) a jestli smí mlátit nouzově na udusané zemi (rok odkladu – bez omezení
  * místa, o THRESHING.emergencyWork víc práce a o THRESHING.emergencyLoss méně zrna).

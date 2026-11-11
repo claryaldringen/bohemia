@@ -318,11 +318,6 @@ export function moatFillMeshData(
   return out;
 }
 
-/** Počet trojúhelníků sítě (měření scény). */
-export function triangleCount(arrays: MeshArrays): number {
-  return arrays.indices.length / 3;
-}
-
 /**
  * Hladina vody v příkopu (fortifications.md – Hradby a obrana, vodní příkop): pruh po souvislých
  * kusech s vodou (`moatWaterRuns`) – rovný napříč (výška okraje na ose příkopu − hloubka

@@ -116,11 +116,6 @@ function emptyPartWork(): PartWork {
   return { ...emptyTaskRecord(), plough: 0 };
 }
 
-/** Prázdná zátěž – jen sklizeň jablek. */
-export function orchardOnlyLoad(orchardAutumn: number): SowingLoad {
-  return { orchardAutumn, winter: emptyPartWork(), spring: emptyPartWork() };
-}
-
 /** Zbytek práce plodiny (potřebné − odvedené po úlohách a zbývající orba). */
 function remaining(work: CropWork | undefined): PartWork {
   const rest = emptyPartWork();

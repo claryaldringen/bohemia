@@ -179,8 +179,6 @@ export interface Construction {
   fortTarget?: WallKind;
   /** Stavba u brány (`fortWork` `gate`): úsek brány a klešťová brána, nebo věž. Jinak chybí. */
   fortGate?: { segment: number; level: 'pincer' | 'tower' };
-  /** Nepoužité (přestavba je jedna stavba pro všechny dožilé úseky opevnění). */
-  segmentIndex?: number;
   /**
    * Úseky stavby opevnění v pořadí práce (od brány nejblíž dvorci po směru hodin) a práce každého
    * (čd). Práce stavby jde napřed do kácení dřeva (`wood`), pak do úseků jeden po druhém – úsek je

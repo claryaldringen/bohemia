@@ -148,9 +148,6 @@ export const QUARTER_BITS = [1, 2, 4, 8] as const;
 export type SlaughterRole = 'butcher' | 'bowl' | 'holder' | 'helper';
 export const SLAUGHTER_ROLES: readonly SlaughterRole[] = ['butcher', 'bowl', 'holder', 'helper'];
 
-/** Rekvizita v ruce podle klipu (people.json – propy se ukazují jen v klipu). */
-export type SlaughterProp = 'mallet' | 'knife' | 'bowl' | 'axe' | 'meat';
-
 /** Obydlí pro porážku: bod před vchodem (volné místo) a směr ven z domu (jednotkový). */
 export interface SlaughterHome {
   id: number;

@@ -260,7 +260,6 @@ function village(cells = true): { state: VillageState; cellOf: Map<number, TileC
     season: null,
     threshingSeason: null,
     storesKg: 1500,
-    domesticBacklog: 0,
     hungry: false,
     commonLaborHistory: [],
     chronicle: [],

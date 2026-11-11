@@ -7,7 +7,7 @@ import { villageHorses } from './horses';
 import { isVillageExtinct } from './extinction';
 import { removePeople } from './kinship';
 import { villageManor } from './manor';
-import { ageGroup, ageYears, occupants } from './people';
+import { ageGroup, ageYears } from './people';
 import { relocationBlock } from './relocation';
 import { leavingCart, takeLeavingCart } from './carts';
 import {
@@ -143,11 +143,6 @@ export function abandonForLineEnd(state: VillageState, day: number): VillageStat
     abandonedDay: day,
     chronicle: [...state.chronicle, event].slice(-CHRONICLE_MAX_EVENTS),
   };
-}
-
-/** Žije ve vsi někdo (pro konec hry) – nevymřela a není opuštěná; ves na cestě žije. */
-export function isVillageLiving(state: Pick<VillageState, 'extinctDay' | 'abandonedDay'>): boolean {
-  return !isVillageExtinct(state) && !isVillageAbandoned(state);
 }
 
 /** Došli už lidé na cestě do dne `day` na místo nové vsi? */
@@ -683,9 +678,4 @@ export function abandonedVillageAt(state: VillageState, day: number): VillageSta
 function withoutAnimals(livestock: LivestockState): LivestockState {
   const none = Object.fromEntries(HERDS.map((s) => [s, 0])) as Record<HerdSpecies, number>;
   return { ...livestock, herds: { ...none }, young: { ...none } };
-}
-
-/** Lidé ve vsi (obydlí `dwellingId`) – kolik jich odejde s domácností. */
-export function householdSize(state: VillageState, dwellingId: number): number {
-  return occupants(state, dwellingId).length;
 }

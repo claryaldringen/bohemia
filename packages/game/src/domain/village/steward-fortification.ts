@@ -12,7 +12,7 @@ import {
 } from './fortification';
 import { stewardFortificationProposal } from './fortification-proposal';
 import type { Point } from './polygon';
-import { outlineOf, villageFortifications } from './fortifications';
+import { outlineOf } from './fortifications';
 import { isFertile, laborPerDay } from './people';
 import { FORTIFICATIONS } from './rules-fortifications';
 import { TRADE_GOOD_VALUES } from './rules-trade';
@@ -293,12 +293,4 @@ export function fortLengthAs(
   kind: FortKind,
 ): number | null {
   return outlineOf(landscape, fort, kind)?.lengthM ?? null;
-}
-
-/** Opevnění vsi, které správce nezaložil (hráčovo) – správce ho nemění ani nedoplňuje. */
-export function hasForeignFortification(
-  state: VillageState,
-  isOwn: (id: number) => boolean,
-): boolean {
-  return villageFortifications(state).some((f) => !isOwn(f.id));
 }

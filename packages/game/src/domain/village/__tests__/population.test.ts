@@ -47,7 +47,6 @@ const village = (
   season: null,
   threshingSeason: null,
   storesKg: 0,
-  domesticBacklog: 0,
   hungry: false,
   commonLaborHistory: [],
   chronicle: [],

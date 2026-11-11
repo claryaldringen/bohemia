@@ -19,7 +19,6 @@ import type {
   FieldPart,
   HayMowing,
   Ox,
-  TradeExpedition,
   Trail,
   VillageState,
 } from './types';
@@ -685,17 +684,5 @@ export function trailCartPassable(
   return trail.pieces.every((piece) => {
     const road = roads.get(piece.roadId);
     return !road || axisCartCheck(road.points, terrain).passable;
-  });
-}
-
-/** Vozy výpravy podle id (pro panel – druh vozů na cestě). */
-export function expeditionCartKinds(
-  state: Pick<VillageState, 'carts'>,
-  expedition: Pick<TradeExpedition, 'carts'>,
-): CartKind[] {
-  const byId = new Map(villageCarts(state).map((c) => [c.id, c.kind]));
-  return (expedition.carts ?? []).flatMap((id) => {
-    const kind = byId.get(id);
-    return kind ? [kind] : [];
   });
 }
