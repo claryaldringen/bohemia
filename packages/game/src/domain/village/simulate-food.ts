@@ -229,8 +229,8 @@ export function eat(
   }
   if (state.applesKg !== undefined) state.applesKg = meal.fruitKg;
   state.diet = meal.diet;
-  // kolik z dnešní potřeby musí dát pole – podle toho ves k 1. 9. oseje (fields.md – Kolik ves
-  // oseje, Osev podle stravy)
+  // kolik z dnešní potřeby musí dát pole – podle toho potřeba z pole ve výhledu zásob k sklizni
+  // (fields.md – Výhled zásob k sklizni, Osev podle stravy)
   recordFieldFood(state, need, meal.diet);
   // příděl do sklizně podle výhledu, nebo méně, když se dnes snědlo méně energie (zásoby došly
   // a snopy se nestihly vymlátit – production-chains.md, Humno) – ves šetří i hladoví podle toho,

@@ -65,7 +65,7 @@ export interface FieldHoldings {
 }
 
 /** O kolik čtverců (oblouk na poloměru prstence) se smí hranice úseku posunout mezi prstenci. */
-export const MAX_SHIFT_CELLS = 1;
+const MAX_SHIFT_CELLS = 1;
 const TAU = 2 * Math.PI;
 /** Číselný klíč políčka (y · krok + x) – krok větší než strana krajiny i se sousedy za okrajem. */
 const CELL_KEY_STRIDE = 4096;

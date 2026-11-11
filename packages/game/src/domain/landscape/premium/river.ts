@@ -69,7 +69,7 @@ export const NAVIGABLE_FLOODPLAIN_CELLS = 4;
  * Ostrožna nad brodem a nad soutokem: plocha nahoře (elipsa – poloosa podél ostrožny a napříč,
  * políčka), šíje a hřbet do vnitrozemí, svahy (m na políčko) a výška nad hladinou (m).
  */
-export const SPUR = {
+const SPUR = {
   halfLength: 3,
   halfWidth: 2.2,
   neckHalfWidth: 1.1,

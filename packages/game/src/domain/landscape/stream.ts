@@ -92,20 +92,10 @@ export interface StreamLoop {
 export const LOOP_CALM = 8;
 
 /**
- * Tvar potoka nad trasou po políčkách: vyhlazená osa, meandry jako součet dvou sinusovek
- * (víc v rovině, míň ve svahu), každý břeh s vlastní odchylkou šířky, tůně v rovinách a mělčiny
- * ve strmějších úsecích. Vrací body osy po proudu a vodní políčka (souvislá, od okraje k okraji).
+ * Vylosuje vlastnosti potoka nad trasou (šířky, tůně, mělčiny, vlny meandrů). Tvar z nich postaví
+ * `buildStream`: vyhlazená osa, meandry jako součet dvou sinusovek (víc v rovině, míň ve svahu),
+ * každý břeh s vlastní odchylkou šířky, tůně v rovinách a mělčiny ve strmějších úsecích.
  */
-export function shapeStream(
-  path: readonly number[],
-  heights: Float32Array,
-  size: number,
-  random: Random,
-): { samples: ChannelSample[]; water: Uint8Array } {
-  return buildStream(planStream(path, heights, size, random), heights, size, null)!;
-}
-
-/** Vylosuje vlastnosti potoka nad trasou (šířky, tůně, mělčiny, vlny meandrů). */
 export function planStream(
   path: readonly number[],
   heights: Float32Array,

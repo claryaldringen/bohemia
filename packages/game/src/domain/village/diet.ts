@@ -84,7 +84,7 @@ export const SLAUGHTER_DAY = { month: 11, day: 1 } as const;
  * z podzimní porážky vydrží přes zimu a jaro a šetří se na žně – 1. 9. ráno se zbytek zkazí
  * (v létě žlukne tuk a maso napadá hmyz; soli bylo málo).
  */
-export const MEAT_SPOIL_DAY = { month: 9, day: 1 } as const;
+const MEAT_SPOIL_DAY = { month: 9, day: 1 } as const;
 
 const COMMON_YEAR_DAYS = 365;
 /** Maso se uzí rovnoměrně po dnech – za rok ubude DIET.meatLossPerYear. */

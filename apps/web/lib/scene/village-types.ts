@@ -29,9 +29,6 @@ export type SceneRuin = NonNullable<SceneVillage['ruins']>[number];
 /** Pole ve scéně – díly po čtvercích (políčkách krajiny). */
 export type SceneField = SceneVillage['fields'][number];
 
-/** Díl pole – políčko, jeho střed (m), strana políčka a stadium; díl = celé políčko. */
-export type SceneFieldPart = SceneField['parts'][number];
-
 /**
  * Cena umístění pro rozhraní u kurzoru (ikony s čísly): práce celkem v člověkodnech – i s
  * překážkami (a u obydlí s kácením) – a u obydlí kolik stromů se pro stavbu skácí (0 = dřevo

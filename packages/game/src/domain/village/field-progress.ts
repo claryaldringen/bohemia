@@ -548,7 +548,7 @@ const WORK_STEP = 20;
 export type PrepTask = 'reclaim' | 'plough' | 'dig';
 
 /**
- * Letošní práce na dílu (fields.md – Co hráč vidí, panel dílu): díl plánu osevu – plodina,
+ * Letošní práce na dílu (fields.md – Co hráč vidí, panel dílu): díl hospodářského roku – plodina,
  * příprava půdy (úloha, která je na řadě, a kolik z ní je na dílu hotovo; všechno hotové –
  * poslední úloha s 1), setí a sklizeň; díl letošní seče sena – kolik je posečeno. Podíly 0–1
  * stejně jako vzhled dílu (`fieldPartLooks`): práce mění díl, až když k němu dojde.
@@ -573,7 +573,7 @@ function yearCrops(state: VillageState): { crop: Crop; work: CropWork }[] {
 }
 
 /**
- * Letošní práce na dílech pole v den `day` (díl id → práce) – jen díly plánu osevu (po sklizni
+ * Letošní práce na dílech pole v den `day` (díl id → práce) – jen díly hospodářského roku (po sklizni
  * jaře plán u výmlatu) a díly letošní seče sena. Jen čte stav.
  */
 export function partYearWork(state: VillageState, day: number): Map<number, PartYearWork> {

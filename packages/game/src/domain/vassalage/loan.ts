@@ -31,7 +31,7 @@ export type AidLine =
       schedule: LoanInstallment[];
     };
 
-export const AID_KINDS = ['aid-request', 'gift', 'loan'] as const;
+const AID_KINDS = ['aid-request', 'gift', 'loan'] as const;
 
 /** Je řádek řádkem o pomoci (ne přísaha ani podmínka vazalství)? */
 export function isAidLine(item: { kind: string }): item is AidLine {

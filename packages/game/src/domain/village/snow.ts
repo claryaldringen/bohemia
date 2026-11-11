@@ -14,7 +14,7 @@ import type { WinterWeather } from './types-disasters';
 export type SeasonTrack = readonly (readonly [day: number, value: number])[];
 
 /** Délka roku stop (nepřestupný – 366. den přestupného roku navazuje na 1. 1.). */
-export const SEASON_YEAR_DAYS = 365;
+const SEASON_YEAR_DAYS = 365;
 
 // Dny v roce (nepřestupném): 1. 3. = 60, 1. 4. = 91, 1. 6. = 152, 1. 9. = 244, 1. 12. = 335.
 

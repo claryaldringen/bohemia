@@ -453,13 +453,13 @@ export type TrailPlan =
     }
   | { ok: false; reason: string };
 
-export const NO_MANOR = 'Ves zatím nemá dvorec – zakladatelé ho teprve staví.';
+const NO_MANOR = 'Ves zatím nemá dvorec – zakladatelé ho teprve staví.';
 export const TRAIL_EXISTS = 'Stezka tímto směrem už vede.';
 export const TRAIL_BUILDING = 'Stezka tímto směrem se už staví.';
 export const TRAIL_BLOCKED = 'Ke kraji mapy tudy cesta nevede – zahrazuje ji voda nebo sráz.';
-export const TRAIL_ROAD_IN_WORK = 'Část cesty se už vylepšuje.';
-export const TRAIL_NO_WOOD = 'Na hať a lávku chybí dřevo.';
-export const TRAIL_SACRED = 'Stezce v cestě stojí posvátný dub – kácet se nesmí.';
+const TRAIL_ROAD_IN_WORK = 'Část cesty se už vylepšuje.';
+const TRAIL_NO_WOOD = 'Na hať a lávku chybí dřevo.';
+const TRAIL_SACRED = 'Stezce v cestě stojí posvátný dub – kácet se nesmí.';
 
 /**
  * Naplánuje stezku ve směru `direction` (bez změny vstupního stavu): trasa od dvorce, osy jako

@@ -40,7 +40,7 @@ export interface SimulatedPart {
 }
 
 const key = (c: TileCell): string => `${c.x},${c.y}`;
-/** Ukázka začíná těsně před plánem osevu (1. 9.) a ukáže polovinu června po `years` letech. */
+/** Ukázka začíná těsně před začátkem hospodářského roku (1. 9.) a ukáže polovinu června po `years` letech. */
 const START = dayIndexOf({ year: 600, month: 8, day: 20 });
 const SHOW = { month: 6, day: 15 } as const;
 /** Domácnost v pevném složení: dva dospělí (věk v letech). */

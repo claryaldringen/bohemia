@@ -37,7 +37,7 @@ export function edgeWeight(edgeM: number): number {
 }
 
 /**
- * Obilné plodiny hospodářského roku, které zvěř ničí (ozim, jař; i nad potřebu) – v září i jař,
+ * Obilné plodiny hospodářského roku, které zvěř ničí (ozim, jař) – v září i jař,
  * kterou srpen nedosklidil (`cropsAfield`; fields.md – Žeň jaře i v září).
  */
 function cerealCrops(state: VillageState): { crop: DamageCrop; work: CropWork; late?: true }[] {
@@ -47,7 +47,7 @@ function cerealCrops(state: VillageState): { crop: DamageCrop; work: CropWork; l
 }
 
 /**
- * 1. 6. (před prací dne): ohrožené díly sezóny – osetý ozim a jař (i nad potřebu) s váhou podle
+ * 1. 6. (před prací dne): ohrožené díly sezóny – osetý ozim a jař s váhou podle
  * vzdálenosti od lesa (`forestEdgeDistances`; bez krajiny les dílu 0 m, jiný `defaultEdgeM`).
  * Díl s váhou 0 zůstává v seznamu kvůli vranám. Ztráty začínají od nuly, loňský součet se zapíše
  * do `lastYearKg`. Jiný den nic nedělá.

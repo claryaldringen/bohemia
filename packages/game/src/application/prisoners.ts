@@ -34,7 +34,7 @@ export interface PrisonerRepository {
   find(id: string): Promise<PrisonerRecord | null>;
 }
 
-export const PRISONER_REASONS = {
+const PRISONER_REASONS = {
   notFound: 'Takový zajatec tu není.',
   decided: 'O tomhle zajatci už je rozhodnuto.',
   noHome: 'Domovská ves zajatce zanikla.',

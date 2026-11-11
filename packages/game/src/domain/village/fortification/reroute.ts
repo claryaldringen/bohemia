@@ -33,15 +33,15 @@ import type { FortSegment, Fortification } from './types';
 /** Úsek ještě stojí – jinudy jde jen úsek celý zbořený. */
 export const FORT_SECTION_STANDS = 'Úsek ještě stojí – napřed ho zbořte.';
 /** Obvod bez brány nemá úsek od brány k bráně. */
-export const FORT_REROUTE_GATELESS = 'Jinudy jde postavit jen úsek mezi branami.';
+const FORT_REROUTE_GATELESS = 'Jinudy jde postavit jen úsek mezi branami.';
 /** Nová trasa kříží zbytek obvodu (nebo sama sebe). */
 export const FORT_REROUTE_CROSSING = 'Nový úsek nesmí křížit obvod.';
 /** Nová trasa obešla opevnění – vnitřek by byl venku. */
-export const FORT_REROUTE_AROUND = 'Nový úsek nesmí obejít opevnění.';
+const FORT_REROUTE_AROUND = 'Nový úsek nesmí obejít opevnění.';
 /** Plocha opevnění s novým úsekem pod nejmenší plochou. */
-export const FORT_REROUTE_SMALL = `Opevnění chce plochu aspoň ${FORTIFICATIONS.outline.minAreaM2} m².`;
+const FORT_REROUTE_SMALL = `Opevnění chce plochu aspoň ${FORTIFICATIONS.outline.minAreaM2} m².`;
 /** Dvě brány by po novém dělení obvodu padly do jednoho dílu. */
-export const FORT_REROUTE_GATES = 'Brány by se sešly v jednom dílu – veďte úsek delší.';
+const FORT_REROUTE_GATES = 'Brány by se sešly v jednom dílu – veďte úsek delší.';
 
 /** Tolerance poloh na obvodu (m). */
 const EPSILON_M = 1e-6;

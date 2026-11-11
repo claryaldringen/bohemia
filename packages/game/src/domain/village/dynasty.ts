@@ -214,9 +214,9 @@ export function markNewborn(state: VillageState, child: Person, day: number): Ch
 }
 
 /** Pojmenovat jde jen žijícího muže rodu (lord.md – Jména). */
-export const NOT_LINE_MAN = 'Jméno dává vojvoda jen mužům rodu.';
+const NOT_LINE_MAN = 'Jméno dává vojvoda jen mužům rodu.';
 /** Jméno je trvalé (lord.md – Jména, návrh Clauda). */
-export const ALREADY_NAMED = 'Jméno už má – nejde ho změnit.';
+const ALREADY_NAMED = 'Jméno už má – nejde ho změnit.';
 
 /**
  * Hráč pojmenuje žijícího muže rodu bez jména (lord.md – Jména; Martin 24. 10. 2026: „Vojvoda

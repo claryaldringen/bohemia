@@ -45,17 +45,6 @@ export type { CartKind };
  */
 export type CartCargo =
   'empty' | 'hay' | 'sheaves' | 'logs' | 'goods' | 'water' | 'ore' | 'clay' | 'apples';
-export const CART_CARGOES: readonly CartCargo[] = [
-  'empty',
-  'hay',
-  'sheaves',
-  'logs',
-  'goods',
-  'water',
-  'ore',
-  'clay',
-  'apples',
-];
 
 /**
  * Rozměry vozů ve skutečné velikosti (m) z tools/blender/wagons_from_0ad.py (WHEEL_R, YOKE_Y,

@@ -16,7 +16,7 @@ export const CRAFT_BASE: Readonly<Record<Craft, DwellingType>> = {
   burner: 'zemnice',
   carpenter: 'polozemnice',
 };
-export const WORKSHOP_EXTRA = 0.3;
+const WORKSHOP_EXTRA = 0.3;
 /** Přirážka dílny řemesla k základnímu obydlí (uhlíř bez přirážky – milíř staví u dávky). */
 export function workshopExtra(craft: Craft): number {
   return craft === 'burner' ? 0 : WORKSHOP_EXTRA;
@@ -383,7 +383,7 @@ export const CART_DEMAND = {
 } as const satisfies { maxCarts: Record<CartKind, number> } & Record<string, unknown>;
 // wagons.md – Co vozy vozí (Martin 19. 10. 2026: „Pokud budou mít k dispozici vůz, ať na pole, pro
 // vodu nebo pro dřevěné uhlí jede vůz.“; čísla návrh Clauda): dvoukolák, který dnes nesváží úrodu,
-// seno ani klády a jehož voli neorají (ani díly nad potřebu – fields.md, Osevní postup po dílech),
+// seno ani klády a jehož voli neorají (fields.md – Osevní postup po dílech),
 // jede v pořadí:
 // - `charcoal` – uhlí z vypáleného milíře ke kováři: z vytahání, třídění a odnosu
 //   (CHARCOAL_KILN.drawManDaysPerTree – 2 čd na buk po 120 kg) je `carryShare` odnos v koších

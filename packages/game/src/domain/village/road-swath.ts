@@ -216,11 +216,6 @@ export function cutRoadSwath(
   return tally;
 }
 
-/** Pařezy a stromy, které v průsecích lesem nedorostou (`VillageRoads.swath`). */
-export function swathIds(state: Pick<VillageState, 'roads'>): ReadonlySet<number> {
-  return new Set(state.roads?.swath ?? []);
-}
-
 /**
  * Nový les vsi (fields.md – Les vsi) do průseku nevstoupí (mutuje stav): místa jeho stromů
  * v pruhu úseků s průsekem se odstraní hned (stromy tam nevyrostou).

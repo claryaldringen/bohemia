@@ -279,6 +279,3 @@ export function pruneFx<T extends { startS: number }>(
 export function fallenShown(nowMs: number, dayEndMs: number | null): boolean {
   return dayEndMs === null || nowMs < dayEndMs;
 }
-
-/** Takty za sekundu jádra – snímky boje přicházejí po taktech (`TICK_MS`). */
-export const BATTLE_TICK_S = 1 / TICKS_PER_SECOND;

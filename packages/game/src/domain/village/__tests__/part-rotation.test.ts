@@ -7,7 +7,7 @@ import type { FarmSeason, FieldPart, VillageState } from '../types';
 import { createCropWork } from '../year-plan';
 
 // Panel dílu a pole (fields.md – Osevní postup po dílech, bod 6 – Co hráč vidí): co na dílu
-// poroste příště, kolikátý osev oběhu, úhor s odpočinkem a díly na řadě či nad potřebu.
+// poroste příště, kolikátý osev oběhu, úhor s odpočinkem a díly na řadě.
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 

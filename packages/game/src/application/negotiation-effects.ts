@@ -80,7 +80,7 @@ const aidEffect = <K extends AidLine['kind']>(): NegotiationEffect<K> => ({
  * Holá přísaha: vazalství `origin: 'negotiation'` bez podmínek; druhý pán přibude vedle
  * stávajících, stejná dvojice už svázaná – `create` vrátí živé vazalství a nic nepřidá.
  */
-export const NEGOTIATION_EFFECTS: { [K in TermItem['kind']]: NegotiationEffect<K> } = {
+const NEGOTIATION_EFFECTS: { [K in TermItem['kind']]: NegotiationEffect<K> } = {
   oath: {
     check: () => Promise.resolve(null),
     apply: async (tx, item, ctx) => {

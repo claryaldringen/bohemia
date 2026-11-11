@@ -80,7 +80,7 @@ export const SPRINGS = {
  * Stezka přes brod (ford-hill): kolem vsi jako každá stezka (`VILLAGE_ROUTE` – nejblíž 150 m,
  * bod obejití ≈ 200 m od vsi); kolem brodu smí k vodě.
  */
-export const FORD_ROUTE = {
+const FORD_ROUTE = {
   ...VILLAGE_ROUTE,
   /** Kolem brodu se smí k vodě (políčka). */
   fordReachCells: 3,

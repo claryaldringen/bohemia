@@ -274,7 +274,7 @@ describe('dlouhá zima – co je vidět a dohra setí jařin', () => {
 
 describe('dohra setí jařin v simulaci', () => {
   /**
-   * Ves 25. 4. s rozsetou jaří nad potřebu (setí zbývá dlouho) a vynuceným počasím zimy – dřív
+   * Ves 25. 4. s rozsetou jaří (setí zbývá dlouho) a vynuceným počasím zimy – dřív
    * rozsetý díl luštěnin (luštěniny z polí vyřazené 9. 11. 2026).
    */
   const start = (winter: 'normal' | 'long'): VillageState => {

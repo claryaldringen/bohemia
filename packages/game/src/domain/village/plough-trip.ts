@@ -428,7 +428,7 @@ export function sameFurrowInputs(
   return k === known.length;
 }
 
-/** Poslední výpočet `plannedFurrowEfficiency` plánu osevu po krajině – vstupy a výsledek. */
+/** Poslední výpočet `plannedFurrowEfficiency` po krajině – vstupy a výsledek. */
 const furrowMemo = new WeakMap<Landscape, { inputs: number[]; value: number }>();
 
 /**
@@ -438,7 +438,7 @@ const furrowMemo = new WeakMap<Landscape, { inputs: number[]; value: number }>()
 let plainFurrowMemo: { inputs: number[]; value: number } | null = null;
 
 /**
- * `plannedFurrowEfficiency` plánu osevu (`sowingCapacity` – každý den oken setí) s pamětí: když se
+ * `plannedFurrowEfficiency` (`sowingCapacity` – každý den oken setí) s pamětí: když se
  * od posledního výpočtu nad touž krajinou (nebo bez krajiny) nezměnilo nic, co výpočet čte
  * (`furrowInputs` – díly na řadě, mřížky polí, pevné cesty; porovnává se přesně číslo po čísle),
  * vezme se minulý výsledek. Výsledek je tedy týž jako bez paměti a nezávisí na kouscích dopočtu;
@@ -459,7 +459,7 @@ export function sowingFurrowEfficiency(
 }
 
 /**
- * Očekávaný výkon orby pro plán osevu (podíl výkonu u referenční brázdy): průměr výkonu podle
+ * Očekávaný výkon orby pro kapacitu práce a páry k rádlům (podíl výkonu u referenční brázdy): průměr výkonu podle
  * délky brázdy přes pásy, na které by se díly polí `parts` rozpadly (váhou dílů); s krajinou se
  * brázda láme na pevných cestách vsi (`bandFurrowM`). Bez dílů 1.
  */

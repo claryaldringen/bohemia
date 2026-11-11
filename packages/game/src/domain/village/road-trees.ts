@@ -1,6 +1,5 @@
 import { ORCHARD, ROAD_APPLES, ROAD_TREES } from './rules';
 import type { RoadApple, RoadTree } from './types';
-import { WOOD_TREE_ID_BASE } from './woods';
 
 // Stromy u pevných cest (roads.md – Stromy u pevných cest): strom se uchytí na místě u cesty
 // a roste z keře (Martin – napřed keř), po smrti stářím zbude souš a pak pařez. Vše se odvozuje
@@ -72,11 +71,6 @@ export function roadTreeObstacleKind(
  */
 export function junctionLandmarkId(junctionId: number): number {
   return ROAD_TREE_ID_BASE + junctionId;
-}
-
-/** Je to id stromu u cesty (ne překážky z vrstvy ani stromu lesa vsi)? */
-export function isRoadTreeId(id: number): boolean {
-  return id >= ROAD_TREE_ID_BASE && id < WOOD_TREE_ID_BASE;
 }
 
 /** Stadium jabloně u cesty: čeká na výsadbu, strom, souš (roads.md – Vysazení jabloní). */

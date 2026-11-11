@@ -137,8 +137,8 @@ export function sowParts(parts: readonly FieldPart[], crop: Crop): void {
 }
 
 /**
- * Díl, který ves k letošní práci přibrala a pak z ní vyřadila (uvolněný nutný díl, nezasetá jař –
- * fields.md, Osevní postup po dílech, body 2 a 3), se vrátí, jak byl (mění ho na místě): příloh
+ * Díl, který ves k letošní práci přibrala a pak z ní vyřadila (nezasetá jař na konci okna –
+ * fields.md, Osevní postup po dílech, bod 2), se vrátí, jak byl (mění ho na místě): příloh
  * leží ladem jako předtím (`fallowBeforeSeason`), hotový díl a díl v osevu zase čeká na řadě
  * (`sownYears` zůstal). Rozkopání propadne.
  */
@@ -198,7 +198,7 @@ export interface SeasonJoin {
 /** Co výběr dílů dne potřebuje vědět mimo stav dílů (`turnSelection`). */
 export interface TurnOptions {
   /**
-   * Potřeba lnu na oděv zapsaná v plánu k 1. 9. (kg třeného lnu – fields.md, Len): len bere díly
+   * Potřeba lnu na oděv zapsaná v hospodářském roce k 1. 9. (kg třeného lnu – fields.md, Len): len bere díly
    * jen do ní; 0 = len se nevybírá (plán bez potřeby).
    */
   flaxNeedKg: number;
@@ -397,7 +397,7 @@ function idSlots(parts: readonly FieldPart[]): number {
  * nejnáročnější, tak mu patří nejlepší díly, ať jsou kdekoli (Martin 10. 11. 2026: „Ano. Jak jsme
  * řekli, len je extrémně náročná plodina, ale zase ho není potřeba moc“; dřívější přednost dílů
  * v osevu před prvním osevem je pryč – návrh Clauda); jen díly od 70 % (`isSowableFertility`),
- * na kterých len 7 let nerostl (`flaxAllowed`). Nouzový příloh ne. Stejné pořadí slouží na jaře
+ * na kterých len 7 let nerostl (`flaxAllowedIn`). Nouzový příloh ne. Stejné pořadí slouží na jaře
  * k setí a na podzim k odložení dílů před ozimem (`turnSelection`). Vydává díly postupně z haldy
  * (len bere jen pár nejlepších – celé řazení by bylo zbytečné; pořadí jako stabilní řazení podle
  * úrodnosti a id, při shodě obojího podle pořadí v blocích).

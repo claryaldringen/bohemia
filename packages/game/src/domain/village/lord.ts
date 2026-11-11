@@ -313,7 +313,7 @@ export function trainingFamily(
 
 /**
  * Id lidí cvičící rodiny, kteří jsou mimo práci vsi (cvičící muži, domácnost vojvody a jeho vedlejší
- * manželky ve vlastních domech) – jedno místo pravdy pro `work()`, plán osevu (`sowingCapacity`)
+ * manželky ve vlastních domech) – jedno místo pravdy pro `work()`, kapacitu práce v oknech (`sowingCapacity`)
  * i nákupy (`craft-buying`).
  */
 export function lordApartIds(

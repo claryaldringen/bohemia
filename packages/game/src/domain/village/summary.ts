@@ -525,7 +525,7 @@ export interface VillageSummary {
 const DAYS_PER_YEAR = 365;
 const MONTHS_PER_YEAR = 12;
 /** Úmrtí za kolik posledních let se průměrují pro odhad místa na pohřebištích. */
-export const RECENT_DEATHS_YEARS = 10;
+const RECENT_DEATHS_YEARS = 10;
 /** Kolik posledních dní bez společné práce znamená, že stavby stojí. */
 export const STALL_DAYS = 3;
 /** Méně společné práce za den (člověkodny) se bere jako žádná. */

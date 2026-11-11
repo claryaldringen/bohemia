@@ -65,7 +65,7 @@ export const START_SEXES = ['male', 'female', 'male', 'female'] as const;
 // dospívajících) × MARITAL_FERTILITY_LEVEL – manželská plodnost 20–44 let ≈ 7,5 dítěte jako ve
 // středoevropských vsích před plánováním rodiny (Henryho průměr ≈ 8,9). Porody na vdanou ženu za
 // rok od věku `fromAge` do dalšího pásma, od AGE.elder žádné.
-export const NATURAL_MARITAL_FERTILITY = [
+const NATURAL_MARITAL_FERTILITY = [
   { fromAge: 16, perYear: 0.41 },
   { fromAge: 20, perYear: 0.46 },
   { fromAge: 25, perYear: 0.431 },
@@ -73,13 +73,13 @@ export const NATURAL_MARITAL_FERTILITY = [
   { fromAge: 35, perYear: 0.322 },
   { fromAge: 40, perYear: 0.167 },
 ] as const;
-export const MARITAL_FERTILITY_LEVEL = 0.85;
+const MARITAL_FERTILITY_LEVEL = 0.85;
 // Rozestup porodů: po porodu nejdřív za 21 měsíců (9 měsíců těhotenství + rok neplodnosti při
 // kojení – kojilo se 2–3 roky), po svatbě za 9 měsíců (těhotenství); mezitím žena nerodí, potom
 // rodí s denní šancí, při které průměrný odstup porodů vyjde 1 / plodnost věku (při 20–24 letech
 // ≈ 31 měsíců – Macfarlane 2002: 24–39 měsíců).
 export const BIRTH_SPACING = { afterBirthDays: 639, afterWeddingDays: 274 } as const;
-export const CHILD_DEATH_BEFORE_ADULT = 0.4; // → ročně 1 − 0,6^(1/14)
+const CHILD_DEATH_BEFORE_ADULT = 0.4; // → ročně 1 − 0,6^(1/14)
 export const ADULT_DEATHS_PER_YEAR = 0.02; // oprava podle rešerše (bylo 0,015; Lahovice)
 export const ELDER_DEATHS_PER_YEAR = 0.08;
 // population.md – Růst populace (přeplněnost)

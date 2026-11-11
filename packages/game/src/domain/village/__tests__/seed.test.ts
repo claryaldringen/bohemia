@@ -225,7 +225,7 @@ describe('osivo jen na setí až po běžném obilí (fields.md – Osivo ze zá
     return { s, work, food };
   }
 
-  it('nutné díly sejí napřed z běžného obilí nad přežívací zásobu – rezerva zůstane', () => {
+  it('díly na řadě sejí napřed z běžného obilí nad přežívací zásobu – rezerva zůstane', () => {
     const { s, work, food } = sown(500, TOTAL + 100);
     expect(takeSeed(s, work, 'winter', byId(s), food)).toBeCloseTo(TOTAL, 9);
     expect(s.reservedSeedKg).toBeCloseTo(500, 9);

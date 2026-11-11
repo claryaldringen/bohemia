@@ -43,8 +43,8 @@ export function domainFoodReadyYear(state: VillageState, day: number): number | 
 }
 
 /**
- * Osivo obilí minulého osevu (kg): součet osiva plodin, které se seje z obilí, v plánu u výmlatu
- * (i díly nad potřebu); bez něj (po 1. 10.) osev, který ves zvládne – jako ve výhledu přebytku
+ * Osivo obilí minulého osevu (kg): součet osiva plodin, které se seje z obilí, v hospodářském roce
+ * u výmlatu; bez něj (po 1. 10.) osev, který ves zvládne – jako ve výhledu přebytku
  * (`spare.ts`: menší z osevu podle půdy a podle práce × `SEED_KG_PER_HA`).
  */
 export function lastSowingSeedKg(state: VillageState, day: number): number {

@@ -84,7 +84,7 @@ export class PathHeap {
  * stejně drahé trasy jsou opravdu stejně drahé a remízu rozhodne pravidlo předchůdce, ne
  * zaokrouhlení sčítání. Dvojková tisícina místo desetinné – přesná bez převodu jednotek.
  */
-export const STEP_QUANTUM = 1024;
+const STEP_QUANTUM = 1024;
 
 /** Cena kroku zaokrouhlená na kvantum (`STEP_QUANTUM`), aspoň jedno kvantum. */
 export function quantizedStep(cost: number): number {
@@ -349,27 +349,9 @@ export function householdOrder(
  * jak daleko smí další kola (ERRAND_REACH), u dřeva i podíl cest podle ceny (`nearCost`), a domácnost
  * si zapamatuje, kam došla (`ends`). S `routes` zapíše každou trasu kola (buňky od brány k cíli) –
  * hledání ani provoz se tím nemění.
- */
-export function routeAll(
-  grid: Grid,
-  costs: PassCosts,
-  homes: readonly Household[],
-  groups: readonly TripGroup[],
-  order: readonly number[],
-  state: SearchState,
-  ends: Map<number, PathErrands> | null,
-  routes: RouteRecord[] | null = null,
-): Traffic {
-  const steps = routeAllSteps(grid, costs, homes, groups, order, state, ends, routes);
-  for (;;) {
-    const step = steps.next();
-    if (step.done) return step.value;
-  }
-}
-
-/**
- * `routeAll` po krocích: před hledáním každé domácnosti se zastaví, aby volající mohl dát
- * přestávku (server – dlouhý dopočet neblokuje ostatní požadavky). Výsledek je týž.
+ *
+ * Po krocích: před hledáním každé domácnosti se zastaví, aby volající mohl dát přestávku
+ * (server – dlouhý dopočet neblokuje ostatní požadavky). Výsledek na přestávkách nezávisí.
  */
 export function* routeAllSteps(
   grid: Grid,

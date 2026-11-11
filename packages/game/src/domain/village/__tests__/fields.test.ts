@@ -14,7 +14,7 @@ import {
   overgrowthStage,
   partFoundingCost,
   reclaimCostPerHa,
-  selectPartsToSow,
+  sowingOrder,
 } from '../fields';
 import { NO_CRAFTS } from '../productivity';
 import { FERTILITY } from '../rules';
@@ -199,7 +199,7 @@ describe('přílohová soustava', () => {
   });
 });
 
-describe('výběr dílů k osevu', () => {
+describe('pořadí dílů k osevu', () => {
   const day = sept(600);
   const sown = part({ id: 1, state: 'sown', fertilityShare: 0.76 });
   const ready = part({ id: 2, state: 'ready' });
@@ -214,34 +214,28 @@ describe('výběr dílů k osevu', () => {
   const ids = (ps: FieldPart[]): number[] => ps.map((p) => p.id);
 
   it('osetý díl před ready, ready před příloh', () => {
-    const r = selectPartsToSow([fallowYoung, ready, sown], 1e9, 100, day);
+    const r = sowingOrder([fallowYoung, ready, sown]);
     expect(ids(r)).toEqual([1, 2, 4]);
   });
   it('mezi přílohy 0,95+ mladší dřív, při shodě bližší', () => {
-    const r = selectPartsToSow([fallowOld, fallowYoungFar, fallowYoung], 1e9, 100, day);
+    const r = sowingOrder([fallowOld, fallowYoungFar, fallowYoung]);
     expect(ids(r)).toEqual([4, 5, 3]);
   });
   it('přílohy pod 0,95 až po plných, nejvyšší úrodnost první', () => {
     const a = part({ id: 10, state: 'fallow', fertilityShare: 0.8, fallowSinceDay: day - 400 });
     const b = part({ id: 11, state: 'fallow', fertilityShare: 0.9, fallowSinceDay: day - 3000 });
-    const r = selectPartsToSow([a, b, fallowOld], 1e9, 100, day);
+    const r = sowingOrder([a, b, fallowOld]);
     expect(ids(r)).toEqual([3, 11, 10]);
   });
   it('díl s úrodností 0,65 nevybere', () => {
     const weak = part({ id: 20, state: 'fallow', fertilityShare: 0.65, fallowSinceDay: day - 400 });
     const weakSown = part({ id: 21, state: 'sown', fertilityShare: 0.65 });
-    expect(selectPartsToSow([weak, weakSown], 1e9, 100, day)).toEqual([]);
+    expect(sowingOrder([weak, weakSown])).toEqual([]);
   });
-  it('přestane, jakmile je pokryt cíl', () => {
-    // čistá úroda 1 ha při úrodnosti 70: 448,2 kg
-    const r = selectPartsToSow([sown, ready, fallowYoung], 500, 100, day);
-    expect(ids(r)).toEqual([1, 2]);
-  });
-  it('respektuje maxHa a nemění vstup', () => {
+  it('nemění vstup', () => {
     const input = [sown, ready, fallowYoung];
     const copy = JSON.parse(JSON.stringify(input)) as FieldPart[];
-    const r = selectPartsToSow(input, 1e9, 2.5, day);
-    expect(ids(r)).toEqual([1, 2]);
+    expect(ids(sowingOrder(input))).toEqual([1, 2, 4]);
     expect(input).toEqual(copy);
   });
 });

@@ -134,7 +134,7 @@ export type NegotiateResult =
 
 export const NO_HOUSE = 'Nemáš živý rod.';
 export const NO_NEGOTIATION = 'Jednání neexistuje.';
-export const NO_AID = 'Pomoc teď nejde poslat.';
+const NO_AID = 'Pomoc teď nejde poslat.';
 export const NO_AGREEMENT = 'Dohoda mezi rody neexistuje.';
 
 const fail = (reason: string): { ok: false; reason: string } => ({ ok: false, reason });

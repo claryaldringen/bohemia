@@ -28,8 +28,8 @@ import { woolSheep } from './wool';
 // (Martin 19. 10. 2026: „Ano ke všem návrhům“ – maso se 1. 9. kazí a do podzimní porážky ves
 // hladoví; nad chovnými prasnicemi jsou v září skoro jen selata). Maso jde do zásoby jako z podzimní
 // porážky (stejná výtěžnost, uzení, zkažení 1. 9.) a jí se rovným dílem do zkažení – nejvýš strop
-// masa ve stravě (DIET.caps.meat), ten platí i v nouzi. Osev podle stravy ho počítá jako jídlo
-// z pole.
+// masa ve stravě (DIET.caps.meat), ten platí i v nouzi. Podíl jídla z pole (fields.md – Osev podle
+// stravy) ho počítá jako jídlo z pole.
 
 /** Méně masa (kg) se jako porážka nebere – chyby desetinných čísel. */
 const MIN_KG = 0.5;
@@ -257,9 +257,9 @@ export function emergencySlaughter(
     livestock.slaughterWork = { required: 0, done: 0, emergency: true };
   }
   butcher(state, plan.kg);
-  // maso z nouze kryje schodek jídla z pole – osev podle stravy ho počítá jako potřebu z pole
+  // maso z nouze kryje schodek jídla z pole – podíl jídla z pole ho počítá jako potřebu z pole
   // (měří se potřeba, ne snědené obilí – fields.md, Osev podle stravy); jinak by nouzová porážka
-  // snížila příští osev a přinesla další nouzi. Maso se sní do konce hospodářského roku (1. 9.).
+  // snížila potřebu z pole ve výhledu zásob k sklizni. Maso se sní do konce hospodářského roku (1. 9.).
   if (state.fieldFood) state.fieldFood.fieldKg += meatEnergy(plan.kg);
   return { day, kind: 'emergency-slaughter', kg: Math.round(plan.kg), animals };
 }

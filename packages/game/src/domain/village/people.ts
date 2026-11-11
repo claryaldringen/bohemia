@@ -69,13 +69,6 @@ export function foodNeedPerDay(person: Person, day: number): number {
   return FOOD_NEED_KG_PER_YEAR[ageGroup(person, day)] / FOOD_DAYS_PER_YEAR;
 }
 
-/** Hosté ve vsi dnes (rozhodnutí 11) – ti, kdo ještě neodešli (`untilDay` po dnešku). */
-export function guestsToday(state: Pick<VillageState, 'guests'>, day: number): number {
-  let n = 0;
-  for (const g of state.guests ?? []) if (g.untilDay > day) n++;
-  return n;
-}
-
 /** Potřeba jídla hosta na den v kg (jí ze zásob hostitele): podle věku, bez `bornDay` dospělý. */
 export function guestFoodNeed(guest: Pick<Guest, 'bornDay'>, day: number): number {
   const group = guest.bornDay === undefined ? 'adult' : ageGroupOf(guest.bornDay, day);

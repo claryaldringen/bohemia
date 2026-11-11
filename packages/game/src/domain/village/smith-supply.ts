@@ -53,7 +53,7 @@ const DAYS_PER_YEAR = 365;
 /** Délka pracovního dne v sekundách (jako chůze pro vodu – WATER_FETCHING.dayHours). */
 const DAY_S = WATER_FETCHING.dayHours * 3600;
 /** Kopání, praní a pražení rudy – čd na kg (bez chůze na rudiště). */
-export const ORE_DIG_MAN_DAYS_PER_KG = 1 / SMITH_SUPPLY.oreKgPerManDay;
+const ORE_DIG_MAN_DAYS_PER_KG = 1 / SMITH_SUPPLY.oreKgPerManDay;
 
 /**
  * Nošení v koších (čd na kg): tam a zpět po `walkM` m (vzdálenost chůze v metrech louky)
@@ -118,11 +118,6 @@ const DUG: Record<DugMaterial, DugSpec> = {
 /** Nošení suroviny v koších (čd na kg) po `walkM` m. */
 export function dugBasketManDaysPerKg(material: DugMaterial, walkM: number): number {
   return basketManDaysPerKg(walkM, DUG[material].basketKg);
-}
-
-/** Kopání suroviny (čd na kg) s přirážkou za chůzi `walkM` m. */
-export function dugManDaysPerKg(material: DugMaterial, walkM: number): number {
-  return DUG[material].digPerKg(walkM);
 }
 
 /** Člověk z kovárny – id a věk v letech. */
@@ -622,11 +617,6 @@ export function updateOrePits(state: VillageState, day: number): void {
   if (kept.length === pits.length) return;
   if (kept.length > 0) state.orePits = kept;
   else delete state.orePits;
-}
-
-/** Poslední jáma kovárny (kde se právě kope); bez jam null. */
-export function currentOrePit(state: VillageState, smithId: number): OrePit | null {
-  return currentDugPit(state, smithId, 'ore');
 }
 
 /** Poslední jáma suroviny `material` dílny (kde se právě kope); bez jam null. */

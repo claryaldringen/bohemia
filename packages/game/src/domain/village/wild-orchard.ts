@@ -20,11 +20,6 @@ export const WILD_TREE_ID_BASE = WOOD_TREE_ID_BASE + 1_073_741_824;
 const GEOMETRY = { size: LANDSCAPE_SIZE, cellSizeM: CELL_SIZE_M } as const;
 const DAYS_PER_YEAR = 365.25;
 
-/** Náletové stromy vsi (bez nich prázdné). */
-export function villageWildTrees(state: Pick<VillageState, 'wildTrees'>): readonly WildTree[] {
-  return state.wildTrees ?? [];
-}
-
 /** Stáří náletového stromu v den `day` (roky). */
 export function wildTreeAgeYears(tree: Pick<WildTree, 'day'>, day: number): number {
   return Math.max(0, day - tree.day) / DAYS_PER_YEAR;

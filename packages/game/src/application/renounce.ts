@@ -24,7 +24,7 @@ export interface RenounceDeps extends NegotiationVillages {
 export type RenounceResult = { ok: true } | { ok: false; reason: string };
 
 export const NOT_IN_AGREEMENT = 'Tuhle dohodu nemáš.';
-export const NO_LIVE_AGREEMENT = 'Dohoda už neplatí.';
+const NO_LIVE_AGREEMENT = 'Dohoda už neplatí.';
 export const MESSAGE_TOO_LONG = 'Vzkaz je příliš dlouhý.';
 const NO_HOUSE = 'Nemáš živý rod.';
 

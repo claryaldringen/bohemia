@@ -397,7 +397,7 @@ export function ploughsThisYear(state: Pick<VillageState, 'season' | 'threshingS
   return plan.ard === true || seasonCrops(plan).some(({ work }) => work.plough !== undefined);
 }
 
-/** Všechny díly hospodářského roku – ozim, luštěniny, len i jař, nutné i nad potřebu. */
+/** Všechny díly hospodářského roku – ozim, luštěniny, len i jař. */
 export function seasonPartIds(season: FarmSeason): number[] {
   return season.crops.flatMap((work) => work.partIds);
 }
@@ -633,8 +633,8 @@ export function cropGrossPerHa(crop: Crop, fertility: number): number {
 }
 
 /**
- * Osivo plodiny na hektar (kg) – len seje semeno z vlastní úrody, zásoby neubírá (FLAX). Ozim
- * a obilí nad potřebu jako jař.
+ * Osivo plodiny na hektar (kg) – len seje semeno z vlastní úrody, zásoby neubírá (FLAX); ozim
+ * i jař `SEED_KG_PER_HA`.
  */
 export function cropSeedPerHa(crop: Crop): number {
   if (crop === 'legume') return LEGUMES.seedKgPerHa;

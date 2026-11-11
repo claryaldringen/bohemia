@@ -196,7 +196,7 @@ describe('krávy na obměnu volů (diet.md)', () => {
   });
 });
 
-describe('páry k rádlům podle plánu osevu (1. 9.)', () => {
+describe('páry k rádlům podle dílů na řadě (1. 9.)', () => {
   it('malá ves chce jeden pár; ves, která osévá víc, než pár zorá, víc párů', () => {
     const small = withOxPen(village());
     small.fields = [{ id: 1 }];

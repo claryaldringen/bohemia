@@ -10,7 +10,7 @@ import type { VillageDigestRecord } from './villages';
 // souhrnů plošně.
 
 /** Od kolika let je muž rodu v cizím rodokmenu vidět (vassalage.md – Přehled pána). */
-export const PUBLIC_MAN_MIN_AGE = 16;
+const PUBLIC_MAN_MIN_AGE = 16;
 
 /** Záznam adresáře: živý rod, jeho sídelní sídlo a souhrny jeho vsí. */
 export interface DirectoryEntry {

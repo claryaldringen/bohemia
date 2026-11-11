@@ -240,7 +240,7 @@ describe('krmení koní – seno', () => {
   });
 });
 
-describe('pastva a plán osevu', () => {
+describe('pastva a výhled zásob', () => {
   it('kůň spase v létě 1 ha', () => {
     const h = herds({ cow: 2 });
     expect(grazingDemandHa(h, 0, 3)).toBeCloseTo(grazingDemandHa(h, 0) + 3 * HORSES.pastureHa, 9);

@@ -37,14 +37,14 @@ const NEAR_REACH_CELLS = 52;
 const M2_PER_CELL = CELL_SIZE_M * CELL_SIZE_M;
 
 /** Velmi úrodná krajina: +15 bodů přirozené úrodnosti do 600 m, za ní plynule do 750 m. */
-export const FERTILE = { bonus: 15, fullCells: NEAR_CELLS, fadeCells: 50 } as const;
+const FERTILE = { bonus: 15, fullCells: NEAR_CELLS, fadeCells: 50 } as const;
 
 /**
  * Rozsáhlé nivní louky: louka v pásu ±60 m od vody podél celého potoka a louky do 600 m od vsi
  * o 30 % víc než v průměrné krajině – nejnižší políčka nad potokem (široká niva). O kolik lesa
  * niva ubere, o tolik zarostou suché louky na vršcích daleko od vsi.
  */
-export const FLOODPLAIN = {
+const FLOODPLAIN = {
   bandCells: 4,
   nearGain: 1.3,
   /** Zvlnění okraje nivy (m výšky nad potokem). */
@@ -56,7 +56,7 @@ export const FLOODPLAIN = {
  * 500 m od vsi, aspoň 2 ha souvisle. Les ze slunného svahu ustoupí, o tolik lesa přibude na
  * odvrácených svazích do 600 m – louk u vsi je stejně jako v průměrné krajině.
  */
-export const SOUTH_SLOPES = {
+const SOUTH_SLOPES = {
   slope: [0.05, 0.15],
   /** cos 45° – svah míří ke slunci, když odchylka jeho spádu od směru ke slunci je do 45°. */
   facing: Math.SQRT1_2,
@@ -71,7 +71,7 @@ export const SOUTH_SLOPES = {
  * u potoka, s mokřadem – úsek potoka podél honitby, kde je rovina u vody loukou (rákosí).
  * Menší paseky uvnitř honitby zarostou.
  */
-export const GAME_FURS = {
+const GAME_FURS = {
   minAreaM2: 600_000,
   /** Honitba sahá k potoku – její les je do tolika políček od vody. */
   waterReachCells: 5,
@@ -86,7 +86,7 @@ export const GAME_FURS = {
 } as const;
 
 /** Brtí musí být ve vrstvě překážek aspoň tolik (rozmisťovač jich dá `BEE_TREES.count`). */
-export const MIN_BEE_TREES = 12;
+const MIN_BEE_TREES = 12;
 
 function villageWorld(l: Landscape): { x: number; z: number } {
   return tileCenterWorld(l, l.villageSite.x, l.villageSite.y);

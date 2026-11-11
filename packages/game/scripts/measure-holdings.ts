@@ -4,7 +4,7 @@
 // Na skutečných krajinách (seedy 1 … N) postaví u místa vsi dvě uspořádání – řadovou ves (tři
 // domy po pěti čtvercích, pole za nimi na obě strany) a samoty (tři domy daleko od sebe, každý
 // uprostřed polnosti) – se všemi čtverci pole připravenými a dvěma dospělými v každém domě
-// (pevné složení jako sondy kalibrace). 30 let simulace, měří se roky 8–30 vždy po plánu osevu:
+// (pevné složení jako sondy kalibrace). 30 let simulace, měří se roky 8–30 vždy 1. 9. po začátku hospodářského roku:
 // - za úhorem: podíl osetých čtverců, ke kterým od domu nevede cesta po mřížce bez přílohu (ani
 //   vody a cizích pozemků) kratší než 1,3 × vzdušná čára + 1 čtverec – sedlák musí přes úhor,
 // - skupiny: souvislé skupiny osetých čtverců (4-sousedství) a čtverců na skupinu,

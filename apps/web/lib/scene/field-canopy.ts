@@ -6,14 +6,7 @@
 // na rozpracovaném dílu, sousední zoraný nebo sklizený díl –, spadne svislou stěnou (schod). 3D
 // trsy (field-crops.ts) stojí dál a klasy z koruny vyčnívají; z dálky, kde trsy řídnou, nese
 // výšku pole koruna.
-import {
-  FIELD_LOOKS,
-  workAt,
-  workFrame,
-  workSteps,
-  type FieldLook,
-  type PartView,
-} from './field-look';
+import { workAt, workFrame, workSteps, type FieldLook, type PartView } from './field-look';
 import {
   decalPieces,
   frostSpot,
@@ -76,9 +69,6 @@ export function canopyHeight(look: FieldLook | null, crop?: FieldCrop): number {
   if (crop === 'legume') return h.legume;
   return crop === 'flax' ? h.flax : h.grain;
 }
-
-/** Vzhledy s korunou (pro klíče a testy). */
-export const CANOPY_LOOKS: readonly FieldLook[] = FIELD_LOOKS.filter((l) => canopyHeight(l) > 0);
 
 /** Výška koruny nad zemí v bodě s krytím okraje `c` (u okraje pole zanořená pod zem). */
 function profile(height: number, c: number): number {

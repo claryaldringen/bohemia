@@ -18,9 +18,9 @@ export const BREAKOUT_BLOCKED: Readonly<Record<BreakoutBlock, string>> = {
 };
 
 /** U vsi se nebojuje (žádné tažení s bojem proti ní) – jako boj, který neběží. */
-export const BREAKOUT_NO_BATTLE = BREAKOUT_BLOCKED.over;
+const BREAKOUT_NO_BATTLE = BREAKOUT_BLOCKED.over;
 /** Ves nemá opevnění s branou – není kudy se probít. */
-export const BREAKOUT_NO_GATE = 'Opevnění nemá bránu.';
+const BREAKOUT_NO_GATE = 'Opevnění nemá bránu.';
 
 export interface OrderBreakoutDeps extends RightsDeps {
   campaigns: Pick<CampaignRepository, 'activeAgainst' | 'checkpoint' | 'addIntent'>;

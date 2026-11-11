@@ -179,8 +179,6 @@ export interface Construction {
   fortTarget?: WallKind;
   /** Stavba u brány (`fortWork` `gate`): úsek brány a klešťová brána, nebo věž. Jinak chybí. */
   fortGate?: { segment: number; level: 'pincer' | 'tower' };
-  /** Nepoužité (přestavba je jedna stavba pro všechny dožilé úseky opevnění). */
-  segmentIndex?: number;
   /**
    * Úseky stavby opevnění v pořadí práce (od brány nejblíž dvorci po směru hodin) a práce každého
    * (čd). Práce stavby jde napřed do kácení dřeva (`wood`), pak do úseků jeden po druhém – úsek je
@@ -273,7 +271,7 @@ export type OrchardTaskName = 'orchard-care' | 'orchard-harvest';
 export interface CropWork {
   /**
    * Díly plodiny v pořadí, ve kterém k nim práce postupuje (fields.md – Postup práce po
-   * čtvercích): každá dávka dílů (plán k 1. 9., přidané hotové díly) nejblíž obydlím první, při
+   * čtvercích): každá dávka dílů (přidaná na čele práce) nejblíž obydlím první, při
    * shodě podle id; přidané dávky na konec.
    */
   partIds: number[];
@@ -431,7 +429,7 @@ export interface SeedKg {
   grain: number;
   legumes: number;
 }
-/** Okna volné práce plánu osevu (`SowingCapacity` bez orby). */
+/** Okna volné práce vsi (`SowingCapacity` bez orby). */
 export type LordHelpWindow = 'autumnWinter' | 'autumn' | 'spring' | 'july' | 'august' | 'september';
 /** Podíl dne rodiny 0–1 po oknech žní (`HARVEST_HELP_WINDOWS`); okno bez pomoci chybí. */
 export type LordHelp = Partial<Record<LordHelpWindow, number>>;

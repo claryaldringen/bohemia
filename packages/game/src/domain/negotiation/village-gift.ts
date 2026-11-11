@@ -3,7 +3,7 @@ import type { TermItem, VillageGiftLine } from './types';
 // Věnování dílu odúmrti v jednání (vassalage.md – Vymření rodu – odúmrť). Čistá kontrola řádku;
 // že díl pánovi patří, hlídá use-case při převodu.
 
-export const VILLAGE_GIFT_REASONS = {
+const VILLAGE_GIFT_REASONS = {
   oneLine: 'Věnovat lze jeden díl odúmrti.',
   empty: 'Věnovaný díl nesmí být prázdný.',
   alone: 'Věnování dílu odúmrti je samostatné jednání.',

@@ -49,7 +49,7 @@ import type { Construction, Fortification, VillageState } from './types';
 /** Důvody odmítnutí česky (u kurzoru a v odpovědi akce). */
 export const FORT_GATE_LOW = 'Bránu jde vylepšit až u hradby s ochozem.';
 export const FORT_GATE_NO_ROOM = 'Za branou není místo.';
-export const FORT_GATE_DOWN = 'Brána nestojí.';
+const FORT_GATE_DOWN = 'Brána nestojí.';
 export const FORT_PINCER_DONE = 'Brána už je klešťová.';
 export const FORT_TOWER_NO_PINCER = 'Věž stojí jen na klešťové bráně.';
 export const FORT_TOWER_DONE = 'Brána už věž má.';

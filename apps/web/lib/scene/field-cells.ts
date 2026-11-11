@@ -217,28 +217,6 @@ export function inFrame(frame: GridFrame, reference: CellSquare, square: CellSqu
   return Math.abs(u - cu) < 1e-3 && Math.abs(v - cv) < 1e-3;
 }
 
-/** Rohy čtverce ve světě (místní −−, +−, ++, −+ – jako rohy políčka). */
-export function squareCornersOf(square: CellSquare): Point[] {
-  const h = square.size / 2;
-  if (!isRotatedSquare(square)) {
-    return [
-      [square.x - h, square.z - h],
-      [square.x + h, square.z - h],
-      [square.x + h, square.z + h],
-      [square.x - h, square.z + h],
-    ];
-  }
-  const [c, s] = rotationCosSin(square.rotation!);
-  return (
-    [
-      [-h, -h],
-      [h, -h],
-      [h, h],
-      [-h, h],
-    ] as const
-  ).map(([lx, lz]): Point => [square.x + lx * c + lz * s, square.z - lx * s + lz * c]);
-}
-
 /** Leží bod ve čtverci (nebo do `marginM` od jeho stran – v osách čtverce)? */
 export function squareContains(square: CellSquare, x: number, z: number, marginM = 0): boolean {
   const h = square.size / 2 + marginM;

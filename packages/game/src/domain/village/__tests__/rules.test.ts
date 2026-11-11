@@ -39,7 +39,7 @@ describe('data polního roku souhlasí s okny prací', () => {
   const inWindow = (task: keyof typeof WINDOWS, month: number): boolean =>
     WINDOWS[task].some(([from, to]) => month >= from && month <= to);
 
-  it('sklizeň jaře 31. 8. je poslední den prvního měsíce jejího okna, 30. 9. poslední den okna; plán osevu den po 31. 8. (fields.md – Žeň jaře i v září)', () => {
+  it('sklizeň jaře 31. 8. je poslední den prvního měsíce jejího okna, 30. 9. poslední den okna; nový hospodářský rok den po 31. 8. (fields.md – Žeň jaře i v září)', () => {
     const harvest = dayIndexOf({ year: 601, ...HARVEST_DAY });
     expect(inWindow('harvest', HARVEST_DAY.month)).toBe(true);
     const next = dateOfDayIndex(harvest + 1);

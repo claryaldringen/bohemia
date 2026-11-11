@@ -1456,8 +1456,3 @@ export function wagonChainConstruction(state: VillageState, roadId: number): Con
     ? (state.constructions.find((x) => x.id === earthwork.constructionId) ?? null)
     : null;
 }
-
-/** Průběh stavby vozové cesty 0–1 (panel). */
-export function wagonProgress(c: Pick<Construction, 'done' | 'cost'>): number {
-  return c.cost > 0 ? Math.min(1, c.done / c.cost) : 1;
-}

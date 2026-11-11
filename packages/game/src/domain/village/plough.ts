@@ -3,7 +3,7 @@ import { withinBounds } from './productivity';
 import type { Bounds, FieldPart } from './types';
 
 // Orba rádlem – sazby a drn (oxen.md – Účinek na práci). Samostatný list bez závislostí na plánu,
-// aby ho mohl použít plán osevu (year-plan.ts) i ohrady (oxen.ts).
+// aby ho mohl použít hospodářský rok (year-plan.ts) i ohrady (oxen.ts).
 
 /**
  * oxen.md – Účinek na práci (návrh Clauda podle rešerše, Martin schválil): orba rádlem 10 → 6
@@ -11,9 +11,8 @@ import type { Bounds, FieldPart } from './types';
  * špičkou od kováře – crafts.md) místo kopání motykou 100 → 50; spřežení zorá ≈ 0,3 ha za den
  * (orba křížem); orá oráč a honáček (2 lidé).
  */
-export const PLOUGH_WORK_PER_HA: Bounds = { worst: 10, best: 6 };
+const PLOUGH_WORK_PER_HA: Bounds = { worst: 10, best: 6 };
 export const PLOUGH_HA_PER_DAY = 0.3;
-export const PLOUGH_CREW = 2;
 /**
  * oxen.md – Jen rádlo (Martin, 19. 10. 2026: „Pokud je k dispozici rádlo, kopání motykou úplně
  * vynech.“; číslo návrh Clauda podle rešerše 2026-10-17-zemedelstvi-populace.md): drn – louka

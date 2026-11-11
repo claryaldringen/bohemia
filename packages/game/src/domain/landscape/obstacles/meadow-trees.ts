@@ -23,7 +23,7 @@ const FOREST_CLEARANCE_M = -14;
 const STREAMSIDE_M = 25;
 /** Břehový porost: krok podél osy potoka (m) a vzdálenost kmene od okraje vody (m). */
 const BANK_STEP_M = 9;
-export const BANK_TREE_M = { from: 4, to: 11 };
+const BANK_TREE_M = { from: 4, to: 11 };
 
 /**
  * Stromy mimo les jako ve středoevropské krajině: břehový porost topolů a jilmů podél potoka

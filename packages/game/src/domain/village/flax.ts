@@ -42,21 +42,17 @@ export function seasonHarvestYear(day: number): number {
 }
 
 /**
- * Smí na díl len, který dnes přibude k práci (fields.md – Len)? Nejdřív `FLAX.returnYears` let od
- * posledního lnu na dílu (`FieldPart.flaxYear` – chybí = smí hned).
+ * Smí na díl len, který přibude k práci v hospodářském roce se sklizní `harvestYear`
+ * (`seasonHarvestYear`; fields.md – Len)? Nejdřív `FLAX.returnYears` let od posledního lnu na
+ * dílu (`FieldPart.flaxYear` – chybí = smí hned).
  */
-export function flaxAllowed(part: Pick<FieldPart, 'flaxYear'>, day: number): boolean {
-  return flaxAllowedIn(part, seasonHarvestYear(day));
-}
-
-/** `flaxAllowed` s rokem sklizně spočteným předem (`seasonHarvestYear` – jen zrychlení). */
 export function flaxAllowedIn(part: Pick<FieldPart, 'flaxYear'>, harvestYear: number): boolean {
   return part.flaxYear === undefined || harvestYear - part.flaxYear >= FLAX.returnYears;
 }
 
 /**
  * Na jaký podíl oděvu má ves len (0–1) – zapsaný při posledním trhání. Vsi bez zápisu (uložené
- * dřív, nové do prvního trhání po plánu k 1. 9.) mají lnu dost.
+ * dřív, nové do prvního trhání po začátku hospodářského roku 1. 9.) mají lnu dost.
  */
 export function linenCoverage(state: Pick<VillageState, 'linen'>): number {
   return state.linen ?? 1;
@@ -70,8 +66,8 @@ export function linenUnhappiness(state: Pick<VillageState, 'linen'>): number {
 /**
  * Konec trhání lnu (31. 8., po jídle dne – mutuje stav): len letošního plánu jde z pole – úroda
  * podle vytrhané části (co srpen nevytrhal, propadne), počasí roku jako jař – a zapíše se, na jaký
- * podíl oděvu je (`VillageState.linen`) vůči potřebě zapsané v plánu k 1. 9. (`flaxNeedKg`). Plán
- * bez potřeby (ves založená během roku, plán z doby lnu na zahrádkách – fields.md, Zahrádka
+ * podíl oděvu je (`VillageState.linen`) vůči potřebě zapsané v hospodářském roce k 1. 9. (`flaxNeedKg`).
+ * Hospodářský rok bez potřeby (ves založená během roku, rok z doby lnu na zahrádkách – fields.md, Zahrádka
  * u obydlí) oděv nezapíše – platí dosavadní podíl. Když lnu nestačí, vrátí událost kroniky
  * `linen-short`.
  */

@@ -26,7 +26,7 @@ import type { CartKind } from './types-roads';
 // funkce nemění.
 
 /** Ves bez vojvody – odchod syna nemá kdo vést. */
-export const LEAD_NO_LORD = 'Ve vsi není vojvoda.';
+const LEAD_NO_LORD = 'Ve vsi není vojvoda.';
 /** Odchod vede jen syn vojvody (lord.md – Kdo může vést odchod). */
 export const LEAD_NOT_SON = 'Odchod vede syn vojvody.';
 /** Syn mladší LORD.leaveMinAge let (v panelu chybí). */
