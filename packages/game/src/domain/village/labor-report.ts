@@ -168,12 +168,47 @@ const FIELD_ACTIVITIES: readonly LaborTaskName[] = ['reclaim', 'dig', 'sow', 'we
  * na udusané zemi u vsi. Sezónní práce v sadech podle plochy vysazených čtverců.
  */
 export function laborDay(state: VillageState, day: number, work: DayWork): LaborDay {
-  const shares: LaborShare[] = [];
-  // venkovní práce ÷ délka dne – podíly jsou lidé, ne práce (léto 10 lidí udělá 14 čd venku);
-  // práce „za den“ (domácnost, koně, dílny, výpravy, vozy pro kováře) beze změny
-  const outdoor = work.daylight && work.daylight > 0 ? 1 / work.daylight : 1;
-  let scale = outdoor;
-  const add = (
+  const book = shareBook(work);
+  const { allocation } = work;
+  fieldLaborShares(book, state, day, work);
+  threshShares(state, work.threshing, allocation.tasks.thresh, book.add);
+  pitAndMowShares(book, state, work);
+  orchardAndVillageShares(book, state, allocation);
+  for (const repair of work.repairs) {
+    book.add('repair', { kind: 'dwelling', id: repair.dwellingId }, repair.manDays);
+  }
+  const workshops = work.workshops ?? [];
+  // voda v sudech (wagons.md – Co vozy vozí): posádka vozu je v denním minimu – u břehu, ne doma
+  const waterCrew = book.haulTo('water', null, allocation.dailyMin);
+  // denní minimum vsi i domácností dílen (z práce dospělých – co po starších zbude), péče o koně,
+  // dílny a výpravy jsou „za den“
+  book.scale = 1;
+  dailyMinShares(book, state, day, work, workshops, waterCrew);
+  // řemeslníci: uhlíř a hrnčíř kácejí u svého stromu, výroba v dílně – uhlíř u svých milířů
+  // (samostatné stavby u skácených buků – crafts.md, Milíř u skácených buků), a sází mladé buky
+  // na pařezy (crafts.md – Uhlíř)
+  for (const w of workshops) workshopShares(book, w);
+  travelShares(book, work);
+  book.scale = book.outdoor;
+  commonShares(book, state, work);
+  const slaughtered = state.livestock?.slaughtered;
+  return {
+    day,
+    shares: book.shares,
+    ...(work.herders !== undefined ? { herders: work.herders } : {}),
+    ...(work.aside ? { aside: asideShares(state, work.aside) } : {}),
+    ...(work.lord ? { lord: work.lord.counts } : {}),
+    ...(slaughtered?.day === day ? { slaughterHeads: { ...slaughtered.heads } } : {}),
+  };
+}
+
+/** Podíly práce dne rozpracované kroky `laborDay` – zápis podílu a svoz vozy. */
+interface ShareBook {
+  readonly shares: LaborShare[];
+  /** venkovní práce ÷ délka dne (`outdoor`), práce „za den“ 1 */
+  scale: number;
+  readonly outdoor: number;
+  readonly add: (
     activity: LaborActivity,
     target: LaborTarget,
     manDays: number,
@@ -182,58 +217,85 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
     job?: CartJob,
     ages?: readonly number[],
     fourWheel?: number,
-  ): void => {
-    const rounded = Math.round(manDays * scale * 1000) / 1000;
-    if (rounded < MIN_MAN_DAYS) return;
-    shares.push({
-      activity,
-      target,
-      manDays: rounded,
-      ...(construction === undefined ? {} : { construction }),
-      ...(carts ? { carts } : {}),
-      ...(fourWheel ? { fourWheel } : {}),
-      ...(job ? { job } : {}),
-      ...(ages && ages.length > 0 ? { ages: [...ages] } : {}),
-    });
+  ) => void;
+  /** svoz vozy k cíli úlohy; vrací práci posádek */
+  readonly haulTo: (job: HaulWork['job'], target: LaborTarget | null, limit?: number) => number;
+}
+
+/** Prázdné podíly dne s měřítkem venkovní práce (`work.daylight`). */
+function shareBook(work: DayWork): ShareBook {
+  const shares: LaborShare[] = [];
+  // venkovní práce ÷ délka dne – podíly jsou lidé, ne práce (léto 10 lidí udělá 14 čd venku);
+  // práce „za den“ (domácnost, koně, dílny, výpravy, vozy pro kováře) beze změny
+  const outdoor = work.daylight && work.daylight > 0 ? 1 / work.daylight : 1;
+  const hauls = work.hauls ?? [];
+  const book: ShareBook = {
+    shares,
+    scale: outdoor,
+    outdoor,
+    add: (
+      activity: LaborActivity,
+      target: LaborTarget,
+      manDays: number,
+      construction?: number,
+      carts?: number,
+      job?: CartJob,
+      ages?: readonly number[],
+      fourWheel?: number,
+    ): void => {
+      const rounded = Math.round(manDays * book.scale * 1000) / 1000;
+      if (rounded < MIN_MAN_DAYS) return;
+      shares.push({
+        activity,
+        target,
+        manDays: rounded,
+        ...(construction === undefined ? {} : { construction }),
+        ...(carts ? { carts } : {}),
+        ...(fourWheel ? { fourWheel } : {}),
+        ...(job ? { job } : {}),
+        ...(ages && ages.length > 0 ? { ages: [...ages] } : {}),
+      });
+    },
+    haulTo: (job: HaulWork['job'], target: LaborTarget | null, limit = Infinity): number => {
+      let total = 0;
+      for (const haul of hauls) {
+        if (haul.job !== job) continue;
+        const place =
+          job === 'logs'
+            ? haul.trees && haul.trees.length > 0
+              ? ({ kind: 'trees', ids: haul.trees } as const)
+              : null
+            : (haul.target ?? target);
+        const manDays = Math.min(haul.manDays, limit - total);
+        total += manDays;
+        const cartJob =
+          job === 'seed' || job === 'water' || job === 'charcoal' || job === 'ore' || job === 'clay'
+            ? job
+            : undefined;
+        // posádka vozu pro vodu (denní minimum) a sedláci s vozy pro kováře jsou „za den“
+        book.scale = cartJob && cartJob !== 'seed' ? 1 : outdoor;
+        book.add(
+          'haul',
+          place ?? { kind: 'village' },
+          manDays,
+          undefined,
+          haul.carts,
+          cartJob,
+          undefined,
+          haul.four,
+        );
+        book.scale = outdoor;
+      }
+      return total;
+    },
   };
+  return book;
+}
+
+/** Polní práce po dílech (sklizeň a odnos, pletí žen, dětí a mužů, ostatní úlohy) a svoz sklizně a osiva vozy. */
+function fieldLaborShares(book: ShareBook, state: VillageState, day: number, work: DayWork): void {
   const { allocation } = work;
   const carryShare = harvestCarryShare(work.toolCoverage ?? NO_CRAFTS.tools);
-  const hauls = work.hauls ?? [];
-  // svoz vozy (wagons.md): k největší dnešní práci téže úlohy (sklizeň, seč, setí), klády
-  // u stromů, voda u břehu (Co vozy vozí – `job`)
-  const haulTo = (job: HaulWork['job'], target: LaborTarget | null, limit = Infinity): number => {
-    let total = 0;
-    for (const haul of hauls) {
-      if (haul.job !== job) continue;
-      const place =
-        job === 'logs'
-          ? haul.trees && haul.trees.length > 0
-            ? ({ kind: 'trees', ids: haul.trees } as const)
-            : null
-          : (haul.target ?? target);
-      const manDays = Math.min(haul.manDays, limit - total);
-      total += manDays;
-      const cartJob =
-        job === 'seed' || job === 'water' || job === 'charcoal' || job === 'ore' || job === 'clay'
-          ? job
-          : undefined;
-      // posádka vozu pro vodu (denní minimum) a sedláci s vozy pro kováře jsou „za den“
-      scale = cartJob && cartJob !== 'seed' ? 1 : outdoor;
-      add(
-        'haul',
-        place ?? { kind: 'village' },
-        manDays,
-        undefined,
-        haul.carts,
-        cartJob,
-        undefined,
-        haul.four,
-      );
-      scale = outdoor;
-    }
-    return total;
-  };
-
   let harvestTarget: { target: LaborTarget; manDays: number } | null = null;
   let sowTarget: { target: LaborTarget; manDays: number } | null = null;
   // díl dětí na pletí (fields.md – Pletí – děti) – malé postavy podle věku
@@ -247,12 +309,12 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   const womenWeed =
     adultWeed > 0 ? Math.min(1, Math.max(0, (allocation.weedWomen ?? 0) / adultWeed)) : 0;
   const addWeed = (target: LaborTarget, manDays: number): void => {
-    const before = shares.length;
-    add('weed', target, manDays * (1 - kidsWeed));
-    const adults = shares[before];
+    const before = book.shares.length;
+    book.add('weed', target, manDays * (1 - kidsWeed));
+    const adults = book.shares[before];
     if (adults && womenWeed > 0) adults.women = Math.round(womenWeed * 1000) / 1000;
     if (kidsWeed > 0) {
-      add('weed', target, manDays * kidsWeed, undefined, undefined, undefined, kidsAges);
+      book.add('weed', target, manDays * kidsWeed, undefined, undefined, undefined, kidsAges);
     }
   };
   for (const { task, fieldId, manDays, parts, progress } of fieldShares(state, day, work)) {
@@ -261,64 +323,77 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
         ? { kind: 'field', id: fieldId, parts, ...(progress ? { progress } : {}) }
         : { kind: 'field', id: fieldId };
     if (task === 'harvest') {
-      add('harvest', target, manDays * (1 - carryShare));
-      add('carry', target, manDays * carryShare);
+      book.add('harvest', target, manDays * (1 - carryShare));
+      book.add('carry', target, manDays * carryShare);
       if (!harvestTarget || manDays > harvestTarget.manDays) harvestTarget = { target, manDays };
     } else if (task === 'weed') {
       addWeed(target, manDays);
     } else {
-      add(task, target, manDays);
+      book.add(task, target, manDays);
       if (task === 'sow' && (!sowTarget || manDays > sowTarget.manDays)) {
         sowTarget = { target, manDays };
       }
     }
   }
-  haulTo('harvest', harvestTarget?.target ?? null);
-  haulTo('seed', sowTarget?.target ?? null);
-  threshShares(state, work.threshing, allocation.tasks.thresh, add);
+  book.haulTo('harvest', harvestTarget?.target ?? null);
+  book.haulTo('seed', sowTarget?.target ?? null);
+}
+
+/** Obilné jámy, seč a svoz – seno, klády, uhlí, ruda a hlína vozem. */
+function pitAndMowShares(book: ShareBook, state: VillageState, work: DayWork): void {
   // obilné jámy – u jámy, do které se dnes ukládá zrno (production-chains.md – Obilné jámy)
   if (work.grainPits) {
     const { pit, manDays } = work.grainPits;
-    add('grain-pit', { kind: 'grain-pit', id: pit.id, x: pit.x, z: pit.z }, manDays);
+    book.add('grain-pit', { kind: 'grain-pit', id: pit.id, x: pit.x, z: pit.z }, manDays);
   }
   let mowTarget: { target: LaborTarget; manDays: number } | null = null;
   for (const share of mowingShares(state, work)) {
-    add('mow', share.target, share.manDays);
+    book.add('mow', share.target, share.manDays);
     if (!mowTarget || share.manDays > mowTarget.manDays) mowTarget = share;
   }
-  haulTo('mow', mowTarget?.target ?? null);
-  haulTo('logs', null);
+  book.haulTo('mow', mowTarget?.target ?? null);
+  book.haulTo('logs', null);
   // uhlí a ruda ke kováři vozem se sedlákem (crafts.md – Uhlí a ruda kováře) – u milíře a rudiště
-  haulTo('charcoal', null);
-  haulTo('ore', null);
-  haulTo('clay', null);
-  add('slaughter', { kind: 'village' }, allocation.tasks.slaughter);
+  book.haulTo('charcoal', null);
+  book.haulTo('ore', null);
+  book.haulTo('clay', null);
+}
+
+/** Porážka, noční hlídka polí, dospělý pasák, sady a jablka vozem. */
+function orchardAndVillageShares(
+  book: ShareBook,
+  state: VillageState,
+  allocation: DayWork['allocation'],
+): void {
+  book.add('slaughter', { kind: 'village' }, allocation.tasks.slaughter);
   // noční hlídka polí dospělými (wildlife.md – Obrana polí) – úloha práce, ne propadlá práce
-  add('watch', { kind: 'village' }, allocation.tasks.watch);
+  book.add('watch', { kind: 'village' }, allocation.tasks.watch);
   // dospělý pasák ve vsi bez výrostků (diet.md – Pasáci, Dospělý pasák) – stojí u stád s dětmi
-  add('herding', { kind: 'village' }, allocation.tasks.herding);
+  book.add('herding', { kind: 'village' }, allocation.tasks.herding);
   const orchards = orchardAreas(state);
   for (const task of ['orchard-care', 'orchard-harvest'] as const) {
     for (const { target, share } of orchards) {
-      add(task, target, allocation.tasks[task] * share);
+      book.add(task, target, allocation.tasks[task] * share);
     }
   }
   // jablka ze sadu vozem (orchard.md – Jablka vozem) – u největšího sadu
   const orchardTarget = orchards
     .filter((o) => o.target.kind === 'orchard')
     .sort((a, b) => b.share - a.share)[0]?.target;
-  haulTo('apples', orchardTarget ?? null);
+  book.haulTo('apples', orchardTarget ?? null);
+}
 
-  for (const repair of work.repairs) {
-    add('repair', { kind: 'dwelling', id: repair.dwellingId }, repair.manDays);
-  }
-  const workshops = work.workshops ?? [];
-  // voda v sudech (wagons.md – Co vozy vozí): posádka vozu je v denním minimu – u břehu, ne doma
-  const waterCrew = haulTo('water', null, allocation.dailyMin);
-  // denní minimum vsi i domácností dílen (z práce dospělých – co po starších zbude), péče o koně,
-  // dílny a výpravy jsou „za den“
-  scale = 1;
-  add(
+/** Denní minimum vsi, domácností dílen a dvorce bez posádky vozu pro vodu; péče o koně a kování. */
+function dailyMinShares(
+  book: ShareBook,
+  state: VillageState,
+  day: number,
+  work: DayWork,
+  workshops: readonly WorkshopDay[],
+  waterCrew: number,
+): void {
+  const { allocation } = work;
+  book.add(
     'domestic',
     { kind: 'village' },
     allocation.dailyMin -
@@ -327,85 +402,92 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
       (work.lord?.domestic ?? 0),
   );
   // péče o koně (horses.md – Péče): koňák ráno a večer u ohrad koní, poměrně k počtu koní
-  horseCareShares(state, day, allocation.horseCare, add);
+  horseCareShares(state, day, allocation.horseCare, book.add);
   // kování koní vlastním kovářem (horses.md – Kování): kovář u ohrady koní
-  horseCareShares(state, day, allocation.shoeing ?? 0, add, 'horse-shoeing');
-  // řemeslníci: uhlíř a hrnčíř kácejí u svého stromu, výroba v dílně – uhlíř u svých milířů
-  // (samostatné stavby u skácených buků – crafts.md, Milíř u skácených buků), a sází mladé buky
-  // na pařezy (crafts.md – Uhlíř)
-  for (const w of workshops) {
-    const place: LaborTarget = { kind: 'dwelling', id: w.dwellingId };
-    add(
-      'fell',
-      w.fellingTrees.length > 0 ? { kind: 'trees', ids: w.fellingTrees } : place,
-      w.felling,
-    );
-    if (w.kilns && w.kilns.length > 0) {
-      for (const k of w.kilns) {
-        const target: LaborTarget = {
-          kind: 'kiln',
-          id: w.dwellingId,
-          x: k.x,
-          z: k.z,
-          ...(k.id !== undefined ? { kiln: k.id } : {}),
-        };
-        add('craft', target, k.making);
-      }
-    } else {
-      add('craft', place, w.making);
-    }
-    // měchař u tavby – syn 10–13 mimo práci dílny, ten den nepase (production-chains.md – Kovář);
-    // dospělý měchař je v práci dílny
-    const bellows = w.smelt?.bellows;
-    if (bellows?.kind === 'son') {
-      add('craft', place, SMITH_SUPPLY.youngsterShare, undefined, undefined, undefined, [
-        bellows.age,
-      ]);
-    }
-    // kovář: kopání rudy na rudišti, nošení uhlí od milíře a rudy z rudiště (crafts.md – Uhlí
-    // a ruda kováře) – kdo to dělá (věky); jízda s vozem pro rudu s vozem
-    if (w.ore) {
-      const { manDays, ages, x, z } = w.ore;
-      add(
-        'ore',
-        { kind: 'ore', id: w.dwellingId, x, z },
-        manDays,
-        undefined,
-        undefined,
-        undefined,
-        ages,
-      );
-    }
-    // hrnčíř: kopání hlíny na hliništi (crafts.md – Hlína hrnčíře)
-    if (w.clay) {
-      const { manDays, ages, x, z } = w.clay;
-      add(
-        'clay',
-        { kind: 'clay', id: w.dwellingId, x, z },
-        manDays,
-        undefined,
-        undefined,
-        undefined,
-        ages,
-      );
-    }
-    for (const f of w.fetch ?? []) {
-      add('fetch', f.target, f.manDays, undefined, f.cart ? 1 : undefined, undefined, f.ages);
-    }
-    if (w.planting) {
-      const stumps = w.plantedTrees ?? [];
-      add('plant', stumps.length > 0 ? { kind: 'trees', ids: stumps } : place, w.planting);
-    }
-  }
+  horseCareShares(state, day, allocation.shoeing ?? 0, book.add, 'horse-shoeing');
+}
 
+/** Řemeslník: kácení u svého stromu, výroba v dílně nebo u milířů, měchař, ruda, hlína, nošení a sázení buků. */
+function workshopShares(book: ShareBook, w: WorkshopDay): void {
+  const place: LaborTarget = { kind: 'dwelling', id: w.dwellingId };
+  book.add(
+    'fell',
+    w.fellingTrees.length > 0 ? { kind: 'trees', ids: w.fellingTrees } : place,
+    w.felling,
+  );
+  if (w.kilns && w.kilns.length > 0) {
+    for (const k of w.kilns) {
+      const target: LaborTarget = {
+        kind: 'kiln',
+        id: w.dwellingId,
+        x: k.x,
+        z: k.z,
+        ...(k.id !== undefined ? { kiln: k.id } : {}),
+      };
+      book.add('craft', target, k.making);
+    }
+  } else {
+    book.add('craft', place, w.making);
+  }
+  // měchař u tavby – syn 10–13 mimo práci dílny, ten den nepase (production-chains.md – Kovář);
+  // dospělý měchař je v práci dílny
+  const bellows = w.smelt?.bellows;
+  if (bellows?.kind === 'son') {
+    book.add('craft', place, SMITH_SUPPLY.youngsterShare, undefined, undefined, undefined, [
+      bellows.age,
+    ]);
+  }
+  // kovář: kopání rudy na rudišti, nošení uhlí od milíře a rudy z rudiště (crafts.md – Uhlí
+  // a ruda kováře) – kdo to dělá (věky); jízda s vozem pro rudu s vozem
+  if (w.ore) {
+    const { manDays, ages, x, z } = w.ore;
+    book.add(
+      'ore',
+      { kind: 'ore', id: w.dwellingId, x, z },
+      manDays,
+      undefined,
+      undefined,
+      undefined,
+      ages,
+    );
+  }
+  // hrnčíř: kopání hlíny na hliništi (crafts.md – Hlína hrnčíře)
+  if (w.clay) {
+    const { manDays, ages, x, z } = w.clay;
+    book.add(
+      'clay',
+      { kind: 'clay', id: w.dwellingId, x, z },
+      manDays,
+      undefined,
+      undefined,
+      undefined,
+      ages,
+    );
+  }
+  for (const f of w.fetch ?? []) {
+    book.add('fetch', f.target, f.manDays, undefined, f.cart ? 1 : undefined, undefined, f.ages);
+  }
+  if (w.planting) {
+    const stumps = w.plantedTrees ?? [];
+    book.add('plant', stumps.length > 0 ? { kind: 'trees', ids: stumps } : place, w.planting);
+  }
+}
+
+/** Nosiči výprav k sousedům a skupiny nákupu u sousedů. */
+function travelShares(book: ShareBook, work: DayWork): void {
   // nosiči výprav k sousedům – po zemské stezce (trade.md); mají vlastní podíl práce
   // (`allocation.away`), společnou práci neberou
   for (const t of work.trade ?? []) {
-    add('trade', { kind: 'trail', id: t.trailId }, t.manDays, undefined, t.carts);
+    book.add('trade', { kind: 'trail', id: t.trailId }, t.manDays, undefined, t.carts);
   }
   // nákup u sousedů – malá skupina po stezce nebo krajinou ke kraji mapy (crafts.md)
-  for (const p of work.purchases ?? []) add('trade', p.target, p.manDays);
-  scale = outdoor;
+  for (const p of work.purchases ?? []) book.add('trade', p.target, p.manDays);
+}
+
+/** Společná práce: drobná zvěř, stavby a nevyužitá práce (opravy, pletí mužů, seč navíc a honáci klád jsou v ní započtené). */
+function commonShares(book: ShareBook, state: VillageState, work: DayWork): void {
+  const { allocation } = work;
+  const hauls = work.hauls ?? [];
   // opravy obydlí jdou ze společné práce po stavbách (population.md – Práce), pletí mužů z toho,
   // co zbude po nich (fields.md – Pletí jednou a rychle)
   let invested =
@@ -414,7 +496,7 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
     (work.extraMow ?? 0);
   for (const g of work.smallGame ?? []) {
     invested += g.manDays;
-    add(g.activity, g.target, g.manDays);
+    book.add(g.activity, g.target, g.manDays);
   }
   // honáci a nakladači klád jdou ze společné práce (wagons.md); sedláci s uhlím a rudou mají
   // vlastní podíl práce vsi před úlohami (`allocation.carting` – crafts.md, Uhlí a ruda kováře)
@@ -422,19 +504,10 @@ export function laborDay(state: VillageState, day: number, work: DayWork): Labor
   for (const c of work.constructions) {
     invested += c.manDays;
     for (const share of constructionShares(c, state)) {
-      add(share.activity, share.target, share.manDays, c.construction.id);
+      book.add(share.activity, share.target, share.manDays, c.construction.id);
     }
   }
-  add('idle', { kind: 'village' }, allocation.common - invested);
-  const slaughtered = state.livestock?.slaughtered;
-  return {
-    day,
-    shares,
-    ...(work.herders !== undefined ? { herders: work.herders } : {}),
-    ...(work.aside ? { aside: asideShares(state, work.aside) } : {}),
-    ...(work.lord ? { lord: work.lord.counts } : {}),
-    ...(slaughtered?.day === day ? { slaughterHeads: { ...slaughtered.heads } } : {}),
-  };
+  book.add('idle', { kind: 'village' }, allocation.common - invested);
 }
 
 /**
