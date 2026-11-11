@@ -1010,3 +1010,11 @@ funkce jsou v `apps/web/lib/demolition-view.ts` (`demolitionLooks`, `demolitionS
 - **Chování na začátku:** při průběhu 0 (práce ještě nezačala) je stavba hned celé staveniště
   (`progress` 1) – rozdíl proti hotovému modelu je jen v dílech staveniště, ne v tvaru.
 - Test: `apps/web/lib/__tests__/demolition-view.test.ts`.
+
+## Kostel ve scéně (churches.md – Scéna; úloha M6)
+
+Model se skládá **jen z `churchParts`** jádra (`church-geometry.ts`, viz `docs/code/village-masonry.md`) – ve scéně se rozměry nikde neopakují.
+
+- `lib/scene/church-mesh.ts` – čistá funkce `churchMeshData(parts, progress, thickness)` → `{ walls, roofs, openings }` (`ChurchMeshArrays`: polohy, normály, barvy RGBA, UV, indexy) a `churchScaffoldData(parts, walls, thickness)` (lešení). `thickness` je číslo, nebo funkce výšky části (`wallThickness`). Místní souřadnice jako v jádře, y = 0 je terén; zdi sahají 1,5 m pod terén a `FOUNDATION_LIFT_M` (0,3 m) nad něj. Zdi jsou tlusté stěny (`rect` 4 stěny, `circle` 24 a `half` 12 úseků), výška = 0,3 + výška části × `walls`; střechy až od `roof > 0` a jen u hotových zdí – sedlová a pultová rostou po délce, kuželová a koncha po úsecích; štíty jsou ve `walls`. Okna (půlkruhově zaklenutá, po ≈ 3 m, horní třetina zdi lodi) a vchod na západě (nejzápadnější část kromě bočních lodí) jsou tmavé obdélníky těsně před zdí a ukážou se, až zeď dosáhne jejich horní hrany. Omítka (`decor`) roste od paty barvou vrcholů, holý kámen je tmavší šedohnědý.
+- `lib/church-view.ts` – `SceneChurch` (id, typ, rozměry, poloha, `progress`, `decorated`), `sceneChurchOf(church)` pro dostavěný kostel.
+- `lib/scene/church-renderer.ts` – `ChurchRenderer(scene, { decalHeight, addShadowCaster })`: `setChurches(list)` (vrací true při změně; klíč = JSON kostela), `count()`, `dispose()`. Jeden PBR materiál s `applyGammaFog` a barvami ve vrcholech; pata na nejvyšším bodě půdorysu (`churchFootprintWorld`), `rotation.y = -rotation`; lešení jen při `0 < walls < 1`. Vytváří ho `VillageRenderer` (`setChurches`), z Reactu `LandscapeScene.setChurches(list)` (pamatuje si seznam i pro ves vytvořenou později). Stav vsi kostely zatím nedodává.

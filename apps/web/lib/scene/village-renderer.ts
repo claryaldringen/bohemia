@@ -75,6 +75,8 @@ import { buildingCartPlans, draftTeamsToday, villageCartPlans } from './village-
 import { penHerds, scenePenViews } from './village-pens';
 import { SACRED_SITE_KIND, sacredBuildingKey } from './sacred-layout';
 import { SacredRenderer } from './sacred-renderer';
+import { ChurchRenderer } from './church-renderer';
+import type { SceneChurch } from '../church-view';
 import type { SlaughterPlan } from './slaughter-plan';
 import { SlaughterRenderer } from './slaughter-renderer';
 import { ROUND_SITE_M, constructionState, sitePropPlace } from './village-construction';
@@ -241,6 +243,7 @@ export class VillageRenderer {
   private readonly pegs: StakingPegs;
   private readonly orchards: OrchardRenderer;
   private readonly sacred: SacredRenderer;
+  private readonly churches: ChurchRenderer;
   private readonly fields: FieldRenderer;
   /** Keře a stromky na zarůstajícím přílohu a les vsi (fields.md – Zarůstání). */
   private readonly wild: WildGrowthRenderer;
@@ -343,6 +346,10 @@ export class VillageRenderer {
       fences: this.fences,
     });
     this.sacred = new SacredRenderer(scene, context);
+    this.churches = new ChurchRenderer(scene, {
+      decalHeight: context.decalHeight,
+      addShadowCaster: (mesh) => context.addShadowCaster(mesh),
+    });
     this.fields = new FieldRenderer(scene, context);
     this.wild = new WildGrowthRenderer(scene, {
       groundHeight: context.groundHeight,
@@ -968,6 +975,11 @@ export class VillageRenderer {
   }
 
   /** Pata modly nebo svatyně (duch při umisťování). */
+  /** Kostely vsi (churches.md – Scéna); vrátí true, když se něco změnilo. */
+  setChurches(list: readonly SceneChurch[]): boolean {
+    return this.churches.setChurches(list);
+  }
+
   sacredBaseHeight(kind: SacredBuildingKind, position: SceneDwelling['position']): number {
     return this.sacred.baseHeight({ kind, position });
   }
@@ -991,6 +1003,7 @@ export class VillageRenderer {
     this.fences.dispose();
     this.orchards.dispose();
     this.sacred.dispose();
+    this.churches.dispose();
     this.penAnimals.dispose();
     this.teams.dispose();
     this.carts.dispose();

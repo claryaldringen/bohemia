@@ -95,6 +95,7 @@ import type { ActivePlacement } from './village-placement';
 import { createPlacement } from './placement-factory';
 import { VillageRenderer } from './village-renderer';
 import type { SceneVillage } from '../village-view';
+import type { SceneChurch } from '../church-view';
 import type { PlacementHandlers, PlacementMode } from './village-types';
 import { createWaterMesh, type WaterSurface } from './water';
 import { PremiumSites } from './premium-sites';
@@ -145,6 +146,8 @@ export class LandscapeScene {
   private rtsCamera: RtsCamera | null = null;
   private rendering = false;
   private disposed = false;
+  /** Poslední kostely od Reactu – použijí se i pro ves vytvořenou později. */
+  private churchList: readonly SceneChurch[] = [];
   /** Zvuky krajiny – vznikají až po přípravě scény. */
   private ambient: AmbientSound | null = null;
   private soundEnabled = true;
@@ -385,6 +388,7 @@ export class LandscapeScene {
       onDraftState: (state) => this.selection.draftChanged(state),
     });
     this.village = village;
+    if (this.churchList.length > 0) village.setChurches(this.churchList);
     if (this.worldClock) village.setWorldClock(this.worldClock);
     if (this.workDayClock) village.setPloughClock(this.workDayClock);
     const look = this.atmosphere.look;
@@ -660,6 +664,16 @@ export class LandscapeScene {
   /** Meshe vojska, které se kreslí, a počty instancí (e2e, měření). */
   armyStats(): { name: string; count: number }[] {
     return this.war.stats();
+  }
+
+  /**
+   * Kostely vsi (churches.md – Scéna): hotové i staveniště podle postupu. Jde volat kdykoli, i před
+   * dokončením `setLandscape` – kostely se ukážou s vsí. Prázdný seznam = beze změny pro ves.
+   */
+  setChurches(list: readonly SceneChurch[]): void {
+    if (this.disposed) return;
+    this.churchList = list;
+    if (this.village?.setChurches(list)) this.loop.renderWhenReady();
   }
 
   setDisasterDay(day: number | null): void {
