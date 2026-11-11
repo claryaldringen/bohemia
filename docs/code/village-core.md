@@ -189,6 +189,11 @@ kroniky`sacred-oak-died`/`sacred-snag-fell`(upozornění přes`CHRONICLE_NOTICES
 
 - **Determinismus:** simulace jde den po dni v pevném pořadí kroků (`simulate.ts`), náhoda dne
   je ze seedu vsi a indexu dne – výsledek nezávisí na tom, po jakých kouscích se ves dopočítá.
+  Den (`simulateDaySteps`, 11. 11. 2026 rozložený beze změny výsledku) skládá pojmenované kroky:
+  `morningDay` → `routesDaySteps` (zastávky) → `craftCoverage` → `storesAndHerdsDay` →
+  `seasonPlanDay` → `workDayStep` (`work()`) → `afterWorkDay` → `remnantsDay` (obilné jámy pod
+  novými stavbami podle `idsBefore`) → `marriagesAndMealDay` (`eat`) → `lordEveningDay` →
+  `peopleDay` (vymřelá ves končí) → `harvestAndUpkeepDay`; zastávky (`yield`) mezi kroky zůstaly.
   - **Zlatý otisk celé vsi** (`village-golden.test.ts`, `village-golden-fixture.ts`): ves ze seedu
     4242 v krajině seedu 1, od založení pod správcem, po 20 letech (10 polí, stáda, uhlíř, hrnčíř,
     kovář, 14 lidí, rod) se dopočte o rok; otisk (cyrb53 z `JSON.stringify` stavu) musí sedět
