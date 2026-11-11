@@ -1279,6 +1279,32 @@ jsou v `lib/premium-view.ts` (`PREMIUM_TEXTS`, `premiumIntroNotice`); portréty 
   (`iconsLoaded` – server mezitím dopočítává ves a obrázky přijdou později; chybějící soubor test
   shodí).
 
+## Stavební huť v rozhraní (stone-masonry.md – Stavební huť; plán 2026-11-11 – M7a, `hud/LodgeButtons.tsx`)
+
+Jádro a akce: `village-masonry.md` – Stavební huť (`inviteLodge`, `inviteMaster`; právo `ennoble`).
+
+- **Pohled:** `lodgeView(state, day)` (`lib/person-view.ts`) složí z jádra (`canInviteLodge`,
+  `canInviteMaster`) `LodgeView` – `invite` (důvod, proč huť nejde pozvat, `null` = jde),
+  `circle`, `daysToArrival` (dní do nejbližšího příchodu mistra) a `missing` (obory k pozvání).
+  `sceneLabor` ho připojí jen k postavě vojvody (`ScenePerson.lodge`); mistr a kněz nesou
+  `mason` / `priest` a `lodgeCircle`. `lib/selection-details.ts` je předá panelu osoby.
+- **Vojvoda** (`LodgeActions`, `selection/people.tsx` – `PersonBody`): ikona huti „Pozvat
+  stavební huť“ (zašedlá s důvodem u kurzoru: `INVITE_LODGE_REASONS` – nepokřtěný rod, ves bez
+  vojvody; bez práva `ennoble` důvod práva) → okno se dvěma ikonami okruhů (adriatický,
+  karolinský; popisek = okruh a typy kostelů, `MASONRY_CIRCLE_LABELS`) a křížkem; klik na okruh
+  je potvrzení a volá `onInviteLodge`. Huť na cestě: ikona huti s počtem dní do příchodu
+  (popisek s okruhem); dorazí-li všichni, zůstane jen ikona. U každého chybějícího oboru
+  tlačítko „Pozvat mistra: <obor>“ s ikonou oboru (`onInviteMaster`, bez potvrzení).
+- **Mistr a kněz** (`MasonBadge`, `PriestBadge`): ikona oboru (popisek „Zedník – Karolinský
+  okruh“) a ikona kněze v řádku panelu osoby.
+- **Obsluhy:** `onInviteLodge`, `onInviteMaster` v `SelectionCommands`
+  (`village-game/village-commands.ts`) volají server actions `inviteLodge`, `inviteMaster`.
+- **Ikony** (`public/icons/house/`, render z Blenderu – `tools/blender/icons.py`, `LODGE_PANELS`):
+  `lodge`, `circle-adriatic`, `circle-carolingian`, `mason-builder`, `mason-limeburner`,
+  `mason-stonemason`, `mason-mason`, `mason-plasterer`, `priest`.
+- **Testy:** `LodgeButtons.behavior.test.tsx`, `SelectionPanel.test.tsx`,
+  `person-activity.test.ts` (selectionDetails), `village-view.test.ts` (pohled na huť).
+
 ## Panel Kronika (absence.md – Návrat, `hud/ChroniclePanel.tsx`, `lib/chronicle-view.ts`)
 
 Martin 8. 11. 2026: „může si přece sám zobrazit panel s notifikacemi a kroniku“ – rozhraní nad

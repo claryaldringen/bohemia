@@ -1,4 +1,4 @@
-import type { DwellingResident } from '@/lib/person-view';
+import type { DwellingResident, LodgeView } from '@/lib/person-view';
 import type { VillageFieldPart } from '@/lib/village-view-types';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
@@ -1749,6 +1749,31 @@ describe('SelectionPanel – víra a křest', () => {
     expect(baptizeHtml(lord())).not.toContain('selection-person-baptize');
     // bez akce (náhled) tlačítko není
     expect(render(lord({ baptizable: true }))).not.toContain('selection-person-baptize');
+  });
+
+  it('huť a mistři: tlačítka u vojvody jen s akcemi, ikony oboru mistra a kněze', () => {
+    const lodge: LodgeView = { invite: null, missing: [] };
+    const withActions = (details: SelectionDetails): string =>
+      renderToStaticMarkup(
+        <SelectionPanel
+          details={details}
+          onInviteLodge={() => Promise.resolve(null)}
+          onInviteMaster={() => Promise.resolve(null)}
+        />,
+      );
+    const html = withActions(lord({ lodge }));
+    expect(html).toContain('data-testid="selection-person-invite-lodge"');
+    expect(html).toContain('src="/icons/house/lodge.png"');
+    expect(render(lord({ lodge }))).not.toContain('selection-person-invite-lodge');
+    expect(withActions(lord())).not.toContain('selection-person-invite-lodge');
+    const mason = render(lord({ mason: 'limeBurner', lodgeCircle: 'carolingian' }));
+    expect(mason).toContain('data-testid="selection-person-mason"');
+    expect(mason).toContain('src="/icons/house/mason-limeburner.png"');
+    expect(mason).toContain('Vápeník – Karolinský okruh');
+    const priest = render(lord({ priest: true }));
+    expect(priest).toContain('src="/icons/house/priest.png"');
+    expect(render(lord())).not.toContain('selection-person-mason');
+    expect(render(lord())).not.toContain('selection-person-priest');
   });
 
   it('pokřtěný má kříž víry s popiskem „Křesťan“, pohan nic', () => {

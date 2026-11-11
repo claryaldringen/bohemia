@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { personActivity, type PersonFigureState } from '../person-activity';
+import type { LodgeView } from '../person-view';
 import { selectionDetails } from '../selection-details';
 import { presentTarget } from '../scene/village-selection';
 import type { PersonJob } from '../scene/villager-roster';
@@ -174,6 +175,41 @@ describe('selectionDetails – postava', () => {
     expect(selectionDetails(null, VILLAGE, { kind: 'person', id: 901 }, state(null))).toMatchObject(
       { role: 'Uhlíř', activity: 'doma', homeIcon: 'uhlir' },
     );
+  });
+
+  it('huť: mistr nese obor a okruh, kněz příznak, vojvoda stav huti', () => {
+    const lodge: LodgeView = {
+      invite: 'already',
+      circle: 'adriatic',
+      daysToArrival: 3,
+      missing: [],
+    };
+    const village: SceneVillage = {
+      ...VILLAGE,
+      labor: {
+        ...VILLAGE.labor!,
+        persons: [
+          {
+            id: 1,
+            age: 30,
+            sex: 'male',
+            home: 2,
+            role: 'farmer',
+            mason: 'builder',
+            lodgeCircle: 'adriatic',
+          },
+          { id: 2, age: 40, sex: 'male', home: 2, role: 'farmer', priest: true },
+          { id: 3, age: 45, sex: 'male', home: 2, role: 'voivode', lodge },
+          { id: 4, age: 20, sex: 'male', home: 2, role: 'farmer' },
+        ],
+      },
+    };
+    const details = (id: number): ReturnType<typeof selectionDetails> =>
+      selectionDetails(null, village, { kind: 'person', id }, null);
+    expect(details(1)).toMatchObject({ mason: 'builder', lodgeCircle: 'adriatic', lodge: null });
+    expect(details(2)).toMatchObject({ priest: true, mason: null });
+    expect(details(3)).toMatchObject({ lodge, mason: null, priest: false });
+    expect(details(4)).toMatchObject({ mason: null, priest: false, lodge: null });
   });
 
   it('výběr zůstane, i když postava zmizí; zemřelý člověk výběr zruší', () => {

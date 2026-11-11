@@ -5388,6 +5388,202 @@ def icon_alarm_done():
     return True
 
 
+# --- Stavební huť (stone-masonry.md – Stavební huť, churches.md – Typy podle okruhu huti) ---------
+
+def _stone():
+    return mat("stone", (0.6, 0.57, 0.5), 0.95, noise=14, bump=1.2)
+
+
+def _lime_white():
+    return mat("limewhite", (0.9, 0.88, 0.8), 0.95, noise=10, bump=0.4)
+
+
+def _roof(bm, centre, width, length, height, thick=0.12):
+    """Sedlová střecha: dvě šikmé desky nad osou X (délka `length` podél X)."""
+    ang = math.atan2(height, width / 2)
+    run = math.hypot(width / 2, height) + 0.08
+    for side in (-1, 1):
+        box(bm, (centre[0], centre[1] + side * width / 4, centre[2] + height / 2),
+            (length, run, thick), rot=(side * ang, 0, 0))
+
+
+def _wall_blocks(bm, x0, x1, y, z0, rows, h=0.34, depth=0.5):
+    """Zeď z kvádrů v řadách (střídavě posunuté spáry)."""
+    w = 0.7
+    for r in range(rows):
+        off = (w / 2) if r % 2 else 0.0
+        x = x0 - off
+        while x < x1:
+            lo, hi = max(x, x0), min(x + w, x1)
+            if hi - lo > 0.05:
+                box(bm, ((lo + hi) / 2, y, z0 + h * (r + 0.5)), (hi - lo - 0.04, depth, h - 0.04))
+            x += w
+
+
+def icon_lodge():
+    """Stavební huť: kamenná chata z kvádrů s dřevěnou sedlovou střechou a dveřmi."""
+    wall, roof, door = bmesh.new(), bmesh.new(), bmesh.new()
+    _wall_blocks(wall, -1.4, 1.4, 0, 0, 4)
+    _wall_blocks(wall, -1.4, 1.4, 1.0, 0, 4)
+    _wall_blocks(wall, -1.4, 1.4, 0.5, 0, 4)
+    box(door, (0, -0.28, 0.5), (0.7, 0.08, 1.0))
+    _roof(roof, (0, 0.5, 1.36), 2.0, 3.3, 0.8)
+    objs = [to_obj(wall, "wall", _stone(), smooth=False),
+            to_obj(roof, "roof", wood_mat("roof", (0.4, 0.26, 0.12)), smooth=False),
+            to_obj(door, "door", wood_mat("door", (0.3, 0.19, 0.09)), smooth=False)]
+    hud_light(az=-40, el=45)
+    camera(world_points(objs), az=-8, el=18, margin=1.04)
+    return True
+
+
+def icon_circle_adriatic():
+    """Adriatický okruh: bazilika – podélná loď se sedlovou střechou a nižší pravoúhlé kněžiště."""
+    nave, chancel, roof, roof2 = bmesh.new(), bmesh.new(), bmesh.new(), bmesh.new()
+    box(nave, (0, 0, 0.7), (2.4, 1.3, 1.4))
+    box(chancel, (1.7, 0, 0.5), (1.0, 0.8, 1.0))
+    _roof(roof, (0, 0, 1.4), 1.5, 2.6, 0.7)
+    _roof(roof2, (1.7, 0, 1.0), 1.0, 1.2, 0.4)
+    objs = [to_obj(nave, "nave", _lime_white(), smooth=False),
+            to_obj(chancel, "chancel", _lime_white(), smooth=False),
+            to_obj(roof, "roof", mat("tile", (0.58, 0.28, 0.16), 0.9, noise=30, bump=0.5), smooth=False),
+            to_obj(roof2, "roof2", mat("tile2", (0.58, 0.28, 0.16), 0.9, noise=30, bump=0.5), smooth=False)]
+    hud_light(az=-40, el=45)
+    camera(world_points(objs), az=25, el=24, margin=1.04)
+    return True
+
+
+def icon_circle_carolingian():
+    """Karolinský okruh: rotunda s kopulí a půlkruhovou apsidou."""
+    body, dome, apse = bmesh.new(), bmesh.new(), bmesh.new()
+    revolve(body, [(0, 1.0), (1.2, 1.0)], 40, cap_bottom=True)
+    revolve(dome, [(1.2, 1.05), (1.35, 1.0), (1.7, 0.85), (2.0, 0.6), (2.2, 0.3), (2.3, 0.0)], 40)
+    revolve(apse, [(0, 0.5), (0.9, 0.5), (1.0, 0.0)], 20)
+    move_by = Vector((1.15, 0, 0))
+    for v in apse.verts:
+        v.co += move_by
+    objs = [to_obj(body, "rotunda", _lime_white()),
+            to_obj(dome, "dome", mat("tile", (0.58, 0.28, 0.16), 0.9, noise=30, bump=0.5)),
+            to_obj(apse, "apse", _lime_white())]
+    hud_light(az=-40, el=45)
+    camera(world_points(objs), az=20, el=22, margin=1.04)
+    return True
+
+
+def icon_mason_builder():
+    """Stavbyvedoucí: tesařský úhelník a olovnice na šňůře."""
+    sq, bob, cord = bmesh.new(), bmesh.new(), bmesh.new()
+    box(sq, (0, 0, 0.0), (0.22, 0.1, 2.2))
+    box(sq, (0.9, 0, -1.0), (2.0, 0.1, 0.22))
+    cyl(cord, (1.2, 0, 1.3), (1.2, 0, 0.1), 0.02, 0.02, 6)
+    cyl(bob, (1.2, 0, 0.1), (1.2, 0, -0.55), 0.2, 0.0, 12)
+    objs = [to_obj(sq, "square", wood_mat("sq", (0.5, 0.33, 0.16)), smooth=False),
+            to_obj(cord, "cord", mat("rope", (0.62, 0.52, 0.34), 0.95), smooth=False),
+            to_obj(bob, "bob", iron_mat("bob"))]
+    hud_light(az=-35, el=45)
+    camera(world_points(objs), az=0, el=6, margin=1.04)
+    return True
+
+
+def icon_mason_limeburner():
+    """Vápeník: hromádka bílých hrud páleného vápna s žhavým jádrem."""
+    lumps = bmesh.new()
+    rng = random.Random(7)
+    for k in range(9):
+        a = rng.uniform(0, 6.28)
+        d = rng.uniform(0.0, 0.7)
+        blob(lumps, ((math.cos(a) * d, math.sin(a) * d, 0.2 + (0.25 if d < 0.35 else 0.0)),
+                     (rng.uniform(0, 3), rng.uniform(0, 3), rng.uniform(0, 3))),
+             (rng.uniform(0.28, 0.4), rng.uniform(0.25, 0.35), rng.uniform(0.2, 0.3)), 10, 6)
+    ember = bmesh.new()
+    blob(ember, ((0, -0.5, 0.18), (0, 0, 0)), (0.3, 0.16, 0.14), 10, 6)
+    objs = [to_obj(lumps, "lime", _lime_white()),
+            to_obj(ember, "ember", glow_mat("ember", (1.0, 0.42, 0.08), 3.0))]
+    hud_light(az=-40, el=50)
+    camera(world_points(objs), az=10, el=30, margin=1.04)
+    return True
+
+
+def icon_mason_stonemason():
+    """Kameník: otesaný kvádr, dláto a palička."""
+    block, chisel, head, haft = bmesh.new(), bmesh.new(), bmesh.new(), bmesh.new()
+    box(block, (0, 0, 0.4), (1.5, 1.0, 0.8))
+    cyl(chisel, (-0.2, -0.1, 0.8), (-0.2, -0.1, 1.9), 0.05, 0.1, 8)
+    box(head, (0.7, 0.2, 1.05), (0.7, 0.34, 0.34), rot=(0, 0, math.radians(20)))
+    cyl(haft, (0.55, 0.2, 0.3), (0.85, 0.2, 0.95), 0.05, 0.05, 8)
+    objs = [to_obj(block, "block", _stone(), smooth=False),
+            to_obj(chisel, "chisel", iron_mat("chisel")),
+            to_obj(head, "head", wood_mat("head", (0.5, 0.33, 0.16)), smooth=False),
+            to_obj(haft, "haft", wood_mat("haft", (0.55, 0.38, 0.2)))]
+    hud_light(az=-40, el=45)
+    camera(world_points(objs), az=15, el=22, margin=1.04)
+    return True
+
+
+def icon_mason_mason():
+    """Zedník: zeď z kvádrů v řadách a zednická lžíce."""
+    wall, blade, grip = bmesh.new(), bmesh.new(), bmesh.new()
+    _wall_blocks(wall, -1.2, 1.2, 0, 0, 3)
+    flat_plate(blade, [(-0.1, 1.35), (0.3, 1.5), (0.9, 1.35), (0.3, 1.2)], -0.45, 0.04)
+    bmesh.ops.recalc_face_normals(blade, faces=blade.faces)
+    cyl(grip, (-0.1, -0.45, 1.35), (-0.75, -0.45, 1.35), 0.06, 0.06, 8)
+    objs = [to_obj(wall, "wall", _stone(), smooth=False),
+            to_obj(blade, "trowel", iron_mat("trowel"), smooth=False),
+            to_obj(grip, "grip", wood_mat("grip", (0.5, 0.33, 0.16)))]
+    hud_light(az=-40, el=45)
+    camera(world_points(objs), az=-10, el=24, margin=1.04)
+    return True
+
+
+def icon_mason_plasterer():
+    """Štukatér a malíř: sokl omítky na hladítku, štětec a hrnek s barvou."""
+    board, grip, mud, pot, paint, brush, bristle = (bmesh.new() for _ in range(7))
+    box(board, (-0.5, 0, 0.55), (1.3, 1.3, 0.1))
+    cyl(grip, (-0.5, 0, 0.5), (-0.5, 0, 0.2), 0.07, 0.07, 8)
+    blob(mud, ((-0.5, 0, 0.78), (0, 0, 0)), (0.5, 0.5, 0.2), 12, 6)
+    revolve(pot, [(0, 0.3), (0.5, 0.36), (0.55, 0.34)], 24, cap_bottom=True)
+    revolve(paint, [(0.5, 0.33), (0.52, 0.0)], 24)
+    cyl(brush, (0.95, 0.25, 0.45), (0.55, 0.25, 1.55), 0.045, 0.045, 8)
+    cyl(bristle, (0.55, 0.25, 1.55), (0.45, 0.25, 1.95), 0.12, 0.05, 8)
+    for v in pot.verts:
+        v.co += Vector((0.95, -0.3, 0.0))
+    for v in paint.verts:
+        v.co += Vector((0.95, -0.3, 0.0))
+    objs = [to_obj(board, "board", wood_mat("board", (0.5, 0.33, 0.16)), smooth=False),
+            to_obj(grip, "grip", wood_mat("grip", (0.45, 0.3, 0.14))),
+            to_obj(mud, "plaster", _lime_white()),
+            to_obj(pot, "pot", mat("clay", (0.5, 0.3, 0.18), 0.9, noise=20, bump=0.4)),
+            to_obj(paint, "paint", mat("ochre", (0.72, 0.18, 0.1), 0.6)),
+            to_obj(brush, "brush", wood_mat("brush", (0.5, 0.33, 0.16))),
+            to_obj(bristle, "bristle", mat("bristle", (0.78, 0.7, 0.55), 0.9))]
+    hud_light(az=-40, el=45)
+    camera(world_points(objs), az=10, el=28, margin=1.04)
+    return True
+
+
+def icon_priest():
+    """Kněz kostela: zlatý kalich."""
+    cup = bmesh.new()
+    revolve(cup, [(0, 0.55), (0.08, 0.55), (0.14, 0.12), (0.8, 0.1), (0.9, 0.2), (1.0, 0.3), (1.15, 0.5),
+                  (1.55, 0.62), (1.62, 0.56), (1.55, 0.0)], 32, cap_bottom=True)
+    objs = [to_obj(cup, "chalice", gold_metal("chalice"))]
+    hud_light(az=-40, el=45)
+    camera(world_points(objs), az=0, el=10, margin=1.04)
+    return True
+
+
+LODGE_PANELS = {
+    "house/lodge": icon_lodge,
+    "house/circle-adriatic": icon_circle_adriatic,
+    "house/circle-carolingian": icon_circle_carolingian,
+    "house/mason-builder": icon_mason_builder,
+    "house/mason-limeburner": icon_mason_limeburner,
+    "house/mason-stonemason": icon_mason_stonemason,
+    "house/mason-mason": icon_mason_mason,
+    "house/mason-plasterer": icon_mason_plasterer,
+    "house/priest": icon_priest,
+}
+
+
 # Výstup do podsložek (`house/aid.png`…) – klíč = cesta bez přípony. Obilí, klády a přesýpací hodiny
 # panelů rodu jsou ikony surovin (`food`, `wood`, `hourglass`).
 PANELS = {
@@ -5464,6 +5660,7 @@ HUD = {
     "steward": icon_steward,
 }
 RESOURCES.update(HUD)
+PANELS.update(LODGE_PANELS)
 BUILD["lom"] = icon_lom
 
 

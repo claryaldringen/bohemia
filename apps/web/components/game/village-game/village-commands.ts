@@ -15,6 +15,8 @@ import {
   demolishStructure,
   ennobleVillager,
   fillFortificationMoat,
+  inviteLodge,
+  inviteMaster,
   leaveVillage,
   orderStoneQuarrying,
   plantRoadApples,
@@ -56,6 +58,8 @@ export type SelectionCommands = Required<
     | 'onLeave'
     | 'onLeaveSon'
     | 'onBaptize'
+    | 'onInviteLodge'
+    | 'onInviteMaster'
     | 'onOrderQuarrying'
     | 'onAbandonPart'
     | 'onStructureUse'
@@ -210,6 +214,17 @@ export function villageCommands({
       const villageId = viewRef.current?.id;
       if (!villageId) return Promise.resolve(CONNECTION_FAILED);
       return runAction(() => baptizeLord({ villageId }));
+    },
+    // pozvání huti a chybějícího mistra (server ověří právo, pokřtěný rod a obor)
+    onInviteLodge: (circle) => {
+      const villageId = viewRef.current?.id;
+      if (!villageId) return Promise.resolve(CONNECTION_FAILED);
+      return runAction(() => inviteLodge({ villageId, circle }));
+    },
+    onInviteMaster: (craft) => {
+      const villageId = viewRef.current?.id;
+      if (!villageId) return Promise.resolve(CONNECTION_FAILED);
+      return runAction(() => inviteMaster({ villageId, craft }));
     },
     onOrderQuarrying: (outcropId, m3) =>
       build((villageId) => orderStoneQuarrying({ villageId, outcropId, m3 })),

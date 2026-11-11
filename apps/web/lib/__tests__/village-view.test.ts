@@ -1075,6 +1075,49 @@ describe('buildVillageView', () => {
     );
   });
 
+  it('huť v pohledu: u vojvody tlačítko s důvodem, na cestě dny, mistr s oborem a okruhem', () => {
+    const s = advanceVillage(
+      foundVillage({
+        seed: 5,
+        day: DAY - 1,
+        dwellingPosition: { x: -50, z: -50, rotation: 0.5 },
+        firstField: { parts },
+        lord: {},
+      }),
+      DAY,
+      null,
+    );
+    const lordId = currentLord(s)!.id;
+    const persons = (state: typeof s): ScenePerson[] =>
+      buildVillageView(record(state), landscape, DAY).scene.labor?.persons ?? [];
+    // pohanský rod: tlačítko je, ale s důvodem
+    const pagan = persons(s).filter((p) => p.lodge);
+    expect(pagan.map((p) => p.id)).toEqual([lordId]);
+    expect(pagan[0]!.lodge).toMatchObject({ invite: 'not-baptized', missing: [] });
+    // huť na cestě: okruh, dny do příchodu nejbližšího mistra, obory se neposílají znovu
+    const arriving = {
+      ...s,
+      faith: { ...s.faith, rodBaptizedDay: 1 },
+      lodge: {
+        circle: 'carolingian' as const,
+        invitedDay: DAY,
+        arriving: [{ role: 'builder' as const, day: DAY + 7 }],
+      },
+    };
+    const lodge = persons(arriving).find((p) => p.id === lordId)!.lodge!;
+    expect(lodge).toMatchObject({ invite: 'already', circle: 'carolingian', daysToArrival: 7 });
+    expect(lodge.missing).toEqual(['limeBurner', 'stonemason', 'mason', 'plasterer']);
+    // mistr ve vsi: obor a okruh u jeho postavy, žádné tlačítko
+    const settled = {
+      ...arriving,
+      lodge: { circle: 'adriatic' as const, invitedDay: DAY },
+      people: arriving.people.map((p) => (p.id === lordId ? p : { ...p, mason: 'mason' as const })),
+    };
+    const master = persons(settled).find((p) => p.mason === 'mason');
+    expect(master).toMatchObject({ mason: 'mason', lodgeCircle: 'adriatic' });
+    expect(master?.lodge).toBeUndefined();
+  });
+
   it('křest v pohledu: tlačítko u vojvody, kříž u křesťana, štěstí a Zbourat hřbitova', () => {
     // den simulace – lidé ve scéně jsou z hlášení práce dne
     const s = advanceVillage(
