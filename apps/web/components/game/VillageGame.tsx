@@ -1,385 +1,56 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
-import {
-  CRAFT_BASE,
-  dateOfDayIndex,
-  shiftWorldClock,
-  suggestVillageName,
-  type Direction8,
-  type WallKind,
-  type Craft,
-  FORTIFICATIONS,
-  rerouteProposal,
-  sectionOf,
-  type DwellingPlot,
-  type BuildableDwellingType,
-  type DwellingType,
-  type PlayerNotice,
-  type Position,
-  type SacredBuildingKind,
-  type SquareGrid,
-  type TileCell,
-  type TimeSkip,
-  type WorldClock,
-  type WagonRoadPlan,
-  type GridCell,
-} from '@bohemia/game';
-import {
-  buildTrail,
-  declareHunt,
-  orderBreakout,
-  commandAlarm,
-  returnFromRefuge,
-  setDefenseStance,
-  decidePrisonerAction,
-  abandonFieldParts,
-  abandonStructure,
-  demolishStructure,
-  restoreStructure,
-  cancelConstruction,
-  forceDevDisaster,
-  foundVillage,
-  getVillageView,
-  leaveVillage,
-  choosePlayerDeparture,
-  nameLineMan,
-  baptizeLord,
-  ennobleVillager,
-  settleJourney,
-  placeCemetery,
-  placeDwelling,
-  placeField,
-  placeOrchard,
-  placePen,
-  placeFortification,
-  upgradeFortification,
-  demolishFortificationSection,
-  addFortificationRampart,
-  fillFortificationMoat,
-  upgradeFortificationGate,
-  rerouteFortificationSection,
-  addFortificationGate,
-  placeSacred,
-  placeThreshingFloor,
-  placeQuarry,
-  orderStoneQuarrying,
-  placeWorkshop,
-  plantRoadApples,
-  renameVillage,
-  setSteward,
-  restartGame,
-  selectVillage,
-  sendExpedition,
-  getArmyPanel,
-  getMyCampaigns,
-  commandLeader,
-  setGroupOrder,
-  chooseSurrendered,
-  presence,
-  planArmyCampaign,
-  launchArmyCampaign,
-  skipTime,
-  upgradeRoad,
-  buildWagonRoad,
-  getPanelOptions,
-  housePanel,
-  issueInvite,
-  revokeInvite,
-  openNegotiation,
-  answerNegotiation,
-  blockHouse,
-  unblockHouse,
-  declareWarOnHouse,
-  fileComplaintAction,
-  answerComplaintAction,
-  judgeDisputeAction,
-  houseSpare,
-  renounceVassalage,
-  dismissSteward,
-  levyDialogs,
-  escheatDialogs,
-  proposeEscheat,
-  consentEscheat,
-  answerLevy,
-  summonVassals,
-  answerSummons,
-  passagesToAnswer,
-  answerPassage,
-  protectionView,
-  requestProtection,
-  sendProtection,
-  recallProtection,
-  announceWarPassage,
-  chooseLanguageAction,
-  newcomerStatusAction,
-  requestLordsAction,
-  startFreeAction,
-} from '@/app/game/actions';
-import type { PassageView, SummonsDialogView } from '@/lib/summons';
-import type { ProtectionView } from '@/lib/protection';
-import { ArmyActionsContext, type ArmyActions, type SceneWatch } from '@/hooks/use-army';
-import { PanelOptionsContext, type PanelOptionsSource } from '@/hooks/use-panel-options';
-import type { PanelAsk, PanelOptions } from '@/lib/panel-options';
+import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
+import { shiftWorldClock, type GridCell, type PlayerNotice, type WorldClock } from '@bohemia/game';
+import { ArmyActionsContext } from '@/hooks/use-army';
+import { PanelOptionsContext } from '@/hooks/use-panel-options';
 import { usePlacement } from '@/hooks/use-placement';
-import { usePolling } from '@/hooks/use-polling';
-import { useWarScene } from '@/hooks/use-war-scene';
-import { breakoutOf, sceneWarOf, type WatchedMap } from '@/lib/war-scene-view';
-import { authClient } from '@/lib/auth-client';
-import {
-  buildItem,
-  buildItemForKey,
-  fortVariantKind,
-  fortVariantsBlocked,
-  penVariantSpecies,
-  type WebBuildKind,
-} from '@/lib/build-items';
-import { fortReroutePreview } from '@/lib/fort-reroute';
-import { setE2EHook } from '@/lib/e2e-hooks';
-import { keepSceneData, knownSceneData, lostSceneData } from '@/lib/scene-routes';
-import { cartRoutesRequest, withCartRouteResult, withCartRoutes } from '@/lib/cart-routes';
-import { cartRouter } from '@/lib/cart-router';
-import { knownViewPieces, unpackViewPieces } from '@/lib/view-pieces';
-import { opensMenu } from '@/lib/game-menu';
-import { nextPollDelayMs } from '@/lib/village-polling';
+import { fortVariantsBlocked } from '@/lib/build-items';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
-import { structureGridAt, type CellSquare } from '@/lib/scene/field-cells';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
-import { fortTargetId, wholeTarget, type VillageTarget } from '@/lib/scene/village-picking';
-import { DIRECTION_NAMES } from '@/lib/trade-names';
-import {
-  allDwellingsTarget,
-  describeTarget,
-  followConstruction,
-  nextSelection,
-  presentTarget,
-  selectsAllDwellings,
-} from '@/lib/scene/village-selection';
-import type { PlacementMode, PlacementResult } from '@/lib/scene/village-types';
 import { selectionDetails } from '@/lib/selection-details';
-import type { DraftFigureState } from '@/lib/draft-activity';
-import type { PersonFigureState } from '@/lib/person-activity';
-import { useSoundPreference } from './SoundToggle';
-import { rememberVillage } from '@/lib/village-choice';
-import { keepShownVillage, type VillageListItem } from '@/lib/village-list';
-import { lineNameNotice, newNotices } from '@/lib/village-notices';
-import { premiumIntroNotice } from '@/lib/premium-view';
-import {
-  isVillageNone,
-  mergeNoticeLines,
-  noticeOpener,
-  playerNoticeLine,
-  type NoticePanel,
-} from '@/lib/player-notices';
-import { checkWithDesecration, squaresWithDesecration } from '@/lib/desecration-warning';
-import { lastLordName, rememberLordName } from '@/lib/lord-name-memory';
-import { personPortrait } from '@/lib/person-view';
-import {
-  placementVillageFromScene,
-  scenePlot,
-  type BuildOption,
-  type ScenePlot,
-  type SceneVillage,
-  type VillageView,
-  isBuildAffordable,
-  scenePenSpecies,
-  scenePenSquares,
-} from '@/lib/village-view';
 import { ForeignWarScene } from './ForeignWarScene';
-import { BreakoutButton } from './hud/BreakoutButton';
 import { GameView } from './GameView';
 import { ScenePerfPanel, usePerfFlag } from './ScenePerfPanel';
+import { BreakoutButton } from './hud/BreakoutButton';
 import { BuildGrid } from './hud/BuildGrid';
-import { FortConfirm } from './hud/FortConfirm';
 import { CursorReason } from './hud/CursorReason';
-import { DefeatScreen } from './hud/DefeatScreen';
-import { JourneyBanner, PlayerDeparturePanel } from './hud/RelocationControls';
-import { GameMenu } from './hud/GameMenu';
-import { HousePanel } from './hud/HousePanel';
-import { WarPanel } from './hud/WarPanel';
-import { ChroniclePanel } from './hud/ChroniclePanel';
-import { NoticesPanel } from './hud/NoticesPanel';
-import { useNotices } from '@/hooks/use-notices';
-import { useChronicle } from '@/hooks/use-chronicle';
-import { useAlarm } from '@/hooks/use-alarm';
-import type { AlarmActions } from './hud/AlarmButtons';
-import { usePanelHotkeys } from '@/hooks/use-panel-hotkeys';
-import { LevyDialog } from './hud/LevyDialog';
-import { EscheatDialog } from './hud/EscheatDialog';
-import { RightsProvider, VillageIdProvider, rightDeniedReason } from './hud/rights';
+import { FortConfirm } from './hud/FortConfirm';
 import { Minimap } from './hud/Minimap';
-import { LanguageChoice } from './hud/LanguageChoice';
-import { LineNamePanel } from './hud/LineNamePanel';
-import { NewcomerPanel } from './hud/NewcomerPanel';
-import { NoticeLines, type NoticeLine } from './hud/NoticeLines';
+import { NoticeLines } from './hud/NoticeLines';
+import { JourneyBanner, PlayerDeparturePanel } from './hud/RelocationControls';
+import { RightsProvider, VillageIdProvider } from './hud/rights';
 import { SelectionPanel } from './hud/SelectionPanel';
-import type { HouseView } from '@/lib/house-view';
-import { newcomerUndecided, type NewcomerStatusView } from '@/lib/newcomer-view';
-import type { EscheatView, LevyDialogView } from '@bohemia/game';
-import { TopBar, type DevDisasterChoice } from './hud/TopBar';
+import { TopBar } from './hud/TopBar';
+import { FoundingPanels } from './village-game/FoundingPanels';
+import { GameOverScreen } from './village-game/GameOverScreen';
+import { restartFrom, signOutToHome } from './village-game/session';
+import { useAlarmActions } from './village-game/use-alarm-actions';
+import { useBuildMode } from './village-game/use-build-mode';
+import { useDevControls } from './village-game/use-dev-controls';
+import { useGateMode } from './village-game/use-gate-mode';
+import { useHistoryPanels } from './village-game/use-history-panels';
+import { useHouse } from './village-game/use-house';
+import { useLineNaming } from './village-game/use-line-naming';
+import { useNoticeLines } from './village-game/use-notice-lines';
+import { usePanelSource } from './village-game/use-panel-source';
+import { usePanels } from './village-game/use-panels';
+import { usePendingSites } from './village-game/use-pending-sites';
+import { usePlayerNotices } from './village-game/use-player-notices';
+import { usePremiumIntro } from './village-game/use-premium-intro';
+import { useSceneE2EHooks, useSceneSync } from './village-game/use-scene-sync';
+import { useSelection } from './village-game/use-selection';
+import { useSoundToggle } from './village-game/use-sound-toggle';
+import { useVillageHotkeys } from './village-game/use-village-hotkeys';
+import { useVillageSwitch } from './village-game/use-village-switch';
+import { useVillageSync } from './village-game/use-village-sync';
+import { useWagonPreview } from './village-game/use-wagon-preview';
+import { useWarWatch } from './village-game/use-war-watch';
+import { villageCommands } from './village-game/village-commands';
+import type { VillageData } from './village-game/village-data';
+import { VillagePanels } from './village-game/VillagePanels';
 
-/** Stav vsi ze serveru: pohled na ves, ještě nezaložená (null), nebo chyba (svět neběží…). */
-export type VillageData = VillageView | null | { error: string };
-
-/** Nejvíc řádků oznámení najednou – starší ustoupí novějším. */
-const MAX_NOTICES = 4;
-const CONNECTION_FAILED = 'Spojení se serverem selhalo.';
-const SIGN_OUT_FAILED = 'Odhlášení selhalo – zkus to prosím znovu.';
-const EMPTY_SCENE: SceneVillage = { dwellings: [], fields: [] };
-
-type ActionResult = VillageView | { error: string };
-
-/**
- * Server action staveb malovaných po čtvercích podle druhu (obydlí jdou přes `placeDwelling`).
- * Nová stavba po čtvercích = nový řádek tady a záznam v `lib/build-items.ts`.
- */
-const SUBMIT_SQUARES: Partial<
-  Record<
-    WebBuildKind,
-    (
-      villageId: string,
-      cells: TileCell[],
-      grid?: SquareGrid,
-      variant?: string,
-    ) => Promise<ActionResult>
-  >
-> = {
-  // všechny i v natočené mřížce (fields.md – Natočené stavby)
-  field: (villageId, cells, grid) => placeField({ villageId, cells, ...(grid ? { grid } : {}) }),
-  cemetery: (villageId, cells, grid) =>
-    placeCemetery({ villageId, cells, ...(grid ? { grid } : {}) }),
-  orchard: (villageId, cells, grid) =>
-    placeOrchard({ villageId, cells, ...(grid ? { grid } : {}) }),
-  // ohrada podle druhu (oxen.md – Ohrady podle druhu): druh z rozcestníku mřížky staveb
-  pen: (villageId, cells, grid, variant) =>
-    placePen({
-      villageId,
-      cells,
-      species: penVariantSpecies(variant),
-      ...(grid ? { grid } : {}),
-    }),
-};
-
-/**
- * Stavby po čtvercích daného druhu ve scéně s mřížkou a čtverci – malování se chytí jejich
- * mřížky (rozšíření natočeného pole – fields.md, Natočené stavby).
- */
-function squareStructures(
-  scene: SceneVillage | null,
-  kind: WebBuildKind,
-  variant?: string,
-): { id: number; grid?: SquareGrid; squares: readonly CellSquare[] }[] {
-  if (!scene) return [];
-  if (kind === 'field') {
-    return scene.fields.map((f) => ({
-      id: f.id,
-      ...(f.grid ? { grid: f.grid } : {}),
-      squares: f.parts,
-    }));
-  }
-  if (kind === 'orchard') {
-    return (scene.orchards ?? []).map((o) => ({
-      id: o.id,
-      ...(o.grid ? { grid: o.grid } : {}),
-      squares: o.squares,
-    }));
-  }
-  if (kind === 'cemetery') {
-    return (scene.cemeteries ?? []).map((c) => ({
-      id: c.id,
-      ...(c.grid ? { grid: c.grid } : {}),
-      squares: c.squares,
-    }));
-  }
-  if (kind === 'pen') {
-    // ohrada se chytí mřížky ohrady téhož druhu – rozšíření jako u hřbitova (oxen.md – Ohrady
-    // podle druhu); bez druhu (výběr stavby) všechny ohrady
-    return (scene.pens ?? [])
-      .filter((p) => variant === undefined || scenePenSpecies(p) === variant)
-      .map((p) => ({
-        id: p.id,
-        ...(p.grid ? { grid: p.grid } : {}),
-        squares: scenePenSquares(p),
-      }));
-  }
-  return [];
-}
-
-/** Pohled bez otisku – další dotaz pošle plný pohled. */
-function withoutStamp(view: VillageView): VillageView {
-  const rest = { ...view };
-  delete rest.stamp;
-  // bez otisků kusů – další dotaz doručí celý pohled (view-pieces.ts)
-  delete rest.pieces;
-  return rest;
-}
-
-function isVillageView(state: VillageData): state is VillageView {
-  return state !== null && !('error' in state);
-}
-
-/**
- * Obydlí, dílna, modla, svatyně nebo humno odeslané na server, na jehož odpověď se čeká – ve
- * scéně už stojí jako staveniště (záporné id). Obydlí na pozemku nese i pozemek, dílna řemeslo.
- */
-type PendingSite =
-  | {
-      kind: 'dwelling';
-      id: number;
-      type: DwellingType;
-      position: Position;
-      plot?: ScenePlot;
-      craft?: Craft;
-    }
-  | { kind: 'sacred'; id: number; type: SacredBuildingKind; position: Position }
-  | { kind: 'threshing-floor'; id: number; position: Position };
-
-/** Ves pro scénu: stav ze serveru a stavby, které ještě čekají na odpověď serveru. */
-function withPending(scene: SceneVillage, pending: readonly PendingSite[]): SceneVillage {
-  if (pending.length === 0) return scene;
-  const dwellings = pending.flatMap((d) =>
-    d.kind === 'dwelling'
-      ? [
-          {
-            id: d.id,
-            type: d.type,
-            position: d.position,
-            ...(d.plot ? { plot: d.plot } : {}),
-            ...(d.craft ? { craft: d.craft } : {}),
-            built: false,
-            progress: 0,
-            inhabited: false,
-          },
-        ]
-      : [],
-  );
-  const sacred = pending.flatMap((d) =>
-    d.kind === 'sacred'
-      ? [{ id: d.id, kind: d.type, position: d.position, built: false, progress: 0 }]
-      : [],
-  );
-  const floors = pending.flatMap((d) =>
-    d.kind === 'threshing-floor'
-      ? [{ id: d.id, position: d.position, built: false, progress: 0 }]
-      : [],
-  );
-  return {
-    ...scene,
-    dwellings: [...scene.dwellings, ...dwellings],
-    ...(floors.length > 0
-      ? { threshingFloors: [...(scene.threshingFloors ?? []), ...floors] }
-      : {}),
-    ...(sacred.length > 0
-      ? {
-          sacred: {
-            oaks: scene.sacred?.oaks ?? [],
-            groves: scene.sacred?.groves ?? [],
-            buildings: [...(scene.sacred?.buildings ?? []), ...sacred],
-          },
-        }
-      : {}),
-  };
-}
+export type { VillageData } from './village-game/village-data';
 
 /**
  * Hratelná ves s rozhraním jako v 0 A.D.: 3D krajina přes celé okno, horní lišta (jméno vsi,
@@ -396,14 +67,10 @@ function withPending(scene: SceneVillage, pending: readonly PendingSite[]): Scen
  * přepne na místě, na jiné mapě se stránka načte znovu (jiná krajina). Akce nesou id vsi.
  * Ctrl / Shift + klik přidá obydlí k výběru, Ctrl + A vybere všechna; panel výběru obydlí
  * nabídne Přestěhovat (nový dům postupně každé domácnosti).
+ *
+ * Komponenta jen skládá hooky a panely z `village-game/` (web-ui.md – Rozložení `VillageGame`);
+ * pořadí hooků drží pořadí efektů scény (válka → hodiny → ves → výběr → náhled vozové cesty).
  */
-/** Opustit, zbourat a vrátit stavbu (demolition.md) – server action podle tlačítka v panelu. */
-const STRUCTURE_USE_ACTIONS = {
-  abandon: abandonStructure,
-  demolish: demolishStructure,
-  restore: restoreStructure,
-} as const;
-
 export function VillageGame({
   landscape,
   seed,
@@ -442,1094 +109,124 @@ export function VillageGame({
   const [scene, setScene] = useState<LandscapeScene | null>(null);
   // ukazatel výkonu scény – jen s `?perf=1` (ScenePerfPanel.tsx)
   const perfOn = usePerfFlag();
-  // trasy vozů a spřežení spočítá prohlížeč z cílů, které poslal server (cart-routes.ts)
-  const [village, setVillage] = useState<VillageData>(() =>
-    isVillageView(initialVillage)
-      ? { ...initialVillage, scene: withCartRoutes(initialVillage.scene, decoded) }
-      : initialVillage,
-  );
-  const [pending, setPending] = useState<PendingSite[]>([]);
-  const [selected, setSelected] = useState<VillageTarget | null>(null);
-  const [placingItem, setPlacingItem] = useState<WebBuildKind | null>(null);
-  // otevřený rozcestník mřížky staveb – stavba s druhy (ohrada – oxen.md, Ohrady podle druhu)
-  const [buildGroup, setBuildGroup] = useState<WebBuildKind | null>(null);
-  const [notices, setNotices] = useState<NoticeLine[]>([]);
-  const [menuOpen, setMenuOpen] = useState(false);
-  // Panel „Rod a vazalové“: pohled se načte po otevření hry (počet vazalů v liště) a obnoví po
-  // otevření, po akci a po novém upozornění mezi hráči.
-  const [houseOpen, setHouseOpen] = useState(false);
-  const [house, setHouse] = useState<HouseView | null>(null);
-  const [houseError, setHouseError] = useState<string | null>(null);
-  // Odříznutý nováček (newcomers.md): stav volby pána se načte jen u odříznutého rodu
-  const [newcomer, setNewcomer] = useState<NewcomerStatusView | null>(null);
-  const refreshHouse = useCallback(async (): Promise<void> => {
-    try {
-      const result = await housePanel();
-      if ('error' in result) {
-        setHouseError(result.error);
-        setNewcomer((known) => known ?? { phase: 'placed' });
-        return;
-      }
-      setHouse(result);
-      const status: NewcomerStatusView | { error: string } = result.isolated
-        ? await newcomerStatusAction()
-        : { phase: 'placed' };
-      setNewcomer((known) => ('error' in status ? (known ?? { phase: 'placed' }) : status));
-    } catch {
-      setHouseError(CONNECTION_FAILED);
-      // neznámý stav nováčka nesmí zablokovat založení vsi
-      setNewcomer((known) => known ?? { phase: 'placed' });
-    }
-  }, []);
-  useEffect(() => {
-    void refreshHouse();
-  }, [refreshHouse]);
-  // Dialog Odúmrť (úloha 4.10): s panelem rodu se zeptá, jestli hráč jako pán o nějaké odúmrti
-  // rozhoduje – jen tehdy se ukáže (počítá se na vyžádání, ne v každém dotazu na ves)
-  const [escheats, setEscheats] = useState<EscheatView[] | null>(null);
-  const refreshEscheats = useCallback(async (): Promise<void> => {
-    try {
-      const result = await escheatDialogs();
-      setEscheats('error' in result || result.escheats.length === 0 ? null : result.escheats);
-    } catch {
-      setEscheats(null);
-    }
-  }, []);
-  const [warOpen, setWarOpen] = useState(false);
-  const openHouse = useCallback((): void => {
-    setMenuOpen(false);
-    setWarOpen(false);
-    setHouseError(null);
-    setHouseOpen(true);
-    void refreshHouse();
-    void refreshEscheats();
-  }, [refreshHouse, refreshEscheats]);
-  const closeHouse = useCallback((): void => setHouseOpen(false), []);
-  // Panel války (war.md – Co hráč vidí): textový přehled válek; data jsou v pohledu na rod
-  const [passages, setPassages] = useState<PassageView[]>([]);
-  const refreshPassages = useCallback(async (): Promise<void> => {
-    try {
-      const result = await passagesToAnswer();
-      if ('passages' in result) setPassages(result.passages);
-    } catch {
-      // ohlášení se ukážou při dalším otevření panelu
-    }
-  }, []);
-  // ochrana vojskem (vassalage.md – Ochrana vojskem) – pro zobrazenou ves
-  const [protection, setProtection] = useState<ProtectionView | null>(null);
-  const refreshProtection = useCallback(async (): Promise<void> => {
-    try {
-      const result = await protectionView({ villageId: viewRef.current?.id ?? null });
-      if ('protection' in result) setProtection(result.protection);
-    } catch {
-      // ochrana se ukáže při dalším otevření panelu
-    }
-  }, []);
-  /** Akce panelu války se serverem: chyba spojení = hláška, po úspěchu nové načtení ochrany. */
-  const warAction = useCallback(
-    async (
-      run: () => Promise<{ error: string } | object>,
-    ): Promise<{ ok: true } | { error: string }> => {
-      try {
-        const result = await run();
-        if ('error' in result) return { error: result.error };
-        void refreshProtection();
-        return { ok: true };
-      } catch {
-        return { error: CONNECTION_FAILED };
-      }
-    },
-    [refreshProtection],
-  );
-  const openWar = useCallback((): void => {
-    setMenuOpen(false);
-    setHouseOpen(false);
-    setWarOpen(true);
-    void refreshHouse();
-    void refreshPassages();
-    void refreshProtection();
-  }, [refreshHouse, refreshPassages, refreshProtection]);
-  const closeWar = useCallback((): void => setWarOpen(false), []);
-  // Dialog Odvody (úloha 4.4): rozdělení po vsích se počítá až při otevření
-  const [levyOpen, setLevyOpen] = useState(false);
-  const [levy, setLevy] = useState<LevyDialogView[] | null>(null);
-  const [summons, setSummons] = useState<SummonsDialogView[]>([]);
-  const [levyError, setLevyError] = useState<string | null>(null);
-  const openLevy = useCallback(async (): Promise<void> => {
-    setMenuOpen(false);
-    setLevyError(null);
-    setLevyOpen(true);
-    try {
-      const result = await levyDialogs();
-      if ('error' in result) setLevyError(result.error);
-      else {
-        setLevy(result.dialogs);
-        setSummons(result.summons);
-      }
-    } catch {
-      setLevyError(CONNECTION_FAILED);
-    }
-  }, []);
-  const closeLevy = useCallback((): void => {
-    setLevyOpen(false);
-    setLevy(null);
-    void refreshHouse();
-  }, [refreshHouse]);
-  const issueHouseInvite = useCallback(async (): Promise<void> => {
-    try {
-      const result = await issueInvite();
-      setHouseError('error' in result ? result.error : null);
-    } catch {
-      setHouseError(CONNECTION_FAILED);
-    }
-    await refreshHouse();
-  }, [refreshHouse]);
-  const revokeHouseInvite = useCallback(
-    async (code: string): Promise<void> => {
-      try {
-        const result = await revokeInvite({ code });
-        setHouseError('error' in result ? result.error : null);
-      } catch {
-        setHouseError(CONNECTION_FAILED);
-      }
-      await refreshHouse();
-    },
-    [refreshHouse],
-  );
-  // akce jednání: výsledek (důvod odmítnutí česky) se ukáže v panelu, pohled se obnoví
-  const negotiate = useCallback(
-    async (task: () => Promise<{ ok: true } | { error: string }>): Promise<void> => {
-      try {
-        const result = await task();
-        setHouseError('error' in result ? result.error : null);
-      } catch {
-        setHouseError(CONNECTION_FAILED);
-      }
-      await refreshHouse();
-    },
-    [refreshHouse],
-  );
+  const { notices, pushNotice, mergeNotices, expireNotice } = useNoticeLines();
   const [timeOffsetDays, setTimeOffsetDays] = useState(initialTimeOffsetDays);
-  const [skipping, setSkipping] = useState<TimeSkip | null>(null);
-  const [forcingDisaster, setForcingDisaster] = useState(false);
-  const [soundOn, setSoundOn] = useSoundPreference();
   // Hodiny hráče: svět posunutý o jeho posun času – datum, roční období i dým jako na serveru.
   const clock = useMemo(() => shiftWorldClock(world, timeOffsetDays), [world, timeOffsetDays]);
+  const { soundOn, toggleSound } = useSoundToggle(scene);
   const placement = usePlacement(scene);
-  const view = isVillageView(village) ? village : null;
-  const villageError = village !== null && 'error' in village ? village.error : null;
-  // Odříznutý nováček bez vsi, který se právě dostal na mapu světa, mohl dostat sídlo s krajinou
-  // z políčka světa (svobodný – world-skeleton.md) – scéna se načte znovu; s vsí se krajina nemění.
-  const newcomerPhase = useRef<string | null>(null);
-  useEffect(() => {
-    const phase = newcomer?.phase ?? null;
-    if (newcomerPhase.current === 'isolated' && phase === 'placed' && village === null) {
-      window.location.reload();
-    }
-    newcomerPhase.current = phase;
-  }, [newcomer, village]);
-  const gameOver = view?.gameOver === true;
-  // Válka na mapě sídla ve scéně (war.md – Ve scéně – napojení na hru): napadená ves i vlastní
-  // vojsko na mapě; co je vidět, rozhodl server (mlha války), scéna jen kreslí.
-  const warScene = useWarScene(`/api/war-scene/${settlementId}`, scene !== null && !gameOver);
-  useEffect(() => {
-    scene?.setWar(sceneWarOf(warScene ?? null, world));
-  }, [scene, warScene, world]);
-  // Rozkaz „Probít se“ obráncům za hradbou (fortifications.md – Obrana bez násobku 3): tlačítko
-  // jen u boje u vsi s opevněním s branou; jde-li, rozhodl server
-  const breakout = breakoutOf(warScene);
-  const villageIdForBreakout = view?.id ?? null;
-  const orderDefenderBreakout = useCallback(async (): Promise<string | null> => {
-    if (villageIdForBreakout === null) return CONNECTION_FAILED;
-    try {
-      const result = await orderBreakout({ villageId: villageIdForBreakout });
-      return 'error' in result ? result.error : null;
-    } catch {
-      return CONNECTION_FAILED;
-    }
-  }, [villageIdForBreakout]);
-  // Cizí mapa ve scéně (war.md – Ve scéně – cizí mapa): z mapy tažení se scéna přepne na mapu, na
-  // které vojsko stojí – jen pohled; scéna a rozhraní vlastní vsi mezitím neběží
-  const [watching, setWatching] = useState<WatchedMap | null>(null);
-  const backHome = useCallback((): void => setWatching(null), []);
-  const sceneWatch = useMemo<SceneWatch>(
-    () => ({ home: homeCell, watching, watch: setWatching, back: backHome }),
-    [homeCell, watching, backHome],
+
+  // Stav vsi ze serveru. Upozornění mezi hráči z dotazu obslouží `usePlayerNotices` níž (panely
+  // potřebují `viewRef`) – dotaz je volá přes ref.
+  const playerNoticesRef = useRef<(received: readonly PlayerNotice[] | undefined) => void>(
+    () => undefined,
   );
-  // Po konci hry je přes všechno obrazovka porážky – nabídka se neukáže.
-  const menuShown = menuOpen && !gameOver;
-  const closeNoticesRef = useRef<() => void>(() => undefined);
-  // Panel Kronika (absence.md – Návrat) – střídá se s panely rodu, války a nabídkou
-  const chronicle = useChronicle({
-    villageId: view && !view.extinct ? view.id : null,
-    latest: view?.chronicle[0],
-    othersOpen: houseOpen || warOpen || menuShown,
-    closeOthers: () => {
-      setHouseOpen(false);
-      setWarOpen(false);
-      setMenuOpen(false);
-      closeNoticesRef.current();
-    },
+  const { village, view, villageError, viewRef, runAction, runBuildAction } = useVillageSync({
+    initialVillage,
+    landscape,
+    decoded,
+    settlementId,
+    clock,
+    pushNotice,
+    playerNotices: playerNoticesRef,
   });
-  // Panel Upozornění (absence.md – Návrat) – střídá se s kronikou, panely rodu a války i nabídkou
-  const [noticeTick, setNoticeTick] = useState(0);
-  const noticeHistory = useNotices({
-    tick: noticeTick,
-    enabled: true,
-    othersOpen: houseOpen || warOpen || menuShown,
-    closeOthers: () => {
-      setHouseOpen(false);
-      setWarOpen(false);
-      setMenuOpen(false);
-      chronicle.close();
-    },
+  const gameOver = view?.gameOver === true;
+
+  // Rod, panely z lišty a upozornění mezi hráči
+  const house = useHouse({ villageMissing: village === null });
+  const panels = usePanels({
+    refreshHouse: house.refresh,
+    refreshEscheats: house.refreshEscheats,
+    setHouseError: house.setError,
+    viewRef,
   });
-  useEffect(() => {
-    closeNoticesRef.current = noticeHistory.close;
-  }, [noticeHistory.close]);
-  // Zkratky J (Kronika) a U (Upozornění) jako tlačítka v liště – kronika jen u živé vsi
-  usePanelHotkeys((panel) => {
-    if (panel === 'notices') noticeHistory.toggle();
-    else if (view && !view.extinct) chronicle.toggle();
-  }, !menuShown && !gameOver);
-
-  // Jména rodu (lord.md – Kde se jméno zadává). Bez vsi hráč nejdřív pojmenuje vojvodu – jméno
-  // odejde na server se založením vsi (zavře-li stránku dřív, panel se ukáže znovu). Ve vsi čeká
-  // muž rodu bez jména: vojvoda (převod, výprava) panel otevře sám, syn jen upozorněním.
-  const [founderName, setFounderName] = useState<string | null>(null);
-  const founderNameRef = useRef<string | null>(null);
-  const [namingId, setNamingId] = useState<number | null>(null);
-  const [dismissedLord, setDismissedLord] = useState<string | null>(null);
-  const foundingName = village === null && founderName === null && scene !== null;
-  // Odříznutý nováček bez rozhodnutí volí cestu (newcomers.md – Rozhraní) dřív než jméno vojvody
-  const newcomerChoice = !gameOver && newcomerUndecided(newcomer);
-  const lineNotice = gameOver ? null : lineNameNotice(view);
-  const unnamed = view?.dynasty?.unnamed ?? [];
-  const unnamedLord = unnamed[0]?.lord ? unnamed[0] : undefined;
-  const lordKey = view && unnamedLord ? `${view.id}:${unnamedLord.id}` : null;
-  const namingTarget = gameOver
-    ? undefined
-    : (unnamed.find((u) => u.id === namingId) ??
-      (lordKey !== null && dismissedLord !== lordKey ? unnamedLord : undefined));
-
-  // Pořadí odpovědí: dotaz, který začal dřív než už použitá odpověď, se zahodí.
-  const requestSeq = useRef(0);
-  const appliedSeq = useRef(0);
-  const busyRef = useRef(false);
-  /** Akce na serveru jdou za sebou (Shift + klik staví víc obydlí rychle po sobě). */
-  const queueRef = useRef<Promise<unknown>>(Promise.resolve());
-  const viewRef = useRef(view);
-  const pendingRef = useRef<PendingSite[]>([]);
-  const pendingId = useRef(0);
-  useEffect(() => {
-    viewRef.current = view;
-  }, [view]);
-  // Poslední použitý pohled na ves – nová upozornění se počítají proti němu.
-  const noticedRef = useRef<VillageView | null>(view);
-  const noticeId = useRef(0);
-
-  const pushNotice = useCallback((notice: Omit<NoticeLine, 'id'>): void => {
-    setNotices((list) => [...list, { ...notice, id: ++noticeId.current }].slice(-MAX_NOTICES));
-  }, []);
   // Klik na upozornění varování otevře panel dvorce té vsi (plán 2026-11-09 – Úloha 13); funkce
   // vzniká až u přepínání vsí níž, upozornění ji volají přes ref
   const openAlarmRef = useRef<(villageId: string) => void>(() => undefined);
-  // Upozornění mezi hráči přicházejí v odpovědi dotazu na ves (server je tím označí za přečtená).
-  const openNoticePanel = useCallback(
-    (panel: NoticePanel): void => {
-      if (panel === 'house') openHouse();
-      else if (panel === 'war') openWar();
-      else void openLevy();
-    },
-    [openHouse, openLevy, openWar],
-  );
-  const showPlayerNotices = useCallback(
-    (received: readonly PlayerNotice[] | undefined): void => {
-      if (!received || received.length === 0) return;
-      void refreshHouse();
-      setNoticeTick((t) => t + 1);
-      const open = {
-        village: (villageId: string) => openAlarmRef.current(villageId),
-        panel: openNoticePanel,
-      };
-      const lines = received.map((n) => ({
-        ...playerNoticeLine(n),
-        onOpen: noticeOpener(n, open),
-      }));
-      setNotices((list) => mergeNoticeLines(list, lines, MAX_NOTICES));
-    },
-    [openNoticePanel, refreshHouse],
-  );
-  const expireNotice = useCallback((id: number): void => {
-    setNotices((list) => list.filter((n) => n.id !== id));
-  }, []);
-  // Varování a útěk v panelu dvorce (war.md – Varování, poslové a útěk do hradiště; plán
-  // 2026-11-09 – Úloha 13): pohled se načítá, jen když je panel dvorce otevřený
-  const manorDwellingId = view?.manor?.dwellingId ?? null;
-  const alarmVillageId =
-    selected?.kind === 'dwelling' && selected.id === manorDwellingId ? (view?.id ?? null) : null;
-  const alarm = useAlarm(alarmVillageId);
-  const refreshAlarm = alarm.refresh;
-  const alarmActions = useMemo<AlarmActions>(() => {
-    // odpověď akce: chyba se ukáže řádkem nahoře i u kurzoru; pak se pohled zeptá hned znovu
-    const answer = async (
-      order: () => Promise<{ ok: true } | { error: string }>,
-    ): Promise<string | null> => {
-      let failure: string | null;
-      try {
-        const result = await order();
-        failure = 'error' in result ? result.error : null;
-      } catch {
-        failure = CONNECTION_FAILED;
-      }
-      if (failure !== null) pushNotice({ kind: 'error', tone: 'error', text: failure });
-      refreshAlarm();
-      return failure;
-    };
-    return {
-      view: alarm.view,
-      onCommand: (command) =>
-        alarmVillageId === null
-          ? Promise.resolve(null)
-          : answer(() => commandAlarm({ villageId: alarmVillageId, command })),
-      onReturn: () =>
-        alarmVillageId === null
-          ? Promise.resolve(null)
-          : answer(() => returnFromRefuge({ villageId: alarmVillageId })),
-    };
-  }, [alarm.view, alarmVillageId, refreshAlarm, pushNotice]);
-  // představení prémiové krajiny při prvním vstupu do hry, až je scéna (premium-landscapes.md)
-  const introShown = useRef(false);
-  const hasVillage = view !== null;
-  useEffect(() => {
-    if (introShown.current || scene === null) return;
-    introShown.current = true;
-    const intro = premiumIntroNotice(decoded.premium, hasVillage);
-    if (intro) pushNotice(intro);
-  }, [scene, decoded, hasVillage, pushNotice]);
-
-  // trasy vozů nových dní počítá Web Worker (cart-router.ts) – scéna mezitím nestojí
-  const router = useMemo(() => cartRouter(landscape, decoded), [landscape, decoded]);
-  useEffect(() => () => router.dispose(), [router]);
-  // Testovací háček: trasy vozů přes týž router (Worker i záloha) – e2e/cart-worker.spec.ts
-  useEffect(() => {
-    setE2EHook('cartRoutes', (request) => router.routes(request));
-    return () => setE2EHook('cartRoutes', undefined);
-  }, [router]);
-  const applyTicket = useRef(0);
-
-  /**
-   * Použije nový stav vsi a ohlásí upozornění, která mezitím nově vznikla. Pohled se použije až
-   * s trasami vozů dne (z Workeru); novější pohled, který mezitím přišel, má přednost.
-   */
-  const applyVillage = useCallback(
-    async (received: VillageData): Promise<void> => {
-      const ticket = ++applyTicket.current;
-      // trasy a vyšlapanost, které server neposlal (klient je má), se doplní z posledního pohledu
-      // kusy pohledu, které server vynechal (klient je má), se doplní z posledního pohledu
-      // (view-pieces.ts); trasy vozů a spřežení spočítá prohlížeč z cílů dne (cart-routes.ts)
-      const unpacked = isVillageView(received)
-        ? unpackViewPieces(received, viewRef.current)
-        : { view: null, lost: false };
-      let next: VillageData = received;
-      if (unpacked.view) {
-        const scene = keepSceneData(unpacked.view.scene, viewRef.current?.scene);
-        const request = cartRoutesRequest(scene);
-        next = {
-          ...unpacked.view,
-          scene: request ? withCartRouteResult(scene, await router.routes(request)) : scene,
-        };
-      }
-      if (ticket !== applyTicket.current) return;
-      setVillage(next);
-      if (!isVillageView(next)) return;
-      // zahozená trasy nebo vyšlapanost: bez otisku, ať další dotaz doručí plný pohled hned
-      viewRef.current =
-        unpacked.lost || (isVillageView(received) && lostSceneData(received.scene, next.scene))
-          ? withoutStamp(next)
-          : next;
-      // nový pohled napřed – chyba při porovnání (pohled z doby před změnou kódu) se nesmí
-      // opakovat při každém dalším dotazu
-      const previous = noticedRef.current;
-      noticedRef.current = next;
-      for (const notice of newNotices(previous, next)) pushNotice(notice);
-    },
-    [pushNotice, router],
-  );
-
-  useEffect(() => {
-    scene?.setWorldClock(clock);
-  }, [scene, clock]);
-
-  const sceneVillage = useMemo(
-    () => withPending(view ? view.scene : EMPTY_SCENE, pending),
-    [view, pending],
-  );
-  useEffect(() => {
-    scene?.setVillage(sceneVillage);
-  }, [scene, sceneVillage]);
-
-  // R vrací pohled na ves – na první obydlí, jakmile ves stojí.
-  const home = view?.scene.dwellings[0]?.position ?? null;
-  useEffect(() => {
-    if (scene && home) scene.setCameraHome(home.x, home.z);
-  }, [scene, home]);
-
-  // Výběr kliknutím do scény (s Ctrl / Shift přidá nebo ubere obydlí; klik na pole či sad vybere
-  // díl, dvojklik celé – fields.md, Co hráč vidí); zaniklý cíl (dostavěné staveniště, zarostlé
-  // pole) se zruší, z víc obydlí zbydou jen ta, která ještě stojí.
-  useEffect(
-    () =>
-      scene?.onSelect((target, additive, double) => {
-        // typ a id objektu pod kurzorem do konzole (Martin 24. 10. 2026)
-        if (target)
-          console.info(
-            '[výběr]',
-            describeTarget(target, sceneVillageRef.current, viewRef.current?.roads),
-          );
-        setSelected((prev) => nextSelection(prev, target, additive, double));
-      }),
-    [scene],
-  );
-  // Dostavěné staveniště (jako v 0 A.D.): výběr přejde ze základů na hotové obydlí hned při
-  // obnovení vsi – už během vykreslení, ať panel výběru neblikne (web-ui.md – Výběr)
-  const [selectionScene, setSelectionScene] = useState(sceneVillage);
-  if (selectionScene !== sceneVillage) {
-    setSelectionScene(sceneVillage);
-    const built = selected && followConstruction(selectionScene, sceneVillage, selected);
-    if (built) setSelected(built);
-  }
-  const current = useMemo(() => presentTarget(sceneVillage, selected), [sceneVillage, selected]);
-  // Brána opevnění (fortifications.md – Rozhraní): tlačítko v panelu zapne klikání na obvod – další
-  // levé kliknutí do krajiny přidá bránu, pravé a Esc zruší; změna výběru režim vypne.
-  const [gateFort, setGateFort] = useState<number | null>(null);
-  useEffect(() => {
-    // úsek, brána i celé opevnění – režim brány drží, dokud je vybrané totéž opevnění
-    if (gateFort !== null && fortTargetId(selected) !== gateFort) {
-      setGateFort(null);
-    }
-  }, [gateFort, selected]);
-  // co dělá vybraný člověk – hlásí scéna při změně (villagers.md – Výběr postavy)
-  const [personState, setPersonState] = useState<PersonFigureState | null>(null);
-  useEffect(
-    () =>
-      scene?.onPersonState((state) => {
-        setPersonState(state);
-        // vybraná postava zašla do domu – výběr se zruší (villagers.md – Výběr postavy; vojvoda ne)
-        if (state?.indoors) {
-          setSelected((prev) => (prev?.kind === 'person' && prev.id === state.id ? null : prev));
-        }
-      }),
-    [scene],
-  );
-  // co dělá vybrané spřežení nebo vůz a kdo je u nich (oxen.md, wagons.md – Výběr)
-  const [draftState, setDraftState] = useState<DraftFigureState | null>(null);
-  useEffect(() => scene?.onDraftState(setDraftState), [scene]);
-  const sceneVillageRef = useRef(sceneVillage);
-  // vybraná ohrada koní: její rozšíření koně neplatí (horses.md – Koně se stavbou ohrady)
-  const extendingVariant = extendsSelectedPen(selected && wholeTarget(selected), 'horse')
-    ? 'horse'
-    : null;
-  useEffect(() => {
-    sceneVillageRef.current = sceneVillage;
-  }, [sceneVillage]);
-  // obrys obydlí dílu syna vojvody vybraného v panelu dvorce (lord.md – Dělení vsi)
-  const [sonPreview, setSonPreview] = useState<readonly number[] | null>(null);
-  useEffect(() => {
-    scene?.setSelection(sonPreview ? { kind: 'dwellings', ids: sonPreview } : current);
-  }, [scene, current, sonPreview]);
-  // Náhled vozové cesty (roads.md – Vozová cesta): vybraná cesta hráče, která vozovou cestu
-  // nemá – trasu, cenu a co přinese spočítá scéna stejnou funkcí jako server a vytyčí ji; až po
-  // vykreslení výběru (hledání trvá desetiny sekundy)
-  const [wagonPlan, setWagonPlan] = useState<{ roadId: number; plan: WagonRoadPlan } | null>(null);
-  const wagonRoadId = current?.kind === 'road' ? current.id : null;
-  const wagonRoad =
-    wagonRoadId !== null ? view?.roads.find((r) => r.id === wagonRoadId)?.wagon : undefined;
-  const wagonOpen = wagonRoad?.status === 'none' && wagonRoad.blocked === null;
-  useEffect(() => {
-    if (!scene) return;
-    if (wagonRoadId === null || !wagonOpen) {
-      scene.previewWagonRoad(null);
-      return;
-    }
-    const timer = setTimeout(() => {
-      const plan = scene.previewWagonRoad(wagonRoadId);
-      if (plan) setWagonPlan({ roadId: wagonRoadId, plan });
-    }, 30);
-    return () => clearTimeout(timer);
-  }, [scene, wagonRoadId, wagonOpen, sceneVillage]);
-
-  // Testovací háček: kde je bod krajiny na obrazovce (kliknutí na obydlí v e2e testu).
-  useEffect(() => {
-    if (!scene) return;
-    setE2EHook('projectToScreen', (x, z) => scene.projectToScreen(x, z));
-    setE2EHook('slaughterMeshes', () => scene.slaughterMeshes());
-    setE2EHook('wildAnimals', () => scene.wildAnimals());
-    setE2EHook('moveCameraTo', (x, z) => scene.moveCameraTo(x, z));
-    setE2EHook('armyStats', () => scene.armyStats());
-    return () => {
-      setE2EHook('armyStats', undefined);
-      setE2EHook('projectToScreen', undefined);
-      setE2EHook('slaughterMeshes', undefined);
-      setE2EHook('wildAnimals', undefined);
-      setE2EHook('moveCameraTo', undefined);
-    };
-  }, [scene]);
-
-  const poll = useCallback(async (): Promise<void> => {
-    if (busyRef.current) return;
-    const seq = ++requestSeq.current;
-    const known = viewRef.current?.stamp;
-    const result = await getVillageView({
-      villageId: viewRef.current?.id ?? null,
-      ...(known ? { known } : {}),
-      ...knownSceneData(viewRef.current?.scene),
-      pieces: knownViewPieces(viewRef.current),
-      withNotices: true,
-    });
-    // Server upozornění už označil za přečtená – ukázat i z odpovědi, která se jinak zahodí.
-    if (result !== null && 'playerNotices' in result) showPlayerNotices(result.playerNotices);
-    if (busyRef.current || seq < appliedSeq.current) return;
-    appliedSeq.current = seq;
-    // Hráč ještě nemá ves – dorazila jen upozornění; ves, kterou jsme měli, zmizela (jako null).
-    if (isVillageNone(result)) {
-      if (viewRef.current !== null) window.location.reload();
-      return;
-    }
-    // Od pohledu, který máme, se nic nezměnilo (stejný den i verze vsí) – server nic neposlal.
-    if (result !== null && 'unchanged' in result) return;
-    // Ves zmizela nebo leží na jiné mapě (restart hry v jiném panelu) – načíst znovu i s krajinou.
-    const lost = viewRef.current !== null && result === null;
-    if (lost || (isVillageView(result) && result.settlementId !== settlementId)) {
-      window.location.reload();
-      return;
-    }
-    // Chyba (např. odhlášení v jiném panelu) poslední pohled na ves nesmaže – jen se ohlásí.
-    if (result !== null && 'error' in result && viewRef.current) {
-      pushNotice({ kind: 'error', tone: 'error', text: result.error });
-    } else await applyVillage(result);
-  }, [applyVillage, showPlayerNotices, pushNotice, settlementId]);
-  // Další dotaz na začátku dalšího herního dne hráče (nejdřív za 5 s, nejpozději za 86 s) – ves
-  // se dopočítává po dnech, akce vracejí čerstvou ves samy.
-  const pollDelay = useCallback(
-    (): number => nextPollDelayMs(viewRef.current?.dayIndex ?? null, clock, Date.now()),
-    [clock],
-  );
-  // Bez vsi se ptáme jen kvůli upozorněním mezi hráči (založení vrátí pohled samo); po konci hry
-  // se nic nemění.
-  const pollNow = usePolling(poll, pollDelay, !gameOver);
-  // Testovací háček: zeptat se na ves hned (test změnil uloženou ves přímo v databázi).
-  useEffect(() => {
-    setE2EHook('pollVillage', pollNow);
-    return () => setE2EHook('pollVillage', undefined);
-  }, [pollNow]);
-
-  useEffect(() => {
-    setE2EHook('selectPerson', (id) => setSelected({ kind: 'person', id }));
-    setE2EHook('selectRoad', (id) => setSelected({ kind: 'road', id }));
-    return () => {
-      setE2EHook('selectPerson', undefined);
-      setE2EHook('selectRoad', undefined);
-    };
-  }, []);
-
-  /** Akce nad vsí na serveru (ve frontě za předchozími); vrátí chybu pro hráče, nebo null. */
-  const runAction = useCallback(
-    (action: () => Promise<VillageData>): Promise<string | null> => {
-      const run = async (): Promise<string | null> => {
-        busyRef.current = true;
-        const seq = ++requestSeq.current;
-        try {
-          const result = await action();
-          if (result !== null && 'error' in result) return result.error;
-          appliedSeq.current = Math.max(appliedSeq.current, seq);
-          await applyVillage(result);
-          return null;
-        } catch (error) {
-          console.error('Akce vsi selhala.', error);
-          return CONNECTION_FAILED;
-        } finally {
-          busyRef.current = false;
-        }
-      };
-      const next = queueRef.current.then(run, run);
-      queueRef.current = next;
-      return next;
-    },
-    [applyVillage],
-  );
-
-  /** Akce stavby – chyba se ohlásí řádkem nahoře. */
-  const runBuildAction = useCallback(
-    (action: () => Promise<ActionResult>): Promise<void> =>
-      runAction(action).then((failure) => {
-        if (failure !== null) pushNotice({ kind: 'error', tone: 'error', text: failure });
-      }),
-    [runAction, pushNotice],
-  );
-
-  useEffect(() => {
-    if (!scene || gateFort === null) return;
-    scene.setGatePick((point) => {
-      setGateFort(null);
-      const villageId = viewRef.current?.id;
-      if (point && villageId) {
-        void runBuildAction(() =>
-          addFortificationGate({ villageId, fortificationId: gateFort, position: point }),
-        );
-      }
-    });
-    return () => scene.setGatePick(null);
-  }, [scene, gateFort, runBuildAction]);
-
-  /** Ves pro kontrolu umístění v prohlížeči – i s obydlími, která ještě čekají na server. */
-  const placementScene = useCallback(
-    () => withPending(viewRef.current?.scene ?? EMPTY_SCENE, pendingRef.current),
-    [],
-  );
-  const placementVillage = useCallback(
-    () => placementVillageFromScene(placementScene()),
-    [placementScene],
-  );
-
-  /**
-   * Úsek od brány k bráně jinudy (demolition.md – Rozhodnutí): editor trasy s konci pevně
-   * v okrajích bran – návrh je původní trasa úseku, hráč body táhne a přidává, Enter (kladivo)
-   * pošle body mezi konci serveru.
-   */
-  const startReroute = (fortificationId: number, segment: number, target: WallKind): void => {
-    const fort = sceneVillageRef.current?.forts?.find((f) => f.id === fortificationId);
-    const section = fort ? sectionOf(fort, segment) : null;
-    const proposal = fort && section ? rerouteProposal(fort, decoded, section) : null;
-    const item = buildItem('fortification');
-    if (!scene || !fort || !proposal || item.placement !== 'fort-points') return;
-    const variant =
-      item.variants.find((v) => fortVariantKind(v.id) === target) ?? item.variants[0]!;
-    setBuildGroup(null);
-    setSelected(null);
-    setPlacingItem('fortification');
-    placement.start(
-      {
-        kind: 'fort-points',
-        variant,
-        bandM: FORTIFICATIONS.bandM[target],
-        fixedEnds: true,
-        propose: () => proposal,
-        preview: (points) =>
-          fortReroutePreview(decoded, placementVillage(), points, {
-            fort,
-            segment,
-            target,
-            day: viewRef.current?.dayIndex ?? 0,
-            woodSupply: viewRef.current?.woodSupply ?? 0,
-            ...(viewRef.current?.stoneSupply ? { stoneSupply: viewRef.current.stoneSupply } : {}),
-          }),
-      },
-      (result) => {
-        const villageId = viewRef.current?.id;
-        if (result.kind === 'fort-points' && villageId) {
-          void runBuildAction(() =>
-            rerouteFortificationSection({
-              villageId,
-              fortificationId,
-              segment,
-              points: result.points.slice(1, -1),
-              target,
-            }),
-          );
-        }
-      },
-    );
-  };
-
-  const setPendingList = (list: PendingSite[]): void => {
-    pendingRef.current = list;
-    setPending(list);
-  };
-
-  /**
-   * Postaví obydlí – první zemnice ves založí (osadníci si ji postaví), další jsou stavby;
-   * polozemnice na pozemku (`plot`).
-   */
-  const buildDwelling = (
-    type: BuildableDwellingType,
-    position: Position,
-    plot?: DwellingPlot,
-  ): void => {
-    const entry: PendingSite = {
-      kind: 'dwelling',
-      id: -1 - pendingId.current++,
-      type,
-      position,
-      ...(plot ? { plot: scenePlot(decoded, plot) } : {}),
-    };
-    setPendingList([...pendingRef.current, entry]);
-    const villageId = viewRef.current?.id ?? null;
-    // lidé dorazili na novou mapu – první zemnice založí jejich ves (migration.md – fáze 4)
-    const arrived = viewRef.current?.journey?.arrived === true;
-    void runBuildAction(() =>
-      villageId === null
-        ? foundVillage({
-            name: suggestVillageName(seed),
-            dwelling: position,
-            ...(founderNameRef.current !== null ? { lordName: founderNameRef.current } : {}),
-          })
-        : arrived
-          ? settleJourney({ villageId, dwelling: position })
-          : placeDwelling({ villageId, type, position, ...(plot ? { plot } : {}) }),
-    ).finally(() => setPendingList(pendingRef.current.filter((d) => d.id !== entry.id)));
-  };
-
-  /** Zahájí stavbu řemeslné dílny (crafts.md) – staveniště hned ve scéně. */
-  const buildWorkshop = (craft: Craft, position: Position): void => {
-    const entry: PendingSite = {
-      kind: 'dwelling',
-      id: -1 - pendingId.current++,
-      type: CRAFT_BASE[craft],
-      position,
-      craft,
-    };
-    setPendingList([...pendingRef.current, entry]);
-    const villageId = viewRef.current?.id;
-    if (!villageId) return;
-    void runBuildAction(() => placeWorkshop({ villageId, craft, position })).finally(() =>
-      setPendingList(pendingRef.current.filter((d) => d.id !== entry.id)),
-    );
-  };
-
-  /** Zahájí stavbu modly nebo svatyně (happiness.md) – staveniště hned ve scéně. */
-  const buildSacred = (type: SacredBuildingKind, position: Position): void => {
-    const entry: PendingSite = { kind: 'sacred', id: -1 - pendingId.current++, type, position };
-    setPendingList([...pendingRef.current, entry]);
-    const villageId = viewRef.current?.id;
-    if (!villageId) return;
-    void runBuildAction(() => placeSacred({ villageId, kind: type, position })).finally(() =>
-      setPendingList(pendingRef.current.filter((d) => d.id !== entry.id)),
-    );
-  };
-
-  /** Zahájí stavbu humna (production-chains.md – Humno) – v kontrole umístění hned zabírá místo. */
-  const buildThreshingFloor = (position: Position): void => {
-    const entry: PendingSite = { kind: 'threshing-floor', id: -1 - pendingId.current++, position };
-    setPendingList([...pendingRef.current, entry]);
-    const villageId = viewRef.current?.id;
-    if (!villageId) return;
-    void runBuildAction(() => placeThreshingFloor({ villageId, position })).finally(() =>
-      setPendingList(pendingRef.current.filter((d) => d.id !== entry.id)),
-    );
-  };
-
-  /** Zahájí stavbu lomu na skalním výchozu (fortifications.md – Kámen); server místo ověří. */
-  const buildQuarry = (position: Position): void => {
-    const villageId = viewRef.current?.id;
-    if (!villageId) return;
-    void runBuildAction(() => placeQuarry({ villageId, position }));
-  };
-
-  // vymřelá a opuštěná ves nic nestaví – nabídka staveb je prázdná (i zkratky); lidé na cestě
-  // po příjezdu umisťují první zemnici (migration.md – fáze 4)
-  const options: Partial<Record<WebBuildKind, BuildOption | null>> = view
-    ? view.extinct || view.abandoned
-      ? {}
-      : view.journey
-        ? view.journey.arrived
-          ? { zemnice: null }
-          : {}
-        : // opevnění nemá pevnou cenu – cena je u kurzoru podle délky obvodu
-          { ...view.build, fortification: null }
-    : villageError === null
-      ? { zemnice: null }
-      : {};
-
-  /** Umisťování obydlí: zemnice půdorysem u kurzoru, polozemnice na pozemku (políčku). */
-  const dwellingMode = (type: BuildableDwellingType): PlacementMode => {
-    const item = buildItem(type);
-    if (item.placement === 'plot') {
-      return {
-        kind: 'plot',
-        type,
-        check: (plot) =>
-          checkWithDesecration(placementScene(), (village) =>
-            item.check(decoded, village, plot, viewRef.current?.woodLogs ?? 0),
-          ),
-      };
-    }
-    if (item.placement !== 'footprint') throw new Error(`${type} se neumisťuje jako obydlí.`);
-    return {
-      kind: 'dwelling',
-      type,
-      check: (position) =>
-        checkWithDesecration(placementScene(), (village) =>
-          item.check(decoded, village, position, viewRef.current?.woodLogs ?? 0),
-        ),
-    };
-  };
-
-  /**
-   * Odejít do nové vsi (migration.md – fáze 3 a 4): domácnosti obydlí `householdIds` nebo syn
-   * vojvody vyrazí na novou mapu ve směru `direction` (ve vsi zůstane řádek cesty). Jedna ves, jedna
-   * mapa – na téže mapě nová ves nevznikne.
-   */
-  const departFromVillage = (
-    direction: Direction8,
-    who: { dwellingIds: number[] } | { sonId: number },
-  ): void => {
-    const villageId = viewRef.current?.id;
-    if (!scene || !villageId) return;
-    if ('dwellingIds' in who && who.dwellingIds.length === 0) return;
-    const leaving = 'sonId' in who ? 'Syn vojvody vyrazil' : 'Lidé vyrazili';
-    setSelected(null);
-    void runAction(() =>
-      leaveVillage({ villageId, ...who, destination: { kind: 'map', direction } }),
-    ).then((failure) => {
-      pushNotice(
-        failure === null
-          ? {
-              kind: 'households-left',
-              tone: 'info',
-              text: `${leaving} na ${DIRECTION_NAMES[direction].name}`,
-            }
-          : { kind: 'error', tone: 'error', text: failure },
-      );
-    });
-  };
-
-  /** Odchod domácností obydlí `householdIds`. */
-  const leave = (direction: Direction8, householdIds: readonly number[]): void =>
-    departFromVillage(direction, { dwellingIds: [...householdIds] });
-  /** Hráč v kůži mladšího syna zvolil směr odchodu po pohřbu (seniorate.md, bod 4). */
-  const choosePlayerDepartureFromPanel = async (
-    direction: Direction8,
-    sonName?: string,
-  ): Promise<string | null> => {
-    const villageId = viewRef.current?.id;
-    if (!scene || !villageId) return null;
-    setSelected(null);
-    const failure = await runAction(() =>
-      choosePlayerDeparture({
-        villageId,
-        direction,
-        ...(sonName === undefined ? {} : { sonName }),
-      }),
-    );
-    pushNotice(
-      failure === null
-        ? {
-            kind: 'households-left',
-            tone: 'info',
-            text: `Výprava vyrazila na ${DIRECTION_NAMES[direction].name}`,
-          }
-        : { kind: 'error', tone: 'error', text: failure },
-    );
-    return failure;
-  };
-  /** Odchod s poměrnou částí vsi pod vedením syna vojvody (lord.md – Dělení vsi). */
-  const leaveWithSon = (direction: Direction8, sonId: number): void =>
-    departFromVillage(direction, { sonId });
-
-  /** Je vybraná ohrada druhu `variant`? Pak stavba téhož druhu ohradu rozšiřuje. */
-  function extendsSelectedPen(
-    chosen: ReturnType<typeof wholeTarget> | null | undefined,
-    variant: string | undefined,
-  ): boolean {
-    if (!chosen || chosen.kind !== 'pen' || !('id' in chosen) || variant === undefined) {
-      return false;
-    }
-    return squareStructures(sceneVillageRef.current, 'pen', variant).some(
-      (s) => s.id === chosen.id,
-    );
-  }
-
-  const startBuild = (kind: WebBuildKind, variant?: string): void => {
-    // dokud se nepojmenuje vojvoda, ves se nezakládá – ani zkratkou, ani klikem mimo panel jména
-    if (!scene || foundingName || !(kind in options)) return;
-    // seniorát: stavět v cizí vsi rodu smí jen senior (zkratka nesmí obejít zašedlé tlačítko)
-    if (rightDeniedReason(view?.rights, 'build') !== null) return;
-    const item = buildItem(kind);
-    // stavba s druhy je rozcestník: tlačítko i zkratka otevřou v mřížce druhy, znovu je zavřou
-    if (
-      (item.placement === 'squares' || item.placement === 'fort-points') &&
-      item.variants &&
-      variant === undefined
-    ) {
-      if (buildGroup !== kind) placement.cancel();
-      setBuildGroup(buildGroup === kind ? null : kind);
-      return;
-    }
-    // roštová a komorová hradba až od svého roku – zašedlé tlačítko druhu nejde obejít
-    if (
-      kind === 'fortification' &&
-      variant &&
-      view &&
-      fortVariantsBlocked(view.dayIndex)[variant]
-    ) {
-      return;
-    }
-    setBuildGroup(null);
-    const option = options[kind];
-    // vybraný díl pole či čtverec sadu patří své stavbě (mřížka rozšíření)
-    const chosen = selected && wholeTarget(selected);
-    if (!isBuildAffordable(option, variant, extendsSelectedPen(chosen, variant))) return;
-    setSelected(null);
-    setPlacingItem(kind);
-    if (item.placement === 'fort-points') {
-      // obvod z bodů (fortifications.md – Obvod): návrh hry u kurzoru, body upraví hráč
-      const fortVariant = item.variants.find((v) => v.id === variant) ?? item.variants[0]!;
-      const fortKind = fortVariantKind(fortVariant.id);
-      placement.start(
-        {
-          kind: 'fort-points',
-          variant: fortVariant,
-          bandM: FORTIFICATIONS.bandM[fortKind],
-          propose: ([x, z]) =>
-            item.propose(
-              decoded,
-              placementVillage(),
-              { x, z },
-              fortVariant.id,
-              sceneVillageRef.current?.grainPits,
-            ),
-          preview: (points) => ({
-            ...squaresWithDesecration(placementScene(), (village) =>
-              item.check(decoded, village, points, fortVariant.id, {
-                woodSupply: viewRef.current?.woodSupply ?? 0,
-                ...(viewRef.current?.stoneSupply
-                  ? { stoneSupply: viewRef.current.stoneSupply }
-                  : {}),
-              }),
-            ),
-            label: '',
-          }),
-        },
-        (result) => {
-          const villageId = viewRef.current?.id;
-          if (result.kind === 'fort-points' && villageId) {
-            void runBuildAction(() =>
-              placeFortification({
-                villageId,
-                points: result.points,
-                kind: fortVariantKind(result.variant),
-              }),
-            );
-          }
-        },
-      );
-      return;
-    }
-    if (item.placement === 'squares') {
-      const submit = SUBMIT_SQUARES[kind];
-      if (!submit) throw new Error(`Stavba ${kind} nemá server action.`);
-      // vybraná stavba stejného druhu: malování začne v její mřížce (rozšíření); u ohrady jen
-      // ohrada druhu vybraného v rozcestníku (oxen.md – Ohrady podle druhu)
-      const structures = squareStructures(sceneVillageRef.current, kind, variant);
-      const chosenId = chosen && chosen.kind === kind && 'id' in chosen ? chosen.id : null;
-      const start = chosenId === null ? undefined : structures.find((s) => s.id === chosenId)?.grid;
-      placement.start(
-        {
-          kind: 'squares',
-          preview: (cells, grid, kindVariant) => ({
-            ...squaresWithDesecration(placementScene(), (village) =>
-              item.check(decoded, village, cells, grid, kindVariant, {
-                woodSupply: viewRef.current?.woodSupply ?? 0,
-              }),
-            ),
-            label: '',
-          }),
-          ...(item.variants ? { variants: item.variants, ...(variant ? { variant } : {}) } : {}),
-          ...(item.rotatable
-            ? {
-                rotatable: true,
-                gridAt: (x: number, z: number, kindVariant?: string) =>
-                  structureGridAt(
-                    squareStructures(sceneVillageRef.current, kind, kindVariant),
-                    x,
-                    z,
-                  ),
-                ...(start ? { grid: start } : {}),
-              }
-            : {}),
-        },
-        (result) => {
-          const villageId = viewRef.current?.id;
-          if (result.kind === 'squares' && villageId) {
-            void runBuildAction(() => submit(villageId, result.cells, result.grid, result.variant));
-          }
-        },
-      );
-      return;
-    }
-    const onDwelling = (result: PlacementResult): void => {
-      // dvorec hráč nestaví – vznikne přestavbou dvorce vsi (trade.md)
-      if (result.kind === 'dwelling' && result.type !== 'dvorec') {
-        buildDwelling(result.type, result.position, result.plot);
-      }
-    };
-    if (item.placement === 'plot' || item.placement === 'footprint') {
-      placement.start(dwellingMode(item.dwellingType), onDwelling);
-      return;
-    }
-    if (item.placement === 'workshop') {
-      placement.start(
-        {
-          kind: 'workshop',
-          craft: item.craft,
-          type: item.dwellingType,
-          check: (position) =>
-            checkWithDesecration(placementScene(), (village) =>
-              item.check(decoded, village, position, viewRef.current?.woodLogs ?? 0),
-            ),
-        },
-        (result) => {
-          if (result.kind === 'workshop') buildWorkshop(result.craft, result.position);
-        },
-      );
-      return;
-    }
-    if (item.placement === 'sacred') {
-      placement.start(
-        {
-          kind: 'sacred',
-          type: item.sacredKind,
-          check: (position) =>
-            checkWithDesecration(placementScene(), (village) =>
-              item.check(decoded, village, position),
-            ),
-        },
-        (result) => {
-          if (result.kind === 'sacred') buildSacred(result.type, result.position);
-        },
-      );
-      return;
-    }
-    if (item.placement === 'quarry') {
-      placement.start(
-        { kind: 'quarry', check: (position) => item.check(decoded, placementVillage(), position) },
-        (result) => {
-          if (result.kind === 'quarry') buildQuarry(result.position);
-        },
-      );
-      return;
-    }
-    if (item.placement === 'threshing-floor') {
-      placement.start(
-        {
-          kind: 'threshing-floor',
-          check: (position) =>
-            checkWithDesecration(placementScene(), (village) =>
-              item.check(decoded, village, position, viewRef.current?.woodLogs ?? 0),
-            ),
-        },
-        (result) => {
-          if (result.kind === 'threshing-floor') buildThreshingFloor(result.position);
-        },
-      );
-      return;
-    }
-  };
-  const startBuildRef = useRef(startBuild);
-  useEffect(() => {
-    startBuildRef.current = startBuild;
+  const playerNotices = usePlayerNotices({
+    refreshHouse: house.refresh,
+    openHouse: panels.openHouse,
+    openWar: panels.openWar,
+    openLevy: panels.openLevy,
+    openVillage: openAlarmRef,
+    mergeNotices,
   });
+  const showPlayerNotices = playerNotices.show;
+  useEffect(() => {
+    playerNoticesRef.current = showPlayerNotices;
+  }, [showPlayerNotices]);
+  const war = useWarWatch({
+    scene,
+    settlementId,
+    gameOver,
+    world,
+    homeCell,
+    villageId: view?.id ?? null,
+  });
+  // Po konci hry je přes všechno obrazovka porážky – nabídka se neukáže.
+  const menuShown = panels.menuOpen && !gameOver;
+  const { chronicle, noticeHistory } = useHistoryPanels({
+    view,
+    noticeTick: playerNotices.tick,
+    othersOpen: panels.houseOpen || panels.warOpen || menuShown,
+    closeOthers: panels.closeAll,
+    hotkeys: !menuShown && !gameOver,
+  });
+  const naming = useLineNaming({
+    village,
+    view,
+    sceneReady: scene !== null,
+    gameOver,
+    newcomer: house.newcomer,
+    viewRef,
+    runAction,
+  });
+  usePremiumIntro({ scene, decoded, hasVillage: view !== null, pushNotice });
+
+  // Scéna, výběr a stavby
+  const sites = usePendingSites({
+    view,
+    viewRef,
+    decoded,
+    seed,
+    founderNameRef: naming.founderNameRef,
+    runBuildAction,
+  });
+  const { sceneVillage } = sites;
+  useSceneSync({
+    scene,
+    clock,
+    sceneVillage,
+    home: view?.scene.dwellings[0]?.position ?? null,
+  });
+  const {
+    selected,
+    setSelected,
+    current,
+    personState,
+    draftState,
+    sceneVillageRef,
+    setSonPreview,
+  } = useSelection({ scene, sceneVillage, viewRef });
+  const alarmActions = useAlarmActions({ view, selected, pushNotice });
+  const wagonPlan = useWagonPreview({ scene, current, view, sceneVillage });
+  useSceneE2EHooks(scene);
+  const { gateFort, setGateFort } = useGateMode({ scene, selected, viewRef, runBuildAction });
+  const build = useBuildMode({
+    scene,
+    decoded,
+    view,
+    viewRef,
+    villageError,
+    placement,
+    selected,
+    setSelected,
+    sceneVillageRef,
+    foundingName: naming.foundingName,
+    sites,
+    runBuildAction,
+  });
+  const { buildGroup, setBuildGroup, startBuild } = build;
 
   // Nabídka hry: otevření zruší umisťování i výběr – v nabídce se nestaví ani nevybírá.
   const cancelPlacement = placement.cancel;
@@ -1538,292 +235,51 @@ export function VillageGame({
     cancelPlacement();
     setSelected(null);
     setBuildGroup(null);
-    setHouseOpen(false);
-    setWarOpen(false);
-    setMenuOpen(true);
+    panels.showMenu();
   };
-  const openMenuRef = useRef(openMenu);
-  useEffect(() => {
-    openMenuRef.current = openMenu;
+  useVillageHotkeys({
+    startBuild,
+    openMenu,
+    placementActive: placement.active,
+    setSelected,
+    setBuildGroup,
+    setGateFort,
+    sceneVillageRef,
   });
-  const closeMenu = useCallback((): void => setMenuOpen(false), []);
-
-  // Klávesy rozhraní: F10 otevře nabídku, zkratky staveb (Z, X, C, V, B, N, M, F, G, H, T, K, O – O
-  // otevře rozcestník druhů ohrady), Esc zruší výběr a zavře rozcestník.
-  // Otevřená nabídka klávesy zachytí dřív (GameMenu) – sem pak nedojdou.
-  const placingRef = useRef(placement.active);
-  useEffect(() => {
-    placingRef.current = placement.active;
-  }, [placement.active]);
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent): void => {
-      // F10 otevře nabídku i z textového pole (panel jména má kurzor v poli hned po otevření)
-      if (opensMenu(event)) {
-        event.preventDefault(); // F10 v některých prohlížečích skočí do jejich nabídky
-        openMenuRef.current();
-        return;
-      }
-      const target = event.target instanceof Element ? event.target : null;
-      if (target?.closest('input, textarea, select')) return;
-      if (event.code === 'Escape' && placingRef.current === null) {
-        setSelected(null);
-        setBuildGroup(null);
-        setGateFort(null);
-        return;
-      }
-      // Ctrl + A – všechna obydlí vsi (migration.md); při umisťování ne (malování po čtvercích)
-      if (selectsAllDwellings(event)) {
-        event.preventDefault(); // prohlížeč by označil text stránky
-        if (placingRef.current === null) setSelected(allDwellingsTarget(sceneVillageRef.current));
-        return;
-      }
-      const item = buildItemForKey(event);
-      if (!item || event.repeat) return;
-      event.preventDefault();
-      startBuildRef.current(item.kind);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
-
-  const toggleSound = (): void => {
-    const next = !soundOn;
-    setSoundOn(next);
-    // Přímo v obsluze kliknutí – Safari pustí zvuk jen v gestu uživatele.
-    scene?.setSoundEnabled(next);
-  };
-
-  const rename = (name: string): Promise<string | null> => {
-    const villageId = viewRef.current?.id;
-    return villageId
-      ? runAction(() => renameVillage({ villageId, name }))
-      : Promise.resolve(CONNECTION_FAILED);
-  };
-
-  /** Zapne / vypne správce vsi (steward.md) – pohled se po odpovědi obnoví. */
-  const toggleSteward = (villageId: string, on: boolean): Promise<string | null> =>
-    runAction(async () => {
-      const result = await setSteward({ villageId, on });
-      // správce jiné vsi ze seznamu: pohled zůstane na zobrazené vsi, změní se jen seznam vsí
-      if (isVillageView(result)) return keepShownVillage(viewRef.current, result);
-      return result;
-    }).then((failure) => {
-      if (failure !== null) pushNotice({ kind: 'error', tone: 'error', text: failure });
-      return failure;
-    });
-
-  /**
-   * Přepne na jinou ves hráče (přepínač v liště) a zapamatuje ji (cookie). Ves na téže mapě se
-   * načte na místě a pohled skočí na ni; ves na jiné mapě má jinou krajinu – stránka se načte
-   * znovu (server ověří, že ves patří hráči).
-   */
-  const switchVillage = (village: VillageListItem): void => {
-    const shown = viewRef.current;
-    if (!shown || village.id === shown.id) return;
-    cancelPlacement();
-    setSelected(null);
-    if (village.settlementId !== settlementId) {
-      rememberVillage(village.id);
-      window.location.reload();
-      return;
-    }
-    void runAction(() => selectVillage({ villageId: village.id })).then((failure) => {
-      if (failure !== null) {
-        pushNotice({ kind: 'error', tone: 'error', text: failure });
-        return;
-      }
-      rememberVillage(village.id);
-      lookAtVillage();
-    });
-  };
-
-  /** Pohled na první obydlí (staveniště) právě ukázané vsi – po přepnutí vsi. */
-  const lookAtVillage = (): void => {
-    const first = viewRef.current?.scene.dwellings[0]?.position;
-    if (first) scene?.moveCameraTo(first.x, first.z);
-  };
-
-  // Klik na upozornění varování (`alarmNoticeVillage`): vybere dvorec té vsi – jiná ves rodu se
-  // napřed přepne a dvorec se vybere, až se načte
-  const [alarmPending, setAlarmPending] = useState<string | null>(null);
-  useEffect(() => {
-    openAlarmRef.current = (villageId: string): void => {
-      const shown = viewRef.current;
-      if (!shown) return;
-      if (shown.id !== villageId) {
-        const target = shown.villages.find((v) => v.id === villageId);
-        if (!target) return;
-        switchVillage(target);
-      }
-      setAlarmPending(villageId);
-    };
+  const switchVillage = useVillageSwitch({
+    scene,
+    view,
+    viewRef,
+    settlementId,
+    runAction,
+    pushNotice,
+    cancelPlacement,
+    setSelected,
+    openAlarm: openAlarmRef,
   });
-  useEffect(() => {
-    if (alarmPending === null || view?.id !== alarmPending) return;
-    const manor = view.manor?.dwellingId;
-    setAlarmPending(null);
-    if (manor === undefined) return;
-    cancelPlacement();
-    setSelected({ kind: 'dwelling', id: manor });
-  }, [alarmPending, view, cancelPlacement]);
+  const dev = useDevControls({ viewRef, runAction, pushNotice, setTimeOffsetDays });
+  const commands = villageCommands({
+    scene,
+    viewRef,
+    runAction,
+    runBuildAction,
+    pushNotice,
+    setSelected,
+  });
+  const panelSource = usePanelSource(view);
+  const restart = (abandon: boolean): Promise<string | null> =>
+    restartFrom(viewRef.current, abandon);
+  const { foundingName, lineNotice } = naming;
 
-  /** Vývojový režim: vynutí letošní zlý rok, nebo zítřejší pohromu (disasters.md – plán P10). */
-  const forceDisasterChoice = (choice: DevDisasterChoice): void => {
-    const villageId = viewRef.current?.id;
-    if (!villageId || forcingDisaster) return;
-    setForcingDisaster(true);
-    void runAction(() => forceDevDisaster({ villageId, ...choice })).then((failure) => {
-      setForcingDisaster(false);
-      if (failure !== null) pushNotice({ kind: 'error', tone: 'error', text: failure });
-    });
-  };
-
-  /**
-   * Vývojový režim: přeskočí čas o měsíc, nebo rok. Server posune čas hráče a vrátí ves
-   * v novém dni – hodiny v liště a ve scéně se posunou s ní. Dokud se čeká, šipky čekají.
-   */
-  const skippingRef = useRef(false);
-  const skipTimeBy = (skip: TimeSkip): void => {
-    // ref: dvojklik dřív, než se tlačítka překreslí jako zamčená, nepřeskočí dvakrát
-    if (skippingRef.current) return;
-    skippingRef.current = true;
-    setSkipping(skip);
-    void runAction(async () => {
-      const result = await skipTime({ skip, villageId: viewRef.current?.id ?? null });
-      if ('error' in result) return result;
-      setTimeOffsetDays(result.timeOffsetDays);
-      return result.village;
-    }).then((failure) => {
-      skippingRef.current = false;
-      setSkipping(null);
-      if (failure !== null) pushNotice({ kind: 'error', tone: 'error', text: failure });
-    });
-  };
-
-  // Ves vymřela uprostřed umisťování – stavba už nejde, umisťování skončí.
-  const extinct = Boolean(view?.extinct);
-  useEffect(() => {
-    if (extinct) cancelPlacement();
-  }, [extinct, cancelPlacement]);
-
-  /**
-   * Začít znovu – nové sídlo s novou krajinou, proto se stránka načte znovu. Po konci hry
-   * (obrazovka porážky) bez `abandon`, z nabídky se živou vsí s `abandon` (hráč to potvrdil).
-   */
-  const restart = async (abandon: boolean): Promise<string | null> => {
-    // nový začátek předvyplní poslední jméno vojvody (lord.md – Kde se jméno zadává); po konci
-    // rodu žádný vojvoda není – jméno zakladatele, které hráč zadal (lord.md – Konec rodu)
-    const shown = viewRef.current;
-    rememberLordName(shown?.dynasty?.lordName ?? shown?.lineEnded?.lords[0]?.name);
-    try {
-      const result = await restartGame(abandon ? { abandon: true } : undefined);
-      if ('error' in result) return result.error;
-      window.location.reload();
-      return null;
-    } catch (error) {
-      console.error('Nový začátek selhal.', error);
-      return CONNECTION_FAILED;
-    }
-  };
-
-  /** Jméno vojvody před založením vsi – odejde se založením (první zemnice). */
-  const confirmFounderName = (name: string): Promise<string | null> => {
-    founderNameRef.current = name;
-    setFounderName(name);
-    rememberLordName(name);
-    return Promise.resolve(null);
-  };
-
-  /** Hráč pojmenuje muže rodu ve vsi (server ověří a jméno uloží natrvalo). */
-  const confirmLineName = (
-    personId: number,
-    lord: boolean,
-    name: string,
-  ): Promise<string | null> => {
-    const villageId = viewRef.current?.id;
-    if (!villageId) return Promise.resolve(CONNECTION_FAILED);
-    return runAction(() => nameLineMan({ villageId, personId, name })).then((failure) => {
-      if (failure === null) {
-        setNamingId(null);
-        if (lord) rememberLordName(name);
-      }
-      return failure;
-    });
-  };
-
-  /** Hráč povýší vesničana pro ves bez vojvody (server ověří právo, rok a cíl). */
-  const ennoble = (personId: number, targetVillageId: string): Promise<string | null> => {
-    const villageId = viewRef.current?.id;
-    if (!villageId) return Promise.resolve(CONNECTION_FAILED);
-    return runAction(() => ennobleVillager({ villageId, personId, targetVillageId }));
-  };
-
-  /** Hráč nechá pokřtít vojvodu (server ověří právo, znalost a že vojvoda žije tady). */
-  const baptize = (): Promise<string | null> => {
-    const villageId = viewRef.current?.id;
-    if (!villageId) return Promise.resolve(CONNECTION_FAILED);
-    return runAction(() => baptizeLord({ villageId }));
-  };
-
-  /** Zavře panel jména – vojvoda bez jména se sám znovu nenabídne, čeká upozornění. */
-  const closeLineName = (): void => {
-    setNamingId(null);
-    if (lordKey !== null) setDismissedLord(lordKey);
-  };
-
-  /** Odhlášení z nabídky – i se session už neplatnou (odhlášení v jiném panelu) na úvod. */
-  // nabídky panelů až na vyžádání (panel-options.ts) – otevřený panel se s novým pohledem zeptá znovu
-  const viewId = view?.id ?? null;
-  const loadPanel = useCallback(
-    async (ask: PanelAsk): Promise<PanelOptions | null> => {
-      if (viewId === null) return null;
-      const result = await getPanelOptions({ villageId: viewId, ...ask });
-      return 'error' in result ? null : result;
-    },
-    [viewId],
-  );
-  const armyActions = useMemo<ArmyActions>(
-    () => ({
-      load: (input) => getArmyPanel(input),
-      plan: (plan) => planArmyCampaign({ plan }),
-      launch: (plan) => launchArmyCampaign({ plan }),
-      campaigns: () => getMyCampaigns(),
-      campaign: {
-        lead: (input) => commandLeader(input),
-        order: (input) => setGroupOrder(input),
-        surrendered: (input) => chooseSurrendered(input),
-        presence: (campaignId) => presence({ campaignId }),
-      },
-      scene: sceneWatch,
-    }),
-    [sceneWatch],
-  );
-  const panelKey = view ? (view.stamp ?? `${view.id}:${view.dayIndex}`) : '';
-  const panelSource = useMemo<PanelOptionsSource>(
-    () => ({ key: panelKey, load: loadPanel }),
-    [panelKey, loadPanel],
-  );
-
-  const signOut = async (): Promise<string | null> => {
-    try {
-      await authClient.signOut();
-    } catch (error) {
-      console.error('Odhlášení selhalo.', error);
-      return SIGN_OUT_FAILED;
-    }
-    window.location.assign('/');
-    return null;
-  };
-
-  if (watching && !gameOver) {
+  if (war.watching && !gameOver) {
     return (
-      <ArmyActionsContext.Provider value={armyActions}>
+      <ArmyActionsContext.Provider value={war.armyActions}>
         <ForeignWarScene
-          key={`${watching.campaignId}@${watching.cell.x},${watching.cell.y}`}
-          watch={watching}
+          key={`${war.watching.campaignId}@${war.watching.cell.x},${war.watching.cell.y}`}
+          watch={war.watching}
           world={world}
           clock={clock}
-          onBack={backHome}
+          onBack={war.backHome}
         />
       </ArmyActionsContext.Provider>
     );
@@ -1833,7 +289,7 @@ export function VillageGame({
     <PanelOptionsContext.Provider value={panelSource}>
       <RightsProvider value={view?.rights ?? null}>
         <VillageIdProvider value={view?.id ?? null}>
-          <ArmyActionsContext.Provider value={armyActions}>
+          <ArmyActionsContext.Provider value={war.armyActions}>
             <GameView landscape={landscape} onSceneReady={setScene} overlays={false} />
             {perfOn && <ScenePerfPanel scene={scene} showLoad />}
             <TopBar
@@ -1843,21 +299,21 @@ export function VillageGame({
               soundOn={soundOn}
               onToggleSound={toggleSound}
               menuOpen={menuShown}
-              onToggleMenu={() => (menuShown ? closeMenu() : openMenu())}
-              onRename={rename}
+              onToggleMenu={() => (menuShown ? panels.closeMenu() : openMenu())}
+              onRename={commands.rename}
               onSelectVillage={switchVillage}
-              onSetSteward={toggleSteward}
+              onSetSteward={commands.toggleSteward}
               house={{
-                vassals: house?.vassals.length ?? 0,
-                waiting: house?.waiting ?? 0,
-                open: houseOpen,
-                onToggle: () => (houseOpen ? closeHouse() : openHouse()),
+                vassals: house.view?.vassals.length ?? 0,
+                waiting: house.view?.waiting ?? 0,
+                open: panels.houseOpen,
+                onToggle: () => (panels.houseOpen ? panels.closeHouse() : panels.openHouse()),
               }}
               war={{
-                wars: house?.wars.length ?? 0,
-                protectionDaysLeft: house?.protectionDaysLeft ?? null,
-                open: warOpen,
-                onToggle: () => (warOpen ? closeWar() : openWar()),
+                wars: house.view?.wars.length ?? 0,
+                protectionDaysLeft: house.view?.protectionDaysLeft ?? null,
+                open: panels.warOpen,
+                onToggle: () => (panels.warOpen ? panels.closeWar() : panels.openWar()),
               }}
               chronicle={
                 view && !view.extinct ? { open: chronicle.open, onToggle: chronicle.toggle } : null
@@ -1867,182 +323,43 @@ export function VillageGame({
                 open: noticeHistory.open,
                 onToggle: noticeHistory.toggle,
               }}
-              devTime={devMode ? { pending: skipping, onSkip: skipTimeBy } : null}
+              devTime={devMode ? { pending: dev.skipping, onSkip: dev.skipTimeBy } : null}
               devDisasters={
                 devMode && view && !view.extinct
-                  ? { pending: forcingDisaster, onForce: forceDisasterChoice }
+                  ? { pending: dev.forcingDisaster, onForce: dev.forceDisasterChoice }
                   : null
               }
             />
-            {breakout && (
-              <BreakoutButton denied={breakout.denied} onOrder={orderDefenderBreakout} />
+            {war.breakout && (
+              <BreakoutButton denied={war.breakout.denied} onOrder={war.orderDefenderBreakout} />
             )}
             <Minimap
               landscape={decoded}
               scene={scene}
               village={sceneVillage}
-              isolated={house?.isolated === true}
+              isolated={house.view?.isolated === true}
             />
             <SelectionPanel
               details={selectionDetails(view, sceneVillage, current, personState, draftState)}
               alarm={alarmActions}
               ennoble={{
                 targets: (view?.villages ?? []).filter((v) => v.awaitingLord && v.id !== view?.id),
-                onEnnoble: ennoble,
+                onEnnoble: commands.ennoble,
               }}
-              onBaptize={baptize}
               onSelectTarget={setSelected}
-              onSetSteward={(on) => {
-                const villageId = viewRef.current?.id;
-                return villageId
-                  ? toggleSteward(villageId, on)
-                  : Promise.resolve(CONNECTION_FAILED);
-              }}
-              onLeave={leave}
-              onLeaveSon={leaveWithSon}
               onPreviewSon={setSonPreview}
-              onOrderQuarrying={(outcropId, m3) => {
-                const villageId = viewRef.current?.id;
-                return villageId
-                  ? runBuildAction(() => orderStoneQuarrying({ villageId, outcropId, m3 }))
-                  : Promise.resolve();
-              }}
-              onAbandonPart={(partId, abandon) => {
-                const villageId = viewRef.current?.id;
-                return villageId
-                  ? runBuildAction(() =>
-                      abandonFieldParts({ villageId, partIds: [partId], abandon }),
-                    )
-                  : Promise.resolve();
-              }}
-              onStructureUse={(action, structure, id) => {
-                const villageId = viewRef.current?.id;
-                if (!villageId) return Promise.resolve();
-                const run = STRUCTURE_USE_ACTIONS[action];
-                return runBuildAction(() => run({ villageId, structure, id }));
-              }}
-              onCancelConstruction={(constructionId) => {
-                const villageId = viewRef.current?.id;
-                return villageId
-                  ? runBuildAction(() => cancelConstruction({ villageId, constructionId }))
-                  : Promise.resolve();
-              }}
               gateFort={gateFort}
               onGateMode={setGateFort}
-              onFortAction={(fortificationId, segment, action) => {
-                const villageId = viewRef.current?.id;
-                if (!villageId) return Promise.resolve();
-                const at = { villageId, fortificationId };
-                switch (action.kind) {
-                  case 'upgrade':
-                    return runBuildAction(() =>
-                      upgradeFortification({ ...at, target: action.target, segment }),
-                    );
-                  case 'rampart':
-                    return runBuildAction(() => addFortificationRampart({ ...at, segment }));
-                  case 'moat':
-                    return segment === null
-                      ? Promise.resolve()
-                      : runBuildAction(() => fillFortificationMoat({ ...at, segment }));
-                  case 'gate':
-                    return segment === null
-                      ? Promise.resolve()
-                      : runBuildAction(() =>
-                          upgradeFortificationGate({ ...at, segment, level: action.level }),
-                        );
-                }
-              }}
-              onFortReroute={startReroute}
-              onFortDemolish={(fortificationId, segment) => {
-                const villageId = viewRef.current?.id;
-                return villageId
-                  ? runBuildAction(() =>
-                      demolishFortificationSection({ villageId, fortificationId, segment }),
-                    )
-                  : Promise.resolve();
-              }}
-              onUpgradeRoad={(roadId, upgrade) => {
-                const villageId = viewRef.current?.id;
-                return villageId
-                  ? runBuildAction(() => upgradeRoad({ villageId, roadId, upgrade }))
-                  : Promise.resolve();
-              }}
-              onPlantRoadApples={(roadId) => {
-                const villageId = viewRef.current?.id;
-                return villageId
-                  ? runBuildAction(() => plantRoadApples({ villageId, roadId }))
-                  : Promise.resolve();
-              }}
-              onBuildWagonRoad={(roadId) => {
-                const villageId = viewRef.current?.id;
-                return villageId
-                  ? runBuildAction(() => buildWagonRoad({ villageId, roadId }))
-                  : Promise.resolve();
-              }}
-              wagonPlan={wagonPlan && wagonPlan.roadId === wagonRoadId ? wagonPlan.plan : null}
-              onBuildTrail={(direction) => {
-                const villageId = viewRef.current?.id;
-                return villageId
-                  ? runBuildAction(() => buildTrail({ villageId, direction }))
-                  : Promise.resolve();
-              }}
-              onDeclareHunt={() => {
-                const villageId = viewRef.current?.id;
-                // důvod odepření se ukáže řádkem nahoře (u kurzoru) a tlačítko ho má v popisku
-                return villageId
-                  ? runAction(() => declareHunt({ villageId })).then((failure) => {
-                      if (failure !== null)
-                        pushNotice({ kind: 'error', tone: 'error', text: failure });
-                      return failure;
-                    })
-                  : Promise.resolve(null);
-              }}
-              onDecidePrisoner={(prisonerId, action) =>
-                decidePrisonerAction({ prisonerId, action }).then((result) => {
-                  if ('error' in result) {
-                    pushNotice({ kind: 'error', tone: 'error', text: result.error });
-                    return result.error;
-                  }
-                  return null;
-                })
-              }
-              onSetStance={(stance) => {
-                const villageId = viewRef.current?.id;
-                return villageId
-                  ? runAction(() => setDefenseStance({ villageId, stance })).then((failure) => {
-                      if (failure !== null)
-                        pushNotice({ kind: 'error', tone: 'error', text: failure });
-                      return failure;
-                    })
-                  : Promise.resolve(null);
-              }}
-              onSendExpedition={(direction, give, get, people) => {
-                const villageId = viewRef.current?.id;
-                // chyba zůstane v panelu obchodu (vrácený důvod) i jako krátký řádek nahoře
-                return villageId
-                  ? runAction(() =>
-                      sendExpedition({
-                        villageId,
-                        direction,
-                        give,
-                        get,
-                        givePeople: people.give,
-                        getPeople: people.get,
-                      }),
-                    ).then((failure) => {
-                      if (failure !== null)
-                        pushNotice({ kind: 'error', tone: 'error', text: failure });
-                      return failure;
-                    })
-                  : Promise.resolve(null);
-              }}
+              onFortReroute={build.startReroute}
+              wagonPlan={wagonPlan}
+              {...commands.selection}
             />
             <BuildGrid
-              options={options}
-              active={placement.active ? placingItem : null}
+              options={build.options}
+              active={placement.active ? build.placingItem : null}
               disabled={scene === null || foundingName}
               group={buildGroup}
-              extendingVariant={extendingVariant}
+              extendingVariant={build.extendingVariant}
               {...(view && buildGroup === 'fortification'
                 ? { blockedVariants: fortVariantsBlocked(view.dayIndex) }
                 : {})}
@@ -2057,50 +374,18 @@ export function VillageGame({
                       kind: lineNotice.kind,
                       text: lineNotice.text,
                       count: lineNotice.count,
-                      onOpen: () => setNamingId(lineNotice.personId),
+                      onOpen: () => naming.openLineName(lineNotice.personId),
                     }
                   : null
               }
               onExpire={expireNotice}
             />
-            {foundingName && languageChoice && (
-              <LanguageChoice
-                onChoose={(language) =>
-                  chooseLanguageAction(language).then((r) => {
-                    // jazyk mění pořadí nabídky pánů
-                    void refreshHouse();
-                    return r.ok ? null : r.error;
-                  })
-                }
-              />
-            )}
-            {newcomer && newcomerChoice && (
-              <NewcomerPanel
-                status={newcomer}
-                error={houseError}
-                onRequest={(houseIds) => void negotiate(() => requestLordsAction(houseIds))}
-                onStartFree={() => void negotiate(() => startFreeAction())}
-              />
-            )}
-            {foundingName && newcomer !== null && !newcomerChoice && (
-              <LineNamePanel
-                lord
-                portrait="man"
-                initialName={lastLordName()}
-                taken={[]}
-                onConfirm={confirmFounderName}
-              />
-            )}
-            {!foundingName && !newcomerChoice && namingTarget && (
-              <LineNamePanel
-                key={namingTarget.id}
-                lord={namingTarget.lord}
-                portrait={personPortrait({ age: namingTarget.age, sex: 'male' })}
-                taken={view?.dynasty?.taken ?? []}
-                onConfirm={(name) => confirmLineName(namingTarget.id, namingTarget.lord, name)}
-                onClose={closeLineName}
-              />
-            )}
+            <FoundingPanels
+              view={view}
+              languageChoice={languageChoice}
+              house={house}
+              naming={naming}
+            />
             <CursorReason preview={placement.active ? placement.preview : null} />
             {placement.active === 'fort-points' ? (
               <FortConfirm
@@ -2112,220 +397,28 @@ export function VillageGame({
                 onConfirm={placement.confirm}
               />
             ) : null}
-            {menuShown && (
-              <GameMenu
-                canRestart={view !== null}
-                email={email}
-                onClose={closeMenu}
-                onRestart={() => restart(true)}
-                onSignOut={signOut}
-              />
-            )}
-            {warOpen && !menuShown && (
-              <WarPanel
-                view={house}
-                error={houseError}
-                onClose={closeWar}
-                ownVillages={(view?.villages ?? [])
-                  .filter((v) => !v.stewarded)
-                  .map((v) => ({
-                    id: v.id,
-                    name: v.name,
-                    settlementId: v.settlementId,
-                    asleep: v.extinct || v.abandoned,
-                  }))}
-                onOfferPeace={(to, items, message) =>
-                  negotiate(() => openNegotiation({ to, items, message }))
-                }
-                onSummon={async (warId, vassalageIds) => {
-                  const targetVillageId = viewRef.current?.id;
-                  if (!targetVillageId) return { error: CONNECTION_FAILED };
-                  try {
-                    const result = await summonVassals({ warId, vassalageIds, targetVillageId });
-                    if ('error' in result) return result;
-                    void refreshHouse();
-                    return { ok: true };
-                  } catch {
-                    return { error: CONNECTION_FAILED };
-                  }
-                }}
-                protection={protection}
-                onRequestProtection={(vassalageId) => {
-                  const villageId = viewRef.current?.id;
-                  if (!villageId) return Promise.resolve({ error: CONNECTION_FAILED });
-                  return warAction(() => requestProtection({ vassalageId, villageId }));
-                }}
-                onSendProtection={(vassalageId, villageId, men) =>
-                  warAction(() => sendProtection({ vassalageId, villageId, men }))
-                }
-                onRecallProtection={(vassalageId, villageId) =>
-                  warAction(() => recallProtection({ vassalageId, villageId }))
-                }
-                onAnnouncePassage={(warId, house, message) =>
-                  warAction(() => announceWarPassage({ warId, house, message }))
-                }
-                passages={passages}
-                onAnswerPassage={(passageId, trust) => {
-                  void answerPassage({ passageId, trust })
-                    .then(() => refreshPassages())
-                    .catch(() => undefined);
-                }}
-              />
-            )}
-            {chronicle.open && !menuShown && (
-              <ChroniclePanel
-                page={chronicle.page}
-                loading={chronicle.loading}
-                error={chronicle.error}
-                onOlder={chronicle.loadOlder}
-                onClose={chronicle.close}
-              />
-            )}
-            {noticeHistory.open && !menuShown && (
-              <NoticesPanel
-                page={noticeHistory.page}
-                highlightAfter={noticeHistory.highlightAfter}
-                loading={noticeHistory.loading}
-                error={noticeHistory.error}
-                onOlder={noticeHistory.loadOlder}
-                onClose={noticeHistory.close}
-              />
-            )}
-            {houseOpen && !menuShown && (
-              <HousePanel
-                view={house}
-                error={houseError}
-                origin={typeof window === 'undefined' ? null : window.location.origin}
-                onIssue={issueHouseInvite}
-                onRevoke={revokeHouseInvite}
-                newcomer={newcomer}
-                onStartFree={() => negotiate(() => startFreeAction())}
-                onOpenNegotiation={(to, items, message) =>
-                  negotiate(() => openNegotiation({ to, items, message }))
-                }
-                onReply={(negotiationId, reply) =>
-                  negotiate(() => answerNegotiation({ negotiationId, ...reply }))
-                }
-                onBlock={(target) => negotiate(() => blockHouse({ target }))}
-                onUnblock={(target) => negotiate(() => unblockHouse({ target }))}
-                onDeclareWar={(target, items, message) =>
-                  negotiate(() => declareWarOnHouse({ target, items, message }))
-                }
-                onFileComplaint={(against, message) =>
-                  negotiate(() => fileComplaintAction({ against, message }))
-                }
-                onAnswerComplaint={(disputeId, statement) =>
-                  negotiate(() => answerComplaintAction({ disputeId, statement }))
-                }
-                onJudge={(disputeId, verdict) =>
-                  negotiate(() => judgeDisputeAction({ disputeId, verdict }))
-                }
-                villages={(view?.villages ?? [])
-                  .filter((v) => !v.stewarded)
-                  .map((v) => ({ id: v.id, name: v.name }))}
-                captives={view?.manor?.prisoners ?? []}
-                gameYear={view ? dateOfDayIndex(view.dayIndex).year : undefined}
-                onSpare={async (toHouseId, targetVillageId) => {
-                  try {
-                    const result = await houseSpare({
-                      toHouseId,
-                      ...(targetVillageId !== null ? { targetVillageId } : {}),
-                    });
-                    return 'spare' in result ? result.spare : null;
-                  } catch {
-                    return null;
-                  }
-                }}
-                onRenounce={(vassalageId, message) =>
-                  negotiate(() => renounceVassalage({ vassalageId, message }))
-                }
-                onDismissSteward={(villageId) => negotiate(() => dismissSteward({ villageId }))}
-                onOpenLevy={() => void openLevy()}
-                onClose={closeHouse}
-                onSelectVillage={(villageId) => {
-                  const target = view?.villages.find((v) => v.id === villageId);
-                  if (target) switchVillage(target);
-                }}
-              />
-            )}
-            {escheats && !menuShown && (
-              <EscheatDialog
-                escheats={escheats}
-                onPropose={async (input) => {
-                  const result = await proposeEscheat(input);
-                  if ('ok' in result) {
-                    void refreshHouse();
-                    void refreshEscheats();
-                  }
-                  return result;
-                }}
-                onConsent={async (input) => {
-                  const result = await consentEscheat(input);
-                  if ('ok' in result) {
-                    void refreshHouse();
-                    void refreshEscheats();
-                  }
-                  return result;
-                }}
-                onClose={() => setEscheats(null)}
-              />
-            )}
-            {levyOpen && !menuShown && (
-              <LevyDialog
-                dialogs={levy}
-                error={levyError}
-                onAnswer={async (input) => {
-                  const result = await answerLevy(input);
-                  if ('ok' in result) void refreshHouse();
-                  return result;
-                }}
-                summons={summons}
-                onAnswerSummons={async (input) => {
-                  const result = await answerSummons(input);
-                  if ('ok' in result) void refreshHouse();
-                  return result;
-                }}
-                onClose={closeLevy}
-              />
-            )}
+            <VillagePanels
+              view={view}
+              viewRef={viewRef}
+              menuShown={menuShown}
+              email={email}
+              onRestart={() => restart(true)}
+              onSignOut={signOutToHome}
+              panels={panels}
+              house={house}
+              chronicle={chronicle}
+              noticeHistory={noticeHistory}
+              onSelectVillage={switchVillage}
+            />
             {view?.journey && <JourneyBanner journey={view.journey} />}
             {view?.pendingDeparture && !view.journey && (
               <PlayerDeparturePanel
                 departure={view.pendingDeparture}
                 onPreview={setSonPreview}
-                onChoose={choosePlayerDepartureFromPanel}
+                onChoose={commands.choosePlayerDeparture}
               />
             )}
-            {gameOver && view?.lineEnded && (
-              <DefeatScreen
-                name={view.lineEnded.village}
-                lifespan={{
-                  foundedYear: view.lineEnded.foundedYear,
-                  extinctYear: view.lineEnded.endedYear,
-                  years: view.lineEnded.years,
-                }}
-                line={view.lineEnded}
-                onRestart={() => restart(false)}
-              />
-            )}
-            {gameOver && !view?.lineEnded && view?.extinct && (
-              <DefeatScreen
-                name={view.name}
-                lifespan={view.extinct}
-                onRestart={() => restart(false)}
-              />
-            )}
-            {gameOver && !view?.lineEnded && !view?.extinct && view?.abandoned && (
-              <DefeatScreen
-                name={view.name}
-                lifespan={{
-                  foundedYear: view.abandoned.foundedYear,
-                  extinctYear: view.abandoned.abandonedYear,
-                  years: view.abandoned.years,
-                }}
-                onRestart={() => restart(false)}
-              />
-            )}
+            <GameOverScreen view={view} onRestart={() => restart(false)} />
           </ArmyActionsContext.Provider>
         </VillageIdProvider>
       </RightsProvider>
