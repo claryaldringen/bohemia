@@ -99,7 +99,7 @@ import {
 import { demolitionKey, demolitionLooks, demolitionSiteProgress } from './demolition-view';
 import { sceneGrainPits } from './grain-pit-view';
 import { sceneFunerals } from './funeral-view';
-import { scenePersons } from './person-view';
+import { lodgeView, scenePersons } from './person-view';
 import { sceneWeddings } from './wedding-view';
 import { sceneWildlife } from './wildlife-view';
 import { sceneFlood, sceneHail, sceneTornado, sceneWeather } from './weather-view';
@@ -488,7 +488,7 @@ export function sceneLabor(
     return [{ ...share, manDays }];
   });
   const homes = sceneLaborHomes(state, labor.shares);
-  const persons = scenePersons(state, labor.day, baptizable);
+  const persons = scenePersons(state, labor.day, baptizable, lodgeView(state, labor.day));
   const lord = sceneLord(state, labor.lord, labor.day);
   const shoeing = sceneShoeing(state, labor.day, landscape);
   return {

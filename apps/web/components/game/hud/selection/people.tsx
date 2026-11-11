@@ -4,8 +4,10 @@ import { VillageTarget } from '@/lib/scene/village-picking';
 import { HERD_LABELS, type SelectionDetails } from '@/lib/selection-details';
 import { formatDecimal, formatInteger, formatPercent, plural } from '@/lib/village-format';
 import type { ArmsView } from '@/lib/person-view';
+import type { MasonCraft, MasonryCircle } from '@bohemia/game';
 import { CartGoal } from '@/lib/draft-activity';
 import { BaptizeButton, FaithCross } from '../BaptizeButton';
+import { LodgeActions, MasonBadge, PriestBadge } from '../LodgeButtons';
 import { useRightDenied } from '../rights';
 import { Tooltip } from '../Tooltip';
 import { TargetButton, Stat, ROW, Flag } from './parts';
@@ -148,12 +150,18 @@ export function PersonBody({
   onSelectTarget,
   ennoble,
   onBaptize,
+  onInviteLodge,
+  onInviteMaster,
 }: {
   details: Extract<SelectionDetails, { kind: 'person' }>;
   onSelectTarget?: ((target: VillageTarget) => void) | undefined;
   ennoble?: EnnobleActions | undefined;
   /** Křest vojvody (server action) – vrací důvod odmítnutí, nebo null. */
   onBaptize?: (() => Promise<string | null>) | undefined;
+  /** Pozvání stavební huti okruhu (server action) – vrací důvod odmítnutí, nebo null. */
+  onInviteLodge?: ((circle: MasonryCircle) => Promise<string | null>) | undefined;
+  /** Pozvání chybějícího mistra oboru (server action) – vrací důvod odmítnutí, nebo null. */
+  onInviteMaster?: ((craft: MasonCraft) => Promise<string | null>) | undefined;
 }): ReactElement {
   const home = details.home;
   const denied = useRightDenied('ennoble');
@@ -178,6 +186,8 @@ export function PersonBody({
             </span>
           </Tooltip>
         )}
+        {details.mason && <MasonBadge craft={details.mason} circle={details.lodgeCircle ?? null} />}
+        {details.priest && <PriestBadge />}
         {details.arms && <PersonArms arms={details.arms} horse={details.horse === true} />}
         {details.mount && <PersonMount mount={details.mount} />}
         {home !== null && details.homeIcon && (
@@ -240,6 +250,13 @@ export function PersonBody({
           </Tooltip>
         ))}
         {details.baptizable && onBaptize && <BaptizeButton onBaptize={onBaptize} />}
+        {details.lodge && onInviteLodge && onInviteMaster && (
+          <LodgeActions
+            lodge={details.lodge}
+            onInviteLodge={onInviteLodge}
+            onInviteMaster={onInviteMaster}
+          />
+        )}
         {details.draft && (
           <TargetButton
             src={`/icons/resources/${details.draft.kind === 'cart' ? 'cart' : 'ox'}.png`}

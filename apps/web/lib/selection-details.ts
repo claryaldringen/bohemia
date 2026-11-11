@@ -22,6 +22,8 @@ import {
   type FieldSurface,
   type HerdPlaces,
   type HerdSpecies,
+  type MasonCraft,
+  type MasonryCircle,
   type ClearingStage,
   type PenSpecies,
   type PartStage,
@@ -59,6 +61,7 @@ import {
   personPortrait,
   type ArmsView,
   type DwellingResident,
+  type LodgeView,
   type PersonPortraitIcon,
 } from './person-view';
 import { personActivity, type PersonFigureState } from './person-activity';
@@ -573,6 +576,14 @@ type SelectionKinds =
       christian?: boolean;
       /** Vojvoda se smí nechat pokřtít (christianity.md – Křest rodu) – tlačítko „Nechat se pokřtít“. */
       baptizable?: boolean;
+      /** Mistr stavební huti – ikona oboru v panelu (stone-masonry.md); jinak chybí. */
+      mason?: MasonCraft | null;
+      /** Okruh huti mistra – do popisku ikony oboru. */
+      lodgeCircle?: MasonryCircle | null;
+      /** Kněz kostela (churches.md). */
+      priest?: boolean;
+      /** Huť a mistři u vojvody (stone-masonry.md – Stavební huť); jen u vojvody. */
+      lodge?: LodgeView | null;
       /** Dovednosti, když se člověk cvičil (lord.md – Dovednosti); jinak null. */
       arms?: ArmsView | null;
       /** Má koně (jezdec – horses.md). */
@@ -1333,6 +1344,10 @@ function personDetails(
     ennobleable: person.ennobleable === true,
     christian: person.christian === true,
     baptizable: person.baptizable === true,
+    mason: person.mason ?? null,
+    lodgeCircle: person.lodgeCircle ?? null,
+    priest: person.priest === true,
+    lodge: person.lodge ?? null,
     horse: person.horse === true,
     mount: mountOf(view, id),
     draft:

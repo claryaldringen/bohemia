@@ -1,5 +1,12 @@
 import { type ReactElement } from 'react';
-import { CART_NAMES, RoadUpgrade, WagonRoadPlan, type WallKind } from '@bohemia/game';
+import {
+  CART_NAMES,
+  RoadUpgrade,
+  WagonRoadPlan,
+  type MasonCraft,
+  type MasonryCircle,
+  type WallKind,
+} from '@bohemia/game';
 import { useOverflowScroll } from '@/hooks/use-overflow-scroll';
 import { VillageTarget } from '@/lib/scene/village-picking';
 import { fieldPartName, orchardSquareName, type SelectionDetails } from '@/lib/selection-details';
@@ -109,6 +116,8 @@ export function SelectionPanel({
   onGateMode,
   ennoble,
   onBaptize,
+  onInviteLodge,
+  onInviteMaster,
   onAbandonPart,
   onStructureUse,
   onOrderQuarrying,
@@ -122,6 +131,10 @@ export function SelectionPanel({
   ennoble?: EnnobleActions;
   /** Křest vojvody (christianity.md – Křest rodu) – vrací důvod odmítnutí, nebo null. */
   onBaptize?: () => Promise<string | null>;
+  /** Pozvání stavební huti okruhu (stone-masonry.md) – vrací důvod odmítnutí, nebo null. */
+  onInviteLodge?: (circle: MasonryCircle) => Promise<string | null>;
+  /** Pozvání chybějícího mistra oboru (stone-masonry.md) – vrací důvod odmítnutí, nebo null. */
+  onInviteMaster?: (craft: MasonCraft) => Promise<string | null>;
   /**
    * Akce panelu opevnění (server action) – vylepšit úsek či vše, doplnit val, napustit příkop,
    * vylepšit bránu; hotovo, až se vrátí.
@@ -187,6 +200,8 @@ export function SelectionPanel({
         onSelectTarget={onSelectTarget}
         ennoble={ennoble}
         onBaptize={onBaptize}
+        onInviteLodge={onInviteLodge}
+        onInviteMaster={onInviteMaster}
       />
     );
   } else if (details.kind === 'plough-team') {

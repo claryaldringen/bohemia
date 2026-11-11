@@ -4,11 +4,16 @@
 import {
   AGE,
   ageYears,
+  canInviteLodge,
+  canInviteMaster,
   currentLord,
   ennobleBlock,
   isChristian,
+  MASON_CRAFTS,
   villageManorId,
   type Craft,
+  type MasonCraft,
+  type MasonryCircle,
   type Sex,
   type VillageState,
 } from '@bohemia/game';
@@ -47,6 +52,32 @@ export interface ArmsView {
  * Člověk vsi ve scéně: id, věk (celé roky), pohlaví, domácnost (id obydlí) a role; kdo se cvičil
  * (`Person.arms`), nese dovednosti, a kdo má koně (`Horse.riderId`), `horse`.
  */
+/**
+ * Stavební huť u vojvody (stone-masonry.md – Stavební huť): `invite` – proč huť nejde pozvat
+ * (`null` = jde), `circle` – okruh pozvané huti, `daysToArrival` – dní do příchodu nejbližšího
+ * mistra (huť na cestě), `missing` – obory bez mistra, které lze pozvat.
+ */
+export interface LodgeView {
+  invite: 'not-baptized' | 'already' | 'no-lord' | null;
+  circle?: MasonryCircle;
+  daysToArrival?: number;
+  missing: MasonCraft[];
+}
+
+/** Stav huti ke dni `day` pro tlačítka vojvody (jádro rozhoduje `canInviteLodge`/`canInviteMaster`). */
+export function lodgeView(state: VillageState, day: number): LodgeView {
+  const invite = canInviteLodge(state, day);
+  const lodge = state.lodge;
+  const masters = (lodge?.arriving ?? []).filter((a) => a.role !== 'priest');
+  const soonest = masters.length > 0 ? Math.min(...masters.map((a) => a.day)) : null;
+  return {
+    invite: invite === 'ok' ? null : invite,
+    ...(lodge ? { circle: lodge.circle } : {}),
+    ...(soonest !== null ? { daysToArrival: Math.max(0, Math.ceil(soonest - day)) } : {}),
+    missing: MASON_CRAFTS.filter((c) => canInviteMaster(state, c) === 'ok'),
+  };
+}
+
 export interface ScenePerson {
   id: number;
   age: number;
@@ -66,6 +97,14 @@ export interface ScenePerson {
    * není pokřtěný a vojvoda rodu žije v téhle vsi (`VillageAccess.baptizable`).
    */
   baptizable?: true;
+  /** Mistr stavební huti a jeho obor (stone-masonry.md); ostatní bez údaje. */
+  mason?: MasonCraft;
+  /** Okruh huti mistra (a kněze) – do popisku ikony oboru. */
+  lodgeCircle?: MasonryCircle;
+  /** Kněz kostela (churches.md). */
+  priest?: true;
+  /** Huť a mistři u vojvody vsi (tlačítka „Pozvat stavební huť“ a „Pozvat mistra“). */
+  lodge?: LodgeView;
 }
 
 /**
@@ -75,9 +114,10 @@ export interface ScenePerson {
  */
 export function scenePersons(
   state: Pick<VillageState, 'people' | 'dwellings' | 'manorId' | 'constructions'> &
-    Partial<Pick<VillageState, 'pens' | 'dynasty'>>,
+    Partial<Pick<VillageState, 'pens' | 'dynasty' | 'lodge'>>,
   day: number,
   baptizable = false,
+  lodge: LodgeView | null = null,
 ): ScenePerson[] {
   const crafts = new Map<number, Craft>();
   for (const d of state.dwellings) if (d.workshop) crafts.set(d.id, d.workshop.craft);
@@ -114,6 +154,9 @@ export function scenePersons(
   const christians = new Set(state.people.flatMap((p) => (isChristian(p) ? [p.id] : [])));
   // křtí se vojvoda vsi (`baptizeVillage` – `currentLord`), tlačítko jen u něj
   const baptizableId = baptizable ? (currentLord(state)?.id ?? null) : null;
+  const lordId = lodge ? (currentLord(state)?.id ?? null) : null;
+  const masons = new Map(state.people.flatMap((p) => (p.mason ? [[p.id, p.mason] as const] : [])));
+  const priests = new Set(state.people.flatMap((p) => (p.priest ? [p.id] : [])));
   return people
     .map((p) => ({
       id: p.id,
@@ -127,6 +170,12 @@ export function scenePersons(
       ...(ennobleable.has(p.id) ? { ennobleable: true as const } : {}),
       ...(christians.has(p.id) ? { christian: true as const } : {}),
       ...(p.id === baptizableId ? { baptizable: true as const } : {}),
+      ...(masons.has(p.id) ? { mason: masons.get(p.id)! } : {}),
+      ...(state.lodge && (masons.has(p.id) || priests.has(p.id))
+        ? { lodgeCircle: state.lodge.circle }
+        : {}),
+      ...(priests.has(p.id) ? { priest: true as const } : {}),
+      ...(lodge && p.id === lordId ? { lodge } : {}),
     }))
     .sort((a, b) => a.id - b.id);
 }
