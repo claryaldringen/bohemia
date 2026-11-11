@@ -73,7 +73,8 @@ import {
 // Katalog staveb pro mřížku staveb (jako v 0 A.D.): název, ikona, klávesová zkratka, způsob
 // umístění a kontrola, jestli stavba smí kam. Čistý modul (kontroly z herního jádra běží
 // i v prohlížeči, server je ověří znovu). Nová stavba = nový záznam tady, cena v jádře
-// (`BUILD_COSTS`) a server action v `VillageGame` (`SUBMIT`) – rozhraní se nemění.
+// (`BUILD_COSTS`) a server action v `SUBMIT_SQUARES` (`village-game/use-build-mode.ts`) – rozhraní
+// se nemění.
 //
 // Zkratky jsou spodní řada levé ruky jako fronta výroby v 0 A.D. (Z X C V B N M) – WASD, Q/E
 // a R patří kameře. Sad [B] staví se jako pole (orchard.md), modla [N] a svatyně [M] půdorysem

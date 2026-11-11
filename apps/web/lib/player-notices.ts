@@ -307,7 +307,7 @@ export function playerNoticeText(n: PlayerNotice): string {
 
 /**
  * Řádek upozornění pro hráče. `id` řádku je záporné číslo upozornění: vesnická upozornění mají
- * kladná id z čítače v `VillageGame`, takže se obě řady nikdy nesrazí.
+ * kladná id z čítače v `useNoticeLines` (`village-game/`), takže se obě řady nikdy nesrazí.
  */
 export function playerNoticeLine(n: PlayerNotice): NoticeLine {
   return { id: -n.id, kind: n.kind, tone: 'info', text: textOf(n) };
