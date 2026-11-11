@@ -36,18 +36,27 @@ okruhu jako jeho druhý typ; velký karolinský kostel na našem a slovenském �
 
 ## Velikost a cena
 
-- **Rotunda:** hráč volí **průměr lodi a výšku** (Martin), apsidy se dostaví v poměru (průměr
-  apsidy 0,45 průměru lodi – návrh Clauda podle Mikulčic 6).
+- **Rotunda:** hráč volí **průměr lodi a výšku** (Martin), dvě apsidy se dostaví v poměru (průměr
+  apsidy 0,45 průměru lodi, výška 0,6 výšky lodi – návrh Clauda podle Mikulčic 6).
 - **Obdélné kostely:** hráč volí **šířku, délku a výšku lodi** (Martin), kněžiště nebo apsida se
-  dostaví v poměru (hloubka 0,4 šířky lodi; bazilika má boční lodě 0,5 šířky střední lodi a atrium
-  na šířku lodí – návrh Clauda).
+  dostaví v poměru – hloubka 0,4 a šířka 0,65 šířky lodi, výška 0,8 výšky lodi; bazilika má boční
+  lodě široké 0,5 střední lodi a vysoké 0,6 její výšky a atrium bez střechy hluboké 0,4 délky lodi
+  se zdí 0,4 výšky lodi (návrh Clauda).
 - **Meze** (návrh Clauda): průměr rotundy 4–12 m, šířka lodi 4–12 m (střední loď baziliky
   6–14 m), délka 6–40 m, výška 4–16 m.
-- **Tloušťka zdi** = 0,6 m + 0,03 × výška (≈ 0,9–1,1 m jako v Mikulčicích; návrh Clauda).
-- **Cena z objemu zdiva** (obvod × výška × tloušťka, bez otvorů; návrh Clauda podle rešerše):
-  kámen 1 m³ na m³ zdiva, malta 0,3 m³ (vápno a písek 1 : 2), dřevo na krov podle plochy střechy,
-  práce podle objemu (zdění ≈ 3 čd/m³ s pomocníky, k tomu lámání, doprava, pálení vápna, krov);
-  malá rotunda o průměru 6,5 m ≈ 140 m³ zdiva, ≈ 9 t vápna, ≈ 1 200–1 400 čd.
+- **Tloušťka zdi** = 0,6 m + 0,03 × výška (≈ 0,9–1,1 m jako v Mikulčicích), základy 1 m hluboko
+  (návrh Clauda).
+- **Cena z objemu zdiva** (obvod × výška × tloušťka, bez otvorů, i základy; návrh Clauda podle
+  rešerše): kámen 1 m³ na m³ zdiva, malta 0,3 m³ (vápno a písek 1 : 2 – 0,065 t páleného vápna
+  a 0,2 m³ písku na m³ zdiva), práce:
+  - zdění 4 čd/m³ (s pomocníky, míchání malty a lešení), opracování kamene 0,5 čd/m³, výkop
+    základů 1 čd/m³;
+  - lámání kamene a vápence jako v lomu (podle vzdálenosti lomu), pálení a hašení vápna 8 čd/t
+    a stavba pece 20 čd, písek 1,5 čd/m³;
+  - krov a střecha 1 čd a 60 kg dřeva na m² střechy, dřevo na pálení 750 kg na t vápna;
+  - výzdoba 0,3 čd na m² vnitřních zdí.
+
+  Malá rotunda o průměru 6,5 m a výšce 6 m ≈ 165 m³ zdiva, ≈ 11 t vápna, ≈ 1 200 čd i s výzdobou.
 
 ## Co kostel dává
 
@@ -57,8 +66,11 @@ okruhu jako jeho druhý typ; velký karolinský kostel na našem a slovenském �
 - **Štěstí křesťanů** z kostela = +40 × pokrytí (strop jako posvátná místa – [křesťanství](christianity.md)).
 - **Obrácení** = 0,5 % + 2,5 % × pokrytí za rok (bez kostela 0,5 %, s kostelem pro celou ves 3 %),
   dál × (1 + podíl křesťanů).
-- **Kněz** přijde rok po dostavění, ke každému kostelu jeden ([křesťanství](christianity.md)).
-- **Hřbitůvek** kolem kostela – pás 6 m kolem zdí, hrob ≈ 2,5 m² i s cestičkami (návrh Clauda);
+- **Kněz** přijde rok po dostavění, ke každému kostelu jeden ([křesťanství](christianity.md));
+  když zemře, nový přijde za 60 dní. Kostel slouží (kapacita, štěstí, obrácení, pohřby, svatby), jen
+  když v něm je kněz (návrh Clauda).
+- **Hřbitůvek** kolem kostela – obdélník o pás 6 m větší než kostel (bere i místo pro umístění
+  staveb), hrob ≈ 2,5 m² i s cestičkami (návrh Clauda);
   křesťané se pohřbívají u kostela, při plném hřbitůvku na starém hřbitově (kostrově).
 - **Svatby křesťanů** v nejbližším kostele.
 - **Výzdoba** (štukatér a malíř fresek – [kamenné zdivo](stone-masonry.md)): po dostavění zdí

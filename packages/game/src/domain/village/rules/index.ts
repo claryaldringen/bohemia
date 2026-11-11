@@ -10,6 +10,7 @@
 export * from './rules-people';
 export * from './rules-fields';
 export * from './rules-faith';
+export * from './rules-masonry';
 export * from './rules-roads';
 export * from './rules-livestock';
 export * from './rules-buildings';
