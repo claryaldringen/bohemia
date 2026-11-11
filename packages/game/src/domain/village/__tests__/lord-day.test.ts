@@ -191,7 +191,7 @@ describe('dopočet po kouscích a starší ves bez `lord` a `arms`', () => {
 });
 
 describe('cvičící rodina a plánování (lord.md – Den rodiny)', () => {
-  it('plán osevu nepočítá práci cvičící rodiny jako práci vsi', () => {
+  it('kapacita práce v oknech nepočítá práci cvičící rodiny jako práci vsi', () => {
     const training = lordVillage();
     training.lord = { trains: true };
     const working = lordVillage();

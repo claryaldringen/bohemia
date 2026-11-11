@@ -1,5 +1,5 @@
 // Ryby a oka vesničanů (wildlife.md – Drobná zvěř a ryby – vesničané sami; Odpovědi Martina
-// 26. 10. 2026): z práce, která zbude po dílech nad potřebu a po seči navíc, chytají vesničané
+// 26. 10. 2026): z práce, která zbude po polní práci, stavbách a seči navíc, chytají vesničané
 // duben–listopad ryby a prosinec–březen zajíce do ok – když ves chce víc bílkovin, nebo hladoví.
 // Maso se jí čerstvé (bez práce porážky). Bez náhody: ubývá biomasa ryb a zajíci, nejvýš do roční
 // kvóty podle přírůstku.

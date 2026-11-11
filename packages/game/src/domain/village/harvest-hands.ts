@@ -1,5 +1,5 @@
 // Žně a výmlat všemi rukama (fields.md – Žně všemi rukama; Martin 24. 10. 2026: „Dílny i vojvodova
-// rodina“) – jedno místo pravdy pro plán osevu (`sowingCapacity`) i práci dne (`work()`).
+// rodina“) – jedno místo pravdy pro kapacitu práce v oknech (`sowingCapacity`) i práci dne (`work()`).
 import { dateOfDayIndex } from '../calendar';
 import { ageGroup, ageYears } from './people';
 import {

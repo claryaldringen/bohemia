@@ -117,8 +117,8 @@ export interface FieldPart {
   overgrowthYears?: number;
   /**
    * Příloh, ze kterého se díl letos vrací do osevu (od kdy ležel ladem a roky bez pastvy) – kdyby
-   * ho ves podle zásob z plánu ubrala dřív, než na něm začne práce, vrátí se do přílohu, jak byl
-   * (fields.md – Osev podle zásob). Smaže se na konci hospodářského roku; chybí = díl se nevrací.
+   * ho ves z letošní práce vyřadila (nezasetá jař na konci okna – `returnPart`), vrátí se do
+   * přílohu, jak byl (fields.md – Osevní postup po dílech, bod 2). Smaže se na konci hospodářského roku; chybí = díl se nevrací.
    */
   fallowBeforeSeason?: { sinceDay: number | null; overgrowthYears?: number };
   /**

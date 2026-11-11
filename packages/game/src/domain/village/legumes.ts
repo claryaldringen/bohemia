@@ -1,17 +1,12 @@
-import { effectiveFertility } from './fields';
 import { daysUntilWinterHarvest } from './food';
 import { storageLossPerYear } from './productivity';
 import { LEGUMES } from './rules';
-import type { FieldPart, VillageState } from './types';
-import { cropGrossPerHa, cropSeedPerHa } from './year-plan';
+import type { VillageState } from './types';
 
-// Luštěniny (diet.md a fields.md – Luštěniny; Martin 18. 10. 2026: bílkoviny 1,6 g/kg zůstávají,
-// přidají se luštěniny jako plodina na poli). Hrách a čočka jsou jař na dílech osevu,
-// sklízejí se v červenci (31. 7. do zásoby luštěnin, jako ozim) a jí se rovným dílem celý rok do
-// příští sklizně. Ves jich oseje tolik, aby po obilí, mléku a vejcích pokryla bílkoviny (nejvýš
-// strop podílu energie), zbytek dá maso.
-
-const M2_PER_HA = 10_000;
+// Luštěniny (diet.md a fields.md – Luštěniny, Zahrádka u obydlí). Z polí jsou vyřazené (Martin
+// 9. 11. 2026: „Luštěniny jsou podle mě píčovina.“) – nové přibývají jen ze zahrádek u obydlí.
+// Zásoba se jí rovným dílem celý rok do příští sklizně (31. 7.); obchod, platby a dávky
+// luštěninami platí dál.
 
 /** Energie luštěnin v kg obilí. */
 export function legumeEnergy(kg: number): number {
@@ -34,14 +29,6 @@ export function daysUntilLegumeHarvest(day: number): number {
  */
 export function legumeStorageLossPerYear(potteryCoverage: number): number {
   return storageLossPerYear(potteryCoverage);
-}
-
-/** Očekávaná čistá úroda luštěnin dílu (kg) při plné a včasné práci – odhad při osevu. */
-export function expectedLegumeKg(part: FieldPart, day: number): number {
-  return (
-    (cropGrossPerHa('legume', effectiveFertility(part, day)) - cropSeedPerHa('legume')) *
-    (part.areaM2 / M2_PER_HA)
-  );
 }
 
 /**

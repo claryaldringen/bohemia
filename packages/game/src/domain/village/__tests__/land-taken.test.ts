@@ -104,7 +104,7 @@ describe('landLeftM2 – práh', () => {
   });
 });
 
-describe('giveWayToBuilding – díl pole v plánu osevu', () => {
+describe('giveWayToBuilding – díl pole v hospodářském roce', () => {
   const autumn = (): VillageState => advanceVillage(village(), at(600, 9, 2), null);
 
   it('pozemek na čtverci: díl zmizí z pole, z plánu i z fronty práce – ostatní díly beze změny', () => {

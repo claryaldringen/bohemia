@@ -351,7 +351,7 @@ describe('pokrytí a meze produktivity (crafts.md – Účinek)', () => {
     expect(b.storesKg - a.storesKg).toBeCloseTo(expected, 6);
   });
 
-  it('nástroje zlevní práci plánu osevu (kopání 100 → 50 čd/ha) i založení pole', () => {
+  it('nástroje zlevní polní práci hospodářského roku (kopání 100 → 50 čd/ha) i založení pole', () => {
     const plan = (tools: number): number => {
       const s = foundField(fullVillage(at(600, 8, 1)), at(600, 8, 1), {
         parts: Array.from({ length: 40 }, () => ({

@@ -42,7 +42,7 @@ import {
 export { ROTATION, ROTATION_FACTOR, averageSownShare, netYieldPerHa, rotationYears };
 
 const EPSILON = 1e-9;
-/** Hospodářský rok od září (plán osevu 1. 9.) – měsíc a počet dní v běžném roce. */
+/** Hospodářský rok od září (začíná 1. 9.) – měsíc a počet dní v běžném roce. */
 export const SEASON_MONTHS: readonly { month: number; days: number }[] = [
   { month: 9, days: 30 },
   { month: 10, days: 31 },
@@ -141,7 +141,7 @@ export interface SteadyInput {
    * energie, zbytek dá maso, mléko a sýr, vejce, ovoce a med. Bez údaje 1 – ves jí jen obilí.
    */
   fieldShare?: number;
-  /** Osev (ha) místo cíle osevu – např. pro hledání nejvyššího osevu, který práce stihne. */
+  /** Pevný osev (ha) místo osevu na potřebu – např. pro hledání nejvyššího osevu, který práce stihne. */
   sownHaOverride?: number;
 }
 
@@ -258,7 +258,7 @@ export function steadyState(input: SteadyInput): SteadyResult {
   const h = input.household;
   const count = input.households;
   const persons = people(h) * count;
-  // potřeba z pole – osev podle stravy, pojistka z celé energie (fields.md – Kolik ves oseje)
+  // potřeba z pole – osev podle stravy, pojistka z celé energie (fields.md – Výhled zásob k sklizni)
   const need = foodNeedKg(h) * count * (input.fieldShare ?? 1);
   const buffer = input.reserve ? bufferKg(foodNeedKg(h) * count) : undefined;
   const sown = input.sownHaOverride ?? sownHa(need, input.fertility, buffer);

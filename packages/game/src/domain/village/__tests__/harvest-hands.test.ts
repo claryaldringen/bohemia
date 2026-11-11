@@ -342,7 +342,7 @@ describe('práce dne (allocateDay – harvestHands, lordHelp)', () => {
   });
 });
 
-describe('plán osevu (sowingCapacity)', () => {
+describe('kapacita práce v oknech (sowingCapacity)', () => {
   it('červenec a srpen počítají i se žňovými rukama dílny, jaro ne', () => {
     const s = harvestVillage();
     const day = at(600, 9, 1);

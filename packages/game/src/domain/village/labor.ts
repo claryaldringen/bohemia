@@ -574,7 +574,7 @@ export function waterFetchingLabor(people: number, walkM: number | undefined): n
 /** Práce po stavbách – opravy obydlí a co zbude. */
 export interface AfterConstructions {
   repairs: number;
-  /** Co zbude po opravách (díly nad potřebu – fields.md, Osevní postup po dílech; seč navíc). */
+  /** Co zbude po opravách – údržba opevnění a práce po stavbách (pletí mužů, seč navíc). */
   left: number;
 }
 

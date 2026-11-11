@@ -415,7 +415,7 @@ describe('výkon spřežení za den', () => {
     expect(ploughTeamsAfield(s, at(601, 1, 15))).toBe(true);
   });
 
-  it('plán osevu počítá s výkonem podle tvaru polí', () => {
+  it('očekávaný výkon orby podle tvaru polí', () => {
     expect(plannedFurrowEfficiency(rect(1, 0, 0, 8, 2))).toBeCloseTo(furrowEfficiency(120), 12);
     const single = [part(1, 0, 0), part(2, 5, 5)];
     expect(plannedFurrowEfficiency(single)).toBeCloseTo(furrowEfficiency(15), 12);

@@ -218,7 +218,7 @@ function stepsLeft(work: PartYearWork | undefined): Set<OutlookStep> {
 }
 
 /**
- * Výhled osetých dílů v den `day` (díl id → výhled) – jen díly letošního plánu osevu, které ještě
+ * Výhled osetých dílů v den `day` (díl id → výhled) – jen díly letošní práce (hospodářského roku), které ještě
  * nejsou sklizené. `yearWork` = letošní práce dílů (`partYearWork`), když ji volající už má.
  */
 export function fieldOutlook(

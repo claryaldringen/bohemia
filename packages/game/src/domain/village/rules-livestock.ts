@@ -170,7 +170,7 @@ export const HORSE_SHOEING = {
  * kus stáda skotu a rok (LIVESTOCK.growth.cow 0,4 × polovina); vůl slouží 10 let, takže obměna
  * desetiny volů ročně chce 0,1 ÷ 0,2 = 0,5 krávy na vola (dřív 0,25 – počítalo se se všemi telaty);
  * krávy na voly se ke kravám na mléko přičítají. Nejvýš `maxPairs` párů k rádlům (pojistka hledání
- * v plánu osevu).
+ * párů k rádlům – `ploughPairsForRotation`).
  */
 export const OXEN = {
   trainingYears: 2,

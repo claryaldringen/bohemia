@@ -430,7 +430,7 @@ describe('starší ves – rok odkladu, nouzový výmlat na udusané zemi', () =
   });
 });
 
-describe('výhled jídla a plán osevu', () => {
+describe('výhled jídla a zásob k sklizni', () => {
   it('snopy, které ves vymlátí, jsou ve výhledu jako zrno – bez humna a odkladu ne', () => {
     const day = at(601, 9, 10);
     const floor = withSheaves(day, { grainKg: 800, legumesKg: 50, work: { spring: 10 } });

@@ -273,7 +273,7 @@ export type OrchardTaskName = 'orchard-care' | 'orchard-harvest';
 export interface CropWork {
   /**
    * Díly plodiny v pořadí, ve kterém k nim práce postupuje (fields.md – Postup práce po
-   * čtvercích): každá dávka dílů (plán k 1. 9., přidané hotové díly) nejblíž obydlím první, při
+   * čtvercích): každá dávka dílů (přidaná na čele práce) nejblíž obydlím první, při
    * shodě podle id; přidané dávky na konec.
    */
   partIds: number[];
@@ -431,7 +431,7 @@ export interface SeedKg {
   grain: number;
   legumes: number;
 }
-/** Okna volné práce plánu osevu (`SowingCapacity` bez orby). */
+/** Okna volné práce vsi (`SowingCapacity` bez orby). */
 export type LordHelpWindow = 'autumnWinter' | 'autumn' | 'spring' | 'july' | 'august' | 'september';
 /** Podíl dne rodiny 0–1 po oknech žní (`HARVEST_HELP_WINDOWS`); okno bez pomoci chybí. */
 export type LordHelp = Partial<Record<LordHelpWindow, number>>;

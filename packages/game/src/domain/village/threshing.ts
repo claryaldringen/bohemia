@@ -126,7 +126,7 @@ type OutlookState = ThreshState &
   Partial<Pick<VillageState, 'threshingSeason'>>;
 
 /**
- * Snopy ve výhledu jídla a plánu osevu (production-chains.md – Humno): kg zrna a luštěnin, které
+ * Snopy ve výhledu jídla a výhledu zásob k sklizni (production-chains.md – Humno): kg zrna a luštěnin, které
  * z nich výmlat dá – jen když ves smí mlátit (humno, nebo bez něj nouzově), se ztrátami
  * (`sheafYields`). Jinak nic – snopy, které nebude kde vymlátit, ves nesní.
  */

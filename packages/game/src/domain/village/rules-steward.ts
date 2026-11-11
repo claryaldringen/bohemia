@@ -257,7 +257,7 @@ export const STEWARD = {
   ] as readonly StewardWindow[],
   /**
    * Jména synů a odchod syna (steward.md – Rozhodovací pořadí, krok 2): odchod jen v tento den
-   * roku – po žních, před plánem osevu 1. 9.
+   * roku – po žních, před začátkem hospodářského roku 1. 9.
    */
   departureDate: { month: 8, day: 31 } as StewardMonthDay,
   /**

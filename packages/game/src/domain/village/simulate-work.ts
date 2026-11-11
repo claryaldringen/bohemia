@@ -625,7 +625,7 @@ export function work(
   // jeho synové a ženy rodiny; ostatní v dvorci (zeť) pracují se vsí. Denní minimum dvorce kryje
   // rodina (`manorLabor`), proto domácnost dvorce v minimu vsi chybí
   // režim výcviku se rozhodl na začátku dne (`updateLordTraining` v `simulateDay`) – všichni
-  // čtenáři dne (pasení, plán osevu, nákupy, práce) vidí týž stav
+  // čtenáři dne (pasení, výběr dílů, nákupy, práce) vidí týž stav
   // kdo pracuje se vsí a chůze pro vodu – týž výběr jako scéna (`villagersToday`)
   const family = trainingFamily(state, day);
   const { villagers, manorSkip } = villagersToday(state, day, crafts);

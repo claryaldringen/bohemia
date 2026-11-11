@@ -73,7 +73,7 @@ describe('pořadí a úseky dílů', () => {
 });
 
 describe('postup po čtvercích', () => {
-  // 22. 9.: výhled škod zvěře počítá násobek malé vsi jen z nesklizených dílů, plán osevu se tak
+  // 22. 9.: výhled škod zvěře počítá násobek malé vsi jen z nesklizených dílů, osev se tak
   // mírně posunul; v tento den je v ozimu vidět rozpracovaný díl i strniště.
   it('kopání a setí ozimu: hotové díly v pořadí, zbytek čeká; čelo dne mezi nimi', () => {
     const s = advanceVillage(village(), at(601, 9, 22), null);

@@ -4,12 +4,7 @@ import { foundVillage } from '../actions';
 import type { PartInput } from '../actions';
 import { DIET, PROTEIN, eatDiet, meatHappiness, proteinNeedPerDay } from '../diet';
 import { endOfSeason } from '../fields';
-import {
-  daysUntilLegumeHarvest,
-  expectedLegumeKg,
-  legumeEnergy,
-  legumeStorageLossPerYear,
-} from '../legumes';
+import { daysUntilLegumeHarvest, legumeEnergy, legumeStorageLossPerYear } from '../legumes';
 import { meatNeedPerYear } from '../livestock';
 import { NO_CRAFTS } from '../productivity';
 import { FERTILITY, LEGUMES } from '../rules';
@@ -82,14 +77,9 @@ describe('luštěniny ze zásoby (zboží)', () => {
 });
 
 describe('výnos a práce luštěnin', () => {
-  it('úroda podíl úrody obilí při stejné úrodnosti, vlastní osivo', () => {
+  it('úroda podíl úrody obilí při stejné úrodnosti', () => {
     expect(cropGrossPerHa('legume', 70)).toBeCloseTo(
       cropGrossPerHa('spring', 70) * LEGUMES.yieldShare,
-      9,
-    );
-    const p = part(1);
-    expect(expectedLegumeKg(p, DAY)).toBeCloseTo(
-      (cropGrossPerHa('legume', 70) - LEGUMES.seedKgPerHa) * 0.0225,
       9,
     );
   });

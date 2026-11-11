@@ -285,7 +285,7 @@ function* simulateDaySteps(
 ): Generator<void, void, void> {
   const date = dateOfDayIndex(day);
   // vojvodova rodina (lord.md): cvičí, nebo pracuje – rozhodnout jednou na začátku dne, ať ho
-  // stejně vidí pasení, plán osevu, nákupy i `work()` (i v den přechodu)
+  // stejně vidí pasení, výběr dílů, nákupy i `work()` (i v den přechodu)
   updateLordTraining(state, day);
   // zvěř: 1. 5. roční přepočet podle krajiny a stropů (wildlife.md – Roční přepočet)
   wildlifeYearDay(state, day, landscape);
@@ -338,9 +338,9 @@ function* simulateDaySteps(
   yield;
   // ušetřené posvátné duby stářím usychají a souše padají – den plyne z dubu (happiness.md)
   state.chronicle.push(...sacredOakEvents(villageSacredOaks(state), obstacles, day));
-  // 1. 9. nový hospodářský rok a postup dílů, každý den nutné díly a konce oken setí (fields.md –
+  // 1. 9. nový hospodářský rok a postup dílů, každý den díly na řadě a konce oken setí (fields.md –
   // Osevní postup po dílech); podíl dne rodiny ve žních (lord.md – Kdy jde rodina na pole)
-  // paměť hladu: po krutém roce drží ves 10 let vyšší pojistku – před plánem osevu
+  // paměť hladu: po krutém roce drží ves 10 let vyšší pojistku – před novým hospodářským rokem
   // (disasters.md – Dopady, Zásoby a pojistka)
   famineMemoryDay(state, day);
   // 1. 1.: dospělí pohané se v pokřtěném rodě obracejí (christianity.md – Obrácení)

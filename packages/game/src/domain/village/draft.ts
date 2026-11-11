@@ -21,7 +21,7 @@ import type {
 // Kolik volů a vozů ves chce (oxen.md – Kolik volů ves chce, wagons.md – Kolik vozů ves chce;
 // Martin 20. 10. 2026: „Vesnice určitě potřebuje více vozů. Ať to funguje jako se stády - ohrada
 // pro voly udrží určitý počet spřežení a když bude vesnice potřebovat víc vozů, ohrada se musí
-// zvětšit.“). Páry k rádlům podle plánu osevu (1. 9.), vozy podle loňského provozu (rok vozů od
+// zvětšit.“). Páry k rádlům podle dílů na řadě (1. 9.), vozy podle loňského provozu (rok vozů od
 // 1. 11.): další vůz se vyplatí, když loni ušetřil (nebo by ušetřil) víc práce, než stojí – práce
 // tesaře na 10 let života vozu a seno pro voly, které by ves kvůli němu držela navíc. Voli se sdílí
 // – orba (podzim a jaro) a svoz (léto) se nepřekrývají, takže ves chce nejvyšší současnou potřebu:
@@ -32,9 +32,9 @@ const EPSILON = 1e-9;
 const DAYS_PER_YEAR = 365.25;
 
 /**
- * Páry k rádlům, které ves chce (plán osevu k 1. 9. – `DraftState.ploughPairs`): tolik, aby voli
- * zorali celý osev v oknech orby. Bez plánu (ves uložená dřív, nová ohrada) pár na každou ohradu
- * volů – jako dřív spřežení na ohradu. Bez ohrady volů 0.
+ * Páry k rádlům, které ves chce (k 1. 9. – `DraftState.ploughPairs`): tolik, aby voli zorali
+ * všechny díly na řadě v oknech orby. Bez údaje (ves uložená dřív, nová ohrada) pár na každou
+ * ohradu volů – jako dřív spřežení na ohradu. Bez ohrady volů 0.
  */
 export function wantedPloughPairs(state: Pick<VillageState, 'pens' | 'draft'>): number {
   const pens = oxPens(state).length;
@@ -43,14 +43,13 @@ export function wantedPloughPairs(state: Pick<VillageState, 'pens' | 'draft'>): 
 }
 
 /**
- * Páry k rádlům (oxen.md – Kolik volů ves chce): `need` = kolik párů by letos stačilo zorat celý
- * osev. Když orba na plán setí nestačí (`need` nad páry, které ves má), ves páry **zvýší hned**
+ * Páry k rádlům (oxen.md – Kolik volů ves chce): `need` = kolik párů by letos stačilo zorat všechny
+ * díly na řadě (`ploughPairsForRotation`). Když orba na ně nestačí (`need` nad páry, které ves má), ves páry **zvýší hned**
  * (Martin 27. 10. 2026 k doplňování párů a rádel: „Nejen že smí, ale dokonce by měla“) – volné
  * páry osadí rádly a další vycvičí. Sníží je s hysterezí (návrh Clauda 20. 10. 2026): jen když
- * potřeba leží dva plány po sobě níž – na větší z obou potřeb; jeden slabší rok tak nezastaví
- * náhradu páru, který ves potřebuje (výcvik trvá 2 roky, pár slouží 10). Bez předchozího plánu se
- * loňská potřeba bere jako dnešní páry (pár na ohradu volů). Pod pojistkou zásob počítá `need`
- * i nutné díly mimo postup (`startSeason`).
+ * potřeba leží dva roky po sobě níž – na větší z obou potřeb; jeden slabší rok tak nezastaví
+ * náhradu páru, který ves potřebuje (výcvik trvá 2 roky, pár slouží 10). Bez loňského údaje se
+ * loňská potřeba bere jako dnešní páry (pár na ohradu volů).
  */
 export function nextPloughPairs(
   state: Pick<VillageState, 'pens' | 'draft'>,

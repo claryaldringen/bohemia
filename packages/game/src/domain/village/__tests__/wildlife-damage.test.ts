@@ -21,7 +21,7 @@ const at = (year: number, month: number, day: number): number => dayIndexOf({ ye
 const JUNE = at(600, 6, 1);
 
 /**
- * Ves 1. 6. 600 s hospodářským rokem: dva díly ozimu a tři díly jaře (nad potřebu), vše oseté;
+ * Ves 1. 6. 600 s hospodářským rokem: dva díly ozimu a tři díly jaře, vše oseté;
  * plocha dílů `areaM2` (zvěř se testuje přímo, ne přes práci vsi).
  */
 function juneVillage(areaM2 = 5000): VillageState {

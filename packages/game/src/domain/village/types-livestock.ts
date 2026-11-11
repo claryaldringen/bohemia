@@ -290,7 +290,7 @@ export interface DietDay {
 }
 
 /**
- * Jídlo z pole za hospodářský rok (fields.md – Kolik ves oseje, Osev podle stravy). Součty běží od
+ * Jídlo z pole za hospodářský rok (fields.md – Výhled zásob k sklizni, Osev podle stravy). Součty běží od
  * 1. 9. (začnou prvním 1. 9. po založení vsi, takže vždy pokrývají celý rok): potřeba energie
  * a z ní část, kterou nepokrylo maso, mléko a sýr, vejce a ovoce – tu musí dát pole (obilí
  * a luštěniny), i když ves zrovna hladověla. 1. 9. se z nich spočítá podíl uplynulého roku.

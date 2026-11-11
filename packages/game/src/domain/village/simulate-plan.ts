@@ -104,8 +104,8 @@ import { partsByIdOf } from './parts-by-id';
 export type DayOfYear = Readonly<Pick<CalendarDate, 'month' | 'day'>>;
 
 // Řemesla (crafts.md): pokrytí potřeby nástrojů a nádob se spočítá na začátku dne ze zásob
-// (`craftCoverage`) a posouvá všechny meze produktivity dne – plán osevu a přidané díly (polní
-// práce a vracení přílohu), denní minimum, ztráty zásob a jablka v nádobách. Domácnosti dílen
+// (`craftCoverage`) a posouvá všechny meze produktivity dne – práci dílů hospodářského roku
+// (polní práce a vracení přílohu), denní minimum, ztráty zásob a jablka v nádobách. Domácnosti dílen
 // pracují jen v dílně (`workCrafts`), polní ani společnou práci nedělají.
 
 /** Okno bonusu vymýceného lesa trvá roky × 365 dní. */
@@ -134,8 +134,8 @@ export function startSeason(
   coverage: CraftCoverage,
   landscape: Landscape | null,
 ): void {
-  // kolik jídla ves za uplynulý rok potřebovala z pole – podle toho potřeba úrody (fields.md –
-  // Osev podle stravy)
+  // kolik jídla ves za uplynulý rok potřebovala z pole – podle toho potřeba z pole ve výhledu
+  // zásob k sklizni (fields.md – Výhled zásob k sklizni, Osev podle stravy)
   closeFieldFoodYear(state);
   // díly jaře, kterou srpen nedosklidil, hospodářský rok končí, až jde do snopů – do té doby se
   // neorají pod ozim (`harvestLateSpring`; fields.md – Žeň jaře i v září)
@@ -827,7 +827,7 @@ export function ploughPairsForRotation(
   return Math.min(cap, Math.max(1, Math.ceil(pairs - EPSILON)));
 }
 
-/** Zbývající sklizeň jablek (září–říjen) – ves s ní při plánu osevu počítá (orchard.md). */
+/** Zbývající sklizeň jablek (září–říjen) – kapacita práce v oknech s ní počítá (orchard.md). */
 export function orchardHarvestLoad(state: VillageState): number {
   const work = state.orchardWork;
   return work?.task === 'harvest' ? orchardWorkRemaining(work) : 0;
@@ -882,7 +882,7 @@ export interface FieldTaskEntry {
 /**
  * Sezónní úloha dne v rozdělení práce: polní úloha, práce v sadech, seč sena nebo porážka. Řadí se podle konce okna; při
  * shodě sklizeň jablek a porážka (maso se musí zpracovat hned) před polními úlohami (jablka zrají
- * v září a do konce října spadnou – ozim dostane zbytek podzimu, se kterým plán osevu počítá),
+ * v září a do konce října spadnou – ozim dostane zbytek podzimu, se kterým kapacita práce počítá),
  * péče o sad a seč až po nich.
  */
 export interface DayTask {

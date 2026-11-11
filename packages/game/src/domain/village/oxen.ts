@@ -247,7 +247,7 @@ export function oxAgeYears(ox: Pick<Ox, 'trainedDay'>, day: number): number | nu
 }
 
 /**
- * Letošní práci plodin, které oraly páry volů – nutných i nad potřebu –, dokončí motyka: ves už
+ * Letošní práci plodin, které oraly páry volů, dokončí motyka: ves už
  * žádný pár s rádlem nemá (mutuje stav; oxen.md – Jen rádlo). Díly, které přibudou potom, kope
  * motyka (plodina bez orby).
  */

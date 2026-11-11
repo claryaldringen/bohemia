@@ -285,14 +285,14 @@ function pin(state: VillageState, day: number): void {
 }
 
 /**
- * Ves po `years` letech (každý rok po plánu osevu 2. 9.), vrací stavy po plánech. Zásoby obilí se
- * jako lidé drží na výchozí hodnotě a ves jí jen obilí (bez změřeného podílu jídla z pole) – osev
- * podle stravy a zásob (fields.md – Kolik ves oseje) tak dá oběma porovnávaným vsím stejný cíl rok
- * co rok, blízký dřívějšímu osevu; test měří pořadí osevu, ne kolik se oseje.
+ * Ves po `years` letech (každý rok 2. 9., den po začátku hospodářského roku), vrací stavy po
+ * 1. 9. Zásoby obilí se jako lidé drží na výchozí hodnotě a ves jí jen obilí (bez změřeného podílu
+ * jídla z pole) – obě porovnávané vsi tak mají rok co rok stejné podmínky; test měří pořadí osevu,
+ * ne kolik se oseje.
  */
 /**
- * Hráč staví – stavba bere všechnu práci, která zbude po potřebných úlohách, takže ves oseje jen
- * potřebný osev, ne osev navíc (fields.md – Osev navíc). Mutuje ves.
+ * Hráč staví – stavba bere všechnu práci, která zbude po polní práci (ta má přednost – fields.md,
+ * Osevní postup po dílech, bod 3). Mutuje ves.
  */
 function building<T extends { state: VillageState }>(v: T): T {
   v.state.constructions.push({
@@ -349,7 +349,7 @@ function reachableShare(state: VillageState, holdings: FieldHoldings): number {
 
 describe('ves hospodaří podle domů', () => {
   it('za 20 let osévá souvislé úseky od domu – méně roztříštěné než dřív', () => {
-    // hráč staví – ves oseje jen potřebné (osev navíc by obdělal celé pole)
+    // hráč staví – stavby dostanou jen práci, která zbude po polní práci
     const now = building(village(true));
     const before = building(village(false));
     const after = seasons(now.state, 20, true).slice(5);
@@ -366,8 +366,8 @@ describe('ves hospodaří podle domů', () => {
     const reachOld = mean(
       old.map((s) => reachableShare(withCells(s), villageHoldings(withCells(s)))),
     );
-    // ves seje na potřebu po růstu (fields.md – Osev podle růstu vsi) – víc dílů i dál od domu;
-    // postup dílu (dva osevy, pak aspoň 10 let úhoru – fields.md, Osevní postup po dílech) nechá
+    // ves seje všechny díly na řadě (fields.md – Osevní postup po dílech) – víc dílů i dál od domu;
+    // postup dílu (osevy do 70 %, pak příloh – fields.md, Přílohová soustava do roku 1100) nechá
     // blíž domu úhor (pastvinu), přes který se k osetým dílům dál chodí. Měří se obdělané díly
     // 31. 8. (25. 10. 2026: 0,146 proti 0,083 bez úseků; 0,49 v Úloze 3 měřilo 2. 9. přibrané
     // díly včetně neobdělaných, dřív se osévalo třikrát v řadě – 0,7). Ověření na Vlkově (plán
@@ -384,7 +384,7 @@ describe('ves hospodaří podle domů', () => {
   }, 120_000);
 
   it('práce jde po úsecích, v úseku od domu ven – kopání ozimu je předpona pořadí', () => {
-    // hráč staví – ves oseje jen potřebné, osev navíc ozim nezvětší ani nezmenší
+    // hráč staví – polní práce má přednost, stavby ozim nezvětší ani nezmenší
     const [end] = seasons(building(village()).state, 1, true);
     // díly přibývají po dávkách na čele práce (fields.md – Postup práce po dílech) – každá dávka
     // dne jde po úsecích, v úseku od domu ven

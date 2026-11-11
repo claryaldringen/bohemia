@@ -565,7 +565,7 @@ describe('orba rádlem', () => {
   });
 
   it('páry k rádlům zorají v oknech orby všechny díly na řadě – nejvýš OXEN.maxPairs', () => {
-    // fields.md – Osevní postup po dílech, Páry k rádlům: nutné i nad potřebu (návrh Clauda)
+    // fields.md – Osevní postup po dílech, Páry k rádlům: všechny díly na řadě (návrh Clauda)
     const day = at(600, 9, 1);
     const s = withOxen(withTeam(day));
     // dost lidí na všechny páry – jinak by počet párů omezila obsluha (test níž)
@@ -635,7 +635,7 @@ describe('orba rádlem', () => {
     // zásoby jen na pár měsíců – s velkými by ves podle zásob nic nezasela (fields.md – Osev podle
     // zásob)
     s.storesKg = 300;
-    // 1. 9. – plán osevu a první den orby (setí jde za zoranou částí od dalšího dne)
+    // 1. 9. – nový hospodářský rok a první den orby (setí jde za zoranou částí od dalšího dne)
     const sept = advanceVillage(s, at(600, 9, 1), null);
     const plan = sept.season!;
     expect(plan.ard).toBe(true);

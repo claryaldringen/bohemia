@@ -36,13 +36,13 @@
 //   založení se mezi vesnicemi rozprostře přes celý rok 500 (všechna roční období).
 // - Hráč staví zemnici, kdykoli může – kontroluje po každém kroku (týden, v dlouhých bězích
 //   4 týdny); poloha bez významu.
-// - 1. 9. (po plánu osevu) hráč založí nové díly, když pole – zakládané, připravené a oseté díly
-//   a přílohy s úrodností aspoň 0,7 – nepokryje potřebu celého oběhu: osev × (roky osevu + roky
+// - 1. 9. (na začátku hospodářského roku) hráč založí nové díly, když pole – zakládané,
+//   připravené a oseté díly a přílohy s úrodností aspoň 0,7 – nepokryje potřebu celého oběhu: osev × (roky osevu + roky
 //   přílohu) / roky osevu podle pravidel (od opravy podle rešerše 17. 10. 2026 16 / 3 ≈ 5,3,
 //   dřív 3,3), kde osev = úroda rok co rok se zásobami na pojistce (roční potřeba z pole
-//   a ztráty skladováním – `steadyHarvestKg`) / čistá úroda hektaru v průměru tří let osevu (tak
-//   osev vybírá i ves – od 19. 10. 2026 podle stravy a podle zásob, fields.md – Kolik ves oseje:
-//   potřeba z pole = podíl jídla z pole za uplynulý rok × roční potřeba).
+//   a ztráty skladováním – `steadyHarvestKg`) / čistá úroda hektaru v průměru tří let osevu (potřeba
+//   z pole = podíl jídla z pole za uplynulý rok × roční potřeba – fields.md, Výhled zásob
+//   k sklizni; ves sama seje všechny díly na řadě, kolik stihne – Osevní postup po dílech).
 // - Dílny hráč skriptu nestaví. Ves ale od 19. 10. 2026 kupuje výrobky řemeslníků u sousedů sama
 //   (crafts.md – Nákup u sousedů – 15. 11., když se to vyplatí) – pokrytí pak nemusí být 0.
 // - Hřbitov (cemetery.md): hráč ho založí hned po dostavění první zemnice – jeden čtverec 200 m
@@ -59,8 +59,8 @@
 //   nepřidává), měří zarůstání. Ustálené vzorce bez simulace: village-calculator.ts.
 //
 // Strava a dobytek (diet.md): hráč skriptu ohrady nestaví (orba ne), stáda rostou a porážka dává
-// maso samo. Zásoby po sklizni (obilí a luštěniny energií) se měří vůči cíli osevu podle zásob
-// (rok potřeby z pole, se kterou ves 1. 9. plánuje, a pojistka – fields.md, Osev podle zásob);
+// maso samo. Zásoby po sklizni (obilí a luštěniny energií) se měří vůči cílové zásobě
+// (rok potřeby z pole a pojistka – fields.md, Výhled zásob k sklizni);
 // informačně i v ročních potřebách z pole a zásoby obilí v ročních potřebách celé energie.
 // Hráč zakládá pole na úrodu rok co rok se zásobami na pojistce (`steadyHarvestKg`). Cíle
 // „nasycení ≥ 0,95“ a hlad měří energii (dost jídla – jako před stravou), nasycení se stravou
@@ -270,8 +270,8 @@ const PROBE_YEARS = 50;
 const PROBE_STEP_DAYS = 28; // sonda nestaví – stačí krok 4 týdny
 const PROBE_FROM_YEAR = 20; // ustálený oběh se měří od 20. roku
 const BAND = { low: 1, high: 1.5 }; // zásoby po sklizni v ročních potřebách (dřívější cíl)
-// zásoby z pole po sklizni vůči cíli osevu – rok potřeby z pole a pojistka (fields.md – Osev podle
-// zásob, návrh Clauda)
+// zásoby z pole po sklizni vůči cílové zásobě – rok potřeby z pole a pojistka (fields.md – Výhled
+// zásob k sklizni, návrh Clauda)
 const TARGET_BAND = { low: 0.8, high: 1.25 };
 const SATIATION_OK = 0.95;
 
@@ -456,7 +456,7 @@ interface RunResult {
   stopDay: number | null;
   rebuilds: { type: DwellingType; ageYears: number; early: boolean }[];
   minSatiation: Map<number, number>; // hospodářský rok (1. 9. – 31. 8.) → nejnižší nasycení
-  /** Rok sklizně → zásoby z pole po sklizni / roční potřeba z pole, se kterou ves plánuje osev. */
+  /** Rok sklizně → zásoby z pole po sklizni / roční potřeba z pole (výhled zásob k sklizni). */
   storesRatio: Map<number, number>;
   /**
    * Rok sklizně → zásoby z pole po sklizni / zásoba, kterou osev podle zásob po sklizni chce mít
@@ -676,7 +676,7 @@ function satiationOf(state: VillageState): number {
 const SPRING_START = { month: 3, day: 1 } as const;
 
 /**
- * Další konec kroku: nejvýš `stepDays` dní; sklizeň ozimu 31. 7., jaře 31. 8., plán 1. 9.
+ * Další konec kroku: nejvýš `stepDays` dní; sklizeň ozimu 31. 7., jaře 31. 8., nový hospodářský rok 1. 9.
  * a 1. 3. jsou vždy konce kroků – změny zásob po jídle tak padnou jen na konec kroku. Den před
  * 1. 3. je konec kroku kvůli kopání jaře, které stihl podzim (rezervy práce na jaře).
  */
@@ -966,7 +966,7 @@ function planFurrowM(state: VillageState): number {
   return area > 0 ? sum / area : 0;
 }
 
-/** 1. 9. po plánu osevu: osev, velikost pole a stav dílů (u sond). */
+/** 1. 9. na začátku hospodářského roku: osev, velikost pole a stav dílů (u sond). */
 function recordPlan(result: RunResult, after: VillageState, pinned: boolean): void {
   const day = after.lastDay;
   const sown = new Set(after.season ? seasonPartIds(after.season) : []);

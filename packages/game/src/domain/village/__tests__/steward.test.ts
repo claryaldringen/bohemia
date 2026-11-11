@@ -463,7 +463,7 @@ describe('den správce – dlouhý běh na skutečné krajině', () => {
   });
 
   it('Nouze jen při ohrožení – ves bez pojistky, které zásoby i s osivem do žní vystačí, je v Obnově', () => {
-    // ves po 3 letech, po plánu osevu – osivo ozimu a jaře na setí čeká; bez snopů (výmlat čeká
+    // ves po 3 letech, po 1. 9. – osivo ozimu a jaře na setí čeká; bez snopů (výmlat čeká
     // do zimy – fields.md, Pořadí důležitosti polních prací), zásoby jen vymlácené
     const s: VillageState = { ...atThree!, sheaves: { grainKg: 0, legumesKg: 0 } };
     const day = s.lastDay;

@@ -32,7 +32,7 @@ import { partsByIdOf } from './parts-by-id';
 // bez pozemku, modla a svatyně průnik půdorysu (vyklízené plochy) se čtvercem, jabloň a strom
 // u cesty TAKEN_LAND_TREE_M2 (`treeTakenLand`). Sad ustupuje jen obydlí – ostatní stavby na sad
 // dál nesmí. Odsud se to promítne do stavu vsi: díl pole nebo čtverec sadu se zmenší, pod
-// TAKEN_LAND_MIN_SHARE políčka zmizí celý; s plochou ubude úměrně i úroda a práce (plán osevu i s orbou rádlem, seč sena,
+// TAKEN_LAND_MIN_SHARE políčka zmizí celý; s plochou ubude úměrně i úroda a práce (hospodářský rok i s orbou rádlem, seč sena,
 // založení, výsadba, sezónní práce v sadech). Pole a sad, kterým nezbyl žádný čtverec, zaniknou;
 // zbytek zůstává jedním polem / sadem, i když se tím rozpadne na nesouvislé části.
 
@@ -198,7 +198,7 @@ export function landTakenWarning(
  * Pole (a u obydlí i sady) ustoupí stavbě `by` (mutuje stav – volat na klonu): každý díl pole
  * a u obydlí i čtverec sadu na políčku z `taken` se zmenší o zabranou plochu, pod
  * TAKEN_LAND_MIN_SHARE políčka zmizí celý. Sad ustupuje jen obydlí – ostatní stavby na sad
- * nesmí (nový sad na poli tak o své čtverce nepřijde). S plochou ubude úměrně práce a úroda – plán osevu i s orbou (`taskSpans` – díl drží
+ * nesmí (nový sad na poli tak o své čtverce nepřijde). S plochou ubude úměrně práce a úroda – hospodářský rok i s orbou (`taskSpans` – díl drží
  * svůj podíl hotové práce), seč sena na úhoru, rozestavěné založení pole a výsadba sadu (cena
  * i odvedená práce), sezónní práce v sadech a úroda jablek. Zmizelý zakládaný díl nebo
  * nevysazený čtverec předá své překážky stavbě – odklidí se se staveništěm bez práce navíc
@@ -236,7 +236,7 @@ export function giveWayToBuilding(
  * klonu): díl dostane plochu bez toho, co mu cesty berou podle `land` (pás cest, plácky rozcestí
  * a oddělené kousky – `roadLand`; díl, který v `land` není, nic). Co cesty braly dřív
  * (`FieldPart.roadM2`), se nejdřív vrátí – cesta, která zarostla nebo se přesunula, půdu vrátí
- * (zvětšený díl je obdělaný jako zbytek dílu). S plochou se úměrně změní plán osevu, seč
+ * (zvětšený díl je obdělaný jako zbytek dílu). S plochou se úměrně změní hospodářský rok, seč
  * a založení (`resizeParts`). Díl, kterému cesty vezmou tolik, že zbude méně než
  * TAKEN_LAND_MIN_SHARE políčka, zmizí celý (jako pod stavbou). Kronika `land-taken` (`by: 'road'`)
  * u polí, která se zmenšila.
@@ -293,7 +293,7 @@ function shrinkParts(
 
 /**
  * Díly polí dostanou novou plochu `areaOf` (null = beze změny, 0 = díl zmizí; mutuje stav): s plochou
- * se úměrně změní plán osevu i s orbou, seč sena a rozestavěné založení (`shrinkInPlan` – zmenšení
+ * se úměrně změní hospodářský rok i s orbou, seč sena a rozestavěné založení (`shrinkInPlan` – zmenšení
  * i zvětšení, vrácená půda je obdělaná jako zbytek dílu); zmizelý díl odejde z plánů, seče
  * i rozdělení práce a předá překážky. Vrátí změnu plochy po polích (ztráta kladně).
  */
@@ -452,7 +452,7 @@ const CARRIED_TASKS: ReadonlySet<PartTask> = new Set(['reclaim', 'plough', 'dig'
  * na kterém do konce okna nezačalo setí, jde do jaře (fields.md – Osevní postup po dílech, bod 2).
  * Díl si nese potřebnou i hotovou přípravu půdy (vrácení přílohu, orba, kopání – podle úseků
  * `taskSpans`, ne podle sazeb dne: zasetý díl by vrácení přílohu už neměl); setí a další práce
- * podle sazeb nové plodiny – v téže plodině (díl nad potřebu se stane nutným) si nese i je. Přesunuté díly jdou na začátek pořadí `to` (obdělávaly se napřed) –
+ * podle sazeb nové plodiny – v téže plodině si nese i je. Přesunuté díly jdou na začátek pořadí `to` (obdělávaly se napřed) –
  * součet hotové práce přes plodiny se nezmění. Plodiny s různým způsobem přípravy (orba proti
  * motyce) si přípravu nenesou.
  */

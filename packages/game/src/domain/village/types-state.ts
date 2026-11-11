@@ -437,7 +437,7 @@ export interface VillageState {
   /**
    * Na jaký podíl oděvu má ves len (0–1) – zapsaný při posledním trhání lnu, platí do dalšího
    * (fields.md – Len, diet.md – Oděv). Len není zásoba: v rámci roku se zpracuje v domácí práci.
-   * Chybí = dost (vsi uložené dřív a nové vsi do prvního trhání po plánu k 1. 9.).
+   * Chybí = dost (vsi uložené dřív a nové vsi do prvního trhání po začátku hospodářského roku 1. 9.).
    */
   linen?: number;
   /** Seno (oxen.md – Seno): zásoba, sečení a zima. Chybí = žádné. */
@@ -482,7 +482,7 @@ export interface VillageState {
   /** Jídlo posledního odsimulovaného dne – energie, pestrost a podíly (jen pro zobrazení). */
   diet?: DietDay;
   /**
-   * Kolik jídla ves potřebuje z pole (fields.md – Kolik ves oseje, Osev podle stravy): součty
+   * Kolik jídla ves potřebuje z pole (fields.md – Výhled zásob k sklizni, Osev podle stravy): součty
    * běžícího hospodářského roku a podíl uplynulého – podle něj ves oseje obilí a luštěniny. Chybí
    * u vsí uložených dřív a do prvního 1. 9. po založení (ves pak plánuje, jako by jedla jen obilí).
    */

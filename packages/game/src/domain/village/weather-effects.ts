@@ -255,7 +255,7 @@ export function bufferEnergyYearsOf(state: WeatherState, day: number, normal: nu
 }
 
 /**
- * 1. 9. před plánem osevu (mutuje stav): byl letošní rok krutý (kruté sucho, mokré žně, holomráz
+ * 1. 9. na začátku hospodářského roku (mutuje stav): byl letošní rok krutý (kruté sucho, mokré žně, holomráz
  * se zlým létem – `isCruelYear`), drží ves 10 let vyšší pojistku – paměť hladu (disasters.md –
  * Dopady, Zásoby a pojistka). Rok paměti počítá od příštího roku sklizně.
  */

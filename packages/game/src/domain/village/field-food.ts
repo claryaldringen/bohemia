@@ -41,7 +41,7 @@ export function fieldShareOf(diet: DietDay): number {
 }
 
 /**
- * Podíl potřeby energie, který ves plánuje z pole: dlouhodobý podíl (klouzavý průměr ročních
+ * Podíl potřeby energie, který ves čeká z pole: dlouhodobý podíl (klouzavý průměr ročních
  * podílů – `FieldFoodYear.longShare`; u vsi bez něj podíl uplynulého hospodářského roku), nejméně
  * FIELD_FOOD.minShare. Bez celého změřeného roku (starší ves, první rok po založení) 1 – jako by
  * jedla jen obilí (dřívější osev).
@@ -266,7 +266,7 @@ export function recordFieldFood(state: VillageState, needPerDay: number, diet: D
 }
 
 /**
- * 1. 9. před plánem osevu (mutuje stav): z celého uplynulého hospodářského roku spočítá podíl
+ * 1. 9. na začátku hospodářského roku (mutuje stav): z celého uplynulého hospodářského roku spočítá podíl
  * jídla z pole, posune o třetinu rozdílu dlouhodobý podíl (`longShare`) a začne nový rok. Ves bez
  * součtů je začne – podíl dostane až za rok (součty tak vždy pokrývají celý rok i se zimou bez
  * mléka a podzimem s ovocem).

@@ -173,7 +173,7 @@ describe('délka brázdy pásu přes cestu', () => {
     ).toBe(90);
   });
 
-  it('výkon orby plánu osevu z paměti – týž jako bez ní, se změnou dílů nebo cest se přepočte', () => {
+  it('očekávaný výkon orby z paměti – týž jako bez ní, se změnou dílů nebo cest se přepočte', () => {
     const land = { size: 64, cellSizeM: 15 } as Landscape;
     const across = state([
       road([

@@ -1,6 +1,6 @@
 // Skladba denního minima podle ročního období (population.md – Skladba dne podle ročního období;
 // Martin 9. 11. 2026: „v létě se nosí voda, v zimě se nosí dřevo – pokud je sníh, voda se nosit
-// nemusí“, „O žních … se omezuje i vaření“). Jedno místo pravdy pro práci dne, plán osevu, dílny
+// nemusí“, „O žních … se omezuje i vaření“). Jedno místo pravdy pro práci dne, kapacitu práce v oknech, dílny
 // a dvorec.
 
 import { dateOfDayIndex } from '../calendar';

@@ -174,7 +174,8 @@ function withinNatural(share: number, gain: number): number {
  * Luštěniny; len ji vyčerpá víc než obilí – fields.md, Len), příloh ji obnoví.
  */
 export function endOfSeason(part: FieldPart, day: number): void {
-  // příloh, ze kterého se díl loni vracel, už plán zkrátit nemůže (fields.md – Osev podle zásob)
+  // příloh, ze kterého se díl loni vracel – po konci hospodářského roku se díl už nevrací
+  // (`returnPart`)
   delete part.fallowBeforeSeason;
   if (part.state === 'sown') {
     // díl prošel orbou – drn louky založené rádlem je rozoraný (oxen.md – Jen rádlo)
@@ -227,8 +228,9 @@ export function isSowableFertility(p: FieldPart): boolean {
 }
 
 /**
- * Příloh pod 70 % přirozené úrodnosti, ale aspoň na 40 % – ves ho smí osít jen v nouzi, když díly
- * od 70 % nepokryjí potřebný osev (fields.md – Přílohová soustava, Nouzový osev). Pod 40 % díl
+ * Příloh pod 70 % přirozené úrodnosti, ale aspoň na 40 % – ves ho smí osít jen při skutečném
+ * nedostatku zrna do žní (fields.md – Přílohová soustava, Nouzový osev; Osevní postup po dílech,
+ * bod 3). Pod 40 % díl
  * leží, dokud se nezotaví. Opuštěný díl nikdy (fields.md – Opuštěný díl).
  */
 export function isEmergencyFallow(p: FieldPart): boolean {
@@ -262,30 +264,6 @@ export function expectedNetKg(part: FieldPart, day: number): number {
   return (
     (grossYieldPerHa(effectiveFertility(part, day)) - SEED_KG_PER_HA) * (part.areaM2 / M2_PER_HA)
   );
-}
-
-/**
- * Vybere díly k osevu v pořadí `sowingOrder`. Přidává, dokud očekávaná čistá úroda nepokryje
- * cíl, a nepřekročí `maxHa`. Díly nemění.
- */
-export function selectPartsToSow(
-  parts: FieldPart[],
-  targetKg: number,
-  maxHa: number,
-  day: number,
-): FieldPart[] {
-  const chosen: FieldPart[] = [];
-  let net = 0;
-  let ha = 0;
-  for (const p of sowingOrder(parts)) {
-    if (net >= targetKg) break;
-    const partHa = p.areaM2 / M2_PER_HA;
-    if (ha + partHa > maxHa + EPSILON) break;
-    chosen.push(p);
-    ha += partHa;
-    net += expectedNetKg(p, day);
-  }
-  return chosen;
 }
 
 /** Políčka sdílejí stranu. */
@@ -326,7 +304,7 @@ export function fieldsTouching(
  * Sloučí pole `others` do pole `into` (mutuje stav – fields.md, Navazující pole; Martin): díly
  * s nezměněným stavem (úrodnost, osev, příloh, plodina) přejdou do `into`, rozestavěná založení
  * se spojí do jedné stavby (nejstarší, s cenou a prací všech) a kronika i rozdělení práce dne
- * (cíl práce a stavba) odkazují na `into` a jeho stavbu; sloučená pole zmizí. Plán osevu vede
+ * (cíl práce a stavba) odkazují na `into` a jeho stavbu; sloučená pole zmizí. Hospodářský rok vede
  * díly, ne pole – nemění se. Jediné místo slučování: akce hráče (`foundField`) i převod starých
  * navazujících polí při načtení (`withMergedFields`).
  */

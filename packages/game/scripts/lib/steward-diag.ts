@@ -1,6 +1,6 @@
 // Diagnostika správce (plán úloh správce 1. 11. 2026, úloha 0): roční záznam každé vsi rodu
-// z kroků dopočtu `runDynasty` (`RunOptions.observe`) – lidé a věk, zásoby 1. 9., plán osevu
-// proti sklizni, osev v červnu po plodinách, kapacita setí v oknech, práce po činnostech, stavby
+// z kroků dopočtu `runDynasty` (`RunOptions.observe`) – lidé a věk, zásoby 1. 9., výhled zásob
+// k sklizni, osev v červnu po plodinách, kapacita setí v oknech, práce po činnostech, stavby
 // správce a jejich cena, režim, přelidnění a odchody. Hospodářský rok začíná 1. 9. (rok založení
 // vsi = 0). Jen čte stav – výsledek běhu nemění. Bez I/O.
 import { dateOfDayIndex } from '../../src/domain/calendar';

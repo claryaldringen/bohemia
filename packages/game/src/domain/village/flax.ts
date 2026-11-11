@@ -56,7 +56,7 @@ export function flaxAllowedIn(part: Pick<FieldPart, 'flaxYear'>, harvestYear: nu
 
 /**
  * Na jaký podíl oděvu má ves len (0–1) – zapsaný při posledním trhání. Vsi bez zápisu (uložené
- * dřív, nové do prvního trhání po plánu k 1. 9.) mají lnu dost.
+ * dřív, nové do prvního trhání po začátku hospodářského roku 1. 9.) mají lnu dost.
  */
 export function linenCoverage(state: Pick<VillageState, 'linen'>): number {
   return state.linen ?? 1;
@@ -70,8 +70,8 @@ export function linenUnhappiness(state: Pick<VillageState, 'linen'>): number {
 /**
  * Konec trhání lnu (31. 8., po jídle dne – mutuje stav): len letošního plánu jde z pole – úroda
  * podle vytrhané části (co srpen nevytrhal, propadne), počasí roku jako jař – a zapíše se, na jaký
- * podíl oděvu je (`VillageState.linen`) vůči potřebě zapsané v plánu k 1. 9. (`flaxNeedKg`). Plán
- * bez potřeby (ves založená během roku, plán z doby lnu na zahrádkách – fields.md, Zahrádka
+ * podíl oděvu je (`VillageState.linen`) vůči potřebě zapsané v hospodářském roce k 1. 9. (`flaxNeedKg`).
+ * Hospodářský rok bez potřeby (ves založená během roku, rok z doby lnu na zahrádkách – fields.md, Zahrádka
  * u obydlí) oděv nezapíše – platí dosavadní podíl. Když lnu nestačí, vrátí událost kroniky
  * `linen-short`.
  */

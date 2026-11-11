@@ -36,7 +36,7 @@ export const START_SEED_YEARS = 0.5;
 // osiva, pojistku ≥ 0,6 drží až 3 + 2 roky (hladové dny 2 114 → 789). Ves bez rodu a ves
 // z výpravy beze změny.
 export const FOUNDERS_STORES = { foodYears: 3, seedYears: 2, seedKeepYears: 15 } as const;
-// fields.md – Kolik ves oseje, Osev podle stravy (návrh Clauda, Martin schválil směr 19. 10. 2026):
+// fields.md – Výhled zásob k sklizni, Osev podle stravy (návrh Clauda, Martin schválil směr 19. 10. 2026):
 // potřeba z pole = podíl energie, který ves za uplynulý hospodářský rok potřebovala z obilí
 // a luštěnin, × dnešní roční potřeba; podíl nejméně minShare = 1 − strop masa (0,4) − strop
 // mléka a sýra (0,3) z diet.md – ovoce, vejce a med se do pojistky nepočítají (hlídá test)
@@ -54,11 +54,12 @@ export const FIELD_STORES = {
 } as const;
 // fields.md – Osevní postup po dílech, Postup práce po dílech (návrh Clauda v duchu Martina
 // 25. 10. 2026: „orají a sejí od začátku okna do konce okna všechno připravené, dokud stačí lidé
-// a spřežení“): nutné díly přibývají k práci po dávkách na čele – rozdělaná práce otevřených oken
+// a spřežení“): díly na řadě přibývají k práci po dávkách na čele – rozdělaná práce otevřených oken
 // (vrácení přílohu, kopání, orba, setí) nejvýš na tolik dní volné práce vsi (spřežení na tolik
 // dní orby); další díl přibude, až čelo dávku dodělá
 export const WORK_FRONT_DAYS = 3;
-// fields.md – Kolik ves oseje (návrh Clauda)
+// Kapacita práce v oknech (`sowingCapacity`) a tempo setí motykou (fields.md – Výhled zásob
+// k sklizni; návrh Clauda)
 export const PEAK_CAPACITY_SHARE = 1; // ve špičce smí jít na pole všechna práce po denním minimu (kalibrace z 0,8)
 // fields.md – Úroda (hrubá úroda na hektar podle úrodnosti)
 export const YIELD_BASE_KG_PER_HA = 760; // × (0,4 + 0,6 × úrodnost / 100)
@@ -75,7 +76,7 @@ export const SEED_KG_PER_HA = 175;
 // potřeby z pole a 1 nad ni).
 export const SEED_STORES = { marginDays: 1 } as const;
 // fields.md – Osivo ze zásob, Osivo pro ves bez zásob (Martin 27. 10. 2026: „ok, jak navrhuješ“;
-// čísla návrh Clauda): ves, které na setí nutných dílů v plánu chybí osivo, ho koupí u sousedů
+// čísla návrh Clauda): ves, které na setí dílů na řadě chybí osivo, ho koupí u sousedů
 // v den `days` – 1. 9. před setím ozimu, 1. 3. před setím jaře –, nejméně `minKg`. Koupené osivo
 // (i osivo osadníků – LEAVING.seedKgPerCarrier) ves nesní; co do `releaseDay` (1. 6. – po setí
 // jaře i s odkladem za počasí) nezaseje, je obyčejné zrno; rezerva nad osivo jaře se uvolní už
@@ -326,8 +327,7 @@ export const CROP_ORDER: readonly Crop[] = ['flax', 'winter', 'legume', 'spring'
  * (ženy a děti napřed – `allocateDay`, `womenFirst`; Martin 10. 11. 2026), nutná seč (1. seč
  * i otava), sklizeň jablek, pletí, příprava půdy a setí (vrácení přílohu s klučením, kopání, orba,
  * setí), noční hlídka polí, výmlat. Nutná otava (2. seč – oxen.md, Seno, dvě seče) hned za 1. sečí,
- * před orbou a setím ozimu (Martin 10. 11. 2026 – žeň → len → otava → orba a setí; dřív ~~otava až
- * po orbě a setí ozimu~~, 9. 11. 2026). Uvnitř skupiny nejbližší konec okna; v přípravě půdy orba
+ * před orbou a setím ozimu (Martin 10. 11. 2026 – žeň → len → otava → orba a setí). Uvnitř skupiny nejbližší konec okna; v přípravě půdy orba
  * rádlem první (oxen.md – Orba má přednost: spřežení potřebuje jen oráče, jinak voli stojí).
  * Návrh Clauda pro úlohy mimo seznam: porážka hned za výmlatem na jídlo (maso se musí zpracovat
  * hned), výmlat na osivo (THRESHING.seedDays – ve snopech zrno na setí není) před přípravou půdy,
@@ -499,7 +499,7 @@ export const APPLE_ROT_DAY = { month: 3, day: 1 } as const;
 // výsadba je 1. rokem sadu hned, podzimní (od září) až od příštího jara
 export const ORCHARD_SEASON = { startMonth: 3, autumnPlantingFromMonth: 9 } as const;
 
-// fields.md – Kolik ves oseje (k 1. září), Práce a Včasnost (sklizeň jaře v srpnu, co srpen
+// fields.md – Osevní postup po dílech (hospodářský rok od 1. září), Práce a Včasnost (sklizeň jaře v srpnu, co srpen
 // nestihne, v září – Žeň jaře i v září; ozimu a luštěnin v červenci, co červenec nestihne,
 // v srpnu – Žně i v srpnu; výmlat jaře září–říjen). Musí souhlasit s okny: HARVEST_DAY je poslední
 // den okna harvest ozimu, luštěnin a lnu a poslední den prvního měsíce okna jaře, WINTER_HARVEST_DAY

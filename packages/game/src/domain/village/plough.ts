@@ -3,7 +3,7 @@ import { withinBounds } from './productivity';
 import type { Bounds, FieldPart } from './types';
 
 // Orba rádlem – sazby a drn (oxen.md – Účinek na práci). Samostatný list bez závislostí na plánu,
-// aby ho mohl použít plán osevu (year-plan.ts) i ohrady (oxen.ts).
+// aby ho mohl použít hospodářský rok (year-plan.ts) i ohrady (oxen.ts).
 
 /**
  * oxen.md – Účinek na práci (návrh Clauda podle rešerše, Martin schválil): orba rádlem 10 → 6
