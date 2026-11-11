@@ -508,7 +508,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   karavan, pohřby a svatby – kdo vyjde z domu, když jsou všichni doma, se hýbe hned. Vlasce rybářů se překreslí, jen když se
   změní, kdo rybaří. Výběr: `scheduledState` – úloha a cesta (`leg` – „jde na pole“, „jde domů“
   v `person-activity.ts`) z rozběhnuté činnosti, i přes přelom dne; když vybraný zajde do domu
-  (byl od výběru venku), `onPersonState` ohlásí `indoors` a `VillageGame` / `DevVillagePreview`
+  (byl od výběru venku), `onPersonState` ohlásí `indoors` a `useSelection` / `DevVillagePreview`
   výběr zruší – **kromě vojvody** (role `voivode`, panel „doma“). Pryč `walkThen` při
   přeplánování (dojití na další čtverec – nahrazuje cesta ode dveří k nové práci).
   **Výběr spřežení a vozu** (villagers.md – Výběr spřežení a vozu; Martin 20. 10. 2026: „nešlo mi

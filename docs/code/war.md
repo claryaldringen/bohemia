@@ -1522,7 +1522,7 @@ Scéna hry ukazuje **mapu sídla hráče** – vojsko je v ní vidět, když na 
   mezipaměť `defenders` (klíč `ves@den`, web LRU 16).
 - **Web:** route `GET /api/war-scene/<sídlo>` (`lib/war-scene.ts`, `no-store`) → `{ war }`; cizí
   sídlo i mapa bez války = `{ war: null }`. `useWarScene` (web-ui.md – Dotazování na tažení)
-  a `sceneWarOf` (`lib/war-scene-view.ts`) → `LandscapeScene.setWar` ve `VillageGame`. Na vlastní
+  a `sceneWarOf` (`lib/war-scene-view.ts`) → `LandscapeScene.setWar` v `useWarWatch`. Na vlastní
   mapě bez závoje mlhy (svou zem hráč zná; cizí mimo dohled server neposlal), padlí do konce dne.
   Útěk `flightOf` – `planFlight` po okrajích lesa, `startMs = msOfTick(startTick)` (null → −∞,
   stojí u lesa), dobytek žene poslední, kdo z vsi vyšel (renderer – `drivenHerd` za ním); stádo
