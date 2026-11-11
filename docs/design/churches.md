@@ -93,6 +93,37 @@ okruhu jako jeho druhý typ; velký karolinský kostel na našem a slovenském �
   rozhraní jako 0 A.D., čísla u kurzoru). Kostel smí stát i na místě vykáceného posvátného háje
   (nespokojenost pohanů – [křesťanství](christianity.md)).
 
+### Rozhodnutí z implementace (stavba)
+
+Návrh Clauda (11. 11. 2026), čísla v `rules-masonry.ts`:
+
+- **Bez ceny předem** – kostel nic neplatí při zahájení, materiál vzniká prací vsi. Zablokuje ho jen
+  chybějící stavbyvedoucí huti, typ mimo okruh huti a ves bez lomu. Když ves nemá dost stromů,
+  kácí se, co je (jako u přestavby obydlí) – dřevo stavbu nezastaví.
+- **Kolik práce kostel dostane** – stejně jako ostatní stavby: společná práce vsi se dělí rovným
+  dílem mezi rozestavěné stavby. Mistři sami práci nepřidávají, jen ji vedou.
+- **Pořadí práce na kostele:** napřed kácení dřeva a odklizení staveniště, pak lámání kamene
+  a vápence a kopání písku do zásoby (strop = potřeba celé stavby), stavba pece, nakládání další
+  dávky vápna, základy, zdi, střecha po zdech, výzdoba po střeše. Zdivo smí růst jen do nejmenšího
+  podílu dodaného kamene, vápna a písku – bez vápeníka se zdi zastaví, dokud není vápno.
+- **Sezóna:** základy, zdi a nakládání vápna jen duben–říjen; lámání, písek, stavba pece, střecha
+  a výzdoba i v zimě. Dávka naložená v říjnu dohoří i v listopadu.
+- **Dřevo** na krov a pálení vápna se počítá v kládách po **100 kg** (kláda jako v obchodu);
+  kácí se celé před ostatní prací jako u ostatních staveb.
+- **Kámen** z hromad vsi se vezme při zahájení, zbytek a vápenec se lámou v nejbližším lomu za
+  sazbu lomu podle vzdálenosti. Písek z písníku u nejbližší vody bez příplatku za vzdálenost
+  (sazba 1,5 čd/m³ už donášku zahrnuje). Zrušená stavba vrátí nezazděný kámen na hromadu.
+- **Pec** stojí v západním rohu pásu hřbitůvku, dávka 3 t vápna, pálení 7 dní; další dávku lze
+  chystat během pálení.
+- **Dokončení:** po střeše je kostel dostavěný (kronika), výzdoba běží dál a dá den vyzdobení.
+  Bez štukatéra staveniště skončí hned po střeše.
+- **Zkušenost pomocníků:** za čd oboru dostanou dospělí vesničané, kteří ten den pracovali se vsí
+  (ne mistři, kněz ani elita), po 1 čd – nejdřív ti nejzkušenější v oboru; syn mistra od 12 let
+  v otcově domácnosti dostane 1 čd za každý den, kdy otcův obor na kostele pracoval.
+- **Natočení:** výchozí natočení 0 = kněžiště na východ, krok 15° (jako natočená pole).
+- Kalibrace: malá rotunda (Ø 6,5 × 6 m) v zakládající vsi s hutí a lomem 300 m daleko má střechu
+  za ≈ 1 rok a 9 měsíců (≈ 1 470 čd i s kácením dřeva).
+
 ## Scéna
 
 Model kostela se skládá z rozměrů (loď, apsidy nebo kněžiště, boční lodě a atrium baziliky,

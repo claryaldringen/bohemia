@@ -59,6 +59,35 @@ export type ChurchDims =
 /** Práce na kostele po druzích (churches.md – Stavba); každý druh vede mistr `CHURCH_WORK_CRAFT`. */
 export type ChurchWork = 'foundation' | 'quarry' | 'lime' | 'sand' | 'walls' | 'roof' | 'decor';
 
+/**
+ * Staveniště kostela (churches.md – Stavba; `Construction.church`): typ a rozměry, hotová práce po
+ * druzích a stav pece. Dodaný kámen, vápenec a písek se odvodí z hotové práce (`churchMaterials`),
+ * vápno je vypálené celkem (i zazděné).
+ */
+export interface ChurchSite {
+  readonly type: ChurchType;
+  readonly dims: ChurchDims;
+  /** Hotová práce po druzích (čd); `lime` i se stavbou pece. */
+  done: Partial<Record<ChurchWork, number>>;
+  /** Vypálené vápno celkem (t), i to, které už je ve zdivu. */
+  limeT: number;
+  /** Stavba pece (čd, nejvýš `LIME.kilnBuildManDays`). */
+  kilnDone: number;
+  /** Dávka v peci (t vápna) a den, kdy je vypálená; mimo pálení chybí. */
+  burnT?: number;
+  burnUntilDay?: number;
+  /** Zahloubená pec u staveniště (v pásu hřbitůvku) a písník u nejbližší vody. */
+  readonly kiln: { readonly x: number; readonly z: number };
+  readonly sandPit: { readonly x: number; readonly z: number };
+  /** Lom (id skalního výchozu), odkud se láme kámen a vápenec, a čd na m³ i s dovozem. */
+  readonly quarryId: number;
+  readonly quarryManDaysPerM3: number;
+  /** Kámen z hromad vsi při zahájení (m³); zbytek se láme v lomu. */
+  readonly stoneFromPileM3: number;
+  /** Příprava staveniště – kácení dřeva stavby a odklizení překážek (čd); jde před vším. */
+  readonly prepManDays: number;
+}
+
 /** Cena kostela z objemu zdiva (churches.md – Velikost a cena). */
 export interface ChurchCost {
   /** Objem zdiva včetně základů, m³. */

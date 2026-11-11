@@ -8,6 +8,8 @@ import {
   type DwellingType,
   type FieldSurface,
   type PenSpecies,
+  type ChurchDims,
+  type ChurchType,
   type Position,
   type SacredBuildingKind,
   type SquareGrid,
@@ -150,6 +152,15 @@ export interface PlacementVillage {
    * (`threshingFloorFootprint`). Bez údaje žádná.
    */
   readonly threshingFloors?: readonly { readonly position: Position }[];
+  /**
+   * Kostely i rozestavěné (churches.md – Stavba) – zabírají obdélník hřbitůvku
+   * (`churchyardWorld`). Bez údaje žádné.
+   */
+  readonly churches?: readonly {
+    readonly type: ChurchType;
+    readonly dims: ChurchDims;
+    readonly position: Position;
+  }[];
   /**
    * Pokrytí nástroji 0–1 (crafts.md) – cena založení pole a povrch čtverce (křoviny) podle mezí
    * produktivity. Bez údaje 0 (ves bez kováře).

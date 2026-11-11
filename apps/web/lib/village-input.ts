@@ -9,6 +9,8 @@ import {
   PLOT_VARIANTS,
   TRADE_GOOD_VALUES,
   type Craft,
+  type ChurchDims,
+  type ChurchType,
   type MasonCraft,
   type MasonryCircle,
   MASON_CRAFTS,
@@ -441,6 +443,41 @@ export function parsePlaceThreshingFloorInput(value: unknown): { position: Posit
   if (!isRecord(value)) return null;
   const position = parsePosition(value.position);
   return position !== null ? { position } : null;
+}
+
+const CHURCH_TYPES: readonly ChurchType[] = ['chancel', 'basilica', 'apse', 'rotunda'];
+
+/** Kladné konečné číslo (m), jinak null. */
+function parseMeters(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+/** Rozměry lodi kostela – kruhová (`round`) nebo obdélná (`long`), kladné míry; jinak null. */
+export function parseChurchDims(value: unknown): ChurchDims | null {
+  if (!isRecord(value)) return null;
+  const height = parseMeters(value.height);
+  if (height === null) return null;
+  if (value.kind === 'round') {
+    const diameter = parseMeters(value.diameter);
+    return diameter !== null ? { kind: 'round', diameter, height } : null;
+  }
+  if (value.kind !== 'long') return null;
+  const width = parseMeters(value.width);
+  const length = parseMeters(value.length);
+  return width !== null && length !== null ? { kind: 'long', width, length, height } : null;
+}
+
+/** Vstup stavby kostela `{ type, dims, position }` (meze rozměrů ořízne doména), jinak null. */
+export function parsePlaceChurchInput(
+  value: unknown,
+): { type: ChurchType; dims: ChurchDims; position: Position } | null {
+  if (!isRecord(value)) return null;
+  const { type } = value;
+  if (typeof type !== 'string' || !(CHURCH_TYPES as readonly string[]).includes(type)) return null;
+  const dims = parseChurchDims(value.dims);
+  const position = parsePosition(value.position);
+  if (dims === null || position === null) return null;
+  return { type: type as ChurchType, dims, position };
 }
 
 /** Vstup lámání do zásoby `{ outcropId, m3 }` (celá čísla, m³ kladné), jinak null. */

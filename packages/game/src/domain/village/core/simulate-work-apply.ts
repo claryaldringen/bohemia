@@ -31,7 +31,8 @@ import { workOrchards } from '../buildings/orchard';
 import { guestLaborToday } from '../people/people';
 import { workExpeditions } from '../trade/trade';
 import { CARTS, CART_JOBS } from '../rules';
-import type { Construction, CropWork } from '../types';
+import type { ChurchWork, Construction, CropWork } from '../types';
+import { churchCraftWork, churchMorning, gainMasonryXp } from '../buildings/church-build';
 import { seedKeepKg, takeSeed } from '../fields/seed';
 import { addCropTaskWork, cropTaskDone, cropTaskRemaining, type CropTask } from './year-plan';
 import { payWatch } from '../wildlife/wildlife-damage';
@@ -374,6 +375,9 @@ function buildDay(
   const { state, day, coverage, landscape, daylight, demand } = ctx;
   const { access } = carts;
   const { households, repairNeeds, repairNeed, productivity, resting } = people;
+  // kostely (churches.md – Stavba): vypálené vápno ráno, hotová práce před stavbami pro zkušenost
+  // pomocníků; ves bez kostela nic
+  const churchesBefore = churchSitesBefore(state, day);
   const guestLabor = guestLaborToday(state, day) * daylight;
   const corvee = guestLabor > EPSILON ? build(state, day, guestLabor, 0, 'fortification') : [];
   if (guestLabor > EPSILON) {
@@ -384,6 +388,9 @@ function buildDay(
     woodworkToday(state, day, common + extra),
   );
   const constructions = build(state, day, common + help.labor, help.coverage);
+  if (churchesBefore) {
+    gainMasonryXp(state, churchCraftWork(state, churchesBefore), day, people.villagers);
+  }
   if (access) {
     const felled = logsDemand(fellingBefore);
     demand.road += felled.road;
@@ -409,6 +416,21 @@ function buildDay(
   });
   decayEmptyDwellings(state, day, new Set(households.map((d) => d.id)));
   return { corvee, help, constructions, repairs, freeLabor };
+}
+
+/**
+ * Ráno staveniště kostelů (`churchMorning`) a jejich hotová práce před stavbami dne (podle id
+ * stavby); ves bez kostela null a stav nemění.
+ */
+function churchSitesBefore(
+  state: WorkDay['state'],
+  day: number,
+): Map<number, Partial<Record<ChurchWork, number>>> | null {
+  if (!state.constructions.some((c) => c.church)) return null;
+  churchMorning(state, day);
+  const before = new Map<number, Partial<Record<ChurchWork, number>>>();
+  for (const c of state.constructions) if (c.church) before.set(c.id, { ...c.church.done });
+  return before;
 }
 
 /**

@@ -52,6 +52,7 @@ import { foundingCostPerHa } from '../core/productivity';
 import { kilnCircle } from '../crafts/charcoal';
 import { pointsBounds, squareCenter, squareKey } from './square-grid';
 import { threshingFloorFootprint } from '../fields/threshing-floors';
+import { churchyardWorld } from './church-plot';
 import {
   M2_PER_HA,
   OK,
@@ -261,6 +262,11 @@ export function checkFootprintFree(
   // humno – mlatová plocha s přístřeškem (production-chains.md – Humno)
   for (const f of village.threshingFloors ?? []) {
     if (overlaps([threshingFloorFootprint(f.position)])) return fail('Překrývá se s humnem.');
+  }
+  // kostel s hřbitůvkem i rozestavěný (churches.md – Stavba)
+  for (const c of village.churches ?? []) {
+    if (overlaps([churchyardWorld(c.type, c.dims, c.position)]))
+      return fail('Překrývá se s kostelem.');
   }
   // pás opevnění (fortifications.md – Obvod): hotové úseky a díly, na kterých běží stavba
   for (const f of village.fortifications ?? []) {

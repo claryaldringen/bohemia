@@ -2,6 +2,7 @@
 // Rozcestník je `types.ts`; tento soubor jen drží část typů.
 
 import type { Craft } from './types-crafts';
+import type { ChurchSite } from './types-masonry';
 import type { FortBuildWork, FortSegmentWork } from '../fortification/types';
 import type { WallKind } from './types-fortifications';
 import type { AbandonedStructure, Crop, UsableStructure } from './types-land';
@@ -49,7 +50,9 @@ export type ConstructionKind =
   /** Lom na skalním výchozu `quarryOutcrop` (fortifications.md – Kámen) – poloha v `position`. */
   | 'quarry'
   /** Lámání `stoneOrderM3` m³ kamene do zásoby v lomu `quarryOutcrop` (fortifications.md – Kámen). */
-  | 'quarrying';
+  | 'quarrying'
+  /** Kostel (churches.md – Stavba) – typ, rozměry a postup v `church`, střed lodi v `position`. */
+  | 'church';
 /**
  * Co může vzít půdu poli (fields.md – Pole jako krajina; Martin 18. 10. 2026): obydlí (i dílna),
  * sad, hřbitov, ohrada, modla, svatyně, jabloně u cesty a stromy u cesty – cokoli kromě pole.
@@ -68,7 +71,9 @@ export type LandTaker =
   /** Humno (production-chains.md – Humno). */
   | 'threshing-floor'
   /** Val s příkopem (fortifications.md – Obvod: val díl pole nebo sadu pod sebou vezme). */
-  | 'fortification';
+  | 'fortification'
+  /** Kostel s hřbitůvkem (churches.md – Stavba). */
+  | 'church';
 /** Posvátná stavba, kterou staví hráč (happiness.md). */
 export type SacredBuildingKind = 'idol' | 'shrine';
 /**
@@ -198,6 +203,8 @@ export interface Construction {
   stoneOrderM3?: number;
   /** Kámen, který stavba hradby vzala z hromad (m³) – zrušení vrátí nezabudovaný podíl. */
   stoneFromPile?: number;
+  /** Staveniště kostela (churches.md – Stavba); jen u stavby `church`. */
+  church?: ChurchSite;
 }
 /**
  * Oprava stavby (abandonment.md – Oprava): druh a id stavby (modla a svatyně – id stavby,

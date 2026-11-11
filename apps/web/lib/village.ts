@@ -49,6 +49,7 @@ import {
   placeSacredBuilding,
   placeThreshingFloor,
   placeQuarry,
+  placeChurchForVillage,
   orderStoneQuarrying,
   inviteLodgeForVillage,
   inviteMasterForVillage,
@@ -64,6 +65,8 @@ import {
   type VillageAction,
   type VillageRight,
   type Craft,
+  type ChurchDims,
+  type ChurchType,
   type MasonCraft,
   type MasonryCircle,
   type DwellingPlot,
@@ -688,6 +691,23 @@ export function placeQuarryForPlayer(
 ): Promise<VillageActionResult> {
   return actOn(playerId, villageId, 'placeQuarry', (ctx) =>
     placeQuarry(
+      { villages: villages() },
+      { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
+    ),
+  );
+}
+
+/**
+ * Kostel (churches.md – Stavba): typ okruhu huti, rozměry lodi, střed a natočení osy vstup →
+ * kněžiště – bez ceny předem; huť, lom a místo ověří use-case.
+ */
+export function placeChurchForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { type: ChurchType; dims: ChurchDims; position: Position },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, 'placeChurch', (ctx) =>
+    placeChurchForVillage(
       { villages: villages() },
       { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
     ),

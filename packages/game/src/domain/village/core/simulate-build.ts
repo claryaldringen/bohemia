@@ -60,6 +60,13 @@ import {
   woodSupply,
 } from '../forest/wood';
 import { finishQuarry, finishQuarrying } from '../fortification/state/quarry';
+import {
+  churchNeedToday,
+  churchWorkDay,
+  finishChurch,
+  finishChurchRoof,
+  isChurchFinished,
+} from '../buildings/church-build';
 import { fieldGridOf } from '../placement/squares';
 import { stewardReplace } from '../steward/steward-rebuild';
 import { isStewardBuilt, markStewardBuilt } from '../steward/steward-state';
@@ -111,6 +118,8 @@ export function constructionNeed(
   if (c.kind === 'repair') return repairNeed(state, c);
   // bourání stavby, která mezitím zanikla, práci nebere (demolition.md – Bourání)
   if (c.kind === 'demolition') return demolitionNeed(state, c);
+  // kostel – co dnes stihnou mistři, kteří jsou ve vsi (churches.md – Stavba)
+  if (c.kind === 'church') return churchNeedToday(state, c, day);
   if (c.kind !== 'field') return Math.max(0, c.cost - c.done);
   return foundingParts(founding, c).reduce((sum, p) => sum + clearingNeedToday(p, day), 0);
 }
@@ -262,6 +271,12 @@ export function invest(
     workRepair(state, c, amount, completes);
     return;
   }
+  if (c.kind === 'church') {
+    // příprava staveniště (kácení napřed – forest.md), pak práce mistrů po druzích
+    churchWorkDay(state, c, amount, day);
+    fellAsWorked(state, c, day);
+    return;
+  }
   if (c.kind !== 'field') {
     c.done = completes ? c.cost : Math.min(c.cost, c.done + amount);
     // dřevo se kácí jako první část práce stavby (forest.md)
@@ -353,6 +368,7 @@ export function isFinished(state: VillageState, c: Construction, founding: Found
   if (c.kind === 'orchard') return isOrchardPlanted(state, c);
   if (c.kind === 'repair') return isRepairFinished(state, c);
   if (c.kind === 'demolition') return isDemolitionFinished(state, c);
+  if (c.kind === 'church') return isChurchFinished(state, c);
   return c.done >= c.cost;
 }
 
@@ -370,8 +386,16 @@ export function finishConstructions(state: VillageState, day: number): void {
   /** Staré domy nahrazené správcem – po přestěhování se zbourají. */
   const replaced: number[] = [];
   for (const c of state.constructions) {
+    // kostel je hotový po střeše, staveniště běží dál na výzdobě (churches.md – Stavba)
+    if (c.kind === 'church' && finishChurchRoof(state, c, day)) {
+      state.chronicle.push(finishedEvent(day, c, null));
+    }
     if (!isFinished(state, c, founding)) {
       unfinished.push(c);
+      continue;
+    }
+    if (c.kind === 'church') {
+      finishChurch(state, c, day);
       continue;
     }
     inheritStewardMark(state, c);

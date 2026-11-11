@@ -37,6 +37,9 @@ import {
 } from '../placement/placement-sacred';
 import { forestEdgeDistanceM, waterDistanceM } from '../placement/placement-squares';
 import { startQuarry } from '../fortification/state/quarry';
+import { churchStartProblem, snapChurchRotation, startChurch } from './church-build';
+import { clampChurchDims } from './church-geometry';
+import { checkChurchPlacement } from '../placement/placement-church';
 import type { DwellingPlacementCheck } from '../placement/placement-types';
 import {
   placementVillageOf,
@@ -69,6 +72,8 @@ import type {
   WallKind,
   PenSpecies,
   Position,
+  ChurchDims,
+  ChurchType,
   SacredBuildingKind,
   SquareGrid,
   TileCell,
@@ -195,6 +200,14 @@ export interface QuarryIntent {
   position: Position;
 }
 
+/** Kostel s hřbitůvkem (churches.md – Stavba): typ okruhu huti, rozměry lodi, střed a natočení osy. */
+export interface ChurchIntent {
+  kind: 'church';
+  type: ChurchType;
+  dims: ChurchDims;
+  position: Position;
+}
+
 /** Nové pole ze čtverců (fields.md). */
 export interface FieldIntent {
   kind: 'field';
@@ -270,6 +283,7 @@ export type BuildIntent =
   | SacredIntent
   | ThreshingFloorIntent
   | QuarryIntent
+  | ChurchIntent
   | FieldIntent
   | OrchardIntent
   | CemeteryIntent
@@ -401,6 +415,8 @@ function applyIntent(
       return buildThreshingFloor(state, day, landscape, obstacles, intent, place);
     case 'quarry':
       return startQuarry(state, day, obstacles, intent.position);
+    case 'church':
+      return buildChurch(state, day, landscape, obstacles, intent, place);
     case 'field':
       return buildField(state, day, landscape, obstacles, intent, place);
     case 'orchard':
@@ -694,6 +710,40 @@ function buildThreshingFloor(
     if (error instanceof RangeError) return { ok: false, reason: NO_WOOD };
     throw error;
   }
+}
+
+/**
+ * Kostel (churches.md – Stavba): bez ceny předem – napřed huť, typ okruhu a lom
+ * (`churchStartProblem`), pak místo (`checkChurchPlacement`, natočení po 15°).
+ */
+function buildChurch(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer,
+  intent: ChurchIntent,
+  place: () => PlacementVillage,
+): BuildResult {
+  const problem = churchStartProblem(state, intent.type);
+  if (problem) return { ok: false, reason: problem };
+  const dims = clampChurchDims(intent.type, intent.dims);
+  const position = { ...intent.position, rotation: snapChurchRotation(intent.position.rotation) };
+  const check = checkChurchPlacement(landscape, place(), intent.type, dims, position, obstacles);
+  if (!check.ok) return { ok: false, reason: check.reason ?? 'Sem kostel nepatří.' };
+  return startChurch(
+    state,
+    day,
+    landscape,
+    obstacles,
+    { type: intent.type, dims, position },
+    {
+      obstacleCost: check.obstacleCost,
+      obstacleIds: check.obstacleIds,
+      clearedTrees: check.clearedTrees,
+      takenLand: check.takenLand,
+      walk: villageRoadWalk(state, landscape),
+    },
+  );
 }
 
 /** Nové pole ze čtverců – díly se měří od obydlí; posvátné duby a háje vesničané nechají stát. */

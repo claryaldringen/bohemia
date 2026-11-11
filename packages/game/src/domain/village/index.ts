@@ -150,6 +150,13 @@ export * from './core/migrations';
 export * from './core/inbox';
 export * from './people/appoint-lord';
 export * from './people/lodge';
+export * from './buildings/church-build';
+export * from './buildings/church-geometry';
+export {
+  checkChurchPlacement,
+  churchyardWorld,
+  type ChurchPlacementCheck,
+} from './placement/placement-church';
 export * from './placement/polygon';
 export * from './placement/placement';
 export * from './buildings/dwelling-shape';

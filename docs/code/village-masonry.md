@@ -49,3 +49,50 @@ Typy: `types/types-masonry.ts` (`ChurchType`, `ChurchDims`, `ChurchCost`, `Churc
 - **Obrys ve světě:** `churchFootprintWorld(type, dims, position)` – vnější obrysy částí (kruh
   24úhelník, půlkruh 12 úseků), otočené o `position.rotation` (x = ose vstup → kněžiště) a
   posunuté; jen `detSin` / `detCos` z `landscape/det-math.ts`.
+
+## Stavba kostela
+
+Doména `buildings/church-build.ts` (testy `buildings/__tests__/church-build.test.ts`), umístění
+`placement/placement-church.ts` a `placement/church-plot.ts`, use-case `application/place-church.ts`.
+
+- **Stav:** `ConstructionKind` `'church'`, `Construction.church` (`ChurchSite` v
+  `types/types-masonry.ts`): typ, rozměry, `done` po druzích `ChurchWork`, vypálené vápno `limeT`,
+  pec (`kilnDone`, dávka `burnT` do `burnUntilDay`), poloha pece (`kiln`, západní roh pásu
+  hřbitůvku) a písníku (`sandPit` – `nearestWater`), lom `quarryId` a `quarryManDaysPerM3`
+  (`quarryManDaysPerM3` vzdálenosti z `nearestQuarry`), kámen z hromad `stoneFromPileM3`, příprava
+  `prepManDays` (kácení dřeva stavby + překážky). Dodaný kámen, vápenec a písek se odvodí z hotové
+  práce (`churchMaterials`), postup částí 0–1 `churchProgress` (základy, zdi, střecha, výzdoba).
+- **Zahájení:** `applyBuildIntent` s `ChurchIntent` → `churchStartProblem` (`CHURCH_NO_LODGE` bez
+  stavbyvedoucího, `CHURCH_WRONG_TYPE` mimo `churchTypesFor`, `CHURCH_NO_QUARRY` bez lomu) →
+  `checkChurchPlacement` → `startChurch`. Bez ceny předem; dřevo `woodKg` ÷ `CHURCH.woodKgPerLog`
+  klád (`planWoodFrom`; chybějící stromy stavbu nezastaví), kámen z hromad (`takeStone`), natočení
+  `snapChurchRotation` (krok `ROTATION_STEP`), výchozí `CHURCH_EAST_ROTATION` = 0 (osa vstup →
+  kněžiště = místní +x, východ = světové +x jako `DIRECTION_VECTORS`).
+- **Umístění:** `checkChurchPlacement` – terén pod kostelem (`checkFootprintTerrain` „Kostel“),
+  obdélník hřbitůvku `churchyardWorld` volný (`checkFootprintFree`, pole smí – `takenLand`, díly se
+  zmenší přes `giveWayToBuilding` s `LandTaker` `'church'`), výchoz a posvátná místa jako u humna,
+  les a překážky v obdélníku do `obstacleCost`. Kostely i staveniště jsou v `PlacementVillage.churches`
+  (`placementVillageOf`) – stavby přes ně „Překrývá se s kostelem.“, čtverce polí, sadů a hřbitovů
+  `SquareProblems.church`.
+- **Práce dne:** kostel bere ze společné práce jako ostatní stavby (`build` – `constructionNeed`
+  → `churchNeedToday`, `invest` → `churchWorkDay`). Uvnitř napřed příprava (kácení – `fellAsWorked`,
+  překážky), pak `allocate` v pořadí: lámání (kameník), písek (stavbyvedoucí), pec a nakládání další
+  dávky vápna (vápeník; jen v `CHURCH.season` a z vylámaného vápence), základy a zdi (zedník, jen
+  v sezóně; podíl zdiva nejvýš nejmenší podíl dodaného kamene, vápna a písku), střecha po zdech
+  (stavbyvedoucí), výzdoba po střeše (štukatér). Bez stavbyvedoucího nic (`churchNeedToday` 0).
+  Potřeba dne = `allocate` s neomezenou prací bez zápisu – rozdělení i potřeba počítají totéž.
+  `churchMorning` (ráno v `buildDay`, `core/simulate-work-apply.ts`) přičte vypálenou dávku a naloženou dávku v sezóně dá do volné pece –
+  pálení doběhne i v zimě a v den bez práce. `churchBlocked` – obor, jehož mistr chybí (panel).
+- **Zkušenost:** `buildDay` si před stavbami zapamatuje `done` kostelů (`churchSitesBefore`),
+  po nich `churchCraftWork` (čd po oborech `CHURCH_WORK_CRAFT`) → `gainMasonryXp(state, byCraft,
+day, villagers)`: učni (synové mistra od `LODGE.apprenticeFromAge` v jeho domácnosti) 1 čd, pak
+  po 1 čd dospělým z `villagersToday` (ne mistři, kněz, elita) od nejzkušenějších v oboru.
+- **Dokončení:** `finishConstructions` – po střeše `finishChurchRoof` přidá `Church` do
+  `VillageState.churches` (id = id stavby, `finishedDay`) a kroniku `construction-finished`;
+  staveniště končí (`isChurchFinished`) po výzdobě (`finishChurch` – `decoratedDay`), nebo hned bez
+  štukatéra. Zrušení vrátí nezazděný kámen (`returnChurchStone`). Ves bez kostela nic z toho
+  nespouští (zlatý otisk beze změny).
+- **Web:** `placeChurchForPlayer` (`apps/web/lib/village.ts`, právo `placeChurch` = `build`),
+  server action `placeChurch`, vstup `parsePlaceChurchInput` / `parseChurchDims`
+  (`lib/village-input.ts`). Kalibrace testu: rotunda Ø 6,5 × 6 v zakládající vsi s hutí a lomem
+  300 m (≈ 1 470 čd i s přípravou) má střechu za 647 dní a výzdobu za 670 dní.

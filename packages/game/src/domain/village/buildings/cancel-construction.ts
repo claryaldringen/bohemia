@@ -1,3 +1,4 @@
+import { returnChurchStone } from './church-build';
 import { validateActionDay } from '../core/actions';
 import { refundHorsePen } from '../livestock/horse-pen-payment';
 import { villageCemeteries } from './cemetery';
@@ -85,6 +86,9 @@ function dropSite(next: VillageState, c: Construction): void {
   } else if (c.kind === 'fortification') {
     // hotové úseky stojí, nehotové zmizí (fortifications.md – Cena a stavba)
     dropFortificationWork(next, c);
+  } else if (c.kind === 'church') {
+    // nezazděný kámen staveniště se složí na hromadu (churches.md – Stavba; návrh Clauda)
+    returnChurchStone(next, c);
   }
 }
 
