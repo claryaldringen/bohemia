@@ -5,6 +5,9 @@ ALTER TABLE "village" ALTER COLUMN "asleep" DROP EXPRESSION;--> statement-breakp
 ALTER TABLE "village" ADD COLUMN "state_day" "bytea";--> statement-breakpoint
 ALTER TABLE "village" ADD COLUMN "state_land" "bytea";--> statement-breakpoint
 ALTER TABLE "village" ADD COLUMN "land_hash" text;--> statement-breakpoint
+-- části stavu komprimuje kodek (zstd) – TOAST je jen uloží mimo řádek, znovu nekomprimuje
+ALTER TABLE "village" ALTER COLUMN "state_day" SET STORAGE EXTERNAL;--> statement-breakpoint
+ALTER TABLE "village" ALTER COLUMN "state_land" SET STORAGE EXTERNAL;--> statement-breakpoint
 ALTER TABLE "village" ADD COLUMN "origin" text;--> statement-breakpoint
 ALTER TABLE "village" ADD COLUMN "refuge_ref_id" text;--> statement-breakpoint
 ALTER TABLE "village" ADD COLUMN "refuge_host_village_id" text;--> statement-breakpoint

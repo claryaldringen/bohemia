@@ -2,12 +2,7 @@ import { readFileSync } from 'node:fs';
 import { zstdDecompressSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { advanceVillage, dayIndexOf, foundVillage, type VillageState } from '@bohemia/game';
-import {
-  LAND_KEYS,
-  LAND_SUBKEYS,
-  decodeVillageState,
-  encodeVillageState,
-} from '../village-state-codec';
+import { LAND, decodeVillageState, encodeVillageState } from '../village-state-codec';
 
 const DAY = dayIndexOf({ year: 503, month: 4, day: 12 });
 
@@ -70,16 +65,23 @@ describe('kodek stavu vsi', () => {
     ]);
   });
 
-  it('zem nese jen klíče země a vyjmenované podklíče `roads`', () => {
+  it('zem nese jen klíče země a vyjmenované podklíče – i o dvě úrovně níž', () => {
     const state = asState({
       parts: [1],
       felledTrees: [2],
       roads: { wear: [3], earthworks: [4] },
+      wildlife: { deer: 1, damage: { risk: [5], parts: { 7: { kg: 1 } } } },
       lastDay: 9,
     });
-    expect(landJson(state)).toEqual({ parts: [1], felledTrees: [2], roads: { earthworks: [4] } });
-    expect(LAND_KEYS).not.toContain('lastDay');
-    expect(LAND_SUBKEYS.roads).not.toContain('wear');
+    expect(landJson(state)).toEqual({
+      parts: [1],
+      felledTrees: [2],
+      roads: { earthworks: [4] },
+      wildlife: { damage: { risk: [5] } },
+    });
+    expect(JSON.stringify(roundTrip(state))).toBe(JSON.stringify(state));
+    expect(LAND).not.toHaveProperty('lastDay');
+    expect(LAND.roads).not.toHaveProperty('wear');
   });
 
   it('klíče s undefined vynechá jako JSON.stringify; `roads` jiného tvaru jde do dne celé', () => {
