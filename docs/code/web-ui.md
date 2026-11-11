@@ -2,6 +2,19 @@
 
 Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). Pravidla a rozhodnutí: vision.md, accounts.md v `docs/design/`.
 
+- **Rozložení server actions** (refaktoring 11. 11. 2026, chování beze změny): akce jsou v
+  `app/game/actions/`, každý soubor má `'use server'` (exporty jen async funkce) – `view.ts`
+  (`getVillageView`, `selectVillage`, `getPanelOptions`, `getChronicle`, `getNotices`,
+  `chooseLanguageAction`; ořez pohledu o to, co klient zná), `village.ts` (stavby, pole, cesty,
+  osoby, odchody, `foundVillage`, `restartGame`, …), `fortification.ts` (hradby), `army.ts`
+  (panel vojska, tažení, pokyny, `orderBreakout`), `alarm.ts`, `house.ts` (rod, pozvánky, jednání,
+  stížnosti, správce, nováček), `vassalage.ts` (odvody, svolání, průchody, odúmrť, ochrana),
+  `dev.ts` (jen `devMode`: `forceDevDisaster`, `skipTime`). Sdílené pomocníky (`playerId`,
+  `villageAction`, `NOT_SIGNED_IN`, kontroly tvaru `isId`/`isRecord`/`isText`) drží
+  `actions/_shared.ts` **bez** `'use server'` (v takovém souboru smí být exportem jen async
+  funkce). `app/game/actions.ts` je tenký re-export `export * from './actions/…'` bez
+  `'use server'`, takže importy `@/app/game/actions` i `vi.mock` v testech zůstaly. Novou akci
+  přidat do souboru své oblasti a do tohoto přehledu; nový soubor doplnit do re-exportu.
 - **Web:** server actions `app/game/actions.ts` (`getVillageView`, `selectVillage`, `foundVillage`,
   `placeDwelling`, `cancelConstruction`, `leaveVillage`,
   `settleJourney`, `placeWorkshop`,
