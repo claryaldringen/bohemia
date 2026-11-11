@@ -1,0 +1,33 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "ignoreExportsUsedInFile": true,
+  "workspaces": {
+    ".": {
+      "entry": ["eslint.config.mjs"],
+      "ignoreDependencies": ["eslint", "typescript-eslint", "eslint-plugin-react-hooks"]
+    },
+    "apps/web": {
+      "entry": ["scripts/**/*.ts", "e2e/**/*.ts"],
+      "playwright": {
+        "config": ["playwright.config.ts", "playwright.slow.config.ts"]
+      },
+      "ignoreDependencies": ["typescript-eslint", "eslint-plugin-react-hooks"]
+    },
+    "apps/worker": {
+      "entry": ["scripts/**/*.ts"],
+      "ignoreDependencies": ["typescript-eslint"]
+    },
+    "packages/db": {
+      "entry": ["scripts/**/*.ts"],
+      "ignoreDependencies": ["typescript-eslint"]
+    },
+    "packages/game": {
+      "entry": ["scripts/**/*.ts"],
+      "ignoreDependencies": ["typescript-eslint"]
+    },
+    "packages/server": {
+      "entry": ["scripts/**/*.ts"],
+      "ignoreDependencies": ["typescript-eslint"]
+    }
+  }
+}
