@@ -1,8 +1,6 @@
 import { and, asc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import {
   isCurrentDigest,
-  villageDigest,
-  type VillageDigest,
   type VillageDigestRecord,
   type VillageRecord,
   type VillageRepository,
@@ -12,6 +10,8 @@ import {
 import type { Database } from '../client';
 import { createInboxRepository } from './inbox-repository';
 import { createVillageHolds } from './village-holds';
+import { encodeVillageState, type EncodedVillageState } from './village-state-codec';
+import { storedVillageState, villageDerivedColumns } from './village-state-row';
 import { settlement, village, villageYear } from '../schema';
 
 type VillageRow = typeof village.$inferSelect;
@@ -19,14 +19,43 @@ type VillageRow = typeof village.$inferSelect;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Řádek vsi pro zápis stavu – souhrn se odvodí ze stavu (zdroj pravdy je stav) a nese verzi,
- * kterou zápis vsi dá (`digestVersion` = nová `version`).
+ * Sloupce zápisu stavu bez zemské části: denní část (kodek – village-state-codec.ts), otisk země,
+ * odvozené sloupce a souhrn (zdroj pravdy je stav) s verzí, kterou zápis vsi dá (`digestVersion`
+ * = nová `version`). Starý jsonb `state` se vynuluje (líný převod).
  */
+type WrittenColumns = Omit<
+  typeof village.$inferInsert,
+  'settlementId' | 'name' | 'digestVersion'
+> & { digestVersion: number | SQL };
+
 function written(
+  encoded: EncodedVillageState,
   state: VillageRecord['state'],
   digestVersion: number | SQL,
-): { state: VillageRecord['state']; digest: VillageDigest; digestVersion: number | SQL } {
-  return { state, digest: villageDigest(state), digestVersion };
+): WrittenColumns {
+  return {
+    state: null,
+    stateDay: encoded.day,
+    landHash: encoded.landHash,
+    ...villageDerivedColumns(state),
+    digestVersion,
+  };
+}
+
+/** Celý řádek nové vsi – zem se zapisuje vždy (i pro testy, které vkládají řádek samy). */
+export function newVillageRow(
+  settlementId: string,
+  name: string,
+  state: VillageRecord['state'],
+): WrittenColumns & Pick<typeof village.$inferInsert, 'settlementId' | 'name'> {
+  const encoded = encodeVillageState(state);
+  return {
+    settlementId,
+    name,
+    ...written(encoded, state, 1),
+    stateLand: encoded.land(),
+    version: 1,
+  };
 }
 
 type SavedRow = Pick<VillageRow, 'id' | 'settlementId' | 'name' | 'version'>;
@@ -83,14 +112,14 @@ function toRecord(row: VillageRow): VillageRecord {
     id: row.id,
     settlementId: row.settlementId,
     name: row.name,
-    state: row.state,
+    state: storedVillageState(row),
     version: row.version,
   };
 }
 
 /**
- * Sloupce otisku vsi – den dopočtu a spánek jsou uložené sloupce (generované ze stavu při zápisu),
- * stav se nepřenáší ani neparsuje v Node.
+ * Sloupce otisku vsi – den dopočtu a spánek jsou uložené sloupce (odvozené ze stavu při zápisu),
+ * stav se nepřenáší ani nedekóduje.
  */
 const STAMP_COLUMNS = {
   id: village.id,
@@ -101,7 +130,7 @@ const STAMP_COLUMNS = {
   asleep: village.asleep,
 };
 
-/** lastDay je ve stavu vždy; null by znamenalo poškozený JSON – ves je pak „nejvíc pozadu“. */
+/** lastDay je ve stavu vždy; null by znamenalo poškozený řádek – ves je pak „nejvíc pozadu“. */
 function toStamp(row: Omit<VillageStamp, 'lastDay'> & { lastDay: number | null }): VillageStamp {
   return { ...row, lastDay: row.lastDay ?? 0 };
 }
@@ -111,12 +140,12 @@ function toStamp(row: Omit<VillageStamp, 'lastDay'> & { lastDay: number | null }
  * může mít víc vsí; první ves sídla zakládá `create` atomicky (zámek řádku sídla).
  */
 export function createVillageRepository(db: Database): VillageRepository {
-  // Hledání podle klíče založení jde přes unikátní index `village_origin_uq`.
+  // Hledání podle klíče založení jde přes unikátní index `village_origin_uq` (sloupec `origin`).
   const byOrigin = async (origin: string): Promise<VillageRecord | null> => {
     const [row] = await db
       .select()
       .from(village)
-      .where(sql`${village.state}->>'origin' = ${origin}`)
+      .where(eq(village.origin, origin))
       .orderBy(asc(village.createdAt))
       .limit(1);
     return row ? toRecord(row) : null;
@@ -171,7 +200,7 @@ export function createVillageRepository(db: Database): VillageRepository {
         if (existing) return null;
         const [row] = await tx
           .insert(village)
-          .values({ settlementId, name, ...written(state, 1), version: 1 })
+          .values(newVillageRow(settlementId, name, state))
           .returning();
         return row ? toRecord(row) : null;
       });
@@ -196,7 +225,7 @@ export function createVillageRepository(db: Database): VillageRepository {
           const [existing] = await tx
             .select()
             .from(village)
-            .where(sql`${village.state}->>'origin' = ${origin}`)
+            .where(eq(village.origin, origin))
             .limit(1);
           if (existing) return toRecord(existing);
           // jedna ves, jedna mapa – sídlo s jinou vsí nic nezaloží
@@ -208,7 +237,7 @@ export function createVillageRepository(db: Database): VillageRepository {
           if (other) return null;
           const [row] = await tx
             .insert(village)
-            .values({ settlementId, name, ...written(state, 1), version: 1 })
+            .values(newVillageRow(settlementId, name, state))
             .returning();
           return row ? toRecord(row) : null;
         });
@@ -221,30 +250,44 @@ export function createVillageRepository(db: Database): VillageRepository {
     },
 
     async save(villageId, state, expectedVersion, yearRows = []): Promise<VillageRecord | null> {
-      // Zpět jen identitu, jméno a verzi – stav (u velké vsi přes 1 MB JSON) má volající v ruce,
-      // databáze by ho jinak celý serializovala a posílala zpátky.
-      const update = (tx: Pick<Database, 'update'>): Promise<SavedRow[]> =>
-        tx
+      const encoded = encodeVillageState(state);
+      // Zpět jen identitu, jméno a verzi – stav (u velké vsi přes 1 MB JSON) má volající v ruce.
+      // Napřed bez země (otisk země se shoduje s uloženým – zem se nepřepíše ani nekomprimuje);
+      // když se nic nezapsalo, zem se změnila (nebo jde o starý řádek bez `land_hash`), nebo je
+      // verze jiná – druhý pokus zapíše i zem a o konfliktu verze rozhodne sám.
+      const update = async (tx: Pick<Database, 'update'>): Promise<SavedRow | undefined> => {
+        const values = {
+          ...written(encoded, state, sql`${village.version} + 1`),
+          version: sql`${village.version} + 1`,
+          updatedAt: sql`now()`,
+        };
+        const sameVersion = and(eq(village.id, villageId), eq(village.version, expectedVersion));
+        const returning = {
+          id: village.id,
+          settlementId: village.settlementId,
+          name: village.name,
+          version: village.version,
+        };
+        const [kept] = await tx
           .update(village)
-          .set({
-            ...written(state, sql`${village.version} + 1`),
-            version: sql`${village.version} + 1`,
-            updatedAt: sql`now()`,
-          })
-          .where(and(eq(village.id, villageId), eq(village.version, expectedVersion)))
-          .returning({
-            id: village.id,
-            settlementId: village.settlementId,
-            name: village.name,
-            version: village.version,
-          });
+          .set(values)
+          .where(and(sameVersion, eq(village.landHash, encoded.landHash)))
+          .returning(returning);
+        if (kept) return kept;
+        const [rewritten] = await tx
+          .update(village)
+          .set({ ...values, stateLand: encoded.land() })
+          .where(sameVersion)
+          .returning(returning);
+        return rewritten;
+      };
       if (yearRows.length === 0) {
-        const [row] = await update(db);
+        const row = await update(db);
         return row ? { ...row, state } : null;
       }
       // řádky deníku jen s úspěšným zápisem stavu, v téže transakci (idempotentně: ves + rok)
       return db.transaction(async (tx) => {
-        const [row] = await update(tx);
+        const row = await update(tx);
         if (!row) return null;
         await tx
           .insert(villageYear)

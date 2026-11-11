@@ -295,6 +295,13 @@
       "when": 1794316873410,
       "tag": "0042_careful_ender_wiggin",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1794406584427,
+      "tag": "0043_village_state_codec",
+      "breakpoints": true
     }
   ]
 }

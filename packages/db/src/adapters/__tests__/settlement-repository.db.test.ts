@@ -230,6 +230,7 @@ describe('createSettlementRepository', () => {
       settlementId: created.id,
       name: 'Ves',
       state: {} as never,
+      asleep: false,
     });
     expect(await repository.lastPremiumType('hrac-1')).toBe('salt-spring');
     expect(await repository.lastPremiumType('nikdo')).toBeNull();

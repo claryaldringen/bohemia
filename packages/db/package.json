@@ -11,6 +11,10 @@
     "./test-database": {
       "types": "./src/test-database.ts",
       "default": "./src/test-database.ts"
+    },
+    "./village-state": {
+      "types": "./src/village-state.ts",
+      "default": "./src/village-state.ts"
     }
   },
   "scripts": {

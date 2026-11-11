@@ -12,7 +12,7 @@ export { createInboxRepository } from './inbox-repository';
 export { createNoticeRepository } from './notice-repository';
 export { createSettlementRepository } from './settlement-repository';
 export { createTimeOffsetRepository } from './time-offset-repository';
-export { createVillageRepository } from './village-repository';
+export { createVillageRepository, newVillageRow } from './village-repository';
 export { createActivityRepository } from './activity-repository';
 export { createSuccessionCreditRepository } from './succession-credit-repository';
 export { createVassalageRepository } from './vassalage-repository';
