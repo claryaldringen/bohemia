@@ -8,16 +8,8 @@ import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Scene } from '@babylonjs/core/scene';
 import {
-  GRID_TURNS,
-  buildForestField,
-  buildRelief,
   NO_OBSTACLE_CHANGES,
   OFFICIAL_WORLD,
-  obstaclesOf,
-  premiumFeaturesOf,
-  rotatedPlot,
-  rotationTurn,
-  type DwellingType,
   type Landscape,
   type ObstacleLayer,
   type WorldClock,
@@ -27,12 +19,9 @@ import {
 } from '@bohemia/game';
 import { AmbientSound } from './ambient-sound';
 import { createRtsCamera, type RtsCamera } from './camera';
-import { HEIGHT_SCALE, SUN_DIRECTION, WATER_FPS } from './constants';
+import { SUN_DIRECTION, WATER_FPS } from './constants';
 import { createEngine, type RendererName } from './create-engine';
-import { decorPlacements } from './decor-placement';
-import { addDecorations } from './decorations';
-import { addFauna, type Fauna } from './fauna';
-import { birdFlocks, fishSchools } from './fauna-placement';
+import type { Fauna } from './fauna';
 import { ClearingSlash } from './clearing-slash';
 import { burningKey, burningSquares, heapFires } from './clearing-fire';
 import { ClearingFireRenderer } from './clearing-fire-renderer';
@@ -46,10 +35,19 @@ import { sameClearing, villageClearedForest, type ClearedForest } from './cleare
 import { createForestCanopy, type ForestCanopy } from './forest-canopy';
 import type { ScenePerfStats } from './perf-stats';
 import { ScenePerf } from './scene-perf';
-import { addImpostors, type ImpostorForest } from './impostors';
-import { obstacleScenery } from './obstacle-scenery';
+import type { ImpostorForest } from './impostors';
 import { createTerrainMesh, type TerrainMesh } from './terrain-mesh';
-import { buildRenderSurface, type RenderSurface } from './render-surface';
+import type { RenderSurface } from './render-surface';
+import {
+  loadSceneryModels,
+  nextPaint,
+  planScenery,
+  sceneGround,
+  type SceneGround,
+  type SceneProgress,
+  type SceneryPlan,
+  type SceneStep,
+} from './landscape-build';
 import { SceneAtmosphere, type DayClock } from './scene-atmosphere';
 import { BASE_CONTRAST } from './scene-light';
 import { SceneLoop } from './scene-loop';
@@ -71,7 +69,6 @@ import { SceneWarView } from './scene-war';
 import { ShadowCasters } from './shadow-casters';
 import { chunkGrid } from './scenery-chunks';
 import { SceneryCulling } from './scenery-culling';
-import { terrainMeshHeight } from './drape';
 import { InstanceHider } from './instance-hider';
 import { VillageLivestock } from './livestock';
 import { VillageWildlife } from './wildlife';
@@ -84,29 +81,26 @@ import { PitCuts, applyPitCut } from './pit-cut';
 import { tornadoTrunks } from './tornado-track';
 import { castersChanged } from './sun-shadows';
 import { swathBands } from './swath-bands';
-import { tileAt, tileCenter } from './tile-at';
-import { addTrees } from './trees';
-import { FieldPainter } from './field-painting';
-import { FortPointsEditor } from './fort-points-editor';
+import { tileCenter } from './tile-at';
 import { PlacementOutlines } from './placement-outlines-view';
 import { HoldingsOverlay, type HoldingsOverlaySector } from './holdings-overlay';
 import type { SceneWar } from './army-renderer';
 import { SelectionHighlight } from './selection-highlight';
 import type { VillageTarget } from './village-picking';
-import { PlacementController, type ActivePlacement } from './village-placement';
+import type { ActivePlacement } from './village-placement';
+import { createPlacement } from './placement-factory';
 import { VillageRenderer } from './village-renderer';
 import type { SceneVillage } from '../village-view';
 import type { PlacementHandlers, PlacementMode } from './village-types';
 import { createWaterMesh, type WaterSurface } from './water';
 import { PremiumSites } from './premium-sites';
-import { premiumDecor, premiumRockTint } from './premium-sites-layout';
-import type { DecorPlacement } from './decor-placement';
 
 type ViewListener = (view: ViewFootprint) => void;
 /** Vymýcený les vsi (null = žádný) – minimapa ho kreslí jako paseku. */
 type ClearedListener = (cleared: ClearedForest | null) => void;
 
 /** 3D scéna krajiny – obyčejná třída bez Reactu (adaptér zobrazení). */
+export type { SceneProgress, SceneStep } from './landscape-build';
 export type { DayClock } from './scene-atmosphere';
 export type { ViewFootprint } from './scene-projection';
 
@@ -290,8 +284,9 @@ export class LandscapeScene {
   }
 
   /**
-   * Postaví scénu krajiny. Mezi náročnými kroky hlásí průběh a nechá prohlížeč překreslit
-   * stránku, aby ukazatel načítání nezamrzl.
+   * Postaví scénu krajiny. Mezi náročnými kroky hlásí průběh (`SceneStep` – rozhraní z nich dělá
+   * značky User Timing `scene:<krok>`) a nechá prohlížeč překreslit stránku, aby ukazatel
+   * načítání nezamrzl. Kroky jdou v pevném pořadí – pořadí vzniku meshů je i pořadí kreslení.
    */
   async setLandscape(
     landscape: Landscape,
@@ -308,13 +303,69 @@ export class LandscapeScene {
     };
     await report('terrain', 0.3);
     if (this.disposed) return;
-    const surface = buildRenderSurface(landscape);
-    this.surface = surface;
-    const groundHeight = (x: number, z: number): number => surface.heightAt(x, z) * HEIGHT_SCALE;
-    this.groundHeight = groundHeight;
-    this.village = new VillageRenderer(this.scene, {
-      groundHeight,
-      decalHeight: (x, z) => terrainMeshHeight(surface, x, z),
+    const ground = sceneGround(landscape);
+    this.surface = ground.surface;
+    this.groundHeight = ground.groundHeight;
+    const village = this.buildVillageRenderer(landscape, ground);
+    this.buildOverlays(ground);
+    await report('forest', 0.4);
+    if (this.disposed) return;
+    const plan = planScenery(landscape, ground);
+    this.obstacles = plan.obstacles;
+    if (village.setObstacles(plan.obstacles)) this.loop.renderWhenReady();
+    this.buildForestRemnants(landscape, ground, plan.obstacles);
+    this.buildWeatherAndFires(landscape, ground);
+    this.buildVillageLife(landscape, ground, plan);
+    await report('surface', 0.5);
+    if (this.disposed) return;
+    const camera = this.buildTerrain(landscape, ground, plan);
+    await report('models', 0.6);
+    if (this.disposed) return;
+    let loaded = 0;
+    const sceneryMeshes = await loadSceneryModels(
+      this.scene,
+      camera.camera,
+      plan,
+      ground.groundHeight,
+      {
+        loaded: () => onProgress({ step: 'models', done: 0.6 + 0.075 * ++loaded }),
+        impostorsChanged: (shadowAtlasChanged) => {
+          if (shadowAtlasChanged) this.casters.refresh();
+          this.loop.renderWhenReady();
+        },
+        impostorsLoaded: (forest) => {
+          this.impostorForest = forest;
+          const light = this.atmosphere.light;
+          if (light) forest?.setTone(light.tone);
+        },
+        faunaLoaded: (fauna) => {
+          this.fauna = fauna;
+          this.applyFaunaAbundance();
+        },
+      },
+    );
+    if (this.disposed) return;
+    // Odstraněné a vykácené překážky se skryjí podle id, ozdoby pod stavbami podle polohy paty.
+    this.hider.track(sceneryMeshes);
+    this.casters.create(this.scene, this.terrain, landscape.size * landscape.cellSizeM);
+    this.atmosphere.updateSeason(true);
+    this.applyVillage();
+    await report('shaders', 0.92);
+    if (this.disposed) return;
+    await this.scene.whenReadyAsync();
+    onProgress({ step: 'shaders', done: 1 });
+    if (this.disposed || this.rendering) return;
+    this.rendering = true;
+    this.startAmbient(ground, plan.field);
+    this.loop.renderBurst(1500);
+    this.loop.start(() => this.frame());
+  }
+
+  /** Krok `terrain`: renderer vsi – stavby, pole, cesty, dým; dostane hodiny, období a vynucení. */
+  private buildVillageRenderer(landscape: Landscape, ground: SceneGround): VillageRenderer {
+    const village = new VillageRenderer(this.scene, {
+      groundHeight: ground.groundHeight,
+      decalHeight: ground.decalHeight,
       addShadowCaster: (mesh) => this.casters.addVillage(mesh),
       onAsyncChange: () => {
         this.casters.refresh();
@@ -329,42 +380,33 @@ export class LandscapeScene {
       // vybrané spřežení nebo vůz (villagers.md – Výběr postavy) – co dělá, panel výběru
       onDraftState: (state) => this.selection.draftChanged(state),
     });
-    if (this.worldClock) this.village.setWorldClock(this.worldClock);
-    if (this.workDayClock) this.village.setPloughClock(this.workDayClock);
+    this.village = village;
+    if (this.worldClock) village.setWorldClock(this.worldClock);
+    if (this.workDayClock) village.setPloughClock(this.workDayClock);
     const look = this.atmosphere.look;
-    if (look) this.village.setSeason(this.atmosphere.seasonDayOfYear(), look.snow);
-    this.village.setSmokeAlways(this.smokeAlways);
-    this.village.setDisasterDay(this.atmosphere.forcedDisasterDay);
-    this.outlines = new PlacementOutlines(
-      this.scene,
-      (x, z) => terrainMeshHeight(surface, x, z),
-      () => {
-        this.loop.requestRender();
-      },
-    );
-    this.highlight = new SelectionHighlight(this.scene, (x, z) => terrainMeshHeight(surface, x, z));
-    this.holdings = new HoldingsOverlay(this.scene, (x, z) => terrainMeshHeight(surface, x, z));
+    if (look) village.setSeason(this.atmosphere.seasonDayOfYear(), look.snow);
+    village.setSmokeAlways(this.smokeAlways);
+    village.setDisasterDay(this.atmosphere.forcedDisasterDay);
+    return village;
+  }
+
+  /** Krok `terrain`: obrysy při malování, zvýraznění výběru a vývojový překryv hospodářství. */
+  private buildOverlays(ground: SceneGround): void {
+    this.outlines = new PlacementOutlines(this.scene, ground.decalHeight, () => {
+      this.loop.requestRender();
+    });
+    this.highlight = new SelectionHighlight(this.scene, ground.decalHeight);
+    this.holdings = new HoldingsOverlay(this.scene, ground.decalHeight);
     this.holdings.show(this.holdingSectors);
-    await report('forest', 0.4);
-    if (this.disposed) return;
-    // Stromy, keře a kameny jsou herní data – vrstva překážek z herního jádra, stejná jako na
-    // serveru: okraj lesa a jeho vnitřek (impostory), stromy v loukách a na břehu, borovice na
-    // skalách, mladé stromky, souše, padlé stromy, pařezy, keře, kameny a skalní výchozy.
-    // pole lesa napřed (zapamatuje se) – vrstva překážek ho převezme, nepočítá se dvakrát
-    const field = buildForestField(landscape);
-    const obstacles = obstaclesOf(landscape);
-    this.obstacles = obstacles;
-    if (this.village.setObstacles(obstacles)) this.loop.renderWhenReady();
-    const scenery = obstacleScenery(obstacles);
-    const trees = scenery.trees;
-    // prémiová krajina (premium-landscapes.md – Vzhled): skály nalezišť v odstínu, ozdoby prvků
-    const premium = premiumFeaturesOf(landscape);
-    // ozdoby vody (rákos, lekníny, kmeny v potoce) nejsou překážky – jen vzhled scény
-    const decor = [
-      ...(premium ? scenery.decor.map(withRockTint) : scenery.decor),
-      ...decorPlacements(landscape, surface.stream, surface.rivers),
-      ...premiumDecor(landscape, premium, surface.stream),
-    ];
+  }
+
+  /** Krok `forest`: pařezy a nálet, hromady klád a kamení, větve na pasece. */
+  private buildForestRemnants(
+    landscape: Landscape,
+    ground: SceneGround,
+    obstacles: ObstacleLayer,
+  ): void {
+    const { groundHeight } = ground;
     this.felled = new FelledTrees(this.scene, {
       groundHeight,
       addShadowCaster: (mesh) => this.casters.add(mesh),
@@ -398,11 +440,19 @@ export class LandscapeScene {
       groundHeight,
       addShadowCaster: (mesh) => this.casters.add(mesh),
     });
+  }
+
+  /**
+   * Krok `forest`: déšť a bouřka, vojsko, smršť (v tomto pořadí – pořadí meshů), ohně pálení
+   * paseky, požár domů a vědra.
+   */
+  private buildWeatherAndFires(landscape: Landscape, ground: SceneGround): void {
+    const { groundHeight, decalHeight } = ground;
     // ohně pálení na hromadách větví (forest.md – Klučení lesa pro pole – postup, bod 3)
     this.clearingFire?.dispose();
-    this.atmosphere.buildRainAndStorm(landscape, (x, z) => terrainMeshHeight(surface, x, z));
-    this.war.build(landscape, (x, z) => terrainMeshHeight(surface, x, z));
-    this.atmosphere.buildTornado((x, z) => terrainMeshHeight(surface, x, z));
+    this.atmosphere.buildRainAndStorm(landscape, decalHeight);
+    this.war.build(landscape, decalHeight);
+    this.atmosphere.buildTornado(decalHeight);
     this.clearingFire = new ClearingFireRenderer(this.scene, { groundHeight });
     if (this.worldClock) this.clearingFire.setWorldClock(this.worldClock);
     // požár – plameny domů ohněm paseky s vlastním rozvrhem, den světa jako pohromy (vývojově vynucený)
@@ -413,15 +463,20 @@ export class LandscapeScene {
     });
     this.fireBuckets?.dispose();
     this.fireBuckets = new FireBuckets(this.scene, { groundHeight });
-    const relief = buildRelief(landscape);
+  }
+
+  /** Krok `forest`: domácí zvířata, divoká zvěř, lidé ve vsi a vyšlapané pěšiny. */
+  private buildVillageLife(landscape: Landscape, ground: SceneGround, scenery: SceneryPlan): void {
+    const { surface, groundHeight, decalHeight } = ground;
+    const { field, obstacles } = scenery;
     // Domácí zvířata vsi – rozmístí se podle vsi (applyVillage), modely až s prvním zvířetem.
     this.livestock?.dispose();
     this.livestock = new VillageLivestock(this.scene, {
       landscape,
       field,
       stream: surface.stream,
-      relief,
-      groundHeight: (x, z) => terrainMeshHeight(surface, x, z),
+      relief: scenery.relief,
+      groundHeight: decalHeight,
       baseUrl: '/models/fauna/',
       onLoaded: () => this.loop.renderWhenReady(),
       // dobytek karavan výprav jde v herním čase jako lidé (caravan.ts)
@@ -431,7 +486,7 @@ export class LandscapeScene {
     this.wildlife?.dispose();
     this.wildlife = new VillageWildlife(this.scene, {
       landscape,
-      groundHeight: (x, z) => terrainMeshHeight(surface, x, z),
+      groundHeight: decalHeight,
       ground: (village) => this.livestock?.groundFor(village) ?? null,
       threats: () => this.villagers?.figureSpots() ?? new Float32Array(0),
       baseUrl: '/models/fauna/',
@@ -442,7 +497,7 @@ export class LandscapeScene {
     this.villagers = new VillageVillagers(this.scene, {
       layer: obstacles,
       ground: (village) => this.livestock?.walkGroundFor(village) ?? null,
-      groundHeight: (x, z) => terrainMeshHeight(surface, x, z),
+      groundHeight: decalHeight,
       baseUrl: '/models/people/',
       herds: (nowMs) => this.livestock?.herdViews(nowMs) ?? [],
       onLoaded: () => this.loop.renderWhenReady(),
@@ -488,11 +543,10 @@ export class LandscapeScene {
     this.paths = new VillagePaths(this.scene, {
       landscape,
       layer: obstacles,
-      decalHeight: (x, z) => terrainMeshHeight(surface, x, z),
+      decalHeight,
       groundHeight,
       // původní terén (bez úvozů a náspů vozových cest) – hlína na svazích podle rozdílu
-      baseHeight: (x, z) =>
-        this.terrainGround?.baseHeightAt(x, z) ?? terrainMeshHeight(surface, x, z),
+      baseHeight: (x, z) => this.terrainGround?.baseHeightAt(x, z) ?? decalHeight(x, z),
       pitCuts: this.pitCuts,
       addShadowCaster: (mesh) => this.casters.addVillage(mesh),
       // nová síť pěšin mění jen obtisky a trasy postav – stromy u cest obnoví stíny samy
@@ -517,20 +571,22 @@ export class LandscapeScene {
         this.loop.renderWhenReady();
       },
     });
-    // Ozdobná zvířata podle 0 A.D.: hejna ryb v tůních, kroužící vrány a káně.
-    const fauna = {
-      fish: fishSchools(surface),
-      birds: birdFlocks(landscape, field, surface.stream, groundHeight),
-    };
-    await report('surface', 0.5);
-    if (this.disposed) return;
-    this.terrainGround = createTerrainMesh(this.scene, landscape, surface, { field, trees });
+  }
+
+  /** Krok `surface`: síť terénu, voda, prvky prémiové krajiny, koruny lesa a kamera. */
+  private buildTerrain(landscape: Landscape, ground: SceneGround, plan: SceneryPlan): RtsCamera {
+    const { surface, groundHeight, decalHeight } = ground;
+    const { field } = plan;
+    this.terrainGround = createTerrainMesh(this.scene, landscape, surface, {
+      field,
+      trees: plan.trees,
+    });
     this.terrain = this.terrainGround.mesh;
     if (this.terrain.material) applyPitCut(this.terrain.material, this.pitCuts);
     this.water = createWaterMesh(this.scene, surface);
     this.premiumSites?.dispose();
-    this.premiumSites = new PremiumSites(this.scene, landscape, premium, {
-      decalHeight: (x, z) => terrainMeshHeight(surface, x, z),
+    this.premiumSites = new PremiumSites(this.scene, landscape, plan.premium, {
+      decalHeight,
       groundHeight,
       waters: surface.stream,
       addShadowCaster: (mesh) => this.casters.addVillage(mesh),
@@ -538,83 +594,24 @@ export class LandscapeScene {
     });
     this.canopy = createForestCanopy(this.scene, surface, field);
     const site = tileCenter(landscape, landscape.villageSite.x, landscape.villageSite.y);
-    this.rtsCamera = createRtsCamera(this.scene, this.canvas, {
+    const camera = createRtsCamera(this.scene, this.canvas, {
       halfExtent: (landscape.size * landscape.cellSizeM) / 2,
       start: { x: site.worldX, z: site.worldZ },
       groundHeight,
       // levé tažení posouvá krajinu, jen když se nic neumisťuje (malování pole tahem maluje)
       leftDragPans: () => this.placement === null,
     });
-    // Okraj lesa 2–3 řady 3D stromů, za nimi vnitřek lesa z impostorů.
-    const impostors = scenery.impostors;
-    await report('models', 0.6);
-    if (this.disposed) return;
-    let loaded = 0;
-    const counted = <T>(promise: Promise<T>): Promise<T> =>
-      promise.finally(() => onProgress({ step: 'models', done: 0.6 + 0.075 * ++loaded }));
-    // stromy, dekorace a impostory krajiny – jen ty skrývá InstanceHider (les vsi ne)
-    const sceneryMeshes: Mesh[] = [];
-    const collect = (meshes: Mesh[]): void => {
-      sceneryMeshes.push(...meshes);
-    };
-    await Promise.all([
-      counted(
-        addTrees(this.scene, trees, { baseUrl: '/models/trees/', groundHeight }).then(collect),
-      ),
-      counted(
-        addDecorations(this.scene, decor, { baseUrl: '/models/decor/', groundHeight }).then(
-          collect,
-        ),
-      ),
-      counted(
-        addImpostors(
-          this.scene,
-          this.rtsCamera.camera,
-          impostors,
-          groundHeight,
-          (shadowAtlasChanged) => {
-            if (shadowAtlasChanged) this.casters.refresh();
-            this.loop.renderWhenReady();
-          },
-        ).then(
-          (forest) => {
-            this.impostorForest = forest;
-            const light = this.atmosphere.light;
-            if (light) forest?.setTone(light.tone);
-            if (forest) collect(forest.meshes);
-          },
-          (error) =>
-            console.warn(
-              'Atlas stromů se nepodařilo načíst – vnitřek lesa zůstane bez stromů.',
-              error,
-            ),
-        ),
-      ),
-      counted(
-        addFauna(this.scene, fauna, { baseUrl: '/models/fauna/' }).then(
-          (result) => {
-            this.fauna = result;
-            this.applyFaunaAbundance();
-          },
-          (error) => console.warn('Zvířata krajiny se nepodařilo načíst.', error),
-        ),
-      ),
-    ]);
-    if (this.disposed) return;
-    // Odstraněné a vykácené překážky se skryjí podle id, ozdoby pod stavbami podle polohy paty.
-    this.hider.track(sceneryMeshes);
-    this.casters.create(this.scene, this.terrain, landscape.size * landscape.cellSizeM);
-    this.atmosphere.updateSeason(true);
-    this.applyVillage();
-    await report('shaders', 0.92);
-    if (this.disposed) return;
-    await this.scene.whenReadyAsync();
-    onProgress({ step: 'shaders', done: 1 });
-    if (this.disposed || this.rendering) return;
-    this.rendering = true;
-    // Zvuky se stahují až teď – nezdrží přípravu scény; mix sleduje pohled kamery ve frame().
+    this.rtsCamera = camera;
+    return camera;
+  }
+
+  /**
+   * Krok `shaders` (konec): zvuky krajiny se stahují až teď – nezdrží přípravu scény; mix sleduje
+   * pohled kamery ve `frame()`.
+   */
+  private startAmbient(ground: SceneGround, field: SceneryPlan['field']): void {
     this.ambient = new AmbientSound({
-      environment: { stream: surface.stream, rivers: surface.rivers, forest: field },
+      environment: { stream: ground.surface.stream, rivers: ground.surface.rivers, forest: field },
       enabled: this.soundEnabled,
       onStateChange: (state) => {
         this.canvas.dataset.sound = state;
@@ -622,8 +619,6 @@ export class LandscapeScene {
     });
     const season = this.atmosphere.look;
     if (season) this.ambient.setSeason({ ...season.sound, ice: season.ice });
-    this.loop.renderBurst(1500);
-    this.loop.start(() => this.frame());
   }
 
   /** Zapne nebo vypne zvuky krajiny – volat přímo z kliknutí (prohlížeč pustí zvuk po gestu). */
@@ -748,79 +743,19 @@ export class LandscapeScene {
       },
       onPreview: handlers.onPreview ? (preview) => handlers.onPreview?.(preview) : undefined,
     };
-    const controller: ActivePlacement =
-      mode.kind === 'fort-points'
-        ? new FortPointsEditor(
-            {
-              scene: this.scene,
-              canvas: this.canvas,
-              pickGround: (x, y) => this.pointer.pickGround(x, y),
-              decalHeight: (x, z) => village.decalHeight(x, z),
-              requestRender,
-            },
-            mode,
-            controlled,
-          )
-        : mode.kind === 'squares'
-          ? new FieldPainter(
-              {
-                scene: this.scene,
-                canvas: this.canvas,
-                landscape,
-                pickGround: (x, y) => this.pointer.pickGround(x, y),
-                decalHeight: (x, z) => village.decalHeight(x, z),
-                requestRender,
-              },
-              mode,
-              controlled,
-            )
-          : new PlacementController(
-              {
-                scene: this.scene,
-                canvas: this.canvas,
-                pickGround: (x, y) => this.pointer.pickGround(x, y),
-                decalHeight: (x, z) => village.decalHeight(x, z),
-                cameraAlpha: () => camera.camera.alpha,
-                cellAt: (x, z) => {
-                  const cell = tileAt(landscape, x, z);
-                  if (!cell) return null;
-                  const center = tileCenter(landscape, cell.x, cell.y);
-                  return { cell, x: center.worldX, z: center.worldZ, size: landscape.cellSizeM };
-                },
-                plotAt: (x, z, rotation, variant) => {
-                  // natočený pozemek (fields.md – Natočené stavby): po 90° políčko pod kurzorem,
-                  // jinak čtverec se středem pod kurzorem – v ukládané podobě jako na serveru
-                  let cx = x;
-                  let cz = z;
-                  if ((rotationTurn(rotation) ?? 0) % GRID_TURNS === 0) {
-                    const cell = tileAt(landscape, x, z);
-                    if (!cell) return null;
-                    const center = tileCenter(landscape, cell.x, cell.y);
-                    cx = center.worldX;
-                    cz = center.worldZ;
-                  }
-                  const plot = rotatedPlot(landscape, { x: cx, z: cz, rotation }, variant);
-                  if (!plot) return null;
-                  const size = landscape.cellSizeM;
-                  if (plot.square) return { plot, square: { ...plot.square, size } };
-                  const center = tileCenter(landscape, plot.cell.x, plot.cell.y);
-                  return { plot, square: { x: center.worldX, z: center.worldZ, size } };
-                },
-                ghostModel: (type) => village.ghostModel(type),
-                baseHeight: (type, position) => {
-                  if (type === 'idol' || type === 'shrine') {
-                    return village.sacredBaseHeight(type, position);
-                  }
-                  // milíř uhlíře se měří u svého místa – `position` je poloha zemnice
-                  if (type === 'milir') return village.milirBaseHeight(position);
-                  const base = mode.kind === 'workshop' ? mode.type : null;
-                  return village.baseHeight({ type: base ?? (type as DwellingType), position });
-                },
-                requestRender,
-              },
-              mode,
-              controlled,
-            );
+    const controller = createPlacement(
+      mode,
+      {
+        scene: this.scene,
+        canvas: this.canvas,
+        landscape,
+        village,
+        pickGround: (x, y) => this.pointer.pickGround(x, y),
+        cameraAlpha: () => camera.camera.alpha,
+        requestRender,
+      },
+      controlled,
+    );
     this.placement = controller;
     if (mode.kind === 'squares' || mode.kind === 'fort-points') {
       this.outlines?.show(this.villageState);
@@ -1405,29 +1340,6 @@ export class LandscapeScene {
   }
 }
 
-/** Kroky přípravy scény – texty k nim ukazuje rozhraní. */
-export type SceneStep = 'terrain' | 'forest' | 'surface' | 'models' | 'shaders';
-
-/** Průběh přípravy scény: právě probíhající krok a celkový podíl hotové práce 0–1. */
-export interface SceneProgress {
-  step: SceneStep;
-  done: number;
-}
-
-/**
- * Počká, až prohlížeč vykreslí snímek (ukazatel průběhu se překreslí i mezi synchronními
- * kroky). Ve skrytém panelu requestAnimationFrame neběží – pak stačí krátká pauza.
- */
-function nextPaint(): Promise<void> {
-  return new Promise((resolve) => {
-    const fallback = setTimeout(resolve, 50);
-    requestAnimationFrame(() => {
-      clearTimeout(fallback);
-      setTimeout(resolve, 0);
-    });
-  });
-}
-
 /**
  * Klíč náhledu vozové cesty – na čem trasa závisí (cesty, zemní práce, stavby, díly polí, ploty
  * a překážky), bez práce dne: vybraná cesta se nepřepočítává každý herní den.
@@ -1452,10 +1364,4 @@ function wagonPreviewKey(village: SceneVillage, roadId: number): string {
     village.woodLogs ?? 0,
     changes ? [changes.removed.length, changes.stumps.length, (changes.added ?? []).length] : 0,
   ]);
-}
-
-/** Skála prémiového naleziště v odstínu (rudný výchoz, vápenec lomu); ostatní beze změny. */
-function withRockTint(p: DecorPlacement): DecorPlacement {
-  const group = premiumRockTint(p.id);
-  return group ? { ...p, group } : p;
 }
