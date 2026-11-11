@@ -86,6 +86,9 @@ okruhu jako jeho druhý typ; velký karolinský kostel na našem a slovenském �
   když chybí mistr oboru (vápno bez vápeníka, zdi bez zedníka…).
 - Postup: základy a zdi (zdí se **duben–říjen**, za mrazu stojí), krov a střecha, výzdoba. Vápno
   se pálí v peci u stavby z vápence z lomu, malta s pískem z písníku.
+- **Orientace** (Martin, 11. 11. 2026): „Defaultně ať je orientovaný správně, ale hráč ho pak může
+  natočit. Některé kostely byly situovány jinak kvůli terénu“ – v náhledu stojí kněžištěm na východ
+  a vstupem na západ, hráč ho smí natočit jako ostatní natočené stavby (po 15° – návrh Clauda).
 - Umístění jako ostatní stavby; rozměry se nastaví v náhledu (tah pro půdorys, výška v panelu –
   rozhraní jako 0 A.D., čísla u kurzoru). Kostel smí stát i na místě vykáceného posvátného háje
   (nespokojenost pohanů – [křesťanství](christianity.md)).
