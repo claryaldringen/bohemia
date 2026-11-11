@@ -1,6 +1,6 @@
 # Kostely
 
-Stav: **návrh ke schválení** (11. 11. 2026). Zadání je Martinovo (citace níž), podrobnosti jsou
+Stav: **schváleno 11. 11. 2026** (Martin: „Ano“). Zadání je Martinovo (citace níž), podrobnosti jsou
 návrh Clauda. Navazuje na [křesťanství](christianity.md) (kostel, kněz, pohřby, obrácení, štěstí)
 a [kamenné zdivo](stone-masonry.md) (stavební huť, vápno, malta). Rešerše:
 [velkomoravské kostely](research/2026-11-11-great-moravian-churches.md), [kamenné zdivo](research/2026-11-10-stone-masonry.md),
