@@ -175,6 +175,16 @@ kroniky`sacred-oak-died`/`sacred-snag-fell`(upozornění přes`CHRONICLE_NOTICES
 
 - **Determinismus:** simulace jde den po dni v pevném pořadí kroků (`simulate.ts`), náhoda dne
   je ze seedu vsi a indexu dne – výsledek nezávisí na tom, po jakých kouscích se ves dopočítá.
+  - **Zlatý otisk celé vsi** (`village-golden.test.ts`, `village-golden-fixture.ts`): ves ze seedu
+    4242 v krajině seedu 1, od založení pod správcem, po 20 letech (10 polí, stáda, uhlíř, hrnčíř,
+    kovář, 14 lidí, rod) se dopočte o rok; otisk (cyrb53 z `JSON.stringify` stavu) musí sedět
+    vcelku i po kouscích 37 dní. Po 2. a 3. roce hlídá `village-golden-long.test.ts` (pomalá sada).
+    Úklid a zrychlování otisk měnit nesmí; změna pravidel vsi ho přepíše vědomě (postup v komentáři
+    testu).
+  - **Pomalá sada** (`npm run test:slow`, seznam v `packages/game/slow-tests.ts`, config
+    `vitest.slow.config.ts`): pásma krajin `*band*`, `steward.test.ts`, `simulate.test.ts`
+    a dlouhý zlatý otisk. Běžné `npm run test` je nepouští; při změně `domain/landscape`,
+    `world/skeleton` nebo pravidel simulace vsi je nutné pustit obojí.
   - **Občasná neshoda „po kouscích × vcelku“ pod zátěží (8. 11. 2026)** – test „den správce –
     dlouhý běh“ (`steward.test.ts`) zhruba v 1 z 8 souběžných běhů souboru (vytížený stroj) padl:
     dopočet po kouscích byl vždy správný (týž otisk jako samostatně i s `node --jitless`), ale
