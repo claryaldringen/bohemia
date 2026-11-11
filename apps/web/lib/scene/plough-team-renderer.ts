@@ -20,6 +20,7 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
+import { GroundBox } from './ground-box';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
@@ -388,21 +389,8 @@ export class PloughTeams {
    * něj se spřežení mimo záběr nehýbe, ať je zrovna kdekoli na dráze.
    */
   private updateBounds(): void {
-    let minX = Infinity;
-    let minZ = Infinity;
-    let maxX = -Infinity;
-    let maxZ = -Infinity;
-    let low = Infinity;
-    let high = -Infinity;
-    const extend = (x: number, z: number): void => {
-      minX = Math.min(minX, x);
-      maxX = Math.max(maxX, x);
-      minZ = Math.min(minZ, z);
-      maxZ = Math.max(maxZ, z);
-      const y = this.env.groundHeight(x, z);
-      low = Math.min(low, y);
-      high = Math.max(high, y);
-    };
+    const box = new GroundBox((x, z) => this.env.groundHeight(x, z));
+    const extend = (x: number, z: number): void => box.extend(x, z);
     const at: PathPoint = { x: 0, z: 0, hx: 0, hz: 1 };
     for (const track of this.tracks) {
       const path = ('loop' in track ? track.loop.path : track.route.route) as PloughPath;
@@ -417,12 +405,7 @@ export class PloughTeams {
         extend(transit.to.x, transit.to.z);
       }
     }
-    if (minX > maxX) return;
-    const pad = BODY_M * TEAM_SCALE + 1;
-    this.bounds.reConstruct(
-      new Vector3(minX - pad, low - 1, minZ - pad),
-      new Vector3(maxX + pad, high + HEAD_ROOM_M * TEAM_SCALE, maxZ + pad),
-    );
+    box.applyTo(this.bounds, BODY_M * TEAM_SCALE + 1, HEAD_ROOM_M * TEAM_SCALE);
   }
 
   /** Buffery instancí podle počtu spřežení (voli 2, lidé 2, díly 1, stíny 5 na spřežení). */
