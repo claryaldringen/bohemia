@@ -119,6 +119,17 @@ Martin:
 - **Pozvání** (návrh Clauda): jen ves s vojvodou a pokřtěným rodem; chybějícího mistra lze pozvat
   zvlášť (dorazí za 60 dní) a jen když obor není obsazený ani na cestě.
 
+## Rozhodnutí z implementace odchodu a nových mistrů
+
+Návrh Clauda (11. 11. 2026):
+
+- Počítadla hladu a neštěstí se po losu vynulují, i když mistr zůstal – další los až po další mezi
+  (30 dní hladu nebo 60 dní neštěstí), jinak by čtvrtinová šance po pár dnech vyhnala každého.
+- „Celá domácnost“ mistra je manželka a jejich svobodné děti v jeho obydlí (host ve dvorci nevezme
+  rodinu vojvody). Odcházející si z vsi nic neodnášejí (jídlo ani stáda).
+- Nový mistr smí být dospělý od 16 let (kdokoli bez kněžství, nejen syn) s nejvyšší zkušeností;
+  při shodě rozhoduje nižší id. Odchod i povýšení se píšou do kroniky vsi.
+
 ## Kdy se implementuje
 
 Mistři bez stavby jen čekají a jediná zděná stavba je zatím kostel (Martin). Huť, zkušenost a vápno

@@ -21,6 +21,31 @@ Mapa kódu – podrobnosti k mechanikám. Pravidla a rozhodnutí: stone-masonry.
   texty `INVITE_LODGE_REASONS`); právo `ennoble` v `ACTION_RIGHTS`. Web: `inviteLodgeForPlayer`,
   `inviteMasterForPlayer` v `apps/web/lib/village.ts`, server actions `inviteLodge`, `inviteMaster`.
 
+## Odchod a noví mistři
+
+Soubor `domain/village/people/lodge-life.ts`; návrh `docs/design/stone-masonry.md` – Svoboda,
+rodina a odchod, Zkušenost a noví mistři. Vše jen u vsi s `lodge`, ves bez huti krok přeskočí bez
+losu (zlatý otisk).
+
+- **Krok dne:** `lodgeLifeDay(state, satiety, day)` volá `peopleDay` (`core/simulate.ts`) na konci dne
+  po jídle, úmrtích a štěstí (ves, která vymřela, ho nedostane); zavolá `lodgeLeavingDay` a pak
+  `promoteMasters`.
+- **Odchod:** `lodgeLeavingDay` vede `lodge.hungryDays` (nasycení pod `LODGE.leaving.satietyBelow`)
+  a `lodge.unhappyDays` (štěstí vsi pod `happinessBelow`); po dosažení `hungryDays` / `unhappyDays`
+  padne los na každého mistra (`createRandom(deriveSeed(seed, 'lodge-leave:<id>:<den>'))`, v pořadí
+  id), bez manželky a dětí ve vsi odchází vždy, jinak s `familyChance`. Počítadla se po losu
+  vynulují, i když mistr zůstal. Odchází `masterHousehold` (mistr, manželka, jejich svobodné děti
+  v jeho obydlí) přes `removePeople` s emigranty (směr `MASTER_ORIGIN`) a zápis `master-left`.
+- **Noví mistři:** `promoteMasters` – za obor bez živého mistra i bez mistra na cestě dostane
+  `mason` dospělý (≥ `AGE.fertile`) bez `mason` a `priest` s nejvyšším `masonryXp[obor]` ≥
+  `LODGE.masterXpManDays`, při shodě nižší id; zápis `master-promoted`. Nikdo vhodný → obor zůstane
+  prázdný a `canInviteMaster` dá `ok`.
+- **Učni:** `masonApprentices(state, master, day = state.lastDay)` – synové (`fatherId`) v obydlí
+  mistra od `LODGE.apprenticeFromAge`; zkušenost jim přičítá práce huti (úloha M3).
+- **Sňatky:** mistr je obyčejný svobodný muž (`isSingle`), žení se jako ostatní.
+- **Kronika:** `master-left` / `master-promoted` (`types-chronicle.ts`), text
+  v `apps/web/lib/village-view-chronicle.ts`.
+
 ## Geometrie a cena kostela
 
 Typy: `types/types-masonry.ts` (`ChurchType`, `ChurchDims`, `ChurchCost`, `ChurchWork`), čísla:
