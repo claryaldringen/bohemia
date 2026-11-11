@@ -23,7 +23,7 @@
     },
     "packages/game": {
       "entry": ["scripts/**/*.ts"],
-      "ignoreDependencies": ["typescript-eslint"]
+      "ignoreDependencies": ["typescript-eslint", "@bohemia/db"]
     },
     "packages/server": {
       "entry": ["scripts/**/*.ts"],
