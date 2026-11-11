@@ -55,4 +55,17 @@ describe('ScenePerfReadout – vývojový ukazatel výkonu', () => {
     );
     expect(rows(html).at(-1)).toEqual(['Stínová mapa', '2.0 /s · CPU 1.23 ms']);
   });
+
+  it('ve hře ukáže i CPU animací, co se hýbe, a dobu načtení', () => {
+    const html = renderToStaticMarkup(
+      <ScenePerfReadout
+        stats={{ ...STATS, animateMs: 0.8, animating: ['lidé', 'voda'], loadMs: 4321 }}
+      />,
+    );
+    expect(rows(html).slice(-3)).toEqual([
+      ['CPU animací', '0.80 ms'],
+      ['Hýbe se', 'lidé voda'],
+      ['Načtení', '4.3 s'],
+    ]);
+  });
 });

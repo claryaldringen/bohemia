@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import { formatTileInfo, type TileInfo } from '@/lib/tile-info';
+import { SCENE_READY_MARK } from './ScenePerfPanel';
 import { SceneLoading, type LoadingStep } from './SceneLoading';
 import { SoundToggle, useSoundPreference } from './SoundToggle';
 import { TileInfoPanel } from './TileInfoPanel';
@@ -97,9 +98,13 @@ export function GameView({
       });
       setProgress({ step: 'engine', done: 0.25 });
       await scene.setLandscape(decodeLandscape(landscape), (next) => {
-        if (!cancelled) setProgress(next);
+        if (cancelled) return;
+        setProgress(next);
+        // kroky načtení v profilu prohlížeče (User Timing) – měření načtení hry
+        performance.mark(`scene:${next.step}`);
       });
       if (cancelled) return;
+      performance.mark(SCENE_READY_MARK);
       canvas.dataset.sceneReady = 'true';
       setReady(true);
       onSceneReadyRef.current?.(scene);

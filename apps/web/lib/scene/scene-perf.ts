@@ -9,7 +9,7 @@ import type { Scene } from '@babylonjs/core/scene';
 import { AverageMeter, RateMeter, type ScenePerfStats } from './perf-stats';
 
 /**
- * Vývojový ukazatel výkonu (jen /dev/landscape – měření něco stojí): doba snímku, výběr meshů,
+ * Vývojový ukazatel výkonu (/dev/landscape a hra s `?perf=1` – měření něco stojí): doba snímku, výběr meshů,
  * draw cally a trojúhelníky posledního kresleného snímku, GPU snímku (WebGPU s timestamp-query,
  * WebGL 2 s EXT_disjoint_timer_query), průchody smyčky a opravdu kreslící snímky za sekundu.
  */
@@ -23,6 +23,10 @@ export class ScenePerf {
   private readonly shadowRenders = new RateMeter(5000);
   private readonly shadowCpu = new AverageMeter(10);
   private shadowMap: RenderTargetTexture | null = null;
+  /** CPU kontroly animací (`animate()`). */
+  private readonly animateCpu = new AverageMeter(30);
+  /** Kdy naposledy která animace žádala překreslení (performance.now). */
+  private readonly animatedAt = new Map<string, number>();
 
   constructor(
     private readonly scene: Scene,
@@ -51,6 +55,16 @@ export class ScenePerf {
     this.drawn.tick(nowMs);
   }
 
+  /** Doba jedné kontroly animací (ms). */
+  animateTime(ms: number): void {
+    this.animateCpu.add(ms);
+  }
+
+  /** Animace `name` v záběru žádá překreslení. */
+  animated(name: string, nowMs: number): void {
+    this.animatedAt.set(name, nowMs);
+  }
+
   /** Doba jednoho picku terénu (ms). */
   pick(ms: number): void {
     this.picks.add(ms);
@@ -73,6 +87,11 @@ export class ScenePerf {
       activeMeshes: this.scene.getActiveMeshes().length,
       triangles: this.scene.getActiveIndices() / 3,
       pickMs: this.picks.average(),
+      animateMs: this.animateCpu.average(),
+      animating: [...this.animatedAt]
+        .filter(([, at]) => at > nowMs - 1000)
+        .map(([name]) => name)
+        .sort(),
       ...(this.shadowMap
         ? {
             shadows: {
