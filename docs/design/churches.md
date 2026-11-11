@@ -74,7 +74,9 @@ okruhu jako jeho druhý typ; velký karolinský kostel na našem a slovenském �
   když v něm je kněz (návrh Clauda).
 - **Hřbitůvek** kolem kostela – obdélník o pás 6 m větší než kostel (bere i místo pro umístění
   staveb), hrob ≈ 2,5 m² i s cestičkami (návrh Clauda);
-  křesťané se pohřbívají u kostela, při plném hřbitůvku na starém hřbitově (kostrově).
+  křesťané se pohřbívají u kostela. Hroby se po čase uvolní pro nové pohřby (Martin, 11. 11. 2026:
+  „Ať se po čase uvolní“) – po 30 letech (návrh Clauda); jen když je hřbitůvek i tak plný, pohřbívá
+  se na starém hřbitově (kostrově).
 - **Svatby křesťanů** v nejbližším kostele.
 - **Výzdoba** (štukatér a malíř fresek – [kamenné zdivo](stone-masonry.md)): po dostavění zdí
   omítky a fresky; bez nich kostel slouží, s nimi přidá křesťanům dalších +5 × pokrytí (návrh

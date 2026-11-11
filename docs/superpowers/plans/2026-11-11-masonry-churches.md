@@ -214,8 +214,9 @@ sandPit: { x; z }; quarryId?: number }`.
 - Kněz: `priestDay(state, day, random)` – kostel bez kněze dostane `LodgeArrival { role: 'priest',
 churchId }` na `finishedDay + priestAfterDays`, po smrti na den smrti + `newPriestAfterDays`;
   příchod přes `arriveFromAbroad`, nežení se, nepracuje.
-- Pohřeb křesťana: kostel s knězem a volným hrobem (`churchyardGraves`) nejblíž domu → `graves`,
-  jinak starý hřbitov kostrově (dnešní chování).
+- Pohřeb křesťana: kostel s knězem a volným hrobem (`churchyardGraves`; hrob starší než
+  `CHURCH.graveReuseYears` = 30 let se uvolní – Martin „Ať se po čase uvolní“) nejblíž domu →
+  `graves`, jinak starý hřbitov kostrově (dnešní chování).
 
 - [ ] Testy: pokrytí 0 → stejné obrácení i štěstí jako dnes (zlatý otisk); kostel pro polovinu vsi
       → +20; dva kostely se sčítají, strop 1; kněz po roce, po smrti nový za 60 dní; plný hřbitůvek →
