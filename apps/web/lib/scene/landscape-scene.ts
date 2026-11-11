@@ -1,12 +1,10 @@
 import { ActivityMemory } from './activity-memory';
-import '@babylonjs/core/Culling/ray';
-import { Ray as PickingRay } from '@babylonjs/core/Culling/ray.core';
 import type { Camera } from '@babylonjs/core/Cameras/camera';
 import type { AbstractEngine } from '@babylonjs/core/Engines/abstractEngine';
 import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
 import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
-import { Matrix, Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Scene } from '@babylonjs/core/scene';
 import {
@@ -20,7 +18,6 @@ import {
   rotatedPlot,
   rotationTurn,
   surfaceAt,
-  tileOfWorldPoint,
   type DwellingType,
   type Landscape,
   type ObstacleLayer,
@@ -29,10 +26,8 @@ import {
   terrainEditsFrom,
   type WagonRoadPlan,
 } from '@bohemia/game';
-import type { TileInfo } from '../tile-info';
 import { AmbientSound } from './ambient-sound';
 import { createRtsCamera, type RtsCamera } from './camera';
-import { isDrag, nextClick, type ClickRecord } from './camera-input';
 import { HEIGHT_SCALE, SUN_DIRECTION, WATER_FPS } from './constants';
 import { createEngine, type RendererName } from './create-engine';
 import { decorPlacements } from './decor-placement';
@@ -60,6 +55,18 @@ import { SceneAtmosphere, type DayClock } from './scene-atmosphere';
 import { BASE_CONTRAST } from './scene-light';
 import { SceneLoop } from './scene-loop';
 import { hitPart } from './scene-perf';
+import {
+  ScenePointer,
+  type GatePick,
+  type HoverListener,
+  type SelectListener,
+} from './scene-pointer';
+import {
+  groundToScreen,
+  screenProjector,
+  viewFootprint as cameraFootprint,
+  type ViewFootprint,
+} from './scene-projection';
 import { ShadowCasters } from './shadow-casters';
 import { chunkGrid } from './scenery-chunks';
 import { SceneryCulling } from './scenery-culling';
@@ -86,49 +93,30 @@ import { ArmyRenderer, type SceneWar } from './army-renderer';
 import { SelectionHighlight } from './selection-highlight';
 import type { PersonFigureState } from '../person-activity';
 import { sameDraftState, type DraftFigureState } from '../draft-activity';
-import { pickVillageTarget, rayAtHeight, type Ray, type VillageTarget } from './village-picking';
+import type { VillageTarget } from './village-picking';
 import { PlacementController, type ActivePlacement } from './village-placement';
-import { draftHitTarget, draftSelectionFor } from './draft-pick';
+import { draftSelectionFor } from './draft-pick';
 import { VillageRenderer, type DraftRenderState } from './village-renderer';
 import type { SceneVillage } from '../village-view';
 import type { PlacementHandlers, PlacementMode } from './village-types';
 import { createWaterMesh, type WaterSurface } from './water';
 import { PremiumSites } from './premium-sites';
-import { pickPremiumSite } from './premium-picking';
 import { premiumDecor, premiumRockTint } from './premium-sites-layout';
 import type { DecorPlacement } from './decor-placement';
 
-type HoverListener = (tile: TileInfo | null) => void;
-/** Kliknutí do scény mimo umisťování: vybrané obydlí / pole, nebo null (zrušit výběr). */
-/**
- * Výběr kliknutím: co je pod kurzorem, jestli hráč držel Ctrl (Cmd) nebo Shift – přidá / ubere
- * obydlí z výběru (migration.md – Výběr víc obydlí) – a dvojklik (`double` – druhé kliknutí řady,
- * celé pole či sad – fields.md, Co hráč vidí).
- */
-type SelectListener = (target: VillageTarget | null, additive: boolean, double: boolean) => void;
 type PersonListener = (state: PersonFigureState | null) => void;
 type DraftListener = (state: DraftFigureState | null) => void;
-/** Záběr kamery na zemi (4 rohy obrazovky jako body krajiny [x, z]) a natočení kamery. */
-export interface ViewFootprint {
-  corners: [number, number][];
-  /** Natočení kamery kolem svislé osy (rad, Babylon alpha). */
-  alpha: number;
-}
 type ViewListener = (view: ViewFootprint) => void;
 /** Vymýcený les vsi (null = žádný) – minimapa ho kreslí jako paseku. */
 type ClearedListener = (cleared: ClearedForest | null) => void;
 
 /** 3D scéna krajiny – obyčejná třída bez Reactu (adaptér zobrazení). */
 export type { DayClock } from './scene-atmosphere';
+export type { ViewFootprint } from './scene-projection';
 
 export class LandscapeScene {
-  private readonly listeners = new Set<HoverListener>();
-  private readonly selectListeners = new Set<SelectListener>();
-  /**
-   * Brána opevnění (fortifications.md – Rozhraní): dokud je nastavená, levé kliknutí do krajiny
-   * ohlásí bod terénu (místo výběru) a pravé zruší; null = běžný výběr.
-   */
-  private gatePick: ((point: { x: number; z: number } | null) => void) | null = null;
+  /** Kurzor, kliknutí a výběr, pick terénu (scene-pointer.ts). */
+  private readonly pointer: ScenePointer;
   private readonly viewListeners = new Set<ViewListener>();
   private readonly clearedListeners = new Set<ClearedListener>();
   private readonly personListeners = new Set<PersonListener>();
@@ -144,10 +132,6 @@ export class LandscapeScene {
   private wagonPlan: { key: string; plan: WagonRoadPlan } | null = null;
   /** Vymýcený les podle posledního stavu vsi (applyVillage). */
   private cleared: ClearedForest | null = null;
-  /** Stisknutá tlačítka myši nad plátnem: kde a jestli zrovna běželo umisťování. */
-  private readonly downs = new Map<number, { x: number; y: number; placing: boolean }>();
-  /** Poslední kliknutí levým tlačítkem mimo umisťování – dvojklik (`nextClick`). */
-  private lastClick: ClickRecord | null = null;
   private selection: VillageTarget | null = null;
   private highlight: SelectionHighlight | null = null;
   /** Vývojový překryv úseků hospodářství (fields.md – Hospodaření podle polohy domů). */
@@ -169,9 +153,6 @@ export class LandscapeScene {
   /** Ozdobné ryby a ptáci – hýbou se jako voda, dokud jsou v záběru. */
   private fauna: Fauna | null = null;
   private rtsCamera: RtsCamera | null = null;
-  private hovered: TileInfo | null = null;
-  private pointerMoved = false;
-  private pointerInside = false;
   private rendering = false;
   private disposed = false;
   /** Zvuky krajiny – vznikají až po přípravě scény. */
@@ -231,8 +212,6 @@ export class LandscapeScene {
   private smokeAlways = false;
   /** Vnitřek lesa – v zimě vrhá stín ze zimního atlasu (holé koruny). */
   private impostorForest: ImpostorForest | null = null;
-  /** Paprsek pro pick terénu pod kurzorem (bez alokace při každém pohybu myši). */
-  private readonly pickRay = PickingRay.Zero();
   /** Vývojový ukazatel výkonu (jen /dev/landscape – `enablePerfStats`). */
   private perf: ScenePerf | null = null;
   /** Pole dostala pás pěšin ze stálých tras před první stavbou (`applyVillage`). */
@@ -267,10 +246,21 @@ export class LandscapeScene {
     });
     this.resizeObserver.observe(canvas);
     this.atmosphere.updateSeason(true);
-    canvas.addEventListener('pointermove', this.onPointerMove);
-    canvas.addEventListener('pointerleave', this.onPointerLeave);
-    canvas.addEventListener('pointerdown', this.onPointerDown);
-    canvas.addEventListener('pointerup', this.onPointerUp);
+    this.pointer = new ScenePointer({
+      scene,
+      canvas,
+      engine,
+      camera: () => this.rtsCamera,
+      landscape: () => this.landscape,
+      terrain: () => this.terrainGround,
+      placement: () => this.placement,
+      perf: () => this.perf,
+      groundHeight: () => this.groundHeight,
+      village: () => this.villageState,
+      villageRenderer: () => this.village,
+      villagers: () => this.villagers,
+      wildlife: () => this.wildlife,
+    });
   }
 
   static async create(
@@ -799,7 +789,7 @@ export class LandscapeScene {
             {
               scene: this.scene,
               canvas: this.canvas,
-              pickGround: (x, y) => this.pickGround(x, y),
+              pickGround: (x, y) => this.pointer.pickGround(x, y),
               decalHeight: (x, z) => village.decalHeight(x, z),
               requestRender,
             },
@@ -812,7 +802,7 @@ export class LandscapeScene {
                 scene: this.scene,
                 canvas: this.canvas,
                 landscape,
-                pickGround: (x, y) => this.pickGround(x, y),
+                pickGround: (x, y) => this.pointer.pickGround(x, y),
                 decalHeight: (x, z) => village.decalHeight(x, z),
                 requestRender,
               },
@@ -823,7 +813,7 @@ export class LandscapeScene {
               {
                 scene: this.scene,
                 canvas: this.canvas,
-                pickGround: (x, y) => this.pickGround(x, y),
+                pickGround: (x, y) => this.pointer.pickGround(x, y),
                 decalHeight: (x, z) => village.decalHeight(x, z),
                 cameraAlpha: () => camera.camera.alpha,
                 cellAt: (x, z) => {
@@ -881,10 +871,10 @@ export class LandscapeScene {
             ? Promise.all([village.loadModels(), village.loadCraftModels()])
             : village.loadModels();
       void models.then(() => {
-        if (this.placement === controller) this.pointerMoved = this.pointerInside;
+        if (this.placement === controller) this.pointer.repick();
       });
     }
-    this.pointerMoved = this.pointerInside;
+    this.pointer.repick();
     this.loop.renderWhenReady();
   }
 
@@ -992,8 +982,7 @@ export class LandscapeScene {
   }
 
   onTileHover(listener: HoverListener): () => void {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
+    return this.pointer.onTileHover(listener);
   }
 
   /**
@@ -1003,17 +992,15 @@ export class LandscapeScene {
    * `double` – rozhraní vybere celé pole či sad. Zvýraznění nastaví až rozhraní (`setSelection`).
    */
   onSelect(listener: SelectListener): () => void {
-    this.selectListeners.add(listener);
-    return () => this.selectListeners.delete(listener);
+    return this.pointer.onSelect(listener);
   }
 
   /**
    * Zapne přidávání brány opevnění: levé kliknutí do krajiny pošle bod terénu `handler`, pravé
    * `null` (zrušení); `null` vrací běžný výběr.
    */
-  setGatePick(handler: ((point: { x: number; z: number } | null) => void) | null): void {
-    this.gatePick = handler;
-    this.canvas.style.cursor = handler ? 'crosshair' : '';
+  setGatePick(handler: GatePick | null): void {
+    this.pointer.setGatePick(handler);
   }
 
   /**
@@ -1153,38 +1140,15 @@ export class LandscapeScene {
   }
 
   /**
-   * Převod bodu světa na CSS px plátna pro výběr postav – matice kamery jednou na kliknutí; bod za
-   * kamerou null.
-   */
-  private projector(
-    camera: Camera,
-  ): (wx: number, wy: number, wz: number) => { x: number; y: number } | null {
-    const width = this.engine.getRenderWidth();
-    const height = this.engine.getRenderHeight();
-    const transform = camera.getViewMatrix(true).multiply(camera.getProjectionMatrix(true));
-    const viewport = camera.viewport.toGlobal(width, height);
-    const scaleX = this.canvas.clientWidth / Math.max(1, width);
-    const scaleY = this.canvas.clientHeight / Math.max(1, height);
-    const identity = Matrix.Identity();
-    const world = new Vector3();
-    return (wx, wy, wz) => {
-      const point = Vector3.Project(world.set(wx, wy, wz), identity, transform, viewport);
-      if (point.z < 0 || point.z > 1) return null;
-      return { x: point.x * scaleX, y: point.y * scaleY };
-    };
-  }
-
-  /**
    * Postava vybraného člověka na obrazovce (CSS px – testovací háček), nebo null, když není vidět.
    */
   projectPerson(id: number): { x: number; y: number } | null {
     const camera = this.rtsCamera?.camera;
     const spot = this.villagers?.spotOf(id);
     if (!camera || !spot) return null;
-    return this.projector(camera)(spot.x, spot.y + 0.9, spot.z);
+    return screenProjector(this.engine, this.canvas, camera)(spot.x, spot.y + 0.9, spot.z);
   }
 
-  /** Bod krajiny (x, z) na obrazovce v CSS px plátna, nebo null mimo záběr (testovací háček). */
   /** Testovací háček: jména a připravenost meshů porážky (`slaughter-*`) ve scéně. */
   slaughterMeshes(): { name: string; ready: boolean }[] {
     return this.scene.meshes
@@ -1207,35 +1171,17 @@ export class LandscapeScene {
     };
   }
 
+  /** Bod krajiny (x, z) na obrazovce v CSS px plátna, nebo null mimo záběr (testovací háček). */
   projectToScreen(x: number, z: number): { x: number; y: number } | null {
     const camera = this.rtsCamera?.camera;
     if (!camera || !this.groundHeight) return null;
-    const width = this.engine.getRenderWidth();
-    const height = this.engine.getRenderHeight();
-    const point = Vector3.Project(
-      new Vector3(x, this.groundHeight(x, z), z),
-      Matrix.Identity(),
-      camera.getViewMatrix(true).multiply(camera.getProjectionMatrix(true)),
-      camera.viewport.toGlobal(width, height),
-    );
-    if (point.z < 0 || point.z > 1) return null;
-    const scaleX = this.canvas.clientWidth / width;
-    const scaleY = this.canvas.clientHeight / height;
-    const screen = { x: point.x * scaleX, y: point.y * scaleY };
-    const inside =
-      screen.x >= 0 &&
-      screen.y >= 0 &&
-      screen.x <= this.canvas.clientWidth &&
-      screen.y <= this.canvas.clientHeight;
-    return inside ? screen : null;
+    return groundToScreen(this.engine, this.canvas, camera, x, this.groundHeight(x, z), z);
   }
 
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
     if (this.pathTrackTimer !== null) clearTimeout(this.pathTrackTimer);
-    this.listeners.clear();
-    this.selectListeners.clear();
     this.viewListeners.clear();
     this.clearedListeners.clear();
     this.personListeners.clear();
@@ -1253,10 +1199,7 @@ export class LandscapeScene {
     this.paths?.dispose();
     this.premiumSites?.dispose();
     this.resizeObserver.disconnect();
-    this.canvas.removeEventListener('pointermove', this.onPointerMove);
-    this.canvas.removeEventListener('pointerleave', this.onPointerLeave);
-    this.canvas.removeEventListener('pointerdown', this.onPointerDown);
-    this.canvas.removeEventListener('pointerup', this.onPointerUp);
+    this.pointer.dispose();
     this.loop.dispose();
     this.ambient?.dispose();
     this.atmosphere.dispose();
@@ -1265,102 +1208,6 @@ export class LandscapeScene {
     this.perf?.dispose();
     this.scene.dispose();
     this.engine.dispose();
-  }
-
-  private readonly onPointerMove = (): void => {
-    this.pointerInside = true;
-    this.pointerMoved = true;
-  };
-
-  private readonly onPointerLeave = (): void => {
-    this.pointerInside = false;
-    this.pointerMoved = false;
-    this.placement?.setCursor(null, null);
-    this.emit(null);
-  };
-
-  private readonly onPointerDown = (event: PointerEvent): void => {
-    this.downs.set(event.button, {
-      x: event.offsetX,
-      y: event.offsetY,
-      placing: this.placement !== null,
-    });
-  };
-
-  /** Kliknutí mimo umisťování vybírá (levé) a ruší výběr (pravé); tah krajinou nevybírá. */
-  private readonly onPointerUp = (event: PointerEvent): void => {
-    const down = this.downs.get(event.button);
-    this.downs.delete(event.button);
-    const at = { x: event.offsetX, y: event.offsetY };
-    const clicked =
-      down !== undefined &&
-      !down.placing &&
-      this.placement === null &&
-      !isDrag(down, at) &&
-      !(event.button === 0 && this.rtsCamera?.leftPressPanned());
-    // dvojklik jen ze dvou levých kliknutí po sobě – tah, pravé tlačítko i umisťování řadu přeruší
-    if (!clicked || event.button !== 0) this.lastClick = null;
-    if (!clicked) return;
-    if (this.gatePick) {
-      if (event.button === 0) {
-        const ground = this.pickGround(at.x, at.y);
-        this.gatePick(ground ? { x: ground[0], z: ground[1] } : null);
-      } else if (event.button === 2) this.gatePick(null);
-      return;
-    }
-    if (event.button === 0) {
-      this.lastClick = nextClick(this.lastClick, { ...at, at: event.timeStamp });
-      const additive = event.ctrlKey || event.metaKey || event.shiftKey;
-      this.emitSelect(this.pickTarget(at.x, at.y), additive, this.lastClick.count >= 2);
-    } else if (event.button === 2) this.emitSelect(null, false, false);
-  };
-
-  private emitSelect(target: VillageTarget | null, additive: boolean, double: boolean): void {
-    for (const listener of this.selectListeners) listener(target, additive, double);
-  }
-
-  /**
-   * Postava, obydlí, pole nebo hřbitov pod pixelem plátna (CSS px) – postavy mají přednost před
-   * stavbami pod nimi (villagers.md – Výběr postavy).
-   */
-  private pickTarget(x: number, y: number): VillageTarget | null {
-    const camera = this.rtsCamera?.camera;
-    const landscape = this.landscape;
-    const groundHeight = this.groundHeight;
-    if (!camera || !landscape || !groundHeight || !this.villageState) return null;
-    const project = this.projector(camera);
-    // postava, nebo spřežení a vůz (i oráč, honák a vozka u nich) – bližší průmět vyhraje
-    const person = this.villagers?.pickHit(x, y, project) ?? null;
-    const draft = this.village?.pickDraft(x, y, project) ?? null;
-    // divoké zvíře – klik vybere druh (panel druhu); bližší průmět než postava a spřežení vyhraje
-    const wild = this.wildlife?.pickHit(x, y, project) ?? null;
-    if (
-      wild &&
-      (!person || wild.distance < person.distance) &&
-      (!draft || wild.distance < draft.distance)
-    ) {
-      return { kind: 'wildlife', species: wild.species };
-    }
-    if (person && (!draft || person.distance <= draft.distance)) {
-      return { kind: 'person', id: person.person };
-    }
-    if (draft) return draftHitTarget(draft, this.villagers);
-    const pick = this.scene.createPickingRay(x, y, Matrix.Identity(), camera, false);
-    const ray: Ray = {
-      origin: { x: pick.origin.x, y: pick.origin.y, z: pick.origin.z },
-      direction: { x: pick.direction.x, y: pick.direction.y, z: pick.direction.z },
-    };
-    const ground = this.pickGround(x, y);
-    const at = ground ? { x: ground[0], z: ground[1] } : null;
-    return (
-      pickVillageTarget(this.villageState, ray, {
-        ground: at,
-        groundHeight,
-        cellOf: (wx, wz) => tileOfWorldPoint(landscape, wx, wz),
-      }) ??
-      // prvek prémiové krajiny – jen když tu není nic ze vsi (premium-picking.ts)
-      pickPremiumSite(landscape, premiumFeaturesOf(landscape), at)
-    );
   }
 
   /**
@@ -1376,33 +1223,10 @@ export class LandscapeScene {
     );
   }
 
-  /** Záběr kamery na zemi – rohy obrazovky promítnuté do roviny cíle kamery. */
+  /** Záběr kamery na zemi (scene-projection.ts); bez kamery null. */
   private viewFootprint(): ViewFootprint | null {
     const camera = this.rtsCamera?.camera;
-    if (!camera) return null;
-    const width = this.canvas.clientWidth;
-    const height = this.canvas.clientHeight;
-    if (width === 0 || height === 0) return null;
-    const groundY = camera.target.y;
-    const corners: [number, number][] = [];
-    for (const [x, y] of [
-      [0, 0],
-      [width, 0],
-      [width, height],
-      [0, height],
-    ] as const) {
-      const pick = this.scene.createPickingRay(x, y, Matrix.Identity(), camera, false);
-      const point = rayAtHeight(
-        {
-          origin: { x: pick.origin.x, y: pick.origin.y, z: pick.origin.z },
-          direction: { x: pick.direction.x, y: pick.direction.y, z: pick.direction.z },
-        },
-        groundY,
-      );
-      if (!point) return null;
-      corners.push([point.x, point.z]);
-    }
-    return { corners, alpha: camera.alpha };
+    return camera ? cameraFootprint(this.scene, this.canvas, camera) : null;
   }
 
   /**
@@ -1529,21 +1353,6 @@ export class LandscapeScene {
     return true;
   }
 
-  /** Bod terénu pod pixelem plátna (CSS px) jako [x, z], nebo null mimo krajinu. */
-  private pickGround(x: number, y: number): [number, number] | null {
-    const ground = this.terrainGround;
-    const camera = this.rtsCamera?.camera;
-    if (!ground || !camera || !this.landscape) return null;
-    const started = this.perf ? performance.now() : 0;
-    // Stejný paprsek jako `scene.pick` a stejné trojúhelníky, jen po výškové síti – jen políčka
-    // pod paprskem místo celé sítě terénu (terrain-pick.ts).
-    this.scene.createPickingRayToRef(x, y, Matrix.Identity(), this.pickRay, camera, false);
-    const point = ground.pick(this.pickRay);
-    this.perf?.pick(performance.now() - started);
-    if (!point || !tileAt(this.landscape, point.x, point.z)) return null;
-    return [point.x, point.z];
-  }
-
   /**
    * Krajina je statická – kreslí se jen při změně pohledu nebo velikosti okna. Šetří to
    * výkon i baterii (tisíce stromů) a nezahlcuje prohlížeč bez grafické karty. Animace
@@ -1573,7 +1382,7 @@ export class LandscapeScene {
       // obilí z dálky řídne (trsy), pole pak nese obtisk porostu
       this.village?.setView(camera.camera.radius);
       // Pod nehybným kurzorem je po pohybu kamery jiné políčko.
-      if (this.pointerInside) this.pointerMoved = true;
+      this.pointer.cameraMoved();
       const { target, radius } = camera.camera;
       this.ambient?.setView({ x: target.x, z: target.z, radius });
       if (this.viewListeners.size > 0) {
@@ -1581,7 +1390,7 @@ export class LandscapeScene {
         if (view) for (const listener of this.viewListeners) listener(view);
       }
     }
-    this.pickHoveredTile();
+    this.pointer.pickHoveredTile();
     this.placement?.tick(now);
     this.loop.draw(now);
   }
@@ -1672,41 +1481,6 @@ export class LandscapeScene {
     // den a noc – slunce jde po obloze (scene-atmosphere.ts)
     if (this.atmosphere.animateDaylight(now, hit)) animated = true;
     return animated;
-  }
-
-  /** Pick jednou za snímek, ne při každém pohybu myši – políčko pod kurzorem i umisťování. */
-  private pickHoveredTile(): void {
-    if (!this.pointerMoved || !this.landscape || !this.terrain) return;
-    this.pointerMoved = false;
-    const { pointerX, pointerY } = this.scene;
-    const point = this.pickGround(pointerX, pointerY);
-    this.placement?.setCursor(point, point ? { x: pointerX, y: pointerY } : null);
-    const tile = point ? tileAt(this.landscape, point[0], point[1]) : null;
-    if (!tile) {
-      this.emit(null);
-      return;
-    }
-    const l = this.landscape;
-    const i = tile.y * l.size + tile.x;
-    this.emit({
-      x: tile.x,
-      y: tile.y,
-      surface: surfaceAt(l, tile.x, tile.y),
-      fertility: l.fertility[i]!,
-      heightM: l.heights[i]!,
-    });
-  }
-
-  private emit(tile: TileInfo | null): void {
-    const same =
-      tile === this.hovered ||
-      (tile !== null &&
-        this.hovered !== null &&
-        tile.x === this.hovered.x &&
-        tile.y === this.hovered.y);
-    if (same) return;
-    this.hovered = tile;
-    for (const listener of this.listeners) listener(tile);
   }
 }
 
