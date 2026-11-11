@@ -384,7 +384,7 @@ Martin chce skutečnou pravděpodobnost, i když je velmi vzácná – žádné 
   řeší dnešní porážka v zimě.
 - **Seno s rezervou:** plán seče **+15 %** (rezerva na dlouhou zimu a suchý rok). Stojí ≈ 15 %
   práce seče navíc.
-- **Zásoby a pojistka** ([pole](fields.md) – Osev podle zásob): pojistka zůstává **0,5 roční
+- **Zásoby a pojistka** ([pole](history/fields-history.md) – Osev podle zásob): pojistka zůstává **0,5 roční
   potřeby celé energie** – s průměrem let v plánu osevu ji ves v normálních letech udrží.
   **Paměť hladu:** po krutém roce drží ves **10 let pojistku 0,75** (seje víc sama – vesničané
   si zlý rok pamatují), pak zase 0,5. **Aby ji ves opravdu měla** (recenze P3 – Vlkov měl před

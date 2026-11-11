@@ -86,11 +86,16 @@ apps/worker/         samostatný proces – smyčka `advanceWorldStep` (loop.ts)
 packages/game/       herní jádro
   src/domain/        pravidla – calendar.ts, landscape/ (generování krajiny po vrstvách)
     village/         simulace vsi – lidé, obydlí, pole, jídlo a práce den po dni
+    war/             válka – tažení po taktech, boj, kořist, zajetí, NPC velitel (docs/code/war.md)
+    world/           svět pro víc hráčů – mřížka, umístění, kostra světa, adresář rodů (docs/code/world.md)
+    negotiation/     jednání hráčů – nabídky a žádosti, mír, výkupné, správcovství (docs/code/vassalage.md, war.md)
+    vassalage/       vazalství – dohody, makrokomodity, dávky, vypovězení (docs/code/vassalage.md)
   src/application/   use-casy a porty (enterGame, SettlementRepository, SeedSource)
   scripts/           vývojové nástroje (measure-landscapes.ts, measure-village.ts, village-calculator.ts)
 packages/server/     sdílené součástky vstupních bodů (web, worker): paměť vsí, přestávky dopočtu, mezipaměť krajin, createGameDeps, svět z env
 packages/db/         Drizzle schéma, klient, migrace a adaptéry portů (src/adapters/)
-docs/design/         herní design – vize + dokument pro každou mechaniku, rešerše v research/
+tools/               pomocné nástroje (blender/ ikony a modely, audio/ zvuky, check-doc-refs.mjs – kontrola odkazů v docs/code)
+docs/design/         herní design – vize + dokument pro každou mechaniku, rešerše v research/, neplatné sekce v history/
 docs/code/           mapa kódu – podrobnosti mechanik po oblastech (viz Mapa kódu níž)
 ```
 
@@ -206,6 +211,7 @@ npm run test:db       # testy adaptérů a souběhu web × worker proti DB bohem
 npm run test:e2e      # Playwright – build + next start na :3011 proti DB bohemia_test (projekty chromium a worker)
 npm run test:e2e:worker   # jen e2e s workerem (spec pustí apps/worker vedle next start)
 npm run format:check  # npm run format = oprava
+npm run check:docs    # jména v docs/code, která v kódu neexistují (tools/check-doc-refs.mjs)
 npm run db:generate   # nová migrace po změně schématu v packages/db/src/schema
 npm run db:seed-dev   # vývojový účet v lokální DB bez registrace
 npm run village-log -- --village <id|jméno> [--player <id>] [--from rok]   # deník vsí (tabulka village_year)
