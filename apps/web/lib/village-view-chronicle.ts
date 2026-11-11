@@ -21,6 +21,7 @@ import {
   type Craft,
   type CraftStocks,
   type Direction8,
+  type MasonCraft,
   type NewcomerGroup,
   type ShipmentManifest,
   type TradeGoods,
@@ -381,6 +382,15 @@ function shipmentText(goods: ShipmentManifest): string {
 }
 
 /** Věta kroniky o lidech od souseda: „Ze severu přišla rodina – 4 lidé.“ */
+/** Obor mistra huti pro zápis kroniky (stone-masonry.md). */
+const MASON_CRAFT_TEXT: Record<MasonCraft, string> = {
+  builder: 'stavbyvedoucí',
+  limeBurner: 'vápeník',
+  stonemason: 'kameník',
+  mason: 'zedník',
+  plasterer: 'štukatér',
+};
+
 function newcomerText(direction: Direction8, group: NewcomerGroup, people: number): string {
   const from = DIRECTION_NAMES[direction].from;
   const lead = `${from.charAt(0).toUpperCase()}${from.slice(1)} ${NEWCOMER_TEXTS[group].chronicle}`;
@@ -653,6 +663,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
         : `Syn vojvody odešel z dvorce – ${event.name}.`;
     case 'wife-left-manor':
       return 'Vedlejší žena odešla z dvorce.';
+    case 'master-left':
+      return `Mistr huti (${MASON_CRAFT_TEXT[event.craft]})${event.name === undefined ? '' : ` ${event.name}`} odešel z vsi${event.people > 1 ? ' i s rodinou' : ''}.`;
+    case 'master-promoted':
+      return `Nový mistr huti (${MASON_CRAFT_TEXT[event.craft]}): ${event.name ?? 'místní muž'}.`;
     case 'line-ended':
       return event.name === undefined
         ? 'Ve vsi už nežije žádný muž rodu.'

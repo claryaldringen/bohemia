@@ -150,6 +150,7 @@ export * from './core/migrations';
 export * from './core/inbox';
 export * from './people/appoint-lord';
 export * from './people/lodge';
+export * from './people/lodge-life';
 export * from './placement/polygon';
 export * from './placement/placement';
 export * from './buildings/dwelling-shape';

@@ -3,6 +3,7 @@
 
 import type { ConstructionKind, LandTaker } from './types-construction';
 import type { Craft } from './types-crafts';
+import type { MasonCraft } from './types-masonry';
 import type { AbandonedStructure, Crop, TileCell, UsableStructure } from './types-land';
 import type { HerdSpecies } from './types-livestock';
 import type { AwayKind, DwellingType } from './types-people';
@@ -257,6 +258,10 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'blocked'; blocker: string; blocked: string }
   /** Vedlejší manželka odešla z přeplněného dvorce do vlastního domu (lord.md – Manželky). */
   | { kind: 'wife-left-manor' }
+  /** Mistr huti odešel (hlad nebo neštěstí) i s rodinou – `people` včetně něj (stone-masonry.md). */
+  | { kind: 'master-left'; craft: MasonCraft; people: number; name?: string }
+  /** Nejzkušenější pomocník nebo syn se stal mistrem oboru (stone-masonry.md – Noví mistři). */
+  | { kind: 'master-promoted'; craft: MasonCraft; name?: string }
   /**
    * `age` – věk zemřelého v celých letech (štěstí: starší ubere méně, happiness.md); starší
    * události bez něj. `cause: 'hunger'` – zemřel hlady (nahromaděný hlad, population.md); jinak

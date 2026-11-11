@@ -12,6 +12,7 @@ import { craftCoverage, wearCraftStocks } from '../crafts/crafts';
 import { updateHappiness } from '../people/happiness';
 import { occupyEmptyDwellings } from '../people/households';
 import { lodgeArrivalsDay } from '../people/lodge';
+import { lodgeLifeDay } from '../people/lodge-life';
 import { husbandryDay } from '../livestock/husbandry';
 import { arrangeMarriages } from '../people/marriage';
 import { bufferFill } from '../fields/field-food';
@@ -535,6 +536,8 @@ function peopleDay(
     state.chronicle.push({ day, kind: 'village-extinct' });
     return false;
   }
+  // mistři huti – odchod při hladu a neštěstí, noví mistři (stone-masonry.md); ves bez huti nic
+  lodgeLifeDay(state, satiation, day);
   return true;
 }
 
