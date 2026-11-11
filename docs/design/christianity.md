@@ -136,7 +136,7 @@ trojpolí, ale stojí ho vedlejší manželky a nespokojenost pohanů, když jim
 - **Staví jen pokřtěný rod** (návrh Clauda, Martin „Ano“) – první kamenná stavba (Martin).
   Rotunda jako na Levém Hradci (kolem roku 884) – rozměry, cena v kameni, dřevě a člověkodnech
   podle rešerše (dohledat).
-- **Kněz přijde sám** (Martin): rok po dostavění kostela přijde do vsi kněz – bydlí u kostela,
+- **Kněz přijde sám** (Martin): hned po dostavění kostela (Martin 11. 11. 2026 – [kostely](churches.md)) přijde do vsi kněz – bydlí u kostela,
   ves ho živí, nepracuje na poli; když zemře, přijde nový (návrh Clauda).
 - **Pohřby** (Martin): pokřtění se pohřbívají u kostela (kostrové hroby, hřbitov u kostela);
   ve vsi bez kostela na starém slovanském hřbitově, ale kostrově ([hřbitov](cemetery.md) –

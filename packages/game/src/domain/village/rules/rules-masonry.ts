@@ -149,8 +149,8 @@ export const CHURCH = {
   happinessPerCoverage: 40,
   decorHappinessPerCoverage: 5,
   conversion: { base: 0.005, perCoverage: 0.025 },
-  // churches.md – Co kostel dává: kněz přijde rok po dostavění; nový 60 dní po smrti (návrh Clauda)
-  priestAfterDays: 365,
+  // churches.md – Co kostel dává: kněz přijde hned po dostavění (Martin); nový 60 dní po smrti
+  priestAfterDays: 0,
   newPriestAfterDays: 60,
   // churches.md – Co kostel dává: hřbitůvek – pás kolem zdí, plocha hrobu i s cestičkami
   churchyardBeltM: 6,

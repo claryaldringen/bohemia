@@ -69,9 +69,10 @@ okruhu jako jeho druhý typ; velký karolinský kostel na našem a slovenském �
 - **Štěstí křesťanů** z kostela = +40 × pokrytí (strop jako posvátná místa – [křesťanství](christianity.md)).
 - **Obrácení** = 0,5 % + 2,5 % × pokrytí za rok (bez kostela 0,5 %, s kostelem pro celou ves 3 %),
   dál × (1 + podíl křesťanů).
-- **Kněz** přijde rok po dostavění, ke každému kostelu jeden ([křesťanství](christianity.md));
-  když zemře, nový přijde za 60 dní. Kostel slouží (kapacita, štěstí, obrácení, pohřby, svatby), jen
-  když v něm je kněz (návrh Clauda).
+- **Kněz** přijde hned do dostavěného kostela (Martin, 11. 11. 2026: „Ať přijde kněz hned do
+  dostavěného kostela“), ke každému kostelu jeden ([křesťanství](christianity.md)); když zemře, nový
+  přijde za 60 dní. Kostel slouží (kapacita, štěstí, obrácení, pohřby, svatby), jen když v něm je
+  kněz (návrh Clauda).
 - **Hřbitůvek** kolem kostela – obdélník o pás 6 m větší než kostel (bere i místo pro umístění
   staveb), hrob ≈ 2,5 m² i s cestičkami (návrh Clauda);
   křesťané se pohřbívají u kostela. Hroby se po čase uvolní pro nové pohřby (Martin, 11. 11. 2026:
