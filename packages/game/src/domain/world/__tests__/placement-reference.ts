@@ -49,11 +49,3 @@ export function placeClusterReference(
   // Nedosažitelné: na prstenci `limit` je vždy volno.
   throw new Error('Nenalezeno volné políčko mřížky světa');
 }
-
-/** Nejbližší volné políčko od cíle, které je od všech obsazených aspoň `gap` daleko. */
-export function placeNewPlayerReference(
-  occupied: readonly OccupiedCell[],
-  request: PlacementRequest,
-): GridCell {
-  return placeClusterReference(occupied, [{ x: 0, y: 0 }], request).offset;
-}

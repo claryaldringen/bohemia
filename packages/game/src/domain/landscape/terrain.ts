@@ -230,7 +230,7 @@ export interface StreamGoal {
 /**
  * Trasa potoka jako nejlevnější cesta (Dijkstra, 8 směrů) od jednoho okraje k protilehlému –
  * preferuje nízko položená místa a vyhýbá se stoupání a bočním okrajům mapy. Tvar koryta
- * (meandry, šířka, tůně) z ní udělá shapeStream. S cílem `goal` (mapa z kostry) vede od jeho
+ * (meandry, šířka, tůně) z ní udělají planStream a buildStream. S cílem `goal` (mapa z kostry) vede od jeho
  * startu k jeho cíli bez losů; [] = cíl nedosažitelný.
  */
 export function routeStream(

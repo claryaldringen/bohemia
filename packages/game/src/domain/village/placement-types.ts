@@ -318,7 +318,10 @@ export interface CemeteryPreview {
 
 /** Nejvíc čtverců jednoho pole (≈ 34 ha) – ochrana serveru před obřím vstupem. */
 export const MAX_FIELD_CELLS = 1500;
-/** Nejvíc čtverců jednoho sadu (≈ 34 ha jako pole) – ochrana serveru před obřím vstupem. */
+/**
+ * Nejvíc čtverců jednoho sadu (≈ 34 ha jako pole) – ochrana serveru před obřím vstupem.
+ * @alias
+ */
 export const MAX_ORCHARD_CELLS = MAX_FIELD_CELLS;
 /** Nejvíc čtverců jednoho hřbitova (5 600 hrobů) – ochrana serveru před obřím vstupem. */
 export const MAX_CEMETERY_CELLS = 100;

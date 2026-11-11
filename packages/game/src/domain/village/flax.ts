@@ -42,14 +42,10 @@ export function seasonHarvestYear(day: number): number {
 }
 
 /**
- * Smí na díl len, který dnes přibude k práci (fields.md – Len)? Nejdřív `FLAX.returnYears` let od
- * posledního lnu na dílu (`FieldPart.flaxYear` – chybí = smí hned).
+ * Smí na díl len, který přibude k práci v hospodářském roce se sklizní `harvestYear`
+ * (`seasonHarvestYear`; fields.md – Len)? Nejdřív `FLAX.returnYears` let od posledního lnu na
+ * dílu (`FieldPart.flaxYear` – chybí = smí hned).
  */
-export function flaxAllowed(part: Pick<FieldPart, 'flaxYear'>, day: number): boolean {
-  return flaxAllowedIn(part, seasonHarvestYear(day));
-}
-
-/** `flaxAllowed` s rokem sklizně spočteným předem (`seasonHarvestYear` – jen zrychlení). */
 export function flaxAllowedIn(part: Pick<FieldPart, 'flaxYear'>, harvestYear: number): boolean {
   return part.flaxYear === undefined || harvestYear - part.flaxYear >= FLAX.returnYears;
 }

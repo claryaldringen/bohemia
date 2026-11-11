@@ -397,7 +397,7 @@ function idSlots(parts: readonly FieldPart[]): number {
  * nejnáročnější, tak mu patří nejlepší díly, ať jsou kdekoli (Martin 10. 11. 2026: „Ano. Jak jsme
  * řekli, len je extrémně náročná plodina, ale zase ho není potřeba moc“; dřívější přednost dílů
  * v osevu před prvním osevem je pryč – návrh Clauda); jen díly od 70 % (`isSowableFertility`),
- * na kterých len 7 let nerostl (`flaxAllowed`). Nouzový příloh ne. Stejné pořadí slouží na jaře
+ * na kterých len 7 let nerostl (`flaxAllowedIn`). Nouzový příloh ne. Stejné pořadí slouží na jaře
  * k setí a na podzim k odložení dílů před ozimem (`turnSelection`). Vydává díly postupně z haldy
  * (len bere jen pár nejlepších – celé řazení by bylo zbytečné; pořadí jako stabilní řazení podle
  * úrodnosti a id, při shodě obojího podle pořadí v blocích).
