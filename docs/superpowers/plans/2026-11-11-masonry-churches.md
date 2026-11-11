@@ -41,7 +41,7 @@ vsi je nemají – **zlatý otisk vsi a otisky Vlkova se nesmí změnit**.
 /Users/martin-pracovni/Projects/Bohemia-wt/<úloha> -b feat/<úloha> feat/landscape`, pak
   `npm install --prefer-offline --no-audit --no-fund`. Zakázáno: `git stash`, `rm -rf`, push,
   `db:migrate` do `bohemia`, kalibrace. Před koncem `npm run typecheck`, `lint`, `test`,
-  `format:check`, `check:docs`; u simulace i `npm run test:slow`. E2e pouští koordinátor sám.
+  `format:check`, `check:docs`; u simulace i `npm run test:slow`. E2e pouští hlavní relace Clauda.
 - Mapu kódu (`docs/code/`) doplnit u každé úlohy: nový soubor `docs/code/village-masonry.md`
   (huť, vápno, kostel) + řádek v tabulce v `CLAUDE.md`.
 
@@ -272,7 +272,7 @@ písník u vody (vzor `ore-site-layout.ts`), hroby na hřbitůvku (vzor `cemeter
 křesťanů u kostela (`wedding-plan.ts`, nový druh místa `church`), kněz ve scéně jako postava.
 Docs `scene-village.md`. Commit `feat(web): staveniště kostela, hřbitůvek a svatby u kostela`.
 
-### M9: E2e a závěr (koordinátor)
+### M9: E2e a závěr (hlavní relace)
 
 E2e: pokřtěný dev rod pozve huť, skok v čase o 60 dní, mistři ve vsi; umístění rotundy, stavba se
 rozběhne. Celé `test:e2e`, `test:slow`, docs v `CLAUDE.md` a `village-masonry.md`, ranní tabulka.
