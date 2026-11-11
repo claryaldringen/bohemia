@@ -201,7 +201,8 @@ npm run worker        # jen worker (čte apps/web/.env.local, Ctrl+C = čistý k
 npm run build
 npm run typecheck     # next typegen + tsc
 npm run lint
-npm run test          # unit testy (Vitest)
+npm run test          # unit testy (Vitest) bez pomalých (pásma krajin, dlouhé běhy vsi)
+npm run test:slow     # jen pomalé testy (`packages/game/slow-tests.ts`) – pásma `*band*`, kostra světa, správce, simulace vsi, zlatý otisk vsi na 3 roky
 npm run test:db       # testy adaptérů a souběhu web × worker proti DB bohemia_test (Homebrew Postgres musí běžet)
 npm run test:e2e      # Playwright – build + next start na :3011 proti DB bohemia_test (projekty chromium a worker)
 npm run test:e2e:worker   # jen e2e s workerem (spec pustí apps/worker vedle next start)
@@ -223,7 +224,8 @@ databázi – souběžné e2e a `test:db` z víc pracovních stromů (`docs/code
 
 Všechny příkazy jdou přes Turborepo do jednotlivých workspaces. Před commitem musí projít
 `typecheck`, `lint`, `test` a `format:check`; u změn adaptérů DB i `test:db`, u změn
-přihlašování, stránek nebo scény i `test:e2e`.
+přihlašování, stránek nebo scény i `test:e2e`; u změn `domain/landscape`, `world/skeleton` nebo
+pravidel simulace vsi i `test:slow`.
 
 ---
 
