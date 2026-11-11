@@ -81,6 +81,9 @@ export function useVillageSync({
   useEffect(() => {
     viewRef.current = view;
   }, [view]);
+  // Klient zahodil trasy nebo vyšlapanost – další dotaz se zeptá bez otisku a kusů (plný pohled).
+  // Drží se mimo `viewRef`: efekt výš by pohled bez otisku po vykreslení přepsal zpátky.
+  const stampLostRef = useRef(false);
   // Poslední použitý pohled na ves – nová upozornění se počítají proti němu.
   const noticedRef = useRef<VillageView | null>(view);
 
@@ -118,11 +121,10 @@ export function useVillageSync({
       if (ticket !== applyTicket.current) return;
       setVillage(next);
       if (!isVillageView(next)) return;
-      // zahozená trasy nebo vyšlapanost: bez otisku, ať další dotaz doručí plný pohled hned
-      viewRef.current =
-        unpacked.lost || (isVillageView(received) && lostSceneData(received.scene, next.scene))
-          ? withoutStamp(next)
-          : next;
+      // zahozená trasy nebo vyšlapanost: další dotaz bez otisku, ať doručí plný pohled hned
+      viewRef.current = next;
+      stampLostRef.current =
+        unpacked.lost || (isVillageView(received) && lostSceneData(received.scene, next.scene));
       // nový pohled napřed – chyba při porovnání (pohled z doby před změnou kódu) se nesmí
       // opakovat při každém dalším dotazu
       const previous = noticedRef.current;
@@ -135,12 +137,14 @@ export function useVillageSync({
   const poll = useCallback(async (): Promise<void> => {
     if (busyRef.current) return;
     const seq = ++requestSeq.current;
-    const known = viewRef.current?.stamp;
+    const base =
+      stampLostRef.current && viewRef.current ? withoutStamp(viewRef.current) : viewRef.current;
+    const known = base?.stamp;
     const result = await getVillageView({
       villageId: viewRef.current?.id ?? null,
       ...(known ? { known } : {}),
       ...knownSceneData(viewRef.current?.scene),
-      pieces: knownViewPieces(viewRef.current),
+      pieces: knownViewPieces(base),
       withNotices: true,
     });
     // Server upozornění už označil za přečtená – ukázat i z odpovědi, která se jinak zahodí.
