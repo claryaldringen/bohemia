@@ -436,7 +436,7 @@ null)` v `orders.ts` – před bitvou kdykoli, v boji na doslech velitele jako `
 
 fortifications.md – Přechod hradby (Oheň, Podkop, S valem), Obrana bez násobku 1. Pravidla
 z `assault.ts` (`crossingLayers`, `assaultSteps`, `assaultHours`, `mineUnderground`), boj v
-`battle.ts`; `fortification/breach.ts`, `breachManHours` a `rampartAssaultPace` jsou pryč.
+`battle.ts`; dřívější soubor prolomení je pryč.
 
 - **Místa** (`wallsOf`) – brána (1 m před vraty) a zeď (uprostřed úseku, u dílu s branou čtvrtina
   od kraje – `wallSpotSegment`); `Spot.steps` = postupy prolomení místa (`cut`, `burn`, `dig`,
@@ -1486,7 +1486,7 @@ Scéna vojska (scene.md – Vojsko, boj a mlha války) kreslí válku i ve hře,
 Scéna hry ukazuje **mapu sídla hráče** – vojsko je v ní vidět, když na ní stojí.
 
 - **Pohled** (`domain/war/scene-view.ts` – `warSceneView(state, { cell, side, grid, eyes, forts })`,
-  typy `WarScene*`): co strana `side` vidí z tažení na mapě `cell`. Vlastní strana celá (útočník =
+  typy `WarSceneFighter`, `WarSceneWall`…): co strana `side` vidí z tažení na mapě `cell`. Vlastní strana celá (útočník =
   celé vojsko tažení i s muži vazalů), druhá jen v dohledu (`inSight`) vlastních bojovníků na
   nohou a očí `eyes` – u obránce domy vsi (návrh Clauda: ves vidí i tehdy, když lidé utekli do
   lesa). Bojovník jen se vším, co scéna kreslí (`WarSceneFighter` – bez `ref`, síly, cílů a tras);

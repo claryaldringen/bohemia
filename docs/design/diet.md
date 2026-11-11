@@ -948,7 +948,7 @@ krajiny, hráč skriptu ohrady ani dílny nestaví). Srovnání s měřením str
 Závěr (k rozhodnutí Martina): maso a mléko na stropech jsou na rané Slovany hodně – strava byla
 převážně obilná. K doladění: cíl osevu podle stravy, nižší stropy masa a mléka, nebo menší potřeba
 bílkovin pokrytá luštěninami. **Martin 19. 10. 2026:** „Zatím udělejme osev podle stravy. Já
-později zjistím, proč tam máme tuhle disbalanci.“ – viz [pole – Osev podle stravy](fields.md)
+později zjistím, proč tam máme tuhle disbalanci.“ – viz [pole – Osev podle stravy](history/fields-history.md)
 (stropy a podíly masa, mléka a luštěnin se nemění).
 
 ## Naměřeno s osevem podle stravy (19. 10. 2026)
@@ -987,7 +987,7 @@ potřebách celé energie):
   (práh zásob i s luštěninami, výhled jen s dnešním mlékem) měla nasycení ≥ 0,95 jen v 79 % let –
   část byla chyba měření (skript přehrával jídlo bez mléka dne); s výhledem s mlékem do sklizně
   a opraveným měřením 95,8 % let, se zásobami v obilí 100 %.
-- **Od 19. 10. 2026 osev podle zásob** ([pole – Osev podle zásob](fields.md)): pojistka zásob
+- **Od 19. 10. 2026 osev podle zásob** ([pole – Osev podle zásob](history/fields-history.md)): pojistka zásob
   z celé potřeby energie místo „zásoby obilí na 1–1,5 roku potřeby z pole“.
 
 ## Naměřeno se stády realističtěji (19. 10. 2026)

@@ -226,7 +226,7 @@ volů (`draft.ts`).
   služby vždy (voli se nikdy neporážejí dřív). Ves, které orba stačí, se nemění.
 - **Pod pojistkou** (27. 10. 2026 – Martin schválil „Pod pojistkou mají v oknech setí přednost
   pole“, **Martin 27. 10. 2026: „Ano“**; provedení návrh Clauda): když výhled zásob z pole
-  k příští sklizni k 1. 9. nedosáhne pojistky ([pole](fields.md) – Osev podle zásob), potřeba párů
+  k příští sklizni k 1. 9. nedosáhne pojistky ([pole](history/fields-history.md) – Osev podle zásob), potřeba párů
   počítá **i nutné díly mimo postup** – výběr nutných dílů k 1. 9. včetně nouzových příloh
   (`neededSelection`); páry zvýší hned jako vždy, když orba nestačí. _Historie:_ nutné díly
   a `neededSelection` zrušené 9. 11. 2026 s cílem osevu – páry počítají všechny díly na řadě

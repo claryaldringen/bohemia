@@ -190,11 +190,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   postavit kovárnu“; podrobnosti návrh Clauda): `placement.ts` les krajiny ani les vsi nezakazuje
   žádné stavbě (`checkFootprintTerrain(…, clearForest)`, `LandUse.woods`, pozemek
   `plotGroundProblem`, ohrada, sad a hřbitov v `buildSquares` / `cemeteryPartsFromCells`, modla
-  a svatyně `checkSacredTerrain`); výchoz, voda a prudký svah dál ano. **Cena = sazba lesa jako
+  a svatyně); výchoz, voda a prudký svah dál ano. **Cena = sazba lesa jako
   díl pole** (`forestClearingCost` – `foundingCostPerHa('forest', toolCoverage)` × plocha lesa):
   volně stojící stavba (obydlí, dílna, modla, svatyně) vyklučí vyklízenou plochu a v lese i pruh
   `FOREST_CROWN_MARGIN_M` (4 m) pod korunami (`freeForestClearing` – mnohoúhelníky
-  `dwellingClearing(…, margin)`, `milirClearing(…, margin)`, `freeDwellingClearings(…, margin)`,
+  `dwellingClearing(…, margin)`, `freeDwellingClearings(…, margin)`,
   v pruhu jen les – `ClearingOptions.only`); plocha lesa `forestAreaUnder` (políčko lesa bez staveb
   přesně, se čtverci staveb a lesa vsi body po 0,5 m – `forestLandAt`: políčko lesa krajiny nebo
   čtverec lesa vsi mimo půdu polí, sadů, hřbitovů, ohrad a hájů); druhy v sazbě
@@ -352,7 +352,7 @@ na něj, `acceptsBurials`): od něj stojí, ale nepoužívá se. Čte ho
   neopraví sama – vrátí ji jen hráč.
 - **Návrh Clauda:** zvířata z opuštěné ohrady zůstanou ve vsi bez ohrady – koně v `looseHorses`,
   voli v `looseOxen` (přejdou do jiné ohrady, až bude); stádo bez ohrady jako dnes. Obydlí
-  s obyvateli jde dočasně opustit jen prázdné (`DWELLING_OCCUPIED`), volná místa v jiných obydlích
+  s obyvateli jde dočasně opustit jen prázdné, volná místa v jiných obydlích
   přidá Ú2.
 - **Vrátit** (`restoreStructure`): smaže `disusedDay`; modla, svatyně, ohrada přestanou chátrat
   (`wear = { condition }`) a stavba `repair` je opraví ze zchátralého stavu; obydlí stav nezvedá

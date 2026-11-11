@@ -849,7 +849,7 @@ návrh Clauda; čísla v `rules.ts` (`CRAFT_BUYING`), rešerše
   nástroje 57,6, keramika 2,88, dřevěné nářadí 1,92 kg obilí za kg). Platí se **tím, co ves
   pěstuje – obilím nebo luštěninami**, nejlevnějším v práci (cena jídla v práci – `foodCosts`,
   i s nošením) a **jen z přebytku nad pojistkou zásob** (co zbude k příští sklizni nad pojistku –
-  fields.md, Osev podle zásob). Bez přebytku ves nekupuje. Obilí na platbu ves vypěstuje znovu –
+  history/fields-history.md, Osev podle zásob). Bez přebytku ves nekupuje. Obilí na platbu ves vypěstuje znovu –
   u nástrojů už s nimi (cena jídla v práci při pokrytí po nákupu).
 - **Cesta:** malá skupina – **polovina dospělých, nejvýš 8** – nese platbu tam a výrobky zpět po
   25 kg na člověka; kdo nese víc, jde vícekrát, ale přes zimu **nejvýš 60 dní** – víc ves koupí

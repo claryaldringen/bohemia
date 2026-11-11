@@ -152,7 +152,7 @@ platí dál, staré vsi se nepřevádějí.
   s ochozem) | `crib` (roštová) | `chamber` (komorová), `FortKind = WallKind | 'rampart'`,
   `FortTop = WallKind`; pořadí stupňů 1–5 `WALL_ORDER` (`life.ts`). Nové druhy zatím nikde
   nevznikají – katalog (`village-input.ts`) a nabídka nástavby dál jen plot, palisáda a val; scéna
-  je kreslí jako palisádu (`sceneWall` ve `fortification-layout.ts`), panel s ikonou palisády,
+  je kreslí jako palisádu (`fortification-layout.ts`), panel s ikonou palisády,
   obrana, prolomení a správce je počítají jako palisádu, dokud je nepřepíšou další úlohy.
 - **Vrstvy úseku** – `segmentWall(fort, seg): WallLayer | null` (`{ kind, builtDay, state }`; bez
   valu úsek sám, na valu nástavba `segmentTop` s `topBuiltDay`; holý val či zbořená nástavba null)
@@ -731,8 +731,7 @@ points: [x, z][], target }` – body mezi konci, `parseRerouteFortificationSecti
 `__tests__/defense.test.ts`. Funkce berou `geo` (`GridGeometry`) jako ostatní. Prolomení počítá
 od 8. 11. 2026 `assault.ts` (Přechod hradby níž; boj – `docs/code/war.md`, Prolomení v boji).
 
-- **`defense.ts`** – **násobek obrany zrušen 8. 11. 2026** (fortifications.md – Obrana bez násobku;
-  `segmentMultiplier` a `defenderMultiplier` pryč). Mezera `segmentIsGap` (nedostavěný, prolomený,
+- **`defense.ts`** – **násobek obrany zrušen 8. 11. 2026** (fortifications.md – Obrana bez násobku). Mezera `segmentIsGap` (nedostavěný, prolomený,
   plot / palisáda shnilé na 0). `fortsContaining(geo, forts, body)` – pro každý bod pořadí
   opevnění, uvnitř jehož obvodu (křivky) leží, jinak null; obvod každého opevnění jednou (vzdání
   za opevněním a NPC velitel – `docs/code/war.md`). `fortGaps(geo, fort, day, closedGates)` –
@@ -741,18 +740,17 @@ od 8. 11. 2026 `assault.ts` (Přechod hradby níž; boj – `docs/code/war.md`, 
 gateCloseTick)` (bere plochu místo opevnění): příchozí po zavření brány venku; ostatní podle
   přednosti lidé → koně a voli → skot → drobný dobytek (uvnitř skupiny podle taktu příchodu);
   `homeInside` lidé nic nenesou, zvenku 25 / 10 kg (`carriedKg`).
-- **Prolomení** – `breach.ts` (`breachWork`, `breachPace`, `breachStep`), `breachManHours`
-  a `rampartAssaultPace` jsou pryč (plán hradeb Úloha 14) – nahradil je `assault.ts`, testy
+- **Prolomení** – dřívější soubor prolomení je pryč (plán hradeb Úloha 14) – nahradil ho `assault.ts`, testy
   prolomení se přesunuly do `assault.test.ts`; zůstává `FORTIFICATIONS.breach.widthM` (4 m – průlom
-  i zasypaný kus příkopu). Práh vzdání s násobkem (`surrenderThreshold`) je od 8. 11. 2026
+  i zasypaný kus příkopu). Práh vzdání s násobkem je od 8. 11. 2026
   pryč – za opevněním se skupina nevzdá, dokud útočník nestojí uvnitř obvodu (`war/stance.ts`).
 - **Průlom po boji** – `applyFortificationBreach` (`war/raid-apply.ts`): prolomené díly stav 0
   a `breachedDay`; vypálené (`burned`) navíc `burnedDay`, vypálená brána (`gatesBurned`) smaže
   věž (`towerDay`). Přestavba a zboření dílu `breachedDay` i `burnedDay` smažou.
 - **Odchylky od plánu:** funkce navíc berou `geo`; `refugeAdmit` bere kapacitu, ne opevnění;
   `closedGates` je množina indexů úseků; pozice jsou `{ x, z }`. Čísla navíc v `FORTIFICATIONS`:
-  `refuge.carryKgAdult/Child` (`rampartHeightBonus`, `surrenderOddsPerDefender`
-  a `defenderKnowsPlace` zrušeny s násobkem 8. 11. 2026; `multiplier` zrušen i v odhadu správce –
+  `refuge.carryKgAdult/Child` (bonus výšky valu, šance vzdání na obránce
+  a znalost místa zrušeny s násobkem 8. 11. 2026; `multiplier` zrušen i v odhadu správce –
   nahradila ho ochrana druhu `protection`, viz Správce a hrozba).
 
 ## Přechod hradby (`assault.ts`)

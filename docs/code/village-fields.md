@@ -57,7 +57,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   i povýšení. Jinak úplný výběr a `selection` se přepíše; mimo dny, kdy smí začít díl, se smaže.
   Test `season-day.test.ts` (plné čelo – nový výběr by nepřibral nic). `startedPartIds` nebere úlohu bez práce (ozim se neplete) za začatou.
   `sowing.ts` nese už jen okna a zátěž pro pomoc rodiny ve žních (`planLoad`, `cropLoadOf`,
-  `lordHarvestHelp`) a `sideCropOrder`. **Výhled zásob k sklizni** (fields.md – Výhled zásob
+  `lordHarvestHelp`). **Výhled zásob k sklizni** (fields.md – Výhled zásob
   k sklizni, 9. 11. 2026; cíl osevu zrušen): `storesOutlook` ve `field-food.ts` (ve vsi
   `fieldStoresOutlook` v `simulate-plan.ts`) vrací jen `needKg`, `leftKg`, `shortKg`, `bufferKg` –
   potřeba z pole (podíl jídla z pole za uplynulý hospodářský rok – `VillageState.fieldFood`, součty
@@ -71,7 +71,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   ~~Nutné díly navíc ves uvolní~~ (zrušeno 9. 11. 2026 – nouzové první, pak nejdál
   od domu, ladem jako příloh – `FieldPart.fallowBeforeSeason` – nebo zpět na řadu).
   **Díly jedna fronta** (fields.md – Osevní postup po dílech, bod 3; 9. 11. 2026): díly nad potřebu
-  (`surplus-fields.ts`, `SeasonCrop.surplus`, `surplusOrder`, `promoteSurplus`, uvolňování
+  (`SeasonCrop.surplus`, uvolňování
   `releasable`) zmizely – výběr `turnSelection` (`rotation.ts`) vrací všechny díly na řadě bez
   stropu; přílohy 70–95 % až po oseté řadě v okně setí (`turnSown`), nouzové jen při nedostatku
   (`TurnOptions.shortage` – `grainShortage` v `simulate-plan.ts`: zrno k sklizni bez osiva jen na
@@ -98,8 +98,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   kdo jde na pole, určí `lordFieldShares` (`lord.ts`) ze spotřeby: napřed ženy a dcery
   (`free − freeMen`), pak muži rodiny (`freeMen − freeLord`), vojvoda až nakonec (`freeLord`;
   Martin 9. 11. 2026) – podíly `LordFieldShares` pro `trainLordDay`, `huntDay` a `lordDayCounts`. Pomoc
-  s osevem (`lordSowingHelp`, `SOWING_HELP_TASKS`) a při hladu (`lordFieldMode`, `lord.field`,
-  zásobníky `lordField` a `lordHarvest`) zrušené; převod `withoutSowingHelp` (`lord.ts`).
+  s osevem a při hladu (`lord.field`) je zrušená; převod `withoutSowingHelp` (`lord.ts`).
   **Pletí – děti** (fields.md – Pletí – děti, 25. 10. 2026): `weedingChildren` (harvest-hands.ts)
   = věk výrostků 7–13 let mimo `lordTraineeIds` bez pasáků (`herdingDay` – `freeHerders.children`,
   pasou nejstarší); `work()` je počítá jen v den s úlohou `weed` a dá `allocateDay` zásobník
@@ -128,7 +127,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `freeMen`, `help` 0 – i ženatí synové v dvorci; vedlejší manželky vojvody mimo dvorec ne, jsou
   v `lordApartIds`, takže je nepočítá ani `harvestHelperLabor`) i `work()`; v `allocateDay` zásobníky `harvestHands` (`craftHarvestLabor`
   - výrostci od 10 let a starší po `HARVEST_HELPERS.perDay` – `harvestHelperLabor`, mimo
-    `lordApartIds`) a `lordHarvest` jen na `HARVEST_HANDS_TASKS` (žeň, výmlat) za lehkou prací žen, před prací vsi,
+    `lordApartIds`) a `lordHelp` jen na `HARVEST_HANDS_TASKS` (žeň, výmlat) za lehkou prací žen, před prací vsi,
     nevyužité propadne; spotřebu mužů vrací `lordField` (podíl dne ÷ `freeMen`). `sowingCapacity`
     přičte tytéž ruce (`craft + harvest` dílen, `freeMen`, `harvestHelperLabor` × štěstí) v oknech `july` a `august` a z výmlatu
     v podzimních oknech nechá vsi jen její díl (volná práce vsi ÷ (vsi + ruce)). Výhled jídla do sklizně (`eatDiet`) počítá s mlékem stád do sklizně
@@ -154,14 +153,14 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     úroda:** `cropYieldKg` (`year-plan.ts`) – hrubá úroda dílu × `kept` = 1 − `PartLosses[id].share`,
     osivo se odečte celé. Ztráty skládá `dayPartLosses` (`disasters.ts`) – počasí dílu
     (`partWeatherFactor`) × (1 − škoda zvěře); volají ho `harvestWinter` (ozim, luštěniny),
-    `harvest`, `harvestSurplus` a `harvestFlax`, odhad ozimu pro příděl `winterEstimateLosses`
+    `harvest` a `harvestFlax`, odhad ozimu pro příděl `winterEstimateLosses`
     (jen počasí, které je vidět) v `diet.ts` a `emergency-slaughter.ts`
     ([village-disasters.md](village-disasters.md) – Sucho, deštivé léto, krutá zima). Plán po plodinách
     prochází `seasonCrops`, všechny díly `seasonPartIds`. **Luštěniny** (fields.md – Luštěniny, Martin 18. 10. 2026): třetí plodina `legume` (`SeasonCrop` s `crop: 'legume'`, `LEGUME_WINDOWS` – jař se sklizní
     v červenci, `LEGUMES` a `LEGUME_WORK_PER_HA` v `rules*.ts`, úroda `cropGrossPerHa` /
     `cropSeedPerHa`, `partWork(…, crop)`). **Z polí vyřazené (Martin 9. 11. 2026, fields.md –
-    Luštěniny, zrušeno):** `turnSelection` je nepřidělí, cíl luštěnin, `plannedLegumeKg`,
-    `legumeNeedPerYear` a `FoodCosts.legumePerKg` jsou pryč; pravidla a okna zůstala jen pro
+    Luštěniny, zrušeno):** `turnSelection` je nepřidělí, cíl luštěnin
+    a `FoodCosts.legumePerKg` jsou pryč; pravidla a okna zůstala jen pro
     dorůstající luštěniny starších vsí. Převod `withoutFieldLegumes` (`field-legumes.ts`, řetěz
     převodů na začátku `advanceVillageSteps`, den `lastDay`): nezaseté díly luštěnin
     (`unsownPartIds` z `field-progress.ts`) přejdou `moveParts` do nutné jaře i s přípravou půdy,
@@ -206,7 +205,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     do `legumesKg`, zápis `Dwelling.garden` (`{ legumeKg }` – panel obydlí, ikona `legumes`),
     kronika `garden-harvest` (souhrn za ves; `flaxKg` jen ve starších zápisech); ves založená po
     `GARDEN.sowingEnd` (`gardensSown`) nic. Převod `withoutGardenFlax` (`garden.ts`, řetěz
-    v `advanceVillageSteps` místo dřívějšího `withoutFieldFlax`): zápis zahrádky ztratí `flaxKg`.
+    v `advanceVillageSteps`): zápis zahrádky ztratí `flaxKg`.
     Zpracování lnu je v domácí výrobě
     (přerozdělení), žádná zásoba v liště. Web: `SceneFieldPart.crop: 'flax'` a `bloom` (červen –
     `FLAX_BLOOM_MONTH` ve `village-view-fields.ts`), scéna `FLAX_STYLES` / `FLAX_BLOOM` ve `field-crops.ts`
@@ -231,10 +230,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `sowing-rotation.test.ts` (rok po roku do 70 %, ozim po ozimu, příloh do 95 %, převod `next`).
 - **Osevní postup po dílech** (fields.md – Osevní postup po dílech a setí do konce okna, 25. 10.
   2026; plán `2026-10-25-sowing-rotation`, Úloha 1; pevný sled na dílu od 10. 11. 2026 nahradila
-  přílohová soustava – výše): `rotation.ts` – `neededSelection` (k práci
-  plánu přibírá díly na řadě v pořadí `sowingBlocks` – len od konce, napřed díly po ozimu
-  (`flaxOrder` v `sowing.ts` – od 9. 11. 2026 pryč, len je na zahrádce), obilí do `harvestKg`, nouzové přílohy až za
-  ostatními; nezačaté obilí nad toleranci `FIELD_STORES.trimMarginYears` vrátí v `release`).
+  přílohová soustava – výše): `rotation.ts` (výběr k práci plánu zrušen 9. 11. 2026 s cílem osevu – `turnSelection`
+  vrací všechny díly na řadě; len je na zahrádce).
   Sem se přesunuly i `sowParts` a `reclaimedLogs`.
   **Panel – Příště a Na řadě** (fields.md – Osevní postup po dílech, bod 6; Úloha 7):
   Obnova přílohu `FERTILITY.fallowRecovery` = 0,05 ročně (26. 10. 2026, dřív 0,025): odpočatý díl
@@ -450,7 +447,7 @@ tools)` = s hromadou `pileSowsKg` (osivo, které ves ještě zaseje: `sowingHaPe
   (`toAbandonedFallow` v `rotation.ts`), příloh zůstane, osetý roste a do přílohu jde 1. 9.
   v `rotateAfterSeason`; `returnPart` vyřazený opuštěný díl nechá ladem. Osev ho přeskočí přes
   `sowingGroup` (null), `isEmergencyFallow` (false) a `nextSowing` (`'rest'`) – na nich stojí
-  `sowingOrder`, `sowingBlocks`, `neededSelection`, `surplusOrder` i `ploughPairsForRotation`;
+  `sowingOrder`, `sowingBlocks` i `ploughPairsForRotation`;
   `partRotation` u něj ukáže úhor bez odpočinku, `fieldCapacity` ho nepočítá. Zarůstání, pastva
   a seč beze změny (opuštěný příloh je přílohem). Use-case `abandonVillageFieldParts`
   (`application/abandon-field-parts.ts`, právo `abandonFieldParts: 'build'`), server action

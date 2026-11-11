@@ -14,7 +14,8 @@
     "lint": "eslint .",
     "format:check": "prettier --check . --ignore-path ../../.gitignore",
     "format": "prettier --write . --ignore-path ../../.gitignore",
-    "test": "vitest run --testTimeout=30000"
+    "test": "vitest run --testTimeout=30000",
+    "test:slow": "vitest run --config vitest.slow.config.ts --testTimeout=600000"
   },
   "devDependencies": {
     "eslint": "^10.12.0",

@@ -23,6 +23,7 @@
     "format:check": {},
     "format": { "cache": false },
     "typecheck": { "dependsOn": ["^build"] },
-    "test": { "dependsOn": ["^build"] }
+    "test": { "dependsOn": ["^build"] },
+    "test:slow": { "dependsOn": ["^build"] }
   }
 }
