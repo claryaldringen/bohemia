@@ -30,20 +30,21 @@ function hasFamily(state: VillageState, master: Person): boolean {
 }
 
 /**
- * Den odchodu mistrů (mutuje stav; `satiety` = dnešní nasycení vsi). Počítadla `lodge.hungryDays`
- * a `lodge.unhappyDays` rostou, dokud nasycení (`LODGE.leaving.satietyBelow`) a štěstí vsi
+ * Den odchodu mistrů (mutuje stav; `foodCoverage` = dnešní pokrytí potřeby jídla vsi (energie, bez kvality stravy)). Počítadla `lodge.hungryDays`
+ * a `lodge.unhappyDays` rostou, dokud pokrytí jídla (`LODGE.leaving.foodBelow`) a štěstí vsi
  * (`happinessBelow`) zůstávají pod mezí, jinak se vynulují. Po dosažení `hungryDays` nebo
  * `unhappyDays` rozhodne jeden los na mistra (ze seedu vsi, id mistra a dne – nezávisí na kouscích
  * dopočtu): bez manželky a dětí ve vsi odchází vždy, jinak s šancí `familyChance`; odchází s celou
  * domácností (`removePeople` s emigranty) a kronika to zapíše. Počítadla se po losu vynulují
  * (mistr, který zůstal, dostane další los až po další mezi). Ves bez huti nic.
  */
-export function lodgeLeavingDay(state: VillageState, satiety: number, day: number): void {
+export function lodgeLeavingDay(state: VillageState, foodCoverage: number, day: number): void {
   const lodge = state.lodge;
   if (lodge === undefined) return;
   // bez mistrů ve vsi není kdo by odcházel – počítadla se nevedou (mistr, který právě dorazil, začíná od nuly)
   const present = state.people.some((p) => p.mason !== undefined);
-  const hungry = present && satiety < LODGE.leaving.satietyBelow ? (lodge.hungryDays ?? 0) + 1 : 0;
+  const hungry =
+    present && foodCoverage < LODGE.leaving.foodBelow ? (lodge.hungryDays ?? 0) + 1 : 0;
   const unhappy =
     present && villageHappiness(state) < LODGE.leaving.happinessBelow
       ? (lodge.unhappyDays ?? 0) + 1
@@ -126,9 +127,9 @@ export function promoteMasters(state: VillageState, day: number): void {
 }
 
 /** Den mistrů huti ve vsi – odchod a noví mistři (volá se na konci dne po jídle a štěstí). */
-export function lodgeLifeDay(state: VillageState, satiety: number, day: number): void {
+export function lodgeLifeDay(state: VillageState, foodCoverage: number, day: number): void {
   if (state.lodge === undefined) return;
-  lodgeLeavingDay(state, satiety, day);
+  lodgeLeavingDay(state, foodCoverage, day);
   promoteMasters(state, day);
 }
 

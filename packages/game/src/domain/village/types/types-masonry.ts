@@ -33,7 +33,7 @@ export interface Lodge {
   readonly invitedDay: number;
   /** Mistři a kněží na cestě (příchod za `LODGE.arrivalDays` / `CHURCH.priestAfterDays`). */
   readonly arriving?: readonly LodgeArrival[];
-  /** Dní v řadě s nasycením pod `LODGE.leaving.satietyBelow`. */
+  /** Dní v řadě s pokrytím jídla pod `LODGE.leaving.foodBelow`. */
   readonly hungryDays?: number;
   /** Dní v řadě se štěstím vsi pod `LODGE.leaving.happinessBelow`. */
   readonly unhappyDays?: number;

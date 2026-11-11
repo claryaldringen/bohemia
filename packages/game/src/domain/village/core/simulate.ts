@@ -540,7 +540,7 @@ function peopleDay(
     return false;
   }
   // mistři huti – odchod při hladu a neštěstí, noví mistři (stone-masonry.md); ves bez huti nic
-  lodgeLifeDay(state, satiation, day);
+  lodgeLifeDay(state, energy, day);
   return true;
 }
 
