@@ -124,7 +124,7 @@ export default defineConfig(
   },
   {
     // Jen klasická pravidla hooků – doporučená sada v7 přidává pravidla React Compileru.
-    files: ['apps/web/**/*.tsx', 'apps/web/hooks/**/*.ts'],
+    files: ['apps/web/**/*.tsx', 'apps/web/hooks/**/*.ts', 'apps/web/components/**/*.ts'],
     plugins: { 'react-hooks': reactHooks },
     rules: {
       'react-hooks/rules-of-hooks': 'error',
