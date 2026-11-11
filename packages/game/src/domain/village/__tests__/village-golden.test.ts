@@ -1,0 +1,42 @@
+import { describe, expect, it } from 'vitest';
+import { advanceVillage } from '../simulate';
+import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
+
+// Zlatý otisk celé vsi (village-core.md – Determinismus): ves ze seedu po 20 letech pod správcem
+// (pole, stáda, řemesla, rod) se dopočte o rok a otisk jejího stavu se musí shodovat se zapsaným.
+// Zachytí každou nechtěnou změnu výsledku simulace při úklidu a zrychlování. Delší běh (2. a 3. rok)
+// je v village-golden-long.test.ts (npm run test:slow).
+//
+// Změnil jsi pravidla vsi VĚDOMĚ? Pak nový otisk zjistíš tak, že test pustíš, vezmeš hodnotu
+// z chybové hlášky (Received) a přepíšeš `EXPECTED_YEAR_1`; do commitu napiš, proč se výsledek
+// změnil. Při úklidu (bez změny chování) se otisk měnit nesmí.
+
+const EXPECTED_YEAR_1 = '348daecb4bb4934f';
+
+describe('zlatý otisk vsi', () => {
+  const world = goldenWorld();
+
+  it('po 20 letech má ves pole, stáda, řemesla i rod (základ otisku není prázdný)', () => {
+    const s = world.start;
+    expect(s.fields.length).toBeGreaterThanOrEqual(5);
+    expect(s.livestock?.herds).toBeDefined();
+    expect(s.crafts).toBeDefined();
+    expect(s.people.length).toBeGreaterThanOrEqual(10);
+    expect(s.dynasty).toBeDefined();
+  });
+
+  it('rok dopočtu vcelku dá zapsaný otisk', () => {
+    const s = advanceVillage(
+      world.start,
+      world.start.lastDay + YEAR,
+      world.obstacles,
+      world.landscape,
+    );
+    expect(stateFingerprint(s)).toBe(EXPECTED_YEAR_1);
+  });
+
+  it('rok po kouscích (37 dní) dá tentýž otisk jako vcelku', () => {
+    const s = advanceChunked(world.start, YEAR, 37, world);
+    expect(stateFingerprint(s)).toBe(EXPECTED_YEAR_1);
+  });
+});
