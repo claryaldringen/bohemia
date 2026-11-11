@@ -37,6 +37,7 @@ import {
   type TileCell,
   type WorkshopActivity,
 } from '@bohemia/game';
+import type { VillageChurch } from './church-view';
 import type { LeaveDirection } from './departure-view';
 import type { VillageManor } from './manor-view';
 import type { FieldDamageView, WildlifeSpeciesView } from './wildlife-view';
@@ -677,6 +678,13 @@ type SelectionKinds =
     }
   | ({
       /**
+       * Kostel nebo staveniště kostela (churches.md): postup po druzích práce, chybějící mistr,
+       * kapacita, hroby a kněz.
+       */
+      kind: 'church';
+    } & VillageChurch)
+  | ({
+      /**
        * Celé opevnění včetně bran (dvojklik – fortifications.md, Rozhraní): druh, délka obvodu,
        * stav, brány, útočiště, průběh stavby a vylepšení celého opevnění.
        */
@@ -942,6 +950,9 @@ function cancellableConstruction(
       return among((c) => c.kind === 'pen' && c.penId === details.id);
     case 'road':
       return details.cancelId ?? undefined;
+    case 'church':
+      // zrušit jde jen stavbu před střechou (výzdoba dostavěného kostela doběhne)
+      return details.built ? undefined : among((c) => c.id === details.id);
     default:
       return undefined;
   }
@@ -1116,6 +1127,11 @@ function selectionKinds(
     if (!inScene) return null;
     const kiln = view?.kilns?.find((k) => k.id === target.id);
     return kiln ? { kind: 'kiln', ...kiln } : null;
+  }
+  if (target.kind === 'church') {
+    if (!scene.churches?.some((c) => c.id === target.id)) return null;
+    const church = view?.churches?.find((c) => c.id === target.id);
+    return church ? { kind: 'church', ...church } : null;
   }
   if (target.kind === 'quarry') {
     const quarry = scene.quarries?.find((q) => q.outcropId === target.id);

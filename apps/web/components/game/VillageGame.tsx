@@ -15,6 +15,7 @@ import { ScenePerfPanel, usePerfFlag } from './ScenePerfPanel';
 import { BreakoutButton } from './hud/BreakoutButton';
 import { BuildGrid } from './hud/BuildGrid';
 import { CursorReason } from './hud/CursorReason';
+import { ChurchConfirm } from './hud/ChurchConfirm';
 import { FortConfirm } from './hud/FortConfirm';
 import { Minimap } from './hud/Minimap';
 import { NoticeLines } from './hud/NoticeLines';
@@ -394,6 +395,19 @@ export function VillageGame({
                     ? null
                     : (placement.preview?.check.reason ?? 'Obvod ještě nejde položit.')
                 }
+                onConfirm={placement.confirm}
+              />
+            ) : null}
+            {placement.active === 'church' && placement.preview?.church ? (
+              <ChurchConfirm
+                type={placement.preview.church.type}
+                dims={placement.preview.church.dims}
+                reason={
+                  placement.preview.check.ok
+                    ? null
+                    : (placement.preview.check.reason ?? 'Kostel sem postavit nejde.')
+                }
+                onDims={placement.setChurchDims}
                 onConfirm={placement.confirm}
               />
             ) : null}

@@ -1,5 +1,6 @@
 // Typy pohledu na ves (DTO panelu) – nabídka staveb, panel, řemesla, pole, sady.
 
+import type { ChurchBuildChoice, VillageChurch } from './church-view';
 import type { VillageRight } from '@bohemia/game';
 import type { ViewPieces } from './view-pieces';
 import type { FortStoneSupply, VillageFortification } from './fort-view';
@@ -102,6 +103,11 @@ export interface BuildOption {
    */
   blocked: string | null;
   affordable: boolean;
+  /**
+   * Ikona (`public/icons/build/`) a název tlačítka podle vsi – kostel podle okruhu huti
+   * (churches.md – Typy podle okruhu huti); bez údaje z katalogu staveb.
+   */
+  look?: { icon: string; name: string };
   /**
    * Cena druhu v rozcestníku, který se od stavby liší (ohrada koní: vyšší plot a koně zaplacení
    * předem z přebytku (hřivny, zvířata, obilí) – horses.md, Koně se stavbou ohrady); klíč = id druhu.
@@ -518,6 +524,8 @@ export interface VillageView {
   threshing?: VillageThreshing;
   /** Humna pro panel výběru (production-chains.md – Humno) – hotová i rozestavěná; bez humna bez údaje. */
   threshingFloors?: VillageThreshingFloor[];
+  /** Kostely a staveniště kostelů pro panel výběru (churches.md); ves bez kostela bez údaje. */
+  churches?: VillageChurch[];
   /** Pevné cesty (roads.md) – úseky pro panel výběru: stupeň, délka, stáří, stromy, vylepšení. */
   roads: VillageRoad[];
   /** Opevnění pro panel výběru (fortifications.md – Rozhraní); ves bez opevnění bez údaje. */
@@ -563,6 +571,11 @@ export interface VillageView {
   fullHousehold: boolean;
   /** Nabídka staveb – hráč staví kdy chce, předem musí ves mít suroviny a lidi k osídlení. */
   build: Record<BuildKind, BuildOption>;
+  /**
+   * Malý a velký kostel okruhu huti v nabídce staveb (churches.md – Typy podle okruhu huti) – typ
+   * a proč nejde začít (bez huti `CHURCH_NO_LODGE`, bez lomu `CHURCH_NO_QUARRY`).
+   */
+  churchBuild?: ChurchBuildChoice[];
   constructions: {
     id: number;
     kind: ConstructionKind;

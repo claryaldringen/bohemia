@@ -1,8 +1,7 @@
 // Kontrola umístění kostela s hřbitůvkem (churches.md – Stavba).
 
 import { type Landscape, type ObstacleLayer, obstaclesOf } from '../../landscape';
-import { detCos, detSin } from '../../landscape/det-math';
-import { churchyardRect } from '../buildings/church-geometry';
+import { churchLocalToWorld, churchyardRect } from '../buildings/church-geometry';
 import { obstacleStatus, outcropUnder, polygonsObstacles } from '../core/obstacles';
 import { sacredSitesFor } from '../people/desecration';
 import { CHURCH, FOREST_CROWN_MARGIN_M } from '../rules';
@@ -38,14 +37,13 @@ function churchSamples(type: ChurchType, dims: ChurchDims, position: Position): 
   const width = Math.max(0, rect.width - belt);
   const nx = Math.max(1, Math.ceil(length / SAMPLE_STEP_M));
   const nz = Math.max(1, Math.ceil(width / SAMPLE_STEP_M));
-  const c = detCos(position.rotation);
-  const s = detSin(position.rotation);
   const out: Point[] = [];
   for (let i = 0; i <= nx; i++) {
     for (let j = 0; j <= nz; j++) {
       const x = rect.offsetX - length / 2 + (length * i) / nx;
       const z = -width / 2 + (width * j) / nz;
-      out.push([position.x + x * c - z * s, position.z + x * s + z * c]);
+      const p = churchLocalToWorld(position, x, z);
+      out.push([p.x, p.z]);
     }
   }
   return out;

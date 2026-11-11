@@ -21,6 +21,14 @@ import {
 import { applyGammaFog } from './gamma-fog';
 import type { HeightFn } from './village-meshes';
 
+/**
+ * Natočení modelu kostela kolem y (Babylon) z `position.rotation` – stejné jako u budov, takže
+ * model sedí s obrysem `churchFootprintWorld` (test `church-renderer.test.ts`).
+ */
+export function churchModelRotationY(rotation: number): number {
+  return rotation;
+}
+
 /** Co renderer potřebuje od scény vsi. */
 export interface ChurchContext {
   /** Přesná výška vykresleného terénu – pata kostela. */
@@ -108,8 +116,8 @@ export class ChurchRenderer {
       const mesh = this.mesh(`church-${name}-${church.id}`, a);
       if (!mesh) continue;
       mesh.position.set(x, base, z);
-      // místní x míří po ose kostela; ve scéně (Babylon) je rotace kolem y opačná
-      mesh.rotation.y = -rotation;
+      // místní x míří po ose kostela – natočení jako budovy (`churchLocalToWorld`)
+      mesh.rotation.y = churchModelRotationY(rotation);
       meshes.push(mesh);
     }
     return meshes;

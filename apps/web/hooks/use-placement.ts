@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PlacementCheck } from '@bohemia/game';
+import type { ChurchDims, PlacementCheck } from '@bohemia/game';
 import { setE2EHook } from '@/lib/e2e-hooks';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import type { PlacementMode, PlacementPreview, PlacementResult } from '@/lib/scene/village-types';
@@ -21,6 +21,8 @@ export interface Placement {
   ): void;
   /** Potvrdí umisťování jako Enter; neprošlé běží dál. */
   confirm(): void;
+  /** Rozměry kostela z panelu u potvrzení (+/−) – jen při umisťování kostela. */
+  setChurchDims(dims: ChurchDims): void;
   cancel(): void;
 }
 
@@ -41,6 +43,9 @@ function checkResult(mode: PlacementMode, result: PlacementResult): PlacementChe
   }
   if (mode.kind === 'workshop' && result.kind === 'workshop' && result.craft === mode.craft) {
     return mode.check(result.position);
+  }
+  if (mode.kind === 'church' && result.kind === 'church' && result.type === mode.type) {
+    return mode.check(result.dims, result.position);
   }
   return { ok: false, reason: 'Teď se umisťuje něco jiného.' };
 }
@@ -104,6 +109,13 @@ export function usePlacement(scene: LandscapeScene | null): Placement {
     scene?.confirmPlacement();
   }, [scene]);
 
+  const setChurchDims = useCallback(
+    (dims: ChurchDims): void => {
+      scene?.setChurchDims(dims);
+    },
+    [scene],
+  );
+
   const cancel = useCallback((): void => {
     scene?.cancelPlacement();
   }, [scene]);
@@ -121,5 +133,5 @@ export function usePlacement(scene: LandscapeScene | null): Placement {
     };
   }, [scene]);
 
-  return { active, preview, start, confirm, cancel };
+  return { active, preview, start, confirm, setChurchDims, cancel };
 }

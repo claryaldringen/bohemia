@@ -4,6 +4,9 @@ import {
   CRAFT_BASE,
   autoGates,
   checkQuarryPlacement,
+  checkChurchPlacement,
+  type ChurchDims,
+  type ChurchType,
   STONE,
   checkFortificationPlacement,
   fortSegments,
@@ -62,6 +65,8 @@ import {
   penSpecies,
 } from '@bohemia/game';
 import type { PlacementCost, SquaresVariant } from './scene/village-types';
+import type { ChurchBuildKind } from './church-view';
+import { churchPlacementCost } from './church-placement';
 import {
   fortShape,
   missingLogsText,
@@ -123,7 +128,7 @@ export type PlotCheck = FootprintCheck & { position: Position | null };
  * které cenu nemá pevnou: počítá se podle délky obvodu (`fortificationCost`), proto `BuildKind`
  * v jádru zůstává beze změny (Ú5.6) a opevnění je jen záznam katalogu s vlastní kontrolou.
  */
-export type WebBuildKind = BuildKind | 'fortification';
+export type WebBuildKind = BuildKind | 'fortification' | ChurchBuildKind;
 
 interface BuildItemBase {
   kind: WebBuildKind;
@@ -245,7 +250,66 @@ export type BuildItem =
       /** Lom (fortifications.md – Kámen) – jen na skalním výchozu, značka u kurzoru. */
       placement: 'quarry';
       check(landscape: Landscape, village: PlacementVillage, position: Position): FootprintCheck;
+    })
+  | (BuildItemBase & {
+      /**
+       * Kostel (churches.md – Stavba) – malý, nebo velký typ okruhu huti (`churchTypesFor`); tah
+       * od vstupu ke kněžišti, rozměry v panelu u potvrzení. Ikona a název podle typu dává
+       * nabídka (`BuildOption.look`).
+       */
+      placement: 'church';
+      size: 'small' | 'large';
+      check(
+        landscape: Landscape,
+        village: PlacementVillage,
+        type: ChurchType,
+        dims: ChurchDims,
+        position: Position,
+      ): FootprintCheck;
     });
+
+/** Názvy typů kostela (churches.md – Typy podle okruhu huti) – popisek tlačítka a panelu. */
+export const CHURCH_TYPE_NAMES: Record<ChurchType, string> = {
+  chancel: 'Kostel s pravoúhlým kněžištěm',
+  apse: 'Kostel s apsidou',
+  rotunda: 'Rotunda se dvěma apsidami',
+  basilica: 'Trojlodní bazilika',
+};
+
+/** Ikona typu kostela (`public/icons/build/kostel-<typ>.png`, render z Blenderu). */
+export function churchIcon(type: ChurchType): string {
+  return `kostel-${type}`;
+}
+
+/**
+ * Kostel v nabídce staveb (churches.md – Stavba): kontrola místa `checkChurchPlacement` jako na
+ * serveru a cena u kurzoru z rozměrů (`churchPlacementCost`) – bez ceny předem, materiál vzniká
+ * prací vsi. Zkratky I (malý) a Y (velký) – volné klávesy (návrh Clauda).
+ */
+const church = (
+  kind: ChurchBuildKind,
+  size: 'small' | 'large',
+  name: string,
+  icon: ChurchType,
+  hotkeyLabel: string,
+): BuildItem => ({
+  kind,
+  name,
+  icon: churchIcon(icon),
+  hotkey: `Key${hotkeyLabel}`,
+  hotkeyLabel,
+  placement: 'church',
+  size,
+  check: (landscape, village, type, dims, position) => {
+    const check = checkChurchPlacement(landscape, village, type, dims, position);
+    return {
+      ok: check.ok,
+      reason: check.reason,
+      ...(check.ok && check.warning ? { warning: check.warning } : {}),
+      cost: check.ok ? churchPlacementCost(type, dims, check.obstacleCost) : null,
+    };
+  },
+});
 
 const dwelling = (kind: BuildableDwellingType, name: string, hotkeyLabel: string): BuildItem => {
   const base = { kind, name, icon: kind, hotkey: `Key${hotkeyLabel}`, hotkeyLabel };
@@ -850,6 +914,8 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
   },
   THRESHING_FLOOR,
   QUARRY,
+  church('church-small', 'small', 'Malý kostel', 'chancel', 'I'),
+  church('church-large', 'large', 'Velký kostel', 'basilica', 'Y'),
 ];
 
 /**

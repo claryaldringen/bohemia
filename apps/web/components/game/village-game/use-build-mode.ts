@@ -3,6 +3,8 @@
 import { useEffect, useState, type RefObject } from 'react';
 import {
   FORTIFICATIONS,
+  defaultChurchDims,
+  type ChurchType,
   rerouteProposal,
   sectionOf,
   type BuildableDwellingType,
@@ -13,6 +15,7 @@ import {
 } from '@bohemia/game';
 import {
   placeCemetery,
+  placeChurch,
   placeField,
   placeFortification,
   placeOrchard,
@@ -21,7 +24,9 @@ import {
 } from '@/app/game/actions';
 import type { Placement } from '@/hooks/use-placement';
 import {
+  CHURCH_TYPE_NAMES,
   buildItem,
+  churchIcon,
   fortVariantKind,
   fortVariantsBlocked,
   penVariantSpecies,
@@ -43,6 +48,32 @@ import { rightDeniedReason } from '../hud/rights';
 import { extendsSelectedPen, squareStructures } from './scene-village';
 import type { PendingSites } from './use-pending-sites';
 import type { ActionResult } from './village-data';
+
+/**
+ * Kostely v nabídce staveb (churches.md – Typy podle okruhu huti): malý a velký typ okruhu huti
+ * s ikonou a názvem typu; nejde-li začít (bez huti, bez lomu), zašedlé s důvodem v popisku.
+ */
+function churchOptions(view: VillageView): Partial<Record<WebBuildKind, BuildOption>> {
+  return Object.fromEntries(
+    (view.churchBuild ?? []).map((c) => [
+      c.kind,
+      {
+        laborManDays: 0,
+        perHa: false,
+        perSquare: false,
+        upfront: [],
+        blocked: c.blocked,
+        affordable: c.blocked === null,
+        look: { icon: churchIcon(c.type), name: CHURCH_TYPE_NAMES[c.type] },
+      } satisfies BuildOption,
+    ]),
+  );
+}
+
+/** Typ kostela tlačítka nabídky (malý / velký okruhu huti); null – ves kostel nenabízí. */
+function churchTypeOf(view: VillageView | null, kind: WebBuildKind): ChurchType | null {
+  return view?.churchBuild?.find((c) => c.kind === kind)?.type ?? null;
+}
 
 /**
  * Server action staveb malovaných po čtvercích podle druhu (obydlí jdou přes `placeDwelling`).
@@ -205,8 +236,9 @@ export function useBuildMode({
         ? view.journey.arrived
           ? { zemnice: null }
           : {}
-        : // opevnění nemá pevnou cenu – cena je u kurzoru podle délky obvodu
-          { ...view.build, fortification: null }
+        : // opevnění nemá pevnou cenu – cena je u kurzoru podle délky obvodu; kostel bez ceny
+          // předem, jen typ okruhu huti a důvod, proč nejde (churches.md – Stavba)
+          { ...view.build, fortification: null, ...churchOptions(view) }
     : villageError === null
       ? { zemnice: null }
       : {};
@@ -409,6 +441,35 @@ export function useBuildMode({
         { kind: 'quarry', check: (position) => item.check(decoded, placementVillage(), position) },
         (result) => {
           if (result.kind === 'quarry') sites.buildQuarry(result.position);
+        },
+      );
+      return;
+    }
+    if (item.placement === 'church') {
+      const type = churchTypeOf(view, item.kind);
+      if (!type) return;
+      placement.start(
+        {
+          kind: 'church',
+          type,
+          dims: defaultChurchDims(type),
+          check: (dims, position) =>
+            checkWithDesecration(placementScene(), (village) =>
+              item.check(decoded, village, type, dims, position),
+            ),
+        },
+        (result) => {
+          const villageId = viewRef.current?.id;
+          if (result.kind === 'church' && villageId) {
+            void runBuildAction(() =>
+              placeChurch({
+                villageId,
+                type: result.type,
+                dims: result.dims,
+                position: result.position,
+              }),
+            );
+          }
         },
       );
       return;

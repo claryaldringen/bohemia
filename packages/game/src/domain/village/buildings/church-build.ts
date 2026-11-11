@@ -5,7 +5,6 @@
 
 import { dateOfDayIndex } from '../../calendar';
 import { type Landscape, type ObstacleLayer } from '../../landscape';
-import { detCos, detSin } from '../../landscape/det-math';
 import { validateActionDay } from '../core/actions';
 import { cloneState } from '../core/clone';
 import { obstacleChangesAt, recordClearedObstacles } from '../core/obstacles';
@@ -35,7 +34,13 @@ import type {
   Position,
   VillageState,
 } from '../types';
-import { churchCost, churchTypesFor, churchyardRect, clampChurchDims } from './church-geometry';
+import {
+  churchCost,
+  churchLocalToWorld,
+  churchTypesFor,
+  churchyardRect,
+  clampChurchDims,
+} from './church-geometry';
 import { giveWayToBuilding, type TakenLand } from './land-taken';
 
 const EPS = 1e-9;
@@ -147,6 +152,18 @@ function materialsOf(
 /** Dodaný a zazděný materiál staveniště (pro panel kostela). */
 export function churchMaterials(site: ChurchSite): ChurchMaterials {
   return materialsOf(site, churchTotals(site), site.done);
+}
+
+/**
+ * Postup kostela 0–1 po druzích práce (`ChurchWork` – panel staveniště); lámání podle vzdálenosti
+ * lomu, pálení vápna i se stavbou pece.
+ */
+export function churchWorkProgress(site: ChurchSite): Record<ChurchWork, number> {
+  const { work } = churchTotals(site);
+  const out = {} as Record<ChurchWork, number>;
+  for (const kind of Object.keys(work) as ChurchWork[])
+    out[kind] = share(site.done[kind], work[kind]);
+  return out;
 }
 
 /** Postup kostela 0–1 po částech – základy, zdi, střecha, výzdoba (scéna a panel). */
@@ -435,13 +452,6 @@ export interface ChurchInput {
   dims: ChurchDims;
   /** Střed hlavní lodi a natočení osy vstup → kněžiště (zaokrouhlí se na 15°). */
   position: Position;
-}
-
-/** Bod v místních souřadnicích kostela (x = osa vstup → kněžiště) ve světě. */
-function churchLocalToWorld(position: Position, x: number, z: number): { x: number; z: number } {
-  const c = detCos(position.rotation);
-  const s = detSin(position.rotation);
-  return { x: position.x + x * c - z * s, z: position.z + x * s + z * c };
 }
 
 /**

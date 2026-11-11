@@ -6,6 +6,8 @@
 // Position.rotation = natočení kolem svislé osy v radiánech jako `mesh.rotation.y` v Babylonu:
 // 0 = vchod míří do +Z, π/2 do +X (vchod míří do směru (sin r, cos r) v osách x, z).
 import type {
+  ChurchDims,
+  ChurchType,
   Craft,
   DwellingPlot,
   DwellingType,
@@ -47,6 +49,9 @@ export interface PlacementCost {
   stoneM3?: number;
   /** Opevnění: kolik lidí se vejde do útočiště (fortifications.md – Útočiště). */
   refuge?: number;
+  /** Kostel: pálené vápno (t) a písek (m³) celé stavby (churches.md – Velikost a cena). */
+  limeT?: number;
+  sandM3?: number;
 }
 
 /**
@@ -186,6 +191,18 @@ export type PlacementMode =
       /** Lom (fortifications.md – Kámen) – značka u kurzoru, jen na skalním výchozu. */
       kind: 'quarry';
       check(position: Position): PlacementCheck & { cost?: PlacementCost | null };
+    }
+  | {
+      /**
+       * Kostel (churches.md – Stavba): průhledný model a obrys hřbitůvku u kurzoru, kněžištěm na
+       * východ; tah od vstupu ke kněžišti určí délku lodi (rotunda průměr) a osu po 15°. Šířka
+       * a výška tlačítky +/− v panelu u potvrzení (`ChurchPlacer.setDims`).
+       */
+      kind: 'church';
+      type: ChurchType;
+      /** Rozměry, se kterými umisťování začne (`defaultChurchDims`). */
+      dims: ChurchDims;
+      check(dims: ChurchDims, position: Position): PlacementCheck & { cost?: PlacementCost | null };
     };
 
 /**
@@ -199,7 +216,8 @@ export type PlacementResult =
   | { kind: 'fort-points'; points: [number, number][]; variant: string }
   | { kind: 'workshop'; craft: Craft; position: Position }
   | { kind: 'threshing-floor'; position: Position }
-  | { kind: 'quarry'; position: Position };
+  | { kind: 'quarry'; position: Position }
+  | { kind: 'church'; type: ChurchType; dims: ChurchDims; position: Position };
 
 /**
  * Průběžný stav umisťování pro rozhraní: kontrola, popisek (u pole výměra a cena z `preview`,
@@ -214,6 +232,13 @@ export interface PlacementPreview {
   cost?: PlacementCost | null;
   /** Druh stavby u kurzoru (druh ohrady z rozcestníku mřížky staveb); bez údaje žádný. */
   variant?: SquaresVariant;
+  /** Rozměry u kurzoru – jen čísla (kostel „Ø 6,5 × 6 m“); bez údaje žádné. */
+  measure?: string;
+  /**
+   * Kostel v náhledu (churches.md – Stavba): typ, rozměry a jestli už stojí na místě (po kliku
+   * nebo tahu – pak jde potvrdit a měnit +/−); bez údaje se neumisťuje kostel.
+   */
+  church?: { type: ChurchType; dims: ChurchDims; pinned: boolean };
 }
 
 export interface PlacementHandlers {
