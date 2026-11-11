@@ -1,7 +1,7 @@
 # Strava a dobytek – obilí, luštěniny, maso, mléko a sýr, vejce, ovoce
 
 Stav: schváleno 18. 10. 2026 (Martin: „Ano“), **implementováno 18. 10. 2026** – jádro
-`domain/village/diet.ts` (jídlo dne), `dairy.ts` (mléko, sýr, práce se zvířaty), `livestock.ts`
+`domain/village/core/diet.ts` (jídlo dne), `dairy.ts` (mléko, sýr, práce se zvířaty), `livestock.ts`
 (stáda, porážka, vejce), `husbandry.ts` (den hospodářství); scéna kreslí skutečná stáda.
 **Týž den změna (Martin):** maso není kvůli energii, ale kvůli **bílkovinám – 1,6 g na kg tělesné
 váhy**; bílkoviny dává obilí, mléko a sýr, maso a vejce („Ovce, kozy i krávy jsou mléčná

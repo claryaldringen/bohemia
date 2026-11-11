@@ -2,7 +2,7 @@
 
 Stav: schváleno 17. 10. 2026 (Martin: „Ukazatel hygieny nebude. Prostě to bude mít vliv na
 populaci. Ohledně ostatního sis to domyslel dobře.“). Implementováno 17. 10. 2026: jádro
-`packages/game/src/domain/village/cemetery.ts`, umístění `cemeteryPartsFromCells`, scéna
+`packages/game/src/domain/village/buildings/cemetery.ts`, umístění `cemeteryPartsFromCells`, scéna
 `apps/web/lib/scene/cemetery-renderer.ts`, Hřbitov [V] v mřížce staveb; čtverce navazující
 stranou na hřbitov ho rozšíří. Hřbitov smí i do lesa – les se vyklučí za sazbu lesa jako díl
 pole (Martin, 19. 10. 2026 – fields.md, Stavby v lese). Překážky z vrstvy překážek (fields.md)
@@ -87,7 +87,7 @@ místech. Čili zasloužilá hlava rodiny bude mít větší mohylu, než např.
 věku. Největší mohyly bude mít vojvodova rodina.“ Velikosti schválil („Ano, udělej to tak.“).
 Na otázku, jestli odstupňovat i vojvodovu rodinu (v mladé vsi patřila polovina pohřbů k dvorci
 a 2 × 2 místa měly i děti), odpověděl „ano. I ve vojvodově rodině jsou významnější a méně
-významní členové.“ **Implementováno 19. 10. 2026** – jádro `domain/village/burials.ts`, scéna
+významní členové.“ **Implementováno 19. 10. 2026** – jádro `domain/village/people/burials.ts`, scéna
 `cemetery-layout.ts` a `cemetery-renderer.ts`.
 
 - **Místa na hroby** (Martin – schváleno): čtverec má jako dřív 56 míst v mřížce 7 × 8 (místo

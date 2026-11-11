@@ -2,12 +2,12 @@
 
 Stav: schváleno 18. 10. 2026 (Martin: „Jo ty stavby, kam nikdo nechodí, budou postupně chátrat
 a rozpadnou se“ a k návrhu „Ano, udělej to tak“), **implementováno 18. 10. 2026** – jádro
-`domain/village/abandonment.ts` (roční kontrola a pád, provoz ke stavbám z roční sítě cest
+`domain/village/buildings/abandonment.ts` (roční kontrola a pád, provoz ke stavbám z roční sítě cest
 `PathNetwork.visits`), scéna `apps/web/lib/scene/structure-decay.ts` (stupně rozpadu) a díly
 modelů z `tools/blender/sacred.py` a `pen.py`. Čísla jsou návrh Clauda ověřený rešerší
 [research/2026-10-18-abandonment.md](research/2026-10-18-abandonment.md). **Oprava** staveb, ke
 kterým se zase chodí (Martin 19. 10. 2026), je **implementovaná 19. 10. 2026** – jádro
-`domain/village/repair.ts` (sekce Oprava).
+`domain/village/buildings/repair.ts` (sekce Oprava).
 
 ## Proč
 
@@ -113,7 +113,7 @@ návrh Clauda.
   a proutí na pletení se řeže v době vegetačního klidu. **Dřevo nebere** – pruty, sláma a drn
   nejsou surovina, nosné kůly, sloupy a jesle vydrží.
 - **Cena** = podíl z ceny stavby bez kácení × chybějící stav (návrh Clauda – opravuje se jen to,
-  co chátrá; `STRUCTURE_REPAIR` v `rules.ts`):
+  co chátrá; `STRUCTURE_REPAIR` v `rules/`):
 
   | Stavba        | Podíl | Plná oprava (ze stavu 0)           | Co se opravuje                                                                                                                    |
   | ------------- | ----- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
@@ -196,12 +196,12 @@ domů u potoka a jednu ≈ 330 m. Každý dům má nejblíž tu jednu – ke sku
 - Jádro: `abandonment.ts` – `abandonmentCheck` (1. 11. s provozem z `roadsDay`) a `abandonmentDay`
   (pád, zbytky) z `simulateDay`; stav `SacredBuilding.wear`, `Cemetery.fenceWear`, `Pen.wear`
   (`StructureWear` – stav a den opuštění), `VillageState.sacredRuins`; čísla `ABANDONMENT`
-  v `rules.ts`. Staré vsi záznamy nemají – začínají s plným stavem.
+  v `rules/`. Staré vsi záznamy nemají – začínají s plným stavem.
 - Oprava: `repair.ts` – stavba `kind: 'repair'` s `Construction.repair` (`StructureRepair` – druh,
   id a stav při zahájení), `startRepair` / `cancelRepair` z roční kontroly a z `abandonmentDay`
   (ohrada se zvířaty), `workRepair` (stav roste s prací) a `finishRepair` (kronika
   `structure-repaired`) přes stavby ze společné práce v `simulate.ts`; čísla `STRUCTURE_REPAIR`
-  v `rules.ts`. Rozdělení práce: plot hřbitova `cemetery`, ohrada `pen`, modla a svatyně
+  v `rules/`. Rozdělení práce: plot hřbitova `cemetery`, ohrada `pen`, modla a svatyně
   `repair` u cíle `{ kind: 'sacred', id }` – i to je v síti pěšin provoz ke stavbě.
 - Síť pěšin: `TripGroup.visit` → `PathNetwork.visits`, `PathVillage.pens[].stocked`.
 - Zbytek pod novou stavbou zmizí při dopočtu dalšího dne (kontrola jen kolem zbytků – ≈ 30 ms za

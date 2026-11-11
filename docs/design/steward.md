@@ -90,7 +90,7 @@ postavit, vylepšit nebo může vesnici úplně vystěhovat a založit jinde.**�
   `placeDwelling`) skládá cenu předem (`buildAffordability`), kontrolu místa
   (`checkDwellingPlacement`, `checkPlotPlacement`, `fieldPartsFromCells`, …) a akci domény
   (`startNewDwelling`, `foundField`, …). Doména use-casy importovat nesmí, proto se tohle skládání
-  **přestěhuje do domény**: `domain/village/build-intent.ts` s typem **`BuildIntent`** (druh
+  **přestěhuje do domény**: `domain/village/buildings/build-intent.ts` s typem **`BuildIntent`** (druh
   stavby a místo – poloha, pozemek, čtverce, mřížka, cesta) a čistou funkcí
   **`applyBuildIntent(state, day, landscape, obstacles, intent)`** → `{ ok: true, state }` nebo
   `{ ok: false, reason }`. Use-casy hráče se na ni přepojí (jen načtou a uloží), správce ji volá
@@ -320,7 +320,7 @@ svého druhu (pole a čtverce po blocích) a všechny čerpají ze stejného roz
 
 ### Den správce – upřesnění (návrh Clauda – `STEWARD` v `rules-steward.ts`)
 
-Kroky 3 a 4 (`domain/village/steward.ts` – `stewardDay`):
+Kroky 3 a 4 (`domain/village/steward/steward.ts` – `stewardDay`):
 
 - **Den správce** = index dne dělitelný `everyDays` (10). V něm jedna etapa plánu sídla, pak pole,
   pak obydlí nebo dílna. Stavby jdou přes `applyBuildIntent` na vsi dopočítané do dne správce
@@ -433,7 +433,7 @@ stavbami; rozhoduje jen ze stavu vsi a dne, bez náhody.
 
 ### Ostatní stavby – upřesnění (návrh Clauda – `STEWARD` v `rules-steward.ts`, `steward-extras.ts`)
 
-Kroky 5 až 10 jsou v `domain/village/steward-extras.ts`. Každý začne nejvýš jednu stavbu za den
+Kroky 5 až 10 jsou v `domain/village/steward/steward-extras.ts`. Každý začne nejvýš jednu stavbu za den
 správce, jen v režimech `STEWARD.stepModes`, jen když se práce stavby vejde do **společného**
 rozpočtu práce (pole, obydlí i tyto kroky) a vždy přes `startStewardBuild` (cena předem a kontrola
 místa jako u hráče). Sloty hřbitova, humna, sadu a ohrad jsou z plánu sídla ve tvaru, v jakém je

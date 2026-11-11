@@ -1,7 +1,7 @@
 # Štěstí obyvatel a posvátná místa
 
 Stav: schváleno 18. 10. 2026 (Martin: „Ano, takhle je to dobré“), implementováno 18. 10. 2026
-(jádro `domain/village/happiness.ts` a `sacred.ts`, čísla v `rules.ts`). Rozhodnutí z implementace
+(jádro `domain/village/people/happiness.ts` a `sacred.ts`, čísla v `rules.ts`). Rozhodnutí z implementace
 (definice dubu a háje, dřina, modla bez roviny) jsou níže v textu a v tabulce Rozhodnutí jako
 „rozhodnutí kontroléru“ – Martin je může změnit; hřbitov u dubu a zápis ušetření při vytyčení
 Martin potvrdil.

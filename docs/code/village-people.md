@@ -650,7 +650,7 @@ Porážka (návrh `slaughter`): klipy `butcher` (`gather_meat` + nůž, klek), `
 
 ## Seniorát a práva ve vsích rodu (seniorate.md – Seniorát; Martin 2. 11. 2026: „Jen se dívat“)
 
-- **Senior** = `dynastySenior(villages, day)` (`domain/village/seniority.ts`): nejstarší žijící muž
+- **Senior** = `dynastySenior(villages, day)` (`domain/village/people/seniority.ts`): nejstarší žijící muž
   rodu (`isLineMan`) ze všech živých vsí rodu, shoda – nižší `bornDay`, pak id osoby, pak id vsi.
   Čistá funkce stavů vsí, nic se neukládá do simulace.
 - **Práva:** `application/rights.ts`. `villageRights(ctx)` (čistá) dá množinu `VillageRight` a důvod:
@@ -676,7 +676,7 @@ Porážka (návrh `slaughter`): klipy `butcher` (`gather_meat` + nůž, klek), `
 
 ## Nástupnictví hráče (seniorate.md – Nástupnictví hráče; úloha 2.4)
 
-- **Los** (`domain/village/player-lot.ts`): `playerLotCandidates(state, deathDay, deadId)` = nástupce
+- **Los** (`domain/village/people/player-lot.ts`): `playerLotCandidates(state, deathDay, deadId)` = nástupce
   vsi z rodu (`successorOf`) + mladší synové zemřelého, kteří ve vsi žijí a ke dni smrti měli aspoň
   `LORD.leaveMinAge` let; `drawPlayerLot(seed, deathDay, candidates)` losuje ze seedu
   `deriveSeed(state.seed, 'player-lot:' + deathDay)` – nástupce `PLAYER_SUCCESSION.successorWeight`
@@ -730,7 +730,7 @@ arrivesDay } }` (volitelné). Nastaví ho `succeedLord` (`succession.ts`), když
   není ve vsi žádný muž rodu (`dynasty.lordId = null`); starší ves bez vojvody ji dostane z
   `withAwaitingLord` (v seznamu převodů za `withDynasty`; den = `dynasty.endedDay`, jednou
   a idempotentně, jen když `lordId === null`).
-- **Doména** `domain/village/appoint-lord.ts` (čisté funkce): `appointCandidate(villages,
+- **Doména** `domain/village/people/appoint-lord.ts` (čisté funkce): `appointCandidate(villages,
 targetVillageId, day, exclude)` – nejstarší muž rodu od `APPOINT_LORD.minAge` (16) let v jiné
   živé vsi, který není vojvodou své vsi, jejím nástupcem (`successorOf`) ani v `exclude` (hráčův
   muž); shoda → nižší id osoby, pak vsi; ves bez vojvody kandidáty nedává. `departAppointee(state,
@@ -752,7 +752,7 @@ cellDistance` sídel), 2. spočte družinu a pošle `lord-arrives` do schránky 
   Přerušení mezi kroky dokončí další volání (cíl s `appointee`, jehož muž je ještě ve zdrojové vsi).
   Volá se v `settleSuccessionOf` (`player-departure.ts`) – tedy na stejných místech jako nástupnictví
   hráče: web `dynastyForVillage`, `advanceDynasty`, worker `closeAtDay`. Testy:
-  `domain/village/__tests__/appoint-lord.test.ts` (včetně dopočtu po kouscích 1 / 3 / 10),
+  `domain/village/people/__tests__/appoint-lord.test.ts` (včetně dopočtu po kouscích 1 / 3 / 10),
   `application/__tests__/appoint-lord.test.ts`.
 - **Kronika** (`village-view-chronicle.ts`): `lord-sent` – „… odešel vládnout do vsi X.“ (ve vsi
   odkud), `lord` – „Vojvodou se stal …“ (ve vsi kam), `line-arrived`.
@@ -773,7 +773,7 @@ Muž (s manželkou a svobodnými dětmi) putuje do vsi bez vojvody schránkou ja
 - **Use-case** `baptizeLord` (`application/baptize.ts`): právo `ennoble` (jen držitel vlastní vsi),
   důvody `BAPTIZE_REASONS` (rod nezná, už pokřtěný, vojvoda rodu `House.lord` žije jinde); nejdřív
   `sendRodBaptized` (`advance-christianity.ts`), pak `markBaptized`.
-- **Ves** (`domain/village/baptism.ts` `baptizeVillage`, ze schránky `rod-baptized`; idempotentní):
+- **Ves** (`domain/village/people/baptism.ts` `baptizeVillage`, ze schránky `rod-baptized`; idempotentní):
   rod hráče – den do `faith.rodBaptizedDay`; s `lord` a bez `nobles` se vojvoda (`currentLord`)
   pokřtí (kronika `lord-baptized`), zůstane mu hlavní manželka (zemřela-li, napřed
   `ensureMainWives`) a ostatní ztratí `spouseId` (kronika `wives-released` s počtem) – zůstávají
@@ -797,13 +797,13 @@ Muž (s manželkou a svobodnými dětmi) putuje do vsi bez vojvody schránkou ja
   dne se neřeší.
 - **Obrácení vesničanů** (`conversion.ts`, 1. 1., jen `rodBaptized`) a štěstí pohanů a křesťanů:
   `village-core.md` – Víra a štěstí. Kostrové pohřby a hřbitov po křtu: `village-buildings.md`.
-- **Testy:** `domain/village/__tests__/baptism.test.ts` (i vcelku = po kouscích přes JSON),
+- **Testy:** `domain/village/people/__tests__/baptism.test.ts` (i vcelku = po kouscích přes JSON),
   `faith.test.ts` (`withHolderFaith`), `application/__tests__/baptize.test.ts`,
   `escheat.test.ts` (víra vsi při změně držitele).
 
 ## Dočasné ubytování (demolition.md – Obydlí s obyvateli)
 
-Soubor `domain/village/displaced.ts`, stav `VillageState.displaced?: DisplacedHousehold[]`
+Soubor `domain/village/people/displaced.ts`, stav `VillageState.displaced?: DisplacedHousehold[]`
 (`household` = id původního obydlí, `day`, `people: { id, host }[]`).
 
 - `vacateDwelling(next, day, id)` – vystěhuje obydlí a vrátí počet lidí, kterým chybělo místo.

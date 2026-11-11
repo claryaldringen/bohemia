@@ -160,7 +160,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`march-grid.ts`) čte osu všech vod (`watersCenterline`), loviště ryb vsi (`wildlife-land.ts`)
   i body řek (`riverCenterlines`). **Účinky typů „hned“** (premium-landscapes.md – Typy krajin,
   sloupec „Hned“; čísla `PREMIUM_EFFECTS` v `rules-premium.ts`) jdou přes existující mechaniky
-  vsi – `village/premium-effects.ts` a `village/premium-route.ts`, krajina bez typu ves nemění
+  vsi – `village/core/premium-effects.ts` a `village/trade/premium-route.ts`, krajina bez typu ves nemění
   (zlaté otisky vsí): bohatá ruda a dobrá hlína (`premiumDugSpot`, `OreSite.rich` – rudiště
   a hliniště na prvku typu, polovina suroviny na kg výrobku – `dugMaterialFactor`, ložisko se
   nevyčerpá; village-crafts.md), sad na jižním svahu (`markSunnyOrchards` – krok dne,

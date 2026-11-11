@@ -2,7 +2,7 @@
 
 Stav: Martin schválil 18. 10. 2026 („Jo, postavičky vypadají dobře. Zapoj je do hry.“ – po
 ukázce postav z 0 A.D.). Implementováno 18. 10. 2026: rozdělení práce dne v jádře
-`packages/game/src/domain/village/labor-report.ts`, rozmístění postav
+`packages/game/src/domain/village/core/labor-report.ts`, rozmístění postav
 `apps/web/lib/scene/villager-plan.ts`, pohyb `villager-motion.ts`, vykreslení `villagers.ts`.
 
 ## Proč

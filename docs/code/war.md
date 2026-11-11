@@ -7,11 +7,11 @@ vojska mapu po mapě (Ú6.4), tažení po taktech, boj a dohra (Ú6.5–Ú6.17) 
 
 ## Stropy výcviku
 
-- `ARMS_CAPS = { home: 50, hunt: 70, war: 100 }` v `domain/village/rules-lord.ts` (war.md – Síla).
+- `ARMS_CAPS = { home: 50, hunt: 70, war: 100 }` v `domain/village/rules/rules-lord.ts` (war.md – Síla).
 - `trainingCap(person, day, source)` v `lord.ts` – menší z věku (`armsCap`) a zdroje. `trainLordDay`
   cvičí doma se stropem 50, v den lovu (jezdec, pěší syn) se stropem 70; válka (100) zatím nikoho
   necvičí.
-- `domain/village/arms-caps.ts` – `withArmsCaps(state)`: dovednosti (i `best`) nad 70 jednou stáhne
+- `domain/village/people/arms-caps.ts` – `withArmsCaps(state)`: dovednosti (i `best`) nad 70 jednou stáhne
   na 70; příznak `VillageState.armsCapped` zaručí, že se válečná zkušenost nad 70 už nesráží.
   Volá se v `advanceVillageSteps` (`simulate.ts`) vedle ostatních `with…` převodů.
 
@@ -179,7 +179,7 @@ Plán 2026-11-03 – rozhodnutí 12; Review bod 5. Čísla ve `WAR.campaign`.
   (Ú6.8 – Boj muž po muži).
 - **Krok** – `domain/war/campaign.ts`: `newCampaign(input, clock)` (muži ve shromaždišti, skupiny
   podle `member.group`), `stepCampaign(state, toTick, intents, world)` → `{ state, villageEvents,
-notices, waiting }` – čistá, vstup nemění. Takt na kopii stavu (`cloneData` z `village/clone.ts`
+notices, waiting }` – čistá, vstup nemění. Takt na kopii stavu (`cloneData` z `village/core/clone.ts`
   – ruční kopie čistých dat, ≈ 5× rychlejší než `structuredClone`; sdílené odkazy uvnitř stavu
   rozdělí jako JSON kontrolního bodu): když taktu uprostřed chybí mapa nebo ves (`MissingData`),
   kopie se zahodí a výsledkem je stav na konci posledního celého taktu; kopie zároveň odděluje stav
@@ -707,7 +707,7 @@ Plán 2026-11-03 – rozhodnutí 13, Úloha 6.7. Ves čeká jen na tažení u se
 - **Dny nájezdu** – `watchVillages` po každém taktu (kromě shromáždění a konce): každá ves na mapě,
   kde stojí skupina s aktivním mužem a které vojsko škodí (`harmless`), dostane na každý den
   `raid-day { campaignId }` **na týž den** (bariéra ji před tím dnem drží) – `VillageState.raidDay`;
-  `raidHiding(state, day)` (`domain/village/raid-day.ts`) zastaví práci jako hašení požáru (dílny,
+  `raidHiding(state, day)` (`domain/village/fortification/state/raid-day.ts`) zastaví práci jako hašení požáru (dílny,
   milíře, `villagersToday` prázdné). Den po odchodu vojska ves pracuje. **Od 9. 11. 2026 až od
   varování** (`isWarned` – [Varování, poslové a útěk do hradiště](#varování-poslové-a-útěk-do-hradiště),
   Ú2) nebo když se na mapě vsi bojuje (cíl ve fázi `raiding`); do té doby lidé pracují dál. Signál
@@ -721,7 +721,7 @@ Plán 2026-11-03 – rozhodnutí 13, Úloha 6.7. Ves čeká jen na tažení u se
   dřív, do útočiště doběhnou všichni, kdo se vejdou (brány se zavřou až za nimi).
 - **Worker** – přednostní vsi `WorldQueue.priorityVillages()` a jejich meze jdou do
   `behind(worldDay, limit, holds)` (docs/code/worker.md – Přednostní vsi).
-- **Testy** – `domain/village/__tests__/raid-day.test.ts` (den nájezdu bez práce, den nato práce, po
+- **Testy** – `domain/village/fortification/state/__tests__/raid-day.test.ts` (den nájezdu bez práce, den nato práce, po
   kouscích = vcelku, starý posel), `domain/war/__tests__/raid-watch.test.ts` (dny nájezdu až od
   varování, signál jednou, nespatřené vojsko – ves pracuje, neškodné vojsko, bariéra zastaví takt,
   posel z prošlé vsi zmizel), `stance.test.ts` (varovaná ves – útočiště i s útočníky u brány),
@@ -934,8 +934,8 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
   nic, nenačtená doména čeká; po 1 / 7 / 40 taktech přes JSON = vcelku),
   `application/__tests__/alarm-world.test.ts` (smyčka `stepCampaigns` s portem v paměti = vcelku s
   daty předem, dotazy jen na potřebné).
-- **Ves na útěku – události schránky, jídlo a hosté (Ú7).** `domain/village/refugees.ts` (test
-  `village/__tests__/refugees.test.ts`); `applyInboxDay` volá pro každou z osmi událostí funkci
+- **Ves na útěku – události schránky, jídlo a hosté (Ú7).** `domain/village/fortification/state/refugees.ts` (test
+  `village/fortification/state/__tests__/refugees.test.ts`); `applyInboxDay` volá pro každou z osmi událostí funkci
   `apply…` – mutují stav jako kroky dne, idempotentně (kdo je už pryč nebo doma, se přeskočí; zásoby
   a dobytek nejvýš co ves má). **Odchod** `refuge-depart` – lidé ze seznamu, kteří jsou doma,
   dostanou `away` `{ kind: 'refuge', hostVillageId?, refId }` (bez hradiště = les), zásoby ubudou o
@@ -1003,7 +1003,7 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
   majiteli upozornění `refuge-caught` (počty). Bez přesily jde dál. **Den odchodu** (Review Focus
   2): `alarmTaken(s, ves, den)` vrací i lidi, nesené obilí a sehnané stádo skupin, které odešly v
   den `den` (`carried`; stav vsi ode dne nato odchod zná), `withoutTaken` je odečte stejně jako
-  `applyRefugeDepart` (`takeGrain`, `takeHerd` – exportované z `village/refugees.ts`);
+  `applyRefugeDepart` (`takeGrain`, `takeHerd` – exportované z `village/fortification/state/refugees.ts`);
   `campaignBattle` i `reportRaid` (kořist, odvedení, zajatí) počítají se stavem bez nich. **Prázdná
   ves**: odešli-li všichni, v boji nikdo nestojí a útočník vezme, co zůstalo (zásoby mimo nesené,
   nesehnaný dobytek, osivo a zapečetěné jámy jako dřív). `alarmTaken` / `withoutTaken` jsou nově v
@@ -1210,7 +1210,7 @@ co se stalo, a pošle to do schránek vsí na **následující den** (rozhodnut�
   `newcomerHome`, děti k rodičům).
 - Testy: `war/__tests__/raid-apply.test.ts` (bilance, útočiště, jámy, ztráty, nástupnictví, ranění,
   návrat, po kouscích), `raid-campaign.test.ts` (vzdaná ves přes `stepCampaign`, kronika obou rodů,
-  po kouscích taktů), průlom v `village/__tests__/fortification-decay.test.ts`.
+  po kouscích taktů), průlom v `village/fortification/state/__tests__/fortification-decay.test.ts`.
 
 ## Zajetí a výkupné (Ú6.11)
 

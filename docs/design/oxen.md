@@ -1,7 +1,7 @@
 # Orání rádlem – voli, ohrada, seno
 
 Stav: schváleno 18. 10. 2026 (Martin: „Takhle je to ok“), **implementováno 18. 10. 2026** –
-jádro `domain/village/oxen.ts` (ohrady, spřežení, výcvik, vracení orby motyce), `plough.ts`
+jádro `domain/village/livestock/oxen.ts` (ohrady, spřežení, výcvik, vracení orby motyce), `plough.ts`
 (sazby orby, co rádlo zvládne), `hay.ts` (seč, zásoba, zimní krmení), orba v plánu osevu
 (`year-plan.ts`, `CropWork.plough`); scéna kreslí ohradu, zvířata v ní a spřežení na čele orby
 (modely z `tools/blender/plough.py` a `pen.py`). Rozhodnutí z implementace jsou v části

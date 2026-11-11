@@ -216,7 +216,7 @@ outcropId, m3)` (celé m³ v `STONE.stockOrderM3`, bez lomu `QUARRY_MISSING`) �
 ## Stav vsi (Ú5.2)
 
 - **`VillageState.fortifications?: Fortification[]`** (`fortification/types.ts`, přes
-  `types-fortifications.ts` v `types.ts`) – volitelné, starší vsi ho nemají.
+  `types-fortifications.ts` v `types/index.ts`) – volitelné, starší vsi ho nemají.
   `Fortification { id, points?, grid?, cells?, kind, top?, segments, gates, rampartHeight? }` –
   `points` od obvodu z bodů, `grid` a `cells` jen u opevnění po čtvercích do převodu
   (`withFortPoints`); tvar (křivka, úseky, pás) se z bodů vždy spočítá znovu (`outlineOf`).
@@ -781,7 +781,7 @@ gateCloseTick)` (bere plochu místo opevnění): příchozí po zavření brány
   (`addFortificationGate`), `demolish-fortification-section.ts` (`demolishFortificationSection`
   – díl `segment`, úsek dohledá `startSectionDemolition`) – `updateLivingVillage` v den `state.lastDay`, chůze ke stromům
   `villageRoadWalk`. Testy `application/__tests__/fortification-use-cases.test.ts`, doména
-  `domain/village/__tests__/fortifications.test.ts`, adaptér `village-repository.db.test.ts`.
+  `domain/village/fortification/state/__tests__/fortifications.test.ts`, adaptér `village-repository.db.test.ts`.
 - Web: server actions `placeFortification` (vstup `{ points: [x, z][], kind }`),
   `upgradeFortification`, `addFortificationGate`, `demolishFortificationSection` (vstup
   `{ fortificationId, segment }`, díl od 0) (`apps/web/app/game/actions.ts`, vstupy

@@ -5,7 +5,7 @@ _Rešerše k 20. 10. 2026 pro [obchod se sousedy](../trade.md) – Dobytek ve t�
 vycvičit) a vycvičené voly“). Krátká rešerše navazuje na
 [2026-10-18-trade-values.md](2026-10-18-trade-values.md) (kráva 600 kg obilí). Co se převzalo,
 zapisuje trade.md – Dobytek ve třech druzích; čísla jsou v `TRADE_GOOD_VALUES` a `CATTLE_TRADE`
-(`packages/game/src/domain/village/rules.ts`)._
+(`packages/game/src/domain/village/rules/index.ts`)._
 
 **Verdikty:** _sedí_ = prameny hodnotu podporují; _návrh_ = přímý údaj jsem nenašel, číslo je
 odhad z poměrů citovaných pramenů. Raně středověké „ceny“ jsou hlavně zákonné sazby (náhrady,

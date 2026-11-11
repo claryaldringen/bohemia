@@ -283,7 +283,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   v `sceneCarts`).
 
 - **Kovář – houba, hřivny a vybavení** ([production-chains.md](../design/production-chains.md) – Kovář): řetěz ruda + uhlí → houba (tavba s měchařem – dospělý z domácnosti nebo syn od 10, sám kovář polovičním tempem) → hřivny → nástroje jako vybavení domácností (kuje se jen z hřiven nad rezervou na příští kování koní – `shoeingBarsKg`, kování má přednost); v liště jen hřivny, v obchodu `ironBars`.
-  - **Soubory:** `packages/game/src/domain/village/iron.ts` (řetěz, měchař, převod vybavení),
+  - **Soubory:** `packages/game/src/domain/village/crafts/iron.ts` (řetěz, měchař, převod vybavení),
     `iron-rates.ts` (ceny kroků `SMELT`, `REFINE`, `FORGE`, `ORE_KG_PER_TOOL_KG`, `smeltOreKg`),
     `crafts.ts` (`workSmith`, `smithIronDeficit`, `smithBarsTargetKg`, `ironOrderBarsKg`,
     `cartIronBarsKg`, `smithBellowsToday`, `smithIronSummary`, `SmithIronSummary`), `trade.ts`

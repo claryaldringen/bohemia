@@ -2,9 +2,9 @@
 
 Stav: **schváleno 18. 10. 2026 (Martin), implementováno 18. 10. 2026**. Návrh ze 17. 10. 2026 týž
 den přepracován podle Martina (řemeslník na plný úvazek, účinky jako meze produktivity) a podle
-[rešerše](research/2026-10-17-remesla-drevo-sad.md). Jádro: `packages/game/src/domain/village/crafts.ts`
+[rešerše](research/2026-10-17-remesla-drevo-sad.md). Jádro: `packages/game/src/domain/village/crafts/crafts.ts`
 (výroba, pokrytí, opotřebení, půdorys dílny a milíře), uhlíř v `charcoal.ts`, meze
-v `productivity.ts`, čísla v `rules.ts`; co se při implementaci rozhodlo navíc, je v části
+v `productivity.ts`, čísla v `rules/`; co se při implementaci rozhodlo navíc, je v části
 [Implementace](#implementace). **Uhlíř z buku** (Martin 18. 10. 2026, [rešerše
 uhlířství](research/2026-10-18-charcoal.md)) – část [Uhlíř](#uhlíř--buky-milíř-a-obnova-lesa),
 implementováno 18. 10. 2026. **Tesař** (Martin 19. 10. 2026) má vlastní návrh – [vozy a tesař](wagons.md),
@@ -193,7 +193,7 @@ z [rešerše uhlířství](research/2026-10-18-charcoal.md).
 
 Martin (19. 10. 2026): „Uhlíř: měl by vždy postavit milíř, z hotového milíře by se mělo kouřit
 a pak by jej měl rozebírat podle toho, jak mu bude uhlí odebírat kovář.“ Detaily níž jsou návrh
-Clauda; čísla v `rules.ts` (`CHARCOAL_KILN`).
+Clauda; čísla v `rules/` (`CHARCOAL_KILN`).
 
 - **Milíř stojí vždy** (Martin): uhlíř, který má z čeho pálit (dospělé buky), má vždy svůj
   milíř. Dokud ho nemá postavený, kácí a připravuje buky a staví ho. ~~Uhlíř má **jeden milíř**:
@@ -264,7 +264,7 @@ držet větší zásobu (2):
 
 Tím se mění pravidlo „uhlíř má jeden milíř“ – teď smí stát dva: jeden se rozebírá a druhý se
 připravuje nebo pálí ([Rovnováha uhlíř – kovář](#rovnováha-uhlíř--kovář)). Podrobnosti jsou
-návrh Clauda (čísla `KILN_SITE` v `rules.ts`).
+návrh Clauda (čísla `KILN_SITE` v `rules/`).
 
 - **Milíř je samostatná stavba** na místě dávky: uhlíř vybere dávku 15 buků (první buk nejblíž své
   zemnici, dávka = buky nejblíž k němu) a milíř postaví na **rovném volném místě uprostřed nich** –
@@ -313,7 +313,7 @@ návrh Clauda (čísla `KILN_SITE` v `rules.ts`).
 
 Martin (20. 10. 2026): „Uhlíř i kovář přece mjsí za ty roky vědět, jaká je nabídka a poptávka
 a dosáhnout tak rovnovážného stavu.“ Podrobnosti návrh Clauda, čísla `CHARCOAL_BALANCE`
-v `rules.ts`.
+v `rules/`.
 
 - **Oba vědí, kolik uhlí se spotřebuje:** spotřeba uhlí kovářů se měří klouzavě za posledních
   **365 dní** (po obdobích 30 dní, ve stavu vsi, jen ve vsi s uhlířem). Měří se poptávka – i uhlí,
@@ -394,7 +394,7 @@ Na doplňující otázky Martin odpověděl:
 - **Věk:** uhlí nosí synové **od 10 let**, rudu kopou **od 14 let**. Ve dnech, kdy pomáhají,
   nepasou dobytek.
 
-Podrobnosti níž jsou návrh Clauda (čísla `SMITH_SUPPLY` a `CART_JOBS` v `rules.ts`, podle rešerše
+Podrobnosti níž jsou návrh Clauda (čísla `SMITH_SUPPLY` a `CART_JOBS` v `rules/`, podle rešerše
 [2026-10-20-bog-ore.md](research/2026-10-20-bog-ore.md) – většina čísel je odhad, primární práce
 nejsou ověřené).
 
@@ -471,7 +471,7 @@ nejsou ověřené).
 
 Martin (20. 10. 2026): „**To místo, kde kope rudu, chci na mapě vidět.**“ Nejbližší mokřina ale
 mohla vyjít v lese u potoka pod korunami stromů – jámy shora nebyly vidět. Návrh Clauda
-(`DUG_SITE_VIEW` v `rules.ts`, `chooseDugSite`):
+(`DUG_SITE_VIEW` v `rules/`, `chooseDugSite`):
 
 - Nové rudiště i hliniště má přednost **mimo les** (`PATH_FOREST` terénu pěšin) a **mimo koruny** –
   žádný dospělý strom do **8 m** od místa (koruna ≈ 4–5 m a jámy kolem místa): stromy vrstvy
@@ -551,7 +551,7 @@ Martin (20. 10. 2026) k návrhu nových nákladů vozů ([vozy](wagons.md) – C
 Návrh Clauda: hlínu stejným vzorem jako rudu ([Uhlí a ruda kováře](#uhlí-a-ruda-kováře)) – hlína se
 nakope napřed na hromadu u jámy a vůz pro ni přijede; kolik hlíny hrnčíř potřebuje, jde podle
 výkonu dílny podle praxe ([Učení řemesla](#učení-řemesla)), jako ostatní výroba. Čísla návrh
-Clauda (odhad, `CLAY` v `rules.ts`).
+Clauda (odhad, `CLAY` v `rules/`).
 
 - **Kolik hlíny:** **1,5 kg vlhké hlíny na kg vypálené keramiky** (voda ≈ 20 % a ztráta žíháním,
   čištění od kamínků a kořenů, zmetky při sušení a výpalu). Hrnčíř točí a vypaluje jen z hlíny,
@@ -633,7 +633,7 @@ Martin (20. 10. 2026): „Kovař si donese/doveze dřevěné uhlí a železnou r
 houbu v redukční peci za pomocí ručního měchadla, houbu překove v železnou hřivnu/hřivny, ze
 kterých může vyrábět nástroje nebo mohou jít na obchod.“ – „V liště jenom hřivny“. Celý návrh je
 ve [výrobních řetězech](production-chains.md) – Kovář; tady jak to ve vsi běží (čísla `IRON`
-v `rules.ts`, rešerše [2026-10-20-production-chains.md](research/2026-10-20-production-chains.md)
+v `rules/`, rešerše [2026-10-20-production-chains.md](research/2026-10-20-production-chains.md)
 – Kovář).
 
 - **Řetěz kovárny** (dnešní cena 10 čd a 50 kg uhlí na kg nástrojů rozdělená – návrh Clauda):
@@ -687,7 +687,7 @@ Martin (20. 10. 2026): „Každý řemeslník vychovává svého nástupce - syn
 nový, trvá mu, než se řemeslo naučí“
 
 Platí pro všechna řemesla – hrnčíře, kováře, uhlíře i tesaře. Podrobnosti jsou návrh Clauda
-(čísla `CRAFT_SKILL` v `rules.ts`).
+(čísla `CRAFT_SKILL` v `rules/`).
 
 - **Praxe** je u člověka v letech (`Person.practice` – po řemeslech, nejvýš 5 let). Dospělý muž
   z domácnosti dílny (14–44 let), který v dílně pracuje, ji získává **za dny, kdy dílna pracuje** –
@@ -825,7 +825,7 @@ Martin (19. 10. 2026): „Nástroje ať vesničané obchodují individuálně. N
 vesnici kovář je a u nás ne, ať si vesničané od něj koupí nástroje za něco z toho, co vesnice
 produkuje. Sami si spočítají, jestli se jim to vyplatí. Až bude kovář u nás, budou pravděpodobněji
 nakupovat u něj, protože si ušetří cestu. S ostatními řemesly to bude stejné.“ Detaily níž jsou
-návrh Clauda; čísla v `rules.ts` (`CRAFT_BUYING`), rešerše
+návrh Clauda; čísla v `rules/` (`CRAFT_BUYING`), rešerše
 [2026-10-19-craft-buying.md](research/2026-10-19-craft-buying.md), jádro `craft-buying.ts`.
 
 - **Kdo má řemeslníky:** soused v každém z 8 směrů má řemeslníky podle toho, čím se živí

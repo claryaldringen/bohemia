@@ -85,7 +85,8 @@ apps/web/            Next.js – úvodní stránka, registrace, přihlášení, 
 apps/worker/         samostatný proces – smyčka `advanceWorldStep` (loop.ts), konfigurace z env, log (docs/code/worker.md)
 packages/game/       herní jádro
   src/domain/        pravidla – calendar.ts, landscape/ (generování krajiny po vrstvách)
-    village/         simulace vsi – lidé, obydlí, pole, jídlo a práce den po dni
+    village/         simulace vsi – lidé, obydlí, pole, jídlo a práce den po dni; podsložky podle
+                     oblastí mapy kódu (core/, rules/, types/, fields/, people/… – docs/code/village-core.md)
     war/             válka – tažení po taktech, boj, kořist, zajetí, NPC velitel (docs/code/war.md)
     world/           svět pro víc hráčů – mřížka, umístění, kostra světa, adresář rodů (docs/code/world.md)
     negotiation/     jednání hráčů – nabídky a žádosti, mír, výkupné, správcovství (docs/code/vassalage.md, war.md)
