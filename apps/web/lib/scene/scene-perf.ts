@@ -139,3 +139,12 @@ export class ScenePerf {
     this.engineMeter.dispose();
   }
 }
+
+/** Kdo chce vědět, která animace chce kreslit (jen s ukazatelem výkonu – „Hýbe se“). */
+export type AnimationHit = ((name: string) => void) | null;
+
+/** Animace chce kreslit – ukazateli výkonu řekne kterou (`hit`) a vrátí true. */
+export function hitPart(hit: AnimationHit, name: string): true {
+  hit?.(name);
+  return true;
+}

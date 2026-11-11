@@ -56,7 +56,11 @@ import { addImpostors, type ImpostorForest } from './impostors';
 import { obstacleScenery } from './obstacle-scenery';
 import { createTerrainMesh, type TerrainMesh } from './terrain-mesh';
 import { buildRenderSurface, type RenderSurface } from './render-surface';
+import { SceneAtmosphere, type DayClock } from './scene-atmosphere';
+import { BASE_CONTRAST } from './scene-light';
 import { SceneLoop } from './scene-loop';
+import { hitPart } from './scene-perf';
+import { ShadowCasters } from './shadow-casters';
 import { chunkGrid } from './scenery-chunks';
 import { SceneryCulling } from './scenery-culling';
 import { terrainMeshHeight } from './drape';
@@ -69,30 +73,8 @@ import type { FuneralTimeline } from './funeral-plan';
 import type { WeddingPlan } from './wedding-plan';
 import { VillagePaths, type PathStats } from './path-renderer';
 import { PitCuts, applyPitCut } from './pit-cut';
-import { ColorCurves } from '@babylonjs/core/Materials/colorCurves';
-import { dayLight, dayLightDistance, type DayLight } from './day-light';
-import {
-  seasonDayAt,
-  seasonLook,
-  seasonLookDistance,
-  seasonYearAt,
-  type SeasonLook,
-} from './season-look';
-import { isDeciduousMesh } from './season-foliage';
-import { setPuddles, setSeasonShaderState } from './season-materials';
-import { overcast, puddleAmount, rainAmount } from './rain';
-import { RainRenderer } from './rain-renderer';
-import { STORM_RAIN, stormFlash, stormLight, tornadoStorm } from './storm';
-import { StormRenderer } from './storm-renderer';
-import { TornadoFunnel } from './tornado-funnel';
 import { tornadoTrunks } from './tornado-track';
-import {
-  SHADOW_DARKNESS,
-  addSunShadows,
-  castersChanged,
-  shadowDarkness,
-  type SunShadows,
-} from './sun-shadows';
+import { castersChanged } from './sun-shadows';
 import { swathBands } from './swath-bands';
 import { tileAt, tileCenter } from './tile-at';
 import { addTrees } from './trees';
@@ -108,7 +90,7 @@ import { pickVillageTarget, rayAtHeight, type Ray, type VillageTarget } from './
 import { PlacementController, type ActivePlacement } from './village-placement';
 import { draftHitTarget, draftSelectionFor } from './draft-pick';
 import { VillageRenderer, type DraftRenderState } from './village-renderer';
-import type { SceneVillage, SceneWeather } from '../village-view';
+import type { SceneVillage } from '../village-view';
 import type { PlacementHandlers, PlacementMode } from './village-types';
 import { createWaterMesh, type WaterSurface } from './water';
 import { PremiumSites } from './premium-sites';
@@ -137,33 +119,7 @@ type ViewListener = (view: ViewFootprint) => void;
 type ClearedListener = (cleared: ClearedForest | null) => void;
 
 /** 3D scéna krajiny – obyčejná třída bez Reactu (adaptér zobrazení). */
-/**
- * Roční období: jak často (ms) se podívá na herní datum a od jaké změny vzhledu (season-look.ts)
- * scénu překreslí. Datum se mění jednou za herní den (≈ 86 s), změna za den je pár procent.
- */
-const SEASON_CHECK_MS = 1000;
-const SEASON_EPSILON = 0.002;
-/** Stíny v zimě – holé listnáče propouštějí světlo (jen uniforma, mapa se nepřekresluje). */
-const WINTER_SHADOW_DARKNESS = 0.6;
-/** Kontrast obrazu jako v 0 A.D. (temperate 1,05) – v suchu vyšší (`DayLight.contrast`). */
-const BASE_CONTRAST = 1.1;
-/**
- * Pod tímto množstvím listí (season-look.ts) 3D listnáče nevrhají stín – holá koruna by vrhala
- * stín plného listí (stínová mapa listí nezná) – a impostory vrhají stín holých korun ze
- * zimního atlasu. Stínová mapa se překreslí jen při přechodu.
- */
-const BARE_SHADOW_LEAVES = 0.3;
-/**
- * Den a noc (day-light.ts): jak často (ms) se při plynulém pohybu přepočítá světlo dne a od jaké
- * změny (`dayLightDistance`) se scéna překreslí. Slunce oběhne oblohu za herní den (≈ 86 s) –
- * 10× za sekundu je to pod půl stupně, světlo se mění plynule a kreslí se jen 10 snímků za sekundu.
- */
-const DAY_LIGHT_MS = 100;
-const DAY_LIGHT_EPSILON = 0.002;
-/** Slabší hlavní světlo (× síla stínu) stín nevrhá – stínová mapa se kvůli němu neobnovuje. */
-const SHADOW_VISIBLE = 0.03;
-/** Hodiny dne: hodina 0–24 v okamžiku `nowMs` (epoch ms). */
-export type DayClock = (nowMs: number) => number;
+export type { DayClock } from './scene-atmosphere';
 
 export class LandscapeScene {
   private readonly listeners = new Set<HoverListener>();
@@ -221,9 +177,10 @@ export class LandscapeScene {
   /** Zvuky krajiny – vznikají až po přípravě scény. */
   private ambient: AmbientSound | null = null;
   private soundEnabled = true;
-  private shadows: SunShadows | null = null;
-  /** Vrhače stínu vsi, které vznikly dřív než stínová mapa. */
-  private readonly pendingCasters: Mesh[] = [];
+  /** Vrhače stínu – stínová mapa slunce a co na ni čeká (shadow-casters.ts). */
+  private readonly casters = new ShadowCasters();
+  /** Roční období, světlo dne, déšť, bouřka a smršť (scene-atmosphere.ts). */
+  private readonly atmosphere: SceneAtmosphere;
   /** Stromy, keře a kameny krajiny, které ves odstranila nebo vykácela (a ozdoby pod stavbami). */
   private readonly hider = new InstanceHider((mesh, matrices, hidden, colors) =>
     this.culling?.setInstances(mesh, matrices, hidden, colors),
@@ -245,24 +202,9 @@ export class LandscapeScene {
   /** Požár (disasters.md – Požár, Ve scéně): plameny hořících domů a vědra řetězu hašení. */
   private houseFire: ClearingFireRenderer | null = null;
   private fireBuckets: FireBuckets | null = null;
-  /** Déšť (rain.ts) – síla 0–1 teď a vývojové vynucení (null = podle dnů deště). */
-  private rain: RainRenderer | null = null;
-  private rainNow = 0;
-  private rainOverride: number | null = null;
-  /**
-   * Bouřka s kroupami a povodeň (storm.ts, storm-renderer.ts): síla bouřky a záblesk teď, klíč
-   * pohrom vsi a vývojové vynucení dne světa (null = podle hodin světa).
-   */
-  private storm: StormRenderer | null = null;
-  /** Trychtýř smrště (tornado-funnel.ts) – ztmavení smrště jde se silou bouřky (`stormNow`). */
-  private tornadoFunnel: TornadoFunnel | null = null;
   /** Vojsko, boj a mlha války (war.md – Ve scéně; army-renderer.ts). */
   private army: ArmyRenderer | null = null;
   private war: SceneWar | null = null;
-  private stormNow = 0;
-  private flashNow = 0;
-  private disasterKey = '';
-  private disasterDayOverride: number | null = null;
   /** Prvky prémiové krajiny (premium-sites.ts) – obtisky, přístaviště, kůly, úly, tůňky. */
   private premiumSites: PremiumSites | null = null;
   private village: VillageRenderer | null = null;
@@ -280,8 +222,6 @@ export class LandscapeScene {
   private villageSource: SceneVillage | null = null;
   /** Karavany a lov, které ve skutečném čase ještě běží (activity-memory.ts). */
   private readonly activities = new ActivityMemory();
-  /** Počasí vsi naposledy předané scéně (JSON) – při změně se hned přepočte vzhled. */
-  private weatherKey = 'null';
   private placement: ActivePlacement | null = null;
   /** Jámy obydlí – terén a obtisky se v nich prořezávají (pit-cut.ts). */
   private readonly pitCuts = new PitCuts();
@@ -289,21 +229,8 @@ export class LandscapeScene {
   /** Vývojové ukázky: vlastní okno herního dne pro práci za den (orba, svoz – ladicí). */
   private workDayClock: ((day: number) => { startMs: number; endMs: number }) | null = null;
   private smokeAlways = false;
-  /** Vývojový přepínač dne v roce (null = podle herního data). */
-  private seasonDay: number | null = null;
-  /** Naposledy nastavený vzhled ročního období a kdy se znovu podívat na datum. */
-  private season: SeasonLook | null = null;
-  private seasonCheckAt = 0;
-  /** Listnáče ve stínové mapě a jestli jsou zrovna vyřazené (holé). */
-  private deciduousCasters: Mesh[] = [];
-  private bareShadows = false;
   /** Vnitřek lesa – v zimě vrhá stín ze zimního atlasu (holé koruny). */
   private impostorForest: ImpostorForest | null = null;
-  /** Den a noc: hodiny dne (null = bez denní doby – pevné odpolední slunce jako dřív). */
-  private dayClock: DayClock | null = null;
-  /** Naposledy nastavené světlo dne a kdy se počítalo (performance.now). */
-  private daylight: DayLight | null = null;
-  private daylightAt = 0;
   /** Paprsek pro pick terénu pod kurzorem (bez alokace při každém pohybu myši). */
   private readonly pickRay = PickingRay.Zero();
   /** Vývojový ukazatel výkonu (jen /dev/landscape – `enablePerfStats`). */
@@ -320,12 +247,26 @@ export class LandscapeScene {
     readonly renderer: RendererName,
   ) {
     this.loop = new SceneLoop(engine, scene, () => this.perf);
+    this.atmosphere = new SceneAtmosphere({
+      scene,
+      requestRender: () => this.loop.requestRender(),
+      reducedMotion: () => this.loop.reducedMotion,
+      casters: this.casters,
+      worldClock: () => this.worldClock ?? OFFICIAL_WORLD,
+      village: () => this.villageState,
+      camera: () => this.rtsCamera?.camera ?? null,
+      villageRenderer: () => this.village,
+      impostorForest: () => this.impostorForest,
+      water: () => this.water,
+      fauna: () => this.fauna,
+      ambient: () => this.ambient,
+    });
     this.resizeObserver = new ResizeObserver(() => {
       engine.resize();
       this.loop.renderBurst(300);
     });
     this.resizeObserver.observe(canvas);
-    this.updateSeason(true);
+    this.atmosphere.updateSeason(true);
     canvas.addEventListener('pointermove', this.onPointerMove);
     canvas.addEventListener('pointerleave', this.onPointerLeave);
     canvas.addEventListener('pointerdown', this.onPointerDown);
@@ -384,9 +325,9 @@ export class LandscapeScene {
     this.village = new VillageRenderer(this.scene, {
       groundHeight,
       decalHeight: (x, z) => terrainMeshHeight(surface, x, z),
-      addShadowCaster: (mesh) => this.addVillageCaster(mesh),
+      addShadowCaster: (mesh) => this.casters.addVillage(mesh),
       onAsyncChange: () => {
-        this.shadows?.refresh();
+        this.casters.refresh();
         this.loop.renderWhenReady();
       },
       requestRender: () => this.loop.renderWhenReady(),
@@ -403,11 +344,10 @@ export class LandscapeScene {
     });
     if (this.worldClock) this.village.setWorldClock(this.worldClock);
     if (this.workDayClock) this.village.setPloughClock(this.workDayClock);
-    if (this.season) {
-      this.village.setSeason(this.seasonDayOfYear(), this.season.snow);
-    }
+    const look = this.atmosphere.look;
+    if (look) this.village.setSeason(this.atmosphere.seasonDayOfYear(), look.snow);
     this.village.setSmokeAlways(this.smokeAlways);
-    this.village.setDisasterDay(this.disasterDayOverride);
+    this.village.setDisasterDay(this.atmosphere.forcedDisasterDay);
     this.outlines = new PlacementOutlines(
       this.scene,
       (x, z) => terrainMeshHeight(surface, x, z),
@@ -440,12 +380,9 @@ export class LandscapeScene {
     ];
     this.felled = new FelledTrees(this.scene, {
       groundHeight,
-      addShadowCaster: (mesh) => {
-        if (this.shadows) this.shadows.addCaster(mesh);
-        else this.pendingCasters.push(mesh);
-      },
+      addShadowCaster: (mesh) => this.casters.add(mesh),
       onAsyncChange: () => {
-        this.shadows?.refresh();
+        this.casters.refresh();
         this.loop.renderWhenReady();
       },
     });
@@ -455,21 +392,15 @@ export class LandscapeScene {
       landscape,
       layer: obstacles,
       groundHeight,
-      addShadowCaster: (mesh) => {
-        if (this.shadows) this.shadows.addCaster(mesh);
-        else this.pendingCasters.push(mesh);
-      },
+      addShadowCaster: (mesh) => this.casters.add(mesh),
     });
     // hromady kamení u cest a lomy na výchozech (fortifications.md – Kámen)
     this.stonePiles?.dispose();
     this.stonePiles = new StonePiles(this.scene, {
       groundHeight,
-      addShadowCaster: (mesh) => {
-        if (this.shadows) this.shadows.addCaster(mesh);
-        else this.pendingCasters.push(mesh);
-      },
+      addShadowCaster: (mesh) => this.casters.add(mesh),
       onAsyncChange: () => {
-        this.shadows?.refresh();
+        this.casters.refresh();
         this.loop.renderWhenReady();
       },
     });
@@ -478,22 +409,11 @@ export class LandscapeScene {
     this.clearingSlash = new ClearingSlash(this.scene, {
       layer: obstacles,
       groundHeight,
-      addShadowCaster: (mesh) => {
-        if (this.shadows) this.shadows.addCaster(mesh);
-        else this.pendingCasters.push(mesh);
-      },
+      addShadowCaster: (mesh) => this.casters.add(mesh),
     });
     // ohně pálení na hromadách větví (forest.md – Klučení lesa pro pole – postup, bod 3)
     this.clearingFire?.dispose();
-    this.rain?.dispose();
-    this.rain = new RainRenderer(this.scene);
-    this.rainNow = 0;
-    this.storm?.dispose();
-    this.storm = new StormRenderer(this.scene, {
-      landscape,
-      groundHeight: (x, z) => terrainMeshHeight(surface, x, z),
-    });
-    if (this.daylight) this.storm.setSky(this.daylight.waterSky);
+    this.atmosphere.buildRainAndStorm(landscape, (x, z) => terrainMeshHeight(surface, x, z));
     this.army?.dispose();
     this.army = new ArmyRenderer(this.scene, {
       groundHeight: (x, z) => terrainMeshHeight(surface, x, z),
@@ -510,22 +430,14 @@ export class LandscapeScene {
       },
     });
     if (this.war) this.army.set(this.war, Date.now(), this.loop.reducedMotion, null);
-    this.tornadoFunnel?.dispose();
-    this.tornadoFunnel = new TornadoFunnel(this.scene, {
-      groundHeight: (x, z) => terrainMeshHeight(surface, x, z),
-    });
-    if (this.daylight) this.tornadoFunnel.setTone(this.daylight.tone);
-    this.stormNow = 0;
-    this.flashNow = 0;
-    this.disasterKey = '';
-    this.applyDisasters();
+    this.atmosphere.buildTornado((x, z) => terrainMeshHeight(surface, x, z));
     this.clearingFire = new ClearingFireRenderer(this.scene, { groundHeight });
     if (this.worldClock) this.clearingFire.setWorldClock(this.worldClock);
     // požár – plameny domů ohněm paseky s vlastním rozvrhem, den světa jako pohromy (vývojově vynucený)
     this.houseFire?.dispose();
     this.houseFire = new ClearingFireRenderer(this.scene, {
       groundHeight,
-      kind: houseFireKind(() => this.disasterDay()),
+      kind: houseFireKind(() => this.atmosphere.disasterDay()),
     });
     this.fireBuckets?.dispose();
     this.fireBuckets = new FireBuckets(this.scene, { groundHeight });
@@ -565,12 +477,7 @@ export class LandscapeScene {
       // karavany výprav jdou v herním čase (caravan.ts) – okno herního dne jako orba za den
       dayWindow: (day) => this.village?.gameDayWindow(day) ?? null,
       // povodeň (villagers.md – Události): na rozlitou vodu se nechodí, kdo tam je, jde domů
-      flooded: (x, z, nowMs) =>
-        this.storm?.floodedAt(
-          x,
-          z,
-          this.disasterDayOverride ?? gameDayAt(nowMs, this.worldClock ?? OFFICIAL_WORLD),
-        ) ?? false,
+      flooded: (x, z, nowMs) => this.atmosphere.floodedAt(x, z, nowMs),
       // pohřby (cemetery.md – Pohřeb ve scéně): máry, hranice a oheň kreslí ves
       onFunerals: (plans) => {
         if (this.village?.setFunerals(plans, Date.now())) this.loop.renderWhenReady();
@@ -618,7 +525,7 @@ export class LandscapeScene {
       baseHeight: (x, z) =>
         this.terrainGround?.baseHeightAt(x, z) ?? terrainMeshHeight(surface, x, z),
       pitCuts: this.pitCuts,
-      addShadowCaster: (mesh) => this.addVillageCaster(mesh),
+      addShadowCaster: (mesh) => this.casters.addVillage(mesh),
       // nová síť pěšin mění jen obtisky a trasy postav – stromy u cest obnoví stíny samy
       // (refreshShadows), stínová mapa se kvůli pěšinám nepřekresluje
       onChange: () => {
@@ -637,7 +544,7 @@ export class LandscapeScene {
       },
       requestRender: () => this.loop.renderWhenReady(),
       refreshShadows: () => {
-        this.shadows?.refresh();
+        this.casters.refresh();
         this.loop.renderWhenReady();
       },
     });
@@ -657,7 +564,7 @@ export class LandscapeScene {
       decalHeight: (x, z) => terrainMeshHeight(surface, x, z),
       groundHeight,
       waters: surface.stream,
-      addShadowCaster: (mesh) => this.addVillageCaster(mesh),
+      addShadowCaster: (mesh) => this.casters.addVillage(mesh),
       requestRender: () => this.loop.renderWhenReady(),
     });
     this.canopy = createForestCanopy(this.scene, surface, field);
@@ -697,13 +604,14 @@ export class LandscapeScene {
           impostors,
           groundHeight,
           (shadowAtlasChanged) => {
-            if (shadowAtlasChanged) this.shadows?.refresh();
+            if (shadowAtlasChanged) this.casters.refresh();
             this.loop.renderWhenReady();
           },
         ).then(
           (forest) => {
             this.impostorForest = forest;
-            if (this.daylight) forest?.setTone(this.daylight.tone);
+            const light = this.atmosphere.light;
+            if (light) forest?.setTone(light.tone);
             if (forest) collect(forest.meshes);
           },
           (error) =>
@@ -726,27 +634,8 @@ export class LandscapeScene {
     if (this.disposed) return;
     // Odstraněné a vykácené překážky se skryjí podle id, ozdoby pod stavbami podle polohy paty.
     this.hider.track(sceneryMeshes);
-    const sun = this.scene.getLightByName('sun');
-    if (sun instanceof DirectionalLight) {
-      this.shadows = addSunShadows(sun, {
-        casters: [
-          ...this.scene.meshes.filter(
-            (mesh): mesh is Mesh =>
-              mesh instanceof Mesh && /^(trees|impostors|decor)-/.test(mesh.name),
-          ),
-          ...this.pendingCasters.filter((mesh) => !mesh.isDisposed()),
-        ],
-        receivers: this.terrain ? [this.terrain] : [],
-        extentM: landscape.size * landscape.cellSizeM,
-      });
-      this.pendingCasters.length = 0;
-      // impostory listnáčů v zimě nevypadnou – vrhají stín ze zimního atlasu (setBareShadows)
-      this.deciduousCasters = this.scene.meshes.filter(
-        (mesh): mesh is Mesh =>
-          mesh instanceof Mesh && isDeciduousMesh(mesh.name) && !mesh.name.startsWith('impostors-'),
-      );
-    }
-    this.updateSeason(true);
+    this.casters.create(this.scene, this.terrain, landscape.size * landscape.cellSizeM);
+    this.atmosphere.updateSeason(true);
     this.applyVillage();
     await report('shaders', 0.92);
     if (this.disposed) return;
@@ -762,7 +651,8 @@ export class LandscapeScene {
         this.canvas.dataset.sound = state;
       },
     });
-    if (this.season) this.ambient.setSeason({ ...this.season.sound, ice: this.season.ice });
+    const season = this.atmosphere.look;
+    if (season) this.ambient.setSeason({ ...season.sound, ice: season.ice });
     this.loop.renderBurst(1500);
     this.loop.start(() => this.frame());
   }
@@ -788,65 +678,9 @@ export class LandscapeScene {
     );
     this.villageState = village;
     this.applyVillage();
-    // počasí roku se ukáže hned, ne až při další kontrole období
-    const weatherKey = JSON.stringify(village.weather ?? null);
-    if (weatherKey !== this.weatherKey) {
-      this.weatherKey = weatherKey;
-      if (this.season) this.updateSeason(true);
-    }
-    this.applyDisasters();
+    this.atmosphere.villageChanged();
   }
 
-  /** Krupobití, povodeň a smršť vsi do scény – přestaví pruh a vodu jen při změně. */
-  private applyDisasters(): void {
-    const village = this.villageState;
-    const key = JSON.stringify([
-      village?.hail ?? null,
-      village?.flood ?? null,
-      village?.tornado?.day ?? null,
-      village?.tornado?.track ?? null,
-    ]);
-    if (!this.storm || key === this.disasterKey) return;
-    this.disasterKey = key;
-    this.storm.setHail(village?.hail ?? null);
-    this.storm.setFlood(village?.flood ?? null);
-    this.tornadoFunnel?.set(village?.tornado ?? null, village?.home ?? null);
-    this.updateDisasters();
-    this.loop.requestRender();
-  }
-
-  /** Den světa pro pohromy (desetinný) – vývojové vynucení, jinak hodiny světa. */
-  private disasterDay(): number {
-    return this.disasterDayOverride ?? gameDayAt(Date.now(), this.worldClock ?? OFFICIAL_WORLD);
-  }
-
-  /**
-   * Průběh pohrom (jednou za kontrolu období a při změně vsi): kroupy, bílý pás, voda a bahno po
-   * desetinách; při změně síly bouřky déšť a světlo. Záblesky jdou v `animate()`.
-   */
-  private updateDisasters(): void {
-    if (!this.storm) return;
-    const day = this.disasterDay();
-    if (this.storm.update(day)) {
-      // při omezeném pohybu kroupy stojí – rozmístí se jednou
-      this.placeDrops();
-      this.loop.requestRender();
-    }
-    // smršť ztmaví scénu jako bouřka (storm.ts – `tornadoStorm`); trychtýř jen s animacemi
-    const tornado = this.villageState?.tornado;
-    const storm = Math.max(this.storm.storm, tornado ? tornadoStorm(day - tornado.day) : 0);
-    if (this.loop.reducedMotion && this.tornadoFunnel?.hide()) this.loop.requestRender();
-    if (storm === this.stormNow) return;
-    this.stormNow = storm;
-    if (storm === 0) this.flashNow = 0;
-    if (this.season) {
-      this.updateRain(this.season.wet);
-      this.applyLight(true);
-    }
-    this.loop.requestRender();
-  }
-
-  /** Vývojové vynucení dne světa pro krupobití a povodeň (null = podle hodin světa). */
   /**
    * Válka ve scéně (war.md – Ve scéně): poslední snímek boje po taktu, pochod, útěk vsi, odehnané
    * stádo a mlha války; null – nic. Mezi takty se muži posouvají plynule v `animate()`.
@@ -875,35 +709,11 @@ export class LandscapeScene {
   }
 
   setDisasterDay(day: number | null): void {
-    this.disasterDayOverride = day;
-    this.updateDisasters();
+    this.atmosphere.setDisasterDay(day);
     // požár – dým a plameny podle vynuceného dne
     this.village?.setDisasterDay(day);
     this.village?.animateSmoke(Date.now(), null);
     if (this.houseFire?.animate(Date.now(), null)) this.loop.requestRender();
-  }
-
-  /** Kapky a kroupy kolem cíle kamery v tomto okamžiku (při omezeném pohybu stojí). */
-  private placeDrops(): void {
-    const camera = this.rtsCamera?.camera;
-    if (!camera) return;
-    const seconds = performance.now() / 1000;
-    this.rain?.animate(seconds, camera.target, camera.position, camera.radius);
-    this.storm?.animate(seconds, camera.target, camera.position, camera.radius);
-  }
-
-  /**
-   * Počasí roku vsi pro vzhled (disasters.md – Ve scéně) – jen v roce, pro který platí (po Novém
-   * roce do další odpovědi serveru normální rok). S vývojovým dnem (`setSeasonDay`) bez ohledu
-   * na rok – ukázka počasí na /dev/landscape. Zahození po Novém roce vzhled nezmění: všechny
-   * dráhy počasí (`weatherAmounts`) jsou 1. 1. nulové (test v season-look.test.ts).
-   */
-  private weatherNow(): SceneWeather | undefined {
-    const weather = this.villageState?.weather;
-    if (!weather) return undefined;
-    if (this.seasonDay !== null) return weather;
-    const year = seasonYearAt(Date.now(), this.worldClock ?? OFFICIAL_WORLD);
-    return weather.year === year ? weather : undefined;
   }
 
   /** Vytyčení tras vozových cest (vývojová ukázka – osy bez plánu); prázdné zruší. */
@@ -1087,7 +897,7 @@ export class LandscapeScene {
     this.clearingFire?.setWorldClock(world);
     this.houseFire?.setWorldClock(world);
     this.worldClock = world;
-    this.updateSeason(true);
+    this.atmosphere.updateSeason(true);
     // skok v čase mění herní den – ohně a kouř se přestaví a jednou nakreslí i bez změny vsi
     if (this.updateClearingFires()) {
       this.clearingFire?.animate(Date.now(), null);
@@ -1114,14 +924,12 @@ export class LandscapeScene {
    * přetáčení), null = zpět podle herního data.
    */
   setSeasonDay(day: number | null): void {
-    this.seasonDay = day;
-    this.updateSeason(true);
+    this.atmosphere.setSeasonDay(day);
   }
 
   /** Vývojové vynucení deště 0–1 (null = dny deště podle seedu dne v deštivém létě). */
   setRainOverride(amount: number | null): void {
-    this.rainOverride = amount;
-    this.updateSeason(true);
+    this.atmosphere.setRainOverride(amount);
   }
 
   /**
@@ -1130,15 +938,7 @@ export class LandscapeScene {
    * omezeném pohybu po krocích jednou za sekundu; stínová mapa se obnoví po SHADOW_STEP_DEG.
    */
   setDayClock(clock: DayClock | null): void {
-    this.dayClock = clock;
-    // Filtr obrazu soumraku a noci (ColorCurves) – zapnutí přeloží shadery všech materiálů,
-    // proto jednou při prvních hodinách dne a už se nevypíná (bez filtru obraz nemění).
-    const processing = this.scene.imageProcessingConfiguration;
-    if (clock && !processing.colorCurvesEnabled) {
-      processing.colorCurves ??= new ColorCurves();
-      processing.colorCurvesEnabled = true;
-    }
-    if (this.applyLight(true)) this.loop.requestRender();
+    this.atmosphere.setDayClock(clock);
   }
 
   /** Vývojová volba: vyšlapané pěšiny a pevné cesty (i se stromy u nich) vidět / skrýt. */
@@ -1459,9 +1259,7 @@ export class LandscapeScene {
     this.canvas.removeEventListener('pointerup', this.onPointerUp);
     this.loop.dispose();
     this.ambient?.dispose();
-    this.rain?.dispose();
-    this.storm?.dispose();
-    this.tornadoFunnel?.dispose();
+    this.atmosphere.dispose();
     this.army?.dispose();
     this.rtsCamera?.dispose();
     this.perf?.dispose();
@@ -1704,7 +1502,7 @@ export class LandscapeScene {
     this.houseFire?.animate(Date.now(), null);
     this.fireBuckets?.animate(Date.now(), null);
     const scene = { village: changed, hidden, felled, logs, shade: shaded, canopy: cleared };
-    if (castersChanged({ ...scene, animals, people })) this.shadows?.refresh();
+    if (castersChanged({ ...scene, animals, people })) this.casters.refresh();
     this.loop.renderWhenReady();
   }
 
@@ -1727,7 +1525,7 @@ export class LandscapeScene {
     const bounds = { minX: a.x, minZ: a.z, maxX: b.x, maxZ: b.z };
     this.village?.terrainChanged(bounds);
     this.paths?.terrainChanged(bounds);
-    this.shadows?.refresh();
+    this.casters.refresh();
     return true;
   }
 
@@ -1757,16 +1555,13 @@ export class LandscapeScene {
     if (!camera) return;
     const now = performance.now();
     const step = this.loop.step(now);
-    if (now >= this.seasonCheckAt) this.updateSeason(false);
+    this.atmosphere.checkSeason(now);
     // na pozadí (okno bez fokusu, hráč dvě minuty nic nedělá) jdou animace pomaleji; při
     // omezeném pohybu animace stojí a takt slouží jen dokreslování po načtení
     const moving = !this.loop.reducedMotion;
     const fps = moving ? this.loop.animationFps() : WATER_FPS;
     // omezený pohyb zapnutý během záblesku – scéna nesmí zůstat rozsvícená
-    if (!moving && this.flashNow > 0) {
-      this.flashNow = 0;
-      if (this.applyLight(true)) this.loop.requestRender();
-    }
+    if (!moving) this.atmosphere.stopFlash();
     // Voda teče a zvířata se hýbou sama – výjimka z kreslení jen při změně, dokud jsou v záběru.
     if (this.loop.animationTick(now, fps) && moving && this.animate(now, camera.camera)) {
       this.loop.requestRender();
@@ -1774,7 +1569,7 @@ export class LandscapeScene {
     if (camera.update(step)) {
       this.loop.requestRender();
       // při omezeném pohybu kapky a kroupy stojí – po posunu kamery se přeskládají kolem cíle
-      if (!moving) this.placeDrops();
+      if (!moving) this.atmosphere.placeDrops();
       // obilí z dálky řídne (trsy), pole pak nese obtisk porostu
       this.village?.setView(camera.camera.radius);
       // Pod nehybným kurzorem je po pohybu kamery jiné políčko.
@@ -1846,31 +1641,8 @@ export class LandscapeScene {
       hit?.('voda');
     }
     if (this.fauna?.animate(now / 1000, camera)) animated = hitPart(hit, 'fauna');
-    // déšť – kapky kolem cíle kamery, jen když prší
-    const rts = this.rtsCamera?.camera;
-    if (rts && this.rain?.animate(now / 1000, rts.target, rts.position, rts.radius)) {
-      animated = hitPart(hit, 'déšť');
-    }
-    // bouřka s kroupami – kroupy v pruhu a záblesky (deterministicky z času, jen v bouřce)
-    if (rts && this.storm?.animate(now / 1000, rts.target, rts.position, rts.radius)) {
-      animated = hitPart(hit, 'bouřka');
-    }
-    // smršť – trychtýř přejde stopou kolem vsi (jen v průchodu a s animacemi, den světa jako
-    // pohromy; při omezeném pohybu ho skryje `updateDisasters`)
-    if (
-      !this.loop.reducedMotion &&
-      this.villageState?.tornado &&
-      this.tornadoFunnel?.animate(this.disasterDay(), now / 1000)
-    ) {
-      animated = hitPart(hit, 'smršť');
-    }
-    if (this.stormNow > 0) {
-      const flash = stormFlash(this.stormNow, Date.now());
-      if (flash !== this.flashNow) {
-        this.flashNow = flash;
-        if (this.applyLight(true)) animated = hitPart(hit, 'blesk');
-      }
-    }
+    // déšť, bouřka s kroupami a záblesky, smršť (scene-atmosphere.ts)
+    if (this.atmosphere.animate(now, hit)) animated = true;
     // dým z obydlí – rozvrh ohně podle herního dne, proto skutečný čas
     const epochMs = Date.now();
     if (this.village?.animateSmoke(epochMs, camera)) animated = hitPart(hit, 'dým');
@@ -1897,153 +1669,9 @@ export class LandscapeScene {
     if (this.village?.animateSlaughter(epochMs, camera)) animated = hitPart(hit, 'porážka');
     // obilí ve větru – jen zralé a zelené v záběru
     if (this.village?.animateFields(epochMs, camera)) animated = hitPart(hit, 'obilí');
-    // den a noc – slunce jde po obloze (světlo se mění pomalu, stačí DAY_LIGHT_MS)
-    if (this.dayClock && now - this.daylightAt >= DAY_LIGHT_MS && this.applyLight(false)) {
-      animated = hitPart(hit, 'světlo');
-    }
+    // den a noc – slunce jde po obloze (scene-atmosphere.ts)
+    if (this.atmosphere.animateDaylight(now, hit)) animated = true;
     return animated;
-  }
-
-  /**
-   * Vrhač stínu ze vsi (stavby, jabloně sadu – vznikají až po krajině). Listnáče (jabloně) se
-   * zařadí mezi holé v zimě, ať nevrhají stín plného listí.
-   */
-  private addVillageCaster(mesh: Mesh): void {
-    const deciduous = isDeciduousMesh(mesh.name) && !this.deciduousCasters.includes(mesh);
-    if (deciduous) this.deciduousCasters.push(mesh);
-    if (!this.shadows) {
-      this.pendingCasters.push(mesh);
-      return;
-    }
-    this.shadows.addCaster(mesh);
-    if (deciduous && this.bareShadows) this.shadows.setCastersEnabled([mesh], false);
-  }
-
-  /** Den v roce scény – vývojový přepínač, jinak podle herního data světa. */
-  private seasonDayOfYear(): number {
-    return this.seasonDay ?? seasonDayAt(Date.now(), this.worldClock ?? OFFICIAL_WORLD);
-  }
-
-  /**
-   * Roční období podle herního data (nebo vývojového přepínače): když se vzhled znatelně
-   * změnil, nastaví světlo, opar, vodu, stíny, zvuky a uniformy materiálů a scénu jednou
-   * překreslí. Vzhled se mění nejvýš jednou za herní den – žádné kreslení navíc.
-   */
-  private updateSeason(force: boolean): void {
-    this.seasonCheckAt = performance.now() + SEASON_CHECK_MS;
-    const day = this.seasonDayOfYear();
-    const look = seasonLook(day, this.weatherNow());
-    this.updateDisasters();
-    this.updateRain(look.wet);
-    // pole podle dne (odhad vzhledu, seč luk) a sněhu – přestaví se, jen když se něco změnilo
-    if (this.village?.setSeason(day, look.snow)) {
-      this.shadows?.refresh();
-      this.loop.requestRender();
-    }
-    if (!force && this.season && seasonLookDistance(look, this.season) < SEASON_EPSILON) {
-      // den a noc při omezeném pohybu (animace stojí): světlo po krocích jednou za sekundu
-      if (this.dayClock && this.loop.reducedMotion && this.applyLight(false)) {
-        this.loop.requestRender();
-      }
-      return;
-    }
-    this.season = look;
-    setSeasonShaderState(this.scene, look);
-    const bare = look.leaves < BARE_SHADOW_LEAVES;
-    if (this.shadows && bare !== this.bareShadows) {
-      this.bareShadows = bare;
-      this.shadows.setCastersEnabled(this.deciduousCasters, !bare);
-      // obnoví i stínovou mapu – setCastersEnabled ji překreslí
-      this.impostorForest?.setBareShadows(bare);
-    }
-    this.fauna?.setIce(look.ice);
-    this.ambient?.setSeason({ ...look.sound, ice: look.ice });
-    this.applyLight(true);
-    this.loop.requestRender();
-  }
-
-  /**
-   * Déšť ve dnech deště deštivého léta (rain.ts – ze dne světa, jen vzhled): kapky, kaluže a
-   * zataženo. Při změně síly (po desetinách) kapky jednou rozmístí – i při omezeném pohybu, kdy
-   * stojí – a světlo přepočítá.
-   */
-  private updateRain(wet: number): void {
-    const days =
-      this.rainOverride ??
-      rainAmount(gameDayAt(Date.now(), this.worldClock ?? OFFICIAL_WORLD), wet);
-    // kroupy padají s deštěm (storm.ts)
-    const rain = Math.max(days, Math.round(STORM_RAIN * this.stormNow * 10) / 10);
-    setPuddles(this.scene, puddleAmount(wet, rain));
-    if (rain === this.rainNow) return;
-    this.rainNow = rain;
-    this.rain?.setAmount(rain);
-    this.placeDrops();
-    if (this.season) this.applyLight(true);
-    this.loop.requestRender();
-  }
-
-  /**
-   * Světlo scény z ročního období a denní doby (day-light.ts): slunce (v noci měsíc) a jeho
-   * směr, obloha, opar, okolní světlo, stíny, tón impostorů a dýmu a odraz oblohy na vodě. Bez
-   * hodin dne světlo ročního období a pevné slunce SUN_DIRECTION jako dřív. Vrátí true, když se
-   * světlo (znatelně) změnilo – scénu je třeba překreslit.
-   */
-  private applyLight(force: boolean): boolean {
-    const look = this.season;
-    if (!look) return false;
-    this.daylightAt = performance.now();
-    const hour = this.dayClock ? this.dayClock(Date.now()) : null;
-    // za deště zataženo (rain.ts – `overcast`), za bouřky tma a záblesky (storm.ts)
-    const day = stormLight(
-      overcast(dayLight(look, this.seasonDayOfYear(), hour), this.rainNow),
-      this.stormNow,
-      this.flashNow,
-    );
-    if (!force && this.daylight && dayLightDistance(day, this.daylight) < DAY_LIGHT_EPSILON) {
-      return false;
-    }
-    this.daylight = day;
-    const { light } = day;
-    const scene = this.scene;
-    const sun = scene.getLightByName('sun');
-    if (sun instanceof DirectionalLight) {
-      sun.intensity = light.sunIntensity;
-      sun.diffuse.set(...light.sunColor);
-      sun.specular.set(...day.specular);
-      const { x, y, z } = day.direction;
-      if (this.shadows) {
-        this.shadows.aim(day.direction, light.sunIntensity * day.shadowStrength > SHADOW_VISIBLE);
-      } else if (sun.direction.x !== x || sun.direction.y !== y || sun.direction.z !== z) {
-        sun.direction.set(x, y, z);
-      }
-    }
-    const sky = scene.getLightByName('sky');
-    if (sky instanceof HemisphericLight) {
-      sky.intensity = light.skyIntensity;
-      sky.diffuse.set(...light.skyColor);
-      sky.groundColor.set(...light.groundColor);
-    }
-    scene.ambientColor.set(...day.ambient);
-    const curves = scene.imageProcessingConfiguration.colorCurves;
-    if (scene.imageProcessingConfiguration.colorCurvesEnabled && curves) {
-      curves.globalHue = day.grade.hue;
-      curves.globalDensity = day.grade.density;
-      curves.globalSaturation = day.grade.saturation;
-    }
-    scene.clearColor.set(...light.clearColor, 1);
-    scene.fogColor.set(...light.fogColor);
-    scene.fogDensity = light.fogDensity;
-    // v zimě holé listnáče propouštějí světlo; nízké slunce a měsíc vrhají slabší stín
-    const darkness =
-      SHADOW_DARKNESS + (WINTER_SHADOW_DARKNESS - SHADOW_DARKNESS) * (1 - look.leaves);
-    this.shadows?.setDarkness(shadowDarkness(darkness, day.shadowStrength));
-    scene.imageProcessingConfiguration.contrast = BASE_CONTRAST * day.contrast;
-    this.impostorForest?.setTone(day.tone);
-    this.tornadoFunnel?.setTone(day.tone);
-    this.village?.setLightTone(day.tone);
-    this.water?.setSeason(look.water.tint, day.waterSky, look.ice);
-    this.storm?.setSky(day.waterSky);
-    return true;
   }
 
   /** Pick jednou za snímek, ne při každém pohybu myši – políčko pod kurzorem i umisťování. */
@@ -2135,10 +1763,4 @@ function wagonPreviewKey(village: SceneVillage, roadId: number): string {
 function withRockTint(p: DecorPlacement): DecorPlacement {
   const group = premiumRockTint(p.id);
   return group ? { ...p, group } : p;
-}
-
-/** Animace chce kreslit – ukazateli výkonu řekne kterou (`hit`) a vrátí true. */
-function hitPart(hit: ((name: string) => void) | null, name: string): true {
-  hit?.(name);
-  return true;
 }
