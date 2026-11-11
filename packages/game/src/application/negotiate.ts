@@ -584,249 +584,100 @@ export async function counterNegotiation(
   return result;
 }
 
+/** Jednání načtené pro odpověď (`loadForResponse`). */
+type Loaded = Extract<Awaited<ReturnType<typeof loadForResponse>>, { ok: true }>;
+
+/** Přijetí jednání – kdo, které jednání a kdy. */
+interface AcceptInput {
+  playerId: string;
+  negotiationId: string;
+  now: Date;
+  today: number;
+}
+
+/** Poplatek a postoupení míru – připraví se v transakci, provedou se po ní. */
+interface PeaceLater {
+  line: PeaceLine;
+  sendings: { fromHouse: House; toHouse: House; toVillageId: string }[];
+  cede: { fromHouseId: string; toHouseId: string; villageIds: string[] } | null;
+}
+
+/** Výkupné – zaplatí se a zajatci se propustí po transakci. */
+interface Ransoming {
+  line: RansomLine;
+  captorHouseId: string;
+  payerHouseId: string;
+}
+
+/** Dar nebo půjčka zboží – pošle věřitel po transakci. */
+interface AidSending {
+  line: Extract<AidLine, { kind: 'gift' | 'loan' }>;
+  toVillageId: string | null;
+}
+
+/** Darovaná ves – dárce je autor posledního kola. */
+interface VillageGift {
+  line: VillageGiftLine;
+  fromHouseId: string;
+  toHouseId: string;
+}
+
+/** Ověřené přijetí (`checkAcceptance`) – řádky posledního kola a co se z nich zapíše. */
+interface AcceptCheck {
+  ok: true;
+  items: TermItem[];
+  terms: ReturnType<typeof termsOfLines>;
+  oathItem: ReturnType<typeof oathOf>;
+  tradeLine: TradeLine | undefined;
+  peaceLine: PeaceLine | undefined;
+  warLine: WarDemandLine | PeaceLine | undefined;
+  existing: Vassalage | null;
+  ransoming: Ransoming | null;
+  later: PeaceLater | null;
+  sendings: TradeSending[];
+  sides: ReturnType<typeof stewardSides>;
+  stewardLine: TermItem | undefined;
+  giftLine: VillageGiftLine | undefined;
+  aidLine: AidLine | undefined;
+  aidTarget: string | null;
+}
+
+/** Sestavené přijetí (`acceptedOf`) – co se po transakci pošle, provede a zapíše do kroniky. */
+interface Accepted {
+  actors: Actors;
+  oath: { lord: string; vassal: string } | null;
+  aid: AidSending | null;
+  trading: { sendings: TradeSending[]; today: number } | null;
+  gift: VillageGift | null;
+  peace: WarDemandLine | PeaceLine | null;
+  ransoming: Ransoming | null;
+  newcomerHouseId: string | null;
+  peaceLater: PeaceLater | null;
+}
+
 /**
  * Přijetí posledního kola: ověří živé rody a vzájemnost, uzavře jednání a spustí účinky všech
- * řádků – vše v jedné transakci (kdo přijetí vyhraje souběh, vazalství vznikne jedno).
+ * řádků – vše v jedné transakci (kdo přijetí vyhraje souběh, vazalství vznikne jedno). Kroky:
+ * ověření (`checkAcceptance`), zápis (`writeAcceptance`, `noticeAcceptance`), sestavení účinků
+ * (`acceptedOf`) a po transakci odeslání (`deliverAcceptance`) a kronika (`chronicleAcceptance`).
  */
 export async function acceptNegotiation(
   deps: NegotiateDeps,
-  input: { playerId: string; negotiationId: string; now: Date; today: number },
+  input: AcceptInput,
 ): Promise<NegotiateResult> {
-  let actors: Actors | null = null;
-  let oath: { lord: string; vassal: string } | null = null;
-  let aid: {
-    line: Extract<AidLine, { kind: 'gift' | 'loan' }>;
-    toVillageId: string | null;
-  } | null = null;
-  let trading: { sendings: TradeSending[]; today: number } | null = null;
-  let gift: { line: VillageGiftLine; fromHouseId: string; toHouseId: string } | null = null;
-  let peace: WarDemandLine | PeaceLine | null = null;
-  let ransoming: { line: RansomLine; captorHouseId: string; payerHouseId: string } | null = null;
-  let newcomerHouseId: string | null = null;
-  let peaceLater: {
-    line: PeaceLine;
-    sendings: { fromHouse: House; toHouse: House; toVillageId: string }[];
-    cede: { fromHouseId: string; toHouseId: string; villageIds: string[] } | null;
-  } | null = null;
+  let accepted: Accepted | null = null;
   const result = await deps.negotiations
     .transaction(async (tx): Promise<NegotiateResult> => {
       const loaded = await loadForResponse(deps, tx, input.playerId, input.negotiationId);
       if (!loaded.ok) return loaded;
       const done = acceptRound(loaded.negotiation, loaded.actor.id, input.now);
       if (!done.ok) return done;
-      const items = loaded.negotiation.rounds[loaded.negotiation.rounds.length - 1]?.items ?? [];
-      const terms = termsOfLines(termLinesOf(items));
-      const oathItem = oathOf(items);
-      // bez přísahy jde o změnu podmínek existující dohody
-      const tradeLine = items.find(isTradeLine);
-      const peaceLine = items.find(isPeaceLine);
-      const ransomLine = items.find(isRansomLine);
-      const warLine = items.find(isWarDemandLine) ?? peaceLine;
-      const existing =
-        oathItem || tradeLine || warLine || ransomLine
-          ? null
-          : await agreementBetween(tx, loaded.actor.id, loaded.other.id);
-      if (!oathItem && !existing && !tradeLine && !warLine && !ransomLine) {
-        return fail(NO_AGREEMENT);
-      }
-      // výkupné: zajatci musí být pořád ve vsi věznitele; zaplatí se a propustí po transakci
-      if (ransomLine) {
-        const parties: [string, string] = [loaded.actor.id, loaded.other.id];
-        const checked = await checkRansomRound(deps, items, ...parties);
-        if (checked && 'reason' in checked) return fail(checked.reason);
-        if (checked) {
-          ransoming = {
-            line: ransomLine,
-            captorHouseId: checked.captorHouseId,
-            payerHouseId: checked.captorHouseId === parties[0] ? parties[1] : parties[0],
-          };
-        }
-      }
-      // mír: poplatek a postoupení se připraví tady, provedou se po transakci
-      let later: NonNullable<typeof peaceLater> | null = null;
-      if (peaceLine) {
-        const badPeace = await checkPeaceRound(deps, tx, items, loaded.actor.id, loaded.other.id);
-        if (badPeace) return fail(badPeace);
-        later = { line: peaceLine, sendings: [], cede: null };
-        const pays = (payer: string | undefined): House | null =>
-          payer === loaded.actor.id
-            ? loaded.actor
-            : payer === loaded.other.id
-              ? loaded.other
-              : null;
-        const payer = peaceLine.fee ? pays(peaceLine.payer) : null;
-        if (payer && payer.playerId !== null) {
-          if (!deps.dialogs) return fail(TRADE_REASONS.noDialogs);
-          const to = payer === loaded.actor ? loaded.other : loaded.actor;
-          if (to.lord?.villageId === undefined) return fail(TRADE_REASONS.noTarget);
-          later.sendings.push({ fromHouse: payer, toHouse: to, toVillageId: to.lord.villageId });
-        }
-        if (peaceLine.cede && deps.cede) {
-          const checked = await deps.cede.check([loaded.actor.id, loaded.other.id], peaceLine.cede);
-          if (!checked.ok) return fail(checked.reason);
-          later.cede = {
-            fromHouseId: checked.fromHouseId,
-            toHouseId: checked.toHouseId,
-            villageIds: peaceLine.cede,
-          };
-        }
-      }
-      if (warLine && !peaceLine) {
-        const badWar = checkWarDemandParties(items, loaded.actor.id, loaded.other.id);
-        if (badWar) return fail(badWar);
-        // válka mezitím mohla utichnout nebo skončit jinak – mír nemá co ukončit
-        if (!(await tx.wars.activeBetween(loaded.actor.id, loaded.other.id))) {
-          return fail(WAR_DEMAND_REASONS.noWar);
-        }
-      }
-      // obchod: ověří vsi (znovu, mezitím se mohly změnit) a připraví dva dialogy odeslání
-      let sendings: TradeSending[] = [];
-      if (tradeLine) {
-        if (!deps.dialogs) return fail(TRADE_REASONS.noDialogs);
-        const badTrade = await checkTradeRound(deps, items, [loaded.actor.id, loaded.other.id]);
-        if (badTrade) return fail(badTrade);
-        // autor posledního kola (druhá strana než ten, kdo přijímá) pošle `give`, přijímající `get`
-        sendings = tradeSendings(tradeLine, loaded.other, loaded.actor);
-        if (sendings.some((x) => x.toVillageId === null)) return fail(TRADE_REASONS.noTarget);
-      }
-      const badVillage = await checkTargetVillage(
-        deps,
-        items,
-        oathItem?.lord ?? existing?.lordHouseId ?? '',
-      );
-      if (badVillage) return fail(badVillage);
-      const sides = stewardSides(oathItem, existing);
-      const stewardLine = items.find(isStewardshipLine);
-      const giftLine = items.find(isVillageGiftLine);
-      if (giftLine && !deps.escheatGift) return fail(NO_AGREEMENT);
-      const badSteward = await checkStewardRound(deps, tx, items, sides);
-      if (badSteward) return fail(badSteward);
-      for (const item of items) {
-        if (
-          item.kind === 'oath' &&
-          wouldBeMutual(await tx.vassalages.edgesNear(item.lord, 1), item.lord, item.vassal)
-        ) {
-          return fail(R.isYourLord);
-        }
-        const reason = await checkItem(tx, item);
-        if (reason) return fail(reason);
-      }
-      // jednání o pomoci podmínky dohody nemění; zboží dar i půjčky pošle věřitel po transakci
-      const aidLine = items.find(isAidLine);
-      if (aidLine) {
-        if (!existing) return fail(NO_AGREEMENT);
-        if (aidLine.kind !== 'aid-request' && !deps.aid) return fail(NO_AID);
-      }
-      const vassalHouse = existing ? await deps.houses.byId(existing.vassalHouseId) : null;
-      const aidTarget =
-        aidLine && aidLine.kind !== 'aid-request'
-          ? (aidLine.toVillageId ?? vassalHouse?.lord?.villageId ?? null)
-          : null;
-      if (aidLine && aidLine.kind !== 'aid-request' && aidTarget === null) {
-        return fail(AID_REASONS.noTarget);
-      }
-      // staré podmínky platí do této chvíle; selhání (dohoda mezitím skončila) nezapíše nic
-      if (
-        existing &&
-        !aidLine &&
-        !tradeLine &&
-        // správa bez řádků podmínek stávající podmínky dohody nemění
-        !((stewardLine || giftLine) && termLinesOf(items).length === 0) &&
-        !(await tx.vassalages.updateTerms(existing.id, terms, existing.version))
-      ) {
-        return fail(NO_AGREEMENT);
-      }
-      // žádost nováčka: první přijetí vyhraje – podmíněné umístění shluku vsí (`placed_at IS
-      // NULL`) před změnou stavu; prohra nezapíše nic
-      const newcomer = loaded.record.newcomer;
-      if (newcomer) {
-        if (loaded.actor.id !== loaded.record.recipientHouseId) return fail(R.notParty);
-        const placed = await placeNewcomer(deps, tx, {
-          houseId: loaded.other.id,
-          lordHouseId: loaded.actor.id,
-          origin: 'newcomer',
-          now: input.now,
-          today: input.today,
-        });
-        if (!placed.ok) return placed;
-        newcomerHouseId = loaded.other.id;
-      }
-      if (!(await tx.setStatus(loaded.record.id, 'accepted', loaded.record.version, input.now))) {
-        return fail(R.finished);
-      }
-      // správa vzniká až po přísaze (stojí na dohodě, kterou přísaha zakládá)
-      const ordered = [
-        ...items.filter((i) => !isStewardshipLine(i)),
-        ...items.filter(isStewardshipLine),
-      ];
-      for (const item of ordered) {
-        // vazalství nováčka založilo umístění (`placeNewcomer`, origin `newcomer`)
-        if (newcomer && item.kind === 'oath') continue;
-        await applyItem(tx, item, {
-          now: input.now,
-          day: input.today,
-          terms,
-          negotiationId: loaded.record.id,
-          agreement: existing
-            ? { lordHouseId: existing.lordHouseId, vassalHouseId: existing.vassalHouseId }
-            : null,
-          aidTargetVillageId: aidTarget,
-          stewardship: sides ? { lordHouseId: sides.lordId, stewardHouseId: sides.vassalId } : null,
-          parties: [loaded.actor.id, loaded.other.id],
-        });
-      }
-      // nováček dostal `newcomer-accepted` už při umístění
-      if (!newcomer) {
-        await noticeHouse(
-          tx,
-          loaded.other,
-          'negotiation-accepted',
-          {
-            negotiationId: loaded.record.id,
-            houseId: loaded.actor.id,
-            name: await houseName(deps, loaded.actor),
-          },
-          input.today,
-        );
-      }
-      for (const s of later?.sendings ?? []) {
-        await noticeHouse(
-          tx,
-          s.fromHouse,
-          'levy-pending',
-          { lordName: await houseName(deps, s.toHouse), years: 1, peace: true },
-          input.today,
-        );
-      }
-      if (tradeLine) {
-        // obě strany se dozvědí, že čeká odeslání zboží (dialog Odvody, řádek obchodu)
-        for (const side of [loaded.actor, loaded.other]) {
-          const partner = side === loaded.actor ? loaded.other : loaded.actor;
-          await noticeHouse(
-            tx,
-            side,
-            'levy-pending',
-            { lordName: await houseName(deps, partner), years: 1, trade: true },
-            input.today,
-          );
-        }
-        trading = { sendings, today: input.today };
-      }
-      actors = { actor: loaded.actor, other: loaded.other };
-      oath =
-        oathItem ??
-        (peaceLine?.vassalage
-          ? { lord: peaceLine.vassalage.lord, vassal: peaceLine.vassalage.vassal }
-          : warLine && warLine.kind === 'war-demand'
-            ? oathOf(warLine.items)
-            : null);
-      peace = warLine ?? null;
-      peaceLater = later;
-      // dárce = autor posledního kola (druhá strana), obdarovaný přijímá
-      if (giftLine)
-        gift = { line: giftLine, fromHouseId: loaded.other.id, toHouseId: loaded.actor.id };
-      if (aidLine && aidLine.kind !== 'aid-request')
-        aid = { line: aidLine, toVillageId: aidTarget };
+      const check = await checkAcceptance(deps, tx, loaded);
+      if (!check.ok) return check;
+      const written = await writeAcceptance(deps, tx, loaded, check, input);
+      if (!written.ok) return written;
+      await noticeAcceptance(deps, tx, loaded, check, written.newcomer, input.today);
+      accepted = acceptedOf(loaded, check, written.newcomerHouseId, input.today);
       return {
         ok: true,
         negotiation: { ...loaded.record, status: 'accepted', resolvedAt: input.now },
@@ -837,137 +688,477 @@ export async function acceptNegotiation(
       if (error instanceof StewardshipTaken) return fail(error.message);
       throw error;
     });
-  const placedNewcomer = newcomerHouseId as string | null;
-  if (result.ok && placedNewcomer) {
+  const effects = accepted as Accepted | null;
+  if (!result.ok || !effects) return result;
+  const failed = await deliverAcceptance(deps, input, result.negotiation, effects);
+  if (failed) return fail(failed);
+  await chronicleAcceptance(deps, input.today, result.negotiation, effects);
+  return result;
+}
+
+/**
+ * Ověření přijetí v transakci: dohoda mezi rody (bez přísahy jde o změnu podmínek existující
+ * dohody), výkupné, mír, válečné požadavky, obchod, cílová ves, správa, vzájemnost přísah, řádky
+ * a pomoc. Nic nezapisuje; vrací řádky a co se z nich zapíše, nebo důvod odmítnutí.
+ */
+async function checkAcceptance(
+  deps: NegotiateDeps,
+  tx: NegotiationTx,
+  loaded: Loaded,
+): Promise<AcceptCheck | { ok: false; reason: string }> {
+  const items = loaded.negotiation.rounds[loaded.negotiation.rounds.length - 1]?.items ?? [];
+  const terms = termsOfLines(termLinesOf(items));
+  const oathItem = oathOf(items);
+  // bez přísahy jde o změnu podmínek existující dohody
+  const tradeLine = items.find(isTradeLine);
+  const peaceLine = items.find(isPeaceLine);
+  const ransomLine = items.find(isRansomLine);
+  const warLine = items.find(isWarDemandLine) ?? peaceLine;
+  const existing =
+    oathItem || tradeLine || warLine || ransomLine
+      ? null
+      : await agreementBetween(tx, loaded.actor.id, loaded.other.id);
+  if (!oathItem && !existing && !tradeLine && !warLine && !ransomLine) {
+    return fail(NO_AGREEMENT);
+  }
+  // výkupné: zajatci musí být pořád ve vsi věznitele; zaplatí se a propustí po transakci
+  let ransoming: Ransoming | null = null;
+  if (ransomLine) {
+    const parties: [string, string] = [loaded.actor.id, loaded.other.id];
+    const checked = await checkRansomRound(deps, items, ...parties);
+    if (checked && 'reason' in checked) return fail(checked.reason);
+    if (checked) {
+      ransoming = {
+        line: ransomLine,
+        captorHouseId: checked.captorHouseId,
+        payerHouseId: checked.captorHouseId === parties[0] ? parties[1] : parties[0],
+      };
+    }
+  }
+  // mír: poplatek a postoupení se připraví tady, provedou se po transakci
+  let later: PeaceLater | null = null;
+  if (peaceLine) {
+    const peace = await checkPeaceLater(deps, tx, items, loaded, peaceLine);
+    if ('reason' in peace) return fail(peace.reason);
+    later = peace;
+  }
+  if (warLine && !peaceLine) {
+    const badWar = checkWarDemandParties(items, loaded.actor.id, loaded.other.id);
+    if (badWar) return fail(badWar);
+    // válka mezitím mohla utichnout nebo skončit jinak – mír nemá co ukončit
+    if (!(await tx.wars.activeBetween(loaded.actor.id, loaded.other.id))) {
+      return fail(WAR_DEMAND_REASONS.noWar);
+    }
+  }
+  // obchod: ověří vsi (znovu, mezitím se mohly změnit) a připraví dva dialogy odeslání
+  let sendings: TradeSending[] = [];
+  if (tradeLine) {
+    if (!deps.dialogs) return fail(TRADE_REASONS.noDialogs);
+    const badTrade = await checkTradeRound(deps, items, [loaded.actor.id, loaded.other.id]);
+    if (badTrade) return fail(badTrade);
+    // autor posledního kola (druhá strana než ten, kdo přijímá) pošle `give`, přijímající `get`
+    sendings = tradeSendings(tradeLine, loaded.other, loaded.actor);
+    if (sendings.some((x) => x.toVillageId === null)) return fail(TRADE_REASONS.noTarget);
+  }
+  const badVillage = await checkTargetVillage(
+    deps,
+    items,
+    oathItem?.lord ?? existing?.lordHouseId ?? '',
+  );
+  if (badVillage) return fail(badVillage);
+  const sides = stewardSides(oathItem, existing);
+  const stewardLine = items.find(isStewardshipLine);
+  const giftLine = items.find(isVillageGiftLine);
+  if (giftLine && !deps.escheatGift) return fail(NO_AGREEMENT);
+  const badSteward = await checkStewardRound(deps, tx, items, sides);
+  if (badSteward) return fail(badSteward);
+  for (const item of items) {
+    if (
+      item.kind === 'oath' &&
+      wouldBeMutual(await tx.vassalages.edgesNear(item.lord, 1), item.lord, item.vassal)
+    ) {
+      return fail(R.isYourLord);
+    }
+    const reason = await checkItem(tx, item);
+    if (reason) return fail(reason);
+  }
+  const aidLine = items.find(isAidLine);
+  const aid = await checkAidTarget(deps, existing, aidLine);
+  if ('reason' in aid) return fail(aid.reason);
+  const aidTarget = aid.target;
+  return {
+    ok: true,
+    items,
+    terms,
+    oathItem,
+    tradeLine,
+    peaceLine,
+    warLine,
+    existing,
+    ransoming,
+    later,
+    sendings,
+    sides,
+    stewardLine,
+    giftLine,
+    aidLine,
+    aidTarget,
+  };
+}
+
+/**
+ * Pomoc při přijetí: jednání o pomoci podmínky dohody nemění (bez dohody nejde); zboží dar
+ * i půjčky pošle věřitel po transakci do cílové vsi – z řádku, jinak do vsi vazala.
+ */
+async function checkAidTarget(
+  deps: NegotiateDeps,
+  existing: Vassalage | null,
+  aidLine: AidLine | undefined,
+): Promise<{ target: string | null } | { reason: string }> {
+  if (aidLine) {
+    if (!existing) return { reason: NO_AGREEMENT };
+    if (aidLine.kind !== 'aid-request' && !deps.aid) return { reason: NO_AID };
+  }
+  const vassalHouse = existing ? await deps.houses.byId(existing.vassalHouseId) : null;
+  const aidTarget =
+    aidLine && aidLine.kind !== 'aid-request'
+      ? (aidLine.toVillageId ?? vassalHouse?.lord?.villageId ?? null)
+      : null;
+  if (aidLine && aidLine.kind !== 'aid-request' && aidTarget === null) {
+    return { reason: AID_REASONS.noTarget };
+  }
+  return { target: aidTarget };
+}
+
+/**
+ * Mír při přijetí: ověří kolo míru a připraví poplatek (dialog plátci, který je hráč) a postoupení
+ * vsí – provedou se po transakci (`applyPeaceLater`).
+ */
+async function checkPeaceLater(
+  deps: NegotiateDeps,
+  tx: NegotiationTx,
+  items: readonly TermItem[],
+  loaded: Loaded,
+  peaceLine: PeaceLine,
+): Promise<PeaceLater | { reason: string }> {
+  const badPeace = await checkPeaceRound(deps, tx, items, loaded.actor.id, loaded.other.id);
+  if (badPeace) return { reason: badPeace };
+  const later: PeaceLater = { line: peaceLine, sendings: [], cede: null };
+  const pays = (payer: string | undefined): House | null =>
+    payer === loaded.actor.id ? loaded.actor : payer === loaded.other.id ? loaded.other : null;
+  const payer = peaceLine.fee ? pays(peaceLine.payer) : null;
+  if (payer && payer.playerId !== null) {
+    if (!deps.dialogs) return { reason: TRADE_REASONS.noDialogs };
+    const to = payer === loaded.actor ? loaded.other : loaded.actor;
+    if (to.lord?.villageId === undefined) return { reason: TRADE_REASONS.noTarget };
+    later.sendings.push({ fromHouse: payer, toHouse: to, toVillageId: to.lord.villageId });
+  }
+  if (peaceLine.cede && deps.cede) {
+    const checked = await deps.cede.check([loaded.actor.id, loaded.other.id], peaceLine.cede);
+    if (!checked.ok) return { reason: checked.reason };
+    later.cede = {
+      fromHouseId: checked.fromHouseId,
+      toHouseId: checked.toHouseId,
+      villageIds: peaceLine.cede,
+    };
+  }
+  return later;
+}
+
+/**
+ * Zápis přijetí v transakci: nové podmínky dohody, umístění nováčka, stav jednání a účinky
+ * řádků (správa až po přísaze). Selhání (dohoda mezitím skončila, nováčka umístil jiný pán,
+ * jednání skončilo) nezapíše nic.
+ */
+async function writeAcceptance(
+  deps: NegotiateDeps,
+  tx: NegotiationTx,
+  loaded: Loaded,
+  check: AcceptCheck,
+  input: AcceptInput,
+): Promise<
+  | { ok: true; newcomer: NegotiationRecord['newcomer']; newcomerHouseId: string | null }
+  | { ok: false; reason: string }
+> {
+  const { items, terms, existing, tradeLine, stewardLine, giftLine, aidLine, aidTarget, sides } =
+    check;
+  let newcomerHouseId: string | null = null;
+  // staré podmínky platí do této chvíle; selhání (dohoda mezitím skončila) nezapíše nic
+  if (
+    existing &&
+    !aidLine &&
+    !tradeLine &&
+    // správa bez řádků podmínek stávající podmínky dohody nemění
+    !((stewardLine || giftLine) && termLinesOf(items).length === 0) &&
+    !(await tx.vassalages.updateTerms(existing.id, terms, existing.version))
+  ) {
+    return fail(NO_AGREEMENT);
+  }
+  // žádost nováčka: první přijetí vyhraje – podmíněné umístění shluku vsí (`placed_at IS
+  // NULL`) před změnou stavu; prohra nezapíše nic
+  const newcomer = loaded.record.newcomer;
+  if (newcomer) {
+    if (loaded.actor.id !== loaded.record.recipientHouseId) return fail(R.notParty);
+    const placed = await placeNewcomer(deps, tx, {
+      houseId: loaded.other.id,
+      lordHouseId: loaded.actor.id,
+      origin: 'newcomer',
+      now: input.now,
+      today: input.today,
+    });
+    if (!placed.ok) return placed;
+    newcomerHouseId = loaded.other.id;
+  }
+  if (!(await tx.setStatus(loaded.record.id, 'accepted', loaded.record.version, input.now))) {
+    return fail(R.finished);
+  }
+  // správa vzniká až po přísaze (stojí na dohodě, kterou přísaha zakládá)
+  const ordered = [
+    ...items.filter((i) => !isStewardshipLine(i)),
+    ...items.filter(isStewardshipLine),
+  ];
+  for (const item of ordered) {
+    // vazalství nováčka založilo umístění (`placeNewcomer`, origin `newcomer`)
+    if (newcomer && item.kind === 'oath') continue;
+    await applyItem(tx, item, {
+      now: input.now,
+      day: input.today,
+      terms,
+      negotiationId: loaded.record.id,
+      agreement: existing
+        ? { lordHouseId: existing.lordHouseId, vassalHouseId: existing.vassalHouseId }
+        : null,
+      aidTargetVillageId: aidTarget,
+      stewardship: sides ? { lordHouseId: sides.lordId, stewardHouseId: sides.vassalId } : null,
+      parties: [loaded.actor.id, loaded.other.id],
+    });
+  }
+  return { ok: true, newcomer, newcomerHouseId };
+}
+
+/**
+ * Upozornění rodům v transakci: druhá strana se dozví o přijetí (nováček dostal
+ * `newcomer-accepted` už při umístění), plátce poplatku míru a obě strany obchodu o čekajícím
+ * odeslání zboží.
+ */
+async function noticeAcceptance(
+  deps: NegotiateDeps,
+  tx: NegotiationTx,
+  loaded: Loaded,
+  check: AcceptCheck,
+  newcomer: NegotiationRecord['newcomer'],
+  today: number,
+): Promise<void> {
+  const { later, tradeLine } = check;
+  // nováček dostal `newcomer-accepted` už při umístění
+  if (!newcomer) {
+    await noticeHouse(
+      tx,
+      loaded.other,
+      'negotiation-accepted',
+      {
+        negotiationId: loaded.record.id,
+        houseId: loaded.actor.id,
+        name: await houseName(deps, loaded.actor),
+      },
+      today,
+    );
+  }
+  for (const s of later?.sendings ?? []) {
+    await noticeHouse(
+      tx,
+      s.fromHouse,
+      'levy-pending',
+      { lordName: await houseName(deps, s.toHouse), years: 1, peace: true },
+      today,
+    );
+  }
+  if (tradeLine) {
+    // obě strany se dozvědí, že čeká odeslání zboží (dialog Odvody, řádek obchodu)
+    for (const side of [loaded.actor, loaded.other]) {
+      const partner = side === loaded.actor ? loaded.other : loaded.actor;
+      await noticeHouse(
+        tx,
+        side,
+        'levy-pending',
+        { lordName: await houseName(deps, partner), years: 1, trade: true },
+        today,
+      );
+    }
+  }
+}
+
+/** Sestavení účinků přijetí po transakci z ověřených řádků (`checkAcceptance`). */
+function acceptedOf(
+  loaded: Loaded,
+  check: AcceptCheck,
+  newcomerHouseId: string | null,
+  today: number,
+): Accepted {
+  const { oathItem, peaceLine, warLine, giftLine, aidLine, aidTarget, tradeLine, sendings } = check;
+  return {
+    actors: { actor: loaded.actor, other: loaded.other },
+    oath:
+      oathItem ??
+      (peaceLine?.vassalage
+        ? { lord: peaceLine.vassalage.lord, vassal: peaceLine.vassalage.vassal }
+        : warLine && warLine.kind === 'war-demand'
+          ? oathOf(warLine.items)
+          : null),
+    // dar i půjčku zboží pošle věřitel po transakci
+    aid:
+      aidLine && aidLine.kind !== 'aid-request' ? { line: aidLine, toVillageId: aidTarget } : null,
+    trading: tradeLine ? { sendings, today } : null,
+    // dárce = autor posledního kola (druhá strana), obdarovaný přijímá
+    gift: giftLine
+      ? { line: giftLine, fromHouseId: loaded.other.id, toHouseId: loaded.actor.id }
+      : null,
+    peace: warLine ?? null,
+    ransoming: check.ransoming,
+    newcomerHouseId,
+    peaceLater: check.later,
+  };
+}
+
+/**
+ * Po transakci: ostatní žádosti nováčka zaniknou, věřitel pošle pomoc, dárce ves, výkupné se
+ * zaplatí, mír propustí zajatce, postoupí vsi a otevře dialogy poplatku, obchod dialogy
+ * odeslání. Vrací důvod selhání pomoci nebo výkupného, jinak null.
+ */
+async function deliverAcceptance(
+  deps: NegotiateDeps,
+  input: AcceptInput,
+  negotiation: NegotiationRecord,
+  effects: Accepted,
+): Promise<string | null> {
+  const { newcomerHouseId, aid: sending, gift: giving, ransoming: ransom, trading } = effects;
+  if (newcomerHouseId) {
     // ostatní žádosti nováčka zaniknou (jejich páni se to dozvědí)
     await closeNewcomerRequests(deps, {
-      houseId: placedNewcomer,
+      houseId: newcomerHouseId,
       status: 'ended',
       notify: true,
       now: input.now,
       today: input.today,
     });
   }
-  const sending = aid as {
-    line: Extract<AidLine, { kind: 'gift' | 'loan' }>;
-    toVillageId: string | null;
-  } | null;
-  if (result.ok && sending && deps.aid && sending.toVillageId) {
+  if (sending && deps.aid && sending.toVillageId) {
     const failed = await sendAid(deps.aid, sending.line, sending.toVillageId, {
-      negotiationId: result.negotiation.id,
+      negotiationId: negotiation.id,
       today: input.today,
       now: input.now,
     });
-    if (failed) return fail(failed);
+    if (failed) return failed;
   }
-  const giving = gift as { line: VillageGiftLine; fromHouseId: string; toHouseId: string } | null;
-  if (result.ok && giving && deps.escheatGift) {
+  if (giving && deps.escheatGift) {
     await deps.escheatGift({ ...giving, now: input.now, today: input.today });
   }
-  const ransom = ransoming as {
-    line: RansomLine;
-    captorHouseId: string;
-    payerHouseId: string;
-  } | null;
-  if (result.ok && ransom && deps.ransom) {
+  if (ransom && deps.ransom) {
     const failed = await deps.ransom.apply({
       ...ransom,
-      negotiationId: result.negotiation.id,
+      negotiationId: negotiation.id,
       now: input.now,
       today: input.today,
     });
-    if (failed) return fail(failed);
+    if (failed) return failed;
   }
-  const later = peaceLater as {
-    line: PeaceLine;
-    sendings: { fromHouse: House; toHouse: House; toVillageId: string }[];
-    cede: { fromHouseId: string; toHouseId: string; villageIds: string[] } | null;
-  } | null;
-  if (result.ok && later) {
-    if (later.line.releasePrisoners?.length && deps.ransom && actors) {
-      const { actor, other } = actors as Actors;
-      await deps.ransom.release({
-        prisonerIds: later.line.releasePrisoners,
-        parties: [actor.id, other.id],
-        negotiationId: result.negotiation.id,
-        now: input.now,
-        today: input.today,
-      });
-    }
-    if (later.cede && deps.cede) {
-      await deps.cede.apply({
-        ...later.cede,
-        negotiationId: result.negotiation.id,
-        now: input.now,
-        today: input.today,
-      });
-    }
-    if (deps.dialogs && later.line.fee) {
-      for (const s of later.sendings) {
-        await deps.dialogs.openOnce(`fee:${result.negotiation.id}:${s.fromHouse.id}`, {
-          playerId: s.fromHouse.playerId as string,
-          kind: 'fee-send',
-          refId: result.negotiation.id,
-          year: dateOfDayIndex(input.today).year,
-          body: {
-            negotiationId: result.negotiation.id,
-            fromHouseId: s.fromHouse.id,
-            toHouseId: s.toHouse.id,
-            toVillageId: s.toVillageId,
-            goods: later.line.fee,
-          },
-        });
-      }
-    }
+  if (effects.peaceLater) {
+    await applyPeaceLater(deps, input, negotiation, effects.peaceLater, effects.actors);
   }
-  const opening = trading as { sendings: TradeSending[]; today: number } | null;
-  if (result.ok && opening && deps.dialogs) {
-    await openTradeDialogs(deps.dialogs, result.negotiation.id, opening.sendings, input.today);
+  if (trading && deps.dialogs) {
+    await openTradeDialogs(deps.dialogs, negotiation.id, trading.sendings, input.today);
   }
-  if (result.ok && actors) {
-    const { actor, other } = actors as Actors;
-    const o = oath as { lord: string; vassal: string } | null;
-    if (o) {
-      const lord = o.lord === actor.id ? actor : other;
-      const vassal = o.vassal === actor.id ? actor : other;
-      await chronicleHouses(
-        deps,
-        [actor, other],
-        `neg:${result.negotiation.id}:${result.negotiation.rounds.length}:accepted`,
-        {
-          day: input.today,
-          kind: 'negotiation-accepted',
-          lord: await houseName(deps, lord),
-          vassal: await houseName(deps, vassal),
+  return null;
+}
+
+/** Mír po transakci: propuštění zajatců, postoupení vsí a dialogy poplatku plátci. */
+async function applyPeaceLater(
+  deps: NegotiateDeps,
+  input: AcceptInput,
+  negotiation: NegotiationRecord,
+  later: PeaceLater,
+  { actor, other }: Actors,
+): Promise<void> {
+  if (later.line.releasePrisoners?.length && deps.ransom) {
+    await deps.ransom.release({
+      prisonerIds: later.line.releasePrisoners,
+      parties: [actor.id, other.id],
+      negotiationId: negotiation.id,
+      now: input.now,
+      today: input.today,
+    });
+  }
+  if (later.cede && deps.cede) {
+    await deps.cede.apply({
+      ...later.cede,
+      negotiationId: negotiation.id,
+      now: input.now,
+      today: input.today,
+    });
+  }
+  if (deps.dialogs && later.line.fee) {
+    for (const s of later.sendings) {
+      await deps.dialogs.openOnce(`fee:${negotiation.id}:${s.fromHouse.id}`, {
+        playerId: s.fromHouse.playerId as string,
+        kind: 'fee-send',
+        refId: negotiation.id,
+        year: dateOfDayIndex(input.today).year,
+        body: {
+          negotiationId: negotiation.id,
+          fromHouseId: s.fromHouse.id,
+          toHouseId: s.toHouse.id,
+          toVillageId: s.toVillageId,
+          goods: later.line.fee,
         },
-      );
-    } else if (!(peace as WarDemandLine | null)) {
-      await chronicleStep(
-        deps,
-        actors as Actors,
-        result.negotiation,
-        sending
-          ? sending.line.kind === 'gift'
-            ? 'aid-gift'
-            : 'aid-loan'
-          : opening
-            ? 'trade-accepted'
-            : 'terms-accepted',
-        input.today,
-      );
-    }
-    if (peace as WarDemandLine | null) {
-      await chronicleWar(
-        deps,
-        actor,
-        other,
-        'peace',
-        `war-peace:${result.negotiation.id}`,
-        input.today,
-      );
+      });
     }
   }
-  return result;
+}
+
+/**
+ * Kronika přijetí: přísaha pod jmény pána a vazala, jinak (bez míru) druh kroku – pomoc,
+ * obchod, nebo podmínky; mír zapíše kronika války.
+ */
+async function chronicleAcceptance(
+  deps: NegotiateDeps,
+  today: number,
+  negotiation: NegotiationRecord,
+  effects: Accepted,
+): Promise<void> {
+  const { actors, oath: o, peace, aid: sending, trading: opening } = effects;
+  const { actor, other } = actors;
+  if (o) {
+    const lord = o.lord === actor.id ? actor : other;
+    const vassal = o.vassal === actor.id ? actor : other;
+    await chronicleHouses(
+      deps,
+      [actor, other],
+      `neg:${negotiation.id}:${negotiation.rounds.length}:accepted`,
+      {
+        day: today,
+        kind: 'negotiation-accepted',
+        lord: await houseName(deps, lord),
+        vassal: await houseName(deps, vassal),
+      },
+    );
+  } else if (!peace) {
+    await chronicleStep(
+      deps,
+      actors,
+      negotiation,
+      sending
+        ? sending.line.kind === 'gift'
+          ? 'aid-gift'
+          : 'aid-loan'
+        : opening
+          ? 'trade-accepted'
+          : 'terms-accepted',
+      today,
+    );
+  }
+  if (peace) {
+    await chronicleWar(deps, actor, other, 'peace', `war-peace:${negotiation.id}`, today);
+  }
 }
 
 /**
