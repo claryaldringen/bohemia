@@ -680,6 +680,11 @@ Návrh: [disasters.md – Co hráč vidí](../design/disasters.md). Jádro a č�
 
 ## Panel „Rod a vazalové“ (úloha 1.10, `hud/HousePanel.tsx`)
 
+- **Soubory** (refaktoring 11. 11. 2026): `HousePanel.tsx` drží stav panelu (vybraný hráč,
+  rozpracovaná nabídka, vybraná dohoda) a skládá části z `hud/house/` – `parts.tsx` (`Icon`,
+  `Portrait`, `Row`, `Man`, `HouseLink`, `PlayerAction`, `StatusMarks`), `agreements.tsx`
+  (`AgreementEntry`, `LevyMark`, `AgreementActions`), `FellowComplaint.tsx` a `invites.tsx`
+  (`InviteRow`, `inviteLink` – reexport z `HousePanel.tsx` kvůli testům).
 - **Lišta:** tlačítko praporu (`TopBar` prop `house`, `data-testid="house-toggle"`) s počtem vazalů;
   pečeť s počtem čekajících věcí (`house-waiting`) se ukáže, až když něco čeká (první verze: nikdy,
   jednání přijdou ve fázi 3). Otevřený panel zavře nabídku hry a naopak; Esc panel zavře.
