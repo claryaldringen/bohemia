@@ -104,7 +104,7 @@ function masterName(state: VillageState, circle: MasonryCircle, random: Random):
 }
 
 /** Příchozí usadí (mutuje stav); vrací, jestli se ve vsi našlo místo. */
-function settleArrival(
+export function settleArrival(
   state: VillageState,
   role: MasonCraft | 'priest',
   day: number,

@@ -1,4 +1,5 @@
 import { graveRank, placeMound, usedPlaces } from '../people/burials';
+import { buryAtChurch } from '../people/church-life';
 import { isChristian } from '../people/faith';
 import { BUILD_COSTS } from './costs';
 import { CEMETERY, CEMETERY_DISTANCE_M, HYGIENE_DEATH_EXTRA } from '../rules';
@@ -181,12 +182,14 @@ export function burialOrder(
  * Pohřeb zemřelého (mutuje stav – volá se za života, člověk je ještě ve stavu): v hotovém
  * pohřebišti s volným místem nejblíž k obydlím dostane mohylu podle významu (burials.ts –
  * vojvodova rodina, hlava rodiny, dospělý, dítě; velká se zmenší, když se nevejde); zemřelý
- * křesťan (`faith`) dostane kostrový hrob bez mohyly (`rite`, jedno místo). Když se tím
+ * křesťan (`faith`) dostane – nejdřív ale hrob u kostela s knězem (`buryAtChurch`), jinak kostrový hrob bez mohyly (`rite`, jedno místo). Když se tím
  * pohřebiště zaplní (žádné volné místo), vrátí událost kroniky. Bez volného místa se nic nestane
  * – je to, jako by ves pohřebiště neměla. Bez člověka (testy) běžná mohyla dospělého. Mohyla
  * si zapíše domácnost zemřelého (`from`) – odtud ve scéně vyjde pohřební průvod.
  */
 export function bury(state: VillageState, day: number, person?: Person): ChronicleEvent | null {
+  // křesťan s kostelem, knězem a volným hrobem se pohřbí na hřbitůvku (churches.md – Co kostel dává)
+  if (person && isChristian(person) && buryAtChurch(state, day, person)) return null;
   const open = villageCemeteries(state).filter(acceptsBurials);
   if (open.length === 0) return null;
   const dwellings = dwellingPositions(state);

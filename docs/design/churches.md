@@ -83,6 +83,15 @@ okruhu jako jeho druhý typ; velký karolinský kostel na našem a slovenském �
   omítky a fresky; bez nich kostel slouží, s nimi přidá křesťanům dalších +5 × pokrytí (návrh
   Clauda).
 
+### Rozhodnutí z implementace (návrh Clauda)
+
+- Den příchodu kněze nese kostel (`Church.priestArrivalDay`), ne `lodge.arriving` – kněz musí přijít,
+  i když huť už odešla; příchod i po smrti kněze, bez obydlí kněz čeká dál.
+- Kněz se nežení a nepracuje (jí jako mistři).
+- Pohřeb: nejbližší (od domu zemřelého) kostel s knězem a volným hrobem; hrob starší než 30 let
+  se uvolní při dalším pohřbu v tom kostele.
+- Štěstí křesťanů z kostelů: `40 × pokrytí + 5 × pokrytí vyzdobenými`, tedy nejvýš 45.
+
 ## Stavba
 
 - Jen pokřtěný rod s **usazenou stavební hutí** ([kamenné zdivo](stone-masonry.md)); stavba stojí,

@@ -121,3 +121,27 @@ day, villagers)`: učni (synové mistra od `LODGE.apprenticeFromAge` v jeho dom�
   server action `placeChurch`, vstup `parsePlaceChurchInput` / `parseChurchDims`
   (`lib/village-input.ts`). Kalibrace testu: rotunda Ø 6,5 × 6 v zakládající vsi s hutí a lomem
   300 m (≈ 1 470 čd i s přípravou) má střechu za 647 dní a výzdobu za 670 dní.
+
+## Kostel ve vsi
+
+Kostel s knězem dává křesťanům štěstí, zrychluje obrácení a má hřbitůvek
+([churches.md](../design/churches.md) – Co kostel dává). Vše v `domain/village/people/church-life.ts`;
+ves bez `VillageState.churches` se nemění (zlatý otisk beze změny).
+
+- `churchCoverage(state)` – `{ coverage, decorated }`: kostely s živým knězem (`Church.priestId`),
+  kapacity (`churchCapacity`) ÷ `state.people.length`, nejvýš 1; `decorated` jen z kostelů
+  s `decoratedDay`. `churchHappiness(state)` = `CHURCH.happinessPerCoverage × coverage +
+decorHappinessPerCoverage × decorated` (jde do `HappinessFactors.church` v `faithFactors`,
+  `happiness.ts`, jen pro křesťany přes `christianShare`). `conversionBase(state)` =
+  `CHURCH.conversion.base + perCoverage × coverage` (`conversionDay`, `conversion.ts`).
+- `priestDay(state, day)` (`simulate.ts`, hned za `lodgeArrivalsDay`) – kostel bez kněze dostane
+  `Church.priestArrivalDay` = `finishedDay + priestAfterDays` (0, hned); mrtvý kněz (`priestId`
+  není mezi lidmi) → `priestId` zmizí a nový přijde za `newPriestAfterDays` (60). V den příchodu
+  `settleArrival` (`lodge.ts`, exportovaná) usadí osobu s `priest: true`, id se zapíše do
+  `Church.priestId`; bez obydlí čeká dál. Los `priest:<kostel>:<den příchodu>`. Kněz se nežení
+  (`isSingle` v `marriage.ts`) a nepracuje (`isLodgeIdle`).
+- `buryAtChurch(state, day, person)` (volá ho `bury` v `cemetery.ts` pro křesťany): nejbližší kostel
+  (od domu zemřelého) s knězem a volným hrobem (`churchyardGraves` − hroby) → `Church.graves`;
+  hroby starší než `CHURCH.graveReuseYears` (30 let) se přitom uvolní (zahodí ze seznamu). Jinak
+  `bury` pokračuje po staru (starý hřbitov kostrově). Pozice hrobu ve scéně dopočítá web z indexu
+  v `graves`.

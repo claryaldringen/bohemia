@@ -54,6 +54,8 @@ function byAge(a: Person, b: Person): number {
  * a vdova, i s malými dětmi (Martin, 19. 10. 2026 – dřív se vdova s dětmi do 14 let nevdávala).
  */
 export function isSingle(state: VillageState, p: Person, day: number): boolean {
+  // kněz se nežení (churches.md – Co kostel dává)
+  if (p.priest === true) return false;
   if (p.spouseId !== undefined && state.people.some((q) => q.id === p.spouseId)) return false;
   if (p.sex === 'male') return ageYears(p.bornDay, day) >= AGE.fertile;
   if (p.sex === 'female') return isFertile(p, day);

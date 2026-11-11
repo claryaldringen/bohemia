@@ -202,10 +202,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   dostávají vrstvu překážek (`happinessFactors(…, obstacles)`, `summarizeVillage(state, day,
 - **Víra a štěstí** ([christianity.md](../design/christianity.md), `conversion.ts`, `happiness.ts`):
   `conversionDay` (1. 1. v `simulateDaySteps`, jen `rodBaptized`) obrací dospělé pohany s šancí
-  `(hasChurch ? withChurch : withoutChurch) × (1 + podíl křesťanů)`, los `convert:rok:id`; kronika
-  `converted`. `hasChurch` je zatím vždy false. Cíl štěstí (`happinessTarget`) je vážený průměr cíle
+  `(CHURCH.conversion.base + perCoverage × pokrytí kostely) × (1 + podíl křesťanů)` (`conversionBase`), los `convert:rok:id`; kronika
+  `converted`. Pokrytí kostely počítá `churchCoverage` ([village-masonry.md](village-masonry.md) – Kostel ve vsi). Cíl štěstí (`happinessTarget`) je vážený průměr cíle
   pohanů (`sacred` − `desecration` z `faith.desecrated`, nejvýš 30) a křesťanů (posvátná místa 0,
-  `church` jen s kostelem) podle `christianShare`; bez křesťanů a zničených míst přesně jako dřív.
+  `church` = `churchHappiness`, bez kostelů s knězem 0) podle `christianShare`; bez křesťanů a zničených míst přesně jako dřív.
   Rozpis (`HappinessSummary`) nese `christianShare` a `desecration`. Správce (`sacredLaborGainPerYear`)
   počítá zisk jen z podílu pohanů.
   obstacles)`– bez ní se dub počítá jako nejmladší); krok simulace`sacredOakEvents`zapíše do

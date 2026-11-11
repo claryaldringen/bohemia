@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../../core/actions';
-import { christianShare, conversionDay, hasChurch } from '../conversion';
+import { churchCoverage } from '../church-life';
+import { christianShare, conversionDay } from '../conversion';
 import { isChristian } from '../faith';
 import { advanceVillage } from '../../core/simulate';
 import type { Person, VillageState } from '../../types';
@@ -38,7 +39,7 @@ describe('obrácení vesničanů', () => {
   });
 
   it('1 000 pohanů bez kostela: za rok kolem 5 (1–10), kronika s počtem', () => {
-    expect(hasChurch(villageOf([], true))).toBe(false);
+    expect(churchCoverage(villageOf([], true)).coverage).toBe(0);
     const s = villageOf(crowd(1000), true);
     const events = conversionDay(s, NEW_YEAR);
     const n = s.people.filter(isChristian).length;

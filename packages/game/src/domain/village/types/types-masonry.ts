@@ -120,5 +120,8 @@ export interface Church {
   readonly decoratedDay?: number;
   /** Kněz kostela (id osoby); chybí = kněz ještě nepřišel nebo zemřel a nový je na cestě. */
   readonly priestId?: number;
+  /** Den, kdy do kostela dorazí nový kněz (po dostavění nebo po smrti kněze); chybí = kněz je, nebo se den ještě nezapsal. */
+  readonly priestArrivalDay?: number;
+  /** Hroby na hřbitůvku (nejstarší první); hrob starší než `CHURCH.graveReuseYears` se uvolní. */
   readonly graves?: readonly ChurchGrave[];
 }
