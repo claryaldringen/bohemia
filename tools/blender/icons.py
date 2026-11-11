@@ -4197,6 +4197,43 @@ def icon_stone():
     return True
 
 
+def _heap(name, material, r=1.0, h=0.75, rough=0.07, seed=0):
+    """Kupka sypkého materiálu: rotační kužel se zaobleným vrcholem, povrch rozvlněný šumem."""
+    bm = bmesh.new()
+    revolve(bm, [(0.0, r), (0.25 * h, 0.86 * r), (0.6 * h, 0.5 * r), (0.9 * h, 0.18 * r), (h, 0.0)], 40,
+            cap_bottom=True)
+    off = Vector((seed * 3.1, seed * 1.7, 0))
+    for v in bm.verts:
+        if v.co.z > 0.01:
+            v.co += v.normal * rough * noise.noise(v.co * 3.0 + off) if v.normal.length else Vector()
+    return to_obj(bm, name, material)
+
+
+def icon_lime():
+    """Vápno: kupka bílého hašeného vápna a pár hrud páleného vápna (churches.md – Velikost a cena)."""
+    white = mat("lime", (0.93, 0.92, 0.87), 0.95, noise=8, bump=0.5)
+    _heap("lime-heap", white, r=0.95, h=0.7, rough=0.05, seed=1)
+    rng = random.Random(5)
+    for k in range(5):
+        bm = bmesh.new()
+        bmesh.ops.create_icosphere(bm, subdivisions=1, radius=rng.uniform(0.13, 0.2))
+        for v in bm.verts:
+            v.co += Vector((rng.uniform(-0.03, 0.03), rng.uniform(-0.03, 0.03), rng.uniform(-0.03, 0.03)))
+            v.co += Vector((math.cos(k * 1.3) * 1.0, math.sin(k * 1.3) * 0.75 - 0.15, 0.08))
+        to_obj(bm, f"lump{k}", mat("quick", (0.86, 0.84, 0.78), 0.9, noise=14, bump=0.8), smooth=False)
+    hud_light(az=-45, el=45)
+    camera([Vector((-1.25, -1.0, 0)), Vector((1.25, 1.0, 0)), Vector((0, 0, 0.75))], az=10, el=26, margin=1.02)
+    return True
+
+
+def icon_sand():
+    """Písek: kupka žlutohnědého písku z písníku (churches.md – Velikost a cena)."""
+    _heap("sand-heap", mat("sand", (0.78, 0.64, 0.4), 0.95, noise=25, bump=0.6), r=1.0, h=0.72, seed=2)
+    hud_light(az=-45, el=45)
+    camera([Vector((-1.05, -1.05, 0)), Vector((1.05, 1.05, 0)), Vector((0, 0, 0.75))], az=10, el=26, margin=1.02)
+    return True
+
+
 def icon_demolish():
     """Zbourat stavbu: dřevěná palice nad rozbořenou palisádou – pahýly a padlé kůly."""
     rng = random.Random(18)
@@ -5571,6 +5608,65 @@ def icon_priest():
     return True
 
 
+def _church_apse(objs, name, cx, r, h, roof_mat):
+    """Půlkruhová apsida na ose X (válec, půlku schová loď) s kuželovou střechou."""
+    wall, cone = bmesh.new(), bmesh.new()
+    revolve(wall, [(0, r), (h, r)], 24, cap_top=True)
+    revolve(cone, [(h - 0.02, r + 0.08), (h + 0.5 * r, 0.0)], 24)
+    for bm in (wall, cone):
+        for v in bm.verts:
+            v.co.x += cx
+    objs.append(to_obj(wall, name, _lime_white()))
+    objs.append(to_obj(cone, name + "-roof", roof_mat, smooth=False))
+
+
+def icon_church(kind):
+    """Portrét kostela podle typu (churches.md – Typy podle okruhu huti): omítnuté zdi, šindel."""
+    earth_ground(4.5, lambda x, y: 0.02 * noise.noise(Vector((x * 0.8, y * 0.8, 0))), tint=(0.8, 0.82, 0.62))
+    shingle = mat("shingle", (0.4, 0.29, 0.19), 0.9, noise=30, bump=0.6)
+    objs = []
+
+    def part(name, centre, size):
+        bm = bmesh.new()
+        box(bm, centre, size)
+        objs.append(to_obj(bm, name, _lime_white(), smooth=False))
+
+    def gable(name, centre, width, length, height):
+        bm = bmesh.new()
+        _roof(bm, centre, width, length, height)
+        objs.append(to_obj(bm, name, shingle, smooth=False))
+
+    if kind == "rotunda":
+        body, cone = bmesh.new(), bmesh.new()
+        revolve(body, [(0, 1.0), (1.4, 1.0)], 40, cap_bottom=True, cap_top=True)
+        revolve(cone, [(1.38, 1.12), (2.3, 0.0)], 40)
+        objs += [to_obj(body, "rotunda", _lime_white()), to_obj(cone, "cone", shingle, smooth=False)]
+        _church_apse(objs, "apse-e", 1.0, 0.45, 0.85, shingle)
+        _church_apse(objs, "apse-w", -1.0, 0.45, 0.85, shingle)
+    elif kind == "basilica":
+        part("nave", (0, 0, 0.9), (2.6, 1.0, 1.8))
+        gable("nave-roof", (0, 0, 1.8), 1.2, 2.8, 0.45)
+        for s in (-1, 1):
+            part(f"aisle{s}", (0, s * 0.75, 0.55), (2.6, 0.5, 1.1))
+            lean = bmesh.new()
+            box(lean, (0, s * 0.78, 1.2), (2.7, 0.66, 0.08), rot=(s * 0.38, 0, 0))
+            objs.append(to_obj(lean, f"lean{s}", shingle, smooth=False))
+            part(f"atrium{s}", (-1.85, s * 1.0, 0.3), (1.1, 0.12, 0.6))
+        part("atrium-w", (-2.38, 0, 0.3), (0.12, 2.1, 0.6))
+        _church_apse(objs, "apse", 1.3, 0.45, 1.1, shingle)
+    else:
+        part("nave", (0, 0, 0.7), (2.4, 1.4, 1.4))
+        gable("nave-roof", (0, 0, 1.4), 1.6, 2.6, 0.75)
+        if kind == "chancel":
+            part("chancel", (1.65, 0, 0.55), (0.9, 0.9, 1.1))
+            gable("chancel-roof", (1.65, 0, 1.1), 1.1, 1.0, 0.45)
+        else:
+            _church_apse(objs, "apse", 1.2, 0.5, 1.1, shingle)
+    hud_light(az=-40, el=45)
+    camera(world_points(objs), az=25, el=26, margin=1.12)
+    return True
+
+
 LODGE_PANELS = {
     "house/lodge": icon_lodge,
     "house/circle-adriatic": icon_circle_adriatic,
@@ -5650,6 +5746,8 @@ HUD = {
     "assault-fire": icon_assault_fire,
     "assault-spade": icon_assault_spade,
     "stone": icon_stone,
+    "lime": icon_lime,
+    "sand": icon_sand,
     "demolish": icon_demolish,
     "breakout": icon_breakout,
     "chronicle": icon_chronicle,
@@ -5662,6 +5760,9 @@ HUD = {
 RESOURCES.update(HUD)
 PANELS.update(LODGE_PANELS)
 BUILD["lom"] = icon_lom
+# kostely podle typu (churches.md – Typy podle okruhu huti) – tlačítka nabídky staveb a portrét panelu
+for _kind in ("chancel", "apse", "rotunda", "basilica"):
+    BUILD[f"kostel-{_kind}"] = (lambda k: lambda: icon_church(k))(_kind)
 
 
 def backdrop(src, dst, size):

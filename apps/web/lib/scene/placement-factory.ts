@@ -6,6 +6,7 @@ import {
   type DwellingType,
   type Landscape,
 } from '@bohemia/game';
+import { ChurchPlacer } from './church-placer';
 import { FieldPainter } from './field-painting';
 import { FortPointsEditor } from './fort-points-editor';
 import { tileAt, tileCenter } from './tile-at';
@@ -41,6 +42,19 @@ export function createPlacement(
   const pickGround = (x: number, y: number): [number, number] | null => env.pickGround(x, y);
   if (mode.kind === 'fort-points') {
     return new FortPointsEditor(
+      {
+        scene,
+        canvas,
+        pickGround,
+        decalHeight: (x, z) => village.decalHeight(x, z),
+        requestRender,
+      },
+      mode,
+      handlers,
+    );
+  }
+  if (mode.kind === 'church') {
+    return new ChurchPlacer(
       {
         scene,
         canvas,

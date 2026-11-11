@@ -1,5 +1,6 @@
 // Sestavení dat scény vsi, rozdělení práce dne a data pro kontrolu umístění.
 
+import { sceneChurches } from './church-view';
 import {
   SceneThreshingFloor,
   type ScenePlot,
@@ -340,6 +341,7 @@ export function sceneVillage(
     m3: stack.m3,
   }));
   const quarries = sceneQuarries(state);
+  const churches = sceneChurches(state);
   const penned = pens.reduce((sum, pen) => sum + pen.cows, 0);
   const herds = summary.livestock.herds;
   const threshingFloors = sceneThreshingFloors(state, constructions, day, demolishing);
@@ -367,6 +369,7 @@ export function sceneVillage(
     ...(logStacks.length > 0 ? { logStacks } : {}),
     ...(stoneStacks.length > 0 ? { stoneStacks } : {}),
     ...(quarries.length > 0 ? { quarries } : {}),
+    ...(churches.length > 0 ? { churches } : {}),
     ...(demolitions.length > 0 ? { demolitions } : {}),
     ...(labor ? { labor } : {}),
     ...(sacred ? { sacred } : {}),
@@ -761,6 +764,16 @@ function scenePlacementVillage(scene: SceneVillage): PlacementVillage {
       ...(d.craft ? { workshop: { craft: d.craft } } : {}),
       ...(d.plainShape ? { plainShape: true } : {}),
     })),
+    // kostely i staveniště zabírají hřbitůvek (churches.md – Stavba)
+    ...(scene.churches
+      ? {
+          churches: scene.churches.map((c) => ({
+            type: c.type,
+            dims: c.dims,
+            position: c.position,
+          })),
+        }
+      : {}),
     // lomy (i rozestavěné) – na výchozu jeden (fortifications.md – Kámen)
     ...(scene.quarries
       ? { quarries: scene.quarries.map((q) => ({ outcropId: q.outcropId })) }

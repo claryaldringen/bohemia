@@ -1305,6 +1305,49 @@ Jádro a akce: `village-masonry.md` – Stavební huť (`inviteLodge`, `inviteMa
 - **Testy:** `LodgeButtons.behavior.test.tsx`, `SelectionPanel.test.tsx`,
   `person-activity.test.ts` (selectionDetails), `village-view.test.ts` (pohled na huť).
 
+## Kostel v rozhraní (churches.md – Stavba; plán 2026-11-11 – M7b, `lib/church-placement.ts`, `lib/scene/church-placer.ts`)
+
+Jádro a akce: `village-masonry.md` – Geometrie a cena kostela, Stavba kostela (`placeChurch`).
+
+- **Data:** `lib/church-view.ts` – `sceneChurches(state)` (dostavěné kostely i staveniště jako
+  `SceneChurch` s postupem `churchProgress`; kostel ve výzdobě jednou) → `SceneVillage.churches`
+  → `LandscapeScene.setVillage` → `setChurches`; `scenePlacementVillage` z nich skládá
+  `PlacementVillage.churches` (kontrola umístění v prohlížeči). Panel: `churchesOf(state)` →
+  `VillageView.churches` (`VillageChurch` – `built`, `decorated`, `site.work` po druzích práce
+  `churchWorkProgress`, `site.blocked` = `churchBlocked`, `capacity`, `graves`, `priest`, když kostel
+  má údaj `priestId`). Nabídka: `churchBuildChoices(state)` → `VillageView.churchBuild` (malý
+  a velký typ okruhu huti `churchTypesFor`, bez huti okruh adriatický; důvod `churchStartProblem` –
+  `CHURCH_NO_LODGE`, `CHURCH_NO_QUARRY`). Ves bez kostela nic z toho nemá.
+- **Nabídka staveb** (`lib/build-items.ts`): `WebBuildKind` `church-small` [I] a `church-large` [Y]
+  (volné klávesy – návrh Clauda), `placement: 'church'`, `check` = `checkChurchPlacement` jako server
+  + cena `churchPlacementCost`. `use-build-mode.ts` – `churchOptions` dá `BuildOption` bez ceny
+  předem s `look` (ikona `build/kostel-<typ>.png` – `churchIcon`, název `CHURCH_TYPE_NAMES`);
+  `BuildGrid` bere ikonu a název z `look` a nulovou práci v popisku neukazuje. Zašedlé s důvodem.
+- **Umístění** (`PlacementMode` `church`, `ChurchPlacer`): u kurzoru průhledný model
+  (`churchMeshData`, natočení `churchModelRotationY`) a obrys hřbitůvku (`churchyardWorld`)
+  zeleně / červeně, kněžištěm na východ (`churchAtCursor` – `CHURCH_EAST_ROTATION`). **Tah**
+  (stisk = vstup, západ; puštění = kněžiště) – `churchFromDrag`: délka lodi (rotunda průměr)
+  z délky tahu ořezaná `clampChurchDims`, osa `snapChurchRotation` (15°), vstup zůstane na místě
+  stisku. **Krátký klik** položí kostel s rozměry z panelu kněžištěm na východ. Položený kostel
+  čeká na potvrzení: Enter nebo kladivo, Esc ho znovu uvolní ke kurzoru (druhé Esc / pravé
+  kliknutí zruší). U kurzoru (`CursorReason`) rozměry `PlacementPreview.measure`
+  (`churchDimsText` – „Ø 6,5 × 6 m“, „5 × 8 × 7 m“) a cena `PlacementCost` – práce (čd, lámání bez
+  vzdálenosti lomu + překážky), klády, kámen m³, vápno t (`limeT`, ikona `resources/lime.png`),
+  písek m³ (`sandM3`, `resources/sand.png`); nejde-li to, důvod z `checkChurchPlacement`.
+- **Panel u potvrzení** (`hud/ChurchConfirm.tsx`, vzor `FortConfirm`): míry +/− po
+  `CHURCH_DIMS_STEP_M` (`stepChurchDims`; rotunda průměr a výška, jinak šířka, délka a výška; značky
+  Ø ↕ ↔ ⤒, slova v popisku) → `Placement.setChurchDims` → `LandscapeScene.setChurchDims` →
+  `ChurchPlacer.setDims` (položený kostel drží střed a osu); kladivo zašedlé s důvodem. Potvrzení
+  → server action `placeChurch` (`{ villageId, type, dims, position }`).
+- **Výběr a panel** (`VillageTarget` `church` – klik do `churchFootprintWorld`; `selection/church.tsx`
+  – `ChurchBody`, portrét typu): staveniště – postup po druzích práce (`CHURCH_WORK_LABELS`: lámání,
+  písek, vápno, základy, zdi, střecha, výzdoba – ikona a %), stojí-li, ikona chybějícího mistra
+  červeně s „!“; vždy kapacita a hroby (obsazené / celkem), dostavěný kostel kněz. Zrušit jde jen
+  stavba před střechou (`cancellableConstruction`).
+- **Testy:** `lib/__tests__/church-placement.test.ts` (tah, +/−, cena, katalog), `church-view.test.ts`
+  (data pohledu, výběr), `lib/scene/__tests__/church-placer.test.ts` (umisťování), `church-renderer.test.ts`
+  (natočení modelu = obrys), `hud/__tests__/ChurchPanel.behavior.test.tsx` (panel a potvrzení).
+
 ## Panel Kronika (absence.md – Návrat, `hud/ChroniclePanel.tsx`, `lib/chronicle-view.ts`)
 
 Martin 8. 11. 2026: „může si přece sám zobrazit panel s notifikacemi a kroniku“ – rozhraní nad

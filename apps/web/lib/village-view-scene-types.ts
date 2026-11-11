@@ -1,6 +1,7 @@
 // Typy dat scény (`SceneVillage` a jeho části).
 
 import { Landscape } from '@bohemia/game';
+import type { SceneChurch } from './church-view';
 import type { CartWorld, LogStack, UsableStructure } from '@bohemia/game';
 import type { PathFortification } from '@bohemia/game';
 import type { SceneFortification } from './fort-view';
@@ -271,6 +272,11 @@ export interface SceneVillage {
    * Lomy na skalních výchozech (fortifications.md – Kámen): id výchozu, střed a natočení značky;
    * `building` = lom se staví (`constructionId` jeho stavby). Bez údaje žádné.
    */
+  /**
+   * Kostely vsi (churches.md – Scéna): dostavěné i staveniště podle postupu (`sceneChurches`); ves
+   * bez kostela bez údaje.
+   */
+  churches?: SceneChurch[];
   quarries?: {
     outcropId: number;
     x: number;

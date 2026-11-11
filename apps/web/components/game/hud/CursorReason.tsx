@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import { Tooltip } from './Tooltip';
-import { formatInteger } from '@/lib/village-format';
+import { formatDecimal, formatInteger } from '@/lib/village-format';
 import type { PlacementPreview } from '@/lib/scene/village-types';
 
 const CURSOR_GAP_PX = 18;
@@ -26,7 +26,8 @@ export function CursorReason({
   const warning = check.ok ? (check.warning ?? null) : null;
   const cost = check.ok ? (preview.cost ?? null) : null;
   const variant = preview.variant ?? null;
-  if (!reason && !warning && !cost && !variant) return null;
+  const measure = preview.measure ?? null;
+  if (!reason && !warning && !cost && !variant && !measure) return null;
   // U pravého a dolního okraje okna přeskočí na druhou stranu kurzoru.
   const flipX = screen.x > window.innerWidth - 280;
   const flipY = screen.y > window.innerHeight - 80;
@@ -41,6 +42,11 @@ export function CursorReason({
         bottom: flipY ? window.innerHeight - screen.y + CURSOR_GAP_PX : undefined,
       }}
     >
+      {measure && (
+        <span data-testid="placement-measure" className="font-semibold text-[#f3dfb0] tabular-nums">
+          {measure}
+        </span>
+      )}
       {(cost || variant) && (
         <span
           data-testid="placement-cost"
@@ -92,6 +98,18 @@ export function CursorReason({
                 <span data-cost="stone" className="flex items-center gap-1">
                   <img src="/icons/resources/stone.png" alt="Kámen" width={16} height={16} />
                   {formatInteger(cost.stoneM3 ?? 0)} m³
+                </span>
+              )}
+              {(cost.limeT ?? 0) > 0 && (
+                <span data-cost="lime" className="flex items-center gap-1">
+                  <img src="/icons/resources/lime.png" alt="Vápno" width={16} height={16} />
+                  {formatDecimal(cost.limeT ?? 0, 1)} t
+                </span>
+              )}
+              {(cost.sandM3 ?? 0) > 0 && (
+                <span data-cost="sand" className="flex items-center gap-1">
+                  <img src="/icons/resources/sand.png" alt="Písek" width={16} height={16} />
+                  {formatInteger(cost.sandM3 ?? 0)} m³
                 </span>
               )}
               {(cost.refuge ?? 0) > 0 && (

@@ -14,6 +14,7 @@ import { Scene } from '@babylonjs/core/scene';
 import {
   NO_OBSTACLE_CHANGES,
   OFFICIAL_WORLD,
+  type ChurchDims,
   type Landscape,
   type ObstacleLayer,
   type WorldClock,
@@ -92,6 +93,7 @@ import type { SceneWar } from './army-renderer';
 import { SelectionHighlight } from './selection-highlight';
 import type { VillageTarget } from './village-picking';
 import type { ActivePlacement } from './village-placement';
+import { ChurchPlacer } from './church-placer';
 import { createPlacement } from './placement-factory';
 import { VillageRenderer } from './village-renderer';
 import type { SceneVillage } from '../village-view';
@@ -642,6 +644,8 @@ export class LandscapeScene {
   setVillage(source: SceneVillage): void {
     if (this.disposed) return;
     this.villageSource = source;
+    // kostely vsi (churches.md – Scéna) – ves bez kostela nic nemění
+    if (source.churches || this.churchList.length > 0) this.setChurches(source.churches ?? []);
     // karavany a lov se dohrají ve skutečném čase, i když je data dalšího dne už nemají
     const village = this.activities.apply(
       source,
@@ -780,7 +784,7 @@ export class LandscapeScene {
     } else {
       this.outlines?.hide();
     }
-    if (mode.kind !== 'squares' && mode.kind !== 'fort-points') {
+    if (mode.kind !== 'squares' && mode.kind !== 'fort-points' && mode.kind !== 'church') {
       // Model ducha se načte (jednou) a pak naskočí pod kurzorem.
       const models =
         mode.kind === 'sacred'
@@ -892,6 +896,11 @@ export class LandscapeScene {
   /** Zruší umisťování (zavolá jeho `onCancel`); bez umisťování nic nedělá. */
   cancelPlacement(): void {
     this.placement?.cancel();
+  }
+
+  /** Rozměry kostela z panelu u potvrzení (+/−); mimo umisťování kostela nic nedělá. */
+  setChurchDims(dims: ChurchDims): void {
+    if (this.placement instanceof ChurchPlacer) this.placement.setDims(dims);
   }
 
   /** Potvrdí umisťování jako Enter (tlačítko Potvrdit u pole); neprošlé zůstane běžet. */

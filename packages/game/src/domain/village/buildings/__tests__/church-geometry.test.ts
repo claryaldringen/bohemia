@@ -5,6 +5,7 @@ import {
   churchCapacity,
   churchCost,
   churchFootprintWorld,
+  churchLocalToWorld,
   churchParts,
   churchTypesFor,
   churchyardGraves,
@@ -13,6 +14,8 @@ import {
   defaultChurchDims,
   wallThickness,
 } from '../church-geometry';
+import { buildingLocalToWorld } from '../../core/obstacles';
+import { rectangleSamples } from '../../placement/placement-geometry';
 
 const sum = (o: Record<string, number>): number => Object.values(o).reduce((a, b) => a + b, 0);
 
@@ -113,7 +116,25 @@ describe('hřbitůvek a obrys ve světě', () => {
     expect(at0).toHaveLength(2);
     const a = at0[0]![0]!;
     const b = at90[0]![0]!;
-    expect(b.x).toBeCloseTo(10 - a.z, 8);
-    expect(b.z).toBeCloseTo(20 + a.x, 8);
+    expect(b.x).toBeCloseTo(10 + a.z, 8);
+    expect(b.z).toBeCloseTo(20 - a.x, 8);
+  });
+  it('natočený kostel (45°) – obrys sedí s rectangleSamples stejného obdélníku (konvence budov)', () => {
+    const d = defaultChurchDims('chancel');
+    if (d.kind !== 'long') throw new Error('obdélný kostel');
+    const position = { x: 30, z: -12, rotation: Math.PI / 4 };
+    const nave = churchFootprintWorld('chancel', d, position)[0]!;
+    const t = wallThickness(d.height);
+    // první a poslední vzorek každého sloupce = rohy obdélníku lodi i se zdmi
+    const samples = rectangleSamples(d.length + 2 * t, d.width + 2 * t, position);
+    const corners = [samples[0]!, samples[samples.length - 1]!];
+    for (const [cx, cz] of corners) {
+      expect(nave.some((p) => Math.hypot(p.x - cx, p.z - cz) < 1e-3)).toBe(true);
+    }
+    // osa vstup → kněžiště míří do (cos r, −sin r) jako místní +x budov
+    const [ax, az] = buildingLocalToWorld(position, 1, 0);
+    const east = churchLocalToWorld(position, 1, 0);
+    expect(east.x).toBeCloseTo(ax, 6);
+    expect(east.z).toBeCloseTo(az, 6);
   });
 });

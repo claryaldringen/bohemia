@@ -54,7 +54,7 @@ function BuildTooltip({
   return (
     <span className="block">
       <span className="font-serif text-sm font-semibold text-[#f3dfb0]">
-        {variant ? buildVariantName(item, variant) : item.name}
+        {variant ? buildVariantName(item, variant) : (option?.look?.name ?? item.name)}
       </span>
       {!variant && (
         <>
@@ -64,11 +64,14 @@ function BuildTooltip({
       )}
       {option && (
         <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-          <span className="flex items-center gap-1">
-            <img src="/icons/resources/labor.png" alt="" width={16} height={16} />
-            {formatManDays(option.laborManDays)}
-            {option.perHa ? ' / ha' : option.perSquare ? ' / čtverec' : ''}
-          </span>
+          {/* kostel cenu předem nemá – práce a materiál podle rozměrů jsou u kurzoru */}
+          {option.laborManDays > 0 && (
+            <span className="flex items-center gap-1">
+              <img src="/icons/resources/labor.png" alt="" width={16} height={16} />
+              {formatManDays(option.laborManDays)}
+              {option.perHa ? ' / ha' : option.perSquare ? ' / čtverec' : ''}
+            </span>
+          )}
           {option.upfront.map((cost) => (
             <span
               key={cost.resource}
@@ -252,8 +255,8 @@ export function BuildGrid({
               return (
                 <GridButton
                   key={item.kind}
-                  label={item.name}
-                  icon={buildIconSrc(item.icon)}
+                  label={option?.look?.name ?? item.name}
+                  icon={buildIconSrc(option?.look?.icon ?? item.icon)}
                   tooltip={<BuildTooltip item={item} option={option} />}
                   pressed={active === item.kind}
                   disabled={disabled || (option !== null && !option.affordable)}

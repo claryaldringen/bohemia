@@ -48,6 +48,7 @@ import {
   relocationBlock,
   raidHiding,
 } from '@bohemia/game';
+import { churchBuildChoices, churchesOf } from './church-view';
 import { formatGameDate } from './game-date';
 
 import {
@@ -437,6 +438,7 @@ export function buildVillageView(
     steward: { on: isStewardOn(state), built: [...(state.steward?.built ?? [])] },
     fullHousehold: summary.fullHousehold,
     build: buildOptions(state, landscape, summary.crafts.coverage),
+    churchBuild: churchBuildChoices(state),
     constructions: summary.constructions.map((c) => ({
       id: c.id,
       kind: c.kind,
@@ -524,6 +526,7 @@ export function buildVillageView(
     ...horsesViewOf(state, day),
     ...threshingOf(state, day),
     ...threshingFloorsOf(state, summary.constructions, day),
+    ...churchesOf(state),
     roads: roadViews(state, landscape, day, summary),
     ...fortificationsOf(state, landscape, day, obstacles),
     scene: {

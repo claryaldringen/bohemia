@@ -1,4 +1,5 @@
 import { type ReactElement } from 'react';
+import { ChurchBody } from './selection/church';
 import {
   CART_NAMES,
   RoadUpgrade,
@@ -10,7 +11,7 @@ import {
 import { useOverflowScroll } from '@/hooks/use-overflow-scroll';
 import { VillageTarget } from '@/lib/scene/village-picking';
 import { fieldPartName, orchardSquareName, type SelectionDetails } from '@/lib/selection-details';
-import { PEN_NAMES } from '@/lib/build-items';
+import { CHURCH_TYPE_NAMES, PEN_NAMES, churchIcon } from '@/lib/build-items';
 import { formatPercent } from '@/lib/village-format';
 import { ROAD_KIND_NAMES, SACRED_BUILDING_NAMES } from '@/lib/village-view';
 import { AbandonPartButton } from './AbandonPartButton';
@@ -222,6 +223,9 @@ export function SelectionPanel({
   } else if (details.kind === 'threshing-floor') {
     portrait = <Portrait icon="humno" name="Humno" />;
     body = <ThreshingFloorBody details={details} />;
+  } else if (details.kind === 'church') {
+    portrait = <Portrait icon={churchIcon(details.type)} name={CHURCH_TYPE_NAMES[details.type]} />;
+    body = <ChurchBody details={details} />;
   } else if (details.kind === 'quarry') {
     portrait = <Portrait icon="lom" name="Lom" src="/icons/build/lom.png" />;
     body = <QuarryBody details={details} onOrder={onOrderQuarrying} />;

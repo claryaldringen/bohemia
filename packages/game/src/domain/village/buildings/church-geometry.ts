@@ -71,8 +71,11 @@ export function defaultChurchDims(type: ChurchType): ChurchDims {
   return { kind: 'long', width: 5, length: 8, height: 7 };
 }
 
+/** Krok rozměrů kostela (m) – `clampChurchDims` i tlačítka +/− v rozhraní. */
+export const CHURCH_DIMS_STEP_M = 0.5;
+
 function snap(value: number, min: number, max: number): number {
-  const half = Math.round(value * 2) / 2;
+  const half = Math.round(value / CHURCH_DIMS_STEP_M) * CHURCH_DIMS_STEP_M;
   return Math.min(max, Math.max(min, half));
 }
 
@@ -390,18 +393,24 @@ function partOutline(part: ChurchPart): Point[] {
   return out;
 }
 
+/**
+ * Bod v místních souřadnicích kostela (x = osa vstup → kněžiště, z = napříč) ve světě – stejné
+ * natočení jako budovy (`rectangleSamples`, `buildingLocalToWorld`) a model ve scéně (Babylon
+ * `rotation.y` = `position.rotation`): místní +x míří do (cos r, −sin r). Jen `detSin` / `detCos`.
+ */
+export function churchLocalToWorld(position: Position, x: number, z: number): Point {
+  const c = detCos(position.rotation);
+  const s = detSin(position.rotation);
+  return { x: position.x + x * c + z * s, z: position.z - x * s + z * c };
+}
+
 /** Vnější obrysy částí ve světě (pro kontrolu terénu a scénu); jen deterministická matematika. */
 export function churchFootprintWorld(
   type: ChurchType,
   dims: ChurchDims,
   position: Position,
 ): readonly Point[][] {
-  const c = detCos(position.rotation);
-  const s = detSin(position.rotation);
   return churchParts(type, dims).map((part) =>
-    partOutline(part).map((p) => ({
-      x: position.x + p.x * c - p.z * s,
-      z: position.z + p.x * s + p.z * c,
-    })),
+    partOutline(part).map((p) => churchLocalToWorld(position, p.x, p.z)),
   );
 }

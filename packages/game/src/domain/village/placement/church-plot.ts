@@ -1,8 +1,7 @@
 // Obdélník hřbitůvku kostela ve světě (churches.md – Stavba) – pro kontrolu umístění kostela
 // i ostatních staveb.
 
-import { detCos, detSin } from '../../landscape/det-math';
-import { churchyardRect } from '../buildings/church-geometry';
+import { churchLocalToWorld, churchyardRect } from '../buildings/church-geometry';
 import type { ChurchDims, ChurchType, Position } from '../types';
 import { type Point } from './polygon';
 
@@ -16,12 +15,10 @@ export function churchLocalRect(
   length: number,
   width: number,
 ): Point[] {
-  const c = detCos(position.rotation);
-  const s = detSin(position.rotation);
-  const at = (x: number, z: number): Point => [
-    position.x + x * c - z * s,
-    position.z + x * s + z * c,
-  ];
+  const at = (x: number, z: number): Point => {
+    const p = churchLocalToWorld(position, x, z);
+    return [p.x, p.z];
+  };
   const x0 = cx - length / 2;
   const x1 = cx + length / 2;
   return [at(x0, -width / 2), at(x1, -width / 2), at(x1, width / 2), at(x0, width / 2)];

@@ -73,7 +73,11 @@ Typy: `types/types-masonry.ts` (`ChurchType`, `ChurchDims`, `ChurchCost`, `Churc
   = střed v ose x), `churchyardGraves` = (plocha obdélníku − půdorys) ÷ `graveM2`.
 - **Obrys ve světě:** `churchFootprintWorld(type, dims, position)` – vnější obrysy částí (kruh
   24úhelník, půlkruh 12 úseků), otočené o `position.rotation` (x = ose vstup → kněžiště) a
-  posunuté; jen `detSin` / `detCos` z `landscape/det-math.ts`.
+  posunuté; jen `detSin` / `detCos` z `landscape/det-math.ts`. Převod bodu je jediná funkce
+  `churchLocalToWorld` – konvence budov (`rectangleSamples`, `buildingLocalToWorld`, Babylon
+  `rotation.y`): místní +x míří do (cos r, −sin r); používají ji i `churchLocalRect`
+  (`church-plot.ts`), vzorky terénu v `placement-church.ts` a pec a písník v `startChurch`.
+  Krok rozměrů `CHURCH_DIMS_STEP_M` (0,5 m – `clampChurchDims` i tlačítka +/−).
 
 ## Stavba kostela
 
@@ -86,7 +90,8 @@ Doména `buildings/church-build.ts` (testy `buildings/__tests__/church-build.tes
   hřbitůvku) a písníku (`sandPit` – `nearestWater`), lom `quarryId` a `quarryManDaysPerM3`
   (`quarryManDaysPerM3` vzdálenosti z `nearestQuarry`), kámen z hromad `stoneFromPileM3`, příprava
   `prepManDays` (kácení dřeva stavby + překážky). Dodaný kámen, vápenec a písek se odvodí z hotové
-  práce (`churchMaterials`), postup částí 0–1 `churchProgress` (základy, zdi, střecha, výzdoba).
+  práce (`churchMaterials`), postup částí 0–1 `churchProgress` (základy, zdi, střecha, výzdoba)
+  a po druzích práce `churchWorkProgress` (panel staveniště).
 - **Zahájení:** `applyBuildIntent` s `ChurchIntent` → `churchStartProblem` (`CHURCH_NO_LODGE` bez
   stavbyvedoucího, `CHURCH_WRONG_TYPE` mimo `churchTypesFor`, `CHURCH_NO_QUARRY` bez lomu) →
   `checkChurchPlacement` → `startChurch`. Bez ceny předem; dřevo `woodKg` ÷ `CHURCH.woodKgPerLog`

@@ -4,6 +4,7 @@ import {
   SACRED_BUILDINGS,
   WORKSHOP_PORCH_M,
   threshingFloorFootprint,
+  churchFootprintWorld,
   type PremiumSiteKind,
   type PremiumType,
   type TileCell,
@@ -99,6 +100,8 @@ export type VillageTarget =
   | { kind: 'threshing-floor'; id: number }
   /** Lom (id skalního výchozu – fortifications.md, Kámen): klik na výchoz s lomem. */
   | { kind: 'quarry'; id: number }
+  /** Kostel nebo staveniště kostela (id = id stavby – churches.md): klik do půdorysu. */
+  | { kind: 'church'; id: number }
   /**
    * Člověk vsi (id – villagers.md, Výběr postavy): klik na jeho postavu; výběr zůstane, i když
    * postava zmizí (vejde domů, za kraj mapy).
@@ -305,6 +308,17 @@ export function pickVillageTarget(
     ),
   );
   if (floor) return { kind: 'threshing-floor', id: floor.id };
+  // kostel – klik do vnějšího obrysu lodi, apsid či kněžiště (hotový i staveniště)
+  const church = (village.churches ?? []).find((c) =>
+    churchFootprintWorld(c.type, c.dims, c.position).some((outline) =>
+      pointInPolygon(
+        outline.map((p): Point => [p.x, p.z]),
+        ground.x,
+        ground.z,
+      ),
+    ),
+  );
+  if (church) return { kind: 'church', id: church.id };
   // lom – klik do dosahu značky na výchozu (hotový i rozestavěný)
   const quarry = (village.quarries ?? []).find(
     (q) => Math.hypot(ground.x - q.x, ground.z - q.z) <= QUARRY_PICK_M,
@@ -591,6 +605,7 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
   if (target.kind === 'quarry') {
     return (village.quarries ?? []).some((q) => q.outcropId === target.id);
   }
+  if (target.kind === 'church') return (village.churches ?? []).some((c) => c.id === target.id);
   return village.fields.some((f) => f.id === target.id);
 }
 
