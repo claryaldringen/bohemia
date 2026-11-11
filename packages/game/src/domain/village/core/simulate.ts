@@ -11,6 +11,7 @@ import { updateKilnRemnants } from '../crafts/charcoal';
 import { craftCoverage, wearCraftStocks } from '../crafts/crafts';
 import { updateHappiness } from '../people/happiness';
 import { occupyEmptyDwellings } from '../people/households';
+import { priestDay } from '../people/church-life';
 import { lodgeArrivalsDay } from '../people/lodge';
 import { lodgeLifeDay } from '../people/lodge-life';
 import { husbandryDay } from '../livestock/husbandry';
@@ -404,6 +405,8 @@ function afterWorkDay(
   decideFortRebuilds(state, day, landscape, obstacles);
   // mistři a kněží, kterým vypršela cesta (stone-masonry.md – Příchod) – před osídlením prázdných obydlí
   lodgeArrivalsDay(state, day);
+  // kněz do dostavěného kostela hned, po smrti nový za 60 dní (churches.md – Co kostel dává)
+  priestDay(state, day);
   occupyEmptyDwellings(state, day);
   // den správce (steward.md – Rozhodovací pořadí v den správce): jen zapnutý správce s krajinou
   // a vrstvou překážek, každý `STEWARD.everyDays`. den – nové stavby dostanou id z `nextId` před

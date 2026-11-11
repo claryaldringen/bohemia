@@ -158,6 +158,8 @@ export const CHURCH = {
   // churches.md – Co kostel dává: hřbitůvek – pás kolem zdí, plocha hrobu i s cestičkami
   churchyardBeltM: 6,
   graveM2: 2.5,
+  // churches.md – Co kostel dává: hrob se po 30 letech uvolní (Martin „Ať se po čase uvolní“; 30 let – návrh Clauda)
+  graveReuseYears: 30,
 } as const;
 
 /** Který mistr vede kterou práci na kostele (churches.md – Stavba); stavbyvedoucí vždy. */

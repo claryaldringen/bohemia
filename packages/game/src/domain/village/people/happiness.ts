@@ -1,6 +1,7 @@
 import { TOTAL_GAME_DAYS, dateOfDayIndex, dayIndexOf } from '../../calendar';
 import type { ObstacleLayer } from '../../landscape';
-import { christianShare, hasChurch } from './conversion';
+import { churchHappiness } from './church-life';
+import { christianShare } from './conversion';
 import { DIET, meatHappiness } from '../core/diet';
 import { isOvercrowded } from '../buildings/dwellings';
 import { fieldFoodShare, fieldStoresKg } from '../fields/field-food';
@@ -72,7 +73,7 @@ export interface HappinessFactors {
   sacred: number;
   /** Nespokojenost pohanů se zničenými posvátnými místy (christianity.md), nejvýš 30; chybí = 0. */
   desecration?: number;
-  /** Kostel přidá křesťanům jako posvátná místa (jen s kostelem, nejvýš 40); chybí = 0. */
+  /** Kostel s knězem přidá křesťanům štěstí (`churchHappiness`, nejvýš 45); chybí = 0. */
   church?: number;
   /** Podíl křesťanů mezi lidmi vsi (0–1); chybí = 0. */
   christianShare?: number;
@@ -162,10 +163,11 @@ function faithFactors(
       )
     : 0;
   const share = christianShare(state);
+  const church = share > 0 ? churchHappiness(state) : 0;
   return {
     ...(desecration > 0 ? { desecration } : {}),
     ...(share > 0 ? { christianShare: share } : {}),
-    ...(share > 0 && hasChurch(state) ? { church: FAITH.churchHappiness } : {}),
+    ...(church > 0 ? { church } : {}),
   };
 }
 
