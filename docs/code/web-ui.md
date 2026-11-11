@@ -210,8 +210,8 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   v `application/village-stamp.ts`: vybraná ves, den, id + jméno + verze všech vsí hráče –
   pohled je čistá funkce těchto údajů). Server (`villageViewIfChanged`) nejdřív levně
   (`currentVillageViewStamp` – sídla hráče a `VillageRepository.stampsOf`: id, jméno, verze,
-  `last_day` a `asleep` – generované sloupce tabulky `village` (migrace 0009), plní se při každém
-  zápisu ze stavu JSON, který zůstává zdrojem pravdy; spánek = `extinctDay` nebo `abandonedDay`
+  `last_day` a `asleep` – sloupce tabulky `village` odvozené ze stavu při každém zápisu (migrace
+  0009, od 0043 je píše adaptér – village-core.md – Uložení stavu vsi), zdrojem pravdy je stav; spánek = `extinctDay` nebo `abandonedDay`
   jako `isVillageExtinct` / `isVillageAbandoned`; index `village_awake_day_idx` nespících vsí podle
   dne je pro frontu workeru; `stampsOf` Vlkova z ≈ 6,2 ms na ≈ 0,15 ms, protože se JSON nerozbaluje) a při shodě, když by pohled nic nepočítal (zobrazená ves na
   dnešku, každá jiná nespící ves nejvýš `WORKER_LAG_DAYS` pozadu – `lagsBehindWorker`; spící vsi

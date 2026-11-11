@@ -164,7 +164,8 @@ název). Pravidla a rozhodnutí jsou v `docs/design/`.
 
 **Ves (simulace)**
 
-- Stav vsi je JSON, funkce vstupní stav nemění. **Nové části stavu jsou volitelné** a starší vsi
+- Stav vsi je JSON (v DB komprimovaně po částech – den a zem, `docs/code/village-core.md` –
+  Uložení stavu vsi), funkce vstupní stav nemění. **Nové části stavu jsou volitelné** a starší vsi
   se převedou při načtení (`updateVillage` / začátek `advanceVillage`) jednou a idempotentně –
   jeden seznam `VILLAGE_MIGRATIONS` (`migrations.ts`), nový převod na jeho konec.
 - **Determinismus:** pevné pořadí kroků dne (`simulate.ts`), náhoda ze seedu vsi a dne – výsledek
