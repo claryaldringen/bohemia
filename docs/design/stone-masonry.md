@@ -70,7 +70,7 @@ Martin:
 ## Svoboda, rodina a odchod
 
 - **Odchod jen při hladu a nízkém štěstí** (Martin). Návrh Clauda: mistr bez rodiny odejde, když
-  ves hladoví (nasycení pod 0,8) 30 dní v řadě, nebo štěstí vsi klesne pod 30 na 60 dní; s manželkou
+  ves hladoví – jídla je méně než 0,8 potřeby, bez ohledu na pestrost stravy (návrh Clauda) 30 dní v řadě, nebo štěstí vsi klesne pod 30 na 60 dní; s manželkou
   ve vsi a dětmi je šance odchodu čtvrtinová (Martin – „motivace odejít … mnohem nižší“). Odchází
   s rodinou.
 - **Rodina** (Martin): mistr se může oženit s místní (sňatky jako u ostatních – [příbuzenství](kinship.md)).

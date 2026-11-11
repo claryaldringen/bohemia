@@ -205,6 +205,19 @@ describe('simulace dne', () => {
     expect(whole.chronicle.some((e) => e.kind === 'master-left')).toBe(true);
   });
 
+  it('ves jen s obilím (kvalita stravy 0,6, ale energie plná) mistry za 60 dní neztratí', () => {
+    const after = advanceVillage(lodgeVillage(people()), DAY + 60, null, null);
+    expect(after.chronicle.some((e) => e.kind === 'master-left')).toBe(false);
+    expect(after.people.some((p) => p.id === 5)).toBe(true);
+  });
+
+  it('ves s nedostatkem jídla (energie pod 0,8) přijde po 30 dnech o svobodného mistra', () => {
+    const state = lodgeVillage([kin({ id: 1, age: 40, sex: 'male' }), master(5, 'mason', 2)]);
+    state.storesKg = 0;
+    const after = advanceVillage(state, DAY + HUNGRY + 5, null, null);
+    expect(after.chronicle.some((e) => e.kind === 'master-left')).toBe(true);
+  });
+
   it('smrt mistra ve vsi s pomocníkem dá nového mistra (simulace dne)', () => {
     const state = lodgeVillage(people());
     state.people = state.people.filter((p) => p.id !== 5);

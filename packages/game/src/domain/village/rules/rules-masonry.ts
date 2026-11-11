@@ -11,7 +11,7 @@ export const LODGE = {
   // stone-masonry.md – Svoboda, rodina a odchod: hlad 30 dní, štěstí pod 30 na 60 dní,
   // s manželkou a dětmi ve vsi čtvrtinová šance
   leaving: {
-    satietyBelow: 0.8,
+    foodBelow: 0.8,
     hungryDays: 30,
     happinessBelow: 30,
     unhappyDays: 60,
