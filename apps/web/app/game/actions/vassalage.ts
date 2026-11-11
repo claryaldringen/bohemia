@@ -2,7 +2,6 @@
 
 import { answerLevyForPlayer, levyDialogsForPlayer } from '@/lib/levies';
 import {
-  announcePassageForPlayer,
   answerPassageForPlayer,
   answerSummonsForPlayer,
   passagesForPlayer,
@@ -86,27 +85,6 @@ export async function passagesToAnswer(): Promise<{ passages: PassageView[] } | 
   const id = await playerId();
   if (id === null) return { error: NOT_SIGNED_IN };
   return { passages: await passagesForPlayer(id) };
-}
-
-/** Ohlášení průchodu: `{ house, cells: [{ x, y }], eta, message }` (war.md – Pohyb). */
-export async function announcePassage(input: unknown): Promise<{ ok: true } | { error: string }> {
-  const id = await playerId();
-  if (id === null) return { error: NOT_SIGNED_IN };
-  if (!isRecord(input) || !isId(input.house) || !Array.isArray(input.cells)) {
-    return { error: INVALID_INPUT };
-  }
-  const cells = input.cells.filter(
-    (c): c is { x: number; y: number } =>
-      isRecord(c) && Number.isInteger(c.x) && Number.isInteger(c.y),
-  );
-  if (cells.length !== input.cells.length || cells.length > 100) return { error: INVALID_INPUT };
-  if (!Number.isFinite(input.eta) || !isText(input.message)) return { error: INVALID_INPUT };
-  return announcePassageForPlayer(id, {
-    house: input.house,
-    cells: cells.map((c) => ({ x: c.x, y: c.y })),
-    eta: input.eta as number,
-    message: input.message,
-  });
 }
 
 /** Odpověď na ohlášení průchodu: `{ passageId, trust, message? }` (trust false = „Nevěřit“). */

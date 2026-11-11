@@ -1423,7 +1423,7 @@ expected, reply?)` (odpověď se přidá do `body` – `body || reply`).
 - **Web** – `lib/summons.ts` (composition root; `summonVassalsForPlayer` přes
   `summonVassalsActionForPlayer` = `guardedAction` s `ACTION_RIGHTS.summonVassals` = `war` na cílové
   vsi; odpověď na svolání jako u Odvodů bez zámku – `sendMen` bere zámek sám), server actions
-  `summonVassals`, `answerSummons`, `passagesToAnswer`, `announcePassage`, `answerPassage`;
+  `summonVassals`, `answerSummons`, `passagesToAnswer`, `answerPassage` (průchod se ohlašuje přes `announceWarPassage`);
   `levyDialogs` vrací i `summons`. `WarPanel` – roh `war-summon` u války rozbalí přímé vazaly
   (štít s muži schopnými služby `war-vassal-shield`, roh `war-summon-vassal`, bez služby zašedlý),
   ohlášení průchodu `war-passage` (podání ruky – vzít na vědomí, zlomená pečeť – Nevěřit).

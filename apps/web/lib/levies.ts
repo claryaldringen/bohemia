@@ -14,6 +14,30 @@ import { gameDeps, landscapeOfSettlement, playerToday } from './game';
 
 type LevyDeps = Parameters<typeof levyDialogs>[0];
 
+/** Zásilky mezi vsemi (Odvody, výkupné) – repozitáře a zámky, čas ze světa. */
+export function shipmentDeps(): LevyDeps['shipments'] {
+  const deps = gameDeps();
+  return {
+    shipments: deps.shipments,
+    villages: deps.villages,
+    settlements: deps.settlements,
+    locks: deps.locks,
+    now: deps.now,
+  };
+}
+
+/** Dopočet odesílající vsi do dneška (zásilky, výkupné); `null`, když ves nebo sídlo chybí. */
+export const prepareVillage: LevyDeps['prepareVillage'] = async (villageId, today) => {
+  const deps = gameDeps();
+  const village = await deps.villages.find(villageId);
+  const settlement = village ? await deps.settlements.find(village.settlementId) : null;
+  if (!village || !settlement) return null;
+  return loadVillage(
+    { villages: deps.villages, pause: deps.pause },
+    { villageId, today, landscape: landscapeOfSettlement(settlement) },
+  );
+};
+
 /** Závislosti Odvodů: zásilky a dopočet odesílající vsi do dneška. */
 export function levyDeps(): LevyDeps {
   const deps = gameDeps();
@@ -24,22 +48,8 @@ export function levyDeps(): LevyDeps {
     notices: deps.notices,
     loans: deps.loans,
     villages: deps.villages,
-    shipments: {
-      shipments: deps.shipments,
-      villages: deps.villages,
-      settlements: deps.settlements,
-      locks: deps.locks,
-      now: deps.now,
-    },
-    prepareVillage: async (villageId, today) => {
-      const village = await deps.villages.find(villageId);
-      const settlement = village ? await deps.settlements.find(village.settlementId) : null;
-      if (!village || !settlement) return null;
-      return loadVillage(
-        { villages: deps.villages, pause: deps.pause },
-        { villageId, today, landscape: landscapeOfSettlement(settlement) },
-      );
-    },
+    shipments: shipmentDeps(),
+    prepareVillage,
   };
 }
 

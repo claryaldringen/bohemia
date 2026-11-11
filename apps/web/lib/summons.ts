@@ -12,7 +12,6 @@ import {
   summonsStewardDay,
   type PersonRef,
   type SummonsDeps,
-  type WorldCell,
 } from '@bohemia/game';
 import { levyDeps } from './levies';
 import { gameDeps, playerToday } from './game';
@@ -163,17 +162,6 @@ export async function passagesForPlayer(playerId: string): Promise<PassageView[]
     });
   }
   return views;
-}
-
-/** Rod hráče ohlásí průchod vojska mapami `cells` rodu `house`. */
-export async function announcePassageForPlayer(
-  playerId: string,
-  input: { house: string; cells: WorldCell[]; eta: number; message: string },
-): Promise<{ ok: true } | { error: string }> {
-  const today = await playerToday(playerId);
-  if (!today.ok) return { error: today.error };
-  const result = await announcePassage(passageDeps(), { playerId, ...input, today: today.day });
-  return result.ok ? { ok: true } : { error: result.reason };
 }
 
 /** Odpověď na ohlášení průchodu (`trust` false = „Nevěřit“). */

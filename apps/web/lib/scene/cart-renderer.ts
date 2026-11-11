@@ -13,6 +13,7 @@ import '@babylonjs/core/Meshes/thinInstanceMesh';
 import type { Camera } from '@babylonjs/core/Cameras/camera';
 import { BoundingInfo } from '@babylonjs/core/Culling/boundingInfo';
 import type { Material } from '@babylonjs/core/Materials/material';
+import { GroundBox } from './ground-box';
 import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
@@ -299,21 +300,8 @@ export class CartRenderer {
 
   /** Obal všech vozů na celých trasách i stojících (stálý, dokud se plány nezmění). */
   private updateBounds(): void {
-    let minX = Infinity;
-    let minZ = Infinity;
-    let maxX = -Infinity;
-    let maxZ = -Infinity;
-    let low = Infinity;
-    let high = -Infinity;
-    const extend = (x: number, z: number): void => {
-      minX = Math.min(minX, x);
-      maxX = Math.max(maxX, x);
-      minZ = Math.min(minZ, z);
-      maxZ = Math.max(maxZ, z);
-      const y = this.env.groundHeight(x, z);
-      low = Math.min(low, y);
-      high = Math.max(high, y);
-    };
+    const box = new GroundBox((x, z) => this.env.groundHeight(x, z));
+    const extend = (x: number, z: number): void => box.extend(x, z);
     const at: RoutePoint = { x: 0, z: 0, hx: 0, hz: 1, heading: 0 };
     let reach = 0;
     for (const plan of this.plans) {
@@ -329,12 +317,8 @@ export class CartRenderer {
         extend(at.x, at.z);
       }
     }
-    if (minX > maxX) return;
     const pad = Math.max(reach, AHEAD_M * CART_SCALE) + 1;
-    this.bounds.reConstruct(
-      new Vector3(minX - pad, low - 1, minZ - pad),
-      new Vector3(maxX + pad, high + HEAD_ROOM_M * CART_SCALE, maxZ + pad),
-    );
+    box.applyTo(this.bounds, pad, HEAD_ROOM_M * CART_SCALE);
   }
 
   /**

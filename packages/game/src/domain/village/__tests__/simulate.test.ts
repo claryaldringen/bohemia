@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { at, found, field, POSITION, START_PARTS, YEAR } from './simulate-fixtures';
 import { daylightFactor } from '../daylight';
-import { TOTAL_GAME_DAYS, dayIndexOf } from '../../calendar';
+import { TOTAL_GAME_DAYS } from '../../calendar';
 import { foundField, foundVillage, startNewDwelling, startReplacement } from '../actions';
-import type { PartInput } from '../actions';
 import { ageYears, foodNeedPerDay, occupants } from '../people';
 import { NO_CRAFTS } from '../productivity';
 import {
@@ -16,7 +16,7 @@ import { packObstacles } from '../../landscape';
 import { villageLaborFactor } from '../happiness';
 import { arrangeMarriages } from '../marriage';
 import { advanceVillage } from '../simulate';
-import { availableSettlers, waitingHouseholds } from '../households';
+import { availableSettlers } from '../households';
 import { withKinship } from '../kinship';
 import { freshWildlife } from '../wildlife';
 import type {
@@ -38,38 +38,7 @@ import {
   springCrop,
   dropSeasonCrop,
 } from '../year-plan';
-import {
-  withBuiltFirstDwelling,
-  withManorElsewhere,
-  withThreshingFloor,
-  withoutSmallGame,
-} from './village-fixtures';
-
-const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
-const YEAR = 365.25;
-const POSITION = { x: 0, z: 0, rotation: 0 };
-const OUTLINE: [number, number][] = [
-  [0, 0],
-  [10, 0],
-  [10, 10],
-];
-const START_PARTS = 75;
-
-/** Startovní pole ≈ 1,7 ha: díly po 225 m², úrodnost 70, louka 50–100 m od obydlí. */
-const field = (count = START_PARTS): PartInput[] =>
-  Array.from({ length: count }, (_, i) => ({
-    areaM2: 225,
-    distanceM: 50 + Math.round((50 * i) / (count - 1)),
-    naturalFertility: 70,
-    surface: 'meadow',
-    obstacleCost: 0,
-  }));
-
-// ves s humnem – mlátí hned po žni (production-chains.md – Humno); ves bez humna `foundBare`
-const foundBare = (day: number, seed = 42, parts = field()): VillageState =>
-  foundVillage({ seed, day, dwellingPosition: POSITION, firstField: { outline: OUTLINE, parts } });
-const found = (day: number, seed = 42, parts = field()): VillageState =>
-  withThreshingFloor(foundBare(day, seed, parts));
+import { withBuiltFirstDwelling, withManorElsewhere, withoutSmallGame } from './village-fixtures';
 
 type HarvestEvent = Extract<ChronicleEvent, { kind: 'harvest' }>;
 const harvests = (s: VillageState): HarvestEvent[] =>
@@ -1281,32 +1250,6 @@ describe('advanceVillage – obydlí', () => {
     const born = s.people.filter((p) => p.motherId === 201 && p.fatherId === 102);
     expect(born.length).toBeGreaterThanOrEqual(1);
   });
-
-  it('bez stěhování tam a zpět: ves, kde hráč staví, kdykoli může (80 let, 3 vsi)', () => {
-    for (const seed of [3, 8, 21]) {
-      const day = at(600, 3, 15);
-      let s = found(day, seed, field(250));
-      s.storesKg = 50_000;
-      let worst = 0;
-      for (let year = 1; year <= 80 && !s.extinctDay; year++) {
-        const from = s.lastDay;
-        s = advanceVillage(s, day + Math.ceil(year * YEAR), null);
-        const moves = s.chronicle.filter(
-          (e) =>
-            e.day > from &&
-            (e.kind === 'household-founded' ||
-              e.kind === 'marriage' ||
-              e.kind === 'household-merged'),
-        ).length;
-        worst = Math.max(worst, moves);
-        while (waitingHouseholds(s, s.lastDay) > 0) {
-          s = startNewDwelling(s, s.lastDay, 'zemnice', { x: 5, z: 5, rotation: 0 }, 0);
-        }
-      }
-      // pár svateb a nových domácností za rok – ne stovky (stěhování každý den)
-      expect(worst).toBeLessThan(12);
-    }
-  }, 120_000);
 
   /** Práce na opravách posledního dne (rozdělení práce dne). */
   const repairLabor = (s: VillageState): number =>

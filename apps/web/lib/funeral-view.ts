@@ -6,17 +6,22 @@
 // (scene/funeral-plan.ts) z okna herního dne – čistá funkce času. Čistý modul na serveru.
 import {
   MOUND_SIZES,
-  ageYears,
   gravePlaceCenter,
   villageCemeteries,
   type GraveMound,
   type GraveRank,
   type MoundSize,
   type Person,
-  type Sex,
   type TileCell,
   type VillageState,
 } from '@bohemia/game';
+import {
+  byPriority,
+  fillFromOtherHomes,
+  peopleByHome,
+  processionPersonOf,
+  type ProcessionPerson,
+} from './procession';
 
 /**
  * Pohřby kolika posledních herních dnů jdou do scény. Průvod jde skutečnou chůzí (jako všechny
@@ -31,16 +36,8 @@ export const MAX_VOIVODE_FIGURES = 40;
 /** Máry nesou čtyři muži – ve scéně vždy, nejsou mezi `mourners`. */
 export const FUNERAL_BEARERS = 4;
 
-/**
- * Člověk v průvodu za márami: pohlaví, věk (roky) a domácnost (id obydlí), kam se pak vrátí; id
- * člověka (villagers.md – Výběr postavy – postava v průvodu je on; ukázky ho nemají).
- */
-export interface SceneMourner {
-  id?: number;
-  sex: Sex;
-  age: number;
-  home: number;
-}
+/** Člověk v průvodu za márami (viz `ProcessionPerson`). */
+export type SceneMourner = ProcessionPerson;
 
 /**
  * Pohřeb ve scéně (cemetery.md – Pohřeb ve scéně): mohyla, pod kterou zemřelý bude ležet (hřbitov,
@@ -76,37 +73,6 @@ export function funeralKey(
   return `${cemeteryId}:${m.cell.x}:${m.cell.y}:${m.column}:${m.row}`;
 }
 
-/** Deterministická náhoda 0–1 z celých čísel. */
-function mix01(a: number, b: number, c: number): number {
-  let h =
-    Math.imul(a | 0, 0x27d4eb2d) ^ Math.imul(b | 0, 0x165667b1) ^ Math.imul(c | 0, 0x9e3779b1);
-  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
-  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
-  h ^= h >>> 16;
-  return (h >>> 0) / 4294967296;
-}
-
-function mournerOf(p: Person, day: number): SceneMourner {
-  return {
-    id: p.id,
-    // vsi uložené před příbuzenstvím pohlaví nemají – střídavě podle id
-    sex: p.sex ?? (p.id % 2 === 0 ? 'female' : 'male'),
-    age: ageYears(p.bornDay, day),
-    home: p.dwellingId,
-  };
-}
-
-/** Pořadí, v jakém jdou lidé domácnosti: dospělí, pak starší, pak děti (každá skupina podle losu). */
-function byPriority(people: readonly Person[], day: number, seed: number): Person[] {
-  const group = (p: Person): number => {
-    const age = ageYears(p.bornDay, day);
-    return age >= 14 && age < 60 ? 0 : age >= 60 ? 1 : 2;
-  };
-  return [...people].sort(
-    (a, b) => group(a) - group(b) || mix01(seed, a.id, 5) - mix01(seed, b.id, 5) || a.id - b.id,
-  );
-}
-
 /**
  * Kdo jde v průvodu za márami (cemetery.md – Pohřeb ve scéně): celá domácnost zemřelého (`from`)
  * a z každé další domácnosti jeden až dva lidé (los podle pohřbu – napřed dospělí), za vojvodu
@@ -123,35 +89,19 @@ export function funeralMourners(
 ): SceneMourner[] {
   const all = funeral.rank === 'voivode';
   const max = (all ? MAX_VOIVODE_FIGURES : MAX_FUNERAL_FIGURES) - FUNERAL_BEARERS;
-  const homes = new Map<number, Person[]>();
-  for (const p of people) {
-    const list = homes.get(p.dwellingId);
-    if (list) list.push(p);
-    else homes.set(p.dwellingId, [p]);
-  }
+  const homes = peopleByHome(people);
   const own = funeral.from === undefined ? [] : (homes.get(funeral.from) ?? []);
-  const others = [...homes.entries()]
-    .filter(([id]) => id !== funeral.from)
-    .sort((a, b) => a[0] - b[0])
-    .map(([id, list]) => {
-      const ordered = byPriority(list, day, seed + id);
-      const count = all ? ordered.length : mix01(seed, id, 3) < 0.5 ? 1 : 2;
-      return ordered.slice(0, count);
-    });
   const out = byPriority(own, day, seed).slice(0, max);
-  // z ostatních domácností po kolech – napřed první člověk z každé, pak druzí…
-  for (let round = 0; out.length < max; round++) {
-    let added = false;
-    for (const list of others) {
-      const person = list[round];
-      if (!person) continue;
-      added = true;
-      out.push(person);
-      if (out.length >= max) break;
-    }
-    if (!added) break;
-  }
-  return out.map((p) => mournerOf(p, day));
+  fillFromOtherHomes(
+    out,
+    homes,
+    new Set(funeral.from === undefined ? [] : [funeral.from]),
+    all,
+    max,
+    day,
+    seed,
+  );
+  return out.map((p) => processionPersonOf(p, day));
 }
 
 /**

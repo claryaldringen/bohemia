@@ -1,11 +1,11 @@
 import {
   decidePrisoner,
-  loadVillage,
   ransomHooks,
   type NegotiateDeps,
   type PrisonerResult,
 } from '@bohemia/game';
-import { gameDeps, landscapeOfSettlement, playerToday } from './game';
+import { gameDeps, playerToday } from './game';
+import { prepareVillage, shipmentDeps } from './levies';
 
 // Composition root zajatců (war.md – Vzdaní, zajetí a výkupné): rozhodnutí věznitele a hlásiče
 // výkupného pro jednání. Herní logika je v `packages/game/src/application/prisoners.ts`.
@@ -20,22 +20,8 @@ export function ransom(): NonNullable<NegotiateDeps['ransom']> {
     locks: deps.locks,
     now: deps.now,
     houses: deps.houses,
-    shipments: {
-      shipments: deps.shipments,
-      villages: deps.villages,
-      settlements: deps.settlements,
-      locks: deps.locks,
-      now: deps.now,
-    },
-    prepareVillage: async (villageId, today) => {
-      const village = await deps.villages.find(villageId);
-      const settlement = village ? await deps.settlements.find(village.settlementId) : null;
-      if (!village || !settlement) return null;
-      return loadVillage(
-        { villages: deps.villages, pause: deps.pause },
-        { villageId, today, landscape: landscapeOfSettlement(settlement) },
-      );
-    },
+    shipments: shipmentDeps(),
+    prepareVillage,
   });
 }
 
