@@ -1,59 +1,22 @@
-// Práce dne – polní úlohy v pořadí a `work()` s rozdělením práce vsi.
-import { smallGameDay, type SmallGameResult } from './small-game';
+// Práce dne – polní úlohy v pořadí a `work()` s rozdělením práce vsi; `work()` skládá kroky dne
+// v pevném pořadí (simulate-work-people.ts před rozdělením práce, simulate-work-apply.ts po něm).
 import { dateOfDayIndex, dayIndexOf } from '../calendar';
 import type { Landscape, ObstacleLayer } from '../landscape';
-import { carpentryHelp, restingCarpenters, workCarpenters } from './carpentry';
-import {
-  NO_HAUL,
-  addHaulTrips,
-  cartFleetToday,
-  cartLoadRatio,
-  fleetCarts,
-  haulCartsToday,
-  hauledBy,
-  haulProgress,
-  teamsHomeShare,
-  villageCartAccess,
-  type HaulPlan,
-} from './carts';
-import { addCartDemand, type CartDemandToday } from './draft';
-import {
-  oreCartDrive,
-  oreCartOffer,
-  flushCartTrips,
-  villageCartDrives,
-  type CartDrives,
-} from './cart-jobs';
-import { charcoalDeliveries, dugBasketManDaysPerKg, type OreCartToday } from './smith-supply';
-import { purchaseTravelers, walkPurchases } from './craft-buying';
-import { gainPractice } from './craft-skill';
-import { ironTripHelpers, ironTripShares } from './cart-iron';
-import {
-  burnerDraws,
-  burnerPlans,
-  craftHouseholds,
-  craftHarvestLabor,
-  craftLightLabor,
-  ironTravellers,
-  migrateBurners,
-  restingCrafters,
-  smithBellowsToday,
-  workCrafts,
-  type SmithSupply,
-} from './crafts';
-import { harvestHandsDay, harvestHelperLabor, weedingChildren } from './harvest-hands';
-import { dayChores } from './day-chores';
+import { teamsHomeShare } from './carts';
+import { flushCartTrips, villageCartDrives, type CartDrives } from './cart-jobs';
+import { purchaseTravelers } from './craft-buying';
+import { ironTripHelpers } from './cart-iron';
+import { craftHarvestLabor, craftLightLabor } from './crafts';
+import { harvestHelperLabor, weedingChildren } from './harvest-hands';
 import { daylightFactor } from './daylight';
 import {
   lordApartIds,
   lordDayCounts,
   lordFieldShares,
-  manorLabor,
   NO_LORD_FIELD,
-  trainingFamily,
   type LordFieldShares,
 } from './lord';
-import { nextYearlyCommonLabor, repairNeedPerDay, yearlyCommonLabor } from './dwellings';
+import { nextYearlyCommonLabor, yearlyCommonLabor } from './dwellings';
 import { animalCareNeed, dailyMilk } from './dairy';
 import { DIET, villageFoodNeed } from './diet';
 import {
@@ -63,48 +26,29 @@ import {
   type PloughTravels,
 } from './plough-trip';
 import { isToilDay, windowEndDay } from './happiness';
-import { mow, mowingCut, mowingNeededRemaining, mowingRemaining, recordMowingLabor } from './hay';
-import { adultHerding, herdingDay, recordHerding } from './herding';
+import { mowingCut, mowingNeededRemaining } from './hay';
+import { adultHerding } from './herding';
 import { horseCareLabor, villageHorses } from './horses';
 import { finishShoeing, planShoeing } from './horse-shoeing';
-import {
-  slaughterRemaining,
-  villageChickens,
-  villageDams,
-  villageHerds,
-  workSlaughter,
-} from './livestock';
+import { slaughterRemaining, villageChickens, villageDams, villageHerds } from './livestock';
 import { ploughCapacityPerDay, ploughPairsHome, villageOxen } from './oxen';
-import { fireFighting } from './firefighting';
-import { raidHiding } from './raid-day';
-import { morningWater, ploughWindowsToday, villagersToday } from './morning-water';
-import { markThreshed, threshingFloorHaulPoints } from './threshing-floors';
-import { grainPitTask, workGrainPits } from './grain-pits';
+import { morningWater, ploughWindowsToday } from './morning-water';
+import { grainPitTask } from './grain-pits';
 import { chooseGrainPitSite } from './grain-pit-site';
 import {
   canThresh,
   villageSheaves,
   threshForFoodKg,
   threshSeasonTasks,
-  threshCrop,
   threshTasks,
 } from './threshing';
-import {
-  afterConstructions,
-  allocateDay,
-  type DayAllocation,
-  householdElders,
-  householdWater,
-  type LaborTaskName,
-} from './labor';
-import { laborDay, type AsideWork, type HaulWork } from './labor-report';
-import { ORCHARD_TASK_NAMES, orchardWorkRemaining, workOrchards } from './orchard';
-import { guestLaborToday, laborPerDay } from './people';
-import { expeditionLaborToday, workExpeditions } from './trade';
+import { allocateDay, type DayAllocation, householdElders, type LaborTaskName } from './labor';
+import { laborDay, type AsideWork } from './labor-report';
+import { ORCHARD_TASK_NAMES, orchardWorkRemaining } from './orchard';
+import { laborPerDay } from './people';
+import { expeditionLaborToday } from './trade';
 import {
   DRAFT_OXEN,
-  CARTS,
-  CART_JOBS,
   COMMON_LABOR_HISTORY_DAYS,
   CROP_ORDER,
   DAY_WORK_ORDER,
@@ -116,16 +60,7 @@ import {
   WEEDING_CHILDREN,
   type DayWorkGroup,
 } from './rules';
-import type {
-  CartTripLog,
-  Construction,
-  CraftCoverage,
-  Crop,
-  CropWork,
-  FieldPart,
-  SeedKg,
-  VillageState,
-} from './types';
+import type { CraftCoverage, Crop, CropWork, FieldPart, SeedKg, VillageState } from './types';
 import {
   seedKeepKg,
   seedPrepShares,
@@ -134,13 +69,11 @@ import {
   seedUseKg,
   seedStore,
   sowableSeedKg,
-  takeSeed,
   uneatenSeedKg,
 } from './seed';
 import {
   TASK_ORDER,
   activeTasks,
-  addCropTaskWork,
   cropTaskDone,
   cropTaskRemaining,
   cropTaskWindows,
@@ -155,36 +88,31 @@ import {
   withOnceWeedingRates,
   withoutWinterWeeding,
 } from './year-plan';
-import { payWatch, watchWanted } from './wildlife-damage';
-import { fortUpkeep } from './fortification/decay';
-import { build, decayEmptyDwellings, woodworkToday } from './simulate-build';
-import {
-  bestWaterPlan,
-  NO_CART_JOBS,
-  haulLogs,
-  jobsDemand,
-  logHaulCandidates,
-  logHaulPlan,
-  logsDemand,
-  oreDemand,
-  paySmithCarts,
-  planCartJobs,
-  planTaskHauls,
-  reachableFelling,
-  smithFetchPlans,
-  taskCarryDemand,
-} from './simulate-hauls';
-import {
-  DayTask,
-  EPSILON,
-  FieldTaskEntry,
-  householdCount,
-  occupiedDwellings,
-  villageProductivity,
-} from './simulate-plan';
+import { watchWanted } from './wildlife-damage';
+import { bestWaterPlan, type CartJobsDay } from './simulate-hauls';
+import { DayTask, EPSILON, FieldTaskEntry, householdCount } from './simulate-plan';
 import { WEATHER_EFFECTS } from './rules-disasters';
 import { springSowingExtended, springSowingHeld } from './weather-effects';
 import { partsByIdOf } from './parts-by-id';
+import type {
+  DayCartJobs,
+  DayCartPlan,
+  DayPeople,
+  DayTaskList,
+  DayTravel,
+  PloughDay,
+  WorkDay,
+} from './simulate-work-context';
+import { dayCartJobs, dayCartPlan, dayPeople } from './simulate-work-people';
+import {
+  applyDayTasks,
+  commonWorkDay,
+  craftsDay,
+  smithCartTrips,
+  smithHerdingTravel,
+  type AppliedTasks,
+  type CommonWork,
+} from './simulate-work-apply';
 
 /**
  * Polní úlohy dne: práce všech dílů letošní práce po plodinách (bez výmlatu – ten mlátí snopy, `threshTasks`), orba
@@ -451,21 +379,94 @@ export function work(
   landscape: Landscape | null,
   waiting: ReadonlySet<Crop> = new Set(),
 ): { toil: boolean; lordField: LordFieldShares } {
+  // kroky dne v pevném pořadí (village-core.md – Pořadí práce dne): každý krok čte, co spočetly
+  // kroky před ním, a mutuje stav jako dřív jedna funkce – stejné losy i pořadí klíčů
+  const ctx = startWorkDay(state, day, obstacles, coverage, landscape, waiting);
+  // 1. úlohy dne v pořadí důležitosti (DAY_WORK_ORDER)
+  const plough = ploughDay(ctx);
+  const tasks = dayTaskList(ctx, plough);
+  // 2. vozy, lidé a jízdy domluvené předem
+  const carts = dayCartPlan(ctx, tasks, plough.afield);
+  const people = dayPeople(ctx);
+  const cartJobs = dayCartJobs(ctx, tasks, carts, people);
+  // 3. rozdělení práce vsi, voda ráno ve dny orby, péče o koně a kování
+  const labor = dayLabor(ctx, tasks, people, cartJobs);
+  const { jobs, allocation } = morningWaterDay(
+    ctx,
+    plough,
+    tasks,
+    carts,
+    people,
+    cartJobs.jobs,
+    labor.allocate(cartJobs.jobs),
+    labor.allocate,
+  );
+  horseCareDay(ctx, labor, allocation);
+  // 4. úlohy dne, kovárny, pasení a cesty, společná práce
+  const applied = applyDayTasks(ctx, tasks, carts, allocation);
+  const travel = smithHerdingTravel(ctx, people, cartJobs, jobs, allocation, applied.adultHerded);
+  const common = commonWorkDay(ctx, tasks, carts, people, cartJobs, jobs, allocation, applied);
+  // 5. večer: spřežení, které dnes vyjelo a oralo, je u bloku; po zorání okna zpět do ohrady
+  settlePloughTeams(state, day, plough.travels, plough.teamsCap <= EPSILON, waiting);
+  // 6. dílny, jízdy ke kovářům a všechny jízdy dne do provozu cest na jednom místě (wagons.md)
+  const workshops = craftsDay(ctx, carts, people, cartJobs, travel, common.help);
+  smithCartTrips(ctx, travel.smithCarts, applied.haulWork);
+  flushCartTrips(state, ctx.cartLog);
+  // 7. rozdělení práce pro postavy a společná práce do průměrů
+  const lordField = laborReport(ctx, {
+    people,
+    labor,
+    allocation,
+    applied,
+    common,
+    travel,
+    workshops,
+  });
+  recordCommonLabor(state, allocation.common);
+  return { toil: toilToday(ctx, tasks.owned, applied), lordField };
+}
+
+/** Začátek dne práce – převod staršího hospodářského roku a kontext dne (`WorkDay`). */
+function startWorkDay(
+  state: VillageState,
+  day: number,
+  obstacles: ObstacleLayer | null,
+  coverage: CraftCoverage,
+  landscape: Landscape | null,
+  waiting: ReadonlySet<Crop>,
+): WorkDay {
   const month = dateOfDayIndex(day).month;
   // starší hospodářský rok s pletím ozimu – ozim se neplete; pletí jaře, luštěnin a lnu ze
   // starších sazeb na nové (fields.md – Pletí jednou a rychle)
   if (state.season) state.season = withOnceWeedingRates(withoutWinterWeeding(state.season));
-  // jízdy vozů dne (svoz, voda, uhlí, ruda, klády, osivo) – zapíše `flushCartTrips`
-  const cartLog: CartTripLog = [];
-  // orba: páry volů s rádlem, se železnou špičkou od kováře rychleji (oxen.md); slabí voli po
-  // zimě pomaleji; voli s vozem na výpravě neorají (wagons.md)
-  const partsById = partsByIdOf(state.parts);
-  // přežívací zásoba do žní, nad kterou díly sejí z běžného zrna (`takeSeed`) – jednou za den,
-  // před prvním osivem dne
-  let sowKeepKg: number | null = null;
-  // voli orají za světla (population.md – Skladba dne podle ročního období) – kapacita spřežení
-  // i práce vsi venku podle délky dne
-  const daylight = daylightFactor(day);
+  let drives: CartDrives | null | undefined;
+  let drives4: CartDrives | null | undefined;
+  return {
+    state,
+    day,
+    obstacles,
+    coverage,
+    landscape,
+    waiting,
+    month,
+    cartLog: [],
+    // orba: páry volů s rádlem, se železnou špičkou od kováře rychleji (oxen.md); slabí voli po
+    // zimě pomaleji; voli s vozem na výpravě neorají (wagons.md)
+    partsById: partsByIdOf(state.parts),
+    // voli orají za světla (population.md – Skladba dne podle ročního období) – kapacita spřežení
+    // i práce vsi venku podle délky dne
+    daylight: daylightFactor(day),
+    demand: { road: 0, other: 0, jobs: [] },
+    drivesOf: (): CartDrives | null =>
+      (drives ??= villageCartDrives(state, day, landscape, obstacles)),
+    drives4Of: (): CartDrives | null =>
+      (drives4 ??= villageCartDrives(state, day, landscape, obstacles, 'four-wheel')),
+  };
+}
+
+/** Orba dne – kapacita spřežení za světla a cesta spřežení na poli (oxen.md). */
+function ploughDay(ctx: WorkDay): PloughDay {
+  const { state, day, obstacles, coverage, landscape, daylight, partsById } = ctx;
   const teamsCap = ploughCapacityPerDay(state, coverage.tools, day) * daylight;
   const ploughCap = teamsCap * teamsHomeShare(state, day);
   // spřežení na poli od rána (oxen.md – Spřežení zůstane na poli) – cesta dne jednou za den
@@ -473,7 +474,17 @@ export function work(
   const travels: PloughTravels = new Map();
   const ploughFactor = (cropWork: CropWork): number =>
     ploughDayFactor(state, day, cropWork, partsById, landscape, obstacles, travels);
-  const owned = fieldTasks(state, day, ploughCap, ploughFactor);
+  return { teamsCap, ploughCap, afield, travels, ploughFactor };
+}
+
+/**
+ * Úlohy dne v pořadí důležitosti (fields.md – Pořadí důležitosti polních prací a výmlat do zimy):
+ * polní úlohy (`fieldTasks`), výmlat, obilné jámy, hlídka polí, dospělý pasák, sady, nutná seč
+ * a porážka, seřazené `dayTaskOrder`.
+ */
+function dayTaskList(ctx: WorkDay, plough: PloughDay): DayTaskList {
+  const { state, day } = ctx;
+  const owned = fieldTasks(state, day, plough.ploughCap, plough.ploughFactor);
   const dayTasks: DayTask[] = owned.map((field) => ({
     name: field.name,
     remaining: field.remaining,
@@ -482,30 +493,51 @@ export function work(
     rank: field.rank,
     field,
   }));
-  // výmlat snopů na humnech, jinak nouzově na udusané zemi (production-chains.md – Humno): ozim
-  // a luštěniny od srpna, jař od září, do konce února – za polními pracemi a hlídkou polí (fields.md
-  // – Pořadí důležitosti polních prací a výmlat do zimy). Chybí-li v zásobách zrno na dnešní jídlo,
-  // vymlátí se napřed – před žní i ostatními úlohami (výmlat na dnešní jídlo); chybí-li vymlácené
-  // zrno na osivo setí dneška a zítřka, vymlátí se před přípravou půdy (výmlat na osivo)
+  dayTasks.push(...threshDayTasks(ctx));
+  const pits = grainPitDay(ctx);
+  if (pits.task) dayTasks.push(pits.task);
+  dayTasks.push(...villageDayTasks(ctx));
+  // pořadí důležitosti prací dne (fields.md – Pořadí důležitosti polních prací a výmlat do zimy)
+  dayTasks.sort(dayTaskOrder);
+  return { owned, dayTasks, moreGrain: pits.moreGrain, pitSite: pits.pitSite };
+}
+
+/**
+ * Výmlat snopů na humnech, jinak nouzově na udusané zemi (production-chains.md – Humno): ozim
+ * a luštěniny od srpna, jař od září, do konce února – za polními pracemi a hlídkou polí (fields.md
+ * – Pořadí důležitosti polních prací a výmlat do zimy). Chybí-li v zásobách zrno na dnešní jídlo,
+ * vymlátí se napřed – před žní i ostatními úlohami (výmlat na dnešní jídlo); chybí-li vymlácené
+ * zrno na osivo setí dneška a zítřka, vymlátí se před přípravou půdy (výmlat na osivo).
+ */
+function threshDayTasks(ctx: WorkDay): DayTask[] {
+  const { state, day, coverage } = ctx;
   const threshes = threshTasks(
     state,
     day,
     threshForFoodToday(state, day),
     seedThreshKg(state, day, coverage.tools),
   );
-  for (const thresh of threshes) {
-    dayTasks.push({
-      name: 'thresh',
-      remaining: thresh.remaining,
-      end: thresh.end,
-      tie: thresh.urgent ? 0 : 1,
-      rank: THRESH_RANK + CROP_ORDER.indexOf(thresh.crop),
-      thresh,
-    });
-  }
-  // obilné jámy (production-chains.md – Obilné jámy): vymlácené zrno z humna do jam po polních
-  // pracích a výmlatu – v době plnění jam (do zámrazu) za setím ozimu, před stavbami; neúplnou
-  // jámu až po výmlatu letošní úrody (ve snopech nic, co ves vymlátí, a jař sklizená)
+  return threshes.map((thresh) => ({
+    name: 'thresh',
+    remaining: thresh.remaining,
+    end: thresh.end,
+    tie: thresh.urgent ? 0 : 1,
+    rank: THRESH_RANK + CROP_ORDER.indexOf(thresh.crop),
+    thresh,
+  }));
+}
+
+/**
+ * Obilné jámy (production-chains.md – Obilné jámy): vymlácené zrno z humna do jam po polních
+ * pracích a výmlatu – v době plnění jam (do zámrazu) za setím ozimu, před stavbami; neúplnou
+ * jámu až po výmlatu letošní úrody (ve snopech nic, co ves vymlátí, a jař sklizená).
+ */
+function grainPitDay(ctx: WorkDay): {
+  moreGrain: boolean;
+  pitSite: () => { x: number; z: number } | null;
+  task: DayTask | null;
+} {
+  const { state, day, obstacles, landscape, month } = ctx;
   const moreGrain =
     (villageSheaves(state).grainKg > EPSILON && canThresh(state, day)) ||
     springHarvestAhead(state, month);
@@ -513,15 +545,23 @@ export function work(
   const pitSite = (): { x: number; z: number } | null =>
     chooseGrainPitSite(state, day, landscape, obstacles);
   const pitWork = grainPitTask(state, day, moreGrain, pitSite);
-  if (pitWork > EPSILON) {
-    dayTasks.push({
-      name: 'grain-pit',
-      remaining: pitWork,
-      end: GRAIN_PITS.fillTo,
-      tie: 1,
-      rank: THRESH_RANK + CROP_ORDER.length,
-    });
-  }
+  const task: DayTask | null =
+    pitWork > EPSILON
+      ? {
+          name: 'grain-pit',
+          remaining: pitWork,
+          end: GRAIN_PITS.fillTo,
+          tie: 1,
+          rank: THRESH_RANK + CROP_ORDER.length,
+        }
+      : null;
+  return { moreGrain, pitSite, task };
+}
+
+/** Úlohy dne mimo pole a výmlat: hlídka polí, dospělý pasák, sady, nutná seč a porážka. */
+function villageDayTasks(ctx: WorkDay): DayTask[] {
+  const { state, day, month } = ctx;
+  const dayTasks: DayTask[] = [];
   // noční hlídka polí (wildlife.md – Noční hlídka vesničanů, 2. stupeň): dospělí z práce vsi za
   // sklizní, nutnou sečí, pletím a přípravou půdy, před výmlatem, stavbami a rybami (fields.md –
   // Pořadí důležitosti polních prací a výmlat do zimy)
@@ -550,7 +590,7 @@ export function work(
   // seč (oxen.md – Seno, dvě seče): nutné seno (dnešní stádo) 1. seče i otavy za žní obilí
   // a trháním lnu, před jablky, pletím, orbou a setím i výmlatem (fields.md – Pořadí důležitosti
   // polních prací – 3. sklizeň sena; otava před orbou a setím ozimu – Martin 10. 11. 2026); seč
-  // navíc pro růst stád až z práce po stavbách (níž)
+  // navíc pro růst stád až z práce po stavbách (`freeLaborDay`)
   const neededMowing = mowingNeededRemaining(state, day);
   if (neededMowing > EPSILON) {
     const cut = state.hay?.mowing ? mowingCut(state.hay.mowing) : 1;
@@ -575,116 +615,33 @@ export function work(
       rank: 1,
     });
   }
-  // pořadí důležitosti prací dne (fields.md – Pořadí důležitosti polních prací a výmlat do zimy)
-  dayTasks.sort(dayTaskOrder);
-  // vozy (wagons.md – Vůz): dvoukoláky s volem, který dnes neorá, vozí snopy a seno tam, kam
-  // dojedou – převezmou kus nošení a jde s nimi honák a nakladač (úloha pak chce méně práce); ve
-  // dny orby jdou páry napřed k rádlům, vozy táhne zbytek volů (oxen.md – Voli se sdílí)
-  const ploughing = owned.some((task) => task.name === 'plough');
-  // spřežení na poli zůstává u rádla i v den bez orby (oxen.md – Spřežení zůstane na poli)
-  const fleet = cartFleetToday(state, day, ploughing || afield);
-  // dosah vozů má ves s hotovou ohradou volů i bez vozů – měří, co by dnes vozy ušetřily
-  // (wagons.md – Kolik vozů ves chce): nošení, které dnes opravdu proběhlo, a jízdy pro uhlí, rudu
-  // a vodu; čtyřkolák po louce a strništi, na zoraný díl ne (wagons.md – Co se vozí a na čem) –
-  // bez krajiny (kalibrace) nikam
-  const access = villageCartAccess(state, day, landscape, obstacles);
-  const roadAccess =
-    access && landscape ? villageCartAccess(state, day, landscape, obstacles, 'four-wheel') : null;
-  const fourAccess = fleet['four-wheel'] > 0 ? roadAccess : null;
-  const demand: CartDemandToday = { road: 0, other: 0, jobs: [] };
-  const hauls = new Map<DayTask, HaulPlan>();
-  if (access) {
-    planTaskHauls(state, dayTasks, hauls, fleet, access, fourAccess, coverage, landscape);
-  }
+  return dayTasks;
+}
 
-  const households = occupiedDwellings(state);
-  const repairNeeds = households.map((d) => repairNeedPerDay(d, day));
-  const repairNeed = repairNeeds.reduce((sum, n) => sum + n, 0);
-  const productivity = villageProductivity(state, coverage);
-  // řemeslník, který dnes nemá v dílně co dělat (plná zásoba, chybí vstup), pracuje se vsí
-  // (crafts.md – Podle potřeby); tesař, jen když nemá co vyrábět ani komu pomáhat (wagons.md)
-  // uhlíři (crafts.md – Rovnováha uhlíř – kovář): starší dílny na samostatné milíře, plán dne jednou
-  // – vytahání uhlí sedí s nošením, vozem i prací dílny
-  migrateBurners(state);
-  const burners = burnerPlans(state, day, coverage, productivity);
-  const resting = restingCrafters(state, day, coverage, productivity, obstacles, burners);
-  for (const [id, activity] of restingCarpenters(state, day, obstacles)) resting.set(id, activity);
-  // v den požáru hasí i řemeslníci – dílny dnes stojí (disasters.md – Hašení)
-  // uhlíř hasí taky: milíř ten den stojí bez dozoru (pálení se o den odloží, nic se nezkazí),
-  // proto se zruší i plán dne (vytahání uhlí, začátek milíře) – návrh Clauda
-  // v den nájezdu se skrývají všichni – dílny a milíře stojí jako při požáru (war.md – Ves během
-  // nájezdu nepracuje)
-  if (fireFighting(state, day) || raidHiding(state, day)) {
-    burners.clear();
-    for (const d of state.dwellings) if (d.workshop) resting.set(d.id, 'resting');
-  }
-  const crafts = craftHouseholds(state, resting);
-  // kdo jde pro kování k vozu, ve vsi ani v dílně nepracuje (wagons.md – Kování vozů)
-  const travelling = ironTravellers(state);
-  // vojvodova rodina (lord.md – Den rodiny): když cvičí, je mimo práci vsi jako dílny – vojvoda,
-  // jeho synové a ženy rodiny; ostatní v dvorci (zeť) pracují se vsí. Denní minimum dvorce kryje
-  // rodina (`manorLabor`), proto domácnost dvorce v minimu vsi chybí
-  // režim výcviku se rozhodl na začátku dne (`updateLordTraining` v `simulateDay`) – všichni
-  // čtenáři dne (pasení, výběr dílů, nákupy, práce) vidí týž stav
-  // kdo pracuje se vsí a chůze pro vodu – týž výběr jako scéna (`villagersToday`)
-  const family = trainingFamily(state, day);
-  const { villagers, manorSkip } = villagersToday(state, day, crafts);
-  // skladba dne podle období (population.md – Skladba dne podle ročního období): ve žních
-  // poloviční minimum a voda na pole, v zimě dříví, se sněhem bez vody
-  const harvestDay = harvestHandsDay(state, day);
-  const chores = dayChores(state, day, harvestDay);
-  const waterNeeds = householdWater(villagers, state.dwellings, manorSkip, chores);
-  const manor = family
-    ? manorLabor(state, day, coverage.pottery, productivity, family, chores)
-    : null;
-  // uhlí ke kováři (crafts.md – Uhlí a ruda kováře): co dnes uhlíři vytahají z vypálených milířů
-  // a do které kovárny se to nese
-  const deliveries = charcoalDeliveries(
-    state,
-    burnerDraws(state, day, coverage, productivity, burners),
-    landscape,
-  );
-  let drives: CartDrives | null | undefined;
-  const drivesOf = (): CartDrives | null =>
-    (drives ??= villageCartDrives(state, day, landscape, obstacles));
-  let drives4: CartDrives | null | undefined;
-  const drives4Of = (): CartDrives | null =>
-    (drives4 ??= villageCartDrives(state, day, landscape, obstacles, 'four-wheel'));
-  if (access) {
-    demand.jobs.push(
-      ...jobsDemand(state, { landscape, deliveries, drives: drivesOf, water: waterNeeds }),
-    );
-  }
-  // klády ke stavbám mají před ostatními jízdami přednost – kolik vozů si vezmou, se ví už teď
-  // (náklad až z práce, která zbude po úlohách dne); vozy, které zbudou, jedou pro uhlí, s osivem,
-  // nebo pro vodu (wagons.md – Co vozy vozí)
-  const anyCart = (): boolean =>
-    fleetCarts(fleet, 'two-wheel') + fleetCarts(fleet, 'four-wheel') > 0;
-  const logs =
-    access && anyCart()
-      ? logHaulCandidates(state, day, access, fourAccess, landscape, obstacles)
-      : [];
-  const logPlan = logs.length > 0 ? logHaulPlan(logs, fleet) : NO_HAUL;
-  // uhlí, ruda, osivo a voda – zbylé vozy (uhlí a vodu i čtyřkolák po cestě – wagons.md)
-  let jobs =
-    access && anyCart()
-      ? planCartJobs(state, {
-          fleet,
-          tasks: dayTasks,
-          hauls,
-          access,
-          landscape,
-          drives: drivesOf,
-          drives4: drives4Of,
-          deliveries,
-          resting,
-          water: waterNeeds,
-        })
-      : NO_CART_JOBS;
-  // kovář, který dnes pracuje se vsí (plná zásoba nástrojů), a přesto mu uhlíř vytahal uhlí – co
-  // nedonesou synové 10–13, donese jeho domácnost z práce vsi
-  const restingFetch = smithFetchPlans(state, day, deliveries, jobs, resting, true);
-  const restingCarry = [...restingFetch.values()].reduce((sum, f) => sum + f.household, 0);
+/** Vstupy rozdělení práce vsi a samo rozdělení (`allocate` – po vodě ráno znovu). */
+interface DayLabor {
+  readonly horses: ReturnType<typeof villageHorses>;
+  readonly horseCare: number;
+  readonly shoeingPlan: ReturnType<typeof planShoeing>;
+  readonly weeders: ReturnType<typeof weedingChildren>;
+  readonly allocate: (jobs: CartJobsDay) => DayAllocation;
+}
+
+/**
+ * Rozdělení práce vsi (`allocateDay`): péče o koně a kování, žně všemi rukama, pletí dětí a žen,
+ * výpravy k sousedům a jízdy vozů domluvené předem.
+ */
+function dayLabor(
+  ctx: WorkDay,
+  tasks: DayTaskList,
+  people: DayPeople,
+  cartJobs: DayCartJobs,
+): DayLabor {
+  const { state, day, coverage, landscape, daylight } = ctx;
+  const { dayTasks } = tasks;
+  const { crafts, villagers, manorSkip, harvestDay, chores, waterNeeds, manor, productivity } =
+    people;
+  const { restingCarry } = cartJobs;
   // péče o koně – hodina denně na koně z práce vsi (horses.md – Péče)
   const horses = villageHorses(state);
   const horseCare = horseCareLabor(horses, day);
@@ -710,19 +667,8 @@ export function work(
     (sum, p) => sum + (p.sex === 'female' ? laborPerDay(p, day) : 0),
     0,
   );
-  // dní do konce okna pletí i s dneškem (nejbližší konec mezi plodinami) – muži plejí jen, co by
-  // ženy a děti do konce okna nestihly
-  const weedEnd = Math.min(
-    ...dayTasks.filter((t) => t.name === 'weed' && t.remaining > EPSILON).map((t) => t.end),
-  );
-  const weedDaysLeft = Number.isFinite(weedEnd)
-    ? dayIndexOf(
-        weedEnd >= 12
-          ? { year: dateOfDayIndex(day).year + 1, month: 1, day: 1 }
-          : { year: dateOfDayIndex(day).year, month: weedEnd + 1, day: 1 },
-      ) - day
-    : undefined;
-  const allocate = (): DayAllocation =>
+  const weedDaysLeft = weedDaysLeftOf(dayTasks, day);
+  const allocate = (jobs: CartJobsDay): DayAllocation =>
     allocateDay({
       capacity: Math.max(0, villageLabor - restingCarry),
       // ženy řemeslníků: zbytek po domácnosti jde jen na lehčí polní práce se vsí (crafts.md)
@@ -749,23 +695,7 @@ export function work(
       ),
       minimumShare: chores.minimumShare,
       daylight,
-      // setí týž den hned za orbou a motykou (`FieldTaskEntry.sowRatio`) – práce úlohy setí plodiny;
-      // s trháním lnu rodina vojvody nepomáhá (fields.md – Len, návrh Clauda), trhají napřed ženy
-      // a děti (Martin 10. 11. 2026)
-      tasks: dayTasks.map(({ name, remaining, field }) => {
-        const ratio = field?.sowRatio ?? 0;
-        const index =
-          ratio > 0
-            ? dayTasks.findIndex((t) => t.name === 'sow' && t.field?.work === field?.work)
-            : -1;
-        const flax =
-          field && flaxHarvest(field.crop, field.name)
-            ? { noLordHelp: true as const, womenFirst: true as const }
-            : {};
-        return index >= 0
-          ? { name, remaining, follow: { index, ratio }, ...flax }
-          : { name, remaining, ...flax };
-      }),
+      tasks: allocationTasks(dayTasks),
       potteryCoverage: coverage.pottery,
       productivity,
       // lidé na výpravách k sousedům (trade.md – Doprava, Martin 19. 10. 2026): jejich práce jde po
@@ -785,388 +715,144 @@ export function work(
         jobs.ore.reduce((sum, o) => sum + o.manDays, 0) +
         jobs.clay.reduce((sum, o) => sum + o.manDays, 0),
     });
-  let allocation = allocate();
-  // voda ráno ve dny orby (wagons.md – Voda ráno ve dny orby; Martin 24. 10. 2026: „Rozhodne
-  // ekonomika“): pár od rádla sveze vodu, když orba, kterou ves dnes opravdu naplánovala, nechá
-  // páru volnou chvíli, nebo když okno orby má rezervu – rádla pak zorají o tolik méně; jen pár,
-  // který ráno vyjíždí z ohrady – pár na poli vodu nesveze (oxen.md – Spřežení zůstane na poli)
-  let morningTeam = 0;
+  return { horses, horseCare, shoeingPlan, weeders, allocate };
+}
+
+/**
+ * Dní do konce okna pletí i s dneškem (nejbližší konec mezi plodinami) – muži plejí jen, co by
+ * ženy a děti do konce okna nestihly; bez pletí dne nic.
+ */
+function weedDaysLeftOf(dayTasks: readonly DayTask[], day: number): number | undefined {
+  const weedEnd = Math.min(
+    ...dayTasks.filter((t) => t.name === 'weed' && t.remaining > EPSILON).map((t) => t.end),
+  );
+  return Number.isFinite(weedEnd)
+    ? dayIndexOf(
+        weedEnd >= 12
+          ? { year: dateOfDayIndex(day).year + 1, month: 1, day: 1 }
+          : { year: dateOfDayIndex(day).year, month: weedEnd + 1, day: 1 },
+      ) - day
+    : undefined;
+}
+
+/**
+ * Úlohy dne pro rozdělení práce: setí týž den hned za orbou a motykou (`FieldTaskEntry.sowRatio`)
+ * – práce úlohy setí plodiny; s trháním lnu rodina vojvody nepomáhá (fields.md – Len, návrh
+ * Clauda), trhají napřed ženy a děti (Martin 10. 11. 2026).
+ */
+function allocationTasks(dayTasks: readonly DayTask[]): Parameters<typeof allocateDay>[0]['tasks'] {
+  return dayTasks.map(({ name, remaining, field }) => {
+    const ratio = field?.sowRatio ?? 0;
+    const index =
+      ratio > 0 ? dayTasks.findIndex((t) => t.name === 'sow' && t.field?.work === field?.work) : -1;
+    const flax =
+      field && flaxHarvest(field.crop, field.name)
+        ? { noLordHelp: true as const, womenFirst: true as const }
+        : {};
+    return index >= 0
+      ? { name, remaining, follow: { index, ratio }, ...flax }
+      : { name, remaining, ...flax };
+  });
+}
+
+/**
+ * Voda ráno ve dny orby (wagons.md – Voda ráno ve dny orby; Martin 24. 10. 2026: „Rozhodne
+ * ekonomika“): pár od rádla sveze vodu, když orba, kterou ves dnes opravdu naplánovala, nechá
+ * páru volnou chvíli, nebo když okno orby má rezervu – rádla pak zorají o tolik méně; jen pár,
+ * který ráno vyjíždí z ohrady – pár na poli vodu nesveze (oxen.md – Spřežení zůstane na poli).
+ * Vrací jízdy vozů a rozdělení práce – s vodou ráno nové.
+ */
+function morningWaterDay(
+  ctx: WorkDay,
+  plough: PloughDay,
+  tasks: DayTaskList,
+  carts: DayCartPlan,
+  people: DayPeople,
+  jobs: CartJobsDay,
+  allocation: DayAllocation,
+  allocate: (jobs: CartJobsDay) => DayAllocation,
+): { jobs: CartJobsDay; allocation: DayAllocation } {
+  const { state, day, landscape, drivesOf, drives4Of } = ctx;
+  const { ploughCap, afield, ploughFactor } = plough;
+  const { dayTasks } = tasks;
+  const { ploughing, fleet, access } = carts;
+  const { waterNeeds } = people;
   const pairs = ploughing && !afield && access && !jobs.water ? ploughPairsHome(state, day) : 0;
-  if (pairs > 0 && fleet['two-wheel'] + fleet['four-wheel'] > 0) {
-    let planned = 0;
-    dayTasks.forEach((task, i) => {
-      if (task.name !== 'plough' || task.remaining <= EPSILON) return;
-      planned += ((allocation.taskAmounts[i] ?? 0) / task.remaining) * (task.field?.teamDays ?? 0);
-    });
-    // plán vody se počítá na kopii stavu – uložený břeh (`waterCart`) se zapíše, až voda vyhraje
-    const scratch: VillageState = { ...state };
-    const morning = morningWater({
-      plan: () =>
-        bestWaterPlan(
-          scratch,
-          {
-            'two-wheel': Math.min(1, fleet['two-wheel']),
-            'four-wheel': Math.min(1, fleet['four-wheel']),
-            oxen: DRAFT_OXEN.ard,
-          },
-          { landscape, drives: drivesOf, drives4: drives4Of, water: waterNeeds },
-        ),
-      capacity: ploughCap,
-      pairs,
-      planned,
-      windows: ploughWindowsToday(state, day, ploughFactor),
-    });
-    if (morning && scratch.waterCart) state.waterCart = scratch.waterCart;
-    if (morning && scratch.waterCart4) state.waterCart4 = scratch.waterCart4;
-    if (morning) {
-      morningTeam = (morning.share * ploughCap) / pairs;
-      cutPlough(dayTasks, ploughCap - morningTeam);
-      jobs = { ...jobs, carts: jobs.carts + morning.plan.carts, water: morning.plan };
-      allocation = allocate();
-    }
-  }
-  // pokrytí péče o koně – bez péče výcvik koně stojí (horses.md – Péče); ves bez koní ho nemá
+  if (!(pairs > 0 && fleet['two-wheel'] + fleet['four-wheel'] > 0)) return { jobs, allocation };
+  let planned = 0;
+  dayTasks.forEach((task, i) => {
+    if (task.name !== 'plough' || task.remaining <= EPSILON) return;
+    planned += ((allocation.taskAmounts[i] ?? 0) / task.remaining) * (task.field?.teamDays ?? 0);
+  });
+  // plán vody se počítá na kopii stavu – uložený břeh (`waterCart`) se zapíše, až voda vyhraje
+  const scratch: VillageState = { ...state };
+  const morning = morningWater({
+    plan: () =>
+      bestWaterPlan(
+        scratch,
+        {
+          'two-wheel': Math.min(1, fleet['two-wheel']),
+          'four-wheel': Math.min(1, fleet['four-wheel']),
+          oxen: DRAFT_OXEN.ard,
+        },
+        { landscape, drives: drivesOf, drives4: drives4Of, water: waterNeeds },
+      ),
+    capacity: ploughCap,
+    pairs,
+    planned,
+    windows: ploughWindowsToday(state, day, ploughFactor),
+  });
+  if (morning && scratch.waterCart) state.waterCart = scratch.waterCart;
+  if (morning && scratch.waterCart4) state.waterCart4 = scratch.waterCart4;
+  if (!morning) return { jobs, allocation };
+  const morningTeam = (morning.share * ploughCap) / pairs;
+  cutPlough(dayTasks, ploughCap - morningTeam);
+  const watered: CartJobsDay = {
+    ...jobs,
+    carts: jobs.carts + morning.plan.carts,
+    water: morning.plan,
+  };
+  return { jobs: watered, allocation: allocate(watered) };
+}
+
+/**
+ * Pokrytí péče o koně – bez péče výcvik koně stojí (horses.md – Péče); ves bez koní ho nemá.
+ * Kování koní z rozdělení práce do kroniky (horses.md – Kování).
+ */
+function horseCareDay(ctx: WorkDay, labor: DayLabor, allocation: DayAllocation): void {
+  const { state, day } = ctx;
+  const { horses, horseCare, shoeingPlan } = labor;
   if (horses.length > 0) {
     state.horsesCaredToday = horseCare > 0 ? Math.min(1, allocation.horseCare / horseCare) : 1;
   } else if (state.horsesCaredToday !== undefined) delete state.horsesCaredToday;
   state.chronicle.push(...finishShoeing(state, day, shoeingPlan, allocation.shoeing ?? 0));
+}
 
-  // polní práce dne – i odkud kam došla (rozdělení práce po dílech pro postavy, labor-report.ts);
-  // `amount` = postup úlohy (s vozy víc než práce vsi), `labor` = práce vsi bez honáků
-  const fieldWork: {
-    task: CropTask;
-    work: CropWork;
-    before: number;
-    after: number;
-    amount: number;
-    labor?: number;
-  }[] = [];
-  const haulWork: HaulWork[] = [];
-  // výmlat dne – na humnech a nouzově na udusané zemi (rozdělení práce – labor-report.ts)
-  const threshing = { floor: 0, ground: 0 };
-  // práce dne na obilných jamách – u které jámy (rozdělení práce)
-  let grainPits = null as ReturnType<typeof workGrainPits>;
-  let mowLabor: number | undefined;
-  // postup nutné seče dnes (s vozy víc, než na ni ves dala práce – svoz) – volná práce na seč (níž)
-  let mowWork = 0;
-  // co dnes pásl dospělý (plných pasáků – diet.md, Pasáci, Dospělý pasák)
-  let adultHerded = 0;
-  const mowingBefore = state.hay?.mowing?.done ?? 0;
-  // setí plodiny až po její orbě a kopání – seje se i půda zpracovaná dnes (`fieldTasks`)
-  const applyOrder = dayTasks.map((_, i) => i);
-  dayTasks.forEach((task, i) => {
-    if (task.name !== 'sow' || !task.field) return;
-    const work = task.field.work;
-    let last = -1;
-    dayTasks.forEach((t, j) => {
-      if (t.name === 'dig' && t.field?.work === work) last = j;
-    });
-    if (last <= i) return;
-    applyOrder.splice(applyOrder.indexOf(i), 1);
-    applyOrder.splice(applyOrder.indexOf(last) + 1, 0, i);
-  });
-  for (const i of applyOrder) {
-    const task = dayTasks[i]!;
-    const labor = allocation.taskAmounts[i] ?? 0;
-    // s vozy úloha postoupí víc, než na ni ves dala práce (wagons.md – Vůz)
-    const haul = hauls.get(task);
-    const amount = haul ? haulProgress(labor, haul) : labor;
-    if (access) {
-      const carried = taskCarryDemand(state, task, amount, access, roadAccess, coverage, landscape);
-      demand.road += carried.road;
-      demand.other += carried.other;
-    }
-    const crew = haul ? Math.min(labor, haul.crew) : 0;
-    if (haul && crew > 0) {
-      const seed = task.field?.name === 'sow';
-      haulWork.push({
-        job:
-          task.name === 'mow'
-            ? 'mow'
-            : task.name === 'orchard-harvest'
-              ? 'apples'
-              : seed
-                ? 'seed'
-                : 'harvest',
-        manDays: crew,
-        carts: haul.carts,
-        ...(haul.four ? { four: haul.four } : {}),
-      });
-      // co vozy převzaly – nejvýš podíl nošení celé úlohy (carts.ts – haulAvailable); jízdy svozu
-      // do ročního provozu cest (vyjeté cesty – roads.md); osivo zvlášť (wagons.md – Co vozy vozí)
-      const hauled = hauledBy(labor, haul);
-      if (seed) {
-        const work = task.field!.work;
-        work.seedHauled = (work.seedHauled ?? 0) + hauled;
-        if (work.seedReach) addHaulTrips(state, work.seedReach, hauled, 'two-wheel', cartLog);
-      } else {
-        const owner = task.field
-          ? task.field.work
-          : task.name === 'orchard-harvest'
-            ? state.orchardWork
-            : state.hay?.mowing;
-        if (owner) {
-          owner.hauled = (owner.hauled ?? 0) + hauled;
-          // jízdy do ročního provozu cest po druzích vozů
-          const four = haul.work > 1e-9 ? (haul.fourWork ?? 0) / haul.work : 0;
-          if (owner.cartReach4 && four > 0) {
-            addHaulTrips(state, owner.cartReach4, hauled * four, 'four-wheel', cartLog);
-          }
-          if (owner.cartReach) {
-            addHaulTrips(state, owner.cartReach, hauled * (1 - four), 'two-wheel', cartLog);
-          }
-          // snopy jedou z pole na humno (production-chains.md – Humno) – i tam se vyjede cesta
-          if (task.field?.name === 'harvest') {
-            const floors = threshingFloorHaulPoints(state);
-            if (floors.length > 0) {
-              addHaulTrips(state, { points: floors }, hauled * four, 'four-wheel', cartLog);
-              addHaulTrips(state, { points: floors }, hauled * (1 - four), 'two-wheel', cartLog);
-            }
-          }
-        }
-      }
-    }
-    if (task.field) {
-      const before = cropTaskDone(task.field.work, task.field.name);
-      // seje se jen zpracovaná půda – i dnes zoraná a zkopaná
-      const done =
-        task.field.name === 'sow'
-          ? Math.min(amount, cropTaskRemaining(task.field.work, 'sow'))
-          : amount;
-      addCropTaskWork(task.field.work, task.field.name, done);
-      const after = cropTaskDone(task.field.work, task.field.name);
-      // osivo zaseté části ze zásob v den setí (fields.md – Úroda, Osivo ze zásob)
-      if (task.field.name === 'sow' && after > before) {
-        sowKeepKg ??= seedKeepKg(state, day);
-        takeSeed(state, task.field.work, task.field.crop, partsById, sowKeepKg);
-      }
-      fieldWork.push({
-        task: task.field.name,
-        work: task.field.work,
-        before,
-        after,
-        amount,
-        ...(haul ? { labor: labor - crew } : {}),
-      });
-    } else if (task.thresh) {
-      const split = threshCrop(state, task.thresh, amount);
-      threshing.floor += split.floor;
-      threshing.ground += split.ground;
-    } else if (task.name === 'mow') {
-      mow(state, amount, day);
-      mowLabor = haul ? labor - crew : labor;
-      mowWork += amount;
-    } else if (task.name === 'slaughter') {
-      workSlaughter(state, amount);
-    } else if (task.name === 'grain-pit') {
-      grainPits = workGrainPits(state, day, amount, moreGrain, pitSite);
-    } else if (task.name === 'watch') {
-      payWatch(state, day, task.remaining, amount);
-    } else if (task.name === 'herding') {
-      adultHerded += amount;
-    } else {
-      workOrchards(state, amount);
-    }
-  }
-  // humna, na kterých se dnes mlátilo, nechátrají (demolition.md – Chátrání humna)
-  markThreshed(state, threshing.floor);
-  // uhlí a ruda vozem (crafts.md – Uhlí a ruda kováře): sedlák jede z práce vsi – vozy v pořadí
-  // přednosti, dokud na sedláka práce vsi zbyla; co vůz nepřiveze, donesou pěšky
-  const smithCarts = paySmithCarts(jobs, allocation.carting);
-  // kdo dnes nosí uhlí do pracujících kováren – synové 10–13 ten den nepasou
-  const fetchPlans = new Map([
-    ...restingFetch,
-    ...smithFetchPlans(state, day, deliveries, smithCarts, resting, false),
-  ]);
-  const busy = new Set([...fetchPlans.values()].flatMap((f) => f.youngsters.ids));
-  // měchař u tavby (production-chains.md – Kovář): syn 10–13, který šlape měch, ten den nepase
-  const bellows = smithBellowsToday(state, day, resting, busy);
-  for (const helper of bellows.values()) if (helper?.kind === 'son') busy.add(helper.personId);
-  // co dnes výrostci uhlídali – podle toho ves při porážce drží stádo (diet.md – Pasáci)
-  const herding = herdingDay(state, day, villageOxen(state), busy);
-  recordHerding(state, herding, adultHerded);
-  // lidé na cestách k sousedům – podíl z rozdělení dne (trade.md – Doprava): skupiny nákupu
-  // u sousedů ujdou den napřed (jdou pevně dny cesty – crafts.md, Nákup u sousedů), zbytek
-  // dostanou výpravy obchodu
-  const purchases = [...walkPurchases(state), ...ironTripShares(state)];
-  const purchaseLabor = Math.min(
-    allocation.away,
-    purchases.reduce((sum, p) => sum + p.manDays, 0),
-  );
-  const trade = workExpeditions(state, allocation.away - purchaseLabor);
-  // volná práce na seč (oxen.md – Stáda podle práce na seč): co po polních pracích zbylo – nutná
-  // seč a společná práce (stavby, opravy, pletí mužů a seč navíc, nevyužitá) – podle ní ves
-  // příští rok drží stáda; pletí mužů po stavbách ji nezmenší
-  recordMowingLabor(state, day, mowWork + allocation.common, coverage.tools);
-  let common = allocation.common;
-  // kácení u stromů, kam vůz dojede, před dnešní prací – co se dnes skácí, mohly odvézt vozy
-  const fellingBefore = access
-    ? reachableFelling(state, day, access, roadAccess, landscape, obstacles)
-    : new Map<Construction, { remaining: number; road: number }>();
-  // klády ke stavbám vozem tam, kam vůz dojede (wagons.md – Vůz) – honák a nakladač ze společné
-  // práce; vozy, které jely jinam (Co vozy vozí), je nevozí
-  if (logs.length > 0) {
-    const logWork = haulLogs(state, day, common, logPlan, logs, cartLog);
-    if (logWork) {
-      common -= logWork.manDays;
-      haulWork.push(logWork);
-    }
-  }
-  // voda v sudech (wagons.md – Co vozy vozí): posádka ve dnešním minimu, jízdy do provozu cest
-  if (jobs.water) {
-    const water = jobs.water;
-    cartLog.push({ ...water.spot, kind: water.kind, trips: water.trips });
-    haulWork.push({
-      job: 'water',
-      manDays: water.crew,
-      carts: water.carts,
-      ...(water.kind === 'four-wheel' ? { four: water.carts } : {}),
-      target: { kind: 'water', ...water.spot },
-    });
-  }
-  // hladovějící ves chytá ryby a zajíce hned za polními úlohami, před stavbami (wildlife.md –
-  // Drobná zvěř a ryby); jinak až ze zbytku práce po pletí mužů a seči navíc (níž)
-  let game: SmallGameResult = { manDays: 0, shares: [] };
-  if (state.hungry) {
-    game = smallGameDay(state, day, common, true);
-    common -= game.manDays;
-  }
-  // robota hostů (fortifications.md – Cena a stavba, vassalage.md – Lidé a robota; návrh Clauda):
-  // práce hostů jde napřed do rozestavěného opevnění vsi (veřejná stavba, rovným dílem po úsecích),
-  // co zbude, do společné práce – ostatní stavby rovným dílem, opravy obydlí, údržba valu, pletí
-  // mužů a seč navíc; polní úlohy dne hosté nedělají
-  const guestLabor = guestLaborToday(state, day) * daylight;
-  const corvee = guestLabor > EPSILON ? build(state, day, guestLabor, 0, 'fortification') : [];
-  if (guestLabor > EPSILON) {
-    common += Math.max(0, guestLabor - corvee.reduce((sum, c) => sum + c.manDays, 0));
-  }
-  // tesař pomáhá stavbám – jeho práce jde do staveb a zlevní jejich dřevěnou část (wagons.md)
-  const help = carpentryHelp(state, day, coverage, productivity, resting, (extra) =>
-    woodworkToday(state, day, common + extra),
-  );
-  const constructions = build(state, day, common + help.labor, help.coverage);
-  if (access) {
-    const felled = logsDemand(fellingBefore);
-    demand.road += felled.road;
-    demand.other += felled.other;
-  }
-  // opravy obydlí až z práce, kterou stavby nespotřebovaly (Martin 19. 10. 2026: „Opravy obydlí
-  // zařaď až za stavbu.“) – tesařova pomoc jde jen do staveb; obydlený dům stav neztrácí ani
-  // s nedodělkem (Martin: „obydlená budova nechátrá – obyvatelé ji opravují. Chátrá jenom
-  // prázdná.“)
-  const invested = constructions.reduce((sum, c) => sum + c.manDays, 0);
-  const afterBuild = afterConstructions(
-    Math.min(common, common + help.labor - invested),
-    repairNeed,
-  );
-  // údržba opevnění po úsecích hned po opravách obydlí, ze zbytku společné práce (fortifications.md – Životnost
-  // a oprava); ves bez opevnění nic nespotřebuje
-  const upkeep = fortUpkeep(state, afterBuild.left, landscape).used;
-  const freeLabor = afterBuild.left - upkeep;
-  const repairs = households.map((d, i) => {
-    const need = repairNeeds[i] ?? 0;
-    const manDays = repairNeed > 0 ? (afterBuild.repairs * need) / repairNeed : 0;
-    return { dwellingId: d.id, manDays };
-  });
-  decayEmptyDwellings(state, day, new Set(households.map((d) => d.id)));
-  // pletí mužů po stavbách (fields.md – Pletí jednou a rychle; Martin 9. 11. 2026: „pletí
-  // obstarají ženy a děti“): co děti a ženy do konce okna nestihnou, z práce, která zbude po
-  // stavbách, opravách obydlí a údržbě opevnění
-  let weedMen = 0;
-  for (const { index, manDays } of allocation.menWeed ?? []) {
-    const field = dayTasks[index]?.field;
-    if (!field) continue;
-    const wanted = Math.min(manDays, freeLabor - weedMen, cropTaskRemaining(field.work, 'weed'));
-    if (wanted <= EPSILON) continue;
-    const before = cropTaskDone(field.work, 'weed');
-    addCropTaskWork(field.work, 'weed', wanted);
-    const after = cropTaskDone(field.work, 'weed');
-    fieldWork.push({ task: 'weed', work: field.work, before, after, amount: after - before });
-    weedMen += after - before;
-  }
-  // seč navíc pro růst stád (oxen.md – Seno, dvě seče; Martin 19. 10. 2026: „pokud se něco staví,
-  // tak čas věnují primárně té stavbě“): jen z práce, která zbude po stavbách, opravách a pletí
-  // mužů – pěšky, bez vozů; co nestihne do konce okna, zůstane neposečené
-  const extraMow = Math.max(0, Math.min(freeLabor - weedMen, mowingRemaining(state, day)));
-  if (extraMow > EPSILON) mow(state, extraMow, day);
-  if (!state.hungry) {
-    game = smallGameDay(state, day, freeLabor - weedMen - extraMow, false);
-  }
-  // večer: spřežení, které dnes vyjelo a oralo, je u bloku; po zorání okna zpět do ohrady
-  settlePloughTeams(state, day, travels, teamsCap <= EPSILON, waiting);
-  const supply: SmithSupply = {
-    fetch: fetchPlans,
-    burners,
-    bellows,
-    oreCarts: new Map(
-      smithCarts.ore.map((o): [number, OreCartToday] => [
-        o.smithId,
-        { kg: o.kg, riderManDays: o.riderManDays },
-      ]),
-    ),
-    clayCarts: new Map(
-      smithCarts.clay.map((o): [number, OreCartToday] => [
-        o.smithId,
-        { kg: o.kg, riderManDays: o.riderManDays },
-      ]),
-    ),
-    // dávka rudy na celý vůz, když ves má vůz doma a jízda k rudišti ušetří práci proti nošení
-    cartBatch: (_dwelling, site, material) => {
-      if (haulCartsToday(state, day, false) <= 0) return null;
-      const all = drivesOf();
-      if (!all) return null;
-      if (site.cart === undefined) site.cart = oreCartDrive(state, site, all, material);
-      const footPerKg = dugBasketManDaysPerKg(material, site.walkM);
-      return oreCartOffer(site.cart, footPerKg, material) ? CARTS.loadKg['two-wheel'] : null;
-    },
-  };
-  const workshops = [
-    ...workCrafts(state, day, obstacles, coverage, productivity, resting, landscape, supply),
-    ...workCarpenters(state, day, obstacles, coverage, productivity, resting, help),
-  ];
-  if (access) {
-    demand.jobs.push(...oreDemand(state, workshops, drivesOf));
-    addCartDemand(state, day, demand, ploughing);
-  }
-  // praxe řemeslníků a učňů (crafts.md – Učení řemesla): dílny, které dnes pracovaly, a kovárny,
-  // kde synové nosili uhlí, i když kovář pracoval se vsí
-  if (crafts.size > 0 || restingFetch.size > 0) {
-    gainPractice(state, day, crafts, restingFetch, travelling);
-  }
-  // uhlí a ruda vozem – sedlák ze společné práce, jízdy do ročního provozu cest (wagons.md – Co
-  // vozy vozí, crafts.md – Uhlí a ruda kováře)
-  for (const c of smithCarts.charcoal) {
-    const trips = c.kg / (CART_JOBS.charcoal.loadKg * cartLoadRatio(c.kind));
-    cartLog.push({ x: c.x, z: c.z, kind: c.kind, trips });
-    haulWork.push({
-      job: 'charcoal',
-      manDays: c.manDays,
-      carts: 1,
-      ...(c.kind === 'four-wheel' ? { four: 1 } : {}),
-      target: {
-        kind: 'kiln',
-        id: c.burnerId,
-        ...c.at,
-        ...(c.kilnId !== undefined ? { kiln: c.kilnId } : {}),
-      },
-    });
-  }
-  for (const material of ['ore', 'clay'] as const) {
-    for (const o of smithCarts[material]) {
-      cartLog.push({ x: o.x, z: o.z, kind: 'two-wheel', trips: o.kg / CARTS.loadKg['two-wheel'] });
-      haulWork.push({
-        job: material,
-        manDays: o.manDays,
-        carts: 1,
-        target: { kind: material, id: o.smithId, ...o.site },
-      });
-    }
-  }
-  // všechny jízdy dne do provozu cest na jednom místě (wagons.md)
-  flushCartTrips(state, cartLog);
+/** Co rozdělení práce dne pro postavy čte z kroků dne (`laborReport`). */
+interface LaborReportInput {
+  readonly people: DayPeople;
+  readonly labor: DayLabor;
+  readonly allocation: DayAllocation;
+  readonly applied: AppliedTasks;
+  readonly common: CommonWork;
+  readonly travel: DayTravel;
+  readonly workshops: ReturnType<typeof craftsDay>;
+}
+
+/**
+ * Rozdělení práce dne pro postavy (`state.labor` – labor-report.ts). Vrací práci rodiny, kterou
+ * dnes žně spotřebovaly – napřed ženy a dcery, pak muži, vojvoda až nakonec (`lordFieldShares`);
+ * zbytek dne cvičí (`trainLordDay`).
+ */
+function laborReport(ctx: WorkDay, input: LaborReportInput): LordFieldShares {
+  const { state, day, coverage, daylight } = ctx;
+  const { people, labor, allocation, applied, common, travel, workshops } = input;
+  const { family, manor } = people;
+  const { weeders } = labor;
+  const { fieldWork, haulWork, threshing, grainPits, mowLabor, mowingBefore } = applied;
+  const { weedMen, game, extraMow, repairs, corvee, constructions } = common;
+  const { trade, purchases, herding } = travel;
   const hayMowing = state.hay?.mowing;
-  // práce rodiny, kterou dnes žně spotřebovaly – napřed ženy a dcery, pak muži, vojvoda až
-  // nakonec (`lordFieldShares`); zbytek dne cvičí (`trainLordDay`)
   const lordField = manor ? lordFieldShares(manor, allocation.lordField) : NO_LORD_FIELD;
   state.labor = laborDay(state, day, {
     allocation,
@@ -1208,14 +894,25 @@ export function work(
         }
       : {}),
   });
-  // roční průměr (starší ves začne průměrem 30 dní ještě bez dneška) a posledních 30 dní
-  state.commonLaborYearly = nextYearlyCommonLabor(yearlyCommonLabor(state), allocation.common);
-  state.commonLaborHistory.push(allocation.common);
+  return lordField;
+}
+
+/** Společná práce dne do ročního průměru (starší ves začne průměrem 30 dní ještě bez dneška) a posledních 30 dní. */
+function recordCommonLabor(state: VillageState, common: number): void {
+  state.commonLaborYearly = nextYearlyCommonLabor(yearlyCommonLabor(state), common);
+  state.commonLaborHistory.push(common);
   if (state.commonLaborHistory.length > COMMON_LABOR_HISTORY_DAYS) {
     state.commonLaborHistory.splice(0, state.commonLaborHistory.length - COMMON_LABOR_HISTORY_DAYS);
   }
-  // dřina: stihne ves dnešním tempem polní práce obou plodin do konce jejich oken? I výmlat ve
-  // svém okně jako ostatní polní práce (production-chains.md – Humno); výmlat po okně termín nemá
+}
+
+/**
+ * Dřina: stihne ves dnešním tempem polní práce obou plodin do konce jejich oken? I výmlat ve
+ * svém okně jako ostatní polní práce (production-chains.md – Humno); výmlat po okně termín nemá.
+ */
+function toilToday(ctx: WorkDay, owned: readonly FieldTaskEntry[], applied: AppliedTasks): boolean {
+  const { state, day } = ctx;
+  const { fieldWork, threshing } = applied;
   const pace = fieldWork.reduce(
     (sum, task) => sum + task.amount,
     threshing.floor + threshing.ground,
@@ -1235,7 +932,7 @@ export function work(
       })),
     ...threshSeasonTasks(state, day),
   ];
-  return { toil: isToilDay(seasonTasks, pace, day), lordField };
+  return isToilDay(seasonTasks, pace, day);
 }
 
 /**

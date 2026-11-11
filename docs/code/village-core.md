@@ -82,6 +82,20 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   dvorce kryje sama (`manorLabor`, domácnost dvorce je ve `householdElders` / `householdWater`
   vynechaná přes `skip`), co nepokryje, jde z práce vsi jako `manorMin`. `DayAllocation.lordField`
   = spotřebovaná práce rodiny; `work()` vrací podíl `lordField` pro `trainLordDay`.
+  **Rozložení `work()`** (11. 11. 2026, výsledek bit po bitu beze změny): `work()` v simulate-work.ts
+  jen skládá pojmenované kroky v pevném pořadí – každý krok má vlastní funkci se vstupem
+  a výstupem, sdílený stav dne nese kontext `WorkDay` (simulate-work-context.ts – vstupy, `month`,
+  `cartLog`, `partsById`, `daylight`, `demand`, líné `drivesOf` / `drives4Of`; výsledky kroků jako
+  `PloughDay`, `DayTaskList`, `DayCartPlan`, `DayPeople`, `DayCartJobs`, `DayTravel`). Pořadí:
+  `startWorkDay` (převod starších sazeb pletí) → `ploughDay` → `dayTaskList` (`fieldTasks`,
+  `threshDayTasks`, `grainPitDay`, `villageDayTasks`, řazení `dayTaskOrder`) → `dayCartPlan` →
+  `dayPeople` → `dayCartJobs` (simulate-work-people.ts) → `dayLabor` (vstupy a `allocate(jobs)`) →
+  `morningWaterDay` (voda ráno – nové `jobs` i rozdělení) → `horseCareDay` → `applyDayTasks`
+  (`taskApplyOrder`, svoz `recordTaskHaul`) → `smithHerdingTravel` → `commonWorkDay`
+  (`commonHauls` → drobná zvěř hladové vsi → `buildDay` → `freeLaborDay`; simulate-work-apply.ts) →
+  `settlePloughTeams` → `craftsDay` → `smithCartTrips` → `flushCartTrips` → `laborReport` →
+  `recordCommonLabor` → `toilToday`. Nový krok patří na své místo v tomto pořadí – přesun kroku
+  mění losy i mutace dne (zlatý otisk vsi).
 
 - **Den požáru** (disasters.md – Hašení; Martin 27. 10. 2026): `fireFighting(state, day)`
   (`firefighting.ts`, plán v `state.disasters.fireFight`) – `villagersToday` nezahrnuje dospělé
