@@ -1,6 +1,6 @@
 # Kamenné zdivo – stavební huť a vápno
 
-Stav: **návrh ke schválení** (11. 11. 2026). Zadání je Martinovo (citace níž), podrobnosti jsou
+Stav: **schváleno 11. 11. 2026** (Martin: „Ok“) – implementace spolu s kostelem. Zadání je Martinovo (citace níž), podrobnosti jsou
 návrh Clauda. Navazuje na [křesťanství](christianity.md) (stavby z kamene, kostel), [řemesla](crafts.md)
 (učení, lom), [vojvodovu rodinu](lord.md) a [hradiště](hillfort.md) (elita). Rešerše:
 [research/2026-11-10-stone-masonry.md](research/2026-11-10-stone-masonry.md).
