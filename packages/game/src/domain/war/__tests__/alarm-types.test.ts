@@ -162,7 +162,7 @@ describe('Ú1 – události útěku ve schránce vsi', () => {
     { kind: 'refuge-back', refId: 'c1:a1', foodKg: 20, herd: NO_HERD },
   ];
 
-  // Úloha 7 (9. 11. 2026): ves události použije – podrobně `village/__tests__/refugees.test.ts`.
+  // Úloha 7 (9. 11. 2026): ves události použije – podrobně `village/fortification/state/__tests__/refugees.test.ts`.
   it('(c) Úloha 7 je použije – posel doma, skupina dostižená, návrat vrátí ukryté', () => {
     const state = village(people);
     const events: VillageEvent[] = bodies.map((body, i) => ({

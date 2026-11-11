@@ -82,23 +82,24 @@ const DETERMINISTIC_LAYER_FILES = [
   // vyšlapané pěšiny – síť počítá server (vzdálenost chůze na pole) i prohlížeč (vzhled)
   'packages/game/src/domain/village/paths/**/*.ts',
   // natočené stavby – mřížky čtverců (fields.md – Natočené stavby) jdou do sítě pěšin
-  'packages/game/src/domain/village/square-grid.ts',
-  // obvod opevnění (fortifications.md – Obvod) – tvar, úseky a brány u kurzoru i na serveru
-  'packages/game/src/domain/village/fortification/**/*.ts',
+  'packages/game/src/domain/village/placement/square-grid.ts',
+  // obvod opevnění (fortifications.md – Obvod) – tvar, úseky a brány u kurzoru i na serveru; jen
+  // kořen složky – stav a stavba opevnění ve vsi (fortification/state/) do vrstvy nepatří
+  'packages/game/src/domain/village/fortification/*.ts',
   // síla vojska a pravidla války (war.md) – tažení počítá server i prohlížeč
   'packages/game/src/domain/war/**/*.ts',
   // varianty rozměrů obydlí (population.md – Varianty rozměrů) – tvar staveb u kurzoru i na serveru
-  'packages/game/src/domain/village/dwelling-shape.ts',
+  'packages/game/src/domain/village/buildings/dwelling-shape.ts',
   // plán sídla správce (steward.md – Mapa hodnot krajiny) – ukládá se do stavu, dopočet po kouscích
   // ho musí zopakovat
-  'packages/game/src/domain/village/steward-land.ts',
-  'packages/game/src/domain/village/steward-plan.ts',
+  'packages/game/src/domain/village/steward/steward-land.ts',
+  'packages/game/src/domain/village/steward/steward-plan.ts',
   // den správce (steward.md – Rozhodovací pořadí) – stavby správce jsou ve stavu vsi
-  'packages/game/src/domain/village/steward.ts',
-  'packages/game/src/domain/village/steward-extras.ts',
-  'packages/game/src/domain/village/steward-rebuild.ts',
+  'packages/game/src/domain/village/steward/steward.ts',
+  'packages/game/src/domain/village/steward/steward-extras.ts',
+  'packages/game/src/domain/village/steward/steward-rebuild.ts',
   // hromady klád u cesty (forest.md – Mýcení a hromada klád) – místo se ukládá do stavu vsi
-  'packages/game/src/domain/village/log-piles.ts',
+  'packages/game/src/domain/village/forest/log-piles.ts',
   // kostra světa (world-skeleton.md) – řeky a stezky světa i výřez mapy počítá server i prohlížeč
   'packages/game/src/domain/world/skeleton/**/*.ts',
   'packages/game/src/domain/landscape/skeleton/**/*.ts',
