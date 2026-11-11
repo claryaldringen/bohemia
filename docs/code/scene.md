@@ -29,6 +29,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   - `scene-pointer.ts` – `ScenePointer`: políčko pod kurzorem, kliknutí a dvojklik, výběr,
     brána opevnění, pick terénu (`pickGround`); čisté převody kamera → obrazovka a záběr kamery
     na zemi v `scene-projection.ts`.
+    Picking Babylonu (side-effect import `@babylonjs/core/Culling/ray`) se registruje **první**
+    v `landscape-scene.ts` – registrace až se `scene-pointer.ts` rozbila tah bodu opevnění (e2e).
   - `scene-selection.ts` – `SceneSelection`: výběr rozhraní a stav vybraného člověka, spřežení
     a vozu pro posluchače; `scene-war.ts` – `SceneWarView`: vojsko a poslední snímek války.
   - `placement-factory.ts` – `createPlacement`: druh umisťování (body opevnění, malování po
