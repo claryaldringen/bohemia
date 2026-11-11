@@ -334,6 +334,8 @@ export class LandscapeScene {
   private readonly pickRay = PickingRay.Zero();
   /** Vývojový ukazatel výkonu (jen /dev/landscape – `enablePerfStats`). */
   private perf: ScenePerf | null = null;
+  /** Pole dostala pás pěšin ze stálých tras před první stavbou (`applyVillage`). */
+  private pathTrackPrimed = false;
   /** Odložené předání pásu pěšin dne polím (`VillagePaths.onChange`). */
   private pathTrackTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -636,6 +638,7 @@ export class LandscapeScene {
     // Vyšlapané pěšiny – síť se počítá z vsi a krajiny (odloženě), lidé po ní chodí; pevné cesty
     // a stromy u nich z dat vsi (roads.md).
     this.paths?.dispose();
+    this.pathTrackPrimed = false;
     this.paths = new VillagePaths(this.scene, {
       landscape,
       layer: obstacles,
@@ -1667,6 +1670,13 @@ export class LandscapeScene {
     // úvozy a náspy vozových cest (roads.md – Vozová cesta) – terén napřed, ať se pole, cesty
     // a pařezy položí už na nový
     const terrainChanged = this.applyTerrainEdits();
+    if (!this.pathTrackPrimed) {
+      // první ves: pole se postaví rovnou s pásem pěšin dne ze stálých tras – bez něj by se bloky
+      // u pěšin stavěly dvakrát (při otevření hry ≈ 0,6 s navíc); síť pěšin pak dá týž pás
+      this.pathTrackPrimed = true;
+      const track = this.paths?.initialTrack(this.villageState) ?? null;
+      if (track) village.setPathTrack(track);
+    }
     const changed = village.update(this.villageState) || terrainChanged;
     const changes = this.villageState.obstacles ?? NO_OBSTACLE_CHANGES;
     const sacred = this.villageState.sacred;

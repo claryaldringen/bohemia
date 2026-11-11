@@ -33,6 +33,8 @@ export class ScenePerf {
     engine: AbstractEngine,
     private readonly renderer: string,
   ) {
+    // rozbor v konzoli prohlížeče (meshe v záběru, trojúhelníky po meshích) – jen s ukazatelem
+    Reflect.set(globalThis, '__bohemiaScene', scene);
     this.sceneMeter = new SceneInstrumentation(scene);
     this.sceneMeter.captureFrameTime = true;
     this.sceneMeter.captureActiveMeshesEvaluationTime = true;
@@ -130,6 +132,9 @@ export class ScenePerf {
   }
 
   dispose(): void {
+    if (Reflect.get(globalThis, '__bohemiaScene') === this.scene) {
+      Reflect.deleteProperty(globalThis, '__bohemiaScene');
+    }
     this.sceneMeter.dispose();
     this.engineMeter.dispose();
   }

@@ -170,6 +170,13 @@ export class VillagePaths {
   /** Terén okna s překážkami krajiny – přepočítá se jen s novým oknem nebo změnou překážek. */
   private obstacleTerrain: { key: string; terrain: PathTerrain } | null = null;
   private network: PathNetwork | null = null;
+  /**
+   * Pěšiny a pás pod nimi jsou ze stálých tras vsi bez sítě pěšin (`recompute` – hra má trasy ze
+   * serveru, síť by se počítala jen pro teplotní mapu a čísla vývojové stránky).
+   */
+  private routesOnly = false;
+  /** Pás z `initialTrack` – `show` ho pro tytéž čáry a touž ves použije znovu. */
+  private primed: { lines: PathLine[]; village: SceneVillage; track: Track } | null = null;
   /** Pás pěšin dne pro masku polí (pod pěšinou obilí neroste – track-mask.ts). */
   private track: Track | null = null;
   private router: VillagerPaths | null = null;
@@ -221,6 +228,10 @@ export class VillagePaths {
     const key = pathNetworkKey(village);
     if (key === this.key) return;
     this.key = key;
+    this.scheduleRecompute();
+  }
+
+  private scheduleRecompute(): void {
     if (this.timer !== null) clearTimeout(this.timer);
     this.timer = setTimeout(() => {
       this.timer = null;
@@ -234,8 +245,7 @@ export class VillagePaths {
    */
   private updateRouteLines(village: SceneVillage): void {
     const list = village.routes?.list ?? null;
-    const cells = village.wear?.cells ?? null;
-    const key = list && cells !== null ? `${village.routes?.key}|${village.wear?.day ?? ''}|` : '';
+    const key = routeLinesKey(village);
     const linesChanged = key !== this.linesKey;
     if (linesChanged) {
       this.linesKey = key;
@@ -261,13 +271,19 @@ export class VillagePaths {
       this.env.onChange();
     }
     if (!linesChanged) return;
-    if (this.network && this.key !== '') {
+    // pěšiny jen ze stálých tras, které zmizely – čáry dá až síť pěšin
+    if (this.routesOnly && !this.routeLines) {
+      this.scheduleRecompute();
+      return;
+    }
+    if ((this.network || this.routesOnly) && this.key !== '') {
       const network = this.network;
+      const routes = this.routesOnly;
       const stats = this.stats;
       if (this.showTimer !== null) clearTimeout(this.showTimer);
       this.showTimer = setTimeout(() => {
         this.showTimer = null;
-        if (!this.disposed && stats) this.show(network, stats);
+        if (!this.disposed && stats) this.show(network, stats, routes);
       }, 0);
     }
   }
@@ -296,6 +312,28 @@ export class VillagePaths {
       };
     }
     return this.fieldWalk.ground;
+  }
+
+  /**
+   * Pás pěšin dne ze stálých tras vsi ještě před první sítí pěšin – pole se při otevření hry
+   * postaví rovnou s ním (jinak se bloky u pěšin staví dvakrát: bez pásu a po síti znovu). Pás
+   * je týž, jaký pak dá `show` (čáry stálých tras, ne čáry sítě); bez tras, bez okna pěšin nebo
+   * po prvním `show` null – pás přijde jako dřív se sítí.
+   */
+  initialTrack(village: SceneVillage): Track | null {
+    if (this.disposed || this.network || this.routesOnly) return null;
+    const landscape = this.env.landscape;
+    if (!villagePathBounds(village, landscape)) return null;
+    const lines = routeLinesOf(village, pathCellM(landscape));
+    if (!lines || lines.length === 0) return null;
+    // čáry tras si `update` nechá (týž klíč) a `show` pro touž ves vrátí týž pás – pole se pak
+    // nepřestavují; `pathTrack` ho vrací hned, jinak by nový chodec (`onChange` z `update`) polím
+    // pás zase vzal
+    this.linesKey = routeLinesKey(village);
+    this.routeLines = lines;
+    this.track = dayTrackOf(lines, sownWidthOf(village), roadFade(village.roads ?? []));
+    this.primed = { lines, village, track: this.track };
+    return this.track;
   }
 
   /** Přepočítá hned (bez čekání) – testovací háčky a vývojová stránka. */
@@ -368,6 +406,13 @@ export class VillagePaths {
   /** Vývojová volba: teplotní mapa provozu (cest za den) přes okno pěšin. */
   setHeatmap(enabled: boolean): void {
     this.heatmap = enabled;
+    // provoz zná jen síť pěšin – pěšiny ze stálých tras ji nepočítaly
+    if (enabled && this.routesOnly && !this.network) {
+      if (this.timer !== null) clearTimeout(this.timer);
+      this.timer = null;
+      this.recompute(false);
+      return;
+    }
     this.rebuildHeatmap();
     this.env.requestRender();
   }
@@ -502,6 +547,23 @@ export class VillagePaths {
       this.show(null, { ms: 0, terrainMs: 0, cells: 0, trips: 0, lines: 0, ...counts });
       return;
     }
+    // ves se stálými trasami (hra): pěšiny dne i pás pod nimi se kreslí z tras, síť pěšin
+    // (≈ 0,3 s při každé změně dílů polí – při pohybu kamery zaškobrtnutí) se nepočítá; jen pro
+    // teplotní mapu provozu (vývojová stránka)
+    if (this.routeLines && !this.heatmap) {
+      const stats = { ms: 0, terrainMs: 0, cells: 0, trips: 0, lines: this.routeLines.length };
+      if (this.showTimer !== null) clearTimeout(this.showTimer);
+      this.showTimer = null;
+      if (!defer) {
+        this.show(null, { ...stats, ...counts }, true);
+        return;
+      }
+      this.showTimer = setTimeout(() => {
+        this.showTimer = null;
+        if (!this.disposed) this.show(null, { ...stats, ...counts }, true);
+      }, 0);
+      return;
+    }
     const landscape = this.env.landscape;
     const window = pathWindowFor(landscape, bounds);
     const layer = this.env.layer;
@@ -554,14 +616,17 @@ export class VillagePaths {
     }, 0);
   }
 
-  private show(network: PathNetwork | null, stats: PathStats): void {
+  private show(network: PathNetwork | null, stats: PathStats, routesOnly = false): void {
     this.network = network;
+    this.routesOnly = routesOnly;
+    const primed = this.primed;
+    this.primed = null;
     this.stats = stats;
     for (const mesh of this.meshes) mesh.dispose();
     this.meshes = [];
     this.track = null;
     const lines = this.routeLines ?? network?.lines ?? [];
-    if (network && lines.length > 0) {
+    if ((network || routesOnly) && lines.length > 0) {
       // pěšina dne se v pevné cestě ztrácí – cesta se kreslí zvlášť z dat
       const fade = roadFade(this.roads);
       const width = sownWidthOf(this.village);
@@ -570,17 +635,10 @@ export class VillagePaths {
         if (mesh.getTotalIndices() > 0) this.meshes.push(mesh);
         else mesh.dispose();
       }
-      // pod pěšinou dne obilí neroste – pás v šířce prošlapané trávy (přes osetý díl úzká stopa);
-      // síla po čtvrtinách, ať drobné změny provozu bloky polí nepřestavují každý den
-      this.track = dayPathTrack(
-        lines.map((line) => ({
-          ...line,
-          strength: line.strength.map((v) => (v > 0 ? Math.ceil(v * 4) / 4 : 0)),
-        })),
-        PATH_WORN_LAYER,
-        width,
-        fade,
-      );
+      this.track =
+        primed && primed.lines === lines && primed.village === this.village
+          ? primed.track
+          : dayTrackOf(lines, width, fade);
     }
     for (const mesh of this.meshes) mesh.setEnabled(this.visible);
     this.rebuildHeatmap();
@@ -772,6 +830,34 @@ export function heatColor(trips: number): [number, number, number] {
 }
 
 /** Šířka pěšiny v bodě: přes osetý díl (zelí, obilí) jen úzká stopa, jinde plná. */
+/** Klíč čar stálých tras (trasy a den vyšlapanosti); bez tras nebo vyšlapanosti prázdný. */
+function routeLinesKey(village: SceneVillage): string {
+  const list = village.routes?.list ?? null;
+  const cells = village.wear?.cells ?? null;
+  return list && cells !== null ? `${village.routes?.key}|${village.wear?.day ?? ''}|` : '';
+}
+
+/**
+ * Pás pěšin dne z čar (`show`, `initialTrack`): pod pěšinou dne obilí neroste – pás v šířce
+ * prošlapané trávy (přes osetý díl úzká stopa); síla po čtvrtinách, ať drobné změny provozu bloky
+ * polí nepřestavují každý den.
+ */
+function dayTrackOf(
+  lines: readonly PathLine[],
+  width: (x: number, z: number) => number,
+  fade: ((x: number, z: number) => number) | undefined,
+): Track {
+  return dayPathTrack(
+    lines.map((line) => ({
+      ...line,
+      strength: line.strength.map((v) => (v > 0 ? Math.ceil(v * 4) / 4 : 0)),
+    })),
+    PATH_WORN_LAYER,
+    width,
+    fade,
+  );
+}
+
 function sownWidthOf(village: SceneVillage | null): (x: number, z: number) => number {
   const sown = (village?.fields ?? [])
     .flatMap((f) => f.parts)
