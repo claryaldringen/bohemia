@@ -8,7 +8,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   žijících v `VillageState.ancestors` (id a rodiče, jen dokud jsou rodičem někoho žijícího –
   `removePeople`), dcery vdané pryč a lidé daní sousedovi v `emigrants` (se směrem). `areCloseKin` (do bratranců), `hasCloseKinIn` (příbuzní ve vsi ve
   směru – war.md), `familyCounts` (muži, ženy, děti, starší, páry – panel obydlí a pohlaví postav).
-  Staré vsi převede `withKinship` (v `updateVillage` i na začátku `advanceVillage`, bez příznaku –
+  Staré vsi převede `withKinship` (seznam převodů – village-core.md, bez příznaku –
   ves, kde mají všichni pohlaví, se nemění; `availableSettlers` počítá na převedené).
   **Porody** (`population.ts`) jen manželským párům: žena 16–44 s manželem od 16 let v témže domě,
   chlapec `BOY_SHARE` (105/205); šance podle věku ženy (`maritalFertility` – přirozená plodnost
@@ -97,7 +97,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     muž rodu bez jména, trvalé, u vojvody i do `lords`, kronika `line-named`; use-case
     `nameLineManInVillage` (`application/name-line-man.ts`, přes `updateLivingVillage`). Svatba
     muže rodu (`marriage`, `bride-from-outside`) nese v kronice `name` ženicha.
-  - **Převod** `withDynasty` (v obou řetězech převodů za `withKinship`, jen když `dynasty` chybí):
+  - **Převod** `withDynasty` (v seznamu převodů za `withKinship`, jen když `dynasty` chybí):
     vojvoda = nejstarší muž dvorce i chlapec, bez muže v dvorci nejstarší muž vsi, který se se
     ženou a svobodnými dětmi přestěhuje do dvorce (`moveIntoManor`); bez muže ve vsi ves bez
     rodu. `line` vojvodovi a žijícím potomkům po meči (`parentIndex`, i přes zemřelé předky),
@@ -728,7 +728,7 @@ deadlineDay`; vyrazí hned, správce na cestě vypnutý, první zemnici umístí
 - **Stav** `VillageState.awaitingLord?: { sinceDay; appointee?: { fromVillageId, personId,
 arrivesDay } }` (volitelné). Nastaví ho `succeedLord` (`succession.ts`), když po smrti vojvody
   není ve vsi žádný muž rodu (`dynasty.lordId = null`); starší ves bez vojvody ji dostane z
-  `withAwaitingLord` (v `advanceVillageSteps` za `withDynasty`; den = `dynasty.endedDay`, jednou
+  `withAwaitingLord` (v seznamu převodů za `withDynasty`; den = `dynasty.endedDay`, jednou
   a idempotentně, jen když `lordId === null`).
 - **Doména** `domain/village/appoint-lord.ts` (čisté funkce): `appointCandidate(villages,
 targetVillageId, day, exclude)` – nejstarší muž rodu od `APPOINT_LORD.minAge` (16) let v jiné

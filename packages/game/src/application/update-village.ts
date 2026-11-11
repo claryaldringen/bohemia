@@ -6,49 +6,13 @@ import {
   isVillageAsleep,
   isVillageExtinct,
   isVillageTravelling,
-  withForestDistances,
-  withKinship,
-  withLivestockLand,
-  withWeatherSeed,
-  withWildlife,
-  withManor,
-  withMergedFields,
-  withMergedRoads,
-  withRoadSwaths,
-  withObstacleClearing,
-  withPenGrace,
-  withoutTrampledParts,
-  withForestClearing,
-  withRoadLogPiles,
-  withHorsePenStock,
-  withPenSpecies,
-  withOxen,
-  withPlots,
-  withRoutes,
-  withoutWalkStages,
-  withPlannedLining,
-  withWearCells,
-  withWearSeed,
-  withVisitsSeed,
-  withRoadCondition,
-  withRoadsV2,
+  migrateVillage,
+  withoutBuiltOverGrainPits,
+  withoutBuiltOverRuins,
   withRoadsRebuiltSteps,
   withRoadsRepairedSteps,
-  withDynasty,
-  withBridgedRoads,
-  withCharredRuins,
-  withDwellingShapes,
-  withoutBuiltOverRuins,
-  withoutBuiltOverGrainPits,
-  withGrainPits,
-  withoutForeignGoods,
-  withoutSameMapVillages,
-  withCattleKinds,
-  withIronBarsTrade,
-  withSeason,
-  withSowingRotation,
-  withThreshingGrace,
-  withToolEquipment,
+  withRoadsV2,
+  withRoutes,
   nextYearEnd,
   villageYearRow,
   type VillageEvent,
@@ -62,6 +26,14 @@ import type { Pause, VillageRecord, VillageRepository, VillageResult } from './v
 const MAX_ATTEMPTS = 5;
 
 export const NO_VILLAGE = 'Ves ještě není založená.';
+
+/** Pole selhání převodů (village-core.md – Převody starších vsí) a co se do logu napíše. */
+const MIGRATION_FAILURES: readonly (readonly [keyof VillageState, string])[] = [
+  ['sowingRotationFailed', 'převod na osevní postup'],
+  ['wildlifeFailed', 'převod zvěře'],
+  ['horsePenStockFailed', 'převod ohrad koní'],
+  ['forestClearingFailed', 'převod klučení lesa'],
+];
 /** Ves vymřela – žádná akce v ní nejde (population.md – Hlad a vymření). */
 export const VILLAGE_EXTINCT = 'Ves vymřela – nikdo v ní nežije.';
 
@@ -172,30 +144,16 @@ async function withPauses(
 /**
  * Načte ves, dopočítá ji do dneška, provede změnu a uloží s kontrolou verze. Při souběhu
  * (verze nesouhlasí) to zkusí znovu nad čerstvým stavem. Nezměněný stav se neukládá.
- * Vsi z doby před vrstvou překážek nejdřív doplní odstraněné překážky (`withObstacleClearing`)
- * a obydlím z doby před palivem vzdálenost k lesu (`withForestDistances`), polozemnicím z doby
- * před pozemky pozemek (`withPlots`), stavby z doby před variantami rozměrů variantu, nebo příznak
- * dnešního tvaru (`withDwellingShapes` – population.md), stará navazující pole se sloučí (`withMergedFields`) a vsím
- * z doby před dobytkem se doplní výchozí stádo a louka a les pro pastvu (`withLivestockLand`)
- * a pevné cesty z doby před slučováním úseků se spojí ve falešných rozcestích a stezky bez úseků je
- * znovu najdou po síti cest (`withMergedRoads`)
- * (díry a souběžné cesty uklidí `withRoadsV2` po trasách), hotové upravené cesty a stezky lesem dostanou
- * průsek (`withRoadSwaths`) a lidem z doby před příbuzenstvím se doplní
- * pohlaví a manželé (`withKinship`), dobytek v obchodu dostane tři druhy (`withCattleKinds` –
- * trade.md, Dobytek ve třech druzích) a ves přijde o zboží zvenku, které obchod už nezná
- * (`withoutForeignGoods`), ohrady uložené bez druhu ho dostanou (`withPenSpecies` – oxen.md,
- * Ohrady podle druhu), spřežení voly po kusech (`withOxen`), stáda roční odklad míst ohrad od
- * dneška (`withPenGrace`) a ves z doby před snopy rok odkladu mlácení bez humna od dneška
- * (`withThreshingGrace` – production-chains.md, Starší vsi) a zásoby obilí z doby před jamami
- * se uloží do obilných jam (`withGrainPits` – production-chains.md, Obilné jámy) – před dopočtem,
- * aby se s nimi už počítalo; pak se uloží.
+ * Starší ves před dopočtem projde převody (`migrateVillage` – seznam `VILLAGE_MIGRATIONS`,
+ * village-core.md – Převody starších vsí) i s převody jen pro načtení (den načtení, seed počasí
+ * mapy – úložiště bez počasí (null) ji nechá bez něj), aby se s nimi už počítalo; pak se uloží.
  * Ves se dopočítává s vrstvou překážek a krajinou sídla (přestavby kácí stromy, polozemnice bez
  * pozemku se přestaví na volném políčku). Zbytky jam po zaniklých obydlích pod novou stavbou po
  * změně zmizí (`withoutBuiltOverRuins`), obilné jámy taky – zrno se přendá
  * (`withoutBuiltOverGrainPits`). Ves bez tras (nebo s trasami jiného rozložení) si je po dopočtu
- * spočítá (`withRoutes` – paths.md, Kdy se trasy počítají a co se ukládá). S `pause` dělá dopočet
- * mezi dny přestávky. Ves dostane kopii seedu počasí své mapy (`withWeatherSeed` – disasters.md,
- * Kraj) – úložiště bez počasí (null) ji nechá bez něj.
+ * spočítá (`withRoutes` – paths.md, Kdy se trasy počítají a co se ukládá) a po nich jednou uklidí
+ * a přestaví síť cest (převody po dopočtu – mimo seznam). S `pause` dělá dopočet mezi dny
+ * přestávky.
  * Před dopočtem si vyžádá události schránky vsi z dopočítávaných dnů (`villages.inbox` –
  * village-core.md, Schránka vsi) a dopočet je použije na začátku jejich dne. Zápis do schránky
  * zvedá verzi vsi, takže událost zapsaná během dopočtu se projeví konfliktem verze při uložení
@@ -222,119 +180,24 @@ export async function updateVillage(
     const day = heldDay(today, record.state.lastDay, limits?.get(villageId));
     // seed počasí mapy se nemění – stačí se zeptat jednou
     weatherSeed ??= await villages.weatherSeedOf(record.settlementId);
-    // vsi rodu na téže mapě jsou zrušené (migration.md) – zbytky se zahodí
-    const rotated = withSowingRotation(
-      withSeason(withWeatherSeed(withoutSameMapVillages(record.state), weatherSeed)),
-    );
-    // převod na osevní postup selhal při tomto načtení – ves jde dál, chyba se zapíše do logu
-    const failure = rotated.sowingRotationFailed;
-    if (failure !== undefined && record.state.sowingRotationFailed === undefined) {
-      console.error(`Ves ${villageId}: převod na osevní postup selhal: ${failure}`);
-    }
-    // ohrady uložené dřív dostanou druh (oxen.md – Ohrady podle druhu); ves z doby před snopy
-    // rok odkladu mlácení od dneška (production-chains.md – Starší vsi); zásoba nástrojů do
-    // vybavení domácností a hřivny místo nástrojů v obchodu (production-chains.md – Kovář)
-    const migrated = withThreshingGrace(
-      withPenGrace(
-        withPenSpecies(
-          withoutForeignGoods(
-            withIronBarsTrade(
-              withToolEquipment(
-                withCattleKinds(
-                  // ves z doby před rodem dostane rod vojvody (lord.md – Převod starších vsí)
-                  withDynasty(
-                    withKinship(
-                      // hotové upravené cesty a stezky lesem dostanou průsek (roads.md – Průsek lesem)
-                      withRoadSwaths(
-                        withMergedRoads(
-                          withWildlife(
-                            withLivestockLand(
-                              withMergedFields(
-                                // varianty rozměrů domů (population.md) – po pozemcích, ať dům zná svůj
-                                withDwellingShapes(
-                                  withPlots(
-                                    withForestDistances(
-                                      withObstacleClearing(rotated, obstacles),
-                                      landscape,
-                                    ),
-                                    landscape,
-                                    obstacles,
-                                  ),
-                                  landscape,
-                                  obstacles,
-                                ),
-                              ),
-                              landscape,
-                            ),
-                            landscape,
-                          ),
-                          landscape,
-                        ),
-                        obstacles,
-                        landscape,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        day,
-      ),
-      day,
-    );
-    // dvorec vojvody – starší ves ho dostane (nejstarší obydlí, trade.md); spřežení ohrad uložených
-    // dřív se převedou na voly po kusech (oxen.md – Voli po kusech); ves z doby před vyšlapaností ji
-    // dostane podél loňských úseků nad prahem (paths.md – Převod starých vsí, bod 3) a cesty stav kusů
-    // z historie provozu (bod 2); pošlapaná úroda z doby, kdy ji vozy šlapaly, zmizí a vyšlapanost
-    // políček 7,5 m se rozdělí do buněk 3,75 m a otisk stadií dílů zmizí (paths.md – Stálé trasy,
-    // pravidla 1, 4 a 5)
-    const base = withRoadCondition(
-      withVisitsSeed(
-        withWearCells(
-          withWearSeed(
-            withManor(
-              withHorsePenStock(
-                withOxen(
-                  withBridgedRoads(
-                    withoutTrampledParts(
-                      withPlannedLining(withoutWalkStages(withCharredRuins(migrated))),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-    if (base.wildlifeFailed !== undefined && record.state.wildlifeFailed === undefined) {
-      console.error(`Ves ${villageId}: převod zvěře selhal: ${base.wildlifeFailed}`);
-    }
-    if (base.horsePenStockFailed !== undefined && record.state.horsePenStockFailed === undefined) {
-      console.error(`Ves ${villageId}: převod ohrad koní selhal: ${base.horsePenStockFailed}`);
-    }
-    // ves z doby před obilnými jámami uloží zásoby do jam u humna nebo dvorce (production-chains.md
-    // – Obilné jámy)
-    const pitted = withGrainPits(base, landscape, obstacles);
-    // rozestavěné díly v lese dostanou fáze klučení (forest.md – Klučení lesa pro pole, Starší vsi)
-    // dřívější hromada klád u vsi se stane hromadou na svém dnešním místě (forest.md – Mýcení
-    // a hromada klád, Starší vsi)
-    const attached = withRoadLogPiles(withForestClearing(pitted, obstacles), landscape);
-    if (
-      attached.forestClearingFailed !== undefined &&
-      record.state.forestClearingFailed === undefined
-    ) {
-      console.error(
-        `Ves ${villageId}: převod klučení lesa selhal: ${attached.forestClearingFailed}`,
-      );
+    // převody starších vsí (village-core.md – Převody starších vsí) – před dopočtem, ať se s nimi
+    // už počítá; dopočet je projde znovu bez převodů jen pro načtení (už nic nezmění)
+    const migrated = migrateVillage(record.state, {
+      obstacles,
+      landscape,
+      load: { today: day, weatherSeed, landscape, obstacles },
+    });
+    // převod selhal při tomto načtení – ves jde dál, chyba se zapíše do logu
+    for (const [key, what] of MIGRATION_FAILURES) {
+      if (migrated[key] !== undefined && record.state[key] === undefined) {
+        console.error(`Ves ${villageId}: ${what} selhal: ${String(migrated[key])}`);
+      }
     }
     // události schránky z dnů, které se budou dopočítávat (village-core.md – Schránka vsi); po
     // načtení vsi – zápis mezi načtením a uložením zvedne verzi a pokus se zopakuje
     const inbox =
-      attached.lastDay < day ? await villages.inbox.pending(villageId, attached.lastDay, day) : [];
-    const logged = await advancedWithYearLog(attached, day, obstacles, landscape, pause, inbox);
+      migrated.lastDay < day ? await villages.inbox.pending(villageId, migrated.lastDay, day) : [];
+    const logged = await advancedWithYearLog(migrated, day, obstacles, landscape, pause, inbox);
     const advanced = logged.state;
     // ves uložená před trasami (nebo s trasami jiného rozložení) si je spočítá – i když se jen
     // zobrazuje, ať je scéna má (paths.md – Kdy se trasy počítají a co se ukládá)
@@ -362,10 +225,7 @@ export async function updateVillage(
       landscape,
     );
     const untouched =
-      changed.state === attached &&
-      attached === base &&
-      base === record.state &&
-      next === changed.state;
+      changed.state === migrated && migrated === record.state && next === changed.state;
     if (next === record.state || untouched) return { ok: true, village: record };
     const saved: VillageRecord | null = await villages.save(
       villageId,

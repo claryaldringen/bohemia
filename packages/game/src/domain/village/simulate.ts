@@ -2,25 +2,18 @@ import { recordFelledSacredOn } from './desecration';
 import { TOTAL_GAME_DAYS, dateOfDayIndex } from '../calendar';
 import type { Landscape, ObstacleLayer } from '../landscape';
 import { abandonmentCheck, abandonmentDay } from './abandonment';
-import { retireCarts, withFourWheelReach } from './carts';
-import { withFortPoints } from './fortification/convert';
+import { retireCarts } from './carts';
 import { updateOrePits } from './smith-supply';
 import { finishPurchases, startPurchases } from './craft-buying';
-import { withCraftSkill } from './craft-skill';
 import { cartIronDay } from './cart-iron';
 import { cloneState } from './clone';
-import { withForestClearing } from './forest-clearing-migration';
 import { updateKilnRemnants } from './charcoal';
 import { craftCoverage, wearCraftStocks } from './crafts';
 import { updateHappiness } from './happiness';
 import { occupyEmptyDwellings } from './households';
-import { withKinship } from './kinship';
-import { withHorsePenStock } from './horse-stock';
-import { withPenSpecies } from './pens';
 import { husbandryDay } from './husbandry';
 import { arrangeMarriages } from './marriage';
 import { bufferFill } from './field-food';
-import { withOxen } from './oxen';
 import { overgrowthDay } from './overgrowth';
 import { roadsDay, roadsMonthSteps } from './paths/roads';
 import { refreshWalkDistancesSteps } from './paths/village';
@@ -28,21 +21,14 @@ import { flushWear } from './paths/wear';
 import { roadFieldsDay } from './road-fields';
 import { villageSacredOaks } from './sacred';
 import { moveGrainFromCoveredPits } from './grain-pit-site';
-import { withThreshingGrace, spoilSheaves } from './threshing';
-import { withSeason } from './year-plan';
-import { settleSowingSeed, withSeedForgiven, withoutSeedTarget } from './seed';
-import { withoutFieldLegumes } from './field-legumes';
-import { withoutGardenFlax } from './garden';
-import { withoutSurplusCrops } from './merge-surplus';
+import { spoilSheaves } from './threshing';
+import { settleSowingSeed } from './seed';
 import { seedBuyingDay } from './seed-buying';
-import { withoutRotationNext, withSowingRotation } from './rotation';
 import { sacredOakEvents } from './sacred-life';
 import { orchardSeasonDay } from './orchard';
 import { inLuckyYears, nextStarvationDays, populationDay } from './population';
-import { withCattleKinds } from './cattle-trade';
 import { keepManor } from './manor';
-import { finishExpeditions, withIronBarsTrade, withoutForeignGoods } from './trade';
-import { withToolEquipment } from './iron';
+import { finishExpeditions } from './trade';
 import { swathRoadsInWork, trailsDay } from './trail';
 import { roadSwathDay } from './road-swath';
 import { wagonRoadsDay } from './wagon-road';
@@ -53,10 +39,6 @@ import { applyInboxDay, inboxByDay, withJourneyInbox, type VillageEvent } from '
 import { woundDeathsDay } from '../war/raid-apply';
 import { returnHome } from '../vassalage/guests';
 import { refugeFoodDay } from './refugees';
-import { withAwaitingLord } from './appoint-lord';
-import { withArmsCaps } from './arms-caps';
-import { withDynasty } from './dynasty';
-import { withSteward } from './steward-state';
 import { stewardDay } from './steward';
 import { stewardArrival, stewardSonDay } from './steward-son';
 import { ensureMainWives, extraWivesDay } from './dynasty-wives';
@@ -72,6 +54,7 @@ import {
 import type { VillageState } from './types';
 import { rotLogs } from './wood';
 import { localDisastersDay } from './local-disasters';
+import { migrateVillage } from './migrations';
 import { decideRebuilds, finishConstructions } from './simulate-build';
 import { eat, endThreshing, harvest, harvestLateSpring, harvestWinter } from './simulate-food';
 import {
@@ -87,12 +70,12 @@ import { patrolHuntDay, settlePatrol } from './field-patrol';
 import { huntDay, planHuntDay } from './hunt';
 import { dogsYear } from './manor-dogs';
 import { conversionDay } from './conversion';
-import { wildlifeYearDay, withWildlife } from './wildlife';
+import { wildlifeYearDay } from './wildlife';
 import { weatherDay } from './weather';
 import { partProtectionDay } from './part-protection';
 import { famineMemoryDay } from './weather-effects';
 import { damageWindowStart, wildlifeDamageDay } from './wildlife-damage';
-import { trainLordDay, updateLordTraining, withoutSowingHelp } from './lord';
+import { trainLordDay, updateLordTraining } from './lord';
 import { dynastyDay } from './succession';
 import { markSunnyOrchards, premiumSacredHappiness } from './premium-effects';
 import { noticeStatesDay } from './lasting-notices';
@@ -150,75 +133,9 @@ export function* advanceVillageSteps(
   }
   // ves na cestě se správcem se v den příjezdu založí sama a křest rodu ji zastihne i na cestě
   const start = arrive(state, toDay, landscape, obstacles, inbox);
-  // ves z doby před příbuzenstvím dostane pohlaví a manžele (kinship.md), ves z doby před rodem
-  // rod vojvody (lord.md – Převod starších vsí), dobytek v obchodu tři
-  // druhy (trade.md – Dobytek ve třech druzích), hřivny místo nástrojů v obchodu i ve vsi
-  // (production-chains.md – Kovář), ves ze zboží zvenku o něj přijde (trade.md – Jen společné
-  // suroviny), řemeslníci z doby před učením řemesla praxi (crafts.md – Učení řemesla) a ves z doby
-  // před snopy rok odkladu mlácení (production-chains.md – Starší vsi) a ves s ročním plánem osevní
-  // postup po dílech (fields.md – Osevní postup po dílech, bod 7), plán z doby před osivem ze
-  // zásob odpuštěné osivo zaseté části (fields.md – Osivo ze zásob, Převod), plán z doby cíle
-  // osevu bez osiva čekajících dílů (fields.md – Osivo bez cíle osevu), nezasetý díl luštěnin jař
-  // (fields.md – Luštěniny, zrušeno), zahrádka bez lnu (fields.md – Zahrádka u obydlí, len zpět na
-  // pole), díly nad potřebu jednou frontou (fields.md – Osevní postup po dílech, bod 3) a vojvodova rodina bez pomoci s osevem a při hladu (lord.md – Kdy jde rodina
-  // na pole) – jednou, idempotentně
-  const next = cloneState(
-    withSteward(
-      withWildlife(
-        withThreshingGrace(
-          withCraftSkill(
-            withHorsePenStock(
-              withOxen(
-                withPenSpecies(
-                  withoutForeignGoods(
-                    withIronBarsTrade(
-                      withToolEquipment(
-                        withCattleKinds(
-                          withAwaitingLord(
-                            withArmsCaps(
-                              withDynasty(
-                                withKinship(
-                                  withoutGardenFlax(
-                                    withoutFieldLegumes(
-                                      withoutSowingHelp(
-                                        withoutSeedTarget(
-                                          withoutSurplusCrops(
-                                            withSeedForgiven(
-                                              withoutRotationNext(
-                                                withSowingRotation(withSeason(start)),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        landscape,
-      ),
-    ),
-  );
-  // rozestavěné díly v lese bez fází dostanou kácení, schnutí a pálení (forest.md – Klučení lesa
-  // pro pole – postup, Starší vsi) – jednou, idempotentně; potřebují vrstvu překážek
-  const cleared = withForestClearing(next, obstacles);
-  if (cleared !== next) Object.assign(next, cleared);
-  // dosahy čtyřkoláku z doby „jen po pevných cestách“ se spočítají znovu (wagons.md)
-  withFourWheelReach(next);
-  // opevnění nakreslená po čtvercích dostanou body obvodu (fortifications.md – Pro implementaci –
-  // Obvod z bodů) – jednou, idempotentně; potřebují rozměry krajiny
-  if (landscape) withFortPoints(next, landscape);
+  // převody starších vsí (village-core.md – Převody starších vsí) – jednou, idempotentně, v pořadí
+  // seznamu; převody jen pro načtení vsi (`loadOnly`) dopočet přeskočí
+  const next = cloneState(migrateVillage(start, { obstacles, landscape }));
   const eventsByDay = inboxByDay(inbox);
   // vymřelá, opuštěná a ves na cestě se nesimulují – jen se posune den (migration.md)
   for (let day = next.lastDay + 1; day <= toDay && !isVillageDormant(next); day++) {

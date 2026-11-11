@@ -797,12 +797,121 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   hřbitova nebo rozšíření (`CemeterySquare.obstacles`) → `VillageState.clearedObstacles`. Pokácené stromy (`felledTrees`) nechají pařez a dorostou
   (`TREE_REGROWTH_YEARS`). Pomocníci pro les a dřevo: `matureTreesByDistance`, `fellTrees`,
   `treeRegrowth`, `countMatureTrees`, `obstacleChangesAt`. Vsi z doby před vrstvou si
-  odstraněné překážky doplní při načtení s krajinou (`withObstacleClearing` v `updateVillage`).
+  odstraněné překážky doplní při načtení s krajinou (`withObstacleClearing` v seznamu převodů).
+
+## Převody starších vsí
+
+Stav vsi je JSON a nové části jsou volitelné (CLAUDE.md – Ves). Starší ves se převádí **jedním
+seřazeným seznamem** `VILLAGE_MIGRATIONS` (`domain/village/migrations.ts`, položka `{ id, since,
+loadOnly?, run(state, ctx) }`), který prochází `migrateVillage(state, ctx)`:
+
+- **Načtení vsi** (`updateVillage`) volá seznam jednou před dopočtem s `ctx.load` (den, do kterého se
+  ves dopočítá – `heldDay`, seed počasí mapy z úložiště, krajina a vrstva překážek sídla) – projde
+  všechny převody. Selhání převodu (`sowingRotationFailed`, `wildlifeFailed`, `horsePenStockFailed`,
+  `forestClearingFailed`) zapíše do logu (seznam `failures` v `updateVillage`).
+- **Dopočet** (`advanceVillageSteps`, tedy i `advanceVillage`, `foundedVillageState`, spící ves
+  v `asleepStay`) volá seznam jednou po `arrive` (ves na cestě se v den příjezdu založí) a před
+  `cloneState` – bez `ctx.load`, převody `loadOnly` přeskočí. Po načtení vsi už nic nezmění.
+- Každý převod je v seznamu **jednou** (do 11. 11. 2026 byly dva řetězy – 37 převodů v
+  `updateVillage`, 27 v `advanceVillage`, 14 v obou v jiném pořadí). Pořadí seznamu je pořadí, ve
+  kterém převody dosud skutečně běžely: celý řetěz načtení, za ním převody, které uměl jen dopočet.
+  Dopočet tak sdílené převody pouští v pořadí načtení (např. `wildlife` před `kinship`,
+  `threshing-grace` před `oxen`, `forest-clearing` před `rotation-next`) – sahají na jiné části
+  stavu, výsledek je týž. Jediný střet byl v pořadí klíčů JSONu: starší ves (Chotěšov v DB) dostávala
+  `wildlife` před `armsCapped`, nová ves obráceně – nová ves proto má `armsCapped` od založení
+  (`foundVillage` volá `withArmsCaps`; dovednosti osadníků nad strop se srazí jako dřív při prvním
+  dopočtu) a ze seznamu dostane jen zvěř.
+- **`loadOnly`** – převod potřebuje kontext načtení (`weather-seed` seed počasí z úložiště,
+  `pen-grace` den načtení – dopočet sám den nemění), nebo by jednal na stavech, které načtením nikdy
+  neprošly: zlatý svět (`foundVillage` bez pozemků, variant domů, vzdálenosti k lesu a pastvy)
+  a cesty vzniklé během dopočtu (bez `swathChecked` a `liningPlanned`) by `plots`,
+  `dwelling-shapes`, `forest-distances`, `livestock-land`, `road-swaths` a `planned-lining` změnily
+  – zlaté otisky i unit testy by se pohnuly. Ostatní převody z řetězu načtení zůstaly `loadOnly`
+  jako dřív.
+- **Převody po dopočtu** jsou mimo seznam, v `updateVillage` za dopočtem: `withRoutes` (trasy
+  z dopočítaného stavu – i opakovaně, když se změní rozložení), `withRoadsV2`, `withRoadsRebuiltSteps`
+  a `withRoadsRepairedSteps` (s přestávkami `pause`; kotvy jsou z tras po dopočtu – před dopočtem by
+  dal jiný výsledek). Za změnou `withoutBuiltOverRuins` a `withoutBuiltOverGrainPits` – důsledek
+  stavby, ne převod.
+- **Bez čísla verze stavu** (stateVersion; návrh Clauda, 11. 11. 2026): nový klíč by změnil JSON každé vsi (zlaté
+  otisky, uložené stavy) a část převodů není jednorázová (`manor`, `merged-fields`, `merged-roads`,
+  `weather-seed`, `cattle-kinds`, `iron-bars-trade`, `foreign-goods` hlídají podmínku při každém
+  načtení). Celý seznam na převedené vsi stojí ≈ 2,8 ms při načtení a ≈ 0,3 ms při dopočtu (Vlkov
+  z DB) – přeskakováním by se nic neušetřilo.
+- **Nová ves** dostane části, které dřív zakládaly převody, už při založení – `foundVillage`
+  (`dynasty`, `steward`, `sowingRotation`, `sheaves`, `grainPits`, `manorId`, `armsCapped`)
+  a `foundedState` (`withWeatherSeed`, `withPlots`, `withDwellingShapes`, `withLivestockLand`) –
+  převody pak mění jen starší vsi. Výjimka: zvěř (`wildlife`) zakládá seznam – `foundVillage` nemá
+  krajinu (zlatý svět, osadníci přes `stewardArrival`).
+
+**Nový převod** (pravidlo od 11. 11. 2026): přidej položku **na konec** `VILLAGE_MIGRATIONS` –
+`id` (jedinečné), `since` (den zavedení `RRRR-MM-DD`), `run` jednorázový a idempotentní (ves, které
+nic nechybí, vrací týž objekt; vstupní stav nemění, mutující funkci pusť na kopii jako
+`fourWheelReach`). `loadOnly: true` jen když potřebuje kontext načtení nebo by změnil stavy, které
+načtením neprošly. Žádný nový řetěz v `updateVillage` ani `advanceVillage`. Část nové vsi patří do
+založení (`foundVillage` / `foundedState`), převod ji doplní jen starším vsím. Selhání = pole
+`…Failed` ve stavu a řádek v `failures` (`updateVillage`).
+
+| Převod (`id` – funkce)                         | Co dělá                                                    | Idempotentní       | Potřebuje                | Zakládá novou ves            | Kde     |
+| ---------------------------------------------- | ---------------------------------------------------------- | ------------------ | ------------------------ | ---------------------------- | ------- |
+| `same-map-villages` – `withoutSameMapVillages` | zahodí kování u jiné vsi a `neighbours` (vsi na téže mapě) | ano                | –                        | ne                           | načtení |
+| `weather-seed` – `withWeatherSeed`             | kopie seedu počasí mapy                                    | ano (při každém)   | seed z úložiště          | ne (`foundedState`)          | načtení |
+| `season` – `withSeason`                        | roční plán → hospodářský rok                               | ano                | –                        | ne                           | oba     |
+| `sowing-rotation` – `withSowingRotation`       | osevní postup po dílech, značka                            | ano (značka)       | –                        | ne (`foundVillage`)          | oba     |
+| `obstacle-clearing` – `withObstacleClearing`   | doplní odstraněné překážky                                 | ano (značka)       | překážky                 | ne                           | načtení |
+| `forest-distances` – `withForestDistances`     | vzdálenost obydlí k lesu                                   | ano                | krajina                  | ne                           | načtení |
+| `plots` – `withPlots`                          | pozemky polozemnic                                         | ano (značka)       | krajina, překážky        | ne (`foundedState`)          | načtení |
+| `dwelling-shapes` – `withDwellingShapes`       | varianty rozměrů staveb                                    | ano (značka)       | krajina, překážky        | ne (`foundedState`)          | načtení |
+| `merged-fields` – `withMergedFields`           | sloučí navazující pole                                     | ano (při každém)   | –                        | ne                           | načtení |
+| `livestock-land` – `withLivestockLand`         | výchozí stádo, louka a les pro pastvu                      | ano                | krajina                  | ne (`foundedState`)          | načtení |
+| `wildlife` – `withWildlife`                    | zvěř na stropu                                             | ano                | krajina (bez ní výchozí) | **ano**                      | oba     |
+| `merged-roads` – `withMergedRoads`             | spojí falešná rozcestí, opraví stezky                      | ano (při každém)   | krajina                  | ne                           | načtení |
+| `road-swaths` – `withRoadSwaths`               | průsek lesem hotových cest, značka                         | ano (značka)       | překážky, krajina        | ne                           | načtení |
+| `kinship` – `withKinship`                      | pohlaví a manželé                                          | ano                | –                        | ne                           | oba     |
+| `dynasty` – `withDynasty`                      | rod vojvody                                                | ano                | –                        | ne (`foundVillage`)          | oba     |
+| `cattle-kinds` – `withCattleKinds`             | dobytek ve třech druzích v obchodu                         | ano (při každém)   | –                        | ne                           | oba     |
+| `tool-equipment` – `withToolEquipment`         | zásoba nástrojů do vybavení a hřiven                       | ano                | –                        | ne                           | oba     |
+| `iron-bars-trade` – `withIronBarsTrade`        | hřivny místo nástrojů v obchodu                            | ano (při každém)   | –                        | ne                           | oba     |
+| `foreign-goods` – `withoutForeignGoods`        | zahodí zboží zvenku                                        | ano (při každém)   | –                        | ne                           | oba     |
+| `pen-species` – `withPenSpecies`               | ohrady s druhem                                            | ano                | –                        | ne                           | oba     |
+| `pen-grace` – `withPenGrace`                   | roční odklad míst ohrad od dneška                          | ano                | den načtení              | ne                           | načtení |
+| `threshing-grace` – `withThreshingGrace`       | snopy a rok odkladu mlácení                                | ano                | den (načtení / další)    | ne (`foundVillage`)          | oba     |
+| `charred-ruins` – `withCharredRuins`           | ohořelé jámy po požáru                                     | ano                | –                        | ne                           | načtení |
+| `walk-stages` – `withoutWalkStages`            | smaže otisk stadií dílů                                    | ano                | –                        | ne                           | načtení |
+| `planned-lining` – `withPlannedLining`         | olemování cest, značka                                     | ano (značka)       | –                        | ne                           | načtení |
+| `trampled-parts` – `withoutTrampledParts`      | smaže pošlapanou úrodu                                     | ano                | –                        | ne                           | načtení |
+| `bridged-roads` – `withBridgedRoads`           | hať a lávka místo `causeway`, značka                       | ano (značka)       | –                        | ne                           | načtení |
+| `oxen` – `withOxen`                            | voli po kusech, rádla                                      | ano                | –                        | ne                           | oba     |
+| `horse-pen-stock` – `withHorsePenStock`        | koně do ohrady bez koní                                    | ano                | –                        | ne                           | oba     |
+| `manor` – `withManor`                          | dvorec = nejstarší obydlí                                  | ano (při každém)   | –                        | ne (`foundVillage`)          | načtení |
+| `wear-seed` – `withWearSeed`                   | vyšlapanost podél loňských úseků                           | ano                | –                        | ne                           | načtení |
+| `wear-cells` – `withWearCells`                 | vyšlapanost do buněk 3,75 m                                | ano (značka)       | –                        | ne                           | načtení |
+| `visits-seed` – `withVisitsSeed`               | provoz ke stavbám od dalšího dne                           | ano                | –                        | ne                           | načtení |
+| `road-condition` – `withRoadCondition`         | stav kusů cest z provozu, značka                           | ano (značka)       | –                        | ne                           | načtení |
+| `grain-pits` – `withGrainPits`                 | zásoby obilí do jam                                        | ano                | krajina, překážky        | ne (`foundVillage`)          | načtení |
+| `forest-clearing` – `withForestClearing`       | fáze klučení dílů v lese                                   | ano                | překážky                 | ne                           | oba     |
+| `road-log-piles` – `withRoadLogPiles`          | klády bez hromady na hromadu u obydlí                      | ano                | krajina                  | ne                           | načtení |
+| `rotation-next` – `withoutRotationNext`        | díly bez pevného sledu (přílohová soustava)                | ano                | –                        | ne                           | oba     |
+| `seed-forgiven` – `withSeedForgiven`           | odpuštěné osivo zaseté části                               | ano                | –                        | ne                           | oba     |
+| `surplus-crops` – `withoutSurplusCrops`        | díly nad potřebu jednou frontou                            | ano                | –                        | ne                           | oba     |
+| `seed-target` – `withoutSeedTarget`            | plán bez cíle osevu                                        | ano                | –                        | ne                           | oba     |
+| `sowing-help` – `withoutSowingHelp`            | rodina bez pomoci s osevem a při hladu                     | ano                | –                        | ne                           | oba     |
+| `field-legumes` – `withoutFieldLegumes`        | nezasetý díl luštěnin do jaře                              | ano                | –                        | ne                           | oba     |
+| `garden-flax` – `withoutGardenFlax`            | zahrádka bez lnu                                           | ano                | –                        | ne                           | oba     |
+| `arms-caps` – `withArmsCaps`                   | stáhne dovednosti nad strop, značka                        | ano (značka)       | –                        | ne (`foundVillage`, 11. 11.) | oba     |
+| `awaiting-lord` – `withAwaitingLord`           | ves bez muže rodu čeká na vojvodu                          | ano                | –                        | ne                           | oba     |
+| `craft-skill` – `withCraftSkill`               | praxe řemeslníků                                           | ano (značka dílny) | –                        | ne                           | oba     |
+| `steward` – `withSteward`                      | správce (vypnutý)                                          | ano                | –                        | ne (`foundVillage`)          | oba     |
+| `four-wheel-reach` – `withFourWheelReach`      | dosahy čtyřkoláku znovu (mutuje – na kopii)                | ano (značka)       | –                        | ne                           | oba     |
+| `fort-points` – `withFortPoints`               | opevnění po čtvercích na body (mutuje – na kopii)          | ano                | krajina                  | ne                           | oba     |
+
+„Zakládá novou ves“ = jedná na právě založené vsi; v závorce, kde tu část nová ves dostane při
+založení. „Při každém“ = bez příznaku, hlídá podmínku při každém průchodu (levné).
 
 ## Spící vsi se kvůli dni neukládají
 
 `isVillageAsleep` (`departure.ts`) = vymřelá nebo opuštěná (odpovídá sloupci `asleep`; ves na cestě
-nespí, čeká na správce). `advancedToToday` u ní nic nesimuluje: jen převody z `advanceVillage` bez
+nespí, čeká na správce). `advancedToToday` u ní nic nesimuluje: jen převody seznamu (bez `loadOnly`) bez
 posunu dne, a když nic nezmění (JSON shodný), vrátí týž objekt – `updateVillage` ji pak neuloží
 (`untouched`). `lastDay` spící vsi zaostává; `abandonedVillageAt` ho v pohledu zvedne na den
 pohledu, `currentVillageViewStamp` spící vsi s `lastDay < dnes` ignoruje.

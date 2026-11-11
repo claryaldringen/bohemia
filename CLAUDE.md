@@ -111,7 +111,7 @@ název). Pravidla a rozhodnutí jsou v `docs/design/`.
 | `docs/code/landscape.md`              | generování krajiny, verze vrstev, skály u potoka, uložený seed, vrstva překážek (nová verze vrstvy), prémiové krajiny                |
 | `docs/code/scene.md`                  | scéna krajiny – kreslení jen při změně, smyčka, terén, voda, dekorace, ořez po čtvercích, světlo, roční období, den a noc, zvuky     |
 | `docs/code/scene-village.md`          | scéna vsi – domácí zvířata, obydlí a jámy, pozemky a plot, hřbitov, sad, posvátná místa, dílny                                       |
-| `docs/code/village-core.md`           | jádro simulace – API, pořadí práce dne, hlad, determinismus, dopočet, čísla, meze, štěstí, les a dřevo, překážky, upozornění         |
+| `docs/code/village-core.md`           | jádro simulace – API, pořadí práce dne, hlad, determinismus, dopočet, čísla, meze, štěstí, les, dřevo, překážky, upozornění, převody |
 | `docs/code/village-buildings.md`      | stavby – rozpad a chátrání, hřbitov, sad, stavba v lese, varianty rozměrů, stavby na poli, natočené stavby, stavby po čtvercích      |
 | `docs/code/village-crafts.md`         | řemesla – dílny, uhlíř a milíř, kovář (uhlí, ruda), hrnčíř (hlína), nákup u sousedů, učení, tesař, vozy, kování                      |
 | `docs/code/village-fields.md`         | pole – ozim a jař, osev, postup práce po čtvercích, hospodářství, zarůstání, pole ve scéně, výběr dílu                               |
@@ -165,7 +165,8 @@ název). Pravidla a rozhodnutí jsou v `docs/design/`.
 **Ves (simulace)**
 
 - Stav vsi je JSON, funkce vstupní stav nemění. **Nové části stavu jsou volitelné** a starší vsi
-  se převedou při načtení (`updateVillage` / začátek `advanceVillage`) jednou a idempotentně.
+  se převedou při načtení (`updateVillage` / začátek `advanceVillage`) jednou a idempotentně –
+  jeden seznam `VILLAGE_MIGRATIONS` (`migrations.ts`), nový převod na jeho konec.
 - **Determinismus:** pevné pořadí kroků dne (`simulate.ts`), náhoda ze seedu vsi a dne – výsledek
   nezávisí na tom, po jakých kouscích se ves dopočítá.
 - **Čísla pravidel jen v `rules*.ts`** s odkazem na sekci návrhu; změna čísla = i text v návrhu.

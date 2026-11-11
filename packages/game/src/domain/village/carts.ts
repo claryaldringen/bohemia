@@ -250,9 +250,14 @@ function dropFourWheelCaches(value: unknown): void {
  * s rokem vozů (`draft`) – bez něj čtyřkolák nic nespočítal.
  */
 export function withFourWheelReach(state: VillageState): void {
-  if (!state.draft || state.draft.fourWheelOffRoad) return;
+  if (!state.draft || !needsFourWheelReach(state)) return;
   dropFourWheelCaches(state);
   state.draft.fourWheelOffRoad = true;
+}
+
+/** Ves potřebuje převod dosahů čtyřkoláku (`withFourWheelReach`) – seznam převodů podle toho klonuje. */
+export function needsFourWheelReach(state: Pick<VillageState, 'draft'>): boolean {
+  return state.draft ? !state.draft.fourWheelOffRoad : false;
 }
 
 /**

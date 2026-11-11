@@ -12,11 +12,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   a `threshingSeason` (dřív `plan`, `threshingFromPlan`). Název `FarmSeason`, protože `Season`
   je roční období kalendáře. Přístup: `seasonCrop(season, crop)`, `springCrop(season)`,
   `seasonCrops`, `seasonPartIds`, `putSeasonCrop` / `dropSeasonCrop` (`year-plan.ts`).
-  Uložené vsi převádí `withSeason` (`year-plan.ts`; v `advanceVillage` i `updateVillage`) jednou
+  Uložené vsi převádí `withSeason` (`year-plan.ts`; seznam převodů – village-core.md) jednou
   a idempotentně: `plannedDay` → `startDay`, jař z nejvyšší úrovně + `winter` / `legume` / `flax`
   → `crops`. Změna je jen tvar a názvy, chování a otisky beze změny.
 - **Převod starších vsí na osevní postup** (`withSowingRotation`, `rotation.ts`; fields.md – Osevní
-  postup po dílech, bod 7; Úloha 6 plánu): v `advanceVillage` i `updateVillage` hned za
+  postup po dílech, bod 7; Úloha 6 plánu): v seznamu převodů (village-core.md) hned za
   `withSeason`, jednou – značka `VillageState.sowingRotation` (dostane ji i nová ves; otisky ji
   nepočítají). Plodiny hospodářského roku zůstanou s hotovou prací (díly, `required` / `done`,
   orba, sklizeň, snopy) a jsou nutné: čekající příprava začatých dílů osevu navíc
