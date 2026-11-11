@@ -15,9 +15,12 @@ import {
   yearlyFoodNeed,
   type VillageState,
 } from '../../src/domain/village';
-import { fieldStoresOutlook, sowingCapacity } from '../../src/domain/village/simulate-plan';
-import { stewardOutlook, type StewardOutlook } from '../../src/domain/village/steward-outlook';
-import { stewardCrowded, stewardFieldRoom } from '../../src/domain/village/steward-son';
+import { fieldStoresOutlook, sowingCapacity } from '../../src/domain/village/core/simulate-plan';
+import {
+  stewardOutlook,
+  type StewardOutlook,
+} from '../../src/domain/village/steward/steward-outlook';
+import { stewardCrowded, stewardFieldRoom } from '../../src/domain/village/steward/steward-son';
 import type { ChunkView } from './steward-measure';
 
 const DAYS_PER_YEAR = 365.25;

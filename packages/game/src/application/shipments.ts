@@ -15,10 +15,10 @@ import {
   type ShipmentBody,
   type VillageState,
 } from '../domain/village';
-import { cloneState } from '../domain/village/clone';
-import { isAway } from '../domain/village/people';
+import { cloneState } from '../domain/village/core/clone';
+import { isAway } from '../domain/village/people/people';
 import type { Direction8 } from '../domain/village';
-import { GRID_STEPS, OPPOSITE } from '../domain/village/world-grid';
+import { GRID_STEPS, OPPOSITE } from '../domain/village/people/world-grid';
 import { TOTAL_GAME_DAYS } from '../domain/calendar';
 import { cellDistance } from '../domain/world/placement';
 import type { PlayerLock } from './locks';

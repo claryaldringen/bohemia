@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dwelling, kin, village } from '../../domain/village/__tests__/kin-fixtures';
 import type { VillageState } from '../../domain/village/types';
-import type { GridCell } from '../../domain/village/world-grid';
+import type { GridCell } from '../../domain/village/people/world-grid';
 import {
   alarmVillage,
   MarchGridMemo,

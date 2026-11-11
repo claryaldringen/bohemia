@@ -1,5 +1,5 @@
 import { length2, obstaclesNear, type ObstacleKind, type ObstacleLayer } from '../../landscape';
-import { obstacleStatus, type ObstacleChanges } from '../obstacles';
+import { obstacleStatus, type ObstacleChanges } from '../core/obstacles';
 import {
   CART_ROUTES,
   CART_SPEED,
@@ -12,9 +12,9 @@ import {
   TEAM_TRAVEL,
   WAGON_ROAD,
 } from '../rules';
-import { sacredSitesOf } from '../sacred';
+import { sacredSitesOf } from '../people/sacred';
 import type { RoadGrade, RoadGround, RoadLining, RoadProfilePoint } from '../types';
-import { isWoodTreeId } from '../woods';
+import { isWoodTreeId } from '../forest/woods';
 import {
   CART_HEADINGS,
   CART_HEADING_LENGTHS,

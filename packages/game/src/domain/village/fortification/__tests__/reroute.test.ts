@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { packObstacles } from '../../../landscape';
-import { foundVillage } from '../../actions';
+import { foundVillage } from '../../core/actions';
 import {
   addGateToFortification,
   finishFortification,
@@ -11,13 +11,13 @@ import {
   startFortification,
   startSectionDemolition,
   villageFortifications,
-} from '../../fortifications';
+} from '../state/fortifications';
 import {
   contestsFortification,
   FORT_UNDER_ATTACK,
   startSectionReroute,
-} from '../../fortification-reroute';
-import type { Point } from '../../polygon';
+} from '../state/fortification-reroute';
+import type { Point } from '../../placement/polygon';
 import type { Construction, Fortification, VillageState } from '../../types';
 import { block, makeLandscape } from '../../__tests__/placement-fixtures';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';

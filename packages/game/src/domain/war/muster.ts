@@ -1,7 +1,7 @@
-import { isLineMan } from '../village/dynasty';
+import { isLineMan } from '../village/people/dynasty';
 import { createRandom, deriveSeed } from '../landscape/random';
-import { villageHappiness } from '../village/happiness';
-import { ageYears, isAway, isInjured } from '../village/people';
+import { villageHappiness } from '../village/people/happiness';
+import { ageYears, isAway, isInjured } from '../village/people/people';
 import type { Person, VillageState } from '../village/types';
 import { WAR } from './rules-war';
 

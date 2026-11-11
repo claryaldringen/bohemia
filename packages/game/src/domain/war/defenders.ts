@@ -1,6 +1,6 @@
-import { isLineMan, lineMen } from '../village/dynasty';
-import { villageHappiness } from '../village/happiness';
-import { ageYears, isAway, isInjured } from '../village/people';
+import { isLineMan, lineMen } from '../village/people/dynasty';
+import { villageHappiness } from '../village/people/happiness';
+import { ageYears, isAway, isInjured } from '../village/people/people';
 import { AGE } from '../village/rules';
 import type { Dwelling, Person, VillageState } from '../village/types';
 import type { Fighter } from './battle';

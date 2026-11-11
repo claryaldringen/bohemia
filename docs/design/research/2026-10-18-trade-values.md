@@ -3,7 +3,7 @@
 _Rešerše k 18. 10. 2026 pro [obchod se sousedy](../trade.md) – hodnoty zboží v kg obilí, podle
 kterých ves se sousedy vyměňuje (trade.md: „čísla doplní stavitel z rešerše o raně středověkých
 poměrech hodnot a zapíše“). Co se z ní převzalo, zapisuje trade.md – Obchod a tabulka
-Rozhodnutí; čísla jsou v `TRADE_GOOD_VALUES` (`packages/game/src/domain/village/rules.ts`)._
+Rozhodnutí; čísla jsou v `TRADE_GOOD_VALUES` (`packages/game/src/domain/village/rules/index.ts`)._
 
 **Verdikty:** _sedí_ = prameny hodnotu podporují (v rozpětí); _návrh_ = přímý údaj jsem nenašel,
 číslo je odhad z poměrů citovaných pramenů; **vlastní výpočet** je označen. Raně středověké

@@ -4,7 +4,7 @@
 // z nich dopočítají osu trasy stejnými funkcemi – jen celá čísla, sčítání a násobení.
 
 import { length2 } from '../../landscape';
-import { FENCE_CLEARANCE } from '../rules-roads';
+import { FENCE_CLEARANCE } from '../rules/rules-roads';
 import { type StoredRoute } from '../types';
 import { type FenceOutline } from './entrances';
 import { fenceClearance } from './fences';

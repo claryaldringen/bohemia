@@ -1,5 +1,5 @@
 import type { FenceArc, FenceSegment } from '../paths/entrances';
-import type { Point } from '../polygon';
+import type { Point } from '../placement/polygon';
 import { outlinePointAt, type FortOutline } from './outline';
 
 // Úseky opevnění (fortifications.md – Obvod, Úseky): obvod se dělí na stejně dlouhé úseky ≈ 15 m

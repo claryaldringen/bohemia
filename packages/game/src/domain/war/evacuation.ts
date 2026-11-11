@@ -1,9 +1,9 @@
 import type { WorldClock } from '../calendar';
-import { villageCentre } from '../village/departure';
-import { isLineMan, lineMen } from '../village/dynasty';
-import type { VillageEventBody } from '../village/inbox';
-import { guestFoodNeed } from '../village/people';
-import { takeGrain, takeHerd } from '../village/refugees';
+import { villageCentre } from '../village/people/departure';
+import { isLineMan, lineMen } from '../village/people/dynasty';
+import type { VillageEventBody } from '../village/core/inbox';
+import { guestFoodNeed } from '../village/people/people';
+import { takeGrain, takeHerd } from '../village/fortification/state/refugees';
 import type {
   FlightMode,
   HerdSpecies,
@@ -32,7 +32,7 @@ import { dayOfTick, TICKS_PER_SECOND } from './ticks';
 // (`stepMover`) tempem pěších, se stády a vozy tempem stáda; cestou jí ze svých zásob. Vojsko,
 // které ji dostihne (do 30 m) v přesile, ji oloupí – lidé podle volby ke vzdaným, zásoby do
 // nosnosti a stádo do kořisti. Prázdnou ves nájezdník vyplení o to, co zůstalo. Do stavů vsí jdou
-// jen události schránky (`refuge-*`, aplikace – `village/refugees.ts`). Jen det-math.
+// jen události schránky (`refuge-*`, aplikace – `village/fortification/state/refugees.ts`). Jen det-math.
 
 const SPECIES: readonly HerdSpecies[] = ['sheep', 'goat', 'pig', 'cow'];
 

@@ -1,7 +1,7 @@
 // Úklid sítě pevných cest: souběžné cesty, copánky, díry mezi úseky a volné konce (roads.md – Úseky a rozcestí).
 
 import { length2 } from '../../landscape';
-import { cloneState } from '../clone';
+import { cloneState } from '../core/clone';
 import { ROAD_ANCHORS, ROAD_BRAID_RING, ROAD_JOIN, ROAD_TREES, WAGON_MERGE } from '../rules';
 import {
   type Construction,

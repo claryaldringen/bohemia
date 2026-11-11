@@ -1,8 +1,8 @@
 // Provoz vozů a vyježděné cesty: roční síť vozů, vozové trasy, vznik a převzetí cest vozy (wagons.md – Vyjeté cesty).
 
 import { type Landscape, type ObstacleLayer } from '../../landscape';
-import { obstacleChangesAt, type ObstacleChanges } from '../obstacles';
-import { oxPens } from '../oxen';
+import { obstacleChangesAt, type ObstacleChanges } from '../core/obstacles';
+import { oxPens } from '../livestock/oxen';
 import { CART_ROADS } from '../rules';
 import {
   type CartKind,

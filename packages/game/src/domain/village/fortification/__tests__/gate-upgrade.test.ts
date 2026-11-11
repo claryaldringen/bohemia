@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { packObstacles } from '../../../landscape';
-import { foundVillage } from '../../actions';
-import { cancelConstruction } from '../../cancel-construction';
+import { foundVillage } from '../../core/actions';
+import { cancelConstruction } from '../../buildings/cancel-construction';
 import {
   FORT_GATE_LOW,
   FORT_GATE_NO_ROOM,
@@ -12,14 +12,14 @@ import {
   gateUpgrade,
   startGateUpgrade,
   type GateLevel,
-} from '../../fortification-gate';
+} from '../state/fortification-gate';
 import {
   FORT_BUSY,
   finishFortification,
   outlineOf,
   startFortification,
   villageFortifications,
-} from '../../fortifications';
+} from '../state/fortifications';
 import { fortLayoutKey } from '../../paths/village';
 import type { Construction, FortKind, Fortification, VillageState } from '../../types';
 import { block, makeLandscape } from '../../__tests__/placement-fixtures';

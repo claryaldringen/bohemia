@@ -575,7 +575,7 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   kromě práce i **cenu předem** v surovinách ze zásob vsi; když je ves nemá, tlačítko stavby je
   zašedlé a v popisku je chybějící část červeně (jako v 0 A.D.). Dnes žádná stavba suroviny
   předem nestojí (práce se platí postupně) – mechanismus je připravený pro dřevo a kámen
-  (`packages/game/src/domain/village/costs.ts`).
+  (`packages/game/src/domain/village/buildings/costs.ts`).
 - **Lidé k osídlení** (Martin, 17. 10. 2026: „Také mi to nabízí stavbu obytných budov, i když je
   nemám kým osadit.“; **od 8. 11. 2026 už nejsou cenou předem obydlí** – Martin: „A“, viz
   [demolition.md](demolition.md) – Rozhodnutí): **lidé k osídlení** = možné nové domácnosti –

@@ -1,5 +1,5 @@
 import type { Landscape } from '../domain/landscape';
-import { cloneState } from '../domain/village/clone';
+import { cloneState } from '../domain/village/core/clone';
 import type { DefenseStance } from '../domain/village/types';
 import { updateLivingVillage } from './update-village';
 import type { VillageRepository, VillageResult } from './villages';

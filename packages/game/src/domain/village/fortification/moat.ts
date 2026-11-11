@@ -1,8 +1,8 @@
 import { heightAtWorld, SURFACE_CODES, type Landscape } from '../../landscape';
 import { gatePartView, GATE_PARTS, gonePartDay, ownGatePart } from './gate-parts';
-import type { Point } from '../polygon';
-import { FORTIFICATIONS } from '../rules-fortifications';
-import type { GridGeometry } from '../square-grid';
+import type { Point } from '../placement/polygon';
+import { FORTIFICATIONS } from '../rules/rules-fortifications';
+import type { GridGeometry } from '../placement/square-grid';
 import { bandLine, segmentBand, spanPieces } from './band';
 import { fortOutlineOf } from './convert';
 import { gateChord } from './gates';

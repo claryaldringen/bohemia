@@ -198,7 +198,7 @@ Web načte všech 20 stavů po každé uložené verzi (worker ukládá každý 
 akce do 0,5 s**“ splní malý souhrn vsi ve sloupci `village.digest` (migrace
 `0010_village_digest` – `digest jsonb`, `digest_version integer`):
 
-- **Co nese** (`VillageDigest`, `domain/village/digest.ts`, ≈ 300 B u Vlkova): den vsi, počet
+- **Co nese** (`VillageDigest`, `domain/village/core/digest.ts`, ≈ 300 B u Vlkova): den vsi, počet
   lidí, na cestě, hlad (`hungerLevel`), nouzový výmlat (`threshingStatus().emergency`), správce,
   fakta konce rodu (`LineFacts` – sleduje rod, muži rodu, `extinctDay` / `abandonedDay`), vstupy
   počasí roku (`weatherSeed`, z pohrom jen povodeň a vynucené počasí – ochrana dílů má u Vlkova
@@ -345,7 +345,7 @@ ve varování; pod cílem 25 %.
 průchodu všemi středy lesa (výsledek bit po bitu týž, otisk „opevněné 5“ `669e1e4e` beze změny).
 „Opevněné 5“ (strojová zátěž kolísala, load 50–110): jádro 6,6 % → 4,8 %, takty/s 301 → 418,
 `nearestForestOf` 10 % → mimo první řádky profilu; zbytek je `campaignTick` 29 %, `distanceToSegment`
-9 % (`Math.hypot` v `village/polygon.ts`, bez změny výsledku nezrychlitelné).
+9 % (`Math.hypot` v `village/placement/polygon.ts`, bez změny výsledku nezrychlitelné).
 
 **Kopie stavu za takt (10. 11. 2026, `perf/campaign-clone`).** Worker i měření volají
 `stepCampaigns` každých 250 ms, takže `stepCampaign` počítá skoro vždy **jeden takt**: za takt ho
@@ -353,7 +353,7 @@ kolo volá 2× (první volání vrátí hned `waiting` – mapy si `computeCampa
 znovu; bez taktu, bez kopie), s vesnicí na cestě 3× (druhé spadne na `MissingData` hned v prvním
 taktu – ves; kopie se zahodí). Kopie „jednou za volání“ místo za takt by proto nepomohla.
 
-- **Úprava:** `campaignTick` kopíruje stav ručně – `cloneData` z `domain/village/clone.ts` (obecná
+- **Úprava:** `campaignTick` kopíruje stav ručně – `cloneData` z `domain/village/core/clone.ts` (obecná
   část `cloneState` vsi, bez sdílení) místo `structuredClone`: stav pochodu 60 mužů (≈ 28 kB JSON)
   ≈ 40 µs místo ≈ 210 µs. Výsledek je tentýž – jen sdílené odkazy uvnitř stavu rozdělí jako JSON
   kontrolního bodu; v testech a měření stav sdílí jen záznamy, které se nemění na místě (prázdná

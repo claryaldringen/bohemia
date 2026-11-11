@@ -9,8 +9,8 @@ import {
   wallLineInM,
 } from '../../village/fortification';
 import type { Fortification } from '../../village/fortification/types';
-import { FORTIFICATIONS } from '../../village/rules-fortifications';
-import type { FortTop } from '../../village/types-fortifications';
+import { FORTIFICATIONS } from '../../village/rules/rules-fortifications';
+import type { FortTop } from '../../village/types/types-fortifications';
 import { battleTick, type BattleField, type BattleState } from '../battle';
 import { MARCH_RAMPART, MARCH_WALL, marchCellAt } from '../march-grid';
 import { WAR } from '../rules-war';

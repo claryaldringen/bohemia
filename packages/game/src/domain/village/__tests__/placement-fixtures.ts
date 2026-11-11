@@ -1,5 +1,5 @@
 import { SURFACE_CODES, type Landscape, type Surface } from '../../landscape';
-import { dwellingFrame, shapeRect } from '../dwelling-shape';
+import { dwellingFrame, shapeRect } from '../buildings/dwelling-shape';
 import { DWELLING_CLEARING_M } from '../rules';
 import type { DwellingType, TileCell } from '../types';
 

@@ -1,6 +1,6 @@
-import type { Point } from '../polygon';
-import { FORTIFICATIONS } from '../rules-fortifications';
-import type { GridGeometry } from '../square-grid';
+import type { Point } from '../placement/polygon';
+import { FORTIFICATIONS } from '../rules/rules-fortifications';
+import type { GridGeometry } from '../placement/square-grid';
 import type { FortKind, FortTop } from '../types';
 import { spanPieces } from './band';
 import { fortPointsOf, type FortShapeSource } from './convert';

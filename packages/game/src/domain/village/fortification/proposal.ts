@@ -1,5 +1,5 @@
-import type { Point } from '../polygon';
-import { FORTIFICATIONS } from '../rules-fortifications';
+import type { Point } from '../placement/polygon';
+import { FORTIFICATIONS } from '../rules/rules-fortifications';
 
 // Návrh obvodu (fortifications.md – Obvod; Martin 7. 11. 2026 – „ano“): nejkratší hladký obvod
 // kolem jádra vsi = vypouklý obal jádra odsunutý o odstup – rovné kusy a oblouky kolem krajních

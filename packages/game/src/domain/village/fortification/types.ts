@@ -1,4 +1,4 @@
-import type { Point } from '../polygon';
+import type { Point } from '../placement/polygon';
 import type { FortKind, FortTop, SquareGrid, TileCell } from '../types';
 import type { FortGate } from './gates';
 

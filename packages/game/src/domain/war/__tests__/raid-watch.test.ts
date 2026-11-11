@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dwelling, village, kin } from '../../village/__tests__/kin-fixtures';
-import type { NewVillageEvent } from '../../village/inbox';
+import type { NewVillageEvent } from '../../village/core/inbox';
 import { stepCampaign } from '../campaign';
 import type { CampaignMap, CampaignState, CampaignWorld } from '../campaign-types';
 import { campaign, flat, MEADOW, SUMMER, world } from './campaign-fixtures';

@@ -1,5 +1,5 @@
-import type { Point } from '../polygon';
-import { FORTIFICATIONS } from '../rules-fortifications';
+import type { Point } from '../placement/polygon';
+import { FORTIFICATIONS } from '../rules/rules-fortifications';
 
 // Křivka obvodu opevnění (fortifications.md – Obvod, Pro implementaci – Obvod z bodů): hladká
 // uzavřená křivka přes body – centripetální Catmull-Rom (uzly po odmocnině vzdáleností), jen

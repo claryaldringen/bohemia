@@ -1,22 +1,22 @@
 import { dateOfDayIndex, dayIndexOf } from '../../calendar';
-import { stockedPenIds } from '../abandonment';
-import { workshopKilns } from '../charcoal';
+import { stockedPenIds } from '../buildings/abandonment';
+import { workshopKilns } from '../crafts/charcoal';
 import { tileCenterWorld, type Landscape, type ObstacleLayer } from '../../landscape';
-import { villageCemeteries } from '../cemetery';
-import { currentGrainPits, openGrainPits } from '../grain-pits';
-import { HAY_WINTER_MONTHS } from '../hay';
-import { grazingDemandHa, villageHerds } from '../livestock';
-import { obstacleChangesAt, type ObstacleChanges } from '../obstacles';
-import { villageOrchards } from '../orchard';
-import { herdingCoverage } from '../herding';
-import { grazedPartIds, isGrazeableFallow } from '../overgrowth';
-import { villageOxen, villagePens } from '../oxen';
-import { horsesInPlaces, villageHorses } from '../horses';
-import { penCells, penSpecies } from '../pens';
-import { ageGroup } from '../people';
-import { partStage } from '../summary';
-import { gridKey, squareCenter } from '../square-grid';
-import { fieldGrids } from '../squares';
+import { villageCemeteries } from '../buildings/cemetery';
+import { currentGrainPits, openGrainPits } from '../fields/grain-pits';
+import { HAY_WINTER_MONTHS } from '../livestock/hay';
+import { grazingDemandHa, villageHerds } from '../livestock/livestock';
+import { obstacleChangesAt, type ObstacleChanges } from '../core/obstacles';
+import { villageOrchards } from '../buildings/orchard';
+import { herdingCoverage } from '../livestock/herding';
+import { grazedPartIds, isGrazeableFallow } from '../fields/overgrowth';
+import { villageOxen, villagePens } from '../livestock/oxen';
+import { horsesInPlaces, villageHorses } from '../livestock/horses';
+import { penCells, penSpecies } from '../livestock/pens';
+import { ageGroup } from '../people/people';
+import { partStage } from '../core/summary';
+import { gridKey, squareCenter } from '../placement/square-grid';
+import { fieldGrids } from '../placement/squares';
 import type {
   DwellingPlot,
   FieldPart,
@@ -30,7 +30,7 @@ import type {
   VillageRoutes,
   VillageState,
 } from '../types';
-import { villageWoods } from '../woods';
+import { villageWoods } from '../forest/woods';
 import {
   fortBlockingSegments,
   type FortPartBand,

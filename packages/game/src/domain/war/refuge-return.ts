@@ -1,6 +1,6 @@
 import type { WorldClock } from '../calendar';
-import type { HerdSpecies } from '../village/types-livestock';
-import type { GridCell } from '../village/world-grid';
+import type { HerdSpecies } from '../village/types/types-livestock';
+import type { GridCell } from '../village/people/world-grid';
 import type { CampaignPlace, CampaignState } from './campaign-types';
 import { returnDayAfter } from './flight';
 import { flightEtaTicks } from './refuge-choice';

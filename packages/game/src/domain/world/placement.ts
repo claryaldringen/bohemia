@@ -1,5 +1,5 @@
-import type { GridCell } from '../village/world-grid';
-import { SEAT_CELL } from '../village/world-grid';
+import type { GridCell } from '../village/people/world-grid';
+import { SEAT_CELL } from '../village/people/world-grid';
 import { WORLD } from './rules-world';
 
 /** Obsazené políčko mřížky světa a hráč, jemuž patří. */

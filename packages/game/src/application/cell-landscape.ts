@@ -14,7 +14,7 @@ import {
 } from '../domain/landscape';
 import { marchGrid, type MarchGrid } from '../domain/war';
 import { cellLandscapeSeed, isDry, skeletonSlice, type SkeletonCache } from '../domain/world';
-import type { GridCell } from '../domain/village/world-grid';
+import type { GridCell } from '../domain/village/people/world-grid';
 
 // Krajina políčka mřížky světa pro tažení (war.md – Pohyb – mapu po mapě): vojsko jde každou
 // mapou, i prázdnou. Prázdné políčko má krajinu z `cellLandscapeSeed` a výřezu kostry světa

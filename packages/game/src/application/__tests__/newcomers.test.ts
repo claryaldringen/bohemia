@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
-import { neighbourCell } from '../../domain/village/world-grid';
+import { neighbourCell } from '../../domain/village/people/world-grid';
 import {
   cellDistance,
   cellLandscapeSeed,

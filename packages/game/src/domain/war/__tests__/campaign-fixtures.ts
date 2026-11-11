@@ -1,6 +1,6 @@
 import { dayIndexOf, OFFICIAL_WORLD, realTimeOf } from '../../calendar';
 import { SURFACE_CODES, type Landscape } from '../../landscape';
-import type { GridCell } from '../../village/world-grid';
+import type { GridCell } from '../../village/people/world-grid';
 import { newCampaign, type NewCampaign } from '../campaign';
 import type {
   CampaignIntent,

@@ -1,5 +1,5 @@
 import { createRandom, deriveSeed } from '../landscape/random';
-import { ageYears, isAway } from '../village/people';
+import { ageYears, isAway } from '../village/people/people';
 import type { DefenseStance, HerdSpecies, VillageState } from '../village/types';
 import { treeBelow, type VassalEdge } from '../vassalage/tree';
 import { dist2 } from './orders';

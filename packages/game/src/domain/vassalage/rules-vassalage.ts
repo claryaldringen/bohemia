@@ -1,5 +1,5 @@
-import { CARTS } from '../village/rules-crafts';
-import { TRADE, TRADE_GOOD_VALUES } from '../village/rules-trade';
+import { CARTS } from '../village/rules/rules-crafts';
+import { TRADE, TRADE_GOOD_VALUES } from '../village/rules/rules-trade';
 import { WORLD } from '../world/rules-world';
 
 /**

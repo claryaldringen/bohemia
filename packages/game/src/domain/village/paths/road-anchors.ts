@@ -7,7 +7,7 @@
 // Deterministická vrstva (jen přesná aritmetika – soubor hlídá ESLint jako síť pěšin).
 
 import { type Landscape } from '../../landscape';
-import { ROAD_ANCHORS, TRAIL } from '../rules-roads';
+import { ROAD_ANCHORS, TRAIL } from '../rules/rules-roads';
 import type { Direction8, RoadPoint, RoutePurpose, StoredRoute } from '../types';
 import { routeCells } from './routes';
 import { EDGE_MARGIN_M, pathCellM } from './terrain';

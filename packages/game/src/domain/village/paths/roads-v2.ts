@@ -1,5 +1,5 @@
 import type { Landscape, ObstacleLayer } from '../../landscape';
-import { cloneState } from '../clone';
+import { cloneState } from '../core/clone';
 import type { LegacyRoadFields, VillageRoads, VillageState } from '../types';
 import { tidyRoadsNow } from './roads';
 

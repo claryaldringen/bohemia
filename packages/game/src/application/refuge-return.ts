@@ -1,7 +1,11 @@
 import { TOTAL_GAME_DAYS, type WorldClock } from '../domain/calendar';
-import { cloneState } from '../domain/village/clone';
-import { clearRefugeLeaving, departRefuge, refugeLeavingOf } from '../domain/village/refugees';
-import type { VillageEventBody } from '../domain/village/inbox';
+import { cloneState } from '../domain/village/core/clone';
+import {
+  clearRefugeLeaving,
+  departRefuge,
+  refugeLeavingOf,
+} from '../domain/village/fortification/state/refugees';
+import type { VillageEventBody } from '../domain/village/core/inbox';
 import type { HerdSpecies, RefugeLeaving } from '../domain/village/types';
 import {
   armyApproaching,

@@ -1,6 +1,6 @@
-import type { FieldPartLook } from '../field-progress';
+import type { FieldPartLook } from '../fields/field-progress';
 import { FIELD_WALK, PATH_WALK, ROAD_TREE_SPEED, ROAD_WALK } from '../rules';
-import type { PartStage } from '../summary';
+import type { PartStage } from '../core/summary';
 import type { RoadGrade, RoadLining } from '../types';
 
 // Rychlost chůze proti louce (roads.md – Rychlejší chůze, paths.md – ceny buněk, fields.md –

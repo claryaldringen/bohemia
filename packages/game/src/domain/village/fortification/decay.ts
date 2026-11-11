@@ -6,9 +6,9 @@ import {
   pushWork,
   villageAnchor,
   villageFortifications,
-} from '../fortifications';
-import { decideTowerRebuilds } from '../fortification-gate';
-import { FORTIFICATIONS } from '../rules-fortifications';
+} from './state/fortifications';
+import { decideTowerRebuilds } from './state/fortification-gate';
+import { FORTIFICATIONS } from '../rules/rules-fortifications';
 import type {
   Construction,
   FortKind,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { packObstacles } from '../../src/domain/landscape';
-import { addHorses } from '../../src/domain/village/horse-trade';
-import { advanceVillage } from '../../src/domain/village/simulate';
+import { addHorses } from '../../src/domain/village/trade/horse-trade';
+import { advanceVillage } from '../../src/domain/village/core/simulate';
 import { START, horse, horseVillage } from '../../src/domain/village/__tests__/horse-fixtures';
 import { addLordStep, lordColumns } from '../lib/lord-columns';
 

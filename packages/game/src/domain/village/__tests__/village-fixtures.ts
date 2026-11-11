@@ -1,9 +1,9 @@
-import { moveParts } from '../land-taken';
-import { NO_CRAFTS } from '../productivity';
-import { WILDLIFE_LAND } from '../rules-wildlife';
+import { moveParts } from '../buildings/land-taken';
+import { NO_CRAFTS } from '../core/productivity';
+import { WILDLIFE_LAND } from '../rules/rules-wildlife';
 import type { VillageState } from '../types';
-import { freshWildlife } from '../wildlife';
-import { dropSeasonCrop, seasonCrop, springCrop } from '../year-plan';
+import { freshWildlife } from '../wildlife/wildlife';
+import { dropSeasonCrop, seasonCrop, springCrop } from '../core/year-plan';
 
 /**
  * Ves, ve které první zemnice už stojí – jako vsi uložené dřív, než si ji zakladatelé začali

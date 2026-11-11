@@ -18,15 +18,15 @@ import {
   type SupplyPlan,
   type SurrenderOrder,
 } from '../domain/war';
-import { craftCoverage } from '../domain/village/crafts';
-import { isLineMan } from '../domain/village/dynasty';
-import { villageHorses } from '../domain/village/horses';
-import { villageHappiness } from '../domain/village/happiness';
-import { ageYears } from '../domain/village/people';
+import { craftCoverage } from '../domain/village/crafts/crafts';
+import { isLineMan } from '../domain/village/people/dynasty';
+import { villageHorses } from '../domain/village/livestock/horses';
+import { villageHappiness } from '../domain/village/people/happiness';
+import { ageYears } from '../domain/village/people/people';
 import { deriveSeed } from '../domain/landscape/random';
 import { isVillageAbandoned, isVillageExtinct } from '../domain/village';
 import type { Person, PersonRef, VillageState } from '../domain/village/types';
-import { directionBetween, type GridCell } from '../domain/village/world-grid';
+import { directionBetween, type GridCell } from '../domain/village/people/world-grid';
 import type { House, HouseRepository } from './houses';
 import { NO_HOUSE } from './negotiate';
 import { NEWCOMER_REASONS } from './newcomers';

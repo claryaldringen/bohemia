@@ -1,6 +1,6 @@
-import { cloneState } from '../village/clone';
-import { isLineMan } from '../village/dynasty';
-import { setStewardOn } from '../village/steward-state';
+import { cloneState } from '../village/core/clone';
+import { isLineMan } from '../village/people/dynasty';
+import { setStewardOn } from '../village/steward/steward-state';
 import type { VillageState } from '../village/types';
 
 // Odúmrť (vassalage.md – Vymření rodu – odúmrť): celé vsi vymřelého rodu a jeho vazalové připadnou

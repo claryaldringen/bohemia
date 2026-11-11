@@ -2,9 +2,43 @@
 
 Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). Pravidla a rozhodnutí: population.md, fields.md, happiness.md, forest.md v `docs/design/`.
 
-- **Jádro** `packages/game/src/domain/village/` (simulace, umístění `placement.ts` (rozcestník, kontroly v `placement-<téma>.ts`), souhrn
-  `summary.ts`), use-casy a port `VillageRepository` v `application/`, tabulka `village`.
+- **Jádro** `packages/game/src/domain/village/` (simulace `core/`, umístění `placement/placement.ts` (rozcestník, kontroly v `placement/placement-<téma>.ts`), souhrn
+  `core/summary.ts`), use-casy a port `VillageRepository` v `application/`, tabulka `village`.
   Ves se dopočítá při každém načtení a akci (mezitím ji posouvá worker – `docs/code/worker.md`).
+
+- **Složky jádra** (11. 11. 2026, návrh Clauda – rozdělení podle oblastí mapy kódu a shluků
+  importů; veřejné API je dál jen barel `domain/village/index.ts`). Testy leží v `__tests__`
+  složky, kterou testují; v kořenovém `village/__tests__/` zůstaly jen fixtures sdílené víc
+  oblastmi (`village-fixtures.ts`, `placement-fixtures.ts`, `paths-fixtures.ts`, `kin-fixtures.ts`,
+  `horse-fixtures.ts`, `abandonment-fixtures.ts`).
+
+  | Složka                 | Co v ní je                                                                                                        | Dokument                    |
+  | ---------------------- | ----------------------------------------------------------------------------------------------------------------- | --------------------------- |
+  | `core/`                | `simulate*.ts` (pořadí dne), `migrations.ts`, `clone.ts`, `actions.ts`, jídlo a strava, práce, upozornění, souhrn | `village-core.md`           |
+  | `rules/`               | všechna čísla pravidel `rules-*.ts`, barel `rules/index.ts` (dřív rules.ts)                                       | podle tématu                |
+  | `types/`               | typy stavu `types-*.ts`, barel `types/index.ts` (dřív types.ts)                                                   | podle tématu                |
+  | `fields/`              | pole, osev, osevní postup, len, zahrádka, žně, výmlat, obilní jámy, osivo                                         | `village-fields.md`         |
+  | `livestock/`           | stáda, seno, ohrady, voli a koně, orba, mléko, vlna, potřeba tažných zvířat                                       | `village-livestock.md`      |
+  | `people/`              | lidé, příbuzenství, domácnosti, sňatky, rod a vojvoda, dvorec, víra a posvátná místa, štěstí, pohřby, odchod      | `village-people.md`         |
+  | `crafts/`              | dílny, kovář, uhlíř, hrnčíř, tesař, vozy, nákup u sousedů                                                         | `village-crafts.md`         |
+  | `trade/`               | obchod se sousedy, zemská stezka, výměna lidí a dobytka, počasí obchodu                                           | `village-trade.md`          |
+  | `buildings/`           | stavby, obydlí, chátrání a oprava, bourání, hřbitov, sad, pole a sad pod stavbou                                  | `village-buildings.md`      |
+  | `placement/`           | umisťování staveb `placement*.ts`, geometrie (`polygon.ts`, `squares.ts`, `square-grid.ts`, `plot-cells.ts`)      | `village-buildings.md`      |
+  | `roads/`               | vylepšení cest, vozová cesta, jabloně a stromy u cest, cesta přes pole                                            | `village-roads.md`          |
+  | `paths/`               | síť pěšin a vozová síť (deterministická vrstva)                                                                   | `village-roads.md`          |
+  | `steward/`             | správce vsi, založení vsi                                                                                         | `village-steward.md`        |
+  | `wildlife/`            | divoká zvěř, lov, psi, hlídky polí                                                                                | `village-wildlife.md`       |
+  | `disasters/`           | počasí, sníh, povodně, kroupy, vichřice, požár, ochrana dílu                                                      | `village-disasters.md`      |
+  | `forest/`              | les a dřevo, klučení, hromady klád                                                                                | `village-core.md`           |
+  | `fortification/`       | obvod, úseky, brány a obrana opevnění (deterministická vrstva)                                                    | `village-fortifications.md` |
+  | `fortification/state/` | stavba a vylepšení opevnění ve stavu vsi, val, kámen a lom, útočiště                                              | `village-fortifications.md` |
+
+  `rules/` a `types/` drží pohromadě schválně: čísla pravidel mají jedno místo (kalibrace i návrh
+  na ně odkazují), barely `rules` a `types` importuje skoro každý soubor vsi a `types-state.ts`
+  skládá stav ze všech oblastí. Deterministická vrstva (seznam v kořenovém eslint.config.mjs) je
+  v `paths/`, v kořeni `fortification/` (bez `state/`) a v souborech `placement/square-grid.ts`,
+  `buildings/dwelling-shape.ts`, `forest/log-piles.ts` a `steward/` `steward.ts`,
+  `steward-extras.ts`, `steward-land.ts`, `steward-plan.ts`, `steward-rebuild.ts`.
 
 - **API jádra:** `foundVillage` (4 lidé, zásoby – zakladatelé s vojvodou `FOUNDERS_STORES`: jídlo `foodYears` + osivo `seedYears` roční potřeby, osivo jako `reservedSeedKg` s lhůtou `reservedSeedUntilDay` = den založení + `seedKeepYears`; `seedBuyingDay` ji 1. 6. ani 1. 12. před lhůtou neuvolní, jen ve skutečném hladu; `takeSeed` na ni sáhne, až když běžné zrno nad `keepKg` nestačí (village-fields.md – Osivo pro ves bez zásob); ves, která šetří (`hungry`), ji v lhůtě zkrátí na `foundersSeedKeepKg` (seed-buying.ts – osivo na díly na řadě příštího okna, `windowSeedNeedKg`); `fieldStoresOutlook` ji v lhůtě nepočítá za jídlo – `keptSeedKg`, seed.ts; ves bez rodu `START_STORES_MONTHS` + `START_SEED_YEARS`, ves z výpravy svůj náklad –, stavba první zemnice, volitelně první pole),
   `advanceVillage(state, toDay)` (dopočítá ves do dne včetně) a akce hráče `startNewDwelling`,
@@ -236,7 +270,7 @@ kroniky`sacred-oak-died`/`sacred-snag-fell`(upozornění přes`CHRONICLE_NOTICES
   přestávkách nezávisí (test v `villages.test.ts`).
 
 - **Schránka vsi** – jediná cesta, jak cizí věc (jiný hráč, svět) změní ves (plán multiplayeru,
-  technické rozhodnutí 4). Doména `domain/village/inbox.ts`: `VillageEvent { id, villageId, day,
+  technické rozhodnutí 4). Doména `domain/village/core/inbox.ts`: `VillageEvent { id, villageId, day,
 seq, body }`, `NewVillageEvent` (bez `id` a `seq`, s jedinečným `ref` – idempotence zápisu),
   tělo `VillageEventBody` je unie podle `kind`: `{ kind: 'chronicle'; event }` (zápis do kroniky
   s dnem použití) a `{ kind: 'lord-arrives'; party; fromVillageId }` (příjezd dosazeného vojvody –
@@ -290,7 +324,7 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   - **Příchod hostů:** tělo schránky `guests-arrive` (`fromVillageId`, `fromName`, `guests`) –
     `hostGuests` přidá ty, kdo ještě neodešli a ve vsi nejsou; kronika `guests-came`.
   - **Uprchlíci a posel** (war.md – Varování, poslové a útěk do hradiště; plán 2026-11-09 – Ú7,
-    kód `domain/village/refugees.ts`, podrobně docs/code/war.md – Ves na útěku): `away` druhu
+    kód `domain/village/fortification/state/refugees.ts`, podrobně docs/code/war.md – Ves na útěku): `away` druhu
     `refuge` (s `hostVillageId` v hradišti, bez něj ukrytý v lese) a `messenger` nemá `untilDay` –
     končí událostí schránky. **Uprchlík v lese** (`hidesInForest`) nepracuje, ale **jí doma**
     (`foodNeedPerDay`). **Host se dnem narození** (`Guest.bornDay` – uprchlíci) jí podle věku
@@ -721,7 +755,7 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   nestojí (`householdCount` v `simulate-plan.ts`, porody po domácnostech). Starší uložené vsi se
   zemnicí od založení se dopočítají beze změny.
 
-- **Les a dřevo** ([forest.md](../design/forest.md), `domain/village/wood.ts`): klády na hromadě
+- **Les a dřevo** ([forest.md](../design/forest.md), `domain/village/forest/wood.ts`): klády na hromadě
   (`woodLogs`, staré vsi 0, hnijí 4 % ročně), obydlí, první zemnice i přestavby berou dřevo
   (`DWELLING_TREES` 7 / 18) nejdřív z hromady, zbytek vyhradí při zahájení mezi nejbližšími
   dospělými stromy (`planDwellingWood`, bez stavu vsi `planDwellingWoodFrom` s `WoodSource` – cena
@@ -772,7 +806,7 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   řádek nahoře, žádný trvalý seznam; vymřelá ves žádná. Kronika je jen v DTO.
 
 - **Upozornění vsi do kroniky** (absence.md – Upozornění vsi do kroniky,
-  `domain/village/lasting-notices.ts`): podmínky trvalých stavů jsou v jádře –
+  `domain/village/core/lasting-notices.ts`): podmínky trvalých stavů jsou v jádře –
   `lastingNotices(state, day)` vrací `LastingNotice[]` v pořadí `LASTING_NOTICES`: stupně hladu
   vnořeně (`rationing` ⊂ `hungry` ⊂ `starving` z `hungerLevel`; `seed-rationing` místo
   `rationing`, když ves šetří jen kvůli osivu – `VillageState.seedRation`), `stalled`
@@ -802,7 +836,7 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   (`getVillageView`) ji potřebuje jen při prvním načtení vsi založené před vrstvou (doplnění
   odstraněných překážek, ≈ 300 ms jednou).
 
-- **Překážky ve vsi** (`domain/village/obstacles.ts`, fields.md – tabulka překážek): obydlí
+- **Překážky ve vsi** (`domain/village/core/obstacles.ts`, fields.md – tabulka překážek): obydlí
   platí překážky na vyklízené ploše (`DWELLING_CLEARING_M` = staveniště scény) po kusech (les za
   sazbu lesa – Stavba v lese),
   skalní výchoz pod půdorysem stavbu nedovolí; díl pole platí překážky v políčku jen mimo
@@ -821,7 +855,7 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
 ## Převody starších vsí
 
 Stav vsi je JSON a nové části jsou volitelné (CLAUDE.md – Ves). Starší ves se převádí **jedním
-seřazeným seznamem** `VILLAGE_MIGRATIONS` (`domain/village/migrations.ts`, položka `{ id, since,
+seřazeným seznamem** `VILLAGE_MIGRATIONS` (`domain/village/core/migrations.ts`, položka `{ id, since,
 loadOnly?, run(state, ctx) }`), který prochází `migrateVillage(state, ctx)`:
 
 - **Načtení vsi** (`updateVillage`) volá seznam jednou před dopočtem s `ctx.load` (den, do kterého se
@@ -976,7 +1010,7 @@ měněné části ukládat zvlášť jen při změně a ukládat komprimovaně m
 
 ## Deník vsí (`village_year`)
 
-Martin 1. 11. 2026: „na tohle asi ser, podle mě bude stačit logovat hru“ (místo velkého měření správce). Za každou ves a dokončený herní rok jeden řádek – `villageYearRow(stav)` v `domain/village/year-log.ts` (čistá funkce nad stavem na konci roku: lidé dospělí/děti, narození a úmrtí z kroniky roku, z toho hladem, sklizeň, zásoby (vymlácené i zrno v nevymlácených snopech – výmlat běží do konce února, od 9. 11. 2026), dny hladu, pole a oseto (skutečně zasetý podíl prací hospodářského roku – `sownShare` × výměra dílů práce; od 6. 11. 2026, dřív díly ve stavu `sown` už od výběru do plánu), stáda, správce zapnutý, dostavěné stavby podle druhu, odchody synů, pohromy).
+Martin 1. 11. 2026: „na tohle asi ser, podle mě bude stačit logovat hru“ (místo velkého měření správce). Za každou ves a dokončený herní rok jeden řádek – `villageYearRow(stav)` v `domain/village/core/year-log.ts` (čistá funkce nad stavem na konci roku: lidé dospělí/děti, narození a úmrtí z kroniky roku, z toho hladem, sklizeň, zásoby (vymlácené i zrno v nevymlácených snopech – výmlat běží do konce února, od 9. 11. 2026), dny hladu, pole a oseto (skutečně zasetý podíl prací hospodářského roku – `sownShare` × výměra dílů práce; od 6. 11. 2026, dřív díly ve stavu `sown` už od výběru do plánu), stáda, správce zapnutý, dostavěné stavby podle druhu, odchody synů, pohromy).
 
 - `updateVillage` dopočítává po kouscích končících na přelomu roku (`nextYearEnd`; stav je týž jako bez dělení) a řádky předá `VillageRepository.save(…, yearRows)`; adaptér je zapíše v téže transakci jako stav (`ON CONFLICT (village_id, year) DO UPDATE` – opakovaný zápis řádek přepíše). Worker i web jdou stejnou cestou. Cena zápisu: jeden upsert za ves a rok, v měření v řádu jednotek ms na save (v šumu).
 - Počty událostí se čtou z kroniky (max. 500 událostí) – při přetečení je `chronicleFull` a počty jsou dolní odhad. Nejnižší zásoby za rok se nesledují (stav na konci roku jen).

@@ -4,7 +4,7 @@
 // a křižovatek.“).
 
 import type { Landscape, ObstacleLayer } from '../../landscape';
-import { cloneState } from '../clone';
+import { cloneState } from '../core/clone';
 import { ROAD_LOOSE_WAGON, ROAD_REBUILD } from '../rules';
 import type { Road, RoadPoint, VillageState } from '../types';
 import { roadChain, roadChains } from './road-chains';
@@ -16,7 +16,7 @@ import { axisDistance, resample } from './roads-geometry';
 import { pathCellM } from './terrain';
 import { refreshWalkDistances, villageBlockedAt } from './village';
 import { abandonBlockedStretches } from './roads-overgrow';
-import { buildWagonRoadNow, planWagonRoad, wagonPlanInputOf } from '../wagon-road';
+import { buildWagonRoadNow, planWagonRoad, wagonPlanInputOf } from '../roads/wagon-road';
 
 /** Konec úseku patří ke křižovatce, jejímž je ramenem, když je od jejího středu nejvýš tolik (m). */
 const JUNCTION_END_M = 15;

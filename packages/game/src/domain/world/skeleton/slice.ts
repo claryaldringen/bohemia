@@ -5,7 +5,7 @@ import {
   type SkeletonSlice,
   type SkeletonTrailPort,
 } from '../../landscape/skeleton/types';
-import type { GridCell } from '../../village/world-grid';
+import type { GridCell } from '../../village/people/world-grid';
 import {
   Drain,
   drainOf,

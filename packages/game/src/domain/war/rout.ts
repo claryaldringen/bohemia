@@ -1,5 +1,5 @@
-import { ageYears, isInjured } from '../village/people';
-import type { Person } from '../village/types-people';
+import { ageYears, isInjured } from '../village/people/people';
+import type { Person } from '../village/types/types-people';
 import type { BattleField, BattleFort, BattleState, Fighter } from './battle';
 import { nearestForest } from './flight';
 import { dist2, inFight } from './orders';

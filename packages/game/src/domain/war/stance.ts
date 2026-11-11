@@ -5,8 +5,8 @@ import {
   refugeCapacity,
 } from '../village/fortification';
 import type { Arrival, RefugeResult } from '../village/fortification';
-import { FORTIFICATIONS } from '../village/rules-fortifications';
-import { ageYears, isAway } from '../village/people';
+import { FORTIFICATIONS } from '../village/rules/rules-fortifications';
+import { ageYears, isAway } from '../village/people/people';
 import type { DefenseStance, HerdSpecies, VillageState } from '../village/types';
 import type { BattleField, BattleFort } from './battle';
 import { houseGroups, type Defender } from './defenders';

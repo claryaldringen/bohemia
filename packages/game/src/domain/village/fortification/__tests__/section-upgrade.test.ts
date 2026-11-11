@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { packObstacles } from '../../../landscape';
-import { foundVillage } from '../../actions';
-import { cancelConstruction } from '../../cancel-construction';
+import { foundVillage } from '../../core/actions';
+import { cancelConstruction } from '../../buildings/cancel-construction';
 import {
   addGateToFortification,
   finishFortification,
@@ -13,13 +13,13 @@ import {
   startSectionDemolition,
   villageFortifications,
   workFortification,
-} from '../../fortifications';
+} from '../state/fortifications';
 import {
   FORT_UPGRADE_NONE,
   sectionUpgrades,
   startSectionUpgrade,
-} from '../../fortification-upgrade';
-import { FORT_BEND_KIND } from '../../placement-fortifications';
+} from '../state/fortification-upgrade';
+import { FORT_BEND_KIND } from '../../placement/placement-fortifications';
 import type { Construction, FortKind, Fortification, VillageState, WallKind } from '../../types';
 import { block, makeLandscape } from '../../__tests__/placement-fixtures';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';

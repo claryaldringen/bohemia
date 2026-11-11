@@ -1,5 +1,5 @@
 import { dateOfDayIndex } from '../../calendar';
-import { FORTIFICATIONS, type FortCostPer100M } from '../rules-fortifications';
+import { FORTIFICATIONS, type FortCostPer100M } from '../rules/rules-fortifications';
 import type { FortKind, WallKind } from '../types';
 import { WALL_ORDER } from './life';
 

@@ -1,7 +1,7 @@
 import { choosePremiumType } from '../landscape/premium/assign';
 import { PREMIUM_TYPES } from '../landscape/premium/catalog';
 import { SKELETON_PREMIUM_SLOTS, type PremiumType } from '../landscape/premium/types';
-import type { GridCell } from '../village/world-grid';
+import type { GridCell } from '../village/people/world-grid';
 import { freeCellsByRing, type OccupiedCell, type PlacementRequest } from './placement';
 import { WORLD } from './rules-world';
 import { SKELETON } from './skeleton/rules-skeleton';

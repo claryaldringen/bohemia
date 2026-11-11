@@ -1,4 +1,4 @@
-import { FORTIFICATIONS } from '../rules-fortifications';
+import { FORTIFICATIONS } from '../rules/rules-fortifications';
 import type { ThreatSignal } from './types';
 
 // Hrozba vsi (fortifications.md – Hrozba, jak se počítá): součet vah signálů, každý slábne

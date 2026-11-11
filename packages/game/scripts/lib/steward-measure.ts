@@ -30,14 +30,14 @@ import {
   type FieldPart,
   type VillageState,
 } from '../../src/domain/village';
-import { ROTATION, ROTATION_FACTOR } from '../../src/domain/village/field-capacity';
+import { ROTATION, ROTATION_FACTOR } from '../../src/domain/village/fields/field-capacity';
 import {
   FERTILITY,
   FIELD_WORK_PER_HA,
   FOUNDING_COST_PER_HA,
   RECLAIM_COST_PER_HA,
-} from '../../src/domain/village/rules-fields';
-import { fieldStoresOutlook } from '../../src/domain/village/simulate-plan';
+} from '../../src/domain/village/rules/rules-fields';
+import { fieldStoresOutlook } from '../../src/domain/village/core/simulate-plan';
 import { realLand, type CalibrationLand } from './calibration-land';
 import { steadyState } from './steady-state';
 

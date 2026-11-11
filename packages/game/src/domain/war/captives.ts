@@ -1,5 +1,5 @@
 import type { ChronicleEvent, VillageState } from '../village/types';
-import { setStewardOn } from '../village/steward-state';
+import { setStewardOn } from '../village/steward/steward-state';
 
 // Konec zajetí (war.md – Vzdaní, zajetí a výkupné): propuštěný zajatec jde domů mapu po mapě
 // (příchod domů za 2 × vzdálenost dní), popravený umírá (`line-man-fell`). Tělo schránky

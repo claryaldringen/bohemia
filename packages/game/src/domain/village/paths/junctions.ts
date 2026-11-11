@@ -9,8 +9,8 @@
 import { detAtan2, detCos, detSin, length2 } from '../../landscape';
 import { wrapAngle } from '../../landscape/det-math';
 import { createRandom, deriveSeed } from '../../landscape/random';
-import { ROAD_TREE_ID_BASE } from '../road-trees';
-import { JUNCTION, ROAD_TREES } from '../rules-roads';
+import { ROAD_TREE_ID_BASE } from '../roads/road-trees';
+import { JUNCTION, ROAD_TREES } from '../rules/rules-roads';
 import type {
   JunctionLandmark,
   JunctionLandmarkKind,

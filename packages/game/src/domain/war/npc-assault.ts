@@ -10,7 +10,7 @@ import {
   type AssaultStep,
   type FortSegmentShape,
 } from '../village/fortification';
-import { FORTIFICATIONS } from '../village/rules-fortifications';
+import { FORTIFICATIONS } from '../village/rules/rules-fortifications';
 import type { WallKind } from '../village/types';
 import {
   fortPassages,

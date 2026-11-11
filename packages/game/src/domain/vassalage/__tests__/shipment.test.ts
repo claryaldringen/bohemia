@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { applyInboxDay, type VillageEvent } from '../../village/inbox';
-import { advanceVillage } from '../../village/simulate';
+import { applyInboxDay, type VillageEvent } from '../../village/core/inbox';
+import { advanceVillage } from '../../village/core/simulate';
 import type { Person, VillageState } from '../../village/types';
 import { dispatchShipment, receiveShipment, shipmentDays } from '../shipment';
 import { DAY, bundle, receiver, sender, stock } from './shipment-fixtures';

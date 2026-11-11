@@ -4,9 +4,9 @@ import { sectionPieces, type SectionPiece } from '../section-spans';
 import { dayIndexOf } from '../../../calendar';
 import { packObstacles } from '../../../landscape';
 import { MARCH_RAMPART, MARCH_WALL, marchCellAt, marchGrid } from '../../../war/march-grid';
-import { foundVillage } from '../../actions';
-import { applyBuildIntent } from '../../build-intent';
-import { cancelConstruction } from '../../cancel-construction';
+import { foundVillage } from '../../core/actions';
+import { applyBuildIntent } from '../../buildings/build-intent';
+import { cancelConstruction } from '../../buildings/cancel-construction';
 import {
   addGateToFortification,
   finishFortification,
@@ -15,14 +15,14 @@ import {
   startFortification,
   villageFortifications,
   workFortification,
-} from '../../fortifications';
+} from '../state/fortifications';
 import {
   FORT_RAMPART_DONE,
   FORT_RAMPART_NO_WALL,
   startRampartAddition,
-} from '../../fortification-rampart';
-import { startSectionUpgrade } from '../../fortification-upgrade';
-import { FORT_OVER_BUILDING } from '../../placement-fortifications';
+} from '../state/fortification-rampart';
+import { startSectionUpgrade } from '../state/fortification-upgrade';
+import { FORT_OVER_BUILDING } from '../../placement/placement-fortifications';
 import type { Construction, FortKind, Fortification, VillageState } from '../../types';
 import { block, makeLandscape } from '../../__tests__/placement-fixtures';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';

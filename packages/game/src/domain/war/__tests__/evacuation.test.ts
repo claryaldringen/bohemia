@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { dwelling, kin, village } from '../../village/__tests__/kin-fixtures';
-import type { NewVillageEvent, VillageEventBody } from '../../village/inbox';
-import { guestFoodNeed } from '../../village/people';
-import { applyRefugeDepart } from '../../village/refugees';
+import type { NewVillageEvent, VillageEventBody } from '../../village/core/inbox';
+import { guestFoodNeed } from '../../village/people/people';
+import { applyRefugeDepart } from '../../village/fortification/state/refugees';
 import type { FlightMode, Person, RefugeePerson, VillageState } from '../../village/types';
-import type { GridCell } from '../../village/world-grid';
+import type { GridCell } from '../../village/people/world-grid';
 import type { AlarmFlight } from '../alarm-types';
 import { stepCampaign } from '../campaign';
 import type {

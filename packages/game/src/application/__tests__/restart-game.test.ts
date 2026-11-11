@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { dayIndexOf } from '../../domain/calendar';
 import { CURRENT_LAYER_VERSIONS, type PremiumType } from '../../domain/landscape';
 import { isLineMan, type Position, type VillageState } from '../../domain/village';
-import { removePeople } from '../../domain/village/kinship';
+import { removePeople } from '../../domain/village/people/kinship';
 import { block, makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
 import { foundVillageForSettlement } from '../found-village';
 import { loadVillage } from '../load-village';

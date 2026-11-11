@@ -12,7 +12,7 @@ import {
   type WarSceneFolk,
   type WarSceneView,
 } from '../domain/war';
-import { sameCell, type GridCell } from '../domain/village/world-grid';
+import { sameCell, type GridCell } from '../domain/village/people/world-grid';
 import { sightGrid, type SightGridCache } from './campaign-view';
 import type { CampaignCells, CampaignRepository } from './campaigns';
 import type { SettlementRepository } from './settlements';

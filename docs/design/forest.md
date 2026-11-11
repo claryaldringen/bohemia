@@ -5,7 +5,7 @@ Stav: schváleno 17. 10. 2026 (Martin: „Takhle je to zatím ok“), čísla op
 **Implementováno 18. 10. 2026:** hromada klád (`VillageState.woodLogs`),
 dřevo obydlí, první zemnice i přestaveb s kácením nejbližších dospělých stromů jako částí práce
 stavby, klády z mýcení (pole, hřbitov, staveniště), hnití klád, dřevo jako surovina předem
-(zašedlé tlačítko), palivo podle vzdálenosti k lesu – `packages/game/src/domain/village/wood.ts`;
+(zašedlé tlačítko), palivo podle vzdálenosti k lesu – `packages/game/src/domain/village/forest/wood.ts`;
 v rozhraní klády v horní liště, dřevo v ceně staveb a stromy ke skácení u stavby, ve scéně hromada
 klád a pařezy. Staví na vrstvě překážek (stromy jako herní data, kácení s pařezem a obnovou
 v `obstacles.ts`). **Pole v lese (18. 10. 2026):** pole jde zakládat i v lese a v křovinách

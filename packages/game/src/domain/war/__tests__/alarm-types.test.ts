@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyInboxDay, type VillageEvent, type VillageEventBody } from '../../village/inbox';
+import { applyInboxDay, type VillageEvent, type VillageEventBody } from '../../village/core/inbox';
 import { DAY, kin, village } from '../../village/__tests__/kin-fixtures';
 import type { CampaignAlarm } from '../alarm-types';
 import { stepCampaign } from '../campaign';
@@ -162,7 +162,7 @@ describe('Ú1 – události útěku ve schránce vsi', () => {
     { kind: 'refuge-back', refId: 'c1:a1', foodKg: 20, herd: NO_HERD },
   ];
 
-  // Úloha 7 (9. 11. 2026): ves události použije – podrobně `village/__tests__/refugees.test.ts`.
+  // Úloha 7 (9. 11. 2026): ves události použije – podrobně `village/fortification/state/__tests__/refugees.test.ts`.
   it('(c) Úloha 7 je použije – posel doma, skupina dostižená, návrat vrátí ukryté', () => {
     const state = village(people);
     const events: VillageEvent[] = bodies.map((body, i) => ({

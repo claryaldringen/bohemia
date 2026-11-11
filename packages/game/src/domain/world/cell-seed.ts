@@ -1,5 +1,5 @@
 import { deriveSeed } from '../landscape/random';
-import type { GridCell } from '../village/world-grid';
+import type { GridCell } from '../village/people/world-grid';
 
 /** Rezerva pod stropem sloupce `landscape_seed` (int32) pro další pokusy `generateAcceptedLandscape`. */
 const ATTEMPT_HEADROOM = 1024;

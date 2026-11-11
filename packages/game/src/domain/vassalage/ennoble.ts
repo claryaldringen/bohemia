@@ -1,9 +1,13 @@
 // Povýšení vesničana (vassalage.md – Povýšení vesničana; Martin: „Ano“): vesničan s rodinou se
 // přestěhuje do vsi bez vojvody a založí NPC šlechtický rod. Čisté funkce bez I/O; stěhování
 // rodiny používá stejné kroky jako dosazení vojvody (`departAppointee`, `settleAppointee`).
-import { isLineMan } from '../village/dynasty';
-import { departAppointee, settleAppointee, type AppointeeParty } from '../village/appoint-lord';
-import { ageYears } from '../village/people';
+import { isLineMan } from '../village/people/dynasty';
+import {
+  departAppointee,
+  settleAppointee,
+  type AppointeeParty,
+} from '../village/people/appoint-lord';
+import { ageYears } from '../village/people/people';
 import type { ChronicleEvent, Person, VillageState } from '../village/types';
 import { VASSALAGE } from './rules-vassalage';
 

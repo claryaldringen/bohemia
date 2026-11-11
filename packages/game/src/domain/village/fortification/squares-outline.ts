@@ -1,6 +1,6 @@
 import type { EntranceSquare, FenceArc, FenceCorners, FenceSegment } from '../paths/entrances';
-import { FORTIFICATIONS } from '../rules-fortifications';
-import { rotationCosSin, squareCenter, type GridGeometry } from '../square-grid';
+import { FORTIFICATIONS } from '../rules/rules-fortifications';
+import { rotationCosSin, squareCenter, type GridGeometry } from '../placement/square-grid';
 import type { FortKind, SquareGrid, TileCell } from '../types';
 
 // Starý obvod opevnění po čtvercích (jen převod – `convert.ts`): plocha po čtvercích jako pole, opevnění vede po

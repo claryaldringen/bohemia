@@ -1,7 +1,7 @@
 import { length2, type Landscape } from '../../landscape';
 import { PATH_WALK, ROAD_WALK } from '../rules';
 import type { RoadGrade, RoadGround, RoadLining } from '../types';
-import { roadBridged } from '../types-roads';
+import { roadBridged } from '../types/types-roads';
 import type { FortWalls } from '../fortification/walls';
 import {
   GATE_SLACK_M,

@@ -1,6 +1,6 @@
 import { dateOfDayIndex } from '../../calendar';
 import { WAR } from '../../war/rules-war';
-import { FORTIFICATIONS } from '../rules-fortifications';
+import { FORTIFICATIONS } from '../rules/rules-fortifications';
 import type { WallKind } from '../types';
 import { layerBuilt, segmentRampart, segmentState, segmentWall } from './life';
 import { gatePincerStands, gateTowerStands } from './pincer';

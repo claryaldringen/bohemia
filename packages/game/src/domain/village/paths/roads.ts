@@ -9,8 +9,8 @@
 
 import { dateOfDayIndex } from '../../calendar';
 import { type Landscape, type ObstacleLayer } from '../../landscape';
-import { obstacleChangesAt, type ObstacleChanges } from '../obstacles';
-import { roadAppleStage, roadTreeLook } from '../road-trees';
+import { obstacleChangesAt, type ObstacleChanges } from '../core/obstacles';
+import { roadAppleStage, roadTreeLook } from '../roads/road-trees';
 import { CART_ROADS, FENCE_CLEARANCE, ROAD_LAND, ROADS, WEAR } from '../rules';
 import {
   type ChronicleEvent,
@@ -70,8 +70,8 @@ import { villageBuildings } from './network-search';
 import { type PathVillage } from './network-types';
 import { fenceLayoutKey, pathVillageOf, settleVillageWear, villageBlockedAt } from './village';
 import { type TrafficField, addCartWear, addWearLabor, trafficField, wearMap } from './wear';
-import { villageCemeteries } from '../cemetery';
-import { visitKey } from '../abandonment';
+import { villageCemeteries } from '../buildings/cemetery';
+import { visitKey } from '../buildings/abandonment';
 
 function isRoadYearDay(day: number): boolean {
   const date = dateOfDayIndex(day);

@@ -1,6 +1,6 @@
 import type { Landscape } from '../domain/landscape';
 import { canDeclareHunt, declareHunt, HUNT_DENIED_TEXT } from '../domain/village';
-import { cloneState } from '../domain/village/clone';
+import { cloneState } from '../domain/village/core/clone';
 import { updateLivingVillage } from './update-village';
 import type { VillageRepository, VillageResult } from './villages';
 

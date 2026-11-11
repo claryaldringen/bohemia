@@ -9,7 +9,7 @@ import {
   type AssaultMethod,
   type FortSegmentShape,
 } from '../village/fortification';
-import { FORTIFICATIONS } from '../village/rules-fortifications';
+import { FORTIFICATIONS } from '../village/rules/rules-fortifications';
 import type { WallKind } from '../village/types';
 import type { BattleField, BattleFort, BattleState, Fighter } from './battle';
 import type { GroupAssault } from './campaign-types';

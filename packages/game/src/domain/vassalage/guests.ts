@@ -1,7 +1,7 @@
-import { cloneState } from '../village/clone';
-import { isDynastyTracked, lineMen } from '../village/dynasty';
-import { villageManorId } from '../village/manor';
-import { ageYears, isAway, laborPerDay } from '../village/people';
+import { cloneState } from '../village/core/clone';
+import { isDynastyTracked, lineMen } from '../village/people/dynasty';
+import { villageManorId } from '../village/people/manor';
+import { ageYears, isAway, laborPerDay } from '../village/people/people';
 import type {
   AwayKind,
   ChronicleEvent,

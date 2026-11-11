@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../calendar';
-import { foundVillage } from '../../village/actions';
-import { craftCoverage } from '../../village/crafts';
-import { yearlyFieldNeed } from '../../village/field-food';
-import { fieldStoresOutlook } from '../../village/simulate-plan';
-import { stewardOutlook } from '../../village/steward-outlook';
-import { SEED_KG_PER_HA } from '../../village/rules-fields';
+import { foundVillage } from '../../village/core/actions';
+import { craftCoverage } from '../../village/crafts/crafts';
+import { yearlyFieldNeed } from '../../village/fields/field-food';
+import { fieldStoresOutlook } from '../../village/core/simulate-plan';
+import { stewardOutlook } from '../../village/steward/steward-outlook';
+import { SEED_KG_PER_HA } from '../../village/rules/rules-fields';
 import type { FarmSeason, FieldPart, VillageState } from '../../village/types';
 import { withBuiltFirstDwelling } from '../../village/__tests__/village-fixtures';
 import {

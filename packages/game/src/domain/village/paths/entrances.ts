@@ -1,6 +1,6 @@
 import { detCos, detSin, length2 } from '../../landscape';
 import { CEMETERY_FENCE_INSET_M, HUMNO, PEN_FENCE_INSET_M } from '../rules';
-import { rotationCosSin, rotationTurn, ROTATION_TURNS } from '../square-grid';
+import { rotationCosSin, rotationTurn, ROTATION_TURNS } from '../placement/square-grid';
 import type { Position, SacredBuildingKind, TileCell } from '../types';
 
 // Vchody staveb (paths.md – Vchody; Martin, 19. 10. 2026: „A ještě, každá budova by měla mít

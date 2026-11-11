@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { kin, village } from '../../village/__tests__/kin-fixtures';
 import type { Dwelling, Person, VillageState } from '../../village/types';
-import type { GridCell } from '../../village/world-grid';
+import type { GridCell } from '../../village/people/world-grid';
 import type { CampaignPlace } from '../campaign-types';
 import {
   armyEtaTicks,

@@ -1,20 +1,20 @@
-import { cattleForSale } from '../village/cattle-trade';
-import { craftCoverage } from '../village/crafts';
-import { oxenTrainingTarget } from '../village/draft';
-import { yearlyCommonLabor } from '../village/dwellings';
-import { yearlyFieldNeed } from '../village/field-food';
-import { villageHayKg, winterHayAvailable } from '../village/hay';
-import { horsesWanted } from '../village/horse-breeding';
-import { horsesForSale } from '../village/horse-trade';
-import { villageHorses } from '../village/horses';
-import { surplusCows, winterHayNeedKg } from '../village/husbandry';
-import { HORSE_GOODS } from '../village/neighbours';
-import { isTrained, oxPens } from '../village/oxen';
-import { oxenOf } from '../village/pens';
-import { ageGroup } from '../village/people';
-import { NO_PEOPLE, emigrantGroups } from '../village/people-trade';
-import { SEED_KG_PER_HA } from '../village/rules-fields';
-import { stewardOutlook, type StewardOutlook } from '../village/steward-outlook';
+import { cattleForSale } from '../village/trade/cattle-trade';
+import { craftCoverage } from '../village/crafts/crafts';
+import { oxenTrainingTarget } from '../village/livestock/draft';
+import { yearlyCommonLabor } from '../village/buildings/dwellings';
+import { yearlyFieldNeed } from '../village/fields/field-food';
+import { villageHayKg, winterHayAvailable } from '../village/livestock/hay';
+import { horsesWanted } from '../village/livestock/horse-breeding';
+import { horsesForSale } from '../village/trade/horse-trade';
+import { villageHorses } from '../village/livestock/horses';
+import { surplusCows, winterHayNeedKg } from '../village/livestock/husbandry';
+import { HORSE_GOODS } from '../village/trade/neighbours';
+import { isTrained, oxPens } from '../village/livestock/oxen';
+import { oxenOf } from '../village/livestock/pens';
+import { ageGroup } from '../village/people/people';
+import { NO_PEOPLE, emigrantGroups } from '../village/trade/people-trade';
+import { SEED_KG_PER_HA } from '../village/rules/rules-fields';
+import { stewardOutlook, type StewardOutlook } from '../village/steward/steward-outlook';
 import type {
   CattleGood,
   CraftCoverage,
@@ -22,8 +22,8 @@ import type {
   TradePeople,
   VillageState,
 } from '../village/types';
-import { stoneOnHand } from '../village/stone';
-import { woodLogs } from '../village/wood';
+import { stoneOnHand } from '../village/fortification/state/stone';
+import { woodLogs } from '../village/forest/wood';
 import type { MacroSpare } from './macro';
 import { VASSALAGE } from './rules-vassalage';
 

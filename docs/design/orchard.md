@@ -4,7 +4,7 @@ Stav: schváleno 17. 10. 2026 (Martin: „Do staveb ještě přidej jabloňový 
 stejně, jako pole.“ – čísla návrh Clauda, Martin: „Ano, udělej to tak“), týž den opraveno podle
 [rešerše](research/2026-10-17-remesla-drevo-sad.md) (Martin – plná úroda až od 25. roku, sklizeň
 8 člověkodní/ha). Anachronismus (sady až od 9. století) se záměrně neřeší (Martin).
-Implementováno 18. 10. 2026: jádro `packages/game/src/domain/village/orchard.ts`, umístění
+Implementováno 18. 10. 2026: jádro `packages/game/src/domain/village/buildings/orchard.ts`, umístění
 `orchardPartsFromCells`, jídlo `eatMeal` (`food.ts`), scéna
 `apps/web/lib/scene/orchard-renderer.ts` a `orchard-layout.ts`, Sad [B] v mřížce staveb. Týž den
 přibyla [obnova sadu](#obnova-sadu) – vesničané staré čtverce sázejí znovu sami (Martin).

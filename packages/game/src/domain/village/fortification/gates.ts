@@ -1,5 +1,5 @@
-import type { Point } from '../polygon';
-import { FORTIFICATIONS } from '../rules-fortifications';
+import type { Point } from '../placement/polygon';
+import { FORTIFICATIONS } from '../rules/rules-fortifications';
 import type { RoadPoint } from '../types';
 import { outlinePointAt, type FortOutline } from './outline';
 import { fortSegments, nearestOnSegment, type FortSegmentShape } from './segments';

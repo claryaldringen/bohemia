@@ -1,6 +1,6 @@
 import { detAtan2, length2 } from '../../landscape';
 import { ROAD_LAND } from '../rules';
-import { rotationCosSin, type GridGeometry } from '../square-grid';
+import { rotationCosSin, type GridGeometry } from '../placement/square-grid';
 import type { RoadGrade, RoadPoint, SquareGrid, TileCell } from '../types';
 
 // Cesta ubírá poli plochu (roads.md a fields.md – Cesta přes pole; Martin, 19. 10. 2026: „Ano má.

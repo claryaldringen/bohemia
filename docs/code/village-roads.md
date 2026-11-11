@@ -802,7 +802,7 @@ landscape, obstacles)` v `paths/roads-rebuild.ts`; `updateVillage` volá po `wit
   křižovatek bez id) nezmění, nejvýš `ROAD_REBUILD.passes`. Nové úseky opuštěné v průchodu
   (id ≥ původní `nextId`) se smažou – kromě obejitých kusů vozových cest. **Vozové cesty (R2):** po
   ustálení `patchAxes` vrátí kusy starých vozových os dál než `nearM` od sítě a aspoň
-  `ROAD_REBUILD.wagonPatchM` dlouhé, pak `rebuildWagonRoads` (`village/wagon-rebuild.ts`): staré
+  `ROAD_REBUILD.wagonPatchM` dlouhé, pak `rebuildWagonRoads` (`village/roads/wagon-rebuild.ts`): staré
   hotové zemní práce dostanou `RoadEarthwork.abandonedDay` (terén zůstává – `terrainEditsOf`,
   `villageBlockedAt` je berou dál; `chainEarthwork` a `WagonPlanEarthwork.abandoned` je
   přeskočí), řetězy `roadChains` s podílem ≥ `share` do `nearM` od starých vozových os (bez

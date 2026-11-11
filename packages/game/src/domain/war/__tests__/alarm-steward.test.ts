@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { dwelling, kin, village } from '../../village/__tests__/kin-fixtures';
-import type { NewVillageEvent } from '../../village/inbox';
-import { newSteward } from '../../village/steward-state';
+import type { NewVillageEvent } from '../../village/core/inbox';
+import { newSteward } from '../../village/steward/steward-state';
 import type { VillageState } from '../../village/types';
-import type { GridCell } from '../../village/world-grid';
+import type { GridCell } from '../../village/people/world-grid';
 import { alarmVillage } from '../alarm';
 import type { AlarmOwner, AlarmVillage } from '../alarm-types';
 import { stepCampaign } from '../campaign';

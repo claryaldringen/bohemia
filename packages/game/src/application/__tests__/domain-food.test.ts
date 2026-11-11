@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../domain/calendar';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
 import { cattleFoodKg, domainNeedKg } from '../../domain/vassalage';
-import { foundVillage } from '../../domain/village/actions';
+import { foundVillage } from '../../domain/village/core/actions';
 import type { VillageState } from '../../domain/village';
 import { withBuiltFirstDwelling } from '../../domain/village/__tests__/village-fixtures';
 import {

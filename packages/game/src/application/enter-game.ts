@@ -11,7 +11,7 @@ import {
   type LanguageGroup,
   type PlacementRequest,
 } from '../domain/world';
-import type { GridCell } from '../domain/village/world-grid';
+import type { GridCell } from '../domain/village/people/world-grid';
 import type { House, HouseRepository } from './houses';
 import type { InviteRepository } from './invites';
 import type { NoticeRepository } from './notices';

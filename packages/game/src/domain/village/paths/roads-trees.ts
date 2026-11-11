@@ -9,15 +9,15 @@ import {
   type ObstacleLayer,
 } from '../../landscape';
 import { createRandom, deriveSeed } from '../../landscape/random';
-import { villageCemeteries } from '../cemetery';
-import { workshopKilns } from '../charcoal';
-import { giveWayToBuilding, treeTakenLand } from '../land-taken';
-import { obstacleStatus, type ObstacleChanges } from '../obstacles';
-import { villageOrchards } from '../orchard';
-import { villagePens } from '../oxen';
-import { plotShapes } from '../plot-cells';
-import { plotSquareTile, rotationCosSin, squareCenter } from '../square-grid';
-import { ROAD_TREE_ID_BASE } from '../road-trees';
+import { villageCemeteries } from '../buildings/cemetery';
+import { workshopKilns } from '../crafts/charcoal';
+import { giveWayToBuilding, treeTakenLand } from '../buildings/land-taken';
+import { obstacleStatus, type ObstacleChanges } from '../core/obstacles';
+import { villageOrchards } from '../buildings/orchard';
+import { villagePens } from '../livestock/oxen';
+import { plotShapes } from '../placement/plot-cells';
+import { plotSquareTile, rotationCosSin, squareCenter } from '../placement/square-grid';
+import { ROAD_TREE_ID_BASE } from '../roads/road-trees';
 import { HUMNO, MILIR, ROAD_APPLES, ROAD_TREES, SACRED_BUILDINGS } from '../rules';
 import {
   type DwellingPlot,

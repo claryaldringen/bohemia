@@ -1,5 +1,5 @@
-import { FORTIFICATIONS } from '../rules-fortifications';
-import type { GridGeometry } from '../square-grid';
+import { FORTIFICATIONS } from '../rules/rules-fortifications';
+import type { GridGeometry } from '../placement/square-grid';
 import { fortOutlineOf, type FortShapeSource } from './convert';
 
 // Útočiště (fortifications.md – Útočiště): kdo stihne doběhnout, schová se i s dobytkem, dokud

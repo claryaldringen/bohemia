@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { OFFICIAL_WORLD, TOTAL_GAME_DAYS } from '../../domain/calendar';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
-import { applyInboxDay, type VillageEvent } from '../../domain/village/inbox';
-import { applyRefugeArrive, applyRefugeDepart, departRefuge } from '../../domain/village/refugees';
+import { applyInboxDay, type VillageEvent } from '../../domain/village/core/inbox';
+import {
+  applyRefugeArrive,
+  applyRefugeDepart,
+  departRefuge,
+} from '../../domain/village/fortification/state/refugees';
 import type { VillageState } from '../../domain/village/types';
 import { dwelling, kin, village } from '../../domain/village/__tests__/kin-fixtures';
 import { makeLandscape } from '../../domain/village/__tests__/placement-fixtures';

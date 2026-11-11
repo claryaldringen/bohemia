@@ -1,14 +1,19 @@
-import { addCattle, cattleForSale, removeCattle } from '../village/cattle-trade';
-import { cloneState } from '../village/clone';
-import { villageHayKg } from '../village/hay';
-import { addHorses, horsesForSale, horsesToSell, removeHorses } from '../village/horse-trade';
-import { removePeople } from '../village/kinship';
-import { ensureLivestock, LIVESTOCK } from '../village/livestock';
-import { logArrivalPoint } from '../village/log-piles';
-import { CATTLE_GOODS, HORSE_GOODS } from '../village/neighbours';
-import { emigrantGroups, emigrantList, newcomerHome, peopleCount } from '../village/people-trade';
-import { addStone, stoneOnHand, takeStone } from '../village/stone';
-import { rehomePeople } from '../village/transfer-people';
+import { addCattle, cattleForSale, removeCattle } from '../village/trade/cattle-trade';
+import { cloneState } from '../village/core/clone';
+import { villageHayKg } from '../village/livestock/hay';
+import { addHorses, horsesForSale, horsesToSell, removeHorses } from '../village/trade/horse-trade';
+import { removePeople } from '../village/people/kinship';
+import { ensureLivestock, LIVESTOCK } from '../village/livestock/livestock';
+import { logArrivalPoint } from '../village/forest/log-piles';
+import { CATTLE_GOODS, HORSE_GOODS } from '../village/trade/neighbours';
+import {
+  emigrantGroups,
+  emigrantList,
+  newcomerHome,
+  peopleCount,
+} from '../village/trade/people-trade';
+import { addStone, stoneOnHand, takeStone } from '../village/fortification/state/stone';
+import { rehomePeople } from '../village/people/transfer-people';
 import type {
   CattleGood,
   ChronicleEvent,
@@ -19,8 +24,8 @@ import type {
   TradeGoods,
   VillageState,
 } from '../village/types';
-import { addLogs, takeLogs, woodLogs } from '../village/wood';
-import { OPPOSITE } from '../village/world-grid';
+import { addLogs, takeLogs, woodLogs } from '../village/forest/wood';
+import { OPPOSITE } from '../village/people/world-grid';
 import { stoneOf, type MacroBundle } from './macro';
 import { VASSALAGE } from './rules-vassalage';
 import { transportLimit } from './transport';

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { refugeCapacity } from '../../village/fortification';
 import type { Fortification } from '../../village/fortification/types';
-import { applyInboxDay, type VillageEventBody } from '../../village/inbox';
+import { applyInboxDay, type VillageEventBody } from '../../village/core/inbox';
 import type { Dwelling, HerdSpecies, Person, VillageState } from '../../village/types';
 import { kin, village } from '../../village/__tests__/kin-fixtures';
 import { stepCampaign } from '../campaign';

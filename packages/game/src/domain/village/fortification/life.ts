@@ -1,4 +1,4 @@
-import { FORTIFICATIONS } from '../rules-fortifications';
+import { FORTIFICATIONS } from '../rules/rules-fortifications';
 import type { FortKind, FortTop, WallKind } from '../types';
 import type { FortSegment, Fortification } from './types';
 

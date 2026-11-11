@@ -1,5 +1,5 @@
 import type { DwellingType } from '../village/types';
-import { sameCell, type GridCell } from '../village/world-grid';
+import { sameCell, type GridCell } from '../village/people/world-grid';
 import type { BattleOutcome, Fighter, FighterState } from './battle';
 import type {
   CampaignMemberStatus,

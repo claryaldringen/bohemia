@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PREMIUM_TYPES } from '../../landscape/premium/catalog';
 import { SKELETON_PREMIUM_SLOTS, type PremiumType } from '../../landscape/premium/types';
-import type { GridCell } from '../../village/world-grid';
+import type { GridCell } from '../../village/people/world-grid';
 import { cellDistance, type OccupiedCell, placeCluster, ringCells } from '../placement';
 import { placeSeat, SLOT_TYPES } from '../seat-placement';
 import type { SeatSlot } from '../skeleton';

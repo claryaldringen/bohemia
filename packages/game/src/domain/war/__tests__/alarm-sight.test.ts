@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dwelling, kin, village } from '../../village/__tests__/kin-fixtures';
-import type { NewVillageEvent } from '../../village/inbox';
+import type { NewVillageEvent } from '../../village/core/inbox';
 import type { VillageState, Workshop } from '../../village/types';
 import { isWarned } from '../alarm';
 import type { AlarmVillage } from '../alarm-types';

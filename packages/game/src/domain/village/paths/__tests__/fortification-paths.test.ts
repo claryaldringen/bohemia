@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { foundVillage } from '../../actions';
+import { foundVillage } from '../../core/actions';
 import {
   addGate,
   fortificationArea,
@@ -10,8 +10,8 @@ import {
   type FortOutline,
 } from '../../fortification';
 import type { FortBuildWork, Fortification } from '../../fortification/types';
-import { gateRoadCrossings } from '../../fortifications';
-import { NO_OBSTACLE_CHANGES } from '../../obstacles';
+import { gateRoadCrossings } from '../../fortification/state/fortifications';
+import { NO_OBSTACLE_CHANGES } from '../../core/obstacles';
 import type { Road, VillageState } from '../../types';
 import { house, LANDSCAPE, part, pathTestTerrain } from '../../__tests__/paths-fixtures';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';

@@ -1,5 +1,5 @@
 import { crossingLayers } from '../village/fortification';
-import { ageYears, isAway } from '../village/people';
+import { ageYears, isAway } from '../village/people/people';
 import type {
   DwellingType,
   FlightMode,
@@ -8,7 +8,7 @@ import type {
   VillageState,
   WallKind,
 } from '../village/types';
-import { sameCell, type GridCell } from '../village/world-grid';
+import { sameCell, type GridCell } from '../village/people/world-grid';
 import type { AlarmMover } from './alarm-types';
 import type {
   BattleBreach,

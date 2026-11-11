@@ -16,7 +16,7 @@ import {
   type SurrenderOrder,
 } from '../domain/war';
 import type { Dwelling } from '../domain/village/types';
-import { directionBetween, sameCell, type GridCell } from '../domain/village/world-grid';
+import { directionBetween, sameCell, type GridCell } from '../domain/village/people/world-grid';
 import { queueCampaignIntent, type CampaignCells, type CampaignRepository } from './campaigns';
 import type { VillageRepository } from './villages';
 

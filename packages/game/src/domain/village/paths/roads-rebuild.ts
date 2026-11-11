@@ -1,10 +1,10 @@
 import type { Landscape, ObstacleLayer } from '../../landscape';
-import { cloneState } from '../clone';
-import { obstacleChangesAt } from '../obstacles';
+import { cloneState } from '../core/clone';
+import { obstacleChangesAt } from '../core/obstacles';
 import { ROAD_JOIN, ROAD_REBUILD, ROAD_TREES, WEAR } from '../rules';
-import { villageManor } from '../manor';
-import { type OldWagonRoads, type WagonRebuild, rebuildWagonRoads } from '../wagon-rebuild';
-import { trailAxisRoads, trailStart } from '../trail-axis';
+import { villageManor } from '../people/manor';
+import { type OldWagonRoads, type WagonRebuild, rebuildWagonRoads } from '../roads/wagon-rebuild';
+import { trailAxisRoads, trailStart } from '../trade/trail-axis';
 import type {
   Road,
   RoadPoint,

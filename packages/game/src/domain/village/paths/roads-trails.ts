@@ -1,7 +1,7 @@
 // Zemská stezka a vozová cesta jako pevné cesty (trade.md – Zemská stezka, roads.md – Vozová cesta).
 
 import { type Landscape, type ObstacleLayer } from '../../landscape';
-import { obstacleChangesAt } from '../obstacles';
+import { obstacleChangesAt } from '../core/obstacles';
 import { WAGON_ROAD } from '../rules';
 import { type Road, type RoadPoint, type VillageState } from '../types';
 import { type PathTraffic } from './network';
