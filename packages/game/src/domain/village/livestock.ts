@@ -120,9 +120,9 @@ export const HERD_SPECIES: readonly HerdSpecies[] = ['sheep', 'goat', 'pig', 'co
 /** Mláďata přibudou 1. 4. (jaro). */
 export const BIRTH_DAY = { month: 4, day: 1 } as const;
 /** Porážka a uzení se dělají v listopadu (okno práce). */
-export const SLAUGHTER_MONTH = 11;
+const SLAUGHTER_MONTH = 11;
 /** Slepice u obydlí (Martin – jako ve scéně): zemnice 2, polozemnice 3. */
-export const CHICKENS_PER_DWELLING: Readonly<Record<DwellingType, number>> = {
+const CHICKENS_PER_DWELLING: Readonly<Record<DwellingType, number>> = {
   zemnice: 2,
   polozemnice: 3,
   dvorec: 4,
@@ -567,7 +567,7 @@ function balanceOptions(input: WinterInput): BalanceOptions {
  * jde seno na zimu, pastva i pasáci; voli (orají) mají přednost před všemi. Dřív ovce na vlnu
  * a krávy na mléko a voly napřed, pak ovce, kozy a zbytek krav.
  */
-export const HERD_PRIORITY: readonly HerdSpecies[] = ['cow', 'sheep', 'goat', 'pig'];
+const HERD_PRIORITY: readonly HerdSpecies[] = ['cow', 'sheep', 'goat', 'pig'];
 
 /**
  * Komu pasáci stačili (diet.md – Pasáci): uhlídaný podíl `watched` celé potřeby pasáků (kusy ÷ kolik

@@ -16,7 +16,7 @@ export const CRAFT_BASE: Readonly<Record<Craft, DwellingType>> = {
   burner: 'zemnice',
   carpenter: 'polozemnice',
 };
-export const WORKSHOP_EXTRA = 0.3;
+const WORKSHOP_EXTRA = 0.3;
 /** Přirážka dílny řemesla k základnímu obydlí (uhlíř bez přirážky – milíř staví u dávky). */
 export function workshopExtra(craft: Craft): number {
   return craft === 'burner' ? 0 : WORKSHOP_EXTRA;

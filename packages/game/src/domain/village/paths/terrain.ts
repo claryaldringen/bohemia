@@ -41,7 +41,7 @@ export const PATH_WATER = 32;
 export const PATH_FOREST = 64;
 
 /** Bodů mřížky na políčko (jako síť vykreslení scény – RENDER_SUBDIVISION). */
-export const PATH_GRID_PER_TILE = 4;
+const PATH_GRID_PER_TILE = 4;
 /**
  * Sklon (m/m), při kterém je chůze dvakrát dražší než po rovině – cena roste se čtvercem sklonu:
  * mírné svahy (do 0,05) skoro nevadí, prudší pěšina obchází po vrstevnici.
@@ -535,7 +535,7 @@ export function trailTerrain(landscape: Landscape, obstacles: ObstacleLayer | nu
  * Voda pro okno sítě pěšin dál než tolik od obydlí (m vzdušnou čarou) se nebere – výpočet zůstane
  * krátký i ve vsi úplně daleko od vody.
  */
-export const WATER_WINDOW_MAX_M = 1000;
+const WATER_WINDOW_MAX_M = 1000;
 
 const waterTilesCache = new WeakMap<Landscape, { x: number; z: number }[]>();
 

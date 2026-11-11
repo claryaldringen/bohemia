@@ -32,7 +32,7 @@ export interface EarthworkSpan {
  * Jak daleko od osy (m) úprava sahá nejvýš: pláň a svah 1 : 1 až k původnímu terénu – do svahu
  * 45 % i s úvozem 3 m se potkají do ≈ 10,5 m (prudší terén pěšiny neprojdou, cesta tam nevede).
  */
-export const EARTHWORK_REACH_M = WAGON_ROAD.flatHalfM + 8;
+const EARTHWORK_REACH_M = WAGON_ROAD.flatHalfM + 8;
 /** Strana přihrádky rejstříku úseček (m). */
 const BUCKET_M = 16;
 /** Výška se změnila, když se liší víc než tolik (m) – jinak terén zůstane bit po bitu. */

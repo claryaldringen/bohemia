@@ -49,7 +49,7 @@ export type LaborTaskName =
  * Úlohy žňových rukou (fields.md – Žně všemi rukama; `harvestHands`) a pomoci vojvodovy rodiny
  * ve žních (`lordHelp`): žeň (sklizeň, vázání, odnos) a výmlat.
  */
-export const HARVEST_HANDS_TASKS: ReadonlySet<LaborTaskName> = new Set<LaborTaskName>([
+const HARVEST_HANDS_TASKS: ReadonlySet<LaborTaskName> = new Set<LaborTaskName>([
   'harvest',
   'thresh',
 ]);

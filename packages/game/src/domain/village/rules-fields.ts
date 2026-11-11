@@ -375,7 +375,7 @@ export const LEGUMES = {
 } as const;
 // fields.md – Luštěniny (rešerše: hrách hůř snáší plevel a okopával se, žeň luštěnin stála ≈ 1,2×
 // víc než žeň obilí, výmlat na objem 0,6–0,8× pšenice) – člověkodny na osetý hektar, meze
-export const LEGUME_HARVEST_WORK_PER_HA: Record<'reap' | 'carry', Bounds> = {
+const LEGUME_HARVEST_WORK_PER_HA: Record<'reap' | 'carry', Bounds> = {
   reap: { worst: 35, best: 20 },
   carry: { worst: 20, best: 20 },
 };

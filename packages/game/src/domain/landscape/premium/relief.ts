@@ -67,7 +67,7 @@ export function planInputOfTerrain(terrain: Terrain): PlanInput {
  * Úpravy reliéfu nemění rovinu kolem místa pro vesnici (políčka – jako řeka) ani okolí vody:
  * u vody nic, naplno od druhé meze (políčka od vody).
  */
-export const RELIEF_KEEP = {
+const RELIEF_KEEP = {
   village: [17, 27],
   water: [3, 10],
 } as const;
@@ -518,7 +518,7 @@ export const SKELETON_RELIEF_PASSES = {
  * ((1 − t)²). Střed aspoň `waterMinCells` od vody a `edgeMinCells` od okraje mapy, nejraději na
  * straně potoka se vsí a s celým úpatím na mapě.
  */
-export const SACRED_MOUNTAIN = {
+const SACRED_MOUNTAIN = {
   distanceM: [650, 950],
   targetM: 800,
   plateauM: 52,
@@ -678,7 +678,7 @@ const sacredMountain = {
  * a smyčka smí nahradit úsek s tůní nebo mělčinou. Místo chráněné bažinou se nedělá – ostrožna
  * je jistější a scéna ji umí (skály, stěny, obrys).
  */
-export const NATURAL_FORTRESS = {
+const NATURAL_FORTRESS = {
   promontory: {
     radius: [6, 6.8],
     heightM: [10, 14],

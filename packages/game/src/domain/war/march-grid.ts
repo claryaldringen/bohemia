@@ -65,7 +65,7 @@ export const MARCH_GATE = 16;
 /** Buňka je hluboká voda (neprůchodná). */
 export const MARCH_WATER = 32;
 /** Buňka je sráz (neprůchodná). */
-export const MARCH_STEEP = 64;
+const MARCH_STEEP = 64;
 /** Buňka je stěna opevnění – plot, palisáda, val s nástavbou (neprůchodná). */
 export const MARCH_WALL = 128;
 

@@ -5,8 +5,8 @@ import { portTile } from './skeleton/ports-map';
 import { SURFACE_CODES, type Landscape, type LayerVersions } from './types';
 
 // Pásmo srovnatelnosti startovních krajin (docs/design/landscape.md).
-export const VILLAGE_SITE_MIN_FERTILITY = 60;
-export const VILLAGE_SITE_MAX_WATER_DISTANCE_CELLS = 20;
+const VILLAGE_SITE_MIN_FERTILITY = 60;
+const VILLAGE_SITE_MAX_WATER_DISTANCE_CELLS = 20;
 export const FLAT_MAX_STEP_M = 1.0;
 /** Okolí vsi, kde hospodaří – 600 m (40 políček) od místa pro vesnici (fields.md). */
 export const NEAR_SITE_RADIUS_CELLS = 40;

@@ -47,13 +47,13 @@ const LEVY_MONTH = 11;
 /** Zaokrouhlovací mez porovnání hodnot splátek (kg obilí). */
 const REPAY_EPSILON = 1e-6;
 
-export const NOT_YOUR_DIALOG = 'Tenhle dialog nemáš.';
+const NOT_YOUR_DIALOG = 'Tenhle dialog nemáš.';
 export const DIALOG_CLOSED = 'Na tenhle dialog už je odpovězeno.';
-export const LEVY_ENDED = 'Dohoda už neplatí.';
+const LEVY_ENDED = 'Dohoda už neplatí.';
 export const LEVY_NOT_YOUR_VILLAGE = 'Odvádět smí jen vsi tvého rodu.';
 export const LEVY_BAD_ANSWER = 'Součet po vsích nesedí s odpovědí.';
-export const LEVY_NO_TARGET = 'Pánova cílová ves neexistuje.';
-export const LEVY_MESSAGE_TOO_LONG = 'Vzkaz je příliš dlouhý.';
+const LEVY_NO_TARGET = 'Pánova cílová ves neexistuje.';
+const LEVY_MESSAGE_TOO_LONG = 'Vzkaz je příliš dlouhý.';
 
 /** Body dialogu Odvody: jen odkaz na vazalství (dávka se čte z živých podmínek). */
 export interface LevyBody extends Record<string, unknown> {

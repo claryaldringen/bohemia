@@ -49,7 +49,7 @@ export const ALREADY_DISUSED = 'Stavba už je opuštěná.';
 export const DEMOLISHING = 'Stavba se bourá – nejdřív bourání zruš.';
 export const NOT_DISUSED = 'Stavba se používá.';
 /** Hřbitov se neopouští – jen zbourá (christianity.md; demolition.md – Hřbitov). */
-export const CEMETERY_STAYS = 'Hřbitov opustit nejde – hroby zůstávají.';
+const CEMETERY_STAYS = 'Hřbitov opustit nejde – hroby zůstávají.';
 
 export type Target =
   | { structure: 'dwelling'; item: Dwelling }

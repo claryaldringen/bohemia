@@ -22,7 +22,7 @@ import type { VassalageRepository } from './vassalages';
 // (celé, míň, nic), nesplnění se zapíše jako neplnění; rozsudek „mír“ válku nezakáže, jen ji při
 // vypuknutí zapíše jako neposlušnost. Podrobnosti: docs/code/vassalage.md – Spory a rozsudek.
 
-export const JUDGMENT_REASONS = {
+const JUDGMENT_REASONS = {
   notFellows: 'Žalovat smíš jen vazala svého pána.',
   noMessage: 'Napiš pánovi, o co jde.',
   messageTooLong: 'Vzkaz je příliš dlouhý.',

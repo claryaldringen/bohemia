@@ -7,7 +7,7 @@ import { obstacleId, type ObstaclePlacement, type TreeLook } from './types';
  * Kolem brtě (m) nestojí jiná překážka – starý dub má širokou korunu a v hustém lese by zapadl
  * mezi okolní stromy (návrh Clauda).
  */
-export const BEE_TREE_CLEARING_M = 6.5;
+const BEE_TREE_CLEARING_M = 6.5;
 
 /**
  * Brtě prémiové krajiny „Brtě a lesní včely“ – staré mohutné duby na místech z `beeTreeSpots`

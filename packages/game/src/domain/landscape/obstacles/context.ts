@@ -22,7 +22,7 @@ export interface ScatterContext {
 }
 
 /** Bez stromů, keřů a kamenů mimo les do této vzdálenosti (políčka) od místa pro vesnici. */
-export const VILLAGE_CLEARING_TILES = 2;
+const VILLAGE_CLEARING_TILES = 2;
 
 export function seedFor(ctx: ScatterContext, label: string): number {
   return deriveSeed(ctx.seed, label);

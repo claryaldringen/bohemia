@@ -372,7 +372,7 @@ interface BankRule {
  * louce u potoka `distanceM` od vsi (nejraději `targetM`) na straně vsi – kovář sem chodí kopat
  * (smith-supply.ts, úloha účinků). Nejraději u klidné vody.
  */
-export const IRON_ORE = {
+const IRON_ORE = {
   distanceM: [200, 480],
   targetM: 320,
   bankM: 9,
@@ -388,7 +388,7 @@ export const IRON_ORE = {
  * Dobrá keramická hlína (návrh Clauda): hliniště u potoka `distanceM` od vsi na straně vsi –
  * jemná povodňová hlína na vnitřní straně oblouku, kde proud slábne (nejraději).
  */
-export const FINE_CLAY = {
+const FINE_CLAY = {
   distanceM: [200, 480],
   targetM: 360,
   bankM: 6,

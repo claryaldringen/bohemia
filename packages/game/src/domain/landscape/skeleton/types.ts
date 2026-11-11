@@ -36,7 +36,7 @@ export interface SkeletonSlice {
 }
 
 /** Pořadí stran ve výřezu. */
-export const MAP_SIDES: readonly MapSide[] = ['N', 'E', 'S', 'W'];
+const MAP_SIDES: readonly MapSide[] = ['N', 'E', 'S', 'W'];
 
 /** Řazení bodů na okraji – podle strany (N, E, S, W), pak podle `at`. */
 export function comparePorts(

@@ -18,7 +18,7 @@ import type { VillageRepository, VillageResult } from './villages';
 /** Vynutit zlý rok jde jen ve vývojovém režimu (příznak účtu). */
 export const DEV_DISASTERS_ONLY = 'Pohromu jde vynutit jen ve vývojovém režimu.';
 /** Požár potřebuje obydlí, které chytí. */
-export const NO_DWELLING_TO_BURN = 'Ves nemá obydlí, které by mohlo chytit.';
+const NO_DWELLING_TO_BURN = 'Ves nemá obydlí, které by mohlo chytit.';
 
 /** Zlý rok, který jde vynutit – léto, nebo zima letošního roku. */
 export type BadYearKind =

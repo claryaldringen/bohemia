@@ -6,7 +6,7 @@ import { SURFACE_CODES } from './types';
 
 const { forest: FOREST, meadow: MEADOW } = SURFACE_CODES;
 
-export const MIN_FOREST_PATCH = 4;
+const MIN_FOREST_PATCH = 4;
 export const MIN_MEADOW_PATCH = 4;
 
 /** Osamělé skvrny louky v lese menší než MIN_MEADOW_PATCH políček zarostou lesem (verze 2). */

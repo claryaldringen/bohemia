@@ -102,9 +102,9 @@ export type LeaveVillageResult =
   | { ok: false; reason: string };
 
 /** Syn po pohřbu už ve vsi nežije (nebo nemá otce). */
-export const FUNERAL_SON_GONE = 'Syn už ve vsi není.';
+const FUNERAL_SON_GONE = 'Syn už ve vsi není.';
 /** Neznámý směr odchodu. */
-export const UNKNOWN_LEAVE_DIRECTION = 'Neznámý směr.';
+const UNKNOWN_LEAVE_DIRECTION = 'Neznámý směr.';
 /** Cíl odchodu jinde než na nové mapě (jedna ves, jedna mapa – migration.md). */
 export const LEAVE_ONLY_TO_NEW_MAP = 'Odejít jde jen na novou mapu.';
 export { FOREIGN_MAP_THERE, NO_DRY_MAP_THERE, NO_WORLD_CELL, OWN_MAP_THERE } from './new-village';
@@ -262,7 +262,7 @@ export interface SettleJourneyInput {
 }
 
 /** Ves není na cestě – nemá co zakládat. */
-export const NOT_TRAVELLING = 'Tahle ves už stojí.';
+const NOT_TRAVELLING = 'Tahle ves už stojí.';
 /** Lidé ještě nedorazili. */
 export const NOT_ARRIVED = 'Lidé ještě nedorazili – zemnici umístí, až přijdou.';
 

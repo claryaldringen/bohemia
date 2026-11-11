@@ -109,7 +109,7 @@ export type DayOfYear = Readonly<Pick<CalendarDate, 'month' | 'day'>>;
 // pracují jen v dílně (`workCrafts`), polní ani společnou práci nedělají.
 
 /** Okno bonusu vymýceného lesa trvá roky × 365 dní. */
-export const DAYS_PER_BONUS_YEAR = 365;
+const DAYS_PER_BONUS_YEAR = 365;
 
 /** Tolerance, pod kterou se nasycení ještě bere jako plné. */
 export const SATIATION_EPSILON = 1e-9;

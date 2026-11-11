@@ -213,7 +213,7 @@ export const OVERLAPS_DWELLING = 'Překrývá se s jiným obydlím.';
 /** Důvod u kurzoru – stavba přes rozestavěné obydlí. */
 export const OVERLAPS_DWELLING_SITE = 'Překrývá se s rozestavěným obydlím.';
 /** Důvod u kurzoru – stavba přes pás opevnění (fortifications.md – Obvod). */
-export const OVERLAPS_FORTIFICATION = 'Stojí tu opevnění.';
+const OVERLAPS_FORTIFICATION = 'Stojí tu opevnění.';
 
 /**
  * Půdorys nebo pozemek (tvary `shapes`) se nepřekrývá s obydlím či rozestavěným obydlím (i jejich

@@ -53,7 +53,7 @@ const DAYS_PER_YEAR = 365;
 /** Délka pracovního dne v sekundách (jako chůze pro vodu – WATER_FETCHING.dayHours). */
 const DAY_S = WATER_FETCHING.dayHours * 3600;
 /** Kopání, praní a pražení rudy – čd na kg (bez chůze na rudiště). */
-export const ORE_DIG_MAN_DAYS_PER_KG = 1 / SMITH_SUPPLY.oreKgPerManDay;
+const ORE_DIG_MAN_DAYS_PER_KG = 1 / SMITH_SUPPLY.oreKgPerManDay;
 
 /**
  * Nošení v koších (čd na kg): tam a zpět po `walkM` m (vzdálenost chůze v metrech louky)

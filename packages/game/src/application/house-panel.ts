@@ -33,11 +33,11 @@ import {
 // to, co je o cizím rodu veřejné (jako adresář rodů) – žádná id účtů, zásoby ani výzbroj.
 
 /** Kolik sporů a spoluvazalů panel ukáže (návrh Clauda). */
-export const PANEL_DISPUTES_LIMIT = 20;
-export const PANEL_FELLOWS_LIMIT = 20;
+const PANEL_DISPUTES_LIMIT = 20;
+const PANEL_FELLOWS_LIMIT = 20;
 
 /** Kolik nejbližších cizích rodů panel ukáže v seznamu hráčů. */
-export const PANEL_OTHERS_LIMIT = 12;
+const PANEL_OTHERS_LIMIT = 12;
 
 /** Kolik využitých pozvánek panel ukáže (nejnovější první). */
 const PANEL_USED_INVITES = 6;

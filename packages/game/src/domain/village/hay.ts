@@ -254,7 +254,7 @@ export const HAY_WINTER_MONTHS: readonly number[] = [11, 12, 1, 2, 3];
 
 const M2_PER_HA = 10_000;
 /** Přirozené louky se sečou do této vzdálenosti od nejbližšího obydlí (m) – jako pastva. */
-export const HAY_REACH_M = 600;
+const HAY_REACH_M = 600;
 
 /** Tolerance proti chybám desetinných čísel. */
 const EPSILON = 1e-9;

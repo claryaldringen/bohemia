@@ -40,7 +40,7 @@ export type PlayerDepartureResult =
   Extract<LeaveVillageResult, { ok: true }> | { ok: false; reason: string };
 
 /** Je lhůta ještě otevřená? Poslední den lhůty (`deadlineDay`) už vyráží výprava sama. */
-export const departureOpen = (pending: PendingDeparture, today: number): boolean =>
+const departureOpen = (pending: PendingDeparture, today: number): boolean =>
   today < pending.deadlineDay;
 
 /**

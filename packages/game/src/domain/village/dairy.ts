@@ -11,7 +11,7 @@ import type { HerdSpecies, VillageState } from './types';
 
 /** Druhy, které se dojí. */
 export type DairySpecies = Extract<HerdSpecies, 'cow' | 'goat' | 'sheep'>;
-export const DAIRY_SPECIES: readonly DairySpecies[] = ['cow', 'goat', 'sheep'];
+const DAIRY_SPECIES: readonly DairySpecies[] = ['cow', 'goat', 'sheep'];
 
 /**
  * diet.md – Mléko a sýr (rešerše 2026-10-18-dairy-protein.md): mléko pro lidi na dojnou samici za
@@ -259,7 +259,7 @@ export function villageCheeseKg(state: Pick<VillageState, 'cheeseKg'>): number {
 }
 
 /** Začátek dojení naplno (1. 5.) – sýr vydrží do něj a jí se rovným dílem až do něj. */
-export const MILKING_START = { month: 5, day: 1 } as const;
+const MILKING_START = { month: 5, day: 1 } as const;
 
 const COMMON_YEAR_DAYS = 365;
 

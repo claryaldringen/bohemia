@@ -19,7 +19,7 @@ import type { Promontory } from './types';
  * pod `bendPerWidth` šířek) přes `minTurnDeg` – volný meandr má poloměr 2–3 šířky (Leopold
  * a Wolman), takhle ostře potok zahne jen o skálu.
  */
-export const SHARP_BEND = { radiusPerWidth: 1.5, minTurnDeg: 50, bendPerWidth: 3 } as const;
+const SHARP_BEND = { radiusPerWidth: 1.5, minTurnDeg: 50, bendPerWidth: 3 } as const;
 /**
  * Skalní ostroh na vnější straně ostrého ohybu (tam, kam by potok jinak tekl rovně): výška nad
  * hladinou (m) podle okolí – `minM` + `perRiseM` na metr, o který okolí převyšuje hladinu, nejvýš
@@ -41,7 +41,7 @@ export const ROCK_SPUR = {
  * Výška: v rovině `lowM` (hlinitý břeh 1–2 m), s výškou okolí `perRiseM` na metr nad `riseFromM`,
  * nejvýš `maxM` – skalní stěna v zaříznutém údolí.
  */
-export const CUT_BANK = {
+const CUT_BANK = {
   curvature: [0.1, 0.3],
   turnDeg: [40, 80],
   lowM: 1.5,
@@ -77,7 +77,7 @@ export const ROCK_FREE_SITE = { from: 30, to: 42 } as const;
  * a do `uplandFade` dozní. Ostrožna jen kde terén dovolí – průměrné okolí smyčky aspoň `hillMinM`
  * nad potokem (zvlněnější krajina).
  */
-export const PROMONTORY = {
+const PROMONTORY = {
   radius: [5, 6.2],
   neck: [5.6, 6.4],
   hook: 2.5,

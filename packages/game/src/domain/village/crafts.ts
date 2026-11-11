@@ -1137,7 +1137,7 @@ export function smithBellowsToday(
 }
 
 /** Bez plánu kováren – synové nenosí, vůz nejede, ruda pěšky. */
-export const NO_SMITH_SUPPLY: SmithSupply = { fetch: new Map(), oreCarts: new Map() };
+const NO_SMITH_SUPPLY: SmithSupply = { fetch: new Map(), oreCarts: new Map() };
 
 /**
  * Den kováře (mutuje stav; crafts.md – Výroba, Uhlí a ruda kováře; production-chains.md – Kovář):

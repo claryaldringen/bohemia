@@ -84,7 +84,7 @@ export class PathHeap {
  * stejně drahé trasy jsou opravdu stejně drahé a remízu rozhodne pravidlo předchůdce, ne
  * zaokrouhlení sčítání. Dvojková tisícina místo desetinné – přesná bez převodu jednotek.
  */
-export const STEP_QUANTUM = 1024;
+const STEP_QUANTUM = 1024;
 
 /** Cena kroku zaokrouhlená na kvantum (`STEP_QUANTUM`), aspoň jedno kvantum. */
 export function quantizedStep(cost: number): number {

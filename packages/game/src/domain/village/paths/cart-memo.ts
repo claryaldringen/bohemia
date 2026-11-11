@@ -28,7 +28,7 @@ const ROUTES_PER_SEARCH = 1024;
  * Mez paměti jedné mřížky: součet buněk všech pamatovaných tras (každá nese `cells` i `points`).
  * Nad ní se nejstarší hledání zapomenou – paměť při dlouhém dopočtu neroste do stovek MB.
  */
-export const MAX_CELLS_PER_GRID = 200_000;
+const MAX_CELLS_PER_GRID = 200_000;
 
 interface CartMemo {
   obstacles: ObstacleLayer | null;

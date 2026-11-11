@@ -4,7 +4,7 @@
 export const INVITE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
 /** Délka kódu bez pomlčky. */
-export const INVITE_CODE_LENGTH = 8;
+const INVITE_CODE_LENGTH = 8;
 
 /** Nový kód; `random` vrací číslo z [0, 1) (náhoda přichází parametrem – žádné `Math.random`). */
 export function newInviteCode(random: () => number): string {
