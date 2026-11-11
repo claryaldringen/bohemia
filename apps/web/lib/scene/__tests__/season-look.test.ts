@@ -191,7 +191,7 @@ describe('vzhled roku podle počasí', () => {
   });
 
   it('1. 1. jsou všechny složky počasí nulové – zahození počasí po Novém roce nic neskokne', () => {
-    // `weatherNow` v landscape-scene.ts po přelomu roku počasí zahodí (do odpovědi serveru
+    // `weatherNow` v scene-atmosphere.ts po přelomu roku počasí zahodí (do odpovědi serveru
     // normální rok) – vzhled se tím nesmí změnit, žádná dráha nesmí přes Nový rok přesahovat
     const all: LookWeather[] = [
       { summer: 'dry', strength: 1 },

@@ -12,6 +12,41 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `scene.pick` na terénu (516 tisíc trojúhelníků); shodu hlídá `terrain-pick.test.ts` proti
   `scene.pick` v NullEngine.
 
+- **Rozložení `LandscapeScene`** (`landscape-scene.ts`, rozděleno 11. 11. 2026 – čistý
+  refaktoring, chování a vzhled beze změny): třída je **fasáda** s veřejným API pro React
+  (`GameView`, HUD, `/dev/landscape`) a drží části scény (renderer vsi, zvířata, lidé, pěšiny,
+  terén, voda…); samostatné úlohy mají vlastní soubory s výslovnými vstupy (scéna, kamera,
+  `requestRender` místo přímého `needsRender`, části scény přes getter – vznikají postupně):
+  - `scene-loop.ts` – `SceneLoop`: klidová smyčka, příznak překreslení (`requestRender`),
+    `renderBurst` / `renderWhenReady`, takt animací, plynulost na pozadí, ztráta kontextu.
+    Co se ve snímku děje a v jakém pořadí, skládá dál `LandscapeScene.frame`.
+  - `scene-atmosphere.ts` – `SceneAtmosphere`: roční období, světlo dne a noci, déšť, bouřka
+    s kroupami, povodeň, smršť a záblesky i vývojová vynucení (den v roce, déšť, den pohrom,
+    hodiny dne); světla a obraz scény ze světla dne nastavuje `applySceneLight`
+    (`scene-light.ts`).
+  - `shadow-casters.ts` – `ShadowCasters`: stínová mapa slunce, vrhače čekající na ni, holé
+    listnáče v zimě.
+  - `scene-pointer.ts` – `ScenePointer`: políčko pod kurzorem, kliknutí a dvojklik, výběr,
+    brána opevnění, pick terénu (`pickGround`); čisté převody kamera → obrazovka a záběr kamery
+    na zemi v `scene-projection.ts`.
+    Picking Babylonu (side-effect import `@babylonjs/core/Culling/ray`) se registruje **první**
+    v `landscape-scene.ts` – registrace až se `scene-pointer.ts` rozbila tah bodu opevnění (e2e).
+  - `scene-selection.ts` – `SceneSelection`: výběr rozhraní a stav vybraného člověka, spřežení
+    a vozu pro posluchače; `scene-war.ts` – `SceneWarView`: vojsko a poslední snímek války.
+  - `placement-factory.ts` – `createPlacement`: druh umisťování (body opevnění, malování po
+    čtvercích, duch stavby); životní cyklus umisťování zůstává ve fasádě.
+  - `landscape-build.ts` – čisté kroky stavby: výšky terénu (`sceneGround`), plán stromů,
+    dekorací a zvířat z vrstvy překážek (`planScenery`), načtení modelů (`loadSceneryModels`),
+    `nextPaint`, typy průběhu `SceneStep` / `SceneProgress`.
+
+  `setLandscape` skládá pojmenované kroky v **pevném pořadí** (pořadí vzniku meshů je i pořadí
+  kreslení): `terrain` – výšky, renderer vsi (`buildVillageRenderer`), překryvy; `forest` – plán
+  krajiny, zbytky lesa (`buildForestRemnants`), déšť a bouřka → vojsko → smršť → ohně
+  (`buildWeatherAndFires`), zvířata, zvěř, lidé a pěšiny (`buildVillageLife`); `surface` – terén,
+  voda, prémiové prvky, koruny a kamera (`buildTerrain`); `models` – modely krajiny; pak stíny,
+  roční období, ves, `shaders` a zvuky (`startAmbient`). Hlášení průběhu (`onProgress` – značky
+  `scene:<krok>` v `GameView`) i `renderBurst(1500)` na konci zůstávají.
+
 - **Kreslí se jen při změně** (pohled kamery, velikost okna, data) – co se ve scéně mění samo
   (animace, voda, roční období), musí nastavit `needsRender`. **Výjimka: voda teče** (Martin) –
   dokud je hladina v záběru, scéna se překresluje `WATER_FPS` (30) za sekundu; vlnky plují po
@@ -22,7 +57,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   vidět) 10 fps, po 2 minutách bez vstupu hráče 20 fps, vstup nebo fokus hned zpět na 30
   (`animationFps` v `render-loop.ts`); skrytá záložka nekreslí vůbec.
 
-- **Klidová smyčka** (`startLoop` v `landscape-scene.ts`, takt `render-loop.ts`): vlastní
+- **Klidová smyčka** (`SceneLoop` v `scene-loop.ts`, takt `render-loop.ts`): vlastní
   `requestAnimationFrame` místo `engine.runRenderLoop` – snímek enginu (`beginFrame` /
   `endFrame`, ve WebGPU odeslání příkazů) vzniká **jen když se kreslí**. Kontroly animací
   (voda, zvířata, lidé, dým, obilí) a dokreslování po načtení (`renderBurst`) jdou v taktu
