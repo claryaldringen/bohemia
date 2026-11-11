@@ -1,4 +1,8 @@
 import { ActivityMemory } from './activity-memory';
+// Picking scény (`RegisterRay`) se musí zaregistrovat dřív než ostatní moduly scény – jako před
+// rozdělením fasády; pozdější registrace (až s scene-pointer.ts) rozbila tah bodu opevnění
+// (e2e fortification.spec.ts – „tah bodu mění cenu“).
+import '@babylonjs/core/Culling/ray';
 import type { Camera } from '@babylonjs/core/Cameras/camera';
 import type { AbstractEngine } from '@babylonjs/core/Engines/abstractEngine';
 import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
