@@ -20,6 +20,8 @@ import {
   placeSacredForPlayer,
   placeThreshingFloorForPlayer,
   placeQuarryForPlayer,
+  inviteLodgeForPlayer,
+  inviteMasterForPlayer,
   orderStoneQuarryingForPlayer,
   placeWorkshopForPlayer,
   leaveVillageForPlayer,
@@ -60,6 +62,8 @@ import {
   parseSetDefenseStanceInput,
   parseNameLineManInput,
   parseBaptizeInput,
+  parseInviteLodgeInput,
+  parseInviteMasterInput,
   parseEnnobleInput,
   parseSetStewardInput,
   parseRenameVillageInput,
@@ -186,6 +190,16 @@ export async function placeQuarry(input: unknown): Promise<VillageActionResult> 
 /** Hráč zadá v lomu „nalámat do zásoby“ (fortifications.md – Kámen). */
 export async function orderStoneQuarrying(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parseOrderQuarryingInput, orderStoneQuarryingForPlayer);
+}
+
+/** Pozvání stavební huti (stone-masonry.md): `{ villageId, circle: 'adriatic' | 'carolingian' }`. */
+export async function inviteLodge(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parseInviteLodgeInput, inviteLodgeForPlayer);
+}
+
+/** Pozvání chybějícího mistra (stone-masonry.md): `{ villageId, craft }`. */
+export async function inviteMaster(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parseInviteMasterInput, inviteMasterForPlayer);
 }
 
 /**

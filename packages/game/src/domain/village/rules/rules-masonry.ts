@@ -32,6 +32,45 @@ export const MASON_CRAFTS: readonly MasonCraft[] = [
   'plasterer',
 ];
 
+/**
+ * Jména mistrů huti podle okruhu (stone-masonry.md – Stavební huť, Příchod; návrh Clauda): adriatický
+ * okruh latinsko-dalmatská jména 9. století, karolinský bavorská. Jen písmena (jména osob se
+ * kontrolují jako jména mužů rodu).
+ */
+export const MASTER_NAMES: Readonly<Record<MasonryCircle, readonly string[]>> = {
+  adriatic: [
+    'Dominicus',
+    'Mauro',
+    'Petrus',
+    'Stefanus',
+    'Iohannes',
+    'Martinus',
+    'Valentinus',
+    'Gregorius',
+    'Basilius',
+    'Laurentius',
+    'Theodorus',
+    'Vitalis',
+  ],
+  carolingian: [
+    'Adalbert',
+    'Heimo',
+    'Ratold',
+    'Wolfhart',
+    'Engelschalk',
+    'Odalrich',
+    'Hartwig',
+    'Reginbert',
+    'Liutpold',
+    'Gundakar',
+    'Ellenhard',
+    'Sigimar',
+  ],
+};
+
+/** Směr, odkud mistři huti přicházejí (`Person.origin`; návrh Clauda): adriatický jih, karolinský západ. */
+export const MASTER_ORIGIN = { adriatic: 'S', carolingian: 'W' } as const;
+
 export const LIME = {
   // stone-masonry.md – Vápno a malta: z 1,8 t vápence ≈ 1 t páleného vápna
   limestonePerLimeT: 1.8,

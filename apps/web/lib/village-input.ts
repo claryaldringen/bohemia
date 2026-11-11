@@ -9,6 +9,9 @@ import {
   PLOT_VARIANTS,
   TRADE_GOOD_VALUES,
   type Craft,
+  type MasonCraft,
+  type MasonryCircle,
+  MASON_CRAFTS,
   type Direction8,
   type FortKind,
   type WallKind,
@@ -447,6 +450,22 @@ export function parseOrderQuarryingInput(value: unknown): { outcropId: number; m
   if (typeof outcropId !== 'number' || !Number.isSafeInteger(outcropId)) return null;
   if (typeof m3 !== 'number' || !Number.isSafeInteger(m3) || m3 <= 0) return null;
   return { outcropId, m3 };
+}
+
+/** Vstup pozvání huti `{ circle }` (adriatický, karolinský okruh), jinak null. */
+export function parseInviteLodgeInput(value: unknown): { circle: MasonryCircle } | null {
+  if (!isRecord(value)) return null;
+  const { circle } = value;
+  return circle === 'adriatic' || circle === 'carolingian' ? { circle } : null;
+}
+
+/** Vstup pozvání mistra `{ craft }` (obor huti), jinak null. */
+export function parseInviteMasterInput(value: unknown): { craft: MasonCraft } | null {
+  if (!isRecord(value)) return null;
+  const { craft } = value;
+  return typeof craft === 'string' && (MASON_CRAFTS as readonly string[]).includes(craft)
+    ? { craft: craft as MasonCraft }
+    : null;
 }
 
 /** Vstup stavby řemeslné dílny `{ craft, position }`, jinak null. */

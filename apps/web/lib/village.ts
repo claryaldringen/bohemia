@@ -50,6 +50,8 @@ import {
   placeThreshingFloor,
   placeQuarry,
   orderStoneQuarrying,
+  inviteLodgeForVillage,
+  inviteMasterForVillage,
   placeWorkshop,
   renameVillage,
   plantApplesAlongRoad,
@@ -62,6 +64,8 @@ import {
   type VillageAction,
   type VillageRight,
   type Craft,
+  type MasonCraft,
+  type MasonryCircle,
   type DwellingPlot,
   type BuildableDwellingType,
   type Direction8,
@@ -698,6 +702,34 @@ export function orderStoneQuarryingForPlayer(
 ): Promise<VillageActionResult> {
   return actOn(playerId, villageId, 'orderStoneQuarrying', (ctx) =>
     orderStoneQuarrying(
+      { villages: villages() },
+      { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
+    ),
+  );
+}
+
+/** Vojvoda pozve stavební huť okruhu `circle` (stone-masonry.md – Stavební huť). */
+export function inviteLodgeForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { circle: MasonryCircle },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, 'inviteLodge', (ctx) =>
+    inviteLodgeForVillage(
+      { villages: villages() },
+      { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
+    ),
+  );
+}
+
+/** Vojvoda pozve mistra chybějícího oboru stejného okruhu (stone-masonry.md). */
+export function inviteMasterForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { craft: MasonCraft },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, 'inviteMaster', (ctx) =>
+    inviteMasterForVillage(
       { villages: villages() },
       { villageId: ctx.villageId, landscape: ctx.landscape, today: ctx.day, ...input },
     ),

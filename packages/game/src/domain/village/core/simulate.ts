@@ -11,6 +11,7 @@ import { updateKilnRemnants } from '../crafts/charcoal';
 import { craftCoverage, wearCraftStocks } from '../crafts/crafts';
 import { updateHappiness } from '../people/happiness';
 import { occupyEmptyDwellings } from '../people/households';
+import { lodgeArrivalsDay } from '../people/lodge';
 import { husbandryDay } from '../livestock/husbandry';
 import { arrangeMarriages } from '../people/marriage';
 import { bufferFill } from '../fields/field-food';
@@ -400,6 +401,8 @@ function afterWorkDay(
   // přestavba dožilých úseků opevnění a obnova valu – hned za přestavbami obydlí (fortifications.md –
   // Životnost a oprava); stavba dostane práci až další den
   decideFortRebuilds(state, day, landscape, obstacles);
+  // mistři a kněží, kterým vypršela cesta (stone-masonry.md – Příchod) – před osídlením prázdných obydlí
+  lodgeArrivalsDay(state, day);
   occupyEmptyDwellings(state, day);
   // den správce (steward.md – Rozhodovací pořadí v den správce): jen zapnutý správce s krajinou
   // a vrstvou překážek, každý `STEWARD.everyDays`. den – nové stavby dostanou id z `nextId` před

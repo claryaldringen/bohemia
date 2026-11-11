@@ -1,3 +1,4 @@
+import { isLodgeIdle } from '../people/lodge';
 import { dateOfDayIndex, dayIndexOf } from '../../calendar';
 import type { WaterCartPlan } from '../crafts/cart-jobs';
 import { ironTravellers } from '../crafts/crafts';
@@ -35,10 +36,18 @@ export function villagersToday(
   const fighting = fireFighting(state, day);
   // v den nájezdu se lidé skrývají – nikdo ve vsi nepracuje (war.md – Ves během nájezdu nepracuje)
   if (raidHiding(state, day)) return { villagers: [], manorSkip: familyHomes(family) };
+  // mistři huti a kněz se vsí nepracují (stone-masonry.md – Mezi stavbami čekají)
+  const lodgeIdle = state.people.some(isLodgeIdle);
   const villagers =
-    crafts.size > 0 || travelling.size > 0 || apart.size > 0 || hunting.size > 0 || fighting
+    crafts.size > 0 ||
+    travelling.size > 0 ||
+    apart.size > 0 ||
+    hunting.size > 0 ||
+    fighting ||
+    lodgeIdle
       ? state.people.filter(
           (p) =>
+            !isLodgeIdle(p) &&
             !crafts.has(p.dwellingId) &&
             !travelling.has(p.id) &&
             !apart.has(p.id) &&
