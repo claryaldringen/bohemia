@@ -105,6 +105,20 @@ Martin:
 - Čísla (práce na m³ zdiva, kámen, vápno, písek a dřevo na m³) doladí návrh kostela – rešerše dává
   pro malou rotundu ≈ 140 m³ zdiva, ≈ 9 t vápna a ≈ 1 200–1 400 čd.
 
+## Rozhodnutí z implementace (příchod huti)
+
+- **Příchod mistra** (návrh Clauda): jména z krátkých seznamů latinsko-dalmatských (adriatický okruh)
+  a bavorských (karolinský okruh) jmen 9. století; kněz je bez jména. `Person.origin` mistra je
+  jih (adriatický) nebo západ (karolinský). V kronice vsi je příchod zapsán jako příchod muže
+  z cizího směru.
+- **Bydlení** (návrh Clauda): volné obydlí bez dílny dostane mistr hned, ale jen když nečeká
+  vystěhovaná domácnost (ta má přednost). Bez volného obydlí bydlí ve dvorci a nové obydlí osídlí
+  přednostně (stejně jako vystěhovaní). Ves bez obydlí mistra nepřijme – zůstává na cestě.
+- **Elita** (návrh Clauda): zatím jen to, že mistři a kněz se nepočítají do pracovní síly vsi; elita
+  samotná je samostatné téma.
+- **Pozvání** (návrh Clauda): jen ves s vojvodou a pokřtěným rodem; chybějícího mistra lze pozvat
+  zvlášť (dorazí za 60 dní) a jen když obor není obsazený ani na cestě.
+
 ## Kdy se implementuje
 
 Mistři bez stavby jen čekají a jediná zděná stavba je zatím kostel (Martin). Huť, zkušenost a vápno

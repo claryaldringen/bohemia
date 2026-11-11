@@ -3,6 +3,7 @@
 
 import type { Craft, Workshop } from './types-crafts';
 import type { PlotSquare, TileCell } from './types-land';
+import type { MasonCraft, MasonryXp } from './types-masonry';
 
 // Stav vsi – JSON-serializovatelný (objekty, pole, čísla, řetězce, null).
 /**
@@ -106,6 +107,15 @@ export interface Person {
    * dává ho denní pravidlo rodu (`markElite`), starší vsi se nepřevádějí. Chybí – ne.
    */
   elite?: true;
+  /**
+   * Mistr stavební huti a jeho obor (stone-masonry.md – Stavební huť): přišel z ciziny na pozvání
+   * vojvody, nepracuje se vsí, jí jako ostatní. Chybí – ne.
+   */
+  mason?: MasonCraft;
+  /** Kněz kostela (churches.md – Co kostel dává): nepracuje se vsí, jí jako ostatní. Chybí – ne. */
+  priest?: true;
+  /** Zkušenost v oborech huti (stone-masonry.md – Zkušenost a noví mistři). Chybí – žádná. */
+  masonryXp?: MasonryXp;
   /**
    * Zraněn na lovu (wildlife.md – Nebezpečí pro lidi): do tohoto dne (výjimečně) nepracuje, necvičí
    * ani neloví. Chybí – zdráv.

@@ -8,6 +8,7 @@ import type {
   LastingNoticeState,
 } from './types-chronicle';
 import type { StewardState } from './types-steward';
+import type { Church, Lodge } from './types-masonry';
 import type { Construction, FarmSeason } from './types-construction';
 import type { Fortification, ThreatSignal } from '../fortification/types';
 import type {
@@ -608,6 +609,13 @@ export interface VillageState {
    * patří k jaké domácnosti a kam se má nastěhovat první – do nového obydlí. Chybí = nikdo.
    */
   displaced?: DisplacedHousehold[];
+  /**
+   * Stavební huť (stone-masonry.md – Stavební huť): okruh, mistři a kněží na cestě. Chybí = ves
+   * huť nepozvala (i starší vsi, převod netřeba).
+   */
+  lodge?: Lodge;
+  /** Dostavěné kostely vsi (churches.md); chybí = žádný. */
+  churches?: readonly Church[];
   /**
    * Režim vojvodovy rodiny (lord.md – Zakládání vsi, Kdy jde rodina na pole): chybí = rodina
    * pracuje jako ostatní (ves má málo dospělých mimo rodinu, i starší ves před výcvikem).
