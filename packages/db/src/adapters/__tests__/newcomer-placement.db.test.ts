@@ -253,6 +253,7 @@ describe('umístění nováčka (Drizzle)', () => {
       settlementId: own!.id,
       name: 'Ves p',
       state: {} as never,
+      asleep: false,
     });
     expect(await settlements.lastPremiumType('p')).toBe('fertile');
     await db.transaction(async (tx) => {

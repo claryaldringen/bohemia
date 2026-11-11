@@ -935,6 +935,45 @@ posunu dne, a když nic nezmění (JSON shodný), vrátí týž objekt – `upda
 (`untouched`). `lastDay` spící vsi zaostává; `abandonedVillageAt` ho v pohledu zvedne na den
 pohledu, `currentVillageViewStamp` spící vsi s `lastDay < dnes` ignoruje.
 
+## Uložení stavu vsi (tabulka `village`, kodek)
+
+Martin 11. 11. 2026 schválil („Ano“) návrh Clauda: stav na hranici adaptéru zeštíhlit, zřídka
+měněné části ukládat zvlášť jen při změně a ukládat komprimovaně místo jsonb.
+
+- **Doménový tvar `VillageState` se nemění** – kodek `packages/db/src/adapters/village-state-codec.ts`
+  (`encodeVillageState` / `decodeVillageState`) ho při zápisu rozdělí podle stromu `LAND` na **zem**
+  (`parts`, `clearedObstacles`, `felledTrees`, `disasters`, `routes`, podklíče
+  `roads.{earthworks, roads, trees, apples, junctions, swath}` a `wildlife.damage.risk`) a **den**
+  (zbytek; nese i pořadí klíčů rozdělených objektů). Obě části jsou `JSON.stringify` + zstd úrovně 1
+  (`node:zlib`; úroveň 1 je u stavu vsi stejně malá jako 3–6 a několikrát rychlejší) ve sloupcích
+  `state_day` a `state_land` (`bytea`, `STORAGE EXTERNAL` – TOAST už nekomprimuje). Dekódování vrátí
+  tentýž JSON včetně pořadí klíčů (`JSON.stringify(decode(encode(s))) === JSON.stringify(s)`;
+  jsonb klíče přeřazoval).
+- **Zem jen při změně:** `land_hash` = sha256 zemského JSON. `save` napřed zapíše jen den
+  s podmínkou `version = očekávaná AND land_hash = nový` (zem se ani nekomprimuje); když se nic
+  nezapsalo, druhý `UPDATE` zapíše i zem a o konfliktu verze rozhodne sám. Optimistické zamykání
+  `version` a souhrn `digest` beze změny.
+- **Odvozené sloupce** zapisuje adaptér s každým stavem (`villageDerivedColumns`,
+  `village-state-row.ts`): `last_day`, `asleep` (do migrace 0043 generované z jsonb), `origin`
+  (unikátní index `village_origin_uq`) a `refuge_ref_id` / `refuge_host_village_id`
+  (`RefugeRepository.awayVillages`). SQL do stavu nesahá.
+- **Líný převod** (migrace `0043_village_state_codec`): `state` jsonb je nullable; řádek bez
+  `state_day` se čte ze `state` (`storedVillageState`) a první uložení ho převede (`state` = NULL).
+  Odvozené sloupce migrace doplnila z jsonb hned. Sloupec `state` jde smazat, až se převedou všechny
+  vsi.
+- **Přímé SQL** (e2e, měřicí skripty) jen přes `@bohemia/db/village-state`: `readVillageState`,
+  `writeVillageState` (jako server – odvozené sloupce, souhrn, verze + 1), `updateVillageState`
+  (transakce s `FOR UPDATE` – náhrada `jsonb_set`), `VILLAGE_STATE_SQL_COLUMNS` pro kopii řádku,
+  `villageStateSizeSql` pro řazení podle velikosti; e2e pomocníci `villageStateById`,
+  `changeVillageState…` (`apps/web/e2e/village-helpers.ts`). Testy, které vkládají ves samy,
+  berou `newVillageRow`.
+- **Pravidlo:** nový klíč stavu patří do dne, pokud se nemění jen se zemí (stavbou polí a cest,
+  klučením, pohromou). Do země jen velká a zřídka měněná část – každá změna země přepíše celou zem.
+- **Měření** (11. 11. 2026, Vlkov 3,3 MB JSON): řádek na disku 640 → 373 kB (den 69 + zem 304 kB),
+  uložení 97 → 24 ms, načtení 29 → 13 ms (starý zápis emulovaný tabulkou s jsonb a generovanými
+  sloupci). Rok den po dni (starší kopie Vlkova, uložení každý den): zem se přepsala 94× z 365,
+  zapsáno ⌀ 117 kB za den (den 42 + zem 75 kB), WAL za uložení 631 → 131 kB.
+
 ## Deník vsí (`village_year`)
 
 Martin 1. 11. 2026: „na tohle asi ser, podle mě bude stačit logovat hru“ (místo velkého měření správce). Za každou ves a dokončený herní rok jeden řádek – `villageYearRow(stav)` v `domain/village/year-log.ts` (čistá funkce nad stavem na konci roku: lidé dospělí/děti, narození a úmrtí z kroniky roku, z toho hladem, sklizeň, zásoby (vymlácené i zrno v nevymlácených snopech – výmlat běží do konce února, od 9. 11. 2026), dny hladu, pole a oseto (skutečně zasetý podíl prací hospodářského roku – `sownShare` × výměra dílů práce; od 6. 11. 2026, dřív díly ve stavu `sown` už od výběru do plánu), stáda, správce zapnutý, dostavěné stavby podle druhu, odchody synů, pohromy).

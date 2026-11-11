@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import path from 'node:path';
 import { test, expect } from '@playwright/test';
-import { newSteward, type VillageState } from '@bohemia/game';
+import { newSteward } from '@bohemia/game';
 import { E2E_ENV } from '../playwright.config';
 import { useUniqueClientIp } from './helpers';
 import {
@@ -15,6 +15,8 @@ import {
   twoHouseholds,
   villageSpots,
   villageState,
+  villageStateById,
+  writeVillageStateById,
 } from './village-helpers';
 
 // Hra s workerem (plán workeru – 6. Testy): vedle `next start` běží `apps/worker` proti téže
@@ -149,36 +151,30 @@ test('ves na cestě se správcem se po příjezdu založí sama – hráč na ni
   const panel = await selectAllDwellings(page);
   await panel.getByTestId('leave-village').click();
   await panel.getByTestId('leave-E').click();
-  const travelling = (): Promise<{ id: string; name: string; state: VillageState }[]> =>
+  const travelling = (): Promise<{ id: string; name: string }[]> =>
     query(
-      `SELECT v.id, v.name, v.state FROM village v
+      `SELECT v.id, v.name FROM village v
          JOIN settlement s ON s.id = v.settlement_id
         WHERE s.owner_id = (SELECT id FROM "user" WHERE email = $1) AND s.id <> $2`,
       [email, s.settlementId],
     );
   await expect.poll(async () => (await travelling()).length, { timeout: 90_000 }).toBe(1);
-  const [away] = await travelling();
-  expect(away!.state.journey?.direction).toBe('E');
+  const [awayRow] = await travelling();
+  const away = { ...awayRow!, state: await villageStateById(awayRow!.id) };
+  expect(away.state.journey?.direction).toBe('E');
 
   // Stránka zavřená; lidé dorazí hned (příjezd v den odchodu) a cestou zapnuli správce. Dnešek
   // hráče o 2 dny dál – ves je pozadu a dopočte ji worker: správce sám umístí první zemnici.
   await page.goto('about:blank');
-  const arrived = structuredClone(away!.state);
+  const arrived = structuredClone(away.state);
   arrived.journey!.arrivalDay = arrived.journey!.departedDay;
   arrived.steward = newSteward(arrived.lastDay, true);
-  await query('UPDATE village SET state = $2::jsonb, version = version + 1 WHERE id = $1', [
-    away!.id,
-    JSON.stringify(arrived),
-  ]);
+  await writeVillageStateById(away.id, arrived);
   await shiftPlayer(email, 2);
   await expect
     .poll(
       async () => {
-        const [row] = await query<{ state: VillageState }>(
-          'SELECT state FROM village WHERE id = $1',
-          [away!.id],
-        );
-        const state = row!.state;
+        const state = await villageStateById(away.id);
         return {
           travelling: state.journey !== undefined,
           building: state.dwellings.length + state.constructions.length > 0,
@@ -196,9 +192,9 @@ test('ves na cestě se správcem se po příjezdu založí sama – hráč na ni
   await page.getByTestId('village-name').click();
   await page
     .getByTestId('village-list')
-    .locator(`[data-village="${away!.id}"] [data-testid="village-select"]`)
+    .locator(`[data-village="${away.id}"] [data-testid="village-select"]`)
     .click();
-  await expect(page.getByTestId('village-name')).toHaveText(away!.name, { timeout: 30_000 });
+  await expect(page.getByTestId('village-name')).toHaveText(away.name, { timeout: 30_000 });
   await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
   await expect(page.getByTestId('journey-banner')).toHaveCount(0);
 });

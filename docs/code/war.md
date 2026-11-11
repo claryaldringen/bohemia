@@ -1057,7 +1057,7 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
   Hradiště zaniklé i se sídlem – lidé se vrátí s prázdnou. **Správce a NPC rod** – úloha světa
   `returnStewardRefugees` (`runWorldTasks` po `reconcileShipments`; port
   `RefugeRepository.awayVillages` – adaptér `db/adapters/refuge-repository.ts` nad
-  `village.state ? 'refuge'`, spící vsi ne): ves se zapnutým správcem (`steward.on`) nebo se správou
+  sloupci `refuge_ref_id` / `refuge_host_village_id` odvozenými z `VillageState.refuge`, spící vsi ne): ves se zapnutým správcem (`steward.on`) nebo se správou
   NPC rodu vrátí, když `stewardMayReturn` – vojsko na mapě nestojí, **na ves teprve netáhne** (cíl
   tažení ve shromáždění, na pochodu nebo v nájezdu – návrh Clauda nad plán, jinak by lidi vrátil
   vstříc vojsku) a uplynul den po posledním dni nájezdu (`returnDayAfter` – `raidDay`, bez nájezdu

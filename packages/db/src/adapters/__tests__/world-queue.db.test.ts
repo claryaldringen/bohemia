@@ -27,7 +27,7 @@ const queue = createWorldQueue(db);
 const TODAY = dayIndexOf({ year: 503, month: 4, day: 12 });
 const PLAYERS = ['hrac-a', 'hrac-b', 'hrac-c', 'hrac-d', 'hrac-e', 'hrac-f', 'hrac-g'];
 
-/** Stav vsi – fronta čte jen sloupce `last_day` a `asleep` (generované ze stavu). */
+/** Stav vsi – fronta čte jen sloupce `last_day` a `asleep` (odvozené ze stavu při zápisu). */
 const founded = foundVillage({
   seed: 11,
   day: TODAY - 40,

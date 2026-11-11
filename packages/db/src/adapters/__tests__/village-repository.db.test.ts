@@ -1,6 +1,7 @@
 import path from 'node:path';
+import { constants, zstdCompressSync, zstdDecompressSync } from 'node:zlib';
 import { afterAll, beforeAll, beforeEach, describe, it, expect } from 'vitest';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import {
   CURRENT_LAYER_VERSIONS,
@@ -22,7 +23,8 @@ import { createDatabase } from '../../client';
 import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
 import { createSettlementRepository } from '../settlement-repository';
-import { createVillageRepository } from '../village-repository';
+import { createVillageRepository, newVillageRow } from '../village-repository';
+import { encodeVillageState } from '../village-state-codec';
 
 const db = createDatabase(testDatabaseUrl());
 const villages = createVillageRepository(db);
@@ -126,7 +128,7 @@ describe('createVillageRepository', () => {
     expect(await villages.listBySettlement(settlementId)).toEqual([first]);
     // přímý zápis mimo adaptér druhou ves téhož sídla nepustí (jedna ves, jedna mapa)
     await expect(
-      db.insert(schema.village).values({ settlementId, name: 'Budeč', state: state() }),
+      db.insert(schema.village).values(newVillageRow(settlementId, 'Budeč', state())),
     ).rejects.toThrow();
     expect(await villages.listBySettlement(settlementId)).toHaveLength(1);
     expect(await villages.listBySettlement(UNKNOWN)).toEqual([]);
@@ -218,14 +220,14 @@ describe('createVillageRepository', () => {
         .map((s) => s.id)
         .sort(),
     ).toEqual([extinct.id, abandoned.id].sort());
-    // save přepíše oba sloupce (i přímý zápis mimo adaptér by je přepočítal – jsou generované)
+    // save přepíše oba sloupce – odvozuje je adaptér ze stavu při každém zápisu
     const later = advanceVillage(state(), DAY + 9, null);
     await villages.save(awake!.id, { ...later, extinctDay: DAY + 9 }, 1);
     const [after] = (await villages.stampsOf([settlementId])).filter((s) => s.id === awake!.id);
     expect(after).toMatchObject({ lastDay: later.lastDay, asleep: true });
-    await db.execute(sql`UPDATE village SET state = state - 'extinctDay' WHERE id = ${awake!.id}`);
+    await villages.save(awake!.id, later, 2);
     const [woken] = (await villages.stampsOf([settlementId])).filter((s) => s.id === awake!.id);
-    expect(woken?.asleep).toBe(false);
+    expect(woken).toMatchObject({ lastDay: later.lastDay, asleep: false });
   });
 
   it('digestsOf vrátí souhrn uložené verze bez stavu – po každém zápisu nový, bez souhrnu nic', async () => {
@@ -336,6 +338,79 @@ describe('createVillageRepository', () => {
     );
     expect(results.filter((r) => r !== null)).toHaveLength(1);
     expect((await villages.find(id))?.version).toBe(2);
+  });
+
+  /** Uložený řádek vsi se všemi sloupci (bajty stavu, otisk země). */
+  const rowOf = async (id: string): Promise<typeof schema.village.$inferSelect> =>
+    (await db.select().from(schema.village).where(eq(schema.village.id, id)))[0]!;
+
+  it('stav jde kodekem po částech – načtení vrátí tentýž JSON včetně pořadí klíčů', async () => {
+    const next = advanceVillage(state(), DAY + 20, null);
+    const created = (await villages.create(settlementId, 'Libice', state()))!;
+    await villages.save(created.id, next, 1);
+    expect(JSON.stringify((await villages.find(created.id))!.state)).toBe(JSON.stringify(next));
+    const row = await rowOf(created.id);
+    expect(row.state).toBeNull();
+    expect(row.landHash).toBe(encodeVillageState(next).landHash);
+    expect(row.lastDay).toBe(next.lastDay);
+  });
+
+  it('save zapíše zem jen při změně – stejný otisk nechá `state_land` netknutý', async () => {
+    const created = (await villages.create(settlementId, 'Libice', state()))!;
+    const first = await rowOf(created.id);
+    // značka: tatáž zem jinak komprimovaná (týž JSON, jiné bajty) – přepis země by ji smazal
+    const marker = zstdCompressSync(zstdDecompressSync(first.stateLand!), {
+      params: { [constants.ZSTD_c_compressionLevel]: 19 },
+    });
+    expect(marker.equals(first.stateLand!)).toBe(false);
+    await db
+      .update(schema.village)
+      .set({ stateLand: marker })
+      .where(eq(schema.village.id, created.id));
+    const dayOnly = { ...created.state, storesKg: created.state.storesKg + 5, lastDay: DAY + 1 };
+    expect(await villages.save(created.id, dayOnly, 1)).not.toBeNull();
+    const kept = await rowOf(created.id);
+    expect(kept).toMatchObject({ version: 2, landHash: first.landHash });
+    expect(kept.stateLand!.equals(marker)).toBe(true);
+    expect(kept.stateDay!.equals(first.stateDay!)).toBe(false);
+    expect(JSON.stringify((await villages.find(created.id))!.state)).toBe(JSON.stringify(dayOnly));
+    // změna země se zapíše celá
+    const landChanged = { ...dayOnly, parts: dayOnly.parts.slice(1) };
+    expect(await villages.save(created.id, landChanged, 2)).not.toBeNull();
+    const rewritten = await rowOf(created.id);
+    expect(rewritten.landHash).not.toBe(first.landHash);
+    expect(rewritten.stateLand!.equals(marker)).toBe(false);
+    expect(JSON.stringify((await villages.find(created.id))!.state)).toBe(
+      JSON.stringify(landChanged),
+    );
+  });
+
+  it('starý řádek jen s jsonb `state` se načte a prvním uložením převede (líný převod)', async () => {
+    const old = state();
+    const [inserted] = await db
+      .insert(schema.village)
+      .values({ settlementId, name: 'Stará', state: old, asleep: false, lastDay: old.lastDay })
+      .returning({ id: schema.village.id });
+    const found = (await villages.find(inserted!.id))!;
+    expect(found).toMatchObject({ version: 1, state: old });
+    expect(await villages.save(found.id, found.state, 1)).not.toBeNull();
+    const row = await rowOf(found.id);
+    expect(row).toMatchObject({ state: null, version: 2, digestVersion: 2 });
+    expect(row.landHash).toBe(encodeVillageState(found.state).landHash);
+    expect(row.stateDay).not.toBeNull();
+    expect(row.stateLand).not.toBeNull();
+    expect(JSON.stringify((await villages.find(found.id))!.state)).toBe(
+      JSON.stringify(found.state),
+    );
+  });
+
+  it('save se starou verzí a jinou zemí nezapíše nic – ani zem', async () => {
+    const created = (await villages.create(settlementId, 'Libice', state()))!;
+    expect(await villages.save(created.id, { ...created.state, storesKg: 1 }, 1)).not.toBeNull();
+    const before = await rowOf(created.id);
+    const stale = { ...created.state, parts: created.state.parts.slice(2) };
+    expect(await villages.save(created.id, stale, 1)).toBeNull();
+    expect(await rowOf(created.id)).toEqual(before);
   });
 
   it('dopočítání po uložení a načtení dá totéž jako bez databáze (JSON nic nezmění)', async () => {
@@ -467,7 +542,7 @@ describe('createVillageRepository', () => {
     await Promise.all([settleStewardDepartures(deps, input), settleStewardDepartures(deps, input)]);
     expect(await settleStewardDepartures(deps, input)).toEqual([]);
     const all = await db.select().from(schema.village);
-    const sons = all.filter((v) => v.state.origin === stewardDepartureOrigin(added.id, DAY));
+    const sons = all.filter((v) => v.origin === stewardDepartureOrigin(added.id, DAY));
     expect(sons).toHaveLength(1);
     expect(sons[0]?.name).toBe('Lhota');
     const marked = (await villages.find(added.id))?.state.steward?.departures?.[0];

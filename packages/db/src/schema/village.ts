@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   boolean,
+  customType,
   index,
   primaryKey,
   uniqueIndex,
@@ -14,8 +15,14 @@ import {
 import type { VillageDigest, VillageState, VillageYearRow } from '@bohemia/game';
 import { settlement } from './settlement';
 
+/** Bajty (PostgreSQL `bytea`) – node-postgres je čte i posílá jako `Buffer`. */
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType: () => 'bytea',
+});
+
 /**
- * Vsi sídel – celý stav simulace jako JSON, verze hlídá souběžné zápisy. Sídlo (mapa) má nejvýš
+ * Vsi sídel – celý stav simulace (zstd komprimovaný JSON po částech, kodek
+ * `adapters/village-state-codec.ts`), verze hlídá souběžné zápisy. Sídlo (mapa) má nejvýš
  * jednu ves (Martin 1. 11. 2026: „Jedna ves, jedna mapa“ – migration.md, Víc vsí jednoho hráče) –
  * hlídá unikátní index `village_settlement_uq`.
  */
@@ -27,18 +34,28 @@ export const village = pgTable(
       .notNull()
       .references(() => settlement.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
-    state: jsonb('state').$type<VillageState>().notNull(),
+    // Starý tvar – celý stav jako jsonb; jen u vsí, které se od migrace 0043 neuložily (líný
+    // převod: první zápis adaptéru ho vynuluje a zapíše `state_day` / `state_land`).
+    state: jsonb('state').$type<VillageState>(),
+    // Denní část stavu (zstd JSON) – zapisuje se při každém uložení; nese i pořadí klíčů.
+    stateDay: bytea('state_day'),
+    // Zemská část stavu (zstd JSON) – zapisuje se jen při změně `land_hash`.
+    stateLand: bytea('state_land'),
+    landHash: text('land_hash'),
     version: integer('version').notNull().default(1),
-    // Odvozené ze stavu při každém zápisu (zdroj pravdy je dál JSON `state`): den dopočtu a spánek
-    // vsi (vymřelá / opuštěná – pravidlo jako `isVillageExtinct` / `isVillageAbandoned`) jdou
-    // zjistit bez rozbalení JSON (fronta workeru, dotazování na ves).
-    lastDay: integer('last_day').generatedAlwaysAs(sql`(state->>'lastDay')::int`),
-    asleep: boolean('asleep')
-      .notNull()
-      .generatedAlwaysAs(sql`(state ? 'extinctDay') OR (state ? 'abandonedDay')`),
+    // Odvozené ze stavu při každém zápisu adaptéru (zdroj pravdy je stav): den dopočtu a spánek
+    // vsi (vymřelá / opuštěná – `isVillageExtinct` / `isVillageAbandoned`) jdou zjistit bez
+    // rozbalení stavu (fronta workeru, dotazování na ves).
+    lastDay: integer('last_day'),
+    asleep: boolean('asleep').notNull(),
+    // klíč založení vsi (`VillageState.origin`) – ves ze schránky správce vznikne právě jednou
+    origin: text('origin'),
+    // útěk vsi (`VillageState.refuge`) – úloha světa návratu (refuge-repository.ts)
+    refugeRefId: text('refuge_ref_id'),
+    refugeHostVillageId: text('refuge_host_village_id'),
     // Souhrn vsi (`villageDigest`) pro přepínač vsí a konec hry – zapisuje ho adaptér při každém
     // zápisu stavu (pravidla hladu, výmlatu a počasí jsou v jádru, SQL je spočítat neumí). Zdroj
-    // pravdy je dál `state`; null, jiná verze tvaru (`isCurrentDigest`) nebo souhrn starší verze
+    // pravdy je dál stav; null, jiná verze tvaru (`isCurrentDigest`) nebo souhrn starší verze
     // stavu = načíst ves celou.
     digest: jsonb('digest').$type<VillageDigest>(),
     // Verze stavu, ze které je souhrn: platí jen při shodě s `version` – zápis stavu mimo adaptér
@@ -56,8 +73,8 @@ export const village = pgTable(
       .where(sql`NOT ${table.asleep}`),
     // klíč založení vsi (`VillageState.origin`) – ves ze schránky správce vznikne právě jednou
     uniqueIndex('village_origin_uq')
-      .using('btree', sql`(${table.state}->>'origin')`)
-      .where(sql`${table.state}->>'origin' IS NOT NULL`),
+      .on(table.origin)
+      .where(sql`${table.origin} IS NOT NULL`),
   ],
 );
 

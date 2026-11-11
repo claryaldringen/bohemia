@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { VILLAGE_STATE_SQL_COLUMNS } from '@bohemia/db/village-state';
 import { register, uniqueEmail, useUniqueClientIp } from './helpers';
 import { linkFromLastMail } from './mail';
 import { found, newPlayer, query, readyScene, seat, villageSpots } from './village-helpers';
@@ -79,9 +80,10 @@ test('nováček vybere pána, staví v odříznuté krajině, pán přijme; svob
     [seatA.settlementId],
   );
   await query(
-    `INSERT INTO village (settlement_id, name, state, version, digest, digest_version)
-       SELECT $2, 'Druhá', state, version, digest, digest_version FROM village
-        WHERE settlement_id = $1`,
+    `INSERT INTO village (settlement_id, name, ${VILLAGE_STATE_SQL_COLUMNS}, version, digest,
+       digest_version)
+       SELECT $2, 'Druhá', ${VILLAGE_STATE_SQL_COLUMNS}, version, digest, digest_version
+         FROM village WHERE settlement_id = $1`,
     [seatA.settlementId, map!.id],
   );
   const houseA = await houseOf(emailA);

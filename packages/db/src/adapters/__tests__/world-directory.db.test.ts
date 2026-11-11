@@ -48,6 +48,7 @@ async function player(id: string, x: number, y: number, extra = true): Promise<s
       settlementId: s!.id,
       name: `Ves ${id}`,
       state: {} as never,
+      asleep: false,
       digest: { v: VILLAGE_DIGEST_VERSION, publicLineMen: [] } as never,
       digestVersion: 1,
     });
@@ -139,8 +140,8 @@ describe('WorldDirectory (Drizzle)', () => {
       INSERT INTO settlement (owner_id, is_seat, landscape_seed, layer_versions, grid_x, grid_y)
       SELECT 'u' || g, true, g, ${layers}::jsonb, (g % 40) - 20, (g / 40) + 1 FROM generate_series(1, 1000) g`);
     await db.execute(sql`
-      INSERT INTO village (settlement_id, name, state, digest, digest_version)
-      SELECT id, 'Ves', '{}'::jsonb, '{"v":4,"publicLineMen":[]}'::jsonb, 1 FROM settlement WHERE owner_id <> 'me'`);
+      INSERT INTO village (settlement_id, name, state, asleep, digest, digest_version)
+      SELECT id, 'Ves', '{}'::jsonb, false, '{"v":4,"publicLineMen":[]}'::jsonb, 1 FROM settlement WHERE owner_id <> 'me'`);
     await db.execute(sql`ANALYZE`);
     await directory.nearestHouses({ x: 0, y: 0 }, 20, mine); // zahřátí
     const times: number[] = [];

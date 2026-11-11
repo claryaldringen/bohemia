@@ -31,6 +31,7 @@ export {
   createSettlementRepository,
   createTimeOffsetRepository,
   createVillageRepository,
+  newVillageRow,
   createWorldQueue,
   createAlarmOwners,
   playerLockHash,

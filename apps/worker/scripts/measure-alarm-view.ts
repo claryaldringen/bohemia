@@ -1,6 +1,11 @@
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { Client } from 'pg';
+import {
+  villageStateOfSqlRow,
+  villageStateSelect,
+  villageStateSizeSql,
+} from '@bohemia/db/village-state';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import {
   createAlarmOwners,
@@ -76,15 +81,19 @@ async function querySource(): Promise<Source> {
   await client.connect();
   try {
     const found = await client.query(
-      `select v.state::text as state, s.landscape_seed, s.layer_versions
+      `select ${villageStateSelect('v')}, s.landscape_seed, s.layer_versions
        from village v join settlement s on s.id = v.settlement_id
        where ($1::uuid is null or v.id = $1) and s.archived_at is null
-       order by length(v.state::text) desc limit 1`,
+       order by ${villageStateSizeSql('v')} desc limit 1`,
       [args.village ?? null],
     );
     const row = found.rows[0];
     if (!row) throw new Error('Zdrojová ves nenalezena.');
-    return { state: row.state, seed: row.landscape_seed, versions: row.layer_versions };
+    return {
+      state: JSON.stringify(villageStateOfSqlRow(row)),
+      seed: row.landscape_seed,
+      versions: row.layer_versions,
+    };
   } finally {
     await client.end();
   }
