@@ -28,8 +28,51 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (voda, zvířata, lidé, dým, obilí) a dokreslování po načtení (`renderBurst`) jdou v taktu
   animací (`tickDue` / `nextTick` – i na displeji 120 Hz přesně 30×/s), pohyb kamery se kreslí
   s displejem. Nové animace patří do `animate()`, ne přímo do smyčky. Výkon měří vývojový
-  ukazatel vpravo dole na `/dev/landscape` (`ScenePerfPanel`, `scene-perf.ts` – kreslící
-  snímky, smyčka, CPU a GPU snímku, draw cally, trojúhelníky, pick).
+  ukazatel vpravo dole na `/dev/landscape` a ve hře s `?perf=1` v adrese (i v produkčním buildu –
+  vývojový režim kreslení zkresluje; bez příznaku nic nestojí a hráč ho nevidí):
+  `ScenePerfPanel`, `scene-perf.ts` – kreslící snímky, smyčka, CPU a GPU snímku, draw cally,
+  trojúhelníky, pick, CPU kontroly animací, **„Hýbe se“** (které animace v poslední sekundě
+  chtěly kreslit – proč scéna v klidu kreslí: `animateParts` hlásí jména) a ve hře doba načtení
+  (značky User Timing `scene:<krok>` a `scene-ready` z `GameView` – vidět i v profilu prohlížeče).
+  S ukazatelem je Babylon scéna v konzoli jako `__bohemiaScene` (rozbor trojúhelníků po meshích).
+
+- **Výkon – měření 11. 11. 2026** (Martin: „vykreslování je nějaké pomalé“ – načtení i pohyb
+  kamery). Vlkov, M1 Pro, Chromium s oknem (WebGPU přes Metal), 1600 × 900; skript Playwright
+  měří kroky načtení, mezery mezi snímky (requestAnimationFrame), odeslání příkazů GPU
+  (`GPUQueue.submit` = kreslené snímky) a ukazatel. „Hotovo“ = konec posledního dlouhého snímku
+  po načtení (zasekávání po zmizení „Připravuji…“).
+
+  |                               | dev (`next dev`) před                | produkce před                            | produkce po           |
+  | ----------------------------- | ------------------------------------ | ---------------------------------------- | --------------------- |
+  | „Připravuji…“ zmizí           | 2,5–3,0 s                            | 2,1–2,3 s                                | 1,9–2,1 s             |
+  | zaseknutí hned po něm (ves)   | 4,0 s                                | 3,8 s                                    | 2,3 s                 |
+  | další dlouhé snímky           | 470 + 340 + 270 + 920 ms             | 470 + 270 + 260 + 760 ms                 | 320 + 250 + 280 ms    |
+  | hotovo (plynulá scéna)        | 8,3–9,5 s                            | 7,6–7,8 s                                | 5,1–5,4 s             |
+  | v klidu kreslí                | 30 sn./s (lidé)                      | 30 sn./s, CPU 2,1 ms                     | 30 sn./s, CPU 1,9 ms  |
+  | posun šipkami                 | 108 sn./s, 3 snímky > 50 ms (226 ms) | 120 sn./s, CPU 1,5 ms                    | 120 sn./s, CPU 1,5 ms |
+  | kolečko (oddálit a přiblížit) | 31 sn./s, mezera 1,5 s               | 99 sn./s, p95 24 ms                      | 100 sn./s, p95 23 ms  |
+  | oddáleno, posun               | 84 sn./s smyčky                      | 48 sn./s kreslí, 9,4 M △, 305 draw callů | 46 sn./s, 9,1 M △     |
+
+  **Příčiny načtení** (profil CPU): po hotové krajině se ves staví synchronně v jedné úloze –
+  hledání míst hromad klád 1,4 s (každé ze stovek zkoušených míst znovu skládalo políčka polí
+  a plochy obydlí – teď `FreeContext` jednou na hledání, 0,24 s), pole bez pásu pěšin a po síti
+  pěšin bloky u pěšin znovu (a nový chodec jim pás mezitím vzal – potřetí): ≈ 1,1 s. Pole teď
+  dostanou pás ze stálých tras před první stavbou (`VillagePaths.initialTrack`, `show` pro touž
+  ves vrátí týž pás) a ves se stálými trasami (hra) síť pěšin nepočítá (0,3 s při každé změně
+  dílů polí – i za hry zaškobrtnutí kamery); síť jen pro teplotní mapu provozu.
+  **Zbývá:** stavba polí 1,4–2,1 s (`fieldBlockContent` – krytí okraje a šum, rostliny, obtisky
+  `mergedDecal`), příprava shaderů vsi ≈ 0,6 s (Babylon `ProcessIncludes` a převod GLSL → WGSL
+  u vlastních materiálů), první kreslení vsi 0,4 s – kandidáti na rozložení do více úloh nebo
+  workeru. **Pohyb:** v produkci posun 120 sn./s; oddálená kamera je omezená GPU – stromy
+  v plném modelu (duby 3 745 instancí = 3,3 M △, břízy 1,3 M △); bez změny vzhledu nejde
+  (vzdálenost impostorů, LOD). Vývojový režim přidává zasekávání Reactu (dlouhé snímky při
+  posunu a přiblížení) – plynulost posuzovat v produkčním buildu. GPU snímku Chromium
+  neukazuje (timestamp-query bez čísel). V klidu scéna kreslí 30×/s, dokud jsou v záběru lidé,
+  zvířata nebo voda (záměr – `animate()`); celou scénu včetně stromů. **Regres?** Build
+  z 6. 11. (`3429aca6`) dnešní Vlkov neotevře (novější data vsi – chyba serveru), srovnat přímo
+  nešlo. Pomalé části jsou ale starší (hromady klád u lesa 26. 10., pás pěšin v polích 19. 10.,
+  pěšiny ze stálých tras 24. 10.) – zpomalení roste s vsí (víc hromad, polí a tras), ne s kódem
+  po 6. 11.
 
 - **Vývojový náhled** bez přihlášení a databáze: http://localhost:3010/dev/landscape?seed=42
   (tlačítka předchozí / další / náhodná / původní vrstvy, lišta vsi s minimapou – pole jde

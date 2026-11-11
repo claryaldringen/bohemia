@@ -188,6 +188,7 @@ import {
 import { ForeignWarScene } from './ForeignWarScene';
 import { BreakoutButton } from './hud/BreakoutButton';
 import { GameView } from './GameView';
+import { ScenePerfPanel, usePerfFlag } from './ScenePerfPanel';
 import { BuildGrid } from './hud/BuildGrid';
 import { FortConfirm } from './hud/FortConfirm';
 import { CursorReason } from './hud/CursorReason';
@@ -439,6 +440,8 @@ export function VillageGame({
 }): ReactElement {
   const decoded = useMemo(() => decodeLandscape(landscape), [landscape]);
   const [scene, setScene] = useState<LandscapeScene | null>(null);
+  // ukazatel výkonu scény – jen s `?perf=1` (ScenePerfPanel.tsx)
+  const perfOn = usePerfFlag();
   // trasy vozů a spřežení spočítá prohlížeč z cílů, které poslal server (cart-routes.ts)
   const [village, setVillage] = useState<VillageData>(() =>
     isVillageView(initialVillage)
@@ -1832,6 +1835,7 @@ export function VillageGame({
         <VillageIdProvider value={view?.id ?? null}>
           <ArmyActionsContext.Provider value={armyActions}>
             <GameView landscape={landscape} onSceneReady={setScene} overlays={false} />
+            {perfOn && <ScenePerfPanel scene={scene} showLoad />}
             <TopBar
               view={view}
               world={clock}

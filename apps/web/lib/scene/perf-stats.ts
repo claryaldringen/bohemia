@@ -70,6 +70,12 @@ export interface ScenePerfStats {
    * vykreslení mapy (průměr posledních, ms; bez obnovy null). Bez stínové mapy chybí.
    */
   shadows?: { perSec: number; cpuMs: number | null };
+  /** CPU kontroly animací (`animate()` – pózy lidí, zvířat, dým…) – průměr posledních (ms). */
+  animateMs?: number | null;
+  /** Co v poslední sekundě žádalo překreslení (animace v záběru) – proč scéna v klidu kreslí. */
+  animating?: readonly string[];
+  /** Načtení hry: od otevření stránky do hotové scény (ms) – jen ve hře s `?perf=1`. */
+  loadMs?: number | null;
 }
 
 /** Řádky ukazatele: popisek a hodnota (česky, čísla zaokrouhlená). */
@@ -87,6 +93,18 @@ export function perfStatsRows(stats: ScenePerfStats): [string, string][] {
     ['Meshe', String(stats.activeMeshes)],
     ['Trojúhelníky', formatCount(stats.triangles)],
     ['Pick', ms(stats.pickMs)],
+    ...(stats.animateMs !== undefined
+      ? ([['CPU animací', ms(stats.animateMs)]] as [string, string][])
+      : []),
+    ...(stats.animating !== undefined
+      ? ([['Hýbe se', stats.animating.join(' ') || '–']] as [string, string][])
+      : []),
+    ...(stats.loadMs !== undefined
+      ? ([['Načtení', stats.loadMs === null ? '–' : `${(stats.loadMs / 1000).toFixed(1)} s`]] as [
+          string,
+          string,
+        ][])
+      : []),
     ...(stats.shadows
       ? ([
           [

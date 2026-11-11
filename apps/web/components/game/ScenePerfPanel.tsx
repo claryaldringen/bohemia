@@ -7,19 +7,51 @@ import { perfStatsRows, type ScenePerfStats } from '@/lib/scene/perf-stats';
 /** Jak často se čísla ukazatele obnoví (ms). */
 const REFRESH_MS = 1000;
 
+/** Značka User Timing, kterou herní plocha položí, když je scéna hotová (`GameView`). */
+export const SCENE_READY_MARK = 'scene-ready';
+
 /**
- * Vývojový ukazatel výkonu scény (/dev/landscape) – kolik snímků scéna opravdu kreslí, průchody
+ * Ukazatel výkonu ve hře: jen s `?perf=1` v adrese. Platí i v produkčním buildu – vývojový
+ * režim Next.js a React kreslení zkresluje, měřit se musí i produkce; bez příznaku nic nestojí
+ * (měření zapne až panel) a hráč ho neuvidí, rozhraní hry zůstává bez popisků.
+ */
+export function usePerfFlag(): boolean {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    // až po hydrataci – adresa na serveru není a stav se musí shodovat
+    setOn(new URLSearchParams(window.location.search).get('perf') === '1');
+  }, []);
+  return on;
+}
+
+/** Od otevření stránky do hotové scény (ms), dokud scéna není hotová null. */
+function loadMs(): number | null {
+  return performance.getEntriesByName(SCENE_READY_MARK, 'mark')[0]?.startTime ?? null;
+}
+
+/**
+ * Vývojový ukazatel výkonu scény (/dev/landscape, hra s `?perf=1`) – kolik snímků scéna opravdu kreslí, průchody
  * smyčky, doba snímku na CPU a GPU, draw cally, trojúhelníky a pick terénu. Měření zapne až
  * tenhle panel (stojí to trochu výkonu), čísla se obnoví jednou za sekundu.
  */
-export function ScenePerfPanel({ scene }: { scene: LandscapeScene | null }): ReactElement {
+export function ScenePerfPanel({
+  scene,
+  showLoad = false,
+}: {
+  scene: LandscapeScene | null;
+  /** Ukázat i dobu načtení (hra – stránka se otevře rovnou se scénou). */
+  showLoad?: boolean;
+}): ReactElement {
   const [stats, setStats] = useState<ScenePerfStats | null>(null);
   useEffect(() => {
     if (!scene) return;
     scene.enablePerfStats();
-    const timer = setInterval(() => setStats(scene.perfStats()), REFRESH_MS);
+    const timer = setInterval(() => {
+      const next = scene.perfStats();
+      setStats(next && showLoad ? { ...next, loadMs: loadMs() } : next);
+    }, REFRESH_MS);
     return () => clearInterval(timer);
-  }, [scene]);
+  }, [scene, showLoad]);
   return <ScenePerfReadout stats={stats} />;
 }
 

@@ -22,7 +22,7 @@ import {
   type Point,
 } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
-import { isRotatedSquare, squareContains } from './field-cells';
+import { isRotatedSquare, squareContains, type CellSquare } from './field-cells';
 import { distanceToPolyline } from './village-picking';
 import { dwellingArea, footprintRect, localToWorld } from './village-layout';
 
@@ -228,9 +228,10 @@ export function logPileSite(
     const [x, z] = localToWorld(home.position, lx, lz);
     return { x, z, rotation: home.position.rotation + turn };
   });
+  const context = freeContext(village);
   return (
     sites.find((site) =>
-      isFree(landscape, village, layer, changes, site, {
+      isFree(landscape, village, context, layer, changes, site, {
         homeId: home.id,
         margin: FREE_MARGIN_M,
         blocks: () => true,
@@ -265,13 +266,16 @@ export function logStackSite(
     blocks: (kind: ObstacleKind) => !STACK_TOLERATED.has(kind),
     dense: true,
   };
-  if (previous && isFree(landscape, village, layer, changes, previous, options)) return previous;
+  const context = freeContext(village);
+  if (previous && isFree(landscape, village, context, layer, changes, previous, options)) {
+    return previous;
+  }
   if (anchor.road) {
     // klády míří čely k cestě – místní osa z od cesty ke kotvě
     const rotation = Math.atan2(anchor.x - anchor.road.x, anchor.z - anchor.road.z);
     for (let stacks = MAX_STACKS; stacks >= 1; stacks--) {
       const site: LogPileSite = { x: anchor.x, z: anchor.z, rotation, stacks };
-      if (isFree(landscape, village, layer, changes, site, options)) return site;
+      if (isFree(landscape, village, context, layer, changes, site, options)) return site;
     }
   }
   for (let stacks = MAX_STACKS; stacks >= 1; stacks--) {
@@ -284,7 +288,7 @@ export function logStackSite(
         // klády míří ke kotvě (od paseky), nebo napříč
         for (const turn of [0, Math.PI / 2]) {
           const site: LogPileSite = { x, z, rotation: Math.PI / 2 - a + turn, stacks };
-          if (isFree(landscape, village, layer, changes, site, options)) return site;
+          if (isFree(landscape, village, context, layer, changes, site, options)) return site;
         }
       }
     }
@@ -292,9 +296,37 @@ export function logStackSite(
   return null;
 }
 
+/**
+ * Co se pro test volného místa počítá ze vsi jednou na hledání (ne pro každé zkoušené místo –
+ * hledání zkouší stovky míst): obsazená políčka polí a hřbitovů, natočené díly a plochy obydlí.
+ */
+interface FreeContext {
+  taken: Set<string>;
+  turned: CellSquare[];
+  dwellings: { id: number; plot: boolean; area: Point[] }[];
+}
+
+function freeContext(village: SceneVillage): FreeContext {
+  const taken = new Set<string>();
+  // natočené díly (fields.md – Natočené stavby) nejsou políčka – test bodu v jejich osách
+  const squares = [
+    ...village.fields.flatMap((f) => f.parts),
+    ...(village.cemeteries ?? []).flatMap((c) => c.squares),
+  ];
+  const turned = squares.filter((p) => isRotatedSquare(p));
+  for (const p of squares) if (!isRotatedSquare(p)) taken.add(`${p.cell.x},${p.cell.y}`);
+  const dwellings = village.dwellings.map((d) => ({
+    id: d.id,
+    plot: Boolean(d.plot),
+    area: d.plot ? dwellingArea(d) : dwellingClearing(d.type, d.position, dwellingShape(d)),
+  }));
+  return { taken, turned, dwellings };
+}
+
 function isFree(
   landscape: Landscape,
   village: SceneVillage,
+  context: FreeContext,
   layer: ObstacleLayer,
   changes: ObstacleChanges,
   site: LogPileSite,
@@ -328,25 +360,17 @@ function isFree(
       }
     }
   }
-  const taken = new Set<string>();
-  // natočené díly (fields.md – Natočené stavby) nejsou políčka – test bodu v jejich osách
-  const squares = [
-    ...village.fields.flatMap((f) => f.parts),
-    ...(village.cemeteries ?? []).flatMap((c) => c.squares),
-  ];
-  const turned = squares.filter((p) => isRotatedSquare(p));
-  for (const p of squares) if (!isRotatedSquare(p)) taken.add(`${p.cell.x},${p.cell.y}`);
+  const { taken, turned } = context;
   for (const [x, z] of points) {
     const tile = tileOfWorldPoint(landscape, x, z);
     if (!tile || surfaceAt(landscape, tile.x, tile.y) === 'water') return false;
     if (taken.has(`${tile.x},${tile.y}`)) return false;
     if (turned.some((p) => squareContains(p, x, z))) return false;
   }
-  for (const d of village.dwellings) {
+  for (const d of context.dwellings) {
     // vlastní pozemek je oplocený a plný záhonů – hromada leží za plotem
     if (d.id === options.homeId && !d.plot) continue;
-    const area = d.plot ? dwellingArea(d) : dwellingClearing(d.type, d.position, dwellingShape(d));
-    if (polygonsOverlap(corners, area)) return false;
+    if (polygonsOverlap(corners, d.area)) return false;
   }
   const margin = rectangleCorners(
     site.x,

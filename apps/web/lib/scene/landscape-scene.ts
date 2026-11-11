@@ -334,6 +334,8 @@ export class LandscapeScene {
   private readonly pickRay = PickingRay.Zero();
   /** Vývojový ukazatel výkonu (jen /dev/landscape – `enablePerfStats`). */
   private perf: ScenePerf | null = null;
+  /** Pole dostala pás pěšin ze stálých tras před první stavbou (`applyVillage`). */
+  private pathTrackPrimed = false;
   /** Odložené předání pásu pěšin dne polím (`VillagePaths.onChange`). */
   private pathTrackTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -636,6 +638,7 @@ export class LandscapeScene {
     // Vyšlapané pěšiny – síť se počítá z vsi a krajiny (odloženě), lidé po ní chodí; pevné cesty
     // a stromy u nich z dat vsi (roads.md).
     this.paths?.dispose();
+    this.pathTrackPrimed = false;
     this.paths = new VillagePaths(this.scene, {
       landscape,
       layer: obstacles,
@@ -1667,6 +1670,13 @@ export class LandscapeScene {
     // úvozy a náspy vozových cest (roads.md – Vozová cesta) – terén napřed, ať se pole, cesty
     // a pařezy položí už na nový
     const terrainChanged = this.applyTerrainEdits();
+    if (!this.pathTrackPrimed) {
+      // první ves: pole se postaví rovnou s pásem pěšin dne ze stálých tras – bez něj by se bloky
+      // u pěšin stavěly dvakrát (při otevření hry ≈ 0,6 s navíc); síť pěšin pak dá týž pás
+      this.pathTrackPrimed = true;
+      const track = this.paths?.initialTrack(this.villageState) ?? null;
+      if (track) village.setPathTrack(track);
+    }
     const changed = village.update(this.villageState) || terrainChanged;
     const changes = this.villageState.obstacles ?? NO_OBSTACLE_CHANGES;
     const sacred = this.villageState.sacred;
@@ -1913,21 +1923,32 @@ export class LandscapeScene {
 
   /** Voda, ryby a ptáci, dým, zvířata, lidé, voli a obilí – true, když se něco v záběru hnulo. */
   private animate(now: number, camera: Camera): boolean {
+    const perf = this.perf;
+    if (!perf) return this.animateParts(now, camera, null);
+    const started = performance.now();
+    const animated = this.animateParts(now, camera, (name) => perf.animated(name, started));
+    perf.animateTime(performance.now() - started);
+    return animated;
+  }
+
+  /** `animate` – `hit` (jen s ukazatelem výkonu) dostane jméno animace, která chce kreslit. */
+  private animateParts(now: number, camera: Camera, hit: ((name: string) => void) | null): boolean {
     let animated = false;
     // zamrzlá voda neteče – v záběru jen led a stojí, nepřekresluje se
     if (this.water?.flowsInView(camera)) {
       this.water.animate(now / 1000);
       animated = true;
+      hit?.('voda');
     }
-    if (this.fauna?.animate(now / 1000, camera)) animated = true;
+    if (this.fauna?.animate(now / 1000, camera)) animated = hitPart(hit, 'fauna');
     // déšť – kapky kolem cíle kamery, jen když prší
     const rts = this.rtsCamera?.camera;
     if (rts && this.rain?.animate(now / 1000, rts.target, rts.position, rts.radius)) {
-      animated = true;
+      animated = hitPart(hit, 'déšť');
     }
     // bouřka s kroupami – kroupy v pruhu a záblesky (deterministicky z času, jen v bouřce)
     if (rts && this.storm?.animate(now / 1000, rts.target, rts.position, rts.radius)) {
-      animated = true;
+      animated = hitPart(hit, 'bouřka');
     }
     // smršť – trychtýř přejde stopou kolem vsi (jen v průchodu a s animacemi, den světa jako
     // pohromy; při omezeném pohybu ho skryje `updateDisasters`)
@@ -1936,44 +1957,44 @@ export class LandscapeScene {
       this.villageState?.tornado &&
       this.tornadoFunnel?.animate(this.disasterDay(), now / 1000)
     ) {
-      animated = true;
+      animated = hitPart(hit, 'smršť');
     }
     if (this.stormNow > 0) {
       const flash = stormFlash(this.stormNow, Date.now());
       if (flash !== this.flashNow) {
         this.flashNow = flash;
-        if (this.applyLight(true)) animated = true;
+        if (this.applyLight(true)) animated = hitPart(hit, 'blesk');
       }
     }
     // dým z obydlí – rozvrh ohně podle herního dne, proto skutečný čas
     const epochMs = Date.now();
-    if (this.village?.animateSmoke(epochMs, camera)) animated = true;
+    if (this.village?.animateSmoke(epochMs, camera)) animated = hitPart(hit, 'dým');
     // ohně pálení paseky – podle herního dne jako dým
-    if (this.clearingFire?.animate(epochMs, camera)) animated = true;
+    if (this.clearingFire?.animate(epochMs, camera)) animated = hitPart(hit, 'pálení');
     // požár – plameny domů a vědra řetězu (jen v den požáru)
-    if (this.houseFire?.animate(epochMs, camera)) animated = true;
-    if (this.fireBuckets?.animate(epochMs, camera)) animated = true;
+    if (this.houseFire?.animate(epochMs, camera)) animated = hitPart(hit, 'požár');
+    if (this.fireBuckets?.animate(epochMs, camera)) animated = hitPart(hit, 'vědra');
     // domácí zvířata – skutečný čas (epoch ms), ne herní: stejný okamžik = stejná póza
-    if (this.livestock?.animate(epochMs, camera)) animated = true;
+    if (this.livestock?.animate(epochMs, camera)) animated = hitPart(hit, 'dobytek');
     // koně na jízdě nestojí v ohradě (riders.ts, village-pens.ts)
     if (this.village?.setRidingHorses(ridingHorseIds(this.villagers?.rides() ?? [], epochMs))) {
-      animated = true;
+      animated = hitPart(hit, 'jízda');
     }
     // lidé ve vsi – skutečný čas jako zvířata
-    if (this.villagers?.animate(epochMs, camera)) animated = true;
+    if (this.villagers?.animate(epochMs, camera)) animated = hitPart(hit, 'lidé');
     // vojsko a boj – mezi takty plynule, šípy a prach (army-renderer.ts)
-    if (this.army?.animate(epochMs, camera)) animated = true;
+    if (this.army?.animate(epochMs, camera)) animated = hitPart(hit, 'vojsko');
     // divoká zvěř – skutečný čas; po lidech, před kterými utíká
-    if (this.wildlife?.animate(epochMs, camera)) animated = true;
+    if (this.wildlife?.animate(epochMs, camera)) animated = hitPart(hit, 'zvěř');
     // voli a krávy v ohradách a spřežení na poli (oxen.md) – skutečný čas jako zvířata
-    if (this.village?.animateOxen(epochMs, camera)) animated = true;
+    if (this.village?.animateOxen(epochMs, camera)) animated = hitPart(hit, 'voli');
     // porážka – překreslí se jen při změně stavu (pád, zavěšení, čtvrtiny, kýty, miska)
-    if (this.village?.animateSlaughter(epochMs, camera)) animated = true;
+    if (this.village?.animateSlaughter(epochMs, camera)) animated = hitPart(hit, 'porážka');
     // obilí ve větru – jen zralé a zelené v záběru
-    if (this.village?.animateFields(epochMs, camera)) animated = true;
+    if (this.village?.animateFields(epochMs, camera)) animated = hitPart(hit, 'obilí');
     // den a noc – slunce jde po obloze (světlo se mění pomalu, stačí DAY_LIGHT_MS)
     if (this.dayClock && now - this.daylightAt >= DAY_LIGHT_MS && this.applyLight(false)) {
-      animated = true;
+      animated = hitPart(hit, 'světlo');
     }
     return animated;
   }
@@ -2234,4 +2255,10 @@ function wagonPreviewKey(village: SceneVillage, roadId: number): string {
 function withRockTint(p: DecorPlacement): DecorPlacement {
   const group = premiumRockTint(p.id);
   return group ? { ...p, group } : p;
+}
+
+/** Animace chce kreslit – ukazateli výkonu řekne kterou (`hit`) a vrátí true. */
+function hitPart(hit: ((name: string) => void) | null, name: string): true {
+  hit?.(name);
+  return true;
 }
