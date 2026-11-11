@@ -115,12 +115,12 @@ počasí počítá jako dřív** (zlaté otisky beze změny). Funkce v `weather-
   `hayShortSlaughter`, výcvik volů v `oxen.ts`) jen podle `isLongWinterRevealed` (od 1. 3.; v listopadu
   a prosinci ne) – bez úniku budoucnosti. `hayWinterDaysLeft(day, true)` počítá do konce posledního
   měsíce z `longWinterHayMonths`. Setí jařin (jař, luštěniny, len) se drží do 22. 3.
-  (`springSowingHeld` ve `fieldTasks` a `surplusTasks`).
+  (`springSowingHeld` ve `fieldTasks`).
 - **Dohra setí jařin 1.–14. 5.** (návrh Clauda – levná cesta místo oken po dnech):
   `springSowingExtended(state, day, crop)` platí jen v odhalené dlouhé zimě a se `weatherSeed`
   (nebo vynuceným počasím). Díly, které už jsou v práci plodiny, se dosévají i po 30. 4. – nové
   díly se po 30. 4. nepřidávají (okno `CROP_WINDOWS` se nemění). Zasahuje `activeTasks` (parametr
-  `sowExtended`), `fieldTasks`, `surplusTasks`, `fieldFrontiers`, dřinu a `sowingJustEnded`
+  `sowExtended`), `fieldTasks`, `fieldFrontiers`, dřinu a `sowingJustEnded`
   (`simulate-plan.ts`; nerozseté díly se uvolní až 15. 5.). Číslo `longWinterSpringSowExtraDays` 14.
 - **Osev s průměrem let** – `sowingYieldFactor` (0,95): s cílem osevu (zrušen 9. 11. 2026) dělil
   úrodu obilí; dnes jen potřeba polí správce (`steward.ts`). **Paměť hladu** – `famineMemoryDay` (1. 9. v `simulateDay` před

@@ -95,7 +95,7 @@ dřevěné uhlí jede vůz.“ Podrobnosti nechal na Claudovi („Co bude potře
 níž je návrh Clauda, čísla v `CART_JOBS` (`rules.ts`).
 
 - **Kdy:** dvoukolák, který dnes nesváží úrodu, seno ani klády ke stavbám (ty mají přednost)
-  a jehož voli neorají (ani orbu navíc – fields.md, Osev navíc), jede v pořadí:
+  a jehož voli neorají (ani orbu navíc – history/fields-history.md, Osev navíc), jede v pořadí:
   1. **dřevěné uhlí z milíře ke kováři** – v den, kdy uhlíř vytahá uhlí z vypáleného milíře
      (crafts.md – Milíř stojí vždy). Martin (20. 10. 2026): „Pokud bude ve vesnici vůz, tak kováři
      přiveze uhlí sedlák s vozem (a odečte se jeho práce).“ Uhlí jinak nosí v koších kovářova
@@ -137,7 +137,7 @@ níž je návrh Clauda, čísla v `CART_JOBS` (`rules.ts`).
      Martina – [oxen.md](oxen.md), Spřežení zůstane na poli): spřežení zůstává na poli, dokud
      nezorá, co okno potřebuje, takže ráno doma je pár jen v den výjezdu z ohrady; pár na poli
      vodu nesveze a voda se ty dny nosí (nebo ji veze vůz se zbylými voly). „Rozhodne ekonomika“
-     platí dál pro dny, kdy pár doma je. Osev navíc (fields.md) bere spřežení až po vodě – jako
+     platí dál pro dny, kdy pár doma je. Osev navíc (history/fields-history.md) bere spřežení až po vodě – jako
      práci, která zbude, dostane jen zbytek dne rádel.
   2. **Jízda:** jeden pár od rádla zapřáhne vůz (čtyřkolák pár, dvoukolák jednoho vola – druhý
      bez páru neorá) a sveze vodu jako jindy (`waterCartPlan`, levnější vůz). Jízdy zaberou

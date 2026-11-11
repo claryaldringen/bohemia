@@ -50,7 +50,7 @@ Auth vzniká líně přes `getAuth()` – `next build` stránky jen importuje a 
   hráče je vždy `playerToday` z `lib/game.ts` (den světa + posun, nejvýš 31. 12. 1499) – nikdy
   `gameDayIndex` přímo; prohlížeč dostane posun se stránkou a hodiny posune `shiftWorldClock`
   (datum v liště, roční období a dým ve scéně). Posun jen roste, platí i bez `devMode`. (Tlačítko
-  **Druhá ves na téže mapě** – `foundDevVillage` – je od 1. 11. 2026 pryč: jedna ves, jedna mapa;
+  **Druhá ves na téže mapě** je od 1. 11. 2026 pryč: jedna ves, jedna mapa;
   e2e přepínače vsí zapíše druhou ves na mapu vedle rovnou do databáze – `villageOnNextMap`.)
   Vedle šipek **Vynutit zlý rok** a **Vynutit pohromu** (`DevDisasterButtons` v `TopBar` – každé otevře
   řadu ikon druhů): server action `forceDevDisaster` (`{ villageId, kind: 'year' | 'disaster',

@@ -55,7 +55,7 @@ Pravidla: [wildlife.md](../design/wildlife.md) – Škody, Prasata a jeleni na p
 a kg po dílech, jen nenulové), `topPartId`, `totalKg`, `lastYearKg`.
 
 - **1. 6.** `damageWindowStart(state, day, landscape)` (v `simulateDay` za `lordHelpDay`, před
-  `work()`): ohrožené jsou osetré díly ozimu a jaře (i nad potřebu; luštěniny a len ne), které
+  `work()`): ohrožené jsou osetré díly ozimu a jaře (luštěniny a len ne), které
   setí zasáhlo celé (`taskSpans` 'sow'); váha 1 do 50 m od okraje lesa, k 250 m lineárně 0
   (`edgeWeight`). Vzdálenost: `forestEdgeDistances` (`wildlife-land.ts`) – chamfer 3–4 masky lesa
   z W1 (jen kusy od 1 ha, jen do 1 km), od středu políčka dílu minus půl políčka; jednou za rok.
@@ -73,7 +73,7 @@ windowDays` (ozim 61, jař 92) denně na každý nesklizený ohrožený díl. Mi
   sklizni plodiny (`harvestedKg`) nic.
 - **Úroda:** `harvestKg`, `expectedWinterKg` a `daysUntilFoodHarvest` (`year-plan.ts`) berou
   volitelné `losses` (`PartLosses` = `damage.parts`); díl dá hrubou úrodu × (1 − share). Sklizeň
-  ozimu, jaře a nad potřebu (`simulate-food.ts`) i výhled jídla (`diet.ts`, `emergency-slaughter.ts`)
+  ozimu a jaře (`simulate-food.ts`) i výhled jídla (`diet.ts`, `emergency-slaughter.ts`)
   předávají `state.wildlife?.damage?.parts` – příděl nepřecení úrodu. Len a luštěniny škodu nemají.
 - **31. 8.** `wildlifeSeasonEnd` (v `simulateDay` po `harvest()`): kronika `wildlife-damage { kg }`
   („Zvěř a vrány zničily … kg obilí“, jen > 0), `risk` a `parts` se vyprázdní (ztráty by jinak
@@ -184,7 +184,7 @@ Návrh: wildlife.md – Drobná zvěř a ryby, Rozhodnutí při implementaci W7.
 
 - `smallGameDay(state, day, labor, urgent)` – volá ho `work()` (simulate-work.ts): při hladu
   (`state.hungry`) hned po kládách a vodě, před stavbami (z `common`); jinak až z
-  `afterBuild.left − surplus.labor − extraMow`, tedy ze zbytku po dílech nad potřebu a seči navíc.
+  `freeLabor − weedMen − extraMow`, tedy ze zbytku po pletí mužů a seči navíc.
   Chytá se, jen když `smallGameCapacity` > 0 (sezóna, zásoba nad ½ stropu, zbývá roční kvóta) a ves `wantsProtein`
   (nebo hladoví).
 - Duben–listopad ryby (biomasa `fishKg`), prosinec–březen oka (`hares`, zlomek kusu). Maso jde do

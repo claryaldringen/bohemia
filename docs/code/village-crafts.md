@@ -7,7 +7,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   zemnice – `CRAFT_BASE`), stavba je `kind: 'dwelling'` s `craft` (cena `workshopCost` /
   `workshopTrees` – obydlí + 30 %), akce `startWorkshop`, use-case `placeWorkshop`, umístění
   `checkWorkshopPlacement` (volně jako zemnice; půdorys `workshopFootprints` i s přístřeškem
-  a u uhlíře s milířem kus od zemnice – `MILIR`, `milirPosition`; `PlacementVillage.dwellings`
+  a u uhlíře s milířem kus od zemnice – `MILIR`; `PlacementVillage.dwellings`
   nese `workshop.craft`, ať se do milíře nestaví). Domácnosti obývaných dílen (`craftHouseholds`)
   pracují v dílně (`workshopLabor` – po denním minimu, domácí výroba bokem; řemeslo dělají jen muži domácnosti – `craftHands` v `smith-supply.ts`, Martin 22. 10. 2026 – a zbytek práce žen `WorkshopLabor.light` dá `craftLightLabor` jako `light` do `allocateDay` – samostatný zásobník mimo `capacity`, kryje jen `LIGHT_LABOR_TASKS` (setí, okopávání, žně, výmlat), orbu, kácení ani stavby nikdy; měchař `smithBellows`, praxe `gainPractice` a `workshopSkill` taky jen muži; ve scéně `shareWorker` bere k dílně `onlySex: 'male'` (a `hasMen` nepočítá kojence jako `craftHands`) a `DayRoster.take` pouští ženy zaneprázdněných domácností jen s `light: true` (`LIGHT_ACTIVITIES` ve `villager-plan.ts`); `workCrafts` v kroku
   práce – mimo `allocateDay`, do sil plánu osevu se nepočítají – kromě žňových dnů: řemeslník se
@@ -107,7 +107,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `oreSiteDiscs` (jámy do `ORE_SITE_PIT_REACH_M` od místa – `oreSitePits`, s valem, hromada, místo),
   obrys `oreSiteOutline` (konvexní obal); panel z `VillageView.oreSites` (`lib/ore-site-view.ts` –
   ložisko, hromada, zásoba v kovárně, cesta, jámy, kdo tu dnes kope / nosí / jede s vozem z rozdělení
-  práce dne a vůz se sedlákem), `OreSiteBody` s tlačítkem kovárny, portrét `icons/build/rudiste.png`
+  práce dne a vůz se sedlákem), `DugSiteBody` s tlačítkem kovárny, portrét `icons/build/rudiste.png`
   (`icons.py rudiste`), `/dev/panels?panel=rudiste`. **Hliniště** stejně (návrh Clauda): cíl
   `{ kind: 'clay-site', id: dílna hrnčíře }` (`dugSiteOf`), tvary `oreSiteDiscs` jen s jámami téže
   suroviny (`dugSitePits`), panel z `VillageView.claySites`; jeden kód pro obě místa – pohled
@@ -170,7 +170,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `smithSons`; u kováře i ve dny nošení uhlí – `restingFetch`); kdo jde pro kování, ne. Výkon dílny
   `workshopSkill` (nejzkušenější dospělý doma, 0,5 → 1 za 5 let) je `WorkshopLabor.skill`: kovář
   kove pomaleji (`workSmith`, `smithForgeCharcoalKg` přes `forgeLabor`), hrnčíř vypaluje
-  (`workWithWood` – kácení ne), uhlíř celá práce u milíře (`forgeLabor`, i `kilnLeadKg`), tesař
+  (`workWithWood` – kácení ne), uhlíř celá práce u milíře (`forgeLabor`, i `kilnLeadDays`), tesař
   `carpenterWorkFactor ÷ skill` (i vedení party v `carpentryHelp`). Dílna bez `Workshop.skillTracked`
   (z doby před učením) pracuje jako vyučená; převod `withCraftSkill` (na začátku
   `advanceVillageSteps`) dá jejím lidem praxi za dobu, co domácnost dílnu drží (kronika), jinak 5 let;
@@ -181,7 +181,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 
 - **Tesař a vozy** ([wagons.md](../design/wagons.md) – fáze 1, Martin 19. 10. 2026; čísla
   `CARPENTRY`, `WOODWORK_LABOR`, `CARPENTER_TOOLS_WORK`, `WOOD_TOOLS`, `WOOD_TOOLS_LABOR`, `CARTS`,
-  `CART_ACCESS` v `rules*.ts`, rešerše `research/2026-10-19-carts-carpentry.md`): řemeslo
+  v `rules*.ts`, rešerše `research/2026-10-19-carts-carpentry.md`): řemeslo
   `carpenter` (polozemnice + přístřešek, [T], ikona `tesar`) – `carpentry.ts`. Krok práce
   (`simulate.ts`): `restingCarpenters` (odpočívá jen bez výroby i bez stavby s dřevěnou prací),
   `carpentryHelp` před stavbami (čd tesaře vede `crew` čd dřevěné práce dne – `woodworkToday`
@@ -208,7 +208,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   stálou cenou, stadium dílu dosah nemění (paths.md – Stálé trasy), `mowingCartReach`, `logsCartReach`); jízdy svozu do
   ročního provozu cest `addHaulTrips` → `addRoadCartTrips` (vyjeté cesty).
   Web: `VillageCrafts.carts` / `cartTargets`, `VillageWorkshop.carpenter`, lišta dřevěné nářadí
-  a vozy (`showsWoodTools`, `cartsLabel`), panel dílny (`CarpenterStats`), upozornění
+  a vozy, panel dílny (`CarpenterStats`), upozornění
   `cart-made`, `cart-worn-out`, `carpenter-no-wood`, náhled obchodu s vozy
   (`VillageNeighbour.carts`), `SceneVillage.carts` (`sceneCarts` – u ohrady, cíl dne, náklad
   `job.load` a cíl dne `goal` – trasu `route` z něj spočítá prohlížeč, `withCartRoutes` v
@@ -222,7 +222,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   čísla `CART_JOBS` v `rules*.ts`, návrh Clauda): `cart-jobs.ts` + `planCartJobs` v `simulate-hauls.ts`.
   Dvoukolák, který dnes nesváží úrodu ani seno (`planTaskHauls`) a nevozí klády (ty mají přednost
   – `logHaulCandidates` / `logHaulPlan` před rozdělením práce, `haulLogs` po něm), jede v pořadí
-  `CART_JOBS.order` – ne když voli orají ani orbu navíc (`surplusWantsTeam`): **uhlí** – kam
+  `CART_JOBS.order` – ne když voli orají ani orbu navíc: **uhlí** – kam
   dnes uhlíř vytahal uhlí (`charcoalDeliveries`), jízda k milíři (`kilnCartDrive`, uložená
   v `CharcoalKiln.cart`), `kilnCartOffer` (jen když je práce sedláka na kg menší než nošení
   kovářovou domácností – Martin 20. 10. 2026: „přiveze uhlí sedlák s vozem (a odečte se jeho
@@ -262,7 +262,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   6 kg kování ze zásoby nástrojů. Vůz s hotovou dřevěnou prací čeká (`cartAwaitingIron` v crafts.ts –
   `workCarpenter` ho nedokončí, tesař dělá nářadí, `nextProduct` ho nepočítá); krok dne
   `cartIronDay` (po `finishPurchases`) vezme kování ze zásoby a vůz dokončí (`cart-made`), vlastní
-  kovář (`smithAtHome`) ho vyrobí jako zakázku (`ironOrderKg` → `smithToolsTarget` v
+  kovář (`smithAtHome`) ho vyrobí jako zakázku (`ironOrderBarsKg` v
   `restingCrafters`, `smithsForgeCharcoalKg`, `smithsCharcoalPerYear`), jinak `Workshop.ironTrip`
   (`IronTrip`): syn tesaře od 14 (`ironCarrier`), nebo tesař jde do vsi s kovářem s nejmenší prací
   vsi celkem (`ironDestinations` – sousedé `neighbourCrafts` přes

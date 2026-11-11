@@ -12,6 +12,7 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "format:check": "turbo format:check",
+    "check:docs": "node tools/check-doc-refs.mjs",
     "format": "turbo format",
     "typecheck": "turbo typecheck",
     "test": "turbo test",

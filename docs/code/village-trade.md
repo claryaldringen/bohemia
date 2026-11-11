@@ -115,7 +115,7 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
 - **Jen společné suroviny** (trade.md – Jen společné suroviny; Martin 19. 10. 2026: „Nech jen
   společné suroviny, nezaváděj nové.“): obchod zná jen zboží, které má i ves (`TradeGood` – obilí,
   luštěniny, maso, sýr, dobytek, klády, keramika, nástroje, uhlí; `TRADE_GOODS`). Zboží zvenku
-  (sůl, železo, med, kožešiny – dřívější `goods.ts`) ve hře není. Starší vsi převede
+  (sůl, železo, med, kožešiny – dřívější soubor zboží) ve hře není. Starší vsi převede
   `withoutForeignGoods` (`trade.ts`; v `updateVillage` i na začátku `advanceVillage`, bez příznaku,
   idempotentně): zahodí `goods` a podíl medu v jídle, uložený zbytek roku souseda, který nesedí na
   jeho povahu, a výpravu na cestě pro zboží zvenku zruší – nosiči přinesou zpět, co nesli

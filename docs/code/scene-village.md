@@ -211,7 +211,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   staveniště `showcase-sites.ts`, posuvník a přehrání stavby; v produkci 404). Za řadou staveb
   pole, hřbitov a sad po čtvercích – kreslí je herní `VillageRenderer` (bez obydlí) podle
   `showcaseGrounds` v `building-showcase-layout.ts`: pole zakládání → brázdy → osev, pak jen
-  jako náhled zelené a zralé obilí a strniště (`CropLook` / `crop` dílu v `SceneVillage`, server
+  jako náhled zelené a zralé obilí a strniště (`FieldLook` / `crop` dílu v `SceneVillage`, server
   ho zatím neposílá), hřbitov vytyčení → kůly → plot → přibývající mohyly podle významu
   (`showcaseMounds` – místo vybírá jádro), sad vytyčení → kůly
   → sazenice → rostoucí stromky → jablka. Vpravo vzadu dílna tesaře a pahorek s vozy (**Vozy**,

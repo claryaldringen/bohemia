@@ -1154,7 +1154,7 @@ jsou v `lib/premium-view.ts` (`PREMIUM_TEXTS`, `premiumIntroNotice`); portréty 
   jednu verzi, druhý pokus se dopočítá znovu.
 - **Práva** `abandonStructure`, `demolishStructure`, `restoreStructure` → `'build'` (`ACTION_RIGHTS`);
   vstup `parseStructureUseInput` (`{ structure: 'dwelling' | 'pen' | 'idol' | 'shrine', id }`),
-  `…StructureForPlayer` přes `actOn` (`lib/village.ts`), server actions `abandonStructure`,
+  `demolishStructureForPlayer` a spol. přes `actOn` (`lib/village.ts`), server actions `abandonStructure`,
   `demolishStructure`, `restoreStructure` (`app/game/actions.ts`).
 - **Pohled:** `StructureUseView` (`village-view-types.ts`) – `state` `'in-use' | 'abandoned' |
 'demolishing'`, `block` (důvod z `disuseBlock` – obyvatelé nemají kam jít, ohrada se rozšiřuje),

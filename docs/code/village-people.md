@@ -59,8 +59,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     vsi dá ve žňový den podíl z plánu (`manorLabor.help` – `lordHelpDay`,
     [village-fields.md](village-fields.md) – Rodina ve žních) v pořadí ženy a dcery → muži →
     vojvoda (`lordFieldShares`; `ManorLabor.freeLord` – minimum, na které ženy nestačí, kryjí
-    napřed synové). `lordFieldIds` = cvičící dnes na poli – nejezdí ani neloví. Pomoc při hladu (`lordFieldMode`,
-    `lord.field`, `lord.fedDays`, kronika `lord-to-field` / `lord-to-training`) zrušená – převod
+    napřed synové). `lordFieldIds` = cvičící dnes na poli – nejezdí ani neloví. Pomoc při hladu (`lord.field`,
+    `lord.fedDays`, kronika `lord-to-field` / `lord-to-training`) zrušená – převod
     `withoutSowingHelp` (`lord.ts`) je smaže; staré zápisy kroniky web dál umí.
   - **Výcvik:** `trainLordDay` po jídle – cvičící `trainArms`, dospělí jen
     `1 −` podíl své skupiny na poli (muži rodiny `men`, vojvoda `lord`), chlapci 7–13 vždy; kdo necvičí a má `arms`, `decayArms`. Jízdu
@@ -233,7 +233,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   z okolí, náves).
 
 - **Přestěhování domácnosti** ([migration.md](../design/migration.md), fáze 1): akce
-  `startReplacement` (`actions.ts`, dřív `startRelocation`; dnes jen správce – náhrada domu,
+  `startReplacement` (`actions.ts`; dnes jen správce – náhrada domu,
   village-steward.md) = nová stavba obydlí (`kind: 'dwelling'`) s
   `Construction.relocates` = id domácnosti a `replaces` – dřevo, pozemek polozemnice, překážky a cena jako
   `startNewDwelling`, jen **bez lidí k osídlení** (`replacementAffordability` v `relocation.ts`;
@@ -245,7 +245,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   starší vsi (bez `replaces`) ho nechá stát prázdný – dál ho řeší běžná pravidla (osídlení,
   chátrání, rozpad, zbytek jámy). Rozestavěné stěhování zruší obecné `cancelConstruction` (stavba zmizí, nespotřebované dřevo se
   vrátí na hromadu, `returnConstructionWood`; kronika `relocation-cancelled`). Use-case
-  `relocateHousehold` (`relocate-household.ts`) **zanikl** s tlačítkem Přestěhovat (8. 11. 2026,
+  přestěhování domácnosti **zanikl** s tlačítkem Přestěhovat (8. 11. 2026,
   [demolition.md](../design/demolition.md)); doména (`startReplacement`, `relocates`,
   `relocationBlock` – ten hlídá i Odejít) zůstává pro správce a rozestavěná stěhování starých vsí.
   V rozhraní je rozestavěný nový dům běžné staveniště se Zrušit, starý dům nese jen Odejít
@@ -272,8 +272,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `villageId`; `findPlayerVillage` ověří, že ves patří hráči (sídlo mezi jeho aktivními),
   `firstPlayerVillage` = výchozí ves (sídelní sídlo první). `dynastyStatus` projde všechny vsi
   všech aktivních sídel (konec hry až po vymření všech), `restartGame` archivuje všechna sídla.
-  `foundVillageForSettlement` sídlo s vsí odmítne (`ALREADY_FOUNDED`); `foundAnotherVillage`,
-  `NEW_VILLAGE_MIN_DISTANCE_M` a `villages-apart.ts` jsou pryč – `village-site.ts` má jen
+  `foundVillageForSettlement` sídlo s vsí odmítne (`ALREADY_FOUNDED`); druhá ves
+  hráče na téže mapě není – `village-site.ts` má jen
   `freeVillageSite(landscape, obstacles)` pro příjezd vsi na cestě se správcem.
 - **Rod hráče** (multiplayer-vassalage-war.md, úloha 1.3): rod = řádek tabulky `house`
   (`packages/db/src/schema/house.ts`, port `HouseRepository` v `application/houses.ts`, adaptér
@@ -321,7 +321,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   cestě `travellingVillage` s `VillageState.journey` – `create` na novém sídle, dny `travelDays`
   – 1–3 podle `edgeDistanceM` od dvorce, po hotové stezce 1). `settleJourney` po příjezdu založí
   ves (`settlersOf`). **Vsi na téže mapě** (od 1. 11. 2026 nejsou – jedna ves, jedna mapa; kód přehledu
-  `neighbourSnapshot`, `state.neighbours`, cizí půdy v kontrolách umístění i stavby cizích vsí
+  `state.neighbours`, cizí půdy v kontrolách umístění i stavby cizích vsí
   ve scéně je pryč; `withoutSameMapVillages` v `cart-iron.ts` při načtení jednou a idempotentně
   zahodí zbytky ve starších vsích – `neighbours` a cestu pro kování ke kovárně jiné vsi).
 

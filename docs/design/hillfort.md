@@ -116,7 +116,7 @@ přirozený cíl nájezdu – zásoby celé domény na jednom místě – a dův
 - **Dávky vazalů** jdou do cílové vsi jako dnes; co tam přebývá, ves pošle dál po svých
   žních se svým přebytkem (Martin 8. 11. 2026: „Ano“ – podmínky vazalství se nemění).
 - **Víc času:** dovezené jídlo leží v zásobách vsi a osev se podle zásob řídí už dnes
-  ([pole](fields.md) – Osev podle zásob) – ves oseje méně a lidé mají čas na řemesla a stavby
+  ([pole](history/fields-history.md) – Osev podle zásob) – ves oseje méně a lidé mají čas na řemesla a stavby
   (Martin).
 
 - **Čísla** (návrh Clauda, `DOMAIN_FOOD` v `rules-vassalage.ts`): ves je připravená, když jí
