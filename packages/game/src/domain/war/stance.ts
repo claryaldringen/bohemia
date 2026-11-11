@@ -133,10 +133,44 @@ function gateCloseTick(bf: BattleFort, attackers: readonly Sighted[]): number {
  * jako „vzdát se při přesile“. Poslední muž rodu doma se nevzdá, vždy uteče.
  */
 export function planDefense(input: StanceInput): StancePlan {
-  const { state, day, stance, attackers, field } = input;
+  const people = presentPeople(input);
+  const fighterOf = new Map(input.defenders.map((d) => [d.personId, d]));
+  const shelter = emptyShelter(input);
+  // --- útočiště: nejbližší opevnění s plochou ---
+  const inRefuge = seekRefuge(input, people, shelter);
+
+  // --- kdo zůstal venku: po skupinách domů ---
+  const fighters: Defender[] = [];
+  manWalls(input, inRefuge, fighterOf, shelter, fighters);
+  const fledSet = outsideGroups(input, people, inRefuge, fighterOf, shelter, fighters);
+  fighters.sort((a, b) => a.personId - b.personId);
+
+  // zásoby a dobytek těch, kdo utekli do lesa
+  if (fledSet.size > 0) forestCarry(input, shelter, fledSet);
+  return { fighters, shelter };
+}
+
+/** Přítomný člověk vsi (i host z ochrany) – kde je a ke které skupině domů patří. */
+interface StancePerson {
+  id: number;
+  pos: Pos;
+  group: number;
+  age: number;
+  refugee: boolean;
+}
+
+/** Opevnění s plochou pro útočiště a kolik se do něj vejde. */
+interface RefugeFort {
+  bf: BattleFort;
+  capacity: number;
+}
+
+/** Přítomní lidé vsi podle id a hosté z ochrany se skupinou svého místa. */
+function presentPeople(input: StanceInput): StancePerson[] {
+  const { state, day } = input;
   const groupOf = houseGroups(state.dwellings);
   const homes = new Map(state.dwellings.map((d) => [d.id, d]));
-  const people = state.people
+  const people: StancePerson[] = state.people
     .filter((p) => !isAway(p, day))
     .sort((a, b) => a.id - b.id)
     .map((p) => {
@@ -162,7 +196,12 @@ export function planDefense(input: StanceInput): StancePlan {
       });
     }
   }
-  const fighterOf = new Map(input.defenders.map((d) => [d.personId, d]));
+  return people;
+}
+
+/** Prázdná zpráva o úkrytu; s uprchlíky zatím všichni venku. */
+function emptyShelter(input: StanceInput): ShelterReport {
+  const { stance } = input;
   const shelter: ShelterReport = {
     stance,
     refuge: [],
@@ -172,7 +211,6 @@ export function planDefense(input: StanceInput): StancePlan {
     livestockRefuge: none(),
     livestockForest: none(),
   };
-  const inRefuge = new Map<number, BattleFort>();
   const load = input.refugeLoad;
   if (load) {
     shelter.refugees = {
@@ -182,95 +220,143 @@ export function planDefense(input: StanceInput): StancePlan {
       herdOutside: { ...load.herd },
     };
   }
+  return shelter;
+}
 
-  // --- útočiště: nejbližší opevnění s plochou ---
-  const forts = field.forts
+/** Útočiště: lidé a dobytek k nejbližšímu opevnění s plochou. Vrací, kdo je uvnitř (a kde). */
+function seekRefuge(
+  input: StanceInput,
+  people: readonly StancePerson[],
+  shelter: ShelterReport,
+): Map<number, BattleFort> {
+  const { state, day, field } = input;
+  const inRefuge = new Map<number, BattleFort>();
+  const load = input.refugeLoad;
+  const forts: RefugeFort[] = field.forts
     .map((bf) => ({ bf, capacity: refugeCapacity(field.geo, bf.fort) }))
     .filter((f) => f.capacity > 0 && f.bf.shapes.length > 0);
-  if (forts.length > 0 && (people.length > 0 || load)) {
-    const nearest = (p: Pos): (typeof forts)[number] =>
-      forts.reduce((a, b) => (dist2(b.bf.center, p) < dist2(a.bf.center, p) ? b : a));
-    const byFort = new Map<(typeof forts)[number], typeof people>();
-    for (const p of people) {
-      const f = nearest(p.pos);
-      byFort.set(f, [...(byFort.get(f) ?? []), p]);
-    }
-    const centre = state.dwellings[0]?.position ?? { x: 0, z: 0 };
-    const herdFort = nearest({ x: centre.x, z: centre.z });
-    // uprchlíci bydlí v útočišti u dvorce, i když z vsi nikdo nepřiběhne
-    if (load && !byFort.has(herdFort)) byFort.set(herdFort, []);
-    let livestockLeft = fleeParty(state, day).livestock;
-    for (const [fort, members] of byFort) {
-      const close = input.warned ? Infinity : gateCloseTick(fort.bf, attackers);
-      const arrivals: Arrival[] = [];
-      const order = members
-        .filter((p) => !p.refugee)
-        .map((p) => ({ p, tick: ticksFor(Math.sqrt(dist2(p.pos, fort.bf.center))) }))
-        .sort((a, b) => a.tick - b.tick || a.p.id - b.p.id);
-      for (const o of order)
-        arrivals.push({
-          kind: o.p.age >= WAR.flight.adultFromYears ? 'adult' : 'child',
-          count: 1,
-          tick: o.tick,
-        });
-      const herdTick = ticksFor(Math.sqrt(dist2(centre, fort.bf.center)));
-      if (fort === herdFort) {
-        for (const sp of SPECIES) {
-          if (livestockLeft[sp] > 0)
-            arrivals.push({
-              kind: sp === 'cow' ? 'cow' : sp,
-              count: livestockLeft[sp],
-              tick: herdTick,
-            });
-        }
-      }
-      // muži uprchlíků v pořadí hostů (−1, −2, …), ostatní uprchlíci a stádo jen u dvorce
-      const men = members.filter((p) => p.refugee).sort((a, b) => b.id - a.id);
-      const extra = fort === herdFort ? load : undefined;
-      let result: RefugeResult;
-      let menIn = 0;
-      if (men.length === 0 && extra === undefined) {
-        result = refugeAdmit(fort.capacity, arrivals, close);
-      } else {
-        const admitted = admitWithRefugees(fort.capacity, arrivals, close, men.length, extra);
-        result = admitted.home;
-        menIn = admitted.men;
-        if (extra && shelter.refugees) {
-          shelter.refugees = {
-            inside: admitted.people,
-            outside: extra.people - admitted.people,
-            herdInside: admitted.herd,
-            herdOutside: Object.fromEntries(
-              SPECIES.map((sp) => [sp, extra.herd[sp] - admitted.herd[sp]]),
-            ) as Record<HerdSpecies, number>,
-          };
-        }
-      }
-      // lidé: stejný druh místa, přijatí jsou první z těch, kdo stihli doběhnout
-      const admittedPeople = result.admitted
-        .filter((a) => a.kind === 'adult' || a.kind === 'child')
-        .reduce((n, a) => n + a.count, 0);
-      const early = order.filter((o) => o.tick <= close).slice(0, admittedPeople);
-      for (const o of early) inRefuge.set(o.p.id, fort.bf);
-      // muži uprchlíků za domácími – i stanoviště na hradbě dostanou až po nich
-      for (const p of men.slice(0, menIn)) inRefuge.set(p.id, fort.bf);
-      for (const a of result.admitted) {
-        if (a.kind === 'adult' || a.kind === 'child') continue;
-        shelter.livestockRefuge[a.kind as HerdSpecies] += a.count;
-      }
-      shelter.carriedKg += result.carriedKg;
-      if (fort === herdFort) {
-        livestockLeft = { ...livestockLeft };
-        for (const sp of SPECIES) livestockLeft[sp] -= shelter.livestockRefuge[sp];
-      }
-    }
-    shelter.refuge = [...inRefuge.keys()];
-    shelter.refugeAt = shelter.refuge.map((id) => field.forts.indexOf(inRefuge.get(id)!));
-    shelter.carriedKg = Math.min(shelter.carriedKg, Math.max(0, state.storesKg));
+  if (!(forts.length > 0 && (people.length > 0 || load))) return inRefuge;
+  const nearest = (p: Pos): RefugeFort =>
+    forts.reduce((a, b) => (dist2(b.bf.center, p) < dist2(a.bf.center, p) ? b : a));
+  const byFort = new Map<RefugeFort, StancePerson[]>();
+  for (const p of people) {
+    const f = nearest(p.pos);
+    byFort.set(f, [...(byFort.get(f) ?? []), p]);
   }
+  const centre = state.dwellings[0]?.position ?? { x: 0, z: 0 };
+  const herdFort = nearest({ x: centre.x, z: centre.z });
+  // uprchlíci bydlí v útočišti u dvorce, i když z vsi nikdo nepřiběhne
+  if (load && !byFort.has(herdFort)) byFort.set(herdFort, []);
+  let livestockLeft = fleeParty(state, day).livestock;
+  for (const [fort, members] of byFort) {
+    livestockLeft = admitFort(input, shelter, inRefuge, {
+      fort,
+      members,
+      herdFort,
+      centre,
+      livestock: livestockLeft,
+    });
+  }
+  shelter.refuge = [...inRefuge.keys()];
+  shelter.refugeAt = shelter.refuge.map((id) => field.forts.indexOf(inRefuge.get(id)!));
+  shelter.carriedKg = Math.min(shelter.carriedKg, Math.max(0, state.storesKg));
+  return inRefuge;
+}
 
-  // --- kdo zůstal venku: po skupinách domů ---
-  const fighters: Defender[] = [];
+/**
+ * Jedno útočiště: kdo doběhne před zavřením brány a vejde se (lidé vsi, dobytek u dvorce, muži
+ * a ostatní uprchlíci). Vrací dobytek, který ještě zbývá ukrýt.
+ */
+function admitFort(
+  input: StanceInput,
+  shelter: ShelterReport,
+  inRefuge: Map<number, BattleFort>,
+  at: {
+    fort: RefugeFort;
+    members: readonly StancePerson[];
+    herdFort: RefugeFort;
+    centre: Pos;
+    livestock: FleeParty['livestock'];
+  },
+): FleeParty['livestock'] {
+  const { attackers } = input;
+  const load = input.refugeLoad;
+  const { fort, members, herdFort, centre } = at;
+  let livestockLeft = at.livestock;
+  const close = input.warned ? Infinity : gateCloseTick(fort.bf, attackers);
+  const arrivals: Arrival[] = [];
+  const order = members
+    .filter((p) => !p.refugee)
+    .map((p) => ({ p, tick: ticksFor(Math.sqrt(dist2(p.pos, fort.bf.center))) }))
+    .sort((a, b) => a.tick - b.tick || a.p.id - b.p.id);
+  for (const o of order)
+    arrivals.push({
+      kind: o.p.age >= WAR.flight.adultFromYears ? 'adult' : 'child',
+      count: 1,
+      tick: o.tick,
+    });
+  const herdTick = ticksFor(Math.sqrt(dist2(centre, fort.bf.center)));
+  if (fort === herdFort) {
+    for (const sp of SPECIES) {
+      if (livestockLeft[sp] > 0)
+        arrivals.push({
+          kind: sp === 'cow' ? 'cow' : sp,
+          count: livestockLeft[sp],
+          tick: herdTick,
+        });
+    }
+  }
+  // muži uprchlíků v pořadí hostů (−1, −2, …), ostatní uprchlíci a stádo jen u dvorce
+  const men = members.filter((p) => p.refugee).sort((a, b) => b.id - a.id);
+  const extra = fort === herdFort ? load : undefined;
+  let result: RefugeResult;
+  let menIn = 0;
+  if (men.length === 0 && extra === undefined) {
+    result = refugeAdmit(fort.capacity, arrivals, close);
+  } else {
+    const admitted = admitWithRefugees(fort.capacity, arrivals, close, men.length, extra);
+    result = admitted.home;
+    menIn = admitted.men;
+    if (extra && shelter.refugees) {
+      shelter.refugees = {
+        inside: admitted.people,
+        outside: extra.people - admitted.people,
+        herdInside: admitted.herd,
+        herdOutside: Object.fromEntries(
+          SPECIES.map((sp) => [sp, extra.herd[sp] - admitted.herd[sp]]),
+        ) as Record<HerdSpecies, number>,
+      };
+    }
+  }
+  // lidé: stejný druh místa, přijatí jsou první z těch, kdo stihli doběhnout
+  const admittedPeople = result.admitted
+    .filter((a) => a.kind === 'adult' || a.kind === 'child')
+    .reduce((n, a) => n + a.count, 0);
+  const early = order.filter((o) => o.tick <= close).slice(0, admittedPeople);
+  for (const o of early) inRefuge.set(o.p.id, fort.bf);
+  // muži uprchlíků za domácími – i stanoviště na hradbě dostanou až po nich
+  for (const p of men.slice(0, menIn)) inRefuge.set(p.id, fort.bf);
+  for (const a of result.admitted) {
+    if (a.kind === 'adult' || a.kind === 'child') continue;
+    shelter.livestockRefuge[a.kind as HerdSpecies] += a.count;
+  }
+  shelter.carriedKg += result.carriedKg;
+  if (fort === herdFort) {
+    livestockLeft = { ...livestockLeft };
+    for (const sp of SPECIES) livestockLeft[sp] -= shelter.livestockRefuge[sp];
+  }
+  return livestockLeft;
+}
+
+/** Muži za opevněním: hradba, věže nad branami a záloha ve středu; vzdání uvnitř při přesile. */
+function manWalls(
+  input: StanceInput,
+  inRefuge: ReadonlyMap<number, BattleFort>,
+  fighterOf: ReadonlyMap<number, Defender>,
+  shelter: ShelterReport,
+  fighters: Defender[],
+): void {
+  const { day, stance, attackers, field } = input;
   // za opevněním muži obsadí hradbu (`wallPosts` – brány po 2, pak obvod po 5 m), kdo stanoviště
   // nedostane, je záloha ve středu; při postoji „vzdát se“ se skupina uvnitř vzdá, až když útočník
   // stojí uvnitř obvodu a je přesila 1,5× jako u domů (poslední muž rodu se nevzdá, brání se)
@@ -310,6 +396,18 @@ export function planDefense(input: StanceInput): StancePlan {
       });
     });
   }
+}
+
+/** Kdo zůstal venku: skupiny domů podle postoje – boj, les, nebo vzdání. Vrací, kdo utekl do lesa. */
+function outsideGroups(
+  input: StanceInput,
+  people: readonly StancePerson[],
+  inRefuge: ReadonlyMap<number, BattleFort>,
+  fighterOf: ReadonlyMap<number, Defender>,
+  shelter: ShelterReport,
+  fighters: Defender[],
+): Set<number> {
+  const { stance, attackers, field } = input;
   const outside = people.filter((p) => !inRefuge.has(p.id));
   const groupIds = [...new Set(outside.map((p) => p.group))].sort((a, b) => a - b);
   const fledSet = new Set<number>();
@@ -338,20 +436,24 @@ export function planDefense(input: StanceInput): StancePlan {
       }
     }
   }
-  fighters.sort((a, b) => a.personId - b.personId);
+  return fledSet;
+}
 
-  // zásoby a dobytek těch, kdo utekli do lesa
-  if (fledSet.size > 0) {
-    const party: FleeParty = fleeParty(state, day, fledSet);
-    shelter.carriedKg = Math.min(Math.max(0, state.storesKg), shelter.carriedKg + party.carriedKg);
-    if (stance === 'flee') {
-      for (const sp of SPECIES) {
-        const left = fleeParty(state, day).livestock[sp] - shelter.livestockRefuge[sp];
-        shelter.livestockForest[sp] = Math.max(0, left);
-      }
+/** Zásoby a dobytek těch, kdo utekli do lesa. */
+function forestCarry(
+  input: StanceInput,
+  shelter: ShelterReport,
+  fledSet: ReadonlySet<number>,
+): void {
+  const { state, day, stance } = input;
+  const party: FleeParty = fleeParty(state, day, fledSet);
+  shelter.carriedKg = Math.min(Math.max(0, state.storesKg), shelter.carriedKg + party.carriedKg);
+  if (stance === 'flee') {
+    for (const sp of SPECIES) {
+      const left = fleeParty(state, day).livestock[sp] - shelter.livestockRefuge[sp];
+      shelter.livestockForest[sp] = Math.max(0, left);
     }
   }
-  return { fighters, shelter };
 }
 
 /**

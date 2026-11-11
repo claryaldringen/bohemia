@@ -160,12 +160,66 @@ function shareWeights(homes: readonly Household[], trips: number, targetAge = 1)
   return homes.map((h) => (total > 0 ? (trips * h.size * Math.min(h.age, targetAge)) / total : 0));
 }
 
+/**
+ * Skupiny cest dne do cílů vsi: kroky po druzích cílů v pevném pořadí – pole, sady, hřbitovy,
+ * cesty, ohrady, humna, milíře, obilné jámy, pastva, obydlí, louky, stromy, posvátná místa,
+ * pochůzky řemeslníků a sousedé; pořadí skupin v seznamu zůstává jako dřív v jedné funkci.
+ */
 export function tripGroups(
   input: PathNetworkInput,
   grid: Grid,
   homes: readonly Household[],
   buildings: Map<number, Building>,
 ): TripGroup[] {
+  const ctx = tripContext(input, grid, homes, buildings);
+  fieldTrips(ctx);
+  orchardTrips(ctx);
+  cemeteryTrips(ctx);
+  roadTrips(ctx);
+  penTrips(ctx);
+  threshingFloorTrips(ctx);
+  kilnTrips(ctx);
+  grainPitTrips(ctx);
+  pastureTrips(ctx);
+  dwellingTrips(ctx);
+  meadowTrips(ctx);
+  treeTrips(ctx);
+  sacredTrips(ctx);
+  smithWalkTrips(ctx);
+  neighbourTrips(ctx);
+  return ctx.groups;
+}
+
+/** Sdílené pomůcky kroků `tripGroups` – kroky přidávají skupiny do `groups` v pevném pořadí. */
+interface TripContext {
+  readonly input: PathNetworkInput;
+  readonly v: PathVillage;
+  readonly grid: Grid;
+  readonly homes: readonly Household[];
+  readonly buildings: Map<number, Building>;
+  readonly groups: TripGroup[];
+  /** cest za den k cíli z práce dne (`laborByTarget`) */
+  readonly work: (key: string) => number;
+  /** skupina cest k cíli, rozdělená mezi domácnosti (`shareWeights`) */
+  readonly target: (
+    to: string,
+    purpose: RoutePurpose,
+    sources: number[],
+    trips: number,
+    targetAge?: number,
+    visit?: string,
+    baseTrips?: number,
+  ) => void;
+  readonly squaresTarget: (squares: readonly Square[]) => number[];
+  readonly entranceTarget: (e: Entrance) => number[];
+}
+
+function tripContext(
+  input: PathNetworkInput,
+  grid: Grid,
+  homes: readonly Household[],
+  buildings: Map<number, Building>,
+): TripContext {
   const v = input.village;
   const groups: TripGroup[] = [];
   const labor = new Map(laborByTarget(v));
@@ -202,7 +256,12 @@ export function tripGroups(
       { x: e.x + e.outX * ENTRANCE_STEP_M, z: e.z + e.outZ * ENTRANCE_STEP_M },
       ENTRANCE_REACH_M,
     );
+  return { input, v, grid, homes, buildings, groups, work, target, squaresTarget, entranceTarget };
+}
 
+/** Pole – stálá část od umístění a práce dne (paths.md – Stálé trasy). */
+function fieldTrips(ctx: TripContext): void {
+  const { v, work, target, squaresTarget } = ctx;
   // pole je pole od umístění – stálá část nezávisí na stadiu dílů (paths.md – Stálé trasy,
   // pravidlo 5: stadia mapu ani váhy tras nemění)
   for (const field of v.fields) {
@@ -210,6 +269,11 @@ export function tripGroups(
     const base = BASE_TRIPS.field;
     target(to, 'work', squaresTarget(field.parts), base + work(to), 1, undefined, base);
   }
+}
+
+/** Sady – zavedené místo k nejbližšímu sadu, práce dne tam, kde se pracuje. */
+function orchardTrips(ctx: TripContext): void {
+  const { v, grid, homes, groups, work, squaresTarget } = ctx;
   // sad: zavedené místo jen k nejbližšímu sadu, práce dne tam, kde se dnes pracuje
   const orchards = v.orchards ?? [];
   const nearestOrchard = nearestOfKind(
@@ -232,6 +296,11 @@ export function tripGroups(
       maxCost: groupReach(grid, sources, homes),
     });
   });
+}
+
+/** Hřbitovy – návštěvy hrobů brankou a práce dne u ohrazovaných čtverců. */
+function cemeteryTrips(ctx: TripContext): void {
+  const { v, grid, homes, groups, work, squaresTarget, entranceTarget } = ctx;
   // hřbitov: návštěvy hrobů podle lidí v domácnosti (k nejbližšímu hřbitovu) brankou hotového
   // hřbitova (paths.md – Vchody), práce dne (založení, rozšíření – plot) u ohrazovaných čtverců
   const cemeteries = v.cemeteries ?? [];
@@ -266,6 +335,11 @@ export function tripGroups(
       );
     }
   });
+}
+
+/** Vylepšení pevných cest a stavba vozových cest (roads.md). */
+function roadTrips(ctx: TripContext): void {
+  const { v, grid, work, target } = ctx;
   // vylepšení pevné cesty (roads.md) – nosí se k polovině úseku
   for (const road of v.roads ?? []) {
     if (road.id === undefined || road.points.length === 0) continue;
@@ -282,6 +356,11 @@ export function tripGroups(
     const trips = work(`wagon:${t.id}`);
     if (trips > 0) target(`wagon:${t.id}`, 'work', cellsAround(grid, t, 3), trips);
   }
+}
+
+/** Ohrady – krmení a napájení dobytka, stavba a rádlo. */
+function penTrips(ctx: TripContext): void {
+  const { v, work, target, squaresTarget, entranceTarget } = ctx;
   // ohrada: krmení a napájení dobytka, stavba a rádlo (práce dne na ohradě); do ohrady bez
   // zvířat se krmit nechodí (abandonment.md)
   // hotová ohrada brankou (paths.md – Vchody), staveniště ze všech stran
@@ -302,6 +381,11 @@ export function tripGroups(
       base,
     );
   }
+}
+
+/** Humna – hotová vstupem na předku, staveniště ze všech stran. */
+function threshingFloorTrips(ctx: TripContext): void {
+  const { v, grid, work, target, entranceTarget } = ctx;
   // humno (production-chains.md – Humno): k hotovému vstupem na předku za výmlatem – nosí se na
   // něj snopy, odnáší zrno; staveniště ze všech stran
   for (const floor of v.threshingFloors ?? []) {
@@ -329,6 +413,11 @@ export function tripGroups(
       BASE_TRIPS.site,
     );
   }
+}
+
+/** Milíře uhlíře – stálá trasa z domu uhlíře ke každému jeho milíři. */
+function kilnTrips(ctx: TripContext): void {
+  const { v, grid, homes, groups } = ctx;
   // milíř uhlíře (crafts.md – Milíř u skácených buků): stálá trasa z domu uhlíře ke každému jeho
   // milíři (chodí tam on; práce dne `kiln:<uhlíř>` jde navrch)
   const kilnsOf = new Map<number, PathPoint[]>();
@@ -356,6 +445,11 @@ export function tripGroups(
       maxCost: groupReach(grid, cells, homes),
     });
   }
+}
+
+/** Obilné jámy – otevřené jámy a jámy s prací dne. */
+function grainPitTrips(ctx: TripContext): void {
+  const { v, grid, work, target } = ctx;
   // obilné jámy (production-chains.md – Obilné jámy): k otevřené jámě pro zrno, k jámě, do které se
   // dnes ukládá zrno z humna, za prací dne (k zavřené jámě jen za prací)
   const pitsDone = new Set<number>();
@@ -379,6 +473,11 @@ export function tripGroups(
     const to = `grain-pit:${t.id}`;
     target(to, 'work', cellsAround(grid, t, GRAIN_PIT_REACH_M), work(to));
   }
+}
+
+/** Stáda na pastvu – na úhor vsi (louka až po seči). */
+function pastureTrips(ctx: TripContext): void {
+  const { input, v, target, squaresTarget } = ctx;
   // stáda na pastvu – na úhor vsi (louka na seno až po seči; v roční síti obojí)
   const herds = pastureHerds(v.livestock);
   if (herds > 0) {
@@ -394,6 +493,11 @@ export function tripGroups(
       target('pasture', 'herd', squaresTarget(pasture), herds * PASTURE.tripsPerHerd);
     }
   }
+}
+
+/** Staveniště nových obydlí a opravy obydlí. */
+function dwellingTrips(ctx: TripContext): void {
+  const { v, grid, buildings, work, target } = ctx;
   // staveniště nových obydlí – nosí se k jejich čelu
   for (const d of v.dwellings) {
     const b = buildings.get(d.id);
@@ -415,6 +519,11 @@ export function tripGroups(
       if (repair > 0) target(to, 'work', cellsAround(grid, gateOf(b), 2.5), repair);
     }
   }
+}
+
+/** Seč přirozených luk – k políčkům, kde se dnes seče. */
+function meadowTrips(ctx: TripContext): void {
+  const { v, target, squaresTarget } = ctx;
   // seč přirozených luk (oxen.md – Seno): k políčkům, kde se dnes seče, chodí sekáči
   if (v.hayMeadows && v.hayMeadows.length > 0) {
     const byCell = new Map(v.hayMeadows.map((m) => [`${m.cell.x},${m.cell.y}`, m]));
@@ -427,6 +536,11 @@ export function tripGroups(
       target('meadow', 'work', squaresTarget(squares), t.manDays * TRIPS_PER_MAN_DAY);
     }
   }
+}
+
+/** Kácení stromů – ke stromům práce dne. */
+function treeTrips(ctx: TripContext): void {
+  const { input, v, grid, target } = ctx;
   for (const t of v.labor?.shares ?? []) {
     if (t.target.kind !== 'trees' || !input.tree) continue;
     const trees = t.target.ids.flatMap((id) => {
@@ -436,30 +550,45 @@ export function tripGroups(
     const sources = trees.flatMap((p) => cellsAround(grid, p, 2.5));
     target(`trees:${t.target.ids.join('.')}`, 'work', sources, t.manDays * TRIPS_PER_MAN_DAY);
   }
+}
+
+/** Místo posvátného druhu – cíl, buňky a body, ke kterým se měří nejbližší. */
+interface SacredPlace {
+  to: string;
+  sources: number[];
+  at: readonly PathPoint[];
+  visit?: string;
+}
+
+/** Každá domácnost chodí jen k nejbližšímu místu druhu (posvátný dub, háj, modla, svatyně – Martin). */
+function sacredVisits(ctx: TripContext, places: readonly SacredPlace[]): void {
+  const { grid, homes, groups } = ctx;
+  if (places.length === 0) return;
+  const nearest = nearestOfKind(
+    homes,
+    places.map((p) => p.at),
+  );
+  const weights = shareWeights(homes, BASE_TRIPS.sacred);
+  places.forEach((place, k) => {
+    const own = weights.map((w, i) => (nearest[i] === k ? w : 0));
+    if (place.sources.length === 0 || own.every((w) => w < MIN_TRIP)) return;
+    groups.push({
+      to: place.to,
+      purpose: 'visit',
+      sources: place.sources,
+      weights: own,
+      maxCost: groupReach(grid, place.sources, homes),
+      ...(place.visit ? { visit: place.visit } : {}),
+    });
+  });
+}
+
+/** Posvátná místa – návštěvy nejbližšího místa každého druhu, opravy a staveniště. */
+function sacredTrips(ctx: TripContext): void {
+  const { v, grid, work, target, squaresTarget, entranceTarget } = ctx;
   // posvátná místa: každá domácnost chodí jen k nejbližšímu místu každého druhu (posvátný dub,
   // háj, modla, svatyně – Martin); rozestavěná modla a svatyně jsou staveniště (práce dne)
-  const visit = (
-    places: readonly { to: string; sources: number[]; at: readonly PathPoint[]; visit?: string }[],
-  ): void => {
-    if (places.length === 0) return;
-    const nearest = nearestOfKind(
-      homes,
-      places.map((p) => p.at),
-    );
-    const weights = shareWeights(homes, BASE_TRIPS.sacred);
-    places.forEach((place, k) => {
-      const own = weights.map((w, i) => (nearest[i] === k ? w : 0));
-      if (place.sources.length === 0 || own.every((w) => w < MIN_TRIP)) return;
-      groups.push({
-        to: place.to,
-        purpose: 'visit',
-        sources: place.sources,
-        weights: own,
-        maxCost: groupReach(grid, place.sources, homes),
-        ...(place.visit ? { visit: place.visit } : {}),
-      });
-    });
-  };
+  const visit = (places: readonly SacredPlace[]): void => sacredVisits(ctx, places);
   visit(
     (v.sacred?.oaks ?? []).map((oak) => ({
       to: `oak:${oak.id}`,
@@ -514,6 +643,11 @@ export function tripGroups(
       BASE_TRIPS.site,
     );
   }
+}
+
+/** Kovář, hrnčíř a uhlíř – pěšky na rudiště, hliniště a k milíři. */
+function smithWalkTrips(ctx: TripContext): void {
+  const { v, grid, homes, groups } = ctx;
   // kovář (crafts.md – Uhlí a ruda kováře): z kovárny na rudiště kopat a pro rudu, k milíři pro
   // uhlí – jen jeho domácnost; hrnčíř stejně na hliniště (crafts.md – Hlína hrnčíře); nošení
   // v koších po cestách tam a zpět (cest za den podle délky), kopání jedna cesta na člověkoden;
@@ -552,6 +686,11 @@ export function tripGroups(
       maxCost: groupReach(grid, sources, homes),
     });
   }
+}
+
+/** Sousedé – každá domácnost se dvěma nejbližšími (dvojice jednou). */
+function neighbourTrips(ctx: TripContext): void {
+  const { grid, homes, groups } = ctx;
   // sousedé – každá domácnost se dvěma nejbližšími (dvojice jednou)
   const pairs = new Set<string>();
   homes.forEach((h, a) => {
@@ -578,7 +717,6 @@ export function tripGroups(
       });
     }
   });
-  return groups;
 }
 
 /**

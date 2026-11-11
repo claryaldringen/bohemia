@@ -423,24 +423,8 @@ function settlersDynasty(lord: Person | undefined, day: number): DynastyState {
   return { lordId: lord.id, lords: [{ id: lord.id, ...name, fromDay: day }] };
 }
 
-/**
- * Založí ves: s vojvodou (`lord`) jeho rodina podle LORD.founders (lord.md – Zakladatelé), bez něj
- * ves bez rodu se 4 lidmi podle START_AGES; zásoby zakladatelů podle FOUNDERS_STORES (ves bez rodu
- * na START_STORES_MONTHS) a stavba první zemnice
- * (population.md – Založení vsi). Zemnici si zakladatelé postaví vlastní prací jako každou
- * stavbu – do dostavění bydlí na staveništi a pak se do ní nastěhují (jejich domácnost má id
- * budoucí zemnice, stavba ho nese v `dwellingId`). První pole je volitelné (hráč staví, kdy
- * chce); když je, vznikne jako stavba. Id se čerpají z jednoho čítače `nextId` (od 1) v pořadí
- * domácnost zakladatelů (= id zemnice), lidé, stavba zemnice, pole, jeho díly, stavba pole.
- *
- * Konvence dne: ves vzniká na začátku dne `day` – `lastDay = day − 1`, takže den založení
- * odsimuluje až následující `advanceVillage(state, day)` (založení vsi ho volá hned).
- *
- * Dřevo první zemnice (forest.md): stromy z vyklízené plochy jdou na hromadu klád, zbytek se
- * skácí z nejbližších dospělých stromů (`obstacles`) jako část stavby. Založení vsi dřevo
- * neblokuje – když stromy nestačí, zemnice vezme, co je.
- */
-export function foundVillage(input: {
+/** Vstup založení vsi (`foundVillage`). */
+export interface VillageFounding {
   seed: number;
   day: number;
   dwellingPosition: Position;
@@ -475,50 +459,32 @@ export function foundVillage(input: {
    * muž rodu mezi nimi, s vůdcem odchodu `settlers.lordId` on).
    */
   lord?: { name?: string };
-}): VillageState {
-  const { seed, day, dwellingPosition, firstField } = input;
-  const dwellingObstacleIds = input.dwellingObstacleIds ?? [];
-  const dwellingObstacleCost = input.dwellingObstacleCost ?? 0;
-  const clearedTrees = input.dwellingClearedTrees ?? 0;
-  validateDay(day);
-  validatePosition(dwellingPosition);
-  validateObstacleCost(dwellingObstacleCost);
-  validateObstacleIds(dwellingObstacleIds);
-  validateTrees(clearedTrees);
-  if (input.forestDistanceM !== undefined) validateForestDistance(input.forestDistanceM);
-  if (firstField) validateField(firstField);
-  if (input.dwellingSpared) validateSpared(input.dwellingSpared);
-  const { settlers } = input;
-  if (settlers && settlers.people.length === 0) throw new RangeError('Osadníci chybí.');
-  const lordName = input.lord?.name;
-  if (lordName !== undefined) {
-    const check = checkPersonName(lordName);
-    if (!check.ok) throw new RangeError(check.reason ?? 'Neplatné jméno vojvody.');
-  }
+}
 
+/**
+ * Založí ves: s vojvodou (`lord`) jeho rodina podle LORD.founders (lord.md – Zakladatelé), bez něj
+ * ves bez rodu se 4 lidmi podle START_AGES; zásoby zakladatelů podle FOUNDERS_STORES (ves bez rodu
+ * na START_STORES_MONTHS) a stavba první zemnice
+ * (population.md – Založení vsi). Zemnici si zakladatelé postaví vlastní prací jako každou
+ * stavbu – do dostavění bydlí na staveništi a pak se do ní nastěhují (jejich domácnost má id
+ * budoucí zemnice, stavba ho nese v `dwellingId`). První pole je volitelné (hráč staví, kdy
+ * chce); když je, vznikne jako stavba. Id se čerpají z jednoho čítače `nextId` (od 1) v pořadí
+ * domácnost zakladatelů (= id zemnice), lidé, stavba zemnice, pole, jeho díly, stavba pole.
+ *
+ * Konvence dne: ves vzniká na začátku dne `day` – `lastDay = day − 1`, takže den založení
+ * odsimuluje až následující `advanceVillage(state, day)` (založení vsi ho volá hned).
+ *
+ * Dřevo první zemnice (forest.md): stromy z vyklízené plochy jdou na hromadu klád, zbytek se
+ * skácí z nejbližších dospělých stromů (`obstacles`) jako část stavby. Založení vsi dřevo
+ * neblokuje – když stromy nestačí, zemnice vezme, co je.
+ */
+export function foundVillage(input: VillageFounding): VillageState {
+  validateFounding(input);
+  const { seed, day, settlers } = input;
+  const dwellingObstacleIds = input.dwellingObstacleIds ?? [];
   // osadníci si nesou id ze staré vsi – nová ves čísluje za nimi
   const householdId = settlers ? settlersMaxId(settlers) + 1 : 1;
-  const founders =
-    !settlers && input.lord
-      ? dynastyFounders(
-          householdId + 1,
-          householdId,
-          day,
-          lordName === undefined ? undefined : normalizePersonName(lordName),
-        )
-      : null;
-  // zakladatelé jsou dva páry (kinship.md – Pohlaví): manželé 25 let a chlapec s dívkou, kteří
-  // nejsou příbuzní (rodiče neznámí) – vezmou se, až dorostou
-  const people: Person[] = settlers
-    ? settlers.people.map((p) => ({ ...p, dwellingId: householdId }))
-    : founders
-      ? founders.people
-      : START_AGES.map((age, i) => ({
-          id: householdId + 1 + i,
-          bornDay: day - Math.ceil(age * DAYS_PER_YEAR),
-          dwellingId: householdId,
-          sex: START_SEXES[i] ?? 'male',
-        }));
+  const { founders, people } = foundingPeople(input, householdId);
   const livestock = {
     ...(settlers
       ? { herds: { ...settlers.herds }, young: { ...settlers.young } }
@@ -526,13 +492,7 @@ export function foundVillage(input: {
     // rok na stavbu ohrad (oxen.md – Ohrady podle druhu, roční odklad)
     pensFromDay: penGraceEnd(day),
   };
-  const [husband, wife] = people;
-  if (!settlers && !founders && husband && wife) {
-    husband.spouseId = wife.id;
-    wife.spouseId = husband.id;
-    // první dítě nejdřív za 9 měsíců jako po svatbě (population.md – rozestup porodů)
-    wife.nextBirthFrom = day + BIRTH_SPACING.afterWeddingDays;
-  }
+  marryFounders(people, input, founders);
   const constructionId = settlers ? householdId + 1 : householdId + 1 + people.length;
   const annualNeed = people.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)], 0);
   const food = settlers?.food;
@@ -556,38 +516,12 @@ export function foundVillage(input: {
     dwellings: [],
     fields: [],
     parts: [],
-    constructions: [
-      {
-        id: constructionId,
-        kind: 'dwelling',
-        startedDay: day,
-        cost: dwellingBuildLabor('zemnice') + dwellingObstacleCost,
-        done: 0,
-        dwellingType: 'zemnice',
-        position: { ...dwellingPosition },
-        dwellingId: householdId,
-        fieldId: null,
-        ...(input.forestDistanceM === undefined ? {} : { forestDistanceM: input.forestDistanceM }),
-      },
-    ],
+    constructions: [firstDwellingSite(input, constructionId, householdId)],
     season: null,
     threshingSeason: null,
     // nová ves rovnou s osevním postupem po dílech (fields.md – Osevní postup po dílech, bod 7)
     sowingRotation: true,
-    storesKg: food
-      ? food.grainKg + (settlers?.seedKg ?? 0)
-      : founders
-        ? annualNeed * FOUNDERS_STORES.foodYears + foundersSeedKg
-        : (annualNeed * START_STORES_MONTHS) / MONTHS_PER_YEAR + annualNeed * START_SEED_YEARS,
-    // osivo, které osadníci přinesli, ves nesní (fields.md – Osivo pro ves bez zásob)
-    ...(settlers?.seedKg ? { reservedSeedKg: settlers.seedKg } : {}),
-    // osivo zakladatelů na víc osevů – neuvolní se do FOUNDERS_STORES.seedKeepYears let
-    ...(foundersSeedKg > 0
-      ? {
-          reservedSeedKg: foundersSeedKg,
-          reservedSeedUntilDay: day + Math.ceil(FOUNDERS_STORES.seedKeepYears * DAYS_PER_YEAR),
-        }
-      : {}),
+    ...foundingStores(input, founders, annualNeed, foundersSeedKg),
     // nová ves mlátí až na humně, které postaví hráč – bez odkladu (production-chains.md – Humno)
     sheaves: { grainKg: 0, legumesKg: 0 },
     // zásoby osadníků jsou doma; jámy vesničané vykopou po prvním výmlatu (production-chains.md –
@@ -608,6 +542,151 @@ export function foundVillage(input: {
     ...(settlers
       ? {}
       : { hay: { kg: winterHayKg(livestock.herds, 0) / PLAN_HAY_KEEP, mowing: null } }),
+    ...settlersCarry(settlers, food),
+    // první zemnice zakladatelů je dvorcem vojvody (trade.md – Dvorec vojvody)
+    manorId: householdId,
+  };
+  settlersBelongings(state, settlers, people, day);
+  firstFieldAndWood(state, input);
+  // strop dovedností (war.md – Síla) platí od založení – dřív ho nové vsi dal až první dopočet
+  // (převod `arms-caps`): dovednosti osadníků nad strop se srazí jako tehdy, ves dostane příznak
+  return withArmsCaps(state);
+}
+
+/** Ověří vstup založení vsi (den, poloha, překážky, stromy, les, pole, posvátná místa, osadníci, jméno vojvody). */
+function validateFounding(input: VillageFounding): void {
+  const { day, dwellingPosition, firstField } = input;
+  const dwellingObstacleIds = input.dwellingObstacleIds ?? [];
+  const dwellingObstacleCost = input.dwellingObstacleCost ?? 0;
+  const clearedTrees = input.dwellingClearedTrees ?? 0;
+  validateDay(day);
+  validatePosition(dwellingPosition);
+  validateObstacleCost(dwellingObstacleCost);
+  validateObstacleIds(dwellingObstacleIds);
+  validateTrees(clearedTrees);
+  if (input.forestDistanceM !== undefined) validateForestDistance(input.forestDistanceM);
+  if (firstField) validateField(firstField);
+  if (input.dwellingSpared) validateSpared(input.dwellingSpared);
+  const { settlers } = input;
+  if (settlers && settlers.people.length === 0) throw new RangeError('Osadníci chybí.');
+  const lordName = input.lord?.name;
+  if (lordName !== undefined) {
+    const check = checkPersonName(lordName);
+    if (!check.ok) throw new RangeError(check.reason ?? 'Neplatné jméno vojvody.');
+  }
+}
+
+/**
+ * Lidé nové vsi: osadníci s rodokmenem, rodina vojvody (lord.md – Zakladatelé), nebo dva páry
+ * ves bez rodu podle START_AGES.
+ */
+function foundingPeople(
+  input: VillageFounding,
+  householdId: number,
+): { founders: ReturnType<typeof dynastyFounders> | null; people: Person[] } {
+  const { day, settlers } = input;
+  const lordName = input.lord?.name;
+  const founders =
+    !settlers && input.lord
+      ? dynastyFounders(
+          householdId + 1,
+          householdId,
+          day,
+          lordName === undefined ? undefined : normalizePersonName(lordName),
+        )
+      : null;
+  // zakladatelé jsou dva páry (kinship.md – Pohlaví): manželé 25 let a chlapec s dívkou, kteří
+  // nejsou příbuzní (rodiče neznámí) – vezmou se, až dorostou
+  const people: Person[] = settlers
+    ? settlers.people.map((p) => ({ ...p, dwellingId: householdId }))
+    : founders
+      ? founders.people
+      : START_AGES.map((age, i) => ({
+          id: householdId + 1 + i,
+          bornDay: day - Math.ceil(age * DAYS_PER_YEAR),
+          dwellingId: householdId,
+          sex: START_SEXES[i] ?? 'male',
+        }));
+  return { founders, people };
+}
+
+/** Ves bez rodu: manželé ze zakladatelů, první dítě nejdřív za 9 měsíců jako po svatbě. */
+function marryFounders(
+  people: readonly Person[],
+  input: VillageFounding,
+  founders: ReturnType<typeof dynastyFounders> | null,
+): void {
+  const { day, settlers } = input;
+  const [husband, wife] = people;
+  if (!settlers && !founders && husband && wife) {
+    husband.spouseId = wife.id;
+    wife.spouseId = husband.id;
+    // první dítě nejdřív za 9 měsíců jako po svatbě (population.md – rozestup porodů)
+    wife.nextBirthFrom = day + BIRTH_SPACING.afterWeddingDays;
+  }
+}
+
+/** Stavba první zemnice – zakladatelé bydlí na staveništi (id domácnosti = id budoucí zemnice). */
+function firstDwellingSite(
+  input: VillageFounding,
+  constructionId: number,
+  householdId: number,
+): VillageState['constructions'][number] {
+  const { day, dwellingPosition } = input;
+  const dwellingObstacleCost = input.dwellingObstacleCost ?? 0;
+  return {
+    id: constructionId,
+    kind: 'dwelling',
+    startedDay: day,
+    cost: dwellingBuildLabor('zemnice') + dwellingObstacleCost,
+    done: 0,
+    dwellingType: 'zemnice',
+    position: { ...dwellingPosition },
+    dwellingId: householdId,
+    fieldId: null,
+    ...(input.forestDistanceM === undefined ? {} : { forestDistanceM: input.forestDistanceM }),
+  };
+}
+
+/**
+ * Zásoby nové vsi: jídlo a osivo osadníků, velká zásoba zakladatelů s osivem jen na setí
+ * (FOUNDERS_STORES), nebo ves bez rodu na START_STORES_MONTHS.
+ */
+function foundingStores(
+  input: VillageFounding,
+  founders: ReturnType<typeof dynastyFounders> | null,
+  annualNeed: number,
+  foundersSeedKg: number,
+): Pick<VillageState, 'storesKg' | 'reservedSeedKg' | 'reservedSeedUntilDay'> {
+  const { day, settlers } = input;
+  const food = settlers?.food;
+  return {
+    storesKg: food
+      ? food.grainKg + (settlers?.seedKg ?? 0)
+      : founders
+        ? annualNeed * FOUNDERS_STORES.foodYears + foundersSeedKg
+        : (annualNeed * START_STORES_MONTHS) / MONTHS_PER_YEAR + annualNeed * START_SEED_YEARS,
+    // osivo, které osadníci přinesli, ves nesní (fields.md – Osivo pro ves bez zásob)
+    ...(settlers?.seedKg ? { reservedSeedKg: settlers.seedKg } : {}),
+    // osivo zakladatelů na víc osevů – neuvolní se do FOUNDERS_STORES.seedKeepYears let
+    ...(foundersSeedKg > 0
+      ? {
+          reservedSeedKg: foundersSeedKg,
+          reservedSeedUntilDay: day + Math.ceil(FOUNDERS_STORES.seedKeepYears * DAYS_PER_YEAR),
+        }
+      : {}),
+  };
+}
+
+/** Co osadníci přinesli: maso, sýr, luštěniny, jablka, předci a vystěhovalci. */
+function settlersCarry(
+  settlers: VillageFounding['settlers'],
+  food: Settlers['food'] | undefined,
+): Pick<
+  VillageState,
+  'meatKg' | 'cheeseKg' | 'legumesKg' | 'applesKg' | 'ancestors' | 'emigrants'
+> {
+  return {
     meatKg: food ? food.meatKg : 0,
     ...(food && food.cheeseKg > 0 ? { cheeseKg: food.cheeseKg } : {}),
     ...(food && food.legumesKg > 0 ? { legumesKg: food.legumesKg } : {}),
@@ -618,9 +697,16 @@ export function foundVillage(input: {
     ...(settlers && settlers.emigrants.length > 0
       ? { emigrants: settlers.emigrants.map((e) => ({ ...e })) }
       : {}),
-    // první zemnice zakladatelů je dvorcem vojvody (trade.md – Dvorec vojvody)
-    manorId: householdId,
   };
+}
+
+/** Vůz, voli a kůň osadníků čekají bez ohrady; kronika nové vsi vedené synem vojvody. */
+function settlersBelongings(
+  state: VillageState,
+  settlers: VillageFounding['settlers'],
+  people: readonly Person[],
+  day: number,
+): void {
   // vůz a voli osadníků (migration.md – Vůz při odchodu): vůz je vsi, voli čekají bez ohrady
   if (settlers?.cart) state.carts = [{ ...settlers.cart, id: state.nextId++ }];
   if (settlers?.oxen && settlers.oxen.length > 0) {
@@ -637,6 +723,17 @@ export function foundVillage(input: {
       ...(lord?.name === undefined ? {} : { name: lord.name }),
     });
   }
+}
+
+/**
+ * První pole napřed (stromy na jeho dílech patří poli), pak dřevo první zemnice z vyklízené plochy
+ * a nejbližších stromů (forest.md) a ušetřená posvátná místa.
+ */
+function firstFieldAndWood(state: VillageState, input: VillageFounding): void {
+  const { day, dwellingPosition, firstField } = input;
+  const dwellingObstacleIds = input.dwellingObstacleIds ?? [];
+  const dwellingObstacleCost = input.dwellingObstacleCost ?? 0;
+  const clearedTrees = input.dwellingClearedTrees ?? 0;
   // pole napřed – stromy na jeho dílech patří poli (klády po založení), zemnice je nekácí
   if (firstField) addField(state, day, firstField);
   const plan = planDwellingWood(state, 'zemnice', dwellingPosition, day, {
@@ -648,9 +745,6 @@ export function foundVillage(input: {
   zemnice.wood = takeWood(state, plan, dwellingPosition);
   zemnice.cost = dwellingLaborManDays('zemnice', dwellingObstacleCost, plan);
   if (input.dwellingSpared) recordSpared(state, input.dwellingSpared, day);
-  // strop dovedností (war.md – Síla) platí od založení – dřív ho nové vsi dal až první dopočet
-  // (převod `arms-caps`): dovednosti osadníků nad strop se srazí jako tehdy, ves dostane příznak
-  return withArmsCaps(state);
 }
 
 /**

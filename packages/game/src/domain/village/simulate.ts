@@ -201,6 +201,45 @@ function* simulateDaySteps(
   landscape: Landscape | null,
 ): Generator<void, void, void> {
   const date = dateOfDayIndex(day);
+  morningDay(state, day, landscape, obstacles);
+  // nové stavby dne – jámy pod nimi se vyprázdní (production-chains.md – Obilné jámy): stavby vsi
+  // vznikají jen s novým id z `nextId`, viz kontrola níž
+  const idsBefore = state.nextId;
+  yield* routesDaySteps(state, day, date, landscape, obstacles);
+  // pokrytí výrobky řemeslníků ze včerejších zásob – meze produktivity celého dne (crafts.md)
+  const coverage = craftCoverage(state, day);
+  storesAndHerdsDay(state, day, coverage, landscape, obstacles);
+  yield;
+  const waiting = seasonPlanDay(state, day, date, coverage, landscape, obstacles);
+  yield;
+  const { toil, lordField, disasterEvents } = workDayStep(
+    state,
+    day,
+    coverage,
+    landscape,
+    obstacles,
+    waiting,
+  );
+  yield;
+  afterWorkDay(state, day, landscape, obstacles);
+  yield;
+  remnantsDay(state, day, landscape, idsBefore);
+  const eaten = marriagesAndMealDay(state, day, coverage);
+  yield;
+  const huntEvents = lordEveningDay(state, day, lordField);
+  const dayResult = { toil, eaten, huntEvents, disasterEvents };
+  // vymřelá ves se dál nesimuluje (ani sklizeň dne)
+  if (!peopleDay(state, day, landscape, obstacles, dayResult)) return;
+  harvestAndUpkeepDay(state, day, date, landscape, obstacles);
+}
+
+/** Ráno dne: výcvik rodiny vojvody, roční přepočet zvěře, počasí kraje, ochrana dílů, teplé sady, psi a plán lovu. */
+function morningDay(
+  state: VillageState,
+  day: number,
+  landscape: Landscape | null,
+  obstacles: ObstacleLayer | null,
+): void {
   // vojvodova rodina (lord.md): cvičí, nebo pracuje – rozhodnout jednou na začátku dne, ať ho
   // stejně vidí pasení, výběr dílů, nákupy i `work()` (i v den přechodu)
   updateLordTraining(state, day);
@@ -218,9 +257,16 @@ function* simulateDaySteps(
   dogsYear(state, day);
   // velký lov rodu: kdo dnes loví – pěší lovci jsou mimo práci vsi (wildlife.md – Lov rodu)
   planHuntDay(state, day);
-  // nové stavby dne – jámy pod nimi se vyprázdní (production-chains.md – Obilné jámy): stavby vsi
-  // vznikají jen s novým id z `nextId`, viz kontrola níž
-  const idsBefore = state.nextId;
+}
+
+/** Cesty a vzdálenosti chůze: měsíční kontrola cest, cesty přes pole, brány v opevnění a přepočet tras (se zastávkami). */
+function* routesDaySteps(
+  state: VillageState,
+  day: number,
+  date: ReturnType<typeof dateOfDayIndex>,
+  landscape: Landscape | null,
+  obstacles: ObstacleLayer | null,
+): Generator<void, void, void> {
   // vzdálenosti chůze dílů po pěšinách – jen když se změnilo rozložení vsi (paths.md); bez
   // krajiny (kalibrace, testy) zůstávají přímé vzdálenosti
   // vyšlapanost a vznik cest (paths.md – Vyšlapanost a vznik cesty): 1. dne v měsíci interval se
@@ -235,8 +281,16 @@ function* simulateDaySteps(
   if (landscape) gateRoadCrossings(state, landscape);
   if (landscape) yield* refreshWalkDistancesSteps(state, day, landscape, obstacles);
   yield;
-  // pokrytí výrobky řemeslníků ze včerejších zásob – meze produktivity celého dne (crafts.md)
-  const coverage = craftCoverage(state, day);
+}
+
+/** Zásoby a stáda: hnijící klády, kazící se snopy, ruce pro výmlat, dosloužilé vozy, sady, zarůstání a hospodářství. */
+function storesAndHerdsDay(
+  state: VillageState,
+  day: number,
+  coverage: ReturnType<typeof craftCoverage>,
+  landscape: Landscape | null,
+  obstacles: ObstacleLayer | null,
+): void {
   rotLogs(state);
   // snopy, které dnes nikdo nemlátí, se kazí (production-chains.md – Humno); ruce pro výmlat dne
   // – podle nich výhled výmlatu do konce okna (`sheavesOutlook`)
@@ -252,7 +306,17 @@ function* simulateDaySteps(
   state.chronicle.push(...overgrowthDay(state, day, obstacles ?? landscape));
   // stáda, seno a ohrady: mláďata, seč, porážka, vejce, zimní krmení, spřežení (diet.md, oxen.md)
   state.chronicle.push(...husbandryDay(state, day, coverage.tools, landscape, obstacles));
-  yield;
+}
+
+/** Plán dne: posvátné duby, paměť hladu, obrácení, nový hospodářský rok a díly na řadě. Vrací díly, které čekají. */
+function seasonPlanDay(
+  state: VillageState,
+  day: number,
+  date: ReturnType<typeof dateOfDayIndex>,
+  coverage: ReturnType<typeof craftCoverage>,
+  landscape: Landscape | null,
+  obstacles: ObstacleLayer | null,
+): ReturnType<typeof seasonDay> {
   // ušetřené posvátné duby stářím usychají a souše padají – den plyne z dubu (happiness.md)
   state.chronicle.push(...sacredOakEvents(villageSacredOaks(state), obstacles, day));
   // 1. 9. nový hospodářský rok a postup dílů, každý den díly na řadě a konce oken setí (fields.md –
@@ -264,7 +328,22 @@ function* simulateDaySteps(
   state.chronicle.push(...conversionDay(state, day));
   if (isOn(date, PLANNING_DAY)) startSeason(state, day, coverage, landscape);
   const waiting = seasonDay(state, day, coverage);
-  yield;
+  return waiting;
+}
+
+/** Práce dne: pomoc rodiny, škody zvěře, místní pohromy, nákupy, osivo a `work()`; osivo za nestihnuté setí zpět. */
+function workDayStep(
+  state: VillageState,
+  day: number,
+  coverage: ReturnType<typeof craftCoverage>,
+  landscape: Landscape | null,
+  obstacles: ObstacleLayer | null,
+  waiting: ReturnType<typeof seasonDay>,
+): {
+  toil: boolean;
+  lordField: ReturnType<typeof work>['lordField'];
+  disasterEvents: ReturnType<typeof localDisastersDay>;
+} {
   lordHelpDay(state, day, coverage, landscape);
   // zvěř: 1. 6. ohrožené díly polí podle vzdálenosti od lesa (wildlife.md – Škody)
   damageWindowStart(state, day, landscape);
@@ -288,7 +367,16 @@ function* simulateDaySteps(
   );
   // osivo za nestihnutou část dne zpět do jídla (fields.md – Osivo bez cíle osevu)
   settleSowingSeed(state, day);
-  yield;
+  return { toil, lordField, disasterEvents };
+}
+
+/** Po práci: opotřebení, škody zvěře, stezky a cesty, výpravy a nákupy, kování vozů, dokončené stavby, přestavby a den správce. */
+function afterWorkDay(
+  state: VillageState,
+  day: number,
+  landscape: Landscape | null,
+  obstacles: ObstacleLayer | null,
+): void {
   // nástroje a nádoby v užívání se opotřebí (crafts.md – Účinek)
   wearCraftStocks(state, day);
   // škody zvěře na polích po práci dne – nesklizené díly (wildlife.md – Škody)
@@ -319,7 +407,15 @@ function* simulateDaySteps(
   // kroky 1 a 2 – jména synů, 31. 8. odchod syna do schránky (steward-son.ts)
   stewardSonDay(state, day, landscape, obstacles);
   stewardDay(state, day, landscape, obstacles);
-  yield;
+}
+
+/** Zbytky jam, rudišť a milířů; obilné jámy pod dnešními novými stavbami (`idsBefore`). */
+function remnantsDay(
+  state: VillageState,
+  day: number,
+  landscape: Landscape | null,
+  idsBefore: number,
+): void {
   // zbytky jam po zaniklých obydlích zarůstají, pod novou stavbou zmizí (ruins.ts)
   updateRuins(state, day, landscape);
   updateOrePits(state, day);
@@ -334,6 +430,14 @@ function* simulateDaySteps(
   // nevěsty z okolí, další manželky), nic nestaví. Nový krok, který staví bez nového id nebo po
   // kontrole, musí kontrolu spustit sám.
   if (state.nextId !== idsBefore) moveGrainFromCoveredPits(state, day, landscape);
+}
+
+/** Sňatky, jídlo uprchlíků a jídlo dne (`eat`). */
+function marriagesAndMealDay(
+  state: VillageState,
+  day: number,
+  coverage: ReturnType<typeof craftCoverage>,
+): ReturnType<typeof eat> {
   // sňatky mezi domy – svobodní ve dvou domech se vezmou (population.md – Sňatky mezi domy); muž
   // bez hlavní manželky, který nějakou manželku má (osadníci výpravy), se před nimi nežení
   // (lord.md – Nová hlavní manželka); pak další manželky mužů rodu z okolí (lord.md – Manželky)
@@ -352,8 +456,15 @@ function* simulateDaySteps(
   if (state.refuge?.hidden !== undefined || state.refugeStays !== undefined) {
     refugeFoodDay(state, day);
   }
-  const { satiation, energy, fruit, meat } = eat(state, day, coverage);
-  yield;
+  return eat(state, day, coverage);
+}
+
+/** Večer rodiny vojvody: hlášení porážky, velký lov, lov z hlídky a výcvik. Vrací události lovu. */
+function lordEveningDay(
+  state: VillageState,
+  day: number,
+  lordField: ReturnType<typeof work>['lordField'],
+): ReturnType<typeof huntDay> {
   // nouzová porážka běží až v `eat()`, po `work()` – doplnit hlášení kusů do dnešního rozvrhu práce
   // (jen hlášení pro scénu, simulaci to nemění)
   const slaughteredToday = state.livestock?.slaughtered;
@@ -368,6 +479,24 @@ function* simulateDaySteps(
   patrolHuntDay(state, day);
   // a koně pod jezdci (horses.md – Výcvik koně a jezdec) – po péči (`work()`) a obilí (`eat()`)
   state.chronicle.push(...trainLordDay(state, day, lordField));
+  return huntEvents;
+}
+
+/** Lidé na konci dne: hlad, úmrtí, nástupnictví a štěstí. Vrací, jestli ves žije (vymřelá se dál nesimuluje). */
+function peopleDay(
+  state: VillageState,
+  day: number,
+  landscape: Landscape | null,
+  obstacles: ObstacleLayer | null,
+  dayResult: {
+    toil: boolean;
+    eaten: ReturnType<typeof eat>;
+    huntEvents: ReturnType<typeof huntDay>;
+    disasterEvents: ReturnType<typeof localDisastersDay>;
+  },
+): boolean {
+  const { toil, eaten, huntEvents, disasterEvents } = dayResult;
+  const { satiation, energy, fruit, meat } = eaten;
   // nahromaděný hlad se počítá z dnešní energie (hladem se umírá z energie, ne z pestrosti –
   // diet.md) – úmrtí dne podle něj (population.md); v hájení zůstává pod prahem, aby po něm lidé
   // umírali postupně
@@ -401,8 +530,19 @@ function* simulateDaySteps(
     // zemřel poslední člověk – ves vymřela, dál se nesimuluje (ani sklizeň dne)
     state.extinctDay = day;
     state.chronicle.push({ day, kind: 'village-extinct' });
-    return;
+    return false;
   }
+  return true;
+}
+
+/** Sklizně po jídle, konec výmlatu, roční kontrola cest, opuštěné stavby a trvalé stavy z upozornění. */
+function harvestAndUpkeepDay(
+  state: VillageState,
+  day: number,
+  date: ReturnType<typeof dateOfDayIndex>,
+  landscape: Landscape | null,
+  obstacles: ObstacleLayer | null,
+): void {
   // Sklizeň a ztráta nevymláceného až po jídle (Ruling 13) – 31. 8. se jí ještě z loňských
   // zásob, jak počítá daysUntilHarvest (31. 8. → 1 den); ozim stejně 31. 7. (co červenec
   // nedosklidil, 31. 8. s jaří – fields.md, Žně i v srpnu); jař, kterou srpen nedosklidil, v září,
