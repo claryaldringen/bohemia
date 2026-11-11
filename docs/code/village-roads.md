@@ -657,7 +657,7 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   cíle skupiny (`TripGroup.to` – `field:<id>`, `water`, `wood`, `cemetery:<id>`, `pen:<id>`,
   `oak:<id>`, `pasture`, `d:<id>` u sousedů…), účel `RoutePurpose` (`TripGroup.purpose`), cest za
   den v setinách (trasy pod `MIN_TRIP` se neukládají). Síť s `keepRoutes` (`PathNetworkInput`)
-  zapíše v posledním kole `routeAll` buňky každé trasy (domácnost × skupina) od brány k cíli –
+  zapíše v posledním kole `routeAllSteps` buňky každé trasy (domácnost × skupina) od brány k cíli –
   u pochůzky obráceně od místa k bráně a dál po pěšině souseda (`addErrand`) – do
   `PathNetwork.routes` (`NetworkRoute`); hledání ani provoz se tím nemění (provoz po buňkách
   z tras je týž bit po bitu). Kódování `paths/routes.ts`: `encodeRoute` (buňka světa = index okna

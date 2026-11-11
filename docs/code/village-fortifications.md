@@ -228,7 +228,7 @@ outcropId, m3)` (celé m³ v `STONE.stockOrderM3`, bez lomu `QUARRY_MISSING`) �
   dílu s branou](#kusy-dílu-s-branou-fortificationgate-partsts-martin-8-11-2026-hradba-je-hradba-brána-je-brána).
 - **Stavba `'fortification'`** (`ConstructionKind`, `LandTaker`) s `fortificationId`, `fortWork`
   (`FortBuildWork`: `build` | `upgrade` | `top` | `rebuild` | `restore`),
-  `segmentIndex` (nepoužité – přestavba je jedna stavba pro všechny dožilé úseky opevnění) a `fortSegments` (`FortSegmentWork { index, cost }` –
+  `fortSegments` (`FortSegmentWork { index, cost }` –
   úseky v pořadí práce). `cost` = kácení vyhrazených stromů (`woodFellingCost`) + práce úseků.
 
 ## Stavba po úsecích (`fortifications.ts`)

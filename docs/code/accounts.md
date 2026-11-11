@@ -72,7 +72,7 @@ value }`, `parseDevDisasterInput`) → use-cases `forceBadYear` / `forceDisaster
   tras a chůze (`refreshWalkDistancesSteps` → `villagePathNetworkSteps` → `computePathNetworkSteps`
   po domácnostech v kole, `walkingDistancesSteps` po osmi cílech, obydlí po jednom) a mezi velkými
   kroky dne (chov, plán osevu, práce, správce, jídlo). Synchronní verze (`roadsMonth`,
-  `refreshWalkDistances`, `computePathNetwork`, `routeAll`, `walkingDistances`) jsou jen výčet
+  `refreshWalkDistances`, `computePathNetwork`, `routeAllSteps`, `walkingDistances`) jsou jen výčet
   generátoru, výsledek je týž. Nejdelší kus bez přestávky u Vlkova (skok o rok, `measure-pauses.ts`):
   teplý ≈ 0,1 s (dřív ≈ 1,0 s), studený ≈ 0,45 s. Nedělitelné zůstává `obstaclesOf` při prvním
   načtení krajiny (≈ 0,3 s studený) a jedno volání `tidyMonth` (≈ 60–90 ms). Web: `skipTimeForPlayer`

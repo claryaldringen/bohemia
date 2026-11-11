@@ -432,7 +432,7 @@ Horse[]` (`id`, `bornDay`, `sex`, `training`, `riderId?`). `horses.ts` – `hors
   50 čd a 8 stromů (`PEN_BY_SPECIES.horse`; `penBuildLabor` / `penLaborManDays` / `penTrees` berou
   druh, rozšíření bere druh cílové ohrady), plot podle délky beze změny (`PEN_FENCE`).
   `penOccupancy` počítá koně ohrady (chátrání `abandonment.ts` beze změny – prázdná ohrada chátrá).
-  Číslo `HORSES` v `rules-livestock.ts`, výška plotu `PEN_FENCE_HEIGHT_M` jen pro scénu.
+  Číslo `HORSES` v `rules-livestock.ts`.
 - **Péče a krmení koní** (horses.md – Péče, Krmení; issue #5): péče 0,1 čd na koně denně
   (`horseCareLabor`, hříbě do roka nic) jde z práce vsi hned za denním minimem (`allocateDay` –
   `horseCare`); pokrytí 0–1 v `state.horsesCaredToday` (chybí = ves bez koní). Obilí –

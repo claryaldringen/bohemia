@@ -67,7 +67,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   pletí mužů jako volnou – strop stád nezmenší. **Seč nutného sena** je úloha dne `mow` ve skupině
   za žní obilí a trháním lnu, před jablky, pletím, přípravou půdy a výmlatem (fields.md – Pořadí
   důležitosti polních prací – 3. sklizeň sena); stavbám práci bere. Zvířata a domácí výroba (`DOMESTIC`) jdou bokem – jen `LaborDay.aside` pro postavy;
-  `domesticBacklog` a přirážka paliva zmizely (starší vsi pole jen nesou). Úlohy dne berou práci
+  Dřívější nedodělek domácí práce a přirážka paliva zmizely (pole ve starších uložených vsích se ignoruje). Úlohy dne berou práci
   ze zásobníků v pořadí **`weedChildren`** (děti 7–13 let, které nepasou, jen pletí –
   `weedingChildren` v harvest-hands.ts, `WEEDING_CHILDREN` 0,5 čd; fields.md – Pletí – děti) →
   **`light`** (ženy řemeslníků, jen lehké úlohy) → u pletí **ženy vsi** (`womenLabor` – práce žen nad
@@ -254,7 +254,7 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   - **Doma:** `isAway(person, day)` (do dne `untilDay`) – `laborPerDay` i `foodNeedPerDay` vrátí 0,
     takže nepřítomný nepracuje (práce dne, řemesla, výhledy správce) ani nejí (`villageFoodNeed`,
     jídlo, maso, mléko). Jinak žije dál ve vsi (stárne, může zemřít).
-  - **U hostitele:** `guestsToday` / `guestFoodNeedPerDay` / `guestLaborToday` – host je dospělý:
+  - **U hostitele:** `guestFoodNeed` / `guestFoodNeedPerDay` / `guestLaborToday` – host je dospělý:
     jí jako dospělý ze zásob hostitele (`villageFoodNeed` ho přičte) a pracuje 1 čd denně.
     Práce hostů ve `work()` (`simulate-work.ts`) jde **napřed do rozestavěného opevnění**
     (`build(…, 'fortification')` – rovným dílem po úsecích, bez tesaře), co zbude, se přičte ke

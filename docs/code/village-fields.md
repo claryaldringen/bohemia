@@ -181,7 +181,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     řekli, len je extrémně náročná plodina, ale zase ho není potřeba moc“ – napřed díly v osevu je
     pryč). **Odložení na podzim:** dokud běží okno ozimu (`winterStartable`), `turnSelection` projde
     stejný seznam do potřeby a díly jen přidá do `used` (bez `join`) – ozim je nedostane, len
-    se jim přidělí v listopadu / dubnu; nic se neukládá, odvodí se ze stavu dílů; jen `isSowableFertility` a `flaxAllowed` (rok sklizně
+    se jim přidělí v listopadu / dubnu; nic se neukládá, odvodí se ze stavu dílů; jen `isSowableFertility` a `flaxAllowedIn` (rok sklizně
     `seasonHarvestYear` − `FieldPart.flaxYear` ≥ `FLAX.returnYears` 7; chybí = smí).
     `rotateAfterSeason` 1. 9. zapíše `flaxYear` osetému lnu (i nevytrhanému). Trhání:
     `FLAX_WINDOWS.harvest` [8, 8]; v pořadí práce dne (`dayTaskOrder`) má trhání
@@ -641,7 +641,7 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   s hotovým humnem (`threshingCapacity` – `floorManDaysPerDay` 12 čd na humno, humna se sčítají),
   nebo bez humna **vždy nouzově** na udusané zemi (Martin 21. 10. 2026: „Ať mlátí aspoň
   nouzově“) – bez omezení místa, o 30 % víc práce a 10 % zrna méně (`ThreshingCapacity.emergency`
-  = bez hotového humna, nebo v odkladu `threshingGraceUntil` / `inThreshingGrace` – ten zůstal
+  = bez hotového humna, nebo v odkladu `threshingGraceUntil` – ten zůstal
   jen v datech: humno v odkladu mlátí plným tempem, zbytek nouzově). Upozornění: jen
   `ThreshingStatus.emergency` („Mlátí se na udusané zemi – postav humno“, info); „Před žněmi
   postav humno“ a „Snopy čekají na humno“ zmizely. Snopy, které dnes nikdo v okně nemlátí, se kazí 10 % za měsíc i s prací výmlatu
