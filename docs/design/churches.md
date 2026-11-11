@@ -56,6 +56,9 @@ okruhu jako jeho druhý typ; velký karolinský kostel na našem a slovenském �
   - krov a střecha 1 čd a 60 kg dřeva na m² střechy, dřevo na pálení 750 kg na t vápna;
   - výzdoba 0,3 čd na m² vnitřních zdí.
 
+  Zdi se počítají po ose zdi (vnitřní míra + tloušťka), stěna mezi částmi jen jednou; půlkruhová
+  apsida má průměr rovný šířce kněžiště (0,65 šířky lodi) a atrium se nevyzdobuje (návrh Clauda).
+
   Malá rotunda o průměru 6,5 m a výšce 6 m ≈ 165 m³ zdiva, ≈ 11 t vápna, ≈ 1 200 čd i s výzdobou.
 
 ## Co kostel dává

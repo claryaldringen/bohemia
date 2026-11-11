@@ -121,6 +121,7 @@ název). Pravidla a rozhodnutí jsou v `docs/design/`.
 | `docs/code/village-roads.md`          | pěšiny, pevné cesty, vylepšení, vozová síť, cesta přes pole, jabloně u cest, vozová cesta                                            |
 | `docs/code/village-trade.md`          | dvorec vojvody, zemská stezka, sousedé a obchod, dobytek, výměna lidí                                                                |
 | `docs/code/village-steward.md`        | správce vsi – stav, příkaz stavby, mapa hodnot a plán, den správce, přestavba a veto, synové a schránka odchodů, rozhraní, měření    |
+| `docs/code/village-masonry.md`        | kamenné zdivo – stavební huť, vápno a malta, kostel – geometrie a cena, stavba, kněz a hřbitůvek                                    |
 | `docs/code/village-wildlife.md`       | divoká zvěř – stav, stropy z krajiny, roční přepočet, škody na polích, šelmy, psi a lov rodu, hlídky polí, ryby a oka, převod, Vlkov |
 | `docs/code/village-disasters.md`      | počasí kraje – seed počasí mapy, roční los, shlukování, povodeň kraje, odhalení, ochrana nové vsi                                    |
 | `docs/code/village-fortifications.md` | opevnění – obvod a pás, druhy hradeb a vrstvy, cena komplet, vylepšení po úsecích, val a vodní příkop, klešťová brána a věž, údržba  |
