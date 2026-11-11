@@ -49,7 +49,10 @@ function churchVillage(crafts: readonly MasonCraft[] = MASON_CRAFTS, men = 0): V
     ...base,
     nextId: id,
     people: [...base.people, ...masters, ...helpers],
+    // maso a luštěniny: čistě obilná strava má nasycení pod 0,8 a mistři by do 30 dnů odešli (lodge-life.ts)
     storesKg: base.storesKg + 200000,
+    meatKg: 20000,
+    legumesKg: 20000,
     lodge: { circle: 'carolingian', invitedDay: DAY - 60 },
     quarries: [{ outcropId: 7, x: 300, z: 0, rotation: 0, builtDay: DAY - 10 }],
   };
