@@ -3,7 +3,7 @@
   "ignoreExportsUsedInFile": true,
   "workspaces": {
     ".": {
-      "entry": ["eslint.config.mjs"],
+      "entry": ["eslint.config.mjs", "tools/**/*.mjs"],
       "ignoreDependencies": ["eslint", "typescript-eslint", "eslint-plugin-react-hooks"]
     },
     "apps/web": {
