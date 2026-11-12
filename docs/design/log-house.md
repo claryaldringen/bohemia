@@ -1,6 +1,6 @@
 # Nadzemní dům a dvorec od roku 800
 
-Stav: **návrh k odsouhlasení** (12. 11. 2026). Zadání a rozhodnutí jsou Martinova (citace níž),
+Stav: **schváleno 12. 11. 2026** (Martin: „ano“) – plán `docs/superpowers/plans/2026-11-12-log-house.md`. Zadání a rozhodnutí jsou Martinova (citace níž),
 podrobnosti jsou návrh Clauda. Navazuje na [obydlí](population.md) (zemnice, polozemnice, nové
 obydlí, chátrání a přestavba), [dvorec vojvody](trade.md), [elitu](hillfort.md) (muži rodu
 z hlavních manželek), [vojvodovu rodinu](lord.md) (vedlejší manželky), [stavební huť](stone-masonry.md)
