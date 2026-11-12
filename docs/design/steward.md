@@ -304,6 +304,11 @@ svého druhu (pole a čtverce po blocích) a všechny čerpají ze stejného roz
 - **Obydlí – typ:** polozemnice (kapacita 8, menší dětská úmrtnost ×0,8, 220 člověkodní), když
   rozpočet práce unese její cenu do zimy; jinak zemnice (60 člověkodní) – rodina nečeká na dům
   přes zimu (návrh Clauda; čísla `DWELLINGS`).
+- **Obydlí – nadzemní dům (od roku 800):** před obydlím správce začne jeden nadzemní dům (`srub`),
+  když z pořadí čeká rodina a žádný není prázdný ani rozestavěný; kdo to je a kolik, určuje
+  [log-house.md](log-house.md) (Správce). Rodina z pořadí, pro kterou srub čeká nebo se staví, se
+  z čekajících odečte – nestaví se pro ni zároveň polozemnice (návrh Clauda: ženatý syn ve dvorci
+  je v obou počtech). Před rokem 800 se nic nemění.
 - **Dílna místo obydlí:** dílna je obydlí čekající rodiny, která nebude pracovat na poli. Hodnota
   = práce, kterou pokrytí výrobky ušetří vsi (meze produktivity od nejhorší k nejlepší –
   crafts.md), mínus práce rodiny na poli, která vsi chybí. Pořadí podle hodnoty, typicky hrnčíř
