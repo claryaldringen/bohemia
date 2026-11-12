@@ -1062,15 +1062,15 @@ def build_log_house(part, kind, stages=False):
         zc = base + t / 2 + k * t
         for sgn in (-1, 1):
             xc = sgn * (ox - t / 2)
-            b.beam((xc, -oy - over, zc), (xc, oy + over, zc), t, end_mat="logends")
+            b.beam((xc, -oy - over, zc), (xc, oy + over, zc), t, end_mat="logs_rot")
         zl = base + k * t
         for sgn in (-1, 1):
             yc = sgn * (oy - t / 2)
             if sgn in doors and k < m:
-                b.beam((-ox - over, yc, zl), (-DOOR, yc, zl), t * 0.97, end_mat="logends")
-                b.beam((DOOR, yc, zl), (ox + over, yc, zl), t * 0.97, end_mat="logends")
+                b.beam((-ox - over, yc, zl), (-DOOR, yc, zl), t * 0.97, end_mat="logs_rot")
+                b.beam((DOOR, yc, zl), (ox + over, yc, zl), t * 0.97, end_mat="logs_rot")
             else:
-                b.beam((-ox - over, yc, zl), (ox + over, yc, zl), t * 0.97, end_mat="logends")
+                b.beam((-ox - over, yc, zl), (ox + over, yc, zl), t * 0.97, end_mat="logs_rot")
     # tmavé nitro za dveřmi a práh
     b = part("logs-1")
     for sgn in doors:
