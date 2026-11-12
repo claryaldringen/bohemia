@@ -27,6 +27,17 @@ export const DWELLINGS = {
     childDeathFactor: 0.8,
     emptyLifespanYears: 8,
   },
+  // log-house.md – Dům (tabulka – návrh Clauda, Martin 12. 11. 2026: „Takhle je to asi ok“):
+  // srub bez kmenů v zemi vydrží déle, je sušší a prostornější; opravy jako polozemnice
+  // (návrh Clauda)
+  srub: {
+    capacity: 8,
+    cost: 300,
+    lifespanYears: 35,
+    repairAtEndOfLifePerYear: 17,
+    childDeathFactor: 0.7,
+    emptyLifespanYears: 12,
+  },
   // trade.md – Dvorec vojvody (návrh Clauda, schváleno 18. 10. 2026): delší a vyšší polozemnice,
   // kapacita 10, cena a dřevo jako polozemnice × 1,5 (opravy taky × 1,5), jinak jako polozemnice
   dvorec: {
@@ -37,15 +48,32 @@ export const DWELLINGS = {
     childDeathFactor: 0.8,
     emptyLifespanYears: 8,
   },
+  // log-house.md – Dvorec od roku 800 (tabulka – návrh Clauda, Martin: „Takhle je to asi ok“):
+  // nadzemní srub se síní a komorou, větší než jakýkoli jiný dům; opravy jako dvorec (návrh
+  // Clauda)
+  'dvorec-srub': {
+    capacity: 12,
+    cost: 450,
+    lifespanYears: 35,
+    repairAtEndOfLifePerYear: 25.5,
+    childDeathFactor: 0.7,
+    emptyLifespanYears: 12,
+  },
 } as const;
+// log-house.md – Dům (Martin 12. 11. 2026: „měl by být dostupný cca od roku 800“): nadzemní dům
+// jde stavět od 1. 1. 800 a dvorec postavený nebo přestavěný od té doby je nadzemní srub
+export const LOG_HOUSE = { fromYear: 800 } as const;
 // trade.md – Dvorec vojvody: cena a dřevo dvorce = polozemnice × MANOR.costFactor; pozemek dvou
 // políček (dům a dvůr) se hledá při přestavbě jako u polozemnice do PLOT_RELOCATION_M
 export const MANOR = { costFactor: 1.5 } as const;
-// population.md – Nové obydlí (obyvatelé staví vždy lepší obydlí)
+// population.md – Nové obydlí (obyvatelé staví vždy lepší obydlí); log-house.md – Dům (Martin):
+// na nadzemní dům vesničané nepřestavují, dosloužilý nadzemní dům se přestaví zase na nadzemní
 export const BETTER_DWELLING: Record<DwellingType, DwellingType> = {
   zemnice: 'polozemnice',
   polozemnice: 'polozemnice',
+  srub: 'srub',
   dvorec: 'dvorec',
+  'dvorec-srub': 'dvorec-srub',
 };
 // population.md – Pojmy a Práce (věkové hranice, pracovní síla – Martin 19. 10. 2026: na polích
 // a stavbách jen dospělí; výrostci 7–13 let pasou, starší kryjí `elder` čd denní minimum své

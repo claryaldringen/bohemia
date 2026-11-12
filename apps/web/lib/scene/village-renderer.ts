@@ -8,6 +8,7 @@ import type { Scene } from '@babylonjs/core/scene';
 import {
   dateOfDayIndex,
   DRAFT_OXEN,
+  isManorType,
   OFFICIAL_WORLD,
   realTimeOf,
   threshingFloorFootprint,
@@ -80,7 +81,12 @@ import { ChurchRenderer } from './church-renderer';
 import type { SceneChurch } from '../church-view';
 import type { SlaughterPlan } from './slaughter-plan';
 import { SlaughterRenderer } from './slaughter-renderer';
-import { ROUND_SITE_M, constructionState, sitePropPlace } from './village-construction';
+import {
+  ROUND_SITE_M,
+  constructionState,
+  dwellingModel,
+  sitePropPlace,
+} from './village-construction';
 import {
   decalGrid,
   dwellingHideShape,
@@ -1591,7 +1597,7 @@ export class VillageRenderer {
     if (sites.some((d) => d.craft) || kilnSites.some((k) => k.look.site !== null)) {
       void this.loadCraftConstruction();
     }
-    if (sites.some((d) => d.type === 'dvorec')) void this.loadManorModels();
+    if (sites.some((d) => isManorType(d.type))) void this.loadManorModels();
     if (!this.siteLoading) return false;
     this.siteKey = key;
     const instances = new Map<string, ModelInstance[]>();
@@ -1759,7 +1765,7 @@ export class VillageRenderer {
     if (key === this.builtKey) return false;
     if (built.length > 0 || kilns.length > 0) void this.loadModels();
     if (built.some((d) => d.craft) || kilns.length > 0) void this.loadCraftModels();
-    if (built.some((d) => d.type === 'dvorec')) void this.loadManorModels();
+    if (built.some((d) => isManorType(d.type))) void this.loadManorModels();
     if (!this.loading) return false;
     this.builtKey = key;
     const instances = new Map<ModelKey, ModelInstance[]>();
@@ -1772,7 +1778,7 @@ export class VillageRenderer {
     const decayReady = this.decayParts.size > 0;
     for (const d of built) {
       if (decayReady && dwellingDecay(d) > 0) continue;
-      push(d.craft ? CRAFT_MODEL[d.craft] : d.type, {
+      push(d.craft ? CRAFT_MODEL[d.craft] : dwellingModel(d.type), {
         x: d.position.x,
         y: this.baseHeight(d),
         z: d.position.z,

@@ -60,7 +60,11 @@ import { nextSelection, presentTarget } from '@/lib/scene/village-selection';
 import { selectionDetails } from '@/lib/selection-details';
 import type { DraftFigureState } from '@/lib/draft-activity';
 import type { PersonFigureState } from '@/lib/person-activity';
-import { CONSTRUCTION_PHASES, constructionPhase } from '@/lib/scene/village-construction';
+import {
+  CONSTRUCTION_PHASES,
+  constructionPhase,
+  dwellingModel,
+} from '@/lib/scene/village-construction';
 import { SACRED_SITE_KIND } from '@/lib/scene/sacred-layout';
 import { REFERENCE_DAY, dateOfDayOfYear } from '@/lib/scene/season-look';
 import type {
@@ -2001,7 +2005,7 @@ export function DevVillagePreview({ landscape }: { landscape: LandscapeTransfer 
         {firstSite && (
           <span data-testid="dev-village-phase">
             {Math.round(firstSite.progress * 100)} % ·{' '}
-            {constructionPhase(firstSite.type, firstSite.progress).label}
+            {constructionPhase(dwellingModel(firstSite.type), firstSite.progress).label}
           </span>
         )}
         <button className={buttonClass} disabled={!scene} onClick={() => placeSacred('idol')}>

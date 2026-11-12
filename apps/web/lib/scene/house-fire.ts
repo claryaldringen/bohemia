@@ -17,8 +17,20 @@ const HOUSE_FLAMES = 14;
 const HOUSE_SPARKS = 6;
 const HOUSE_FIRE_SPRITES = HOUSE_FLAMES + HOUSE_SPARKS + 1;
 /** Půl délky stavby podél hřebene (m) a velikost ohně – dvorec je větší. */
-const HOUSE_HALF_M = { zemnice: 1.6, polozemnice: 1.9, dvorec: 3 } as const;
-const HOUSE_FIRE_SCALE = { zemnice: 1.7, polozemnice: 1.9, dvorec: 2.4 } as const;
+const HOUSE_HALF_M = {
+  zemnice: 1.6,
+  polozemnice: 1.9,
+  srub: 1.9,
+  dvorec: 3,
+  'dvorec-srub': 3,
+} as const;
+const HOUSE_FIRE_SCALE = {
+  zemnice: 1.7,
+  polozemnice: 1.9,
+  srub: 1.9,
+  dvorec: 2.4,
+  'dvorec-srub': 2.4,
+} as const;
 /** Semínko spritů – odliší ohně domů od hromad paseky. */
 const SEED_BASE = 7_000_000;
 

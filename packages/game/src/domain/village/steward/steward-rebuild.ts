@@ -8,7 +8,7 @@ import { craftCoverage } from '../crafts/crafts';
 import { occupants } from '../people/people';
 import { DWELLINGS } from '../rules/rules-people';
 import { STEWARD } from '../rules/rules-steward';
-import { dwellingBuildLabor } from '../rules';
+import { PLOT_TYPES, dwellingBuildLabor } from '../rules';
 import { startStewardBuild, stewardMode, tileCell, type StewardContext } from './steward';
 import { dwellingSiteValue, landValues, takenTiles } from './steward-land';
 import { stewardOutlook } from './steward-outlook';
@@ -118,7 +118,7 @@ export function stewardReplace(
       dwellingId: d.id,
       type,
       position: { x: c.x, z: c.z, rotation: 0 },
-      ...(type === 'polozemnice' ? { plot: { cell, variant: 'center' as const } } : {}),
+      ...(PLOT_TYPES[type] ? { plot: { cell, variant: 'center' as const } } : {}),
     };
     if (startStewardBuild(state, ctx, intent).ok) return true;
   }

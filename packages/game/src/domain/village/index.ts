@@ -50,6 +50,7 @@ export { breedingCows, herdPlaces, winterHayNeedKg, type HerdPlaces } from './li
 export * from './livestock/herding';
 export { woolCoverage, woolNeedKg, woolSheep, woolUnhappiness } from './livestock/wool';
 export * from './buildings/dwellings';
+export * from './buildings/log-house';
 export * from './people/manor';
 export * from './people/lord';
 export { churchCoverage, type ChurchCoverage } from './people/church-life';

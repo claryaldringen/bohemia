@@ -10,6 +10,7 @@ import { ChurchPlacer } from './church-placer';
 import { FieldPainter } from './field-painting';
 import { FortPointsEditor } from './fort-points-editor';
 import { tileAt, tileCenter } from './tile-at';
+import { dwellingModel } from './village-construction';
 import { PlacementController, type ActivePlacement } from './village-placement';
 import type { VillageRenderer } from './village-renderer';
 import type { PlacementHandlers, PlacementMode } from './village-types';
@@ -112,7 +113,9 @@ export function createPlacement(
         const center = tileCenter(landscape, plot.cell.x, plot.cell.y);
         return { plot, square: { x: center.worldX, z: center.worldZ, size } };
       },
-      ghostModel: (type) => village.ghostModel(type),
+      // nadzemní dům a dvorec od roku 800 zatím model polozemnice a dvorce (`dwellingModel`)
+      ghostModel: (type) =>
+        village.ghostModel(type === 'srub' || type === 'dvorec-srub' ? dwellingModel(type) : type),
       baseHeight: (type, position) => {
         if (type === 'idol' || type === 'shrine') {
           return village.sacredBaseHeight(type, position);

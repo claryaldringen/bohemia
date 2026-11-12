@@ -555,6 +555,15 @@ describe('buildVillageView', () => {
         blocked: null,
         affordable: false,
       },
+      // nadzemní dům (log-house.md) – rok hlídá server a zašedne ho nabídka (`dwellingYearReason`)
+      srub: {
+        laborManDays: 300,
+        perHa: false,
+        perSquare: false,
+        upfront: [{ resource: 'wood', amount: 28, missing: 28 }],
+        blocked: null,
+        affordable: false,
+      },
       field: free(100, { perHa: true }),
       cemetery: free(10, { perSquare: true }),
       orchard: free(80, { perHa: true }),

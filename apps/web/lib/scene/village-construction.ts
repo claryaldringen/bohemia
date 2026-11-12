@@ -20,8 +20,22 @@ export const CRAFT_KINDS: readonly CraftKind[] = ['hrncir', 'kovar', 'tesar', 'u
  */
 export type SacredKind = 'modla' | 'svatyne';
 export const SACRED_KINDS: readonly SacredKind[] = ['modla', 'svatyne'];
-/** Druh stavby, který umí staveniště: obydlí, řemeslná stavba nebo posvátné místo. */
-export type ConstructionKind = DwellingType | CraftKind | SacredKind;
+/**
+ * Model obydlí ve scéně (tools/blender/dwellings.py): nadzemní dům a dvorec od roku 800
+ * (log-house.md) zatím kreslí model polozemnice a dvorce – vlastní modely přibudou (plán
+ * 2026-11-12-log-house – Úloha 4 a 5).
+ */
+export type DwellingModel = 'zemnice' | 'polozemnice' | 'dvorec';
+
+/** Model, kterým scéna kreslí obydlí typu `type` (`DwellingModel`). */
+export function dwellingModel(type: DwellingType): DwellingModel {
+  if (type === 'srub') return 'polozemnice';
+  if (type === 'dvorec-srub') return 'dvorec';
+  return type;
+}
+
+/** Druh stavby, který umí staveniště: model obydlí, řemeslná stavba nebo posvátné místo. */
+export type ConstructionKind = DwellingModel | CraftKind | SacredKind;
 
 /**
  * Obydlí, na jehož fázích (a v jehož jámě) stavba stojí; milíř, modla a svatyně nemají jámu

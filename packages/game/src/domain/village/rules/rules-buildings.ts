@@ -7,8 +7,13 @@ import { CEMETERY_FENCE_INSET_M, DWELLINGS } from './rules-people';
 export const DWELLING_FOOTPRINT_M: Record<DwellingType, { width: number; depth: number }> = {
   zemnice: { width: 4, depth: 4 },
   polozemnice: { width: 5, depth: 5 },
+  // log-house.md – Dům (tabulka): nadzemní srub 5 m napříč a 6 m podél hřebene, vchod na kratší
+  // straně jako u dvorce (tools/blender/dwellings.py)
+  srub: { width: 5, depth: 6 },
   // trade.md – Dvorec (návrh Clauda): srub 5 × 8,4 m s valy – tools/blender/dwellings.py
   dvorec: { width: 6, depth: 9.6 },
+  // log-house.md – Dvorec od roku 800 (tabulka): nadzemní srub se síní a komorou 7 × 11 m
+  'dvorec-srub': { width: 7, depth: 11 },
 };
 export const DWELLING_MAX_HEIGHT_DIFF_M = 0.5;
 // population.md – Varianty rozměrů (Martin, GitHub #1, 20. 10. 2026: „Udělejme různé kombinace
@@ -24,9 +29,14 @@ export const DWELLING_SHAPE = {
   /** Polovina šířky dveří a vstupní šíje (m, dwellings.py – DOOR). */
   doorHalfM: 0.42,
   /** Kde (z, m od středu k vchodu) začíná vstupní šíje – PIT_SHAPES.halfZ ve scéně. */
-  frontM: { zemnice: 1.98, polozemnice: 2.04, dvorec: 4.14 } as Readonly<
-    Record<DwellingType, number>
-  >,
+  // srub stojí na zemi bez jámy a šíje – od přední stěny se jen posouvá práh (návrh Clauda)
+  frontM: {
+    zemnice: 1.98,
+    polozemnice: 2.04,
+    srub: 3,
+    dvorec: 4.14,
+    'dvorec-srub': 5.5,
+  } as Readonly<Record<DwellingType, number>>,
   /**
    * Dům v rohu pozemku (PLOT_HOUSE_OFFSET_M) má k plotu napříč jen ≈ 0,35 m – smí se rozšířit
    * nejvýš tolikrát (škála šířky půdorysu), jinak by valy a trsy u okapu sahaly do plotu; plocha
@@ -45,7 +55,11 @@ export const DWELLING_CLEARING_M: Record<
 > = {
   zemnice: { minX: -4.8, maxX: 4.8, minZ: -4.4, maxZ: 7.5 },
   polozemnice: { minX: -5.1, maxX: 5.1, minZ: -4.7, maxZ: 7.5 },
+  // log-house.md – srub a dvorec od 800: jako polozemnice a dvorec, posunuté o delší půdorys
+  // (vpředu i vzadu stejný odstup od stěn) – návrh Clauda
+  srub: { minX: -5.1, maxX: 5.1, minZ: -5.2, maxZ: 8 },
   dvorec: { minX: -5.4, maxX: 5.4, minZ: -6.4, maxZ: 9.5 },
+  'dvorec-srub': { minX: -5.9, maxX: 5.9, minZ: -7.1, maxZ: 10.2 },
 };
 // population.md – Umístění obydlí, Stavba v lese (Martin, 19. 10. 2026: „obydlí může jít postavit
 // i v lese – les se prostě vyklučí“; šířka návrh Clauda): v lese osadníci kolem volně stojící
@@ -60,7 +74,10 @@ export const FOREST_CROWN_MARGIN_M = 4;
 export const PLOT_TYPES: Readonly<Record<DwellingType, boolean>> = {
   zemnice: false,
   polozemnice: true,
+  // log-house.md – Dům: nadzemní dům stojí na pozemku s plotem jako polozemnice (návrh Clauda)
+  srub: true,
   dvorec: true,
+  'dvorec-srub': true,
 };
 /** Pořadí variant při přepínání klávesami [ a ]. */
 export const PLOT_VARIANTS: readonly PlotVariant[] = [
@@ -118,8 +135,12 @@ export const TREE_REGROWTH_YEARS = 70;
 export const DWELLING_TREES: Record<DwellingType, number> = {
   zemnice: 7,
   polozemnice: 18,
+  // log-house.md – Dům (tabulka): nadzemní dům 28 stromů
+  srub: 28,
   // trade.md – Dvorec: dřevo polozemnice × 1,5
   dvorec: 27,
+  // log-house.md – Dvorec od roku 800 (tabulka): 40 stromů
+  'dvorec-srub': 40,
 };
 // forest.md – Kácení: skácení a dovoz 2 člověkodny za strom, +1 % za každých 10 m nad 100 m od
 // staveniště (vzdálenost jako u polí – DISTANCE). U blízkého lesa stojí stavba práci jako dřív –

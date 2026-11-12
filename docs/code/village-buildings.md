@@ -433,3 +433,38 @@ umístění a dokončení.
      přidá mezi `added` (mladý do `matureYears`, pak strom; pokácený jako strom lesa vsi), takže ho
      stavby, dřevo a cesty berou jako strom lesa vsi (`isWoodTreeId`). `restoreStructure` a bourání
      sadu volají `clearWildTrees`.
+
+## Nadzemní dům
+
+[log-house.md](../design/log-house.md) – Dům, Dvorec od roku 800 (Martin 12. 11. 2026). Dva nové
+typy obydlí v `DwellingType` (`types-people.ts`): `srub` (nadzemní dům, `BuildableDwellingType` –
+staví hráč, později správce) a `dvorec-srub` (dvorec od roku 800 – hráč ho nestaví, jako `dvorec`).
+Nové typy vznikají jen novou stavbou nebo přestavbou, převod starších vsí netřeba.
+
+- **Čísla** v `rules-people.ts` (`DWELLINGS.srub`, `DWELLINGS['dvorec-srub']`, `LOG_HOUSE.fromYear`
+  = 800), `rules-buildings.ts` (`DWELLING_FOOTPRINT_M` – srub 5 m napříč × 6 m podél hřebene,
+  dvorec od 800 7 × 11; `DWELLING_TREES` 28 a 40; `PLOT_TYPES` – srub stojí na pozemku s plotem
+  jako polozemnice, dvorec od 800 na pozemku se dvorem; `DWELLING_CLEARING_M`,
+  `DWELLING_SHAPE.frontM` – bez šíje, práh u přední stěny), `rules-crafts.ts`
+  (`CARPENTRY.dwellingWoodShare`), `DWELLING_PATH_BOX_M` (`network-grid.ts`) a
+  `BUILD_COSTS.srub` (`costs.ts`). Opravy na konci životnosti jako polozemnice (17) a dvorec
+  (25,5) – návrh Clauda.
+- **Rok:** `buildings/log-house.ts` – `dwellingYearReason(type, day)` vrací `LOG_HOUSE_YEAR`
+  („Od roku 800“) pro srub do 31. 12. 799, jinak null. Kontroluje ho server v `applyBuildIntent`
+  (`buildDwelling` i `buildReplacement` v `build-intent.ts`) – obejití zašedlého tlačítka stavbu
+  neprojde.
+- **Přestavba:** `BETTER_DWELLING` – vesničané na srub nepřestavují (polozemnice zůstane
+  polozemnicí), dosloužilý srub se přestaví zase na srub, `dvorec-srub` na `dvorec-srub`.
+- **Dvorec od 800:** `manorTypeOn(day)` – dvorec přestavěný od 1. 1. 800 je `dvorec-srub`
+  (`decideRebuilds` v `simulate-build.ts`), dnešní dvorce stojí, dokud nedoslouží. Ves založená
+  od roku 800 tak dostane nadzemní dvorec první přestavbou zemnice zakladatelů. Dvorec se dvorem
+  se přestaví na místě (větší půdorys se do políčka 15 m vejde), dvorec bez dvora hledá nový
+  pozemek jako dřív (`relocationPlot`). Všechna místa, která poznávala dvorec podle typu, volají
+  `isManorType(type)` (`dvorec` i `dvorec-srub`) – `dwellingShape` (bez varianty rozměrů),
+  `relocationPlot`, `checkPlotPlacement` (pozemek se dvorem), `isManorTarget`, `demolishReplaced`.
+- **Web:** scéna zatím kreslí srub modelem polozemnice a dvorec od 800 modelem dvorce –
+  `dwellingModel(type)` (`village-construction.ts`) mapuje typ na `DwellingModel`, z něhož jsou
+  druhy staveniště (`ConstructionKind`) a hotové modely (`ModelKey`); záznamy podle typu obydlí
+  (`PIT_SHAPES`, okap a dýmník v `dwelling-decor.ts`, kopřivy, oheň) mají pro nové typy hodnoty
+  polozemnice a dvorce. Vlastní modely, tlačítko a zašednutí „Od roku 800“ dodají další úlohy
+  plánu `docs/superpowers/plans/2026-11-12-log-house.md`.

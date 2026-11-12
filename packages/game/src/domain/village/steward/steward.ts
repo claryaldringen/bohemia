@@ -28,6 +28,7 @@ import { flushWear } from '../paths/wear';
 import { fieldWorkPerHa } from '../core/productivity';
 import { FIELD_LIMITS, FIELD_STORES, STORAGE_LOSS_PER_YEAR } from '../rules/rules-fields';
 import { DWELLINGS } from '../rules/rules-people';
+import { PLOT_TYPES } from '../rules/rules-buildings';
 import { STEWARD, type StewardMonthDay, type StewardWindow } from '../rules/rules-steward';
 import { fieldStoresOutlook } from '../core/simulate-plan';
 import { fieldCells, planCentre, takenTiles, villageTerritory } from './steward-land';
@@ -821,7 +822,7 @@ function dwellingStep(state: VillageState, ctx: StewardContext): void {
       kind: 'dwelling',
       type,
       position: { x: c.x, z: c.z, rotation: 0 },
-      ...(type === 'polozemnice' ? { plot: { cell, variant: 'center' as const } } : {}),
+      ...(PLOT_TYPES[type] ? { plot: { cell, variant: 'center' as const } } : {}),
     };
   };
   const slots = trySlots(state, ctx, 'dwelling', intentOf);

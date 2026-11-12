@@ -63,6 +63,26 @@ export const PIT_SHAPES: Record<DwellingType, PitShape> = {
     steps: 2,
     roofEndZ: 5.25,
   },
+  // nadzemní dům a dvorec od roku 800 (log-house.md) zatím kreslí model polozemnice a dvorce
+  // (`dwellingModel`) – jámu podle modelu dostanou s vlastním modelem
+  srub: {
+    halfX: 2.04,
+    halfZ: 2.04,
+    rampHalfX: 0.42,
+    rampEndZ: 3.1,
+    depth: 0.5,
+    steps: 2,
+    roofEndZ: 3.15,
+  },
+  'dvorec-srub': {
+    halfX: 2.24,
+    halfZ: 4.14,
+    rampHalfX: 0.42,
+    rampEndZ: 5.2,
+    depth: 0.5,
+    steps: 2,
+    roofEndZ: 5.25,
+  },
 };
 
 /**

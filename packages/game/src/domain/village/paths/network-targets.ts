@@ -121,7 +121,9 @@ export function households(
   const people = village.labor
     ? village.labor.people.adults + village.labor.people.children + village.labor.people.elders
     : settled.length * DEFAULT_HOUSEHOLD;
-  const weight = (type: DwellingType): number => (type === 'polozemnice' ? 1.5 : 1);
+  // nadzemní dům (log-house.md) pojme lidí jako polozemnice
+  const weight = (type: DwellingType): number =>
+    type === 'polozemnice' || type === 'srub' ? 1.5 : 1;
   const total = settled.reduce((s, d) => s + weight(d.type), 0);
   const out: Household[] = [];
   for (const d of settled) {

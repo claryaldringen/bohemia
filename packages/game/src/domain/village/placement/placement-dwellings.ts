@@ -102,6 +102,7 @@ import {
   type SampledGround,
 } from './placement-geometry';
 import { villageDwellingPositions } from './placement-village';
+import { isManorType } from '../buildings/log-house';
 
 /**
  * Smí obydlí stát na místě volně (bez pozemku – zemnice)? Rozdíl výšek pod půdorysem nejvýš
@@ -447,7 +448,7 @@ export function checkPlotPlacement(
     return { ...fail('Neplatné místo domu na pozemku.'), ...none };
   }
   // dvorec stojí na pozemku dvou políček – dům a dvůr (trade.md – Dvorec vojvody)
-  if ((type === 'dvorec') !== (plot.yard !== undefined)) {
+  if (isManorType(type) !== (plot.yard !== undefined)) {
     return { ...fail('Dvorec potřebuje pozemek se dvorem.'), ...none };
   }
   if (plot.yard && (plot.variant !== 'center' || !yardTouches(plot.cell, plot.yard))) {

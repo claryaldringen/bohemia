@@ -16,6 +16,7 @@ import {
   type PlotPlacementCheck,
 } from '../placement/placement';
 import { PLOT_RELOCATION_M, PLOT_TYPES, PLOT_VARIANTS } from '../rules';
+import { isManorType } from './log-house';
 import type { Dwelling, DwellingPlot, DwellingType, Position, VillageState } from '../types';
 import { addLogs, logsFromClearedTrees } from '../forest/wood';
 
@@ -169,7 +170,7 @@ export function relocationPlot(
   candidates.sort((a, b) => a.distance - b.distance || a.cell.y - b.cell.y || a.cell.x - b.cell.x);
   // dvorec vojvody (trade.md): políčko domu a dvůr vedle něj – dvůr napřed vpředu (−z, vchod
   // k brance jako u ostatních pozemků), pak vpravo, vlevo a vzadu
-  if (type === 'dvorec') {
+  if (isManorType(type)) {
     for (const { cell } of candidates) {
       for (const [dx, dy] of YARD_SIDES) {
         const plot: DwellingPlot = {

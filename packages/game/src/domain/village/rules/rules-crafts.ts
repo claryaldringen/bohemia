@@ -275,7 +275,14 @@ export const CARPENTRY = {
   woodToolsManDaysPerKg: 0.5,
   woodToolsKgPerLog: 100,
   crew: 4,
-  dwellingWoodShare: { zemnice: 0.4, polozemnice: 0.5, dvorec: 0.6 },
+  // log-house.md – srub a dvorec od 800 celé z kmenů (návrh Clauda)
+  dwellingWoodShare: {
+    zemnice: 0.4,
+    polozemnice: 0.5,
+    srub: 0.7,
+    dvorec: 0.6,
+    'dvorec-srub': 0.75,
+  },
   woodShare: { pen: 0.4, ard: 1, idol: 0.8, shrine: 0.3, road: 0.3, repair: 0.3 },
 } as const satisfies {
   cartManDays: Record<CartKind, number>;

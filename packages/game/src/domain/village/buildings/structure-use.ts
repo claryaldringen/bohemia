@@ -3,6 +3,7 @@ import type { BuildResult } from './build-intent';
 import { cloneState } from '../core/clone';
 import { demolitionOf, isDisused } from './disused';
 import { villageManorId } from '../people/manor';
+import { isManorType } from './log-house';
 import { villagePens } from '../livestock/oxen';
 import { lodgingShortfall, noRoomReason, vacateDwelling } from '../people/displaced';
 import { oxenOf, penSpecies } from '../livestock/pens';
@@ -98,7 +99,7 @@ export function targetOf(state: VillageState, ref: UsableRef): Target | null {
 export function isManorTarget(state: VillageState, target: Target): boolean {
   return (
     target.structure === 'dwelling' &&
-    (target.item.type === 'dvorec' || target.item.id === villageManorId(state))
+    (isManorType(target.item.type) || target.item.id === villageManorId(state))
   );
 }
 

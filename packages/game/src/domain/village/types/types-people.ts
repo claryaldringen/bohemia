@@ -7,13 +7,15 @@ import type { MasonCraft, MasonryXp } from './types-masonry';
 
 // Stav vsi – JSON-serializovatelný (objekty, pole, čísla, řetězce, null).
 /**
- * Typ obydlí: zemnice, polozemnice a dvorec vojvody (trade.md – Dvorec vojvody: delší a vyšší
- * polozemnice se zdobenými štíty na pozemku dvou políček). Dvorec hráč nestaví – vznikne jen
- * přestavbou dvorce vsi (`VillageState.manorId`).
+ * Typ obydlí: zemnice, polozemnice, nadzemní dům (`srub`, log-house.md – Dům, od roku 800)
+ * a dvorec vojvody – do roku 800 `dvorec` (trade.md – Dvorec vojvody: delší a vyšší polozemnice
+ * se zdobenými štíty na pozemku dvou políček), od roku 800 nadzemní `dvorec-srub` (log-house.md –
+ * Dvorec od roku 800). Dvorec hráč nestaví – vznikne jen přestavbou dvorce vsi
+ * (`VillageState.manorId`, typ podle dne `manorTypeOn`).
  */
-export type DwellingType = 'zemnice' | 'polozemnice' | 'dvorec';
+export type DwellingType = 'zemnice' | 'polozemnice' | 'srub' | 'dvorec' | 'dvorec-srub';
 /** Obydlí, která hráč staví z nabídky staveb (dvorec ne – trade.md). */
-export type BuildableDwellingType = Exclude<DwellingType, 'dvorec'>;
+export type BuildableDwellingType = Exclude<DwellingType, 'dvorec' | 'dvorec-srub'>;
 export type FieldSurface = 'meadow' | 'shrub' | 'forest';
 export interface Position {
   x: number;

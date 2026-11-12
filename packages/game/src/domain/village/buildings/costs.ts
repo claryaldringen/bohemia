@@ -99,6 +99,12 @@ export const BUILD_COSTS: Record<BuildKind, BuildCost> = {
     perHa: false,
     upfront: { wood: DWELLING_TREES.polozemnice },
   },
+  // log-house.md – Dům: nadzemní dům (rok hlídá `dwellingYearReason`)
+  srub: {
+    laborManDays: DWELLINGS.srub.cost,
+    perHa: false,
+    upfront: { wood: DWELLING_TREES.srub },
+  },
   potter: workshopBuildCost('potter'),
   smith: workshopBuildCost('smith'),
   burner: workshopBuildCost('burner'),
