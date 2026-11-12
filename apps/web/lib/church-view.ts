@@ -3,6 +3,7 @@
 import {
   churchBlocked,
   churchCapacity,
+  churchCoverage,
   churchProgress,
   churchStartProblem,
   churchTypesFor,
@@ -16,6 +17,7 @@ import {
   type MasonCraft,
   type MasonryCircle,
   type Position,
+  LIME,
   type VillageState,
 } from '@bohemia/game';
 
@@ -37,6 +39,29 @@ export interface SceneChurch {
   progress: SceneChurchProgress;
   /** Omítnutý (výzdoba hotová); jinak holý kámen. */
   decorated: boolean;
+  /** Střecha hotová – kostel slouží (je ve `VillageState.churches`). */
+  built: boolean;
+  /** Kněz je ve vsi (jen dostavěný kostel) – svatby křesťanů se konají u kostela s knězem. */
+  priest: boolean;
+  /** Obsazené hroby na hřbitůvku (kreslí se jako mohyly s křížem). */
+  graves: number;
+  /** Staveniště: pec, vápenná jáma a písník; po dostavění chybí. */
+  site?: SceneChurchSite;
+}
+
+/** Staveniště kostela ve scéně – vápenná pec, jáma s vápnem, písník a hromady (churches.md – Stavba). */
+export interface SceneChurchSite {
+  kiln: { x: number; z: number };
+  sandPit: { x: number; z: number };
+  /** Vypálené vápno (t) – bílá hladina v jámě, když je > 0. */
+  limeT: number;
+  /** Pec hoří (dávka se pálí) – žhavý oheň a kouř. */
+  burning: boolean;
+  /** Pec už stojí (stavba pece hotová) – dřív je jen výkop. */
+  kilnBuilt: boolean;
+  /** Hromady kamene a písku u staveniště – podíl hotové práce 0–1 (lámání, kopání). */
+  stone: number;
+  sand: number;
 }
 
 const DONE: SceneChurchProgress = { foundation: 1, walls: 1, roof: 1, decor: 1 };
@@ -54,12 +79,16 @@ export function sceneChurchOf(church: Church): SceneChurch {
     position: church.position,
     progress: { ...DONE, decor: decorated ? 1 : 0 },
     decorated,
+    built: true,
+    priest: church.priestId !== undefined,
+    graves: church.graves?.length ?? 0,
   };
 }
 
 /** Staveniště kostela pro scénu – postup z hotové práce (`churchProgress`). */
 export function sceneChurchSiteOf(id: number, site: ChurchSite, position: Position): SceneChurch {
   const p = churchProgress(site);
+  const w = churchWorkProgress(site);
   return {
     id,
     type: site.type,
@@ -72,6 +101,18 @@ export function sceneChurchSiteOf(id: number, site: ChurchSite, position: Positi
       decor: thousandths(p.decor),
     },
     decorated: false,
+    built: false,
+    priest: false,
+    graves: 0,
+    site: {
+      kiln: { x: site.kiln.x, z: site.kiln.z },
+      sandPit: { x: site.sandPit.x, z: site.sandPit.z },
+      limeT: thousandths(site.limeT),
+      burning: site.burnUntilDay !== undefined,
+      kilnBuilt: site.kilnDone >= LIME.kilnBuildManDays,
+      stone: thousandths(w.quarry),
+      sand: thousandths(w.sand),
+    },
   };
 }
 
@@ -97,7 +138,20 @@ export function sceneChurches(
   const siteIds = new Set(sites.map((s) => s.id));
   return [
     ...(state.churches ?? []).filter((c) => !siteIds.has(c.id)).map(sceneChurchOf),
-    ...sites.map((s) => sceneChurchSiteOf(s.id, s.site, s.position)),
+    ...sites.map((s) => {
+      const scene = sceneChurchSiteOf(s.id, s.site, s.position);
+      const done = (state.churches ?? []).find((c) => c.id === s.id);
+      if (!done) return scene;
+      // střecha hotová, běží jen výzdoba: pec a jámy zmizely, kostel slouží (hroby, kněz)
+      const rest: SceneChurch = { ...scene };
+      delete rest.site;
+      return {
+        ...rest,
+        built: true,
+        priest: done.priestId !== undefined,
+        graves: done.graves?.length ?? 0,
+      };
+    }),
   ];
 }
 
@@ -120,6 +174,8 @@ export interface VillageChurch {
   };
   /** Kolik lidí se do lodí vejde (`churchCapacity`). */
   capacity: number;
+  /** Pokrytí vsi kostely s knězem 0–1 (`churchCoverage`, po procentech) – celé vsi, ne jen tohoto kostela. */
+  coverage: number;
   /** Hroby na hřbitůvku – obsazené a celkem (`churchyardGraves`). */
   graves: { used: number; total: number };
   /** Kněz kostela – je (true), nebo na cestě / chybí (false); jen dostavěný kostel. */
@@ -157,6 +213,7 @@ export function churchesOf(state: VillageState): { churches?: VillageChurch[] } 
           }
         : {}),
       capacity: churchCapacity(type, dims),
+      coverage: Math.round(churchCoverage(state).coverage * 100) / 100,
       graves: { used: church?.graves?.length ?? 0, total: churchyardGraves(type, dims) },
       ...(church ? { priest: church.priestId !== undefined } : {}),
     };

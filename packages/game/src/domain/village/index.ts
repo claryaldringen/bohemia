@@ -52,6 +52,7 @@ export { woolCoverage, woolNeedKg, woolSheep, woolUnhappiness } from './livestoc
 export * from './buildings/dwellings';
 export * from './people/manor';
 export * from './people/lord';
+export { churchCoverage, type ChurchCoverage } from './people/church-life';
 export * from './people/arms-caps';
 export * from './fields/abandon-parts';
 export * from './buildings/cancel-construction';

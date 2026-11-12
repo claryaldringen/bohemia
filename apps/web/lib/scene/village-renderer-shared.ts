@@ -62,6 +62,8 @@ export const CRAFT_SMOKE_SEED = 1_000_000;
 export const SLASH_SMOKE_SEED = 3_000_000;
 /** Semínka dýmu hořících domů (požár) – id obydlí nad tímto základem. */
 export const HOUSE_FIRE_SMOKE_SEED = 4_000_000;
+/** Semínka dýmu vápenné pece staveniště kostela (id stavby nad tímto základem). */
+export const CHURCH_KILN_SMOKE_SEED = 5_000_000;
 export const TUFT_MODELS: readonly TuftModel[] = ['grass-tuft-1', 'grass-tuft-2'];
 export const AMBIENT = new Color3(0.38, 0.38, 0.36);
 /** Rostliny jako dekorace krajiny (decorations.ts) – trsy u okapu jsou sytější a zelenější. */

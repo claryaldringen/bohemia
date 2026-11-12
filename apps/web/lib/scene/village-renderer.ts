@@ -27,6 +27,7 @@ import { withoutHiddenMounds, type FuneralPlan } from './funeral-plan';
 import { FuneralRenderer } from './funeral-renderer';
 import type { WeddingPlan } from './wedding-plan';
 import { WeddingRenderer } from './wedding-renderer';
+import { ChurchSiteRenderer } from './church-site-renderer';
 import { OreSiteRenderer } from './ore-sites';
 import { GrainPitRenderer } from './grain-pits';
 import { ThreshingFloorRenderer } from './threshing-floor-renderer';
@@ -120,6 +121,7 @@ import {
   CRAFT_MODEL_BASE_URL,
   CRAFT_MODEL_KEYS,
   CRAFT_SITE_FILES,
+  CHURCH_KILN_SMOKE_SEED,
   CRAFT_SMOKE_SEED,
   SLASH_SMOKE_SEED,
   HOUSE_FIRE_SMOKE_SEED,
@@ -244,6 +246,9 @@ export class VillageRenderer {
   private readonly orchards: OrchardRenderer;
   private readonly sacred: SacredRenderer;
   private readonly churches: ChurchRenderer;
+  private readonly churchSites: ChurchSiteRenderer;
+  /** Kostely vsi naposled předané scéně – dým pece staveniště. */
+  private churchList: readonly SceneChurch[] = [];
   private readonly fields: FieldRenderer;
   /** Keře a stromky na zarůstajícím přílohu a les vsi (fields.md – Zarůstání). */
   private readonly wild: WildGrowthRenderer;
@@ -347,6 +352,10 @@ export class VillageRenderer {
     });
     this.sacred = new SacredRenderer(scene, context);
     this.churches = new ChurchRenderer(scene, {
+      decalHeight: context.decalHeight,
+      addShadowCaster: (mesh) => context.addShadowCaster(mesh),
+    });
+    this.churchSites = new ChurchSiteRenderer(scene, {
       decalHeight: context.decalHeight,
       addShadowCaster: (mesh) => context.addShadowCaster(mesh),
     });
@@ -977,7 +986,11 @@ export class VillageRenderer {
   /** Pata modly nebo svatyně (duch při umisťování). */
   /** Kostely vsi (churches.md – Scéna); vrátí true, když se něco změnilo. */
   setChurches(list: readonly SceneChurch[]): boolean {
-    return this.churches.setChurches(list);
+    this.churchList = list;
+    const walls = this.churches.setChurches(list);
+    const yards = this.churchSites.update(list);
+    const smoke = this.updateSmokeSources();
+    return walls || yards || smoke;
   }
 
   sacredBaseHeight(kind: SacredBuildingKind, position: SceneDwelling['position']): number {
@@ -1004,6 +1017,7 @@ export class VillageRenderer {
     this.orchards.dispose();
     this.sacred.dispose();
     this.churches.dispose();
+    this.churchSites.dispose();
     this.penAnimals.dispose();
     this.teams.dispose();
     this.carts.dispose();
@@ -1513,6 +1527,18 @@ export class VillageRenderer {
           kind: vent.kind,
         });
       }
+    }
+    // vápenná pec staveniště kostela při pálení (churches.md – Stavba): dým jako z milíře
+    for (const church of this.churchList) {
+      if (!church.site?.burning) continue;
+      const { x, z } = church.site.kiln;
+      sources.push({
+        seed: CHURCH_KILN_SMOKE_SEED + church.id,
+        x,
+        y: this.context.groundHeight(x, z) + 0.6,
+        z,
+        kind: 'milir',
+      });
     }
     // ohniště hotových svatyní – občas dým jako z obydlí (happiness.md)
     sources.push(...this.sacred.smokeSources());

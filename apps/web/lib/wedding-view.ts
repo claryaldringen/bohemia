@@ -70,6 +70,8 @@ export interface SceneWedding {
   groom: SceneWeddingSpouse;
   home: number;
   manor?: true;
+  /** Oba z nich jsou křesťané – obřad se koná u kostela s knězem, je-li poblíž (churches.md – Svatby). */
+  christian?: true;
   guests: SceneWeddingGuest[];
   companions?: { sex: Sex; age: number }[];
 }
@@ -249,6 +251,9 @@ export function sceneWeddings(
       groom: spouse(groom, e.groomId, groomFrom, DEFAULT_AGE.groom),
       home,
       ...(isManor ? { manor: true as const } : {}),
+      ...(groom?.faith === 'christian' && bride?.faith === 'christian'
+        ? { christian: true as const }
+        : {}),
       guests: weddingGuests(state.people, own, couple, isManor, max, day, seed),
       ...(companions.length > 0 ? { companions } : {}),
     };
