@@ -163,7 +163,7 @@ test('pozvání huti a umístění kostela – křest, huť na cestě, skok v č
     .getByTestId('build-grid')
     .getByRole('button', { name: 'Rotunda se dvěma apsidami' });
   await expect(rotunda).toBeEnabled();
-  await rotunda.click();
+  await page.keyboard.press('y');
   await confirmPlacement(page, { kind: 'church', type: 'rotunda', dims, position: spot! });
 
   await expect
