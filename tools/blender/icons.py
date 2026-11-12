@@ -4,7 +4,8 @@ Celé jedním příkazem z kořene repa (Blender 5, ImageMagick `magick`, intern
 
     blender -b --factory-startup --python tools/blender/icons.py -- apps/web/public/icons [jen,vybrané,ikony]
 
-Výstup (128 × 128 PNG, průhledné rohy) – `build/` zemnice, polozemnice, dvorec (dvorec vojvody –
+Výstup (128 × 128 PNG, průhledné rohy) – `build/` zemnice, polozemnice, srub (nadzemní dům –
+log-house.md, bez jámy), dvorec (dvorec vojvody –
 trade.md), pole, hrbitov,
 hrncir, kovar, tesar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, tesař pod
 přístřeškem s kozlíky a koly – wagons.md, uhlíř s milířem), sad
@@ -323,15 +324,16 @@ def place_model(name, material_fix=None, folder=MODELS):
 # ----------------------------------------------------------------- stavby ----
 
 
-def icon_dwelling(name):
+def icon_dwelling(name, pit=True):
     objs = place_model(name)
     gr = ground(9.5, mat("g", tex=f"{TEX}/grass-dirt.jpg", scale=0.22, tint=(0.8, 0.74, 0.6)), z=0.0, fade=0.6)
-    # vykopaná hlína u jámy
-    bm = bmesh.new()
-    for i in range(7):
-        a = random.Random(i).uniform(0, 6.28)
-        blob(bm, ((math.cos(a) * 3.9 + 0.2, math.sin(a) * 1.0 + 4.2, 0.0), (0, 0, a)), (1.6, 1.0, 0.45), 10, 6)
-    mound = to_obj(bm, "spoil", mat("mud", tex=f"{TEX}/mud.jpg", scale=0.3, tint=(1.2, 0.9, 0.7)))
+    if pit:
+        # vykopaná hlína u jámy (nadzemní dům jámu ani hlínu nemá)
+        bm = bmesh.new()
+        for i in range(7):
+            a = random.Random(i).uniform(0, 6.28)
+            blob(bm, ((math.cos(a) * 3.9 + 0.2, math.sin(a) * 1.0 + 4.2, 0.0), (0, 0, a)), (1.6, 1.0, 0.45), 10, 6)
+        mound = to_obj(bm, "spoil", mat("mud", tex=f"{TEX}/mud.jpg", scale=0.3, tint=(1.2, 0.9, 0.7)))
     sun(az=-55, el=46)
     pts = world_points(objs)
     pts = [Vector((p.x, p.y, max(p.z, 0.0))) for p in pts]
@@ -2847,6 +2849,7 @@ BUILD = {
     "zemnice": lambda: icon_dwelling("zemnice"),
     "polozemnice": lambda: icon_dwelling("polozemnice"),
     "dvorec": lambda: icon_dwelling("dvorec"),
+    "srub": lambda: icon_dwelling("srub", pit=False),
     "pole": icon_pole,
     "hrbitov": icon_hrbitov,
     "hrncir": lambda: icon_craft("hrncir"),
