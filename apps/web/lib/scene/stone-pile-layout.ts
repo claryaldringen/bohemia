@@ -12,6 +12,16 @@ export const MAX_PILES_PER_STACK = 9;
 const SPACING_M = 2.6;
 /** Vylomená stěna lomu: šířka, výška a tloušťka (m); stojí za středem výchozu. */
 export const QUARRY_FACE_M = { width: 5, height: 2.4, depth: 0.8, back: 2 } as const;
+/** Poloměr půdorysu dílu modelu (m) – `tools/blender/siege.py` (`stone_pile`). */
+export const PILE_RADIUS_M = { a: 0.95, b: 1.45 } as const;
+/**
+ * Hromádky před stěnou lomu v místních osách lomu (m, stěna v −z): `broken` – nalámaný kámen
+ * u stěny (díl a), `heap` – hromada u lomu (díl b, rozestavěný lom ji nemá).
+ */
+export const QUARRY_PILES = {
+  broken: { lx: 1.4, lz: 1.2, scale: 0.8 },
+  heap: { lx: -1.3, lz: 0.8, scale: 0.9 },
+} as const;
 
 /** Díl v rovině – střed, natočení kolem svislé osy a svislé měřítko. */
 export interface PileSpot {
@@ -32,7 +42,7 @@ export interface StoneLayout {
 }
 
 /** Bod v souřadnicích modelu natočeného o `rotation` (jako `Position.rotation` obydlí) ve světě. */
-function toWorld(
+export function toWorld(
   cx: number,
   cz: number,
   rotation: number,
@@ -70,6 +80,15 @@ export function stackPieces(m3: number): { kind: 'a' | 'b'; scale: number }[] {
   return pieces;
 }
 
+/** Poloměr kruhu, do kterého se vejdou díly hromady `m3` (m; `stoneLayout`); prázdná 0. */
+export function stackRadius(m3: number): number {
+  const n = stackPieces(m3).length;
+  if (n === 0) return 0;
+  const cols = Math.min(3, n);
+  const rows = Math.ceil(n / 3);
+  return Math.hypot((cols - 1) / 2, (rows - 1) / 2) * SPACING_M + PILE_RADIUS_M.b;
+}
+
 /** Hromady kamení u cest a lomy vsi jako díly modelu. */
 export function stoneLayout(village: Pick<SceneVillage, 'stoneStacks' | 'quarries'>): StoneLayout {
   const out: StoneLayout = { a: [], b: [], faces: [] };
@@ -95,11 +114,12 @@ export function stoneLayout(village: Pick<SceneVillage, 'stoneStacks' | 'quarrie
       scale: 1,
       ...(quarry.building ? { scaleY: 0.5 } : {}),
     });
-    const [ax, az] = toWorld(x, z, rotation, 1.4, 1.2);
-    out.a.push({ x: ax, z: az, rotation: turn(quarry.outcropId, 0), scale: 0.8 });
+    const { broken, heap } = QUARRY_PILES;
+    const [ax, az] = toWorld(x, z, rotation, broken.lx, broken.lz);
+    out.a.push({ x: ax, z: az, rotation: turn(quarry.outcropId, 0), scale: broken.scale });
     if (!quarry.building) {
-      const [bx, bz] = toWorld(x, z, rotation, -1.3, 0.8);
-      out.b.push({ x: bx, z: bz, rotation: turn(quarry.outcropId, 1), scale: 0.9 });
+      const [bx, bz] = toWorld(x, z, rotation, heap.lx, heap.lz);
+      out.b.push({ x: bx, z: bz, rotation: turn(quarry.outcropId, 1), scale: heap.scale });
     }
   }
   return out;

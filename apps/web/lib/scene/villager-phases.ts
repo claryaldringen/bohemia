@@ -102,7 +102,13 @@ export type PhaseName =
   | 'lay-stone'
   | 'mix-mortar'
   | 'plaster'
-  | 'resume';
+  | 'resume'
+  // lom (churches.md – Mistři huti při práci, Lom): kameník ukazuje u stěny, jak lámat,
+  // a přisekává nalámaný kámen; odnášeč od něj kameny bere a odnáší na hromadu u lomu
+  | 'show-quarry'
+  | 'trim-stone'
+  | 'take-stone'
+  | 'stack-stone';
 
 /**
  * Role fází – kterou posloupnost fází činnost dostane (z úlohy dne a stavu vsi –
@@ -139,12 +145,16 @@ export type PhaseRole =
   | 'master-walls'
   | 'master-decor'
   | 'master-home'
+  // poddaní v lomu (villager-plan-quarry.ts): lámající u stěny a odnášeč kamenů na hromadu
+  | 'quarry-break'
+  | 'quarry-stack'
   | 'idle';
 
 /**
  * Fáze role a kde se dělá: u místa úlohy, u cizího domu (odnos – `drop`), na poli žní (`aid`),
  * před modlou či svatyní (`shrine`); mistři huti – kam se nese kámen (`haul` – pec, zeď),
- * u vápenné jámy (`pit`), u jiného místa zdí (`wall` – obchůzka stavbyvedoucího).
+ * u vápenné jámy (`pit`), u jiného místa zdí (`wall` – obchůzka stavbyvedoucího); v lomu
+ * u lámajících před stěnou (`face` – kameník ukazuje) a u hromady u lomu (`heap` – odnášeč).
  */
 type PhasePlace =
   | 'site'
@@ -157,7 +167,9 @@ type PhasePlace =
   | 'quarry'
   | 'kiln'
   | 'sand'
-  | 'manor';
+  | 'manor'
+  | 'face'
+  | 'heap';
 
 /**
  * Krok posloupnosti fází role (podíl práce v místě): `clip` – klip místo pózy úlohy (postava
@@ -196,7 +208,13 @@ const TRANSIT: Record<
   kiln: { go: 'to-kiln', come: 'back-to-site', clip: 'walk' },
   sand: { go: 'to-sand', come: 'back-to-site', clip: 'walk' },
   manor: { go: 'to-manor', come: 'back-to-site', clip: 'walk' },
+  // lom: kameník pár kroků ke stěně a zpět k nalámanému kameni, odnášeč s kamenem na hromadu
+  face: { go: null, come: 'resume', clip: 'walk' },
+  heap: { go: null, come: 'resume', clip: 'carry-stone' },
 };
+
+/** Kameník ukazuje u stěny lomu, jak lámat: postává, nebo měří latí (varianty losem). */
+const SHOW_CLIPS: readonly VillagerClip[] = [...REST_CLIPS, 'measure'];
 
 /**
  * Posloupnosti fází rolí (villagers.md – Fáze činností; podíly práce v místě – návrh Clauda,
@@ -343,11 +361,30 @@ export const PHASE_STEPS: Record<PhaseRole, readonly PhaseStep[]> = {
     { name: 'break-limestone', share: 0.25, clip: 'break-stone' },
     { name: 'slake', share: 0.2, clip: 'slake', place: 'pit' },
   ],
-  // kameník v lomu: krumpáč s přestávkou
+  // kameník v lomu (Martin 12. 11. 2026: „ať kameník neláme krumpáčem kámen v lomu – to dělají
+  // poddaní“): u nalámaného kamene ho přisekává, mezi tím ukazuje lámajícím u stěny, jak lámat
   'master-quarry': [
-    { name: 'quarry-stone', share: 0.4, clip: 'quarry' },
-    { name: 'pause', share: 0.15, variants: REST_CLIPS },
-    { name: 'quarry-stone', share: 0.45, clip: 'quarry' },
+    { name: 'trim-stone', share: 0.3, clip: 'dress' },
+    { name: 'show-quarry', share: 0.2, variants: SHOW_CLIPS, place: 'face' },
+    { name: 'trim-stone', share: 0.3, clip: 'dress' },
+    { name: 'show-quarry', share: 0.2, clip: 'measure', place: 'face' },
+  ],
+  // poddaný v lomu láme krumpáčem u stěny, chvíli si oddechne
+  'quarry-break': [
+    { name: 'work', share: 0.4 },
+    { name: 'pause', share: 0.12, variants: REST_CLIPS },
+    { name: 'work', share: 0.48 },
+  ],
+  // odnášeč: u kameníka zvedne přisekaný kámen, odnese ho v nůši na hromadu u lomu, vrátí se
+  'quarry-stack': [
+    { name: 'take-stone', share: 0.14, clip: 'lay' },
+    { name: 'stack-stone', share: 0.11, clip: 'lay', place: 'heap', carry: 'carry-stone' },
+    { name: 'take-stone', share: 0.14, clip: 'lay' },
+    { name: 'stack-stone', share: 0.11, clip: 'lay', place: 'heap', carry: 'carry-stone' },
+    { name: 'take-stone', share: 0.14, clip: 'lay' },
+    { name: 'stack-stone', share: 0.11, clip: 'lay', place: 'heap', carry: 'carry-stone' },
+    { name: 'take-stone', share: 0.14, clip: 'lay' },
+    { name: 'stack-stone', share: 0.11, clip: 'lay', place: 'heap', carry: 'carry-stone' },
   ],
   // kameník u hromady kamene: tesá kvádry, občas nese kámen ke zdi
   'master-dress': [
@@ -432,6 +469,10 @@ export interface PhasePlaces {
   kiln?: Point;
   sand?: Point;
   manor?: Point;
+  /** V lomu: u lámajících před stěnou (kameník ukazuje, jak lámat – čelem ke stěně). */
+  face?: Point;
+  /** Na okraji hromady u lomu (odnášeč skládá kámen). */
+  heap?: Point;
 }
 
 /**

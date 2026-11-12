@@ -103,6 +103,11 @@ export interface SceneFortification extends Pick<
   looks: SceneFortSegment[];
   /** Co stavba na opevnění dělá (`Construction.fortWork`); chybí – nic se nestaví. */
   work?: FortBuildWork;
+  /**
+   * Id staveb, které na opevnění běží – nosiči kamene z lomu (podíl `quarry` nese id stavby)
+   * podle nich najdou, ke které hradbě kámen nosí; chybí – nic se nestaví.
+   */
+  constructions?: number[];
   /** Brány zavřené (nájezd – válka, F6); chybí – v míru otevřené. */
   gatesClosed?: true;
   /**
@@ -411,7 +416,10 @@ export function sceneFortification(
   fort: Fortification,
   outline: FortOutline,
   looks: SceneFortSegment[],
-  extra: Pick<SceneFortification, 'building' | 'work' | 'gatesClosed' | 'gateLooks'>,
+  extra: Pick<
+    SceneFortification,
+    'building' | 'work' | 'constructions' | 'gatesClosed' | 'gateLooks'
+  >,
 ): SceneFortification {
   const shapes = fortSegments(outline);
   return {
@@ -493,6 +501,7 @@ export function sceneFortifications(
       sceneFortification(fort, outline, looks, {
         building: site !== undefined,
         ...(site?.fortWork ? { work: site.fortWork } : {}),
+        ...(sites.length > 0 ? { constructions: sites.map((c) => c.id) } : {}),
         ...(gateLooks ? { gateLooks } : {}),
       }),
     );

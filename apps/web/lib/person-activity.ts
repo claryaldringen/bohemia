@@ -145,6 +145,11 @@ export const PHASE_TEXTS: Partial<Record<PhaseName, string>> = {
   'mix-mortar': 'míchá maltu',
   plaster: 'omítá zdi',
   resume: 'vrací se k práci',
+  // lom (churches.md – Mistři huti při práci, Lom): kameník a odnášeč
+  'show-quarry': 'ukazuje, jak lámat kámen',
+  'trim-stone': 'přisekává kámen',
+  'take-stone': 'odebírá přisekané kameny',
+  'stack-stone': 'odnáší kameny na hromadu',
 };
 
 /** Mistr huti v místě práce bez fáze s vlastní větou (villager-plan-masons.ts). */
@@ -153,7 +158,7 @@ const MASTER_TEXTS: Record<MasterWork, string> = {
   site: 'řídí stavbu',
   sand: 'dohlíží na kopání písku',
   kiln: 'pálí vápno',
-  quarry: 'láme kámen',
+  quarry: 'přisekává kámen',
   dress: 'tesá kvádry',
   walls: 'klade kameny do zdi',
   decor: 'omítá zdi',
@@ -290,6 +295,7 @@ function legText(job: PersonJob, leg: 'out' | 'back'): string {
     case 'share':
       if (job.activity === 'fell') return 'jde do lesa';
       if (job.activity === 'fish') return 'jde k tůni';
+      if (job.activity === 'quarry') return 'jde do lomu';
       if (job.target.kind === 'field') return 'jde na pole';
       if (job.target.kind === 'orchard') return 'jde do sadu';
       return 'jde do práce';
@@ -308,11 +314,17 @@ function trafficText(kind: string, stage: VillagerStage | null): string {
   return stage === 'end' ? end : stage === 'back' ? back : out;
 }
 
-function fetchText(goods: 'charcoal' | 'ore' | 'clay', stage: VillagerStage | null): string {
+function fetchText(
+  goods: 'charcoal' | 'ore' | 'clay' | 'stone',
+  stage: VillagerStage | null,
+): string {
+  // nosič kamene začíná u stavby – tam kámen skládá (villager-plan-quarry.ts)
+  if (goods === 'stone' && stage === 'rest') return 'skládá kámen u stavby';
   const texts = {
     charcoal: ['jde pro uhlí k uhlíři', 'nakládá uhlí', 'nese uhlí od uhlíře'],
     ore: ['jde pro rudu', 'nakládá rudu', 'nese rudu do kovárny'],
     clay: ['jde pro hlínu', 'nakládá hlínu', 'nese hlínu do dílny'],
+    stone: ['jde pro kámen do lomu', 'nakládá kámen do nůše', 'nosí kámen na stavbu'],
   } as const;
   const [out, end, back] = texts[goods];
   return stage === 'end' ? end : stage === 'back' ? back : out;
@@ -430,7 +442,7 @@ function shareText(
     case 'clay':
       return 'kope hlínu';
     case 'quarry':
-      return 'láme kámen';
+      return job.stacker ? 'odnáší kameny na hromadu' : 'láme kámen';
     case 'grain-pit':
       return 'ukládá zrno do obilné jámy';
     case 'fetch':

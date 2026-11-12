@@ -75,6 +75,7 @@ import { trafficFigures } from './villager-plan-traffic';
 import { lordFigures } from './villager-plan-lord';
 import { priestFigures } from './villager-plan-priest';
 import { masterFigures } from './villager-plan-masons';
+import { quarryFigures } from './villager-plan-quarry';
 import { shoeingFigures } from './villager-plan-shoeing';
 import {
   anglers,
@@ -287,6 +288,12 @@ export function planVillagersWithCrew(
     });
   // řemeslníci u své dílny, pak u každé stavby aspoň jeden, pak ostatní práce vsi
   all((share) => CRAFT_ACTIVITIES.has(share.activity));
+  // lom (churches.md – Mistři huti při práci, Lom; fortifications.md – Kámen): lámající u stěny,
+  // odnášeč kamenů na hromadu a bez vozu nosiči kamene na stavbu – muži z práce vsi
+  const quarrying = quarryFigures(ctx, labor, counts);
+  labor.shares.forEach((share, s) => {
+    if (share.activity === 'quarry') counts[s] = 0;
+  });
   // porážka (diet.md – Porážka ve scéně): parta u stanoviště (slaughter-plan.ts) – lidé party
   // nedělají nic jiného, zbytek podílu porážky dělá, co dřív
   const butchering = labor.shares.flatMap((share, s) =>
@@ -344,6 +351,7 @@ export function planVillagersWithCrew(
   people.push(...firefighters);
   people.push(...priests);
   people.push(...masters);
+  people.push(...quarrying);
   const doors = new Map<number, { x: number; z: number }>();
   for (const h of ctx.homes) if (!h.pen) doors.set(h.id, doorPoint(h));
   // délky chůze rozvrhu (`scheduledLength`) – stejné dvojice míst se během dne ptají znovu
@@ -762,9 +770,9 @@ export function placer(ctx: Context, share: SceneLaborShare, count: number): Pla
       // honák a nakladač s vozem (wagons.md – Vůz): nakladač u svozu jako nosiči snopů, sekáči
       // na louce a dřevorubci u stromů; honák jde s vozem (kreslí ho cart-renderer.ts – fáze 3);
       // s uhlím a vodou (Co vozy vozí) jde posádka s vozem – nakladače nekreslí; s osivem stojí
-      // nakladač na poli jako nosiči
+      // nakladač na poli jako nosiči; vůz s kamenem z lomu zatím postavy nemá
       const crew =
-        share.job === 'charcoal' || share.job === 'water'
+        share.job === 'charcoal' || share.job === 'water' || share.job === 'stone'
           ? none
           : t.kind === 'field'
             ? carriers(ctx, share, t.id)
@@ -783,7 +791,7 @@ export function placer(ctx: Context, share: SceneLaborShare, count: number): Pla
       return drovers > 0 ? (i, who) => (i < drovers ? null : crew(i, who)) : crew;
     }
     case 'quarry':
-      // lámání a nošení kamene u lomu (fortifications.md – Kámen) – postavy zatím ne
+      // lámání a nošení kamene u lomu (fortifications.md – Kámen) – postavy dává `quarryFigures`
       return none;
     case 'ore':
       // kovář a synové od 14 let kopou rudu u jámy na rudišti (crafts.md – Uhlí a ruda kováře)

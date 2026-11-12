@@ -6,6 +6,7 @@ import { SACRED_BUILDINGS } from '@bohemia/game';
 import { hash01 } from './smoke-schedule';
 import { createVillagerPose } from './villager-motion';
 import { masterPhases } from './villager-plan-masons';
+import { quarryPhases } from './villager-plan-quarry';
 import { doorPoint, stringHash } from './villager-plan-geometry';
 import type { PhasePlaces, PhaseRole } from './villager-phases';
 import type { Context, PlannedVillager, Point } from './villager-plan-types';
@@ -101,6 +102,9 @@ export function planPhases(
         return t.kind === 'meadow' ? { role: 'load-hay' } : null;
       case 'fish':
         return { role: 'fish' };
+      case 'quarry':
+        // v lomu: lámající u stěny, odnášeč kamenů na hromadu (villager-plan-quarry.ts)
+        return quarryPhases(ctx, job, at);
       case 'idle': {
         const places = aidOf(f);
         return places ? { role: 'idle', places } : null;

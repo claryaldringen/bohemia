@@ -159,13 +159,15 @@ function wallDistance(c: SceneChurch, p: { x: number; z: number }): number {
 }
 
 describe('mistři huti při práci (villager-plan-masons.ts)', () => {
-  it('lámání v lomu: kameník u stěny lomu s krumpáčem, ostatní mistři u domu', () => {
+  it('lámání v lomu: kameník v lomu přisekává kámen (ne krumpáč), ostatní mistři u domu', () => {
     const { of } = plan(['quarry']);
     const stone = of('stonemason');
     expect(stone.f.job).toEqual({ kind: 'master', craft: 'stonemason', church: 8, work: 'quarry' });
-    expect(dist(stone.pose, QUARRY)).toBeLessThan(3);
-    expect(stone.pose.clip).toBe('quarry');
+    expect(dist(stone.pose, QUARRY)).toBeLessThan(4);
+    // lámou poddaní (villager-plan-quarry.ts) – kameník přisekává a ukazuje u stěny, jak lámat
+    expect(stone.pose.clip).toBe('dress');
     expect(stone.task?.role).toBe('master-quarry');
+    expect(stone.task?.places?.face).toBeDefined();
     // stavbyvedoucí je u staveniště při každé práci na kostele
     expect(of('builder').f.job).toMatchObject({ kind: 'master', work: 'site', church: 8 });
     for (const craft of ['limeBurner', 'mason', 'plasterer'] as const) expectHome(of(craft), craft);
@@ -231,7 +233,7 @@ describe('mistři huti při práci (villager-plan-masons.ts)', () => {
     const b = of('builder');
     expect(b.task?.role).toBe('master-site');
     const places = b.task!.places!;
-    expect(dist(places.quarry!, QUARRY)).toBeLessThan(3);
+    expect(dist(places.quarry!, QUARRY)).toBeLessThan(4);
     expect(dist(places.sand!, church(false).site!.sandPit)).toBeLessThan(3);
     // před dveřmi dvorce (dům 1 v počátku)
     expect(dist(places.manor!, { x: 0, z: 0 })).toBeLessThan(9);

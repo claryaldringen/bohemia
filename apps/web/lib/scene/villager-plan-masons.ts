@@ -17,12 +17,17 @@ import {
   stoneHeapAt,
 } from './church-site-layout';
 import { hash01 } from './smoke-schedule';
-import { QUARRY_FACE_M } from './stone-pile-layout';
 import { stand, type VillagerClip } from './villager-motion';
 import type { PhasePlaces, PhaseRole } from './villager-phases';
 import { cast, figure } from './villager-plan-cast';
 import { doorPoint, nearestFree, unit } from './villager-plan-geometry';
 import { manorDoor } from './villager-plan-lord';
+import {
+  quarryDressSpot,
+  quarryShowSpot,
+  quarryVisitSpot,
+  sceneQuarry,
+} from './villager-plan-quarry';
 import type { Context, PlannedVillager, Point } from './villager-plan-types';
 import type { MasterWork, PersonJob } from './villager-roster';
 
@@ -31,7 +36,7 @@ type MasterJob = Extract<PersonJob, { kind: 'master' }>;
 /**
  * Vzdálenosti mistrů od toho, u čeho pracují (m; návrh Clauda): zedník a štukatér těsně u zdi,
  * stavbyvedoucí kus od zdí (vidí na pomocníky), vápeník u pece a při tlučení vápence dál od ní,
- * kameník před stěnou lomu a u hromady kamene.
+ * kameník u hromady kamene (v lomu – villager-plan-quarry.ts, `QUARRY_STAND`).
  */
 export const MASTER_M = {
   /** Zedník od vnějšího obrysu zdi. */
@@ -51,9 +56,6 @@ export const MASTER_M = {
   /** Kameník od hromady kamene a od okraje písníku stavbyvedoucí. */
   heap: 0.9,
   sand: 0.8,
-  /** Kameník v lomu: kolik před stěnou lomu stojí, rozptyl napříč. */
-  quarryFront: 1,
-  quarrySpread: 2.4,
   /** Stavbyvedoucí hlásí vojvodovi: kolik před dveřmi dvorce stojí. */
   manorOut: 1.4,
   /** U dveří domu napříč od osy vchodu. */
@@ -241,22 +243,10 @@ function kilnStokeSpot(site: SceneChurchSite): Point {
   return { x: site.kiln.x + away.x * r, z: site.kiln.z + away.z * r };
 }
 
-/** Místo kameníka před stěnou lomu (lom `quarryId` – `SceneVillage.quarries`), nebo null. */
-function quarrySpot(ctx: Context, site: SceneChurchSite, person: number): MasterSpot | null {
-  const q = (ctx.village.quarries ?? []).find((v) => v.outcropId === site.quarryId);
-  if (!q) return null;
-  const cos = Math.cos(q.rotation);
-  const sin = Math.sin(q.rotation);
-  // místní osy lomu (stone-pile-layout.ts – `toWorld`): stěna za značkou v −z
-  const lx = (hash01(person, 0x9a7, 3) - 0.5) * MASTER_M.quarrySpread;
-  const lz = -QUARRY_FACE_M.back + QUARRY_FACE_M.depth / 2 + MASTER_M.quarryFront;
-  return {
-    x: q.x + lx * cos + lz * sin,
-    z: q.z - lx * sin + lz * cos,
-    hx: -sin,
-    hz: -cos,
-    clip: 'quarry',
-  };
+/** Kameník v lomu `quarryId` u nalámaného kamene – přisekává ho; lom ve scéně chybí – null. */
+function quarrySpot(ctx: Context, site: SceneChurchSite): MasterSpot | null {
+  const q = sceneQuarry(ctx, site.quarryId);
+  return q ? { ...quarryDressSpot(q), clip: 'dress' } : null;
 }
 
 /** Místo mistra u jeho práce dne (před `nearestFree`), nebo null (místo není – postává doma). */
@@ -288,7 +278,7 @@ function workSpot(
         ? facing(kilnStokeSpot(site), site.kiln, 'stoke')
         : facing(limeBreakSpot(site), site.kiln, 'break-stone');
     case 'quarry':
-      return site ? quarrySpot(ctx, site, person) : null;
+      return site ? quarrySpot(ctx, site) : null;
     case 'dress':
       return site ? dressSpot(church, site) : null;
     case 'walls':
@@ -369,7 +359,8 @@ export function masterFigures(
  * Role fází mistra huti a místa kroků jinde (villager-phases.ts; `at` = místo úlohy dne):
  * stavbyvedoucí obchází zdi k sousednímu místu, vápeník při pálení přikládá, mezi pálením nese
  * vápenec k peci a hasí vápno v jámě (jen s vápnem v jámě), kameník u hromady nese kámen k nejbližší
- * zdi; zedník, štukatér a kameník v lomu pracují na místě; doma postává.
+ * zdi, kameník v lomu chodí od nalámaného kamene ukazovat lámajícím ke stěně (`face`); zedník
+ * a štukatér pracují na místě; doma postává.
  */
 export function masterPhases(
   ctx: Context,
@@ -383,8 +374,11 @@ export function masterPhases(
       return { role: 'master-home' };
     case 'sand':
       return { role: 'master-sand' };
-    case 'quarry':
-      return { role: 'master-quarry' };
+    case 'quarry': {
+      // kameník přisekává nalámaný kámen a chodí ukazovat lámajícím ke stěně, jak lámat
+      const q = site ? sceneQuarry(ctx, site.quarryId) : null;
+      return { role: 'master-quarry', ...(q ? { places: { face: quarryShowSpot(q) } } : {}) };
+    }
     case 'walls':
       return { role: 'master-walls' };
     case 'decor':
@@ -434,8 +428,8 @@ function roundPlaces(ctx: Context, church: SceneChurch): PhasePlaces {
   const site = church.site;
   const works = churchToday(ctx)?.works ?? new Set<ChurchWork>();
   if (site) {
-    const quarry = works.has('quarry') ? quarrySpot(ctx, site, 0) : null;
-    if (quarry) places.quarry = { x: quarry.x, z: quarry.z };
+    const quarry = works.has('quarry') ? sceneQuarry(ctx, site.quarryId) : null;
+    if (quarry) places.quarry = quarryVisitSpot(quarry);
     if (works.has('lime') || site.burning) places.kiln = kilnStokeSpot(site);
     if (works.has('sand')) {
       places.sand = rimToward(site.sandPit, church.position, SAND_PIT_M.radius + MASTER_M.sand);

@@ -19,9 +19,20 @@ import { hash01 } from './smoke-schedule';
  * a pohřeb.
  */
 export type PersonJob =
-  | { kind: 'share'; activity: LaborActivity; target: LaborTarget; job?: CartJob }
+  | {
+      kind: 'share';
+      activity: LaborActivity;
+      target: LaborTarget;
+      job?: CartJob;
+      /** V lomu (podíl `quarry`): odnáší kameny od stěny na hromadu u lomu (jinak láme). */
+      stacker?: true;
+    }
   | { kind: 'traffic'; traffic: TrafficKind }
-  | { kind: 'fetch'; goods: 'charcoal' | 'ore' | 'clay' }
+  /**
+   * Nosič v nůši: uhlí, ruda a hlína kováře a hrnčíře, kámen z hromady u lomu na stavbu
+   * (villager-plan-quarry.ts – bez vozu s kamenem).
+   */
+  | { kind: 'fetch'; goods: 'charcoal' | 'ore' | 'clay' | 'stone' }
   | { kind: 'herd'; herd: number }
   | { kind: 'elder' }
   | { kind: 'caravan'; trip: SceneExpedition['trip'] | null; porter: boolean }
