@@ -6,10 +6,11 @@ import type { GrainPitDay } from '../fields/grain-pits';
 import type { DayAllocation, LaborTaskName } from './labor';
 import { villageOrchards } from '../buildings/orchard';
 import { NO_CRAFTS, harvestCarryShare } from './productivity';
-import { ROAD_APPLES, SMITH_SUPPLY } from '../rules';
+import { CHURCH_WORK_CRAFT, ROAD_APPLES, SMITH_SUPPLY } from '../rules';
 import { mowingSquaresWorked } from '../livestock/hay';
 import type {
   CartJob,
+  ChurchWork,
   Construction,
   CropWork,
   HayMowing,
@@ -43,6 +44,8 @@ export interface ConstructionWork {
   manDays: number;
   doneBefore: number;
   felledBefore: number;
+  /** Kostel: hotová práce po druzích ráno (`ChurchSite.done`) – co dnes přibylo, ukáže scéna. */
+  churchDoneBefore?: Partial<Record<ChurchWork, number>>;
 }
 
 /** Polní úloha dne: práce plodiny a kolik z ní bylo hotové před a po dnešní práci (člověkodny). */
@@ -504,7 +507,12 @@ function commonShares(book: ShareBook, state: VillageState, work: DayWork): void
   for (const c of work.constructions) {
     invested += c.manDays;
     for (const share of constructionShares(c, state)) {
+      const n = book.shares.length;
       book.add(share.activity, share.target, share.manDays, c.construction.id);
+      // kostel: na čem se dnes pracovalo (zápis podílu ho nezná)
+      if (share.churchWork && book.shares.length > n) {
+        book.shares[n] = { ...book.shares[n]!, churchWork: share.churchWork };
+      }
     }
   }
   book.add('idle', { kind: 'village' }, allocation.common - invested);
@@ -801,6 +809,13 @@ function constructionShares(work: ConstructionWork, state: VillageState): LaborS
   // bourání pracuje na místě bourané stavby
   if (c.kind === 'demolition') return penShares(work, { kind: 'site', id: c.id }, 'build');
   if (c.kind === 'repair') return c.repair ? [repairShare(c.repair, work.manDays)] : [];
+  if (c.kind === 'church') {
+    // kostel (churches.md – Stavba): na čem se dnes pracovalo – scéna podle toho postaví mistry
+    const works = churchWorksToday(work);
+    return penShares(work, { kind: 'site', id: c.id }, 'build').map((s) =>
+      s.activity === 'build' && works.length > 0 ? { ...s, churchWork: works } : s,
+    );
+  }
   // přestavba na místě pracuje u obydlí, přestavba na novém pozemku (polozemnice bez pozemku) na
   // staveništi
   const place: LaborTarget | null =
@@ -811,6 +826,16 @@ function constructionShares(work: ConstructionWork, state: VillageState): LaborS
       : { kind: 'site', id: c.id };
   if (place === null) return [];
   return penShares(work, place, 'build');
+}
+
+/** Druhy práce kostela, na které dnes došlo (rozdíl `ChurchSite.done` proti ránu), v pořadí `CHURCH_WORK_CRAFT`. */
+function churchWorksToday(work: ConstructionWork): ChurchWork[] {
+  const site = work.construction.church;
+  const before = work.churchDoneBefore;
+  if (!site || !before) return [];
+  return (Object.keys(CHURCH_WORK_CRAFT) as ChurchWork[]).filter(
+    (kind) => (site.done[kind] ?? 0) - (before[kind] ?? 0) > 1e-9,
+  );
 }
 
 /**

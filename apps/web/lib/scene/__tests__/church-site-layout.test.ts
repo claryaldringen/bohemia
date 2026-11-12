@@ -24,6 +24,7 @@ const yard: SceneChurchSite = {
   kilnBuilt: true,
   stone: 0,
   sand: 0,
+  quarryId: 7,
 };
 const church = (over: Partial<SceneChurch> = {}): SceneChurch => ({
   id: 1,

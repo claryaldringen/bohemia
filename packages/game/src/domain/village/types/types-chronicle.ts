@@ -3,7 +3,7 @@
 
 import type { ConstructionKind, LandTaker } from './types-construction';
 import type { Craft } from './types-crafts';
-import type { MasonCraft } from './types-masonry';
+import type { ChurchWork, MasonCraft } from './types-masonry';
 import type { AbandonedStructure, Crop, TileCell, UsableStructure } from './types-land';
 import type { HerdSpecies } from './types-livestock';
 import type { AwayKind, DwellingType } from './types-people';
@@ -867,6 +867,11 @@ export interface LaborShare {
    * člověka. U ostatní práce (a u rozdělení uložených dřív) chybí.
    */
   construction?: number;
+  /**
+   * Stavba kostela (churches.md – Stavba): druhy práce, na které dnes došlo (lámání, písek, vápno,
+   * zdi…) – scéna podle nich postaví mistry huti k jejich práci. U ostatní práce chybí.
+   */
+  churchWork?: ChurchWork[];
   /** Svoz a výprava s vozy (wagons.md): kolik vozů tu dnes jezdí; u ostatní práce chybí. */
   carts?: number;
   /** Z nich čtyřkoláky (svoz, kam dojedou – wagons.md, Co se vozí a na čem); chybí = žádný. */

@@ -199,6 +199,7 @@ export function build(
       manDays: amount,
       doneBefore: x.c.done,
       felledBefore: x.c.wood?.felled ?? 0,
+      ...(x.c.church ? { churchDoneBefore: { ...x.c.church.done } } : {}),
     });
     invest(state, day, x.c, amount / x.factor, completes, founding);
   };

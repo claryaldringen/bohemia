@@ -157,6 +157,17 @@ describe('stavba v simulaci', () => {
     expect(churchProgress(c.church!).walls).toBeLessThan(1);
   });
 
+  it('rozdělení práce dne ukáže, na čem se na kostele pracovalo (mistři ve scéně)', () => {
+    const s = advanceVillage(state, state.lastDay + 120, null, null);
+    const c = site(s)!;
+    const share = s.labor?.shares.find(
+      (x) => x.activity === 'build' && x.target.kind === 'site' && x.target.id === c.id,
+    );
+    expect(share?.churchWork).toContain('quarry');
+    // jen druhy, na které dnes došlo – bez zdí (vápno ještě není)
+    expect(share?.churchWork).not.toContain('walls');
+  });
+
   it('vcelku = po kouscích přes 1. 11. a 1. 4.', () => {
     const to = dayIndexOf({ year: 601, month: 5, day: 15 });
     const whole = advanceVillage(state, to, null, null);

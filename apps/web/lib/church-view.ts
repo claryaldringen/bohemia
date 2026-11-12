@@ -64,6 +64,8 @@ export interface SceneChurchSite {
   /** Hromady kamene a písku u staveniště – podíl hotové práce 0–1 (lámání, kopání). */
   stone: number;
   sand: number;
+  /** Lom, odkud se láme kámen a vápenec (id skalního výchozu – `SceneVillage.quarries`). */
+  quarryId: number;
 }
 
 const DONE: SceneChurchProgress = { foundation: 1, walls: 1, roof: 1, decor: 1 };
@@ -115,6 +117,7 @@ export function sceneChurchSiteOf(id: number, site: ChurchSite, position: Positi
       kilnBuilt: site.kilnDone >= LIME.kilnBuildManDays,
       stone: thousandths(w.quarry),
       sand: thousandths(w.sand),
+      quarryId: site.quarryId,
     },
   };
 }

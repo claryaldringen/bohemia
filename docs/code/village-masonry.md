@@ -113,6 +113,11 @@ Doména `buildings/church-build.ts` (testy `buildings/__tests__/church-build.tes
   Potřeba dne = `allocate` s neomezenou prací bez zápisu – rozdělení i potřeba počítají totéž.
   `churchMorning` (ráno v `buildDay`, `core/simulate-work-apply.ts`) přičte vypálenou dávku a naloženou dávku v sezóně dá do volné pece –
   pálení doběhne i v zimě a v den bez práce. `churchBlocked` – obor, jehož mistr chybí (panel).
+- **Rozdělení práce dne pro scénu:** `build` si u kostela zapamatuje ranní `done`
+  (`ConstructionWork.churchDoneBefore`, `core/simulate-build.ts`), `constructionShares`
+  (`core/labor-report.ts`) dá podílu `build` u staveniště `LaborShare.churchWork` – druhy práce,
+  na které dnes došlo (`churchWorksToday`, pořadí `CHURCH_WORK_CRAFT`). Simulace ho nečte; scéna
+  podle něj staví mistry k jejich práci. Lom pro kameníka nese `SceneChurchSite.quarryId`.
 - **Zkušenost:** `buildDay` si před stavbami zapamatuje `done` kostelů (`churchSitesBefore`),
   po nich `churchCraftWork` (čd po oborech `CHURCH_WORK_CRAFT`) → `gainMasonryXp(state, byCraft,
 day, villagers)`: učni (synové mistra od `LODGE.apprenticeFromAge` v jeho domácnosti) 1 čd, pak
