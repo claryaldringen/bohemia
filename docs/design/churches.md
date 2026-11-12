@@ -94,6 +94,8 @@ okruhu jako jeho druhý typ; velký karolinský kostel na našem a slovenském �
 
 ## Stavba
 
+- **Kdo staví** (Martin, 12. 11. 2026: „NPC rody ano, správce zatím ne“): hráč a NPC rody; správce
+  vsi kostel zatím nestaví.
 - Jen pokřtěný rod s **usazenou stavební hutí** ([kamenné zdivo](stone-masonry.md)); stavba stojí,
   když chybí mistr oboru (vápno bez vápeníka, zdi bez zedníka…).
 - Postup: základy a zdi (zdí se **duben–říjen**, za mrazu stojí), krov a střecha, výzdoba. Vápno
