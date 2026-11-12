@@ -118,6 +118,9 @@ Martin:
   samotná je samostatné téma.
 - **Pozvání** (návrh Clauda): jen ves s vojvodou a pokřtěným rodem; chybějícího mistra lze pozvat
   zvlášť (dorazí za 60 dní) a jen když obor není obsazený ani na cestě.
+- **NPC rod** (návrh Clauda, 12. 11. 2026 – [kostely](churches.md), NPC rod staví kostel): ves, kterou
+  řídí pokřtěný NPC rod, pozve huť sama, až má **30 lidí**; okruh padne losem ze seedu vsi. Chybějící
+  mistry zve znovu sama, všechny najednou. Hráčův správce huť nezve.
 
 ## Rozhodnutí z implementace odchodu a nových mistrů
 

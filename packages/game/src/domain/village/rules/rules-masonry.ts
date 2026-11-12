@@ -21,6 +21,8 @@ export const LODGE = {
   apprenticeFromAge: 12,
   // stone-masonry.md – Zkušenost a noví mistři: nový mistr od 600 čd zkušenosti v oboru
   masterXpManDays: 600,
+  // stone-masonry.md – Kdo zve (návrh Clauda 12. 11. 2026): NPC rod pozve huť sám, až má ves 30 lidí
+  npcMinPeople: 30,
 } as const;
 
 /** Všechny obory huti – pořadí příchodu a zobrazení (stone-masonry.md – Stavební huť). */
@@ -160,6 +162,16 @@ export const CHURCH = {
   graveM2: 2.5,
   // churches.md – Co kostel dává: hrob se po 30 letech uvolní (Martin „Ať se po čase uvolní“; 30 let – návrh Clauda)
   graveReuseYears: 30,
+  // churches.md – Stavba, NPC rod (návrh Clauda 12. 11. 2026): další kostel při pokrytí pod 0,5,
+  // kapacita lodi na dnešní lidi × 1,2, místo na louce nejvýš 12 políček od středu vsi (nejvýš
+  // 60 kontrol), bez místa znovu za rok
+  npc: {
+    coverageBelow: 0.5,
+    capacityPerPerson: 1.2,
+    searchTiles: 12,
+    checks: 60,
+    retryDays: 365,
+  },
 } as const;
 
 /** Který mistr vede kterou práci na kostele (churches.md – Stavba); stavbyvedoucí vždy. */

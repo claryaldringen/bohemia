@@ -4,6 +4,7 @@ import type { ChurchDims, ChurchType } from '../../types/types-masonry';
 import {
   churchCapacity,
   churchCost,
+  churchDimsForCapacity,
   churchFootprintWorld,
   churchLocalToWorld,
   churchParts,
@@ -98,6 +99,45 @@ describe('clampChurchDims', () => {
     expect(c.kind).toBe('long');
     const r = clampChurchDims('rotunda', { kind: 'long', width: 6, length: 8, height: 7 });
     expect(r.kind).toBe('round');
+  });
+});
+
+describe('churchDimsForCapacity', () => {
+  it('nejmenší loď, která pojme potřebu – jednolodní roste v délce, rotunda v průměru', () => {
+    for (const type of ['apse', 'chancel', 'rotunda', 'basilica'] as const) {
+      for (const need of [10, 48, 60, 120]) {
+        const dims = churchDimsForCapacity(type, need);
+        expect(churchCapacity(type, dims)).toBeGreaterThanOrEqual(need);
+        expect(clampChurchDims(type, dims)).toEqual(dims);
+        const smaller: ChurchDims =
+          dims.kind === 'round'
+            ? { ...dims, diameter: dims.diameter - 0.5 }
+            : { ...dims, length: dims.length - 0.5 };
+        const lim = CHURCH.limits;
+        const atMin =
+          dims.kind === 'round'
+            ? dims.diameter === lim.diameter.min
+            : dims.length === lim.length.min;
+        if (!atMin) expect(churchCapacity(type, smaller)).toBeLessThan(need);
+      }
+    }
+    const apse = churchDimsForCapacity('apse', 48);
+    expect(apse).toMatchObject({
+      kind: 'long',
+      width: 5,
+      height: defaultChurchDims('apse').height,
+    });
+    expect(churchDimsForCapacity('rotunda', 44)).toEqual({
+      kind: 'round',
+      diameter: 6.5,
+      height: 6,
+    });
+  });
+
+  it('nad mezí rozměrů vrátí největší loď', () => {
+    expect(churchDimsForCapacity('chancel', 100000)).toMatchObject({
+      length: CHURCH.limits.length.max,
+    });
   });
 });
 

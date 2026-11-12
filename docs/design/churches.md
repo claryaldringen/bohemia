@@ -138,6 +138,22 @@ Návrh Clauda (11. 11. 2026), čísla v `rules-masonry.ts`:
 - Kalibrace: malá rotunda (Ø 6,5 × 6 m) v zakládající vsi s hutí a lomem 300 m daleko má střechu
   za ≈ 1 rok a 9 měsíců (≈ 1 470 čd i s kácením dřeva).
 
+### NPC rod staví kostel
+
+Návrh Clauda (12. 11. 2026) k rozhodnutí Martina „NPC rody ano, správce zatím ne“; čísla
+v `rules-masonry.ts` (`CHURCH.npc`):
+
+- **Kdo:** jen ves, kterou řídí NPC rod (povýšený vesničan – [vazalství](vassalage.md)). Ves hráče
+  a hráčův správce kostel nestaví a huť nezvou.
+- **Huť a lom:** pokřtěný NPC rod pozve huť sám, až má ves 30 lidí ([kamenné zdivo](stone-masonry.md)
+  – Kdo zve); ves bez lomu si ho postaví na skalním výchozu nejblíž středu vsi.
+- **Kdy:** až jsou ve vsi všichni mistři a žádný kostel se nestaví – první kostel vždy, další, když
+  kostely s knězem pojmou méně než **polovinu** vsi.
+- **Jaký:** malý typ okruhu huti (jednolodní s kněžištěm nebo s apsidou); loď na **dnešní počet lidí
+  × 1,2** – jednolodní široká 5 m s dopočtenou délkou, rotunda dopočteným průměrem; výška výchozí.
+- **Kde:** na louce co nejblíž středu vsi (jako modla a svatyně správce), kněžištěm na východ;
+  napřed místo, které nezabere pole. Když se místo nenajde, zkusí to **znovu za rok**.
+
 ## Scéna
 
 Model kostela se skládá z rozměrů (loď, apsidy nebo kněžiště, boční lodě a atrium baziliky,

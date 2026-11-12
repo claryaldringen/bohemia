@@ -391,6 +391,36 @@ export function takenTiles(state: VillageState, day: number, landscape: Landscap
   return mask;
 }
 
+/**
+ * Volné louky (ne pod stavbou ani polem – `takenTiles`) nejvýš `radius` políček od středu vsi
+ * (`planCentre`), od nejbližšího (při shodě nižší index) – místa modly, svatyně a kostela NPC
+ * rodu. Ves bez středu žádné.
+ */
+export function meadowTilesNearCentre(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  radius: number,
+): number[] {
+  const centre = planCentre(state);
+  if (!centre) return [];
+  const size = landscape.size;
+  const half = (size * landscape.cellSizeM) / 2;
+  const cx = Math.floor((centre.x + half) / landscape.cellSizeM);
+  const cy = Math.floor((centre.z + half) / landscape.cellSizeM);
+  const taken = takenTiles(state, day, landscape);
+  const tiles: { tile: number; d: number }[] = [];
+  for (let y = Math.max(0, cy - radius); y <= Math.min(size - 1, cy + radius); y++) {
+    for (let x = Math.max(0, cx - radius); x <= Math.min(size - 1, cx + radius); x++) {
+      const tile = y * size + x;
+      if (taken[tile] || landscape.surface[tile] !== SURFACE_CODES.meadow) continue;
+      tiles.push({ tile, d: (x - cx) * (x - cx) + (y - cy) * (y - cy) });
+    }
+  }
+  tiles.sort((a, b) => a.d - b.d || a.tile - b.tile);
+  return tiles.map((t) => t.tile);
+}
+
 /** Políčka pod čtverci polí vsi (i natočených) v den `day` – seřazená, bez opakování. */
 export function fieldTiles(state: VillageState, day: number, landscape: Landscape): number[] {
   const mask = new Uint8Array(landscape.size * landscape.size);

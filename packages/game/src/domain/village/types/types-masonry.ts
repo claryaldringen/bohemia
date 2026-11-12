@@ -37,6 +37,11 @@ export interface Lodge {
   readonly hungryDays?: number;
   /** Dní v řadě se štěstím vsi pod `LODGE.leaving.happinessBelow`. */
   readonly unhappyDays?: number;
+  /**
+   * Ves NPC rodu nenašla místo pro kostel – další hledání nejdřív v tento den (`CHURCH.npc.retryDays`;
+   * `steward/npc-masonry.ts`). Ves hráče ho nemá.
+   */
+  readonly npcRetryDay?: number;
 }
 
 /**
