@@ -47,6 +47,7 @@ import {
   isStewardOn,
   relocationBlock,
   raidHiding,
+  dwellingYearReason,
 } from '@bohemia/game';
 import { churchBuildChoices, churchesOf } from './church-view';
 import { formatGameDate } from './game-date';
@@ -265,6 +266,7 @@ function buildOptions(
   state: VillageState,
   landscape: Landscape,
   coverage: CraftCoverage,
+  day: number,
 ): Record<BuildKind, BuildOption> {
   const stock = villageStock(state, obstaclesOf(landscape));
   const entries = BUILD_KINDS.map((kind): [BuildKind, BuildOption] => {
@@ -279,7 +281,13 @@ function buildOptions(
       const amount = cost.upfront[resource] ?? 0;
       return amount > 0 ? [{ resource, amount, missing: missing[resource] ?? 0 }] : [];
     });
-    const blocked = kind === 'shrine' && hasShrine(state) ? SHRINE_LIMIT : null;
+    // nadzemní dům do roku 800 zašedlý (log-house.md – Dům: „Od roku 800“)
+    const blocked =
+      kind === 'shrine' && hasShrine(state)
+        ? SHRINE_LIMIT
+        : kind === 'srub'
+          ? dwellingYearReason(kind, day)
+          : null;
     const option: BuildOption = {
       laborManDays: cost.laborManDays,
       perHa: cost.perHa,
@@ -437,7 +445,7 @@ export function buildVillageView(
     dynasty: dynastyView(state, day),
     steward: { on: isStewardOn(state), built: [...(state.steward?.built ?? [])] },
     fullHousehold: summary.fullHousehold,
-    build: buildOptions(state, landscape, summary.crafts.coverage),
+    build: buildOptions(state, landscape, summary.crafts.coverage, day),
     churchBuild: churchBuildChoices(state),
     constructions: summary.constructions.map((c) => ({
       id: c.id,

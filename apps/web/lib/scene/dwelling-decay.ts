@@ -12,7 +12,7 @@ import {
   type Position,
   type ShapeFrame,
 } from '@bohemia/game';
-import { PIT_SHAPES, shapedPit, type PitShape } from './dwelling-pit';
+import { PIT_SHAPES, hasPit, shapedPit, type PitShape } from './dwelling-pit';
 import { localToWorld, seededRandom, shapedToWorld, smoothstep } from './village-layout';
 
 /** Stupeň rozpadu: 0 celý dům, 1 sešlý, 2 propadá se, 3 zřícený. */
@@ -80,21 +80,54 @@ export const DECAY_LOOKS: Record<DecayStage, DecayLook> = {
 };
 
 /**
- * Díly decay.glb pro stupeň (konstrukce, zbylé došky, zarostlé došky); celý dům je hotový model
- * obydlí – žádné díly.
- */
-/**
  * Typ, jehož díly rozpadu a zbytku jámy (decay.glb) obydlí použije – dvorec vojvody (trade.md)
- * vlastní nemá, zbytek jámy po něm je jako po polozemnici; nadzemní dům (log-house.md) zatím
- * taky jako polozemnice (`dwellingModel`).
+ * vlastní nemá, zbytek jámy po něm je jako po polozemnici. Nadzemní srub jámu nemá
+ * (`logHouseRemains`).
  */
 export function decayModelType(type: DwellingType): 'zemnice' | 'polozemnice' {
   return type === 'zemnice' ? 'zemnice' : 'polozemnice';
 }
 
+/**
+ * Díly decay.glb pro stupeň (konstrukce, zbylé došky, zarostlé došky); celý dům je hotový model
+ * obydlí – žádné díly. Nadzemní srub díly v decay.glb nemá (`logHouseRemains`).
+ */
 export function decayModelParts(type: DwellingType, stage: DecayStage): string[] {
-  if (stage === 0) return [];
+  if (stage === 0 || !hasPit(type)) return [];
   return [`${type}-${stage}`, `${type}-${stage}-thatch`, `${type}-${stage}-moss`];
+}
+
+/** Díl staveniště nadzemního srubu, který zbyl, a o kolik věnců kmenů klesl (leží níž). */
+export interface LogHouseRemain {
+  part: string;
+  /** Posun dolů (m) – věnec ležící na kamenech místo spodního (shnilého) věnce. */
+  drop: number;
+}
+
+/** Tloušťka kmene věnců srubu (LOG_HOUSES v tools/blender/dwellings.py – t). */
+const LOG_HOUSE_LOG_M: Partial<Record<DwellingType, number>> = { srub: 0.2, 'dvorec-srub': 0.22 };
+
+/**
+ * Co zbude z nadzemního srubu (log-house.md – Scéna, návrh Clauda) – díly jeho staveniště
+ * (`<typ>-construction.glb`), žádná jáma ani prohlubeň: sešlý a propadající se srub stojí celý
+ * (null – hotový model), zřícený (stupeň 3) jsou jen základové kameny a pár věnců kmenů ležících
+ * na nich; zbytek po zániku (`overgrowth` 0–1) kameny s jedním věncem, od poloviny zarůstání jen
+ * kameny a nakonec nic. Věnce se berou od druhého a kladou o věnec níž – nejspodnější věnec nese
+ * tmavé nitro za dveřmi, které by ze zbytku trčelo. Obydlí s jámou → null.
+ */
+export function logHouseRemains(
+  type: DwellingType,
+  stage: DecayStage | 'ruin',
+  overgrowth = 0,
+): LogHouseRemain[] | null {
+  const log = LOG_HOUSE_LOG_M[type];
+  if (log === undefined || stage === 0 || stage === 1 || stage === 2) return null;
+  const stones: LogHouseRemain = { part: `${type}-stones`, drop: 0 };
+  const course = (k: number): LogHouseRemain => ({ part: `${type}-logs-${k}`, drop: log });
+  if (stage === 3) return [stones, course(2), course(3), course(4)];
+  const g = Math.min(1, Math.max(0, overgrowth));
+  if (g < 0.5) return [stones, course(2)];
+  return g < 0.9 ? [stones] : [];
 }
 
 // --- zbytek jámy po zaniklém obydlí -----------------------------------------------------
@@ -306,9 +339,9 @@ const HOUSE_NETTLES_M: Record<DwellingType, { x: number; z: number }> = {
   zemnice: { x: 3.0, z: 2.9 },
   polozemnice: { x: 3.05, z: 3.0 },
   dvorec: { x: 3.3, z: 5.4 },
-  // nadzemní dům a dvorec od roku 800 zatím model polozemnice a dvorce (`dwellingModel`)
-  srub: { x: 3.05, z: 3.0 },
-  'dvorec-srub': { x: 3.3, z: 5.4 },
+  // nadzemní srub – za okapem a za zadním štítem (střecha vzadu přečnívá jen 0,45 m)
+  srub: { x: 3.15, z: 3.55 },
+  'dvorec-srub': { x: 4.1, z: 6.4 },
 };
 
 /**

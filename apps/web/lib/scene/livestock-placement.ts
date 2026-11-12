@@ -247,7 +247,7 @@ export interface LivestockPlan {
 
 /** Slepic na hotové obydlí – řemeslné dílny později podle základního typu (Martin). */
 export function chickensFor(type: DwellingType): number {
-  return type === 'polozemnice' ? 3 : 2;
+  return type === 'polozemnice' || type === 'srub' ? 3 : 2;
 }
 
 /** Na domácnost (obývané obydlí): ovce, kozy, prasata; krávy na dvě domácnosti. */

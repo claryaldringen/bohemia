@@ -22,9 +22,9 @@ export const FIRE_HANDOVER_M = FIRE.firefighting.handoverM;
 const HOUSE_CLEAR_M = {
   zemnice: 4.2,
   polozemnice: 4.6,
-  srub: 4.6,
+  srub: 4.9,
   dvorec: 6.5,
-  'dvorec-srub': 6.5,
+  'dvorec-srub': 7.4,
 } as const;
 /** Podávání: o kolik stojí člověk stranou od osy řady (m, střídavě vlevo a vpravo). */
 const PASS_SIDE_M = 0.45;

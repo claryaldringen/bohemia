@@ -555,13 +555,13 @@ describe('buildVillageView', () => {
         blocked: null,
         affordable: false,
       },
-      // nadzemní dům (log-house.md) – rok hlídá server a zašedne ho nabídka (`dwellingYearReason`)
+      // nadzemní dům (log-house.md) – do roku 800 zašedlý (`dwellingYearReason`)
       srub: {
         laborManDays: 300,
         perHa: false,
         perSquare: false,
         upfront: [{ resource: 'wood', amount: 28, missing: 28 }],
-        blocked: null,
+        blocked: 'Od roku 800',
         affordable: false,
       },
       field: free(100, { perHa: true }),
@@ -754,6 +754,20 @@ describe('buildVillageView', () => {
     const short = buildVillageView(record(s), landscape, DAY).build.zemnice;
     expect(short.affordable).toBe(false);
     expect(short.upfront[0]).toEqual({ resource: 'wood', amount: 7, missing: 2 });
+  });
+
+  it('nadzemní dům je do roku 800 zašedlý „Od roku 800“, od 1. 1. 800 povolený (log-house.md)', () => {
+    const s = settled();
+    s.woodLogs = 40;
+    const before = buildVillageView(record(s), landscape, DAY).build.srub;
+    expect(before.blocked).toBe('Od roku 800');
+    expect(before.affordable).toBe(false);
+    expect(before.upfront).toEqual([{ resource: 'wood', amount: 28, missing: 0 }]);
+    const day800 = dayIndexOf({ year: 800, month: 1, day: 1 });
+    const late = { ...s, lastDay: day800 };
+    const after = buildVillageView(record(late), landscape, day800).build.srub;
+    expect(after.blocked).toBeNull();
+    expect(after.affordable).toBe(true);
   });
 
   it('s dostavěnou zemnicí: domácnost s věky obyvatel', () => {

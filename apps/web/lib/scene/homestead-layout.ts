@@ -15,6 +15,7 @@ import {
   rotationCosSin,
   rotationTurn,
   shapeRect,
+  type DwellingType,
   type PlotVariant,
   type Position,
   type ShapeFrame,
@@ -129,6 +130,22 @@ const PLANT_ROWS_M = [-0.2, 0.2] as const;
 export const HOUSE_RECT_M = { halfX: 3.35, front: 3.5, back: 3.35 } as const;
 /** Dvorec vojvody (dwellings.py – DVOREC_*): okap 2,78 m s valy, střecha 5,25 m od středu. */
 const MANOR_HOUSE_RECT_M = { halfX: 3.55, front: 5.7, back: 5.6 } as const;
+/**
+ * Nadzemní dům a srubový dvorec (log-house.md – LOG_HOUSES v dwellings.py): okap 2,75 / 3,75 m,
+ * střecha vpředu 3,55 / 6,1 m a vzadu 3,2 / 6,1 m od středu, kozy kousek dál – návrh Clauda.
+ */
+const LOG_HOUSE_RECT_M = { halfX: 3.35, front: 3.85, back: 3.45 } as const;
+const LOG_MANOR_RECT_M = { halfX: 4.2, front: 6.45, back: 6.45 } as const;
+
+/** Obdélník domu na pozemku podle typu obydlí (dvorec – pozemek se dvorem). */
+function houseRectOf(
+  square: PlotSquare,
+  type: DwellingType,
+): { halfX: number; front: number; back: number } {
+  if (type === 'dvorec-srub') return LOG_MANOR_RECT_M;
+  if (square.yard) return MANOR_HOUSE_RECT_M;
+  return type === 'srub' ? LOG_HOUSE_RECT_M : HOUSE_RECT_M;
+}
 /** Udusaný dvorek před dveřmi a cestička k brance (m). */
 const YARD_M = { halfX: 1.9, depth: 1.7 } as const;
 const PATH_HALF_M = 0.75;
@@ -263,13 +280,16 @@ export function homesteadLayout(
   seed = 0,
   actualHouse?: Position,
   plainShape = false,
+  type: DwellingType = 'polozemnice',
 ): HomesteadLayout {
   // dům podle varianty rozměrů (population.md – Varianty rozměrů) – z polohy ve světě, i u
   // natočeného pozemku (rozmístění v jeho osách dostane hotové zobrazení)
-  const frame = houseFrame(square, variant, actualHouse ?? plotHouse(square, variant), plainShape);
+  const house = actualHouse ?? plotHouse(square, variant);
+  const frame = houseFrame(square, variant, house, plainShape, type);
+  const rect = houseRectOf(square, type);
   const axes = plotAxes(square);
-  if (axes) return turnedLayout(square, axes, variant, seed, actualHouse, frame);
-  return flatLayout(square, variant, seed, actualHouse, frame);
+  if (axes) return turnedLayout(square, axes, variant, seed, actualHouse, frame, rect);
+  return flatLayout(square, variant, seed, actualHouse, frame, rect);
 }
 
 /** Zobrazení tvaru domu na pozemku – dvorec (pozemek se dvorem) variantu nemá. */
@@ -278,9 +298,10 @@ export function houseFrame(
   variant: PlotVariant,
   house: Position,
   plainShape = false,
+  type: DwellingType = 'polozemnice',
 ): ShapeFrame {
   if (square.yard) return PLAIN_FRAME;
-  return dwellingFrame({ type: 'polozemnice', position: house, plot: { variant }, plainShape });
+  return dwellingFrame({ type, position: house, plot: { variant }, plainShape });
 }
 
 /** Pozemek v osách světa (bez natočení) s hotovým zobrazením tvaru domu. */
@@ -290,11 +311,11 @@ function flatLayout(
   seed: number,
   actualHouse: Position | undefined,
   frame: ShapeFrame,
+  houseRect: { halfX: number; front: number; back: number },
 ): HomesteadLayout {
   const house = actualHouse ?? plotHouse(square, variant);
   const fenceRect = plotFenceRect(square);
   // dvorec vojvody (trade.md): větší dům, brána na vzdálené straně dvora
-  const houseRect = square.yard ? MANOR_HOUSE_RECT_M : HOUSE_RECT_M;
   const style = square.yard ? MANOR_FENCE : PLOT_FENCE;
   // vchod míří do (sin r, cos r) – branka na straně plotu, kam vchod míří (u varianty vpředu, −z)
   const door = shapedToWorld(house, frame, 0, houseRect.front);
@@ -431,6 +452,7 @@ function turnedLayout(
   seed: number,
   actualHouse: Position | undefined,
   frame: ShapeFrame,
+  houseRect: { halfX: number; front: number; back: number },
 ): HomesteadLayout {
   const rotation = square.rotation!;
   const local = unturned(square);
@@ -440,7 +462,7 @@ function turnedLayout(
         return { x, z, rotation: actualHouse.rotation - rotation };
       })()
     : undefined;
-  const layout = flatLayout(local, variant, seed, houseLocal, frame);
+  const layout = flatLayout(local, variant, seed, houseLocal, frame, houseRect);
   const [c, s] = axes;
   const point = (p: Point): Point => plotToWorld(square, axes, p);
   const turn = (x: number, z: number): [number, number] => [x * c + z * s, -x * s + z * c];

@@ -8,10 +8,10 @@ import type { Scene } from '@babylonjs/core/scene';
 import {
   dateOfDayIndex,
   DRAFT_OXEN,
-  isManorType,
   OFFICIAL_WORLD,
   realTimeOf,
   threshingFloorFootprint,
+  type DwellingType,
   type ObstacleLayer,
   type SacredBuildingKind,
   type WorldClock,
@@ -40,13 +40,16 @@ import {
   decayModelParts,
   decayModelType,
   decayNettles,
+  logHouseRemains,
   ruinHollowData,
+  type DecayStage,
+  type LogHouseRemain,
   ruinHollowY,
   ruinLook,
   ruinPitShape,
 } from './dwelling-decay';
 import { eaveTufts, smokeVent, type TuftModel } from './dwelling-decor';
-import { pitShapeOf, type PitCut } from './dwelling-pit';
+import { hasPit, pitShapeOf, type PitCut } from './dwelling-pit';
 import { FieldRenderer } from './field-renderer';
 import type { Track } from './track-mask';
 import type { HayMeadow } from './hay-meadows';
@@ -81,12 +84,7 @@ import { ChurchRenderer } from './church-renderer';
 import type { SceneChurch } from '../church-view';
 import type { SlaughterPlan } from './slaughter-plan';
 import { SlaughterRenderer } from './slaughter-renderer';
-import {
-  ROUND_SITE_M,
-  constructionState,
-  dwellingModel,
-  sitePropPlace,
-} from './village-construction';
+import { ROUND_SITE_M, constructionState, sitePropPlace } from './village-construction';
 import {
   decalGrid,
   dwellingHideShape,
@@ -141,8 +139,10 @@ import {
   KILN_REMNANT_COLOR,
   KILN_REMNANT_RADIUS_M,
   LIFT,
-  MANOR_MODEL_URL,
-  MANOR_SITE_URL,
+  LAZY_DWELLING_TYPES,
+  isLazyDwelling,
+  lazyDwellingUrls,
+  type LazyDwellingType,
   MODEL_BASE_URL,
   ModelKey,
   RuinView,
@@ -209,8 +209,11 @@ export class VillageRenderer {
   /** Modely dílen a milíře se načítají, až jsou potřeba (dílna ve vsi, duch při umisťování). */
   private craftLoading: Promise<void> | null = null;
   private craftSiteLoading: Promise<void> | null = null;
-  /** Dvorec vojvody (trade.md) – model a díly staveniště se načtou až s prvním dvorcem. */
-  private manorLoading: Promise<void> | null = null;
+  /**
+   * Dvorec vojvody (trade.md), nadzemní dům a srubový dvorec (log-house.md) – model a díly
+   * staveniště se načtou až s prvním takovým obydlím ve vsi nebo s duchem při umisťování.
+   */
+  private readonly lazyLoading = new Map<LazyDwellingType, Promise<void>>();
   private readonly tufts = new Map<TuftModel, Mesh | null>();
   /** Pozemky polozemnic – plot, záhony a cestička (homestead.ts). */
   private readonly plots: HomesteadRenderer;
@@ -889,6 +892,7 @@ export class VillageRenderer {
     if (type === 'idol' || type === 'shrine') return this.sacred.ghostModel(type);
     if (isCraftModel(type)) void this.loadCraftModels();
     else void this.loadModels();
+    if (isLazyDwelling(type)) void this.loadLazyDwelling(type);
     return this.ghosts.get(type) ?? null;
   }
 
@@ -899,26 +903,31 @@ export class VillageRenderer {
   }
 
   /**
-   * Načte model dvorce vojvody a díly jeho staveniště (jednou – trade.md); po načtení se ves
-   * překreslí.
+   * Načte model obydlí z `LAZY_DWELLING_TYPES` a díly jeho staveniště (jednou – dvorec vojvody,
+   * nadzemní dům, srubový dvorec); po načtení se ves překreslí.
    */
-  loadManorModels(): Promise<void> {
-    this.manorLoading ??= (async () => {
-      await this.loadModel('dvorec', MANOR_MODEL_URL);
+  private loadLazyDwelling(type: LazyDwellingType): Promise<void> {
+    const loading = this.lazyLoading.get(type);
+    if (loading) return loading;
+    const urls = lazyDwellingUrls(type);
+    const promise = (async () => {
+      await this.loadModel(type, urls.model);
       try {
         const parts = await loadModelParts(
           this.scene,
-          MANOR_SITE_URL,
+          urls.site,
           'village-site-',
           prepareDwellingMaterial,
         );
         for (const [name, mesh] of parts ?? []) {
+          // díly nadzemního domu dostanou kosti variant rozměrů, dvorce ne (shapeableAs)
+          shapeableAs(mesh, name);
           mesh.setEnabled(false);
           this.context.addShadowCaster(mesh);
           this.siteParts.set(name, mesh);
         }
       } catch (error) {
-        console.warn('Díly staveniště dvorce se nepodařilo načíst.', error);
+        console.warn(`Díly staveniště ${type} se nepodařilo načíst.`, error);
       }
       if (this.disposed) return;
       this.builtKey = '';
@@ -927,7 +936,41 @@ export class VillageRenderer {
       this.updateConstruction();
       this.context.onAsyncChange();
     })();
-    return this.manorLoading;
+    this.lazyLoading.set(type, promise);
+    return promise;
+  }
+
+  /**
+   * Zbytky nadzemních srubů (`logHouseRemains`, log-house.md – Scéna): zřícený prázdný srub
+   * a zbytek po zániku – díly staveniště v instancích (`updateConstruction`).
+   */
+  private logHouseRemainViews(): {
+    key: string;
+    at: SceneDwelling | SceneRuin;
+    parts: LogHouseRemain[];
+  }[] {
+    const views: { key: string; at: SceneDwelling | SceneRuin; parts: LogHouseRemain[] }[] = [];
+    for (const d of this.village.dwellings) {
+      const parts = d.built && !d.craft ? logHouseRemains(d.type, dwellingDecay(d)) : null;
+      if (parts && parts.length > 0) views.push({ key: `r${dwellingKey(d)}`, at: d, parts });
+    }
+    for (const r of this.village.ruins ?? []) {
+      const parts = logHouseRemains(r.type, 'ruin', r.overgrowth);
+      if (parts && parts.length > 0) views.push({ key: ruinKey(r), at: r, parts });
+    }
+    return views;
+  }
+
+  /** Kreslí srub stupně `stage` místo hotového modelu zbytky (díly staveniště už jsou načtené)? */
+  private remainsShown(type: DwellingType, stage: DecayStage): boolean {
+    return logHouseRemains(type, stage) !== null && this.siteParts.has(`${type}-stones`);
+  }
+
+  /** Načte modely obydlí ve vsi, které se nenačítají hned (`LAZY_DWELLING_TYPES`). */
+  private loadLazyDwellings(dwellings: readonly Pick<SceneDwelling, 'type' | 'craft'>[]): void {
+    for (const type of LAZY_DWELLING_TYPES) {
+      if (dwellings.some((d) => !d.craft && d.type === type)) void this.loadLazyDwelling(type);
+    }
   }
 
   /** Načte modely řemeslných dílen a milíře (jednou); po načtení se ves překreslí. */
@@ -1271,7 +1314,8 @@ export class VillageRenderer {
       const state = dwelling.built
         ? null
         : constructionState(siteKind(dwelling), dwelling.progress);
-      const dug = !state || state.pitDepth > 0;
+      // nadzemní srub stojí na zemi – terén pod ním zůstává celý (log-house.md – Scéna)
+      const dug = hasPit(dwelling.type) && (!state || state.pitDepth > 0);
       // dílna uhlíře je jen zemnice – milíř je samostatná stavba u skácených buků (crafts.md –
       // Milíř u skácených buků, `updateKilns`)
       const meshes = state
@@ -1302,7 +1346,7 @@ export class VillageRenderer {
   private updatePitCuts(): void {
     const cuts: PitCut[] = [];
     for (const view of this.dwellings.values()) if (view.cut) cuts.push(view.cut);
-    for (const view of this.ruins.values()) cuts.push(view.cut);
+    for (const view of this.ruins.values()) if (view.cut) cuts.push(view.cut);
     this.context.pitCuts.set(cuts);
   }
 
@@ -1321,11 +1365,15 @@ export class VillageRenderer {
       if (current?.key === key) continue;
       changed = true;
       if (current) for (const mesh of current.meshes) mesh.dispose();
+      // po nadzemním srubu prohlubeň nezbude – jen kameny a kmeny (`logHouseRemains`)
+      const pit = hasPit(ruin.type);
       this.ruins.set(id, {
         key,
         ruin,
-        meshes: [this.ruinHollow(ruin)],
-        cut: { position: ruin.position, shape: ruinPitShape(ruin.type, sceneFrame(ruin)) },
+        meshes: pit ? [this.ruinHollow(ruin)] : [],
+        cut: pit
+          ? { position: ruin.position, shape: ruinPitShape(ruin.type, sceneFrame(ruin)) }
+          : null,
         shape: houseHideShape(ruin),
       });
     }
@@ -1436,7 +1484,7 @@ export class VillageRenderer {
         scale: 1,
         shape: frame,
       };
-      if (look.beams) {
+      if (look.beams && hasPit(r.type)) {
         push(`${decayModelType(r.type)}-${look.beams}`, { ...floor, y: base - look.depth });
       }
       const nettles = decayNettles(
@@ -1585,19 +1633,21 @@ export class VillageRenderer {
     const sacredSites = (this.village.sacred?.buildings ?? []).filter((b) => !b.built);
     // milíře u dílen i v lese, které se chystají, nebo se rozebírají (koše na uhlí)
     const kilnSites = this.kilnPlaces().filter((k) => k.look.site !== null || k.look.baskets);
+    const remains = this.logHouseRemainViews();
     const key = [
       ...sites.map(dwellingKey),
       ...sacredSites.map(sacredBuildingKey),
       ...kilnSites.map((k) => k.key),
+      ...remains.map((r) => r.key),
     ].join(';');
     if (key === this.siteKey) return false;
-    if (sites.length > 0 || sacredSites.length > 0 || kilnSites.length > 0) {
+    if (sites.length > 0 || sacredSites.length > 0 || kilnSites.length > 0 || remains.length > 0) {
       void this.loadConstruction();
     }
     if (sites.some((d) => d.craft) || kilnSites.some((k) => k.look.site !== null)) {
       void this.loadCraftConstruction();
     }
-    if (sites.some((d) => isManorType(d.type))) void this.loadManorModels();
+    this.loadLazyDwellings([...sites, ...remains.map((r) => r.at)]);
     if (!this.siteLoading) return false;
     this.siteKey = key;
     const instances = new Map<string, ModelInstance[]>();
@@ -1634,6 +1684,19 @@ export class VillageRenderer {
           z,
           rotationY: rotationY + place.rotation,
           scale,
+        });
+      }
+    }
+    for (const { at, parts } of remains) {
+      const base = this.baseHeight(at);
+      for (const { part, drop } of parts) {
+        push(part, {
+          x: at.position.x,
+          y: base - drop,
+          z: at.position.z,
+          rotationY: at.position.rotation,
+          scale: 1,
+          shape: sceneFrame(at),
         });
       }
     }
@@ -1765,7 +1828,7 @@ export class VillageRenderer {
     if (key === this.builtKey) return false;
     if (built.length > 0 || kilns.length > 0) void this.loadModels();
     if (built.some((d) => d.craft) || kilns.length > 0) void this.loadCraftModels();
-    if (built.some((d) => isManorType(d.type))) void this.loadManorModels();
+    this.loadLazyDwellings(built);
     if (!this.loading) return false;
     this.builtKey = key;
     const instances = new Map<ModelKey, ModelInstance[]>();
@@ -1777,8 +1840,10 @@ export class VillageRenderer {
     // rozpadlé obydlí kreslí díly rozpadu (updateDecay) – hotový model jen do jejich načtení
     const decayReady = this.decayParts.size > 0;
     for (const d of built) {
-      if (decayReady && dwellingDecay(d) > 0) continue;
-      push(d.craft ? CRAFT_MODEL[d.craft] : dwellingModel(d.type), {
+      const stage = dwellingDecay(d);
+      // zřícený nadzemní srub kreslí jeho zbytky z dílů staveniště (`logHouseRemains`)
+      if (hasPit(d.type) ? decayReady && stage > 0 : this.remainsShown(d.type, stage)) continue;
+      push(d.craft ? CRAFT_MODEL[d.craft] : d.type, {
         x: d.position.x,
         y: this.baseHeight(d),
         z: d.position.z,

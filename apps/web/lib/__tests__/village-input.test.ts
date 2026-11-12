@@ -93,6 +93,12 @@ describe('ověření vstupu server actions vsi', () => {
       type: 'polozemnice',
       position: dwelling,
     });
+    expect(parsePlaceDwellingInput({ type: 'srub', position: dwelling })).toEqual({
+      type: 'srub',
+      position: dwelling,
+    });
+    // dvorec hráč nestaví (trade.md, log-house.md – Dvorec od roku 800)
+    expect(parsePlaceDwellingInput({ type: 'dvorec-srub', position: dwelling })).toBeNull();
     expect(parsePlaceDwellingInput({ type: 'hrad', position: dwelling })).toBeNull();
     // pozemek polozemnice: celočíselné políčko a známá varianta (přebytečné klíče zahodí)
     const plot = { cell: { x: 4, y: 7, z: 1 }, variant: 'back-left' };

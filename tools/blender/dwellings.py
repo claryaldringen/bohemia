@@ -974,7 +974,8 @@ def build_dvorec_gate(b):
 # podél osy Y, přední dveře v -Y (jako polozemnice a dvorec; v glTF a ve scéně při natočení 0
 # míří do +Z). Půdorys včetně přesahů kmenů na nárožích: srub 5 × 6 m (napříč × podél hřebene),
 # dvorec-srub 7 × 11 m (síň vepředu, komora vzadu, dvoje dveře – přední do síně, zadní do komory).
-# Střecha přečnívá před štíty o `overhang`. Jámu ani šíji nemají – scéna je nekreslí.
+# Střecha přečnívá před přední štít o `overhang`, před zadní o `back_overhang` (bez něj stejně).
+# Jámu ani šíji nemají – scéna je nekreslí.
 LOG_OVER = 0.25  # o kolik přečnívají konce kmenů na nárožích (m)
 LOG_HOUSES = {
     "srub": dict(
@@ -984,6 +985,9 @@ LOG_HOUSES = {
         doors=(-1,),  # strany se dveřmi: −1 vpředu (−Y), +1 vzadu
         slope=0.9, th=0.32, x_eave=2.75, overhang=0.8, kozy=(1.7, 0.6), ny=6, wide=False,
         manor=False, n_rafters=5, post_ys=2,
+        # vzadu kratší přesah (≤ 0,5 m): v zadních rohových variantách pozemku je zadní stěna
+        # 6,2 m od středu políčka a plot na 7,0 m – střecha nesmí přečnívat přes plot
+        back_overhang=0.45,
     ),
     "dvorec-srub": dict(
         o=(3.2, 5.2), t=0.22, n=9, base=0.28, door_cut=8, doors=(-1, 1),
@@ -1035,6 +1039,27 @@ def log_foundation(b, ox, oy, doors):
         boulder(b, 0.0, sy * (oy + 0.6), 0.55, 0.38, 0.14, 50 + sy)
 
 
+class ShiftedParts:
+    """part(klíč), jehož nové vrcholy se po `apply()` posunou o dy podél hřebene (osa Y) –
+    nesouměrná střecha nadzemního domu. Klíče ve `skip` se neposouvají (sloupy krovu stojí na
+    stěnách). `apply()` hned po stavbě střechy, než do týchž dílů přibude něco dalšího."""
+
+    def __init__(self, part, dy, skip=()):
+        self.part, self.dy, self.skip, self.marks = part, dy, set(skip), {}
+
+    def __call__(self, key):
+        b = self.part(key)
+        if key not in self.skip:
+            self.marks.setdefault(key, (b, len(b.verts)))
+        return b
+
+    def apply(self):
+        for b, start in self.marks.values():
+            for v in b.verts[start:]:
+                v.y += self.dy
+        self.marks = {}
+
+
 def build_log_house(part, kind, stages=False):
     """Nadzemní dům (kind „srub“) nebo srubový dvorec („dvorec-srub“). Části podle fází stavby:
     stakes (kolíky), stones (základové kameny), logs-1 … logs-N (věnce kmenů), doors (ostění),
@@ -1049,7 +1074,9 @@ def build_log_house(part, kind, stages=False):
     z_top = base + n * t  # horní hrana podélných (okapních) věnců
     t_v = th * math.sqrt(1 + slope * slope)  # svislá tloušťka došků (th je kolmá)
     z_ridge = z_top + t_v + slope * ox  # spodní plocha střechy sedí na hraně stěny
-    half_len = oy + g["overhang"]
+    front, back = g["overhang"], g.get("back_overhang", g["overhang"])
+    half_len = oy + (front + back) / 2  # střecha od −(oy + front) po oy + back
+    roof = ShiftedParts(part, (back - front) / 2, skip=("posts",))
     door_open_top = base + m * t - t / 2  # horní hrana otvoru dveří (spodek prvního plného věnce)
 
     # kameny pod stěnami
@@ -1096,13 +1123,14 @@ def build_log_house(part, kind, stages=False):
         b.beam((-0.72 if g["manor"] else -0.62, yf, zl), (0.72 if g["manor"] else 0.62, yf, zl), 0.12)
 
     # vaznice (pozednice) pod střechou
-    b = part("plates")
+    b = roof("plates")
     for sgn in (-1, 1):
         b.beam((sgn * (ox - t / 2), -half_len + 0.08, z_top + 0.07), (sgn * (ox - t / 2), half_len - 0.08, z_top + 0.07), 0.16)
 
-    z_in = thatch_roof(part, half_len, z_ridge, slope, x_eave, th, ny=g["ny"], kozy=g["kozy"], wide=g["wide"])
+    z_in = thatch_roof(roof, half_len, z_ridge, slope, x_eave, th, ny=g["ny"], kozy=g["kozy"], wide=g["wide"])
     if g["manor"]:
-        horse_heads(part("carving"), half_len, z_ridge, slope, g["kozy"])
+        horse_heads(roof("carving"), half_len, z_ridge, slope, g["kozy"])
+    roof.apply()
 
     apex = z_in(0)
     zv = apex - (0.5 if not g["manor"] else 0.7)  # nad zv tmavý dýmník
@@ -1142,7 +1170,8 @@ def build_log_house(part, kind, stages=False):
     if stages:
         stakes_and_string(part("stakes"), [(-ox, oy), (ox, oy), (ox, -oy), (-ox, -oy)])
         yp = (-(oy - t / 2), oy - t / 2) if g["post_ys"] == 2 else (-(oy - t / 2), 0.0, oy - t / 2)
-        ridge_frame(part, yp, z_top + 0.1, apex, half_len, slope, x_eave, z_in, n_rafters=g["n_rafters"])
+        ridge_frame(roof, yp, z_top + 0.1, apex, half_len, slope, x_eave, z_in, n_rafters=g["n_rafters"])
+        roof.apply()
         b = part("posts")
         for y in yp:  # příčný trám, na kterém sloup stojí
             b.beam((-(ox - t / 2), y, z_top + 0.04), (ox - t / 2, y, z_top + 0.04), 0.15)
