@@ -3,7 +3,8 @@ import { dayIndexOf } from '../../../../calendar';
 import { foundVillage } from '../../../core/actions';
 import { advanceVillage } from '../../../core/simulate';
 import { migrateVillage } from '../../../core/migrations';
-import { cartTripManDays, stoneCartOffer } from '../../../crafts/cart-jobs';
+import { cartTripManDays, stoneCartOffer, type CartDrives } from '../../../crafts/cart-jobs';
+import { jobsDemand, stoneDemand } from '../../../core/simulate-hauls';
 import {
   churchMaterials,
   churchQuarryLeft,
@@ -184,7 +185,6 @@ describe('vůz s kamenem v simulaci (kostel)', () => {
     // zakázka do zásoby láme a nosí v nůších (vůz by se jí vyplatil – lom 400 m od dvorce)
     const order = next.constructions.find((c) => c.kind === 'quarrying')!;
     expect(order.done).toBeGreaterThan(0);
-    expect(order.stoneCart).toBeUndefined();
     expect(shares(next, 'quarry').some((x) => x.construction === order.id)).toBe(true);
     const noCart = structuredClone(ordered.state);
     delete noCart.carts;
@@ -313,5 +313,62 @@ describe('převod staveniště kostela (church-quarry-carry)', () => {
     const ctx = { obstacles: null, landscape: null };
     expect(church(migrateVillage(old, ctx))!.church).toEqual(migrated.church);
     expect(withChurchQuarryDistance(s)).toBe(s);
+  });
+});
+
+describe('vůz s kamenem – vyjeté cesty a poptávka po vozech', () => {
+  const withRoads = (s: VillageState): VillageState => {
+    s.roads = { nextId: 1, roads: [], trees: [], labor: { from: DAY, days: 0, shares: [] } };
+    return s;
+  };
+
+  it('jízdy kamene se zapíšou do ročního provozu cest po trase lom – stavba', () => {
+    const start = withRoads(churchVillage(true));
+    const next = advanceVillage(start, DAY + 1, null, null);
+    const days = next.lastDay - start.lastDay;
+    const day = next.labor!.shares.filter((x) => x.job === 'stone' && x.activity === 'haul');
+    expect(day).toHaveLength(1);
+    const trips = next.roads!.labor.cart ?? [];
+    expect(trips).toHaveLength(1);
+    // konec uložené trasy stavby, dvoukolák; jízd tolik, kolik kamene vůz uvezl (náklad 0,16 m³)
+    expect(trips[0]).toMatchObject({ x: 0, z: 0, kind: 'two-wheel' });
+    const m3 = next.labor!.shares.find((x) => x.activity === 'quarry')!;
+    expect(m3).toBeDefined();
+    expect(trips[0]!.trips).toBeGreaterThan(0);
+    expect(trips[0]!.trips).toBeLessThanOrEqual(CARTS.loadsPerCartDay * days + 1e-9);
+    // bez vozu se nezapíše nic
+    const without = advanceVillage(withRoads(churchVillage(false)), DAY + 1, null, null);
+    expect(without.roads!.labor.cart ?? []).toEqual([]);
+  });
+
+  const drives: CartDrives = (_s, goals) => goals.map(() => ({ costM: 288, x: 0, z: 0 }));
+
+  it('poptávka: rozestavěný kostel s lomem chce vůz, ves bez lomu nic', () => {
+    const s = churchVillage(true);
+    const loadM3 = CARTS.loadKg['two-wheel'] / STONE.carry.kgPerM3;
+    const offer = stoneCartOffer({ costM: 288, x: 0, z: 0 }, stoneCarryManDaysPerM3(300))!;
+    const demand = stoneDemand(s, () => drives);
+    expect(demand).toHaveLength(1);
+    expect(demand[0]).toBeCloseTo(
+      (offer.carryPerM3 - offer.crewPerM3) * loadM3 * CARTS.loadsPerCartDay,
+      6,
+    );
+    expect(demand[0]).toBeGreaterThan(0);
+    expect(church(s)!.stoneCart).toEqual({ costM: 288, x: 0, z: 0 });
+    // stejný výsledek v celkové poptávce jízd
+    const all = jobsDemand(churchVillage(true), {
+      landscape: null,
+      deliveries: [],
+      drives: () => drives,
+      water: [],
+    });
+    expect(all).toEqual(demand);
+    // bez lomu
+    const none = churchVillage(true);
+    none.quarries = [];
+    expect(stoneDemand(none, () => drives)).toEqual([]);
+    // příliš dlouhá jízda – vůz se nevyplatí
+    const near = churchVillage(true);
+    expect(stoneDemand(near, () => () => [{ costM: 1e6, x: 0, z: 0 }])).toEqual([]);
   });
 });

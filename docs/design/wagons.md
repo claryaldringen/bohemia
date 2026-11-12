@@ -211,7 +211,10 @@ a potah, Kolik volů ves chce; podrobnosti níž jsou návrh Clauda.
   čtvrtina sklizně sadu, osivo – desetina setí, klády ke stavbám – polovina dnešního kácení
   a dovozu), a z toho tam, **kam dojede i čtyřkolák**; **jízdy pro uhlí, rudu,
   hlínu a vodu** (stejný plán jako skutečné vozy, jen s dostatkem vozů – ruda a hlína z toho, co
-  dnes kovárny a hrnčíři odnesli z rudiště a hliniště) a **u výpravy**, kolik nosičů by nahradily
+  dnes kovárny a hrnčíři odnesli z rudiště a hliniště), **kámen z lomu** (návrh Clauda, 12. 11. 2026,
+  Martin: „Vyřešíš i ty drobnosti?“ – nošení kamene, které by vůz ušetřil rozestavěnému kostelu,
+  hradbě s kamenem z lomu a zakázce do zásoby: nejvýš denní náklad vozu × (nošení − posádka), jeden
+  dvoukolák na stavbu) a **u výpravy**, kolik nosičů by nahradily
   čtyřkoláky (nosiči × dny cesty). Dvoukolák za den převezme nejvýš 8 čd nošení a jdou s ním
   2 lidé – ušetří tedy nejvýš 6 čd; čtyřkolák 16 čd se stejnou posádkou – ušetří 14 čd. Den se
   zapíše do roku vozů (`CartDemand.days` – nošení, kam dojede čtyřkolák, a jinam, úspory jízd, den orby – tehdy
