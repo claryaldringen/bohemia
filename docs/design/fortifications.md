@@ -177,6 +177,19 @@ roštová ≈ 7 m, komorová ≈ 8 m, komory po 5–6 m).
     práce; kámen lámaný na zakázku pro nehotové úseky se ještě nelámal, nic nevrací;
   - hromady kamení u cesty stojí jako klády (`LOG_PILES` – u cesty do 60 m od místa, blízké se
     spojí); ve scéně díly po 3 a 1 m³, lom je vylomená stěna s hromádkami kamení.
+- **Nošení kamene a vůz** (Martin 12. 11. 2026: „A“ – nošení počítat poctivě, vůz vozí kámen,
+  když ušetří práci; čísla návrh Clauda). Dřív byl dovoz jen příplatek za vzdálenost jako
+  u kácení (+1 % za 10 m nad 100 m), takže by se vůz nevyplatil nikdy. Nově:
+  - **lámání** 1 čd na m³ (beze změny) a **nošení v nůších**: 30 kg na cestu, kámen 2,5 t/m³ →
+    ≈ 83 cest na m³, chůze 1 m/s tam i zpět (`WATER_FETCHING.speedMps`) po vzdušné vzdálenosti,
+    naložení a složení 1 minuta na cestu, den 10 hodin. Na m³: u lomu (0 m) ≈ 0,14 čd, 100 m
+    ≈ 0,6 čd, 300 m ≈ 1,5 čd (dřív 0–0,2);
+  - **vůz s kamenem** (jízda jako v [vozech](wagons.md) – Co vozy vozí, pátá v pořadí): dvoukolák
+    se spřežením, který ten den nic jiného neveze, jede s jedním sedlákem z práce vsi z lomu
+    k místu stavby; uveze 400 kg (0,16 m³), naložení a složení 15 minut, nejvýš 8 jízd a 10 hodin
+    denně, po vozové síti. Uveze jen kámen nalámaný ten den. Jede, když jeho posádka stojí méně
+    práce než nošení toho, co uveze. Co uveze, se nenosí;
+  - platí pro kámen kostelů, hradeb i zásoby (u zásoby k hromadě u dvorce).
 
 ### Obrana bez násobku
 

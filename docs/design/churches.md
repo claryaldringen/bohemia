@@ -174,7 +174,7 @@ jinak postává u domu. Na pole ani k jiné práci vsi nechodí. Fáze a rekvizi
 | ------------- | ----------------------------- | ----------------------------------------------------------------------------------------------- |
 | stavbyvedoucí | na staveništi a obchůzkou     | vyměřuje, přeměřuje a kontroluje latí; zajde k lomu, k peci a k písníku; hlásí se u vojvody     |
 | vápeník       | u pece a vápenné jámy         | tluče vápenec palicí, nosí ho do pece, přikládá dřevo a hlídá oheň, hasí vápno míchadlem v jámě |
-| kameník       | v lomu, nebo u hromady kamene | v lomu láme kámen krumpáčem; u staveniště tesá kvádry kladivem a dlátem                         |
+| kameník       | v lomu, nebo u hromady kamene | v lomu ukazuje, jak se kámen bude lámat, a přisekává nalámaný kámen; u staveniště tesá kvádry   |
 | zedník        | u zdí                         | klade kameny do zdi, míchá maltu motykou v korytě, nosí kámen                                   |
 | štukatér      | u zdí (výzdoba po střeše)     | omítá zednickou lžící a hladítkem, míchá omítku v korytě                                        |
 
@@ -184,6 +184,14 @@ hlášení a žádat o pracovní síly.“ Při přípravě staveniště (kácen
 vyměřuje půdorys; při stavbě přeměřuje a kontroluje u zdí. Obchůzky k lomu, peci, písníku
 a k dvorci vojvody jsou jen ve scéně (návrh Clauda: k místu, kde se ten den pracuje, a k dvorci
 jednou za den).
+
+Lom (Martin 12. 11. 2026): „ať kameník neláme krumpáčem kámen v lomu – to dělají poddaní. V lomu by
+měl ukazovat, jak se kámen bude lámat a nalámaný kámen přisekává. Další poddaný si od něj
+přisekané kameny odebírá a nakládá je na vůz, nebo na hromadu, pokud vůz není poblíž. Vůz vozí
+kameny na staveniště.“ Lámou pomocníci z práce vsi na kostele (krumpáč), u kameníka stojí jeden
+pomocník, který kameny odnáší na vůz nebo na hromadu u lomu. Vůz jede, když ušetří nošení
+(Martin 12. 11. 2026: „A“ – [fortifications.md](fortifications.md), Kámen – Nošení kamene a vůz);
+bez vozu nosí kámen z hromady u lomu na staveniště nosiči v nůších.
 
 ## Otevřené otázky
 

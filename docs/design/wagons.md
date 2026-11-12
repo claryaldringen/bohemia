@@ -126,6 +126,10 @@ níž je návrh Clauda, čísla v `CART_JOBS` (`rules.ts`).
      pro vodu): přirážka za vodu se zmenší o přivezenou vodu a přičte se díl práce posádky (jízda
      tam a zpět, nabírání vědry 5 minut, rozlití do nádob u domů 5 minut). Vyplatí se až
      domácnostem ≈ 170–200 m od vody.
+  5. **kámen z lomu na stavbu** (Martin 12. 11. 2026: „Vůz vozí kameny na staveniště.“, „A“) –
+     kámen nalámaný ten den pro kostel, hradbu nebo zásobu; náklad 400 kg, sedlák z práce vsi,
+     jede, když ušetří nošení v nůších. Pravidla a čísla: [fortifications.md](fortifications.md) –
+     Kámen, Nošení kamene a vůz.
 - **Spřežení doma:** jako svoz – dvoukolák se spřežením, které neorá ani nejede s výpravou;
   čtyřkolák jezdí jen s výpravami. Za den nejvýš 8 jízd (CARTS.loadsPerCartDay) a co se vejde do
   10hodinového dne – voli jdou s vozem ≈ 0,8 m/s po louce, po cestě rychleji (vozová síť).
