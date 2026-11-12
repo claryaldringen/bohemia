@@ -104,7 +104,10 @@ describe('villager-motion – pohyb jako funkce času', () => {
     ) as { name: string; clips: { name: string; keys?: unknown; props: string[] }[] }[];
     for (const figure of spec) {
       const keyed = figure.clips.filter((c) => c.keys).map((c) => c.name);
-      expect(keyed.sort()).toEqual(['drum', 'milk', 'pipe', 'sit', 'spin', 'weave', 'wheel']);
+      // `plaster` (štukatér ruce vzhůru proti zdi) je klíčový klip jen muže
+      const expectedKeyed = ['drum', 'milk', 'pipe', 'sit', 'spin', 'weave', 'wheel'];
+      if (figure.name === 'man') expectedKeyed.push('plaster');
+      expect(keyed.sort()).toEqual(expectedKeyed.sort());
       // sedí na špalku
       for (const c of figure.clips.filter((c) => ['milk', 'sit', 'wheel'].includes(c.name))) {
         expect(c.props).toContain('stump');
@@ -139,6 +142,17 @@ describe('villager-motion – pohyb jako funkce času', () => {
       weave: ['loom'],
       pipe: ['pipe'],
       drum: ['drum'],
+      // mistři stavební huti (jen muž)
+      measure: ['lath'],
+      'break-stone': ['maul', 'rubble'],
+      'carry-stone': ['basket', 'stone-load'],
+      stoke: ['poker'],
+      slake: ['paddle'],
+      quarry: ['pickaxe'],
+      dress: ['hammer', 'chisel', 'ashlar'],
+      lay: ['stone-hand'],
+      mortar: ['hoe', 'trough'],
+      plaster: ['trowel', 'float'],
     };
     const spec = JSON.parse(
       readFileSync(new URL('../../../../../tools/blender/people.json', import.meta.url), 'utf8'),
@@ -166,6 +180,7 @@ describe('villager-motion – pohyb jako funkce času', () => {
         return glb.readFloatLE(bin + (view.byteOffset ?? 0) + (a.byteOffset ?? 0));
       };
       for (const [clip, props] of Object.entries(expected)) {
+        if (figure.name === 'woman' && MAN_ONLY_CLIPS.includes(clip as VillagerClip)) continue;
         const clipSpec = figure.clips.find((c) => c.name === clip);
         const anim = json.animations.find((a) => a.name === clip);
         for (const prop of props) {

@@ -89,7 +89,19 @@ export type VillagerClip =
   | 'carry-pots'
   | 'carry-fish'
   | 'snare'
-  | 'cook';
+  | 'cook'
+  // mistři stavební huti (churches.md – Mistři huti při práci): měří, tluče a láme kámen, nese ho,
+  // hlídá pec, hasí vápno, tesá, klade, míchá maltu a omítá (jen muž)
+  | 'measure'
+  | 'break-stone'
+  | 'carry-stone'
+  | 'stoke'
+  | 'slake'
+  | 'quarry'
+  | 'dress'
+  | 'lay'
+  | 'mortar'
+  | 'plaster';
 
 /** Všechny klipy – GLB je musí mít (people.json, hlídá test). */
 export const VILLAGER_CLIPS: readonly VillagerClip[] = [
@@ -158,6 +170,16 @@ export const VILLAGER_CLIPS: readonly VillagerClip[] = [
   'carry-fish',
   'snare',
   'cook',
+  'measure',
+  'break-stone',
+  'carry-stone',
+  'stoke',
+  'slake',
+  'quarry',
+  'dress',
+  'lay',
+  'mortar',
+  'plaster',
 ];
 
 /** Klipy jen v `man.glb` (žena místo nich hraje `idle` – villagers.ts). */
@@ -178,6 +200,16 @@ export const MAN_ONLY_CLIPS: readonly VillagerClip[] = [
   'lord-idle-b',
   'lord-idle-c',
   'walk-lord',
+  'measure',
+  'break-stone',
+  'carry-stone',
+  'stoke',
+  'slake',
+  'quarry',
+  'dress',
+  'lay',
+  'mortar',
+  'plaster',
 ];
 
 /** Varianty odpočinkového stání (starší u domu – villager-phases.ts); žena má jen `rest-a/b`. */
@@ -318,6 +350,8 @@ export const CLIP_SPEED_M_S: Record<VillagerKind, Partial<Record<VillagerClip, n
     'carry-wood': 1.0,
     'carry-water': 1.0,
     'carry-meat': 1.0,
+    // kamení v nůši – táž chůze jako s nářadím (carry_grain_m)
+    'carry-stone': 1.1,
     'walk-rattle': 1.0,
     'walk-spear': 0.97,
     'walk-hoe': 1.02,
