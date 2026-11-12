@@ -759,6 +759,29 @@ export function oreDemand(
 }
 
 /**
+ * Jízdy s kamenem z lomu, kdyby vozů bylo dost (wagons.md – Kolik vozů ves chce): stejné stavby
+ * a nabídky jako skutečné vozy (`planStoneCarts` – kostel, hradba s kamenem z lomu, zakázka do
+ * zásoby), jeden dvoukolák na stavbu; úspora vozu za den = nejvýš `maxM3` × (nošení − posádka)
+ * na m³ (čd). Jízda se spočítá jednou a uloží u stavby (`Construction.stoneCart`).
+ */
+export function stoneDemand(state: VillageState, drives: () => CartDrives | null): number[] {
+  const savings: number[] = [];
+  let masters: ReadonlySet<MasonCraft> | null = null;
+  const mastersOf = (): ReadonlySet<MasonCraft> => (masters ??= mastersPresent(state));
+  for (const c of state.constructions) {
+    const source = stoneSource(state, c, mastersOf);
+    if (!source) continue;
+    const all = drives();
+    if (!all) break;
+    if (c.stoneCart === undefined)
+      c.stoneCart = stoneCartDrive(state, source.quarry, source.to, all);
+    const offer = stoneCartOffer(c.stoneCart, source.carryPerM3);
+    if (offer) savings.push(offer.maxM3 * (offer.carryPerM3 - offer.crewPerM3));
+  }
+  return savings;
+}
+
+/**
  * Jízdy pro uhlí a vodu, kdyby vozů bylo dost (wagons.md – Kolik vozů ves chce): stejné nabídky
  * jako skutečné vozy (`planCartJobs` – uhlí z milířů, odkud ho dnes do kovárny nosí, proti nošení
  * v koších, voda v sudech s CART_DEMAND.probeCarts vozy); úspory jednotlivých vozů (čd). Jízda
@@ -788,6 +811,7 @@ export function jobsDemand(
     const offer = kilnCartOffer(kiln.cart, footPerKg);
     if (offer) savings.push(Math.min(d.kg, offer.maxKg) * (footPerKg - offer.manDaysPerKg));
   }
+  savings.push(...stoneDemand(state, input.drives));
   const origin = cartOrigin(state);
   const known = state.waterCart;
   const all = input.drives();

@@ -390,6 +390,14 @@ function buildDay(
     woodworkToday(state, day, common + extra, stone),
   );
   const constructions = build(state, day, common + help.labor, help.coverage, undefined, stone);
+  // vůz s kamenem jede po trase lom – stavba a zpět: jízdy do ročního provozu cest (wagons.md –
+  // Vyjeté cesty; konec uložené trasy stavby `stoneCart`)
+  for (const work of constructions) {
+    const drive = work.construction.stoneCart;
+    const trips = work.quarry?.trips ?? 0;
+    if (drive && trips > EPSILON)
+      ctx.cartLog.push({ x: drive.x, z: drive.z, kind: 'two-wheel', trips });
+  }
   if (churchesBefore) {
     gainMasonryXp(state, churchCraftWork(state, churchesBefore), day, people.villagers);
   }

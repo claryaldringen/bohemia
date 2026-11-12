@@ -247,7 +247,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   posádka a kolik vůz uveze se rozhodnou v práci stavby (`build(…, stone)`) – podrobnosti
   village-fortifications.md, Lom a kámen – Nošení kamene a vůz. Jízdy vozí `villageCartDrives`
   (vozová síť – cena v m po louce a konec trasy, bez krajiny vzdušně; `from` = jízda z jiného bodu
-  než z ohrady – vůz s kamenem), do ročního provozu cest `addRoadCartTrips` (kámen ne). Rozdělení
+  než z ohrady – vůz s kamenem), do ročního provozu cest `addRoadCartTrips` (kámen z `buildDay` – `StoneDay.trips`; poptávku po vozech
+  `stoneDemand` v `jobsDemand`). Rozdělení
   práce: `haul` s `LaborShare.job` (`charcoal` / `ore` / `clay` / `seed` / `water` / `stone`),
   cíl milíř (`kiln` i u
   dílny), rudiště (`ore`), hliniště (`clay`), díl pole, sad (jablka – orchard.md, Jablka vozem:

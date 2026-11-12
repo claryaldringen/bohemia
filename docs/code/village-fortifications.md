@@ -238,7 +238,11 @@ crewPerM3, carryPerM3, loadM3 }` → `CartJobsDay.stone`. Ve stavbě (`build(…
   vrátí `StoneDay { outcropId, manDays (lámání a nošení), crew, m3, trips }` →
   `ConstructionWork.quarry` (rozdělení práce dne – `quarryShares` v `labor-report.ts`: `quarry`
   u lomu, `haul` s `job: 'stone'` a `carts: 1` u lomu, zbytek na místě stavby). Jízdy vozu
-  s kamenem se do ročního provozu cest nezapisují (deník jízd zná jen jízdy od ohrady). Robota
+  s kamenem se zapíšou do deníku jízd dne (`buildDay` v `simulate-work-apply.ts`: `StoneDay.trips`
+  na konec uložené trasy `Construction.stoneCart`, dvoukolák) a `flushCartTrips` je přičte do
+  ročního provozu cest. Poptávku po vozech zná `stoneDemand` (`simulate-hauls.ts`, volá ho
+  `jobsDemand`): jedna jízda na stavbu se stejnou nabídkou jako `planStoneCarts`, úspora dne =
+  `maxM3` × (nošení − posádka). Robota
   hostů na hradbu vůz nemá.
 - **`VillageState.fortifications?: Fortification[]`** (`fortification/types.ts`, přes
   `types-fortifications.ts` v `types/index.ts`) – volitelné, starší vsi ho nemají.

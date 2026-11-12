@@ -421,7 +421,7 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   `CART_ROUTES` a `CART_ROADS` – návrh Clauda): `paths/cart.ts` (deterministická vrstva jako
   pěšiny) – `cartGrid` na mřížce terénu pěšin (výšky `PathTerrain.heights`, les `PATH_FOREST`,
   překážky `cartObstacleMask` v `terrain.ts`; voda jen brodem, les jen po pevné cestě, pole
-  v lese vymýcené, křoviny, sad, hřbitov, ohrada, les vsi a okrsek svatyně ne, pole stálou cenou (`cartPartSpeed` – `CART_SPEED.field` v každém stadiu, zarostlý díl ne; vůz úrodu nepošlape – paths.md, Stálé trasy; `flushCartTrips` v `cart-jobs.ts` – jediné místo, kam `work()` zapisuje jízdy dne – deník `CartTripLog`: svoz, voda, uhlí, ruda, klády, osivo; provoz cest), domy
+  v lese vymýcené, křoviny, sad, hřbitov, ohrada, les vsi a okrsek svatyně ne, pole stálou cenou (`cartPartSpeed` – `CART_SPEED.field` v každém stadiu, zarostlý díl ne; vůz úrodu nepošlape – paths.md, Stálé trasy; `flushCartTrips` v `cart-jobs.ts` – jediné místo, kam `work()` zapisuje jízdy dne – deník `CartTripLog`: svoz, voda, uhlí, ruda, klády, osivo, kámen z lomu; provoz cest), domy
   a pozemky s půl šířkou vozu; každá pevná cesta sjízdná – pás buněk do 0,75 buňky od bodů osy
   (`ROAD_BAND_CELLS`) a úhlopříčka z buňky cesty na buňku cesty i přes roh lesa či
   okraje domu (`CartGrid.road`), jinak by šikmá cesta lesem a ohyb u domu nebyly sjízdné (Vlkov 23. 10. 2026; návrh Clauda); stavba přes cestu ji přehradí i vozu (roads.md – Co platí dál); rychlost podle povrchu a druhu cesty –
