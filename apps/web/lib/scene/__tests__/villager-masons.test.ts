@@ -6,6 +6,8 @@ import {
 } from '@bohemia/game';
 import { describe, expect, it } from 'vitest';
 import type { SceneChurch } from '../../church-view';
+import type { Activity } from '../villager-schedule';
+import { activityPhases } from '../villager-phases';
 import { personActivity } from '../../person-activity';
 import { personRoles, type RolePerson } from '../../person-roles';
 import type { ScenePerson } from '../../person-view';
@@ -102,7 +104,7 @@ const FIELD: LaborShare[] = [
   { activity: 'idle', target: { kind: 'village' }, manDays: 4 },
 ];
 
-function village(work: ChurchWork[] | null, burning = false): SceneVillage {
+function village(work: ChurchWork[] | null, burning = false, lord = false): SceneVillage {
   const build: LaborShare[] =
     work === null
       ? []
@@ -119,12 +121,13 @@ function village(work: ChurchWork[] | null, burning = false): SceneVillage {
       shares: [...build, ...FIELD],
       homes: [1, 2, 3, 4].map((id) => ({ id, people: 2 })),
       persons: persons(),
+      ...(lord ? { lord: { home: 1, trainees: [], household: [] } } : {}),
     },
   };
 }
 
-function plan(work: ChurchWork[] | null, burning = false) {
-  const v = village(work, burning);
+function plan(work: ChurchWork[] | null, burning = false, lord = false) {
+  const v = village(work, burning, lord);
   const p = planVillagersWithCrew(v, GROUND, { seed: 3, herds: 0 });
   const of = (craft: MasonCraft) => {
     const mine = p.people.filter((f) => f.person === MASTERS[craft]);
@@ -211,6 +214,51 @@ describe('mistři huti při práci (villager-plan-masons.ts)', () => {
     expect(lime.task?.role).toBe('master-lime');
     expect(lime.task?.places?.haul).toBeDefined();
     expect(lime.task?.places?.pit).toBeDefined();
+  });
+
+  it('příprava staveniště: stavbyvedoucí vyměřuje půdorys u zdí', () => {
+    const { of } = plan([]);
+    const b = of('builder');
+    expect(b.f.job).toMatchObject({ kind: 'master', work: 'layout', church: 8 });
+    expect(b.task?.role).toBe('master-layout');
+    expect(b.pose.clip).toBe('measure');
+    expect(b.task?.places?.wall).toBeDefined();
+    expect(b.task?.places?.quarry).toBeUndefined();
+  });
+
+  it('stavbyvedoucí obchází lom, písník a dvorec vojvody; bez lámání lom vynechá', () => {
+    const { of } = plan(['quarry', 'sand', 'walls'], false, true);
+    const b = of('builder');
+    expect(b.task?.role).toBe('master-site');
+    const places = b.task!.places!;
+    expect(dist(places.quarry!, QUARRY)).toBeLessThan(3);
+    expect(dist(places.sand!, church(false).site!.sandPit)).toBeLessThan(3);
+    // před dveřmi dvorce (dům 1 v počátku)
+    expect(dist(places.manor!, { x: 0, z: 0 })).toBeLessThan(9);
+    expect(places.kiln).toBeUndefined();
+    const a = { ...b.task!, role: 'master-site' as const };
+    const phases = activityPhases(
+      {
+        person: 601,
+        kind: 'bout',
+        task: a,
+        start: 3000,
+        arrive: 3020,
+        leave: 3020 + 3000,
+        end: 3040 + 3000,
+      } as Activity,
+      11,
+    );
+    const names = phases.map((p) => p.name);
+    for (const n of ['to-quarry', 'check-quarry', 'to-sand', 'check-sand', 'to-manor', 'report']) {
+      expect(names, n).toContain(n);
+    }
+    expect(names).not.toContain('to-kiln');
+    expect(phases.find((p) => p.name === 'report')?.at).toEqual(places.manor);
+
+    // bez lámání kamene krok k lomu není
+    const none = plan(['walls'], false, true).of('builder');
+    expect(none.task?.places?.quarry).toBeUndefined();
   });
 
   it('bez práce na kostele jsou všichni mistři u domu, i když je na poli hodně práce', () => {

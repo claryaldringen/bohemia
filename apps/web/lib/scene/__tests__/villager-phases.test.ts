@@ -28,6 +28,10 @@ const NEAR: PhasePlaces = {
   haul: { x: 6, z: 3 },
   pit: { x: -5, z: -6 },
   wall: { x: 4, z: -7 },
+  quarry: { x: 12, z: -3 },
+  kiln: { x: -6, z: 8 },
+  sand: { x: 3, z: 10 },
+  manor: { x: -9, z: -9 },
 };
 
 const JOBS: Record<PhaseRole, PersonJob> = {
@@ -49,6 +53,7 @@ const JOBS: Record<PhaseRole, PersonJob> = {
   elder: { kind: 'elder' },
   'elder-home': { kind: 'elder' },
   priest: { kind: 'priest', church: 9 },
+  'master-layout': { kind: 'master', craft: 'builder', church: 9, work: 'layout' },
   'master-site': { kind: 'master', craft: 'builder', church: 9, work: 'site' },
   'master-sand': { kind: 'master', craft: 'builder', church: 9, work: 'sand' },
   'master-kiln': { kind: 'master', craft: 'limeBurner', church: 9, work: 'kiln' },

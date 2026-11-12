@@ -76,6 +76,20 @@ export type PhaseName =
   | 'measure'
   | 'direct'
   | 'walk-walls'
+  // stavbyvedoucí: vyměřování půdorysu, přeměřování a kontrola zdiva, obchůzky k lomu, peci,
+  // písníku a dvorci vojvody (cesta tam, kontrola na místě, hlášení, návrat na staveniště)
+  | 'lay-out'
+  | 'remeasure'
+  | 'inspect'
+  | 'to-quarry'
+  | 'check-quarry'
+  | 'to-kiln'
+  | 'check-kiln'
+  | 'to-sand'
+  | 'check-sand'
+  | 'to-manor'
+  | 'report'
+  | 'back-to-site'
   | 'break-limestone'
   | 'load-kiln'
   | 'stoke'
@@ -115,6 +129,7 @@ export type PhaseRole =
   | 'priest'
   // mistři huti (villager-plan-masons.ts): u staveniště, písníku, pece při pálení a mezi ním,
   // v lomu, u hromady kamene, u zdí, při omítání a doma
+  | 'master-layout'
   | 'master-site'
   | 'master-sand'
   | 'master-kiln'
@@ -131,7 +146,18 @@ export type PhaseRole =
  * před modlou či svatyní (`shrine`); mistři huti – kam se nese kámen (`haul` – pec, zeď),
  * u vápenné jámy (`pit`), u jiného místa zdí (`wall` – obchůzka stavbyvedoucího).
  */
-type PhasePlace = 'site' | 'drop' | 'aid' | 'shrine' | 'haul' | 'pit' | 'wall';
+type PhasePlace =
+  | 'site'
+  | 'drop'
+  | 'aid'
+  | 'shrine'
+  | 'haul'
+  | 'pit'
+  | 'wall'
+  | 'quarry'
+  | 'kiln'
+  | 'sand'
+  | 'manor';
 
 /**
  * Krok posloupnosti fází role (podíl práce v místě): `clip` – klip místo pózy úlohy (postava
@@ -148,6 +174,8 @@ interface PhaseStep {
   place?: PhasePlace;
   /** Klip cesty na místo jinde místo klipu `TRANSIT` (odnos – nůše s nástroji či nádobami). */
   carry?: VillagerClip;
+  /** Daleká obchůzka – cesta tam a zpět smí zabrat víc (`TRANSIT_SHARE_FAR`), nezahazuje se. */
+  far?: boolean;
 }
 
 /** Cesta na místo kroku jinde a zpět – jméno a klip (odnos nese koš, k poli jde s prázdnýma). */
@@ -163,6 +191,11 @@ const TRANSIT: Record<
   haul: { go: null, come: 'resume', clip: 'carry-stone' },
   pit: { go: 'to-pit', come: 'resume', clip: 'walk' },
   wall: { go: 'walk-walls', come: 'walk-walls', clip: 'walk' },
+  // obchůzky stavbyvedoucího – k lomu, peci, písníku a za vojvodou, zpět na staveniště
+  quarry: { go: 'to-quarry', come: 'back-to-site', clip: 'walk' },
+  kiln: { go: 'to-kiln', come: 'back-to-site', clip: 'walk' },
+  sand: { go: 'to-sand', come: 'back-to-site', clip: 'walk' },
+  manor: { go: 'to-manor', come: 'back-to-site', clip: 'walk' },
 };
 
 /**
@@ -276,10 +309,20 @@ export const PHASE_STEPS: Record<PhaseRole, readonly PhaseStep[]> = {
   // mistři huti na staveništi kostela (churches.md – Mistři huti při práci; návrh Clauda
   // 12. 11. 2026): stavbyvedoucí měří latí, řídí pomocníky a obchází zdi k jinému místu
   'master-site': [
-    { name: 'measure', share: 0.3, clip: 'measure' },
-    { name: 'direct', share: 0.2, variants: REST_CLIPS },
-    { name: 'measure', share: 0.3, clip: 'measure', place: 'wall' },
-    { name: 'direct', share: 0.2, variants: REST_CLIPS },
+    { name: 'remeasure', share: 0.15, clip: 'measure' },
+    { name: 'check-quarry', share: 0.2, clip: 'measure', place: 'quarry', far: true },
+    { name: 'direct', share: 0.1, variants: REST_CLIPS },
+    { name: 'inspect', share: 0.15, clip: 'measure', place: 'wall' },
+    { name: 'check-kiln', share: 0.2, clip: 'measure', place: 'kiln', far: true },
+    { name: 'check-sand', share: 0.2, clip: 'measure', place: 'sand', far: true },
+    { name: 'report', share: 0.25, clip: 'idle', place: 'manor', far: true },
+    { name: 'direct', share: 0.1, variants: REST_CLIPS },
+  ],
+  // stavbyvedoucí při přípravě staveniště (kácení): vyměřuje půdorys, obchází obrys
+  'master-layout': [
+    { name: 'lay-out', share: 0.35, clip: 'measure' },
+    { name: 'lay-out', share: 0.3, clip: 'measure', place: 'wall' },
+    { name: 'lay-out', share: 0.35, clip: 'measure' },
   ],
   // stavbyvedoucí u písníku (jen kopání písku) – dohlíží (póza úlohy) a řídí
   'master-sand': [
@@ -352,6 +395,9 @@ export const MIN_PHASE_S = 15;
  */
 export const TRANSIT_SHARE = 0.6;
 
+/** Totéž pro daleké obchůzky stavbyvedoucího (`PhaseStep.far` – lom bývá stovky metrů daleko). */
+export const TRANSIT_SHARE_FAR = 0.8;
+
 const PHASE_SALT = 0x7a5e;
 
 /**
@@ -381,6 +427,11 @@ export interface PhasePlaces {
   pit?: Point;
   /** Jiné místo vně zdí (obchůzka stavbyvedoucího). */
   wall?: Point;
+  /** Obchůzky stavbyvedoucího: u lomu, u pece, u písníku a u dveří dvorce vojvody. */
+  quarry?: Point;
+  kiln?: Point;
+  sand?: Point;
+  manor?: Point;
 }
 
 /**
@@ -462,7 +513,8 @@ function workPhases(
     const to = j === steps.length ? a.leave : t + length;
     const target = place ? places[place]! : null;
     const go = target && site ? walkS(site, target) : 0;
-    if (target && site && 2 * go <= TRANSIT_SHARE * (to - from)) {
+    const limit = s.far ? TRANSIT_SHARE_FAR : TRANSIT_SHARE;
+    if (target && site && 2 * go <= limit * (to - from)) {
       const transit = TRANSIT[place!];
       out.push({
         name: transit.go ?? s.name,

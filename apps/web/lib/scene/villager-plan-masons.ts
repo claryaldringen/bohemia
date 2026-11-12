@@ -22,6 +22,7 @@ import { stand, type VillagerClip } from './villager-motion';
 import type { PhasePlaces, PhaseRole } from './villager-phases';
 import { cast, figure } from './villager-plan-cast';
 import { doorPoint, nearestFree, unit } from './villager-plan-geometry';
+import { manorDoor } from './villager-plan-lord';
 import type { Context, PlannedVillager, Point } from './villager-plan-types';
 import type { MasterWork, PersonJob } from './villager-roster';
 
@@ -53,6 +54,8 @@ export const MASTER_M = {
   /** Kameník v lomu: kolik před stěnou lomu stojí, rozptyl napříč. */
   quarryFront: 1,
   quarrySpread: 2.4,
+  /** Stavbyvedoucí hlásí vojvodovi: kolik před dveřmi dvorce stojí. */
+  manorOut: 1.4,
   /** U dveří domu napříč od osy vchodu. */
   door: 0.8,
 } as const;
@@ -154,6 +157,8 @@ export function masterWork(
   switch (craft) {
     case 'builder':
       if (!church) return home;
+      // příprava staveniště (kácení) – žádná práce stavby, jen vyměřování půdorysu
+      if (works.size === 0) return { work: 'layout', church };
       return { work: site && works.size === 1 && works.has('sand') ? 'sand' : 'site', church };
     case 'limeBurner': {
       if (church && site && works.has('lime')) return { work: 'kiln', church };
@@ -260,6 +265,7 @@ function workSpot(
     return s ? { ...s, clip } : null;
   };
   switch (job.work) {
+    case 'layout':
     case 'site':
       return wall(MASTER_M.builder, 0xb1, 'measure');
     case 'sand':
@@ -376,15 +382,16 @@ export function masterPhases(
       return { role: 'master-walls' };
     case 'decor':
       return { role: 'master-decor' };
+    case 'layout':
     case 'site': {
-      if (!church) return { role: 'master-site' };
+      const role = job.work === 'layout' ? 'master-layout' : 'master-site';
+      if (!church) return { role };
       const spots = churchWallSpots(church, MASTER_M.builder);
       const k = nearestIndex(spots, at);
       const other = k < 0 || spots.length < 2 ? undefined : spots[(k + 1) % spots.length];
-      return {
-        role: 'master-site',
-        ...(other ? { places: { wall: { x: other.x, z: other.z } } } : {}),
-      };
+      const places: PhasePlaces = other ? { wall: { x: other.x, z: other.z } } : {};
+      if (job.work === 'site') Object.assign(places, roundPlaces(ctx, church));
+      return { role, ...(Object.keys(places).length > 0 ? { places } : {}) };
     }
     case 'kiln': {
       if (!site) return { role: 'master-kiln' };
@@ -408,6 +415,34 @@ export function masterPhases(
       };
     }
   }
+}
+
+/**
+ * Místa obchůzek stavbyvedoucího (návrh Clauda 12. 11. 2026): k lomu jen při lámání (a s lomem ve
+ * scéně), k peci při práci na vápně nebo když hoří, k písníku při kopání písku a k dvorci vojvody
+ * (stojí kousek před dveřmi; vojvoda tam být nemusí) – ten den hlásí, kde se co dělá.
+ */
+function roundPlaces(ctx: Context, church: SceneChurch): PhasePlaces {
+  const places: PhasePlaces = {};
+  const site = church.site;
+  const works = churchToday(ctx)?.works ?? new Set<ChurchWork>();
+  if (site) {
+    const quarry = works.has('quarry') ? quarrySpot(ctx, site, 0) : null;
+    if (quarry) places.quarry = { x: quarry.x, z: quarry.z };
+    if (works.has('lime') || site.burning) places.kiln = kilnStokeSpot(site);
+    if (works.has('sand')) {
+      places.sand = rimToward(site.sandPit, church.position, SAND_PIT_M.radius + MASTER_M.sand);
+    }
+  }
+  const lord = ctx.village.labor?.lord;
+  if (lord) {
+    const door = manorDoor(ctx, lord.home);
+    places.manor = {
+      x: door.x + door.headingX * MASTER_M.manorOut,
+      z: door.z + door.headingZ * MASTER_M.manorOut,
+    };
+  }
+  return places;
 }
 
 function nearestIndex(list: readonly Point[], p: Point): number {
