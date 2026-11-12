@@ -164,6 +164,20 @@ Stavební stadia jako u ostatních staveb.
 Kněz stojí přes den před vchodem svého kostela v tmavé vlněné kutně, postává a modlí se; do práce
 vsi nechodí (návrh Clauda 12. 11. 2026).
 
+### Mistři huti při práci
+
+Martin 12. 11. 2026: „Tihle řemeslníci by měli mít kompletní animaci práce, jak to mají ostatní
+řemeslníci.“ Mistr pracuje u své práce, jen když na ni ten den došlo (v zimě se nezdí ani nepálí);
+jinak postává u domu. Na pole ani k jiné práci vsi nechodí. Fáze a rekvizity (návrh Clauda):
+
+| Mistr         | Kde                           | Fáze                                                                                            |
+| ------------- | ----------------------------- | ----------------------------------------------------------------------------------------------- |
+| stavbyvedoucí | na staveništi                 | obchází zdi, měří měřickou latí, stojí a ukazuje pomocníkům                                     |
+| vápeník       | u pece a vápenné jámy         | tluče vápenec palicí, nosí ho do pece, přikládá dřevo a hlídá oheň, hasí vápno míchadlem v jámě |
+| kameník       | v lomu, nebo u hromady kamene | v lomu láme kámen krumpáčem; u staveniště tesá kvádry kladivem a dlátem                         |
+| zedník        | u zdí                         | klade kameny do zdi, míchá maltu motykou v korytě, nosí kámen                                   |
+| štukatér      | u zdí (výzdoba po střeše)     | omítá zednickou lžící a hladítkem, míchá omítku v korytě                                        |
+
 ## Otevřené otázky
 
 - Platba huti ve stříbře, mincích a špercích (Martin – později).
