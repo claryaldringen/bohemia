@@ -84,9 +84,12 @@ export interface ChurchSite {
   /** Zahloubená pec u staveniště (v pásu hřbitůvku) a písník u nejbližší vody. */
   readonly kiln: { readonly x: number; readonly z: number };
   readonly sandPit: { readonly x: number; readonly z: number };
-  /** Lom (id skalního výchozu), odkud se láme kámen a vápenec, a čd na m³ i s dovozem. */
+  /**
+   * Lom (id skalního výchozu), odkud se láme kámen a vápenec, a jeho vzdušná vzdálenost od
+   * kostela (m) – nošení v nůších (fortifications.md – Kámen, Nošení kamene a vůz).
+   */
   readonly quarryId: number;
-  readonly quarryManDaysPerM3: number;
+  readonly quarryDistanceM: number;
   /** Kámen z hromad vsi při zahájení (m³); zbytek se láme v lomu. */
   readonly stoneFromPileM3: number;
   /** Příprava staveniště – kácení dřeva stavby a odklizení překážek (čd); jde před vším. */

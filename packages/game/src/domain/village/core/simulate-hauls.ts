@@ -24,6 +24,8 @@ import {
   kilnCartOffer,
   oreCartDrive,
   oreCartOffer,
+  stoneCartDrive,
+  stoneCartOffer,
   waterCartDrive,
   waterCartPlan,
   type CartDrives,
@@ -45,16 +47,27 @@ import { occupiedWorkshops, type WorkshopDay } from '../crafts/crafts';
 import { type HouseholdWater } from './labor';
 import { type HaulWork } from './labor-report';
 import { harvestCarryShare } from './productivity';
-import { CARTS, CART_DEMAND, CART_JOBS, SMITH_SUPPLY, ORCHARD } from '../rules';
+import { CARTS, CART_DEMAND, CART_JOBS, CHURCH_WORK_CRAFT, SMITH_SUPPLY, ORCHARD } from '../rules';
 import type {
   CartKind,
   CartReach,
   CartTripLog,
   Construction,
   CraftCoverage,
+  MasonCraft,
+  Quarry,
   VillageState,
   WorkshopActivity,
 } from '../types';
+import { churchQuarryLeft, mastersPresent } from '../buildings/church-build';
+import {
+  constructionStoneCarry,
+  constructionStoneWork,
+  stoneCarryManDaysPerM3,
+  villageQuarries,
+  type StoneCart,
+} from '../fortification/state/quarry';
+import { logArrivalPoint } from '../forest/log-piles';
 import { woodFellingCost } from '../forest/wood';
 import { constructionNeed, foundingIndex, invest } from './simulate-build';
 import { DayTask, EPSILON } from './simulate-plan';
@@ -283,17 +296,27 @@ export interface CartJobsDay {
   clay: OreCartJob[];
   /** Voda v sudech; bez ní null. */
   water: WaterCartPlan | null;
+  /** Vozy s kamenem z lomu na stavby (fortifications.md – Kámen, Nošení kamene a vůz). */
+  stone: StoneCart[];
 }
 
-export const NO_CART_JOBS: CartJobsDay = { carts: 0, charcoal: [], ore: [], clay: [], water: null };
+export const NO_CART_JOBS: CartJobsDay = {
+  carts: 0,
+  charcoal: [],
+  ore: [],
+  clay: [],
+  water: null,
+  stone: [],
+};
 
 /**
  * Jízdy vozů, které nesvážejí úrodu, seno ani klády (wagons.md – Co vozy vozí; mutuje `tasks`,
  * `hauls` a flotilu jako svoz): v pořadí CART_JOBS.order – uhlí z milíře do kovárny tam, kde ho
  * dnes uhlíř vytahal (`deliveries`; jízda k milíři se uloží u milíře), ruda z hromady u jámy dávky
  * na celý vůz (jízda k rudišti se uloží u rudiště – crafts.md, Uhlí a ruda kováře), osivo na pole
- * (`planSeedHauls`), voda v sudech (`waterCartPlan`; břeh se uloží ve stavu). Vůz jede jen tam,
- * kam dojede, a jen když ušetří práci (uhlí a ruda proti nošení v koších kovářovou domácností).
+ * (`planSeedHauls`), voda v sudech (`waterCartPlan`; břeh se uloží ve stavu), kámen z lomu na
+ * stavby (`planStoneCarts`). Vůz jede jen tam, kam dojede, a jen když ušetří práci (uhlí a ruda
+ * proti nošení v koších kovářovou domácností, kámen proti nošení v nůších).
  * Uhlí a vodu veze levnější vůz (wagons.md – Co se vozí a na čem): čtyřkolák, když dojede po
  * pevné cestě a za kg stojí míň práce; ruda a osivo jen dvoukolákem.
  */
@@ -318,6 +341,8 @@ export function planCartJobs(
   let used = 0;
   const charcoal: CharcoalCartJob[] = [];
   const dug: Record<DugMaterial, OreCartJob[]> = { ore: [], clay: [] };
+  let water: WaterCartPlan | null = null;
+  let stone: StoneCart[] = [];
   for (const job of CART_JOBS.order) {
     if (!any()) break;
     if (job === 'charcoal') {
@@ -404,15 +429,81 @@ export function planCartJobs(
       );
       takeCart(fleet, 'two-wheel', two - left);
       used += two - left;
-    } else {
-      const water = bestWaterPlan(state, fleet, input);
+    } else if (job === 'water') {
+      water = bestWaterPlan(state, fleet, input);
       if (water) {
         takeCart(fleet, water.kind, water.carts);
-        return { carts: used + water.carts, charcoal, ...dug, water };
+        used += water.carts;
       }
+    } else {
+      stone = planStoneCarts(state, fleet, input.drives);
+      used += stone.length;
     }
   }
-  return { carts: used, charcoal, ...dug, water: null };
+  return { carts: used, charcoal, ...dug, water, stone };
+}
+
+/**
+ * Stavba, pro kterou dnes láme lom, a odkud kam se kámen nosí (fortifications.md – Kámen, Nošení
+ * kamene a vůz): kostel s mistry na lámání a se zbytkem lámání, zakázka do zásoby (k hromadě u cesty
+ * u dvorce – `logArrivalPoint`) a nedostavěná hradba s kamenem z lomu (`fortStone`). Lom musí stát;
+ * jinak null.
+ */
+function stoneSource(
+  state: VillageState,
+  c: Construction,
+  masters: () => ReadonlySet<MasonCraft>,
+): { quarry: Quarry; to: { x: number; z: number }; carryPerM3: number } | null {
+  const quarryOf = (id: number): Quarry | null =>
+    villageQuarries(state).find((q) => q.outcropId === id) ?? null;
+  if (c.church) {
+    const site = c.church;
+    const m = masters();
+    if (!c.position || !m.has('builder') || !m.has(CHURCH_WORK_CRAFT.quarry)) return null;
+    if (churchQuarryLeft(site) <= EPSILON) return null;
+    const quarry = quarryOf(site.quarryId);
+    return quarry
+      ? { quarry, to: c.position, carryPerM3: stoneCarryManDaysPerM3(site.quarryDistanceM) }
+      : null;
+  }
+  if (c.done + EPSILON >= c.cost) return null;
+  const work = constructionStoneWork(c);
+  if (!work || work.share <= 0) return null;
+  const quarry = quarryOf(work.outcropId);
+  if (!quarry) return null;
+  const to = c.kind === 'quarrying' ? logArrivalPoint(state) : c.fortStone?.at;
+  return to ? { quarry, to, carryPerM3: constructionStoneCarry(c) } : null;
+}
+
+/**
+ * Vozy s kamenem z lomu na stavby (wagons.md – Co vozy vozí, bod 5; mutuje flotilu): stavbám
+ * v pořadí staveb, pro které dnes láme lom (`stoneSource`), po jednom dvoukoláku, dokud nějaký
+ * zbývá – jen když posádka stojí méně práce než nošení v nůších (`stoneCartOffer`). Jízda z lomu
+ * ke stavbě se spočítá jednou a uloží u stavby (`Construction.stoneCart`). Kolik vůz uveze, se
+ * rozhodne až při práci stavby (`invest` – nejvýš to, co se ten den nalámalo).
+ */
+export function planStoneCarts(
+  state: VillageState,
+  fleet: CartFleet,
+  drives: () => CartDrives | null,
+): StoneCart[] {
+  const carts: StoneCart[] = [];
+  let masters: ReadonlySet<MasonCraft> | null = null;
+  const mastersOf = (): ReadonlySet<MasonCraft> => (masters ??= mastersPresent(state));
+  for (const c of state.constructions) {
+    if (fleetCarts(fleet, 'two-wheel') <= 0) break;
+    const source = stoneSource(state, c, mastersOf);
+    if (!source) continue;
+    const all = drives();
+    if (!all) break;
+    if (c.stoneCart === undefined)
+      c.stoneCart = stoneCartDrive(state, source.quarry, source.to, all);
+    const offer = stoneCartOffer(c.stoneCart, source.carryPerM3);
+    if (!offer) continue;
+    carts.push({ constructionId: c.id, outcropId: source.quarry.outcropId, ...offer });
+    takeCart(fleet, 'two-wheel');
+  }
+  return carts;
 }
 
 /**

@@ -124,6 +124,13 @@ function churchToday(ctx: Context): ChurchToday | null {
   const churches = ctx.village.churches ?? [];
   const works = new Map<number, Set<ChurchWork>>();
   for (const share of ctx.village.labor?.shares ?? []) {
+    // lámání kostela je samostatný podíl u lomu (`quarry` s id stavby) – kameník v lomu
+    if (share.activity === 'quarry' && share.construction !== undefined) {
+      const id = share.construction;
+      if (!churches.some((c) => c.id === id)) continue;
+      works.set(id, (works.get(id) ?? new Set<ChurchWork>()).add('quarry'));
+      continue;
+    }
     if (share.activity !== 'build' || share.target.kind !== 'site') continue;
     const id = share.target.id;
     if (!churches.some((c) => c.id === id)) continue;

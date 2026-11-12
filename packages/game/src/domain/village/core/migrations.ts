@@ -35,6 +35,7 @@ import { withBridgedRoads } from '../roads/road-upgrades';
 import { withRoadSwaths } from '../roads/road-swath';
 import { withSowingRotation, withoutRotationNext } from '../fields/rotation';
 import { withCharredRuins } from '../buildings/ruins';
+import { withChurchQuarryDistance } from '../buildings/church-build';
 import { withSeedForgiven, withoutSeedTarget } from '../fields/seed';
 import { withDwellingShapes } from '../buildings/shape-migration';
 import { withSteward } from '../steward/steward-state';
@@ -226,6 +227,8 @@ export const VILLAGE_MIGRATIONS: readonly VillageMigration[] = [
   // dosahy čtyřkoláku po loukách (wagons.md) a opevnění z bodů (fortifications.md – Obvod z bodů)
   { id: 'four-wheel-reach', since: '2026-10-20', run: fourWheelReach },
   { id: 'fort-points', since: '2026-11-07', run: fortPoints },
+  // lámání kostela s nošením v nůších (fortifications.md – Kámen, Nošení kamene a vůz)
+  { id: 'church-quarry-carry', since: '2026-11-12', run: withChurchQuarryDistance },
 ];
 
 /** `withFourWheelReach` mutuje – na kopii, jen když ves převod potřebuje. */

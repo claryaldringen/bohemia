@@ -749,6 +749,11 @@ export type LaborActivity =
   /** Kopání hlíny na hliništi – hrnčíř a synové od 14 let (crafts.md – Hlína hrnčíře). */
   | 'clay'
   /**
+   * Lámání kamene v lomu a jeho nošení v nůších na stavbu – kostel, hradba, zásoba
+   * (fortifications.md – Kámen, Nošení kamene a vůz); cíl je lom (`LaborTarget` `quarry`).
+   */
+  | 'quarry'
+  /**
    * Obilné jámy (production-chains.md – Obilné jámy): vesničané kopou jámu, vypalují ji, nosí do
    * ní vymlácené zrno z humna a zapečetí ji.
    */
@@ -833,6 +838,11 @@ export type LaborTarget =
   | { kind: 'clay'; id: number; x: number; z: number }
   /** Zemská stezka (id) – nosiči výpravy k sousedovi (trade.md – Obchod). */
   | { kind: 'trail'; id: number }
+  /**
+   * Lom (id skalního výchozu – `Quarry.outcropId`): lámání kamene a jeho nošení na stavbu, jízda
+   * vozu s kamenem (fortifications.md – Kámen, Nošení kamene a vůz).
+   */
+  | { kind: 'quarry'; id: number }
   /**
    * Cesta krajinou ke kraji mapy ve směru (bez zemské stezky) – nákup u souseda (crafts.md –
    * Nákup u sousedů); bod na kraji mapy (m).

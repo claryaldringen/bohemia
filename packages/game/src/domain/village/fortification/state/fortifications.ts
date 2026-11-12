@@ -239,16 +239,18 @@ export function segmentPlan(
 export interface FortStonePlan {
   fromPile: number;
   quarried: number;
-  /** Lámání a dovoz kamene z lomu (čd). */
+  /** Lámání a nošení kamene z lomu (čd). */
   quarryManDays: number;
   missing: number;
+  /** Lom, ze kterého se láme, a jeho vzdušná vzdálenost (m); bez lámání chybí. */
+  quarry?: { outcropId: number; distanceM: number };
 }
 
 /**
  * Kámen stavby opevnění (Hradby a obrana – Cena, Kámen): napřed z hromad vsi (`stoneOnHand`),
- * zbytek se láme na zakázku v nejbližším dostavěném lomu k `at` (`nearestQuarry`) za
- * `STONE.quarryManDaysPerM3` × `distanceFactor` vzdálenosti; bez lomu chybí (Martin 8. 11. 2026:
- * „Kámen z pole je na to nevhodný. Musíme zavést lom.“). Stav nemění.
+ * zbytek se láme na zakázku v nejbližším dostavěném lomu k `at` (`nearestQuarry`) – lámání
+ * a nošení v nůších (`quarryManDaysPerM3`; Kámen, Nošení kamene a vůz); bez lomu chybí (Martin
+ * 8. 11. 2026: „Kámen z pole je na to nevhodný. Musíme zavést lom.“). Stav nemění.
  */
 export function fortStonePlan(
   state: Pick<VillageState, 'stoneM3' | 'quarries'>,
@@ -266,6 +268,7 @@ export function fortStonePlan(
     quarried: rest,
     quarryManDays: rest * quarryManDaysPerM3(quarry.distanceM),
     missing: 0,
+    quarry: { outcropId: quarry.quarry.outcropId, distanceM: quarry.distanceM },
   };
 }
 
@@ -357,6 +360,17 @@ export function pushWork(
     ...(input.fortGate ? { fortGate: { ...input.fortGate } } : {}),
     fortSegments: segments,
     ...(stone.fromPile > 0 ? { stoneFromPile: stone.fromPile } : {}),
+    // kámen z lomu – lámání a nošení v práci úseků, vůz s kamenem (Kámen, Nošení kamene a vůz)
+    ...(stone.quarry && stone.quarried > EPSILON
+      ? {
+          fortStone: {
+            outcropId: stone.quarry.outcropId,
+            m3: stone.quarried,
+            distanceM: stone.quarry.distanceM,
+            at: { x: input.center.x, z: input.center.z },
+          },
+        }
+      : {}),
   });
   return null;
 }

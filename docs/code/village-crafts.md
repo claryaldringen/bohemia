@@ -240,13 +240,21 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `ploughWindowsToday`, `MORNING_WATER`); vyhraje-li voda, `cutPlough` zkrátí orbu dne o podíl
   páru (i kapacitu pro osev navíc) a práce se rozdělí znovu. Domácnosti pro vodu
   `villagersToday` / `waterHouseholdsToday` – týž výběr pro simulaci i scénu (bez dílen,
-  kování a dvorce cvičící rodiny). Jízdy vozí `villageCartDrives` (vozová síť – cena v m po louce a konec trasy, bez
-  krajiny vzdušně), do ročního provozu cest `addRoadCartTrips`. Rozdělení práce: `haul`
-  s `LaborShare.job` (`charcoal` / `ore` / `clay` / `seed` / `water`), cíl milíř (`kiln` i u
+  kování a dvorce cvičící rodiny). **Kámen** (pátá jízda, `CART_JOBS.stone`; Martin 12. 11. 2026:
+  „Vůz vozí kameny na staveniště.“): `planStoneCarts` – po jednom dvoukoláku stavbám, pro které
+  dnes láme lom (kostel, hradba, zásoba), z lomu ke stavbě (`stoneCartDrive`, uložená
+  `Construction.stoneCart`), `stoneCartOffer` jen když posádka stojí méně než nošení v nůších;
+  posádka a kolik vůz uveze se rozhodnou v práci stavby (`build(…, stone)`) – podrobnosti
+  village-fortifications.md, Lom a kámen – Nošení kamene a vůz. Jízdy vozí `villageCartDrives`
+  (vozová síť – cena v m po louce a konec trasy, bez krajiny vzdušně; `from` = jízda z jiného bodu
+  než z ohrady – vůz s kamenem), do ročního provozu cest `addRoadCartTrips` (kámen ne). Rozdělení
+  práce: `haul` s `LaborShare.job` (`charcoal` / `ore` / `clay` / `seed` / `water` / `stone`),
+  cíl milíř (`kiln` i u
   dílny), rudiště (`ore`), hliniště (`clay`), díl pole, sad (jablka – orchard.md, Jablka vozem:
   `ORCHARD.harvestCarryShare` sklizně, `orchardCartReach`, `OrchardWork.hauled`, náklad
   `apples` – `wagon{2,4}-apples`), břeh
-  (`LaborTarget` `{ kind: 'water', x, z }`); voda v práci `domestic` ubere posádku. Web:
+  (`LaborTarget` `{ kind: 'water', x, z }`), lom (`{ kind: 'quarry', id }` – vůz s kamenem); voda
+  v práci `domestic` ubere posádku. Vůz s kamenem a lámání u lomu scéna zatím nekreslí. Web:
   `SceneCart.job.load` – uhlí a osivo `goods`, ruda `ore` (hromada `wagon{2,4}-ore`), voda `water`
   (sudy `wagon{2,4}-water` tam i zpět),
   osivo `outbound` (`CartShuttle.loadedOut` – naložené tam), trasa k milíři a břehu

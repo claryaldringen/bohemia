@@ -420,6 +420,7 @@ function shareText(
       if (job.job === 'charcoal') return 'veze uhlí';
       if (job.job === 'water') return 'veze vodu';
       if (job.job === 'seed') return 'veze osivo';
+      if (job.job === 'stone') return 'veze kámen na stavbu';
       if (t.kind === 'field') return 'nakládá snopy na vůz';
       if (t.kind === 'meadow') return 'nakládá seno na vůz';
       if (t.kind === 'trees') return 'nakládá klády na vůz';
@@ -428,6 +429,8 @@ function shareText(
       return 'kope rudu';
     case 'clay':
       return 'kope hlínu';
+    case 'quarry':
+      return 'láme kámen';
     case 'grain-pit':
       return 'ukládá zrno do obilné jámy';
     case 'fetch':

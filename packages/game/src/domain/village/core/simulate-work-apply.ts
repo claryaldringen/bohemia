@@ -37,7 +37,7 @@ import { seedKeepKg, takeSeed } from '../fields/seed';
 import { addCropTaskWork, cropTaskDone, cropTaskRemaining, type CropTask } from './year-plan';
 import { payWatch } from '../wildlife/wildlife-damage';
 import { fortUpkeep } from '../fortification/decay';
-import { build, decayEmptyDwellings, woodworkToday } from './simulate-build';
+import { build, decayEmptyDwellings, woodworkToday, type StoneCarts } from './simulate-build';
 import {
   haulLogs,
   logsDemand,
@@ -362,8 +362,9 @@ function commonHauls(
  * a robota; návrh Clauda) napřed do rozestavěného opevnění vsi (veřejná stavba, rovným dílem po
  * úsecích), co zbude, do společné práce – ostatní stavby rovným dílem, opravy obydlí, údržba valu,
  * pletí mužů a seč navíc; polní úlohy dne hosté nedělají. Tesař pomáhá stavbám (wagons.md), opravy
- * obydlí až z práce, kterou stavby nespotřebovaly, pak údržba opevnění. Vrací i práci, která
- * zbude (`freeLabor`).
+ * obydlí až z práce, kterou stavby nespotřebovaly, pak údržba opevnění. Vozy s kamenem (`stone` –
+ * fortifications.md, Kámen, Nošení kamene a vůz) zlevní lámání staveb ze společné práce. Vrací
+ * i práci, která zbude (`freeLabor`).
  */
 function buildDay(
   ctx: WorkDay,
@@ -371,6 +372,7 @@ function buildDay(
   people: DayPeople,
   common: number,
   fellingBefore: Map<Construction, { remaining: number; road: number }>,
+  stone: StoneCarts,
 ): Omit<CommonWork, 'weedMen' | 'extraMow' | 'game'> & { freeLabor: number } {
   const { state, day, coverage, landscape, daylight, demand } = ctx;
   const { access } = carts;
@@ -385,9 +387,9 @@ function buildDay(
   }
   // tesař pomáhá stavbám – jeho práce jde do staveb a zlevní jejich dřevěnou část (wagons.md)
   const help = carpentryHelp(state, day, coverage, productivity, resting, (extra) =>
-    woodworkToday(state, day, common + extra),
+    woodworkToday(state, day, common + extra, stone),
   );
-  const constructions = build(state, day, common + help.labor, help.coverage);
+  const constructions = build(state, day, common + help.labor, help.coverage, undefined, stone);
   if (churchesBefore) {
     gainMasonryXp(state, churchCraftWork(state, churchesBefore), day, people.villagers);
   }
@@ -499,7 +501,8 @@ export function commonWorkDay(
     game = smallGameDay(state, day, common, true);
     common -= game.manDays;
   }
-  const { freeLabor, ...built } = buildDay(ctx, carts, people, common, hauled.fellingBefore);
+  const stone = new Map(jobs.stone.map((cart) => [cart.constructionId, cart]));
+  const { freeLabor, ...built } = buildDay(ctx, carts, people, common, hauled.fellingBefore, stone);
   const free = freeLaborDay(ctx, tasks, allocation, applied.fieldWork, freeLabor, game);
   return { ...built, ...free };
 }

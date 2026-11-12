@@ -59,7 +59,15 @@ import {
   woodFellingCost,
   woodSupply,
 } from '../forest/wood';
-import { finishQuarry, finishQuarrying } from '../fortification/state/quarry';
+import {
+  constructionStoneWork,
+  finishQuarry,
+  finishQuarrying,
+  investStoneWork,
+  stoneWorkNeed,
+  type StoneCart,
+  type StoneDay,
+} from '../fortification/state/quarry';
 import {
   churchNeedToday,
   churchWorkDay,
@@ -110,6 +118,7 @@ export function constructionNeed(
   c: Construction,
   day: number,
   founding: FoundingIndex,
+  cart?: StoneCart,
 ): number {
   if (c.kind === 'orchard') return orchardPlantingNeed(state, c, day);
   // jabloně u cesty se sázejí jen v oknech jara a podzimu (roads.md)
@@ -118,9 +127,13 @@ export function constructionNeed(
   if (c.kind === 'repair') return repairNeed(state, c);
   // bourání stavby, která mezitím zanikla, práci nebere (demolition.md – Bourání)
   if (c.kind === 'demolition') return demolitionNeed(state, c);
-  // kostel – co dnes stihnou mistři, kteří jsou ve vsi (churches.md – Stavba)
-  if (c.kind === 'church') return churchNeedToday(state, c, day);
-  if (c.kind !== 'field') return Math.max(0, c.cost - c.done);
+  // kostel – co dnes stihnou mistři, kteří jsou ve vsi (churches.md – Stavba); s vozem s kamenem
+  // stojí lámání méně práce (fortifications.md – Kámen, Nošení kamene a vůz)
+  if (c.kind === 'church') return churchNeedToday(state, c, day, cart);
+  if (c.kind !== 'field') {
+    const stone = cart ? constructionStoneWork(c) : null;
+    return stone ? stoneWorkNeed(c, stone, cart) : Math.max(0, c.cost - c.done);
+  }
   return foundingParts(founding, c).reduce((sum, p) => sum + clearingNeedToday(p, day), 0);
 }
 
@@ -154,7 +167,8 @@ export function foundingParts(founding: FoundingIndex, c: Construction): FieldPa
  * Vrátí, kolik práce šlo do které stavby (rozdělení práce dne pro scénu – labor-report.ts).
  * `carpentry` = pokrytí dřevěné práce tesařem (wagons.md – Tesař): práce stavby se násobí
  * `constructionLaborFactor` – stejná práce s tesařem postaví víc (bez tesaře 1). `only` = jen
- * stavby toho druhu (robota hostů napřed do opevnění – `work`).
+ * stavby toho druhu (robota hostů napřed do opevnění – `work`). `stone` = vozy s kamenem dne po
+ * stavbách (`planCartJobs`) – stavba s vozem stojí méně práce a postoupí víc.
  */
 export function build(
   state: VillageState,
@@ -162,6 +176,7 @@ export function build(
   common: number,
   carpentry = 0,
   only?: ConstructionKind,
+  stone?: StoneCarts,
 ): ConstructionWork[] {
   const founding = foundingIndex(state);
   // díl louky, který ves se spřežením zakládá bez překážek, práci nepotřebuje – založí se hned
@@ -185,23 +200,27 @@ export function build(
     .filter((c) => only === undefined || c.kind === only)
     .map((c) => {
       const factor = constructionLaborFactor(c, carpentry);
-      return { c, factor, need: constructionNeed(state, c, day, founding) * factor };
+      const cart = stone?.get(c.id);
+      return { c, factor, cart, need: constructionNeed(state, c, day, founding, cart) * factor };
     })
     .filter((x) => x.need > 0);
   const invested: ConstructionWork[] = [];
   const put = (
-    x: { c: Construction; factor: number },
+    x: { c: Construction; factor: number; cart: StoneCart | undefined },
     amount: number,
     completes: boolean,
   ): void => {
-    invested.push({
+    const work: ConstructionWork = {
       construction: x.c,
       manDays: amount,
       doneBefore: x.c.done,
       felledBefore: x.c.wood?.felled ?? 0,
       ...(x.c.church ? { churchDoneBefore: { ...x.c.church.done } } : {}),
-    });
-    invest(state, day, x.c, amount / x.factor, completes, founding);
+    };
+    invested.push(work);
+    const quarry = invest(state, day, x.c, amount / x.factor, completes, founding, x.cart);
+    // lámání dne v práci lidí – práce stavby se násobí tesařem, lámání ne (dřevo se neláme)
+    if (quarry) work.quarry = quarry;
   };
   let left = common;
   while (active.length > 0 && left > 0) {
@@ -224,12 +243,17 @@ export function build(
  * Dřevěná práce staveb dne (čd bez tesaře – wagons.md, Tesař): kolik z `common` práce rozdělené
  * rovným dílem jako ve `build` připadne na dřevěné části staveb. Stav nemění.
  */
-export function woodworkToday(state: VillageState, day: number, common: number): number {
+export function woodworkToday(
+  state: VillageState,
+  day: number,
+  common: number,
+  stone?: StoneCarts,
+): number {
   const founding = foundingIndex(state);
   let active = state.constructions
     .map((c) => ({
       share: constructionWoodShare(c),
-      need: constructionNeed(state, c, day, founding),
+      need: constructionNeed(state, c, day, founding, stone?.get(c.id)),
     }))
     .filter((x) => x.need > 0);
   let wood = 0;
@@ -250,7 +274,11 @@ export function woodworkToday(state: VillageState, day: number, common: number):
   return wood;
 }
 
-/** Vloží práci do stavby; `completes` = dostala vše, co jí chybělo. */
+/**
+ * Vloží práci do stavby; `completes` = dostala vše, co jí chybělo; `cart` = vůz s kamenem dne
+ * (fortifications.md – Kámen, Nošení kamene a vůz). Vrátí lámání dne (kostel, hradba, zásoba –
+ * rozdělení práce dne); stavba bez lámání null.
+ */
 export function invest(
   state: VillageState,
   day: number,
@@ -258,33 +286,37 @@ export function invest(
   amount: number,
   completes: boolean,
   founding: FoundingIndex,
-): void {
+  cart?: StoneCart,
+): StoneDay | null {
   if (c.kind === 'orchard') {
     plantOrchard(state, day, c, amount, completes);
-    return;
+    return null;
   }
   if (c.kind === 'road-apples') {
     workRoadApples(state, day, c, amount, completes);
-    return;
+    return null;
   }
   if (c.kind === 'repair') {
     // stav opravované stavby roste s prací (abandonment.md – Oprava)
     workRepair(state, c, amount, completes);
-    return;
+    return null;
   }
   if (c.kind === 'church') {
     // příprava staveniště (kácení napřed – forest.md), pak práce mistrů po druzích
-    churchWorkDay(state, c, amount, day);
+    const work = churchWorkDay(state, c, amount, day, cart);
     fellAsWorked(state, c, day);
-    return;
+    return work.stone ?? null;
   }
   if (c.kind !== 'field') {
-    c.done = completes ? c.cost : Math.min(c.cost, c.done + amount);
+    // lámání do zásoby a kámen hradby – s vozem s kamenem postoupí víc (fortifications.md – Kámen)
+    const stone = constructionStoneWork(c);
+    const quarry = stone ? investStoneWork(c, stone, amount, completes, cart) : null;
+    if (!stone) c.done = completes ? c.cost : Math.min(c.cost, c.done + amount);
     // dřevo se kácí jako první část práce stavby (forest.md)
     fellAsWorked(state, c, day);
     // opevnění: úseky, na které došla práce, stojí hned (fortifications.md – Cena a stavba)
     if (c.kind === 'fortification') workFortification(state, c, day);
-    return;
+    return quarry;
   }
   // pole zakládá díly od nejbližšího k obydlí, v lese napřed pálí suché díly a pak kácí
   // (forest.md – Rozdělení práce); přebytek dne teče do dalšího dílu. `completes` znamená, že
@@ -314,7 +346,11 @@ export function invest(
   }
   // průběh stavby jen z jejích dílů – pole mohlo mít díly založené dřív (rozšíření, sloučení)
   c.done = Math.min(c.cost, c.done + used);
+  return null;
 }
+
+/** Vozy s kamenem dne po stavbách (id stavby – `planCartJobs`). */
+export type StoneCarts = ReadonlyMap<number, StoneCart>;
 
 /** Díl pole je založený (mutuje stav). */
 export function foundPart(state: VillageState, day: number, part: FieldPart): void {

@@ -202,9 +202,10 @@ at)` → `QUARRY_NO_OUTCROP` / `QUARRY_TAKEN` (i rozestavěný – `Construction
   v prohlížeči `PlacementVillage.quarries`); `startQuarry` (záměr stavby `{ kind: 'quarry' }`,
   `BuildKind` `quarry`, stavba `quarry` za `STONE.quarryLaborManDays` = 20 čd, poloha = střed
   výchozu), dostavění `finishQuarry`. `nearestQuarry(state, at)`, `quarryManDaysPerM3(d)` =
-  `STONE.quarryManDaysPerM3` (1) × `distanceFactor(d)`. Zásoba: `orderQuarrying(state, day,
+  lámání `STONE.quarryManDaysPerM3` (1) + nošení v nůších `stoneCarryManDaysPerM3(d)` (Nošení
+  kamene a vůz níž). Zásoba: `orderQuarrying(state, day,
 outcropId, m3)` (celé m³ v `STONE.stockOrderM3`, bez lomu `QUARRY_MISSING`) → stavba
-  `quarrying` (`stoneOrderM3`) za m³ × 1 × `distanceFactor` od lomu k `logArrivalPoint`; hotová
+  `quarrying` (`stoneOrderM3`) za m³ × `quarryManDaysPerM3` od lomu k `logArrivalPoint`; hotová
   složí kámen `addStone(…, null)`. Zrušení (`returnConstructionStone` v `cancelConstruction`):
   lámání složí nalámaný podíl (`done / cost`), hradba vrátí `stoneFromPile × (1 − done / cost)`.
   Use-casy `placeQuarry`, `orderStoneQuarrying` (právo `build`). Web: katalog (zkratka L, ikona
@@ -215,6 +216,30 @@ outcropId, m3)` (celé m³ v `STONE.stockOrderM3`, bez lomu `QUARRY_MISSING`) �
 
 ## Stav vsi (Ú5.2)
 
+- **Nošení kamene a vůz** (`quarry.ts`, `crafts/cart-jobs.ts`, `core/simulate-hauls.ts`;
+  fortifications.md – Kámen, Nošení kamene a vůz; Martin 12. 11. 2026: „A“):
+  `stoneCarryManDaysPerM3(d)` = `STONE.carry.kgPerM3 ÷ basketKg` cest × (2d ÷
+  `WATER_FETCHING.speedMps` + `loadS`) ÷ `WATER_FETCHING.dayHours` h (0 m ≈ 0,14, 100 m ≈ 0,6,
+  300 m ≈ 1,53 čd/m³). Lámání stavby: kostel má fázi `quarry` (`churchQuarryLeft`), ostatní přes
+  `constructionStoneWork(c)` → `{ outcropId, ahead, share }` – zakázka do zásoby celá (`share` 1),
+  hradba s `fortStone` podíl lámání v práci úseků (m³ × `quarryManDaysPerM3` ÷ součet úseků, týž
+  pro všechny úseky), kácení dřeva napřed (`ahead`); hradba ze starší vsi (bez `fortStone`) lámání
+  nerozlišuje. **Vůz** (`CART_JOBS.stone`, pátá jízda po vodě): `planStoneCarts` v `planCartJobs`
+  dá stavbám v pořadí staveb po jednom volném dvoukoláku (`stoneSource` – kostel s kameníkem
+  a stavbyvedoucím a se zbytkem lámání, nedokončená zásoba k `logArrivalPoint`, hradba
+  k `fortStone.at`), jízda z lomu `stoneCartDrive` (`CartDrives` s `from`) se uloží
+  `Construction.stoneCart` (null = nedojede), `stoneCartOffer` jen když posádka na m³
+  (`cartTripManDays` ÷ 0,16 m³) < nošení na m³; `StoneCart { maxM3 (náklad × cartTripsPerDay),
+crewPerM3, carryPerM3, loadM3 }` → `CartJobsDay.stone`. Ve stavbě (`build(…, stone)` →
+  `constructionNeed` / `invest` s `cart`): posádka jde z práce stavby a co vůz uveze, se nenosí –
+  `stoneCartProgress(práce, share, cart)` = práce + m³ vozem × (nošení − posádka), m³ vozem =
+  min(`maxM3`, share × práce ÷ (1 + nošení − share × (nošení − posádka))) – nejvýš to, co se ten
+  den nalámalo; potřeba dne obráceně (`stoneCartLabor`). `investStoneWork` / `allocate` kostela
+  vrátí `StoneDay { outcropId, manDays (lámání a nošení), crew, m3, trips }` →
+  `ConstructionWork.quarry` (rozdělení práce dne – `quarryShares` v `labor-report.ts`: `quarry`
+  u lomu, `haul` s `job: 'stone'` a `carts: 1` u lomu, zbytek na místě stavby). Jízdy vozu
+  s kamenem se do ročního provozu cest nezapisují (deník jízd zná jen jízdy od ohrady). Robota
+  hostů na hradbu vůz nemá.
 - **`VillageState.fortifications?: Fortification[]`** (`fortification/types.ts`, přes
   `types-fortifications.ts` v `types/index.ts`) – volitelné, starší vsi ho nemají.
   `Fortification { id, points?, grid?, cells?, kind, top?, segments, gates, rampartHeight? }` –
@@ -259,8 +284,8 @@ outcropId, m3)` (celé m³ v `STONE.stockOrderM3`, bez lomu `QUARRY_MISSING`) �
   opevnění za 1 čd × `distanceFactor`, ne obecné 2 čd); chybí → `FORT_NO_WOOD`. Kámen
   `fortStonePlan(state, need, at)`: napřed z hromad (`stoneOnHand`, `takeStone` od nejbližší
   k těžišti; stavba si pamatuje `stoneFromPile`), zbytek na zakázku v nejbližším dostavěném lomu
-  vsi (`nearestQuarry`) za `quarryManDaysPerM3` × m³ (1 čd × `distanceFactor` vzdušné
-  vzdálenosti); bez lomu → `FORT_NO_STONE(chybí)` („Chybí N m³ kamene. Ves nemá lom.“), stav se
+  vsi (`nearestQuarry`) za `quarryManDaysPerM3` × m³ (lámání a nošení na vzdušnou vzdálenost;
+  stavba si pamatuje `fortStone` – lom, m³, vzdálenost a těžiště); bez lomu → `FORT_NO_STONE(chybí)` („Chybí N m³ kamene. Ves nemá lom.“), stav se
   nemění – výchoz na mapě bez stavby lomu nestačí. Lámání se rozpočítá
   do práce úseků podle jejich kamene (`fortSegments[].cost` – úsek je hotový i s kamenem; pořadí
   práce ani `workFortification` se nemění). Práce se nečeká. Cena překážek pásu se k práci nepřičítá – cena je jen podle délky (návrh

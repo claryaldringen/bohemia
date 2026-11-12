@@ -22,7 +22,7 @@ const site: ChurchSite = {
   kiln: { x: 0, z: 0 },
   sandPit: { x: 0, z: 0 },
   quarryId: 7,
-  quarryManDaysPerM3: 2,
+  quarryDistanceM: 300,
   stoneFromPileM3: 0,
   prepManDays: 0,
 };
