@@ -79,6 +79,8 @@ export function planPhases(
         const places = aidOf(f);
         return places ? { role: 'train', places } : null;
       }
+      case 'priest':
+        return { role: 'priest' };
       case 'share':
         break;
       default:

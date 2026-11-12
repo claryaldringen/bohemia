@@ -113,6 +113,9 @@ export const CLOTH_COLORS: readonly { color: readonly [number, number, number]; 
     { color: [1.1, 0.88, 0.52], share: 0.2 },
   ];
 
+/** Kněžská kutna z tmavé vlny – kněz je v každé činnosti stejně oblečený (návrh Clauda). */
+export const PRIEST_CLOTH: readonly [number, number, number] = [0.34, 0.31, 0.33];
+
 /** Vdaná žena (šátek) – podíl dospělých žen. */
 export const MARRIED = 0.7;
 

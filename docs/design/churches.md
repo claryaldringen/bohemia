@@ -161,6 +161,9 @@ střechy – sedlová, kuželová nad rotundou, konchy nad apsidami), vzhled pod
 rekonstrukcí: omítnuté zdi, malá okna, krov se šindelem (návrh Clauda – podle katalogu, obr. 37).
 Stavební stadia jako u ostatních staveb.
 
+Kněz stojí přes den před vchodem svého kostela v tmavé vlněné kutně, postává a modlí se; do práce
+vsi nechodí (návrh Clauda 12. 11. 2026).
+
 ## Otevřené otázky
 
 - Platba huti ve stříbře, mincích a špercích (Martin – později).

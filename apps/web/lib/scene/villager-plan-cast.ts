@@ -20,6 +20,7 @@ import {
   MAX_ELDERS,
   MAX_WORKERS,
   OUTDOORS,
+  PRIEST_CLOTH,
   WINTER_MONTHS,
   type Context,
   type FigureSexes,
@@ -360,6 +361,8 @@ export function figure(c: Cast, pose: PoseFn, hair: HairLook, job: PersonJob): P
     out.person = c.person.id;
     out.job = job;
   }
+  // kněz v kutně – u kostela i bez lidí ve scéně (postava jen podle kostela)
+  if (c.person?.priest || job.kind === 'priest') out.look.cloth = PRIEST_CLOTH;
   return out;
 }
 
@@ -375,6 +378,7 @@ export function personFigure(seed: number, person: ScenePerson, pose: PoseFn): P
   });
   const out = villager(who, pose, personHair(who, person));
   out.person = person.id;
+  if (person.priest) out.look.cloth = PRIEST_CLOTH;
   return out;
 }
 

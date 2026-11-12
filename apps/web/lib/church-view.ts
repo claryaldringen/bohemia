@@ -43,6 +43,8 @@ export interface SceneChurch {
   built: boolean;
   /** Kněz je ve vsi (jen dostavěný kostel) – svatby křesťanů se konají u kostela s knězem. */
   priest: boolean;
+  /** Kněz kostela (id osoby) – postava před vchodem (villager-plan-priest.ts); bez kněze chybí. */
+  priestId?: number;
   /** Obsazené hroby na hřbitůvku (kreslí se jako mohyly s křížem). */
   graves: number;
   /** Staveniště: pec, vápenná jáma a písník; po dostavění chybí. */
@@ -81,6 +83,7 @@ export function sceneChurchOf(church: Church): SceneChurch {
     decorated,
     built: true,
     priest: church.priestId !== undefined,
+    ...(church.priestId !== undefined ? { priestId: church.priestId } : {}),
     graves: church.graves?.length ?? 0,
   };
 }
@@ -149,6 +152,7 @@ export function sceneChurches(
         ...rest,
         built: true,
         priest: done.priestId !== undefined,
+        ...(done.priestId !== undefined ? { priestId: done.priestId } : {}),
         graves: done.graves?.length ?? 0,
       };
     }),

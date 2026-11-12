@@ -94,6 +94,7 @@ export type PhaseRole =
   | 'train'
   | 'elder'
   | 'elder-home'
+  | 'priest'
   | 'idle';
 
 /**
@@ -231,6 +232,12 @@ export const PHASE_STEPS: Record<PhaseRole, readonly PhaseStep[]> = {
     { name: 'rest', share: 0.2, variants: REST_CLIPS },
     { name: 'pray', share: 0.15, clip: 'pray', place: 'shrine' },
     { name: 'work', share: 0.3 },
+  ],
+  // kněz před vchodem kostela (návrh Clauda 12. 11. 2026): postává a modlí se
+  priest: [
+    { name: 'work', share: 0.35 },
+    { name: 'pray', share: 0.3, clip: 'pray' },
+    { name: 'work', share: 0.35 },
   ],
   idle: [
     { name: 'work', share: 0.3 },

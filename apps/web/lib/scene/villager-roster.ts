@@ -46,7 +46,9 @@ export type PersonJob =
   /** Dítě s řehtačkou na hlídaném dílu (wildlife.md – Noční hlídka; jen zobrazení). */
   | { kind: 'watch' }
   /** Řetěz s vědry v den požáru (disasters.md – Hašení – řetěz s vědry). */
-  | { kind: 'fire' };
+  | { kind: 'fire' }
+  /** Kněz před vchodem svého kostela (churches.md – Co kostel dává; villager-plan-priest.ts). */
+  | { kind: 'priest'; church: number };
 
 /** Koho postava chce – věk, domácnost, pohlaví. */
 export interface PersonRequest {

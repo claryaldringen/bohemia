@@ -45,6 +45,7 @@ const JOBS: Record<PhaseRole, PersonJob> = {
   train: { kind: 'lord', household: false },
   elder: { kind: 'elder' },
   'elder-home': { kind: 'elder' },
+  priest: { kind: 'priest', church: 9 },
   idle: { kind: 'share', activity: 'idle', target: { kind: 'village' } },
 };
 

@@ -73,6 +73,7 @@ import {
 } from './villager-plan-crafts';
 import { trafficFigures } from './villager-plan-traffic';
 import { lordFigures } from './villager-plan-lord';
+import { priestFigures } from './villager-plan-priest';
 import { shoeingFigures } from './villager-plan-shoeing';
 import {
   anglers,
@@ -184,6 +185,8 @@ export function planVillagersWithCrew(
     labor.month,
     Math.max(0, (options.maxWorkers ?? MAX_WORKERS) - mourning - celebrating),
   );
+  // kněží před vchodem kostelů – úplně napřed, do práce vsi (ani k spřežení) nejdou
+  const priests = priestFigures(ctx);
   // lidé u spřežení a vozů (villagers.md – Výběr postavy) – postavy kreslí spřežení a vůz
   const staff = draftStaff(ctx, options.draft ?? null, crew);
   // lidé s pevným místem dne napřed – pohřeb, karavany, nosiči kováře a pasáci
@@ -329,6 +332,7 @@ export function planVillagersWithCrew(
   people.push(...shoeing.people);
   people.push(...slaughter.people);
   people.push(...firefighters);
+  people.push(...priests);
   const doors = new Map<number, { x: number; z: number }>();
   for (const h of ctx.homes) if (!h.pen) doors.set(h.id, doorPoint(h));
   // délky chůze rozvrhu (`scheduledLength`) – stejné dvojice míst se během dne ptají znovu

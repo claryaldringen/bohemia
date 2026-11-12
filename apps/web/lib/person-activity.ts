@@ -206,6 +206,8 @@ export function personActivity(
     case 'lord':
       if (job.household) return 'vede domácnost';
       return (stage && LORD_TEXTS[stage]) ?? 'jde ke dvorci';
+    case 'priest':
+      return 'stojí před kostelem';
   }
 }
 
@@ -224,6 +226,8 @@ function legText(job: PersonJob, leg: 'out' | 'back'): string {
       return 'vychází před dům';
     case 'lord':
       return job.household ? 'jde do práce' : 'jde na cvičiště';
+    case 'priest':
+      return 'jde ke kostelu';
     case 'share':
       if (job.activity === 'fell') return 'jde do lesa';
       if (job.activity === 'fish') return 'jde k tůni';
