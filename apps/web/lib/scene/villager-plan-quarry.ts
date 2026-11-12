@@ -256,9 +256,9 @@ function carryRoute(
 
 /**
  * Postavy podílů lámání dne (`counts` – kolik postav podíl dostal): u každého lomu ve scéně první
- * postava odnáší kameny od stěny na hromadu u lomu (`stacker`), další lámou u stěny (klip `quarry`),
- * a bez vozu s kamenem nosí poslední z nich (≈ třetina, aspoň jeden, nejvýš všichni kromě
- * odnášeče) kámen v nůších na stavbu jako pochůzku. Lámou muži (těžká práce); kdo se k stěně
+ * postava láme u stěny (klip `quarry`), druhá odnáší kameny od stěny na hromadu u lomu (`stacker`),
+ * další lámou, a bez vozu s kamenem nosí od tří postav poslední z nich (≈ třetina, aspoň jeden,
+ * nejvýš všichni kromě prvního lámajícího a odnášeče) kámen v nůších na stavbu jako pochůzku. Lámou muži (těžká práce); kdo se k stěně
  * nevejde nebo nemá místo, postavu nemá a zůstane volný pro jinou práci.
  */
 export function quarryFigures(
@@ -286,8 +286,10 @@ function quarryCrew(
 ): PlannedVillager[] {
   const out: PlannedVillager[] = [];
   const key = `quarry:${targetKey(share.target)}:${share.construction ?? ''}`;
-  const path = n >= 2 ? carryRoute(ctx, labor, share, q) : null;
-  const carriers = path ? Math.min(n - 1, Math.max(1, Math.round(n * STONE_CARRY.share))) : 0;
+  // přednost má lámání: jediná postava láme, druhá odnáší kameny od kameníka, nosiči až od třetí
+  const stacker = n >= 2 ? 1 : -1;
+  const path = n >= 3 ? carryRoute(ctx, labor, share, q) : null;
+  const carriers = path ? Math.min(n - 2, Math.max(1, Math.round(n * STONE_CARRY.share))) : 0;
   const faces = quarryFaceSpots(q);
   const base = hash01(stringHash(key), 1, 93);
   // lámou muži; ves bez mužů – kdokoli dospělý
@@ -298,7 +300,7 @@ function quarryCrew(
     const carrier = i >= n - carriers ? i - (n - carriers) : -1;
     let spot: Spot | null = null;
     if (carrier < 0) {
-      const want = i === 0 ? pickSpot(q) : faces[i - 1];
+      const want = i === stacker ? pickSpot(q) : faces[i === 0 ? 0 : i - 1];
       const at = want ? nearestFree(ctx, want.x, want.z, 1.2) : null;
       spot = want && at ? { ...want, x: at.x, z: at.z } : null;
       // k stěně se nevejde – postavu nemá
@@ -328,8 +330,14 @@ function quarryCrew(
       });
       continue;
     }
-    const pose: PoseFn = stand(spot!.x, spot!.z, spot!.hx, spot!.hz, i === 0 ? 'lay' : 'quarry');
-    out.push(figure(c, pose, hair, i === 0 ? { ...job, stacker: true } : job));
+    const pose: PoseFn = stand(
+      spot!.x,
+      spot!.z,
+      spot!.hx,
+      spot!.hz,
+      i === stacker ? 'lay' : 'quarry',
+    );
+    out.push(figure(c, pose, hair, i === stacker ? { ...job, stacker: true } : job));
   }
   return out;
 }
