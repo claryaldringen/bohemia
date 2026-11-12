@@ -104,7 +104,10 @@ describe('villager-motion – pohyb jako funkce času', () => {
     ) as { name: string; clips: { name: string; keys?: unknown; props: string[] }[] }[];
     for (const figure of spec) {
       const keyed = figure.clips.filter((c) => c.keys).map((c) => c.name);
-      expect(keyed.sort()).toEqual(['drum', 'milk', 'pipe', 'sit', 'spin', 'weave', 'wheel']);
+      // `plaster` (štukatér ruce vzhůru proti zdi) je klíčový klip jen muže
+      const expectedKeyed = ['drum', 'milk', 'pipe', 'sit', 'spin', 'weave', 'wheel'];
+      if (figure.name === 'man') expectedKeyed.push('plaster');
+      expect(keyed.sort()).toEqual(expectedKeyed.sort());
       // sedí na špalku
       for (const c of figure.clips.filter((c) => ['milk', 'sit', 'wheel'].includes(c.name))) {
         expect(c.props).toContain('stump');

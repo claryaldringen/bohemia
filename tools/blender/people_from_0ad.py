@@ -895,8 +895,8 @@ def procedural_trowel(uv_wood, uv_metal):
     a trojúhelníkový list z ocele (0,13 m široký, 0,2 m dlouhý)."""
     out = ([], [], [], [])
     _tapered_rod(out, 5, -0.07, 0.08, 0.016, 0.014, uv_wood)
-    _box(out, -0.003, 0.003, -0.065, 0.065, 0.1, 0.16, uv_metal)
-    _box(out, -0.003, 0.003, -0.035, 0.035, 0.16, 0.27, uv_metal)
+    for z0, z1, w in ((0.1, 0.16, 0.07), (0.16, 0.22, 0.052), (0.22, 0.27, 0.032), (0.27, 0.3, 0.012)):
+        _box(out, -0.003, 0.003, -w, w, z0, z1, uv_metal)
     return _mesh(out)
 
 
@@ -947,10 +947,10 @@ def procedural_stone_load(uv_stone):
 
 
 def procedural_stone_hand(uv_stone):
-    """Kámen v rukou zedníka (klip `lay`): tesaný kvádr 0,3 × 0,18 × 0,13 m držený před tělem
+    """Kámen v rukou zedníka (klip `lay`): tesaný kvádr 0,35 × 0,25 × 0,2 m držený před tělem
     (bod `prop-weapon_R`, ruce chytají za boky kvádru)."""
     out = ([], [], [], [])
-    _box(out, -0.15, 0.15, -0.09, 0.09, -0.06, 0.07, uv_stone)
+    _box(out, -0.175, 0.175, -0.125, 0.125, -0.1, 0.1, uv_stone)
     return _mesh(out)
 
 

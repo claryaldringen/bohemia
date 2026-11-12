@@ -1321,7 +1321,9 @@
         "texture": "textures/skins/props/prop_weap.dds",
         "uv": {
           "wood": [0.06, 0.36, 0.14, 0.58]
-        }
+        },
+        "rotate_deg": [50, 0, 0],
+        "offset_m": [0, 1.12, -0.77]
       },
       {
         "name": "maul",
@@ -1379,7 +1381,8 @@
         "uv": {
           "wood": [0.06, 0.36, 0.14, 0.58],
           "metal": [0.75, 0.78, 0.95, 0.86]
-        }
+        },
+        "scale": 1.6
       },
       {
         "name": "float",
@@ -1424,7 +1427,8 @@
         "texture": "textures/skins/props/prop_weap.dds",
         "uv": {
           "stone": [0.75, 0.78, 0.95, 0.86]
-        }
+        },
+        "offset_m": [0, -0.22, 0]
       },
       {
         "name": "trough",
@@ -2157,7 +2161,7 @@
       },
       {
         "name": "measure",
-        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "animation": "animation/biped/citizen/idle_minister_01.dae",
         "props": ["head", "lath"]
       },
       {
@@ -2202,8 +2206,57 @@
       },
       {
         "name": "plaster",
-        "animation": "animation/biped/citizen/build.dae",
-        "props": ["head", "trowel", "float"]
+        "props": ["head", "trowel", "float"],
+        "keys": {
+          "base": "animation/biped/citizen/idle_relax_m_a.dae",
+          "duration_s": 2.0,
+          "poses": [
+            {
+              "t": 0,
+              "turn": {
+                "spine": [4, 0, 0],
+                "head": [-12, 0, 0]
+              },
+              "hands": {
+                "L": [0.2, 0.38, 1.4100000000000001],
+                "R": [-0.12, 0.42, 1.5]
+              }
+            },
+            {
+              "t": 0.5,
+              "turn": {
+                "spine": [4, 0, 4],
+                "head": [-12, 0, 0]
+              },
+              "hands": {
+                "L": [0.2, 0.38, 1.4300000000000002],
+                "R": [-0.04, 0.42, 1.6400000000000001]
+              }
+            },
+            {
+              "t": 1.0,
+              "turn": {
+                "spine": [4, 0, 0],
+                "head": [-12, 0, 0]
+              },
+              "hands": {
+                "L": [0.2, 0.38, 1.4100000000000001],
+                "R": [-0.2, 0.42, 1.54]
+              }
+            },
+            {
+              "t": 1.5,
+              "turn": {
+                "spine": [4, 0, -4],
+                "head": [-12, 0, 0]
+              },
+              "hands": {
+                "L": [0.2, 0.38, 1.4300000000000002],
+                "R": [-0.1, 0.42, 1.4200000000000002]
+              }
+            }
+          ]
+        }
       }
     ]
   }

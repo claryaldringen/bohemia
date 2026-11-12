@@ -323,12 +323,12 @@ krumpáče se sekerou a štípací špalek 0,8 m před patou), `sieve` (síto), 
 `carry-tools` / `carry-pots` / `carry-fish` (nůše s nástroji, nádobami, rybami – rychlost chůze
 jako `carry`), `snare` (oko – zatím nezapojeno: oka se ve scéně nekreslí, wildlife.md), `cook`
 (vařečka a hrnec na ohništi – ženy u dveří `COOK_SHARE` za přadlenami, `villager-plan-folk.ts`).
-**Mistři huti** (jen `man.glb`, `MAN_ONLY_CLIPS`; zapojení do plánu postav je zvlášť): `measure` (lať
-≈ 3 m v ruce – `gather_berries`), `break-stone` (palice a kámen s úlomky 1,05 m před patou –
+**Mistři huti** (jen `man.glb`, `MAN_ONLY_CLIPS`; zapojení do plánu postav je zvlášť): `measure` (stojí a drží ≈ 3 m dlouhou lať svisle jako hůl, spodek u chodidla –
+`idle_minister_01`, prop natočený a posunutý v `people.json`), `break-stone` (palice a kámen s úlomky 1,05 m před patou –
 `gather_mine`), `carry-stone` (nůše s kamením, rychlost jako `carry`), `stoke` (ožeh) a `slake`
 (míchadlo) na `farming`, `quarry` (krumpáč bez špalku – `gather_mine`), `dress` (kladivo, dláto,
-kvádr před kolenou – `build`), `lay` (kámen v rukou – `gather_berries`), `mortar` (motyka a koryto
-na zemi – `farming`), `plaster` (lžíce a hladítko – `build`). VAT muže je 412 × 3800 px.
+kvádr před kolenou – `build`), `lay` (kámen 0,35 × 0,25 × 0,2 m v ruce u země – `gather_berries`), `mortar` (motyka a koryto
+na zemi – `farming`), `plaster` (lžíce a hladítko, ruce vzhůru proti zdi – klíčový klip nad `idle_relax_m_a`). VAT muže je 412 × 3823 px.
 Vlastní klipy mají rekvizitu přímo: `milk` džber, `spin` přeslici, `weave` stav (stojí před
 tkající, jen když tká – zapojí úloha 12), `pipe` píšťalu, `drum` buben.
 **Volné propy** (bod `seat` – snop, špalek, síto, nádoby, oko, hrnec, džber, přeslice, stav,

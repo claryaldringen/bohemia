@@ -102,9 +102,9 @@ a `drum` dostaly džber, přeslici, stav, píšťalu a buben.
 
 Mistři stavební huti (jen `man.glb`, klipy `measure`, `break-stone`, `carry-stone`, `stoke`, `slake`,
 `quarry`, `dress`, `lay`, `mortar`, `plaster` – `docs/design/churches.md`): stávající animace 0 A.D.
-s novou rekvizitou – `gatherer/gather_berries.dae` (`measure`, `lay`), `gatherer/gather_mine.dae`
+s novou rekvizitou – `gatherer/gather_berries.dae` (`lay`), `citizen/idle_minister_01.dae` (`measure`), `gatherer/gather_mine.dae`
 (`break-stone`, `quarry`), `gatherer/carry_grain_m.dae` (`carry-stone`), `gatherer/farming.dae`
-(`stoke`, `slake`, `mortar`), `citizen/build.dae` (`dress`, `plaster`). Rekvizity z 0 A.D.: kladivo
+(`stoke`, `slake`, `mortar`), `citizen/build.dae` (`dress`) a klíčový klip `plaster` nad `citizen/idle_relax_m_a.dae`. Rekvizity z 0 A.D.: kladivo
 `props/tool_hammer.dae` (`dress`), motyka `props/tool_hoe.dae` (`mortar`), nůše
 `props/special/luggage_female_back.dae` (`carry-stone`). Nové jednoduché modely (skript
 `people_from_0ad.py`, tvar **vlastní práce, CC0**) s texturou z `props/prop_weap.dds` (0 A.D.):
