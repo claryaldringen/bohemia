@@ -64,7 +64,7 @@ function restSpot(ctx: Context, homeId: number, i: number): TrainingSpot {
 }
 
 /** Vchod dvorce (dveře uprostřed) – doma je cvičící skrytý tady. */
-function manorDoor(ctx: Context, homeId: number): TrainingSpot {
+export function manorDoor(ctx: Context, homeId: number): TrainingSpot {
   const home = ctx.homes.find((h) => h.id === homeId) ?? ctx.houses.find((h) => h.id === homeId);
   if (!home) return { x: 0, z: 0, headingX: 0, headingZ: 1 };
   const door = doorPoint({ ...home, box: home.own ?? home.box }, 0);

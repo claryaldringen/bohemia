@@ -120,6 +120,18 @@ export const PHASE_TEXTS: Partial<Record<PhaseName, string>> = {
   measure: 'měří zdi latí',
   direct: 'řídí stavbu',
   'walk-walls': 'obchází zdi',
+  'lay-out': 'vyměřuje půdorys',
+  remeasure: 'přeměřuje zdi',
+  inspect: 'kontroluje zdivo',
+  'to-quarry': 'jde k lomu',
+  'check-quarry': 'kontroluje lámání kamene',
+  'to-kiln': 'jde k peci',
+  'check-kiln': 'kontroluje pálení vápna',
+  'to-sand': 'jde k písníku',
+  'check-sand': 'kontroluje písník',
+  'to-manor': 'jde za vojvodou',
+  report: 'podává hlášení vojvodovi',
+  'back-to-site': 'vrací se na staveniště',
   'break-limestone': 'tluče vápenec',
   'load-kiln': 'nosí vápenec do pece',
   stoke: 'přikládá do pece',
@@ -137,6 +149,7 @@ export const PHASE_TEXTS: Partial<Record<PhaseName, string>> = {
 
 /** Mistr huti v místě práce bez fáze s vlastní větou (villager-plan-masons.ts). */
 const MASTER_TEXTS: Record<MasterWork, string> = {
+  layout: 'vyměřuje půdorys',
   site: 'řídí stavbu',
   sand: 'dohlíží na kopání písku',
   kiln: 'pálí vápno',
@@ -149,6 +162,7 @@ const MASTER_TEXTS: Record<MasterWork, string> = {
 
 /** Cesta mistra huti k práci (doma – vychází před dům). */
 const MASTER_LEGS: Record<MasterWork, string> = {
+  layout: 'jde na staveniště',
   site: 'jde na staveniště',
   sand: 'jde k písníku',
   kiln: 'jde k peci',

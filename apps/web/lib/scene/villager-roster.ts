@@ -56,10 +56,11 @@ export type PersonJob =
   | { kind: 'master'; craft: MasonCraft; church: number | null; work: MasterWork };
 
 /**
- * Kde mistr huti dnes pracuje: obchůzka staveniště (stavbyvedoucí), písník, vápenná pec, lom,
+ * Kde mistr huti dnes pracuje: vyměřování a obchůzka staveniště (stavbyvedoucí), písník, vápenná pec, lom,
  * tesání kvádrů u hromady kamene, zdi (zedník), omítání (štukatér), nebo doma.
  */
-export type MasterWork = 'site' | 'sand' | 'kiln' | 'quarry' | 'dress' | 'walls' | 'decor' | 'home';
+export type MasterWork =
+  'layout' | 'site' | 'sand' | 'kiln' | 'quarry' | 'dress' | 'walls' | 'decor' | 'home';
 
 /** Koho postava chce – věk, domácnost, pohlaví. */
 export interface PersonRequest {
