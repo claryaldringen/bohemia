@@ -43,6 +43,13 @@ a díly staveniště dvorec-construction.glb – uzly „dvorec-…“) se expor
   blender -b --factory-startup --python tools/blender/dwellings.py -- \
       /tmp/dwelling-atlas - apps/web/public/models/dwellings /tmp/dvorec-renders dvorec
 
+Nadzemní dům (srub.glb, díly staveniště srub-construction.glb – uzly „srub-…“) a srubový dvorec od
+roku 800 (dvorec-srub.glb, dvorec-srub-construction.glb – uzly „dvorec-srub-…“; branku pozemku
+má dál dvorec-gate.glb) se exportují zvlášť pátým argumentem „srub“ – ostatní GLB se nepřepíšou,
+koše netřeba (docs/design/log-house.md – Scéna):
+  blender -b --factory-startup --python tools/blender/dwellings.py -- \
+      /tmp/dwelling-atlas - apps/web/public/models/dwellings /tmp/srub-renders srub
+
 Rozpad obydlí (decay.glb – stupně sešlý, propadá se, zřícený a zbytek jámy po zániku, kopřivy;
 podrobně v sekci „rozpad obydlí“ níže, který stupeň kdy, určuje apps/web/lib/scene/dwelling-decay.ts)
 se exportuje zvlášť pátým argumentem „decay“ – ostatní GLB obydlí se tím nepřepíšou, koše netřeba:
@@ -60,9 +67,12 @@ from mathutils import Vector
 args = sys.argv[sys.argv.index("--") + 1 :]
 ATLAS, PROPS, OUT, RENDER = args[0], args[1], args[2], args[3]
 # pátý argument „decay“ = jen díly rozpadu obydlí (decay.glb), ostatní GLB se nepřepisují;
-# „dvorec“ = jen dvorec vojvody (dvorec.glb, dvorec-gate.glb, dvorec-construction.glb)
+# „dvorec“ = jen dvorec vojvody (dvorec.glb, dvorec-gate.glb, dvorec-construction.glb);
+# „srub“ = jen nadzemní dům a srubový dvorec (srub.glb, srub-construction.glb, dvorec-srub.glb,
+# dvorec-srub-construction.glb)
 DECAY_ONLY = len(args) > 4 and args[4] == "decay"
 DVOREC_ONLY = len(args) > 4 and args[4] == "dvorec"
+LOG_ONLY = len(args) > 4 and args[4] == "srub"
 META = json.load(open(os.path.join(ATLAS, "atlas.json")))
 AW, AH, UPER = META["W"], META["H"], META["uperiod_m"]
 BANDS, REGIONS = META["bands"], META["regions"]
@@ -179,8 +189,9 @@ class Builder:
         pts = [P(x0, y0, z1), P(x1, y0, z1), P(x1, y1, z1), P(x0, y1, z1)]
         self.poly(pts, "logs_rot", out=(0, 0, 1), uvm=[(p[0], p[1] - yc) for p in pts])
 
-    def beam(self, a, b, size, mat="beam"):
-        """Trám se čtvercovým průřezem z bodu a do b (u podél trámu, v přes stěnu)."""
+    def beam(self, a, b, size, mat="beam", end_mat=None):
+        """Trám se čtvercovým průřezem z bodu a do b (u podél trámu, v přes stěnu). end_mat =
+        materiál čel (jinak stejný jako boky)."""
         a, b = Vector(a), Vector(b)
         d = (b - a).normalized()
         length = (b - a).length
@@ -202,7 +213,7 @@ class Builder:
                 uvm=[(off, -h), (off, h), (off + length, h), (off + length, -h)],
             )
         for c, o in ((a, -d), (b, d)):
-            self.poly([c + r for r in ring], mat, out=o, uvm=[(r.dot(side), r.dot(up)) for r in ring])
+            self.poly([c + r for r in ring], end_mat or mat, out=o, uvm=[(r.dot(side), r.dot(up)) for r in ring])
 
     def plank(self, a, b, width, thick, mat="beam"):
         """Prkno ve svislé rovině y = konst. (šířka v rovině XZ, tloušťka podél Y)."""
@@ -346,17 +357,27 @@ class Parts:
         return [b.build(mat) for b in self.builders.values()]
 
 
-def thatch_roof(part, half_len, z_ridge, slope, x_eave, thickness, ny=None, kozy=(1.5, 0.62)):
+def thatch_roof(part, half_len, z_ridge, slope, x_eave, thickness, ny=None, kozy=(1.5, 0.62), wide=False):
     """Sedlová slámová střecha z řad došků (kurzů): každá řada je nepatrně strmější než
     střecha, takže spodní hrana přečnívá řadu pod ní o LIP – stupeň vrhá stín a řady jsou
     čitelné i z dálky. part(klíč) vrátí Builder: řady 'thatch-1' … 'thatch-N' zdola nahoru
     (staveniště je kladou postupně), hřeben s kozami 'ridge'. Vrací z_in(x) – spodní plochu
-    střechy."""
+    střechy. wide=True: atlas má řady jen do 3,95 m po spádu – širší střecha (dvorec-srub)
+    přidá další řady a jejich textura se bere z řad atlasu znovu (posun `shifts`)."""
     ny = ny or THATCH_NY
+    courses = list(COURSES)
+    shifts = [0.0] * len(courses)
+    if wide:
+        base = len(COURSES) - 1
+        while courses[-1] < 7.0:
+            k = len(courses) - 1
+            m = k % base
+            courses.append(courses[-1] + COURSES[m + 1] - COURSES[m])
+        shifts = [courses[k] - COURSES[k % base] for k in range(len(courses))]
     cs = 1 / math.sqrt(1 + slope * slope)
     t_v = thickness / cs  # svislá tloušťka
     L = x_eave / cs  # délka po spádu
-    n_courses = next(k for k, b in enumerate(COURSES) if b >= L - 1e-6)
+    n_courses = next(k for k, b in enumerate(courses) if b >= L - 1e-6)
     ys = [-half_len + 2 * half_len * j / ny for j in range(ny + 1)]
 
     def x_of(sgn, s):
@@ -379,17 +400,18 @@ def thatch_roof(part, half_len, z_ridge, slope, x_eave, thickness, ny=None, kozy
         out_top = (sgn * slope, 0, 1)
         for k in range(n_courses):
             b = part(f"thatch-{k + 1}")
-            s0 = COURSES[k]
-            s1 = min(COURSES[k + 1], L)
+            s0 = courses[k]
+            s1 = min(courses[k + 1], L)
+            sh = shifts[k]  # posun textury (jen wide)
             r0 = LIP
-            r1 = LIP * (1 - (s1 - s0) / (COURSES[k + 1] - COURSES[k]))
+            r1 = LIP * (1 - (s1 - s0) / (courses[k + 1] - courses[k]))
             for j in range(ny):
                 ya, yb = ys[j], ys[j + 1]
                 b.poly(
                     [P(sgn, s0, ya, r0), P(sgn, s0, yb, r0), P(sgn, s1, yb, r1), P(sgn, s1, ya, r1)],
                     "thatch",
                     out=out_top,
-                    uvm=[(ya, s0), (yb, s0), (yb, s1), (ya, s1)],
+                    uvm=[(ya, s0 - sh), (yb, s0 - sh), (yb, s1 - sh), (ya, s1 - sh)],
                 )
                 if k < n_courses - 1:  # stupeň (čelo řady nad touto řadou)
                     b.poly(
@@ -409,7 +431,7 @@ def thatch_roof(part, half_len, z_ridge, slope, x_eave, thickness, ny=None, kozy
                     [o0, o1, i1, i0],
                     "thatch_edge",
                     out=out,
-                    uvm=[(s0, (zt0 - o0[2]) * cs), (s1, (zt1 - o1[2]) * cs), (s1, (zt1 - i1[2]) * cs), (s0, (zt0 - i0[2]) * cs)],
+                    uvm=[(s0 - sh, (zt0 - o0[2]) * cs), (s1 - sh, (zt1 - o1[2]) * cs), (s1 - sh, (zt1 - i1[2]) * cs), (s0 - sh, (zt0 - i0[2]) * cs)],
                 )
             # spodní strana řady
             xa, xb = x_of(sgn, s0), x_of(sgn, s1)
@@ -417,7 +439,7 @@ def thatch_roof(part, half_len, z_ridge, slope, x_eave, thickness, ny=None, kozy
                 [(xb, -half_len, z_in(xb)), (xa, -half_len, z_in(xa)), (xa, half_len, z_in(xa)), (xb, half_len, z_in(xb))],
                 "thatch",
                 out=(-sgn, 0, -1),
-                uvm=[(-half_len, s1), (-half_len, s0), (half_len, s0), (half_len, s1)],
+                uvm=[(-half_len, s1 - sh), (-half_len, s0 - sh), (half_len, s0 - sh), (half_len, s1 - sh)],
             )
         ex = sgn * x_eave
         # okapová hrana (tloušťka došků) patří k první řadě
@@ -942,6 +964,188 @@ def build_dvorec_gate(b):
         )
     # koňská hlava nad bránou (ze střechy dvorce)
     prism(b, bowed_head(1.1, 0.5), (0, 0, 2.42), (0.7, 0, 0.7), (-0.7, 0, 0.7), 0.075, "beam")
+
+
+# ------------------------------------------------------------------ nadzemní dům a srubový dvorec
+
+# Nadzemní dům (srub) a dvorec od roku 800 (docs/design/log-house.md – Scéna): roubené stěny
+# z kmenů s přesahy v rozích, stojí na základových kamenech (ne v jámě), sedlová došková střecha,
+# štíty z prken s otvorem pro kouř, nízké dveře s prahem. Počátek = střed půdorysu na terénu, hřeben
+# podél osy Y, přední dveře v -Y (jako polozemnice a dvorec; v glTF a ve scéně při natočení 0
+# míří do +Z). Půdorys včetně přesahů kmenů na nárožích: srub 5 × 6 m (napříč × podél hřebene),
+# dvorec-srub 7 × 11 m (síň vepředu, komora vzadu, dvoje dveře – přední do síně, zadní do komory).
+# Střecha přečnívá před štíty o `overhang`. Jámu ani šíji nemají – scéna je nekreslí.
+LOG_OVER = 0.25  # o kolik přečnívají konce kmenů na nárožích (m)
+LOG_HOUSES = {
+    "srub": dict(
+        o=(2.25, 2.75),  # vnější půlrozměry stěn napříč a podél hřebene (bez přesahů kmenů)
+        t=0.2, n=9, base=0.25,  # tloušťka kmene, počet věnců, výška základových kamenů
+        door_cut=7,  # dveře prořezávají prvních 7 věnců (otvor ≈ 1,3 m nad prahem)
+        doors=(-1,),  # strany se dveřmi: −1 vpředu (−Y), +1 vzadu
+        slope=0.9, th=0.32, x_eave=2.75, overhang=0.8, kozy=(1.7, 0.6), ny=6, wide=False,
+        manor=False, n_rafters=5, post_ys=2,
+    ),
+    "dvorec-srub": dict(
+        o=(3.2, 5.2), t=0.22, n=9, base=0.28, door_cut=8, doors=(-1, 1),
+        slope=0.8, th=0.34, x_eave=3.75, overhang=0.9, kozy=(2.3, 0.62), ny=10, wide=True,
+        manor=True, n_rafters=9, post_ys=3,
+    ),
+}
+
+
+def boulder(b, cx, cy, rx, ry, h, seed):
+    """Základový kámen: nízký nepravidelný hranol se zešikmeným vrchem (oblast „earth“ atlasu)."""
+    n = 7
+    bot, top = [], []
+    for i in range(n):
+        a = 2 * math.pi * (i + 0.3 * _rand(i, seed)) / n
+        r = 0.85 + 0.3 * _rand(i, seed + 5)
+        x, y = cx + rx * r * math.cos(a), cy + ry * r * math.sin(a)
+        bot.append((x, y, -0.1))
+        top.append((cx + (x - cx) * 0.78, cy + (y - cy) * 0.78, h * (0.9 + 0.2 * _rand(i, seed + 9))))
+    for i in range(n):
+        j = (i + 1) % n
+        b.poly([bot[i], bot[j], top[j], top[i]], "earth", out=(top[i][0] + top[j][0] - 2 * cx, top[i][1] + top[j][1] - 2 * cy, 0.2),
+               uvm=[(i / n, 0.0), ((i + 1) / n, 0.0), ((i + 1) / n, 1.0), (i / n, 1.0)])
+    b.poly(top, "earth", out=(0, 0, 1), uvm=[(0.5 + (p[0] - cx) / (2 * rx), 0.5 + (p[1] - cy) / (2 * ry)) for p in top])
+
+
+def log_foundation(b, ox, oy, doors):
+    """Kameny pod nárožími a po obvodu pod stěnami, před dveřmi plochý schodový kámen."""
+    seed = 0
+    pts = []
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            pts.append((sx * (ox - 0.1), sy * (oy - 0.1), 0.45))
+    for sx in (-1, 1):  # podél dlouhých stěn
+        m = max(1, round((2 * oy) / 1.3) - 1)
+        for i in range(1, m + 1):
+            pts.append((sx * (ox - 0.1), -oy + 2 * oy * i / (m + 1), 0.4))
+    for sy in (-1, 1):  # pod štítovými stěnami (kromě dveří)
+        m = max(1, round(ox / 0.9))
+        for i in range(1, m):
+            x = -ox + 2 * ox * i / m
+            if sy in doors and abs(x) < DOOR + 0.35:
+                continue
+            pts.append((x, sy * (oy - 0.1), 0.38))
+    for x, y, rx in pts:
+        seed += 1
+        boulder(b, x, y, rx * 0.8, rx * 0.8, 0.27 + 0.05 * _rand(seed, 3), seed)
+    for sy in doors:  # schodový kámen před dveřmi
+        boulder(b, 0.0, sy * (oy + 0.6), 0.55, 0.38, 0.14, 50 + sy)
+
+
+def build_log_house(part, kind, stages=False):
+    """Nadzemní dům (kind „srub“) nebo srubový dvorec („dvorec-srub“). Části podle fází stavby:
+    stakes (kolíky), stones (základové kameny), logs-1 … logs-N (věnce kmenů), doors (ostění),
+    plates, boards (prkna štítů, dýmník), posts / ridge-beam / rafters-i / laths (krov – jen
+    stages), thatch-1 … (řady došků), ridge, carving (dvorec: bednění se zubořezem a koňské hlavy)."""
+    g = LOG_HOUSES[kind]
+    ox, oy = g["o"]
+    t, n, base, m = g["t"], g["n"], g["base"], g["door_cut"]
+    doors = g["doors"]
+    slope, th, x_eave = g["slope"], g["th"], g["x_eave"]
+    over = LOG_OVER
+    z_top = base + n * t  # horní hrana podélných (okapních) věnců
+    t_v = th * math.sqrt(1 + slope * slope)  # svislá tloušťka došků (th je kolmá)
+    z_ridge = z_top + t_v + slope * ox  # spodní plocha střechy sedí na hraně stěny
+    half_len = oy + g["overhang"]
+    door_open_top = base + m * t - t / 2  # horní hrana otvoru dveří (spodek prvního plného věnce)
+
+    # kameny pod stěnami
+    log_foundation(part("stones"), ox, oy, doors)
+
+    # věnce kmenů: podélné (okapní) věnce v úrovni base + t/2 + k t, štítové o půl kmene výš –
+    # na nárožích se střídavě překrývají a přečnívají
+    for k in range(n):
+        b = part(f"logs-{k + 1}")
+        zc = base + t / 2 + k * t
+        for sgn in (-1, 1):
+            xc = sgn * (ox - t / 2)
+            b.beam((xc, -oy - over, zc), (xc, oy + over, zc), t, end_mat="logs_rot")
+        zl = base + k * t
+        for sgn in (-1, 1):
+            yc = sgn * (oy - t / 2)
+            if sgn in doors and k < m:
+                b.beam((-ox - over, yc, zl), (-DOOR, yc, zl), t * 0.97, end_mat="logs_rot")
+                b.beam((DOOR, yc, zl), (ox + over, yc, zl), t * 0.97, end_mat="logs_rot")
+            else:
+                b.beam((-ox - over, yc, zl), (ox + over, yc, zl), t * 0.97, end_mat="logs_rot")
+    # tmavé nitro za dveřmi a práh
+    b = part("logs-1")
+    for sgn in doors:
+        yc = sgn * (oy - t / 2)
+        yi = sgn * (oy - t - 0.3)
+        o_in = (0, -sgn, 0)
+        b.poly([(-DOOR, yi, base), (DOOR, yi, base), (DOOR, yi, door_open_top), (-DOOR, yi, door_open_top)], "dark", out=o_in)
+        for sx in (-1, 1):
+            b.poly([(sx * DOOR, sgn * oy, base), (sx * DOOR, yi, base), (sx * DOOR, yi, door_open_top), (sx * DOOR, sgn * oy, door_open_top)], "dark", out=(-sx, 0, 0))
+        b.beam((-DOOR - 0.08, yc, base - 0.03), (DOOR + 0.08, yc, base - 0.03), 0.17)  # práh
+
+    # ostění dveří: sloupky a překlad před stěnou (dvorec vyřezávané sloupky s hlavicí)
+    b = part("doors")
+    for sgn in doors:
+        yf = sgn * (oy + 0.07)
+        for sx in (-1, 1):
+            if g["manor"]:
+                b.beam((sx * 0.52, yf, base - 0.05), (sx * 0.52, yf, door_open_top + 0.3), 0.15)
+                b.beam((sx * 0.52, yf, door_open_top + 0.3), (sx * 0.52, yf, door_open_top + 0.46), 0.21)
+            else:
+                b.beam((sx * 0.5, yf, base - 0.05), (sx * 0.5, yf, door_open_top + 0.08), 0.13)
+        zl = door_open_top + (0.02 if g["manor"] else 0.08)
+        b.beam((-0.72 if g["manor"] else -0.62, yf, zl), (0.72 if g["manor"] else 0.62, yf, zl), 0.12)
+
+    # vaznice (pozednice) pod střechou
+    b = part("plates")
+    for sgn in (-1, 1):
+        b.beam((sgn * (ox - t / 2), -half_len + 0.08, z_top + 0.07), (sgn * (ox - t / 2), half_len - 0.08, z_top + 0.07), 0.16)
+
+    z_in = thatch_roof(part, half_len, z_ridge, slope, x_eave, th, ny=g["ny"], kozy=g["kozy"], wide=g["wide"])
+    if g["manor"]:
+        horse_heads(part("carving"), half_len, z_ridge, slope, g["kozy"])
+
+    apex = z_in(0)
+    zv = apex - (0.5 if not g["manor"] else 0.7)  # nad zv tmavý dýmník
+    z_plank0 = z_top - t / 2 - 0.02
+    z_board = z_top + 0.9  # dvorec: odtud nahoru bednění se zubořezem
+
+    def x_at(z):
+        return (apex - z) / slope
+
+    b = part("boards")
+    for sgn in (-1, 1):
+        y = sgn * (oy - t / 2)
+        outv = (0, sgn, 0)
+        # svislá prkna štítu od věnců po dýmník
+        z_hi = z_board if g["manor"] else zv
+        xmax = ox - 0.03
+        k = 0
+        x = -xmax
+        while x < xmax - 0.01:
+            x1 = min(x + 0.2, xmax)
+            xm = (x + x1) / 2
+            top_z = min(z_hi, apex - slope * max(abs(x), abs(x1)) + 0.02)
+            if top_z > z_plank0 + 0.1:
+                b.plank((xm, y, z_plank0), (xm, y, top_z), (x1 - x) - 0.012, 0.08)
+            x = x1 + 0.0
+            k += 1
+        # tmavý dýmník vrcholu štítu a rám z trámů
+        b.poly([(-x_at(zv), y + sgn * 0.03, zv), (x_at(zv), y + sgn * 0.03, zv), (0, y + sgn * 0.03, apex)], "dark", out=outv)
+        gable_frame(b, y, apex, slope, z_top - 0.03, zv, size=0.12 if not g["manor"] else 0.13)
+        yo = y + sgn * 0.05
+        b.beam((-ox - 0.1, yo, z_top - 0.02), (ox + 0.1, yo, z_top - 0.02), 0.14)
+    if g["manor"]:
+        b = part("carving")
+        for sgn in (-1, 1):
+            zigzag_boards(b, sgn * (oy - t / 2 + 0.04), (0, sgn, 0), apex, slope, z_board, zv)
+
+    if stages:
+        stakes_and_string(part("stakes"), [(-ox, oy), (ox, oy), (ox, -oy), (-ox, -oy)])
+        yp = (-(oy - t / 2), oy - t / 2) if g["post_ys"] == 2 else (-(oy - t / 2), 0.0, oy - t / 2)
+        ridge_frame(part, yp, z_top + 0.1, apex, half_len, slope, x_eave, z_in, n_rafters=g["n_rafters"])
+        b = part("posts")
+        for y in yp:  # příčný trám, na kterém sloup stojí
+            b.beam((-(ox - t / 2), y, z_top + 0.04), (ox - t / 2, y, z_top + 0.04), 0.15)
 
 
 def site_props(part, mat):
@@ -1912,7 +2116,53 @@ def dvorec_main():
         render([dvorec, gate], os.path.join(RENDER, "dvorec_game_angle.png"), (0, -26, 23.0), (0, -3, 0.5), size=(1600, 900))
 
 
+def log_main():
+    """Jen nadzemní dům a srubový dvorec (log-house.md – Scéna)."""
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    mat = make_material()
+    os.makedirs(OUT, exist_ok=True)
+    houses = {}
+    for kind in LOG_HOUSES:
+        fp = Parts(f"f-{kind}")
+        build_log_house(fp, kind)
+        obj = join(fp.build(mat), kind)
+        obj.location = (0, 0, 0)
+        export([obj], os.path.join(OUT, f"{kind}.glb"))
+        d = obj.dimensions
+        print(f"STAT {kind}: {tri_count(obj)} tris, {d.x:.2f} x {d.y:.2f} x {d.z:.2f} m")
+        houses[kind] = obj
+        sp = Parts(kind)
+        build_log_house(sp, kind, stages=True)
+        stage_objs = sp.build(mat)
+        bpy.ops.object.select_all(action="DESELECT")
+        for o in stage_objs:
+            o.select_set(True)
+        bpy.context.view_layer.objects.active = stage_objs[0]
+        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+        export(stage_objs, os.path.join(OUT, f"{kind}-construction.glb"))
+        for o in stage_objs:
+            print(f"PART {o.name}: {tri_count(o)} tris")
+            o.hide_render = True
+    if RENDER != "-":
+        terrain = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "apps", "web", "public", "textures", "terrain")
+        setup_world(os.path.join(terrain, "grass.jpg"))
+        os.makedirs(RENDER, exist_ok=True)
+        srub, manor = houses["srub"], houses["dvorec-srub"]
+        render([srub], os.path.join(RENDER, "srub_front.png"), (-7.5, -11.5, 5.2), (0.3, 0, 1.6), size=(900, 600))
+        render([srub], os.path.join(RENDER, "srub_back.png"), (9.5, 9.0, 6.0), (0, 0, 1.6), size=(900, 600))
+        render([srub], os.path.join(RENDER, "srub_close.png"), (-2.4, -8.6, 3.9), (0.05, -2.7, 0.6), size=(900, 600), lens=30)
+        render([manor], os.path.join(RENDER, "dvorec-srub_front.png"), (-12.5, -17.5, 8.5), (0.3, 0, 2.0), size=(900, 600))
+        render([manor], os.path.join(RENDER, "dvorec-srub_back.png"), (14.0, 15.0, 9.0), (0, 0, 2.0), size=(900, 600))
+        render([manor], os.path.join(RENDER, "dvorec-srub_side.png"), (24.0, -4.0, 6.0), (0, 0, 2.2), size=(900, 600), lens=40)
+        srub.location = (-6.0, 0, 0)
+        manor.location = (6.5, 0, 0)
+        render([srub, manor], os.path.join(RENDER, "both_game_angle.png"), (0, -26, 23.0), (0, 0, 0.5), size=(1000, 600))
+
+
 def main():
+    if LOG_ONLY:
+        log_main()
+        return
     if DECAY_ONLY:
         decay_main()
         return
