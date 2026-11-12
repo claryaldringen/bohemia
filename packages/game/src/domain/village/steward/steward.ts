@@ -34,6 +34,7 @@ import { fieldStoresOutlook } from '../core/simulate-plan';
 import { fieldCells, planCentre, takenTiles, villageTerritory } from './steward-land';
 import { abandonStep } from './steward-abandon';
 import { extraSteps } from './steward-extras';
+import { logHouseCovered, logHouseStep } from './steward-log-house';
 import { needSteps } from './steward-needs';
 import {
   cellRuns,
@@ -152,6 +153,8 @@ function decideDay(
   // výměna špatných vlastních dílů pole za lepší místo plánu – jednou za rok v září
   // (steward-abandon.ts)
   abandonStep(state, ctx);
+  // nadzemní dům před obydlím – rodina z pořadí, pro kterou srub čeká, polozemnici nedostane
+  logHouseStep(state, ctx);
   dwellingStep(state, ctx);
   extraSteps(state, ctx);
 }
@@ -810,11 +813,27 @@ export function workshopValue(
   }
 }
 
-/** Krok 4 – obydlí nebo dílna pro čekající rodinu (dílna jen v režimu Růst). */
+/**
+ * Krok 4 – obydlí nebo dílna pro čekající rodinu (dílna jen v režimu Růst). Rodiny z pořadí,
+ * které dostanou nadzemní dům (`logHouseCovered`), se nepočítají – nestaví se pro ně ještě
+ * polozemnice (log-house.md – Správce, návrh Clauda).
+ */
 function dwellingStep(state: VillageState, ctx: StewardContext): void {
-  if (waitingHouseholds(state, ctx.day) <= 0) return;
+  if (waitingHouseholds(state, ctx.day) - logHouseCovered(state, ctx.day) <= 0) return;
   if (ctx.mode === 'growth' && workshopStep(state, ctx)) return;
-  const type = chooseDwellingType(state, ctx);
+  startDwelling(state, ctx, chooseDwellingType(state, ctx));
+}
+
+/**
+ * Začne obydlí `type` na slotu plánu a když žádný nevyšel, u dvorce (nová ves bez ověřených domů
+ * plánu – steward.md – Výpočetní rozpočet; vetovaná políčka ani tady ne – Soužití s hráčem).
+ * Vrací, zda stavba začala.
+ */
+export function startDwelling(
+  state: VillageState,
+  ctx: StewardContext,
+  type: BuildableDwellingType,
+): boolean {
   const intentOf = (tile: number): BuildIntent => {
     const cell = tileCell(ctx.landscape, tile);
     const c = tileCenterWorld(ctx.landscape, cell.x, cell.y);
@@ -826,14 +845,15 @@ function dwellingStep(state: VillageState, ctx: StewardContext): void {
     };
   };
   const slots = trySlots(state, ctx, 'dwelling', intentOf);
-  if (slots.started || slots.tried) return;
-  // nová ves bez ověřených domů plánu – obydlí u dvorce (steward.md – Výpočetní rozpočet)
-  // vetovaná políčka obydlí ani tady ne (steward.md – Soužití s hráčem)
+  if (slots.started) return true;
+  if (slots.tried) return false;
   const tiles = centreHouseTiles(state, ctx).filter((t) => !vetoed(state, ctx, 'dwelling', t));
   for (const tile of tiles.slice(0, STEWARD.slotTries)) {
     const built = startStewardBuild(state, ctx, intentOf(tile));
-    if (built.ok || NOT_THE_SLOT.has(built.reason)) return;
+    if (built.ok) return true;
+    if (NOT_THE_SLOT.has(built.reason)) return false;
   }
+  return false;
 }
 
 /** Dílna místo obydlí: řemeslo s nejvyšší kladnou hodnotou na slotu dílny plánu. */
