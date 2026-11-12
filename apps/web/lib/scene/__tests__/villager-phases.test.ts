@@ -25,6 +25,9 @@ const NEAR: PhasePlaces = {
   drop: { x: 10, z: 0 },
   aid: { x: 0, z: 12 },
   shrine: { x: -8, z: 6 },
+  haul: { x: 6, z: 3 },
+  pit: { x: -5, z: -6 },
+  wall: { x: 4, z: -7 },
 };
 
 const JOBS: Record<PhaseRole, PersonJob> = {
@@ -46,6 +49,15 @@ const JOBS: Record<PhaseRole, PersonJob> = {
   elder: { kind: 'elder' },
   'elder-home': { kind: 'elder' },
   priest: { kind: 'priest', church: 9 },
+  'master-site': { kind: 'master', craft: 'builder', church: 9, work: 'site' },
+  'master-sand': { kind: 'master', craft: 'builder', church: 9, work: 'sand' },
+  'master-kiln': { kind: 'master', craft: 'limeBurner', church: 9, work: 'kiln' },
+  'master-lime': { kind: 'master', craft: 'limeBurner', church: 9, work: 'kiln' },
+  'master-quarry': { kind: 'master', craft: 'stonemason', church: 9, work: 'quarry' },
+  'master-dress': { kind: 'master', craft: 'stonemason', church: 9, work: 'dress' },
+  'master-walls': { kind: 'master', craft: 'mason', church: 9, work: 'walls' },
+  'master-decor': { kind: 'master', craft: 'plasterer', church: 9, work: 'decor' },
+  'master-home': { kind: 'master', craft: 'mason', church: null, work: 'home' },
   idle: { kind: 'share', activity: 'idle', target: { kind: 'village' } },
 };
 

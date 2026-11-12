@@ -584,8 +584,10 @@ export function taskKind(
   // vojvodova rodina má vlastní den ve skutečném čase (lord-day.ts – sám vyjde z dvorce a vejde):
   // drží ho, dokud ho obsazení dává, a přes přelom dne navazuje (žně – na pole dojde, vrátí se)
   if (job.kind === 'lord') return { kind: 'hold', range: 'short' };
-  // starší u domu
-  if (job.kind === 'elder') return { kind: 'bout', range: 'short' };
+  // starší u domu, mistr huti bez práce na kostele u domu
+  if (job.kind === 'elder' || (job.kind === 'master' && job.work === 'home')) {
+    return { kind: 'bout', range: 'short' };
+  }
   return { kind: 'bout', range: 'long' };
 }
 

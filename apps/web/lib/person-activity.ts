@@ -4,7 +4,7 @@
 // kde v pochůzce je (tam, zpět, doma) a dat vsi ve scéně. Čistý modul.
 import type { Craft, HerdSpecies, KilnStage } from '@bohemia/game';
 import { crewActivityText, type DraftFigureState } from './draft-activity';
-import type { PersonJob } from './scene/villager-roster';
+import type { MasterWork, PersonJob } from './scene/villager-roster';
 import type { VillagerStage } from './scene/villager-motion';
 import type { PhaseName } from './scene/villager-phases';
 import type { LaborTarget, SceneDemolition, SceneVillage } from './village-view';
@@ -116,6 +116,47 @@ export const PHASE_TEXTS: Partial<Record<PhaseName, string>> = {
   pray: 'modlí se',
   'from-shrine': 'vrací se od modly',
   return: 'vrací se do dílny',
+  // mistři huti na staveništi kostela (churches.md – Mistři huti při práci)
+  measure: 'měří zdi latí',
+  direct: 'řídí stavbu',
+  'walk-walls': 'obchází zdi',
+  'break-limestone': 'tluče vápenec',
+  'load-kiln': 'nosí vápenec do pece',
+  stoke: 'přikládá do pece',
+  'to-pit': 'jde k vápenné jámě',
+  slake: 'hasí vápno',
+  'quarry-stone': 'láme kámen',
+  pause: 'odpočívá',
+  'dress-stone': 'tesá kvádry',
+  'carry-to-wall': 'nosí kámen ke zdi',
+  'lay-stone': 'klade kameny do zdi',
+  'mix-mortar': 'míchá maltu',
+  plaster: 'omítá zdi',
+  resume: 'vrací se k práci',
+};
+
+/** Mistr huti v místě práce bez fáze s vlastní větou (villager-plan-masons.ts). */
+const MASTER_TEXTS: Record<MasterWork, string> = {
+  site: 'řídí stavbu',
+  sand: 'dohlíží na kopání písku',
+  kiln: 'pálí vápno',
+  quarry: 'láme kámen',
+  dress: 'tesá kvádry',
+  walls: 'klade kameny do zdi',
+  decor: 'omítá zdi',
+  home: 'postává u domu',
+};
+
+/** Cesta mistra huti k práci (doma – vychází před dům). */
+const MASTER_LEGS: Record<MasterWork, string> = {
+  site: 'jde na staveniště',
+  sand: 'jde k písníku',
+  kiln: 'jde k peci',
+  quarry: 'jde do lomu',
+  dress: 'jde na staveniště',
+  walls: 'jde na staveniště',
+  decor: 'jde na staveniště',
+  home: 'vychází před dům',
 };
 
 /** Žena u dveří (villager-plan-folk.ts – `doorChore`): přede, vaří, tká, hlídá malé děti. */
@@ -208,6 +249,8 @@ export function personActivity(
       return (stage && LORD_TEXTS[stage]) ?? 'jde ke dvorci';
     case 'priest':
       return 'stojí před kostelem';
+    case 'master':
+      return MASTER_TEXTS[job.work];
   }
 }
 
@@ -228,6 +271,8 @@ function legText(job: PersonJob, leg: 'out' | 'back'): string {
       return job.household ? 'jde do práce' : 'jde na cvičiště';
     case 'priest':
       return 'jde ke kostelu';
+    case 'master':
+      return MASTER_LEGS[job.work];
     case 'share':
       if (job.activity === 'fell') return 'jde do lesa';
       if (job.activity === 'fish') return 'jde k tůni';

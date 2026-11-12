@@ -70,7 +70,25 @@ export type PhaseName =
   | 'pray'
   | 'from-shrine'
   // návrat k dílně z odnosu
-  | 'return';
+  | 'return'
+  // mistři huti na staveništi kostela (churches.md – Mistři huti při práci): stavbyvedoucí,
+  // vápeník, kameník, zedník a štukatér; návrat k práci od pece, jámy či zdi
+  | 'measure'
+  | 'direct'
+  | 'walk-walls'
+  | 'break-limestone'
+  | 'load-kiln'
+  | 'stoke'
+  | 'to-pit'
+  | 'slake'
+  | 'quarry-stone'
+  | 'pause'
+  | 'dress-stone'
+  | 'carry-to-wall'
+  | 'lay-stone'
+  | 'mix-mortar'
+  | 'plaster'
+  | 'resume';
 
 /**
  * Role fází – kterou posloupnost fází činnost dostane (z úlohy dne a stavu vsi –
@@ -95,13 +113,25 @@ export type PhaseRole =
   | 'elder'
   | 'elder-home'
   | 'priest'
+  // mistři huti (villager-plan-masons.ts): u staveniště, písníku, pece při pálení a mezi ním,
+  // v lomu, u hromady kamene, u zdí, při omítání a doma
+  | 'master-site'
+  | 'master-sand'
+  | 'master-kiln'
+  | 'master-lime'
+  | 'master-quarry'
+  | 'master-dress'
+  | 'master-walls'
+  | 'master-decor'
+  | 'master-home'
   | 'idle';
 
 /**
  * Fáze role a kde se dělá: u místa úlohy, u cizího domu (odnos – `drop`), na poli žní (`aid`),
- * před modlou či svatyní (`shrine`).
+ * před modlou či svatyní (`shrine`); mistři huti – kam se nese kámen (`haul` – pec, zeď),
+ * u vápenné jámy (`pit`), u jiného místa zdí (`wall` – obchůzka stavbyvedoucího).
  */
-type PhasePlace = 'site' | 'drop' | 'aid' | 'shrine';
+type PhasePlace = 'site' | 'drop' | 'aid' | 'shrine' | 'haul' | 'pit' | 'wall';
 
 /**
  * Krok posloupnosti fází role (podíl práce v místě): `clip` – klip místo pózy úlohy (postava
@@ -129,6 +159,10 @@ const TRANSIT: Record<
   drop: { go: null, come: 'return', clip: 'carry' },
   aid: { go: 'to-harvest', come: 'from-harvest', clip: 'walk' },
   shrine: { go: 'to-shrine', come: 'from-shrine', clip: 'walk' },
+  // mistři huti: kámen v nůši k peci či ke zdi, k vápenné jámě, obchůzka podél zdí
+  haul: { go: null, come: 'resume', clip: 'carry-stone' },
+  pit: { go: 'to-pit', come: 'resume', clip: 'walk' },
+  wall: { go: 'walk-walls', come: 'walk-walls', clip: 'walk' },
 };
 
 /**
@@ -239,6 +273,62 @@ export const PHASE_STEPS: Record<PhaseRole, readonly PhaseStep[]> = {
     { name: 'pray', share: 0.3, clip: 'pray' },
     { name: 'work', share: 0.35 },
   ],
+  // mistři huti na staveništi kostela (churches.md – Mistři huti při práci; návrh Clauda
+  // 12. 11. 2026): stavbyvedoucí měří latí, řídí pomocníky a obchází zdi k jinému místu
+  'master-site': [
+    { name: 'measure', share: 0.3, clip: 'measure' },
+    { name: 'direct', share: 0.2, variants: REST_CLIPS },
+    { name: 'measure', share: 0.3, clip: 'measure', place: 'wall' },
+    { name: 'direct', share: 0.2, variants: REST_CLIPS },
+  ],
+  // stavbyvedoucí u písníku (jen kopání písku) – dohlíží (póza úlohy) a řídí
+  'master-sand': [
+    { name: 'work', share: 0.4 },
+    { name: 'direct', share: 0.6, variants: REST_CLIPS },
+  ],
+  // vápeník při pálení: přikládá ožehem a hlídá oheň
+  'master-kiln': [
+    { name: 'stoke', share: 0.3, clip: 'stoke' },
+    { name: 'watch-fire', share: 0.4, clip: 'idle' },
+    { name: 'stoke', share: 0.3, clip: 'stoke' },
+  ],
+  // vápeník mezi pálením: tluče vápenec palicí, nosí ho v nůši do pece, hasí vápno v jámě
+  // (krok u jámy jen s vápnem v jámě)
+  'master-lime': [
+    { name: 'break-limestone', share: 0.35, clip: 'break-stone' },
+    { name: 'load-kiln', share: 0.2, clip: 'lay', place: 'haul', carry: 'carry-stone' },
+    { name: 'break-limestone', share: 0.25, clip: 'break-stone' },
+    { name: 'slake', share: 0.2, clip: 'slake', place: 'pit' },
+  ],
+  // kameník v lomu: krumpáč s přestávkou
+  'master-quarry': [
+    { name: 'quarry-stone', share: 0.4, clip: 'quarry' },
+    { name: 'pause', share: 0.15, variants: REST_CLIPS },
+    { name: 'quarry-stone', share: 0.45, clip: 'quarry' },
+  ],
+  // kameník u hromady kamene: tesá kvádry, občas nese kámen ke zdi
+  'master-dress': [
+    { name: 'dress-stone', share: 0.4, clip: 'dress' },
+    { name: 'carry-to-wall', share: 0.2, clip: 'lay', place: 'haul', carry: 'carry-stone' },
+    { name: 'dress-stone', share: 0.4, clip: 'dress' },
+  ],
+  // zedník u zdi: klade kameny, míchá maltu motykou v korytě
+  'master-walls': [
+    { name: 'lay-stone', share: 0.35, clip: 'lay' },
+    { name: 'mix-mortar', share: 0.3, clip: 'mortar' },
+    { name: 'lay-stone', share: 0.35, clip: 'lay' },
+  ],
+  // štukatér u zdi: omítá lžící a hladítkem, míchá omítku v korytě
+  'master-decor': [
+    { name: 'plaster', share: 0.35, clip: 'plaster' },
+    { name: 'mix-mortar', share: 0.3, clip: 'mortar' },
+    { name: 'plaster', share: 0.35, clip: 'plaster' },
+  ],
+  // mistr bez práce na kostele postává u dveří svého domu
+  'master-home': [
+    { name: 'work', share: 0.5 },
+    { name: 'rest', share: 0.5, variants: REST_CLIPS },
+  ],
   idle: [
     { name: 'work', share: 0.3 },
     { name: 'glean', share: 0.7, clip: 'weed', place: 'aid' },
@@ -285,6 +375,12 @@ export interface PhasePlaces {
   aid?: Point;
   /** Před modlou či svatyní (čelem k ní – cesta tam míří k ní). */
   shrine?: Point;
+  /** Kam mistr huti nese kámen – u pece, u zdi (čelem k ní – cesta tam míří k ní). */
+  haul?: Point;
+  /** Na okraji vápenné jámy (vápeník hasí vápno; jen s vápnem v jámě). */
+  pit?: Point;
+  /** Jiné místo vně zdí (obchůzka stavbyvedoucího). */
+  wall?: Point;
 }
 
 /**
