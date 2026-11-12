@@ -45,6 +45,8 @@ const KIND_LABELS: Record<ConstructionKind, string> = {
   zemnice: 'Zemnice',
   polozemnice: 'Polozemnice',
   dvorec: 'Dvorec vojvody',
+  srub: 'Nadzemní dům',
+  'dvorec-srub': 'Dvorec od roku 800',
   hrncir: 'Hrnčíř',
   kovar: 'Kovář',
   tesar: 'Tesař',

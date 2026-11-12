@@ -51,6 +51,21 @@ describe('zkratky staveb', () => {
     expect(BUILD_ITEMS.filter((item) => camera.includes(item.hotkey))).toEqual([]);
   });
 
+  it('1 nadzemní dům – za polozemnicí, na pozemku s plotem (log-house.md – Dům)', () => {
+    const item = buildItemForKey(key('Digit1'));
+    expect(item?.kind).toBe('srub');
+    expect(item).toMatchObject({
+      name: 'Nadzemní dům',
+      icon: 'srub',
+      hotkeyLabel: '1',
+      placement: 'plot',
+      dwellingType: 'srub',
+    });
+    const kinds = BUILD_ITEMS.map((i) => i.kind);
+    expect(kinds.indexOf('srub')).toBe(kinds.indexOf('polozemnice') + 1);
+    expect(buildItemForKey(key('Digit1', { shiftKey: true }))).toBeNull();
+  });
+
   it('s modifikátorem nic (Ctrl+Z vrací tah pole)', () => {
     expect(buildItemForKey(key('KeyZ', { ctrlKey: true }))).toBeNull();
     expect(buildItemForKey(key('KeyZ', { metaKey: true }))).toBeNull();

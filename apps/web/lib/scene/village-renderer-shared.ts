@@ -19,9 +19,7 @@ import {
   CONSTRUCTION_BASE,
   PLOT_BUILT,
   constructionState,
-  dwellingModel,
   type ConstructionKind as SiteKind,
-  type DwellingModel,
   type SiteProp,
 } from './village-construction';
 import {
@@ -43,12 +41,28 @@ export const MODEL_BASE_URL = '/models/dwellings/';
 export const CRAFT_MODEL_BASE_URL = '/models/crafts/';
 export const CRAFT_SITE_FILES = ['construction.glb', 'construction-moss.glb'] as const;
 export const SMOKE_TEXTURE_URL = '/textures/particles/smoke.png';
-export const DWELLING_TYPES: readonly DwellingModel[] = ['zemnice', 'polozemnice'];
-/** Dvorec vojvody (trade.md – tools/blender/dwellings.py „dvorec“): model a díly staveniště. */
-export const MANOR_MODEL_URL = `${MODEL_BASE_URL}dvorec.glb`;
-export const MANOR_SITE_URL = `${MODEL_BASE_URL}dvorec-construction.glb`;
+/** Obydlí, jejichž modely se načtou hned (`load`); ostatní až s prvním takovým obydlím ve vsi. */
+export const DWELLING_TYPES: readonly DwellingType[] = ['zemnice', 'polozemnice'];
+/**
+ * Obydlí s modelem a díly staveniště načtenými až s prvním takovým obydlím ve vsi
+ * (tools/blender/dwellings.py): dvorec vojvody (trade.md, „dvorec“), nadzemní dům a srubový dvorec
+ * od roku 800 (log-house.md, „srub“) – `<typ>.glb` a `<typ>-construction.glb`.
+ */
+export const LAZY_DWELLING_TYPES = ['dvorec', 'srub', 'dvorec-srub'] as const;
+export type LazyDwellingType = (typeof LAZY_DWELLING_TYPES)[number];
+/** Načítá se model až s prvním takovým obydlím (`LAZY_DWELLING_TYPES`)? */
+export function isLazyDwelling(key: string): key is LazyDwellingType {
+  return (LAZY_DWELLING_TYPES as readonly string[]).includes(key);
+}
+/** Model obydlí a díly jeho staveniště (`LAZY_DWELLING_TYPES`). */
+export function lazyDwellingUrls(type: LazyDwellingType): { model: string; site: string } {
+  return {
+    model: `${MODEL_BASE_URL}${type}.glb`,
+    site: `${MODEL_BASE_URL}${type}-construction.glb`,
+  };
+}
 /** Hotový model ve vsi: obydlí, řemeslná dílna (crafts.md), nebo milíř uhlíře. */
-export type ModelKey = DwellingModel | WorkshopModel | 'milir';
+export type ModelKey = DwellingType | WorkshopModel | 'milir';
 export const CRAFT_MODEL_KEYS: readonly (WorkshopModel | 'milir')[] = [
   'hrncir',
   'kovar',
@@ -97,7 +111,7 @@ export interface DwellingView {
   meshes: Mesh[];
   /** Kde se skryjí stromy a kameny krajiny – obydlí, u uhlíře i kruh milíře. */
   shapes: HideShape[];
-  /** Vyhloubená jáma (terén se v ní prořízne), nebo null, dokud se nekope. */
+  /** Vyhloubená jáma (terén se v ní prořízne), nebo null, dokud se nekope (srub nikdy). */
   cut: PitCut | null;
   /** Kolíky vytyčení (staking.ts), dokud se nezačne kopat. */
   pegs: ModelInstance[];
@@ -108,7 +122,8 @@ export interface RuinView {
   key: string;
   ruin: SceneRuin;
   meshes: Mesh[];
-  cut: PitCut;
+  /** Řez terénu, nebo null – po nadzemním srubu prohlubeň nezbude. */
+  cut: PitCut | null;
   shape: HideShape;
 }
 
@@ -191,9 +206,7 @@ export function kilnDwelling(kiln: SceneKiln): SceneDwelling {
 export function plotViews(dwellings: readonly SceneDwelling[]): PlotView[] {
   return dwellings.flatMap((d) => {
     if (!d.plot) return [];
-    const progress = d.built
-      ? PLOT_BUILT
-      : constructionState(dwellingModel(d.type), d.progress).plot;
+    const progress = d.built ? PLOT_BUILT : constructionState(d.type, d.progress).plot;
     // pozemek rozpadajícího se obydlí: plot padá, záhony zarůstají (dwelling-decay.ts)
     const look = DECAY_LOOKS[d.built ? dwellingDecay(d) : 0];
     const decay =
@@ -207,6 +220,7 @@ export function plotViews(dwellings: readonly SceneDwelling[]): PlotView[] {
         variant: d.plot.variant,
         progress,
         house: d.position,
+        type: d.type,
         ...decay,
         ...(d.plainShape ? { plainShape: true } : {}),
       },
@@ -242,7 +256,7 @@ export function houseHideShape(r: SceneRuin): HideShape {
 
 /** Druh staveniště (fáze, díly): obydlí, nebo model řemeslné dílny. */
 export function siteKind(d: Pick<SceneDwelling, 'type' | 'craft'>): SiteKind {
-  return d.craft ? CRAFT_MODEL[d.craft] : dwellingModel(d.type);
+  return d.craft ? CRAFT_MODEL[d.craft] : d.type;
 }
 
 /**

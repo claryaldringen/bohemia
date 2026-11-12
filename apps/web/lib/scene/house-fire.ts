@@ -20,16 +20,16 @@ const HOUSE_FIRE_SPRITES = HOUSE_FLAMES + HOUSE_SPARKS + 1;
 const HOUSE_HALF_M = {
   zemnice: 1.6,
   polozemnice: 1.9,
-  srub: 1.9,
+  srub: 2.2,
   dvorec: 3,
-  'dvorec-srub': 3,
+  'dvorec-srub': 4,
 } as const;
 const HOUSE_FIRE_SCALE = {
   zemnice: 1.7,
   polozemnice: 1.9,
-  srub: 1.9,
+  srub: 2,
   dvorec: 2.4,
-  'dvorec-srub': 2.4,
+  'dvorec-srub': 2.6,
 } as const;
 /** Semínko spritů – odliší ohně domů od hromad paseky. */
 const SEED_BASE = 7_000_000;

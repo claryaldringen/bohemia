@@ -24,9 +24,10 @@ const SHAPES: Record<DwellingType, { eaveX: number; eaveHalf: number; frontY: nu
   polozemnice: { eaveX: 2.6, eaveHalf: 3.2, frontY: -2.6 },
   // dvorec vojvody (trade.md) – okap 2,78 m, střecha přečnívá štíty o 1,05 m
   dvorec: { eaveX: 2.78, eaveHalf: 5.3, frontY: -4.7 },
-  // nadzemní dům a dvorec od roku 800 zatím model polozemnice a dvorce (`dwellingModel`)
-  srub: { eaveX: 2.6, eaveHalf: 3.2, frontY: -2.6 },
-  'dvorec-srub': { eaveX: 2.78, eaveHalf: 5.3, frontY: -4.7 },
+  // nadzemní dům a srubový dvorec (log-house.md, LOG_HOUSES v dwellings.py) – okap x_eave, střecha
+  // přečnívá přední štít o 0,8 (dvorec 0,9) m, zadní srubu jen o 0,45 m (eaveHalf je kratší z nich)
+  srub: { eaveX: 2.75, eaveHalf: 3.2, frontY: -2.75 },
+  'dvorec-srub': { eaveX: 3.75, eaveHalf: 6.1, frontY: -5.2 },
 };
 
 /**
@@ -37,9 +38,9 @@ export const SMOKE_VENT: Record<DwellingType, { y: number; z: number }> = {
   zemnice: { y: 1.85, z: -2.1 },
   polozemnice: { y: 2.85, z: -2.2 },
   dvorec: { y: 3.35, z: -4.3 },
-  // nadzemní dům a dvorec od roku 800 zatím model polozemnice a dvorce (`dwellingModel`)
-  srub: { y: 2.85, z: -2.2 },
-  'dvorec-srub': { y: 3.35, z: -4.3 },
+  // nadzemní dům a srubový dvorec – dýmník mezi prkny zadního štítu pod vrcholem
+  srub: { y: 3.8, z: -2.7 },
+  'dvorec-srub': { y: 4.45, z: -5.15 },
 };
 
 export type TuftModel = 'grass-tuft-1' | 'grass-tuft-2';

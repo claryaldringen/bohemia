@@ -9,12 +9,13 @@ import {
   decayNettles,
   decayStage,
   dwellingDecayStage,
+  logHouseRemains,
   ruinHollowData,
   ruinHollowY,
   ruinLook,
   ruinPitShape,
 } from '../dwelling-decay';
-import { PIT_SHAPES, insidePit, worldToLocal } from '../dwelling-pit';
+import { PIT_SHAPES, hasPit, insidePit, worldToLocal } from '../dwelling-pit';
 import { decalGrid } from '../village-layout';
 
 const TYPES: readonly DwellingType[] = ['zemnice', 'polozemnice'];
@@ -230,6 +231,46 @@ describe('zbytek jámy', () => {
         expect(n.scale).toBeLessThan(1.1);
       }
       expect(decayNettles(type, POSITION, 1, 0, 1, 'pit')).toEqual([]);
+    }
+  });
+});
+
+describe('zbytky nadzemního srubu (log-house.md – Scéna)', () => {
+  /** Jména uzlů s meshem v GLB (JSON blok souboru). */
+  const glbNodes = (file: string): Set<string> => {
+    const data = readFileSync(join(__dirname, '../../../public/models/dwellings', file));
+    const length = data.readUInt32LE(12);
+    const json = JSON.parse(data.subarray(20, 20 + length).toString('utf8')) as {
+      nodes: { name?: string; mesh?: number }[];
+    };
+    return new Set(json.nodes.filter((n) => n.mesh !== undefined).map((n) => n.name ?? ''));
+  };
+
+  it('srub jámu nemá – žádná prohlubeň ani díly decay.glb, obydlí s jámou ano', () => {
+    expect(hasPit('srub')).toBe(false);
+    expect(hasPit('dvorec-srub')).toBe(false);
+    expect(hasPit('polozemnice')).toBe(true);
+    expect(ruinLook('srub', 0).depth).toBe(0);
+    expect(decayModelParts('srub', 3)).toEqual([]);
+    expect(logHouseRemains('polozemnice', 3)).toBeNull();
+  });
+
+  it('sešlý a propadající se stojí celý, zřícený jsou kameny a věnce, zbytek zarůstá', () => {
+    for (const type of ['srub', 'dvorec-srub'] as const) {
+      const nodes = glbNodes(`${type}-construction.glb`);
+      expect(logHouseRemains(type, 1)).toBeNull();
+      expect(logHouseRemains(type, 2)).toBeNull();
+      const fallen = logHouseRemains(type, 3)!;
+      expect(fallen.map((r) => r.part)).toContain(`${type}-stones`);
+      for (const r of fallen) expect(nodes.has(r.part), r.part).toBe(true);
+      // věnce leží na kamenech o věnec níž – nejspodnější s nitrem za dveřmi se nekreslí
+      expect(fallen.filter((r) => r.part.includes('-logs-')).every((r) => r.drop > 0)).toBe(true);
+      expect(fallen.map((r) => r.part)).not.toContain(`${type}-logs-1`);
+      const fresh = logHouseRemains(type, 'ruin', 0)!;
+      const late = logHouseRemains(type, 'ruin', 0.7)!;
+      expect(fresh.length).toBeGreaterThan(late.length);
+      expect(late.map((r) => r.part)).toEqual([`${type}-stones`]);
+      expect(logHouseRemains(type, 'ruin', 1)).toEqual([]);
     }
   });
 });

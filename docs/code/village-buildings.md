@@ -462,9 +462,5 @@ Nové typy vznikají jen novou stavbou nebo přestavbou, převod starších vsí
   pozemek jako dřív (`relocationPlot`). Všechna místa, která poznávala dvorec podle typu, volají
   `isManorType(type)` (`dvorec` i `dvorec-srub`) – `dwellingShape` (bez varianty rozměrů),
   `relocationPlot`, `checkPlotPlacement` (pozemek se dvorem), `isManorTarget`, `demolishReplaced`.
-- **Web:** scéna zatím kreslí srub modelem polozemnice a dvorec od 800 modelem dvorce –
-  `dwellingModel(type)` (`village-construction.ts`) mapuje typ na `DwellingModel`, z něhož jsou
-  druhy staveniště (`ConstructionKind`) a hotové modely (`ModelKey`); záznamy podle typu obydlí
-  (`PIT_SHAPES`, okap a dýmník v `dwelling-decor.ts`, kopřivy, oheň) mají pro nové typy hodnoty
-  polozemnice a dvorce. Vlastní modely, tlačítko a zašednutí „Od roku 800“ dodají další úlohy
-  plánu `docs/superpowers/plans/2026-11-12-log-house.md`.
+- **Web:** tlačítko „Nadzemní dům“ (klávesa 1) a scéna s vlastními modely – `docs/code/web-ui.md`
+  (zkratky staveb) a `docs/code/scene-village.md` – Nadzemní dům ve scéně.

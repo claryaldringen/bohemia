@@ -235,6 +235,37 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   stoupá s plností o `GRAIN_RISE_M`), u prázdné jámy hliněné dno `FLOOR`; materiál má `zOffset`,
   aby louka neprosvítala. Bez nové textury, jen barvy vrcholů.
 
+## Nadzemní dům ve scéně (log-house.md – Scéna; plán 2026-11-12-log-house – Úloha 5)
+
+- **Modely:** každý typ obydlí má vlastní model – `ConstructionKind` i `ModelKey` jsou přímo
+  `DwellingType` (bez mapování na polozemnici a dvorec). `srub.glb` / `srub-construction.glb`
+  a `dvorec-srub.glb` / `dvorec-srub-construction.glb` (`build_log_house` v `dwellings.py`, pátý
+  argument `srub`) se načtou jako dvorec až s prvním takovým obydlím ve vsi nebo s duchem při
+  umisťování (`LAZY_DWELLING_TYPES`, `lazyDwellingUrls`, `loadLazyDwelling`, `ghostModel`). Díly
+  srubu mají kosti variant rozměrů (`shapeableAs` – předpona `srub`), srubový dvorec ne (předpona
+  `dvorec`). Střecha srubu přečnívá vpředu 0,8 m, vzadu jen 0,45 m (`back_overhang`, `ShiftedParts`
+  v `dwellings.py`) – v zadních rohových variantách pozemku nesmí přes plot.
+- **Bez jámy, šíje a valů:** `PIT_SHAPES.srub` / `['dvorec-srub']` mají hloubku 0 (obdélník je
+  vnější líc stěn pro drn, vyšlapanou hlínu, kopřivy a slepice), `hasPit` – terén se pod srubem
+  neprořízne (`updateDwellings`, `updateRuins`), `dwellingGround` jámu nekreslí.
+- **Stadia** (`CONSTRUCTION_PHASES.srub` / `['dvorec-srub']`, `logHouseSchedule` – návrh Clauda):
+  vytyčení, drn, základové kameny (fáze `stones` místo kopání), věnce kmenů (9, zůstanou – srub se
+  neomazává) a ostění dveří, krov (vaznice, sloupy, hřebenová vaznice, krokve 5 / 9), latě
+  a prkenné štíty s dýmníkem (fáze `boards` místo výpletu a mazanice), došky (9 / 12 řad), hřeben,
+  u dvorce řezby (`carve`), pak plot pozemku a záhony. Bez hromady hlíny a proutí; rekvizity mimo
+  střechu (`SITE_PROP_PLACES`).
+- **Rozpad a zbytek** (`logHouseRemains` v `dwelling-decay.ts` – návrh Clauda): díly rozpadu
+  v `decay.glb` má jen obydlí s jámou. Sešlý a propadající se srub stojí celý (plot a záhony se
+  rozpadají, kopřivy rostou jako jinde), zřícený jsou jen základové kameny a tři věnce kmenů
+  ležící na nich, zbytek po zániku kameny s jedním věncem, od poloviny zarůstání jen kameny –
+  díly staveniště srubu v instancích (`logHouseRemainViews` v `updateConstruction`, hotový model
+  zmizí – `remainsShown`); žádná prohlubeň ani trámy na dně. Srubový dvorec se zatím nerozpadá
+  (`dwellingDecayStage`, jako dvorec), zbytek po něm stejně jako po srubu.
+- **Ostatní:** okap a dýmník (`SHAPES`, `SMOKE_VENT` v `dwelling-decor.ts`), kopřivy
+  (`HOUSE_NETTLES_M`), oheň (`HOUSE_HALF_M`, `HOUSE_CLEAR_M`), slepice srubu jako u polozemnice
+  (`chickensFor`). Ukázka staveb (`/dev/buildings`): nadzemní dům na pozemku v zadním rohu
+  (`LOG_HOUSE_AT`) a srubový dvorec vedle dvorce (`LOG_MANOR_AT`).
+
 ## Humno ve scéně (production-chains.md – Humno, Obilné jámy; úloha 5 výrobních řetězů)
 
 Humno je jen mlat bez přístřešku (Martin 21. 10. 2026), mlátí se **holemi** – cepy se tehdy

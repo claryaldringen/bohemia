@@ -18,12 +18,7 @@ import {
 } from './dwelling-pit';
 import { plotInward, plotStakingLine } from './homestead-layout';
 import { applyPitCut } from './pit-cut';
-import {
-  ROUND_SITE_M,
-  dwellingModel,
-  sitePropPlace,
-  type ConstructionState,
-} from './village-construction';
+import { ROUND_SITE_M, sitePropPlace, type ConstructionState } from './village-construction';
 import {
   decalGrid,
   localToWorld,
@@ -100,6 +95,8 @@ export function dwellingGround(h: MeshHost, d: SceneDwelling): Mesh[] {
   earth.material = decalMaterial(h, 'mud', -3);
   earth.alphaIndex = 2;
   const { depth } = PIT_SHAPES[d.type];
+  // nadzemní srub jámu nemá (log-house.md – Scéna)
+  if (depth <= 0) return [worn, earth];
   // děravou a zřícenou střechou do jámy svítí slunce
   return [worn, earth, pitMesh(h, d, depth, look.roofCover, false)];
 }
@@ -242,11 +239,7 @@ export function constructionSite(h: MeshHost, d: SceneDwelling, state: Construct
 
 /** Hromada vykopané hlíny vedle jámy – roste s kopáním, ubývá na valy. */
 export function spoilHeap(h: MeshHost, d: SceneDwelling, scale: number): Mesh {
-  const place = sitePropPlace(
-    dwellingModel(d.type),
-    'spoil',
-    d.plot ? plotInward(d.plot.variant) : undefined,
-  );
+  const place = sitePropPlace(d.type, 'spoil', d.plot ? plotInward(d.plot.variant) : undefined);
   const [x, z] = shapedToWorld(d.position, sceneFrame(d), place.x, place.z);
   const data = spoilHeapData({
     seed: d.id,

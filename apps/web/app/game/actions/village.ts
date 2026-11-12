@@ -84,8 +84,9 @@ export async function foundVillage(input: unknown): Promise<VillageActionResult>
 }
 
 /**
- * Stavba nového obydlí: `{ villageId, type: 'zemnice' | 'polozemnice', position: { x, z, rotation },
- * plot?: { cell: { x, y }, variant } }` – polozemnice na pozemku (poloha domu podle něj).
+ * Stavba nového obydlí: `{ villageId, type: 'zemnice' | 'polozemnice' | 'srub', position: { x, z,
+ * rotation }, plot?: { cell: { x, y }, variant } }` – polozemnice a nadzemní dům na pozemku (poloha
+ * domu podle něj); nadzemní dům před rokem 800 server odmítne (`dwellingYearReason`).
  */
 export async function placeDwelling(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parsePlaceDwellingInput, placeDwellingForPlayer);

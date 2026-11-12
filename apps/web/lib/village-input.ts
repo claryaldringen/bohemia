@@ -39,7 +39,7 @@ import {
 /** Nejvíc čtverců pole, které server vůbec přijme (pravidla povolí méně – MAX_FIELD_CELLS). */
 const MAX_RAW_FIELD_CELLS = 5000;
 const MAX_RAW_NAME_LENGTH = 200;
-const DWELLING_TYPES: readonly BuildableDwellingType[] = ['zemnice', 'polozemnice'];
+const DWELLING_TYPES: readonly BuildableDwellingType[] = ['zemnice', 'polozemnice', 'srub'];
 const SACRED_KINDS: readonly SacredBuildingKind[] = ['idol', 'shrine'];
 const TIME_SKIPS: readonly TimeSkip[] = ['month', 'year', 'decade'];
 

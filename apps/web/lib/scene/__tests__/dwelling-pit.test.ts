@@ -19,13 +19,23 @@ describe('tvar jámy', () => {
   it('zemnice 1 m, polozemnice 0,5 m, šíje široká jako dveře a míří ke vchodu (+z)', () => {
     expect(PIT_SHAPES.zemnice.depth).toBe(1);
     expect(PIT_SHAPES.polozemnice.depth).toBe(0.5);
-    for (const shape of Object.values(PIT_SHAPES)) {
+    // nadzemní srub (log-house.md) jámu ani šíji nemá
+    for (const shape of Object.values(PIT_SHAPES).filter((s) => s.depth > 0)) {
       expect(insidePit(shape, 0, 0)).toBe(true);
       expect(insidePit(shape, 0, shape.rampEndZ - 0.05)).toBe(true);
       expect(insidePit(shape, 0, -shape.halfZ - 0.05)).toBe(false);
       // vedle šíje už je terén
       expect(insidePit(shape, shape.rampHalfX + 0.05, shape.halfZ + 0.3)).toBe(false);
       expect(shape.rampHalfX).toBeCloseTo(0.42);
+    }
+  });
+
+  it('nadzemní dům a srubový dvorec stojí na zemi – bez jámy, šíje a schodů', () => {
+    for (const type of ['srub', 'dvorec-srub'] as const) {
+      const shape = PIT_SHAPES[type];
+      expect(shape).toMatchObject({ depth: 0, rampHalfX: 0, steps: 0, rampEndZ: shape.halfZ });
+      // střecha přečnívá před přední štít (vchod)
+      expect(shape.roofEndZ).toBeGreaterThan(shape.halfZ);
     }
   });
 

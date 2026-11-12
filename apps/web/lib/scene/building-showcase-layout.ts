@@ -115,7 +115,13 @@ export const SACRED_MODEL_URLS = {
 function modelUrl(kind: ConstructionKind): string {
   if (kind === 'modla' || kind === 'svatyne') return SACRED_MODEL_URLS[kind];
   const folder =
-    kind === 'zemnice' || kind === 'polozemnice' || kind === 'dvorec' ? 'dwellings' : 'crafts';
+    kind === 'zemnice' ||
+    kind === 'polozemnice' ||
+    kind === 'dvorec' ||
+    kind === 'srub' ||
+    kind === 'dvorec-srub'
+      ? 'dwellings'
+      : 'crafts';
   return `/models/${folder}/${kind}.glb`;
 }
 
@@ -134,13 +140,18 @@ function building(
   };
 }
 
-/** Polozemnice na pozemku 15 × 15 m (jako políčko pole) – dům podle varianty. */
-function plotModel(x: number, z: number, variant: PlotVariant): ShowcaseModel {
+/** Polozemnice (nebo nadzemní dům) na pozemku 15 × 15 m (jako políčko pole) – dům podle varianty. */
+function plotModel(
+  x: number,
+  z: number,
+  variant: PlotVariant,
+  kind: 'polozemnice' | 'srub' = 'polozemnice',
+): ShowcaseModel {
   const plot = { x, z, size: 15, variant };
   const house = plotHouse(plot, variant);
   return {
-    kind: 'polozemnice',
-    url: '/models/dwellings/polozemnice.glb',
+    kind,
+    url: modelUrl(kind),
     x: house.x,
     z: house.z,
     rotation: house.rotation,
@@ -152,12 +163,16 @@ function plotModel(x: number, z: number, variant: PlotVariant): ShowcaseModel {
  * Dvorec vojvody (trade.md) na pozemku dvou políček – dům vzadu, dvůr s bránou vpředu (ke
  * kameře); vlevo za ohradou.
  */
-function manorModel(x: number, z: number): ShowcaseModel {
+function manorModel(
+  x: number,
+  z: number,
+  kind: 'dvorec' | 'dvorec-srub' = 'dvorec',
+): ShowcaseModel {
   const plot = { x, z, size: 15, variant: 'center' as const, yard: { x, z: z - 15 } };
   const house = plotHouse(plot, 'center');
   return {
-    kind: 'dvorec',
-    url: '/models/dwellings/dvorec.glb',
+    kind,
+    url: modelUrl(kind),
     x: house.x,
     z: house.z,
     rotation: house.rotation,
@@ -165,6 +180,12 @@ function manorModel(x: number, z: number): ShowcaseModel {
   };
 }
 export const MANOR_AT = { x: -82, z: -4 };
+/**
+ * Nadzemní dům na pozemku (zadní roh – střecha nesmí přečnívat přes plot) a srubový dvorec od
+ * roku 800 vedle dvorce (log-house.md – Scéna).
+ */
+export const LOG_HOUSE_AT = { x: -46, z: -10 };
+export const LOG_MANOR_AT = { x: -104, z: -4 };
 
 const UHLIR_X = 26;
 /** Dílna tesaře – vlevo od pahorku s vozy (SHOWCASE_CARTS), vchodem ke kameře. */
@@ -206,6 +227,18 @@ export const SHOWCASE_BUILDINGS: readonly ShowcaseBuilding[] = [
     label: 'Dvorec vojvody',
     models: [manorModel(MANOR_AT.x, MANOR_AT.z)],
     focus: { x: MANOR_AT.x, z: MANOR_AT.z - 7.5, radius: 34 },
+  },
+  {
+    id: 'srub',
+    label: 'Nadzemní dům',
+    models: [plotModel(LOG_HOUSE_AT.x, LOG_HOUSE_AT.z, 'back-left', 'srub')],
+    focus: { x: LOG_HOUSE_AT.x, z: LOG_HOUSE_AT.z - 1.5, radius: 24 },
+  },
+  {
+    id: 'dvorec-srub',
+    label: 'Dvorec od roku 800',
+    models: [manorModel(LOG_MANOR_AT.x, LOG_MANOR_AT.z, 'dvorec-srub')],
+    focus: { x: LOG_MANOR_AT.x, z: LOG_MANOR_AT.z - 7.5, radius: 34 },
   },
   // tesař (wagons.md) – vpravo vzadu u vozů, které vyrábí (v řadě dílen už není místo)
   {

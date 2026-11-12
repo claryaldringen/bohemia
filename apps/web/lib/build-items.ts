@@ -312,8 +312,12 @@ const church = (
   },
 });
 
+/** `KeyboardEvent.code` zkratky: písmeno `KeyX`, číslice `Digit1` (nadzemní dům – písmena jsou obsazená). */
+const hotkeyCode = (label: string): string =>
+  /^\d$/.test(label) ? `Digit${label}` : `Key${label}`;
+
 const dwelling = (kind: BuildableDwellingType, name: string, hotkeyLabel: string): BuildItem => {
-  const base = { kind, name, icon: kind, hotkey: `Key${hotkeyLabel}`, hotkeyLabel };
+  const base = { kind, name, icon: kind, hotkey: hotkeyCode(hotkeyLabel), hotkeyLabel };
   if (PLOT_TYPES[kind]) {
     return {
       ...base,
@@ -771,6 +775,9 @@ export function fortPointsPlacement(
 export const BUILD_ITEMS: readonly BuildItem[] = [
   dwelling('zemnice', 'Zemnice', 'Z'),
   dwelling('polozemnice', 'Polozemnice', 'X'),
+  // nadzemní dům (log-house.md – Dům): do roku 800 zašedlý – důvod „Od roku 800“ dává server
+  // (`VillageView.build.srub.blocked`)
+  dwelling('srub', 'Nadzemní dům', '1'),
   {
     kind: 'field',
     name: 'Pole',

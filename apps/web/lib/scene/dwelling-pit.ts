@@ -63,25 +63,26 @@ export const PIT_SHAPES: Record<DwellingType, PitShape> = {
     steps: 2,
     roofEndZ: 5.25,
   },
-  // nadzemní dům a dvorec od roku 800 (log-house.md) zatím kreslí model polozemnice a dvorce
-  // (`dwellingModel`) – jámu podle modelu dostanou s vlastním modelem
+  // nadzemní dům a srubový dvorec (log-house.md – Scéna) stojí na zemi – jámu ani šíji nemají
+  // (hloubka 0, `hasPit`); obdélník = vnější líc stěn (LOG_HOUSES v dwellings.py) pro drn,
+  // vyšlapanou hlínu, kopřivy a slepice, střecha vpředu přečnívá o 0,8 a 0,9 m
   srub: {
-    halfX: 2.04,
-    halfZ: 2.04,
-    rampHalfX: 0.42,
-    rampEndZ: 3.1,
-    depth: 0.5,
-    steps: 2,
-    roofEndZ: 3.15,
+    halfX: 2.25,
+    halfZ: 2.75,
+    rampHalfX: 0,
+    rampEndZ: 2.75,
+    depth: 0,
+    steps: 0,
+    roofEndZ: 3.55,
   },
   'dvorec-srub': {
-    halfX: 2.24,
-    halfZ: 4.14,
-    rampHalfX: 0.42,
+    halfX: 3.2,
+    halfZ: 5.2,
+    rampHalfX: 0,
     rampEndZ: 5.2,
-    depth: 0.5,
-    steps: 2,
-    roofEndZ: 5.25,
+    depth: 0,
+    steps: 0,
+    roofEndZ: 6.1,
   },
 };
 
@@ -101,6 +102,11 @@ export function shapedPit(shape: PitShape, frame: ShapeFrame): PitShape {
     rampEndZ: shapeZ(frame, shape.rampEndZ),
     roofEndZ: shapeZ(frame, shape.roofEndZ),
   };
+}
+
+/** Má obydlí jámu? Nadzemní srub (log-house.md) stojí na zemi – terén se pod ním neprořezává. */
+export function hasPit(type: DwellingType): boolean {
+  return PIT_SHAPES[type].depth > 0;
 }
 
 /** Jáma obydlí podle jeho varianty rozměrů. */
