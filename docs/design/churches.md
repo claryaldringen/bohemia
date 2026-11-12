@@ -172,11 +172,18 @@ jinak postává u domu. Na pole ani k jiné práci vsi nechodí. Fáze a rekvizi
 
 | Mistr         | Kde                           | Fáze                                                                                            |
 | ------------- | ----------------------------- | ----------------------------------------------------------------------------------------------- |
-| stavbyvedoucí | na staveništi                 | obchází zdi, měří měřickou latí, stojí a ukazuje pomocníkům                                     |
+| stavbyvedoucí | na staveništi a obchůzkou     | vyměřuje, přeměřuje a kontroluje latí; zajde k lomu, k peci a k písníku; hlásí se u vojvody     |
 | vápeník       | u pece a vápenné jámy         | tluče vápenec palicí, nosí ho do pece, přikládá dřevo a hlídá oheň, hasí vápno míchadlem v jámě |
 | kameník       | v lomu, nebo u hromady kamene | v lomu láme kámen krumpáčem; u staveniště tesá kvádry kladivem a dlátem                         |
 | zedník        | u zdí                         | klade kameny do zdi, míchá maltu motykou v korytě, nosí kámen                                   |
 | štukatér      | u zdí (výzdoba po střeše)     | omítá zednickou lžící a hladítkem, míchá omítku v korytě                                        |
+
+Stavbyvedoucí (Martin 12. 11. 2026): „vyměřuje, když se staví, tak přeměřuje a kontroluje, občas
+zajde i tam, kde se těží kámen a pálí vápno a to samé s pískem. Také dochází za vojvodou podávat
+hlášení a žádat o pracovní síly.“ Při přípravě staveniště (kácení, před první prací mistrů)
+vyměřuje půdorys; při stavbě přeměřuje a kontroluje u zdí. Obchůzky k lomu, peci, písníku
+a k dvorci vojvody jsou jen ve scéně (návrh Clauda: k místu, kde se ten den pracuje, a k dvorci
+jednou za den).
 
 ## Otevřené otázky
 
