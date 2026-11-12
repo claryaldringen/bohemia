@@ -19,7 +19,13 @@ export const MAX_FIRE_FIGURES = 80;
 /** Rozestup, do kterého si lidé vědra podávají z ruky do ruky (m) – jako jádro. */
 export const FIRE_HANDOVER_M = FIRE.firefighting.handoverM;
 /** Jak daleko od středu hořící stavby stojí poslední člověk (m) – kousek před stěnou. */
-const HOUSE_CLEAR_M = { zemnice: 4.2, polozemnice: 4.6, dvorec: 6.5 } as const;
+const HOUSE_CLEAR_M = {
+  zemnice: 4.2,
+  polozemnice: 4.6,
+  srub: 4.6,
+  dvorec: 6.5,
+  'dvorec-srub': 6.5,
+} as const;
 /** Podávání: o kolik stojí člověk stranou od osy řady (m, střídavě vlevo a vpravo). */
 const PASS_SIDE_M = 0.45;
 /** Podávání: jedno předání od souseda k sousedovi (s) a mezera mezi vědry (počet lidí). */

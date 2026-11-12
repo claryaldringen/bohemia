@@ -32,6 +32,7 @@ import {
 } from '../buildings/demolition';
 import { finishRepair, isRepairFinished, repairNeed, workRepair } from '../buildings/repair';
 import { copyPlot, relocationPlot } from '../buildings/plots';
+import { isManorType, manorTypeOn } from '../buildings/log-house';
 import { finishThreshingFloor } from '../fields/threshing-floors';
 import { finishFortification, workFortification } from '../fortification/state/fortifications';
 import { type ConstructionWork } from './labor-report';
@@ -595,7 +596,7 @@ export function finishConstructions(state: VillageState, day: number): void {
  */
 function demolishReplaced(state: VillageState, day: number, dwellingId: number): void {
   const old = state.dwellings.find((d) => d.id === dwellingId);
-  if (!old || old.type === 'dvorec') return;
+  if (!old || isManorType(old.type)) return;
   startDemolition(state, day, { structure: 'dwelling', id: dwellingId });
 }
 
@@ -673,18 +674,19 @@ export function decideRebuilds(
     // dvorec (trade.md), ostatní podle práce a dřeva
     const craft = d.workshop?.craft;
     // dřevo: klády na hromadě a stromy, které jde skácet – po předchozích přestavbách dne
+    // dvorec od roku 800 jako nadzemní srub (log-house.md – Dvorec od roku 800)
     const type = craft
       ? d.type
       : d.id === manorId
-        ? 'dvorec'
+        ? manorTypeOn(day)
         : rebuildType(d.type, yearlyCommon, woodSupply(state, obstacles, day));
     // obydlí správce na konci životnosti: když se vyplatí, správce ho přestěhuje na lepší slot
     // plánu místo přestavby na místě (steward.md – Přestavba vlastních staveb)
-    if (landscape && obstacles && !craft && type !== 'dvorec' && d.id !== manorId) {
+    if (landscape && obstacles && !craft && !isManorType(type) && d.id !== manorId) {
       if (stewardReplace(state, d, type, day, landscape, obstacles)) continue;
     }
     // nový pozemek: polozemnice bez pozemku, dvorec bez pozemku se dvorem (dvě políčka)
-    const needsSite = !d.plot || (type === 'dvorec' && !d.plot.yard);
+    const needsSite = !d.plot || (isManorType(type) && !d.plot.yard);
     const site =
       landscape && obstacles && needsSite && !craft
         ? relocationPlot(state, landscape, obstacles, d, type, day)

@@ -14,11 +14,11 @@ import {
   constructionState,
   partSchedule,
   sitePropPlace,
+  type DwellingModel,
 } from '../village-construction';
 import { DWELLING_CLEARANCE_M } from '../village-layout';
-import type { DwellingType } from '@bohemia/game';
 
-const TYPES: DwellingType[] = ['zemnice', 'polozemnice'];
+const TYPES: readonly DwellingModel[] = ['zemnice', 'polozemnice'];
 
 describe('fáze stavby', () => {
   it('aspoň 8 fází, navazují na sebe a pokryjí průběh 0–1', () => {
@@ -204,7 +204,7 @@ describe('jáma, obtisky a rekvizity podle průběhu', () => {
   });
 
   it('hromada hlíny roste s kopáním, hráň dřeva ubývá s krovem, snopy s došky', () => {
-    const scale = (type: DwellingType, p: number, prop: string): number =>
+    const scale = (type: DwellingModel, p: number, prop: string): number =>
       constructionState(type, p).props.find((x) => x.prop === prop)?.scale ?? 0;
     expect(scale('zemnice', 0.1, 'spoil')).toBe(0);
     expect(scale('zemnice', 0.3, 'spoil')).toBeGreaterThan(scale('zemnice', 0.2, 'spoil'));

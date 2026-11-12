@@ -18,7 +18,12 @@ import {
 } from './dwelling-pit';
 import { plotInward, plotStakingLine } from './homestead-layout';
 import { applyPitCut } from './pit-cut';
-import { ROUND_SITE_M, sitePropPlace, type ConstructionState } from './village-construction';
+import {
+  ROUND_SITE_M,
+  dwellingModel,
+  sitePropPlace,
+  type ConstructionState,
+} from './village-construction';
 import {
   decalGrid,
   localToWorld,
@@ -237,7 +242,11 @@ export function constructionSite(h: MeshHost, d: SceneDwelling, state: Construct
 
 /** Hromada vykopané hlíny vedle jámy – roste s kopáním, ubývá na valy. */
 export function spoilHeap(h: MeshHost, d: SceneDwelling, scale: number): Mesh {
-  const place = sitePropPlace(d.type, 'spoil', d.plot ? plotInward(d.plot.variant) : undefined);
+  const place = sitePropPlace(
+    dwellingModel(d.type),
+    'spoil',
+    d.plot ? plotInward(d.plot.variant) : undefined,
+  );
   const [x, z] = shapedToWorld(d.position, sceneFrame(d), place.x, place.z);
   const data = spoilHeapData({
     seed: d.id,

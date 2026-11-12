@@ -4,6 +4,7 @@ import { useEffect, useState, type RefObject } from 'react';
 import {
   FORTIFICATIONS,
   defaultChurchDims,
+  isManorType,
   type ChurchType,
   rerouteProposal,
   sectionOf,
@@ -395,7 +396,7 @@ export function useBuildMode({
     }
     const onDwelling = (result: PlacementResult): void => {
       // dvorec hráč nestaví – vznikne přestavbou dvorce vsi (trade.md)
-      if (result.kind === 'dwelling' && result.type !== 'dvorec') {
+      if (result.kind === 'dwelling' && !isManorType(result.type)) {
         sites.buildDwelling(result.type, result.position, result.plot);
       }
     };

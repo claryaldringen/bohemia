@@ -24,6 +24,9 @@ const SHAPES: Record<DwellingType, { eaveX: number; eaveHalf: number; frontY: nu
   polozemnice: { eaveX: 2.6, eaveHalf: 3.2, frontY: -2.6 },
   // dvorec vojvody (trade.md) – okap 2,78 m, střecha přečnívá štíty o 1,05 m
   dvorec: { eaveX: 2.78, eaveHalf: 5.3, frontY: -4.7 },
+  // nadzemní dům a dvorec od roku 800 zatím model polozemnice a dvorce (`dwellingModel`)
+  srub: { eaveX: 2.6, eaveHalf: 3.2, frontY: -2.6 },
+  'dvorec-srub': { eaveX: 2.78, eaveHalf: 5.3, frontY: -4.7 },
 };
 
 /**
@@ -34,6 +37,9 @@ export const SMOKE_VENT: Record<DwellingType, { y: number; z: number }> = {
   zemnice: { y: 1.85, z: -2.1 },
   polozemnice: { y: 2.85, z: -2.2 },
   dvorec: { y: 3.35, z: -4.3 },
+  // nadzemní dům a dvorec od roku 800 zatím model polozemnice a dvorce (`dwellingModel`)
+  srub: { y: 2.85, z: -2.2 },
+  'dvorec-srub': { y: 3.35, z: -4.3 },
 };
 
 export type TuftModel = 'grass-tuft-1' | 'grass-tuft-2';

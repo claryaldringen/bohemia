@@ -19,7 +19,6 @@ import {
   usedPlaces,
   type Cemetery,
   type Craft,
-  type DwellingType,
   type GraveRank,
   type PlotVariant,
   type Position,
@@ -1046,7 +1045,7 @@ export function showcaseDecay(t: number, repair = false): SceneVillage {
   const at = decayAt(t);
   const dwellings: ShowcaseDwelling[] = [];
   const ruins: ShowcaseRuin[] = [];
-  const types: readonly Exclude<DwellingType, 'dvorec'>[] = ['zemnice', 'polozemnice'];
+  const types: readonly ('zemnice' | 'polozemnice')[] = ['zemnice', 'polozemnice'];
   for (const [i, type] of types.entries()) {
     const id = 9001 + i;
     const x = DECAY_PAIR_X[type];
@@ -1502,15 +1501,14 @@ export const SHOWCASE_VARIANTS = {
 } as const;
 
 /** Řady ukázky variant: druh stavby, řemeslo dílny a z řady (m). */
-const VARIANT_ROWS: readonly { type: Exclude<DwellingType, 'dvorec'>; craft?: Craft; z: number }[] =
-  [
-    { type: 'zemnice', z: -50 },
-    { type: 'polozemnice', z: -64 },
-    { type: 'polozemnice', craft: 'potter', z: -80 },
-    { type: 'polozemnice', craft: 'smith', z: -97 },
-    { type: 'polozemnice', craft: 'carpenter', z: -114 },
-    { type: 'zemnice', craft: 'burner', z: -131 },
-  ];
+const VARIANT_ROWS: readonly { type: 'zemnice' | 'polozemnice'; craft?: Craft; z: number }[] = [
+  { type: 'zemnice', z: -50 },
+  { type: 'polozemnice', z: -64 },
+  { type: 'polozemnice', craft: 'potter', z: -80 },
+  { type: 'polozemnice', craft: 'smith', z: -97 },
+  { type: 'polozemnice', craft: 'carpenter', z: -114 },
+  { type: 'zemnice', craft: 'burner', z: -131 },
+];
 /**
  * Sloupce: dnešní tvar a čtyři výrazné varianty – nejmenší a nejnižší, největší a nejvyšší,
  * nejdelší, nejširší (jam ukázky je víc než ve vsi – shader jich prořízne nejvýš MAX_PIT_CUTS).

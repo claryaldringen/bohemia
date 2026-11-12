@@ -12,6 +12,7 @@
 // - svisle: nad terénem × výška, jáma pod terénem zůstává (hloubka i schody).
 // Bez varianty (`PLAIN_SHAPE`) je zobrazení přesně identita – bit po bitu jako dřív.
 import { DWELLING_FOOTPRINT_M, DWELLING_SHAPE } from '../rules';
+import { isManorType } from './log-house';
 import type { DwellingType, PlotVariant } from '../types';
 
 /** Varianta rozměrů – násobky proti dnešnímu tvaru (každý 0,9–1,1). */
@@ -82,7 +83,7 @@ export function shapeScales(shape: DwellingShape): { sx: number; sz: number } {
  * zůstane uvnitř plotu (poměr stěn a výška zůstanou).
  */
 export function dwellingShape(d: ShapedDwelling): DwellingShape {
-  if (d.type === 'dvorec' || d.plainShape) return PLAIN_SHAPE;
+  if (isManorType(d.type) || d.plainShape) return PLAIN_SHAPE;
   const shape = dwellingShapeAt(d.position.x, d.position.z);
   if (!d.plot?.variant || d.plot.variant === 'center') return shape;
   const max = DWELLING_SHAPE.plotCornerMaxWidth;

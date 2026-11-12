@@ -63,7 +63,9 @@ export const CRAFT_LOOKS: Record<
 export const DWELLING_NAMES: Record<DwellingType, { nominative: string; accusative: string }> = {
   zemnice: { nominative: 'Zemnice', accusative: 'zemnici' },
   polozemnice: { nominative: 'Polozemnice', accusative: 'polozemnici' },
+  srub: { nominative: 'Nadzemní dům', accusative: 'nadzemní dům' },
   dvorec: { nominative: 'Dvorec', accusative: 'dvorec' },
+  'dvorec-srub': { nominative: 'Dvorec', accusative: 'dvorec' },
 };
 
 function deathText(group: 'child' | 'adult' | 'elder', hunger: boolean): string {

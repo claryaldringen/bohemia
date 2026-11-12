@@ -11,6 +11,7 @@ import {
   startWorkshop,
 } from '../core/actions';
 import { buildAffordability } from './costs';
+import { dwellingYearReason } from './log-house';
 import {
   startFortification,
   startFortificationUpgrade,
@@ -482,6 +483,9 @@ function buildDwelling(
   intent: DwellingIntent,
   place: () => PlacementVillage,
 ): BuildResult {
+  // nadzemní dům až od roku 800 (log-house.md – Dům) – i když hráč obejde zašedlé tlačítko
+  const year = dwellingYearReason(intent.type, day);
+  if (year !== null) return { ok: false, reason: year };
   const { affordable, missing } = buildAffordability(state, intent.type, obstacles);
   if (!affordable) {
     const reason = missing.wood ? NO_WOOD : CANNOT_AFFORD;
@@ -536,6 +540,8 @@ function buildReplacement(
   intent: ReplacementIntent,
   place: () => PlacementVillage,
 ): BuildResult {
+  const year = dwellingYearReason(intent.type, day);
+  if (year !== null) return { ok: false, reason: year };
   const block = relocationBlock(state, intent.dwellingId);
   if (block !== null) return { ok: false, reason: REPLACEMENT_BLOCKED };
   if (!replacementAffordability(state, intent.type, obstacles).affordable) {

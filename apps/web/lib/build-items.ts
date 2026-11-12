@@ -14,6 +14,7 @@ import {
   fortificationCost,
   FORT_NO_STONE,
   wallYearReason,
+  isManorType,
   logsFromClearedTrees,
   type FortKind,
   type FortPlacementCheck,
@@ -685,7 +686,7 @@ const GATE_MARK_M = 4;
 
 /** Kotva vsi pro bránu bez cesty – dvorec, jinak průměr poloh obydlí (jako `villageAnchor`). */
 function villageAnchorOf(village: PlacementVillage): Position | { x: number; z: number } {
-  const manor = village.dwellings.find((d) => d.type === 'dvorec');
+  const manor = village.dwellings.find((d) => isManorType(d.type));
   const list = manor ? [manor] : village.dwellings;
   if (list.length === 0) return { x: 0, z: 0 };
   return {

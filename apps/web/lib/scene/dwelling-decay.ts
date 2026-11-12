@@ -5,7 +5,13 @@
 // RUIN_YEARS let zarůstá. Rozpadá se jen prázdné obydlí – obydlený dům obyvatelé opravují (Martin
 // 18. 10. 2026: „obydlená budova nechátrá – obyvatelé ji opravují. Chátrá jenom prázdná.“).
 // Souřadnice modelu jako `localToWorld` (x napříč, z k vchodu).
-import { PLAIN_FRAME, type DwellingType, type Position, type ShapeFrame } from '@bohemia/game';
+import {
+  PLAIN_FRAME,
+  isManorType,
+  type DwellingType,
+  type Position,
+  type ShapeFrame,
+} from '@bohemia/game';
 import { PIT_SHAPES, shapedPit, type PitShape } from './dwelling-pit';
 import { localToWorld, seededRandom, shapedToWorld, smoothstep } from './village-layout';
 
@@ -47,7 +53,7 @@ export function dwellingDecayStage(d: {
   type?: DwellingType;
 }): DecayStage {
   // dvorec vojvody zatím díly rozpadu nemá – zůstane celý (jako dílny)
-  if (d.craft || d.type === 'dvorec' || d.inhabited !== false) return 0;
+  if (d.craft || (d.type && isManorType(d.type)) || d.inhabited !== false) return 0;
   return decayStage(d.condition);
 }
 
@@ -79,10 +85,11 @@ export const DECAY_LOOKS: Record<DecayStage, DecayLook> = {
  */
 /**
  * Typ, jehož díly rozpadu a zbytku jámy (decay.glb) obydlí použije – dvorec vojvody (trade.md)
- * vlastní nemá, zbytek jámy po něm je jako po polozemnici.
+ * vlastní nemá, zbytek jámy po něm je jako po polozemnici; nadzemní dům (log-house.md) zatím
+ * taky jako polozemnice (`dwellingModel`).
  */
-export function decayModelType(type: DwellingType): Exclude<DwellingType, 'dvorec'> {
-  return type === 'dvorec' ? 'polozemnice' : type;
+export function decayModelType(type: DwellingType): 'zemnice' | 'polozemnice' {
+  return type === 'zemnice' ? 'zemnice' : 'polozemnice';
 }
 
 export function decayModelParts(type: DwellingType, stage: DecayStage): string[] {
@@ -299,6 +306,9 @@ const HOUSE_NETTLES_M: Record<DwellingType, { x: number; z: number }> = {
   zemnice: { x: 3.0, z: 2.9 },
   polozemnice: { x: 3.05, z: 3.0 },
   dvorec: { x: 3.3, z: 5.4 },
+  // nadzemní dům a dvorec od roku 800 zatím model polozemnice a dvorce (`dwellingModel`)
+  srub: { x: 3.05, z: 3.0 },
+  'dvorec-srub': { x: 3.3, z: 5.4 },
 };
 
 /**

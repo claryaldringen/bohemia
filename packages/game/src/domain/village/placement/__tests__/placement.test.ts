@@ -276,7 +276,13 @@ describe('pozemek polozemnice', () => {
   });
 
   it('dům stojí uprostřed nebo v rohu, vchodem k brance (−z), celý uvnitř políčka', () => {
-    expect(PLOT_TYPES).toEqual({ zemnice: false, polozemnice: true, dvorec: true });
+    expect(PLOT_TYPES).toEqual({
+      zemnice: false,
+      polozemnice: true,
+      srub: true,
+      dvorec: true,
+      'dvorec-srub': true,
+    });
     expect(PLOT_VARIANTS).toHaveLength(5);
     expect(plotHousePosition(landscape, plot('center'))).toEqual({
       x: 7.5,
@@ -290,6 +296,10 @@ describe('pozemek polozemnice', () => {
       // půdorys s rezervou na valy, střechu a plot (plot ≈ 0,5 m od okraje políčka)
       expect(Math.abs(p.x - 7.5) + half).toBeLessThanOrEqual(6);
       expect(Math.abs(p.z - 7.5) + half).toBeLessThanOrEqual(6);
+      // nadzemní dům (log-house.md) je o metr delší, ale bez valů – stěny ≥ 0,8 m od plotu
+      const srub = DWELLING_FOOTPRINT_M.srub;
+      expect(Math.abs(p.x - 7.5) + srub.width / 2).toBeLessThanOrEqual(6);
+      expect(Math.abs(p.z - 7.5) + srub.depth / 2).toBeLessThanOrEqual(6.2);
     }
     const corners = PLOT_VARIANTS.map((v) => plotHousePosition(landscape, plot(v)));
     expect(new Set(corners.map((p) => `${p.x},${p.z}`)).size).toBe(5);
