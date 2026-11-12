@@ -45,12 +45,14 @@ import {
   workshopKilns,
   saplingGrowth,
   villageOrchards,
+  villageQuarries,
   bloomKg,
   ironBarsKg,
   smithBellows,
   type WorkshopActivity,
 } from '@bohemia/game';
 import { nearestToCentroid, type CartGoal } from './cart-routes';
+import { stoneDestination } from './scene/stone-destination';
 import { sceneTrails } from './trail-view';
 
 export { nearestToCentroid, simplifiedRoute } from './cart-routes';
@@ -377,6 +379,10 @@ export function sceneCarts(
         load: haulLoad(state, share),
         // osivo veze vůz na pole, zpátky jede prázdný (wagons.md – Co vozy vozí)
         ...(share.job === 'seed' ? { outbound: true as const } : {}),
+        // kámen z lomu na stavbu (fortifications.md – Kámen, Nošení kamene a vůz)
+        ...(share.job === 'stone' && share.construction !== undefined
+          ? { construction: share.construction }
+          : {}),
       });
     }
   }
@@ -474,6 +480,7 @@ export function scenePloughLegs(
  */
 function haulLoad(state: VillageState, share: LaborShare): CartLoad {
   if (share.job === 'water') return 'water';
+  if (share.job === 'stone') return 'stone';
   if (share.job === 'ore') return 'ore';
   if (share.job === 'clay') return 'clay';
   if (share.target.kind === 'orchard') return 'apples';
@@ -585,5 +592,43 @@ function cartGoalToday(
   // ruda z rudiště a hlína z hliniště (crafts.md – Uhlí a ruda kováře, Hlína hrnčíře) – k hromadě
   // u jámy jako jádro (oreCartDrive)
   if (t.kind === 'ore' || t.kind === 'clay') return { to: xz(t), reachM: CART_JOBS[t.kind].reachM };
+  // kámen z lomu na stavbu (wagons.md – Co vozy vozí, bod 5): z lomu ke konci uložené jízdy stavby
+  // (`Construction.stoneCart` – jádro, `stoneCartDrive`), trasa obráceně – od stavby k lomu
+  // (village-carts.ts: u lomu nakládá, u stavby skládá); k hromadě kamene u stavby cíl posune
+  // `withStoneCartHeaps`
+  if (t.kind === 'quarry') {
+    const quarry = villageQuarries(state).find((q) => q.outcropId === t.id);
+    const drive = state.constructions.find((c) => c.id === job.construction)?.stoneCart;
+    return quarry && drive
+      ? { from: xz(quarry), to: xz(drive), reachM: STONE_CART_REACH_M, reverse: true }
+      : null;
+  }
   return null;
+}
+
+/** Jak blízko konce uložené jízdy stavby (bodu vozové sítě) vůz s kamenem dojede (m). */
+const STONE_CART_REACH_M = 3;
+/** Jak blízko okraje hromady kamene u stavby vůz s kamenem zastaví a skládá (m; návrh Clauda). */
+const STONE_HEAP_REACH_M = 4;
+
+/**
+ * Vůz s kamenem skládá u hromady kamene stavby (fortifications.md – Kámen, Nošení kamene a vůz):
+ * cíl jízdy (`cartGoalToday`) se posune k hromadě, kam nosí kámen i nosiči bez vozu
+ * (`stoneDestination` – hromada u kostela, bod obvodu hradby, zásoba u dvorce); kam k ní vůz
+ * nedojede, jede ke konci uložené jízdy stavby (`anyOf`). Ostatní vozy beze změny.
+ */
+export function withStoneCartHeaps(
+  carts: SceneCart[],
+  village: Pick<SceneVillage, 'churches' | 'forts' | 'stoneStacks' | 'home'>,
+): SceneCart[] {
+  return carts.map((c) => {
+    const goal = c.goal;
+    if (c.job?.load !== 'stone' || !goal?.to || !goal.from) return c;
+    const dest = stoneDestination(village, goal.to, c.job.construction, goal.from);
+    if (!dest) return c;
+    return {
+      ...c,
+      goal: { ...goal, to: dest.at, anyOf: [goal.to], reachM: dest.r + STONE_HEAP_REACH_M },
+    };
+  });
 }

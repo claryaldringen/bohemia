@@ -2940,6 +2940,61 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
     expect(Math.hypot(end.x - 20, end.z + 20)).toBeLessThanOrEqual(CART_JOBS.ore.reachM);
   });
 
+  it('vůz s kamenem (wagons.md – Co vozy vozí, bod 5): z lomu na stavbu, trasa od stavby k lomu', () => {
+    const s = carpenterVillage();
+    s.quarries = [{ outcropId: 77, x: 30, z: -25, rotation: 0, builtDay: DAY - 100 }];
+    s.constructions.push({
+      id: 98,
+      kind: 'rebuild',
+      startedDay: DAY,
+      cost: 220,
+      done: 10,
+      dwellingType: 'polozemnice',
+      position: { x: 7.5, z: 7.5, rotation: Math.PI },
+      plot: { cell: { x: 8, y: 8 }, variant: 'center' },
+      dwellingId: s.dwellings[0]!.id,
+      fieldId: null,
+      // uložená jízda jádra z lomu ke stavbě (`stoneCartDrive`)
+      stoneCart: { costM: 40, x: 0, z: 10 },
+    });
+    const stone: LaborShare = {
+      activity: 'haul',
+      target: { kind: 'quarry', id: 77 },
+      manDays: 0.3,
+      carts: 1,
+      job: 'stone',
+      construction: 98,
+    };
+    s.labor = { day: DAY, shares: [stone] };
+    const cart = buildVillageView(record(s), landscape, DAY).scene.carts![0]!;
+    expect(cart.job).toMatchObject({
+      activity: 'haul',
+      load: 'stone',
+      construction: 98,
+      target: { kind: 'quarry', id: 77 },
+    });
+    // z lomu, obráceně (od stavby k lomu); ke hromadě kamene, jinak ke konci uložené jízdy
+    expect(cart.goal).toMatchObject({
+      from: { x: 30, z: -25 },
+      reverse: true,
+      anyOf: [{ x: 0, z: 10 }],
+    });
+    const route = routedScene(s).carts![0]!.route!;
+    expect(route.length).toBeGreaterThanOrEqual(2);
+    const first = route[0]!;
+    const last = route[route.length - 1]!;
+    expect(Math.hypot(last.x - 30, last.z + 25)).toBeLessThan(
+      Math.hypot(first.x - 30, first.z + 25),
+    );
+    // bez podílu vůz s kamenem nejede
+    s.labor.shares = [];
+    expect(routedScene(s).carts![0]!.job).toBeNull();
+    // stavba bez uložené jízdy (jádro: nedojede) – vůz nejede
+    s.labor.shares = [stone];
+    s.constructions.find((c) => c.id === 98)!.stoneCart = null;
+    expect(routedScene(s).carts![0]!.route).toBeUndefined();
+  });
+
   it('rudiště a jámy po rudě (crafts.md – Uhlí a ruda kováře): hromada, zarůstání po dvacetinách', () => {
     const s = carpenterVillage();
     const smith = s.dwellings.find((d) => d.id === 50)!;

@@ -1,13 +1,15 @@
 // Vozy ve vsi bez Babylonu (docs/design/wagons.md – fáze 3): z dat vsi pro scénu
 // (`SceneVillage.carts` – vůz, úloha dne, náklad a trasa od herního jádra), co který vůz dnes dělá
 // ve scéně – jede tam a zpět po trase dne (svoz: prázdný k poli, louce nebo stromům, plný zpátky;
-// výprava: po zemské stezce ke kraji mapy a zpět, naložený), nebo stojí u ohrady bez volů – a kolik
+// výprava: po zemské stezce ke kraji mapy a zpět, naložený; kámen: od stavby k lomu a plný zpět
+// na stavbu), nebo stojí u ohrady bez volů – a kolik
 // spřežení dnes táhne vůz a kolik orá (voli nejsou zároveň u vozu, u rádla a v ohradě). Kreslí
 // village-renderer.ts (cart-renderer.ts, plough-team-renderer.ts, pen-animals.ts).
 import { DRAFT_OXEN } from '@bohemia/game';
 import type { SceneCart, SceneExpedition, SceneVillage } from '../village-view';
 import {
   CART_TURN_M,
+  cartLength,
   cartRoute,
   nearestOnRoute,
   shuttleRoute,
@@ -20,6 +22,37 @@ import { caravanHead, caravanPlan, caravanTimeline, type DayWindow } from './car
 import { carpenterCartSpot, type CraftYardView } from './craft-yard-layout';
 import type { PenLayout } from './pen-layout';
 import { route as walkRoute } from './villager-motion';
+
+/**
+ * Odnášeč v lomu nakládá kámen na vůz kus za zadkem vozu (m – od konce korby; návrh Clauda).
+ */
+const STONE_LOAD_BEHIND_M = 0.7;
+
+/**
+ * Vůz s kamenem z lomu `outcropId` dnes (fortifications.md – Kámen, Nošení kamene a vůz; podíl
+ * `haul` s nákladem `stone` a trasou): kde u lomu stojí a nakládá – konec trasy od stavby k lomu
+ * (`shuttleRoute` se `stopAtEnd`, jho na konci osy) – a kam k němu odnášeč nosí kameny: kus za
+ * zadkem vozu. Bez vozu null.
+ */
+export function stoneCartLoadSpot(
+  village: Pick<SceneVillage, 'carts'>,
+  outcropId: number,
+): { x: number; z: number } | null {
+  const cart = drivingCarts(village).find(
+    (c) =>
+      c.job?.load === 'stone' && c.job.target.kind === 'quarry' && c.job.target.id === outcropId,
+  );
+  const route = cart?.route;
+  if (!cart || !route || route.length < 2) return null;
+  const end = route[route.length - 1]!;
+  const prev = route[route.length - 2]!;
+  const len = Math.hypot(end.x - prev.x, end.z - prev.z) || 1;
+  const back = cartLength(cart.kind) + STONE_LOAD_BEHIND_M;
+  return {
+    x: end.x - ((end.x - prev.x) / len) * back,
+    z: end.z - ((end.z - prev.z) / len) * back,
+  };
+}
 
 /** Vůz stojí u boční stěny ohrady venku – od plotu (m) a rozestup víc vozů vedle sebe (m). */
 const PARKED_M = { fromFence: 2.3, apart: 2.6, back: 1.5 } as const;
@@ -84,7 +117,9 @@ export function parkedCartSpot(
  * Co vozy vsi dnes ve scéně dělají (`CartPlan` pro cart-renderer.ts): vůz s úlohou a trasou jede
  * tam a zpět (`shuttleRoute` – smyčky obratišť za cílem a u ohrady), náklad podle úlohy (snopy,
  * seno, klády a uhlí zpátky, osivo tam, sudy na vodu tam i zpět, zboží výpravy tam i zpět) dokola
- * tempem volů ve skutečném čase; vůz výpravy jede v karavaně (caravan.ts).
+ * tempem volů ve skutečném čase; vůz výpravy jede v karavaně (caravan.ts). Vůz s kamenem jede
+ * od stavby (trasa z cíle s `reverse` – village-view-crafts.ts) prázdný k lomu, na konci trasy
+ * nakládá (`stopAtEnd` – odnášeč nosí k vozu, `stoneCartLoadSpot`), plný zpět a skládá u stavby.
  * Víc vozů na téže trase jede za sebou. Vůz bez jízdy stojí u ohrady (nejbližší hotové), bez
  * ohrady se nekreslí.
  */
@@ -132,7 +167,13 @@ export function villageCartPlans(
         kind: cart.kind,
         cargo: job.load,
         // svoz snopů s hotovým humnem – plný k humnu, odtud k ohradě (SceneCart.viaRoute)
-        shuttle: shuttleRoute(cart.route!, cart.kind, walkable, cart.viaRoute),
+        shuttle: shuttleRoute(
+          cart.route!,
+          cart.kind,
+          walkable,
+          cart.viaRoute,
+          job.load === 'stone',
+        ),
         // všechny vozy – i svoz úrody, sena a klád – jezdí tempem volů ve skutečném čase jako
         // provoz na cestách (villagers.md – Činnosti od začátku do konce): voli ani vozka
         // nejdou časosběrem, za herní den se stihne, kolik se stihne

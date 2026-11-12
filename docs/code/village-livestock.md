@@ -357,7 +357,9 @@ oxen)` – jen ve vsi bez výrostků (`youngsterCount` 0), potřeba nejvýš `HE
   pro jednoho vola, `composeDraft(…, 1)`, `CartPose.team` –, náklad modelovaný ve skriptu) do
   `public/models/wagons/wagons.glb` – díly `wagon2-body`, `wagon4-body`, `wagon4-front` (předek na
   čepu), `wagon4-pole`, `wagon-wheel` (levé kolo, pravé = otočené o 180°) a náklad
-  `wagon{2,4}-{hay,sheaves,logs,goods,water}` (voda = stojící sudy s víkem a provazem). **Kola se
+  `wagon{2,4}-{hay,sheaves,logs,goods,water,ore,clay,apples,stone}` (voda = stojící sudy s víkem
+  a provazem; kámen = nízká vrstva hranatých kamenů na drti – 400 kg ≈ 0,16 m³, dvě šedé oblasti
+  atlasu jen v dosud prázdných blocích JPEG, ostatní díly beze změny). **Kola se
   točí maticí instance podle ujeté dráhy, ne VAT**
   (animace 0 A.D. jen točí kosti kol; VAT by se s jízdou po terénu nesešla a postava s kostrou má
   ve WebGPU vyčerpaných 8 vertex bufferů). Pohyb `cart-layout.ts` (čisté funkce, testy):
@@ -379,7 +381,10 @@ oxen)` – jen ve vsi bez výrostků (`youngsterCount` 0), potřeba nejvýš `HE
   k ohradě: `viaRoute`, `dropM` – scene-village.md, Humno ve scéně; všechny jízdy včetně svozu
   dokola tempem volů `CART_SPEED_M_S` ve skutečném čase, zastávky `CART_STOP_S` 20 s – za herní den
   se stihne, kolik se stihne (villagers.md – Činnosti od začátku do konce; dřív svoz v okně herního
-  dne až 4 m/s); výprava naložená tam i zpět), vůz bez jízdy stojí u ohrady (`CartParked`,
+  dne až 4 m/s); výprava naložená tam i zpět; **vůz s kamenem** (náklad `stone`, fortifications.md –
+  Kámen, Nošení kamene a vůz) jede po trase od stavby k lomu – prázdný k lomu, nakládá na konci
+  trasy (`shuttleRoute(…, stopAtEnd)`, odnášeč nosí k vozu – `stoneCartLoadSpot`), plný zpět a skládá
+  u hromady kamene stavby, ne od ohrady – cíl a trasa scene-village.md, Lom), vůz bez jízdy stojí u ohrady (`CartParked`,
   `parkedCartSpot`, `parkedCartPose` – dvoukolák na oji, bez volů). `cartPlanPose` = póza podle
   plánu (`poseOnRoute`). `VillageRenderer.updateCarts` (klíč z vozů, okna dne a ohrad) a
   `animateOxen`; voli táhnou buď vůz, nebo rádlo – `draftTeamsToday` (orba jen se spřežením, které

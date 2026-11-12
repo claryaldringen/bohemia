@@ -41,10 +41,11 @@ export type { CartKind };
  * Náklad na korbě (wagons.md – Co vozí, Co vozy vozí): seno, snopy, klády, zboží (i uhlí, osivo
  * a věci stěhujících se – migration.md), sudy na vodu, bahenní ruda z rudiště (crafts.md – Uhlí
  * a ruda kováře), hlína z hliniště (crafts.md – Hlína hrnčíře) a koše jablek ze sadu (orchard.md –
- * Jablka vozem); prázdný vůz bez nákladu.
+ * Jablka vozem), lámaný kámen z lomu na stavbu (fortifications.md – Kámen, Nošení kamene a vůz);
+ * prázdný vůz bez nákladu.
  */
 export type CartCargo =
-  'empty' | 'hay' | 'sheaves' | 'logs' | 'goods' | 'water' | 'ore' | 'clay' | 'apples';
+  'empty' | 'hay' | 'sheaves' | 'logs' | 'goods' | 'water' | 'ore' | 'clay' | 'apples' | 'stone';
 
 /**
  * Rozměry vozů ve skutečné velikosti (m) z tools/blender/wagons_from_0ad.py (WHEEL_R, YOKE_Y,
@@ -805,13 +806,16 @@ export function nearestOnRoute(route: CartRoute, p: Point, step = 0.25, from = 0
 /**
  * Jízda tam a zpět po ose `points` (od ohrady k cíli – trasa vozové sítě, SceneCart.route) se
  * smyčkami obratišť za cílem a u ohrady; rohy osy zaoblené obloukem vozu (CART_TURN_M).
- * Obratiště se podle `walkable` (souš) nepokládá do vody ani na neprůjezdný terén.
+ * Obratiště se podle `walkable` (souš) nepokládá do vody ani na neprůjezdný terén. `stopAtEnd` –
+ * vůz nakládá na konci osy (ještě před obratištěm), ne uprostřed smyčky za cílem: kámen u lomu
+ * (village-carts.ts – `stoneCartLoadSpot`, odnášeč nosí k vozu).
  */
 export function shuttleRoute(
   points: readonly Point[],
   kind: CartKind,
   walkable?: (x: number, z: number) => boolean,
   via?: { points: readonly Point[]; drop: Point },
+  stopAtEnd = false,
 ): ShuttleRoute {
   const axis = points.filter(
     (p, i) => i === 0 || Math.hypot(p.x - points[i - 1]!.x, p.z - points[i - 1]!.z) > 0.01,
@@ -850,7 +854,7 @@ export function shuttleRoute(
     closed: true,
     turnRadius: radius,
   });
-  return { route, farM: nearestOnRoute(route, far.middle) };
+  return { route, farM: nearestOnRoute(route, stopAtEnd ? end : far.middle) };
 }
 
 /** Jak dlouho vůz stojí u cíle (nakládá) a u ohrady (skládá) – s. */

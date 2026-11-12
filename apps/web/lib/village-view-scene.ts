@@ -30,6 +30,7 @@ import {
 import {
   plantedSaplingViews,
   sceneCarts,
+  withStoneCartHeaps,
   sceneKilnRemnants,
   sceneKilns,
   scenePloughLegs,
@@ -392,7 +393,17 @@ export function sceneVillage(
     ...(grainPits.length > 0 ? { grainPits } : {}),
     ...(plantedSaplings.length > 0 ? { plantedSaplings } : {}),
     ...(roadApples.length > 0 ? { roadApples } : {}),
-    ...(carts.length > 0 ? { carts } : {}),
+    // vůz s kamenem skládá u hromady kamene stavby (fortifications.md – Kámen, Nošení kamene a vůz)
+    ...(carts.length > 0
+      ? {
+          carts: withStoneCartHeaps(carts, {
+            churches,
+            forts,
+            stoneStacks,
+            ...(home ? { home } : {}),
+          }),
+        }
+      : {}),
     ...(ploughLegs ? { ploughLegs } : {}),
     ...(earthworks.length > 0 ? { earthworks } : {}),
     ...(fortifications.length > 0 ? { fortifications } : {}),

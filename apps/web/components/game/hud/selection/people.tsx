@@ -345,6 +345,7 @@ export const CARGO_LABELS: Record<CartGoal, { icon: string | null; name: string 
   seed: { icon: 'food', name: 'Osivo' },
   apples: { icon: 'apples', name: 'Jablka' },
   goods: { icon: null, name: 'Zboží' },
+  stone: { icon: 'stone', name: 'Kámen' },
 };
 
 /**
