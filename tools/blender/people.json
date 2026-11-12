@@ -1313,6 +1313,128 @@
           "hide": [0.1, 0.2, 0.45, 0.8]
         },
         "scale": 1.075
+      },
+      {
+        "name": "lath",
+        "procedural": "lath",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "maul",
+        "procedural": "maul",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "pickaxe",
+        "procedural": "pickaxe",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58],
+          "metal": [0.75, 0.78, 0.95, 0.86]
+        }
+      },
+      {
+        "name": "chisel",
+        "procedural": "chisel",
+        "point": "prop-weapon_L",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58],
+          "metal": [0.75, 0.78, 0.95, 0.86]
+        }
+      },
+      {
+        "name": "poker",
+        "procedural": "poker",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58],
+          "metal": [0.75, 0.78, 0.95, 0.86]
+        }
+      },
+      {
+        "name": "paddle",
+        "procedural": "paddle",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "trowel",
+        "procedural": "trowel",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58],
+          "metal": [0.75, 0.78, 0.95, 0.86]
+        }
+      },
+      {
+        "name": "float",
+        "procedural": "float",
+        "point": "prop-weapon_L",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58]
+        }
+      },
+      {
+        "name": "rubble",
+        "procedural": "rubble",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "stone": [0.75, 0.78, 0.95, 0.86]
+        }
+      },
+      {
+        "name": "ashlar",
+        "procedural": "ashlar",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "stone": [0.75, 0.78, 0.95, 0.86]
+        }
+      },
+      {
+        "name": "stone-load",
+        "procedural": "stone-load",
+        "point": "prop-back",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "stone": [0.75, 0.78, 0.95, 0.86]
+        }
+      },
+      {
+        "name": "stone-hand",
+        "procedural": "stone-hand",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "stone": [0.75, 0.78, 0.95, 0.86]
+        }
+      },
+      {
+        "name": "trough",
+        "procedural": "trough",
+        "point": "seat",
+        "texture": "textures/skins/props/prop_weap.dds",
+        "uv": {
+          "wood": [0.06, 0.36, 0.14, 0.58],
+          "mortar": [0.75, 0.78, 0.95, 0.86]
+        }
       }
     ],
     "clips": [
@@ -2032,6 +2154,56 @@
         "name": "cook",
         "animation": "animation/biped/gatherer/gather_berries.dae",
         "props": ["head", "ladle", "cookpot"]
+      },
+      {
+        "name": "measure",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "lath"]
+      },
+      {
+        "name": "break-stone",
+        "animation": "animation/biped/gatherer/gather_mine.dae",
+        "props": ["head", "maul", "rubble"]
+      },
+      {
+        "name": "carry-stone",
+        "animation": "animation/biped/gatherer/carry_grain_m.dae",
+        "props": ["head", "basket", "stone-load"]
+      },
+      {
+        "name": "stoke",
+        "animation": "animation/biped/gatherer/farming.dae",
+        "props": ["head", "poker"]
+      },
+      {
+        "name": "slake",
+        "animation": "animation/biped/gatherer/farming.dae",
+        "props": ["head", "paddle"]
+      },
+      {
+        "name": "quarry",
+        "animation": "animation/biped/gatherer/gather_mine.dae",
+        "props": ["head", "pickaxe"]
+      },
+      {
+        "name": "dress",
+        "animation": "animation/biped/citizen/build.dae",
+        "props": ["head", "hammer", "chisel", "ashlar"]
+      },
+      {
+        "name": "lay",
+        "animation": "animation/biped/gatherer/gather_berries.dae",
+        "props": ["head", "stone-hand"]
+      },
+      {
+        "name": "mortar",
+        "animation": "animation/biped/gatherer/farming.dae",
+        "props": ["head", "hoe", "trough"]
+      },
+      {
+        "name": "plaster",
+        "animation": "animation/biped/citizen/build.dae",
+        "props": ["head", "trowel", "float"]
       }
     ]
   }

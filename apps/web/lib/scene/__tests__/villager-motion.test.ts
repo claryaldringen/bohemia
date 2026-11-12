@@ -139,6 +139,17 @@ describe('villager-motion – pohyb jako funkce času', () => {
       weave: ['loom'],
       pipe: ['pipe'],
       drum: ['drum'],
+      // mistři stavební huti (jen muž)
+      measure: ['lath'],
+      'break-stone': ['maul', 'rubble'],
+      'carry-stone': ['basket', 'stone-load'],
+      stoke: ['poker'],
+      slake: ['paddle'],
+      quarry: ['pickaxe'],
+      dress: ['hammer', 'chisel', 'ashlar'],
+      lay: ['stone-hand'],
+      mortar: ['hoe', 'trough'],
+      plaster: ['trowel', 'float'],
     };
     const spec = JSON.parse(
       readFileSync(new URL('../../../../../tools/blender/people.json', import.meta.url), 'utf8'),
@@ -166,6 +177,7 @@ describe('villager-motion – pohyb jako funkce času', () => {
         return glb.readFloatLE(bin + (view.byteOffset ?? 0) + (a.byteOffset ?? 0));
       };
       for (const [clip, props] of Object.entries(expected)) {
+        if (figure.name === 'woman' && MAN_ONLY_CLIPS.includes(clip as VillagerClip)) continue;
         const clipSpec = figure.clips.find((c) => c.name === clip);
         const anim = json.animations.find((a) => a.name === clip);
         for (const prop of props) {

@@ -5,7 +5,8 @@ blender -b --factory-startup --python tools/blender/people_from_0ad.py -- \
 
 people.json: [{"name", "height_m" | "length_m", "body": {"dae", "texture", "tint", "pattern"?,
 "flatten"?, "multiply"?, "coat"?}, "props": [{"name", "dae" | "procedural" (sickle | rod | yoke | bowl | stick | shovel | rattle | stump | sheaf | rake | block | sieve |
-pots | tools-load | pots-load | fish-load | snare | ladle | cookpot | pail | distaff | loom | pipe | drum), "point", "texture",
+pots | tools-load | pots-load | fish-load | snare | ladle | cookpot | pail | distaff | loom | pipe | drum | lath | maul | pickaxe |
+chisel | poker | paddle | trowel | float | rubble | ashlar | stone-load | stone-hand | trough), "point", "texture",
 "tint"?, "uv"?, "scale"? (měřítko kolem bodu, výchozí 1), "rotate_deg"? ([x, y, z] natočení v osách bodu),
 "offset_m"? ([x, y, z] posun v osách bodu, v metrech)}], "clips": [{"name", "animation", "props": [jména propů viditelných v klipu],
 "pose"?, "report"?, "report_tip"?}]}]
@@ -832,7 +833,154 @@ def procedural_drum(uv_body, uv_hide):
     return _mesh(out)
 
 
+def procedural_lath(uv_wood):
+    """Měřická lať stavbyvedoucího (klip `measure`): rovná tenká lať podél osy z bodu propu
+    (z = −0,3 … 2,7 m, drží se u spodního konce) a dvě příčné značky (zářezy) pro čtení míry."""
+    out = ([], [], [], [])
+    _tapered_rod(out, 4, -0.3, 2.7, 0.017, 0.015, uv_wood)
+    _box(out, -0.04, 0.04, -0.008, 0.008, 1.0, 1.02, uv_wood)
+    _box(out, -0.04, 0.04, -0.008, 0.008, 2.0, 2.02, uv_wood)
+    return _mesh(out)
+
+
+def procedural_maul(uv_wood):
+    """Dřevěná palice vápeníka (klip `break-stone`): krátká násada (z = −0,1 … 0,75 m) a těžká
+    hranatá hlava napříč (0,28 × 0,12 × 0,12 m)."""
+    out = ([], [], [], [])
+    _tapered_rod(out, 5, -0.1, 0.78, 0.022, 0.02, uv_wood)
+    _box(out, -0.14, 0.14, -0.06, 0.06, 0.7, 0.82, uv_wood)
+    return _mesh(out)
+
+
+def procedural_pickaxe(uv_wood, uv_metal):
+    """Krumpáč kameníka v lomu (klip `quarry`): násada (z = −0,1 … 1,0 m) a železná hlava
+    napříč zahnutá k hrotům (≈ 0,7 m, bez štípacího špalku)."""
+    out = ([], [], [], [])
+    _tapered_rod(out, 5, -0.1, 1.0, 0.024, 0.022, uv_wood)
+    _box(out, -0.12, 0.12, -0.022, 0.022, 0.96, 1.02, uv_metal)
+    _rod_between(out, (0.12, 0.0, 0.99), (0.3, 0.0, 0.9), 0.022, 0.006, 4, uv_metal)
+    _rod_between(out, (-0.12, 0.0, 0.99), (-0.3, 0.0, 0.9), 0.022, 0.006, 4, uv_metal)
+    return _mesh(out)
+
+
+def procedural_chisel(uv_wood, uv_metal):
+    """Dláto v levé ruce kameníka (klip `dress`): krátká rukojeť a železné tělo se špičkou
+    (z = −0,05 … 0,3 m)."""
+    out = ([], [], [], [])
+    _tapered_rod(out, 5, -0.05, 0.1, 0.016, 0.014, uv_wood)
+    _tapered_rod(out, 4, 0.1, 0.3, 0.012, 0.004, uv_metal)
+    return _mesh(out)
+
+
+def procedural_poker(uv_wood, uv_metal):
+    """Dlouhý ožeh vápeníka (klip `stoke`): násada (z = −0,2 … 1,9 m) a železný hák na konci."""
+    out = ([], [], [], [])
+    _tapered_rod(out, 5, -0.2, 1.7, 0.022, 0.018, uv_wood)
+    _tapered_rod(out, 4, 1.7, 2.0, 0.013, 0.012, uv_metal)
+    _rod_between(out, (0.0, 0.0, 2.0), (0.14, 0.0, 1.9), 0.012, 0.008, 4, uv_metal)
+    return _mesh(out)
+
+
+def procedural_paddle(uv_wood):
+    """Dlouhé míchadlo na hašení vápna (klip `slake`): násada (z = −0,2 … 1,9 m) a plochá
+    lopatka na konci (0,24 × 0,03 × 0,35 m)."""
+    out = ([], [], [], [])
+    _tapered_rod(out, 5, -0.2, 1.7, 0.024, 0.02, uv_wood)
+    _box(out, -0.12, 0.12, -0.015, 0.015, 1.55, 1.9, uv_wood)
+    return _mesh(out)
+
+
+def procedural_trowel(uv_wood, uv_metal):
+    """Zednická lžíce v pravé ruce štukatéra (klip `plaster`): rukojeť (z = −0,07 … 0,08 m)
+    a trojúhelníkový list z ocele (0,13 m široký, 0,2 m dlouhý)."""
+    out = ([], [], [], [])
+    _tapered_rod(out, 5, -0.07, 0.08, 0.016, 0.014, uv_wood)
+    _box(out, -0.003, 0.003, -0.065, 0.065, 0.1, 0.16, uv_metal)
+    _box(out, -0.003, 0.003, -0.035, 0.035, 0.16, 0.27, uv_metal)
+    return _mesh(out)
+
+
+def procedural_float(uv_wood):
+    """Hladítko v levé ruce štukatéra (klip `plaster`): prkénko 0,28 × 0,13 m s držadlem."""
+    out = ([], [], [], [])
+    _box(out, -0.065, 0.065, -0.008, 0.008, 0.02, 0.3, uv_wood)
+    _box(out, -0.012, 0.012, -0.04, -0.008, 0.1, 0.2, uv_wood)
+    return _mesh(out)
+
+
+def _rock(out, cx, cy, r, h, uv_stone, sides=7):
+    """Neopracovaný kámen: sedmiboký kužel s víkem, hranatý hrubý tvar."""
+    at = Matrix.Translation((cx, cy, 0.0))
+    _placed(out, lambda o: _tapered_rod(o, sides, 0.0, h, r, r * 0.7, uv_stone), at)
+    _placed(out, lambda o: _disc(o, h, r * 0.7, sides, uv_stone), at)
+
+
+def procedural_rubble(uv_stone):
+    """Vápenec na zemi před vápeníkem (klip `break-stone`): velký kámen 1,05 m před patou, kam
+    dopadá palice (úder palice 0 A.D. dopadá dál než u špalku), a dva střepy vedle něj."""
+    out = ([], [], [], [])
+    _rock(out, 0.0, -1.05, 0.2, 0.22, uv_stone)
+    _rock(out, 0.28, -0.92, 0.07, 0.06, uv_stone, 5)
+    _rock(out, -0.25, -1.15, 0.06, 0.05, uv_stone, 5)
+    return _mesh(out)
+
+
+def procedural_ashlar(uv_stone):
+    """Kvádr na zemi před kameníkem (klip `dress`): hrubý kvádr 0,5 × 0,3 × 0,28 m ve vzdálenosti
+    0,55 m před patou."""
+    out = ([], [], [], [])
+    _box(out, -0.25, 0.25, -0.85, -0.55, 0.0, 0.28, uv_stone)
+    return _mesh(out)
+
+
+def procedural_stone_load(uv_stone):
+    """Kamení v nůši (klip `carry-stone`): tři hrubé kameny nad okrajem."""
+    out = ([], [], [], [])
+
+    def build(o):
+        _rock(o, -0.08, 0.0, 0.11, 0.2, uv_stone)
+        _rock(o, 0.1, 0.02, 0.1, 0.24, uv_stone)
+        _rock(o, 0.0, -0.1, 0.09, 0.3, uv_stone, 6)
+
+    _back_load(out, build)
+    return _mesh(out)
+
+
+def procedural_stone_hand(uv_stone):
+    """Kámen v rukou zedníka (klip `lay`): tesaný kvádr 0,3 × 0,18 × 0,13 m držený před tělem
+    (bod `prop-weapon_R`, ruce chytají za boky kvádru)."""
+    out = ([], [], [], [])
+    _box(out, -0.15, 0.15, -0.09, 0.09, -0.06, 0.07, uv_stone)
+    return _mesh(out)
+
+
+def procedural_trough(uv_wood, uv_mortar):
+    """Nízké dřevěné koryto na maltu na zemi 0,65 m před zedníkem (klip `mortar`): 0,9 × 0,45 m,
+    výška 0,2 m, uvnitř hladina malty."""
+    out = ([], [], [], [])
+    x0, x1, y0, y1, h, t = -0.45, 0.45, -0.875, -0.425, 0.2, 0.04
+    _box(out, x0, x1, y0, y0 + t, 0.0, h, uv_wood)
+    _box(out, x0, x1, y1 - t, y1, 0.0, h, uv_wood)
+    _box(out, x0, x0 + t, y0 + t, y1 - t, 0.0, h, uv_wood)
+    _box(out, x1 - t, x1, y0 + t, y1 - t, 0.0, h, uv_wood)
+    _box(out, x0 + t, x1 - t, y0 + t, y1 - t, 0.0, 0.15, uv_mortar)
+    return _mesh(out)
+
+
 PROCEDURAL = {
+    "lath": lambda r: procedural_lath(r["wood"]),
+    "maul": lambda r: procedural_maul(r["wood"]),
+    "pickaxe": lambda r: procedural_pickaxe(r["wood"], r["metal"]),
+    "chisel": lambda r: procedural_chisel(r["wood"], r["metal"]),
+    "poker": lambda r: procedural_poker(r["wood"], r["metal"]),
+    "paddle": lambda r: procedural_paddle(r["wood"]),
+    "trowel": lambda r: procedural_trowel(r["wood"], r["metal"]),
+    "float": lambda r: procedural_float(r["wood"]),
+    "rubble": lambda r: procedural_rubble(r["stone"]),
+    "ashlar": lambda r: procedural_ashlar(r["stone"]),
+    "stone-load": lambda r: procedural_stone_load(r["stone"]),
+    "stone-hand": lambda r: procedural_stone_hand(r["stone"]),
+    "trough": lambda r: procedural_trough(r["wood"], r["mortar"]),
     "sheaf": lambda r: procedural_sheaf(r["straw"], r["band"]),
     "rake": lambda r: procedural_rake(r["wood"]),
     "block": lambda r: procedural_block(r["wood"]),

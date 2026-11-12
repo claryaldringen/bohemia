@@ -392,7 +392,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 .textureHalfFloat`), jedno pole rovnou ve formátu textury, peče se po kouscích
   `BAKE_SLICE_MS` (8 ms) mezi `requestIdleCallback` – žádná dlouhá úloha; zdrojový model je při
   pečení vypnutý. Babylon si pole drží pro obnovu po ztrátě kontextu – jiná kopie v JS není.
-  Textura muže 360 × 3305 px (9,5 MB na GPU), ženy 344 × 2602 px (7,2 MB);
+  Textura muže 412 × 3800 px (12,5 MB na GPU, s klipy mistrů huti), ženy 344 × 2602 px (7,2 MB);
   dřív float32 360 × 3467 a 344 × 2804 (35,4 MB obě). **WebGPU má limit 8 vertex bufferů**
   a postava jich má právě 8 (pozice, normála, uv, kosti 2×, matice, VAT, look) – další atribut
   na vrchol nepřidávat, patří do textury. Klipy se střídají střihem (VAT prolínat neumí). Hýbou
