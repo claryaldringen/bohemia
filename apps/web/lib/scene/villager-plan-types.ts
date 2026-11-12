@@ -93,7 +93,8 @@ export const WOMEN: Record<LaborActivity, number> = {
   // kovář a jeho synové (crafts.md – Uhlí a ruda kováře) – muži
   ore: 0,
   clay: 0.2,
-  // lámání a nošení kamene v lomu (fortifications.md – Kámen) – scéna je zatím nekreslí
+  // lámání a nošení kamene v lomu (fortifications.md – Kámen) – těžká práce, muži
+  // (villager-plan-quarry.ts)
   quarry: 0,
   // obilné jámy – kopání, nošení zrna z humna a pečetění (production-chains.md – Obilné jámy)
   'grain-pit': 0.3,
