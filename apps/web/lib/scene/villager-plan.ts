@@ -186,11 +186,17 @@ export function planVillagersWithCrew(
     labor.month,
     Math.max(0, (options.maxWorkers ?? MAX_WORKERS) - mourning - celebrating),
   );
+  // lidé svateb a pohřbů dne – kněz a mistr, který jde na obřad, nestojí zároveň u práce
+  const atEvents = new Set<number>(
+    [...funerals, ...weddings].flatMap((plan) =>
+      plan.members.flatMap((m) => (m.person !== undefined ? [m.person] : [])),
+    ),
+  );
   // kněží před vchodem kostelů – úplně napřed, do práce vsi (ani k spřežení) nejdou
-  const priests = priestFigures(ctx);
+  const priests = priestFigures(ctx, atEvents);
   // mistři huti u své práce na staveništi kostela, nebo u domu – hned po knězi, ani oni do práce
   // vsi nejdou (jádro je z ní vynechává – `isLodgeIdle`)
-  const masters = masterFigures(ctx);
+  const masters = masterFigures(ctx, atEvents);
   // lidé u spřežení a vozů (villagers.md – Výběr postavy) – postavy kreslí spřežení a vůz
   const staff = draftStaff(ctx, options.draft ?? null, crew);
   // lidé s pevným místem dne napřed – pohřeb, karavany, nosiči kováře a pasáci

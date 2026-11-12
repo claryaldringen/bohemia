@@ -12,7 +12,8 @@ import type { ScenePerson } from '../../person-view';
 import type { LaborShare, SceneVillage } from '../../village-view';
 import { distToSegment, insidePolygon, KILN_M, stoneHeapAt } from '../church-site-layout';
 import { createVillagerPose } from '../villager-motion';
-import { planVillagersWithCrew, type VillagerGround } from '../villager-plan';
+import { planVillagersWithCrew, planWeddings, type VillagerGround } from '../villager-plan';
+import { LIVESTOCK_EPOCH_MS } from '../livestock-motion';
 import { churchWallSpots, MASTER_M } from '../villager-plan-masons';
 
 // Mistři huti při práci na staveništi kostela (churches.md – Mistři huti při práci;
@@ -222,6 +223,36 @@ describe('mistři huti při práci (villager-plan-masons.ts)', () => {
     expect(p.people.some((f) => f.job?.kind === 'share' && f.job.activity === 'harvest')).toBe(
       true,
     );
+  });
+
+  it('mistr, který se dnes žení, je na svatbě, ne u práce', () => {
+    const DAY = 1000;
+    const START = LIVESTOCK_EPOCH_MS + 5_000_000;
+    const dayWindow = (day: number): { startMs: number; endMs: number } => ({
+      startMs: START + (day - DAY) * 86_000,
+      endMs: START + (day - DAY + 1) * 86_000,
+    });
+    const groom = MASTERS.mason;
+    const v: SceneVillage = {
+      ...village(['walls']),
+      sacred: { oaks: [{ id: 77, x: 10, z: 60 }], groves: [], buildings: [] },
+      weddings: [
+        {
+          key: `${DAY}:0`,
+          day: DAY,
+          bride: { id: 950, age: 19, from: 1 },
+          groom: { id: groom, age: 30, from: 4 },
+          home: 4,
+          guests: [],
+        },
+      ],
+    };
+    const weddings = planWeddings(v, GROUND, { seed: 3, dayWindow });
+    expect(weddings).toHaveLength(1);
+    const p = planVillagersWithCrew(v, GROUND, { seed: 3, herds: 0, dayWindow, weddings });
+    const mine = p.people.filter((f) => f.person === groom);
+    expect(mine).toHaveLength(1);
+    expect(mine[0]!.job?.kind).toBe('wedding');
   });
 
   it('výzdoba: štukatér u zdi omítá; panel řekne práci mistra', () => {

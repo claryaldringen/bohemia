@@ -13,13 +13,17 @@ export const PRIEST_DOOR_M = 2.5;
 /**
  * Kněží kostelů vsi: u každého dostavěného kostela s knězem (`SceneChurch.priestId`) postava
  * před vchodem čelem ven. Bere se z rozpisu lidí jako první (před spřežením a prací vsi), ať ho
- * nikdo nepošle orat; bez lidí ve scéně je postava jen podle kostela.
+ * nikdo nepošle orat; bez lidí ve scéně je postava jen podle kostela. Kněz, který dnes jde na
+ * svatbu nebo pohřeb (`atEvents`), před vchodem nestojí – postavu mu dá obřad.
  */
-export function priestFigures(ctx: Context): PlannedVillager[] {
+export function priestFigures(
+  ctx: Context,
+  atEvents: ReadonlySet<number> = new Set(),
+): PlannedVillager[] {
   const out: PlannedVillager[] = [];
   for (const church of ctx.village.churches ?? []) {
     const id = church.priestId;
-    if (!church.built || id === undefined) continue;
+    if (!church.built || id === undefined || atEvents.has(id)) continue;
     const c = cast(ctx, `priest:${church.id}`, { women: 0, child: false }, () =>
       ctx.roster!.takeId(id),
     );

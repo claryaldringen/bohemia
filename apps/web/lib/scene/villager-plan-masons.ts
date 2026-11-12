@@ -308,9 +308,13 @@ function homeSpot(ctx: Context, person: ScenePerson): MasterSpot | null {
  * Mistři huti vsi (lidé dne s `ScenePerson.mason`): každý u své práce dne (`masterWork`), nebo
  * u dveří svého domu. Bere je z rozpisu lidí hned po knězi – do práce vsi ani k spřežení nejdou;
  * když místo u práce nevyjde, postává doma, a když ani tam, postavu nemá (zůstane v rozpisu
- * obsazený, ať ho nikdo nepošle na pole). Bez lidí ve scéně nikdo.
+ * obsazený, ať ho nikdo nepošle na pole). Bez lidí ve scéně nikdo. Kdo dnes jde na svatbu nebo
+ * pohřeb (`atEvents`), u práce není – postavu mu dá obřad.
  */
-export function masterFigures(ctx: Context): PlannedVillager[] {
+export function masterFigures(
+  ctx: Context,
+  atEvents: ReadonlySet<number> = new Set(),
+): PlannedVillager[] {
   const roster = ctx.roster;
   if (!roster) return [];
   const masters = (ctx.village.labor?.persons ?? []).filter((p) => p.mason !== undefined);
@@ -321,6 +325,7 @@ export function masterFigures(ctx: Context): PlannedVillager[] {
   const hasQuarry = (id: number): boolean => quarries.has(id);
   const out: PlannedVillager[] = [];
   for (const person of masters) {
+    if (atEvents.has(person.id)) continue;
     const craft = person.mason!;
     const c = cast(ctx, `master:${person.id}`, { women: 0, child: false }, () =>
       roster.takeId(person.id),
