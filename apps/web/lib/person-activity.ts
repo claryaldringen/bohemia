@@ -4,6 +4,7 @@
 // kde v pochůzce je (tam, zpět, doma) a dat vsi ve scéně. Čistý modul.
 import type { Craft, HerdSpecies, KilnStage } from '@bohemia/game';
 import { crewActivityText, type DraftFigureState } from './draft-activity';
+import { stoneCartLoadSpot } from './scene/village-carts';
 import type { MasterWork, PersonJob } from './scene/villager-roster';
 import type { VillagerStage } from './scene/villager-motion';
 import type { PhaseName } from './scene/villager-phases';
@@ -150,6 +151,7 @@ export const PHASE_TEXTS: Partial<Record<PhaseName, string>> = {
   'trim-stone': 'přisekává kámen',
   'take-stone': 'odebírá přisekané kameny',
   'stack-stone': 'odnáší kameny na hromadu',
+  'load-stone': 'nakládá kámen na vůz',
 };
 
 /** Mistr huti v místě práce bez fáze s vlastní větou (villager-plan-masons.ts). */
@@ -442,7 +444,11 @@ function shareText(
     case 'clay':
       return 'kope hlínu';
     case 'quarry':
-      return job.stacker ? 'odnáší kameny na hromadu' : 'láme kámen';
+      if (!job.stacker) return 'láme kámen';
+      // s vozem s kamenem u lomu nosí odnášeč kameny k vozu (villager-plan-quarry.ts – quarryPhases)
+      return t.kind === 'quarry' && stoneCartLoadSpot(village, t.id)
+        ? 'nakládá kámen na vůz'
+        : 'odnáší kameny na hromadu';
     case 'grain-pit':
       return 'ukládá zrno do obilné jámy';
     case 'fetch':

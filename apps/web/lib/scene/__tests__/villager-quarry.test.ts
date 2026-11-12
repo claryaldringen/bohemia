@@ -4,8 +4,9 @@ import type { SceneChurch } from '../../church-view';
 import { personActivity } from '../../person-activity';
 import { personRoles, type RolePerson } from '../../person-roles';
 import type { ScenePerson } from '../../person-view';
-import type { LaborShare, SceneVillage } from '../../village-view';
+import type { LaborShare, SceneCart, SceneVillage } from '../../village-view';
 import { heapRadius, stoneHeapAt } from '../church-site-layout';
+import { stoneCartLoadSpot } from '../village-carts';
 import { createVillagerPose, type VillagerStage } from '../villager-motion';
 import { activityPhases } from '../villager-phases';
 import { planVillagersWithCrew, type PlannedVillager, type VillagerGround } from '../villager-plan';
@@ -96,8 +97,9 @@ const STONE_CART: LaborShare = {
   construction: 8,
 };
 
-function plan(quarry: typeof FAR, cart = false) {
+function plan(quarry: typeof FAR, cart = false, wagon: SceneCart | null = null) {
   const v: SceneVillage = {
+    ...(wagon ? { carts: [wagon] } : {}),
     dwellings: [house(1, 0, 0), house(2, 20, 0), house(3, -20, 0), house(4, 0, 80)],
     fields: [],
     churches: [CHURCH],
@@ -115,7 +117,12 @@ function plan(quarry: typeof FAR, cart = false) {
       persons: persons(),
     },
   };
-  const p = planVillagersWithCrew(v, GROUND, { seed: 5, herds: 0 });
+  const p = planVillagersWithCrew(v, GROUND, {
+    seed: 5,
+    herds: 0,
+    // vůz s kamenem kreslí cart-renderer.ts, vozka je člověk vsi
+    ...(wagon ? { draft: { teams: 0, carts: [wagon.id] } } : {}),
+  });
   const quarrying = p.people.filter((f) => f.job?.kind === 'share' && f.job.activity === 'quarry');
   const carriers = p.people.filter((f) => f.job?.kind === 'fetch' && f.job.goods === 'stone');
   return { p, v, quarrying, carriers };
@@ -253,12 +260,50 @@ describe('poddaní v lomu (villager-plan-quarry.ts)', () => {
     const withCart = plan(FAR, true);
     expect(withCart.carriers).toHaveLength(0);
     expect(withCart.quarrying.length).toBeGreaterThanOrEqual(2);
-    // vůz zatím postavy nemá – posádka vozu se nekreslí
+    // posádka vozu se nekreslí – vozka je u vozu (bez vozu ve scéně podíl postavy nemá)
     expect(
       withCart.p.people.some((f) => f.job?.kind === 'share' && f.job.activity === 'haul'),
     ).toBe(false);
     const near = plan(NEAR);
     expect(near.carriers).toHaveLength(0);
     expect(near.quarrying.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('s vozem s kamenem u lomu nosí odnášeč kameny k vozu a nakládá je, vůz vede vozka', () => {
+    // trasa vozu od hromady u kostela k lomu (village-view-crafts.ts – `reverse`)
+    const wagon: SceneCart = {
+      id: 5,
+      kind: 'two-wheel',
+      x: 0,
+      z: 80,
+      condition: 1,
+      job: { activity: 'haul', target: { kind: 'quarry', id: 42 }, load: 'stone', construction: 8 },
+      // u lomu končí na kraji výchozu (≈ 9 m od středu ke vsi)
+      route: [stoneHeapAt(CHURCH.site!), { x: FAR.x - 7, z: FAR.z + 6 }],
+    };
+    const { p, v, quarrying, carriers } = plan(FAR, true, wagon);
+    expect(carriers).toHaveLength(0);
+    const stacker = quarrying.find((f) => f.job?.kind === 'share' && f.job.stacker)!;
+    const task = p.tasks.get(stacker.person!)!;
+    expect(task.role).toBe('quarry-load');
+    expect(task.places!.heap).toEqual(stoneCartLoadSpot(v, 42));
+    const phases = phasesOf(task, stacker.person!);
+    const carry = phases.find((ph) => ph.walk?.to === task.places!.heap);
+    expect(carry?.clip).toBe('carry-stone');
+    expect(carry?.name).toBe('load-stone');
+    expect(phases.find((ph) => ph.name === 'load-stone' && ph.at)?.at).toEqual(task.places!.heap);
+    const state = { id: stacker.person!, stage: null, hidden: false, herd: null };
+    expect(personActivity({ ...state, job: stacker.job! }, v)).toBe('nakládá kámen na vůz');
+    expect(personActivity({ ...state, job: stacker.job!, phase: 'load-stone' }, v)).toBe(
+      'nakládá kámen na vůz',
+    );
+    // vozka je dospělý člověk vsi, postavu nemá – vede vůz (cart-renderer.ts)
+    const crew = p.crew.carts.find((c) => c.cart === 5);
+    expect(crew?.drover).not.toBeNull();
+    expect(p.people.some((f) => f.person === crew!.drover)).toBe(false);
+    // podíl vozu bez vozu ve scéně (nedojede) – odnášeč nosí na hromadu u lomu
+    const without = plan(FAR, true);
+    const alone = without.quarrying.find((f) => f.job?.kind === 'share' && f.job.stacker)!;
+    expect(without.p.tasks.get(alone.person!)?.role).toBe('quarry-stack');
   });
 });

@@ -620,14 +620,19 @@ export interface SceneCart {
    * Co vůz dnes dělá – svoz (`haul`: pole, louka, stromy; i jízdy mimo svoz – uhlí od milíře,
    * osivo na pole, voda od břehu, wagons.md – Co vozy vozí) nebo výprava po stezce (`trade`)
    * s cílem z rozdělení práce dne a nákladem, který veze (snopy ze žně, seno ze seče, klády ke
-   * stavbě, zboží výpravy, uhlí a osivo jako zboží, voda v sudech); náklad veze zpátky, osivo tam
-   * (`outbound`). Stojí-li u ohrady, null.
+   * stavbě, zboží výpravy, uhlí a osivo jako zboží, voda v sudech, kámen z lomu na stavbu); náklad
+   * veze zpátky, osivo tam (`outbound`). Stojí-li u ohrady, null.
    */
   job: {
     activity: 'haul' | 'trade';
     target: LaborShare['target'];
     load: CartLoad;
     outbound?: true;
+    /**
+     * Stavba, na kterou vůz s kamenem veze kámen z lomu (`LaborShare.construction` podílu `haul`
+     * s `job` `stone` – fortifications.md, Kámen, Nošení kamene a vůz); jinde chybí.
+     */
+    construction?: number;
     /**
      * Kolik kg nákladu vůz veze při jedné jízdě výpravy (wagons.md – Obchod, Opakované jízdy
      * vozu) – jen u výpravy; jinde chybí (kolik veze, hlásí jen druh nákladu).
@@ -657,9 +662,11 @@ export interface SceneCart {
 
 /**
  * Náklad vozu na cestě zpátky (u výpravy tam i zpět, osivo tam); voda v sudech – sudy jsou na voze
- * tam i zpět (wagons.md – Co vozy vozí); ruda z rudiště (crafts.md – Uhlí a ruda kováře).
+ * tam i zpět (wagons.md – Co vozy vozí); ruda z rudiště (crafts.md – Uhlí a ruda kováře); kámen
+ * z lomu na stavbu (fortifications.md – Kámen, Nošení kamene a vůz).
  */
-export type CartLoad = 'sheaves' | 'hay' | 'logs' | 'goods' | 'water' | 'ore' | 'clay' | 'apples';
+export type CartLoad =
+  'sheaves' | 'hay' | 'logs' | 'goods' | 'water' | 'ore' | 'clay' | 'apples' | 'stone';
 
 /** Náletový strom opuštěného sadu ve scéně – stáří v celých letech. */
 export interface SceneWildTree {

@@ -104,11 +104,13 @@ export type PhaseName =
   | 'plaster'
   | 'resume'
   // lom (churches.md – Mistři huti při práci, Lom): kameník ukazuje u stěny, jak lámat,
-  // a přisekává nalámaný kámen; odnášeč od něj kameny bere a odnáší na hromadu u lomu
+  // a přisekává nalámaný kámen; odnášeč od něj kameny bere a odnáší na hromadu u lomu, nebo je
+  // nakládá na vůz s kamenem (fortifications.md – Kámen, Nošení kamene a vůz)
   | 'show-quarry'
   | 'trim-stone'
   | 'take-stone'
-  | 'stack-stone';
+  | 'stack-stone'
+  | 'load-stone';
 
 /**
  * Role fází – kterou posloupnost fází činnost dostane (z úlohy dne a stavu vsi –
@@ -146,8 +148,10 @@ export type PhaseRole =
   | 'master-decor'
   | 'master-home'
   // poddaní v lomu (villager-plan-quarry.ts): lámající u stěny a odnášeč kamenů na hromadu
+  // (s vozem s kamenem na vůz – `quarry-load`)
   | 'quarry-break'
   | 'quarry-stack'
+  | 'quarry-load'
   | 'idle';
 
 /**
@@ -385,6 +389,15 @@ export const PHASE_STEPS: Record<PhaseRole, readonly PhaseStep[]> = {
     { name: 'stack-stone', share: 0.11, clip: 'lay', place: 'heap', carry: 'carry-stone' },
     { name: 'take-stone', share: 0.14, clip: 'lay' },
     { name: 'stack-stone', share: 0.11, clip: 'lay', place: 'heap', carry: 'carry-stone' },
+  ],
+  // odnášeč s vozem s kamenem u lomu: kameny od kameníka nese k vozu a nakládá je (`heap` = místo
+  // u zadku vozu – village-carts.ts, `stoneCartLoadSpot`); vůz stojí na kraji lomu dál než hromada,
+  // proto delší kroky a dál smí (`far`)
+  'quarry-load': [
+    { name: 'take-stone', share: 0.2, clip: 'lay' },
+    { name: 'load-stone', share: 0.3, clip: 'lay', place: 'heap', carry: 'carry-stone', far: true },
+    { name: 'take-stone', share: 0.2, clip: 'lay' },
+    { name: 'load-stone', share: 0.3, clip: 'lay', place: 'heap', carry: 'carry-stone', far: true },
   ],
   // kameník u hromady kamene: tesá kvádry, občas nese kámen ke zdi
   'master-dress': [

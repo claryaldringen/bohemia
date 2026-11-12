@@ -770,7 +770,8 @@ export function placer(ctx: Context, share: SceneLaborShare, count: number): Pla
       // honák a nakladač s vozem (wagons.md – Vůz): nakladač u svozu jako nosiči snopů, sekáči
       // na louce a dřevorubci u stromů; honák jde s vozem (kreslí ho cart-renderer.ts – fáze 3);
       // s uhlím a vodou (Co vozy vozí) jde posádka s vozem – nakladače nekreslí; s osivem stojí
-      // nakladač na poli jako nosiči; vůz s kamenem z lomu zatím postavy nemá
+      // nakladač na poli jako nosiči; u vozu s kamenem z lomu nakládá odnášeč lámání
+      // (villager-plan-quarry.ts – `quarryPhases`)
       const crew =
         share.job === 'charcoal' || share.job === 'water' || share.job === 'stone'
           ? none

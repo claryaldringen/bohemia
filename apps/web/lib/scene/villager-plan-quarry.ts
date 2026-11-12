@@ -4,21 +4,17 @@
 // Kámen, Nošení kamene a vůz): lidé podílu lámání (`quarry`) lámou krumpáčem u stěny lomu, jeden
 // z nich odnáší kameny od stěny (od kameníka) na hromadu u lomu a bez vozu s kamenem nosí část
 // z nich kámen v nůších z hromady u lomu na stavbu – ke kostelu, k hradbě, nebo k hromadě kamení
-// u dvorce (zásoba). Vůz s kamenem (podíl `haul`, `job` `stone`) postavy zatím nemá. Čistý modul
-// bez Babylonu.
+// u dvorce (zásoba). S vozem s kamenem (podíl `haul`, `job` `stone`) nosiči nejsou a odnášeč nosí
+// kameny k vozu u lomu (village-carts.ts – `stoneCartLoadSpot`); vůz kreslí cart-renderer.ts a vede
+// ho vozka (villager-plan.ts – `draftStaff`). Čistý modul bez Babylonu.
 import type { Sex } from '@bohemia/game';
 import type { ScenePerson } from '../person-view';
 import type { SceneLabor, SceneLaborShare, SceneVillage } from '../village-view';
-import { heapRadius, stoneHeapAt } from './church-site-layout';
 import { streamPhase } from './road-traffic';
 import { hash01 } from './smoke-schedule';
-import {
-  PILE_RADIUS_M,
-  QUARRY_FACE_M,
-  QUARRY_PILES,
-  stackRadius,
-  toWorld,
-} from './stone-pile-layout';
+import { stoneDestination as stoneTarget } from './stone-destination';
+import { PILE_RADIUS_M, QUARRY_FACE_M, QUARRY_PILES, toWorld } from './stone-pile-layout';
+import { stoneCartLoadSpot } from './village-carts';
 import { shuttleErrand } from './villager-errands';
 import {
   shuttle,
@@ -163,58 +159,16 @@ function pickSpot(q: SceneQuarry): Spot {
 
 /**
  * Kam se kámen z lomu `q` podílu `share` nosí (fortifications.md – Kámen, Nošení kamene a vůz;
- * jádro – `stoneSource`): k hromadě kamene u kostela (`stoneHeapAt`), k nejbližšímu bodu obvodu
- * hradby, jejíž stavba láme (`SceneFortification.constructions`), jinak k hromadě kamení u dvorce
- * (zásoba – nejbližší hromada u cesty, bez ní dvorec). Bod a poloměr hromady (m); bez místa null.
+ * jádro – `stoneSource`; stone-destination.ts): k hromadě kamene u kostela, k nejbližšímu bodu
+ * obvodu hradby, jejíž stavba láme, jinak k hromadě kamení u dvorce (zásoba). Bod a poloměr
+ * hromady (m); bez místa null.
  */
 export function stoneDestination(
   ctx: Pick<Context, 'village' | 'center'>,
   share: Pick<SceneLaborShare, 'construction'>,
   q: SceneQuarry,
 ): { at: Point; r: number } | null {
-  const id = share.construction;
-  const church = id === undefined ? undefined : ctx.village.churches?.find((c) => c.id === id);
-  if (church)
-    return church.site ? { at: stoneHeapAt(church.site), r: heapRadius(church.site.stone) } : null;
-  const fort =
-    id === undefined ? undefined : ctx.village.forts?.find((f) => f.constructions?.includes(id));
-  if (fort) {
-    const at = nearestOnRing(fort.outline, q);
-    return at ? { at, r: 0 } : null;
-  }
-  const manor = ctx.village.home ?? ctx.center;
-  let best: { at: Point; r: number } | null = null;
-  let bestD = Infinity;
-  for (const s of ctx.village.stoneStacks ?? []) {
-    const d = Math.hypot(s.x - manor.x, s.z - manor.z);
-    if (d < bestD) {
-      bestD = d;
-      best = { at: { x: s.x, z: s.z }, r: stackRadius(s.m3) };
-    }
-  }
-  return best ?? { at: { x: manor.x, z: manor.z }, r: 0 };
-}
-
-/** Nejbližší bod uzavřené lomené čáry `ring` k bodu `p`; prázdná null. */
-function nearestOnRing(ring: readonly (readonly [number, number])[], p: Point): Point | null {
-  let best: Point | null = null;
-  let bestD = Infinity;
-  for (let i = 0; i < ring.length; i++) {
-    const [ax, az] = ring[i]!;
-    const [bx, bz] = ring[(i + 1) % ring.length]!;
-    const dx = bx - ax;
-    const dz = bz - az;
-    const len2 = dx * dx + dz * dz;
-    const t =
-      len2 > 1e-9 ? Math.max(0, Math.min(1, ((p.x - ax) * dx + (p.z - az) * dz) / len2)) : 0;
-    const c = { x: ax + dx * t, z: az + dz * t };
-    const d = Math.hypot(c.x - p.x, c.z - p.z);
-    if (d < bestD) {
-      bestD = d;
-      best = c;
-    }
-  }
-  return best;
+  return stoneTarget(ctx.village, ctx.center, share.construction, q);
 }
 
 /** Jede dnes z lomu podílu `share` vůz s kamenem (podíl `haul`, `job` `stone` téže stavby)? */
@@ -344,7 +298,10 @@ function quarryCrew(
 
 /**
  * Role fází postavy lámání (villager-phases.ts): lámající u stěny si chvíli oddechne, odnášeč
- * nosí kameny od nalámaného kamene na okraj hromady u lomu (krok jinde `heap`).
+ * nosí kameny od nalámaného kamene na okraj hromady u lomu (krok jinde `heap`) – jede-li dnes
+ * z lomu vůz s kamenem, nosí je k vozu a nakládá (`quarry-load`, místo u zadku vozu na konci jeho
+ * trasy u lomu – `stoneCartLoadSpot`; Martin 12. 11. 2026: „nakládá je na vůz, nebo na hromadu,
+ * pokud vůz není poblíž“).
  */
 export function quarryPhases(
   ctx: Pick<Context, 'village'>,
@@ -354,6 +311,8 @@ export function quarryPhases(
   if (!job.stacker) return { role: 'quarry-break' };
   const q = job.target.kind === 'quarry' ? sceneQuarry(ctx, job.target.id) : null;
   if (!q) return { role: 'quarry-stack' };
+  const cart = stoneCartLoadSpot(ctx.village, q.outcropId);
+  if (cart) return { role: 'quarry-load', places: { heap: cart } };
   const { heap } = quarryPiles(q);
   return {
     role: 'quarry-stack',

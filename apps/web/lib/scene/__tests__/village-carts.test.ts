@@ -5,9 +5,13 @@ import {
   CART_BODY_LOW_M,
   CART_SCALE,
   cartPlanPose,
+  cartLength,
   createCartPose,
+  routeAt,
   shuttleAt,
+  shuttleLeg,
   type CartShuttle,
+  type RoutePoint,
 } from '../cart-layout';
 import { carpenterCartSpot } from '../craft-yard-layout';
 import { penLayout } from '../pen-layout';
@@ -17,6 +21,7 @@ import {
   draftTeamsToday,
   drivingCarts,
   parkedCartSpot,
+  stoneCartLoadSpot,
   villageCartPlans,
 } from '../village-carts';
 
@@ -157,6 +162,55 @@ describe('vozy ve vsi (village-carts.ts)', () => {
       }
     }
     expect(sawOut && sawBack).toBe(true);
+  });
+
+  it('vůz s kamenem: od stavby prázdný k lomu, nakládá na konci trasy, plný zpět na stavbu', () => {
+    // trasa z cíle s `reverse` – od hromady u stavby (začátek) k lomu (konec)
+    const stone = cart({
+      id: 1,
+      job: {
+        activity: 'haul',
+        target: { kind: 'quarry', id: 42 },
+        load: 'stone',
+        construction: 8,
+      },
+      route: ROUTE,
+    });
+    const [plan] = villageCartPlans(village([stone]), pens);
+    expect(plan).toMatchObject({ id: 1, cargo: 'stone' });
+    const shuttle = plan as CartShuttle;
+    expect('loadedBothWays' in shuttle || 'loadedOut' in shuttle).toBe(false);
+    // u lomu stojí na konci osy (ne uprostřed obratiště za ním)
+    const end = ROUTE[ROUTE.length - 1]!;
+    const at: RoutePoint = { x: 0, z: 0, hx: 0, hz: 1, heading: 0 };
+    routeAt(shuttle.shuttle.route, shuttle.shuttle.farM, at);
+    expect(Math.hypot(at.x - end.x, at.z - end.z)).toBeLessThan(0.5);
+    // k lomu prázdný, zpět na stavbu plný, u stavby (začátek trasy) skládá
+    const pose = createCartPose();
+    const out = { s: 0, speed: 0, loaded: false };
+    const legs = new Set<string>();
+    for (let ms = 0; ms < 900_000; ms += 500) {
+      cartPlanPose(plan!, ms, pose);
+      const state = shuttleAt(shuttle.shuttle, shuttle.schedule, ms, out);
+      const leg = shuttleLeg(shuttle.shuttle, state);
+      legs.add(leg);
+      if (leg === 'out') expect(pose.loaded).toBe(false);
+      if (leg === 'back') expect(pose.loaded).toBe(true);
+    }
+    expect([...legs].sort()).toEqual(['back', 'load', 'out', 'unload']);
+    // odnášeč v lomu nosí kámen k zadku vozu na konci trasy
+    const spot = stoneCartLoadSpot(village([stone]), 42)!;
+    const prev = ROUTE[ROUTE.length - 2]!;
+    const behind = Math.hypot(spot.x - end.x, spot.z - end.z);
+    expect(behind).toBeCloseTo(cartLength('two-wheel') + 0.7, 5);
+    expect(Math.hypot(spot.x - prev.x, spot.z - prev.z)).toBeLessThan(
+      Math.hypot(end.x - prev.x, end.z - prev.z),
+    );
+    // jiný lom, vůz bez trasy nebo bez podílu – k vozu se nenosí
+    expect(stoneCartLoadSpot(village([stone]), 43)).toBeNull();
+    expect(stoneCartLoadSpot(village([cart({ ...stone, route: [] })]), 42)).toBeNull();
+    expect(stoneCartLoadSpot(village([cart()]), 42)).toBeNull();
+    expect(villageCartPlans(village([cart()]), pens)[0]).toHaveProperty('parked');
   });
 
   it('víc vozů na téže trase jede za sebou (posun fáze)', () => {

@@ -10,7 +10,7 @@
 // souvrati ho oráč nadzvedne. Rozměry jsou skutečné (m) a celé spřežení se zvětší stejně jako
 // postavy (FIGURE_SCALE).
 import type { ScenePloughLegs } from '../village-view-scene-types';
-import { FIGURE_SCALE } from './villager-plan';
+import { FIGURE_SCALE } from './villager-plan-types';
 
 /** Celé spřežení je stylizovaně zvětšené jako postavy a domácí zvířata. */
 export const TEAM_SCALE = FIGURE_SCALE;

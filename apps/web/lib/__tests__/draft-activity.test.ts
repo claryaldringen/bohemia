@@ -216,6 +216,12 @@ describe('co dělá spřežení, vůz a lidé u nich', () => {
     expect(
       cartActivityText(job({ activity: 'haul', target: field, load: 'apples' }), 3, 'back'),
     ).toBe('veze jablka');
+    // kámen: trasa od stavby k lomu – k lomu prázdný, plný na stavbu
+    const stone = job({ activity: 'haul', target: { kind: 'quarry', id: 42 }, load: 'stone' });
+    expect(cartActivityText(stone, 3, 'out')).toBe('vrací se k lomu');
+    expect(cartActivityText(stone, 3, 'load')).toBe('nakládá kámen');
+    expect(cartActivityText(stone, 3, 'back')).toBe('veze kámen na stavbu');
+    expect(cartActivityText(stone, 3, 'unload')).toBe('skládá kámen na hromadu');
   });
 
   it('ohrada volů: vůz od své ohrady, spřežení z ohrad v pořadí id po volech vozů', () => {

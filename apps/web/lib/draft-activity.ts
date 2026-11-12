@@ -70,7 +70,17 @@ function ploughCrewText(role: 'ploughman' | 'leader', activity: TeamActivity | n
 
 /** Co vůz veze (wagons.md – Co vozy vozí) – podle úlohy dne. */
 export type CartGoal =
-  'sheaves' | 'hay' | 'logs' | 'charcoal' | 'ore' | 'clay' | 'water' | 'seed' | 'apples' | 'goods';
+  | 'sheaves'
+  | 'hay'
+  | 'logs'
+  | 'charcoal'
+  | 'ore'
+  | 'clay'
+  | 'water'
+  | 'seed'
+  | 'apples'
+  | 'goods'
+  | 'stone';
 
 /** Věty jízdy tam a zpět: k cíli, u cíle, zpátky, u ohrady. */
 const CART_TEXTS: Record<CartGoal, readonly [string, string, string, string]> = {
@@ -85,6 +95,9 @@ const CART_TEXTS: Record<CartGoal, readonly [string, string, string, string]> = 
   seed: ['veze osivo na pole', 'skládá osivo', 'vrací se z pole', 'nakládá osivo'],
   apples: ['jede pro jablka', 'nakládá jablka', 'veze jablka', 'skládá jablka'],
   goods: ['jede pro náklad', 'nakládá', 'veze náklad', 'skládá náklad'],
+  // kámen jezdí mezi stavbou a lomem (village-carts.ts – trasa od stavby k lomu): k lomu prázdný,
+  // u lomu nakládá, plný na stavbu, tam skládá na hromadu kamene
+  stone: ['vrací se k lomu', 'nakládá kámen', 'veze kámen na stavbu', 'skládá kámen na hromadu'],
 };
 
 /** Co vůz dnes veze (`SceneCart.job`) – zboží výpravy je `goods`. */
@@ -101,7 +114,7 @@ export function cartGoal(job: NonNullable<SceneCart['job']>): CartGoal {
 
 /**
  * Co dělá vůz (i jeho vozka): stojí u ohrady, jede pro náklad / nakládá / veze ho / skládá
- * (snopy, seno, klády, uhlí ke kováři, rudu, hlínu, vodu, osivo, jablka), u výpravy veze zboží do
+ * (snopy, seno, klády, uhlí ke kováři, rudu, hlínu, vodu, osivo, jablka, kámen), u výpravy veze zboží do
  * sousední vsi, vrací se a za krajem mapy je pryč.
  */
 export function cartActivityText(

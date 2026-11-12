@@ -49,9 +49,9 @@ Výstup wagons.glb – díly (uzly), každý s vlastním počátkem, jeden mater
   wagon-wheel    kolo (levé – náboj ven v +X), počátek ve středu náboje, osa X; pravé kolo je
                  totéž otočené o 180° kolem svislice
   wagon2-hay, wagon2-sheaves, wagon2-logs, wagon2-goods, wagon2-water, wagon2-ore, wagon2-clay,
-  wagon2-apples   náklad dvoukoláku (počátek jako korba)
+  wagon2-apples, wagon2-stone   náklad dvoukoláku (počátek jako korba)
   wagon4-hay, wagon4-sheaves, wagon4-logs, wagon4-goods, wagon4-water, wagon4-ore, wagon4-clay,
-  wagon4-apples   náklad čtyřkoláku
+  wagon4-apples, wagon4-stone   náklad čtyřkoláku
     hay      kupa sena přes korbu s pavuzou (žerď přes kupu přivázaná vpředu a vzadu)
     sheaves  snopy napříč v řadách, klasy dovnitř, po vrstvách
     logs     klády podél, v pyramidě, přes ně řetěz z provazu; přečnívají dozadu
@@ -61,10 +61,12 @@ Výstup wagons.glb – díly (uzly), každý s vlastním počátkem, jeden mater
     clay     hladká hromada hrud vlhké hlíny z hliniště, seříznutých rýčem (crafts.md – Hlína
              hrnčíře)
     apples   proutěné koše s jablky ze sadu (orchard.md – Jablka vozem)
+    stone    nízká vrstva lámaného kamene z lomu – hranaté šedé kameny různé velikosti na drti
+             (churches.md – Lom; fortifications.md – Kámen, Nošení kamene a vůz)
 
 Atlas: výřez textury vozu (wooden_wagon.png celá), seno a sláma (iber_struct.png – výřez slámy,
 seno přebarvené do zelena), kůra a čelo klády (atlas řemesel), pytlovina, kožešina a provaz
-rezavá bahenní ruda, hlína a jablka (procedurálně).
+rezavá bahenní ruda, hlína, jablka a světlý i tmavší lámaný kámen (procedurálně).
 """
 import json
 import math
@@ -108,6 +110,10 @@ REGIONS = {
     "ore": {"x0": 276, "x1": 404, "r0": 452, "r1": 500},
     "clay": {"x0": 140, "x1": 268, "r0": 412, "r1": 460},
     "apples": {"x0": 140, "x1": 268, "r0": 468, "r1": 508},
+    # lámaný kámen – i s okraji jen v dosud prázdných blocích 16 × 16 px (JPEG v GLB), ať se
+    # textura ostatních dílů nezmění
+    "stone": {"x0": 420, "x1": 460, "r0": 452, "r1": 508},
+    "stone_dark": {"x0": 468, "x1": 508, "r0": 452, "r1": 508},
 }
 # výřezy textury vozu (px 256 × 256, řádky shora) – oj, soudek, kování
 WAGON_SUB = {
@@ -236,6 +242,17 @@ def build_atlas():
     shade = np.clip(1.15 - d, 0, 1)[..., None]
     gloss = np.clip(1 - np.sqrt((cx + 1.8) ** 2 + (cy + 1.8) ** 2) / 1.6, 0, 1)[..., None] * 0.35
     put("apples", np.clip(fruit * (0.5 + 0.6 * shade) + gloss, 0, 1))
+    # lámaný kámen z lomu (vápenec – churches.md, Lom): světle šedé lomové plochy s jemným zrnem
+    # a tmavšími žilkami; tmavší šedý kámen a drť mezi kameny
+    grain = value_noise(56, 40, 2, 61)
+    tone = value_noise(56, 40, 12, 67)
+    vein = np.clip((value_noise(56, 40, 6, 71) - 0.62) * 4.0, 0, 1)
+    lime = np.array([0.76, 0.74, 0.69], np.float32) * (0.8 + 0.22 * tone[..., None])
+    put("stone", np.clip(lime * (0.9 + 0.14 * grain[..., None]) * (1 - 0.18 * vein[..., None]), 0, 1))
+    grain = value_noise(56, 40, 2, 73)
+    tone = value_noise(56, 40, 10, 79)
+    slate = np.array([0.54, 0.53, 0.5], np.float32) * (0.78 + 0.3 * tone[..., None])
+    put("stone_dark", np.clip(slate * (0.86 + 0.2 * grain[..., None]), 0, 1))
 
     im = bpy.data.images.new("wagon-atlas", W, H, alpha=False)
     rgba = np.concatenate([np.clip(atlas[::-1], 0, 1), np.ones((H, W, 1), np.float32)], axis=2)
@@ -1044,6 +1061,73 @@ def apples_load(b, front, back, half_w, floor, big=False):
         b.poly(top, "apples", uvs, out=(0, 0, 1))
 
 
+def stone_block(b, base, r, h, seed, mat):
+    """Lámaný kámen: hranatý kus s 5–6 nepravidelnými rohy (ostré hrany – ploché normály),
+    od základny `base` (střed na hromadě) do výšky `h` s vrcholem mimo střed."""
+    n = 5 + int(2 * seeded(seed))
+    rot = 2 * math.pi * seeded(seed + 1)
+    bottom, top = [], []
+    for k in range(n):
+        a = rot + 2 * math.pi * (k + 0.35 * (seeded(seed + 2 + k) - 0.5)) / n
+        rr = r * (0.75 + 0.35 * seeded(seed + 9 + k))
+        c, s_ = math.cos(a), math.sin(a)
+        bottom.append(base + Vector((c * rr, s_ * rr, -0.02)))
+        k2 = 0.55 + 0.25 * seeded(seed + 17 + k)
+        top.append(base + Vector((c * rr * k2, s_ * rr * k2, h * (0.55 + 0.3 * seeded(seed + 23 + k)))))
+    shift = (seeded(seed + 31) - 0.5) * r * 0.5
+    peak = base + Vector((shift, (seeded(seed + 37) - 0.5) * r * 0.5, h))
+    for k in range(n):
+        k2 = (k + 1) % n
+        mid = (bottom[k] + bottom[k2]) / 2 - base
+        out = (mid.x, mid.y, 0.0)
+        b.poly([bottom[k], bottom[k2], top[k2], top[k]], mat, [(k / n, 0), ((k + 1) / n, 0), ((k + 1) / n, 1), (k / n, 1)], out=out)
+        uv = [(0.5 + 0.5 * (p.x - base.x) / r, 0.5 + 0.5 * (p.y - base.y) / r) for p in (top[k], top[k2], peak)]
+        b.poly([top[k], top[k2], peak], mat, uv, out=(0, 0, 1))
+
+
+def stone_load(b, front, back, half_w, floor, big=False):
+    """Lámaný kámen z lomu na stavbu (churches.md – Lom; fortifications.md – Kámen, Nošení kamene
+    a vůz): 400 kg ≈ 0,16 m³ (CARTS.loadKg, STONE.carry.kgPerM3) je v korbě jen nízká vrstva –
+    tmavší drť přes dno a na ní hranaté kameny různé velikosti, v řadách s odchylkou, uprostřed
+    pár kamenů navrch (stylizovaně o kus výš, ať jsou nad dnem vidět)."""
+    ni, nj = 12, 8
+    length = front + back - 0.12
+    w = half_w - 0.03
+    h = 0.12 if big else 0.1
+
+    def shape(u, phi):
+        f = max(0.0, 1 - abs(u) ** 3) ** (1 / 3)
+        r_side = math.sin(phi) ** 0.5
+        x = math.cos(phi) * w
+        bump = 0.08 * math.sin(11 * u + 5 * phi) + 0.06 * math.sin(23 * u - 9 * phi + 1)
+        y = back - 0.06 - (u + 1) / 2 * length
+        return Vector((x, y, floor - 0.01 + h * f * r_side * (1 + bump)))
+
+    grid = []
+    for i in range(ni + 1):
+        u = -1 + 2 * i / ni
+        grid.append([shape(u, math.pi * j / nj) for j in range(nj + 1)])
+    b.surface(grid, "stone_dark")
+    rows, cols = (10, 4) if big else (7, 3)
+    k = 0
+    for i in range(rows):
+        for j in range(cols):
+            u = -0.88 + 1.76 * (i + 0.5 + 0.5 * (seeded(k * 7 + 101) - 0.5)) / rows
+            phi = math.pi * (0.16 + 0.68 * (j + 0.5 + 0.45 * (seeded(k * 7 + 102) - 0.5)) / cols)
+            p = shape(u, phi)
+            r = (0.07 + 0.06 * seeded(k * 7 + 103)) * (1.1 if big else 1.0)
+            mat = "stone_dark" if seeded(k * 7 + 104) < 0.3 else "stone"
+            stone_block(b, p, r, r * (0.9 + 0.5 * seeded(k * 7 + 105)), k * 41 + 7, mat)
+            k += 1
+    # pár kamenů navrch uprostřed
+    for m in range(8 if big else 5):
+        u = -0.55 + 1.1 * seeded(m * 5 + 201)
+        phi = math.pi * (0.3 + 0.4 * seeded(m * 5 + 202))
+        p = shape(u, phi) + Vector((0, 0, 0.07))
+        r = 0.06 + 0.05 * seeded(m * 5 + 203)
+        stone_block(b, p, r, r * 1.1, m * 53 + 900, "stone")
+
+
 def cargo(prefix, bed, big):
     front, back = bed["bed_front"], bed["bed_back"]
     hw, floor = bed["half_w"], bed["floor"]
@@ -1074,6 +1158,9 @@ def cargo(prefix, bed, big):
     out.append(b)
     b = Builder(f"{prefix}-apples")
     apples_load(b, front, back, hw, floor, big)
+    out.append(b)
+    b = Builder(f"{prefix}-stone")
+    stone_load(b, front, back, hw, floor, big)
     out.append(b)
     return out
 
@@ -1136,7 +1223,7 @@ def render_preview(objs, bed2, bed4, render_dir):
 
     for o in objs:
         o.hide_render = True
-    loads = [None, "hay", "sheaves", "logs", "goods", "water", "ore", "clay", "apples"]
+    loads = [None, "hay", "sheaves", "logs", "goods", "water", "ore", "clay", "apples", "stone"]
     for k, load in enumerate(loads):
         o2 = Vector((k * 3.0, 0, 0))
         place("wagon2-body", o2)
@@ -1172,6 +1259,7 @@ def render_preview(objs, bed2, bed4, render_dir):
         ("ore-close.png", Vector((22.5, -4.0, 3.4)), Vector((18.0, 3.0, 0.8)), 28),
         ("clay-close.png", Vector((25.5, -4.0, 3.4)), Vector((21.0, 3.0, 0.8)), 28),
         ("apples-close.png", Vector((28.5, -4.0, 3.4)), Vector((24.0, 3.0, 0.8)), 28),
+        ("stone-close.png", Vector((31.5, -4.0, 3.4)), Vector((27.0, 3.0, 0.8)), 28),
     ):
         cam.location = loc
         cam.rotation_euler = (target - loc).to_track_quat("-Z", "Y").to_euler()

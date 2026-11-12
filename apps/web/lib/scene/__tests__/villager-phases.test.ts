@@ -72,6 +72,12 @@ const JOBS: Record<PhaseRole, PersonJob> = {
     target: { kind: 'quarry', id: 7 },
     stacker: true,
   },
+  'quarry-load': {
+    kind: 'share',
+    activity: 'quarry',
+    target: { kind: 'quarry', id: 7 },
+    stacker: true,
+  },
   idle: { kind: 'share', activity: 'idle', target: { kind: 'village' } },
 };
 
