@@ -127,6 +127,30 @@ day, villagers)`: učni (synové mistra od `LODGE.apprenticeFromAge` v jeho dom�
   (`lib/village-input.ts`). Kalibrace testu: rotunda Ø 6,5 × 6 v zakládající vsi s hutí a lomem
   300 m (≈ 1 470 čd i s přípravou) má střechu za 647 dní a výzdobu za 670 dní.
 
+## NPC rod – huť, lom a kostel
+
+Soubor `domain/village/steward/npc-masonry.ts` (testy `steward/__tests__/npc-masonry.test.ts`);
+návrh churches.md – NPC rod staví kostel, stone-masonry.md – Stavební huť (NPC rod).
+
+- **Krok dne:** `npcMasonryDay(state, day, landscape, obstacles)` – v `simulateDay` (`core/simulate.ts`)
+  hned za `stewardDay`; jen ves s `VillageState.nobles`, s lidmi, s krajinou i vrstvou překážek
+  a v den správce (`STEWARD.everyDays`), na zapnutém správci nezávisí. Ves bez `nobles` krok přeskočí
+  bez losu (zlatý otisk beze změny). Pořadí: huť, lom, kostel.
+- **Huť:** bez `lodge` při `LODGE.npcMinPeople` lidech a `canInviteLodge` `ok` → `inviteLodge` s okruhem
+  `createRandom(deriveSeed(seed, 'npc-lodge'))` (pod 0,5 adriatický); s hutí `inviteMaster` za každý
+  obor, kde `canInviteMaster` dá `ok`.
+- **Lom:** s `lodge`, bez lomu i bez staveniště lomu → záměr `quarry` na výchozu `quarryNear`
+  (`fortification/state/stone.ts`) od středu vsi `planCentre`, přes `startStewardBuild`.
+- **Kostel:** s lomem, všemi `MASON_CRAFTS` mezi lidmi, bez staveniště `church` a po
+  `Lodge.npcRetryDay`; první vždy, další při `churchCoverage` < `CHURCH.npc.coverageBelow`. Typ
+  `churchTypesFor(circle)[0]`, rozměry `churchDimsForCapacity(type, ⌈lidé × capacityPerPerson⌉)`
+  (`church-geometry.ts` – od dolní meze po `CHURCH_DIMS_STEP_M` v délce, u rotundy v průměru;
+  šířka a výška `defaultChurchDims`). Místo `meadowTilesNearCentre` (`steward-land.ts`, sdílí ho
+  `sacredStep`) do `CHURCH.npc.searchTiles`, nejvýš `checks` × `checkChurchPlacement` s
+  `CHURCH_EAST_ROTATION`, napřed bez `takenLand`; stavba záměrem `church` přes `startStewardBuild`
+  (značka správce). Bez místa (nebo odmítnutá stavba) → `Lodge.npcRetryDay` = den + `retryDays`.
+- `startStewardBuild` bere jen `Pick<StewardContext, 'day' | 'landscape' | 'obstacles'>`.
+
 ## Kostel ve vsi
 
 Kostel s knězem dává křesťanům štěstí, zrychluje obrácení a má hřbitůvek

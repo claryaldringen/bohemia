@@ -369,7 +369,7 @@ export function stewardAction(
  */
 export function startStewardBuild(
   state: VillageState,
-  ctx: StewardContext,
+  ctx: Pick<StewardContext, 'day' | 'landscape' | 'obstacles'>,
   intent: BuildIntent,
 ): StewardBuild {
   if (state.roads?.wear) flushWear(state.roads.wear);

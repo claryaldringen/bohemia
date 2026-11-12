@@ -1,4 +1,4 @@
-import { SURFACE_CODES, tileCenterWorld } from '../../landscape';
+import { tileCenterWorld } from '../../landscape';
 import type { BuildIntent } from '../buildings/build-intent';
 import { BUILD_COSTS } from '../buildings/costs';
 import { villageCemeteries } from '../buildings/cemetery';
@@ -73,7 +73,7 @@ import { CART_SPEED, TEAM_TRAVEL, WAGON_ROAD } from '../rules/rules-roads';
 import { STEWARD } from '../rules/rules-steward';
 import { christianShare } from '../people/conversion';
 import { hasShrine, sacredBuildingHappiness, sacredHappiness } from '../people/sacred';
-import { planCentre, takenTiles, walkDaysPerYear, cellHa } from './steward-land';
+import { meadowTilesNearCentre, planCentre, walkDaysPerYear, cellHa } from './steward-land';
 import {
   inStewardWindows,
   laborBudget,
@@ -493,28 +493,12 @@ export function sacredStep(state: VillageState, ctx: StewardContext): void {
   const premium = premiumSacredHappiness(ctx.landscape);
   if (sacredLaborGainPerYear(state, ctx.day, kind, ctx.obstacles, premium) * years < cost) return;
   if (!fits(state, ctx, 'sacred', cost)) return;
-  const centre = planCentre(state);
-  if (!centre) return;
   const { landscape } = ctx;
-  const size = landscape.size;
-  const half = (size * landscape.cellSizeM) / 2;
-  const cx = Math.floor((centre.x + half) / landscape.cellSizeM);
-  const cy = Math.floor((centre.z + half) / landscape.cellSizeM);
-  const r = STEWARD.sacredSearchTiles;
-  const taken = takenTiles(state, ctx.day, landscape);
-  const tiles: { tile: number; d: number }[] = [];
-  for (let y = Math.max(0, cy - r); y <= Math.min(size - 1, cy + r); y++) {
-    for (let x = Math.max(0, cx - r); x <= Math.min(size - 1, cx + r); x++) {
-      const tile = y * size + x;
-      if (taken[tile] || landscape.surface[tile] !== SURFACE_CODES.meadow) continue;
-      tiles.push({ tile, d: (x - cx) * (x - cx) + (y - cy) * (y - cy) });
-    }
-  }
-  tiles.sort((a, b) => a.d - b.d || a.tile - b.tile);
+  const tiles = meadowTilesNearCentre(state, ctx.day, landscape, STEWARD.sacredSearchTiles);
   const village = placementVillageOf(state, ctx.day);
   let checks = 0;
   let starts = 0;
-  for (const { tile } of tiles) {
+  for (const tile of tiles) {
     if (checks++ >= STEWARD.sacredChecks || starts >= STEWARD.slotTries) return;
     const cell = tileCell(landscape, tile);
     const c = tileCenterWorld(landscape, cell.x, cell.y);

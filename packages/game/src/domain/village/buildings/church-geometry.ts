@@ -99,6 +99,36 @@ export function clampChurchDims(type: ChurchType, dims: ChurchDims): ChurchDims 
   };
 }
 
+/**
+ * Nejmenší loď typu `type`, která pojme `need` lidí (`churchCapacity`; churches.md – Stavba, NPC
+ * rod): rotunda roste v průměru, ostatní v délce lodi po `CHURCH_DIMS_STEP_M` od dolní meze; šířka
+ * a výška z `defaultChurchDims`. Větší než meze `CHURCH.limits` nebude – pak největší možná.
+ */
+export function churchDimsForCapacity(type: ChurchType, need: number): ChurchDims {
+  const base = defaultChurchDims(type);
+  const lim = CHURCH.limits;
+  let dims = clampChurchDims(
+    type,
+    base.kind === 'round'
+      ? { ...base, diameter: lim.diameter.min }
+      : { ...base, length: lim.length.min },
+  );
+  while (churchCapacity(type, dims) < need) {
+    const grown: ChurchDims =
+      dims.kind === 'round'
+        ? { ...dims, diameter: dims.diameter + CHURCH_DIMS_STEP_M }
+        : { ...dims, length: dims.length + CHURCH_DIMS_STEP_M };
+    const next = clampChurchDims(type, grown);
+    const same =
+      next.kind === 'round' && dims.kind === 'round'
+        ? next.diameter === dims.diameter
+        : next.kind === 'long' && dims.kind === 'long' && next.length === dims.length;
+    if (same) break;
+    dims = next;
+  }
+  return dims;
+}
+
 /** Tloušťka zdi podle výšky (churches.md – Velikost a cena). */
 export function wallThickness(height: number): number {
   return CHURCH.wall.baseM + CHURCH.wall.perHeightM * height;

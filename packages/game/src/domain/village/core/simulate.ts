@@ -44,6 +44,7 @@ import { returnHome } from '../../vassalage/guests';
 import { refugeFoodDay } from '../fortification/state/refugees';
 import { stewardDay } from '../steward/steward';
 import { stewardArrival, stewardSonDay } from '../steward/steward-son';
+import { npcMasonryDay } from '../steward/npc-masonry';
 import { ensureMainWives, extraWivesDay } from '../people/dynasty-wives';
 import { updateRuins } from '../buildings/ruins';
 import {
@@ -414,6 +415,9 @@ function afterWorkDay(
   // kroky 1 a 2 – jména synů, 31. 8. odchod syna do schránky (steward-son.ts)
   stewardSonDay(state, day, landscape, obstacles);
   stewardDay(state, day, landscape, obstacles);
+  // ves NPC rodu (`nobles`) – huť, lom a kostel v den správce (churches.md – Stavba, NPC rod);
+  // ves hráče přeskočí bez losu
+  npcMasonryDay(state, day, landscape, obstacles);
 }
 
 /** Zbytky jam, rudišť a milířů; obilné jámy pod dnešními novými stavbami (`idsBefore`). */
