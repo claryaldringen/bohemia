@@ -151,7 +151,7 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   await found(page, spots.dwelling);
   const name = page.getByTestId('village-name');
   await expect(name).toHaveText(suggestVillageName(s.seed));
-  await expect(grid.getByRole('button')).toHaveCount(17);
+  await expect(grid.getByRole('button')).toHaveCount(18);
   // Obydlí ani dílny lidi k osídlení nechtějí (demolition.md) – stavba stojí jen dřevo a stromy
   // krajina má. Hřbitov, sad, modla, svatyně ani ohrada lidi nechtějí taky. Lom je v nabídce
   // vždy (fortifications.md – Kámen; bez dřeva předem) – že jde jen na skalní výchoz, řekne kurzor.
@@ -165,6 +165,8 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   await expect(grid.getByRole('button', { name: 'Svatyně' })).toBeEnabled();
   await expect(grid.getByRole('button', { name: 'Ohrada' })).toBeEnabled();
   await expect(grid.getByRole('button', { name: 'Lom' })).toBeEnabled();
+  // nadzemní dům až od roku 800 (log-house.md – Dům)
+  await expect(grid.getByRole('button', { name: 'Nadzemní dům' })).toBeDisabled();
   // kostely jsou v nabídce vždy, bez huti zašedlé (churches.md – Stavba)
   await expect(grid.getByRole('button', { name: 'Kostel s pravoúhlým kněžištěm' })).toBeDisabled();
   await expect(grid.getByRole('button', { name: 'Trojlodní bazilika' })).toBeDisabled();
