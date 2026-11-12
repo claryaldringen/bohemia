@@ -5,6 +5,7 @@ import { foundVillage } from '../../../core/actions';
 import { applyBuildIntent } from '../../../buildings/build-intent';
 import { cancelConstruction } from '../../../buildings/cancel-construction';
 import { distanceFactor } from '../../../fields/fields';
+import { stoneCarryManDaysPerM3 } from '../quarry';
 import {
   circlePoints,
   FORT_NO_STONE,
@@ -412,16 +413,20 @@ describe('cena komplet a nové druhy (Hradby a obrana – Cena, Druhy)', () => {
       ok: false,
       reason: FORT_NO_STONE(need - 40),
     });
-    // lom: 40 m³ z hromady, zbytek se láme za 1 čd na m³ × vzdálenost k lomu
+    // lom: 40 m³ z hromady, zbytek se láme za 1 čd na m³ a nosí v nůších (Nošení kamene a vůz)
     const withQuarry = structuredClone(some);
     withQuarry.quarries = [{ outcropId: 1, ...QUARRY, rotation: 0, builtDay: 0 }];
     const quarried = ok(
       startFortification(withQuarry, withQuarry.lastDay, landscape, quarryLayer, input),
     );
     const c = fortWork(quarried);
-    const factor = distanceFactor(fromCenter('crib', QUARRY));
-    expect(factor).toBeGreaterThan(1);
-    expect(c.cost).toBeCloseTo((620 * len) / 100 + (need - 40) * 1 * factor, 6);
+    const distanceM = fromCenter('crib', QUARRY);
+    const perM3 = 1 + stoneCarryManDaysPerM3(distanceM);
+    expect(perM3).toBeGreaterThan(1);
+    expect(c.cost).toBeCloseTo((620 * len) / 100 + (need - 40) * perM3, 6);
+    // kámen z lomu si stavba pamatuje – lámání v práci úseků a vůz s kamenem
+    expect(c.fortStone).toMatchObject({ outcropId: 1, distanceM });
+    expect(c.fortStone!.m3).toBeCloseTo(need - 40, 9);
     expect(quarried.stoneM3).toBeUndefined();
     expect(quarried.stoneStacks).toBeUndefined();
     expect(c.stoneFromPile).toBe(40);

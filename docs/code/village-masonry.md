@@ -87,8 +87,9 @@ Doména `buildings/church-build.ts` (testy `buildings/__tests__/church-build.tes
 - **Stav:** `ConstructionKind` `'church'`, `Construction.church` (`ChurchSite` v
   `types/types-masonry.ts`): typ, rozměry, `done` po druzích `ChurchWork`, vypálené vápno `limeT`,
   pec (`kilnDone`, dávka `burnT` do `burnUntilDay`), poloha pece (`kiln`, západní roh pásu
-  hřbitůvku) a písníku (`sandPit` – `nearestWater`), lom `quarryId` a `quarryManDaysPerM3`
-  (`quarryManDaysPerM3` vzdálenosti z `nearestQuarry`), kámen z hromad `stoneFromPileM3`, příprava
+  hřbitůvku) a písníku (`sandPit` – `nearestWater`), lom `quarryId` a jeho vzdušná vzdálenost
+  `quarryDistanceM` z `nearestQuarry` (lámání = m³ × `quarryManDaysPerM3` – lámání a nošení
+  v nůších, village-fortifications.md – Nošení kamene a vůz), kámen z hromad `stoneFromPileM3`, příprava
   `prepManDays` (kácení dřeva stavby + překážky). Dodaný kámen, vápenec a písek se odvodí z hotové
   práce (`churchMaterials`), postup částí 0–1 `churchProgress` (základy, zdi, střecha, výzdoba)
   a po druzích práce `churchWorkProgress` (panel staveniště).
@@ -111,13 +112,25 @@ Doména `buildings/church-build.ts` (testy `buildings/__tests__/church-build.tes
   v sezóně; podíl zdiva nejvýš nejmenší podíl dodaného kamene, vápna a písku), střecha po zdech
   (stavbyvedoucí), výzdoba po střeše (štukatér). Bez stavbyvedoucího nic (`churchNeedToday` 0).
   Potřeba dne = `allocate` s neomezenou prací bez zápisu – rozdělení i potřeba počítají totéž.
+  S vozem s kamenem (`StoneCart` z `planCartJobs` → `churchNeedToday` / `churchWorkDay` s `cart`)
+  stojí lámání méně práce (`stoneCartLabor`, `stoneCartProgress`) – lámání postoupí o `bonus` víc
+  a `c.done` roste o postup; `ChurchWorkResult.stone` = lámání dne (`StoneDay`).
+  `churchQuarryLeft` – zbytek lámání (plán vozu). **Převod** `church-quarry-carry`
+  (`withChurchQuarryDistance`, konec `VILLAGE_MIGRATIONS`): staveniště se starým
+  `quarryManDaysPerM3` dostane `quarryDistanceM` (lom `quarryId`, jinak nejbližší) a lámání se
+  přecení – podíl hotového lámání (dodaný kámen) zůstane, `done.quarry`, `c.done` i `c.cost` se
+  posunou o rozdíl.
   `churchMorning` (ráno v `buildDay`, `core/simulate-work-apply.ts`) přičte vypálenou dávku a naloženou dávku v sezóně dá do volné pece –
   pálení doběhne i v zimě a v den bez práce. `churchBlocked` – obor, jehož mistr chybí (panel).
 - **Rozdělení práce dne pro scénu:** `build` si u kostela zapamatuje ranní `done`
   (`ConstructionWork.churchDoneBefore`, `core/simulate-build.ts`), `constructionShares`
   (`core/labor-report.ts`) dá podílu `build` u staveniště `LaborShare.churchWork` – druhy práce,
-  na které dnes došlo (`churchWorksToday`, pořadí `CHURCH_WORK_CRAFT`). Simulace ho nečte; scéna
-  podle něj staví mistry k jejich práci. Lom pro kameníka nese `SceneChurchSite.quarryId`.
+  na které dnes došlo (`churchWorksToday`, pořadí `CHURCH_WORK_CRAFT`), bez lámání: to je
+  samostatný podíl `quarry` u lomu (`LaborTarget` `{ kind: 'quarry', id: quarryId }`, s `construction`
+  = id kostela) a jízda vozu s kamenem `haul` s `job: 'stone'` (`quarryShares` z
+  `ConstructionWork.quarry`). Simulace ho nečte; scéna podle něj staví mistry k jejich práci
+  (kameník v lomu podle podílu `quarry` kostela – `churchToday` ve `villager-plan-masons.ts`;
+  postavy u lomu a vůz s kamenem zatím ne). Lom pro kameníka nese `SceneChurchSite.quarryId`.
 - **Zkušenost:** `buildDay` si před stavbami zapamatuje `done` kostelů (`churchSitesBefore`),
   po nich `churchCraftWork` (čd po oborech `CHURCH_WORK_CRAFT`) → `gainMasonryXp(state, byCraft,
 day, villagers)`: učni (synové mistra od `LODGE.apprenticeFromAge` v jeho domácnosti) 1 čd, pak
@@ -130,7 +143,9 @@ day, villagers)`: učni (synové mistra od `LODGE.apprenticeFromAge` v jeho dom�
 - **Web:** `placeChurchForPlayer` (`apps/web/lib/village.ts`, právo `placeChurch` = `build`),
   server action `placeChurch`, vstup `parsePlaceChurchInput` / `parseChurchDims`
   (`lib/village-input.ts`). Kalibrace testu: rotunda Ø 6,5 × 6 v zakládající vsi s hutí a lomem
-  300 m (≈ 1 470 čd i s přípravou) má střechu za 647 dní a výzdobu za 670 dní.
+  300 m (≈ 1 690 čd i s přípravou – lámání s nošením v nůších) má střechu za 788 dní a výzdobu
+  za 798 dní; s ohradou se spřežením a dvoukolákem uveze vůz ≈ 128 m³ kamene a vápence, práce
+  ≈ 1 530 čd, střecha za 621 dní, výzdoba za 650 dní.
 
 ## NPC rod – huť, lom a kostel
 

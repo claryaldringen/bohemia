@@ -7,14 +7,17 @@ import { addRoadCartTrips } from '../paths/roads';
 import { PATH_WATER_SPOT } from '../paths/terrain';
 import { groundSpots, walkGroundOf } from '../paths/walking';
 import { CARTS, CART_JOBS, TEAM_TRAVEL, WATER_FETCHING } from '../rules';
+import { STONE } from '../rules/rules-stone';
+import type { StoneCart } from '../fortification/state/quarry';
 import type { CartDrive, CartKind, CartTripLog, OreSite, VillageState } from '../types';
 
 // Co vozy vozí mimo svoz (wagons.md – Co vozy vozí; Martin 19. 10. 2026: „Pokud budou mít
 // k dispozici vůz, ať na pole, pro vodu nebo pro dřevěné uhlí jede vůz.“; 20. 10. 2026: „Pokud
 // bude ve vesnici vůz, tak kováři přiveze uhlí sedlák s vozem (a odečte se jeho práce). To samé
-// u těžení rudy.“; podrobnosti návrh Clauda): dvoukolák, který dnes nesváží úrodu, seno ani klády
-// a jehož voli neorají, jede pro uhlí k milíři, pro rudu na rudiště, s osivem na pole, nebo pro
-// vodu v sudech (CART_JOBS.order). Tady jsou jízdy – kam vůz
+// u těžení rudy.“; 12. 11. 2026: „Vůz vozí kameny na staveniště.“; podrobnosti návrh Clauda):
+// dvoukolák, který dnes nesváží úrodu, seno ani klády a jehož voli neorají, jede pro uhlí
+// k milíři, pro rudu na rudiště, s osivem na pole, pro vodu v sudech, nebo s kamenem z lomu na
+// stavbu (CART_JOBS.order). Tady jsou jízdy – kam vůz
 // dojede a za kolik, kolik práce posádky stojí a kolik ušetří; krok práce simulace (simulate.ts)
 // z nich skládá den. Vůz jede jen tam, kam ho pustí vozová síť, a jen když ušetří práci.
 
@@ -26,13 +29,15 @@ const DAY_S = WATER_FETCHING.dayHours * 3600;
 const WATER_SPOT_SPACING_M = 15;
 
 /**
- * Jízdy vozu od ohrady se spřežením k cílům: kam a za kolik dojede (null = nedojede). S `nearest`
- * stačí nejlevnější cíl (odhad – `villageCartEstimates` – spočítá každý cíl, výsledek týž).
+ * Jízdy vozu od ohrady se spřežením (nebo z bodu `from` – vůz s kamenem z lomu) k cílům: kam
+ * a za kolik dojede (null = nedojede). S `nearest` stačí nejlevnější cíl (odhad –
+ * `villageCartEstimates` – spočítá každý cíl, výsledek týž).
  */
 export type CartDrives = (
   state: VillageState,
   targets: readonly CartTarget[],
   nearest?: boolean,
+  from?: { x: number; z: number },
 ) => (CartDrive | null)[];
 
 /** Na centimetry. */
@@ -55,8 +60,8 @@ export function villageCartDrives(
   if (!cartOrigin(state)) return null;
   if (!landscape && kind === 'four-wheel') return null;
   if (!landscape) {
-    return (s, targets) => {
-      const origin = cartOrigin(s);
+    return (s, targets, _nearest, from) => {
+      const origin = from ?? cartOrigin(s);
       return targets.map((t) =>
         origin
           ? {
@@ -70,9 +75,9 @@ export function villageCartDrives(
   }
   // odhad bez hledání tras – cena každého cíle zvlášť, `nearest` nic nemění
   void obstacles;
-  return (s, targets) => {
+  return (s, targets, _nearest, from) => {
     if (targets.length === 0) return [];
-    const routes = villageCartEstimates(s, day, landscape, kind, targets);
+    const routes = villageCartEstimates(s, day, landscape, kind, targets, from ?? null);
     return targets.map((_t, k) => {
       const route = routes?.[k];
       if (!route?.reached) return null;
@@ -189,6 +194,46 @@ export function oreCartDrive(
   material: 'ore' | 'clay' = 'ore',
 ): CartDrive | null {
   return drives(state, [{ x: site.x, z: site.z, reachM: CART_JOBS[material].reachM }])[0] ?? null;
+}
+
+// --- kámen z lomu na stavbu --------------------------------------------------------------------
+
+/**
+ * Jízda vozu s kamenem z lomu `from` ke stavbě `to` po vozové síti (wagons.md – Co vozy vozí,
+ * bod 5): k místu do CART_JOBS.stone.reachM. Uloží se u stavby (`Construction.stoneCart`).
+ */
+export function stoneCartDrive(
+  state: VillageState,
+  from: { x: number; z: number },
+  to: { x: number; z: number },
+  drives: CartDrives,
+): CartDrive | null {
+  return (
+    drives(state, [{ x: to.x, z: to.z, reachM: CART_JOBS.stone.reachM }], false, from)[0] ?? null
+  );
+}
+
+/**
+ * Vůz s kamenem po trase `drive` (fortifications.md – Kámen, Nošení kamene a vůz): dvoukolák
+ * uveze CARTS.loadKg kamene (STONE.carry.kgPerM3), posádka CART_JOBS.stone.crew, naložení a složení
+ * CART_JOBS.stone.stopS, nejvýš `cartTripsPerDay` jízd. Jede, jen když posádka na m³ stojí méně
+ * práce než nošení v nůších (`carryPerM3`); jinak (nebo kam nedojede) null.
+ */
+export function stoneCartOffer(
+  drive: CartDrive | null,
+  carryPerM3: number,
+): Pick<StoneCart, 'maxM3' | 'crewPerM3' | 'carryPerM3' | 'loadM3'> | null {
+  if (!drive) return null;
+  const job = CART_JOBS.stone;
+  const loadM3 = CARTS.loadKg['two-wheel'] / STONE.carry.kgPerM3;
+  const crewPerM3 = cartTripManDays(drive.costM, job.stopS, job.crew) / loadM3;
+  if (crewPerM3 + EPSILON >= carryPerM3) return null;
+  return {
+    maxM3: loadM3 * cartTripsPerDay(drive.costM, job.stopS),
+    crewPerM3,
+    carryPerM3,
+    loadM3,
+  };
 }
 
 // --- voda v sudech ---------------------------------------------------------------------------

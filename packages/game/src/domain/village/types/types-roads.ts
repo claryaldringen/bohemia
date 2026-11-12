@@ -398,7 +398,7 @@ export type CartKind = 'two-wheel' | 'four-wheel';
  * (crafts.md – Hlína hrnčíře), osivo na pole, voda v sudech – v tomto pořadí přednosti
  * (CART_JOBS.order).
  */
-export type CartJob = 'charcoal' | 'ore' | 'clay' | 'seed' | 'water';
+export type CartJob = 'charcoal' | 'ore' | 'clay' | 'seed' | 'water' | 'stone';
 
 /**
  * Jízda vozu od ohrady se spřežením k cíli (wagons.md – Co vozy vozí): cena trasy vozové sítě (m

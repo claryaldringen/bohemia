@@ -782,6 +782,9 @@ export function placer(ctx: Context, share: SceneLaborShare, count: number): Pla
       ).length;
       return drovers > 0 ? (i, who) => (i < drovers ? null : crew(i, who)) : crew;
     }
+    case 'quarry':
+      // lámání a nošení kamene u lomu (fortifications.md – Kámen) – postavy zatím ne
+      return none;
     case 'ore':
       // kovář a synové od 14 let kopou rudu u jámy na rudišti (crafts.md – Uhlí a ruda kováře)
       return t.kind === 'ore' ? oreDiggers(ctx, t) : none;

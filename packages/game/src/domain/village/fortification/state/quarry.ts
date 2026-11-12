@@ -1,8 +1,8 @@
 import { obstacleKind, obstaclesNear, type ObstacleLayer } from '../../../landscape';
 import { validateActionDay } from '../../core/actions';
-import { distanceFactor } from '../../fields/fields';
 import { logArrivalPoint } from '../../forest/log-piles';
-import { OUTCROP_RADIUS_M } from '../../rules';
+import { woodFellingCost } from '../../forest/wood';
+import { OUTCROP_RADIUS_M, WATER_FETCHING } from '../../rules';
 import { STONE } from '../../rules/rules-stone';
 import { addStone } from './stone';
 import type { Construction, Position, Quarry, VillageState } from '../../types';
@@ -159,13 +159,176 @@ export function nearestQuarry(
   return best ? { quarry: best, distanceM: Math.sqrt(bestD) } : null;
 }
 
-/** Lámání a dovoz 1 m³ z lomu na vzdálenost `distanceM` (čd) – `STONE.quarryManDaysPerM3`. */
-export function quarryManDaysPerM3(distanceM: number): number {
-  return STONE.quarryManDaysPerM3 * distanceFactor(distanceM);
+/**
+ * Nošení 1 m³ kamene v nůších z lomu na vzdušnou vzdálenost `distanceM` (čd; fortifications.md –
+ * Kámen, Nošení kamene a vůz): cesty po `STONE.carry.basketKg` tam i zpět tempem
+ * `WATER_FETCHING.speedMps`, naložení a složení `STONE.carry.loadS`, den `WATER_FETCHING.dayHours`.
+ */
+export function stoneCarryManDaysPerM3(distanceM: number): number {
+  const { basketKg, kgPerM3, loadS } = STONE.carry;
+  const tripS = (2 * Math.max(0, distanceM)) / WATER_FETCHING.speedMps + loadS;
+  return ((kgPerM3 / basketKg) * tripS) / (WATER_FETCHING.dayHours * 3600);
 }
 
 /**
- * Práce zakázky „nalámat do zásoby“ `m3` v lomu `quarry` (čd): lámání a dovoz k hromadě u cesty
+ * Lámání a nošení 1 m³ z lomu na vzdálenost `distanceM` (čd): `STONE.quarryManDaysPerM3`
+ * a nošení v nůších (`stoneCarryManDaysPerM3`).
+ */
+export function quarryManDaysPerM3(distanceM: number): number {
+  return STONE.quarryManDaysPerM3 + stoneCarryManDaysPerM3(distanceM);
+}
+
+// --- vůz s kamenem --------------------------------------------------------------------------
+
+/**
+ * Vůz s kamenem pro jednu stavbu na dnešek (wagons.md – Co vozy vozí, bod 5; fortifications.md –
+ * Kámen, Nošení kamene a vůz): kolik kamene za den nejvýš uveze (m³), práce posádky na m³ (čd),
+ * nošení v nůších na m³, které nahradí (čd), a náklad jedné jízdy (m³). Plán dne – `planCartJobs`.
+ */
+export interface StoneCart {
+  constructionId: number;
+  outcropId: number;
+  maxM3: number;
+  crewPerM3: number;
+  carryPerM3: number;
+  loadM3: number;
+}
+
+/**
+ * Lámání pro stavbu za den (rozdělení práce dne – labor-report.ts): lom (id výchozu), lámání
+ * a nošení v nůších (čd), práce posádky vozu (čd), kolik kamene vůz uvezl (m³) a za kolik jízd.
+ */
+export interface StoneDay {
+  outcropId: number;
+  manDays: number;
+  crew: number;
+  m3: number;
+  trips: number;
+}
+
+/**
+ * Postup stavby za práci `labor` (čd), z jejíhož postupu je podíl `share` lámání a nošení kamene,
+ * s vozem `cart` (fortifications.md – Kámen, Nošení kamene a vůz): vůz uveze nejvýš to, co se
+ * dnes nalámalo, a nejvýš `cart.maxM3`; posádka jde z této práce a co vůz uveze, se nenosí – postup
+ * je práce + m³ vozem × (nošení − posádka). Vrátí postup (čd) a kolik vůz uvezl (m³).
+ */
+export function stoneCartProgress(
+  labor: number,
+  share: number,
+  cart: StoneCart,
+): { progress: number; m3: number } {
+  const b = STONE.quarryManDaysPerM3;
+  const { carryPerM3: c, crewPerM3: k } = cart;
+  if (!(labor > 0) || share <= 0) return { progress: Math.max(0, labor), m3: 0 };
+  const m3 = Math.min(cart.maxM3, (share * labor) / (b + c - share * (c - k)));
+  return { progress: labor + m3 * (c - k), m3 };
+}
+
+/** Práce, za kterou stavba s vozem `cart` postoupí o `progress` čd (obrácená `stoneCartProgress`). */
+export function stoneCartLabor(progress: number, share: number, cart: StoneCart): number {
+  if (!(progress > 0)) return 0;
+  const { carryPerM3: c, crewPerM3: k } = cart;
+  const m3 = Math.min(cart.maxM3, (share * progress) / (STONE.quarryManDaysPerM3 + c));
+  return Math.max(0, progress - m3 * (c - k));
+}
+
+/**
+ * Lámání dne pro rozdělení práce: z postupu `progress` je podíl `share` lámání a nošení; vůz
+ * uvezl `m3` – nošení toho se nedělalo, práce posádky se přičte zvlášť.
+ */
+export function stoneDayOf(
+  outcropId: number,
+  progress: number,
+  share: number,
+  m3: number,
+  cart: StoneCart | undefined,
+): StoneDay {
+  const carted = cart ? m3 : 0;
+  const crew = cart ? carted * cart.crewPerM3 : 0;
+  const carry = cart ? carted * cart.carryPerM3 : 0;
+  return {
+    outcropId,
+    manDays: Math.max(0, share * progress - carry),
+    crew,
+    m3: carted,
+    trips: cart && cart.loadM3 > 0 ? carted / cart.loadM3 : 0,
+  };
+}
+
+/**
+ * Lámání ve stavbě, která ho má v práci (fortifications.md – Kámen): lom (id výchozu), kolik práce
+ * jde napřed bez kamene (čd – kácení dřeva hradby) a podíl lámání a nošení ve zbytku (0–1).
+ */
+export interface StoneWork {
+  outcropId: number;
+  ahead: number;
+  share: number;
+}
+
+/**
+ * Lámání stavby `c` (kostel má vlastní – `churchWorkDay`): zakázka do zásoby je celá lámání
+ * a nošení; stavba hradby s kamenem z lomu (`fortStone`) ho má v práci úseků – podíl jejich práce
+ * (stejný pro všechny úseky – kámen i práce úseku rostou s délkou), kácení dřeva jde napřed.
+ * Ostatní stavby (i hradba ze starší vsi) null.
+ */
+export function constructionStoneWork(c: Construction): StoneWork | null {
+  if (c.kind === 'quarrying' && c.quarryOutcrop !== undefined) {
+    return { outcropId: c.quarryOutcrop, ahead: 0, share: 1 };
+  }
+  const stone = c.fortStone;
+  if (c.kind !== 'fortification' || !stone) return null;
+  const segments = (c.fortSegments ?? []).reduce((sum, s) => sum + s.cost, 0);
+  if (!(segments > 0)) return null;
+  const share = Math.min(1, (stone.m3 * quarryManDaysPerM3(stone.distanceM)) / segments);
+  return {
+    outcropId: stone.outcropId,
+    ahead: Math.max(0, woodFellingCost(c.wood) - c.done),
+    share,
+  };
+}
+
+/** Nošení 1 m³ kamene stavby `c` v nůších (čd) – zásoba z ceny zakázky, hradba ze vzdálenosti. */
+export function constructionStoneCarry(c: Construction): number {
+  if (c.kind === 'quarrying') {
+    const m3 = c.stoneOrderM3 ?? 0;
+    return m3 > 0 ? Math.max(0, c.cost / m3 - STONE.quarryManDaysPerM3) : 0;
+  }
+  return c.fortStone ? stoneCarryManDaysPerM3(c.fortStone.distanceM) : 0;
+}
+
+/** Kolik práce stavba s lámáním `work` dnes vezme – s vozem `cart` lámání levněji. */
+export function stoneWorkNeed(c: Construction, work: StoneWork, cart?: StoneCart): number {
+  const rest = Math.max(0, c.cost - c.done);
+  if (!cart) return rest;
+  const ahead = Math.min(rest, work.ahead);
+  return ahead + stoneCartLabor(rest - ahead, work.share, cart);
+}
+
+/**
+ * Vloží práci `amount` do stavby s lámáním `work` (mutuje `c.done`; `completes` = dostala vše, co
+ * jí chybělo): s vozem `cart` postoupí víc (`stoneCartProgress`). Vrátí lámání dne; bez něj null.
+ */
+export function investStoneWork(
+  c: Construction,
+  work: StoneWork,
+  amount: number,
+  completes: boolean,
+  cart?: StoneCart,
+): StoneDay | null {
+  const rest = Math.max(0, c.cost - c.done);
+  const ahead = Math.min(rest, work.ahead);
+  const onStone = Math.max(0, amount - ahead);
+  const carted = cart ? stoneCartProgress(onStone, work.share, cart) : { progress: onStone, m3: 0 };
+  const progress = Math.max(0, Math.min(rest - ahead, carted.progress));
+  if (completes) c.done = c.cost;
+  else if (cart) c.done = Math.min(c.cost, c.done + Math.min(amount, ahead) + progress);
+  else c.done = Math.min(c.cost, c.done + amount);
+  if (progress <= 0 || work.share <= 0) return null;
+  return stoneDayOf(work.outcropId, progress, work.share, carted.m3, cart);
+}
+
+/**
+ * Práce zakázky „nalámat do zásoby“ `m3` v lomu `quarry` (čd): lámání a nošení k hromadě u cesty
  * nejblíž dvorci (`logArrivalPoint`) – tam se kámen složí.
  */
 export function stockQuarryingManDays(state: VillageState, quarry: Quarry, m3: number): number {

@@ -8,6 +8,7 @@ import { villageOrchards } from '../buildings/orchard';
 import { NO_CRAFTS, harvestCarryShare } from './productivity';
 import { CHURCH_WORK_CRAFT, ROAD_APPLES, SMITH_SUPPLY } from '../rules';
 import { mowingSquaresWorked } from '../livestock/hay';
+import type { StoneDay } from '../fortification/state/quarry';
 import type {
   CartJob,
   ChurchWork,
@@ -46,6 +47,11 @@ export interface ConstructionWork {
   felledBefore: number;
   /** Kostel: hotová práce po druzích ráno (`ChurchSite.done`) – co dnes přibylo, ukáže scéna. */
   churchDoneBefore?: Partial<Record<ChurchWork, number>>;
+  /**
+   * Lámání dne (kostel, hradba, zásoba – fortifications.md, Kámen, Nošení kamene a vůz): lámání
+   * a nošení u lomu a posádka vozu s kamenem – obojí v `manDays`. Stavba bez lámání ho nemá.
+   */
+  quarry?: StoneDay;
 }
 
 /** Polní úloha dne: práce plodiny a kolik z ní bylo hotové před a po dnešní práci (člověkodny). */
@@ -508,7 +514,14 @@ function commonShares(book: ShareBook, state: VillageState, work: DayWork): void
     invested += c.manDays;
     for (const share of constructionShares(c, state)) {
       const n = book.shares.length;
-      book.add(share.activity, share.target, share.manDays, c.construction.id);
+      book.add(
+        share.activity,
+        share.target,
+        share.manDays,
+        c.construction.id,
+        share.carts,
+        share.job,
+      );
       // kostel: na čem se dnes pracovalo (zápis podílu ho nezná)
       if (share.churchWork && book.shares.length > n) {
         book.shares[n] = { ...book.shares[n]!, churchWork: share.churchWork };
@@ -742,6 +755,33 @@ function orchardAreas(state: VillageState): { target: LaborTarget; share: number
  * se staví na staveništi / u obydlí. Pole, sad, hřbitov a oprava stavby se dělají na svém místě.
  */
 function constructionShares(work: ConstructionWork, state: VillageState): LaborShare[] {
+  // lámání (kostel, hradba, zásoba) u lomu, zbytek na místě stavby
+  const quarry = quarryShares(work);
+  if (quarry.shares.length === 0) return placeShares(work, state);
+  return [...quarry.shares, ...placeShares(quarry.rest, state)];
+}
+
+/**
+ * Lámání dne stavby (fortifications.md – Kámen, Nošení kamene a vůz): lámání a nošení v nůších
+ * u lomu (`quarry`) a posádka vozu s kamenem (`haul`, `job` `stone`, cíl lom); zbytek práce stavby
+ * (`rest`) jde na její místo. Stavba bez lámání nic.
+ */
+function quarryShares(work: ConstructionWork): { shares: LaborShare[]; rest: ConstructionWork } {
+  const q = work.quarry;
+  if (!q) return { shares: [], rest: work };
+  const target: LaborTarget = { kind: 'quarry', id: q.outcropId };
+  const shares: LaborShare[] = [];
+  const quarry = Math.max(0, Math.min(work.manDays, q.manDays));
+  if (quarry > 0) shares.push({ activity: 'quarry', target, manDays: quarry });
+  const crew = Math.max(0, Math.min(work.manDays - quarry, q.crew));
+  if (crew > 0) {
+    shares.push({ activity: 'haul', target, manDays: crew, carts: 1, job: 'stone' });
+  }
+  return { shares, rest: { ...work, manDays: Math.max(0, work.manDays - quarry - crew) } };
+}
+
+/** Práce stavby na jejím místě (bez lámání u lomu – `quarryShares`). */
+function placeShares(work: ConstructionWork, state: VillageState): LaborShare[] {
   const c = work.construction;
   if (c.kind === 'field') {
     return c.fieldId === null
@@ -828,13 +868,16 @@ function constructionShares(work: ConstructionWork, state: VillageState): LaborS
   return penShares(work, place, 'build');
 }
 
-/** Druhy práce kostela, na které dnes došlo (rozdíl `ChurchSite.done` proti ránu), v pořadí `CHURCH_WORK_CRAFT`. */
+/**
+ * Druhy práce kostela na staveništi, na které dnes došlo (rozdíl `ChurchSite.done` proti ránu),
+ * v pořadí `CHURCH_WORK_CRAFT` – bez lámání, to je samostatný podíl u lomu (`quarryShares`).
+ */
 function churchWorksToday(work: ConstructionWork): ChurchWork[] {
   const site = work.construction.church;
   const before = work.churchDoneBefore;
   if (!site || !before) return [];
   return (Object.keys(CHURCH_WORK_CRAFT) as ChurchWork[]).filter(
-    (kind) => (site.done[kind] ?? 0) - (before[kind] ?? 0) > 1e-9,
+    (kind) => kind !== 'quarry' && (site.done[kind] ?? 0) - (before[kind] ?? 0) > 1e-9,
   );
 }
 

@@ -4,7 +4,6 @@ import { packObstacles } from '../../../../landscape';
 import { foundVillage } from '../../../core/actions';
 import { applyBuildIntent } from '../../../buildings/build-intent';
 import { cancelConstruction } from '../../../buildings/cancel-construction';
-import { distanceFactor } from '../../../fields/fields';
 import { logArrivalPoint } from '../../../forest/log-piles';
 import {
   QUARRY_MISSING,
@@ -12,7 +11,9 @@ import {
   QUARRY_TAKEN,
   checkQuarryPlacement,
   orderQuarrying,
+  quarryManDaysPerM3,
   startQuarry,
+  stoneCarryManDaysPerM3,
 } from '../quarry';
 import { advanceVillage } from '../../../core/simulate';
 import { addStone, stoneOnHand } from '../stone';
@@ -117,7 +118,8 @@ describe('lom na skalním výchozu', () => {
     const c = ordered.constructions.find((x) => x.kind === 'quarrying')!;
     const to = logArrivalPoint(built);
     const d = Math.hypot(OUTCROP.x - to.x, OUTCROP.z - to.z);
-    expect(c.cost).toBeCloseTo(10 * distanceFactor(d), 9);
+    expect(c.cost).toBeCloseTo(10 * quarryManDaysPerM3(d), 9);
+    expect(quarryManDaysPerM3(d)).toBeCloseTo(1 + stoneCarryManDaysPerM3(d), 12);
     const done = until(ordered, (x) => !x.constructions.some((k) => k.kind === 'quarrying'));
     expect(stoneOnHand(done)).toBeCloseTo(10, 9);
     expect(done.stoneStacks).toHaveLength(1);

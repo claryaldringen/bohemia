@@ -101,7 +101,7 @@ describe('natočení a zahájení', () => {
     expect(next.storesKg).toBe(state.storesKg);
     const c = site(next)!;
     expect(c.church?.quarryId).toBe(7);
-    expect(c.church?.quarryManDaysPerM3).toBeGreaterThan(1);
+    expect(c.church?.quarryDistanceM).toBeGreaterThan(100);
     expect(c.wood?.trees).toBeGreaterThan(100);
     expect(site(state)).toBeUndefined();
   });
@@ -160,12 +160,15 @@ describe('stavba v simulaci', () => {
   it('rozdělení práce dne ukáže, na čem se na kostele pracovalo (mistři ve scéně)', () => {
     const s = advanceVillage(state, state.lastDay + 120, null, null);
     const c = site(s)!;
+    // lámání je samostatný podíl u lomu (fortifications.md – Kámen, Nošení kamene a vůz)
+    const quarry = s.labor?.shares.find((x) => x.activity === 'quarry');
+    expect(quarry).toMatchObject({ target: { kind: 'quarry', id: 7 }, construction: c.id });
     const share = s.labor?.shares.find(
       (x) => x.activity === 'build' && x.target.kind === 'site' && x.target.id === c.id,
     );
-    expect(share?.churchWork).toContain('quarry');
+    expect(share?.churchWork ?? []).not.toContain('quarry');
     // jen druhy, na které dnes došlo – bez zdí (vápno ještě není)
-    expect(share?.churchWork).not.toContain('walls');
+    expect(share?.churchWork ?? []).not.toContain('walls');
   });
 
   it('vcelku = po kouscích přes 1. 11. a 1. 4.', () => {

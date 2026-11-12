@@ -9,7 +9,16 @@ import { validateActionDay } from '../core/actions';
 import { cloneState } from '../core/clone';
 import { obstacleChangesAt, recordClearedObstacles } from '../core/obstacles';
 import { nearestWater } from '../disasters/firefighting';
-import { nearestQuarry, quarryManDaysPerM3, villageQuarries } from '../fortification/state/quarry';
+import {
+  nearestQuarry,
+  quarryManDaysPerM3,
+  stoneCartLabor,
+  stoneCartProgress,
+  stoneDayOf,
+  villageQuarries,
+  type StoneCart,
+  type StoneDay,
+} from '../fortification/state/quarry';
 import { addStone, stoneOnHand, takeStone } from '../fortification/state/stone';
 import {
   claimedObstacles,
@@ -99,15 +108,20 @@ interface ChurchTotals {
   readonly limestoneT: number;
 }
 
+/** Kolik kamene a vápence (m³) se pro kostel láme – kámen bez toho z hromad, vápenec celý. */
+function quarriedM3Of(site: Pick<ChurchSite, 'type' | 'dims' | 'stoneFromPileM3'>): number {
+  const cost = churchCost(site.type, site.dims);
+  return Math.max(0, cost.stoneM3 - site.stoneFromPileM3) + cost.limestoneT / LIME.limestoneTPerM3;
+}
+
 function churchTotals(site: ChurchSite): ChurchTotals {
   const cost = churchCost(site.type, site.dims);
   const w = CHURCH.work;
   const wallsM3 = cost.work.walls / (w.wallsManDaysPerM3 + w.dressingManDaysPerM3);
-  const quarriedM3 =
-    Math.max(0, cost.stoneM3 - site.stoneFromPileM3) + cost.limestoneT / LIME.limestoneTPerM3;
+  const quarriedM3 = quarriedM3Of(site);
   return {
-    // lámání podle vzdálenosti lomu (cena kostela ji nezná)
-    work: { ...cost.work, quarry: quarriedM3 * site.quarryManDaysPerM3 },
+    // lámání a nošení podle vzdálenosti lomu (cena kostela ji nezná)
+    work: { ...cost.work, quarry: quarriedM3 * quarryManDaysPerM3(site.quarryDistanceM) },
     masonryM3: cost.masonryM3,
     foundationM3: cost.masonryM3 - wallsM3,
     wallsM3,
@@ -196,10 +210,21 @@ export function churchSeason(day: number): boolean {
 
 // --- práce dne ------------------------------------------------------------------------------
 
-/** Výsledek rozdělení práce dne – kolik se spotřebovalo a kam (čd po druzích). */
+/**
+ * Výsledek rozdělení práce dne – kolik práce se spotřebovalo a kam (čd postupu po druzích); s vozem
+ * s kamenem postoupí lámání o `bonus` víc, než na něj šlo práce, a `stone` je lámání dne (bez
+ * lámání chybí).
+ */
 export interface ChurchWorkResult {
   used: number;
   byWork: Partial<Record<ChurchWork, number>>;
+  bonus?: number;
+  stone?: StoneDay;
+}
+
+/** Kolik lámání kostelu zbývá (čd postupu – lámání a nošení kamene a vápence). */
+export function churchQuarryLeft(site: ChurchSite): number {
+  return Math.max(0, churchTotals(site).work.quarry - (site.done.quarry ?? 0));
 }
 
 /**
@@ -208,7 +233,8 @@ export interface ChurchWorkResult {
  * (vápeník; nakládá se jen v sezóně a z vylámaného vápence), základy a zdi (zedník, sezóna, podíl
  * zdiva nejvýš nejmenší podíl dodaného kamene, vápna a písku), střecha po zdech (stavbyvedoucí),
  * výzdoba po střeše (štukatér). Bez stavbyvedoucího nic. `mutate` = zapíše do `site`, jinak jen
- * spočítá (potřeba dne).
+ * spočítá (potřeba dne). S vozem s kamenem (`cart` – fortifications.md, Kámen, Nošení kamene
+ * a vůz) stojí lámání méně práce (`stoneCartLabor`).
  */
 function allocate(
   site: ChurchSite,
@@ -216,6 +242,7 @@ function allocate(
   day: number,
   budget: number,
   mutate: boolean,
+  cart?: StoneCart,
 ): ChurchWorkResult {
   const byWork: Partial<Record<ChurchWork, number>> = {};
   if (!masters.has('builder') || !(budget > 0)) return { used: 0, byWork };
@@ -236,8 +263,27 @@ function allocate(
   };
   const remaining = (kind: ChurchWork): number => work[kind] - (done[kind] ?? 0);
   const season = churchSeason(day);
-  // 1. kámen a vápenec, 2. písek – do zásoby napřed, strop = potřeba celé stavby
-  if (masters.has(CHURCH_WORK_CRAFT.quarry)) take('quarry', remaining('quarry'));
+  // 1. kámen a vápenec, 2. písek – do zásoby napřed, strop = potřeba celé stavby; vůz s kamenem
+  // uveze část dnes nalámaného a to se nenosí – lámání postoupí víc, než na ně šlo práce
+  let bonus = 0;
+  let stone: StoneDay | undefined;
+  if (masters.has(CHURCH_WORK_CRAFT.quarry)) {
+    const rest = remaining('quarry');
+    if (cart && rest > EPS && left > 0) {
+      const labor = Math.min(left, stoneCartLabor(rest, 1, cart));
+      const carted = stoneCartProgress(labor, 1, cart);
+      const progress = Math.min(rest, carted.progress);
+      done.quarry = (done.quarry ?? 0) + progress;
+      byWork.quarry = (byWork.quarry ?? 0) + progress;
+      left -= labor;
+      used += labor;
+      bonus = Math.max(0, progress - labor);
+      stone = stoneDayOf(site.quarryId, progress, 1, carted.m3, cart);
+    } else {
+      const progress = take('quarry', rest);
+      if (progress > 0) stone = stoneDayOf(site.quarryId, progress, 1, 0, undefined);
+    }
+  }
   if (masters.has(CHURCH_WORK_CRAFT.sand)) take('sand', remaining('sand'));
   // 3. pec, 4. nakládání další dávky vápna (vápenec musí být vylámaný)
   let burn: { t: number; until: number } | null = null;
@@ -298,7 +344,7 @@ function allocate(
       site.burnUntilDay = burn.until;
     }
   }
-  return { used, byWork };
+  return { used, byWork, ...(bonus > 0 ? { bonus } : {}), ...(stone ? { stone } : {}) };
 }
 
 /**
@@ -327,25 +373,35 @@ export function churchMorning(state: VillageState, day: number): void {
   }
 }
 
-/** Kolik práce kostel dnes vezme: zbytek přípravy staveniště a co stihnou mistři, kteří jsou ve vsi. */
-export function churchNeedToday(state: VillageState, c: Construction, day: number): number {
+/**
+ * Kolik práce kostel dnes vezme: zbytek přípravy staveniště a co stihnou mistři, kteří jsou ve vsi
+ * (s vozem s kamenem `cart` lámání levněji).
+ */
+export function churchNeedToday(
+  state: VillageState,
+  c: Construction,
+  day: number,
+  cart?: StoneCart,
+): number {
   const site = c.church;
   if (!site) return 0;
   const masters = mastersPresent(state);
   if (!masters.has('builder')) return 0;
   const prep = Math.max(0, site.prepManDays - c.done);
-  return prep + allocate(site, masters, day, Infinity, false).used;
+  return prep + allocate(site, masters, day, Infinity, false, cart).used;
 }
 
 /**
  * Vloží `manDays` čd do kostela (mutuje): napřed příprava staveniště (kácení dřeva – `fellAsWorked`
- * volá `invest`, a překážky), pak práce mistrů (`allocate`). Vrátí, kolik šlo do kterého druhu.
+ * volá `invest`, a překážky), pak práce mistrů (`allocate`, s vozem s kamenem `cart`). Vrátí, kolik
+ * šlo do kterého druhu; `c.done` roste o postup (s vozem víc než o práci).
  */
 export function churchWorkDay(
   state: VillageState,
   c: Construction,
   manDays: number,
   day: number,
+  cart?: StoneCart,
 ): ChurchWorkResult {
   const site = c.church;
   if (!site) return { used: 0, byWork: {} };
@@ -354,9 +410,9 @@ export function churchWorkDay(
   const prep = Math.min(manDays, Math.max(0, site.prepManDays - c.done));
   c.done += prep;
   if (c.done < site.prepManDays - EPS) return { used: prep, byWork: {} };
-  const r = allocate(site, masters, day, manDays - prep, true);
-  c.done = Math.min(c.cost, c.done + r.used);
-  return { used: prep + r.used, byWork: r.byWork };
+  const r = allocate(site, masters, day, manDays - prep, true, cart);
+  c.done = Math.min(c.cost, c.done + r.used + (r.bonus ?? 0));
+  return { ...r, used: prep + r.used };
 }
 
 /**
@@ -522,7 +578,7 @@ export function startChurch(
     kiln,
     sandPit,
     quarryId: quarry.quarry.outcropId,
-    quarryManDaysPerM3: quarryManDaysPerM3(quarry.distanceM),
+    quarryDistanceM: quarry.distanceM,
     stoneFromPileM3: fromPile,
     prepManDays: woodFellingCost(wood) + (site.obstacleCost ?? 0),
   };
@@ -541,6 +597,48 @@ export function startChurch(
   });
   giveWayToBuilding(next, day, site.takenLand ?? [], 'church');
   return { ok: true, state: next };
+}
+
+/** Staveniště kostela ze starší vsi – lámání za příplatek za vzdálenost (do 12. 11. 2026). */
+type LegacyChurchSite = Omit<ChurchSite, 'quarryDistanceM'> & {
+  quarryDistanceM?: number;
+  quarryManDaysPerM3?: number;
+};
+
+/**
+ * Starší staveniště kostela (`quarryManDaysPerM3` – lámání × příplatek za vzdálenost) dostane
+ * vzdušnou vzdálenost lomu (`quarryDistanceM`; fortifications.md – Kámen, Nošení kamene a vůz):
+ * lámání se přecení na lámání a nošení v nůších, dodaný kámen (hotový podíl lámání) zůstane –
+ * hotová práce lámání i cena stavby se posunou o rozdíl. Lom podle `quarryId`, jinak nejbližší,
+ * bez lomu 0 m. Jednou a idempotentně – ves bez starého staveniště týž objekt.
+ */
+export function withChurchQuarryDistance(state: VillageState): VillageState {
+  const legacy = (c: Construction): boolean =>
+    c.church !== undefined && !('quarryDistanceM' in c.church);
+  if (!state.constructions.some(legacy)) return state;
+  const next = cloneState(state);
+  for (const c of next.constructions) {
+    if (!legacy(c)) continue;
+    const old = c.church as LegacyChurchSite;
+    const { quarryManDaysPerM3: perM3 = 1, ...rest } = old;
+    const at = c.position;
+    const quarry = villageQuarries(next).find((q) => q.outcropId === old.quarryId);
+    const distanceM = at
+      ? quarry
+        ? Math.sqrt((quarry.x - at.x) * (quarry.x - at.x) + (quarry.z - at.z) * (quarry.z - at.z))
+        : (nearestQuarry(next, at)?.distanceM ?? 0)
+      : 0;
+    const site: ChurchSite = { ...rest, quarryDistanceM: distanceM, done: { ...old.done } };
+    const m3 = quarriedM3Of(site);
+    const before = m3 * perM3;
+    const after = m3 * quarryManDaysPerM3(distanceM);
+    const doneBefore = site.done.quarry ?? 0;
+    if (before > EPS && doneBefore > 0) site.done.quarry = (doneBefore * after) / before;
+    c.cost += after - before;
+    c.done = Math.max(0, c.done + (site.done.quarry ?? 0) - doneBefore);
+    c.church = site;
+  }
+  return next;
 }
 
 // --- zkušenost ------------------------------------------------------------------------------

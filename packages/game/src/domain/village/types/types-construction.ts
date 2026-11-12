@@ -9,7 +9,7 @@ import type { AbandonedStructure, Crop, UsableStructure } from './types-land';
 import type { HorseGood } from './types-trade';
 import type { TradedHorse } from './types-livestock';
 import type { DwellingPlot, DwellingType, Position } from './types-people';
-import type { RoadGrade } from './types-roads';
+import type { CartDrive, RoadGrade } from './types-roads';
 
 export type ConstructionKind =
   | 'dwelling'
@@ -203,6 +203,22 @@ export interface Construction {
   stoneOrderM3?: number;
   /** Kámen, který stavba hradby vzala z hromad (m³) – zrušení vrátí nezabudovaný podíl. */
   stoneFromPile?: number;
+  /**
+   * Kámen hradby lámaný na zakázku (fortifications.md – Kámen, Nošení kamene a vůz): lom (id
+   * výchozu), kolik m³, vzdušná vzdálenost lomu od středu stavby (m) a ten střed – lámání a nošení
+   * je v práci úseků. Stavba ze starší vsi (příplatek za vzdálenost) a bez kamene z lomu ho nemá.
+   */
+  fortStone?: {
+    outcropId: number;
+    m3: number;
+    distanceM: number;
+    at: { x: number; z: number };
+  };
+  /**
+   * Jízda vozu s kamenem z lomu ke stavbě (wagons.md – Co vozy vozí, bod 5; kostel, hradba,
+   * zásoba): spočítá se při první úvaze o voze a uloží (null = vůz nedojede). Jinak chybí.
+   */
+  stoneCart?: CartDrive | null;
   /** Staveniště kostela (churches.md – Stavba); jen u stavby `church`. */
   church?: ChurchSite;
 }

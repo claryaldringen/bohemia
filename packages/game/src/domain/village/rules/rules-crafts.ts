@@ -414,12 +414,17 @@ export const CART_DEMAND = {
 //   (25 věder po 12 l) `fillS`, rozlití do nádob u domů `unloadS`; vůz sjede na břeh, je-li suchý
 //   břeh do `reachM` od cíle (hledá se mezi `spots` břehy nejblíž ohradě). Vozí jen domácnostem,
 //   kterým ušetří práci (chůze s vědry nad WATER_FETCHING.includedM – co je blíž, je v ceně denního
-//   minima): vyplatí se až ≈ 170–200 m od vody, blíž je chůze s vědry levnější.
+//   minima): vyplatí se až ≈ 170–200 m od vody, blíž je chůze s vědry levnější,
+// - `stone` – kámen z lomu na stavbu (fortifications.md – Kámen, Nošení kamene a vůz; Martin
+//   12. 11. 2026: „Vůz vozí kameny na staveniště.“, „A“): dvoukolák s `crew` sedlákem z práce vsi
+//   (z práce stavby) uveze CARTS.loadKg kamene nalámaného ten den, z lomu ke stavbě po vozové síti
+//   (k místu do `reachM`), naložení a složení `stopS`; jede, když posádka stojí méně práce než
+//   nošení toho, co uveze, v nůších (STONE.carry).
 // Vůz jede tempem volů po louce (TEAM_TRAVEL.speedMps; trasa vozové sítě v m po louce – cesta
 // rychleji, svah a strniště pomaleji), jdou s ním CARTS.crew lidé (honák a nakladač; u uhlí
 // a rudy `crew`), den má WATER_FETCHING.dayHours hodin; jízd za den nejvýš CARTS.loadsPerCartDay.
 export const CART_JOBS = {
-  order: ['charcoal', 'ore', 'clay', 'seed', 'water'],
+  order: ['charcoal', 'ore', 'clay', 'seed', 'water', 'stone'],
   charcoal: { carryShare: 0.2, loadKg: 300, stopS: 900, reachM: 12, crew: 1 },
   ore: { stopS: 900, reachM: 12, crew: 2, reserveDays: 15 },
   clay: { stopS: 900, reachM: 12, crew: 2, reserveDays: 15 },
@@ -432,6 +437,7 @@ export const CART_JOBS = {
     reachM: 4,
     spots: 40,
   },
+  stone: { stopS: 900, reachM: 12, crew: 1 },
 } as const satisfies {
   order: readonly CartJob[];
   water: { barrelL: Record<CartKind, number> } & Record<string, unknown>;
