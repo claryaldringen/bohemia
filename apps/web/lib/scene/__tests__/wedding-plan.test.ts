@@ -1,4 +1,6 @@
-import { SACRED_OAK_RADIUS_M, sacredEntrance } from '@bohemia/game';
+import { SACRED_OAK_RADIUS_M, defaultChurchDims, sacredEntrance } from '@bohemia/game';
+import type { SceneChurch } from '../../church-view';
+import { churchDoorWorld } from '../church-site-layout';
 import { describe, expect, it } from 'vitest';
 import type { SceneVillage } from '../../village-view';
 import type { SceneWedding, SceneWeddingGuest } from '../../wedding-view';
@@ -141,6 +143,45 @@ describe('místo obřadu (weddingSiteCandidates, pickWeddingSite)', () => {
     expect(counts.get(5)!).toBeGreaterThan(0);
     expect(counts.get(1)! / 1000).toBeGreaterThan(0.6);
     expect(pickWeddingSite([], 0.3)).toBeNull();
+  });
+});
+
+describe('svatba křesťanů u kostela', () => {
+  const dims = defaultChurchDims('rotunda');
+  const church = (id: number, x: number, priest: boolean, built = true): SceneChurch => ({
+    id,
+    type: 'rotunda',
+    dims,
+    position: { x, z: 30, rotation: 0 },
+    progress: { foundation: 1, walls: 1, roof: 1, decor: 0 },
+    decorated: false,
+    built,
+    priest,
+    graves: 0,
+  });
+  const village: SceneVillage = {
+    ...VILLAGE,
+    churches: [church(8, 200, true), church(9, 90, false), church(10, 60, true, false)],
+  };
+
+  it('křesťané jdou ke kostelu s knězem; pohani a ves bez kostela beze změny', () => {
+    const list = weddingSiteCandidates(village, { x: 0, z: 0 }, true);
+    expect(list.map((c) => `${c.kind}:${c.id}`)).toEqual(['church:8']);
+    expect(weddingSiteCandidates(village, { x: 0, z: 0 }).map((c) => c.kind)).toEqual(['oak']);
+    expect(weddingSiteCandidates(VILLAGE, { x: 0, z: 0 }, true).map((c) => c.kind)).toEqual([
+      'oak',
+    ]);
+  });
+
+  it('pár stojí před vchodem, tváří k němu, průvod přichází zepředu', () => {
+    const p = plan({ ...WEDDING, christian: true }, village);
+    const door = churchDoorWorld('rotunda', dims, { x: 200, z: 30, rotation: 0 });
+    expect(p.site.kind).toBe('church');
+    expect(p.site.id).toBe(8);
+    expect(p.site.focus.x).toBeCloseTo(door.x, 6);
+    expect(p.site.couple.x).toBeLessThan(door.x);
+    expect(p.site.way[0]!.x).toBeLessThan(p.site.couple.x);
+    expect(p.site.fires).toEqual([]);
   });
 });
 

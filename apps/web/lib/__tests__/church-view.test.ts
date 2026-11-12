@@ -62,6 +62,10 @@ describe('kostely v pohledu vsi', () => {
     expect(scene).toMatchObject({ id: 40, type: 'rotunda', position, decorated: false });
     expect(scene!.progress.foundation).toBe(1);
     expect(scene!.progress.walls).toBe(0);
+    // staveniště nese pec, písník a hromady; pálení zatím neběží
+    expect(scene!.site).toMatchObject({ kiln: { x: 0, z: 0 }, burning: false, kilnBuilt: false });
+    expect(scene!.site?.stone).toBe(1);
+    expect(scene).toMatchObject({ built: false, priest: false, graves: 0 });
     const panel = churchesOf(state).churches![0]!;
     expect(panel.built).toBe(false);
     expect(panel.site?.work.quarry).toBe(1);
@@ -69,6 +73,7 @@ describe('kostely v pohledu vsi', () => {
     // vápeník chybí – vápno se nepálí
     expect(panel.site?.blocked).toBe('limeBurner');
     expect(panel.capacity).toBe(churchCapacity('rotunda', site.dims));
+    expect(panel.coverage).toBe(0);
     expect(panel.graves).toEqual({ used: 0, total: churchyardGraves('rotunda', site.dims) });
   });
 

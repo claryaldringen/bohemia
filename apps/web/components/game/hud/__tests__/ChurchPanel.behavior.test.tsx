@@ -33,6 +33,7 @@ const site: Extract<SelectionDetails, { kind: 'church' }> = {
   decorated: false,
   site: { work, blocked: 'limeBurner' },
   capacity: 44,
+  coverage: 0.6,
   graves: { used: 0, total: 60 },
 };
 
@@ -44,6 +45,7 @@ it('staveniště: postup po druzích práce v %, chybějící mistr, kapacita a 
   expect(q('selection-church-capacity')?.textContent).toContain('44');
   expect(q('selection-church-graves')?.textContent).toContain('0 / 60');
   expect(q('selection-church-priest')).toBeNull();
+  expect(q('selection-church-coverage')).toBeNull();
 });
 
 it('dostavěný kostel: bez postupu, s knězem', () => {
@@ -52,6 +54,8 @@ it('dostavěný kostel: bez postupu, s knězem', () => {
   expect(q('selection-church-work')).toBeNull();
   expect(q('selection-church-blocked')).toBeNull();
   expect(q('selection-church-priest')?.textContent).toContain('1');
+  expect(q('selection-church-coverage')?.textContent).toContain('60 %');
+  expect(q('selection-church-graves')?.textContent).toContain('0 / 60');
 });
 
 it('panel u potvrzení: +/− mění míry v mezích, kladivo zašedlé s důvodem', () => {

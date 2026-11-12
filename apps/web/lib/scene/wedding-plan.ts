@@ -24,6 +24,7 @@ import {
   type Point,
 } from './funeral-plan';
 import { LIVESTOCK_EPOCH_MS } from './livestock-motion';
+import { churchDoorWorld } from './church-site-layout';
 import { SHRINE_RING_M, shrineFiresWorld } from './sacred-layout';
 import { hash01 } from './smoke-schedule';
 import {
@@ -84,10 +85,12 @@ const IDOL = { coupleM: 3.2, clearM: 1.4, approachM: 7 };
 const OAK = { trunkClearM: 1.1, approachM: 4 };
 /** Háj: pár stojí kus před krajem háje (m). */
 const GROVE = { outsideM: 1.6, approachM: 4 };
+/** Kostel: pár stojí tolik m před vchodem, průvod přichází zepředu (m). */
+const CHURCH_SITE = { coupleM: 2.6, approachM: 7 };
 /** Náves: ohniště kus před vchodem domu nevěsty, pár mezi ohněm a domem (m). */
 const GREEN = { fireM: 7, coupleM: 1.9, fireClearM: 1.3 };
 
-export type WeddingSiteKind = 'shrine' | 'idol' | 'oak' | 'grove' | 'green';
+export type WeddingSiteKind = 'shrine' | 'idol' | 'oak' | 'grove' | 'church' | 'green';
 
 /** Posvátné místo vsi, kam se dá jít na svatbu – druh, id (stavba, dub, háj) a vzdálenost. */
 export interface WeddingSiteCandidate {
@@ -259,7 +262,29 @@ function distance(a: Point, b: Point): number {
  * a svatyně (rozestavěné, opuštěné a padlé ne), živé posvátné duby (souše a padlé ne) a dubové
  * háje – od nejbližšího.
  */
-export function weddingSiteCandidates(village: SceneVillage, from: Point): WeddingSiteCandidate[] {
+export function weddingSiteCandidates(
+  village: SceneVillage,
+  from: Point,
+  christian = false,
+): WeddingSiteCandidate[] {
+  // křesťanský pár jde ke kostelu s knězem (nejbližšímu v dosahu); pohani a ves bez kostela beze změny
+  if (christian) {
+    const churches = (village.churches ?? [])
+      .filter((c) => c.built && c.priest)
+      .map((c) => {
+        const door = churchDoorWorld(c.type, c.dims, c.position);
+        return {
+          kind: 'church' as const,
+          id: c.id,
+          x: door.x,
+          z: door.z,
+          distanceM: distance(from, door),
+        };
+      })
+      .filter((c) => c.distanceM <= WEDDING_SITE_RADIUS_M)
+      .sort((a, b) => a.distanceM - b.distanceM || a.id - b.id);
+    if (churches.length > 0) return churches;
+  }
   const sacred = village.sacred;
   if (!sacred) return [];
   const out: WeddingSiteCandidate[] = [];
@@ -278,6 +303,7 @@ export function weddingSiteCandidates(village: SceneVillage, from: Point): Weddi
     idol: 1,
     oak: 2,
     grove: 3,
+    church: 4,
   };
   return out.sort(
     (a, b) => a.distanceM - b.distanceM || order[a.kind] - order[b.kind] || a.id - b.id,
@@ -362,6 +388,23 @@ export function weddingSiteOf(
         way: [ahead(center, out, IDOL.approachM)],
         fires: [],
         obstacle: { x: center.x, z: center.z, r: IDOL.clearM },
+      };
+    }
+  }
+  if (candidate?.kind === 'church') {
+    const church = village.churches?.find((c) => c.id === candidate.id);
+    if (church) {
+      const d = churchDoorWorld(church.type, church.dims, church.position);
+      const door = { x: d.x, z: d.z };
+      const out = { x: d.outX, z: d.outZ };
+      return {
+        kind: 'church',
+        id: church.id,
+        couple: ahead(door, out, CHURCH_SITE.coupleM),
+        focus: door,
+        way: [ahead(door, out, CHURCH_SITE.approachM)],
+        fires: [],
+        obstacle: null,
       };
     }
   }
@@ -642,7 +685,7 @@ export function weddingPlan(
       : villageMiddle(village);
   const from = { x: reference.x, z: reference.z };
   const candidate = pickWeddingSite(
-    weddingSiteCandidates(village, from),
+    weddingSiteCandidates(village, from, wedding.christian === true),
     hashText(wedding.key, env.seed),
   );
   // starší zápisy a zaniklé domy: průvod vyjde od obydlí nejblíž k místu obřadu

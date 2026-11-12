@@ -68,9 +68,18 @@ export function ChurchBody({
         <Stat icon="people" name="Vejde se lidí" testId="selection-church-capacity">
           {formatInteger(details.capacity)}
         </Stat>
+        {details.built && (
+          <Stat
+            icon="people"
+            name="Pokrytí vsi – kolik lidí se vejde do kostelů s knězem"
+            testId="selection-church-coverage"
+          >
+            {Math.round(details.coverage * 100)} %
+          </Stat>
+        )}
         <Stat
           src="/icons/build/hrbitov.png"
-          name="Hroby na hřbitůvku (obsazené / celkem)"
+          name={`Hroby na hřbitůvku (obsazené / celkem) – volných ${formatInteger(Math.max(0, details.graves.total - details.graves.used))}`}
           testId="selection-church-graves"
         >
           {formatInteger(details.graves.used)} / {formatInteger(details.graves.total)}
