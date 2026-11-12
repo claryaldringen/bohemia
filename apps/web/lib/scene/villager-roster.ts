@@ -6,7 +6,7 @@
 // a id člověka, stejný napříč dny (villagers.md – Činnosti od začátku do konce: herec je člověk
 // napříč dny) – při podobném rozdělení práce dělá tentýž člověk totéž a dvě činnosti různých dnů
 // se na jednom místě nesejdou; mění se jen se změnou práce dne.
-import { AGE, type CartJob, type Sex } from '@bohemia/game';
+import { AGE, type CartJob, type MasonCraft, type Sex } from '@bohemia/game';
 import type { ScenePerson } from '../person-view';
 import type { LaborActivity, LaborTarget, SceneExpedition } from '../village-view';
 import type { TrafficKind } from './road-traffic';
@@ -48,7 +48,18 @@ export type PersonJob =
   /** Řetěz s vědry v den požáru (disasters.md – Hašení – řetěz s vědry). */
   | { kind: 'fire' }
   /** Kněz před vchodem svého kostela (churches.md – Co kostel dává; villager-plan-priest.ts). */
-  | { kind: 'priest'; church: number };
+  | { kind: 'priest'; church: number }
+  /**
+   * Mistr stavební huti (churches.md – Mistři huti při práci; villager-plan-masons.ts): obor
+   * a práce dne na staveništi kostela `church`; `home` – dnes bez práce, postává u domu.
+   */
+  | { kind: 'master'; craft: MasonCraft; church: number | null; work: MasterWork };
+
+/**
+ * Kde mistr huti dnes pracuje: obchůzka staveniště (stavbyvedoucí), písník, vápenná pec, lom,
+ * tesání kvádrů u hromady kamene, zdi (zedník), omítání (štukatér), nebo doma.
+ */
+export type MasterWork = 'site' | 'sand' | 'kiln' | 'quarry' | 'dress' | 'walls' | 'decor' | 'home';
 
 /** Koho postava chce – věk, domácnost, pohlaví. */
 export interface PersonRequest {

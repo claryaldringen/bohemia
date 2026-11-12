@@ -334,7 +334,8 @@ const GRAVE_CELL = { along: 2, across: CHURCH.graveM2 / 2 } as const;
 /** Kolik posledních hrobů je čerstvých (holá hlína). */
 const FRESH_CHURCH_GRAVES = 3;
 
-function distToSegment(
+/** Vzdálenost bodu od úsečky a–b (m). */
+export function distToSegment(
   p: { x: number; z: number },
   a: { x: number; z: number },
   b: { x: number; z: number },
@@ -346,7 +347,8 @@ function distToSegment(
   return Math.hypot(p.x - (a.x + t * dx), p.z - (a.z + t * dz));
 }
 
-function insidePolygon(
+/** Leží bod uvnitř mnohoúhelníku (obrys části kostela)? */
+export function insidePolygon(
   p: { x: number; z: number },
   poly: readonly { x: number; z: number }[],
 ): boolean {

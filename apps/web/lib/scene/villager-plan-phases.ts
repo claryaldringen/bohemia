@@ -5,6 +5,7 @@
 import { SACRED_BUILDINGS } from '@bohemia/game';
 import { hash01 } from './smoke-schedule';
 import { createVillagerPose } from './villager-motion';
+import { masterPhases } from './villager-plan-masons';
 import { doorPoint, stringHash } from './villager-plan-geometry';
 import type { PhasePlaces, PhaseRole } from './villager-phases';
 import type { Context, PlannedVillager, Point } from './villager-plan-types';
@@ -81,6 +82,8 @@ export function planPhases(
       }
       case 'priest':
         return { role: 'priest' };
+      case 'master':
+        return masterPhases(ctx, job, at);
       case 'share':
         break;
       default:

@@ -1,0 +1,254 @@
+import {
+  churchFootprintWorld,
+  defaultChurchDims,
+  type ChurchWork,
+  type MasonCraft,
+} from '@bohemia/game';
+import { describe, expect, it } from 'vitest';
+import type { SceneChurch } from '../../church-view';
+import { personActivity } from '../../person-activity';
+import { personRoles, type RolePerson } from '../../person-roles';
+import type { ScenePerson } from '../../person-view';
+import type { LaborShare, SceneVillage } from '../../village-view';
+import { distToSegment, insidePolygon, KILN_M, stoneHeapAt } from '../church-site-layout';
+import { createVillagerPose } from '../villager-motion';
+import { planVillagersWithCrew, type VillagerGround } from '../villager-plan';
+import { churchWallSpots, MASTER_M } from '../villager-plan-masons';
+
+// Mistři huti při práci na staveništi kostela (churches.md – Mistři huti při práci;
+// villager-plan-masons.ts): u své práce, jen když na ni dnes došlo, jinak u domu – nikdy na poli.
+
+const GROUND: VillagerGround = {
+  walkable: (x, z) => Math.abs(x) < 400 && Math.abs(z) < 400,
+  tree: () => null,
+  treesIn: () => [],
+};
+
+const house = (id: number, x: number, z: number) => ({
+  id,
+  type: 'zemnice' as const,
+  position: { x, z, rotation: 0 },
+  built: true,
+  progress: 1,
+  inhabited: true,
+});
+
+const MASTERS: Record<MasonCraft, number> = {
+  builder: 601,
+  limeBurner: 602,
+  stonemason: 603,
+  mason: 604,
+  plasterer: 605,
+};
+const CRAFT_OF = new Map(Object.entries(MASTERS).map(([craft, id]) => [id, craft as MasonCraft]));
+
+const PEOPLE: RolePerson[] = [
+  { id: 101, age: 35, sex: 'male', home: 1, spouse: 102 },
+  { id: 102, age: 33, sex: 'female', home: 1, spouse: 101 },
+  { id: 201, age: 30, sex: 'male', home: 2, spouse: 202 },
+  { id: 202, age: 28, sex: 'female', home: 2, spouse: 201 },
+  { id: 301, age: 40, sex: 'male', home: 3 },
+  ...Object.values(MASTERS).map((id) => ({ id, age: 38, sex: 'male' as const, home: 4 })),
+];
+
+function persons(): ScenePerson[] {
+  const roles = personRoles(PEOPLE, { manor: 1, craft: () => null });
+  return PEOPLE.map((p) => ({
+    id: p.id,
+    age: p.age,
+    sex: p.sex,
+    home: p.home,
+    role: roles.get(p.id)!,
+    ...(CRAFT_OF.has(p.id) ? { mason: CRAFT_OF.get(p.id)! } : {}),
+  }));
+}
+
+const square = (cx: number, cy: number) => ({
+  cell: { x: cx, y: cy },
+  x: cx * 15 + 7.5,
+  z: cy * 15 + 7.5,
+  size: 15,
+  stage: 'sown' as const,
+});
+
+const QUARRY = { outcropId: 42, x: 140, z: -60, rotation: 0.4 };
+
+const church = (burning: boolean): SceneChurch => ({
+  id: 8,
+  type: 'rotunda',
+  dims: defaultChurchDims('rotunda'),
+  position: { x: 60, z: 40, rotation: 0 },
+  progress: { foundation: 1, walls: 0.4, roof: 0, decor: 0 },
+  decorated: false,
+  built: false,
+  priest: false,
+  graves: 0,
+  site: {
+    kiln: { x: 80, z: 40 },
+    sandPit: { x: 70, z: 62 },
+    limeT: 0.5,
+    burning,
+    kilnBuilt: true,
+    stone: 0.5,
+    sand: 0.3,
+    quarryId: QUARRY.outcropId,
+  },
+});
+
+// hodně práce na poli i nečinných – mistr bez přednosti by šel na pole
+const FIELD: LaborShare[] = [
+  { activity: 'harvest', target: { kind: 'field', id: 7 }, manDays: 8 },
+  { activity: 'idle', target: { kind: 'village' }, manDays: 4 },
+];
+
+function village(work: ChurchWork[] | null, burning = false): SceneVillage {
+  const build: LaborShare[] =
+    work === null
+      ? []
+      : [{ activity: 'build', target: { kind: 'site', id: 8 }, manDays: 3, churchWork: work }];
+  return {
+    dwellings: [house(1, 0, 0), house(2, 20, 0), house(3, -20, 0), house(4, 0, 80)],
+    fields: [{ id: 7, parts: [square(2, 0), square(3, 0), square(2, 1)] }],
+    churches: [church(burning)],
+    quarries: [QUARRY],
+    labor: {
+      day: 1000,
+      month: 8,
+      people: { children: 0, adults: 10, elders: 0 },
+      shares: [...build, ...FIELD],
+      homes: [1, 2, 3, 4].map((id) => ({ id, people: 2 })),
+      persons: persons(),
+    },
+  };
+}
+
+function plan(work: ChurchWork[] | null, burning = false) {
+  const v = village(work, burning);
+  const p = planVillagersWithCrew(v, GROUND, { seed: 3, herds: 0 });
+  const of = (craft: MasonCraft) => {
+    const mine = p.people.filter((f) => f.person === MASTERS[craft]);
+    expect(mine, craft).toHaveLength(1);
+    const f = mine[0]!;
+    const pose = f.pose(0, [], createVillagerPose());
+    return { f, pose, task: p.tasks.get(MASTERS[craft]), village: v };
+  };
+  return { p, of };
+}
+
+const dist = (a: { x: number; z: number }, b: { x: number; z: number }): number =>
+  Math.hypot(a.x - b.x, a.z - b.z);
+
+/** Mistr u domu: úloha `home`, stojí u dveří domu 4 (vchod na +z). */
+function expectHome(m: ReturnType<ReturnType<typeof plan>['of']>, craft: MasonCraft): void {
+  expect(m.f.job, craft).toEqual({ kind: 'master', craft, church: null, work: 'home' });
+  expect(dist(m.pose, { x: 0, z: 80 }), craft).toBeLessThan(8);
+  expect(m.task?.role, craft).toBe('master-home');
+}
+
+/** Vzdálenost bodu od nejbližší zdi kostela; uvnitř zdí záporná. */
+function wallDistance(c: SceneChurch, p: { x: number; z: number }): number {
+  const polys = churchFootprintWorld(c.type, c.dims, c.position);
+  if (polys.some((q) => insidePolygon(p, q))) return -1;
+  return Math.min(
+    ...polys.flatMap((q) => q.map((a, k) => distToSegment(p, a, q[(k + 1) % q.length]!))),
+  );
+}
+
+describe('mistři huti při práci (villager-plan-masons.ts)', () => {
+  it('lámání v lomu: kameník u stěny lomu s krumpáčem, ostatní mistři u domu', () => {
+    const { of } = plan(['quarry']);
+    const stone = of('stonemason');
+    expect(stone.f.job).toEqual({ kind: 'master', craft: 'stonemason', church: 8, work: 'quarry' });
+    expect(dist(stone.pose, QUARRY)).toBeLessThan(3);
+    expect(stone.pose.clip).toBe('quarry');
+    expect(stone.task?.role).toBe('master-quarry');
+    // stavbyvedoucí je u staveniště při každé práci na kostele
+    expect(of('builder').f.job).toMatchObject({ kind: 'master', work: 'site', church: 8 });
+    for (const craft of ['limeBurner', 'mason', 'plasterer'] as const) expectHome(of(craft), craft);
+  });
+
+  it('vápno a zdi při pálení: vápeník u pece, zedník u zdi, kameník u hromady, nikdo v práci vsi', () => {
+    const { p, of } = plan(['lime', 'walls'], true);
+    const c = church(true);
+    const lime = of('limeBurner');
+    expect(lime.f.job).toEqual({ kind: 'master', craft: 'limeBurner', church: 8, work: 'kiln' });
+    expect(dist(lime.pose, c.site!.kiln)).toBeLessThan(KILN_M.ringR + MASTER_M.kiln + 1.6);
+    expect(lime.pose.clip).toBe('stoke');
+    expect(lime.task?.role).toBe('master-kiln');
+    // čelem k peci
+    const toKiln = { x: c.site!.kiln.x - lime.pose.x, z: c.site!.kiln.z - lime.pose.z };
+    expect(lime.pose.headingX * toKiln.x + lime.pose.headingZ * toKiln.z).toBeGreaterThan(0);
+
+    const mason = of('mason');
+    expect(mason.f.job).toEqual({ kind: 'master', craft: 'mason', church: 8, work: 'walls' });
+    const d = wallDistance(c, mason.pose);
+    expect(d).toBeGreaterThan(0.3);
+    expect(d).toBeLessThan(2.5);
+    expect(mason.pose.clip).toBe('lay');
+    expect(mason.task?.role).toBe('master-walls');
+
+    const stone = of('stonemason');
+    expect(stone.f.job).toMatchObject({ kind: 'master', work: 'dress' });
+    expect(dist(stone.pose, stoneHeapAt(c.site!))).toBeLessThan(4);
+    expect(stone.task?.role).toBe('master-dress');
+    // nese kámen k nejbližší zdi
+    expect(stone.task?.places?.haul).toBeDefined();
+
+    expect(of('builder').task?.role).toBe('master-site');
+    expectHome(of('plasterer'), 'plasterer');
+    // žádný mistr mimo svou práci – ani postava podílu práce vsi, ani úloha jiného druhu
+    for (const id of Object.values(MASTERS)) {
+      for (const f of p.people.filter((x) => x.person === id)) expect(f.job?.kind).toBe('master');
+      expect(p.tasks.get(id)?.job.kind).toBe('master');
+    }
+  });
+
+  it('mezi pálením vápeník tluče vápenec, nosí ho do pece a hasí vápno v jámě', () => {
+    const { of } = plan(['lime']);
+    const lime = of('limeBurner');
+    expect(lime.pose.clip).toBe('break-stone');
+    expect(lime.task?.role).toBe('master-lime');
+    expect(lime.task?.places?.haul).toBeDefined();
+    expect(lime.task?.places?.pit).toBeDefined();
+  });
+
+  it('bez práce na kostele jsou všichni mistři u domu, i když je na poli hodně práce', () => {
+    const { p, of } = plan(null);
+    for (const craft of Object.keys(MASTERS) as MasonCraft[]) expectHome(of(craft), craft);
+    for (const id of Object.values(MASTERS)) {
+      expect(p.people.some((f) => f.person === id && f.job?.kind === 'share')).toBe(false);
+    }
+    // ostatní lidé jsou na poli dál
+    expect(p.people.some((f) => f.job?.kind === 'share' && f.job.activity === 'harvest')).toBe(
+      true,
+    );
+  });
+
+  it('výzdoba: štukatér u zdi omítá; panel řekne práci mistra', () => {
+    const { of } = plan(['decor']);
+    const plaster = of('plasterer');
+    expect(plaster.f.job).toMatchObject({ kind: 'master', work: 'decor' });
+    expect(plaster.pose.clip).toBe('plaster');
+    expect(plaster.task?.role).toBe('master-decor');
+    const state = { id: MASTERS.plasterer, stage: null, hidden: false, herd: null };
+    expect(personActivity({ ...state, job: plaster.f.job! }, plaster.village)).toBe('omítá zdi');
+    expect(personActivity({ ...state, job: plaster.f.job!, leg: 'out' }, plaster.village)).toBe(
+      'jde na staveniště',
+    );
+    expect(personActivity({ ...state, job: of('mason').f.job! }, plaster.village)).toBe(
+      'postává u domu',
+    );
+  });
+
+  it('body u zdí leží vně obrysu ve vzdálenosti od zdi a míří ke zdi', () => {
+    const c = church(false);
+    const spots = churchWallSpots(c, MASTER_M.mason);
+    expect(spots.length).toBeGreaterThan(4);
+    for (const s of spots) {
+      expect(wallDistance(c, s)).toBeCloseTo(MASTER_M.mason, 1);
+      // krok ke zdi bod přiblíží
+      const step = { x: s.x + s.hx * 0.3, z: s.z + s.hz * 0.3 };
+      expect(wallDistance(c, step)).toBeLessThan(wallDistance(c, s));
+    }
+  });
+});
