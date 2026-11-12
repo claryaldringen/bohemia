@@ -65,9 +65,16 @@ déle, je sušší a prostornější – dětská úmrtnost o kus nižší); Mar
 - Ženatý muž se nastěhuje s manželkou a svobodnými dětmi, svobodný sám (návrh Clauda). V jedné
   skupině pořadí napřed nejstarší muž; muž, který už v nadzemním domě nebo ve dvorci jako vojvoda
   bydlí, se nestěhuje (návrh Clauda).
+- Jako u jiných obydlí (návrh Clauda) se stěhuje jen rodina, která dům udrží (někdo 16–44 let),
+  a jen když se zbytek domácnosti nerozpadne; syn, který jde s otcem, dům zvlášť nečeká. Rodina,
+  ve které je vojvoda nebo ten, kdo za něj drží dvorec, se nestěhuje.
 - Když nikdo z pořadí není, dům **zůstane prázdný** a chátrá jako jiné prázdné obydlí. Obyčejná
   rodina, která čeká na dům, se do něj nenastěhuje – na ni dál čeká zemnice či polozemnice
-  („Rodina čeká na dům“ se tím neruší).
+  („Rodina čeká na dům“ se tím neruší). Prázdný nadzemní dům nehostí ani vystěhované z bouraného
+  domu, ani rodinu od souseda (návrh Clauda).
+- Prázdné nadzemní domy se osídlují dřív než ostatní obydlí – syn vojvody tak nezabere polozemnici,
+  na kterou čeká obyčejná rodina (návrh Clauda). Nově příchozí mistr nebo kněz dostane napřed
+  prázdný nadzemní dům, i když na volné obydlí čeká vystěhovaná domácnost (ta do něj nejde).
 - Zemře-li obyvatel, zbytek domácnosti v domě zůstává (vdova, děti) jako v jiných obydlích.
 
 ### Dvorec od roku 800

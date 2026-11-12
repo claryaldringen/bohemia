@@ -43,6 +43,29 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (zemnice 5, polozemnice 8 let). Obydlené stav neztrácí – opravy podle stáří (`repairNeedPerDay`)
   dál berou práci vsi, nedodělek se jen neudělá; přestavbu rozhoduje jen stáří (`wantsRebuild`).
 
+- **Domácnosti – nadzemní dům** (`log-house-settle.ts`; [log-house.md](../design/log-house.md) –
+  Kdo v domě bydlí, Martin 12. 11. 2026): prázdný nadzemní dům (`isLogHouse` – typ `srub`;
+  `isEmptyLogHouse` – v provozu, bez dílny) obsadí **jen lidé z pořadí** – `logHouseFamilies`:
+  mistři huti (`mason`) → kněz (`priest`) → synové hlavní manželky (muži rodu s `elite`) → synové
+  vedlejších manželek (muži rodu bez `mainWifeSon`), ve skupině od nejstaršího (`byAge`). Dnešní
+  vojvoda ani muž, který už ve srubu bydlí, se nestěhuje; rodina s vojvodou nebo s tím, kdo drží
+  dvorec (`holdsManor`), taky ne. Ženatý jde s manželkami z domu a svobodnými dětmi, svobodný sám;
+  jen rodina, která dům udrží, a zbytek domácnosti se nesmí rozpadnout (`householdBreaksUp` – jako
+  u jiných obydlí, návrh Clauda); kdo jde s otcem, další rodinu nezakládá. `settleLogHouse`
+  (kronika `household-founded`, z dvorce `son-left-manor` – `moveIn` v `move-in.ts`) volá
+  `settleNewDwelling` pro dostavěný srub a `occupyEmptyDwellings` napřed pro prázdné sruby (podle
+  id), teprve pak ostatní obydlí – do srubu nejde `rehouseDisplaced` ani `loneSons`. Host
+  z `displaced` (mistr ve dvorci) se nastěhuje jako kdokoli z pořadí a `pruneDisplaced` ho ze
+  seznamu hostů smaže. `logHouseWaiting` = počet rodin z `logHouseFamilies` (pro správce).
+  - **Obyčejná rodina do srubu nejde:** `availableSettlers` nepočítá prázdný ani rozestavěný srub
+    (`dwellingType` `srub`) – „Rodina čeká na dům“ trvá; prázdný srub nehostí vystěhované
+    (`hosts` v `displaced.ts` – ani `freePlaces`) a rodina od souseda do něj nejde
+    (`newcomerHome`). Rozpadlá domácnost jde jen do obydleného domu (`roomiest`) – beze změny.
+  - **Mistr a kněz z ciziny** (`settleArrival` v `lodge.ts`): napřed prázdný srub
+    (`emptyLogHouseId`, i když čeká vystěhovaná domácnost – ta do srubu nejde), pak volné obydlí,
+    jinak host ve dvorci (`displaced`).
+  - **Testy:** `people/__tests__/log-house-settle.test.ts` (i vcelku = po kouscích).
+
 - **Vojvodova rodina** ([lord.md](../design/lord.md)): `lord.ts` – `lordFamily` (ves bez rodu:
   vojvoda = `householdHead` dvorce, jen muž – dvorec vdovy vojvodu nemá; `trainees` potomci po
   meči od 7 let, `household` ženy rodiny, `others` zbytek – zeť pracuje se vsí; ves s rodem viz
