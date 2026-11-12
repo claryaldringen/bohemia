@@ -10,7 +10,7 @@ import { isDisused } from '../buildings/disused';
 // sňatkem. Čisté funkce nad stavem vsi, kroky `settleNewDwelling` a `occupyEmptyDwellings` stav
 // mění.
 import { isFull } from '../buildings/dwellings';
-import { isDynastyTracked, isLineMan, isSecondaryWife } from './dynasty';
+import { isLineMan } from './dynasty';
 import { secondaryWifeFamilies, settlingFamilies } from './dynasty-housing';
 import {
   byAge,
@@ -21,7 +21,8 @@ import {
   unmarriedHere,
 } from './families';
 import { withKinship } from './kinship';
-import { villageManorId } from './manor';
+import { isEmptyLogHouse, isLogHouse, settleLogHouse } from './log-house-settle';
+import { moveIn } from './move-in';
 import {
   ageGroup,
   ageYears,
@@ -31,7 +32,7 @@ import {
   occupants,
 } from './people';
 import { AGE } from '../rules';
-import type { ChronicleEvent, Dwelling, Person, VillageState } from '../types';
+import type { Dwelling, Person, VillageState } from '../types';
 
 export {
   byCrowding,
@@ -140,37 +141,13 @@ export function loneSons(state: VillageState, day: number): Person[] {
 }
 
 /**
- * Přestěhuje lidi do obydlí a zapíše založení domácnosti (mutuje stav); odchod muže rodu
- * a vedlejší manželky z dvorce vsi s rodem i do kroniky (lord.md – Manželky – Rozhraní).
- */
-function moveIn(
-  state: VillageState,
-  day: number,
-  people: readonly Person[],
-  dwellingId: number,
-): void {
-  const first = people[0];
-  const fromManor =
-    first !== undefined &&
-    isDynastyTracked(state) &&
-    villageManorId(state) === first.dwellingId &&
-    first.dwellingId !== dwellingId;
-  for (const p of people) p.dwellingId = dwellingId;
-  state.chronicle.push({ day, kind: 'household-founded', dwellingId } satisfies ChronicleEvent);
-  if (!fromManor) return;
-  if (isLineMan(first)) {
-    const name = first.name === undefined ? {} : { name: first.name };
-    state.chronicle.push({ day, kind: 'son-left-manor', ...name } satisfies ChronicleEvent);
-  } else if (isSecondaryWife(state, first)) {
-    state.chronicle.push({ day, kind: 'wife-left-manor' } satisfies ChronicleEvent);
-  }
-}
-
-/**
  * Nové nebo prázdné obydlí osídlí první rodina v pořadí přednosti (`settlingFamilies` – ve vsi bez
- * rodu `leavingFamilies`); vrací, jestli se někdo nastěhoval (mutuje stav).
+ * rodu `leavingFamilies`); nadzemní dům jen lidé z pořadí (`settleLogHouse` – log-house.md – Kdo
+ * v domě bydlí). Vrací, jestli se někdo nastěhoval (mutuje stav).
  */
 export function settleNewDwelling(state: VillageState, day: number, dwellingId: number): boolean {
+  const dwelling = state.dwellings.find((d) => d.id === dwellingId);
+  if (dwelling && isLogHouse(dwelling)) return settleLogHouse(state, day, dwellingId);
   // vystěhovaná domácnost má přednost (demolition.md – Obydlí s obyvateli)
   if (rehouseDisplaced(state, day, dwellingId)) return true;
   const family = settlingFamilies(state, day)[0];
@@ -180,17 +157,23 @@ export function settleNewDwelling(state: VillageState, day: number, dwellingId: 
 }
 
 /**
- * Krok 6 (kinship.md – Domácnosti): úplně prázdná obydlí (podle id) nejdřív osídlí rodiny ženatých
- * synů (`settleNewDwelling`), co zůstane prázdné, svobodní synové z plných domů (`loneSons`) – až
- * po prvním kole, aby rodina měla přednost.
+ * Krok 6 (kinship.md – Domácnosti): napřed prázdné nadzemní domy (podle id) – jen lidé z pořadí
+ * (`settleLogHouse`, log-house.md – Kdo v domě bydlí; návrh Clauda: dřív než ostatní obydlí, aby
+ * syn vojvody nezabral polozemnici, na kterou čeká obyčejná rodina, a obydlí, které tím uvolní,
+ * osídlil ještě týž den). Ostatní úplně prázdná obydlí (podle id) osídlí rodiny ženatých synů
+ * (`settleNewDwelling`), co zůstane prázdné, svobodní synové z plných domů (`loneSons`) – až po
+ * prvním kole, aby rodina měla přednost.
  */
 export function occupyEmptyDwellings(state: VillageState, day: number): void {
   pruneDisplaced(state);
+  for (const d of [...state.dwellings].sort((a, b) => a.id - b.id)) {
+    if (isEmptyLogHouse(state, d)) settleLogHouse(state, day, d.id);
+  }
   const empty = (): Dwelling[] => {
     const occupied = new Set(state.people.map((p) => p.dwellingId));
-    // opuštěné obydlí se neosídlí (demolition.md – Opuštění)
+    // opuštěné obydlí se neosídlí (demolition.md – Opuštění); nadzemní dům jen z pořadí (výš)
     return state.dwellings
-      .filter((d) => !occupied.has(d.id) && !isDisused(d))
+      .filter((d) => !occupied.has(d.id) && !isDisused(d) && !isLogHouse(d))
       .sort((a, b) => a.id - b.id);
   };
   for (const d of empty()) settleNewDwelling(state, day, d.id);
@@ -221,17 +204,22 @@ export function possibleNewHouseholds(state: VillageState, day: number): number 
  * Lidé k osídlení nového obydlí nebo dílny (population.md – Lidé k osídlení; cenou předem už nejsou,
  * jen určují, kdy správce staví a kolik rodin čeká – demolition.md): možné nové
  * domácnosti (`possibleNewHouseholds`) minus prázdná obydlí a rozestavěná nová obydlí – na každé
- * už jedna domácnost čeká. První zemnice zakladatelů (stavba s `dwellingId`) ani nový dům stěhující
+ * už jedna domácnost čeká. Nadzemní dům se nepočítá – obyčejná rodina do něj nejde (log-house.md
+ * – Kdo v domě bydlí: „Rodina čeká na dům“ se tím neruší). První zemnice zakladatelů (stavba s `dwellingId`) ani nový dům stěhující
  * se domácnosti (`relocates`, migration.md) nikoho nečeká – osídlí je sami. Může vyjít záporně
  * (obydlí postavená do zásoby). Ves z doby před příbuzenstvím se počítá po doplnění pohlaví
  * a manželů (`withKinship`).
  */
 export function availableSettlers(state: VillageState, day: number): number {
   const building = state.constructions.filter(
-    (c) => c.kind === 'dwelling' && c.dwellingId === null && c.relocates === undefined,
+    (c) =>
+      c.kind === 'dwelling' &&
+      c.dwellingId === null &&
+      c.relocates === undefined &&
+      c.dwellingType !== 'srub',
   ).length;
   const empty = state.dwellings.filter(
-    (d) => occupants(state, d.id).length === 0 && !isDisused(d),
+    (d) => occupants(state, d.id).length === 0 && !isDisused(d) && !isLogHouse(d),
   ).length;
   // ves z doby před příbuzenstvím se počítá, jako by už měla pohlaví a manžele (`withKinship`)
   // dočasně ubytovaní hostitele nezakládají rodinu; jejich domácnost čeká na dům (+ displacedCount)

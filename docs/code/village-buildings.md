@@ -462,6 +462,8 @@ Nové typy vznikají jen novou stavbou nebo přestavbou, převod starších vsí
   pozemek jako dřív (`relocationPlot`). Všechna místa, která poznávala dvorec podle typu, volají
   `isManorType(type)` (`dvorec` i `dvorec-srub`) – `dwellingShape` (bez varianty rozměrů),
   `relocationPlot`, `checkPlotPlacement` (pozemek se dvorem), `isManorTarget`, `demolishReplaced`.
+- **Kdo bydlí:** prázdný srub obsadí jen lidé z pořadí (`settleLogHouse`, `logHouseFamilies` –
+  [village-people.md](village-people.md) – Domácnosti – nadzemní dům).
 - **Web:** scéna zatím kreslí srub modelem polozemnice a dvorec od 800 modelem dvorce –
   `dwellingModel(type)` (`village-construction.ts`) mapuje typ na `DwellingModel`, z něhož jsou
   druhy staveniště (`ConstructionKind`) a hotové modely (`ModelKey`); záznamy podle typu obydlí

@@ -6,6 +6,7 @@ import type { LodgeArrival, MasonCraft, MasonryCircle, Person, VillageState } fr
 import { lacksLord } from './appoint-lord';
 import { displacedCount } from './displaced';
 import { rodBaptized } from './faith';
+import { isEmptyLogHouse } from './log-house-settle';
 import { villageManorId } from './manor';
 
 // Stavební huť – pozvání a příchod mistrů (stone-masonry.md – Stavební huť). Mistři a kněz jsou
@@ -87,6 +88,15 @@ function emptyDwellingId(state: VillageState): number | undefined {
     .sort((a, b) => a.id - b.id)[0]?.id;
 }
 
+/**
+ * První prázdný nadzemní dům (nejnižší id), jinak undefined – mistr a kněz jsou v pořadí nadzemního
+ * domu první (log-house.md – Kdo v domě bydlí).
+ */
+function emptyLogHouseId(state: VillageState): number | undefined {
+  return state.dwellings.filter((d) => isEmptyLogHouse(state, d)).sort((a, b) => a.id - b.id)[0]
+    ?.id;
+}
+
 /** Hostitel pro mistra bez obydlí: dvorec vojvody, jinak první obydlí v provozu. */
 function hostDwellingId(state: VillageState): number | undefined {
   const manor = villageManorId(state);
@@ -110,8 +120,11 @@ export function settleArrival(
   day: number,
   random: Random,
 ): boolean {
-  // volné obydlí, jen když na něj nečeká vystěhovaná domácnost (ta má přednost – displaced.ts)
-  const own = displacedCount(state) === 0 ? emptyDwellingId(state) : undefined;
+  // napřed prázdný nadzemní dům (log-house.md – Kdo v domě bydlí; vystěhovaná obyčejná domácnost na
+  // něj nečeká – návrh Clauda), pak volné obydlí, jen když na něj nečeká vystěhovaná domácnost (ta
+  // má přednost – displaced.ts)
+  const own =
+    emptyLogHouseId(state) ?? (displacedCount(state) === 0 ? emptyDwellingId(state) : undefined);
   const host = own ?? hostDwellingId(state);
   if (host === undefined) return false;
   const circle = state.lodge?.circle;
@@ -150,8 +163,8 @@ export function settleArrival(
 
 /**
  * Do vsi přijde mistr oboru `role` (nebo kněz) – muž z ciziny, svobodný, křesťan, ve věku
- * `LODGE.masterAge`, se jménem podle okruhu huti (kněz bez jména). Dostane vlastní domácnost: volné
- * obydlí, jinak je host ve dvorci vojvody a první nové obydlí patří jemu (`state.displaced`).
+ * `LODGE.masterAge`, se jménem podle okruhu huti (kněz bez jména). Dostane vlastní domácnost: prázdný
+ * nadzemní dům, jinak volné obydlí, jinak je host ve dvorci vojvody a první nové obydlí patří jemu (`state.displaced`).
  * Ves bez obydlí nikoho nepřijme (vrací týž stav). Vstup nemění.
  */
 export function arriveFromAbroad(

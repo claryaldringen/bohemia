@@ -344,7 +344,7 @@ export function newcomerProfiles(
 }
 
 /**
- * Kam půjdou lidé od souseda: rodina do prázdného obydlí (nejnižší id); když žádné není – stejně
+ * Kam půjdou lidé od souseda: rodina do prázdného obydlí (nejnižší id, ne nadzemní dům); když žádné není – stejně
  * jako svobodný dospělý – do obydlí s nejvíc volnými místy (smí ho dočasně přeplnit; při shodě
  * nižší id), mezi obydlenými, je-li nějaké. Řemeslné dílny až nakonec (jejich domácnost pracuje
  * v dílně) a rodina do dvorce vojvody jen, když jinam nemůže – v domě bez ženatého syna zůstává
@@ -354,7 +354,10 @@ export function newcomerHome(state: VillageState, family: boolean): number | und
   const occupied = new Set(state.people.map((p) => p.dwellingId));
   const byId = state.dwellings.filter((d) => !isDisused(d)).sort((a, b) => a.id - b.id);
   if (family) {
-    const empty = byId.find((d) => !occupied.has(d.id) && d.workshop === undefined);
+    // prázdný nadzemní dům obsadí jen lidé z pořadí (log-house.md – Kdo v domě bydlí)
+    const empty = byId.find(
+      (d) => !occupied.has(d.id) && d.workshop === undefined && d.type !== 'srub',
+    );
     if (empty) return empty.id;
   }
   const manor = villageManorId(state);

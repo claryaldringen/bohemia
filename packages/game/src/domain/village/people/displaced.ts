@@ -13,7 +13,10 @@ import type { Dwelling, Person, VillageState } from '../types';
 // pořadí nastěhování (`VillageState.displaced`) – do nového obydlí jdou první (Martin 8. 11. 2026,
 // otázka 5 plánu: rozhodnutí Clauda).
 
-/** Kolik míst je volných v obydlích v provozu kromě `exceptId` (dvorec nehostí). */
+/**
+ * Kolik míst je volných v obydlích v provozu kromě `exceptId` (dvorec nehostí, prázdný nadzemní dům
+ * taky ne – obsadí ho jen lidé z pořadí, log-house.md – Kdo v domě bydlí; návrh Clauda).
+ */
 export function freePlaces(state: VillageState, exceptId: number): number {
   let total = 0;
   for (const d of hosts(state, exceptId)) total += roomIn(state, d);
@@ -22,7 +25,13 @@ export function freePlaces(state: VillageState, exceptId: number): number {
 
 function hosts(state: VillageState, exceptId: number): Dwelling[] {
   const manor = villageManorId(state);
-  return state.dwellings.filter((d) => d.id !== exceptId && d.id !== manor && !isDisused(d));
+  return state.dwellings.filter(
+    (d) =>
+      d.id !== exceptId &&
+      d.id !== manor &&
+      !isDisused(d) &&
+      !(d.type === 'srub' && occupants(state, d.id).length === 0),
+  );
 }
 
 function roomIn(state: VillageState, d: Dwelling): number {
