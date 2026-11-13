@@ -1282,6 +1282,17 @@ studeným startem každý den; `cart-memo.test.ts`).
   `walkingDistances` 15 %, síť pěšin 11 %, trasy k práci 6 %, `routeMapKey` 3 %; `work` 26 % –
   hledání tras vozu (`cartRoutesOn`, svoz a voda) 13 %, ceny přesunů spřežení 4 %, mřížka vozu
   4,5 %; plán sezóny 7 % (výběr nutných dílů 3 %).
+- **Ceny kroků sítě pěšin v paměti** (13. 11. 2026, `StepCosts` v `paths/network-search.ts`):
+  hledání domácností téhož kola (`search`) procházejí tytéž buňky a cenu osmi kroků z buňky
+  (`quantizedStep`) počítalo každé znovu při každém vyjmutí. Teď se spočítá jednou za buňku a kolo
+  a uloží k cenám kola (`PassCosts.steps`); hledání ji čte ve stejném pořadí směrů, halda tak
+  dostane tytéž záznamy v témž pořadí – výsledek bit po bitu týž. Platnost: buňce se změněnou
+  cenou a jejím osmi sousedům paměť smaže `treadCell` (krok z buňky i do ní stojí jinak), nové
+  ceny celé mřížky mezi koly hlásí `forgetStepCosts`. **Cenu `PassCosts.cost` proto měnit jen
+  těmito dvěma cestami.** Vynechané zneplatnění chytí testy sítě (`paths-network.test.ts` – jedna
+  pěšina dvou sousedů, `paths-nearest.test.ts` – zlatý otisk sítě; ověřeno vypnutím každého
+  zvlášť – po 3 padajících testech). Profil vsi po 60 letech (50 lidí, 8 obydlí, 2 roky dopočtu):
+  `search` vlastní čas 3 146 → 2 472 ms, `computePathNetworkSteps` 4 078 → 3 435 ms.
 
 ## Brány opevnění v síti (Ú5.3, 6. 11. 2026)
 
