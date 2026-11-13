@@ -195,3 +195,22 @@ export const WAR = {
    */
   passage: { maxCells: 24 },
 } as const;
+
+/**
+ * Čísla výjezdu vojvody (docs/design/lord-control.md – Čísla). Změna čísla = i text v návrhu.
+ * Tempo, dohled a věk mužů bere výjezd z `WAR` (jako vojsko).
+ */
+export const JOURNEY = {
+  /**
+   * lord-control.md – Na místě a návrat: po dojetí skupina stojí; nepřijde-li do tolika herních dní
+   * nový rozkaz, jede domů sama (Martin 12. 11. 2026).
+   */
+  waitDays: 3,
+  /** lord-control.md – Nebezpečí: šelmy hrozí jen skupině nejvýš tolika mužů (Martin 13. 11. 2026). */
+  predatorGroupMax: 2,
+  /**
+   * Plán 2026-11-13 – Global Constraints (návrh Clauda): krok stopy odkrytého za jízdy (m) – po
+   * tolika metrech si skupina zapíše další bod, od kterého viděla.
+   */
+  trailStepM: 20,
+} as const;

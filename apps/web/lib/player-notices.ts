@@ -65,6 +65,8 @@ export function noticePanel(kind: PlayerNoticeKind): NoticePanel | null {
       return 'levy';
     case 'player-succession':
     case 'christianity-known':
+    // výjezd vojvody (lord-control.md) – panel výjezdu zatím není
+    case 'journey-returned':
       return null;
   }
 }
@@ -223,6 +225,9 @@ function textOf(n: PlayerNotice): string {
         : 'Vojsko se vrátilo domů.';
     case 'campaign-disbanded':
       return 'Výprava se rozpadla.';
+    // výjezd vojvody (lord-control.md – Co hráč vidí: „Bořivoj se vrátil.“)
+    case 'journey-returned':
+      return `${stringOf(n.payload.leader) ?? 'Vojvoda'} se vrátil.`;
     case 'foreign-army':
       // jméno vsi se neskloňuje (2. pád jmen vsí nejde spolehlivě odvodit) – „u vsi Kněžice“
       return `Cizí vojsko u vsi ${stringOf(n.payload.name) ?? ''}!`.replace(' !', '!');

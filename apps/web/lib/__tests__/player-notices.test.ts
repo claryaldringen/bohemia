@@ -74,6 +74,18 @@ describe('playerNoticeLine', () => {
     expect(noticePanel('campaign-disbanded')).toBe('war');
   });
 
+  it('návrat vojvody z výjezdu – jméno vojvody, panel zatím žádný', () => {
+    const back = notice({
+      kind: 'journey-returned',
+      payload: { journeyId: 'j1', leader: 'Bořivoj' },
+    });
+    expect(playerNoticeLine(back).text).toBe('Bořivoj se vrátil.');
+    expect(playerNoticeLine(notice({ kind: 'journey-returned', payload: {} })).text).toBe(
+      'Vojvoda se vrátil.',
+    );
+    expect(noticePanel('journey-returned')).toBeNull();
+  });
+
   it('x, panel války', () => {
     const alert = notice({ kind: 'foreign-army', payload: { villageId: 'v-1', name: 'Kněžice' } });
     expect(playerNoticeLine(alert).text).toBe('Cizí vojsko u vsi Kněžice!');

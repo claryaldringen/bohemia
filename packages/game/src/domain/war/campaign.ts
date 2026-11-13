@@ -48,15 +48,14 @@ import {
   type RaidResult,
 } from './raid-apply';
 import type { Pos } from './march-grid';
-import { marchSpeed, reachableGoal, type GroupPace } from './march';
-import { stepMover } from './movement';
+import { marchSpeed, type GroupPace } from './march';
+import { missingMaps, sendGroup, settleGoal, stepMover } from './movement';
 import { WAR } from './rules-war';
 import { discoverBuildings } from './sight';
 import { frostDay } from './season';
 import { npcIntents, npcLeader } from './npc-commander';
 import { inFight, setGroupOrder } from './orders';
 import { dayOfTick, hoursPerTick, TICKS_PER_SECOND, tickRandom } from './ticks';
-import { worldRoute } from './world-route';
 import {
   alarmVillage,
   isAlarmIntent,
@@ -218,19 +217,6 @@ export function stepCampaign(
     notices.push(...out.notices);
   }
   return { state: current, villageEvents, notices, waiting: null };
-}
-
-/** Mapy, které tažení potřebuje hned: políčka skupin a další políčka jejich tras. */
-function missingMaps(state: CampaignState, world: CampaignWorld): GridCell[] {
-  const missing = new Map<string, GridCell>();
-  for (const g of state.groups) {
-    for (const cell of [g.cell, ...g.route.slice(0, 1)]) {
-      if (!missing.has(cellKey(cell)) && world.landscapeOf(cell) === null) {
-        missing.set(cellKey(cell), { ...cell });
-      }
-    }
-  }
-  return [...missing.values()];
 }
 
 /**
@@ -597,28 +583,6 @@ function syncControl(s: CampaignState): void {
 function leaderFighter(s: CampaignState, npc: boolean): string {
   if (npc && s.battle) return npcLeader(s.battle)?.id ?? commanderFighter(s);
   return commanderFighter(s);
-}
-
-/** Skupina vyrazí k místu `to` – trasa po mřížce světa, úsek mapy se spočte při pohybu. */
-function sendGroup(g: CampaignGroup, to: CampaignPlace): void {
-  g.goal = { cell: { ...to.cell }, pos: { ...to.pos } };
-  g.route = worldRoute(g.cell, to.cell, () => false).slice(1);
-  g.leg = null;
-  g.arrived = false;
-}
-
-/**
- * Cíl skupiny jako v 0 A.D. (war.md – Pohyb – Cíl v neprůchodné buňce; návrh Clauda): stojí-li
- * skupina na mapě cíle a úsek k němu ještě nemá (hned po záměru, nebo po vstupu na mapu cíle), cíl
- * v neprůchodné buňce (voda, sráz, hradba) se posune na nejbližší místo dosažitelné ze skupiny
- * (`reachableGoal`) – mapa tažení pak ukáže posunutý cíl. Průchodný cíl beze změny; když dosažitelné
- * místo není žádné, cíl zůstane a skupina stojí (záměr hráče k takovému místu odmítne už use-case).
- */
-function settleGoal(g: CampaignGroup, day: number, ctx: TickContext): void {
-  const goal = g.goal;
-  if (goal === null || g.leg !== null || g.route.length > 0 || !sameCell(g.cell, goal.cell)) return;
-  const pos = reachableGoal(gridOf(g.cell, day, ctx), g.pos, goal.pos);
-  if (pos !== null && pos !== goal.pos) g.goal = { cell: { ...goal.cell }, pos };
 }
 
 /** Obrat domů ke shromaždišti (rozpad po hloučcích do domovských vsí – `disband`). */

@@ -96,7 +96,8 @@ export type PlayerNoticeKind =
   | 'christianity-known'
   /**
    * Tažení (`stepCampaigns`): `campaign-returned` – vojsko se vrátilo domů, payload
-   * `{ campaignId, reason }` (`CampaignReturnReason`).
+   * `{ campaignId, reason }` (`CampaignReturnReason`). Výjezd vojvody (`stepJourney`):
+   * `journey-returned` – vojvoda se vrátil domů, payload `{ journeyId, leader }` (jméno vojvody).
    */
   | CampaignNoticeKind;
 
