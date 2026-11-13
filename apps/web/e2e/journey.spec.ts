@@ -9,6 +9,7 @@ import {
   type Person,
   type Pos,
 } from '@bohemia/game';
+import { VILLAGE_STATE_SQL_COLUMNS } from '@bohemia/db/village-state';
 import { E2E_ENV } from '../playwright.config';
 import { registerAndEnterGame, useUniqueClientIp } from './helpers';
 import { journeyScene, placeJourney, screenOf, sendLord, villageWithMen } from './journey-helpers';
@@ -520,10 +521,22 @@ test('známá mapa z domova: oko u rodu otevře šerou mapu se známými stavbam
     trail: [[spot.x, spot.z]],
     parts: [dwellingAt(id, spot)],
   });
-  // rod viděl ves současného držitele (id sídla), jinak by mapa k rodu nepatřila
+  // rod viděl ves současného držitele (id vsi, ne sídla), jinak by mapa k rodu nepatřila
+  // hráč B ves nezaložil – obě sídla rodu B dostanou ves zkopírovanou ze vsi A (jen id se počítá)
+  const villageOn = async (settlementId: string, name: string): Promise<string> => {
+    const [row] = await query<{ id: string }>(
+      `INSERT INTO village (settlement_id, name, ${VILLAGE_STATE_SQL_COLUMNS})
+         SELECT $2, $3, ${VILLAGE_STATE_SQL_COLUMNS} FROM village WHERE settlement_id = $1
+       RETURNING id`,
+      [sa.settlementId, settlementId, name],
+    );
+    return row!.id;
+  };
+  const villageB1 = await villageOn(sb.settlementId, 'Ves B1');
+  const villageB2 = await villageOn(secondB!.id, 'Ves B2');
   for (const [cell, id, villageId] of [
-    [cellB1, 701, sb.settlementId],
-    [cellB2, 702, secondB!.id],
+    [cellB1, 701, villageB1],
+    [cellB2, 702, villageB2],
   ] as const) {
     await query(
       'INSERT INTO house_knowledge (house_id, grid_x, grid_y, state) VALUES ($1, $2, $3, $4)',

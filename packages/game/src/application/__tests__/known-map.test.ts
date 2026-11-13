@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
+import { foundVillage } from '../../domain/village';
 import type { SeenCell } from '../../domain/war';
 import { knownMapFor, knownVillagesOf, type KnownMapDeps } from '../known-map';
 import { InMemoryHouses } from './in-memory-houses';
 import { InMemoryKnowledge } from './in-memory-knowledge';
 import { InMemorySettlements } from './in-memory-settlements';
+import { InMemoryVillages } from './in-memory-villages';
 
 // Známá mapa z domova (lord-control.md – Co vojvoda vidí; plán 2026-11-13 – Úloha 12a).
 
@@ -20,10 +22,12 @@ async function setup(): Promise<{
   mine: string;
   theirs: string;
   theirVillage: string;
+  theirSettlement: string;
 }> {
   const houses = new InMemoryHouses();
   const settlements = new InMemorySettlements();
   const knowledge = new InMemoryKnowledge();
+  const villages = new InMemoryVillages();
   const a = await houses.create({ playerId: 'pa', kind: 'player', createdAt: NOW });
   const b = await houses.create({ playerId: 'pb', kind: 'player', createdAt: NOW });
   await settlements.createSeat({
@@ -38,11 +42,18 @@ async function setup(): Promise<{
     layerVersions: CURRENT_LAYER_VERSIONS,
     worldCell: { x: 1, y: 0 },
   });
+  // ves a sídlo mají každé své id – znalost drží id vsi (CampaignMap.villageIds)
+  const village = await villages.add(
+    seatB?.id ?? '',
+    'Ves B',
+    foundVillage({ seed: 2, day: 0, dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
+  );
   return {
-    deps: { houses, settlements, knowledge },
+    deps: { houses, settlements, knowledge, villages },
     mine: a.id,
     theirs: b.id,
-    theirVillage: seatB?.id ?? '',
+    theirVillage: village.id,
+    theirSettlement: seatB?.id ?? '',
   };
 }
 
@@ -77,6 +88,14 @@ describe('knownVillagesOf', () => {
     expect(list).toHaveLength(2);
     expect(list).toContainEqual({ cell: { x: 1, y: 0 }, houseId: theirs });
     expect(list).toContainEqual({ cell: { x: 4, y: 4 }, houseId: null });
+  });
+
+  it('id sídla ve znalosti místo id vsi → houseId null', async () => {
+    const { deps, mine, theirSettlement, theirVillage } = await setup();
+    expect(theirSettlement).not.toBe(theirVillage);
+    await deps.knowledge.merge(mine, { x: 1, y: 0 }, seenOf(theirSettlement, 10));
+    const list = await knownVillagesOf(deps, { playerId: 'pa' });
+    expect(list).toEqual([{ cell: { x: 1, y: 0 }, houseId: null }]);
   });
 
   it('změněný držitel políčka (rod viděl jinou ves) → houseId null', async () => {

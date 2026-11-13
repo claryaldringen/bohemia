@@ -518,7 +518,7 @@ vidí). Kreslení znalosti ve scéně tažení je Úloha 12b.
   **vlastního živého rodu** hráče o mapě (`{ seen }`), `null` = rod mapu nezná (cizí rod, rod bez
   záznamu i hráč bez rodu dostanou totéž, nic se neprozradí); `knownVillagesOf(deps, { playerId })`
   – políčka, o kterých rod něco ví, a rod, který na nich sídlí. `houseId` dostane políčko jen
-  když `seen.villageId` je ves (sídlo) současného držitele (`holderAt` + `listActive`) – poloha
+  když `seen.villageId` je id vsi sídla současného držitele (`holderAt` + `listActive` + `villages.stampsOf`; id vsi a sídla jsou různá) – poloha
   vsi, kterou rod neviděl (jen stopa), ani vsi po změně držitele se nevyzradí (world.md – Co je
   veřejné); jinak `houseId: null` a políčko zůstává ve znalosti (otevře se přes `?known=x,y`).
   Do `index.ts` exportováno.
