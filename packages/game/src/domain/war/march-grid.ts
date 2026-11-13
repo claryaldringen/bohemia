@@ -482,8 +482,11 @@ export function marchGrid(
   return grid;
 }
 
-/** Kolik nejnovějších dní mřížek drží paměť na krajinu, překážky a ves (tažení čte den a další). */
-const MEMO_DAYS = 2;
+/**
+ * Kolik naposledy použitých dní mřížek drží paměť na krajinu, překážky a ves. Tažení čte den
+ * a další; čtyři dny pokryjí dvě tažení nad touž mapou posunutá až o dva dny (jedno dohání).
+ */
+const MEMO_DAYS = 4;
 /** Zástupný klíč za chybějící vrstvu překážek nebo ves (WeakMap nebere null). */
 const NONE: object = {};
 
@@ -491,7 +494,9 @@ const NONE: object = {};
  * Mřížky pochodu napříč voláními `stepCampaign` (worker – docs/code/worker.md, Výkon – Tažení).
  * Klíč je identita krajiny, vrstvy překážek a stavu vsi a den: `marchGrid` je čistá a stav vsi
  * neměnný, takže tentýž objekt a den = tatáž mřížka. Objekty drží slabě (zahozená ves uvolní své
- * mřížky), na jednu trojici nejvýš `MEMO_DAYS` nejnovějších dnů.
+ * mřížky), na jednu trojici nejvýš `MEMO_DAYS` naposledy použitých dnů – vyhazuje se nejdéle
+ * nepoužitý den, ne nejmenší: tažení o den pozadu by jinak svou mřížku stavělo při každém dotazu
+ * znovu (měřeno 13. 11. 2026: dvě tažení o den posunutá, 800 dotazů – 205 staveb mřížky, takhle 6).
  */
 export class MarchGridMemo {
   private readonly grids = new WeakMap<
@@ -522,10 +527,18 @@ export class MarchGridMemo {
       byVillage.set(village ?? NONE, byDay);
     }
     const known = byDay.get(day);
-    if (known) return known;
+    if (known) {
+      // použitý den na konec pořadí vkládání – první v pořadí je pak nejdéle nepoužitý
+      byDay.delete(day);
+      byDay.set(day, known);
+      return known;
+    }
     const grid = marchGrid(landscape, obstacles, village, { day });
     byDay.set(day, grid);
-    if (byDay.size > MEMO_DAYS) byDay.delete(Math.min(...byDay.keys()));
+    if (byDay.size > MEMO_DAYS) {
+      const unused = byDay.keys().next();
+      if (!unused.done) byDay.delete(unused.value);
+    }
     return grid;
   }
 }

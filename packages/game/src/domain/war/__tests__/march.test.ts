@@ -579,7 +579,7 @@ describe('mřížky pochodu napříč voláními (worker – Výkon – Tažení
     expect(empty).not.toBe(first);
   });
 
-  it('jiný stav vsi, jiný den nebo jiná krajina = nová mřížka; drží jen dva dny', () => {
+  it('jiný stav vsi, jiný den nebo jiná krajina = nová mřížka', () => {
     const land = flat();
     const fortified = fortVillage(fort('palisade', undefined, true));
     const memo = new MarchGridMemo();
@@ -593,11 +593,32 @@ describe('mřížky pochodu napříč voláními (worker – Výkon – Tažení
     const next = memo.gridOf(land, null, fortified, SUMMER + 1);
     expect(next).not.toBe(first);
     expect(memo.gridOf(land, null, fortified, SUMMER)).toBe(first);
-    // třetí den vytlačí nejstarší (drží se dva nejnovější)
-    memo.gridOf(land, null, fortified, SUMMER + 2);
-    expect(memo.gridOf(land, null, fortified, SUMMER + 1)).toBe(next);
-    const again = memo.gridOf(land, null, fortified, SUMMER);
-    expect(again).not.toBe(first);
-    same(again, first);
+  });
+
+  it('starší den, než jsou držené, v paměti zůstane (dvě tažení o den posunutá)', () => {
+    const land = flat();
+    const memo = new MarchGridMemo();
+    const later = memo.gridOf(land, null, null, SUMMER + 1);
+    const latest = memo.gridOf(land, null, null, SUMMER + 2);
+    const older = memo.gridOf(land, null, null, SUMMER);
+    expect(memo.gridOf(land, null, null, SUMMER)).toBe(older);
+    expect(memo.gridOf(land, null, null, SUMMER + 1)).toBe(later);
+    expect(memo.gridOf(land, null, null, SUMMER + 2)).toBe(latest);
+  });
+
+  it('drží čtyři dny; pátý vytlačí nejdéle nepoužitý, ne nejmenší', () => {
+    const land = flat();
+    const memo = new MarchGridMemo();
+    const grids = [0, 1, 2, 3].map((d) => memo.gridOf(land, null, null, SUMMER + d));
+    // den 0 se použil naposledy – nejdéle nepoužitý je teď den 1
+    expect(memo.gridOf(land, null, null, SUMMER)).toBe(grids[0]);
+    memo.gridOf(land, null, null, SUMMER + 4);
+    expect(memo.gridOf(land, null, null, SUMMER)).toBe(grids[0]);
+    expect(memo.gridOf(land, null, null, SUMMER + 2)).toBe(grids[2]);
+    expect(memo.gridOf(land, null, null, SUMMER + 3)).toBe(grids[3]);
+    // vytlačený den se postaví znovu – stejná mřížka, jiný objekt
+    const again = memo.gridOf(land, null, null, SUMMER + 1);
+    expect(again).not.toBe(grids[1]);
+    same(again, grids[1]!);
   });
 });
