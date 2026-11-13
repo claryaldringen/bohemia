@@ -108,6 +108,13 @@ export function createJourneyRepository(db: Database): JourneyRepository {
           .where(eq(journeyCheckpoint.journeyId, journeyId))
           .for('update');
         if (!point || point.tick !== input.fromTick) return 'stale';
+        // skončený výjezd (`end` – Začít znovu) souběžný worker do běžící fáze nevrátí; stav se čte
+        // až po zámku bodu samostatným dotazem – vidí tak i `end`, na který zámek čekal
+        const [run] = await tx
+          .select({ status: journey.status })
+          .from(journey)
+          .where(eq(journey.id, journeyId));
+        if (run?.status !== 'active' && input.state.phase !== 'done') return 'stale';
         const [intents] = await tx
           .select({ n: count() })
           .from(journeyIntent)
@@ -140,6 +147,26 @@ export function createJourneyRepository(db: Database): JourneyRepository {
         .update(journeyCheckpoint)
         .set({ outbox: null })
         .where(and(eq(journeyCheckpoint.journeyId, journeyId), eq(journeyCheckpoint.tick, tick)));
+    },
+
+    async end(journeyId: string): Promise<void> {
+      // pod zámkem řádku bodu jako `saveCheckpoint` – souběžné uložení workerem počká a vrátí `stale`
+      await db.transaction(async (tx) => {
+        await tx
+          .select({ tick: journeyCheckpoint.tick })
+          .from(journeyCheckpoint)
+          .where(eq(journeyCheckpoint.journeyId, journeyId))
+          .for('update');
+        await tx
+          .update(journeyCheckpoint)
+          .set({
+            state: sql`jsonb_set(${journeyCheckpoint.state}, '{phase}', '"done"')`,
+            outbox: null,
+            updatedAt: sql`now()`,
+          })
+          .where(eq(journeyCheckpoint.journeyId, journeyId));
+        await tx.update(journey).set({ status: 'done' }).where(eq(journey.id, journeyId));
+      });
     },
 
     async addIntent(

@@ -9,6 +9,7 @@ import { findPlayerVillage, firstPlayerVillage } from '../player-villages';
 import { dynastyStatus, restartGame } from '../restart-game';
 import type { LandscapeSource, SeedSource } from '../settlements';
 import { InMemoryHouses } from './in-memory-houses';
+import { InMemoryJourneys } from './in-memory-journeys';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryVillages } from './in-memory-villages';
 
@@ -147,6 +148,7 @@ describe('víc vsí a konec hry', () => {
         landscapes,
         worldSeed: 4242,
         houses: new InMemoryHouses(),
+        journeys: new InMemoryJourneys(),
         now: () => NOW,
       },
       { playerId: PLAYER, today: TODAY + 1, abandon: true },

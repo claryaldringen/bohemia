@@ -47,7 +47,7 @@ export interface StepCampaignsDeps {
   campaignLock: CampaignLock;
   cells: CampaignCells;
   /** Vsi tažení – s pamětí workeru se celý stav načte jen u vsí, jejichž otisk se změnil. */
-  villages: Pick<VillageRepository, 'find' | 'stampsOfVillages' | 'inbox'>;
+  villages: Pick<VillageRepository, 'find' | 'stampsOfVillages' | 'archivedOf' | 'inbox'>;
   notices: Pick<NoticeRepository, 'post'>;
   world: WorldClock;
   /**
@@ -455,6 +455,15 @@ export async function computeWithLoads<S extends { id: string; playerId: string 
   const tried = new Set<string>();
   /** Neexistující vsi, na které se takt ptal. */
   const missing = new Set<string>();
+  /**
+   * Archiv sídel (Začít znovu) jen pro vsi, na jejichž zánik se takt ptal (`villageGone`): zjištěné
+   * vsi archivovaných sídel, už prověřené vsi a vsi, které se prověřit mají.
+   */
+  const archive = {
+    found: new Set<string>(),
+    checked: new Set<string>(),
+    wanted: new Set<string>(),
+  };
   const watchers = new Map<string, { playerId: string; name: string }>();
   /** Jména načtených vsí (kronika a upozornění uprchlíků – Úloha 8 plánu 2026-11-09). */
   const names = new Map<string, string>();
@@ -479,8 +488,15 @@ export async function computeWithLoads<S extends { id: string; playerId: string 
       known.read = true;
       return known.state.lastDay >= day - 1 ? known.state : null;
     },
-    // ves se zkusila načíst a není (zanikla) – výjezd s takovým domovem skončí (tažení se neptá)
-    villageGone: (villageId: string): boolean => tried.has(villageId) && !villages.has(villageId),
+    // ves se zkusila načíst a není (zanikla), nebo je její sídlo v archivu (Začít znovu – záznam
+    // zůstal, ale den stojí) – výjezd s takovým domovem skončí (tažení se neptá). Archiv se zjistí
+    // až na dotaz u načtené vsi: do té doby false a takt čeká (`MissingData`), `load` ho dočte.
+    villageGone: (villageId: string): boolean => {
+      if (!tried.has(villageId)) return false;
+      if (!villages.has(villageId) || archive.found.has(villageId)) return true;
+      if (!archive.checked.has(villageId)) archive.wanted.add(villageId);
+      return false;
+    },
     watcherOf: (villageId: string): { playerId: string; name: string } | null =>
       watchers.get(villageId) ?? null,
     harmless: (villageId: string): boolean => harmlessTo.get(villageId) ?? false,
@@ -522,6 +538,16 @@ export async function computeWithLoads<S extends { id: string; playerId: string 
         if (await deps.watchers?.harmless(state.playerId, watcher.playerId, villageId, state.id)) {
           harmlessTo.set(villageId, true);
         }
+      }
+    }
+    // archiv jen u vsí, na jejichž zánik se takt ptal (výjezd čeká na domovskou ves) – každá jednou
+    const wanted = [...archive.wanted].filter((id) => !archive.checked.has(id));
+    archive.wanted.clear();
+    if (wanted.length > 0) {
+      for (const id of wanted) archive.checked.add(id);
+      for (const id of await deps.villages.archivedOf(wanted)) {
+        archive.found.add(id);
+        loaded = true;
       }
     }
     return loaded;

@@ -38,6 +38,19 @@ export class InMemoryVillages implements VillageRepository {
    */
   readonly holdLimits = new Map<string, number>();
   holds?: VillageHolds;
+  /**
+   * Sídla v archivu (Začít znovu) – `archivedOf` podle nich; test je doplní, nebo sem dá množinu
+   * `InMemorySettlements.archived`.
+   */
+  archivedSettlements: Set<string> = new Set();
+
+  async archivedOf(villageIds: readonly string[]): Promise<string[]> {
+    await Promise.resolve();
+    return villageIds.filter((id) => {
+      const record = this.records.get(id);
+      return record !== undefined && this.archivedSettlements.has(record.settlementId);
+    });
+  }
 
   withHolds(): this {
     this.holds = {

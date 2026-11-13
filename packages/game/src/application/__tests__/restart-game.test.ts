@@ -4,6 +4,8 @@ import { CURRENT_LAYER_VERSIONS, type PremiumType } from '../../domain/landscape
 import { isLineMan, type Position, type VillageState } from '../../domain/village';
 import { removePeople } from '../../domain/village/people/kinship';
 import { block, makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
+import { msOfTick, newJourney, type JourneyMember, type JourneyState } from '../../domain/war';
+import { LAUNCH, world } from '../../domain/war/__tests__/campaign-fixtures';
 import { foundVillageForSettlement } from '../found-village';
 import { loadVillage } from '../load-village';
 import { placeCemetery } from '../place-cemetery';
@@ -15,6 +17,7 @@ import { DYNASTY_ALIVE, dynastyStatus, restartGame } from '../restart-game';
 import type { LandscapeSource, SeedSource } from '../settlements';
 import { VILLAGE_EXTINCT } from '../update-village';
 import { InMemoryHouses } from './in-memory-houses';
+import { InMemoryJourneys } from './in-memory-journeys';
 import { InMemoryNegotiations } from './in-memory-negotiations';
 import { InMemoryNotices } from './in-memory-notices';
 import { InMemoryVassalages } from './in-memory-vassalages';
@@ -185,13 +188,27 @@ describe('konec rodu (lord.md – Konec rodu)', () => {
     const alive = await playerWithVillage(false);
     expect(
       await restartGame(
-        { ...alive, landscapes, worldSeed: 4242, houses: new InMemoryHouses(), now: () => NOW },
+        {
+          ...alive,
+          landscapes,
+          worldSeed: 4242,
+          houses: new InMemoryHouses(),
+          journeys: new InMemoryJourneys(),
+          now: () => NOW,
+        },
         { playerId: PLAYER, today: TODAY },
       ),
     ).toEqual({ ok: false, reason: DYNASTY_ALIVE });
     alive.villages.edit(alive.villageId, lineDiesOut);
     const result = await restartGame(
-      { ...alive, landscapes, worldSeed: 4242, houses: new InMemoryHouses(), now: () => NOW },
+      {
+        ...alive,
+        landscapes,
+        worldSeed: 4242,
+        houses: new InMemoryHouses(),
+        journeys: new InMemoryJourneys(),
+        now: () => NOW,
+      },
       { playerId: PLAYER, today: TODAY },
     );
     expect(result.ok).toBe(true);
@@ -209,6 +226,7 @@ describe('restartGame', () => {
         landscapes,
         worldSeed: 4242,
         houses: new InMemoryHouses(),
+        journeys: new InMemoryJourneys(),
         now: () => NOW,
       },
       { playerId: PLAYER, today: TODAY },
@@ -265,6 +283,7 @@ describe('restartGame', () => {
         },
         worldSeed: 4242,
         houses: new InMemoryHouses(),
+        journeys: new InMemoryJourneys(),
         now: () => NOW,
       },
       { playerId: PLAYER, today: TODAY },
@@ -292,6 +311,7 @@ describe('restartGame', () => {
         landscapes,
         worldSeed: 4242,
         houses: new InMemoryHouses(),
+        journeys: new InMemoryJourneys(),
         now: () => NOW,
       },
       { playerId: PLAYER, today: TODAY },
@@ -309,6 +329,7 @@ describe('restartGame', () => {
       landscapes,
       worldSeed: 4242,
       houses: new InMemoryHouses(),
+      journeys: new InMemoryJourneys(),
       now: () => NOW,
     };
     const first = await restartGame(deps, { playerId: PLAYER, today: TODAY });
@@ -327,6 +348,7 @@ describe('restartGame', () => {
       landscapes,
       worldSeed: 4242,
       houses: new InMemoryHouses(),
+      journeys: new InMemoryJourneys(),
       now: () => NOW,
     };
     const results = await Promise.all(
@@ -343,7 +365,15 @@ describe('restartGame a rod', () => {
   it('ukončí živý rod s herním dnem konce a další vstup založí nový', async () => {
     const { settlements, villages } = await playerWithVillage(true);
     const houses = new InMemoryHouses();
-    const deps = { settlements, villages, landscapes, worldSeed: 4242, houses, now: () => NOW };
+    const deps = {
+      settlements,
+      villages,
+      landscapes,
+      worldSeed: 4242,
+      houses,
+      journeys: new InMemoryJourneys(),
+      now: () => NOW,
+    };
     const first = await houses.create({ playerId: PLAYER, kind: 'player', createdAt: NOW });
     const result = await restartGame(deps, { playerId: PLAYER, today: TODAY });
     expect(result.ok).toBe(true);
@@ -366,6 +396,7 @@ describe('restartGame s abandon (nabídka hry)', () => {
         landscapes,
         worldSeed: 4242,
         houses: new InMemoryHouses(),
+        journeys: new InMemoryJourneys(),
         now: () => NOW,
       },
       { playerId: PLAYER, today: TODAY, abandon: true },
@@ -398,6 +429,7 @@ describe('restartGame s abandon (nabídka hry)', () => {
         landscapes,
         worldSeed: 4242,
         houses: new InMemoryHouses(),
+        journeys: new InMemoryJourneys(),
         now: () => NOW,
       },
       { playerId: PLAYER, today: TODAY, abandon: false },
@@ -416,6 +448,7 @@ describe('restartGame s abandon (nabídka hry)', () => {
         landscapes,
         worldSeed: 4242,
         houses: new InMemoryHouses(),
+        journeys: new InMemoryJourneys(),
         now: () => NOW,
       },
       { playerId: PLAYER, today: TODAY, abandon: true },
@@ -432,6 +465,7 @@ describe('restartGame s abandon (nabídka hry)', () => {
       landscapes,
       worldSeed: 4242,
       houses: new InMemoryHouses(),
+      journeys: new InMemoryJourneys(),
       now: () => NOW,
     };
     const first = await restartGame(deps, { playerId: PLAYER, today: TODAY, abandon: true });
@@ -451,6 +485,7 @@ describe('restartGame s abandon (nabídka hry)', () => {
       landscapes,
       worldSeed: 4242,
       houses: new InMemoryHouses(),
+      journeys: new InMemoryJourneys(),
       now: () => NOW,
     };
     const results = await Promise.all(
@@ -462,7 +497,70 @@ describe('restartGame s abandon (nabídka hry)', () => {
     expect(await settlements.listActive(PLAYER)).toHaveLength(1);
     expect(settlements.settlements).toHaveLength(2);
   }, 60_000);
+
+  it('ukončí běžící výjezd hráče bez událostí a znalosti – nová hra smí vyslat', async () => {
+    const { settlements, villages, villageId } = await playerWithVillage(false);
+    const journeys = new InMemoryJourneys();
+    await journeys.create(runningJourney(villageId));
+    // nedoručené události bodu se už nedoručí
+    journeys.rows.get('j1')!.outbox = JSON.stringify({ villageEvents: [], notices: [] });
+    const result = await restartGame(
+      {
+        settlements,
+        villages,
+        landscapes,
+        worldSeed: 4242,
+        houses: new InMemoryHouses(),
+        journeys,
+        now: () => NOW,
+      },
+      { playerId: PLAYER, today: TODAY, abandon: true },
+    );
+    expect(result.ok).toBe(true);
+    expect(await journeys.activeOf(PLAYER)).toBeNull();
+    expect(await journeys.active()).toEqual([]);
+    const point = await journeys.checkpoint('j1');
+    expect(point?.state.phase).toBe('done');
+    expect(point?.outbox).toBeNull();
+    // souběžný worker s bodem z doby před restartem výjezd neoživí
+    const save = await journeys.saveCheckpoint('j1', {
+      fromTick: point!.state.tick,
+      seenIntents: 0,
+      state: { ...point!.state, phase: 'out', tick: point!.state.tick + 40 },
+      outbox: null,
+    });
+    expect(save).toBe('stale');
+    expect(await journeys.activeOf(PLAYER)).toBeNull();
+  }, 30_000);
 });
+
+/** Běžící výjezd hráče z jeho vsi `villageId` (vojvoda je osoba 1). */
+function runningJourney(villageId: string): JourneyState {
+  const member: JourneyMember = {
+    ref: { villageId, personId: 1 },
+    lord: true,
+    mounted: false,
+    strength: 2,
+    fight: 50,
+    health: 100,
+    wounded: false,
+    status: 'active',
+  };
+  return newJourney(
+    {
+      id: 'j1',
+      seed: 1,
+      playerId: PLAYER,
+      houseId: 'h-1',
+      leaderName: 'Bořivoj',
+      home: { villageId, name: 'Libice', cell: { x: 0, y: 0 }, pos: { x: -50, z: -50 } },
+      members: [member],
+      startMs: msOfTick(LAUNCH, world),
+      order: { kind: 'go', pos: { x: 100, z: -50 } },
+    },
+    world,
+  );
+}
 
 describe('akce ve vymřelé vsi', () => {
   it('stavby i přejmenování odmítne česky, načíst ves jde', async () => {
@@ -521,6 +619,7 @@ describe('restartGame a jednání', () => {
       landscapes,
       worldSeed: 4242,
       houses,
+      journeys: new InMemoryJourneys(),
       negotiations,
       now: () => NOW,
     };

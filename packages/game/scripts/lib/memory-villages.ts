@@ -74,6 +74,11 @@ export class SingleVillageRepository implements VillageRepository {
     return villageIds.includes(this.record.id) ? this.stamp() : [];
   }
 
+  async archivedOf(): Promise<string[]> {
+    await Promise.resolve();
+    return [];
+  }
+
   private stamp(): VillageStamp[] {
     const { id, settlementId, name, version, state } = this.record;
     return [

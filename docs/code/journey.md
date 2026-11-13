@@ -96,6 +96,13 @@ tempo a svět `CampaignWorld`.
   nezapíše záměr s taktem nejvýš bodem ani u skončeného výjezdu, verze bodu je `xmin`. `activeOf`
   vrací nejvýš jedno id, `onCell` čte políčko skupiny z `state->'groups'`. Skončený výjezd
   (`phase: 'done'`) přepne `status` na `done`; s nedoručenými událostmi ho `active()` vrací dál.
+- **Začít znovu** – `restartGame` ukončí běžící výjezd hráče (`JourneyRepository.end`, návrh Clauda):
+  bod dostane `phase: 'done'` a prázdnou schránku, výjezd `status: 'done'` – bez událostí do vsí
+  a bez znalosti. Domovská ves je v archivu a dál se nedopočítá, výjezd by na ni jinak čekal
+  navždy, držel bariéru a nová hra by nesměla vyslat (`journey-active`). `end` zamkne řádek bodu
+  jako `saveCheckpoint`; `saveCheckpoint` skončeného výjezdu s neskončeným stavem vrátí `stale`,
+  takže souběžný worker výjezd neoživí. Výjezd ukončí i opakovaný restart bez vsí (pád mezi
+  archivem a koncem výjezdu).
 - **Bariéra** (`adapters/village-holds.ts`) – tabulka `live` bere vedle bodů tažení i body běžících
   výjezdů (sjednocení id jako u tažení) bez varování; mez vsi je `throughDay` bodu a drží ji ves na
   mapě skupiny nebo políčko od ní. `GameDeps.journeys` (`packages/server/src/deps.ts`).
@@ -112,8 +119,11 @@ tempo a svět `CampaignWorld`.
 - **Dopočet s načítáním** – `computeWithLoads(deps, state, step)` v `step-campaigns.ts` je
   zobecněný dopočet tažení (`computeCampaign` ho volá nad `stepCampaign`, výjezd nad `stepJourney`):
   chybí-li taktu mapa nebo ves (bariéra Ú6.7), načtou se a výpočet pokračuje od zastaveného taktu.
-  Svět dodá `villageGone` (ves se zkusila načíst a není) – výjezd, jehož domovská ves zanikla,
-  skončí bez událostí a nečeká na ni navždy.
+  Svět dodá `villageGone` (ves se zkusila načíst a není, nebo je její sídlo v archivu) – výjezd,
+  jehož domovská ves zanikla, skončí bez událostí a nečeká na ni navždy. Archiv
+  (`VillageRepository.archivedOf`) se zjišťuje líně jako varování tažení: až když se takt ptá na
+  zánik načtené vsi, která den ještě nemá – pojistka pro výjezd, který přežil restart jinou cestou.
+  Tažení se na zánik neptá, archiv pro něj nečte.
 - **Doručení právě jednou** – návrat do vsi (`away-ends`) a upozornění `journey-returned` se uloží
   se stavem do schránky bodu (`outbox`), pak je doručí `deliverOutbox` (sdílené s tažením – ves,
   která zanikla, se přeskočí, týž `ref` schránka vsi podruhé zahodí) a `clearOutbox` schránku smaže.
@@ -150,7 +160,11 @@ tempo a svět `CampaignWorld`.
   rody, sídly a válkami v paměti): kola s restartem = vcelku (dojetí, čekání, sám domů; `away-ends`
   i upozornění jednou), s pamětí tytéž body jako bez ní, druhé kolo od zapamatovaného stavu, pád mezi
   uložením a doručením (schránka vsi, upozornění), kolo bez změny mapy se na válku neptá (počet
-  dotazů), vjezd na mapu rodu ve válce → „Domů“ jednou, chyba jednoho výjezdu, zaniklá domovská ves;
+  dotazů), vjezd na mapu rodu ve válce → „Domů“ jednou, chyba jednoho výjezdu, zaniklá domovská ves,
+  domovská ves archivovaného sídla (záznam zůstal, den stojí) a ves, která jen čeká na dopočet;
+  `restart-game.test.ts` – restart ukončí výjezd (bez schránky, `activeOf` null, souběžné uložení
+  `stale`); `journey-repository.db.test.ts` – `end`, `village-holds.db.test.ts` – ukončený
+  výjezd nedrží, `village-repository.db.test.ts` – `archivedOf`;
   `recallJourneysAtWar` – skupina na mapě protivníka, jede tam s „Přes okraj“ (i výjezd druhého rodu),
   „Přes okraj“ po bodu, výjezd jinde nic; `war.test.ts` – opověď i přepadení výjezd pošlou domů,
   další útok už ne; `settlement-repository.db.test.ts` – `holderAt`;

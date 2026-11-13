@@ -116,7 +116,49 @@ function campaign(extra: Partial<CampaignState>): CampaignState {
   } as CampaignState;
 }
 
+/** Běžící výjezd hráče `a` – skupina na políčku (5, 0), domov mimo testované vsi. */
+function journeyState(extra: Partial<JourneyState> = {}): JourneyState {
+  return {
+    kind: 'journey',
+    id: '00000000-0000-4000-8000-0000000000e1',
+    seed: 1,
+    tick: 3_400_000_000,
+    day: DAY,
+    throughDay: DAY - 2,
+    phase: 'out',
+    playerId: 'a',
+    houseId: 'h',
+    leaderName: 'Bořivoj',
+    home: { villageId: 'x', cell: { x: 0, y: 0 }, pos: { x: 0, z: 0 } },
+    members: [],
+    groups: [
+      {
+        id: 0,
+        order: 'follow-leader',
+        cell: { x: 5, y: 0 },
+        pos: { x: 0, z: 0 },
+        goal: null,
+        route: [],
+        leg: null,
+        arrived: false,
+      },
+    ],
+    arrivedTick: null,
+    ...extra,
+  } as JourneyState;
+}
+
 describe('VillageHolds a přednostní vsi', () => {
+  it('výjezd ukončený restartem (`end`) nedrží nic', async () => {
+    const journeys = createJourneyRepository(db);
+    const all = [ids.near, ids.adjacent, ids.far];
+    await journeys.create(journeyState(), NOW);
+    expect((await holds.limitOf(all)).size).toBe(2);
+    await journeys.end(journeyState().id);
+    expect(await holds.limitOf(all)).toEqual(new Map());
+    expect(await villagesNearCampaigns(db)).toEqual([]);
+  });
+
   it('bez tažení nic nedrží; tažení drží ves na mapě i políčko od ní do throughDay', async () => {
     const all = [ids.near, ids.adjacent, ids.far, 'ne-uuid'];
     expect(await holds.limitOf(all)).toEqual(new Map());

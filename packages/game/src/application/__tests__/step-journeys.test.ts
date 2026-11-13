@@ -446,6 +446,36 @@ describe('stepJourneys', () => {
     expect(notices.notices).toEqual([]);
     expect(await journeys.active()).toEqual([]);
   });
+
+  it('domovská ves v archivu (Začít znovu) – záznam zůstal, den stojí – výjezd skončí bez událostí', async () => {
+    const { deps, journeys, villages, notices } = await setup();
+    // sídlo Lhoty je v archivu: záznam vsi zůstal, ale worker ji dál nedopočítá – den stojí před
+    // druhým dnem výjezdu
+    villages.records.set('lhota', {
+      ...villages.records.get('lhota')!,
+      state: { ...HOME_STATE, lastDay: SUMMER - 1 },
+    });
+    villages.archivedSettlements.add('s-lhota');
+    await journeys.create(journey());
+    const outcomes = await rounds(deps, LAUNCH + 1, LAUNCH + 401);
+    expect(outcomes).not.toContain('failed');
+    expect((await stored(journeys)).phase).toBe('done');
+    expect(villages.inbox.events).toEqual([]);
+    expect(notices.notices).toEqual([]);
+    expect(await journeys.active()).toEqual([]);
+  });
+
+  it('ves, která jen čeká na dopočet (sídlo není v archivu), výjezd neukončí', async () => {
+    const { deps, journeys, villages } = await setup();
+    villages.records.set('lhota', {
+      ...villages.records.get('lhota')!,
+      state: { ...HOME_STATE, lastDay: SUMMER - 1 },
+    });
+    await journeys.create(journey());
+    const outcomes = await rounds(deps, LAUNCH + 1, LAUNCH + 401);
+    expect(outcomes.at(-1)).toBe('waiting');
+    expect((await stored(journeys)).phase).toBe('out');
+  });
 });
 
 describe('recallJourneysAtWar', () => {

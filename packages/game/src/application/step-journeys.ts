@@ -38,7 +38,7 @@ export interface StepJourneysDeps {
   campaignLock: CampaignLock;
   cells: CampaignCells;
   /** Vsi výjezdu – s pamětí workeru se celý stav načte jen u vsí, jejichž otisk se změnil. */
-  villages: Pick<VillageRepository, 'find' | 'stampsOfVillages' | 'inbox'>;
+  villages: Pick<VillageRepository, 'find' | 'stampsOfVillages' | 'archivedOf' | 'inbox'>;
   notices: Pick<NoticeRepository, 'post'>;
   /** Znalost rodu – co muži viděli, se z bodu schránkou sloučí do úložiště. */
   knowledge: Pick<KnowledgeRepository, 'merge'>;

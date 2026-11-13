@@ -26,7 +26,10 @@ export interface JourneyRepository {
   checkpoint(journeyId: string): Promise<JourneyCheckpoint | null>;
   /** Záměry s taktem větším než `tick`, podle taktu a `seq`. */
   intentsAfter(journeyId: string, tick: number): Promise<JourneyIntent[]>;
-  /** Uloží stav spočtený z bodu `fromTick` – podmínky a návrat jako `CampaignRepository`. */
+  /**
+   * Uloží stav spočtený z bodu `fromTick` – podmínky a návrat jako `CampaignRepository`; skončený
+   * výjezd (`end`) se do běžící fáze už nevrátí (`stale`).
+   */
   saveCheckpoint(
     journeyId: string,
     input: {
@@ -38,6 +41,12 @@ export interface JourneyRepository {
   ): Promise<CheckpointSave>;
   /** Smaže doručené události bodu `tick` (bod se mezitím neposunul). */
   clearOutbox(journeyId: string, tick: number): Promise<void>;
+  /**
+   * Ukončí výjezd bez událostí do vsí a bez znalosti (Začít znovu – `restartGame`): bod dostane
+   * `phase: 'done'` a prázdnou schránku, výjezd stav `done` – worker ho dál nepočítá a bariéra
+   * nedrží. Souběžný worker ho do běžící fáze nevrátí (`saveCheckpoint` → `stale`).
+   */
+  end(journeyId: string): Promise<void>;
   /** Zapíše záměr, jen když výjezd běží a jeho takt je za kontrolním bodem; jinak null. */
   addIntent(journeyId: string, intent: Omit<JourneyIntent, 'seq'>): Promise<JourneyIntent | null>;
 }

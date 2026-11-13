@@ -14,6 +14,7 @@ import {
   type EndHouseDeps,
 } from './escheat';
 import type { HouseRepository } from './houses';
+import type { JourneyRepository } from './journeys';
 import type { NegotiationRepository } from './negotiations';
 import type { NoticeRepository } from './notices';
 import type { SuccessionCreditRepository } from './succession-credits';
@@ -247,15 +248,25 @@ export interface RestartGameInput extends DynastyInput {
 export type RestartGameResult =
   { ok: true; settlement: Settlement; landscape: Landscape } | { ok: false; reason: string };
 
+export type RestartGameDeps = DynastyDeps &
+  EnterGameDeps & {
+    /** Výjezdy vojvody – běžící výjezd hráče restart ukončí (`JourneyRepository.end`). */
+    journeys: Pick<JourneyRepository, 'activeOf' | 'end'>;
+  };
+
 /**
  * Začít znovu: všechna aktivní sídla hráče i se všemi vsemi jdou do archivu a vznikne nové sídelní sídlo
  * s novým seedem krajiny – pak hráč zakládá ves jako nový (první zemnice). Bez `abandon` jen po
  * konci hry (vymřely všechny vsi), živá ves restart odmítne; s `abandon` (hráč to potvrdil
  * v nabídce) se archivují i živé vsi. Když hráč ještě žádnou ves nemá (ani vymřelou – třeba
  * druhý souběžný nebo opakovaný restart už proběhl), vrátí jeho sídlo beze změny.
+ *
+ * Běžící výjezd vojvody restart ukončí (`JourneyRepository.end` – bez událostí do vsí a bez
+ * znalosti): jeho domovská ves je v archivu a dál se nedopočítá, takže by na ni výjezd čekal
+ * navždy, držel bariéru a nová hra by nesměla vyslat (návrh Clauda).
  */
 export async function restartGame(
-  deps: DynastyDeps & EnterGameDeps,
+  deps: RestartGameDeps,
   input: RestartGameInput,
 ): Promise<RestartGameResult> {
   const status = await dynastyStatus(deps, input);
@@ -269,6 +280,12 @@ export async function restartGame(
     for (const settlement of await deps.settlements.listActive(input.playerId)) {
       await deps.settlements.archive(settlement.id);
     }
+  }
+  // i bez vsí – opakovaný restart po pádu mezi archivem a koncem výjezdu ho ukončí; nová hra
+  // výjezd mít nemůže (bez vsi není koho vyslat)
+  const journeyId = await deps.journeys.activeOf(input.playerId);
+  if (journeyId) await deps.journeys.end(journeyId);
+  if (status.villages.length > 0) {
     // rod skončil – `enterGame` níže založí nový (staré dohody zanikly vymřením)
     const house = await deps.houses.activeOf(input.playerId);
     if (house) {

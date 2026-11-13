@@ -145,4 +145,31 @@ describe('journey repository', () => {
     expect(after?.version).not.toBe(before?.version);
     expect(await journeys.active()).toEqual([]);
   });
+
+  it('end (Začít znovu) ukončí výjezd bez událostí; worker s bodem z doby předtím ho neoživí', async () => {
+    await journeys.create(state(100), NOW);
+    await db.execute(
+      sql`UPDATE journey_checkpoint SET outbox = ${JSON.stringify({ villageEvents: [], notices: [] })}::jsonb`,
+    );
+    await journeys.end(ID);
+    const point = await journeys.checkpoint(ID);
+    expect(point?.state).toStrictEqual(state(100, { phase: 'done' }));
+    expect(point?.outbox).toBeNull();
+    expect(await journeys.activeOf('a')).toBeNull();
+    expect(await journeys.active()).toEqual([]);
+    expect(await journeys.onCell({ x: 4, y: 2 })).toEqual([]);
+    expect(await journeys.addIntent(ID, { tick: 200, byPlayer: 'a', body: HOME })).toBeNull();
+    expect(
+      await journeys.saveCheckpoint(ID, {
+        fromTick: 100,
+        seenIntents: 0,
+        state: state(140),
+        outbox: null,
+      }),
+    ).toBe('stale');
+    expect((await journeys.checkpoint(ID))?.state.phase).toBe('done');
+    // nová hra smí vyslat
+    await journeys.create(state(120, { id: ID2 }), NOW);
+    expect(await journeys.activeOf('a')).toBe(ID2);
+  });
 });
