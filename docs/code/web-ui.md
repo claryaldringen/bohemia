@@ -325,12 +325,16 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   | Ctrl (Cmd) + A         | vybere všechna hotová obydlí vsi                                 | –                               | –                                  |
   | mezerník + levé tažení | posouvá                                                          | posouvá                         | posouvá                            |
   | prostřední tažení      | posouvá                                                          | posouvá                         | posouvá                            |
-  | pravé tlačítko         | zruší výběr                                                      | zruší                           | zruší malování                     |
+  | pravé tlačítko         | zruší výběr; s vybraným vojvodou rozkaz výjezdu (viz níž)        | zruší                           | zruší malování                     |
   | Esc                    | zruší výběr                                                      | zruší                           | zruší tah, pak malování            |
   | F10                    | otevře nabídku hry, zruší výběr                                  | otevře nabídku, zruší           | otevře nabídku, zruší malování     |
   | `[` / `]`              |                                                                  | otáčí po 15° (pozemek celý)     | otáčí mřížku po 15° (všechny)      |
   | Tab                    |                                                                  | pozemek: místo domu (varianta)  |                                    |
   | další                  |                                                                  | Enter postaví                   | Backspace / Ctrl+Z vrátí, Enter    |
+
+  **Vojvoda** (výjezd – `docs/code/journey.md`, Ovládání): s vybraným vojvodou (klik na něj, nebo na
+  jeho portrét v liště, je-li pryč) dá pravé tlačítko rozkaz místo zrušení výběru – Esc a klik
+  jinam výběr ruší jako dřív.
 
   Vždy: WASD / šipky a kurzor u okraje okna posouvají, kolečko i rozevření prstů na trackpadu
   (Ctrl + kolečko, v Safari `gesturechange`) přibližují, Q/E otáčí, R vrátí pohled na ves

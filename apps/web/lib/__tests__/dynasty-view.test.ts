@@ -51,6 +51,19 @@ describe('dynastyView', () => {
   });
 });
 
+describe('dynastyView – výjezd vojvody (lord-control.md)', () => {
+  it('journeyAway jen když je někdo pryč na výjezdu', () => {
+    const state: VillageState = {
+      ...foundVillage(),
+      people: [man(1, 40, { name: 'Bořivoj' })],
+      dynasty: { lordId: 1, lords: [{ id: 1, fromDay: 0 }] },
+    };
+    expect(dynastyView(state, DAY)?.journeyAway).toBeUndefined();
+    state.people[0]!.away = { kind: 'journey', refId: 'j1' };
+    expect(dynastyView(state, DAY)?.journeyAway).toBe(true);
+  });
+});
+
 describe('dynastyView – synové pro odchod (lord.md – Dělení vsi)', () => {
   const state = (): VillageState => ({
     ...foundVillage(),

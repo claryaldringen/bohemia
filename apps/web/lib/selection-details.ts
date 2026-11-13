@@ -65,7 +65,8 @@ import {
   type LodgeView,
   type PersonPortraitIcon,
 } from './person-view';
-import { personActivity, type PersonFigureState } from './person-activity';
+import { journeyActivity, personActivity, type PersonFigureState } from './person-activity';
+import type { JourneyView } from './journey-view';
 import {
   cartActivityText,
   cartGoal,
@@ -965,8 +966,9 @@ export function selectionDetails(
   target: VillageTarget | null,
   person: PersonFigureState | null = null,
   draft: DraftFigureState | null = null,
+  journey: JourneyView | null = null,
 ): SelectionDetails | null {
-  const details = selectionKinds(view, scene, target, person, draft);
+  const details = selectionKinds(view, scene, target, person, draft, journey);
   if (!details) return null;
   const cancelConstructionId = cancellableConstruction(view, details);
   const withCancel =
@@ -980,6 +982,7 @@ function selectionKinds(
   target: VillageTarget | null,
   person: PersonFigureState | null = null,
   draft: DraftFigureState | null = null,
+  journey: JourneyView | null = null,
 ): SelectionKinds | null {
   if (!target) return null;
   if (target.kind === 'wildlife') {
@@ -989,7 +992,8 @@ function selectionKinds(
   if (target.kind === 'premium-site') {
     return { kind: 'premium-site', type: target.type, site: target.site };
   }
-  if (target.kind === 'person') return personDetails(view, scene, target.id, person, draft);
+  if (target.kind === 'person')
+    return personDetails(view, scene, target.id, person, draft, journey);
   if (target.kind === 'plough-team') return teamDetails(scene, target.team, draft);
   if (target.kind === 'cart') return cartDetails(scene, target.id, draft);
   if (target.kind === 'dwellings') return dwellingsDetails(view, scene, target.ids);
@@ -1338,9 +1342,12 @@ function personDetails(
   id: number,
   state: PersonFigureState | null,
   draft: DraftFigureState | null,
+  journey: JourneyView | null,
 ): SelectionDetails | null {
   const person = scene.labor?.persons?.find((p) => p.id === id);
   if (!person) return null;
+  // muž na výjezdu (lord-control.md – Co hráč vidí): „je na cestě“ / „čeká (2 dny)“ / „vrací se domů“
+  const onJourney = journey?.men.some((m) => m.personId === id) === true;
   const figure = state?.id === id ? state : null;
   const herding = figure?.job?.kind === 'herd';
   const home = scene.dwellings.find((d) => d.id === person.home) ?? null;
@@ -1351,7 +1358,8 @@ function personDetails(
     portrait: personPortrait(person),
     role: ROLE_NAMES[herding && person.age < AGE.adult ? herdRole(person.sex) : person.role],
     name: person.name ?? null,
-    activity: personActivity(figure, scene, draft),
+    activity:
+      onJourney && journey ? journeyActivity(journey) : personActivity(figure, scene, draft),
     age: person.age,
     home: home ? home.id : null,
     homeIcon: home ? (home.craft ? CRAFT_LOOKS[home.craft].icon : home.type) : null,

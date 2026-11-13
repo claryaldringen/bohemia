@@ -36,6 +36,8 @@ export interface VillageSync {
   runAction: (action: () => Promise<VillageData>) => Promise<string | null>;
   /** Akce stavby – chyba se ohlásí řádkem nahoře. */
   runBuildAction: (action: () => Promise<ActionResult>) => Promise<void>;
+  /** Zeptá se na ves hned (i s upozorněními) – např. po návratu vojvody z výjezdu. */
+  refresh: () => void;
 }
 
 /**
@@ -217,5 +219,5 @@ export function useVillageSync({
     [runAction, pushNotice],
   );
 
-  return { village, view, villageError, viewRef, runAction, runBuildAction };
+  return { village, view, villageError, viewRef, runAction, runBuildAction, refresh: pollNow };
 }

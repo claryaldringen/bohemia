@@ -56,8 +56,10 @@ export function dynastyView(state: VillageState, day: number): DynastyView | nul
         p.name !== undefined,
     )
     .map((p) => p.name!);
+  const journeyAway = state.people.some((p) => p.away?.kind === 'journey');
   return {
     lordId: state.dynasty?.lordId ?? null,
+    ...(journeyAway ? { journeyAway } : {}),
     ...(lord?.name !== undefined ? { lordName: lord.name } : {}),
     unnamed,
     taken: men.flatMap((p) => (p.name === undefined ? [] : [p.name])),

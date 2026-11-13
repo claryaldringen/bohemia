@@ -177,6 +177,19 @@ describe('selectionDetails – postava', () => {
     );
   });
 
+  it('muž na výjezdu: činnost z pohledu výjezdu', () => {
+    const journey = {
+      phase: 'out',
+      waitDaysLeft: 2,
+      men: [{ personId: 202, lord: false, mounted: false, wounded: false }],
+    } as unknown as Parameters<typeof selectionDetails>[5];
+    const on = selectionDetails(null, VILLAGE, { kind: 'person', id: 202 }, null, null, journey);
+    expect(on).toMatchObject({ activity: 'čeká (2 dny)' });
+    // muž mimo družinu nebo bez výjezdu – obvyklá činnost
+    const off = selectionDetails(null, VILLAGE, { kind: 'person', id: 901 }, null, null, journey);
+    expect(off).toMatchObject({ activity: 'doma' });
+  });
+
   it('huť: mistr nese obor a okruh, kněz příznak, vojvoda stav huti', () => {
     const lodge: LodgeView = {
       invite: 'already',

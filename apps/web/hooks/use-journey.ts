@@ -25,7 +25,15 @@ export interface JourneyHandle {
   refresh: () => void;
 }
 
-export function useJourney(running: boolean): JourneyHandle {
+/**
+ * `onEnded` se zavolá, když pohled po běžícím výjezdu zmizí (skupina je doma) – volající obnoví ves
+ * a přestane se ptát (`running: false`).
+ */
+export function useJourney(running: boolean, onEnded?: () => void): JourneyHandle {
+  const endedRef = useRef(onEnded);
+  useEffect(() => {
+    endedRef.current = onEnded;
+  }, [onEnded]);
   const prevRef = useRef<JourneyView | null>(null);
   const nextRef = useRef<JourneyView | null>(null);
   const receivedRef = useRef(0);
@@ -47,14 +55,23 @@ export function useJourney(running: boolean): JourneyHandle {
   }, []);
 
   const poll = useCallback(async (): Promise<void> => {
-    const response = await fetch('/api/journey', { cache: 'no-store' });
-    const body = (await response.json()) as JourneyResponse;
+    // výpadek sítě nebo vadná odpověď nesmí zastavit dotazování – zkusí se znovu za chvíli
+    let body: JourneyResponse;
+    try {
+      const response = await fetch('/api/journey', { cache: 'no-store' });
+      body = (await response.json()) as JourneyResponse;
+    } catch (error) {
+      console.warn('Výjezd vojvody se nepodařilo načíst.', error);
+      return;
+    }
     if ('error' in body) return;
     const now = performance.now();
     if (body.view === null) {
+      const wasRunning = nextRef.current !== null;
       prevRef.current = null;
       nextRef.current = null;
       setView(null);
+      if (wasRunning) endedRef.current?.();
       return;
     }
     // pohled se stejným taktem se neposouvá (worker ukládá kontrolní bod zřídka)

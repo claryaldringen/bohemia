@@ -34,6 +34,19 @@ export type SelectListener = (
 /** Bod terénu pro bránu opevnění (null – zrušení). */
 export type GatePick = (point: { x: number; z: number } | null) => void;
 
+/**
+ * Ovládání vybraného vojvody (lord-control.md – Rozkazy): dokud je nastavené, pravé kliknutí do
+ * krajiny ohlásí bod terénu (místo zrušení výběru) a pohyb kurzoru hlásí bod a pixel plátna;
+ * `hover` vrátí tvar kurzoru (CSS), `order` dostane bod, nebo null mimo terén.
+ */
+export interface LordOrderMode {
+  order: (point: { x: number; z: number } | null, screen: { x: number; y: number }) => void;
+  hover: (
+    point: { x: number; z: number } | null,
+    screen: { x: number; y: number } | null,
+  ) => string;
+}
+
 /** Vstupy kurzoru – části scény vznikají postupně v `setLandscape`, proto přes getter. */
 export interface PointerDeps {
   scene: Scene;
@@ -67,6 +80,8 @@ export class ScenePointer {
    * ohlásí bod terénu (místo výběru) a pravé zruší; null = běžný výběr.
    */
   private gatePick: GatePick | null = null;
+  /** Vybraný vojvoda (lord-control.md): pravé kliknutí dává rozkaz místo zrušení výběru. */
+  private lordMode: LordOrderMode | null = null;
   /** Stisknutá tlačítka myši nad plátnem: kde a jestli zrovna běželo umisťování. */
   private readonly downs = new Map<number, { x: number; y: number; placing: boolean }>();
   /** Poslední kliknutí levým tlačítkem mimo umisťování – dvojklik (`nextClick`). */
@@ -98,6 +113,12 @@ export class ScenePointer {
   setGatePick(handler: GatePick | null): void {
     this.gatePick = handler;
     this.deps.canvas.style.cursor = handler ? 'crosshair' : '';
+  }
+
+  setLordMode(mode: LordOrderMode | null): void {
+    this.lordMode = mode;
+    this.deps.canvas.style.cursor = '';
+    this.repick();
   }
 
   /** Pod nehybným kurzorem je po pohybu kamery jiné políčko. */
@@ -135,6 +156,12 @@ export class ScenePointer {
     const { pointerX, pointerY } = this.deps.scene;
     const point = this.pickGround(pointerX, pointerY);
     this.deps.placement()?.setCursor(point, point ? { x: pointerX, y: pointerY } : null);
+    if (this.lordMode) {
+      this.deps.canvas.style.cursor = this.lordMode.hover(
+        point ? { x: point[0], z: point[1] } : null,
+        point ? { x: pointerX, y: pointerY } : null,
+      );
+    }
     const tile = point ? tileAt(l, point[0], point[1]) : null;
     if (!tile) {
       this.emit(null);
@@ -169,6 +196,7 @@ export class ScenePointer {
     this.pointerInside = false;
     this.pointerMoved = false;
     this.deps.placement()?.setCursor(null, null);
+    this.lordMode?.hover(null, null);
     this.emit(null);
   };
 
@@ -199,6 +227,11 @@ export class ScenePointer {
         const ground = this.pickGround(at.x, at.y);
         this.gatePick(ground ? { x: ground[0], z: ground[1] } : null);
       } else if (event.button === 2) this.gatePick(null);
+      return;
+    }
+    if (this.lordMode && event.button === 2) {
+      const ground = this.pickGround(at.x, at.y);
+      this.lordMode.order(ground ? { x: ground[0], z: ground[1] } : null, at);
       return;
     }
     if (event.button === 0) {

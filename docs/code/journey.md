@@ -252,3 +252,29 @@ tempo a svět `CampaignWorld`.
   (2 dny)“, „vrací se domů“); upozornění `journey-returned` → „Bořivoj se vrátil.“
   (`lib/player-notices.ts`, Úloha 1).
 - **Testy** – `lib/__tests__/journey-input.test.ts`, `journey-view.test.ts`, `person-activity.test.ts`.
+
+## Ovládání (Úloha 8a – `apps/web`)
+
+- **Rozkaz z kliknutí** – `lib/scene/journey-orders.ts`: `orderFromClick({ lordSelected, point,
+mapSizeM, cell })` (čistá funkce) – bez vybraného vojvody nebo mimo terén null; v okrajovém pásu
+  `EDGE_BAND_M` (20 m) `cross` na souseda políčka (8 směrů, v rohu úhlopříčně), jinak `go` na bod.
+  `edgeDirection` dává směr okraje i kurzoru. Mapa je vystředěná v počátku, sever = +z = +y mřížky.
+- **Scéna** – `ScenePointer.setLordMode(mode)` (`LandscapeScene.setLordMode`): dokud je nastavený,
+  pravé tlačítko ohlásí bod terénu (`pickGround`) a pixel plátna místo zrušení výběru a pohyb kurzoru
+  volá `hover` (vrací CSS kurzor – šipka u okraje).
+- **Hook** `components/game/village-game/use-lord-journey.ts` – `useLordJourney`: vybraný vojvoda
+  = `selected` je osoba s `view.dynasty.lordId`. Doma načte `getJourneyCandidates`, drží družinu
+  (`retinue`) a pravým tlačítkem volá `launchJourney`; na cestě (`dynasty.journeyAway`, jen na
+  domovské mapě skupiny) volá `commandJourney`; ikona Domů `{ kind: 'home' }`. Důvod odmítnutí
+  (`journeyReason`) a „Na sousední mapu“ ukáže `JourneyCursorNote` u kurzoru. `useJourney(running,
+onEnded)` se ptá jen s `running` (vojvoda pryč nebo právě vyjel); zmizí-li pohled, `onEnded`
+  obnoví ves (upozornění „… se vrátil.“) a dotazy stojí, dokud ves návrat nepotvrdí. Chyba sítě
+  dotazování nezastaví.
+- **Rozhraní** – `LordJourneyPanel` (v panelu vybrané osoby, `PersonBody`): řada mužů rodu, kteří
+  smějí jet (klik přidá / ubere, podkova `resources/jizda.png` = jezdec) a meč (`house/sword.png`)
+  se silou skupiny; na cestě ikona Domů (`war/alarm-return.png`). `LordAwayBadge` v horní liště:
+  portrét vojvody s podkovou, klik ho vybere. Panel muže na cestě ukazuje `journeyActivity`
+  (`selectionDetails(…, journey)`). Pohled vsi nese `dynasty.journeyAway` (`dynasty-view.ts`).
+- **Testy** – `lib/scene/__tests__/journey-orders.test.ts`, `hooks/__tests__/use-journey.behavior.test.tsx`,
+  `lib/__tests__/dynasty-view.test.ts`, `person-activity.test.ts`, e2e `e2e/journey.spec.ts` (projekt
+  `worker` – spec pouští worker jako `worker.spec.ts`).

@@ -17,6 +17,7 @@ import { BuildGrid } from './hud/BuildGrid';
 import { CursorReason } from './hud/CursorReason';
 import { ChurchConfirm } from './hud/ChurchConfirm';
 import { FortConfirm } from './hud/FortConfirm';
+import { JourneyCursorNote } from './hud/LordJourneyPanel';
 import { Minimap } from './hud/Minimap';
 import { NoticeLines } from './hud/NoticeLines';
 import { JourneyBanner, PlayerDeparturePanel } from './hud/RelocationControls';
@@ -32,6 +33,7 @@ import { useDevControls } from './village-game/use-dev-controls';
 import { useGateMode } from './village-game/use-gate-mode';
 import { useHistoryPanels } from './village-game/use-history-panels';
 import { useHouse } from './village-game/use-house';
+import { useLordJourney } from './village-game/use-lord-journey';
 import { useLineNaming } from './village-game/use-line-naming';
 import { useNoticeLines } from './village-game/use-notice-lines';
 import { usePanelSource } from './village-game/use-panel-source';
@@ -122,7 +124,15 @@ export function VillageGame({
   const playerNoticesRef = useRef<(received: readonly PlayerNotice[] | undefined) => void>(
     () => undefined,
   );
-  const { village, view, villageError, viewRef, runAction, runBuildAction } = useVillageSync({
+  const {
+    village,
+    view,
+    villageError,
+    viewRef,
+    runAction,
+    runBuildAction,
+    refresh: refreshVillage,
+  } = useVillageSync({
     initialVillage,
     landscape,
     decoded,
@@ -209,6 +219,15 @@ export function VillageGame({
     sceneVillageRef,
     setSonPreview,
   } = useSelection({ scene, sceneVillage, viewRef });
+  const lordJourney = useLordJourney({
+    scene,
+    view,
+    selected,
+    setSelected,
+    homeCell,
+    mapSizeM: decoded.size * decoded.cellSizeM,
+    refreshVillage,
+  });
   const alarmActions = useAlarmActions({ view, selected, pushNotice });
   const wagonPlan = useWagonPreview({ scene, current, view, sceneVillage });
   useSceneE2EHooks(scene);
@@ -316,6 +335,7 @@ export function VillageGame({
                 open: panels.warOpen,
                 onToggle: () => (panels.warOpen ? panels.closeWar() : panels.openWar()),
               }}
+              lordAway={lordJourney.away}
               chronicle={
                 view && !view.extinct ? { open: chronicle.open, onToggle: chronicle.toggle } : null
               }
@@ -341,7 +361,15 @@ export function VillageGame({
               isolated={house.view?.isolated === true}
             />
             <SelectionPanel
-              details={selectionDetails(view, sceneVillage, current, personState, draftState)}
+              details={selectionDetails(
+                view,
+                sceneVillage,
+                current,
+                personState,
+                draftState,
+                lordJourney.journey.view,
+              )}
+              lordJourney={lordJourney.panel}
               alarm={alarmActions}
               ennoble={{
                 targets: (view?.villages ?? []).filter((v) => v.awaitingLord && v.id !== view?.id),
@@ -388,6 +416,7 @@ export function VillageGame({
               naming={naming}
             />
             <CursorReason preview={placement.active ? placement.preview : null} />
+            <JourneyCursorNote note={lordJourney.note} />
             {placement.active === 'fort-points' ? (
               <FortConfirm
                 reason={
