@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseTermItems } from '../house-input';
+import { parseAnswerLevyInput, parseTermItems } from '../house-input';
 
 const goods = {
   grainKg: 10,
@@ -32,5 +32,29 @@ describe('parseTermItems – obchod', () => {
   it('víc než dvě strany ve vsích odeslání odmítne', () => {
     const fromVillage = { a: 'x', b: 'y', c: 'z' };
     expect(parseTermItems([{ kind: 'trade', give: goods, get: goods, fromVillage }])).toBeNull();
+  });
+});
+
+describe('parseAnswerLevyInput – rozdělení po vsích', () => {
+  /** Tělo server action tak, jak ho rozloží JSON – i klíč `__proto__` je vlastní vlastnost. */
+  const answer = (split: string): unknown =>
+    JSON.parse(`{ "dialogId": "d1", "lines": [], "split": ${split} }`);
+  const bundle = JSON.stringify(goods);
+
+  it('rozdělení nese svazek každé vsi pod jejím id', () => {
+    const parsed = parseAnswerLevyInput(answer(`{ "ves-1": ${bundle}, "ves-2": ${bundle} }`));
+    expect(Object.keys(parsed!.split)).toEqual(['ves-1', 'ves-2']);
+    expect(parsed!.split['ves-1']?.grainKg).toBe(10);
+    expect(Object.values(parsed!.split)).toHaveLength(2);
+  });
+
+  it('klíč __proto__ od klienta je obyčejný klíč – prototyp rozdělení nenastaví', () => {
+    const parsed = parseAnswerLevyInput(answer(`{ "__proto__": ${bundle} }`));
+    expect(parsed).not.toBeNull();
+    // use-case ho uvidí mezi vsemi a odmítne jako cizí ves, místo aby tiše vypadl
+    expect(Object.keys(parsed!.split)).toEqual(['__proto__']);
+    // nic zděděného – data klienta se nestanou prototypem objektu
+    expect('grainKg' in parsed!.split).toBe(false);
+    expect('toString' in parsed!.split).toBe(false);
   });
 });

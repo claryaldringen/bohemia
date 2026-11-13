@@ -506,7 +506,9 @@ export function parseAnswerLevyInput(input: unknown): {
   if (typeof raw.split !== 'object' || raw.split === null || Array.isArray(raw.split)) return null;
   const entries = Object.entries(raw.split as Record<string, unknown>);
   if (entries.length > LEVY_SPLIT_MAX) return null;
-  const split: Record<string, MacroBundle> = {};
+  // Bez prototypu: id vsi je libovolný text od klienta a klíč `__proto__` by v obyčejném objektu
+  // nastavil prototyp místo vlastnosti (řádek by tiše vypadl a use-case by ho neověřil).
+  const split = Object.create(null) as Record<string, MacroBundle>;
   for (const [villageId, bundle] of entries) {
     const id = idOf(villageId);
     const parsed = parseBundle(bundle);
