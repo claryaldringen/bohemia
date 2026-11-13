@@ -11,3 +11,21 @@ export interface PlayerLock {
     run: () => Promise<T>,
   ): Promise<{ ran: true; value: T } | { ran: false }>;
 }
+
+/**
+ * Spustí `run` pod zámky všech hráčů `playerIds` (výkupné: věznitel i plátce). Zámky se berou vždy
+ * ve stejném pořadí – podle id, každý hráč jednou –, takže dvě operace nad stejnými hráči na sebe
+ * nikdy nečekají do kruhu. Zámek není reentrantní: `run` už žádný z těchto zámků brát nesmí.
+ */
+export function runUnderLocks<T>(
+  locks: Pick<PlayerLock, 'run'>,
+  playerIds: readonly string[],
+  run: () => Promise<T>,
+): Promise<T> {
+  const ordered = [...new Set(playerIds)].sort();
+  const enter = (index: number): Promise<T> => {
+    const playerId = ordered[index];
+    return playerId === undefined ? run() : locks.run(playerId, () => enter(index + 1));
+  };
+  return enter(0);
+}

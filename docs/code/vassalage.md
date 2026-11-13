@@ -109,7 +109,9 @@ trailId: -1, give, porters, days = 4 × cells, cost = porters × days }` – nos
   3. událost `shipment` do schránky cílové vsi (`ref` = `ship:<id>`, den `today + 2 × cells`)
      a `posted_at`.
      Ves se dopočítá volající (stav v den `today`). Cíl, který už zanikl (`extinctDay`,
-     `abandonedDay`), odeslání odmítne.
+     `abandonedDay`), odeslání odmítne. Volající, který zámek držitele odesílatele
+     (`shipmentLockOwner`) už drží, volá `sendShipmentLocked` – výkupné (`prisoners.ts`) drží zámek
+     věznitele i plátce kolem platby i propuštění a zámek není reentrantní.
 - **`reconcileShipments(deps, today)`** (`runWorldTasks`, worker 1× za minutu, pod `tryRun`
   zámkem držitele odesílatele): řádek bez `posted_at` – odesílající ves nese `shipmentId` → událost
   se dopíše (druhý zápis téhož `ref` se zahodí, doručí se právě jednou), jinak se ves neuložila a
