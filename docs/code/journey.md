@@ -516,7 +516,8 @@ seen)`) a adaptér `createKnowledgeRepository` (`adapters/knowledge-repository.t
   a pohled na tažení – Znalost rodu).
 - **Tažení ve scéně (Úloha 12b)** – pohled útočníka (`warSceneOnMap`) nese znalost rodu na každé
   mapě, kde vojsko stojí (`WarSceneView.known` – na mapě cíle `knownTarget`, na mapě po cestě
-  `knowledgeOfCell` – znalost té mapy, jak je; jeden dotaz na pohled, obránce nic). Scéna tažení
+  `knowledgeOfCell` sloučená se `CampaignState.seen` té mapy – `knownOnWay`, jako výjezd; jeden
+  dotaz na pohled, obránce nic). Scéna tažení
   (`ForeignWarScene`) kreslí stavby, jak je rod naposled viděl, tak jako výjezd (`seenVillageOf`
   ve `foreignVillageOf` – objevené domy mají přednost; opevnění ze znalosti se na mapě cíle
   nekreslí, na mapě po cestě ano – `onTargetMap`) a stopu rodu odkryje

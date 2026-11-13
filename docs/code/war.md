@@ -1617,12 +1617,16 @@ Scéna hry ukazuje **mapu sídla hráče** – vojsko je v ní vidět, když na 
     `WarSceneView.known` na každé mapě, kde vojsko stojí – jeden dotaz na pohled, v taktu workeru
     se nečte. Na mapě cíle `knownTarget` jako dřív (objevená obydlí mají přednost, opevnění ze
     stavu vsi, dům, na jehož místo muži dohlédli a ve vsi není, se nepošle), na mapě po cestě
-    znalost rodu té mapy, jak je (`knowledgeOfCell`; rod vůdce ze stavu, vazal ve službě svůj, bod
-    bez `houseId` podle hráče). Obránce znalost útočníkova rodu nedostane (`warSceneFor` ji nečte,
+    znalost rodu té mapy (`knowledgeOfCell`; rod vůdce ze stavu, vazal ve službě svůj, bod bez
+    `houseId` podle hráče) sloučená s tím, co tam tažení vidí teď (`knownOnWay` –
+    `mergeKnowledge` se `CampaignState.seen` té mapy, jako výjezd): stará zpráva platí jen mimo
+    dohled – dům, který mezitím shořel, v dohledu vojska nestojí a nový ano (návrh Clauda po
+    závěrečné recenzi). Obránce znalost útočníkova rodu nedostane (`warSceneFor` ji nečte,
     `warSceneOnMap` jen pro účastníka). Scéna: stavby, jak je rod naposled viděl, stojí od začátku
     vedle objevených domů (opevnění ze znalosti jen na mapě po cestě – na mapě cíle ho útočník vidí ze stavu vsi) a stopa rodu odkryje šeré místo k mlze války –
     dohled vojska zůstává jasný (web-ui.md – Cizí mapa ve scéně). Boj, pohyb, kořist, varování ani
-    výsledek se nemění. Testy `war-scene.test.ts` (mapa po cestě, vazal, bod bez rodu, obránce),
+    výsledek se nemění. Testy `war-scene.test.ts` (mapa po cestě, shořelý dům v dohledu, vazal, bod
+    bez rodu, obránce),
     `war-scene-view.test.ts` (`foreignVillageOf`), e2e `multiplayer-war.spec.ts`.
 - **Plynulost mezi snímky** (scene.md – Vojsko, boj a mlha války): scéna se ptá 2× za sekundu,
   ale route čte kontrolní bod tažení, který worker uloží po ≥ 40 taktech (10 s) nebo s událostí –

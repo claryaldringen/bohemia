@@ -2,6 +2,7 @@ import {
   battleForts,
   isCampaignParticipant,
   knownTarget,
+  mergeKnowledge,
   sceneFolkOf,
   shownBattle,
   warSceneView,
@@ -9,10 +10,12 @@ import {
   type BattleSide,
   type CampaignState,
   type Pos,
+  type SeenCell,
   type WarSceneBuilding,
   type WarSceneFolk,
   type WarSceneView,
 } from '../domain/war';
+import { cellKey } from '../domain/war/campaign-tick';
 import { sameCell, type GridCell } from '../domain/village/people/world-grid';
 import {
   knowledgeOfCell,
@@ -151,17 +154,28 @@ export async function warSceneOnMap(
     playerId: input.playerId,
   });
   // co rod útočníka o mapě ví – stopa a stavby naposled viděné, jeden dotaz na pohled: na mapě cíle
-  // sloučené s tím, co vidí tažení (Úloha 11), na mapě po cestě znalost té mapy, jak je (Úloha 12b)
+  // sloučené s tím, co vidí tažení (Úloha 11), na mapě po cestě s tím, co tam tažení vidí teď
   if (view) {
     const known = onTarget
       ? knownTarget(state, await knowledgeOfTarget(deps, state, input.playerId), {
           dwellings: target?.buildings ?? null,
           grid,
         })
-      : await knowledgeOfCell(deps, state, input.playerId, cell);
+      : knownOnWay(state, await knowledgeOfCell(deps, state, input.playerId, cell), cell);
     if (known) view.known = known;
   }
   return view;
+}
+
+/**
+ * Znalost rodu o mapě po cestě sloučená s tím, co tažení na té mapě vidí teď (`state.seen`, jako
+ * výjezd – `seenOn`): stará zpráva platí jen mimo dohled – dům, který mezitím shořel, se v dohledu
+ * vojska nekreslí a nový ano (návrh Clauda po závěrečné recenzi).
+ */
+function knownOnWay(state: CampaignState, known: SeenCell | null, cell: GridCell): SeenCell | null {
+  const fresh = state.seen?.[cellKey(cell)] ?? null;
+  if (known === null || fresh === null) return fresh ?? known;
+  return mergeKnowledge(known, fresh);
 }
 
 /**
