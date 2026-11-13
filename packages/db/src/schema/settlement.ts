@@ -75,5 +75,10 @@ export const settlement = pgTable(
     index('settlement_premium_owner_idx')
       .on(table.premiumOwnerId)
       .where(sql`${table.premiumType} IS NOT NULL`),
+    // Sídla čekající na nového držitele (`acceptTransfers` – ptá se každá dávka workeru): jen
+    // řádky s čekajícím držitelem, takže dotaz nečte celou tabulku a index zůstává malý.
+    index('settlement_pending_owner_idx')
+      .on(table.pendingOwnerId)
+      .where(sql`${table.pendingOwnerId} IS NOT NULL`),
   ],
 );

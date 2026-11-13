@@ -447,7 +447,8 @@ Pravidla: [vassalage.md](../design/vassalage.md) – Vymření rodu – odúmrť
   1. krok pod zámkem **starého** držitele: `SettlementRepository.transferHolder(sídlo, starý, nový)` –
      podmíněný UPDATE (drží starý, nic nečeká), sídlo přestane být sídelní; `listActive` čekající sídlo
      nevrací nikomu, fronta workeru (`world-queue.ts`) ho počítá u nového (`coalesce(pending, owner)`).
-  2. krok pod zámkem **nového**: `acceptHolderTransfers(nový)` (`acceptTransfers` + křest nového rodu
+  2. krok pod zámkem **nového**: `acceptHolderTransfers(nový)` (`acceptTransfers` – čekající sídla
+     najde částečný index `settlement_pending_owner_idx`, dotaz běží v každé dávce workeru – + křest nového rodu
      ve vsích – `village-people.md` – Křest a víra) – na začátku `advancePlayer` (worker, `tryRun`),
      `advanceDynasty` (web) a v `transferVillages`; idempotentní.
      Pád mezi kroky: sídlo čeká, nikdo ho nepočítá, nejbližší dopočet nového držitele ho převezme. Verze vsi

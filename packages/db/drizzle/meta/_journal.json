@@ -302,6 +302,13 @@
       "when": 1794406584427,
       "tag": "0043_village_state_codec",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1794564170824,
+      "tag": "0044_pending_owner_outbox_indexes",
+      "breakpoints": true
     }
   ]
 }
