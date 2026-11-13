@@ -38,6 +38,7 @@ import {
   type VillageState,
   type VillageSummary,
   type PenSpecies,
+  type SacredRuin,
   herdsOverRoom,
   threshingStatus,
 } from '@bohemia/game';
@@ -255,6 +256,19 @@ export function wearOf<K extends string>(condition: number, key: K): { [key in K
   return { [key]: Math.floor(condition * 100) / 100 } as { [key in K]?: number };
 }
 
+/** Zbytek padlé modly či svatyně pro scénu z jednoho záznamu – `overgrowth` po 5 %. */
+export function sceneSacredRuinOf(
+  r: Pick<SacredRuin, 'id' | 'kind' | 'position'>,
+  overgrowth: number,
+): NonNullable<SceneSacred['ruins']>[number] {
+  return {
+    id: r.id,
+    kind: r.kind,
+    position: r.position,
+    overgrowth: Math.floor(overgrowth * 20) / 20,
+  };
+}
+
 /** Posvátná místa pro scénu; ves bez nich null. */
 export function sceneSacred(
   state: VillageState,
@@ -306,12 +320,9 @@ export function sceneSacred(
     ...sites,
   ];
   // zbytky padlých model a svatyní – zarůstání po 5 % (scéna se přestaví jen při změně)
-  const ruins = (state.sacredRuins ?? []).map((r) => ({
-    id: r.id,
-    kind: r.kind,
-    position: r.position,
-    overgrowth: Math.floor(sacredRuinOvergrowth(r, day) * 20) / 20,
-  }));
+  const ruins = (state.sacredRuins ?? []).map((r) =>
+    sceneSacredRuinOf(r, sacredRuinOvergrowth(r, day)),
+  );
   const { oaks, groves } = summary.sacred;
   if (oaks.length === 0 && groves.length === 0 && buildings.length === 0 && ruins.length === 0) {
     return null;

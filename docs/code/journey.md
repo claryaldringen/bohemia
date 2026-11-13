@@ -209,6 +209,12 @@ tempo a svět `CampaignWorld`.
   průběh `churchProgress`) a `SeenFortification` (celé opevnění a stavby na něm `SeenFortWork` –
   `done` bez kácení dřeva, takže `fortSegmentProgress` vyjde jako ze stavby). Nikdy lidi,
   domácnosti, zvířata, kněze, hroby ani zásoby (`storesKg`, dříví dílny, zahrada) – hlídá test.
+  Od Úlohy 9a i `SeenThreshing` (humno hotové či rozestavěné, bourání – klíč `threshing:id`),
+  `SeenKiln` (milíř: fáze, průběh, uhlí – `kiln:id`), `SeenKilnRemnant` (milířiště),
+  `SeenRuin` (rozvalina obydlí vč. ohořelé, pozemek, řemeslo – `ruin:id`) a `SeenSacredRuin`
+  (padlá modla či svatyně). U rozvalin a milířiště je `overgrowth` z dne pohledu (stará zpráva).
+  Dům, který shořel, tak po pohledu na jeho místo ve znalosti zůstane jako rozvalina (zmizí
+  `dwelling:id`, přibude `ruin:id`). Test úniku pokrývá všechny druhy včetně opevnění se stavbou.
 - **Výkon** – seznam viditelného se pro týž objekt stavu vsi a den počítá jednou (`WeakMap`, nejvýš
   4 dny na ves jako `MarchGridMemo`; seznam je zmražený a data jsou kopie – výsledek na paměti
   nezávisí); obdélník bodů každé stavby je předběžné síto dohledu (obvod opevnění má stovky bodů).
@@ -222,6 +228,23 @@ tempo a svět `CampaignWorld`.
   zpráva, opevnění celé prvním dohledem, stopa, bez lidí a zásob, mapa bez vsi, paměť;
   `journey.test.ts` – objevování za jízdy, vcelku = po kouscích i restart ze zmraženého bodu při
   průjezdu kolem vsi; `journey-view.test.ts` – `seen`.
+
+## Cizí ves pro scénu (Úloha 9a – `apps/web/lib/journey-scene-view.ts`)
+
+- **`seenVillageOf(seen, landscape)`** – `SceneVillage` cizí vsi jen ze znalosti `SeenCell`; `null` =
+  nic známého. Tytéž tvary scény jako `sceneVillage` (pozemky `scenePlot`, opevnění
+  `sceneFortifications` se stářím k dni pohledu, `demolitionSiteProgress`); kreslicí logika se
+  nepíše znovu. Dostane krajinu cizí mapy (nad rámec zadání – pozemky a obvod opevnění ji
+  potřebují).
+- **Vynechává** (není z čeho kreslit): lidi a jejich činnosti (obydlí má `inhabited: false`, takže
+  bez dýmu; kouř dílen se odvozuje z lidí), pole, zvířata a koně (ohrada je prázdná, `stocked:
+  false`, bez stohu sena), zásoby a stohy, cesty a pěšiny (`since`), průběh rozšiřování ohrady
+  (čtverec `pending` bez `extension`), pec a jámy staveniště kostela (`site`), kněze a hroby,
+  hřbitovy, sady, duby a háje, jámy, lomy, počasí; milíř a humno bez slámy, zrna a mlácení.
+- **`journeyCellOf(view, home)`** – políčko, na které se scéna přepne za vojvodou; `null` = vojvoda
+  je na vlastní mapě, nebo výjezd neběží.
+- **Testy** – `lib/__tests__/journey-scene-view.test.ts` (totéž co vlastní ves, nic z lidí a polí,
+  tvary jednotlivých druhů, `journeyCellOf`).
 
 ## Web (Úloha 7 – `apps/web`)
 

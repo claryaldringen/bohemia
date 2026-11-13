@@ -7,7 +7,10 @@ import type {
   Church,
   Construction,
   Dwelling,
+  KilnRemnant,
   SacredBuilding,
+  SacredRuin,
+  ThreshingFloor,
   TileCell,
   VillageState,
   Workshop,
@@ -101,12 +104,27 @@ function richVillage(): VillageState {
     priestId: 1,
     graves: [{ personId: 3, day: DAY - 50 }],
   };
+  const fortWithWork: Fortification = { ...bigFort(), id: 6 };
+  const fortSite: Construction = {
+    id: 51,
+    kind: 'fortification',
+    fortificationId: 6,
+    fortWork: 'build',
+    startedDay: DAY - 5,
+    cost: 10,
+    done: 3,
+    dwellingType: null,
+    position: null,
+    dwellingId: null,
+    fieldId: null,
+  } as unknown as Construction;
   return village(
     [kin({ id: 1, age: 30, sex: 'male' }), kin({ id: 4, age: 8, sex: 'female', home: 2 })],
     [house(1, 0, 0), smithy],
     {
       storesKg: 900,
-      constructions: [site],
+      constructions: [site, fortSite],
+      fortifications: [fortWithWork],
       pens: [horsePen(5, [horse(6, 5)])],
       sacredBuildings: [idol],
       churches: [church],
@@ -182,6 +200,165 @@ describe('lookAround – stavby v dohledu', () => {
   });
 });
 
+/** Ves s humny, milířem, milířištěm a rozvalinami – i s tím, co se o lidech nesmí prozradit. */
+function buildingsVillage(): VillageState {
+  const burner = house(3, 10, 40, {
+    workshop: {
+      craft: 'charcoal',
+      felling: null,
+      fuelKg: 7,
+      kilns: [
+        {
+          id: 60,
+          site: { x: 30, z: 60 },
+          trees: [{ id: 1, cost: 2 }],
+          stage: 'draw',
+          prepared: 1,
+          done: 0,
+          charcoalKg: 50,
+        },
+      ],
+    } as unknown as Workshop,
+  });
+  const floors: ThreshingFloor[] = [
+    { id: 70, position: { x: -40, z: 20, rotation: 0.3 }, builtDay: 5, threshed: true },
+    { id: 71, position: { x: -60, z: 20, rotation: 0 }, builtDay: null },
+  ];
+  const site: Construction = {
+    id: 71,
+    kind: 'threshing-floor',
+    startedDay: DAY - 3,
+    cost: 10,
+    done: 5,
+    dwellingType: null,
+    position: { x: -60, z: 20, rotation: 0 },
+    dwellingId: null,
+    fieldId: null,
+  };
+  const remnant: KilnRemnant = { id: 61, burnerId: 3, x: 50, z: 50, day: DAY - 100 };
+  const sacredRuin: SacredRuin = {
+    id: 81,
+    kind: 'shrine',
+    position: { x: -30, z: -30, rotation: 0 },
+    day: DAY - 20,
+  };
+  return village([kin({ id: 1, age: 30, sex: 'male' })], [house(1, 0, 0), burner], {
+    threshingFloors: floors,
+    constructions: [site],
+    kilnRemnants: [remnant],
+    sacredRuins: [sacredRuin],
+    ruins: [
+      {
+        id: 9,
+        type: 'srub',
+        position: { x: 70, z: 10, rotation: 0 },
+        craft: 'smith',
+        day: DAY - 10,
+        charred: true,
+      },
+    ],
+  });
+}
+
+describe('sightingsOf – humna, milíře a rozvaliny', () => {
+  it('humna, milíř, milířiště a rozvaliny jsou ve znalosti', () => {
+    const data = Object.fromEntries(
+      sightingsOf(buildingsVillage(), DAY).map((s) => [s.key, s.data]),
+    );
+    expect(data['threshing:70']).toEqual({
+      kind: 'threshing',
+      id: 70,
+      position: { x: -40, z: 20, rotation: 0.3 },
+      built: true,
+      progress: 1,
+    });
+    expect(data['threshing:71']).toMatchObject({ kind: 'threshing', built: false, progress: 0.5 });
+    expect(data['kiln:60']).toEqual({
+      kind: 'kiln',
+      id: 60,
+      burnerId: 3,
+      x: 30,
+      z: 60,
+      stage: 'draw',
+      progress: expect.any(Number),
+      charcoal: expect.any(Number),
+    });
+    expect(data['kilnRemnant:61']).toEqual({
+      kind: 'kilnRemnant',
+      id: 61,
+      burnerId: 3,
+      x: 50,
+      z: 50,
+      overgrowth: expect.any(Number),
+    });
+    expect(data['ruin:9']).toMatchObject({
+      kind: 'ruin',
+      id: 9,
+      type: 'srub',
+      craft: 'smith',
+      charred: true,
+    });
+    expect(data['sacredRuin:81']).toMatchObject({ kind: 'sacredRuin', type: 'shrine' });
+  });
+
+  it('dům, který shořel, je po pohledu na jeho místo ve znalosti rozvalina', () => {
+    const before = look(undefined, villageOf([house(1, 70, 10)]), [EYE], DAY, MEADOW_GRID);
+    expect(keys(before)).toEqual(['dwelling:1']);
+    const burned = villageOf([], {
+      ruins: [
+        {
+          id: 1,
+          type: 'zemnice',
+          position: { x: 70, z: 10, rotation: 0.5 },
+          day: DAY + 1,
+          charred: true,
+        },
+      ],
+    });
+    const after = look(before, burned, [EYE], DAY + 1, MEADOW_GRID);
+    expect(keys(after)).toEqual(['ruin:1']);
+  });
+
+  it('v serializované znalosti nejsou lidé, domácnosti ani zásoby ani u nových druhů', () => {
+    const cell = look(undefined, buildingsVillage(), [EYE], DAY, MEADOW_GRID);
+    expect(new Set(cell.parts.map((p) => p.data.kind))).toEqual(
+      new Set(['dwelling', 'threshing', 'kiln', 'kilnRemnant', 'ruin', 'sacredRuin']),
+    );
+    const seenKeys = new Set<string>();
+    JSON.stringify(cell, (k: string, v: unknown) => {
+      seenKeys.add(k);
+      return v;
+    });
+    const forbidden = [
+      'people',
+      'fuelKg',
+      'charcoalKg',
+      'trees',
+      'threshed',
+      'idleSince',
+      'builtDay',
+      'felling',
+    ];
+    expect([...seenKeys].filter((k) => forbidden.includes(k))).toEqual([]);
+  });
+
+  it('vcelku = po kouscích přes JSON', () => {
+    const v = buildingsVillage();
+    const whole = look(undefined, v, [EYE], DAY, MEADOW_GRID);
+    let pieces: SeenCell | undefined;
+    for (const eye of [EYE, { x: 20, z: 20 }, { x: -30, z: 10 }]) {
+      pieces = look(
+        pieces && (JSON.parse(JSON.stringify(pieces)) as SeenCell),
+        v,
+        [eye],
+        DAY,
+        MEADOW_GRID,
+      );
+    }
+    expect(pieces!.parts).toEqual(whole.parts);
+  });
+});
+
 describe('lookAround – stopa', () => {
   it('stopa přibývá po 20 m, neopakuje body a je seřazená', () => {
     expect(JOURNEY.trailStepM).toBe(20);
@@ -211,7 +388,7 @@ describe('sightingsOf – co je ve vsi vidět', () => {
   it('v serializovaném SeenCell nejsou klíče people, storesKg ani id domácností', () => {
     const cell = look(undefined, richVillage(), [EYE], DAY, MEADOW_GRID);
     expect(new Set(cell.parts.map((p) => p.data.kind))).toEqual(
-      new Set(['dwelling', 'site', 'pen', 'sacred', 'church']),
+      new Set(['dwelling', 'site', 'pen', 'sacred', 'church', 'fortification']),
     );
     const seenKeys = new Set<string>();
     JSON.stringify(cell, (k: string, v: unknown) => {
