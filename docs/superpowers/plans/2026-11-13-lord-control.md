@@ -22,7 +22,7 @@
 - UI jako 0 A.D. – ikony, slova jen v `Tooltip`, důvod u kurzoru. Texty přesně: „Tam vojvoda nedojde.“, „Vojvoda je raněný.“, „Vojvoda je na tažení.“, „Ves je napadena.“, „Tam je válka.“, „Tu mapu rod nezná.“; popisek okraje „Na sousední mapu“; upozornění „Bořivoj se vrátil.“ (jméno vojvody); činnosti „je na cestě“, „čeká (2 dny)“, „vrací se domů“.
 - Scéna: Babylon z konkrétních modulů, kreslit jen při změně (`needsRender`), pick terénu jen přes `terrain-pick.ts`; grafika CC0 nebo z Blenderu se zápisem do `LICENSES.md`.
 - Mapa kódu: nový soubor `docs/code/journey.md` a řádek v tabulce `CLAUDE.md`; každá úloha doplní svou sekci a projde `npm run check:docs`.
-- Agent: pracovní strom `Bohemia-wt/<větev>` ze špičky `feat/landscape`, ≤ 150 kroků, žádné `git stash`, `rm -rf`, `db:migrate`; `test:db` a e2e jen na vlastní databázi a portu (`TEST_DATABASE`, `E2E_PORT`); commit česky s `Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>`. Před commitem `typecheck`, `lint`, `test`, `format:check`, `check:docs`.
+- Agent: pracovní strom `Bohemia-wt/<větev>` ze špičky `feat/landscape`, ≤ 150 kroků, žádné `git stash`, `rm -rf`, `db:migrate`; `test:db` a e2e jen na vlastní databázi a portu (`TEST_DATABASE`, `E2E_PORT`); commit česky s `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Před commitem `typecheck`, `lint`, `test`, `format:check`, `check:docs`.
 - Modely: úlohy 1, 4, 6 a 11 (jádro, souběh, vliv na tažení) silnější model, ostatní Sonnet; recenze po každé úloze. Migrace do `bohemia` pouští Claude po sloučení úloh 3 a 10 (záloha předem) – agenti nemigrují.
 
 ## Review Focus
