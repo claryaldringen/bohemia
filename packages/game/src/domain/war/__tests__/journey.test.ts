@@ -17,6 +17,7 @@ import type {
 } from '../journey-types';
 import type { Pos } from '../march-grid';
 import { JOURNEY, WAR } from '../rules-war';
+import type { SeenCell } from '../seen';
 import { dayOfTick, hoursPerTick, msOfTick, TICKS_PER_SECOND } from '../ticks';
 import { flat, LAUNCH, MEADOW, SUMMER, world as clock } from './campaign-fixtures';
 
@@ -144,6 +145,22 @@ const TRIP: JourneyIntent[] = [
   intent(LAUNCH + 1000, 2, { kind: 'go', pos: FAR }),
 ];
 const TRIP_END = LAUNCH + 3600;
+
+/** Kněžice na východní mapě: dům 7 u cesty k FAR, dům 8 daleko na druhém konci mapy. */
+function passingWorld(): CampaignWorld {
+  const knezice = village(
+    [kin({ id: 1, age: 30, sex: 'male' })],
+    [
+      { ...dwelling(7), position: { x: -700, z: 80, rotation: 0 } },
+      { ...dwelling(8), position: { x: 300, z: 300, rotation: 0 } },
+    ],
+  );
+  const foreign: CampaignMap = { landscape: flat(), obstacles: null, villageIds: ['knezice'] };
+  return worldOf({
+    villages: { lhota: homeVillage(), knezice },
+    mapOf: (cell) => (cell.x === 1 ? foreign : MEADOW),
+  });
+}
 
 describe('newJourney', () => {
   it('výchozí stav: jedna skupina doma s prvním rozkazem, takt a den vyslání', () => {
@@ -577,8 +594,65 @@ describe('bez vedlejších účinků', () => {
   });
 });
 
+describe('objevování za jízdy (Úloha 6)', () => {
+  it('po průjezdu kolem vsi má výjezd seen jejího políčka – dům u cesty a stopu; domov ne', () => {
+    const step = stepJourney(journey(), TRIP_END, TRIP, passingWorld());
+    expect(step.state.phase).toBe('done');
+    const seen = step.state.seen!;
+    expect(Object.keys(seen)).toEqual(['1,0']);
+    const east = seen['1,0']!;
+    expect(east.villageId).toBe('knezice');
+    expect(east.parts.map((p) => [p.key, p.data.kind])).toEqual([['dwelling:7', 'dwelling']]);
+    // stopa po 20 m od okraje mapy k FAR (−655, 5) – body se neopakují
+    expect(east.trail).toContainEqual([-660, 0]);
+    expect(east.trail.length).toBeGreaterThan(10);
+    expect(new Set(east.trail.map(([x, z]) => `${x},${z}`)).size).toBe(east.trail.length);
+  });
+
+  it('jiná ves na mapě než dřív – stavby staré vsi se zahodí, stopa zůstane', () => {
+    // skupina stojí u Kněžic; rod si z dřívějška pamatuje dům 8 vsi, která na mapě stála předtím
+    const standing = stepJourney(journey(), LAUNCH + 2000, TRIP, passingWorld()).state;
+    const old: SeenCell = {
+      villageId: 'stara',
+      trail: [[900, 900]],
+      parts: [
+        {
+          key: 'dwelling:8',
+          pos: { x: 300, z: 300 },
+          day: 10,
+          data: {
+            kind: 'dwelling',
+            id: 8,
+            type: 'zemnice',
+            position: { x: 300, z: 300, rotation: 0 },
+            condition: 1,
+          },
+        },
+      ],
+    };
+    const next = stepJourney(
+      { ...standing, seen: { '1,0': old } },
+      standing.tick + 1,
+      [],
+      passingWorld(),
+    ).state.seen!['1,0']!;
+    expect(next.villageId).toBe('knezice');
+    expect(next.parts.map((p) => p.key)).toEqual(['dwelling:7']);
+    expect(next.trail).toContainEqual([900, 900]);
+  });
+
+  it('mapa bez vsi – jen stopa', () => {
+    const east = stepJourney(journey(), TRIP_END, TRIP, worldOf()).state.seen?.['1,0'];
+    expect(east?.parts).toEqual([]);
+    expect(east?.trail.length).toBeGreaterThan(10);
+    expect(east && 'villageId' in east).toBe(false);
+  });
+});
+
 describe('determinismus (Review Focus 4)', () => {
   const whole = stepJourney(journey(), TRIP_END, TRIP, worldOf());
+  /** Louky a průjezd kolem cizí vsi – výjezd si za jízdy pamatuje viděné (Úloha 6). */
+  const worlds = [(): CampaignWorld => worldOf(), passingWorld];
 
   it('cesta na sousední mapu a zpět skončí doma', () => {
     expect(whole.waiting).toBeNull();
@@ -589,22 +663,29 @@ describe('determinismus (Review Focus 4)', () => {
   });
 
   it('krok vcelku = po 7 taktech s JSON mezi kousky (stav, události i upozornění)', () => {
-    for (const chunk of [7, 400]) {
-      const parts = inChunks(journey(), TRIP_END, chunk, TRIP, worldOf());
-      expect(JSON.stringify(parts.state)).toBe(JSON.stringify(whole.state));
-      expect(parts.villageEvents).toEqual(whole.villageEvents);
-      expect(parts.notices).toEqual(whole.notices);
+    for (const worldFn of worlds) {
+      const all = stepJourney(journey(), TRIP_END, TRIP, worldFn());
+      for (const chunk of [7, 400]) {
+        const parts = inChunks(journey(), TRIP_END, chunk, TRIP, worldFn());
+        expect(JSON.stringify(parts.state)).toBe(JSON.stringify(all.state));
+        expect(parts.villageEvents).toEqual(all.villageEvents);
+        expect(parts.notices).toEqual(all.notices);
+      }
     }
   });
 
   it('restart z kontrolního bodu uprostřed cesty i čekání = bez restartu', () => {
-    for (const tick of [LAUNCH + 120, LAUNCH + 1700, LAUNCH + 2600]) {
-      const half = stepJourney(journey(), tick, TRIP, worldOf());
-      const checkpoint = JSON.parse(JSON.stringify(half.state)) as JourneyState;
-      const rest = stepJourney(checkpoint, TRIP_END, TRIP, worldOf());
-      expect(JSON.stringify(rest.state)).toBe(JSON.stringify(whole.state));
-      expect([...half.villageEvents, ...rest.villageEvents]).toEqual(whole.villageEvents);
-      expect([...half.notices, ...rest.notices]).toEqual(whole.notices);
+    for (const worldFn of worlds) {
+      const all = stepJourney(journey(), TRIP_END, TRIP, worldFn());
+      for (const tick of [LAUNCH + 120, LAUNCH + 1700, LAUNCH + 2600]) {
+        const half = stepJourney(journey(), tick, TRIP, worldFn());
+        // zmražený bod – co výjezd viděl, další takt na místě nemění
+        const checkpoint = deepFreeze(JSON.parse(JSON.stringify(half.state)) as JourneyState);
+        const rest = stepJourney(checkpoint, TRIP_END, TRIP, worldFn());
+        expect(JSON.stringify(rest.state)).toBe(JSON.stringify(all.state));
+        expect([...half.villageEvents, ...rest.villageEvents]).toEqual(all.villageEvents);
+        expect([...half.notices, ...rest.notices]).toEqual(all.notices);
+      }
     }
   });
 
@@ -624,10 +705,12 @@ describe('chybějící mapa', () => {
     const whole = stepJourney(start, TRIP_END, TRIP, worldOf());
     const partial = stepJourney(start, TRIP_END, TRIP, onlyHome);
     expect(partial.waiting).toEqual({ cells: [EAST], villageIds: [] });
-    // přechod okrajem sousední mapu nečte – chybí až rozkazu na ní (takt +1000)
-    expect(partial.state.tick).toBe(LAUNCH + 999);
-    expect(partial.state.groups[0]).toMatchObject({ cell: EAST, arrived: true });
-    const upTo = stepJourney(start, LAUNCH + 999, TRIP, worldOf());
+    // na sousední mapě se muži hned rozhlédnou (Úloha 6) – mapu čte už takt přechodu okraje,
+    // krok skončí taktem před ním u okraje domovské mapy
+    expect(partial.state.groups[0]!.cell).toEqual(HOME.cell);
+    const crossing = stepJourney(partial.state, partial.state.tick + 1, TRIP, worldOf());
+    expect(crossing.state.groups[0]!.cell).toEqual(EAST);
+    const upTo = stepJourney(start, partial.state.tick, TRIP, worldOf());
     expect(partial.state).toStrictEqual(upTo.state);
     expect(partial.villageEvents).toEqual(upTo.villageEvents);
     expect(partial.notices).toEqual(upTo.notices);

@@ -1,7 +1,7 @@
 # Výjezd vojvody (`packages/game/src/domain/war` – `journey*.ts`)
 
 Pravidla: [lord-control.md](../design/lord-control.md) – Rozkazy, Na místě a návrat, Pohyb, Zásoby
-a zima. Plán: `docs/superpowers/plans/2026-11-13-lord-control.md`. Výjezd stojí vedle tažení
+a zima, Co vojvoda vidí. Plán: `docs/superpowers/plans/2026-11-13-lord-control.md`. Výjezd stojí vedle tažení
 (`war.md` – Tažení po taktech) – nemá válku ani cílovou ves – a sdílí s ním takty, pohyb po mapách,
 tempo a svět `CampaignWorld`.
 
@@ -177,3 +177,48 @@ tempo a svět `CampaignWorld`.
   `inSight`: 150 m, les 50 m); vlastní výjezd vždy. Vrací jen jméno vojvody, jméno rodu (`houseName`
   – hlava rodu jako v panelu Rod), takt, polohu, cíl na této mapě a muže (vojvoda, kůň). Cizí ves:
   prázdno. Ves hostitele na jezdce nereaguje – nic se nezapisuje.
+
+## Objevování (Úloha 6 – `domain/war/seen.ts`)
+
+- **Stav** – `JourneyState.seen` (volitelné): pro každé cizí políčko `x,y`, kde muži byli,
+  `SeenCell` – `villageId` vsi na mapě, stopa `trail` (body `[x, z]` po `JOURNEY.trailStepM` 20 m,
+  seřazené podle x, pak z, bez opakování; mlhu z ní odkryje prohlížeč stejným dohledem) a naposled
+  viděné stavby `parts` seřazené podle klíče (`SeenPart`: `key` = druh a id – `dwelling:12`,
+  `site:40`, `pen:3`, `sacred:7`, `church:55`, `fortification:2` –, místo `pos`, den `day` a data
+  pro scénu `data`). Domovská mapa tu není – hráč ji zná celou.
+- **Takt** – po pohybu `discover` (`journey.ts`): na cizí mapě `lookAround` s okem skupiny
+  (`groups[0].pos`), mřížkou `gridOf` a stavem vsi `villageAt` pro den taktu. Ves bez spočteného
+  dne krok zastaví (`MissingData`) – i když skupina stojí; mapu sousedního políčka proto krok čte už
+  v taktu přechodu okraje. Jiná ves na mapě než dřív (stará zanikla) – stavby staré vsi se zahodí,
+  stopa zůstane.
+- **`lookAround(prev, { village, eyes, grid, day })`** – stavby v dohledu (`inSight`: 150 m, z lesa
+  a do lesa 50 m) zapíše s dnešním stavem a dnem; známou stavbu, která ve vsi už není a její místo
+  je v dohledu, zapomene; co je mimo dohled, zůstane („stará zpráva“). Co muži dnes už viděli, se
+  týž den znovu nepřepisuje – stav vsi pro den je jeden. `prev` nemění a beze změny vrátí týž
+  objekt, takže takt znalost map nekopíruje (`journeyTick` kopíruje stav bez `seen`).
+- **`sightingsOf(village, day)`** – co je ve vsi vidět: obydlí včetně dvorce, staveniště obydlí
+  a přestavby, modly a svatyně (i rozestavěné), ohrady, kostel i jeho staveniště a opevnění. Ne
+  pole, sady, hřbitovy, lomy, stohy, jámy, cesty, lidé, zvířata ani zásoby; stavební huť nemá ve
+  stavu vsi místo (mistři jsou lidé). Opevnění má body `eyesAt` = navzorkovanou křivku obvodu
+  (`fortificationOutline`) – odkryje se celé, jakmile muž dohlédne na kterýkoli bod. Opevnění bez
+  bodů (starší po čtvercích) převede už načtení vsi (`fort-points`).
+- **Data** – `SeenData` nese jen to, co čte scéna: `SeenDwelling` (typ, poloha a natočení, stav,
+  pozemek, řemeslo dílny, `plainShape`, průběh bourání), `SeenSite` (typ, poloha, průběh
+  `buildProgress`, pozemek, řemeslo), `SeenPen` (druh, čtverce a mřížka, hotová, průběh, stav
+  opuštěné ohrady, bourání), `SeenSacred`, `SeenChurch` (typ, rozměry, poloha, střecha, výzdoba,
+  průběh `churchProgress`) a `SeenFortification` (celé opevnění a stavby na něm `SeenFortWork` –
+  `done` bez kácení dřeva, takže `fortSegmentProgress` vyjde jako ze stavby). Nikdy lidi,
+  domácnosti, zvířata, kněze, hroby ani zásoby (`storesKg`, dříví dílny, zahrada) – hlídá test.
+- **Výkon** – seznam viditelného se pro týž objekt stavu vsi a den počítá jednou (`WeakMap`, nejvýš
+  4 dny na ves jako `MarchGridMemo`; seznam je zmražený a data jsou kopie – výsledek na paměti
+  nezávisí); obdélník bodů každé stavby je předběžné síto dohledu (obvod opevnění má stovky bodů).
+  Měřeno 13. 11. 2026 – ves se 40 domy, palisádou a 2 staveništi, herní den = 344 taktů po kolech
+  4 taktů jako ve workeru, medián ze 3 běhů, bez objevování → s ním: stojí ve vsi 0,8 → 9,4 ms za
+  den s novým stavem vsi (mřížka cizí mapy 5,7 ms, seznam viditelného 0,2 ms), s plnou pamětí
+  0,6 → 1,8 ms; jede kolem vsi 16,9 → 16,7 ms (nový stav vsi), 9,0 → 9,5 ms (s pamětí); stojí na
+  mapě mimo dohled všeho 1,0 ms (bez síta 15,4 ms).
+- **Pohled** – `JourneyView.seen`: `SeenCell` mapy, na které skupina je; na domovské mapě null.
+- **Testy** – `domain/war/__tests__/seen.test.ts`: dohled a les, dnešní stav, zmizelé, stará
+  zpráva, opevnění celé prvním dohledem, stopa, bez lidí a zásob, mapa bez vsi, paměť;
+  `journey.test.ts` – objevování za jízdy, vcelku = po kouscích i restart ze zmraženého bodu při
+  průjezdu kolem vsi; `journey-view.test.ts` – `seen`.

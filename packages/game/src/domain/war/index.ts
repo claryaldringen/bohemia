@@ -24,6 +24,7 @@ export * from './surrender';
 export * from './captives';
 export * from './npc-commander';
 export * from './sight';
+export * from './seen';
 export * from './view';
 export * from './scene-view';
 export { breakoutChoice, type BreakoutBlock, type BreakoutChoice } from './rout';
