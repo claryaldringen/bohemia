@@ -108,7 +108,11 @@ export function commandJourneyForPlayer(
 
 /** Pohled hráče na jeho běžící výjezd; null = žádný nemá. */
 export function journeyViewForPlayer(playerId: string): Promise<JourneyView | null> {
-  return journeyViewFor({ journeys: gameDeps().journeys, world: currentWorld() }, { playerId });
+  const deps = gameDeps();
+  return journeyViewFor(
+    { journeys: deps.journeys, world: currentWorld(), knowledge: deps.knowledge },
+    { playerId },
+  );
 }
 
 /** Jezdci na mapě vsi hráče (vlastní vždy, cizí jen v dohledu); cizí ves = prázdno. */

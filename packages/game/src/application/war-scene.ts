@@ -1,6 +1,7 @@
 import {
   battleForts,
   isCampaignParticipant,
+  knownTarget,
   sceneFolkOf,
   shownBattle,
   warSceneView,
@@ -13,7 +14,12 @@ import {
   type WarSceneView,
 } from '../domain/war';
 import { sameCell, type GridCell } from '../domain/village/people/world-grid';
-import { sightGrid, type SightGridCache } from './campaign-view';
+import {
+  knowledgeOfTarget,
+  sightGrid,
+  type KnowledgeOfTargetDeps,
+  type SightGridCache,
+} from './campaign-view';
 import type { CampaignCells, CampaignRepository } from './campaigns';
 import type { SettlementRepository } from './settlements';
 import type { VillageRepository } from './villages';
@@ -43,7 +49,8 @@ export interface WarSceneDefenderCache {
   set(key: string, defender: WarSceneDefender): void;
 }
 
-export interface WarSceneDeps {
+/** `knowledge`, `houses` – co rod útočníka ví o mapě cíle (`warSceneOnMap`, Úloha 11). */
+export interface WarSceneDeps extends KnowledgeOfTargetDeps {
   settlements: Pick<SettlementRepository, 'find'>;
   /** `stampsOf` – id vsi sídla bez stavu; `find` – stav vsi jen při novém dni (a mřížka dohledu). */
   villages: Pick<VillageRepository, 'stampsOf' | 'find'>;
@@ -129,7 +136,7 @@ export async function warSceneOnMap(
   const target = onTarget ? await defenderOf(deps, state.target.villageId, cell, state.day) : null;
   // dohled v lese jako v pohledu na tažení – mřížka mapy cíle jen při boji (i rozhodnutém dnes)
   const grid = onTarget && shownBattle(state) !== null ? await sightGrid(deps, state) : null;
-  return warSceneView(state, {
+  const view = warSceneView(state, {
     cell,
     side: 'attack',
     grid,
@@ -138,6 +145,15 @@ export async function warSceneOnMap(
     buildings: target?.buildings ?? [],
     playerId: input.playerId,
   });
+  // co rod útočníka o mapě cíle ví – stopa a stavby naposled viděné (Úloha 11)
+  if (view && onTarget) {
+    const known = knownTarget(state, await knowledgeOfTarget(deps, state, input.playerId), {
+      dwellings: target?.buildings ?? null,
+      grid,
+    });
+    if (known) view.known = known;
+  }
+  return view;
 }
 
 /**

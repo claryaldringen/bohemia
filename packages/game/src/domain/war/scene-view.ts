@@ -26,6 +26,7 @@ import type { BattleLadder } from './ladders';
 import type { MarchGrid, Pos } from './march-grid';
 import { WAR } from './rules-war';
 import { breakoutChoice, type BreakoutBlock } from './rout';
+import type { SeenCell } from './seen';
 import { inSight } from './sight';
 
 // Válka ve scéně jedné mapy (war.md – Ve scéně; scene.md – Vojsko, boj a mlha války): co z tažení
@@ -197,6 +198,12 @@ export interface WarSceneView {
    * svou ves kreslí ze svého stavu – pole chybí.
    */
   buildings?: WarSceneBuilding[];
+  /**
+   * Útočník na mapě cíle: co jeho rod o mapě ví (plán 2026-11-13 – Úloha 11, `knownTarget`) –
+   * stopa k odkrytí mlhy a stavby naposled viděné, bez objevených domů (`buildings`) a opevnění.
+   * Doplní use-case `warSceneOnMap`; chybí – rod mapu nezná a tažení na ní nebylo.
+   */
+  known?: SeenCell;
   /** Obránce na mapě své vsi: útěk vsi do lesa se stády. Chybí – nikdo neutekl. */
   flight?: WarSceneFlight;
   /**

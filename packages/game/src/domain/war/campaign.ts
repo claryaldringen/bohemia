@@ -51,7 +51,9 @@ import type { Pos } from './march-grid';
 import { marchSpeed, type GroupPace } from './march';
 import { missingMaps, sendGroup, settleGoal, stepMover } from './movement';
 import { WAR } from './rules-war';
+import type { KnowledgeOut } from './seen';
 import { discoverBuildings } from './sight';
+import { targetSeen, trackTrail, trailKnowledge } from './campaign-knowledge';
 import { frostDay } from './season';
 import { npcIntents, npcLeader } from './npc-commander';
 import { inFight, setGroupOrder } from './orders';
@@ -118,6 +120,8 @@ export interface NewCampaign {
   ambush?: boolean;
   /** Domovské vsi mužů – kam jdou hloučky po rozpadu (`CampaignState.homes`). */
   homes?: Record<string, CampaignPlace>;
+  /** Rod vůdce – komu patří znalost z tažení (`CampaignState.houseId`). */
+  houseId?: string;
 }
 
 /** Výchozí stav tažení ve shromaždišti (fáze `assembling`). */
@@ -156,6 +160,7 @@ export function newCampaign(input: NewCampaign, clock: WorldClock): CampaignStat
     ...(input.ambush ? { ambush: true as const } : {}),
     ...(input.homes ? { homes: structuredClone(input.homes) } : {}),
     discovered: [],
+    ...(input.houseId === undefined ? {} : { houseId: input.houseId }),
     returnReason: null,
   };
 }
@@ -190,6 +195,9 @@ export function stepCampaign(
   const ctx = tickContext(world);
   const villageEvents: NewVillageEvent[] = [];
   const notices: CampaignNotice[] = [];
+  const knowledge: KnowledgeOut[] = [];
+  const withKnowledge = (): { knowledge?: KnowledgeOut[] } =>
+    knowledge.length > 0 ? { knowledge } : {};
   let current = state;
   let next = 0;
   const upfront = missingMaps(state, world);
@@ -209,14 +217,16 @@ export function stepCampaign(
         state: current,
         villageEvents,
         notices,
+        ...withKnowledge(),
         waiting: { cells: error.cells, villageIds: error.villageIds },
       };
     }
     next = end;
     villageEvents.push(...out.events);
     notices.push(...out.notices);
+    knowledge.push(...(out.knowledge ?? []));
   }
-  return { state: current, villageEvents, notices, waiting: null };
+  return { state: current, villageEvents, notices, ...withKnowledge(), waiting: null };
 }
 
 /**
@@ -225,7 +235,8 @@ export function stepCampaign(
  * kopie čistých dat (`cloneData`) je ≈ 5× rychlejší než `structuredClone` (u pochodu 20 tažení byla
  * kopie polovina času smyčky); sdílené odkazy uvnitř stavu rozdělí jako kontrolní bod v JSON – stav
  * sdílí jen záznamy, které se nemění na místě (prázdná `route` bojovníků z `openBattle`, `seenAt`
- * varovaných vsí, `PersonRef` zajatců).
+ * varovaných vsí, `PersonRef` zajatců). Stopa (`trail`, Úloha 11) se nekopíruje – mění se jen
+ * novým objektem (`trackTrail`), kopie by s délkou cesty rostla každý takt.
  */
 function campaignTick(
   state: CampaignState,
@@ -234,7 +245,9 @@ function campaignTick(
   ctx: TickContext,
   out: TickOut,
 ): CampaignState {
-  const s = cloneData(state);
+  const { trail, ...rest } = state;
+  const s: CampaignState = cloneData(rest);
+  if (trail) s.trail = trail;
   s.tick = tick;
   const day = dayOfTick(tick, ctx.world.clock);
   s.throughDay = dayOfTick(tick + 1, ctx.world.clock) - 1;
@@ -256,6 +269,7 @@ function campaignTick(
       break;
     case 'marching':
       moveGroups(s, ctx);
+      trackGroups(s);
       if (allArrived(s) && s.groups.some((g) => sameCell(g.cell, s.target.cell))) {
         s.phase = 'raiding';
       }
@@ -266,6 +280,7 @@ function campaignTick(
     case 'returning':
     case 'disbanded':
       moveGroups(s, ctx);
+      trackGroups(s);
       if (allArrived(s)) finish(s, ctx, out);
       break;
   }
@@ -283,7 +298,34 @@ function campaignTick(
   }
   // boj skončil (výhra, porážka, ústup) – výsledek nájezdu do vsí jednou (Ú6.10)
   reportRaid(s, ctx, out);
+  // nájezd skončil (i obratem, rozpadem) – co muži o mapě cíle vědí, jde rodu vůdce (Úloha 11)
+  if (state.phase === 'raiding' && s.phase !== 'raiding') shareTarget(s, ctx, out);
   return s;
+}
+
+/**
+ * Stopa skupin, ve kterých je aspoň jeden muž na nohou, po pohybu (Úloha 11) – jen záznam pro
+ * znalost rodu (`trackTrail`).
+ */
+function trackGroups(s: CampaignState): void {
+  const manned = new Set(s.members.flatMap((m) => (m.status === 'active' ? [m.group] : [])));
+  for (const g of s.groups) if (manned.has(g.id)) trackTrail(s, g.cell, [g.pos]);
+}
+
+/**
+ * Konec nájezdu (Úloha 11): stopa a objevená obydlí cílové vsi ve stavu, jak je muži viděli
+ * (`targetSeen` – den taktu, ves čtená jako v boji). Ves, která na mapě už není – jen stopa; bez
+ * stopy i obydlí (starší bod bez stopy, nic neobjevili) se nic nevydá.
+ */
+function shareTarget(s: CampaignState, ctx: TickContext, out: TickOut): void {
+  const map = ctx.world.landscapeOf(s.target.cell);
+  if (map === null) throw new MissingData([{ ...s.target.cell }], []);
+  const here = map.villageIds.includes(s.target.villageId) && s.discovered.length > 0;
+  const village = here ? ctx.world.villageAt(s.target.villageId, s.day) : null;
+  if (here && village === null) throw new MissingData([], [s.target.villageId]);
+  const seen = targetSeen(s, village);
+  if (seen.trail.length === 0 && seen.parts.length === 0) return;
+  (out.knowledge ??= []).push({ cell: { ...s.target.cell }, seen });
 }
 
 /**
@@ -625,6 +667,7 @@ function raidTick(s: CampaignState, tick: number, ctx: TickContext, out: TickOut
   syncControl(s);
   battleTick(s.battle, field, tickRandom(s.seed, tick, 'battle'));
   discover(s, s.battle, field, ctx);
+  trackTrail(s, s.target.cell, attackEyes(s.battle));
   const fallenBefore = new Set(s.members.flatMap((m, i) => (m.status === 'fallen' ? [i] : [])));
   syncMembers(s, s.battle);
   // padlý muž rodu – smrt a nástupnictví ve vsi hned (war.md – Ztráty), ne až po návratu
@@ -656,8 +699,12 @@ function discover(
   if (!ctx.world.landscapeOf(s.target.cell)?.villageIds.includes(s.target.villageId)) return;
   const village = ctx.world.villageAt(s.target.villageId, s.day);
   if (village === null) throw new MissingData([], [s.target.villageId]);
-  const eyes = battle.fighters.filter((f) => f.side === 'attack' && inFight(f)).map((f) => f.pos);
-  s.discovered = discoverBuildings(s.discovered, village.dwellings, eyes, field.grid);
+  s.discovered = discoverBuildings(s.discovered, village.dwellings, attackEyes(battle), field.grid);
+}
+
+/** Oči útoku v boji – muži tažení, kteří bojují (ne ležící ani prchající). */
+function attackEyes(battle: BattleState): Pos[] {
+  return battle.fighters.filter((f) => f.side === 'attack' && inFight(f)).map((f) => f.pos);
 }
 
 /** Id bojovníka velitele tažení (pokyny hráče v boji). */
@@ -928,6 +975,9 @@ function finish(s: CampaignState, ctx: TickContext, out: TickOut): void {
     post(s, out, villageId, { kind: 'campaign-return', result: returnOf(s, villageId) });
     if (!disbanded) chronicle(s, out, villageId, 'returned');
   }
+  // kudy muži šli a odkud se dívali, jde rodu vůdce – stopy cizích map (Úloha 11)
+  const trails = trailKnowledge(s);
+  if (trails.length > 0) (out.knowledge ??= []).push(...trails);
   if (disbanded) return;
   out.notices.push({
     playerId: s.playerId,

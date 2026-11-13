@@ -12,6 +12,7 @@ import type {
   SurrenderOrder,
 } from './campaign-types';
 import type { MarchGrid, Pos } from './march-grid';
+import type { SeenCell } from './seen';
 import { inSight } from './sight';
 
 // Pohled hráče na tažení (war.md – Mlha války, Velení; plán 2026-11-03 – Úloha 6.14): vlastní muži
@@ -125,6 +126,12 @@ export interface CampaignView {
    */
   flights?: CampaignViewFlight[];
   discovered: CampaignViewBuilding[];
+  /**
+   * Co rod hráče ví o mapě cíle (plán 2026-11-13 – Úloha 11, `knownTarget`): stopa k odkrytí mlhy
+   * (znalost rodu i stopa tažení) a stavby naposled viděné – bez objevených obydlí (`discovered`)
+   * a opevnění. Doplní use-case `campaignViewFor`; chybí – rod mapu nezná a tažení na ní nebylo.
+   */
+  known?: SeenCell;
   /** Volba ke vzdaným (u živého vedení). */
   surrendered: SurrenderOrder | null;
   battle: { outcome: BattleOutcome } | null;

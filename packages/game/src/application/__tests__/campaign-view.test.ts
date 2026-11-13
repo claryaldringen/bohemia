@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { StreamPoint } from '../../domain/landscape';
-import type { CampaignMap, CampaignState } from '../../domain/war';
+import type { CampaignMap, CampaignState, SeenCell, SeenData, SeenPart } from '../../domain/war';
 import { tickOfMs } from '../../domain/war';
 import type { Dwelling } from '../../domain/village/types';
 import { attacker, battle, defender, land } from '../../domain/war/__tests__/battle-fixtures';
@@ -11,8 +11,10 @@ import {
   commandCampaign as commandCampaignResult,
   type CampaignCommand,
 } from '../campaign-view';
+import type { House } from '../houses';
 import type { VillageRecord } from '../villages';
 import { InMemoryCampaigns } from './in-memory-campaigns';
+import { InMemoryKnowledge } from './in-memory-knowledge';
 
 // Živé vedení a pohled na tažení (plán 2026-11-03 – Úloha 6.14, Review Focus 4): podvržený záměr
 // server odmítne a pohled neprozradí nic mimo dohled vlastních mužů.
@@ -121,6 +123,116 @@ describe('campaignViewFor', () => {
     expect(await campaignViewFor(deps, { playerId: 'p1', campaignId: 'xx', sinceTick: 0 })).toBe(
       null,
     );
+  });
+});
+
+describe('znalost rodu v pohledu na tažení (plán 2026-11-13 – Úloha 11)', () => {
+  const part = (key: string, x: number, z: number): SeenPart => ({
+    key,
+    pos: { x, z },
+    day: 3,
+    data: { kind: key.split(':')[0] } as SeenData,
+  });
+  const TARGET_CELL = { x: 1, y: 0 };
+
+  /** Porty se znalostí rodu: vůdce p1 je rod h1 (ve stavu tažení), vazal p2 rod h2. */
+  async function withKnowledge(
+    state: CampaignState,
+    cells: Record<string, SeenCell>,
+  ): Promise<Awaited<ReturnType<typeof setup>> & { all: Parameters<typeof commandCampaign>[0] }> {
+    const base = await setup(state);
+    const knowledge = new InMemoryKnowledge();
+    for (const [houseId, seen] of Object.entries(cells)) {
+      await knowledge.merge(houseId, TARGET_CELL, seen);
+    }
+    const houses = {
+      activeOf: (playerId: string): Promise<House | null> =>
+        Promise.resolve(playerId === 'p2' ? ({ id: 'h2' } as House) : null),
+    };
+    return { ...base, all: { ...base.deps, knowledge, houses } };
+  }
+
+  it('tažení vidí známé domy dřív, než je kdo z vojska spatří, a rozkaz k nim projde', async () => {
+    const known: SeenCell = {
+      villageId: 'knezice',
+      trail: [[-880, 20]],
+      parts: [part('dwelling:8', -500, 0), part('fortification:1', 0, 300)],
+    };
+    const state = raiding({ discovered: [], houseId: 'h1' });
+    const { deps, all, campaigns, nowMs } = await withKnowledge(state, { h1: known });
+    const view = await campaignViewFor(all, { playerId: 'p1', campaignId: 'c1', sinceTick: 0 });
+    expect(view!.discovered).toEqual([]);
+    // stopa k odkrytí mlhy a stavby, jak je rod viděl; opevnění cíle vidí útočník jako dřív
+    expect(view!.known).toEqual({ ...known, parts: [known.parts[0]] });
+    // bez úložiště znalosti pohled jako dřív – pole chybí
+    const blind = await campaignViewFor(deps, { playerId: 'p1', campaignId: 'c1', sinceTick: 0 });
+    expect(blind).not.toHaveProperty('known');
+
+    const lead = (id: number): Parameters<typeof commandCampaign>[1] => ({
+      playerId: 'p1',
+      campaignId: 'c1',
+      command: { kind: 'lead', target: { kind: 'building', id } },
+      nowMs,
+    });
+    expect(await commandCampaign(all, lead(8))).toBe(true);
+    expect(campaigns.intents.at(-1)!.body).toEqual({
+      kind: 'march',
+      to: { cell: TARGET_CELL, pos: { x: -500, z: 0 } },
+    });
+    // dům, který rod nezná, a známý dům bez úložiště znalosti – odmítnuto
+    expect(await commandCampaign(all, lead(9))).toBe(false);
+    expect(await commandCampaign(deps, lead(8))).toBe(false);
+  });
+
+  it('dům viděný kdysi, který už nestojí, zůstane v pohledu, dokud na jeho místo muži nedohlédnou', async () => {
+    // dům 5 už ve vsi není, dům 7 tažení objevilo (pohled ho nese živě), dům 8 stojí
+    const cells = {
+      h1: {
+        villageId: 'knezice',
+        trail: [],
+        parts: [
+          part('dwelling:5', 200, 0),
+          part('dwelling:7', 300, 0),
+          part('dwelling:8', -500, 0),
+        ],
+      },
+      h2: { trail: [[0, 600]], parts: [part('pen:2', 0, 600)] },
+    } satisfies Record<string, SeenCell>;
+    const before = await withKnowledge(raiding({ houseId: 'h1' }), cells);
+    const old = await campaignViewFor(before.all, {
+      playerId: 'p1',
+      campaignId: 'c1',
+      sinceTick: 0,
+    });
+    expect(old!.known!.parts.map((p) => p.key)).toEqual(['dwelling:5', 'dwelling:8']);
+    // muži tažení stáli 60 m od místa domu 5 (stopa) – dům tam není, z pohledu zmizí; dům 8 stojí
+    const looked = raiding({
+      houseId: 'h1',
+      trail: {
+        '1,0': [
+          [-480, 0],
+          [140, 0],
+        ],
+      },
+    });
+    const after = await withKnowledge(looked, cells);
+    const view = await campaignViewFor(after.all, {
+      playerId: 'p1',
+      campaignId: 'c1',
+      sinceTick: 0,
+    });
+    expect(view!.known!.parts.map((p) => p.key)).toEqual(['dwelling:8']);
+    expect(view!.known!.trail).toEqual([
+      [-480, 0],
+      [140, 0],
+    ]);
+    // vazal ve službě vidí znalost svého rodu (stopa tažení k ní), ne rodu vůdce
+    const vassal = await campaignViewFor(after.all, {
+      playerId: 'p2',
+      campaignId: 'c1',
+      sinceTick: 0,
+    });
+    expect(vassal!.known!.parts.map((p) => p.key)).toEqual(['pen:2']);
   });
 });
 

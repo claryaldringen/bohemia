@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { realTimeOf } from '../../calendar';
 import type { StreamPoint } from '../../landscape';
+import { kin, village } from '../../village/__tests__/kin-fixtures';
+import type { VillageState } from '../../village/types';
 import { stepCampaign } from '../campaign';
 import type {
   CampaignIntent,
@@ -9,6 +11,8 @@ import type {
   CampaignStep,
   CampaignWorld,
 } from '../campaign-types';
+import { JOURNEY } from '../rules-war';
+import { mergeKnowledge, type KnowledgeOut, type SeenCell } from '../seen';
 import { dayOfTick, msOfTick, TICK_MS, tickOfMs } from '../ticks';
 import {
   campaign,
@@ -249,6 +253,126 @@ describe('stepCampaign', () => {
     // po kouscích = vcelku
     const whole = stepCampaign(campaign(), LAUNCH + 1000, intents, riverWorld).state;
     expect(JSON.stringify(whole)).toBe(JSON.stringify(later));
+  });
+});
+
+describe('znalost rodu z tažení (plán 2026-11-13 – Úloha 11)', () => {
+  const TARGET: CampaignMap = { landscape: flat(), obstacles: null, villageIds: ['knezice'] };
+  const OPEN: CampaignMap = { landscape: flat(), obstacles: null, villageIds: [] };
+  /** Kněžice s domem u cíle – při přesile se vzdají (jako raid-campaign.test.ts). */
+  function knezice(): VillageState {
+    const people = [
+      kin({ id: 1, age: 30, sex: 'male', spouse: 2 }, SUMMER),
+      kin({ id: 2, age: 28, sex: 'female', spouse: 1 }, SUMMER),
+    ];
+    const v = village(people, undefined, {
+      lastDay: SUMMER,
+      storesKg: 1000,
+      defense: { stance: 'surrender' },
+    });
+    v.dwellings[0]!.position = { x: -860, z: 30, rotation: 0 };
+    return v;
+  }
+  const TARGET_STATE = knezice();
+  const raidWorld: CampaignWorld = {
+    clock: world,
+    landscapeOf: (cell) => (cell.x === 1 && cell.y === 0 ? TARGET : OPEN),
+    villageAt: (id) => (id === 'knezice' ? TARGET_STATE : null),
+  };
+  const START = campaign({
+    houseId: 'h1',
+    target: { villageId: 'knezice', cell: { x: 1, y: 0 }, pos: { x: -880, z: 30 } },
+  });
+  const END = LAUNCH + 3000;
+  const whole = stepCampaign(START, END, LIVE, raidWorld);
+  const HOUSE = `dwelling:${TARGET_STATE.dwellings[0]!.id}`;
+
+  /** Po kouscích `chunk` taktů s JSON mezi nimi; `edit` upraví bod (starší bod bez nových polí). */
+  function chunked(
+    chunk: number,
+    edit: (s: CampaignState) => void = () => {},
+  ): CampaignStep & { knowledge: KnowledgeOut[] } {
+    let current = START;
+    const all = {
+      state: START,
+      villageEvents: [],
+      notices: [],
+      waiting: null,
+      knowledge: [],
+    } as CampaignStep & { knowledge: KnowledgeOut[] };
+    while (current.tick < END && current.phase !== 'done') {
+      const step = stepCampaign(current, Math.min(END, current.tick + chunk), LIVE, raidWorld);
+      expect(step.waiting).toBeNull();
+      all.villageEvents.push(...step.villageEvents);
+      all.notices.push(...step.notices);
+      all.knowledge.push(...(step.knowledge ?? []));
+      current = JSON.parse(JSON.stringify(step.state)) as CampaignState;
+      edit(current);
+    }
+    return { ...all, state: current };
+  }
+
+  it('stopa jen na cizích mapách; na konci znalost rodu – stopa a objevená obydlí cílové vsi', () => {
+    expect(whole.state.phase).toBe('done');
+    expect(whole.state.discovered).toEqual([TARGET_STATE.dwellings[0]!.id]);
+    expect(whole.state.houseId).toBe('h1');
+    // shromaždiště (domovská mapa) hráč zná celé – stopa je jen na mapě cíle
+    expect(Object.keys(whole.state.trail ?? {})).toEqual(['1,0']);
+    const trail = whole.state.trail!['1,0']!;
+    expect(trail.length).toBeGreaterThan(0);
+    const onGrid = (v: number): boolean => Math.abs(v % JOURNEY.trailStepM) === 0;
+    expect(trail.every(([x, z]) => onGrid(x) && onGrid(z))).toBe(true);
+    // co rod po doručení ví (sloučení všech vydání)
+    const known = (whole.knowledge ?? []).reduce<SeenCell | null>((acc, k) => {
+      expect(k.cell).toEqual({ x: 1, y: 0 });
+      return mergeKnowledge(acc, k.seen);
+    }, null);
+    expect(known!.villageId).toBe('knezice');
+    expect(known!.trail).toEqual(trail);
+    expect(known!.parts.map((p) => [p.key, p.pos])).toEqual([[HOUSE, { x: -860, z: 30 }]]);
+    expect(JSON.stringify(known)).not.toMatch(/people|storesKg|herds/);
+  });
+
+  it('po kouscích, z JSON bodu i ze zmraženého bodu se stopou = vcelku (stav i znalost)', () => {
+    for (const chunk of [1, 37, 400]) {
+      const parts = chunked(chunk);
+      expect(JSON.stringify(parts.state)).toBe(JSON.stringify(whole.state));
+      expect(parts.villageEvents).toEqual(whole.villageEvents);
+      expect(parts.knowledge).toEqual(whole.knowledge);
+    }
+    // bod se stopou zmražený do hloubky – takt stopu nemění na místě, jen novým objektem
+    let frozen: CampaignState | null = null;
+    chunked(7, (s) => {
+      if (!frozen && s.phase !== 'done' && s.trail) frozen = structuredClone(s);
+    });
+    expect(frozen).not.toBeNull();
+    const rest = stepCampaign(deepFreeze(frozen!), END, LIVE, raidWorld);
+    expect(JSON.stringify(rest.state)).toBe(JSON.stringify(whole.state));
+  });
+
+  it('stopa je jen záznam: bod bez stopy a rodu (starší) – boj, kořist i návrat stejné', () => {
+    const strip = (s: CampaignState): CampaignState => {
+      const copy = { ...s };
+      delete copy.trail;
+      delete copy.houseId;
+      return copy;
+    };
+    // bod uložený před Úlohou 11 a načtený uprostřed tažení (stopa a rod chybí)
+    const resumed = chunked(25, (s) => {
+      delete s.trail;
+      delete s.houseId;
+    });
+    // tažení celé bez rodu – stopu nezapisuje (pokračuje bit po bitu jako dřív)
+    const legacy = stepCampaign(strip(START), END, LIVE, raidWorld);
+    expect(legacy.state.trail).toBeUndefined();
+    for (const old of [resumed, legacy]) {
+      expect(strip(old.state)).toStrictEqual(strip(whole.state));
+      expect(old.villageEvents).toEqual(whole.villageEvents);
+      expect(old.notices).toEqual(whole.notices);
+      // objevená obydlí vydá i bod bez stopy (rod dohledá aplikace podle hráče)
+      const parts = (old.knowledge ?? []).flatMap((k) => k.seen.parts.map((p) => p.key));
+      expect(parts).toEqual([HOUSE]);
+    }
   });
 });
 

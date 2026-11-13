@@ -21,7 +21,7 @@ export class MissingData {
 export interface TickOut {
   events: NewVillageEvent[];
   notices: CampaignNotice[];
-  /** Znalost mapy pro rod (jen výjezd – `JourneyStep.knowledge`). */
+  /** Znalost mapy pro rod (`JourneyStep.knowledge`, `CampaignStep.knowledge`). */
   knowledge?: KnowledgeOut[];
 }
 

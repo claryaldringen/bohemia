@@ -92,6 +92,8 @@ export async function launchCampaign(
       liveCommand: prepared.liveCommand,
       ambush: prepared.ambush,
       homes: homePlaces(prepared),
+      // znalost z tažení dostane jen rod vůdce (plán 2026-11-13 – Úloha 11)
+      houseId: prepared.house.id,
     },
     deps.world,
   );

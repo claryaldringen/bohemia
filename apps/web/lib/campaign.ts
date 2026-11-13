@@ -42,6 +42,9 @@ function commandDeps(): CampaignCommandDeps {
     villages: deps.villages,
     grids: SIGHT_GRIDS,
     world: currentWorld(),
+    // co rod hráče ví o mapě cíle (docs/code/war.md – Živé vedení a pohled)
+    knowledge: deps.knowledge,
+    houses: deps.houses,
   };
 }
 

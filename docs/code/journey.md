@@ -225,7 +225,8 @@ tempo a svět `CampaignWorld`.
   den s novým stavem vsi (mřížka cizí mapy 5,7 ms, seznam viditelného 0,2 ms), s plnou pamětí
   0,6 → 1,8 ms; jede kolem vsi 16,9 → 16,7 ms (nový stav vsi), 9,0 → 9,5 ms (s pamětí); stojí na
   mapě mimo dohled všeho 1,0 ms (bez síta 15,4 ms).
-- **Pohled** – `JourneyView.seen`: `SeenCell` mapy, na které skupina je; na domovské mapě null.
+- **Pohled** – `JourneyView.seen`: `SeenCell` mapy, na které skupina je (od Úlohy 11 sloučený se
+  znalostí rodu – Znalost rodu: Další výjezd); na domovské mapě null.
 - **Testy** – `domain/war/__tests__/seen.test.ts`: dohled a les, dnešní stav, zmizelé, stará
   zpráva, opevnění celé prvním dohledem, stopa, bez lidí a zásob, mapa bez vsi, paměť;
   `journey.test.ts` – objevování za jízdy, vcelku = po kouscích i restart ze zmraženého bodu při
@@ -469,11 +470,23 @@ Co muži za jízdy viděli, se po návratu neztratí: rod si pamatuje znalost po
   seen)`) a adaptér `createKnowledgeRepository` (`adapters/knowledge-repository.ts`): `merge` je
   jedna transakce – řádek založí (`ON CONFLICT DO NOTHING`), přečte `FOR UPDATE`, sloučí
   `mergeKnowledge` a zapíše; výjezd a tažení tedy smí psát do téhož rodu a políčka současně.
-  Adaptér herní logiku nemá. V `GameDeps.knowledge` a v `journeyDeps` workeru.
+  Adaptér herní logiku nemá. V `GameDeps.knowledge`, v `journeyDeps` i `campaignDeps` workeru.
+- **Další výjezd (Úloha 11)** – `journeyViewFor` (`seenOn`) přečte znalost rodu o mapě skupiny
+  (`JourneyReadDeps.knowledge` – `KnowledgeRepository.of`, jeden dotaz na pohled) a sloučí ji
+  s čerstvým `seen` výjezdu (`mergeKnowledge`): `JourneyView.seen` má od prvního taktu na známé
+  mapě stopu i stavby z dřívějších výjezdů a tažení. Domovská mapa null (úložiště se neptá). Stav
+  výjezdu znalost rodu nenese (kontrolní body nerostou) a v taktu workeru se nečte. Web ji dává
+  v `apps/web/lib/journey.ts`.
+- **Tažení (Úloha 11 – `domain/war/campaign-knowledge.ts`)** – stopa tažení po cizích mapách
+  (`CampaignState.trail`), na konci nájezdu mapa cíle s objevenými obydlími, na konci tažení stopy
+  všech cizích map; znalost dostane jen rod vůdce (`CampaignState.houseId`, u starších bodů podle
+  hráče) a útočník na mapě cíle vidí, co rod zná – podrobně `docs/code/war.md` (Živé vedení
+  a pohled na tažení – Znalost rodu).
 - **Tabulka `house_knowledge`** (migrace `0046_house_knowledge`): `house_id` (FK `house`, při zániku
   rodu se smaže), `grid_x`, `grid_y`, `state` jsonb (`SeenCell`), `updated_at`; primární klíč všech
   tří sloupců.
 - **Testy** – `seen.test.ts` (zánik v `lookAround`, `mergeKnowledge`: novější den, zánik, rozvalina,
   jiná ves, idempotence, pořadí), `journey.test.ts` (vydání při přechodu, dojetí i konci, vcelku =
   po kouscích), `step-journeys.test.ts` (úložiště po kolech, pád před doručením znalosti),
-  `knowledge-repository.db.test.ts` (po políčkách, cizí rod, sloučení, souběh, zánik rodu).
+  `knowledge-repository.db.test.ts` (po políčkách, cizí rod, sloučení, souběh, zánik rodu);
+  Úloha 11 – `journey-view.test.ts` (druhý výjezd na známou mapu, cizí rod, sloučení s čerstvým).

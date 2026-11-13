@@ -384,8 +384,11 @@ function unionTrail(a: [number, number][], b: [number, number][]): [number, numb
   return out;
 }
 
-/** Body stopy v místech mužů – seřazené, bez opakování; beze změny týž seznam. */
-function extendTrail(trail: [number, number][], eyes: readonly Pos[]): [number, number][] {
+/**
+ * Body stopy v místech mužů po `JOURNEY.trailStepM` – seřazené, bez opakování; beze změny týž
+ * seznam, jinak nový (vstup nemění). Bere ji i stopa tažení (`campaign-knowledge.ts`).
+ */
+export function extendTrail(trail: [number, number][], eyes: readonly Pos[]): [number, number][] {
   let out: [number, number][] | null = null;
   for (const e of eyes) {
     const point: [number, number] = [onTrailGrid(e.x), onTrailGrid(e.z)];

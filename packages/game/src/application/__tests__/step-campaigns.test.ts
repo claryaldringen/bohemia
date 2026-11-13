@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { village } from '../../domain/village/__tests__/kin-fixtures';
+import { kin, village } from '../../domain/village/__tests__/kin-fixtures';
 import type { GridCell } from '../../domain/village/people/world-grid';
 import { msOfTick, stepCampaign, type CampaignState } from '../../domain/war';
 import {
@@ -12,6 +12,7 @@ import {
   worldOf,
 } from '../../domain/war/__tests__/campaign-fixtures';
 import { queueCampaignIntent, type CampaignCells } from '../campaigns';
+import type { House } from '../houses';
 import {
   newCampaignMemory,
   stepCampaigns,
@@ -19,6 +20,7 @@ import {
   type StepCampaignsDeps,
 } from '../step-campaigns';
 import { InMemoryCampaignLock, InMemoryCampaigns } from './in-memory-campaigns';
+import { InMemoryKnowledge } from './in-memory-knowledge';
 import { InMemoryNotices } from './in-memory-notices';
 import { InMemoryVillages } from './in-memory-villages';
 
@@ -136,6 +138,61 @@ describe('stepCampaigns', () => {
     expect(villages.inbox.events).toHaveLength(whole.villageEvents.length);
     expect(notices.notices).toHaveLength(1);
     expect(await campaigns.active()).toEqual([]);
+  });
+
+  it('znalost z tažení dostane jen rod vůdce – ze stavu, u staršího bodu podle hráče (Úloha 11)', async () => {
+    const houses = {
+      activeOf: (playerId: string): Promise<House | null> =>
+        Promise.resolve(playerId === 'p1' ? ({ id: 'h-p1' } as House) : null),
+    };
+    const setOut = { tick: LAUNCH + 2, byPlayer: 'p1', body: { kind: 'set-out' } } as const;
+    // nové tažení s rodem vůdce ve stavu – stopa cizí mapy
+    const fresh = campaign({ liveCommand: false, houseId: 'h-7' });
+    const trail = stepCampaign(fresh, END, SET_OUT, worldOf()).state.trail?.['1,0'];
+    expect(trail?.length).toBeGreaterThan(0);
+    const a = setup();
+    const known = new InMemoryKnowledge();
+    await a.campaigns.create(fresh);
+    await a.campaigns.addIntent('c1', setOut);
+    await rounds({ ...a.deps, knowledge: known, houses }, LAUNCH + 1, END + 40);
+    expect(await a.campaigns.active()).toEqual([]);
+    expect([...known.cells.keys()]).toEqual(['h-7|1,0']);
+    expect(known.cells.get('h-7|1,0')!.trail).toEqual(trail);
+
+    // bod z doby před Úlohou 11 (bez rodu, bez stopy): objevený dům cílové vsi dostane rod hráče
+    const b = setup();
+    const target = village(
+      [
+        kin({ id: 1, age: 30, sex: 'male', spouse: 2 }, SUMMER),
+        kin({ id: 2, age: 28, sex: 'female', spouse: 1 }, SUMMER),
+        kin({ id: 3, age: 5, sex: 'male', mother: 2, father: 1 }, SUMMER),
+      ],
+      undefined,
+      { lastDay: SUMMER + 20, defense: { stance: 'surrender' } },
+    );
+    target.dwellings[0]!.position = { x: -860, z: 30, rotation: 0 };
+    b.villages.records.set('knezice', {
+      id: 'knezice',
+      settlementId: 's-knezice',
+      name: 'Kněžice',
+      state: target,
+      version: 1,
+    });
+    const cells: CampaignCells = {
+      mapOf: (cell) =>
+        Promise.resolve(cell.x === 1 ? { ...MEADOW, villageIds: ['knezice'] } : MEADOW),
+    };
+    const knowledge = new InMemoryKnowledge();
+    await b.campaigns.create(campaign({ liveCommand: false }));
+    await b.campaigns.addIntent('c1', setOut);
+    await rounds({ ...b.deps, cells, knowledge, houses }, LAUNCH + 1, LAUNCH + 3000);
+    expect(await b.campaigns.active()).toEqual([]);
+    expect([...knowledge.cells.keys()]).toEqual(['h-p1|1,0']);
+    expect(knowledge.cells.get('h-p1|1,0')).toMatchObject({
+      villageId: 'knezice',
+      trail: [],
+      parts: [{ key: `dwelling:${target.dwellings[0]!.id}`, pos: { x: -860, z: 30 } }],
+    });
   });
 
   it('záměr s taktem nejvýš kontrolním bodem úložiště odmítne, teď + 2 použije přesně v něm', async () => {
