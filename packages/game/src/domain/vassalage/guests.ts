@@ -27,6 +27,7 @@ const AWAY_KINDS: readonly AwayKind[] = [
   'protection',
   'refuge',
   'messenger',
+  'journey',
 ];
 
 /**

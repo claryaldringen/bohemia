@@ -348,6 +348,7 @@ const AWAY_TEXTS: Record<AwayKind, string> = {
   protection: 'pod ochranu',
   refuge: 'do útočiště',
   messenger: 's poselstvím',
+  journey: 'na cestu',
 };
 
 /** Odkud se lidé vrátili. */
@@ -359,6 +360,7 @@ const AWAY_BACK_TEXTS: Record<AwayKind, string> = {
   protection: 'z ochrany',
   refuge: 'z útočiště',
   messenger: 'z cesty s poselstvím',
+  journey: 'z cesty',
 };
 
 /** „1 člověk“, „3 lidé“, „5 lidí“. */
