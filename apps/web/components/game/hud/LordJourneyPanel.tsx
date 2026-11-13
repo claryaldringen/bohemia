@@ -34,11 +34,18 @@ function Horseshoe(): ReactElement {
   );
 }
 
-export function LordJourneyPanel({ ui }: { ui: LordJourneyUi }): ReactElement {
+export function LordJourneyPanel({
+  ui,
+  placement = 'above',
+}: {
+  ui: LordJourneyUi;
+  /** Kam se otevře popisek Domů (v panelu výběru nahoru, na cizí mapě v horním rohu dolů). */
+  placement?: 'above' | 'below';
+}): ReactElement {
   if (ui.mode === 'away') {
     return (
       <div className="flex items-center gap-1.5" data-testid="lord-journey-away">
-        <Tooltip content="Domů" placement="above">
+        <Tooltip content="Domů" placement={placement}>
           <button
             type="button"
             data-testid="lord-home"

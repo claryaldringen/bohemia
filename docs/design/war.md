@@ -684,7 +684,9 @@ Martin 2. 11. 2026 – „ok“ (doplňky návrh Clauda):
   `LICENSES.md`), muži rodu **na koních**; hloučky podle skupin svižnou chůzí.
 - **Boj** – střílejí, srážejí se, padají; padlí leží do konce dne, ranění sedí u domů
   a nepracují.
-- **Mlha války** na cizí mapě; vlastní vsi útočník vidí jen na své mapě.
+- **Mlha války** na cizí mapě; vlastní vsi útočník vidí jen na své mapě. Stejný závoj má na cizí
+  mapě i výjezd vojvody a scéna jde za vojvodou z mapy na mapu ([výjezd vojvody](lord-control.md)
+  – Ve scéně).
 - **Zima** – vojsko venku je v zimě unavené od mrazu, zastavuje se ve vsích (návrh Clauda).
 - **Napadená ves** – prázdná pole a pastviny; při včasném útěku lidé se zásobami a stády k lesu;
   odehnané stádo jde s vojskem.

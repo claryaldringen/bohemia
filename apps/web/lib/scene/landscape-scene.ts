@@ -695,6 +695,19 @@ export class LandscapeScene {
     this.war.setJourneys(list);
   }
 
+  /**
+   * Mlha cizí mapy výjezdu (journey.md – Scéna cizí mapy): závoj jako při tažení – odkryté ze stopy
+   * rodu (`SeenCell.trail`) šeré, okolí vlastních jezdců jasné; null – bez mlhy.
+   */
+  setJourneyFog(trail: readonly (readonly [number, number])[] | null): void {
+    this.war.setJourneyFog(trail);
+  }
+
+  /** Mlha v bodě (e2e): neobjevené, objevené (šeré), v dohledu; bez závoje null. */
+  fogAt(x: number, z: number): 'hidden' | 'explored' | 'seen' | null {
+    return this.war.fogAt(x, z);
+  }
+
   /** Výjezdy ve scéně pro e2e – muži, praporek, dny na hodinách, odjezd a koně mimo ohradu. */
   journeyStats(): ReturnType<SceneWarView['journeyStats']> & { awayHorses: number[] } {
     return { ...this.war.journeyStats(), awayHorses: [...this.awayHorses] };

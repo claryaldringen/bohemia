@@ -516,7 +516,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   objevené zůstane šeré), závoj je jeden přehozený mesh `fog-veil` (160 × 160 buněk, 2 m nad
   terénem) s průhledností z RGBA textury – žádný vertex buffer navíc (postava jich má právě 8);
   cizí muži mimo dohled se nekreslí. Stromy závojem prorůstají (návrh Clauda – závoj jen přes
-  zem). **Draw cally** (`measure-scenery-culling.ts`): ukázka Bitva – 22 mužů (2 na koních),
+  zem). Na cizí mapě výjezdu odkrývá závoj stopa rodu a okolí jezdců (`setJourneyFog`,
+  journey.md – Scéna cizí mapy). **Draw cally** (`measure-scenery-culling.ts`): ukázka Bitva – 22 mužů (2 na koních),
   2 rozkazy, šípy, prach a mlha = **8 draw callů**, ≈ 123 k trojúhelníků (muž 3 102, kůň 1 666,
   závoj 51 k); bez války 0. Ukázka **Bitva** na `/dev/landscape` (`dev-battle.ts`) běží
   skutečným `battleTick` (palisáda 6 × 6 čtverců s branou na jihu, dvě skupiny útočníků proti

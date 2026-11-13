@@ -288,8 +288,8 @@ mapSizeM, cell })` (čistá funkce) – bez vybraného vojvody nebo mimo terén 
 - **Hook** `components/game/village-game/use-lord-journey.ts` – `useLordJourney`: vybraný vojvoda
   (klik ve scéně, nebo na jeho portrét v řadě obyvatel panelu dvorce – `resident-select-<id>`)
   = `selected` je osoba s `view.dynasty.lordId`. Doma načte `getJourneyCandidates`, drží družinu
-  (`retinue`) a pravým tlačítkem volá `launchJourney`; na cestě (`dynasty.journeyAway`, jen na
-  domovské mapě skupiny) volá `commandJourney`; ikona Domů `{ kind: 'home' }`. Režim vojvody (`setLordMode`) zůstává
+  (`retinue`) a pravým tlačítkem volá `launchJourney`; na cestě (`dynasty.journeyAway`, na mapě,
+  kterou scéna ukazuje – domovské, nebo od Úlohy 9b i cizí za vojvodou) volá `commandJourney`; ikona Domů `{ kind: 'home' }`. Režim vojvody (`setLordMode`) zůstává
   zapnutý i při odepřeném výjezdu a během načítání kandidátů: `lordClick` (`journey-orders.ts`) rozhodne
   o pravém kliknutí – nic (mimo terén, načítání), důvod u kurzoru (`refuse`, výběr zůstává) nebo odeslání
   rozkazu. Důvod (`journeyReason`) a „Na sousední mapu“ ukáže `JourneyCursorNote` u kurzoru, v panelu je
@@ -393,3 +393,44 @@ výsledek výjezdu se jimi nemění.
   skoku, příjezd opačně, omezený pohyb, načtení uprostřed výjezdu, brána dvorce).
 - **Známé omezení** – rozkaz ven během příjezdu (skupina u vsi se znovu otočí) příjezd nepřeruší –
   muži dojedou do dvorce a výjezd se pak ukáže, kde je podle serveru.
+
+## Scéna cizí mapy (Úloha 9b – `apps/web`)
+
+lord-control.md – Co vojvoda vidí, Co hráč vidí (Na cestě), Ve scéně. Scéna jde za vojvodou z mapy
+na mapu jako za vojskem (web-ui.md – Cizí mapa ve scéně).
+
+- **Přepnutí** – `watchedJourneyCell(following, view)` (`lib/journey-scene-view.ts`, čistá): sleduje-li
+  hráč vojvodu, políčko cizí mapy, na které skupina je; null – scéna vsi (nesleduje, výjezd skončil,
+  nebo je skupina zpět na domovské mapě – po 3 dnech čekání či po Domů). Klik na `LordAwayBadge`
+  (`away.onSelect` v `useLordJourney`) vojvodu vybere a je-li na cizí mapě, zapne sledování; skupina
+  na domovské mapě sledování vypne (návrat scény nečeká na konec výjezdu – upozornění „… se vrátil.“
+  přijde, až dojede). `useLordJourney` vrací `watching`, `back` (⌂ – výjezd běží dál) a
+  `bindForeign`. `VillageGame` při `watching` vrátí jen `ForeignJourneyScene` (klíč = políčko) –
+  jedna scéna Babylonu naráz jako u tažení; nové políčko = nová scéna a krajina.
+- **`ForeignJourneyScene`** (`foreign-scene`, `data-cell`, `data-journey`): krajina z
+  `GET /api/journey?map=x,y` (404 nebo chyba = zpět na ves) do `GameView`, jezdci vlastního výjezdu
+  z `journey.latest` (`sceneJourneysOf` bez návštěvníků) s praporkem a hodinami
+  (`journey-marker.ts`), stavby `seenVillageOf(seen, krajina)` → `setVillage` – přestaví se jen při
+  změně znalosti (`seenSceneKey`: ves, klíč a den každé stavby). Odjezd ani příjezd se tu nekreslí
+  (scéna nemá dvorec – `setJourneyYard` se nevolá). Kamera poprvé na skupinu (R se k ní vrací).
+  Rozhraní vlevo nahoře: ⌂ (`foreign-back`), portrét vojvody (`LordAwayBadge`, výběr) a ikona Domů
+  (`LordJourneyPanel` na cestě); důvod a „Na sousední mapu“ u kurzoru (`JourneyCursorNote`).
+- **Rozkazy** – `bindForeign({ scene, mapSizeM })` předá `useLordJourney` scénu cizí mapy; režim
+  vojvody (`setLordMode`) pak běží na ní s políčkem `watching` – `go` po mapě, okrajový pás → `cross`
+  na souseda cizí mapy, důvod u kurzoru jako doma.
+- **Mlha** – `LandscapeScene.setJourneyFog(trail)` → `SceneWarView` (drží stopu i přes novou krajinu)
+  → `ArmyRenderer`: závoj `fog-veil` jako při tažení; body stopy `SeenCell.trail` odkryje
+  `exploreTrail` (`fog-of-war.ts` – stejným dohledem jako muže, jen do objeveného, každý bod jednou),
+  v dohledu (jasno) je okolí vlastních jezdců (`SceneJourney.pos` – oko skupiny jako v jádru) z
+  posledního stavu; mlha války má přednost. Bez jezdců závoj zůstává.
+- **e2e** – háčky `journeyFog` (stav mlhy v bodě), `foreignVillage` (obydlí, která scéna kreslí),
+  `journeyScene`, `projectToScreen`, `moveCameraTo` a `armyStats` míří na scénu cizí mapy;
+  `e2e/journey-worker.spec.ts` (projekt `worker`): ves B na políčku vedle A, skupina A přesunutá
+  v kontrolním bodu na mapu B, klik na portrét → `foreign-scene` s políčkem B, jasno u jezdců,
+  vzdálený dům B neobjevený a nenakreslený, dům u skupiny ano, hodiny, pravé tlačítko → praporek
+  v cíli, místo odjezdu šeré, po Domů (skupina přesunutá na domovskou mapu ≈ 180 m od vsi) zpět na
+  ves, ještě než výjezd skončí, a „Bořivoj se vrátil.“ (v liště jen 6 s – hlídá se od návratu
+  scény). `JOURNEY_FOREIGN_SHOT=<cesta>` uloží snímek (kamera oddálená háčkem `moveCameraTo` s
+  vzdáleností). Sdílené kroky e2e výjezdu jsou v `e2e/journey-helpers.ts`.
+- **Testy** – `lib/__tests__/journey-scene-view.test.ts` (`watchedJourneyCell`, `seenSceneKey`),
+  `lib/scene/__tests__/fog-of-war.test.ts` (`exploreTrail`).

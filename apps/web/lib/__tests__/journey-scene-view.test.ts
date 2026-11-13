@@ -17,7 +17,12 @@ import {
   type TileCell,
   type VillageState,
 } from '@bohemia/game';
-import { journeyCellOf, seenVillageOf } from '../journey-scene-view';
+import {
+  journeyCellOf,
+  seenSceneKey,
+  seenVillageOf,
+  watchedJourneyCell,
+} from '../journey-scene-view';
 import { sceneVillage } from '../village-view-scene';
 import type { SceneVillage } from '../village-view-scene-types';
 
@@ -270,5 +275,45 @@ describe('journeyCellOf', () => {
     expect(journeyCellOf(null, HOME)).toBeNull();
     expect(journeyCellOf(view(HOME), HOME)).toBeNull();
     expect(journeyCellOf(view({ x: 4, y: 4 }), HOME)).toEqual({ x: 4, y: 4 });
+  });
+});
+
+describe('watchedJourneyCell – scéna za vojvodou', () => {
+  const HOME = { x: 3, y: 4 };
+  const view = (cell: { x: number; y: number }): JourneyView =>
+    ({ cell, home: HOME }) as JourneyView;
+
+  it('bez sledování zůstává scéna na vsi, i když je vojvoda na cizí mapě', () => {
+    expect(watchedJourneyCell(false, view({ x: 4, y: 4 }))).toBeNull();
+  });
+
+  it('sledovaný vojvoda na cizí mapě – scéna ukáže jeho mapu a jde za ním na další', () => {
+    expect(watchedJourneyCell(true, view({ x: 4, y: 4 }))).toEqual({ x: 4, y: 4 });
+    expect(watchedJourneyCell(true, view({ x: 5, y: 3 }))).toEqual({ x: 5, y: 3 });
+  });
+
+  it('skupina na domovské mapě (po čekání či Domů) nebo konec výjezdu – zpět na ves', () => {
+    expect(watchedJourneyCell(true, view(HOME))).toBeNull();
+    expect(watchedJourneyCell(true, null)).toBeNull();
+  });
+});
+
+describe('seenSceneKey – kdy přestavět cizí ves', () => {
+  const part = (key: string, day: number): SeenPart =>
+    ({ key, pos: { x: 0, z: 0 }, day, data: { kind: 'sacred' } }) as unknown as SeenPart;
+  const cell = (parts: SeenPart[], villageId = 'v1'): SeenCell => ({ villageId, trail: [], parts });
+
+  it('stejná znalost = stejný klíč, i jako nový objekt z dalšího dotazu', () => {
+    const a = cell([part('dwelling:1', 5), part('site:2', 5)]);
+    const b = cell([part('dwelling:1', 5), part('site:2', 5)]);
+    expect(seenSceneKey(a)).toBe(seenSceneKey(b));
+  });
+
+  it('nová stavba, nový pohled na stavbu nebo jiná ves klíč změní; bez znalosti prázdný', () => {
+    const base = seenSceneKey(cell([part('dwelling:1', 5)]));
+    expect(seenSceneKey(cell([part('dwelling:1', 5), part('pen:3', 6)]))).not.toBe(base);
+    expect(seenSceneKey(cell([part('dwelling:1', 6)]))).not.toBe(base);
+    expect(seenSceneKey(cell([part('dwelling:1', 5)], 'v2'))).not.toBe(base);
+    expect(seenSceneKey(null)).toBe('');
   });
 });

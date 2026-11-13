@@ -55,7 +55,15 @@ import { ClearingFireRenderer, type FireKind } from './clearing-fire-renderer';
 import { applyGammaFog } from './gamma-fog';
 import { instanceMatrices, loadModelParts, type ModelInstance } from './instanced-model';
 import { loadGeometry } from './fauna';
-import { createFog, fogPixels, fogSees, revealFog, type FogGrid } from './fog-of-war';
+import {
+  createFog,
+  exploreTrail,
+  fogCell,
+  fogPixels,
+  fogSees,
+  revealFog,
+  type FogGrid,
+} from './fog-of-war';
 import { createAnimalMesh, standOnGround, writeAnimalPose } from './livestock';
 import { createBakedFigure, createBlobShadow, type BakedKind } from './plough-team-renderer';
 import { villagerSeconds } from './villager-motion';
@@ -196,6 +204,14 @@ export class ArmyRenderer {
   private readonly icons = new Map<GroupOrder, { mesh: Mesh; matrices: Float32Array }>();
   private fog: FogGrid | null = null;
   private seen: Uint8Array | null = null;
+  /**
+   * Mlha cizí mapy výjezdu (journey.md – Scéna cizí mapy): stopa rodu a body z ní už odkryté
+   * v `fog`; null – bez mlhy výjezdu. Mlha války má přednost.
+   */
+  private trailFog: { trail: readonly (readonly [number, number])[]; done: Set<string> } | null =
+    null;
+  /** Výjezdy na mapě z posledního `setJourneys` – dohled vlastních jezdců v mlze výjezdu. */
+  private journeyList: readonly SceneJourney[] = [];
   private veil: { mesh: Mesh; texture: RawTexture; pixels: Uint8Array } | null = null;
   private loading: Promise<void> | null = null;
   private disposed = false;
@@ -265,7 +281,7 @@ export class ArmyRenderer {
     if (!war) {
       this.shots = [];
       this.clashes = [];
-      this.fog = null;
+      this.dropFog();
       this.fire.set([], 'none');
       this.fire.animate(nowMs, camera);
       if (!this.journeys.active() && !this.leave.active()) {
@@ -296,17 +312,40 @@ export class ArmyRenderer {
   ): boolean {
     const had = this.journeys.active() || this.leave.active();
     const perf = performance.now();
+    this.journeyList = list;
     // odjezd a příjezd se rozhodnou ze stavů ze serveru, než je převezme plynulý posun
     const left = this.leave.observe(list, perf, frozen);
     if (!this.journeys.set(list, perf, frozen) && !left) return false;
+    // mlha cizí mapy výjezdu: dohled jde s jezdci (nový stav ze serveru)
+    if (this.trailFog && !this.war?.fog) this.updateFog();
     if (!this.journeys.active() && !this.leave.active() && !this.war) {
       this.riders = [];
       this.hideAll();
-      return had;
+      return had || this.trailFog !== null;
     }
     void this.load();
     this.write(nowMs, frozen, camera);
     return true;
+  }
+
+  /**
+   * Mlha cizí mapy výjezdu (journey.md – Scéna cizí mapy): odkryté ze stopy rodu
+   * (`SeenCell.trail`) je šeré, okolí vlastních jezdců jasné; null – bez mlhy výjezdu. Mlha války
+   * má přednost. Vrátí true, když je co překreslit.
+   */
+  setJourneyFog(trail: readonly (readonly [number, number])[] | null): boolean {
+    if (trail === null && this.trailFog === null) return false;
+    this.trailFog = trail === null ? null : { trail, done: this.trailFog?.done ?? new Set() };
+    this.updateFog();
+    return true;
+  }
+
+  /** Mlha v bodě (e2e): neobjevené, objevené (šeré), v dohledu; bez závoje nebo mimo mapu null. */
+  fogAt(x: number, z: number): 'hidden' | 'explored' | 'seen' | null {
+    const fog = this.fog;
+    const c = fog && this.veil?.mesh.isEnabled() ? fogCell(fog, x, z) : -1;
+    if (!fog || c < 0) return null;
+    return this.seen?.[c] === 1 ? 'seen' : fog.explored[c] === 1 ? 'explored' : 'hidden';
   }
 
   /** Muži výjezdů, jak jsou nakreslení (e2e, měření). */
@@ -389,28 +428,46 @@ export class ArmyRenderer {
     this.veil?.mesh.dispose();
   }
 
-  /** Dohled strany s mlhou z mužů v boji a hloučků pochodu; závoj se přepíše jen při změně. */
+  /**
+   * Dohled strany s mlhou z mužů v boji a hloučků pochodu; bez mlhy války mlha cizí mapy výjezdu –
+   * stopa rodu odkryje (šeré), v dohledu je okolí vlastních jezdců. Závoj se přepíše jen při změně.
+   */
   private updateFog(): void {
     const war = this.war;
-    if (!war?.fog) {
-      this.fog = null;
+    const trail = this.trailFog;
+    if (!war?.fog && !trail) {
+      this.dropFog();
       this.seen = null;
       this.veil?.mesh.setEnabled(false);
       return;
     }
     this.fog ??= createFog(this.env.extentM);
-    const side = war.fog.side;
-    const viewers = [
-      ...(war.battle?.fighters ?? [])
-        .filter((f) => f.side === side && f.state !== 'down' && f.state !== 'fled')
-        .map((f) => f.pos),
-      ...(side === 'attack' ? (war.march?.groups ?? []).map((g) => g.pos) : []),
-    ].map((p) => ({ x: p.x, z: p.z, forest: this.env.forestAt(p.x, p.z) }));
-    this.seen = revealFog(this.fog, viewers, (x, z) => this.env.forestAt(x, z));
+    const forestAt = (x: number, z: number): boolean => this.env.forestAt(x, z);
+    let eyes: Pos[] = [];
+    if (war?.fog) {
+      const side = war.fog.side;
+      eyes = [
+        ...(war.battle?.fighters ?? [])
+          .filter((f) => f.side === side && f.state !== 'down' && f.state !== 'fled')
+          .map((f) => f.pos),
+        ...(side === 'attack' ? (war.march?.groups ?? []).map((g) => g.pos) : []),
+      ];
+    } else if (trail) {
+      exploreTrail(this.fog, trail.trail, trail.done, forestAt);
+      eyes = this.journeyList.filter((j) => j.own).map((j) => j.pos);
+    }
+    const viewers = eyes.map((p) => ({ x: p.x, z: p.z, forest: forestAt(p.x, p.z) }));
+    this.seen = revealFog(this.fog, viewers, forestAt);
     const veil = this.ensureVeil(this.fog);
     fogPixels(this.fog, this.seen, veil.pixels);
     veil.texture.update(veil.pixels);
     veil.mesh.setEnabled(true);
+  }
+
+  /** Zahodí mřížku mlhy – stopa výjezdu se do nové odkryje znovu. */
+  private dropFog(): void {
+    this.fog = null;
+    this.trailFog?.done.clear();
   }
 
   /** Pochod `march` (poslední snímek) nakreslený v okamžiku `perfMs` (výkonový čas). */
@@ -819,7 +876,8 @@ export class ArmyRenderer {
     ])
       m?.mesh.setEnabled(false);
     for (const mesh of this.siege.values()) mesh.setEnabled(false);
-    this.veil?.mesh.setEnabled(false);
+    // mlha cizí mapy výjezdu zůstává i bez jezdců
+    if (!this.trailFog) this.veil?.mesh.setEnabled(false);
   }
 
   private ensureVeil(fog: FogGrid): { mesh: Mesh; texture: RawTexture; pixels: Uint8Array } {

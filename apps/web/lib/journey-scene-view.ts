@@ -36,6 +36,25 @@ export function journeyCellOf(view: JourneyView | null, home: GridCell): GridCel
 }
 
 /**
+ * Mapa scény při sledování vojvody (lord-control.md – Co hráč vidí – Na cestě; journey.md – Scéna
+ * cizí mapy): sleduje-li ho hráč (`following` – klik na portrét v liště), políčko cizí mapy, na
+ * které skupina je – scéna jde za ní z mapy na mapu; null – scéna vsi: hráč nesleduje, výjezd
+ * skončil, nebo je skupina zpět na domovské mapě (po čekání či Domů ji ukazuje scéna vsi).
+ */
+export function watchedJourneyCell(following: boolean, view: JourneyView | null): GridCell | null {
+  return following && view ? journeyCellOf(view, view.home) : null;
+}
+
+/**
+ * Klíč znalosti mapy pro scénu – cizí ves se přestaví, jen když se změní: nová stavba, nový pohled
+ * na známou (den) nebo jiná ves na mapě. Stejná znalost z dalšího dotazu dá týž klíč.
+ */
+export function seenSceneKey(seen: SeenCell | null): string {
+  if (!seen) return '';
+  return `${seen.villageId ?? ''}|${seen.parts.map((p) => `${p.key}@${p.day}`).join(',')}`;
+}
+
+/**
  * Cizí ves ve scéně podle znalosti; null – nic známého. `landscape` je krajina cizí mapy (pozemky
  * a obvod opevnění). Každá stavba nese stav z dne, kdy ji muži viděli (stará zpráva).
  */

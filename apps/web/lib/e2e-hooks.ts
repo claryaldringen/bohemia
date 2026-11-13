@@ -56,8 +56,18 @@ export interface E2EHooks {
     /** Id koní, které ohrada teď nekreslí (na jízdě, na výjezdu, cestou mezi ohradou a kůlem). */
     awayHorses: number[];
   };
-  /** Posune kameru nad bod krajiny (x, z) – zvěř bývá u lesa mimo výchozí záběr. */
-  moveCameraTo?: (x: number, z: number) => void;
+  /**
+   * Mlha cizí mapy výjezdu v bodě (x, z) (journey.md – Scéna cizí mapy): neobjevené, objevené
+   * (šeré), v dohledu jezdců; bez závoje null.
+   */
+  journeyFog?: (x: number, z: number) => 'hidden' | 'explored' | 'seen' | null;
+  /** Objevená obydlí a staveniště cizí vsi, která scéna cizí mapy výjezdu kreslí (id, poloha). */
+  foreignVillage?: () => { dwellings: { id: number; built: boolean; x: number; z: number }[] };
+  /**
+   * Posune kameru nad bod krajiny (x, z) – zvěř bývá u lesa mimo výchozí záběr; `radiusM` – vzdálenost
+   * kamery (scéna cizí mapy výjezdu – snímek mlhy).
+   */
+  moveCameraTo?: (x: number, z: number, radiusM?: number) => void;
   /** Pošle požadavek na trasy vozů tím samým routerem jako hra (Web Worker, jinak hlavní vlákno). */
   cartRoutes?: (request: CartRoutesRequest) => Promise<CartRoutesResult>;
   /** Zeptá se na ves hned (dotazování jinak čeká na další herní den – v testech ≈ 86 s). */
