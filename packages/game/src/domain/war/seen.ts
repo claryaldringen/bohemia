@@ -380,11 +380,13 @@ export function lookOnMap(
  * na pořadí `parts` a sloučit totéž podruhé nic nezmění (opakované doručení po pádu je bezpečné).
  * Vstupy nemění.
  *
- * Pokrytí (kolo oprav Úlohy 11): čerstvý záznam je od svého `since` v dohledu stopy úplný – co tam
- * stálo, `lookAround` zapsal. Stavba ze `old`, kterou `fresh` nemá, viděná před `fresh.since`
- * a jistě v dohledu stopy (`surelySeen`), proto už nestojí a odstraní se – i dům, o jehož zániku
- * záznam neví (viděl ho jen dřívější výjezd). Dál od stopy zůstane jako stará zpráva. `since`
- * výsledku je nejmenší z obou.
+ * Pokrytí (kola oprav Úlohy 11): záznam je od svého `since` v dohledu stopy úplný – co tam stálo,
+ * `lookAround` zapsal. Stavba druhé strany, kterou záznam nemá, viděná před jeho `since` a jistě
+ * v dohledu stopy (`surelySeen`), proto už nestojí: odstraní se (i dům, o jehož zániku záznam neví)
+ * a výsledek nese `gone` s dnem `since`. Platí oběma směry a sloučené `gone` se uplatní na části
+ * z obou stran, takže sloučení nezávisí na pořadí doručení (symetrie, asociativita pro záznamy
+ * jednoho políčka, idempotence) a starší zpráva doručená po novější zaniklou stavbu nevrátí. Dál
+ * od stopy zůstane stará zpráva. `since` výsledku je nejmenší z obou.
  */
 export function mergeKnowledge(old: SeenCell | null, fresh: SeenCell): SeenCell {
   const sameVillage =
@@ -396,21 +398,16 @@ export function mergeKnowledge(old: SeenCell | null, fresh: SeenCell): SeenCell 
   const villageId = fresh.villageId ?? base?.villageId;
 
   const goneAt = new Map<string, number>();
-  for (const g of [...(base?.gone ?? []), ...(fresh.gone ?? [])]) {
+  const addGone = (g: SeenGone): void => {
     goneAt.set(g.key, Math.max(goneAt.get(g.key) ?? g.day, g.day));
-  }
-  const seenNow = new Set(fresh.parts.map((p) => p.key));
-  const from = fresh.since;
-  const outdated = (p: SeenPart): boolean =>
-    from !== undefined && p.day < from && !seenNow.has(p.key) && surelySeen(fresh.trail, p.pos);
+  };
+  for (const g of [...(base?.gone ?? []), ...(fresh.gone ?? [])]) addGone(g);
+  // pokrytí se uplatní oběma směry a zanechá záznam o zániku – výsledek nezávisí na pořadí
+  if (base !== null) for (const g of coverageGone(base, fresh)) addGone(g);
+  if (base !== null) for (const g of coverageGone(fresh, base)) addGone(g);
   const best = new Map<string, SeenPart>();
   // nejdřív stará znalost, pak čerstvá – při stejném dni platí čerstvá
-  for (const p of base?.parts ?? []) {
-    if ((goneAt.get(p.key) ?? -Infinity) >= p.day || outdated(p)) continue;
-    const had = best.get(p.key);
-    if (!had || p.day >= had.day) best.set(p.key, p);
-  }
-  for (const p of fresh.parts) {
+  for (const p of [...(base?.parts ?? []), ...fresh.parts]) {
     if ((goneAt.get(p.key) ?? -Infinity) >= p.day) continue;
     const had = best.get(p.key);
     if (!had || p.day >= had.day) best.set(p.key, p);
@@ -430,6 +427,19 @@ export function mergeKnowledge(old: SeenCell | null, fresh: SeenCell): SeenCell 
     parts: [...best.values()].sort(byKey),
     ...(gone.length === 0 ? {} : { gone }),
   };
+}
+
+/**
+ * Zánik zjištěný pokrytím: stavby ze `parts` záznamu `seen`, které `by` nemá, viděné před
+ * `by.since` a jistě v dohledu stopy `by` (`surelySeen`), už nestojí – `gone` s dnem `by.since`.
+ */
+function coverageGone(seen: SeenCell, by: SeenCell): SeenGone[] {
+  const from = by.since;
+  if (from === undefined) return [];
+  const has = new Set(by.parts.map((p) => p.key));
+  return seen.parts
+    .filter((p) => p.day < from && !has.has(p.key) && surelySeen(by.trail, p.pos))
+    .map((p) => ({ key: p.key, day: from }));
 }
 
 /** Polovina kroku stopy – nejvíc, o kolik stál muž v každé ose od bodu stopy (zaokrouhlení). */

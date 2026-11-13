@@ -460,16 +460,20 @@ Co muži za jízdy viděli, se po návratu neztratí: rod si pamatuje znalost po
   přebila novější stavba téhož klíče, se zahodí. Jiná ves na mapě (`villageId`) – staré stavby i
   zánik se zahodí, stopa zůstane. Výsledek nezávisí na pořadí `parts` a sloučit totéž podruhé nic
   nezmění.
-- **Pokrytí** (kolo oprav Úlohy 11, návrh Clauda): čerstvý záznam je od svého `since` v dohledu
-  stopy úplný – co tam stálo, `lookAround` zapsal. Sloučení proto odstraní i stavbu ze `old`, kterou
-  `fresh` nemá, viděnou před `fresh.since` a jistě v dohledu stopy (`surelySeen`): sloučení nemá
-  mřížku, bere lesní dohled 50 m (`WAR.sight.forestM`) odkudkoli z okolí bodu stopy, kde muž mohl
-  stát (body jsou zaokrouhlené po 20 m – nejvzdálenější roh čtverce ± 10 m; místo 50 m od bodu by
-  mohlo smazat dům v lese, na který muž nedohlédl). Dům známý z dřívějška, který mezitím shořel,
-  tak po průjezdu zmizí a rozvalina zůstane, i když jeho zánik záznam nezná; dál od stopy zůstane
-  stará zpráva, stavba viděná jiným záznamem až po `since` zůstane. `since` výsledku je nejmenší
-  z obou. Pokrytí bere jen `since` čerstvého záznamu – doručí-li se starší záznam (dřív viděný dům)
-  až po novějším, dům se do znalosti vrátí, dokud se tam někdo znovu nepodívá.
+- **Pokrytí** (kola oprav Úlohy 11, návrh Clauda): záznam je od svého `since` v dohledu stopy
+  úplný – co tam stálo, `lookAround` zapsal. Sloučení proto odstraní stavbu druhé strany, kterou
+  záznam nemá, viděnou před jeho `since` a jistě v dohledu stopy (`surelySeen`), a zanechá `gone`
+  s dnem `since` toho, kdo zánik zjistil. Platí oběma směry a sloučené `gone` se uplatní na části
+  z obou stran (část s `day` nejvýš ke dni zániku téhož klíče se zahodí, novější zůstane a záznam
+  zániku se zahodí) – `merge(a, b)` = `merge(b, a)`, starší zpráva doručená po novější zaniklou
+  stavbu nevrátí (tažení vidí dům den 5 a doručí až den 40, výjezd doručil prázdné místo den 20).
+  Sloučení nemá mřížku, bere lesní dohled 50 m (`WAR.sight.forestM`) odkudkoli z okolí bodu stopy,
+  kde muž mohl stát (body jsou zaokrouhlené po 20 m – nejvzdálenější roh čtverce ± 10 m; místo
+  50 m od bodu by mohlo smazat dům v lese, na který muž nedohlédl). Dál od stopy zůstane stará
+  zpráva, stavba viděná jiným záznamem až po `since` zůstane. `since` výsledku je nejmenší z obou
+  (jediné bezpečné číslo pro sjednocenou stopu), proto je asociativita jen přibližná: sloučí-li se
+  nejdřív záznamy s různým `since`, pokrytí pozdějšího se zeslabí (stavby se kvůli tomu nevrací,
+  jen může zůstat starší stará zpráva nebo jiný den v `gone`).
 - **Vydání z kroku** – `JourneyStep.knowledge?: { cell, seen }[]` (`journeyTick`, `shareKnowledge`):
   celý `SeenCell` mapy při přechodu okrajem (mapa, kterou skupina opouští), při dojetí (mapa, na
   které stojí) a při konci výjezdu venku (poslední živý člen zemřel doma). Domovská mapa a mapa bez
