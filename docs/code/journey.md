@@ -160,10 +160,10 @@ tempo a svět `CampaignWorld`.
 
 - **`orderAim`** (`journey-order.ts`) – jediné ověření rozkazu, společné pro `launchJourney` (vůči
   domovské vsi) a `commandJourney` (vůči políčku a poloze, kde skupina je). Vrací políčko, kam rozkaz
-  míří (pro dotaz na válku; `home` = null), nebo `invalid` (bod mimo mapu, nekonečné číslo,
+  míří (pro dotaz na válku; `home` = null), nebo `invalid` (neznámý druh rozkazu za běhu, bod mimo mapu, nekonečné číslo,
   `cross` na nesousední políčko) / `unreachable` (`reachableGoal` – skupina tam nedojde). Vyslání
   obojí hlásí jako `unreachable`, pozdější rozkaz `invalid` jako `refused`.
-- **`journeyViewFor(deps, { playerId, sinceTick? })`** – pohled na vlastní běžící výjezd z kontrolního
+- **`journeyViewFor(deps, { playerId })`** – pohled na vlastní běžící výjezd z kontrolního
   bodu (výjezd se hledá podle hráče, cizí hráč dostane null): takt, den, fáze, políčko, domov, muži
   (padlí se neukazují), skupina a `waitDaysLeft` – celé dny do automatického návratu (3, 2, 1), jen
   když skupina po dojetí stojí a je `out`, jinak null. `controllable` = vojvoda žije.

@@ -5,7 +5,13 @@ import { horse, horseVillage, START } from '../../domain/village/__tests__/horse
 import { sendAway } from '../../domain/vassalage';
 import { villageHorses } from '../../domain/village/livestock/horses';
 import type { VillageState } from '../../domain/village/types';
-import { lineManStrength, WAR, type CampaignMap, type JourneyState } from '../../domain/war';
+import {
+  lineManStrength,
+  WAR,
+  type CampaignMap,
+  type JourneyOrder,
+  type JourneyState,
+} from '../../domain/war';
 import { land } from '../../domain/war/__tests__/battle-fixtures';
 import { campaign } from '../../domain/war/__tests__/campaign-fixtures';
 import { houseAtWarOn } from '../journey-war';
@@ -273,6 +279,9 @@ describe('launchJourney', () => {
     expect(await refused(w.deps, w.homeId, { retinue: [10] })).toBe('bad-retinue');
     expect(await refused(w.deps, w.homeId, { retinue: [12, 12] })).toBe('bad-retinue');
     expect(await refused(w.deps, w.homeId, { retinue: [999] })).toBe('bad-retinue');
+    expect(
+      await refused(w.deps, w.homeId, { order: { kind: 'attack' } as unknown as JourneyOrder }),
+    ).toBe('unreachable');
     expect(await refused(w.deps, w.homeId, { order: go(Number.NaN, 0) })).toBe('unreachable');
     expect(await refused(w.deps, w.homeId, { order: go(Infinity, 0) })).toBe('unreachable');
     expect(await refused(w.deps, w.homeId, { order: go(1e7, 0) })).toBe('unreachable');

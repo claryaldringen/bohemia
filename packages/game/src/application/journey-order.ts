@@ -44,5 +44,9 @@ export function orderAim(
       if (reachableGoal(grid, start, order.pos) === null) return 'unreachable';
       return { ...from };
     }
+    default:
+      // typy druh vyčerpaly, za běhu přijde cokoli od klienta
+      order satisfies never;
+      return 'invalid';
   }
 }

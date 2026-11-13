@@ -9,6 +9,7 @@ import {
   JOURNEY,
   tickOfMs,
   type CampaignMap,
+  type JourneyOrder,
   type JourneyState,
 } from '../../domain/war';
 import { land } from '../../domain/war/__tests__/battle-fixtures';
@@ -233,6 +234,15 @@ describe('commandJourney', () => {
       { kind: 'cross' as const, cell: { x: Number.NaN, y: 0 } },
     ];
     for (const b of bad) expect(await cmd(w.deps, b)).toEqual({ queued: false, reason: 'refused' });
+    expect(w.journeys.intents).toHaveLength(0);
+  });
+
+  it('rozkaz neznámého druhu – refused, atWar se neptá, nic se nezapíše', async () => {
+    const w = await setup();
+    const unknown = { kind: 'attack' } as unknown as JourneyOrder;
+    w.war.asked.length = 0; // dotaz z vyslání
+    expect(await cmd(w.deps, unknown)).toEqual({ queued: false, reason: 'refused' });
+    expect(w.war.asked).toHaveLength(0);
     expect(w.journeys.intents).toHaveLength(0);
   });
 

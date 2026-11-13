@@ -54,7 +54,7 @@ export interface JourneyReadDeps {
  */
 export async function journeyViewFor(
   deps: JourneyReadDeps,
-  input: { playerId: string; sinceTick?: number },
+  input: { playerId: string },
 ): Promise<JourneyView | null> {
   const id = await deps.journeys.activeOf(input.playerId);
   const point = id === null ? null : await deps.journeys.checkpoint(id);
