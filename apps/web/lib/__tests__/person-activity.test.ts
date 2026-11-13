@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { personActivity, type PersonFigureState } from '../person-activity';
+import { journeyActivity, personActivity, type PersonFigureState } from '../person-activity';
 import type { LodgeView } from '../person-view';
 import { selectionDetails } from '../selection-details';
 import { presentTarget } from '../scene/village-selection';
@@ -244,5 +244,15 @@ describe('vojvodova rodina – co právě dělá', () => {
     expect(lord('visit')).toBe('jde za manželkou');
     expect(lord('visit', true)).toBe('je u manželky');
     expect(lord(null, true)).toBe('doma');
+  });
+});
+
+describe('journeyActivity (výjezd vojvody)', () => {
+  it('jede = „je na cestě“, na místě „čeká (N dny)“, domů „vrací se domů“', () => {
+    expect(journeyActivity({ phase: 'out', waitDaysLeft: null })).toBe('je na cestě');
+    expect(journeyActivity({ phase: 'out', waitDaysLeft: 2 })).toBe('čeká (2 dny)');
+    expect(journeyActivity({ phase: 'out', waitDaysLeft: 3 })).toBe('čeká (3 dny)');
+    expect(journeyActivity({ phase: 'out', waitDaysLeft: 1 })).toBe('čeká (1 den)');
+    expect(journeyActivity({ phase: 'returning', waitDaysLeft: null })).toBe('vrací se domů');
   });
 });

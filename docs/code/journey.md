@@ -222,3 +222,33 @@ tempo a svět `CampaignWorld`.
   zpráva, opevnění celé prvním dohledem, stopa, bez lidí a zásob, mapa bez vsi, paměť;
   `journey.test.ts` – objevování za jízdy, vcelku = po kouscích i restart ze zmraženého bodu při
   průjezdu kolem vsi; `journey-view.test.ts` – `seen`.
+
+## Web (Úloha 7 – `apps/web`)
+
+- **Composition root** `lib/journey.ts` – `journeyCandidatesForPlayer`, `launchJourneyForPlayer`
+  (obojí přes `journeyActionForPlayer` v `lib/village.ts` = `guardedAction` s akcí `launchJourney`,
+  právo `war`, zámek hráče, jen vlastní ves), `commandJourneyForPlayer`, `journeyViewForPlayer`,
+  `visitorsOnVillage`, `journeyMapForPlayer`. Závislosti z `gameDeps()` (`journeys`, `atWar`),
+  mapy z `campaignCells()`, mřížky dohledu v LRU.
+- **Vstup** `lib/journey-input.ts` – `parseJourneyOrder` (`go` s konečnými čísly, `cross` s celými,
+  `home`; přebytečné pole, `NaN`, `Infinity`, řetězec, neznámý druh = null) a
+  `parseLaunchJourneyInput` (`{ villageId, retinue, order }`, družina = celá čísla, nejvýš 200).
+  Význam (bod na mapě, soused, dosažitelnost, válka) ověřují use-casy.
+- **Server actions** `app/game/actions/journey.ts` – `getJourneyCandidates(villageId)`
+  (+ `reason` česky), `launchJourney(input)`, `commandJourney(order)`; odmítnutí = `{ error }`
+  s textem `journeyReason`. `commandJourney` zámek vsi nebere (záměr do úložiště výjezdu, nemá čekat
+  na dopočet vsi – jako pokyn do tažení).
+- **Cesta API** `GET /api/journey` (`app/api/journey/route.ts`, session povinná, `no-store`):
+  bez parametru `{ view: JourneyView | null }` (celý pohled, bez `?since=`); `?map=x,y` →
+  `{ map: ForeignMap }` jen pro políčko skupiny a jeho sousedy, jinak 404 „Tu mapu rod nezná.“;
+  `?visitors=<villageId>` → `{ visitors }` (cizí ves = prázdno).
+- **Texty a pohled** `lib/journey-view.ts` – `journeyReason` („Tam vojvoda nedojde.“, „Vojvoda je
+  raněný.“, „Vojvoda je na tažení.“, „Ves je napadena.“, „Tam je válka.“…), `interpolateJourney`
+  (poloha skupiny mezi dvěma stavy na téže mapě), `JOURNEY_POLL_MS` (500).
+- **Hook** `hooks/use-journey.ts` – `useJourney(running)`: dotaz 2× za sekundu jen s `running`
+  (volající ví z vsi, že má výjezd, nebo právě vyslal) a ve viditelném panelu (`usePolling`);
+  stejný `tick` pohled nepřepíše; `sample(nowMs)` pro scénu, `refresh()` po rozkazu.
+- **Činnosti a upozornění** – `journeyActivity` v `lib/person-activity.ts` („je na cestě“, „čeká
+  (2 dny)“, „vrací se domů“); upozornění `journey-returned` → „Bořivoj se vrátil.“
+  (`lib/player-notices.ts`, Úloha 1).
+- **Testy** – `lib/__tests__/journey-input.test.ts`, `journey-view.test.ts`, `person-activity.test.ts`.

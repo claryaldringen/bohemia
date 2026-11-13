@@ -1042,6 +1042,12 @@ se vykreslí i v testech bez serveru.
   (`WAR_SCENE_POLL_MS`), jinak po 5 s (`WAR_SCENE_IDLE_MS`); nový stav jen s novým taktem.
   `undefined` = server ještě neodpověděl, `null` = na mapě nic.
 
+## Výjezd vojvody – akce, cesta API a dotazování (plán 2026-11-13 – Úloha 7)
+
+Server actions `getJourneyCandidates`, `launchJourney`, `commandJourney` (`app/game/actions/journey.ts`),
+`GET /api/journey` (pohled, `?map=`, `?visitors=`) a `useJourney(running)` (`hooks/use-journey.ts`) –
+podrobně v [journey.md](journey.md) – Web. Rozhraní ve scéně staví Úlohy 8 a 9.
+
 ## Cizí mapa ve scéně (`ForeignWarScene.tsx`, `hooks/use-army.ts`, `lib/war-scene-view.ts`)
 
 War.md – Ve scéně – cizí mapa. Útočník (vůdce i vazal ve službě) sleduje své vojsko ve 3D na mapě,

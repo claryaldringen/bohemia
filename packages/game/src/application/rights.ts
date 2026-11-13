@@ -121,6 +121,8 @@ export const ACTION_RIGHTS = {
   planCampaign: 'war',
   launchCampaign: 'war',
   summonVassals: 'war',
+  // výjezd vojvody (lord-control.md) – výběr družiny a vyslání: jen držitel vlastní vsi
+  launchJourney: 'war',
   // žádost o ochranu vsi u pána (vassalage.md – Ochrana vojskem) – jen držitel vsi
   requestProtection: 'war',
   // postoj vsi před cizím vojskem (war.md – Obránci) – obrana je válka: jen držitel vsi

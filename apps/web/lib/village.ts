@@ -1343,6 +1343,18 @@ export async function summonVassalsActionForPlayer<T>(
   return warResult(done);
 }
 
+/** Výjezd vojvody (lord-control.md – Kdo jede) z vlastní vsi `villageId` – právo `war`, zámek hráče. */
+export async function journeyActionForPlayer<T>(
+  playerId: string,
+  villageId: string,
+  run: (ctx: WarContext) => Promise<T>,
+): Promise<T | { error: string }> {
+  const done = await guardedAction(playerId, villageId, 'launchJourney', (ctx) =>
+    run({ playerId: ctx.playerId, villageId: ctx.villageId, day: ctx.day }),
+  );
+  return warResult(done);
+}
+
 export async function requestProtectionActionForPlayer<T>(
   playerId: string,
   villageId: string,
