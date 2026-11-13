@@ -64,12 +64,15 @@ Plán 2026-11-03 – Úloha 6.7; `docs/code/war.md` – Bariéra dopočtu. Ves, 
 předchozí den – worker ji proto bere **přednostně**:
 
 - `advanceWorldStep` se na začátku kola zeptá `WorldQueue.priorityVillages()` (adaptér
-  `villagesNearCampaigns` – políčka skupin aktivních bodů × sídla do políčka od nich) a jejich mezí
+  `villagesNearCampaigns` – políčka skupin aktivních bodů tažení i výjezdů vojvody × sídla do políčka
+  od nich) a jejich mezí
   `VillageHolds.limitOf`; meze předá `queue.behind(worldDay, limit, holds)`: ves na své mezi není
   pozadu (žádné kolo naprázdno, nezabírá místo ve frontě), hráč s přednostní vsí pod mezí jde první,
   pak podle zpoždění. Bez tažení stejný dotaz i pořadí jako dřív.
 - `WorldStep.held` = počet přednostních vsí; nic pozadu a `held > 0` → smyčka spí jen `HELD_WAKE_MS`
   (mez roste s taktem tažení – tažení uloží bod hned, když na ves čeká –, ne s herním dnem).
+- Výjezd vojvody (`docs/code/journey.md` – Úložiště) drží vsi stejně jako tažení: skupina na mapě vsi
+  nebo políčko od ní, mez `throughDay` bodu, nedoručené události; varování nemá.
 - Vsi bez tažení se dopočítají jako dřív (bariéra je nenačte – `limitOf` je nevrátí).
 
 ## Uspání nečinných

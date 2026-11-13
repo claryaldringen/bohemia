@@ -97,6 +97,7 @@ export * from './cell-landscape';
 export * from './world-seat';
 export * from './cede-village';
 export * from './campaigns';
+export * from './journeys';
 export * from './step-campaigns';
 export * from './plan-campaign';
 export * from './launch-campaign';
