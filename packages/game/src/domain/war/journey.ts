@@ -24,7 +24,9 @@ import type {
   JourneyState,
   JourneyStep,
 } from './journey-types';
+import { predatorDay, wildlifeOfMap } from './journey-predators';
 import { marchSpeed, type GroupPace } from './march';
+import { MARCH_FOREST, marchCellAt } from './march-grid';
 import { missingMaps, sendGroup, settleGoal, stepMover } from './movement';
 import { JOURNEY } from './rules-war';
 import { lookOnMap, type KnowledgeOut } from './seen';
@@ -171,6 +173,7 @@ function journeyTick(
   while (s.day < day) {
     s.day++;
     homeDay(s, ctx);
+    if (!journeyFinished(s)) predators(s, ctx, out);
     if (journeyFinished(s)) {
       shareKnowledge(s, groupOf(s).cell, out);
       return s;
@@ -242,8 +245,58 @@ function homeDay(s: JourneyState, ctx: TickContext): void {
   for (const m of s.members) {
     if (m.status === 'active' && !living.has(m.ref.personId)) m.status = 'fallen';
   }
+  afterLosses(s);
+}
+
+/** Bez živých členů výjezd končí; bez vojvody se zbytek vrací sám. */
+function afterLosses(s: JourneyState): void {
   if (!s.members.some((m) => m.status === 'active')) s.phase = 'done';
   else if (s.phase === 'out' && !lordRides(s)) turnHome(s);
+}
+
+/**
+ * Šelmy (lord-control.md – Nebezpečí, bod 3): stojí-li skupina na začátku dne v hustém lese
+ * (`MARCH_FOREST` pod jejím místem), losuje se (`predatorDay`) podle zvěře mapy (`wildlifeOfMap` –
+ * stav vsi na mapě; ves čte jako `discover`, žádnou další). Zraněný dostane `wounded` a `woundedDay`,
+ * zabitý je `fallen` (zemře-li vojvoda, zbytek se vrací sám); ves dostane `journey-casualty`.
+ */
+function predators(s: JourneyState, ctx: TickContext, out: TickOut): void {
+  const g = groupOf(s);
+  const grid = gridOf(g.cell, s.day, ctx);
+  if ((grid.flags[marchCellAt(grid, g.pos)]! & MARCH_FOREST) === 0) return;
+  const map = ctx.world.landscapeOf(g.cell);
+  if (map === null) throw new MissingData([{ ...g.cell }], []);
+  const villageId = map.villageIds[0];
+  const village = villageId === undefined ? null : ctx.world.villageAt(villageId, s.day);
+  if (villageId !== undefined && village === null) throw new MissingData([], [villageId]);
+  const hits = predatorDay({
+    members: s.members,
+    inForest: true,
+    wildlife: wildlifeOfMap(map, village),
+    seed: s.seed,
+    day: s.day,
+  });
+  for (const hit of hits) {
+    const m = s.members[hit.index]!;
+    if (hit.outcome === 'dead') m.status = 'fallen';
+    else {
+      m.wounded = true;
+      m.woundedDay = s.day;
+    }
+    out.events.push({
+      villageId: s.home.villageId,
+      day: s.day,
+      ref: `journey:${s.id}:${s.tick}:${out.events.length}`,
+      body: {
+        kind: 'journey-casualty',
+        journeyId: s.id,
+        personId: m.ref.personId,
+        outcome: hit.outcome,
+        by: hit.by,
+      },
+    });
+  }
+  if (hits.length > 0) afterLosses(s);
 }
 
 /**

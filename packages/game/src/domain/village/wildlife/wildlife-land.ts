@@ -76,6 +76,14 @@ export function wildlifeLandAt(landscape: Landscape, state: LandState): Wildlife
   return scanLand(landscape, state)?.land ?? { ...WILDLIFE_LAND.defaultLand };
 }
 
+/**
+ * Krajina zvěře do `reachM` od středu mapy bez vsi (výjezd – lord-control.md, Nebezpečí): jako
+ * u nově založené vsi uprostřed mapy, jen bez čtverců vsi (žádná pole, ohrady ani obydlí).
+ */
+export function wildlifeLandAtCenter(landscape: Landscape): WildlifeLand {
+  return scanFrom(landscape, EMPTY_LAND_STATE, { x: 0, z: 0 }).land;
+}
+
 /** Obdélník políček krajiny (včetně krajních). */
 type Rect = { x0: number; x1: number; y0: number; y1: number };
 
@@ -84,13 +92,33 @@ type LandState = Pick<
   'dwellings' | 'constructions' | 'parts' | 'orchards' | 'cemeteries' | 'pens' | 'woods' | 'fields'
 >;
 
+/** Stav bez čtverců vsi – mapa bez vsi. */
+const EMPTY_LAND_STATE: LandState = {
+  dwellings: [],
+  constructions: [],
+  parts: [],
+  orchards: [],
+  cemeteries: [],
+  pens: [],
+  woods: [],
+  fields: [],
+};
+
 /** Krajina zvěře a maska lesa (souvislý les od `minPatchHa`) v dosahu; null = ves bez obydlí. */
 function scanLand(
   landscape: Landscape,
   state: LandState,
 ): { land: WildlifeLand; forest: Uint8Array; rect: Rect } | null {
   const origin = villageOrigin(state);
-  if (!origin) return null;
+  return origin ? scanFrom(landscape, state, origin) : null;
+}
+
+/** Krajina zvěře a maska lesa v dosahu od bodu `origin`. */
+function scanFrom(
+  landscape: Landscape,
+  state: LandState,
+  origin: { x: number; z: number },
+): { land: WildlifeLand; forest: Uint8Array; rect: Rect } {
   const size = landscape.size;
   const total = size * size;
   const cellHa = (landscape.cellSizeM * landscape.cellSizeM) / M2_PER_HA;

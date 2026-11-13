@@ -508,3 +508,32 @@ seen)`) a adaptér `createKnowledgeRepository` (`adapters/knowledge-repository.t
   po kouscích), `step-journeys.test.ts` (úložiště po kolech, pád před doručením znalosti),
   `knowledge-repository.db.test.ts` (po políčkách, cizí rod, sloučení, souběh, zánik rodu);
   Úloha 11 – `journey-view.test.ts` (druhý výjezd na známou mapu, cizí rod, sloučení s čerstvým).
+
+## Šelmy (Úloha 13 – `domain/war/journey-predators.ts`)
+
+- **Kdy:** v denním kroku (`stepJourney` → `journeyTick`, smyčka `s.day++`) po `homeDay` – jednou za
+  herní den, stojí-li skupina na začátku dne v hustém lese (`MARCH_FOREST` pod `groupOf(s).pos`
+  v mřížce pochodu, `gridOf`). Mimo hustý les, nad `JOURNEY.predatorGroupMax` živých mužů (tři
+  nikdy) ani na mapě bez šelmy se nelosuje.
+- **Los** `predatorDay({ members, inForest, wildlife, seed, day })`: čistá funkce, proud
+  `createRandom(deriveSeed(seed, 'predators:' + day))`, každý muž v pořadí `members` dostane vždy
+  oba losy (zranění, smrt), padlí losy spotřebují, ale nezasáhnou – vcelku = po kouscích. Čísla
+  jsou čísla lovu (`HUNT_RISK`, `village-wildlife.md` – Riziko lovu): medvěd zranění
+  5 % × (1 − boj ÷ 200) a smrt 0,3 % × (2 − boj ÷ 100), jen vlci čísla lovu prasat (0,5 %,
+  0,02 %); pěšky smrt × 2; boj je `JourneyMember.fight`. Je-li medvěd i vlci, útočí medvěd. Žádné
+  nové číslo.
+- **Zvěř mapy** `wildlifeOfMap(map, village)`: mapa se vsí bere `VillageState.wildlife` té vsi
+  (`villageIds[0]` přes `villageAt` – stejná ves, kterou čte `discover`, žádná navíc; ulovený
+  medvěd = bezpečno, dokud se nevrátí); prázdná mapa nebo ves bez `wildlife` zvěř na stropu podle
+  krajiny kolem středu mapy (`wildlifeOfEmptyMap`), v paměti podle krajiny (`WeakMap`).
+- **Následek ve výjezdu:** zraněný `wounded` + `woundedDay`, zabitý `status: 'fallen'`; po smrti
+  vojvody se zbytek vrací sám (`afterLosses`), padnou-li všichni, výjezd končí bez událostí.
+  Domů jde `journey-casualty` (`journeyId`, `personId`, `outcome`, `by`) ve schránce bodu, `ref`
+  `journey:<id>:<takt>:<pořadí>`, `day` = den losu.
+- **Ves** (`applyJourneyCasualty`, `village/wildlife/beast-casualty.ts`, větev v `applyEvent`):
+  zranění `injuredUntilDay = day + 1 + 60` bez zápisu do kroniky; smrt odebere osobu a zapíše
+  `death { cause: 'beast', by }`, nástupnictví řeší `dynastyDay` běžnou cestou. Osoba, která ve vsi
+  už není, nic nezmění (idempotence). Kronika ve webu: „Bořivoje zabil na cestě medvěd.“ /
+  „Bořivoje zabili na cestě vlci.“ (`village-view-chronicle.ts`).
+- **Testy:** `journey-predators.test.ts` (četnost přes 20 000 seedů v toleranci, zvěř mapy, výjezd
+  v lese, vcelku = po kouscích, schránka vsi).

@@ -166,7 +166,9 @@ vesničanů.
 ### Nebezpečí pro lidi (skromně)
 
 - Zvěř **nikoho nezabije** ani nezraní mimo lov – medvěd i vlci se lidem vyhýbají (ve scéně
-  utíkají).
+  utíkají). **Jediná výjimka je výjezd vojvody:** osamělého vojvodu nebo malou družinu (nejvýš
+  dva muži) v hustém lese napadne medvěd nebo vlci, a to **týmiž čísly jako na lovu** (zranění
+  i smrt níže; vlci čísly lovu prasat) – [lord-control.md](lord-control.md) – Nebezpečí, bod 3.
 - **Na lovu** může být lovec zraněn: na lovu prasat **0,5 %**, na lovu medvěda **5 % × (1 −
   boj ÷ 200)** na lovce a den, náhodou ze seedu vsi a dne. Zraněný **60 dní** necvičí, neloví ani
   nepracuje.
