@@ -23,7 +23,7 @@ export const CAMPAIGN_CELL_CACHE_SIZE = 16;
  * drahé), kostra má vlastní mezipaměť pro seed světa.
  */
 export function createCampaignCells(deps: {
-  settlements: Pick<SettlementRepository, 'occupiedCells' | 'listActive'>;
+  settlements: Pick<SettlementRepository, 'holderAt' | 'listActive'>;
   /** Jen otisky – id vsí sídla bez načtení jejich stavu. */
   villages: Pick<VillageRepository, 'stampsOf'>;
   landscapes: LandscapeSource;
@@ -35,9 +35,11 @@ export function createCampaignCells(deps: {
   return {
     async mapOf(cell) {
       const same = (c: { x: number; y: number }): boolean => c.x === cell.x && c.y === cell.y;
-      const occupied = (await deps.settlements.occupiedCells()).find((c) => same(c.cell));
-      if (occupied) {
-        const settlement = (await deps.settlements.listActive(occupied.ownerId)).find((s) =>
+      // držitel jen tohoto políčka (index políčka) – worker se ptá každé kolo na každou mapu
+      // tažení a výjezdů, čtení všech sídel světa by rostlo s jeho velikostí
+      const holder = await deps.settlements.holderAt(cell);
+      if (holder !== null) {
+        const settlement = (await deps.settlements.listActive(holder)).find((s) =>
           same(s.worldCell ?? SEAT_CELL),
         );
         if (settlement) {
