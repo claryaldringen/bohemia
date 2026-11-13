@@ -24,6 +24,9 @@ Martin 13. 11. 2026:
   mužů“
 - nebezpečí na cestě (sekce Nebezpečí): „Takhle to souhlasí“
 - prohraný boj (sekce Prohraný boj): „ano, souhlasí“
+- k návrhu Clauda, že si družina veze jídlo jako tažení (dosah ≈ 5 km) a v zimě mrzne jako
+  vojsko: „tohle je píčovina“ a „tohle je taky píčovina“ – obojí zrušeno (sekce Zásoby a zima)
+- má jít známá mapa otevřít kdykoli z domova? „Ano“
 
 ## Proč
 
@@ -63,9 +66,8 @@ válce už hráč svého muže živě vede ([válka](war.md) – Velení); výje
 - **Kůň** (Martin: „Má jet vždy na koni“): kdo má svého jezdeckého koně ([koně](horses.md) –
   Výcvik koně a jezdec), jede na něm. Skupina jen z jezdců jede × 1,5; je-li v ní pěší, jde celá
   jeho tempem ([válka](war.md) – Skupina jde tempem nejpomalejšího).
-- **Doma mezitím** (návrh Clauda; k vojvodovi Martin nerozporoval): vojvoda i družina jsou pryč
-  jako muži na tažení – necvičí, neloví, nejedí ze zásob vsi a ves nebrání. Ves dál řídí hráč,
-  nebo [správce](steward.md), je-li zapnutý.
+- **Doma mezitím** (návrh Clauda; k vojvodovi Martin nerozporoval): vojvoda i družina jsou pryč –
+  necvičí, neloví a ves nebrání. Ves dál řídí hráč, nebo [správce](steward.md), je-li zapnutý.
 
 ### Rozkazy
 
@@ -89,8 +91,8 @@ u vojska ([válka](war.md) – Cíl v neprůchodné buňce).
 
 - Po dojetí skupina **stojí**. Když do **3 herních dní** (≈ 4 min) nepřijde nový rozkaz, jede
   domů sama (Martin). Každé další dojetí počítá lhůtu znovu.
-- **Doma** vojvoda vejde do dvorce, koně jdou do ohrady, všichni se vrátí ke svému dni a zbylé
-  jídlo do zásob vsi (návrh Clauda).
+- **Doma** vojvoda vejde do dvorce, koně jdou do ohrady a všichni se vrátí ke svému dni (návrh
+  Clauda).
 
 ### Pohyb
 
@@ -99,24 +101,20 @@ les ≈ 1/4 tempa, voda jen po brodech, cesty × 1,5, okraje map v 8 směrech. K
 
 - **Brány** jsou v míru otevřené – zavírají se až při nájezdu ([opevnění](fortifications.md) – Ve
   scéně). Družina jimi projede jako místní (návrh Clauda).
-- **Zima** jako u vojska ([válka](war.md) – Roční doba a zima): sněhem × 0,75 a **mráz** – kdo je
-  v zimě venku, ztrácí denně 3 zdraví a 2 % síly. Úkrytem je jen ves **vlastního rodu**: kdo u ní
-  stojí, nemrzne a zotavuje se (+10 zdraví a +5 % síly denně). U cizí vsi úkryt není – soused
-  o návštěvě neví (návrh Clauda). Píce pro koně jako u tažení.
+- **Sníh** zpomaluje jako vojsko – v zimě × 0,75 ([válka](war.md) – Roční doba a zima).
 
-**Příklad:** Bořivoj jede v létě ze Lhoty do sousedních Kněžic (1,9 km) se dvěma syny, všichni na
-koních. Cesta ≈ 4 herní dny (≈ 6 min), u Kněžic postojí 3 dny, zpět 4 dny – **≈ 11 herních dní,
-≈ 16 min**. Pěšky ≈ 15 dní (≈ 22 min). V zimě by cesta trvala ≈ 14 dní a každého stála ≈ 40 zdraví
-ze 100.
+**Příklad:** Bořivoj jede ze Lhoty do sousedních Kněžic (1,9 km) se dvěma syny, všichni na koních.
+Cesta ≈ 4 herní dny (≈ 6 min), u Kněžic postojí 3 dny, zpět 4 dny – **≈ 11 herních dní, ≈ 16 min**.
+Pěšky ≈ 15 dní (≈ 22 min), v zimě o třetinu déle.
 
-### Jídlo (návrh Clauda)
+### Zásoby a zima
 
-- Skupina si bere jídlo jako na tažení: **1 kg na muže a den, nejvýš 25 kg na muže**, ze zásob
-  vlastní vsi bez osiva. Bere se samo – hráč nic nezadává.
-- Když jídla zbývá **jen na cestu domů** (vzdušnou čarou, jako počítá NPC velitel –
-  [válka](war.md) – Velení), skupina se obrátí sama a dál poslat nejde.
-- Dosah tak vychází na **≈ 5 km od domova na koni** (2–3 mapy) a ≈ 3 km pěšky.
-- Nemá-li ves jídlo ani na jeden den cesty, vyjet nejde.
+První návrh Clauda – jídlo na cestu jako u tažení (25 kg na muže, dosah ≈ 5 km, pak obrat domů)
+a mráz jako u vojska – Martin 13. 11. 2026 zamítl (citace výš). Platí (návrh Clauda):
+
+- **Výjezd žádné zásoby neveze a dosah není omezen.** Vojvoda a družina jedí dál ze zásob své vsi,
+  jako by byli doma – výjezd jídlo nešetří ani nestojí.
+- **Mráz se na výjezd nevztahuje.** Zimu pozná družina jen na tempu (sníh výš).
 
 ### Co vojvoda vidí – mlha války a znalost rodu
 
@@ -131,6 +129,9 @@ ze 100.
   i tažení je mapa od začátku odkrytá tam, kde už rod byl, a stavby na ní stojí.
 - **Stará zpráva:** co je mimo dohled, vidí hráč tak, jak to jeho muži viděli naposled – shořelý
   dům stojí dál a nová hradba chybí, dokud se tam někdo z rodu znovu nepodívá (jako v 0 A.D.).
+- **Známou mapu jde otevřít kdykoli z domova** (Martin 13. 11. 2026: „Ano“) – i když na ní rod
+  právě nikoho nemá, třeba před vysláním tažení. Hráč ji vidí tak, jak ji rod zná: odkryté šeré,
+  stavby naposled viděné, nic živého (podoba návrh Clauda).
 - **Tažení se jinak nemění** (návrh Clauda): opevnění napadené vsi vidí útočník jako dnes, znalost
   rodu mu jen přidá, co už rod viděl.
 - Vlastní mapu hráč zná celou.
@@ -161,7 +162,7 @@ Hrozí jen nepřítel ve válce a šelmy. Čísla a upřesnění návrh Clauda.
    (ulovený medvěd = bezpečno, dokud se nevrátí); na prázdné mapě je zvěř na stropu podle krajiny,
    jako u nově založené vsi uprostřed mapy. Mění větu „zvěř nikoho nezraní mimo lov“.
 4. **Jinde je cesta bezpečná** před lidmi i zvěří – u vlastního rodu, pána, vazalů i neutrálních
-   sousedů a na prázdných mapách. Zimu viz Pohyb.
+   sousedů a na prázdných mapách.
 
 **Boj v poli** (návrh Clauda). Výpad i střet s tažením jsou boj dvou pohyblivých skupin mimo domy.
 Ten hra zatím nemá – obránci dnes stojí do 40 m od svých domů a bojuje se jen na mapě, kterou
@@ -206,21 +207,21 @@ Návrh Clauda.
 
 - **Výběr:** klik na vojvodu ve scéně nebo na jeho portrét v panelu dvorce. Panel vojvody ukáže
   řadu portrétů mužů rodu, kteří smějí jet – klik muže přidá do družiny nebo ubere; u portrétu
-  podkova, má-li koně. Vedle meč se silou skupiny, klas s počtem dní jídla a v zimě vločka
-  („Mráz ubírá zdraví.“).
+  podkova, má-li koně. Vedle meč se silou skupiny.
 - **Rozkaz:** s vybraným vojvodou **pravé tlačítko na zem = jdi sem**, na zemi zůstane praporek
   cíle. (Dnes pravé tlačítko výběr ruší – u vybraného vojvody ho ruší Esc nebo klik jinam.) Platí
   i na cizí mapě.
 - **Okraj mapy:** u okraje se kurzor změní v šipku, popisek „Na sousední mapu“.
 - **Navštiv ves:** ikona jezdce v panelu vojvody otevře seznam vsí (ves, rod, směr a počet
   políček).
+- **Známá mapa:** oko u vsi v tomto seznamu a u cíle v panelu Vojsko otevře ve scéně mapu, jak ji
+  rod zná; ⌂ vrátí na ves. Mapu, kterou rod nezná, oko neotevře.
 - **Na cestě:** portrét vojvody s podkovou v horní liště – klik přepne scénu na mapu, kde vojvoda
   je; scéna jde za ním z mapy na mapu jako za vojskem. Ikona **Domů** jako u tažení.
 - **Čekání:** nad vojvodou přesýpací hodiny s počtem dní do návratu.
-- **Důvod u kurzoru:** „Tam vojvoda nedojde.“, „Jídlo stačí jen na cestu domů.“, „Na cestu není
-  jídlo.“, „Vojvoda je raněný.“, „Vojvoda je na tažení.“, „Ves je napadena.“, „Tam je válka.“
-- **Upozornění:** „Bořivoj se vrátil.“, „Bořivoj se vrací – dochází jídlo.“, „Bořivoj napaden
-  u Kněžic!“, „Zajat: Bořivoj.“
+- **Důvod u kurzoru:** „Tam vojvoda nedojde.“, „Vojvoda je raněný.“, „Vojvoda je na tažení.“,
+  „Ves je napadena.“, „Tam je válka.“, „Tu mapu rod nezná.“
+- **Upozornění:** „Bořivoj se vrátil.“, „Bořivoj napaden u Kněžic!“, „Zajat: Bořivoj.“
 - **Panel vybraného muže:** „je na cestě“, „čeká (2 dny)“, „vrací se domů“.
 
 ## Ve scéně
@@ -240,8 +241,6 @@ Návrh Clauda.
 | věk vojvody a družiny            | od 16 let                            | [válka](war.md)     |
 | tempo                            | ≈ 3,5 m/s, jezdci × 1,5, sníh × 0,75 | [válka](war.md)     |
 | dohled                           | 150 m, z lesa a do lesa 50 m         | [válka](war.md)     |
-| jídlo                            | 1 kg na muže a den, nejvýš 25        | [válka](war.md)     |
-| mráz venku                       | −3 zdraví a −2 % síly denně          | [válka](war.md)     |
 | výpad obránců                    | síla ≥ 1,5 × síla družiny            | [válka](war.md)     |
 | domácí jezdci při pronásledování | tempo × 1,2                          | návrh Clauda        |
 | šelmy – skupina nejvýš           | 2 muži                               | Martin 13. 11. 2026 |
@@ -249,10 +248,11 @@ Návrh Clauda.
 
 ## Pořadí zavedení (návrh Clauda)
 
-1. **Výjezd po bezpečných mapách** – družina, rozkazy, jídlo, zima, čekání a návrat, scéna za
-   vojvodou, objevování za jízdy po dobu výjezdu. Na mapu rodu ve válce vojvoda nevjede („Tam je
-   válka.“); začne-li válka, když tam stojí, jede domů.
-2. **Znalost rodu** – uložení objeveného a jeho použití při dalším výjezdu i tažení.
+1. **Výjezd po bezpečných mapách** – družina, rozkazy, čekání a návrat, scéna za vojvodou,
+   objevování za jízdy po dobu výjezdu. Na mapu rodu ve válce vojvoda nevjede („Tam je válka.“);
+   začne-li válka, když tam stojí, jede domů.
+2. **Znalost rodu** – uložení objeveného, jeho použití při dalším výjezdu i tažení a známá mapa
+   otevřená z domova.
 3. **Šelmy.**
 4. **Boj v poli** – výpad obránců, střet s nepřátelským tažením a zajetí muže obráncem. Teprve
    pak smí vojvoda na mapy rodů ve válce. Je to zároveň boj v poli, který [válka](war.md) odkládá,
@@ -261,11 +261,11 @@ Návrh Clauda.
 ## Na stavitelovi
 
 - Výjezd stavět **na tažení**, ne vedle něj. Znovu jdou použít takty, pohyb a přechod okrajem,
-  záměry a živé vedení velitele, pohled na tažení, cizí mapa ve scéně, nepřítomnost mužů ve vsi
-  a zásoby.
+  záměry a živé vedení velitele, pohled na tažení, cizí mapa ve scéně a nepřítomnost mužů ve vsi.
 - **Nové proti tažení:** výjezd nemá válku ani cílovou ves (tažení dnes obojí vyžaduje a vyslání
-  bez války ji začíná); bez hráče se nerozpadá; objevuje za jízdy a všechny stavby; řídí se pravým
-  tlačítkem přímo ve scéně i na cizí mapě (tažení se tam řídí z mapy tažení).
+  bez války ji začíná); bez hráče se nerozpadá; neveze zásoby a nemrzne – muži jedí dál doma;
+  objevuje za jízdy a všechny stavby; řídí se pravým tlačítkem přímo ve scéně i na cizí mapě
+  (tažení se tam řídí z mapy tažení).
 - Převod starších vsí (nové části stavu volitelné), kde přesně skupina u navštívené vsi zastaví,
   podoba praporku a kurzoru okraje, tvar uložené znalosti rodu.
 - Po schválení doplnit odkazy do [války](war.md), [vojvodovy rodiny](lord.md)
@@ -284,9 +284,10 @@ Návrh Clauda.
 | Družinu vybírá hráč – sám, nebo s muži                                       | Martin 13. 11. 2026 |
 | Nebezpečí: ves ve válce, nepřátelské tažení, šelmy v lese na nejvýš dva muže | Martin 13. 11. 2026 |
 | Prohraný boj: dědic, zajetí a výkupné, útěk na koních jen pěším              | Martin 13. 11. 2026 |
+| Zásoby na cestu s dosahem a mráz jako u tažení – zrušeno                     | Martin 13. 11. 2026 |
+| Známou mapu jde otevřít kdykoli z domova                                     | Martin 13. 11. 2026 |
 | Družina jen z mužů rodu od 16 let; vesničané ne                              | návrh Clauda        |
-| Jídlo jako na tažení, dosah ≈ 5 km na koni                                   | návrh Clauda        |
-| Mráz jako u vojska, úkryt jen u vsi vlastního rodu                           | návrh Clauda        |
+| Výjezd neveze zásoby, dosah není omezen, muži jedí dál doma; mráz neplatí    | návrh Clauda        |
 | Rozkaz „Navštiv ves“; v seznamu vlastní rod, sídla rodů a viděné vsi         | návrh Clauda        |
 | Znalost rodu se ukládá a slouží i tažení; mimo dohled stará zpráva           | návrh Clauda        |
 | Na cizí mapě jen krajina, stavby a opevnění – lidé a pole později            | návrh Clauda        |
