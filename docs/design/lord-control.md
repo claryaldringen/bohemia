@@ -28,6 +28,7 @@ Martin 13. 11. 2026:
   vojsko: „tohle je píčovina“ a „tohle je taky píčovina“ – obojí zrušeno (sekce Zásoby a zima)
 - má jít známá mapa otevřít kdykoli z domova? „Ano“
 - rozkaz „Navštiv ves“ ze seznamu vsí (návrh Clauda): „to zruš“
+- „Pokud do hráčovy vsi přijede jiný vojvoda, hráč by ho měl vidět (včetně družiny)“
 
 ## Proč
 
@@ -42,13 +43,12 @@ válce už hráč svého muže živě vede ([válka](war.md) – Velení); výje
 - **Cíl:** co muži rodu jednou viděli, rod zná dál – hodí se při tažení (Martin; uložení návrh
   Clauda).
 - **Cíl:** vojvoda se neztratí – když ho hráč nechá stát, vrátí se sám (Martin).
-- **Ne-cíl:** návštěva není jednání ani obřad. S hostitelem se nic neděje a soused se o ní
-  nedozví (Martin).
+- **Ne-cíl:** návštěva není jednání ani obřad. S hostitelem se nic neděje a nikdo mu ji neohlásí –
+  cizí jezdce u své vsi ale vidí (Martin).
 - **Ne-cíl:** družina není vojsko – neútočí, nebere kořist ani zajatce. K tomu je tažení (návrh
   Clauda).
 - **Ne-cíl (první verze):** na cizí mapě hráč vidí krajinu, stavby a opevnění – ne lidi při práci,
   pole a zvířata (návrh Clauda).
-- **Ne-cíl (první verze):** hostitel družinu ve své scéně nevidí (návrh Clauda).
 - **Anti-cíl:** výjezd jako tichá cesta k přepadení bez varování.
 - **Anti-cíl:** druhý druh pohybu vedle tažení – výjezd jede podle stejných pravidel (tempo,
   terén, okraje map, mlha války).
@@ -135,10 +135,12 @@ a mráz jako u vojska – Martin 13. 11. 2026 zamítl (citace výš). Platí (n�
 
 ### Soused
 
-- **O návštěvě neví** (Martin): žádné upozornění ani zápis v kronice. Ves na družinu nereaguje –
-  neutíká, nezavírá brány, správce neopevňuje. Platí u každého, s kým rod není ve válce: vlastní
-  rod, pán, vazalové i neutrální rody.
-- Hostitel družinu ve své scéně nevidí (první verze, návrh Clauda) – není to vojsko.
+- **Návštěva se neohlašuje** (Martin 12. 11. 2026): žádné upozornění ani zápis v kronice. Ves na
+  družinu nereaguje – neutíká, nezavírá brány, správce neopevňuje. Platí u každého, s kým rod není
+  ve válce: vlastní rod, pán, vazalové i neutrální rody.
+- **Hostitel cizího vojvodu i s družinou vidí** (Martin 13. 11. 2026) – ve své scéně, tam, kam
+  dohlédnou jeho lidé a domy, stejně jako dnes vidí cizí vojsko. Klik na cizího vojvodu ukáže jméno
+  a rod, které jsou o rodech veřejné (návrh Clauda – jako cizí jednotka v 0 A.D.).
 
 ### Nebezpečí (Martin 13. 11. 2026: „Takhle to souhlasí“)
 
@@ -244,8 +246,8 @@ Návrh Clauda.
 ## Pořadí zavedení (návrh Clauda)
 
 1. **Výjezd po bezpečných mapách** – družina, rozkazy, čekání a návrat, scéna za vojvodou,
-   objevování za jízdy po dobu výjezdu. Na mapu rodu ve válce vojvoda nevjede („Tam je válka.“);
-   začne-li válka, když tam stojí, jede domů.
+   objevování za jízdy po dobu výjezdu, hostitel vidí cizí družinu. Na mapu rodu ve válce vojvoda
+   nevjede („Tam je válka.“); začne-li válka, když tam stojí, jede domů.
 2. **Znalost rodu** – uložení objeveného, jeho použití při dalším výjezdu i tažení a známá mapa
    otevřená z domova.
 3. **Šelmy.**
@@ -260,7 +262,8 @@ Návrh Clauda.
 - **Nové proti tažení:** výjezd nemá válku ani cílovou ves (tažení dnes obojí vyžaduje a vyslání
   bez války ji začíná); bez hráče se nerozpadá; neveze zásoby a nemrzne – muži jedí dál doma;
   objevuje za jízdy a všechny stavby; řídí se pravým tlačítkem přímo ve scéně i na cizí mapě
-  (tažení se tam řídí z mapy tažení).
+  (tažení se tam řídí z mapy tažení); hostitel ho vidí na své mapě (dnes vidí jen tažení, které
+  míří na jeho ves).
 - Převod starších vsí (nové části stavu volitelné), podoba praporku a kurzoru okraje, tvar uložené
   znalosti rodu, výběr mezi víc známými mapami téhož rodu.
 - Po schválení doplnit odkazy do [války](war.md), [vojvodovy rodiny](lord.md)
@@ -272,7 +275,7 @@ Návrh Clauda.
 | ---------------------------------------------------------------------------- | ------------------- |
 | Hráč řídí vojvodu a smí s ním navštívit sousední ves                         | Martin 12. 11. 2026 |
 | Účel: podívat se, jak ves vypadá; místní znalost pro tažení                  | Martin 12. 11. 2026 |
-| Soused o návštěvě neví                                                       | Martin 12. 11. 2026 |
+| Návštěva se neohlašuje – bez upozornění a zápisu v kronice                   | Martin 12. 11. 2026 |
 | Poslat jde kamkoli, i za okraj mapy                                          | Martin 12. 11. 2026 |
 | Na místě stojí 3 herní dny, pak se vrátí sám                                 | Martin 12. 11. 2026 |
 | Jede vždy na koni, má-li ho                                                  | Martin 12. 11. 2026 |
@@ -282,11 +285,12 @@ Návrh Clauda.
 | Zásoby na cestu s dosahem a mráz jako u tažení – zrušeno                     | Martin 13. 11. 2026 |
 | Známou mapu jde otevřít kdykoli z domova                                     | Martin 13. 11. 2026 |
 | Rozkaz „Navštiv ves“ ze seznamu vsí – zrušeno                                | Martin 13. 11. 2026 |
+| Hostitel vidí cizího vojvodu i s družinou ve své scéně                       | Martin 13. 11. 2026 |
 | Družina jen z mužů rodu od 16 let; vesničané ne                              | návrh Clauda        |
 | Výjezd neveze zásoby, dosah není omezen, muži jedí dál doma; mráz neplatí    | návrh Clauda        |
 | Znalost rodu se ukládá a slouží i tažení; mimo dohled stará zpráva           | návrh Clauda        |
 | Na cizí mapě jen krajina, stavby a opevnění – lidé a pole později            | návrh Clauda        |
-| Hostitel družinu ve scéně nevidí                                             | návrh Clauda        |
+| Hostitel ho vidí v dohledu svých lidí a domů; klik ukáže jméno a rod         | návrh Clauda        |
 | Družina neútočí; výpad obránců od 1,5 × síly; domácí jezdci × 1,2            | návrh Clauda        |
 | Boj v poli jednou pro výpad i tažení, jako poslední krok                     | návrh Clauda        |
 | Věznitelem ves mapy, po střetu s tažením jeho shromaždiště                   | návrh Clauda        |
