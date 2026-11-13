@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
 import { kin, village } from '../../domain/village/__tests__/kin-fixtures';
+import { sameCell, type GridCell } from '../../domain/village/people/world-grid';
 import type { VillageState } from '../../domain/village/types';
 import {
   INTENT_LEAD_TICKS,
@@ -14,7 +15,7 @@ import {
 } from '../../domain/war';
 import { LAUNCH, MEADOW, SUMMER, world } from '../../domain/war/__tests__/campaign-fixtures';
 import type { CampaignCells } from '../campaigns';
-import { houseAtWarOn } from '../journey-war';
+import { houseAtWarOn, recallJourneysAtWar, type RecallJourneysDeps } from '../journey-war';
 import { newCampaignMemory, stepCampaigns } from '../step-campaigns';
 import { stepJourneys, type StepJourneysDeps } from '../step-journeys';
 import { InMemoryCampaignLock, InMemoryCampaigns } from './in-memory-campaigns';
@@ -27,8 +28,9 @@ import { InMemoryWars } from './in-memory-wars';
 
 // Smyčka výjezdů nad porty v paměti (plán 2026-11-13 – Úloha 4): výjezd dojede a vrátí se přes
 // kola workeru (s restartem i s pamětí = vcelku), pád mezi uložením bodu a doručením doručí návrat
-// i upozornění právě jednou (Review Focus 4), válka na mapě skupiny ji pošle domů, chyba jednoho
-// výjezdu nezastaví ostatní a zaniklá domovská ves výjezd ukončí.
+// i upozornění právě jednou (Review Focus 4), vjezd na mapu rodu ve válce i začátek války
+// (`recallJourneysAtWar`) skupinu pošlou domů, chyba jednoho výjezdu nezastaví ostatní a zaniklá
+// domovská ves výjezd ukončí.
 
 const NOW = new Date(world.startMs + 400 * 86_400_000);
 /** Domov – Lhota na políčku (0, 0), kde stojí i sídlo hráče `pa`. */
@@ -96,6 +98,9 @@ interface Setup {
   lock: InMemoryCampaignLock;
   houses: InMemoryHouses;
   wars: InMemoryWars;
+  settlements: InMemorySettlements;
+  /** Porty `recallJourneysAtWar` nad týmiž rody, sídly a výjezdy. */
+  recall: RecallJourneysDeps;
 }
 
 /** Rody `pa` (sídlo na domovském políčku) a `pb` (na východ), Lhota a porty v paměti. */
@@ -137,7 +142,45 @@ async function setup(): Promise<Setup> {
     world,
     atWar: (playerId, cell) => houseAtWarOn({ houses, wars, settlements }, playerId, cell),
   };
-  return { deps, journeys, villages, notices, lock, houses, wars };
+  const recall = { houses, settlements, journeys, world };
+  return { deps, journeys, villages, notices, lock, houses, wars, settlements, recall };
+}
+
+/** Id rodů hráčů `pa` a `pb`. */
+async function warHouses(s: Setup): Promise<[string, string]> {
+  const [a, b] = [await s.houses.activeOf('pa'), await s.houses.activeOf('pb')];
+  return [a!.id, b!.id];
+}
+
+/** Válka rodů hráčů `pa` a `pb`. */
+async function startWar(s: Setup): Promise<void> {
+  await s.wars.start({
+    houses: await warHouses(s),
+    startedAt: NOW,
+    startedDay: SUMMER,
+    how: 'declared',
+  });
+}
+
+/** Záměry výjezdů bez `seq` (takt, hráč, rozkaz). */
+function queued(journeys: InMemoryJourneys): unknown[] {
+  return journeys.intents.map(({ journeyId, tick, byPlayer, body }) => ({
+    journeyId,
+    tick,
+    byPlayer,
+    body,
+  }));
+}
+
+/** První takt, kdy skupina výjezdu `start` (bez rozkazů, vcelku) stojí na políčku `cell`. */
+function firstTickOn(start: JourneyState, cell: GridCell, limit: number): number {
+  let [lo, hi] = [start.tick, limit];
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (sameCell(stepJourney(start, mid, [], WHOLE).state.groups[0]!.cell, cell)) hi = mid;
+    else lo = mid + 1;
+  }
+  return lo;
 }
 
 /** Kola smyčky po 1 s (4 takty, nebo `every`) od taktu `from` do `to`; výsledky kol. */
@@ -283,36 +326,49 @@ describe('stepJourneys', () => {
     },
   );
 
-  it('začne válka s rodem mapy, na které skupina stojí – kolo přidá „Domů“ jednou, při návratu už ne', async () => {
-    const { deps, journeys, houses, wars, notices } = await setup();
-    // přes okraj na mapu rodu `pb` a 300 m dál – návrat po ní trvá stovky taktů
-    const deep = { x: -655, z: 5 };
-    const go = { tick: LAUNCH + 1000, byPlayer: 'pa', body: { kind: 'go' as const, pos: deep } };
-    await journeys.create(journey({ order: { kind: 'cross', cell: EAST } }));
-    await journeys.addIntent('j1', go);
-    await rounds(deps, LAUNCH + 1, LAUNCH + 1401);
-    const there = await stored(journeys);
-    expect(there.phase).toBe('out');
-    expect(there.groups[0]).toMatchObject({ cell: EAST, pos: deep, arrived: true });
-    const [a, b] = [await houses.activeOf('pa'), await houses.activeOf('pb')];
-    await wars.start({
-      houses: [a!.id, b!.id],
-      startedAt: NOW,
-      startedDay: SUMMER + 4,
-      how: 'declared',
-    });
-    // kola po taktu: „Domů“ platí až za INTENT_LEAD_TICKS – mezitím se nepřidá podruhé; při
-    // návratu po mapě rodu ve válce (body se mezitím uloží za rozkazem) už ne
-    await rounds(deps, LAUNCH + 1405, LAUNCH + 1412, 1);
-    await rounds(deps, LAUNCH + 1416, END);
-    expect(journeys.intents.map(({ tick, byPlayer, body }) => ({ tick, byPlayer, body }))).toEqual([
-      go,
-      { tick: LAUNCH + 1405 + INTENT_LEAD_TICKS, byPlayer: 'pa', body: { kind: 'home' } },
+  it('kolo, ve kterém skupina mapu nezměnila, se na válku neptá; přejezd na jinou mapu jednou', async () => {
+    const { deps, journeys } = await setup();
+    const asked: GridCell[] = [];
+    const used: StepJourneysDeps = {
+      ...deps,
+      memory: newCampaignMemory<JourneyState>(),
+      atWar: (_playerId, cell) => {
+        asked.push(cell);
+        return Promise.resolve(false);
+      },
+    };
+    // j1 jezdí jen po domovské mapě; j2 přejede na mapu na východ, počká a vrátí se
+    await journeys.create(journey());
+    await journeys.create(journey({ id: 'j2', order: { kind: 'cross', cell: EAST } }));
+    await rounds(used, LAUNCH + 1, END);
+    expect((await stored(journeys)).phase).toBe('done');
+    expect((await stored(journeys, 'j2')).phase).toBe('done');
+    // jediný dotaz – vjezd j2 na východní mapu; návrat domů (fáze returning) se neptá
+    expect(asked).toEqual([EAST]);
+  });
+
+  it('vjezd na mapu rodu ve válce zapíše „Domů“ za hráče jednou a skupina se vrátí', async () => {
+    const s = await setup();
+    await startWar(s);
+    const start = journey({ order: { kind: 'cross', cell: EAST } });
+    const crossed = firstTickOn(start, EAST, LAUNCH + 1000);
+    await s.journeys.create(start);
+    // kola po taktu kolem vjezdu: „Domů“ platí až za INTENT_LEAD_TICKS – mezitím se nepřidá podruhé
+    await rounds(s.deps, LAUNCH + 1, crossed - 9);
+    await rounds(s.deps, crossed - 8, crossed + 8, 1);
+    await rounds(s.deps, crossed + 12, END);
+    expect(queued(s.journeys)).toEqual([
+      {
+        journeyId: 'j1',
+        tick: crossed + INTENT_LEAD_TICKS,
+        byPlayer: 'pa',
+        body: { kind: 'home' },
+      },
     ]);
-    const back = await stored(journeys);
+    const back = await stored(s.journeys);
     expect(back.phase).toBe('done');
     expect(back.groups[0]!.cell).toEqual(HOME.cell);
-    expect(notices.notices.map((n) => n.kind)).toEqual(['journey-returned']);
+    expect(s.notices.notices.map((n) => n.kind)).toEqual(['journey-returned']);
   });
 
   it('chyba jednoho výjezdu nezastaví ostatní; výjezd s cizím zámkem se přeskočí', async () => {
@@ -338,5 +394,73 @@ describe('stepJourneys', () => {
     expect(villages.inbox.events).toEqual([]);
     expect(notices.notices).toEqual([]);
     expect(await journeys.active()).toEqual([]);
+  });
+});
+
+describe('recallJourneysAtWar', () => {
+  /** Začátek války rodů hráčů `pa` a `pb` v taktu `tick`. */
+  const recallAt = async (s: Setup, tick: number): Promise<void> => {
+    await recallJourneysAtWar(s.recall, {
+      houses: await warHouses(s),
+      nowMs: msOfTick(tick, world),
+    });
+  };
+  /** Rozkaz „Domů“ za hráče s taktem jako jeho rozkaz (začátek války v taktu `tick`). */
+  const home = (journeyId: string, tick: number, byPlayer = 'pa'): unknown => ({
+    journeyId,
+    tick: tick + INTENT_LEAD_TICKS,
+    byPlayer,
+    body: { kind: 'home' },
+  });
+
+  it('skupina stojí na mapě protivníka – „Domů“ za hráče', async () => {
+    const s = await setup();
+    const start = journey({ order: { kind: 'cross', cell: EAST } });
+    const there = stepJourney(start, LAUNCH + 1000, [], WHOLE).state;
+    expect(there.groups[0]).toMatchObject({ cell: EAST, arrived: true });
+    await s.journeys.create(there);
+    await recallAt(s, LAUNCH + 1004);
+    expect(queued(s.journeys)).toEqual([home('j1', LAUNCH + 1004)]);
+  });
+
+  it('skupina tam teprve jede s rozkazem „Přes okraj“ – „Domů“; platí pro výjezdy obou rodů', async () => {
+    const s = await setup();
+    await s.journeys.create(journey({ order: { kind: 'cross', cell: EAST } }));
+    // výjezd hráče `pb` z jeho mapy na východě přes okraj na mapu hráče `pa`
+    const brod = { ...HOME, villageId: 'brod', cell: EAST };
+    await s.journeys.create(
+      journey({ id: 'jb', playerId: 'pb', home: brod, order: { kind: 'cross', cell: HOME.cell } }),
+    );
+    await recallAt(s, LAUNCH + 10);
+    expect(queued(s.journeys)).toEqual([home('j1', LAUNCH + 10), home('jb', LAUNCH + 10, 'pb')]);
+  });
+
+  it('„Přes okraj“ zapsaný po kontrolním bodu (bod je starší než výpočet workeru) – „Domů“', async () => {
+    const s = await setup();
+    await s.journeys.create(journey());
+    const cross = {
+      tick: LAUNCH + 2,
+      byPlayer: 'pa',
+      body: { kind: 'cross' as const, cell: EAST },
+    };
+    await s.journeys.addIntent('j1', cross);
+    await recallAt(s, LAUNCH + 40);
+    expect(queued(s.journeys)).toEqual([{ journeyId: 'j1', ...cross }, home('j1', LAUNCH + 40)]);
+  });
+
+  it('výjezd jinde – na vlastní mapě i na mapě rodu mimo válku – nezapíše nic', async () => {
+    const s = await setup();
+    await s.houses.create({ playerId: 'pc', kind: 'player', createdAt: NOW });
+    const north = { x: 0, y: 1 };
+    await s.settlements.create({
+      ownerId: 'pc',
+      landscapeSeed: 3,
+      layerVersions: CURRENT_LAYER_VERSIONS,
+      worldCell: north,
+    });
+    await s.journeys.create(journey());
+    await s.journeys.create(journey({ id: 'j2', order: { kind: 'cross', cell: north } }));
+    await recallAt(s, LAUNCH + 10);
+    expect(s.journeys.intents).toEqual([]);
   });
 });

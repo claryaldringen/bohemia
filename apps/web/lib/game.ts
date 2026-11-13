@@ -50,6 +50,7 @@ import {
   type TimeSkip,
   type VillageAccess,
   type VillageRecord,
+  type RecallJourneysDeps,
   type RightsDeps,
   type VillageRight,
   villageAccess,
@@ -398,6 +399,20 @@ export async function ownMapsOfPlayer(
 /** Závislosti use-casů nad vsemi hráče (sídla, vsi, mezipaměť krajin, seedy). */
 export function gameDeps(): GameDeps {
   return dynastyDeps();
+}
+
+/**
+ * Výjezdy při začátku války (`WarDeps.journeyRecall` – opověď i přepadení tažením): výjezd na mapě
+ * protivníka jede domů (`recallJourneysAtWar`, docs/code/journey.md – Worker).
+ */
+export function journeyRecallDeps(): RecallJourneysDeps {
+  const deps = gameDeps();
+  return {
+    houses: deps.houses,
+    settlements: deps.settlements,
+    journeys: deps.journeys,
+    world: currentWorld(),
+  };
 }
 
 /**

@@ -44,7 +44,9 @@ vojska mapu po mapě (Ú6.4), tažení po taktech, boj a dohra (Ú6.5–Ú6.17) 
   provedou stejným registrem; neběží-li už válka, přijetí selže. Protinávrh k opovědi smí být jen
   mírové jednání (`peace`, Ú6.3), jiný se odmítne důvodem „Na opověď se odpovídá mírovým jednáním.“.
 - **`startWarByAttack`** – přepadení: zavolá ho tažení při prvním útoku; chráněný rod odmítne, běžící
-  válce jen posune `last_clash_day`. **`quietWars`** – 3 herní roky bez střetu → `quiet` + kronika
+  válce jen posune `last_clash_day`. Nová válka (opověď i přepadení) pošle domů výjezd vojvody, který
+  stojí na mapě protivníka nebo tam míří (`WarDeps.journeyRecall` → `recallJourneysAtWar`,
+  `docs/code/journey.md` – Worker). **`quietWars`** – 3 herní roky bez střetu → `quiet` + kronika
   „Válka s Bořivojem utichla.“. **`notifyProtectionEnding`** – upozornění `protection-ending`. Obě
   úlohy jedou v `runWorldTasks` (`deps.wars`, worker je zapojuje). `endHouse` ukončí války vymřelého
   rodu (`extinct`).

@@ -1,5 +1,5 @@
 import type { WorldClock } from '../domain/calendar';
-import type { GridCell } from '../domain/village/people/world-grid';
+import { sameCell, type GridCell } from '../domain/village/people/world-grid';
 import {
   CHECKPOINT_TICKS,
   INTENT_LEAD_TICKS,
@@ -28,9 +28,9 @@ import type { VillageRepository } from './villages';
 // výjezd pod zámkem dopočte z kontrolního bodu do teď stejným cyklem jako tažení (`stepCampaigns`)
 // – bod → doručit schránku → záměry → dopočet s načítáním map a vsí (`computeWithLoads`) → uložit
 // → doručit. Restart workeru pokračuje z bodu se stejným výsledkem; návrat do vsi (`away-ends`)
-// i upozornění se po pádu mezi uložením a doručením doručí z bodu v dalším kole. Navíc válka: stojí-li
-// skupina venku na mapě rodu, se kterým je hráčův rod ve válce, kolo za hráče přidá rozkaz „Domů“
-// (lord-control.md – Pořadí zavedení: začne-li válka, když tam stojí, jede domů).
+// i upozornění se po pádu mezi uložením a doručením doručí z bodu v dalším kole. Navíc válka:
+// vjede-li skupina venku na mapu rodu, se kterým je hráčův rod ve válce, kolo za hráče přidá rozkaz
+// „Domů“ (lord-control.md – Pořadí zavedení: na mapu rodu ve válce vojvoda nevjede).
 
 export interface StepJourneysDeps {
   journeys: JourneyRepository;
@@ -101,11 +101,11 @@ async function stepOne(
   const states = deps.memory?.states;
   const start = roundStart(states?.get(journeyId), checkpoint, intents, toTick);
   states?.delete(journeyId);
-  await homeFromWar(deps, start, intents, toTick);
   const step = await computeWithLoads(deps, start, (state, world) =>
     stepJourney(state, toTick, intents, world),
   );
   if (step.state.tick === from.tick) return 'waiting';
+  await homeFromWar(deps, start, step.state, intents, toTick);
 
   const outbox: CampaignOutbox | null =
     step.villageEvents.length > 0 || step.notices.length > 0
@@ -141,26 +141,29 @@ async function stepOne(
 }
 
 /**
- * Válka na mapě skupiny (lord-control.md – Pořadí zavedení; plán 2026-11-13 – Úloha 4): je-li
- * výjezd venku (`out`) a skupina na mapě rodu, se kterým je hráčův rod ve válce (`atWar`), zapíše
- * za hráče rozkaz „Domů“ s taktem jako jeho rozkaz (teď + `INTENT_LEAD_TICKS`). Jednou: výjezd,
- * který se vrací, ani výjezd s čekajícím „Domů“ hráče se neptá.
+ * Vjezd na mapu rodu ve válce (lord-control.md – Pořadí zavedení; plán 2026-11-13 – Úloha 4): kolo
+ * se ptá (`atWar`) jen tehdy, když skupina ve spočteném stavu `after` stojí na jiném políčku než ve
+ * stavu `before`, od kterého kolo počítalo – jinak by se ptalo každou sekundu; začátek války, když
+ * skupina už stojí, řeší `recallJourneysAtWar`. Při válce zapíše za hráče rozkaz „Domů“ s taktem
+ * jako jeho rozkaz (teď + `INTENT_LEAD_TICKS`). Jednou: výjezd, který se vrací, ani výjezd
+ * s čekajícím „Domů“ hráče se neptá.
  */
 async function homeFromWar(
   deps: Pick<StepJourneysDeps, 'journeys' | 'atWar'>,
-  state: JourneyState,
+  before: JourneyState,
+  after: JourneyState,
   intents: readonly JourneyIntent[],
   toTick: number,
 ): Promise<void> {
-  if (state.phase !== 'out') return;
+  const [was, group] = [before.groups[0], after.groups[0]];
+  if (after.phase !== 'out' || !group || (was && sameCell(was.cell, group.cell))) return;
   const pending = intents.some(
-    (i) => i.body.kind === 'home' && i.tick > state.tick && i.byPlayer === state.playerId,
+    (i) => i.body.kind === 'home' && i.tick > after.tick && i.byPlayer === after.playerId,
   );
-  const group = state.groups[0];
-  if (pending || !group || !(await deps.atWar(state.playerId, group.cell))) return;
-  await deps.journeys.addIntent(state.id, {
+  if (pending || !(await deps.atWar(after.playerId, group.cell))) return;
+  await deps.journeys.addIntent(after.id, {
     tick: toTick + INTENT_LEAD_TICKS,
-    byPlayer: state.playerId,
+    byPlayer: after.playerId,
     body: { kind: 'home' },
   });
 }

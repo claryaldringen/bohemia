@@ -27,7 +27,7 @@ import {
   type NegotiateResult,
   type IssueInviteResult,
 } from '@bohemia/game';
-import { gameDeps, playerToday } from './game';
+import { gameDeps, journeyRecallDeps, playerToday } from './game';
 import { exclusivePlayer } from './exclusive';
 import { getPlayerLock } from './db';
 import { aidDeps } from './levies';
@@ -100,12 +100,16 @@ export async function declareWarForPlayer(
 ): Promise<NegotiationActionResult> {
   const today = await playerToday(playerId);
   if (!today.ok) return { error: today.error };
-  const result = await declareWar(gameDeps(), {
-    playerId,
-    ...input,
-    now: new Date(),
-    today: today.day,
-  });
+  // výjezd na mapě protivníka jede domů (lord-control.md – Pořadí zavedení)
+  const result = await declareWar(
+    { ...gameDeps(), journeyRecall: journeyRecallDeps() },
+    {
+      playerId,
+      ...input,
+      now: new Date(),
+      today: today.day,
+    },
+  );
   return result.ok ? { ok: true } : { error: result.reason };
 }
 

@@ -74,8 +74,9 @@ tempo a svět `CampaignWorld`.
   (souběžný zápis) – a založí výjezd (`newJourney`; `fight` = `arms.combat`, `strength` při vyslání,
   `health` 100). Selže-li založení, muži se vrátí a chyba se předá dál.
 - **`houseAtWarOn(deps, playerId, cell)`** (`application/journey-war.ts`) – je rod hráče ve válce
-  s rodem, kterému patří mapa na políčku (`occupiedCells` → `activeOf` → `activeBetween`)? Stejný
-  podpis převezmou rozkazy (Úlohy 4 a 5).
+  s rodem, kterému patří mapa na políčku (`SettlementRepository.holderAt` – držitel aktivní mapy na
+  jednom políčku, v DB přes unikátní index `settlement_grid_idx` – → `activeOf` → `activeBetween`)?
+  Stejný podpis převezmou rozkazy (Úlohy 4 a 5); ve vstupních bodech `GameDeps.atWar`.
 - **Muži pryč a stěhování** – tažení ani výjezd muže se `away` ze stavu vsi nikdy nezvedají:
   sňatky (`marriage.ts`) a odchody (`departure.ts`, `son-departure.ts`) `away` nečtou, stejně jako
   u mužů na tažení. Krok výjezdu proto hledá člena jen ve vsi `home`; stěhování nechráněno ani u tažení.
@@ -120,12 +121,22 @@ tempo a svět `CampaignWorld`.
   s nedoručenými událostmi je aktivní i po `done`). **Známé omezení** (audit A5, platí i pro
   tažení): pád po doručení a před smazáním schránky pošle upozornění podruhé – události vsí mají
   `ref`, upozornění ne; oprava mění schéma upozornění.
-- **Válka na mapě skupiny** – `homeFromWar`: je-li výjezd venku (`out`) a skupina na mapě rodu, se
-  kterým je hráčův rod ve válce (`StepJourneysDeps.atWar` = `houseAtWarOn`, ve workeru
-  `GameDeps.atWar`), kolo zapíše za hráče rozkaz `home` (`addIntent`, `byPlayer` = hráč výjezdu,
-  takt teď + `INTENT_LEAD_TICKS` jako rozkaz hráče). Jednou: výjezd ve fázi `returning` ani výjezd
-  s čekajícím „Domů“ hráče se neptá. Pravidlo: lord-control.md – Pořadí zavedení (začne-li válka,
-  když tam stojí, jede domů).
+- **Vjezd na mapu rodu ve válce** – `homeFromWar`: kolo se na válku ptá
+  (`StepJourneysDeps.atWar` = `houseAtWarOn`, ve workeru `GameDeps.atWar`) **jen když skupina ve
+  spočteném stavu stojí na jiném políčku** než ve stavu, od kterého kolo počítalo (návrh Clauda po
+  Martinově otázce 13. 11. 2026, proč se worker na válku ptá každou sekundu). Je-li
+  výjezd venku (`out`) a nová mapa patří rodu ve válce, kolo zapíše za hráče rozkaz `home`
+  (`addIntent`, `byPlayer` = hráč výjezdu, takt teď + `INTENT_LEAD_TICKS` jako rozkaz hráče). Jednou:
+  výjezd ve fázi `returning` ani výjezd s čekajícím „Domů“ hráče se neptá. Bez paměti workeru kolo
+  počítá od bodu, takže se po vjezdu ptá i v dalších kolech, než se bod uloží – zapíše ale stejně
+  (čekající „Domů“, pak `returning`). Pravidlo: lord-control.md – Pořadí zavedení.
+- **Začátek války** – `recallJourneysAtWar(deps, { houses, nowMs })` (`journey-war.ts`), volají ho
+  `declareWar` i `startWarByAttack` (přepadení vysláním tažení) po založení nové války
+  (`WarDeps.journeyRecall`, ve webu `journeyRecallDeps()` – `house.ts`, `army.ts`; bez závislosti
+  nic). Běžící výjezd hráče každého z obou rodů, jehož skupina stojí na mapě druhého rodu nebo tam
+  míří, dostane rozkaz `home` za hráče (takt teď + `INTENT_LEAD_TICKS`). Kde skupina může být:
+  políčko a cíl (`goal.cell`) skupiny v kontrolním bodu a políčka rozkazů `cross` zapsaných po bodu
+  (bod bývá až o 40 taktů starší než výpočet workeru). Mapa druhého rodu = `holderAt` → `activeOf`.
 - **Paměť workeru** – vlastní instance `newCampaignMemory<JourneyState>()` (`CampaignMemory` má
   typ stavu jako parametr; poslední spočtený stav, mapy a vsi minulého kola, mřížky pochodu): konec
   kola (`forgetEnded`) zapomene záznamy, jejichž id mezi aktivními není, takže sdílená paměť
@@ -138,5 +149,9 @@ tempo a svět `CampaignWorld`.
 - **Testy** – `application/__tests__/step-journeys.test.ts` (porty v paměti, `houseAtWarOn` nad
   rody, sídly a válkami v paměti): kola s restartem = vcelku (dojetí, čekání, sám domů; `away-ends`
   i upozornění jednou), s pamětí tytéž body jako bez ní, druhé kolo od zapamatovaného stavu, pád mezi
-  uložením a doručením (schránka vsi, upozornění), válka → „Domů“ jednou, chyba jednoho výjezdu,
-  zaniklá domovská ves; `apps/worker/src/__tests__/campaign-loop.test.ts` – výjezdy v kole.
+  uložením a doručením (schránka vsi, upozornění), kolo bez změny mapy se na válku neptá (počet
+  dotazů), vjezd na mapu rodu ve válce → „Domů“ jednou, chyba jednoho výjezdu, zaniklá domovská ves;
+  `recallJourneysAtWar` – skupina na mapě protivníka, jede tam s „Přes okraj“ (i výjezd druhého rodu),
+  „Přes okraj“ po bodu, výjezd jinde nic; `war.test.ts` – opověď i přepadení výjezd pošlou domů,
+  další útok už ne; `settlement-repository.db.test.ts` – `holderAt`;
+  `apps/worker/src/__tests__/campaign-loop.test.ts` – výjezdy v kole.
