@@ -199,9 +199,10 @@ export interface WarSceneView {
    */
   buildings?: WarSceneBuilding[];
   /**
-   * Útočník na mapě cíle: co jeho rod o mapě ví (plán 2026-11-13 – Úloha 11, `knownTarget`) –
-   * stopa k odkrytí mlhy a stavby naposled viděné, bez objevených domů (`buildings`) a opevnění.
-   * Doplní use-case `warSceneOnMap`; chybí – rod mapu nezná a tažení na ní nebylo.
+   * Útočník na mapě, kde vojsko stojí: co jeho rod o mapě ví (plán 2026-11-13 – Úlohy 11 a 12b) –
+   * stopa k odkrytí mlhy a stavby naposled viděné. Na mapě cíle `knownTarget` (bez objevených domů
+   * – `buildings` – a opevnění), na mapě po cestě znalost rodu té mapy, jak je. Doplní use-case
+   * `warSceneOnMap`; chybí – rod mapu nezná (a na mapě cíle na ní tažení nebylo). Obránce nikdy.
    */
   known?: SeenCell;
   /** Obránce na mapě své vsi: útěk vsi do lesa se stády. Chybí – nikdo neutekl. */

@@ -15,6 +15,7 @@ import {
 } from '../domain/war';
 import { sameCell, type GridCell } from '../domain/village/people/world-grid';
 import {
+  knowledgeOfCell,
   knowledgeOfTarget,
   sightGrid,
   type KnowledgeOfTargetDeps,
@@ -49,7 +50,10 @@ export interface WarSceneDefenderCache {
   set(key: string, defender: WarSceneDefender): void;
 }
 
-/** `knowledge`, `houses` – co rod útočníka ví o mapě cíle (`warSceneOnMap`, Úloha 11). */
+/**
+ * `knowledge`, `houses` – co rod útočníka ví o mapě, kde vojsko stojí (`warSceneOnMap`, Úlohy 11
+ * a 12b).
+ */
 export interface WarSceneDeps extends KnowledgeOfTargetDeps {
   settlements: Pick<SettlementRepository, 'find'>;
   /** `stampsOf` – id vsi sídla bez stavu; `find` – stav vsi jen při novém dni (a mřížka dohledu). */
@@ -120,8 +124,9 @@ export async function warSceneFor(
 /**
  * Válka na mapě `cell` z pohledu útočníka – účastníka tažení `campaignId` (vůdce i vazal ve službě;
  * war.md – Ve scéně: mlha války na cizí mapě): celé vojsko tažení, obránci jen v dohledu jeho mužů
- * na nohou, z cílové vsi jen objevené domy a hradby. Žádné akce nad cizí vsí – jen pohled.
- * null – hráč tažení nezná, tažení skončilo, nebo na mapě vojsko nestojí (scéna se vrátí domů).
+ * na nohou, z cílové vsi jen objevené domy a hradby, k tomu co rod hráče o mapě ví (`known`).
+ * Žádné akce nad cizí vsí – jen pohled. null – hráč tažení nezná, tažení skončilo, nebo na mapě
+ * vojsko nestojí (scéna se vrátí domů).
  */
 export async function warSceneOnMap(
   deps: WarSceneDeps,
@@ -145,12 +150,15 @@ export async function warSceneOnMap(
     buildings: target?.buildings ?? [],
     playerId: input.playerId,
   });
-  // co rod útočníka o mapě cíle ví – stopa a stavby naposled viděné (Úloha 11)
-  if (view && onTarget) {
-    const known = knownTarget(state, await knowledgeOfTarget(deps, state, input.playerId), {
-      dwellings: target?.buildings ?? null,
-      grid,
-    });
+  // co rod útočníka o mapě ví – stopa a stavby naposled viděné, jeden dotaz na pohled: na mapě cíle
+  // sloučené s tím, co vidí tažení (Úloha 11), na mapě po cestě znalost té mapy, jak je (Úloha 12b)
+  if (view) {
+    const known = onTarget
+      ? knownTarget(state, await knowledgeOfTarget(deps, state, input.playerId), {
+          dwellings: target?.buildings ?? null,
+          grid,
+        })
+      : await knowledgeOfCell(deps, state, input.playerId, cell);
     if (known) view.known = known;
   }
   return view;

@@ -1,13 +1,15 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import type { WorldClock } from '@bohemia/game';
 import { useArmyActions } from '@/hooks/use-army';
 import { useWarScene } from '@/hooks/use-war-scene';
 import type { CampaignResponse } from '@/lib/campaign-view';
 import { setE2EHook } from '@/lib/e2e-hooks';
-import type { LandscapeTransfer } from '@/lib/landscape-transfer';
+import { seenSceneKey } from '@/lib/journey-scene-view';
+import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
+import type { SceneVillage } from '@/lib/village-view-scene-types';
 import {
   armyFocusOf,
   followCellOf,
@@ -27,6 +29,12 @@ import { Tooltip } from './hud/Tooltip';
 // panely ani akce cizí vsi, jen mapa tažení (živé vedení) a návrat na ves. Když vojsko z mapy
 // odejde, scéna jde za ním na mapu, kde stojí (nová krajina, mapu po mapě); když tažení skončí
 // nebo vojsko přijde domů, vrátí se na vlastní ves sama.
+//
+// Co rod o mapě zná (`WarSceneView.known`, plán 2026-11-13 – Úloha 12b): stavby, jak je rod
+// naposled viděl, stojí od začátku vedle objevených domů a stopa rodu odkryje šeré místo k mlze
+// války – jako výjezd a známá mapa (journey.md – Scéna cizí mapy).
+
+const E2E_KEYS = ['armyStats', 'journeyFog', 'moveCameraTo', 'foreignVillage'] as const;
 
 export function ForeignWarScene({
   watch,
@@ -46,6 +54,7 @@ export function ForeignWarScene({
   const [landscape, setLandscape] = useState<LandscapeTransfer | null>(null);
   const [scene, setScene] = useState<LandscapeScene | null>(null);
   const [mapOpen, setMapOpen] = useState(true);
+  const decoded = useMemo(() => (landscape ? decodeLandscape(landscape) : null), [landscape]);
   const army = useArmyActions();
   const actions = army?.campaign;
   const onBackRef = useRef(onBack);
@@ -109,16 +118,34 @@ export function ForeignWarScene({
     scene?.setWar(sceneWarOf(war ?? null, world, true));
   }, [scene, war, world]);
 
-  // objevené domy cizí vsi – scéna se přestaví jen při novém objevu
-  const shown = useRef<{ scene: LandscapeScene; key: string } | null>(null);
+  // co rod o mapě zná (Úloha 12b): stopa odkryje šeré místo k mlze války – závoj jen při změně stopy
+  const trailShown = useRef<{ scene: LandscapeScene; key: string } | null>(null);
   useEffect(() => {
-    const village = foreignVillageOf(war?.buildings);
-    if (!scene || !village) return;
-    const key = village.dwellings.map((d) => d.id).join(',');
-    if (shown.current?.scene === scene && shown.current.key === key) return;
-    shown.current = { scene, key };
-    scene.setVillage(village);
+    if (!scene || !war) return;
+    const trail = war.known?.trail ?? [];
+    const key = trail.join(';');
+    if ((trailShown.current?.scene === scene ? trailShown.current.key : '') === key) return;
+    trailShown.current = { scene, key };
+    scene.setJourneyFog(trail.length > 0 ? trail : null);
   }, [scene, war]);
+
+  // objevené domy cizí vsi a stavby, jak je rod naposled viděl – scéna se přestaví jen při novém
+  // objevu nebo změně známých staveb
+  const shown = useRef<{
+    scene: LandscapeScene;
+    key: string;
+    village: SceneVillage | null;
+  } | null>(null);
+  useEffect(() => {
+    if (!scene || !decoded || !war) return;
+    const key = `${(war.buildings ?? []).map((b) => b.id).join(',')}#${seenSceneKey(war.known ?? null)}`;
+    const drawn = shown.current?.scene === scene ? shown.current : null;
+    if (drawn?.key === key) return;
+    const village = foreignVillageOf(war.buildings, war.known ?? null, decoded);
+    shown.current = { scene, key, village };
+    // zmizí-li poslední známá stavba, prázdná ves smaže nakreslenou
+    if (village || drawn?.village) scene.setVillage(village ?? { dwellings: [], fields: [] });
+  }, [scene, decoded, war]);
 
   // poprvé pohled na vojsko (R se k němu vrací)
   const focused = useRef(false);
@@ -134,7 +161,19 @@ export function ForeignWarScene({
   useEffect(() => {
     if (!scene) return;
     setE2EHook('armyStats', () => scene.armyStats());
-    return () => setE2EHook('armyStats', undefined);
+    setE2EHook('journeyFog', (x, z) => scene.fogAt(x, z));
+    setE2EHook('moveCameraTo', (x, z, radiusM) => scene.moveCameraTo(x, z, radiusM));
+    setE2EHook('foreignVillage', () => ({
+      dwellings: (shown.current?.village?.dwellings ?? []).map((d) => ({
+        id: d.id,
+        built: d.built,
+        x: d.position.x,
+        z: d.position.z,
+      })),
+    }));
+    return () => {
+      for (const key of E2E_KEYS) setE2EHook(key, undefined);
+    };
   }, [scene]);
 
   return (

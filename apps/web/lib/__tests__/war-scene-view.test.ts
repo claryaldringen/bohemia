@@ -6,6 +6,9 @@ import {
   realTimeOf,
   type CampaignView,
   type CampaignViewMan,
+  type Landscape,
+  type SeenCell,
+  type SeenData,
   type WarSceneFighter,
   type WarSceneView,
 } from '@bohemia/game';
@@ -374,6 +377,69 @@ describe('cizí mapa ve scéně (war.md – Ve scéně – cizí mapa)', () => {
       ],
       fields: [],
     });
+  });
+
+  it('cizí ves z objevených domů a znalosti rodu – objevené mají přednost, opevnění ze znalosti ne', () => {
+    const at = (x: number): { x: number; z: number; rotation: number } => ({
+      x,
+      z: 0,
+      rotation: 0,
+    });
+    const known: SeenCell = {
+      villageId: 'v1',
+      trail: [[0, 0]],
+      parts: [
+        {
+          key: 'dwelling:7',
+          pos: { x: 50, z: 0 },
+          day: 3,
+          data: { kind: 'dwelling', id: 7, type: 'srub', position: at(50), condition: 0.5 },
+        },
+        {
+          key: 'dwelling:9',
+          pos: { x: 200, z: 0 },
+          day: 3,
+          data: { kind: 'dwelling', id: 9, type: 'zemnice', position: at(200), condition: 1 },
+        },
+        {
+          key: 'site:40',
+          pos: { x: 260, z: 0 },
+          day: 3,
+          data: { kind: 'site', id: 40, type: 'zemnice', position: at(260), progress: 0.5 },
+        },
+        // opevnění útočník vidí ze stavu vsi (pohled tažení), ze znalosti se nekreslí
+        {
+          key: 'fortification:1',
+          pos: { x: 0, z: 300 },
+          day: 3,
+          data: { kind: 'fortification' } as SeenData,
+        },
+      ],
+    };
+    // dům ani staveniště bez pozemku krajinu nepotřebují
+    const landscape = {} as Landscape;
+    const discovered = [{ id: 7, type: 'zemnice' as const, position: at(60) }];
+    const village = foreignVillageOf(discovered, known, landscape);
+    expect(village!.dwellings.map((d) => d.id).sort((a, b) => a - b)).toEqual([7, 9, 40]);
+    // objevený dům 7 jen jednou – jak ho vojsko vidí teď, ne naposled viděný
+    expect(village!.dwellings.filter((d) => d.id === 7)).toEqual([
+      { id: 7, type: 'zemnice', position: at(60), built: true, progress: 1 },
+    ]);
+    expect(village!.dwellings.find((d) => d.id === 9)).toMatchObject({
+      built: true,
+      inhabited: false,
+    });
+    expect(village!.dwellings.find((d) => d.id === 40)).toMatchObject({
+      built: false,
+      progress: 0.5,
+    });
+    expect(village).not.toHaveProperty('forts');
+    // jen znalost (mapa po cestě) – známé stavby; jen stopa nebo jen opevnění – nic
+    expect(foreignVillageOf(undefined, known, landscape)!.dwellings.map((d) => d.id)).toEqual([
+      7, 9, 40,
+    ]);
+    expect(foreignVillageOf(undefined, { ...known, parts: [] }, landscape)).toBeNull();
+    expect(foreignVillageOf([], { ...known, parts: [known.parts[3]!] }, landscape)).toBeNull();
   });
 
   it('pohled na vojsko: první vlastní bojovník na nohou', () => {

@@ -432,7 +432,8 @@ na mapu jako za vojskem (web-ui.md – Cizí mapa ve scéně).
   → `ArmyRenderer`: závoj `fog-veil` jako při tažení; body stopy `SeenCell.trail` odkryje
   `exploreTrail` (`fog-of-war.ts` – stejným dohledem jako muže, jen do objeveného, každý bod jednou),
   v dohledu (jasno) je okolí vlastních jezdců (`SceneJourney.pos` – oko skupiny jako v jádru) z
-  posledního stavu; mlha války má přednost. Bez jezdců závoj zůstává.
+  posledního stavu; s mlhou války (scéna tažení, Úloha 12b) stopa jen přidá odkryté a dohled dává
+  vojsko (`updateFog` – jedna mlha). Bez jezdců závoj zůstává.
 - **e2e** – háčky `journeyFog` (stav mlhy v bodě), `foreignVillage` (obydlí, která scéna kreslí),
   `journeyScene`, `projectToScreen`, `moveCameraTo` a `armyStats` míří na scénu cizí mapy;
   `e2e/journey-worker.spec.ts` (projekt `worker`): ves B na políčku vedle A, skupina A přesunutá
@@ -499,6 +500,14 @@ seen)`) a adaptér `createKnowledgeRepository` (`adapters/knowledge-repository.t
   znalost dostane jen rod vůdce (`CampaignState.houseId`, u starších bodů podle hráče objevená
   obydlí) a útočník na mapě cíle vidí, co rod zná – podrobně `docs/code/war.md` (Živé vedení
   a pohled na tažení – Znalost rodu).
+- **Tažení ve scéně (Úloha 12b)** – pohled útočníka (`warSceneOnMap`) nese znalost rodu na každé
+  mapě, kde vojsko stojí (`WarSceneView.known` – na mapě cíle `knownTarget`, na mapě po cestě
+  `knowledgeOfCell` – znalost té mapy, jak je; jeden dotaz na pohled, obránce nic). Scéna tažení
+  (`ForeignWarScene`) kreslí stavby, jak je rod naposled viděl, tak jako výjezd (`seenVillageOf`
+  ve `foreignVillageOf` – objevené domy mají přednost, opevnění ze znalosti ne) a stopu rodu odkryje
+  stejnou mlhou (`setJourneyFog` → `exploreTrail` – šeré) k mlze války – dohled vojska jasný.
+  Podrobně `docs/code/war.md` (Ve scéně – Cizí mapa – Co rod zná) a `docs/code/web-ui.md` (Cizí
+  mapa ve scéně).
 - **Tabulka `house_knowledge`** (migrace `0046_house_knowledge`): `house_id` (FK `house`, při zániku
   rodu se smaže), `grid_x`, `grid_y`, `state` jsonb (`SeenCell`), `updated_at`; primární klíč všech
   tří sloupců.
@@ -512,7 +521,7 @@ seen)`) a adaptér `createKnowledgeRepository` (`adapters/knowledge-repository.t
 ## Známá mapa (Úloha 12a – `application/known-map.ts`, `apps/web`)
 
 Co rod ví o cizích mapách, si hráč prohlédne z domova (lord-control.md – Co vojvoda vidí, Co hráč
-vidí). Kreslení znalosti ve scéně tažení je Úloha 12b.
+vidí). Znalost ve scéně tažení – Znalost rodu (Tažení ve scéně, Úloha 12b).
 
 - **Use-casy** (`application/known-map.ts`): `knownMapFor(deps, { playerId, cell })` – znalost
   **vlastního živého rodu** hráče o mapě (`{ seen }`), `null` = rod mapu nezná (cizí rod, rod bez

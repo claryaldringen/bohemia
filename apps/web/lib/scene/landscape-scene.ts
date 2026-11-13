@@ -697,7 +697,8 @@ export class LandscapeScene {
 
   /**
    * Mlha cizí mapy výjezdu (journey.md – Scéna cizí mapy): závoj jako při tažení – odkryté ze stopy
-   * rodu (`SeenCell.trail`) šeré, okolí vlastních jezdců jasné; null – bez mlhy.
+   * rodu (`SeenCell.trail`) šeré, okolí vlastních jezdců jasné; null – bez mlhy. Ve scéně tažení
+   * stopa jen přidá odkryté k mlze války (Úloha 12b).
    */
   setJourneyFog(trail: readonly (readonly [number, number])[] | null): void {
     this.war.setJourneyFog(trail);

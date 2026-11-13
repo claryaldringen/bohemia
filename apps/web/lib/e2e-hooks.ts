@@ -57,11 +57,11 @@ export interface E2EHooks {
     awayHorses: number[];
   };
   /**
-   * Mlha cizí mapy výjezdu v bodě (x, z) (journey.md – Scéna cizí mapy): neobjevené, objevené
-   * (šeré), v dohledu jezdců; bez závoje null.
+   * Mlha cizí mapy výjezdu i tažení v bodě (x, z) (journey.md – Scéna cizí mapy): neobjevené,
+   * objevené (šeré), v dohledu jezdců nebo vojska; bez závoje null.
    */
   journeyFog?: (x: number, z: number) => 'hidden' | 'explored' | 'seen' | null;
-  /** Objevená obydlí a staveniště cizí vsi, která scéna cizí mapy výjezdu kreslí (id, poloha). */
+  /** Obydlí a staveniště cizí vsi, která scéna cizí mapy výjezdu nebo tažení kreslí (id, poloha). */
   foreignVillage?: () => { dwellings: { id: number; built: boolean; x: number; z: number }[] };
   /**
    * Posune kameru nad bod krajiny (x, z) – zvěř bývá u lesa mimo výchozí záběr; `radiusM` – vzdálenost

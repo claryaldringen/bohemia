@@ -3,6 +3,7 @@ import type { CampaignMap, CampaignState, SeenCell, SeenData, SeenPart } from '.
 import type { Dwelling, Person } from '../../domain/village/types';
 import { attacker, battle, defender, land } from '../../domain/war/__tests__/battle-fixtures';
 import { campaign, member } from '../../domain/war/__tests__/campaign-fixtures';
+import type { House } from '../houses';
 import type { Settlement } from '../settlements';
 import type { VillageRecord, VillageStamp } from '../villages';
 import { warSceneFor, warSceneOnMap, type WarSceneDefender, type WarSceneDeps } from '../war-scene';
@@ -331,6 +332,68 @@ describe('warSceneOnMap – útočník na cizí mapě', () => {
     const defending = await warSceneFor(all, { playerId: 'p9', settlementId: 's9' });
     expect(defending?.side).toBe('defend');
     expect(defending).not.toHaveProperty('known');
+  });
+
+  it('znalost rodu na mapě po cestě (Úloha 12b): znalost té mapy, jak je – jeden dotaz na pohled', async () => {
+    const WAY = { x: 2, y: 0 };
+    const part = (key: string, x: number, z: number): SeenPart => ({
+      key,
+      pos: { x, z },
+      day: 3,
+      data: { kind: key.split(':')[0] } as SeenData,
+    });
+    const base = campaign({ members: [member(1, 0, true), member(2, 0, false)] });
+    // vojsko na mapě vsi Brod (ani shromaždiště, ani cíl); vazal p5 ve službě
+    const onWay: CampaignState = {
+      ...base,
+      houseId: 'h1',
+      members: [...base.members, { ...base.members[1]!, playerId: 'p5' }],
+      groups: base.groups.map((g) => ({ ...g, cell: { ...WAY }, pos: { x: 0, z: 0 } })),
+    };
+    const { deps, campaigns } = await setup(onWay, []);
+    const knowledge = new InMemoryKnowledge();
+    await knowledge.merge('h1', WAY, {
+      villageId: 'brod',
+      trail: [[300, 40]],
+      parts: [part('dwelling:5', 300, 0), part('fortification:1', 0, 300)],
+    });
+    // jiná mapa téhož rodu a táž mapa jiného rodu se do pohledu nepletou
+    await knowledge.merge('h1', TARGET, { villageId: 'knezice', trail: [[0, 0]], parts: [] });
+    await knowledge.merge('h5', WAY, { villageId: 'brod', trail: [[-400, 0]], parts: [] });
+    const reads: string[] = [];
+    const all: WarSceneDeps = {
+      ...deps,
+      knowledge: {
+        of: (houseId, cell) => {
+          reads.push(`${houseId}|${cell.x},${cell.y}`);
+          return knowledge.of(houseId, cell);
+        },
+      },
+      houses: {
+        activeOf: (playerId: string): Promise<House | null> =>
+          Promise.resolve(
+            playerId === 'p5' ? ({ id: 'h5' } as House) : ({ id: 'h-jiny' } as House),
+          ),
+      },
+    };
+    const view = await warSceneOnMap(all, { playerId: 'p1', campaignId: 'c1', cell: WAY });
+    expect(view?.side).toBe('attack');
+    // znalost rodu vůdce o té mapě celá (i opevnění – scéna ho ze znalosti nekreslí)
+    expect(view!.known).toEqual(await knowledge.of('h1', WAY));
+    expect(view!.known!.parts.map((p) => p.key)).toEqual(['dwelling:5', 'fortification:1']);
+    expect(view).not.toHaveProperty('buildings');
+    expect(reads).toEqual(['h1|2,0']);
+    // vazal ve službě vidí znalost svého rodu
+    const vassal = await warSceneOnMap(all, { playerId: 'p5', campaignId: 'c1', cell: WAY });
+    expect(vassal!.known).toEqual(await knowledge.of('h5', WAY));
+    // bod bez rodu vůdce – rod podle hráče; rod mapu nezná – pole chybí
+    await campaigns.create({ ...onWay, houseId: undefined });
+    const unknown = await warSceneOnMap(all, { playerId: 'p1', campaignId: 'c1', cell: WAY });
+    expect(unknown?.side).toBe('attack');
+    expect(unknown).not.toHaveProperty('known');
+    expect(reads.slice(-1)).toEqual(['h-jiny|2,0']);
+    // obránce tažení nezná – nic
+    expect(await warSceneOnMap(all, { playerId: 'p9', campaignId: 'c1', cell: WAY })).toBeNull();
   });
 });
 
