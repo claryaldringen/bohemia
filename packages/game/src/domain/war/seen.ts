@@ -43,6 +43,12 @@ import { inSight } from './sight';
 export interface SeenCell {
   /** Ves na mapě, ke které patří `parts`; mapa bez vsi ho nemá. */
   villageId?: string;
+  /**
+   * První den, kdy se do mapy tento záznam díval (`lookAround`) – od té doby je v dohledu své stopy
+   * úplný: co tam stálo, zapsal (sloučení s pokrytím – `mergeKnowledge`). Sloučená znalost rodu
+   * nese nejmenší z obou. Chybí – záznam se zatím nedíval, nebo je z doby před `since`.
+   */
+  since?: number;
   /** Body stopy `[x, z]` (m) po `JOURNEY.trailStepM`, seřazené podle x, pak z, bez opakování. */
   trail: [number, number][];
   /** Naposled viděné stavby seřazené podle `key`. */
@@ -300,8 +306,9 @@ export function sightingsOf(village: VillageState, day: number): Sighting[] {
  * Pohled mužů `eyes` na mapu (plán 2026-11-13 – Úloha 6): ke stopě přidá body po
  * `JOURNEY.trailStepM`, stavby v dohledu zapíše s dnešním stavem, známé stavby, které ve vsi už
  * nejsou a jejich místo je v dohledu, zapomene; co je mimo dohled, zůstane, jak bylo. Stav vsi pro
- * den je jeden (`CampaignWorld.villageAt`) – co muži dnes už viděli, se znovu nepřepisuje. `prev`
- * nemění; nepřibylo-li nic, vrátí ho beze změny (týž objekt).
+ * den je jeden (`CampaignWorld.villageAt`) – co muži dnes už viděli, se znovu nepřepisuje. První
+ * pohled do mapy zapíše `since` (záznam se stopou bez `since` je starší – den nezná, nedostane ho).
+ * `prev` nemění; nepřibylo-li nic, vrátí ho beze změny (týž objekt).
  */
 export function lookAround(
   prev: SeenCell | undefined,
@@ -314,13 +321,53 @@ export function lookAround(
 ): SeenCell {
   const trail = extendTrail(prev?.trail ?? [], input.eyes);
   const { parts, gone } = refreshParts(prev?.parts ?? [], prev?.gone, input);
-  if (prev && trail === prev.trail && parts === prev.parts && gone === prev.gone) return prev;
+  const first = input.eyes.length > 0 && (prev?.trail.length ?? 0) === 0;
+  const since = prev?.since ?? (first ? input.day : undefined);
+  if (
+    prev &&
+    trail === prev.trail &&
+    parts === prev.parts &&
+    gone === prev.gone &&
+    since === prev.since
+  ) {
+    return prev;
+  }
   return {
     ...(prev?.villageId === undefined ? {} : { villageId: prev.villageId }),
+    ...(since === undefined ? {} : { since }),
     trail,
     parts,
     ...(gone === undefined ? {} : { gone }),
   };
+}
+
+/**
+ * Pohled mužů na mapu, na které je ves `villageId` (žádná – undefined), pro výjezd i tažení
+ * (`lookAround`): jiná ves na mapě než ve znalosti `prev` (stará zanikla, novou založil nováček) –
+ * stavby staré vsi k ní nepatří, zůstane stopa a její `since`; výsledek nese `villageId` vsi na
+ * mapě. Nepřibylo-li nic, vrátí `prev` (týž objekt).
+ */
+export function lookOnMap(
+  prev: SeenCell | undefined,
+  input: {
+    villageId: string | undefined;
+    village: VillageState | null;
+    eyes: readonly Pos[];
+    grid: MarchGrid | null;
+    day: number;
+  },
+): SeenCell {
+  const { villageId, ...look } = input;
+  const other =
+    prev?.villageId !== undefined && villageId !== undefined && prev.villageId !== villageId;
+  const known: SeenCell | undefined =
+    prev && other
+      ? { ...(prev.since === undefined ? {} : { since: prev.since }), trail: prev.trail, parts: [] }
+      : prev;
+  const looked = lookAround(known, look);
+  return villageId === undefined || looked.villageId === villageId
+    ? looked
+    : { ...looked, villageId };
 }
 
 /**
@@ -332,6 +379,12 @@ export function lookAround(
  * staré znalosti – staré stavby i zánik se zahodí, zůstane jen stopa. Výsledek je seřazený, nezávisí
  * na pořadí `parts` a sloučit totéž podruhé nic nezmění (opakované doručení po pádu je bezpečné).
  * Vstupy nemění.
+ *
+ * Pokrytí (kolo oprav Úlohy 11): čerstvý záznam je od svého `since` v dohledu stopy úplný – co tam
+ * stálo, `lookAround` zapsal. Stavba ze `old`, kterou `fresh` nemá, viděná před `fresh.since`
+ * a jistě v dohledu stopy (`surelySeen`), proto už nestojí a odstraní se – i dům, o jehož zániku
+ * záznam neví (viděl ho jen dřívější výjezd). Dál od stopy zůstane jako stará zpráva. `since`
+ * výsledku je nejmenší z obou.
  */
 export function mergeKnowledge(old: SeenCell | null, fresh: SeenCell): SeenCell {
   const sameVillage =
@@ -346,25 +399,56 @@ export function mergeKnowledge(old: SeenCell | null, fresh: SeenCell): SeenCell 
   for (const g of [...(base?.gone ?? []), ...(fresh.gone ?? [])]) {
     goneAt.set(g.key, Math.max(goneAt.get(g.key) ?? g.day, g.day));
   }
+  const seenNow = new Set(fresh.parts.map((p) => p.key));
+  const from = fresh.since;
+  const outdated = (p: SeenPart): boolean =>
+    from !== undefined && p.day < from && !seenNow.has(p.key) && surelySeen(fresh.trail, p.pos);
   const best = new Map<string, SeenPart>();
   // nejdřív stará znalost, pak čerstvá – při stejném dni platí čerstvá
-  for (const list of [base?.parts ?? [], fresh.parts]) {
-    for (const p of list) {
-      if ((goneAt.get(p.key) ?? -Infinity) >= p.day) continue;
-      const had = best.get(p.key);
-      if (!had || p.day >= had.day) best.set(p.key, p);
-    }
+  for (const p of base?.parts ?? []) {
+    if ((goneAt.get(p.key) ?? -Infinity) >= p.day || outdated(p)) continue;
+    const had = best.get(p.key);
+    if (!had || p.day >= had.day) best.set(p.key, p);
+  }
+  for (const p of fresh.parts) {
+    if ((goneAt.get(p.key) ?? -Infinity) >= p.day) continue;
+    const had = best.get(p.key);
+    if (!had || p.day >= had.day) best.set(p.key, p);
   }
   // zánik, který přebila novější stavba téhož klíče, už nic neodstraňuje
   for (const [key, day] of goneAt) if ((best.get(key)?.day ?? -Infinity) > day) goneAt.delete(key);
 
   const gone = [...goneAt].map(([key, day]) => ({ key, day })).sort(byKey);
+  const since =
+    old?.since === undefined || fresh.since === undefined
+      ? (old?.since ?? fresh.since)
+      : Math.min(old.since, fresh.since);
   return {
     ...(villageId === undefined ? {} : { villageId }),
+    ...(since === undefined ? {} : { since }),
     trail: unionTrail(old?.trail ?? [], fresh.trail),
     parts: [...best.values()].sort(byKey),
     ...(gone.length === 0 ? {} : { gone }),
   };
+}
+
+/** Polovina kroku stopy – nejvíc, o kolik stál muž v každé ose od bodu stopy (zaokrouhlení). */
+const TRAIL_SNAP_M = JOURNEY.trailStepM / 2;
+
+/**
+ * Viděli muži místo `at` jistě (pokrytí – `mergeKnowledge`)? Sloučení nemá mřížku, takže bere
+ * nejkratší dohled `inSight` – lesní (`WAR.sight.forestM`, 50 m) – a body stopy jsou zaokrouhlené
+ * po `JOURNEY.trailStepM`: místo musí být v lesním dohledu odkudkoli z okolí bodu, kde muž mohl stát
+ * (nejvzdálenější roh čtverce ± půl kroku). Návrh Clauda – s 50 m od bodu stopy by sloučení mohlo
+ * smazat dům v lese, na který muž nedohlédl.
+ */
+function surelySeen(trail: readonly [number, number][], at: Pos): boolean {
+  const r = WAR.sight.forestM;
+  return trail.some(([x, z]) => {
+    const dx = Math.abs(at.x - x) + TRAIL_SNAP_M;
+    const dz = Math.abs(at.z - z) + TRAIL_SNAP_M;
+    return dx * dx + dz * dz <= r * r;
+  });
 }
 
 /** Sjednocení dvou seřazených stop (x, pak z) bez opakování. */

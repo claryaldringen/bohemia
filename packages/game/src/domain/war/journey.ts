@@ -27,7 +27,7 @@ import type {
 import { marchSpeed, type GroupPace } from './march';
 import { missingMaps, sendGroup, settleGoal, stepMover } from './movement';
 import { JOURNEY } from './rules-war';
-import { lookAround, type KnowledgeOut } from './seen';
+import { lookOnMap, type KnowledgeOut } from './seen';
 import { dayOfTick, hoursPerTick, TICKS_PER_SECOND, tickOfMs } from './ticks';
 import { edgeCrossing } from './world-route';
 
@@ -328,12 +328,7 @@ function discover(s: JourneyState, ctx: TickContext): void {
   if (villageId !== undefined && village === null) throw new MissingData([], [villageId]);
   const key = cellKey(g.cell);
   const prev = s.seen?.[key];
-  const other =
-    prev?.villageId !== undefined && villageId !== undefined && prev.villageId !== villageId;
-  const known = prev && other ? { trail: prev.trail, parts: [] } : prev;
-  const looked = lookAround(known, { village, eyes: [g.pos], grid, day: s.day });
-  const next =
-    villageId === undefined || looked.villageId === villageId ? looked : { ...looked, villageId };
+  const next = lookOnMap(prev, { villageId, village, eyes: [g.pos], grid, day: s.day });
   if (next !== prev) s.seen = { ...s.seen, [key]: next };
 }
 
