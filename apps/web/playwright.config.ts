@@ -35,9 +35,17 @@ export default defineConfig({
   use: { baseURL: BASE_URL, trace: 'retain-on-failure', reducedMotion: 'reduce' },
   projects: [
     // Hra bez workeru – web dopočítává sám (záložní cesta, plán workeru – Globální omezení).
-    { name: 'chromium', testIgnore: /\/worker\.spec\.ts$/, use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'chromium',
+      testIgnore: /\/(worker|journey)\.spec\.ts$/,
+      use: { ...devices['Desktop Chrome'] },
+    },
     // Hra s workerem: spec ho pustí vedle `next start` se stejným prostředím a na konci čistě ukončí.
-    { name: 'worker', testMatch: /\/worker\.spec\.ts$/, use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'worker',
+      testMatch: /\/(worker|journey)\.spec\.ts$/,
+      use: { ...devices['Desktop Chrome'] },
+    },
   ],
   webServer: {
     // Produkční build: dev server kompiluje stránky až na požádání a přestavuje je za běhu,

@@ -17,6 +17,7 @@ import { ROAD_KIND_NAMES, SACRED_BUILDING_NAMES } from '@/lib/village-view';
 import { AbandonPartButton } from './AbandonPartButton';
 import { StructureUseButtons, type StructureUseActions } from './StructureUseButtons';
 import { CancelConstructionButton } from './RelocationControls';
+import type { LordJourneyUi } from './LordJourneyPanel';
 import { Tooltip } from './Tooltip';
 import { StewardBuiltMark } from './StewardToggle';
 import {
@@ -122,8 +123,11 @@ export function SelectionPanel({
   onAbandonPart,
   onStructureUse,
   onOrderQuarrying,
+  lordJourney,
 }: {
   details: SelectionDetails | null;
+  /** Ovládání výjezdu vybraného vojvody (`useLordJourney`); u jiného cíle chybí. */
+  lordJourney?: LordJourneyUi | null;
   /** Nalámat do zásoby `m3` kamene v lomu (server action – fortifications.md, Kámen). */
   onOrderQuarrying?: (outcropId: number, m3: number) => Promise<void>;
   /** Opustí díl pole, nebo ho vrátí do osevu (server action – fields.md, Opuštěný díl). */
@@ -203,6 +207,7 @@ export function SelectionPanel({
         onBaptize={onBaptize}
         onInviteLodge={onInviteLodge}
         onInviteMaster={onInviteMaster}
+        lordJourney={lordJourney}
       />
     );
   } else if (details.kind === 'plough-team') {

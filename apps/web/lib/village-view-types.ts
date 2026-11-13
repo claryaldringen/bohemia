@@ -1033,6 +1033,11 @@ export interface UnnamedLineMan {
 /** Rod vojvody pro rozhraní jmen (lord.md – Jména, Kde se jméno zadává, Kde se jméno ukazuje). */
 export interface DynastyView {
   lordId: number | null;
+  /**
+   * Vojvoda a družina jsou na výjezdu (`away: journey` – lord-control.md): hra se na výjezd ptá
+   * jen v tom případě a v liště ukáže portrét vojvody pryč. Chybí – ne.
+   */
+  journeyAway?: boolean;
   /** Jméno dnešního vojvody; chybí – vojvoda jméno ještě nemá. */
   lordName?: string;
   /**

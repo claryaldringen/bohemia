@@ -28,6 +28,7 @@ import type { VillageListItem } from '@/lib/village-list';
 import type { VillageView } from '@/lib/village-view';
 import { FaithCross } from './BaptizeButton';
 import { Tooltip } from './Tooltip';
+import { LordAwayBadge } from './LordAwayBadge';
 import { VillageSwitcher } from './VillageSwitcher';
 
 /**
@@ -600,6 +601,7 @@ export function TopBar({
   devDisasters = null,
   house = null,
   war = null,
+  lordAway = null,
   chronicle = null,
   notices = null,
 }: {
@@ -631,6 +633,8 @@ export function TopBar({
     onToggle: () => void;
   } | null;
   /** Kniha panelu Kronika (absence.md – Návrat): otevření panelu; bez vsi null. */
+  /** Vojvoda na výjezdu (lord-control.md): portrét s podkovou v liště; klik ho vybere. */
+  lordAway?: { name: string | null; selected: boolean; onSelect: () => void } | null;
   chronicle?: { open: boolean; onToggle: () => void } | null;
   /** Zvonek panelu Upozornění: počet nových (mezi nejnovějšími načtenými) a otevření panelu. */
   notices?: { unread: number; open: boolean; onToggle: () => void } | null;
@@ -737,6 +741,7 @@ export function TopBar({
         </div>
       )}
       <div className="ml-auto flex items-center gap-1">
+        {lordAway && <LordAwayBadge {...lordAway} />}
         <Resource icon="date" name="Herní datum" testId="game-date">
           <span className="font-serif font-normal">
             {formatWorldState(getWorldState(nowMs, world), world)}

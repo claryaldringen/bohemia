@@ -60,6 +60,7 @@ import { hitPart } from './scene-perf';
 import {
   ScenePointer,
   type GatePick,
+  type LordOrderMode,
   type HoverListener,
   type SelectListener,
 } from './scene-pointer';
@@ -928,6 +929,14 @@ export class LandscapeScene {
    */
   setGatePick(handler: GatePick | null): void {
     this.pointer.setGatePick(handler);
+  }
+
+  /**
+   * Zapne ovládání vybraného vojvody (lord-control.md): pravé kliknutí do krajiny pošle bod terénu
+   * `mode.order`, pohyb kurzoru `mode.hover`; `null` vrací běžné pravé tlačítko (zrušení výběru).
+   */
+  setLordMode(mode: LordOrderMode | null): void {
+    this.pointer.setLordMode(mode);
   }
 
   /**
