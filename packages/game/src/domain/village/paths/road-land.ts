@@ -85,10 +85,18 @@ interface Capsule {
 /** Strana přihrádky rejstříku kusů cest (m). */
 const BIN_M = 8;
 
+/**
+ * Číselný klíč dvojice celých čísel (přihrádka rejstříku, čtverec pole) – jednoznačný pro druhé
+ * číslo do ±2²⁰ (`PAIR_SPAN` = 2²¹; přihrádky po 8 m = přes 8 000 km, čtverce pole jsou
+ * v desítkách); řetězec `i,j` by se skládal při každém dotazu na buňku.
+ */
+const PAIR_SPAN = 2_097_152;
+const pairKey = (i: number, j: number): number => i * PAIR_SPAN + j;
+
 /** Kusy pásů cest a plácky rozcestí s rejstříkem po přihrádkách. */
 class RoadBands {
   private readonly capsules: Capsule[] = [];
-  private readonly bins = new Map<string, number[]>();
+  private readonly bins = new Map<number, number[]>();
   /** Přesah rejstříku – bod najde i kusy do tolika metrů od svého pásu (široké místo). */
   private readonly margin = ROAD_LAND.stripMinM / 2;
 
@@ -121,7 +129,7 @@ class RoadBands {
         j <= Math.floor((capsule.maxZ + m) / BIN_M);
         j++
       ) {
-        const key = `${i},${j}`;
+        const key = pairKey(i, j);
         const list = this.bins.get(key);
         if (list) list.push(index);
         else this.bins.set(key, [index]);
@@ -137,7 +145,9 @@ class RoadBands {
   near(minX: number, maxX: number, minZ: number, maxZ: number): boolean {
     for (let i = Math.floor(minX / BIN_M); i <= Math.floor(maxX / BIN_M); i++) {
       for (let j = Math.floor(minZ / BIN_M); j <= Math.floor(maxZ / BIN_M); j++) {
-        for (const index of this.bins.get(`${i},${j}`) ?? []) {
+        const list = this.bins.get(pairKey(i, j));
+        if (!list) continue;
+        for (const index of list) {
           const c = this.capsules[index]!;
           if (c.maxX >= minX && c.minX <= maxX && c.maxZ >= minZ && c.minZ <= maxZ) return true;
         }
@@ -159,7 +169,9 @@ class RoadBands {
 
   /** Leží bod v pásu cesty nebo na plácku rozcestí? */
   covers(x: number, z: number): boolean {
-    for (const index of this.bins.get(`${Math.floor(x / BIN_M)},${Math.floor(z / BIN_M)}`) ?? []) {
+    const list = this.bins.get(pairKey(Math.floor(x / BIN_M), Math.floor(z / BIN_M)));
+    if (!list) return false;
+    for (const index of list) {
       const c = this.capsules[index]!;
       if (RoadBands.distance2(c, x, z) <= c.r * c.r) return true;
     }
@@ -168,7 +180,9 @@ class RoadBands {
 
   /** Je bod aspoň `d` m od okraje každého pásu (`d` nejvýš ROAD_LAND.stripMinM / 2)? */
   clear(x: number, z: number, d: number): boolean {
-    for (const index of this.bins.get(`${Math.floor(x / BIN_M)},${Math.floor(z / BIN_M)}`) ?? []) {
+    const list = this.bins.get(pairKey(Math.floor(x / BIN_M), Math.floor(z / BIN_M)));
+    if (!list) return true;
+    for (const index of list) {
       const c = this.capsules[index]!;
       const reach = c.r + d;
       if (RoadBands.distance2(c, x, z) < reach * reach) return false;
@@ -220,11 +234,11 @@ export function roadLand(
     const cellM2 = step * step;
     const cornerCells = Math.ceil(ROAD_LAND.cornerMinM2 / cellM2 - 1e-9);
     const reach = (frame.size * Math.SQRT2) / 2;
-    const squares = new Map<string, RasterSquare>();
+    const squares = new Map<number, RasterSquare>();
     for (const sq of field.squares) {
       const x = frame.x + sq.cell.x * frame.size * frame.c + sq.cell.y * frame.size * frame.s;
       const z = frame.z - sq.cell.x * frame.size * frame.s + sq.cell.y * frame.size * frame.c;
-      squares.set(`${sq.cell.x},${sq.cell.y}`, {
+      squares.set(pairKey(sq.cell.x, sq.cell.y), {
         id: sq.id,
         i: sq.cell.x,
         j: sq.cell.y,
@@ -247,9 +261,13 @@ export function roadLand(
       if (sq.ground) return sq.ground;
       const ground = new Uint8Array(n * n);
       if (near(sq)) {
+        // bod buňky jako `world` – stejné výrazy, jen bez dvojice na každou buňku
         for (let b = 0; b < n; b++) {
+          const lv = ((b + 0.5) / n - 0.5) * frame.size;
           for (let a = 0; a < n; a++) {
-            const [x, z] = world(sq, a, b);
+            const lu = ((a + 0.5) / n - 0.5) * frame.size;
+            const x = sq.x + lu * frame.c + lv * frame.s;
+            const z = sq.z - lu * frame.s + lv * frame.c;
             if (bands.covers(x, z)) ground[b * n + a] = ROAD;
           }
         }
@@ -257,7 +275,7 @@ export function roadLand(
       sq.ground = ground;
       return ground;
     };
-    const at = (i: number, j: number): RasterSquare | undefined => squares.get(`${i},${j}`);
+    const at = (i: number, j: number): RasterSquare | undefined => squares.get(pairKey(i, j));
     /** Široké místo: kruh o poloměru `half` kolem buňky je celý v poli a mimo pásy cest. */
     const wide = (sq: RasterSquare, a: number, b: number): boolean => {
       const [x, z] = world(sq, a, b);
@@ -349,10 +367,17 @@ export function roadLand(
         if (ground[k] !== FREE || sq.mark[k] !== UNSEEN) continue;
         const a = k % n;
         const b = (k - a) / n;
-        const byRoad = DIRS.some(([da, db]) => {
-          const next = neighbour(sq, a, b, da, db);
-          return next !== null && groundOf(next[0])[next[1]] === ROAD;
-        });
+        // buňka uvnitř čtverce má všechny čtyři sousedy v témž rastru – bez hledání souseda
+        const byRoad =
+          a > 0 && a < n - 1 && b > 0 && b < n - 1
+            ? ground[k + 1] === ROAD ||
+              ground[k - 1] === ROAD ||
+              ground[k + n] === ROAD ||
+              ground[k - n] === ROAD
+            : DIRS.some(([da, db]) => {
+                const next = neighbour(sq, a, b, da, db);
+                return next !== null && groundOf(next[0])[next[1]] === ROAD;
+              });
         if (byRoad) walk(sq, k);
       }
     }

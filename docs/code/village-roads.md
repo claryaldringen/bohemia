@@ -1282,6 +1282,33 @@ studeným startem každý den; `cart-memo.test.ts`).
   `walkingDistances` 15 %, síť pěšin 11 %, trasy k práci 6 %, `routeMapKey` 3 %; `work` 26 % –
   hledání tras vozu (`cartRoutesOn`, svoz a voda) 13 %, ceny přesunů spřežení 4 %, mřížka vozu
   4,5 %; plán sezóny 7 % (výběr nutných dílů 3 %).
+- **Ceny kroků sítě pěšin v paměti** (13. 11. 2026, `StepCosts` v `paths/network-search.ts`):
+  hledání domácností téhož kola (`search`) procházejí tytéž buňky a cenu osmi kroků z buňky
+  (`quantizedStep`) počítalo každé znovu při každém vyjmutí. Teď se spočítá jednou za buňku a kolo
+  a uloží k cenám kola (`PassCosts.steps`); hledání ji čte ve stejném pořadí směrů, halda tak
+  dostane tytéž záznamy v témž pořadí – výsledek bit po bitu týž. Platnost: buňce se změněnou
+  cenou a jejím osmi sousedům paměť smaže `treadCell` (krok z buňky i do ní stojí jinak), nové
+  ceny celé mřížky mezi koly hlásí `forgetStepCosts`. **Cenu `PassCosts.cost` proto měnit jen
+  těmito dvěma cestami.** Vynechané zneplatnění chytí testy sítě (`paths-network.test.ts` – jedna
+  pěšina dvou sousedů, `paths-nearest.test.ts` – zlatý otisk sítě; ověřeno vypnutím každého
+  zvlášť – po 3 padajících testech). Profil vsi po 60 letech (50 lidí, 8 obydlí, 2 roky dopočtu):
+  `search` vlastní čas 3 146 → 2 472 ms, `computePathNetworkSteps` 4 078 → 3 435 ms.
+- **Plocha pod cestami bez řetězcových klíčů** (13. 11. 2026, `roadLand` v `paths/road-land.ts`):
+  rejstřík kusů cest (`RoadBands`) i čtverce pole se hledaly podle řetězce `i,j` složeného při
+  každém dotazu – rastr čtverce má 30 × 30 buněk a na každou se ptá. Klíč je teď číslo
+  (`pairKey`), rastr čtverce nepočítá bod buňky přes dvojici a buňka uvnitř čtverce se na sousedy
+  u cesty ptá přímo ve svém rastru. Pořadí vkládání do map, pořadí průchodu i výrazy souřadnic
+  zůstaly – výsledek bit po bitu týž. Profil téže vsi: `roadLand` 1 081 → 623 ms,
+  `roadFieldsDay` 1 256 → 792 ms.
+- **Naměřeno 13. 11.** (obě změny dohromady; zlatá ves vyrostlá se správcem, stav po 20 / 40 / 60
+  letech + 2 roky dopočtu vcelku, střídavě před / po 3×, medián stěny, zátěž stroje 4–9;
+  `scratchpad/audit-2026-11-13/compare.sh`): 6 058 → 5 538 ms (−8,6 %), 12 467 → 11 209 ms
+  (−10,1 %), 11 489 → 10 088 ms (−12,2 %). Otisky stavu před i po `05b68ebfd49c250f` /
+  `8e3a25d63b8044ed` / `19a111c55c010805`. Zbývá (profil vsi po 60 letech): cesty 68 % roku –
+  síť pěšin 24 % (`search` 17 %, skoro celé halda), měsíční cesty 18 %, `roadFieldsDay` 6 %;
+  `work` 9 %. Zkoušeno a zamítnuto: osm sousedů v `search` rozepsaných bez kontroly okraje
+  (≈ −4 % roku za 70 řádků opakovaného kódu, paměť cen kroků dá víc) a pole haldy v lokálních
+  proměnných (bez měřitelného zisku).
 
 ## Brány opevnění v síti (Ú5.3, 6. 11. 2026)
 

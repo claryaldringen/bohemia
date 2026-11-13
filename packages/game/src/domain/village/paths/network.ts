@@ -38,6 +38,7 @@ import {
   type SearchState,
   type Traffic,
   householdOrder,
+  forgetStepCosts,
   routeAllSteps,
   smoothTraffic,
   trodden,
@@ -184,6 +185,7 @@ export function* computePathNetworkSteps(
         costs.previous[c] = s;
         costs.cost[c] = trodden(costs, c, s);
       }
+      forgetStepCosts(costs);
     }
     const last = pass === PASSES - 1;
     result = yield* routeAllSteps(

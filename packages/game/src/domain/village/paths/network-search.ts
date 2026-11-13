@@ -125,8 +125,36 @@ export interface SearchState {
   areas: Int32Array | null;
 }
 
+/** Krok, který nejde (okraj mřížky, neprůchodný soused, roh) – cena kroku je vždy kladná. */
+const NO_STEP = -1;
+
 /**
- * Dijkstra z buňky `from` (brána domácnosti) po mřížce s cenou `cost` (Infinity = neprůchodné). Po
+ * Paměť cen kroků z buňky (jen zrychlení – výsledek týž): osm cen ve směrech `NEIGHBOURS_8`
+ * (`quantizedStep`, `NO_STEP` = krok nejde). Hledání domácností téhož kola procházejí tytéž buňky,
+ * cena kroku se tak spočítá jednou za buňku místo při každém vyjmutí. Platí u buněk s `stamp`
+ * rovným `run`: buňce se změněnou cenou a jejím sousedům razítko smaže `treadCell` (krok z buňky
+ * i do ní stojí jinak), nové ceny celé mřížky hlásí `forgetStepCosts`.
+ */
+export interface StepCosts {
+  width: number;
+  height: number;
+  steps: Float64Array;
+  stamp: Uint32Array;
+  run: number;
+}
+
+function newStepCosts(width: number, height: number): StepCosts {
+  const all = width * height;
+  return { width, height, steps: new Float64Array(all * 8), stamp: new Uint32Array(all), run: 1 };
+}
+
+/** Ceny celé mřížky se změnily (další kolo) – paměť cen kroků (`PassCosts.steps`) už neplatí. */
+export function forgetStepCosts(costs: PassCosts): void {
+  if (costs.steps) costs.steps.run++;
+}
+
+/**
+ * Dijkstra z buňky `from` (brána domácnosti) po mřížce s cenami `costs.cost` (Infinity = neprůchodné). Po
  * každé vyjmuté buňce se zeptá `visit(c, d)` – true hledání ukončí; skončí i nad `maxCost`.
  * Úhlopříčně jen kolem průchodných rohů (neproklouzne rohem domu ani podél vody).
  *
@@ -139,18 +167,25 @@ export interface SearchState {
  */
 function search(
   grid: Grid,
-  cost: Float32Array,
+  costs: PassCosts,
   from: number,
   maxCost: number,
   state: SearchState,
   visit: (c: number, d: number) => boolean,
 ): void {
   const { dist, parent, heap, stamp } = state;
+  const cost = costs.cost;
   const run = ++state.run;
   heap.clear();
   const w = grid.width;
   const h = grid.height;
   const m = grid.cellM / 2;
+  const memo = (costs.steps ??= newStepCosts(w, h));
+  const steps = memo.steps;
+  const known = memo.stamp;
+  const version = memo.run;
+  // posun indexu k sousedovi ve směrech `NEIGHBOURS_8`
+  const offset = Int32Array.of(1, -1, w, -w, w + 1, w - 1, 1 - w, -1 - w);
   stamp[from] = run;
   dist[from] = 0;
   parent[from] = -1;
@@ -160,19 +195,35 @@ function search(
     const d = heap.topKey;
     if (d > dist[c]!) continue;
     if (d > maxCost || visit(c, d)) break;
-    const i = c % w;
-    const j = (c - i) / w;
-    const own = cost[c]!;
+    const e = c * 8;
+    if (known[c] !== version) {
+      // ceny osmi kroků z buňky do paměti (`StepCosts`) – další vyjmutí téže buňky je jen čte
+      const i = c % w;
+      const j = (c - i) / w;
+      const own = cost[c]!;
+      for (let k = 0; k < 8; k++) {
+        const ii = i + DI[k]!;
+        const jj = j + DJ[k]!;
+        let step = NO_STEP;
+        if (ii >= 0 && jj >= 0 && ii < w && jj < h) {
+          const next = cost[jj * w + ii]!;
+          if (
+            next !== Infinity &&
+            !(k >= 4 && (cost[j * w + ii] === Infinity || cost[jj * w + i] === Infinity))
+          ) {
+            // cena kroku po kvantech (`quantizedStep`) – součty přesné, remízy opravdové
+            step = quantizedStep((own + next) * STEP[k]! * m);
+          }
+        }
+        steps[e + k] = step;
+      }
+      known[c] = version;
+    }
     for (let k = 0; k < 8; k++) {
-      const ii = i + DI[k]!;
-      const jj = j + DJ[k]!;
-      if (ii < 0 || jj < 0 || ii >= w || jj >= h) continue;
-      const n = jj * w + ii;
-      const next = cost[n]!;
-      if (next === Infinity) continue;
-      if (k >= 4 && (cost[j * w + ii] === Infinity || cost[jj * w + i] === Infinity)) continue;
-      // cena kroku po kvantech (`quantizedStep`) – součty přesné, remízy opravdové
-      const nd = d + quantizedStep((own + next) * STEP[k]! * m);
+      const step = steps[e + k]!;
+      if (step === NO_STEP) continue;
+      const n = c + offset[k]!;
+      const nd = d + step;
       if (stamp[n] !== run || nd < dist[n]!) {
         stamp[n] = run;
         dist[n] = nd;
@@ -250,7 +301,18 @@ export function edgeOther(width: number, slot: number): [number, number] {
 function treadCell(traffic: Traffic, costs: PassCosts, c: number, weight: number): void {
   traffic.cells[c] = traffic.cells[c]! + weight;
   const strength = Math.max(costs.previous[c]!, pathStrength(traffic.cells[c]!));
+  const before = costs.cost[c]!;
   costs.cost[c] = trodden(costs, c, strength);
+  const memo = costs.steps;
+  if (!memo || costs.cost[c] === before) return;
+  // jiná cena buňky = jiné ceny kroků z ní i do ní (`StepCosts`)
+  const i = c % memo.width;
+  const j = (c - i) / memo.width;
+  for (let jj = Math.max(0, j - 1); jj <= Math.min(memo.height - 1, j + 1); jj++) {
+    for (let ii = Math.max(0, i - 1); ii <= Math.min(memo.width - 1, i + 1); ii++) {
+      memo.stamp[jj * memo.width + ii] = 0;
+    }
+  }
 }
 
 /**
@@ -270,9 +332,12 @@ export function trodden(costs: PassCosts, c: number, strength: number): number {
 export interface PassCosts {
   base: Float32Array;
   previous: Float32Array;
+  /** Mění se jen přes `treadCell` (buňka) a s `forgetStepCosts` (celá mřížka) – viz `steps`. */
   cost: Float32Array;
   /** Buňky, které pěšina dne nezrychlí (`Grid.plain`). */
   plain: Uint8Array | null;
+  /** Paměť cen kroků k cenám `cost` – zakládá ji první hledání. */
+  steps?: StepCosts;
 }
 
 /**
@@ -408,7 +473,7 @@ export function* routeAllSteps(
     }
     if (wanted.length === 0) continue;
     yield;
-    routeHome(grid, costs.cost, home.gate, wanted, targets, search, state);
+    routeHome(grid, costs, home.gate, wanted, targets, search, state);
     for (const g of wanted) {
       const group = groups[g]!;
       const at = search.found[g]!;
@@ -483,7 +548,7 @@ interface HomeSearch {
  */
 function routeHome(
   grid: Grid,
-  cost: Float32Array,
+  costs: PassCosts,
   gate: number,
   wanted: readonly number[],
   targets: TargetIndex,
@@ -516,7 +581,7 @@ function routeHome(
       bestValue[g] = value;
     }
   };
-  search(grid, cost, gate, limit[byLimit[byLimit.length - 1]!]!, state, (c, d) => {
+  search(grid, costs, gate, limit[byLimit[byLimit.length - 1]!]!, state, (c, d) => {
     if (d > radius) {
       // všechny levnější buňky jsou vyjmuté – nabídky pochůzek úplné
       for (const g of errands) settle(g, d);

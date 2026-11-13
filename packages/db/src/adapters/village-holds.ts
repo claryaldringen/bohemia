@@ -5,7 +5,9 @@ import type { Database } from '../client';
 // Bariéra ves × tažení (plán 2026-11-03 – rozhodnutí 13, Úloha 6.7; docs/code/war.md – Bariéra
 // dopočtu): které vsi drží tažení a do kterého dne. Čte jen skupiny kontrolního bodu
 // (`state->'groups'`), varování (`state->'alarm'` – plán 2026-11-09, Úloha 3) a události v `outbox`
-// aktivních tažení – tažení je málo, dotaz bez tažení skončí hned na indexu `campaign_status_idx`.
+// aktivních tažení. Aktivní tažení najde index `campaign_status_idx`; body s nedoručenými
+// událostmi (`outbox IS NOT NULL`) index nemají – ta větev projde tabulku bodů, i skončených tažení
+// (částečný index by ji zkrátil – návrh Clauda, potřebuje migraci).
 // Mez z bodu (`throughDay` – den bez hodin) počítá `holdDay` (herní jádro).
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -17,15 +19,23 @@ const UUID_SQL = '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
  * (`alarmed` – vsi ve varování, kandidáti hradišť a hradiště skupin uprchlíků, bez ohledu na
  * vzdálenost; id mimo uuid se zahodí) a dny jejich nedoručených událostí do vsí – JSON bodu se
  * rozbalí jednou na tažení.
+ *
+ * Obě podmínky jako sjednocení id, ne `OR` přes spojení tabulek: s `OR` plánovač spojil všechna
+ * tažení se všemi body a filtroval až potom (20 tis. skončených tažení: medián 7,7 ms na dotaz,
+ * takhle 2,9 ms – měřeno 13. 11. 2026). Bod má právě jedno tažení (primární klíč = cizí klíč),
+ * vybrané body jsou tytéž.
  */
 const LIVE = sql`
   live AS MATERIALIZED (
     SELECT cp.campaign_id, cp.state->'groups' AS groups, cp.state->'alarm' AS alarm,
            coalesce((cp.state->>'throughDay')::int, (cp.state->>'day')::int - 1) AS through,
            coalesce(cp.outbox->'villageEvents', '[]'::jsonb) AS events
-    FROM campaign c
-    JOIN campaign_checkpoint cp ON cp.campaign_id = c.id
-    WHERE c.status = 'active' OR cp.outbox IS NOT NULL
+    FROM campaign_checkpoint cp
+    WHERE cp.campaign_id IN (
+      SELECT id FROM campaign WHERE status = 'active'
+      UNION
+      SELECT campaign_id FROM campaign_checkpoint WHERE outbox IS NOT NULL
+    )
   ),
   cells AS MATERIALIZED (
     SELECT DISTINCT live.campaign_id, (g->'cell'->>'x')::int AS x, (g->'cell'->>'y')::int AS y
