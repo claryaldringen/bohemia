@@ -282,3 +282,47 @@ onEnded)` se ptá jen s `running` (vojvoda pryč nebo právě vyjel); zmizí-li 
 - **Testy** – `lib/scene/__tests__/journey-orders.test.ts`, `hooks/__tests__/use-journey.behavior.test.tsx`,
   `lib/__tests__/dynasty-view.test.ts`, `person-activity.test.ts`, e2e `e2e/journey.spec.ts` (projekt
   `worker` – spec pouští worker jako `worker.spec.ts`).
+
+## Scéna vsi (Úloha 8b – `apps/web`)
+
+- **Jezdci** – `lib/scene/journey-riders.ts` (čisté): `SceneJourney` (z `JourneyView` a
+  `JourneyVisitor`: výjezd, vlastní, jméno vojvody a rod, takt, poloha, cíl na mapě, muži, `arrived`,
+  `phase`, `waitDaysLeft`). `journeyFormation` – hlouček kolem `group.pos` jako pochod vojska
+  (`huddleSlots`: jezdci vpředu, vojvoda uprostřed, pěší za nimi, ranění vzadu). `ridersAt` – každý
+  muž jde mezi stavy rovně ze své nakreslené polohy na nové místo a hledí, kam jde (hlouček se
+  v zatáčce neotočí skokem); nový muž a skok přes mapu stojí rovnou. `JourneyGlide` – stav po
+  výjezdech: nový takt nebo jiní muži = nový posun za dobu taktů mezi stavy (`glideMs`), stejný takt
+  pohyb nepřeruší, omezený pohyb stojí na novém místě. `headingOf` – směr z posunu, jinak k cíli.
+  `journeyFigures` – postavy a koně (`ARMY_LOOKS.line`, `ride` / `ride-trot` / `ride-idle`,
+  `walk-spear`) stejnými instancemi jako vojsko (`ArmyRenderer.setJourneys` – žádný mesh ani vertex
+  buffer navíc). `pickRider` – klik od země po hlavu jezdce. `journeyHorseIds` – koně jezdců
+  vlastní vsi (`Horse.riderId`) ohrada nekreslí (`setRidingHorses`).
+- **Praporek a hodiny** – `lib/scene/journey-marker.ts`: `journeyMarks` (návrh Clauda) – praporek na
+  cíli vlastního výjezdu, dokud jede ven nebo čeká (`phase: 'out'`, cíl na této mapě – jádro cíl ve
+  vodě posune na nejbližší dosažitelné místo, praporek stojí tam), hodiny nad středem skupiny
+  s `waitDaysLeft`; cizí výjezd ani návrat domů praporek nemají. `JourneyMarker` – tyč a cíp
+  z vlastní geometrie, hodiny `hourglassPixels` (RGBA, hodiny a číslice) natočené ke kameře, kreslí
+  se přes vše; přepíše se jen při změně (žádné kreslení navíc). Použije i scéna cizí mapy (Úloha 9).
+- **Napojení** – `SceneWarView.setJourneys` (drží výjezdy i přes novou krajinu) ←
+  `LandscapeScene.setJourneys` ← `components/game/village-game/use-journey-scene.ts`:
+  `sceneJourneysOf` (`lib/journey-view.ts`) – vlastní výjezd z `useJourney(...).latest` (poslední
+  pohled bez interpolace – muže posouvá scéna), je-li skupina na mapě vsi; ostatní z
+  `useJourneyVisitors` (`hooks/use-journey-visitors.ts` – `GET /api/journey?visitors=`, s jezdci na
+  mapě 2× za sekundu, jinak po 5 s, poprvé hned; výpadek sítě ani chyba serveru dotazování
+  nezastaví). Jméno a rod vlastního vojvody dodá jeho záznam mezi návštěvníky.
+- **Výběr** – klik na vlastního muže vybere člověka vsi (`person` – panel z Úlohy 8a), na cizího
+  `VillageTarget` `visitor` (`journeyId`): panel ukáže portrét koně se jménem vojvody, rod (ikona
+  praporu) a počet jezdců a pěších (`selectionDetails(…, visitors)`, `visitor-panel`).
+- **Den rodiny** – muž na výjezdu (`away: journey`) není v `SceneLord.trainees` (`sceneLord`
+  v `village-view-scene.ts`), takže ho scéna nekreslí na dvorku ani na cvičišti; kreslí ho jako
+  jezdce výjezdu. Ostatní nepřítomní (tažení…) zůstávají jako dosud.
+- **Zatím ne:** odjezd z ohrady a návrat (kůň z ohrady ke kůlu, nasednutí, výjezd branou dvorce –
+  lord-control.md – Ve scéně) – skupina se ve scéně ukáže, kde ji ukáže server (Úloha 8b se do
+  rozpočtu nevešla, návrh na další úlohu).
+- **e2e** – háček `journeyScene` (`lib/e2e-hooks.ts`: muži, jak jsou nakreslení, praporek a dny
+  na hodinách); `e2e/journey.spec.ts` druhý test – dva hráči, jezdci jedou, praporek u cíle, hodiny
+  při čekání, cíl ve vodě (praporek na souši), cizí výjezd u vsi (bod checkpointu přepsaný v DB)
+  a klik na něj. `JOURNEY_SHOT=<cesta>` uloží snímek. E2e běží s omezeným pohybem (`reducedMotion`)
+  – muži tam skáčou na nový stav, plynulý posun kryje `journey-riders.test.ts`.
+- **Testy** – `lib/scene/__tests__/journey-riders.test.ts`, `journey-marker.test.ts`,
+  `lib/__tests__/journey-scene.test.ts`, `hooks/__tests__/use-journey-visitors.behavior.test.tsx`.

@@ -3,6 +3,9 @@ import type { Camera } from '@babylonjs/core/Cameras/camera';
 import type { Scene } from '@babylonjs/core/scene';
 import { surfaceAt, type Landscape } from '@bohemia/game';
 import { ArmyRenderer, type SceneWar } from './army-renderer';
+import { JourneyMarker, journeyMarks } from './journey-marker';
+import type { RiderPose, SceneJourney } from './journey-riders';
+import type { Project } from './villager-pick';
 
 /** Vstupy války ve scéně. */
 export interface WarViewDeps {
@@ -22,6 +25,10 @@ export interface WarViewDeps {
 export class SceneWarView {
   private army: ArmyRenderer | null = null;
   private war: SceneWar | null = null;
+  /** Výjezdy vojvody na mapě (vlastní i návštěvníci – journey-riders.ts). */
+  private journeys: readonly SceneJourney[] = [];
+  /** Praporek cíle a přesýpací hodiny vlastního výjezdu (journey-marker.ts). */
+  private marker: JourneyMarker | null = null;
 
   constructor(private readonly deps: WarViewDeps) {}
 
@@ -42,7 +49,44 @@ export class SceneWarView {
         this.deps.requestRender();
       },
     });
+    this.marker?.dispose();
+    this.marker = new JourneyMarker(this.deps.scene, decalHeight);
     if (this.war) this.army.set(this.war, Date.now(), this.deps.reducedMotion(), null);
+    if (this.journeys.length > 0) {
+      this.army.setJourneys(this.journeys, Date.now(), this.deps.reducedMotion(), null);
+      this.marker.set(journeyMarks(this.journeys));
+    }
+  }
+
+  /**
+   * Výjezdy vojvody na mapě (journey.md – Scéna vsi): jezdci jako muži rodu ve vojsku, praporek
+   * v cíli a přesýpací hodiny nad čekající skupinou. Prázdný seznam – nic.
+   */
+  setJourneys(list: readonly SceneJourney[]): void {
+    this.journeys = list;
+    const army = this.army?.setJourneys(
+      list,
+      Date.now(),
+      this.deps.reducedMotion(),
+      this.deps.camera(),
+    );
+    const marks = this.marker?.set(journeyMarks(list));
+    if (army || marks) this.deps.requestRender();
+  }
+
+  /** Muž výjezdu pod kurzorem (CSS px) – výběr klikem; nic – null. */
+  riderHit(x: number, y: number, project: Project): { pose: RiderPose; distance: number } | null {
+    return this.army?.riderHit(x, y, project) ?? null;
+  }
+
+  /** Výjezdy ve scéně pro e2e: muži, jak jsou nakreslení, praporek a dny na hodinách. */
+  journeyStats(): {
+    riders: readonly RiderPose[];
+    banner: { x: number; z: number } | null;
+    hourglass: number | null;
+  } {
+    const marks = this.marker?.stats() ?? { banner: null, hourglass: null };
+    return { riders: this.army?.journeyRiders() ?? [], ...marks };
   }
 
   /**
@@ -80,5 +124,6 @@ export class SceneWarView {
 
   dispose(): void {
     this.army?.dispose();
+    this.marker?.dispose();
   }
 }

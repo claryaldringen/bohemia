@@ -455,7 +455,7 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
     return [offsetLine(line, half), offsetLine(line, -half)];
   }
   // zvíře nemá obrys (zvýrazní ho scéna ve W10)
-  if (target.kind === 'wildlife') return [];
+  if (target.kind === 'wildlife' || target.kind === 'visitor') return [];
   // prvek prémiové krajiny – obrys má v obtiscích krajiny (premium-sites.ts), druhý se nekreslí
   if (target.kind === 'premium-site') return [];
   const field = village.fields.find((f) => f.id === target.id);

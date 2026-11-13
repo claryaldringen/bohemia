@@ -190,6 +190,26 @@ export function SelectionPanel({
       />
     );
     body = <WildlifeBody details={details} />;
+  } else if (details.kind === 'visitor') {
+    // cizí vojvoda na výjezdu (lord-control.md – Soused): jméno vojvody, rod a kolik jich jede
+    portrait = <Portrait icon="horse" name={details.leader} dir="resources" />;
+    body = (
+      <div data-testid="visitor-panel" className="flex flex-col gap-1 text-sm text-[#f3dfb0]">
+        <Tooltip content="Rod">
+          <span className="flex items-center gap-1" data-testid="visitor-house">
+            <img src="/icons/house/banner.png" alt="" width={20} height={20} />
+            {details.house}
+          </span>
+        </Tooltip>
+        <Tooltip content="Jezdci a pěší">
+          <span className="flex items-center gap-1" data-testid="visitor-men">
+            <img src="/icons/resources/jizda.png" alt="" width={20} height={20} />
+            {details.riders}
+            {details.men > details.riders ? ` + ${details.men - details.riders}` : ''}
+          </span>
+        </Tooltip>
+      </div>
+    );
   } else if (details.kind === 'person') {
     portrait = (
       <PersonPortrait

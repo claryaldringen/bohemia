@@ -12,6 +12,7 @@ import { draftHitTarget } from './draft-pick';
 import { pickPremiumSite } from './premium-picking';
 import type { ScenePerf } from './scene-perf';
 import { screenProjector } from './scene-projection';
+import type { Project } from './villager-pick';
 import type { TerrainMesh } from './terrain-mesh';
 import { tileAt } from './tile-at';
 import type { VillageVillagers } from './villagers';
@@ -65,6 +66,12 @@ export interface PointerDeps {
   villageRenderer: () => VillageRenderer | null;
   villagers: () => VillageVillagers | null;
   wildlife: () => VillageWildlife | null;
+  /** Muž výjezdu vojvody pod kurzorem (journey-riders.ts – `pickRider`). */
+  riderHit: (
+    x: number,
+    y: number,
+    project: Project,
+  ) => { pose: { journeyId: string; personId: number | null }; distance: number } | null;
 }
 
 /**
@@ -268,6 +275,18 @@ export class ScenePointer {
       (!draft || wild.distance < draft.distance)
     ) {
       return { kind: 'wildlife', species: wild.species };
+    }
+    // muž výjezdu vojvody – vlastní vybere člověka vsi, cizí ukáže jméno vojvody a rod
+    const rider = this.deps.riderHit(x, y, project);
+    if (
+      rider &&
+      (!person || rider.distance < person.distance) &&
+      (!draft || rider.distance < draft.distance)
+    ) {
+      const id = rider.pose.personId;
+      return id !== null
+        ? { kind: 'person', id }
+        : { kind: 'visitor', journeyId: rider.pose.journeyId };
     }
     if (person && (!draft || person.distance <= draft.distance)) {
       return { kind: 'person', id: person.person };

@@ -67,6 +67,7 @@ import {
   laborReport,
   ageGroup,
   trainingFamily,
+  isAway,
   trainingHours,
   lordRides,
   type LordRide,
@@ -595,7 +596,13 @@ function sceneLord(state: VillageState, counts: LaborDay['lord'], day: number): 
         .slice(0, Math.max(0, count))
         .map((p) => p.id),
     );
-  const men = atField(family.trainees, family.trainees.length - counts.training);
+  const atFieldMen = atField(family.trainees, family.trainees.length - counts.training);
+  // muži na výjezdu vojvody jsou pryč (lord-control.md – Ve scéně): jako muži na poli se nekreslí
+  // na dvorku, na cvičišti ani na jízdě – scéna je ukazuje jako jezdce výjezdu (journey-riders.ts)
+  const men = new Set([
+    ...atFieldMen,
+    ...family.trainees.filter((p) => p.away?.kind === 'journey' && isAway(p, day)).map((p) => p.id),
+  ]);
   const women = atField(family.household, family.household.length - counts.household);
   // jízdy dne z jádra (horses.md – Kdy a kam se jezdí) – jen jezdci, kteří dnes cvičí
   const rides = lordRides(state, day);
