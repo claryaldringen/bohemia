@@ -84,6 +84,29 @@ export function revealFog(
   return seen;
 }
 
+/**
+ * Odkrytí ze stopy výjezdu (journey.md – Scéna cizí mapy; `SeenCell.trail`): body, odkud muži rodu
+ * na mapě viděli, odkryjí mlhu stejným dohledem jako muže (`revealFog`) – buňky přibudou do
+ * objeveného (šeré), v dohledu nejsou. `done` – klíče bodů už odkrytých, doplní se o nové; další
+ * volání s delší stopou tak počítá jen nové body. Vrátí, kolik bodů přibylo.
+ */
+export function exploreTrail(
+  fog: FogGrid,
+  trail: readonly (readonly [number, number])[],
+  done: Set<string>,
+  forestAt: (x: number, z: number) => boolean = () => false,
+): number {
+  const fresh: FogViewer[] = [];
+  for (const [x, z] of trail) {
+    const key = `${x},${z}`;
+    if (done.has(key)) continue;
+    done.add(key);
+    fresh.push({ x, z, forest: forestAt(x, z) });
+  }
+  if (fresh.length > 0) revealFog(fog, fresh, forestAt);
+  return fresh.length;
+}
+
 /** Je bod v dohledu (maska z `revealFog`)? Mimo mapu ne. */
 export function fogSees(fog: FogGrid, seen: Uint8Array, x: number, z: number): boolean {
   const c = fogCell(fog, x, z);

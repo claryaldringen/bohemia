@@ -32,6 +32,8 @@ export class SceneWarView {
   private marker: JourneyMarker | null = null;
   /** Místa dvorce pro odjezd a příjezd výjezdu a místo vsi (journey-departure.ts). */
   private yard: { yard: JourneyYard | null; home: Pos | null } = { yard: null, home: null };
+  /** Stopa rodu pro mlhu cizí mapy výjezdu; null – bez mlhy výjezdu (army-renderer.ts). */
+  private trail: readonly (readonly [number, number])[] | null = null;
 
   constructor(private readonly deps: WarViewDeps) {}
 
@@ -60,6 +62,21 @@ export class SceneWarView {
       this.army.setJourneys(this.journeys, Date.now(), this.deps.reducedMotion(), null);
       this.marker.set(journeyMarks(this.journeys));
     }
+    if (this.trail) this.army.setJourneyFog(this.trail);
+  }
+
+  /**
+   * Mlha cizí mapy výjezdu (journey.md – Scéna cizí mapy): odkryté ze stopy rodu šeré, okolí
+   * vlastních jezdců jasné; null – bez mlhy výjezdu. Drží se i přes novou krajinu.
+   */
+  setJourneyFog(trail: readonly (readonly [number, number])[] | null): void {
+    this.trail = trail;
+    if (this.army?.setJourneyFog(trail)) this.deps.requestRender();
+  }
+
+  /** Mlha v bodě (e2e): neobjevené, objevené, v dohledu; bez závoje null. */
+  fogAt(x: number, z: number): 'hidden' | 'explored' | 'seen' | null {
+    return this.army?.fogAt(x, z) ?? null;
   }
 
   /**

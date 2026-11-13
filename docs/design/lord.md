@@ -208,6 +208,8 @@ rodiny, samotný vojvoda až úplně nakonec“.
   k výcviku“~~ – s pomocí při hladu zrušené 9. 11. 2026; starší zápisy kroniky zůstávají. Pomoc
   ve žních ukazuje lišta (počet na poli).
 - Hráč nic nezadává (anti-cíl).
+- **Výjezd:** vybraného vojvodu hráč pošle po mapě i přes její okraj a scéna jde za ním
+  ([výjezd vojvody](lord-control.md) – Co hráč vidí).
 
 ## Ve scéně (návrh Clauda)
 

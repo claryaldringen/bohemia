@@ -19,6 +19,8 @@ import type {
   SceneVillage,
 } from './village-view-scene-types';
 import { scenePlot } from './village-view-scene-types';
+import type { VillageTarget } from './scene/village-picking';
+import { nextSelection } from './scene/village-selection';
 import { sceneSacredRuinOf } from './village-view-buildings';
 import { sceneKilnRemnantOf, sceneKilnStateOf } from './village-view-crafts';
 import { sceneRuinOf } from './village-view-scene';
@@ -33,6 +35,41 @@ import { sceneRuinOf } from './village-view-scene';
 export function journeyCellOf(view: JourneyView | null, home: GridCell): GridCell | null {
   if (!view) return null;
   return view.cell.x === home.x && view.cell.y === home.y ? null : view.cell;
+}
+
+/**
+ * Mapa scény při sledování vojvody (lord-control.md – Co hráč vidí – Na cestě; journey.md – Scéna
+ * cizí mapy): sleduje-li ho hráč (`following` – klik na portrét v liště), políčko cizí mapy, na
+ * které skupina je – scéna jde za ní z mapy na mapu; null – scéna vsi: hráč nesleduje, výjezd
+ * skončil, nebo je skupina zpět na domovské mapě (po čekání či Domů ji ukazuje scéna vsi).
+ */
+export function watchedJourneyCell(following: boolean, view: JourneyView | null): GridCell | null {
+  return following && view ? journeyCellOf(view, view.home) : null;
+}
+
+/**
+ * Výběr klikem ve scéně cizí mapy výjezdu (lord-control.md – Co hráč vidí: klik na vojvodu ve
+ * scéně): jako ve vsi (`nextSelection`) – klik na muže vlastního výjezdu ho vybere (vojvoda = režim
+ * vojvody, pravé tlačítko dává rozkazy), klik do prázdna výběr zruší, s Ctrl / Shift nechá. Stavby
+ * cizí vsi a zvěř se z vlastní vsi nevybírají – jejich id patří cizí vsi, ne té, jejíž výběr se drží
+ * – proto jsou klik do prázdna.
+ */
+export function foreignJourneySelection(
+  current: VillageTarget | null,
+  clicked: VillageTarget | null,
+  additive: boolean,
+  double = false,
+): VillageTarget | null {
+  return nextSelection(current, clicked?.kind === 'person' ? clicked : null, additive, double);
+}
+
+/**
+ * Klíč znalosti mapy pro scénu – cizí ves se přestaví, jen když se změní: nová stavba, nový pohled
+ * na známou (den) nebo jiná ves na mapě. Stejná znalost z dalšího dotazu dá týž klíč.
+ */
+export function seenSceneKey(seen: SeenCell | null): string {
+  if (!seen) return '';
+  return `${seen.villageId ?? ''}|${seen.parts.map((p) => `${p.key}@${p.day}`).join(',')}`;
 }
 
 /**

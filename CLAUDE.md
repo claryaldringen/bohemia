@@ -126,7 +126,7 @@ název). Pravidla a rozhodnutí jsou v `docs/design/`.
 | `docs/code/village-disasters.md`      | počasí kraje – seed počasí mapy, roční los, shlukování, povodeň kraje, odhalení, ochrana nové vsi                                    |
 | `docs/code/village-fortifications.md` | opevnění – obvod a pás, druhy hradeb a vrstvy, cena komplet, vylepšení po úsecích, val a vodní příkop, klešťová brána a věž, údržba  |
 | `docs/code/war.md`                    | válka – síla, tažení po taktech, boj muž po muži, žebříky a prolomení, obránci na hradbě, brány v bitvě, kořist, zajetí, NPC velitel |
-| `docs/code/journey.md`                | výjezd vojvody – stav a krok po taktech, rozkazy, čekání na místě a návrat, člen zemře doma, zaniklá domovská ves                    |
+| `docs/code/journey.md`                | výjezd vojvody – stav a krok, vyslání, úložiště, worker, rozkazy a pohled, objevování, web, ovládání, scéna vsi, odjezd, cizí mapa   |
 | `docs/code/worker.md`                 | worker – smyčka, odklady, spánek do dalšího dne, uspání nečinných, konfigurace, spuštění a ukončení                                  |
 | `docs/code/world.md`                  | svět pro víc hráčů – mřížka a umístění, rod hráče, adresář rodů (co je veřejné), schránka vsi, vstup nováčka, kostra světa           |
 | `docs/code/vassalage.md`              | vazalství – makrokomodity, výhled přebytku vsi a rodu, doprava dávek do cílové vsi, podmínky, vypovězení, neplnění                   |

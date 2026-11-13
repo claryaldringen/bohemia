@@ -9,6 +9,7 @@ import { fortVariantsBlocked } from '@/lib/build-items';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import { selectionDetails } from '@/lib/selection-details';
+import { ForeignJourneyScene } from './ForeignJourneyScene';
 import { ForeignWarScene } from './ForeignWarScene';
 import { GameView } from './GameView';
 import { ScenePerfPanel, usePerfFlag } from './ScenePerfPanel';
@@ -309,6 +310,19 @@ export function VillageGame({
           onBack={war.backHome}
         />
       </ArmyActionsContext.Provider>
+    );
+  }
+  // Scéna za vojvodou na cizí mapě (journey.md – Scéna cizí mapy) – jako u tažení jen jedna scéna
+  // Babylonu naráz: scéna a rozhraní vsi se odpojí, návrat je načte znovu
+  if (lordJourney.watching && !gameOver) {
+    return (
+      <ForeignJourneyScene
+        key={`${lordJourney.watching.x},${lordJourney.watching.y}`}
+        cell={lordJourney.watching}
+        journey={lordJourney.journey.latest}
+        clock={clock}
+        lord={lordJourney}
+      />
     );
   }
 

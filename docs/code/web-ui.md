@@ -1077,6 +1077,7 @@ na které stojí.
   snímky). E2e háček `armyStats` míří na scénu cizí mapy.
 - **Oko** v `CampaignMap` je jednobarevná maska `public/icons/war/eye.svg` (CC0, `LICENSES.md`)
   v barvě textu tlačítka (`EYE_ICON`) – jako znaky ⌂, ⚔, ✕ ostatních tlačítek.
+- **Výjezd vojvody** jde za vojvodou stejně – `ForeignJourneyScene` (journey.md – Scéna cizí mapy).
 
 ## Postoj vsi ve dvorci (úloha 6.9, `hud/ManorPanel.tsx`)
 

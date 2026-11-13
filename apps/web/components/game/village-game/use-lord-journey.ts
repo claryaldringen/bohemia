@@ -7,14 +7,16 @@ import { useJourney, type JourneyHandle } from '@/hooks/use-journey';
 import type { VillageTarget } from '@/lib/scene/village-picking';
 import { edgeDirection, lordClick, orderFromClick } from '@/lib/scene/journey-orders';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
+import { foreignJourneySelection, watchedJourneyCell } from '@/lib/journey-scene-view';
 import { journeyReason } from '@/lib/journey-view';
 import type { VillageView } from '@/lib/village-view';
 import type { LordJourneyUi } from '../hud/LordJourneyPanel';
 
 // Ovládání vojvody ve scéně vsi (lord-control.md – Rozkazy, Co hráč vidí; plán 2026-11-13 – Úloha
 // 8a): vybraný vojvoda doma → řada mužů rodu k družině, pravé tlačítko do krajiny ho vyšle; na cestě
-// ho pravé tlačítko přesměruje a Domů vrací. Herní pravidla a ověření rozkazu má server – tady jen
-// výběr, rozkaz z kliknutí (`orderFromClick`) a texty u kurzoru.
+// ho pravé tlačítko přesměruje a Domů vrací – i na cizí mapě, kam scéna jde za ním (Úloha 9b). Herní
+// pravidla a ověření rozkazu má server – tady jen výběr, rozkaz z kliknutí (`orderFromClick`), texty
+// u kurzoru a která mapa je ve scéně.
 
 /** Tvar kurzoru u okraje mapy – šipka ve směru přechodu. */
 const EDGE_CURSORS = {
@@ -37,6 +39,12 @@ export interface CursorNote {
   screen: { x: number; y: number };
 }
 
+/** Scéna cizí mapy za vojvodou (`ForeignJourneyScene`) a strana její mapy v metrech. */
+export interface ForeignLordScene {
+  scene: LandscapeScene;
+  mapSizeM: number;
+}
+
 export interface LordJourney {
   /** Dotazování na výjezd (pohled pro scénu a panel). */
   journey: JourneyHandle;
@@ -46,6 +54,12 @@ export interface LordJourney {
   away: { name: string | null; selected: boolean; onSelect: () => void } | null;
   /** Popisek u kurzoru: „Na sousední mapu“ u okraje, nebo důvod odmítnutí rozkazu. */
   note: CursorNote | null;
+  /** Cizí mapa, kterou scéna ukazuje za vojvodou; null – scéna vsi. */
+  watching: GridCell | null;
+  /** Zpět na ves (⌂) – výjezd běží dál. */
+  back: () => void;
+  /** Scéna cizí mapy, až je hotová (null – zmizela) – pravé tlačítko dává rozkazy i tam. */
+  bindForeign: (foreign: ForeignLordScene | null) => void;
 }
 
 export function useLordJourney({
@@ -86,7 +100,32 @@ export function useLordJourney({
   const running = (journeyAway || launched) && !ended;
   const journey = useJourney(running, onEnded);
   const journeyView = journey.view;
+  const latest = journey.latest;
   const refreshJourney = journey.refresh;
+
+  // Scéna za vojvodou (lord-control.md – Co hráč vidí – Na cestě): klik na portrét v liště přepne
+  // scénu na cizí mapu, kde vojvoda je, a ta jde za ním z mapy na mapu; skupina zpět na domovské
+  // mapě (po čekání či Domů) nebo konec výjezdu vrátí scénu na ves. ⌂ vrátí ves, výjezd běží dál.
+  const [following, setFollowing] = useState(false);
+  const watching = watchedJourneyCell(following, latest);
+  useEffect(() => {
+    if (following && watching === null) setFollowing(false);
+  }, [following, watching]);
+  const back = useCallback((): void => setFollowing(false), []);
+  const [foreign, bindForeign] = useState<ForeignLordScene | null>(null);
+  // Výběr klikem ve scéně cizí mapy jako ve vsi: muž vlastního výjezdu se vybere (vojvoda = režim
+  // vojvody), klik jinam výběr zruší (`foreignJourneySelection`)
+  const foreignScene = foreign?.scene ?? null;
+  const selectedRef = useRef(selected);
+  useEffect(() => {
+    selectedRef.current = selected;
+  }, [selected]);
+  useEffect(() => {
+    if (!foreignScene) return;
+    return foreignScene.onSelect((target, additive, double) =>
+      setSelected(foreignJourneySelection(selectedRef.current, target, additive, double)),
+    );
+  }, [foreignScene, setSelected]);
 
   // Kandidáti na družinu – jen u vybraného vojvody doma
   const [candidates, setCandidates] = useState<{
@@ -137,12 +176,17 @@ export function useLordJourney({
     [],
   );
 
-  // Pravé tlačítko do krajiny. Skupina na domovské mapě: rozkaz z kliknutí do scény; jinde (jiná
-  // mapa) zůstává pravé tlačítko ve vsi beze změny – domů ji pošle ikona.
-  const orderCell: GridCell | null = journeyView ? journeyView.home : (homeCell ?? SEAT_CELL);
-  const onHomeMap =
+  // Pravé tlačítko do krajiny mapy, kterou scéna ukazuje: cizí mapy za vojvodou (`watching`), nebo
+  // domovské, je-li skupina na ní; skupina jinde – pravé tlačítko ve vsi zůstává beze změny, domů ji
+  // pošle ikona.
+  const orderCell: GridCell | null =
+    watching ?? (journeyView ? journeyView.home : (homeCell ?? SEAT_CELL));
+  const onShownMap =
+    watching !== null ||
     journeyView === null ||
     (journeyView.cell.x === journeyView.home.x && journeyView.cell.y === journeyView.home.y);
+  const lordScene = watching ? (foreign?.scene ?? null) : scene;
+  const lordMapSizeM = watching ? (foreign?.mapSizeM ?? mapSizeM) : mapSizeM;
   // Režim vojvody zůstává zapnutý i při odepřeném výjezdu a během načítání kandidátů – pravé
   // tlačítko pak ukáže důvod u kurzoru (nebo nic) a výběr nezruší (`lordClick`).
   const loading = journeyAway ? journeyView === null : candidates === null;
@@ -156,11 +200,16 @@ export function useLordJourney({
     retinueRef.current = retinue;
   }, [retinue]);
   useEffect(() => {
-    if (!scene || !lordSelected || !onHomeMap || orderCell === null) return;
+    if (!lordScene || !lordSelected || !onShownMap || orderCell === null) return;
     if (villageId === null) return;
-    scene.setLordMode({
+    lordScene.setLordMode({
       order: (point, screen) => {
-        const order = orderFromClick({ lordSelected: true, point, mapSizeM, cell: orderCell });
+        const order = orderFromClick({
+          lordSelected: true,
+          point,
+          mapSizeM: lordMapSizeM,
+          cell: orderCell,
+        });
         const click = lordClick({ order, loading, refusal });
         if (click.kind === 'refuse') showError(click.text, screen);
         if (click.kind !== 'send') return;
@@ -180,7 +229,7 @@ export function useLordJourney({
         });
       },
       hover: (point, screen) => {
-        const direction = point ? edgeDirection(point, mapSizeM) : null;
+        const direction = point ? edgeDirection(point, lordMapSizeM) : null;
         setNote((prev) => {
           if (direction === null || screen === null) return prev?.tone === 'info' ? null : prev;
           return { text: 'Na sousední mapu', tone: 'info', screen };
@@ -188,15 +237,15 @@ export function useLordJourney({
         return direction === null ? '' : EDGE_CURSORS[direction];
       },
     });
-    return () => scene.setLordMode(null);
+    return () => lordScene.setLordMode(null);
   }, [
-    scene,
+    lordScene,
     lordSelected,
     loading,
     refusal,
-    onHomeMap,
+    onShownMap,
     orderCell,
-    mapSizeM,
+    lordMapSizeM,
     villageId,
     journeyAway,
     refreshVillage,
@@ -246,8 +295,12 @@ export function useLordJourney({
       ? {
           name: view?.dynasty?.lordName ?? null,
           selected: lordSelected,
-          onSelect: () => setSelected({ kind: 'person', id: lordId }),
+          onSelect: () => {
+            setSelected({ kind: 'person', id: lordId });
+            // vojvoda na cizí mapě – scéna jde za ním
+            if (watchedJourneyCell(true, latest) !== null) setFollowing(true);
+          },
         }
       : null;
-  return { journey, panel, away, note };
+  return { journey, panel, away, note, watching, back, bindForeign };
 }

@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from 'react';
 import type { GridCell } from '@bohemia/game';
 import { useJourneyVisitors } from '@/hooks/use-journey-visitors';
-import { setE2EHook } from '@/lib/e2e-hooks';
+import { setE2EHook, type E2EHooks } from '@/lib/e2e-hooks';
 import { sceneJourneysOf, type JourneyView } from '@/lib/journey-view';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import type { SceneJourney } from '@/lib/scene/journey-riders';
@@ -34,28 +34,33 @@ export function useJourneyScene({
 
   useEffect(() => {
     if (!scene) return;
-    setE2EHook('journeyScene', () => {
-      const stats = scene.journeyStats();
-      return {
-        riders: stats.riders.map((p) => ({
-          journeyId: p.journeyId,
-          own: p.own,
-          key: p.key,
-          x: p.x,
-          z: p.z,
-          mounted: p.mounted,
-          speed: p.speed,
-        })),
-        banner: stats.banner,
-        hourglass: stats.hourglass,
-        phase: stats.phase,
-        led: stats.led,
-        gate: stats.gate,
-        awayHorses: stats.awayHorses,
-      };
-    });
+    setE2EHook('journeyScene', journeySceneHook(scene));
     return () => setE2EHook('journeyScene', undefined);
   }, [scene]);
 
   return journeys;
+}
+
+/** Háček e2e `journeyScene` scény – vsi i cizí mapy (muži, praporek, hodiny, odjezd). */
+export function journeySceneHook(scene: LandscapeScene): NonNullable<E2EHooks['journeyScene']> {
+  return () => {
+    const stats = scene.journeyStats();
+    return {
+      riders: stats.riders.map((p) => ({
+        journeyId: p.journeyId,
+        own: p.own,
+        key: p.key,
+        x: p.x,
+        z: p.z,
+        mounted: p.mounted,
+        speed: p.speed,
+      })),
+      banner: stats.banner,
+      hourglass: stats.hourglass,
+      phase: stats.phase,
+      led: stats.led,
+      gate: stats.gate,
+      awayHorses: stats.awayHorses,
+    };
+  };
 }
