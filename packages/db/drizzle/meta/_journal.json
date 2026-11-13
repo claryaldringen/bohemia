@@ -309,6 +309,13 @@
       "when": 1794564170824,
       "tag": "0044_pending_owner_outbox_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1794572717614,
+      "tag": "0045_journey_storage",
+      "breakpoints": true
     }
   ]
 }

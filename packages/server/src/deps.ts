@@ -15,6 +15,7 @@ import {
   createEscheatRepository,
   createWarRepository,
   createCampaignRepository,
+  createJourneyRepository,
   createSuccessionCreditRepository,
   createNegotiationRepository,
   createVassalageRepository,
@@ -44,6 +45,7 @@ import type {
   EscheatRepository,
   WarRepository,
   CampaignRepository,
+  JourneyRepository,
   DynastyDeps,
   SuccessionCreditRepository,
   NegotiationRepository,
@@ -142,6 +144,7 @@ export interface GameDeps {
   wars: WarRepository;
   /** Tažení (vyslání z panelu Vojsko – `docs/code/war.md`). */
   campaigns: CampaignRepository;
+  journeys: JourneyRepository;
   /** Konec rodu přes `endHouse` (odúmrť) – dopočet rodu ho použije při konci hry. */
   ending: NonNullable<DynastyDeps['ending']>;
   /** Postoupení vsí v míru (`docs/code/war.md` – Mírové jednání). */
@@ -208,6 +211,7 @@ export function createGameDeps(
     passages: createPassageRepository(db),
     disputes: createDisputeRepository(db),
     campaigns: createCampaignRepository(db),
+    journeys: createJourneyRepository(db),
     ending: {
       houses,
       vassalages,

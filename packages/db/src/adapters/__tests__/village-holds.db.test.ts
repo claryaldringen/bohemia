@@ -13,11 +13,13 @@ import {
   type AlarmVillage,
   type CampaignAlarm,
   type CampaignState,
+  type JourneyState,
 } from '@bohemia/game';
 import { createDatabase } from '../../client';
 import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
 import { createCampaignRepository } from '../campaign-repository';
+import { createJourneyRepository } from '../journey-repository';
 import { createHouseRepository } from '../house-repository';
 import { createSettlementRepository } from '../settlement-repository';
 import { createVillageRepository } from '../village-repository';
@@ -149,6 +151,77 @@ describe('VillageHolds a přednostní vsi', () => {
     const limits = await holds.limitOf([ids.near, ids.far]);
     expect(limits.get(ids.near)).toBe(DAY);
     expect(limits.get(ids.far)).toBe(DAY - 3);
+  });
+
+  it('výjezd drží ves na mapě skupiny i políčko od ní do throughDay; skončený bez událostí ne', async () => {
+    const journeys = createJourneyRepository(db);
+    const journey: JourneyState = {
+      kind: 'journey',
+      id: '00000000-0000-4000-8000-0000000000e1',
+      seed: 1,
+      tick: 3_400_000_000,
+      day: DAY,
+      throughDay: DAY - 2,
+      phase: 'out',
+      playerId: 'a',
+      houseId: 'h',
+      leaderName: 'Bořivoj',
+      home: { villageId: 'x', cell: { x: 0, y: 0 }, pos: { x: 0, z: 0 } },
+      members: [],
+      groups: [
+        {
+          id: 0,
+          order: 'follow-leader',
+          cell: { x: 5, y: 0 },
+          pos: { x: 0, z: 0 },
+          goal: null,
+          route: [],
+          leg: null,
+          arrived: false,
+        },
+      ],
+      arrivedTick: null,
+    } as JourneyState;
+    const all = [ids.near, ids.adjacent, ids.far];
+    await journeys.create(journey, NOW);
+    expect(await holds.limitOf(all)).toEqual(
+      new Map([
+        [ids.near, DAY - 2],
+        [ids.adjacent, DAY - 2],
+      ]),
+    );
+    expect((await villagesNearCampaigns(db)).sort()).toEqual([ids.near, ids.adjacent].sort());
+    // s tažením se bere nižší mez
+    await createCampaignRepository(db).create(campaign({}), NOW);
+    expect((await holds.limitOf(all)).get(ids.near)).toBe(DAY - 2);
+    // skončený výjezd bez nedoručených událostí nedrží nic
+    await db.execute(sql`DELETE FROM campaign`);
+    await journeys.saveCheckpoint(journey.id, {
+      fromTick: journey.tick,
+      seenIntents: 0,
+      state: { ...journey, tick: journey.tick + 10, phase: 'done' },
+      outbox: null,
+    });
+    expect(await holds.limitOf(all)).toEqual(new Map());
+    expect(await villagesNearCampaigns(db)).toEqual([]);
+    // nedoručená událost ho drží dál
+    await journeys.saveCheckpoint(journey.id, {
+      fromTick: journey.tick + 10,
+      seenIntents: 0,
+      state: { ...journey, tick: journey.tick + 20, phase: 'done' },
+      outbox: {
+        villageEvents: [
+          {
+            villageId: ids.far,
+            day: DAY - 4,
+            ref: 'r1',
+            body: { kind: 'raid-day', campaignId: journey.id },
+          },
+        ],
+        notices: [],
+      } as never,
+    });
+    expect((await holds.limitOf(all)).get(ids.far)).toBe(DAY - 5);
   });
 
   it('bod bez varování i s prázdným varováním – meze jako dřív (Ú3 f)', async () => {

@@ -2,12 +2,13 @@ import { sql } from 'drizzle-orm';
 import { holdDay, type VillageHolds } from '@bohemia/game';
 import type { Database } from '../client';
 
-// Bariéra ves × tažení (plán 2026-11-03 – rozhodnutí 13, Úloha 6.7; docs/code/war.md – Bariéra
+// Bariéra ves × tažení a výjezd (plán 2026-11-03 – rozhodnutí 13, Úloha 6.7; docs/code/war.md – Bariéra
 // dopočtu): které vsi drží tažení a do kterého dne. Čte jen skupiny kontrolního bodu
 // (`state->'groups'`), varování (`state->'alarm'` – plán 2026-11-09, Úloha 3) a události v `outbox`
 // aktivních tažení. Aktivní tažení najde index `campaign_status_idx`, body s nedoručenými
 // událostmi (`outbox IS NOT NULL`) částečný index `campaign_checkpoint_outbox_idx` (migrace 0044) –
-// žádná větev tak nečte body skončených tažení.
+// žádná větev tak nečte body skončených tažení. Výjezdy vojvody jdou stejnou cestou (`journey_status_idx`,
+// `journey_checkpoint_outbox_idx`, migrace 0045), jen bez varování – drží skupinou a událostmi.
 // Mez z bodu (`throughDay` – den bez hodin) počítá `holdDay` (herní jádro).
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -35,6 +36,18 @@ const LIVE = sql`
       SELECT id FROM campaign WHERE status = 'active'
       UNION
       SELECT campaign_id FROM campaign_checkpoint WHERE outbox IS NOT NULL
+    )
+    UNION ALL
+    -- výjezdy vojvody (plán 2026-11-13 – Úloha 3): stejný tvar bodu, bez varování; id výjezdu
+    -- se s id tažení nepotkají (uuid), sloupec se jmenuje podle tažení
+    SELECT jp.journey_id, jp.state->'groups', '{}'::jsonb,
+           coalesce((jp.state->>'throughDay')::int, (jp.state->>'day')::int - 1),
+           coalesce(jp.outbox->'villageEvents', '[]'::jsonb)
+    FROM journey_checkpoint jp
+    WHERE jp.journey_id IN (
+      SELECT id FROM journey WHERE status = 'active'
+      UNION
+      SELECT journey_id FROM journey_checkpoint WHERE outbox IS NOT NULL
     )
   ),
   cells AS MATERIALIZED (
