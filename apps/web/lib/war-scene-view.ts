@@ -187,13 +187,15 @@ export function followCellOf(
  * Cizí ves ve scéně tažení (co z ní hráč smí vidět, rozhodl server): objevené domy (stojící, bez
  * lidí, polí a všeho dalšího) a stavby, jak je rod naposled viděl (`known` – `seenVillageOf`
  * s krajinou cizí mapy `landscape`; plán 2026-11-13 – Úloha 12b). Objevený dům má přednost před
- * známým téhož id, opevnění ze znalosti se nekreslí – útočník ho vidí ze stavu vsi jako dřív.
- * null – nic objeveného ani známého.
+ * známým téhož id. Na mapě cíle (`onTarget`) se opevnění ze znalosti nekreslí – útočník ho vidí
+ * ze stavu vsi (zdvojené nikdy); na mapě po cestě ho ze stavu nedostává, takže se kreslí i známé
+ * hradby, brány a věže jako u výjezdu. null – nic objeveného ani známého.
  */
 export function foreignVillageOf(
   buildings: readonly WarSceneBuilding[] | undefined,
   known: SeenCell | null = null,
   landscape: Landscape | null = null,
+  onTarget = false,
 ): SceneVillage | null {
   const found = (buildings ?? []).map((b): SceneVillage['dwellings'][number] => ({
     id: b.id,
@@ -204,7 +206,9 @@ export function foreignVillageOf(
   }));
   const ids = new Set(found.map((d) => d.id));
   const parts = (landscape ? (known?.parts ?? []) : []).filter(
-    (p) => p.data.kind !== 'fortification' && !(p.data.kind === 'dwelling' && ids.has(p.data.id)),
+    (p) =>
+      (!onTarget || p.data.kind !== 'fortification') &&
+      !(p.data.kind === 'dwelling' && ids.has(p.data.id)),
   );
   const seen =
     known && landscape && parts.length > 0 ? seenVillageOf({ ...known, parts }, landscape) : null;
@@ -212,6 +216,14 @@ export function foreignVillageOf(
   return seen
     ? { ...seen, dwellings: [...found, ...seen.dwellings] }
     : { dwellings: found, fields: [] };
+}
+
+/**
+ * Je pohled z mapy cíle tažení? Objevené domy cílové vsi (`buildings`) a boj (`battle`) nese jen
+ * pohled z mapy cíle; na mapě po cestě chybí obojí.
+ */
+export function onTargetMap(view: WarSceneView): boolean {
+  return view.buildings !== undefined || view.battle !== null;
 }
 
 /**

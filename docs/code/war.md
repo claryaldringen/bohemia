@@ -1620,7 +1620,7 @@ Scéna hry ukazuje **mapu sídla hráče** – vojsko je v ní vidět, když na 
     znalost rodu té mapy, jak je (`knowledgeOfCell`; rod vůdce ze stavu, vazal ve službě svůj, bod
     bez `houseId` podle hráče). Obránce znalost útočníkova rodu nedostane (`warSceneFor` ji nečte,
     `warSceneOnMap` jen pro účastníka). Scéna: stavby, jak je rod naposled viděl, stojí od začátku
-    vedle objevených domů (opevnění ze znalosti ne) a stopa rodu odkryje šeré místo k mlze války –
+    vedle objevených domů (opevnění ze znalosti jen na mapě po cestě – na mapě cíle ho útočník vidí ze stavu vsi) a stopa rodu odkryje šeré místo k mlze války –
     dohled vojska zůstává jasný (web-ui.md – Cizí mapa ve scéně). Boj, pohyb, kořist, varování ani
     výsledek se nemění. Testy `war-scene.test.ts` (mapa po cestě, vazal, bod bez rodu, obránce),
     `war-scene-view.test.ts` (`foreignVillageOf`), e2e `multiplayer-war.spec.ts`.

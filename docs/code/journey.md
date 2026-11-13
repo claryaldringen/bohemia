@@ -504,7 +504,8 @@ seen)`) a adaptér `createKnowledgeRepository` (`adapters/knowledge-repository.t
   mapě, kde vojsko stojí (`WarSceneView.known` – na mapě cíle `knownTarget`, na mapě po cestě
   `knowledgeOfCell` – znalost té mapy, jak je; jeden dotaz na pohled, obránce nic). Scéna tažení
   (`ForeignWarScene`) kreslí stavby, jak je rod naposled viděl, tak jako výjezd (`seenVillageOf`
-  ve `foreignVillageOf` – objevené domy mají přednost, opevnění ze znalosti ne) a stopu rodu odkryje
+  ve `foreignVillageOf` – objevené domy mají přednost; opevnění ze znalosti se na mapě cíle
+  nekreslí, na mapě po cestě ano – `onTargetMap`) a stopu rodu odkryje
   stejnou mlhou (`setJourneyFog` → `exploreTrail` – šeré) k mlze války – dohled vojska jasný.
   Podrobně `docs/code/war.md` (Ve scéně – Cizí mapa – Co rod zná) a `docs/code/web-ui.md` (Cizí
   mapa ve scéně).

@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
+  areaOutline,
   dateOfDayIndex,
+  dayIndexOf,
+  fortificationArea,
+  fortSegments,
+  foundVillage,
+  generateLandscape,
+  lookAround,
   msOfTick,
+  tileCenterWorld,
   OFFICIAL_WORLD,
   realTimeOf,
   type CampaignView,
@@ -10,6 +18,7 @@ import {
   type SeenCell,
   type SeenData,
   type WarSceneFighter,
+  type TileCell,
   type WarSceneView,
 } from '@bohemia/game';
 import {
@@ -17,6 +26,7 @@ import {
   breakoutOf,
   followCellOf,
   foreignVillageOf,
+  onTargetMap,
   SCENE_HERD_MAX,
   sceneWarOf,
   watchCellOf,
@@ -419,7 +429,7 @@ describe('cizí mapa ve scéně (war.md – Ve scéně – cizí mapa)', () => {
     // dům ani staveniště bez pozemku krajinu nepotřebují
     const landscape = {} as Landscape;
     const discovered = [{ id: 7, type: 'zemnice' as const, position: at(60) }];
-    const village = foreignVillageOf(discovered, known, landscape);
+    const village = foreignVillageOf(discovered, known, landscape, true);
     expect(village!.dwellings.map((d) => d.id).sort((a, b) => a - b)).toEqual([7, 9, 40]);
     // objevený dům 7 jen jednou – jak ho vojsko vidí teď, ne naposled viděný
     expect(village!.dwellings.filter((d) => d.id === 7)).toEqual([
@@ -435,11 +445,75 @@ describe('cizí mapa ve scéně (war.md – Ve scéně – cizí mapa)', () => {
     });
     expect(village).not.toHaveProperty('forts');
     // jen znalost (mapa po cestě) – známé stavby; jen stopa nebo jen opevnění – nic
-    expect(foreignVillageOf(undefined, known, landscape)!.dwellings.map((d) => d.id)).toEqual([
-      7, 9, 40,
-    ]);
-    expect(foreignVillageOf(undefined, { ...known, parts: [] }, landscape)).toBeNull();
-    expect(foreignVillageOf([], { ...known, parts: [known.parts[3]!] }, landscape)).toBeNull();
+    expect(foreignVillageOf(undefined, known, landscape, true)!.dwellings.map((d) => d.id)).toEqual(
+      [7, 9, 40],
+    );
+    expect(foreignVillageOf(undefined, { ...known, parts: [] }, landscape, true)).toBeNull();
+    expect(
+      foreignVillageOf([], { ...known, parts: [known.parts[3]!] }, landscape, true),
+    ).toBeNull();
+  });
+
+  /** Znalost rodu s opevněním (plot kolem vsi) a jedním domem – skutečná data jako u výjezdu. */
+  function knownWithFort(): { known: SeenCell; landscape: Landscape } {
+    const day = dayIndexOf({ year: 600, month: 5, day: 5 });
+    const land = generateLandscape(42);
+    const site = land.villageSite;
+    const home = tileCenterWorld(land, site.x, site.y);
+    const state = foundVillage({
+      seed: 5,
+      day: day - 10,
+      dwellingPosition: { x: home.x, z: home.z, rotation: 0 },
+    });
+    const cells: TileCell[] = [];
+    for (let j = -1; j <= 1; j++) {
+      for (let i = -1; i <= 1; i++) cells.push({ x: site.x + i, y: site.y + j });
+    }
+    const area = fortificationArea(cells, null, land);
+    if ('error' in area) throw new Error('plocha opevnění testu');
+    const outline = areaOutline(area, 'fence');
+    state.fortifications = [
+      {
+        id: 50,
+        points: outline.points.map((p) => [p[0], p[1]] as const),
+        kind: 'fence',
+        segments: fortSegments(outline).map((s) => ({
+          index: s.index,
+          builtDay: day - 5,
+          state: 1,
+        })),
+        gates: [],
+      },
+    ];
+    const cell = lookAround(undefined, {
+      village: state,
+      eyes: [{ x: home.x, z: home.z }],
+      grid: null,
+      day,
+    });
+    return { known: { ...cell, villageId: 'v1' }, landscape: land };
+  }
+
+  it('mapa po cestě kreslí opevnění ze znalosti, mapa cíle jen ze stavu vsi', () => {
+    const { known, landscape } = knownWithFort();
+    expect(known.parts.some((p) => p.data.kind === 'fortification')).toBe(true);
+    // mapa po cestě (bez objevených domů a boje) – známé hradby se kreslí
+    expect(foreignVillageOf(undefined, known, landscape, false)!.forts?.length).toBeGreaterThan(0);
+    // mapa cíle – opevnění ze znalosti se nekreslí (útočník ho vidí ze stavu vsi, zdvojené nikdy)
+    const onTarget = foreignVillageOf(undefined, known, landscape, true);
+    expect(onTarget?.forts ?? []).toEqual([]);
+  });
+
+  it('mapu cíle pohled prozradí objevenými domy nebo bojem', () => {
+    const view: WarSceneView = { ...BASE, battle: null, march: null };
+    expect(onTargetMap(view)).toBe(false);
+    expect(
+      onTargetMap({
+        ...view,
+        buildings: [{ id: 1, type: 'zemnice', position: { x: 0, z: 0, rotation: 0 } }],
+      }),
+    ).toBe(true);
+    expect(onTargetMap({ ...view, battle: {} as NonNullable<WarSceneView['battle']> })).toBe(true);
   });
 
   it('pohled na vojsko: první vlastní bojovník na nohou', () => {

@@ -14,6 +14,7 @@ import {
   armyFocusOf,
   followCellOf,
   foreignVillageOf,
+  onTargetMap,
   sceneWarOf,
   type ForeignMapResponse,
   type WatchedMap,
@@ -141,7 +142,7 @@ export function ForeignWarScene({
     const key = `${(war.buildings ?? []).map((b) => b.id).join(',')}#${seenSceneKey(war.known ?? null)}`;
     const drawn = shown.current?.scene === scene ? shown.current : null;
     if (drawn?.key === key) return;
-    const village = foreignVillageOf(war.buildings, war.known ?? null, decoded);
+    const village = foreignVillageOf(war.buildings, war.known ?? null, decoded, onTargetMap(war));
     shown.current = { scene, key, village };
     // zmizí-li poslední známá stavba, prázdná ves smaže nakreslenou
     if (village || drawn?.village) scene.setVillage(village ?? { dwellings: [], fields: [] });

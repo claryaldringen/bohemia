@@ -1078,7 +1078,8 @@ na které stojí.
 - **Co rod zná** (plán 2026-11-13 – Úloha 12b; `WarSceneView.known` na mapě cíle i po cestě):
   ves `foreignVillageOf(buildings, known, krajina)` – objevené domy a stavby, jak je rod naposled
   viděl (`seenVillageOf` s krajinou dekódovanou z `?map=`), objevený dům má přednost před známým
-  téhož id, opevnění ze znalosti se nekreslí (útočník ho vidí ze stavu vsi). Ves se přestaví jen
+  téhož id; opevnění ze znalosti se na mapě cíle nekreslí (útočník ho vidí ze stavu vsi), na mapě po
+  cestě ano (`onTargetMap` – pohled s objevenými domy nebo bojem je z mapy cíle). Ves se přestaví jen
   při změně objevených domů nebo známých staveb (klíč z id domů a `seenSceneKey`); zmizí-li vše
   nakreslené, prázdná ves ho smaže, bez znalosti i objevu se `setVillage` nevolá jako dřív. Stopa
   rodu jde do `setJourneyFog` jen při změně (`known.trail`; prázdná – null, mlha jako dřív):
