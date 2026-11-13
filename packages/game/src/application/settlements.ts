@@ -104,6 +104,11 @@ export interface SettlementRepository {
   /** Aktivní mapy všech hráčů s polohou v mřížce světa – vstup umístění nového hráče. */
   occupiedCells(): Promise<OccupiedCell[]>;
   /**
+   * Držitel (hráč) aktivní mapy na políčku mřížky světa `cell`; prázdné políčko null. Jedno
+   * políčko – na rozdíl od `occupiedCells` nečte celý svět (výjezdy a válka – `houseAtWarOn`).
+   */
+  holderAt(cell: WorldCell): Promise<string | null>;
+  /**
    * Dá sídlu bez polohy políčko mřížky (sídelní sídlo z doby před mřížkou – (0, 0)); sídlo,
    * které polohu už má, nemění. Vrátí sídlo s polohou, neznámé nebo archivované null.
    */

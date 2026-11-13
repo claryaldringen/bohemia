@@ -214,6 +214,22 @@ describe('createSettlementRepository', () => {
     expect(await repository.occupiedCells()).toEqual([{ ownerId: 'hrac-1', cell: origin }]);
   });
 
+  it('holderAt vrátí držitele aktivní mapy na políčku; prázdné a archivované políčko null', async () => {
+    await createdSeat();
+    await addPlayer('hrac-2');
+    const second = await repository.create({
+      ownerId: 'hrac-2',
+      landscapeSeed: 6,
+      layerVersions: CURRENT_LAYER_VERSIONS,
+      worldCell: { x: 16, y: 2 },
+    });
+    expect(await repository.holderAt(origin)).toBe('hrac-1');
+    expect(await repository.holderAt({ x: 16, y: 2 })).toBe('hrac-2');
+    expect(await repository.holderAt({ x: 2, y: 16 })).toBeNull();
+    await repository.archive(second!.id);
+    expect(await repository.holderAt({ x: 16, y: 2 })).toBeNull();
+  });
+
   it('prémiový typ: sídlo ho nese, nesídelní bez něj má null', async () => {
     const premium = { ...seat, layerVersions: { ...CURRENT_LAYER_VERSIONS, premium: 1 as const } };
     const created = await createdSeat({ ...premium, premiumType: 'salt-spring' });

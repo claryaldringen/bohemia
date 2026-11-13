@@ -233,6 +233,14 @@ export class InMemorySettlements implements SettlementRepository {
     );
   }
 
+  async holderAt(cell: WorldCell): Promise<string | null> {
+    await Promise.resolve();
+    const held = this.settlements.find(
+      (s) => !this.archived.has(s.id) && s.worldCell?.x === cell.x && s.worldCell.y === cell.y,
+    );
+    return held?.ownerId ?? null;
+  }
+
   private cellTaken(cell: WorldCell): boolean {
     return this.settlements.some(
       (s) => !this.archived.has(s.id) && s.worldCell?.x === cell.x && s.worldCell.y === cell.y,
