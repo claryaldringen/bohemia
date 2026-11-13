@@ -8,6 +8,8 @@ export * from './world-route';
 export * from './ticks';
 export * from './campaign-types';
 export * from './campaign';
+export * from './journey-types';
+export * from './journey';
 export * from './muster';
 export * from './supplies';
 export * from './desertion';

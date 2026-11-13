@@ -131,8 +131,9 @@ from, direction)` (k nejlevnější buňce okraje, úhlopříčně do rohu). `Ma
   `reachableCells` se stejným pravidlem sousedů jako A*; nejbližší podle čtverce vzdálenosti
   v buňkách, remíza – nejmenší index; jen celočíselná matematika). Dosažitelný průchodný cíl a cíl
   ve stavbě vrátí beze změny (týž objekt). Null = z `from` není dosažitelná žádná průchodná buňka.
-  Zaplavení běží jen při plánování úseku na mapě cíle (`settleGoal`), ne každý takt. V tažení
-  `settleGoal` (`campaign.ts`, `moveGroups`): skupina na mapě cíle bez úseku (hned po záměru `march`,
+  Zaplavení běží jen při plánování úseku na mapě cíle (`settleGoal`), ne každý takt. `settleGoal`
+  (`movement.ts` – sdílí ho tažení, `moveGroups` v `campaign.ts`, i výjezd vojvody, `moveGroup`
+  v `journey.ts`): skupina na mapě cíle bez úseku (hned po záměru `march`,
   `turnBack`, rozpadu, nebo po vstupu na mapu cíle) si cíl posune před plánováním úseku – stav pak
   nese posunutý cíl a mapa tažení ho ukáže. Use-case `commandCampaign` záměr k místu na mapě
   skupiny velitele na pochodu odmítne jako `unreachable`, když `reachableGoal` vrátí null.
@@ -203,7 +204,8 @@ notices, waiting }` – čistá, vstup nemění. Takt na kopii stavu (`cloneData
 - **Svět tažení** – `CampaignWorld { clock, landscapeOf(cell), villageAt(villageId, day) }`
   (synchronní): `null` = data ještě nejsou → takt se zastaví a `waiting` vrátí chybějící políčka /
   vsi; výsledek se tím nezmění. Mřížka bere cesty a opevnění **první** vsi mapy; `villageAt` dá stav
-  vsi ke konci dne `d − 1` (bariéra – Ú6.7).
+  vsi ke konci dne `d − 1` (bariéra – Ú6.7). Volitelný `villageGone?(villageId)` – svět ves zkusil
+  načíst a není (zanikla) – čte jen výjezd vojvody (`docs/code/journey.md`); tažení se neptá.
 - **Use-case** – `application/step-campaigns.ts`: `stepCampaigns(deps, { nowMs })` – pro každé
   `campaigns.active()` pod `CampaignLock.tryRun` (jinak `busy`): kontrolní bod (s pamětí workeru
   `readCheckpoint` – jen verze `checkpointVersion`, stav z JSON jen při jiné verzi) → nejdřív

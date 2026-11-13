@@ -314,6 +314,13 @@ export interface CampaignWorld {
    */
   villageAt(villageId: string, day: number): VillageState | null;
   /**
+   * Ves `villageId` neexistuje – svět ji zkusil načíst a není (zanikla). Odliší „ves ještě nemá
+   * den“ (`villageAt` vrátí null a krok čeká) od „ves není“: výjezd, jehož domovská ves zanikla,
+   * skončí (`stepJourney`). Neví-li svět (ves ještě nenačítal, nebo dotaz nemá), false – krok čeká.
+   * Tažení se neptá.
+   */
+  villageGone?(villageId: string): boolean;
+  /**
    * Hráč, kterému ves na mapě cíle patří (upozornění „Cizí vojsko u …!“), a jméno vsi; neví-li
    * svět, null a nikdo se nevaruje.
    */
@@ -352,7 +359,7 @@ export interface CampaignWorld {
   grids?: MarchGridMemo;
 }
 
-/** Druhy upozornění tažení (aplikace je přidá do `PlayerNoticeKind`). */
+/** Druhy upozornění tažení a výjezdu vojvody (aplikace je přidá do `PlayerNoticeKind`). */
 export type CampaignNoticeKind =
   | 'campaign-returned'
   | 'foreign-army'
@@ -361,9 +368,11 @@ export type CampaignNoticeKind =
   | 'army-warned'
   | 'refuge-arrived'
   | 'refuge-caught'
-  | 'messenger-caught';
+  | 'messenger-caught'
+  /** Výjezd vojvody (lord-control.md – Na místě a návrat): vojvoda se vrátil domů (`stepJourney`). */
+  | 'journey-returned';
 
-/** Upozornění pro hráče z taktu tažení. */
+/** Upozornění pro hráče z taktu tažení nebo výjezdu. */
 export interface CampaignNotice {
   playerId: string;
   kind: CampaignNoticeKind;

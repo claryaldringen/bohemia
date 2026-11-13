@@ -1,13 +1,15 @@
 import { directionBetween, type GridCell } from '../village/people/world-grid';
-import { gridOf, type TickContext } from './campaign-tick';
-import type { CampaignLeg } from './campaign-types';
-import { marchPath, marchPathToEdge, marchProgress } from './march';
+import { cellKey, gridOf, sameCell, type TickContext } from './campaign-tick';
+import type { CampaignGroup, CampaignLeg, CampaignPlace, CampaignWorld } from './campaign-types';
+import { marchPath, marchPathToEdge, marchProgress, reachableGoal } from './march';
 import type { Pos } from './march-grid';
-import { edgeCrossing } from './world-route';
+import { edgeCrossing, worldRoute } from './world-route';
 
 // Pohyb po mapách světa o jeden takt (plán 2026-11-09 – Rozhodnutí plánu: vytaženo z `moveGroups`
 // a `planLeg` v `campaign.ts`, ať se stejně hýbe skupina vojska, posel i skupina uprchlíků). Chování
-// skupin vojska beze změny – bit po bitu (`march.test.ts`, `campaign.test.ts`).
+// skupin vojska beze změny – bit po bitu (`march.test.ts`, `campaign.test.ts`). Vyslání skupiny,
+// posun cíle a mapy potřebné předem (`sendGroup`, `settleGoal`, `missingMaps`) sem přešly z
+// `campaign.ts` beze změny, ať je sdílí i výjezd vojvody (`journey.ts` – plán 2026-11-13).
 
 /** Kdo jde po mapách: políčko, poloha, zbývající políčka trasy a úsek po současné mapě. */
 export interface Mover {
@@ -77,4 +79,42 @@ export function stepMover(
   m.pos = edgeCrossing(m.cell, nextCell, m.pos);
   m.cell = nextCell;
   return 'crossed';
+}
+
+/** Skupina vyrazí k místu `to` – trasa po mřížce světa, úsek mapy se spočte při pohybu. */
+export function sendGroup(g: CampaignGroup, to: CampaignPlace): void {
+  g.goal = { cell: { ...to.cell }, pos: { ...to.pos } };
+  g.route = worldRoute(g.cell, to.cell, () => false).slice(1);
+  g.leg = null;
+  g.arrived = false;
+}
+
+/**
+ * Cíl skupiny jako v 0 A.D. (war.md – Pohyb – Cíl v neprůchodné buňce; návrh Clauda): stojí-li
+ * skupina na mapě cíle a úsek k němu ještě nemá (hned po záměru, nebo po vstupu na mapu cíle), cíl
+ * v neprůchodné buňce (voda, sráz, hradba) se posune na nejbližší místo dosažitelné ze skupiny
+ * (`reachableGoal`) – mapa tažení pak ukáže posunutý cíl. Průchodný cíl beze změny; když dosažitelné
+ * místo není žádné, cíl zůstane a skupina stojí (záměr hráče k takovému místu odmítne už use-case).
+ */
+export function settleGoal(g: CampaignGroup, day: number, ctx: TickContext): void {
+  const goal = g.goal;
+  if (goal === null || g.leg !== null || g.route.length > 0 || !sameCell(g.cell, goal.cell)) return;
+  const pos = reachableGoal(gridOf(g.cell, day, ctx), g.pos, goal.pos);
+  if (pos !== null && pos !== goal.pos) g.goal = { cell: { ...goal.cell }, pos };
+}
+
+/** Mapy, které tažení nebo výjezd potřebuje hned: políčka skupin a další políčka jejich tras. */
+export function missingMaps(
+  state: { groups: readonly Pick<Mover, 'cell' | 'route'>[] },
+  world: CampaignWorld,
+): GridCell[] {
+  const missing = new Map<string, GridCell>();
+  for (const g of state.groups) {
+    for (const cell of [g.cell, ...g.route.slice(0, 1)]) {
+      if (!missing.has(cellKey(cell)) && world.landscapeOf(cell) === null) {
+        missing.set(cellKey(cell), { ...cell });
+      }
+    }
+  }
+  return [...missing.values()];
 }
