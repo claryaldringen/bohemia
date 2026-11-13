@@ -226,6 +226,21 @@ export function createSettlementRepository(db: Database): SettlementRepository {
         r.x === null || r.y === null ? [] : [{ ownerId: r.ownerId, cell: { x: r.x, y: r.y } }],
       );
     },
+    async holderAt(cell): Promise<string | null> {
+      // podmínka `archived_at IS NULL` = predikát částečného unikátního indexu `settlement_grid_idx`
+      const [row] = await db
+        .select({ ownerId: settlement.ownerId })
+        .from(settlement)
+        .where(
+          and(
+            eq(settlement.gridX, cell.x),
+            eq(settlement.gridY, cell.y),
+            isNull(settlement.archivedAt),
+          ),
+        )
+        .limit(1);
+      return row?.ownerId ?? null;
+    },
     async find(settlementId): Promise<Settlement | null> {
       const [row] = await db
         .select()

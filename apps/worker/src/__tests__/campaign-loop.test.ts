@@ -1,4 +1,4 @@
-import type { CampaignResult } from '@bohemia/game';
+import type { CampaignResult, JourneyResult } from '@bohemia/game';
 import { describe, expect, it } from 'vitest';
 import { runCampaignLoop, type CampaignLoopDeps } from '../campaign-loop';
 
@@ -55,6 +55,39 @@ describe('runCampaignLoop', () => {
     expect(warnings.map((w) => w.split('\n')[0])).toEqual([
       'chyba tažení a: Error: rozbité tažení',
       'kolo tažení selhalo: Error: relation "campaign" does not exist',
+    ]);
+  });
+
+  it('po tažení v témže kole výjezdy; chyby výjezdů smyčku nezastaví a hlásí se zvlášť', async () => {
+    const noTable = (name: string) => (): Promise<never> =>
+      Promise.reject(new Error(`relation "${name}" does not exist`));
+    const { deps, stop, warnings, calls } = harness([
+      () => Promise.resolve([]),
+      noTable('campaign'),
+      noTable('campaign'),
+    ]);
+    const journeySteps: (() => Promise<JourneyResult[]>)[] = [
+      () =>
+        Promise.resolve([
+          { journeyId: 'j1', outcome: 'failed', error: new Error('rozbitý výjezd') },
+          { journeyId: 'j2', outcome: 'saved' },
+        ]),
+      noTable('journey'),
+      noTable('journey'),
+    ];
+    const journeyCalls: number[] = [];
+    deps.journeys = ({ nowMs }) => {
+      journeyCalls.push(nowMs);
+      return journeySteps[journeyCalls.length - 1]!();
+    };
+    expect(await runCampaignLoop(deps, { campaignMs: 1000 }, stop.signal)).toBe(3);
+    // okamžik kola jako tažení; poslední kolo se po signálu dokončí i s výjezdy
+    expect(journeyCalls).toEqual(calls);
+    // chyby kol tažení a výjezdů se střídají – každá se v minutě hlásí jen jednou
+    expect(warnings.map((w) => w.split('\n')[0])).toEqual([
+      'chyba výjezdu j1: Error: rozbitý výjezd',
+      'kolo tažení selhalo: Error: relation "campaign" does not exist',
+      'kolo výjezdů selhalo: Error: relation "journey" does not exist',
     ]);
   });
 

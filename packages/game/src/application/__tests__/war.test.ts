@@ -14,7 +14,12 @@ import {
   type WarDeps,
 } from '../declare-war';
 import type { NegotiateDeps } from '../negotiate';
+import { OFFICIAL_WORLD } from '../../domain/calendar';
+import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
+import { newJourney } from '../../domain/war';
 import { InMemoryDisputes } from './in-memory-disputes';
+import { InMemoryJourneys } from './in-memory-journeys';
+import { InMemorySettlements } from './in-memory-settlements';
 import { DAY_MS, NOW, oath, setup, type Setup } from './negotiation-fixture';
 
 const at = (days: number): Date => new Date(NOW.getTime() + days * DAY_MS);
@@ -273,4 +278,64 @@ describe('upozornění na konec ochrany', () => {
     const deps = { houses: s.houses, wars: s.wars, notices: s.notices };
     expect(await notifyProtectionEnding(deps, { now: at(6.5), today: 10 })).toBe(2);
   });
+});
+
+describe('výjezdy při začátku války (lord-control.md – Pořadí zavedení)', () => {
+  it.each(['opověď', 'přepadení'])(
+    '%s pošle domů výjezd, který jede na mapu protivníka; další útok už ne',
+    async (how) => {
+      const s = await setup();
+      const settlements = new InMemorySettlements();
+      const east = { x: 1, y: 0 };
+      await settlements.create({
+        ownerId: 'player-b',
+        landscapeSeed: 2,
+        layerVersions: CURRENT_LAYER_VERSIONS,
+        worldCell: east,
+      });
+      const journeys = new InMemoryJourneys();
+      const home = { villageId: 'village-a', name: 'A', cell: { x: 0, y: 0 }, pos: { x: 5, z: 5 } };
+      const order = { kind: 'cross' as const, cell: east };
+      // svět začal den před časy fixture (ty leží před ostrým spuštěním)
+      const world = { ...OFFICIAL_WORLD, startMs: at(-1).getTime() };
+      await journeys.create(
+        newJourney(
+          {
+            ...{
+              id: 'j1',
+              seed: 1,
+              playerId: 'player-a',
+              houseId: s.ids.a!,
+              leaderName: 'Bořivoj',
+            },
+            ...{ home, members: [], startMs: at(0).getTime(), order },
+          },
+          world,
+        ),
+      );
+      const deps = {
+        ...depsOf(s),
+        journeyRecall: { houses: s.houses, settlements, journeys, world },
+      };
+      const attack = { attackerId: s.ids.a!, defenderId: s.ids.b!, now: at(8), today: 10 };
+      const started =
+        how === 'opověď'
+          ? await declareWar(deps, {
+              playerId: 'player-a',
+              target: s.ids.b!,
+              demand: [],
+              message: null,
+              now: at(8),
+              today: 10,
+            })
+          : await startWarByAttack(deps, attack);
+      expect(started.ok).toBe(true);
+      expect(journeys.intents.map((i) => [i.byPlayer, i.body.kind])).toEqual([
+        ['player-a', 'home'],
+      ]);
+      // běžící válka – útok jen posune střet, výjezdy se znovu nevolají
+      await startWarByAttack(deps, { ...attack, now: at(9) });
+      expect(journeys.intents).toHaveLength(1);
+    },
+  );
 });

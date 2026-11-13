@@ -19,7 +19,7 @@ import {
   type VillageRecord,
 } from '@bohemia/game';
 import { currentWorld } from '@bohemia/server';
-import { gameDeps, playerToday, requireVillageRight } from './game';
+import { gameDeps, journeyRecallDeps, playerToday, requireVillageRight } from './game';
 import { launchCampaignActionForPlayer, planCampaignActionForPlayer } from './village';
 import type { ArmyPanelData, ArmyTargetView, ArmyVillageView } from './army-view';
 
@@ -47,6 +47,8 @@ function launchDeps(): LaunchDeps {
     // přepadení přes rozsudek pána „mír“ = neposlušnost (vassalage.md – Mír a spory)
     disputes: deps.disputes,
     vassalages: deps.vassalages,
+    // přepadení pošle domů výjezd na mapě protivníka (lord-control.md – Pořadí zavedení)
+    journeyRecall: journeyRecallDeps(),
   };
 }
 

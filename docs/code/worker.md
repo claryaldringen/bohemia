@@ -41,7 +41,13 @@ vstupní bod (composition root) jako web – žádná herní logika, jen plánov
   tažení jdou úložištěm bez paměti dávky (`createVillageRepository`), mapy políček
   `createCampaignCells` (`packages/server`). Paměť tažení napříč koly (`newCampaignMemory` – poslední
   spočtený stav, kontrolní bod podle verze, mapy a vsi minulého kola a mřížky pochodu, Výkon –
-  Tažení) drží proces; restart ji zahodí (počítá od bodu).
+  Tažení) drží proces; restart ji zahodí (počítá od bodu). **Výjezdy vojvody** (`docs/code/journey.md`
+  – Worker): po `stepCampaigns` pustí kolo v témže okamžiku `stepJourneys` (`CampaignLoopDeps.journeys`)
+  se stejným zámkem, mapami a vsemi, úložištěm `gameDeps.journeys`, dotazem války `gameDeps.atWar`
+  a **vlastní** pamětí (`newCampaignMemory<JourneyState>()` – konec kola zapomene, co mezi jeho id
+  není). Chyba kola tažení výjezdy nezastaví a naopak; chyby výjezdů se hlásí zvlášť („chyba
+  výjezdu …“, „kolo výjezdů selhalo: …“) – stejná chyba tažení i výjezdů nejvýš jednou za minutu,
+  i když se chyby obou kol střídají.
 - `src/wake.ts` – `nextWakeMs` (do 1 s po začátku dalšího herního dne, nejvýš `idleMs`) a
   `SkipTable` (odklady: zámek ve webu 2 s, chyba 1 min zdvojováním do 15 min; use-case dostane
   množinu `skip`).
@@ -128,7 +134,8 @@ v `advance-world.test.ts`, i se zásilkou ve schránce).
 
 - `apps/worker/src/__tests__` – konfigurace, `nextWakeMs` / `SkipTable`, smyčka s falešnými
   hodinami, `signalHandler`, smyčka tažení (`campaign-loop.test.ts` – perioda, chyba tažení i kola
-  smyčku nezastaví, opakovaná chyba jednou).
+  smyčku nezastaví, opakovaná chyba jednou; výjezdy v okamžiku kola po tažení, střídající se chyby
+  kol tažení a výjezdů jednou každá).
 - **Souběh web × worker** (`packages/server/src/__tests__/web-worker-race.db.test.ts`, `test:db`
   – kořenový `test:db` pouští `@bohemia/db` a pak `@bohemia/server`): dva „procesy“ s vlastními
   pooly (hlavní i zámků – advisory zámek patří spojení) nad `bohemia_test`, 3 hráči / 4 vsi, každá

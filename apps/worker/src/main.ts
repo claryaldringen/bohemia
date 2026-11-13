@@ -16,8 +16,10 @@ import {
   loadVillage,
   runWorldTasks,
   settlementLandscape,
+  type JourneyState,
   type VillageRecord,
   stepCampaigns,
+  stepJourneys,
   villageWatchers,
 } from '@bohemia/game';
 import {
@@ -250,8 +252,20 @@ async function main(): Promise<void> {
     // poslední spočtený stav tažení napříč koly (docs/code/worker.md – Výkon – Tažení)
     memory: newCampaignMemory(),
   };
+  // výjezdy vojvody: zámek, mapy políček a vsi jako tažení, ale vlastní paměť – konec kola zapomene,
+  // co mezi jeho id není, sdílená paměť by zahodila záznamy druhé smyčky (docs/code/journey.md)
+  const journeyDeps = {
+    journeys: gameDeps.journeys,
+    campaignLock: campaignDeps.campaignLock,
+    cells: campaignDeps.cells,
+    villages: campaignVillages,
+    notices: gameDeps.notices,
+    atWar: gameDeps.atWar,
+    memory: newCampaignMemory<JourneyState>(),
+  };
   const campaignLoop: CampaignLoopDeps = {
     step: (input) => stepCampaigns({ ...campaignDeps, world: currentWorld() }, input),
+    journeys: (input) => stepJourneys({ ...journeyDeps, world: currentWorld() }, input),
     now: () => Date.now(),
     sleep: abortableSleep,
     log,

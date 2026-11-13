@@ -2,6 +2,7 @@ import { houseProtectedUntil, protectedReason, protectionDaysLeft, WAR } from '.
 import { NEWCOMER_REASONS } from './newcomers';
 import type { TermItem } from '../domain/negotiation';
 import type { HouseRepository, House } from './houses';
+import { recallJourneysAtWar, type RecallJourneysDeps } from './journey-war';
 import { NO_HOUSE, openNegotiation, type NegotiateDeps } from './negotiate';
 import { houseName, type NegotiationVillages } from './negotiation-chronicle';
 import type { NoticeRepository } from './notices';
@@ -29,6 +30,12 @@ export interface WarDeps extends NegotiationVillages {
    * zruší pro všechny vsi rodu (návrh Clauda). Bez závislosti se nic neruší.
    */
   passages?: Pick<PassageRepository, 'voidBetween'>;
+  /**
+   * Výjezdy vojvody (lord-control.md – Pořadí zavedení): začátek války – opověď i přepadení – pošle
+   * domů výjezd, který stojí na mapě protivníka nebo tam míří (`recallJourneysAtWar`). Bez
+   * závislosti se výjezdů nic netýká.
+   */
+  journeyRecall?: RecallJourneysDeps;
 }
 
 export type WarResult = { ok: true; warId: string } | { ok: false; reason: string };
@@ -130,8 +137,15 @@ export async function declareWar(
     await chronicleWar(deps, from, target, 'declared', `war-declared:${war.id}`, input.today);
     await brokenPeace(deps, from.id, target.id, input.today);
     await deps.passages?.voidBetween(from.id, target.id, input.now);
+    await recallJourneys(deps, from.id, target.id, input.now);
   }
   return { ok: true, warId: war.id };
+}
+
+/** Nová válka pošle domů výjezdy obou rodů na mapě protivníka (bez závislosti nic). */
+async function recallJourneys(deps: WarDeps, a: string, b: string, now: Date): Promise<void> {
+  if (!deps.journeyRecall) return;
+  await recallJourneysAtWar(deps.journeyRecall, { houses: [a, b], nowMs: now.getTime() });
 }
 
 /**
@@ -167,6 +181,7 @@ export async function startWarByAttack(
     await brokenPeace(deps, attacker.id, defender.id, input.today);
     // útok po ohlášeném průchodu = přepadení; ohlášení tím přestane platit (war.md – Pohyb)
     await deps.passages?.voidBetween(attacker.id, defender.id, input.now);
+    await recallJourneys(deps, attacker.id, defender.id, input.now);
   } else {
     await deps.wars.touchClash(war.id, input.today);
   }
