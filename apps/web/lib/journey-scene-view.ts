@@ -19,6 +19,9 @@ import type {
   SceneVillage,
 } from './village-view-scene-types';
 import { scenePlot } from './village-view-scene-types';
+import { sceneSacredRuinOf } from './village-view-buildings';
+import { sceneKilnRemnantOf, sceneKilnStateOf } from './village-view-crafts';
+import { sceneRuinOf } from './village-view-scene';
 
 // Cizí ves ve scéně výjezdu (lord-control.md – Co vojvoda vidí; plán 2026-11-13 – Úloha 9a): jen
 // z toho, co rod ví (`SeenCell`). Stejné tvary scény jako u vlastní vsi (`sceneVillage`), jen
@@ -31,9 +34,6 @@ export function journeyCellOf(view: JourneyView | null, home: GridCell): GridCel
   if (!view) return null;
   return view.cell.x === home.x && view.cell.y === home.y ? null : view.cell;
 }
-
-/** Zaokrouhlení na násobek `step` (scéna se přestavuje jen při viditelné změně). */
-const snap = (value: number, step: number): number => Math.round(value / step) * step;
 
 /**
  * Cizí ves ve scéně podle znalosti; null – nic známého. `landscape` je krajina cizí mapy (pozemky
@@ -135,12 +135,9 @@ export function seenVillageOf(seen: SeenCell | null, landscape: Landscape): Scen
         });
         break;
       case 'sacredRuin':
-        (sacred.ruins ??= []).push({
-          id: d.id,
-          kind: d.type,
-          position: d.position,
-          overgrowth: Math.floor(d.overgrowth * 20) / 20,
-        });
+        (sacred.ruins ??= []).push(
+          sceneSacredRuinOf({ id: d.id, kind: d.type, position: d.position }, d.overgrowth),
+        );
         break;
       case 'church':
         churches.push({
@@ -170,32 +167,14 @@ export function seenVillageOf(seen: SeenCell | null, landscape: Landscape): Scen
           burnerId: d.burnerId,
           x: d.x,
           z: d.z,
-          stage: d.stage,
-          progress: snap(d.progress, 0.02),
-          ...(d.charcoal !== undefined ? { charcoal: snap(d.charcoal, 0.02) } : {}),
+          ...sceneKilnStateOf(d.stage, d.progress, d.charcoal),
         });
         break;
       case 'kilnRemnant':
-        remnants.push({
-          id: d.id,
-          burnerId: d.burnerId,
-          x: d.x,
-          z: d.z,
-          overgrowth: snap(d.overgrowth, 0.05),
-        });
+        remnants.push(sceneKilnRemnantOf(d, d.overgrowth));
         break;
       case 'ruin':
-        ruins.push({
-          id: d.id,
-          type: d.type,
-          position: d.position,
-          since: d.since,
-          overgrowth: Math.round(d.overgrowth * 1000) / 1000,
-          ...(d.plot ? { plot: scenePlot(landscape, d.plot) } : {}),
-          ...(d.craft ? { craft: d.craft } : {}),
-          ...(d.plainShape ? { plainShape: true as const } : {}),
-          ...(d.charred ? { charred: true as const } : {}),
-        });
+        ruins.push(sceneRuinOf({ ...d, day: d.since }, d.overgrowth, landscape));
         break;
       case 'fortification':
         forts.push(...fortOf(d, part, landscape));

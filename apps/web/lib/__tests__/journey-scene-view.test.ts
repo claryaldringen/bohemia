@@ -10,6 +10,7 @@ import {
   summarizeVillage,
   tileCenterWorld,
   type Construction,
+  type Dwelling,
   type JourneyView,
   type SeenCell,
   type SeenPart,
@@ -73,6 +74,31 @@ function foreignVillage(): VillageState {
     { id: 71, position: at, builtDay: null },
   ];
   state.constructions = [...state.constructions, floorSite];
+  const burner: Dwelling = {
+    id: 3,
+    type: 'zemnice',
+    builtDay: DAY - 100,
+    condition: 1,
+    position: { x: home.x + 20, z: home.z + 30, rotation: 0 },
+  };
+  state.dwellings = [...state.dwellings, burner];
+  {
+    burner.workshop = {
+      craft: 'charcoal',
+      felling: null,
+      kilns: [
+        {
+          id: 60,
+          site: { x: home.x + 25, z: home.z - 15 },
+          trees: [{ id: 1, cost: 2 }],
+          stage: 'draw',
+          prepared: 1,
+          done: 0,
+          charcoalKg: 50,
+        },
+      ],
+    } as unknown as NonNullable<typeof burner.workshop>;
+  }
   state.kilnRemnants = [{ id: 61, burnerId: 1, x: home.x - 30, z: home.z, day: DAY - 100 }];
   state.sacredRuins = [
     { id: 81, kind: 'shrine', position: { x: home.x, z: home.z - 40, rotation: 0 }, day: DAY - 20 },
@@ -110,7 +136,16 @@ describe('seenVillageOf', () => {
     const seen = seenOf(state);
     const kinds = new Set(seen.parts.map((p) => p.data.kind));
     expect(kinds).toEqual(
-      new Set(['site', 'threshing', 'kilnRemnant', 'ruin', 'sacredRuin', 'fortification']),
+      new Set([
+        'dwelling',
+        'site',
+        'threshing',
+        'kiln',
+        'kilnRemnant',
+        'ruin',
+        'sacredRuin',
+        'fortification',
+      ]),
     );
     const scene = seenVillageOf(seen, landscape)!;
     const own = sceneVillage(state, landscape, DAY, summarizeVillage(state, DAY));
@@ -128,6 +163,8 @@ describe('seenVillageOf', () => {
     expect(scene.ruins).toEqual(own.ruins);
     expect(scene.sacred?.ruins).toEqual(own.sacred?.ruins);
     expect(scene.kilnRemnants).toEqual(own.kilnRemnants);
+    expect(scene.kilns).toEqual(own.kilns);
+    expect(scene.kilns).toHaveLength(1);
     // nic z lidí, polí, zvířat, zásob ani cest
     expect(scene.fields).toEqual([]);
     expect(scene.labor).toBeUndefined();

@@ -98,6 +98,7 @@ import {
   villageOrchards,
   pathFortificationsOf,
   type DwellingPlot,
+  type DwellingRuin,
 } from '@bohemia/game';
 import { demolitionKey, demolitionLooks, demolitionSiteProgress } from './demolition-view';
 import { sceneGrainPits } from './grain-pit-view';
@@ -275,17 +276,7 @@ export function sceneVillage(
   const { oreSites, orePits } = sceneOre(state, day);
   // požár jen v jeho den (disasters.md – Požár, Ve scéně), shořelé zbytky jam ohořelé
   const fire = sceneFire(state, day);
-  const ruins = (state.ruins ?? []).map((r) => ({
-    id: r.id,
-    type: r.type,
-    position: r.position,
-    since: r.day,
-    overgrowth: Math.round(ruinOvergrowth(r, day) * 1000) / 1000,
-    ...(r.plot ? { plot: scenePlot(landscape, r.plot) } : {}),
-    ...(r.craft ? { craft: r.craft } : {}),
-    ...(r.plainShape ? { plainShape: true as const } : {}),
-    ...(r.charred ? { charred: true as const } : {}),
-  }));
+  const ruins = (state.ruins ?? []).map((r) => sceneRuinOf(r, ruinOvergrowth(r, day), landscape));
   const pens = scenePens(state, landscape, day, summary);
   const earthworks = sceneEarthworks(state, day);
   const fortifications = pathFortificationsOf(state, landscape);
@@ -429,6 +420,31 @@ export function sceneVillage(
     ...(flood ? { flood } : {}),
     ...(fire ? { fire } : {}),
     ...(tornado ? { tornado } : {}),
+  };
+}
+
+/**
+ * Zbytek jámy po zaniklém obydlí pro scénu – `overgrowth` 0–1 (u vlastní vsi z `ruinOvergrowth`,
+ * u cizí z dne pohledu), po tisícinách; `day` je den zániku. Sdílí vlastní i cizí ves.
+ */
+export function sceneRuinOf(
+  r: Pick<
+    DwellingRuin,
+    'id' | 'type' | 'position' | 'day' | 'plot' | 'craft' | 'plainShape' | 'charred'
+  >,
+  overgrowth: number,
+  landscape: Landscape,
+): NonNullable<SceneVillage['ruins']>[number] {
+  return {
+    id: r.id,
+    type: r.type,
+    position: r.position,
+    since: r.day,
+    overgrowth: Math.round(overgrowth * 1000) / 1000,
+    ...(r.plot ? { plot: scenePlot(landscape, r.plot) } : {}),
+    ...(r.craft ? { craft: r.craft } : {}),
+    ...(r.plainShape ? { plainShape: true as const } : {}),
+    ...(r.charred ? { charred: true as const } : {}),
   };
 }
 

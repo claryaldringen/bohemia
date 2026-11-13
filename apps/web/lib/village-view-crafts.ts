@@ -40,6 +40,8 @@ import {
   type VillageState,
   type VillageSummary,
   type CharcoalKiln,
+  type KilnRemnant,
+  type KilnStage,
   kilnCharcoalShare,
   kilnRemnantOvergrowth,
   workshopKilns,
@@ -176,13 +178,41 @@ export function sceneKilns(state: VillageState, summary: VillageSummary): SceneK
 
 /** Milířiště pro scénu – zarůstání po 5 % (nepřestavuje se při každém dotazu). */
 export function sceneKilnRemnants(state: VillageState, day: number): SceneKilnRemnant[] {
-  return (state.kilnRemnants ?? []).map((r) => ({
+  return (state.kilnRemnants ?? []).map((r) =>
+    sceneKilnRemnantOf(r, kilnRemnantOvergrowth(r, day)),
+  );
+}
+
+/** Milířiště pro scénu z jednoho záznamu – `overgrowth` 0–1 po 5 % (vlastní i cizí ves). */
+export function sceneKilnRemnantOf(
+  r: Pick<KilnRemnant, 'id' | 'burnerId' | 'x' | 'z'>,
+  overgrowth: number,
+): SceneKilnRemnant {
+  return {
     id: r.id,
     burnerId: r.burnerId,
     x: r.x,
     z: r.z,
-    overgrowth: Math.round(kilnRemnantOvergrowth(r, day) * 20) / 20,
-  }));
+    overgrowth: Math.round(overgrowth * 20) / 20,
+  };
+}
+
+/**
+ * Fáze milíře pro scénu z průběhu 0–1 a podílu uhlí 0–1 (jen vypálený milíř) – obojí po 2 %, ať se
+ * milíř nepřestavuje při každém dotazu. Sdílí vlastní i cizí ves.
+ */
+export function sceneKilnStateOf(
+  stage: KilnStage,
+  progress: number,
+  charcoalShare?: number,
+): SceneKilnState {
+  return {
+    stage,
+    progress: Math.round(progress * 50) / 50,
+    ...(stage === 'draw' && charcoalShare !== undefined
+      ? { charcoal: Math.round(charcoalShare * 50) / 50 }
+      : {}),
+  };
 }
 
 /**
@@ -197,11 +227,7 @@ function sceneKilnState(
   const info = summary.crafts.workshops
     .find((w) => w.dwellingId === dwellingId)
     ?.kilns.find((k) => k.id === (kiln.id ?? null));
-  return {
-    stage: kiln.stage,
-    progress: Math.round((info?.progress ?? 0) * 50) / 50,
-    ...(kiln.stage === 'draw' ? { charcoal: Math.round(kilnCharcoalShare(kiln) * 50) / 50 } : {}),
-  };
+  return sceneKilnStateOf(kiln.stage, info?.progress ?? 0, kilnCharcoalShare(kiln));
 }
 
 /** Velikost mladých buků od uhlíře 0–1 po setinách (instance se nepřestavují při každém dotazu). */
