@@ -1328,9 +1328,9 @@ Jádro a akce: `village-masonry.md` – Geometrie a cena kostela, Stavba kostela
   `CHURCH_NO_LODGE`, `CHURCH_NO_QUARRY`). Ves bez kostela nic z toho nemá.
 - **Nabídka staveb** (`lib/build-items.ts`): `WebBuildKind` `church-small` [I] a `church-large` [Y]
   (volné klávesy – návrh Clauda), `placement: 'church'`, `check` = `checkChurchPlacement` jako server
-  + cena `churchPlacementCost`. `use-build-mode.ts` – `churchOptions` dá `BuildOption` bez ceny
-  předem s `look` (ikona `build/kostel-<typ>.png` – `churchIcon`, název `CHURCH_TYPE_NAMES`);
-  `BuildGrid` bere ikonu a název z `look` a nulovou práci v popisku neukazuje. Zašedlé s důvodem.
+  - cena `churchPlacementCost`. `use-build-mode.ts` – `churchOptions` dá `BuildOption` bez ceny
+    předem s `look` (ikona `build/kostel-<typ>.png` – `churchIcon`, název `CHURCH_TYPE_NAMES`);
+    `BuildGrid` bere ikonu a název z `look` a nulovou práci v popisku neukazuje. Zašedlé s důvodem.
 - **Umístění** (`PlacementMode` `church`, `ChurchPlacer`): u kurzoru průhledný model
   (`churchMeshData`, natočení `churchModelRotationY`) a obrys hřbitůvku (`churchyardWorld`)
   zeleně / červeně, kněžištěm na východ (`churchAtCursor` – `CHURCH_EAST_ROTATION`). **Tah**
