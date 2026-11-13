@@ -9,6 +9,7 @@ import { cloneState } from './clone';
 import { settleNoble } from '../../vassalage/ennoble';
 import { dismissGuests, endAway, hostGuests } from '../../vassalage/guests';
 import { receiveShipment } from '../../vassalage/shipment';
+import { applyJourneyCasualty } from '../wildlife/beast-casualty';
 import { pruneThreats } from '../fortification/threat';
 import {
   applyCampaignReturn,
@@ -88,6 +89,17 @@ export type VillageEventBody =
    * bez dne návratu se vrátí na začátku dne `untilDay` (`returnHome`).
    */
   | { kind: 'away-ends'; refId: string; untilDay: number }
+  /**
+   * Šelma napadla muže výjezdu v hustém lese (lord-control.md – Nebezpečí; `applyJourneyCasualty`):
+   * zraněný 60 dní nepracuje jako po lovu, zabitý zemře a nástupnictví běží běžnou cestou.
+   */
+  | {
+      kind: 'journey-casualty';
+      journeyId: string;
+      personId: number;
+      outcome: 'wounded' | 'dead';
+      by: 'bear' | 'wolves';
+    }
   /**
    * Den nájezdu (war.md – Ves během nájezdu nepracuje; plán 2026-11-03 – Úloha 6.7): cizí vojsko je
    * dnes na mapě vsi – lidé se skrývají a ves dnes nepracuje (`VillageState.raidDay`). Tažení ho
@@ -291,6 +303,8 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
     case 'away-ends':
       endAway(state, body.refId, Math.max(day, body.untilDay));
       return [];
+    case 'journey-casualty':
+      return applyJourneyCasualty(state, day, body);
     case 'raid-day':
       state.raidDay = day;
       return [];

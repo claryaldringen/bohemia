@@ -683,6 +683,11 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
         const prey = event.prey === 'bear' ? 'medvěda' : 'divočáka';
         return `${event.name ?? 'Muž rodu'} zahynul na lovu ${prey}.`;
       }
+      if (event.cause === 'beast') {
+        const beast = event.by === 'bear' ? 'medvěd' : 'vlci';
+        const verb = event.by === 'bear' ? 'zabil' : 'zabili';
+        return `${event.name === undefined ? 'Jednoho z mužů' : accusativeOf(event.name)} ${verb} na cestě ${beast}.`;
+      }
       if (event.cause === 'flood') {
         return `${event.name === undefined ? DROWNED[event.group] : `${event.name} utonul`} při povodni.`;
       }

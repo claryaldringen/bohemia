@@ -16,7 +16,7 @@ import type { VillageState, WildlifeCaps, WildlifeLand, WildlifeState } from '..
 import { DISASTER_WILDLIFE } from '../rules/rules-disasters';
 import { yearlyQuota } from './small-game';
 import { weatherOf } from '../disasters/weather';
-import { wildlifeLandAt } from './wildlife-land';
+import { wildlifeLandAt, wildlifeLandAtCenter } from './wildlife-land';
 
 const EPSILON = 1e-9;
 
@@ -70,6 +70,14 @@ export function freshWildlife(land: WildlifeLand, pigs: number): WildlifeState {
     bear: { present: caps.bear, backDay: null },
     fishKg: caps.fishKg,
   };
+}
+
+/**
+ * Zvěř mapy bez vsi (výjezd – lord-control.md, Nebezpečí): na stropu podle krajiny kolem středu
+ * mapy, jako u nově založené vsi bez prasat.
+ */
+export function wildlifeOfEmptyMap(landscape: Landscape): WildlifeState {
+  return freshWildlife(wildlifeLandAtCenter(landscape), 0);
 }
 
 /** Krajina zvěře vsi: z krajiny sídla, bez ní (testy, kalibrace) výchozí. */

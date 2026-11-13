@@ -177,6 +177,12 @@ backDay: bearBackDay(day) }`.
 - **UI:** `VillageManor.huntDenied` (`manor-view.ts`) = text důvodu, nebo null; tlačítko
   `manor-hunt` (ikona oštěpu) v `ManorUpgrades`, zašedlé s červeným důvodem v tooltipu.
 
+- **Výjezd vojvody (Úloha 13)** – jediné místo mimo lov, kde zvěř ohrozí člověka: týmiž čísly
+  `HUNT_RISK` (vlci čísly prasat) losuje `predatorDay` pro osamělého vojvodu nebo dvojici v hustém
+  lese; ves ho doručí schránkou (`journey-casualty`, `beast-casualty.ts`). Zvěř mapy se vsí je
+  `VillageState.wildlife` té vsi; prázdná mapa dostane strop podle krajiny kolem středu mapy
+  (`wildlifeOfEmptyMap`, `wildlifeLandAtCenter`) – podrobně `docs/code/journey.md` – Šelmy.
+
 ## Ryby a oka vesničanů (W7, `small-game.ts`)
 
 Návrh: wildlife.md – Drobná zvěř a ryby, Rozhodnutí při implementaci W7. Čísla `SMALL_GAME`

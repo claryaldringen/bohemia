@@ -272,8 +272,13 @@ export type ChronicleEvent = { day: number } & (
       kind: 'death';
       group: 'child' | 'adult' | 'elder';
       age?: number;
-      /** `war` – padl v boji (war.md – Ztráty), `wounds` – zemřel na rány. */
-      cause?: 'hunger' | 'hunt' | 'flood' | 'tornado' | 'war' | 'wounds';
+      /**
+       * `war` – padl v boji (war.md – Ztráty), `wounds` – zemřel na rány, `beast` – zabila ho šelma
+       * na výjezdu (`by`; lord-control.md – Nebezpečí).
+       */
+      cause?: 'hunger' | 'hunt' | 'flood' | 'tornado' | 'war' | 'wounds' | 'beast';
+      /** Šelma, která muže zabila na cestě (`cause: 'beast'`). */
+      by?: 'bear' | 'wolves';
       /** Zvěř, na jejímž lovu muž zahynul (`cause: 'hunt'`). */
       prey?: 'boar' | 'bear';
       name?: string;
