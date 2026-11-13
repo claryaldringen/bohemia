@@ -34,4 +34,5 @@ export { createEscheatRepository } from './escheat-repository';
 export { createWarRepository } from './war-repository';
 export { createCampaignRepository } from './campaign-repository';
 export { createJourneyRepository } from './journey-repository';
+export { createKnowledgeRepository } from './knowledge-repository';
 export { CAMPAIGN_LOCK_NAMESPACE, createCampaignLock } from './campaign-lock';

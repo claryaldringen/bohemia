@@ -12,6 +12,7 @@ import {
 } from '../domain/war';
 import type { CampaignCells, CampaignLock } from './campaigns';
 import type { JourneyRepository } from './journeys';
+import type { KnowledgeRepository } from './knowledge';
 import type { NoticeRepository } from './notices';
 import {
   computeWithLoads,
@@ -39,6 +40,8 @@ export interface StepJourneysDeps {
   /** Vsi výjezdu – s pamětí workeru se celý stav načte jen u vsí, jejichž otisk se změnil. */
   villages: Pick<VillageRepository, 'find' | 'stampsOfVillages' | 'inbox'>;
   notices: Pick<NoticeRepository, 'post'>;
+  /** Znalost rodu – co muži viděli, se z bodu schránkou sloučí do úložiště. */
+  knowledge: Pick<KnowledgeRepository, 'merge'>;
   world: WorldClock;
   /** Je rod hráče ve válce s rodem, kterému patří ves na políčku? */
   atWar(playerId: string, cell: GridCell): Promise<boolean>;
@@ -107,9 +110,14 @@ async function stepOne(
   if (step.state.tick === from.tick) return 'waiting';
   await homeFromWar(deps, start, step.state, intents, toTick);
 
+  const knowledge = (step.knowledge ?? []).map((k) => ({ houseId: step.state.houseId, ...k }));
   const outbox: CampaignOutbox | null =
-    step.villageEvents.length > 0 || step.notices.length > 0
-      ? { villageEvents: step.villageEvents, notices: step.notices }
+    step.villageEvents.length > 0 || step.notices.length > 0 || knowledge.length > 0
+      ? {
+          villageEvents: step.villageEvents,
+          notices: step.notices,
+          ...(knowledge.length > 0 ? { knowledge } : {}),
+        }
       : null;
   // výjezd čeká na ves (bariéra Ú6.7) – bod se uloží hned, ať mez vsi povyroste (jako u tažení)
   const due =

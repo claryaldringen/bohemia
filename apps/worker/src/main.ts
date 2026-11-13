@@ -260,6 +260,7 @@ async function main(): Promise<void> {
     cells: campaignDeps.cells,
     villages: campaignVillages,
     notices: gameDeps.notices,
+    knowledge: gameDeps.knowledge,
     atWar: gameDeps.atWar,
     memory: newCampaignMemory<JourneyState>(),
   };

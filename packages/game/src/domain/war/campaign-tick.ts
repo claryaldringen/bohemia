@@ -4,6 +4,7 @@ import type { BattleFort } from './battle';
 import type { CampaignNotice, CampaignState, CampaignWorld } from './campaign-types';
 import { marchGrid, type MarchGrid, type Pos } from './march-grid';
 import type { Lookout } from './lookouts';
+import type { KnowledgeOut } from './seen';
 
 // Společné součástky taktu tažení (plán 2026-11-09 – Rozhodnutí plánu: přesun z `campaign.ts`, ať je
 // sdílí varování – `alarm.ts` – bez kruhového importu). Chování beze změny.
@@ -20,6 +21,8 @@ export class MissingData {
 export interface TickOut {
   events: NewVillageEvent[];
   notices: CampaignNotice[];
+  /** Znalost mapy pro rod (jen výjezd – `JourneyStep.knowledge`). */
+  knowledge?: KnowledgeOut[];
 }
 
 /** Mřížky pochodu jednoho volání (políčko a den; napříč voláními `world.grids`). */

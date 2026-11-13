@@ -16,6 +16,7 @@ import {
   createWarRepository,
   createCampaignRepository,
   createJourneyRepository,
+  createKnowledgeRepository,
   createSuccessionCreditRepository,
   createNegotiationRepository,
   createVassalageRepository,
@@ -53,6 +54,7 @@ import type {
   WarRepository,
   CampaignRepository,
   JourneyRepository,
+  KnowledgeRepository,
   DynastyDeps,
   SuccessionCreditRepository,
   NegotiationRepository,
@@ -153,6 +155,8 @@ export interface GameDeps {
   campaigns: CampaignRepository;
   /** Výjezdy vojvody (`docs/code/journey.md`). */
   journeys: JourneyRepository;
+  /** Znalost rodu – co muži při výjezdech viděli (`docs/code/journey.md` – Znalost rodu). */
+  knowledge: KnowledgeRepository;
   /**
    * Je rod hráče ve válce s rodem, kterému patří mapa na políčku (`houseAtWarOn`)? Výjezdy –
    * vyslání, rozkazy a válka na mapě skupiny ve workeru (`docs/code/journey.md` – Worker).
@@ -225,6 +229,7 @@ export function createGameDeps(
     disputes: createDisputeRepository(db),
     campaigns: createCampaignRepository(db),
     journeys: createJourneyRepository(db),
+    knowledge: createKnowledgeRepository(db),
     atWar: (playerId, cell) => houseAtWarOn({ houses, settlements, wars }, playerId, cell),
     ending: {
       houses,

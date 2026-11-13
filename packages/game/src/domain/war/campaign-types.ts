@@ -8,6 +8,7 @@ import type { GridCell } from '../village/people/world-grid';
 import type { AlarmOwner, CampaignAlarm } from './alarm-types';
 import type { BattleState } from './battle';
 import type { MarchGridMemo, Pos } from './march-grid';
+import type { SeenCell } from './seen';
 
 // Stav tažení (war.md – Velení a příprava tažení, Pohyb; plán 2026-11-03 – Úloha 6.5). Stav je
 // JSON (kontrolní bod v úložišti): po načtení z JSON musí tažení pokračovat bit po bitu stejně.
@@ -384,6 +385,11 @@ export interface CampaignNotice {
 export interface CampaignOutbox {
   villageEvents: NewVillageEvent[];
   notices: CampaignNotice[];
+  /**
+   * Znalost map pro rod (jen výjezd – plán 2026-11-13, Úloha 10): sloučí se do úložiště znalosti
+   * rodu; sloučení je idempotentní, takže doručení po pádu znovu je bezpečné.
+   */
+  knowledge?: { houseId: string; cell: GridCell; seen: SeenCell }[];
 }
 
 /** Výsledek `stepCampaign`. */

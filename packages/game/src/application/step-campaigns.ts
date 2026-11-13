@@ -16,6 +16,7 @@ import {
   type CampaignState,
   type CampaignStep,
   type CampaignWorld,
+  type KnowledgeOut,
 } from '../domain/war';
 import type {
   AlarmOwnerPort,
@@ -26,6 +27,7 @@ import type {
   VillageCell,
 } from './campaigns';
 import type { HouseRepository } from './houses';
+import type { KnowledgeRepository } from './knowledge';
 import type { NoticeRepository } from './notices';
 import { passageCovers, type PassageRepository } from './passages';
 import type { SettlementRepository } from './settlements';
@@ -395,7 +397,11 @@ export async function computeCampaign(
 }
 
 /** Výsledek kroku po taktech – tvar `CampaignStep` pro stav `S` (tažení, výjezd – `JourneyStep`). */
-export type LoadedStep<S> = Omit<CampaignStep, 'state'> & { state: S };
+export type LoadedStep<S> = Omit<CampaignStep, 'state'> & {
+  state: S;
+  /** Znalost map pro rod – jen výjezd (`JourneyStep.knowledge`). */
+  knowledge?: KnowledgeOut[];
+};
 
 /** Porty dopočtu s načítáním; paměť workeru kteréhokoli druhu stavu (čte jen mapy, vsi a mřížky). */
 export type LoadingDeps = Pick<
@@ -504,6 +510,7 @@ export async function computeWithLoads<S extends { id: string; playerId: string 
     result.state = next.state;
     result.villageEvents.push(...next.villageEvents);
     result.notices.push(...next.notices);
+    if (next.knowledge) (result.knowledge ??= []).push(...next.knowledge);
     result.waiting = next.waiting;
     if (!next.waiting || round === MAX_LOADS) break;
     let loaded = await load(next.waiting.cells, next.waiting.villageIds);
@@ -582,7 +589,10 @@ function alarmWorld(port: AlarmOwnerPort): AlarmWorld {
  * zastavila tažení navždy.
  */
 export async function deliverOutbox(
-  deps: Pick<StepCampaignsDeps, 'villages' | 'notices'>,
+  deps: Pick<StepCampaignsDeps, 'villages' | 'notices'> & {
+    /** Úložiště znalosti rodu – jen výjezdy (tažení znalost do schránky nedává). */
+    knowledge?: Pick<KnowledgeRepository, 'merge'>;
+  },
   outbox: CampaignOutbox,
 ): Promise<void> {
   for (const event of outbox.villageEvents) {
@@ -590,6 +600,7 @@ export async function deliverOutbox(
     if (exists) await deps.villages.inbox.post(event);
   }
   for (const notice of outbox.notices) await deps.notices.post(notice);
+  for (const k of outbox.knowledge ?? []) await deps.knowledge?.merge(k.houseId, k.cell, k.seen);
 }
 
 /**

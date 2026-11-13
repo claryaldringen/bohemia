@@ -1,3 +1,4 @@
+import type { GridCell } from '../village/people/world-grid';
 import { sacredRuinOvergrowth, structureCondition } from '../village/buildings/abandonment';
 import { churchProgress } from '../village/buildings/church-build';
 import { cloneData } from '../village/core/clone';
@@ -46,6 +47,24 @@ export interface SeenCell {
   trail: [number, number][];
   /** Naposled viděné stavby seřazené podle `key`. */
   parts: SeenPart[];
+  /**
+   * Stavby, které v dohledu zmizely: `key` a den, kdy to muži zjistili, seřazené podle `key`.
+   * Jen když něco zmizelo – bez nich by sloučení (`mergeKnowledge`) vrátilo zničenou stavbu ze
+   * starší znalosti rodu.
+   */
+  gone?: SeenGone[];
+}
+
+/** Co muži o mapě `cell` viděli – do úložiště znalosti rodu (`KnowledgeRepository`). */
+export interface KnowledgeOut {
+  cell: GridCell;
+  seen: SeenCell;
+}
+
+/** Záznam o zaniklé stavbě – viz `SeenCell.gone`. */
+export interface SeenGone {
+  key: string;
+  day: number;
 }
 
 /** Naposled viděná stavba: `key` = druh a id (`dwelling:12`), místo a den, kdy ji muži viděli. */
@@ -294,9 +313,75 @@ export function lookAround(
   },
 ): SeenCell {
   const trail = extendTrail(prev?.trail ?? [], input.eyes);
-  const parts = refreshParts(prev?.parts ?? [], input);
-  if (prev && trail === prev.trail && parts === prev.parts) return prev;
-  return { ...(prev?.villageId === undefined ? {} : { villageId: prev.villageId }), trail, parts };
+  const { parts, gone } = refreshParts(prev?.parts ?? [], prev?.gone, input);
+  if (prev && trail === prev.trail && parts === prev.parts && gone === prev.gone) return prev;
+  return {
+    ...(prev?.villageId === undefined ? {} : { villageId: prev.villageId }),
+    trail,
+    parts,
+    ...(gone === undefined ? {} : { gone }),
+  };
+}
+
+/**
+ * Sloučení znalosti rodu o jedné mapě (plán 2026-11-13 – Úloha 10): `fresh` je, co muži viděli
+ * teď, `old` je, co rod věděl dřív (`null` – nic). Stopy se sjednotí; ze dvou záznamů téže stavby
+ * platí z novějšího dne; stavba, která má v `gone` (ve staré i nové znalosti) záznam se stejným
+ * nebo pozdějším dnem, se odstraní – kdo ji viděl zmizet, ten ji starou zprávou nevrátí; ostatní
+ * stavby ze `old` zůstanou, i když je ve `fresh` není (muži je neviděli). Jiná ves na mapě než ve
+ * staré znalosti – staré stavby i zánik se zahodí, zůstane jen stopa. Výsledek je seřazený, nezávisí
+ * na pořadí `parts` a sloučit totéž podruhé nic nezmění (opakované doručení po pádu je bezpečné).
+ * Vstupy nemění.
+ */
+export function mergeKnowledge(old: SeenCell | null, fresh: SeenCell): SeenCell {
+  const sameVillage =
+    old !== null &&
+    (old.villageId === undefined ||
+      fresh.villageId === undefined ||
+      old.villageId === fresh.villageId);
+  const base = old !== null && sameVillage ? old : null;
+  const villageId = fresh.villageId ?? base?.villageId;
+
+  const goneAt = new Map<string, number>();
+  for (const g of [...(base?.gone ?? []), ...(fresh.gone ?? [])]) {
+    goneAt.set(g.key, Math.max(goneAt.get(g.key) ?? g.day, g.day));
+  }
+  const best = new Map<string, SeenPart>();
+  // nejdřív stará znalost, pak čerstvá – při stejném dni platí čerstvá
+  for (const list of [base?.parts ?? [], fresh.parts]) {
+    for (const p of list) {
+      if ((goneAt.get(p.key) ?? -Infinity) >= p.day) continue;
+      const had = best.get(p.key);
+      if (!had || p.day >= had.day) best.set(p.key, p);
+    }
+  }
+  // zánik, který přebila novější stavba téhož klíče, už nic neodstraňuje
+  for (const [key, day] of goneAt) if ((best.get(key)?.day ?? -Infinity) > day) goneAt.delete(key);
+
+  const gone = [...goneAt].map(([key, day]) => ({ key, day })).sort(byKey);
+  return {
+    ...(villageId === undefined ? {} : { villageId }),
+    trail: unionTrail(old?.trail ?? [], fresh.trail),
+    parts: [...best.values()].sort(byKey),
+    ...(gone.length === 0 ? {} : { gone }),
+  };
+}
+
+/** Sjednocení dvou seřazených stop (x, pak z) bez opakování. */
+function unionTrail(a: [number, number][], b: [number, number][]): [number, number][] {
+  const out: [number, number][] = [];
+  let i = 0;
+  let j = 0;
+  while (i < a.length || j < b.length) {
+    const p = a[i];
+    const q = b[j];
+    const order = p === undefined ? 1 : q === undefined ? -1 : p[0] - q[0] || p[1] - q[1];
+    const take = order <= 0 ? p! : q!;
+    if (order <= 0) i++;
+    if (order >= 0) j++;
+    out.push([take[0], take[1]]);
+  }
+  return out;
 }
 
 /** Body stopy v místech mužů – seřazené, bez opakování; beze změny týž seznam. */
@@ -336,15 +421,16 @@ function trailSlot(trail: readonly [number, number][], p: readonly [number, numb
 /** Stavby po pohledu mužů – seřazené podle klíče; beze změny týž seznam. */
 function refreshParts(
   known: SeenPart[],
+  knownGone: SeenGone[] | undefined,
   input: {
     village: VillageState | null;
     eyes: readonly Pos[];
     grid: MarchGrid | null;
     day: number;
   },
-): SeenPart[] {
+): { parts: SeenPart[]; gone: SeenGone[] | undefined } {
   const { village, eyes, grid, day } = input;
-  if (eyes.length === 0) return known;
+  if (eyes.length === 0) return { parts: known, gone: knownGone };
   const sightings = village === null ? NO_SIGHTINGS : sightingsFor(village, day);
   const sees = (at: Pos): boolean => eyes.some((e) => inSight(grid, e, at));
   // síto: muž dál než nejdelší dohled od obdélníku bodů nevidí žádný z nich (výsledek stejný)
@@ -369,13 +455,17 @@ function refreshParts(
     if (!near(boxes[i]!) || partOf(known, s.key)?.day === day || !s.eyesAt.some(sees)) continue;
     (fresh ??= new Map()).set(s.key, { key: s.key, pos: s.pos, day, data: s.data });
   }
-  if (gone === null && fresh === null) return known;
+  if (gone === null && fresh === null) return { parts: known, gone: knownGone };
   const next = known.filter((p) => !gone?.has(p.key) && !fresh?.has(p.key));
   if (fresh) next.push(...fresh.values());
-  return next.sort(byKey);
+  if (gone === null) return { parts: next.sort(byKey), gone: knownGone };
+  // zánik si rod pamatuje s dnem (`SeenCell.gone`) – staré záznamy téhož klíče přebije nový
+  const records = (knownGone ?? []).filter((g) => !gone.has(g.key));
+  for (const key of gone) records.push({ key, day });
+  return { parts: next.sort(byKey), gone: records.sort(byKey) };
 }
 
-function byKey(a: SeenPart, b: SeenPart): number {
+function byKey(a: { key: string }, b: { key: string }): number {
   return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
 }
 

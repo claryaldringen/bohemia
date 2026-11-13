@@ -1,7 +1,7 @@
 import type { WorldClock } from '../calendar';
 import { cloneData } from '../village/core/clone';
 import type { NewVillageEvent } from '../village/core/inbox';
-import { directionBetween } from '../village/people/world-grid';
+import { directionBetween, type GridCell } from '../village/people/world-grid';
 import {
   cellKey,
   gridOf,
@@ -27,7 +27,7 @@ import type {
 import { marchSpeed, type GroupPace } from './march';
 import { missingMaps, sendGroup, settleGoal, stepMover } from './movement';
 import { JOURNEY } from './rules-war';
-import { lookAround } from './seen';
+import { lookAround, type KnowledgeOut } from './seen';
 import { dayOfTick, hoursPerTick, TICKS_PER_SECOND, tickOfMs } from './ticks';
 import { edgeCrossing } from './world-route';
 
@@ -115,6 +115,9 @@ export function stepJourney(
   const ctx = tickContext(world);
   const villageEvents: NewVillageEvent[] = [];
   const notices: CampaignNotice[] = [];
+  const knowledge: KnowledgeOut[] = [];
+  const withKnowledge = (): { knowledge?: KnowledgeOut[] } =>
+    knowledge.length > 0 ? { knowledge } : {};
   let current = state;
   let next = 0;
   const upfront = missingMaps(state, world);
@@ -125,7 +128,7 @@ export function stepJourney(
     const tick = current.tick + 1;
     let end = next;
     while (end < pending.length && pending[end]!.tick === tick) end++;
-    const out: TickOut = { events: [], notices: [] };
+    const out: TickOut = { events: [], notices: [], knowledge: [] };
     try {
       current = journeyTick(current, tick, pending.slice(next, end), ctx, out);
     } catch (error) {
@@ -134,14 +137,16 @@ export function stepJourney(
         state: current,
         villageEvents,
         notices,
+        ...withKnowledge(),
         waiting: { cells: error.cells, villageIds: error.villageIds },
       };
     }
     next = end;
     villageEvents.push(...out.events);
     notices.push(...out.notices);
+    knowledge.push(...(out.knowledge ?? []));
   }
-  return { state: current, villageEvents, notices, waiting: null };
+  return { state: current, villageEvents, notices, ...withKnowledge(), waiting: null };
 }
 
 /**
@@ -166,7 +171,10 @@ function journeyTick(
   while (s.day < day) {
     s.day++;
     homeDay(s, ctx);
-    if (journeyFinished(s)) return s;
+    if (journeyFinished(s)) {
+      shareKnowledge(s, groupOf(s).cell, out);
+      return s;
+    }
   }
   // bez vojvody se zbytek vrací sám – rozkazy hráče se zahodí
   if (lordRides(s)) for (const intent of intents) applyOrder(s, intent.body);
@@ -177,9 +185,24 @@ function journeyTick(
   ) {
     turnHome(s);
   }
+  const before = groupOf(s).cell;
   moveGroup(s, ctx, out);
+  const g = groupOf(s);
+  // přechod okrajem – co o mapě, kterou skupina opustila, věděli, jde rodu
+  if (!sameCell(g.cell, before)) shareKnowledge(s, before, out);
   discover(s, ctx);
+  // dojetí – skupina na mapě stojí; co viděla cestou i z místa, kde stanula, jde rodu
+  if (s.arrivedTick === tick) shareKnowledge(s, g.cell, out);
   return s;
+}
+
+/**
+ * Znalost mapy `cell` do úložiště rodu (Úloha 10): celé, co o ní výjezd zná – sloučení
+ * (`mergeKnowledge`) z toho vezme, co je novější. Domovská mapa a mapa bez záznamu nic nevydají.
+ */
+function shareKnowledge(s: JourneyState, cell: GridCell, out: TickOut): void {
+  const seen = s.seen?.[cellKey(cell)];
+  if (seen) (out.knowledge ??= []).push({ cell: { x: cell.x, y: cell.y }, seen });
 }
 
 /** Jediná skupina výjezdu. */
