@@ -19,6 +19,9 @@ export const PLAYER_LOCK_NAMESPACE = 0x426f6865; // „Bohe“ v ASCII, vejde se
  * jen zbytečné čekání (web počká, worker hráče v tom kole přeskočí) – nikdy chyba, oba hráči dál
  * počítají jen pod svým zámkem. Pravděpodobnost aspoň jedné srážky mezi n hráči ≈ n² / 2³³
  * (1 000 hráčů ≈ 0,01 %, 10 000 ≈ 1,2 %) – i pak se potkají jen, když oba hrají ve stejné chvíli.
+ * Výjimka: operace, která drží zámky dvou hráčů naráz (`runUnderLocks` – výkupné), by při srážce
+ * právě této dvojice čekala sama na sebe do `waitTimeoutMs` a skončila `PlayerLockTimeoutError`,
+ * aniž by se spustila.
  */
 export function playerLockHash(playerId: string): number {
   let hash = 0x811c9dc5;

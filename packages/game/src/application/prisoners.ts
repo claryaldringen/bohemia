@@ -2,9 +2,9 @@ import type { Prisoner } from '../domain/village';
 import { cellDistance } from '../domain/world/placement';
 import type { RansomHooks } from './negotiate';
 import type { HouseRepository } from './houses';
-import type { PlayerLock } from './locks';
+import { runUnderLocks, type PlayerLock } from './locks';
 import type { SettlementRepository } from './settlements';
-import { sendShipment, type ShipmentDeps } from './shipments';
+import { sendShipmentLocked, shipmentLockOwner, type ShipmentDeps } from './shipments';
 import type { VillageRecord, VillageRepository } from './villages';
 
 // Zajatci (war.md – Vzdaní, zajetí a výkupné). Zajetí žije ve stavu vsí (`VillageState.prisoners`
@@ -181,9 +181,25 @@ async function holdAll(
 }
 
 /**
+ * Jde zajatce `held` ještě propustit – o žádném není rozhodnuto a domovská ves každého stojí?
+ * Uložený stav vsi věznitele vede zajatce i po rozhodnutí, dokud ves nepoužije událost schránky.
+ */
+async function releasable(deps: PrisonerDeps, held: readonly HeldPrisoner[]): Promise<boolean> {
+  for (const { prisoner } of held) {
+    if ((await deps.prisoners.find(prisoner.id)) !== null) return false;
+    if ((await deps.villages.find(prisoner.ref.villageId)) === null) return false;
+  }
+  return true;
+}
+
+/**
  * Hlásiče výkupného pro jednání (`NegotiateDeps.ransom`): kontrola, že zajatce drží jedna strana
  * a druhá je jeho rod; po přijetí zaplatí výkupné z vsi platícího věznitelově vsi (zásilka) a propustí;
  * mír propustí zajatce bez platby.
+ *
+ * Výkupné je nedělitelné – buď se zaplatí a zajatci jsou propuštěni, nebo se nezaplatí nic: ověření,
+ * platba i zápis rozhodnutí běží pod zámkem věznitele (o zajatci mezitím nerozhodne – `decidePrisoner`
+ * čeká na týž zámek) i držitele vsi plátce (zásilka), oba v pevném pořadí (`runUnderLocks`).
  */
 export function ransomHooks(deps: RansomDeps): RansomHooks {
   return {
@@ -203,22 +219,30 @@ export function ransomHooks(deps: RansomDeps): RansomHooks {
       const from = payer?.lord?.villageId;
       const to = captor?.lord?.villageId;
       if (captorPlayer === null || !from || !to) return 'Výkupné teď nejde poslat.';
-      const held = await holdAll(deps, captorPlayer, input.line.prisonerIds);
-      if (!held) return 'Tohle zajetí už neplatí.';
+      const payerPlayer = await shipmentLockOwner(deps.shipments, from);
+      if (payerPlayer === null) return 'Výkupné teď nejde poslat.';
+      // dopočet vsi plátce může trvat – běží ještě bez zámků
       await deps.prepareVillage(from, input.today);
-      const sent = await sendShipment(deps.shipments, {
-        fromVillageId: from,
-        toVillageId: to,
-        bundle: input.line.price,
-        purpose: 'ransom',
-        refId: `ransom:${input.negotiationId}`,
-        today: input.today,
+      return runUnderLocks(deps.locks, [captorPlayer, payerPlayer], async () => {
+        const held = await holdAll(deps, captorPlayer, input.line.prisonerIds);
+        if (!held || !(await releasable(deps, held))) return 'Tohle zajetí už neplatí.';
+        const sent = await sendShipmentLocked(deps.shipments, {
+          fromVillageId: from,
+          toVillageId: to,
+          bundle: input.line.price,
+          purpose: 'ransom',
+          refId: `ransom:${input.negotiationId}`,
+          today: input.today,
+        });
+        if (!sent.ok) return sent.reason;
+        // po ověření výš a pod zámkem věznitele zápis selhat nemá; kdyby přesto, volající se to dozví
+        let failed: string | null = null;
+        for (const h of held) {
+          const done = await conclude(deps, h, 'ransomed', input.today);
+          if (!done.ok) failed ??= done.reason;
+        }
+        return failed;
       });
-      if (!sent.ok) return sent.reason;
-      await deps.locks.run(captorPlayer, async () => {
-        for (const h of held) await conclude(deps, h, 'ransomed', input.today);
-      });
-      return null;
     },
     async release(input) {
       for (const houseId of input.parties) {

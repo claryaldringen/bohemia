@@ -375,7 +375,12 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   `TEST_DATABASE=bohemia_test_2 npm run test:db`. globalSetup Playwrightu i `test:db` databázi
   založí, když neexistuje, a zmigrují (ručně `npm run test:db:create`); `bohemia`,
   `bohemia_measure` a systémové databáze odmítnou (testy vyprazdňují tabulky). Nepotřebnou
-  databázi stromu zruš `psql -U postgres -c 'DROP DATABASE bohemia_test_2'`.
+  databázi stromu zruš `psql -U postgres -c 'DROP DATABASE bohemia_test_2'`. Příprava
+  (`prepareTestDatabase`) po migracích vrátí indexy tabulky `settlement` do stavu z migrací
+  (`restoreSettlementIndexes` – jména podle `migratedIndexes`, chybí-li index, tabulka se napřed
+  vyprázdní): test migrace 0013 (`shared-grid-migration.db.test.ts`) je za běhu mění a přerušený běh
+  by databázi nechal bez `settlement_grid_idx` – testy „obsazené políčko“ dalšího běhu by spadly.
+  Stejně po sobě uklidí i sám test (`afterAll`); běh tak nezávisí na předchozím ani na pořadí souborů.
 
 - **Zrušení rozestavěné stavby** (population.md – Zrušení rozestavěné stavby): server action
   `cancelConstruction({ villageId, constructionId })` → `cancelConstructionForPlayer`
@@ -1169,7 +1174,10 @@ dvorce zmenšenými na 110 m mapy (`FlightMarks`: uprchlíci se stádem `alarm-a
 Vlkova 76 → 4 ms na dotaz (worker.md – Výkon – Pohled na varování). E2E `multiplayer-war.spec.ts` –
 „ves B varovaná utíká do hradiště pána a po odtažení vojska se vrátí“ (vazal B, pán C s hotovou
 palisádou na políčku vedle, tažení A s varováním B v kontrolním bodu, worker vedle `next start`):
-upozornění, ikony v panelu dvorce, „Do hradiště – se vším“ → záměr `alarm-flee`, průvod přenesený
+upozornění (po něm test worker zastaví a varování posune na takt kontrolního bodu – lhůta hráče
+≈ 86 s běží od varování a start workeru, upozornění, panel a tlačítko se do ní na zatíženém stroji
+nevešly, za ves pak rozhodl správce; worker se pustí zas až po zapsání záměru), ikony v panelu
+dvorce, „Do hradiště – se vším“ → záměr `alarm-flee`, průvod přenesený
 rovnou do středu hradiště (cíl skupiny – dojde v prvním taktu; kousek vedle středu bývá za
 palisádou a cesta kolem ní k bráně trvá průvodu se stádem podle krajiny až ≈ 72 s) →
 `refuge-arrive`, hosté `refuge` v C a lidé B pryč, Vrátit se zašedlé „Vojsko je ještě na mapě.“, po

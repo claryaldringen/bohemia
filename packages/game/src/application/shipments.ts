@@ -184,10 +184,27 @@ export async function sendShipment(
   if (!from) return { ok: false, reason: 'Odesílající ves neexistuje.' };
   const fromPlace = await placeOf(deps, from);
   if (!fromPlace) return { ok: false, reason: 'Odesílající ves nemá sídlo.' };
-  return deps.locks.run(fromPlace.ownerId, () => sendLocked(deps, input));
+  return deps.locks.run(fromPlace.ownerId, () => sendShipmentLocked(deps, input));
 }
 
-async function sendLocked(
+/**
+ * Hráč, pod jehož zámkem ves `villageId` odesílá (držitel jejího sídla); null, když ves nebo sídlo
+ * chybí.
+ */
+export async function shipmentLockOwner(
+  deps: Pick<ShipmentDeps, 'villages' | 'settlements'>,
+  villageId: string,
+): Promise<string | null> {
+  const village = await deps.villages.find(villageId);
+  return village ? ((await placeOf(deps, village))?.ownerId ?? null) : null;
+}
+
+/**
+ * `sendShipment` pro volajícího, který zámek držitele odesílající vsi (`shipmentLockOwner`) už
+ * drží – výkupné ho drží spolu se zámkem věznitele kolem platby i propuštění (`prisoners.ts`)
+ * a zámek není reentrantní.
+ */
+export async function sendShipmentLocked(
   deps: ShipmentDeps,
   input: Parameters<typeof sendShipment>[1],
 ): Promise<SendShipmentResult> {

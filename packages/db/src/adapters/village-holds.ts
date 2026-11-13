@@ -5,9 +5,9 @@ import type { Database } from '../client';
 // Bariéra ves × tažení (plán 2026-11-03 – rozhodnutí 13, Úloha 6.7; docs/code/war.md – Bariéra
 // dopočtu): které vsi drží tažení a do kterého dne. Čte jen skupiny kontrolního bodu
 // (`state->'groups'`), varování (`state->'alarm'` – plán 2026-11-09, Úloha 3) a události v `outbox`
-// aktivních tažení. Aktivní tažení najde index `campaign_status_idx`; body s nedoručenými
-// událostmi (`outbox IS NOT NULL`) index nemají – ta větev projde tabulku bodů, i skončených tažení
-// (částečný index by ji zkrátil – návrh Clauda, potřebuje migraci).
+// aktivních tažení. Aktivní tažení najde index `campaign_status_idx`, body s nedoručenými
+// událostmi (`outbox IS NOT NULL`) částečný index `campaign_checkpoint_outbox_idx` (migrace 0044) –
+// žádná větev tak nečte body skončených tažení.
 // Mez z bodu (`throughDay` – den bez hodin) počítá `holdDay` (herní jádro).
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -22,8 +22,8 @@ const UUID_SQL = '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
  *
  * Obě podmínky jako sjednocení id, ne `OR` přes spojení tabulek: s `OR` plánovač spojil všechna
  * tažení se všemi body a filtroval až potom (20 tis. skončených tažení: medián 7,7 ms na dotaz,
- * takhle 2,9 ms – měřeno 13. 11. 2026). Bod má právě jedno tažení (primární klíč = cizí klíč),
- * vybrané body jsou tytéž.
+ * takhle 2,9 ms, s částečným indexem bodů s `outbox` 0,4 ms – měřeno 13. 11. 2026). Bod má právě
+ * jedno tažení (primární klíč = cizí klíč), vybrané body jsou tytéž.
  */
 const LIVE = sql`
   live AS MATERIALIZED (

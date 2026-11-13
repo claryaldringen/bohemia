@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { bigint, index, jsonb, pgTable, serial, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 import type { CampaignOutbox, CampaignState, IntentBody } from '@bohemia/game';
 import { user } from './auth';
@@ -29,15 +30,25 @@ export const campaign = pgTable(
  * spolu se stavem, doručí po uložení a smažou) – pád mezi uložením a doručením je nezdvojí ani
  * neztratí.
  */
-export const campaignCheckpoint = pgTable('campaign_checkpoint', {
-  campaignId: uuid('campaign_id')
-    .primaryKey()
-    .references(() => campaign.id, { onDelete: 'cascade' }),
-  tick: bigint('tick', { mode: 'number' }).notNull(),
-  state: jsonb('state').$type<CampaignState>().notNull(),
-  outbox: jsonb('outbox').$type<CampaignOutbox>(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const campaignCheckpoint = pgTable(
+  'campaign_checkpoint',
+  {
+    campaignId: uuid('campaign_id')
+      .primaryKey()
+      .references(() => campaign.id, { onDelete: 'cascade' }),
+    tick: bigint('tick', { mode: 'number' }).notNull(),
+    state: jsonb('state').$type<CampaignState>().notNull(),
+    outbox: jsonb('outbox').$type<CampaignOutbox>(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // Body s nedoručenými událostmi (bariéra ves × tažení – `village-holds.ts`): jen řádky
+    // s `outbox`, takže dotaz nečte body všech tažení včetně skončených.
+    index('campaign_checkpoint_outbox_idx')
+      .on(table.campaignId)
+      .where(sql`${table.outbox} IS NOT NULL`),
+  ],
+);
 
 /**
  * Záměr hráče s taktem, ve kterém platí (teď + 2). `seq` roste se zápisem – v taktu se záměry

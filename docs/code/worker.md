@@ -273,7 +273,10 @@ něj (průměrně ≈ 20 taktů za kolo místo jednoho), u nájezdu ještě v **
   zahodí, skončená tažení se zapomenou na konci kola. Výsledek je tentýž (po kouscích = vcelku);
   zápis bodu, `CampaignLock`, bariéra a `outbox` beze změny – bod se ukládá stejně často.
 - **Mřížky pochodu napříč koly** (`MarchGridMemo` v `domain/war/march-grid.ts`,
-  `CampaignWorld.grids`): klíč = identita krajiny, překážek a stavu vsi a den (dva nejnovější dny).
+  `CampaignWorld.grids`): klíč = identita krajiny, překážek a stavu vsi a den – čtyři naposledy
+  použité dny, vyhazuje se nejdéle nepoužitý (ne nejmenší: tažení o den pozadu by svou mřížku
+  stavělo při každém dotazu – měřeno 13. 11. 2026, dvě tažení o den posunutá: 205 → 6 staveb mřížky
+  na 800 dotazů, 1,2 s → 36 ms).
   Paměť workeru dá vsi téže verze a jména tentýž objekt stavu (`recallVillage`; vsi, které kolo
   nenačetlo, zapomene), krajiny a mapy prázdných políček jsou sdílené (`createCampaignCells`).
 

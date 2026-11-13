@@ -3,7 +3,13 @@ import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
 import { applyInboxDay } from '../../domain/village/core/inbox';
 import type { VillageState } from '../../domain/village';
 import { DAY, bundle, sender } from '../../domain/vassalage/__tests__/shipment-fixtures';
-import { decidePrisoner, ransomHooks, type PrisonerDeps, type RansomDeps } from '../prisoners';
+import {
+  decidePrisoner,
+  ransomHooks,
+  type PrisonerDeps,
+  type PrisonerResult,
+  type RansomDeps,
+} from '../prisoners';
 import { InMemoryHouses } from './in-memory-houses';
 import { InMemoryPlayerLock } from './in-memory-locks';
 import { InMemoryPrisoners } from './in-memory-prisoners';
@@ -19,10 +25,23 @@ const NOW = new Date('2026-11-05T12:00:00Z');
 const PRISONER = 'c1:38';
 const TODAY = DAY + 20;
 
-async function world(): Promise<{
+/** Zásilky, které při rezervaci – uprostřed platby – pustí ke slovu souběžný požadavek. */
+class InterruptedShipments extends InMemoryShipments {
+  onReserve: (() => void) | null = null;
+
+  override reserve(
+    input: Parameters<InMemoryShipments['reserve']>[0],
+  ): ReturnType<InMemoryShipments['reserve']> {
+    this.onReserve?.();
+    return super.reserve(input);
+  }
+}
+
+async function world(shipments: InMemoryShipments = new InMemoryShipments()): Promise<{
   deps: RansomDeps;
   villages: InMemoryVillages;
   prisoners: InMemoryPrisoners;
+  shipments: InMemoryShipments;
   captorId: string;
   homeId: string;
   houseA: string;
@@ -74,13 +93,14 @@ async function world(): Promise<{
     locks,
     now: () => NOW,
     houses,
-    shipments: { shipments: new InMemoryShipments(), villages, settlements, locks, now: () => NOW },
+    shipments: { shipments, villages, settlements, locks, now: () => NOW },
     prepareVillage: () => Promise.resolve(null),
   };
   return {
     deps,
     villages,
     prisoners,
+    shipments,
     captorId: captor.id,
     homeId: home.id,
     houseA: ha.id,
@@ -217,5 +237,101 @@ describe('výkupné a mír', () => {
     expect(w.prisoners.records.get(PRISONER)?.decision).toBe('released');
     const after = await atDay(w, w.homeId, TODAY + 6);
     expect(after.people.find((p) => p.id === 38)?.away).toBeUndefined();
+  });
+});
+
+// Výkupné je nedělitelné: buď se zaplatí a zajatec je propuštěn, nebo se nezaplatí nic – ať
+// věznitel o zajatci rozhodne kdykoli kolem platby.
+describe('výkupné je nedělitelné', () => {
+  const line = {
+    kind: 'ransom' as const,
+    prisonerIds: [PRISONER],
+    price: bundle({ grainKg: 300 }),
+  };
+  const pay = (w: Awaited<ReturnType<typeof world>>, negotiationId: string) =>
+    ransomHooks(w.deps).apply({
+      line,
+      captorHouseId: w.houseA,
+      payerHouseId: w.houseC,
+      negotiationId,
+      now: NOW,
+      today: TODAY,
+    });
+  const stores = (w: Awaited<ReturnType<typeof world>>): number =>
+    w.villages.records.get(w.homeId)!.state.storesKg;
+
+  it('poprava během dopočtu vsi plátce: nezaplatí se nic', async () => {
+    const w = await world();
+    const before = stores(w);
+    let executed: PrisonerResult | null = null;
+    // souběžný požadavek věznitele dorazí, zatímco se dopočítává ves plátce
+    w.deps.prepareVillage = async () => {
+      executed = await decision(w.deps, 'execute');
+      return null;
+    };
+    const failed = await pay(w, 'n-race-1');
+    expect(executed).toEqual({ ok: true });
+    expect(failed).not.toBeNull();
+    expect(w.shipments.rows).toHaveLength(0);
+    expect(stores(w)).toBe(before);
+    expect(w.prisoners.records.get(PRISONER)?.decision).toBe('executed');
+  });
+
+  it('poprava uprostřed platby počká na zámek věznitele a neprojde', async () => {
+    const shipments = new InterruptedShipments();
+    const w = await world(shipments);
+    let execution: Promise<PrisonerResult> | null = null;
+    shipments.onReserve = () => {
+      execution ??= decision(w.deps, 'execute');
+    };
+    expect(await pay(w, 'n-race-2')).toBeNull();
+    expect(execution).not.toBeNull();
+    expect((await execution!).ok).toBe(false);
+    expect(shipments.rows).toHaveLength(1);
+    expect(w.prisoners.records.get(PRISONER)?.decision).toBe('ransomed');
+    const after = await atDay(w, w.homeId, TODAY + 6);
+    expect(after.people.find((p) => p.id === 38)?.away).toBeUndefined();
+  });
+
+  it('zajatec popravený dřív, než ho ves věznitele odepsala: nezaplatí se nic', async () => {
+    const w = await world();
+    expect(await decision(w.deps, 'execute')).toEqual({ ok: true });
+    // uložený stav vsi věznitele zajatce ještě vede (událost schránky se použije až při dopočtu)
+    expect((await w.villages.find(w.captorId))?.state.prisoners).toHaveLength(1);
+    const before = stores(w);
+    expect(await pay(w, 'n-late')).not.toBeNull();
+    expect(w.shipments.rows).toHaveLength(0);
+    expect(stores(w)).toBe(before);
+    expect(w.prisoners.records.get(PRISONER)?.decision).toBe('executed');
+  });
+
+  it('dvě výkupná proti sobě se nezablokují (zámky v pevném pořadí)', async () => {
+    const w = await world();
+    // i hráč `c` drží zajatce: muže 30 z Dubu ve vsi Lhota
+    const BACK = 'c2:30';
+    const lhota = w.villages.records.get(w.homeId)!;
+    const dub = w.villages.records.get(w.captorId)!;
+    lhota.state.prisoners = [
+      { id: BACK, ref: { villageId: dub.id, personId: 30 }, name: 'Dobrohost', sinceDay: DAY + 10 },
+    ];
+    const man = dub.state.people.find((p) => p.id === 30)!;
+    man.line = true;
+    man.away = { kind: 'captive', hostVillageId: lhota.id, refId: BACK };
+    const hooks = ransomHooks(w.deps);
+    const results = await Promise.all([
+      pay(w, 'n-there'),
+      hooks.apply({
+        line: { kind: 'ransom', prisonerIds: [BACK], price: bundle({ grainKg: 200 }) },
+        captorHouseId: w.houseC,
+        payerHouseId: w.houseA,
+        negotiationId: 'n-back',
+        now: NOW,
+        today: TODAY,
+      }),
+    ]);
+    expect(results).toEqual([null, null]);
+    expect(w.prisoners.records.get(PRISONER)?.decision).toBe('ransomed');
+    expect(w.prisoners.records.get(BACK)?.decision).toBe('ransomed');
+    expect(w.shipments.rows).toHaveLength(2);
   });
 });

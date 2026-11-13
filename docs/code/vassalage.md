@@ -109,7 +109,9 @@ trailId: -1, give, porters, days = 4 × cells, cost = porters × days }` – nos
   3. událost `shipment` do schránky cílové vsi (`ref` = `ship:<id>`, den `today + 2 × cells`)
      a `posted_at`.
      Ves se dopočítá volající (stav v den `today`). Cíl, který už zanikl (`extinctDay`,
-     `abandonedDay`), odeslání odmítne.
+     `abandonedDay`), odeslání odmítne. Volající, který zámek držitele odesílatele
+     (`shipmentLockOwner`) už drží, volá `sendShipmentLocked` – výkupné (`prisoners.ts`) drží zámek
+     věznitele i plátce kolem platby i propuštění a zámek není reentrantní.
 - **`reconcileShipments(deps, today)`** (`runWorldTasks`, worker 1× za minutu, pod `tryRun`
   zámkem držitele odesílatele): řádek bez `posted_at` – odesílající ves nese `shipmentId` → událost
   se dopíše (druhý zápis téhož `ref` se zahodí, doručí se právě jednou), jinak se ves neuložila a
@@ -445,7 +447,8 @@ Pravidla: [vassalage.md](../design/vassalage.md) – Vymření rodu – odúmrť
   1. krok pod zámkem **starého** držitele: `SettlementRepository.transferHolder(sídlo, starý, nový)` –
      podmíněný UPDATE (drží starý, nic nečeká), sídlo přestane být sídelní; `listActive` čekající sídlo
      nevrací nikomu, fronta workeru (`world-queue.ts`) ho počítá u nového (`coalesce(pending, owner)`).
-  2. krok pod zámkem **nového**: `acceptHolderTransfers(nový)` (`acceptTransfers` + křest nového rodu
+  2. krok pod zámkem **nového**: `acceptHolderTransfers(nový)` (`acceptTransfers` – čekající sídla
+     najde částečný index `settlement_pending_owner_idx`, dotaz běží v každé dávce workeru – + křest nového rodu
      ve vsích – `village-people.md` – Křest a víra) – na začátku `advancePlayer` (worker, `tryRun`),
      `advanceDynasty` (web) a v `transferVillages`; idempotentní.
      Pád mezi kroky: sídlo čeká, nikdo ho nepočítá, nejbližší dopočet nového držitele ho převezme. Verze vsi

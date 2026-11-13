@@ -1,0 +1,2 @@
+CREATE INDEX "campaign_checkpoint_outbox_idx" ON "campaign_checkpoint" USING btree ("campaign_id") WHERE "campaign_checkpoint"."outbox" IS NOT NULL;--> statement-breakpoint
+CREATE INDEX "settlement_pending_owner_idx" ON "settlement" USING btree ("pending_owner_id") WHERE "settlement"."pending_owner_id" IS NOT NULL;

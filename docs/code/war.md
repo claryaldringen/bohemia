@@ -690,7 +690,9 @@ Plán 2026-11-03 – rozhodnutí 13, Úloha 6.7. Ves čeká jen na tažení u se
   bod bez něj → `day − 1`), nedoručené události `outbox` mez sníží na svůj den − 1 (i u vsi daleko –
   posel, kronika). `holdDay`, `heldDay(today, lastDay, limit)` (nikdy pod spočítaný `lastDay`).
   Adaptér `db/adapters/village-holds.ts` (`createVillageHolds` – CTE nad aktivními body:
-  `state->'groups'`, `state->'alarm'` a `outbox` se rozbalí jednou na tažení; `villagesNearCampaigns`
+  `state->'groups'`, `state->'alarm'` a `outbox` se rozbalí jednou na tažení; aktivní tažení najde
+  index `campaign_status_idx`, body s nedoručenými událostmi částečný index
+  `campaign_checkpoint_outbox_idx` – body skončených tažení se nečtou; `villagesNearCampaigns`
   – přednostní vsi = všechny držené vsi kromě těch jen s nedoručenou událostí), úložiště vsí ho
   nese jako `VillageRepository.holds` (patří k dopočtu jako schránka; `cachedVillages` ho propouští).
 - **Dopočet vsi** – `updateVillage` se zeptá na mez při každém pokusu a dopočítá ves jen do
@@ -1247,7 +1249,18 @@ rozhodnutí.
 today })` (`hold` / `release` / `execute`, zajatec se hledá ve vsích hráče, pod zámkem hráče;
   propuštění pošle `captive-returns` home za `max(1, 2 × cellDistance)` dní) a `ransomHooks(deps)`
   (`NegotiateDeps.ransom`): `check` (zajatce drží jedna strana jednání), `apply` (zásilka výkupného
-  z vsi platícího do vsi věznitele přes `sendShipment`, pak propuštění), `release` (mír).
+  z vsi platícího do vsi věznitele, pak propuštění), `release` (mír). **Výkupné je nedělitelné:**
+  `apply` napřed dopočítá ves plátce (`prepareVillage`, bez zámků) a pak pod zámkem věznitele
+  i držitele vsi plátce (`runUnderLocks` v `locks.ts` – pevné pořadí podle id hráče, každý jednou)
+  ověří, že věznitel zajatce drží a o žádném ještě není rozhodnuto (řádek `prisoner`; uložený stav
+  vsi věznitele vede zajatce až do použití události schránky), pošle zásilku (`sendShipmentLocked`
+  – zámek není reentrantní, proto ne `sendShipment`) a zapíše rozhodnutí `ransomed`. `decidePrisoner`
+  čeká na týž zámek věznitele, takže poprava ani propuštění mezi platbu a zápis nevstoupí – buď je
+  zaplaceno a zajatec propuštěn, nebo se nezaplatí nic. Je to jediné místo, které drží zámky dvou
+  hráčů naráz (převod držitele se tomu vyhýbá dvěma kroky – vassalage.md); v Postgresu jde o dvě
+  spojení poolu zámků a srážka otisků právě těchto dvou hráčů (`playerLockHash`, ≈ 2⁻³² na dvojici)
+  by skončila čekáním do `WEB_LOCK_WAIT_MS` a chybou bez platby i zápisu (db test
+  `player-lock.db.test.ts` – protisměrné operace se nezablokují).
 - **Jednání**: řádek `ransom { prisonerIds; price; vassalage? }` (`domain/negotiation/ransom.ts`),
   samostatné jednání jako obchod (nevyžaduje vazalství; `open` / `counter` / `accept` v
   `negotiate.ts`); vazalství z výkupného vznikne účinkem řádku. `peace.releasePrisoners` po přijetí
