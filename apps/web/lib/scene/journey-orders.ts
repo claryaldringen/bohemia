@@ -35,3 +35,22 @@ export function orderFromClick(input: {
   const step = GRID_STEPS[direction];
   return { kind: 'cross', cell: { x: input.cell.x + step.x, y: input.cell.y + step.y } };
 }
+
+/** Co udělat s pravým kliknutím vybraného vojvody. */
+export type LordClick =
+  { kind: 'send'; order: JourneyOrder } | { kind: 'refuse'; text: string } | { kind: 'none' };
+
+/**
+ * Rozhodne o pravém kliknutí vybraného vojvody (lord-control.md – Co hráč vidí: důvod u kurzoru):
+ * mimo terén nebo dokud se kandidáti načítají (`loading`) nic; je-li výjezd odepřen (`refusal`,
+ * česky), ukáže se důvod u kurzoru a výběr zůstává; jinak se rozkaz odešle.
+ */
+export function lordClick(input: {
+  order: JourneyOrder | null;
+  loading: boolean;
+  refusal: string | null;
+}): LordClick {
+  if (input.order === null || input.loading) return { kind: 'none' };
+  if (input.refusal !== null) return { kind: 'refuse', text: input.refusal };
+  return { kind: 'send', order: input.order };
+}

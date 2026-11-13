@@ -263,10 +263,14 @@ mapSizeM, cell })` (čistá funkce) – bez vybraného vojvody nebo mimo terén 
   pravé tlačítko ohlásí bod terénu (`pickGround`) a pixel plátna místo zrušení výběru a pohyb kurzoru
   volá `hover` (vrací CSS kurzor – šipka u okraje).
 - **Hook** `components/game/village-game/use-lord-journey.ts` – `useLordJourney`: vybraný vojvoda
+  (klik ve scéně, nebo na jeho portrét v řadě obyvatel panelu dvorce – `resident-select-<id>`)
   = `selected` je osoba s `view.dynasty.lordId`. Doma načte `getJourneyCandidates`, drží družinu
   (`retinue`) a pravým tlačítkem volá `launchJourney`; na cestě (`dynasty.journeyAway`, jen na
-  domovské mapě skupiny) volá `commandJourney`; ikona Domů `{ kind: 'home' }`. Důvod odmítnutí
-  (`journeyReason`) a „Na sousední mapu“ ukáže `JourneyCursorNote` u kurzoru. `useJourney(running,
+  domovské mapě skupiny) volá `commandJourney`; ikona Domů `{ kind: 'home' }`. Režim vojvody (`setLordMode`) zůstává
+  zapnutý i při odepřeném výjezdu a během načítání kandidátů: `lordClick` (`journey-orders.ts`) rozhodne
+  o pravém kliknutí – nic (mimo terén, načítání), důvod u kurzoru (`refuse`, výběr zůstává) nebo odeslání
+  rozkazu. Důvod (`journeyReason`) a „Na sousední mapu“ ukáže `JourneyCursorNote` u kurzoru, v panelu je
+  jen v popisku zašedlé řady. `useJourney(running,
 onEnded)` se ptá jen s `running` (vojvoda pryč nebo právě vyjel); zmizí-li pohled, `onEnded`
   obnoví ves (upozornění „… se vrátil.“) a dotazy stojí, dokud ves návrat nepotvrdí. Chyba sítě
   dotazování nezastaví.

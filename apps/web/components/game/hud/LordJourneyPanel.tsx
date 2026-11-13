@@ -14,8 +14,8 @@ export interface LordJourneyUi {
   mode: 'home' | 'away';
   lord: JourneyCandidate | null;
   men: readonly JourneyCandidate[];
-  /** Důvod, proč výjezd nejde (česky), nebo null. */
-  reason: string | null;
+  /** Důvod, proč výjezd nejde (česky) – jen v popisku zašedlé řady; rozkaz ho ukáže u kurzoru. */
+  reason?: string | null;
   retinue: ReadonlySet<number>;
   onToggle: (personId: number) => void;
   onHome: () => void;
@@ -63,7 +63,10 @@ export function LordJourneyPanel({ ui }: { ui: LordJourneyUi }): ReactElement {
     ui.men.filter((m) => ui.retinue.has(m.personId)).reduce((sum, m) => sum + m.strength, 0);
   return (
     <div className="flex flex-col gap-1" data-testid="lord-journey">
-      <div className="flex items-center gap-1.5" data-testid="lord-retinue">
+      <div
+        className={`flex items-center gap-1.5 ${ui.reason ? 'grayscale' : ''}`}
+        data-testid="lord-retinue"
+      >
         {ui.men.map((man) => {
           const chosen = ui.retinue.has(man.personId);
           const title = `${man.name === '' ? 'Muž rodu' : man.name} (${formatInteger(man.age)})`;
@@ -91,7 +94,7 @@ export function LordJourneyPanel({ ui }: { ui: LordJourneyUi }): ReactElement {
             </Tooltip>
           );
         })}
-        <Tooltip content="Síla skupiny" placement="above">
+        <Tooltip content={ui.reason ?? 'Síla skupiny'} placement="above">
           <span className="ml-1 flex items-center gap-1" tabIndex={0}>
             <img src="/icons/house/sword.png" alt="" width={20} height={20} />
             <span data-testid="lord-strength" className="text-sm font-semibold tabular-nums">
@@ -100,11 +103,6 @@ export function LordJourneyPanel({ ui }: { ui: LordJourneyUi }): ReactElement {
           </span>
         </Tooltip>
       </div>
-      {ui.reason !== null && (
-        <p data-testid="lord-journey-reason" className="text-sm text-[#ff9c88]">
-          {ui.reason}
-        </p>
-      )}
     </div>
   );
 }

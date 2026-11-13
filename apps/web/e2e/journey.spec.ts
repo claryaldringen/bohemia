@@ -12,6 +12,7 @@ import {
   query,
   villageSpots,
   villageState,
+  withBuiltFirstDwelling,
 } from './village-helpers';
 
 // Ovládání vojvody (lord-control.md – Co hráč vidí; plán 2026-11-13 – Úloha 8a), hra s workerem:
@@ -84,13 +85,29 @@ test('vojvoda: družina, rozkaz pravým tlačítkem, portrét v liště, Domů a
       line: true,
       name,
     });
-    return { ...st, people: [...st.people, man(base, 'Ctibor'), man(base + 1, 'Neklan')] };
+    // dostavěný dvorec – jeho panel ukazuje obyvatele s portrétem vojvody
+    return withBuiltFirstDwelling({
+      ...st,
+      people: [...st.people, man(base, 'Ctibor'), man(base + 1, 'Neklan')],
+    });
   });
   const lordId = state.dynasty!.lordId!;
   await pollVillage(page);
 
   // výběr vojvody ukáže řadu mužů a sílu skupiny
-  await page.evaluate((id) => window.__bohemiaE2E!.selectPerson!(id), lordId);
+  // vojvodu vybere klik na jeho portrét v panelu dvorce (stejně jako klik ve scéně)
+  const panel = page.getByTestId('selection-panel');
+  await expect
+    .poll(
+      async () => {
+        const at = await screenOf(page, spots.dwelling.x, spots.dwelling.z);
+        await page.mouse.click(at.x, at.y);
+        return panel.getAttribute('data-kind', { timeout: 1000 }).catch(() => null);
+      },
+      { timeout: 60_000 },
+    )
+    .toBe('dwelling');
+  await panel.getByTestId(`resident-select-${lordId}`).click();
   const retinue = page.getByTestId('lord-retinue');
   await expect(retinue).toBeVisible({ timeout: 30_000 });
   const men = retinue.getByTestId('lord-retinue-man');

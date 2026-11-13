@@ -5,8 +5,9 @@ import { SEAT_CELL, type GridCell, type JourneyCandidate } from '@bohemia/game';
 import { commandJourney, getJourneyCandidates, launchJourney } from '@/app/game/actions/journey';
 import { useJourney, type JourneyHandle } from '@/hooks/use-journey';
 import type { VillageTarget } from '@/lib/scene/village-picking';
-import { edgeDirection, orderFromClick } from '@/lib/scene/journey-orders';
+import { edgeDirection, lordClick, orderFromClick } from '@/lib/scene/journey-orders';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
+import { journeyReason } from '@/lib/journey-view';
 import type { VillageView } from '@/lib/village-view';
 import type { LordJourneyUi } from '../hud/LordJourneyPanel';
 
@@ -142,28 +143,37 @@ export function useLordJourney({
   const onHomeMap =
     journeyView === null ||
     (journeyView.cell.x === journeyView.home.x && journeyView.cell.y === journeyView.home.y);
-  const controllable = journeyAway
-    ? journeyView?.controllable === true
-    : candidates?.refusal === null;
+  // Režim vojvody zůstává zapnutý i při odepřeném výjezdu a během načítání kandidátů – pravé
+  // tlačítko pak ukáže důvod u kurzoru (nebo nic) a výběr nezruší (`lordClick`).
+  const loading = journeyAway ? journeyView === null : candidates === null;
+  const refusal = journeyAway
+    ? journeyView !== null && !journeyView.controllable
+      ? journeyReason('no-lord')
+      : null
+    : (candidates?.refusal ?? null);
   const retinueRef = useRef(retinue);
   useEffect(() => {
     retinueRef.current = retinue;
   }, [retinue]);
   useEffect(() => {
-    if (!scene || !lordSelected || !controllable || !onHomeMap || orderCell === null) return;
+    if (!scene || !lordSelected || !onHomeMap || orderCell === null) return;
     if (villageId === null) return;
     scene.setLordMode({
       order: (point, screen) => {
         const order = orderFromClick({ lordSelected: true, point, mapSizeM, cell: orderCell });
-        if (order === null) return;
+        const click = lordClick({ order, loading, refusal });
+        if (click.kind === 'refuse') showError(click.text, screen);
+        if (click.kind !== 'send') return;
         const sent = journeyAway
-          ? commandJourney(order).then((r) => ('error' in r ? r.error : null))
-          : launchJourney({ villageId, retinue: [...retinueRef.current], order }).then((r) => {
-              if ('error' in r) return r.error;
-              setLaunched(true);
-              refreshVillage();
-              return null;
-            });
+          ? commandJourney(click.order).then((r) => ('error' in r ? r.error : null))
+          : launchJourney({ villageId, retinue: [...retinueRef.current], order: click.order }).then(
+              (r) => {
+                if ('error' in r) return r.error;
+                setLaunched(true);
+                refreshVillage();
+                return null;
+              },
+            );
         void sent.then((failure) => {
           if (failure !== null) showError(failure, screen);
           else refreshJourney();
@@ -182,7 +192,8 @@ export function useLordJourney({
   }, [
     scene,
     lordSelected,
-    controllable,
+    loading,
+    refusal,
     onHomeMap,
     orderCell,
     mapSizeM,
@@ -214,7 +225,6 @@ export function useLordJourney({
         mode: 'away',
         lord: null,
         men: [],
-        reason: null,
         retinue,
         onToggle: toggle,
         onHome: goHome,

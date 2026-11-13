@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EDGE_BAND_M, edgeDirection, orderFromClick } from '../journey-orders';
+import { EDGE_BAND_M, edgeDirection, lordClick, orderFromClick } from '../journey-orders';
 
 const MAP = 1920;
 const H = MAP / 2;
@@ -43,5 +43,22 @@ describe('edgeDirection', () => {
     expect(edgeDirection({ x: 0, z: 0 }, MAP)).toBeNull();
     expect(edgeDirection({ x: H - 1, z: H - 1 }, MAP)).toBe('NE');
     expect(edgeDirection({ x: -H + 1, z: 0 }, MAP)).toBe('W');
+  });
+});
+
+describe('lordClick', () => {
+  const order = { kind: 'go', pos: { x: 1, z: 2 } } as const;
+  it('bez odepření rozkaz odešle', () => {
+    expect(lordClick({ order, loading: false, refusal: null })).toEqual({ kind: 'send', order });
+  });
+  it('odepřený výjezd ukáže důvod a nic neodešle', () => {
+    expect(lordClick({ order, loading: false, refusal: 'Vojvoda je raněný.' })).toEqual({
+      kind: 'refuse',
+      text: 'Vojvoda je raněný.',
+    });
+  });
+  it('při načítání kandidátů a mimo terén nic', () => {
+    expect(lordClick({ order, loading: true, refusal: null })).toEqual({ kind: 'none' });
+    expect(lordClick({ order: null, loading: false, refusal: 'x' })).toEqual({ kind: 'none' });
   });
 });
