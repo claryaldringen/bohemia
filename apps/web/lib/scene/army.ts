@@ -293,12 +293,12 @@ export interface OrderIcon {
 
 /** Rozestup mužů v hloučku (m) – pěší, jezdec (návrh Clauda). */
 export const HUDDLE_SPACING_M = { foot: 1.6, mounted: 3.2 } as const;
-/** Pod kolik m/s muž stojí (klip na místě). */
-const STAND_M_S = 0.15;
+/** Pod kolik m/s muž stojí (klip na místě) – i jezdci výjezdu (journey-riders.ts). */
+export const STAND_M_S = 0.15;
 /** Rychlost, nad kterou jezdec klusá (m/s). */
-const TROT_M_S = 2.6;
+export const TROT_M_S = 2.6;
 /** Chůze klipu `walk-spear` / `walk` při tempu 1 (m/s, postava × FIGURE_SCALE). */
-const WALK_M_S = 1.5;
+export const WALK_M_S = 1.5;
 /** Rána zblízka / lukem – tolik taktů od rány ukazuje postava úder (pak klid se zbraní). */
 const STRIKE_SHOW_TICKS = TICKS_PER_SECOND;
 /** Takty mezi ranami (jádro – `battle.ts`). */
@@ -309,7 +309,7 @@ export const THROW_TICKS = FORTIFICATIONS.defense.throwSeconds * TICKS_PER_SECON
 const THROW_M = FORTIFICATIONS.defense.throwM;
 
 /** Jednotkový vektor (nulový – sever). */
-function unit(x: number, z: number): Pos {
+export function unit(x: number, z: number): Pos {
   const l = Math.hypot(x, z);
   return l > 1e-6 ? { x: x / l, z: z / l } : { x: 0, z: 1 };
 }

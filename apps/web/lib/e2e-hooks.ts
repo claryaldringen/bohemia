@@ -47,6 +47,14 @@ export interface E2EHooks {
     }[];
     banner: { x: number; z: number } | null;
     hourglass: number | null;
+    /** Vlastní výjezd ve scéně: odjíždí z dvorce, jede se skupinou, přijíždí; žádný – null. */
+    phase: 'departing' | 'riding' | 'arriving' | null;
+    /** Koně bez jezdce mezi ohradou a kůlem (odjezd a příjezd). */
+    led: { x: number; z: number }[];
+    /** Brána dvorce, kudy výjezd vyjíždí; ves bez cvičiště – null. */
+    gate: { x: number; z: number } | null;
+    /** Id koní, které ohrada teď nekreslí (na jízdě, na výjezdu, cestou mezi ohradou a kůlem). */
+    awayHorses: number[];
   };
   /** Posune kameru nad bod krajiny (x, z) – zvěř bývá u lesa mimo výchozí záběr. */
   moveCameraTo?: (x: number, z: number) => void;

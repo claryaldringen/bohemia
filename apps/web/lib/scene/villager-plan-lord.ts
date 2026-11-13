@@ -17,11 +17,14 @@ import {
   type FighterSlot,
   type TraineeDay,
 } from './lord-day';
+import type { JourneyYard, YardHorse } from './journey-departure';
 import { HUNT_PACE } from './rider-route';
 import {
   createRideState,
+  hitchSpot as horseHitchSpot,
   huntPlans,
   isRiding,
+  leadPath,
   rideBlockAt,
   ridePlans,
   riderPose,
@@ -47,6 +50,53 @@ import type { Point } from './villager-plan-types';
 
 /** Kůň vyjde z ohrady tak daleko před branku (m), než zamíří ke kůlu. */
 const LEAD_OUT_M = 1;
+
+/** Cesty jízd a koní po pěšinách a kolem domů (walkRoute), jinak rovně; přes pole nikdy. */
+function pathLeg(ctx: Context): (a: Point, b: Point) => Point[] {
+  return (a, b) => {
+    const r = walkRoute(ctx, a, b);
+    return r ? r.points.map(([x, z]) => ({ x, z })) : [a, b];
+  };
+}
+
+/**
+ * Kde kůň `horseId` vyjde z ohrady a kam se vrátí: kousek před brankou hotové ohrady, ve které
+ * stojí (riders.ts – `withLead`, `leadPath`); bez ní null.
+ */
+function leadGate(ctx: Context, horseId: number): Point | null {
+  const pen = (ctx.village.pens ?? []).find((p) => p.horses?.some((h) => h.id === horseId));
+  const gate = pen ? horseGate(ctx, pen.id) : null;
+  return gate ? { x: gate.x + gate.outX * LEAD_OUT_M, z: gate.z + gate.outZ * LEAD_OUT_M } : null;
+}
+
+/**
+ * Místa dvorce pro odjezd a příjezd výjezdu vojvody (lord-control.md – Ve scéně;
+ * journey-departure.ts): vchod obydlí cvičiště, brána dvorce (zemnice bez pozemku – kůl na koně)
+ * a koně jezdců vsi u kůlu vedle sebe (vojvodův první) s cestou z ohrady – stejnou jako před jízdou
+ * dne rodiny (`leadPath`). Bez cvičiště (zemnice, kde rodina dnes necvičí) null.
+ */
+export function journeyYard(ctx: Context): JourneyYard | null {
+  const ground = trainingGroundOf(ctx.village);
+  if (!ground) return null;
+  const hitch = hitchSpot(ground);
+  const leg = pathLeg(ctx);
+  const lordId = ctx.village.labor?.lord?.lordId;
+  const pairs = (ctx.village.pens ?? [])
+    .flatMap((pen) => pen.horses ?? [])
+    .flatMap((h) => (h.riderId === undefined ? [] : [{ horseId: h.id, riderId: h.riderId }]))
+    .sort(
+      (a, b) =>
+        Number(b.riderId === lordId) - Number(a.riderId === lordId) || a.riderId - b.riderId,
+    );
+  const horses = pairs.map(({ horseId, riderId }, i): YardHorse => {
+    const spot = horseHitchSpot(hitch, i);
+    const gate = leadGate(ctx, horseId);
+    const heading = { x: spot.headingX, z: spot.headingZ };
+    return { riderId, horseId, spot, lead: gate ? leadPath(gate, spot, heading, leg) : null };
+  });
+  const door = manorDoor(ctx, ground.home);
+  return { door: { x: door.x, z: door.z }, gate: ground.gate ?? hitch, horses };
+}
 
 /** Ženy rodiny chodí od vchodu nejvýš tak daleko (m) – zůstávají na pozemku dvorce. */
 const HOUSEWORK_M = 3.5;
@@ -229,10 +279,7 @@ export function lordFigures(
   const out: PlannedVillager[] = [];
   // jízdy dne – po pěšinách a kolem domů (walkRoute), jinak rovně; přes pole nikdy (rider-route.ts)
   const hitch = hitchSpot(ground);
-  const leg = (a: Point, b: Point): Point[] => {
-    const r = walkRoute(ctx, a, b);
-    return r ? r.points.map(([x, z]) => ({ x, z })) : [a, b];
-  };
+  const leg = pathLeg(ctx);
   const wild = ctx.village.wildlife;
   // lov (wildlife.md – Ve scéně): jezdci a pěší s oštěpy k okraji lesa u zvěře a zpět – ve
   // skutečném čase od dne lovu (`huntWindow`)
@@ -254,14 +301,9 @@ export function lordFigures(
     !hunters.has(r.riderId) ? [r] : busy && r.span ? [{ ...r, except: busy }] : [],
   );
   // kůň dojde z ohrady ke kůlu před jízdou a vrátí se po ní (riders.ts – `withLead`): z branky
-  // ohrady, kde stojí, kousek před ni – vyjde a vejde u branky
-  const penGate = (horseId: number): Point | null => {
-    const pen = (ctx.village.pens ?? []).find((p) => p.horses?.some((h) => h.id === horseId));
-    const gate = pen ? horseGate(ctx, pen.id) : null;
-    return gate ? { x: gate.x + gate.outX * LEAD_OUT_M, z: gate.z + gate.outZ * LEAD_OUT_M } : null;
-  };
+  // ohrady, kde stojí, kousek před ni – vyjde a vejde u branky (`leadGate`)
   const rides = [...patrolRides, ...(hunt?.rides ?? [])].map((r) =>
-    withLead(r, penGate(r.horseId), leg),
+    withLead(r, leadGate(ctx, r.horseId), leg),
   );
   const patrolOf = new Map(patrolRides.map((r) => [r.riderId, r]));
   const huntRideOf = new Map((hunt?.rides ?? []).map((r) => [r.riderId, r]));

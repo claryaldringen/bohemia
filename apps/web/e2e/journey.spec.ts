@@ -163,7 +163,16 @@ type JourneyScene = ReturnType<NonNullable<NonNullable<Window['__bohemiaE2E']>['
 
 async function journeyScene(page: Page): Promise<JourneyScene> {
   return page.evaluate(
-    () => window.__bohemiaE2E?.journeyScene?.() ?? { riders: [], banner: null, hourglass: null },
+    () =>
+      window.__bohemiaE2E?.journeyScene?.() ?? {
+        riders: [],
+        banner: null,
+        hourglass: null,
+        phase: null,
+        led: [],
+        gate: null,
+        awayHorses: [],
+      },
   );
 }
 
@@ -376,4 +385,150 @@ test('výjezd ve scéně: jezdci, praporek i u vody, přesýpací hodiny a cizí
     test.info().annotations.push({ type: 'note', description: 'Krajina A nemá vodu.' });
   }
   await Promise.all(ctxs.map((ctx) => ctx.close()));
+});
+
+// Odjezd a příjezd výjezdu (journey.md – Scéna vsi – Odjezd a příjezd; plán 2026-11-13 – Úloha 8c):
+// bez omezeného pohybu (s ním se odjezd přeskočí) – vojvodův kůň dojde z ohrady ke kůlu, vojvoda
+// nasedne a vyjede branou dvorce; po návratu (Domů) přijede a kůň vejde zpět do ohrady.
+
+/** Hráč s dvorcem (dům a dvůr na východ), ohradou koní s koněm vojvody a dvěma muži rodu. */
+async function manorWithHorse(
+  page: Page,
+  prefix: string,
+): Promise<{ seat: Seat; dwelling: Pos; lordId: number; horseId: number }> {
+  const { seat: s } = await newPlayer(page, prefix);
+  const l = s.landscape;
+  const spot = villageSpots(l).dwelling;
+  await found(page, spot, 'Bořivoj');
+  const tile = tileOfWorldPoint(l, spot.x, spot.z)!;
+  const house = tileCenterWorld(l, tile.x, tile.y);
+  const penCell = { x: tile.x + 2, y: tile.y + 2 };
+  const pen = tileCenterWorld(l, penCell.x, penCell.y);
+  const horseId = 1;
+  const state = await changeVillageState(s.settlementId, (st) => {
+    const lord = st.people.find((p) => p.id === st.dynasty?.lordId)!;
+    const base = Math.max(...st.people.map((p) => p.id)) + 1;
+    const man = (id: number, name: string): Person => ({
+      id,
+      bornDay: st.lastDay - 22 * 366,
+      dwellingId: lord.dwellingId,
+      sex: 'male',
+      line: true,
+      name,
+    });
+    const built = withBuiltFirstDwelling({
+      ...st,
+      people: [...st.people, man(base, 'Ctibor'), man(base + 1, 'Neklan')],
+    });
+    return {
+      ...built,
+      // první obydlí jako dvorec – dům uprostřed políčka vchodem ke dvoru, brána na konci dvora
+      dwellings: built.dwellings.map((d) =>
+        d.id === lord.dwellingId
+          ? {
+              ...d,
+              type: 'dvorec' as const,
+              position: { x: house.x, z: house.z, rotation: Math.PI / 2 },
+              plot: { cell: tile, variant: 'center' as const, yard: { x: tile.x + 1, y: tile.y } },
+            }
+          : d,
+      ),
+      pens: [
+        {
+          id: 1,
+          species: 'horse' as const,
+          cell: penCell,
+          x: pen.x,
+          z: pen.z,
+          builtDay: st.lastDay,
+          horses: [
+            {
+              id: horseId,
+              bornDay: st.lastDay - 6 * 366,
+              sex: 'male' as const,
+              training: 60,
+              riderId: lord.id,
+            },
+          ],
+        },
+      ],
+    };
+  });
+  await pollVillage(page);
+  return { seat: s, dwelling: house, lordId: state.dynasty!.lordId!, horseId };
+}
+
+test('výjezd ve scéně: kůň z ohrady ke kůlu, odjezd branou dvorce a návrat do ohrady', async ({
+  browser,
+}) => {
+  test.setTimeout(600_000);
+  const ctx = await browser.newContext({ reducedMotion: 'no-preference' });
+  await useUniqueClientIp(ctx);
+  const page = await ctx.newPage();
+  const v = await manorWithHorse(page, 'odjezd');
+  await sendLord(page, v, { x: v.dwelling.x + 45, z: v.dwelling.z });
+
+  // odjezd: háček hlásí odjíždění, kůň jde z ohrady (ohrada ho nekreslí) ke kůlu
+  await expect
+    .poll(async () => (await journeyScene(page)).phase, { timeout: 60_000 })
+    .toBe('departing');
+  const gate = (await journeyScene(page)).gate!;
+  expect(gate).not.toBeNull();
+  // jak blízko brány byl vojvoda na koni – scéna se ptá v taktu animací, test každých 50 ms
+  await page.evaluate(
+    ([gx, gz, key]) => {
+      const w = window as unknown as { __gateMin?: number };
+      w.__gateMin = Infinity;
+      const id = setInterval(() => {
+        for (const r of window.__bohemiaE2E?.journeyScene?.().riders ?? []) {
+          if (r.own && r.mounted && r.key === key) {
+            w.__gateMin = Math.min(w.__gateMin!, Math.hypot(r.x - gx!, r.z - gz!));
+          }
+        }
+      }, 50);
+      setTimeout(() => clearInterval(id), 240_000);
+    },
+    [gate.x, gate.z, String(v.lordId)] as const,
+  );
+  await expect
+    .poll(
+      async () => {
+        const scene = await journeyScene(page);
+        return scene.led.length > 0 && scene.awayHorses.includes(v.horseId);
+      },
+      { timeout: 30_000 },
+    )
+    .toBe(true);
+  const shot = process.env.JOURNEY_DEPARTURE_SHOT;
+  if (shot) {
+    await page.evaluate(([x, z]) => window.__bohemiaE2E!.moveCameraTo!(x!, z!), [gate.x, gate.z]);
+    await page.waitForTimeout(4000);
+    await page.screenshot({ path: shot, clip: { x: 320, y: 140, width: 640, height: 400 } });
+  }
+  // vojvoda nasedl a vyjel branou dvorce, pak dohnal skupinu
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __gateMin: number }).__gateMin), {
+      timeout: 180_000,
+    })
+    .toBeLessThan(2);
+  await expect
+    .poll(async () => (await journeyScene(page)).phase, { timeout: 120_000 })
+    .toBe('riding');
+
+  // Domů: skupina přijede, vojvoda sesedne a kůň vejde do ohrady
+  await page.getByTestId('lord-away-badge').click();
+  await page.getByTestId('lord-home').click();
+  await expect
+    .poll(async () => (await journeyScene(page)).phase, { timeout: 240_000 })
+    .toBe('arriving');
+  await expect
+    .poll(
+      async () => {
+        const scene = await journeyScene(page);
+        return scene.phase === null && !scene.awayHorses.includes(v.horseId);
+      },
+      { timeout: 240_000 },
+    )
+    .toBe(true);
+  await ctx.close();
 });

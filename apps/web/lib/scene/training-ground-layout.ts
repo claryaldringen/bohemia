@@ -39,6 +39,11 @@ export interface TrainingGround {
   pairs: [TrainingSpot, TrainingSpot][];
   /** Místo u cvičného kůlu (čelem ke kůlu). */
   post: TrainingSpot;
+  /**
+   * Brána dvorce uprostřed konce dvora, čelem ven (homestead-layout.ts – `MANOR_FENCE`) – tudy
+   * vyjíždí a přijíždí výjezd vojvody (journey-departure.ts). Bez dvorce chybí – zemnice plot nemá.
+   */
+  gate?: TrainingSpot;
 }
 
 /**
@@ -163,6 +168,8 @@ export function manorTrainingGround(
     lanes,
     pairs,
     post: spot(f, postA, postL + POST_REACH_M, 0, -1),
+    // plot dvorce končí u konce dvora (`farEnd`), branka je uprostřed (homestead-layout.ts)
+    gate: spot(f, end, 0, 1, 0),
   };
 }
 
