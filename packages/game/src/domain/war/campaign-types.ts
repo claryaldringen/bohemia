@@ -199,12 +199,13 @@ export interface CampaignState {
    */
   houseId?: string;
   /**
-   * Stopa tažení na cizích mapách (Úloha 11): políčko `x,y` → místa, odkud se muži na nohou
-   * dívali, po `JOURNEY.trailStepM`, seřazená podle x, pak z, bez opakování (jako `SeenCell.trail`).
-   * Jen záznam pro znalost rodu – boj ani pohyb ji nečtou. Takt ji nekopíruje: mění se jen novým
-   * objektem. Shromaždiště tu není (hráč ho zná). Chybí – muži zatím cizí mapu neviděli.
+   * Co muži tažení viděli na cizích mapách (Úloha 11 a kolo oprav – jako `JourneyState.seen`):
+   * políčko `x,y` → `SeenCell` (stopa po `JOURNEY.trailStepM`, naposled viděné stavby včetně
+   * opevnění, `since`). Jen záznam pro znalost rodu – boj ani pohyb ji nečtou. Takt ji nekopíruje:
+   * mění se jen novým objektem. Shromaždiště tu není (hráč ho zná). Chybí – muži zatím cizí mapu
+   * neviděli, nebo bod znalost nezapisuje (`recordsKnowledge`).
    */
-  trail?: Record<string, [number, number][]>;
+  seen?: Record<string, SeenCell>;
   /** Proč se vrací (od fáze `returning`). */
   returnReason: CampaignReturnReason | null;
   /** Boj na mapě cíle (war.md – Boj; Ú6.8) – od prvního taktu nájezdu; chybí – zatím nebojovali. */

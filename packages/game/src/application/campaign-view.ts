@@ -7,7 +7,7 @@ import {
   leadsLive,
   marchGrid,
   reachableGoal,
-  targetTrail,
+  targetSeenOf,
   type CampaignPlace,
   type CampaignState,
   type CampaignView,
@@ -18,7 +18,7 @@ import {
   type SeenCell,
   type SurrenderOrder,
 } from '../domain/war';
-import type { Dwelling } from '../domain/village/types';
+import type { DwellingType } from '../domain/village/types';
 import { directionBetween, sameCell, type GridCell } from '../domain/village/people/world-grid';
 import { queueCampaignIntent, type CampaignCells, type CampaignRepository } from './campaigns';
 import type { HouseRepository } from './houses';
@@ -37,11 +37,28 @@ export interface SightGridCache {
   set(key: string, grid: MarchGrid): void;
 }
 
+/** Obydlí cílové vsi, jak je bere pohled – objevené domy a zánik známých (Úloha 11). */
+export interface TargetDwelling {
+  id: number;
+  type: DwellingType;
+  position: Pos;
+}
+
+/**
+ * Mezipaměť obydlí cílových vsí po herních dnech (`villageId@den`, jako `defenders` scény války) –
+ * pohled se ptá 2× za sekundu, celý stav vsi (velká ves přes 1 MB) se tak nečte při každém dotazu.
+ */
+export interface TargetDwellingsCache {
+  get(key: string): readonly TargetDwelling[] | undefined;
+  set(key: string, dwellings: readonly TargetDwelling[]): void;
+}
+
 export interface CampaignViewDeps extends KnowledgeOfTargetDeps {
   campaigns: Pick<CampaignRepository, 'checkpoint'>;
   cells: CampaignCells;
   villages: Pick<VillageRepository, 'find'>;
   grids?: SightGridCache;
+  targets?: TargetDwellingsCache;
 }
 
 /** Porty znalosti rodu pro pohled útočníka na mapu cíle (plán 2026-11-13 – Úloha 11). */
@@ -68,19 +85,37 @@ async function viewOf(
   playerId: string,
   sinceTick: number,
 ): Promise<CampaignView | null> {
-  // cizí bojovníci a objevené stavby jsou jen na mapě cíle – mřížku a ves načte, jen když jsou;
-  // ves i kvůli známým stavbám, na jejichž místo už muži tažení mohli dohlédnout (Úloha 11)
-  const known = await knowledgeOfTarget(deps, state, playerId);
+  // cizí bojovníci a objevené stavby jsou jen na mapě cíle – mřížku a obydlí vsi načte, jen když
+  // jsou; obydlí i kvůli známým stavbám, na jejichž místo už muži tažení mohli dohlédnout (stopa na
+  // mapě cíle – Úloha 11). Obydlí z mezipaměti po dnech; dotazy na sobě nezávisí – běží souběžně.
   const defenders = state.battle?.fighters.some((f) => f.side === 'defend') ?? false;
-  const grid = defenders ? await sightGrid(deps, state) : null;
-  const looked = (known?.parts.length ?? 0) > 0 && targetTrail(state).length > 0;
-  const dwellings: readonly Dwelling[] | null =
-    state.discovered.length > 0 || looked
-      ? ((await deps.villages.find(state.target.villageId))?.state.dwellings ?? [])
-      : null;
+  const looked = (targetSeenOf(state)?.trail.length ?? 0) > 0;
+  const [known, grid, dwellings] = await Promise.all([
+    knowledgeOfTarget(deps, state, playerId),
+    defenders ? sightGrid(deps, state) : null,
+    state.discovered.length > 0 || looked ? targetDwellings(deps, state) : null,
+  ]);
   const view = campaignView(state, { playerId, sinceTick, grid, buildings: dwellings ?? [] });
   const seen = view && knownTarget(state, known, { dwellings, grid });
   return view && seen ? { ...view, known: seen } : view;
+}
+
+/** Obydlí cílové vsi v den tažení – z mezipaměti `targets`, jinak jednou ze stavu vsi. */
+async function targetDwellings(
+  deps: Pick<CampaignViewDeps, 'villages' | 'targets'>,
+  state: CampaignState,
+): Promise<readonly TargetDwelling[]> {
+  const key = `${state.target.villageId}@${state.day}`;
+  const cached = deps.targets?.get(key);
+  if (cached) return cached;
+  const village = await deps.villages.find(state.target.villageId);
+  const dwellings = (village?.state.dwellings ?? []).map((d) => ({
+    id: d.id,
+    type: d.type,
+    position: { x: d.position.x, z: d.position.z },
+  }));
+  deps.targets?.set(key, dwellings);
+  return dwellings;
 }
 
 /**

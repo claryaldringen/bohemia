@@ -309,7 +309,7 @@ describe('warSceneOnMap – útočník na cizí mapě', () => {
       ...raiding([]),
       discovered: [7],
       houseId: 'h1',
-      trail: { '1,0': [[0, 0]] },
+      seen: { '1,0': { villageId: 'knezice', trail: [[0, 0]], parts: [] } },
     };
     const { deps } = await setup(state, [house(7, 60, 0), house(8, 500, 0)]);
     const knowledge = new InMemoryKnowledge();

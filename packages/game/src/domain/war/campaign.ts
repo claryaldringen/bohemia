@@ -51,9 +51,16 @@ import type { Pos } from './march-grid';
 import { marchSpeed, type GroupPace } from './march';
 import { missingMaps, sendGroup, settleGoal, stepMover } from './movement';
 import { WAR } from './rules-war';
-import type { KnowledgeOut } from './seen';
+import type { KnowledgeOut, SeenCell } from './seen';
 import { discoverBuildings } from './sight';
-import { targetSeen, trackTrail, trailKnowledge } from './campaign-knowledge';
+import {
+  discoveredSeen,
+  lookAtTarget,
+  lookOut,
+  recordsKnowledge,
+  seenKnowledge,
+  targetSeenOf,
+} from './campaign-knowledge';
 import { frostDay } from './season';
 import { npcIntents, npcLeader } from './npc-commander';
 import { inFight, setGroupOrder } from './orders';
@@ -235,8 +242,8 @@ export function stepCampaign(
  * kopie čistých dat (`cloneData`) je ≈ 5× rychlejší než `structuredClone` (u pochodu 20 tažení byla
  * kopie polovina času smyčky); sdílené odkazy uvnitř stavu rozdělí jako kontrolní bod v JSON – stav
  * sdílí jen záznamy, které se nemění na místě (prázdná `route` bojovníků z `openBattle`, `seenAt`
- * varovaných vsí, `PersonRef` zajatců). Stopa (`trail`, Úloha 11) se nekopíruje – mění se jen
- * novým objektem (`trackTrail`), kopie by s délkou cesty rostla každý takt.
+ * varovaných vsí, `PersonRef` zajatců). Znalost map (`seen`, Úloha 11) se nekopíruje – mění se jen
+ * novým objektem (`lookOut`), kopie by s délkou cesty rostla každý takt.
  */
 function campaignTick(
   state: CampaignState,
@@ -245,9 +252,9 @@ function campaignTick(
   ctx: TickContext,
   out: TickOut,
 ): CampaignState {
-  const { trail, ...rest } = state;
+  const { seen, ...rest } = state;
   const s: CampaignState = cloneData(rest);
-  if (trail) s.trail = trail;
+  if (seen) s.seen = seen;
   s.tick = tick;
   const day = dayOfTick(tick, ctx.world.clock);
   s.throughDay = dayOfTick(tick + 1, ctx.world.clock) - 1;
@@ -269,7 +276,6 @@ function campaignTick(
       break;
     case 'marching':
       moveGroups(s, ctx);
-      trackGroups(s);
       if (allArrived(s) && s.groups.some((g) => sameCell(g.cell, s.target.cell))) {
         s.phase = 'raiding';
       }
@@ -280,13 +286,13 @@ function campaignTick(
     case 'returning':
     case 'disbanded':
       moveGroups(s, ctx);
-      trackGroups(s);
       if (allArrived(s)) finish(s, ctx, out);
       break;
   }
   // po pohybu: spatření vesničany (varování – Úloha 2 plánu 2026-11-09), posli (pohyb, chycení –
   // Úloha 5), rozhodnutí správce a NPC (Úloha 11), skupiny uprchlíků (pohyb, dostižení – Úloha 8),
-  // pak dny nájezdu
+  // pak dny nájezdu a nakonec pohled mužů pro znalost rodu (plán 2026-11-13 – Úloha 11) – vsi na
+  // mapách vojska už takt přečetl
   if (s.phase !== 'assembling' && s.phase !== 'done') {
     sightAlarms(s, tick, ctx, out);
     moveMessengers(s, ctx, out);
@@ -295,6 +301,7 @@ function campaignTick(
     moveFlights(s, ctx, out);
     catchFlights(s, ctx, out);
     watchVillages(s, ctx, out);
+    lookOut(s, ctx);
   }
   // boj skončil (výhra, porážka, ústup) – výsledek nájezdu do vsí jednou (Ú6.10)
   reportRaid(s, ctx, out);
@@ -304,28 +311,25 @@ function campaignTick(
 }
 
 /**
- * Stopa skupin, ve kterých je aspoň jeden muž na nohou, po pohybu (Úloha 11) – jen záznam pro
- * znalost rodu (`trackTrail`).
- */
-function trackGroups(s: CampaignState): void {
-  const manned = new Set(s.members.flatMap((m) => (m.status === 'active' ? [m.group] : [])));
-  for (const g of s.groups) if (manned.has(g.id)) trackTrail(s, g.cell, [g.pos]);
-}
-
-/**
- * Konec nájezdu (Úloha 11): stopa a objevená obydlí cílové vsi ve stavu, jak je muži viděli
- * (`targetSeen` – den taktu, ves čtená jako v boji). Ves, která na mapě už není – jen stopa; bez
- * stopy i obydlí (starší bod bez stopy, nic neobjevili) se nic nevydá.
+ * Konec nájezdu (Úloha 11): rodu vůdce jde, co muži o mapě cíle vědí – stopa a stavby, jak je viděli
+ * (`seen`). Bod bez znalosti map (`recordsKnowledge`) vydá objevená obydlí ze stavu cílové vsi v den
+ * taktu (`discoveredSeen` – ves čtená jako v boji); ves, která na mapě už není, ani nic objeveného
+ * se nevydá.
  */
 function shareTarget(s: CampaignState, ctx: TickContext, out: TickOut): void {
+  const seen = recordsKnowledge(s) ? targetSeenOf(s) : discoveredOnTarget(s, ctx);
+  if (!seen || (seen.trail.length === 0 && seen.parts.length === 0)) return;
+  (out.knowledge ??= []).push({ cell: { ...s.target.cell }, seen });
+}
+
+/** Objevená obydlí cílové vsi v den taktu (bod bez znalosti map – `shareTarget`). */
+function discoveredOnTarget(s: CampaignState, ctx: TickContext): SeenCell {
   const map = ctx.world.landscapeOf(s.target.cell);
   if (map === null) throw new MissingData([{ ...s.target.cell }], []);
   const here = map.villageIds.includes(s.target.villageId) && s.discovered.length > 0;
   const village = here ? ctx.world.villageAt(s.target.villageId, s.day) : null;
   if (here && village === null) throw new MissingData([], [s.target.villageId]);
-  const seen = targetSeen(s, village);
-  if (seen.trail.length === 0 && seen.parts.length === 0) return;
-  (out.knowledge ??= []).push({ cell: { ...s.target.cell }, seen });
+  return discoveredSeen(s, village);
 }
 
 /**
@@ -667,7 +671,7 @@ function raidTick(s: CampaignState, tick: number, ctx: TickContext, out: TickOut
   syncControl(s);
   battleTick(s.battle, field, tickRandom(s.seed, tick, 'battle'));
   discover(s, s.battle, field, ctx);
-  trackTrail(s, s.target.cell, attackEyes(s.battle));
+  lookAtTarget(s, attackEyes(s.battle), ctx);
   const fallenBefore = new Set(s.members.flatMap((m, i) => (m.status === 'fallen' ? [i] : [])));
   syncMembers(s, s.battle);
   // padlý muž rodu – smrt a nástupnictví ve vsi hned (war.md – Ztráty), ne až po návratu
@@ -975,9 +979,9 @@ function finish(s: CampaignState, ctx: TickContext, out: TickOut): void {
     post(s, out, villageId, { kind: 'campaign-return', result: returnOf(s, villageId) });
     if (!disbanded) chronicle(s, out, villageId, 'returned');
   }
-  // kudy muži šli a odkud se dívali, jde rodu vůdce – stopy cizích map (Úloha 11)
-  const trails = trailKnowledge(s);
-  if (trails.length > 0) (out.knowledge ??= []).push(...trails);
+  // co muži na cizích mapách viděli, jde rodu vůdce (Úloha 11)
+  const seen = seenKnowledge(s);
+  if (seen.length > 0) (out.knowledge ??= []).push(...seen);
   if (disbanded) return;
   out.notices.push({
     playerId: s.playerId,

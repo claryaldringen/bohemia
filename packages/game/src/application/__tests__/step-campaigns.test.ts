@@ -148,7 +148,7 @@ describe('stepCampaigns', () => {
     const setOut = { tick: LAUNCH + 2, byPlayer: 'p1', body: { kind: 'set-out' } } as const;
     // nové tažení s rodem vůdce ve stavu – stopa cizí mapy
     const fresh = campaign({ liveCommand: false, houseId: 'h-7' });
-    const trail = stepCampaign(fresh, END, SET_OUT, worldOf()).state.trail?.['1,0'];
+    const trail = stepCampaign(fresh, END, SET_OUT, worldOf()).state.seen?.['1,0']?.trail;
     expect(trail?.length).toBeGreaterThan(0);
     const a = setup();
     const known = new InMemoryKnowledge();

@@ -1491,45 +1491,55 @@ sinceTick })` – kontrolní bod z úložiště, mřížka mapy cíle jen při b
   `LandscapeTransfer`; vrstvu překážek si prohlížeč vygeneruje ze seedu vrstvy. Jen pro účastníka
   a jen mapu cíle, políčko vlastního muže a jeho sousedy; stavby nese `CampaignView.discovered`
   a od Úlohy 11 i `CampaignView.known`.
-- **Znalost rodu** (lord-control.md – Co vojvoda vidí: Tažení se jinak nemění; plán 2026-11-13 –
-  Úloha 11; `domain/war/campaign-knowledge.ts`). Boj, pohyb, kořist ani výsledek nájezdu se
-  nemění; opevnění cíle vidí útočník jako dřív.
-  - **Stopa** `CampaignState.trail` (volitelné; políčko `x,y` → body `[x, z]` po
-    `JOURNEY.trailStepM`, seřazené jako `SeenCell.trail`) – `trackTrail` (`extendTrail`) po pohybu
-    pro skupiny s mužem na nohou (`trackGroups` – pochod, návrat, rozpad) a v boji pro oči útoku
-    (`attackEyes` – tytéž jako objevování). Shromaždiště tu není. Jen záznam – nic ji nečte; takt ji
-    nekopíruje (`campaignTick` – mění se jen novým objektem, jako `JourneyState.seen`). Bod
-    z doby před Úlohou 11 (bez `houseId`) stopu nezapisuje – pokračuje bit po bitu jako dřív (hlídá
-    otisk v `alarm-types.test.ts`).
+- **Znalost rodu** (lord-control.md – Co vojvoda vidí: Znalost rodu, Tažení se jinak nemění; plán
+  2026-11-13 – Úloha 11 a kolo oprav; `domain/war/campaign-knowledge.ts`). Boj, pohyb, kořist,
+  varování ani výsledek nájezdu se nemění; opevnění cíle vidí útočník v boji jako dřív.
+  - **Pohled za tažení** `CampaignState.seen` (volitelné; políčko `x,y` → `SeenCell` jako
+    `JourneyState.seen` – stopa po `JOURNEY.trailStepM`, naposled viděné stavby všech druhů včetně
+    opevnění, `since`): tažení objevuje jako výjezd – `lookOnMap` (`lookAround`) z očí mužů nad
+    `sightingsOf` první vsi na mapě v den taktu a mřížkou `gridOf`. Po pohybu `lookOut` – až za
+    `watchVillages`, který čte stav všech vsí na mapách se skupinou s mužem na nohou (`armyEyes`),
+    takže pohled nečte stav žádné vsi navíc (bariéra a čekání workeru stejné); na mapě cíle při
+    nájezdu `lookAtTarget` s očima útoku (`attackEyes` – tytéž jako objevování, ves přečetl boj).
+    Mapu či ves, kterou takt nemá, pohled nečte a stopu tam nezapíše; takt konce tažení (fáze
+    `done`) vsi nečte – nedívá se. Shromaždiště tu není. Znalost nečte boj ani pohyb – jen vydání
+    a pohled hráče; takt ji nekopíruje (`campaignTick` – mění se jen novým objektem). Bod, který
+    znalost nezapisuje (`recordsKnowledge` – bez `houseId`, z doby před Úlohou 11), pokračuje bit po
+    bitu jako dřív (hlídá otisk v `alarm-types.test.ts`).
   - **Rod vůdce** `CampaignState.houseId` (volitelné, `newCampaign` – `launchCampaign` ho dá
     z `prepared.house`): znalost z tažení dostane jen on (muži vazalů ve službě ji svému rodu
-    nedoplní – Ruling 28).
+    nedoplní – návrh Clauda, `docs/design/lord-control.md` – Co vojvoda vidí: Znalost rodu).
   - **Vydání** `CampaignStep.knowledge` (`KnowledgeOut[]`): v taktu, kdy nájezd skončí (výhra,
-    porážka, obrat, rozpad – fáze přestane být `raiding`), `shareTarget` – mapa cíle se stopou
-    a objevenými obydlími (`targetSeen`: `discovered` jako `SeenPart` ze `sightingsOf` stavu cílové
-    vsi v den taktu – ves se čte jen s něčím objeveným, jako v boji; ves, která na mapě není, jen
-    stopa; bez stopy i obydlí nic); na konci tažení (`finish`) stopy všech cizích map bez staveb
-    (`trailKnowledge`).
+    porážka, obrat, rozpad – fáze přestane být `raiding`), `shareTarget` – `seen` mapy cíle; bod
+    bez znalosti map vydá objevená obydlí (`discoveredSeen`: `discovered` jako `SeenPart` ze
+    `sightingsOf` stavu cílové vsi v den taktu – ves se čte jen s něčím objeveným, jako v boji);
+    bez stopy i staveb nic. Na konci tažení (`finish`) `seenKnowledge` – všechny cizí mapy,
+    seřazené podle políčka.
   - **Doručení** – `stepOne` (`leaderKnowledge`) doplní rod: `houseId` ze stavu, u bodu bez něj
     `StepCampaignsDeps.houses.activeOf(playerId)`; vloží ji do `CampaignOutbox.knowledge` (bod se
-    uloží hned) a `deliverOutbox` ji doručí `KnowledgeRepository.merge`. Bez
-    `StepCampaignsDeps.knowledge` se zahodí a bod se kvůli ní neukládá. Worker obojí předává
-    v `campaignDeps`.
+    uloží hned) a `deliverOutbox` ji doručí `KnowledgeRepository.merge` (`mergeKnowledge` s pokrytím
+    – dům ze starší znalosti, na jehož místo muži jistě dohlédli a neviděli ho, zmizí;
+    `docs/code/journey.md` – Znalost rodu). Bez `StepCampaignsDeps.knowledge` se zahodí a bod se
+    kvůli ní neukládá. Worker obojí předává v `campaignDeps`.
   - **Pohled** – `knowledgeOfTarget` (`KnowledgeOfTargetDeps`: `knowledge`, `houses`) přečte znalost
     rodu hráče o mapě cíle – jeden dotaz na pohled; rod vůdce ze stavu, vazal ve službě vidí znalost
-    svého rodu. `knownTarget` ji sloučí se stopou tažení na mapě cíle (`targetTrail`;
-    `mergeKnowledge` – znalost jiné vsi jen stopou) a vynechá objevená obydlí (pohled je nese živě),
-    opevnění (útočník ho vidí ze stavu vsi jako dřív) a obydlí, na jejichž místo muži tažení
-    dohlédli (stopa, `inSight` s mřížkou pohledu) a ve vsi už nejsou; jinak „stará zpráva“ – dům,
-    který už nestojí, zůstane. Výsledek nese `CampaignView.known` (`campaignViewFor` – ves načte i
-    kvůli zániku, když rod zná stavby a tažení má na mapě cíle stopu) a `WarSceneView.known`
-    (`warSceneOnMap`, útočník na mapě cíle); bez znalosti i stopy pole chybí. `commandCampaign`
-    s cílem `building` přijme i dům ze znalosti (`dwelling:<id>` – pochod na místo, kde ho rod
-    viděl).
-  - **Testy** – `campaign.test.ts` (stopa jen na cizích mapách, vydání na konci, po kouscích, z JSON
-    a ze zmraženého bodu = vcelku, bod bez stopy a rodu – boj a návrat stejné),
-    `step-campaigns.test.ts` (rod ze stavu i podle hráče), `campaign-view.test.ts` (známé domy dřív,
-    než je vojsko spatří, rozkaz k nim, zaniklý dům do pohledu na jeho místo, vazal),
+    svého rodu. `knownTarget` ji sloučí s tím, co viděli muži tažení na mapě cíle (`targetSeenOf`;
+    `mergeKnowledge` i s pokrytím – znalost jiné vsi jen stopou) a vynechá objevená obydlí (pohled je
+    nese živě), opevnění (útočník ho vidí ze stavu vsi jako dřív) a obydlí, na jejichž místo muži
+    tažení dohlédli (stopa, `inSight` s mřížkou pohledu) a ve vsi už nejsou; jinak „stará zpráva“ –
+    dům, který už nestojí, zůstane. Výsledek nese `CampaignView.known` a `WarSceneView.known`
+    (`warSceneOnMap`, útočník na mapě cíle); bez znalosti i pohledu tažení pole chybí. Kreslení ve
+    scéně tažení – Úloha 12. `campaignViewFor` načte obydlí cílové vsi (s něčím objeveným, nebo
+    se stopou tažení na mapě cíle – kvůli zániku) z mezipaměti po dnech `CampaignViewDeps.targets`
+    (`TargetDwelling`, klíč `villageId@den` – jako `defenders` scény války; web `TARGETS` v
+    `apps/web/lib/campaign.ts`) a znalost, mřížku i obydlí čte souběžně. `commandCampaign` s cílem
+    `building` přijme i dům ze znalosti (`dwelling:<id>` – pochod na místo, kde ho rod viděl).
+  - **Testy** – `campaign.test.ts` (znalost jen na cizích mapách, vydání na konci, opevnění, ohrady,
+    kostel a další stavby v dohledu, pohled nečte žádnou ves navíc – ves po cestě se stavbami,
+    prázdná mapa se stopou, po kouscích, z JSON a ze zmraženého bodu = vcelku; s rodem i bez něj
+    stejné – vzdání, boj s padlými, rozpad, bod bez znalosti), `step-campaigns.test.ts` (rod ze
+    stavu i podle hráče), `campaign-view.test.ts` (známé domy dřív, než je vojsko spatří, rozkaz
+    k nim, zaniklý dům do pohledu na jeho místo, vazal, obydlí z mezipaměti po dnech),
     `war-scene.test.ts` (útočník na mapě cíle, vlastní stopa, obránce bez znalosti).
 - **Testy:** `application/__tests__/campaign-view.test.ts` (Review Focus 4 – cizí muž, mrtvý
   a zajatý velitel, neobjevený dům, obránce skrytý v lese, cizí hráč = null; místo ve vodě – takt

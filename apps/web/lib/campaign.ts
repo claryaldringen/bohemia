@@ -8,6 +8,7 @@ import {
   type CampaignCommandDeps,
   type CampaignCommandResult,
   type MarchGrid,
+  type TargetDwelling,
 } from '@bohemia/game';
 import { createCampaignCells, currentWorld, LruCache } from '@bohemia/server';
 import { gameDeps } from './game';
@@ -19,6 +20,8 @@ import type { CampaignSummary, CampaignView } from './campaign-view';
 
 /** Mřížky mapy cíle pro dohled v lese – pohled se ptá 2× za sekundu, mřížka se mění po dnech. */
 const SIGHT_GRIDS = new LruCache<string, MarchGrid>(4);
+/** Obydlí cílových vsí po herních dnech – celý stav vsi se nečte při každém dotazu pohledu. */
+const TARGETS = new LruCache<string, readonly TargetDwelling[]>(16);
 let cells: CampaignCells | null = null;
 
 /** Mapy políček pro tažení (sdílená mezipaměť krajin, prázdná políčka v LRU) – jedny na proces. */
@@ -41,6 +44,7 @@ function commandDeps(): CampaignCommandDeps {
     cells: campaignCells(),
     villages: deps.villages,
     grids: SIGHT_GRIDS,
+    targets: TARGETS,
     world: currentWorld(),
     // co rod hráče ví o mapě cíle (docs/code/war.md – Živé vedení a pohled)
     knowledge: deps.knowledge,

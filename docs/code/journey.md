@@ -185,19 +185,21 @@ tempo a svět `CampaignWorld`.
   seřazené podle x, pak z, bez opakování; mlhu z ní odkryje prohlížeč stejným dohledem) a naposled
   viděné stavby `parts` seřazené podle klíče (`SeenPart`: `key` = druh a id – `dwelling:12`,
   `site:40`, `pen:3`, `sacred:7`, `church:55`, `fortification:2` –, místo `pos`, den `day` a data
-  pro scénu `data`). Domovská mapa tu není – hráč ji zná celou.
-- **Takt** – po pohybu `discover` (`journey.ts`): na cizí mapě `lookAround` s okem skupiny
+  pro scénu `data`) a `since` – první den, kdy se záznam do mapy díval (Znalost rodu – pokrytí).
+  Domovská mapa tu není – hráč ji zná celou.
+- **Takt** – po pohybu `discover` (`journey.ts`): na cizí mapě `lookOnMap` s okem skupiny
   (`groups[0].pos`), mřížkou `gridOf` a stavem vsi `villageAt` pro den taktu. Ves bez spočteného
   dne krok zastaví (`MissingData`) – i když skupina stojí; mapu sousedního políčka proto krok čte už
   v taktu přechodu okraje. Jiná ves na mapě než dřív (stará zanikla) – stavby staré vsi se zahodí,
-  stopa zůstane.
+  stopa i `since` zůstanou (`lookOnMap` – totéž bere pohled tažení).
 - **`lookAround(prev, { village, eyes, grid, day })`** – stavby v dohledu (`inSight`: 150 m, z lesa
   a do lesa 50 m) zapíše s dnešním stavem a dnem; známou stavbu, která ve vsi už není a její místo
   je v dohledu, zapomene; co je mimo dohled, zůstane („stará zpráva“). Co muži dnes už viděli, se
   týž den znovu nepřepisuje – stav vsi pro den je jeden. `prev` nemění a beze změny vrátí týž
   objekt, takže takt znalost map nekopíruje (`journeyTick` kopíruje stav bez `seen`). Stavbu, která
   v dohledu zmizela, zapíše do `SeenCell.gone` (`{ key, day }`, seřazené podle klíče; bez zániku
-  pole chybí) – bez toho by ji sloučení se starou znalostí rodu vrátilo (Znalost rodu).
+  pole chybí) – bez toho by ji sloučení se starou znalostí rodu vrátilo (Znalost rodu). První
+  pohled do mapy zapíše `since`; záznam se stopou bez `since` (z doby před ním) ho nedostane.
 - **`sightingsOf(village, day)`** – co je ve vsi vidět: obydlí včetně dvorce, staveniště obydlí
   a přestavby, modly a svatyně (i rozestavěné), ohrady, kostel i jeho staveniště a opevnění. Ne
   pole, sady, hřbitovy, lomy, stohy, jámy, cesty, lidé, zvířata ani zásoby; stavební huť nemá ve
@@ -241,7 +243,7 @@ tempo a svět `CampaignWorld`.
   potřebují).
 - **Vynechává** (není z čeho kreslit): lidi a jejich činnosti (obydlí má `inhabited: false`, takže
   bez dýmu; kouř dílen se odvozuje z lidí), pole, zvířata a koně (ohrada je prázdná, `stocked:
-  false`, bez stohu sena), zásoby a stohy, cesty a pěšiny (`since`), průběh rozšiřování ohrady
+false`, bez stohu sena), zásoby a stohy, cesty a pěšiny (`since`), průběh rozšiřování ohrady
   (čtverec `pending` bez `extension`), pec a jámy staveniště kostela (`site`), kněze a hroby,
   hřbitovy, sady, duby a háje, jámy, lomy, počasí; milíř a humno bez slámy, zrna a mlácení.
 - **`journeyCellOf(view, home)`** – políčko, na které se scéna přepne za vojvodou; `null` = vojvoda
@@ -458,6 +460,16 @@ Co muži za jízdy viděli, se po návratu neztratí: rod si pamatuje znalost po
   přebila novější stavba téhož klíče, se zahodí. Jiná ves na mapě (`villageId`) – staré stavby i
   zánik se zahodí, stopa zůstane. Výsledek nezávisí na pořadí `parts` a sloučit totéž podruhé nic
   nezmění.
+- **Pokrytí** (kolo oprav Úlohy 11, návrh Clauda): čerstvý záznam je od svého `since` v dohledu
+  stopy úplný – co tam stálo, `lookAround` zapsal. Sloučení proto odstraní i stavbu ze `old`, kterou
+  `fresh` nemá, viděnou před `fresh.since` a jistě v dohledu stopy (`surelySeen`): sloučení nemá
+  mřížku, bere lesní dohled 50 m (`WAR.sight.forestM`) odkudkoli z okolí bodu stopy, kde muž mohl
+  stát (body jsou zaokrouhlené po 20 m – nejvzdálenější roh čtverce ± 10 m; místo 50 m od bodu by
+  mohlo smazat dům v lese, na který muž nedohlédl). Dům známý z dřívějška, který mezitím shořel,
+  tak po průjezdu zmizí a rozvalina zůstane, i když jeho zánik záznam nezná; dál od stopy zůstane
+  stará zpráva, stavba viděná jiným záznamem až po `since` zůstane. `since` výsledku je nejmenší
+  z obou. Pokrytí bere jen `since` čerstvého záznamu – doručí-li se starší záznam (dřív viděný dům)
+  až po novějším, dům se do znalosti vrátí, dokud se tam někdo znovu nepodívá.
 - **Vydání z kroku** – `JourneyStep.knowledge?: { cell, seen }[]` (`journeyTick`, `shareKnowledge`):
   celý `SeenCell` mapy při přechodu okrajem (mapa, kterou skupina opouští), při dojetí (mapa, na
   které stojí) a při konci výjezdu venku (poslední živý člen zemřel doma). Domovská mapa a mapa bez
@@ -467,7 +479,7 @@ Co muži za jízdy viděli, se po návratu neztratí: rod si pamatuje znalost po
   chování se nemění) ji po uložení doručí `KnowledgeRepository.merge`. Pád mezi uložením a
   doručením doručí další kolo znovu – bezpečné, sloučení je idempotentní.
 - **Port `KnowledgeRepository`** (`of(houseId, cell)`, `cellsOf(houseId)`, `merge(houseId, cell,
-  seen)`) a adaptér `createKnowledgeRepository` (`adapters/knowledge-repository.ts`): `merge` je
+seen)`) a adaptér `createKnowledgeRepository` (`adapters/knowledge-repository.ts`): `merge` je
   jedna transakce – řádek založí (`ON CONFLICT DO NOTHING`), přečte `FOR UPDATE`, sloučí
   `mergeKnowledge` a zapíše; výjezd a tažení tedy smí psát do téhož rodu a políčka současně.
   Adaptér herní logiku nemá. V `GameDeps.knowledge`, v `journeyDeps` i `campaignDeps` workeru.
@@ -477,16 +489,18 @@ Co muži za jízdy viděli, se po návratu neztratí: rod si pamatuje znalost po
   mapě stopu i stavby z dřívějších výjezdů a tažení. Domovská mapa null (úložiště se neptá). Stav
   výjezdu znalost rodu nenese (kontrolní body nerostou) a v taktu workeru se nečte. Web ji dává
   v `apps/web/lib/journey.ts`.
-- **Tažení (Úloha 11 – `domain/war/campaign-knowledge.ts`)** – stopa tažení po cizích mapách
-  (`CampaignState.trail`), na konci nájezdu mapa cíle s objevenými obydlími, na konci tažení stopy
-  všech cizích map; znalost dostane jen rod vůdce (`CampaignState.houseId`, u starších bodů podle
-  hráče) a útočník na mapě cíle vidí, co rod zná – podrobně `docs/code/war.md` (Živé vedení
+- **Tažení (Úloha 11 – `domain/war/campaign-knowledge.ts`)** – tažení objevuje jako výjezd
+  (`CampaignState.seen`, `lookOnMap` na cizích mapách, kde takt stav vsi čte i bez toho – stavby
+  všech druhů včetně opevnění), na konci nájezdu vydá mapu cíle, na konci tažení všechny cizí mapy;
+  znalost dostane jen rod vůdce (`CampaignState.houseId`, u starších bodů podle hráče objevená
+  obydlí) a útočník na mapě cíle vidí, co rod zná – podrobně `docs/code/war.md` (Živé vedení
   a pohled na tažení – Znalost rodu).
 - **Tabulka `house_knowledge`** (migrace `0046_house_knowledge`): `house_id` (FK `house`, při zániku
   rodu se smaže), `grid_x`, `grid_y`, `state` jsonb (`SeenCell`), `updated_at`; primární klíč všech
   tří sloupců.
-- **Testy** – `seen.test.ts` (zánik v `lookAround`, `mergeKnowledge`: novější den, zánik, rozvalina,
-  jiná ves, idempotence, pořadí), `journey.test.ts` (vydání při přechodu, dojetí i konci, vcelku =
+- **Testy** – `seen.test.ts` (zánik v `lookAround`, `since`, `mergeKnowledge`: novější den, zánik,
+  rozvalina, jiná ves, idempotence, pořadí; pokrytí – shořelý dům po průjezdu, stará zpráva dál
+  od stopy, viděné po `since`, okolí bodu stopy, idempotence s `since`), `journey.test.ts` (vydání při přechodu, dojetí i konci, vcelku =
   po kouscích), `step-journeys.test.ts` (úložiště po kolech, pád před doručením znalosti),
   `knowledge-repository.db.test.ts` (po políčkách, cizí rod, sloučení, souběh, zánik rodu);
   Úloha 11 – `journey-view.test.ts` (druhý výjezd na známou mapu, cizí rod, sloučení s čerstvým).

@@ -10,6 +10,7 @@ import {
   campaignViewFor,
   commandCampaign as commandCampaignResult,
   type CampaignCommand,
+  type TargetDwelling,
 } from '../campaign-view';
 import type { House } from '../houses';
 import type { VillageRecord } from '../villages';
@@ -208,11 +209,14 @@ describe('znalost rodu v pohledu na tažení (plán 2026-11-13 – Úloha 11)', 
     // muži tažení stáli 60 m od místa domu 5 (stopa) – dům tam není, z pohledu zmizí; dům 8 stojí
     const looked = raiding({
       houseId: 'h1',
-      trail: {
-        '1,0': [
-          [-480, 0],
-          [140, 0],
-        ],
+      seen: {
+        '1,0': {
+          trail: [
+            [-480, 0],
+            [140, 0],
+          ],
+          parts: [],
+        },
       },
     });
     const after = await withKnowledge(looked, cells);
@@ -233,6 +237,32 @@ describe('znalost rodu v pohledu na tažení (plán 2026-11-13 – Úloha 11)', 
       sinceTick: 0,
     });
     expect(vassal!.known!.parts.map((p) => p.key)).toEqual(['pen:2']);
+  });
+
+  it('obydlí cílové vsi z mezipaměti po dnech – stav vsi se nečte při každém dotazu', async () => {
+    const state = raiding({
+      discovered: [7],
+      houseId: 'h1',
+      seen: { '1,0': { villageId: 'knezice', trail: [[140, 0]], parts: [] } },
+    });
+    const { deps } = await setup(state);
+    let loads = 0;
+    const villages = {
+      find: (id: string): Promise<VillageRecord | null> => {
+        loads++;
+        return deps.villages.find(id);
+      },
+    };
+    const targets = new Map<string, readonly TargetDwelling[]>();
+    const query = { playerId: 'p1', campaignId: 'c1', sinceTick: 0 };
+    const first = await campaignViewFor({ ...deps, villages, targets }, query);
+    for (let i = 0; i < 3; i++) await campaignViewFor({ ...deps, villages, targets }, query);
+    expect(loads).toBe(1);
+    expect([...targets.keys()]).toEqual([`knezice@${state.day}`]);
+    expect(first!.discovered.map((b) => b.id)).toEqual([7]);
+    // výsledek na mezipaměti nezávisí
+    expect(await campaignViewFor({ ...deps, villages }, query)).toEqual(first);
+    expect(loads).toBe(2);
   });
 });
 
