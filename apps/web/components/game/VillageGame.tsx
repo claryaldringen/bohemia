@@ -10,6 +10,7 @@ import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfe
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import { selectionDetails } from '@/lib/selection-details';
 import { ForeignJourneyScene } from './ForeignJourneyScene';
+import { KnownMapContext } from './hud/KnownMapEye';
 import { ForeignWarScene } from './ForeignWarScene';
 import { GameView } from './GameView';
 import { ScenePerfPanel, usePerfFlag } from './ScenePerfPanel';
@@ -34,6 +35,7 @@ import { useDevControls } from './village-game/use-dev-controls';
 import { useGateMode } from './village-game/use-gate-mode';
 import { useHistoryPanels } from './village-game/use-history-panels';
 import { useHouse } from './village-game/use-house';
+import { useKnownMap } from './village-game/use-known-map';
 import { useLordJourney } from './village-game/use-lord-journey';
 import { useLineNaming } from './village-game/use-line-naming';
 import { useNoticeLines } from './village-game/use-notice-lines';
@@ -221,6 +223,7 @@ export function VillageGame({
     sceneVillageRef,
     setSonPreview,
   } = useSelection({ scene, sceneVillage, viewRef });
+  const knownMap = useKnownMap();
   const lordJourney = useLordJourney({
     scene,
     view,
@@ -326,167 +329,187 @@ export function VillageGame({
     );
   }
 
+  // Známá mapa z domova (journey.md – Známá mapa): tatáž scéna bez jezdců, otevřená okem u rodu
+  if (knownMap.cell && !gameOver) {
+    return (
+      <ForeignJourneyScene
+        key={`known-${knownMap.cell.x},${knownMap.cell.y}`}
+        cell={knownMap.cell}
+        journey={null}
+        clock={clock}
+        lord={null}
+        known={{ onBack: knownMap.back }}
+      />
+    );
+  }
+
   return (
     <PanelOptionsContext.Provider value={panelSource}>
-      <RightsProvider value={view?.rights ?? null}>
-        <VillageIdProvider value={view?.id ?? null}>
-          <ArmyActionsContext.Provider value={war.armyActions}>
-            <GameView landscape={landscape} onSceneReady={setScene} overlays={false} />
-            {perfOn && <ScenePerfPanel scene={scene} showLoad />}
-            <TopBar
-              view={view}
-              world={clock}
-              initialNowMs={initialNowMs}
-              soundOn={soundOn}
-              onToggleSound={toggleSound}
-              menuOpen={menuShown}
-              onToggleMenu={() => (menuShown ? panels.closeMenu() : openMenu())}
-              onRename={commands.rename}
-              onSelectVillage={switchVillage}
-              onSetSteward={commands.toggleSteward}
-              house={{
-                vassals: house.view?.vassals.length ?? 0,
-                waiting: house.view?.waiting ?? 0,
-                open: panels.houseOpen,
-                onToggle: () => (panels.houseOpen ? panels.closeHouse() : panels.openHouse()),
-              }}
-              war={{
-                wars: house.view?.wars.length ?? 0,
-                protectionDaysLeft: house.view?.protectionDaysLeft ?? null,
-                open: panels.warOpen,
-                onToggle: () => (panels.warOpen ? panels.closeWar() : panels.openWar()),
-              }}
-              lordAway={lordJourney.away}
-              chronicle={
-                view && !view.extinct ? { open: chronicle.open, onToggle: chronicle.toggle } : null
-              }
-              notices={{
-                unread: noticeHistory.unread,
-                open: noticeHistory.open,
-                onToggle: noticeHistory.toggle,
-              }}
-              devTime={devMode ? { pending: dev.skipping, onSkip: dev.skipTimeBy } : null}
-              devDisasters={
-                devMode && view && !view.extinct
-                  ? { pending: dev.forcingDisaster, onForce: dev.forceDisasterChoice }
-                  : null
-              }
-            />
-            {war.breakout && (
-              <BreakoutButton denied={war.breakout.denied} onOrder={war.orderDefenderBreakout} />
-            )}
-            <Minimap
-              landscape={decoded}
-              scene={scene}
-              village={sceneVillage}
-              isolated={house.view?.isolated === true}
-            />
-            <SelectionPanel
-              details={selectionDetails(
-                view,
-                sceneVillage,
-                current,
-                personState,
-                draftState,
-                lordJourney.journey.view,
-                journeys,
+      <KnownMapContext.Provider value={knownMap.actions}>
+        <RightsProvider value={view?.rights ?? null}>
+          <VillageIdProvider value={view?.id ?? null}>
+            <ArmyActionsContext.Provider value={war.armyActions}>
+              <GameView landscape={landscape} onSceneReady={setScene} overlays={false} />
+              {perfOn && <ScenePerfPanel scene={scene} showLoad />}
+              <TopBar
+                view={view}
+                world={clock}
+                initialNowMs={initialNowMs}
+                soundOn={soundOn}
+                onToggleSound={toggleSound}
+                menuOpen={menuShown}
+                onToggleMenu={() => (menuShown ? panels.closeMenu() : openMenu())}
+                onRename={commands.rename}
+                onSelectVillage={switchVillage}
+                onSetSteward={commands.toggleSteward}
+                house={{
+                  vassals: house.view?.vassals.length ?? 0,
+                  waiting: house.view?.waiting ?? 0,
+                  open: panels.houseOpen,
+                  onToggle: () => (panels.houseOpen ? panels.closeHouse() : panels.openHouse()),
+                }}
+                war={{
+                  wars: house.view?.wars.length ?? 0,
+                  protectionDaysLeft: house.view?.protectionDaysLeft ?? null,
+                  open: panels.warOpen,
+                  onToggle: () => (panels.warOpen ? panels.closeWar() : panels.openWar()),
+                }}
+                lordAway={lordJourney.away}
+                chronicle={
+                  view && !view.extinct
+                    ? { open: chronicle.open, onToggle: chronicle.toggle }
+                    : null
+                }
+                notices={{
+                  unread: noticeHistory.unread,
+                  open: noticeHistory.open,
+                  onToggle: noticeHistory.toggle,
+                }}
+                devTime={devMode ? { pending: dev.skipping, onSkip: dev.skipTimeBy } : null}
+                devDisasters={
+                  devMode && view && !view.extinct
+                    ? { pending: dev.forcingDisaster, onForce: dev.forceDisasterChoice }
+                    : null
+                }
+              />
+              {war.breakout && (
+                <BreakoutButton denied={war.breakout.denied} onOrder={war.orderDefenderBreakout} />
               )}
-              lordJourney={lordJourney.panel}
-              alarm={alarmActions}
-              ennoble={{
-                targets: (view?.villages ?? []).filter((v) => v.awaitingLord && v.id !== view?.id),
-                onEnnoble: commands.ennoble,
-              }}
-              onSelectTarget={setSelected}
-              onPreviewSon={setSonPreview}
-              gateFort={gateFort}
-              onGateMode={setGateFort}
-              onFortReroute={build.startReroute}
-              wagonPlan={wagonPlan}
-              {...commands.selection}
-            />
-            <BuildGrid
-              options={build.options}
-              active={placement.active ? build.placingItem : null}
-              disabled={scene === null || foundingName}
-              group={buildGroup}
-              extendingVariant={build.extendingVariant}
-              {...(view && buildGroup === 'fortification'
-                ? { blockedVariants: fortVariantsBlocked(view.dayIndex) }
-                : {})}
-              onBuild={startBuild}
-            />
-            <NoticeLines
-              notices={notices}
-              status={villageError === null ? null : `Ves teď nejde zobrazit: ${villageError}`}
-              pinned={
-                lineNotice
-                  ? {
-                      kind: lineNotice.kind,
-                      text: lineNotice.text,
-                      count: lineNotice.count,
-                      onOpen: () => naming.openLineName(lineNotice.personId),
-                    }
-                  : null
-              }
-              onExpire={expireNotice}
-            />
-            <FoundingPanels
-              view={view}
-              languageChoice={languageChoice}
-              house={house}
-              naming={naming}
-            />
-            <CursorReason preview={placement.active ? placement.preview : null} />
-            <JourneyCursorNote note={lordJourney.note} />
-            {placement.active === 'fort-points' ? (
-              <FortConfirm
-                reason={
-                  placement.preview?.check.ok
-                    ? null
-                    : (placement.preview?.check.reason ?? 'Obvod ještě nejde položit.')
+              <Minimap
+                landscape={decoded}
+                scene={scene}
+                village={sceneVillage}
+                isolated={house.view?.isolated === true}
+              />
+              <SelectionPanel
+                details={selectionDetails(
+                  view,
+                  sceneVillage,
+                  current,
+                  personState,
+                  draftState,
+                  lordJourney.journey.view,
+                  journeys,
+                )}
+                lordJourney={lordJourney.panel}
+                alarm={alarmActions}
+                ennoble={{
+                  targets: (view?.villages ?? []).filter(
+                    (v) => v.awaitingLord && v.id !== view?.id,
+                  ),
+                  onEnnoble: commands.ennoble,
+                }}
+                onSelectTarget={setSelected}
+                onPreviewSon={setSonPreview}
+                gateFort={gateFort}
+                onGateMode={setGateFort}
+                onFortReroute={build.startReroute}
+                wagonPlan={wagonPlan}
+                {...commands.selection}
+              />
+              <BuildGrid
+                options={build.options}
+                active={placement.active ? build.placingItem : null}
+                disabled={scene === null || foundingName}
+                group={buildGroup}
+                extendingVariant={build.extendingVariant}
+                {...(view && buildGroup === 'fortification'
+                  ? { blockedVariants: fortVariantsBlocked(view.dayIndex) }
+                  : {})}
+                onBuild={startBuild}
+              />
+              <NoticeLines
+                notices={notices}
+                status={villageError === null ? null : `Ves teď nejde zobrazit: ${villageError}`}
+                pinned={
+                  lineNotice
+                    ? {
+                        kind: lineNotice.kind,
+                        text: lineNotice.text,
+                        count: lineNotice.count,
+                        onOpen: () => naming.openLineName(lineNotice.personId),
+                      }
+                    : null
                 }
-                onConfirm={placement.confirm}
+                onExpire={expireNotice}
               />
-            ) : null}
-            {placement.active === 'church' && placement.preview?.church ? (
-              <ChurchConfirm
-                type={placement.preview.church.type}
-                dims={placement.preview.church.dims}
-                reason={
-                  placement.preview.check.ok
-                    ? null
-                    : (placement.preview.check.reason ?? 'Kostel sem postavit nejde.')
-                }
-                onDims={placement.setChurchDims}
-                onConfirm={placement.confirm}
+              <FoundingPanels
+                view={view}
+                languageChoice={languageChoice}
+                house={house}
+                naming={naming}
               />
-            ) : null}
-            <VillagePanels
-              view={view}
-              viewRef={viewRef}
-              menuShown={menuShown}
-              email={email}
-              onRestart={() => restart(true)}
-              onSignOut={signOutToHome}
-              panels={panels}
-              house={house}
-              chronicle={chronicle}
-              noticeHistory={noticeHistory}
-              onSelectVillage={switchVillage}
-            />
-            {view?.journey && <JourneyBanner journey={view.journey} />}
-            {view?.pendingDeparture && !view.journey && (
-              <PlayerDeparturePanel
-                departure={view.pendingDeparture}
-                onPreview={setSonPreview}
-                onChoose={commands.choosePlayerDeparture}
+              <CursorReason preview={placement.active ? placement.preview : null} />
+              <JourneyCursorNote note={lordJourney.note} />
+              {placement.active === 'fort-points' ? (
+                <FortConfirm
+                  reason={
+                    placement.preview?.check.ok
+                      ? null
+                      : (placement.preview?.check.reason ?? 'Obvod ještě nejde položit.')
+                  }
+                  onConfirm={placement.confirm}
+                />
+              ) : null}
+              {placement.active === 'church' && placement.preview?.church ? (
+                <ChurchConfirm
+                  type={placement.preview.church.type}
+                  dims={placement.preview.church.dims}
+                  reason={
+                    placement.preview.check.ok
+                      ? null
+                      : (placement.preview.check.reason ?? 'Kostel sem postavit nejde.')
+                  }
+                  onDims={placement.setChurchDims}
+                  onConfirm={placement.confirm}
+                />
+              ) : null}
+              <VillagePanels
+                view={view}
+                viewRef={viewRef}
+                menuShown={menuShown}
+                email={email}
+                onRestart={() => restart(true)}
+                onSignOut={signOutToHome}
+                panels={panels}
+                house={house}
+                chronicle={chronicle}
+                noticeHistory={noticeHistory}
+                onSelectVillage={switchVillage}
               />
-            )}
-            <GameOverScreen view={view} onRestart={() => restart(false)} />
-          </ArmyActionsContext.Provider>
-        </VillageIdProvider>
-      </RightsProvider>
+              {view?.journey && <JourneyBanner journey={view.journey} />}
+              {view?.pendingDeparture && !view.journey && (
+                <PlayerDeparturePanel
+                  departure={view.pendingDeparture}
+                  onPreview={setSonPreview}
+                  onChoose={commands.choosePlayerDeparture}
+                />
+              )}
+              <GameOverScreen view={view} onRestart={() => restart(false)} />
+            </ArmyActionsContext.Provider>
+          </VillageIdProvider>
+        </RightsProvider>
+      </KnownMapContext.Provider>
     </PanelOptionsContext.Provider>
   );
 }

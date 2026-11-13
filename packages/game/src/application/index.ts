@@ -99,6 +99,7 @@ export * from './cede-village';
 export * from './campaigns';
 export * from './journeys';
 export * from './knowledge';
+export * from './known-map';
 export * from './journey-war';
 export * from './step-campaigns';
 export * from './step-journeys';

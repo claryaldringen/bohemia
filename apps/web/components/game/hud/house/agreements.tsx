@@ -13,6 +13,7 @@ import { emptyBundle, termChips, termItemsOf } from '@/lib/terms-view';
 import { termRows } from '@/lib/negotiation-view';
 import { DisputeCard } from '../DisputeCard';
 import { Chip, TermsForm, type TermsContext } from '../TermsForm';
+import { KnownMapEye } from '../KnownMapEye';
 import { Tooltip } from '../Tooltip';
 import { HouseLink, Icon, PlayerAction, StatusMarks } from './parts';
 
@@ -49,6 +50,7 @@ export function AgreementEntry({
       style={{ paddingLeft: depth > 1 ? (depth - 1) * 16 : 0 }}
     >
       <HouseLink house={house} testId={testId} selected={selected} onClick={onClick} />
+      <KnownMapEye houseId={house.houseId} />
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
         {terms && termChips(terms, villageName).map((c) => <Chip key={c.key} chip={c} />)}
         <StatusMarks breaches={breaches} hunger={hunger} />

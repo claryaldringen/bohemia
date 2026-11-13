@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
-import type { GridCell, WorldClock } from '@bohemia/game';
+import type { GridCell, SeenCell, WorldClock } from '@bohemia/game';
 import { setE2EHook } from '@/lib/e2e-hooks';
 import { seenSceneKey, seenVillageOf } from '@/lib/journey-scene-view';
-import { sceneJourneysOf, type JourneyView } from '@/lib/journey-view';
+import { sceneJourneysOf, type JourneyView, type KnownMapResponse } from '@/lib/journey-view';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import type { SceneVillage } from '@/lib/village-view-scene-types';
@@ -22,6 +22,12 @@ import type { LordJourney } from './village-game/use-lord-journey';
 // šeré, okolí jezdců jasné) a stavby, jak je muži naposled viděli (`seenVillageOf`). Odjezd ani
 // příjezd se tu nekreslí – dvorec tu není. Pravé tlačítko dává vojvodovi rozkazy jako doma
 // (`useLordJourney`); ⌂ vrátí pohled na ves, výjezd běží dál.
+//
+// Známý režim (`known`, Úloha 12a – journey.md – Známá mapa): táž scéna bez jezdců a bez rozkazů,
+// otevřená z domova okem u rodu. Krajina i znalost jdou z `GET /api/journey?known=x,y`: odkryté
+// místo ze stopy je šeré (nikde není nikdo v dohledu), stavby jsou naposled viděné.
+
+const noop = (): void => undefined;
 
 const E2E_KEYS = [
   'projectToScreen',
@@ -37,18 +43,25 @@ export function ForeignJourneyScene({
   journey,
   clock,
   lord,
+  known,
 }: {
   cell: GridCell;
   /** Poslední pohled na výjezd ze serveru (bez interpolace – muže posouvá scéna). */
   journey: JourneyView | null;
   /** Hodiny hráče (vývojový posun) – roční období a den ve scéně. */
   clock: WorldClock;
-  lord: LordJourney;
+  /** Ovládání vojvody; ve známém režimu null. */
+  lord: LordJourney | null;
+  /** Známý režim: mapa, jak ji zná rod; `onBack` vrátí ves. */
+  known?: { onBack: () => void };
 }): ReactElement {
   const at = `${cell.x},${cell.y}`;
   const [landscape, setLandscape] = useState<LandscapeTransfer | null>(null);
+  const [knownSeen, setKnownSeen] = useState<SeenCell | null>(null);
   const [scene, setScene] = useState<LandscapeScene | null>(null);
-  const { back, bindForeign } = lord;
+  const isKnown = known !== undefined;
+  const back = known ? known.onBack : (lord?.back ?? noop);
+  const bindForeign = lord?.bindForeign;
   const backRef = useRef(back);
   useEffect(() => {
     backRef.current = back;
@@ -57,12 +70,16 @@ export function ForeignJourneyScene({
   // krajina mapy – jen políčko skupiny a jeho sousedé (jinak 404 → zpět na ves)
   useEffect(() => {
     let live = true;
-    void fetch(`/api/journey?map=${at}`, { cache: 'no-store' })
-      .then((response) => response.json() as Promise<ForeignMapResponse>)
+    const url = isKnown ? `/api/journey?known=${at}` : `/api/journey?map=${at}`;
+    void fetch(url, { cache: 'no-store' })
+      .then((response) => response.json() as Promise<ForeignMapResponse | KnownMapResponse>)
       .then((body) => {
         if (!live) return;
         if ('error' in body) backRef.current();
-        else setLandscape(body.map.landscape);
+        else {
+          setLandscape(body.map.landscape);
+          if ('seen' in body) setKnownSeen(body.seen);
+        }
       })
       .catch(() => {
         if (live) backRef.current();
@@ -70,13 +87,13 @@ export function ForeignJourneyScene({
     return () => {
       live = false;
     };
-  }, [at]);
+  }, [at, isKnown]);
   const decoded = useMemo(() => (landscape ? decodeLandscape(landscape) : null), [landscape]);
 
   // pravé tlačítko dává rozkazy i tady (okrajový pás podle strany této mapy)
   const mapSizeM = landscape ? landscape.size * landscape.cellSizeM : 0;
   useEffect(() => {
-    if (!scene || mapSizeM <= 0) return;
+    if (!scene || mapSizeM <= 0 || !bindForeign) return;
     bindForeign({ scene, mapSizeM });
     return () => bindForeign(null);
   }, [scene, mapSizeM, bindForeign]);
@@ -94,14 +111,14 @@ export function ForeignJourneyScene({
     scene?.setJourneys(journeys);
   }, [scene, journeys]);
   // mlha jako při tažení – stopa rodu odkryje (šeré), v dohledu je okolí jezdců
-  const trail = here?.seen?.trail ?? null;
+  const seen = isKnown ? knownSeen : (here?.seen ?? null);
+  const trail = seen?.trail ?? null;
   useEffect(() => {
     scene?.setJourneyFog(trail ?? []);
   }, [scene, trail]);
 
   // stavby, jak je muži naposled viděli – scéna se přestaví jen při změně znalosti; bez znalosti
   // prázdná ves (bez vsi scéna výběr klikem – muže výjezdu – nehledá)
-  const seen = here?.seen ?? null;
   const seenKey = useMemo(() => seenSceneKey(seen), [seen]);
   const shown = useRef<{ scene: LandscapeScene; key: string; village: SceneVillage } | null>(null);
   useEffect(() => {
@@ -120,6 +137,16 @@ export function ForeignJourneyScene({
     scene.setCameraHome(here.group.pos.x, here.group.pos.z);
     scene.moveCameraTo(here.group.pos.x, here.group.pos.z);
   }, [scene, here]);
+  // známá mapa: pohled na naposled viděnou ves (první stavba), bez ní na první bod stopy
+  useEffect(() => {
+    if (!scene || !isKnown || !seen || focused.current) return;
+    const at =
+      seen.parts[0]?.pos ?? (seen.trail[0] ? { x: seen.trail[0][0], z: seen.trail[0][1] } : null);
+    if (!at) return;
+    focused.current = true;
+    scene.setCameraHome(at.x, at.z);
+    scene.moveCameraTo(at.x, at.z);
+  }, [scene, isKnown, seen]);
 
   useEffect(() => {
     if (!scene) return;
@@ -142,7 +169,11 @@ export function ForeignJourneyScene({
   }, [scene]);
 
   return (
-    <div data-testid="foreign-scene" data-cell={at} data-journey={here?.journeyId ?? ''}>
+    <div
+      data-testid={isKnown ? 'known-scene' : 'foreign-scene'}
+      data-cell={at}
+      data-journey={here?.journeyId ?? ''}
+    >
       {landscape ? (
         <GameView landscape={landscape} onSceneReady={setScene} overlays={false} />
       ) : (
@@ -160,10 +191,10 @@ export function ForeignJourneyScene({
             ⌂
           </button>
         </Tooltip>
-        {lord.away && <LordAwayBadge {...lord.away} placement="below-right" />}
-        {lord.panel?.mode === 'away' && <LordJourneyPanel ui={lord.panel} placement="below" />}
+        {lord?.away && <LordAwayBadge {...lord.away} placement="below-right" />}
+        {lord?.panel?.mode === 'away' && <LordJourneyPanel ui={lord.panel} placement="below" />}
       </div>
-      <JourneyCursorNote note={lord.note} />
+      {lord && <JourneyCursorNote note={lord.note} />}
     </div>
   );
 }

@@ -1,4 +1,12 @@
-import type { GridCell, JourneyRefusal, JourneyView, JourneyVisitor, Pos } from '@bohemia/game';
+import type {
+  GridCell,
+  JourneyRefusal,
+  JourneyView,
+  JourneyVisitor,
+  Pos,
+  SeenCell,
+} from '@bohemia/game';
+import type { LandscapeTransfer } from './landscape-transfer';
 import type { SceneJourney } from './scene/journey-riders';
 
 // Pohled na výjezd vojvody pro prohlížeč (lord-control.md; plán 2026-11-13 – Úloha 7): typy jsou
@@ -18,6 +26,37 @@ export const JOURNEY_POLL_MS = 500;
 
 /** Odpověď `GET /api/journey` – pohled (null = hráč žádný výjezd nemá), nebo chyba. */
 export type JourneyResponse = { view: JourneyView | null } | { error: string };
+
+/** Text u zašedlého oka: rod mapu tohoto rodu nezná (docs/design/lord-control.md – Co hráč vidí). */
+export const UNKNOWN_MAP = 'Tu mapu rod nezná.';
+
+/** Mapa, kterou rod zná, a rod, který na ní sídlí (`GET /api/journey?known=villages`). */
+export interface KnownVillage {
+  cell: GridCell;
+  houseId: string | null;
+}
+
+/** Odpověď `GET /api/journey?known=x,y` – krajina a znalost rodu, nebo chyba (404 – nezná). */
+export type KnownMapResponse =
+  { map: { cell: GridCell; landscape: LandscapeTransfer }; seen: SeenCell } | { error: string };
+
+/**
+ * Mapa, kterou otevře další klik na oko rodu `houseId`: rod může mít víc známých map (víc vsí),
+ * klik po klikovi je prochází dokola; `last` je naposled otevřená (nebo null – první).
+ */
+export function nextKnownCell(
+  known: readonly KnownVillage[],
+  houseId: string,
+  last: GridCell | null,
+): GridCell | null {
+  const cells = known
+    .filter((k) => k.houseId === houseId)
+    .map((k) => k.cell)
+    .sort((a, b) => a.x - b.x || a.y - b.y);
+  if (cells.length === 0) return null;
+  const at = last ? cells.findIndex((c) => c.x === last.x && c.y === last.y) : -1;
+  return cells[(at + 1) % cells.length] ?? null;
+}
 
 /** Důvod odmítnutí vyslání nebo rozkazu (`refused` = rozkaz, který nedává smysl). */
 export type JourneyReason = JourneyRefusal | 'refused';

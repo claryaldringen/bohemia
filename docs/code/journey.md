@@ -508,3 +508,30 @@ seen)`) a adaptér `createKnowledgeRepository` (`adapters/knowledge-repository.t
   po kouscích), `step-journeys.test.ts` (úložiště po kolech, pád před doručením znalosti),
   `knowledge-repository.db.test.ts` (po políčkách, cizí rod, sloučení, souběh, zánik rodu);
   Úloha 11 – `journey-view.test.ts` (druhý výjezd na známou mapu, cizí rod, sloučení s čerstvým).
+
+## Známá mapa (Úloha 12a – `application/known-map.ts`, `apps/web`)
+
+Co rod ví o cizích mapách, si hráč prohlédne z domova (lord-control.md – Co vojvoda vidí, Co hráč
+vidí). Kreslení znalosti ve scéně tažení je Úloha 12b.
+
+- **Use-casy** (`application/known-map.ts`): `knownMapFor(deps, { playerId, cell })` – znalost
+  **vlastního živého rodu** hráče o mapě (`{ seen }`), `null` = rod mapu nezná (cizí rod, rod bez
+  záznamu i hráč bez rodu dostanou totéž, nic se neprozradí); `knownVillagesOf(deps, { playerId })`
+  – políčka, o kterých rod něco ví, a rod, který na nich sídlí (`SettlementRepository.holderAt` →
+  živý rod držitele, jinak `houseId: null`). Do `index.ts` exportováno.
+- **Server** (`apps/web/lib/journey.ts` – `knownMapForPlayer`, `knownVillagesForPlayer`; route
+  `GET /api/journey`): `?known=x,y` → `{ map, seen }` (krajina políčka z `campaignCells().mapOf`,
+  jinak 404 „Tu mapu rod nezná.“), `?known=villages` → `{ known: [{ cell, houseId }] }`.
+- **Scéna** – tatáž `ForeignJourneyScene` s prop `known` (žádný pohled na výjezd, `lord: null`):
+  krajina i `seen` z `?known=`, mlha ze stopy (`setJourneyFog` – odkryté šeré, nikde není nikdo
+  v dohledu), stavby z `seenVillageOf` (naposled viděné), žádní jezdci ani rozkazy; kořen má
+  `data-testid="known-scene"` a `data-cell`, ⌂ (`foreign-back`) vrátí ves. Kamera jde na první
+  stavbu, bez ní na první bod stopy. Jedna scéna Babylonu naráz – `VillageGame` ji vykreslí místo
+  vsi (po scéně tažení a výjezdu v pořadí).
+- **Ovládání** – oko `KnownMapEye` (`hud/KnownMapEye.tsx`, maska `public/icons/war/eye.svg` jako v `CampaignMap`): u rodu v panelu Rod
+  a vazalové (Páni, Vazalové přes `AgreementEntry`, Hráči) a u cíle tažení v panelu Vojsko
+  (`ArmyTargetView.houseId`, `army-known-map`). Rod bez známé mapy má oko zašedlé (`data-known=no`)
+  s popiskem `UNKNOWN_MAP` „Tu mapu rod nezná.“. Má-li rod víc známých map, každý další klik
+  otevře další (`nextKnownCell` v `journey-view.ts` – podle souřadnic dokola); naposled otevřenou
+  mapu každého rodu drží hra (`useKnownMap` – panel se při otevření mapy zruší). Seznam map
+  (`?known=villages`) se čte při vstupu, po návratu z mapy a po 20 s.

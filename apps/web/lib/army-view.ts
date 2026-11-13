@@ -31,6 +31,8 @@ export interface ArmyVillageView {
 /** Ves rodu ve válce, kterou lze napadnout. */
 export interface ArmyTargetView {
   villageId: string;
+  /** Napadený rod – podle něj oko u cíle otevře mapu, jak ji rod zná. */
+  houseId: string;
   name: string;
   /** Jméno hlavy napadeného rodu; bez jména null. */
   lordName: string | null;

@@ -1,5 +1,11 @@
 import { getSession } from '@/lib/session';
-import { journeyMapForPlayer, journeyViewForPlayer, visitorsOnVillage } from '@/lib/journey';
+import {
+  journeyMapForPlayer,
+  journeyViewForPlayer,
+  knownMapForPlayer,
+  knownVillagesForPlayer,
+  visitorsOnVillage,
+} from '@/lib/journey';
 import type { JourneyResponse } from '@/lib/journey-view';
 import { parseVillageId } from '@/lib/village-input';
 
@@ -9,6 +15,8 @@ import { parseVillageId } from '@/lib/village-input';
 // odpověď (nic se neprozradí).
 //   GET /api/journey                  → { view } – celý pohled, null = hráč žádný výjezd nemá
 //   GET /api/journey?map=<x>,<y>      → { map } – krajina políčka skupiny a jeho sousedů, jinak 404
+//   GET /api/journey?known=<x>,<y>    → { map, seen } – mapa, jak ji zná rod hráče, jinak 404
+//   GET /api/journey?known=villages   → { known } – mapy, které rod zná, a rod na nich
 //   GET /api/journey?visitors=<id>    → { visitors } – jezdci na mapě vsi hráče
 
 const NO_STORE = { 'Cache-Control': 'no-store' };
@@ -31,6 +39,15 @@ export async function GET(request: Request): Promise<Response> {
     const cell = cellOf(map);
     const foreign = cell ? await journeyMapForPlayer(playerId, cell) : null;
     return foreign ? Response.json({ map: foreign }, { headers: NO_STORE }) : notFound();
+  }
+  const known = query.get('known');
+  if (known === 'villages') {
+    return Response.json({ known: await knownVillagesForPlayer(playerId) }, { headers: NO_STORE });
+  }
+  if (known !== null) {
+    const cell = cellOf(known);
+    const found = cell ? await knownMapForPlayer(playerId, cell) : null;
+    return found ? Response.json(found, { headers: NO_STORE }) : notFound();
   }
   const visitors = query.get('visitors');
   if (visitors !== null) {
