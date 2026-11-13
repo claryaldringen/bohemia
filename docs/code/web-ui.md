@@ -1174,7 +1174,10 @@ dvorce zmenšenými na 110 m mapy (`FlightMarks`: uprchlíci se stádem `alarm-a
 Vlkova 76 → 4 ms na dotaz (worker.md – Výkon – Pohled na varování). E2E `multiplayer-war.spec.ts` –
 „ves B varovaná utíká do hradiště pána a po odtažení vojska se vrátí“ (vazal B, pán C s hotovou
 palisádou na políčku vedle, tažení A s varováním B v kontrolním bodu, worker vedle `next start`):
-upozornění, ikony v panelu dvorce, „Do hradiště – se vším“ → záměr `alarm-flee`, průvod přenesený
+upozornění (po něm test worker zastaví a varování posune na takt kontrolního bodu – lhůta hráče
+≈ 86 s běží od varování a start workeru, upozornění, panel a tlačítko se do ní na zatíženém stroji
+nevešly, za ves pak rozhodl správce; worker se pustí zas až po zapsání záměru), ikony v panelu
+dvorce, „Do hradiště – se vším“ → záměr `alarm-flee`, průvod přenesený
 rovnou do středu hradiště (cíl skupiny – dojde v prvním taktu; kousek vedle středu bývá za
 palisádou a cesta kolem ní k bráně trvá průvodu se stádem podle krajiny až ≈ 72 s) →
 `refuge-arrive`, hosté `refuge` v C a lidé B pryč, Vrátit se zašedlé „Vojsko je ještě na mapě.“, po

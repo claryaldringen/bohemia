@@ -1504,6 +1504,21 @@ test('ves B varovaná utíká do hradiště pána a po odtažení vojska se vrá
   try {
     // B dostane upozornění a v panelu dvorce vidí ikony voleb (lhůta hráče 1 herní den ≈ 86 s)
     await notices(b, 'Vesničan spatřil cizí vojsko');
+    // Lhůta hráče běží od varování (`warnTick` = založení tažení + 2 s) a po ní rozhodne za ves
+    // správce (`decideAlarms`). Start workeru, upozornění, panel a tlačítko se do ní na zatíženém
+    // stroji nevejdou. Worker proto po upozornění stojí (bez něj se nerozhoduje) a varování se
+    // posune na takt kontrolního bodu: lhůta běží celá znovu až od něj a záměr hráče přijde při
+    // dopočtu taktů dřív než její konec. Novější takt varování nesmí být – ves by o vojsku
+    // v bodu ještě nevěděla (`latestAlarm`) a tažení by ji varovalo podruhé.
+    await worker.stop();
+    expect((await checkpointOf(campaignId)).state.alarm?.villages[0]?.decided).toBeUndefined();
+    await editPoint((s) => ({
+      ...s,
+      alarm: {
+        ...s.alarm!,
+        villages: s.alarm!.villages.map((v) => ({ ...v, warnTick: s.tick })),
+      },
+    }));
     await b.keyboard.press('r');
     const panel = b.getByTestId('selection-panel');
     await expect
@@ -1553,6 +1568,7 @@ test('ves B varovaná utíká do hradiště pána a po odtažení vojska se vrá
           body: { kind: 'alarm-flee', village: placeB.villageId, mode: 'all' },
         },
       ]);
+    worker = await startWorker();
     // průvod vyšel – tažení ho vede (uloží bod s událostí odchodu)
     await expect
       .poll(async () => (await checkpointOf(campaignId)).state.alarm?.flights[0]?.status, {
