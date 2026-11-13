@@ -27,6 +27,7 @@ Martin 13. 11. 2026:
 - k návrhu Clauda, že si družina veze jídlo jako tažení (dosah ≈ 5 km) a v zimě mrzne jako
   vojsko: „tohle je píčovina“ a „tohle je taky píčovina“ – obojí zrušeno (sekce Zásoby a zima)
 - má jít známá mapa otevřít kdykoli z domova? „Ano“
+- rozkaz „Navštiv ves“ ze seznamu vsí (návrh Clauda): „to zruš“
 
 ## Proč
 
@@ -76,10 +77,6 @@ Hráč vojvodu vybere a pošle ho jako jednotku v 0 A.D. (Martin). Podoba rozkaz
 - **Jdi sem** – místo na mapě, na které vojvoda právě je.
 - **Přes okraj** – okraj mapy: skupina dojde k okraji, objeví se na opačném okraji sousední mapy
   a tam zastaví.
-- **Navštiv ves** – ves ze seznamu: skupina k ní dojede nejkratší cestou mapu po mapě a zastaví
-  u ní. V seznamu jsou jen vsi, o kterých rod ví, kde leží: vsi vlastního rodu, sídla ostatních
-  rodů (poloha sídla je veřejná – [vazalství](vassalage.md) – Přehled pána) a vsi, které už rod
-  viděl (Znalost rodu níž). Co je o rodech veřejné, se nemění.
 - **Domů** – nejkratší cestou do vlastní vsi.
 
 Nový rozkaz kdykoli nahradí starý. Rozkaz platí, i když hráč hru zavře – vojvoda dojede, postojí
@@ -212,10 +209,8 @@ Návrh Clauda.
   cíle. (Dnes pravé tlačítko výběr ruší – u vybraného vojvody ho ruší Esc nebo klik jinam.) Platí
   i na cizí mapě.
 - **Okraj mapy:** u okraje se kurzor změní v šipku, popisek „Na sousední mapu“.
-- **Navštiv ves:** ikona jezdce v panelu vojvody otevře seznam vsí (ves, rod, směr a počet
-  políček).
-- **Známá mapa:** oko u vsi v tomto seznamu a u cíle v panelu Vojsko otevře ve scéně mapu, jak ji
-  rod zná; ⌂ vrátí na ves. Mapu, kterou rod nezná, oko neotevře.
+- **Známá mapa:** oko u rodu v panelu Rod a vazalové a u cíle v panelu Vojsko otevře ve scéně
+  mapu jeho vsi, jak ji rod zná; ⌂ vrátí na ves. Mapu, kterou rod nezná, oko neotevře.
 - **Na cestě:** portrét vojvody s podkovou v horní liště – klik přepne scénu na mapu, kde vojvoda
   je; scéna jde za ním z mapy na mapu jako za vojskem. Ikona **Domů** jako u tažení.
 - **Čekání:** nad vojvodou přesýpací hodiny s počtem dní do návratu.
@@ -266,8 +261,8 @@ Návrh Clauda.
   bez války ji začíná); bez hráče se nerozpadá; neveze zásoby a nemrzne – muži jedí dál doma;
   objevuje za jízdy a všechny stavby; řídí se pravým tlačítkem přímo ve scéně i na cizí mapě
   (tažení se tam řídí z mapy tažení).
-- Převod starších vsí (nové části stavu volitelné), kde přesně skupina u navštívené vsi zastaví,
-  podoba praporku a kurzoru okraje, tvar uložené znalosti rodu.
+- Převod starších vsí (nové části stavu volitelné), podoba praporku a kurzoru okraje, tvar uložené
+  znalosti rodu, výběr mezi víc známými mapami téhož rodu.
 - Po schválení doplnit odkazy do [války](war.md), [vojvodovy rodiny](lord.md)
   a [zvěře](wildlife.md) (šelmy).
 
@@ -286,9 +281,9 @@ Návrh Clauda.
 | Prohraný boj: dědic, zajetí a výkupné, útěk na koních jen pěším              | Martin 13. 11. 2026 |
 | Zásoby na cestu s dosahem a mráz jako u tažení – zrušeno                     | Martin 13. 11. 2026 |
 | Známou mapu jde otevřít kdykoli z domova                                     | Martin 13. 11. 2026 |
+| Rozkaz „Navštiv ves“ ze seznamu vsí – zrušeno                                | Martin 13. 11. 2026 |
 | Družina jen z mužů rodu od 16 let; vesničané ne                              | návrh Clauda        |
 | Výjezd neveze zásoby, dosah není omezen, muži jedí dál doma; mráz neplatí    | návrh Clauda        |
-| Rozkaz „Navštiv ves“; v seznamu vlastní rod, sídla rodů a viděné vsi         | návrh Clauda        |
 | Znalost rodu se ukládá a slouží i tažení; mimo dohled stará zpráva           | návrh Clauda        |
 | Na cizí mapě jen krajina, stavby a opevnění – lidé a pole později            | návrh Clauda        |
 | Hostitel družinu ve scéně nevidí                                             | návrh Clauda        |
