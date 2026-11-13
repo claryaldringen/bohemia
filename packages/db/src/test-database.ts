@@ -1,3 +1,4 @@
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
@@ -58,10 +59,72 @@ export function e2ePort(env: TestEnv = process.env): number {
   return port;
 }
 
+/**
+ * Indexy tabulky `table`, jak je nechají migrace: jméno → poslední `CREATE INDEX` (bez středníku);
+ * co pozdější migrace zruší (`DROP INDEX`), vypadne. Indexy primárních klíčů a omezení zakládá
+ * `CREATE TABLE` – sem nepatří.
+ */
+export function migratedIndexes(table: string): Map<string, string> {
+  const indexes = new Map<string, string>();
+  const files = readdirSync(MIGRATIONS_FOLDER)
+    .filter((file) => file.endsWith('.sql'))
+    .sort();
+  for (const file of files) {
+    const statements = readFileSync(path.join(MIGRATIONS_FOLDER, file), 'utf8').split(
+      '--> statement-breakpoint',
+    );
+    for (const statement of statements) {
+      const dropped = /^DROP INDEX (?:IF EXISTS )?"([^"]+)"/m.exec(statement);
+      if (dropped?.[1]) indexes.delete(dropped[1]);
+      const created = /^CREATE (?:UNIQUE )?INDEX "([^"]+)" ON "([^"]+)"[^;]*/m.exec(statement);
+      if (created?.[1] && created[2] === table) indexes.set(created[1], created[0]);
+    }
+  }
+  return indexes;
+}
+
+/** Jméno jako identifikátor v SQL. */
+function quoted(name: string): string {
+  return `"${name.replaceAll('"', '""')}"`;
+}
+
+/**
+ * Vrátí indexy tabulky `settlement` do stavu z migrací (porovnává jména). Test migrace 0013
+ * (`shared-grid-migration.db.test.ts`) je za běhu mění – ruší `settlement_grid_idx` a zakládá
+ * starý `settlement_owner_grid_idx`; přerušený běh by databázi nechal bez unikátního indexu políčka
+ * a testy „obsazené políčko“ dalšího běhu by spadly. Chybí-li index, tabulka se napřed vyprázdní –
+ * zbylá data přerušeného testu by unikátní index nedovolila založit (testy ji vyprazdňují tak jako
+ * tak). Databázi v pořádku nechá být. Vrací, zda něco opravil.
+ */
+export async function restoreSettlementIndexes(client: Pool | Client): Promise<boolean> {
+  const expected = migratedIndexes('settlement');
+  // jen indexy mimo omezení (primární klíč, UNIQUE) – ty patří tabulce a migrace je nezakládají zvlášť
+  const found = await client.query<{ name: string }>(
+    `SELECT c.relname AS name
+       FROM pg_index i
+       JOIN pg_class c ON c.oid = i.indexrelid
+      WHERE i.indrelid = to_regclass('public.settlement')
+        AND NOT EXISTS (SELECT 1 FROM pg_constraint k WHERE k.conindid = i.indexrelid)`,
+  );
+  const actual = new Set(found.rows.map((row) => row.name));
+  const extra = [...actual].filter((name) => !expected.has(name));
+  const missing = [...expected].filter(([name]) => !actual.has(name));
+  for (const name of extra) await client.query(`DROP INDEX IF EXISTS ${quoted(name)}`);
+  if (missing.length > 0) await client.query('TRUNCATE "settlement" CASCADE');
+  for (const [, statement] of missing) {
+    await client.query(statement.replace(/INDEX /, 'INDEX IF NOT EXISTS '));
+  }
+  return extra.length + missing.length > 0;
+}
+
 /** Chybové kódy Postgresu při souběžném založení téže databáze – databáze už pak existuje. */
 const ALREADY_EXISTS_CODES: ReadonlySet<string> = new Set(['42P04', '23505']);
 
-/** Založí testovací databázi, když neexistuje, a pustí do ní migrace. Vrátí její adresu. */
+/**
+ * Založí testovací databázi, když neexistuje, pustí do ní migrace a vrátí indexy tabulky
+ * `settlement` do stavu z migrací (`restoreSettlementIndexes`) – běh tak nezávisí na tom, jak
+ * skončil předchozí. Vrátí její adresu.
+ */
 export async function prepareTestDatabase(env: TestEnv = process.env): Promise<string> {
   const name = testDatabaseName(env);
   const admin = new Client({ connectionString: `${SERVER_URL}/postgres` });
@@ -79,6 +142,7 @@ export async function prepareTestDatabase(env: TestEnv = process.env): Promise<s
   const db = drizzle(new Pool({ connectionString: url }));
   try {
     await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+    await restoreSettlementIndexes(db.$client);
   } finally {
     await db.$client.end();
   }

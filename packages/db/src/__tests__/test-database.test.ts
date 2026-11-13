@@ -1,5 +1,7 @@
+import { getTableConfig } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
-import { e2ePort, testDatabaseName, testDatabaseUrl } from '../test-database';
+import { schema } from '../index';
+import { e2ePort, migratedIndexes, testDatabaseName, testDatabaseUrl } from '../test-database';
 
 // Port e2e a testovací databáze z prostředí – bez proměnných dnešní 3011 a bohemia_test.
 
@@ -33,5 +35,21 @@ describe('testovací databáze a port e2e z prostředí', () => {
     for (const port of ['abc', '0', '70000', '3011.5']) {
       expect(() => e2ePort({ E2E_PORT: port })).toThrow(/není platný port/);
     }
+  });
+});
+
+describe('indexy z migrací', () => {
+  it('tabulka settlement má po migracích právě indexy ze schématu', () => {
+    const declared = getTableConfig(schema.settlement).indexes.map((index) => index.config.name);
+    expect([...migratedIndexes('settlement').keys()].sort()).toEqual([...declared].sort());
+  });
+
+  it('zrušený index vypadne a platí poslední definice', () => {
+    const indexes = migratedIndexes('settlement');
+    // 0006 ho založila, 0013 zrušila
+    expect(indexes.has('settlement_owner_grid_idx')).toBe(false);
+    expect(indexes.get('settlement_grid_idx')).toBe(
+      'CREATE UNIQUE INDEX "settlement_grid_idx" ON "settlement" USING btree ("grid_x","grid_y") WHERE "settlement"."archived_at" IS NULL',
+    );
   });
 });

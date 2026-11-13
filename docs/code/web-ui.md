@@ -375,7 +375,12 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   `TEST_DATABASE=bohemia_test_2 npm run test:db`. globalSetup Playwrightu i `test:db` databázi
   založí, když neexistuje, a zmigrují (ručně `npm run test:db:create`); `bohemia`,
   `bohemia_measure` a systémové databáze odmítnou (testy vyprazdňují tabulky). Nepotřebnou
-  databázi stromu zruš `psql -U postgres -c 'DROP DATABASE bohemia_test_2'`.
+  databázi stromu zruš `psql -U postgres -c 'DROP DATABASE bohemia_test_2'`. Příprava
+  (`prepareTestDatabase`) po migracích vrátí indexy tabulky `settlement` do stavu z migrací
+  (`restoreSettlementIndexes` – jména podle `migratedIndexes`, chybí-li index, tabulka se napřed
+  vyprázdní): test migrace 0013 (`shared-grid-migration.db.test.ts`) je za běhu mění a přerušený běh
+  by databázi nechal bez `settlement_grid_idx` – testy „obsazené políčko“ dalšího běhu by spadly.
+  Stejně po sobě uklidí i sám test (`afterAll`); běh tak nezávisí na předchozím ani na pořadí souborů.
 
 - **Zrušení rozestavěné stavby** (population.md – Zrušení rozestavěné stavby): server action
   `cancelConstruction({ villageId, constructionId })` → `cancelConstructionForPlayer`

@@ -5,7 +5,7 @@ import { sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { CURRENT_LAYER_VERSIONS } from '@bohemia/game';
 import { createDatabase } from '../../client';
-import { testDatabaseUrl } from '../../test-database';
+import { restoreSettlementIndexes, testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
 
 const db = createDatabase(testDatabaseUrl());
@@ -32,7 +32,12 @@ beforeEach(async () => {
 });
 
 afterAll(async () => {
-  await db.$client.end();
+  // test, který spadne před příkazy migrace, by databázi nechal se starým indexem
+  try {
+    await restoreSettlementIndexes(db.$client);
+  } finally {
+    await db.$client.end();
+  }
 });
 
 const addPlayer = async (id: string): Promise<void> => {
