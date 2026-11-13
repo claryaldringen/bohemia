@@ -174,3 +174,26 @@ export type JourneyVisitorsResponse = { visitors: JourneyVisitor[] } | { error: 
 
 /** Bez jezdců na mapě se prohlížeč na návštěvníky ptá po 5 s (s nimi 2× za sekundu). */
 export const VISITORS_IDLE_MS = 5000;
+
+/** Stav seznamu známých map ve hře: načítá se, dotaz selhal, nebo je načtený. */
+export type KnownStatus = 'loading' | 'error' | 'ready';
+
+/**
+ * Co ukáže oko: `hidden` – nemá rod (cíl tažení není vybraný); `pending` – seznam se ještě
+ * nenačetl nebo dotaz selhal, oko je zašedlé a důvod se nevymýšlí; `unknown` – seznam je načtený
+ * a mapu rod opravdu nezná; `open` – otevře mapu `cell`.
+ */
+export type KnownEyeState =
+  { kind: 'hidden' } | { kind: 'pending' } | { kind: 'unknown' } | { kind: 'open'; cell: GridCell };
+
+export function knownEyeState(
+  status: KnownStatus,
+  known: readonly KnownVillage[],
+  houseId: string | null,
+  last: GridCell | null,
+): KnownEyeState {
+  if (houseId === null) return { kind: 'hidden' };
+  if (status !== 'ready') return { kind: 'pending' };
+  const cell = nextKnownCell(known, houseId, last);
+  return cell ? { kind: 'open', cell } : { kind: 'unknown' };
+}

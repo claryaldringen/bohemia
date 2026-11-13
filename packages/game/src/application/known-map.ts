@@ -11,7 +11,7 @@ import type { SettlementRepository } from './settlements';
 export interface KnownMapDeps {
   houses: Pick<HouseRepository, 'activeOf'>;
   knowledge: Pick<KnowledgeRepository, 'of' | 'cellsOf'>;
-  settlements: Pick<SettlementRepository, 'holderAt'>;
+  settlements: Pick<SettlementRepository, 'holderAt' | 'listActive'>;
 }
 
 /** Znalost rodu hráče o mapě na políčku; `null` – rod mapu nezná (nebo hráč rod nemá). */
@@ -26,8 +26,10 @@ export async function knownMapFor(
 }
 
 /**
- * Mapy, které rod hráče zná, a rod, který na nich sídlí (`null` – na políčku nikdo není, nebo
- * nemá rod): hráč podle toho pozná, u kterého rodu v panelu je oko aktivní.
+ * Mapy, které rod hráče zná, a rod, který na nich sídlí. `houseId` dostane políčko jen tehdy, když
+ * rod na mapě viděl ves jejího **současného** držitele (`seen.villageId`): poloha vsi, kterou rod
+ * neviděl (jen stopa), ani vsi po změně držitele se nesmí prozradit (world.md – Co je veřejné).
+ * Jinak `null` – políčko zůstává ve znalosti, jen se nepřiřadí k žádnému rodu.
  */
 export async function knownVillagesOf(
   deps: KnownMapDeps,
@@ -37,9 +39,24 @@ export async function knownVillagesOf(
   if (!house) return [];
   const out: { cell: GridCell; houseId: string | null }[] = [];
   for (const cell of await deps.knowledge.cellsOf(house.id)) {
-    const holder = await deps.settlements.holderAt(cell);
-    const owner = holder === null ? null : await deps.houses.activeOf(holder);
-    out.push({ cell: { x: cell.x, y: cell.y }, houseId: owner?.id ?? null });
+    out.push({ cell: { x: cell.x, y: cell.y }, houseId: await seenHouseAt(deps, house.id, cell) });
   }
   return out;
+}
+
+/** Rod držitele mapy `cell`, jehož ves rod `houseId` na mapě viděl; jinak null. */
+async function seenHouseAt(
+  deps: KnownMapDeps,
+  houseId: string,
+  cell: GridCell,
+): Promise<string | null> {
+  const seen = await deps.knowledge.of(houseId, cell);
+  if (seen?.villageId === undefined) return null;
+  const holder = await deps.settlements.holderAt(cell);
+  if (holder === null) return null;
+  const held = (await deps.settlements.listActive(holder)).find(
+    (s) => s.worldCell?.x === cell.x && s.worldCell.y === cell.y,
+  );
+  if (held?.id !== seen.villageId) return null;
+  return (await deps.houses.activeOf(holder))?.id ?? null;
 }

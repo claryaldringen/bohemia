@@ -517,8 +517,11 @@ vidí). Kreslení znalosti ve scéně tažení je Úloha 12b.
 - **Use-casy** (`application/known-map.ts`): `knownMapFor(deps, { playerId, cell })` – znalost
   **vlastního živého rodu** hráče o mapě (`{ seen }`), `null` = rod mapu nezná (cizí rod, rod bez
   záznamu i hráč bez rodu dostanou totéž, nic se neprozradí); `knownVillagesOf(deps, { playerId })`
-  – políčka, o kterých rod něco ví, a rod, který na nich sídlí (`SettlementRepository.holderAt` →
-  živý rod držitele, jinak `houseId: null`). Do `index.ts` exportováno.
+  – políčka, o kterých rod něco ví, a rod, který na nich sídlí. `houseId` dostane políčko jen
+  když `seen.villageId` je ves (sídlo) současného držitele (`holderAt` + `listActive`) – poloha
+  vsi, kterou rod neviděl (jen stopa), ani vsi po změně držitele se nevyzradí (world.md – Co je
+  veřejné); jinak `houseId: null` a políčko zůstává ve znalosti (otevře se přes `?known=x,y`).
+  Do `index.ts` exportováno.
 - **Server** (`apps/web/lib/journey.ts` – `knownMapForPlayer`, `knownVillagesForPlayer`; route
   `GET /api/journey`): `?known=x,y` → `{ map, seen }` (krajina políčka z `campaignCells().mapOf`,
   jinak 404 „Tu mapu rod nezná.“), `?known=villages` → `{ known: [{ cell, houseId }] }`.
@@ -530,8 +533,11 @@ vidí). Kreslení znalosti ve scéně tažení je Úloha 12b.
   vsi (po scéně tažení a výjezdu v pořadí).
 - **Ovládání** – oko `KnownMapEye` (`hud/KnownMapEye.tsx`, maska `public/icons/war/eye.svg` jako v `CampaignMap`): u rodu v panelu Rod
   a vazalové (Páni, Vazalové přes `AgreementEntry`, Hráči) a u cíle tažení v panelu Vojsko
-  (`ArmyTargetView.houseId`, `army-known-map`). Rod bez známé mapy má oko zašedlé (`data-known=no`)
-  s popiskem `UNKNOWN_MAP` „Tu mapu rod nezná.“. Má-li rod víc známých map, každý další klik
+  (`ArmyTargetView.houseId`, `army-known-map`). Bez vybraného cíle tažení se oko nezobrazí.
+  Stav seznamu (`KnownStatus`: `loading` / `error` / `ready`, `knownEyeState` v `journey-view.ts`):
+  dokud se seznam nenačte nebo když dotaz selže, je oko zašedlé bez popisku; rod bez známé mapy
+  v načteném seznamu má oko zašedlé (`data-known=no`) s popiskem `UNKNOWN_MAP` „Tu mapu rod
+  nezná.“. Má-li rod víc známých map, každý další klik
   otevře další (`nextKnownCell` v `journey-view.ts` – podle souřadnic dokola); naposled otevřenou
   mapu každého rodu drží hra (`useKnownMap` – panel se při otevření mapy zruší). Seznam map
   (`?known=villages`) se čte při vstupu, po návratu z mapy a po 20 s.

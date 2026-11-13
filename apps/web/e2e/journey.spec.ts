@@ -481,10 +481,10 @@ test('známá mapa z domova: oko u rodu otevře šerou mapu se známými stavbam
   ].find((d) => !cells.some((cl) => cl.x === b1!.x + d.x && cl.y === b1!.y + d.y))!;
   const cellB1 = { x: b1!.x, y: b1!.y };
   const cellB2 = { x: b1!.x + free.x, y: b1!.y + free.y };
-  await query(
+  const [secondB] = await query<{ id: string }>(
     `INSERT INTO settlement (owner_id, is_seat, landscape_seed, layer_versions, grid_x, grid_y)
        SELECT owner_id, false, landscape_seed + 1, layer_versions, $2, $3
-         FROM settlement WHERE id = $1`,
+         FROM settlement WHERE id = $1 RETURNING id`,
     [sb.settlementId, cellB2.x, cellB2.y],
   );
 
@@ -515,18 +515,19 @@ test('známá mapa z domova: oko u rodu otevře šerou mapu se známými stavbam
     },
   });
   const spot = villageSpots(sb.landscape).dwelling;
-  const seenOf = (id: number): object => ({
-    villageId: `ves-${id}`,
+  const seenOf = (id: number, villageId: string): object => ({
+    villageId,
     trail: [[spot.x, spot.z]],
     parts: [dwellingAt(id, spot)],
   });
-  for (const [cell, id] of [
-    [cellB1, 701],
-    [cellB2, 702],
+  // rod viděl ves současného držitele (id sídla), jinak by mapa k rodu nepatřila
+  for (const [cell, id, villageId] of [
+    [cellB1, 701, sb.settlementId],
+    [cellB2, 702, secondB!.id],
   ] as const) {
     await query(
       'INSERT INTO house_knowledge (house_id, grid_x, grid_y, state) VALUES ($1, $2, $3, $4)',
-      [houseA, cell.x, cell.y, seenOf(id)],
+      [houseA, cell.x, cell.y, seenOf(id, villageId)],
     );
   }
   await a.reload();

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { JourneyView } from '@bohemia/game';
-import { interpolateJourney, journeyReason, nextKnownCell, UNKNOWN_MAP } from '../journey-view';
+import {
+  interpolateJourney,
+  journeyReason,
+  knownEyeState,
+  nextKnownCell,
+  UNKNOWN_MAP,
+} from '../journey-view';
 
 describe('journeyReason', () => {
   it('vrací přesně texty z rozhraní', () => {
@@ -86,5 +92,27 @@ describe('nextKnownCell', () => {
   it('jediná mapa zůstává; poslední otevřená z jiného rodu se ignoruje', () => {
     expect(nextKnownCell(known, 'c', { x: 5, y: 5 })).toEqual({ x: 5, y: 5 });
     expect(nextKnownCell(known, 'c', { x: 1, y: 0 })).toEqual({ x: 5, y: 5 });
+  });
+});
+
+describe('knownEyeState', () => {
+  const known = [{ cell: { x: 1, y: 0 }, houseId: 'b' }];
+
+  it('bez cíle (houseId null) oko chybí', () => {
+    expect(knownEyeState('ready', known, null, null)).toEqual({ kind: 'hidden' });
+    expect(knownEyeState('loading', known, null, null)).toEqual({ kind: 'hidden' });
+  });
+
+  it('seznam se načítá nebo dotaz selhal → zašedlé bez důvodu', () => {
+    expect(knownEyeState('loading', [], 'b', null)).toEqual({ kind: 'pending' });
+    expect(knownEyeState('error', [], 'b', null)).toEqual({ kind: 'pending' });
+  });
+
+  it('načtený seznam: mapa je známá → otevře; není → „Tu mapu rod nezná.“', () => {
+    expect(knownEyeState('ready', known, 'b', null)).toEqual({
+      kind: 'open',
+      cell: { x: 1, y: 0 },
+    });
+    expect(knownEyeState('ready', known, 'c', null)).toEqual({ kind: 'unknown' });
   });
 });

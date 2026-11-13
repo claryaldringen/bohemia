@@ -2,18 +2,25 @@
 
 import { createContext, useContext, type CSSProperties, type ReactElement } from 'react';
 import type { GridCell } from '@bohemia/game';
-import { nextKnownCell, UNKNOWN_MAP, type KnownVillage } from '@/lib/journey-view';
+import {
+  knownEyeState,
+  UNKNOWN_MAP,
+  type KnownStatus,
+  type KnownVillage,
+} from '@/lib/journey-view';
 import { Tooltip } from './Tooltip';
 
 // Oko u rodu a u cíle tažení (lord-control.md – Co hráč vidí: Známá mapa; journey.md – Známá
 // mapa): otevře mapu rodu tak, jak ji rod zná. Rod bez známé mapy má oko zašedlé s důvodem
-// u kurzoru; má-li map víc, každý další klik otevře další.
+// u kurzoru (dokud se seznam nenačte nebo když dotaz selže, je zašedlé bez důvodu); má-li map víc, každý další klik otevře další.
 
 /**
  * Co oko potřebuje od hry: mapy, které rod zná, naposled otevřenou mapu každého rodu (scéna
  * panel zruší, takže si ji drží hra – jinak by další klik šel pořád na první) a otevření mapy.
  */
 export interface KnownMapActions {
+  /** Stav seznamu: oko bez načteného seznamu nesmí tvrdit, že mapu rod nezná. */
+  status: KnownStatus;
   known: readonly KnownVillage[];
   last: Readonly<Record<string, GridCell>>;
   open: (houseId: string, cell: GridCell) => void;
@@ -37,26 +44,32 @@ export function KnownMapEye({
   houseId,
   testId = 'known-map-eye',
 }: {
-  /** Rod, jehož mapu oko otevře; null – nic se neví. */
+  /** Rod, jehož mapu oko otevře; null – není rod (cíl tažení nevybraný), oko se nezobrazí. */
   houseId: string | null;
   testId?: string;
 }): ReactElement | null {
   const actions = useContext(KnownMapContext);
   if (!actions) return null;
-  const cell =
-    houseId === null ? null : nextKnownCell(actions.known, houseId, actions.last[houseId] ?? null);
-  const label = cell ? 'Známá mapa' : UNKNOWN_MAP;
+  const state = knownEyeState(
+    actions.status,
+    actions.known,
+    houseId,
+    houseId === null ? null : (actions.last[houseId] ?? null),
+  );
+  if (state.kind === 'hidden' || houseId === null) return null;
+  const cell = state.kind === 'open' ? state.cell : null;
+  const label = state.kind === 'open' ? 'Známá mapa' : state.kind === 'unknown' ? UNKNOWN_MAP : '';
   return (
-    <Tooltip content={label}>
+    <Tooltip content={label} off={state.kind === 'pending'}>
       <button
         type="button"
         data-testid={testId}
-        data-house-id={houseId ?? ''}
+        data-house-id={houseId}
         data-known={cell ? 'yes' : 'no'}
-        aria-label={label}
+        aria-label={label || 'Známá mapa'}
         aria-disabled={cell === null}
         onClick={() => {
-          if (cell && houseId !== null) actions.open(houseId, cell);
+          if (cell) actions.open(houseId, cell);
         }}
         className={`hud-inset inline-flex h-6 w-6 items-center justify-center rounded ${
           cell ? 'cursor-pointer text-[#f3cf86]' : 'cursor-not-allowed text-[#6b5a40] opacity-50'

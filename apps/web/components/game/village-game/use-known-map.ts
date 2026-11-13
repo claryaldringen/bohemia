@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { GridCell } from '@bohemia/game';
-import type { KnownVillage } from '@/lib/journey-view';
+import type { KnownStatus, KnownVillage } from '@/lib/journey-view';
 import type { KnownMapActions } from '../hud/KnownMapEye';
 
 // Známá mapa z domova (journey.md – Známá mapa): seznam map, které rod zná, pro oka v panelech,
@@ -22,6 +22,7 @@ export interface KnownMap {
 
 export function useKnownMap(): KnownMap {
   const [known, setKnown] = useState<readonly KnownVillage[]>([]);
+  const [status, setStatus] = useState<KnownStatus>('loading');
   const [cell, setCell] = useState<GridCell | null>(null);
   const [last, setLast] = useState<Readonly<Record<string, GridCell>>>({});
 
@@ -33,9 +34,16 @@ export function useKnownMap(): KnownMap {
       void fetch('/api/journey?known=villages', { cache: 'no-store' })
         .then((response) => response.json() as Promise<{ known?: KnownVillage[] }>)
         .then((body) => {
-          if (live && body.known) setKnown(body.known);
+          if (!live) return;
+          if (body.known) {
+            setKnown(body.known);
+            setStatus('ready');
+          } else setStatus((prev) => (prev === 'ready' ? prev : 'error'));
         })
-        .catch(() => undefined);
+        .catch(() => {
+          // už načtený seznam zůstává platný; selhání před prvním načtením je chyba
+          if (live) setStatus((prev) => (prev === 'ready' ? prev : 'error'));
+        });
     };
     load();
     const timer = setInterval(load, REFRESH_MS);
@@ -51,6 +59,9 @@ export function useKnownMap(): KnownMap {
     setCell(opened);
   }, []);
   const back = useCallback((): void => setCell(null), []);
-  const actions = useMemo(() => ({ known, last, open: openCell }), [known, last, openCell]);
+  const actions = useMemo(
+    () => ({ status, known, last, open: openCell }),
+    [status, known, last, openCell],
+  );
   return { actions, cell, back };
 }
