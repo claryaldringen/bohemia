@@ -205,8 +205,9 @@ export class ArmyRenderer {
   private fog: FogGrid | null = null;
   private seen: Uint8Array | null = null;
   /**
-   * Mlha cizí mapy výjezdu (journey.md – Scéna cizí mapy): stopa rodu a body z ní už odkryté
-   * v `fog`; null – bez mlhy výjezdu. Mlha války má přednost.
+   * Stopa rodu na cizí mapě (journey.md – Scéna cizí mapy; při tažení Úloha 12b) a body z ní už
+   * odkryté v `fog`; null – bez stopy. S mlhou války platí obojí: stopa odkryje (šeré), dohled
+   * dává vojsko.
    */
   private trailFog: { trail: readonly (readonly [number, number])[]; done: Set<string> } | null =
     null;
@@ -330,8 +331,8 @@ export class ArmyRenderer {
 
   /**
    * Mlha cizí mapy výjezdu (journey.md – Scéna cizí mapy): odkryté ze stopy rodu
-   * (`SeenCell.trail`) je šeré, okolí vlastních jezdců jasné; null – bez mlhy výjezdu. Mlha války
-   * má přednost. Vrátí true, když je co překreslit.
+   * (`SeenCell.trail`) je šeré, okolí vlastních jezdců jasné; null – bez mlhy výjezdu. Při tažení
+   * (mlha války) stopa jen přidá odkryté, dohled zůstává vojsku. Vrátí true, když je co překreslit.
    */
   setJourneyFog(trail: readonly (readonly [number, number])[] | null): boolean {
     if (trail === null && this.trailFog === null) return false;
@@ -429,8 +430,9 @@ export class ArmyRenderer {
   }
 
   /**
-   * Dohled strany s mlhou z mužů v boji a hloučků pochodu; bez mlhy války mlha cizí mapy výjezdu –
-   * stopa rodu odkryje (šeré), v dohledu je okolí vlastních jezdců. Závoj se přepíše jen při změně.
+   * Mlha jedné mapy na jednom místě: stopa rodu odkryje (šeré – výjezd, známá mapa i tažení), dohled
+   * dá strana s mlhou války (muži v boji a hloučky pochodu), bez ní vlastní jezdci výjezdu. Závoj se
+   * přepíše jen při změně.
    */
   private updateFog(): void {
     const war = this.war;
@@ -443,6 +445,7 @@ export class ArmyRenderer {
     }
     this.fog ??= createFog(this.env.extentM);
     const forestAt = (x: number, z: number): boolean => this.env.forestAt(x, z);
+    if (trail) exploreTrail(this.fog, trail.trail, trail.done, forestAt);
     let eyes: Pos[] = [];
     if (war?.fog) {
       const side = war.fog.side;
@@ -453,7 +456,6 @@ export class ArmyRenderer {
         ...(side === 'attack' ? (war.march?.groups ?? []).map((g) => g.pos) : []),
       ];
     } else if (trail) {
-      exploreTrail(this.fog, trail.trail, trail.done, forestAt);
       eyes = this.journeyList.filter((j) => j.own).map((j) => j.pos);
     }
     const viewers = eyes.map((p) => ({ x: p.x, z: p.z, forest: forestAt(p.x, p.z) }));

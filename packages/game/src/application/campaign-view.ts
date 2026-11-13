@@ -123,15 +123,28 @@ async function targetDwellings(
  * vůdce je ve stavu tažení (`houseId`); vazal ve službě vidí znalost svého rodu, bod bez `houseId`
  * rod hráče. Bez úložiště znalosti nebo rodu null.
  */
-export async function knowledgeOfTarget(
+export function knowledgeOfTarget(
   deps: KnowledgeOfTargetDeps,
   state: CampaignState,
   playerId: string,
 ): Promise<SeenCell | null> {
+  return knowledgeOfCell(deps, state, playerId, state.target.cell);
+}
+
+/**
+ * Znalost rodu hráče o mapě `cell` (Úloha 12b – mapa po cestě, kde vojsko stojí) – jeden dotaz,
+ * rod jako u `knowledgeOfTarget`.
+ */
+export async function knowledgeOfCell(
+  deps: KnowledgeOfTargetDeps,
+  state: CampaignState,
+  playerId: string,
+  cell: GridCell,
+): Promise<SeenCell | null> {
   if (!deps.knowledge) return null;
   const own = state.playerId === playerId ? state.houseId : undefined;
   const houseId = own ?? (await deps.houses?.activeOf(playerId))?.id;
-  return houseId === undefined ? null : deps.knowledge.of(houseId, state.target.cell);
+  return houseId === undefined ? null : deps.knowledge.of(houseId, cell);
 }
 
 /** Mřížka mapy cíle v den tažení (dohled v lese) – jako ji bere boj (`gridOf`). */

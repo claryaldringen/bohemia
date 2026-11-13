@@ -912,6 +912,204 @@ test('útočník sleduje vojsko ve 3D na mapě napadené vsi i na sousední, po 
   }
 });
 
+// Tažení vidí ve scéně, co rod zná (plán 2026-11-13 – Úloha 12b): rod A zná mapu vsi B z dřívějška
+// (dům B a stopa u něj – zapsáno rovnou do house_knowledge). Vojsko A vstoupí na mapu B 400 m od
+// domu: dům stojí ve scéně a místo u něj je šeré dřív, než ho kdo z vojska spatří; okolí vojska
+// je jasné, jinde mlha. `WAR_KNOWN_SHOT=<cesta>` uloží snímek.
+test('útočník vidí na mapě cíle, co rod zná – známý dům a odkrytou stopu dřív, než je vojsko spatří', async ({
+  browser,
+}) => {
+  test.setTimeout(240_000);
+  await query(`UPDATE house SET ended_at = now() WHERE ended_at IS NULL`, []);
+  const ctxs = await Promise.all([browser.newContext(), browser.newContext()]);
+  for (const ctx of ctxs) await useUniqueClientIp(ctx);
+  const [a, b] = (await Promise.all(ctxs.map((ctx) => ctx.newPage()))) as [Page, Page];
+  for (const page of [a, b]) await page.setViewportSize({ width: 1280, height: 720 });
+  const { email: emailA, seat: seatA } = await newPlayer(a, 'znalaa');
+  const spotsA = villageSpots(seatA.landscape);
+  await found(a, spotsA.dwelling, 'Bořivoj');
+  const { email: emailB, seat: seatB } = await newPlayer(b, 'znalab');
+  const spotsB = villageSpots(seatB.landscape);
+  await found(b, spotsB.dwelling, 'Dalibor');
+  await ctxs[1]!.close();
+  const [idA, idB] = [await houseIdOf(emailA), await houseIdOf(emailB)];
+  const [placeA, placeB] = [await placeOf(seatA.settlementId), await placeOf(seatB.settlementId)];
+  const [playerA] = await query<{ id: string }>(`SELECT id FROM "user" WHERE email = $1`, [emailA]);
+  const stateB = withBuiltFirstDwelling(await villageState(seatB.settlementId));
+  await writeVillageState(seatB.settlementId, stateB);
+  const stateA = withBuiltFirstDwelling(await villageState(seatA.settlementId));
+  await writeVillageState(seatA.settlementId, stateA);
+  const today = Math.max(stateA.lastDay, stateB.lastDay);
+  const [war] = await query<{ id: string }>(
+    `INSERT INTO war (house_low, house_high, how, started_at, started_day, last_clash_day)
+     VALUES (LEAST($1::uuid, $2::uuid), GREATEST($1::uuid, $2::uuid), 'ambush', now(), $3, $3)
+     RETURNING id`,
+    [idA, idB, today],
+  );
+
+  // rod A zná dům B a místo u něj (stará zpráva z výjezdu)
+  const houseB = stateB.dwellings[0]!;
+  const spot = { x: houseB.position.x, z: houseB.position.z };
+  await query(
+    'INSERT INTO house_knowledge (house_id, grid_x, grid_y, state) VALUES ($1, $2, $3, $4)',
+    [
+      idA,
+      placeB.cell.x,
+      placeB.cell.y,
+      {
+        villageId: placeB.villageId,
+        trail: [[spot.x, spot.z + 20]],
+        parts: [
+          {
+            key: `dwelling:${houseB.id}`,
+            pos: spot,
+            day: today - 30,
+            data: {
+              kind: 'dwelling',
+              id: houseB.id,
+              type: houseB.type,
+              position: houseB.position,
+              condition: 1,
+            },
+          },
+        ],
+      },
+    ],
+  );
+
+  // vojsko A vstoupilo na mapu B 400 m od domu (ke středu mapy) a nic z vsi B ještě neobjevilo
+  const lord = stateA.people[0]!;
+  const world = resolveWorldClock(E2E_ENV);
+  const tick = tickOfMs(Date.now(), world);
+  const man = (personId: number, line: boolean): CampaignMember => ({
+    ref: { villageId: placeA.villageId, personId },
+    playerId: playerA!.id,
+    line,
+    mounted: false,
+    forced: false,
+    strength: line ? 2 : 0.4,
+    health: 100,
+    vigor: 1,
+    wounded: false,
+    group: 0,
+    status: 'active',
+  });
+  const home = { x: spotsA.dwelling.x, z: spotsA.dwelling.z };
+  const at = { x: spot.x + (spot.x > 0 ? -400 : 400), z: spot.z };
+  const campaignId = randomUUID();
+  const base = newCampaign(
+    {
+      id: campaignId,
+      warId: war!.id,
+      seed: 17,
+      tick,
+      playerId: playerA!.id,
+      houseId: idA,
+      leaderName: 'Bořivoj',
+      commander: { villageId: placeA.villageId, personId: lord.id },
+      deputy: null,
+      assembly: { villageId: placeA.villageId, cell: placeA.cell, pos: home, name: 'Lhota' },
+      target: { villageId: placeB.villageId, cell: placeB.cell, pos: spot, name: 'Kněžice' },
+      members: [man(lord.id, true), man(lord.id + 100_000, false)],
+      foodKg: 50,
+      liveCommand: true,
+    },
+    world,
+  );
+  const state: CampaignState = {
+    ...base,
+    phase: 'marching',
+    presenceTick: tick,
+    discovered: [],
+    groups: base.groups.map((g) => ({
+      ...g,
+      cell: { ...placeB.cell },
+      pos: { ...at },
+      goal: { cell: { ...placeB.cell }, pos: { ...at } },
+      route: [],
+      leg: null,
+      arrived: true,
+    })),
+  };
+  await query(`UPDATE campaign SET status = 'done' WHERE status = 'active'`, []);
+  await query(
+    `INSERT INTO campaign (id, war_id, player_id, status, created_at)
+     VALUES ($1, $2, $3, 'active', now())`,
+    [campaignId, war!.id, playerA!.id],
+  );
+  await query(
+    `INSERT INTO campaign_checkpoint (campaign_id, tick, state) VALUES ($1, $2, $3::jsonb)`,
+    [campaignId, tick, JSON.stringify(state)],
+  );
+
+  try {
+    // dvorec → panel Vojsko → běžící tažení → mapa tažení → oko (Ve scéně)
+    await pollVillage(a);
+    await a.keyboard.press('r');
+    const panel = a.getByTestId('selection-panel');
+    await expect
+      .poll(
+        async () => {
+          const point = await a.evaluate(
+            (p) => window.__bohemiaE2E!.projectToScreen!(p.x, p.z),
+            spotsA.dwelling,
+          );
+          if (!point) return null;
+          await a.mouse.move(point.x - 3, point.y);
+          await a.mouse.click(point.x, point.y);
+          return panel.getByTestId('manor-upgrades').count();
+        },
+        { timeout: 30_000 },
+      )
+      .toBe(1);
+    await panel.getByTestId('manor-army').click();
+    await a.getByTestId('army-campaign').click();
+    const watch = a.getByTestId('campaign-watch');
+    await expect(watch).toBeEnabled({ timeout: 20_000 });
+    await watch.click();
+
+    const foreign = a.getByTestId('foreign-scene');
+    await expect(foreign).toHaveAttribute('data-cell', `${placeB.cell.x},${placeB.cell.y}`);
+    const canvas = foreign.locator('canvas[data-scene]');
+    await expect(canvas).toHaveAttribute('data-scene-ready', 'true', { timeout: 60_000 });
+    await expect(canvas).toHaveAttribute('data-war-men', '2', { timeout: 30_000 });
+    // známý dům stojí ve scéně, ač ho vojsko neobjevilo
+    await expect
+      .poll(
+        () =>
+          a.evaluate(() =>
+            (window.__bohemiaE2E?.foreignVillage?.() ?? { dwellings: [] }).dwellings.map(
+              (d) => d.id,
+            ),
+          ),
+        { timeout: 30_000 },
+      )
+      .toEqual([houseB.id]);
+    // mlha: u domu šeré ze stopy rodu, u vojska jasno, jinde neobjevené
+    const fogAt = (p: { x: number; z: number }): Promise<string | null> =>
+      a.evaluate((q) => window.__bohemiaE2E?.journeyFog?.(q.x, q.z) ?? null, p);
+    await expect.poll(() => fogAt(spot), { timeout: 30_000 }).toBe('explored');
+    await expect.poll(() => fogAt(at), { timeout: 30_000 }).toBe('seen');
+    expect(await fogAt({ x: spot.x, z: spot.z + (spot.z > 0 ? -400 : 400) })).toBe('hidden');
+    if (process.env.WAR_KNOWN_SHOT) {
+      // bez mapy tažení a popisku tlačítka, kamera nad domem směrem k vojsku
+      await foreign.getByTestId('foreign-campaign-map').click();
+      await a.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+      await a.setViewportSize({ width: 800, height: 450 });
+      await a.evaluate((p) => window.__bohemiaE2E!.moveCameraTo!(p.x, p.z, 260), {
+        x: spot.x + (at.x - spot.x) * 0.3,
+        z: spot.z,
+      });
+      await a.mouse.move(400, 300);
+      await a.waitForTimeout(2_000);
+      await a.screenshot({ path: process.env.WAR_KNOWN_SHOT });
+    }
+  } finally {
+    await query(`UPDATE campaign SET status = 'done' WHERE id = $1`, [campaignId]);
+    await Promise.all(ctxs.map((ctx) => ctx.close().catch(() => {})));
+  }
+});
+
 // Rozkaz „Probít se“ (fortifications.md – Obrana bez násobku 3, Bod zlomu a probíjení): B má
 // palisádu s ochozem a bránou, vojsko A u ní bojuje (stav boje zapsaný do kontrolního bodu, bez
 // workeru – stav tažení se jen čte). B vidí ve scéně boj a ikonu „Probít se“; klik zapíše záměr

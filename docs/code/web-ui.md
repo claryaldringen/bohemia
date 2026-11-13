@@ -1067,7 +1067,7 @@ na které stojí.
 - **`ForeignWarScene`** (`foreign-scene`, `data-cell`): krajina z `?map=x,y` (404 = zpět) do
   `GameView`, válka z `useWarScene(…?scene=x,y)` → `sceneWarOf(war, world, true)` – se závojem
   mlhy strany hráče; objevené domy `foreignVillageOf` → `setVillage` (jen stojící domy, bez lidí,
-  polí a všeho dalšího; přestaví se jen novým objevem). Kamera poprvé na vojsko (`armyFocusOf`,
+  polí a všeho dalšího; přestaví se jen novým objevem; co rod zná – níž). Kamera poprvé na vojsko (`armyFocusOf`,
   R se k němu vrací). Rozhraní: ⌂ zpět na ves (`foreign-back`), ⚔ mapa tažení (`CampaignMap` –
   živé vedení dál). `war === null` (vojsko z mapy odešlo, tažení skončilo) → jednou
   `GET /api/campaign/<id>` a `followCellOf(view, cell, home)`: vojsko stojí na jiné cizí mapě =
@@ -1075,6 +1075,18 @@ na které stojí.
   vojsko), jinak (konec tažení, vojsko na mapě sídla, chyba) zpět na ves. Pochod i boj jdou mezi
   snímky plynule a rány z vynechaných taktů se nakreslí (war.md – Ve scéně – Plynulost mezi
   snímky). E2e háček `armyStats` míří na scénu cizí mapy.
+- **Co rod zná** (plán 2026-11-13 – Úloha 12b; `WarSceneView.known` na mapě cíle i po cestě):
+  ves `foreignVillageOf(buildings, known, krajina)` – objevené domy a stavby, jak je rod naposled
+  viděl (`seenVillageOf` s krajinou dekódovanou z `?map=`), objevený dům má přednost před známým
+  téhož id; opevnění ze znalosti se na mapě cíle nekreslí (útočník ho vidí ze stavu vsi), na mapě po
+  cestě ano (`onTargetMap` – pohled s objevenými domy nebo bojem je z mapy cíle). Ves se přestaví jen
+  při změně objevených domů nebo známých staveb (klíč z id domů a `seenSceneKey`); zmizí-li vše
+  nakreslené, prázdná ves ho smaže, bez znalosti i objevu se `setVillage` nevolá jako dřív. Stopa
+  rodu jde do `setJourneyFog` jen při změně (`known.trail`; prázdná – null, mlha jako dřív):
+  `ArmyRenderer.updateFog` ji odkryje (šeré, `exploreTrail`) i s mlhou války a dohled (jasno)
+  dává vojsko – jedna mlha. E2e háčky `foreignVillage`, `journeyFog` a `moveCameraTo` míří i na
+  scénu tažení; `multiplayer-war.spec.ts` (rod A zná dům B a stopu u něj, vojsko 400 m od domu:
+  dům ve scéně, u něj šeré, u vojska jasno, jinde mlha; `WAR_KNOWN_SHOT=<cesta>` – snímek).
 - **Oko** v `CampaignMap` je jednobarevná maska `public/icons/war/eye.svg` (CC0, `LICENSES.md`)
   v barvě textu tlačítka (`EYE_ICON`) – jako znaky ⌂, ⚔, ✕ ostatních tlačítek.
 - **Výjezd vojvody** jde za vojvodou stejně – `ForeignJourneyScene` (journey.md – Scéna cizí mapy).
