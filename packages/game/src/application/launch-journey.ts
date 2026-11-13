@@ -9,17 +9,15 @@ import {
   lineManStrength,
   marchGrid,
   newJourney,
-  reachableGoal,
   WAR,
   type JourneyMember,
   type JourneyOrder,
-  type MarchGrid,
-  type Pos,
 } from '../domain/war';
 import type { WorldClock } from '../domain/calendar';
 import type { CampaignCells, CampaignRepository } from './campaigns';
 import type { HouseRepository } from './houses';
 import type { JourneyRepository } from './journeys';
+import { orderAim } from './journey-order';
 import { UNNAMED_HOUSE } from './negotiation-chronicle';
 import {
   editVillage,
@@ -178,10 +176,10 @@ export async function launchJourney(
 
   const map = await deps.cells.mapOf(cell);
   const place = villagePlace(cell, map.landscape);
-  const aim = orderCell(input.order, cell, place.pos, () =>
+  const aim = orderAim(input.order, cell, place.pos, () =>
     marchGrid(map.landscape, map.obstacles, state, { day }),
   );
-  if (aim === 'unreachable') return { ok: false, reason: 'unreachable' };
+  if (aim === 'unreachable' || aim === 'invalid') return { ok: false, reason: 'unreachable' };
   if (aim !== null && (await deps.atWar(input.playerId, aim))) {
     return { ok: false, reason: 'war-there' };
   }
@@ -232,45 +230,6 @@ function retinueFits(men: readonly JourneyCandidate[], retinue: readonly number[
     seen.add(id);
   }
   return true;
-}
-
-/**
- * Políčko, kam první rozkaz míří (pro dotaz na válku); null = rozkaz „domů“. Rozkaz, který skupina
- * nesplní – bod mimo mapu, nekonečné číslo, místo, kam nedojde, nesousední políčko –, je
- * `unreachable` (doména `go.pos` nekontroluje).
- */
-function orderCell(
-  order: JourneyOrder,
-  home: GridCell,
-  start: Pos,
-  gridOf: () => MarchGrid,
-): GridCell | null | 'unreachable' {
-  switch (order.kind) {
-    case 'home':
-      return null;
-    case 'cross': {
-      const dx = order.cell.x - home.x;
-      const dy = order.cell.y - home.y;
-      const near = Number.isInteger(dx) && Number.isInteger(dy);
-      if (!near || Math.abs(dx) > 1 || Math.abs(dy) > 1 || (dx === 0 && dy === 0)) {
-        return 'unreachable';
-      }
-      return { ...order.cell };
-    }
-    case 'go': {
-      const { x, z } = order.pos;
-      if (!Number.isFinite(x) || !Number.isFinite(z)) return 'unreachable';
-      const grid = gridOf();
-      const half = grid.cellM / 2;
-      const inside =
-        x >= grid.originX - half &&
-        x <= grid.originX + (grid.width - 1) * grid.cellM + half &&
-        z >= grid.originZ - half &&
-        z <= grid.originZ + (grid.height - 1) * grid.cellM + half;
-      if (!inside || reachableGoal(grid, start, order.pos) === null) return 'unreachable';
-      return { ...home };
-    }
-  }
 }
 
 /** Muži výjezdu: vojvoda první, pak družina; síla a boj z dovedností muže při vyslání. */

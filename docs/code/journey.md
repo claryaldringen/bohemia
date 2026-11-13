@@ -155,3 +155,25 @@ tempo a svět `CampaignWorld`.
   „Přes okraj“ po bodu, výjezd jinde nic; `war.test.ts` – opověď i přepadení výjezd pošlou domů,
   další útok už ne; `settlement-repository.db.test.ts` – `holderAt`;
   `apps/worker/src/__tests__/campaign-loop.test.ts` – výjezdy v kole.
+
+## Rozkazy a pohled (Úloha 5 – `application/journey-view.ts`, `journey-order.ts`)
+
+- **`orderAim`** (`journey-order.ts`) – jediné ověření rozkazu, společné pro `launchJourney` (vůči
+  domovské vsi) a `commandJourney` (vůči políčku a poloze, kde skupina je). Vrací políčko, kam rozkaz
+  míří (pro dotaz na válku; `home` = null), nebo `invalid` (neznámý druh rozkazu za běhu, bod mimo mapu, nekonečné číslo,
+  `cross` na nesousední políčko) / `unreachable` (`reachableGoal` – skupina tam nedojde). Vyslání
+  obojí hlásí jako `unreachable`, pozdější rozkaz `invalid` jako `refused`.
+- **`journeyViewFor(deps, { playerId })`** – pohled na vlastní běžící výjezd z kontrolního
+  bodu (výjezd se hledá podle hráče, cizí hráč dostane null): takt, den, fáze, políčko, domov, muži
+  (padlí se neukazují), skupina a `waitDaysLeft` – celé dny do automatického návratu (3, 2, 1), jen
+  když skupina po dojetí stojí a je `out`, jinak null. `controllable` = vojvoda žije.
+- **`commandJourney(deps, { playerId, command, nowMs })`** – zapíše záměr na takt teď +
+  `INTENT_LEAD_TICKS`. `refused`: bez výjezdu, skončený výjezd, vojvoda padl, neplatný vstup;
+  `unreachable`; `war-there` (`atWar` na políčko cíle – `cross`, nebo mapa, kde skupina stojí).
+  Pozor: poloha je z kontrolního bodu, který worker ukládá zřídka – rozkaz může mířit z mírně
+  starého místa, zdrojem pravdy je krok výjezdu.
+- **`visitorsOn(deps, { playerId, villageId })`** – jezdci na mapě vsi hráče (`onCell`). Hostitel vidí
+  jako obránce ve válce: z domů vsi (`village.state.dwellings`) s mřížkou dohledu (`mapGrid`,
+  `inSight`: 150 m, les 50 m); vlastní výjezd vždy. Vrací jen jméno vojvody, jméno rodu (`houseName`
+  – hlava rodu jako v panelu Rod), takt, polohu, cíl na této mapě a muže (vojvoda, kůň). Cizí ves:
+  prázdno. Ves hostitele na jezdce nereaguje – nic se nezapisuje.
