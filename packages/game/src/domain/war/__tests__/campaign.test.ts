@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { realTimeOf } from '../../calendar';
 import type { StreamPoint } from '../../landscape';
+import { areaOutline, fortificationArea, fortSegments } from '../../village';
+import type { Fortification } from '../../village/fortification/types';
+import { horse, horsePen } from '../../village/__tests__/horse-fixtures';
+import { kin, village } from '../../village/__tests__/kin-fixtures';
+import type { GridCell } from '../../village/people/world-grid';
+import type {
+  Church,
+  Construction,
+  Person,
+  SacredBuilding,
+  TileCell,
+  VillageState,
+} from '../../village/types';
 import { stepCampaign } from '../campaign';
 import type {
   CampaignIntent,
@@ -9,6 +22,8 @@ import type {
   CampaignStep,
   CampaignWorld,
 } from '../campaign-types';
+import { JOURNEY } from '../rules-war';
+import { mergeKnowledge, type KnowledgeOut, type SeenCell } from '../seen';
 import { dayOfTick, msOfTick, TICK_MS, tickOfMs } from '../ticks';
 import {
   campaign,
@@ -251,6 +266,298 @@ describe('stepCampaign', () => {
     expect(JSON.stringify(whole)).toBe(JSON.stringify(later));
   });
 });
+
+describe('znalost rodu z tažení (plán 2026-11-13 – Úloha 11)', () => {
+  const TARGET: CampaignMap = { landscape: flat(), obstacles: null, villageIds: ['knezice'] };
+  const OPEN: CampaignMap = { landscape: flat(), obstacles: null, villageIds: [] };
+  /** Kněžice s domem u cíle – při přesile se vzdají (jako raid-campaign.test.ts). */
+  function knezice(extra: Partial<VillageState> = {}): VillageState {
+    const people = [
+      kin({ id: 1, age: 30, sex: 'male', spouse: 2 }, SUMMER),
+      kin({ id: 2, age: 28, sex: 'female', spouse: 1 }, SUMMER),
+    ];
+    const v = village(people, undefined, {
+      lastDay: SUMMER,
+      storesKg: 1000,
+      defense: { stance: 'surrender' },
+      ...extra,
+    });
+    v.dwellings[0]!.position = { x: -860, z: 30, rotation: 0 };
+    return v;
+  }
+  /** Svět s cílovou vsí `state` na mapě (1, 0); ostatní mapy jsou louky. */
+  function worldWith(state: VillageState): CampaignWorld {
+    return {
+      clock: world,
+      landscapeOf: (cell) => (cell.x === 1 && cell.y === 0 ? TARGET : OPEN),
+      villageAt: (id) => (id === 'knezice' ? state : null),
+    };
+  }
+  const TARGET_STATE = knezice();
+  const raidWorld = worldWith(TARGET_STATE);
+  const START = campaign({
+    houseId: 'h1',
+    target: { villageId: 'knezice', cell: { x: 1, y: 0 }, pos: { x: -880, z: 30 } },
+  });
+  const END = LAUNCH + 3000;
+  const whole = stepCampaign(START, END, LIVE, raidWorld);
+  const HOUSE = `dwelling:${TARGET_STATE.dwellings[0]!.id}`;
+
+  /** Bod bez rodu a znalosti – uložený před Úlohou 11. */
+  const strip = (s: CampaignState): CampaignState => {
+    const copy = { ...s };
+    delete copy.seen;
+    delete copy.houseId;
+    return copy;
+  };
+
+  /**
+   * Tažení s rodem (znalost) a bez něj (Review – tažení se nemění): stav bez znalosti, události
+   * i upozornění stejné; bez rodu znalost nevznikne. Vrátí krok s rodem.
+   */
+  function sameWithoutKnowledge(
+    start: CampaignState,
+    toTick: number,
+    intents: readonly CampaignIntent[],
+    w: CampaignWorld,
+  ): CampaignStep {
+    const withHouse = stepCampaign({ ...start, houseId: 'h1' }, toTick, intents, w);
+    const without = stepCampaign(strip(start), toTick, intents, w);
+    expect(withHouse.waiting).toBeNull();
+    expect(without.state.seen).toBeUndefined();
+    expect(strip(withHouse.state)).toStrictEqual(strip(without.state));
+    expect(withHouse.villageEvents).toEqual(without.villageEvents);
+    expect(withHouse.notices).toEqual(without.notices);
+    return withHouse;
+  }
+
+  /** Co rod po doručení všech vydání ví o mapě `cell` (`mergeKnowledge` v pořadí vydání). */
+  function knownOf(step: CampaignStep, cell: GridCell): SeenCell | null {
+    return (step.knowledge ?? [])
+      .filter((k) => k.cell.x === cell.x && k.cell.y === cell.y)
+      .reduce<SeenCell | null>((acc, k) => mergeKnowledge(acc, k.seen), null);
+  }
+
+  /** Po kouscích `chunk` taktů s JSON mezi nimi; `edit` upraví bod (starší bod bez nových polí). */
+  function chunked(
+    chunk: number,
+    edit: (s: CampaignState) => void = () => {},
+  ): CampaignStep & { knowledge: KnowledgeOut[] } {
+    let current = START;
+    const all = {
+      state: START,
+      villageEvents: [],
+      notices: [],
+      waiting: null,
+      knowledge: [],
+    } as CampaignStep & { knowledge: KnowledgeOut[] };
+    while (current.tick < END && current.phase !== 'done') {
+      const step = stepCampaign(current, Math.min(END, current.tick + chunk), LIVE, raidWorld);
+      expect(step.waiting).toBeNull();
+      all.villageEvents.push(...step.villageEvents);
+      all.notices.push(...step.notices);
+      all.knowledge.push(...(step.knowledge ?? []));
+      current = JSON.parse(JSON.stringify(step.state)) as CampaignState;
+      edit(current);
+    }
+    return { ...all, state: current };
+  }
+
+  it('znalost jen na cizích mapách; na konci rod ví stopu a stavby cílové vsi, jak je muži viděli', () => {
+    expect(whole.state.phase).toBe('done');
+    expect(whole.state.discovered).toEqual([TARGET_STATE.dwellings[0]!.id]);
+    expect(whole.state.houseId).toBe('h1');
+    // shromaždiště (domovská mapa) hráč zná celé – znalost je jen na mapě cíle
+    expect(Object.keys(whole.state.seen ?? {})).toEqual(['1,0']);
+    const seen = whole.state.seen!['1,0']!;
+    expect(seen.villageId).toBe('knezice');
+    expect(seen.since).toBeGreaterThanOrEqual(SUMMER);
+    expect(seen.since).toBeLessThanOrEqual(whole.state.day);
+    expect(seen.trail.length).toBeGreaterThan(0);
+    const onGrid = (v: number): boolean => Math.abs(v % JOURNEY.trailStepM) === 0;
+    expect(seen.trail.every(([x, z]) => onGrid(x) && onGrid(z))).toBe(true);
+    // co rod po doručení ví (sloučení všech vydání)
+    expect((whole.knowledge ?? []).every((k) => k.cell.x === 1 && k.cell.y === 0)).toBe(true);
+    const known = knownOf(whole, { x: 1, y: 0 });
+    expect(known!.villageId).toBe('knezice');
+    expect(known!.trail).toEqual(seen.trail);
+    expect(known!.parts.map((p) => [p.key, p.pos])).toEqual([[HOUSE, { x: -860, z: 30 }]]);
+    expect(JSON.stringify(known)).not.toMatch(/people|storesKg|herds/);
+  });
+
+  it('po nájezdu rod zná i opevnění, ohrady, kostel a ostatní stavby v dohledu mužů', () => {
+    const site: Construction = {
+      id: 50,
+      kind: 'dwelling',
+      startedDay: SUMMER - 5,
+      cost: 10,
+      done: 4,
+      dwellingType: 'zemnice',
+      position: { x: -900, z: -20, rotation: 0 },
+      dwellingId: null,
+      fieldId: null,
+    };
+    const idol: SacredBuilding = {
+      id: 80,
+      kind: 'idol',
+      position: { x: -900, z: 80, rotation: 0 },
+      builtDay: 5,
+    };
+    const church: Church = {
+      id: 90,
+      type: 'rotunda',
+      dims: { kind: 'round', diameter: 8, height: 6 },
+      position: { x: -820, z: -30, rotation: 0 },
+      finishedDay: SUMMER - 100,
+      priestId: 1,
+      graves: [],
+    };
+    const rich = knezice({
+      constructions: [site],
+      fortifications: [smallFort(SUMMER)],
+      pens: [{ ...horsePen(5, [horse(6, 5)]), x: -840, z: 75 }],
+      sacredBuildings: [idol],
+      churches: [church],
+    });
+    // za palisádou se nájezd do END nerozhodne – vůdce se obrátí (konec nájezdu i tažení)
+    const back = [...LIVE, intent(END, 9, { kind: 'turn-back' })];
+    const step = sameWithoutKnowledge(START, END + 3000, back, worldWith(rich));
+    expect(step.state.phase).toBe('done');
+    const kinds = knownOf(step, { x: 1, y: 0 })!.parts.map((p) => p.key);
+    expect(kinds).toEqual(
+      expect.arrayContaining([
+        'church:90',
+        HOUSE,
+        'fortification:4',
+        'pen:5',
+        'sacred:80',
+        'site:50',
+      ]),
+    );
+  });
+
+  it('pohled nečte stav žádné vsi navíc; na mapě se vsí po cestě stopa i stavby, na prázdné stopa', () => {
+    // rozpad (bez hráče a zástupce) cestou na vzdálený cíl: přes ves Mlýn na (1, 0), muži z Brodu
+    // pak domů na prázdnou mapu (0, 1) – jako npc-commander.test.ts (přítomnost a rozpad)
+    const mlyn = village([kin({ id: 1, age: 30, sex: 'male' }, SUMMER)], undefined, {
+      lastDay: SUMMER,
+    });
+    mlyn.dwellings[0]!.position = { x: -900, z: 60, rotation: 0 };
+    const reads: Record<'with' | 'without', Set<string>> = { with: new Set(), without: new Set() };
+    let reading: Set<string> = reads.with;
+    const MLYN: CampaignMap = { landscape: flat(), obstacles: null, villageIds: ['mlyn'] };
+    const w: CampaignWorld = {
+      clock: world,
+      landscapeOf: (cell) => {
+        reading.add(`map ${cell.x},${cell.y}`);
+        return cell.x === 1 && cell.y === 0 ? MLYN : OPEN;
+      },
+      villageAt: (id, day) => {
+        reading.add(`${id}@${day}`);
+        return id === 'mlyn' ? mlyn : null;
+      },
+    };
+    const homes = { brod: { cell: { x: 0, y: 1 }, pos: { x: 0, z: 0 } } };
+    const far = campaign({
+      target: { villageId: 'daleko', cell: { x: 3, y: 0 }, pos: { x: 0, z: 0 } },
+      homes,
+      foodKg: 200,
+    });
+    const withHouse = stepCampaign({ ...far, houseId: 'h1' }, LAUNCH + 20000, SET_OUT, w);
+    reading = reads.without;
+    stepCampaign(far, LAUNCH + 20000, SET_OUT, w);
+    expect([...reads.with].sort()).toEqual([...reads.without].sort());
+    expect([...reads.with].some((r) => r.startsWith('mlyn@'))).toBe(true);
+    // rozpad – s rodem i bez něj týž běh
+    const step = sameWithoutKnowledge(far, LAUNCH + 20000, SET_OUT, w);
+    expect(step.state.phase).toBe('done');
+    expect(step.villageEvents.some((e) => e.body.kind === 'chronicle')).toBe(true);
+    const seen = withHouse.state.seen!;
+    expect(seen['1,0']!.villageId).toBe('mlyn');
+    expect(seen['1,0']!.parts.map((p) => p.key)).toEqual([`dwelling:${mlyn.dwellings[0]!.id}`]);
+    expect(seen['0,1']!.trail.length).toBeGreaterThan(0);
+    expect(seen['0,1']!.parts).toEqual([]);
+    expect(seen['0,1']).not.toHaveProperty('villageId');
+    expect(seen).not.toHaveProperty('0,0');
+    // na konci tažení rod dostane všechny cizí mapy, seřazené podle políčka
+    expect((withHouse.knowledge ?? []).map((k) => `${k.cell.x},${k.cell.y}`)).toEqual(
+      Object.keys(seen).sort(),
+    );
+  });
+
+  it('boj s padlými: s rodem i bez něj stav, události i upozornění stejné', () => {
+    const man = (id: number): Person => kin({ id, age: 30, sex: 'male', home: 1 }, SUMMER);
+    const defend = village(
+      [man(1), man(2), kin({ id: 3, age: 28, sex: 'female', home: 1 }, SUMMER)],
+      undefined,
+      { lastDay: SUMMER, storesKg: 400, defense: { stance: 'defend' } },
+    );
+    defend.dwellings[0]!.position = { x: -860, z: 30, rotation: 0 };
+    const npc = campaign({
+      liveCommand: false,
+      target: { villageId: 'knezice', cell: { x: 1, y: 0 }, pos: { x: -880, z: 30 } },
+    });
+    const step = sameWithoutKnowledge(npc, END, SET_OUT, worldWith(defend));
+    const result = step.villageEvents.find((e) => e.body.kind === 'raid-result')?.body;
+    if (result?.kind !== 'raid-result') throw new Error('chybí výsledek nájezdu');
+    expect(result.result.fallen.length).toBeGreaterThan(0);
+    expect(knownOf(step, { x: 1, y: 0 })!.parts.map((p) => p.key)).toEqual([
+      `dwelling:${defend.dwellings[0]!.id}`,
+    ]);
+  });
+
+  it('po kouscích, z JSON bodu i ze zmraženého bodu se znalostí = vcelku (stav i znalost)', () => {
+    for (const chunk of [1, 37, 400]) {
+      const parts = chunked(chunk);
+      expect(JSON.stringify(parts.state)).toBe(JSON.stringify(whole.state));
+      expect(parts.villageEvents).toEqual(whole.villageEvents);
+      expect(parts.knowledge).toEqual(whole.knowledge);
+    }
+    // bod se znalostí zmražený do hloubky – takt ji nemění na místě, jen novým objektem
+    let frozen: CampaignState | null = null;
+    chunked(7, (s) => {
+      if (!frozen && s.phase !== 'done' && s.seen) frozen = structuredClone(s);
+    });
+    expect(frozen).not.toBeNull();
+    const rest = stepCampaign(deepFreeze(frozen!), END, LIVE, raidWorld);
+    expect(JSON.stringify(rest.state)).toBe(JSON.stringify(whole.state));
+  });
+
+  it('znalost je jen záznam: bod bez znalosti a rodu (starší) – boj, kořist i návrat stejné', () => {
+    // bod uložený před Úlohou 11 a načtený uprostřed tažení (znalost a rod chybí)
+    const resumed = chunked(25, (s) => {
+      delete s.seen;
+      delete s.houseId;
+    });
+    // tažení celé bez rodu – nic nezapisuje (pokračuje bit po bitu jako dřív)
+    const legacy = stepCampaign(strip(START), END, LIVE, raidWorld);
+    expect(legacy.state.seen).toBeUndefined();
+    for (const old of [resumed, legacy]) {
+      expect(strip(old.state)).toStrictEqual(strip(whole.state));
+      expect(old.villageEvents).toEqual(whole.villageEvents);
+      expect(old.notices).toEqual(whole.notices);
+      // objevená obydlí vydá i bod bez znalosti (rod dohledá aplikace podle hráče)
+      const parts = (old.knowledge ?? []).flatMap((k) => k.seen.parts.map((p) => p.key));
+      expect(parts).toEqual([HOUSE]);
+    }
+  });
+});
+
+/** Palisáda 4 × 4 políčka severovýchodně od domu Kněžic (−810…−750 m, 90…150 m). */
+function smallFort(day: number): Fortification {
+  const cells: TileCell[] = [];
+  for (let y = 70; y < 74; y++) for (let x = 10; x < 14; x++) cells.push({ x, y });
+  const area = fortificationArea(cells, null, { size: 128, cellSizeM: 15 });
+  if ('error' in area) throw new Error(area.error);
+  const outline = areaOutline(area, 'palisade');
+  return {
+    id: 4,
+    points: outline.points.map((p) => [p[0], p[1]] as const),
+    kind: 'palisade',
+    segments: fortSegments(outline).map((s) => ({ index: s.index, builtDay: day - 30, state: 1 })),
+    gates: [],
+  };
+}
 
 /** Zmrazí hodnotu do hloubky – zápis do ní v taktu spadne (moduly jsou ve striktním režimu). */
 function deepFreeze<T>(value: T): T {

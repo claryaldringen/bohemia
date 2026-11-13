@@ -65,6 +65,13 @@ export interface StepCampaignsDeps {
   /** Skončené tažení ukončí svá ohlášení průchodu (war.md – Pohyb). */
   passages?: Pick<PassageRepository, 'voidOfCampaign'>;
   /**
+   * Úložiště znalosti rodu (plán 2026-11-13 – Úloha 11): stopa a objevená obydlí z tažení jdou rodu
+   * vůdce. Bez něj se znalost z tažení zahodí (a kvůli ní se bod neukládá dřív).
+   */
+  knowledge?: Pick<KnowledgeRepository, 'merge'>;
+  /** Rod vůdce u kontrolních bodů bez `houseId` (starších než Úloha 11) – podle hráče. */
+  houses?: Pick<HouseRepository, 'activeOf'>;
+  /**
    * Paměť workeru napříč koly (`newCampaignMemory`) – jen zrychlení: bez ní se každé kolo
    * počítá od kontrolního bodu, s ní od posledního spočteného stavu se stejným výsledkem.
    */
@@ -342,9 +349,14 @@ async function stepOne(
   const step = await computeCampaign(deps, start, toTick, intents);
   if (step.state.tick === from.tick) return 'waiting';
 
+  const knowledge = await leaderKnowledge(deps, step.state, step.knowledge);
   const outbox: CampaignOutbox | null =
-    step.villageEvents.length > 0 || step.notices.length > 0
-      ? { villageEvents: step.villageEvents, notices: step.notices }
+    step.villageEvents.length > 0 || step.notices.length > 0 || knowledge.length > 0
+      ? {
+          villageEvents: step.villageEvents,
+          notices: step.notices,
+          ...(knowledge.length > 0 ? { knowledge } : {}),
+        }
       : null;
   // tažení čeká na ves (bariéra Ú6.7) – bod se uloží hned, ať mez vsi povyroste a ves smí
   // spočítat den, na který tažení čeká (jinak by obě strany čekaly navzájem)
@@ -379,6 +391,21 @@ async function stepOne(
 }
 
 /**
+ * Znalost z tažení do schránky bodu (Úloha 11) – patří jen rodu vůdce (muži vazalů ve službě ji
+ * svému rodu nedoplní): rod ze stavu tažení, u bodů bez něj (starších) aktivní rod hráče vůdce.
+ * Bez úložiště znalosti nebo bez rodu nic.
+ */
+async function leaderKnowledge(
+  deps: Pick<StepCampaignsDeps, 'knowledge' | 'houses'>,
+  state: CampaignState,
+  out: readonly KnowledgeOut[] | undefined,
+): Promise<NonNullable<CampaignOutbox['knowledge']>> {
+  if (!deps.knowledge || !out || out.length === 0) return [];
+  const houseId = state.houseId ?? (await deps.houses?.activeOf(state.playerId))?.id;
+  return houseId === undefined ? [] : out.map((k) => ({ houseId, cell: k.cell, seen: k.seen }));
+}
+
+/**
  * Dopočet tažení s načítáním dat (`computeWithLoads` nad `stepCampaign`): když takt chybí mapa nebo
  * ves, načtou se a výpočet pokračuje od zastaveného taktu (výsledek je tentýž jako s daty předem).
  */
@@ -399,7 +426,7 @@ export async function computeCampaign(
 /** Výsledek kroku po taktech – tvar `CampaignStep` pro stav `S` (tažení, výjezd – `JourneyStep`). */
 export type LoadedStep<S> = Omit<CampaignStep, 'state'> & {
   state: S;
-  /** Znalost map pro rod – jen výjezd (`JourneyStep.knowledge`). */
+  /** Znalost map pro rod (`JourneyStep.knowledge`, `CampaignStep.knowledge`). */
   knowledge?: KnowledgeOut[];
 };
 
@@ -590,7 +617,7 @@ function alarmWorld(port: AlarmOwnerPort): AlarmWorld {
  */
 export async function deliverOutbox(
   deps: Pick<StepCampaignsDeps, 'villages' | 'notices'> & {
-    /** Úložiště znalosti rodu – jen výjezdy (tažení znalost do schránky nedává). */
+    /** Úložiště znalosti rodu – výjezdy i tažení (Úloha 11); bez něj se znalost nedoručí. */
     knowledge?: Pick<KnowledgeRepository, 'merge'>;
   },
   outbox: CampaignOutbox,

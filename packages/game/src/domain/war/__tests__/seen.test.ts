@@ -195,7 +195,7 @@ describe('lookAround – stavby v dohledu', () => {
 
   it('mapa bez vsi nese jen stopu', () => {
     const cell = look(undefined, null, [{ x: 3, z: 4 }]);
-    expect(cell).toEqual({ trail: [[0, 0]], parts: [] });
+    expect(cell).toEqual({ since: DAY, trail: [[0, 0]], parts: [] });
     expect('villageId' in cell).toBe(false);
   });
 });
@@ -573,5 +573,131 @@ describe('mergeKnowledge', () => {
     const shuffled = cell([...fresh.parts].reverse(), fresh.trail, { gone: fresh.gone! });
     expect(mergeKnowledge({ ...old, parts: [...old.parts].reverse() }, shuffled)).toEqual(once);
     expect(once.parts.map((p) => p.key)).toEqual(['dwelling:2', 'dwelling:3', 'ruin:1']);
+  });
+
+  // pokrytí (kolo oprav Úlohy 11): čerstvý záznam je v dohledu své stopy od `since` úplný
+  it('výjezd projede kolem shořelého domu ze staré znalosti – dům zmizí, rozvalina zůstane', () => {
+    // den 5: rod viděl domy 1 a 2; den 25 jiný výjezd dům 3 (postavený až po průjezdu níž)
+    const early = look(
+      undefined,
+      villageOf([house(1, 30, 0), house(2, 30, 120)]),
+      [EYE],
+      5,
+      MEADOW_GRID,
+    );
+    const late = look(undefined, villageOf([house(3, -300, 0)]), [{ x: -300, z: 40 }], 25);
+    const known = mergeKnowledge(early, late);
+    expect(keys(known)).toEqual(['dwelling:1', 'dwelling:2', 'dwelling:3']);
+    // den 20: dům 1 shořel, dům 2 zmizel, dům 3 ještě nestojí; výjezd jede 20 m od místa domu 1
+    // i domu 3, od místa domu 2 je 100 m (otevřená krajina – dál než lesní dohled)
+    const burned = villageOf([], {
+      ruins: [{ id: 1, type: 'zemnice', position: { x: 30, z: 0, rotation: 0 }, day: 19 }],
+    });
+    const path = [-300, -200, -100, 0, 30].map((x) => ({ x, z: 20 }));
+    const passing = look(undefined, burned, path, 20, MEADOW_GRID);
+    expect(passing.since).toBe(20);
+    expect(keys(passing)).toEqual(['ruin:1']);
+    const merged = mergeKnowledge(known, passing);
+    // dům 2 je stará zpráva, dům 3 viděl jiný záznam až po since
+    expect(keys(merged)).toEqual(['dwelling:2', 'dwelling:3', 'ruin:1']);
+    expect(merged.since).toBe(5);
+    // zánik zjištěný pokrytím zůstane v záznamu (dům 2 je dál než lesní dohled)
+    expect(merged.gone).toEqual([{ key: 'dwelling:1', day: 20 }]);
+  });
+
+  it('pokrytí jen do lesního dohledu odkudkoli z bodu stopy; bez since nic neodstraní', () => {
+    // bod stopy [0, 0] je zaokrouhlený po 20 m – muž stál nejvýš 10 m od něj v každé ose
+    const old = cell([dwellingPart(35, 5), dwellingPart(40, 5)]);
+    const fresh = cell([], [[0, 0]], { since: 8 });
+    expect(mergeKnowledge(old, fresh).parts.map((p) => p.key)).toEqual(['dwelling:40']);
+    const legacy = cell([], [[0, 0]]);
+    expect(mergeKnowledge(old, legacy).parts.map((p) => p.key)).toEqual([
+      'dwelling:35',
+      'dwelling:40',
+    ]);
+  });
+
+  it('s since a pokrytím je idempotentní a nezávislý na pořadí částí; since je nejmenší z obou', () => {
+    const old = cell([dwellingPart(3, 5), dwellingPart(1, 5), dwellingPart(60, 5)], [[0, 0]], {
+      since: 4,
+    });
+    const fresh = cell([ruinPart(1, 9), dwellingPart(3, 9)], [[0, 20]], { since: 8 });
+    const frozen = JSON.stringify([old, fresh]);
+    const once = mergeKnowledge(old, fresh);
+    expect(JSON.stringify([old, fresh])).toBe(frozen);
+    expect(once.parts.map((p) => [p.key, p.day])).toEqual([
+      ['dwelling:3', 9],
+      ['dwelling:60', 5],
+      ['ruin:1', 9],
+    ]);
+    expect(once.since).toBe(4);
+    expect(mergeKnowledge(once, fresh)).toEqual(once);
+    const shuffled = cell([...fresh.parts].reverse(), fresh.trail, { since: 8 });
+    expect(mergeKnowledge({ ...old, parts: [...old.parts].reverse() }, shuffled)).toEqual(once);
+    expect(mergeKnowledge(cell([], [], { since: 2 }), fresh).since).toBe(2);
+    expect(mergeKnowledge(cell([]), fresh).since).toBe(8);
+  });
+
+  describe('pořadí doručení', () => {
+    // A: dům viděný den 5 (since 1); B: místo v jistém dohledu je prázdné (since 20)
+    const A = cell([dwellingPart(5, 5)], [[0, 20]], { since: 1 });
+    const B = cell([], [[0, 20]], { since: 20 });
+    const K = cell([], [], {});
+
+    it('dům zaniklý před průjezdem se nevrátí v žádném pořadí; gone nese den 20', () => {
+      const results = [
+        mergeKnowledge(mergeKnowledge(K, A), B),
+        mergeKnowledge(mergeKnowledge(K, B), A),
+        mergeKnowledge(K, mergeKnowledge(A, B)),
+        mergeKnowledge(mergeKnowledge(null, B), A),
+      ];
+      for (const r of results) {
+        expect(r.parts).toEqual([]);
+        expect(r.gone).toEqual([{ key: 'dwelling:5', day: 20 }]);
+        expect(r).toEqual(results[0]);
+      }
+    });
+
+    it('dům postavený znovu a viděný den 30 zůstane a záznam o zániku se zahodí', () => {
+      const rebuilt = cell([dwellingPart(5, 30)], [[0, 20]], { since: 28 });
+      for (const r of [
+        mergeKnowledge(mergeKnowledge(A, B), rebuilt),
+        mergeKnowledge(mergeKnowledge(rebuilt, A), B),
+        mergeKnowledge(rebuilt, mergeKnowledge(B, A)),
+      ]) {
+        expect(r.parts.map((p) => [p.key, p.day])).toEqual([['dwelling:5', 30]]);
+        expect(r.gone).toBeUndefined();
+      }
+    });
+
+    // sloučený záznam nese jediné `since` (nejmenší z obou), takže pokrytí pozdějšího záznamu se po
+    // sloučení s dřívějším zeslabí – scénáře jsou proto z téhož místa a bez cizích `since` mezi nimi
+    it('je symetrické, asociativní a idempotentní na pevných scénářích', () => {
+      const cells = [A, B, cell([dwellingPart(5, 30)], [[0, 20]], { since: 28 })];
+      for (const x of cells) {
+        const once = mergeKnowledge(x, x);
+        expect(mergeKnowledge(once, x)).toEqual(once);
+        for (const y of cells) {
+          expect(mergeKnowledge(x, y)).toEqual(mergeKnowledge(y, x));
+          for (const z of cells) {
+            expect(mergeKnowledge(mergeKnowledge(x, y), z)).toEqual(
+              mergeKnowledge(x, mergeKnowledge(y, z)),
+            );
+          }
+        }
+      }
+    });
+  });
+});
+
+describe('lookAround – since', () => {
+  it('první pohled do mapy zapíše since, další ho drží; bez očí ani u stopy bez since se nezapíše', () => {
+    const first = look(undefined, villageOf([house(1, 70, 10)]), [EYE], DAY);
+    expect(first.since).toBe(DAY);
+    expect(look(first, villageOf([house(1, 70, 10)]), [{ x: 40, z: 0 }], DAY + 3).since).toBe(DAY);
+    expect(look(undefined, null, [], DAY).since).toBeUndefined();
+    // záznam z doby před since (stopa bez since) – od kdy se díval, nevíme
+    const legacy: SeenCell = { trail: [[0, 0]], parts: [] };
+    expect(look(legacy, null, [{ x: 40, z: 0 }], DAY).since).toBeUndefined();
   });
 });

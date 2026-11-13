@@ -30,6 +30,9 @@ function warSceneDeps(): Parameters<typeof warSceneFor>[0] {
     cells: campaignCells(),
     grids: SIGHT_GRIDS,
     defenders: DEFENDERS,
+    // co rod útočníka ví o mapě cíle (docs/code/war.md – Živé vedení a pohled)
+    knowledge: deps.knowledge,
+    houses: deps.houses,
   };
 }
 

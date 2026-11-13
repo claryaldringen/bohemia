@@ -102,8 +102,11 @@ export function sightAlarms(s: CampaignState, tick: number, ctx: TickContext, ou
   }
 }
 
-/** Polohy skupin s aktivním mužem podle políčka (pořadí skupin podle stavu – pevné). */
-function armyEyes(s: CampaignState): { cell: GridCell; eyes: Pos[] }[] {
+/**
+ * Polohy skupin s aktivním mužem podle políčka (pořadí skupin podle stavu – pevné); i pohled tažení
+ * (`lookOut` – znalost rodu).
+ */
+export function armyEyes(s: CampaignState): { cell: GridCell; eyes: Pos[] }[] {
   const byCell = new Map<string, { cell: GridCell; eyes: Pos[] }>();
   for (const g of s.groups) {
     if (!s.members.some((m) => m.group === g.id && m.status === 'active')) continue;

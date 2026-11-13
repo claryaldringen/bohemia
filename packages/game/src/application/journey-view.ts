@@ -6,6 +6,7 @@ import {
   INTENT_LEAD_TICKS,
   inSight,
   JOURNEY,
+  mergeKnowledge,
   tickOfMs,
   type CampaignPlace,
   type JourneyOrder,
@@ -19,6 +20,7 @@ import { mapGrid, type SightGridCache } from './campaign-view';
 import type { CampaignCells } from './campaigns';
 import type { HouseRepository } from './houses';
 import { orderAim } from './journey-order';
+import type { KnowledgeRepository } from './knowledge';
 import type { JourneyRepository } from './journeys';
 import { houseName } from './negotiation-chronicle';
 import { findPlayerVillage, type PlayerVillagesDeps } from './player-villages';
@@ -44,8 +46,10 @@ export interface JourneyView {
   /** Vojvoda žije – hráč smí rozkazovat. */
   controllable: boolean;
   /**
-   * Co muži viděli na mapě, na které skupina je (stopa a naposled viděné stavby – Úloha 6); na
-   * domovské mapě, kterou hráč zná celou, a dokud nic neviděli, null.
+   * Co rod ví o mapě, na které skupina je (stopa a naposled viděné stavby – Úloha 6): znalost rodu
+   * sloučená s tím, co výjezd viděl teď (`mergeKnowledge`, Úloha 11) – další výjezd tak má od
+   * prvního taktu na mapě stopu i stavby z dřívějších. Na domovské mapě, kterou hráč zná celou,
+   * a dokud rod o mapě nic neví, null.
    */
   seen: SeenCell | null;
 }
@@ -53,6 +57,11 @@ export interface JourneyView {
 export interface JourneyReadDeps {
   journeys: Pick<JourneyRepository, 'activeOf' | 'checkpoint'>;
   world: WorldClock;
+  /**
+   * Úložiště znalosti rodu (Úloha 11) – jeden dotaz na pohled (mapa skupiny); bez něj jen čerstvé
+   * `seen` výjezdu. Stav výjezdu znalost rodu nenese – kontrolní body nerostou.
+   */
+  knowledge?: Pick<KnowledgeRepository, 'of'>;
 }
 
 /**
@@ -86,8 +95,24 @@ export async function journeyViewFor(
     group: { pos: { ...group.pos }, goal: group.goal, arrived: group.arrived },
     waitDaysLeft: waitDaysLeft(state, deps.world),
     controllable: state.members.some((m) => m.lord && m.status === 'active'),
-    seen: state.seen?.[cellKey(group.cell)] ?? null,
+    seen: await seenOn(deps, state, group.cell),
   };
+}
+
+/**
+ * Co rod ví o mapě `cell` (Úloha 11): znalost rodu z úložiště sloučená s čerstvým `seen` výjezdu.
+ * Domovskou mapu hráč zná celou – null, úložiště se neptá.
+ */
+async function seenOn(
+  deps: JourneyReadDeps,
+  state: JourneyState,
+  cell: GridCell,
+): Promise<SeenCell | null> {
+  if (sameCell(cell, state.home.cell)) return null;
+  const fresh = state.seen?.[cellKey(cell)] ?? null;
+  const known = (await deps.knowledge?.of(state.houseId, cell)) ?? null;
+  if (known === null || fresh === null) return fresh ?? known;
+  return mergeKnowledge(known, fresh);
 }
 
 /** Celé dny do návratu: 3 hned po dojetí, pak 2, 1; skupina, která jede, nebo se vrací – null. */

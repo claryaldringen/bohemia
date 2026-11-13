@@ -8,7 +8,7 @@ import type { GridCell } from '../village/people/world-grid';
 import type { AlarmOwner, CampaignAlarm } from './alarm-types';
 import type { BattleState } from './battle';
 import type { MarchGridMemo, Pos } from './march-grid';
-import type { SeenCell } from './seen';
+import type { KnowledgeOut, SeenCell } from './seen';
 
 // Stav tažení (war.md – Velení a příprava tažení, Pohyb; plán 2026-11-03 – Úloha 6.5). Stav je
 // JSON (kontrolní bod v úložišti): po načtení z JSON musí tažení pokračovat bit po bitu stejně.
@@ -193,6 +193,19 @@ export interface CampaignState {
   raidDay?: number;
   /** Objevené stavby cílové vsi (Ú6.14 – mlha války). */
   discovered: number[];
+  /**
+   * Rod vůdce – znalost z tažení dostane jen on (plán 2026-11-13 – Úloha 11; muži vazalů ve službě
+   * ji svému rodu nedoplní). Chybí – bod z doby před Úlohou 11, rod se dohledá podle `playerId`.
+   */
+  houseId?: string;
+  /**
+   * Co muži tažení viděli na cizích mapách (Úloha 11 a kolo oprav – jako `JourneyState.seen`):
+   * políčko `x,y` → `SeenCell` (stopa po `JOURNEY.trailStepM`, naposled viděné stavby včetně
+   * opevnění, `since`). Jen záznam pro znalost rodu – boj ani pohyb ji nečtou. Takt ji nekopíruje:
+   * mění se jen novým objektem. Shromaždiště tu není (hráč ho zná). Chybí – muži zatím cizí mapu
+   * neviděli, nebo bod znalost nezapisuje (`recordsKnowledge`).
+   */
+  seen?: Record<string, SeenCell>;
   /** Proč se vrací (od fáze `returning`). */
   returnReason: CampaignReturnReason | null;
   /** Boj na mapě cíle (war.md – Boj; Ú6.8) – od prvního taktu nájezdu; chybí – zatím nebojovali. */
@@ -386,8 +399,8 @@ export interface CampaignOutbox {
   villageEvents: NewVillageEvent[];
   notices: CampaignNotice[];
   /**
-   * Znalost map pro rod (jen výjezd – plán 2026-11-13, Úloha 10): sloučí se do úložiště znalosti
-   * rodu; sloučení je idempotentní, takže doručení po pádu znovu je bezpečné.
+   * Znalost map pro rod (výjezd – plán 2026-11-13, Úloha 10; tažení – Úloha 11): sloučí se do
+   * úložiště znalosti rodu; sloučení je idempotentní, takže doručení po pádu znovu je bezpečné.
    */
   knowledge?: { houseId: string; cell: GridCell; seen: SeenCell }[];
 }
@@ -398,6 +411,11 @@ export interface CampaignStep {
   /** Události do schránek vsí – `ref` = `camp:<id>:<takt>:<n>` (opakování se zahodí). */
   villageEvents: NewVillageEvent[];
   notices: CampaignNotice[];
+  /**
+   * Znalost map pro rod vůdce (Úloha 11): mapa cíle se stopou a objevenými obydlími, když nájezd
+   * skončí, a stopy všech cizích map na konci tažení; bez vydání chybí.
+   */
+  knowledge?: KnowledgeOut[];
   /** Takt se zastavil – chybí tyto mapy a vsi; null = spočteno do `toTick`. */
   waiting: { cells: GridCell[]; villageIds: string[] } | null;
 }

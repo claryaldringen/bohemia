@@ -12,8 +12,10 @@ import {
   type JourneyOrder,
   type JourneyState,
   type SeenCell,
+  type SeenData,
 } from '../../domain/war';
 import { land } from '../../domain/war/__tests__/battle-fixtures';
+import { InMemoryKnowledge } from './in-memory-knowledge';
 import {
   commandJourney,
   journeyViewFor,
@@ -202,6 +204,46 @@ describe('journeyViewFor', () => {
       s.seen = { '1,0': east, '2,0': { trail: [[0, 0]], parts: [] } };
     });
     expect((await journeyViewFor(w.deps, { playerId: 'pa' }))!.seen).toEqual(east);
+  });
+
+  it('druhý výjezd na známou mapu – od prvního taktu stopa i stavby z prvního (Úloha 11)', async () => {
+    const w = await setup();
+    const knowledge = new InMemoryKnowledge();
+    const deps = { ...w.deps, knowledge };
+    const houseId = (JSON.parse(w.journeys.rows.get(w.id)!.state) as JourneyState).houseId;
+    // první výjezd viděl dům hostitele – schránka bodu doručila znalost rodu (`deliverOutbox`)
+    const first: SeenCell = {
+      villageId: w.hostId,
+      trail: [
+        [-940, 0],
+        [-920, 0],
+      ],
+      parts: [
+        { key: 'dwelling:1', pos: { x: 0, z: 0 }, day: 3, data: { kind: 'dwelling' } as SeenData },
+      ],
+    };
+    await knowledge.merge(houseId, { x: 1, y: 0 }, first);
+    // cizí rod o téže mapě ví něco jiného – do pohledu nejde
+    await knowledge.merge('cizi-rod', { x: 1, y: 0 }, { trail: [[0, 400]], parts: [] });
+    // druhý výjezd: na domovské mapě znalost nečte, za okrajem ji má dřív, než se rozhlédne
+    expect((await journeyViewFor(deps, { playerId: 'pa' }))!.seen).toBeNull();
+    patch(w.journeys, w.id, (s) => {
+      s.groups[0]!.cell = { x: 1, y: 0 };
+      delete s.seen;
+    });
+    expect((await journeyViewFor(deps, { playerId: 'pa' }))!.seen).toEqual(first);
+    // co výjezd viděl teď, se ke znalosti rodu přidá (`mergeKnowledge`)
+    patch(w.journeys, w.id, (s) => {
+      s.seen = { '1,0': { villageId: w.hostId, trail: [[-900, 0]], parts: [] } };
+    });
+    expect((await journeyViewFor(deps, { playerId: 'pa' }))!.seen).toEqual({
+      ...first,
+      trail: [
+        [-940, 0],
+        [-920, 0],
+        [-900, 0],
+      ],
+    });
   });
 });
 

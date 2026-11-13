@@ -3,9 +3,11 @@ import { CELL_SIZE_M, LANDSCAPE_SIZE } from '../domain/landscape';
 import {
   campaignView,
   isCampaignParticipant,
+  knownTarget,
   leadsLive,
   marchGrid,
   reachableGoal,
+  targetSeenOf,
   type CampaignPlace,
   type CampaignState,
   type CampaignView,
@@ -13,11 +15,14 @@ import {
   type IntentBody,
   type MarchGrid,
   type Pos,
+  type SeenCell,
   type SurrenderOrder,
 } from '../domain/war';
-import type { Dwelling } from '../domain/village/types';
+import type { DwellingType } from '../domain/village/types';
 import { directionBetween, sameCell, type GridCell } from '../domain/village/people/world-grid';
 import { queueCampaignIntent, type CampaignCells, type CampaignRepository } from './campaigns';
+import type { HouseRepository } from './houses';
+import type { KnowledgeRepository } from './knowledge';
 import type { VillageRepository } from './villages';
 
 // Živé vedení a pohled na tažení (war.md – Velení, Mlha války; plán 2026-11-03 – Úloha 6.14):
@@ -32,11 +37,36 @@ export interface SightGridCache {
   set(key: string, grid: MarchGrid): void;
 }
 
-export interface CampaignViewDeps {
+/** Obydlí cílové vsi, jak je bere pohled – objevené domy a zánik známých (Úloha 11). */
+export interface TargetDwelling {
+  id: number;
+  type: DwellingType;
+  position: Pos;
+}
+
+/**
+ * Mezipaměť obydlí cílových vsí po herních dnech (`villageId@den`, jako `defenders` scény války) –
+ * pohled se ptá 2× za sekundu, celý stav vsi (velká ves přes 1 MB) se tak nečte při každém dotazu.
+ */
+export interface TargetDwellingsCache {
+  get(key: string): readonly TargetDwelling[] | undefined;
+  set(key: string, dwellings: readonly TargetDwelling[]): void;
+}
+
+export interface CampaignViewDeps extends KnowledgeOfTargetDeps {
   campaigns: Pick<CampaignRepository, 'checkpoint'>;
   cells: CampaignCells;
   villages: Pick<VillageRepository, 'find'>;
   grids?: SightGridCache;
+  targets?: TargetDwellingsCache;
+}
+
+/** Porty znalosti rodu pro pohled útočníka na mapu cíle (plán 2026-11-13 – Úloha 11). */
+export interface KnowledgeOfTargetDeps {
+  /** Úložiště znalosti rodu; bez něj rod nic neví – pohled jako před Úlohou 11. */
+  knowledge?: Pick<KnowledgeRepository, 'of'>;
+  /** Rod hráče – vazal ve službě a body bez `houseId`; bez něj jen rod vůdce ze stavu. */
+  houses?: Pick<HouseRepository, 'activeOf'>;
 }
 
 /** Pohled hráče na tažení; null = tažení není, nebo v něm hráč nemá vůdcovství ani muže. */
@@ -55,14 +85,53 @@ async function viewOf(
   playerId: string,
   sinceTick: number,
 ): Promise<CampaignView | null> {
-  // cizí bojovníci a objevené stavby jsou jen na mapě cíle – mřížku a ves načte, jen když jsou
+  // cizí bojovníci a objevené stavby jsou jen na mapě cíle – mřížku a obydlí vsi načte, jen když
+  // jsou; obydlí i kvůli známým stavbám, na jejichž místo už muži tažení mohli dohlédnout (stopa na
+  // mapě cíle – Úloha 11). Obydlí z mezipaměti po dnech; dotazy na sobě nezávisí – běží souběžně.
   const defenders = state.battle?.fighters.some((f) => f.side === 'defend') ?? false;
-  const grid = defenders ? await sightGrid(deps, state) : null;
-  const dwellings: readonly Dwelling[] =
-    state.discovered.length > 0
-      ? ((await deps.villages.find(state.target.villageId))?.state.dwellings ?? [])
-      : [];
-  return campaignView(state, { playerId, sinceTick, grid, buildings: dwellings });
+  const looked = (targetSeenOf(state)?.trail.length ?? 0) > 0;
+  const [known, grid, dwellings] = await Promise.all([
+    knowledgeOfTarget(deps, state, playerId),
+    defenders ? sightGrid(deps, state) : null,
+    state.discovered.length > 0 || looked ? targetDwellings(deps, state) : null,
+  ]);
+  const view = campaignView(state, { playerId, sinceTick, grid, buildings: dwellings ?? [] });
+  const seen = view && knownTarget(state, known, { dwellings, grid });
+  return view && seen ? { ...view, known: seen } : view;
+}
+
+/** Obydlí cílové vsi v den tažení – z mezipaměti `targets`, jinak jednou ze stavu vsi. */
+async function targetDwellings(
+  deps: Pick<CampaignViewDeps, 'villages' | 'targets'>,
+  state: CampaignState,
+): Promise<readonly TargetDwelling[]> {
+  const key = `${state.target.villageId}@${state.day}`;
+  const cached = deps.targets?.get(key);
+  if (cached) return cached;
+  const village = await deps.villages.find(state.target.villageId);
+  const dwellings = (village?.state.dwellings ?? []).map((d) => ({
+    id: d.id,
+    type: d.type,
+    position: { x: d.position.x, z: d.position.z },
+  }));
+  deps.targets?.set(key, dwellings);
+  return dwellings;
+}
+
+/**
+ * Znalost rodu hráče o mapě cíle tažení (plán 2026-11-13 – Úloha 11) – jeden dotaz na pohled. Rod
+ * vůdce je ve stavu tažení (`houseId`); vazal ve službě vidí znalost svého rodu, bod bez `houseId`
+ * rod hráče. Bez úložiště znalosti nebo rodu null.
+ */
+export async function knowledgeOfTarget(
+  deps: KnowledgeOfTargetDeps,
+  state: CampaignState,
+  playerId: string,
+): Promise<SeenCell | null> {
+  if (!deps.knowledge) return null;
+  const own = state.playerId === playerId ? state.houseId : undefined;
+  const houseId = own ?? (await deps.houses?.activeOf(playerId))?.id;
+  return houseId === undefined ? null : deps.knowledge.of(houseId, state.target.cell);
 }
 
 /** Mřížka mapy cíle v den tažení (dohled v lese) – jako ji bere boj (`gridOf`). */
@@ -257,9 +326,14 @@ async function leadIntent(
       return { kind: 'march', to: { cell: { x: cell.x, y: cell.y }, pos: { x: pos.x, z: pos.z } } };
     }
     case 'building': {
+      // objevený dům, nebo dům, který rod zná ze znalosti (místo, kde ho muži viděli – Úloha 11)
       const building = view.discovered.find((b) => b.id === target.id);
-      if (!building) return null;
-      return { kind: 'march', to: { cell: { ...state.target.cell }, pos: building.pos } };
+      const known = Number.isInteger(target.id)
+        ? view.known?.parts.find((p) => p.key === `dwelling:${target.id}`)
+        : undefined;
+      const pos = building?.pos ?? known?.pos;
+      if (!pos) return null;
+      return { kind: 'march', to: { cell: { ...state.target.cell }, pos: { x: pos.x, z: pos.z } } };
     }
     case 'fighter': {
       const foe = view.foreign.find((f) => f.id === target.id);

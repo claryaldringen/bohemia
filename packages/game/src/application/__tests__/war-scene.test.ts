@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { CampaignMap, CampaignState } from '../../domain/war';
+import type { CampaignMap, CampaignState, SeenCell, SeenData, SeenPart } from '../../domain/war';
 import type { Dwelling, Person } from '../../domain/village/types';
 import { attacker, battle, defender, land } from '../../domain/war/__tests__/battle-fixtures';
 import { campaign, member } from '../../domain/war/__tests__/campaign-fixtures';
@@ -7,6 +7,7 @@ import type { Settlement } from '../settlements';
 import type { VillageRecord, VillageStamp } from '../villages';
 import { warSceneFor, warSceneOnMap, type WarSceneDefender, type WarSceneDeps } from '../war-scene';
 import { InMemoryCampaigns } from './in-memory-campaigns';
+import { InMemoryKnowledge } from './in-memory-knowledge';
 
 // Válka ve scéně vlastní mapy (war.md – Ve scéně): obránce vidí svou ves celou a útočníky jen
 // v dohledu svých lidí a domů; útočník vidí své vojsko na vlastní mapě; cizí mapa = nic.
@@ -282,6 +283,54 @@ describe('warSceneOnMap – útočník na cizí mapě', () => {
     const view = await warSceneOnMap(deps, { playerId: 'p5', campaignId: 'c1', cell: TARGET });
     expect(view?.side).toBe('attack');
     expect(view!.battle!.fighters.length).toBeGreaterThan(0);
+  });
+
+  it('znalost rodu na mapě cíle (Úloha 11): známé stavby a stopa; zaniklý dům, dokud ho muži neuvidí', async () => {
+    const part = (key: string, x: number, z: number): SeenPart => ({
+      key,
+      pos: { x, z },
+      day: 3,
+      data: { kind: key.split(':')[0] } as SeenData,
+    });
+    // dům 5 a 6 už ve vsi nejsou – 5 je 100 m od mužů (vidí jeho místo), 6 daleko; 7 je objevený
+    // (scéna ho kreslí živě), 8 stojí; opevnění vidí útočník ze stavu vsi jako dřív
+    const known: SeenCell = {
+      villageId: 'knezice',
+      trail: [[-880, 20]],
+      parts: [
+        part('dwelling:5', 100, 0),
+        part('dwelling:6', 700, 0),
+        part('dwelling:7', 60, 0),
+        part('dwelling:8', 500, 0),
+        part('fortification:1', 0, 300),
+      ],
+    };
+    const state: CampaignState = {
+      ...raiding([]),
+      discovered: [7],
+      houseId: 'h1',
+      seen: { '1,0': { villageId: 'knezice', trail: [[0, 0]], parts: [] } },
+    };
+    const { deps } = await setup(state, [house(7, 60, 0), house(8, 500, 0)]);
+    const knowledge = new InMemoryKnowledge();
+    await knowledge.merge('h1', TARGET, known);
+    const all = { ...deps, knowledge };
+    const view = await warSceneOnMap(all, { playerId: 'p1', campaignId: 'c1', cell: TARGET });
+    expect(view!.buildings!.map((b) => b.id)).toEqual([7]);
+    expect(view!.known).toEqual({
+      villageId: 'knezice',
+      trail: [
+        [-880, 20],
+        [0, 0],
+      ],
+      parts: [known.parts[1], known.parts[3]],
+    });
+    // bez úložiště znalosti jen vlastní stopa tažení; obránce znalost útočníka nedostane
+    const blind = await warSceneOnMap(deps, { playerId: 'p1', campaignId: 'c1', cell: TARGET });
+    expect(blind!.known).toEqual({ villageId: 'knezice', trail: [[0, 0]], parts: [] });
+    const defending = await warSceneFor(all, { playerId: 'p9', settlementId: 's9' });
+    expect(defending?.side).toBe('defend');
+    expect(defending).not.toHaveProperty('known');
   });
 });
 
