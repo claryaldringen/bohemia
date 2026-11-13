@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import { Pool } from 'pg';
-import type { PlayerLock } from '@bohemia/game';
+import { runUnderLocks, type PlayerLock } from '@bohemia/game';
 import { createLockPool } from '../../client';
 import { testDatabaseUrl } from '../../test-database';
 import {
@@ -172,6 +172,36 @@ describe('createPlayerLock (Postgres advisory zámek)', () => {
     expect(done).toBe(20);
     expect(maxActive).toBe(1);
     expect(await locksOf('hrac-davka', true)).toEqual([]);
+  });
+
+  it('runUnderLocks: zámky dvou hráčů naráz – protisměrné operace se nezablokují ani nepřekryjí', async () => {
+    const log: string[] = [];
+    const both = (name: string, ids: [string, string]): Promise<string> =>
+      runUnderLocks(web, ids, async () => {
+        log.push(`${name}:začátek`);
+        // drží oba zámky – druhý proces nedostane žádný
+        for (const id of ids) {
+          expect(await worker.tryRun(id, () => Promise.resolve())).toEqual({ ran: false });
+        }
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        log.push(`${name}:konec`);
+        return name;
+      });
+    const results = await Promise.all([
+      both('tam', ['hrac-veznitel', 'hrac-platce']),
+      both('zpět', ['hrac-platce', 'hrac-veznitel']),
+    ]);
+    expect(results).toEqual(['tam', 'zpět']);
+    // jedna operace doběhla celá dřív, než druhá začala
+    expect(log[0]?.split(':')[0]).toBe(log[1]?.split(':')[0]);
+    expect(log[2]?.split(':')[0]).toBe(log[3]?.split(':')[0]);
+    for (const id of ['hrac-veznitel', 'hrac-platce']) {
+      expect(await locksOf(id, true)).toEqual([]);
+    }
+    // týž hráč dvakrát = jeden zámek (zámek není reentrantní)
+    expect(await runUnderLocks(web, ['hrac-platce', 'hrac-platce'], () => Promise.resolve(1))).toBe(
+      1,
+    );
   });
 
   it('časový limit čekání: run bez zámku skončí chybou a zámek nezůstane viset', async () => {

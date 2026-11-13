@@ -1256,7 +1256,11 @@ today })` (`hold` / `release` / `execute`, zajatec se hledá ve vsích hráče, 
   vsi věznitele vede zajatce až do použití události schránky), pošle zásilku (`sendShipmentLocked`
   – zámek není reentrantní, proto ne `sendShipment`) a zapíše rozhodnutí `ransomed`. `decidePrisoner`
   čeká na týž zámek věznitele, takže poprava ani propuštění mezi platbu a zápis nevstoupí – buď je
-  zaplaceno a zajatec propuštěn, nebo se nezaplatí nic.
+  zaplaceno a zajatec propuštěn, nebo se nezaplatí nic. Je to jediné místo, které drží zámky dvou
+  hráčů naráz (převod držitele se tomu vyhýbá dvěma kroky – vassalage.md); v Postgresu jde o dvě
+  spojení poolu zámků a srážka otisků právě těchto dvou hráčů (`playerLockHash`, ≈ 2⁻³² na dvojici)
+  by skončila čekáním do `WEB_LOCK_WAIT_MS` a chybou bez platby i zápisu (db test
+  `player-lock.db.test.ts` – protisměrné operace se nezablokují).
 - **Jednání**: řádek `ransom { prisonerIds; price; vassalage? }` (`domain/negotiation/ransom.ts`),
   samostatné jednání jako obchod (nevyžaduje vazalství; `open` / `counter` / `accept` v
   `negotiate.ts`); vazalství z výkupného vznikne účinkem řádku. `peace.releasePrisoners` po přijetí
