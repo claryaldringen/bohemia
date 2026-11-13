@@ -19,6 +19,11 @@ const FRAME_MS = 100;
 export interface JourneyHandle {
   /** Interpolovaný pohled; null = ještě nic, nebo žádný výjezd neběží. */
   view: JourneyView | null;
+  /**
+   * Poslední pohled ze serveru bez interpolace (nový jen s novým taktem) – scéna vsi si mezi stavy
+   * posouvá muže sama (journey-riders.ts).
+   */
+  latest: JourneyView | null;
   /** Pohled v okamžiku `nowMs` (`performance.now()`) – pro scénu, která kreslí ve své smyčce. */
   sample: (nowMs: number) => JourneyView | null;
   /** Zeptá se hned (po rozkazu nebo vyslání). */
@@ -39,12 +44,14 @@ export function useJourney(running: boolean, onEnded?: () => void): JourneyHandl
   const receivedRef = useRef(0);
   const spanRef = useRef(JOURNEY_POLL_MS);
   const [view, setView] = useState<JourneyView | null>(null);
+  const [latest, setLatest] = useState<JourneyView | null>(null);
 
   useEffect(() => {
     if (running) return;
     prevRef.current = null;
     nextRef.current = null;
     setView(null);
+    setLatest(null);
   }, [running]);
 
   const sample = useCallback((nowMs: number): JourneyView | null => {
@@ -71,6 +78,7 @@ export function useJourney(running: boolean, onEnded?: () => void): JourneyHandl
       prevRef.current = null;
       nextRef.current = null;
       setView(null);
+      setLatest(null);
       if (wasRunning) endedRef.current?.();
       return;
     }
@@ -84,6 +92,7 @@ export function useJourney(running: boolean, onEnded?: () => void): JourneyHandl
     );
     receivedRef.current = now;
     nextRef.current = body.view;
+    setLatest(body.view);
     setView(sample(now));
   }, [sample]);
 
@@ -98,5 +107,5 @@ export function useJourney(running: boolean, onEnded?: () => void): JourneyHandl
     return () => clearInterval(timer);
   }, [running, sample]);
 
-  return { view, sample, refresh };
+  return { view, latest, sample, refresh };
 }

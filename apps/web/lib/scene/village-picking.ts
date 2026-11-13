@@ -43,6 +43,11 @@ export type VillageTarget =
   | { kind: 'dwelling'; id: number }
   /** Divoké zvíře – klik vybere druh (wildlife.md – Co hráč vidí; panel druhu s hrubým stavem). */
   | { kind: 'wildlife'; species: WildlifeSpecies }
+  /**
+   * Cizí výjezd vojvody na mapě vsi (lord-control.md – Soused): klik ukáže jméno vojvody a rod
+   * (journey.md – Scéna vsi).
+   */
+  | { kind: 'visitor'; journeyId: string }
   /** Víc obydlí najednou – id ze scény vsi v pořadí výběru (aspoň dvě). */
   | { kind: 'dwellings'; ids: readonly number[] }
   | { kind: 'field'; id: number }
@@ -600,6 +605,8 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
   if (target.kind === 'cart') return (village.carts ?? []).some((c) => c.id === target.id);
   // zvíře ve scéně hlídá jeho vlastní výběr (W10); druh zvěře existuje, dokud ves má zvěř
   if (target.kind === 'wildlife') return true;
+  // návštěvníka hlídá panel – zmizí-li z mapy, výběr nemá co ukázat
+  if (target.kind === 'visitor') return true;
   // prvek prémiové krajiny je v krajině pořád
   if (target.kind === 'premium-site') return true;
   if (target.kind === 'quarry') {

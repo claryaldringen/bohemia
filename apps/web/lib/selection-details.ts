@@ -67,6 +67,7 @@ import {
 } from './person-view';
 import { journeyActivity, personActivity, type PersonFigureState } from './person-activity';
 import type { JourneyView } from './journey-view';
+import type { SceneJourney } from './scene/journey-riders';
 import {
   cartActivityText,
   cartGoal,
@@ -734,7 +735,18 @@ type SelectionKinds =
        * bez přesných kusů.
        */
       kind: 'wildlife';
-    } & WildlifeSpeciesView);
+    } & WildlifeSpeciesView)
+  | {
+      /**
+       * Cizí výjezd vojvody na mapě vsi (lord-control.md – Soused; návrh Clauda – jako cizí jednotka
+       * v 0 A.D.): jméno vojvody a rod, které jsou o rodech veřejné, a kolik mužů a jezdců jede.
+       */
+      kind: 'visitor';
+      leader: string;
+      house: string;
+      men: number;
+      riders: number;
+    };
 
 export type { PersonPortraitIcon };
 
@@ -967,8 +979,9 @@ export function selectionDetails(
   person: PersonFigureState | null = null,
   draft: DraftFigureState | null = null,
   journey: JourneyView | null = null,
+  visitors: readonly SceneJourney[] = [],
 ): SelectionDetails | null {
-  const details = selectionKinds(view, scene, target, person, draft, journey);
+  const details = selectionKinds(view, scene, target, person, draft, journey, visitors);
   if (!details) return null;
   const cancelConstructionId = cancellableConstruction(view, details);
   const withCancel =
@@ -983,8 +996,21 @@ function selectionKinds(
   person: PersonFigureState | null = null,
   draft: DraftFigureState | null = null,
   journey: JourneyView | null = null,
+  visitors: readonly SceneJourney[] = [],
 ): SelectionKinds | null {
   if (!target) return null;
+  if (target.kind === 'visitor') {
+    const v = visitors.find((j) => j.journeyId === target.journeyId);
+    return v
+      ? {
+          kind: 'visitor',
+          leader: v.leader,
+          house: v.house,
+          men: v.men.length,
+          riders: v.men.filter((m) => m.mounted).length,
+        }
+      : null;
+  }
   if (target.kind === 'wildlife') {
     const species = view?.wildlife?.species.find((s) => s.species === target.species);
     return species ? { kind: 'wildlife', ...species } : null;

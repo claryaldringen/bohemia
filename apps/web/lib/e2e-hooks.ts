@@ -31,6 +31,23 @@ export interface E2EHooks {
   };
   /** Meshe vojska, které scéna kreslí, a počty instancí (war.md – Ve scéně – napojení na hru). */
   armyStats?: () => { name: string; count: number }[];
+  /**
+   * Výjezdy vojvody ve scéně vsi (journey.md – Scéna vsi): muži, jak jsou nakreslení (výjezd, klíč,
+   * poloha, na koni, rychlost), praporek cíle a počet dní na přesýpacích hodinách.
+   */
+  journeyScene?: () => {
+    riders: {
+      journeyId: string;
+      own: boolean;
+      key: string;
+      x: number;
+      z: number;
+      mounted: boolean;
+      speed: number;
+    }[];
+    banner: { x: number; z: number } | null;
+    hourglass: number | null;
+  };
   /** Posune kameru nad bod krajiny (x, z) – zvěř bývá u lesa mimo výchozí záběr. */
   moveCameraTo?: (x: number, z: number) => void;
   /** Pošle požadavek na trasy vozů tím samým routerem jako hra (Web Worker, jinak hlavní vlákno). */

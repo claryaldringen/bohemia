@@ -49,6 +49,7 @@ import { useVillageSwitch } from './village-game/use-village-switch';
 import { useVillageSync } from './village-game/use-village-sync';
 import { useWagonPreview } from './village-game/use-wagon-preview';
 import { useWarWatch } from './village-game/use-war-watch';
+import { useJourneyScene } from './village-game/use-journey-scene';
 import { villageCommands } from './village-game/village-commands';
 import type { VillageData } from './village-game/village-data';
 import { VillagePanels } from './village-game/VillagePanels';
@@ -228,6 +229,12 @@ export function VillageGame({
     mapSizeM: decoded.size * decoded.cellSizeM,
     refreshVillage,
   });
+  const journeys = useJourneyScene({
+    scene,
+    villageId: view?.id ?? null,
+    cell: homeCell,
+    own: lordJourney.journey.latest,
+  });
   const alarmActions = useAlarmActions({ view, selected, pushNotice });
   const wagonPlan = useWagonPreview({ scene, current, view, sceneVillage });
   useSceneE2EHooks(scene);
@@ -368,6 +375,7 @@ export function VillageGame({
                 personState,
                 draftState,
                 lordJourney.journey.view,
+                journeys,
               )}
               lordJourney={lordJourney.panel}
               alarm={alarmActions}

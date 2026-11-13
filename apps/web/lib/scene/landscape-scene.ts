@@ -72,6 +72,7 @@ import {
 } from './scene-projection';
 import { SceneSelection, type DraftListener, type PersonListener } from './scene-selection';
 import { SceneWarView } from './scene-war';
+import { journeyHorseIds, type SceneJourney } from './journey-riders';
 import { ShadowCasters } from './shadow-casters';
 import { chunkGrid } from './scenery-chunks';
 import { SceneryCulling } from './scenery-culling';
@@ -192,6 +193,9 @@ export class LandscapeScene {
   private paths: VillagePaths | null = null;
   /** Poslední stav vsi od rozhraní – vykreslí se, jakmile je krajina hotová. */
   private villageState: SceneVillage | null = null;
+  /** Výjezdy vojvody na mapě a koně jejich jezdců (ohrada je nekreslí). */
+  private journeyList: readonly SceneJourney[] = [];
+  private journeyHorses: ReadonlySet<number> = new Set();
   /** Ves, jak přišla ze serveru – `villageState` je doplněná o běžící činnosti (`activities`). */
   private villageSource: SceneVillage | null = null;
   /** Karavany a lov, které ve skutečném čase ještě běží (activity-memory.ts). */
@@ -264,6 +268,7 @@ export class LandscapeScene {
       villageRenderer: () => this.village,
       villagers: () => this.villagers,
       wildlife: () => this.wildlife,
+      riderHit: (x, y, project) => this.war.riderHit(x, y, project),
     });
   }
 
@@ -654,6 +659,7 @@ export class LandscapeScene {
       (day) => this.village?.gameDayWindow(day) ?? null,
     );
     this.villageState = village;
+    this.journeyHorses = journeyHorseIds(village, this.journeyList);
     this.applyVillage();
     this.atmosphere.villageChanged();
   }
@@ -669,6 +675,21 @@ export class LandscapeScene {
   /** Meshe vojska, které se kreslí, a počty instancí (e2e, měření). */
   armyStats(): { name: string; count: number }[] {
     return this.war.stats();
+  }
+
+  /**
+   * Výjezdy vojvody na mapě vsi (journey.md – Scéna vsi): vlastní i cizí jezdci, praporek cíle
+   * a přesýpací hodiny; koně jezdců vlastní vsi ohrada nekreslí.
+   */
+  setJourneys(list: readonly SceneJourney[]): void {
+    this.journeyList = list;
+    this.journeyHorses = journeyHorseIds(this.villageState, list);
+    this.war.setJourneys(list);
+  }
+
+  /** Výjezdy ve scéně pro e2e – muži, praporek, dny na hodinách. */
+  journeyStats(): ReturnType<SceneWarView['journeyStats']> {
+    return this.war.journeyStats();
   }
 
   /**
@@ -1355,7 +1376,10 @@ export class LandscapeScene {
     // domácí zvířata – skutečný čas (epoch ms), ne herní: stejný okamžik = stejná póza
     if (this.livestock?.animate(epochMs, camera)) animated = hitPart(hit, 'dobytek');
     // koně na jízdě nestojí v ohradě (riders.ts, village-pens.ts)
-    if (this.village?.setRidingHorses(ridingHorseIds(this.villagers?.rides() ?? [], epochMs))) {
+    // koně mužů na výjezdu vojvody jsou pryč i s jezdci (journey-riders.ts)
+    const riding = ridingHorseIds(this.villagers?.rides() ?? [], epochMs);
+    for (const id of this.journeyHorses) riding.add(id);
+    if (this.village?.setRidingHorses(riding)) {
       animated = hitPart(hit, 'jízda');
     }
     // lidé ve vsi – skutečný čas jako zvířata

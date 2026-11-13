@@ -61,6 +61,14 @@ import { createBakedFigure, createBlobShadow, type BakedKind } from './plough-te
 import { villagerSeconds } from './villager-motion';
 import { FIGURE_SCALE, fleeWalkAt, drivenHerd, type FleeWalk } from './villager-plan';
 import { alarmAt, alarmFigures, alarmMoving, type SceneAlarm } from './refugee-march';
+import {
+  JourneyGlide,
+  journeyFigures,
+  pickRider,
+  type RiderPose,
+  type SceneJourney,
+} from './journey-riders';
+import type { Project } from './villager-pick';
 import { loadBakedModel } from './villagers';
 
 /** Válka ve scéně – co kreslit (vstup odvozený z jádra – army.ts, villager-plan.ts). */
@@ -86,6 +94,16 @@ export interface SceneWar {
   /** Konec herního dne (ms) – padlí leží do něj; null – leží, dokud je boj ve scéně. */
   dayEndMs: number | null;
 }
+
+/** Válka bez ničeho – jen výjezdy vojvody ve scéně (journey-riders.ts). */
+const NO_WAR: SceneWar = {
+  battle: null,
+  march: null,
+  flight: null,
+  herd: null,
+  fog: null,
+  dayEndMs: null,
+};
 
 /** Co renderer potřebuje od scény. */
 export interface ArmyEnvironment {
@@ -180,6 +198,10 @@ export class ArmyRenderer {
   private veil: { mesh: Mesh; texture: RawTexture; pixels: Uint8Array } | null = null;
   private loading: Promise<void> | null = null;
   private disposed = false;
+  /** Výjezdy vojvody na mapě (vlastní i návštěvníci) – jezdci stejnými instancemi jako vojsko. */
+  private readonly journeys = new JourneyGlide();
+  /** Muži výjezdů, jak jsou naposled nakreslení (výběr klikem, e2e). */
+  private riders: RiderPose[] = [];
 
   constructor(
     private readonly scene: Scene,
@@ -241,7 +263,12 @@ export class ArmyRenderer {
       this.fog = null;
       this.fire.set([], 'none');
       this.fire.animate(nowMs, camera);
-      this.hideAll();
+      if (!this.journeys.active()) {
+        this.hideAll();
+        return had;
+      }
+      this.updateFog();
+      this.write(nowMs, frozen, camera);
       return had;
     }
     void this.load();
@@ -252,9 +279,41 @@ export class ArmyRenderer {
     return true;
   }
 
+  /**
+   * Výjezdy vojvody na mapě (journey-riders.ts): muži jdou mezi stavy plynule, jezdci na koních
+   * jako muži rodu ve vojsku. Vrátí true, když je co překreslit.
+   */
+  setJourneys(
+    list: readonly SceneJourney[],
+    nowMs: number,
+    frozen: boolean,
+    camera: Camera | null,
+  ): boolean {
+    const had = this.journeys.active();
+    if (!this.journeys.set(list, performance.now(), frozen)) return false;
+    if (!this.journeys.active() && !this.war) {
+      this.riders = [];
+      this.hideAll();
+      return had;
+    }
+    void this.load();
+    this.write(nowMs, frozen, camera);
+    return true;
+  }
+
+  /** Muži výjezdů, jak jsou nakreslení (e2e, měření). */
+  journeyRiders(): readonly RiderPose[] {
+    return this.riders;
+  }
+
+  /** Muž výjezdu pod kurzorem (CSS px) a vzdálenost průmětu – výběr klikem. */
+  riderHit(x: number, y: number, project: Project): { pose: RiderPose; distance: number } | null {
+    return pickRider(this.riders, x, y, project, (wx, wz) => this.env.groundHeight(wx, wz));
+  }
+
   /** Posun v čase – true, když se něco hnulo (boj běží, letí šíp, lidé utíkají). */
   animate(nowMs: number, camera: Camera | null): boolean {
-    if (!this.war) return false;
+    if (!this.war && !this.journeys.active()) return false;
     const fire = this.fire.animate(nowMs, camera);
     return this.write(nowMs, false, camera) || fire;
   }
@@ -339,8 +398,8 @@ export class ArmyRenderer {
 
   /** Zapíše postavy, zvířata, šípy, prach a ikony v okamžiku `nowMs`. True – něco se hýbe. */
   private write(nowMs: number, frozen: boolean, camera: Camera | null): boolean {
-    const war = this.war;
-    if (!war) return false;
+    if (!this.war && !this.journeys.active()) return false;
+    const war = this.war ?? NO_WAR;
     const t = villagerSeconds(nowMs);
     const figures: ArmyFigure[] = [];
     const animals: ArmyAnimal[] = [];
@@ -433,6 +492,15 @@ export class ArmyRenderer {
       figures.push(...out.figures);
       animals.push(...out.animals);
       moving ||= alarmMoving(alarm);
+    }
+    // výjezdy vojvody – každý muž plynule mezi stavy (journey-riders.ts)
+    const journey = this.journeys.at(performance.now(), frozen);
+    this.riders = journey.poses;
+    if (journey.poses.length > 0) {
+      const out = journeyFigures(journey.poses);
+      figures.push(...out.figures);
+      animals.push(...out.animals);
+      moving ||= journey.moving;
     }
     const icons = orderIcons(battle, march);
     this.writeFigures(figures, t, frozen);
