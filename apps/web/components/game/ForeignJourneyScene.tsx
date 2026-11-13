@@ -23,8 +23,6 @@ import type { LordJourney } from './village-game/use-lord-journey';
 // příjezd se tu nekreslí – dvorec tu není. Pravé tlačítko dává vojvodovi rozkazy jako doma
 // (`useLordJourney`); ⌂ vrátí pohled na ves, výjezd běží dál.
 
-const NO_VILLAGE: SceneVillage = { dwellings: [], fields: [] };
-
 const E2E_KEYS = [
   'projectToScreen',
   'moveCameraTo',
@@ -101,17 +99,17 @@ export function ForeignJourneyScene({
     scene?.setJourneyFog(trail ?? []);
   }, [scene, trail]);
 
-  // stavby, jak je muži naposled viděli – scéna se přestaví jen při změně znalosti
+  // stavby, jak je muži naposled viděli – scéna se přestaví jen při změně znalosti; bez znalosti
+  // prázdná ves (bez vsi scéna výběr klikem – muže výjezdu – nehledá)
   const seen = here?.seen ?? null;
   const seenKey = useMemo(() => seenSceneKey(seen), [seen]);
   const shown = useRef<{ scene: LandscapeScene; key: string; village: SceneVillage } | null>(null);
   useEffect(() => {
     if (!scene || !decoded) return;
     if (shown.current?.scene === scene && shown.current.key === seenKey) return;
-    const village = seenVillageOf(seen, decoded);
-    if (!village && shown.current?.scene !== scene) return;
-    shown.current = { scene, key: seenKey, village: village ?? NO_VILLAGE };
-    scene.setVillage(village ?? NO_VILLAGE);
+    const village = seenVillageOf(seen, decoded) ?? { dwellings: [], fields: [] };
+    shown.current = { scene, key: seenKey, village };
+    scene.setVillage(village);
   }, [scene, decoded, seen, seenKey]);
 
   // poprvé pohled na skupinu (R se k ní vrací)

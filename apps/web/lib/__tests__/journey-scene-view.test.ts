@@ -18,6 +18,7 @@ import {
   type VillageState,
 } from '@bohemia/game';
 import {
+  foreignJourneySelection,
   journeyCellOf,
   seenSceneKey,
   seenVillageOf,
@@ -315,5 +316,26 @@ describe('seenSceneKey – kdy přestavět cizí ves', () => {
     expect(seenSceneKey(cell([part('dwelling:1', 6)]))).not.toBe(base);
     expect(seenSceneKey(cell([part('dwelling:1', 5)], 'v2'))).not.toBe(base);
     expect(seenSceneKey(null)).toBe('');
+  });
+});
+
+describe('foreignJourneySelection – výběr klikem na cizí mapě', () => {
+  const LORD = { kind: 'person', id: 7 } as const;
+  const MAN = { kind: 'person', id: 9 } as const;
+
+  it('klik na vojvodu ho vybere, klik na jiného muže družiny vybere toho muže', () => {
+    expect(foreignJourneySelection(null, LORD, false)).toEqual(LORD);
+    expect(foreignJourneySelection(LORD, MAN, false)).toEqual(MAN);
+  });
+
+  it('klik do prázdna výběr zruší, s Ctrl / Shift ho nechá – jako ve vsi', () => {
+    expect(foreignJourneySelection(LORD, null, false)).toBeNull();
+    expect(foreignJourneySelection(LORD, null, true)).toEqual(LORD);
+  });
+
+  it('stavby cizí vsi a zvěř se z vlastní vsi nevybírají – jsou klik do prázdna', () => {
+    expect(foreignJourneySelection(LORD, { kind: 'dwelling', id: 7 }, false)).toBeNull();
+    expect(foreignJourneySelection(LORD, { kind: 'wildlife', species: 'deer' }, false)).toBeNull();
+    expect(foreignJourneySelection(LORD, { kind: 'dwelling', id: 3 }, true)).toEqual(LORD);
   });
 });

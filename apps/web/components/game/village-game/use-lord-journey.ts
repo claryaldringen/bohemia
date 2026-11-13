@@ -7,7 +7,7 @@ import { useJourney, type JourneyHandle } from '@/hooks/use-journey';
 import type { VillageTarget } from '@/lib/scene/village-picking';
 import { edgeDirection, lordClick, orderFromClick } from '@/lib/scene/journey-orders';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
-import { watchedJourneyCell } from '@/lib/journey-scene-view';
+import { foreignJourneySelection, watchedJourneyCell } from '@/lib/journey-scene-view';
 import { journeyReason } from '@/lib/journey-view';
 import type { VillageView } from '@/lib/village-view';
 import type { LordJourneyUi } from '../hud/LordJourneyPanel';
@@ -113,6 +113,19 @@ export function useLordJourney({
   }, [following, watching]);
   const back = useCallback((): void => setFollowing(false), []);
   const [foreign, bindForeign] = useState<ForeignLordScene | null>(null);
+  // Výběr klikem ve scéně cizí mapy jako ve vsi: muž vlastního výjezdu se vybere (vojvoda = režim
+  // vojvody), klik jinam výběr zruší (`foreignJourneySelection`)
+  const foreignScene = foreign?.scene ?? null;
+  const selectedRef = useRef(selected);
+  useEffect(() => {
+    selectedRef.current = selected;
+  }, [selected]);
+  useEffect(() => {
+    if (!foreignScene) return;
+    return foreignScene.onSelect((target, additive, double) =>
+      setSelected(foreignJourneySelection(selectedRef.current, target, additive, double)),
+    );
+  }, [foreignScene, setSelected]);
 
   // Kandidáti na družinu – jen u vybraného vojvody doma
   const [candidates, setCandidates] = useState<{

@@ -19,6 +19,8 @@ import type {
   SceneVillage,
 } from './village-view-scene-types';
 import { scenePlot } from './village-view-scene-types';
+import type { VillageTarget } from './scene/village-picking';
+import { nextSelection } from './scene/village-selection';
 import { sceneSacredRuinOf } from './village-view-buildings';
 import { sceneKilnRemnantOf, sceneKilnStateOf } from './village-view-crafts';
 import { sceneRuinOf } from './village-view-scene';
@@ -43,6 +45,22 @@ export function journeyCellOf(view: JourneyView | null, home: GridCell): GridCel
  */
 export function watchedJourneyCell(following: boolean, view: JourneyView | null): GridCell | null {
   return following && view ? journeyCellOf(view, view.home) : null;
+}
+
+/**
+ * Výběr klikem ve scéně cizí mapy výjezdu (lord-control.md – Co hráč vidí: klik na vojvodu ve
+ * scéně): jako ve vsi (`nextSelection`) – klik na muže vlastního výjezdu ho vybere (vojvoda = režim
+ * vojvody, pravé tlačítko dává rozkazy), klik do prázdna výběr zruší, s Ctrl / Shift nechá. Stavby
+ * cizí vsi a zvěř se z vlastní vsi nevybírají – jejich id patří cizí vsi, ne té, jejíž výběr se drží
+ * – proto jsou klik do prázdna.
+ */
+export function foreignJourneySelection(
+  current: VillageTarget | null,
+  clicked: VillageTarget | null,
+  additive: boolean,
+  double = false,
+): VillageTarget | null {
+  return nextSelection(current, clicked?.kind === 'person' ? clicked : null, additive, double);
 }
 
 /**

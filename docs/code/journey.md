@@ -418,6 +418,11 @@ na mapu jako za vojskem (web-ui.md – Cizí mapa ve scéně).
 - **Rozkazy** – `bindForeign({ scene, mapSizeM })` předá `useLordJourney` scénu cizí mapy; režim
   vojvody (`setLordMode`) pak běží na ní s políčkem `watching` – `go` po mapě, okrajový pás → `cross`
   na souseda cizí mapy, důvod u kurzoru jako doma.
+- **Výběr klikem** – `useLordJourney` poslouchá `onSelect` scény cizí mapy a výběr drží jako ve vsi
+  (`foreignJourneySelection` – `nextSelection` jen s muži vlastního výjezdu): klik na vojvodu ho
+  vybere (režim vojvody), na jiného muže družiny toho muže, do prázdna výběr zruší (s Ctrl / Shift
+  nechá); stavby cizí vsi a zvěř jsou klik do prázdna – jejich id patří cizí vsi. Scéna má vždy
+  aspoň prázdnou ves – bez ní `pickTarget` muže výjezdu nehledá.
 - **Mlha** – `LandscapeScene.setJourneyFog(trail)` → `SceneWarView` (drží stopu i přes novou krajinu)
   → `ArmyRenderer`: závoj `fog-veil` jako při tažení; body stopy `SeenCell.trail` odkryje
   `exploreTrail` (`fog-of-war.ts` – stejným dohledem jako muže, jen do objeveného, každý bod jednou),
@@ -427,10 +432,12 @@ na mapu jako za vojskem (web-ui.md – Cizí mapa ve scéně).
   `journeyScene`, `projectToScreen`, `moveCameraTo` a `armyStats` míří na scénu cizí mapy;
   `e2e/journey-worker.spec.ts` (projekt `worker`): ves B na políčku vedle A, skupina A přesunutá
   v kontrolním bodu na mapu B, klik na portrét → `foreign-scene` s políčkem B, jasno u jezdců,
-  vzdálený dům B neobjevený a nenakreslený, dům u skupiny ano, hodiny, pravé tlačítko → praporek
+  vzdálený dům B neobjevený a nenakreslený, dům u skupiny ano, hodiny, klik do prázdna zruší výběr
+  (panel výjezdu zmizí) a klik na vojvodu ve scéně ho vybere zpět, pravé tlačítko → praporek
   v cíli, místo odjezdu šeré, po Domů (skupina přesunutá na domovskou mapu ≈ 180 m od vsi) zpět na
   ves, ještě než výjezd skončí, a „Bořivoj se vrátil.“ (v liště jen 6 s – hlídá se od návratu
   scény). `JOURNEY_FOREIGN_SHOT=<cesta>` uloží snímek (kamera oddálená háčkem `moveCameraTo` s
   vzdáleností). Sdílené kroky e2e výjezdu jsou v `e2e/journey-helpers.ts`.
-- **Testy** – `lib/__tests__/journey-scene-view.test.ts` (`watchedJourneyCell`, `seenSceneKey`),
+- **Testy** – `lib/__tests__/journey-scene-view.test.ts` (`watchedJourneyCell`, `seenSceneKey`,
+  `foreignJourneySelection`),
   `lib/scene/__tests__/fog-of-war.test.ts` (`exploreTrail`).

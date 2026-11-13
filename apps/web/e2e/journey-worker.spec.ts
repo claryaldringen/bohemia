@@ -261,7 +261,40 @@ test('scéna jde za vojvodou na cizí mapu: mlha, objevené stavby, rozkazy, hod
     .poll(async () => (await journeyScene(a)).hourglass ?? 0, { timeout: 60_000 })
     .toBeGreaterThanOrEqual(1);
 
-  // pravé tlačítko i na cizí mapě: jdi sem – praporek v cíli
+  // výběr klikem jako ve vsi: klik do prázdna (od domu B pryč) výběr zruší – panel výjezdu zmizí;
+  // klik na vojvodu ve scéně ho vybere zpět (panel výjezdu, portrét v liště stisknutý)
+  const awayPanel = a.getByTestId('lord-journey-away');
+  await expect(awayPanel).toBeVisible();
+  const empty = {
+    x: start.x + (start.x - B.dwelling.x) * 0.6,
+    z: start.z + (start.z - B.dwelling.z) * 0.6,
+  };
+  await a.evaluate(([x, z]) => window.__bohemiaE2E!.moveCameraTo!(x!, z!), [start.x, start.z]);
+  await expect
+    .poll(
+      async () => {
+        const at = await screenOf(a, empty.x, empty.z);
+        await a.mouse.click(at.x, at.y);
+        return awayPanel.count();
+      },
+      { timeout: 30_000, intervals: [2000] },
+    )
+    .toBe(0);
+  await expect
+    .poll(
+      async () => {
+        const lord = (await journeyScene(a)).riders.find((r) => r.key === String(A.lordId));
+        if (!lord) return false;
+        const at = await screenOf(a, lord.x, lord.z);
+        await a.mouse.click(at.x, at.y - 10);
+        return awayPanel.isVisible();
+      },
+      { timeout: 60_000, intervals: [2000] },
+    )
+    .toBe(true);
+  await expect(a.getByTestId('lord-away-badge')).toHaveAttribute('aria-pressed', 'true');
+
+  // pravé tlačítko i na cizí mapě (vojvoda vybraný klikem): jdi sem – praporek v cíli
   await a.evaluate(([x, z]) => window.__bohemiaE2E!.moveCameraTo!(x!, z!), [goal.x, goal.z]);
   await expect
     .poll(
