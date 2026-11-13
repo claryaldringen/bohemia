@@ -30,7 +30,14 @@ import {
   type Database,
   type PlayerLockOptions,
 } from '@bohemia/db';
-import { cedeVillages, checkCede, type CedeHooks, type LanguageGroup } from '@bohemia/game';
+import {
+  cedeVillages,
+  checkCede,
+  houseAtWarOn,
+  type CedeHooks,
+  type GridCell,
+  type LanguageGroup,
+} from '@bohemia/game';
 import type {
   ActivityRepository,
   DomainFoodRepository,
@@ -144,7 +151,13 @@ export interface GameDeps {
   wars: WarRepository;
   /** Tažení (vyslání z panelu Vojsko – `docs/code/war.md`). */
   campaigns: CampaignRepository;
+  /** Výjezdy vojvody (`docs/code/journey.md`). */
   journeys: JourneyRepository;
+  /**
+   * Je rod hráče ve válce s rodem, kterému patří mapa na políčku (`houseAtWarOn`)? Výjezdy –
+   * vyslání, rozkazy a válka na mapě skupiny ve workeru (`docs/code/journey.md` – Worker).
+   */
+  atWar: (playerId: string, cell: GridCell) => Promise<boolean>;
   /** Konec rodu přes `endHouse` (odúmrť) – dopočet rodu ho použije při konci hry. */
   ending: NonNullable<DynastyDeps['ending']>;
   /** Postoupení vsí v míru (`docs/code/war.md` – Mírové jednání). */
@@ -212,6 +225,7 @@ export function createGameDeps(
     disputes: createDisputeRepository(db),
     campaigns: createCampaignRepository(db),
     journeys: createJourneyRepository(db),
+    atWar: (playerId, cell) => houseAtWarOn({ houses, settlements, wars }, playerId, cell),
     ending: {
       houses,
       vassalages,

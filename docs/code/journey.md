@@ -98,3 +98,45 @@ tempo a svět `CampaignWorld`.
 - **Bariéra** (`adapters/village-holds.ts`) – tabulka `live` bere vedle bodů tažení i body běžících
   výjezdů (sjednocení id jako u tažení) bez varování; mez vsi je `throughDay` bodu a drží ji ves na
   mapě skupiny nebo políčko od ní. `GameDeps.journeys` (`packages/server/src/deps.ts`).
+
+## Worker (Úloha 4 – `application/step-journeys.ts`)
+
+- **Kolo** – `stepJourneys(deps, { nowMs })` → `JourneyResult[]` (`journeyId`, `outcome` jako
+  `CampaignOutcome` tažení, `error`): každý aktivní výjezd (`JourneyRepository.active` – běžící,
+  nebo s nedoručenými událostmi) pod zámkem tažení (`CampaignLock`, klíč = id výjezdu) do taktu
+  `tickOfMs(nowMs)`; chyba jednoho výjezdu ostatní nezastaví (`failed`), cizí zámek = `busy`.
+  Cyklus jako `stepOne` tažení: bod → doručit schránku bodu → záměry → dopočet → uložit →
+  doručit. Bod se uloží nejvýš po `CHECKPOINT_TICKS` (40) taktech, hned s událostmi, na konci
+  výjezdu a když výjezd čeká na ves (bariéra – mez vsi povyroste).
+- **Dopočet s načítáním** – `computeWithLoads(deps, state, step)` v `step-campaigns.ts` je
+  zobecněný dopočet tažení (`computeCampaign` ho volá nad `stepCampaign`, výjezd nad `stepJourney`):
+  chybí-li taktu mapa nebo ves (bariéra Ú6.7), načtou se a výpočet pokračuje od zastaveného taktu.
+  Svět dodá `villageGone` (ves se zkusila načíst a není) – výjezd, jehož domovská ves zanikla,
+  skončí bez událostí a nečeká na ni navždy.
+- **Doručení právě jednou** – návrat do vsi (`away-ends`) a upozornění `journey-returned` se uloží
+  se stavem do schránky bodu (`outbox`), pak je doručí `deliverOutbox` (sdílené s tažením – ves,
+  která zanikla, se přeskočí, týž `ref` schránka vsi podruhé zahodí) a `clearOutbox` schránku smaže.
+  Pád mezi uložením bodu a doručením: další kolo najde `outbox` v bodu a doručí ho (výjezd
+  s nedoručenými událostmi je aktivní i po `done`). **Známé omezení** (audit A5, platí i pro
+  tažení): pád po doručení a před smazáním schránky pošle upozornění podruhé – události vsí mají
+  `ref`, upozornění ne; oprava mění schéma upozornění.
+- **Válka na mapě skupiny** – `homeFromWar`: je-li výjezd venku (`out`) a skupina na mapě rodu, se
+  kterým je hráčův rod ve válce (`StepJourneysDeps.atWar` = `houseAtWarOn`, ve workeru
+  `GameDeps.atWar`), kolo zapíše za hráče rozkaz `home` (`addIntent`, `byPlayer` = hráč výjezdu,
+  takt teď + `INTENT_LEAD_TICKS` jako rozkaz hráče). Jednou: výjezd ve fázi `returning` ani výjezd
+  s čekajícím „Domů“ hráče se neptá. Pravidlo: lord-control.md – Pořadí zavedení (začne-li válka,
+  když tam stojí, jede domů).
+- **Paměť workeru** – vlastní instance `newCampaignMemory<JourneyState>()` (`CampaignMemory` má
+  typ stavu jako parametr; poslední spočtený stav, mapy a vsi minulého kola, mřížky pochodu): konec
+  kola (`forgetEnded`) zapomene záznamy, jejichž id mezi aktivními není, takže sdílená paměť
+  s taženími by každé kolo zahodila záznamy druhé smyčky. Bod výjezdu se čte celý v každém kole –
+  úložiště výjezdů verzi bodu zvlášť nehlásí (`CampaignMemory.points` jen u tažení).
+- **Smyčka** – `apps/worker/src/campaign-loop.ts`: po `stepCampaigns` pustí kolo v témže okamžiku
+  `stepJourneys` (`CampaignLoopDeps.journeys`; `main.ts` – úložiště `gameDeps.journeys`, zámek,
+  mapy a vsi jako tažení, `gameDeps.atWar`). Chyby výjezdů se hlásí zvlášť od tažení
+  („chyba výjezdu …“, „kolo výjezdů selhalo: …“ – stejná nejvýš jednou za minutu).
+- **Testy** – `application/__tests__/step-journeys.test.ts` (porty v paměti, `houseAtWarOn` nad
+  rody, sídly a válkami v paměti): kola s restartem = vcelku (dojetí, čekání, sám domů; `away-ends`
+  i upozornění jednou), s pamětí tytéž body jako bez ní, druhé kolo od zapamatovaného stavu, pád mezi
+  uložením a doručením (schránka vsi, upozornění), válka → „Domů“ jednou, chyba jednoho výjezdu,
+  zaniklá domovská ves; `apps/worker/src/__tests__/campaign-loop.test.ts` – výjezdy v kole.

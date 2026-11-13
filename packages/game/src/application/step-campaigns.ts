@@ -70,26 +70,32 @@ export interface StepCampaignsDeps {
 }
 
 /**
- * Poslední spočtený, ještě neuložený stav tažení (docs/code/worker.md – Výkon – Tažení). Platí,
- * dokud stojí týž kontrolní bod (jeho verze z úložiště) a záměry do `state.tick` jsou tytéž – pak
- * je pokračování od něj tentýž výpočet jako od bodu (stav po taktech nezávisí na kouscích).
+ * Poslední spočtený, ještě neuložený stav tažení (docs/code/worker.md – Výkon – Tažení) nebo výjezdu
+ * (`S` = `JourneyState`). Platí, dokud stojí týž kontrolní bod (jeho verze z úložiště) a záměry do
+ * `state.tick` jsou tytéž – pak je pokračování od něj tentýž výpočet jako od bodu (stav po taktech
+ * nezávisí na kouscích).
  */
-export interface CampaignMemo {
+export interface CampaignMemo<S = CampaignState> {
   /** Verze kontrolního bodu, od kterého se počítalo (`CampaignCheckpoint.version`). */
   checkpoint: string;
   /** Záměry s taktem do `state.tick`, se kterými se počítalo (`seq@takt`). */
   intents: string;
-  state: CampaignState;
+  state: S;
 }
 
-/** Paměť smyčky tažení napříč koly – drží ji vstupní bod (worker), jeden proces. */
-export interface CampaignMemory {
+/**
+ * Paměť smyčky tažení napříč koly – drží ji vstupní bod (worker), jeden proces. Výjezdy mají vlastní
+ * instanci (`S` = `JourneyState`, `stepJourneys`): konec kola zapomene vše, co mezi aktivními id
+ * kola není (`forgetEnded`), sdílená paměť by tak zahodila záznamy druhé smyčky.
+ */
+export interface CampaignMemory<S = CampaignState> {
   /**
    * Kontrolní body načtené v minulých kolech: dokud úložiště hlásí tutéž verzi, kolo stav bodu
    * znovu nečte (`readCheckpoint` – JSON jen při změně). Bod se nemění na místě (takty kopírují).
+   * Jen tažení – úložiště výjezdů verzi zvlášť nehlásí.
    */
   points: Map<string, CampaignCheckpoint>;
-  states: Map<string, CampaignMemo>;
+  states: Map<string, CampaignMemo<S>>;
   /** Mřížky pochodu napříč koly (klíč = identita krajiny, překážek a stavu vsi a den). */
   grids: MarchGridMemo;
   /**
@@ -101,8 +107,8 @@ export interface CampaignMemory {
   /** Vsi načtené v tomto kole – ostatní se na konci kola zapomenou. */
   seen: Set<string>;
   /**
-   * Co tažení v posledním kole četlo (mapy políček a vsi) – další kolo to načte předem
-   * (`computeCampaign`), ať první krok nečeká zbytečně. Jen seznam: data se načtou znovu stejně
+   * Co tažení (výjezd) v posledním kole četlo (mapy políček a vsi) – další kolo to načte předem
+   * (`computeWithLoads`), ať první krok nečeká zbytečně. Jen seznam: data se načtou znovu stejně
    * jako na vyžádání (mapa z `CampaignCells`, ves podle otisku, vlastník a vztahy). Dotazy
    * varování ne – takt je potřebuje jen občas (ves vstupuje do varování), předem by byly navíc.
    */
@@ -115,8 +121,8 @@ export interface CampaignNeeds {
   villageIds: readonly string[];
 }
 
-/** Prázdná paměť smyčky tažení. */
-export function newCampaignMemory(): CampaignMemory {
+/** Prázdná paměť smyčky tažení (výjezdů: `newCampaignMemory<JourneyState>()`). */
+export function newCampaignMemory<S = CampaignState>(): CampaignMemory<S> {
   return {
     points: new Map(),
     states: new Map(),
@@ -129,7 +135,7 @@ export function newCampaignMemory(): CampaignMemory {
 
 /** Ves z úložiště – téže verze a jména jako v paměti = záznam z paměti (tentýž objekt stavu). */
 function recallVillage(
-  memory: CampaignMemory | undefined,
+  memory: CampaignMemory<unknown> | undefined,
   record: VillageRecord | null,
 ): VillageRecord | null {
   if (!memory || !record) return record;
@@ -147,7 +153,7 @@ function recallVillage(
  * schránky), přejmenování mění jméno – výsledek je tedy tentýž jako `find` u každé vsi.
  */
 async function loadVillages(
-  deps: Pick<StepCampaignsDeps, 'villages' | 'memory'>,
+  deps: Pick<StepCampaignsDeps, 'villages'> & { memory?: CampaignMemory<unknown> },
   villageIds: readonly string[],
 ): Promise<Map<string, VillageRecord | null>> {
   const memory = deps.memory;
@@ -171,8 +177,8 @@ async function loadVillages(
   return records;
 }
 
-/** Konec kola: zapomene skončená tažení a vsi, které kolo nenačetlo. */
-function forget(memory: CampaignMemory, active: readonly string[]): void {
+/** Konec kola: zapomene skončená tažení (výjezdy) a vsi, které kolo nenačetlo. */
+export function forgetEnded(memory: CampaignMemory<unknown>, active: readonly string[]): void {
   const running = new Set(active);
   for (const id of [...memory.states.keys()]) if (!running.has(id)) memory.states.delete(id);
   for (const id of [...memory.points.keys()]) if (!running.has(id)) memory.points.delete(id);
@@ -184,7 +190,10 @@ function forget(memory: CampaignMemory, active: readonly string[]): void {
 }
 
 /** Záměry, se kterými se počítalo do taktu `tick` – jiný seznam = paměť neplatí. */
-function intentsKey(intents: readonly CampaignIntent[], tick: number): string {
+export function memoIntentsKey(
+  intents: readonly Pick<CampaignIntent, 'seq' | 'tick'>[],
+  tick: number,
+): string {
   return intents
     .filter((i) => i.tick <= tick)
     .map((i) => `${i.seq}@${i.tick}`)
@@ -193,18 +202,18 @@ function intentsKey(intents: readonly CampaignIntent[], tick: number): string {
 
 /**
  * Stav, od kterého kolo počítá: zapamatovaný, když platí pro bod `from` a záměry a není za
- * `toTick` (hodiny se nevracejí, ale bod nesmí předběhnout teď); jinak bod sám.
+ * `toTick` (hodiny se nevracejí, ale bod nesmí předběhnout teď); jinak bod sám. Tažení i výjezd.
  */
-function startOf(
-  memo: CampaignMemo | undefined,
-  from: CampaignCheckpoint,
-  intents: readonly CampaignIntent[],
+export function roundStart<S extends { tick: number }>(
+  memo: CampaignMemo<S> | undefined,
+  from: { state: S; version: string },
+  intents: readonly Pick<CampaignIntent, 'seq' | 'tick'>[],
   toTick: number,
-): CampaignState {
+): S {
   const state = from.state;
   if (!memo || memo.checkpoint !== from.version) return state;
   if (memo.state.tick > toTick || memo.state.tick <= state.tick) return state;
-  return memo.intents === intentsKey(intents, memo.state.tick) ? memo.state : state;
+  return memo.intents === memoIntentsKey(intents, memo.state.tick) ? memo.state : state;
 }
 
 /**
@@ -288,7 +297,7 @@ export async function stepCampaigns(
       results.push({ campaignId, outcome: 'failed', error });
     }
   }
-  if (deps.memory) forget(deps.memory, active);
+  if (deps.memory) forgetEnded(deps.memory, active);
   return results;
 }
 
@@ -312,7 +321,7 @@ async function stepOne(
   if (!checkpoint) return 'idle';
   const from = checkpoint.state;
   if (checkpoint.outbox) {
-    await deliver(deps, checkpoint.outbox);
+    await deliverOutbox(deps, checkpoint.outbox);
     await deps.campaigns.clearOutbox(campaignId, from.tick);
     // zápis bodu mění jeho verzi – další kolo ho přečte celý
     deps.memory?.points.delete(campaignId);
@@ -326,7 +335,7 @@ async function stepOne(
   const intents = await deps.campaigns.intentsAfter(campaignId, from.tick);
   // paměť workeru: pokračovat od posledního spočteného stavu (bez událostí – jinak by se uložil)
   const states = deps.memory?.states;
-  const start = startOf(states?.get(campaignId), checkpoint, intents, toTick);
+  const start = roundStart(states?.get(campaignId), checkpoint, intents, toTick);
   states?.delete(campaignId);
   const step = await computeCampaign(deps, start, toTick, intents);
   if (step.state.tick === from.tick) return 'waiting';
@@ -345,7 +354,7 @@ async function stepOne(
   if (!due) {
     states?.set(campaignId, {
       checkpoint: checkpoint.version,
-      intents: intentsKey(intents, step.state.tick),
+      intents: memoIntentsKey(intents, step.state.tick),
       state: step.state,
     });
     return step.waiting ? 'waiting' : 'computed';
@@ -361,17 +370,15 @@ async function stepOne(
   if (saved === 'stale') return 'stale';
   await endPassages(deps, step.state, nowMs);
   if (outbox) {
-    await deliver(deps, outbox);
+    await deliverOutbox(deps, outbox);
     await deps.campaigns.clearOutbox(campaignId, step.state.tick);
   }
   return 'saved';
 }
 
 /**
- * Dopočet tažení s načítáním dat: když takt chybí mapa nebo ves, načtou se a výpočet pokračuje
- * od zastaveného taktu (výsledek je tentýž jako s daty předem). Ves pro den `d` je její uložený
- * stav, má-li už spočtený den `d − 1` (bariéra Ú6.7 – `VillageHolds` ji dál nepustí); jinak takt
- * čeká, ves se v dalším kole načte znovu.
+ * Dopočet tažení s načítáním dat (`computeWithLoads` nad `stepCampaign`): když takt chybí mapa nebo
+ * ves, načtou se a výpočet pokračuje od zastaveného taktu (výsledek je tentýž jako s daty předem).
  */
 export async function computeCampaign(
   deps: Pick<
@@ -382,6 +389,32 @@ export async function computeCampaign(
   toTick: number,
   intents: readonly CampaignIntent[],
 ): Promise<CampaignStep> {
+  return computeWithLoads(deps, state, (current, world) =>
+    stepCampaign(current, toTick, intents, world),
+  );
+}
+
+/** Výsledek kroku po taktech – tvar `CampaignStep` pro stav `S` (tažení, výjezd – `JourneyStep`). */
+export type LoadedStep<S> = Omit<CampaignStep, 'state'> & { state: S };
+
+/** Porty dopočtu s načítáním; paměť workeru kteréhokoli druhu stavu (čte jen mapy, vsi a mřížky). */
+export type LoadingDeps = Pick<
+  StepCampaignsDeps,
+  'cells' | 'villages' | 'world' | 'watchers' | 'alarmOwners'
+> & { memory?: CampaignMemory<unknown> };
+
+/**
+ * Dopočet s načítáním dat pro tažení i výjezd: `step` posune stav do cíle (`stepCampaign`,
+ * `stepJourney` se zavřeným `toTick` a záměry); když takt chybí mapa nebo ves, načtou se a výpočet
+ * pokračuje od zastaveného taktu (výsledek je tentýž jako s daty předem). Ves pro den `d` je její
+ * uložený stav, má-li už spočtený den `d − 1` (bariéra Ú6.7 – `VillageHolds` ji dál nepustí); jinak
+ * takt čeká, ves se v dalším kole načte znovu.
+ */
+export async function computeWithLoads<S extends { id: string; playerId: string }>(
+  deps: LoadingDeps,
+  state: S,
+  step: (state: S, world: CampaignWorld) => LoadedStep<S>,
+): Promise<LoadedStep<S>> {
   /** Mapy políček; `read` = takt se na mapu ptal (paměť workeru – `CampaignNeeds`). */
   const maps = new Map<string, { map: CampaignMap; cell: GridCell; read: boolean }>();
   const villages = new Map<string, { state: VillageState; read: boolean }>();
@@ -413,6 +446,8 @@ export async function computeCampaign(
       known.read = true;
       return known.state.lastDay >= day - 1 ? known.state : null;
     },
+    // ves se zkusila načíst a není (zanikla) – výjezd s takovým domovem skončí (tažení se neptá)
+    villageGone: (villageId: string): boolean => tried.has(villageId) && !villages.has(villageId),
     watcherOf: (villageId: string): { playerId: string; name: string } | null =>
       watchers.get(villageId) ?? null,
     harmless: (villageId: string): boolean => harmlessTo.get(villageId) ?? false,
@@ -463,15 +498,15 @@ export async function computeCampaign(
   // dřív (výsledek je tentýž jako s daty předem), takže první krok nečeká na mapy a vsi
   const needs = deps.memory?.needs.get(state.id);
   if (needs) await load(needs.cells, needs.villageIds);
-  const result: CampaignStep = { state, villageEvents: [], notices: [], waiting: null };
+  const result: LoadedStep<S> = { state, villageEvents: [], notices: [], waiting: null };
   for (let round = 0; round <= MAX_LOADS; round++) {
-    const step = stepCampaign(result.state, toTick, intents, world);
-    result.state = step.state;
-    result.villageEvents.push(...step.villageEvents);
-    result.notices.push(...step.notices);
-    result.waiting = step.waiting;
-    if (!step.waiting || round === MAX_LOADS) break;
-    let loaded = await load(step.waiting.cells, step.waiting.villageIds);
+    const next = step(result.state, world);
+    result.state = next.state;
+    result.villageEvents.push(...next.villageEvents);
+    result.notices.push(...next.notices);
+    result.waiting = next.waiting;
+    if (!next.waiting || round === MAX_LOADS) break;
+    let loaded = await load(next.waiting.cells, next.waiting.villageIds);
     if (alarms && (await alarms.load())) loaded = true;
     if (!loaded) break;
   }
@@ -542,10 +577,14 @@ function alarmWorld(port: AlarmOwnerPort): AlarmWorld {
 }
 
 /**
- * Doručí události do schránek vsí (stejný `ref` podruhé zahozen) a upozornění hráčům. Ves, která
- * mezitím zanikla, se přeskočí – jinak by nedoručitelná událost zastavila tažení navždy.
+ * Doručí události do schránek vsí (stejný `ref` podruhé zahozen) a upozornění hráčům – schránka
+ * bodu tažení i výjezdu. Ves, která mezitím zanikla, se přeskočí – jinak by nedoručitelná událost
+ * zastavila tažení navždy.
  */
-async function deliver(deps: StepCampaignsDeps, outbox: CampaignOutbox): Promise<void> {
+export async function deliverOutbox(
+  deps: Pick<StepCampaignsDeps, 'villages' | 'notices'>,
+  outbox: CampaignOutbox,
+): Promise<void> {
   for (const event of outbox.villageEvents) {
     const [exists] = await deps.villages.stampsOfVillages([event.villageId]);
     if (exists) await deps.villages.inbox.post(event);
