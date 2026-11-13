@@ -9,8 +9,9 @@ import {
   type Person,
   type Pos,
 } from '@bohemia/game';
+import { VILLAGE_STATE_SQL_COLUMNS } from '@bohemia/db/village-state';
 import { E2E_ENV } from '../playwright.config';
-import { useUniqueClientIp } from './helpers';
+import { registerAndEnterGame, useUniqueClientIp } from './helpers';
 import { journeyScene, placeJourney, screenOf, sendLord, villageWithMen } from './journey-helpers';
 import {
   changeVillageState,
@@ -18,6 +19,7 @@ import {
   newPlayer,
   pollVillage,
   query,
+  readyScene,
   villageSpots,
   villageState,
   withBuiltFirstDwelling,
@@ -429,3 +431,181 @@ test('výjezd ve scéně: kůň z ohrady ke kůlu, odjezd branou dvorce a návra
     .toBe(true);
   await ctx.close();
 });
+
+test('známá mapa z domova: oko u rodu otevře šerou mapu se známými stavbami, ⌂ vrátí ves, další klik další mapu', async ({
+  browser,
+}) => {
+  test.setTimeout(600_000);
+  const ctxs = await Promise.all([
+    browser.newContext(),
+    browser.newContext(),
+    browser.newContext(),
+  ]);
+  for (const ctx of ctxs) await useUniqueClientIp(ctx);
+  const [a, b, c] = (await Promise.all(ctxs.map((ctx) => ctx.newPage()))) as [Page, Page, Page];
+  // A kreslí modely jen pro snímek (KNOWN_MAP_SCREENSHOT)
+  for (const page of process.env.KNOWN_MAP_SCREENSHOT ? [b, c] : [a, b, c]) {
+    await page.route('**/models/**', (route) => route.abort());
+  }
+  const { seat: sa } = await newPlayer(a, 'znamaa');
+  await found(a, villageSpots(sa.landscape).dwelling);
+  const { seat: sb } = await newPlayer(b, 'znamab');
+  await registerAndEnterGame(c, 'znamac');
+  await ctxs[1]!.close();
+  await ctxs[2]!.close();
+
+  const houseOf = async (settlementId: string): Promise<string> => {
+    const [row] = await query<{ id: string }>(
+      `SELECT h.id FROM house h JOIN settlement s ON s.owner_id = h.player_id
+        WHERE s.id = $1 AND h.ended_at IS NULL`,
+      [settlementId],
+    );
+    return row!.id;
+  };
+  const houseA = await houseOf(sa.settlementId);
+  const houseB = await houseOf(sb.settlementId);
+
+  // rod B má dvě vsi: sídelní a druhou na volném sousedním políčku
+  const cells = await query<{ x: number; y: number }>(
+    'SELECT grid_x AS x, grid_y AS y FROM settlement WHERE archived_at IS NULL AND grid_x IS NOT NULL',
+    [],
+  );
+  const [b1] = await query<{ x: number; y: number }>(
+    'SELECT grid_x AS x, grid_y AS y FROM settlement WHERE id = $1',
+    [sb.settlementId],
+  );
+  const free = [
+    { x: 1, y: 0 },
+    { x: -1, y: 0 },
+    { x: 0, y: 1 },
+    { x: 0, y: -1 },
+  ].find((d) => !cells.some((cl) => cl.x === b1!.x + d.x && cl.y === b1!.y + d.y))!;
+  const cellB1 = { x: b1!.x, y: b1!.y };
+  const cellB2 = { x: b1!.x + free.x, y: b1!.y + free.y };
+  const [secondB] = await query<{ id: string }>(
+    `INSERT INTO settlement (owner_id, is_seat, landscape_seed, layer_versions, grid_x, grid_y)
+       SELECT owner_id, false, landscape_seed + 1, layer_versions, $2, $3
+         FROM settlement WHERE id = $1 RETURNING id`,
+    [sb.settlementId, cellB2.x, cellB2.y],
+  );
+
+  const panel = a.getByRole('dialog', { name: 'Rod a vazalové' });
+  const openPanel = async (): Promise<void> => {
+    if (!(await panel.isVisible())) await a.getByRole('button', { name: 'Rod a vazalové' }).click();
+    await expect(panel).toBeVisible();
+  };
+  const eyeOf = (houseId: string): ReturnType<Page['locator']> =>
+    panel.locator(`[data-testid="known-map-eye"][data-house-id="${houseId}"]`);
+
+  // rod nic neví: oko u rodu B je zašedlé a vysvětlí proč
+  await openPanel();
+  await expect(eyeOf(houseB)).toHaveAttribute('data-known', 'no');
+  await expect(eyeOf(houseB)).toHaveAttribute('aria-label', 'Tu mapu rod nezná.');
+
+  // znalost rodu A o obou mapách B: dům v první, jiný dům v druhé (zapsáno rovnou do databáze)
+  const dwellingAt = (id: number, at: { x: number; z: number }): object => ({
+    key: `dwelling:${id}`,
+    pos: { x: at.x, z: at.z },
+    day: 5,
+    data: {
+      kind: 'dwelling',
+      id,
+      type: 'zemnice',
+      position: { x: at.x, z: at.z, rotation: 0 },
+      condition: 1,
+    },
+  });
+  const spot = villageSpots(sb.landscape).dwelling;
+  const seenOf = (id: number, villageId: string): object => ({
+    villageId,
+    trail: [[spot.x, spot.z]],
+    parts: [dwellingAt(id, spot)],
+  });
+  // rod viděl ves současného držitele (id vsi, ne sídla), jinak by mapa k rodu nepatřila
+  // hráč B ves nezaložil – obě sídla rodu B dostanou ves zkopírovanou ze vsi A (jen id se počítá)
+  const villageOn = async (settlementId: string, name: string): Promise<string> => {
+    const [row] = await query<{ id: string }>(
+      `INSERT INTO village (settlement_id, name, ${VILLAGE_STATE_SQL_COLUMNS})
+         SELECT $2, $3, ${VILLAGE_STATE_SQL_COLUMNS} FROM village WHERE settlement_id = $1
+       RETURNING id`,
+      [sa.settlementId, settlementId, name],
+    );
+    return row!.id;
+  };
+  const villageB1 = await villageOn(sb.settlementId, 'Ves B1');
+  const villageB2 = await villageOn(secondB!.id, 'Ves B2');
+  for (const [cell, id, villageId] of [
+    [cellB1, 701, villageB1],
+    [cellB2, 702, villageB2],
+  ] as const) {
+    await query(
+      'INSERT INTO house_knowledge (house_id, grid_x, grid_y, state) VALUES ($1, $2, $3, $4)',
+      [houseA, cell.x, cell.y, seenOf(id, villageId)],
+    );
+  }
+  await a.reload();
+  await expect(readyScene(a)).toBeVisible({ timeout: 150_000 });
+  await openPanel();
+  await expect(eyeOf(houseB)).toHaveAttribute('data-known', 'yes', { timeout: 30_000 });
+  // rod C, o jehož mapě A nic neví, má oko dál zašedlé
+  const houseC = (
+    await panel
+      .getByTestId('house-other')
+      .evaluateAll((els) => els.map((el) => el.getAttribute('data-house-id')))
+  ).find((id) => id !== null && id !== houseB)!;
+  await expect(eyeOf(houseC)).toHaveAttribute('data-known', 'no');
+
+  const shown = (): Promise<number[]> =>
+    a.evaluate(() =>
+      (window.__bohemiaE2E?.foreignVillage?.() ?? { dwellings: [] }).dwellings.map((d) => d.id),
+    );
+  const scene = a.getByTestId('known-scene');
+
+  // první klik: první známá mapa rodu B, šeré odkryté místo a známý dům
+  await eyeOf(houseB).click();
+  await expect(scene).toHaveAttribute('data-cell', `${cellB1.x},${cellB1.y}`, { timeout: 30_000 });
+  await expect(readyScene(a)).toBeVisible({ timeout: 150_000 });
+  await expect.poll(shown, { timeout: 30_000 }).toEqual([701]);
+  await expect
+    .poll(() =>
+      a.evaluate(([x, z]) => window.__bohemiaE2E?.journeyFog?.(x!, z!) ?? null, [spot.x, spot.z]),
+    )
+    .toBe('explored');
+  // nic živého: žádní jezdci
+  expect((await journeyScene(a)).riders).toHaveLength(0);
+
+  // ⌂ vrátí ves; další klik otevře další mapu téhož rodu a třetí zase první
+  await a.getByTestId('foreign-back').click();
+  await expect(readyScene(a)).toBeVisible({ timeout: 150_000 });
+  await expect(scene).toHaveCount(0);
+  await openPanel();
+  await eyeOf(houseB).click();
+  await expect(scene).toHaveAttribute('data-cell', `${cellB2.x},${cellB2.y}`, { timeout: 30_000 });
+  await expect.poll(shown, { timeout: 30_000 }).toEqual([702]);
+  await a.getByTestId('foreign-back').click();
+  await expect(readyScene(a)).toBeVisible({ timeout: 150_000 });
+  await openPanel();
+  await eyeOf(houseB).click();
+  await expect(scene).toHaveAttribute('data-cell', `${cellB1.x},${cellB1.y}`, { timeout: 30_000 });
+
+  // neznámá mapa a cizí znalost: server odpoví 404
+  const status = await a.evaluate(
+    async (cell) => {
+      const known = await fetch(`/api/journey?known=${cell}`, { cache: 'no-store' });
+      return known.status;
+    },
+    `${cellB2.x + 7},${cellB2.y + 7}`,
+  );
+  expect(status).toBe(404);
+
+  await knownMapShot(a);
+  await ctxs[0]!.close();
+});
+
+/** Snímek známé mapy do `KNOWN_MAP_SCREENSHOT`, je-li nastavené. */
+async function knownMapShot(page: Page): Promise<void> {
+  const shot = process.env.KNOWN_MAP_SCREENSHOT;
+  if (!shot) return;
+  await page.waitForTimeout(3000);
+  await page.screenshot({ path: shot, clip: { x: 160, y: 80, width: 640, height: 400 } });
+}

@@ -11,6 +11,7 @@ import type {
 import { formatDecimal, formatInteger } from '@/lib/village-format';
 import type { CampaignSummary } from '@/lib/campaign-view';
 import { CampaignMap } from './CampaignMap';
+import { KnownMapEye } from './KnownMapEye';
 import { Tooltip } from './Tooltip';
 
 // Panel Vojsko ve dvorci (war.md – Co hráč vidí; Martin 2. 11. 2026: „Tohle by mělo být textové,
@@ -270,23 +271,29 @@ export function ArmyPanel({
       data-hud-block
     >
       {campaignRow}
-      <label className="flex items-center justify-between gap-2">
-        Cíl
-        <select
-          data-testid="army-target"
-          className={field}
-          value={targetId}
-          onChange={(e) => setTargetId(e.target.value)}
-        >
-          <option value="">– vyber ves ve válce –</option>
-          {data.targets.map((t) => (
-            <option key={t.villageId} value={t.villageId}>
-              {t.name}
-              {t.lordName ? ` (${t.lordName})` : ''}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className="flex items-center justify-between gap-2">
+        <label className="flex flex-1 items-center justify-between gap-2">
+          Cíl
+          <select
+            data-testid="army-target"
+            className={field}
+            value={targetId}
+            onChange={(e) => setTargetId(e.target.value)}
+          >
+            <option value="">– vyber ves ve válce –</option>
+            {data.targets.map((t) => (
+              <option key={t.villageId} value={t.villageId}>
+                {t.name}
+                {t.lordName ? ` (${t.lordName})` : ''}
+              </option>
+            ))}
+          </select>
+        </label>
+        <KnownMapEye
+          houseId={data.targets.find((t) => t.villageId === targetId)?.houseId ?? null}
+          testId="army-known-map"
+        />
+      </div>
       <label className="flex items-center justify-between gap-2">
         Velitel
         <select

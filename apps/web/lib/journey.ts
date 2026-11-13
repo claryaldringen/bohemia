@@ -4,6 +4,8 @@ import {
   commandJourney,
   journeyCandidates,
   journeyViewFor,
+  knownMapFor,
+  knownVillagesOf,
   launchJourney,
   visitorsOn,
   type GridCell,
@@ -16,6 +18,7 @@ import {
   type JourneyVisitor,
   type LaunchJourneyDeps,
   type MarchGrid,
+  type SeenCell,
   type VisitorsDeps,
 } from '@bohemia/game';
 import { currentWorld, LruCache } from '@bohemia/server';
@@ -134,4 +137,28 @@ export async function journeyMapForPlayer(
   if (!near) return null;
   const map = await campaignCells().mapOf(cell);
   return { cell: { x: cell.x, y: cell.y }, landscape: encodeLandscape(map.landscape) };
+}
+
+/**
+ * Mapa, jak ji zná rod hráče (known-map.ts): krajina políčka a jeho znalost. Rod mapu nezná
+ * (nebo je to znalost cizího rodu) → null. Krajina se generuje ze seedu políčka, žádná cizí data.
+ */
+export async function knownMapForPlayer(
+  playerId: string,
+  cell: GridCell,
+): Promise<{ map: ForeignMap; seen: SeenCell } | null> {
+  const known = await knownMapFor(gameDeps(), { playerId, cell });
+  if (known === null) return null;
+  const map = await campaignCells().mapOf(cell);
+  return {
+    map: { cell: { x: cell.x, y: cell.y }, landscape: encodeLandscape(map.landscape) },
+    seen: known.seen,
+  };
+}
+
+/** Mapy, které rod hráče zná, a rod, který na nich sídlí. */
+export function knownVillagesForPlayer(
+  playerId: string,
+): Promise<{ cell: GridCell; houseId: string | null }[]> {
+  return knownVillagesOf(gameDeps(), { playerId });
 }

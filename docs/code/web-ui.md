@@ -1078,6 +1078,9 @@ na které stojí.
 - **Oko** v `CampaignMap` je jednobarevná maska `public/icons/war/eye.svg` (CC0, `LICENSES.md`)
   v barvě textu tlačítka (`EYE_ICON`) – jako znaky ⌂, ⚔, ✕ ostatních tlačítek.
 - **Výjezd vojvody** jde za vojvodou stejně – `ForeignJourneyScene` (journey.md – Scéna cizí mapy).
+  **Známá mapa z domova** (journey.md – Známá mapa): oko `KnownMapEye` u rodu v panelu Rod a vazalové
+  a u cíle v panelu Vojsko otevře táž scéna (`ForeignJourneyScene` s `known`, `GET /api/journey?known=x,y`)
+  bez jezdců; stav drží `useKnownMap`, e2e `journey.spec.ts`.
 
 ## Postoj vsi ve dvorci (úloha 6.9, `hud/ManorPanel.tsx`)
 

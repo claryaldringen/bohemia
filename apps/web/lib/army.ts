@@ -145,7 +145,8 @@ async function warTargets(
       lordRecord?.state.people.find((p) => p.id === enemy.lord?.personId)?.name ?? null;
     for (const settlement of await deps.settlements.listActive(enemy.playerId)) {
       for (const record of await deps.villages.listBySettlement(settlement.id)) {
-        if (alive(record)) out.push({ villageId: record.id, name: record.name, lordName });
+        if (alive(record))
+          out.push({ villageId: record.id, houseId: enemyId, name: record.name, lordName });
       }
     }
   }

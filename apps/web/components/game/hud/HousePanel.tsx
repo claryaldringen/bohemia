@@ -10,6 +10,7 @@ import { NegotiationCard, type NegotiationReply } from './NegotiationCard';
 import { NewcomerWaiting } from './NewcomerPanel';
 import { newcomerWaiting, type NewcomerStatusView } from '@/lib/newcomer-view';
 import { TermsForm, type TermsContext } from './TermsForm';
+import { KnownMapEye } from './KnownMapEye';
 import { Tooltip } from './Tooltip';
 import { DomainFoodRows } from './DomainFood';
 import { HouseLink, Icon, Man, PlayerAction, Portrait, Row } from './house/parts';
@@ -421,21 +422,23 @@ export function HousePanel({
           {view.others.length > 0 && (
             <Row label="Hráči" testId="house-others" marker={<Portrait icon="man" size={22} />}>
               {view.others.map((h) => (
-                <HouseLink
-                  key={h.houseId}
-                  house={h}
-                  testId="house-other"
-                  tip={`${h.distance} ${h.distance === 1 ? 'pole' : 'polí'} daleko`}
-                  selected={pickedId === h.houseId}
-                  onClick={
-                    h.actions
-                      ? () => {
-                          setDraft(null);
-                          setPickedId(pickedId === h.houseId ? null : h.houseId);
-                        }
-                      : undefined
-                  }
-                />
+                <span key={h.houseId} className="inline-flex items-center gap-1">
+                  <HouseLink
+                    house={h}
+                    testId="house-other"
+                    tip={`${h.distance} ${h.distance === 1 ? 'pole' : 'polí'} daleko`}
+                    selected={pickedId === h.houseId}
+                    onClick={
+                      h.actions
+                        ? () => {
+                            setDraft(null);
+                            setPickedId(pickedId === h.houseId ? null : h.houseId);
+                          }
+                        : undefined
+                    }
+                  />
+                  <KnownMapEye houseId={h.houseId} />
+                </span>
               ))}
               {view.others.map((h) =>
                 h.actions && pickedId === h.houseId ? (
