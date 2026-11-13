@@ -3,7 +3,7 @@ import { dayIndexOf, realTimeOf } from '../../calendar';
 import type { StreamPoint } from '../../landscape';
 import { addGate, areaOutline, fortificationArea, fortSegments } from '../../village';
 import type { Fortification } from '../../village/fortification/types';
-import type { GridCell } from '../../village/people/world-grid';
+import { sameCell, type GridCell } from '../../village/people/world-grid';
 import type { TileCell, VillageState } from '../../village/types';
 import { dwelling, kin, village } from '../../village/__tests__/kin-fixtures';
 import type { CampaignMap, CampaignWorld } from '../campaign-types';
@@ -17,7 +17,7 @@ import type {
 } from '../journey-types';
 import type { Pos } from '../march-grid';
 import { JOURNEY, WAR } from '../rules-war';
-import type { SeenCell } from '../seen';
+import { mergeKnowledge, type SeenCell } from '../seen';
 import { dayOfTick, hoursPerTick, msOfTick, TICKS_PER_SECOND } from '../ticks';
 import { flat, LAUNCH, MEADOW, SUMMER, world as clock } from './campaign-fixtures';
 
@@ -117,14 +117,16 @@ function inChunks(
 ): JourneyStep {
   let current = state;
   const all: JourneyStep = { state, villageEvents: [], notices: [], waiting: null };
+  const knowledge: NonNullable<JourneyStep['knowledge']> = [];
   while (current.tick < toTick && !journeyFinished(current)) {
     const step = stepJourney(current, Math.min(toTick, current.tick + chunk), intents, world);
     expect(step.waiting).toBeNull();
     all.villageEvents.push(...step.villageEvents);
     all.notices.push(...step.notices);
+    knowledge.push(...(step.knowledge ?? []));
     current = JSON.parse(JSON.stringify(step.state)) as JourneyState;
   }
-  return { ...all, state: current };
+  return { ...all, ...(knowledge.length > 0 ? { knowledge } : {}), state: current };
 }
 
 /** Zmrazí hodnotu do hloubky – zápis do ní v taktu spadne (moduly jsou ve striktním režimu). */
@@ -649,6 +651,38 @@ describe('objevování za jízdy (Úloha 6)', () => {
   });
 });
 
+describe('znalost do úložiště rodu (Úloha 10)', () => {
+  it('po přechodu okrajem a dojetí vydá znalost mapy, na které skupina stojí', () => {
+    const start = journey({ order: { kind: 'cross', cell: EAST } });
+    const step = stepJourney(start, LAUNCH + 900, [], passingWorld());
+    expect(step.state.arrivedTick).not.toBeNull();
+    expect(step.knowledge).toHaveLength(1);
+    expect(step.knowledge![0]!.cell).toEqual(EAST);
+    expect(step.knowledge![0]!.seen).toEqual(step.state.seen!['1,0']);
+    expect(step.knowledge![0]!.seen.villageId).toBe('knezice');
+  });
+
+  it('při odchodu z mapy vydá znalost mapy, kterou skupina opouští; domovská mapa nikdy', () => {
+    const step = stepJourney(journey(), TRIP_END, TRIP, passingWorld());
+    expect(step.state.phase).toBe('done');
+    const out = step.knowledge!;
+    // přechod do východní mapy, dojetí k FAR a odchod domů – všechno znalost téže mapy
+    expect(out.length).toBeGreaterThanOrEqual(3);
+    expect(out.every((k) => sameCell(k.cell, EAST))).toBe(true);
+    // slučováním všeho vydaného vznikne znalost stavu výjezdu (poslední vydání je úplné)
+    let merged: SeenCell | null = null;
+    for (const k of out) merged = mergeKnowledge(merged, k.seen);
+    expect(merged).toEqual(step.state.seen!['1,0']);
+    expect(out[out.length - 1]!.seen).toEqual(step.state.seen!['1,0']);
+  });
+
+  it('jízda jen po domovské mapě znalost nevydá', () => {
+    const start = journey({ order: { kind: 'go', pos: NEAR } });
+    const step = stepJourney(start, LAUNCH + 900, [], passingWorld());
+    expect(step.knowledge).toBeUndefined();
+  });
+});
+
 describe('determinismus (Review Focus 4)', () => {
   const whole = stepJourney(journey(), TRIP_END, TRIP, worldOf());
   /** Louky a průjezd kolem cizí vsi – výjezd si za jízdy pamatuje viděné (Úloha 6). */
@@ -670,6 +704,7 @@ describe('determinismus (Review Focus 4)', () => {
         expect(JSON.stringify(parts.state)).toBe(JSON.stringify(all.state));
         expect(parts.villageEvents).toEqual(all.villageEvents);
         expect(parts.notices).toEqual(all.notices);
+        expect(parts.knowledge).toEqual(all.knowledge);
       }
     }
   });
@@ -802,6 +837,23 @@ describe('člen výjezdu zemře doma (Review Focus 1)', () => {
     const before = stepJourney(journey(), DEATH - 1, early, world).state;
     expect(before.groups[0]!.goal!.pos).toEqual(there);
     expect(stepJourney(before, DEATH, early, world).state.phase).toBe('returning');
+  });
+
+  it('bez živých členů venku výjezd skončí a vydá znalost mapy, kde stál', () => {
+    const start = journey({ members: [man(1)], order: { kind: 'cross', cell: EAST } });
+    // muži zemřou o den později než ve zbytku skupiny, až stojí na východní mapě
+    const late = firstTickOf(DEATH_DAY + 1);
+    const world = worldOf({
+      villageAt: (villageId, day) =>
+        villageId !== 'lhota' ? null : day >= DEATH_DAY + 1 ? homeVillage([]) : homeVillage(),
+    });
+    const standing = stepJourney(start, late - 1, [], world);
+    expect(standing.state.groups[0]!.cell).toEqual(EAST);
+    const done = stepJourney(standing.state, late, [], world);
+    expect(done.state.phase).toBe('done');
+    expect(done.knowledge).toHaveLength(1);
+    expect(done.knowledge![0]!.cell).toEqual(EAST);
+    expect(done.knowledge![0]!.seen).toEqual(done.state.seen!['1,0']);
   });
 
   it('bez živých členů done – bez událostí a upozornění', () => {

@@ -98,6 +98,7 @@ export * from './world-seat';
 export * from './cede-village';
 export * from './campaigns';
 export * from './journeys';
+export * from './knowledge';
 export * from './journey-war';
 export * from './step-campaigns';
 export * from './step-journeys';

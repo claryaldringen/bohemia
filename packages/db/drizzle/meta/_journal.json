@@ -316,6 +316,13 @@
       "when": 1794572717614,
       "tag": "0045_journey_storage",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1794596733186,
+      "tag": "0046_house_knowledge",
+      "breakpoints": true
     }
   ]
 }

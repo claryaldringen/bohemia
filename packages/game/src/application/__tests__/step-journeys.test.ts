@@ -21,6 +21,7 @@ import { stepJourneys, type StepJourneysDeps } from '../step-journeys';
 import { InMemoryCampaignLock, InMemoryCampaigns } from './in-memory-campaigns';
 import { InMemoryHouses } from './in-memory-houses';
 import { InMemoryJourneys } from './in-memory-journeys';
+import { InMemoryKnowledge } from './in-memory-knowledge';
 import { InMemoryNotices } from './in-memory-notices';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryVillages } from './in-memory-villages';
@@ -95,6 +96,7 @@ interface Setup {
   journeys: InMemoryJourneys;
   villages: InMemoryVillages;
   notices: InMemoryNotices;
+  knowledge: InMemoryKnowledge;
   lock: InMemoryCampaignLock;
   houses: InMemoryHouses;
   wars: InMemoryWars;
@@ -115,6 +117,7 @@ async function setup(): Promise<Setup> {
     version: 1,
   });
   const notices = new InMemoryNotices();
+  const knowledge = new InMemoryKnowledge();
   const lock = new InMemoryCampaignLock();
   const houses = new InMemoryHouses();
   const wars = new InMemoryWars();
@@ -139,11 +142,12 @@ async function setup(): Promise<Setup> {
     cells,
     villages,
     notices,
+    knowledge,
     world,
     atWar: (playerId, cell) => houseAtWarOn({ houses, wars, settlements }, playerId, cell),
   };
   const recall = { houses, settlements, journeys, world };
-  return { deps, journeys, villages, notices, lock, houses, wars, settlements, recall };
+  return { deps, journeys, villages, notices, knowledge, lock, houses, wars, settlements, recall };
 }
 
 /** Id rodů hráčů `pa` a `pb`. */
@@ -260,6 +264,53 @@ describe('stepJourneys', () => {
       expect(runs[1]).toEqual(runs[0]);
     },
   );
+
+  describe('znalost rodu (Úloha 10)', () => {
+    const crossing = (): JourneyState => journey({ order: { kind: 'cross', cell: EAST } });
+    const wholeCross = stepJourney(crossing(), END, [], WHOLE);
+
+    it('po dojetí na cizí mapu je znalost v úložišti rodu a bod nemá nedoručenou schránku', async () => {
+      const { deps, journeys, knowledge } = await setup();
+      await journeys.create(crossing());
+      await rounds(deps, LAUNCH + 1, LAUNCH + 1200);
+      const seen = (await stored(journeys)).seen!['1,0']!;
+      expect(await knowledge.of('h-pa', EAST)).toEqual(seen);
+      expect(await knowledge.cellsOf('h-pa')).toEqual([EAST]);
+      // cizí rod nic nevidí
+      expect(await knowledge.of('h-pb', EAST)).toBeNull();
+      expect(await knowledge.cellsOf('h-pb')).toEqual([]);
+      expect((await journeys.checkpoint('j1'))?.outbox).toBeNull();
+    });
+
+    it('na konci výjezdu je v úložišti totéž, co ve stavu výjezdu', async () => {
+      const { deps, journeys, knowledge } = await setup();
+      await journeys.create(crossing());
+      await rounds(deps, LAUNCH + 1, END);
+      expect((await stored(journeys)).phase).toBe('done');
+      expect(await knowledge.of('h-pa', EAST)).toEqual(wholeCross.state.seen!['1,0']);
+    });
+
+    it('pád mezi uložením bodu a doručením znalosti – další kolo ji doručí; opakované doručení nic nezmění', async () => {
+      const { deps, journeys, knowledge } = await setup();
+      await journeys.create(crossing());
+      let crashed = false;
+      const merge = knowledge.merge.bind(knowledge);
+      knowledge.merge = (houseId, cell, seen) => {
+        if (crashed) return merge(houseId, cell, seen);
+        crashed = true;
+        return Promise.reject(new Error('spojení spadlo'));
+      };
+      const outcomes = await rounds(deps, LAUNCH + 1, END);
+      expect(outcomes.filter((o) => o === 'failed')).toHaveLength(1);
+      expect(await knowledge.of('h-pa', EAST)).toEqual(wholeCross.state.seen!['1,0']);
+      // doručení téže schránky znovu (pád po doručení, před smazáním) – znalost se nemění
+      const before = JSON.stringify(await knowledge.of('h-pa', EAST));
+      const seen = wholeCross.state.seen!['1,0']!;
+      await knowledge.merge('h-pa', EAST, seen);
+      expect(JSON.stringify(await knowledge.of('h-pa', EAST))).toBe(before);
+      expect((await journeys.checkpoint('j1'))?.outbox).toBeNull();
+    });
+  });
 
   it('druhé kolo pokračuje od zapamatovaného stavu; kolo tažení paměť výjezdů nezahodí', async () => {
     const { deps, journeys, villages, notices, lock } = await setup();

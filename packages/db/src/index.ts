@@ -21,6 +21,7 @@ export {
   createWarRepository,
   createCampaignRepository,
   createJourneyRepository,
+  createKnowledgeRepository,
   createCampaignLock,
   CAMPAIGN_LOCK_NAMESPACE,
   createSuccessionCreditRepository,

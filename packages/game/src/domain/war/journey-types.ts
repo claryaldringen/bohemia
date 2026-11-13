@@ -3,7 +3,7 @@ import type { GridCell } from '../village/people/world-grid';
 import type { PersonRef } from '../village/types';
 import type { CampaignGroup, CampaignNotice, CampaignVillage } from './campaign-types';
 import type { Pos } from './march-grid';
-import type { SeenCell } from './seen';
+import type { KnowledgeOut, SeenCell } from './seen';
 
 // Stav výjezdu vojvody (lord-control.md – Pravidla; plán 2026-11-13 – Úloha 1). Výjezd stojí vedle
 // tažení – nemá válku ani cílovou ves – a sdílí s ním takty, pohyb po mapách a svět. Stav je JSON
@@ -97,6 +97,12 @@ export interface JourneyStep {
   /** Události do schránek vsí – `ref` = `journey:<id>:<takt>:<n>` (opakování se zahodí). */
   villageEvents: NewVillageEvent[];
   notices: CampaignNotice[];
+  /**
+   * Znalost map pro úložiště rodu (Úloha 10): vydá se při přechodu okrajem (mapa, kterou skupina
+   * opouští), při dojetí (mapa, na které stojí) a na konci výjezdu; bez změn chybí. Totéž vydání
+   * podruhé je bezpečné – `mergeKnowledge` je idempotentní.
+   */
+  knowledge?: KnowledgeOut[];
   /** Krok se zastavil – chybí tyto mapy a vsi; null = spočteno do `toTick`. */
   waiting: { cells: GridCell[]; villageIds: string[] } | null;
 }

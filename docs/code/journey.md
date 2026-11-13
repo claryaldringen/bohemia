@@ -195,7 +195,9 @@ tempo a svět `CampaignWorld`.
   a do lesa 50 m) zapíše s dnešním stavem a dnem; známou stavbu, která ve vsi už není a její místo
   je v dohledu, zapomene; co je mimo dohled, zůstane („stará zpráva“). Co muži dnes už viděli, se
   týž den znovu nepřepisuje – stav vsi pro den je jeden. `prev` nemění a beze změny vrátí týž
-  objekt, takže takt znalost map nekopíruje (`journeyTick` kopíruje stav bez `seen`).
+  objekt, takže takt znalost map nekopíruje (`journeyTick` kopíruje stav bez `seen`). Stavbu, která
+  v dohledu zmizela, zapíše do `SeenCell.gone` (`{ key, day }`, seřazené podle klíče; bez zániku
+  pole chybí) – bez toho by ji sloučení se starou znalostí rodu vrátilo (Znalost rodu).
 - **`sightingsOf(village, day)`** – co je ve vsi vidět: obydlí včetně dvorce, staveniště obydlí
   a přestavby, modly a svatyně (i rozestavěné), ohrady, kostel i jeho staveniště a opevnění. Ne
   pole, sady, hřbitovy, lomy, stohy, jámy, cesty, lidé, zvířata ani zásoby; stavební huť nemá ve
@@ -441,3 +443,37 @@ na mapu jako za vojskem (web-ui.md – Cizí mapa ve scéně).
 - **Testy** – `lib/__tests__/journey-scene-view.test.ts` (`watchedJourneyCell`, `seenSceneKey`,
   `foreignJourneySelection`),
   `lib/scene/__tests__/fog-of-war.test.ts` (`exploreTrail`).
+
+## Znalost rodu (Úloha 10 – `application/knowledge.ts`, `packages/db`)
+
+Co muži za jízdy viděli, se po návratu neztratí: rod si pamatuje znalost po políčkách světa
+(soukromě – čte ji jen rod). Používá ji další výjezd, tažení i známá mapa z domova (další úlohy).
+
+- **Sloučení `mergeKnowledge(old, fresh)`** (`domain/war/seen.ts`, čistá funkce): stopy sjednotí
+  (seřazené, bez opakování); ze dvou záznamů téže stavby platí z novějšího dne; stavba, která má
+  v `gone` (staré i nové znalosti) záznam se stejným nebo pozdějším dnem, se odstraní – shořelý dům
+  se nevrátí, rozvalina (`ruin:`, jiný klíč) zůstane; stavba, která ve `fresh` není a zánik nemá,
+  zůstane („stará zpráva“). Záznamy `gone` mají u každého klíče nejnovější den a zánik, který
+  přebila novější stavba téhož klíče, se zahodí. Jiná ves na mapě (`villageId`) – staré stavby i
+  zánik se zahodí, stopa zůstane. Výsledek nezávisí na pořadí `parts` a sloučit totéž podruhé nic
+  nezmění.
+- **Vydání z kroku** – `JourneyStep.knowledge?: { cell, seen }[]` (`journeyTick`, `shareKnowledge`):
+  celý `SeenCell` mapy při přechodu okrajem (mapa, kterou skupina opouští), při dojetí (mapa, na
+  které stojí) a při konci výjezdu venku (poslední živý člen zemřel doma). Domovská mapa a mapa bez
+  záznamu nic nevydají. Takt, který se kvůli chybějícím datům zahodí, nic nevydá.
+- **Doručení** – `CampaignOutbox.knowledge?: { houseId, cell, seen }[]`: `stepOne` ji vloží do
+  schránky bodu (i bod jen se znalostí se hned uloží) a `deliverOutbox` (společný s tažením, jehož
+  chování se nemění) ji po uložení doručí `KnowledgeRepository.merge`. Pád mezi uložením a
+  doručením doručí další kolo znovu – bezpečné, sloučení je idempotentní.
+- **Port `KnowledgeRepository`** (`of(houseId, cell)`, `cellsOf(houseId)`, `merge(houseId, cell,
+  seen)`) a adaptér `createKnowledgeRepository` (`adapters/knowledge-repository.ts`): `merge` je
+  jedna transakce – řádek založí (`ON CONFLICT DO NOTHING`), přečte `FOR UPDATE`, sloučí
+  `mergeKnowledge` a zapíše; výjezd a tažení tedy smí psát do téhož rodu a políčka současně.
+  Adaptér herní logiku nemá. V `GameDeps.knowledge` a v `journeyDeps` workeru.
+- **Tabulka `house_knowledge`** (migrace `0046_house_knowledge`): `house_id` (FK `house`, při zániku
+  rodu se smaže), `grid_x`, `grid_y`, `state` jsonb (`SeenCell`), `updated_at`; primární klíč všech
+  tří sloupců.
+- **Testy** – `seen.test.ts` (zánik v `lookAround`, `mergeKnowledge`: novější den, zánik, rozvalina,
+  jiná ves, idempotence, pořadí), `journey.test.ts` (vydání při přechodu, dojetí i konci, vcelku =
+  po kouscích), `step-journeys.test.ts` (úložiště po kolech, pád před doručením znalosti),
+  `knowledge-repository.db.test.ts` (po políčkách, cizí rod, sloučení, souběh, zánik rodu).

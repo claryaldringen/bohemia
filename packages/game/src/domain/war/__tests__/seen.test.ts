@@ -17,7 +17,7 @@ import type {
 } from '../../village/types';
 import type { MarchGrid, Pos } from '../march-grid';
 import { JOURNEY } from '../rules-war';
-import { lookAround, sightingsOf, type SeenCell } from '../seen';
+import { lookAround, mergeKnowledge, sightingsOf, type SeenCell, type SeenPart } from '../seen';
 import { field } from './battle-fixtures';
 
 // Objevování za jízdy (lord-control.md – Co vojvoda vidí; plán 2026-11-13 – Úloha 6): dohled
@@ -443,5 +443,135 @@ describe('sightingsOf – co je ve vsi vidět', () => {
     const b = sightingsOf(v, DAY);
     expect(b[0]).toBe(a[0]);
     expect(sightingsOf(structuredClone(v), DAY)).toEqual(a);
+  });
+});
+
+describe('lookAround – zánik', () => {
+  it('stavba, která v dohledu zmizela, se zapíše do gone s dnešním dnem; nová znalost bez zániku gone nemá', () => {
+    const first = look(undefined, villageOf([house(1, 140, 0), house(2, 100, 0)]));
+    expect(first.gone).toBeUndefined();
+    const after = look(first, villageOf([house(2, 100, 0)]), [EYE], DAY + 1);
+    expect(keys(after)).toEqual(['dwelling:2']);
+    expect(after.gone).toEqual([{ key: 'dwelling:1', day: DAY + 1 }]);
+    // dům mimo dohled nezmizel – nic se nezapíše
+    const far = look(first, villageOf([house(2, 100, 0)]), [FAR], DAY + 1);
+    expect(far.gone).toBeUndefined();
+  });
+});
+
+describe('mergeKnowledge', () => {
+  const dwellingPart = (n: number, day: number, condition = 1): SeenPart => ({
+    key: `dwelling:${n}`,
+    pos: { x: n, z: 0 },
+    day,
+    data: { kind: 'dwelling', condition } as unknown as SeenPart['data'],
+  });
+  const ruinPart = (n: number, day: number): SeenPart => ({
+    key: `ruin:${n}`,
+    pos: { x: n, z: 0 },
+    day,
+    data: { kind: 'ruin' } as unknown as SeenPart['data'],
+  });
+  const cell = (
+    parts: SeenPart[],
+    trail: [number, number][] = [],
+    extra: Partial<SeenCell> = {},
+  ): SeenCell => ({ villageId: 'v', trail, parts, ...extra });
+
+  it('bez staré znalosti je výsledek fresh; stopy se sjednotí seřazeně bez opakování', () => {
+    const fresh = cell([dwellingPart(1, 5)], [[0, 0]]);
+    expect(mergeKnowledge(null, fresh)).toEqual(fresh);
+    const merged = mergeKnowledge(
+      cell(
+        [],
+        [
+          [0, 20],
+          [20, 0],
+        ],
+      ),
+      cell(
+        [],
+        [
+          [0, 0],
+          [20, 0],
+        ],
+      ),
+    );
+    expect(merged.trail).toEqual([
+      [0, 0],
+      [0, 20],
+      [20, 0],
+    ]);
+  });
+
+  it('část z novějšího dne přepíše starší, starší fresh starou nepřepíše', () => {
+    const old = cell([dwellingPart(1, 5, 1), dwellingPart(2, 9, 0.5)]);
+    const fresh = cell([dwellingPart(1, 7, 0.4), dwellingPart(2, 6, 1)]);
+    const merged = mergeKnowledge(old, fresh);
+    expect(merged.parts.map((p) => [p.key, p.day])).toEqual([
+      ['dwelling:1', 7],
+      ['dwelling:2', 9],
+    ]);
+    expect(merged.parts[0]!.data).toMatchObject({ condition: 0.4 });
+  });
+
+  it('stavba, která ve fresh nebyla a zánik nemá, zůstane', () => {
+    const old = cell([dwellingPart(1, 5), dwellingPart(2, 5)]);
+    const merged = mergeKnowledge(old, cell([dwellingPart(2, 8)]));
+    expect(merged.parts.map((p) => p.key)).toEqual(['dwelling:1', 'dwelling:2']);
+    expect(merged.gone).toBeUndefined();
+  });
+
+  it('shořelý dům se po novém pohledu nevrátí, rozvalina zůstane', () => {
+    const old = cell([dwellingPart(1, 5), dwellingPart(2, 5)]);
+    const fresh = cell([ruinPart(1, 9)], [], { gone: [{ key: 'dwelling:1', day: 9 }] });
+    const merged = mergeKnowledge(old, fresh);
+    expect(merged.parts.map((p) => p.key)).toEqual(['dwelling:2', 'ruin:1']);
+    expect(merged.gone).toEqual([{ key: 'dwelling:1', day: 9 }]);
+    // zánik z dřívějška starší stavbu odstraní jen do svého dne
+    const later = mergeKnowledge(cell([dwellingPart(1, 12)]), fresh);
+    expect(later.parts.map((p) => p.key)).toEqual(['dwelling:1', 'ruin:1']);
+  });
+
+  it('záznamy gone se sloučí na nejnovější den každého klíče', () => {
+    const merged = mergeKnowledge(
+      cell([], [], {
+        gone: [
+          { key: 'dwelling:1', day: 4 },
+          { key: 'dwelling:3', day: 8 },
+        ],
+      }),
+      cell([], [], { gone: [{ key: 'dwelling:1', day: 6 }] }),
+    );
+    expect(merged.gone).toEqual([
+      { key: 'dwelling:1', day: 6 },
+      { key: 'dwelling:3', day: 8 },
+    ]);
+  });
+
+  it('jiná ves na mapě – staré stavby a zánik se zahodí, stopa zůstane', () => {
+    const old = cell([dwellingPart(1, 5)], [[0, 0]], { gone: [{ key: 'dwelling:9', day: 3 }] });
+    const merged = mergeKnowledge(old, cell([dwellingPart(2, 6)], [[20, 0]], { villageId: 'w' }));
+    expect(merged.villageId).toBe('w');
+    expect(merged.parts.map((p) => p.key)).toEqual(['dwelling:2']);
+    expect(merged.gone).toBeUndefined();
+    expect(merged.trail).toEqual([
+      [0, 0],
+      [20, 0],
+    ]);
+  });
+
+  it('je idempotentní a nezávislý na pořadí částí; vstupy nemění', () => {
+    const old = cell([dwellingPart(3, 5), dwellingPart(1, 5)], [[0, 0]]);
+    const fresh = cell([ruinPart(1, 9), dwellingPart(2, 9)], [[20, 0]], {
+      gone: [{ key: 'dwelling:1', day: 9 }],
+    });
+    const frozen = JSON.stringify([old, fresh]);
+    const once = mergeKnowledge(old, fresh);
+    expect(JSON.stringify([old, fresh])).toBe(frozen);
+    expect(mergeKnowledge(once, fresh)).toEqual(once);
+    const shuffled = cell([...fresh.parts].reverse(), fresh.trail, { gone: fresh.gone! });
+    expect(mergeKnowledge({ ...old, parts: [...old.parts].reverse() }, shuffled)).toEqual(once);
+    expect(once.parts.map((p) => p.key)).toEqual(['dwelling:2', 'dwelling:3', 'ruin:1']);
   });
 });
