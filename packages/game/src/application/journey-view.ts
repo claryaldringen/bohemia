@@ -12,7 +12,9 @@ import {
   type JourneyPhase,
   type JourneyState,
   type Pos,
+  type SeenCell,
 } from '../domain/war';
+import { cellKey } from '../domain/war/campaign-tick';
 import { mapGrid, type SightGridCache } from './campaign-view';
 import type { CampaignCells } from './campaigns';
 import type { HouseRepository } from './houses';
@@ -41,6 +43,11 @@ export interface JourneyView {
   waitDaysLeft: number | null;
   /** Vojvoda žije – hráč smí rozkazovat. */
   controllable: boolean;
+  /**
+   * Co muži viděli na mapě, na které skupina je (stopa a naposled viděné stavby – Úloha 6); na
+   * domovské mapě, kterou hráč zná celou, a dokud nic neviděli, null.
+   */
+  seen: SeenCell | null;
 }
 
 export interface JourneyReadDeps {
@@ -79,6 +86,7 @@ export async function journeyViewFor(
     group: { pos: { ...group.pos }, goal: group.goal, arrived: group.arrived },
     waitDaysLeft: waitDaysLeft(state, deps.world),
     controllable: state.members.some((m) => m.lord && m.status === 'active'),
+    seen: state.seen?.[cellKey(group.cell)] ?? null,
   };
 }
 

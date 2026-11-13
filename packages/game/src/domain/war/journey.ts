@@ -2,7 +2,15 @@ import type { WorldClock } from '../calendar';
 import { cloneData } from '../village/core/clone';
 import type { NewVillageEvent } from '../village/core/inbox';
 import { directionBetween } from '../village/people/world-grid';
-import { MissingData, tickContext, type TickContext, type TickOut } from './campaign-tick';
+import {
+  cellKey,
+  gridOf,
+  MissingData,
+  sameCell,
+  tickContext,
+  type TickContext,
+  type TickOut,
+} from './campaign-tick';
 import type {
   CampaignGroup,
   CampaignNotice,
@@ -19,6 +27,7 @@ import type {
 import { marchSpeed, type GroupPace } from './march';
 import { missingMaps, sendGroup, settleGoal, stepMover } from './movement';
 import { JOURNEY } from './rules-war';
+import { lookAround } from './seen';
 import { dayOfTick, hoursPerTick, TICKS_PER_SECOND, tickOfMs } from './ticks';
 import { edgeCrossing } from './world-route';
 
@@ -137,7 +146,9 @@ export function stepJourney(
 
 /**
  * Jeden takt – na kopii stavu (když chybí data, kopie se zahodí; `cloneData` jako u tažení). Po
- * pohybu se vsím na mapě nic neohlašuje – výjezd není vojsko (lord-control.md – Soused).
+ * pohybu se vsím na mapě nic neohlašuje – výjezd není vojsko (lord-control.md – Soused) –, jen se
+ * muži rozhlédnou (`discover`). Znalost map (`seen`) se nekopíruje: `lookAround` ji na místě
+ * nemění a co se změní, vrátí jako nový objekt – kopie by s délkou cesty rostla každý takt.
  */
 function journeyTick(
   state: JourneyState,
@@ -146,7 +157,9 @@ function journeyTick(
   ctx: TickContext,
   out: TickOut,
 ): JourneyState {
-  const s = cloneData(state);
+  const { seen, ...rest } = state;
+  const s: JourneyState = cloneData(rest);
+  if (seen) s.seen = seen;
   s.tick = tick;
   const day = dayOfTick(tick, ctx.world.clock);
   s.throughDay = dayOfTick(tick + 1, ctx.world.clock) - 1;
@@ -165,6 +178,7 @@ function journeyTick(
     turnHome(s);
   }
   moveGroup(s, ctx, out);
+  discover(s, ctx);
   return s;
 }
 
@@ -273,6 +287,31 @@ function moveGroup(s: JourneyState, ctx: TickContext, out: TickOut): void {
   s.arrivedTick = s.tick;
   if (acrossEdge) g.goal = { cell: { ...g.cell }, pos: { ...g.pos } };
   if (s.phase === 'returning') finish(s, out);
+}
+
+/**
+ * Objevování po pohybu (lord-control.md – Co vojvoda vidí): na každé cizí mapě si výjezd pamatuje
+ * stopu a naposled viděné stavby a opevnění (`lookAround`); vlastní mapu hráč zná celou – domovská
+ * mapa se neukládá. Ves na mapě se čte jako při pohybu (`gridOf`, `villageAt` pro den taktu) – ves
+ * bez spočteného dne krok zastaví (`MissingData`). Jiná ves na mapě (stará zanikla, novou založil
+ * nováček) – stavby staré vsi k ní nepatří, zůstane jen stopa.
+ */
+function discover(s: JourneyState, ctx: TickContext): void {
+  const g = groupOf(s);
+  if (journeyFinished(s) || sameCell(g.cell, s.home.cell)) return;
+  const grid = gridOf(g.cell, s.day, ctx);
+  const villageId = ctx.world.landscapeOf(g.cell)?.villageIds[0];
+  const village = villageId === undefined ? null : ctx.world.villageAt(villageId, s.day);
+  if (villageId !== undefined && village === null) throw new MissingData([], [villageId]);
+  const key = cellKey(g.cell);
+  const prev = s.seen?.[key];
+  const other =
+    prev?.villageId !== undefined && villageId !== undefined && prev.villageId !== villageId;
+  const known = prev && other ? { trail: prev.trail, parts: [] } : prev;
+  const looked = lookAround(known, { village, eyes: [g.pos], grid, day: s.day });
+  const next =
+    villageId === undefined || looked.villageId === villageId ? looked : { ...looked, villageId };
+  if (next !== prev) s.seen = { ...s.seen, [key]: next };
 }
 
 /**

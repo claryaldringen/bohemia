@@ -3,6 +3,7 @@ import type { GridCell } from '../village/people/world-grid';
 import type { PersonRef } from '../village/types';
 import type { CampaignGroup, CampaignNotice, CampaignVillage } from './campaign-types';
 import type { Pos } from './march-grid';
+import type { SeenCell } from './seen';
 
 // Stav výjezdu vojvody (lord-control.md – Pravidla; plán 2026-11-13 – Úloha 1). Výjezd stojí vedle
 // tažení – nemá válku ani cílovou ves – a sdílí s ním takty, pohyb po mapách a svět. Stav je JSON
@@ -62,6 +63,12 @@ export interface JourneyState {
    * Takt posledního dojetí – od něj běží čekání na místě (`JOURNEY.waitDays`); null = skupina jede.
    */
   arrivedTick: number | null;
+  /**
+   * Co muži za jízdy viděli (lord-control.md – Co vojvoda vidí; Úloha 6) – podle políčka `x,y`:
+   * stopa a naposled viděné stavby a opevnění. Domovská mapa tu není – hráč ji zná celou. Chybí =
+   * zatím nic (starší body výjezdů).
+   */
+  seen?: Record<string, SeenCell>;
 }
 
 /** Rozkaz hráče (lord-control.md – Rozkazy); nový rozkaz kdykoli nahradí starý. */

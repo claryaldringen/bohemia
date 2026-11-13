@@ -741,7 +741,7 @@ function constructionSummary(state: VillageState, c: Construction): Construction
 }
 
 /** Průběh stavby po skácení dřeva – kácí se jako první část práce. */
-function buildProgress(c: Construction): number {
+export function buildProgress(c: Construction): number {
   const felling = woodFellingCost(c.wood);
   const building = c.cost - felling;
   if (building <= 0) return c.done >= c.cost ? 1 : 0;

@@ -11,6 +11,7 @@ import {
   type CampaignMap,
   type JourneyOrder,
   type JourneyState,
+  type SeenCell,
 } from '../../domain/war';
 import { land } from '../../domain/war/__tests__/battle-fixtures';
 import {
@@ -190,6 +191,17 @@ describe('journeyViewFor', () => {
     const v = (await journeyViewFor(w.deps, { playerId: 'pa' }))!;
     expect(v.controllable).toBe(false);
     expect(v.men).toEqual([{ personId: 12, lord: false, mounted: true, wounded: true }]);
+  });
+
+  it('seen – co rod ví o mapě, na které skupina je; na domovské mapě null', async () => {
+    const w = await setup();
+    expect((await journeyViewFor(w.deps, { playerId: 'pa' }))!.seen).toBeNull();
+    const east: SeenCell = { villageId: w.hostId, trail: [[-940, 0]], parts: [] };
+    patch(w.journeys, w.id, (s) => {
+      s.groups[0]!.cell = { x: 1, y: 0 };
+      s.seen = { '1,0': east, '2,0': { trail: [[0, 0]], parts: [] } };
+    });
+    expect((await journeyViewFor(w.deps, { playerId: 'pa' }))!.seen).toEqual(east);
   });
 });
 
