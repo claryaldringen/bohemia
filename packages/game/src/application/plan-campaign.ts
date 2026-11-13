@@ -140,7 +140,7 @@ export function homePlaces(prepared: PreparedCampaign): Record<string, CampaignP
 }
 
 /** Poloha vsi na mapě (m): střed políčka místa pro ves na mapě světa `cell`. */
-function villagePlace(
+export function villagePlace(
   cell: GridCell,
   l: Landscape,
 ): CampaignVillage & {

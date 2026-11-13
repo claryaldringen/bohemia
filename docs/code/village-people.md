@@ -639,6 +639,15 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   postavy na celý pozemek dvorce nevstoupí (ženy u domů, starší, provoz vycházejí před bránou),
   stojí na něm jen rodina.
 
+## Nepřítomnost na výjezdu (lord-control.md – Kdo jede; plán 2026-11-13 – Úloha 2)
+
+- `AwayKind` má druh `journey` (types-people.ts): vojvoda a družina na výjezdu zůstávají ve stavu
+  domovské vsi s `away: { kind: 'journey', refId: <id výjezdu> }` bez `untilDay` – návrat ukončí
+  událost výjezdu `away-ends`. Doma nepracují (`isAway`, `laborPerDay`) a nejdou na tažení
+  (`lineCandidates` je přeskočí), ale **jedí dál ze zásob vsi** – `foodNeedPerDay` pro druh `journey`
+  vrací obvyklou potřebu (výjezd neveze zásoby), na rozdíl od tažení a ostatních druhů (jedí jinde).
+  Vyslání a výběr družiny: `docs/code/journey.md` – Vyslání.
+
 ## Jezdec a výcvik (klipy a rekvizity `man.glb` – lord-horses Úloha 8; luk a boj kreslí Úloha 9)
 
 `man.glb` nese navíc klipy `ride` (krok), `ride-trot`, `ride-idle` (sed z `rider/cavalry/crossbowman`),
