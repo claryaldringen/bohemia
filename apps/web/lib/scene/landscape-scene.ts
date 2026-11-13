@@ -20,6 +20,7 @@ import {
   type WorldClock,
   planWagonRoad,
   terrainEditsFrom,
+  tileCenterWorld,
   type WagonRoadPlan,
 } from '@bohemia/game';
 import { AmbientSound } from './ambient-sound';
@@ -72,6 +73,7 @@ import {
 } from './scene-projection';
 import { SceneSelection, type DraftListener, type PersonListener } from './scene-selection';
 import { SceneWarView } from './scene-war';
+import { withoutMen } from './journey-departure';
 import { journeyHorseIds, type SceneJourney } from './journey-riders';
 import { ShadowCasters } from './shadow-casters';
 import { chunkGrid } from './scenery-chunks';
@@ -196,6 +198,10 @@ export class LandscapeScene {
   /** Výjezdy vojvody na mapě a koně jejich jezdců (ohrada je nekreslí). */
   private journeyList: readonly SceneJourney[] = [];
   private journeyHorses: ReadonlySet<number> = new Set();
+  /** Muži vsi, kteří přijíždějí z výjezdu do dvorce (journey-departure.ts) – den rodiny je nekreslí. */
+  private arrivingMen: ReadonlySet<number> = new Set();
+  /** Koně, které ohrada naposled nekreslila (e2e). */
+  private awayHorses: ReadonlySet<number> = new Set();
   /** Ves, jak přišla ze serveru – `villageState` je doplněná o běžící činnosti (`activities`). */
   private villageSource: SceneVillage | null = null;
   /** Karavany a lov, které ve skutečném čase ještě běží (activity-memory.ts). */
@@ -546,6 +552,8 @@ export class LandscapeScene {
         if (this.livestock?.setDogs(this.villagers?.dogs() ?? [], Date.now())) {
           this.loop.renderWhenReady();
         }
+        // odjezd a příjezd výjezdu vojvody (journey-departure.ts) – místa dvorce z plánu postav
+        this.war.setJourneyYard(this.villagers?.yard() ?? null, this.villageHome());
       },
       // lovci jdou k okraji lesa u zvěře (wildlife.md – Ve scéně) – zvěř se plánuje před postavami
       huntSpot: (target) => this.wildlife?.huntSpot(target) ?? null,
@@ -687,9 +695,20 @@ export class LandscapeScene {
     this.war.setJourneys(list);
   }
 
-  /** Výjezdy ve scéně pro e2e – muži, praporek, dny na hodinách. */
-  journeyStats(): ReturnType<SceneWarView['journeyStats']> {
-    return this.war.journeyStats();
+  /** Výjezdy ve scéně pro e2e – muži, praporek, dny na hodinách, odjezd a koně mimo ohradu. */
+  journeyStats(): ReturnType<SceneWarView['journeyStats']> & { awayHorses: number[] } {
+    return { ...this.war.journeyStats(), awayHorses: [...this.awayHorses] };
+  }
+
+  /** Odkud jádro vysílá výjezd na mapě vsi (`villagePlace` – střed políčka místa pro ves). */
+  private villageHome(): { x: number; z: number } | null {
+    const l = this.landscape;
+    return l ? tileCenterWorld(l, l.villageSite.x, l.villageSite.y) : null;
+  }
+
+  /** Ves pro postavy – bez mužů, kteří přijíždějí z výjezdu do dvorce (journey-departure.ts). */
+  private peopleVillage(): SceneVillage | null {
+    return this.villageState ? withoutMen(this.villageState, this.arrivingMen) : null;
   }
 
   /**
@@ -1210,7 +1229,7 @@ export class LandscapeScene {
     const abundance = this.applyFaunaAbundance();
     // oráč, honák a vozka jsou lidé vsi – kolik spřežení a vozů ves dnes kreslí
     const people =
-      this.villagers?.update(this.villageState, Date.now(), village.draftCrews()) ?? false;
+      this.villagers?.update(this.peopleVillage()!, Date.now(), village.draftCrews()) ?? false;
     // pěšiny se přepočítají odloženě a překreslí samy (onChange)
     this.paths?.update(this.villageState);
     // Rozhraní posílá stav vsi opakovaně (dotaz každých pár sekund) – beze změny nic.
@@ -1379,8 +1398,24 @@ export class LandscapeScene {
     // koně mužů na výjezdu vojvody jsou pryč i s jezdci (journey-riders.ts)
     const riding = ridingHorseIds(this.villagers?.rides() ?? [], epochMs);
     for (const id of this.journeyHorses) riding.add(id);
+    // odjezd a příjezd: kůň mezi ohradou a kůlem, muži cestou do dvorce (journey-departure.ts)
+    const away = this.war.journeyAway();
+    for (const id of away.horses) riding.add(id);
+    this.awayHorses = riding;
     if (this.village?.setRidingHorses(riding)) {
       animated = hitPart(hit, 'jízda');
+    }
+    if (!sameIds(away.men, this.arrivingMen)) {
+      // den rodiny je převezme, až příjezd skončí
+      this.arrivingMen = new Set(away.men);
+      const people = this.peopleVillage();
+      if (
+        people &&
+        this.village &&
+        this.villagers?.update(people, epochMs, this.village.draftCrews())
+      ) {
+        animated = hitPart(hit, 'lidé');
+      }
     }
     // lidé ve vsi – skutečný čas jako zvířata
     if (this.villagers?.animate(epochMs, camera)) animated = hitPart(hit, 'lidé');
@@ -1424,4 +1459,9 @@ function wagonPreviewKey(village: SceneVillage, roadId: number): string {
     village.woodLogs ?? 0,
     changes ? [changes.removed.length, changes.stumps.length, (changes.added ?? []).length] : 0,
   ]);
+}
+
+/** Stejná id (pořadí nehraje roli)? */
+function sameIds(list: readonly number[], set: ReadonlySet<number>): boolean {
+  return list.length === set.size && list.every((id) => set.has(id));
 }

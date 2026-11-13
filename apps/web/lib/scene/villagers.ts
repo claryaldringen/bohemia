@@ -7,6 +7,7 @@
 // villager-plan.ts z rozdělení práce dne, pohyb je čistá funkce času (villager-motion.ts).
 import { dogPlansKey, type DogPlan } from './dogs';
 import { FishingLines, fishingLine } from './fishing-lines';
+import type { JourneyYard } from './journey-departure';
 import { isRiding, rideArea, ridePlansKey, type RidePlan } from './riders';
 import type { HuntSpotFn } from './villager-plan-lord';
 import '@babylonjs/core/Meshes/thinInstanceMesh';
@@ -365,6 +366,11 @@ export class VillageVillagers {
   /** Jízdy dne vojvodovy rodiny (riders.ts) – koně jezdců kreslí livestock.ts. */
   rides(): readonly RidePlan[] {
     return this.crew.rides ?? [];
+  }
+
+  /** Místa dvorce pro odjezd a příjezd výjezdu vojvody (journey-departure.ts); bez cvičiště null. */
+  yard(): JourneyYard | null {
+    return this.crew.yard ?? null;
   }
 
   /** Psi dvorce dne (dogs.ts – z plánu postav) – kreslí je livestock.ts. */
@@ -835,7 +841,7 @@ export class VillageVillagers {
    * nezmění); scéně to ohlásí (`onCrew`), jen když se změnili.
    */
   private setCrew(crew: DraftCrew): void {
-    const key = `${JSON.stringify({ teams: crew.teams, carts: crew.carts })}#${ridePlansKey(crew.rides ?? [])}#${dogPlansKey(crew.dogs ?? [])}`;
+    const key = `${JSON.stringify({ teams: crew.teams, carts: crew.carts })}#${ridePlansKey(crew.rides ?? [])}#${dogPlansKey(crew.dogs ?? [])}#${JSON.stringify(crew.yard ?? null)}`;
     if (key === this.crewKey) return;
     this.crewKey = key;
     this.crew = crew;

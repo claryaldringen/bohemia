@@ -114,18 +114,60 @@ export function withLead(plan: RidePlan, gate: Point | null, leg: RideLeg): Ride
     (plan.span[0] - LIVESTOCK_EPOCH_MS) / 1000 + 1e-3,
     createRideState(),
   );
-  const end = { x: start.x, z: start.z };
+  const lead = leadPath(
+    gate,
+    { x: start.x, z: start.z },
+    { x: start.headingX, z: start.headingZ },
+    leg,
+  );
+  return lead ? { ...plan, lead } : plan;
+}
+
+/**
+ * Cesta koně z branky ohrady `gate` k místu `end` u kůlu (po pěšinách `leg`, jinak rovně), u kůlu
+ * čelem `heading`; kratší než 0,5 m – null (kůň stojí u kůlu). Stejná cesta před jízdou dne rodiny
+ * (`withLead`) i při odjezdu a příjezdu výjezdu vojvody (journey-departure.ts).
+ */
+export function leadPath(gate: Point, end: Point, heading: Point, leg: RideLeg): RideLead | null {
   const found = leg(gate, end);
   const points = found && found.length >= 2 ? [gate, ...found.slice(1, -1), end] : [gate, end];
   let length = 0;
   for (let i = 1; i < points.length; i++) {
     length += Math.hypot(points[i]!.x - points[i - 1]!.x, points[i]!.z - points[i - 1]!.z);
   }
-  if (length <= 0.5) return plan;
-  return {
-    ...plan,
-    lead: { points, length, heading: { x: start.headingX, z: start.headingZ } },
-  };
+  return length <= 0.5 ? null : { points, length, heading };
+}
+
+/**
+ * Kůň na cestě z ohrady ke kůlu `d` m od branky (`back` – jde zpět do ohrady): poloha, směr a krok;
+ * na koncích stojí čelem jako u kůlu. Den rodiny (`rideHorsePose`) i výjezd (journey-departure.ts).
+ */
+export function leadPose(
+  lead: RideLead,
+  d: number,
+  back: boolean,
+  out: LivestockPose,
+): LivestockPose {
+  const pts = lead.points;
+  let rest = d;
+  let i = 1;
+  for (; i < pts.length - 1; i++) {
+    const len = Math.hypot(pts[i]!.x - pts[i - 1]!.x, pts[i]!.z - pts[i - 1]!.z);
+    if (rest <= len) break;
+    rest -= len;
+  }
+  const a = pts[i - 1]!;
+  const b = pts[i]!;
+  const len = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+  const f = Math.min(1, rest / len);
+  const walking = d > 0 && d < lead.length;
+  out.x = a.x + (b.x - a.x) * f;
+  out.z = a.z + (b.z - a.z) * f;
+  out.forwardX = walking ? ((b.x - a.x) / len) * (back ? -1 : 1) : lead.heading.x;
+  out.forwardZ = walking ? ((b.z - a.z) / len) * (back ? -1 : 1) : lead.heading.z;
+  out.head = 0;
+  out.stride = walking ? Math.sin((2 * Math.PI * d) / (STRIDE_M.walk * RIDE_HORSE_SCALE)) : 0;
+  return out;
 }
 
 /**
@@ -547,29 +589,8 @@ export function rideHorsePose(
 ): LivestockPose {
   rideState(plan, t, state);
   const led = state.riding ? null : leadAt(plan, t);
-  if (led && plan.lead) {
-    // z ohrady ke kůlu a zpět krokem (u kůlu stojí, kde jízda začne)
-    const pts = plan.lead.points;
-    let rest = led.d;
-    let i = 1;
-    for (; i < pts.length - 1; i++) {
-      const len = Math.hypot(pts[i]!.x - pts[i - 1]!.x, pts[i]!.z - pts[i - 1]!.z);
-      if (rest <= len) break;
-      rest -= len;
-    }
-    const a = pts[i - 1]!;
-    const b = pts[i]!;
-    const len = Math.hypot(b.x - a.x, b.z - a.z) || 1;
-    const f = Math.min(1, rest / len);
-    const walking = led.d > 0 && led.d < plan.lead.length;
-    out.x = a.x + (b.x - a.x) * f;
-    out.z = a.z + (b.z - a.z) * f;
-    out.forwardX = walking ? ((b.x - a.x) / len) * (led.back ? -1 : 1) : plan.lead.heading.x;
-    out.forwardZ = walking ? ((b.z - a.z) / len) * (led.back ? -1 : 1) : plan.lead.heading.z;
-    out.head = 0;
-    out.stride = walking ? Math.sin((2 * Math.PI * led.d) / (STRIDE_M.walk * RIDE_HORSE_SCALE)) : 0;
-    return out;
-  }
+  // z ohrady ke kůlu a zpět krokem (u kůlu stojí, kde jízda začne)
+  if (led && plan.lead) return leadPose(plan.lead, led.d, led.back, out);
   out.x = state.x;
   out.z = state.z;
   out.forwardX = state.headingX;

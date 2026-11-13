@@ -1,5 +1,6 @@
 // Typy, konstanty a kontext plánu postav (rozhraní Context, Placer, House, Box…).
 import type { DogPlan } from './dogs';
+import type { JourneyYard } from './journey-departure';
 import type { RidePlan } from './riders';
 import type { HuntSpotFn } from './villager-plan-lord';
 import { type Craft, type Position, type ShapeFrame } from '@bohemia/game';
@@ -316,6 +317,11 @@ export interface DraftCrew {
   rides?: RidePlan[];
   /** Psi dvorce dne (dogs.ts) – kreslí livestock.ts. Bez údaje dvorec psy nemá. */
   dogs?: DogPlan[];
+  /**
+   * Místa dvorce pro odjezd a příjezd výjezdu vojvody (journey-departure.ts) – kreslí je vojsko
+   * (army-renderer.ts). Bez údaje ves cvičiště nemá.
+   */
+  yard?: JourneyYard;
 }
 
 /** Honák spřežení je výrostek – přednostně člověk nejblíž tomuto věku (oxen.md – honáček). */

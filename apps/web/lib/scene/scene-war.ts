@@ -1,8 +1,9 @@
 import type { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';
 import type { Camera } from '@babylonjs/core/Cameras/camera';
 import type { Scene } from '@babylonjs/core/scene';
-import { surfaceAt, type Landscape } from '@bohemia/game';
+import { surfaceAt, type Landscape, type Pos } from '@bohemia/game';
 import { ArmyRenderer, type SceneWar } from './army-renderer';
+import type { JourneyScenePhase, JourneyYard } from './journey-departure';
 import { JourneyMarker, journeyMarks } from './journey-marker';
 import type { RiderPose, SceneJourney } from './journey-riders';
 import type { Project } from './villager-pick';
@@ -29,6 +30,8 @@ export class SceneWarView {
   private journeys: readonly SceneJourney[] = [];
   /** Praporek cíle a přesýpací hodiny vlastního výjezdu (journey-marker.ts). */
   private marker: JourneyMarker | null = null;
+  /** Místa dvorce pro odjezd a příjezd výjezdu a místo vsi (journey-departure.ts). */
+  private yard: { yard: JourneyYard | null; home: Pos | null } = { yard: null, home: null };
 
   constructor(private readonly deps: WarViewDeps) {}
 
@@ -51,6 +54,7 @@ export class SceneWarView {
     });
     this.marker?.dispose();
     this.marker = new JourneyMarker(this.deps.scene, decalHeight);
+    this.army.setJourneyYard(this.yard.yard, this.yard.home);
     if (this.war) this.army.set(this.war, Date.now(), this.deps.reducedMotion(), null);
     if (this.journeys.length > 0) {
       this.army.setJourneys(this.journeys, Date.now(), this.deps.reducedMotion(), null);
@@ -79,14 +83,40 @@ export class SceneWarView {
     return this.army?.riderHit(x, y, project) ?? null;
   }
 
-  /** Výjezdy ve scéně pro e2e: muži, jak jsou nakreslení, praporek a dny na hodinách. */
+  /**
+   * Místa dvorce pro odjezd a příjezd výjezdu (villager-plan-lord.ts – `journeyYard`) a místo vsi
+   * `home`, odkud jádro skupinu vysílá (journey-departure.ts).
+   */
+  setJourneyYard(yard: JourneyYard | null, home: Pos | null): void {
+    this.yard = { yard, home };
+    this.army?.setJourneyYard(yard, home);
+  }
+
+  /** Koně a muži vsi, kteří odjíždějí nebo přijíždějí – ohrada a den rodiny je nekreslí. */
+  journeyAway(): { horses: number[]; men: number[] } {
+    return this.army?.journeyAway() ?? { horses: [], men: [] };
+  }
+
+  /**
+   * Výjezdy ve scéně pro e2e: muži, jak jsou nakreslení, praporek, dny na hodinách, fáze vlastního
+   * výjezdu (odjíždí, jede, přijíždí), koně bez jezdce mezi ohradou a kůlem a brána dvorce.
+   */
   journeyStats(): {
     riders: readonly RiderPose[];
     banner: { x: number; z: number } | null;
     hourglass: number | null;
+    phase: JourneyScenePhase | null;
+    led: { x: number; z: number }[];
+    gate: { x: number; z: number } | null;
   } {
     const marks = this.marker?.stats() ?? { banner: null, hourglass: null };
-    return { riders: this.army?.journeyRiders() ?? [], ...marks };
+    return {
+      riders: this.army?.journeyRiders() ?? [],
+      ...marks,
+      phase: this.army?.journeyPhase() ?? null,
+      led: (this.army?.journeyLed() ?? []).map((h) => ({ x: h.x, z: h.z })),
+      gate: this.yard.yard ? { ...this.yard.yard.gate } : null,
+    };
   }
 
   /**

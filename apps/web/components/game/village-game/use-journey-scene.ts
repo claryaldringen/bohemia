@@ -48,6 +48,10 @@ export function useJourneyScene({
         })),
         banner: stats.banner,
         hourglass: stats.hourglass,
+        phase: stats.phase,
+        led: stats.led,
+        gate: stats.gate,
+        awayHorses: stats.awayHorses,
       };
     });
     return () => setE2EHook('journeyScene', undefined);

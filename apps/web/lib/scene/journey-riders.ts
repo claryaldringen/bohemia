@@ -9,8 +9,12 @@ import {
   HUDDLE_SPACING_M,
   MARCH_GLIDE_M_S,
   RIDER_LIFT_M,
+  STAND_M_S,
+  TROT_M_S,
+  WALK_M_S,
   glideMs,
   huddleSlots,
+  unit,
   type ArmyAnimal,
   type ArmyFigure,
 } from './army';
@@ -58,19 +62,6 @@ export interface RiderPose {
   wounded: boolean;
   /** Rychlost (m/s) – klip postavy a krok koně; 0 stojí. */
   speed: number;
-}
-
-/** Pod kolik m/s muž stojí (klip na místě). */
-const STAND_M_S = 0.15;
-/** Nad kolik m/s jezdec klusá (army.ts – stejné číslo). */
-const TROT_M_S = 2.6;
-/** Chůze klipu `walk-spear` při tempu 1 (m/s – army.ts). */
-const WALK_M_S = 1.5;
-
-/** Jednotkový vektor (nulový – sever). */
-function unit(x: number, z: number): Pos {
-  const l = Math.hypot(x, z);
-  return l > 1e-6 ? { x: x / l, z: z / l } : { x: 0, z: 1 };
 }
 
 /** Bod hloučku ve světě: střed, směr a místo (vpravo, vpřed) – jako pochod (army.ts). */
@@ -265,13 +256,19 @@ export function headingOf(prev: SceneJourney | null, next: SceneJourney, last: P
   return last ?? { x: 0, z: 1 };
 }
 
-/** Postavy a koně mužů výjezdu – oděv mužů rodu, jezdci s koněm (army.ts – pochod). */
-export function journeyFigures(poses: readonly RiderPose[]): {
+/**
+ * Postavy a koně mužů výjezdu – oděv mužů rodu, jezdci s koněm (army.ts – pochod); `led` – koně bez
+ * jezdce cestou mezi ohradou a kůlem při odjezdu a příjezdu (journey-departure.ts).
+ */
+export function journeyFigures(
+  poses: readonly RiderPose[],
+  led: readonly ArmyAnimal[] = [],
+): {
   figures: ArmyFigure[];
   animals: ArmyAnimal[];
 } {
   const figures: ArmyFigure[] = [];
-  const animals: ArmyAnimal[] = [];
+  const animals: ArmyAnimal[] = [...led];
   for (const p of poses) {
     const id = poseId(p);
     const moving = p.speed > STAND_M_S;
