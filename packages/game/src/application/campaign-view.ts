@@ -74,7 +74,7 @@ export function sightGrid(
 }
 
 /** Mřížka pochodu mapy políčka v den `day` – krajina, překážky a první ves na mapě (`gridOf`). */
-async function mapGrid(
+export async function mapGrid(
   deps: Pick<CampaignViewDeps, 'cells' | 'villages' | 'grids'>,
   cell: GridCell,
   day: number,
