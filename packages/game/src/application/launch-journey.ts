@@ -1,4 +1,3 @@
-import { cloneState } from '../domain/village/core/clone';
 import { currentLord } from '../domain/village/people/dynasty';
 import { villageHorses } from '../domain/village/livestock/horses';
 import { ageYears, isAway, isInjured } from '../domain/village/people/people';
@@ -22,7 +21,12 @@ import type { CampaignCells, CampaignRepository } from './campaigns';
 import type { HouseRepository } from './houses';
 import type { JourneyRepository } from './journeys';
 import { UNNAMED_HOUSE } from './negotiation-chronicle';
-import { findPlayerVillage, type PlayerVillage, type PlayerVillagesDeps } from './player-villages';
+import {
+  editVillage,
+  findPlayerVillage,
+  type PlayerVillage,
+  type PlayerVillagesDeps,
+} from './player-villages';
 import { villagePlace } from './plan-campaign';
 import type { SeedSource } from './settlements';
 import type { VillageRepository } from './villages';
@@ -75,8 +79,6 @@ export interface LaunchJourneyDeps extends JourneyViewDeps {
   /** Je rod hráče ve válce s rodem, kterému patří ves na políčku (`houseAtWarOn`)? */
   atWar: (playerId: string, cell: GridCell) => Promise<boolean>;
 }
-
-const SAVE_ATTEMPTS = 5;
 
 /** Kandidáti vsi ve dni `day` a důvod stavu vsi (vojvoda), proč výjezd nejde; null = jde. */
 function assess(
@@ -186,8 +188,11 @@ export async function launchJourney(
 
   const journeyId = deps.newId();
   const ids = [view.lord!.personId, ...input.retinue];
-  const failed = await edit(deps.villages, own.village.id, (fresh) =>
-    send(fresh, ids, journeyId, input.retinue),
+  const failed = await editVillage<JourneyRefusal>(
+    deps.villages,
+    own.village.id,
+    (fresh) => send(fresh, ids, journeyId, input.retinue),
+    'bad-retinue',
   );
   if (failed !== null) return { ok: false, reason: failed };
 
@@ -314,25 +319,13 @@ async function release(
   villageId: string,
   journeyId: string,
 ): Promise<void> {
-  await edit(villages, villageId, (state) => {
-    for (const p of state.people) if (p.away?.refId === journeyId) delete p.away;
-    return null;
-  });
-}
-
-/** Změní uloženou ves s opakováním při souběžném zápisu; `bad-retinue` = ves se mezitím změnila. */
-async function edit(
-  villages: Pick<VillageRepository, 'find' | 'save'>,
-  villageId: string,
-  change: (state: VillageState) => JourneyRefusal | null,
-): Promise<JourneyRefusal | null> {
-  for (let attempt = 0; attempt < SAVE_ATTEMPTS; attempt++) {
-    const record = await villages.find(villageId);
-    if (!record) return 'bad-retinue';
-    const next = cloneState(record.state);
-    const reason = change(next);
-    if (reason !== null) return reason;
-    if (await villages.save(villageId, next, record.version)) return null;
-  }
-  return 'bad-retinue';
+  await editVillage<JourneyRefusal>(
+    villages,
+    villageId,
+    (state) => {
+      for (const p of state.people) if (p.away?.refId === journeyId) delete p.away;
+      return null;
+    },
+    'bad-retinue',
+  );
 }

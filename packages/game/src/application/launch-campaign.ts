@@ -1,4 +1,3 @@
-import { cloneState } from '../domain/village/core/clone';
 import { villageHappiness } from '../domain/village/people/happiness';
 import { sendAway } from '../domain/vassalage';
 import { isAway } from '../domain/village/people/people';
@@ -17,6 +16,7 @@ import {
 } from './plan-campaign';
 import type { PassageRepository } from './passages';
 import type { SeedSource } from './settlements';
+import { editVillage } from './player-villages';
 import type { VillageRepository } from './villages';
 import type { WarRepository } from './wars';
 
@@ -39,7 +39,6 @@ export type LaunchResult =
   { ok: true; campaignId: string; warId: string } | { ok: false; reason: string };
 
 const CHANGED = 'Ves se mezitím změnila, zkus to znovu.';
-const SAVE_ATTEMPTS = 5;
 
 /**
  * Hráč vyšle tažení: ověří plán (volající drží zámek hráče – web `guardedAction`, ve vsích i worker
@@ -63,8 +62,11 @@ export async function launchCampaign(
   const campaignId = deps.newId();
   const done: PreparedVillage[] = [];
   for (const village of prepared.villages) {
-    const failed = await edit(deps.villages, village.player.village.id, (state) =>
-      send(state, village, campaignId, input.plan),
+    const failed = await editVillage(
+      deps.villages,
+      village.player.village.id,
+      (state) => send(state, village, campaignId, input.plan),
+      CHANGED,
     );
     if (failed !== null) {
       await release(deps.villages, done, campaignId, input.plan);
@@ -177,37 +179,25 @@ async function release(
 ): Promise<void> {
   for (const village of done) {
     const kin = orderedAgainstKin(village);
-    await edit(villages, village.player.village.id, (state) => {
-      for (const p of state.people) if (p.away?.refId === campaignId) delete p.away;
-      if (village.player.village.id === plan.assemblyVillageId) state.storesKg += plan.food;
-      if (kin > 0 && state.happiness) {
-        let left = kin;
-        state.happiness.deaths = state.happiness.deaths.filter((d) => {
-          if (left > 0 && d.points === WAR.army.kinHappinessPoints) {
-            left--;
-            return false;
-          }
-          return true;
-        });
-      }
-      return null;
-    });
+    await editVillage(
+      villages,
+      village.player.village.id,
+      (state) => {
+        for (const p of state.people) if (p.away?.refId === campaignId) delete p.away;
+        if (village.player.village.id === plan.assemblyVillageId) state.storesKg += plan.food;
+        if (kin > 0 && state.happiness) {
+          let left = kin;
+          state.happiness.deaths = state.happiness.deaths.filter((d) => {
+            if (left > 0 && d.points === WAR.army.kinHappinessPoints) {
+              left--;
+              return false;
+            }
+            return true;
+          });
+        }
+        return null;
+      },
+      CHANGED,
+    );
   }
-}
-
-/** Změní uloženou ves s opakováním při souběžném zápisu; text = důvod, proč nejde. */
-async function edit(
-  villages: Pick<VillageRepository, 'find' | 'save'>,
-  villageId: string,
-  change: (state: VillageState) => string | null,
-): Promise<string | null> {
-  for (let attempt = 0; attempt < SAVE_ATTEMPTS; attempt++) {
-    const record = await villages.find(villageId);
-    if (!record) return CHANGED;
-    const next = cloneState(record.state);
-    const reason = change(next);
-    if (reason !== null) return reason;
-    if (await villages.save(villageId, next, record.version)) return null;
-  }
-  return CHANGED;
 }

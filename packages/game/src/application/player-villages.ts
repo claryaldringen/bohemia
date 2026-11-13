@@ -1,3 +1,5 @@
+import { cloneState } from '../domain/village/core/clone';
+import type { VillageState } from '../domain/village/types';
 import type { Settlement, SettlementRepository } from './settlements';
 import type { VillageRecord, VillageRepository } from './villages';
 
@@ -47,4 +49,29 @@ export async function firstPlayerVillage(
     if (village) return { settlement, village };
   }
   return null;
+}
+
+/** Kolikrát se zápis vsi zopakuje při souběžné změně. */
+const SAVE_ATTEMPTS = 5;
+
+/**
+ * Změní uloženou ves s opakováním při souběžném zápisu (vyslání tažení a výjezdu). `change` mutuje
+ * kopii stavu a vrátí důvod, proč to nejde (null = hotovo); chybí-li ves, nebo se zápis nepovede
+ * ani po opakování, vrátí se `changed`.
+ */
+export async function editVillage<R>(
+  villages: Pick<VillageRepository, 'find' | 'save'>,
+  villageId: string,
+  change: (state: VillageState) => R | null,
+  changed: R,
+): Promise<R | null> {
+  for (let attempt = 0; attempt < SAVE_ATTEMPTS; attempt++) {
+    const record = await villages.find(villageId);
+    if (!record) return changed;
+    const next = cloneState(record.state);
+    const reason = change(next);
+    if (reason !== null) return reason;
+    if (await villages.save(villageId, next, record.version)) return null;
+  }
+  return changed;
 }
