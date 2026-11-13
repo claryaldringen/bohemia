@@ -1,7 +1,8 @@
 # Výjezd vojvody – hráč řídí svého muže
 
-Stav: **návrh – čeká na Martinovo schválení** (13. 11. 2026). Zadání a rozhodnutí jsou Martinova
-(citace níž), podrobnosti jsou návrh Clauda. Navazuje na [válku](war.md) (pohyb mapu po mapě, živé
+Stav: **schváleno 13. 11. 2026** (Martin: „Jo, schváleno“) – plán
+`docs/superpowers/plans/2026-11-13-lord-control.md` (kroky 1–3; boj v poli dostane vlastní plán).
+Zadání a rozhodnutí jsou Martinova (citace níž), podrobnosti jsou návrh Clauda. Navazuje na [válku](war.md) (pohyb mapu po mapě, živé
 vedení, mlha války, boj, zajetí a výkupné), [vojvodovu rodinu](lord.md) (den rodiny, nástupnictví),
 [seniorát](seniorate.md) (hráčův muž), [koně](horses.md), [divokou zvěř](wildlife.md) (šelmy)
 a [opevnění](fortifications.md) (brány).
