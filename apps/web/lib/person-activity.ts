@@ -505,3 +505,17 @@ function craftText(t: LaborTarget, village: SceneVillage): string {
   }
   return dwelling?.craft ? CRAFT_WORK[dwelling.craft] : 'pracuje v dílně';
 }
+
+/**
+ * Věta o výjezdu vojvody (lord-control.md – Co hráč vidí): jede „je na cestě“, na místě „čeká (N dny)“
+ * podle zbývajících dnů do návratu, při návratu „vrací se domů“.
+ */
+export function journeyActivity(view: {
+  phase: 'out' | 'returning' | 'done';
+  waitDaysLeft: number | null;
+}): string {
+  if (view.phase === 'returning' || view.phase === 'done') return 'vrací se domů';
+  if (view.waitDaysLeft === null) return 'je na cestě';
+  const days = view.waitDaysLeft;
+  return `čeká (${days} ${days === 1 ? 'den' : days < 5 ? 'dny' : 'dnů'})`;
+}
