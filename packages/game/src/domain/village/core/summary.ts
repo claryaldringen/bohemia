@@ -989,7 +989,7 @@ function ironSummary(
  * Milíř pro panel (crafts.md – Milíř u skácených buků): fáze, buky a průběh fáze 0–1, uhlí ve
  * vypáleném milíři, kde stojí a jak daleko se k němu chodí.
  */
-function kilnSummary(burner: Dwelling, kiln: CharcoalKiln): KilnSummary {
+export function kilnSummary(burner: Dwelling, kiln: CharcoalKiln): KilnSummary {
   const n = kiln.trees.length;
   const total =
     kiln.stage === 'burn' ? CHARCOAL_KILN.burnDays : CHARCOAL_KILN.buildManDaysPerTree * n;

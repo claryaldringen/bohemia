@@ -1,7 +1,13 @@
-import { structureCondition } from '../village/buildings/abandonment';
+import { sacredRuinOvergrowth, structureCondition } from '../village/buildings/abandonment';
 import { churchProgress } from '../village/buildings/church-build';
 import { cloneData } from '../village/core/clone';
-import { buildProgress } from '../village/core/summary';
+import { buildProgress, kilnSummary } from '../village/core/summary';
+import {
+  kilnCharcoalShare,
+  kilnRemnantOvergrowth,
+  workshopKilns,
+} from '../village/crafts/charcoal';
+import { ruinOvergrowth } from '../village/buildings/ruins';
 import { woodFellingCost } from '../village/forest/wood';
 import { fortificationOutline } from '../village/fortification/outline';
 import type { Fortification } from '../village/fortification/types';
@@ -12,6 +18,7 @@ import type {
   Craft,
   DwellingPlot,
   DwellingType,
+  KilnStage,
   PenSpecies,
   PenSquare,
   Position,
@@ -128,6 +135,67 @@ export interface SeenChurch {
   progress: { foundation: number; walls: number; roof: number; decor: number };
 }
 
+/** Humno hotové i rozestavěné (scéna: `SceneVillage.threshingFloors`) – bez slámy a zrna. */
+export interface SeenThreshing {
+  kind: 'threshing';
+  id: number;
+  position: Position;
+  built: boolean;
+  /** Průběh stavby 0–1 (hotové 1). */
+  progress: number;
+  demolition?: number;
+}
+
+/** Milíř uhlíře (scéna: `SceneVillage.kilns`) – fáze, průběh a uhlí, které v něm zbývá. */
+export interface SeenKiln {
+  kind: 'kiln';
+  id: number;
+  /** Dílna uhlíře (id obydlí). */
+  burnerId: number;
+  x: number;
+  z: number;
+  stage: KilnStage;
+  /** Průběh fáze 0–1. */
+  progress: number;
+  /** Vypálený milíř: podíl uhlí, které v něm zbývá, 0–1. */
+  charcoal?: number;
+}
+
+/** Milířiště po rozebraném milíři (scéna: `SceneVillage.kilnRemnants`) – jak zarostlo v den pohledu. */
+export interface SeenKilnRemnant {
+  kind: 'kilnRemnant';
+  id: number;
+  burnerId: number;
+  x: number;
+  z: number;
+  overgrowth: number;
+}
+
+/** Zbytek jámy po zaniklém obydlí (scéna: `SceneVillage.ruins`) – jak zarostl v den pohledu. */
+export interface SeenRuin {
+  kind: 'ruin';
+  id: number;
+  type: DwellingType;
+  position: Position;
+  /** Den zániku obydlí. */
+  since: number;
+  overgrowth: number;
+  plot?: DwellingPlot;
+  craft?: Craft;
+  plainShape?: true;
+  /** Shořelo – ohořelé trosky. */
+  charred?: true;
+}
+
+/** Zbytek padlé modly nebo svatyně (scéna: `SceneSacred.ruins`) – jak zarostl v den pohledu. */
+export interface SeenSacredRuin {
+  kind: 'sacredRuin';
+  id: number;
+  type: SacredBuildingKind;
+  position: Position;
+  overgrowth: number;
+}
+
 /**
  * Stavba na opevnění – pole stavby, která čte scéna (průběh po úsecích a branách,
  * `fortSegmentProgress`); `done` je hotová práce bez kácení dřeva, které jde napřed (dokud se
@@ -147,7 +215,17 @@ export interface SeenFortification {
 
 /** Co scéna potřebuje, aby viděnou stavbu nakreslila. */
 export type SeenData =
-  SeenDwelling | SeenSite | SeenPen | SeenSacred | SeenChurch | SeenFortification;
+  | SeenDwelling
+  | SeenSite
+  | SeenPen
+  | SeenSacred
+  | SeenChurch
+  | SeenFortification
+  | SeenThreshing
+  | SeenKiln
+  | SeenKilnRemnant
+  | SeenRuin
+  | SeenSacredRuin;
 
 /** Co je ve vsi vidět: klíč, místo, body, na které muž dohlédnout musí, a data pro scénu. */
 export interface Sighting {
@@ -353,11 +431,14 @@ function buildSightings(village: VillageState, day: number): Sighting[] {
   const demolitions = new Map<string, number>();
   const penSites = new Map<number, Construction>();
   const fortWorks = new Map<number, SeenFortWork[]>();
+  const floorSites = new Map<number, Construction>();
   for (const c of village.constructions) {
     if (c.kind === 'demolition' && c.demolition) {
       demolitions.set(`${c.demolition.structure}:${c.demolition.id}`, buildProgress(c));
     } else if (c.kind === 'pen' && typeof c.penId === 'number' && !penSites.has(c.penId)) {
       penSites.set(c.penId, c);
+    } else if (c.kind === 'threshing-floor' && !floorSites.has(c.id)) {
+      floorSites.set(c.id, c);
     } else if (c.kind === 'fortification' && c.fortificationId !== undefined) {
       const works = fortWorks.get(c.fortificationId) ?? [];
       works.push(fortWorkOf(c));
@@ -464,6 +545,66 @@ function buildSightings(village: VillageState, day: number): Sighting[] {
       progress: 1,
       ...(condition < 1 ? { condition } : {}),
       ...demolition(b.kind, b.id),
+    });
+  }
+  for (const f of village.threshingFloors ?? []) {
+    const built = f.builtDay !== null;
+    const site = built ? undefined : floorSites.get(f.id);
+    add(`threshing:${f.id}`, [at(f.position)], {
+      kind: 'threshing',
+      id: f.id,
+      position: f.position,
+      built,
+      progress: built ? 1 : site ? buildProgress(site) : 0,
+      ...demolition('threshing-floor', f.id),
+    });
+  }
+  for (const d of village.dwellings) {
+    for (const kiln of workshopKilns(d.workshop)) {
+      if (!kiln.site || kiln.id === undefined) continue;
+      add(`kiln:${kiln.id}`, [at(kiln.site)], {
+        kind: 'kiln',
+        id: kiln.id,
+        burnerId: d.id,
+        x: kiln.site.x,
+        z: kiln.site.z,
+        stage: kiln.stage,
+        progress: kilnSummary(d, kiln).progress,
+        ...(kiln.stage === 'draw' ? { charcoal: kilnCharcoalShare(kiln) } : {}),
+      });
+    }
+  }
+  for (const r of village.kilnRemnants ?? []) {
+    add(`kilnRemnant:${r.id}`, [at(r)], {
+      kind: 'kilnRemnant',
+      id: r.id,
+      burnerId: r.burnerId,
+      x: r.x,
+      z: r.z,
+      overgrowth: kilnRemnantOvergrowth(r, day),
+    });
+  }
+  for (const r of village.ruins ?? []) {
+    add(`ruin:${r.id}`, [at(r.position)], {
+      kind: 'ruin',
+      id: r.id,
+      type: r.type,
+      position: r.position,
+      since: r.day,
+      overgrowth: ruinOvergrowth(r, day),
+      ...(r.plot ? { plot: r.plot } : {}),
+      ...(r.craft ? { craft: r.craft } : {}),
+      ...(r.plainShape ? { plainShape: true as const } : {}),
+      ...(r.charred ? { charred: true as const } : {}),
+    });
+  }
+  for (const r of village.sacredRuins ?? []) {
+    add(`sacredRuin:${r.id}`, [at(r.position)], {
+      kind: 'sacredRuin',
+      id: r.id,
+      type: r.kind,
+      position: r.position,
+      overgrowth: sacredRuinOvergrowth(r, day),
     });
   }
   for (const f of village.fortifications ?? []) {
