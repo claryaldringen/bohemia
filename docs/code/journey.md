@@ -542,10 +542,18 @@ vidí). Znalost ve scéně tažení – Znalost rodu (Tažení ve scéně, Úloh
   **vlastního živého rodu** hráče o mapě (`{ seen }`), `null` = rod mapu nezná (cizí rod, rod bez
   záznamu i hráč bez rodu dostanou totéž, nic se neprozradí); `knownVillagesOf(deps, { playerId })`
   – políčka, o kterých rod něco ví, a rod, který na nich sídlí. `houseId` dostane políčko jen
-  když `seen.villageId` je id vsi sídla současného držitele (`holderAt` + `listActive` + `villages.stampsOf`; id vsi a sídla jsou různá) – poloha
-  vsi, kterou rod neviděl (jen stopa), ani vsi po změně držitele se nevyzradí (world.md – Co je
-  veřejné); jinak `houseId: null` a políčko zůstává ve znalosti (otevře se přes `?known=x,y`).
-  Do `index.ts` exportováno.
+  když rod viděl **aspoň jednu stavbu** vsi současného držitele (`seen.parts` neprázdné
+  a `seen.villageId` je id vsi sídla na políčku; id vsi a sídla jsou různá – návrh Clauda po
+  závěrečné recenzi): stopa přes roh mapy zapíše id vsi i bez jediné viděné stavby
+  (`lookOnMap`), držitel se tím nesmí prozradit, stejně jako ves po změně držitele (world.md – Co
+  je veřejné); jinak `houseId: null` a políčko zůstává ve znalosti (otevře se přes `?known=x,y`).
+  Seznam je **jeden dotaz** úložiště – `KnowledgeRepository.knownCellsOf(houseId)` → `KnownCell`
+  (`seenVillageId`, `seenParts`, `villageIds` sídla na políčku bez archivu, `holderHouseId` živého
+  rodu držitele): adaptér spojí `house_knowledge` (`state->>'villageId'`,
+  `jsonb_array_length(state->'parts')` – celý JSON znalosti do Node nejde) se `settlement` podle
+  `grid_x`, `grid_y`, `village` podle `settlement_id` a `house`; paměťová verze nad sídly, vsemi
+  a rody v paměti (`InMemoryKnowledge.world`). Pravidlo, co se ukáže, je v use-casu. Do
+  `index.ts` exportováno.
 - **Server** (`apps/web/lib/journey.ts` – `knownMapForPlayer`, `knownVillagesForPlayer`; route
   `GET /api/journey`): `?known=x,y` → `{ map, seen }` (krajina políčka z `campaignCells().mapOf`,
   jinak 404 „Tu mapu rod nezná.“), `?known=villages` → `{ known: [{ cell, houseId }] }`.
@@ -564,7 +572,11 @@ vidí). Znalost ve scéně tažení – Znalost rodu (Tažení ve scéně, Úloh
   nezná.“. Má-li rod víc známých map, každý další klik
   otevře další (`nextKnownCell` v `journey-view.ts` – podle souřadnic dokola); naposled otevřenou
   mapu každého rodu drží hra (`useKnownMap` – panel se při otevření mapy zruší). Seznam map
-  (`?known=villages`) se čte při vstupu, po návratu z mapy a po 20 s.
+  (`?known=villages`) se čte **jen pro otevřený panel s oky** (Rod a vazalové, Vojsko –
+  `useKnownMapList` se při otevření panelu přihlásí, `KnownMapActions.register`): při otevření
+  panelu a po návratu ze známé mapy, na známé mapě ani na pozadí ne (dřív každý hráč každých 20 s
+  – závěrečná recenze, Important 5). Dva souběžné požadavky se nesčítají (běžící dotaz další
+  nepustí). Test: `village-game/__tests__/use-known-map.behavior.test.tsx`.
 
 ## Šelmy (Úloha 13 – `domain/war/journey-predators.ts`)
 

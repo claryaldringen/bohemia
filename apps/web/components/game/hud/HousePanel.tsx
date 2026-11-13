@@ -10,7 +10,7 @@ import { NegotiationCard, type NegotiationReply } from './NegotiationCard';
 import { NewcomerWaiting } from './NewcomerPanel';
 import { newcomerWaiting, type NewcomerStatusView } from '@/lib/newcomer-view';
 import { TermsForm, type TermsContext } from './TermsForm';
-import { KnownMapEye } from './KnownMapEye';
+import { KnownMapEye, useKnownMapList } from './KnownMapEye';
 import { Tooltip } from './Tooltip';
 import { DomainFoodRows } from './DomainFood';
 import { HouseLink, Icon, Man, PlayerAction, Portrait, Row } from './house/parts';
@@ -117,6 +117,7 @@ export function HousePanel({
   /** Stáhne žádosti nováčka a začne svobodný. */
   onStartFree?: () => Promise<unknown>;
 }): ReactElement {
+  useKnownMapList();
   const ref = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
   // vybraný cizí hráč (tlačítka akcí) a rozpracovaná nabídka (formulář podmínek)

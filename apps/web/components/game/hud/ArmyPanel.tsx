@@ -11,7 +11,7 @@ import type {
 import { formatDecimal, formatInteger } from '@/lib/village-format';
 import type { CampaignSummary } from '@/lib/campaign-view';
 import { CampaignMap } from './CampaignMap';
-import { KnownMapEye } from './KnownMapEye';
+import { KnownMapEye, useKnownMapList } from './KnownMapEye';
 import { Tooltip } from './Tooltip';
 
 // Panel Vojsko ve dvorci (war.md – Co hráč vidí; Martin 2. 11. 2026: „Tohle by mělo být textové,
@@ -45,6 +45,7 @@ export function ArmyPanel({
   villageId: string;
   onClose: () => void;
 }): ReactElement {
+  useKnownMapList();
   const [targetId, setTargetId] = useState('');
   const [data, setData] = useState<ArmyPanelData | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);

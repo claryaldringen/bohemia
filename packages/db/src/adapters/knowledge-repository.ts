@@ -1,5 +1,10 @@
 import { and, eq, sql } from 'drizzle-orm';
-import { mergeKnowledge, type GridCell, type KnowledgeRepository } from '@bohemia/game';
+import {
+  mergeKnowledge,
+  type GridCell,
+  type KnowledgeRepository,
+  type KnownCell,
+} from '@bohemia/game';
 import type { Database } from '../client';
 import { houseKnowledge } from '../schema';
 
@@ -32,6 +37,42 @@ export function createKnowledgeRepository(db: Database): KnowledgeRepository {
         .where(eq(houseKnowledge.houseId, houseId))
         .orderBy(houseKnowledge.gridX, houseKnowledge.gridY);
       return rows;
+    },
+
+    async knownCellsOf(houseId): Promise<KnownCell[]> {
+      // jeden dotaz (Important 5 závěrečné recenze): ze znalosti jen id vsi a počet staveb, sídlo
+      // na políčku bez archivu (částečný unikátní index `settlement_grid_idx`), jeho vsi a živý rod
+      // držitele – pravidlo, co se z toho ukáže, je v `knownVillagesOf`
+      const result = await db.execute<{
+        x: number;
+        y: number;
+        seenVillageId: string | null;
+        seenParts: number;
+        villageIds: string[];
+        holderHouseId: string | null;
+      }>(sql`
+        SELECT k.grid_x AS x, k.grid_y AS y,
+               k.state->>'villageId' AS "seenVillageId",
+               coalesce(jsonb_array_length(k.state->'parts'), 0) AS "seenParts",
+               coalesce((
+                 SELECT array_agg(v.id::text ORDER BY v.id) FROM village v
+                 WHERE v.settlement_id = s.id
+               ), '{}') AS "villageIds",
+               h.id AS "holderHouseId"
+          FROM house_knowledge k
+          LEFT JOIN settlement s
+            ON s.grid_x = k.grid_x AND s.grid_y = k.grid_y AND s.archived_at IS NULL
+          LEFT JOIN house h
+            ON h.player_id = s.owner_id AND h.kind = 'player' AND h.ended_at IS NULL
+         WHERE k.house_id = ${houseId}
+         ORDER BY k.grid_x, k.grid_y`);
+      return result.rows.map((row) => ({
+        cell: { x: Number(row.x), y: Number(row.y) },
+        seenVillageId: row.seenVillageId,
+        seenParts: Number(row.seenParts),
+        villageIds: row.villageIds,
+        holderHouseId: row.holderHouseId,
+      }));
     },
 
     async merge(houseId, cell, seen): Promise<void> {
