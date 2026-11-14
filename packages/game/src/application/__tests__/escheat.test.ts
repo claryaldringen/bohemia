@@ -11,7 +11,13 @@ import {
   proposeEscheat,
   transferVillages,
 } from '../escheat';
-import { acceptNegotiation, rejectNegotiation } from '../negotiate';
+import {
+  ACCEPTANCE_OUTBOX_LEASE_MS,
+  acceptNegotiation,
+  deliverPendingAcceptances,
+  rejectNegotiation,
+  type AcceptanceDeps,
+} from '../negotiate';
 import { closeDynastyDay, type DynastyDeps } from '../restart-game';
 import { InMemoryDialogs } from './in-memory-dialogs';
 import { InMemoryEscheats } from './in-memory-escheats';
@@ -534,5 +540,53 @@ describe('víra vsi při změně držitele (christianity.md – Vsi rodu)', () =
     expect(
       await Promise.all(w.records.map(async (r) => (await w.villages.find(r.id))?.version)),
     ).toEqual(versions);
+  });
+});
+
+// Schránka účinků jednání (audit A2): věnování se po pádu dokončí krokem workeru právě jednou.
+describe('věnování po pádu (A2)', () => {
+  it('pád uprostřed převodu vazala: krok workeru dohodu nezdvojí a převod dokončí', async () => {
+    const w = await world();
+    await w.close();
+    await w.settlements.acceptTransfers(LORD);
+    const [view] = await escheatDialogs(w.escheatDeps, { playerId: LORD });
+    const [a, b] = view!.villages;
+    await proposeEscheat(w.escheatDeps, {
+      playerId: LORD,
+      escheatId: view!.id,
+      parts: [
+        { toHouseId: w.lord.id, villageIds: [a!.id], vassalIds: [] },
+        { toHouseId: w.giftee.id, villageIds: [b!.id], vassalIds: [w.vassal.id] },
+      ],
+      now: NOW,
+      today: DAY,
+    });
+    const gift = w.negotiations.records.find((n) => n.status === 'open')!;
+    // pád mezi novou dohodou vazala s obdarovaným a koncem staré
+    const end = w.vassalages.end.bind(w.vassalages);
+    let crashes = 1;
+    w.vassalages.end = async (...args: Parameters<typeof end>) => {
+      if (args[1] === 'escheat' && crashes-- > 0) throw new Error('pád');
+      return end(...args);
+    };
+    // paměťové vazalství dvojici samo nezdvojí (databáze ano) – počítají se pokusy o založení
+    const create = w.vassalages.create.bind(w.vassalages);
+    let created = 0;
+    w.vassalages.create = async (input: Parameters<typeof create>[0]) => {
+      if (input.lordHouseId === w.giftee.id && input.vassalHouseId === w.vassal.id) created++;
+      return create(input);
+    };
+    const input = { playerId: GIFTEE, negotiationId: gift.id, now: NOW, today: DAY };
+    await expect(acceptNegotiation(negotiateDeps(w), input)).rejects.toThrow('pád');
+    // krok workeru po prvním odkladu (1 min) – hodiny schránek se posunou
+    w.negotiations.elapse(ACCEPTANCE_OUTBOX_LEASE_MS + 1000);
+    const later = new Date(NOW.getTime() + ACCEPTANCE_OUTBOX_LEASE_MS + 1000);
+    const worker = { ...(negotiateDeps(w) as unknown as AcceptanceDeps), log: () => undefined };
+    expect(await deliverPendingAcceptances(worker, { now: later, today: DAY })).toBe(1);
+    const lordOfVassal = (await w.vassalages.activeOf(w.vassal.id)).map((v) => v.lordHouseId);
+    expect(lordOfVassal).toEqual([w.giftee.id]);
+    expect(created).toBe(1);
+    const owner = (await w.villages.find(b!.id))!.settlementId;
+    expect(w.settlements.settlements.find((s) => s.id === owner)?.ownerId).toBe(GIFTEE);
   });
 });

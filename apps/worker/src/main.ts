@@ -25,6 +25,7 @@ import {
 } from '@bohemia/game';
 import {
   WORKER_LOCK_POOL_SIZE,
+  acceptanceDeps,
   cachedLandscapes,
   computePause,
   createCampaignCells,
@@ -120,6 +121,10 @@ async function main(): Promise<void> {
       prepareVillage: loadDomainVillage,
     },
   };
+
+  // účinky přijatých jednání po pádu webu (audit A2): závislosti skládá `acceptanceDeps` stejně
+  // jako přijetí ve webu; schránku, která vyčerpala pokusy, zapíše do logu
+  const acceptances = { ...acceptanceDeps(gameDeps), log: (message: string) => log.warn(message) };
 
   const loop: LoopDeps = {
     world: currentWorld,
@@ -217,6 +222,7 @@ async function main(): Promise<void> {
             dayOf: dayOfAt,
             doneYear: christianityYear,
           },
+          acceptances,
         },
         input,
       ),

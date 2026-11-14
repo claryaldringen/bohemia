@@ -8,9 +8,12 @@ import { applyInboxDay, type VillageState } from '../../domain/village';
 import { answerLevy, openAnnualDialogs, type LevyDeps } from '../annual-levies';
 import { cedeVillages, checkCede } from '../cede-village';
 import {
+  ACCEPTANCE_OUTBOX_LEASE_MS,
   acceptNegotiation,
   counterNegotiation,
+  deliverPendingAcceptances,
   openNegotiation,
+  type AcceptanceDeps,
   type NegotiateDeps,
 } from '../negotiate';
 import type { DirectoryEntry } from '../world-directory';
@@ -449,5 +452,57 @@ describe('mírové jednání', () => {
         ),
       ).toHaveLength(1);
     });
+  });
+});
+
+// Schránka účinků jednání (audit A2): postoupení se po pádu dokončí krokem workeru.
+describe('postoupení po pádu (A2)', () => {
+  it('pád po převodu vsi před zapnutím správce: krok workeru správce zapne, muže nezdvojí', async () => {
+    const w = await world();
+    const villages = w.villages as InMemoryVillages;
+    const save = villages.save.bind(villages);
+    let crashes = 1;
+    villages.save = async (...args: Parameters<typeof save>) => {
+      if (args[1].steward?.on === true && crashes-- > 0) throw new Error('pád');
+      return save(...args);
+    };
+    await expect(agree(w, 'a', peace({ cede: [w.extraA] }))).rejects.toThrow('pád');
+    expect((await w.settlements.listActive('player-c')).map((s) => s.id)).toContain(w.mapX);
+    expect((await w.villages.find(w.extraA))!.state.steward?.on).not.toBe(true);
+    // krok workeru po prvním odkladu (1 min) – hodiny schránek se posunou
+    (w.deps.negotiations as InMemoryNegotiations).elapse(ACCEPTANCE_OUTBOX_LEASE_MS + 1000);
+    const later = new Date(NOW.getTime() + ACCEPTANCE_OUTBOX_LEASE_MS + 1000);
+    const worker = { ...(w.deps as AcceptanceDeps), log: () => undefined };
+    const delivered = await deliverPendingAcceptances(worker, { now: later, today: DAY_NOW });
+    expect(delivered).toBe(1);
+    expect((await w.villages.find(w.extraA))!.state.steward?.on).toBe(true);
+    const arrivals = villages.inbox.events.filter(
+      (e) => e.villageId === w.villageA && e.body.kind === 'lord-arrives',
+    );
+    expect(arrivals).toHaveLength(1);
+  });
+  it('pád mezi převody dvou map: krok workeru zapne správce i na první mapě (M2)', async () => {
+    const w = await world();
+    const villages = w.villages as InMemoryVillages;
+    const sy = (await w.settlements.create({
+      ownerId: 'player-a',
+      landscapeSeed: 14,
+      layerVersions: CURRENT_LAYER_VERSIONS,
+      worldCell: { x: 1, y: 3 },
+    }))!;
+    const vy = await villages.add(sy.id, 'Kámen', withFamily(sender()));
+    const transfer = w.settlements.transferHolder.bind(w.settlements);
+    let calls = 0;
+    w.settlements.transferHolder = async (...args: Parameters<typeof transfer>) => {
+      if (++calls === 2) throw new Error('pád');
+      return transfer(...args);
+    };
+    await expect(agree(w, 'a', peace({ cede: [w.extraA, vy.id] }))).rejects.toThrow('pád');
+    (w.deps.negotiations as InMemoryNegotiations).elapse(ACCEPTANCE_OUTBOX_LEASE_MS + 1000);
+    const later = new Date(NOW.getTime() + ACCEPTANCE_OUTBOX_LEASE_MS + 1000);
+    const worker = { ...(w.deps as AcceptanceDeps), log: () => undefined };
+    expect(await deliverPendingAcceptances(worker, { now: later, today: DAY_NOW })).toBe(1);
+    expect((await w.villages.find(w.extraA))!.state.steward?.on).toBe(true);
+    expect((await w.villages.find(vy.id))!.state.steward?.on).toBe(true);
   });
 });

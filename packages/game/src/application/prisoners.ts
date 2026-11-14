@@ -87,13 +87,16 @@ async function travelDays(
 /**
  * Provede rozhodnutí o zajatci `held` (zápis rozhodnutí, události do obou vsí). Propuštění:
  * věznitelova ves ho přestane živit hned, domov ho uvidí za `travelDays`. Poprava: domov ho
- * pohřbí jako padlého muže rodu. Vrací false, když už je o zajatci rozhodnuto.
+ * pohřbí jako padlého muže rodu. Vrací false, když už je o zajatci rozhodnuto. `resume` (schránka
+ * jednání po pádu – audit A2): zapsané stejné rozhodnutí neselže, události se dopíšou (jedinečné
+ * `ref` – co už je ve schránce vsi, se nezdvojí).
  */
 async function conclude(
   deps: PrisonerDeps,
   held: HeldPrisoner,
   decision: PrisonerDecision,
   today: number,
+  resume = false,
 ): Promise<PrisonerResult> {
   const { prisoner, captor } = held;
   const home = await deps.villages.find(prisoner.ref.villageId);
@@ -107,14 +110,19 @@ async function conclude(
     decidedDay: today,
     decidedAt: deps.now(),
   });
-  if (!claimed) return { ok: false, reason: PRISONER_REASONS.decided };
+  if (!claimed && (!resume || (await deps.prisoners.find(prisoner.id))?.decision !== decision)) {
+    return { ok: false, reason: PRISONER_REASONS.decided };
+  }
   const personId = prisoner.ref.personId;
-  await deps.villages.inbox.post({
-    villageId: captor.id,
-    day: today,
-    ref: `captive:${prisoner.id}:captor`,
-    body: { kind: 'captive-returns', role: 'captor', prisonerId: prisoner.id, personId },
-  });
+  // událost věznitele jde až poslední (audit A2, M1): dokud není zapsaná, zajatec zůstává ve stavu
+  // věznitele a opakování ho najde; po jejím použití dopočtem by už událost domova nikdo nedopsal
+  const captorEvent = (): Promise<unknown> =>
+    deps.villages.inbox.post({
+      villageId: captor.id,
+      day: today,
+      ref: `captive:${prisoner.id}:captor`,
+      body: { kind: 'captive-returns', role: 'captor', prisonerId: prisoner.id, personId },
+    });
   if (decision === 'executed') {
     await deps.villages.inbox.post({
       villageId: home.id,
@@ -122,6 +130,7 @@ async function conclude(
       ref: `captive:${prisoner.id}:fell`,
       body: { kind: 'line-man-fell', personId, campaignId: prisoner.id },
     });
+    await captorEvent();
     return { ok: true };
   }
   await deps.villages.inbox.post({
@@ -130,6 +139,7 @@ async function conclude(
     ref: `captive:${prisoner.id}:home`,
     body: { kind: 'captive-returns', role: 'home', prisonerId: prisoner.id, personId },
   });
+  await captorEvent();
   return { ok: true };
 }
 
@@ -224,21 +234,29 @@ export function ransomHooks(deps: RansomDeps): RansomHooks {
       // dopočet vsi plátce může trvat – běží ještě bez zámků
       await deps.prepareVillage(from, input.today);
       return runUnderLocks(deps.locks, [captorPlayer, payerPlayer], async () => {
-        const held = await holdAll(deps, captorPlayer, input.line.prisonerIds);
-        if (!held || !(await releasable(deps, held))) return 'Tohle zajetí už neplatí.';
+        const refId = `ransom:${input.negotiationId}`;
+        // opakování po pádu (schránka jednání – audit A2): výkupné už odešlo celé – neplatí se
+        // znovu, jen se dokončí propuštění zajatců, které ves věznitele ještě vede
+        const paid = (await deps.shipments.shipments.findByRef(refId))?.postedAt != null;
+        const held = paid
+          ? (await heldPrisoners(deps, captorPlayer)).filter((h) =>
+              input.line.prisonerIds.includes(h.prisoner.id),
+            )
+          : await holdAll(deps, captorPlayer, input.line.prisonerIds);
+        if (!held || (!paid && !(await releasable(deps, held)))) return 'Tohle zajetí už neplatí.';
         const sent = await sendShipmentLocked(deps.shipments, {
           fromVillageId: from,
           toVillageId: to,
           bundle: input.line.price,
           purpose: 'ransom',
-          refId: `ransom:${input.negotiationId}`,
+          refId,
           today: input.today,
         });
         if (!sent.ok) return sent.reason;
         // po ověření výš a pod zámkem věznitele zápis selhat nemá; kdyby přesto, volající se to dozví
         let failed: string | null = null;
         for (const h of held) {
-          const done = await conclude(deps, h, 'ransomed', input.today);
+          const done = await conclude(deps, h, 'ransomed', input.today, paid);
           if (!done.ok) failed ??= done.reason;
         }
         return failed;
@@ -251,8 +269,9 @@ export function ransomHooks(deps: RansomDeps): RansomHooks {
         const held = (await heldPrisoners(deps, player)).filter((h) =>
           input.prisonerIds.includes(h.prisoner.id),
         );
+        // opakování po pádu dopíše události už propuštěných (`resume`); jinak rozhodnutí nezdvojí
         await deps.locks.run(player, async () => {
-          for (const h of held) await conclude(deps, h, 'released', input.today);
+          for (const h of held) await conclude(deps, h, 'released', input.today, true);
         });
       }
     },

@@ -30,8 +30,20 @@ vstupní bod (composition root) jako web – žádná herní logika, jen plánov
   domény po žních `sendDomainFood` – `vassalage.md`, Jídlo domény – krok světa; člen `domainFood`
   skládá `main.ts`: `loadVillage` s dopočtem do dneška a uložením, `gameDeps.domainFood`, mapa
   pokusů `attempts` drží proces; návrat uprchlíků za správce a NPC rody `returnStewardRefugees` –
-  člen `refugees`, `war.md` – Varování: návrat) nejvýš jednou za minutu (`WORLD_TASKS_MS`, podle
-  hodin `deps.now`); jejich chyba kolo nezastaví.
+  člen `refugees`, `war.md` – Varování: návrat; nakonec účinky přijatých jednání, po kterých web
+  spadl – člen `acceptances` (`acceptanceDeps` z `packages/server` jako přijetí ve webu: pomoc,
+  dar odúmrti, výkupné, postoupení, dialogy; `log` pro vyčerpané schránky),
+  `deliverPendingAcceptances`, `vassalage.md` – Přijetí jednání a schránka účinků) nejvýš jednou
+  za minutu (`WORLD_TASKS_MS`, podle hodin `deps.now`); jejich chyba kolo nezastaví. Schránky mají
+  v `runWorldTasks` vlastní `try/catch`: chyba dřívější úlohy jejich doručení nezastaví a naopak,
+  první chyba se vyhodí až na konci; dřívější úlohy dál jdou za sebou (na pořadí závisí).
+- **Schránka účinků přijetí – čísla (návrh Clauda, `negotiate.ts`):** nájem
+  `ACCEPTANCE_OUTBOX_LEASE_MS` = 60 s (web ho drží od zápisu, adaptér ho během účinků obnovuje
+  každých 20 s; po pádu webu vezme schránku worker za 60–120 s); odklad po výjimce
+  `acceptanceOutboxRetryMs` = 1, 2, 4… min, nejvýš 1 h; po `ACCEPTANCE_OUTBOX_MAX_ATTEMPTS` = 10
+  výjimkách (≈ 4 h) se schránka nebere, zůstane v `negotiation_outbox` (`attempts`, `last_error`)
+  pro ruční zásah a do logu jde varování „schránka účinků jednání …: 10. pokus selhal“; nejvýš 50
+  schránek za krok, napřed s nejméně pokusy.
 - `src/campaign-loop.ts` – `runCampaignLoop(deps, { campaignMs }, signal)`: **smyčka tažení**
   vedle smyčky vsí (`main.ts` je pouští spolu přes `Promise.all`, signál ukončí obě). Kolo
   `stepCampaigns` (`docs/code/war.md` – Tažení po taktech) každých `campaignMs` od začátku kola;

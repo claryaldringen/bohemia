@@ -516,27 +516,35 @@ async function playerOf(
 
 /**
  * Vazal přejde od `fromHouseId` na `toHouseId` se stejnými podmínkami (původ `escheat`)
- * a pohledávky dosavadního pána vůči němu jdou s ním. Idempotentní (stará dohoda už skončila → nic).
+ * a pohledávky dosavadního pána vůči němu jdou s ním. Idempotentní i po pádu uprostřed (schránka
+ * jednání ho zopakuje – audit A2): stará dohoda už skončila → nic; nová už stojí → nezakládá se
+ * znovu; stará dohoda končí až poslední, takže opakování vždy najde, co zbývá.
  */
 async function moveVassal(
   deps: Pick<EscheatDeps, 'vassalages' | 'loans' | 'dialogs'>,
   input: { fromHouseId: string; toHouseId: string; vassalId: string; now: Date; today: number },
 ): Promise<void> {
-  const old = (await deps.vassalages.activeOf(input.vassalId)).find(
+  const active = await deps.vassalages.activeOf(input.vassalId);
+  const old = active.find(
     (v) => v.lordHouseId === input.fromHouseId && v.vassalHouseId === input.vassalId,
   );
   if (!old || input.fromHouseId === input.toHouseId) return;
-  await deps.vassalages.create({
-    lordHouseId: input.toHouseId,
-    vassalHouseId: input.vassalId,
-    terms: old.terms,
-    origin: 'escheat',
-    sinceAt: input.now,
-    sinceDay: input.today,
-  });
+  const moved = active.some(
+    (v) => v.lordHouseId === input.toHouseId && v.vassalHouseId === input.vassalId,
+  );
+  if (!moved) {
+    await deps.vassalages.create({
+      lordHouseId: input.toHouseId,
+      vassalHouseId: input.vassalId,
+      terms: old.terms,
+      origin: 'escheat',
+      sinceAt: input.now,
+      sinceDay: input.today,
+    });
+  }
   await deps.loans.moveCredits(input.fromHouseId, input.vassalId, input.toHouseId);
-  await deps.vassalages.end(old.id, 'escheat', input.now);
   await deps.dialogs.dropFor(old.id);
+  await deps.vassalages.end(old.id, 'escheat', input.now);
 }
 
 /**

@@ -16,7 +16,7 @@ export interface NegotiationVillages {
 /** Jméno hlavy rodu (vlastní ves rodu = `lord.villageId`). */
 export async function houseName(
   deps: { villages: Pick<VillageRepository, 'find'> },
-  house: House,
+  house: Pick<House, 'lord'>,
 ): Promise<string> {
   if (!house.lord) return UNNAMED_HOUSE;
   const village = await deps.villages.find(house.lord.villageId);
@@ -30,7 +30,7 @@ export async function houseName(
  */
 export async function noticeHouse(
   tx: NegotiationTx,
-  to: House,
+  to: Pick<House, 'playerId'>,
   kind: PlayerNoticeKind,
   payload: Record<string, unknown>,
   day: number,
@@ -47,7 +47,7 @@ export async function noticeHouse(
  */
 export async function chronicleHouses(
   deps: NegotiationVillages,
-  houses: readonly House[],
+  houses: readonly Pick<House, 'lord'>[],
   ref: string,
   event: ChronicleEvent,
 ): Promise<void> {

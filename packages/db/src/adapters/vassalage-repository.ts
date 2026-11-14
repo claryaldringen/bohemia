@@ -38,9 +38,22 @@ export function createVassalageRepository(db: Executor): VassalageRepository {
       return rows.map(toVassalage);
     },
     async create(input): Promise<Vassalage> {
-      const [row] = await db.insert(vassalage).values(input).returning();
-      if (!row) throw new Error('Vazalství se nepodařilo založit.');
-      return toVassalage(row);
+      // živá dohoda dvojice je nejvýš jedna (částečný unikátní index, audit A2, M3): při konfliktu
+      // se vrátí ta, která už existuje
+      const [row] = await db.insert(vassalage).values(input).onConflictDoNothing().returning();
+      if (row) return toVassalage(row);
+      const [existing] = await db
+        .select()
+        .from(vassalage)
+        .where(
+          and(
+            alive,
+            eq(vassalage.lordHouseId, input.lordHouseId),
+            eq(vassalage.vassalHouseId, input.vassalHouseId),
+          ),
+        );
+      if (!existing) throw new Error('Vazalství se nepodařilo založit.');
+      return toVassalage(existing);
     },
     async end(id, reason, at): Promise<boolean> {
       const rows = await db

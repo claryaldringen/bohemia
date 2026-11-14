@@ -51,6 +51,33 @@ export const negotiation = pgTable(
   ],
 );
 
+/**
+ * Schránka účinků přijatého jednání (audit A2, `acceptance-outbox.ts`): co se po transakci přijetí
+ * provede (pomoc, výkupné, mír, dialogy obchodu, kronika). Zapíše se v transakci přijetí, smaže se
+ * po provedení; spadne-li web mezi tím, dokončí ji worker. Jedna na jednání. Kdo ji provádí, drží
+ * **nájem** (`claim`, `next_at`) – převzetí je krátký `UPDATE`, během účinků se nedrží žádné
+ * spojení; výjimka se započítá do `attempts` a odloží `next_at`.
+ */
+export const negotiationOutbox = pgTable('negotiation_outbox', {
+  negotiationId: uuid('negotiation_id')
+    .primaryKey()
+    .references(() => negotiation.id, { onDelete: 'cascade' }),
+  /** Uložený tvar `Accepted` s verzí `v`. */
+  effects: jsonb('effects').$type<unknown>().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  /**
+   * Nejdřív kdy ji smí převzít jiný proces (hodiny databáze): konec nájmu toho, kdo ji provádí
+   * (od zápisu ji drží web), nebo konec odkladu po výjimce.
+   */
+  nextAt: timestamp('next_at', { withTimezone: true }).notNull().defaultNow(),
+  /** Nájem toho, kdo ji právě provádí (null – nikdo). */
+  claim: uuid('claim'),
+  /** Kolik pokusů skončilo výjimkou; od `ACCEPTANCE_OUTBOX_MAX_ATTEMPTS` čeká na ruční zásah. */
+  attempts: integer('attempts').notNull().default(0),
+  /** Poslední výjimka – pro ruční zásah. */
+  lastError: text('last_error'),
+});
+
 /** Kolo jednání (podmínky jedné strany + vzkaz); `seq` = pořadí od 1. */
 export const negotiationRound = pgTable(
   'negotiation_round',

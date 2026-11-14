@@ -7,7 +7,7 @@ import type {
   PeaceTribute,
 } from '../negotiations';
 import { peaceTributeOf } from '../negotiations';
-import type { NoticeTx, VassalageTx } from '../negotiations';
+import type { DueOutbox, NoticeTx, OutboxClaim, OutboxPolicy, VassalageTx } from '../negotiations';
 import type { LoanTx } from '../loans';
 import { InMemoryLoans } from './in-memory-loans';
 import { InMemoryStewardships } from './in-memory-stewardships';
@@ -17,6 +17,18 @@ import type { WarTx } from '../wars';
 import type { NegotiationRound } from '../../domain/negotiation';
 import type { PlacementTx } from '../newcomers';
 import { InMemoryPlacement } from './in-memory-placement';
+import type { Accepted } from '../acceptance-outbox';
+
+/** Schránka účinků v paměti – jako řádek `negotiation_outbox`. */
+interface InMemoryOutbox {
+  effects: string;
+  at: Date;
+  /** Nejdřív kdy ji smí převzít další proces (ms podle hodin repozitáře): konec nájmu nebo odkladu. */
+  nextAt: number;
+  claim: string | null;
+  attempts: number;
+  lastError: string | null;
+}
 
 /**
  * Repozitář jednání v paměti. Transakce běží sériově (jedna po druhé, jako zámek řádku), verze
@@ -28,6 +40,18 @@ export class InMemoryNegotiations implements NegotiationRepository {
   private readonly rejects = new Map<string, Date>();
   private nextId = 1;
   private tail: Promise<unknown> = Promise.resolve();
+  /** Schránky účinků přijetí – obsah jako JSON (jako v databázi), nájem, odklad a pokusy. */
+  private readonly outboxes = new Map<string, InMemoryOutbox>();
+  /**
+   * Schránky, které právě někdo provádí – jejich nájem se obnovuje (jako v databázi), takže je
+   * nikdo jiný nevezme ani po posunu hodin.
+   */
+  private readonly running = new Set<string>();
+  private nextClaim = 1;
+  /** Posun hodin schránek proti `clock` (`elapse`). */
+  private elapsedMs = 0;
+  /** Test: příští smazání schránky selže (pád po účincích, před smazáním). */
+  failNextOutboxDelete = false;
 
   constructor(
     private readonly vassalages: VassalageTx,
@@ -57,6 +81,71 @@ export class InMemoryNegotiations implements NegotiationRepository {
     return this.records
       .filter((r) => r.status === 'open')
       .map((r) => ({ ...r, rounds: [...r.rounds] }));
+  }
+
+  /** Test: posune hodiny schránek (nájem, odklad) o `ms` – krok workeru po lhůtě. */
+  elapse(ms: number): void {
+    this.elapsedMs += ms;
+  }
+
+  /** Hodiny schránek (ms) – jako hodiny databáze. */
+  private outboxNow(): number {
+    return this.clock().getTime() + this.elapsedMs;
+  }
+
+  /** Test: id všech schránek v úložišti (i odložených a vyčerpaných). */
+  outboxIds(): string[] {
+    return [...this.outboxes.keys()];
+  }
+
+  /** Test: stav schránky (pokusy, poslední chyba, odklad). */
+  outbox(negotiationId: string): Readonly<InMemoryOutbox> | undefined {
+    return this.outboxes.get(negotiationId);
+  }
+
+  async pendingOutboxes(limit: number, maxAttempts: number): Promise<DueOutbox[]> {
+    await Promise.resolve();
+    const now = this.outboxNow();
+    return [...this.outboxes.entries()]
+      .filter(([id, o]) => !this.running.has(id) && o.nextAt <= now && o.attempts < maxAttempts)
+      .sort(([, a], [, b]) => a.attempts - b.attempts || a.nextAt - b.nextAt)
+      .slice(0, limit)
+      .map(([negotiationId, o]) => ({ negotiationId, attempts: o.attempts }));
+  }
+
+  async withOutbox<T>(
+    negotiationId: string,
+    fn: (effects: Accepted) => Promise<T>,
+    policy: OutboxPolicy,
+    claim?: OutboxClaim,
+  ): Promise<{ value: T } | null> {
+    // převzetí je atomické – mezi kontrolou a zápisem nájmu se nečeká
+    const outbox = this.outboxes.get(negotiationId);
+    if (!outbox || this.running.has(negotiationId)) return null;
+    const own = claim !== undefined && outbox.claim === claim;
+    if (!own && outbox.nextAt > this.outboxNow()) return null;
+    const token = `najem-${this.nextClaim++}`;
+    outbox.claim = token;
+    this.running.add(negotiationId);
+    try {
+      const value = await fn(JSON.parse(outbox.effects) as Accepted);
+      if (this.failNextOutboxDelete) {
+        this.failNextOutboxDelete = false;
+        throw new Error('pád před smazáním schránky');
+      }
+      this.outboxes.delete(negotiationId);
+      return { value };
+    } catch (error) {
+      if (outbox.claim === token) {
+        outbox.attempts++;
+        outbox.lastError = error instanceof Error ? error.message : String(error);
+        outbox.claim = null;
+        outbox.nextAt = this.outboxNow() + policy.retryMs(outbox.attempts);
+      }
+      throw error;
+    } finally {
+      this.running.delete(negotiationId);
+    }
   }
 
   transaction<T>(fn: (tx: NegotiationTx) => Promise<T>): Promise<T> {
@@ -142,6 +231,18 @@ export class InMemoryNegotiations implements NegotiationRepository {
       stewardships: this.stewardships,
       wars: this.wars,
       placement: this.placement,
+      putOutbox: async (negotiationId: string, effects: Accepted, at: Date, leaseMs: number) => {
+        const claim = `najem-${this.nextClaim++}`;
+        this.outboxes.set(negotiationId, {
+          effects: JSON.stringify(effects),
+          at,
+          nextAt: this.outboxNow() + leaseMs,
+          claim,
+          attempts: 0,
+          lastError: null,
+        });
+        return claim;
+      },
     };
   }
 }

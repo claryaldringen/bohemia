@@ -5,3 +5,4 @@ export * from './player-today';
 export * from './village-cache';
 export * from './world';
 export * from './campaign-cells';
+export * from './acceptances';

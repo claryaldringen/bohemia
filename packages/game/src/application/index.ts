@@ -5,6 +5,7 @@ export * from './house-panel';
 export * from './notices';
 export * from './negotiations';
 export * from './negotiate';
+export * from './acceptance-outbox';
 export * from './negotiation-expiry';
 export * from './newcomers';
 export * from './negotiation-effects';

@@ -29,6 +29,10 @@ export class InMemoryLoans implements LoanRepository {
     return true;
   }
 
+  async ofNegotiation(negotiationId: string): Promise<Loan | null> {
+    return this.loans.find((l) => l.negotiationId === negotiationId) ?? null;
+  }
+
   async byId(id: string): Promise<Loan | null> {
     return this.loans.find((l) => l.id === id) ?? null;
   }
