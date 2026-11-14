@@ -507,18 +507,45 @@ porážce. Nový den přepíše starý. `laborDay` z něj dělá `LaborDay.slaug
 ## Kůže, kožešiny, med a vosk (`wares/`)
 
 Návrh: `docs/design/hides-honey.md`. Stav `VillageState.wares?: WaresState` (`types/types-wares.ts`:
-`hides`, `sheepFurs`, `wildFurs`, `honeyKg`, `waxKg`, kusy zlomkové jako stáda) vzniká líně
-(`ensureWares`, `wares/wares.ts`), chybějící hodnota je 0, převod není potřeba. Jmenuje se `wares`,
-ne `goods` – převod `foreign-goods` (`withoutForeignGoods`) maže `goods`.
+`hides`, `smallHides?`, `sheepFurs`, `wildFurs`, `honeyKg`, `waxKg`, kusy zlomkové jako stáda;
+`need?`, `curing?`, `today?` – zpracování níž) vzniká líně (`ensureWares`, `wares/wares.ts`),
+chybějící hodnota je 0, převod není potřeba. Jmenuje se `wares`, ne `goods` – převod
+`foreign-goods` (`withoutForeignGoods`) maže `goods`.
 
-- Přírůstky: `addHides`, `addWildFurs`, `addSlaughterWares(state, species, heads)` (ovce dá
-  `sheepFurs`, koza, prase a kráva `hides`). Nulový přírůstek stav nezakládá.
+- Přírůstky: `addHides` (kůže skotu a jelení), `addSmallHides` (kozí, prasečí a divočákovy),
+  `addWildFurs`, `addSlaughterWares(state, species, heads)` (ovce dá `sheepFurs`, kráva `hides`,
+  koza a prase `smallHides`). Nulový přírůstek stav nezakládá.
 - Napojení: `noteSlaughtered` (`livestock.ts`, tedy i nouzová porážka) volá `addSlaughterWares`,
   `retireOxen` (`oxen.ts`) `addHides(oxen)` – koně kůži nedávají; `huntDay` (`wildlife/hunt.ts`)
-  `addHides(boar + deer)` (vlk a medvěd kůži nedávají), `patrolHuntDay` (`field-patrol.ts`)
-  `addHides(kills)`.
+  `addHides(deer)` a `addSmallHides(boar)` (vlk a medvěd kůži nedávají), `patrolHuntDay`
+  (`field-patrol.ts`) `addSmallHides(kills)`.
 - Klát: `HIVES` (`rules/rules-wares.ts`) – 6 kg medu a 0,4 kg vosku za rok na obydlí, přibývá
   1. 5.–30. 9. (`beesFlying`, `seasonDays` = 153); `hivesDay` (`wares/hives.ts`) přidá denně
      `dwellings.length × roční ÷ seasonDays`. Bez obydlí `wares` nevznikne.
 - Pořadí dne: `storesAndHerdsDay` (`core/simulate.ts`) volá `waresDay(state, day, landscape)` hned za
-  `husbandryDay`; zatím dělá jen `hivesDay`.
+  `husbandryDay` (porážka 1. 11. i zimní už proběhla): `finishCuring`, `hivesDay` a `setWaresNeed`.
+  Práce je až ve `freeLaborDay` (`core/simulate-work-apply.ts`) – `waresWorkDay`
+  (`wares/wares-work.ts`) ze zbytku `freeLabor − weedMen − extraMow`, i v hladu; ryby a oka
+  (`smallGameDay`) jen z toho, co po ní zbude.
+
+### Zpracování v domácnosti (`wares/hides.ts`)
+
+Návrh: hides-honey.md – Zpracování v domácnosti. Čísla `HIDES` (`rules/rules-wares.ts`), hodiny na
+člověkoden `SMALL_GAME.hoursPerManDay`.
+
+- Jednotky: kůže v kůžích skotu – kozí a prasečí přepočtem plochou (`smallHideM2 / hideM2`),
+  kožešiny v kusech (`HidesFurs`).
+- `yearlyNeed(state, day)` – obuv `lidé ÷ 6`, řemení `householdCount ÷ 3`, postroje
+  `(trainedOxen ÷ OXEN.teamSize + dospělí koně) ÷ 5` kůží skotu; kožichy 0,7 na dospělého
+  a 0,35 na dítě (`ageGroup` `child`), čepice a rukavice 0,2 na člověka.
+- `setWaresNeed(state, day)` – v den `SLAUGHTER_DAY` (1. 11.) přepíše `need` roční potřebou;
+  nedodělek loňska propadá. Nedostatek nemá následky.
+- `processHidesDay(state, day, labor)` – listopad–březen (`curingSeason`): vezme do práce nejvýš
+  `openNeed` (potřeba bez várek v `curing`), zásobu a hodiny; napřed kůže skotu (10 h), pak kozí
+  a prasečí (4 h), pak ovčí kožešiny (3 h) a z lovu (1,5 h) jen do zbytku potřeby. Vzaté ubyde ze
+  zásoby a jde do várky `{ doneDay: day + cureDays, hides, furs }`, `today` zapíše dnešní díl
+  (rámy ve scéně). Vrací spotřebované člověkodny.
+- `finishCuring(state, day)` – várky s `doneDay ≤ day` ubere z `need` a smaže (prázdné `curing`
+  zmizí); hotový výrobek domácnosti hned spotřebují, zásobu nemá.
+- Rozdělení práce: `CommonWork.wares` → `DayWork.wares` (`labor-report.ts`, `commonShares`) –
+  domácí práce `'domestic'` u vsi, ne nevyužitá.

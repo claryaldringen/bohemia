@@ -95,8 +95,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   v `menWeed`, `work()` ho dá ze zbytku po stavbách, opravách a údržbě opevnění; `DayWork.weedMen` –
   fields.md, Osevní postup po dílech, bod 3; Martin 9. 11. 2026: „pletí obstarají ženy a děti“);
   ostatní polní práce všech dílů je úlohou dne před stavbami → **seč
-  navíc** pro růst stád (oxen.md – Seno, dvě seče; `extraMow`) → **ryby a oka vesničanů**
-  (`smallGameDay`, W7 – jen když ves chce bílkoviny; při hladu už před stavbami) → zbytek propadne. Volná práce
+  navíc** pro růst stád (oxen.md – Seno, dvě seče; `extraMow`) → **kůže a kožešiny domácností**
+  (`waresWorkDay`, hides-honey.md – Zpracování v domácnosti; listopad–březen, i v hladu) → **ryby
+  a oka vesničanů** (`smallGameDay`, W7 – ryby jen když ves chce bílkoviny, oka v zimě kdykoli; při
+  hladu už před stavbami) → zbytek propadne. Volná práce
   v liště a zápis na seč (`recordMowingLabor` z `mowWork + allocation.common`) počítají práci
   pletí mužů jako volnou – strop stád nezmenší. **Seč nutného sena** je úloha dne `mow` ve skupině
   za žní obilí a trháním lnu, před jablky, pletím, přípravou půdy a výmlatem (fields.md – Pořadí

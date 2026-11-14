@@ -73,6 +73,15 @@ Nové zboží vsi. Martin 14. 11. 2026:
 - Na vlastní spotřebu bere napřed ovčí kožešiny a kůže ze stáda, kožešiny z lovu jen když ovčí
   nestačí; zbytek je přebytek k prodeji.
 - Nedostatek zatím nemá následky.
+- Podrobnosti (návrh Clauda při implementaci 14. 11. 2026):
+  - Roční potřeba se nastaví 1. 11. (porážka); co se loni nestihlo, propadá. Zpracovává se od
+    listopadu do března ze zbytku práce vsi po stavbách (i v hladu), oka a ryby až po něm.
+  - Potřeba kůží je v kůžích skotu, kozí a prasečí se přepočtou plochou u obuvi, řemení
+    i postrojů; napřed se berou kůže skotu (méně práce na plochu), pak kozí a prasečí. Jelení
+    kůže se zpracuje jako kůže skotu, divočákova jako prasečí.
+  - Napřed kůže, pak kožešiny; kožešina z lovu kryje potřebu kus za kus. Postroje počítají páry
+    vycvičených volů a koně od 3 let.
+  - Várka v práci se do potřeby počítá hned, potřebu ubere až hotová (po 10 dnech).
 - Specializovaní řemeslníci (koželuh, kožešník) později.
 
 ## Obchod

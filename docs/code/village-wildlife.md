@@ -190,7 +190,9 @@ Návrh: wildlife.md – Drobná zvěř a ryby, Rozhodnutí při implementaci W7.
 
 - `smallGameDay(state, day, labor, urgent)` – volá ho `work()` (simulate-work.ts): při hladu
   (`state.hungry`) hned po kládách a vodě, před stavbami (z `common`); jinak až z
-  `freeLabor − weedMen − extraMow`, tedy ze zbytku po pletí mužů a seči navíc.
+  `freeLabor − weedMen − extraMow − waresWorkDay`, tedy ze zbytku po pletí mužů, seči navíc
+  a zpracování kůží a kožešin v domácnosti (`freeLaborDay`; village-livestock.md – Zpracování
+  v domácnosti) – oka a ryby přijdou zkrátka, jen když zbytku je málo.
   Chytá se, jen když `smallGameCapacity` > 0 (sezóna, zásoba nad ½ stropu, zbývá roční kvóta) a
   u ryb ještě ves `wantsProtein` (nebo hladoví); oka v prosinci–březnu bez podmínky (Martin 14. 11. 2026).
   Oka chytají zajíce i lišky ze stejných hodin (`SMALL_GAME.snares.perHour`, `foxPerHour`), každý

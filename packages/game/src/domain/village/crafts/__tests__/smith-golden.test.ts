@@ -150,7 +150,8 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
       // ruce pro výmlat dne (production-chains.md – Humno, Výhled jídla; 2. 11. 2026) – podle nich
       // výhled výmlatu do konce okna
       'threshHands',
-      // zboží vsi – kůže, kožešiny, med a vosk (hides-honey.md): jen přírůstky, simulaci nemění
+      // zboží vsi – kůže, kožešiny, med a vosk (hides-honey.md): zásoby, potřeba a várky; práci
+      // na zpracování kůží hlídá zbytek otisku (oka a ryby z toho, co po ní zbude)
       'wares',
     ]);
     // trvalé stavy z upozornění do kroniky (absence.md, 9. 11. 2026) – jen zápis, simulaci nemění
@@ -186,6 +187,9 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
     // hash 971d2cb8 (10. 11. 2026, zima bez sena – diet.md a oxen.md, Zima bez sena): seč srpem
     // (menší seno z volné práce `mowCapacityKg`, dražší vůl `oxCost`), stádo žere jen ve sněhu
     // (`herdNeedKg`); stáda, lidé a zásoby beze změny; dřív d0039846
-    expect(hash(stripped)).toBe('971d2cb8');
+    // hash d068311f (14. 11. 2026, kůže a kožešiny – hides-honey.md, Zpracování v domácnosti):
+    // domácnosti v zimě zpracují kůže a kožešiny ze zbytku práce napřed, ryby a oka dostanou
+    // jen to, co zbude – jiný úlovek a jídlo; dřív 971d2cb8
+    expect(hash(stripped)).toBe('d068311f');
   }, 120_000);
 });

@@ -2,6 +2,7 @@
 // provedení, kovárny a pasení, společná práce (klády, stavby, opravy, pletí mužů, seč navíc,
 // drobná zvěř), dílny a jízdy vozů ke kovářům.
 import { smallGameDay, type SmallGameResult } from '../wildlife/small-game';
+import { waresWorkDay } from '../wares/wares-work';
 import { carpentryHelp, workCarpenters } from '../crafts/carpentry';
 import {
   addHaulTrips,
@@ -96,6 +97,8 @@ export interface CommonWork {
   readonly repairs: { dwellingId: number; manDays: number }[];
   readonly weedMen: number;
   readonly extraMow: number;
+  /** Zpracování kůží a kožešin v domácnosti ze zbytku práce (`waresWorkDay`; člověkodny). */
+  readonly wares: number;
   readonly game: SmallGameResult;
 }
 
@@ -373,7 +376,7 @@ function buildDay(
   common: number,
   fellingBefore: Map<Construction, { remaining: number; road: number }>,
   stone: StoneCarts,
-): Omit<CommonWork, 'weedMen' | 'extraMow' | 'game'> & { freeLabor: number } {
+): Omit<CommonWork, 'weedMen' | 'extraMow' | 'wares' | 'game'> & { freeLabor: number } {
   const { state, day, coverage, landscape, daylight, demand } = ctx;
   const { access } = carts;
   const { households, repairNeeds, repairNeed, productivity, resting } = people;
@@ -448,7 +451,8 @@ function churchSitesBefore(
  * Pletí jednou a rychle; Martin 9. 11. 2026: „pletí obstarají ženy a děti“) – co děti a ženy do
  * konce okna nestihnou; seč navíc pro růst stád (oxen.md – Seno, dvě seče; Martin 19. 10. 2026:
  * „pokud se něco staví, tak čas věnují primárně té stavbě“) – pěšky, bez vozů, co nestihne do
- * konce okna, zůstane neposečené; nehladovějící ves chytá ryby a zajíce ze zbytku.
+ * konce okna, zůstane neposečené; domácnosti ze zbytku zpracují kůže a kožešiny (hides-honey.md –
+ * Zpracování v domácnosti; i v hladu) a nehladovějící ves chytá ryby a zajíce z toho, co zbude.
  */
 function freeLaborDay(
   ctx: WorkDay,
@@ -457,7 +461,7 @@ function freeLaborDay(
   fieldWork: FieldWorkDone[],
   freeLabor: number,
   game: SmallGameResult,
-): { weedMen: number; extraMow: number; game: SmallGameResult } {
+): { weedMen: number; extraMow: number; wares: number; game: SmallGameResult } {
   const { state, day } = ctx;
   const { dayTasks } = tasks;
   let weedMen = 0;
@@ -474,10 +478,12 @@ function freeLaborDay(
   }
   const extraMow = Math.max(0, Math.min(freeLabor - weedMen, mowingRemaining(state, day)));
   if (extraMow > EPSILON) mow(state, extraMow, day);
+  const rest = freeLabor - weedMen - extraMow;
+  const wares = waresWorkDay(state, day, rest, ctx.landscape);
   if (!state.hungry) {
-    game = smallGameDay(state, day, freeLabor - weedMen - extraMow, false);
+    game = smallGameDay(state, day, rest - wares, false);
   }
-  return { weedMen, extraMow, game };
+  return { weedMen, extraMow, wares, game };
 }
 
 /**
