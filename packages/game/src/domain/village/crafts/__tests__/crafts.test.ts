@@ -28,7 +28,14 @@ import {
   type PlacementVillage,
 } from '../../placement/placement';
 import { NO_CRAFTS } from '../../core/productivity';
-import { CRAFT_BASE, SOWERS, workshopBuildLabor, workshopCost, workshopTrees } from '../../rules';
+import {
+  COMMON_LABOR_YEAR_DAYS,
+  CRAFT_BASE,
+  SOWERS,
+  workshopBuildLabor,
+  workshopCost,
+  workshopTrees,
+} from '../../rules';
 import { withPlots } from '../../buildings/plots';
 import { advanceVillage } from '../../core/simulate';
 import { summarizeVillage } from '../../core/summary';
@@ -342,7 +349,9 @@ describe('pokrytí a meze produktivity (crafts.md – Účinek)', () => {
     const b = advanceVillage(potted, DAY + 1, null);
     // denní minimum jedné domácnosti 0,5 → 0,45 – venku podle délky dne (population.md – Skladba
     // dne podle ročního období)
-    expect(b.commonLaborHistory.at(-1)! - a.commonLaborHistory.at(-1)!).toBeCloseTo(
+    // (celá společná práce – roční průměr; posledních 30 dní je jen díl mužů na stavby –
+    // population.md, Práce, Stavby staví muži)
+    expect((b.commonLaborYearly! - a.commonLaborYearly!) * COMMON_LABOR_YEAR_DAYS).toBeCloseTo(
       0.05 * daylightFactor(DAY + 1),
       9,
     );
@@ -638,9 +647,10 @@ describe('řemeslníci vyrábějí podle potřeby, volný čas pracují pro ves 
     const working = advanceVillage(short, DAY + 1, null);
     expect(working.crafts!.charcoalKg).toBeLessThan(1000);
     // domácnost kováře (2 dospělí, po minimu a domácí výrobě 0,9 čd) přidá vsi práci
-    expect(resting.commonLaborHistory.at(-1)! - working.commonLaborHistory.at(-1)!).toBeGreaterThan(
-      0.8,
-    );
+    // (celá společná práce – roční průměr; posledních 30 dní je jen díl mužů na stavby)
+    expect(
+      (resting.commonLaborYearly! - working.commonLaborYearly!) * COMMON_LABOR_YEAR_DAYS,
+    ).toBeGreaterThan(0.8);
   });
 
   it('kovář bez uhlí pomáhá vsi a dílna hlásí, že čeká na uhlí', () => {

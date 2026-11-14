@@ -111,8 +111,9 @@ describe('laborReport – rozdělení práce dne', () => {
   });
 
   it('v létě se na poli plánu žne a odnáší podle sazeb, výmlat jde na humno', () => {
-    // ves založená po 1. 9. seje jen jař – sklízí v srpnu
-    const s = advanceVillage(found(at(600, 10, 1)), at(601, 8, 5), null);
+    // ves založená po 1. 9. seje jen jař – sklízí v srpnu; zemnice hotová hned, ať muž zakládá
+    // jen pole (population.md – Práce, Stavby staví muži)
+    const s = advanceVillage(withBuiltFirstDwelling(found(at(600, 10, 1))), at(601, 8, 5), null);
     const labor = laborReport(s)!;
     const fieldId = s.fields[0]!.id;
     const reap = of(labor.shares, 'harvest');
@@ -160,7 +161,9 @@ describe('laborReport – rozdělení práce dne', () => {
       expect.objectContaining({ target: { kind: 'trees', ids: [101, 102, 103] } }),
     ]);
     expect(of(labor.shares, 'build')).toEqual([]);
-    expect(of(labor.shares, 'idle')).toEqual([]);
+    // nečinné jsou jen ženy – stavby staví muži (population.md – Práce, Stavby staví muži)
+    expect(of(labor.shares, 'idle')).toHaveLength(1);
+    expect(total(of(labor.shares, 'idle'))).toBeLessThan(total(of(labor.shares, 'fell')) * 1.5);
   });
 
   it('den, kdy kácení skončí: kácí se u posledního stromu a zbytek práce se staví', () => {
@@ -205,7 +208,8 @@ describe('laborReport – rozdělení práce dne', () => {
     });
     const rebuild = laborReport(advanceVillage(s0, day, null))!;
     expect(of(rebuild.shares, 'build')[0]?.target).toEqual({ kind: 'dwelling', id: dwellingId });
-    expect(of(rebuild.shares, 'idle')).toEqual([]);
+    // stavba vezme díl mužů, nečinné zůstanou ženy (population.md – Práce, Stavby staví muži)
+    expect(total(of(rebuild.shares, 'idle'))).toBeLessThan(total(of(idle.shares, 'idle')));
   });
 
   it('vymřelá ves nepracuje – rozdělení posledního dne se neukazuje', () => {

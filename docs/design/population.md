@@ -343,6 +343,13 @@ zbytku rodiny.“
   fyzicky zdatnější a domácí zpracování kůže měly na starosti spíš ženy“): na stavby jde jen
   podíl práce vsi, který dávají muži; ženy ho na stavbách nedoplní. Ve scéně staví jen muži.
   Domácí zpracování kůží a kožešin ([kůže a med](hides-honey.md)) dělají ženy z volného času.
+  Stavby = všechno, co ves staví (`state.constructions` – i zakládání polí, cesty, sady, opevnění
+  a opravy staveb). Kolik mužům zbude (návrh Clauda): denní minimum, péči o koně, výpravy a úlohy
+  dne nesou muži a ženy poměrem své práce, jen pletí a trhání lnu jdou napřed z práce žen – na
+  stavby jde podíl mužů ze společné práce i z práce žen na pletí a lnu, nejvýš celá společná práce.
+  Co ženy na stavbách nedoplní, jde jako dřív do oprav obydlí, údržby opevnění, seče navíc a ryb,
+  zbytek propadne. Hosté na robotě a tesař staví dál. Volná práce v liště a rozpočet správce
+  počítají jen díl mužů.
 - **Pletí – hlavně ženy a děti** (Martin 25. 10. 2026: „Ve středověku se plelo jednou, rychle
   a dělaly to hlavně ženy a děti“): pletí bere práci napřed z dětí 7–13 let, které nepasou, pak
   z žen – jejich podíl na práci vsi –, muži doplejí jen, co ženy a děti nestihnou, a **až po

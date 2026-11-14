@@ -71,7 +71,13 @@ const SQUARE_TREES = [1, 2, 3, 4, 6];
 
 function village(day: number, adults = 2): VillageState {
   const s = withBuiltFirstDwelling(foundVillage({ seed: 11, day, dwellingPosition: HOME }));
-  const adult = (id: number): Person => ({ id, bornDay: day - 30 * 366, dwellingId: 1 });
+  // muži – klučení je stavba pole a staví ji jen muži (population.md – Práce, Stavby staví muži)
+  const adult = (id: number): Person => ({
+    id,
+    bornDay: day - 30 * 366,
+    dwellingId: 1,
+    sex: 'male',
+  });
   s.people = Array.from({ length: adults }, (_, i) => adult(i + 2));
   s.constructions = [];
   s.storesKg = 5000;

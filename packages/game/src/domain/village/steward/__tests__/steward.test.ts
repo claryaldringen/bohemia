@@ -247,6 +247,20 @@ describe('den správce – režim a pole', () => {
     });
   });
 
+  it('rozpočet práce jen z práce mužů – ves s méně muži smí začít méně staveb (population.md – Práce, Stavby staví muži)', () => {
+    const mixed = village(SEPT, false);
+    mixed.commonLaborHistory = [];
+    // táž ves, jen žena zakladatelů je muž – dva muži místo jednoho
+    const men = { ...mixed, people: mixed.people.map((p) => ({ ...p, sex: 'male' as const })) };
+    const after = (s: VillageState): ReturnType<typeof laborBudget> =>
+      laborBudget(advanceVillage(s, SEPT + 10, obstacles, landscape));
+    const few = after(mixed);
+    const more = after(men);
+    expect(more.freePerDay).toBeGreaterThan(0);
+    expect(few.freePerDay).toBeCloseTo(more.freePerDay / 2, 1);
+    expect(few.left).toBeLessThan(more.left);
+  });
+
   it('okna roku – louka přes Nový rok, les jen v zimě', () => {
     const at = (month: number, day: number): GameDate =>
       dateOfDayIndex(dayIndexOf({ year: 504, month, day }));

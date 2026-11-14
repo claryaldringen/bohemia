@@ -363,33 +363,38 @@ function commonHauls(
  * úsecích), co zbude, do společné práce – ostatní stavby rovným dílem, opravy obydlí, údržba valu,
  * pletí mužů a seč navíc; polní úlohy dne hosté nedělají. Tesař pomáhá stavbám (wagons.md), opravy
  * obydlí až z práce, kterou stavby nespotřebovaly, pak údržba opevnění. Vozy s kamenem (`stone` –
- * fortifications.md, Kámen, Nošení kamene a vůz) zlevní lámání staveb ze společné práce. Vrací
- * i práci, která zbude (`freeLabor`).
+ * fortifications.md, Kámen, Nošení kamene a vůz) zlevní lámání staveb ze společné práce. Stavby
+ * dostanou ze společné práce (`labor.common`) jen díl mužů (`labor.men` – population.md, Práce,
+ * Stavby staví muži); hosté na robotě a tesař staví jako dřív. Vrací i práci, která zbude
+ * (`freeLabor`).
  */
 function buildDay(
   ctx: WorkDay,
   carts: DayCartPlan,
   people: DayPeople,
-  common: number,
+  labor: { common: number; men: number },
   fellingBefore: Map<Construction, { remaining: number; road: number }>,
   stone: StoneCarts,
 ): Omit<CommonWork, 'weedMen' | 'extraMow' | 'game'> & { freeLabor: number } {
   const { state, day, coverage, landscape, daylight, demand } = ctx;
   const { access } = carts;
   const { households, repairNeeds, repairNeed, productivity, resting } = people;
+  let { common, men } = labor;
   // kostely (churches.md – Stavba): vypálené vápno ráno, hotová práce před stavbami pro zkušenost
   // pomocníků; ves bez kostela nic
   const churchesBefore = churchSitesBefore(state, day);
   const guestLabor = guestLaborToday(state, day) * daylight;
   const corvee = guestLabor > EPSILON ? build(state, day, guestLabor, 0, 'fortification') : [];
   if (guestLabor > EPSILON) {
-    common += Math.max(0, guestLabor - corvee.reduce((sum, c) => sum + c.manDays, 0));
+    const guestsLeft = Math.max(0, guestLabor - corvee.reduce((sum, c) => sum + c.manDays, 0));
+    common += guestsLeft;
+    men += guestsLeft;
   }
   // tesař pomáhá stavbám – jeho práce jde do staveb a zlevní jejich dřevěnou část (wagons.md)
   const help = carpentryHelp(state, day, coverage, productivity, resting, (extra) =>
-    woodworkToday(state, day, common + extra, stone),
+    woodworkToday(state, day, men + extra, stone),
   );
-  const constructions = build(state, day, common + help.labor, help.coverage, undefined, stone);
+  const constructions = build(state, day, men + help.labor, help.coverage, undefined, stone);
   // vůz s kamenem jede po trase lom – stavba a zpět: jízdy do ročního provozu cest (wagons.md –
   // Vyjeté cesty; konec uložené trasy stavby `stoneCart`)
   for (const work of constructions) {
@@ -510,7 +515,17 @@ export function commonWorkDay(
     common -= game.manDays;
   }
   const stone = new Map(jobs.stone.map((cart) => [cart.constructionId, cart]));
-  const { freeLabor, ...built } = buildDay(ctx, carts, people, common, hauled.fellingBefore, stone);
+  // stavby staví muži (population.md – Práce, Stavby staví muži): vozy s kládami a drobná zvěř
+  // hladové vsi berou ze společné práce jako dřív, stavbám zbude nejvýš díl mužů (`build`)
+  const menBuild = Math.min(common, allocation.build ?? allocation.common);
+  const { freeLabor, ...built } = buildDay(
+    ctx,
+    carts,
+    people,
+    { common, men: menBuild },
+    hauled.fellingBefore,
+    stone,
+  );
   const free = freeLaborDay(ctx, tasks, allocation, applied.fieldWork, freeLabor, game);
   return { ...built, ...free };
 }

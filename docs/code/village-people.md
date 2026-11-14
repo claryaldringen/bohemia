@@ -378,7 +378,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   přes `SceneEarthwork.constructionId` – viz village-roads.md; jedna na pracujícího, nejvýš `MAX_WORKERS` = 60, po skupinách až 4
   v činnosti – `shareCounts`; muž nebo žena podle podílu činnosti posunutého podílem žen ve vsi –
   `figureSexes` a `womenChance` ze `SceneLabor.people`, kinship.md (`WOMEN` – pletí 0,9, seč 0,1;
-  u pletí dospělých bere `LaborShare.women` z jádra – fields.md, Pletí jednou a rychle); domácí práce a nečinní venku
+  u pletí dospělých bere `LaborShare.women` z jádra – fields.md, Pletí jednou a rychle; podíly
+  stavby – `LaborShare.construction` – jen muži: podíl žen 0 a `shareWorker` bere `onlySex: 'male'`,
+  population.md – Práce, Stavby staví muži); domácí práce a nečinní venku
   jen z části, v zimě méně; práce bokem – dojení, péče o zvířata, domácí výroba žen a denní
   minimum starších – přijde z `LaborDay.aside` mezi podíly, `sceneLabor` ji připojí (zahrádka
   u obydlí – luštěniny domácnosti, `garden.ts`, village-fields.md – jde bokem bez vlastní

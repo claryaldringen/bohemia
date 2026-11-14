@@ -94,12 +94,13 @@ function advance(state: VillageState, days: number): VillageState {
 }
 
 /**
- * Dopočítá ves po 5 dnech, dokud neplatí `done` (nejvýš 400 dní) – první hotový úsek: s cenami
- * komplet (8. 11. 2026) stojí úsek palisády ≈ 3 × víc práce, dřív na něj stačilo 20 dní.
+ * Dopočítá ves po 5 dnech, dokud neplatí `done` (nejvýš 1000 dní) – první hotový úsek: s cenami
+ * komplet (8. 11. 2026) stojí úsek palisády ≈ 3 × víc práce, dřív na něj stačilo 20 dní; stavby
+ * staví jen muži (population.md – Práce, Stavby staví muži) – zakladatelé mají jednoho.
  */
 function until(state: VillageState, done: (s: VillageState) => boolean): VillageState {
   let s = state;
-  for (let d = 0; d < 400 && !done(s); d += 5) s = advance(s, 5);
+  for (let d = 0; d < 1000 && !done(s); d += 5) s = advance(s, 5);
   return s;
 }
 
@@ -111,7 +112,7 @@ const someBuilt = (s: VillageState): boolean =>
   s.fortifications![0]!.segments.some((x) => x.builtDay !== null);
 
 /** Dopočítá ves, dokud na opevnění běží stavba (nejvýš `limit` dní). */
-function finish(state: VillageState, limit = 400): VillageState {
+function finish(state: VillageState, limit = 1000): VillageState {
   let s = state;
   for (let d = 0; d < limit && s.constructions.some((c) => c.kind === 'fortification'); d += 5) {
     s = advance(s, 5);
@@ -598,7 +599,7 @@ describe('celý obvod blokuje od zahájení stavby (Martin 6. 11. 2026)', () => 
     expect(routeMapKey(one, s.lastDay)).toBe(routeMapKey(s, s.lastDay));
     let x = s;
     let partial = false;
-    for (let d = 0; d < 400 && x.constructions.some((c) => c.kind === 'fortification'); d += 5) {
+    for (let d = 0; d < 1000 && x.constructions.some((c) => c.kind === 'fortification'); d += 5) {
       x = advance(x, 5);
       const built = x.fortifications![0]!.segments.filter((g) => g.builtDay !== null).length;
       if (built > 0 && built < all) partial = true;

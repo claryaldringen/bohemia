@@ -103,6 +103,12 @@ export interface DayAllocationInput {
    */
   womenLabor?: number;
   /**
+   * Práce mužů vsi za den (člověkodny před štěstím; population.md – Práce, Stavby staví muži;
+   * Martin 14. 11. 2026): na stavby jde jen jejich díl společné práce (`DayAllocation.build`).
+   * Bez údaje staví všichni – celá společná práce.
+   */
+  menLabor?: number;
+  /**
    * Muži plejí až po stavbách (fields.md – Pletí jednou a rychle; Martin 9. 11. 2026: „pletí
    * obstarají ženy a děti“): jejich díl pletí (`weedDaysLeft`) se z práce vsi nebere – vrátí se
    * v `menWeed` a ves ho dostane ze společné práce po stavbách. Bez údaje muži plejí před stavbami.
@@ -234,6 +240,12 @@ export interface DayAllocation {
    * (`afterConstructions`). Ukazatel volné práce a „má na to“ (`commonLaborHistory`).
    */
   common: number;
+  /**
+   * Díl společné práce, který dávají muži – jen ten jde na stavby (population.md – Práce, Stavby
+   * staví muži; Martin 14. 11. 2026); co z `common` zbude, jde po stavbách do oprav obydlí a dál.
+   * Chybí (vstup bez `menLabor`) = celá `common`.
+   */
+  build?: number;
 }
 
 /**
@@ -241,8 +253,8 @@ export interface DayAllocation {
  * věnují primárně té stavbě – zemědělství jenom natolik, aby vesnice neměla hlad“): minimum
  * (s přirážkou za chůzi pro vodu – `householdWater`) → péče o koně (horses.md – Péče) →
  * lidé na výpravách → sedláci s vozy pro kováře → potřebné sezónní úlohy (polní, v sadech, seč, porážka) v daném pořadí →
- * společná práce (stavby, po nich opravy obydlí – `afterConstructions`). Denní minimum domácnosti
- * kryjí napřed její starší (`adultDailyMin`).
+ * společná práce (stavby jen z dílu mužů – `build`, `menCommon`; po nich opravy obydlí –
+ * `afterConstructions`). Denní minimum domácnosti kryjí napřed její starší (`adultDailyMin`).
  */
 export function allocateDay(input: DayAllocationInput): DayAllocation {
   const productivity = input.productivity ?? 1;
@@ -333,6 +345,7 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
   // trhání lnu napřed (`womenFirst` – fields.md, Len; Martin 10. 11. 2026): výrostci a starší ze
   // žňových rukou, ženy řemeslníků, pak ženy vsi nad svůj díl minima – muži dál žnou obilí
   let youthLeft = Math.min(handsLeft, Math.max(0, (input.harvestYouth ?? 0) * outdoor));
+  let flaxWomen = 0;
   input.tasks.forEach((task, i) => {
     if (task.womenFirst !== true) return;
     let amount = taskAmounts[i] ?? 0;
@@ -345,6 +358,7 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     amount += light;
     const women = take(Math.min(task.remaining - amount, womenLeft));
     womenLeft -= women;
+    flaxWomen += women;
     taskAmounts[i] = amount + women;
   });
   // muži plejí jen, co by děti a ženy do konce okna nestihly (bez údaje o okně všechno) – odhad
@@ -431,7 +445,24 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     tasks,
     taskAmounts,
     common: left,
+    ...(input.menLabor !== undefined
+      ? { build: menCommon(input.menLabor, input.womenLabor ?? 0, left, weedWomen + flaxWomen) }
+      : {}),
   };
+}
+
+/**
+ * Díl společné práce `common`, který dávají muži – jen ten jde na stavby (population.md – Práce,
+ * Stavby staví muži; Martin 14. 11. 2026: „aby stavby stavěli muži jako fyzicky zdatnější“).
+ * Denní minimum, práce „za den“ a úlohy dne nesou muži a ženy poměrem své práce (`men`, `women`
+ * – model je jinak nedělí), jen pletí a trhání lnu žen vsi (`womenFirst` – fields.md, Pletí jednou
+ * a rychle, Len) jdou napřed z práce žen. Mužům proto zbude jejich poměrný díl ze společné práce
+ * i z práce, kterou ženy daly na pletí a len – nejvýš celá společná práce (návrh Clauda).
+ */
+export function menCommon(men: number, women: number, common: number, womenFirst: number): number {
+  const all = Math.max(0, men) + Math.max(0, women);
+  if (all <= 0 || common <= 0) return 0;
+  return Math.min(common, (Math.max(0, men) / all) * (common + Math.max(0, womenFirst)));
 }
 
 /**

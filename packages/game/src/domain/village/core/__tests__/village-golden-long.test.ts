@@ -5,8 +5,10 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // Pomalá sada (npm run test:slow): zlatý otisk vsi z village-golden.test.ts po 2. a 3. roce
 // dopočtu, vcelku po jednotlivých letech. Vědomé přepsání otisků: viz village-golden.test.ts.
 
-const EXPECTED_YEAR_2 = 'c99147eba93dbf6e';
-const EXPECTED_YEAR_3 = '2f3ab71db19f73c6';
+// 14. 11. 2026 – stavby staví muži (population.md – Práce): na stavby jde jen díl mužů ze
+// společné práce; dřív c99147eba93dbf6e a 2f3ab71db19f73c6
+const EXPECTED_YEAR_2 = '1a766c1232b112a9';
+const EXPECTED_YEAR_3 = '02b6d592aeb6b165';
 
 describe('zlatý otisk vsi – delší běh', () => {
   it('po 2. a 3. roce dopočtu dá zapsané otisky', () => {
