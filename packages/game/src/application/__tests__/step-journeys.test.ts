@@ -446,6 +446,76 @@ describe('stepJourneys', () => {
     expect(notices.notices).toEqual([]);
     expect(await journeys.active()).toEqual([]);
   });
+
+  it('domovská ves v archivu (Začít znovu) – záznam zůstal, den stojí – výjezd skončí bez událostí', async () => {
+    const { deps, journeys, villages, notices } = await setup();
+    // sídlo Lhoty je v archivu: záznam vsi zůstal, ale worker ji dál nedopočítá – den stojí před
+    // druhým dnem výjezdu
+    villages.records.set('lhota', {
+      ...villages.records.get('lhota')!,
+      state: { ...HOME_STATE, lastDay: SUMMER - 1 },
+    });
+    villages.archivedSettlements.add('s-lhota');
+    await journeys.create(journey());
+    const outcomes = await rounds(deps, LAUNCH + 1, LAUNCH + 401);
+    expect(outcomes).not.toContain('failed');
+    expect((await stored(journeys)).phase).toBe('done');
+    expect(villages.inbox.events).toEqual([]);
+    expect(notices.notices).toEqual([]);
+    expect(await journeys.active()).toEqual([]);
+  });
+
+  it.each([
+    ['vymřelá', { extinctDay: SUMMER - 1 }],
+    ['opuštěná', { abandonedDay: SUMMER - 1 }],
+  ])('%s ves na mapě skupiny je hotová – výjezd se nezasekne (Ruling 40)', async (_name, mark) => {
+    const { deps, journeys, villages } = await setup();
+    // spící ves je první na domovské mapě; její den stojí daleko před dneškem
+    villages.records.set('spici', {
+      id: 'spici',
+      settlementId: 's-spici',
+      name: 'Spící',
+      state: village([], [], { lastDay: SUMMER - 1, ...mark }),
+      version: 1,
+    });
+    const cells: CampaignCells = {
+      mapOf: () => Promise.resolve({ ...MEADOW, villageIds: ['spici', 'lhota'] }),
+    };
+    await journeys.create(journey());
+    const outcomes = await rounds({ ...deps, cells }, LAUNCH + 1, LAUNCH + 801);
+    expect(outcomes).not.toContain('waiting');
+    expect(outcomes).toContain('computed');
+    expect((await stored(journeys)).phase).toBe('out');
+  });
+
+  it('ves bez značky se starým dnem dál skupinu zdrží', async () => {
+    const { deps, journeys, villages } = await setup();
+    villages.records.set('zivy', {
+      id: 'zivy',
+      settlementId: 's-zivy',
+      name: 'Živý',
+      state: village([], [], { lastDay: SUMMER - 1 }),
+      version: 1,
+    });
+    const cells: CampaignCells = {
+      mapOf: () => Promise.resolve({ ...MEADOW, villageIds: ['zivy', 'lhota'] }),
+    };
+    await journeys.create(journey());
+    const outcomes = await rounds({ ...deps, cells }, LAUNCH + 1, LAUNCH + 801);
+    expect(outcomes.at(-1)).toBe('waiting');
+  });
+
+  it('ves, která jen čeká na dopočet (sídlo není v archivu), výjezd neukončí', async () => {
+    const { deps, journeys, villages } = await setup();
+    villages.records.set('lhota', {
+      ...villages.records.get('lhota')!,
+      state: { ...HOME_STATE, lastDay: SUMMER - 1 },
+    });
+    await journeys.create(journey());
+    const outcomes = await rounds(deps, LAUNCH + 1, LAUNCH + 401);
+    expect(outcomes.at(-1)).toBe('waiting');
+    expect((await stored(journeys)).phase).toBe('out');
+  });
 });
 
 describe('recallJourneysAtWar', () => {

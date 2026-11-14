@@ -358,7 +358,8 @@ describe('visitorsOn', () => {
         house: 'Radim',
         tick: expect.any(Number),
         pos: { x: 40, z: 0 },
-        goal: { x: 50, z: 5 },
+        // cíl cizího výjezdu hostitel nedostane – návrh dovoluje jen jméno a rod
+        goal: null,
         men: [
           { lord: true, mounted: false },
           { lord: false, mounted: true },

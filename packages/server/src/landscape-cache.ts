@@ -15,9 +15,23 @@ import {
 /** Mapa s omezenou velikostí – při přeplnění zahodí nejdéle nepoužitou položku. */
 export class LruCache<K, V> {
   private readonly entries = new Map<K, V>();
+  private limit: number;
 
-  constructor(readonly capacity: number) {
+  constructor(capacity: number) {
     if (!(capacity >= 1)) throw new RangeError('Mezipaměť musí mít místo aspoň pro 1 položku.');
+    this.limit = capacity;
+  }
+
+  /** Kolik položek se vejde. */
+  get capacity(): number {
+    return this.limit;
+  }
+
+  /** Změní velikost; při zmenšení zahodí nejdéle nepoužité položky navíc. */
+  resize(capacity: number): void {
+    if (!(capacity >= 1)) throw new RangeError('Mezipaměť musí mít místo aspoň pro 1 položku.');
+    this.limit = capacity;
+    this.trim();
   }
 
   get size(): number {
@@ -36,7 +50,11 @@ export class LruCache<K, V> {
   set(key: K, value: V): void {
     this.entries.delete(key);
     this.entries.set(key, value);
-    while (this.entries.size > this.capacity) {
+    this.trim();
+  }
+
+  private trim(): void {
+    while (this.entries.size > this.limit) {
       const oldest = this.entries.keys().next();
       if (oldest.done) break;
       this.entries.delete(oldest.value);

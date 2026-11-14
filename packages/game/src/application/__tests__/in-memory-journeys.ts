@@ -92,7 +92,12 @@ export class InMemoryJourneys implements JourneyRepository {
     const inRange = this.intents.filter(
       (i) => i.journeyId === journeyId && i.tick > input.fromTick && i.tick <= input.state.tick,
     );
-    if (!row || row.tick !== input.fromTick || inRange.length !== input.seenIntents) {
+    if (
+      !row ||
+      (row.status === 'done' && input.state.phase !== 'done') ||
+      row.tick !== input.fromTick ||
+      inRange.length !== input.seenIntents
+    ) {
       return Promise.resolve('stale');
     }
     this.saves++;
@@ -106,6 +111,16 @@ export class InMemoryJourneys implements JourneyRepository {
   clearOutbox(journeyId: string, tick: number): Promise<void> {
     const row = this.rows.get(journeyId);
     if (row && row.tick === tick) row.outbox = null;
+    return Promise.resolve();
+  }
+
+  end(journeyId: string): Promise<void> {
+    const row = this.rows.get(journeyId);
+    if (row) {
+      row.status = 'done';
+      row.state = JSON.stringify({ ...(JSON.parse(row.state) as JourneyState), phase: 'done' });
+      row.outbox = null;
+    }
     return Promise.resolve();
   }
 

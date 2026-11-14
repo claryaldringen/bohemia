@@ -51,6 +51,15 @@ describe('lordClick', () => {
   it('bez odepření rozkaz odešle', () => {
     expect(lordClick({ order, loading: false, refusal: null })).toEqual({ kind: 'send', order });
   });
+  it('během čekání na odpověď vyslání další kliknutí nic neodešle (dvojité pravé kliknutí)', () => {
+    expect(lordClick({ order, loading: false, refusal: null, launching: true })).toEqual({
+      kind: 'none',
+    });
+    expect(lordClick({ order, loading: false, refusal: null, launching: false })).toEqual({
+      kind: 'send',
+      order,
+    });
+  });
   it('odepřený výjezd ukáže důvod a nic neodešle', () => {
     expect(lordClick({ order, loading: false, refusal: 'Vojvoda je raněný.' })).toEqual({
       kind: 'refuse',

@@ -112,6 +112,32 @@ describe('stepCampaigns', () => {
     expect(await campaigns.active()).toEqual([]);
   });
 
+  it.each([
+    ['vymřelá ves', { extinctDay: 5 }, false],
+    ['opuštěná ves', { abandonedDay: 5 }, false],
+    ['ves bez značky se starým dnem', {}, true],
+  ])('%s první na mapě po cestě', async (_name, mark, waits) => {
+    const { deps, campaigns, villages } = setup();
+    villages.records.set('spici', {
+      id: 'spici',
+      settlementId: 's-spici',
+      name: 'Spící',
+      state: village([], [], { lastDay: 0, ...mark }),
+      version: 1,
+    });
+    const cells: CampaignCells = {
+      mapOf: () => Promise.resolve({ ...MEADOW, villageIds: ['spici'] }),
+    };
+    await campaigns.create(campaign({ liveCommand: false }));
+    await campaigns.addIntent('c1', {
+      tick: LAUNCH + 2,
+      byPlayer: 'p1',
+      body: { kind: 'set-out' },
+    });
+    const { outcomes } = await rounds({ ...deps, cells }, LAUNCH + 1, LAUNCH + 301);
+    expect(outcomes.includes('waiting')).toBe(waits);
+  });
+
   it('pád po uložení bodu, před doručením – další kolo doručí, nic se nezdvojí', async () => {
     const { deps, campaigns, villages, notices } = setup();
     await campaigns.create(campaign({ liveCommand: false }));

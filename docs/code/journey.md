@@ -96,9 +96,21 @@ tempo a svět `CampaignWorld`.
   nezapíše záměr s taktem nejvýš bodem ani u skončeného výjezdu, verze bodu je `xmin`. `activeOf`
   vrací nejvýš jedno id, `onCell` čte políčko skupiny z `state->'groups'`. Skončený výjezd
   (`phase: 'done'`) přepne `status` na `done`; s nedoručenými událostmi ho `active()` vrací dál.
+- **Začít znovu** – `restartGame` ukončí běžící výjezd hráče (`JourneyRepository.end`, návrh Clauda):
+  bod dostane `phase: 'done'` a prázdnou schránku, výjezd `status: 'done'` – bez událostí do vsí
+  a bez znalosti. Domovská ves je v archivu a dál se nedopočítá, výjezd by na ni jinak čekal
+  navždy, držel bariéru a nová hra by nesměla vyslat (`journey-active`). `end` zamkne řádek bodu
+  jako `saveCheckpoint`; `saveCheckpoint` skončeného výjezdu s neskončeným stavem vrátí `stale`,
+  takže souběžný worker výjezd neoživí. Výjezd ukončí i opakovaný restart bez vsí (pád mezi
+  archivem a koncem výjezdu).
 - **Bariéra** (`adapters/village-holds.ts`) – tabulka `live` bere vedle bodů tažení i body běžících
   výjezdů (sjednocení id jako u tažení) bez varování; mez vsi je `throughDay` bodu a drží ji ves na
-  mapě skupiny nebo políčko od ní. `GameDeps.journeys` (`packages/server/src/deps.ts`).
+  mapě skupiny nebo políčko od ní a **domovská ves běžícího výjezdu** (`state.home.villageId`, ve
+  `LIVE` sloupec `homes`, v `alarmed` vedle vsí varování – i přednostní vsi). Výjezd čte domov
+  každý den (`homeDay` – smrt člena doma); bez meze by ves mohla být napřed a na pořadí smyček
+  workeru by záleželo, kdy výjezd smrt pozná (závěrečná recenze, návrh Clauda). Skončený výjezd
+  domov nedrží. Testy: `village-holds.db.test.ts`, `campaign-race.db.test.ts` (worker vsí domovskou
+  ves nedopočte za `throughDay` výjezdu). `GameDeps.journeys` (`packages/server/src/deps.ts`).
 
 ## Worker (Úloha 4 – `application/step-journeys.ts`)
 
@@ -112,8 +124,13 @@ tempo a svět `CampaignWorld`.
 - **Dopočet s načítáním** – `computeWithLoads(deps, state, step)` v `step-campaigns.ts` je
   zobecněný dopočet tažení (`computeCampaign` ho volá nad `stepCampaign`, výjezd nad `stepJourney`):
   chybí-li taktu mapa nebo ves (bariéra Ú6.7), načtou se a výpočet pokračuje od zastaveného taktu.
-  Svět dodá `villageGone` (ves se zkusila načíst a není) – výjezd, jehož domovská ves zanikla,
-  skončí bez událostí a nečeká na ni navždy.
+  Spící ves na mapě skupiny (vymřelá nebo opuštěná – worker ji nedopočítá, její `lastDay` stojí) se
+  bere jako hotová: `villageAt` jí pro jakýkoli den vrátí uložený stav, skupina na ni nečeká (Ruling 40).
+  Svět dodá `villageGone` (ves se zkusila načíst a není, nebo je její sídlo v archivu) – výjezd,
+  jehož domovská ves zanikla, skončí bez událostí a nečeká na ni navždy. Archiv
+  (`VillageRepository.archivedOf`) se zjišťuje líně jako varování tažení: až když se takt ptá na
+  zánik načtené vsi, která den ještě nemá – pojistka pro výjezd, který přežil restart jinou cestou.
+  Tažení se na zánik neptá, archiv pro něj nečte.
 - **Doručení právě jednou** – návrat do vsi (`away-ends`) a upozornění `journey-returned` se uloží
   se stavem do schránky bodu (`outbox`), pak je doručí `deliverOutbox` (sdílené s tažením – ves,
   která zanikla, se přeskočí, týž `ref` schránka vsi podruhé zahodí) a `clearOutbox` schránku smaže.
@@ -150,7 +167,11 @@ tempo a svět `CampaignWorld`.
   rody, sídly a válkami v paměti): kola s restartem = vcelku (dojetí, čekání, sám domů; `away-ends`
   i upozornění jednou), s pamětí tytéž body jako bez ní, druhé kolo od zapamatovaného stavu, pád mezi
   uložením a doručením (schránka vsi, upozornění), kolo bez změny mapy se na válku neptá (počet
-  dotazů), vjezd na mapu rodu ve válce → „Domů“ jednou, chyba jednoho výjezdu, zaniklá domovská ves;
+  dotazů), vjezd na mapu rodu ve válce → „Domů“ jednou, chyba jednoho výjezdu, zaniklá domovská ves,
+  domovská ves archivovaného sídla (záznam zůstal, den stojí) a ves, která jen čeká na dopočet;
+  `restart-game.test.ts` – restart ukončí výjezd (bez schránky, `activeOf` null, souběžné uložení
+  `stale`); `journey-repository.db.test.ts` – `end`, `village-holds.db.test.ts` – ukončený
+  výjezd nedrží, `village-repository.db.test.ts` – `archivedOf`;
   `recallJourneysAtWar` – skupina na mapě protivníka, jede tam s „Přes okraj“ (i výjezd druhého rodu),
   „Přes okraj“ po bodu, výjezd jinde nic; `war.test.ts` – opověď i přepadení výjezd pošlou domů,
   další útok už ne; `settlement-repository.db.test.ts` – `holderAt`;
@@ -296,8 +317,10 @@ mapSizeM, cell })` (čistá funkce) – bez vybraného vojvody nebo mimo terén 
   (`retinue`) a pravým tlačítkem volá `launchJourney`; na cestě (`dynasty.journeyAway`, na mapě,
   kterou scéna ukazuje – domovské, nebo od Úlohy 9b i cizí za vojvodou) volá `commandJourney`; ikona Domů `{ kind: 'home' }`. Režim vojvody (`setLordMode`) zůstává
   zapnutý i při odepřeném výjezdu a během načítání kandidátů: `lordClick` (`journey-orders.ts`) rozhodne
-  o pravém kliknutí – nic (mimo terén, načítání), důvod u kurzoru (`refuse`, výběr zůstává) nebo odeslání
-  rozkazu. Důvod (`journeyReason`) a „Na sousední mapu“ ukáže `JourneyCursorNote` u kurzoru, v panelu je
+  o pravém kliknutí – nic (mimo terén, načítání, vyslání čeká na odpověď – `launching`), důvod
+  u kurzoru (`refuse`, výběr zůstává) nebo odeslání rozkazu. Dvojité pravé kliknutí nevyšle dvakrát
+  (`useLordJourney` drží běžící vyslání v ref); kliknutí po úspěšném vyslání, než ves ví, že je
+  vojvoda pryč, je už rozkaz výjezdu (`commandJourney`, server ho ověří). Důvod (`journeyReason`) a „Na sousední mapu“ ukáže `JourneyCursorNote` u kurzoru, v panelu je
   jen v popisku zašedlé řady. `useJourney(running,
 onEnded)` se ptá jen s `running` (vojvoda pryč nebo právě vyjel); zmizí-li pohled, `onEnded`
   obnoví ves (upozornění „… se vrátil.“) a dotazy stojí, dokud ves návrat nepotvrdí. Chyba sítě
@@ -347,9 +370,12 @@ onEnded)` se ptá jen s `running` (vojvoda pryč nebo právě vyjel); zmizí-li 
 - **Odjezd a příjezd** – viz níž (Úloha 8c).
 - **e2e** – háček `journeyScene` (`lib/e2e-hooks.ts`: muži, jak jsou nakreslení, praporek a dny
   na hodinách); `e2e/journey.spec.ts` druhý test – dva hráči, jezdci jedou, praporek u cíle, hodiny
-  při čekání, cíl ve vodě (praporek na souši), cizí výjezd u vsi (bod checkpointu přepsaný v DB)
+  při čekání, cizí výjezd u vsi (bod checkpointu přepsaný v DB)
   a klik na něj. `JOURNEY_SHOT=<cesta>` uloží snímek. E2e běží s omezeným pohybem (`reducedMotion`)
-  – muži tam skáčou na nový stav, plynulý posun kryje `journey-riders.test.ts`.
+  – muži tam skáčou na nový stav, plynulý posun kryje `journey-riders.test.ts`. Cíl ve vodě
+  (praporek na souši) závisel na náhodné krajině a byl nestabilní – kryje ho unit test
+  `journey.test.ts` (posunutý `group.goal` leží na souši) a `journey-marker.test.ts` (praporek na
+  `group.goal`).
 - **Testy** – `lib/scene/__tests__/journey-riders.test.ts`, `journey-marker.test.ts`,
   `lib/__tests__/journey-scene.test.ts`, `hooks/__tests__/use-journey-visitors.behavior.test.tsx`.
 
@@ -502,7 +528,8 @@ seen)`) a adaptér `createKnowledgeRepository` (`adapters/knowledge-repository.t
   a pohled na tažení – Znalost rodu).
 - **Tažení ve scéně (Úloha 12b)** – pohled útočníka (`warSceneOnMap`) nese znalost rodu na každé
   mapě, kde vojsko stojí (`WarSceneView.known` – na mapě cíle `knownTarget`, na mapě po cestě
-  `knowledgeOfCell` – znalost té mapy, jak je; jeden dotaz na pohled, obránce nic). Scéna tažení
+  `knowledgeOfCell` sloučená se `CampaignState.seen` té mapy – `knownOnWay`, jako výjezd; jeden
+  dotaz na pohled, obránce nic). Scéna tažení
   (`ForeignWarScene`) kreslí stavby, jak je rod naposled viděl, tak jako výjezd (`seenVillageOf`
   ve `foreignVillageOf` – objevené domy mají přednost; opevnění ze znalosti se na mapě cíle
   nekreslí, na mapě po cestě ano – `onTargetMap`) a stopu rodu odkryje
@@ -528,10 +555,18 @@ vidí). Znalost ve scéně tažení – Znalost rodu (Tažení ve scéně, Úloh
   **vlastního živého rodu** hráče o mapě (`{ seen }`), `null` = rod mapu nezná (cizí rod, rod bez
   záznamu i hráč bez rodu dostanou totéž, nic se neprozradí); `knownVillagesOf(deps, { playerId })`
   – políčka, o kterých rod něco ví, a rod, který na nich sídlí. `houseId` dostane políčko jen
-  když `seen.villageId` je id vsi sídla současného držitele (`holderAt` + `listActive` + `villages.stampsOf`; id vsi a sídla jsou různá) – poloha
-  vsi, kterou rod neviděl (jen stopa), ani vsi po změně držitele se nevyzradí (world.md – Co je
-  veřejné); jinak `houseId: null` a políčko zůstává ve znalosti (otevře se přes `?known=x,y`).
-  Do `index.ts` exportováno.
+  když rod viděl **aspoň jednu stavbu** vsi současného držitele (`seen.parts` neprázdné
+  a `seen.villageId` je id vsi sídla na políčku; id vsi a sídla jsou různá – návrh Clauda po
+  závěrečné recenzi): stopa přes roh mapy zapíše id vsi i bez jediné viděné stavby
+  (`lookOnMap`), držitel se tím nesmí prozradit, stejně jako ves po změně držitele (world.md – Co
+  je veřejné); jinak `houseId: null` a políčko zůstává ve znalosti (otevře se přes `?known=x,y`).
+  Seznam je **jeden dotaz** úložiště – `KnowledgeRepository.knownCellsOf(houseId)` → `KnownCell`
+  (`seenVillageId`, `seenParts`, `villageIds` sídla na políčku bez archivu, `holderHouseId` živého
+  rodu držitele): adaptér spojí `house_knowledge` (`state->>'villageId'`,
+  `jsonb_array_length(state->'parts')` – celý JSON znalosti do Node nejde) se `settlement` podle
+  `grid_x`, `grid_y`, `village` podle `settlement_id` a `house`; paměťová verze nad sídly, vsemi
+  a rody v paměti (`InMemoryKnowledge.world`). Pravidlo, co se ukáže, je v use-casu. Do
+  `index.ts` exportováno.
 - **Server** (`apps/web/lib/journey.ts` – `knownMapForPlayer`, `knownVillagesForPlayer`; route
   `GET /api/journey`): `?known=x,y` → `{ map, seen }` (krajina políčka z `campaignCells().mapOf`,
   jinak 404 „Tu mapu rod nezná.“), `?known=villages` → `{ known: [{ cell, houseId }] }`.
@@ -550,7 +585,11 @@ vidí). Znalost ve scéně tažení – Znalost rodu (Tažení ve scéně, Úloh
   nezná.“. Má-li rod víc známých map, každý další klik
   otevře další (`nextKnownCell` v `journey-view.ts` – podle souřadnic dokola); naposled otevřenou
   mapu každého rodu drží hra (`useKnownMap` – panel se při otevření mapy zruší). Seznam map
-  (`?known=villages`) se čte při vstupu, po návratu z mapy a po 20 s.
+  (`?known=villages`) se čte **jen pro otevřený panel s oky** (Rod a vazalové, Vojsko –
+  `useKnownMapList` se při otevření panelu přihlásí, `KnownMapActions.register`): při otevření
+  panelu a po návratu ze známé mapy, na známé mapě ani na pozadí ne (dřív každý hráč každých 20 s
+  – závěrečná recenze, Important 5). Dva souběžné požadavky se nesčítají (běžící dotaz další
+  nepustí). Test: `village-game/__tests__/use-known-map.behavior.test.tsx`.
 
 ## Šelmy (Úloha 13 – `domain/war/journey-predators.ts`)
 

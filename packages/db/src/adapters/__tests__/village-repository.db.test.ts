@@ -200,6 +200,18 @@ describe('createVillageRepository', () => {
     expect(after).toMatchObject({ version: 2, name: 'Libuše', lastDay: state().lastDay });
   });
 
+  it('archivedOf vrátí vsi archivovaných sídel – záznam vsi zůstal (Začít znovu)', async () => {
+    const kept = (await villages.create(settlementId, 'Libice', state()))!;
+    const archived = await villageOnMap(1, 'Budeč', state());
+    expect(await villages.archivedOf([kept.id, archived.id])).toEqual([]);
+    await createSettlementRepository(db).archive(archived.settlementId);
+    expect(await villages.archivedOf([kept.id, archived.id, UNKNOWN, 'ne-uuid'])).toEqual([
+      archived.id,
+    ]);
+    expect(await villages.find(archived.id)).not.toBeNull();
+    expect(await villages.archivedOf([])).toEqual([]);
+  });
+
   it('sloupce last_day a asleep se plní při každém zápisu a shodují se s pravidly domény', async () => {
     const awake = await villages.create(settlementId, 'Žije', state());
     const extinct = await villageOnMap(1, 'Vymřela', { ...state(), extinctDay: DAY + 3 });

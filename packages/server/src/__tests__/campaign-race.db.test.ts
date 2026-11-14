@@ -13,6 +13,7 @@ import {
   createCampaignRepository,
   createDatabase,
   createHouseRepository,
+  createJourneyRepository,
   createLockPool,
   createNoticeRepository,
   createSettlementRepository,
@@ -29,12 +30,14 @@ import {
   foundVillageForSettlement,
   loadVillage,
   newCampaign,
+  newJourney,
   realTimeOf,
   newCampaignMemory,
   stepCampaigns,
   tickOfMs,
   villageWatchers,
   type CampaignState,
+  type JourneyState,
   type LandscapeSource,
   type StepCampaignsDeps,
   type VillageState,
@@ -399,4 +402,59 @@ describe('souběh vsí a tažení – bariéra (Úloha 6.7)', () => {
     // ves bez tažení: nic jí nepřišlo a stojí na dnešku jako bez bariéry
     expect(raced.inbox.some((e) => e.label === 'daleko')).toBe(false);
   }, 180_000);
+});
+
+// Domovská ves výjezdu vojvody v bariéře (závěrečná recenze – Important 3): výjezd čte domovskou
+// ves každý den (`homeDay` – smrt člena doma), takže ves nesmí být napřed před dnem, který má výjezd
+// spočtený – jinak by na pořadí smyček workeru záleželo, kdy výjezd smrt pozná.
+describe('souběh vsí a výjezdu – domovská ves v bariéře', () => {
+  it('worker vsí domovskou ves nedopočte za throughDay výjezdu, ostatní vsi do dneška', async () => {
+    const ids = await seedWorld();
+    await setup.execute(sql`DELETE FROM campaign`);
+    const home = ids.get('daleko')!;
+    const village = (await createVillageRepository(setup).find(home))!.state;
+    const lord = village.people.find((p) => p.sex === 'male')!;
+    const journey = newJourney(
+      {
+        id: '00000000-0000-4000-8000-00000000d0d0',
+        seed: 7,
+        playerId: 'c',
+        houseId: (await createHouseRepository(setup).activeOf('c'))!.id,
+        leaderName: 'Bořivoj',
+        home: { villageId: home, name: 'daleko', cell: { x: 9, y: 9 }, pos: { x: -50, z: -50 } },
+        members: [
+          {
+            ref: { villageId: home, personId: lord.id },
+            lord: true,
+            mounted: false,
+            strength: 1,
+            fight: 50,
+            health: 100,
+            wounded: false,
+            status: 'active',
+          },
+        ],
+        startMs: msOf(T0),
+        order: { kind: 'go', pos: { x: 0, z: 0 } },
+      },
+      world,
+    );
+    // skupina daleko od domova (ani políčko vedle) – drží jen pravidlo domovské vsi
+    const away: JourneyState = {
+      ...journey,
+      groups: journey.groups.map((g) => ({ ...g, cell: { x: 5, y: 5 } })),
+    };
+    await createJourneyRepository(setup).create(away, NOW);
+    const p = processDeps();
+    try {
+      await advanceWorldStep(p.world, { worldDay: D0 + 2, stepDays: 10, limit: 10 });
+      const lastDay = async (id: string): Promise<number> =>
+        (await createVillageRepository(setup).find(id))!.state.lastDay;
+      expect(await lastDay(home)).toBe(D0 - 1);
+      expect(away.throughDay ?? away.day - 1).toBe(D0 - 1);
+      expect(await lastDay(ids.get('brod')!)).toBeGreaterThan(D0);
+    } finally {
+      await p.close();
+    }
+  }, 60_000);
 });

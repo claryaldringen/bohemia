@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
 import { foundVillage } from '../../domain/village';
-import type { SeenCell } from '../../domain/war';
+import type { SeenCell, SeenPart } from '../../domain/war';
 import { knownMapFor, knownVillagesOf, type KnownMapDeps } from '../known-map';
 import { InMemoryHouses } from './in-memory-houses';
 import { InMemoryKnowledge } from './in-memory-knowledge';
@@ -11,10 +11,18 @@ import { InMemoryVillages } from './in-memory-villages';
 // Známá mapa z domova (lord-control.md – Co vojvoda vidí; plán 2026-11-13 – Úloha 12a).
 
 const NOW = new Date('2027-01-01T00:00:00Z');
+const DWELLING = {
+  kind: 'dwelling',
+  id: 1,
+  type: 'zemnice',
+  position: { x: 0, z: 0, rotation: 0 },
+  condition: 1,
+} as SeenPart['data'];
+/** Znalost mapy s vsí `villageId` a jedním viděným obydlím. */
 const seenOf = (villageId: string, x: number): SeenCell => ({
   villageId,
   trail: [[x, 0]],
-  parts: [],
+  parts: [{ key: 'dwelling:1', pos: { x, z: 0 }, day: 3, data: DWELLING }],
 });
 
 async function setup(): Promise<{
@@ -48,8 +56,9 @@ async function setup(): Promise<{
     'Ves B',
     foundVillage({ seed: 2, day: 0, dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
   );
+  knowledge.world = { settlements, villages, houses };
   return {
-    deps: { houses, settlements, knowledge, villages },
+    deps: { houses, knowledge },
     mine: a.id,
     theirs: b.id,
     theirVillage: village.id,
@@ -101,6 +110,13 @@ describe('knownVillagesOf', () => {
   it('změněný držitel políčka (rod viděl jinou ves) → houseId null', async () => {
     const { deps, mine } = await setup();
     await deps.knowledge.merge(mine, { x: 1, y: 0 }, seenOf('stara-ves', 10));
+    const list = await knownVillagesOf(deps, { playerId: 'pa' });
+    expect(list).toEqual([{ cell: { x: 1, y: 0 }, houseId: null }]);
+  });
+
+  it('mapa jen se stopou – id vsi bez jediné viděné stavby → houseId null (rod se neprozradí)', async () => {
+    const { deps, mine, theirVillage } = await setup();
+    await deps.knowledge.merge(mine, { x: 1, y: 0 }, { ...seenOf(theirVillage, 10), parts: [] });
     const list = await knownVillagesOf(deps, { playerId: 'pa' });
     expect(list).toEqual([{ cell: { x: 1, y: 0 }, houseId: null }]);
   });

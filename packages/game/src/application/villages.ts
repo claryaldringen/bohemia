@@ -97,6 +97,11 @@ export interface VillageRepository {
    */
   stampsOfVillages(villageIds: readonly string[]): Promise<VillageStamp[]>;
   /**
+   * Ty z vsí `villageIds`, jejichž sídlo je v archivu (Začít znovu – `restartGame`): záznam vsi
+   * zůstal, ale dál se nedopočítá. Výjezd bere takovou domovskou ves jako zaniklou.
+   */
+  archivedOf(villageIds: readonly string[]): Promise<string[]>;
+  /**
    * Souhrny vsí `villageIds` bez stavu (levný dotaz – souhrn ukládá každé uložení vsi). Ves, která
    * souhrn současné verze nemá (uložená před ním, `isCurrentDigest`), ve výsledku chybí – volající
    * ji načte celou. Pořadí výsledku nehraje roli.

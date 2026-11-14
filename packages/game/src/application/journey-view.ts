@@ -232,7 +232,8 @@ export async function visitorsOn(
       house: house ? await houseName(deps, house) : state.leaderName,
       tick: state.tick,
       pos: { ...group.pos },
-      goal: group.goal && sameCell(group.goal.cell, cell) ? { ...group.goal.pos } : null,
+      // cíl jen u vlastního výjezdu – o cizím hostitel smí znát jen jméno a rod (lord-control.md)
+      goal: mine && group.goal && sameCell(group.goal.cell, cell) ? { ...group.goal.pos } : null,
       men: state.members
         .filter((m) => m.status === 'active')
         .map((m) => ({ lord: m.lord, mounted: m.mounted })),

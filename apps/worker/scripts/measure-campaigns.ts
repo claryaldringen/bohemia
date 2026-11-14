@@ -387,6 +387,7 @@ async function run(starts: readonly CampaignState[]): Promise<Result> {
     campaignLock: { tryRun: async (_id, task) => ({ ran: true, value: await task() }) },
     cells: { mapOf: (cell) => Promise.resolve(campaignWorld.landscapeOf(cell)!) },
     villages: {
+      archivedOf: () => Promise.resolve([]),
       find: (id) => {
         const state = villages.get(id);
         return Promise.resolve(

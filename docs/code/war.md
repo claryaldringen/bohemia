@@ -206,7 +206,7 @@ notices, waiting }` – čistá, vstup nemění. Takt na kopii stavu (`cloneData
 - **Svět tažení** – `CampaignWorld { clock, landscapeOf(cell), villageAt(villageId, day) }`
   (synchronní): `null` = data ještě nejsou → takt se zastaví a `waiting` vrátí chybějící políčka /
   vsi; výsledek se tím nezmění. Mřížka bere cesty a opevnění **první** vsi mapy; `villageAt` dá stav
-  vsi ke konci dne `d − 1` (bariéra – Ú6.7). Volitelný `villageGone?(villageId)` – svět ves zkusil
+  vsi ke konci dne `d − 1` (bariéra – Ú6.7). Vymřelá nebo opuštěná (spící) ves je hotová – její uložený stav platí pro každý den. Volitelný `villageGone?(villageId)` – svět ves zkusil
   načíst a není (zanikla) – čte jen výjezd vojvody (`docs/code/journey.md`); tažení se neptá.
 - **Use-case** – `application/step-campaigns.ts`: `stepCampaigns(deps, { nowMs })` – pro každé
   `campaigns.active()` pod `CampaignLock.tryRun` (jinak `busy`): kontrolní bod (s pamětí workeru
@@ -696,7 +696,8 @@ Plán 2026-11-03 – rozhodnutí 13, Úloha 6.7. Ves čeká jen na tažení u se
   Adaptér `db/adapters/village-holds.ts` (`createVillageHolds` – CTE nad aktivními body:
   `state->'groups'`, `state->'alarm'` a `outbox` se rozbalí jednou na tažení; aktivní tažení najde
   index `campaign_status_idx`, body s nedoručenými událostmi částečný index
-  `campaign_checkpoint_outbox_idx` – body skončených tažení se nečtou; `villagesNearCampaigns`
+  `campaign_checkpoint_outbox_idx` – body skončených tažení se nečtou; body výjezdů vojvody stejně,
+  navíc drží domovskou ves běžícího výjezdu – journey.md, Úložiště; `villagesNearCampaigns`
   – přednostní vsi = všechny držené vsi kromě těch jen s nedoručenou událostí), úložiště vsí ho
   nese jako `VillageRepository.holds` (patří k dopočtu jako schránka; `cachedVillages` ho propouští).
 - **Dopočet vsi** – `updateVillage` se zeptá na mez při každém pokusu a dopočítá ves jen do
@@ -1617,12 +1618,16 @@ Scéna hry ukazuje **mapu sídla hráče** – vojsko je v ní vidět, když na 
     `WarSceneView.known` na každé mapě, kde vojsko stojí – jeden dotaz na pohled, v taktu workeru
     se nečte. Na mapě cíle `knownTarget` jako dřív (objevená obydlí mají přednost, opevnění ze
     stavu vsi, dům, na jehož místo muži dohlédli a ve vsi není, se nepošle), na mapě po cestě
-    znalost rodu té mapy, jak je (`knowledgeOfCell`; rod vůdce ze stavu, vazal ve službě svůj, bod
-    bez `houseId` podle hráče). Obránce znalost útočníkova rodu nedostane (`warSceneFor` ji nečte,
+    znalost rodu té mapy (`knowledgeOfCell`; rod vůdce ze stavu, vazal ve službě svůj, bod bez
+    `houseId` podle hráče) sloučená s tím, co tam tažení vidí teď (`knownOnWay` –
+    `mergeKnowledge` se `CampaignState.seen` té mapy, jako výjezd): stará zpráva platí jen mimo
+    dohled – dům, který mezitím shořel, v dohledu vojska nestojí a nový ano (návrh Clauda po
+    závěrečné recenzi). Obránce znalost útočníkova rodu nedostane (`warSceneFor` ji nečte,
     `warSceneOnMap` jen pro účastníka). Scéna: stavby, jak je rod naposled viděl, stojí od začátku
     vedle objevených domů (opevnění ze znalosti jen na mapě po cestě – na mapě cíle ho útočník vidí ze stavu vsi) a stopa rodu odkryje šeré místo k mlze války –
     dohled vojska zůstává jasný (web-ui.md – Cizí mapa ve scéně). Boj, pohyb, kořist, varování ani
-    výsledek se nemění. Testy `war-scene.test.ts` (mapa po cestě, vazal, bod bez rodu, obránce),
+    výsledek se nemění. Testy `war-scene.test.ts` (mapa po cestě, shořelý dům v dohledu, vazal, bod
+    bez rodu, obránce),
     `war-scene-view.test.ts` (`foreignVillageOf`), e2e `multiplayer-war.spec.ts`.
 - **Plynulost mezi snímky** (scene.md – Vojsko, boj a mlha války): scéna se ptá 2× za sekundu,
   ale route čte kontrolní bod tažení, který worker uloží po ≥ 40 taktech (10 s) nebo s událostí –

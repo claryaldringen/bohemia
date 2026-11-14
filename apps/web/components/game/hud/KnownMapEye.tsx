@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, type CSSProperties, type ReactElement } from 'react';
+import { createContext, useContext, useEffect, type CSSProperties, type ReactElement } from 'react';
 import type { GridCell } from '@bohemia/game';
 import {
   knownEyeState,
@@ -24,6 +24,11 @@ export interface KnownMapActions {
   known: readonly KnownVillage[];
   last: Readonly<Record<string, GridCell>>;
   open: (houseId: string, cell: GridCell) => void;
+  /**
+   * Panel s oky je otevřený – seznam se načte (při každém otevření panelu, ne na pozadí); vrátí
+   * odhlášení při zavření panelu (`useKnownMapList`).
+   */
+  register: () => () => void;
 }
 
 /** Oko jako maska v barvě textu – táž ikona jako v `CampaignMap` (`public/icons/war/eye.svg`, CC0). */
@@ -39,6 +44,15 @@ const EYE_ICON: CSSProperties = {
 };
 
 export const KnownMapContext = createContext<KnownMapActions | null>(null);
+
+/**
+ * Panel s oky (Rod a vazalové, Vojsko): dokud je otevřený, hra drží seznam známých map – načte ho
+ * při otevření panelu a po návratu ze známé mapy (journey.md – Známá mapa).
+ */
+export function useKnownMapList(): void {
+  const register = useContext(KnownMapContext)?.register;
+  useEffect(() => register?.(), [register]);
+}
 
 export function KnownMapEye({
   houseId,

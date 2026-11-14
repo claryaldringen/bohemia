@@ -13,6 +13,7 @@ import {
 import {
   advanceWorldStep,
   newCampaignMemory,
+  cellsInNeed,
   loadVillage,
   runWorldTasks,
   settlementLandscape,
@@ -268,7 +269,12 @@ async function main(): Promise<void> {
     memory: newCampaignMemory<JourneyState>(),
   };
   const campaignLoop: CampaignLoopDeps = {
-    step: (input) => stepCampaigns({ ...campaignDeps, world: currentWorld() }, input),
+    step: (input) => {
+      // mezipaměť prázdných map pojme všechny mapy, které tažení a výjezdy čtou (docs/code/worker.md
+      // – Výkon) – krajina mapy se skupinou se mezi koly negeneruje znovu, ať je skupin kolik chce
+      campaignDeps.cells.reserve(cellsInNeed(campaignDeps.memory, journeyDeps.memory));
+      return stepCampaigns({ ...campaignDeps, world: currentWorld() }, input);
+    },
     journeys: (input) => stepJourneys({ ...journeyDeps, world: currentWorld() }, input),
     now: () => Date.now(),
     sleep: abortableSleep,

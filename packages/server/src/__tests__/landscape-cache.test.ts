@@ -33,6 +33,20 @@ describe('LruCache', () => {
   });
 });
 
+describe('LruCache.resize', () => {
+  it('zvětšení pojme víc položek, zmenšení zahodí nejdéle nepoužité', () => {
+    const cache = new LruCache<string, number>(2);
+    cache.resize(3);
+    for (const [i, key] of ['a', 'b', 'c'].entries()) cache.set(key, i);
+    expect(cache.size).toBe(3);
+    expect(cache.get('a')).toBe(0);
+    cache.resize(1);
+    expect(cache.capacity).toBe(1);
+    expect([cache.get('a'), cache.get('b'), cache.get('c')]).toEqual([0, undefined, undefined]);
+    expect(() => cache.resize(0)).toThrow(RangeError);
+  });
+});
+
 describe('cachedLandscapes', () => {
   const fake = (seed: number): Landscape => ({ size: seed }) as unknown as Landscape;
 

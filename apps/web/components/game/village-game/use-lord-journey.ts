@@ -89,9 +89,14 @@ export function useLordJourney({
   // se ves obnoví a dotazy stojí, dokud ves návrat nepotvrdí.
   const [launched, setLaunched] = useState(false);
   const [ended, setEnded] = useState(false);
+  // vyslání čeká na odpověď / vyšlo, ale ves ještě neví, že je vojvoda pryč – čte je pravé kliknutí
+  // (dvojité kliknutí nevyšle dvakrát, druhé kliknutí po úspěchu je už rozkaz výjezdu)
+  const launching = useRef(false);
+  const launchedRef = useRef(false);
   const onEnded = useCallback((): void => {
     setEnded(true);
     setLaunched(false);
+    launchedRef.current = false;
     refreshVillage();
   }, [refreshVillage]);
   useEffect(() => {
@@ -210,19 +215,30 @@ export function useLordJourney({
           mapSizeM: lordMapSizeM,
           cell: orderCell,
         });
-        const click = lordClick({ order, loading, refusal });
+        // vyjel, ale ves to ještě neví – rozkaz jde běžícímu výjezdu (server ho ověří)
+        const away = journeyAway || launchedRef.current;
+        const click = lordClick({
+          order,
+          loading: journeyAway ? loading : !away && loading,
+          refusal: journeyAway || !away ? refusal : null,
+          launching: !away && launching.current,
+        });
         if (click.kind === 'refuse') showError(click.text, screen);
         if (click.kind !== 'send') return;
-        const sent = journeyAway
+        if (!away) launching.current = true;
+        const sent = away
           ? commandJourney(click.order).then((r) => ('error' in r ? r.error : null))
-          : launchJourney({ villageId, retinue: [...retinueRef.current], order: click.order }).then(
-              (r) => {
+          : launchJourney({ villageId, retinue: [...retinueRef.current], order: click.order })
+              .then((r) => {
                 if ('error' in r) return r.error;
+                launchedRef.current = true;
                 setLaunched(true);
                 refreshVillage();
                 return null;
-              },
-            );
+              })
+              .finally(() => {
+                launching.current = false;
+              });
         void sent.then((failure) => {
           if (failure !== null) showError(failure, screen);
           else refreshJourney();

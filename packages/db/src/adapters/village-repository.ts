@@ -346,6 +346,17 @@ export function createVillageRepository(db: Database): VillageRepository {
       const rows = await db.select(STAMP_COLUMNS).from(village).where(inArray(village.id, ids));
       return rows.map(toStamp);
     },
+
+    async archivedOf(villageIds): Promise<string[]> {
+      const ids = villageIds.filter((id) => UUID.test(id));
+      if (ids.length === 0) return [];
+      const rows = await db
+        .select({ id: village.id })
+        .from(village)
+        .innerJoin(settlement, eq(settlement.id, village.settlementId))
+        .where(and(inArray(village.id, ids), sql`${settlement.archivedAt} IS NOT NULL`));
+      return rows.map((r) => r.id);
+    },
   };
 }
 

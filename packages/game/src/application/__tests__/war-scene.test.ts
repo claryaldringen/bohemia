@@ -334,6 +334,47 @@ describe('warSceneOnMap – útočník na cizí mapě', () => {
     expect(defending).not.toHaveProperty('known');
   });
 
+  it('mapa po cestě v dohledu tažení: shořelý dům se nekreslí, nový ano – sloučení se `seen` tažení', async () => {
+    const WAY = { x: 2, y: 0 };
+    const part = (key: string, x: number, day: number): SeenPart => ({
+      key,
+      pos: { x, z: 0 },
+      day,
+      data: { kind: 'dwelling' } as SeenData,
+    });
+    const base = campaign({ members: [member(1, 0, true), member(2, 0, false)] });
+    // rod zná dům 5 z dřívějška; tažení teď v dohledu vidí, že dům 5 zmizel a stojí dům 9
+    const onWay: CampaignState = {
+      ...base,
+      houseId: 'h1',
+      groups: base.groups.map((g) => ({ ...g, cell: { ...WAY }, pos: { x: 0, z: 0 } })),
+      seen: {
+        '2,0': {
+          villageId: 'brod',
+          trail: [[0, 0]],
+          parts: [part('dwelling:9', 20, 7)],
+          gone: [{ key: 'dwelling:5', day: 7 }],
+        },
+      },
+    };
+    const { deps } = await setup(onWay, []);
+    const knowledge = new InMemoryKnowledge();
+    await knowledge.merge('h1', WAY, {
+      villageId: 'brod',
+      trail: [[300, 40]],
+      parts: [part('dwelling:5', 300, 3)],
+    });
+    const view = await warSceneOnMap(
+      { ...deps, knowledge },
+      { playerId: 'p1', campaignId: 'c1', cell: WAY },
+    );
+    expect(view!.known!.parts.map((p) => p.key)).toEqual(['dwelling:9']);
+    expect(view!.known!.trail).toEqual([
+      [0, 0],
+      [300, 40],
+    ]);
+  });
+
   it('znalost rodu na mapě po cestě (Úloha 12b): znalost té mapy, jak je – jeden dotaz na pohled', async () => {
     const WAY = { x: 2, y: 0 };
     const part = (key: string, x: number, z: number): SeenPart => ({

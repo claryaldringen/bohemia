@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf, realTimeOf } from '../../calendar';
-import type { StreamPoint } from '../../landscape';
+import { surfaceAt, tileOfWorldPoint, type StreamPoint } from '../../landscape';
 import { addGate, areaOutline, fortificationArea, fortSegments } from '../../village';
 import type { Fortification } from '../../village/fortification/types';
 import { sameCell, type GridCell } from '../../village/people/world-grid';
@@ -254,6 +254,11 @@ describe('rozkaz go', () => {
     const there = stepJourney(start, LAUNCH + 400, [], world).state.groups[0]!;
     expect(there.arrived).toBe(true);
     expect(there.pos).toEqual(moving.goal!.pos);
+    // praporek ve scéně stojí na `group.goal` (journeyMarks) – posunutý cíl je na souši, ne ve
+    // vodě (náhrada nestabilního e2e praporku ve vodě – závěrečná recenze)
+    const tile = tileOfWorldPoint(map.landscape, moving.goal!.pos.x, moving.goal!.pos.z)!;
+    expect(surfaceAt(map.landscape, tile.x, tile.y)).not.toBe('water');
+    expect(Math.abs(moving.goal!.pos.x - 247.5)).toBeGreaterThan(0.5);
   });
 });
 

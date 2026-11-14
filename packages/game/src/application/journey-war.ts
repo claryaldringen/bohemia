@@ -7,7 +7,7 @@ import type { SettlementRepository } from './settlements';
 import type { WarRepository } from './wars';
 
 // Výjezdy a válka (lord-control.md – Rozkazy: výjezd do země, kde je válka, nejde; Pořadí zavedení:
-// začne-li válka, když tam stojí, jede domů; plán 2026-11-13 – rozhodnutí 1). `houseAtWarOn` je
+// začne-li válka, když tam stojí, jede domů – docs/design/lord-control.md). `houseAtWarOn` je
 // dotaz, kterým se ptají výjezdy při vyslání, rozkazu a vjezdu skupiny na jinou mapu (worker);
 // `recallJourneysAtWar` pošle domů výjezdy, které začátek války zastihne na mapě protivníka.
 
