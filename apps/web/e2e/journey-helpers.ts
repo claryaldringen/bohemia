@@ -94,7 +94,7 @@ export async function sendLord(
     )
     .toBe('dwelling');
   await panel.getByTestId(`resident-select-${v.lordId}`).click();
-  await expect(page.getByTestId('lord-retinue')).toBeVisible({ timeout: 30_000 });
+  await expect(panel).toHaveAttribute('data-kind', 'person', { timeout: 30_000 });
   const target = await screenOf(page, to.x, to.z);
   await page.mouse.click(target.x, target.y, { button: 'right' });
   await expect(page.getByTestId('lord-away-badge')).toBeVisible({ timeout: 30_000 });

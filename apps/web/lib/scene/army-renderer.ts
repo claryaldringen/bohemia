@@ -230,8 +230,9 @@ export class ArmyRenderer {
   /** Muži výjezdů, jak jsou naposled nakreslení (výběr klikem, e2e). */
   private riders: RiderPose[] = [];
   /** Vybraná osoba vsi – je-li mužem vlastního výjezdu, kroužek výběru jede s ním. */
-  private selectedMan: number | null = null;
-  private ring: SelectionRing | null = null;
+  private selectedMen: readonly number[] = [];
+  /** Kroužky výběru mužů výpravy (první – `journeyRing`). */
+  private rings: SelectionRing[] = [];
   /** Kde kroužek výběru jezdce právě leží (e2e); null – schovaný. */
   private ringAt: { x: number; z: number } | null = null;
 
@@ -378,12 +379,17 @@ export class ArmyRenderer {
   }
 
   /**
-   * Vybraná osoba vsi (null – nikdo): je-li mužem vlastního výjezdu, leží pod ním žlutý kroužek
-   * a jede s ním (jako jednotka v 0 A.D. – lord-control.md, Co hráč vidí). True – změna.
+   * Vybraní lidé vsi (prázdné – nikdo): kdo je mužem vlastní výpravy, má pod sebou žlutý kroužek,
+   * který jede s ním (jako jednotka v 0 A.D. – expeditions.md, Výběr a skupina). True – změna.
    */
-  selectJourneyMan(personId: number | null): boolean {
-    if (this.selectedMan === personId) return false;
-    this.selectedMan = personId;
+  selectJourneyMen(personIds: readonly number[]): boolean {
+    if (
+      this.selectedMen.length === personIds.length &&
+      this.selectedMen.every((id, k) => id === personIds[k])
+    ) {
+      return false;
+    }
+    this.selectedMen = personIds;
     const was = this.ringAt;
     this.writeRing();
     return was !== null || this.ringAt !== null;
@@ -425,8 +431,8 @@ export class ArmyRenderer {
 
   dispose(): void {
     this.disposed = true;
-    this.ring?.dispose();
-    this.ring = null;
+    for (const ring of this.rings) ring.dispose();
+    this.rings = [];
     for (const k of this.figures.values()) {
       k.mesh.material?.dispose(true, true);
       k.manager.texture?.dispose();
@@ -894,25 +900,25 @@ export class ArmyRenderer {
     }
   }
 
-  /** Kroužek výběru pod vybraným mužem výjezdu, jak je nakreslený; jinak schovaný. */
+  /** Kroužky výběru pod vybranými muži výpravy, jak jsou nakreslení; nikdo – schované. */
   private writeRing(): void {
-    const pose = selectedRider(this.riders, this.selectedMan);
-    if (!pose) {
-      this.ring?.hide();
-      this.ringAt = null;
-      return;
-    }
-    const ring = (this.ring ??= new SelectionRing(this.scene, 'journey-ring'));
+    const poses = this.selectedMen
+      .map((id) => selectedRider(this.riders, id))
+      .filter((pose): pose is RiderPose => pose !== null);
+    this.ringAt = poses[0] ? { x: poses[0].x, z: poses[0].z } : null;
     const ground = this.env.groundHeight;
     const size = RING_SIZE_M * FIGURE_SCALE;
-    // jezdec – elipsa podél koně
-    const length = pose.mounted ? size * RIDER_RING_LENGTH : size;
-    ring.show(ground, pose.x, ground(pose.x, pose.z), pose.z, length, size, pose.hx, pose.hz);
-    this.ringAt = { x: pose.x, z: pose.z };
+    poses.forEach((pose, k) => {
+      const ring = (this.rings[k] ??= new SelectionRing(this.scene, `journey-ring-${k}`));
+      // jezdec – elipsa podél koně
+      const length = pose.mounted ? size * RIDER_RING_LENGTH : size;
+      ring.show(ground, pose.x, ground(pose.x, pose.z), pose.z, length, size, pose.hx, pose.hz);
+    });
+    for (let k = poses.length; k < this.rings.length; k++) this.rings[k]!.hide();
   }
 
   private hideAll(): void {
-    this.ring?.hide();
+    for (const ring of this.rings) ring.hide();
     this.ringAt = null;
     for (const k of this.figures.values()) k.mesh.setEnabled(false);
     for (const a of this.animals.values()) a.mesh.setEnabled(false);

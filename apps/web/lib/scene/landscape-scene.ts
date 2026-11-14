@@ -60,7 +60,7 @@ import { hitPart } from './scene-perf';
 import {
   ScenePointer,
   type GatePick,
-  type LordOrderMode,
+  type OrderMode,
   type HoverListener,
   type SelectListener,
 } from './scene-pointer';
@@ -95,6 +95,7 @@ import { HoldingsOverlay, type HoldingsOverlaySector } from './holdings-overlay'
 import type { SceneWar } from './army-renderer';
 import { SelectionHighlight } from './selection-highlight';
 import type { VillageTarget } from './village-picking';
+import { selectedPeopleIds } from './village-selection';
 import type { ActivePlacement } from './village-placement';
 import { ChurchPlacer } from './church-placer';
 import { createPlacement } from './placement-factory';
@@ -980,11 +981,11 @@ export class LandscapeScene {
   }
 
   /**
-   * Zapne ovládání vybraného vojvody (lord-control.md): pravé kliknutí do krajiny pošle bod terénu
+   * Zapne ovládání vybraných lidí (expeditions.md): pravé kliknutí do krajiny pošle bod terénu
    * `mode.order`, pohyb kurzoru `mode.hover`; `null` vrací běžné pravé tlačítko (zrušení výběru).
    */
-  setLordMode(mode: LordOrderMode | null): void {
-    this.pointer.setLordMode(mode);
+  setOrderMode(mode: OrderMode | null): void {
+    this.pointer.setOrderMode(mode);
   }
 
   /**
@@ -994,9 +995,12 @@ export class LandscapeScene {
   setSelection(target: VillageTarget | null): void {
     this.selection.target = target;
     this.highlight?.show(this.villageState, target, this.logPile?.pickable() ?? []);
-    this.villagers?.select(target?.kind === 'person' ? target.id : null);
-    // vojvoda a muži na výjezdu – kroužek jede s jezdcem (journey.md – Výběr)
-    this.war.selectJourneyMan(target?.kind === 'person' ? target.id : null);
+    // lidé: první je „vybraný“ (stav a panel), ostatní mají jen kroužek (expeditions.md – Výběr)
+    const people = selectedPeopleIds(target);
+    this.villagers?.select(people[0] ?? null);
+    this.villagers?.selectMore(people.slice(1));
+    // lidé na výpravě – kroužek jede s jezdcem (journey.md – Výběr)
+    this.war.selectJourneyMen(people);
     this.selection.syncDraft();
     this.loop.renderWhenReady();
   }

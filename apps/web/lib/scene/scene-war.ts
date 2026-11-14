@@ -33,7 +33,7 @@ export class SceneWarView {
   /** Místa dvorce pro odjezd a příjezd výjezdu (journey-departure.ts). */
   private yard: JourneyYard | null = null;
   /** Vybraná osoba vsi – kroužek výběru pod ní, je-li mužem vlastního výjezdu. */
-  private selectedMan: number | null = null;
+  private selectedMen: readonly number[] = [];
   /** Stopa rodu pro mlhu cizí mapy výjezdu; null – bez mlhy výjezdu (army-renderer.ts). */
   private trail: readonly (readonly [number, number])[] | null = null;
 
@@ -59,7 +59,7 @@ export class SceneWarView {
     this.marker?.dispose();
     this.marker = new JourneyMarker(this.deps.scene, decalHeight);
     this.army.setJourneyYard(this.yard);
-    this.army.selectJourneyMan(this.selectedMan);
+    this.army.selectJourneyMen(this.selectedMen);
     if (this.war) this.army.set(this.war, Date.now(), this.deps.reducedMotion(), null);
     if (this.journeys.length > 0) {
       this.army.setJourneys(this.journeys, Date.now(), this.deps.reducedMotion(), null);
@@ -113,12 +113,12 @@ export class SceneWarView {
   }
 
   /**
-   * Vybraná osoba vsi (null – nikdo): muž vlastního výjezdu má pod sebou kroužek výběru, který jede
-   * s ním – vojvoda zůstane vybraný i po odjezdu z vsi (journey.md – Výběr).
+   * Vybraní lidé vsi (prázdné – nikdo): muž vlastní výpravy má pod sebou kroužek výběru, který jede
+   * s ním – vybraný zůstane vybraný i po odjezdu z vsi (journey.md – Výběr).
    */
-  selectJourneyMan(personId: number | null): void {
-    this.selectedMan = personId;
-    if (this.army?.selectJourneyMan(personId)) this.deps.requestRender();
+  selectJourneyMen(personIds: readonly number[]): void {
+    this.selectedMen = personIds;
+    if (this.army?.selectJourneyMen(personIds)) this.deps.requestRender();
   }
 
   /** Koně a muži vsi, kteří odjíždějí nebo přijíždějí – ohrada a den rodiny je nekreslí. */

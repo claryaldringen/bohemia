@@ -157,6 +157,34 @@ export function interpolateExpeditions(
 
 const sameCell = (a: GridCell, b: GridCell): boolean => a.x === b.x && a.y === b.y;
 
+/** Pohled na hlouček `group` skupiny `party` výpravy `view` (panel a scéna cizí mapy). */
+function journeyViewOf(
+  view: ExpeditionView,
+  party: ExpeditionView['parties'][number],
+  group: ExpeditionView['parties'][number]['groups'][number],
+): JourneyView {
+  const home = sameCell(group.cell, view.home);
+  return {
+    journeyId: view.journeyId,
+    tick: view.tick,
+    day: view.day,
+    phase: party.phase,
+    cell: { ...group.cell },
+    home: { ...view.home },
+    homePos: { ...view.homePos },
+    men: party.people.map((p) => ({
+      personId: p.personId,
+      lord: p.lord,
+      mounted: p.mounted,
+      wounded: p.wounded,
+    })),
+    group: { pos: { ...group.pos }, goal: group.goal, arrived: group.arrived },
+    waitDaysLeft: party.waitDaysLeft,
+    controllable: party.controllable,
+    seen: home ? null : (view.seen[`${group.cell.x},${group.cell.y}`] ?? null),
+  };
+}
+
 /**
  * Pohled na výjezd vojvody pro jeho panel a scénu cizí mapy (lord-control.md): skupina s vojvodou
  * (`lord`) a její hlouček s vojvodou z pohledů na výpravy. Bez vojvody ve výpravě null.
@@ -166,27 +194,27 @@ export function lordJourneyViewOf(views: readonly ExpeditionView[]): JourneyView
     for (const party of view.parties) {
       const lord = party.people.find((p) => p.lord);
       const group = party.groups.find((g) => g.id === lord?.group);
-      if (!lord || !group) continue;
-      const home = sameCell(group.cell, view.home);
-      return {
-        journeyId: view.journeyId,
-        tick: view.tick,
-        day: view.day,
-        phase: party.phase,
-        cell: { ...group.cell },
-        home: { ...view.home },
-        homePos: { ...view.homePos },
-        men: party.people.map((p) => ({
-          personId: p.personId,
-          lord: p.lord,
-          mounted: p.mounted,
-          wounded: p.wounded,
-        })),
-        group: { pos: { ...group.pos }, goal: group.goal, arrived: group.arrived },
-        waitDaysLeft: party.waitDaysLeft,
-        controllable: party.controllable,
-        seen: home ? null : (view.seen[`${group.cell.x},${group.cell.y}`] ?? null),
-      };
+      if (lord && group) return journeyViewOf(view, party, group);
+    }
+  }
+  return null;
+}
+
+/**
+ * Pohled na skupinu vybraných lidí (expeditions.md – Výběr a skupina; scéna cizí mapy jde za
+ * hloučkem jejího vůdce): první skupina, ve které je někdo z `personIds`, a hlouček jejího vůdce
+ * (bez vůdce hlouček prvního člena). Nikdo ze skupiny – null.
+ */
+export function partyJourneyViewOf(
+  views: readonly ExpeditionView[],
+  personIds: readonly number[],
+): JourneyView | null {
+  for (const view of views) {
+    for (const party of view.parties) {
+      if (!party.people.some((p) => personIds.includes(p.personId))) continue;
+      const leader = party.people.find((p) => p.personId === party.leaderId) ?? party.people[0];
+      const group = party.groups.find((g) => g.id === leader?.group);
+      if (group) return journeyViewOf(view, party, group);
     }
   }
   return null;

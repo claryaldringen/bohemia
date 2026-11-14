@@ -350,9 +350,11 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   | Tab                    |                                                                  | pozemek: místo domu (varianta)  |                                    |
   | další                  |                                                                  | Enter postaví                   | Backspace / Ctrl+Z vrátí, Enter    |
 
-  **Vojvoda** (výjezd – `docs/code/journey.md`, Ovládání): s vybraným vojvodou (klik na něj, nebo na
-  jeho portrét v liště, je-li pryč) dá pravé tlačítko rozkaz místo zrušení výběru – Esc a klik
-  jinam výběr ruší jako dřív.
+  **Lidé a výprava** (`docs/code/journey.md`, Ovládání): klik na člověka ho vybere, **Shift (Ctrl) +
+  klik** přidá nebo ubere dalšího (jako jednotky v 0 A.D.), klik na člena skupiny venku vybere celou
+  skupinu. S vybranými lidmi dá **pravé tlačítko** rozkaz do krajiny místo zrušení výběru (doma se
+  z nich stane skupina, venku se přesměruje; u okraje mapy přes okraj) – Esc a klik jinam výběr
+  ruší jako dřív.
 
   Vždy: WASD / šipky a kurzor u okraje okna posouvají, kolečko i rozevření prstů na trackpadu
   (Ctrl + kolečko, v Safari `gesturechange`) přibližují, Q/E otáčí, R vrátí pohled na ves

@@ -19,14 +19,14 @@ import { LordAwayBadge } from './hud/LordAwayBadge';
 import { JourneyCursorNote, LordJourneyPanel } from './hud/LordJourneyPanel';
 import { Tooltip } from './hud/Tooltip';
 import { journeySceneHook } from './village-game/use-journey-scene';
-import type { LordJourney } from './village-game/use-lord-journey';
+import type { ExpeditionOrders } from './village-game/use-expedition-orders';
 
 // Cizí mapa za vojvodou (lord-control.md – Co vojvoda vidí, Co hráč vidí, Ve scéně; journey.md –
 // Scéna cizí mapy): krajina z `GET /api/journey?map=x,y` (404 = zpět na ves), jezdci vlastního
 // výjezdu s praporkem a přesýpacími hodinami, závoj mlhy jako při tažení (odkryté ze stopy rodu
 // šeré, okolí jezdců jasné) a stavby, jak je muži naposled viděli (`seenVillageOf`). Odjezd ani
 // příjezd se tu nekreslí – dvorec tu není. Pravé tlačítko dává vojvodovi rozkazy jako doma
-// (`useLordJourney`); ⌂ vrátí pohled na ves, výjezd běží dál.
+// (`useExpeditionOrders`); ⌂ vrátí pohled na ves, výjezd běží dál.
 //
 // Známý režim (`known`, Úloha 12a – journey.md – Známá mapa): táž scéna bez jezdců a bez rozkazů,
 // otevřená z domova okem u rodu. Krajina i znalost jdou z `GET /api/journey?known=x,y`: odkryté
@@ -49,7 +49,7 @@ export function ForeignJourneyScene({
   journey,
   expeditions = NO_EXPEDITIONS,
   clock,
-  lord,
+  orders,
   known,
 }: {
   cell: GridCell;
@@ -59,8 +59,8 @@ export function ForeignJourneyScene({
   expeditions?: readonly ExpeditionView[];
   /** Hodiny hráče (vývojový posun) – roční období a den ve scéně. */
   clock: WorldClock;
-  /** Ovládání vojvody; ve známém režimu null. */
-  lord: LordJourney | null;
+  /** Rozkazy vybraným lidem; ve známém režimu null. */
+  orders: ExpeditionOrders | null;
   /** Známý režim: mapa, jak ji zná rod; `onBack` vrátí ves. */
   known?: { onBack: () => void };
 }): ReactElement {
@@ -69,8 +69,8 @@ export function ForeignJourneyScene({
   const [knownSeen, setKnownSeen] = useState<SeenCell | null>(null);
   const [scene, setScene] = useState<LandscapeScene | null>(null);
   const isKnown = known !== undefined;
-  const back = known ? known.onBack : (lord?.back ?? noop);
-  const bindForeign = lord?.bindForeign;
+  const back = known ? known.onBack : (orders?.back ?? noop);
+  const bindForeign = orders?.bindForeign;
   const backRef = useRef(back);
   useEffect(() => {
     backRef.current = back;
@@ -200,10 +200,10 @@ export function ForeignJourneyScene({
             ⌂
           </button>
         </Tooltip>
-        {lord?.away && <LordAwayBadge {...lord.away} placement="below-right" />}
-        {lord?.panel?.mode === 'away' && <LordJourneyPanel ui={lord.panel} placement="below" />}
+        {orders?.away && <LordAwayBadge {...orders.away} placement="below-right" />}
+        {orders?.homeUi && <LordJourneyPanel ui={orders.homeUi} placement="below" />}
       </div>
-      {lord && <JourneyCursorNote note={lord.note} />}
+      {orders && <JourneyCursorNote note={orders.note} />}
     </div>
   );
 }

@@ -17,7 +17,8 @@ import { ROAD_KIND_NAMES, SACRED_BUILDING_NAMES } from '@/lib/village-view';
 import { AbandonPartButton } from './AbandonPartButton';
 import { StructureUseButtons, type StructureUseActions } from './StructureUseButtons';
 import { CancelConstructionButton } from './RelocationControls';
-import type { LordJourneyUi } from './LordJourneyPanel';
+import { LordJourneyPanel, type LordJourneyUi } from './LordJourneyPanel';
+import { formatInteger } from '@/lib/village-format';
 import { Tooltip } from './Tooltip';
 import { StewardBuiltMark } from './StewardToggle';
 import {
@@ -389,6 +390,37 @@ export function SelectionPanel({
         ) : (
           <Bar value={details.demolition} name="Bourání" testId="selection-demolition" />
         )}
+      </div>
+    );
+  } else if (details.kind === 'people') {
+    portrait = <PersonPortrait icon="man" name={`Lidé (${details.ids.length})`} />;
+    body = (
+      <div className="flex flex-col gap-1" data-testid="selection-people">
+        <div className="flex items-center gap-3">
+          <Tooltip content="Vybraní lidé">
+            <span className="flex items-center gap-1" tabIndex={0}>
+              <img src="/icons/resources/man.png" alt="" width={20} height={20} />
+              <span data-testid="selection-people-count">{details.ids.length}</span>
+            </span>
+          </Tooltip>
+          {details.riders > 0 && (
+            <Tooltip content="Jezdci">
+              <span className="flex items-center gap-1" tabIndex={0}>
+                <img src="/icons/resources/jizda.png" alt="" width={20} height={20} />
+                {details.riders}
+              </span>
+            </Tooltip>
+          )}
+          <Tooltip content="Síla skupiny">
+            <span className="flex items-center gap-1" tabIndex={0}>
+              <img src="/icons/house/sword.png" alt="" width={20} height={20} />
+              <span data-testid="selection-people-strength">
+                {formatInteger(Math.round(details.strength))}
+              </span>
+            </span>
+          </Tooltip>
+        </div>
+        {lordJourney && <LordJourneyPanel ui={lordJourney} />}
       </div>
     );
   } else if (details.kind === 'dwellings') {

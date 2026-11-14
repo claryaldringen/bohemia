@@ -27,6 +27,54 @@ export function dwellingsTarget(ids: readonly number[]): VillageTarget | null {
   return ids.length === 1 ? { kind: 'dwelling', id: first } : { kind: 'dwellings', ids };
 }
 
+/** Id vybraných lidí – jeden, víc, nebo žádný (vybrané je něco jiného). */
+export function selectedPeopleIds(target: VillageTarget | null): readonly number[] {
+  if (target?.kind === 'person') return [target.id];
+  if (target?.kind === 'people') return target.ids;
+  return [];
+}
+
+/** Výběr z id lidí: nikdo → nic, jeden → člověk, víc → víc lidí. */
+export function peopleTarget(ids: readonly number[]): VillageTarget | null {
+  const [first] = ids;
+  if (first === undefined) return null;
+  return ids.length === 1 ? { kind: 'person', id: first } : { kind: 'people', ids };
+}
+
+/** Skupina člověka venku (id lidí skupiny, i jeho); člověk mimo skupinu → null. */
+export type PartyOf = (personId: number) => readonly number[] | null;
+/** Domovská ves člověka (id vsi); neznámý → null. */
+export type VillageOf = (personId: number) => string | null;
+
+/**
+ * Klik na člověka (expeditions.md – Výběr a skupina; jako jednotky v 0 A.D.): bez modifikátoru
+ * vybere člověka, člena skupiny venku celou skupinu; s Ctrl / Shift (`additive`) člověka přidá
+ * nebo ubere, u člena skupiny celou skupinu. Člověk jiné domovské vsi (`villageOf`) výběr
+ * nahradí, obydlí a lidé se nemíchají (člověk k obydlím výběr nahradí).
+ */
+function nextPeopleSelection(
+  current: VillageTarget | null,
+  clicked: Extract<VillageTarget, { kind: 'person' }>,
+  additive: boolean,
+  partyOf: PartyOf | undefined,
+  villageOf: VillageOf | undefined,
+): VillageTarget | null {
+  const party = partyOf?.(clicked.id) ?? null;
+  const group = party && party.length > 0 ? party : [clicked.id];
+  const ids = selectedPeopleIds(current);
+  if (!additive || ids.length === 0) return peopleTarget(group);
+  const village = villageOf?.(clicked.id) ?? null;
+  const other = ids.some((id) => {
+    const home = villageOf?.(id) ?? null;
+    return village !== null && home !== null && home !== village;
+  });
+  if (other) return peopleTarget(group);
+  const allIn = group.every((id) => ids.includes(id));
+  return allIn
+    ? peopleTarget(ids.filter((id) => !group.includes(id)))
+    : peopleTarget([...ids, ...group.filter((id) => !ids.includes(id))]);
+}
+
 /**
  * Nový výběr po kliknutí do scény: bez modifikátoru vybere, co je pod kurzorem (prázdná zem
  * výběr zruší) – u pole a sadu jen díl / čtverec pod kurzorem, dvojklik (`double`) celé pole či
@@ -34,17 +82,24 @@ export function dwellingsTarget(ids: readonly number[]): VillageTarget | null {
  * / Shift (`additive`) přidá obydlí k vybraným obydlím, nebo ho z výběru ubere, když už vybrané
  * je; prázdná zem výběr nechá. Jiný cíl než obydlí (úsek cesty mezi domy, pole…) vybraná obydlí
  * nezruší – klik vedle domu výběr nerozbije; když obydlí vybraná nejsou, vybere se sám (víc
- * najednou jde vybrat jen obydlí).
+ * najednou jde vybrat jen obydlí a lidi – ti přes `partyOf` a `villageOf`).
  */
 export function nextSelection(
   current: VillageTarget | null,
   clicked: VillageTarget | null,
   additive: boolean,
   double = false,
+  partyOf?: PartyOf,
+  villageOf?: VillageOf,
 ): VillageTarget | null {
+  if (clicked?.kind === 'person') {
+    return nextPeopleSelection(current, clicked, additive, partyOf, villageOf);
+  }
   const picked = double && clicked !== null ? wholeTarget(clicked) : clicked;
   if (!additive) return picked;
   if (picked === null) return current;
+  // lidé vybraní → jiný cíl s Shiftem výběr lidí nezruší
+  if (selectedPeopleIds(current).length > 0) return current;
   const ids = selectedDwellingIds(current);
   if (picked.kind !== 'dwelling') return ids.length > 0 ? current : picked;
   return ids.includes(picked.id)
@@ -158,6 +213,11 @@ export function presentTarget(
     }
     // zemřelý člověk (villagers.md – Výběr postavy)
     if (target.kind === 'person') return personExists(village, target.id) ? target : null;
+    // víc lidí: zemřelí z výběru vypadnou (lidé z jiných vsí – cizí mapa – zůstanou)
+    if (target.kind === 'people') {
+      const ids = target.ids.filter((id) => personExists(village, id));
+      return ids.length === target.ids.length ? target : peopleTarget(ids);
+    }
     // spřežení, když se dnes neorá; vůz, který ves už nemá (doslouží)
     if (target.kind === 'plough-team' || target.kind === 'cart') {
       return targetExists(village, target) ? target : null;

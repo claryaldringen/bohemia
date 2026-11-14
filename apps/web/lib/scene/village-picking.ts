@@ -115,6 +115,11 @@ export type VillageTarget =
    */
   | { kind: 'person'; id: number }
   /**
+   * Víc lidí jedné domovské vsi (expeditions.md – Výběr a skupina): Shift + klik, nebo klik na
+   * člena skupiny venku (vybere se celá skupina). Pravé tlačítko jim dá rozkaz.
+   */
+  | { kind: 'people'; ids: readonly number[] }
+  /**
    * Spřežení volů s rádlem na poli (oxen.md – Výběr spřežení): pořadí spřežení dne
    * (plough-team-renderer.ts) – klik na voly nebo rádlo.
    */
@@ -614,6 +619,7 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
     return (village.grainPits ?? []).some((p) => p.id === target.id);
   }
   if (target.kind === 'person') return personExists(village, target.id);
+  if (target.kind === 'people') return target.ids.some((id) => personExists(village, id));
   if (target.kind === 'plough-team') return ploughsToday(village);
   if (target.kind === 'cart') return (village.carts ?? []).some((c) => c.id === target.id);
   // zvíře ve scéně hlídá jeho vlastní výběr (W10); druh zvěře existuje, dokud ves má zvěř

@@ -212,6 +212,17 @@ type SelectionKinds =
       use?: StructureUseView;
     }
   | {
+      /** Víc vybraných lidí (Shift + klik, klik na člena skupiny – expeditions.md, Výběr). */
+      kind: 'people';
+      ids: readonly number[];
+      /** Kolik z nich jede na koni (jezdci s koněm, na koni venku). */
+      riders: number;
+      /** Součet síly do meče (ženy a děti 0). */
+      strength: number;
+      /** Aspoň jeden je ve skupině venku – panel dá Domů. */
+      inParty: boolean;
+    }
+  | {
       /** Víc vybraných obydlí (Ctrl/Shift + klik, Ctrl + A – migration.md). */
       kind: 'dwellings';
       ids: readonly number[];
@@ -1031,6 +1042,7 @@ function selectionKinds(
   if (target.kind === 'plough-team') return teamDetails(scene, target.team, draft);
   if (target.kind === 'cart') return cartDetails(scene, target.id, draft);
   if (target.kind === 'dwellings') return dwellingsDetails(view, scene, target.ids);
+  if (target.kind === 'people') return peopleDetails(scene, target.ids, parties);
   if (target.kind === 'fields') {
     const fields = (view?.fields ?? []).filter((f) => target.ids.includes(f.id));
     if (fields.length === 0) return null;
@@ -1555,6 +1567,36 @@ function fieldPartDetails(
     ...(part.outlook ? { outlook: part.outlook } : {}),
     fieldIds: view?.fields.map((f) => f.id) ?? [],
   };
+}
+
+/**
+ * Víc vybraných lidí (expeditions.md – Výběr a skupina): kolik jich je, kolik jezdců, síla do meče
+ * a jestli někdo z nich je ve skupině venku (jezdec venku podle skupiny, doma podle koně).
+ */
+function peopleDetails(
+  scene: SceneVillage,
+  ids: readonly number[],
+  parties: readonly PartyView[],
+): SelectionDetails | null {
+  if (ids.length === 0) return null;
+  const persons = scene.labor?.persons ?? [];
+  let riders = 0;
+  let strength = 0;
+  let inParty = false;
+  for (const id of ids) {
+    const member = parties.flatMap((p) => p.people).find((m) => m.personId === id);
+    if (member) {
+      inParty = true;
+      if (member.mounted) riders++;
+      strength += member.strength;
+      continue;
+    }
+    const person = persons.find((p) => p.id === id);
+    if (person?.expedition?.inParty) inParty = true;
+    if (person?.expedition?.rider) riders++;
+    strength += person?.expedition?.strength ?? 0;
+  }
+  return { kind: 'people', ids, riders, strength, inParty };
 }
 
 /**

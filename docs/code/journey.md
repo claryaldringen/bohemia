@@ -527,41 +527,48 @@ female?)`** („Od 12 let.“, „Je raněný.“ / „Je raněná.“, „Je na
   osoby (`selectionDetails` bere `PartyView[]`): „je na cestě“, „čeká (2 dny)“, „vrací se domů“;
   upozornění `journey-returned` → „Bořivoj se vrátil.“ / „Dobrava se vrátila.“ / bez jména „Výprava
   se vrátila.“ (`lib/player-notices.ts`).
-- **Vojvoda** – panel (`use-lord-journey.ts`) dál jede přes `launchJourney` a `commandJourney`;
-  pohled na výjezd bere z `useExpeditions` přes `lordJourneyViewOf`.
+- **Vojvoda** – rozkazy jako ostatní lidé (`use-expedition-orders.ts`, Ovládání); pohled na skupinu
+  bere z `useExpeditions` přes `lordJourneyViewOf` a `partyJourneyViewOf`. Staré `launchJourney`
+  a `commandJourney` zůstávají v kódu bez volajícího (úklid – Úloha 12).
 - **Testy** – `lib/__tests__/expedition-input.test.ts`, `journey-input.test.ts`,
   `journey-view.test.ts`, `journey-scene.test.ts`, `person-view.test.ts`, `person-activity.test.ts`,
   `player-notices.test.ts`, `dynasty-view.test.ts`, `hooks/__tests__/use-journey.behavior.test.tsx`.
 
-## Ovládání (Úloha 8a – `apps/web`)
+## Ovládání (Úloha 8 výprav – `apps/web`)
 
-- **Rozkaz z kliknutí** – `lib/scene/journey-orders.ts`: `orderFromClick({ lordSelected, point,
-mapSizeM, cell })` (čistá funkce) – bez vybraného vojvody nebo mimo terén null; v okrajovém pásu
-  `EDGE_BAND_M` (20 m) `cross` na souseda políčka (8 směrů, v rohu úhlopříčně), jinak `go` na bod.
-  `edgeDirection` dává směr okraje i kurzoru. Mapa je vystředěná v počátku, sever = +z = +y mřížky.
-- **Scéna** – `ScenePointer.setLordMode(mode)` (`LandscapeScene.setLordMode`): dokud je nastavený,
-  pravé tlačítko ohlásí bod terénu (`pickGround`) a pixel plátna místo zrušení výběru a pohyb kurzoru
-  volá `hover` (vrací CSS kurzor – šipka u okraje).
-- **Hook** `components/game/village-game/use-lord-journey.ts` – `useLordJourney`: vybraný vojvoda
-  (klik ve scéně, nebo na jeho portrét v řadě obyvatel panelu dvorce – `resident-select-<id>`)
-  = `selected` je osoba s `view.dynasty.lordId`. Doma načte `getJourneyCandidates`, drží družinu
-  (`retinue`) a pravým tlačítkem volá `launchJourney`; na cestě (`dynasty.journeyAway`, na mapě,
-  kterou scéna ukazuje – domovské, nebo od Úlohy 9b i cizí za vojvodou) volá `commandJourney`; ikona Domů `{ kind: 'home' }`. Režim vojvody (`setLordMode`) zůstává
-  zapnutý i při odepřeném výjezdu a během načítání kandidátů: `lordClick` (`journey-orders.ts`) rozhodne
-  o pravém kliknutí – nic (mimo terén, načítání, vyslání čeká na odpověď – `launching`), důvod
-  u kurzoru (`refuse`, výběr zůstává) nebo odeslání rozkazu. Dvojité pravé kliknutí nevyšle dvakrát
-  (`useLordJourney` drží běžící vyslání v ref); kliknutí po úspěšném vyslání, než ves ví, že je
-  vojvoda pryč, je už rozkaz výjezdu (`commandJourney`, server ho ověří). Důvod (`journeyReason`) a „Na sousední mapu“ ukáže `JourneyCursorNote` u kurzoru, v panelu je
-  jen v popisku zašedlé řady. `useJourney(running,
-onEnded)` se ptá jen s `running` (vojvoda pryč nebo právě vyjel); zmizí-li pohled, `onEnded`
-  obnoví ves (upozornění „… se vrátil.“) a dotazy stojí, dokud ves návrat nepotvrdí. Chyba sítě
-  dotazování nezastaví.
-- **Rozhraní** – `LordJourneyPanel` (v panelu vybrané osoby, `PersonBody`): řada mužů rodu, kteří
-  smějí jet (klik přidá / ubere, podkova `resources/jizda.png` = jezdec) a meč (`house/sword.png`)
-  se silou skupiny; na cestě ikona Domů (`war/alarm-return.png`). `LordAwayBadge` v horní liště:
+- **Výběr lidí** – `VillageTarget` `{ kind: 'people'; ids }` (`village-picking.ts`);
+  `peopleTarget(ids)` (0 → null, 1 → `person`, víc → `people`) a `selectedPeopleIds(target)`
+  (`village-selection.ts`). `nextSelection(current, clicked, additive, double, partyOf?, villageOf?)`:
+  klik na člena skupiny venku vybere celou skupinu (`partyOf`), Shift / Ctrl + klik člověka přidá
+  nebo ubere (člena skupiny celou skupinu), člověk jiné domovské vsi (`villageOf`) výběr nahradí,
+  obydlí a lidé se nemíchají (člověk k obydlím výběr nahradí, jiný cíl s Shiftem lidi nezruší).
+  Kroužek má každý vybraný: `VillageVillagers.select` (první) + `selectMore` (ostatní), muži
+  výpravy `SceneWarView.selectJourneyMen(ids)` → `ArmyRenderer` (kroužek jede s jezdcem).
+  Panel výběru `people` (`SelectionDetails.kind: 'people'`): počet, jezdci, síla a Domů.
+- **Rozkaz z kliknutí** – `lib/scene/journey-orders.ts`: `orderFromClick({ selected, point,
+mapSizeM, cell })` (čistá funkce) – bez vybraných lidí nebo mimo terén null; v okrajovém pásu
+  `EDGE_BAND_M` (20 m) `cross` na souseda políčka (8 směrů, v rohu úhlopříčně), jinak `go` na bod
+  s `cell` = mapa, kterou scéna ukazuje. `edgeDirection` dává směr okraje i kurzoru. Mapa je
+  vystředěná v počátku, sever = +z = +y mřížky.
+- **Scéna** – `ScenePointer.setOrderMode(mode)` (`LandscapeScene.setOrderMode`, typ `OrderMode`):
+  dokud je nastavený, pravé tlačítko ohlásí bod terénu (`pickGround`) a pixel plátna místo zrušení
+  výběru a pohyb kurzoru volá `hover` (vrací CSS kurzor – šipka u okraje).
+- **Hook** `components/game/village-game/use-expedition-orders.ts` – `useExpeditionOrders`: režim
+  rozkazu je zapnutý, když výběr obsahuje lidi (s vybranou stavbou nebo polem pravé tlačítko výběr
+  ruší jako dřív). Pravé tlačítko → `commandExpedition({ villageId, people, command })`, kde
+  `villageId` = domovská ves vybraných (`ExpeditionView.villageId`; lidé doma = ves scény). Nemůže-li
+  nikdo z vybraných (`ScenePerson.expedition.refusal` u všech), ukáže `orderClick` důvod
+  (`expeditionReason`) u kurzoru bez dotazu na server; odpověď `{ error }` také u kurzoru a výběr
+  zůstane. Dvojité pravé kliknutí nevyšle dvakrát (běžící rozkaz v ref). Vrací `note`, `watching`,
+  `followed`, `back`, `bindForeign`, `away` (portrét vojvody v liště), `homeUi` (Domů, je-li někdo
+  z vybraných ve skupině) a `command(c)`. Dotazování na výpravy: `useExpeditionPolling` (běží,
+  dokud ves ví o lidech venku nebo právě vyjeli); zmizí-li hlouček, ves se obnoví. „Na sousední
+  mapu“ a důvod ukáže `JourneyCursorNote` u kurzoru.
+- **Rozhraní** – `LordJourneyPanel` (v panelu vybrané osoby, `PersonBody`): ikona Domů (`war/alarm-return.png`). `LordAwayBadge` v horní liště:
   portrét vojvody s podkovou, klik ho vybere. Panel muže na cestě ukazuje `journeyActivity`
   (`selectionDetails(…, journey)`). Pohled vsi nese `dynasty.journeyAway` (`dynasty-view.ts`).
-- **Testy** – `lib/scene/__tests__/journey-orders.test.ts`, `hooks/__tests__/use-journey.behavior.test.tsx`,
+- **Testy** – `lib/scene/__tests__/journey-orders.test.ts`, `village-selection.test.ts`,
+  `components/game/village-game/__tests__/use-expedition-orders.behavior.test.tsx`, `hooks/__tests__/use-journey.behavior.test.tsx`,
   `lib/__tests__/dynasty-view.test.ts`, `person-activity.test.ts`, e2e `e2e/journey.spec.ts` (projekt
   `worker` – spec pouští worker jako `worker.spec.ts`).
 
@@ -600,7 +607,7 @@ onEnded)` se ptá jen s `running` (vojvoda pryč nebo právě vyjel); zmizí-li 
   který jede s jeho jezdcem jako jednotka v 0 A.D. (Martin 14. 11. 2026: „zmizelo kolem něj
   označení“): `LandscapeScene.setSelection` → `SceneWarView.selectJourneyMan` →
   `ArmyRenderer` (`selectedRider` v `journey-riders.ts`, `SelectionRing` `journey-ring`, jezdec
-  elipsa podél koně) – při odjezdu, jízdě i příjezdu; na cizí mapě totéž (`useLordJourney` předá
+  elipsa podél koně) – při odjezdu, jízdě i příjezdu; na cizí mapě totéž (`useExpeditionOrders` předá
   výběr scéně cizí mapy). E2e háček `journeyScene().selected`.
 - **Den rodiny** – muž na výjezdu (`away: journey`) není v `SceneLord.trainees` (`sceneLord`
   v `village-view-scene.ts`), takže ho scéna nekreslí na dvorku ani na cvičišti; kreslí ho jako
@@ -671,9 +678,9 @@ na mapu jako za vojskem (web-ui.md – Cizí mapa ve scéně).
 - **Přepnutí** – `watchedJourneyCell(following, view)` (`lib/journey-scene-view.ts`, čistá): sleduje-li
   hráč vojvodu, políčko cizí mapy, na které skupina je; null – scéna vsi (nesleduje, výjezd skončil,
   nebo je skupina zpět na domovské mapě – po 3 dnech čekání či po Domů). Klik na `LordAwayBadge`
-  (`away.onSelect` v `useLordJourney`) vojvodu vybere a je-li na cizí mapě, zapne sledování; skupina
+  (`away.onSelect` v `useExpeditionOrders`) vojvodu vybere a je-li na cizí mapě, zapne sledování; skupina
   na domovské mapě sledování vypne (návrat scény nečeká na konec výjezdu – upozornění „… se vrátil.“
-  přijde, až dojede). `useLordJourney` vrací `watching`, `back` (⌂ – výjezd běží dál) a
+  přijde, až dojede). `useExpeditionOrders` vrací `watching`, `back` (⌂ – výjezd běží dál) a
   `bindForeign`. `VillageGame` při `watching` vrátí jen `ForeignJourneyScene` (klíč = políčko) –
   jedna scéna Babylonu naráz jako u tažení; nové políčko = nová scéna a krajina.
 - **`ForeignJourneyScene`** (`foreign-scene`, `data-cell`, `data-journey`): krajina z
@@ -684,12 +691,12 @@ na mapu jako za vojskem (web-ui.md – Cizí mapa ve scéně).
   (scéna nemá dvorec – `setJourneyYard` se nevolá). Kamera poprvé na skupinu (R se k ní vrací).
   Rozhraní vlevo nahoře: ⌂ (`foreign-back`), portrét vojvody (`LordAwayBadge`, výběr) a ikona Domů
   (`LordJourneyPanel` na cestě); důvod a „Na sousední mapu“ u kurzoru (`JourneyCursorNote`).
-- **Rozkazy** – `bindForeign({ scene, mapSizeM })` předá `useLordJourney` scénu cizí mapy; režim
-  vojvody (`setLordMode`) pak běží na ní s políčkem `watching` – `go` po mapě, okrajový pás → `cross`
+- **Rozkazy** – `bindForeign({ scene, mapSizeM })` předá `useExpeditionOrders` scénu cizí mapy; režim
+  rozkazu (`setOrderMode`) pak běží na ní s políčkem `watching` – `go` po mapě, okrajový pás → `cross`
   na souseda cizí mapy, důvod u kurzoru jako doma.
-- **Výběr klikem** – `useLordJourney` poslouchá `onSelect` scény cizí mapy a výběr drží jako ve vsi
+- **Výběr klikem** – `useExpeditionOrders` poslouchá `onSelect` scény cizí mapy a výběr drží jako ve vsi
   (`foreignJourneySelection` – `nextSelection` jen s muži vlastního výjezdu): klik na vojvodu ho
-  vybere (režim vojvody), na jiného muže družiny toho muže, do prázdna výběr zruší (s Ctrl / Shift
+  vybere celou jeho skupinu (Shift přidá), do prázdna výběr zruší (s Ctrl / Shift
   nechá); stavby cizí vsi a zvěř jsou klik do prázdna – jejich id patří cizí vsi. Scéna má vždy
   aspoň prázdnou ves – bez ní `pickTarget` muže výjezdu nehledá.
 - **Mlha** – `LandscapeScene.setJourneyFog(trail)` → `SceneWarView` (drží stopu i přes novou krajinu)

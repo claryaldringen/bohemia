@@ -60,7 +60,7 @@ test.beforeEach(async ({ context, page }) => {
   await page.route('**/models/**', (route) => route.abort());
 });
 
-test('vojvoda: družina, rozkaz pravým tlačítkem, portrét v liště, Domů a upozornění o návratu', async ({
+test('vojvoda: výběr, rozkaz pravým tlačítkem, portrét v liště, Domů a upozornění o návratu', async ({
   page,
 }) => {
   const { seat: s } = await newPlayer(page, 'vyjezd');
@@ -88,7 +88,6 @@ test('vojvoda: družina, rozkaz pravým tlačítkem, portrét v liště, Domů a
   const lordId = state.dynasty!.lordId!;
   await pollVillage(page);
 
-  // výběr vojvody ukáže řadu mužů a sílu skupiny
   // vojvodu vybere klik na jeho portrét v panelu dvorce (stejně jako klik ve scéně)
   const panel = page.getByTestId('selection-panel');
   await expect
@@ -102,18 +101,8 @@ test('vojvoda: družina, rozkaz pravým tlačítkem, portrét v liště, Domů a
     )
     .toBe('dwelling');
   await panel.getByTestId(`resident-select-${lordId}`).click();
-  const retinue = page.getByTestId('lord-retinue');
-  await expect(retinue).toBeVisible({ timeout: 30_000 });
-  const men = retinue.getByTestId('lord-retinue-man');
-  await expect(men).toHaveCount(2);
-  const strength = page.getByTestId('lord-strength');
-  const base = Number(await strength.textContent());
-  await men.first().click();
-  await expect(men.first()).toHaveAttribute('aria-pressed', 'true');
-  await expect.poll(async () => Number(await strength.textContent())).toBeGreaterThan(base);
-  await men.first().click();
-  await expect(men.first()).toHaveAttribute('aria-pressed', 'false');
-  await men.first().click();
+  // vybraný vojvoda sám dostane rozkaz stejným gestem jako víc lidí (Shift + klik přidá další)
+  await expect(panel).toHaveAttribute('data-kind', 'person', { timeout: 30_000 });
 
   // pravé tlačítko do krajiny blízko vsi: vojvoda je pryč, v liště je jeho portrét s podkovou
   const dwelling = spots.dwelling;
@@ -318,7 +307,9 @@ async function manorWithHorse(
   return { seat: s, dwelling: house, lordId: state.dynasty!.lordId!, horseId };
 }
 
-test('výjezd ve scéně: kůň z ohrady ke kůlu, odjezd branou dvorce a návrat do ohrady', async ({
+// TODO(Úloha 11): vojvoda bez osedlání jde od teď pěšky – odjezd na koni branou dvorce se vrátí
+// s osedláním (plán výprav, Úloha 11)
+test.fixme('výjezd ve scéně: kůň z ohrady ke kůlu, odjezd branou dvorce a návrat do ohrady', async ({
   browser,
 }) => {
   test.setTimeout(600_000);

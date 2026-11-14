@@ -36,7 +36,8 @@ import { useGateMode } from './village-game/use-gate-mode';
 import { useHistoryPanels } from './village-game/use-history-panels';
 import { useHouse } from './village-game/use-house';
 import { useKnownMap } from './village-game/use-known-map';
-import { useLordJourney } from './village-game/use-lord-journey';
+import type { ScenePerson } from '@/lib/person-view';
+import { useExpeditionOrders, useExpeditionPolling } from './village-game/use-expedition-orders';
 import { useLineNaming } from './village-game/use-line-naming';
 import { useNoticeLines } from './village-game/use-notice-lines';
 import { usePanelSource } from './village-game/use-panel-source';
@@ -59,6 +60,9 @@ import type { VillageData } from './village-game/village-data';
 import { VillagePanels } from './village-game/VillagePanels';
 
 export type { VillageData } from './village-game/village-data';
+
+/** Bez lidí ve scéně (stabilní odkaz). */
+const NO_PERSONS: readonly ScenePerson[] = [];
 
 /**
  * Hratelná ves s rozhraním jako v 0 A.D.: 3D krajina přes celé okno, horní lišta (jméno vsi,
@@ -225,20 +229,39 @@ export function VillageGame({
     setSonPreview,
   } = useSelection({ scene, sceneVillage, viewRef });
   const knownMap = useKnownMap();
-  const lordJourney = useLordJourney({
-    scene,
-    view,
-    selected,
+  const { expeditions, markSent } = useExpeditionPolling(
+    view?.expeditionsAway === true,
+    refreshVillage,
+  );
+  const lordId = view?.dynasty?.lordId ?? null;
+  const orders = useExpeditionOrders({
+    villageId: view?.id ?? null,
+    selection: selected,
     setSelected,
+    views: expeditions.latest,
+    persons: sceneVillage.labor?.persons ?? NO_PERSONS,
+    scene,
+    lord:
+      lordId === null
+        ? null
+        : {
+            id: lordId,
+            name: view?.dynasty?.lordName ?? null,
+            away: view?.dynasty?.journeyAway === true,
+          },
     homeCell,
     mapSizeM: decoded.size * decoded.cellSizeM,
-    refreshVillage,
+    refresh: expeditions.refresh,
+    onCommanded: () => {
+      markSent();
+      refreshVillage();
+    },
   });
   const journeys = useJourneyScene({
     scene,
     villageId: view?.id ?? null,
     cell: homeCell,
-    own: lordJourney.journey.expeditions.latest,
+    own: expeditions.latest,
   });
   const alarmActions = useAlarmActions({ view, selected, pushNotice });
   const wagonPlan = useWagonPreview({ scene, current, view, sceneVillage });
@@ -318,15 +341,15 @@ export function VillageGame({
   }
   // Scéna za vojvodou na cizí mapě (journey.md – Scéna cizí mapy) – jako u tažení jen jedna scéna
   // Babylonu naráz: scéna a rozhraní vsi se odpojí, návrat je načte znovu
-  if (lordJourney.watching && !gameOver) {
+  if (orders.watching && !gameOver) {
     return (
       <ForeignJourneyScene
-        key={`${lordJourney.watching.x},${lordJourney.watching.y}`}
-        cell={lordJourney.watching}
-        journey={lordJourney.journey.latest}
-        expeditions={lordJourney.journey.expeditions.latest}
+        key={`${orders.watching.x},${orders.watching.y}`}
+        cell={orders.watching}
+        journey={orders.followed}
+        expeditions={expeditions.latest}
         clock={clock}
-        lord={lordJourney}
+        orders={orders}
       />
     );
   }
@@ -339,7 +362,7 @@ export function VillageGame({
         cell={knownMap.cell}
         journey={null}
         clock={clock}
-        lord={null}
+        orders={null}
         known={{ onBack: knownMap.back }}
       />
     );
@@ -374,7 +397,7 @@ export function VillageGame({
                   open: panels.warOpen,
                   onToggle: () => (panels.warOpen ? panels.closeWar() : panels.openWar()),
                 }}
-                lordAway={lordJourney.away}
+                lordAway={orders.away}
                 chronicle={
                   view && !view.extinct
                     ? { open: chronicle.open, onToggle: chronicle.toggle }
@@ -403,10 +426,10 @@ export function VillageGame({
                   current,
                   personState,
                   draftState,
-                  partiesOf(lordJourney.journey.expeditions.views, view?.id ?? null),
+                  partiesOf(expeditions.views, view?.id ?? null),
                   journeys,
                 )}
-                lordJourney={lordJourney.panel}
+                lordJourney={orders.homeUi}
                 alarm={alarmActions}
                 ennoble={{
                   targets: (view?.villages ?? []).filter(
@@ -455,7 +478,7 @@ export function VillageGame({
                 naming={naming}
               />
               <CursorReason preview={placement.active ? placement.preview : null} />
-              <JourneyCursorNote note={lordJourney.note} />
+              <JourneyCursorNote note={orders.note} />
               {placement.active === 'fort-points' ? (
                 <FortConfirm
                   reason={
