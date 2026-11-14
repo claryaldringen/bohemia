@@ -97,7 +97,8 @@ import {
   type KilnSiteFinder,
   type KilnWork,
 } from './charcoal';
-import { findKilnSite } from './kiln-site';
+import { findCampSite, findKilnSite } from './kiln-site';
+import type { CampSiteFinder } from './burner-camp';
 import { villageRoadWalk } from '../paths/walking';
 import {
   availableTrees,
@@ -1364,6 +1365,11 @@ export function workCrafts(
     landscape && obstacles
       ? (center, batch) => findKilnSite(state, day, landscape, obstacles, center, batch)
       : undefined;
+  // kde stavět zemnici u milíře – místo bez stromů (workshops.md – Uhlíř – zemnice u milíře)
+  const campSite: CampSiteFinder | undefined =
+    landscape && obstacles
+      ? (site) => findCampSite(state, day, landscape, obstacles, site)
+      : undefined;
   let burnt = 0;
   for (const dwelling of workshops) {
     const workshop = dwelling.workshop!;
@@ -1415,6 +1421,7 @@ export function workCrafts(
             ? { walk: (from, targets) => villageRoadWalk(state, landscape)(from, targets) }
             : {}),
           ...(kilnSite ? { site: kilnSite } : {}),
+          ...(campSite ? { camp: campSite } : {}),
         },
       );
       workshop.activity = burner.activity;

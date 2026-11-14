@@ -50,6 +50,7 @@ import { distanceToSquare } from '../buildings/cemetery';
 import { dwellingGatePoint } from '../paths/network';
 import { foundingCostPerHa } from '../core/productivity';
 import { kilnCircle } from '../crafts/charcoal';
+import { campFootprint } from '../crafts/burner-camp';
 import { workshopSideM } from '../crafts/crafts';
 import { pointsBounds, squareCenter, squareKey } from './square-grid';
 import { threshingFloorFootprint } from '../fields/threshing-floors';
@@ -220,10 +221,13 @@ export const OVERLAPS_DWELLING = 'Překrývá se s jiným obydlím.';
 export const OVERLAPS_DWELLING_SITE = 'Překrývá se s rozestavěným obydlím.';
 /** Důvod u kurzoru – stavba přes pás opevnění (fortifications.md – Obvod). */
 const OVERLAPS_FORTIFICATION = 'Stojí tu opevnění.';
+/** Důvod u kurzoru – stavba přes zemnici uhlíře u milíře (workshops.md). */
+const CAMP_HERE = 'Stojí tu zemnice uhlíře.';
 
 /**
  * Půdorys nebo pozemek (tvary `shapes`) se nepřekrývá s obydlím či rozestavěným obydlím (i jejich
- * pozemky), modlou, svatyní, humnem, ohradou ani se čtvercem pohřebiště – a podle `land` ani se
+ * pozemky), modlou, svatyní, humnem, milířem, zemnicí uhlíře u milíře, ohradou ani se čtvercem
+ * pohřebiště – a podle `land` ani se
  * čtvercem pole, sadu či lesa vsi. Čtverce staveb i natočené (fields.md – Natočené stavby).
  */
 export function checkFootprintFree(
@@ -277,6 +281,11 @@ export function checkFootprintFree(
   // milíř uhlíře je samostatná stavba (crafts.md – Milíř u skácených buků)
   for (const k of village.kilns ?? []) {
     if (overlaps([kilnCircle(k, MILIR.clearingRadiusM)])) return fail('Stojí tu milíř.');
+  }
+  // zemnice uhlíře u milíře – hotová, rozestavěná i opuštěná (workshops.md – Uhlíř – zemnice
+  // u milíře)
+  for (const c of village.camps ?? []) {
+    if (overlaps([campFootprint(c)])) return fail(CAMP_HERE);
   }
   // místo před brankou sousedního obydlí (population.md – Umístění obydlí)
   const gates = blockedGates(

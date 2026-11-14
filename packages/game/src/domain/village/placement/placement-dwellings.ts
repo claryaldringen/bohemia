@@ -1,6 +1,7 @@
-// Kontroly umístění obydlí, pozemků polozemnice, dílen a milíře.
+// Kontroly umístění obydlí, pozemků polozemnice, dílen, milíře a zemnice uhlíře u milíře.
 
 import {
+  BURNER_CAMP,
   CRAFT_BASE,
   FOREST_CROWN_MARGIN_M,
   KILN_SITE,
@@ -48,6 +49,7 @@ import {
 import { type Point } from './polygon';
 import { type Shape, plotShapes } from './plot-cells';
 import {
+  buildingLocalToWorld,
   cellObstacles,
   dwellingClearing,
   obstacleStatus,
@@ -57,6 +59,7 @@ import {
   squareObstacles,
 } from '../core/obstacles';
 import { kilnCircle } from '../crafts/charcoal';
+import { campFootprint } from '../crafts/burner-camp';
 import { plotSquareSamples } from './square-grid';
 import { tilesUnder } from './squares';
 import { workshopFootprints, workshopSideM } from '../crafts/crafts';
@@ -80,6 +83,7 @@ import {
 } from './placement-land';
 import {
   type DwellingPlacementCheck,
+  FOOTPRINT_SAMPLE_STEP_M,
   OK,
   type PlacementCheck,
   type PlacementVillage,
@@ -406,6 +410,68 @@ export function checkKilnSite(
   }
   const sacred = sacredUnder(landscape, obstacles, sacredSitesOf(obstacles), [circle]);
   return sacred ? fail(sacred) : OK;
+}
+
+/**
+ * Smí zemnice uhlíře u milíře stát na místě `site` (workshops.md – Uhlíř – zemnice u milíře;
+ * návrh Clauda)? Půda jako u milíře: pod půdorysem (BURNER_CAMP.footprintM) krajina, ne voda
+ * a dost rovná zem (les smí); půdorys nezasahuje na pole, do sadu, na hřbitov, do ohrady, na
+ * obydlí ani pozemek, na modlu, svatyni, humno, milíř ani jinou zemnici (`checkFootprintFree`);
+ * aspoň KILN_SITE.homeM od obydlí (i rozestavěných) a KILN_SITE.roadM od osy pevné cesty navíc
+ * k půdorysu; ne na skalním výchozu, pod posvátným dubem ani na háji. Místo je bez stromů: na
+ * půdorysu s pruhem BURNER_CAMP.treeMarginM nestojí dospělý ani mladý strom, souš ani strom lesa
+ * vsi – ani ty, které pro milíř teprve padnou. Deterministicky (det-math).
+ */
+export function checkCampSite(
+  landscape: Landscape,
+  village: PlacementVillage | null,
+  site: { x: number; z: number; rotation: number },
+  obstacles: ObstacleLayer = obstaclesOf(landscape),
+): PlacementCheck {
+  if (![site.x, site.z, site.rotation].every(Number.isFinite)) {
+    return fail('Neplatná poloha zemnice.');
+  }
+  const terrain = checkFootprintTerrain(landscape, campSamples(site));
+  if (!terrain.ok) return terrain;
+  // místo bez stromů – v lese nejčastější důvod, proto napřed
+  const status = obstacleStatus(village?.obstacleChanges);
+  const around = polygonObstacles(obstacles, status, campFootprint(site, BURNER_CAMP.treeMarginM));
+  if (around.standing.length > 0) return fail('Stojí tu strom.');
+  const footprint = campFootprint(site);
+  const free = checkFootprintFree(landscape, village, [freeShape(footprint)], { woods: true });
+  if (!free.ok) return free;
+  if (village) {
+    const homes = villageDwellingPositions(village);
+    if (homes.some((h) => length2(h.x - site.x, h.z - site.z) < KILN_SITE.homeM)) {
+      return fail('Zemnice nesmí stát u domů.');
+    }
+    const { width, depth } = BURNER_CAMP.footprintM;
+    const reach = length2(width / 2, depth / 2) + KILN_SITE.roadM;
+    if ((village.walkRoads ?? []).some((r) => polylineDistance(site, r.points) < reach)) {
+      return fail('Zemnice nesmí stát na cestě.');
+    }
+  }
+  if (outcropUnder(obstacles, status, footprint)) {
+    return fail('Stojí tu skalní výchoz – ten osadníci neodstraní.');
+  }
+  const sacred = sacredUnder(landscape, obstacles, sacredSitesOf(obstacles), [footprint]);
+  return sacred ? fail(sacred) : OK;
+}
+
+/** Body mřížky po FOOTPRINT_SAMPLE_STEP_M přes půdorys zemnice – deterministicky (det-math). */
+function campSamples(site: { x: number; z: number; rotation: number }): Point[] {
+  const { width, depth } = BURNER_CAMP.footprintM;
+  const stepsX = Math.ceil(width / FOOTPRINT_SAMPLE_STEP_M);
+  const stepsZ = Math.ceil(depth / FOOTPRINT_SAMPLE_STEP_M);
+  const samples: Point[] = [];
+  for (let i = 0; i <= stepsX; i++) {
+    for (let j = 0; j <= stepsZ; j++) {
+      const lx = -width / 2 + (width * i) / stepsX;
+      const lz = -depth / 2 + (depth * j) / stepsZ;
+      samples.push(buildingLocalToWorld(site, lx, lz));
+    }
+  }
+  return samples;
 }
 
 /** Kontrola pozemku obydlí – navíc poloha domu na něm (null, když pozemek neprošel). */

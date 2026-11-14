@@ -1,6 +1,7 @@
 // Řemesla, milíře, vozy a jejich trasy pro scénu a panel.
 
 import {
+  SceneBurnerCamp,
   SceneKiln,
   SceneKilnRemnant,
   SceneKilnState,
@@ -45,6 +46,8 @@ import {
   kilnCharcoalShare,
   kilnRemnantOvergrowth,
   workshopKilns,
+  BURNER_CAMP,
+  campRemnantOvergrowth,
   saplingGrowth,
   villageOrchards,
   villageQuarries,
@@ -181,6 +184,43 @@ export function sceneKilnRemnants(state: VillageState, day: number): SceneKilnRe
   return (state.kilnRemnants ?? []).map((r) =>
     sceneKilnRemnantOf(r, kilnRemnantOvergrowth(r, day)),
   );
+}
+
+/**
+ * Zemnice uhlířů u milířů pro scénu (workshops.md – Uhlíř – zemnice u milíře): hotové
+ * a rozestavěné (`built` po 5 %, `occupied` – hotová, milíř uhlíře pálí), pak opuštěné
+ * (`overgrowth` po 5 %) – v pořadí jako `PlacementVillage.camps` na serveru (`burnerCampSites`).
+ */
+export function sceneBurnerCamps(state: VillageState, day: number): SceneBurnerCamp[] {
+  const out: SceneBurnerCamp[] = [];
+  for (const d of state.dwellings) {
+    const camp = d.workshop?.camp;
+    if (!camp) continue;
+    const built = camp.builtDay !== undefined;
+    out.push({
+      id: camp.id,
+      burnerId: d.id,
+      x: camp.x,
+      z: camp.z,
+      rotation: camp.rotation,
+      built: built ? 1 : Math.floor(Math.min(1, camp.done / BURNER_CAMP.buildManDays) * 20) / 20,
+      occupied: built && workshopKilns(d.workshop).some((k) => k.stage === 'burn'),
+      overgrowth: null,
+    });
+  }
+  for (const r of state.campRemnants ?? []) {
+    out.push({
+      id: r.id,
+      burnerId: r.burnerId,
+      x: r.x,
+      z: r.z,
+      rotation: r.rotation,
+      built: 1,
+      occupied: false,
+      overgrowth: Math.round(campRemnantOvergrowth(r, day) * 20) / 20,
+    });
+  }
+  return out;
 }
 
 /** Milířiště pro scénu z jednoho záznamu – `overgrowth` 0–1 po 5 % (vlastní i cizí ves). */

@@ -12,6 +12,7 @@ import type { Church, Lodge } from './types-masonry';
 import type { Construction, FarmSeason } from './types-construction';
 import type { Fortification, ThreatSignal } from '../fortification/types';
 import type {
+  CampRemnant,
   Cart,
   CharcoalUse,
   CraftStocks,
@@ -595,6 +596,12 @@ export interface VillageState {
    * Chybí = žádná.
    */
   kilnRemnants?: KilnRemnant[];
+  /**
+   * Opuštěné zemnice uhlířů u milířů (workshops.md – Uhlíř – zemnice u milíře) – nahrazené novou
+   * zemnicí nebo po zániku dílny uhlíře: chátrají BURNER_CAMP.abandonedYears let, pak zmizí. Do té
+   * doby brání stavbám a pěšina je obchází. Chybí = žádné.
+   */
+  campRemnants?: CampRemnant[];
   /**
    * Spotřeba uhlí kovářů (crafts.md – Rovnováha uhlíř – kovář) – klouzavě za posledních
    * CHARCOAL_BALANCE.windowDays dní; podle ní uhlíř začne další milíř a kovář si drží zásobu.

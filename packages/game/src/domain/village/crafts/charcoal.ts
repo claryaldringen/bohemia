@@ -24,6 +24,7 @@ import { monthInWindow } from '../buildings/orchard';
 import type { Point } from '../placement/polygon';
 import {
   BEECH_PLANTING,
+  BURNER_CAMP,
   CART_JOBS,
   CHARCOAL_BALANCE,
   CHARCOAL_KILN,
@@ -46,6 +47,7 @@ import type {
   WorkshopActivity,
 } from '../types';
 import type { Walk } from '../paths/walking';
+import { campUsable, moveCamp, type CampSiteFinder } from './burner-camp';
 import {
   addLogs,
   availableTrees,
@@ -354,18 +356,19 @@ function batchCenter(trees: readonly TreeAtDistance[]): { x: number; z: number }
 
 /**
  * Nový milíř (mutuje stav – id z `nextId`; crafts.md – Milíř u skácených buků): dávka buků jsou
- * nejbližší stojící dospělé buky k prvnímu buku nejblíž zemnici uhlíře, které nepatří jiné stavbě
- * ani dílně a nejsou posvátné; milíř stojí na rovném volném místě uprostřed nich (`site`). Kácení
- * a dovoz dřeva se platí od milíře (pár metrů), chůze ze zemnice k milíři se změří po pevných
+ * nejbližší stojící dospělé buky k prvnímu buku nejblíž dílně uhlíře – nebo jeho zemnici u milíře,
+ * kterou dál využívá (`anchor`; workshops.md – Uhlíř – zemnice u milíře) –, které nepatří jiné
+ * stavbě ani dílně a nejsou posvátné; milíř stojí na rovném volném místě uprostřed nich (`site`).
+ * Kácení a dovoz dřeva se platí od milíře (pár metrů), chůze z dílny k milíři se změří po pevných
  * cestách s půdou (`walk`) – přirážka na veškerou práci u milíře. Bez vrstvy překážek (null – jen
- * testy) se kácí bez polohy u zemnice. Když není z čeho kácet, null.
+ * testy) se kácí bez polohy u dílny. Když není z čeho kácet, null.
  */
 export function startKiln(
   state: VillageState,
   dwelling: Pick<Dwelling, 'position'>,
   day: number,
   obstacles: ObstacleLayer | null,
-  options: { walk?: Walk; site?: KilnSiteFinder } = {},
+  options: { walk?: Walk; site?: KilnSiteFinder; anchor?: { x: number; z: number } } = {},
 ): CharcoalKiln | null {
   const fresh = (site: CharcoalKiln['site'], trees: CharcoalKiln['trees']): CharcoalKiln => ({
     id: state.nextId++,
@@ -388,7 +391,14 @@ export function startKiln(
   const changes = obstacleChangesAt(state, day);
   const claimed = claimedObstacles(state);
   const home = dwelling.position;
-  const [first] = nearestMatureTrees(obstacles, changes, home, 1, claimed, isBeech);
+  const [first] = nearestMatureTrees(
+    obstacles,
+    changes,
+    options.anchor ?? home,
+    1,
+    claimed,
+    isBeech,
+  );
   if (!first) return null;
   const trees = nearestMatureTrees(
     obstacles,
@@ -598,7 +608,9 @@ function recordKilnCycle(workshop: Workshop, kiln: CharcoalKiln, day: number): v
  * sedlákem (crafts.md – Uhlí a ruda kováře); rozebraný milíř zmizí (milířiště). V okně výsadby
  * sází mladé buky na pařezy. Pak pokračuje v rozdělaném milíři (buky strom po stromu: kácení a dovoz,
  * pak příprava dřeva; stavba), a když žádný nemá a plán ho chce (`plan.start` – crafts.md,
- * Rovnováha uhlíř – kovář), začne nový u další dávky buků.
+ * Rovnováha uhlíř – kovář), začne nový u další dávky buků. U nového milíře rozhodne o zemnici
+ * (workshops.md – Uhlíř – zemnice u milíře): využitelnou dál využívá (dávka od ní), jinak ji opustí
+ * a novou staví u nového milíře (`camp` hledá místo) – ve fázi stavby jde práce napřed do ní.
  */
 export function workBurner(
   state: VillageState,
@@ -608,7 +620,7 @@ export function workBurner(
   day: number,
   obstacles: ObstacleLayer | null,
   plan: BurnerPlan,
-  options: { walk?: Walk; site?: KilnSiteFinder } = {},
+  options: { walk?: Walk; site?: KilnSiteFinder; camp?: CampSiteFinder } = {},
 ): BurnerDay {
   const workshop = dwelling.workshop!;
   migrateBurner(state, dwelling, stocks);
@@ -699,12 +711,21 @@ export function workBurner(
     let kiln = kilnInProgress(workshop);
     if (!kiln) {
       if (!plan.start || kilns.length >= CHARCOAL_BALANCE.maxKilns) break;
-      kiln = startKiln(state, dwelling, day, obstacles, options);
+      // zemnice u milíře (workshops.md – Uhlíř – zemnice u milíře): dokud je kolem ní dost buků,
+      // vybírá se dávka od ní; jinak ji uhlíř opustí a postaví novou u nového milíře
+      const held = workshop.camp;
+      const anchor = held && obstacles && campUsable(state, day, obstacles, held) ? held : null;
+      kiln = startKiln(state, dwelling, day, obstacles, {
+        ...(options.walk ? { walk: options.walk } : {}),
+        ...(options.site ? { site: options.site } : {}),
+        ...(anchor ? { anchor: { x: anchor.x, z: anchor.z } } : {}),
+      });
       if (!kiln) {
         noWood = true;
         break;
       }
       kilns.push(kiln);
+      if (!anchor) moveCamp(state, dwelling, kiln, day, obstacles, options.camp);
     }
     const factor = kilnWalkFactor(kiln, dwelling.position);
     if (kiln.stage === 'burn') break;
@@ -741,6 +762,18 @@ export function workBurner(
         kiln.done = 0;
         if (kiln.prepared >= kiln.trees.length) kiln.stage = 'build';
       }
+      continue;
+    }
+    // stavba: rozestavěná zemnice u milíře má přednost – bez ní se pálit nezačne (workshops.md –
+    // Uhlíř – zemnice u milíře); s přirážkou za chůzi k milíři
+    const camp = workshop.camp;
+    if (camp && camp.builtDay === undefined) {
+      const work = Math.min(left / factor, Math.max(0, BURNER_CAMP.buildManDays - camp.done));
+      camp.done += work;
+      left -= work * factor;
+      workAt(kiln, work * factor);
+      worked = 'building';
+      if (camp.done + EPSILON >= BURNER_CAMP.buildManDays) camp.builtDay = day;
       continue;
     }
     const total = CHARCOAL_KILN.buildManDaysPerTree * kiln.trees.length;

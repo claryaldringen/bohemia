@@ -29,6 +29,7 @@ import {
   type UsableRef,
 } from './structure-use';
 import { addLogs } from '../forest/wood';
+import { abandonCamp } from '../crafts/burner-camp';
 import { clearWildTrees } from './wild-orchard';
 import { readySquares } from './cemetery';
 import { CEMETERY_IN_USE, cemeteryMayGo, recordDesecration } from '../people/desecration';
@@ -215,6 +216,9 @@ export function finishDemolition(
   const logs = demolitionCost(next, ref, day)?.logs ?? 0;
   const at = placeOf(target);
   if (target.structure === 'dwelling') {
+    // zemnice uhlíře u milíře se nebourá – zůstane opuštěná (workshops.md – Uhlíř – zemnice
+    // u milíře)
+    abandonCamp(next, target.item, day);
     next.dwellings = next.dwellings.filter((d) => d.id !== ref.id);
   } else if (target.structure === 'pen') {
     // rozestavěná rozšíření a rádlo ohrady zmizí s ní (dřevo zpět na hromadu)

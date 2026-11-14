@@ -76,6 +76,28 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     (`VillageView.kilns`), panel dílny má milíře jako tlačítka; ukázky /dev/panels?panel=milir,
     /dev/buildings **Cyklus milíře** (`showcaseKiln`, `kilnCycleAt` – i milířiště).
 
+- **Zemnice u milíře** ([workshops.md](../design/workshops.md) – Uhlíř – zemnice u milíře; Martin 14. 11. 2026: „…[postaví] si jednoduchou zemnici přímo v lese u milíře … Tuto zemnici bude
+  opakovaně využívat, dokud v jejím okolí bude dost stromů“; podrobnosti návrh Clauda – Rozhodnutí
+  8): `crafts/burner-camp.ts`, čísla `BURNER_CAMP`. Stav `Workshop.camp` (`BurnerCamp` – id
+  z `nextId`, střed, natočení, `done` v čd, `builtDay`), opuštěné `VillageState.campRemnants`
+  (`CampRemnant`); obojí volitelné – dílna ze starší vsi zemnici nemá a rozdělaný milíř dojede
+  bez ní. Kde `workBurner` začíná nový milíř: `campUsable` (15 nejbližších volných buků do
+  `reuseRadiusM` od zemnice) → `startKiln` s `anchor` (první buk nejblíž zemnici, chůze se dál
+  měří od dílny); jinak `moveCamp` – stará zemnice se opustí (`abandonCamp`) a u milíře se hledá
+  nová (`findCampSite` v `kiln-site.ts` po kružnicích 8–30 m přes det-math, natočení
+  `campRotation` vchodem k milíři, kontrola `checkCampSite` v `placement-dwellings.ts` – půda
+  jako u milíře, na půdorysu s pruhem `treeMarginM` žádný strom ani souš, ani buk z dávky); místo
+  není → zemnice tentokrát nevznikne. Stromy: klády z `kiln.clearing.logs`, chybějící se přidají
+  do `clearing.ids` (nejbližší dospělé stromy k zemnici, za `OBSTACLE_COST.tree`, bez klád).
+  Práce: ve fázi `build` jde napřed do rozestavěné zemnice (× `kilnWalkFactor`), pálení bez ní
+  nezačne. Zánik dílny uhlíře (zchátrání, požár, zbourání) zemnici opustí; `updateCampRemnants`
+  vedle `updateKilnRemnants` (za `abandonedYears` zmizí). Zemnice brání stavbám i milíři
+  (`PlacementVillage.camps` – „Stojí tu zemnice uhlíře.“ v `checkFootprintFree`, seznam
+  `burnerCampSites`), pěšina i vůz ji obejdou (`PathVillage.camps` ve `villageBuildings`, klíče
+  `campsKey`, mapa tras a mřížka vozu – ves bez zemnic beze změny). Web: `SceneVillage.burnerCamps`
+  (`SceneBurnerCamp` – `built` a `overgrowth` po 5 %, `occupied` = hotová a milíř pálí;
+  `sceneBurnerCamps`), `camps` v `placementVillageFromScene` ve stejném pořadí jako na serveru.
+
 - **Uhlí a ruda kováře** ([crafts.md](../design/crafts.md) – Uhlí a ruda kováře;
   Martin 20. 10. 2026: „Pokud má dostatečně starého syna nebo syny, pošle pro uhlí jeho/je. Taky
   musí někam chodit kopat rudu. To místo, kde kope rudu, chci na mapě vidět.“; čísla

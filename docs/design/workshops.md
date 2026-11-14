@@ -67,6 +67,27 @@ Martin 14. 11. 2026:
     (15 buků – [řemesla](crafts.md) – Milíř = dávka 15 buků). Pak postaví novou u nejbližšího
     porostu s dost buky (návrh Clauda – vzdálenost jako kácení pro milíř).
   - **Opuštěná zemnice chátrá** a za 5 let zmizí (návrh Clauda, jako prázdná stavba).
+- **Podrobnosti** (návrh Clauda):
+  - **Pro koho:** každý uhlíř hned – i ten v dnešní dílně (zemnici) a před rokem 750.
+  - **Využitelná zemnice:** když uhlíř začíná nový milíř a 15 nejbližších volných buků leží do
+    150 m od zemnice, vybírá dávku od ní (první buk nejblíž zemnici). Jinak vybírá jako dřív od
+    dílny, starou zemnici opustí a novou postaví u nového milíře – jinak by u milíře nespal.
+  - **Místo:** kolem milíře po kružnicích po 2 m od 8 m (mimo milířiště) do 30 m, první vhodné.
+    Půda jako u milíře – ne pole, sad, hřbitov, ohrada, pozemek, voda, svah, skalní výchoz,
+    posvátné místo ani pevná cesta, aspoň 20 m od domů, mimo milíře a jiné zemnice. Na půdorysu
+    a 0,5 m kolem nestojí strom ani souš – ani ty, které pro milíř teprve padnou. Vchodem
+    k milíři. Když místo není, zemnice tentokrát nevznikne – uhlíř hlídá u milíře jako dřív
+    a zkusí to u dalšího milíře.
+  - **Stromy:** 3 klády z vyklízení milířiště – na hromadu vsi tak jdou o 3 klády méně. Chybějící
+    stromy uhlíř skácí navíc: nejbližší dospělé stromy k zemnici (ne z dávky, posvátné ani
+    vyhrazené jiné stavbě), za práci jako u překážky a bez klád.
+  - **Práce:** 10 čd z práce milíře – dokud zemnice není hotová, jde do ní napřed práce fáze
+    stavby milíře (s přirážkou za chůzi k milíři). Pálení tak bez zemnice nezačne. Odhad doby
+    cyklu milíře se nemění, přespávání práci nemění.
+  - **Opuštěná zemnice** – nahrazená novou nebo po zániku dílny uhlíře (zchátrání, požár,
+    zbourání). Hotová, rozestavěná i opuštěná zemnice brání stavbám i milíři („Stojí tu zemnice
+    uhlíře.“) a pěšina ji obchází.
+  - **Starší vsi:** rozdělaný milíř dojede bez zemnice, zemnici postaví až další milíř.
 - Jinak se milíř nemění – kácení, stavba, pálení, vytahání i obnova lesa podle
   [řemesel](crafts.md).
 

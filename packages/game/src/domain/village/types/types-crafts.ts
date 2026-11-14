@@ -181,6 +181,31 @@ export interface KilnRemnant {
   day: number;
 }
 /**
+ * Zemnice uhlíře u milíře (workshops.md – Uhlíř – zemnice u milíře): id (z `VillageState.nextId`),
+ * střed (m) a natočení (vchod k milíři, u kterého vznikla), odvedená práce (čd – hotová při
+ * BURNER_CAMP.buildManDays) a den dokončení. Bez `builtDay` se staví.
+ */
+export interface BurnerCamp {
+  id: number;
+  x: number;
+  z: number;
+  rotation: number;
+  done: number;
+  builtDay?: number;
+}
+/**
+ * Opuštěná zemnice uhlíře (workshops.md – Uhlíř – zemnice u milíře): zemnice (id), uhlíř (id
+ * obydlí), střed (m), natočení a den opuštění – od něj chátrá a po BURNER_CAMP.abandonedYears zmizí.
+ */
+export interface CampRemnant {
+  id: number;
+  burnerId: number;
+  x: number;
+  z: number;
+  rotation: number;
+  day: number;
+}
+/**
  * Měření spotřeby uhlí kovářů (crafts.md – Rovnováha uhlíř – kovář): kg uhlí po obdobích
  * CHARCOAL_BALANCE.bucketDays dní – dokončená období (`buckets`, nejstarší první, nejvýš tolik, kolik
  * se vejde do CHARCOAL_BALANCE.windowDays) a rozběhnuté od dne `from` (`currentKg`).
@@ -242,6 +267,12 @@ export interface Workshop {
    * v pořadí kácení – obnova lesa). Bez údaje žádné.
    */
   toPlant?: number[];
+  /**
+   * Uhlíř: zemnice u milíře (workshops.md – Uhlíř – zemnice u milíře), ve které přespává, dokud
+   * milíř pálí – hotová nebo rozestavěná. Bez údaje žádná (i dílny ze starší vsi – zemnici postaví
+   * až další milíř).
+   */
+  camp?: BurnerCamp;
   /**
    * Tesař (wagons.md – Tesař): klády v dílně (i rozdělané – nářadí bere po setinách), ze kterých
    * vyrábí vozy a dřevěné nářadí. Bez údaje 0.

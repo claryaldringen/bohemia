@@ -8,6 +8,7 @@ import { finishPurchases, startPurchases } from '../crafts/craft-buying';
 import { cartIronDay } from '../crafts/cart-iron';
 import { cloneState } from './clone';
 import { updateKilnRemnants } from '../crafts/charcoal';
+import { updateCampRemnants } from '../crafts/burner-camp';
 import { craftCoverage, wearCraftStocks } from '../crafts/crafts';
 import { updateHappiness } from '../people/happiness';
 import { occupyEmptyDwellings } from '../people/households';
@@ -420,7 +421,10 @@ function afterWorkDay(
   npcMasonryDay(state, day, landscape, obstacles);
 }
 
-/** Zbytky jam, rudišť a milířů; obilné jámy pod dnešními novými stavbami (`idsBefore`). */
+/**
+ * Zbytky jam, rudišť, milířů a zemnic uhlířů; obilné jámy pod dnešními novými stavbami
+ * (`idsBefore`).
+ */
 function remnantsDay(
   state: VillageState,
   day: number,
@@ -431,6 +435,8 @@ function remnantsDay(
   updateRuins(state, day, landscape);
   updateOrePits(state, day);
   updateKilnRemnants(state, day);
+  // opuštěné zemnice uhlířů u milířů chátrají a zmizí (workshops.md – Uhlíř – zemnice u milíře)
+  updateCampRemnants(state, day);
   // obilné jámy pod stavbou, kterou ves dnes začala, zmizí – vesničané zrno přendají
   // (production-chains.md – Obilné jámy). Podmínka: každá stavba, kterou ves založí sama, dostane
   // id z `nextId` a všechny kroky, které je zakládají, běží před touto kontrolou – obnova sadu

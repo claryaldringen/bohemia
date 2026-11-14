@@ -130,6 +130,31 @@ export const BEECH_PLANTING = { manDaysPerTree: 0.1, matureYears: 60 } as const;
 // v tools/blender/crafts.py) – jen pro převod (`migrateKilns`)
 export const MILIR = { offset: { x: -9, z: 3 }, footprintM: 6, clearingRadiusM: 4.6 } as const;
 /**
+ * workshops.md – Uhlíř – zemnice u milíře (Martin 14. 11. 2026: „postaví si jednoduchou zemnici
+ * přímo v lese u milíře … Tuto zemnici bude opakovaně využívat, dokud v jejím okolí bude dost
+ * stromů“; čísla návrh Clauda):
+ * - `trees`, `buildManDays` – nejjednodušší zemnice bez ohniště a výdřevy: 3 stromy z kácení pro
+ *   milíř a 10 čd z práce milíře,
+ * - `minFromKilnM`, `maxFromKilnM`, `stepM` – místo se hledá kolem milíře po kružnicích po 2 m od
+ *   8 m (mimo milířiště) do 30 m,
+ * - `reuseRadiusM` – zemnice se využívá znovu, dokud do 150 m od ní je dávka buků
+ *   (CHARCOAL_KILN.trees),
+ * - `abandonedYears` – opuštěná zemnice chátrá a za 5 let zmizí,
+ * - `footprintM` – půdorys (šířka napříč, hloubka k vchodu), `treeMarginM` – pruh kolem půdorysu,
+ *   ve kterém nesmí stát strom (místo bez stromů).
+ */
+export const BURNER_CAMP = {
+  trees: 3,
+  buildManDays: 10,
+  minFromKilnM: 8,
+  maxFromKilnM: 30,
+  stepM: 2,
+  reuseRadiusM: 150,
+  abandonedYears: 5,
+  footprintM: { width: 3, depth: 3.5 },
+  treeMarginM: 0.5,
+} as const;
+/**
  * crafts.md – Uhlí a ruda kováře (Martin 20. 10. 2026: „Kovář si vychovává nástupce. Pokud ve
  * vesnici není vůz kovář si musí chodit pro uhlí k uhlíři. Pokud má dostatečně starého syna nebo
  * syny, pošle pro uhlí jeho/je. Taky musí někam chodit kopat rudu.“; synové nosí uhlí od 10 let,

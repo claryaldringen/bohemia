@@ -26,6 +26,7 @@ export {
 export type { PlacedDwelling } from './placement-geometry';
 export { forestClearingsOf, freeDwellingClearings } from './placement-land';
 export {
+  checkCampSite,
   checkDwellingPlacement,
   checkKilnSite,
   checkPlotPlacement,

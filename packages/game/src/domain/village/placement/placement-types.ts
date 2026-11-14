@@ -182,6 +182,15 @@ export interface PlacementVillage {
    */
   readonly kilns?: readonly { readonly x: number; readonly z: number }[];
   /**
+   * Zemnice uhlířů u milířů (workshops.md – Uhlíř – zemnice u milíře) – hotové, rozestavěné
+   * i opuštěné: střed (m) a natočení; stavět přes ně nejde. Bez údaje žádné.
+   */
+  readonly camps?: readonly {
+    readonly x: number;
+    readonly z: number;
+    readonly rotation: number;
+  }[];
+  /**
    * Posvátná místa stavbám a polím nebrání (christianity.md – Co křest rodu umožní): ves
    * pokřtěného rodu při umístění hráčem (`playerPlacementVillage`). Správce, vesničané a převody
    * starých vsí ho nemají – posvátná místa obcházejí. Bez údaje ne.

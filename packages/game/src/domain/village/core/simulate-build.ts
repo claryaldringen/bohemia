@@ -44,6 +44,7 @@ import { villageManorId } from '../people/manor';
 import { finishTrail } from '../trade/trail';
 import { finishWagonRoad } from '../roads/wagon-road';
 import { recordRuins } from '../buildings/ruins';
+import { abandonCamp } from '../crafts/burner-camp';
 import { dwellingBuildLabor, workshopBuildLabor, workshopTrees } from '../rules';
 import type {
   ChronicleEvent,
@@ -102,12 +103,11 @@ export function decayEmptyDwellings(state: VillageState, day: number, occupied: 
     if (d.condition <= 0) gone.add(d.id);
   }
   if (gone.size === 0) return;
-  // na místě zaniklého obydlí zůstane zbytek jámy (ruins.ts)
-  recordRuins(
-    state,
-    state.dwellings.filter((d) => gone.has(d.id)),
-    day,
-  );
+  // na místě zaniklého obydlí zůstane zbytek jámy (ruins.ts); zemnice uhlíře u milíře zůstane
+  // opuštěná (workshops.md – Uhlíř – zemnice u milíře)
+  const vanished = state.dwellings.filter((d) => gone.has(d.id));
+  recordRuins(state, vanished, day);
+  for (const d of vanished) abandonCamp(state, d, day);
   state.dwellings = state.dwellings.filter((d) => !gone.has(d.id));
 }
 

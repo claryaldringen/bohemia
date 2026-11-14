@@ -2637,6 +2637,47 @@ describe('buildVillageView – uhlíř (crafts.md – Milíř u skácených buk�
     ]);
   });
 
+  it('zemnice u milíře – ve scéně i v kontrole umístění stejně jako na serveru (workshops.md)', () => {
+    const s = burnerVillage([kiln(700, { x: 90, z: 10 })]);
+    const burner = s.dwellings.find((d) => d.id === 50)!;
+    burner.workshop!.camp = { id: 710, x: 100, z: 20, rotation: 1.25, done: 10, builtDay: DAY - 3 };
+    s.campRemnants = [
+      { id: 600, burnerId: 50, x: 60, z: -40, rotation: 0.5, day: DAY - Math.round(365 * 2.5) },
+    ];
+    const view = buildVillageView(record(s), landscape, DAY);
+    // hotová zemnice, milíř pálí – uhlíř v ní přespává; opuštěná napůl zchátralá
+    expect(view.scene.burnerCamps).toEqual([
+      {
+        id: 710,
+        burnerId: 50,
+        x: 100,
+        z: 20,
+        rotation: 1.25,
+        built: 1,
+        occupied: true,
+        overgrowth: null,
+      },
+      {
+        id: 600,
+        burnerId: 50,
+        x: 60,
+        z: -40,
+        rotation: 0.5,
+        built: 1,
+        occupied: false,
+        overgrowth: 0.5,
+      },
+    ]);
+    const server = placementVillageOf(s, DAY).camps;
+    expect(server).toHaveLength(2);
+    expect(placementVillageFromScene(view.scene).camps).toEqual(server);
+    // rozestavěná zemnice po 5 % a bez pálení neobsazená
+    burner.workshop!.camp = { id: 710, x: 100, z: 20, rotation: 1.25, done: 3.3 };
+    burner.workshop!.kilns![0]!.stage = 'build';
+    const building = buildVillageView(record(s), landscape, DAY).scene.burnerCamps![0]!;
+    expect(building).toMatchObject({ built: 0.3, occupied: false, overgrowth: null });
+  });
+
   it('mladé buky od uhlíře rostou – velikost podle stáří (za 60 let dospělé)', () => {
     const view = buildVillageView(record(burnerVillage([])), landscape, DAY);
     const sapling = view.scene.plantedSaplings?.find((p) => p.id === 7);

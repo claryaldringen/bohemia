@@ -209,6 +209,8 @@ export function pathNetworkKey(village: PathVillage): string {
     ...(lining ? [lining] : []),
     // milíře uhlířů (crafts.md – Milíř u skácených buků) – bez nich klíč beze změny
     ...((village.kilns?.length ?? 0) > 0 ? [kilnsKey(village.kilns!)] : []),
+    // zemnice uhlířů u milířů (workshops.md) – bez nich klíč beze změny
+    ...((village.camps?.length ?? 0) > 0 ? [`camps:${campsKey(village.camps!)}`] : []),
     // humna (production-chains.md – Humno) – bez nich klíč beze změny
     ...((village.threshingFloors?.length ?? 0) > 0
       ? [threshingFloorsKey(village.threshingFloors!)]
@@ -250,6 +252,11 @@ export function grainPitsKey(
 /** Klíč milířů pro síť pěšin – středy na decimetry. */
 export function kilnsKey(kilns: readonly { x: number; z: number }[]): string {
   return kilns.map((k) => `${k.x.toFixed(1)},${k.z.toFixed(1)}`).join(';');
+}
+
+/** Klíč zemnic uhlířů u milířů pro síť pěšin – středy na decimetry a natočení na setiny. */
+export function campsKey(camps: readonly { x: number; z: number; rotation: number }[]): string {
+  return camps.map((c) => `${c.x.toFixed(1)},${c.z.toFixed(1)},${c.rotation.toFixed(2)}`).join(';');
 }
 
 /** Bod v polovině lomené čáry. */
