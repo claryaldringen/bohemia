@@ -81,4 +81,37 @@ describe('výkupné v jednání', () => {
     });
     expect(res.ok).toBe(false);
   });
+
+  describe('jedna živá dohoda dvojice (návrh Clauda)', () => {
+    const offer = async (live: boolean) => {
+      const w = await setup();
+      const deps = { ...w.deps, ransom: hooks(true).hooks };
+      if (live) {
+        await w.vassalages.create({
+          lordHouseId: w.ids.b!,
+          vassalHouseId: w.ids.a!,
+          terms: {},
+          origin: 'negotiation',
+          sinceAt: new Date(0),
+          sinceDay: 0,
+        });
+      }
+      return openNegotiation(deps, {
+        playerId: 'player-a',
+        to: w.ids.b!,
+        items: [{ ...items[0]!, vassalage: { lord: w.ids.a!, vassal: w.ids.b!, terms: {} } }],
+        message: null,
+        now: NOW,
+        today: 100,
+      });
+    };
+
+    it('výkupné s přísahou pro dvojici s dohodou se odmítne', async () => {
+      expect(await offer(true)).toEqual({ ok: false, reason: 'Dohoda už trvá.' });
+    });
+
+    it('bez dohody projde beze změny', async () => {
+      expect((await offer(false)).ok).toBe(true);
+    });
+  });
 });

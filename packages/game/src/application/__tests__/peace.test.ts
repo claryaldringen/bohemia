@@ -137,6 +137,15 @@ async function world() {
 
 type World = Awaited<ReturnType<typeof world>>;
 
+const ALREADY = 'Dohoda už trvá.';
+
+const live = {
+  terms: {},
+  origin: 'negotiation' as const,
+  sinceAt: new Date(0),
+  sinceDay: 0,
+};
+
 const peace = (line: Omit<Extract<TermItem, { kind: 'peace' }>, 'kind'> = {}): TermItem[] => [
   { kind: 'peace', ...line },
 ];
@@ -239,6 +248,62 @@ describe('mírové jednání', () => {
       lordHouseId: w.a,
       vassalHouseId: w.c,
       origin: 'peace',
+    });
+  });
+
+  describe('jedna živá dohoda dvojice (návrh Clauda)', () => {
+    const withOath = (w: World): TermItem[] =>
+      peace({ vassalage: { lord: w.a, vassal: w.c, terms: {} } });
+
+    it('mír s přísahou pro dvojici s živou dohodou se odmítne', async () => {
+      const w = await world();
+      await w.vassalages.create({ lordHouseId: w.c, vassalHouseId: w.a, ...live });
+      const r = await agree(w, 'a', withOath(w));
+      expect(r).toMatchObject({ ok: false, reason: ALREADY });
+      expect(w.wars.all[0]!.status).not.toBe('peace');
+    });
+
+    it('dohoda, která vznikne mezi návrhem a přijetím, přijetí odmítne', async () => {
+      const w = await world();
+      const opened = await openNegotiation(w.deps, {
+        playerId: 'player-a',
+        to: w.c,
+        items: withOath(w),
+        message: null,
+        now: NOW,
+        today: DAY_NOW,
+      });
+      expect(opened.ok).toBe(true);
+      await w.vassalages.create({ lordHouseId: w.a, vassalHouseId: w.c, ...live });
+      const r = await acceptNegotiation(w.deps, {
+        playerId: 'player-c',
+        negotiationId: opened.ok ? opened.negotiation.id : '',
+        now: NOW,
+        today: DAY_NOW,
+      });
+      expect(r).toMatchObject({ ok: false, reason: ALREADY });
+    });
+
+    it('opověď války s přísahou pro dvojici s živou dohodou se odmítne', async () => {
+      const open = async (w: World) =>
+        openNegotiation(w.deps, {
+          playerId: 'player-a',
+          to: w.c,
+          items: [{ kind: 'war-demand', items: [{ kind: 'oath', lord: w.a, vassal: w.c }] }],
+          message: null,
+          now: NOW,
+          today: DAY_NOW,
+        });
+      expect((await open(await world())).ok).toBe(true);
+      const w = await world();
+      await w.vassalages.create({ lordHouseId: w.c, vassalHouseId: w.a, ...live });
+      expect(await open(w)).toMatchObject({ ok: false, reason: ALREADY });
+    });
+
+    it('mír bez přísahy dvojici s dohodou nevadí', async () => {
+      const w = await world();
+      await w.vassalages.create({ lordHouseId: w.a, vassalHouseId: w.c, ...live });
+      expect((await agree(w, 'a', peace())).ok).toBe(true);
     });
   });
 
