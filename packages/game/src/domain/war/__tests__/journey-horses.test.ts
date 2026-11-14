@@ -343,7 +343,11 @@ describe('Osedlat doma (Rozhodnutí 7)', () => {
     expect(journeyFinished(turned) || turned.parties[0]!.phase === 'returning').toBe(true);
     const done = stepJourney(start(), U + WAIT + 10, saddle, worldOf());
     expect(journeyFinished(done.state)).toBe(true);
-    expect(done.villageEvents.at(-1)!.body).toMatchObject({ kind: 'away-ends', personIds: [1, 2] });
+    expect(done.villageEvents.at(-1)!.body).toEqual({
+      kind: 'away-ends',
+      refId: 'j1',
+      untilDay: done.state.day + 1,
+    });
   });
 
   it('během sedlání lhůta neběží – skupina, které by čekání skončilo, zůstane', () => {
@@ -541,5 +545,119 @@ describe('vcelku = po kouscích', () => {
       null,
       null,
     ]);
+  });
+});
+
+// Recenze Úlohy 3 (plán 2026-11-14 – Úloha 5, doplněk koordinátora): kůň, o kterém ves ví, se vsi
+// vrátí i při ztrátě; práce bez jezdců nečeká; osedlání i sesednutí v jednom výběru.
+describe('ztráty jezdců a koní', () => {
+  /** První takt dne, který přijde po taktu `tick`. */
+  function nextDay(tick: number): number {
+    let next = tick + 1;
+    while (dayOfTick(next, clock) === dayOfTick(tick, clock)) next++;
+    return next;
+  }
+  const NOTHING = { kind: 'journey-horse', journeyId: 'j1', personId: 1, horseId: null };
+
+  it('jezdec s koněm venku padne – ves ho nemá a kůň je zase volný (horsesOut)', () => {
+    const s = abroad({ 2: 'ridden' });
+    const known = lhota({ extra: { 2: { away: { ...JOURNEY_AWAY, horseId: 51 } } } });
+    expect([...horsesOut(known, SUMMER)]).toEqual([51]);
+    const D = nextDay(s.tick);
+    const dead = lhota({ without: [2] });
+    const step = stepJourney(
+      s,
+      D,
+      [],
+      worldOf((day) => (day < dayOfTick(D, clock) ? known : dead)),
+    );
+    expect(memberOf(step.state, 2)).toMatchObject({ status: 'fallen' });
+    expect(horseEvents(step)).toEqual([]);
+    expect([...horsesOut(dead, dayOfTick(D, clock))]).toEqual([]);
+  });
+
+  it('jezdec padne během osedlání – práce ho vynechá, druhý nasedne', () => {
+    const D = nextDay(T);
+    const begin = start();
+    const step = stepJourney(
+      begin,
+      D,
+      [at(D - 20, 1, SADDLE)],
+      worldOf((day) => (day < dayOfTick(D, clock) ? lhota() : lhota({ without: [2] }))),
+    );
+    const work = step.state.parties[0]!.horseWork!;
+    expect(work.riders).toEqual([1]);
+    const U = work.untilTick;
+    expect(U).toBeGreaterThan(D);
+    const after = stepJourney(step.state, U, [], worldOf(constant(lhota({ without: [2] }))));
+    expect(memberOf(after.state, 1)).toMatchObject({ mounted: true, horse: 'ridden' });
+  });
+
+  it('kůň zmizí během sedlání – jezdec vypadne z práce a ves dostane journey-horse null', () => {
+    const D = nextDay(T);
+    const saddle = [at(D - 20, 1, SADDLE)];
+    const lost = lhota({ horses: [steed(51, 2)] });
+    const world = worldOf((day) => (day < dayOfTick(D, clock) ? lhota() : lost));
+    const step = stepJourney(start(), D, saddle, world);
+    expect(step.state.parties[0]!.horseWork?.riders).toEqual([2]);
+    expect(horseEvents(step).slice(2)).toEqual([NOTHING]);
+    const U = step.state.parties[0]!.horseWork!.untilTick;
+    const done = stepJourney(step.state, U, [], worldOf(constant(lost))).state;
+    expect(done.members.map((m) => [m.mounted, m.horse])).toEqual([
+      [false, undefined],
+      [true, 'ridden'],
+    ]);
+  });
+
+  it('oba koně zmizí – práce hned skončí, skupina nečeká na nikoho a vyrazí', () => {
+    const D = nextDay(T);
+    const orders = [at(D - 20, 1, SADDLE), at(D - 19, 1, go(A))];
+    const none = lhota({ horses: [] });
+    const world = worldOf((day) => (day < dayOfTick(D, clock) ? lhota() : none));
+    const step = stepJourney(start(), D, orders, world);
+    expect(step.state.parties[0]!.horseWork).toBeUndefined();
+    expect(horseEvents(step).slice(2)).toEqual([NOTHING, { ...NOTHING, personId: 2 }]);
+    expect(groupOf(step.state, 1).pos.x - HOME.pos.x).toBeCloseTo(FOOT, 6);
+    expect(step.state.members.every((m) => !m.mounted && m.horse === undefined)).toBe(true);
+  });
+
+  describe('osedlání i sesednutí v jednom výběru (carryHorseWork)', () => {
+    /** Jezdec 1 čeká na osedlání (skupina 0), jezdec 2 na koni sesedá (skupina 1); konce prací. */
+    function mixed(saddleUntil: number, unsaddleUntil: number): JourneyState {
+      const s = start();
+      s.groups.push({ ...structuredClone(s.groups[0]!), id: 1, party: 1 });
+      s.parties.push({ id: 1, phase: 'out', arrivedTick: s.tick });
+      s.nextId = 2;
+      memberOf(s, 2).group = 1;
+      mount(memberOf(s, 2), 'ridden');
+      const work = { groomId: 3, fromTick: s.tick, pen: PEN };
+      s.parties[0]!.horseWork = { ...work, kind: 'saddle', riders: [1], untilTick: saddleUntil };
+      s.parties[1]!.horseWork = {
+        ...work,
+        kind: 'unsaddle',
+        riders: [2],
+        untilTick: unsaddleUntil,
+      };
+      return s;
+    }
+    const join = [at(T, 1, go(A, [1, 2]))];
+
+    it('osedlání končí později – nová skupina čeká na něj, sesedaný zůstane na koni', () => {
+      const step = stepJourney(mixed(T + 50, T + 30), T, join, worldOf());
+      expect(step.state.parties).toHaveLength(1);
+      expect(partyOf(step.state, 1).horseWork).toMatchObject({ kind: 'saddle', riders: [1] });
+      expect(memberOf(step.state, 2)).toMatchObject({ mounted: true, horse: 'ridden' });
+      expect(horseEvents(step)).toEqual([]);
+      const done = stepJourney(step.state, T + 50, [], worldOf()).state;
+      expect(done.members.every((m) => m.mounted && m.horse === 'ridden')).toBe(true);
+    });
+
+    it('sesednutí končí později – sedlaný zůstane bez koně a ves dostane journey-horse null', () => {
+      const step = stepJourney(mixed(T + 30, T + 50), T, join, worldOf());
+      expect(partyOf(step.state, 2).horseWork).toMatchObject({ kind: 'unsaddle', riders: [2] });
+      expect(memberOf(step.state, 1)).toMatchObject({ mounted: false });
+      expect(memberOf(step.state, 1).horse).toBeUndefined();
+      expect(horseEvents(step)).toEqual([NOTHING]);
+    });
   });
 });

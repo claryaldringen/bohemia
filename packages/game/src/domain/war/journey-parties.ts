@@ -177,7 +177,7 @@ function orderPeople(
     whole && only ? only : { id: s.nextId++, phase: 'out', arrivedTick: null };
   if (target !== only) {
     s.parties.push(target);
-    carryHorseWork(touched, target, picked);
+    carryHorseWork(s, touched, target, picked, out);
   }
 
   for (const g of [...s.groups]) {
@@ -206,13 +206,16 @@ function orderPeople(
  * sedlání platí po něm; návrh Clauda): jezdci z výběru `picked` si ji vezmou s sebou – nová skupina
  * `target` čeká na tu ze skupin `touched`, která skončí nejpozději, a sejdou se v ní jezdci prací
  * téhož druhu. Skupině zbudou její ostatní jezdci; bez nich nečeká. Jezdec z práce jiného druhu
- * (osedlání i sesednutí v jednom výběru) ji opustí – sesedaný zůstane na koni, sedlaný bez koně (ves
- * ho má venku do návratu nebo dalšího osedlání).
+ * (osedlání i sesednutí v jednom výběru) ji opustí – sesedaný zůstane na koni (kůň je venku dál),
+ * sedlaný zůstane bez koně a ves dostane `journey-horse` null (kůň, kterého vesničan vedl, je zase
+ * v ohradě).
  */
 function carryHorseWork(
+  s: JourneyState,
   touched: readonly JourneyParty[],
   target: JourneyParty,
   picked: ReadonlySet<number>,
+  out: TickOut,
 ): void {
   const works = touched.flatMap((p) =>
     p.horseWork?.riders.some((id) => picked.has(id)) ? [p.horseWork] : [],
@@ -225,6 +228,12 @@ function carryHorseWork(
       .filter((w) => w.kind === kind)
       .flatMap((w) => w.riders.filter((id) => picked.has(id)));
     target.horseWork = { ...cloneData(kept), riders };
+    if (kind === 'unsaddle') {
+      for (const w of works) {
+        if (w.kind !== 'saddle') continue;
+        for (const id of w.riders) if (picked.has(id)) sendHorse(s, out, id, null);
+      }
+    }
   }
   for (const p of touched) {
     const rest = p.horseWork?.riders.filter((id) => !picked.has(id));

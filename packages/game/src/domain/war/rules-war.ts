@@ -212,6 +212,11 @@ export const WAR = {
  */
 export const JOURNEY = {
   /**
+   * expeditions.md – Kdo smí jít: na výpravu kdokoli ze vsi od tolika let, i vojvoda (Martin
+   * 14. 11. 2026); `WAR.army.minAge` platí jen pro vojsko a sílu do meče.
+   */
+  minAge: 12,
+  /**
    * lord-control.md – Na místě a návrat: po dojetí skupina stojí; nepřijde-li do tolika herních dní
    * nový rozkaz, jede domů sama (Martin 12. 11. 2026).
    */

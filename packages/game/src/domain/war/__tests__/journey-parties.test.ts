@@ -315,8 +315,9 @@ describe('upozornění', () => {
     );
     const done = stepJourney(begin, DEATH + 600, orders, world);
     expect(done.state.phase).toBe('done');
+    // poslední hlouček výjezdu – away-ends bez personIds (domů každý, kdo je ještě pryč)
     expect(done.villageEvents.map((e) => e.body)).toEqual([
-      expect.objectContaining({ kind: 'away-ends', personIds: [2] }),
+      { kind: 'away-ends', refId: 'j1', untilDay: done.villageEvents[0]!.day },
     ]);
     expect(done.notices).toEqual([]);
   });
@@ -447,8 +448,9 @@ describe('determinismus', () => {
   it('vcelku = po 7 taktech přes JSON (stav, události, upozornění)', () => {
     const whole = stepJourney(begin(), END, intents, worldOf());
     expect(whole.state.phase).toBe('done');
+    // poslední hlouček výpravy – bez personIds
     expect(whole.villageEvents.map((e) => e.body.kind === 'away-ends' && e.body.personIds)).toEqual(
-      [[3], [1, 2]],
+      [[3], undefined],
     );
     let current = begin();
     const parts: JourneyStep = { state: current, villageEvents: [], notices: [], waiting: null };

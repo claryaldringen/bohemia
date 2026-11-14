@@ -1,41 +1,22 @@
-import type { Landscape } from '../domain/landscape';
 import { currentLord } from '../domain/village/people/dynasty';
-import { villageHorses } from '../domain/village/livestock/horses';
-import { villageManor, villageManorId } from '../domain/village/people/manor';
 import { ageYears, isAway, isInjured } from '../domain/village/people/people';
 import type { GridCell } from '../domain/village/people/world-grid';
 import type { Person, VillageState } from '../domain/village/types';
-import { sendAway } from '../domain/vassalage';
-import {
-  lineCandidates,
-  lineManStrength,
-  marchGrid,
-  newJourney,
-  WAR,
-  type JourneyOrder,
-  type JourneyRecruit,
-  type Pos,
-} from '../domain/war';
+import { lineCandidates, recruitOf, WAR, type JourneyOrder } from '../domain/war';
 import type { WorldClock } from '../domain/calendar';
 import type { CampaignCells, CampaignRepository } from './campaigns';
+import { musterMounted, type ExpeditionRefusal } from './expedition';
 import type { HouseRepository } from './houses';
 import type { JourneyRepository } from './journeys';
-import { orderAim } from './journey-order';
-import { UNNAMED_HOUSE } from './negotiation-chronicle';
-import {
-  editVillage,
-  findPlayerVillage,
-  type PlayerVillage,
-  type PlayerVillagesDeps,
-} from './player-villages';
-import { villagePlace } from './plan-campaign';
+import { findPlayerVillage, type PlayerVillage, type PlayerVillagesDeps } from './player-villages';
 import type { SeedSource } from './settlements';
 import type { VillageRepository } from './villages';
 
 // Výběr družiny a vyslání výjezdu vojvody (lord-control.md – Kdo jede; plán 2026-11-13 – Úloha 2):
-// vojvoda (a muži rodu od 16 let, kteří jsou doma a zdraví) odejdou z vsi s `away: journey`
-// (nepracují, ale jedí dál doma) a vznikne výjezd s prvním rozkazem. Volající drží zámek hráče
-// (web `guardedAction`) – jen vlastní ves hráče.
+// starý vstup webu, dokud ho nenahradí výběr lidí (plán 2026-11-14 – Úloha 9; smaže Úloha 12).
+// Ověří vojvodu a družinu po staru (muži rodu od 16 let) a vyšle je přes `musterExpedition`
+// (`application/expedition.ts`) – jezdci vyjedou rovnou na koni (`musterMounted`). Volající drží
+// zámek hráče (web `guardedAction`) – jen vlastní ves hráče.
 
 /** Kandidát na výjezd: vojvoda, nebo muž rodu doma. */
 export interface JourneyCandidate {
@@ -70,8 +51,8 @@ export interface JourneyViewDeps extends PlayerVillagesDeps {
 export interface LaunchJourneyDeps extends JourneyViewDeps {
   houses: Pick<HouseRepository, 'activeOf'>;
   villages: VillageRepository;
-  journeys: Pick<JourneyRepository, 'activeIn' | 'create'>;
-  /** Mapa domovského políčka – krajina a překážky pro ověření prvního rozkazu. */
+  journeys: Pick<JourneyRepository, 'activeIn' | 'checkpoint' | 'create' | 'addIntent'>;
+  /** Mapy políček – krajina a překážky pro ověření rozkazu a domov výpravy. */
   cells: CampaignCells;
   world: WorldClock;
   seeds: SeedSource;
@@ -81,24 +62,24 @@ export interface LaunchJourneyDeps extends JourneyViewDeps {
   atWar: (playerId: string, cell: GridCell) => Promise<boolean>;
 }
 
-/** Kandidáti vsi ve dni `day` a důvod stavu vsi (vojvoda), proč výjezd nejde; null = jde. */
+/**
+ * Kandidáti vsi ve dni `day` a důvod stavu vsi (vojvoda), proč výjezd nejde; null = jde. Kůň a síla
+ * jako u výpravy (`recruitOf` – na koni síla na koni).
+ */
 function assess(
   state: VillageState,
   day: number,
 ): { refusal: JourneyRefusal | null; lord: JourneyCandidate | null; men: JourneyCandidate[] } {
   const lord = currentLord(state);
-  const horses = new Map(
-    villageHorses(state).flatMap((h) => (h.riderId === undefined ? [] : [[h.riderId, h] as const])),
-  );
   const candidate = (p: Person, isLord: boolean): JourneyCandidate => {
-    const horse = horses.get(p.id) ?? null;
+    const recruit = recruitOf(state, p, day);
     return {
       personId: p.id,
       name: p.name ?? '',
       age: ageYears(p.bornDay, day),
       lord: isLord,
-      mounted: horse !== null,
-      strength: lineManStrength(p, horse),
+      mounted: recruit.horseId !== undefined,
+      strength: recruit.strengthMounted ?? recruit.strength,
     };
   };
   let refusal: JourneyRefusal | null = null;
@@ -150,10 +131,11 @@ async function viewOf(
 }
 
 /**
- * Hráč vyšle vojvodu s družinou `retinue` (id mužů vsi, bez vojvody). Ověří vojvodu, družinu a první
- * rozkaz, pošle muže pryč (`away: journey`) a založí výjezd. Selže-li uložení další vsi nebo založení
- * výjezdu, muži jsou zpět doma. Cizí ves a ves bez vojvody: `no-lord`; rod bez místa na mapě světa
- * nemá kam jet (`unreachable`).
+ * Hráč vyšle vojvodu s družinou `retinue` (id mužů vsi, bez vojvody) – adaptér na
+ * `musterExpedition` s `[vojvoda, ...družina]` a prvním rozkazem. Napřed po staru vojvoda
+ * a družina (`JourneyRefusal`), pak ověření rozkazu, odchod ze vsi a založení výjezdu use-casem
+ * výpravy (selže-li založení, muži jsou zpět doma a chyba jde dál). Cizí ves a ves bez vojvody:
+ * `no-lord`; rod bez místa na mapě světa nemá kam jet (`unreachable`).
  */
 export async function launchJourney(
   deps: LaunchJourneyDeps,
@@ -167,75 +149,34 @@ export async function launchJourney(
 ): Promise<{ ok: true; journeyId: string } | { ok: false; reason: JourneyRefusal }> {
   const own = await findPlayerVillage(deps, input);
   if (!own) return { ok: false, reason: 'no-lord' };
-  const state = own.village.state;
-  const day = state.lastDay;
-  const view = await viewOf(deps, own, input.playerId, day);
+  const view = await viewOf(deps, own, input.playerId, own.village.state.lastDay);
   if (view.refusal !== null) return { ok: false, reason: view.refusal };
   if (!retinueFits(view.men, input.retinue)) return { ok: false, reason: 'bad-retinue' };
-  const house = await deps.houses.activeOf(input.playerId);
-  const cell = own.settlement.worldCell;
-  if (!house) return { ok: false, reason: 'no-lord' };
-  if (house.placedAt === null || !cell) return { ok: false, reason: 'unreachable' };
-
-  const map = await deps.cells.mapOf(cell);
-  const homePos = journeyHome(state, cell, map.landscape);
-  const aim = orderAim(input.order, cell, homePos, () =>
-    marchGrid(map.landscape, map.obstacles, state, { day }),
-  );
-  if (aim === 'unreachable' || aim === 'invalid') return { ok: false, reason: 'unreachable' };
-  if (aim !== null && (await deps.atWar(input.playerId, aim))) {
-    return { ok: false, reason: 'war-there' };
-  }
-
-  const journeyId = deps.newId();
-  const ids = [view.lord!.personId, ...input.retinue];
-  const failed = await editVillage<JourneyRefusal>(
-    deps.villages,
-    own.village.id,
-    (fresh) => send(fresh, ids, journeyId, input.retinue),
-    'bad-retinue',
-  );
-  if (failed !== null) return { ok: false, reason: failed };
-
-  const recruits = recruitsOf(state, view, input.retinue, own.village.id);
-  try {
-    await deps.journeys.create(
-      newJourney(
-        {
-          id: journeyId,
-          seed: deps.seeds.nextSeed(),
-          playerId: input.playerId,
-          houseId: house.id,
-          home: { villageId: own.village.id, name: own.village.name, cell, pos: homePos },
-          recruits,
-          startMs: input.now.getTime(),
-          order: input.order,
-        },
-        deps.world,
-      ),
-      input.now,
-    );
-  } catch (error) {
-    await release(deps.villages, own.village.id, journeyId);
-    throw error;
-  }
-  return { ok: true, journeyId };
+  const done = await musterMounted(deps, {
+    playerId: input.playerId,
+    villageId: input.villageId,
+    people: [view.lord!.personId, ...input.retinue],
+    command: { kind: 'order', order: input.order },
+    now: input.now,
+  });
+  return done.ok ? done : { ok: false, reason: launchRefusal(done.reason) };
 }
 
 /**
- * Odkud výjezd vyjíždí a kam se vrací (lord-control.md – Rozkazy: „Domů – nejkratší cestou do
- * vlastní vsi“; Ve scéně: odjezd branou dvorce): dvorec vsi. Hráč staví ves, kde chce – místo vsi
- * krajiny (`villagePlace`) od ní může ležet daleko (Martinův Vlkov ≈ 430 m). Dokud zakladatelé
- * první zemnici staví, staveniště dvorce; ves bez obydlí i staveniště – místo vsi krajiny.
+ * Důvod výpravy po staru: cizí ves `no-lord`; kdo mezi výběrem a odjezdem přestal smět (souběžný
+ * zápis vsi) `bad-retinue`; cíl a napadená ves beze změny.
  */
-function journeyHome(state: VillageState, cell: GridCell, landscape: Landscape): Pos {
-  const manorId = villageManorId(state);
-  const site =
-    manorId === null
-      ? undefined
-      : state.constructions.find((c) => c.kind === 'dwelling' && c.dwellingId === manorId);
-  const at = villageManor(state)?.position ?? site?.position;
-  return at ? { x: at.x, z: at.z } : villagePlace(cell, landscape).pos;
+function launchRefusal(reason: ExpeditionRefusal): JourneyRefusal {
+  switch (reason) {
+    case 'no-village':
+      return 'no-lord';
+    case 'village-attacked':
+    case 'unreachable':
+    case 'war-there':
+      return reason;
+    default:
+      return 'bad-retinue';
+  }
 }
 
 /** Družina: jen muži z kandidátů, každý nejvýš jednou (vojvoda v ní není). */
@@ -247,69 +188,4 @@ function retinueFits(men: readonly JourneyCandidate[], retinue: readonly number[
     seen.add(id);
   }
   return true;
-}
-
-/**
- * Lidé výjezdu (`newJourney` – skupina 0): vojvoda první, pak družina; síla a boj z dovedností muže
- * při vyslání, na koni podle vlastního koně (lord-control.md – Kůň). Vojvoda bez jména nese jméno
- * neznámého rodu jako dřív `leaderName` (upozornění „… se vrátil.“).
- */
-function recruitsOf(
-  state: VillageState,
-  view: ReturnType<typeof assess>,
-  retinue: readonly number[],
-  villageId: string,
-): JourneyRecruit[] {
-  const byId = new Map(state.people.map((p) => [p.id, p]));
-  return [view.lord!, ...retinue.map((id) => view.men.find((m) => m.personId === id)!)].map(
-    (c): JourneyRecruit => {
-      const person = byId.get(c.personId);
-      const name = c.lord && c.name === '' ? UNNAMED_HOUSE : c.name;
-      return {
-        ref: { villageId, personId: c.personId },
-        lord: c.lord,
-        strength: c.strength,
-        fight: person?.arms?.combat ?? 0,
-        ...(name === '' ? {} : { name }),
-        ...(person?.sex === 'female' ? { female: true as const } : {}),
-        ...(person ? { bornDay: person.bornDay } : {}),
-        ...(c.mounted ? { mounted: true as const } : {}),
-      };
-    },
-  );
-}
-
-/**
- * Odchod mužů z vsi (mutuje kopii stavu). Ves se mezitím mohla změnit (opakování při souběžném
- * zápisu) – vojvoda a družina se proto ověří znovu na čerstvém stavu.
- */
-function send(
-  state: VillageState,
-  ids: readonly number[],
-  journeyId: string,
-  retinue: readonly number[],
-): JourneyRefusal | null {
-  const day = state.lastDay;
-  const fresh = assess(state, day);
-  if (fresh.refusal !== null) return fresh.refusal;
-  if (!retinueFits(fresh.men, retinue)) return 'bad-retinue';
-  sendAway(state, day, ids, { kind: 'journey', refId: journeyId });
-  return null;
-}
-
-/** Vrátí muže domů (nepovedlo se založit výjezd). */
-async function release(
-  villages: VillageRepository,
-  villageId: string,
-  journeyId: string,
-): Promise<void> {
-  await editVillage<JourneyRefusal>(
-    villages,
-    villageId,
-    (state) => {
-      for (const p of state.people) if (p.away?.refId === journeyId) delete p.away;
-      return null;
-    },
-    'bad-retinue',
-  );
 }

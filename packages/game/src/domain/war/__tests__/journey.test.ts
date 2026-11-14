@@ -453,7 +453,8 @@ describe('návrat', () => {
         villageId: 'lhota',
         day: day + 1,
         ref: `journey:j1:${tick}:0`,
-        body: { kind: 'away-ends', refId: 'j1', untilDay: day + 1, personIds: [1, 2] },
+        // poslední hlouček – bez personIds: domů jde každý, kdo je s výjezdem pryč
+        body: { kind: 'away-ends', refId: 'j1', untilDay: day + 1 },
       },
     ]);
     expect(done.notices).toEqual([
@@ -932,14 +933,16 @@ describe('člen výjezdu zemře doma (Review Focus 1)', () => {
     expect(done.knowledge![0]!.seen).toEqual(done.state.seen!['1,0']);
   });
 
-  it('bez živých členů done – bez událostí a upozornění', () => {
+  it('bez živých členů done – bez upozornění, jen away-ends bez personIds (kdo je ještě pryč)', () => {
     for (const members of [[man(1), man(2)], [man(1)]]) {
       const start = journey({ members });
       const step = stepJourney(start, DEATH + 400, [], dyingWorld([1, 2]));
       expect(step.state.phase).toBe('done');
       expect(step.state.tick).toBe(DEATH);
       expect(step.state.members.every((m) => m.status === 'fallen')).toBe(true);
-      expect(step.villageEvents).toEqual([]);
+      expect(step.villageEvents.map((e) => e.body)).toEqual([
+        { kind: 'away-ends', refId: 'j1', untilDay: step.state.day + 1 },
+      ]);
       expect(step.notices).toEqual([]);
       expect(step.waiting).toBeNull();
     }

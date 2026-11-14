@@ -14,6 +14,7 @@ export * from './journey';
 export { commandOf, upgradeJourney } from './journey-upgrade';
 export { applyCommand, partyLeader } from './journey-parties';
 export { horseWorkTicks, pickGroom, riderHorse } from './journey-horses';
+export * from './expedition-people';
 export * from './muster';
 export * from './supplies';
 export * from './desertion';

@@ -231,14 +231,14 @@ function homeDay(s: JourneyState, ctx: TickContext, out: TickOut): void {
     if (m.status === 'active' && !living.has(m.ref.personId)) m.status = 'fallen';
   }
   afterLosses(s, out);
-  loseHorses(s, village);
+  if (!journeyFinished(s)) loseHorses(s, village, out);
 }
 
 /**
  * Po ztrátách (Úloha 1 – Ztráty): hlouček bez živých zmizí i s padlými – nikdo se nevrací, události
  * nejsou; co o jeho mapě výprava věděla, jde rodu (tam jeho cesta skončila). Skupina bez hloučků
  * zmizí. Skupina, ve které padl vojvoda, je `leaderless` a jde domů sama (vrací-li se už, jde dál).
- * Výprava bez skupin končí.
+ * Výprava bez skupin končí (`everyoneHome`).
  */
 function afterLosses(s: JourneyState, out: TickOut): void {
   const alive = new Set(s.members.filter((m) => m.status === 'active').map((m) => m.group));
@@ -275,7 +275,27 @@ function afterLosses(s: JourneyState, out: TickOut): void {
     p.leaderless = true;
     if (p.phase === 'out') turnHome(s, p);
   }
-  if (s.parties.length === 0) s.phase = 'done';
+  if (s.parties.length === 0) {
+    s.phase = 'done';
+    everyoneHome(s, out);
+  }
+}
+
+/**
+ * Výprava končí (poslední hlouček doma, nebo už nikdo nežije) – domovská ves dostane `away-ends`
+ * bez `personIds`: od začátku dalšího dne je doma každý, kdo je pryč s touto výpravou (plán
+ * 2026-11-14 – Review Focus 2; návrh Clauda). Kryje i lidi, které hráč přidal záměrem přijatým
+ * těsně před koncem výpravy, na který už krok nedojde (`musterExpedition` je ve vsi poslal pryč
+ * dřív, než výprava skončila) – nikdo tak nezůstane `away: journey` bez běžící výpravy.
+ */
+function everyoneHome(s: JourneyState, out: TickOut): void {
+  const day = s.day + 1;
+  out.events.push({
+    villageId: s.home.villageId,
+    day,
+    ref: `journey:${s.id}:${s.tick}:${out.events.length}`,
+    body: { kind: 'away-ends', refId: s.id, untilDay: day },
+  });
 }
 
 /**
@@ -440,16 +460,17 @@ function discover(s: JourneyState, ctx: TickContext): void {
  * Hlouček skupiny, která se vrací, došel domů (lord-control.md – Na místě a návrat; Úloha 1 –
  * Návrat): domovská ves dostane `away-ends` s jeho živými (`personIds`) – jsou od začátku dalšího
  * dne zase doma (schránka na následující den jako výsledky tažení; `ref` je jedinečný: takt
- * a pořadí v něm) – a hráč upozornění „Bořivoj se vrátil.“ s vůdcem hloučku (`partyLeader`). Skupina,
- * která ztratila vojvodu, upozornění nemá – vojvoda se nevrátil (návrh Clauda). Hlouček i jeho lidé
- * ze stavu zmizí, skupina bez hloučků taky; výprava bez skupin končí. Dál nemá kudy = skončí, kde
+ * a pořadí v něm), poslední hlouček výpravy bez `personIds` (`everyoneHome`) – a hráč upozornění
+ * „Bořivoj se vrátil.“ s vůdcem hloučku (`partyLeader`). Skupina, která ztratila vojvodu,
+ * upozornění nemá – vojvoda se nevrátil (návrh Clauda). Hlouček i jeho lidé ze stavu zmizí, skupina bez hloučků taky; výprava bez skupin končí. Dál nemá kudy = skončí, kde
  * stojí, jako u tažení – co o té mapě věděl, jde rodu.
  */
 function finishGroup(s: JourneyState, g: JourneyGroup, party: JourneyParty, out: TickOut): void {
   const living = s.members.filter((m) => m.group === g.id && m.status === 'active');
   shareKnowledge(s, g.cell, out);
   const day = s.day + 1;
-  if (living.length > 0) {
+  if (s.groups.every((x) => x === g)) everyoneHome(s, out);
+  else if (living.length > 0) {
     out.events.push({
       villageId: s.home.villageId,
       day,

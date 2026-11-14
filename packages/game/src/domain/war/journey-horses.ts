@@ -161,22 +161,33 @@ export function finishHorseWork(s: JourneyState, out: TickOut): void {
 
 /**
  * Kůň zmizel ze vsi (plán 2026-11-14 – Review Focus 4: uhynul, prodán, má jiného jezdce –
- * `riderHorse` null): jezdec s koněm u sebe ho ztratí (`mounted` false, `horse` zmizí) a osedlání,
- * na které čeká, ho vynechá. Krok to kontroluje na začátku dne (`homeDay`) se stavem vsi dne. Jezdec
- * bez `horseId` (starší bod – ves o koni neví) beze změny.
+ * `riderHorse` null): jezdec s koněm u sebe ho ztratí (`mounted` false, `horse` zmizí) a práce
+ * s koňmi, na kterou čeká, ho vynechá. Ves, která o koni venku ví (kůň u jezdce, nebo ho vesničan
+ * teprve vede – `journey-horse` šel v taktu Osedlat), dostane `journey-horse` null – kůň, který ve
+ * vsi zůstal, je zase volný (chov, porážka). Práce, které nezbyl žádný živý jezdec, skončí hned
+ * a lhůta běží od tohoto taktu (jako po `finishHorseWork`). Krok to kontroluje na začátku dne
+ * (`homeDay`) se stavem vsi dne. Jezdec bez `horseId` (starší bod – ves o koni neví) beze změny.
  */
-export function loseHorses(s: JourneyState, village: VillageState): void {
+export function loseHorses(s: JourneyState, village: VillageState, out: TickOut): void {
+  const working = new Set(s.parties.flatMap((p) => p.horseWork?.riders ?? []));
   const gone = new Set<number>();
   for (const m of s.members) {
     if (m.status !== 'active' || m.horseId === undefined) continue;
     if (riderHorse(village, m.ref.personId, m.horseId, s.day) !== null) continue;
+    if (m.horse !== undefined || working.has(m.ref.personId)) {
+      sendHorse(s, out, m.ref.personId, null);
+    }
     gone.add(m.ref.personId);
     m.mounted = false;
     delete m.horse;
   }
-  if (gone.size === 0) return;
+  const alive = new Set(s.members.filter((m) => m.status === 'active').map((m) => m.ref.personId));
   for (const p of s.parties) {
     const work = p.horseWork;
-    if (work?.kind === 'saddle') work.riders = work.riders.filter((id) => !gone.has(id));
+    if (work === undefined) continue;
+    work.riders = work.riders.filter((id) => alive.has(id) && !gone.has(id));
+    if (work.riders.length > 0) continue;
+    delete p.horseWork;
+    if (s.groups.every((g) => g.party !== p.id || g.arrived)) p.arrivedTick = s.tick;
   }
 }

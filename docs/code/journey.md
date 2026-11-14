@@ -88,7 +88,10 @@ intents, world)` → `JourneyStep { state, villageEvents, notices, knowledge?, w
 - **Návrat** – hlouček skupiny `returning`, který doma dojde, skončí (`finishGroup`): domovská ves
   dostane `away-ends` s `personIds` jeho živých (`refId` = id výpravy, `untilDay` den nato –
   schránka na následující den jako výsledky tažení; `ref` = `journey:<id>:<takt>:<n>`; ves
-  `personIds` čte od Úlohy 2) a hráč upozornění `journey-returned` `{ journeyId, leader?, female? }`
+  `personIds` čte od Úlohy 2). Poslední hlouček výpravy – i když výprava skončí tím, že nikdo
+  nežije (`afterLosses`) – pošle `away-ends` bez `personIds` (`everyoneHome`): domů jde každý, kdo
+  je s výpravou pryč, i člověk přidaný záměrem, na který krok před koncem už nedošel (plán
+  2026-11-14 – Review Focus 2, Úloha 5; návrh Clauda). Hráč dostane upozornění `journey-returned` `{ journeyId, leader?, female? }`
   s vůdcem hloučku (`partyLeader`; bez jména `leader` chybí) – text „Bořivoj se vrátil.“
   (`player-notices.ts` ve webu). Skupina `leaderless` upozornění nemá – vojvoda se nevrátil (návrh
   Clauda). Hlouček i jeho lidé ze stavu zmizí, skupina bez hloučků taky.
@@ -156,10 +159,13 @@ untilTick, pen }`: vesničan `groomId` (null = nikdo doma), jezdci (id osob), ta
   `carryHorseWork`: jezdci výběru si práci vezmou s sebou (nová skupina čeká na tu, která skončí
   nejpozději, jezdci prací téhož druhu se sejdou v ní), zbytku zbudou jeho jezdci, bez nich nečeká.
   Jezdec z práce jiného druhu (osedlání i sesednutí v jednom výběru) ji opustí – sesedaný zůstane na
-  koni, sedlaný bez koně (ves ho má venku do návratu nebo dalšího osedlání).
+  koni, sedlaný bez koně a ves dostane `journey-horse` null (kůň je zase v ohradě – Úloha 5).
 - **Kůň zmizel** – `homeDay` po ztrátách volá `loseHorses`: jezdec s `horseId`, jehož kůň ve vsi
   dne už není (`riderHorse` null – uhynul, prodán, jiný jezdec), ztratí `mounted` i `horse`
-  a osedlání, na které čeká, ho vynechá. Bez `horseId` beze změny.
+  a práce s koňmi, na kterou čeká, ho vynechá. Věděla-li ves o koni venku (kůň u jezdce, nebo ho
+  vesničan teprve vede), dostane `journey-horse` null – kůň, který ve vsi zůstal (jiný jezdec), je
+  zase volný pro chov a porážku. Práce, které nezbyl živý jezdec (ztráta koně, smrt doma), skončí
+  hned a lhůta běží od tohoto taktu – skupina nečeká na nikoho (Úloha 5). Bez `horseId` beze změny.
 - **Ves a události** – `journey-horse` (`sendHorse` – den taktu, `ref` jako ostatní události
   výpravy): osedlání (kůň s `riderId` jezdce je v ohradě, takže ho `applyJourneyHorse` vezme), nový
   člověk ze starého adaptéru na koni s `horseId` (`joinAtHome`) a konec sesednutí doma (null). Kůň
@@ -180,14 +186,16 @@ untilTick, pen }`: vesničan `groomId` (null = nikdo doma), jezdci (id osob), ta
 
 - **Port** `JourneyRepository` (`application/journeys.ts`) – stejná sémantika kontrolního bodu a
   záměrů jako `CampaignRepository` (`create`, `active`, `checkpoint`, `intentsAfter`, `saveCheckpoint`,
-  `clearOutbox`, `addIntent`) plus `activeOf(playerId)` (hráč má nejvýš jeden výjezd; vrací id nebo
-  null) a `onCell(cell)`. Paměťové úložiště: `application/__tests__/in-memory-journeys.ts`.
+  `clearOutbox`, `addIntent`) plus `activeIn` / `activeOfPlayer` (výprava za domovskou ves – Úložiště)
+  a `onCell(cell)`. Paměťové úložiště: `application/__tests__/in-memory-journeys.ts`.
 - **`journeyCandidates`** – vojvoda (`currentLord`) a muži rodu od 16 let (`lineCandidates`: doma, ne
   ranění, ne zajatí, ne na tažení nebo výjezdu) s `mounted` podle vlastního jezdeckého koně
   (`riderId`) a `strength` = `lineManStrength`. Důvod odmítnutí (`JourneyRefusal`) v tomto pořadí:
   `no-lord` (i cizí ves), `lord-young`, `lord-wounded`, `lord-away`, `village-attacked`
   (`CampaignRepository.activeAgainst` na vsi), `journey-active`.
-- **`launchJourney`** – volající drží zámek hráče, jen vlastní ves. Ověří vojvodu, družinu
+- **`launchJourney`** (od Úlohy 5 výprav adaptér na `musterExpedition` přes `musterMounted` – viz
+  Rozkaz vybraným lidem; smaže Úloha 12) – volající drží zámek hráče, jen vlastní ves. Ověří
+  vojvodu, družinu
   (`bad-retinue`: muž mimo kandidáty, vojvoda v družině, duplicita, neceločíselné id) a první rozkaz:
   `go` s nekonečným číslem, bodem mimo mapu nebo místem, kam skupina nedojde (`reachableGoal`), a
   `cross` na nesousední políčko jsou `unreachable`; rod bez místa na mapě světa také. Dotaz
@@ -195,7 +203,45 @@ untilTick, pen }`: vesničan `groomId` (null = nikdo doma), jezdci (id osob), ta
   `war-there`. Pak ves uloží s `away: { kind: 'journey', refId }` (bez `untilDay` – návrat ukončí
   `away-ends` výjezdu) u vojvody i družiny – vojvoda a družina se při tom ověří znovu na čerstvém stavu
   (souběžný zápis) – a založí výjezd (`newJourney`; `fight` = `arms.combat`, `strength` při vyslání,
-  `health` 100). Selže-li založení, muži se vrátí a chyba se předá dál.
+  `health` 100; jezdec vyjede na koni s `horseId` a `strength` na koni, ves o koni venku neví – jako
+  dřív). Selže-li založení, muži se vrátí a chyba se předá dál. Kandidáti (`journeyCandidates`) berou
+  kůň a sílu z `recruitOf`.
+- **Rozkaz vybraným lidem** (výpravy – plán 2026-11-14, Úloha 5 – `application/expedition.ts`,
+  `domain/war/expedition-people.ts`):
+  - **Kdo smí jít** – `expeditionRecruit(state, person, day, villageId?)`: pod `JOURNEY.minAge` (12 let,
+    i vojvoda) `young`, `isInjured` `wounded`, pryč na tažení `campaign`, jinak pryč `away`
+    (`ExpeditionPersonRefusal`); jinak rekrut z `recruitOf` – `lord` (`currentLord`), `fight` =
+    `arms.combat`, jméno, žena, `bornDay`, jezdec `horseId` (`ridingHorseOf` – `riderId`, jezdecký
+    kůň jako `riderHorse`) a síla: muž rodu od 16 `lineManStrength` (na svém koni
+    `strengthMounted`), vesničan od 16 `villagerStrength` se štěstím vsi, ženy a mladší 0. Stav vsi
+    své id nezná – `ref.villageId` doplní volající.
+  - **Rozdělení výběru** (`people` – celá čísla bez duplicit, 1–200, jinak `nobody`): člen = osoba
+    s `away: journey` výpravy `activeIn` (domovská ves výběru), živá v jejím bodu (`upgradeJourney`)
+    ve skupině, která hráče poslouchá; ostatní přes `expeditionRecruit` – nezpůsobilí vypadnou,
+    nezbude-li nikdo, důvod prvního (jinak `nobody`). Kdo z hloučku právě došel domů (v bodu už
+    není), je `away`; id mimo ves se přeskočí.
+  - **Komu příkaz** – rozkaz všem; Osedlat členům skupin bez `horseWork` a ze vsi jen jezdcům
+    (návrh Clauda – ostatní pracují dál); Sesednout jen členům skupin bez `horseWork`.
+  - **Ověření** – s rekruty cizí vojsko na vsi (`activeAgainst`) `village-attacked`; rozkaz
+    `orderAim` od vůdce výběru (`partyLeader`, rekrut stojí doma – jako krok výpravy), `go.cell`
+    musí být políčko někoho z výběru a měří se od vůdce těch na něm; nedojde nebo špatný vstup
+    `unreachable`, cíl rodu ve válce `war-there`. Osedlat: rekrut jezdec, jezdec s koněm `led`,
+    nebo jezdec bez koně doma s koněm v ohradě (`riderHorse`); jinak jezdci venku s koněm v ohradě
+    `horse-home`, jinak `nobody`. Sesednout: někdo `ridden`, jinak `nobody`.
+  - **`commandParty`** – jen členové: záměr `{ ...příkaz, people }` na takt teď + `INTENT_LEAD_TICKS`
+    (nejdřív za bodem) bez zámku; s rekrutem `{ ok: false, reason: 'recruits' }` bez zápisu.
+  - **`musterExpedition`** (zámek hráče) – rekruti odejdou ze vsi (`editVillage`, `sendAway`
+    s `refId` výpravy, bez výpravy `newId()`; na čerstvém stavu se ověří znovu – kdo mezitím
+    nesmí, odmítne celý příkaz); bez výpravy `create(newJourney({ recruits, order }))` (Osedlat
+    jako první příkaz: založí bez rozkazu a hned záměr `saddle` s jejich id); s výpravou záměr
+    `{ ...příkaz, people, recruits }`. `addIntent` null (výprava mezitím skončila) – rekruti zpět
+    (`release` – jen jim `away` zmizí) a jednou znovu od začátku, s novou výpravou; podruhé `nobody`.
+    Pád `create` – rekruti zpět, chyba jde dál. Záměr přijatý těsně před koncem výpravy kryje
+    poslední `away-ends` bez `personIds` (Stav a krok – Návrat).
+  - **Adaptér `launchJourney`** – staré ověření vojvody a družiny, pak `musterMounted` s
+    `[vojvoda, ...družina]` a rozkazem: jezdci vyjedou rovnou na koni (`mounted`, `strength` na koni)
+    – dnešní výjezd bez osedlání, do Úlohy 12. Důvody výpravy převede na `JourneyRefusal`
+    (`no-village` → `no-lord`, cíl a napadená ves beze změny, ostatní `bad-retinue`).
 - **Domov výjezdu** (`journeyHome`) – `home.pos`, odkud skupina vyjede a kam ji Domů a návrat po
   čekání vedou, je dvorec vsi (`villageManor`; dokud zakladatelé první zemnici staví, její
   staveniště; ves bez obydlí – `villagePlace`). Hráč staví ves, kde chce – místo vsi krajiny

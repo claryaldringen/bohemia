@@ -108,6 +108,7 @@ export * from './journey-war';
 export * from './step-campaigns';
 export * from './step-journeys';
 export * from './launch-journey';
+export * from './expedition';
 export * from './journey-view';
 export * from './plan-campaign';
 export * from './launch-campaign';
