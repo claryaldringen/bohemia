@@ -37,6 +37,7 @@ import {
   type SmithOreSummary,
 } from '../crafts/smith-supply';
 import { craftSkillSummary, type CraftSkillSummary } from '../crafts/craft-skill';
+import { hidesOnHand } from '../trade/trade';
 import { isFull, isOvercrowded } from '../buildings/dwellings';
 import { waitingHouseholds } from '../people/households';
 import { familyCounts, type FamilyCounts } from '../people/kinship';
@@ -439,7 +440,24 @@ export interface OxenSummary {
   ards: number;
 }
 
+/**
+ * Zásoby zboží pro panel dvorce (hides-honey.md): celé kusy a kg. Kůže jsou v kusech kůže skotu
+ * (malé kůže přepočtem plochou), `smallHides` je jejich počet zvlášť pro popisek; kožešiny
+ * dohromady (ovčí i lovné), `sheepFurs` z nich ovčí.
+ */
+export interface WaresView {
+  hides: number;
+  furs: number;
+  sheepFurs: number;
+  honeyKg: number;
+  waxKg: number;
+  /** Počet malých kůží (kozí, prasečí) v zásobě; chybí = žádné. */
+  smallHides?: number;
+}
+
 export interface VillageSummary {
+  /** Zásoby zboží; `null`, když ves žádné nemá (`wares` chybí). */
+  wares: WaresView | null;
   people: { children: number; adults: number; elders: number };
   /** Muži, ženy, děti, starší a páry celé vsi (kinship.md) – i pohlaví postav ve scéně. */
   family: FamilyCounts;
@@ -820,6 +838,20 @@ export function constructionsStalled(
  * Souhrn vsi v den `day` (stav má být dopočítaný do tohoto dne); `landscape` – posvátné místo
  * prémiové krajiny ve štěstí (bez krajiny se nepočítá).
  */
+function waresView(state: VillageState): WaresView | null {
+  const w = state.wares;
+  if (!w) return null;
+  const small = Math.floor(w.smallHides ?? 0);
+  return {
+    hides: Math.floor(hidesOnHand(state)),
+    furs: Math.floor(w.wildFurs + w.sheepFurs),
+    sheepFurs: Math.floor(w.sheepFurs),
+    honeyKg: Math.floor(w.honeyKg),
+    waxKg: Math.floor(w.waxKg),
+    ...(small > 0 ? { smallHides: small } : {}),
+  };
+}
+
 export function summarizeVillage(
   state: VillageState,
   day: number,
@@ -832,6 +864,7 @@ export function summarizeVillage(
   const deathsPerYear = recentDeathsPerYear(state, day);
   const starvationDays = state.starvationDays ?? 0;
   return {
+    wares: waresView(state),
     people: peopleByGroup(state, day),
     family: familyCounts(state.people, day),
     households: households(state, day),
