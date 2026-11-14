@@ -8,6 +8,7 @@ import { OBSTACLE_KINDS, SURFACE_CODES, tileCenterWorld, type Landscape } from '
 import type { ObstacleLayer } from '../../landscape';
 import type { PartInput } from '../core/actions';
 import { villageCentre } from '../people/departure';
+import { landAreaAt, landscapeLandAreas } from '../paths/terrain';
 import { ROTATION } from '../fields/field-capacity';
 import { distanceFactor, grossYieldPerHa } from '../fields/fields';
 import { waterFetchingLabor } from '../core/labor';
@@ -343,9 +344,10 @@ export function planCentre(state: VillageState): { x: number; z: number } | null
 }
 
 /**
- * Území vsi – políčka (1 v masce) do `FIELD_LIMITS.maxDistanceM` od středu vsi (`planCentre`).
- * Jedna ves, jedna mapa (Martin 1. 11. 2026) – území nedělí jiná ves. Ves bez středu nemá území
- * (samé 0).
+ * Území vsi – políčka (1 v masce) do `FIELD_LIMITS.maxDistanceM` od středu vsi (`planCentre`),
+ * kam se ze středu dojde: přes vodu jen brodem (`landscapeLandAreas` – paths.md, Odhad
+ * vzdáleností, Jen brodem; Martin 14. 11. 2026). Jedna ves, jedna mapa (Martin 1. 11. 2026) –
+ * území nedělí jiná ves. Ves bez středu nemá území (samé 0).
  */
 export function villageTerritory(state: VillageState, landscape: Landscape): Uint8Array {
   const size = landscape.size;
@@ -353,11 +355,15 @@ export function villageTerritory(state: VillageState, landscape: Landscape): Uin
   const centre = planCentre(state);
   if (!centre) return mask;
   const reach2 = FIELD_LIMITS.maxDistanceM * FIELD_LIMITS.maxDistanceM;
+  const areas = landscapeLandAreas(landscape, true);
+  const home = landAreaAt(areas, centre.x, centre.z);
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const c = tileCenterWorld(landscape, x, y);
       const d = (c.x - centre.x) * (c.x - centre.x) + (c.z - centre.z) * (c.z - centre.z);
-      if (d <= reach2) mask[y * size + x] = 1;
+      if (d > reach2) continue;
+      if (home >= 0 && landAreaAt(areas, c.x, c.z) !== home) continue;
+      mask[y * size + x] = 1;
     }
   }
   return mask;

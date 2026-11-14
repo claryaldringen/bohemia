@@ -8,6 +8,8 @@ import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 import {
   CHURCH_EAST_ROTATION,
   CHURCH_NOT_BAPTIZED,
+  churchStartProblem,
+  playerChurchStartProblem,
   CHURCH_NO_LODGE,
   CHURCH_NO_QUARRY,
   CHURCH_WRONG_TYPE,
@@ -80,13 +82,11 @@ describe('natočení a zahájení', () => {
     expect(snapChurchRotation(-Math.PI / 2 + 0.01)).toBeCloseTo(-Math.PI / 2);
   });
 
-  it('nepokřtěný rod kostel nezačne – pojistka serveru (tlačítko se ani neukáže)', () => {
-    const at = { x: 0, z: 0, rotation: 0 };
+  it('nepokřtěný rod: kostel hráče ne (pojistka serveru), doménové pravidlo a NPC křest nevyžadují', () => {
     const pagan: VillageState = { ...churchVillage(), faith: {} };
-    expect(startChurch(pagan, DAY, null, null, { ...ROTUNDA, position: at })).toEqual({
-      ok: false,
-      reason: CHURCH_NOT_BAPTIZED,
-    });
+    expect(playerChurchStartProblem(pagan, ROTUNDA.type)).toBe(CHURCH_NOT_BAPTIZED);
+    expect(playerChurchStartProblem(churchVillage(), ROTUNDA.type)).toBeNull();
+    expect(churchStartProblem(pagan, ROTUNDA.type)).toBeNull();
   });
 
   it('bez stavbyvedoucího, mimo okruh nebo bez lomu kostel nezačne; jinak bez ceny předem', () => {

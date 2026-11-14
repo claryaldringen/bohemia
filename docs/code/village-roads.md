@@ -1007,8 +1007,18 @@ prohlížeči – udělej to rovnou“).
 - **Chůze** (`paths/walking.ts`): `groundWalkLength` = `straightWalkCost` (po půlbuňkách – mokřina,
   les `1 / PATH_FOREST_COST`, pole; pole v lese je vymýcené) a přes potok mimo brod (`WALK_DEEP` –
   `PATH_WATER` bez `PATH_FORD`) objížďka `fordDetour` – buňka brodu s nejmenším |a F| + |F b|
-  (`groundSpots(ground, PATH_FORD)`), druhý úsek začíná ve vodě (brodí se jednou). Bez brodu v okně
-  brodění kdekoli jako dřív. Paměť chůze (`memoWalkLength`) drží jen úsečky bez objížďky; úsečka
+  (`WalkGround.fords` – brody celé mapy z `landscapeFordSpots`, u ručně vyrobené půdy
+  `groundSpots(ground, PATH_FORD)`), druhý úsek začíná ve vodě (brodí se jednou). **Jen brodem**
+  (14. 11. 2026, paths.md – Odhad vzdáleností): bez brodu na mapě Infinity (i `memoDetour`; vůz
+  stejně – `CartGround.fords`), úseky objížďky jdou rovně jako dřív. `refreshWalkDistances` Infinity
+  do stavu nezapíše (JSON by z něj udělal null): díl dostane `FieldPart.unreachable` (bez
+  `walkDistanceM`) a `turnSelection` (`rotation.ts`) ho do práce nebere – zaroste jako každý
+  příloh; čtverec sadu a `forestWalkM` / `waterWalkM` obydlí se smažou. Okno sítě
+  (`villagePathBounds` – `crossingFords` v `network-keys.ts`): cíl na jiném břehu než všechna
+  obydlí (`landscapeLandAreas(l, false)` – oblasti souše mezi vodou, brod dělí; `landAreaAt`)
+  přidá brod s nejmenším součtem vzdáleností od středu obydlí a k cíli – okno k němu sáhne jako
+  k vodě a pěšina vede přes brod. Území správce (`villageTerritory`) jen v oblasti středu vsi
+  přes brody (`landscapeLandAreas(l, true)`). `WALK_VERSION` `routes-v13`. Paměť chůze (`memoWalkLength`) drží jen úsečky bez objížďky; úsečka
   přes potok má zápornou hodnotu a objížďka se skládá z úseček (`memoDetour`) – výsledek týž jako
   bez paměti. Graf pěšin a pevných cest (`walkGraph`) beze změny; **napojení jen v nejbližším
   bodě** (31. 10. 2026, `routes-v10`): `WalkGraph.chains` – uzly každé pěšiny a cesty v pořadí;
