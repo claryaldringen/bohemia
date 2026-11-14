@@ -10,9 +10,14 @@ import { WAR } from './rules-war';
 // kdy se skupina vzdá při přesile a s jakou pravděpodobností útočník najde zapečetěnou jámu. Čisté
 // funkce, jen det-math; náhoda ze seedu tažení a jámy.
 
-/** Postoj vsi, který platí – chybí-li, výchozí „raději utéct“. */
+/**
+ * Postoj vsi, který platí – chybí-li, výchozí (evakuace). Stav vsi, kterou tažení čte bez převodu
+ * (`migrateVillage` běží jen při dopočtu vsi), může nést zrušený postoj `'surrender'` – čte se jako
+ * výchozí, stejně jako v převodu `stance-surrender` (závěrečná recenze, drobný 6).
+ */
 export function stanceOf(state: Pick<VillageState, 'defense'>): DefenseStance {
-  return state.defense?.stance ?? WAR.flight.defaultStance;
+  const stance = state.defense?.stance;
+  return stance === 'defend' || stance === 'flee' ? stance : WAR.flight.defaultStance;
 }
 
 /** Nejbližší hustý les (střed buňky mřížky pochodu) od bodu `from`; bez lesa null. */

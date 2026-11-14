@@ -510,7 +510,7 @@ describe('vzdání vojvody (plán 2026-11-14 – Úloha 8)', () => {
     expect(w.campaigns.intents).toEqual([]);
   });
 
-  it('druhé tažení – vzdání v boji (battle.yielded) prvního → lordAway', async () => {
+  it('druhé tažení – vzdání v boji (battle.lordYielded) prvního → lordAway', async () => {
     const w = await lordSetup();
     const first = campaign({
       id: 'c0',
@@ -518,7 +518,7 @@ describe('vzdání vojvody (plán 2026-11-14 – Úloha 8)', () => {
       target: { villageId: w.a, cell: { ...A }, pos: { x: 700, z: 0 } },
     });
     first.alarm = olderAlarm(w);
-    first.battle = { yielded: 2 } as CampaignState['battle'];
+    first.battle = { lordYielded: 2 } as CampaignState['battle'];
     await w.campaigns.create(first);
     expect((await view(w))!.yieldLord).toEqual({ blocked: 'lordAway' });
   });
@@ -533,5 +533,39 @@ describe('vzdání vojvody (plán 2026-11-14 – Úloha 8)', () => {
     const v = (await view(w))!;
     expect(v.warned).toBe(false);
     expect(v.yieldLord).toBeNull();
+  });
+
+  it('vzdání v novějším tažení neskryje starší tažení, které ves dál ohrožuje', async () => {
+    const w = await lordSetup({
+      tweak: (s) => {
+        s.returnReason = 'yielded';
+        s.phase = 'returning';
+      },
+    });
+    const other = campaign({
+      id: 'c0',
+      members: [member(1, 0, true)],
+      target: { villageId: w.a, cell: { ...A }, pos: { x: 700, z: 0 } },
+    });
+    other.alarm = olderAlarm(w);
+    await w.campaigns.create(other);
+    expect(await view(w)).toMatchObject({ warned: true, campaignId: 'c0' });
+    expect(await command(w, { kind: 'flee', mode: 'forest' })).toEqual({
+      ok: true,
+      campaignId: 'c0',
+    });
+  });
+
+  it('ves, na kterou vojsko netáhne – bílá vlajka se nenabízí', async () => {
+    const w = await lordSetup({
+      tweak: (s) => {
+        s.target = { villageId: 'jinam', cell: { x: -3, y: 0 }, pos: { x: 0, z: 0 } };
+      },
+    });
+    const v = (await view(w))!;
+    expect(v.warned).toBe(true);
+    expect(v.yieldLord).toBeNull();
+    expect((await command(w, { kind: 'yield-lord' })).ok).toBe(false);
+    expect(w.campaigns.intents).toEqual([]);
   });
 });

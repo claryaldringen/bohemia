@@ -157,7 +157,22 @@ describe('svět varování ve smyčce tažení (Úloha 6)', () => {
       const send = { tick: start.tick + 40, byPlayer: 'p2' } as const;
       const body = { kind: 'alarm-messenger', village: 'a' } as const;
       const end = start.tick + 4000;
-      const whole = stepCampaign(start, end, [{ ...send, seq: 1, body }], preloaded);
+      // A (vojvoda doma) se v taktu varování zeptá na přítomnost – worker odpoví na takt dotazu
+      // + 2, že hráč byl u hry naposled v taktu startu (kolo končí dotazem – drobný 1)
+      const answer = {
+        tick: start.tick + 3,
+        byPlayer: 'p2',
+        body: { kind: 'alarm-presence', village: 'a', seenTick: start.tick },
+      } as const;
+      const whole = stepCampaign(
+        start,
+        end,
+        [
+          { ...send, seq: 1, body },
+          { ...answer, seq: 2 },
+        ],
+        preloaded,
+      );
       // posel A doběhl do C, NPC hradiště poslalo posla do E (A už ví) a ten E varoval
       const [own, toE] = whole.state.alarm!.messengers;
       expect(own).toMatchObject({ fromVillageId: 'a', toVillageId: 'c', status: 'arrived' });
@@ -173,6 +188,9 @@ describe('svět varování ve smyčce tažení (Úloha 6)', () => {
 
       const alarms = port();
       const { deps, campaigns, villages } = setup(alarms);
+      const presence = new InMemoryPresence();
+      await presence.note('p2', new Date(msOfTick(start.tick, world)));
+      deps.presence = presence;
       await campaigns.create(start);
       await campaigns.addIntent('c1', { ...send, body });
       const outcomes: string[] = [];
@@ -181,7 +199,7 @@ describe('svět varování ve smyčce tažení (Úloha 6)', () => {
           outcomes.push(r.outcome);
         }
       }
-      expect(outcomes.every((o) => o === 'saved')).toBe(true);
+      expect(outcomes.every((o) => o === 'saved' || o === 'waiting')).toBe(true);
       const stored = (await campaigns.checkpoint('c1'))!.state;
       expect(stored.tick).toBe(end);
       expect(JSON.stringify(stored)).toBe(JSON.stringify(whole.state));
@@ -269,17 +287,19 @@ describe('worker odpovídá na přítomnost obránce (plán 2026-11-14 – Úloh
     },
   );
 
-  it('nepřítomný hráč – správce do 2 kol od vstupu', { timeout: 60_000 }, async () => {
+  it('nepřítomný hráč – správce v taktu dotazu + 2 (dotaz kolo ukončí)', async () => {
     const first = await presenceLoop({ to: LAUNCH_TICK + 40, present: () => false });
+    // kolo skončilo v taktu dotazu (bod), ne na konci kola (drobný 1)
+    expect(first.tick).toBe(LAUNCH_TICK + 1);
     const asked = alarmVillage(first, 'a')!;
     expect(asked).toMatchObject({ warnTick: LAUNCH_TICK + 1, askedTick: LAUNCH_TICK + 1 });
     expect(asked.decided).toBeUndefined();
 
     const state = await presenceLoop({ to: LAUNCH_TICK + 80, present: () => false });
-    // odpověď (u hry nebyl) na takt kola + 2 – správce pošle posla v témž taktu
+    // odpověď (u hry nebyl) na takt dotazu + 2 – správce pošle posla v témž taktu
     expect(alarmVillage(state, 'a')).toMatchObject({ decided: 'steward', presenceTick: null });
     expect(state.alarm!.messengers).toMatchObject([
-      { fromVillageId: 'a', departTick: LAUNCH_TICK + 42 },
+      { fromVillageId: 'a', departTick: LAUNCH_TICK + 3 },
     ]);
   });
 
@@ -324,9 +344,13 @@ describe('worker odpovídá na přítomnost obránce (plán 2026-11-14 – Úloh
     deps.presence = presence;
     const memory = deps.memory!;
     await campaigns.create(start);
-    // hráč byl u hry naposled před vstupem vojska; kolo 1 uloží bod (varování) a odpoví
+    // hráč byl u hry naposled před vstupem vojska; kolo 1 skončí dotazem A (bod v taktu varování)
+    // a odpoví, kolo 1b dopočte za odpověď a uloží bod (40 taktů)
     await presence.note('p2', new Date(msOfTick(start.tick - 50, world)));
     await stepCampaigns(deps, { nowMs: msOfTick(start.tick + 40, world) });
+    expect((await campaigns.checkpoint('c1'))!.state.tick).toBe(start.tick + 1);
+    await stepCampaigns(deps, { nowMs: msOfTick(start.tick + 41, world) });
+    expect((await campaigns.checkpoint('c1'))!.state.tick).toBe(start.tick + 41);
     expect(memory.states.has('c1')).toBe(false);
     // kolo 2 zůstane v paměti (méně než 40 taktů od bodu); přítomnost je starší než obnova
     await presence.note('p2', new Date(msOfTick(start.tick + 79, world)));
@@ -334,7 +358,7 @@ describe('worker odpovídá na přítomnost obránce (plán 2026-11-14 – Úloh
     const memo = memory.states.get('c1')!;
     expect(memo.state.tick).toBe(start.tick + 79);
     expect(alarmVillage(memo.state, 'a')!.presenceTick).toBe(start.tick - 50);
-    expect((await campaigns.intentsAfter('c1', start.tick + 40)).at(-1)).toMatchObject({
+    expect((await campaigns.intentsAfter('c1', start.tick + 41)).at(-1)).toMatchObject({
       tick: start.tick + 81,
       byPlayer: 'p2',
       body: { kind: 'alarm-presence', village: 'a', seenTick: start.tick + 79 },
@@ -346,5 +370,103 @@ describe('worker odpovídá na přítomnost obránce (plán 2026-11-14 – Úloh
     expect(saved.tick).toBe(start.tick + 84);
     expect(saved.leaderName).toBe('Z paměti');
     expect(alarmVillage(saved, 'a')!.presenceTick).toBe(start.tick + 79);
+  });
+});
+
+describe('vlastníci vsí v kole smyčky (závěrečná recenze D1)', () => {
+  /** 12 vsí na mapě A, domy 1,3 km od vojska (nespatří ho) – jejich vlastníky takt potřebuje. */
+  const MANY = Array.from({ length: 12 }, (_, i) => `v${String(i + 1).padStart(2, '0')}`);
+  const FAR = { x: 900, z: 900, rotation: 0 };
+
+  function crowded(): {
+    deps: StepCampaignsDeps;
+    campaigns: InMemoryCampaigns;
+    asks: string[];
+  } {
+    const campaigns = new InMemoryCampaigns();
+    const villages = new InMemoryVillages();
+    for (const id of MANY) {
+      const state = village([kin({ id: 1, age: 40, sex: 'female' }, SUMMER)], [], {
+        lastDay: LAST,
+      });
+      state.dwellings = [{ ...dwelling(1), position: { ...FAR } }];
+      villages.records.set(id, { id, settlementId: `s-${id}`, name: id, state, version: 1 });
+    }
+    const map: CampaignMap = { landscape: land(), obstacles: null, villageIds: MANY };
+    const cells: CampaignCells = {
+      mapOf: (c) => Promise.resolve(c.x === A.x && c.y === A.y ? map : MEADOW),
+    };
+    const asks: string[] = [];
+    const owners: AlarmOwnerPort = {
+      ownerOf: (id) => {
+        asks.push(`owner:${id}`);
+        return Promise.resolve({ playerId: 'p2', npc: false, houseId: 'h2' });
+      },
+      refugeHostsOf: (id) => {
+        asks.push(`hosts:${id}`);
+        return Promise.resolve([]);
+      },
+      domainOf: () => Promise.resolve([]),
+    };
+    const deps: StepCampaignsDeps = {
+      campaigns,
+      campaignLock: new InMemoryCampaignLock(),
+      cells,
+      villages,
+      notices: new InMemoryNotices(),
+      world,
+      alarmOwners: owners,
+      memory: newCampaignMemory(),
+    };
+    return { deps, campaigns, asks };
+  }
+
+  it('takt s 12 neznámými vlastníky se dopočítá v jednom kole', async () => {
+    const start = passing();
+    const { deps, campaigns, asks } = crowded();
+    await campaigns.create(start);
+    // dřív jeden průchod = jeden vlastník a kolo má nejvýš 9 průchodů – takt by stál navždy
+    const [first] = await stepCampaigns(deps, { nowMs: msOfTick(start.tick + 40, world) });
+    expect(first!.outcome).toBe('saved');
+    expect((await campaigns.checkpoint('c1'))!.state.tick).toBe(start.tick + 40);
+    expect(asks.filter((a) => a.startsWith('owner:')).sort()).toEqual(
+      MANY.map((id) => `owner:${id}`),
+    );
+    // kandidáti hradišť jen u vsi, která do varování vstupuje – žádná
+    expect(asks.filter((a) => a.startsWith('hosts:'))).toEqual([]);
+    // další kolo vezme vlastníky z paměti workeru (mladší než OWNER_KEEP_TICKS)
+    asks.length = 0;
+    await stepCampaigns(deps, { nowMs: msOfTick(start.tick + 80, world) });
+    expect((await campaigns.checkpoint('c1'))!.state.tick).toBe(start.tick + 80);
+    expect(asks).toEqual([]);
+  });
+
+  it('ves už ve varování – na vlastníka se kolo neptá', async () => {
+    const start = passing();
+    // A ví o vojsku od svého vesničana, který ještě běží domů (vlastník zapsaný při spatření)
+    start.alarm = {
+      villages: [
+        {
+          villageId: 'a',
+          owner: { playerId: 'p2', npc: false, houseId: 'h2' },
+          seenTick: start.tick,
+          seenAt: { cell: { ...A }, pos: { x: -140, z: 0 } },
+          warnTick: start.tick + 1000,
+          by: 'villager',
+          hosts: [],
+        },
+      ],
+      messengers: [],
+      flights: [],
+      nextRef: 0,
+    };
+    const alarms = port();
+    const { deps, campaigns } = setup(alarms);
+    await campaigns.create(start);
+    for (const tick of [start.tick + 40, start.tick + 80]) {
+      await stepCampaigns(deps, { nowMs: msOfTick(tick, world) });
+    }
+    expect((await campaigns.checkpoint('c1'))!.state.tick).toBe(start.tick + 80);
+    expect(alarms.asks.filter((a) => a === 'owner:a')).toEqual([]);
   });
 });

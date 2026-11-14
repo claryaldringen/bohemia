@@ -175,7 +175,7 @@ function expectRefused(start: CampaignState, w: CampaignWorld, i: CampaignIntent
   expect(out.state.returnReason).toBe(start.returnReason);
   expect(out.state.raidDay).toBe(start.raidDay);
   expect(out.state.captives).toEqual(start.captives);
-  expect(out.state.battle?.yielded).toBeUndefined();
+  expect(out.state.battle?.lordYielded).toBeUndefined();
 }
 
 describe('vzdání vojvody v tažení', () => {
@@ -187,7 +187,7 @@ describe('vzdání vojvody v tažení', () => {
     expect(out.waiting).toBeNull();
     expect(out.state).toMatchObject({ phase: 'returning', returnReason: 'yielded' });
     expect(out.state.raidDay).toBe(out.state.day);
-    expect(out.state.battle).toMatchObject({ yielded: 1, outcome: 'withdrawn' });
+    expect(out.state.battle).toMatchObject({ lordYielded: 1, outcome: 'withdrawn' });
     const raid = raidOf(out);
     expect(raid.captured).toEqual([1]);
     expect(raid.captorVillageId).toBe('lhota');
@@ -302,7 +302,7 @@ describe('vzdání vojvody v tažení', () => {
     // vojvoda v boji padl – ve stavu vsi je až do výsledku nájezdu, vzdát se už nemůže
     const dead = stepUntil(campaign({ ...BASE, liveCommand: false }), SET_OUT, w, killed(1));
     const after = stepCampaign(dead, dead.tick + 1, [surrender(dead.tick + 1)], w);
-    expect(after.state.battle?.yielded).toBeUndefined();
+    expect(after.state.battle?.lordYielded).toBeUndefined();
     expect(after.state.returnReason).not.toBe('yielded');
     // vojsko ještě na mapě shromaždiště – Kněžice varoval posel
     const far = warned(marching(BASE.target, BASE.assembly.cell));

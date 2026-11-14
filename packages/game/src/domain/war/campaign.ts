@@ -189,6 +189,9 @@ export function campaignFinished(state: CampaignState): boolean {
  * obráncům `breakout` dává držitel napadené vsi (právo ověřil use-case `orderBreakout`), `alarm-*`
  * majitel varované vsi – nikdy vůdce tažení; ostatní platí přesně ve svém taktu v pořadí `seq`.
  * Chybí-li mapa nebo ves (`waiting`), výsledek je stav na konci posledního celého taktu.
+ * S `pauseOnAsk` (worker) skončí i po taktu, ve kterém se varovaná ves zeptala na přítomnost hráče
+ * (`askedTick` = takt; `waiting.presence`) – odpověď pak jde na takt dotazu + 2, ne na konec kola
+ * (závěrečná recenze, drobný 1). Výsledek pro tytéž záměry je tentýž, jen se počítá po kouscích.
  * Vstupní stav ani záměry nemění.
  */
 export function stepCampaign(
@@ -196,6 +199,7 @@ export function stepCampaign(
   toTick: number,
   intents: readonly CampaignIntent[],
   world: CampaignWorld,
+  options: { pauseOnAsk?: boolean } = {},
 ): CampaignStep {
   const pending = intents
     .filter(
@@ -238,8 +242,22 @@ export function stepCampaign(
     villageEvents.push(...out.events);
     notices.push(...stampNotices(out.notices, `camp:${current.id}:${tick}`));
     knowledge.push(...(out.knowledge ?? []));
+    if (options.pauseOnAsk && tick < toTick && asksIn(current, tick)) {
+      return {
+        state: current,
+        villageEvents,
+        notices,
+        ...withKnowledge(),
+        waiting: { cells: [], villageIds: [], presence: true },
+      };
+    }
   }
   return { state: current, villageEvents, notices, ...withKnowledge(), waiting: null };
+}
+
+/** Zeptala se v taktu `tick` některá varovaná ves na přítomnost hráče (`askedTick`)? */
+function asksIn(s: CampaignState, tick: number): boolean {
+  return s.alarm?.villages.some((v) => v.askedTick === tick) ?? false;
 }
 
 /**
@@ -401,16 +419,18 @@ function dailyStep(s: CampaignState, ctx: TickContext, out: TickOut): void {
 /**
  * Dezerce nucených a z hladu (war.md – Vojsko; Zásoby tažení: Živé vedení bez rozkazu – `hungry`):
  * dezertér z boje odejde hned (`slipAway`) a domů ho jako při rozpadu vrátí návrat tažení
- * (`returnOf` – `deserted`). Dezertér s příbuznými v cíli cíl varuje – ves dostane signál
- * `army-seen` dřív, než vojsko dorazí (jeden za den, ať se nezdvojí).
+ * (`returnOf` – `deserted`). Raněný, který na bojišti leží (`down`), neuteče – los ho mine, zůstane,
+ * kde padl (závěrečná recenze, drobný 4). Dezertér s příbuznými v cíli cíl varuje – ves dostane
+ * signál `army-seen` dřív, než vojsko dorazí (jeden za den, ať se nezdvojí).
  */
 function desert(s: CampaignState, hungry: boolean, out: TickOut): void {
   let warns = false;
   const battle = s.battle?.outcome === 'ongoing' ? s.battle : null;
   for (const m of deserters(s, hungry)) {
+    const f = battle?.fighters.find((x) => x.side === 'attack' && s.members[x.ref] === m);
+    if (f?.state === 'down') continue;
     m.status = 'deserted';
     warns ||= m.kin === true;
-    const f = battle?.fighters.find((x) => x.side === 'attack' && s.members[x.ref] === m);
     if (f && f.state !== 'fled') slipAway(f);
   }
   if (!warns) return;
@@ -520,13 +540,13 @@ export function yieldingLord(s: CampaignState, v: AlarmVillage, ctx: TickContext
  * Vzdání vojvody (war.md – Hráč ve vsi a mimo ni; plán 2026-11-14 – Rozhodnutí plánu 5): nájezd
  * končí – vojvoda je zajat vždy (volba ke vzdaným `surrendered` se ho netýká), vojsko se obrátí domů
  * (`'yielded'`) a odnese jen to, co už vzalo (`s.loot`). V boji ho zajme výsledek boje téhož taktu
- * (`BattleState.yielded` → `raidResultOf` v `reportRaid`). Bez boje (vojsko na mapě cíle ještě
+ * (`BattleState.lordYielded` → `raidResultOf` v `reportRaid`). Bez boje (vojsko na mapě cíle ještě
  * pochoduje) dostane ves výsledek nájezdu jen se zajatým vojvodou a ves shromaždiště zápis do
  * kroniky jako po boji. Ve vsi dál cesta zajetí: `away captive`, formální správce, výkupné.
  */
 function yieldLord(s: CampaignState, lordId: number, ctx: TickContext, out: TickOut): void {
   if (s.battle) {
-    s.battle.yielded = lordId;
+    s.battle.lordYielded = lordId;
     turnBack(s, 'yielded');
     return;
   }
@@ -1342,7 +1362,7 @@ function raidResultOf(
     }
   }
   // vojvoda, kterého hráč vzdal (`yieldLord`): zajat vždy – volba ke vzdaným se ho netýká
-  const lord = b.yielded;
+  const lord = b.lordYielded;
   if (lord !== undefined && !captured.includes(lord) && !fallen.includes(lord)) {
     captured.push(lord);
     const w = wounded.indexOf(lord);

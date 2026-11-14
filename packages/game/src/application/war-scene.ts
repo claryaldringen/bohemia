@@ -15,7 +15,9 @@ import {
   type WarSceneFolk,
   type WarSceneView,
 } from '../domain/war';
+import type { WorldClock } from '../domain/calendar';
 import { cellKey } from '../domain/war/campaign-tick';
+import { alarmTaken } from '../domain/war/evacuation';
 import { lordAtHome } from '../domain/war/lord-home';
 import type { VillageState } from '../domain/village/types';
 import { sameCell, type GridCell } from '../domain/village/people/world-grid';
@@ -77,6 +79,8 @@ export interface WarSceneDeps extends KnowledgeOfTargetDeps {
     'activeOf' | 'activeAgainst' | 'activeAlarming' | 'checkpoint'
   >;
   cells: CampaignCells;
+  /** Hodiny světa – dny odchodu poslů a skupin uprchlíků (`alarmTaken` – vojvoda doma). */
+  world: WorldClock;
   grids?: SightGridCache;
   defenders?: WarSceneDefenderCache;
 }
@@ -112,12 +116,18 @@ export async function warSceneFor(
       }
       const defender = await defenderOf(deps, village.id, cell, point.state.day);
       if (!defender) continue;
-      // vojvoda doma ve varované vsi vidí vojsko na své mapě celé (war.md – Hráč ve vsi a mimo ni)
+      // vojvoda doma ve varované vsi vidí vojsko na své mapě celé (war.md – Hráč ve vsi a mimo ni);
+      // doma není ani ten, koho tažení dnes odvedlo (posel, uprchlíci, zajetí – jako `lordHomeAt`)
       const alarm = alarmVillage(point.state, village.id);
       const seesAll =
         alarm !== null &&
         alarm.warnTick <= point.state.tick &&
-        lordAtHome(defender, alarm.owner.lordId, point.state.day);
+        lordAtHome(
+          defender,
+          alarm.owner.lordId,
+          point.state.day,
+          alarmTaken(point.state, village.id, point.state.day, deps.world).people,
+        );
       const view = await viewOn(
         deps,
         point.state,

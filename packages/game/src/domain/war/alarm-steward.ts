@@ -1,9 +1,9 @@
 import type { Landscape } from '../landscape';
 import { villageCentre } from '../village/people/departure';
 import type { VillageState } from '../village/types';
-import { alarmCellOf, alarmEnded, alarmVillage, refugeHosts } from './alarm';
+import { alarmCellOf, alarmEnded, alarmVillage, armyEyes, refugeHosts } from './alarm';
 import type { AlarmVillage } from './alarm-types';
-import { gridOf, MissingData } from './campaign-tick';
+import { gridOf, MissingData, sameCell } from './campaign-tick';
 import type { TickContext, TickOut } from './campaign-tick';
 import type { CampaignPlace, CampaignState } from './campaign-types';
 import { alarmTaken, departFlight, withoutTaken } from './evacuation';
@@ -26,8 +26,9 @@ import { absentTicks } from './ticks';
 // a vsi, kde vojvoda není doma, rozhodnou pravidlem správce hned (lhůta hráče odpadá); ves
 // s vojvodou doma – i se zapnutým správcem – se zeptá, zda je hráč u hry (`askedTick` – worker
 // odpoví záměrem `alarm-presence`), a rozhoduje hráč, dokud u hry je – bez přítomnosti déle než
-// 1 herní den (`absentTicks`) rozhodne správce. Vzdáním vojvody varování vsi končí (`alarmEnded`).
-// Pravidlo
+// 1 herní den (`absentTicks`) rozhodne správce. Ves, která na hráče čekala, rozhodne nastavení jen,
+// dokud jí vojsko hrozí (`armyThreatens` – Ruling 9). Vzdáním vojvody varování vsi končí
+// (`alarmEnded`). Pravidlo
 // (`stewardAlarmChoice`): posel do hradiště pána vždy, jde-li (vesničan pěšky, bez vesničana muž
 // rodu – Martin 9. 11. 2026 „Ano“); s postojem evakuace a bez vlastního útočiště lidé do hradiště,
 // stihnou-li to – „se vším“, jinak „jen lidé“ –, jinak do lesa. Totéž hradiště pro posly do vsí
@@ -43,6 +44,9 @@ import { absentTicks } from './ticks';
  * a které posly do domény ještě nerozeslalo, se zařídí podle téhož pravidla. Ves, kterou posel
  * správce právě varoval, rozhodne v témž taktu. Správce rozhoduje jednou – i když pravidlo nic
  * nepustí. Ves, jejíž varování skončilo vzdáním vojvody (`alarmEnded`), už nerozhoduje nikdo.
+ * Ves, která čekala na hráče (`waitedForPlayer`), za kterou by teď rozhodlo nastavení (hráč odešel,
+ * vojvoda ves opustil), rozhodne jen, dokud jí vojsko hrozí (`armyThreatens`); jinak čekající
+ * rozhodnutí propadne – žádný posel ani útěk (Ruling 9; hrozí-li znovu, rozhodne pak).
  */
 export function decideAlarms(s: CampaignState, tick: number, ctx: TickContext, out: TickOut): void {
   const alarm = s.alarm;
@@ -122,10 +126,11 @@ export function presenceWanted(s: CampaignState, v: AlarmVillage): 'ask' | 'refr
  * Rozhodne o vsi ještě přítomnost hráče (`deciderOf`)? Vesnickou část nerozhodl nikdo, nebo hráč
  * a lidé jsou doma (`playerLeft` – Ruling 4: hráč, který po volbě dál hraje, o ves nepřijde), nebo
  * hradiště s doběhlým poslem vsi posly do domény ještě nerozeslalo (`decideDomain`). Ne po vzdání
- * vojvody (`alarmEnded` – varování skončilo).
+ * vojvody (`alarmEnded` – varování skončilo) a ne, když se vojsko vrací domů (`armyOut` – nastavení
+ * by za ves už nerozhodlo, Ruling 9); vojsko, které ves jen minulo, se vrátit může.
  */
 function presenceMatters(s: CampaignState, v: AlarmVillage): boolean {
-  if (alarmEnded(s, v.villageId)) return false;
+  if (alarmEnded(s, v.villageId) || !armyOut(s)) return false;
   if (v.decided === undefined || (v.decided === 'player' && v.flight === undefined)) return true;
   return v.domain === undefined && heardTick(s, v.villageId) !== null;
 }
@@ -154,6 +159,7 @@ function decideVillage(
   const by = v.decided === 'player' ? playerLeft(s, v, tick, ctx) : deciderOf(s, v, tick, ctx);
   if (by === 'ask') v.askedTick = tick;
   if (by !== 'steward') return;
+  if (waitedForPlayer(v) && !armyThreatens(s, v)) return;
   const { options, home, village, landscape } = alarmChoices(s, v, tick, ctx);
   const ownRefuge = refugeHostOf(v.villageId, home, landscape, village.cell, s.day) !== null;
   const choice = stewardAlarmChoice(options, stanceOf(home), ownRefuge);
@@ -243,7 +249,37 @@ function decideDomain(
   const by = deciderOf(s, v, tick, ctx);
   if (by === 'ask') v.askedTick = tick;
   if (by !== 'steward') return;
+  // zprávu přinesl posel vsi – doméně vojsko hrozí, dokud nejde domů (Ruling 9)
+  if (waitedForPlayer(v) && !armyOut(s)) return;
   warnDomain(s, v.villageId, ctx, out, null);
+}
+
+/**
+ * Čekala ves na hráče (Ruling 9)? Hráč byl u hry, když se ves ptala nebo když ji obnovoval worker,
+ * nebo dal pokyn (`presenceTick` je takt). Rozhodnutí nastavením je pak čekající rozhodnutí
+ * (hráč odešel, vojvoda ves opustil), ne okamžitá reakce vsi na vojsko.
+ */
+function waitedForPlayer(v: AlarmVillage): boolean {
+  return typeof v.presenceTick === 'number';
+}
+
+/**
+ * Hrozí vojsko ještě vsi `v` (war.md – Hráč ve vsi a mimo ni; Ruling 9 – nastavení rozhoduje jen,
+ * dokud hrozba trvá)? Tažení nejde domů (`armyOut`) a ves je jeho cíl, na její mapě stojí skupina
+ * s aktivním mužem (táž podmínka, podle které ves vojsko spatřila – `sightAlarms`), nebo ji varoval
+ * posel (kde vojsko je, ves neví). Vojsko ves minulo (mapu opustilo a ves není cíl), nebo se vrací
+ * domů – nehrozí.
+ */
+export function armyThreatens(s: CampaignState, v: AlarmVillage): boolean {
+  if (!armyOut(s)) return false;
+  if (v.villageId === s.target.villageId || v.by === 'messenger') return true;
+  const cell = alarmCellOf(v);
+  return armyEyes(s).some((e) => sameCell(e.cell, cell));
+}
+
+/** Tažení ještě nejde domů – pochod nebo nájezd (ne návrat, rozpad, konec). */
+function armyOut(s: CampaignState): boolean {
+  return s.phase === 'marching' || s.phase === 'raiding';
 }
 
 /**

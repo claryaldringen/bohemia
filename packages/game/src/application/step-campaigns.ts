@@ -47,6 +47,9 @@ import type { VillageRecord, VillageRepository } from './villages';
 /** Kolikrát nejvýš se v jednom kole načítají chybějící mapy a vsi (každé kolo posune takty). */
 const MAX_LOADS = 8;
 
+/** Jak dlouho platí vlastník vsi v paměti workeru (`CampaignMemory.owners`) – ¼ herního dne ≈ 22 s. */
+export const OWNER_KEEP_TICKS = 86;
+
 export interface StepCampaignsDeps {
   campaigns: CampaignRepository;
   campaignLock: CampaignLock;
@@ -133,6 +136,19 @@ export interface CampaignMemory<S = CampaignState> {
    * varování ne – takt je potřebuje jen občas (ves vstupuje do varování), předem by byly navíc.
    */
   needs: Map<string, CampaignNeeds>;
+  /**
+   * Vlastníci vsí z portu varování (`AlarmOwnerPort.ownerOf`) s taktem kola, kdy se načetli: takt
+   * se na vlastníka ptá u každé nevarované vsi na mapě vojska, takže bez paměti by každé kolo četlo
+   * DB znovu (závěrečná recenze D1). Platí `OWNER_KEEP_TICKS` (vlastník se mění zřídka – nový
+   * vojvoda, převod vsi); starší se na konci kola zapomenou. Jen tažení.
+   */
+  owners: Map<string, KeptOwner>;
+}
+
+/** Vlastník vsi v paměti workeru a takt kola (`toTick`), kdy se načetl. */
+export interface KeptOwner {
+  owner: AlarmOwner;
+  tick: number;
 }
 
 /** Co tažení v kole četlo – políčka map a vsi (i neexistující). */
@@ -150,6 +166,7 @@ export function newCampaignMemory<S = CampaignState>(): CampaignMemory<S> {
     villages: new Map(),
     seen: new Set(),
     needs: new Map(),
+    owners: new Map(),
   };
 }
 
@@ -332,7 +349,12 @@ export async function stepCampaigns(
       results.push({ campaignId, outcome: 'failed', error });
     }
   }
-  if (deps.memory) forgetEnded(deps.memory, active);
+  if (deps.memory) {
+    forgetEnded(deps.memory, active);
+    for (const [id, kept] of deps.memory.owners) {
+      if (toTick - kept.tick >= OWNER_KEEP_TICKS) deps.memory.owners.delete(id);
+    }
+  }
   return results;
 }
 
@@ -385,11 +407,13 @@ async function stepOne(
         }
       : null;
   // tažení čeká na ves (bariéra Ú6.7) – bod se uloží hned, ať mez vsi povyroste a ves smí
-  // spočítat den, na který tažení čeká (jinak by obě strany čekaly navzájem)
+  // spočítat den, na který tažení čeká (jinak by obě strany čekaly navzájem); ves se zeptala na
+  // přítomnost (`pauseOnAsk`) – bod v taktu dotazu, ať další kolo navazuje i bez paměti workeru
   const due =
     outbox !== null ||
     campaignFinished(step.state) ||
     (step.waiting?.villageIds.length ?? 0) > 0 ||
+    step.waiting?.presence === true ||
     step.state.tick - from.tick >= CHECKPOINT_TICKS;
   if (!due) {
     states?.set(campaignId, {
@@ -437,6 +461,8 @@ async function leaderKnowledge(
 /**
  * Dopočet tažení s načítáním dat (`computeWithLoads` nad `stepCampaign`): když takt chybí mapa nebo
  * ves, načtou se a výpočet pokračuje od zastaveného taktu (výsledek je tentýž jako s daty předem).
+ * Ves, která se v taktu zeptá na přítomnost hráče, kolo ukončí (`pauseOnAsk` – závěrečná recenze,
+ * drobný 1): worker odpoví na takt dotazu + 2 (`answerPresence`), ne až na konec kola.
  */
 export async function computeCampaign(
   deps: Pick<
@@ -450,8 +476,8 @@ export async function computeCampaign(
   return computeWithLoads(
     deps,
     state,
-    (current, world) => stepCampaign(current, toTick, intents, world),
-    { archivedFinal: true },
+    (current, world) => stepCampaign(current, toTick, intents, world, { pauseOnAsk: true }),
+    { archivedFinal: true, toTick },
   );
 }
 
@@ -475,13 +501,14 @@ export type LoadingDeps = Pick<
  * uložený stav, má-li už spočtený den `d − 1` (bariéra Ú6.7 – `VillageHolds` ji dál nepustí); jinak
  * takt čeká, ves se v dalším kole načte znovu. S `archivedFinal` (tažení) je ves archivovaného
  * sídla (Začít znovu) konečný stav pro kterýkoli den jako spící ves – výjezd ji dál bere jako
- * zaniklou (`villageGone`, `villageAt` null).
+ * zaniklou (`villageGone`, `villageAt` null). `toTick` = takt kola: s ním a s pamětí workeru se
+ * vlastníci vsí berou z paměti (`CampaignMemory.owners`, `OWNER_KEEP_TICKS`).
  */
 export async function computeWithLoads<S extends { id: string; playerId: string }>(
   deps: LoadingDeps,
   state: S,
   step: (state: S, world: CampaignWorld) => LoadedStep<S>,
-  options: { archivedFinal?: boolean } = {},
+  options: { archivedFinal?: boolean; toTick?: number } = {},
 ): Promise<LoadedStep<S>> {
   /** Mapy políček; `read` = takt se na mapu ptal (paměť workeru – `CampaignNeeds`). */
   const maps = new Map<string, { map: CampaignMap; cell: GridCell; read: boolean }>();
@@ -504,7 +531,11 @@ export async function computeWithLoads<S extends { id: string; playerId: string 
   /** Jména načtených vsí (kronika a upozornění uprchlíků – Úloha 8 plánu 2026-11-09). */
   const names = new Map<string, string>();
   const harmlessTo = new Map<string, boolean>();
-  const alarms = deps.alarmOwners ? alarmWorld(deps.alarmOwners) : null;
+  const kept =
+    deps.memory && options.toTick !== undefined
+      ? { owners: deps.memory.owners, tick: options.toTick }
+      : null;
+  const alarms = deps.alarmOwners ? alarmWorld(deps.alarmOwners, kept) : null;
   const key = (c: GridCell): string => `${c.x},${c.y}`;
   const world: CampaignWorld = {
     clock: deps.world,
@@ -612,7 +643,8 @@ export async function computeWithLoads<S extends { id: string; playerId: string 
     result.notices.push(...next.notices);
     if (next.knowledge) (result.knowledge ??= []).push(...next.knowledge);
     result.waiting = next.waiting;
-    if (!next.waiting || round === MAX_LOADS) break;
+    // dotaz na přítomnost (`waiting.presence`) nic nenačítá – kolo končí
+    if (!next.waiting || next.waiting.presence || round === MAX_LOADS) break;
     let loaded = await load(next.waiting.cells, next.waiting.villageIds);
     if (alarms && (await alarms.load())) loaded = true;
     if (!loaded) break;
@@ -638,9 +670,14 @@ interface AlarmWorld {
 /**
  * Svět varování nad portem `AlarmOwnerPort` (vzor `watcherOf` / `harmless`): synchronní dotaz vrátí,
  * co je načtené, jinak si dotaz zapamatuje a vrátí null (takt čeká – `MissingData`); `load` pak
- * dotazy načte. Neznámá ves = neznámý rod (`UNKNOWN_ALARM_OWNER` – rozhoduje pravidlo).
+ * dotazy načte. Neznámá ves = neznámý rod (`UNKNOWN_ALARM_OWNER` – rozhoduje pravidlo). S pamětí
+ * workeru (`kept`) se vlastník mladší než `OWNER_KEEP_TICKS` vezme z ní a načtený se do ní zapíše
+ * s taktem kola – vlastníci nevarovaných vsí na mapách vojska se tak nečtou každé kolo.
  */
-function alarmWorld(port: AlarmOwnerPort): AlarmWorld {
+function alarmWorld(
+  port: AlarmOwnerPort,
+  kept: { owners: Map<string, KeptOwner>; tick: number } | null,
+): AlarmWorld {
   const owners = new Map<string, AlarmOwner>();
   const hosts = new Map<string, VillageCell[]>();
   const domains = new Map<string, VillageCell[]>();
@@ -653,6 +690,14 @@ function alarmWorld(port: AlarmOwnerPort): AlarmWorld {
       want.add(villageId);
       return null;
     };
+  const askOwner = lookup(owners, asked.owners);
+  const ownerOf = (villageId: string): AlarmOwner | null => {
+    const memo = kept?.owners.get(villageId);
+    if (!owners.has(villageId) && memo && kept && kept.tick - memo.tick < OWNER_KEEP_TICKS) {
+      owners.set(villageId, memo.owner);
+    }
+    return askOwner(villageId);
+  };
   const fill = async <T>(
     known: Map<string, T>,
     want: Set<string>,
@@ -665,16 +710,17 @@ function alarmWorld(port: AlarmOwnerPort): AlarmWorld {
   };
   return {
     world: {
-      alarmOf: lookup(owners, asked.owners),
+      alarmOf: ownerOf,
       refugeHostsOf: lookup(hosts, asked.hosts),
       domainOf: lookup(domains, asked.domains),
     },
     load: async () => {
-      // ves vstupuje do varování s vlastníkem i kandidáty hradišť – načtou se spolu (jedno kolo)
-      for (const id of asked.owners) asked.hosts.add(id);
-      for (const id of asked.hosts) asked.owners.add(id);
+      // vlastník a kandidáti hradišť každý zvlášť: vlastníka se takt ptá u každé nevarované vsi
+      // na mapě vojska, kandidátů jen u vsi, která do varování vstupuje (a při útěku, poslu)
       const a = await fill(owners, asked.owners, async (id) => {
-        return (await port.ownerOf(id)) ?? { ...UNKNOWN_ALARM_OWNER };
+        const owner = (await port.ownerOf(id)) ?? { ...UNKNOWN_ALARM_OWNER };
+        kept?.owners.set(id, { owner, tick: kept.tick });
+        return owner;
       });
       const b = await fill(hosts, asked.hosts, (id) => port.refugeHostsOf(id));
       const c = await fill(domains, asked.domains, (id) => port.domainOf(id));

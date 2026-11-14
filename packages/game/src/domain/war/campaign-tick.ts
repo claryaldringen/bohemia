@@ -17,6 +17,27 @@ export class MissingData {
   ) {}
 }
 
+/**
+ * `each` pro všechny `items`; co chybí (`MissingData`), sebere a ohlásí na konci jedním
+ * `MissingData` – jeden průchod výpočtu tak načte data všech, ne jen prvního (kolo smyčky tažení
+ * má průchodů omezeně – závěrečná recenze D1). Výsledek se nemění: takt, kterému něco chybí, se
+ * celý zahodí.
+ */
+export function gatherMissing<T>(items: Iterable<T>, each: (item: T) => void): void {
+  const cells: GridCell[] = [];
+  const villageIds = new Set<string>();
+  for (const item of items) {
+    try {
+      each(item);
+    } catch (error) {
+      if (!(error instanceof MissingData)) throw error;
+      cells.push(...error.cells);
+      for (const id of error.villageIds) villageIds.add(id);
+    }
+  }
+  if (cells.length > 0 || villageIds.size > 0) throw new MissingData(cells, [...villageIds]);
+}
+
 /** Výstup jednoho taktu – do výsledku se přidá, jen když takt doběhne. */
 export interface TickOut {
   events: NewVillageEvent[];

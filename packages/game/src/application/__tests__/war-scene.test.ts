@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CampaignMap, CampaignState, SeenCell, SeenData, SeenPart } from '../../domain/war';
 import type { Dwelling, Person } from '../../domain/village/types';
 import { attacker, battle, defender, land } from '../../domain/war/__tests__/battle-fixtures';
-import { campaign, member } from '../../domain/war/__tests__/campaign-fixtures';
+import { campaign, member, world } from '../../domain/war/__tests__/campaign-fixtures';
 import type { House } from '../houses';
 import type { Settlement } from '../settlements';
 import type { VillageRecord, VillageStamp } from '../villages';
@@ -83,6 +83,7 @@ async function setup(
     },
     campaigns,
     cells: { mapOf: () => Promise.resolve(MAP) },
+    world,
     defenders: { get: (k) => cache.get(k), set: (k, v) => cache.set(k, v) },
   };
   return { deps, campaigns, reads };
@@ -578,6 +579,14 @@ describe('warSceneFor – vojvoda doma vidí celé vojsko', () => {
     // bez vojvody ve vsi také
     const none = await setup(passingBy(), [house(1, -600, -600)], []);
     expect(await warSceneFor(none.deps, { playerId: 'p9', settlementId: 's9' })).toBeNull();
+  });
+
+  it('vojvoda, kterého tažení odvedlo (`alarmTaken` – zajetí), celé vojsko nevidí', async () => {
+    // stav vsi o zajetí ještě neví – doména ho za doma nemá (`lordHomeAt`), scéna také ne
+    const held = passingBy();
+    held.captives.push({ villageId: 'knezice', personId: 1 });
+    const { deps } = await setup(held, [house(1, -600, -600)], [lord]);
+    expect(await warSceneFor(deps, { playerId: 'p9', settlementId: 's9' })).toBeNull();
   });
 
   it('ves, která ještě neví (warnTick v budoucnu), nevidí celé vojsko', async () => {

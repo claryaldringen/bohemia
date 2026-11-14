@@ -67,6 +67,9 @@ describe('výchozí postoj a pomocné funkce', () => {
   it('bez nastavení platí útěk, jinak nastavený postoj', () => {
     expect(stanceOf(eastVillage())).toBe('flee');
     expect(stanceOf(eastVillage({ defense: { stance: 'defend' } }))).toBe('defend');
+    // nepřevedený stav (tažení čte vsi bez `migrateVillage`) – zrušený postoj jako výchozí
+    const old = { stance: 'surrender' } as unknown as VillageState['defense'];
+    expect(stanceOf(eastVillage({ defense: old }))).toBe('flee');
   });
 
   it('nejbližší les; bez lesa null', () => {

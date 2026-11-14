@@ -462,6 +462,67 @@ describe('hráč ve vsi, nebo nastavení (plán 2026-11-14 – Úloha 5)', () =>
   });
 });
 
+describe('nastavení rozhoduje, jen dokud vojsko hrozí (Ruling 9)', () => {
+  // hráč u hry v taktu t nic nezvolí a odejde – po absentTicks by za ves rozhodlo nastavení
+  const leftAt = (start: CampaignState): number => start.tick + 3;
+  const offMapA = (s: CampaignState): boolean =>
+    s.groups.every((g) => g.cell.x !== A.x || g.cell.y !== A.y);
+
+  it('(a) vojsko dál míří na ves – po absentTicks rozhodne nastavení jako dřív', () => {
+    const start = approaching(LORD_HOME);
+    const t = leftAt(start);
+    const w = worldOf({ ownerA: LORD_HOME });
+    const step = stepCampaign(start, t + ABSENT + 1, [presence(t, t)], w);
+    expect(step.waiting).toBeNull();
+    expect(offMapA(step.state)).toBe(false);
+    expect(alarmOf(step, 'a')).toMatchObject({
+      decided: 'steward',
+      messenger: 'c1:a0',
+      flight: 'c1:a1',
+    });
+    expect(step.state.alarm!.flights[0]!.departTick).toBe(t + ABSENT + 1);
+  });
+
+  it('(b) vojsko ves minulo – čekající rozhodnutí propadne: žádný posel ani útěk', () => {
+    const start = approaching(LORD_HOME, -900, true);
+    const t = leftAt(start);
+    const w = worldOf({ ownerA: LORD_HOME });
+    const intents = [presence(t, t)];
+    // vojsko mapu A opustí dřív, než by nastavení rozhodlo – míří jinam
+    const passed = stepCampaign(start, t + ABSENT, intents, w);
+    expect(offMapA(passed.state)).toBe(true);
+    const step = stepCampaign(passed.state, t + ABSENT + 300, intents, w);
+    expect(step.waiting).toBeNull();
+    const v = alarmOf(step, 'a');
+    expect(v.decided).toBeUndefined();
+    expect(v.presenceTick).toBe(t);
+    expect(step.state.alarm!.messengers).toEqual([]);
+    expect(step.state.alarm!.flights).toEqual([]);
+  });
+
+  it('(b) vojsko se vrací domů – nic, ani po volbě hráče (playerLeft)', () => {
+    const start = approaching(LORD_HOME);
+    start.phase = 'returning';
+    start.returnReason = 'order';
+    const t = leftAt(start);
+    const w = worldOf({ ownerA: LORD_HOME });
+    // vojsko stojí na mapě A, ale jde domů – hrozba pominula
+    const quiet = stepCampaign(start, t + ABSENT + 50, [presence(t, t)], w);
+    expect(quiet.waiting).toBeNull();
+    expect(offMapA(quiet.state)).toBe(false);
+    expect(alarmOf(quiet, 'a').decided).toBeUndefined();
+    expect(quiet.state.alarm!.messengers).toEqual([]);
+    expect(quiet.state.alarm!.flights).toEqual([]);
+    // hráč poslal posla a odešel – správce útěk nedořeší
+    const go = t + 3;
+    const chose = [presence(t, t), byA(go, { kind: 'alarm-messenger', village: 'a' })];
+    const left = stepCampaign(start, go + ABSENT + 50, chose, w);
+    expect(left.waiting).toBeNull();
+    expect(alarmOf(left, 'a')).toMatchObject({ decided: 'player', messenger: 'c1:a0' });
+    expect(left.state.alarm!.flights).toEqual([]);
+  });
+});
+
 describe('pravidlo správce – postoj, útočiště, les (Úloha 11)', () => {
   it('(c) postoj „bránit“ – jen posel, lidé zůstanou a brání ves jako dnes', () => {
     const start = approaching(NPC);
@@ -638,7 +699,7 @@ describe('zajatý vojvoda a vzdání (plán 2026-11-14 – Úloha 5b)', () => {
     );
     expect(out.waiting).toBeNull();
     expect(out.state).toMatchObject({ phase: 'returning', returnReason: 'yielded' });
-    expect(out.state.battle?.yielded).toBe(2);
+    expect(out.state.battle?.lordYielded).toBe(2);
     expect(out.state.alarm!.messengers).toEqual([]);
     expect(out.state.captives).toEqual([{ villageId: 'a', personId: 2 }]);
     expect(out.state.loot.prisoners?.map((p) => p.ref)).toEqual([{ villageId: 'a', personId: 2 }]);
@@ -674,9 +735,9 @@ describe('po kouscích taktů (Úloha 5, 5b)', () => {
   }
 
   it('po 1 / 7 / 40 taktech přes JSON = vcelku', { timeout: 120_000 }, () => {
-    // A s vojvodou doma se zeptá, hráč je u hry, pak odejde – správce; posel A doběhne do C
-    // (vojvoda mimo hradiště) a C varuje doménu
-    const start = approaching(LORD_HOME, -900, true);
+    // A s vojvodou doma se zeptá, hráč je u hry, pak odejde – vojsko dál míří na A, rozhodne
+    // správce (Ruling 9); posel A doběhne do C (vojvoda mimo hradiště) a C varuje doménu
+    const start = approaching(LORD_HOME);
     const warnTick = start.tick + 1;
     const intents = [presence(warnTick + 2, warnTick), presence(warnTick + 4, null)];
     const whole = expectChunked(start, start.tick + 1600, intents, {

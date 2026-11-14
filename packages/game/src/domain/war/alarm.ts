@@ -1,6 +1,6 @@
 import { villageCentre } from '../village/people/departure';
 import type { AlarmOwner, AlarmVillage, CampaignAlarm } from './alarm-types';
-import { cellKey, gridOf, MissingData, villageEvent } from './campaign-tick';
+import { cellKey, gatherMissing, gridOf, MissingData, villageEvent } from './campaign-tick';
 import type { TickContext, TickOut } from './campaign-tick';
 import type { CampaignState, IntentBody } from './campaign-types';
 import { villageLookouts, runTicks, type Lookout } from './lookouts';
@@ -97,40 +97,58 @@ export function alarmVillage(s: CampaignState, villageId: string): AlarmVillage 
  * oka do středu vsi – z domu 0); pozdější spatření s dřívějším doběhem varování uspíší. V taktu
  * varování jde majiteli upozornění `army-warned` a vsi signál hrozby `army-seen` (na týž den –
  * ves drží bariéra).
+ *
+ * Co takt ze světa nemá (vlastník, stav vsi, kandidáti hradišť), ohlásí za všechny vsi jedním
+ * `MissingData` (`gatherMissing` – závěrečná recenze D1): jeden průchod tak načte data všech vsí
+ * taktu, ne jedné. Ves, která už ve varování je (vesničan běží domů), má vlastníka zapsaného –
+ * svět se na něj znovu neptá.
  */
 export function sightAlarms(s: CampaignState, tick: number, ctx: TickContext, out: TickOut): void {
+  const sights: { villageId: string; cell: GridCell; eyes: Pos[] }[] = [];
   for (const { cell, eyes } of armyEyes(s)) {
     const map = ctx.world.landscapeOf(cell);
     if (map === null) throw new MissingData([{ ...cell }], []);
     for (const villageId of map.villageIds) {
       if (ctx.world.harmless?.(villageId, s.playerId)) continue;
-      if (isWarned(s, villageId, tick)) continue;
-      const owner = ownerOf(villageId, ctx);
-      const sighting =
-        lordSighting(s, villageId, owner, eyes, ctx) ?? spot(s, villageId, cell, eyes, ctx);
-      if (sighting === null) continue;
-      const by = sighting.by;
-      const warnTick = tick + sighting.run;
-      const known = alarmVillage(s, villageId);
-      if (known === null) {
-        const hosts = hostCandidates(villageId, cell, ctx);
-        addVillage(s, {
-          villageId,
-          owner,
-          seenTick: tick,
-          seenAt: { cell: { ...cell }, pos: { ...sighting.at } },
-          warnTick,
-          by,
-          ...(hosts === null ? {} : { hosts }),
-        });
-      } else if (warnTick < known.warnTick) {
-        known.warnTick = warnTick;
-        known.by = by;
-      }
+      if (!isWarned(s, villageId, tick)) sights.push({ villageId, cell, eyes });
     }
   }
+  gatherMissing(sights, (x) => sightVillage(s, x.villageId, x.cell, x.eyes, tick, ctx));
   for (const v of s.alarm?.villages ?? []) {
     if (v.warnTick === tick) warn(s, v.villageId, ctx, out);
+  }
+}
+
+/** Spatření vojska vsí `villageId` na mapě `cell` (`sightAlarms`); chybí-li data, `MissingData`. */
+function sightVillage(
+  s: CampaignState,
+  villageId: string,
+  cell: GridCell,
+  eyes: readonly Pos[],
+  tick: number,
+  ctx: TickContext,
+): void {
+  const known = alarmVillage(s, villageId);
+  const owner = known?.owner ?? ownerOf(villageId, ctx);
+  const sighting =
+    lordSighting(s, villageId, owner, eyes, ctx) ?? spot(s, villageId, cell, eyes, ctx);
+  if (sighting === null) return;
+  const by = sighting.by;
+  const warnTick = tick + sighting.run;
+  if (known === null) {
+    const hosts = hostCandidates(villageId, cell, ctx);
+    addVillage(s, {
+      villageId,
+      owner,
+      seenTick: tick,
+      seenAt: { cell: { ...cell }, pos: { ...sighting.at } },
+      warnTick,
+      by,
+      ...(hosts === null ? {} : { hosts }),
+    });
+  } else if (warnTick < known.warnTick) {
+    known.warnTick = warnTick;
+    known.by = by;
   }
 }
 

@@ -4,6 +4,7 @@ import { areaOutline, fortificationArea, fortSegments } from '../../village';
 import type { Fortification } from '../../village/fortification/types';
 import { kin, village } from '../../village/__tests__/kin-fixtures';
 import type { TileCell, VillageState } from '../../village/types';
+import type { Fighter } from '../battle';
 import { stepCampaign } from '../campaign';
 import type {
   CampaignIntent,
@@ -213,6 +214,22 @@ describe('živé vedení bez rozkazu u vsi za palisádou', () => {
     expect(fighter?.state).toBe('fled');
     const lead = first.battle!.fighters.find((f) => f.side === 'attack' && f.ref === 0);
     expect(lead?.state).toBe('fight');
+  });
+
+  it('raněný, který leží na bojišti, neuteče – los ho mine (závěrečná recenze, drobný 4)', () => {
+    // muž, který dezertuje později; den předtím padne raněný na zem
+    const later = out2 < out11 ? 2 : 1;
+    const day = Math.max(out2, out11);
+    const before = structuredClone(atEndOf(day - 1));
+    expect(before.battle?.outcome).toBe('ongoing');
+    const fighterOf = (s: CampaignState): Fighter =>
+      s.battle!.fighters.find((f) => f.side === 'attack' && f.ref === later)!;
+    fighterOf(before).state = 'down';
+    const after = stepCampaign(before, firstTickOf(day + 1) - 1, INTENTS, fortWorld).state;
+    expect(after.members[later]!.status).toBe('active');
+    expect(fighterOf(after).state).toBe('down');
+    // muž na zemi je dál v tažení – výprava se nerozpadne
+    expect(after.phase).toBe('raiding');
   });
 
   it('vojsko se samo neobrátí ani nenapadne – stojí, dokud nezůstane jen vůdce', () => {

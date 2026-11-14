@@ -62,9 +62,10 @@ function arrived(refId: string, from: string, to: string): AlarmMessenger {
   };
 }
 
-/** Tažení spočtené do taktu `T` s varovanými vsemi. */
+/** Tažení na pochodu spočtené do taktu `T` s varovanými vsemi. */
 function stateWith(villages: AlarmVillage[], messengers: AlarmMessenger[] = []): CampaignState {
   const s = campaign({ liveCommand: false });
+  s.phase = 'marching';
   s.tick = T;
   s.alarm = { villages, messengers, flights: [], nextRef: messengers.length + 1 };
   return s;
@@ -187,6 +188,18 @@ describe('odpověď workeru na přítomnost obránce (Úloha 6)', () => {
     s.alarm!.villages.find((v) => v.villageId === 'h')!.domain = [];
     const after = await answer(s, { seen: { p2: T - 3 } });
     expect(after.added.map((i) => i.body)).toEqual([presenceOf('a', T - 3)]);
+  });
+
+  it('vojsko se vrací domů – obnova nic, dotaz dostane odpověď (Ruling 9)', async () => {
+    const s = stateWith([
+      warned('a', P2, { presenceTick: T - REFRESH }),
+      warned('b', P2, { askedTick: T - 1 }),
+    ]);
+    s.phase = 'returning';
+    s.returnReason = 'order';
+    const { added } = await answer(s, { seen: { p2: T - 3 } });
+    // nastavení by za ves už nerozhodlo – přítomnost netřeba obnovovat
+    expect(added.map((i) => i.body)).toEqual([presenceOf('b', T - 3)]);
   });
 
   it('lastSeen novější než takt – seenTick oříznutý na takt záměru', async () => {

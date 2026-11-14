@@ -140,7 +140,8 @@ export interface CampaignLoot {
 
 /**
  * Proč se tažení vrací; `routed` = útočníci v boji poraženi (war.md – Bod zlomu); `yielded` = hráč
- * napadené vsi vzdal vojvodu a nájezd skončil (war.md – Hráč ve vsi a mimo ni; záměr `lord-surrender`).
+ * napadené vsi vzdal vojvodu a nájezd skončil (war.md – Hráč ve vsi a mimo ni; záměr `lord-surrender`
+ * – ne ves vzdaná Začít znovu, ta je `CampaignState.yielded` a vrací se s `order`).
  */
 export type CampaignReturnReason = 'arrived' | 'supplies' | 'order' | 'routed' | 'yielded';
 
@@ -213,7 +214,8 @@ export interface CampaignState {
   returnReason: CampaignReturnReason | null;
   /**
    * Ves cíle se vzdala (Začít znovu obránce – záměr `turn-back` se `surrender`) a vojsko se obrátilo
-   * domů: kdo ji vzdal (`byPlayer`) a která ves. Platí jen pro opakovaný restart téhož hráče po pádu
+   * domů: kdo ji vzdal (`byPlayer`) a která ves. Není to vzdání vojvody (`BattleState.lordYielded`,
+   * návrat `'yielded'`). Platí jen pro opakovaný restart téhož hráče po pádu
    * (pozná nájezd, kterému se ves už vzdala); restart pozdějšího držitele ji nebere. Chybí – ne.
    */
   yielded?: { byPlayer: string; villageId: string };
@@ -450,6 +452,10 @@ export interface CampaignStep {
    * skončí, a stopy všech cizích map na konci tažení; bez vydání chybí.
    */
   knowledge?: KnowledgeOut[];
-  /** Takt se zastavil – chybí tyto mapy a vsi; null = spočteno do `toTick`. */
-  waiting: { cells: GridCell[]; villageIds: string[] } | null;
+  /**
+   * Takt se zastavil – chybí tyto mapy a vsi, nebo (`presence`, seznamy prázdné) varovaná ves se
+   * v posledním spočteném taktu zeptala na přítomnost hráče a tažení čeká na odpověď
+   * (`pauseOnAsk`); null = spočteno do `toTick`.
+   */
+  waiting: { cells: GridCell[]; villageIds: string[]; presence?: true } | null;
 }
