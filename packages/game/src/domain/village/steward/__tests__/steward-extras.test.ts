@@ -435,6 +435,37 @@ describe('steward-extras – humno, ohrady, posvátná místa a cesty', () => {
     expect(kinds(second)).toContain('orchard');
   });
 
+  it('rozestavěnou stavbu hráče správce započte – vedle ní druhou stejného druhu nezačne (D21)', () => {
+    const month = { threshing: 4, orchard: 10, idol: 10 } as const;
+    const steps = {
+      threshing: ['threshing-floor', threshingStep],
+      orchard: ['orchard', orchardStep],
+      idol: ['idol', sacredStep],
+    } as const;
+    for (const name of ['threshing', 'orchard', 'idol'] as const) {
+      const [kind, step] = steps[name];
+      const base = withLeft(grown, 10_000);
+      if (name === 'threshing') base.threshingFloors = [];
+      if (name === 'threshing') {
+        base.constructions = base.constructions.filter((c) => c.kind !== kind);
+      }
+      if (name === 'orchard') base.orchards = [];
+      const ctx = ctxOf(at(month[name]));
+      step(base, ctx);
+      const count = (x: VillageState): number =>
+        x.constructions.filter((c) => c.kind === kind).length;
+      // předpoklad: správce by stavěl
+      expect(count(base)).toBe(1);
+      // stavba je hráčova (správce ji nezaložil) a stojí dál
+      const player = structuredClone(base);
+      player.steward!.built = [];
+      const later = ctxOf(ctx.day + STEWARD.everyDays);
+      step(player, later);
+      expect(count(player)).toBe(1);
+      expect(player.steward!.built).toEqual([]);
+    }
+  });
+
   it('jabloně u cest: podél upravené cesty kolem polí, když sad nestačí; ne po vyšlapané', () => {
     const base = withLeft(grown, 10_000);
     base.orchards = [];
