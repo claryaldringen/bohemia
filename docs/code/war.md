@@ -814,7 +814,8 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
   (`campaignTick`: pohyb → spatření → dny nájezdu): pro ves na mapě se skupinou s aktivním mužem
   (kromě `harmless`), která ještě neví, oči × polohy skupin (`inSight` – 150 m, v lese 50 m); první
   spatření zapíše `AlarmVillage` (`seenTick`, `seenAt` = poloha skupiny, `warnTick` = takt + doběh
-  od oka do `villageCentre` – z domu 0, `by: 'villager'`, vlastník z `CampaignWorld.alarmOf` –
+  od oka do `villageCentre` – z domu 0, `by: 'villager'` (vojvoda doma – `by: 'lord'`, viz Hráč ve
+  vsi a mimo ni), vlastník z `CampaignWorld.alarmOf` –
   `null` = takt čeká, bez portu `{ playerId: null, npc: true, houseId: null }`); pozdější spatření s
   kratším doběhem `warnTick` zkrátí. V taktu `warnTick` (i když vojsko už mapu opustilo)
   `threat-signal` `army-seen` na týž den a majiteli (`watcherOf`, jen cizí vojsko) upozornění
@@ -1693,6 +1694,14 @@ u sídelní vsi rodu (`house.lord_village_id`); jiná ves rodu a NPC ves ho nema
 muž žije ve vsi, dnes není pryč (`isAway`: výjezd, tažení, zajetí, posel, útočiště) a tažení ho
 dnes neodvedlo (`gone`); `lordHomeAt(s, villageId, owner, ctx)` totéž v taktu nad stavem
 `villageAt(villageId, s.day)` (chybí → `MissingData`) a `alarmTaken(…).people`.
+
+**Vojvoda vidí vojsko při vstupu na mapu.** `sightAlarms` (`alarm.ts`) nejdřív zjistí vlastníka vsi
+(`ownerOf`) a pro ves, kde je vojvoda doma (`lordHomeAt`), použije `lordSighting`: spatření bez
+doběhu (`run: 0`) v poloze skupiny nejblíž `villageCentre` (shoda – první v `armyEyes`), takže
+`warnTick` = takt vstupu na mapu a `AlarmVillage.by = 'lord'` (`'villager' | 'messenger' | 'lord'`).
+Vojvoda pryč (výjezd, tažení) – `spot` jako dřív, varuje vesničan. Ves už varovanou poslem s pozdějším
+`warnTick` vstup s vojvodou doma jen uspíší (`by` se přepíše na `'lord'`). Zápis a zkrácení
+`warnTick` beze změny.
 
 ## Měření tažení a e2e celé války (Ú6.17)
 

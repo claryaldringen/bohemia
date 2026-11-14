@@ -4,6 +4,7 @@ import { cellKey, gridOf, MissingData, villageEvent } from './campaign-tick';
 import type { TickContext, TickOut } from './campaign-tick';
 import type { CampaignState, IntentBody } from './campaign-types';
 import { villageLookouts, runTicks, type Lookout } from './lookouts';
+import { lordHomeAt } from './lord-home';
 import { refugeHostOf, type RefugeHost } from './refuge-choice';
 import type { MarchGrid, Pos } from './march-grid';
 import type { GridCell } from '../village/people/world-grid';
@@ -76,24 +77,27 @@ export function sightAlarms(s: CampaignState, tick: number, ctx: TickContext, ou
     for (const villageId of map.villageIds) {
       if (ctx.world.harmless?.(villageId, s.playerId)) continue;
       if (isWarned(s, villageId, tick)) continue;
-      const sighting = spot(s, villageId, cell, eyes, ctx);
+      const owner = ownerOf(villageId, ctx);
+      const sighting =
+        lordSighting(s, villageId, owner, eyes, ctx) ?? spot(s, villageId, cell, eyes, ctx);
       if (sighting === null) continue;
+      const by = sighting.by;
       const warnTick = tick + sighting.run;
       const known = alarmVillage(s, villageId);
       if (known === null) {
         const hosts = hostCandidates(villageId, cell, ctx);
         addVillage(s, {
           villageId,
-          owner: ownerOf(villageId, ctx),
+          owner,
           seenTick: tick,
           seenAt: { cell: { ...cell }, pos: { ...sighting.at } },
           warnTick,
-          by: 'villager',
+          by,
           ...(hosts === null ? {} : { hosts }),
         });
       } else if (warnTick < known.warnTick) {
         known.warnTick = warnTick;
-        known.by = 'villager';
+        known.by = by;
       }
     }
   }
@@ -131,7 +135,7 @@ function spot(
   cell: GridCell,
   eyes: readonly Pos[],
   ctx: TickContext,
-): { run: number; at: Pos } | null {
+): { run: number; at: Pos; by: 'villager' } | null {
   const key = `${villageId}@${s.day}`;
   let lookouts = ctx.lookouts.get(key);
   const village = ctx.world.villageAt(villageId, s.day);
@@ -142,15 +146,45 @@ function spot(
   }
   if (lookouts.length === 0) return null;
   const grid = gridOf(cell, s.day, ctx);
-  let best: { run: number; at: Pos } | null = null;
+  let best: { run: number; at: Pos; by: 'villager' } | null = null;
   lookouts.forEach((lookout, i) => {
     if (best?.run === 0) return;
     const at = eyes.find((e) => inSight(grid, e, lookout.pos));
     if (at === undefined) return;
     const run = runOf(key, i, lookout, grid, villageCentre(village), ctx);
-    if (best === null || run < best.run) best = { run, at };
+    if (best === null || run < best.run) best = { run, at, by: 'villager' };
   });
   return best;
+}
+
+/**
+ * Vojvoda doma (war.md – Hráč ve vsi a mimo ni; plán 2026-11-14 – Úloha 4) vidí vojsko hned, jak
+ * vstoupí na mapu vsi: spatření bez doběhu v poloze skupiny nejblíž středu vsi (shoda – první
+ * v `armyEyes`). Vojvoda pryč (nebo ho tažení odvedlo) – null, rozhodne `spot`.
+ */
+function lordSighting(
+  s: CampaignState,
+  villageId: string,
+  owner: AlarmOwner,
+  eyes: readonly Pos[],
+  ctx: TickContext,
+): { run: number; at: Pos; by: 'lord' } | null {
+  if (owner.lordId === undefined || !lordHomeAt(s, villageId, owner, ctx)) return null;
+  const village = ctx.world.villageAt(villageId, s.day);
+  if (village === null) throw new MissingData([], [villageId]);
+  const centre = villageCentre(village);
+  let at: Pos | null = null;
+  let best = Infinity;
+  for (const e of eyes) {
+    const dx = e.x - centre.x;
+    const dz = e.z - centre.z;
+    const d = dx * dx + dz * dz;
+    if (d < best) {
+      best = d;
+      at = e;
+    }
+  }
+  return at === null ? null : { run: 0, at, by: 'lord' };
 }
 
 /** Doběh od oka do středu vsi (takty) – z domu 0; mezipaměť volání podle vsi, dne a oka. */

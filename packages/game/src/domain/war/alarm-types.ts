@@ -36,7 +36,8 @@ export interface AlarmVillage {
   seenAt: CampaignPlace;
   /** Takt, kdy ves ví (doběh vesničana, příchod posla); větší než takt = ještě neví. */
   warnTick: number;
-  by: 'villager' | 'messenger';
+  /** Kdo ves varoval: vesničan z oka, posel, nebo vojvoda doma (vidí vojsko při vstupu na mapu). */
+  by: 'villager' | 'messenger' | 'lord';
   /** `refId` posla, kterého ves poslala; chybí – žádného. */
   messenger?: string;
   /** `refId` skupiny uprchlíků vsi; chybí – nikdo neodešel. */
