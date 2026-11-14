@@ -7,6 +7,8 @@ Celé jedním příkazem z kořene repa (Blender 5, ImageMagick `magick`, intern
 Výstup (128 × 128 PNG, průhledné rohy) – `build/` zemnice, polozemnice, srub (nadzemní dům –
 log-house.md, bez jámy), vypleteny (vypletený dům od roku 750 – log-house.md, bez jámy), dvorec (dvorec vojvody –
 trade.md), pole, hrbitov, hrbitov-kriz (křesťanský hřbitov s kříži – cemetery.md, Po křtu rodu),
+hrncir-vypleteny, hrncir-srub, kovar-vypleteny, … (nadzemní dílny – dům a vedle přístřešek z
+`apps/web/public/models/crafts/pristresek-*.glb`; vypleteny a srub × hrncir, kovar, tesar, uhlir),
 hrncir, kovar, tesar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, tesař pod
 přístřeškem s kozlíky a koly – wagons.md, uhlíř s milířem), sad
 (jabloňový sad), modla, svatyne (posvátná místa z `apps/web/public/models/sacred/`), dub
@@ -374,6 +376,23 @@ def icon_craft(name):
         front = [o.matrix_world @ v.co for o in objs for v in o.data.vertices]
         front = [p for p in front if p.y < -0.5 and p.z > -0.1]
         camera(front, az=14, el=29, margin=1.04, shift=(0, -0.04))
+
+
+def icon_workshop(craft, house):
+    """Nadzemní dílna (tools/blender/crafts.py – přístřešek u boční stěny domu z dwellings.py):
+    dům varianty `house` (vypleteny / srub, bez jámy) a po jeho levé straně (−X) přístřešek
+    dílny. Počátek přístřešku leží na ose boční stěny (vypletený dům 2,22 m, srub 2,15 m od
+    osy). Pohled zleva zepředu, ať je pod střechou vidět pec / výheň / kozlíky / dřevo."""
+    objs = place_model(house)
+    shed = place_model(f"pristresek-{craft}", folder=CRAFTS)
+    axis = 2.22 if house == "vypleteny" else 2.15
+    for o in shed:
+        o.location.x -= axis
+    objs += shed
+    ground(12.5, mat("g", tex=f"{TEX}/grass-dirt.jpg", scale=0.22, tint=(0.8, 0.74, 0.6)), z=0.0, fade=0.6)
+    sun(az=-75, el=32, strength=5.0)
+    pts = [Vector((p.x, p.y, max(p.z, 0.0))) for p in world_points(objs)]
+    camera(pts + [Vector((0, 0, -0.2))], az=-62, el=14, margin=1.02, shift=(0, -0.02))
 
 
 def icon_pole():
@@ -2869,6 +2888,7 @@ BUILD = {
     "kovar": lambda: icon_craft("kovar"),
     "tesar": lambda: icon_craft("tesar"),
     "uhlir": lambda: icon_craft("uhlir"),
+    **{f"{craft}-{house}": (lambda c=craft, h=house: icon_workshop(c, h)) for craft in ("hrncir", "kovar", "tesar", "uhlir") for house in ("vypleteny", "srub")},
     "sad": icon_sad,
     "modla": icon_modla,
     "svatyne": icon_svatyne,
