@@ -171,16 +171,22 @@ function oathOf(items: readonly TermItem[]): { lord: string; vassal: string } | 
 }
 
 /** Přísaha v požadavku opovědi musí být mezi stranami jednání; bez požadavku nic neověřuje. */
-function checkWarDemandParties(items: readonly TermItem[], a: string, b: string): string | null {
+async function checkWarDemandParties(
+  tx: NegotiationTx,
+  items: readonly TermItem[],
+  a: string,
+  b: string,
+): Promise<string | null> {
   const bad = checkWarDemandItems(items);
   if (bad) return bad;
   const line = items.find(isWarDemandLine);
   const oath = line ? oathOf(line.items) : null;
   if (!oath) return null;
   const pair = [a, b];
-  return pair.includes(oath.lord) && pair.includes(oath.vassal) && oath.lord !== oath.vassal
-    ? null
-    : R.badOath;
+  if (!(pair.includes(oath.lord) && pair.includes(oath.vassal) && oath.lord !== oath.vassal)) {
+    return R.badOath;
+  }
+  return checkNoLiveAgreement(tx, { vassalage: oath }, a, b);
 }
 
 /**
@@ -189,7 +195,7 @@ function checkWarDemandParties(items: readonly TermItem[], a: string, b: string)
  */
 async function checkNoLiveAgreement(
   tx: NegotiationTx,
-  line: PeaceLine | RansomLine,
+  line: { vassalage?: unknown },
   a: string,
   b: string,
 ): Promise<string | null> {
@@ -479,7 +485,7 @@ export async function openNegotiation(
     const existing =
       oath || trade || warDemand ? null : await agreementBetween(tx, from.id, input.to);
     if (!oath && !existing && !trade && !warDemand) return fail(NO_AGREEMENT);
-    const badWar = checkWarDemandParties(input.items, from.id, input.to);
+    const badWar = await checkWarDemandParties(tx, input.items, from.id, input.to);
     if (badWar) return fail(badWar);
     const badPeace = await checkPeaceRound(deps, tx, input.items, from.id, input.to);
     if (badPeace) return fail(badPeace);
@@ -883,7 +889,7 @@ async function checkAcceptance(
     later = peace;
   }
   if (warLine && !peaceLine) {
-    const badWar = checkWarDemandParties(items, loaded.actor.id, loaded.other.id);
+    const badWar = await checkWarDemandParties(tx, items, loaded.actor.id, loaded.other.id);
     if (badWar) return fail(badWar);
     // válka mezitím mohla utichnout nebo skončit jinak – mír nemá co ukončit
     if (!(await tx.wars.activeBetween(loaded.actor.id, loaded.other.id))) {

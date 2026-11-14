@@ -284,6 +284,22 @@ describe('mírové jednání', () => {
       expect(r).toMatchObject({ ok: false, reason: ALREADY });
     });
 
+    it('opověď války s přísahou pro dvojici s živou dohodou se odmítne', async () => {
+      const open = async (w: World) =>
+        openNegotiation(w.deps, {
+          playerId: 'player-a',
+          to: w.c,
+          items: [{ kind: 'war-demand', items: [{ kind: 'oath', lord: w.a, vassal: w.c }] }],
+          message: null,
+          now: NOW,
+          today: DAY_NOW,
+        });
+      expect((await open(await world())).ok).toBe(true);
+      const w = await world();
+      await w.vassalages.create({ lordHouseId: w.c, vassalHouseId: w.a, ...live });
+      expect(await open(w)).toMatchObject({ ok: false, reason: ALREADY });
+    });
+
     it('mír bez přísahy dvojici s dohodou nevadí', async () => {
       const w = await world();
       await w.vassalages.create({ lordHouseId: w.a, vassalHouseId: w.c, ...live });
