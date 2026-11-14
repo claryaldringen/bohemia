@@ -1110,10 +1110,7 @@ describe('SelectionPanel – hrnčíř a hlína (crafts.md – Hlína hrnčíře
 });
 
 describe('SelectionPanel – kovárna (crafts.md – Uhlí a ruda kováře)', () => {
-  const smith = (
-    activity: 'producing' | 'digging',
-    ore: { sons: number[]; cart: boolean },
-  ): SelectionDetails =>
+  const smith = (activity: 'producing' | 'digging', ore: { cart: boolean }): SelectionDetails =>
     dwelling({
       type: 'polozemnice',
       workshop: {
@@ -1132,16 +1129,15 @@ describe('SelectionPanel – kovárna (crafts.md – Uhlí a ruda kováře)', ()
       },
     });
 
-  it('zásoba rudy, cesta na rudiště a kdo nosí uhlí – syn, kovář, vůz', () => {
-    const son = render(smith('producing', { sons: [11], cart: false }));
-    expect(son).toMatch(/data-testid="selection-workshop-ore"[^>]*>18</);
-    expect(son).toMatch(/data-testid="selection-workshop-ore-site"[^>]*>423 m</);
-    expect(son).toContain('/icons/resources/ore.png');
-    expect(son).toMatch(/data-testid="selection-workshop-carrier"[^>]*>11</);
-    expect(son).toContain('/icons/resources/child.png');
-    const alone = render(smith('producing', { sons: [], cart: false }));
-    expect(alone).toContain('/icons/resources/man.png');
-    const cart = render(smith('digging', { sons: [11], cart: true }));
+  it('zásoba rudy, cesta na rudiště a kdo nese uhlí – uhlíř na tyči, vůz', () => {
+    const foot = render(smith('producing', { cart: false }));
+    expect(foot).toMatch(/data-testid="selection-workshop-ore"[^>]*>18</);
+    expect(foot).toMatch(/data-testid="selection-workshop-ore-site"[^>]*>423 m</);
+    expect(foot).toContain('/icons/resources/ore.png');
+    // synové kováře uhlí nenosí – nese ho uhlíř na tyči (workshops.md – Uhlíř – odnos uhlí na tyči)
+    expect(foot).toContain('/icons/resources/man.png');
+    expect(foot).toContain('Uhlí od milíře nese uhlíř se synem na tyči');
+    const cart = render(smith('digging', { cart: true }));
     expect(cart).toContain('/icons/resources/cart.png');
     expect(cart).toContain('data-activity="digging"');
     expect(cart).toContain('Kope rudu');

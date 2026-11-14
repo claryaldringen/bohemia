@@ -254,28 +254,26 @@ export function SmithIronStats({
 }
 
 /**
- * Kovárna (crafts.md – Uhlí a ruda kováře): zásoba rudy, rudiště (vzdálenost chůze) a kdo nosí
- * uhlí od milíře – synové 10–13 let, kovář sám, nebo vůz se sedlákem.
+ * Kovárna (crafts.md – Uhlí a ruda kováře): zásoba rudy, rudiště (vzdálenost chůze) a kdo nese
+ * uhlí od milíře – uhlíř na tyči (workshops.md – Uhlíř – odnos uhlí na tyči), nebo vůz se
+ * sedlákem.
  */
 export function SmithOreStats({
   ore,
 }: {
   ore: NonNullable<SelectionWorkshop['ore']>;
 }): ReactElement {
-  const sons = ore.sons.map((age) => `${age}`).join(', ');
   const carrier = ore.cart
     ? {
         icon: 'cart',
         name: 'Uhlí od milíře a rudu z rudiště přiveze sedlák s vozem, když to ušetří práci',
         value: '',
       }
-    : ore.sons.length > 0
-      ? {
-          icon: 'child',
-          name: `Uhlí od milíře nosí ${ore.sons.length > 1 ? 'synové' : 'syn'} (věk) – ten den nepasou`,
-          value: sons,
-        }
-      : { icon: 'man', name: 'Uhlí od milíře nosí kovář sám – ten den kove méně', value: '' };
+    : {
+        icon: 'man',
+        name: 'Uhlí od milíře nese uhlíř se synem na tyči – bez syna s kovářem nebo jeho synem',
+        value: '',
+      };
   return (
     <>
       <Stat icon="ore" name="Ruda v kovárně (kg)" testId="selection-workshop-ore">

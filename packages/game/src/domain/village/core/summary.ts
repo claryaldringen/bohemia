@@ -261,8 +261,8 @@ export interface WorkshopSummary {
   /** Práce řemeslu za den po denním minimu (člověkodny, se štěstím). */
   laborPerDay: number;
   /**
-   * Kovář (crafts.md – Uhlí a ruda kováře): zásoba rudy, rudiště, hromada u jámy a kdo nosí uhlí;
-   * ostatní dílny null.
+   * Kovář (crafts.md – Uhlí a ruda kováře): zásoba rudy, rudiště, hromada u jámy a vůz pro uhlí
+   * a rudu; ostatní dílny null.
    */
   ore: SmithOreSummary | null;
   /**
@@ -917,7 +917,7 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
               : 0,
           ore:
             workshop.craft === 'smith'
-              ? smithOreSummary(state, d, day, haulCartsToday(state, day, false) > 0)
+              ? smithOreSummary(d, haulCartsToday(state, day, false) > 0)
               : null,
           iron: workshop.craft === 'smith' ? smithIronSummary(state, d, day) : null,
           clay:

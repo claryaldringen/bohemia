@@ -155,11 +155,19 @@ export const BURNER_CAMP = {
   treeMarginM: 0.5,
 } as const;
 /**
+ * workshops.md – Uhlíř – odnos uhlí na tyči (Martin 14. 11. 2026: „Pokud má dostatečně velkého
+ * syna, donesou košatinu s uhlím mezi sebou na tyči do kovárny. Pokud syna nemá, dojde si do
+ * kovárny pro kováře či jeho syna, aby spolu mohli uhlí v košatině na tyči odnosit.“):
+ * - `sonFromAge` – syn uhlíře i kováře jde k tyči od 12 let, jako na výpravu (návrh Clauda).
+ * Práce odnosu je dál nošení v koších (SMITH_SUPPLY – `basketKg`, `carryMps`), jen ji nesou dva.
+ */
+export const CHARCOAL_POLE = { sonFromAge: 12 } as const;
+/**
  * crafts.md – Uhlí a ruda kováře (Martin 20. 10. 2026: „Kovář si vychovává nástupce. Pokud ve
  * vesnici není vůz kovář si musí chodit pro uhlí k uhlíři. Pokud má dostatečně starého syna nebo
- * syny, pošle pro uhlí jeho/je. Taky musí někam chodit kopat rudu.“; synové nosí uhlí od 10 let,
- * rudu kopou od 14 – Martin; ostatní čísla návrh Clauda podle rešerše
- * research/2026-10-20-bog-ore.md – většinou odhad, primární práce neověřené):
+ * syny, pošle pro uhlí jeho/je. Taky musí někam chodit kopat rudu.“; rudu kopou synové od 14 let
+ * – Martin; uhlí od 14. 11. 2026 nese uhlíř na tyči – CHARCOAL_POLE; ostatní čísla návrh Clauda
+ * podle rešerše research/2026-10-20-bog-ore.md – většinou odhad, primární práce neověřené):
  * - ruda na kg nástrojů (8 kg – odhad 4–9 kg) plyne z řetězu tavby IRON (production-chains.md –
  *   Kovář): ruda → houba → hřivny → nástroje,
  * - `oreKgPerManDay` – vykopání, praní a pražení 60 kg rudy za člověkoden (odhad 40–100 kg –
@@ -167,8 +175,8 @@ export const BURNER_CAMP = {
  * - `basketKg` – koš uhlí 15 kg (≈ 60 l – objem, jako CART_JOBS.charcoal), koš rudy 25 kg (váha,
  *   odhad 20–30 kg na pěší cestu), `basketLoadS` naložení a složení koše, s košem `carryMps` po
  *   louce (jako voda – WATER_FETCHING.speedMps), tam i zpět,
- * - `charcoalFromAge` / `oreFromAge` – synové kováře nosí uhlí od 10 let, rudu kopou a nosí od 14
- *   (Martin); syn 10–13 ten den nepase a udělá `youngsterShare` práce dospělého (jako pasák –
+ * - `oreFromAge` – synové kováře kopou a nosí rudu od 14 let (Martin); syn pod 14 let, který šlape
+ *   měch (IRON.bellowsFromAge), udělá `youngsterShare` práce dospělého (jako pasák –
  *   HERDING.childShare),
  * - `depositKg` – ložisko vydrží 3 t rudy (odhad – hutě na Moravě se stěhovaly po 50–70 letech podle
  *   vyčerpání suroviny), další rudiště aspoň `siteSpacingM` od vyčerpaného, jámy kousek kolem místa
@@ -180,7 +188,6 @@ export const SMITH_SUPPLY = {
   basketKg: { charcoal: 15, ore: 25 },
   basketLoadS: 120,
   carryMps: 1,
-  charcoalFromAge: 10,
   oreFromAge: 14,
   youngsterShare: 0.4,
   depositKg: 3000,

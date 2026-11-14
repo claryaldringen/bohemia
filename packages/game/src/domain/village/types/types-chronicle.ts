@@ -824,8 +824,10 @@ export type LaborActivity =
    */
   | 'grain-pit'
   /**
-   * Nošení uhlí od milíře a rudy z rudiště do kovárny v koších – synové kováře (uhlí od 10 let,
-   * rudu od 14) nebo kovář sám (crafts.md – Uhlí a ruda kováře); kdo nese, je v `LaborShare.ages`.
+   * Nošení rudy z rudiště do kovárny v koších – kovář a synové od 14 let (crafts.md – Uhlí a ruda
+   * kováře; hlína hrnčíře stejně) – a odnos uhlí od milíře do kovárny v košatině na tyči ve dvou
+   * (workshops.md – Uhlíř – odnos uhlí na tyči; `LaborShare.pole`); kdo nese, je v
+   * `LaborShare.ages`.
    */
   | 'fetch'
   /**
@@ -931,6 +933,12 @@ export type LaborTarget =
    */
   | { kind: 'village' };
 
+/**
+ * Kdo nese s uhlířem košatinu s uhlím na tyči do kovárny (workshops.md – Uhlíř – odnos uhlí na
+ * tyči): jeho syn, nebo – když syna nemá – syn kováře či kovář, pro kterého si uhlíř dojde.
+ */
+export type PolePartnerKind = 'burner-son' | 'smith-son' | 'smith';
+
 export interface LaborShare {
   activity: LaborActivity;
   target: LaborTarget;
@@ -958,9 +966,15 @@ export interface LaborShare {
   job?: CartJob;
   /**
    * Kdo práci dělá (věk v letech, od nejstaršího) – u kopání a nošení kováře (crafts.md – Uhlí
-   * a ruda kováře): kovář, nebo jeho synové; postavy pod 14 let jsou děti. U ostatní práce chybí.
+   * a ruda kováře): kovář, nebo jeho synové; postavy pod 14 let jsou děti. U odnosu uhlí na tyči
+   * (`pole`) uhlíř a druhý z dvojice v tomto pořadí. U ostatní práce chybí.
    */
   ages?: number[];
+  /**
+   * Odnos uhlí na tyči (workshops.md – Uhlíř – odnos uhlí na tyči): kdo nese s uhlířem – podíl
+   * `fetch` u milíře je práce celé dvojice a cesta uhlíře pro kováře. U ostatní práce chybí.
+   */
+  pole?: PolePartnerKind;
   /**
    * Podíl žen mezi dospělými, kteří práci dělají (0–1) – u pletí dospělých (fields.md – Pletí
    * jednou a rychle: plejí napřed ženy vsi, muži jen zbytek). U ostatní práce chybí – scéna vezme

@@ -41,11 +41,11 @@ import type {
 // nástupce. Pokud ve vesnici není vůz kovář si musí chodit pro uhlí k uhlíři. Pokud má dostatečně
 // starého syna nebo syny, pošle pro uhlí jeho/je. Taky musí někam chodit kopat rudu. To místo, kde
 // kope rudu, chci na mapě vidět.“; podrobnosti návrh Clauda). Uhlí z vypáleného milíře vytahá
-// a vytřídí uhlíř, do kovárny ho v koších donesou synové kováře (uhlí od 10 let – ten den
-// nepasou), nebo kovář sám z práce dílny; s vozem ho přiveze sedlák ze společné práce. Rudu kovář
-// a synové od 14 let kopou na rudišti – v mokřině u potoka nejblíž kovárně – a nosí ji v koších,
-// nebo ji odveze vůz se sedlákem. Bez rudy kovář nekove. Kroky mutují stav (volat na klonu), den po
-// dni, deterministicky.
+// a vytřídí uhlíř a do kovárny ho v košatině na tyči donese se synem, nebo s kovářem či jeho synem
+// (charcoal-pole.ts – workshops.md, Uhlíř – odnos uhlí na tyči); s vozem ho přiveze sedlák ze
+// společné práce. Rudu kovář a synové od 14 let kopou na rudišti – v mokřině u potoka nejblíž
+// kovárně – a nosí ji v koších, nebo ji odveze vůz se sedlákem. Bez rudy kovář nekove. Kroky
+// mutují stav (volat na klonu), den po dni, deterministicky.
 
 /** Tolerance proti chybám desetinných čísel. */
 const EPSILON = 1e-9;
@@ -176,20 +176,6 @@ export function smithSons(
 }
 
 /**
- * Synové, kteří dnes smějí nosit uhlí, a přitom nejsou v práci dílny: 10–13 let (výrostci – pasou,
- * když nenosí). Od nejstaršího.
- */
-export function charcoalYoungsters(
-  state: Pick<VillageState, 'people'>,
-  dwellingId: number,
-  day: number,
-): SmithMember[] {
-  return smithSons(state, dwellingId, day).filter(
-    (s) => s.age >= SMITH_SUPPLY.charcoalFromAge && s.age < SMITH_SUPPLY.oreFromAge,
-  );
-}
-
-/**
  * Kdo z kovárny jde kopat nebo nosit z práce dílny (věky): synové od 14 let od nejstaršího, pak
  * kovář – kolik lidí práce `manDays` zaměstná (aspoň jeden).
  */
@@ -216,6 +202,23 @@ export function occupiedSmiths(state: Pick<VillageState, 'dwellings' | 'people'>
   return state.dwellings
     .filter((d) => d.workshop?.craft === 'smith' && occupied.has(d.id))
     .sort((a, b) => a.id - b.id);
+}
+
+/**
+ * Kovárna, do které se nese uhlí z milíře v bodě `at` (crafts.md – Uhlí a ruda kováře): nejbližší
+ * z `smiths` (obývané kovárny v pořadí id) vzdušnou čarou, při shodě menší id.
+ */
+export function nearestSmith(smiths: readonly Dwelling[], at: { x: number; z: number }): Dwelling {
+  let smith = smiths[0]!;
+  let best = Infinity;
+  for (const d of smiths) {
+    const dist = length2(d.position.x - at.x, d.position.z - at.z);
+    if (dist < best - EPSILON) {
+      best = dist;
+      smith = d;
+    }
+  }
+  return smith;
 }
 
 // --- uhlí z milíře ----------------------------------------------------------------------------
@@ -256,15 +259,7 @@ export function charcoalDeliveries(
     const kiln = findKiln(burner, kilnId);
     if (!burner || !kiln || kg <= EPSILON) continue;
     const at = kilnPoint(burner, kiln);
-    let smith = smiths[0]!;
-    let best = Infinity;
-    for (const d of smiths) {
-      const dist = length2(d.position.x - at.x, d.position.z - at.z);
-      if (dist < best - EPSILON) {
-        best = dist;
-        smith = d;
-      }
-    }
+    const smith = nearestSmith(smiths, at);
     if (kiln.carry?.smithId !== smith.id) {
       const walkM = landscape
         ? villageRoadWalk(state, landscape)(smith.position, [at])[0]!
@@ -293,67 +288,6 @@ export function findKiln(
 ): CharcoalKiln | undefined {
   const kilns = workshopKilns(burner?.workshop);
   return kilnId === undefined ? kilns[0] : kilns.find((k) => k.id === kilnId);
-}
-
-/** Nošení uhlí kovárny na dnešek (crafts.md – Uhlí a ruda kováře). */
-export interface CharcoalFetch {
-  smithId: number;
-  /** Odkud se nosí: milíř uhlíře (id dílny uhlíře, id milíře, bod). */
-  burnerId: number;
-  kilnId?: number;
-  at: { x: number; z: number };
-  /** Kolik uhlí se nese pěšky (kg) a kolik práce to dá (čd dospělého). */
-  kg: number;
-  manDays: number;
-}
-
-/** Kdo dnes nosí uhlí do jedné kovárny. */
-export interface SmithFetchDay {
-  /** Synové 10–13 let, kteří dnes nosí (věky) – ten den nepasou; jejich práce (čd dospělého). */
-  youngsters: { ids: number[]; ages: number[]; manDays: number };
-  /** Zbytek nošení z domácnosti kováře (čd – synové od 14 a kovář). */
-  household: number;
-  /** Po milířích: kolik práce (čd) udělali synové 10–13 a kolik domácnost. */
-  sources: {
-    burnerId: number;
-    kilnId?: number;
-    at: { x: number; z: number };
-    youngsters: number;
-    household: number;
-  }[];
-}
-
-/**
- * Kdo dnes nosí uhlí do kovárny `smithId` (crafts.md – Uhlí a ruda kováře): napřed synové 10–13
- * let (každý udělá SMITH_SUPPLY.youngsterShare práce dospělého, nosí jen tolik synů, kolik je
- * třeba), co nestačí, domácnost kováře z práce dílny (synové od 14 let – v práci dílny, a kovář).
- */
-export function smithFetchDay(
-  state: Pick<VillageState, 'people'>,
-  smithId: number,
-  day: number,
-  fetches: readonly CharcoalFetch[],
-): SmithFetchDay {
-  const own = fetches.filter((f) => f.smithId === smithId && f.manDays > EPSILON);
-  const total = own.reduce((sum, f) => sum + f.manDays, 0);
-  const sons = total > EPSILON ? charcoalYoungsters(state, smithId, day) : [];
-  const share = SMITH_SUPPLY.youngsterShare;
-  const count = Math.min(sons.length, Math.ceil(total / share - EPSILON));
-  const used = sons.slice(0, count);
-  let young = Math.min(total, count * share);
-  const youngsters = { ids: used.map((s) => s.id), ages: used.map((s) => s.age), manDays: young };
-  const sources = own.map((f) => {
-    const y = Math.min(f.manDays, young);
-    young -= y;
-    return {
-      burnerId: f.burnerId,
-      ...(f.kilnId !== undefined ? { kilnId: f.kilnId } : {}),
-      at: f.at,
-      youngsters: y,
-      household: f.manDays - y,
-    };
-  });
-  return { youngsters, household: Math.max(0, total - youngsters.manDays), sources };
 }
 
 // --- ruda --------------------------------------------------------------------------------------
@@ -842,8 +776,6 @@ export interface SmithOreSummary {
   site: { walkM: number; leftKg: number } | null;
   /** Vykopaná ruda na hromadě u jámy (kg). */
   heapKg: number;
-  /** Kdo nosí uhlí od milíře: synové 10–13 let (věky); prázdné = kovář (nebo syn od 14). */
-  sons: number[];
   /** Ves má vůz se spřežením doma – uhlí a rudu přiveze sedlák, když to ušetří práci. */
   cart: boolean;
 }
@@ -873,22 +805,16 @@ export function potterClaySummary(potter: Dwelling, cart: boolean): PotterClaySu
 }
 
 /**
- * Ruda a uhlí kovárny `smith` v den `day` pro panel (nemění stav); `cart` = ves má vůz se
- * spřežením doma (`haulCartsToday`).
+ * Ruda a uhlí kovárny `smith` pro panel (nemění stav); `cart` = ves má vůz se spřežením doma
+ * (`haulCartsToday`).
  */
-export function smithOreSummary(
-  state: VillageState,
-  smith: Dwelling,
-  day: number,
-  cart: boolean,
-): SmithOreSummary {
+export function smithOreSummary(smith: Dwelling, cart: boolean): SmithOreSummary {
   const workshop = smith.workshop!;
   const site = workshop.oreSite ?? null;
   return {
     stockKg: workshop.oreKg ?? 0,
     site: site ? { walkM: site.walkM, leftKg: depositLeftKg(site) } : null,
     heapKg: workshop.oreBatch?.heap ?? 0,
-    sons: charcoalYoungsters(state, smith.id, day).map((son) => son.age),
     cart,
   };
 }

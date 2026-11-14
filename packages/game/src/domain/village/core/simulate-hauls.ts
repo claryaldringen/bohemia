@@ -37,11 +37,8 @@ import {
   findKiln,
   dugBasketManDaysPerKg,
   occupiedSmiths,
-  smithFetchDay,
   type CharcoalDelivery,
-  type CharcoalFetch,
   type DugMaterial,
-  type SmithFetchDay,
 } from '../crafts/smith-supply';
 import { occupiedWorkshops, type WorkshopDay } from '../crafts/crafts';
 import { type HouseholdWater } from './labor';
@@ -315,8 +312,9 @@ export const NO_CART_JOBS: CartJobsDay = {
  * dnes uhlíř vytahal (`deliveries`; jízda k milíři se uloží u milíře), ruda z hromady u jámy dávky
  * na celý vůz (jízda k rudišti se uloží u rudiště – crafts.md, Uhlí a ruda kováře), osivo na pole
  * (`planSeedHauls`), voda v sudech (`waterCartPlan`; břeh se uloží ve stavu), kámen z lomu na
- * stavby (`planStoneCarts`). Vůz jede jen tam, kam dojede, a jen když ušetří práci (uhlí a ruda
- * proti nošení v koších kovářovou domácností, kámen proti nošení v nůších).
+ * stavby (`planStoneCarts`). Vůz jede jen tam, kam dojede, a jen když ušetří práci (uhlí proti
+ * odnosu na tyči – stejná práce jako nošení v koších, ruda proti nošení v koších kovářovou
+ * domácností, kámen proti nošení v nůších).
  * Uhlí a vodu veze levnější vůz (wagons.md – Co se vozí a na čem): čtyřkolák, když dojede po
  * pevné cestě a za kg stojí míň práce; ruda a osivo jen dvoukolákem.
  */
@@ -568,44 +566,6 @@ export function paySmithCarts(jobs: CartJobsDay, carting: number): SmithCartsDay
   const ore = jobs.ore.filter(pay);
   const clay = jobs.clay.filter(pay);
   return { charcoal, ore, clay, manDays: Math.max(0, carting) - left };
-}
-
-/**
- * Kdo dnes nosí uhlí do kováren (crafts.md – Uhlí a ruda kováře): uhlí, které uhlíři vytahali
- * (`deliveries`) a vůz nepřiveze (`carts`), nesou synové 10–13 a domácnost kováře
- * (`smithFetchDay`) – jen kovárny, které dnes pracují se vsí (`restingOnly` – před rozdělením
- * práce vsi), nebo jen ty, které pracují v dílně.
- */
-export function smithFetchPlans(
-  state: VillageState,
-  day: number,
-  deliveries: readonly CharcoalDelivery[],
-  carts: { charcoal: readonly CharcoalCartJob[] },
-  resting: ReadonlyMap<number, WorkshopActivity>,
-  restingOnly: boolean,
-): Map<number, SmithFetchDay> {
-  const plans = new Map<number, SmithFetchDay>();
-  const fetches: CharcoalFetch[] = deliveries
-    .filter((d) => resting.has(d.smithId) === restingOnly)
-    .map((d) => {
-      const carted = carts.charcoal
-        .filter((c) => c.burnerId === d.burnerId && c.kilnId === d.kilnId)
-        .reduce((sum, c) => sum + c.kg, 0);
-      const kg = Math.max(0, d.kg - carted);
-      return {
-        smithId: d.smithId,
-        burnerId: d.burnerId,
-        ...(d.kilnId !== undefined ? { kilnId: d.kilnId } : {}),
-        at: d.at,
-        kg,
-        manDays: kg * basketManDaysPerKg(d.walkM, SMITH_SUPPLY.basketKg.charcoal),
-      };
-    });
-  for (const id of new Set(fetches.map((f) => f.smithId))) {
-    const plan = smithFetchDay(state, id, day, fetches);
-    if (plan.youngsters.manDays + plan.household > 0) plans.set(id, plan);
-  }
-  return plans;
 }
 
 /** Nošení, kam dojede vůz: podél pevných cest (i čtyřkolák) a jinam (jen dvoukolák) – čd. */

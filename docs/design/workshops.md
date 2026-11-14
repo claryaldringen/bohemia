@@ -102,6 +102,28 @@ Martin 14. 11. 2026:
   Cesta uhlíře pro kováře se přičte k jeho práci (návrh Clauda).
 - **Vůz** dál jede pro uhlí, když ho ves má a jízda je levnější (Martin 19. 10. 2026 –
   [vozy](wagons.md)).
+- **Podrobnosti** (návrh Clauda):
+  - **Pro koho:** každý uhlíř hned – i ten v dnešní dílně (zemnici) a před rokem 750.
+  - **Práce celkem beze změny:** uhlí × nošení v koších podle cesty kovárna ↔ milíř (koš 15 kg –
+    „pětinu vytahání“ od 20. 10. 2026 počítá takto, [řemesla](crafts.md) – Uhlí ke kováři).
+    Každý z dvojice nese polovinu.
+  - **Kdo jde k tyči:** uhlíř (hlava domácnosti dílny) a druhý v tomto pořadí – syn uhlíře
+    12–13 let (nejstarší z nich), syn uhlíře od 14 let (nejmladší, jako měchař), syn kováře 12–13,
+    syn kováře od 14, kovář. Od 12 let i syn kováře – tyč chce dva dost velké. Kdo je pryč (výjezd,
+    výprava), k tyči nejde.
+  - **Odkud jde práce:** polovina uhlíře a polovina jeho syna od 14 let z práce dílny uhlíře; syn
+    12–13 (uhlíře i kováře) ten den nepase a nešlape měch; polovina kováře nebo jeho syna od 14 let
+    z práce kovárny, u kováře, který ten den pracuje se vsí, z práce vsi (jako dřív).
+  - **Cesta uhlíře pro kováře:** jednou za den nošení (za každou kovárnu) chůze od milíře ke
+    kovárně rychlostí nošení, z práce dílny uhlíře.
+  - **Praxe:** nošení praxe nezpomaluje – uhlíř bez praxe dělá pomaleji jen práci u milíře.
+  - **Plán uhlíře** počítá s nošením pěšky – vůz se rozhoduje až z vytahaného uhlí: uhlíř vytahá
+    jen tolik, kolik dnes stihne vytahat i odnést. Uhlí, které odveze vůz, nikdo nenese a ušetřený
+    čas uhlíře jde na další práci u milíře. Srovnání vozu s nošením se nemění.
+  - **Bez druhého u tyče** (uhlíř nebo všichni, kdo by šli, jsou pryč) uhlíř ten den nevytahá
+    a dávka pro kováře počká.
+  - Synové kováře 10–11 let už uhlí nenosí. Ruda zůstává beze změny. Učni kovárny se dál učí i ve
+    dny, kdy kovář nebo jeho syn nese uhlí a kovář pracuje se vsí.
 
 ## Ve scéně
 

@@ -56,7 +56,10 @@ import {
   CRAFT_BASE,
   KILN_SITE,
   MILIR,
+  SMITH_SUPPLY,
 } from '../../rules';
+import { fetchWalkManDays } from '../charcoal-pole';
+import { basketManDaysPerKg } from '../smith-supply';
 import { advanceVillage } from '../../core/simulate';
 import type { CharcoalKiln, Craft, Person, Position, VillageState } from '../../types';
 import { isTreeStanding, nearestMatureTrees, reservedTrees } from '../../forest/wood';
@@ -598,15 +601,20 @@ describe('rovnováha uhlíř – kovář (crafts.md – Rovnováha uhlíř – k
     // dávka na 60 dní (300 kg): 50 kg ze staršího, zbytek z mladšího – kolik dnes stihne
     const want = Math.max(5 * CHARCOAL_BALANCE.fetchDays, smithsForgeCharcoalKg(s, day, NO_CRAFTS));
     const perKg = (CHARCOAL_KILN.drawManDaysPerTree / 120) * (1 - CART_JOBS.charcoal.carryShare);
-    const today = 1.5 / perKg;
+    // uhlíř bez syna nese s kovářem na tyči svou polovinu a jednou za den pro něj dojde
+    // (workshops.md – Uhlíř – odnos uhlí na tyči) – chůze ke kovárně (40, 40) vzdušně
+    const pole = (walkM: number): number =>
+      perKg + basketManDaysPerKg(walkM, SMITH_SUPPLY.basketKg.charcoal) / 2;
+    const today = 50 + (1.5 - fetchWalkManDays(50) - 50 * pole(50)) / pole(Math.hypot(50, 10));
     expect(plan.orderKg).toBeCloseTo(want, 6);
     expect(plan.draws[0]).toEqual({ kilnId: 90, kg: 50 });
     expect(plan.draws[1]!.kilnId).toBe(91);
     expect(plan.draws[0]!.kg + plan.draws[1]!.kg).toBeCloseTo(today, 6);
     const [burner] = workCrafts(s, day, forest, NO_CRAFTS, 1);
     expect(burner!.producedKg).toBeCloseTo(today, 6);
-    // vytahání a třídění – 2 čd na 120 kg bez odnosu v koších – celý den
-    expect(burner!.making).toBeCloseTo(1.5, 6);
+    // vytahání a třídění – 2 čd na 120 kg bez odnosu v koších; odnos bez plánu kováren (`supply`)
+    // uhlíř neplatí
+    expect(burner!.making).toBeCloseTo(today * perKg, 6);
     // starší je rozebraný – zůstalo milířiště
     expect(kilnsOf(s).map((k) => k.id)).toEqual([91]);
     expect(s.kilnRemnants).toEqual([{ id: 90, burnerId: BURNER, x: 70, z: 0, day }]);

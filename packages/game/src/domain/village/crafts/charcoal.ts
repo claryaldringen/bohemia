@@ -78,8 +78,8 @@ const MAX_STEPS = 64;
 const DAYS_PER_YEAR = 365;
 /**
  * Vytahání a třídění uhlí z vypáleného milíře – čd na kg: z 2 čd na buk po 120 kg (vytahání,
- * třídění a odnos) bez odnosu v koších (CART_JOBS.charcoal.carryShare) – ten dělá kovářova
- * domácnost, nebo vůz se sedlákem (crafts.md – Uhlí a ruda kováře).
+ * třídění a odnos) bez odnosu v koších (CART_JOBS.charcoal.carryShare) – uhlí nese uhlíř na tyči
+ * ve dvou (charcoal-pole.ts – workshops.md, Uhlíř – odnos uhlí na tyči), nebo vůz se sedlákem.
  */
 export const DRAW_MAN_DAYS_PER_KG =
   (CHARCOAL_KILN.drawManDaysPerTree / CRAFT_PRODUCTION.charcoalKgPerTree) *
@@ -558,8 +558,8 @@ export interface KilnDrawPlan {
 export interface BurnerPlan {
   /**
    * Kolik uhlí dnes vytahá z vypálených milířů pro kováře (kg po milířích – `burnerPlans`
-   * v crafts.ts); prázdné = nevytahá. Do kovárny ho donese kovářova domácnost nebo vůz (crafts.md
-   * – Uhlí a ruda kováře).
+   * v crafts.ts – i s odnosem na tyči); prázdné = nevytahá. Do kovárny ho donese uhlíř na tyči se
+   * synem, s kovářem nebo jeho synem (workshops.md – Uhlíř – odnos uhlí na tyči), nebo vůz.
    */
   draws: KilnDrawPlan[];
   /**
@@ -604,8 +604,10 @@ function recordKilnCycle(workshop: Workshop, kiln: CharcoalKiln, day: number): v
  * Den uhlíře (mutuje stav): `labor` = práce domácnosti řemeslu (po denním minimu).
  * Pálící milíř zabere celý den (hlídání ve dne i v noci) – po CHARCOAL_KILN.burnDays dnech je
  * vypálený. Jinak nejdřív vytahá a vytřídí pro kováře uhlí podle plánu (`plan.draws` – u milíře
- * s přirážkou za chůzi ze zemnice) do zásoby u kováře – donese ho kovářova domácnost nebo vůz se
- * sedlákem (crafts.md – Uhlí a ruda kováře); rozebraný milíř zmizí (milířiště). V okně výsadby
+ * s přirážkou za chůzi ze zemnice) do zásoby u kováře – donese ho na tyči se synem, s kovářem nebo
+ * jeho synem, nebo vůz se sedlákem (workshops.md – Uhlíř – odnos uhlí na tyči); jeho díl odnosu
+ * (`options.carry` – `charcoalCarryDay`) jde z práce dílny hned po vytahání. Rozebraný milíř
+ * zmizí (milířiště). V okně výsadby
  * sází mladé buky na pařezy. Pak pokračuje v rozdělaném milíři (buky strom po stromu: kácení a dovoz,
  * pak příprava dřeva; stavba), a když žádný nemá a plán ho chce (`plan.start` – crafts.md,
  * Rovnováha uhlíř – kovář), začne nový u další dávky buků. U nového milíře rozhodne o zemnici
@@ -620,7 +622,7 @@ export function workBurner(
   day: number,
   obstacles: ObstacleLayer | null,
   plan: BurnerPlan,
-  options: { walk?: Walk; site?: KilnSiteFinder; camp?: CampSiteFinder } = {},
+  options: { walk?: Walk; site?: KilnSiteFinder; camp?: CampSiteFinder; carry?: number } = {},
 ): BurnerDay {
   const workshop = dwelling.workshop!;
   migrateBurner(state, dwelling, stocks);
@@ -661,7 +663,8 @@ export function workBurner(
     return out;
   }
   // vypálené milíře: uhlíř vytahá a vytřídí uhlí pro kováře podle plánu dne, jinak milíř stojí
-  // a čeká; do kovárny ho donese kovářova domácnost nebo vůz (crafts.md – Uhlí a ruda kováře)
+  // a čeká; do kovárny ho donese na tyči ve dvou, nebo vůz (workshops.md – Uhlíř – odnos uhlí na
+  // tyči)
   let drawn = 0;
   for (const draw of plan.draws) {
     if (left <= EPSILON) break;
@@ -688,6 +691,9 @@ export function workBurner(
   const order = plan.orderKg - drawn;
   if (order > EPSILON && kilns.some((k) => kilnCharcoalKg(k) > 0)) workshop.charcoalOrderKg = order;
   else delete workshop.charcoalOrderKg;
+  // odnos na tyči (workshops.md – Uhlíř – odnos uhlí na tyči): polovina uhlíře (se synem od 14 let
+  // celé nošení) a cesta pro kováře – z práce dílny po vytahání, před ostatní prací u milíře
+  left = Math.max(0, left - (options.carry ?? 0));
   // obnova lesa: v okně výsadby mladé buky na pařezy (crafts.md – Uhlíř)
   if (inPlantingWindow(day)) {
     const toPlant = workshop.toPlant ?? [];

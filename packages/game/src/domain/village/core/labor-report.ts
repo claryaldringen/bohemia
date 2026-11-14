@@ -19,6 +19,7 @@ import type {
   LaborDay,
   LaborShare,
   LaborTarget,
+  PolePartnerKind,
   StructureRepair,
   VillageState,
   FarmSeason,
@@ -226,6 +227,7 @@ interface ShareBook {
     job?: CartJob,
     ages?: readonly number[],
     fourWheel?: number,
+    pole?: PolePartnerKind,
   ) => void;
   /** svoz vozy k cíli úlohy; vrací práci posádek */
   readonly haulTo: (job: HaulWork['job'], target: LaborTarget | null, limit?: number) => number;
@@ -251,6 +253,7 @@ function shareBook(work: DayWork): ShareBook {
       job?: CartJob,
       ages?: readonly number[],
       fourWheel?: number,
+      pole?: PolePartnerKind,
     ): void => {
       const rounded = Math.round(manDays * book.scale * 1000) / 1000;
       if (rounded < MIN_MAN_DAYS) return;
@@ -263,6 +266,7 @@ function shareBook(work: DayWork): ShareBook {
         ...(fourWheel ? { fourWheel } : {}),
         ...(job ? { job } : {}),
         ...(ages && ages.length > 0 ? { ages: [...ages] } : {}),
+        ...(pole ? { pole } : {}),
       });
     },
     haulTo: (job: HaulWork['job'], target: LaborTarget | null, limit = Infinity): number => {
@@ -446,8 +450,8 @@ function workshopShares(book: ShareBook, w: WorkshopDay): void {
       bellows.age,
     ]);
   }
-  // kovář: kopání rudy na rudišti, nošení uhlí od milíře a rudy z rudiště (crafts.md – Uhlí
-  // a ruda kováře) – kdo to dělá (věky); jízda s vozem pro rudu s vozem
+  // kovář: kopání rudy na rudišti a nošení rudy z rudiště (crafts.md – Uhlí a ruda kováře) – kdo
+  // to dělá (věky); jízda s vozem pro rudu s vozem
   if (w.ore) {
     const { manDays, ages, x, z } = w.ore;
     book.add(
@@ -473,8 +477,20 @@ function workshopShares(book: ShareBook, w: WorkshopDay): void {
       ages,
     );
   }
+  // nošení rudy a hlíny v koších a uhlíř s uhlím na tyči – dvojice a kdo nese s uhlířem (`pole`;
+  // workshops.md – Uhlíř – odnos uhlí na tyči)
   for (const f of w.fetch ?? []) {
-    book.add('fetch', f.target, f.manDays, undefined, f.cart ? 1 : undefined, undefined, f.ages);
+    book.add(
+      'fetch',
+      f.target,
+      f.manDays,
+      undefined,
+      f.cart ? 1 : undefined,
+      undefined,
+      f.ages,
+      undefined,
+      f.pole,
+    );
   }
   if (w.planting) {
     const stumps = w.plantedTrees ?? [];

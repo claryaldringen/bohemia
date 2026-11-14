@@ -18,6 +18,7 @@ import { walkPurchases } from '../crafts/craft-buying';
 import { gainPractice } from '../crafts/craft-skill';
 import { ironTripShares } from '../crafts/cart-iron';
 import { smithBellowsToday, workCrafts, type SmithSupply } from '../crafts/crafts';
+import { charcoalCarryDay, mergeCarryDays } from '../crafts/charcoal-pole';
 import { mow, mowingRemaining, recordMowingLabor } from '../livestock/hay';
 import { herdingDay, recordHerding } from '../livestock/herding';
 import { workSlaughter } from '../livestock/livestock';
@@ -44,7 +45,6 @@ import {
   oreDemand,
   paySmithCarts,
   reachableFelling,
-  smithFetchPlans,
   taskCarryDemand,
   type CartJobsDay,
   type SmithCartsDay,
@@ -288,12 +288,13 @@ export function smithHerdingTravel(
   // uhlí a ruda vozem (crafts.md – Uhlí a ruda kováře): sedlák jede z práce vsi – vozy v pořadí
   // přednosti, dokud na sedláka práce vsi zbyla; co vůz nepřiveze, donesou pěšky
   const smithCarts = paySmithCarts(jobs, allocation.carting);
-  // kdo dnes nosí uhlí do pracujících kováren – synové 10–13 ten den nepasou
-  const fetchPlans = new Map([
-    ...restingFetch,
-    ...smithFetchPlans(state, day, deliveries, smithCarts, resting, false),
-  ]);
-  const busy = new Set([...fetchPlans.values()].flatMap((f) => f.youngsters.ids));
+  // odnos uhlí na tyči do pracujících kováren (workshops.md – Uhlíř – odnos uhlí na tyči) – syn
+  // 12–13 u tyče ten den nepase ani nešlape měch
+  const fetchPlans = mergeCarryDays(
+    restingFetch,
+    charcoalCarryDay(state, day, deliveries, smithCarts, resting, false),
+  );
+  const busy = new Set(fetchPlans.busy);
   // měchař u tavby (production-chains.md – Kovář): syn 10–13, který šlape měch, ten den nepase
   const bellows = smithBellowsToday(state, day, resting, busy);
   for (const helper of bellows.values()) if (helper?.kind === 'son') busy.add(helper.personId);
@@ -548,7 +549,7 @@ export function craftsDay(
   const { restingFetch } = cartJobs;
   const { fetchPlans, bellows, smithCarts } = travel;
   const supply: SmithSupply = {
-    fetch: fetchPlans,
+    carry: fetchPlans,
     burners,
     bellows,
     oreCarts: new Map(
@@ -582,9 +583,12 @@ export function craftsDay(
     addCartDemand(state, day, demand, ploughing);
   }
   // praxe řemeslníků a učňů (crafts.md – Učení řemesla): dílny, které dnes pracovaly, a kovárny,
-  // kde synové nosili uhlí, i když kovář pracoval se vsí
-  if (crafts.size > 0 || restingFetch.size > 0) {
-    gainPractice(state, day, crafts, restingFetch, travelling);
+  // jejichž kovář nebo syn nesl s uhlířem uhlí na tyči, i když kovář pracoval se vsí
+  const carried = new Set(
+    restingFetch.pairs.filter((p) => p.partner.kind !== 'burner-son').map((p) => p.smithId),
+  );
+  if (crafts.size > 0 || carried.size > 0) {
+    gainPractice(state, day, crafts, carried, travelling);
   }
   return workshops;
 }
