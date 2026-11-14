@@ -3,12 +3,14 @@
 import type { JourneyCandidate, JourneyRefusal } from '@bohemia/game';
 import { withVillageCache } from '@bohemia/server';
 import {
+  commandExpeditionForPlayer,
   commandJourneyForPlayer,
   journeyCandidatesForPlayer,
   launchJourneyForPlayer,
 } from '@/lib/journey';
 import { parseJourneyOrder, parseLaunchJourneyInput } from '@/lib/journey-input';
-import { journeyReason } from '@/lib/journey-view';
+import { parseExpeditionInput } from '@/lib/expedition-input';
+import { expeditionReason, journeyReason } from '@/lib/journey-view';
 import { parseVillageId } from '@/lib/village-input';
 import { INVALID_INPUT, NOT_SIGNED_IN, playerId } from './_shared';
 
@@ -62,4 +64,20 @@ export async function commandJourney(
   if (order === null) return { error: INVALID_INPUT };
   const result = await commandJourneyForPlayer(id, order);
   return result.queued ? { ok: true, tick: result.tick } : { error: journeyReason(result.reason) };
+}
+
+/**
+ * Příkaz vybraným lidem vsi (expeditions.md – Výběr a skupina) `{ villageId, people, command }`:
+ * Jdi sem, Přes okraj, Domů, Osedlat, Sesednout. Napřed rozkaz lidem, kteří už jsou ve výpravě
+ * (bez zámku vsi – jen záměr), jsou-li ve výběru lidé ze vsi, přidá je `musterExpedition` pod
+ * zámkem hráče (právo `war`). `{ ok }`, nebo důvod odmítnutí česky.
+ */
+export async function commandExpedition(input: unknown): Promise<{ ok: true } | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const parsed = parseExpeditionInput(input);
+  if (parsed === null) return { error: INVALID_INPUT };
+  const result = await withVillageCache(() => commandExpeditionForPlayer(id, parsed));
+  if ('error' in result) return result;
+  return result.ok ? { ok: true } : { error: expeditionReason(result.reason) };
 }

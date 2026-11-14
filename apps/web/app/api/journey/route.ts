@@ -1,23 +1,23 @@
 import { getSession } from '@/lib/session';
 import {
   journeyMapForPlayer,
-  journeyViewForPlayer,
+  expeditionViewsForPlayer,
   knownMapForPlayer,
   knownVillagesForPlayer,
-  visitorsOnVillage,
+  expeditionVisitorsOnVillage,
 } from '@/lib/journey';
 import type { JourneyResponse } from '@/lib/journey-view';
 import { parseVillageId } from '@/lib/village-input';
 
-// Pohled na výjezd vojvody (lord-control.md; plán 2026-11-13 – Úloha 7): prohlížeč se ptá 2× za
+// Pohled na výpravy (expeditions.md; plán 2026-11-14 – Úloha 7): prohlížeč se ptá 2× za
 // sekundu. Route Handler, ne server action – Next řadí server actions jednoho klienta za sebe,
-// takže by dotaz čekal za rozkazem hráče. Hráč vidí jen svůj výjezd; cizí i neexistující = stejná
+// takže by dotaz čekal za rozkazem hráče. Hráč vidí jen své výpravy; cizí i neexistující = stejná
 // odpověď (nic se neprozradí).
-//   GET /api/journey                  → { view } – celý pohled, null = hráč žádný výjezd nemá
-//   GET /api/journey?map=<x>,<y>      → { map } – krajina políčka skupiny a jeho sousedů, jinak 404
+//   GET /api/journey                  → { views } – pohledy na všechny výpravy hráče (prázdné = žádnou nemá)
+//   GET /api/journey?map=<x>,<y>      → { map } – krajina políčka hloučku a jeho sousedů, jinak 404
 //   GET /api/journey?known=<x>,<y>    → { map, seen } – mapa, jak ji zná rod hráče, jinak 404
 //   GET /api/journey?known=villages   → { known } – mapy, které rod zná, a rod na nich
-//   GET /api/journey?visitors=<id>    → { visitors } – jezdci na mapě vsi hráče
+//   GET /api/journey?visitors=<id>    → { visitors } – skupiny výprav na mapě vsi hráče
 
 const NO_STORE = { 'Cache-Control': 'no-store' };
 const NOT_FOUND = 'Tu mapu rod nezná.';
@@ -54,12 +54,12 @@ export async function GET(request: Request): Promise<Response> {
     const villageId = parseVillageId(visitors);
     if (villageId === null) return notFound();
     return Response.json(
-      { visitors: await visitorsOnVillage(playerId, villageId) },
+      { visitors: await expeditionVisitorsOnVillage(playerId, villageId) },
       { headers: NO_STORE },
     );
   }
-  const view = await journeyViewForPlayer(playerId);
-  return Response.json({ view } satisfies JourneyResponse, { headers: NO_STORE });
+  const views = await expeditionViewsForPlayer(playerId);
+  return Response.json({ views } satisfies JourneyResponse, { headers: NO_STORE });
 }
 
 /** Políčko světa z dotazu `x,y`; jinak null. */

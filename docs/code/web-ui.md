@@ -1068,7 +1068,7 @@ se vykreslí i v testech bez serveru.
 ## Výjezd vojvody – akce, cesta API a dotazování (plán 2026-11-13 – Úloha 7)
 
 Server actions `getJourneyCandidates`, `launchJourney`, `commandJourney` (`app/game/actions/journey.ts`),
-`GET /api/journey` (pohled, `?map=`, `?visitors=`) a `useJourney(running)` (`hooks/use-journey.ts`) –
+`commandExpedition`, `GET /api/journey` (`{ views }`, `?map=`, `?visitors=`) a `useExpeditions(running)` (`hooks/use-journey.ts`) –
 podrobně v [journey.md](journey.md) – Web. Rozhraní ve scéně staví Úlohy 8 a 9.
 
 ## Cizí mapa ve scéně (`ForeignWarScene.tsx`, `hooks/use-army.ts`, `lib/war-scene-view.ts`)

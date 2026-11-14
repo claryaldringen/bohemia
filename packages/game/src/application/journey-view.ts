@@ -309,6 +309,8 @@ export interface ExpeditionVisitor {
   groups: { id: number; pos: Pos; goal: Pos | null }[];
   people: {
     personId: number;
+    /** Hlouček (`groups[].id`), ve kterém člověk na této mapě je. */
+    group: number;
     lord: boolean;
     mounted: boolean;
     /** Vede koně za uzdu. */
@@ -373,6 +375,7 @@ export async function expeditionVisitorsOn(
           .filter((m) => ids.has(m.group))
           .map((m) => ({
             personId: m.ref.personId,
+            group: m.group,
             lord: m.lord,
             mounted: m.mounted,
             led: m.horse === 'led',

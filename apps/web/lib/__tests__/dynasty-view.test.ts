@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Person, VillageState } from '@bohemia/game';
-import { dynastyView } from '../dynasty-view';
+import { dynastyView, expeditionsAway } from '../dynasty-view';
 import { foundVillage } from './departure-fixtures';
 
 // Rod vojvody pro rozhraní jmen (lord.md – Jména): kdo čeká na jméno (vojvoda první, pak od
@@ -52,7 +52,20 @@ describe('dynastyView', () => {
 });
 
 describe('dynastyView – výjezd vojvody (lord-control.md)', () => {
-  it('journeyAway jen když je někdo pryč na výjezdu', () => {
+  it('expeditionsAway je i bez vojvody; journeyAway jen s vojvodou pryč', () => {
+    const state: VillageState = {
+      ...foundVillage(),
+      people: [man(1, 40, { name: 'Bořivoj' }), man(2, 30)],
+      dynasty: { lordId: 1, lords: [{ id: 1, fromDay: 0 }] },
+    };
+    expect(expeditionsAway(state)).toBe(false);
+    state.people[1]!.away = { kind: 'journey', refId: 'j1' };
+    expect(expeditionsAway(state)).toBe(true);
+    expect(dynastyView(state, DAY)?.journeyAway).toBeUndefined();
+    expect(dynastyView(state, DAY)?.expeditionsAway).toBe(true);
+  });
+
+  it('journeyAway jen když je vojvoda pryč na výjezdu', () => {
     const state: VillageState = {
       ...foundVillage(),
       people: [man(1, 40, { name: 'Bořivoj' })],

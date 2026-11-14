@@ -1,14 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SEAT_CELL, type GridCell, type JourneyCandidate } from '@bohemia/game';
 import { commandJourney, getJourneyCandidates, launchJourney } from '@/app/game/actions/journey';
-import { useJourney, type JourneyHandle } from '@/hooks/use-journey';
+import { useExpeditions, type ExpeditionsHandle } from '@/hooks/use-journey';
 import type { VillageTarget } from '@/lib/scene/village-picking';
 import { edgeDirection, lordClick, orderFromClick } from '@/lib/scene/journey-orders';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import { foreignJourneySelection, watchedJourneyCell } from '@/lib/journey-scene-view';
-import { journeyReason } from '@/lib/journey-view';
+import { journeyReason, lordJourneyViewOf, type JourneyView } from '@/lib/journey-view';
 import type { VillageView } from '@/lib/village-view';
 import type { LordJourneyUi } from '../hud/LordJourneyPanel';
 
@@ -46,8 +46,15 @@ export interface ForeignLordScene {
 }
 
 export interface LordJourney {
-  /** Dotazování na výjezd (pohled pro scénu a panel). */
-  journey: JourneyHandle;
+  /**
+   * Dotazování na výpravy: pohledy na všechny výpravy hráče (scéna) a z nich pohled na výjezd
+   * vojvody (`view` interpolovaný, `latest` poslední ze serveru) pro jeho panel.
+   */
+  journey: {
+    view: JourneyView | null;
+    latest: JourneyView | null;
+    expeditions: ExpeditionsHandle;
+  };
   /** Ovládání do panelu výběru, je-li vybraný vojvoda; jinak null. */
   panel: LordJourneyUi | null;
   /** Vojvoda na výjezdu pro horní lištu (portrét s podkovou). */
@@ -82,31 +89,46 @@ export function useLordJourney({
 }): LordJourney {
   const lordId = view?.dynasty?.lordId ?? null;
   const journeyAway = view?.dynasty?.journeyAway === true;
+  const expeditionsAway = view?.expeditionsAway === true;
   const villageId = view?.id ?? null;
   const lordSelected = lordId !== null && selected?.kind === 'person' && selected.id === lordId;
 
-  // Dotazujeme se, dokud vojvoda je pryč (ves to ví) nebo právě vyjel; po návratu (pohled zmizí)
-  // se ves obnoví a dotazy stojí, dokud ves návrat nepotvrdí.
+  // Dotazujeme se, dokud jsou lidé pryč (ves to ví) nebo právě vyjeli; po návratu hloučku se ves
+  // obnoví a dotazy stojí, dokud ves nepotvrdí, že nikdo pryč není.
   const [launched, setLaunched] = useState(false);
-  const [ended, setEnded] = useState(false);
   // vyslání čeká na odpověď / vyšlo, ale ves ještě neví, že je vojvoda pryč – čte je pravé kliknutí
   // (dvojité kliknutí nevyšle dvakrát, druhé kliknutí po úspěchu je už rozkaz výjezdu)
   const launching = useRef(false);
   const launchedRef = useRef(false);
-  const onEnded = useCallback((): void => {
-    setEnded(true);
+  const onPartyEnded = useCallback((): void => refreshVillage(), [refreshVillage]);
+  const running = expeditionsAway || launched;
+  const expeditions = useExpeditions(running, onPartyEnded);
+  const journeyViews = expeditions.views;
+  const latestViews = expeditions.latest;
+  // ves už o lidech pryč ví – vyslání netřeba hlídat zvlášť
+  useEffect(() => {
+    if (!expeditionsAway || !launched) return;
     setLaunched(false);
     launchedRef.current = false;
-    refreshVillage();
-  }, [refreshVillage]);
+  }, [expeditionsAway, launched]);
+  // výprava skončila dřív, než to ves stihla potvrdit
+  const seenViews = useRef(false);
   useEffect(() => {
-    if (!journeyAway && ended) setEnded(false);
-  }, [journeyAway, ended]);
-  const running = (journeyAway || launched) && !ended;
-  const journey = useJourney(running, onEnded);
+    if (latestViews.length > 0) seenViews.current = true;
+    else if (seenViews.current) {
+      seenViews.current = false;
+      setLaunched(false);
+      launchedRef.current = false;
+    }
+  }, [latestViews]);
+  const journeyViewNow = useMemo(() => lordJourneyViewOf(journeyViews), [journeyViews]);
+  const latest = useMemo(() => lordJourneyViewOf(latestViews), [latestViews]);
+  const journey = useMemo(
+    () => ({ view: journeyViewNow, latest, expeditions }),
+    [journeyViewNow, latest, expeditions],
+  );
   const journeyView = journey.view;
-  const latest = journey.latest;
-  const refreshJourney = journey.refresh;
+  const refreshJourney = expeditions.refresh;
 
   // Scéna za vojvodou (lord-control.md – Co hráč vidí – Na cestě): klik na portrét v liště přepne
   // scénu na cizí mapu, kde vojvoda je, a ta jde za ním z mapy na mapu; skupina zpět na domovské
@@ -311,7 +333,7 @@ export function useLordJourney({
     };
   }
   const away =
-    journeyAway && !ended && lordId !== null
+    journeyAway && lordId !== null
       ? {
           name: view?.dynasty?.lordName ?? null,
           selected: lordSelected,

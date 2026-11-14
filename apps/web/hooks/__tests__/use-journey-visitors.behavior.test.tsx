@@ -2,7 +2,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { JourneyVisitor } from '@bohemia/game';
+import type { ExpeditionVisitor } from '@bohemia/game';
 import { useJourneyVisitors } from '../use-journey-visitors';
 
 // Jezdci na mapě vsi (journey.md – Scéna vsi): s jezdci 2× za sekundu, jinak po 5 s; výpadek sítě
@@ -10,7 +10,7 @@ import { useJourneyVisitors } from '../use-journey-visitors';
 
 let host: HTMLDivElement;
 let root: Root;
-let seen: JourneyVisitor[] = [];
+let seen: ExpeditionVisitor[] = [];
 
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -33,15 +33,17 @@ function Probe({ villageId }: { villageId: string | null }): null {
   return null;
 }
 
-const visitor: JourneyVisitor = {
+const visitor: ExpeditionVisitor = {
   journeyId: 'j2',
+  partyId: 0,
   own: false,
-  leader: 'Vratislav',
-  house: 'Lučané',
+  leaderName: 'Vratislav',
+  houseName: 'Lučané',
   tick: 10,
-  pos: { x: 1, z: 2 },
-  goal: null,
-  men: [{ lord: true, mounted: true }],
+  groups: [{ id: 0, pos: { x: 1, z: 2 }, goal: null }],
+  people: [
+    { personId: 1, group: 0, lord: true, mounted: true, led: false, female: false, child: false },
+  ],
 };
 const ok = (body: unknown): Response => ({ json: () => Promise.resolve(body) }) as Response;
 

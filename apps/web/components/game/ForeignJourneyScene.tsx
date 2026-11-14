@@ -4,7 +4,12 @@ import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import type { GridCell, SeenCell, WorldClock } from '@bohemia/game';
 import { setE2EHook } from '@/lib/e2e-hooks';
 import { seenSceneKey, seenVillageOf } from '@/lib/journey-scene-view';
-import { sceneJourneysOf, type JourneyView, type KnownMapResponse } from '@/lib/journey-view';
+import {
+  sceneJourneysOf,
+  type ExpeditionView,
+  type JourneyView,
+  type KnownMapResponse,
+} from '@/lib/journey-view';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import type { SceneVillage } from '@/lib/village-view-scene-types';
@@ -28,6 +33,7 @@ import type { LordJourney } from './village-game/use-lord-journey';
 // místo ze stopy je šeré (nikde není nikdo v dohledu), stavby jsou naposled viděné.
 
 const noop = (): void => undefined;
+const NO_EXPEDITIONS: readonly ExpeditionView[] = [];
 
 const E2E_KEYS = [
   'projectToScreen',
@@ -41,6 +47,7 @@ const E2E_KEYS = [
 export function ForeignJourneyScene({
   cell,
   journey,
+  expeditions = NO_EXPEDITIONS,
   clock,
   lord,
   known,
@@ -48,6 +55,8 @@ export function ForeignJourneyScene({
   cell: GridCell;
   /** Poslední pohled na výjezd ze serveru (bez interpolace – muže posouvá scéna). */
   journey: JourneyView | null;
+  /** Poslední pohledy na všechny výpravy hráče – hloučky na této mapě se kreslí všechny. */
+  expeditions?: readonly ExpeditionView[];
   /** Hodiny hráče (vývojový posun) – roční období a den ve scéně. */
   clock: WorldClock;
   /** Ovládání vojvody; ve známém režimu null. */
@@ -101,8 +110,8 @@ export function ForeignJourneyScene({
   // jen výjezd na této mapě – jezdci a praporek v cíli
   const here = journey && journey.cell.x === cell.x && journey.cell.y === cell.y ? journey : null;
   const journeys = useMemo(
-    () => sceneJourneysOf({ own: here, visitors: [], cell: here?.cell ?? null }),
-    [here],
+    () => sceneJourneysOf({ own: expeditions, visitors: [], cell }),
+    [expeditions, cell],
   );
   useEffect(() => {
     scene?.setWorldClock(clock);

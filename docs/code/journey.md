@@ -484,35 +484,54 @@ false`, bez stohu sena), zásoby a stohy, cesty a pěšiny (`since`), průběh r
 - **Testy** – `lib/__tests__/journey-scene-view.test.ts` (totéž co vlastní ves, nic z lidí a polí,
   tvary jednotlivých druhů, `journeyCellOf`).
 
-## Web (Úloha 7 – `apps/web`)
+## Web (Úloha 7 – `apps/web`; výpravy – plán 2026-11-14, Úloha 7)
 
 - **Composition root** `lib/journey.ts` – `journeyCandidatesForPlayer`, `launchJourneyForPlayer`
   (obojí přes `journeyActionForPlayer` v `lib/village.ts` = `guardedAction` s akcí `launchJourney`,
-  právo `war`, zámek hráče, jen vlastní ves), `commandJourneyForPlayer`, `journeyViewForPlayer`,
-  `visitorsOnVillage`, `journeyMapForPlayer`. Závislosti z `gameDeps()` (`journeys`, `atWar`),
-  mapy z `campaignCells()`, mřížky dohledu v LRU.
-- **Vstup** `lib/journey-input.ts` – `parseJourneyOrder` (`go` s konečnými čísly, `cross` s celými,
-  `home`; přebytečné pole, `NaN`, `Infinity`, řetězec, neznámý druh = null) a
-  `parseLaunchJourneyInput` (`{ villageId, retinue, order }`, družina = celá čísla, nejvýš 200).
-  Význam (bod na mapě, soused, dosažitelnost, válka) ověřují use-casy.
-- **Server actions** `app/game/actions/journey.ts` – `getJourneyCandidates(villageId)`
-  (+ `reason` česky), `launchJourney(input)`, `commandJourney(order)`; odmítnutí = `{ error }`
-  s textem `journeyReason`. `commandJourney` zámek vsi nebere (záměr do úložiště výjezdu, nemá čekat
-  na dopočet vsi – jako pokyn do tažení).
-- **Cesta API** `GET /api/journey` (`app/api/journey/route.ts`, session povinná, `no-store`):
-  bez parametru `{ view: JourneyView | null }` (celý pohled, bez `?since=`); `?map=x,y` →
-  `{ map: ForeignMap }` jen pro políčko skupiny a jeho sousedy, jinak 404 „Tu mapu rod nezná.“;
-  `?visitors=<villageId>` → `{ visitors }` (cizí ves = prázdno).
-- **Texty a pohled** `lib/journey-view.ts` – `journeyReason` („Tam vojvoda nedojde.“, „Vojvoda je
-  raněný.“, „Vojvoda je na tažení.“, „Ves je napadena.“, „Tam je válka.“…), `interpolateJourney`
-  (poloha skupiny mezi dvěma stavy na téže mapě), `JOURNEY_POLL_MS` (500).
-- **Hook** `hooks/use-journey.ts` – `useJourney(running)`: dotaz 2× za sekundu jen s `running`
-  (volající ví z vsi, že má výjezd, nebo právě vyslal) a ve viditelném panelu (`usePolling`);
-  stejný `tick` pohled nepřepíše; `sample(nowMs)` pro scénu, `refresh()` po rozkazu.
-- **Činnosti a upozornění** – `journeyActivity` v `lib/person-activity.ts` („je na cestě“, „čeká
-  (2 dny)“, „vrací se domů“); upozornění `journey-returned` → „Bořivoj se vrátil.“
-  (`lib/player-notices.ts`, Úloha 1).
-- **Testy** – `lib/__tests__/journey-input.test.ts`, `journey-view.test.ts`, `person-activity.test.ts`.
+  právo `war`, zámek hráče, jen vlastní ves), `commandJourneyForPlayer` (rozkaz vojvodovi),
+  **`commandExpeditionForPlayer`** (příkaz vybraným lidem: napřed `commandParty` bez zámku, při
+  `recruits` pod `journeyActionForPlayer` `musterExpedition`), **`expeditionViewsForPlayer`**,
+  **`expeditionVisitorsOnVillage`**, `journeyMapForPlayer` (políčka všech vlastních hloučků a jejich
+  sousedé). Závislosti z `gameDeps()`, mapy z `campaignCells()`, mřížky dohledu v LRU.
+- **Vstup** `lib/journey-input.ts` – `parseJourneyOrder`, `parseLaunchJourneyInput` (vojvoda);
+  **`lib/expedition-input.ts`** – `parseExpeditionInput` → `{ villageId, people, command }`:
+  `people` 1–200 nezáporných celých čísel bez duplicit, `command` = rozkaz (`go` smí mít navíc
+  `cell` s celými čísly, `cross`, `home`) nebo `saddle` / `dismount`; vrací `ExpeditionCommand`
+  (rozkaz zabalený do `{ kind: 'order', order }`). Význam ověřují use-casy.
+- **Server actions** `app/game/actions/journey.ts` – `getJourneyCandidates`, `launchJourney`,
+  `commandJourney` (vojvoda), **`commandExpedition(input)`** → `{ ok: true }` nebo `{ error }`
+  s textem `expeditionReason`. Rozkaz lidem, kteří už jsou ve výpravě, zámek vsi nebere (jen záměr).
+- **Cesta API** `GET /api/journey` (session povinná, `no-store`): bez parametru
+  **`{ views: ExpeditionView[] }`** (jedna výprava za domovskou ves, prázdné = žádnou nemá);
+  `?map=x,y` → `{ map }` pro políčka všech vlastních hloučků a jejich sousedy, jinak 404
+  „Tu mapu rod nezná.“; `?visitors=<villageId>` → `{ visitors: ExpeditionVisitor[] }`
+  (`people[].group` = hlouček); `?known=` beze změny.
+- **Texty a pohled** `lib/journey-view.ts` – `journeyReason` (vojvoda), **`expeditionReason(reason,
+female?)`** („Od 12 let.“, „Je raněný.“ / „Je raněná.“, „Je na tažení.“, „Je pryč.“, „Tam
+  nedojde.“, „Tam je válka.“, „Kůň je doma.“, `nobody` / `refused` „Rozkaz nelze dát.“),
+  **`interpolateExpeditions`** (poloha hloučků na téže mapě), **`lordJourneyViewOf`** (pohled na
+  výjezd vojvody pro jeho panel z hloučku s vojvodou), **`sceneJourneysOf`** (jeden `SceneJourney`
+  na hlouček, klíč `journeyId` = `${výprava}:${hlouček}`, `partyId` skupiny, muži z lidí hloučku),
+  **`partiesOf`**, `JOURNEY_POLL_MS` (500).
+- **Hook** `hooks/use-journey.ts` – **`useExpeditions(running, onPartyEnded)`**: dotaz 2× za
+  sekundu jen s `running` (ves má `expeditionsAway`, nebo právě vyslal) a ve viditelném panelu
+  (`usePolling`); stejné takty pohled nepřepíšou; `views` (interpolované), `latest`, `sample(nowMs)`,
+  `refresh()`. Zmizí-li skupina nebo hlouček, `onPartyEnded` (jednou za dotaz) obnoví ves a dotazy
+  běží dál, dokud ves neřekne, že nikdo pryč není.
+- **Ves a osoby** – `VillageView.expeditionsAway` (někdo má `away: journey`; `dynasty.expeditionsAway`
+  totéž, `dynasty.journeyAway` je jen vojvoda pryč); `ScenePerson.expedition` (`lib/person-view.ts`,
+  jen s plným stavem vsi 5. parametrem `scenePersons`): `refusal` (`young` / `wounded` /
+  `campaign` / `away` z `expeditionRecruit`), `rider`, `inParty`, `strength` (na koni
+  `strengthMounted`; ženy a děti 0).
+- **Činnosti a upozornění** – `journeyActivity(party)` v `lib/person-activity.ts` podle skupiny
+  osoby (`selectionDetails` bere `PartyView[]`): „je na cestě“, „čeká (2 dny)“, „vrací se domů“;
+  upozornění `journey-returned` → „Bořivoj se vrátil.“ / „Dobrava se vrátila.“ / bez jména „Výprava
+  se vrátila.“ (`lib/player-notices.ts`).
+- **Vojvoda** – panel (`use-lord-journey.ts`) dál jede přes `launchJourney` a `commandJourney`;
+  pohled na výjezd bere z `useExpeditions` přes `lordJourneyViewOf`.
+- **Testy** – `lib/__tests__/expedition-input.test.ts`, `journey-input.test.ts`,
+  `journey-view.test.ts`, `journey-scene.test.ts`, `person-view.test.ts`, `person-activity.test.ts`,
+  `player-notices.test.ts`, `dynasty-view.test.ts`, `hooks/__tests__/use-journey.behavior.test.tsx`.
 
 ## Ovládání (Úloha 8a – `apps/web`)
 
@@ -569,7 +588,7 @@ onEnded)` se ptá jen s `running` (vojvoda pryč nebo právě vyjel); zmizí-li 
   osoby (`waitDaysLeft`).
 - **Napojení** – `SceneWarView.setJourneys` (drží výjezdy i přes novou krajinu) ←
   `LandscapeScene.setJourneys` ← `components/game/village-game/use-journey-scene.ts`:
-  `sceneJourneysOf` (`lib/journey-view.ts`) – vlastní výjezd z `useJourney(...).latest` (poslední
+  `sceneJourneysOf` (`lib/journey-view.ts`) – vlastní hloučky z `useExpeditions(...).latest` (poslední
   pohled bez interpolace – muže posouvá scéna), je-li skupina na mapě vsi; ostatní z
   `useJourneyVisitors` (`hooks/use-journey-visitors.ts` – `GET /api/journey?visitors=`, s jezdci na
   mapě 2× za sekundu, jinak po 5 s, poprvé hned; výpadek sítě ani chyba serveru dotazování

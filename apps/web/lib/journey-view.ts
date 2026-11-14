@@ -1,18 +1,24 @@
 import type {
+  ExpeditionRefusal,
+  ExpeditionView,
+  ExpeditionVisitor,
   GridCell,
   JourneyRefusal,
   JourneyView,
-  JourneyVisitor,
+  PartyView,
   Pos,
   SeenCell,
 } from '@bohemia/game';
 import type { LandscapeTransfer } from './landscape-transfer';
 import type { SceneJourney } from './scene/journey-riders';
 
-// Pohled na výjezd vojvody pro prohlížeč (lord-control.md; plán 2026-11-13 – Úloha 7): typy jsou
-// z jádra (`application/journey-view.ts`), tady jen texty důvodů a interpolace mezi dvěma dotazy.
+// Pohled na výjezd vojvody pro prohlížeč (lord-control.md; expeditions.md): typy jsou
+// z jádra (`application/{journey,expedition}-view.ts`), tady jen texty důvodů a interpolace mezi dvěma dotazy.
 
 export type {
+  ExpeditionView,
+  ExpeditionVisitor,
+  PartyView,
   JourneyView,
   JourneyVisitor,
   JourneyOrder,
@@ -24,8 +30,8 @@ export type { JourneyCommandResult } from '@bohemia/game';
 /** Jak často se prohlížeč ptá na běžící výjezd – 2× za sekundu jako u tažení. */
 export const JOURNEY_POLL_MS = 500;
 
-/** Odpověď `GET /api/journey` – pohled (null = hráč žádný výjezd nemá), nebo chyba. */
-export type JourneyResponse = { view: JourneyView | null } | { error: string };
+/** Odpověď `GET /api/journey` – pohledy na výpravy hráče (prázdné = žádnou nemá), nebo chyba. */
+export type JourneyResponse = { views: ExpeditionView[] } | { error: string };
 
 /** Text u zašedlého oka: rod mapu tohoto rodu nezná (docs/design/lord-control.md – Co hráč vidí). */
 export const UNKNOWN_MAP = 'Tu mapu rod nezná.';
@@ -79,100 +85,210 @@ export function journeyReason(reason: JourneyReason): string {
   return REASONS[reason];
 }
 
+/** Důvod odmítnutí příkazu výpravě (`refused` = rozkaz, který nedává smysl). */
+export type ExpeditionReason = ExpeditionRefusal | 'refused';
+
+/**
+ * Text důvodu u kurzoru (expeditions.md – Kdo smí jít; texty z plánu 2026-11-14); `female` – raněná
+ * místo raněný (důvod prvního z výběru, který nemůže).
+ */
+export function expeditionReason(reason: ExpeditionReason, female = false): string {
+  switch (reason) {
+    case 'young':
+      return 'Od 12 let.';
+    case 'wounded':
+      return female ? 'Je raněná.' : 'Je raněný.';
+    case 'campaign':
+      return 'Je na tažení.';
+    case 'away':
+      return 'Je pryč.';
+    case 'village-attacked':
+      return 'Ves je napadena.';
+    case 'unreachable':
+      return 'Tam nedojde.';
+    case 'war-there':
+      return 'Tam je válka.';
+    case 'horse-home':
+      return 'Kůň je doma.';
+    case 'no-village':
+    case 'nobody':
+    case 'refused':
+      return 'Rozkaz nelze dát.';
+  }
+}
+
 const lerp = (a: Pos, b: Pos, t: number): Pos => ({
   x: a.x + (b.x - a.x) * t,
   z: a.z + (b.z - a.z) * t,
 });
 
 /**
- * Pohled mezi stavem `prev` a `next` v podílu `t` (0 = `prev`, 1 = `next`): poloha skupiny se
- * posune rovnoměrně, je-li na téže mapě; jinak (a bez `prev`, nebo po čase) stojí v `next`.
+ * Pohledy mezi stavem `prev` a `next` v podílu `t` (0 = `prev`, 1 = `next`): poloha každého
+ * hloučku se posune rovnoměrně, je-li na téže mapě a ve stejné výpravě; jinak (a bez `prev`, nebo
+ * po čase) stojí v `next`. Vstup se nemění.
  */
-export function interpolateJourney(
-  prev: JourneyView | null,
-  next: JourneyView,
+export function interpolateExpeditions(
+  prev: readonly ExpeditionView[],
+  next: readonly ExpeditionView[],
   t: number,
-): JourneyView {
-  if (
-    prev === null ||
-    prev.journeyId !== next.journeyId ||
-    t >= 1 ||
-    prev.cell.x !== next.cell.x ||
-    prev.cell.y !== next.cell.y
-  ) {
-    return next;
-  }
-  const pos = lerp(prev.group.pos, next.group.pos, Math.max(0, t));
-  return { ...next, group: { ...next.group, pos } };
+): ExpeditionView[] {
+  if (t >= 1 || prev.length === 0) return [...next];
+  return next.map((view) => {
+    const before = prev.find((p) => p.journeyId === view.journeyId);
+    if (!before) return view;
+    return {
+      ...view,
+      parties: view.parties.map((party) => {
+        const was = before.parties.find((p) => p.id === party.id);
+        if (!was) return party;
+        return {
+          ...party,
+          groups: party.groups.map((g) => {
+            const old = was.groups.find((w) => w.id === g.id);
+            return old && sameCell(old.cell, g.cell)
+              ? { ...g, pos: lerp(old.pos, g.pos, Math.max(0, t)) }
+              : g;
+          }),
+        };
+      }),
+    };
+  });
 }
 
 const sameCell = (a: GridCell, b: GridCell): boolean => a.x === b.x && a.y === b.y;
 
 /**
- * Výjezdy na mapě vsi `cell` pro scénu (journey.md – Scéna vsi): vlastní z pohledu `own` (2× za
- * sekundu, s fázi a dny čekání), je-li skupina na této mapě; ostatní z návštěvníků vsi (cizí v dohledu
- * domů, vlastní z jiné vsi rodu). Jméno a rod vlastního vojvody dodá jeho záznam mezi návštěvníky.
+ * Pohled na výjezd vojvody pro jeho panel a scénu cizí mapy (lord-control.md): skupina s vojvodou
+ * (`lord`) a její hlouček s vojvodou z pohledů na výpravy. Bez vojvody ve výpravě null.
+ */
+export function lordJourneyViewOf(views: readonly ExpeditionView[]): JourneyView | null {
+  for (const view of views) {
+    for (const party of view.parties) {
+      const lord = party.people.find((p) => p.lord);
+      const group = party.groups.find((g) => g.id === lord?.group);
+      if (!lord || !group) continue;
+      const home = sameCell(group.cell, view.home);
+      return {
+        journeyId: view.journeyId,
+        tick: view.tick,
+        day: view.day,
+        phase: party.phase,
+        cell: { ...group.cell },
+        home: { ...view.home },
+        homePos: { ...view.homePos },
+        men: party.people.map((p) => ({
+          personId: p.personId,
+          lord: p.lord,
+          mounted: p.mounted,
+          wounded: p.wounded,
+        })),
+        group: { pos: { ...group.pos }, goal: group.goal, arrived: group.arrived },
+        waitDaysLeft: party.waitDaysLeft,
+        controllable: party.controllable,
+        seen: home ? null : (view.seen[`${group.cell.x},${group.cell.y}`] ?? null),
+      };
+    }
+  }
+  return null;
+}
+
+/** Skupiny výpravy vsi `villageId` (null = všech výprav) – panel osoby podle její skupiny. */
+export function partiesOf(views: readonly ExpeditionView[], villageId: string | null): PartyView[] {
+  return views
+    .filter((v) => villageId === null || v.villageId === villageId)
+    .flatMap((v) => v.parties);
+}
+
+/** Klíč hloučku ve scéně – jeden `SceneJourney` na hlouček. */
+export const sceneJourneyKey = (journeyId: string, groupId: number): string =>
+  `${journeyId}:${groupId}`;
+
+/**
+ * Hloučky výprav na mapě vsi `cell` pro scénu (journey.md – Scéna vsi): jeden `SceneJourney` na
+ * hlouček (klíč `${journeyId}:${groupId}`, `partyId` skupiny – praporek a výběr celé skupiny), muži
+ * z lidí hloučku. Vlastní hloučky z pohledů `own` (2× za sekundu, s fází a dny čekání), ostatní
+ * z návštěvníků vsi (cizí v dohledu domů, vlastní z jiné vsi rodu). Jméno vůdce a rod vlastní
+ * skupiny dodá její záznam mezi návštěvníky.
  */
 export function sceneJourneysOf(input: {
-  own: JourneyView | null;
-  visitors: readonly JourneyVisitor[];
+  own: readonly ExpeditionView[];
+  visitors: readonly ExpeditionVisitor[];
   cell: GridCell | null;
 }): SceneJourney[] {
   const { own, visitors, cell } = input;
   const out: SceneJourney[] = [];
-  const mine = own && cell && sameCell(own.cell, cell) ? own : null;
-  if (mine) {
-    const listed = visitors.find((v) => v.journeyId === mine.journeyId);
-    const goal = mine.group.goal;
-    out.push({
-      journeyId: mine.journeyId,
-      own: true,
-      leader: listed?.leader ?? '',
-      house: listed?.house ?? '',
-      tick: mine.tick,
-      pos: { x: mine.group.pos.x, z: mine.group.pos.z },
-      goal: goal && sameCell(goal.cell, mine.cell) ? { x: goal.pos.x, z: goal.pos.z } : null,
-      men: mine.men.map((m) => ({
-        key: String(m.personId),
-        personId: m.personId,
-        lord: m.lord,
-        mounted: m.mounted,
-        wounded: m.wounded,
-      })),
-      arrived: mine.group.arrived,
-      phase: mine.phase,
-      waitDaysLeft: mine.waitDaysLeft,
-      home: { x: mine.homePos.x, z: mine.homePos.z },
-    });
+  if (!cell) return out;
+  const done = new Set<string>();
+  for (const view of own) {
+    for (const party of view.parties) {
+      const listed = visitors.find(
+        (v) => v.own && v.journeyId === view.journeyId && v.partyId === party.id,
+      );
+      for (const g of party.groups) {
+        if (!sameCell(g.cell, cell)) continue;
+        const key = sceneJourneyKey(view.journeyId, g.id);
+        done.add(key);
+        const goal = g.goal;
+        out.push({
+          journeyId: key,
+          partyId: party.id,
+          own: true,
+          leader: listed?.leaderName ?? '',
+          house: listed?.houseName ?? '',
+          tick: view.tick,
+          pos: { x: g.pos.x, z: g.pos.z },
+          goal: goal && sameCell(goal.cell, g.cell) ? { x: goal.pos.x, z: goal.pos.z } : null,
+          men: party.people
+            .filter((m) => m.group === g.id)
+            .map((m) => ({
+              key: String(m.personId),
+              personId: m.personId,
+              lord: m.lord,
+              mounted: m.mounted,
+              wounded: m.wounded,
+            })),
+          arrived: g.arrived,
+          phase: party.phase,
+          waitDaysLeft: party.waitDaysLeft,
+          home: { x: view.homePos.x, z: view.homePos.z },
+        });
+      }
+    }
   }
   for (const v of visitors) {
-    if (mine && v.journeyId === mine.journeyId) continue;
-    out.push({
-      journeyId: v.journeyId,
-      own: v.own,
-      leader: v.leader,
-      house: v.house,
-      tick: v.tick,
-      pos: { x: v.pos.x, z: v.pos.z },
-      goal: v.goal ? { x: v.goal.x, z: v.goal.z } : null,
-      men: v.men.map((m, i) => ({
-        key: String(i),
-        personId: null,
-        lord: m.lord,
-        mounted: m.mounted,
-        wounded: false,
-      })),
-      arrived: null,
-      phase: null,
-      waitDaysLeft: null,
-      home: null,
-    });
+    for (const g of v.groups) {
+      const key = sceneJourneyKey(v.journeyId, g.id);
+      if (done.has(key)) continue;
+      out.push({
+        journeyId: key,
+        partyId: v.partyId,
+        own: v.own,
+        leader: v.leaderName ?? '',
+        house: v.houseName,
+        tick: v.tick,
+        pos: { x: g.pos.x, z: g.pos.z },
+        goal: g.goal ? { x: g.goal.x, z: g.goal.z } : null,
+        men: v.people
+          .filter((m) => m.group === g.id)
+          .map((m, i) => ({
+            key: v.own ? String(m.personId) : String(i),
+            personId: v.own ? m.personId : null,
+            lord: m.lord,
+            mounted: m.mounted,
+            wounded: false,
+          })),
+        arrived: null,
+        phase: null,
+        waitDaysLeft: null,
+        home: null,
+      });
+    }
   }
   return out;
 }
 
 /** Odpověď `GET /api/journey?visitors=<ves>` – jezdci na mapě vsi, nebo chyba. */
-export type JourneyVisitorsResponse = { visitors: JourneyVisitor[] } | { error: string };
+export type JourneyVisitorsResponse = { visitors: ExpeditionVisitor[] } | { error: string };
 
 /** Bez jezdců na mapě se prohlížeč na návštěvníky ptá po 5 s (s nimi 2× za sekundu). */
 export const VISITORS_IDLE_MS = 5000;

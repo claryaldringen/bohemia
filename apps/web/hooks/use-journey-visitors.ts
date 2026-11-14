@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   JOURNEY_POLL_MS,
   VISITORS_IDLE_MS,
-  type JourneyVisitor,
+  type ExpeditionVisitor,
   type JourneyVisitorsResponse,
 } from '@/lib/journey-view';
 import { usePolling } from './use-polling';
@@ -13,16 +13,19 @@ import { usePolling } from './use-polling';
 // – vlastní výjezd vždy, cizí jen v dohledu domů. S jezdci na mapě 2× za sekundu, jinak po 5 s
 // (jako válka ve scéně – use-war-scene.ts). Nový seznam jen při změně taktu nebo výjezdů.
 
-const NONE: JourneyVisitor[] = [];
+const NONE: ExpeditionVisitor[] = [];
 
-/** Klíč seznamu – výjezdy a jejich takty (stejný klíč = scéna se nepřekresluje). */
-function visitorsKey(list: readonly JourneyVisitor[]): string {
-  return list.map((v) => `${v.journeyId}:${v.tick}:${v.men.length}`).join('|');
+/** Klíč seznamu – skupiny a jejich takty (stejný klíč = scéna se nepřekresluje). */
+function visitorsKey(list: readonly ExpeditionVisitor[]): string {
+  return list.map((v) => `${v.journeyId}:${v.partyId}:${v.tick}:${v.people.length}`).join('|');
 }
 
 /** Jezdci na mapě vsi `villageId`; vypnuté dotazování nebo bez vsi = prázdno. */
-export function useJourneyVisitors(villageId: string | null, enabled: boolean): JourneyVisitor[] {
-  const [visitors, setVisitors] = useState<JourneyVisitor[]>(NONE);
+export function useJourneyVisitors(
+  villageId: string | null,
+  enabled: boolean,
+): ExpeditionVisitor[] {
+  const [visitors, setVisitors] = useState<ExpeditionVisitor[]>(NONE);
   // klíč posledního seznamu; null – server ještě neodpověděl
   const keyRef = useRef<string | null>(null);
 

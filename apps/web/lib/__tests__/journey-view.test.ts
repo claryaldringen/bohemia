@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { JourneyView } from '@bohemia/game';
+import type { ExpeditionView, PartyView, SeenCell } from '@bohemia/game';
 import {
-  interpolateJourney,
+  expeditionReason,
+  interpolateExpeditions,
   journeyReason,
+  lordJourneyViewOf,
   knownEyeState,
   nextKnownCell,
   UNKNOWN_MAP,
@@ -36,36 +38,86 @@ describe('journeyReason', () => {
   });
 });
 
-const view = (over: Partial<JourneyView> = {}): JourneyView => ({
-  journeyId: 'j1',
-  tick: 10,
-  day: 5,
-  phase: 'out',
-  cell: { x: 1, y: 1 },
-  home: { x: 0, y: 0 },
-  homePos: { x: 5, z: 5 },
-  men: [],
-  group: { pos: { x: 0, z: 0 }, goal: null, arrived: false },
-  waitDaysLeft: null,
-  controllable: true,
-  seen: null,
-  ...over,
+const person = (personId: number, group: number, lord = false): PartyView['people'][number] => ({
+  personId,
+  group,
+  lord,
+  rider: false,
+  mounted: false,
+  horse: null,
+  horseId: null,
+  wounded: false,
+  strength: 1,
+  female: false,
+  child: false,
 });
 
-describe('interpolateJourney', () => {
-  it('posune polohu skupiny mezi dvěma stavy na téže mapě', () => {
-    const next = view({ tick: 12, group: { pos: { x: 10, z: 20 }, goal: null, arrived: false } });
-    expect(interpolateJourney(view(), next, 0.5).group.pos).toEqual({ x: 5, z: 10 });
+const view = (pos: { x: number; z: number }, cell = { x: 1, y: 1 }, tick = 10): ExpeditionView => ({
+  journeyId: 'j1',
+  villageId: 'v1',
+  tick,
+  day: 5,
+  home: { x: 0, y: 0 },
+  homePos: { x: 5, z: 5 },
+  seen: { '1,1': { trail: [], parts: [] } as unknown as SeenCell },
+  parties: [
+    {
+      id: 0,
+      phase: 'out',
+      controllable: true,
+      leaderId: 7,
+      waitDaysLeft: null,
+      horseWork: null,
+      groups: [{ id: 0, cell, pos, goal: null, arrived: false }],
+      people: [person(7, 0, true), person(9, 0)],
+    },
+  ],
+});
+
+describe('interpolateExpeditions', () => {
+  it('posune polohu hloučku mezi dvěma stavy na téže mapě', () => {
+    const out = interpolateExpeditions(
+      [view({ x: 0, z: 0 })],
+      [view({ x: 10, z: 20 }, undefined, 12)],
+      0.5,
+    );
+    expect(out[0]!.parties[0]!.groups[0]!.pos).toEqual({ x: 5, z: 10 });
   });
 
   it('na jiné mapě, bez předchozího stavu nebo po čase stojí rovnou v novém', () => {
-    const next = view({
-      cell: { x: 2, y: 1 },
-      group: { pos: { x: 9, z: 9 }, goal: null, arrived: false },
+    const next = [view({ x: 9, z: 9 }, { x: 2, y: 1 })];
+    expect(interpolateExpeditions([view({ x: 0, z: 0 })], next, 0.5)).toEqual(next);
+    expect(interpolateExpeditions([], next, 0.5)).toEqual(next);
+    expect(interpolateExpeditions([view({ x: 0, z: 0 })], next, 1)).toEqual(next);
+  });
+});
+
+describe('lordJourneyViewOf', () => {
+  it('pohled na výjezd z hloučku s vojvodou; bez vojvody null', () => {
+    const lord = lordJourneyViewOf([view({ x: 3, z: 4 })]);
+    expect(lord).toMatchObject({
+      journeyId: 'j1',
+      cell: { x: 1, y: 1 },
+      group: { pos: { x: 3, z: 4 }, arrived: false },
+      controllable: true,
     });
-    expect(interpolateJourney(view(), next, 0.5)).toBe(next);
-    expect(interpolateJourney(null, next, 0.5)).toBe(next);
-    expect(interpolateJourney(view(), next, 1)).toBe(next);
+    expect(lord?.men.map((m) => m.personId)).toEqual([7, 9]);
+    const noLord = view({ x: 3, z: 4 });
+    noLord.parties[0]!.people = [person(9, 0)];
+    expect(lordJourneyViewOf([noLord])).toBeNull();
+  });
+});
+
+describe('expeditionReason', () => {
+  it('texty důvodů z plánu, rod podle pohlaví', () => {
+    expect(expeditionReason('wounded')).toBe('Je raněný.');
+    expect(expeditionReason('wounded', true)).toBe('Je raněná.');
+    expect(expeditionReason('horse-home')).toBe('Kůň je doma.');
+    expect(expeditionReason('war-there')).toBe('Tam je válka.');
+    expect(expeditionReason('young')).toBe('Od 12 let.');
+    expect(expeditionReason('unreachable')).toBe('Tam nedojde.');
+    expect(expeditionReason('nobody')).toBe('Rozkaz nelze dát.');
+    expect(expeditionReason('refused')).toBe('Rozkaz nelze dát.');
   });
 });
 

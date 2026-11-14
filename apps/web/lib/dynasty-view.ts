@@ -30,6 +30,14 @@ function departingSons(state: VillageState, day: number): DepartingSon[] {
   });
 }
 
+/**
+ * Je z vsi někdo pryč na výpravě (`away: journey` – expeditions.md)? Hra se na výpravy ptá jen
+ * v tom případě (`VillageView.expeditionsAway`) – lidé pryč nejsou jen vojvoda s družinou.
+ */
+export function expeditionsAway(state: Pick<VillageState, 'people'>): boolean {
+  return state.people.some((p) => p.away?.kind === 'journey');
+}
+
 /** Rod vsi v den `day`; ves bez rodu null. */
 export function dynastyView(state: VillageState, day: number): DynastyView | null {
   if (!isDynastyTracked(state)) return null;
@@ -56,10 +64,11 @@ export function dynastyView(state: VillageState, day: number): DynastyView | nul
         p.name !== undefined,
     )
     .map((p) => p.name!);
-  const journeyAway = state.people.some((p) => p.away?.kind === 'journey');
+  const journeyAway = lord?.away?.kind === 'journey';
   return {
     lordId: state.dynasty?.lordId ?? null,
     ...(journeyAway ? { journeyAway } : {}),
+    ...(expeditionsAway(state) ? { expeditionsAway: true as const } : {}),
     ...(lord?.name !== undefined ? { lordName: lord.name } : {}),
     unnamed,
     taken: men.flatMap((p) => (p.name === undefined ? [] : [p.name])),

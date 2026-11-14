@@ -66,7 +66,7 @@ export function noticePanel(kind: PlayerNoticeKind): NoticePanel | null {
       return 'levy';
     case 'player-succession':
     case 'christianity-known':
-    // výjezd vojvody (lord-control.md) – panel výjezdu zatím není
+    // výprava (expeditions.md) – panel výpravy zatím není
     case 'journey-returned':
       return null;
   }
@@ -231,9 +231,12 @@ function textOf(n: PlayerNotice): string {
     // Začít znovu obránce (war.md – Začít znovu během nájezdu; text návrh Clauda)
     case 'village-surrendered':
       return `${stringOf(n.payload.name) ?? 'Ves'} se vzdala a připadla ti.`;
-    // výjezd vojvody (lord-control.md – Co hráč vidí: „Bořivoj se vrátil.“)
-    case 'journey-returned':
-      return `${stringOf(n.payload.leader) ?? 'Vojvoda'} se vrátil.`;
+    // návrat hloučku výpravy (expeditions.md – Upozornění; lord-control.md: „Bořivoj se vrátil.“)
+    case 'journey-returned': {
+      const leader = stringOf(n.payload.leader);
+      if (!leader) return 'Výprava se vrátila.';
+      return `${leader} se ${n.payload.female === true ? 'vrátila' : 'vrátil'}.`;
+    }
     case 'foreign-army':
       // jméno vsi se neskloňuje (2. pád jmen vsí nejde spolehlivě odvodit) – „u vsi Kněžice“
       return `Cizí vojsko u vsi ${stringOf(n.payload.name) ?? ''}!`.replace(' !', '!');

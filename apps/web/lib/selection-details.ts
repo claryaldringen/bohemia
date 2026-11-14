@@ -66,7 +66,7 @@ import {
   type PersonPortraitIcon,
 } from './person-view';
 import { journeyActivity, personActivity, type PersonFigureState } from './person-activity';
-import type { JourneyView } from './journey-view';
+import type { PartyView } from './journey-view';
 import type { SceneJourney } from './scene/journey-riders';
 import {
   cartActivityText,
@@ -986,10 +986,10 @@ export function selectionDetails(
   target: VillageTarget | null,
   person: PersonFigureState | null = null,
   draft: DraftFigureState | null = null,
-  journey: JourneyView | null = null,
+  parties: readonly PartyView[] = [],
   visitors: readonly SceneJourney[] = [],
 ): SelectionDetails | null {
-  const details = selectionKinds(view, scene, target, person, draft, journey, visitors);
+  const details = selectionKinds(view, scene, target, person, draft, parties, visitors);
   if (!details) return null;
   const cancelConstructionId = cancellableConstruction(view, details);
   const withCancel =
@@ -1003,7 +1003,7 @@ function selectionKinds(
   target: VillageTarget | null,
   person: PersonFigureState | null = null,
   draft: DraftFigureState | null = null,
-  journey: JourneyView | null = null,
+  parties: readonly PartyView[] = [],
   visitors: readonly SceneJourney[] = [],
 ): SelectionKinds | null {
   if (!target) return null;
@@ -1027,7 +1027,7 @@ function selectionKinds(
     return { kind: 'premium-site', type: target.type, site: target.site };
   }
   if (target.kind === 'person')
-    return personDetails(view, scene, target.id, person, draft, journey);
+    return personDetails(view, scene, target.id, person, draft, parties);
   if (target.kind === 'plough-team') return teamDetails(scene, target.team, draft);
   if (target.kind === 'cart') return cartDetails(scene, target.id, draft);
   if (target.kind === 'dwellings') return dwellingsDetails(view, scene, target.ids);
@@ -1381,12 +1381,12 @@ function personDetails(
   id: number,
   state: PersonFigureState | null,
   draft: DraftFigureState | null,
-  journey: JourneyView | null,
+  parties: readonly PartyView[],
 ): SelectionDetails | null {
   const person = scene.labor?.persons?.find((p) => p.id === id);
   if (!person) return null;
-  // muž na výjezdu (lord-control.md – Co hráč vidí): „je na cestě“ / „čeká (2 dny)“ / „vrací se domů“
-  const onJourney = journey?.men.some((m) => m.personId === id) === true;
+  // člověk ve skupině výpravy (lord-control.md – Co hráč vidí): „je na cestě“ / „čeká (2 dny)“ / „vrací se domů“
+  const party = parties.find((p) => p.people.some((m) => m.personId === id)) ?? null;
   const figure = state?.id === id ? state : null;
   const herding = figure?.job?.kind === 'herd';
   const home = scene.dwellings.find((d) => d.id === person.home) ?? null;
@@ -1397,8 +1397,7 @@ function personDetails(
     portrait: personPortrait(person),
     role: ROLE_NAMES[herding && person.age < AGE.adult ? herdRole(person.sex) : person.role],
     name: person.name ?? null,
-    activity:
-      onJourney && journey ? journeyActivity(journey) : personActivity(figure, scene, draft),
+    activity: party ? journeyActivity(party) : personActivity(figure, scene, draft),
     age: person.age,
     home: home ? home.id : null,
     homeIcon: home ? (home.craft ? CRAFT_LOOKS[home.craft].icon : home.type) : null,

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { dayIndexOf, foundVillage, type JourneyView, type JourneyVisitor } from '@bohemia/game';
+import {
+  dayIndexOf,
+  foundVillage,
+  type ExpeditionView,
+  type ExpeditionVisitor,
+  type PartyView,
+} from '@bohemia/game';
 import { sceneJourneysOf } from '../journey-view';
 import { sceneLabor } from '../village-view-scene';
 import { dayRoster } from '../scene/villager-plan';
@@ -9,48 +15,83 @@ import { dayRoster } from '../scene/villager-plan';
 
 const HOME = { x: 3, y: 4 };
 
-function view(over: Partial<JourneyView> = {}): JourneyView {
+const person = (personId: number, group: number, over = {}): PartyView['people'][number] => ({
+  personId,
+  group,
+  lord: false,
+  rider: false,
+  mounted: false,
+  horse: null,
+  horseId: null,
+  wounded: false,
+  strength: 1,
+  female: false,
+  child: false,
+  ...over,
+});
+
+function view(over: Partial<ExpeditionView> = {}): ExpeditionView {
   return {
     journeyId: 'j1',
+    villageId: 'v1',
     tick: 50,
     day: 10,
-    phase: 'out',
-    cell: HOME,
     home: HOME,
     homePos: { x: 5, z: 5 },
-    men: [
-      { personId: 7, lord: true, mounted: true, wounded: false },
-      { personId: 9, lord: false, mounted: false, wounded: true },
+    seen: {},
+    parties: [
+      {
+        id: 0,
+        phase: 'out',
+        controllable: true,
+        leaderId: 7,
+        waitDaysLeft: null,
+        horseWork: null,
+        groups: [
+          {
+            id: 0,
+            cell: HOME,
+            pos: { x: 5, z: 6 },
+            goal: { cell: HOME, pos: { x: 40, z: 6 } },
+            arrived: false,
+          },
+        ],
+        people: [person(7, 0, { lord: true, mounted: true }), person(9, 0, { wounded: true })],
+      },
     ],
-    group: { pos: { x: 5, z: 6 }, goal: { cell: HOME, pos: { x: 40, z: 6 } }, arrived: false },
-    waitDaysLeft: null,
-    controllable: true,
-    seen: null,
     ...over,
   };
 }
 
-function visitor(over: Partial<JourneyVisitor> = {}): JourneyVisitor {
+function visitor(over: Partial<ExpeditionVisitor> = {}): ExpeditionVisitor {
   return {
     journeyId: 'j2',
+    partyId: 0,
     own: false,
-    leader: 'Vratislav',
-    house: 'Lučané',
+    leaderName: 'Vratislav',
+    houseName: 'Lučané',
     tick: 48,
-    pos: { x: -20, z: 30 },
-    goal: null,
-    men: [{ lord: true, mounted: true }],
+    groups: [{ id: 0, pos: { x: -20, z: 30 }, goal: null }],
+    people: [
+      { personId: 1, group: 0, lord: true, mounted: true, led: false, female: false, child: false },
+    ],
     ...over,
   };
 }
 
 describe('sceneJourneysOf', () => {
-  it('vlastní výjezd na mapě vsi z pohledu, cizí z návštěvníků', () => {
-    const own = visitor({ journeyId: 'j1', own: true, leader: 'Bořivoj', house: 'Kněžičtí' });
-    const list = sceneJourneysOf({ own: view(), visitors: [own, visitor()], cell: HOME });
+  it('vlastní hlouček na mapě vsi z pohledu, cizí z návštěvníků', () => {
+    const own = visitor({
+      journeyId: 'j1',
+      own: true,
+      leaderName: 'Bořivoj',
+      houseName: 'Kněžičtí',
+    });
+    const list = sceneJourneysOf({ own: [view()], visitors: [own, visitor()], cell: HOME });
     expect(list).toHaveLength(2);
     expect(list[0]).toMatchObject({
-      journeyId: 'j1',
+      journeyId: 'j1:0',
+      partyId: 0,
       own: true,
       leader: 'Bořivoj',
       house: 'Kněžičtí',
@@ -59,7 +100,7 @@ describe('sceneJourneysOf', () => {
       goal: { x: 40, z: 6 },
       arrived: false,
       phase: 'out',
-      // domov výjezdu ze serveru (dvorec) – odjezd a příjezd se měří od něj
+      // domov výpravy ze serveru (dvorec) – odjezd a příjezd se měří od něj
       home: { x: 5, z: 5 },
     });
     expect(list[0]!.men).toEqual([
@@ -67,7 +108,7 @@ describe('sceneJourneysOf', () => {
       { key: '9', personId: 9, lord: false, mounted: false, wounded: true },
     ]);
     expect(list[1]).toMatchObject({
-      journeyId: 'j2',
+      journeyId: 'j2:0',
       own: false,
       leader: 'Vratislav',
       house: 'Lučané',
@@ -81,18 +122,25 @@ describe('sceneJourneysOf', () => {
     ]);
   });
 
-  it('vlastní výjezd na jiné mapě se nekreslí, cíl na jiné mapě je null', () => {
-    const away = view({ cell: { x: 4, y: 4 } });
-    expect(sceneJourneysOf({ own: away, visitors: [], cell: HOME })).toEqual([]);
-    const crossing = view({
-      group: {
-        pos: { x: 1, z: 1 },
-        goal: { cell: { x: 4, y: 4 }, pos: { x: 0, z: 0 } },
-        arrived: false,
-      },
-    });
-    expect(sceneJourneysOf({ own: crossing, visitors: [], cell: HOME })[0]!.goal).toBeNull();
-    expect(sceneJourneysOf({ own: null, visitors: [visitor()], cell: null })).toHaveLength(1);
+  it('dva hloučky jedné skupiny jsou dva SceneJourney se stejným partyId', () => {
+    const two = view();
+    const party = two.parties[0]!;
+    party.groups.push({ id: 1, cell: HOME, pos: { x: 9, z: 9 }, goal: null, arrived: true });
+    party.people = [person(7, 0), person(8, 1), person(9, 1)];
+    const list = sceneJourneysOf({ own: [two], visitors: [], cell: HOME });
+    expect(list.map((j) => j.journeyId)).toEqual(['j1:0', 'j1:1']);
+    expect(list.map((j) => j.partyId)).toEqual([0, 0]);
+    expect(list.map((j) => j.men.length)).toEqual([1, 2]);
+  });
+
+  it('hlouček na jiné mapě se nekreslí, cíl na jiné mapě je null', () => {
+    const away = view();
+    away.parties[0]!.groups[0]!.cell = { x: 4, y: 4 };
+    expect(sceneJourneysOf({ own: [away], visitors: [], cell: HOME })).toEqual([]);
+    const crossing = view();
+    crossing.parties[0]!.groups[0]!.goal = { cell: { x: 4, y: 4 }, pos: { x: 0, z: 0 } };
+    expect(sceneJourneysOf({ own: [crossing], visitors: [], cell: HOME })[0]!.goal).toBeNull();
+    expect(sceneJourneysOf({ own: [], visitors: [visitor()], cell: null })).toEqual([]);
   });
 });
 

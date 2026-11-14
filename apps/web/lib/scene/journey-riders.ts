@@ -38,6 +38,11 @@ export interface SceneJourney extends Pick<
   'journeyId' | 'own' | 'leader' | 'house' | 'tick' | 'pos' | 'goal'
 > {
   men: SceneJourneyMan[];
+  /**
+   * Skupina výpravy, do které hlouček patří (praporek a výběr celé skupiny); `journeyId` je klíč
+   * hloučku `${journeyId}:${groupId}`.
+   */
+  partyId?: number;
   /** Skupina stojí (dojela); null – nevíme (návštěvník – pozná se z posunu mezi stavy). */
   arrived: boolean | null;
   /** Fáze vlastního výjezdu; návštěvník null. */

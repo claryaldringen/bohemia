@@ -177,16 +177,17 @@ describe('selectionDetails – postava', () => {
     );
   });
 
-  it('muž na výjezdu: činnost z pohledu výjezdu', () => {
-    const journey = {
-      phase: 'out',
-      waitDaysLeft: 2,
-      men: [{ personId: 202, lord: false, mounted: false, wounded: false }],
-    } as unknown as Parameters<typeof selectionDetails>[5];
-    const on = selectionDetails(null, VILLAGE, { kind: 'person', id: 202 }, null, null, journey);
+  it('člověk ve skupině výpravy: činnost podle jeho skupiny', () => {
+    const parties = [
+      { id: 0, phase: 'out', waitDaysLeft: 2, people: [{ personId: 202 }] },
+      { id: 1, phase: 'returning', waitDaysLeft: null, people: [{ personId: 901 }] },
+    ] as unknown as Parameters<typeof selectionDetails>[5];
+    const on = selectionDetails(null, VILLAGE, { kind: 'person', id: 202 }, null, null, parties);
     expect(on).toMatchObject({ activity: 'čeká (2 dny)' });
-    // muž mimo družinu nebo bez výjezdu – obvyklá činnost
-    const off = selectionDetails(null, VILLAGE, { kind: 'person', id: 901 }, null, null, journey);
+    const back = selectionDetails(null, VILLAGE, { kind: 'person', id: 901 }, null, null, parties);
+    expect(back).toMatchObject({ activity: 'vrací se domů' });
+    // člověk mimo skupiny – obvyklá činnost
+    const off = selectionDetails(null, VILLAGE, { kind: 'person', id: 901 }, null, null, []);
     expect(off).toMatchObject({ activity: 'doma' });
   });
 
@@ -260,7 +261,7 @@ describe('vojvodova rodina – co právě dělá', () => {
   });
 });
 
-describe('journeyActivity (výjezd vojvody)', () => {
+describe('journeyActivity (skupina výpravy)', () => {
   it('jede = „je na cestě“, na místě „čeká (N dny)“, domů „vrací se domů“', () => {
     expect(journeyActivity({ phase: 'out', waitDaysLeft: null })).toBe('je na cestě');
     expect(journeyActivity({ phase: 'out', waitDaysLeft: 2 })).toBe('čeká (2 dny)');

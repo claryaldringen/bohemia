@@ -52,6 +52,7 @@ import { useVillageSwitch } from './village-game/use-village-switch';
 import { useVillageSync } from './village-game/use-village-sync';
 import { useWagonPreview } from './village-game/use-wagon-preview';
 import { useWarWatch } from './village-game/use-war-watch';
+import { partiesOf } from '@/lib/journey-view';
 import { useJourneyScene } from './village-game/use-journey-scene';
 import { villageCommands } from './village-game/village-commands';
 import type { VillageData } from './village-game/village-data';
@@ -237,7 +238,7 @@ export function VillageGame({
     scene,
     villageId: view?.id ?? null,
     cell: homeCell,
-    own: lordJourney.journey.latest,
+    own: lordJourney.journey.expeditions.latest,
   });
   const alarmActions = useAlarmActions({ view, selected, pushNotice });
   const wagonPlan = useWagonPreview({ scene, current, view, sceneVillage });
@@ -323,6 +324,7 @@ export function VillageGame({
         key={`${lordJourney.watching.x},${lordJourney.watching.y}`}
         cell={lordJourney.watching}
         journey={lordJourney.journey.latest}
+        expeditions={lordJourney.journey.expeditions.latest}
         clock={clock}
         lord={lordJourney}
       />
@@ -401,7 +403,7 @@ export function VillageGame({
                   current,
                   personState,
                   draftState,
-                  lordJourney.journey.view,
+                  partiesOf(lordJourney.journey.expeditions.views, view?.id ?? null),
                   journeys,
                 )}
                 lordJourney={lordJourney.panel}

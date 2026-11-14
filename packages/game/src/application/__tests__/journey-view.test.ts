@@ -435,7 +435,15 @@ describe('expeditionVisitorsOn', () => {
         tick: expect.any(Number),
         groups: [{ id: 0, pos: { x: 40, z: 0 }, goal: null }],
         people: [
-          { personId: 10, lord: true, mounted: false, led: false, female: false, child: false },
+          {
+            personId: 10,
+            group: 0,
+            lord: true,
+            mounted: false,
+            led: false,
+            female: false,
+            child: false,
+          },
         ],
       },
     ]);

@@ -2,20 +2,24 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import {
   commandJourney,
+  commandParty,
+  expeditionViewsFor,
+  expeditionVisitorsOn,
   journeyCandidates,
-  journeyViewFor,
   knownMapFor,
   knownVillagesOf,
   launchJourney,
-  visitorsOn,
+  musterExpedition,
+  type ExpeditionCommand,
+  type ExpeditionResult,
+  type ExpeditionView,
+  type ExpeditionVisitor,
   type GridCell,
   type JourneyCandidate,
   type JourneyCommandDeps,
   type JourneyCommandResult,
   type JourneyOrder,
   type JourneyRefusal,
-  type JourneyView,
-  type JourneyVisitor,
   type LaunchJourneyDeps,
   type MarchGrid,
   type SeenCell,
@@ -109,31 +113,54 @@ export function commandJourneyForPlayer(
   return commandJourney(commandDeps(), { playerId, command, nowMs: Date.now() });
 }
 
-/** Pohled hráče na jeho běžící výjezd; null = žádný nemá. */
-export function journeyViewForPlayer(playerId: string): Promise<JourneyView | null> {
+/**
+ * Příkaz hráče vybraným lidem vsi `villageId` (expeditions.md – Výběr a skupina): napřed rozkaz
+ * lidem, kteří už ve výpravě jsou (`commandParty`, jen záměr, bez zámku vsi); jsou-li ve výběru
+ * lidé ze vsi, pod zámkem hráče a úpravou vsi je přidá `musterExpedition`.
+ */
+export async function commandExpeditionForPlayer(
+  playerId: string,
+  input: { villageId: string; people: number[]; command: ExpeditionCommand },
+): Promise<ExpeditionResult | { error: string }> {
+  const full = { ...input, playerId, now: new Date() };
+  const first = await commandParty(launchDeps(), full);
+  if (first.ok || first.reason !== 'recruits') return first;
+  return journeyActionForPlayer(playerId, input.villageId, () =>
+    musterExpedition(launchDeps(), { ...full, now: new Date() }),
+  );
+}
+
+/** Pohledy hráče na všechny jeho běžící výpravy (jedna za domovskou ves). */
+export function expeditionViewsForPlayer(playerId: string): Promise<ExpeditionView[]> {
   const deps = gameDeps();
-  return journeyViewFor(
+  return expeditionViewsFor(
     { journeys: deps.journeys, world: currentWorld(), knowledge: deps.knowledge },
     { playerId },
   );
 }
 
-/** Jezdci na mapě vsi hráče (vlastní vždy, cizí jen v dohledu); cizí ves = prázdno. */
-export function visitorsOnVillage(playerId: string, villageId: string): Promise<JourneyVisitor[]> {
-  return visitorsOn(visitorsDeps(), { playerId, villageId });
+/** Skupiny výprav na mapě vsi hráče (vlastní vždy, cizí jen v dohledu); cizí ves = prázdno. */
+export function expeditionVisitorsOnVillage(
+  playerId: string,
+  villageId: string,
+): Promise<ExpeditionVisitor[]> {
+  return expeditionVisitorsOn(visitorsDeps(), { playerId, villageId });
 }
 
 /**
- * Krajina políčka `cell` pro hráče s výjezdem: jen políčko, na kterém skupina stojí, a jeho
- * sousedé (8 směrů – kam může přejít). Jinak null, ať se nic neprozradí.
+ * Krajina políčka `cell` pro hráče s výpravou: jen políčka, na kterých stojí některý z jeho
+ * hloučků, a jejich sousedé (8 směrů – kam mohou přejít). Jinak null, ať se nic neprozradí.
  */
 export async function journeyMapForPlayer(
   playerId: string,
   cell: GridCell,
 ): Promise<ForeignMap | null> {
-  const view = await journeyViewForPlayer(playerId);
-  if (view === null) return null;
-  const near = Math.abs(view.cell.x - cell.x) <= 1 && Math.abs(view.cell.y - cell.y) <= 1;
+  const views = await expeditionViewsForPlayer(playerId);
+  const near = views.some((v) =>
+    v.parties.some((p) =>
+      p.groups.some((g) => Math.abs(g.cell.x - cell.x) <= 1 && Math.abs(g.cell.y - cell.y) <= 1),
+    ),
+  );
   if (!near) return null;
   const map = await campaignCells().mapOf(cell);
   return { cell: { x: cell.x, y: cell.y }, landscape: encodeLandscape(map.landscape) };
