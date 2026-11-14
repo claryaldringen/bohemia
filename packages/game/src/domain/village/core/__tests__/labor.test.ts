@@ -5,6 +5,7 @@ import {
   allocateDay,
   householdElders,
   householdWaterLabor,
+  menCommon,
   waterFetchingLabor,
 } from '../labor';
 import { NO_CRAFTS, dailyMinPerHousehold } from '../productivity';
@@ -397,5 +398,57 @@ describe('pletí – děti, ženy, muži (fields.md – Pletí jednou a rychle)'
     expect(r.tasks.mow).toBeCloseTo(5, 9);
     expect(r.tasks.weed).toBeCloseTo(1, 9);
     expect(r.weedWomen ?? 0).toBe(0);
+  });
+});
+
+describe('stavby staví muži (population.md – Práce, Stavby staví muži; „D24 ano“)', () => {
+  // 10 dospělých – 4 muži a 6 žen; ženy nesou napřed denní minimum a úlohy dne
+  const day = { ...base, capacity: 10, womenLabor: 6 };
+  const womenFree = 6 - DAILY_MIN;
+
+  it('úlohy dne, které ženy stihnou, mužům práci neberou – stavby dostanou celou práci mužů', () => {
+    const r = allocateDay({ ...day, tasks: [{ name: 'mow', remaining: 2 }] });
+    expect(r.common).toBeCloseTo(10 - DAILY_MIN - 2, 9);
+    expect(r.build).toBeCloseTo(4, 9);
+  });
+
+  it('co ženy nestihnou, doplní muži – stavbám zbude jen zbytek mužů', () => {
+    const r = allocateDay({ ...day, tasks: [{ name: 'mow', remaining: womenFree + 3 }] });
+    expect(r.common).toBeCloseTo(1, 9);
+    expect(r.build).toBeCloseTo(1, 9);
+  });
+
+  it('pletí jde napřed z práce žen a mužům práci nebere', () => {
+    const r = allocateDay({ ...day, tasks: [{ name: 'weed', remaining: 3 }] });
+    expect(r.weedWomen).toBeCloseTo(3, 9);
+    expect(r.build).toBeCloseTo(4, 9);
+  });
+
+  it('práce „za den“ (péče o koně, výpravy) nesou muži', () => {
+    const r = allocateDay({ ...day, horseCare: 0.5, away: 1 });
+    expect(r.build).toBeCloseTo(2.5, 9);
+  });
+
+  it('ves jen se ženami nestaví – společná práce zůstane jiným pracím', () => {
+    const r = allocateDay({ ...day, womenLabor: 10 });
+    expect(r.common).toBeCloseTo(10 - DAILY_MIN, 9);
+    expect(r.build).toBe(0);
+  });
+
+  it('bez údaje o ženách (pohlaví neznámé) staví všichni – celá společná práce', () => {
+    const r = allocateDay(base);
+    expect(r.build).toBeCloseTo(r.common, 9);
+  });
+
+  it('venku podle délky dne a štěstí – muži dají svou práci × světlo', () => {
+    const r = allocateDay({ ...day, daylight: 0.7, productivity: 0.9 });
+    expect(r.build).toBeCloseTo(4 * 0.9 * 0.7, 9);
+  });
+
+  it('menCommon: venkovní práce bez práce žen, nejvýš celá společná', () => {
+    expect(menCommon(9.5, 5.5, 9.5)).toBeCloseTo(4, 9);
+    expect(menCommon(9.5, 5.5, 1)).toBeCloseTo(1, 9);
+    expect(menCommon(9.5, 12, 9.5)).toBe(0);
+    expect(menCommon(9.5, 0, 0)).toBe(0);
   });
 });

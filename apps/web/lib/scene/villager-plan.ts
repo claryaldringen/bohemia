@@ -277,8 +277,15 @@ export function planVillagersWithCrew(
     const c = cast(
       ctx,
       `${share.activity}:${targetKey(share.target)}:${i}`,
-      // podíl žen z jádra (pletí – ženy vsi napřed), jinak podle činnosti
-      { women: share.women ?? womenChance(WOMEN[share.activity], ctx.sexes.women), child },
+      // podíl žen z jádra (pletí – ženy vsi napřed), jinak podle činnosti; stavby staví jen muži
+      // (population.md – Práce, Stavby staví muži)
+      {
+        women:
+          share.construction !== undefined
+            ? 0
+            : (share.women ?? womenChance(WOMEN[share.activity], ctx.sexes.women)),
+        child,
+      },
       (sex) => shareWorker(ctx, share, i, sex, age),
     );
     if (!c) return;
@@ -659,7 +666,8 @@ export function shareWorker(
   const home = homeHint(ctx, share, i);
   return roster.take({
     ...ADULTS,
-    sex,
+    // stavby staví jen muži (population.md – Práce, Stavby staví muži; Martin 14. 11. 2026)
+    ...(share.construction !== undefined ? { onlySex: 'male' as const } : { sex }),
     ...(LIGHT_ACTIVITIES.has(share.activity) ? { light: true } : {}),
     ...(home !== null ? { preferHome: home } : {}),
   });

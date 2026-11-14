@@ -119,7 +119,9 @@ describe('natočení a zahájení', () => {
 });
 
 describe('stavba v simulaci', () => {
-  const state = started(churchVillage());
+  // muž navíc – stavby staví jen muži (population.md – Práce, Stavby staví muži), zakladatelé mají
+  // jednoho
+  const state = started(churchVillage(MASON_CRAFTS, 1));
 
   it('malá rotunda se dostaví za 1–3 roky, vyzdobí a staveniště skončí', () => {
     let s = state;
