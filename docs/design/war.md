@@ -310,6 +310,13 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
     ≈ 80 kg (návrh Clauda); dvoukolák ≈ 400 kg ([vozy](wagons.md)) – jen mimo hustý les a přes
     brody, tempem spřežení (návrh Clauda);
   - **když dojde**, vojsko se vrátí, nebo si jídlo vezme v napadené vsi jako kořist (Martin).
+  - **Živé vedení bez rozkazu** (Martin 14. 11. 2026, na otázku, zda má nájezd skončit sám, když
+    se obránci zavřou v útočišti a hráč nic nerozkáže: „ne, vojácí tam budou stepovat, dokud jim
+    nezačnou docházet zásoby a pak začnou postupně dezertovat. Výprava se prostě časem sama
+    rozpadne“): tažení vedené živě se samo neobrátí ani nenapadne. Návrh Clauda – čeká na
+    schválení: jakmile jídlo klesne pod jídlo na cestu domů, dezertuje každý den ≈ 5 % mužů (jako
+    nucení); dezertér jde domů jako při rozpadu. Až zůstane jen vůdce, výprava se rozpadne
+    (upozornění „Výprava se rozpadla.“).
 - **Příklad** (návrh Clauda): Bořivoj táhne ze Lhoty na Kněžice o 2 políčka dál, v létě. Ze Lhoty
   k okraji ≈ 3 dny, přes mezilehlou mapu ≈ 6 dní, ke Kněžicím ≈ 3 dny, střety ≈ 3 dny, zpět se
   stádem ≈ 24 dní – **≈ 40 herních dní ≈ 1 h skutečného času** a ≈ 40 kg jídla na muže, víc, než
