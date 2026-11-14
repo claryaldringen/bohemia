@@ -1,6 +1,7 @@
 import {
   ALL_RIGHTS,
   rodBaptized,
+  CEMETERY_AT_CHURCH_ONLY,
   PEN_BY_SPECIES,
   HORSE_PEN_NO_SURPLUS,
   horsePenPayment,
@@ -342,6 +343,14 @@ function buildOptions(
       blocked,
       affordable: affordable && blocked === null,
     };
+    // po křtu rodu křesťanský hřbitov jen u kostela (cemetery.md – Po křtu rodu)
+    if (kind === 'cemetery' && rodBaptized(state)) {
+      option.look = { icon: 'hrbitov-kriz', name: 'Hřbitov' };
+      if (!(state.churches ?? []).length && !state.constructions.some((c) => c.church)) {
+        option.blocked = CEMETERY_AT_CHURCH_ONLY;
+        option.affordable = false;
+      }
+    }
     if (kind === 'pen') option.variants = { horse: horsePenOption(state, base, stock, coverage) };
     return [kind, option];
   });

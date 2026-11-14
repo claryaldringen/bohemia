@@ -31,6 +31,7 @@ import {
   inStewardWindows,
   laborBudget,
   stewardMode,
+  tileCell,
   type StewardContext,
   type StewardMode,
 } from '../steward';
@@ -45,6 +46,7 @@ import { roadUpgradeCost } from '../../roads/road-upgrades';
 import { fieldCapacity } from '../../fields/field-capacity';
 import { planWagonRoad, wagonPlanInputOf } from '../../roads/wagon-road';
 import type { Road, VillageState } from '../../types';
+import { defaultChurchDims } from '../../buildings/church-geometry';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 
 // Kroky 5 až 10 dne správce (steward.md – Ostatní stavby): hřbitov, humno, ohrady, sad, posvátná
@@ -126,6 +128,36 @@ function withLeft(state: VillageState, left: number): VillageState {
 }
 
 describe('steward-extras – hřbitov', () => {
+  it('po křtu rodu staví hřbitov jen u kostela', () => {
+    const young = planned(withBuiltFirstDwelling(village(SEPT)));
+    const slot = young.steward!.plan!.slots.cemetery![0]!;
+    const cell = tileCell(landscape, slot);
+    const c = tileCenterWorld(landscape, cell.x, cell.y);
+    const baptized = (church: boolean): VillageState => {
+      const s = structuredClone(young);
+      s.faith = { rodBaptizedDay: SEPT - 1 } as VillageState['faith'];
+      if (church) {
+        // kostel o pár metrů vedle čtverce – jeho hřbitůvek sousedí se čtvercem
+        s.churches = [
+          {
+            id: 900,
+            type: 'chancel',
+            dims: defaultChurchDims('chancel'),
+            position: { x: c.x + 40, z: c.z, rotation: 0 },
+            finishedDay: SEPT - 1,
+          },
+        ];
+      }
+      return s;
+    };
+    const without = baptized(false);
+    extraSteps(without, ctxOf(SEPT));
+    expect(kinds(without)).not.toContain('cemetery');
+    const withChurch = baptized(true);
+    extraSteps(withChurch, ctxOf(SEPT));
+    expect(kinds(withChurch)).toContain('cemetery');
+  });
+
   it('po první zemnici hned (i v Nouzi); bez zemnice ne', () => {
     const young = planned(withBuiltFirstDwelling(village(SEPT)));
     for (const mode of ['emergency', 'recovery', 'growth'] as const) {
