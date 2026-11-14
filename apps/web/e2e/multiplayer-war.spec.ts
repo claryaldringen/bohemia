@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { test, expect, type Page } from '@playwright/test';
 import {
+  INTENT_LEAD_TICKS,
   newCampaign,
   resolveWorldClock,
   tickOfMs,
@@ -1636,6 +1637,13 @@ test('ves B varovaná utíká do hradiště pána a po odtažení vojska se vrá
     status: 'active',
   });
   const homeB = { x: spotsB.dwelling.x, z: spotsB.dwelling.z };
+  // vojvoda B doma – hráčův muž ze záznamu rodu jako v adaptéru vlastníků (`createAlarmOwners`);
+  // bez něj by ves byla bez hráče a hned by rozhodlo nastavení (war.md – Hráč ve vsi a mimo ni)
+  const [lordB] = await query<{ id: number | null }>(
+    `SELECT lord_person_id AS id FROM house WHERE id = $1 AND lord_village_id = $2`,
+    [idB, placeB.villageId],
+  );
+  if (typeof lordB?.id !== 'number') throw new Error('Rod B nemá vojvodu ve vsi Vratislav.');
   const campaignId = randomUUID();
   const base = newCampaign(
     {
@@ -1656,6 +1664,8 @@ test('ves B varovaná utíká do hradiště pána a po odtažení vojska se vrá
     world,
   );
   const seenCell = { x: placeB.cell.x - 3 * dir.x, y: placeB.cell.y - 3 * dir.y };
+  // vesničan doběhne za 2 s – upozornění pošle tažení (worker)
+  const warnTick = tick + 8;
   const state: CampaignState = {
     ...base,
     phase: 'marching',
@@ -1663,13 +1673,12 @@ test('ves B varovaná utíká do hradiště pána a po odtažení vojska se vrá
       villages: [
         {
           villageId: placeB.villageId,
-          owner: { playerId: playerB!.id, npc: false, houseId: idB },
+          owner: { playerId: playerB!.id, npc: false, houseId: idB, lordId: lordB.id },
           // políčko vsi zvlášť – vojsko viděli jinde (bez něj by ves byla na políčku spatření)
           cell: { ...placeB.cell },
           seenTick: tick,
           seenAt: { cell: seenCell, pos: { x: 0, z: 0 } },
-          // vesničan doběhne za 2 s – upozornění pošle tažení (worker)
-          warnTick: tick + 8,
+          warnTick,
           by: 'villager',
           hosts: [placeC.villageId],
         },
@@ -1700,23 +1709,44 @@ test('ves B varovaná utíká do hradiště pána a po odtažení vojska se vrá
     ]);
   };
   try {
-    // B dostane upozornění a v panelu dvorce vidí ikony voleb (lhůta hráče 1 herní den ≈ 86 s)
+    // B dostane upozornění a v panelu dvorce vidí ikony voleb
     await notices(b, 'Vesničan spatřil cizí vojsko');
-    // Lhůta hráče běží od varování (`warnTick` = založení tažení + 2 s) a po ní rozhodne za ves
-    // správce (`decideAlarms`). Start workeru, upozornění, panel a tlačítko se do ní na zatíženém
-    // stroji nevejdou. Worker proto po upozornění stojí (bez něj se nerozhoduje) a varování se
-    // posune na takt kontrolního bodu: lhůta běží celá znovu až od něj a záměr hráče přijde při
-    // dopočtu taktů dřív než její konec. Novější takt varování nesmí být – ves by o vojsku
-    // v bodu ještě nevěděla (`latestAlarm`) a tažení by ji varovalo podruhé.
-    await worker.stop();
-    expect((await checkpointOf(campaignId)).state.alarm?.villages[0]?.decided).toBeUndefined();
-    await editPoint((s) => ({
-      ...s,
-      alarm: {
-        ...s.alarm!,
-        villages: s.alarm!.villages.map((v) => ({ ...v, warnTick: s.tick })),
-      },
-    }));
+    // Hráč ve vsi a mimo ni (war.md): vojvoda B je doma, ves se proto v taktu varování zeptá, zda
+    // je hráč u hry, a worker odpoví záměrem `alarm-presence` v taktu dotazu + 2. B má hru
+    // otevřenou (dotazy scény války zapisují přítomnost), takže rozhoduje sám – ves po odpovědi
+    // sama neutíká ani neposílá posla. Lhůta hráče odpadla – worker běží dál, hráče u hry
+    // nepřebije ani dlouhé čekání na panel na zatíženém stroji (přítomnost se obnovuje).
+    await expect
+      .poll(
+        async () =>
+          query<{ tick: number; by_player: string; body: Record<string, unknown> }>(
+            `SELECT tick::float8 AS tick, by_player, body FROM campaign_intent
+             WHERE campaign_id = $1 AND body->>'kind' = 'alarm-presence' ORDER BY tick LIMIT 1`,
+            [campaignId],
+          ),
+        { timeout: 60_000, message: worker.output() },
+      )
+      .toEqual([
+        {
+          tick: warnTick + INTENT_LEAD_TICKS,
+          by_player: playerB!.id,
+          body: { kind: 'alarm-presence', village: placeB.villageId, seenTick: expect.any(Number) },
+        },
+      ]);
+    await expect
+      .poll(
+        async () => {
+          const v = (await checkpointOf(campaignId)).state.alarm?.villages[0];
+          if (typeof v?.presenceTick !== 'number') return 'bez odpovědi';
+          return {
+            decided: v.decided ?? null,
+            messenger: v.messenger ?? null,
+            flight: v.flight ?? null,
+          };
+        },
+        { timeout: 60_000, message: worker.output() },
+      )
+      .toEqual({ decided: null, messenger: null, flight: null });
     await b.keyboard.press('r');
     const panel = b.getByTestId('selection-panel');
     await expect
@@ -1737,6 +1767,8 @@ test('ves B varovaná utíká do hradiště pána a po odtažení vojska se vrá
     for (const choice of ['messenger', 'forest', 'people', 'all']) {
       await expect(panel.getByTestId(`alarm-${choice}`)).toBeVisible();
     }
+    // ves B je cíl tažení a vojvoda je doma – smí ho vzdát (bílá vlajka jen u cíle tažení)
+    await expect(panel.getByTestId('alarm-yield-lord')).toBeVisible();
     const all = panel.getByTestId('alarm-all');
     // zašedlá volba – důvod z popisku do zprávy testu
     await expect
@@ -1753,10 +1785,12 @@ test('ves B varovaná utíká do hradiště pána a po odtažení vojska se vrá
     await expect(all).toHaveAttribute('aria-label', 'Do hradiště – se vším');
     await b.screenshot({ path: test.info().outputPath('varovani-ikony.png'), scale: 'css' });
     await all.click();
+    // záměry hráče bez odpovědí workeru na přítomnost (`alarm-presence`)
     await expect
       .poll(async () =>
         query<{ by_player: string; body: { kind: string; village: string; mode: string } }>(
-          `SELECT by_player, body FROM campaign_intent WHERE campaign_id = $1`,
+          `SELECT by_player, body FROM campaign_intent
+           WHERE campaign_id = $1 AND body->>'kind' <> 'alarm-presence'`,
           [campaignId],
         ),
       )
@@ -1766,7 +1800,6 @@ test('ves B varovaná utíká do hradiště pána a po odtažení vojska se vrá
           body: { kind: 'alarm-flee', village: placeB.villageId, mode: 'all' },
         },
       ]);
-    worker = await startWorker();
     // průvod vyšel – tažení ho vede (uloží bod s událostí odchodu)
     await expect
       .poll(async () => (await checkpointOf(campaignId)).state.alarm?.flights[0]?.status, {

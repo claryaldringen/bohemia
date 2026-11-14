@@ -241,6 +241,11 @@ export interface WarSceneInput {
    * chybí – všechny jen v dohledu.
    */
   playerId?: string;
+  /**
+   * Obránce s vojvodou doma (war.md – Hráč ve vsi a mimo ni): na své mapě vidí všechny skupiny
+   * a bojovníky bez ohledu na dohled – ihned, jak jsou na ní. Chybí – mlha války jako dřív.
+   */
+  seesAll?: boolean;
 }
 
 /**
@@ -329,7 +334,9 @@ export function warSceneView(state: CampaignState, input: WarSceneInput): WarSce
     const groups = s.groups.filter(
       (g) =>
         sameCell(g.cell, inp.cell) &&
-        (side === 'attack' || inp.eyes.some((e) => inSight(grid, e, g.pos))),
+        (side === 'attack' ||
+          inp.seesAll === true ||
+          inp.eyes.some((e) => inSight(grid, e, g.pos))),
     );
     const ids = new Set(groups.map((g) => g.id));
     const members = s.members
@@ -448,7 +455,7 @@ function battleView(
     ...input.eyes,
     ...b.fighters.filter((f) => f.side === side && STANDING.has(f.state)).map((f) => f.pos),
   ];
-  const sees = (p: Pos): boolean => eyes.some((e) => inSight(grid, e, p));
+  const sees = (p: Pos): boolean => input.seesAll === true || eyes.some((e) => inSight(grid, e, p));
   const shown = b.fighters.filter(
     (f) => (!fallenOnly || f.state === 'down') && (f.side === side || sees(f.pos)),
   );
@@ -598,7 +605,7 @@ function alarmView(
   const own = (villageId: string): boolean =>
     input.playerId !== undefined && owners.get(villageId) === input.playerId;
   const eyes = sightEyes(state, input, shown);
-  const sees = (p: Pos): boolean => eyes.some((e) => inSight(grid, e, p));
+  const sees = (p: Pos): boolean => input.seesAll === true || eyes.some((e) => inSight(grid, e, p));
   const refugeMarch = flights.flatMap((f): WarSceneRefugeMarch[] => {
     const mine = own(f.villageId);
     if (!mine && (f.status === 'hidden' || !sees(f.pos))) return [];

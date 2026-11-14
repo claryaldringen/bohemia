@@ -216,4 +216,88 @@ describe('varování vesničanem (sightAlarms)', () => {
     );
     expect(step.state.alarm?.villages[0]?.owner).toEqual(owner);
   });
+
+  describe('vojvoda doma (plán 2026-11-14 – Úloha 4)', () => {
+    const owner = { playerId: 'p2', npc: false, houseId: 'h2', lordId: 1 };
+
+    /** Vlkov s mužem 1 (vojvoda) doma, nebo na výjezdu (`away`). */
+    function lordWorld(away: boolean): CampaignWorld {
+      const man = kin({ id: 1, age: 30, sex: 'male', home: 1 }, SUMMER);
+      if (away)
+        man.away = { kind: 'service', untilDay: SUMMER + 1000 } as unknown as typeof man.away;
+      const other = kin({ id: 2, age: 30, sex: 'male', home: 1 }, SUMMER);
+      const state = village([man, other], [dwelling(1)], { lastDay: SUMMER + 20 });
+      return worldWith(
+        {},
+        { alarmOf: () => owner, villageAt: (id) => (id === 'vlkov' ? state : null) },
+      );
+    }
+
+    /** Vojsko stojí na okraji mapy (−900 m), dům je dál než 150 m. */
+    const far = (): CampaignState => passing(40);
+
+    it('vojvoda doma – ves ví v taktu, kdy vojsko vstoupí na její mapu', () => {
+      const start = far();
+      const step = stepCampaign(start, start.tick + 60, [], lordWorld(false));
+      const v = warnedVlkov(step);
+      expect(v.by).toBe('lord');
+      expect(v.warnTick).toBe(v.seenTick);
+      expect(v.seenTick).toBeLessThanOrEqual(start.tick + 1);
+      expect(step.notices.filter((n) => n.kind === 'army-warned')).toHaveLength(1);
+      expect(step.notices.find((n) => n.kind === 'army-warned')?.gameDay).toBe(
+        dayOfTick(v.warnTick, world),
+      );
+    });
+
+    it('vojvoda na výjezdu – varuje vesničan jako dřív', () => {
+      const start = far();
+      const away = warnedVlkov(stepCampaign(start, start.tick + 1200, [], lordWorld(true)));
+      const plain = warnedVlkov(stepCampaign(start, start.tick + 1200, [], worldWith()));
+      expect(away.by).toBe('villager');
+      expect(away.warnTick).toBe(plain.warnTick);
+      expect(away.seenTick).toBe(plain.seenTick);
+    });
+
+    it('ves varovaná poslem: vstup s vojvodou doma varování jen uspíší', () => {
+      const start = far();
+      const late = start.tick + 5000;
+      start.alarm = {
+        villages: [
+          {
+            villageId: 'vlkov',
+            owner,
+            seenTick: start.tick,
+            seenAt: { cell: { ...PASSED }, pos: { x: -900, z: 40 } },
+            warnTick: late,
+            by: 'messenger',
+          },
+        ],
+        messengers: [],
+        flights: [],
+        nextRef: 0,
+      };
+      const step = stepCampaign(start, start.tick + 60, [], lordWorld(false));
+      const v = warnedVlkov(step);
+      expect(v.by).toBe('lord');
+      expect(v.warnTick).toBeLessThan(late);
+      expect(v.seenTick).toBe(start.tick);
+    });
+
+    it('po 1, 7 a 40 taktech přes JSON = vcelku', { timeout: 30_000 }, () => {
+      const start = far();
+      const end = start.tick + 200;
+      const whole = stepCampaign(start, end, [], lordWorld(false));
+      expect(whole.state.alarm?.villages[0]?.by).toBe('lord');
+      for (const chunk of [1, 7, 40]) {
+        const w = lordWorld(false);
+        let s = start;
+        while (s.tick < end) {
+          const next = stepCampaign(s, Math.min(end, s.tick + chunk), [], w);
+          expect(next.waiting).toBeNull();
+          s = JSON.parse(JSON.stringify(next.state)) as CampaignState;
+        }
+        expect(JSON.stringify(s)).toBe(JSON.stringify(whole.state));
+      }
+    });
+  });
 });

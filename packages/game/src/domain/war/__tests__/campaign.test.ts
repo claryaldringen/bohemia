@@ -280,7 +280,7 @@ describe('znalost rodu z tažení (plán 2026-11-13 – Úloha 11)', () => {
     const v = village(people, undefined, {
       lastDay: SUMMER,
       storesKg: 1000,
-      defense: { stance: 'surrender' },
+      defense: { stance: 'flee' },
       ...extra,
     });
     v.dwellings[0]!.position = { x: -860, z: 30, rotation: 0 };
@@ -505,6 +505,22 @@ describe('znalost rodu z tažení (plán 2026-11-13 – Úloha 11)', () => {
     expect(knownOf(step, { x: 1, y: 0 })!.parts.map((p) => p.key)).toEqual([
       `dwelling:${defend.dwellings[0]!.id}`,
     ]);
+  });
+
+  it('živý nájezd na ves za palisádou bez rozkazu čeká – nezávisí na postoji', () => {
+    for (const stance of ['flee', 'defend'] as const) {
+      const fortVillage = knezice({
+        fortifications: [smallFort(SUMMER)],
+        defense: { stance },
+      });
+      const w = worldWith(fortVillage);
+      const live = stepCampaign(START, LAUNCH + 3000, LIVE, w);
+      expect(live.state.phase).toBe('raiding');
+      expect(live.state.battle?.outcome).toBe('ongoing');
+      const npc = stepCampaign({ ...START, liveCommand: false }, LAUNCH + 3000, SET_OUT, w);
+      expect(npc.state.phase).toBe('done');
+      expect(npc.state.battle?.outcome).toBe('attackers');
+    }
   });
 
   it('po kouscích, z JSON bodu i ze zmraženého bodu se znalostí = vcelku (stav i znalost)', () => {

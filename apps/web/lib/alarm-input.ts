@@ -35,6 +35,8 @@ function command(value: unknown): AlarmCommand | null {
       if (!Array.isArray(to) || to.length > MAX_DOMAIN || !to.every(isId)) return null;
       return { kind: 'domain', to: [...new Set(to)] };
     }
+    case 'yield-lord':
+      return { kind: 'yield-lord' };
     default:
       return null;
   }

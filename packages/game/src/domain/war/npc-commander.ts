@@ -91,9 +91,18 @@ function turnReason(s: CampaignState, world: CampaignWorld): CampaignReturnReaso
     return 'arrived';
   }
   const active = s.members.filter((m) => m.status === 'active').length;
-  const home = active * WAR.foodKgPerManDay * daysHome(s, world);
-  if (active > 0 && s.supplies.foodKg <= home + 1e-9) return 'supplies';
+  if (active > 0 && s.supplies.foodKg <= homeFoodKg(s, world) + 1e-9) return 'supplies';
   return null;
+}
+
+/**
+ * Jídlo na cestu domů (war.md – Velení: Podrobnosti NPC velitele) – muži na nohou × denní potřeba
+ * × dny cesty do shromaždiště (`daysHome`). Zbývá-li ho jen tolik, NPC velitel se obrátí; klesne-li
+ * jídlo pod ně, živě vedenému tažení muži dezertují (war.md – Zásoby tažení: Živé vedení bez rozkazu).
+ */
+export function homeFoodKg(s: CampaignState, world: CampaignWorld): number {
+  const active = s.members.filter((m) => m.status === 'active').length;
+  return active * WAR.foodKgPerManDay * daysHome(s, world);
 }
 
 /** Skupina velitele (jinak první s muži na nohou) – odtud se měří cesta domů. */

@@ -411,9 +411,8 @@ describe('volba správce (Otevřené 6)', () => {
     expect(stewardAlarmChoice(here, 'flee', false)).toEqual({ messenger: true, flee: 'forest' });
   });
 
-  it('bránit / vzdát se → jen posel; vlastní útočiště → jen posel', () => {
+  it('bránit se → jen posel; vlastní útočiště → jen posel', () => {
     expect(stewardAlarmChoice(opts(), 'defend', false)).toEqual({ messenger: true, flee: null });
-    expect(stewardAlarmChoice(opts(), 'surrender', false)).toEqual({ messenger: true, flee: null });
     expect(stewardAlarmChoice(opts(), 'flee', true)).toEqual({ messenger: true, flee: null });
   });
 

@@ -74,6 +74,8 @@ export * from './player-time';
 export * from './invites';
 export * from './vassalages';
 export * from './activity';
+export * from './presence';
+export * from './defender-presence';
 export * from './succession-credits';
 export * from './renounce';
 export * from './house-spare';

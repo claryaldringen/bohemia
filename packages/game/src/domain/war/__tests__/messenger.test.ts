@@ -32,10 +32,14 @@ import { campaign, intent, MEADOW, SUMMER, world } from './campaign-fixtures';
 const A: GridCell = { x: 1, y: 0 };
 const B: GridCell = { x: 2, y: 0 };
 const C: GridCell = { x: 3, y: 0 };
-const OWNER = { playerId: 'p2', npc: false, houseId: 'h2' };
 /** Vesničan 20 let a muž rodu 30 let s jezdeckým koněm. */
 const VILLAGER = 1;
 const LORD = 2;
+/**
+ * Hráč p2 je ve vsi – vojvoda (muž rodu) doma, ves se zeptá na přítomnost a bez odpovědi čeká na
+ * jeho pokyny (war.md – Hráč ve vsi a mimo ni).
+ */
+const OWNER = { playerId: 'p2', npc: false, houseId: 'h2', lordId: LORD };
 
 function villageA(people?: Person[]): VillageState {
   return village(
@@ -116,6 +120,19 @@ const send = (tick: number, personId?: number, byPlayer = 'p2'): CampaignIntent 
     byPlayer,
   );
 
+/**
+ * Hráč p2 je u hry od `from` do `to` – odpověď workeru na přítomnost (`alarm-presence`) každých
+ * 300 taktů; bez ní by po volbě hráče převzal ves po 1 herním dni správce (plán 2026-11-14 –
+ * Úloha 5b).
+ */
+function here(from: number, to: number): CampaignIntent[] {
+  const out: CampaignIntent[] = [];
+  for (let tick = from; tick <= to; tick += 300) {
+    out.push(intent(tick, 2, { kind: 'alarm-presence', village: 'a', seenTick: tick }, 'p2'));
+  }
+  return out;
+}
+
 const of = (events: readonly NewVillageEvent[], villageId: string): string[] =>
   events.filter((e) => e.villageId === villageId).map((e) => `${e.body.kind}@${e.day}`);
 
@@ -133,7 +150,8 @@ describe('posel do hradiště (Úloha 5)', () => {
   it('(a) záměr majitele A – posel běží pěšky, B varovaná na své mapě, C při příchodu, návrat domů', () => {
     const start = passing();
     const t0 = start.tick + T0;
-    const step = stepCampaign(start, start.tick + END, [send(t0)], worldWith());
+    const intents = [send(t0), ...here(t0, start.tick + END)];
+    const step = stepCampaign(start, start.tick + END, intents, worldWith());
     expect(step.waiting).toBeNull();
     const [m] = step.state.alarm!.messengers;
     expect(m).toMatchObject({
@@ -498,7 +516,8 @@ describe('hradiště varuje doménu (Úloha 6, Otevřené 5)', () => {
     if (id.startsWith('e')) domainMaps[`${cell.x},${cell.y}`] = mapOf([id]);
   }
   const HILLFORT_NPC: AlarmOwner = { playerId: null, npc: true, houseId: 'h-c' };
-  const HILLFORT_PLAYER: AlarmOwner = { playerId: 'p3', npc: false, houseId: 'h3' };
+  /** Vojvoda hradiště (muž 5) zůstane doma – posly do domény běží muži 1–4. */
+  const HILLFORT_PLAYER: AlarmOwner = { playerId: 'p3', npc: false, houseId: 'h3', lordId: 5 };
 
   function domainWorld(owner = HILLFORT_NPC): CampaignWorld {
     return worldWith({

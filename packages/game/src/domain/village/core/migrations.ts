@@ -230,9 +230,19 @@ export const VILLAGE_MIGRATIONS: readonly VillageMigration[] = [
   { id: 'fort-points', since: '2026-11-07', run: fortPoints },
   // lámání kostela s nošením v nůších (fortifications.md – Kámen, Nošení kamene a vůz)
   { id: 'church-quarry-carry', since: '2026-11-12', run: withChurchQuarryDistance },
+  // zrušený postoj „vzdát se při přesile“ (war.md – Obránci – postoje a útěk)
+  { id: 'stance-surrender', since: '2026-11-14', run: withoutSurrenderStance },
   // brány bez hradby po zboření úseků zmizí s opevněním (fortifications.md – Zboření)
   { id: 'orphan-gates', since: '2026-11-14', run: withoutOrphanGates },
 ];
+
+/** Zrušený postoj `'surrender'` se čte jako výchozí `'flee'`; na kopii, jen když ho ves má. */
+function withoutSurrenderStance(state: VillageState): VillageState {
+  if ((state.defense?.stance as string | undefined) !== 'surrender') return state;
+  const next = cloneState(state);
+  next.defense = { ...next.defense, stance: 'flee' };
+  return next;
+}
 
 /** `withFourWheelReach` mutuje – na kopii, jen když ves převod potřebuje. */
 function fourWheelReach(state: VillageState): VillageState {

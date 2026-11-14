@@ -11,10 +11,10 @@ import {
   daysText,
   domainSendText,
   flightText,
-  graceText,
   messengerText,
   returnText,
   runnerText,
+  YIELD_LORD_LABEL,
 } from '../alarm-view';
 
 // Varování a útěk v rozhraní (war.md – Varování, poslové a útěk do hradiště; plán 2026-11-09 –
@@ -29,7 +29,7 @@ function view(o: Partial<AlarmView> = {}): AlarmView {
     villageId: 'v1',
     warned: true,
     decided: null,
-    graceDays: 1,
+    yieldLord: null,
     armyEtaDays: 2.2,
     options: {
       messenger: ok({ etaDays: 0.8 }),
@@ -168,6 +168,10 @@ describe('vstup server actions', () => {
   it('ves a příkazy', () => {
     expect(parseAlarmVillage({ villageId: 'v1' })).toEqual({ villageId: 'v1' });
     expect(parseAlarmVillage({ villageId: '' })).toBeNull();
+    expect(parseAlarmCommand({ villageId: 'v1', command: { kind: 'yield-lord' } })).toEqual({
+      villageId: 'v1',
+      command: { kind: 'yield-lord' },
+    });
     expect(parseAlarmCommand({ villageId: 'v1', command: { kind: 'messenger' } })).toEqual({
       villageId: 'v1',
       command: { kind: 'messenger' },
@@ -214,9 +218,8 @@ describe('texty ikon v panelu dvorce (Úloha 13)', () => {
     );
   });
 
-  it('lhůta hráče a odeslání poslů do domény', () => {
-    expect(graceText(0.2)).toBe('Nerozhodneš-li, ves se zařídí sama dřív než za den.');
-    expect(graceText(1)).toBe('Nerozhodneš-li, ves se zařídí sama za ≈ 1 den.');
+  it('odeslání poslů do domény a popisek bílé vlajky', () => {
+    expect(YIELD_LORD_LABEL).toBe('Vzdát se – vojvoda půjde do zajetí, nájezd skončí.');
     expect(domainSendText(0, 3)).toBe('Vyber vsi – smíš ještě 3.');
     expect(domainSendText(2, 3)).toBe('Poslat posly (2) – smíš ještě 3.');
   });

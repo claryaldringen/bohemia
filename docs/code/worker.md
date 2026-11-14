@@ -56,7 +56,10 @@ vstupní bod (composition root) jako web – žádná herní logika, jen plánov
   `CAMPAIGN_CELL_CACHE_SIZE` = 16 a k tomu 16 volných; Výkon – Mapy prázdných políček). Paměť
   tažení napříč koly (`newCampaignMemory` – poslední
   spočtený stav, kontrolní bod podle verze, mapy a vsi minulého kola a mřížky pochodu, Výkon –
-  Tažení) drží proces; restart ji zahodí (počítá od bodu). **Výjezdy vojvody** (`docs/code/journey.md`
+  Tažení) drží proces; restart ji zahodí (počítá od bodu). Po výpočtu kola tažení odpoví varovaným
+  vsím na přítomnost hráče záměrem `alarm-presence` (`answerPresence` s portem
+  `createPresenceRepository` – `docs/code/war.md`, Hráč ve vsi a mimo ni: Odpověď workeru).
+  **Výjezdy vojvody** (`docs/code/journey.md`
   – Worker): po `stepCampaigns` pustí kolo v témže okamžiku `stepJourneys` (`CampaignLoopDeps.journeys`)
   se stejným zámkem, mapami a vsemi, úložištěm `gameDeps.journeys`, dotazem války `gameDeps.atWar`
   a **vlastní** pamětí (`newCampaignMemory<JourneyState>()` – konec kola zapomene, co mezi jeho id
@@ -462,6 +465,9 @@ jeho otisk `JSON.stringify` (≈ 120 µs) – v každém kole, i když se bod 40
   `refugeHostsOf`, `domainOf`) se předem **nenačítají** – takt je potřebuje jen při vstupu vsi do
   varování, předem by šly do úložiště dotazy navíc (`alarm-world.test.ts` – na každou odpověď jen
   jednou).
+- **Vlastníci vsí** (`CampaignMemory.owners`): na vlastníka se takt ptá u každé nevarované vsi na
+  mapě vojska – načtený vlastník platí `OWNER_KEEP_TICKS` (86 taktů ≈ 22 s) i v dalších kolech,
+  starší zapomene konec kola (docs/code/war.md – Hráč ve vsi a mimo ni: Opravy po závěrečné recenzi).
 
 Výsledek je tentýž: všechny testy `packages/game` (zlaté otisky tažení, války, opevnění a útěku),
 otisky měření, `test:db` (nový test verze bodu) i e2e `multiplayer-war.spec.ts` beze změny.

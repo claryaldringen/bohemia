@@ -52,6 +52,12 @@ export const WAR = {
     maxShare: 0.95,
   },
   desertion: { perDay: 0.05, withKinPerDay: 0.15 },
+  /**
+   * war.md – Zásoby tažení: Živé vedení bez rozkazu (Martin 14. 11. 2026; číslo návrh Clauda –
+   * „Jo zkusme to takto“): tažení vedené živě, kterému jídlo klesne pod jídlo na cestu domů, ztrácí
+   * denně ≈ 5 % mužů (vůdce ne); u nuceného se přičte k jeho dezerci (jeden los na muže a den).
+   */
+  hungerDesertPerDay: 0.05,
   /** war.md – Čísla: hráč mimo tažení vydrží 1 herní den, pak zástupce, nebo rozpad. */
   absentLeaderDays: 1,
   /**
@@ -143,7 +149,7 @@ export const WAR = {
    * probíjejících; skupina se shromáždí do 6 m od brány (nejvýš 60 s), pak vyrazí do lesa.
    */
   breakout: { lossShare: 0.3, gateWatchM: 30, weakGuardShare: 0.5, gatherM: 6, gatherSeconds: 60 },
-  /** war.md – Vzdaní: útočníků víc než 1,5× obránců, muž rodu se vzdá s 80 %. */
+  /** war.md – Přesila: útočníků víc než 1,5× obránců (útěk bez lesa, dostižení uprchlíků); muž rodu se vzdá s 80 %. */
   surrenderRatio: 1.5,
   lineSurrenderChance: 0.8,
   /** war.md – Čísla: jáma po 1 herním dni ve skupině domů se najde s 30 %. */
@@ -163,15 +169,19 @@ export const WAR = {
   /**
    * war.md – Varování, poslové a útěk do hradiště (schváleno Martinem 9. 11. 2026; čísla návrh
    * Clauda – plán 2026-11-09, Otevřené 1–6): vesničan i posel běží 2× pěším tempem vojska; vojsko
-   * dostihne posla nebo skupinu uprchlíků do 30 m (jako nález v lese); hráč bez správce má na volbu
-   * 1 herní den (344 taktů ≈ 86 s), pak rozhodne pravidlo správce; hradiště se hledá do 8 políček;
-   * odhad cesty = vzdušná čára × 1,3; hradiště varuje vsi domény do 3 políček od místa spatření,
-   * nejvýš 4 posly; hosté uprchlíků odejdou jen návratem (`openUntilDay` – den, který nepřijde).
+   * dostihne posla nebo skupinu uprchlíků do 30 m (jako nález v lese); ~~hráč bez správce má na
+   * volbu 1 herní den (344 taktů)~~ – od 14. 11. 2026 zrušeno, rozhoduje `deciderOf`; hradiště se hledá do 8 políček; odhad cesty = vzdušná čára × 1,3;
+   * hradiště varuje vsi domény do 3 políček od místa spatření, nejvýš 4 posly; hosté uprchlíků
+   * odejdou jen návratem (`openUntilDay` – den, který nepřijde).
+   * war.md – Hráč ve vsi a mimo ni (návrh Clauda, plán 2026-11-14 – Rozhodnutí plánu 2): dokud je
+   * hráč u hry, worker obnoví přítomnost u varované vsi s vojvodou doma každou ¼ herního dne
+   * (`presenceRefreshTicks` – 86 taktů ≈ 22 s); hráč bez přítomnosti déle než 1 herní den je pryč
+   * (`absentTicks`).
    */
   alarm: {
     runFactor: 2,
     catchM: 30,
-    playerGraceTicks: 344,
+    presenceRefreshTicks: 86,
     refugeMaxCells: 8,
     routeFactor: 1.3,
     domainRadiusCells: 3,

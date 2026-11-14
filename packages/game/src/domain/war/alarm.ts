@@ -1,9 +1,10 @@
 import { villageCentre } from '../village/people/departure';
 import type { AlarmOwner, AlarmVillage, CampaignAlarm } from './alarm-types';
-import { cellKey, gridOf, MissingData, villageEvent } from './campaign-tick';
+import { cellKey, gatherMissing, gridOf, MissingData, villageEvent } from './campaign-tick';
 import type { TickContext, TickOut } from './campaign-tick';
 import type { CampaignState, IntentBody } from './campaign-types';
 import { villageLookouts, runTicks, type Lookout } from './lookouts';
+import { lordHomeAt } from './lord-home';
 import { refugeHostOf, type RefugeHost } from './refuge-choice';
 import type { MarchGrid, Pos } from './march-grid';
 import type { GridCell } from '../village/people/world-grid';
@@ -24,16 +25,26 @@ export const UNKNOWN_ALARM_OWNER: Readonly<AlarmOwner> = {
   houseId: null,
 };
 
-/** Záměry obránce varované vsi (plán 2026-11-09 – Rozhodnutí plánu). */
+/**
+ * Záměry obránce varované vsi (plán 2026-11-09 – Rozhodnutí plánu), odpověď na přítomnost hráče
+ * (`alarm-presence` – plán 2026-11-14, Rozhodnutí plánu 2) a vzdání vojvody (`lord-surrender` –
+ * Rozhodnutí plánu 5).
+ */
 export type AlarmIntentBody = Extract<
   IntentBody,
-  { kind: 'alarm-messenger' | 'alarm-flee' | 'alarm-domain' }
+  {
+    kind: 'alarm-messenger' | 'alarm-flee' | 'alarm-domain' | 'alarm-presence' | 'lord-surrender';
+  }
 >;
 
-/** Je záměr záměrem obránce varované vsi (`alarm-*`)? */
+/** Je záměr záměrem obránce varované vsi (`alarm-*`, `lord-surrender`)? */
 export function isAlarmIntent(body: IntentBody): body is AlarmIntentBody {
   return (
-    body.kind === 'alarm-messenger' || body.kind === 'alarm-flee' || body.kind === 'alarm-domain'
+    body.kind === 'alarm-messenger' ||
+    body.kind === 'alarm-flee' ||
+    body.kind === 'alarm-domain' ||
+    body.kind === 'alarm-presence' ||
+    body.kind === 'lord-surrender'
   );
 }
 
@@ -62,6 +73,18 @@ export function isWarned(s: CampaignState, villageId: string, tick: number): boo
   return v !== null && v.warnTick <= tick;
 }
 
+/**
+ * Skončilo varování vsi `villageId` před tímto tažením vzdáním jejího vojvody (war.md – Hráč ve
+ * vsi a mimo ni: vzdáním „nájezd končí“; plán 2026-11-14 – Úloha 5b)? Vzdát jde jen cíl tažení
+ * (`yieldingLord`) a vojsko se pak vrací s důvodem `'yielded'`, který se už nezmění. Ves před
+ * odcházejícím vojskem neutíká ani neposílá posla a nastavení za ni nerozhoduje: záměr obránce
+ * k ní je jen přítomnost (`applyAlarm`) a `decideAlarms` ji přeskočí. Kdo už odešel nebo běží,
+ * jde dál; ves o vojsku dál ví (`isWarned` – bariéra dnů nájezdu, dokud vojsko stojí na její mapě).
+ */
+export function alarmEnded(s: CampaignState, villageId: string): boolean {
+  return s.returnReason === 'yielded' && villageId === s.target.villageId;
+}
+
 /** Záznam varování vsi v tažení; chybí – ves vojsko nespatřila. */
 export function alarmVillage(s: CampaignState, villageId: string): AlarmVillage | null {
   return s.alarm?.villages.find((v) => v.villageId === villageId) ?? null;
@@ -74,37 +97,58 @@ export function alarmVillage(s: CampaignState, villageId: string): AlarmVillage 
  * oka do středu vsi – z domu 0); pozdější spatření s dřívějším doběhem varování uspíší. V taktu
  * varování jde majiteli upozornění `army-warned` a vsi signál hrozby `army-seen` (na týž den –
  * ves drží bariéra).
+ *
+ * Co takt ze světa nemá (vlastník, stav vsi, kandidáti hradišť), ohlásí za všechny vsi jedním
+ * `MissingData` (`gatherMissing` – závěrečná recenze D1): jeden průchod tak načte data všech vsí
+ * taktu, ne jedné. Ves, která už ve varování je (vesničan běží domů), má vlastníka zapsaného –
+ * svět se na něj znovu neptá.
  */
 export function sightAlarms(s: CampaignState, tick: number, ctx: TickContext, out: TickOut): void {
+  const sights: { villageId: string; cell: GridCell; eyes: Pos[] }[] = [];
   for (const { cell, eyes } of armyEyes(s)) {
     const map = ctx.world.landscapeOf(cell);
     if (map === null) throw new MissingData([{ ...cell }], []);
     for (const villageId of map.villageIds) {
       if (ctx.world.harmless?.(villageId, s.playerId)) continue;
-      if (isWarned(s, villageId, tick)) continue;
-      const sighting = spot(s, villageId, cell, eyes, ctx);
-      if (sighting === null) continue;
-      const warnTick = tick + sighting.run;
-      const known = alarmVillage(s, villageId);
-      if (known === null) {
-        const hosts = hostCandidates(villageId, cell, ctx);
-        addVillage(s, {
-          villageId,
-          owner: ownerOf(villageId, ctx),
-          seenTick: tick,
-          seenAt: { cell: { ...cell }, pos: { ...sighting.at } },
-          warnTick,
-          by: 'villager',
-          ...(hosts === null ? {} : { hosts }),
-        });
-      } else if (warnTick < known.warnTick) {
-        known.warnTick = warnTick;
-        known.by = 'villager';
-      }
+      if (!isWarned(s, villageId, tick)) sights.push({ villageId, cell, eyes });
     }
   }
+  gatherMissing(sights, (x) => sightVillage(s, x.villageId, x.cell, x.eyes, tick, ctx));
   for (const v of s.alarm?.villages ?? []) {
     if (v.warnTick === tick) warn(s, v.villageId, ctx, out);
+  }
+}
+
+/** Spatření vojska vsí `villageId` na mapě `cell` (`sightAlarms`); chybí-li data, `MissingData`. */
+function sightVillage(
+  s: CampaignState,
+  villageId: string,
+  cell: GridCell,
+  eyes: readonly Pos[],
+  tick: number,
+  ctx: TickContext,
+): void {
+  const known = alarmVillage(s, villageId);
+  const owner = known?.owner ?? ownerOf(villageId, ctx);
+  const sighting =
+    lordSighting(s, villageId, owner, eyes, ctx) ?? spot(s, villageId, cell, eyes, ctx);
+  if (sighting === null) return;
+  const by = sighting.by;
+  const warnTick = tick + sighting.run;
+  if (known === null) {
+    const hosts = hostCandidates(villageId, cell, ctx);
+    addVillage(s, {
+      villageId,
+      owner,
+      seenTick: tick,
+      seenAt: { cell: { ...cell }, pos: { ...sighting.at } },
+      warnTick,
+      by,
+      ...(hosts === null ? {} : { hosts }),
+    });
+  } else if (warnTick < known.warnTick) {
+    known.warnTick = warnTick;
+    known.by = by;
   }
 }
 
@@ -137,7 +181,7 @@ function spot(
   cell: GridCell,
   eyes: readonly Pos[],
   ctx: TickContext,
-): { run: number; at: Pos } | null {
+): { run: number; at: Pos; by: 'villager' } | null {
   const key = `${villageId}@${s.day}`;
   let lookouts = ctx.lookouts.get(key);
   const village = ctx.world.villageAt(villageId, s.day);
@@ -148,15 +192,45 @@ function spot(
   }
   if (lookouts.length === 0) return null;
   const grid = gridOf(cell, s.day, ctx);
-  let best: { run: number; at: Pos } | null = null;
+  let best: { run: number; at: Pos; by: 'villager' } | null = null;
   lookouts.forEach((lookout, i) => {
     if (best?.run === 0) return;
     const at = eyes.find((e) => inSight(grid, e, lookout.pos));
     if (at === undefined) return;
     const run = runOf(key, i, lookout, grid, villageCentre(village), ctx);
-    if (best === null || run < best.run) best = { run, at };
+    if (best === null || run < best.run) best = { run, at, by: 'villager' };
   });
   return best;
+}
+
+/**
+ * Vojvoda doma (war.md – Hráč ve vsi a mimo ni; plán 2026-11-14 – Úloha 4) vidí vojsko hned, jak
+ * vstoupí na mapu vsi: spatření bez doběhu v poloze skupiny nejblíž středu vsi (shoda – první
+ * v `armyEyes`). Vojvoda pryč (nebo ho tažení odvedlo) – null, rozhodne `spot`.
+ */
+function lordSighting(
+  s: CampaignState,
+  villageId: string,
+  owner: AlarmOwner,
+  eyes: readonly Pos[],
+  ctx: TickContext,
+): { run: number; at: Pos; by: 'lord' } | null {
+  if (owner.lordId === undefined || !lordHomeAt(s, villageId, owner, ctx)) return null;
+  const village = ctx.world.villageAt(villageId, s.day);
+  if (village === null) throw new MissingData([], [villageId]);
+  const centre = villageCentre(village);
+  let at: Pos | null = null;
+  let best = Infinity;
+  for (const e of eyes) {
+    const dx = e.x - centre.x;
+    const dz = e.z - centre.z;
+    const d = dx * dx + dz * dz;
+    if (d < best) {
+      best = d;
+      at = e;
+    }
+  }
+  return at === null ? null : { run: 0, at, by: 'lord' };
 }
 
 /** Doběh od oka do středu vsi (takty) – z domu 0; mezipaměť volání podle vsi, dne a oka. */

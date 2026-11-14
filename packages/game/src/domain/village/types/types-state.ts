@@ -121,8 +121,8 @@ export interface Quarry {
   builtDay: number;
 }
 
-/** Postoj vsi: bránit se (stěna štítů), vzdát se při přesile (bílá vlajka), raději utéct (stromy). */
-export type DefenseStance = 'defend' | 'surrender' | 'flee';
+/** Postoj vsi: bránit se (stěna štítů), nebo evakuace (hradiště, les; výchozí). */
+export type DefenseStance = 'defend' | 'flee';
 
 /** Obrana vsi – postoj nastavený hráčem. */
 export interface VillageDefense {

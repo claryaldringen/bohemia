@@ -30,20 +30,14 @@ const STANCES: readonly {
   {
     stance: 'defend',
     icon: '/icons/war/shield-wall.png',
-    label: 'Bránit se',
-    hint: 'Lidé se seběhnou do skupin domů a brání se do bodu zlomu.',
-  },
-  {
-    stance: 'surrender',
-    icon: '/icons/war/white-flag.png',
-    label: 'Vzdát se při přesile',
-    hint: 'Skupina se vzdá, je-li útočníků víc než 1,5× obránců; jinak se brání.',
+    label: 'Obrana',
+    hint: 'Skupiny domů se brání do bodu zlomu.',
   },
   {
     stance: 'flee',
     icon: '/icons/war/forest.png',
-    label: 'Raději utéct',
-    hint: 'Lidé s dobytkem a zásobami odejdou do nejbližšího lesa (výchozí).',
+    label: 'Evakuace',
+    hint: 'Posel do hradiště pána, lidé do hradiště, stihnou-li to, jinak do lesa (výchozí).',
   },
 ];
 

@@ -138,8 +138,12 @@ export interface CampaignLoot {
   prisoners?: Prisoner[];
 }
 
-/** Proč se tažení vrací; `routed` = útočníci v boji poraženi (war.md – Bod zlomu). */
-export type CampaignReturnReason = 'arrived' | 'supplies' | 'order' | 'routed';
+/**
+ * Proč se tažení vrací; `routed` = útočníci v boji poraženi (war.md – Bod zlomu); `yielded` = hráč
+ * napadené vsi vzdal vojvodu a nájezd skončil (war.md – Hráč ve vsi a mimo ni; záměr `lord-surrender`
+ * – ne ves vzdaná Začít znovu, ta je `CampaignState.yielded` a vrací se s `order`).
+ */
+export type CampaignReturnReason = 'arrived' | 'supplies' | 'order' | 'routed' | 'yielded';
 
 /** Tažení – celý stav, ze kterého se počítá další takt. */
 /** Host (z ochrany pánem nebo ze svolání) v boji: záporné číslo bojovníka, domovská osoba a co potřebuje zajetí. */
@@ -210,7 +214,8 @@ export interface CampaignState {
   returnReason: CampaignReturnReason | null;
   /**
    * Ves cíle se vzdala (Začít znovu obránce – záměr `turn-back` se `surrender`) a vojsko se obrátilo
-   * domů: kdo ji vzdal (`byPlayer`) a která ves. Platí jen pro opakovaný restart téhož hráče po pádu
+   * domů: kdo ji vzdal (`byPlayer`) a která ves. Není to vzdání vojvody (`BattleState.lordYielded`,
+   * návrat `'yielded'`). Platí jen pro opakovaný restart téhož hráče po pádu
    * (pozná nájezd, kterému se ves už vzdala); restart pozdějšího držitele ji nebere. Chybí – ne.
    */
   yielded?: { byPlayer: string; villageId: string };
@@ -309,7 +314,20 @@ export type IntentBody =
   /** „Ukrýt v lese“, „Do hradiště – jen lidé“, „Do hradiště – se vším“. */
   | { kind: 'alarm-flee'; village: string; mode: FlightMode }
   /** Hradiště `village` hráče pošle posly do vybraných vsí domény `to`. */
-  | { kind: 'alarm-domain'; village: string; to: string[] };
+  | { kind: 'alarm-domain'; village: string; to: string[] }
+  /**
+   * Odpověď na dotaz vsi s vojvodou doma (war.md – Hráč ve vsi a mimo ni; `AlarmVillage.askedTick`):
+   * zapisuje ji worker za vlastníka vsi, `seenTick` = poslední přítomnost hráče u hry oříznutá na
+   * takt záměru, null – hráč u hry nebyl. Nic nedělá, jen ji tažení zapíše (`presenceTick`).
+   */
+  | { kind: 'alarm-presence'; village: string; seenTick: number | null }
+  /**
+   * „Vzdát vojvodu“ (war.md – Hráč ve vsi a mimo ni: „Když se hráč vzdá, vítěz ho zajme, odvede
+   * a pak dojde k jednání“, Martin 14. 11. 2026): hráč vzdá svého muže ve vsi `village`. Jde jen
+   * pro cíl tažení, dokud nájezd není rozhodnutý, se skupinou vojska na mapě cíle a s vojvodou
+   * doma; vojvoda je vždy zajat a nájezd končí (návrat `'yielded'`).
+   */
+  | { kind: 'lord-surrender'; village: string };
 
 /** Záměr s taktem, ve kterém platí (teď + 2), a pořadím zápisu `seq` (v taktu podle něj). */
 export interface CampaignIntent {
@@ -434,6 +452,10 @@ export interface CampaignStep {
    * skončí, a stopy všech cizích map na konci tažení; bez vydání chybí.
    */
   knowledge?: KnowledgeOut[];
-  /** Takt se zastavil – chybí tyto mapy a vsi; null = spočteno do `toTick`. */
-  waiting: { cells: GridCell[]; villageIds: string[] } | null;
+  /**
+   * Takt se zastavil – chybí tyto mapy a vsi, nebo (`presence`, seznamy prázdné) varovaná ves se
+   * v posledním spočteném taktu zeptala na přítomnost hráče a tažení čeká na odpověď
+   * (`pauseOnAsk`); null = spočteno do `toTick`.
+   */
+  waiting: { cells: GridCell[]; villageIds: string[]; presence?: true } | null;
 }

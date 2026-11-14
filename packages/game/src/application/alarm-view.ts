@@ -1,7 +1,7 @@
 import type { WorldClock } from '../domain/calendar';
 import type { FlightMode, VillageState } from '../domain/village/types';
 import type { GridCell } from '../domain/village/people/world-grid';
-import { alarmVillage } from '../domain/war/alarm';
+import { alarmEnded, alarmVillage } from '../domain/war/alarm';
 import { alarmChoices, heardTick } from '../domain/war/alarm-steward';
 import type { AlarmFlight, AlarmMessenger, AlarmVillage } from '../domain/war/alarm-types';
 import { MissingData, tickContext, type TickContext } from '../domain/war/campaign-tick';
@@ -11,7 +11,10 @@ import type {
   CampaignWorld,
   IntentBody,
 } from '../domain/war/campaign-types';
+import { yieldingLord } from '../domain/war/campaign';
 import { flightPace } from '../domain/war/evacuation';
+import { lordHomeAt } from '../domain/war/lord-home';
+import { prisonerKey } from '../domain/war/raid-apply';
 import type { MarchGridMemo } from '../domain/war/march-grid';
 import { domainTargets, type DomainTarget } from '../domain/war/messenger';
 import {
@@ -51,7 +54,8 @@ export const ALARM_CHOICES: readonly AlarmChoice[] = ['messenger', 'forest', 'pe
  * Proč volba nejde: důvody domény (`AlarmBlock`) a pohledu – ves o vojsku neví, u vsi se už bojuje
  * (útěk rozhoduje postoj), hradiště nemá komu poslat posly, tažení skončilo.
  */
-export type AlarmViewBlock = AlarmBlock | 'unwarned' | 'battle' | 'no-domain' | 'over';
+export type AlarmViewBlock =
+  AlarmBlock | 'unwarned' | 'battle' | 'no-domain' | 'over' | 'lordAway' | 'notRaided';
 
 /**
  * Texty důvodů (jediné místo – rozhraní u kurzoru i odpověď příkazu). Doslovně ze specu „Pán nemá
@@ -68,6 +72,9 @@ export const ALARM_BLOCKED: Readonly<Record<AlarmViewBlock, string>> = {
   battle: 'U vsi se už bojuje.',
   'no-domain': 'Do domény není koho varovat.',
   over: 'Vojsko už odtáhlo.',
+  // vzdání vojvody (plán 2026-11-14 – Úloha 8, návrh Clauda)
+  lordAway: 'Vojvoda není doma.',
+  notRaided: 'Vojsko ještě nepřišlo.',
 };
 
 /** Jedna volba v pohledu: zda jde a odhady v herních dnech (2 desetinná místa). */
@@ -117,8 +124,6 @@ export interface AlarmView {
   warned: boolean;
   /** Kdo za ves už rozhodl; null – nikdo. */
   decided: 'player' | 'steward' | null;
-  /** Za kolik dní rozhodne pravidlo správce za hráče bez správce (lhůta 1 den); jinak null. */
-  graceDays: number | null;
   /** Za kolik dní tu může být vojsko (odhad od místa spatření); nevarovaná ves null. */
   armyEtaDays: number | null;
   options: Record<AlarmChoice, AlarmViewOption>;
@@ -130,6 +135,11 @@ export interface AlarmView {
   messenger: { status: AlarmMessenger['status']; mounted: boolean } | null;
   /** Skupina uprchlíků vsi; null – nikdo neodešel. `etaDays` jen na cestě. */
   flight: { mode: FlightMode; status: AlarmFlight['status']; etaDays: number | null } | null;
+  /**
+   * Vzdání vojvody (bílá vlajka): null – hráčův muž ve vsi nežije (nebo ves o vojsku neví);
+   * jinak `blocked` je důvod, proč teď nejde (`lordAway`, `notRaided`), nebo null – jde.
+   */
+  yieldLord: { blocked: AlarmViewBlock | null } | null;
   /** Vrátit se (ves má lidi na útěku – i po skončeném tažení); null – nikdo pryč. */
   ret: AlarmReturn | null;
   /**
@@ -167,7 +177,9 @@ export type AlarmCommand =
   /** Ukrýt v lese, Do hradiště – jen lidé / se vším. */
   | { kind: 'flee'; mode: FlightMode }
   /** Hradiště pošle posly do vybraných vsí domény (i nikam – správce už nerozhoduje). */
-  | { kind: 'domain'; to: string[] };
+  | { kind: 'domain'; to: string[] }
+  /** Vzdát vojvodu – zajetí vojvody, nájezd končí (`lord-surrender`). */
+  | { kind: 'yield-lord' };
 
 export type CommandAlarmResult = { ok: true; campaignId: string } | { ok: false; reason: string };
 
@@ -180,25 +192,32 @@ interface FoundAlarm {
   campaignId: string;
   s: CampaignState;
   av: AlarmVillage;
+  /** Stavy všech tažení, ve kterých ves je (`activeAlarming`) – čtou se jednou (`yieldedBefore`). */
+  all: readonly CampaignState[];
 }
 
 /**
  * Nejnovější varování vsi `villageId` (největší `warnTick`; shoda – novější tažení), za kterou
- * rozhoduje hráč `playerId`: jen ves, která v taktu kontrolního bodu o vojsku ví.
+ * rozhoduje hráč `playerId`: jen ves, která v taktu kontrolního bodu o vojsku ví. Varování, které
+ * skončilo vzdáním vojvody (`alarmEnded` – Ruling 7), se přeskočí – jiné tažení ves ohrožovat může.
  */
 async function latestAlarm(
   deps: Pick<AlarmViewDeps, 'campaigns'>,
   villageId: string,
   playerId: string,
 ): Promise<FoundAlarm | null> {
-  let best: FoundAlarm | null = null;
+  const all: CampaignState[] = [];
+  let best: Omit<FoundAlarm, 'all'> | null = null;
   for (const campaignId of await deps.campaigns.activeAlarming(villageId)) {
     const s = (await deps.campaigns.checkpoint(campaignId))?.state;
-    const av = s ? alarmVillage(s, villageId) : null;
-    if (!s || !av || av.warnTick > s.tick || av.owner.playerId !== playerId) continue;
+    if (!s) continue;
+    all.push(s);
+    const av = alarmVillage(s, villageId);
+    if (!av || av.warnTick > s.tick || av.owner.playerId !== playerId) continue;
+    if (alarmEnded(s, villageId)) continue;
     if (!best || av.warnTick >= best.av.warnTick) best = { campaignId, s, av };
   }
-  return best;
+  return best ? { ...best, all } : null;
 }
 
 /**
@@ -317,7 +336,7 @@ function quietView(villageId: string, ret: AlarmReturn | null): AlarmView {
     villageId,
     warned: false,
     decided: null,
-    graceDays: null,
+    yieldLord: null,
     armyEtaDays: null,
     options: { messenger: NO_OPTION, forest: NO_OPTION, people: NO_OPTION, all: NO_OPTION },
     runners: [],
@@ -381,10 +400,6 @@ export async function villageAlarmView(
   const battle = battleAt(s, av.villageId);
   const messenger = s.alarm?.messengers.find((m) => m.refId === av.messenger) ?? null;
   const flight = s.alarm?.flights.find((f) => f.refId === av.flight) ?? null;
-  const waits =
-    av.decided === undefined && !av.owner.npc && state.steward?.on !== true
-      ? Math.max(0, av.warnTick + WAR.alarm.playerGraceTicks - s.tick)
-      : null;
   const armyEta = Math.max(
     0,
     armyEtaTicks(av.seenAt, base.village, s.day) - (s.tick - av.seenTick),
@@ -395,7 +410,6 @@ export async function villageAlarmView(
     villageId: home.id,
     warned: true,
     decided: av.decided ?? null,
-    graceDays: waits === null ? null : toDays(waits, deps.world),
     armyEtaDays: toDays(armyEta, deps.world),
     options: {
       messenger: viewOption(base.options.messenger, false, battle, deps.world),
@@ -426,6 +440,7 @@ export async function villageAlarmView(
               : null,
         }
       : null,
+    yieldLord: await yieldState(world, found),
     ret,
   };
   if (domain) {
@@ -440,6 +455,53 @@ export async function villageAlarmView(
   return view;
 }
 
+/**
+ * Vojvoda `lordId` vsi `villageId` se už vzdal v některém tažení (`battle.lordYielded`, zajatec s klíčem
+ * vojvody v kořisti nebo mezi `captives`): druhé tažení na touž ves ho vidí doma až do dopočtu vsi
+ * (Review Focus 4), takže druhé vzdání odmítne už pohled. `states` – tažení, ve kterých ves je
+ * (`FoundAlarm.all` – přečtená jednou v `latestAlarm`).
+ */
+function yieldedBefore(
+  states: readonly CampaignState[],
+  villageId: string,
+  lordId: number,
+): boolean {
+  for (const s of states) {
+    if (s.target.villageId !== villageId) continue;
+    if (s.battle?.lordYielded === lordId) return true;
+    const key = prisonerKey(s.id, lordId);
+    if (s.loot?.prisoners?.some((p) => p.id === key) === true) return true;
+  }
+  return false;
+}
+
+/**
+ * Vzdání vojvody v pohledu: null – hráčův muž ve vsi nežije, nebo ves není cíl tažení (war.md – Hráč
+ * ve vsi a mimo ni: vzdáním končí nájezd – ves, na kterou vojsko netáhne, nemá co vzdát; bílá vlajka
+ * se jí nenabízí); jinak důvod, proč nejde (`lordAway` – není doma, padl nebo se už vzdal;
+ * `notRaided` – vojsko ještě není na mapě cíle, nebo nájezd skončil), nebo null – jde
+ * (`yieldingLord`).
+ */
+async function yieldState(
+  world: AlarmWorld,
+  found: FoundAlarm,
+): Promise<{ blocked: AlarmViewBlock | null } | null> {
+  const { s, av } = found;
+  const lordId = av.owner.lordId;
+  if (lordId === undefined || av.villageId !== s.target.villageId) return null;
+  const record = await world.record(av.villageId);
+  if (!record?.state.people.some((p) => p.id === lordId)) return null;
+  if (yieldedBefore(found.all, av.villageId, lordId)) return { blocked: 'lordAway' };
+  const fell = s.battle?.fighters.some((f) => f.side === 'defend' && f.ref === lordId && f.killed);
+  if (fell === true) return { blocked: 'lordAway' };
+  const check = await world.compute((ctx) => ({
+    home: lordHomeAt(s, av.villageId, av.owner, ctx),
+    can: yieldingLord(s, av, ctx) !== null,
+  }));
+  if (check?.can === true) return { blocked: null };
+  return { blocked: check?.home === false ? 'lordAway' : 'notRaided' };
+}
+
 /** Proč příkaz nejde – stejné volby jako pohled (`alarmChoices`); null – jde. */
 async function commandBlock(
   deps: CommandAlarmDeps,
@@ -447,6 +509,10 @@ async function commandBlock(
   command: AlarmCommand,
 ): Promise<AlarmViewBlock | null> {
   const { s, av } = found;
+  if (command.kind === 'yield-lord') {
+    const state = await yieldState(new AlarmWorld(deps), found);
+    return state === null ? 'lordAway' : state.blocked;
+  }
   if (command.kind === 'domain') {
     const domain = await domainOf(deps, found);
     if (!domain) return 'no-domain';
@@ -476,6 +542,8 @@ function intentOf(villageId: string, command: AlarmCommand): IntentBody {
       return { kind: 'alarm-flee', village: villageId, mode: command.mode };
     case 'domain':
       return { kind: 'alarm-domain', village: villageId, to: [...command.to] };
+    case 'yield-lord':
+      return { kind: 'lord-surrender', village: villageId };
   }
 }
 

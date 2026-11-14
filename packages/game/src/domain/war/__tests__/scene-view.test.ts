@@ -476,3 +476,37 @@ describe('campaignView – uprchlíci a poslové v dohledu (Ú14 – mapa tažen
     expect(campaignView(alarmed(), input)!.flights).toBeUndefined();
   });
 });
+
+describe('warSceneView – seesAll (vojvoda doma)', () => {
+  /** Vojsko stojí na mapě vsi 900 m od očí obránce – mimo dohled. */
+  function distant(): CampaignState {
+    const base = campaign({ members: [member(1, 0, true)] });
+    return {
+      ...base,
+      phase: 'marching',
+      groups: base.groups.map((g) => ({
+        ...g,
+        cell: { ...base.target.cell },
+        pos: { x: 900, z: 900 },
+      })),
+    };
+  }
+
+  it('skupinu mimo dohled domů ukáže jen se seesAll', () => {
+    const s = distant();
+    expect(warSceneView(s, defend(s))).toBeNull();
+    expect(warSceneView(s, defend(s, { seesAll: true }))?.march?.groups.map((g) => g.id)).toEqual([
+      s.groups[0]!.id,
+    ]);
+  });
+
+  it('boj má dál přednost před pochodem a seesAll ukáže i vzdálené bojovníky', () => {
+    const s = raiding([defender(101, { x: 20, z: 0 })]);
+    s.battle!.fighters.find((f) => f.id === 'a:1')!.pos = { x: 900, z: 900 };
+    const ids = (o: Partial<WarSceneInput>): string[] =>
+      warSceneView(s, defend(s, o))!.battle!.fighters.map((f) => f.id);
+    expect(ids({})).not.toContain('a:1');
+    expect(ids({ seesAll: true })).toContain('a:1');
+    expect(warSceneView(s, defend(s, { seesAll: true }))!.march).toBeNull();
+  });
+});

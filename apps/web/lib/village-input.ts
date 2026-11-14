@@ -612,12 +612,10 @@ export function parseDeclareHuntInput(value: unknown): Record<string, never> | n
 }
 
 /** Vstup nastavení postoje vsi `{ stance }` (war.md – Obránci), jinak null. */
-export function parseSetDefenseStanceInput(
-  value: unknown,
-): { stance: 'defend' | 'surrender' | 'flee' } | null {
+export function parseSetDefenseStanceInput(value: unknown): { stance: 'defend' | 'flee' } | null {
   if (!isRecord(value)) return null;
   const { stance } = value;
-  return stance === 'defend' || stance === 'surrender' || stance === 'flee' ? { stance } : null;
+  return stance === 'defend' || stance === 'flee' ? { stance } : null;
 }
 
 /** Vstup zrušení rozestavěné stavby `{ constructionId }`, jinak null. */

@@ -184,8 +184,9 @@ describe('villageAlarmView (Úloha 12)', () => {
       [2, 'Bořek', true, false],
     ]);
     expect(v.runners[0]!.etaDays!).toBeGreaterThan(0);
-    // hráč bez správce – pravidlo správce rozhodne po 1 herním dni
-    expect(v.graceDays!).toBeCloseTo(1, 1);
+    // lhůta hráče zmizela (plán 2026-11-14 – Úloha 8); ves bez vojvody vzdání nenabízí
+    expect(v).not.toHaveProperty('graceDays');
+    expect(v.yieldLord).toBeNull();
     expect(v.messenger).toBeNull();
     expect(v.flight).toBeNull();
     expect(v.domain).toBeUndefined();
@@ -257,7 +258,6 @@ describe('villageAlarmView (Úloha 12)', () => {
     row.state = JSON.stringify(s);
     const v = (await view(w))!;
     expect(v.decided).toBe('player');
-    expect(v.graceDays).toBeNull();
     expect(v.messenger).toEqual({ status: 'running', mounted: false });
     expect(v.flight).toMatchObject({ mode: 'people', status: 'marching' });
     expect(v.flight!.etaDays!).toBeGreaterThan(0);
@@ -420,5 +420,152 @@ describe('Vrátit se v pohledu (f)', () => {
       },
     });
     expect((await view(w))!.ret).toEqual({ blocked: REFUGE_RETURN_REASONS.army });
+  });
+});
+
+describe('vzdání vojvody (plán 2026-11-14 – Úloha 8)', () => {
+  /** Vojvoda = muž rodu 2 (Bořek) vsi A; vojsko stojí na mapě A (cíl tažení). */
+  const lordSetup = (o: Setup = {}): Promise<World> =>
+    setup({
+      ...o,
+      tweak: (s, ids) => {
+        s.alarm!.villages[0]!.owner.lordId = 2;
+        for (const g of s.groups) g.cell = { ...A };
+        o.tweak?.(s, ids);
+      },
+    });
+  const gone = (state: VillageState): VillageState => ({
+    ...state,
+    people: state.people.map((p) => (p.id === 2 ? { ...p, away: { kind: 'journey' } } : p)),
+  });
+
+  /** Varování z c1 o kus starší – nejnovější zůstává c1. */
+  const olderAlarm = (w: World): CampaignState['alarm'] => {
+    const alarm = (JSON.parse(w.campaigns.rows.get('c1')!.state) as CampaignState).alarm!;
+    for (const v of alarm.villages) v.warnTick -= 10;
+    return alarm;
+  };
+
+  it('vojvoda doma a vojsko na mapě cíle – jde', async () => {
+    const v = (await view(await lordSetup()))!;
+    expect(v.yieldLord).toEqual({ blocked: null });
+  });
+
+  it('vojvoda na výjezdu – lordAway; ves bez hráčova muže – null', async () => {
+    const away = (await view(await lordSetup({ a: gone })))!;
+    expect(away.yieldLord).toEqual({ blocked: 'lordAway' });
+    expect(ALARM_BLOCKED.lordAway).toBe('Vojvoda není doma.');
+    expect((await view(await setup()))!.yieldLord).toBeNull();
+  });
+
+  it('vojsko ještě nepřišlo na mapu cíle – notRaided', async () => {
+    const w = await lordSetup({
+      tweak: (s) => {
+        for (const g of s.groups) g.cell = { ...C };
+      },
+    });
+    expect((await view(w))!.yieldLord).toEqual({ blocked: 'notRaided' });
+    expect(ALARM_BLOCKED.notRaided).toBe('Vojsko ještě nepřišlo.');
+    expect(await command(w, { kind: 'yield-lord' })).toEqual({
+      ok: false,
+      reason: 'Vojsko ještě nepřišlo.',
+    });
+    expect(w.campaigns.intents).toEqual([]);
+  });
+
+  it('příkaz yield-lord – záměr lord-surrender na takt teď + 2', async () => {
+    const w = await lordSetup();
+    const now = nowOf(w);
+    expect(await command(w, { kind: 'yield-lord' })).toEqual({ ok: true, campaignId: 'c1' });
+    expect(w.campaigns.intents).toEqual([
+      expect.objectContaining({
+        campaignId: 'c1',
+        tick: tickOfMs(now, world) + 2,
+        byPlayer: 'p2',
+        body: { kind: 'lord-surrender', village: w.a },
+      }),
+    ]);
+  });
+
+  it('druhé tažení na touž ves – vojvoda se vzdal v prvním → lordAway', async () => {
+    const w = await lordSetup();
+    // první tažení (c0): vojvoda už zajat bez boje – zajatec s klíčem vojvody
+    const first = campaign({
+      id: 'c0',
+      members: [member(1, 0, true)],
+      target: { villageId: w.a, cell: { ...A }, pos: { x: 700, z: 0 } },
+    });
+    first.alarm = olderAlarm(w);
+    first.loot = {
+      foodKg: 0,
+      herd: 0,
+      prisoners: [{ id: 'c0:2', ref: { villageId: w.a, personId: 2 }, sinceDay: SUMMER + 1 }],
+    };
+    await w.campaigns.create(first);
+    expect((await view(w))!.yieldLord).toEqual({ blocked: 'lordAway' });
+    expect(await command(w, { kind: 'yield-lord' })).toEqual({
+      ok: false,
+      reason: 'Vojvoda není doma.',
+    });
+    expect(w.campaigns.intents).toEqual([]);
+  });
+
+  it('druhé tažení – vzdání v boji (battle.lordYielded) prvního → lordAway', async () => {
+    const w = await lordSetup();
+    const first = campaign({
+      id: 'c0',
+      members: [member(1, 0, true)],
+      target: { villageId: w.a, cell: { ...A }, pos: { x: 700, z: 0 } },
+    });
+    first.alarm = olderAlarm(w);
+    first.battle = { lordYielded: 2 } as CampaignState['battle'];
+    await w.campaigns.create(first);
+    expect((await view(w))!.yieldLord).toEqual({ blocked: 'lordAway' });
+  });
+
+  it('po vzdání (alarmEnded) pohled volby varování nenabízí', async () => {
+    const w = await lordSetup({
+      tweak: (s) => {
+        s.returnReason = 'yielded';
+        s.phase = 'returning';
+      },
+    });
+    const v = (await view(w))!;
+    expect(v.warned).toBe(false);
+    expect(v.yieldLord).toBeNull();
+  });
+
+  it('vzdání v novějším tažení neskryje starší tažení, které ves dál ohrožuje', async () => {
+    const w = await lordSetup({
+      tweak: (s) => {
+        s.returnReason = 'yielded';
+        s.phase = 'returning';
+      },
+    });
+    const other = campaign({
+      id: 'c0',
+      members: [member(1, 0, true)],
+      target: { villageId: w.a, cell: { ...A }, pos: { x: 700, z: 0 } },
+    });
+    other.alarm = olderAlarm(w);
+    await w.campaigns.create(other);
+    expect(await view(w)).toMatchObject({ warned: true, campaignId: 'c0' });
+    expect(await command(w, { kind: 'flee', mode: 'forest' })).toEqual({
+      ok: true,
+      campaignId: 'c0',
+    });
+  });
+
+  it('ves, na kterou vojsko netáhne – bílá vlajka se nenabízí', async () => {
+    const w = await lordSetup({
+      tweak: (s) => {
+        s.target = { villageId: 'jinam', cell: { x: -3, y: 0 }, pos: { x: 0, z: 0 } };
+      },
+    });
+    const v = (await view(w))!;
+    expect(v.warned).toBe(true);
+    expect(v.yieldLord).toBeNull();
+    expect((await command(w, { kind: 'yield-lord' })).ok).toBe(false);
+    expect(w.campaigns.intents).toEqual([]);
   });
 });

@@ -31,9 +31,8 @@ test('registrace → ověření e-mailu → herní plocha → odhlášení → p
   await expect(page.getByText(email)).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(menu).toHaveCount(0);
-  await expect(page.getByTestId('game-date')).toHaveText(
-    /^\d+\. \p{L}+ \d+ · (jaro|léto|podzim|zima)$/u,
-  );
+  // lišta bez ročního období (D6) – jen den, měsíc a rok
+  await expect(page.getByTestId('game-date')).toHaveText(/^\d+\. \p{L}+ \d+$/u);
 
   await signOut(page);
   await page.goto('/game');

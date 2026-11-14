@@ -1,4 +1,4 @@
-import { pgTable, primaryKey, text } from 'drizzle-orm/pg-core';
+import { pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
 import { user } from './auth';
 
 /**
@@ -15,3 +15,14 @@ export const playerActivity = pgTable(
   },
   (table) => [primaryKey({ columns: [table.playerId, table.pragueDate] })],
 );
+
+/**
+ * Poslední přítomnost hráče u hry – okamžik, kdy měl naposled otevřenou kteroukoli svou ves
+ * nebo dal jakýkoli pokyn (war.md – Hráč ve vsi a mimo ni). Jeden řádek na hráče.
+ */
+export const playerPresence = pgTable('player_presence', {
+  playerId: text('player_id')
+    .primaryKey()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  seenAt: timestamp('seen_at', { withTimezone: true }).notNull(),
+});

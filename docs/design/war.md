@@ -315,7 +315,8 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
     nezačnou docházet zásoby a pak začnou postupně dezertovat. Výprava se prostě časem sama
     rozpadne“): tažení vedené živě se samo neobrátí ani nenapadne. Návrh Clauda (Martin 14. 11. 2026 – „Jo zkusme to takto“): jakmile jídlo klesne pod jídlo na cestu domů, dezertuje každý den ≈ 5 % mužů (jako
     nucení); dezertér jde domů jako při rozpadu. Až zůstane jen vůdce, výprava se rozpadne
-    (upozornění „Výprava se rozpadla.“).
+    (upozornění „Výprava se rozpadla.“). U nuceného se šance přičte k jeho dezerci (jeden los na
+    muže a den) a dezertér z bojiště zmizí hned, v noci (návrh Clauda).
 - **Příklad** (návrh Clauda): Bořivoj táhne ze Lhoty na Kněžice o 2 políčka dál, v létě. Ze Lhoty
   k okraji ≈ 3 dny, přes mezilehlou mapu ≈ 6 dní, ke Kněžicím ≈ 3 dny, střety ≈ 3 dny, zpět se
   stádem ≈ 24 dní – **≈ 40 herních dní ≈ 1 h skutečného času** a ≈ 40 kg jídla na muže, víc, než
@@ -413,7 +414,16 @@ o evakuaci (defaultní nastavení).“
   spatří vesničan). Ves sama nic nedělá – obranu nebo evakuaci zorganizuje hráč rozkazy, které
   dnes má (postoj po skupinách domů, útěk do lesa nebo do hradiště, výpad, posel, vlastního muže
   řídí živě). **U hry** = jako přítomnost u tažení: ves otevřená ve hře nebo jakýkoli pokyn
-  hráče; bez přítomnosti déle než 1 herní den je hráč pryč (návrh Clauda).
+  hráče; bez přítomnosti déle než 1 herní den je hráč pryč (návrh Clauda). Na přítomnost se ves
+  zeptá, jakmile o vojsku ví (odpoví server za pár taktů); dokud je hráč u hry, server ji obnovuje
+  každou ¼ herního dne (86 taktů ≈ 22 s) a každý pokyn hráče k varované vsi je také přítomnost
+  (návrh Clauda). Ves, kde už hráč něco zvolil (posel, útěk), řídí hráč dál, dokud je ve vsi
+  a u hry; zbytek dokončí nastavení, jakmile vojvoda ves opustí (vyběhne jako posel, odjede, padne
+  do zajetí) nebo hráč přestane být u hry, dokud jsou lidé ještě doma – co hráč už zvolil,
+  nezopakuje (druhý posel, druhý útěk) – návrh Clauda. Nastavení takto za ves rozhoduje jen, dokud
+  jí vojsko hrozí (míří na ni, stojí na její mapě, nebo ves varoval posel); když ji minulo nebo se
+  vrací domů, čekající rozhodnutí propadne – žádný posel ani útěk (návrh Clauda). Zajatý vojvoda
+  není doma hned, jak ho vojsko zajme (i před zprávou do vsi) – návrh Clauda.
 - **Vojvoda doma, hráč není u hry:** lidé se hned zachovají podle nastavení vsi – vojvoda vojsko
   vidí, jakmile vstoupí na mapu, takže ves reaguje dřív, než kdyby ho musel spatřit vesničan.
   Když se hráč během nájezdu vrátí ke hře, převezme velení (Martin 14. 11. 2026 – „ok“).
@@ -427,10 +437,12 @@ o evakuaci (defaultní nastavení).“
   obrana, nebo evakuace“).
 - **Vzdání:** „No ona se nevzdává ves, ale hráč. Když se hráč vzdá, vítěz ho zajme, odvede a pak
   dojde k jednání“ (Martin 14. 11. 2026). Hráč ve vsi smí vojvodu vzdát (rozkaz bílé vlajky –
-  návrh Clauda); útočník ho zajme, odvede do svého dvorce a následuje jednání o výkupném (Vzdaní,
+  návrh Clauda; jen ve vsi, na kterou vojsko táhne – vzdáním končí nájezd); útočník ho zajme, odvede do svého dvorce a následuje jednání o výkupném (Vzdaní,
   zajetí a výkupné). Vzdáním **nájezd končí** – vojsko odvede zajatce, odnese, co už vzalo, a ves
-  dál nedrancuje (Martin 14. 11. 2026 – „Ano“). Ves zůstává rodu; dokud zajetí trvá, vede ji
-  dědic nebo správce. „Ves připadne útočníkovi celá“ platí jen pro Začít znovu během nájezdu.
+  dál nedrancuje (Martin 14. 11. 2026 – „Ano“). Vzdáním končí i varování vsi před tímto vojskem:
+  ves před odcházejícím vojskem neutíká, neposílá posla a nastavení za ni nerozhoduje (návrh
+  Clauda); kdo už odešel nebo běží, jde dál. Ves zůstává rodu; dokud zajetí trvá, vede ji dědic
+  nebo správce. „Ves připadne útočníkovi celá“ platí jen pro Začít znovu během nájezdu.
 - **Nahrazuje** (Martin 14. 11. 2026: „Ok, pusť se do toho“): tři postoje vsi a „Přítomný hráč dostane upozornění a smí velet sám“
   (Obránci – postoje a útěk) a lhůtu hráče 1 herní den (Varování, poslové a útěk do hradiště).
 
@@ -438,12 +450,17 @@ o evakuaci (defaultní nastavení).“
 
 - **Postoj vsi** nastaví hráč **dopředu** u každé vsi a ves se podle něj zachová, když vesničan
   spatří cizí vojsko (Martin 3. 11. 2026 – „ano“):
-  - **Bránit se** (stěna štítů) – lidé se seběhnou do skupin domů a brání se do **bodu zlomu**
+  - ~~**Bránit se** (stěna štítů)~~ – nahrazeno 14. 11. 2026, Hráč ve vsi a mimo ni (tři postoje
+    se zúžily na dva, viz níže). Lidé se seběhnou do skupin domů a brání se do **bodu zlomu**
     (45 %). Martin 3. 11. 2026: „**do posledního – to nebude fungovat, lidé v jednu chvíli utečou
     sami od sebe**“;
-  - **Vzdát se při přesile** (bílá vlajka) – skupina se vzdá, je-li útočníků v dohledu víc než
-    **1,5×** jejích obránců (počet mužů, jezdec za dva – návrh Clauda), jinak se brání;
-  - **Raději utéct** (stromy) – **výchozí** (Martin 2. 11. 2026 – „ok“), i ve vsi správce.
+  - ~~**Vzdát se při přesile** (bílá vlajka) – skupina se vzdá, je-li útočníků v dohledu víc než
+    **1,5×** jejích obránců (počet mužů, jezdec za dva – návrh Clauda), jinak se brání~~ –
+    nahrazeno 14. 11. 2026, Hráč ve vsi a mimo ni (zrušeno);
+  - ~~**Raději utéct** (stromy)~~ – nahrazeno 14. 11. 2026, Hráč ve vsi a mimo ni.
+  - **Nyní dva postoje** (14. 11. 2026): **Obrana** (štíty) – skupiny domů se brání do bodu
+    zlomu; **Evakuace** (stromy) – **výchozí** (Martin 2. 11. 2026 – „ok“), i ve vsi správce:
+    posel do hradiště pána, lidé do hradiště, stihnou-li to, jinak do lesa.
 - **Kdy:** vesničan spatří cizí vojsko (≈ 150 m – Martin 18. 10.), nebo přijde zpráva, že k vsi
   směřuje – posel z jiné vsi rodu, kterou vojsko prošlo (Martin 2. 11. 2026: „a nebo že k ní
   směřují“; posel návrh Clauda).
@@ -459,7 +476,7 @@ o evakuaci (defaultní nastavení).“
     utíkající dohnat; v lese je najde jen na ≈ 30 m (návrh Clauda – rešerše 1: les je jejich
     výhoda); má-li ves opevnění, napřed do jeho útočiště, kdo se vejde a stihne
     ([fortifications.md](fortifications.md) – Postoje vsi s opevněním, Útočiště). Kde na mapě les
-    není, skupina se zachová jako „vzdát se při přesile“ (návrh Clauda);
+    není, skupina se vzdá při přesile (víc než 1,5× obránců), jinak se brání (návrh Clauda);
   - lidé se vrátí 1 herní den po odchodu cizího vojska z mapy (návrh Clauda).
 - **Útěk při bodu zlomu** (Martin 2. 11. 2026 – „uteče během obrany“): bránící skupina při 45 %
   ztrát uteče do lesa bez zásob; kdo nemůže (ranění, obklíčení), vzdá se.
@@ -641,7 +658,7 @@ Martin 2. 11. 2026 – „ok“ (podrobnosti návrh Clauda):
     útočník uvnitř obvodu bojuje jako u domů;
   - **útočiště** – plocha z obvodu, 10 m² na člověka a 20 m² na kus dobytka; kdo stihne doběhnout
     a vejde se, schová se se zásobami a dobytkem; brány se zavřou, když je první útočník do 30 m;
-  - **postoje vsi** platí dál – opevnění je pro všechny tři úkrytem bližším než les; přesila
+  - **postoje vsi** platí dál – opevnění je pro oba (obrana i evakuace – od 14. 11. 2026) úkrytem bližším než les; přesila
     ~~u „vzdát se“ se poměří s násobkem opevnění~~ – za opevněním se skupina nevzdá, dokud
     útočník nestojí uvnitř (8. 11. 2026);
   - **prolomení** – útočník projde jen branou, mezerou nebo průlomem; brána plotu hned, brána
@@ -670,10 +687,12 @@ zásoby a cennosti a utekli do nejbližšího hradiště“).
 - **Správce za nepřítomného hráče** (návrh Clauda, Martin 9. 11. 2026: „ano platí“): jakmile ves
   vojsko spatří, pošle posla do hradiště pána; lidi evakuuje do hradiště, když tam podle
   vzdálenosti stihnou dojít dřív než vojsko, jinak je ukryje v lese na mapě. Ves se zapnutým
-  správcem a vsi NPC rodů rozhodnou hned; ves bez správce čeká na rozhodnutí hráče nejvýš 1 herní
-  den (≈ 86 s), pak se zařídí podle tohoto pravidla (návrh Clauda, Martin 9. 11. 2026: „Ok, nechme
-  to, jak jsi navrhl“). Posel za správce je vždy vesničan pěšky; nemá-li ves vesničana, jde muž
-  rodu – na koni, umí-li jezdit (Martin 9. 11. 2026: „Ano“).
+  správcem a vsi NPC rodů rozhodnou hned; ~~ves bez správce čeká na rozhodnutí hráče nejvýš
+  1 herní den (≈ 86 s), pak se zařídí podle tohoto pravidla (návrh Clauda, Martin 9. 11. 2026: „Ok,
+  nechme to, jak jsi navrhl“)~~ – nahrazeno 14. 11. 2026, Hráč ve vsi a mimo ni: ves, kde vojvoda
+  není doma, rozhodne hned; ves s vojvodou doma rozhoduje hráč, dokud je u hry. Posel za správce je
+  vždy vesničan pěšky; nemá-li ves vesničana, jde muž rodu – na koni, umí-li jezdit
+  (Martin 9. 11. 2026: „Ano“).
 - **Co si vezmou:** Martin 9. 11. 2026: „To rozhodne hráč. Někdy může rozhodnout, ať se evakuují
   jenom lidé (spasí holý život), pokud usoudí, že je dost času, tak nechá lidi vzít vše, co unesou,
   a sehnat dobytek.“ – dvě volby: **jen lidé** (rychle), nebo **lidé s tím, co unesou, a stáda**
@@ -693,8 +712,10 @@ zásoby a cennosti a utekli do nejbližšího hradiště“).
   poslem. Může vyslat někoho z rodu, kdo jezdit umí“ – muž rodu, který umí jezdit a má jezdeckého
   koně, jede na koni (rychleji); jinak a za správce jde pěšky vesničan. Nemá-li ves vesničana,
   jde jako posel muž rodu – na koni, umí-li jezdit (návrh Clauda, Martin 9. 11. 2026: „Ano“).
-- **Lhůta hráče:** ves bez správce čeká na rozhodnutí hráče nejvýš 1 herní den (≈ 86 s), pak se
-  zařídí podle pravidla správce (Martin 9. 11. 2026: „Ok, nechme to, jak jsi navrhl“).
+- ~~**Lhůta hráče:** ves bez správce čeká na rozhodnutí hráče nejvýš 1 herní den (≈ 86 s), pak se
+  zařídí podle pravidla správce (Martin 9. 11. 2026: „Ok, nechme to, jak jsi navrhl“).~~ –
+  nahrazeno 14. 11. 2026, Hráč ve vsi a mimo ni (lhůta odpadá; ves s vojvodou doma čeká jen na
+  přítomného hráče).
 - **Posel** je dospělý muž vsi, běží nejkratší cestou po stezkách (pochodová mřížka jako vojsko,
   ≈ 2× rychleji než pochod vojska) do hradiště pána; každá ves na mapách, kterými proběhne, je
   varovaná. Hradiště pak pošle posly do vsí domény, ke kterým vojsko míří (správce hradiště
@@ -728,7 +749,7 @@ zásoby a cennosti a utekli do nejbližšího hradiště“).
 - **Hradiště varuje doménu:** vsi vlastního rodu a přímých vazalů do 3 políček od místa spatření,
   nejvýš 4 poslové, nejbližší první.
 - **Správce za hráče:** posel vždy (je-li hradiště a kdo běžet), útěk jen s postojem „utéct“ –
-  „bránit“ a „vzdát se“ platí; ves s vlastním útočištěm neevakuuje.
+  „obrana“ platí; ves s vlastním útočištěm neevakuuje.
 - **Co nesou:** jen lidé = bez zásob a dobytka; se vším = co unesou (dospělý 25 kg, dítě 10 kg),
   každý vůz se spřežením 400 kg a stáda; osivo a zapečetěné jámy zůstávají.
 - **Dostižení:** skupina vojska do 30 m od uprchlíků; přesila → vzdají se (lidé podle volby ke
@@ -759,7 +780,7 @@ uprchlíků u hradiště jedí seno hostitele.
   (portréty, v popisku boj, luk, jízda a kůň), muži rodu a vazalové, skupiny s rozkazem, vesničané
   po vsích (dobrovolníci zeleně, nucení oranžově), shromaždiště, jídlo a píce (klas, seno, dny),
   nosiči, koně a vozy, **odhad síly** (meč s číslem), odhad cesty ve dnech, ohlášení průchodu.
-- **Postoj vsi:** tři ikony v panelu dvorce každé vsi – stěna štítů, bílá vlajka, stromy; popis
+- **Postoj vsi:** dvě ikony v panelu dvorce každé vsi – stěna štítů, stromy (bílá vlajka zrušena 14. 11. 2026); popis
   v bublině (Martin 3. 11. 2026).
 - **Na mapě s vojskem** (návrh Clauda): hráčův muž se vybírá a řídí jako hrdina v 0 A.D.; nad
   skupinou ikona rozkazu (štít u velitele, zkřížené oštěpy, praporec); u skupiny domů počet
@@ -794,44 +815,46 @@ Martin 2. 11. 2026 – „ok“ (doplňky návrh Clauda):
 
 ## Čísla (návrh Clauda – do `rules-war.ts`, kde není uvedeno jinak)
 
-| Co                             | Číslo                                                                                                                                                                                                                                  |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Ochrana nového rodu            | 7 skutečných dní, končí vlastním útokem nebo opovědí (Martin)                                                                                                                                                                          |
-| Ochrana nové vsi               | 5 herních let                                                                                                                                                                                                                          |
-| Válka utichne                  | 3 herní roky bez střetu                                                                                                                                                                                                                |
-| Tempo vojska                   | ≈ 3–4 m/s skutečného času, 1 km ≈ 4–5 min ≈ 3 herní dny (Martin)                                                                                                                                                                       |
-| Terén a náklad                 | les 1/4, cesta a stezka × 1,5, jezdci × 1,5, stádo × 0,5, ranění × 0,75                                                                                                                                                                |
-| Mřížka pochodu                 | buňka 10 m; hustý les = les se 3 stromy v okolí 30 × 30 m; brod = mělčina                                                                                                                                                              |
-| Takty tažení                   | 4 za sekundu; záměr hráče platí od taktu teď + 2; kontrolní bod po 40                                                                                                                                                                  |
-| Zima (1. 12. – konec února)    | sníh × 0,75; venku −3 zdraví a −2 % síly za den, ve vsi +10 a +5 %                                                                                                                                                                     |
-| Píce v zimě                    | 6 kg sena na koně denně (horses.md)                                                                                                                                                                                                    |
-| Jídlo                          | ≈ 1 kg obilí na muže a den                                                                                                                                                                                                             |
-| Nosnost                        | muž 25 kg, kůň bez jezdce 80 kg, dvoukolák 400 kg                                                                                                                                                                                      |
-| Dobrovolníci (nábor)           | 30 % + 0,5 % za bod štěstí nad 50, hlad +15 %, vdovská domácnost × 0,5, nejvýš 95 % (návrh Clauda)                                                                                                                                     |
-| Dezerce nucených               | 5 % denně, s příbuznými v cíli 15 % (návrh Clauda – výchozí z 18. 10.)                                                                                                                                                                 |
-| Hráč mimo tažení               | 1 herní den, pak zástupce, nebo rozpad                                                                                                                                                                                                 |
-| NPC velitel                    | ≥ 1,5 × síla obránců (bez násobku – 8. 11.); hradbu při postupu ≤ 1 den (8. 11.); obrat při ztrátě ½ vojska                                                                                                                            |
-| Stropy dovedností              | výcvik doma 50, lov 70, válka 100 (Martin)                                                                                                                                                                                             |
-| Válka jako výcvik              | den tažení 2 h, den se soubojem 6 h; lov rodu se stropem 70                                                                                                                                                                            |
-| Síla vesničana                 | 0,4, nucený × 0,5, štěstí × 0,8–1,1 (Martin 3. 11.)                                                                                                                                                                                    |
-| Síla muže rodu                 | 1 + 2 × (boj + luk) ÷ 200 (Martin; průměr návrh Clauda)                                                                                                                                                                                |
-| Kůň                            | × (1 + 0,5 × jízda na koni ÷ 100), až × 1,5 (Martin)                                                                                                                                                                                   |
-| Zdraví a zásah                 | 100; 10 × síla (násobek obrany zrušen 8. 11.); luk polovina                                                                                                                                                                            |
-| Násobek obrany                 | ~~u domu 1,5; za opevněním 1,5 × násobek opevnění~~ – zrušeno 8. 11. i u domu (Martin „a“)                                                                                                                                             |
-| Rány                           | zblízka ≈ 2 s, luk ≈ 4 s na 20–60 m                                                                                                                                                                                                    |
-| Na nule zdraví                 | padlý / raněný 1 : 1, muž rodu raněný 2 : 3                                                                                                                                                                                            |
-| Bod zlomu                      | 30 % v útoku, 45 % v obraně, po skupinách; padlí a ranění ÷ muži                                                                                                                                                                       |
-| Vzdát se při přesile           | útočníků víc než 1,5× obránců (Martin), jezdec za dva; za opevněním až s útočníkem uvnitř obvodu (8. 11.)                                                                                                                              |
-| Muž rodu v bezvýchodné situaci | vzdá se s pravděpodobností 80 %                                                                                                                                                                                                        |
-| Včasný útěk                    | dospělý 25 kg (Martin), dítě 7–15 let 10 kg, dobytek celý                                                                                                                                                                              |
-| Nalezení jámy                  | 30 % za jámu po 1 herním dni ve skupině domů                                                                                                                                                                                           |
-| Ranění                         | 60 dní bez práce, 1 z 5 zemře (Martin)                                                                                                                                                                                                 |
-| Poslední muž rodu doma         | neklesne pod 10 zdraví, vždy uteče (Martin)                                                                                                                                                                                            |
-| Doslech rozkazu                | 30 m                                                                                                                                                                                                                                   |
-| Dosah zblízka                  | 3 m – oštěp a sekera dosáhnou přes plot, ~~i přes palisádu~~ přes palisádu ne (Martin 8. 11.)                                                                                                                                          |
-| Zda rána padne                 | zblízka los 1 : 1 každé rány (návrh Clauda); na dálku kruh rozptylu `(2 − 1,5 × dovednost ÷ 100) × vzdálenost ÷ 30` m, šance = viditelné plochy v kruhu ÷ plocha kruhu, vesničan jako dovednost 20 (Martin 8. 11., čísla návrh Clauda) |
-| Dohled v lese                  | 50 m (jinak ≈ 150 m; návrh Clauda)                                                                                                                                                                                                     |
-| Varování a útěk do hradiště    | vesničan i posel běží 2× tempem vojska; dostižení do 30 m; hráč volí 1 herní den (344 taktů), pak správce; hradiště do 8 políček, cesta = vzdušná čára × 1,3; doména do 3 políček, nejvýš 4 posly                                      |
+| Co                                 | Číslo                                                                                                                                                                                                                                  |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ochrana nového rodu                | 7 skutečných dní, končí vlastním útokem nebo opovědí (Martin)                                                                                                                                                                          |
+| Ochrana nové vsi                   | 5 herních let                                                                                                                                                                                                                          |
+| Válka utichne                      | 3 herní roky bez střetu                                                                                                                                                                                                                |
+| Tempo vojska                       | ≈ 3–4 m/s skutečného času, 1 km ≈ 4–5 min ≈ 3 herní dny (Martin)                                                                                                                                                                       |
+| Terén a náklad                     | les 1/4, cesta a stezka × 1,5, jezdci × 1,5, stádo × 0,5, ranění × 0,75                                                                                                                                                                |
+| Mřížka pochodu                     | buňka 10 m; hustý les = les se 3 stromy v okolí 30 × 30 m; brod = mělčina                                                                                                                                                              |
+| Takty tažení                       | 4 za sekundu; záměr hráče platí od taktu teď + 2; kontrolní bod po 40                                                                                                                                                                  |
+| Zima (1. 12. – konec února)        | sníh × 0,75; venku −3 zdraví a −2 % síly za den, ve vsi +10 a +5 %                                                                                                                                                                     |
+| Píce v zimě                        | 6 kg sena na koně denně (horses.md)                                                                                                                                                                                                    |
+| Jídlo                              | ≈ 1 kg obilí na muže a den                                                                                                                                                                                                             |
+| Nosnost                            | muž 25 kg, kůň bez jezdce 80 kg, dvoukolák 400 kg                                                                                                                                                                                      |
+| Dobrovolníci (nábor)               | 30 % + 0,5 % za bod štěstí nad 50, hlad +15 %, vdovská domácnost × 0,5, nejvýš 95 % (návrh Clauda)                                                                                                                                     |
+| Dezerce nucených                   | 5 % denně, s příbuznými v cíli 15 % (návrh Clauda – výchozí z 18. 10.)                                                                                                                                                                 |
+| Dezerce z hladu (živé vedení)      | 5 % mužů denně, když jídlo klesne pod jídlo na cestu domů; vůdce ne; u nuceného se přičte (návrh Clauda – Martin 14. 11. 2026 „Jo zkusme to takto“)                                                                                    |
+| Hráč mimo tažení                   | 1 herní den, pak zástupce, nebo rozpad                                                                                                                                                                                                 |
+| NPC velitel                        | ≥ 1,5 × síla obránců (bez násobku – 8. 11.); hradbu při postupu ≤ 1 den (8. 11.); obrat při ztrátě ½ vojska                                                                                                                            |
+| Stropy dovedností                  | výcvik doma 50, lov 70, válka 100 (Martin)                                                                                                                                                                                             |
+| Válka jako výcvik                  | den tažení 2 h, den se soubojem 6 h; lov rodu se stropem 70                                                                                                                                                                            |
+| Síla vesničana                     | 0,4, nucený × 0,5, štěstí × 0,8–1,1 (Martin 3. 11.)                                                                                                                                                                                    |
+| Síla muže rodu                     | 1 + 2 × (boj + luk) ÷ 200 (Martin; průměr návrh Clauda)                                                                                                                                                                                |
+| Kůň                                | × (1 + 0,5 × jízda na koni ÷ 100), až × 1,5 (Martin)                                                                                                                                                                                   |
+| Zdraví a zásah                     | 100; 10 × síla (násobek obrany zrušen 8. 11.); luk polovina                                                                                                                                                                            |
+| Násobek obrany                     | ~~u domu 1,5; za opevněním 1,5 × násobek opevnění~~ – zrušeno 8. 11. i u domu (Martin „a“)                                                                                                                                             |
+| Rány                               | zblízka ≈ 2 s, luk ≈ 4 s na 20–60 m                                                                                                                                                                                                    |
+| Na nule zdraví                     | padlý / raněný 1 : 1, muž rodu raněný 2 : 3                                                                                                                                                                                            |
+| Bod zlomu                          | 30 % v útoku, 45 % v obraně, po skupinách; padlí a ranění ÷ muži                                                                                                                                                                       |
+| Přesila (útěk bez lesa, dostižení) | útočníků víc než 1,5× obránců (Martin), jezdec za dva                                                                                                                                                                                  |
+| Muž rodu v bezvýchodné situaci     | vzdá se s pravděpodobností 80 %                                                                                                                                                                                                        |
+| Včasný útěk                        | dospělý 25 kg (Martin), dítě 7–15 let 10 kg, dobytek celý                                                                                                                                                                              |
+| Nalezení jámy                      | 30 % za jámu po 1 herním dni ve skupině domů                                                                                                                                                                                           |
+| Ranění                             | 60 dní bez práce, 1 z 5 zemře (Martin)                                                                                                                                                                                                 |
+| Poslední muž rodu doma             | neklesne pod 10 zdraví, vždy uteče (Martin)                                                                                                                                                                                            |
+| Doslech rozkazu                    | 30 m                                                                                                                                                                                                                                   |
+| Dosah zblízka                      | 3 m – oštěp a sekera dosáhnou přes plot, ~~i přes palisádu~~ přes palisádu ne (Martin 8. 11.)                                                                                                                                          |
+| Zda rána padne                     | zblízka los 1 : 1 každé rány (návrh Clauda); na dálku kruh rozptylu `(2 − 1,5 × dovednost ÷ 100) × vzdálenost ÷ 30` m, šance = viditelné plochy v kruhu ÷ plocha kruhu, vesničan jako dovednost 20 (Martin 8. 11., čísla návrh Clauda) |
+| Dohled v lese                      | 50 m (jinak ≈ 150 m; návrh Clauda)                                                                                                                                                                                                     |
+| Varování a útěk do hradiště        | vesničan i posel běží 2× tempem vojska; dostižení do 30 m; ~~hráč volí 1 herní den (344 taktů), pak správce~~ (zrušeno 14. 11. 2026); hradiště do 8 políček, cesta = vzdušná čára × 1,3; doména do 3 políček, nejvýš 4 posly           |
+| Hráč ve vsi a mimo ni              | přítomnost hráče u hry obnovuje server každou ¼ herního dne (86 taktů ≈ 22 s); bez přítomnosti déle než 1 herní den rozhodne za ves s vojvodou doma nastavení (návrh Clauda)                                                           |
 
 Z 18. 10. beze změny: skupina domů 40 m, dohled 150 m, nosnost 25 kg, ochota a dezerce, kovárna
 × 1,5, ~~obrana u domu × 1,5~~ (zrušeno 8. 11. 2026), nucený × 0,5 / 0,3, štěstí × 0,8–1,1.
@@ -1050,7 +1073,7 @@ dokumentu výš je podle nich přepsané (3. 11. 2026)**; při rozporu platí te
 - **Kořist:** jídlo ze zásob (obilí, luštěniny, maso, sýr) kolik unesou – 25 kg na muže, s vozy
   víc; nehlídaný dobytek a koně mimo palisádu (stádo zpomalí návrat); odvedení lidé; domy, pole
   a sady se zatím nepálí – „ok“.
-- **Postoje vsi bez hráče:** do posledního / vzdát se při přesile (útočníků víc než 1,5× obránců) /
+- **Postoje vsi bez hráče:** do posledního / ~~vzdát se při přesile~~ (zrušeno 14. 11. 2026) /
   raději utéct (včas do lesa nebo za palisádu se zásobami a stády); výchozí „raději utéct“ – „ok“.
 - **Opevnění:** „Typy hrazení bychom asi měli probrat zvlášť, je to dost rozsáhlé téma“ –
   palisáda níž je jen zástupný návrh; opevnění bude samostatný návrh (`fortifications.md`).
@@ -1091,10 +1114,10 @@ dokumentu výš je podle nich přepsané (3. 11. 2026)**; při rozporu platí te
   sami od sebe“ (Martin 3. 11. 2026) – postoj se jmenuje **bránit se** a platí do bodu zlomu
   (45 % ztrát v obraně).
 - **Postoje – dopředu i při obraně:** postoj se nastaví dopředu u každé vsi (bránit se – stěna
-  štítů, vzdát se při přesile – bílá vlajka, raději utéct – stromy; popis v bublině) a ves se podle
+  štítů, ~~vzdát se při přesile – bílá vlajka~~ (zrušeno 14. 11. 2026), raději utéct – stromy; popis v bublině) a ves se podle
   něj zachová, když vesničan spatří cizí vojsko (utéct hned se zásobami a stády / seběhnout se do
-  skupin / vzdát se při přesile 1,5×); přítomný hráč dostane upozornění a smí velet sám (postoj po
-  skupinách, útěk, vlastní výpad); bod zlomu platí vždy – „ano“ (Martin 3. 11. 2026).
+  skupin / ~~vzdát se při přesile 1,5×~~); ~~přítomný hráč dostane upozornění a smí velet sám (postoj po
+  skupinách, útěk, vlastní výpad)~~ (od 14. 11. 2026 – Hráč ve vsi a mimo ni); bod zlomu platí vždy – „ano“ (Martin 3. 11. 2026).
 - **Upozornění:** krátké zprávy („Cizí vojsko u Kněžic!“, „Kněžice poraženy.“, „Ctibor nabízí mír.“,
   „Bořivoj svolává.“, „Ctibor poslal 3 muže.“, „Bořivoj ohlásil průchod.“, „Zajat: Ctibor.“), klik
   otevře panel nebo dialog – „ok“.
