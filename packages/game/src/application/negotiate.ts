@@ -184,6 +184,20 @@ function checkWarDemandParties(items: readonly TermItem[], a: string, b: string)
 }
 
 /**
+ * Řádek míru nebo výkupného s vazalstvím (přísahou) smí jen dvojice bez živé dohody – stejné
+ * pravidlo jako při otevření jednání s přísahou (`canOpen`, návrh Clauda).
+ */
+async function checkNoLiveAgreement(
+  tx: NegotiationTx,
+  line: PeaceLine | RansomLine,
+  a: string,
+  b: string,
+): Promise<string | null> {
+  if (!line.vassalage) return null;
+  return (await agreementBetween(tx, a, b)) ? R.alreadyVassal : null;
+}
+
+/**
  * Kontrola mírového kola: tvar a čísla (doména), válka mezi stranami běží, postoupené vsi patří
  * postupující straně a není to její poslední ves. Kolo bez řádku míru je v pořádku.
  */
@@ -199,6 +213,8 @@ async function checkPeaceRound(
   const bad = checkPeaceItems(items, [a, b]);
   if (bad) return bad;
   if (!(await tx.wars.activeBetween(a, b))) return PEACE_REASONS.noWar;
+  const taken = await checkNoLiveAgreement(tx, line, a, b);
+  if (taken) return taken;
   if (line.cede) {
     if (!deps.cede) return PEACE_REASONS.noCede;
     const checked = await deps.cede.check([a, b], line.cede);
@@ -210,6 +226,7 @@ async function checkPeaceRound(
 /** Kontrola výkupného v kole: tvar a čísla (doména), strany vazalství a zajatci ve věznitelově vsi. */
 async function checkRansomRound(
   deps: NegotiateDeps,
+  tx: NegotiationTx,
   items: readonly TermItem[],
   a: string,
   b: string,
@@ -218,6 +235,8 @@ async function checkRansomRound(
   if (!line) return null;
   const bad = checkRansomItems(items, [a, b]);
   if (bad) return { reason: bad };
+  const taken = await checkNoLiveAgreement(tx, line, a, b);
+  if (taken) return { reason: taken };
   if (!deps.ransom) return { reason: RANSOM_REASONS.noHost };
   const checked = await deps.ransom.check([a, b], line);
   return checked.ok ? { captorHouseId: checked.captorHouseId } : { reason: checked.reason };
@@ -466,7 +485,7 @@ export async function openNegotiation(
     if (badPeace) return fail(badPeace);
     const badTrade = await checkTradeRound(deps, input.items, [from.id, input.to]);
     if (badTrade) return fail(badTrade);
-    const badRansom = await checkRansomRound(deps, input.items, from.id, input.to);
+    const badRansom = await checkRansomRound(deps, tx, input.items, from.id, input.to);
     if (badRansom && 'reason' in badRansom) return fail(badRansom.reason);
     const lordId = oath?.lord ?? existing?.lordHouseId ?? '';
     const badVillage = await checkTargetVillage(deps, input.items, lordId);
@@ -557,7 +576,13 @@ export async function counterNegotiation(
     if (badPeace) return fail(badPeace);
     const badTrade = await checkTradeRound(deps, input.items, [loaded.actor.id, loaded.other.id]);
     if (badTrade) return fail(badTrade);
-    const badRansom = await checkRansomRound(deps, input.items, loaded.actor.id, loaded.other.id);
+    const badRansom = await checkRansomRound(
+      deps,
+      tx,
+      input.items,
+      loaded.actor.id,
+      loaded.other.id,
+    );
     if (badRansom && 'reason' in badRansom) return fail(badRansom.reason);
     const badVillage = await checkTargetVillage(
       deps,
@@ -840,7 +865,7 @@ async function checkAcceptance(
   let ransoming: Ransoming | null = null;
   if (ransomLine) {
     const parties: [string, string] = [loaded.actor.id, loaded.other.id];
-    const checked = await checkRansomRound(deps, items, ...parties);
+    const checked = await checkRansomRound(deps, tx, items, ...parties);
     if (checked && 'reason' in checked) return fail(checked.reason);
     if (checked) {
       ransoming = {

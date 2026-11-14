@@ -472,6 +472,9 @@ tím, že nabídku vazala odsouhlasí, nebo dá protinabídku – bez jeho souhl
 - **Obdarovaný už s věnovaným vazalem dohodu má (návrh Clauda, 14. 11. 2026):** dvojice (pán, vazal)
   má nejvýš jednu živou dohodu, proto podmínky dohody dárce zaniknou a platí ta stávající.
   Pohledávky dárce vůči vazalovi obdarovaný získá tak či tak.
+- **Jedna živá dohoda dvojice platí i pro přísahu v míru a výkupném (návrh Clauda, 14. 11. 2026):**
+  návrh, protinávrh i přijetí míru nebo výkupného s vazalstvím pro dvojici, která už živou dohodu má,
+  se odmítne důvodem „Dohoda už trvá.“ – stejně jako otevření jednání s přísahou.
 
 ### Začít znovu
 
