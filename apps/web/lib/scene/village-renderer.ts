@@ -33,6 +33,7 @@ import { OreSiteRenderer } from './ore-sites';
 import { GrainPitRenderer } from './grain-pits';
 import { ThreshingFloorRenderer } from './threshing-floor-renderer';
 import { CraftYardRenderer } from './craft-yard-renderer';
+import { WaresRenderer } from './wares-renderer';
 import { smeltVents, type CraftYardView } from './craft-yard-layout';
 import { floorSiteLook } from './threshing-floor-layout';
 import {
@@ -251,6 +252,7 @@ export class VillageRenderer {
   private readonly threshing: ThreshingFloorRenderer;
   /** Dvory kovárny a hrnčíře – redukční pec, houba, hřivny, jáma s hlínou (craft-yard-renderer.ts). */
   private readonly craftYards: CraftYardRenderer;
+  private readonly wares: WaresRenderer;
   private readonly pegs: StakingPegs;
   private readonly orchards: OrchardRenderer;
   private readonly sacred: SacredRenderer;
@@ -348,6 +350,12 @@ export class VillageRenderer {
       prepareMaterial: prepareDwellingMaterial,
     });
     this.craftYards = new CraftYardRenderer(scene, { decalHeight: context.decalHeight });
+    this.wares = new WaresRenderer(scene, {
+      groundHeight: context.groundHeight,
+      addShadowCaster: (mesh) => context.addShadowCaster(mesh),
+      onAsyncChange: () => context.onAsyncChange(),
+      prepareMaterial: prepareDwellingMaterial,
+    });
     this.orchards = new OrchardRenderer(scene, context);
     this.plots = new HomesteadRenderer(scene, {
       groundHeight: context.groundHeight,
@@ -431,6 +439,7 @@ export class VillageRenderer {
     const floors = this.threshing.update(village.threshingFloors ?? []) || floorDecals;
     const ruins = this.updateRuins(village.ruins ?? []);
     const yards = this.craftYards.update(craftYardViews(village.dwellings));
+    const wares = this.wares.update({ dwellings: village.dwellings, wares: village.wares });
     if (dwellings || ruins) this.updatePitCuts();
     // ladicí orba za herní den: dnešní díly orby na začátku dne, zbytek přibývá brázdou za rádlem
     this.ploughDay = this.ploughDayOf(village);
@@ -475,7 +484,8 @@ export class VillageRenderer {
       kilns ||
       remnants ||
       floors ||
-      yards
+      yards ||
+      wares
     );
   }
 
@@ -1058,6 +1068,7 @@ export class VillageRenderer {
     this.grainPits.dispose();
     this.threshing.dispose();
     this.craftYards.dispose();
+    this.wares.dispose();
     this.plots.dispose();
     // ohrady uvolní své ploty – před sdílenými ploty
     this.pens.dispose();

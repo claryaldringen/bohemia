@@ -16,7 +16,10 @@ import { seededRandom, shapedToWorld, smoothstep, type DecalGrid } from './villa
  * Tvar obydlí v souřadnicích Blenderu: eaveX = kapková linie okapu (kam stéká voda ze střechy),
  * eaveHalf = polovina její délky, frontY = přední štít se dveřmi.
  */
-const SHAPES: Record<DwellingType, { eaveX: number; eaveHalf: number; frontY: number }> = {
+export const DWELLING_EAVES: Record<
+  DwellingType,
+  { eaveX: number; eaveHalf: number; frontY: number }
+> = {
   // okap leží na valu drnů (hřbet x ≈ 2,25, pata 2,7) – voda stéká po vnější straně valu;
   // střecha přečnívá štíty o 1,05 m (vpředu kryje šíji), hlína před vchodem začíná u jejího ústí
   zemnice: { eaveX: 2.5, eaveHalf: 3.1, frontY: -2.6 },
@@ -83,7 +86,7 @@ export function eaveTufts(
   frame: ShapeFrame = PLAIN_FRAME,
 ): TuftPlacement[] {
   const rnd = seededRandom(1000 + seed * 7919);
-  const { eaveX, eaveHalf } = SHAPES[type];
+  const { eaveX, eaveHalf } = DWELLING_EAVES[type];
   const result: TuftPlacement[] = [];
   for (const side of [-1, 1]) {
     // řada přímo pod okapem (nejhustší a nejvyšší), za ní řidší
@@ -143,7 +146,7 @@ export function earthPatch(
 ): DecalGrid {
   const rnd = seededRandom(77 + seed * 104729 + layer.size * 1000);
   const phases = [rnd(), rnd(), rnd(), rnd()].map((v) => v * Math.PI * 2);
-  const { frontY } = SHAPES[type];
+  const { frontY } = DWELLING_EAVES[type];
   const cy = frontY - 1.3;
   const forward = 2.8 * layer.size;
   const back = 1.6 * layer.size;

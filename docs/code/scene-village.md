@@ -266,6 +266,24 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`chickensFor`). Ukázka staveb (`/dev/buildings`): nadzemní dům na pozemku v zadním rohu
   (`LOG_HOUSE_AT`) a srubový dvorec vedle dvorce (`LOG_MANOR_AT`).
 
+## Klát a rám s kůží (hides-honey.md – Ve scéně; plán 2026-11-14-hides-honey – Úloha 9)
+
+- **Data:** `SceneVillage.wares?: { beesOut, frames, day }` (`sceneWares` ve `village-view-scene.ts`).
+  `beesOut` = `beesFlying(day)` (květen–září), `frames` = `ceil` součtu kůží a kožešin ve všech
+  várkách `wares.curing` – kůže tedy visí na rámu po celou dobu zpracování, ne jen v den, kdy se
+  vzala do práce (návrh Clauda). `day` slouží jen k rotaci obydlí s rámem.
+- **Umístění** (`wares-placement.ts`, čisté funkce, tvar okapů je `DWELLING_EAVES` z
+  `dwelling-decor.ts`): `hivePlacement` – klát u boční stěny `eaveX + 0,8 m` za okapem, `0,6 m`
+  před zadním koncem střechy, česnem ven (−x modelu); kdyby stál v pásu slepic (`chickenBox`, u
+  dvorce), odsune se za jeho zadní okraj. `hideFramePlacement` – rám `1,5 m` před přední stěnou
+  (`frontY`), `eaveX − 0,6`, nejméně za předním okrajem pásu slepic. `hideFrameDwellings` – z
+  obývaných obydlí podle id od indexu `day mod n`, `min(n, frames)` obydlí.
+- **Kreslení** (`wares-renderer.ts`, vzor `ThreshingFloorRenderer`): modely
+  `models/wares/hive.glb`, `hive-bees.glb`, `hide-frame.glb` načtené líně jako sloučené meshe v
+  instancích (`thinInstanceSetBuffer`); klát u každého hotového obydlí (při `beesOut` model se
+  včelami), rám u vybraných. Přestaví se jen při změně klíče `waresKey` (domy, tvar, včely, počet
+  rámů, den při rámech) a vrátí `true` do `needsRender`.
+
 ## Humno ve scéně (production-chains.md – Humno, Obilné jámy; úloha 5 výrobních řetězů)
 
 Humno je jen mlat bez přístřešku (Martin 21. 10. 2026), mlátí se **holemi** – cepy se tehdy
