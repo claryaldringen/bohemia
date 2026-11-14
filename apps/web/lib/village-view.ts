@@ -193,7 +193,7 @@ export function chronicle(state: VillageState, name: string): VillageView['chron
       // pohromy – stupeň vody, síla smrště, díly a domy pro upozornění (disasters.md)
       ...disasterChronicleFields(event),
       dateLabel: formatGameDate(dateOfDayIndex(event.day)),
-      text: chronicleText(event, name),
+      text: chronicleText(event, name, state.seed),
     }));
 }
 

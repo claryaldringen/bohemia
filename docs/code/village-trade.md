@@ -64,7 +64,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, pastevci, lesní ves,
   řemeslníci, každý dvakrát kolem vsi; `NEIGHBOURS.kinds`: 2–3 nabízí ze své nabídky, 2–3 shání –
   `always` vždy, zbytek z `needs`), roční zásoby a poptávka `NEIGHBOURS`, jméno
-  `suggestVillageName`), `neighbourStock` – zbytek roku obchodu
+  `suggestVillageName` – kronika ho skloňuje: kovář a směna se sousedem, web-ui.md – Panel
+  Kronika), `neighbourStock` – zbytek roku obchodu
   (`tradeSeason` – od 1. 11.), ukládá se jen `VillageTrade.neighbours`. Hodnoty zboží v kg obilí
   `TRADE_GOOD_VALUES` (rešerše `research/2026-10-18-trade-values.md`), ceny `sellPrice` / `buyPrice`
   (přirážka a příplatky `TRADE`), `tradeQuote` – kontrola a ocenění (bilance pro souseda ≥ 0,

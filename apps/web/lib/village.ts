@@ -373,7 +373,7 @@ export function chronicleForPlayer(
     const full = (status.villages as readonly DynastyVillage[]).filter(isFullVillage);
     const current = full.find((v) => v.id === ctx.villageId);
     if (!current) return { error: NO_VILLAGE };
-    return chroniclePage(current.state.chronicle, current.name, ask);
+    return chroniclePage(current.state.chronicle, current.name, ask, current.state.seed);
   });
 }
 
