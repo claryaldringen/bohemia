@@ -1,4 +1,6 @@
 import type { WorldClock } from '../domain/calendar';
+import { isVillageExtinct } from '../domain/village/core/extinction';
+import { isVillageAbandoned } from '../domain/village/people/departure';
 import type { VillageState } from '../domain/village/types';
 import type { GridCell } from '../domain/village/people/world-grid';
 import {
@@ -501,6 +503,9 @@ export async function computeWithLoads<S extends { id: string; playerId: string 
         return null;
       }
       known.read = true;
+      // vymřelá nebo opuštěná ves se už nesimuluje (spí) – její uložený stav je stavem ke
+      // kterémukoli pozdějšímu dni, skupina na ni nečeká (Ruling 40)
+      if (isVillageExtinct(known.state) || isVillageAbandoned(known.state)) return known.state;
       return known.state.lastDay >= day - 1 ? known.state : null;
     },
     // ves se zkusila načíst a není (zanikla), nebo je její sídlo v archivu (Začít znovu – záznam

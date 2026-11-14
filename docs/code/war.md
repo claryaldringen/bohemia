@@ -206,7 +206,7 @@ notices, waiting }` – čistá, vstup nemění. Takt na kopii stavu (`cloneData
 - **Svět tažení** – `CampaignWorld { clock, landscapeOf(cell), villageAt(villageId, day) }`
   (synchronní): `null` = data ještě nejsou → takt se zastaví a `waiting` vrátí chybějící políčka /
   vsi; výsledek se tím nezmění. Mřížka bere cesty a opevnění **první** vsi mapy; `villageAt` dá stav
-  vsi ke konci dne `d − 1` (bariéra – Ú6.7). Volitelný `villageGone?(villageId)` – svět ves zkusil
+  vsi ke konci dne `d − 1` (bariéra – Ú6.7). Vymřelá nebo opuštěná (spící) ves je hotová – její uložený stav platí pro každý den. Volitelný `villageGone?(villageId)` – svět ves zkusil
   načíst a není (zanikla) – čte jen výjezd vojvody (`docs/code/journey.md`); tažení se neptá.
 - **Use-case** – `application/step-campaigns.ts`: `stepCampaigns(deps, { nowMs })` – pro každé
   `campaigns.active()` pod `CampaignLock.tryRun` (jinak `busy`): kontrolní bod (s pamětí workeru

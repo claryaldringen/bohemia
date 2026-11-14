@@ -124,6 +124,8 @@ tempo a svět `CampaignWorld`.
 - **Dopočet s načítáním** – `computeWithLoads(deps, state, step)` v `step-campaigns.ts` je
   zobecněný dopočet tažení (`computeCampaign` ho volá nad `stepCampaign`, výjezd nad `stepJourney`):
   chybí-li taktu mapa nebo ves (bariéra Ú6.7), načtou se a výpočet pokračuje od zastaveného taktu.
+  Spící ves na mapě skupiny (vymřelá nebo opuštěná – worker ji nedopočítá, její `lastDay` stojí) se
+  bere jako hotová: `villageAt` jí pro jakýkoli den vrátí uložený stav, skupina na ni nečeká (Ruling 40).
   Svět dodá `villageGone` (ves se zkusila načíst a není, nebo je její sídlo v archivu) – výjezd,
   jehož domovská ves zanikla, skončí bez událostí a nečeká na ni navždy. Archiv
   (`VillageRepository.archivedOf`) se zjišťuje líně jako varování tažení: až když se takt ptá na
