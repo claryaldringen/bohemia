@@ -1,6 +1,6 @@
 # Výpravy – hráč posílá lidi ze vsi
 
-Stav: **návrh** (14. 11. 2026), čeká na schválení. Rozšiřuje [výjezd vojvody](lord-control.md):
+Stav: **schváleno** (Martin 14. 11. 2026: „Takhle je to ok“). Rozšiřuje [výjezd vojvody](lord-control.md):
 výjezd je teď výprava, ve které je vojvoda. Z výjezdu platí dál pohyb, dohled a objevování, znalost
 rodu, soused, nebezpečí a prohraný boj. Nahrazuje v něm sekce Kdo jede (Družina, Kůň), Co hráč
 vidí (Výběr) a Ve scéně (Odjezd).
