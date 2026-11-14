@@ -122,6 +122,18 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   jeho povahu, a výpravu na cestě pro zboží zvenku zruší – nosiči přinesou zpět, co nesli
   (`get` = `give`); z kroniky výprav zboží zvenku zmizí.
 
+- **Kůže, kožešiny, med a vosk** (trade.md – Jen společné suroviny; hides-honey.md – Obchod):
+  `TradeGood` += `honey` / `hides` / `furs` / `wax` (`TRADE_GOODS` za kamenem). Hodnoty v
+  `TRADE_GOOD_VALUES`, druhy sousedů a roční množství `NEIGHBOURS.waresKinds` / `waresAmounts`
+  (`rules-trade.ts`), losy `waresAmounts` v `neighbours.ts` z proudu `neighbour-wares:{směr}`.
+  Zásoba ve vsi `villageGoodStock` (`trade.ts`): `floor` z `hides` + `smallHides × smallHideRatio()`
+  (`HIDES.smallHideM2 / hideM2`), ze `sheepFurs + wildFurs`, z `honeyKg` a `waxKg`; `addGood` při
+  prodeji bere napřed velké kůže a kožešiny z lovu, nákup kůží jde do `hides`, kožešin do
+  `wildFurs` (`ensureWares`). Rozpis kůží a kožešin pro popisek: `VillageNeighbour.wares`
+  (`manor-view.ts`) → `waresNote` v `TradePanel.tsx`. Názvy a ikony: `TRADE_GOOD_NAMES`
+  (`trade-names.ts`); kronika je bere z `goodsText`. Zbytek roku souseda uložený bez nového zboží
+  zahodí `fitsNeighbour` (`withoutForeignGoods`) – soused dostane plný rok.
+
 - **Dobytek ve třech druzích** (trade.md – Dobytek ve třech druzích; Martin 20. 10. 2026: „s
   dobytkem by také mělo jít obchodovat. Představuju si tři kategorie - krávy, mladé voly (musí se
   vycvičit) a vycvičené voly“; `cattle-trade.ts`): `CattleGood` = `cows` / `youngOxen` /

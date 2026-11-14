@@ -55,6 +55,10 @@ export const TRADE_GOODS: readonly TradeGood[] = [
   'ironBars',
   'charcoal',
   'stone',
+  'honey',
+  'hides',
+  'furs',
+  'wax',
 ];
 
 /**
@@ -187,6 +191,26 @@ function stoneAmounts(
 }
 
 /**
+ * Kůže, kožešiny, med a vosk souseda podle povahy (hides-honey.md – Obchod): roční množství všech
+ * čtyř druhů, které soused nabízí nebo shání – losy z vlastního proudu, ať se ostatní zboží souseda
+ * nezmění.
+ */
+function waresAmounts(
+  seed: number,
+  direction: Direction8,
+  kind: NeighbourKind,
+): { supply: TradeGoods; demand: TradeGoods } {
+  const rnd = createRandom(deriveSeed(seed, `neighbour-wares:${direction}`));
+  const side = NEIGHBOURS.waresKinds[kind] === 'offers' ? 'supply' : 'demand';
+  const out: { supply: TradeGoods; demand: TradeGoods } = { supply: {}, demand: {} };
+  for (const good of ['hides', 'furs', 'honey', 'wax'] as const) {
+    const { from, to } = NEIGHBOURS.waresAmounts[good];
+    out[side][good] = between(rnd, from, to);
+  }
+  return out;
+}
+
+/**
  * Čím se živí soused ve směru `direction`: kolem vsi je každý druh dvakrát, rozdaný do směrů
  * deterministicky ze seedu (co ves potřebuje, to některý soused nabízí).
  */
@@ -219,15 +243,18 @@ export function neighbourOf(seed: number, direction: Direction8): Neighbour {
   const always = (NEIGHBOURS.cattleAlways as readonly string[]).includes(kind);
   const horses = horseAmounts(seed, direction, kind);
   const stone = stoneAmounts(seed, direction, kind);
+  const wares = waresAmounts(seed, direction, kind);
   const supply = {
     ...amounts(offerTokens, NEIGHBOURS.supplyKg, rnd, extra, cattle, always),
     ...horses.supply,
     ...stone.supply,
+    ...wares.supply,
   };
   const demand = {
     ...amounts(demandTokens, NEIGHBOURS.demandKg, rnd, extra, cattle, false),
     ...horses.demand,
     ...stone.demand,
+    ...wares.demand,
   };
   const offers = ordered(Object.keys(supply) as TradeGood[]);
   const demands = ordered(Object.keys(demand) as TradeGood[]);

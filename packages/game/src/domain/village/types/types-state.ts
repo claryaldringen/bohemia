@@ -8,6 +8,7 @@ import type {
   LastingNoticeState,
 } from './types-chronicle';
 import type { StewardState } from './types-steward';
+import type { WaresState } from './types-wares';
 import type { Church, Lodge } from './types-masonry';
 import type { Construction, FarmSeason } from './types-construction';
 import type { Fortification, ThreatSignal } from '../fortification/types';
@@ -424,6 +425,8 @@ export interface VillageState {
    * zvěř na stropu doplní `withWildlife`.
    */
   wildlife?: WildlifeState;
+  /** zboží vsi – kůže, kožešiny, med a vosk (hides-honey.md); vzniká líně, chybí = 0 */
+  wares?: WaresState;
   /**
    * Kopie seedu počasí kraje – mapy (disasters.md – Kraj a ochrana nové vsi): všechny vsi mapy
    * počítají z něj totéž počasí samy (`yearWeather`). Dá ho server při načtení (`withWeatherSeed`);

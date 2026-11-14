@@ -108,6 +108,18 @@ describe('roční přepočet 1. 5.', () => {
     return next;
   }
 
+  it('1. 5. se lišky vrátí na strop a kvóta je má', () => {
+    const s = withStock(village());
+    s.wildlife!.foxes = 0.3;
+    s.wildlife!.smallGame = {
+      today: null,
+      year: { fishKg: 0, hares: 0, meatKg: 0, days: 0 },
+    };
+    const r = year(s).wildlife!;
+    expect(r.foxes).toBe(foxCount(r.land));
+    expect(r.smallGame!.quota!.foxes).toBe(Math.max(0, foxCount(r.land) - foxCount(r.land) / 2));
+  });
+
   it('jiný den než 1. 5. nic nemění', () => {
     const s = withStock(village());
     expect(year(s, at(601, 5, 2))).toEqual(s);

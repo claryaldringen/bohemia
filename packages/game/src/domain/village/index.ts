@@ -483,3 +483,4 @@ export * from './steward/founding';
 export * from './steward/steward-son';
 export * from './buildings/structure-use';
 export * from './buildings/demolition';
+export { beesFlying } from './wares/wares';

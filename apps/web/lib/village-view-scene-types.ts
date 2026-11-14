@@ -63,6 +63,12 @@ export interface SceneDemolition {
 
 export interface SceneVillage {
   /**
+   * Klát a rámy s kůží u obydlí (hides-honey.md – Ve scéně): `beesOut` – včely dnes létají (klát
+   * se včelami u česna), `frames` – kolik rámů stojí před domy (kůže a kožešiny v práci, po celou
+   * dobu zpracování), `day` – herní den (střídání obydlí s rámem). Chybí = ves bez zboží.
+   */
+  wares?: { beesOut: boolean; frames: number; day: number };
+  /**
    * Hotová obydlí (`built: true`, id obydlí) i rozestavěná (`built: false`, id stavby); řemeslná
    * dílna nese řemeslo (`craft` – model dílny, u uhlíře i milíř).
    */

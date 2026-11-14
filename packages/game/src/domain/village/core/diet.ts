@@ -21,6 +21,7 @@ import {
 import { ageGroup, foodNeedPerDay, guestFoodNeedPerDay } from '../people/people';
 import { NO_CRAFTS, storageLossPerYear } from './productivity';
 import { APPLE_FOOD_VALUE, LEGUMES } from '../rules';
+import { HONEY } from '../rules/rules-wares';
 import type { ChronicleEvent, DietDay, Person, VillageState } from '../types';
 import { sheavesOutlook } from '../fields/threshing';
 import { daysUntilFoodHarvest } from './year-plan';
@@ -32,7 +33,8 @@ import { winterEstimateLosses } from '../disasters/disasters';
 // váhy; luštěniny jako plodina na poli). Ovoce se jí přednostně, dokud nezkazí (rovným dílem do
 // 1. 3.), čerstvé mléko a vejce, jak přibývají (přebytek mléka na sýr), maso rovným dílem do
 // zkažení (31. 8. – uzené z podzimní porážky se šetřilo na žně; maso ze září a října do
-// porážky), sýr do příštího dojení a luštěniny do příští sklizně; obilí dorovná energii.
+// porážky), sýr do příštího dojení, luštěniny do příští sklizně a med z klátů pevným přídělem
+// (hides-honey.md – Klát u obydlí); obilí dorovná energii.
 // Ovoce smí pokrýt nejvýš čtvrtinu potřeby energie, maso 40 %, mléko a sýr 30 %, luštěniny
 // LEGUMES.energyCap.
 // Hladem se umírá jen z nedostatku energie (population.md – Hlad a vymření), bílkoviny a ovoce
@@ -102,6 +104,11 @@ export function fruitEnergy(kg: number): number {
   return kg * APPLE_FOOD_VALUE;
 }
 
+/** Energie medu v kg obilí (HONEY.energyPerKg). */
+export function honeyEnergy(kg: number): number {
+  return kg * HONEY.energyPerKg;
+}
+
 /** Potřeba bílkovin člověka za den (kg) – 1,6 g na kg tělesné váhy jeho skupiny. */
 export function proteinNeedPerDay(person: Person, day: number): number {
   return (PROTEIN.bodyKg[ageGroup(person, day)] * PROTEIN.gPerKgBody) / 1000;
@@ -137,6 +144,8 @@ export interface Eaten {
   cheeseKg: number;
   eggsKg: number;
   legumesKg: number;
+  /** Med z klátů (kg) – jen energie, bez bílkovin a bez vlivu na kvalitu stravy. */
+  honeyKg: number;
 }
 
 const NOTHING: Eaten = {
@@ -149,6 +158,7 @@ const NOTHING: Eaten = {
   cheeseKg: 0,
   eggsKg: 0,
   legumesKg: 0,
+  honeyKg: 0,
 };
 
 /**
@@ -167,6 +177,8 @@ export function dietOf(needPerDay: number, proteinNeedKg: number, eaten: Eaten):
     };
   }
   const fresh = eaten.freshMeatKg ?? 0;
+  // med jen když se jedl – vsi bez medu podíl nepřibude (převod `withoutForeignGoods`)
+  const honey = honeyEnergy(eaten.honeyKg) / needPerDay;
   const shares = {
     grain: eaten.grainKg / needPerDay,
     meat: meatEnergy(eaten.meatKg) / needPerDay,
@@ -175,10 +187,11 @@ export function dietOf(needPerDay: number, proteinNeedKg: number, eaten: Eaten):
     eggs: (eaten.eggsKg * DIET.energy.eggs) / needPerDay,
     fruit: fruitEnergy(eaten.fruitKg) / needPerDay,
     legumes: legumeEnergy(eaten.legumesKg) / needPerDay,
+    ...(honey > 0 ? { honey } : {}),
   };
   const energy = Math.min(
     1,
-    shares.grain + shares.meat + shares.dairy + shares.eggs + shares.fruit + shares.legumes,
+    shares.grain + shares.meat + shares.dairy + shares.eggs + shares.fruit + shares.legumes + honey,
   );
   const proteinKg =
     eaten.grainKg * PROTEIN.perKg.grain +
@@ -231,6 +244,13 @@ export interface DietInput {
   legumesKg?: number;
   /** Dní do příští sklizně luštěnin včetně dneška – jí se rovným dílem do ní; bez údaje rok. */
   daysToLegumeHarvest?: number;
+  /** Zásoba medu (kg – zboží vsi i s dnešním medem z klátů); bez údaje žádná. */
+  honeyKg?: number;
+  /**
+   * Pevný příděl medu za den (kg – `villageHoneyRationKg`, hides-honey.md – Klát u obydlí): jí se
+   * z toho, co je, zbytek zůstane v zásobě. Bez údaje žádný.
+   */
+  honeyRationKg?: number;
   /** Potřeba energie vsi za den (kg obilí). */
   needPerDay: number;
   /** Potřeba bílkovin vsi za den (kg); bez údaje bílkoviny pokryté. */
@@ -267,6 +287,8 @@ export interface DietResult {
   cheeseMadeKg: number;
   /** Zásoba luštěnin po jídle (kg). */
   legumesKg: number;
+  /** Zásoba medu po jídle (kg) – nekazí se. */
+  honeyKg: number;
   diet: DietDay;
   /**
    * Nejnižší příděl energie do sklizně podle výhledu 0–1 (dnešní, nebo po zkažení ovoce, je-li
@@ -312,6 +334,13 @@ interface DietPlan {
   meatUntilHarvest: number;
   cheeseRation: number;
   legumeRation: number;
+  /** Zásoba medu a kolik se ho dnes sní (kg). */
+  honey: number;
+  honeyEaten: number;
+  /** Dnešní příděl medu (energie), na kolik dní zásoba vydrží a med do sklizně. */
+  honeyRation: number;
+  honeyDays: number;
+  honeyUntilHarvest: number;
   /** Sýr, luštěniny a vejce za den – počítají se i do dalších dní. */
   daily: number;
   /** Dnešní jídlo mimo obilí. */
@@ -372,10 +401,17 @@ function dietPlan(input: DietInput): DietPlan {
     legumeEnergy(legumesAhead) / Math.max(1, input.daysToLegumeHarvest ?? COMMON_YEAR_DAYS),
     legumeEnergy(legumes),
   );
-  // sýr, luštěniny a vejce se počítají i do dalších dní, maso do svého zkažení, mléko a ovoce
+  // med pevným přídělem z toho, co je – bez stropu (hides-honey.md – Klát u obydlí); do sklizně
+  // jen, dokud zásoba vydrží (jako maso do zkažení) – med, který klády dají do žní, výhled nezná
+  const honey = Math.max(0, input.honeyKg ?? 0);
+  const honeyEaten = Math.min(honey, Math.max(0, input.honeyRationKg ?? 0));
+  const honeyRation = honeyEnergy(honeyEaten);
+  const honeyDays = honeyEaten > 0 ? honey / honeyEaten : 0;
+  const honeyUntilHarvest = honeyRation * Math.min(days, honeyDays);
+  // sýr, luštěniny a vejce se počítají i do dalších dní, maso a med do svého konce, mléko a ovoce
   // jen, jak opravdu přijdou
   const daily = cheeseRation + legumeRation + eggsEnergy;
-  const today = fruitRation + milkEnergy + meatRation + daily;
+  const today = fruitRation + milkEnergy + meatRation + daily + honeyRation;
   const made = cheeseFromMilk(milkProtein * (1 - drunkShare));
   // mléko a sýr od zítřka do sklizně: s mlékem stád se počítá celá zásoba sýra (i dnešní), nejvýš
   // strop; bez mléka stád sýr dnešním přídělem (dřívější výhled) – `extraDairy` je rozdíl proti němu
@@ -413,6 +449,11 @@ function dietPlan(input: DietInput): DietPlan {
     meatUntilHarvest,
     cheeseRation,
     legumeRation,
+    honey,
+    honeyEaten,
+    honeyRation,
+    honeyDays,
+    honeyUntilHarvest,
     daily,
     today,
     made,
@@ -420,12 +461,17 @@ function dietPlan(input: DietInput): DietPlan {
   };
 }
 
+/** Med od konce ovoce do sklizně (energie) – dny po `rotDays`, dokud zásoba vydrží. */
+function honeyAfterRot(plan: DietPlan): number {
+  return plan.honeyRation * Math.max(0, Math.min(plan.days, plan.honeyDays) - plan.rotDays);
+}
+
 /**
  * Nejmenší obilí do sklizně (kg zrna – zásoby po dnešní ztrátě a snopy, které ves vymlátí), se
  * kterým výhled `eatDiet` dá příděl energie aspoň `outlook` (0–1) – s celou ostatní stravou
- * vstupu (ovoce, mléko a sýr, maso i čerstvé ze zimní porážky, vejce, luštěniny). Obrácený výpočet
- * výhledu: rovný příděl do sklizně, a když ostatní jídlo dnes dá víc než rovný příděl, příděl po
- * zkažení ovoce (fields.md – Osivo ze zásob, přežívací zásoba; návrh Clauda).
+ * vstupu (ovoce, mléko a sýr, maso i čerstvé ze zimní porážky, vejce, luštěniny, med). Obrácený
+ * výpočet výhledu: rovný příděl do sklizně, a když ostatní jídlo dnes dá víc než rovný příděl,
+ * příděl po zkažení ovoce (fields.md – Osivo ze zásob, přežívací zásoba; návrh Clauda).
  */
 export function grainAheadForOutlookKg(input: DietInput, outlook: number): number {
   const target = Math.min(1, outlook);
@@ -437,7 +483,8 @@ export function grainAheadForOutlookKg(input: DietInput, outlook: number): numbe
     plan.milkEnergy +
     plan.meatUntilHarvest +
     daily * days +
-    plan.extraDairy;
+    plan.extraDairy +
+    plan.honeyUntilHarvest;
   // rovný příděl do sklizně – ostatní jídlo dnes nedá víc než cílový příděl
   if (target * need >= today) return Math.max(0, target * need * days - other);
   // jinak se do zkažení ovoce jí jen ostatní jídlo (dnes víc než cíl) a obilí drží příděl po
@@ -445,7 +492,10 @@ export function grainAheadForOutlookKg(input: DietInput, outlook: number): numbe
   const after = days - rotDays;
   const laterDairy = daysAhead > 0 ? (plan.extraDairy * after) / daysAhead : 0;
   const meatAfter = meatRation * Math.max(0, Math.min(days, meatDays) - rotDays);
-  const later = after > 0 ? target * need * after - daily * after - laterDairy - meatAfter : 0;
+  const later =
+    after > 0
+      ? target * need * after - daily * after - laterDairy - meatAfter - honeyAfterRot(plan)
+      : 0;
   return Math.max(0, Math.min(later, today * days - other));
 }
 
@@ -453,14 +503,15 @@ export function grainAheadForOutlookKg(input: DietInput, outlook: number): numbe
  * Jeden den jídla (diet.md): ztráta zásob (obilí podle nádob, maso uzením, sýr sušením), pak
  * příděl. Ovoce rovným dílem do zkažení, čerstvé mléko (co se nevypije do stropu mléka a sýra,
  * zpracuje se na sýr) a vejce, maso rovným dílem do zkažení a sýr do příštího dojení, vše nejvýš
- * do svých stropů; obilí dorovná potřebu energie. Vystačí-li obilí do sklizně (s tím, co ještě
- * přijde na řadu), jí se dosyta; jinak se energie dělí rovně do sklizně – a když by ani tak obilí
- * do zkažení ovoce nebylo potřeba, jí se do té doby jen ostatní a obilí zůstane na dobu po něm.
+ * do svých stropů; med pevným přídělem z toho, co je (nekazí se); obilí dorovná potřebu energie.
+ * Vystačí-li obilí do sklizně (s tím, co ještě přijde na řadu), jí se dosyta; jinak se energie
+ * dělí rovně do sklizně – a když by ani tak obilí do zkažení ovoce nebylo potřeba, jí se do té
+ * doby jen ostatní a obilí zůstane na dobu po něm.
  */
 export function eatDiet(input: DietInput): DietResult {
   const grain = input.grainKg * grainKeepPerDay(input);
   const plan = dietPlan(input);
-  const { meat, fresh, fruit, cheese, milkProtein, eggs, legumes, need } = plan;
+  const { meat, fresh, fruit, cheese, milkProtein, eggs, legumes, honey, need } = plan;
   // snopy, které ves vymlátí – výhled do sklizně s nimi počítá, jí se jen vymlácené
   // (production-chains.md – Humno)
   const ahead = grain + Math.max(0, input.sheavesGrainKg ?? 0);
@@ -474,6 +525,7 @@ export function eatDiet(input: DietInput): DietResult {
       cheeseKg: cheese + made,
       cheeseMadeKg: made,
       legumesKg: legumes,
+      honeyKg: honey,
       diet: dietOf(0, 0, NOTHING),
       outlook: 1,
       grainSpareKg: ahead,
@@ -483,8 +535,14 @@ export function eatDiet(input: DietInput): DietResult {
     plan;
   const { freshRation, smokedRation, meatRation, meatUntilHarvest } = plan;
   const { cheeseRation, legumeRation, daily, today, made, extraDairy } = plan;
+  const { honeyEaten, honeyUntilHarvest } = plan;
   const grainNeed =
-    (need - daily) * days - meatUntilHarvest - fruitRation * rotDays - milkEnergy - extraDairy;
+    (need - daily) * days -
+    meatUntilHarvest -
+    fruitRation * rotDays -
+    milkEnergy -
+    extraDairy -
+    honeyUntilHarvest;
   let outlook = 1;
   let grainToday: number;
   let grainSpareKg = 0;
@@ -493,7 +551,13 @@ export function eatDiet(input: DietInput): DietResult {
     grainSpareKg = ahead - grainNeed;
   } else {
     const even =
-      (ahead + fruitRation * rotDays + milkEnergy + meatUntilHarvest + daily * days + extraDairy) /
+      (ahead +
+        fruitRation * rotDays +
+        milkEnergy +
+        meatUntilHarvest +
+        daily * days +
+        extraDairy +
+        honeyUntilHarvest) /
       (need * days);
     if (even * need >= today) {
       outlook = even;
@@ -506,7 +570,9 @@ export function eatDiet(input: DietInput): DietResult {
       const laterDairy = daysAhead > 0 ? (extraDairy * after) / daysAhead : 0;
       const meatAfter = meatRation * Math.max(0, Math.min(days, meatDays) - rotDays);
       const later =
-        after > 0 ? (ahead + daily * after + laterDairy + meatAfter) / (need * after) : now;
+        after > 0
+          ? (ahead + daily * after + laterDairy + meatAfter + honeyAfterRot(plan)) / (need * after)
+          : now;
       outlook = Math.min(now, later);
     }
   }
@@ -522,6 +588,7 @@ export function eatDiet(input: DietInput): DietResult {
     cheeseKg: cheeseRation / DAIRY.cheeseEnergy,
     eggsKg: eggs,
     legumesKg: legumeRation / LEGUMES.energy,
+    honeyKg: honeyEaten,
   };
   const diet = dietOf(need, input.proteinNeedPerDay ?? 0, eaten);
   return {
@@ -535,6 +602,8 @@ export function eatDiet(input: DietInput): DietResult {
     cheeseKg: Math.max(0, cheese - eaten.cheeseKg) + made,
     cheeseMadeKg: made,
     legumesKg: Math.max(0, legumes - eaten.legumesKg),
+    // med se nekazí – zbytek se hromadí
+    honeyKg: Math.max(0, honey - honeyEaten),
     diet,
     outlook: Math.min(1, outlook),
     grainSpareKg,
@@ -598,6 +667,21 @@ export function villageFoodNeed(
   return state.guests === undefined ? home : home + guestFoodNeedPerDay(state, day);
 }
 
+/**
+ * Pevný příděl medu vsi za den (kg – hides-honey.md, Klát u obydlí): HONEY.kgPerPersonYear za rok
+ * na každého, kdo dnes jí ze zásob vsi – lidé doma a hosté jako `villageFoodNeed` (návrh Clauda) –,
+ * rovným dílem po dnech roku.
+ */
+export function villageHoneyRationKg(
+  state: Pick<VillageState, 'people' | 'guests'>,
+  day: number,
+): number {
+  let eaters = 0;
+  for (const person of state.people) if (foodNeedPerDay(person, day) > 0) eaters++;
+  for (const guest of state.guests ?? []) if (guest.untilDay > day) eaters++;
+  return (eaters * HONEY.kgPerPersonYear) / COMMON_YEAR_DAYS;
+}
+
 /** Potřeba bílkovin vsi za den (kg). */
 export function villageProteinNeed(state: Pick<VillageState, 'people'>, day: number): number {
   return state.people.reduce((sum, p) => sum + proteinNeedPerDay(p, day), 0);
@@ -656,6 +740,9 @@ export function villageMeal(
     eggsKg: fresh.eggsKg,
     legumesKg: villageLegumesKg(state),
     daysToLegumeHarvest: daysUntilLegumeHarvest(day),
+    // med z klátů pevným přídělem (hides-honey.md – Klát u obydlí)
+    honeyKg: state.wares?.honeyKg ?? 0,
+    honeyRationKg: villageHoneyRationKg(state, day),
     needPerDay: need,
     proteinNeedPerDay: villageProteinNeed(state, day),
     daysToMilking: daysUntilMilking(day),

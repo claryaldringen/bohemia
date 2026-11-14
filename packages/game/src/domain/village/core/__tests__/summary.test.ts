@@ -198,4 +198,31 @@ describe('summarizeVillage', () => {
     s.constructions = [];
     expect(summarizeVillage(s, DAY).constructionsStalled).toBe(false);
   });
+
+  it('zásoby zboží: celé kusy a kg, bez zboží null', () => {
+    const s = found();
+    expect(summarizeVillage(s, DAY).wares).toBeNull();
+    s.wares = {
+      hides: 2.7,
+      sheepFurs: 1.2,
+      wildFurs: 3.9,
+      honeyKg: 5.5,
+      waxKg: 0.3,
+    };
+    expect(summarizeVillage(s, DAY).wares).toEqual({
+      hides: 2,
+      furs: 5,
+      sheepFurs: 1,
+      honeyKg: 5,
+      waxKg: 0,
+    });
+  });
+
+  it('malé kůže se v zásobě kůží počítají plochou', () => {
+    const s = found();
+    s.wares = { hides: 1, smallHides: 6, sheepFurs: 0, wildFurs: 0, honeyKg: 0, waxKg: 0 };
+    const wares = summarizeVillage(s, DAY).wares;
+    expect(wares?.hides).toBe(2); // 1 + 6 * 0,8 / 3 = 2,6
+    expect(wares?.smallHides).toBe(6);
+  });
 });

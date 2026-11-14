@@ -18,3 +18,4 @@ export * from './rules-crafts';
 export * from './rules-trade';
 export * from './rules-lord';
 export * from './rules-premium';
+export * from './rules-wares';

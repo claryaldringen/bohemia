@@ -190,12 +190,18 @@ Návrh: wildlife.md – Drobná zvěř a ryby, Rozhodnutí při implementaci W7.
 
 - `smallGameDay(state, day, labor, urgent)` – volá ho `work()` (simulate-work.ts): při hladu
   (`state.hungry`) hned po kládách a vodě, před stavbami (z `common`); jinak až z
-  `freeLabor − weedMen − extraMow`, tedy ze zbytku po pletí mužů a seči navíc.
-  Chytá se, jen když `smallGameCapacity` > 0 (sezóna, zásoba nad ½ stropu, zbývá roční kvóta) a ves `wantsProtein`
-  (nebo hladoví).
+  `freeLabor − weedMen − extraMow − waresWorkDay`, tedy ze zbytku po pletí mužů, seči navíc
+  a zpracování kůží a kožešin v domácnosti (`freeLaborDay`; village-livestock.md – Zpracování
+  v domácnosti) – oka a ryby přijdou zkrátka, jen když zbytku je málo.
+  Chytá se, jen když `smallGameCapacity` > 0 (sezóna, zásoba nad ½ stropu, zbývá roční kvóta) a
+  u ryb ještě ves `wantsProtein` (nebo hladoví); oka v prosinci–březnu bez podmínky (Martin 14. 11. 2026).
+  Oka chytají zajíce i lišky ze stejných hodin (`SMALL_GAME.snares.perHour`, `foxPerHour`), každý
+  druh do své kvóty; kožešiny jdou přes `addWildFurs` (`wares/wares.ts`), maso jen ze zajíců.
+  Lišky: `WildlifeState.foxes?` (chybí = strop `foxCount`), `SmallGameYear.foxes?`,
+  `quota.foxes?` (stará kvóta bez lišek se dopočte v `quotaOf`); 1. 5. se `foxes` vrátí na strop.
 - Duben–listopad ryby (biomasa `fishKg`), prosinec–březen oka (`hares`, zlomek kusu). Maso jde do
-  `state.freshMeatKg` (čerstvé, jí se napřed) bez práce porážky. Roční kvóta `yearlyQuota`
-  (`smallGame.quota`, ryby ≤ ¼ stropu, zajíci podle přírůstku) se počítá 1. 5. ve `wildlife.ts`.
+  `state.freshMeatKg` (čerstvé, jí se napřed) bez práce porážky. Roční kvóta `yearlyQuota(w, ryby, zajíci, lišky)`
+  (`smallGame.quota`, ryby ≤ ¼ stropu, zajíci podle přírůstku, lišky nad ½ stropu) se počítá 1. 5. ve `wildlife.ts`.
   `wantsProtein` bere větší z loňského a letošního masa z velkého lovu a přičte letošní maso z ryb a ok. Stav pro scénu v `wildlife.smallGame.today`; rozdělení práce
   má činnosti `fish` (cíl `{ kind: 'pool', index }`) a `snare`.
 - `wildlifeYearDay` 1. 5. uloží maso z velkého lovu minulého roku (`lastWildMeatKg`, drobná zvěř ne) a vynuluje `year`.

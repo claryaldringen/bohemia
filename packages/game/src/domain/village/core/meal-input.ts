@@ -10,6 +10,7 @@ import {
   DIET,
   daysUntilMeatEnd,
   villageFoodNeed,
+  villageHoneyRationKg,
   villageMeatKg,
   villageProteinNeed,
   type DietInput,
@@ -30,8 +31,8 @@ import { daysUntilFoodHarvest, lateSpringCrop, unharvestedKg } from './year-plan
  * a luštěnin – bez osiva, které ves nejí (to odečte `dayMealInput`): dnešní mléko (podojený podíl
  * `milked`) a vejce, mléko stád do sklizně, ovoce do zkažení (nádoby od hrnčíře –
  * `potteryCoverage`), maso do zkažení a čerstvé maso zimní porážky, sýr do dojení, luštěniny do
- * sklizně a snopy, které ves vymlátí. `dams` – dojné samice, se kterými se počítá (bez údaje dojné
- * samice vsi – `villageDams`).
+ * sklizně, med z klátů a snopy, které ves vymlátí. `dams` – dojné samice, se kterými se počítá
+ * (bez údaje dojné samice vsi – `villageDams`).
  */
 export function baseMealInput(
   state: VillageState,
@@ -85,6 +86,9 @@ export function baseMealInput(
     eggsKg: dailyEggsKg(state),
     legumesKg: villageLegumesKg(state),
     daysToLegumeHarvest: daysUntilLegumeHarvest(day),
+    // med z klátů (i dnešní – `waresDay` ráno) pevným přídělem (hides-honey.md – Klát u obydlí)
+    honeyKg: state.wares?.honeyKg ?? 0,
+    honeyRationKg: villageHoneyRationKg(state, day),
     needPerDay: need,
     proteinNeedPerDay: villageProteinNeed(state, day),
     daysToMilking: daysUntilMilking(day),

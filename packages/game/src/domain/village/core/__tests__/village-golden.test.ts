@@ -14,10 +14,19 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 
 // 14. 11. 2026 – stavby staví muži (population.md – Práce, „D24 ano“): denní minimum a úlohy dne
 // nesou napřed ženy, na stavby jde jen práce mužů, která po nich zbude; dřív dda9b1f1909187c8
-// (před D24) a 9f050c46fafa769c (D24 s dělením poměrem). Týž den – zápisy vzniklých cest nesou
-// konce a roky chůze (`road-formed` – `ends`, `years`; web-ui.md – Panel Kronika); bez nových
-// polí záznamů je otisk dál dcce65ed03e2f45f
-const EXPECTED_YEAR_1 = '11d3b0961aecf068';
+// (před D24) a 9f050c46fafa769c (D24 s dělením poměrem)
+// 14. 11. 2026 – sloučení zboží vsi (hides-honey.md – kůže, kožešiny, med a vosk) s D24: obojí
+// mění práci a jídlo vsi; dřív cec3ef2ae88c8a5c (zboží bez D24) a dcce65ed03e2f45f (D24 bez zboží)
+// 14. 11. 2026 – kůže a kožešiny zpracují jen ženy z volného času (population.md – Práce, Stavby
+// staví muži; hides-honey.md – Zpracování v domácnosti): ve dnech, kdy ženy nesou výmlat a jiné
+// úlohy dne, zpracování čeká a volnou práci mužů dostanou oka a ryby – jiný úlovek a jídlo; dřív
+// 54989ca4d4e3fef4
+// 14. 11. 2026 – sloučení se zápisy vzniklých cest s konci a roky chůze (`road-formed` – `ends`,
+// `years`; web-ui.md – Panel Kronika): nová pole záznamů; dřív 8c37bb353aa1f9bb (zboží) a
+// 11d3b0961aecf068 (zápisy cest)
+// 14. 11. 2026 – zboží vsi bez mrtvého stavu `wares.today` (rámy se kreslí z `curing`): ubylo pole
+// v uloženém stavu; dřív 49dfd13fd6e3eb50
+const EXPECTED_YEAR_1 = 'b7477b97a27c913e';
 
 describe('zlatý otisk vsi', () => {
   const world = goldenWorld();

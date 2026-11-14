@@ -32,12 +32,12 @@ export function yearlyFoodNeed(state: Pick<VillageState, 'people'>, day: number)
 }
 
 /**
- * Podíl potřeby energie, který dnes nepokrylo jídlo mimo pole (maso, mléko a sýr, vejce, ovoce) –
- * ten musí dát obilí a luštěniny (0–1).
+ * Podíl potřeby energie, který dnes nepokrylo jídlo mimo pole (maso, mléko a sýr, vejce, ovoce,
+ * med z klátů) – ten musí dát obilí a luštěniny (0–1).
  */
 export function fieldShareOf(diet: DietDay): number {
-  const { meat, dairy, eggs, fruit } = diet.shares;
-  return Math.max(0, 1 - (meat + dairy + eggs + fruit));
+  const { meat, dairy, eggs, fruit, honey } = diet.shares;
+  return Math.max(0, 1 - (meat + dairy + eggs + fruit + (honey ?? 0)));
 }
 
 /**
