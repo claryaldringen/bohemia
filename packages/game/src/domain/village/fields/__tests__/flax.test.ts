@@ -219,9 +219,12 @@ describe('zlatý otisk – výběr dílů a práce vsi k 2. 9.', () => {
     // dřív 169:c1ff75b5
     // 152:21f1a713 (10. 11. 2026, díly na len se odloží před ozimem – fields.md, Len): plán k 1. 9.
     // nezahrnuje do ozimu díly odložené na jarní len; dřív 152:9a7a02d5
+    // 152:d4e3d735 (14. 11. 2026, ves jí med z klátů – hides-honey.md, Klát u obydlí): med šetří
+    // obilí a ubírá podíl jídla z pole – jiné zásoby a plán osevu; dřív 152:21f1a713
     // 148:71cb4ea8 (14. 11. 2026, stavby staví muži – population.md, Práce, „D24 ano“): pole zakládá
     // jen práce mužů, která zbude po denní práci žen – méně dílů v plánu; dřív 152:21f1a713
     // (a 142:6739db1a)
+    // 148:71cb4ea8 i po sloučení zboží vsi s D24 (14. 11. 2026): med plán osevu pod D24 nezmění
     expect(fingerprint(plans)).toBe('148:71cb4ea8');
   });
 });

@@ -56,14 +56,14 @@ import {
   neighbourStock,
   tradeSeason,
 } from './neighbours';
-import { CARTS, CART_DEMAND, IRON, PEOPLE_TRADE, TRADE, TRADE_GOOD_VALUES } from '../rules';
+import { CARTS, CART_DEMAND, HIDES, IRON, PEOPLE_TRADE, TRADE, TRADE_GOOD_VALUES } from '../rules';
+import { ensureWares } from '../wares/wares';
 import { tradeWeather } from './trade-weather';
 import { builtTrail, trailTripDays } from './trail';
 import type {
   CartKind,
   ChronicleEvent,
   ComingPeople,
-  DietDay,
   Direction8,
   NeighbourPeople,
   NeighbourStock,
@@ -122,6 +122,18 @@ export function familyBuyPrice(children: number): number {
   return buyValue(neighbourFamilyValue(children));
 }
 
+/** Kolik kůže skotu je kůže kozí nebo prasečí (plocha – hides-honey.md – Zpracování v domácnosti). */
+export function smallHideRatio(): number {
+  return HIDES.smallHideM2 / HIDES.hideM2;
+}
+
+/** Kůže k obchodu v kusech kůže skotu – velké a malé přepočtem plochou. */
+export function hidesOnHand(state: VillageState): number {
+  const wares = state.wares;
+  if (!wares) return 0;
+  return wares.hides + (wares.smallHides ?? 0) * smallHideRatio();
+}
+
 /**
  * Kolik zboží ves má k obchodu v den `day` (celé kusy a kg): obilí, maso, sýr a luštěniny ze
  * zásob, dobytek (`cattleForSale` – krávy bez chovného páru, mladí voli ve výcviku, vycvičení voli
@@ -157,6 +169,16 @@ export function villageGoodStock(
     case 'charcoal':
       // uhlí u kováře i ve vypálených milířích (crafts.md – Milíř stojí vždy)
       return Math.floor(charcoalStockKg(state));
+    case 'honey':
+      return Math.floor((state.wares?.honeyKg ?? 0) + EPSILON);
+    case 'wax':
+      return Math.floor((state.wares?.waxKg ?? 0) + EPSILON);
+    case 'hides':
+      // kůže skotu v kusech, malé (kozí a prasečí) přepočtem plochou (hides-honey.md – Obchod)
+      return Math.floor(hidesOnHand(state) + EPSILON);
+    case 'furs':
+      // kožešiny z lovu a ovčí dohromady
+      return Math.floor((state.wares?.sheepFurs ?? 0) + (state.wares?.wildFurs ?? 0) + EPSILON);
   }
 }
 
@@ -212,6 +234,41 @@ export function addGood(state: VillageState, good: TradeGood, amount: number, da
       // (crafts.md – Milíř stojí vždy)
       if (amount < 0) takeCharcoal(state, -amount);
       else (state.crafts ??= { charcoalKg: 0, potteryKg: 0 }).charcoalKg += amount;
+      return;
+    }
+    case 'honey': {
+      const wares = ensureWares(state);
+      wares.honeyKg = Math.max(0, wares.honeyKg + amount);
+      return;
+    }
+    case 'wax': {
+      const wares = ensureWares(state);
+      wares.waxKg = Math.max(0, wares.waxKg + amount);
+      return;
+    }
+    case 'hides': {
+      const wares = ensureWares(state);
+      if (amount >= 0) {
+        wares.hides += amount;
+        return;
+      }
+      // prodej bere napřed velké kůže, zbytek malé přepočtem plochou
+      const fromBig = Math.min(wares.hides, -amount);
+      wares.hides -= fromBig;
+      const small = (-amount - fromBig) / smallHideRatio();
+      wares.smallHides = Math.max(0, (wares.smallHides ?? 0) - small);
+      return;
+    }
+    case 'furs': {
+      // prodej bere napřed kožešiny z lovu, pak ovčí; koupené jdou ke kožešinám z lovu
+      const wares = ensureWares(state);
+      if (amount >= 0) {
+        wares.wildFurs += amount;
+        return;
+      }
+      const fromWild = Math.min(wares.wildFurs, -amount);
+      wares.wildFurs -= fromWild;
+      wares.sheepFurs = Math.max(0, wares.sheepFurs - (-amount - fromWild));
     }
   }
 }
@@ -916,15 +973,19 @@ function foreignTradeEvent(event: ChronicleEvent): boolean {
 /**
  * Ves bez zboží zvenku (trade.md – Jen společné suroviny; Martin 19. 10. 2026: „Nech jen společné
  * suroviny, nezaváděj nové.“). Starší ves přijde o zásoby soli, železa, medu a kožešin
- * (`VillageState.goods`) a o podíl medu v posledním jídle; uložený zbytek roku souseda, který
- * nesedí na jeho dnešní povahu (soused nabízel zboží zvenku), se zahodí – soused má do 1. 11. plné
- * roční zásoby a poptávku. Výprava na cestě, která měla přinést zboží zvenku, se ruší celá: nosiči
- * přinesou zpět, co nesli (`get` = `give`), ves nic neztratí ani nezíská. Z kroniky výprav zboží
- * zvenku zmizí. Bez čeho převádět, vrátí tentýž objekt; idempotentní (jako `withKinship`).
+ * (`VillageState.goods`) a o podíl medu v posledním jídle – jen ves bez zboží vsi (`wares`); ves
+ * se zbožím jí med z klátů (hides-honey.md – Klát u obydlí) a podíl jí zůstane. Uložený zbytek roku
+ * souseda, který nesedí na jeho dnešní povahu (soused nabízel zboží zvenku), se zahodí – soused má
+ * do 1. 11. plné roční zásoby a poptávku. Výprava na cestě, která měla přinést zboží zvenku, se ruší
+ * celá: nosiči přinesou zpět, co nesli (`get` = `give`), ves nic neztratí ani nezíská. Z kroniky
+ * výprav zboží zvenku zmizí. Bez čeho převádět, vrátí tentýž objekt; idempotentní (jako
+ * `withKinship`).
  */
 export function withoutForeignGoods(state: VillageState): VillageState {
   const legacy = state as VillageState & { goods?: unknown };
-  const shares = state.diet?.shares as (DietDay['shares'] & { honey?: number }) | undefined;
+  const shares = state.diet?.shares;
+  // převod běží při každém načtení – podíl medu ze zboží zvenku má jen ves bez zboží vsi
+  const foreignHoney = shares?.honey !== undefined && state.wares === undefined;
   const trade = state.trade;
   const staleStocks = trade?.neighbours.some((n) => !fitsNeighbour(n, state.seed)) ?? false;
   const foreignExpeditions =
@@ -932,7 +993,7 @@ export function withoutForeignGoods(state: VillageState): VillageState {
   const foreignEvents = state.chronicle.some(foreignTradeEvent);
   if (
     legacy.goods === undefined &&
-    shares?.honey === undefined &&
+    !foreignHoney &&
     !staleStocks &&
     !foreignExpeditions &&
     !foreignEvents
@@ -941,7 +1002,7 @@ export function withoutForeignGoods(state: VillageState): VillageState {
   }
   const next: VillageState & { goods?: unknown } = { ...state };
   delete next.goods;
-  if (state.diet && shares?.honey !== undefined) {
+  if (state.diet && shares && foreignHoney) {
     const { grain, meat, dairy, eggs, fruit, legumes } = shares;
     next.diet = {
       ...state.diet,

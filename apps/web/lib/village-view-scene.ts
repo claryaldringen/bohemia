@@ -94,6 +94,8 @@ import {
   type PlacementVillage,
   type VillageState,
   type VillageSummary,
+  type WaresState,
+  beesFlying,
   villageCemeteries,
   villageOrchards,
   pathFortificationsOf,
@@ -347,6 +349,7 @@ export function sceneVillage(
     ) / 10_000;
   const wildlife = sceneWildlife(state, day, sownHa, landscape);
   return {
+    ...(state.wares ? { wares: sceneWares(state.wares, day) } : {}),
     dwellings: [...built, ...sites],
     ...(ruins.length > 0 ? { ruins } : {}),
     ...(oreSites.length > 0 ? { oreSites } : {}),
@@ -778,6 +781,12 @@ function sceneQuarries(state: VillageState): NonNullable<SceneVillage['quarries'
       : [],
   );
   return [...built, ...building];
+}
+
+/** Klát a rámy ve scéně: rámů tolik, kolik kusů je v práci (várky `curing` – hides-honey.md – Ve scéně), nahoru. */
+function sceneWares(wares: WaresState, day: number): NonNullable<SceneVillage['wares']> {
+  const curing = (wares.curing ?? []).reduce((sum, b) => sum + b.hides + b.furs, 0);
+  return { beesOut: beesFlying(day), frames: Math.ceil(curing - 1e-9), day };
 }
 
 export function placementVillageFromScene(scene: SceneVillage): PlacementVillage {

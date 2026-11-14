@@ -855,7 +855,7 @@ function laborReport(ctx: WorkDay, input: LaborReportInput): LordFieldShares {
   const { family, manor } = people;
   const { weeders } = labor;
   const { fieldWork, haulWork, threshing, grainPits, mowLabor, mowingBefore } = applied;
-  const { weedMen, game, extraMow, repairs, corvee, constructions } = common;
+  const { weedMen, game, extraMow, wares, repairs, corvee, constructions } = common;
   const { trade, purchases, herding } = travel;
   const hayMowing = state.hay?.mowing;
   const lordField = manor ? lordFieldShares(manor, allocation.lordField) : NO_LORD_FIELD;
@@ -871,6 +871,7 @@ function laborReport(ctx: WorkDay, input: LaborReportInput): LordFieldShares {
       : {}),
     fieldWork,
     ...(weedMen > EPSILON ? { weedMen } : {}),
+    ...(wares > EPSILON ? { wares } : {}),
     ...(game.manDays > 0 ? { smallGame: game.shares } : {}),
     ...(extraMow > EPSILON ? { extraMow } : {}),
     ...(weeders.length > 0 ? { weedChildAges: weeders } : {}),

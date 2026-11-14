@@ -265,7 +265,7 @@ export interface Pen {
  * na energii.
  */
 export interface DietDay {
-  /** Pokrytí energie 0–1 (obilí, maso, mléko a sýr, vejce, ovoce v obilních ekvivalentech). */
+  /** Pokrytí energie 0–1 (obilí, maso, mléko a sýr, vejce, ovoce a med v obilních ekvivalentech). */
   energy: number;
   /** Pokrytí bílkovin 0–1 (1,6 g na kg tělesné váhy – Martin). */
   protein: number;
@@ -286,6 +286,11 @@ export interface DietDay {
     legumes?: number;
     /** Z toho čerstvé maso ze zimní porážky (diet.md – Porážka v zimě); chybí = žádné. */
     freshMeat?: number;
+    /**
+     * Med z klátů (hides-honey.md – Klát u obydlí); chybí = žádný. U vsi bez zboží (`wares`) je to
+     * podíl ze zrušeného zboží zvenku a převod `withoutForeignGoods` ho smaže.
+     */
+    honey?: number;
   };
 }
 

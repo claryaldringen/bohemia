@@ -44,7 +44,17 @@ Raně středověká strava nebyla jen obilí. Plné nasycení potřebuje kombina
   plodí jablka; „ovoce“ je zásoba.
 - **Energie** – kolik jídla (v obilních ekvivalentech) lidé snědí proti potřebě. **Obilí 1,
   maso 0,6, ovoce 1/7** (maso ≈ 2 000 kcal/kg proti obilí ≈ 3 400; jablka jako dnes – návrh
-  Clauda).
+  Clauda). **Med 0,9** (≈ 3 040 kcal/kg – návrh Clauda; Martin 14. 11. 2026 k medu z klátů:
+  „Má ho i jíst“).
+- **Med** ([kůže, kožešiny, med a vosk](hides-honey.md) – Klát u obydlí) – Martin 14. 11. 2026:
+  „Med se nekazí, takže se dá dlouho skladovat a hromadit. Na druhou stranu – med se většinou
+  přidával do sladkého pečiva nebo se z něj dělala medovina – samotného medu totiž člověk moc
+  nesní.“ Návrh Clauda: **pevný příděl 0,5 kg na člověka za rok** (každý, kdo jí ze zásob vsi,
+  i hosté), denně rovným dílem z toho, co je; zbytek se hromadí a nekazí se. Med dá jen energii –
+  bez bílkovin, bez stropu, bez štěstí a bez vlivu na kvalitu stravy. Příděl se počítá i do
+  výhledu do sklizně – jen na dny, kdy zásoba vydrží (jako maso do zkažení; med, který klády dají
+  do žní, výhled nezná) – a med jako jídlo mimo pole ubírá podíl jídla z pole
+  ([pole](fields.md) – Výhled zásob k sklizni). V horní liště podíl medu není. Medovina později.
 - **Bílkoviny** – kolik bílkovin lidé snědí proti potřebě 1,6 g na kg tělesné váhy (Martin).
 - **Nasycení** – co hráč vidí (0–100 %): energie **a** kvalita stravy z bílkovin a ovoce (níže).
 

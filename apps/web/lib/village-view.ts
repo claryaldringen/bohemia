@@ -479,6 +479,7 @@ export function buildVillageView(
     storesKg: summary.storesKg,
     ...sowingSeedView(state),
     applesKg: summary.applesKg,
+    wares: summary.wares,
     meatKg: summary.meatKg,
     legumesKg: summary.legumesKg,
     cheeseKg: summary.cheeseKg,

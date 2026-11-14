@@ -1,3 +1,4 @@
+import { addHides } from '../wares/wares';
 import { isDisused } from '../buildings/disused';
 import { cloneState } from '../core/clone';
 import { dateOfDayIndex } from '../../calendar';
@@ -300,6 +301,7 @@ export function oxenToEdit(pen: Pen): Ox[] {
 /** Voli došli na maso (mutuje stav). */
 function retireOxen(state: VillageState, oxen: number): void {
   butcher(state, oxen * LIVESTOCK.oxMeatKg);
+  addHides(state, oxen);
 }
 
 /**

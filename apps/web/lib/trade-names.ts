@@ -62,6 +62,11 @@ export const TRADE_GOOD_NAMES: Record<
   charcoal: { name: 'Uhlí', genitive: 'uhlí', unit: 'kg', icon: 'charcoal' },
   // kámen v celých m³ (trade.md – Kámen)
   stone: { name: 'Kámen', genitive: 'kamene', unit: 'm³', icon: 'stone' },
+  // kůže skotu a kožešiny v kusech, med a vosk v kg (hides-honey.md – Obchod)
+  honey: { name: 'Med', genitive: 'medu', unit: 'kg', icon: 'honey' },
+  hides: { name: 'Kůže', genitive: 'kůží', unit: 'ks', icon: 'hide' },
+  furs: { name: 'Kožešiny', genitive: 'kožešin', unit: 'ks', icon: 'fur' },
+  wax: { name: 'Vosk', genitive: 'vosku', unit: 'kg', icon: 'wax' },
 };
 
 /**

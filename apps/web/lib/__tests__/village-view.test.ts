@@ -1600,6 +1600,33 @@ describe('chronicleText', () => {
   });
 });
 
+describe('kronika – kůže, kožešiny, med a vosk v obchodě (hides-honey.md – Obchod)', () => {
+  it('výprava s kůžemi a kožešinami v kusech, medem a voskem v kg', () => {
+    expect(
+      chronicleText(
+        {
+          day: DAY,
+          kind: 'trade-departed',
+          direction: 'S',
+          give: { hides: 3, furs: 12 },
+        },
+        'X',
+      ),
+    ).toBe('Nosiči vyrazili po stezce na jih – nesou 3 ks kůží, 12 ks kožešin.');
+    expect(
+      chronicleText(
+        {
+          day: DAY,
+          kind: 'trade-returned',
+          direction: 'N',
+          get: { honey: 40, wax: 4 },
+        },
+        'X',
+      ),
+    ).toBe('Nosiči se vrátili ze severu – přinesli 40 kg medu, 4 kg vosku.');
+  });
+});
+
 describe('kronika – výměna lidí (trade.md – Výměna lidí)', () => {
   it('výprava s lidmi a lidé od souseda', () => {
     expect(

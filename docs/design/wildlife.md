@@ -300,9 +300,12 @@ kde to nestačí.
 
 ## Drobná zvěř a ryby – vesničané sami (návrh Clauda)
 
-- **Kdy se vyplatí:** jen když ves **chce víc bílkovin**, než dá obilí, luštěniny, mléko, vejce
-  a maso stád ([strava](diet.md) – výhled), nebo **hladoví** – jinak ne (vesničané sami používají,
-  co jim ulehčí práci).
+- **Kdy se vyplatí:** **ryby** jen když ves **chce víc bílkovin**, než dá obilí, luštěniny, mléko,
+  vejce a maso stád ([strava](diet.md) – výhled), nebo **hladoví** – jinak ne (vesničané sami
+  používají, co jim ulehčí práci). **Oka** v prosinci až březnu **bez podmínky**, kdykoli je čas –
+  zajíc dá maso i kožešinu, liška kožešinu ([kůže a med](hides-honey.md)). Martin 14. 11. 2026: „V létě
+  se neloví – jednak je spousta práce s jinými věcmi a jednak nejsou kožešiny tak kvalitní jako
+  v zimě. Zatím nechme zjednodušení.“ Ryby tak dál zůstávají jen při potřebě.
 - **Kdo:** napřed práce, která by propadla – **starší** nad denním minimem své domácnosti (dnes
   propadá – [populace](population.md), Práce), **výrostci**, kteří ten den nepasou, a **zbytek
   společné práce vsi** po stavbách a opravách. **Při hladu** i dospělí v kroku 3 za polními
@@ -313,6 +316,9 @@ kde to nestačí.
   oka **0,05 zajíce za hodinu × zajíci ÷ strop** (zajíc 2 kg masa). Rybaří se, dokud se chytá
   jen do **roční kvóty podle přírůstku** (viz W7) a nad polovinou stropu – vodu tak ves nevyloví.
   Totéž oka: zajíci nad polovinou stropu a nad tím, co za rok přibude.
+  **Liška do ok:** **0,02 lišky za hodinu × lišky ÷ strop** (strop `foxCount`, 1 na 100 ha lesa a luk,
+  nejvýš 4), jen nad **polovinou stropu** a do roční kvóty (lišky nad ½ stropu); 1. 5. se lišky
+  vrátí na strop (návrh Clauda). Škody lišek na vejcích se nemění.
 - **Kolik to dá:** voda typické vsi ≈ **150–200 kg ryb ročně** a oka ≈ **20 kg masa** – doplněk
   pro 1–2 lidi (≈ 150–250 kg masa ročně podle vody), ne náhrada stád ([strava](diet.md) – lov a rybolov „později jako doplněk“).
 - **Loviště:** **tůně potoka** ([krajina](landscape.md) – 2–4 tůně) do 1 km, nejbližší ke vsi

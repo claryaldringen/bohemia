@@ -1586,3 +1586,9 @@ war/alarm-messenger,war/alarm-forest,war/alarm-people,war/alarm-all,war/alarm-re
   `LanguageIcon`; vlajka je sama barvami, render látky by ji ve 24 × 16 px rozmazal).
 
 - **Ciferník u data** (Martin 14. 11. 2026; 24 hodin – návrh Clauda): `DayDial` v `hud/TopBar.tsx` místo ikony data, jedna ručička, poledne nahoře; hodina z `dayHourAt` (`lib/scene/day-light.ts`), obnova jednou za sekundu (`useDayHour`), úhel `clockHandAngle` a popisek `dayPartLabel` v `lib/game-date.ts`.
+
+## Kůže, kožešiny, med a vosk v rozhraní (hides-honey.md; plán 2026-11-14 – úloha 8, `hud/selection/wares.tsx`)
+
+- `WaresView` a `VillageSummary.wares` (`summary.ts`, `waresView`): celé kusy a kg (`floor`), `null`, když ves nemá `wares`. Kůže jsou jedno zboží v kusech kůže skotu – malé kůže se přepočtou plochou (`hidesOnHand`, `smallHideRatio` ≈ 0,27); jejich počet nese volitelné `smallHides` pro popisek. Kožešiny jsou ovčí i lovné dohromady, `sheepFurs` z nich ovčí.
+- `VillageView.wares` (`village-view.ts`) → `SelectionDetails` dvorce `wares` (`selection-details.ts`).
+- `WaresStock` (`dwelling.tsx` pod řádkem lovu, jen u dvorce): čtyři `Stat` ikony `hide`, `fur`, `honey`, `wax` s čísly, popisky „Kůže“ (u malých kůží s rozpisem), „Kožešiny – ovčí N“, „Med“, „Vosk“. `null` i samé nuly = nic. Test `hud/__tests__/WaresStock.test.tsx`.

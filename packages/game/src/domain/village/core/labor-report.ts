@@ -102,6 +102,12 @@ export interface DayWork {
   weedMen?: number;
   /** Seč navíc z práce po stavbách (oxen.md – Seno, dvě seče; člověkodny). Bez údaje 0. */
   extraMow?: number;
+  /**
+   * Práce na zboží ze zbytku práce (`waresWorkDay`; hides-honey.md; člověkodny): vybrání brtí
+   * a zpracování kůží a kožešin v domácnosti – to jen z volné práce žen – domácí práce u domů.
+   * Bez údaje 0.
+   */
+  wares?: number;
   /** Ryby a oka vesničanů ze zbytku práce (W7; wildlife.md); bez údaje žádné. */
   smallGame?: { activity: LaborActivity; target: LaborTarget; manDays: number }[];
   /**
@@ -493,7 +499,7 @@ function travelShares(book: ShareBook, work: DayWork): void {
   for (const p of work.purchases ?? []) book.add('trade', p.target, p.manDays);
 }
 
-/** Společná práce: drobná zvěř, stavby a nevyužitá práce (opravy, pletí mužů, seč navíc a honáci klád jsou v ní započtené). */
+/** Společná práce: zpracování kůží, drobná zvěř, stavby a nevyužitá práce (opravy, pletí mužů, seč navíc a honáci klád jsou v ní započtené). */
 function commonShares(book: ShareBook, state: VillageState, work: DayWork): void {
   const { allocation } = work;
   const hauls = work.hauls ?? [];
@@ -502,7 +508,10 @@ function commonShares(book: ShareBook, state: VillageState, work: DayWork): void
   let invested =
     work.repairs.reduce((sum, r) => sum + r.manDays, 0) +
     (work.weedMen ?? 0) +
-    (work.extraMow ?? 0);
+    (work.extraMow ?? 0) +
+    (work.wares ?? 0);
+  // kůže a kožešiny zpracují domácnosti u domů (hides-honey.md)
+  book.add('domestic', { kind: 'village' }, work.wares ?? 0);
   for (const g of work.smallGame ?? []) {
     invested += g.manDays;
     book.add(g.activity, g.target, g.manDays);

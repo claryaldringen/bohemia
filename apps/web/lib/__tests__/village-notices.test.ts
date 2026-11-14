@@ -34,6 +34,7 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
   households: [],
   storesKg: 800,
   applesKg: 0,
+  wares: null,
   meatKg: 0,
   legumesKg: 0,
   cheeseKg: 0,

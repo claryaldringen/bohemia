@@ -735,6 +735,8 @@ export interface VillageView {
    * a obchod se sousedy; dokud zakladatelé první zemnici staví, null.
    */
   manor: VillageManor | null;
+  /** Zásoby zboží – kůže, kožešiny, med, vosk (hides-honey.md); null = ves žádné nemá. */
+  wares: VillageSummary['wares'];
   /** Divoká zvěř vsi – hrubé stavy druhů a podklady upozornění (wildlife.md); chybí = ještě není. */
   wildlife?: VillageWildlife;
   /**
