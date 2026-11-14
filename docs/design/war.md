@@ -392,7 +392,7 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
 - **Mlha války** (Martin 18. 10.): útočník vidí, kam dohlédnou jeho muži (≈ 150 m, v lese míň);
   objevené zůstane, dění vidí jen v dohledu.
 
-## Hráč ve vsi a mimo ni (Martin 14. 11. 2026 – návrh, čeká na schválení)
+## Hráč ve vsi a mimo ni (schváleno 14. 11. 2026)
 
 Martin 14. 11. 2026: „Musíme rozlišit 2 situace – když je hráč ve vesnici a když není. Pokud je ve
 vesnici, tak na své mapě ihned uvidí nepřátele a je na něm, jak zorganizuje obranu, či evakuaci.
@@ -424,7 +424,7 @@ o evakuaci (defaultní nastavení).“
   zajetí a výkupné). Vzdáním **nájezd končí** – vojsko odvede zajatce, odnese, co už vzalo, a ves
   dál nedrancuje (Martin 14. 11. 2026 – „Ano“). Ves zůstává rodu; dokud zajetí trvá, vede ji
   dědic nebo správce. „Ves připadne útočníkovi celá“ platí jen pro Začít znovu během nájezdu.
-- **Po schválení nahradí:** tři postoje vsi a „Přítomný hráč dostane upozornění a smí velet sám“
+- **Nahrazuje** (Martin 14. 11. 2026: „Ok, pusť se do toho“): tři postoje vsi a „Přítomný hráč dostane upozornění a smí velet sám“
   (Obránci – postoje a útěk) a lhůtu hráče 1 herní den (Varování, poslové a útěk do hradiště).
 
 ## Obránci – postoje a útěk
