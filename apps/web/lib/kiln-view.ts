@@ -19,12 +19,20 @@ import {
   type VillageState,
 } from '@bohemia/game';
 
-/** Kdo dnes nosí uhlí od milíře do kovárny – kovář, nebo jeho syn (věk v letech). */
+/**
+ * Kdo z dvojice u tyče (workshops.md – Uhlíř, odnos na tyči): uhlíř a jeho syn, kovář nebo syn
+ * kováře.
+ */
+export type KilnFetcherRole = 'burner' | 'burner-son' | 'smith' | 'smith-son';
+
+/** Kdo dnes nosí uhlí od milíře do kovárny na tyči (věk v letech). */
 export interface KilnFetcher {
   age: number;
-  /** Kovář (hlava kovárny); jinak jeho syn. */
-  smith: boolean;
+  role: KilnFetcherRole;
 }
+
+/** Pořadí v panelu: uhlíř, jeho syn, kovář, syn kováře. */
+const FETCHER_ORDER: readonly KilnFetcherRole[] = ['burner', 'burner-son', 'smith', 'smith-son'];
 
 /** Milíř nebo milířiště pro panel výběru (crafts.md – Milíř u skácených buků). */
 export interface VillageKiln {
@@ -137,8 +145,9 @@ function burnerWalk(state: VillageState, burnerId: number, at: { x: number; z: n
 }
 
 /**
- * Lidé z podílů nošení uhlí od milíře (věky – `LaborShare.ages`, pěšky); kovář podle věku hlavy
- * kovárny (`smithHead`).
+ * Dvojice z podílů nošení uhlí od milíře (`LaborShare.ages`: uhlíř, pak druhý u tyče; `pole` říká,
+ * kdo to je). Podíl bez `pole` (dřívější nošení pěšky) nese kovář podle věku hlavy kovárny
+ * (`smithHead`), jinak jeho syn.
  */
 function kilnFetchers(
   state: VillageState,
@@ -146,21 +155,28 @@ function kilnFetchers(
   shares: readonly LaborShare[],
 ): KilnFetcher[] {
   const out: KilnFetcher[] = [];
+  const add = (age: number, role: KilnFetcherRole): void => {
+    if (!out.some((w) => w.age === age && w.role === role)) out.push({ age, role });
+  };
   for (const share of shares) {
     if (share.activity !== 'fetch' || share.carts || share.target.kind !== 'kiln') continue;
     const from = share.target.from;
     if (from === undefined) continue;
+    const ages = share.ages ?? [];
+    if (share.pole !== undefined) {
+      if (ages[0] !== undefined) add(ages[0], 'burner');
+      if (ages[1] !== undefined) add(ages[1], share.pole);
+      continue;
+    }
     const headAge = smithHead(
       state.people.filter((p) => p.dwellingId === from),
       day,
     )?.age;
-    for (const age of share.ages ?? []) {
-      const smith = age === headAge;
-      if (out.some((w) => w.age === age && w.smith === smith)) continue;
-      out.push({ age, smith });
-    }
+    for (const age of ages) add(age, age === headAge ? 'smith' : 'smith-son');
   }
-  return out.sort((a, b) => Number(b.smith) - Number(a.smith) || b.age - a.age);
+  return out.sort(
+    (a, b) => FETCHER_ORDER.indexOf(a.role) - FETCHER_ORDER.indexOf(b.role) || b.age - a.age,
+  );
 }
 
 /** Milíře a milířiště pro `VillageView.kilns` – bez nich pole chybí. */

@@ -523,7 +523,7 @@ export function route(
 }
 
 /** Délka chůze trasy (s tempem úseků – po pěšině kratší). */
-function walkLengthOf(r: Route): number {
+export function walkLengthOf(r: Route): number {
   return r.walkLength ?? r.length;
 }
 
@@ -531,7 +531,7 @@ function walkLengthOf(r: Route): number {
  * Bod trasy po `w` metrech chůze (s tempem úseků) a směr úseku (do `out`); vrátí tempo úseku –
  * po pěšině jde postava rychleji a rychleji i kráčí.
  */
-function alongRouteWalk(r: Route, w: number, reverse: boolean, out: VillagerPose): number {
+export function alongRouteWalk(r: Route, w: number, reverse: boolean, out: VillagerPose): number {
   if (!r.walkAt || !r.pace) {
     alongRoute(r, w, reverse, out);
     return 1;

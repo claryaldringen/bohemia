@@ -77,19 +77,22 @@ export function lazyDwellingUrls(type: LazyDwellingType): { model: string; site:
   };
 }
 /** Hotový model ve vsi: obydlí, řemeslná dílna (crafts.md), nebo milíř uhlíře. */
-export type ModelKey = DwellingType | WorkshopModel | ShedModel | 'milir';
-export const CRAFT_MODEL_KEYS: readonly (WorkshopModel | ShedModel | 'milir')[] = [
-  'hrncir',
-  'kovar',
-  'tesar',
-  'uhlir',
-  'milir',
-  // přístřešky nadzemních dílen (workshops.md) – vedle domu vypletené a roubené dílny
-  'pristresek-hrncir',
-  'pristresek-kovar',
-  'pristresek-tesar',
-  'pristresek-uhlir',
-];
+export type ModelKey = DwellingType | WorkshopModel | ShedModel | 'milir' | 'milir-zemnice';
+export const CRAFT_MODEL_KEYS: readonly (WorkshopModel | ShedModel | 'milir' | 'milir-zemnice')[] =
+  [
+    'hrncir',
+    'kovar',
+    'tesar',
+    'uhlir',
+    'milir',
+    // zemnice uhlíře u milíře (workshops.md – Uhlíř, zemnice)
+    'milir-zemnice',
+    // přístřešky nadzemních dílen (workshops.md) – vedle domu vypletené a roubené dílny
+    'pristresek-hrncir',
+    'pristresek-kovar',
+    'pristresek-tesar',
+    'pristresek-uhlir',
+  ];
 /** Přístřešek hrnčíře a kováře sahá o tolik dál před obydlí (m) – ušlapaná tráva i před ním. */
 export const PORCH_EXTRA_M = 2.6;
 /** Rozvrh dýmu pece, výhně a milíře se liší od dýmníku obydlí (seed = id obydlí × 4 + druh). */
@@ -317,7 +320,9 @@ export function shapeableAs(mesh: Mesh, name: string): void {
 }
 
 /** Je model dílnou nebo milířem (public/models/crafts)? */
-export function isCraftModel(key: ModelKey): key is WorkshopModel | ShedModel | 'milir' {
+export function isCraftModel(
+  key: ModelKey,
+): key is WorkshopModel | ShedModel | 'milir' | 'milir-zemnice' {
   return (CRAFT_MODEL_KEYS as readonly string[]).includes(key);
 }
 

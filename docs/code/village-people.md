@@ -421,7 +421,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `keyed_frames` v `people_from_0ad.py`, CC0) `milk` (dojení na špalku – `milkers`), `spin`
   (předení – ženy u dveří, `SPIN_SHARE`), `sit` (starší), `wheel` (hrnčíř u kruhu –
   `PORCH_SPOTS`), `weave`, `pipe`, `drum` (tkaní a hudba – v GLB, zapojí úloha 12: stav,
-  hudebníci na svatbě). Špalek pod sedící postavou je volný prop `stump` (bod `seat` v počátku
+  hudebníci na svatbě), `carry-pole` (přední nosič uhlí na tyči – animace `carry_meat_m`, prop
+  `pole-basket`: tyč 2,6 m s košatinou) a `carry-pole-back` (zadní konec tyče, bez propu; scéna
+  ho staví ≈ 2,3 m za předního – `poleCarriers`, scene-village.md). Špalek pod sedící postavou je volný prop `stump` (bod `seat` v počátku
   postavy). VAT: half-float (`TEXTURETYPE_HALF_FLOAT`, kde ho engine neumí, float32 – `getCaps()
 .textureHalfFloat`), jedno pole rovnou ve formátu textury, peče se po kouscích
   `BAKE_SLICE_MS` (8 ms) mezi `requestIdleCallback` – žádná dlouhá úloha; zdrojový model je při

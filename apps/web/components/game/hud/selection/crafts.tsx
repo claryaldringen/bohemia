@@ -725,7 +725,13 @@ export function DugSiteBody({
 
 /** Kdo dnes nosí uhlí od milíře (tooltip). */
 export function kilnFetcherName(fetcher: KilnFetcher): string {
-  return `${fetcher.smith ? 'Kovář' : 'Syn kováře'} (věk) dnes nosí uhlí od milíře do kovárny`;
+  const who = {
+    burner: 'Uhlíř',
+    'burner-son': 'Syn uhlíře',
+    smith: 'Kovář',
+    'smith-son': 'Syn kováře',
+  }[fetcher.role];
+  return `${who} (věk) dnes nosí uhlí od milíře do kovárny na tyči`;
 }
 
 /** Co je s milířem teď – ikona, popisek a číslo (crafts.md – Milíř u skácených buků). */
@@ -830,7 +836,7 @@ export function KilnBody({
           )}
           {details.fetchers.map((fetcher) => (
             <Stat
-              key={`${fetcher.smith ? 'k' : 's'}${fetcher.age}`}
+              key={`${fetcher.role}${fetcher.age}`}
               icon={fetcher.age < AGE.adult ? 'child' : 'man'}
               name={kilnFetcherName(fetcher)}
               testId="selection-kiln-fetcher"

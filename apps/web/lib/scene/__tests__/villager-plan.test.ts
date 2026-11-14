@@ -3,6 +3,7 @@ import type { LaborShare, SceneCraftYard, SceneLaborShare, SceneVillage } from '
 import { chickenBox } from '../livestock-placement';
 import { localToWorld, sceneFrame } from '../village-layout';
 import { worldToLocal } from '../dwelling-pit';
+import { POLE_SPACING_M, campEntrance } from '../burner-camp-layout';
 import { MILIR_SHAPE_M, craftSpots, milirPlace } from '../workshop-layout';
 import { CLAY_PIT, bloomeryTop, smeltSpots, treadingLine } from '../craft-yard-layout';
 import {
@@ -1516,6 +1517,136 @@ describe('kovář – rudiště a nošení (crafts.md – Uhlí a ruda kováře)
       { seed: 5, herds: 0 },
     );
     expect(riding.some((p) => p.key.startsWith('fetch:'))).toBe(false);
+  });
+});
+
+describe('uhlí na tyči a zemnice u milíře (workshops.md – Uhlíř)', () => {
+  const KILN = { x: -30, z: -20 };
+  const camp = {
+    id: 1,
+    burnerId: 21,
+    x: -40,
+    z: -10,
+    rotation: Math.PI / 2,
+    built: 1,
+    occupied: true,
+    overgrowth: null,
+  };
+  function burnerVillage(shares: LaborShare[], withCamp = false): SceneVillage {
+    const base = village(shares);
+    return {
+      ...base,
+      dwellings: [
+        ...base.dwellings,
+        { ...house(21, -60, 20, 0.4), craft: 'burner' as const },
+        { ...house(31, 40, -20, 0, true, 'polozemnice'), craft: 'smith' as const },
+      ],
+      kilns: [{ id: 21, burnerId: 21, x: KILN.x, z: KILN.z, stage: 'burn', progress: 0.5 }],
+      ...(withCamp ? { burnerCamps: [camp] } : {}),
+    };
+  }
+  const pole = (ages: number[], kind: 'burner-son' | 'smith-son' | 'smith'): LaborShare => ({
+    activity: 'fetch',
+    target: { kind: 'kiln', id: 21, x: KILN.x, z: KILN.z, from: 31 },
+    manDays: 0.3,
+    ages,
+    pole: kind,
+  });
+  const plan = (v: SceneVillage): PlannedVillager[] =>
+    planVillagers(v, GROUND, { seed: 5, herds: 0 });
+
+  it('uhlíř se synem (12) – dvě postavy, druhá dětská, na téže trase 2,4 m od sebe', () => {
+    const people = plan(burnerVillage([pole([40, 12], 'burner-son')])).filter((p) =>
+      p.key.startsWith('fetch:'),
+    );
+    expect(people.length).toBe(2);
+    const [lead, rear] = people as [PlannedVillager, PlannedVillager];
+    expect(rear.scale).toBeLessThan(lead.scale);
+    // společný úsek zpět s tyčí: stejné klipy a rozestup po trase 2,4 m
+    let spaced = 0;
+    const clips = new Set<string>();
+    for (let t = 0; t < 600; t += 0.5) {
+      const a = at(lead, t);
+      const b = at(rear, t);
+      if (a.hidden || b.hidden) continue;
+      if (a.clip === 'carry-pole' && b.clip === 'carry-pole-back') {
+        clips.add(`${a.clip}+${b.clip}`);
+        expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeLessThan(POLE_SPACING_M + 0.05);
+        if (Math.abs(Math.hypot(a.x - b.x, a.z - b.z) - POLE_SPACING_M) < 0.4) spaced++;
+      }
+    }
+    expect(clips.size).toBe(1);
+    expect(spaced).toBeGreaterThan(5);
+    // k milíři jdou obě s `walk`
+    const outs = [lead, rear].map((p) => {
+      for (let t = 0; t < 600; t += 0.5) if (at(p, t).stage === 'out') return at(p, t).clip;
+      return null;
+    });
+    expect(outs).toEqual(['walk', 'walk']);
+  });
+
+  it('s kovářem jde uhlíř první úsek sám od milíře ke kovárně, partner je do té doby doma', () => {
+    const people = plan(burnerVillage([pole([40, 41], 'smith')])).filter((p) =>
+      p.key.startsWith('fetch:'),
+    );
+    expect(people.length).toBe(2);
+    const [lead, rear] = people as [PlannedVillager, PlannedVillager];
+    // dlouho (cesta ke kovárně) jde uhlíř sám, partner je doma; teprve pak vyjdou spolu
+    let alone = 0;
+    let longest = 0;
+    for (let t = 0; t < 900; t += 0.5) {
+      const a = at(lead, t);
+      const b = at(rear, t);
+      alone = !a.hidden && b.hidden === true && a.clip === 'walk' ? alone + 0.5 : 0;
+      longest = Math.max(longest, alone);
+    }
+    expect(longest).toBeGreaterThan(20);
+    // pak se partner objeví a po cestě zpět nese zadní konec tyče
+    const seen = new Set<string>();
+    for (let t = 0; t < 600; t += 0.5) {
+      const pose = at(rear, t);
+      if (!pose.hidden) seen.add(pose.clip);
+    }
+    expect(seen.has('carry-pole-back')).toBe(true);
+  });
+
+  it('s hotovou zemnicí a pálícím milířem chodí uhlíř od vchodu zemnice, ne od dílny', () => {
+    const shares: LaborShare[] = [
+      {
+        activity: 'craft',
+        target: { kind: 'kiln', id: 21, x: KILN.x, z: KILN.z },
+        manDays: 80,
+      },
+    ];
+    // odkud proud vychází: pozice postavy doma (skrytá na začátku trasy)
+    const startOf = (v: SceneVillage): { x: number; z: number } => {
+      const p = plan(v).find((q) => q.key.startsWith('traffic:kiln:'))!;
+      for (let t = 0; t < 900; t += 0.5) {
+        const pose = at(p, t);
+        if (pose.stage === 'rest') return pose;
+      }
+      throw new Error('postava nikdy nezůstala doma');
+    };
+    const door = campEntrance(camp);
+    const fromCamp = startOf(burnerVillage(shares, true));
+    expect(Math.hypot(fromCamp.x - door.x, fromCamp.z - door.z)).toBeLessThan(4);
+    // bez zemnice jde z dílny ve vsi (−60, 20)
+    const fromHome = startOf(burnerVillage(shares, false));
+    expect(Math.hypot(fromHome.x + 60, fromHome.z - 20)).toBeLessThan(20);
+  });
+
+  it('muž domácnosti uhlíře, který u milíře nehlídá, sedí u vchodu zemnice', () => {
+    const people = plan(burnerVillage([], true)).filter((p) => p.key.startsWith('camp:'));
+    expect(people.length).toBe(1);
+    const pose = at(people[0]!, 5);
+    const door = campEntrance(camp);
+    expect(pose.clip).toBe('sit');
+    expect(Math.hypot(pose.x - door.x, pose.z - door.z)).toBeLessThan(3);
+    // zemnice bez pálení nebo rozestavěná – nikdo nesedí
+    for (const over of [{ occupied: false }, { built: 0.5 }]) {
+      const v = { ...burnerVillage([], true), burnerCamps: [{ ...camp, ...over }] };
+      expect(plan(v).some((p) => p.key.startsWith('camp:'))).toBe(false);
+    }
   });
 });
 

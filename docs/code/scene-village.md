@@ -314,6 +314,35 @@ dx, dz)`: `dx` od stěny ven, `dz` podél ní. S variantou rozměrů se příst�
 - **Ukázka staveb** (`/dev/buildings`): osm dílen (4 řemesla × vypletená a roubená, `overgroundWorkshop`)
   – `ShowcaseModel.shed` je hotový přístřešek vedle domu, staveniště ukazuje jen dům.
 
+## Zemnice u milíře a nosiči na tyči (workshops.md – Uhlíř; plán 2026-11-15-workshops – Úloha 6)
+
+- **Data:** `SceneVillage.burnerCamps` (`SceneBurnerCamp` – střed, natočení, `built` po 5 %,
+  `occupied` = hotová zemnice a milíř pálí, `overgrowth` opuštěné). Čisté funkce
+  `lib/scene/burner-camp-layout.ts`: `campLook` (rozestavěná = jen díl `milir-zemnice-logs` z
+  `construction-moss.glb`, hotová model `milir-zemnice`; opuštěná sesedá o `0,6 × overgrowth` m
+  a střecha se nakloní o `12° × overgrowth` – `campUp` dává svislou osu napříč vchodem),
+  `campsKey` (klíč překreslení – `occupied` ho nemění), `campEntrance` (před vchodem, osa +z
+  modelu – `CAMP_ENTRANCE_M`), `POLE_SPACING_M` (2,4 m).
+- **Kreslení** (`village-renderer.ts`): hotové a opuštěné zemnice jsou instance `milir-zemnice`
+  (`ModelKey`, `CRAFT_MODEL_KEYS`) v `updateModels`, rozestavěné klády instance dílu
+  `milir-zemnice-logs` v `updateConstruction`; obojí se přepočítá jen při změně `campsKey`.
+  Pata `campBaseHeight` = nižší z výšky středu a průměru rohů půdorysu.
+- **Postavy** (`villager-plan-crafts.ts`): `poleCarriers` (volá je `smithFetchFigures`; podíly
+  s `pole`) – dvě postavy po téže trase kovárna ↔ milíř (`walkRoute`), obě stejnou rychlostí
+  (pomalejší z nich); zadní jde o `POLE_SPACING_M` později po téže trase (`polePoses`).
+  K milíři `walk`, zpět `carry-pole` (přední) a `carry-pole-back` (zadní), v kovárně zmizí. S `pole`
+  `smith` / `smith-son` jde uhlíř nejdřív sám od milíře ke kovárně (`walk`), partner je do té
+  doby doma. `campSitters`: jeden muž domácnosti uhlíře, který po práci dne zbyl, sedí (`sit`)
+  u vchodu zemnice čelem k milíři, jen s hotovou zemnicí a pálícím milířem.
+- **Provoz** (`trafficRoutes` ve `villager-plan-traffic.ts`): s hotovou zemnicí a pálícím milířem
+  vychází proud uhlíře od vchodu zemnice (bez minimální vzdálenosti `KILN_COMMUTE_MIN_M`), jinak
+  od dílny ve vsi.
+- **Panel milíře** (`kiln-view.ts`, `KilnBody`): `KilnFetcher { age, role }` – dnešní dvojice
+  u tyče: uhlíř se synem, uhlíř s kovářem, uhlíř se synem kováře (věky z `LaborShare.ages`, role
+  z `pole`); vůz se sedlákem dál zvlášť.
+- **Zatím ne:** výběr zemnice kliknutím, zemnice v cizí mapě a při nájezdu, noc (uhlíř spí
+  v zemnici), keře a kameny pod zemnicí se neskrývají.
+
 ## Humno ve scéně (production-chains.md – Humno, Obilné jámy; úloha 5 výrobních řetězů)
 
 Humno je jen mlat bez přístřešku (Martin 21. 10. 2026), mlátí se **holemi** – cepy se tehdy

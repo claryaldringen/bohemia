@@ -1390,7 +1390,10 @@ describe('SelectionPanel – milíř (crafts.md – Milíř u skácených buků)
     yieldKg: 1800,
     burnerWalkM: 96,
     smithWalkM: 1183,
-    fetchers: [{ age: 11, smith: false }],
+    fetchers: [
+      { age: 38, role: 'burner' },
+      { age: 11, role: 'burner-son' },
+    ],
     cart: false,
     burnerHere: true,
     ...over,
@@ -1413,7 +1416,26 @@ describe('SelectionPanel – milíř (crafts.md – Milíř u skácených buků)
   it('kdo sem dnes chodí pro uhlí – syn s věkem, vůz; uhlíř tu pracuje', () => {
     const html = render(kiln());
     expect(html).toMatch(/child\.png.*data-testid="selection-kiln-fetcher"[^>]*>11</);
-    expect(html).toContain('Syn kováře (věk) dnes nosí uhlí od milíře do kovárny');
+    expect(html).toContain('Uhlíř (věk) dnes nosí uhlí od milíře do kovárny na tyči');
+    expect(html).toContain('Syn uhlíře (věk) dnes nosí uhlí od milíře do kovárny na tyči');
+    const smithPair = render(
+      kiln({
+        fetchers: [
+          { age: 38, role: 'burner' },
+          { age: 41, role: 'smith' },
+        ],
+      }),
+    );
+    expect(smithPair).toContain('Kovář (věk) dnes nosí uhlí od milíře do kovárny na tyči');
+    const smithSon = render(
+      kiln({
+        fetchers: [
+          { age: 38, role: 'burner' },
+          { age: 12, role: 'smith-son' },
+        ],
+      }),
+    );
+    expect(smithSon).toContain('Syn kováře (věk) dnes nosí uhlí od milíře do kovárny na tyči');
     expect(html).toContain('data-testid="selection-kiln-burner-here"');
     expect(html).not.toContain('selection-kiln-cart');
     const cart = render(kiln({ fetchers: [], cart: true, burnerHere: false }));
