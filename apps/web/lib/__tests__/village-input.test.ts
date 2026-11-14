@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  parseSetDefenseStanceInput,
   parseBaptizeInput,
   parseDemolishFortificationSectionInput,
   parseFoundVillageInput,
@@ -420,5 +421,13 @@ describe('parseBaptizeInput – křest vojvody (christianity.md – Křest rodu)
     expect(parseBaptizeInput({})).toEqual({});
     expect(parseBaptizeInput(null)).toBeNull();
     expect(parseBaptizeInput('v-1')).toBeNull();
+  });
+});
+
+describe('parseSetDefenseStanceInput (war.md – Obránci)', () => {
+  it('přijme obranu a evakuaci, zrušené vzdání odmítne', () => {
+    expect(parseSetDefenseStanceInput({ stance: 'defend' })).toEqual({ stance: 'defend' });
+    expect(parseSetDefenseStanceInput({ stance: 'flee' })).toEqual({ stance: 'flee' });
+    expect(parseSetDefenseStanceInput({ stance: 'surrender' })).toBeNull();
   });
 });

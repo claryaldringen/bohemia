@@ -463,8 +463,8 @@ export function refugeOptions(input: RefugeOptionsInput): RefugeOptions {
 
 /**
  * Volba správce a NPC (Otevřené 6; war.md – Správce za nepřítomného hráče): posel vždy, jde-li;
- * útěk jen s postojem „raději utéct“ a bez vlastního útočiště – „se vším“, stihnou-li to, jinak
- * „jen lidé“, jinak les; bez lesa nic (platí postoj při boji). `defend` / `surrender` je hráčova
+ * útěk jen s postojem „evakuace“ a bez vlastního útočiště – „se vším“, stihnou-li to, jinak
+ * „jen lidé“, jinak les; bez lesa nic (platí postoj při boji). `defend` je hráčova
  * volba dopředu a platí.
  */
 export function stewardAlarmChoice(

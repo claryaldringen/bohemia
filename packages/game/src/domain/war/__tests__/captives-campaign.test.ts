@@ -29,7 +29,7 @@ function knezice(): VillageState {
   const v = village(people, undefined, {
     lastDay: SUMMER,
     storesKg: 1000,
-    defense: { stance: 'surrender' },
+    defense: { stance: 'flee' },
   });
   v.dwellings[0]!.position = { x: -860, z: 30, rotation: 0 };
   return v;

@@ -740,7 +740,7 @@ Plán 2026-11-03 – rozhodnutí 13, Úloha 6.7. Ves čeká jen na tažení u se
 
 ## Postoje vsi a včasný útěk (Ú6.9)
 
-Rozhodnutí: `VillageState.defense?: { stance }` (`DefenseStance` = `defend` | `surrender` | `flee`),
+Rozhodnutí: `VillageState.defense?: { stance }` (`DefenseStance` = `defend` | `flee`; starší `surrender` převádí `stance-surrender` na `flee`),
 bez nastavení `flee` (`stanceOf`, `WAR.flight.defaultStance`). Postoj mění akce `setDefenseStance`
 (`application/set-defense-stance.ts`, `ACTION_RIGHTS` → právo **`war`** – obrana vsi je válka, správce
 cizí vsi ani senior ji nemají; držitel vsi ano). Čísla útěku: `WAR.flight` (25 / 10 kg, děti od 7 let,
@@ -757,12 +757,10 @@ návrat za 1 den), `WAR.surrenderRatio`, `WAR.pitFoundChance`.
      opevnění, doběh tempem vojska, brány se zavřou, jakmile je první útočník do 30 m (takt
      `gateCloseTick`), `refugeAdmit` rozhodne, kdo se vejde. Muži uvnitř obsadí hradbu
      (`wallPosts` – [Obránci na hradbě](#obránci-na-hradbě-hradby-ú12)), zbytek je záloha ve středu,
-     ženy a starší nebojují. Postoj `surrender`: skupina uvnitř se nevzdá, dokud žádný útočník
-     v dohledu nestojí uvnitř obvodu (`attackerInsideFort` – `fortsContaining`); pak
-     `fortSurrenders` = přesila 1,5× jako u domů (`isOverpowered`);
-  2. kdo zůstal venku, jedná po **skupinách domů**: `defend` bojuje; `surrender` se vzdá při
-     přesile, jinak bojuje; `flee` do lesa (zásoby, dobytek), **bez lesa jako `surrender`**. Poslední
-     muž rodu se nevzdá – uteče do lesa (bez lesa bojuje);
+     ženy a starší nebojují. Skupina uvnitř se podle postoje nevzdává (14. 11. 2026 zrušen postoj
+     `surrender` a pravidlo vzdání za opevněním smazány); bod zlomu a `rout` platí dál;
+  2. kdo zůstal venku, jedná po **skupinách domů**: `defend` bojuje; `flee` do lesa (zásoby, dobytek), **bez lesa se
+     vzdá při přesile (`isOverpowered`), jinak bojuje**. Poslední muž rodu se nevzdá – uteče do lesa (bez lesa bojuje);
   3. kdo odešel nebo se vzdal, v `BattleState` není (nezapočítá se do bodu zlomu); co odnesl, je
      v `BattleState.shelter` (`ShelterReport`: útočiště, les, vzdaní, `carriedKg`, dobytek) – použije
      Ú6.10 (kořist, jámy), Ú6.11 (vzdaní).
@@ -1454,7 +1452,7 @@ expected, reply?)` (odpověď se přidá do `body` – `body || reply`).
   odpověď, útok = přepadení a zrušení), `db/adapters/__tests__/passage-repository.db.test.ts`
   (souběh tří odpovědí – projde jedna, zrušení v obou směrech, odpověď dialogu v těle jednou),
   e2e `multiplayer.spec.ts` („svolání: …“, „ochrana: …“), `domain/war/__tests__/guard-campaign.test.ts`
-  (hosté „bránit se“ / „vzdát se“, ztráty domů, po kouscích = vcelku, padlý host = nástupnictví),
+  (hosté „bránit se“ / evakuace bez lesa = vzdání, ztráty domů, po kouscích = vcelku, padlý host = nástupnictví),
   `summons.test.ts` (NPC vazal přesně), `launch-campaign.test.ts` (přepadení přes rozsudek).
 
 ## Živé vedení a pohled na tažení (Ú6.14)

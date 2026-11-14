@@ -1096,8 +1096,7 @@ na které stojí.
 
 ## Postoj vsi ve dvorci (úloha 6.9, `hud/ManorPanel.tsx`)
 
-`ManorUpgrades` má vedle stezky, lovu a obchodu tři ikony postoje (stěna štítů = bránit se, bílá
-vlajka = vzdát se při přesile, stromy = raději utéct; vlastní SVG v `public/icons/war/`, CC0,
+`ManorUpgrades` má vedle stezky, lovu a obchodu dvě ikony postoje (stěna štítů = Obrana, stromy = Evakuace; vlastní SVG v `public/icons/war/`, CC0,
 `LICENSES.md`); zvolená má `aria-pressed` a zlatý proužek, popis je v `Tooltip`. `VillageManor.stance`
 plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance` → `setDefenseStanceForPlayer`
 (`lib/village.ts`, právo `war` – bez něj tlačítka zašednou s důvodem). Upozornění `foreign-army` →

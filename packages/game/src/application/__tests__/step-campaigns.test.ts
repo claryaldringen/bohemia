@@ -241,7 +241,7 @@ describe('stepCampaigns', () => {
         kin({ id: 3, age: 5, sex: 'male', mother: 2, father: 1 }, SUMMER),
       ],
       undefined,
-      { lastDay: SUMMER + 20, defense: { stance: 'surrender' } },
+      { lastDay: SUMMER + 20, defense: { stance: 'flee' } },
     );
     target.dwellings[0]!.position = { x: -860, z: 30, rotation: 0 };
     b.villages.records.set('knezice', {

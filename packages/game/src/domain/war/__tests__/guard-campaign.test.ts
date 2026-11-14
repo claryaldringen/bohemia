@@ -35,7 +35,7 @@ function hrad(kind: 'protection' | 'service' = 'protection'): VillageState {
 
 /** Kněžice: jen žena a dítě, dva hosté z Hradu; postoj podle testu. */
 function knezice(
-  stance: 'defend' | 'surrender',
+  stance: 'defend' | 'flee',
   kind: 'protection' | 'service' = 'protection',
 ): VillageState {
   const v = village(
@@ -72,7 +72,7 @@ const START = campaign({
 });
 const END = LAUNCH + 3000;
 
-function run(stance: 'defend' | 'surrender'): ReturnType<typeof stepCampaign> {
+function run(stance: 'defend' | 'flee'): ReturnType<typeof stepCampaign> {
   return stepCampaign(START, END, SET_OUT, raidWorld(knezice(stance), hrad()));
 }
 
@@ -87,7 +87,7 @@ const bodiesOf = (
 
 describe('muži ze svolání v boji', () => {
   const runService = (home: VillageState): ReturnType<typeof stepCampaign> =>
-    stepCampaign(START, END, SET_OUT, raidWorld(knezice('surrender', 'service'), home));
+    stepCampaign(START, END, SET_OUT, raidWorld(knezice('flee', 'service'), home));
 
   it('hosté ze služby se brání se vsí a jejich ztráty dojdou domů', () => {
     const whole = runService(hrad('service'));
@@ -108,7 +108,7 @@ describe('muži ze svolání v boji', () => {
 
   it('po kouscích taktů = vcelku', () => {
     const whole = runService(hrad('service'));
-    const w = raidWorld(knezice('surrender', 'service'), hrad('service'));
+    const w = raidWorld(knezice('flee', 'service'), hrad('service'));
     let s = START;
     const events = [];
     while (s.tick < END && s.phase !== 'done') {
@@ -146,8 +146,8 @@ describe('hosté z ochrany v boji', () => {
     expect(total).toBe(down);
   });
 
-  it('„vzdát se při přesile“: hosté se vzdají se vsí, zajetí dojde domů i věznitelovi', () => {
-    const whole = run('surrender');
+  it('evakuace bez lesa = vzdání při přesile: hosté se vzdají se vsí, zajetí dojde domů i věznitelovi', () => {
+    const whole = run('flee');
     const [losses] = bodiesOf(whole, 'hrad', 'guard-losses');
     if (losses?.kind !== 'guard-losses') throw new Error('chybí ztráty hostů');
     expect(losses).toMatchObject({ fallen: [], wounded: [], captured: [20, 21] });
@@ -173,7 +173,7 @@ describe('hosté z ochrany v boji', () => {
   });
 
   it('po kouscích taktů = vcelku', () => {
-    for (const stance of ['defend', 'surrender'] as const) {
+    for (const stance of ['defend', 'flee'] as const) {
       const whole = run(stance);
       const w = raidWorld(knezice(stance), hrad());
       let s = START;

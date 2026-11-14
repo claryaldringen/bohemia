@@ -59,6 +59,19 @@ describe('seznam převodů', () => {
     expect(JSON.stringify(state)).toBe(before);
   });
 
+  it("postoj 'surrender' se převede na 'flee', podruhé beze změny (war.md – Obránci)", () => {
+    const old = founded();
+    (old as { defense?: { stance: string } }).defense = { stance: 'surrender' };
+    const once = migrateVillage(old, advance);
+    expect(once.defense).toEqual({ stance: 'flee' });
+    expect(migrateVillage(once, advance)).toBe(once);
+    expect((old.defense as { stance: string }).stance).toBe('surrender');
+    const kept = founded();
+    kept.defense = { stance: 'defend' };
+    expect(migrateVillage(kept, advance).defense).toEqual({ stance: 'defend' });
+    expect(migrateVillage(founded(), advance).defense).toBeUndefined();
+  });
+
   it('nová ves má strop dovedností od založení (war.md – Síla)', () => {
     expect(founded().armsCapped).toBe(true);
   });

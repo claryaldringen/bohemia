@@ -143,7 +143,7 @@ export const WAR = {
    * probíjejících; skupina se shromáždí do 6 m od brány (nejvýš 60 s), pak vyrazí do lesa.
    */
   breakout: { lossShare: 0.3, gateWatchM: 30, weakGuardShare: 0.5, gatherM: 6, gatherSeconds: 60 },
-  /** war.md – Vzdaní: útočníků víc než 1,5× obránců, muž rodu se vzdá s 80 %. */
+  /** war.md – Přesila: útočníků víc než 1,5× obránců (útěk bez lesa, dostižení uprchlíků); muž rodu se vzdá s 80 %. */
   surrenderRatio: 1.5,
   lineSurrenderChance: 0.8,
   /** war.md – Čísla: jáma po 1 herním dni ve skupině domů se najde s 30 %. */

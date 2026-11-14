@@ -23,7 +23,7 @@ function knezice(): VillageState {
   const v = village(people, undefined, {
     lastDay: SUMMER,
     storesKg: 1000,
-    defense: { stance: 'surrender' },
+    defense: { stance: 'flee' },
     livestock: {
       herds: { sheep: 6, goat: 0, pig: 0, cow: 0 },
       young: { sheep: 0, goat: 0, pig: 0, cow: 0 },

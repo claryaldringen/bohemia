@@ -307,7 +307,7 @@ místo“ (návrh Clauda) neplatí. Zásah zůstává `10 × síla útočníka` 
 - **Stav úseku** (návrh Clauda): práce i hoření prolomení se násobí stavem – palisáda na 50 % se
   prosekne za polovinu, na 0 % je mezera. Výška valu `v` (0,5–1): tempo přes val ÷ (1 + 3 × v),
   únava × (1 − 0,15 × v) – nahrazuje „násobek podle stavu“.
-- **Postoj Vzdát se při přesile** (návrh Clauda, nahrazuje „1,5 × obránců × násobek“): skupina za
+- ~~**Postoj Vzdát se při přesile**~~ (zrušeno 14. 11. 2026, Hráč ve vsi a mimo ni; za opevněním se skupina podle postoje nevzdává) (návrh Clauda, nahrazuje „1,5 × obránců × násobek“): skupina za
   opevněním se nevzdá, dokud útočník nestojí uvnitř obvodu; pak platí 1,5× jako u domů.
 - **NPC velitel** (návrh Clauda, nahrazuje „1,5 × obránci × násobek“): odhadne nejrychlejší
   postup – mezera, žebříky na neobsazeném úseku, brána, oheň, sekání, odkopání, podkop – a napadne,
@@ -804,7 +804,7 @@ tři **úkrytem bližším než les** a liší se jen ti, kdo se do něj nevejdo
 
 - **Bránit se** – lidé do útočiště, muži 16–44 let na obvod a k branám; kdo zůstal venku, brání
   se u domů jako dnes. Bod zlomu 45 % (válka).
-- **Vzdát se při přesile** – ~~stejně, ale přesila se poměří s opevněním: skupina za opevněním se
+- ~~**Vzdát se při přesile**~~ (zrušeno 14. 11. 2026) – ~~stejně, ale přesila se poměří s opevněním: skupina za opevněním se
   vzdá, je-li útočníků v dohledu víc než 1,5 × obránců × násobek opevnění (návrh Clauda;
   20 obránců za palisádou se vzdá až před 61 útočníky).~~ Nahrazeno 8. 11. 2026: skupina za
   opevněním se nevzdá, dokud útočník nestojí uvnitř obvodu, pak 1,5× jako u domů (návrh Clauda).
