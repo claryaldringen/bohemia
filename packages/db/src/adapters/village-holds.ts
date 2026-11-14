@@ -4,11 +4,13 @@ import type { Database } from '../client';
 
 // Bariéra ves × tažení a výjezd (plán 2026-11-03 – rozhodnutí 13, Úloha 6.7; docs/code/war.md – Bariéra
 // dopočtu): které vsi drží tažení a do kterého dne. Čte jen skupiny kontrolního bodu
-// (`state->'groups'`), varování (`state->'alarm'` – plán 2026-11-09, Úloha 3) a události v `outbox`
+// (`state->'groups'`), varování (`state->'alarm'` – plán 2026-11-09, Úloha 3), domovskou ves
+// běžícího výjezdu (`state->'home'` – závěrečná recenze výjezdu, Important 3) a události v `outbox`
 // aktivních tažení. Aktivní tažení najde index `campaign_status_idx`, body s nedoručenými
 // událostmi (`outbox IS NOT NULL`) částečný index `campaign_checkpoint_outbox_idx` (migrace 0044) –
 // žádná větev tak nečte body skončených tažení. Výjezdy vojvody jdou stejnou cestou (`journey_status_idx`,
-// `journey_checkpoint_outbox_idx`, migrace 0045), jen bez varování – drží skupinou a událostmi.
+// `journey_checkpoint_outbox_idx`, migrace 0045), jen bez varování – drží skupinou, domovskou vsí
+// (vsi podle id jako varování – `alarmed`) a událostmi.
 // Mez z bodu (`throughDay` – den bez hodin) počítá `holdDay` (herní jádro).
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -17,8 +19,9 @@ const UUID_SQL = '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
 /**
  * Tažení, která ještě něco drží (aktivní, nebo s nedoručenými událostmi), políčka jejich skupin
  * a běžících poslů (`cells` – drží vsi na políčku a políčko od něj), vsi, které drží varováním
- * (`alarmed` – vsi ve varování, kandidáti hradišť a hradiště skupin uprchlíků, bez ohledu na
- * vzdálenost; id mimo uuid se zahodí) a dny jejich nedoručených událostí do vsí – JSON bodu se
+ * (`alarmed` – vsi ve varování, kandidáti hradišť, hradiště skupin uprchlíků a domovská ves
+ * běžícího výjezdu, bez ohledu na vzdálenost; id mimo uuid se zahodí) a dny jejich nedoručených
+ * událostí do vsí – JSON bodu se
  * rozbalí jednou na tažení.
  *
  * Obě podmínky jako sjednocení id, ne `OR` přes spojení tabulek: s `OR` plánovač spojil všechna
@@ -29,6 +32,7 @@ const UUID_SQL = '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
 const LIVE = sql`
   live AS MATERIALIZED (
     SELECT cp.campaign_id, cp.state->'groups' AS groups, cp.state->'alarm' AS alarm,
+           '[]'::jsonb AS homes,
            coalesce((cp.state->>'throughDay')::int, (cp.state->>'day')::int - 1) AS through,
            coalesce(cp.outbox->'villageEvents', '[]'::jsonb) AS events
     FROM campaign_checkpoint cp
@@ -39,8 +43,11 @@ const LIVE = sql`
     )
     UNION ALL
     -- výjezdy vojvody (plán 2026-11-13 – Úloha 3): stejný tvar bodu, bez varování; id výjezdu
-    -- se s id tažení nepotkají (uuid), sloupec se jmenuje podle tažení
+    -- se s id tažení nepotkají (uuid), sloupec se jmenuje podle tažení. Domovskou ves běžícího
+    -- výjezdu (homes) výjezd čte každý den (homeDay) – drží ji jako ves u skupiny
     SELECT jp.journey_id, jp.state->'groups', '{}'::jsonb,
+           CASE WHEN jp.state->>'phase' = 'done' THEN '[]'::jsonb
+                ELSE jsonb_build_array(jp.state->'home'->'villageId') END,
            coalesce((jp.state->>'throughDay')::int, (jp.state->>'day')::int - 1),
            coalesce(jp.outbox->'villageEvents', '[]'::jsonb)
     FROM journey_checkpoint jp
@@ -67,6 +74,7 @@ const LIVE = sql`
       jsonb_path_query_array(live.alarm, '$.villages[*].villageId')
       || jsonb_path_query_array(live.alarm, '$.villages[*].hosts[*]')
       || jsonb_path_query_array(live.alarm, '$.flights[*].hostVillageId')
+      || live.homes
     ) a(id)
     WHERE a.id ~* ${UUID_SQL}
   ),

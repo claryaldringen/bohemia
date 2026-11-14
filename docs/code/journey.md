@@ -105,7 +105,12 @@ tempo a svět `CampaignWorld`.
   archivem a koncem výjezdu).
 - **Bariéra** (`adapters/village-holds.ts`) – tabulka `live` bere vedle bodů tažení i body běžících
   výjezdů (sjednocení id jako u tažení) bez varování; mez vsi je `throughDay` bodu a drží ji ves na
-  mapě skupiny nebo políčko od ní. `GameDeps.journeys` (`packages/server/src/deps.ts`).
+  mapě skupiny nebo políčko od ní a **domovská ves běžícího výjezdu** (`state.home.villageId`, ve
+  `LIVE` sloupec `homes`, v `alarmed` vedle vsí varování – i přednostní vsi). Výjezd čte domov
+  každý den (`homeDay` – smrt člena doma); bez meze by ves mohla být napřed a na pořadí smyček
+  workeru by záleželo, kdy výjezd smrt pozná (závěrečná recenze, návrh Clauda). Skončený výjezd
+  domov nedrží. Testy: `village-holds.db.test.ts`, `campaign-race.db.test.ts` (worker vsí domovskou
+  ves nedopočte za `throughDay` výjezdu). `GameDeps.journeys` (`packages/server/src/deps.ts`).
 
 ## Worker (Úloha 4 – `application/step-journeys.ts`)
 

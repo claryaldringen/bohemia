@@ -159,6 +159,45 @@ describe('VillageHolds a přednostní vsi', () => {
     expect(await villagesNearCampaigns(db)).toEqual([]);
   });
 
+  it('domovská ves běžícího výjezdu drží do throughDay jako ves u skupiny a jde přednostně', async () => {
+    const journeys = createJourneyRepository(db);
+    const all = [ids.near, ids.adjacent, ids.far];
+    const away = journeyState({
+      home: { villageId: ids.far, cell: { x: 8, y: 0 }, pos: { x: 0, z: 0 } },
+    });
+    await journeys.create(away, NOW);
+    expect(await holds.limitOf(all)).toEqual(
+      new Map([
+        [ids.near, DAY - 2],
+        [ids.adjacent, DAY - 2],
+        [ids.far, DAY - 2],
+      ]),
+    );
+    expect((await villagesNearCampaigns(db)).sort()).toEqual(
+      [ids.near, ids.adjacent, ids.far].sort(),
+    );
+    const queue = createWorldQueue(db);
+    expect(await queue.priorityVillages()).toHaveLength(3);
+    // skončený výjezd domov nedrží – ani s nedoručenými událostmi jinam
+    await journeys.saveCheckpoint(away.id, {
+      fromTick: away.tick,
+      seenIntents: 0,
+      state: { ...away, tick: away.tick + 10, phase: 'done' },
+      outbox: {
+        villageEvents: [
+          {
+            villageId: ids.near,
+            day: DAY + 4,
+            ref: 'r1',
+            body: { kind: 'raid-day', campaignId: away.id },
+          },
+        ],
+        notices: [],
+      } as never,
+    });
+    expect((await holds.limitOf(all)).has(ids.far)).toBe(false);
+  });
+
   it('bez tažení nic nedrží; tažení drží ves na mapě i políčko od ní do throughDay', async () => {
     const all = [ids.near, ids.adjacent, ids.far, 'ne-uuid'];
     expect(await holds.limitOf(all)).toEqual(new Map());

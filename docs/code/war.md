@@ -696,7 +696,8 @@ Plán 2026-11-03 – rozhodnutí 13, Úloha 6.7. Ves čeká jen na tažení u se
   Adaptér `db/adapters/village-holds.ts` (`createVillageHolds` – CTE nad aktivními body:
   `state->'groups'`, `state->'alarm'` a `outbox` se rozbalí jednou na tažení; aktivní tažení najde
   index `campaign_status_idx`, body s nedoručenými událostmi částečný index
-  `campaign_checkpoint_outbox_idx` – body skončených tažení se nečtou; `villagesNearCampaigns`
+  `campaign_checkpoint_outbox_idx` – body skončených tažení se nečtou; body výjezdů vojvody stejně,
+  navíc drží domovskou ves běžícího výjezdu – journey.md, Úložiště; `villagesNearCampaigns`
   – přednostní vsi = všechny držené vsi kromě těch jen s nedoručenou událostí), úložiště vsí ho
   nese jako `VillageRepository.holds` (patří k dopočtu jako schránka; `cachedVillages` ho propouští).
 - **Dopočet vsi** – `updateVillage` se zeptá na mez při každém pokusu a dopočítá ves jen do
