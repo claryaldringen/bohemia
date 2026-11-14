@@ -14,6 +14,18 @@ export const HIVES = {
 } as const;
 
 /**
+ * hides-honey.md – Klát u obydlí, diet.md – Pojmy (Martin 14. 11. 2026: „Má ho i jíst“; „Med se
+ * nekazí, takže se dá dlouho skladovat a hromadit. Na druhou stranu – med se většinou přidával do
+ * sladkého pečiva nebo se z něj dělala medovina – samotného medu totiž člověk moc nesní.“):
+ * energie 0,9 kg obilí na kg medu (≈ 3 040 proti 3 400 kcal), pevný příděl 0,5 kg na člověka za
+ * rok – denně rovným dílem z toho, co je; zbytek se hromadí (návrh Clauda).
+ */
+export const HONEY = {
+  energyPerKg: 0.9,
+  kgPerPersonYear: 0.5,
+} as const;
+
+/**
  * hides-honey.md – Zpracování v domácnosti (Martin 14. 11. 2026: tukem a kouřem, kožešina kvašením;
  * tuk, popel a kvas se nepočítají – „Stačí čas domácnosti“; práce a čekání „Souhlas“, spotřeba
  * „Ano“). Domácnosti zpracovávají od listopadu do března (`fromMonth`–`toMonth`), hodiny na

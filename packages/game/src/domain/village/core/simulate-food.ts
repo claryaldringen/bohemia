@@ -186,9 +186,10 @@ function eatsFull(input: DietInput): boolean {
 
 /**
  * Krok 8: jídlo dne ze zásob (diet.md) – ovoce přednostně do zkažení, čerstvé mléko (dojí se
- * vždy celé – ženy bokem, population.md – Práce) a vejce, maso do porážky, sýr do dojení a luštěniny do sklizně, obilí dorovná;
- * vrací nasycení (energie × kvalita stravy), energii, jestli se jedlo ovoce, a podíl energie
- * z masa (štěstí) a zapíše začátek a konec hladu. Hlad začíná
+ * vždy celé – ženy bokem, population.md – Práce) a vejce, maso do porážky, sýr do dojení,
+ * luštěniny do sklizně a med pevným přídělem (hides-honey.md), obilí dorovná; vrací nasycení
+ * (energie × kvalita stravy), energii, jestli se jedlo ovoce, a podíl energie z masa (štěstí)
+ * a zapíše začátek a konec hladu. Hlad začíná
  * už tehdy, když příděl energie podle výhledu do sklizně klesne pod plný – i když se dnes jí
  * dosyta ovocem a obilí nevystačí až po 1. 3. Po lidech dostanou obilí jezdečtí koně
  * (`feedHorseGrain`).
@@ -228,6 +229,8 @@ export function eat(
     state.legumesKg = meal.legumesKg + seedLegumes;
   }
   if (state.applesKg !== undefined) state.applesKg = meal.fruitKg;
+  // med z klátů – zbytek se hromadí (hides-honey.md – Klát u obydlí); ves bez zboží med nemá
+  if (state.wares) state.wares.honeyKg = meal.honeyKg;
   state.diet = meal.diet;
   // kolik z dnešní potřeby musí dát pole – podle toho potřeba z pole ve výhledu zásob k sklizni
   // (fields.md – Výhled zásob k sklizni, Osev podle stravy)

@@ -11,11 +11,15 @@ import {
   dietQuality,
   eatDiet,
   fruitEnergy,
+  grainAheadForOutlookKg,
+  honeyEnergy,
   meatEnergy,
   spoilMeat,
+  villageHoneyRationKg,
   type DietInput,
   type Eaten,
 } from '../diet';
+import { HONEY } from '../../rules/rules-wares';
 import { NO_CRAFTS, storageLossPerYear } from '../productivity';
 import { advanceVillage } from '../simulate';
 import type { VillageState } from '../../types';
@@ -55,6 +59,7 @@ const NONE: Eaten = {
   cheeseKg: 0,
   eggsKg: 0,
   legumesKg: 0,
+  honeyKg: 0,
 };
 
 describe('nasycení = energie × kvalita z bílkovin a ovoce (diet.md)', () => {
@@ -101,6 +106,7 @@ describe('nasycení = energie × kvalita z bílkovin a ovoce (diet.md)', () => {
       cheeseKg: 1,
       eggsKg: 1,
       legumesKg: 0,
+      honeyKg: 0,
     });
     const protein =
       PROTEIN.perKg.grain + PROTEIN.perKg.meat + PROTEIN.perKg.cheese + PROTEIN.perKg.eggs + 0.07;
@@ -278,6 +284,110 @@ describe('eatDiet – příděl', () => {
     expect(meal.outlook).toBeCloseTo((grain + 4 * 30) / (NEED * 60), 9);
     // do zkažení dost
     expect(eatDiet(input({ grainKg: 400, meatKg: 6000, daysToHarvest: 60 })).outlook).toBe(1);
+  });
+});
+
+describe('med – pevný příděl (hides-honey.md – Klát u obydlí; diet.md – Pojmy)', () => {
+  /** 73 lidí × 0,5 kg za rok ÷ 365 dní = příděl 0,1 kg medu za den. */
+  const RATION = (73 * HONEY.kgPerPersonYear) / 365;
+
+  it('jí se příděl, zbytek zůstane v zásobě; 0,9 obilí na kg – o tolik méně obilí', () => {
+    expect(RATION).toBeCloseTo(0.1, 12);
+    expect(honeyEnergy(1)).toBe(0.9);
+    const plain = eatDiet(input({}));
+    const meal = eatDiet(input({ honeyKg: 10, honeyRationKg: RATION }));
+    expect(meal.honeyKg).toBeCloseTo(9.9, 12);
+    expect(meal.diet.shares.honey).toBeCloseTo(0.009, 12);
+    expect(meal.diet.shares.grain).toBeCloseTo(plain.diet.shares.grain - 0.009, 12);
+    expect(meal.grainKg - plain.grainKg).toBeCloseTo(0.09, 9);
+    expect(meal.diet.energy).toBeCloseTo(1, 12);
+  });
+
+  it('zásoba menší než příděl – sní se, co je', () => {
+    const meal = eatDiet(input({ honeyKg: 0.05, honeyRationKg: RATION }));
+    expect(meal.honeyKg).toBe(0);
+    expect(meal.diet.shares.honey).toBeCloseTo(0.0045, 12);
+  });
+
+  it('bez bílkovin a bez vlivu na kvalitu stravy – přidá jen energii', () => {
+    const eaten = { ...NONE, grainKg: 6, meatKg: 2 };
+    const plain = dietOf(NEED, PROTEIN_NEED, eaten);
+    const sweet = dietOf(NEED, PROTEIN_NEED, { ...eaten, honeyKg: 1 });
+    expect(sweet.protein).toBe(plain.protein);
+    expect(sweet.diversity).toBe(plain.diversity);
+    expect(sweet.shares.honey).toBeCloseTo(0.09, 12);
+    expect(sweet.energy).toBeCloseTo(plain.energy + 0.09, 12);
+  });
+
+  it('vstup bez medových polí dá totéž co nulová zásoba – podíl medu chybí', () => {
+    const plain = eatDiet(input({}));
+    expect(eatDiet(input({ honeyKg: 0, honeyRationKg: RATION }))).toEqual(plain);
+    expect(eatDiet(input({ honeyKg: 10 }))).toEqual({ ...plain, honeyKg: 10 });
+    expect('honey' in plain.diet.shares).toBe(false);
+    expect(plain.honeyKg).toBe(0);
+  });
+
+  it('výhled do sklizně počítá s přídělem (`daily`) – jídlo dne i přežívací zásoba', () => {
+    const honey = { honeyKg: 100, honeyRationKg: RATION };
+    // 0,09 kg obilí denně × 100 dní do sklizně
+    expect(
+      grainAheadForOutlookKg(input({ grainKg: 0 }), 1) -
+        grainAheadForOutlookKg(input({ grainKg: 0, ...honey }), 1),
+    ).toBeCloseTo(9, 9);
+    const lean = eatDiet(input({ grainKg: 500 }));
+    const leanHoney = eatDiet(input({ grainKg: 500, ...honey }));
+    expect(lean.outlook).toBeLessThan(1);
+    expect(leanHoney.outlook - lean.outlook).toBeCloseTo(9 / (NEED * 100), 9);
+  });
+
+  it('výhled počítá med jen, dokud zásoba vydrží (jako maso do zkažení)', () => {
+    // 5 kg vydrží 50 ze 100 dní do sklizně – výhled s ním počítá 4,5 kg obilí, ne 9
+    const honey = { honeyKg: 5, honeyRationKg: RATION };
+    expect(
+      grainAheadForOutlookKg(input({ grainKg: 0 }), 1) -
+        grainAheadForOutlookKg(input({ grainKg: 0, ...honey }), 1),
+    ).toBeCloseTo(4.5, 9);
+    const lean = eatDiet(input({ grainKg: 500 }));
+    const leanHoney = eatDiet(input({ grainKg: 500, ...honey }));
+    expect(leanHoney.outlook - lean.outlook).toBeCloseTo(4.5 / (NEED * 100), 9);
+    // dnes se jí celý příděl – obilí dnes o to méně, ať je dnešní energie rovný příděl
+    expect(leanHoney.diet.energy).toBeCloseTo(leanHoney.outlook, 9);
+    expect(leanHoney.honeyKg).toBeCloseTo(4.9, 12);
+  });
+
+  it('příděl vsi – 0,5 kg za rok na každého, kdo jí ze zásob vsi (i hosté)', () => {
+    const day = at(600, 12, 2);
+    const s = foundVillage({ seed: 3, day, dwellingPosition: { x: 0, z: 0, rotation: 0 } });
+    const perPerson = HONEY.kgPerPersonYear / 365;
+    expect(s.people.length).toBeGreaterThan(0);
+    expect(villageHoneyRationKg(s, day)).toBeCloseTo(s.people.length * perPerson, 12);
+    s.guests = [
+      { ref: { villageId: 'pan', personId: 1 }, kind: 'labor', untilDay: day + 30, adult: true },
+      { ref: { villageId: 'pan', personId: 2 }, kind: 'labor', untilDay: day, adult: true },
+    ];
+    expect(villageHoneyRationKg(s, day)).toBeCloseTo((s.people.length + 1) * perPerson, 12);
+  });
+
+  it('ves jí med ze zásoby zboží, zbytek se hromadí', () => {
+    const s = withBuiltFirstDwelling(
+      foundVillage({ seed: 1, day: at(600, 12, 1), dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
+    );
+    s.storesKg = 50_000;
+    withoutSmallGame(s);
+    s.wares = { hides: 0, sheepFurs: 0, wildFurs: 0, honeyKg: 10, waxKg: 0 };
+    const day = at(600, 12, 2);
+    // v prosinci včely nelétají – med jen ubývá, každý den stejný příděl
+    const ration = villageHoneyRationKg(s, day);
+    const end = advanceVillage(s, day, null);
+    expect(end.people.length).toBe(s.people.length);
+    expect(end.wares!.honeyKg).toBeCloseTo(10 - (day - s.lastDay) * ration, 12);
+    expect(end.diet!.shares.honey).toBeGreaterThan(0);
+    // ves bez zboží med nemá – podíl medu chybí (zboží může mezitím vzniknout jen z lišky v oku)
+    const bare = structuredClone(s);
+    delete bare.wares;
+    const after = advanceVillage(bare, day, null);
+    expect(after.wares?.honeyKg ?? 0).toBe(0);
+    expect(after.diet!.shares.honey).toBeUndefined();
   });
 });
 

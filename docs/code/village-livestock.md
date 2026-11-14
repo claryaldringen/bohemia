@@ -528,6 +528,27 @@ chybějící hodnota je 0, převod není potřeba. Jmenuje se `wares`, ne `goods
   (`wares/wares-work.ts`) ze zbytku `freeLabor − weedMen − extraMow`, i v hladu; ryby a oka
   (`smallGameDay`) jen z toho, co po ní zbude.
 
+### Med ve stravě (`core/diet.ts`)
+
+Návrh: hides-honey.md – Klát u obydlí, diet.md – Pojmy. Čísla `HONEY` (`rules/rules-wares.ts`):
+energie 0,9 kg obilí na kg, pevný příděl 0,5 kg na člověka za rok.
+
+- `villageHoneyRationKg(state, day)` – příděl za den: každý, kdo dnes jí ze zásob vsi (lidé
+  s `foodNeedPerDay > 0` a hosté do `untilDay`), × `HONEY.kgPerPersonYear ÷ 365`. Vstup jídla
+  (`baseMealInput` v `core/meal-input.ts` i `villageMeal`) předá `honeyKg` (`wares.honeyKg`, i dnešní
+  med z klátů – `waresDay` je ráno) a `honeyRationKg`.
+- `dietPlan`: sní se `min(zásoba, příděl)` – bez stropu, bez bílkovin a bez vlivu na kvalitu
+  stravy (`dietOf` – jen energie). Dnešní příděl jde do `today`, do výhledu do sklizně
+  `honeyUntilHarvest` – příděl jen na dny, kdy zásoba vydrží (`honeyDays`; jako maso do zkažení,
+  med, který klády dají do žní, výhled nezná) – v `eatDiet` i `grainAheadForOutlookKg`
+  (přežívací zásoba – `seedKeepKg`); po zkažení ovoce `honeyAfterRot`.
+- `eat()` (`core/simulate-food.ts`) zapíše zbytek `state.wares.honeyKg = meal.honeyKg` – jen když
+  `wares` existuje, kvůli jídlu nevznikne; med se nekazí.
+- Podíl `DietDay.shares.honey` jen, když se med jedl (jako `freshMeat`); `fieldShareOf`
+  (`fields/field-food.ts`) ho počítá k jídlu mimo pole. Horní lišta (`TopBar`) ho neukazuje.
+- Past převodu: `withoutForeignGoods` (`trade/trade.ts`, převod `foreign-goods` běží při každém
+  načtení) maže podíl medu jen ve vsi bez `wares` – ves se zbožím vrátí týž objekt.
+
 ### Zpracování v domácnosti (`wares/hides.ts`)
 
 Návrh: hides-honey.md – Zpracování v domácnosti. Čísla `HIDES` (`rules/rules-wares.ts`), hodiny na

@@ -190,6 +190,8 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
     // hash d068311f (14. 11. 2026, kůže a kožešiny – hides-honey.md, Zpracování v domácnosti):
     // domácnosti v zimě zpracují kůže a kožešiny ze zbytku práce napřed, ryby a oka dostanou
     // jen to, co zbude – jiný úlovek a jídlo; dřív 971d2cb8
-    expect(hash(stripped)).toBe('d068311f');
+    // hash 12845e84 (14. 11. 2026, ves jí med z klátů – hides-honey.md, Klát u obydlí): med šetří
+    // obilí (zásoby, jídlo) a ubírá podíl jídla z pole (výhled zásob k sklizni); dřív d068311f
+    expect(hash(stripped)).toBe('12845e84');
   }, 120_000);
 });

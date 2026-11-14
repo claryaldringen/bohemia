@@ -159,6 +159,8 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
     // hash c4d44549 (14. 11. 2026, kůže a kožešiny – hides-honey.md, Zpracování v domácnosti):
     // domácnosti v zimě zpracují kůže a kožešiny ze zbytku práce napřed, ryby a oka dostanou
     // jen to, co zbude – jiný úlovek a jídlo; dřív 84a9a56
-    expect(hash(stripped)).toBe('c4d44549');
+    // hash f80dba91 (14. 11. 2026, ves jí med z klátů – hides-honey.md, Klát u obydlí): med šetří
+    // obilí (zásoby, jídlo) a ubírá podíl jídla z pole (výhled zásob k sklizni); dřív c4d44549
+    expect(hash(stripped)).toBe('f80dba91');
   }, 120_000);
 });

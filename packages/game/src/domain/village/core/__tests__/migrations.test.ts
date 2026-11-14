@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { generateLandscape, obstaclesOf, tileCenterWorld } from '../../../landscape';
 import { foundVillage } from '../actions';
 import { migrateVillage, VILLAGE_MIGRATIONS, type VillageMigrationContext } from '../migrations';
+import { withoutForeignGoods } from '../../trade/trade';
 import type { VillageState } from '../../types';
 
 // Převody starších vsí (village-core.md – Převody starších vsí): jeden seznam pro načtení vsi
@@ -61,5 +62,41 @@ describe('seznam převodů', () => {
 
   it('nová ves má strop dovedností od založení (war.md – Síla)', () => {
     expect(founded().armsCapped).toBe(true);
+  });
+});
+
+describe('podíl medu v jídle (`foreign-goods` – trade.md, Jen společné suroviny)', () => {
+  /** Ves, která včera jedla med (podíl 0,002 energie). */
+  function sweet(): VillageState {
+    const s = migrateVillage(founded(), load);
+    s.diet = {
+      energy: 1,
+      protein: 1,
+      diversity: 0.9,
+      satiation: 0.9,
+      shares: { grain: 0.998, meat: 0, dairy: 0, eggs: 0, fruit: 0, legumes: 0, honey: 0.002 },
+    };
+    return s;
+  }
+
+  it('ves se zbožím (`wares`) jí med z klátů – převod vrátí týž objekt', () => {
+    const s = sweet();
+    s.wares = { hides: 0, sheepFurs: 0, wildFurs: 0, honeyKg: 4, waxKg: 0.3 };
+    expect(withoutForeignGoods(s)).toBe(s);
+    expect(migrateVillage(s, load)).toBe(s);
+  });
+
+  it('ves bez zboží – podíl medu je ze starého zboží zvenku a zmizí', () => {
+    const s = sweet();
+    const next = withoutForeignGoods(s);
+    expect(next.diet!.shares).toEqual({
+      grain: 0.998,
+      meat: 0,
+      dairy: 0,
+      eggs: 0,
+      fruit: 0,
+      legumes: 0,
+    });
+    expect(s.diet!.shares.honey).toBe(0.002);
   });
 });

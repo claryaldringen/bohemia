@@ -63,7 +63,6 @@ import type {
   CartKind,
   ChronicleEvent,
   ComingPeople,
-  DietDay,
   Direction8,
   NeighbourPeople,
   NeighbourStock,
@@ -916,15 +915,19 @@ function foreignTradeEvent(event: ChronicleEvent): boolean {
 /**
  * Ves bez zboží zvenku (trade.md – Jen společné suroviny; Martin 19. 10. 2026: „Nech jen společné
  * suroviny, nezaváděj nové.“). Starší ves přijde o zásoby soli, železa, medu a kožešin
- * (`VillageState.goods`) a o podíl medu v posledním jídle; uložený zbytek roku souseda, který
- * nesedí na jeho dnešní povahu (soused nabízel zboží zvenku), se zahodí – soused má do 1. 11. plné
- * roční zásoby a poptávku. Výprava na cestě, která měla přinést zboží zvenku, se ruší celá: nosiči
- * přinesou zpět, co nesli (`get` = `give`), ves nic neztratí ani nezíská. Z kroniky výprav zboží
- * zvenku zmizí. Bez čeho převádět, vrátí tentýž objekt; idempotentní (jako `withKinship`).
+ * (`VillageState.goods`) a o podíl medu v posledním jídle – jen ves bez zboží vsi (`wares`); ves
+ * se zbožím jí med z klátů (hides-honey.md – Klát u obydlí) a podíl jí zůstane. Uložený zbytek roku
+ * souseda, který nesedí na jeho dnešní povahu (soused nabízel zboží zvenku), se zahodí – soused má
+ * do 1. 11. plné roční zásoby a poptávku. Výprava na cestě, která měla přinést zboží zvenku, se ruší
+ * celá: nosiči přinesou zpět, co nesli (`get` = `give`), ves nic neztratí ani nezíská. Z kroniky
+ * výprav zboží zvenku zmizí. Bez čeho převádět, vrátí tentýž objekt; idempotentní (jako
+ * `withKinship`).
  */
 export function withoutForeignGoods(state: VillageState): VillageState {
   const legacy = state as VillageState & { goods?: unknown };
-  const shares = state.diet?.shares as (DietDay['shares'] & { honey?: number }) | undefined;
+  const shares = state.diet?.shares;
+  // převod běží při každém načtení – podíl medu ze zboží zvenku má jen ves bez zboží vsi
+  const foreignHoney = shares?.honey !== undefined && state.wares === undefined;
   const trade = state.trade;
   const staleStocks = trade?.neighbours.some((n) => !fitsNeighbour(n, state.seed)) ?? false;
   const foreignExpeditions =
@@ -932,7 +935,7 @@ export function withoutForeignGoods(state: VillageState): VillageState {
   const foreignEvents = state.chronicle.some(foreignTradeEvent);
   if (
     legacy.goods === undefined &&
-    shares?.honey === undefined &&
+    !foreignHoney &&
     !staleStocks &&
     !foreignExpeditions &&
     !foreignEvents
@@ -941,7 +944,7 @@ export function withoutForeignGoods(state: VillageState): VillageState {
   }
   const next: VillageState & { goods?: unknown } = { ...state };
   delete next.goods;
-  if (state.diet && shares?.honey !== undefined) {
+  if (state.diet && shares && foreignHoney) {
     const { grain, meat, dairy, eggs, fruit, legumes } = shares;
     next.diet = {
       ...state.diet,

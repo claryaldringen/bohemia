@@ -118,10 +118,13 @@ variantu „a“: odebrat zboží zvenku). Detaily níž jsou návrh Clauda.
 
 - **Co se mění:** se sousedem se vyměňuje jen to, co ves sama má – obilí, luštěniny, maso, sýr,
   dobytek (od 20. 10. 2026 krávy, mladí a vycvičení voli – [Dobytek ve třech
-  druzích](#dobytek-ve-třech-druzích-20-10-2026)), klády, keramika, hřivny (dřív nástroje) a uhlí. Sůl, železo, med a kožešiny ve hře nejsou:
-  nejsou v zásobách vsi ani v horní liště, med se nejí (strava, osev podle stravy), sůl
-  a kožešiny nepřidávají štěstí a kovář nekuje z koupeného železa – železo si taví sám z bahenní
-  rudy, jak rozhodl Martin u [řemesel](crafts.md).
+  druzích](#dobytek-ve-třech-druzích-20-10-2026)), klády, keramika, hřivny (dřív nástroje) a uhlí. Sůl, železo, med a kožešiny zvenku ve hře nejsou:
+  nejsou v zásobách vsi ani v horní liště, sůl a kožešiny nepřidávají štěstí a kovář nekuje
+  z koupeného železa – železo si taví sám z bahenní rudy, jak rozhodl Martin u
+  [řemesel](crafts.md). ~~Med se nejí (strava, osev podle stravy).~~ Od 14. 11. 2026 má ves med
+  a kožešiny vlastní ([kůže, kožešiny, med a vosk](hides-honey.md)) – med z klátů jí pevným
+  přídělem ([strava](diet.md) – Pojmy), a tak ubírá i podíl jídla z pole ([pole](fields.md) –
+  Výhled zásob k sklizni).
 - **Čím se soused živí** (návrh Clauda): soused nabízí, co mu jeho hospodaření dává navíc, a shání,
   čeho sám nemá dost. Nabízí 2–3 druhy ze své nabídky (řemeslníci mají jen dva), shání 2–3 druhy –
   jeden vždy, zbytek ze svých potřeb; nabízené a sháněné se nepřekrývají.
@@ -152,7 +155,8 @@ variantu „a“: odebrat zboží zvenku). Detaily níž jsou návrh Clauda.
   bez vlastního kováře a hrnčíře si tak zvedne produktivitu (meze produktivity, crafts.md).
 - **Starší vsi** (při načtení – `withoutForeignGoods`, jednou, idempotentně, před dopočtem):
   - zásoby soli, železa, medu a kožešin **propadnou** bez náhrady (hra ještě neběží ostře) a z
-    posledního jídla zmizí podíl medu;
+    posledního jídla zmizí podíl medu – jen ve vsi bez zboží vsi; ves se zbožím jí med z klátů
+    a podíl jí zůstane (převod běží při každém načtení – návrh Clauda 14. 11. 2026);
   - uložený zbytek roku souseda, který nesedí na jeho novou povahu, se zahodí – soused má do
     1. 11. plné roční zásoby a poptávku;
   - **výprava na cestě, která měla přinést zboží zvenku, se ruší celá: nosiči přinesou zpět, co
