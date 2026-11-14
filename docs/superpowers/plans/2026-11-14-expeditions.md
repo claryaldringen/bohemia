@@ -38,7 +38,7 @@
    - `home` zůstane jedna na stav – bariéra vsí (`homes`), `homeDay` a `away-ends` beze změny tvaru;
    - dělení a spojení skupin se děje v jednom stavu, jedním krokem pod jedním zámkem – žádná transakce přes víc výjezdů;
    - `groups[].cell` čte bariéra i `onCell` (`@>`) pro libovolný počet hloučků už dnes.
-   Lidé ze dvou vsí hráče jsou vždy ve dvou výpravách; výběr přes dvě vsi nejde (klik na člověka jiné vsi výběr nahradí).
+     Lidé ze dvou vsí hráče jsou vždy ve dvou výpravách; výběr přes dvě vsi nejde (klik na člověka jiné vsi výběr nahradí).
 2. **Skupina a hlouček.** `JourneyParty` je skupina hráče (výběr, rozkaz, lhůta, vůdce), `JourneyGroup` hlouček – lidé na jednom místě s jednou polohou. Skupina z lidí na různých místech má víc hloučků; všechny jdou ke stejnému cíli tempem nejpomalejšího ze skupiny a splynou, když oba stojí na stejném cíli. Lhůta 3 dnů běží od chvíle, kdy stojí všechny hloučky skupiny (a nesedlá se).
 3. **Rozkazy na lidi.** Záměr nese id lidí (`people`) a data nových lidí ze vsi (`recruits`), ne id skupiny. Rozkaz části skupiny ji rozdělí (zbytek stojí a čeká). Rozkaz lidem z víc skupin je spojí do jedné. Osedlat a Sesednout skupiny nedělí ani nespojují. Starý záměr (`JourneyOrder` bez `people`) platí pro všechny členy.
 4. **Převod běžícího výjezdu:**
@@ -73,7 +73,7 @@
    - kůň během výpravy uhyne nebo zmizí z ohrady;
    - jezdec padne – kůň je zase volný;
    - chov a porážka 1. 11. koně venku nevyberou.
-   Testy v Úlohách 2 a 3.
+     Testy v Úlohách 2 a 3.
 5. **Ženy a děti:**
    - dítě 12–13 let ve skupině nepase, žena nepracuje, oba jedí doma – test v Úloze 2;
    - dítě pod 12 a raněný vybraný s ostatními zůstane doma, ostatní jdou – test v Úloze 5.
@@ -96,21 +96,58 @@
 - Produces:
 
 ```ts
-interface JourneyMember { /* dosavadní pole */ group: number; name?: string; female?: true; bornDay?: number }
-interface JourneyGroup extends CampaignGroup { party: number }
-interface JourneyParty { id: number; phase: 'out' | 'returning'; arrivedTick: number | null; crossing?: true; leaderless?: true }
-interface JourneyState { /* … */ phase: 'out' | 'done'; groups: JourneyGroup[]; parties: JourneyParty[]; nextId: number; leaderName?: string }
-type JourneyOrder = { kind: 'go'; pos: Pos; cell?: GridCell } | { kind: 'cross'; cell: GridCell } | { kind: 'home' };
-type JourneyRecruit = Pick<JourneyMember, 'ref' | 'lord' | 'strength' | 'fight' | 'name' | 'female' | 'bornDay'> & { mounted?: true };
+interface JourneyMember {
+  /* dosavadní pole */ group: number;
+  name?: string;
+  female?: true;
+  bornDay?: number;
+}
+interface JourneyGroup extends CampaignGroup {
+  party: number;
+}
+interface JourneyParty {
+  id: number;
+  phase: 'out' | 'returning';
+  arrivedTick: number | null;
+  crossing?: true;
+  leaderless?: true;
+}
+interface JourneyState {
+  /* … */ phase: 'out' | 'done';
+  groups: JourneyGroup[];
+  parties: JourneyParty[];
+  nextId: number;
+  leaderName?: string;
+}
+type JourneyOrder =
+  { kind: 'go'; pos: Pos; cell?: GridCell } | { kind: 'cross'; cell: GridCell } | { kind: 'home' };
+type JourneyRecruit = Pick<
+  JourneyMember,
+  'ref' | 'lord' | 'strength' | 'fight' | 'name' | 'female' | 'bornDay'
+> & { mounted?: true };
 type JourneyCommand =
   | { kind: 'order'; order: JourneyOrder; people?: number[]; recruits?: JourneyRecruit[] }
   | { kind: 'recall'; cells: GridCell[] };
 type JourneyIntentBody = JourneyCommand | JourneyOrder; // JourneyIntent.body
-interface NewJourney { id; seed; playerId; houseId; home: CampaignVillage; startMs: number; recruits: JourneyRecruit[]; order?: JourneyOrder }
+interface NewJourney {
+  id;
+  seed;
+  playerId;
+  houseId;
+  home: CampaignVillage;
+  startMs: number;
+  recruits: JourneyRecruit[];
+  order?: JourneyOrder;
+}
 function upgradeJourney(state: JourneyState | LegacyJourneyState): JourneyState;
 function commandOf(body: JourneyIntentBody): JourneyCommand;
 function partyLeader(members: readonly JourneyMember[]): JourneyMember | undefined;
-function applyCommand(s: JourneyState, command: JourneyCommand, ctx: TickContext, out: TickOut): void;
+function applyCommand(
+  s: JourneyState,
+  command: JourneyCommand,
+  ctx: TickContext,
+  out: TickOut,
+): void;
 ```
 
 - Sémantika (krok, v pořadí taktu jako dnes):
@@ -229,16 +266,46 @@ function applyCommand(s: JourneyState, command: JourneyCommand, ctx: TickContext
 
 ```ts
 type MemberHorse = 'ridden' | 'led';
-interface JourneyMember { /* … */ horseId?: number; horse?: MemberHorse; strengthMounted?: number }
-type JourneyRecruit = /* … */ & { horseId?: number; strengthMounted?: number };
-interface HorseWork { kind: 'saddle' | 'unsaddle'; groomId: number | null; riders: number[]; fromTick: number; untilTick: number; pen: Pos }
-interface JourneyParty { /* … */ horseWork?: HorseWork }
-type JourneyCommand = /* … */
+interface JourneyMember {
+  /* … */ horseId?: number;
+  horse?: MemberHorse;
+  strengthMounted?: number;
+}
+type JourneyRecruit = /* … */ { horseId?: number; strengthMounted?: number };
+interface HorseWork {
+  kind: 'saddle' | 'unsaddle';
+  groomId: number | null;
+  riders: number[];
+  fromTick: number;
+  untilTick: number;
+  pen: Pos;
+}
+interface JourneyParty {
+  /* … */ horseWork?: HorseWork;
+}
+type JourneyCommand =
+  /* … */
   | { kind: 'saddle'; people?: number[]; recruits?: JourneyRecruit[] }
   | { kind: 'dismount'; people?: number[] };
-function riderHorse(village: VillageState, personId: number, horseId: number | undefined, day: number): { horse: Horse; pen: Pen } | null;
-function pickGroom(village: VillageState, day: number, near: Pos, skip: ReadonlySet<number>): { personId: number; from: Pos } | null;
-function horseWorkTicks(input: { kind: 'saddle' | 'unsaddle'; groom: Pos | null; pen: Pos; riders: Pos; day: number }): number;
+function riderHorse(
+  village: VillageState,
+  personId: number,
+  horseId: number | undefined,
+  day: number,
+): { horse: Horse; pen: Pen } | null;
+function pickGroom(
+  village: VillageState,
+  day: number,
+  near: Pos,
+  skip: ReadonlySet<number>,
+): { personId: number; from: Pos } | null;
+function horseWorkTicks(input: {
+  kind: 'saddle' | 'unsaddle';
+  groom: Pos | null;
+  pen: Pos;
+  riders: Pos;
+  day: number;
+}): number;
 ```
 
 - **Jezdec** = člen s `horseId` (Úloha 5 ho vyplní z `Horse.riderId`). `riderHorse` ho najde v ohradě koní domovské vsi (jezdecký kůň, `riderId === personId`).
@@ -313,7 +380,7 @@ function horseWorkTicks(input: { kind: 'saddle' | 'unsaddle'; groom: Pos | null;
   4. `SET NOT NULL`;
   5. `DROP INDEX journey_player_active_idx`;
   6. `CREATE UNIQUE INDEX journey_player_home_active_idx ON journey (player_id, home_village_id) WHERE status = 'active'`.
-  Snímek Drizzle odpovídá koncovému stavu.
+     Snímek Drizzle odpovídá koncovému stavu.
 
 - [ ] **Step 1: Failing testy**
   - `journey-repository.db.test.ts`:
@@ -343,12 +410,33 @@ function horseWorkTicks(input: { kind: 'saddle' | 'unsaddle'; groom: Pos | null;
 
 ```ts
 type ExpeditionPersonRefusal = 'young' | 'wounded' | 'campaign' | 'away';
-function expeditionRecruit(state: VillageState, person: Person, day: number): JourneyRecruit | ExpeditionPersonRefusal;
-type ExpeditionCommand = { kind: 'order'; order: JourneyOrder } | { kind: 'saddle' } | { kind: 'dismount' };
-type ExpeditionRefusal = ExpeditionPersonRefusal | 'no-village' | 'nobody' | 'village-attacked' | 'unreachable' | 'war-there' | 'horse-home';
+function expeditionRecruit(
+  state: VillageState,
+  person: Person,
+  day: number,
+): JourneyRecruit | ExpeditionPersonRefusal;
+type ExpeditionCommand =
+  { kind: 'order'; order: JourneyOrder } | { kind: 'saddle' } | { kind: 'dismount' };
+type ExpeditionRefusal =
+  | ExpeditionPersonRefusal
+  | 'no-village'
+  | 'nobody'
+  | 'village-attacked'
+  | 'unreachable'
+  | 'war-there'
+  | 'horse-home';
 type ExpeditionResult = { ok: true; journeyId: string } | { ok: false; reason: ExpeditionRefusal };
-interface ExpeditionInput { playerId: string; villageId: string; people: number[]; command: ExpeditionCommand; now: Date }
-function commandParty(deps: ExpeditionDeps, input: ExpeditionInput): Promise<ExpeditionResult | { ok: false; reason: 'recruits' }>;
+interface ExpeditionInput {
+  playerId: string;
+  villageId: string;
+  people: number[];
+  command: ExpeditionCommand;
+  now: Date;
+}
+function commandParty(
+  deps: ExpeditionDeps,
+  input: ExpeditionInput,
+): Promise<ExpeditionResult | { ok: false; reason: 'recruits' }>;
 function musterExpedition(deps: ExpeditionDeps, input: ExpeditionInput): Promise<ExpeditionResult>;
 ```
 
@@ -417,21 +505,63 @@ function musterExpedition(deps: ExpeditionDeps, input: ExpeditionInput): Promise
 
 ```ts
 interface ExpeditionView {
-  journeyId: string; villageId: string; tick: number; day: number;
-  home: GridCell; homePos: Pos;
+  journeyId: string;
+  villageId: string;
+  tick: number;
+  day: number;
+  home: GridCell;
+  homePos: Pos;
   parties: PartyView[];
   /** Co rod ví o cizích mapách, na kterých hloučky stojí (klíč `x,y`) – jako dnešní `seen`. */
   seen: Record<string, SeenCell>;
 }
 interface PartyView {
-  id: number; phase: 'out' | 'returning'; controllable: boolean; leaderId: number | null;
-  waitDaysLeft: number | null; horseWork: HorseWork | null;
+  id: number;
+  phase: 'out' | 'returning';
+  controllable: boolean;
+  leaderId: number | null;
+  waitDaysLeft: number | null;
+  horseWork: HorseWork | null;
   groups: { id: number; cell: GridCell; pos: Pos; goal: CampaignPlace | null; arrived: boolean }[];
-  people: { personId: number; group: number; lord: boolean; rider: boolean; mounted: boolean; horse: MemberHorse | null; horseId: number | null; wounded: boolean; strength: number; female: boolean; child: boolean }[];
+  people: {
+    personId: number;
+    group: number;
+    lord: boolean;
+    rider: boolean;
+    mounted: boolean;
+    horse: MemberHorse | null;
+    horseId: number | null;
+    wounded: boolean;
+    strength: number;
+    female: boolean;
+    child: boolean;
+  }[];
 }
-function expeditionViewsFor(deps: JourneyReadDeps, input: { playerId: string }): Promise<ExpeditionView[]>;
-interface ExpeditionVisitor { journeyId: string; partyId: number; own: boolean; leaderName: string | null; houseName: string; tick: number; groups: { id: number; pos: Pos; goal: Pos | null }[]; people: { personId: number; lord: boolean; mounted: boolean; led: boolean; female: boolean; child: boolean }[] }
-function expeditionVisitorsOn(deps: VisitorsDeps, input: { playerId: string; villageId: string }): Promise<ExpeditionVisitor[]>;
+function expeditionViewsFor(
+  deps: JourneyReadDeps,
+  input: { playerId: string },
+): Promise<ExpeditionView[]>;
+interface ExpeditionVisitor {
+  journeyId: string;
+  partyId: number;
+  own: boolean;
+  leaderName: string | null;
+  houseName: string;
+  tick: number;
+  groups: { id: number; pos: Pos; goal: Pos | null }[];
+  people: {
+    personId: number;
+    lord: boolean;
+    mounted: boolean;
+    led: boolean;
+    female: boolean;
+    child: boolean;
+  }[];
+}
+function expeditionVisitorsOn(
+  deps: VisitorsDeps,
+  input: { playerId: string; villageId: string },
+): Promise<ExpeditionVisitor[]>;
 ```
 
 - Pohled:
@@ -556,12 +686,12 @@ function expeditionVisitorsOn(deps: VisitorsDeps, input: { playerId: string; vil
 }
 ```
 
-  - Chování `useExpeditionOrders`:
-    - režim rozkazu je zapnutý, když výběr obsahuje lidi; s vybranou stavbou nebo polem pravé tlačítko výběr ruší jako dnes;
-    - pravé tlačítko → `commandExpedition({ villageId, people, command: { kind: 'order', order } })`, kde `go.cell` = mapa, kterou scéna ukazuje, a `villageId` = domovská ves vybraných (`ExpeditionView.villageId`, lidé doma = ves scény);
-    - dvojklik nevyšle dvakrát (běžící rozkaz v ref jako dnes);
-    - nemůže-li nikdo z vybraných (`ScenePerson.expedition.refusal` u všech), důvod u kurzoru bez dotazu na server.
-  - **Sledování:** scéna cizí mapy jde za hloučkem vůdce vybrané skupiny, bez výběru za skupinou vojvody (dnešní chování). `LordAwayBadge` beze změny.
+- Chování `useExpeditionOrders`:
+  - režim rozkazu je zapnutý, když výběr obsahuje lidi; s vybranou stavbou nebo polem pravé tlačítko výběr ruší jako dnes;
+  - pravé tlačítko → `commandExpedition({ villageId, people, command: { kind: 'order', order } })`, kde `go.cell` = mapa, kterou scéna ukazuje, a `villageId` = domovská ves vybraných (`ExpeditionView.villageId`, lidé doma = ves scény);
+  - dvojklik nevyšle dvakrát (běžící rozkaz v ref jako dnes);
+  - nemůže-li nikdo z vybraných (`ScenePerson.expedition.refusal` u všech), důvod u kurzoru bez dotazu na server.
+- **Sledování:** scéna cizí mapy jde za hloučkem vůdce vybrané skupiny, bez výběru za skupinou vojvody (dnešní chování). `LordAwayBadge` beze změny.
 
 - [ ] **Step 1: Failing testy**
   - `village-selection.test.ts`:
@@ -653,16 +783,23 @@ function expeditionVisitorsOn(deps: VisitorsDeps, input: { playerId: string; vil
   - `SceneJourney.men[]`:
 
 ```ts
-{ personId: number; lord: boolean; look: 'line' | 'man' | 'woman' | 'child'; mounted: boolean; led: boolean; wounded: boolean }
+{
+  personId: number;
+  lord: boolean;
+  look: 'line' | 'man' | 'woman' | 'child';
+  mounted: boolean;
+  led: boolean;
+  wounded: boolean;
+}
 ```
 
-  - `look`: `line` = muž rodu, `man` / `woman` = vesničan a vesničanka, `child` dostane měřítko dítěte z `refugee-march.ts`.
-  - `journeyFigures`:
-    - jezdci jako dnes (`ARMY_LOOKS.line`, `ride*`);
-    - pěší jako postavy vsi (`ARMY_LOOKS.folk`, `woman.glb` pro ženy, chůze, bez oštěpu);
-    - vedený kůň = `ArmyAnimal` koně bez jezdce vedle pěšího jezdce (≈ 1,2 m stranou, stejný směr a klip chůze).
-  - `journeyMarks(journeys, selected: ReadonlySet<string>)` – praporek jen na cíli hloučků vybrané skupiny (klíč `${journeyId}:${partyId}`), dokud jde ven nebo čeká.
-  - `journeyHorseIds` – koně členů s `horse` (jezdec i vedený); ohrada je nekreslí.
+- `look`: `line` = muž rodu, `man` / `woman` = vesničan a vesničanka, `child` dostane měřítko dítěte z `refugee-march.ts`.
+- `journeyFigures`:
+  - jezdci jako dnes (`ARMY_LOOKS.line`, `ride*`);
+  - pěší jako postavy vsi (`ARMY_LOOKS.folk`, `woman.glb` pro ženy, chůze, bez oštěpu);
+  - vedený kůň = `ArmyAnimal` koně bez jezdce vedle pěšího jezdce (≈ 1,2 m stranou, stejný směr a klip chůze).
+- `journeyMarks(journeys, selected: ReadonlySet<string>)` – praporek jen na cíli hloučků vybrané skupiny (klíč `${journeyId}:${partyId}`), dokud jde ven nebo čeká.
+- `journeyHorseIds` – koně členů s `horse` (jezdec i vedený); ohrada je nekreslí.
 - Žádný nový mesh ani atribut; `needsRender` jen během pohybu.
 
 - [ ] **Step 1: Failing testy**
