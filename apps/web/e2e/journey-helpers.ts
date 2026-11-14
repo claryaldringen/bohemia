@@ -38,7 +38,6 @@ export async function journeyScene(page: Page): Promise<JourneyScene> {
       window.__bohemiaE2E?.journeyScene?.() ?? {
         riders: [],
         banner: null,
-        hourglass: null,
         phase: null,
         led: [],
         gate: null,

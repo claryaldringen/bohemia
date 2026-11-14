@@ -41,7 +41,7 @@ export function useJourneyScene({
   return journeys;
 }
 
-/** Háček e2e `journeyScene` scény – vsi i cizí mapy (muži, praporek, hodiny, odjezd). */
+/** Háček e2e `journeyScene` scény – vsi i cizí mapy (muži, praporek, odjezd). */
 export function journeySceneHook(scene: LandscapeScene): NonNullable<E2EHooks['journeyScene']> {
   return () => {
     const stats = scene.journeyStats();
@@ -56,7 +56,6 @@ export function journeySceneHook(scene: LandscapeScene): NonNullable<E2EHooks['j
         speed: p.speed,
       })),
       banner: stats.banner,
-      hourglass: stats.hourglass,
       phase: stats.phase,
       led: stats.led,
       gate: stats.gate,

@@ -124,6 +124,7 @@ async function stepOne(
     outbox !== null ||
     journeyFinished(step.state) ||
     (step.waiting?.villageIds.length ?? 0) > 0 ||
+    playerSeesChange(from, step.state, intents) ||
     step.state.tick - from.tick >= CHECKPOINT_TICKS;
   if (!due) {
     states?.set(journeyId, {
@@ -146,6 +147,34 @@ async function stepOne(
     await deps.journeys.clearOutbox(journeyId, step.state.tick);
   }
   return 'saved';
+}
+
+/**
+ * Změnilo se od uloženého bodu, co hráč vidí (poloha, cíl nebo dojetí skupiny, fáze), nebo se v kole
+ * uplatnil jeho záměr? Web čte pohled z kontrolního bodu – jedoucí skupina se proto ukládá každé
+ * kolo (≈ 1 s), ať vojvoda na klik reaguje do vteřiny; stojící skupina zůstává na `CHECKPOINT_TICKS`.
+ */
+function playerSeesChange(
+  from: JourneyState,
+  to: JourneyState,
+  intents: readonly JourneyIntent[],
+): boolean {
+  if (from.phase !== to.phase || from.groups.length !== to.groups.length) return true;
+  if (intents.some((i) => i.tick <= to.tick)) return true;
+  return to.groups.some((g, n) => {
+    const was = from.groups[n]!;
+    return (
+      was.cell.x !== g.cell.x ||
+      was.cell.y !== g.cell.y ||
+      was.pos.x !== g.pos.x ||
+      was.pos.z !== g.pos.z ||
+      was.arrived !== g.arrived ||
+      was.goal?.cell.x !== g.goal?.cell.x ||
+      was.goal?.cell.y !== g.goal?.cell.y ||
+      was.goal?.pos.x !== g.goal?.pos.x ||
+      was.goal?.pos.z !== g.goal?.pos.z
+    );
+  });
 }
 
 /**

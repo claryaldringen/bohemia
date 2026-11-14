@@ -28,7 +28,7 @@ export class SceneWarView {
   private war: SceneWar | null = null;
   /** Výjezdy vojvody na mapě (vlastní i návštěvníci – journey-riders.ts). */
   private journeys: readonly SceneJourney[] = [];
-  /** Praporek cíle a přesýpací hodiny vlastního výjezdu (journey-marker.ts). */
+  /** Praporek cíle vlastního výjezdu (journey-marker.ts). */
   private marker: JourneyMarker | null = null;
   /** Místa dvorce pro odjezd a příjezd výjezdu (journey-departure.ts). */
   private yard: JourneyYard | null = null;
@@ -84,7 +84,7 @@ export class SceneWarView {
 
   /**
    * Výjezdy vojvody na mapě (journey.md – Scéna vsi): jezdci jako muži rodu ve vojsku, praporek
-   * v cíli a přesýpací hodiny nad čekající skupinou. Prázdný seznam – nic.
+   * v cíli. Prázdný seznam – nic.
    */
   setJourneys(list: readonly SceneJourney[]): void {
     this.journeys = list;
@@ -127,19 +127,18 @@ export class SceneWarView {
   }
 
   /**
-   * Výjezdy ve scéně pro e2e: muži, jak jsou nakreslení, praporek, dny na hodinách, fáze vlastního
+   * Výjezdy ve scéně pro e2e: muži, jak jsou nakreslení, praporek, fáze vlastního
    * výjezdu (odjíždí, jede, přijíždí), koně bez jezdce mezi ohradou a kůlem a brána dvorce.
    */
   journeyStats(): {
     riders: readonly RiderPose[];
     banner: { x: number; z: number } | null;
-    hourglass: number | null;
     phase: JourneyScenePhase | null;
     led: { x: number; z: number }[];
     gate: { x: number; z: number } | null;
     selected: { x: number; z: number } | null;
   } {
-    const marks = this.marker?.stats() ?? { banner: null, hourglass: null };
+    const marks = this.marker?.stats() ?? { banner: null };
     return {
       riders: this.army?.journeyRiders() ?? [],
       ...marks,

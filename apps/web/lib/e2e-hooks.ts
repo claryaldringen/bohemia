@@ -46,7 +46,6 @@ export interface E2EHooks {
       speed: number;
     }[];
     banner: { x: number; z: number } | null;
-    hourglass: number | null;
     /** Vlastní výjezd ve scéně: odjíždí z dvorce, jede se skupinou, přijíždí; žádný – null. */
     phase: 'departing' | 'riding' | 'arriving' | null;
     /** Koně bez jezdce mezi ohradou a kůlem (odjezd a příjezd). */

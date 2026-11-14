@@ -686,8 +686,8 @@ export class LandscapeScene {
   }
 
   /**
-   * Výjezdy vojvody na mapě vsi (journey.md – Scéna vsi): vlastní i cizí jezdci, praporek cíle
-   * a přesýpací hodiny; koně jezdců vlastní vsi ohrada nekreslí.
+   * Výjezdy vojvody na mapě vsi (journey.md – Scéna vsi): vlastní i cizí jezdci, praporek cíle;
+   * koně jezdců vlastní vsi ohrada nekreslí.
    */
   setJourneys(list: readonly SceneJourney[]): void {
     this.journeyList = list;
