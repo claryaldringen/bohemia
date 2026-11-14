@@ -26,7 +26,7 @@ import {
   type VillagerGround,
   type VillagerPlanOptions,
 } from './villager-plan-types';
-import { doorPoint, targetKey, walkRoute } from './villager-plan-geometry';
+import { doorPoint, houseDoor, targetKey, walkRoute } from './villager-plan-geometry';
 import { WALK_PACE_MAX } from './path-router';
 import {
   adultHair,
@@ -155,6 +155,8 @@ export function planVillagersWithCrew(
   slaughter: SlaughterPlan | null;
   tasks: Map<number, PersonTask>;
   doors: Map<number, { x: number; z: number }>;
+  /** Dům s plotem: branka a dveře domu uvnitř pozemku (D16) – postava mizí až ve dveřích. */
+  entrances: Map<number, { gate: Point; door: Point }>;
   walk: WalkRouteFn;
   /** Délka chůze rozvrhu (m – `scheduledLength`): odhad simulace, kolem domů nejméně trasa. */
   length: (a: Point, b: Point) => number;
@@ -164,7 +166,16 @@ export function planVillagersWithCrew(
   if (!labor || village.dwellings.length === 0) {
     const walk: WalkRouteFn = () => null;
     const length = (a: Point, b: Point): number => Math.hypot(b.x - a.x, b.z - a.z);
-    return { people: [], crew, slaughter: null, tasks: new Map(), doors: new Map(), walk, length };
+    return {
+      people: [],
+      crew,
+      slaughter: null,
+      tasks: new Map(),
+      doors: new Map(),
+      entrances: new Map(),
+      walk,
+      length,
+    };
   }
   const ctx = context(
     village,
@@ -356,7 +367,13 @@ export function planVillagersWithCrew(
   people.push(...masters);
   people.push(...quarrying);
   const doors = new Map<number, { x: number; z: number }>();
-  for (const h of ctx.homes) if (!h.pen) doors.set(h.id, doorPoint(h));
+  const entrances = new Map<number, { gate: Point; door: Point }>();
+  for (const h of ctx.homes) {
+    if (h.pen) continue;
+    doors.set(h.id, doorPoint(h));
+    const inner = houseDoor(h);
+    if (inner) entrances.set(h.id, { gate: doorPoint(h), door: inner });
+  }
   // délky chůze rozvrhu (`scheduledLength`) – stejné dvojice míst se během dne ptají znovu
   const lengths = new Map<string, number>();
   const length = (a: Point, b: Point): number => {
@@ -383,6 +400,7 @@ export function planVillagersWithCrew(
       options.herdPlaces,
     ),
     doors,
+    entrances,
     walk: (a, b, homeId) => scheduledWalk(ctx, a, b, homeId, length(a, b)),
     length,
   };

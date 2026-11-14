@@ -161,6 +161,17 @@ export function doorPoint(h: House, side = 0): Point {
   return worldPoint(h.position, side, h.box.maxZ + gap(0.6));
 }
 
+/**
+ * Dveře domu uvnitř oploceného pozemku (D16): u obydlí s `own` je `doorPoint` až u branky v plotu,
+ * dům stojí o dvorek dál. Bez plotu (nebo když dveře od branky nejsou aspoň metr) null.
+ */
+export function houseDoor(h: House): Point | null {
+  if (!h.own) return null;
+  const inner = doorPoint({ ...h, box: h.own });
+  const gate = doorPoint(h);
+  return Math.hypot(inner.x - gate.x, inner.z - gate.z) >= 1 ? inner : null;
+}
+
 export function nearestHouse(list: readonly House[], p: Point): House | null {
   let best: House | null = null;
   let bestD = Infinity;
