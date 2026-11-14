@@ -165,7 +165,7 @@ function lhotka(): VillageState {
 }
 
 /** Kněžice (hradiště bez opevnění – boj u dvorce): žena a dítě, tři uprchlíci z Lhotky. */
-function knezice(stance: 'defend' | 'surrender'): VillageState {
+function knezice(stance: 'defend' | 'flee'): VillageState {
   const v = village(
     [
       kin({ id: 2, age: 28, sex: 'female' }, SUMMER),
@@ -212,7 +212,7 @@ const START = campaign({
 });
 const END = LAUNCH + 3000;
 
-const run = (stance: 'defend' | 'surrender'): ReturnType<typeof stepCampaign> =>
+const run = (stance: 'defend' | 'flee'): ReturnType<typeof stepCampaign> =>
   stepCampaign(START, END, SET_OUT, raidWorld(knezice(stance), lhotka()));
 
 const bodiesOf = (
@@ -267,8 +267,8 @@ describe('boj u hradiště s uprchlíky', () => {
     expect(ids.every((id) => id > 0)).toBe(true);
   });
 
-  it('(c) „vzdát se“: muž rodu uprchlíků zajat jako host z ochrany, vesničan zůstane v hradišti', () => {
-    const whole = run('surrender');
+  it('(c) evakuace bez lesa = vzdání: muž rodu uprchlíků zajat jako host z ochrany, vesničan zůstane v hradišti', () => {
+    const whole = run('flee');
     const [losses] = bodiesOf(whole, 'lhotka', 'guard-losses');
     if (losses?.kind !== 'guard-losses') throw new Error('chybí ztráty uprchlíků');
     expect(losses).toMatchObject({ fallen: [], wounded: [], captured: [20] });
@@ -294,7 +294,7 @@ describe('boj u hradiště s uprchlíky', () => {
   });
 
   it('po kouscích taktů a přes JSON = vcelku', () => {
-    for (const stance of ['defend', 'surrender'] as const) {
+    for (const stance of ['defend', 'flee'] as const) {
       const whole = run(stance);
       const w = raidWorld(knezice(stance), lhotka());
       let s = START;

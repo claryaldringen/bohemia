@@ -310,6 +310,13 @@ export interface BattleState {
    * útočiště zůstalo nedobyté.
    */
   plundered?: true;
+  /**
+   * Vojvoda napadené vsi (číslo osoby), kterého hráč vzdal (záměr `lord-surrender` – war.md, Hráč
+   * ve vsi a mimo ni): boj tím skončil a útočník ho zajme vždy, ať ke vzdaným zvolil cokoli.
+   * Chybí – nikdo se nevzdal. Nezaměňovat s obránci vzdanými v boji (`yieldedOf`) ani s vsí vzdanou
+   * Začít znovu (`CampaignState.yielded`).
+   */
+  lordYielded?: number;
 }
 
 /** Opevnění na bojišti s tvarem úseků (pořadí jako ve vsi). */

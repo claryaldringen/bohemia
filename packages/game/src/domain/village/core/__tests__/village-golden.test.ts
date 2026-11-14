@@ -12,7 +12,12 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // z chybové hlášky (Received) a přepíšeš `EXPECTED_YEAR_1`; do commitu napiš, proč se výsledek
 // změnil. Při úklidu (bez změny chování) se otisk měnit nesmí.
 
-const EXPECTED_YEAR_1 = 'cec3ef2ae88c8a5c';
+// 14. 11. 2026 – stavby staví muži (population.md – Práce, „D24 ano“): denní minimum a úlohy dne
+// nesou napřed ženy, na stavby jde jen práce mužů, která po nich zbude; dřív dda9b1f1909187c8
+// (před D24) a 9f050c46fafa769c (D24 s dělením poměrem)
+// 14. 11. 2026 – sloučení zboží vsi (hides-honey.md – kůže, kožešiny, med a vosk) s D24: obojí
+// mění práci a jídlo vsi; dřív cec3ef2ae88c8a5c (zboží bez D24) a dcce65ed03e2f45f (D24 bez zboží)
+const EXPECTED_YEAR_1 = '54989ca4d4e3fef4';
 
 describe('zlatý otisk vsi', () => {
   const world = goldenWorld();

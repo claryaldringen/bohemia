@@ -192,6 +192,10 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
     // jen to, co zbude – jiný úlovek a jídlo; dřív 971d2cb8
     // hash 12845e84 (14. 11. 2026, ves jí med z klátů – hides-honey.md, Klát u obydlí): med šetří
     // obilí (zásoby, jídlo) a ubírá podíl jídla z pole (výhled zásob k sklizni); dřív d068311f
-    expect(hash(stripped)).toBe('12845e84');
+    // hash 56ec5ab2 (14. 11. 2026, stavby staví muži – population.md, Práce, „D24 ano“): denní práci
+    // nesou napřed ženy, na stavby jde jen práce mužů, která zbude; dřív 971d2cb8 (a 96b811ae)
+    // hash d30e476f (14. 11. 2026, sloučení zboží vsi s D24): obojí mění práci a jídlo vsi; dřív
+    // 12845e84 (zboží bez D24) a 56ec5ab2 (D24 bez zboží)
+    expect(hash(stripped)).toBe('d30e476f');
   }, 120_000);
 });

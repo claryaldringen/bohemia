@@ -98,7 +98,7 @@ export function ForeignJourneyScene({
     return () => bindForeign(null);
   }, [scene, mapSizeM, bindForeign]);
 
-  // jen výjezd na této mapě – jezdci, praporek v cíli a hodiny při čekání
+  // jen výjezd na této mapě – jezdci a praporek v cíli
   const here = journey && journey.cell.x === cell.x && journey.cell.y === cell.y ? journey : null;
   const journeys = useMemo(
     () => sceneJourneysOf({ own: here, visitors: [], cell: here?.cell ?? null }),

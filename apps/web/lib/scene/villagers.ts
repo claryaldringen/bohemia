@@ -745,6 +745,10 @@ export class VillageVillagers {
     plan: {
       tasks: Parameters<Timetable['setDay']>[2];
       doors: ReadonlyMap<number, { x: number; z: number }>;
+      entrances: ReadonlyMap<
+        number,
+        { gate: { x: number; z: number }; door: { x: number; z: number } }
+      >;
       walk: WalkRouteFn;
       length: (a: { x: number; z: number }, b: { x: number; z: number }) => number;
     },
@@ -754,6 +758,7 @@ export class VillageVillagers {
     if (this.timetable?.seed !== seed) this.timetable = new Timetable(seed, SCHEDULE_WALK_M_S);
     const timetable = this.timetable;
     timetable.setDoors(new Map(persons.map((p) => [p.id, plan.doors.get(p.home) ?? null])));
+    timetable.setEntrances(new Map(persons.map((p) => [p.id, plan.entrances.get(p.home) ?? null])));
     // délky chůze z odhadu po síti pěšin, přesná trasa jen pro kreslenou pózu (villagers.md –
     // Cesty postav; úloha 6)
     // – kolem domů nejméně schůdná trasa (`scheduledLength`; roh domu – villagers.md, Bez časosběru)

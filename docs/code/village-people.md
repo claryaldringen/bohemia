@@ -378,7 +378,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   přes `SceneEarthwork.constructionId` – viz village-roads.md; jedna na pracujícího, nejvýš `MAX_WORKERS` = 60, po skupinách až 4
   v činnosti – `shareCounts`; muž nebo žena podle podílu činnosti posunutého podílem žen ve vsi –
   `figureSexes` a `womenChance` ze `SceneLabor.people`, kinship.md (`WOMEN` – pletí 0,9, seč 0,1;
-  u pletí dospělých bere `LaborShare.women` z jádra – fields.md, Pletí jednou a rychle); domácí práce a nečinní venku
+  u pletí dospělých bere `LaborShare.women` z jádra – fields.md, Pletí jednou a rychle; podíly
+  stavby – `LaborShare.construction` – jen muži: podíl žen 0 a `shareWorker` bere `onlySex: 'male'`,
+  population.md – Práce, Stavby staví muži); domácí práce a nečinní venku
   jen z části, v zimě méně; práce bokem – dojení, péče o zvířata, domácí výroba žen a denní
   minimum starších – přijde z `LaborDay.aside` mezi podíly, `sceneLabor` ji připojí (zahrádka
   u obydlí – luštěniny domácnosti, `garden.ts`, village-fields.md – jde bokem bez vlastní
@@ -575,6 +577,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `walkRoute` – po síti pěšin a pevných cest týmž modelem jako odhad, village-roads.md; kontrola `trafficRouteOk`
   – ohrady se neberou, do domu jen o `ROUTE_HOUSE_SLACK_M`), vyjde se od vchodu (`trafficDoor` –
   volné místo do 16 m), doma na chvíli zmizí (`ShuttleOptions.restHidden`).
+  **Dům s plotem** (D16, Martin 14. 11. 2026): rozvrh (`Timetable.setEntrances`, `plan.entrances`) mizí a vychází
+  postava ve dveřích domu uvnitř pozemku (`houseDoor` – `own`), trasa vede dvorkem a brankou
+  (`routeViaGate`); odhady a trasy mimo pozemek dál míří k brance (`doors`). Dům bez plotu beze změny.
   **Pochůzka se dokončí** (villagers.md – Pochůzka se dokončí; Martin 24. 10. 2026): postavy
   proudu a nosiči kováře nesou `PlannedVillager.errand` (`shuttleErrand` – cyklus `shuttleCycle`:
   délka, posun fáze, kdy v cyklu dojde domů, a otisk trasy `sig`); `VillageVillagers.rebuild`

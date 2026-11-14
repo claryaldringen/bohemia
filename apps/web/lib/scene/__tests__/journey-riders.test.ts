@@ -7,6 +7,7 @@ import {
   journeyFormation,
   pickRider,
   ridersAt,
+  selectedRider,
   type SceneJourney,
 } from '../journey-riders';
 
@@ -33,6 +34,7 @@ function journey(over: Partial<SceneJourney> = {}): SceneJourney {
     arrived: false,
     phase: 'out',
     waitDaysLeft: null,
+    home: null,
     ...over,
   };
 }
@@ -159,5 +161,30 @@ describe('headingOf, journeyFigures a pickRider', () => {
     const hit = pickRider(poses, 100, 200 - 15, project, () => 0);
     expect(hit?.pose.key).toBe('1');
     expect(pickRider(poses, 0, 0, project, () => 0)).toBeNull();
+  });
+});
+
+// Martin 14. 11. 2026: „Někam jsem poslal vojvodu, ale zmizelo kolem něj označení.“ – vojvoda na
+// výjezdu už není postava vsi, výběr (osoba vsi) jde s jeho jezdcem jako jednotka v 0 A.D.
+describe('selectedRider – výběr jede s jezdcem', () => {
+  it('vybraná osoba vsi je jezdec vlastního výjezdu, jak je nakreslený – i když se hýbe', () => {
+    const glide = new JourneyGlide();
+    glide.set([journey()], 0, false);
+    // 20 taktů (5 s) po 5 s – muži jdou 5 s, v půli cesty
+    glide.set([journey({ tick: 120, pos: { x: 30, z: 20 } })], 20 * TICK_MS, false);
+    const poses = glide.at(30 * TICK_MS, false).poses;
+    const lord = selectedRider(poses, 1)!;
+    expect(lord).toBe(poses.find((p) => p.key === '1'));
+    expect(lord.speed).toBeGreaterThan(0);
+    expect(lord.x).toBeGreaterThan(10);
+    expect(lord.x).toBeLessThan(30);
+  });
+
+  it('nikdo vybraný, muž mimo výjezd a cizí jezdec – nic', () => {
+    const poses = journeyFormation(journey(), { x: 0, z: 1 });
+    expect(selectedRider(poses, null)).toBeNull();
+    expect(selectedRider(poses, 99)).toBeNull();
+    const visitor = journeyFormation(journey({ own: false }), { x: 0, z: 1 });
+    expect(selectedRider(visitor, 1)).toBeNull();
   });
 });

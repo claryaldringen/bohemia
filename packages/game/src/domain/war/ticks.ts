@@ -43,6 +43,15 @@ export function hoursPerTick(world: WorldClock): number {
   return (24 * TICK_MS * TOTAL_GAME_DAYS) / (world.endMs - world.startMs);
 }
 
+/**
+ * Takty bez přítomnosti hráče, po kterých je hráč pryč (war.md – Čísla: 1 herní den): u živého
+ * vedení převezme velení zástupce, za varovanou ves s vojvodou doma rozhodne správce (Hráč ve vsi
+ * a mimo ni).
+ */
+export function absentTicks(world: WorldClock): number {
+  return Math.round((WAR.absentLeaderDays * 24) / hoursPerTick(world));
+}
+
 /** Náhoda taktu – jen ze seedu tažení, čísla taktu a účelu (`label`), nikdy z pořadí výpočtu. */
 export function tickRandom(seed: number, tick: number, label: string): Random {
   return createRandom(deriveSeed(seed, `${label}:${tick}`));

@@ -5,7 +5,7 @@ import type { TimeSkip } from '@bohemia/game';
 import { forceDevDisaster, skipTime } from '@/app/game/actions';
 import type { VillageView } from '@/lib/village-view';
 import type { NoticeLine } from '../hud/NoticeLines';
-import type { DevDisasterChoice } from '../hud/TopBar';
+import type { DevDisasterChoice } from '../hud/DevMenu';
 import type { VillageData } from './village-data';
 
 export interface DevControls {

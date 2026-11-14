@@ -138,6 +138,29 @@ describe('jabloně podél cesty – místa a výsadba', () => {
   }, 60_000);
 });
 
+describe('jabloně podél cesty – místo mezi stojícími jabloněmi (D8)', () => {
+  it('řada vysázená jinak než rastr 10 m nezablokuje nabídku, když mezi jabloněmi místo je', () => {
+    const s = village();
+    // stojící jabloně každých 20 m, posunuté o 5 m proti a na ose rastru – každé místo rastru je od některé
+    // blíž než 8 m, mezi jabloněmi (10 m od obou) ale místo zůstává
+    const grid = roadAppleSpots(s, 5, DAY, LANDSCAPE, LAYER);
+    s.roads!.apples = grid
+      .filter((_, k) => k % 2 === 0)
+      .map((p, k) =>
+        apple({ id: ROAD_TREE_ID_BASE + 900 + k, x: p.x + 5, z: -120, distanceM: p.x + 60 }),
+      );
+    const spots = roadAppleSpots(s, 5, DAY, LANDSCAPE, LAYER);
+    expect(spots.length).toBeGreaterThan(0);
+    const option = roadApplesOption(s, 5, DAY, LANDSCAPE, LAYER)!;
+    expect(option.blocked).toBeNull();
+    for (const p of spots) {
+      for (const a of s.roads!.apples!) {
+        expect(Math.hypot(p.x - a.x, p.z - a.z)).toBeGreaterThanOrEqual(ROAD_APPLES.gapM);
+      }
+    }
+  });
+});
+
 describe('jabloně podél cesty – úroda, život, překážka', () => {
   it('plody od 6. roku, ≈ 17 kg na strom při plné úrodě, sklizeň jako sad', () => {
     expect(roadAppleYieldKg(apple({ plantedDay: at(600, 4, 1) }), at(603, 9, 1))).toBe(0);

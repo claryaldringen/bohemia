@@ -897,7 +897,7 @@ function scenePlacementVillage(scene: SceneVillage): PlacementVillage {
     ...(scene.toolCoverage ? { toolCoverage: scene.toolCoverage } : {}),
     ...(scene.ploughTeam ? { ploughTeam: true } : {}),
     // pokřtěný rod – posvátná místa stavbám hráče nebrání (jako `playerPlacementVillage`)
-    ...(scene.sacredFree ? { sacredFree: true } : {}),
+    ...(scene.sacredFree ? { sacredFree: true, churchyardOnly: true } : {}),
     // pevné cesty – kácení u kurzoru chůzí jako na serveru (roads.md)
     ...(scene.roads ? { walkRoads: scene.roads } : {}),
     // milíře uhlířů – samostatné stavby, přes ně stavět nejde (crafts.md – Milíř u skácených buků)

@@ -8,6 +8,8 @@ import {
 } from '@bohemia/game';
 import {
   DATE_REFRESH_MS,
+  clockHandAngle,
+  dayPartLabel,
   dateRefreshDelay,
   formatWorldState,
   nextDateChangeMs,
@@ -92,5 +94,24 @@ describe('obnova data v liště – na začátku dalšího herního dne', () => 
     expect(dateRefreshDelay(world.startMs - 1e9, world)).toBe(DATE_REFRESH_MS.max);
     expect(nextDateChangeMs(world.endMs, world)).toBeNull();
     expect(dateRefreshDelay(world.endMs, world)).toBeNull();
+  });
+});
+
+describe('ciferník denní doby', () => {
+  it('ručička: poledne nahoře, jedna otáčka za den', () => {
+    expect(clockHandAngle(12)).toBe(0);
+    expect(clockHandAngle(18)).toBe(90);
+    expect(clockHandAngle(0)).toBe(180);
+    expect(clockHandAngle(6)).toBe(270);
+    expect(clockHandAngle(24)).toBe(180);
+  });
+
+  it('denní doba slovy', () => {
+    expect(dayPartLabel(0)).toBe('Noc');
+    expect(dayPartLabel(6)).toBe('Ráno');
+    expect(dayPartLabel(12)).toBe('Poledne');
+    expect(dayPartLabel(15)).toBe('Odpoledne');
+    expect(dayPartLabel(18)).toBe('Večer');
+    expect(dayPartLabel(23)).toBe('Noc');
   });
 });

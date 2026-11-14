@@ -6,7 +6,7 @@ Celé jedním příkazem z kořene repa (Blender 5, ImageMagick `magick`, intern
 
 Výstup (128 × 128 PNG, průhledné rohy) – `build/` zemnice, polozemnice, srub (nadzemní dům –
 log-house.md, bez jámy), dvorec (dvorec vojvody –
-trade.md), pole, hrbitov,
+trade.md), pole, hrbitov, hrbitov-kriz (křesťanský hřbitov s kříži – cemetery.md, Po křtu rodu),
 hrncir, kovar, tesar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, tesař pod
 přístřeškem s kozlíky a koly – wagons.md, uhlíř s milířem), sad
 (jabloňový sad), modla, svatyne (posvátná místa z `apps/web/public/models/sacred/`), dub
@@ -417,13 +417,17 @@ def icon_pole():
     camera([Vector((-W / 2, -L / 2, 0)), Vector((W / 2, L / 2, 1.2)), Vector((-W / 2, L / 2, 0)), Vector((W / 2, -L / 2, 0))], az=28, el=40, margin=0.98)
 
 
-def icon_hrbitov():
+def icon_hrbitov(christian=False):
+    """Hřbitov; `christian` – po křtu rodu (cemetery.md – Po křtu rodu): nízké hroby s dřevěnými kříži."""
     rng = random.Random(3)
     gr = ground(8.5, mat("g", tex=f"{TEX}/grass-lush.jpg", scale=0.22, tint=(0.8, 0.85, 0.65)), z=0.0, fade=0.7)
     # mohyly
     earth = mat("earth", tex=f"{TEX}/grass-dirt.jpg", scale=0.3, tint=(1.1, 0.85, 0.65))
     bm = bmesh.new()
     spots = [(-1.8, -0.4, 1.4, 1.0), (1.7, -0.9, 1.3, 0.9), (0.0, 1.5, 1.6, 1.1), (-2.2, 2.4, 0.9, 0.6)]
+    if christian:
+        # nízké podlouhlé hroby (kostrové pohřby) místo mohyl
+        spots = [(-1.8, -0.4, 0.8, 0.45), (1.7, -0.9, 0.75, 0.4), (0.0, 1.5, 0.85, 0.5), (-2.2, 2.4, 0.6, 0.35)]
     for (x, y, r, h) in spots:
         blob(bm, ((x, y, -0.1 * h), (0, 0, rng.uniform(0, 3))), (r, r * 1.35, h), 18, 9)
     mounds = to_obj(bm, "mounds", earth)
@@ -474,9 +478,16 @@ def icon_hrbitov():
     # dřevěné kůly (štít předka) na mohylách
     tot = bmesh.new()
     for (x, y, r, h) in spots[:3]:
+        if christian:
+            # dřevěný kříž v čele hrobu
+            base = h * 0.7
+            top = base + (2.2 if (x, y) == spots[2][:2] else 1.9)
+            cyl(tot, (x, y - r * 0.9, base), (x, y - r * 0.9, top), 0.14, 0.13, 6)
+            cyl(tot, (x - 0.7, y - r * 0.9, top - 0.65), (x + 0.7, y - r * 0.9, top - 0.65), 0.12, 0.12, 6)
+            continue
         cyl(tot, (x, y - r * 0.2, h * 0.7), (x, y - r * 0.2, h * 0.7 + 0.95), 0.07, 0.06, 6)
         blob(tot, ((x, y - r * 0.2, h * 0.7 + 1.0), (0, 0, 0)), (0.11, 0.11, 0.13), 8, 5)
-    to_obj(tot, "totems", wood)
+    to_obj(tot, "crosses" if christian else "totems", wood)
     sun(az=-55, el=42)
     camera([Vector((-4.2, -2.4, 0)), Vector((4.2, 4.4, 1.6)), Vector((-4.2, 4.4, 0)), Vector((4.2, -2.4, 0))], az=22, el=38, margin=1.0, shift=(0, 0.0))
 
@@ -2853,6 +2864,7 @@ BUILD = {
     "dvorec-srub": lambda: icon_dwelling("dvorec-srub", pit=False),
     "pole": icon_pole,
     "hrbitov": icon_hrbitov,
+    "hrbitov-kriz": lambda: icon_hrbitov(christian=True),
     "hrncir": lambda: icon_craft("hrncir"),
     "kovar": lambda: icon_craft("kovar"),
     "tesar": lambda: icon_craft("tesar"),

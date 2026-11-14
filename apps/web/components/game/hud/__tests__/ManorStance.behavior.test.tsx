@@ -6,7 +6,7 @@ import type { DefenseStance } from '@bohemia/game';
 import type { VillageManor } from '@/lib/manor-view';
 import { ManorUpgrades } from '../ManorPanel';
 
-// Volba postoje vsi ve dvorci (war.md – Obránci – postoje a útěk): tři ikony, zvolená svítí.
+// Volba postoje vsi ve dvorci (war.md – Obránci – postoje a útěk): dvě ikony, zvolená svítí.
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -39,10 +39,9 @@ describe('postoj vsi ve dvorci', () => {
     expect(pick(host, 'defend').getAttribute('aria-pressed')).toBe('false');
     await act(async () => pick(host, 'flee').click());
     expect(onSetStance).not.toHaveBeenCalled();
-    await act(async () => pick(host, 'surrender').click());
-    expect(onSetStance).toHaveBeenCalledWith('surrender');
     await act(async () => pick(host, 'defend').click());
-    expect(onSetStance).toHaveBeenLastCalledWith('defend');
+    expect(onSetStance).toHaveBeenCalledWith('defend');
+    expect(host.querySelector('[data-testid="stance-surrender"]')).toBeNull();
     await act(async () => root.unmount());
     host.remove();
   });

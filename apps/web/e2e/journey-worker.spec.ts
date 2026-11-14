@@ -20,8 +20,8 @@ import { changeVillageState, query, readyScene } from './village-helpers';
 // Scéna cizí mapy za vojvodou (journey.md – Scéna cizí mapy; plán 2026-11-13 – Úloha 9b), hra
 // s workerem: vojvoda A je na sousední mapě se vsí B – klik na jeho portrét v liště přepne scénu na
 // ni (`foreign-scene` s políčkem mapy B), závoj mlhy je kolem jezdců odkrytý, objevené stavby
-// odpovídají dohledu, pravé tlačítko dává rozkazy i tam, při čekání jsou nad skupinou přesýpací
-// hodiny a po Domů se scéna vrátí na ves (skupina je na domovské mapě) a přijde upozornění. Cestu
+// odpovídají dohledu, pravé tlačítko dává rozkazy i tam, při čekání zůstává praporek
+// a po Domů se scéna vrátí na ves (skupina je na domovské mapě) a přijde upozornění. Cestu
 // přes celou mapu nahrazuje zápis polohy skupiny do kontrolního bodu výjezdu.
 
 const WORKER_DIR = path.join(import.meta.dirname, '../../worker');
@@ -159,7 +159,7 @@ async function shownDwellings(page: Page): Promise<number[]> {
   return village.dwellings.map((d) => d.id);
 }
 
-test('scéna jde za vojvodou na cizí mapu: mlha, objevené stavby, rozkazy, hodiny a návrat', async ({
+test('scéna jde za vojvodou na cizí mapu: mlha, objevené stavby, rozkazy a návrat', async ({
   browser,
 }) => {
   test.setTimeout(900_000);
@@ -256,11 +256,6 @@ test('scéna jde za vojvodou na cizí mapu: mlha, objevené stavby, rozkazy, hod
   // objevené stavby odpovídají dohledu: dům u skupiny ano, vzdálený ne
   await expect.poll(() => shownDwellings(a), { timeout: 30_000 }).toContain(nearId);
   expect(await shownDwellings(a)).not.toContain(farId);
-  // skupina stojí: nad ní přesýpací hodiny s počtem dní do návratu
-  await expect
-    .poll(async () => (await journeyScene(a)).hourglass ?? 0, { timeout: 60_000 })
-    .toBeGreaterThanOrEqual(1);
-
   // výběr klikem jako ve vsi: klik do prázdna (od domu B pryč) výběr zruší – panel výjezdu zmizí;
   // klik na vojvodu ve scéně ho vybere zpět (panel výjezdu, portrét v liště stisknutý)
   const awayPanel = a.getByTestId('lord-journey-away');

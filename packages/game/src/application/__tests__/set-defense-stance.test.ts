@@ -40,8 +40,8 @@ describe('setDefenseStanceInVillage', () => {
 
     await setDefenseStanceInVillage(
       { villages },
-      { villageId, stance: 'surrender', today: FOUNDED + 1, landscape },
+      { villageId, stance: 'flee', today: FOUNDED + 1, landscape },
     );
-    expect(stanceOf((await villages.find(villageId))!.state)).toBe('surrender');
+    expect(stanceOf((await villages.find(villageId))!.state)).toBe('flee');
   });
 });

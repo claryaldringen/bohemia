@@ -13,7 +13,7 @@ import {
   warn,
 } from './alarm';
 import type { AlarmMessenger, AlarmVillage, CampaignAlarm } from './alarm-types';
-import { gridOf, MissingData, sameCell, villageEvent } from './campaign-tick';
+import { gatherMissing, gridOf, MissingData, sameCell, villageEvent } from './campaign-tick';
 import type { TickContext, TickOut } from './campaign-tick';
 import type { CampaignState } from './campaign-types';
 import { stepMover } from './movement';
@@ -159,8 +159,9 @@ export function moveMessengers(s: CampaignState, ctx: TickContext, out: TickOut)
 
 /**
  * Posel vsi doběhl do hradiště (ne posel hradiště do domény): NPC hradiště hned rozešle posly do
- * vsí své domény (Otevřené 5) – jednou. Hradiště hráče čeká na jeho volbu (`alarm-domain`); se
- * správcem je rozešle hned, bez něj po lhůtě hráče (`decideAlarms` – Úloha 11).
+ * vsí své domény (Otevřené 5) – jednou. Za hradiště hráče rozhoduje `deciderOf` v `decideAlarms`
+ * (`decideDomain`, plán 2026-11-14): vojvoda není doma – nastavení hned; vojvoda doma – hráč
+ * u hry volí sám (`alarm-domain`), bez přítomnosti déle než `absentTicks` rozhodne nastavení.
  */
 function hillfortHeard(s: CampaignState, m: AlarmMessenger, ctx: TickContext, out: TickOut): void {
   if (alarmVillage(s, m.fromVillageId)?.messenger !== m.refId) return;
@@ -270,13 +271,15 @@ export function domainTargets(
     }));
 }
 
-/** Vsi na mapě posla (kromě hradiště – to se dozví, až posel doběhne) se o vojsku dozví. */
+/**
+ * Vsi na mapě posla (kromě hradiště – to se dozví, až posel doběhne) se o vojsku dozví; co ze světa
+ * chybí, ohlásí za všechny vsi najednou (`gatherMissing`).
+ */
 function warnMap(s: CampaignState, m: AlarmMessenger, ctx: TickContext, out: TickOut): void {
   const map = ctx.world.landscapeOf(m.cell);
   if (map === null) throw new MissingData([{ ...m.cell }], []);
-  for (const villageId of map.villageIds) {
-    if (villageId !== m.toVillageId) warnByMessenger(s, m, villageId, ctx, out);
-  }
+  const others = map.villageIds.filter((id) => id !== m.toVillageId);
+  gatherMissing(others, (villageId) => warnByMessenger(s, m, villageId, ctx, out));
 }
 
 /**
@@ -298,10 +301,11 @@ function warnByMessenger(
   const from = alarmVillage(s, m.fromVillageId);
   if (from === null) return;
   if (known === null) {
+    const owner = ownerOf(villageId, ctx);
     const hosts = hostCandidates(villageId, m.cell, ctx);
     const v: AlarmVillage = {
       villageId,
-      owner: ownerOf(villageId, ctx),
+      owner,
       seenTick: from.seenTick,
       seenAt: structuredClone(from.seenAt),
       warnTick: s.tick,

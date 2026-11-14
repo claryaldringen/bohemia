@@ -1,4 +1,5 @@
 import {
+  alarmVillage,
   battleForts,
   knownTarget,
   mergeKnowledge,
@@ -14,7 +15,11 @@ import {
   type WarSceneFolk,
   type WarSceneView,
 } from '../domain/war';
+import type { WorldClock } from '../domain/calendar';
 import { cellKey } from '../domain/war/campaign-tick';
+import { alarmTaken } from '../domain/war/evacuation';
+import { lordAtHome } from '../domain/war/lord-home';
+import type { VillageState } from '../domain/village/types';
 import { sameCell, type GridCell } from '../domain/village/people/world-grid';
 import {
   knowledgeOfCell,
@@ -41,6 +46,8 @@ export interface WarSceneDefender {
   forts: BattleFort[];
   buildings: WarSceneBuilding[];
   folk: WarSceneFolk[];
+  /** Lidé vsi v den mezipaměti – z nich se pozná vojvoda doma (`lordAtHome`). */
+  people: VillageState['people'];
 }
 
 /**
@@ -72,6 +79,8 @@ export interface WarSceneDeps extends KnowledgeOfTargetDeps {
     'activeOf' | 'activeAgainst' | 'activeAlarming' | 'checkpoint'
   >;
   cells: CampaignCells;
+  /** Hodiny světa – dny odchodu poslů a skupin uprchlíků (`alarmTaken` – vojvoda doma). */
+  world: WorldClock;
   grids?: SightGridCache;
   defenders?: WarSceneDefenderCache;
 }
@@ -92,11 +101,9 @@ export async function warSceneFor(
   const [village] = await deps.villages.stampsOf([settlement.id]);
   const views: WarSceneView[] = [];
   if (village) {
-    // napřed tažení proti vsi (pořadí repozitáře), pak ta, která ves jen varovala
-    const ids = new Set([
-      ...(await deps.campaigns.activeAgainst(village.id)),
-      ...(await deps.campaigns.activeAlarming(village.id)),
-    ]);
+    // tažení proti vsi i ta, která ves jen varovala (`activeAlarming` zahrnuje i cíl)
+    const ids = new Set(await deps.campaigns.activeAlarming(village.id));
+    const targets = new Set<string>();
     for (const id of ids) {
       const point = await deps.campaigns.checkpoint(id);
       // vlastní vojsko proti vlastní vsi nejde – útočník je jiný hráč (nebo NPC)
@@ -109,9 +116,39 @@ export async function warSceneFor(
       }
       const defender = await defenderOf(deps, village.id, cell, point.state.day);
       if (!defender) continue;
-      const view = await viewOn(deps, point.state, cell, 'defend', defender, input.playerId);
-      if (view) views.push(view);
+      // vojvoda doma ve varované vsi vidí vojsko na své mapě celé (war.md – Hráč ve vsi a mimo ni);
+      // doma není ani ten, koho tažení dnes odvedlo (posel, uprchlíci, zajetí – jako `lordHomeAt`)
+      const alarm = alarmVillage(point.state, village.id);
+      const seesAll =
+        alarm !== null &&
+        alarm.warnTick <= point.state.tick &&
+        lordAtHome(
+          defender,
+          alarm.owner.lordId,
+          point.state.day,
+          alarmTaken(point.state, village.id, point.state.day, deps.world).people,
+        );
+      const view = await viewOn(
+        deps,
+        point.state,
+        cell,
+        'defend',
+        defender,
+        input.playerId,
+        seesAll,
+      );
+      if (view) {
+        views.push(view);
+        if (point.state.target.villageId === village.id) targets.add(view.campaignId);
+      }
     }
+    // boj > cíl > ostatní
+    const ranked = [
+      ...views.filter((v) => v.battle !== null),
+      ...views.filter((v) => v.battle === null && targets.has(v.campaignId)),
+      ...views.filter((v) => v.battle === null && !targets.has(v.campaignId)),
+    ];
+    views.splice(0, views.length, ...ranked);
   }
   for (const id of await deps.campaigns.activeOf(input.playerId)) {
     const point = await deps.campaigns.checkpoint(id);
@@ -123,7 +160,7 @@ export async function warSceneFor(
       point.state,
       cell,
       'attack',
-      { eyes: [], forts: [], buildings: [], folk: [] },
+      { eyes: [], forts: [], buildings: [], folk: [], people: [] },
       input.playerId,
     );
     if (view) views.push(view);
@@ -218,6 +255,7 @@ async function viewOn(
   side: BattleSide,
   defender: WarSceneDefender,
   playerId: string,
+  seesAll = false,
 ): Promise<WarSceneView | null> {
   // dohled v lese jen pro obránce na mapě cíle (útočník vidí celé vlastní vojsko); z mřížky i les,
   // kam ves utekla
@@ -230,6 +268,7 @@ async function viewOn(
     eyes: defender.eyes,
     forts: defender.forts,
     ...(side === 'defend' ? { folk: defender.folk } : {}),
+    ...(seesAll ? { seesAll } : {}),
     playerId,
   });
 }
@@ -259,6 +298,7 @@ async function defenderOf(
         ? battleForts((await deps.cells.mapOf(cell)).landscape, fortifications)
         : [],
     folk: sceneFolkOf(village.state, day),
+    people: village.state.people,
   };
   deps.defenders?.set(key, defender);
   return defender;

@@ -15,7 +15,9 @@ import {
   villageDwellingPositions,
   waterDistanceM,
   type PlacementVillage,
+  CEMETERY_AT_CHURCH_ONLY,
 } from '../placement';
+import { defaultChurchDims } from '../../buildings/church-geometry';
 import {
   DWELLING_FOOTPRINT_M,
   FIELD_LIMITS,
@@ -675,6 +677,28 @@ describe('cemeteryPartsFromCells', () => {
     expect(result.foundingCost).toBe(34);
     expect(result.extendsCemetery).toBe(false);
     expect(result.warningCells).toEqual([]);
+  });
+
+  it('po křtu rodu jen u kostela – bez kostela i daleko od něj ne, u hřbitůvku ano', () => {
+    const church = {
+      type: 'chancel' as const,
+      dims: defaultChurchDims('chancel'),
+      position: at(0, 0),
+    };
+    const base: PlacementVillage = { dwellings: [], constructions: [], parts: [] };
+    const near = [{ x: 17, y: 15 }];
+    const far = block(4, 4, 1, 1);
+    // před křtem (bez `churchyardOnly`) kdekoli
+    expect(cemeteryPartsFromCells(landscape, base, far, []).check.ok).toBe(true);
+    const baptized = { ...base, churchyardOnly: true };
+    const none = cemeteryPartsFromCells(landscape, baptized, near, []);
+    expect(none.check).toEqual({ ok: false, reason: CEMETERY_AT_CHURCH_ONLY });
+    const withChurch = { ...baptized, churches: [church] };
+    expect(cemeteryPartsFromCells(landscape, withChurch, near, []).check.ok).toBe(true);
+    expect(cemeteryPartsFromCells(landscape, withChurch, far, []).check).toEqual({
+      ok: false,
+      reason: CEMETERY_AT_CHURCH_ONLY,
+    });
   });
 
   it('blízko obydlí jen varuje – neblokuje', () => {

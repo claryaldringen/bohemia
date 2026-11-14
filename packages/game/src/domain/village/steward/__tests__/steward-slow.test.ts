@@ -94,6 +94,20 @@ describe('den správce – dlouhý běh na skutečné krajině', () => {
     expect(workshopValue(s, day, 'burner', NO_CRAFTS)).toBe(0);
   });
 
+  it('kovář bez uhlíře: uhlíř má kladnou hodnotu (práce jedné domácnosti, ne dvou)', () => {
+    const s = structuredClone(atThree!);
+    const home = s.dwellings[0]!;
+    s.dwellings = Array.from({ length: 8 }, (_, k): Dwelling => ({ ...home, id: 90_000 + k }));
+    const day = s.lastDay;
+    const bare = workshopValue(s, day, 'burner', NO_CRAFTS);
+    s.dwellings[1] = { ...s.dwellings[1]!, workshop: { craft: 'smith' } as Dwelling['workshop'] };
+    const withSmith = workshopValue(s, day, 'burner', NO_CRAFTS);
+    expect(withSmith).toBeGreaterThan(0);
+    expect(withSmith).toBeGreaterThan(bare);
+    s.dwellings[2] = { ...s.dwellings[2]!, workshop: { craft: 'burner' } as Dwelling['workshop'] };
+    expect(workshopValue(s, day, 'burner', NO_CRAFTS)).toBe(0);
+  });
+
   it('Nouze jen při ohrožení – ves bez pojistky, které zásoby i s osivem do žní vystačí, je v Obnově', () => {
     // ves po 3 letech, po 1. 9. – osivo ozimu a jaře na setí čeká; bez snopů (výmlat čeká
     // do zimy – fields.md, Pořadí důležitosti polních prací), zásoby jen vymlácené

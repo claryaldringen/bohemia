@@ -427,7 +427,7 @@ export function work(
     travel,
     workshops,
   });
-  recordCommonLabor(state, allocation.common);
+  recordCommonLabor(state, allocation.common, allocation.build ?? allocation.common);
   return { toil: toilToday(ctx, tasks.owned, applied), lordField };
 }
 
@@ -903,10 +903,15 @@ function laborReport(ctx: WorkDay, input: LaborReportInput): LordFieldShares {
   return lordField;
 }
 
-/** Společná práce dne do ročního průměru (starší ves začne průměrem 30 dní ještě bez dneška) a posledních 30 dní. */
-function recordCommonLabor(state: VillageState, common: number): void {
+/**
+ * Společná práce dne do ročního průměru (starší ves začne průměrem 30 dní ještě bez dneška) a díl
+ * mužů na stavby (`build` – population.md, Práce, Stavby staví muži) do posledních 30 dní: volná
+ * práce v liště, rozpočet správce a „Stavby stojí“ počítají jen s prací, která na stavby opravdu
+ * zbude. Roční průměr zůstává celá společná práce (doprava dávek a robota – vassalage.md).
+ */
+function recordCommonLabor(state: VillageState, common: number, build: number): void {
   state.commonLaborYearly = nextYearlyCommonLabor(yearlyCommonLabor(state), common);
-  state.commonLaborHistory.push(common);
+  state.commonLaborHistory.push(build);
   if (state.commonLaborHistory.length > COMMON_LABOR_HISTORY_DAYS) {
     state.commonLaborHistory.splice(0, state.commonLaborHistory.length - COMMON_LABOR_HISTORY_DAYS);
   }

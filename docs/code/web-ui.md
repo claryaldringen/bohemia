@@ -25,7 +25,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   a nové načtení po umístění, odúmrti, pozvánky, `negotiate`), `use-panels.ts` (`usePanels` –
   nabídka, rod, válka a odvody se střídají; průchody, ochrana, `warAction`, dialog Odvody),
   `use-player-notices.ts` (`noticeTick`, `showPlayerNotices`, `openNoticePanel`),
-  `use-history-panels.ts` (kronika a upozornění, `closeNoticesRef`, zkratky J / U),
+  `use-history-panels.ts` (kronika a upozornění, `closeNoticesRef`, zkratky J / U; panel Kronika `hud/ChroniclePanel.tsx` je standardní dialog `hud/Dialog.tsx` (společný s nabídkou hry: titulek, křížek vpravo nahoře „Zavřít (Esc)“, závoj, klik mimo a Esc zavírají, obsah se posouvá; kronika je široká 48 rem, nejvýš 92 % šířky okna) – a záznamy jednoho dne seskupuje pod jedno datum, `groupByDay`),
   `use-war-watch.ts` (`useWarScene` → `setWar`, „Probít se“, sledování cizí mapy,
   `armyActions`), `use-line-naming.ts` (jména rodu, `founderNameRef`), `use-pending-sites.ts`
   (staveniště čekající na server, `sceneVillage`, `placementScene`, `buildDwelling` …),
@@ -685,8 +685,10 @@ Návrh: [disasters.md – Co hráč vidí](../design/disasters.md). Jádro a č�
   (`otherVillageDisasters` – počasí a poslední místní pohroma) se jménem vsi.
 - **Ikony** – `tools/blender/icons.py` (`drought`, `rain`, `frost`, `good-summer`, `flood`, `hail`,
   `tornado`, `protection`, `dearth`; vlastní, CC0), požár má stávající `fire`.
-- **Vývojový režim** – tlačítka „Vynutit zlý rok“ a „Vynutit pohromu“ (`DevDisasterButtons`)
-  vedle skoku v čase: [accounts.md – dev mód](accounts.md).
+- **Vývojový režim** – jedno „Vynutit pohromu“ (zlé roky i pohromy, `hud/DevMenu.tsx`) v nabídce
+  hry pod položkou „Vývojářské menu“ (`GameMenu`, krok `dev`, jen s `devMode`; po vynucení se nabídka
+  zavře, jakmile server doběhne; Martin 14. 11. 2026). Zrychlení času zůstává u data:
+  [accounts.md – dev mód](accounts.md).
 - **Testy** – `disasters-view.test.ts`, `village-notices.test.ts` (počasí a pohromy),
   `village-view.test.ts` (JSON 30. 4. bez sucha, seedu a `override`); e2e `village.spec.ts`
   „vývojový režim: vynucené sucho“ – ikona na liště, upozornění a ochrana v panelu dílu.
@@ -1113,8 +1115,7 @@ na které stojí.
 
 ## Postoj vsi ve dvorci (úloha 6.9, `hud/ManorPanel.tsx`)
 
-`ManorUpgrades` má vedle stezky, lovu a obchodu tři ikony postoje (stěna štítů = bránit se, bílá
-vlajka = vzdát se při přesile, stromy = raději utéct; vlastní SVG v `public/icons/war/`, CC0,
+`ManorUpgrades` má vedle stezky, lovu a obchodu dvě ikony postoje (stěna štítů = Obrana, stromy = Evakuace; vlastní SVG v `public/icons/war/`, CC0,
 `LICENSES.md`); zvolená má `aria-pressed` a zlatý proužek, popis je v `Tooltip`. `VillageManor.stance`
 plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance` → `setDefenseStanceForPlayer`
 (`lib/village.ts`, právo `war` – bez něj tlačítka zašednou s důvodem). Upozornění `foreign-army` →
@@ -1144,8 +1145,9 @@ se ukáže stejně – platí, dokud server nepošle jiný důvod, nejdéle 10 s
 `forest`, `people`, `all` (`ALARM_CHOICES` – pořadí ikon) s kódem důvodu `blocked`
 (`AlarmViewBlock`, texty `ALARM_BLOCKED` z jádra) a odhady v herních dnech `etaDays` / `leaveDays`,
 `armyEtaDays`, `runners` (koho lze poslat – výchozí vesničan, pak muži rodu, `mounted`, `etaDays`),
-`host`, `messenger`, `flight` (stav skupiny, na cestě odhad), `decided` a `graceDays` (za kolik dní
-rozhodne pravidlo správce), `ret` (Vrátit se – důvod `REFUGE_RETURN_REASONS`, „Lidé se už vracejí.“
+`host`, `messenger`, `flight` (stav skupiny, na cestě odhad), `decided`, `yieldLord` (vzdání vojvody –
+null: hráčův muž ve vsi nežije; `blocked` `lordAway` „Vojvoda není doma.“ / `notRaided` „Vojsko ještě nepřišlo.“
+– návrh Clauda; po vzdání, `alarmEnded`, pohled volby varování neukazuje), `ret` (Vrátit se – důvod `REFUGE_RETURN_REASONS`, „Lidé se už vracejí.“
 s `backInDays`) a u hradiště hráče `domain` / `domainLeft` (vsi domény k výběru poslů). Dívat se smí
 každý, kdo ves vidí (i bez práva `war` – ikony zašedne důvod práva), cizí hráč dostane null.
 
@@ -1187,8 +1189,11 @@ to – vojsko tu bude za ≈ 2 dny, z mapy jim to potrvá ≈ 3 dny.“):
   zbývajících poslů (`domainLeft`) otevře seznam vsí domény s portrétem zemnice a zaškrtnutím –
   varované zaškrtnuté a zamčené, víc než `domainLeft` nejde; odeslání ikonou posla (popisek
   `domainSendText`). Všichni už vědí, nebo hradiště nemá posly – „Do domény není koho varovat.“
-- **Lhůta hráče bez správce** (`graceDays`, nikdo nerozhodl): ikona správce s počtem dní a popisek
-  `graceText` („Nerozhodneš-li, ves se zařídí sama za ≈ 1 den.“ – návrh Clauda).
+- **Bílá vlajka – vzdání vojvody** (`yieldLord`, `alarm-yield-lord`, `/icons/war/white-flag.png`):
+  první stisk ji připraví (`data-armed`, červený obrys), druhý pošle příkaz `{ kind: 'yield-lord' }`
+  (parser `alarm-input.ts`); popisek `YIELD_LORD_LABEL` („Vzdát se – vojvoda půjde do zajetí, nájezd
+  skončí.“ – návrh Clauda), zašedlá s důvodem. Lhůta hráče (`graceDays`) zmizela
+  (Martin 14. 11. 2026: hráč ve své vsi ji ovládá).
 - Klik pošle akci jednou a zašedne svou skupinu (posel, útěk, návrat, doména) s větou, co se děje
   („Posel už běží.“, „Lidé už odešli.“, „Lidé se už vracejí.“), nebo s chybou serveru – dokud se
   otisk stavu ze serveru nezmění (`stateKey`), nejdéle 10 s (vzor `BreakoutButton`). Bez práva `war`
@@ -1199,10 +1204,10 @@ to – vojsko tu bude za ≈ 2 dny, z mapy jim to potrvá ≈ 3 dny.“):
   `lib/player-notices.ts` – `alarmNoticeVillage`, jinak panel podle druhu) vybere dvorec té vsi;
   jiná ves téže mapy se napřed přepne (`switchVillage`) a dvorec se vybere, až se načte (ves na jiné
   mapě stránku načte znovu – pak se jen přepne).
-- Dev panel `/dev/panels?panel=varovani` (varování – víc poslů, „Nestihnou to“, doména, lhůta)
+- Dev panel `/dev/panels?panel=varovani` (varování – víc poslů, „Nestihnou to“, doména, bílá vlajka)
   a `?panel=utek` (posel doběhl, lidé na cestě, Vrátit se zatím ne).
 - Testy: `hud/__tests__/AlarmButtons.behavior.test.tsx` (ikony a pořadí, důvod s odhadem, klik
-  jednou a zašednutí skupiny, chyba serveru, výběr posla, stav po útěku a Vrátit se, doména, lhůta,
+  jednou a zašednutí skupiny, chyba serveru, výběr posla, stav po útěku a Vrátit se, doména, bílá vlajka,
   bez práva), `lib/__tests__/alarm-view.test.ts` (texty), `lib/__tests__/player-notices.test.ts`
   (`noticeOpener`).
 
@@ -1217,10 +1222,11 @@ dvorce zmenšenými na 110 m mapy (`FlightMarks`: uprchlíci se stádem `alarm-a
 Vlkova 76 → 4 ms na dotaz (worker.md – Výkon – Pohled na varování). E2E `multiplayer-war.spec.ts` –
 „ves B varovaná utíká do hradiště pána a po odtažení vojska se vrátí“ (vazal B, pán C s hotovou
 palisádou na políčku vedle, tažení A s varováním B v kontrolním bodu, worker vedle `next start`):
-upozornění (po něm test worker zastaví a varování posune na takt kontrolního bodu – lhůta hráče
-≈ 86 s běží od varování a start workeru, upozornění, panel a tlačítko se do ní na zatíženém stroji
-nevešly, za ves pak rozhodl správce; worker se pustí zas až po zapsání záměru), ikony v panelu
-dvorce, „Do hradiště – se vším“ → záměr `alarm-flee`, průvod přenesený
+upozornění, vojvoda B doma (`owner.lordId` ze záznamu rodu jako `createAlarmOwners`) a B u hry –
+ves se v taktu varování zeptá na přítomnost, worker odpoví záměrem `alarm-presence` v taktu
+dotazu + 2 a ves po odpovědi sama nic nezvolí (war.md – Hráč ve vsi a mimo ni; lhůta hráče
+odpadla, worker běží dál), ikony v panelu dvorce i bílá vlajka (B je cíl tažení), „Do hradiště –
+se vším“ → záměr `alarm-flee`, průvod přenesený
 rovnou do středu hradiště (cíl skupiny – dojde v prvním taktu; kousek vedle středu bývá za
 palisádou a cesta kolem ní k bráně trvá průvodu se stádem podle krajiny až ≈ 72 s) →
 `refuge-arrive`, hosté `refuge` v C a lidé B pryč, Vrátit se zašedlé „Vojsko je ještě na mapě.“, po
@@ -1412,6 +1418,8 @@ nová pravidla (návrh Clauda).
   `aria-keyshortcuts`) – viz Zkratky panelů Kronika a Upozornění níž. Panel leží vpravo nahoře jako panely rodu a války a střídá se s nimi
   i s nabídkou: otevření kroniky je zavře (`closeOthers`), otevření jiného zavře kroniku
   (`othersOpen` – úprava stavu při vykreslení v `hooks/use-chronicle.ts`). Esc a křížek zavřou.
+- **Označení textu:** roky a zápisy (`chronicle-years`) mají `select-text` – jdou označit
+  a zkopírovat, ač herní stránka má označování vypnuté (`select-none` v `app/game/page.tsx`).
 - **Data na vyžádání:** server action `getChronicle({ villageId, before? })` →
   `chronicleForPlayer` (`lib/village.ts` – `context` bez práva, tedy kdo smí vidět pohled na ves:
   vlastní ves, ves rodu, spravovaná ves) → `chroniclePage` ze stavu dopočítaného jako pohled.
@@ -1534,3 +1542,5 @@ war/alarm-messenger,war/alarm-forest,war/alarm-people,war/alarm-all,war/alarm-re
 - **Zůstávají SVG:** oko „Ve scéně“ (`war/eye.svg` – jednobarevná maska v barvě textu tlačítka,
   `CampaignMap`) a vlajky jazykových skupin (`newcomer/<jazyk>.svg` – plochý znak 3 : 2 s rámečkem,
   `LanguageIcon`; vlajka je sama barvami, render látky by ji ve 24 × 16 px rozmazal).
+
+- **Ciferník u data** (Martin 14. 11. 2026; 24 hodin – návrh Clauda): `DayDial` v `hud/TopBar.tsx` místo ikony data, jedna ručička, poledne nahoře; hodina z `dayHourAt` (`lib/scene/day-light.ts`), obnova jednou za sekundu (`useDayHour`), úhel `clockHandAngle` a popisek `dayPartLabel` v `lib/game-date.ts`.

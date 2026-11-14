@@ -44,7 +44,10 @@ function noHerd(): Record<HerdSpecies, number> {
 
 /** Co tažení z vsi v den `day` odvedlo a stav vsi ze včerejška to ještě nezná (plán – Review Focus 2). */
 export interface AlarmTaken {
-  /** Lidé vsi, kteří jsou pryč s tažením (posel, skupina) – v boji ani ve skupinách domů nejsou. */
+  /**
+   * Lidé vsi, kteří jsou pryč s tažením (posel, skupina, zajatí a odvedení) – v boji ani ve
+   * skupinách domů nejsou.
+   */
   people: Set<number>;
   /** Obilí, které skupiny dnes odnesly (kg). */
   foodKg: number;
@@ -61,8 +64,11 @@ export function messengerBackTick(m: AlarmMessenger): number {
 /**
  * Co tažení z vsi `villageId` odvedlo do dne `day` a stav vsi `villageAt(…, day)` (ke konci dne
  * `day − 1`) to ještě nemusí znát: poslové, kteří vyběhli nejpozději v den `day` a nevrátili se
- * domů před ním, a skupiny uprchlíků, které odešly v den `day` (lidé, nesené obilí a stádo –
- * `refuge-depart` přistane na týž den; stav vsi ode dne nato ho už zná).
+ * domů před ním, skupiny uprchlíků, které odešly v den `day` (lidé, nesené obilí a stádo –
+ * `refuge-depart` přistane na týž den; stav vsi ode dne nato ho už zná), a zajatí a odvedení
+ * tažení z té vsi (`s.captives` – plán 2026-11-14, Úloha 5b: zajatý vojvoda není doma hned
+ * v taktu zajetí, ne až po zprávě do vsi den nato; s vojskem jdou do konce tažení, proto bez
+ * ohledu na den).
  */
 export function alarmTaken(
   s: CampaignState,
@@ -87,6 +93,7 @@ export function alarmTaken(
     foodKg += carried.foodKg;
     for (const sp of SPECIES) herd[sp] += carried.herd[sp];
   }
+  for (const c of s.captives) if (c.villageId === villageId) people.add(c.personId);
   return { people, foodKg, herd };
 }
 

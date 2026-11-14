@@ -46,7 +46,7 @@ const foes = (n: number, pos = { x: -600, z: 0 }, mounted = false): Sighted[] =>
 
 function plan(
   state: VillageState,
-  stance: 'defend' | 'surrender' | 'flee',
+  stance: 'defend' | 'flee',
   attackers: Sighted[],
   fort = false,
   forest = true,
@@ -66,7 +66,10 @@ function plan(
 describe('výchozí postoj a pomocné funkce', () => {
   it('bez nastavení platí útěk, jinak nastavený postoj', () => {
     expect(stanceOf(eastVillage())).toBe('flee');
-    expect(stanceOf(eastVillage({ defense: { stance: 'surrender' } }))).toBe('surrender');
+    expect(stanceOf(eastVillage({ defense: { stance: 'defend' } }))).toBe('defend');
+    // nepřevedený stav (tažení čte vsi bez `migrateVillage`) – zrušený postoj jako výchozí
+    const old = { stance: 'surrender' } as unknown as VillageState['defense'];
+    expect(stanceOf(eastVillage({ defense: old }))).toBe('flee');
   });
 
   it('nejbližší les; bez lesa null', () => {
@@ -156,9 +159,9 @@ describe('postoje bez opevnění', () => {
     expect(r.shelter.surrendered).toEqual([]);
   });
 
-  it('vzdát se při přesile: 7 proti 5 se brání, 8 se vzdá (5 × 1,5 = 7,5)', () => {
-    expect(plan(eastVillage(), 'surrender', foes(7)).fighters).toHaveLength(5);
-    const r = plan(eastVillage(), 'surrender', foes(8));
+  it('bez lesa: 7 proti 5 se brání, 8 se vzdá (5 × 1,5 = 7,5)', () => {
+    expect(plan(eastVillage(), 'flee', foes(7), false, false).fighters).toHaveLength(5);
+    const r = plan(eastVillage(), 'flee', foes(8), false, false);
     expect(r.fighters).toEqual([]);
     expect(r.shelter.surrendered).toEqual([1, 2, 3, 4, 5]);
   });
@@ -168,8 +171,8 @@ describe('postoje bez opevnění', () => {
       ...foes(riders, { x: -600, z: 0 }, true),
       ...foes(foot, { x: -600, z: 50 }),
     ];
-    expect(plan(eastVillage(), 'surrender', mix(3, 1)).fighters).toHaveLength(5);
-    expect(plan(eastVillage(), 'surrender', mix(4, 1)).fighters).toHaveLength(0);
+    expect(plan(eastVillage(), 'flee', mix(3, 1), false, false).fighters).toHaveLength(5);
+    expect(plan(eastVillage(), 'flee', mix(4, 1), false, false).fighters).toHaveLength(0);
   });
 
   it('bez lesa se útěk chová jako vzdání při přesile', () => {
@@ -180,14 +183,23 @@ describe('postoje bez opevnění', () => {
     expect(many.shelter.forest).toEqual([]);
   });
 
-  it('poslední muž rodu se nevzdá – uteče do lesa', () => {
+  it('s lesem a přesilou se postoj evakuace nevzdá, obrana se nevzdá nikdy', () => {
+    const f = plan(eastVillage(), 'flee', foes(30));
+    expect(f.shelter.forest).toEqual([1, 2, 3, 4, 5]);
+    expect(f.shelter.surrendered).toEqual([]);
+    const d = plan(eastVillage(), 'defend', foes(30), false, false);
+    expect(d.fighters).toHaveLength(5);
+    expect(d.shelter.surrendered).toEqual([]);
+  });
+
+  it('poslední muž rodu se nevzdá – bez lesa se brání', () => {
     const people = [
       { ...man(1, 1), line: true as const, arms: { combat: 50, bow: 50, riding: 0 } },
       man(2, 1),
     ];
     const s = village(people, [house(1, 300)], { lastDay: DAY });
-    const r = plan(s, 'surrender', foes(20));
-    expect(r.shelter.forest).toEqual([1]);
+    const r = plan(s, 'flee', foes(20), false, false);
+    expect(r.fighters.map((x) => x.personId)).toEqual([1]);
     expect(r.shelter.surrendered).toEqual([2]);
   });
 });
@@ -204,7 +216,7 @@ describe('postoje s opevněním (fortifications.md – Postoje vsi s opevněním
       { lastDay: DAY, storesKg: 500, livestock },
     );
 
-  it.each(['defend', 'surrender', 'flee'] as const)(
+  it.each(['defend', 'flee'] as const)(
     'postoj %s: kdo stihne doběhnout, je v útočišti a muži obsadí hradbu',
     (stance) => {
       const r = plan(near(), stance, foes(3, { x: 0, z: -800 }), true);
@@ -225,21 +237,19 @@ describe('postoje s opevněním (fortifications.md – Postoje vsi s opevněním
     },
   );
 
-  // násobek zrušen 8. 11. 2026 (dřív „vzdá se až nad 1,5 × 5 × 2 = 15“): za opevněním se skupina
-  // nevzdá, dokud útočník nestojí uvnitř obvodu; pak přesila 1,5× jako u domů
-  it('vzdát se za opevněním: 5 za palisádou se před 20 útočníky venku nevzdá, s útočníkem uvnitř ano', () => {
-    const outside = foes(20, { x: 0, z: -800 });
-    expect(plan(near(), 'surrender', outside, true).fighters).toHaveLength(5);
-    expect(plan(near(), 'surrender', foes(200, { x: 0, z: -800 }), true).fighters).toHaveLength(5);
-    // jeden z dvaceti už stojí uvnitř obvodu – ves o vojsku věděla předem, všichni jsou v útočišti
-    const inside = [...foes(19, { x: 0, z: -800 }), { pos: { x: 0, z: 10 }, mounted: false }];
-    const r = plan(near(), 'surrender', inside, true, true, true);
-    expect(r.shelter.refuge).toHaveLength(6);
-    expect(r.shelter.surrendered).toEqual([1, 2, 3, 4, 5]);
-    // 7 útočníků uvnitř není přesila nad 1,5 × 5
-    const few = [...foes(6, { x: 0, z: -800 }), { pos: { x: 0, z: 10 }, mounted: false }];
-    expect(plan(near(), 'surrender', few, true, true, true).fighters).toHaveLength(5);
-  });
+  // vzdání při přesile zrušeno 14. 11. 2026 (Hráč ve vsi a mimo ni): za opevněním se skupina podle
+  // postoje nevzdává ani s útočníkem uvnitř obvodu
+  it.each(['defend', 'flee'] as const)(
+    'postoj %s: 5 za palisádou se nevzdá ani s útočníkem uvnitř obvodu',
+    (stance) => {
+      expect(plan(near(), stance, foes(200, { x: 0, z: -800 }), true).fighters).toHaveLength(5);
+      const inside = [...foes(19, { x: 0, z: -800 }), { pos: { x: 0, z: 10 }, mounted: false }];
+      const r = plan(near(), stance, inside, true, true, true);
+      expect(r.shelter.refuge).toHaveLength(6);
+      expect(r.shelter.surrendered).toEqual([]);
+      expect(r.fighters).toHaveLength(5);
+    },
+  );
 
   it('kdo nestihne doběhnout před zavřením brány, jedná u domů podle postoje', () => {
     // útočníci už u brány, ves 300 m od středu

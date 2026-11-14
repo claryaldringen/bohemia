@@ -14,6 +14,7 @@ export { createSettlementRepository } from './settlement-repository';
 export { createTimeOffsetRepository } from './time-offset-repository';
 export { createVillageRepository, newVillageRow } from './village-repository';
 export { createActivityRepository } from './activity-repository';
+export { createPresenceRepository } from './presence-repository';
 export { createSuccessionCreditRepository } from './succession-credit-repository';
 export { createVassalageRepository } from './vassalage-repository';
 export { createNegotiationRepository } from './negotiation-repository';

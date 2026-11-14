@@ -98,3 +98,37 @@ it('klik mimo okno nabídku zavře', () => {
   click(host.querySelector('div[aria-hidden]'));
   expect(close).toHaveBeenCalledTimes(1);
 });
+
+/** Úhel ručičky z transform; těsně pod 360° bere jako 0°. */
+const handAngle = (el: Element | null): number => {
+  const angle = Number(/rotate\(([\d.]+)/.exec(el?.getAttribute('transform') ?? '')?.[1]);
+  return angle > 359.9 ? 0 : angle;
+};
+
+it('u data je ciferník s jednou ručičkou: poledne nahoře, 18:00 vpravo', () => {
+  vi.useFakeTimers();
+  try {
+    const world = {
+      startMs: Date.parse('2027-01-01T00:00:00Z'),
+      endMs: Date.parse('2028-01-01T00:00:00Z'),
+    };
+    // ostrý svět: herní den ≈ 86 s – půl dne po začátku dne 0 je poledne
+    const dayMs = (world.endMs - world.startMs) / 365250;
+    vi.setSystemTime(world.startMs + dayMs * 0.5);
+    act(() => root.render(<DateWithDevTime date="1. ledna 500" devTime={null} world={world} />));
+    const hand = q('day-dial-hand');
+    expect(handAngle(hand)).toBeCloseTo(0, 0);
+    vi.setSystemTime(world.startMs + dayMs * 0.75 - 1000);
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    expect(handAngle(q('day-dial-hand'))).toBeCloseTo(90, 0);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('bez hodin světa ciferník není (ikona data)', () => {
+  act(() => root.render(<DateWithDevTime date="1. ledna 500" devTime={null} />));
+  expect(q('day-dial')).toBeNull();
+});

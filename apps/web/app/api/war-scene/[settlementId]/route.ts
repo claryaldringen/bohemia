@@ -1,3 +1,4 @@
+import { notePlayerPresent } from '@/lib/game';
 import { getSession } from '@/lib/session';
 import type { WarSceneResponse } from '@/lib/war-scene-view';
 import { warSceneForPlayer } from '@/lib/war-scene';
@@ -20,6 +21,8 @@ export async function GET(
       headers: NO_STORE,
     });
   }
+  // scéna se ptá po 5 s, dokud je hra otevřená – hráč je u hry (war.md – Hráč ve vsi a mimo ni)
+  await notePlayerPresent(session.user.id);
   const { settlementId } = await context.params;
   // id sídla je uuid – cokoli jiného se do úložiště vůbec neposílá
   const war = /^[0-9a-f-]{36}$/i.test(settlementId)

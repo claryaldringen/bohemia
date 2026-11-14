@@ -34,6 +34,8 @@ export function placementVillageOf(state: VillageState, day: number): PlacementV
       : {}),
     // kostely i rozestavěné (churches.md – Stavba) – zabírají hřbitůvek
     ...churchPlots(state),
+    // po křtu rodu hřbitov jen u kostela (cemetery.md – Po křtu rodu)
+    ...(rodBaptized(state) ? { churchyardOnly: true as const } : {}),
   };
 }
 

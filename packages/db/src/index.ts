@@ -5,6 +5,7 @@ export {
   PlayerLockTimeoutError,
   createPlayerLock,
   createActivityRepository,
+  createPresenceRepository,
   createHouseRepository,
   createAccountLanguages,
   createAccountProviders,

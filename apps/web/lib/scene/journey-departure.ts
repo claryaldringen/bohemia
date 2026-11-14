@@ -36,14 +36,15 @@ export interface JourneyYard {
 }
 
 /**
- * Čerstvě vyslaný výjezd (m): skupina podle serveru stojí nejvýš tak daleko od místa vsi, odkud ji
- * jádro vysílá (`villagePlace`), a jede ven – načtení stránky uprostřed výjezdu odjezd nepřehraje.
+ * Čerstvě vyslaný výjezd (m): skupina podle serveru stojí nejvýš tak daleko od domova výjezdu, odkud
+ * ji jádro vysílá (`SceneJourney.home` – dvorec vsi), a jede ven – načtení stránky uprostřed výjezdu
+ * odjezd nepřehraje.
  */
 export const FRESH_M = 30;
-/** Vracející se skupina tak blízko místa vsi (m) začne příjezd; jinak začne, až výjezd skončí. */
+/** Vracející se skupina tak blízko domova výjezdu (m) začne příjezd; jinak, až výjezd skončí. */
 export const ARRIVE_M = 30;
 /**
- * Vlastní výjezd, který ze scény zmizel nejvýš tak daleko od místa vsi (m), skončil doma – přijede
+ * Vlastní výjezd, který ze scény zmizel nejvýš tak daleko od domova (m), skončil doma – přijede
  * (návrh Clauda). Worker ukládá kontrolní bod po 10 s (`WAR.campaign.checkpointTicks`), krátký návrat
  * tak scéna ve fázi `returning` vůbec nemusí uvidět. Skupina, která odjela přes okraj mapy, zmizí
  * u okraje – daleko od vsi.
@@ -269,6 +270,11 @@ interface Leave {
   catchS: Map<string, { total: number; off: Pos }>;
 }
 
+/** Leží `pos` nejvýš `within` m od domova výjezdu `home` (bez domova – ne)? */
+function near(pos: Pos, home: Pos | null, within = ARRIVE_M): boolean {
+  return home !== null && Math.hypot(pos.x - home.x, pos.z - home.z) <= within;
+}
+
 /**
  * Odjezdy a příjezdy výjezdů ve scéně vsi: rozhodne, kdy začnou (`observe` – podle stavů ze serveru),
  * a kreslí muže místo stavů `JourneyGlide` (`at`). Omezený pohyb je přeskočí – muži stojí, kde je
@@ -276,23 +282,24 @@ interface Leave {
  */
 export class JourneyLeave {
   private yard: JourneyYard | null = null;
-  private home: Pos | null = null;
   private leaves = new Map<string, Leave>();
   /**
-   * Poslední fáze a poloha vlastních výjezdů, které scéna viděla (pohled hráče – ne záznam
+   * Poslední fáze, poloha a domov vlastních výjezdů, které scéna viděla (pohled hráče – ne záznam
    * návštěvníka).
    */
-  private seen = new Map<string, { phase: JourneyPhase; pos: Pos }>();
+  private seen = new Map<string, { phase: JourneyPhase; pos: Pos; home: Pos | null }>();
   /** Výjezdy v posledním seznamu a vlastní mezi nimi. */
   private listed = new Set<string>();
   private ownId: string | null = null;
   /** Muži výjezdů, jak byli naposled nakreslení – příjezd začne odtud. */
   private drawn = new Map<string, RiderPose[]>();
 
-  /** Místa dvorce (null – ves bez dvorce i cvičiště: bez odjezdu) a místo vsi `home` (m). */
-  setYard(yard: JourneyYard | null, home: Pos | null): void {
+  /**
+   * Místa dvorce (null – ves bez dvorce i cvičiště: bez odjezdu). Domov, od kterého se měří odjezd
+   * a příjezd, nese každý výjezd ze serveru (`SceneJourney.home`) – scéna ho sama nepočítá.
+   */
+  setYard(yard: JourneyYard | null): void {
     this.yard = yard;
-    this.home = home;
   }
 
   /** Odjíždí nebo přijíždí nějaký výjezd? */
@@ -312,13 +319,13 @@ export class JourneyLeave {
     for (const j of list) {
       if (!j.own || j.phase === null) continue;
       const first = !this.seen.has(j.journeyId);
-      this.seen.set(j.journeyId, { phase: j.phase, pos: j.pos });
+      this.seen.set(j.journeyId, { phase: j.phase, pos: j.pos, home: j.home });
       const kind = this.leaves.get(j.journeyId)?.kind;
       if (frozen || !this.yard) continue;
       if (first && this.fresh(j)) {
         this.start(j.journeyId, 'departing', departureScripts(j, this.yard), nowMs);
         changed = true;
-      } else if (j.phase === 'returning' && kind !== 'arriving' && this.near(j.pos)) {
+      } else if (j.phase === 'returning' && kind !== 'arriving' && near(j.pos, j.home)) {
         changed = this.arrive(j.journeyId, nowMs) || changed;
       }
     }
@@ -331,7 +338,7 @@ export class JourneyLeave {
         changed = true;
       }
       const last = this.seen.get(id);
-      const home = last && (last.phase === 'returning' || this.near(last.pos, HOME_REACH_M));
+      const home = last && (last.phase === 'returning' || near(last.pos, last.home, HOME_REACH_M));
       if (home && kind !== 'arriving' && !frozen) {
         changed = this.arrive(id, nowMs) || changed;
       }
@@ -407,12 +414,7 @@ export class JourneyLeave {
   }
 
   private fresh(j: SceneJourney): boolean {
-    return j.phase === 'out' && j.arrived === false && this.near(j.pos, FRESH_M);
-  }
-
-  private near(pos: Pos, within = ARRIVE_M): boolean {
-    const home = this.home;
-    return home !== null && Math.hypot(pos.x - home.x, pos.z - home.z) <= within;
+    return j.phase === 'out' && j.arrived === false && near(j.pos, j.home, FRESH_M);
   }
 
   private start(id: string, kind: Leave['kind'], men: ManScript[], nowMs: number): void {

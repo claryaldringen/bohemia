@@ -43,6 +43,9 @@ const END = LAUNCH + 3000;
 /** Rozkaz „Domů“ v taktu +300 – výjezd je doma dřív než v taktu +700. */
 const HOMEWARD = { tick: LAUNCH + 300, byPlayer: 'pa', body: { kind: 'home' as const } };
 
+/** Rozkaz „Přes okraj“ na nesousední políčko se zahodí – skupina stojí doma. */
+const STAND = { kind: 'cross' as const, cell: { x: 5, y: 5 } };
+
 /** Muž výjezdu – osoba 1 je vojvoda, oba na koni. */
 function man(personId: number): JourneyMember {
   return {
@@ -329,7 +332,8 @@ describe('stepJourneys', () => {
 
   it('druhé kolo pokračuje od zapamatovaného stavu; kolo tažení paměť výjezdů nezahodí', async () => {
     const { deps, journeys, villages, notices, lock } = await setup();
-    await journeys.create(journey());
+    // stojící skupina – jedoucí by se ukládala každé kolo (D34)
+    await journeys.create(journey({ order: STAND }));
     const memory = newCampaignMemory<JourneyState>();
     const used = { ...deps, memory };
     // jako worker: v kole nejdřív tažení (vlastní paměť), pak výjezdy
@@ -358,6 +362,40 @@ describe('stepJourneys', () => {
       leaderName: 'Z paměti',
     });
     expect((await stored(journeys)).tick).toBe(LAUNCH);
+  });
+
+  it('jedoucí skupina se ukládá každé kolo; stojící až po CHECKPOINT_TICKS (D34)', async () => {
+    const riding = await setup();
+    await riding.journeys.create(journey());
+    const rideSaves = recordSaves(riding.journeys);
+    await rounds(riding.deps, LAUNCH + 4, LAUNCH + 20);
+    expect(rideSaves).toHaveLength(5);
+    expect((await stored(riding.journeys)).tick).toBe(LAUNCH + 20);
+
+    const standing = await setup();
+    await standing.journeys.create(journey({ order: STAND }));
+    const standSaves = recordSaves(standing.journeys);
+    await rounds(standing.deps, LAUNCH + 4, LAUNCH + 36);
+    expect(standSaves).toHaveLength(0);
+    await rounds(standing.deps, LAUNCH + 40, LAUNCH + 40);
+    expect(standSaves).toHaveLength(1);
+  });
+
+  it('záměr „go“ u stojící skupiny se uloží v kole, kdy se uplatní (D34)', async () => {
+    const { deps, journeys } = await setup();
+    await journeys.create(journey({ order: STAND }));
+    const saves = recordSaves(journeys);
+    await rounds(deps, LAUNCH + 4, LAUNCH + 8);
+    expect(saves).toHaveLength(0);
+    await journeys.addIntent('j1', {
+      tick: LAUNCH + 12,
+      byPlayer: 'pa',
+      body: { kind: 'go', pos: { x: 305, z: 5 } },
+    });
+    await rounds(deps, LAUNCH + 12, LAUNCH + 12);
+    expect(saves).toHaveLength(1);
+    const group = (await stored(journeys)).groups[0]!;
+    expect(group.goal?.pos).toEqual({ x: 305, z: 5 });
   });
 
   it.each(['schránka vsi', 'upozornění'])(

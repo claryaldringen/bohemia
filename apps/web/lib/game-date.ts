@@ -92,3 +92,25 @@ export function dateRefreshDelay(nowMs: number, world: WorldClock): number | nul
   if (next === null) return null;
   return Math.min(DATE_REFRESH_MS.max, Math.max(DATE_REFRESH_MS.min, next - nowMs + 1));
 }
+
+/**
+ * Úhel ručičky ciferníku denní doby ve stupních po směru hodin od svislice nahoře (Martin
+ * 14. 11. 2026; ciferník na 24 hodin je návrh Clauda): poledne nahoře (0°), 18:00 vpravo (90°),
+ * půlnoc dole (180°), 6:00 vlevo (270°). Jedna otáčka za herní den.
+ */
+export function clockHandAngle(hour: number): number {
+  const turn = ((((hour - 12) / 24) % 1) + 1) % 1;
+  return turn * 360;
+}
+
+/** Denní doba slovy pro popisek ciferníku (hodina 0–24). */
+export function dayPartLabel(hour: number): string {
+  const h = ((hour % 24) + 24) % 24;
+  if (h < 5) return 'Noc';
+  if (h < 9) return 'Ráno';
+  if (h < 11) return 'Dopoledne';
+  if (h < 13) return 'Poledne';
+  if (h < 17) return 'Odpoledne';
+  if (h < 21) return 'Večer';
+  return 'Noc';
+}

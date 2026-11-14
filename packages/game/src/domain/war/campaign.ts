@@ -21,7 +21,7 @@ import type {
   CampaignVillage,
   CampaignWorld,
 } from './campaign-types';
-import { deserters } from './desertion';
+import { deserters, starving } from './desertion';
 import {
   battleForts,
   battleTick,
@@ -33,7 +33,7 @@ import {
 import { defenderRoster, type Defender, type GuardGuest } from './defenders';
 import { ageYears, isAway } from '../village/people/people';
 import { stanceOf } from './flight';
-import { refugeRout } from './rout';
+import { refugeRout, slipAway } from './rout';
 import { planDefense, type RefugeLoad } from './stance';
 import {
   lootCapacity,
@@ -64,9 +64,11 @@ import {
 import { frostDay } from './season';
 import { npcIntents, npcLeader } from './npc-commander';
 import { inFight, setGroupOrder } from './orders';
-import { dayOfTick, hoursPerTick, TICKS_PER_SECOND, tickRandom } from './ticks';
+import { absentTicks, dayOfTick, hoursPerTick, TICKS_PER_SECOND, tickRandom } from './ticks';
 import {
+  alarmEnded,
   alarmVillage,
+  armyEyes,
   isAlarmIntent,
   isDefenderIntent,
   isSurrenderIntent,
@@ -74,7 +76,9 @@ import {
   sightAlarms,
   type AlarmIntentBody,
 } from './alarm';
-import { decideAlarms } from './alarm-steward';
+import type { AlarmVillage } from './alarm-types';
+import { decideAlarms, notePresence } from './alarm-steward';
+import { lordHomeAt } from './lord-home';
 import {
   catchMessengers,
   moveMessengers,
@@ -185,6 +189,9 @@ export function campaignFinished(state: CampaignState): boolean {
  * obráncům `breakout` dává držitel napadené vsi (právo ověřil use-case `orderBreakout`), `alarm-*`
  * majitel varované vsi – nikdy vůdce tažení; ostatní platí přesně ve svém taktu v pořadí `seq`.
  * Chybí-li mapa nebo ves (`waiting`), výsledek je stav na konci posledního celého taktu.
+ * S `pauseOnAsk` (worker) skončí i po taktu, ve kterém se varovaná ves zeptala na přítomnost hráče
+ * (`askedTick` = takt; `waiting.presence`) – odpověď pak jde na takt dotazu + 2, ne na konec kola
+ * (závěrečná recenze, drobný 1). Výsledek pro tytéž záměry je tentýž, jen se počítá po kouscích.
  * Vstupní stav ani záměry nemění.
  */
 export function stepCampaign(
@@ -192,6 +199,7 @@ export function stepCampaign(
   toTick: number,
   intents: readonly CampaignIntent[],
   world: CampaignWorld,
+  options: { pauseOnAsk?: boolean } = {},
 ): CampaignStep {
   const pending = intents
     .filter(
@@ -234,8 +242,22 @@ export function stepCampaign(
     villageEvents.push(...out.events);
     notices.push(...stampNotices(out.notices, `camp:${current.id}:${tick}`));
     knowledge.push(...(out.knowledge ?? []));
+    if (options.pauseOnAsk && tick < toTick && asksIn(current, tick)) {
+      return {
+        state: current,
+        villageEvents,
+        notices,
+        ...withKnowledge(),
+        waiting: { cells: [], villageIds: [], presence: true },
+      };
+    }
   }
   return { state: current, villageEvents, notices, ...withKnowledge(), waiting: null };
+}
+
+/** Zeptala se v taktu `tick` některá varovaná ves na přítomnost hráče (`askedTick`)? */
+function asksIn(s: CampaignState, tick: number): boolean {
+  return s.alarm?.villages.some((v) => v.askedTick === tick) ?? false;
 }
 
 /**
@@ -262,7 +284,7 @@ function campaignTick(
   s.throughDay = dayOfTick(tick + 1, ctx.world.clock) - 1;
   while (s.day < day) {
     s.day++;
-    dailyStep(s, out);
+    dailyStep(s, ctx, out);
   }
   for (const intent of intents) applyIntent(s, intent, ctx, out);
   command(s, tick, ctx, out);
@@ -367,11 +389,13 @@ function watchVillages(s: CampaignState, ctx: TickContext, out: TickOut): void {
 
 /**
  * Denní krok na začátku herního dne `s.day` (war.md – Pohyb – Zásoby, Zima): mráz venku (ve
- * shromaždišti se muži zotaví) a jídlo – 1 kg na muže a den. Když jídlo dojde na pochodu,
- * vojsko se obrátí domů (Martin 2. 11. 2026). Skupiny uprchlíků na cestě do hradiště jedí ze svých
- * zásob (Úloha 8 plánu 2026-11-09).
+ * shromaždišti se muži zotaví), dezerce a jídlo – 1 kg na muže a den. Když jídlo dojde na pochodu,
+ * vojsko se obrátí domů (Martin 2. 11. 2026). Živě vedené tažení se samo neobrátí: s jídlem pod
+ * cestou domů muži dezertují, a zůstane-li jen vůdce, výprava se rozpadne (war.md – Zásoby tažení:
+ * Živé vedení bez rozkazu; Martin 14. 11. 2026). Skupiny uprchlíků na cestě do hradiště jedí ze
+ * svých zásob (Úloha 8 plánu 2026-11-09).
  */
-function dailyStep(s: CampaignState, out: TickOut): void {
+function dailyStep(s: CampaignState, ctx: TickContext, out: TickOut): void {
   flightFoodDay(s);
   const outside = s.phase !== 'assembling' && s.phase !== 'done';
   const active = s.members.filter((m) => m.status === 'active');
@@ -381,7 +405,11 @@ function dailyStep(s: CampaignState, out: TickOut): void {
     m.vigor += delta.vigor;
   }
   if (!outside) return;
-  desert(s, out);
+  const hungry = starving(s, ctx.world);
+  desert(s, hungry, out);
+  if (hungry && !s.members.some((m) => m.status === 'active' && !sameRef(m.ref, s.commander))) {
+    disband(s, out);
+  }
   const need = active.length * WAR.foodKgPerManDay;
   const eaten = Math.min(need, s.supplies.foodKg);
   s.supplies.foodKg -= eaten;
@@ -389,14 +417,21 @@ function dailyStep(s: CampaignState, out: TickOut): void {
 }
 
 /**
- * Dezerce nucených (war.md – Vojsko): dezertér s příbuznými v cíli cíl varuje – ves dostane
+ * Dezerce nucených a z hladu (war.md – Vojsko; Zásoby tažení: Živé vedení bez rozkazu – `hungry`):
+ * dezertér z boje odejde hned (`slipAway`) a domů ho jako při rozpadu vrátí návrat tažení
+ * (`returnOf` – `deserted`). Raněný, který na bojišti leží (`down`), neuteče – los ho mine, zůstane,
+ * kde padl (závěrečná recenze, drobný 4). Dezertér s příbuznými v cíli cíl varuje – ves dostane
  * signál `army-seen` dřív, než vojsko dorazí (jeden za den, ať se nezdvojí).
  */
-function desert(s: CampaignState, out: TickOut): void {
+function desert(s: CampaignState, hungry: boolean, out: TickOut): void {
   let warns = false;
-  for (const m of deserters(s)) {
+  const battle = s.battle?.outcome === 'ongoing' ? s.battle : null;
+  for (const m of deserters(s, hungry)) {
+    const f = battle?.fighters.find((x) => x.side === 'attack' && s.members[x.ref] === m);
+    if (f?.state === 'down') continue;
     m.status = 'deserted';
     warns ||= m.kin === true;
+    if (f && f.state !== 'fled') slipAway(f);
   }
   if (!warns) return;
   const day = s.day + 1;
@@ -420,7 +455,7 @@ function applyIntent(
 ): void {
   // záměr obránce varované vsi – hráč obránce u tažení není
   if (isAlarmIntent(intent.body)) {
-    applyAlarm(s, intent.byPlayer, intent.body, ctx, out);
+    applyAlarm(s, intent.byPlayer, intent.body, intent.tick, ctx, out);
     return;
   }
   // ves cíle se vzdala (Začít znovu obránce) – obránce u tažení není, přítomnost vůdce se nemění
@@ -438,17 +473,27 @@ function applyIntent(
 /**
  * Záměr obránce varované vsi (plán 2026-11-09 – Rozhodnutí plánu): platí jen od hráče, kterému ves
  * patří (`AlarmVillage.owner`), a jen když ves o vojsku ví; co nejde (`refugeOptions`), se zahodí.
+ * Každý takový záměr je přítomnost hráče u hry (`notePresence` – plán 2026-11-14, Rozhodnutí
+ * plánu 2): odpověď workeru `alarm-presence` nese poslední přítomnost, jiný záměr svůj takt
+ * (`tick` – takt záměru). Po vzdání vojvody (`alarmEnded` – Úloha 5b) je záměr jen přítomnost:
+ * ves před odcházejícím vojskem nic nevolí – posel ani útěk s vojvodou v taktu vzdání neprojdou.
  */
 function applyAlarm(
   s: CampaignState,
   byPlayer: string,
   body: AlarmIntentBody,
+  tick: number,
   ctx: TickContext,
   out: TickOut,
 ): void {
   const v = alarmVillage(s, body.village);
   if (!v || v.owner.playerId !== byPlayer || !isWarned(s, v.villageId, s.tick)) return;
+  notePresence(v, body.kind === 'alarm-presence' ? body.seenTick : tick);
+  if (alarmEnded(s, v.villageId)) return;
   switch (body.kind) {
+    case 'alarm-presence':
+      // jen přítomnost – kdo rozhodne, určí `deciderOf` v `decideAlarms` téhož taktu
+      return;
     case 'alarm-messenger':
       sendMessenger(s, v.villageId, ctx, out, {
         by: 'player',
@@ -463,7 +508,75 @@ function applyAlarm(
       // evakuace do hradiště nebo do lesa (Úloha 8, Otevřené 7)
       departFlight(s, v.villageId, body.mode, ctx, out, { by: 'player' });
       return;
+    case 'lord-surrender': {
+      // vzdání vojvody (plán 2026-11-14 – Rozhodnutí plánu 5); druhé vzdání téhož taktu neprojde –
+      // vojsko už jde domů
+      const lordId = yieldingLord(s, v, ctx);
+      if (lordId !== null) yieldLord(s, lordId, ctx, out);
+      return;
+    }
   }
+}
+
+/**
+ * Smí hráč vzdát vojvodu vsi `v` (plán 2026-11-14 – Rozhodnutí plánu 5)? Jen v cíli tažení, dokud
+ * nájezd není rozhodnutý (`raidDay`; vojsko ještě nejde domů), se skupinou s aktivním mužem na mapě
+ * cíle (`armyEyes`) a s vojvodou doma (`lordHomeAt` – ne posel, uprchlík ani zajatec tažení), který
+ * v boji nepadl (padlý je ve stavu vsi až do výsledku nájezdu). Vrací číslo vojvody, jinak null.
+ * Vlastníka varované vsi a „ves ví“ hlídá `applyAlarm`; pohled obránce (Úloha 8 – zda jde vzdát)
+ * je ověří sám. Chybí-li data, takt čeká (`MissingData`).
+ */
+export function yieldingLord(s: CampaignState, v: AlarmVillage, ctx: TickContext): number | null {
+  const lordId = v.owner.lordId;
+  if (lordId === undefined || v.villageId !== s.target.villageId) return null;
+  if (s.raidDay !== undefined || (s.phase !== 'marching' && s.phase !== 'raiding')) return null;
+  if (!armyEyes(s).some((e) => sameCell(e.cell, s.target.cell))) return null;
+  const fell = s.battle?.fighters.some((f) => f.side === 'defend' && f.ref === lordId && f.killed);
+  if (fell === true) return null;
+  return lordHomeAt(s, v.villageId, v.owner, ctx) ? lordId : null;
+}
+
+/**
+ * Vzdání vojvody (war.md – Hráč ve vsi a mimo ni; plán 2026-11-14 – Rozhodnutí plánu 5): nájezd
+ * končí – vojvoda je zajat vždy (volba ke vzdaným `surrendered` se ho netýká), vojsko se obrátí domů
+ * (`'yielded'`) a odnese jen to, co už vzalo (`s.loot`). V boji ho zajme výsledek boje téhož taktu
+ * (`BattleState.lordYielded` → `raidResultOf` v `reportRaid`). Bez boje (vojsko na mapě cíle ještě
+ * pochoduje) dostane ves výsledek nájezdu jen se zajatým vojvodou a ves shromaždiště zápis do
+ * kroniky jako po boji. Ve vsi dál cesta zajetí: `away captive`, formální správce, výkupné.
+ */
+function yieldLord(s: CampaignState, lordId: number, ctx: TickContext, out: TickOut): void {
+  if (s.battle) {
+    s.battle.lordYielded = lordId;
+    turnBack(s, 'yielded');
+    return;
+  }
+  const village = ctx.world.villageAt(s.target.villageId, s.day);
+  if (village === null) throw new MissingData([], [s.target.villageId]);
+  const result: RaidResult = {
+    ...raidHeader(s),
+    fallen: [],
+    wounded: [],
+    led: [],
+    captured: [lordId],
+    captorVillageId: s.assembly.villageId,
+    loot: noLoot(),
+    pitsFound: [],
+  };
+  s.raidDay = s.day;
+  post(s, out, s.target.villageId, { kind: 'raid-result', result });
+  post(s, out, s.assembly.villageId, {
+    kind: 'chronicle',
+    event: raidChronicle(s.day + 1, result, { fallen: 0, wounded: 0, led: 0, loot: result.loot }),
+  });
+  s.loot = {
+    ...s.loot,
+    prisoners: [...(s.loot.prisoners ?? []), ...capturedPrisoners(s, village, [lordId])],
+  };
+  s.captives.push({ villageId: s.target.villageId, personId: lordId });
+  // `shareTarget` se tu nevolá (fáze byla `marching`, ne `raiding`) a nechybí: co muži na mapě cíle
+  // za pochodu viděli (`lookOut` → `s.seen`), jde rodu s návratem (`seenKnowledge` ve `finish`),
+  // a objevená obydlí bez boje nejsou (`discover` jen v boji) – bod bez znalosti map nemá co vydat
+  turnBack(s, 'yielded');
 }
 
 /** Úkon tažení od hráče, nebo od NPC velitele (`npc`) – co ve fázi nedává smysl, se zahodí. */
@@ -541,11 +654,6 @@ function applyBody(
   }
 }
 
-/** Takty bez přítomnosti hráče, po kterých velení převezme zástupce (war.md – Čísla: 1 herní den). */
-function absentTicks(ctx: TickContext): number {
-  return Math.round((WAR.absentLeaderDays * 24) / hoursPerTick(ctx.world.clock));
-}
-
 /** Vede tažení NPC velitel? Velí jiný muž, velitel padl, nebo je hráč pryč a vede zástupce. */
 function npcLeads(s: CampaignState): boolean {
   return (s.phase === 'marching' || s.phase === 'raiding') && (!s.liveCommand || s.absent === true);
@@ -574,7 +682,7 @@ function command(s: CampaignState, tick: number, ctx: TickContext, out: TickOut)
   }
   if (!s.liveCommand || s.absent) return;
   const since = (s.presenceTick ??= tick);
-  if (tick - since <= absentTicks(ctx)) return;
+  if (tick - since <= absentTicks(ctx.world.clock)) return;
   if (hasDeputy) s.absent = true;
   else disband(s, out);
 }
@@ -1179,6 +1287,19 @@ function guardPrisoner(s: CampaignState, g: CampaignGuard): Prisoner {
   };
 }
 
+/** Hlavička výsledku nájezdu (kronika): tažení, vůdce, jeho ves, napadená ves a opověď. */
+function raidHeader(
+  s: CampaignState,
+): Pick<RaidResult, 'campaignId' | 'leader' | 'from' | 'target' | 'declared'> {
+  return {
+    campaignId: s.id,
+    leader: s.leaderName,
+    ...(s.assembly.name === undefined ? {} : { from: s.assembly.name }),
+    ...(s.target.name === undefined ? {} : { target: s.target.name }),
+    declared: s.ambush !== true,
+  };
+}
+
 /** Padlí, ranění, odvedení a kořist z boje a stavu napadené vsi v den konce boje (bez toho, co tažení dnes odvedlo). */
 function raidResultOf(
   s: CampaignState,
@@ -1240,12 +1361,15 @@ function raidResultOf(
       }
     }
   }
+  // vojvoda, kterého hráč vzdal (`yieldLord`): zajat vždy – volba ke vzdaným se ho netýká
+  const lord = b.lordYielded;
+  if (lord !== undefined && !captured.includes(lord) && !fallen.includes(lord)) {
+    captured.push(lord);
+    const w = wounded.indexOf(lord);
+    if (w >= 0) wounded.splice(w, 1);
+  }
   const base = {
-    campaignId: s.id,
-    leader: s.leaderName,
-    ...(s.assembly.name === undefined ? {} : { from: s.assembly.name }),
-    ...(s.target.name === undefined ? {} : { target: s.target.name }),
-    declared: s.ambush !== true,
+    ...raidHeader(s),
     fallen: fallen.sort((x, y) => x - y),
     wounded: wounded.sort((x, y) => x - y),
     led: led.sort((x, y) => x - y),
