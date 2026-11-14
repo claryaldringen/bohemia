@@ -6,7 +6,7 @@ blender -b --factory-startup --python tools/blender/people_from_0ad.py -- \
 people.json: [{"name", "height_m" | "length_m", "body": {"dae", "texture", "tint", "pattern"?,
 "flatten"?, "multiply"?, "coat"?}, "props": [{"name", "dae" | "procedural" (sickle | rod | yoke | bowl | stick | shovel | rattle | stump | sheaf | rake | block | sieve |
 pots | tools-load | pots-load | fish-load | snare | ladle | cookpot | pail | distaff | loom | pipe | drum | lath | maul | pickaxe |
-chisel | poker | paddle | trowel | float | rubble | ashlar | stone-load | stone-hand | trough), "point", "texture",
+chisel | poker | paddle | trowel | float | rubble | ashlar | stone-load | stone-hand | trough | pole-basket), "point", "texture",
 "tint"?, "uv"?, "scale"? (měřítko kolem bodu, výchozí 1), "rotate_deg"? ([x, y, z] natočení v osách bodu),
 "offset_m"? ([x, y, z] posun v osách bodu, v metrech)}], "clips": [{"name", "animation", "props": [jména propů viditelných v klipu],
 "pose"?, "report"?, "report_tip"?}]}]
@@ -967,7 +967,31 @@ def procedural_trough(uv_wood, uv_mortar):
     return _mesh(out)
 
 
+def procedural_pole_basket(uv_wicker, uv_coal):
+    """Tyč s košatinou na uhlí (klipy `carry-pole`, workshops.md – Uhlí kovářovi nesou dva muži):
+    pletená tyč 2,6 m leží osou z bodu propu (z = −0,35 … 2,25 – krátký konec před rukou, zbytek
+    k druhému muži), v polovině na čtyřech provazech visí proutěná košatina ⌀ 0,6 m s kopcem
+    uhlí. Okraj košatiny je 0,25 m a střed jejího obsahu 0,4 m „dolů“ od osy tyče (dolů = +x
+    bodu propu; rotate_deg v people.json ji natočí do scény). Procedurálně, CC0."""
+    out = ([], [], [], [])
+    _tapered_rod(out, 6, -0.35, 2.25, 0.035, 0.03, uv_wicker)
+    zc = 1.3  # střed tyče
+    basket = Matrix.Translation((0.55, 0.0, zc)) @ Matrix.Rotation(-math.pi / 2, 4, "Y")
+    wall = [(0.2, 0.0), (0.26, 0.1), (0.3, 0.3)]
+    _placed(out, lambda o: _lathe(o, wall, 10, uv_wicker, bottom=True), basket)
+    # vnitřek košatiny (stěna zevnitř), aby nebyla vidět průsvitem
+    _placed(out, lambda o: _lathe(o, [(0.29, 0.29), (0.25, 0.1), (0.19, 0.01)], 10, uv_wicker), basket)
+    _placed(out, lambda o: _tapered_rod(o, 10, 0.29, 0.32, 0.3, 0.3, uv_wicker), basket)
+    # kopec uhlí uprostřed
+    _placed(out, lambda o: _lathe(o, [(0.27, 0.27), (0.2, 0.34), (0.1, 0.39), (0.0, 0.4)], 10, uv_coal), basket)
+    # provazy z tyče k okraji košatiny
+    for dy, dz in ((0.3, 0.0), (-0.3, 0.0), (0.0, 0.3), (0.0, -0.3)):
+        _rod_between(out, (0.0, 0.0, zc), (0.25, dy, zc + dz), 0.01, 0.01, 4, uv_wicker)
+    return _mesh(out)
+
+
 PROCEDURAL = {
+    "pole-basket": lambda r: procedural_pole_basket(r["wicker"], r["coal"]),
     "lath": lambda r: procedural_lath(r["wood"]),
     "maul": lambda r: procedural_maul(r["wood"]),
     "pickaxe": lambda r: procedural_pickaxe(r["wood"], r["metal"]),
