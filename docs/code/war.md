@@ -1649,6 +1649,12 @@ Scéna hry ukazuje **mapu sídla hráče** – vojsko je v ní vidět, když na 
   dnes). Ves sídla se hledá otiskem bez stavu (`stampsOf`); domy, opevnění a lidé obránce
   (`WarSceneDefender` – `folk` jen pro obránce) se čtou ze stavu vsi jednou za herní den –
   mezipaměť `defenders` (klíč `ves@den`, web LRU 16).
+  **Pohled obránce (Hráč ve vsi a mimo ni, Úloha 9):** tažení bere z `activeAlarming(ves)` (cíl
+  i ves ve varování), nechá ta se skupinou na mapě, bojem nebo průvodem; pořadí pohledů boj > cíl
+  > ostatní. `seesAll` = ves varovaná (`warnTick ≤ state.tick`) a `lordAtHome(defender.people,
+alarm.owner.lordId, den)` (`people` ve `WarSceneDefender` z téže mezipaměti); `warSceneView`
+  > pak ukáže skupiny, bojovníky i průvody a posly bez ohledu na dohled domů, takže vojsko, které ves
+  > jen míjí, je s vojvodou doma vidět celé. S vojvodou na výjezdu platí mlha jako dřív.
 - **Web:** route `GET /api/war-scene/<sídlo>` (`lib/war-scene.ts`, `no-store`) → `{ war }`; cizí
   sídlo i mapa bez války = `{ war: null }`. `useWarScene` (web-ui.md – Dotazování na tažení)
   a `sceneWarOf` (`lib/war-scene-view.ts`) → `LandscapeScene.setWar` v `useWarWatch`. Na vlastní

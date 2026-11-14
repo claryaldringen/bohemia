@@ -535,3 +535,64 @@ describe('warSceneFor – průvod uprchlíků (Ú14)', () => {
     expect(await warSceneFor(deps, { playerId: 'p9', settlementId: 's9' })).toBeNull();
   });
 });
+
+describe('warSceneFor – vojvoda doma vidí celé vojsko', () => {
+  /** Vojsko p1 mířící na Brod míjí mapu Kněžic (p9) 900 m od domů; ves varovaná, vojvoda je č. 1. */
+  function passingBy(): CampaignState {
+    const base = campaign({ members: [member(1, 0, true)] });
+    return {
+      ...base,
+      phase: 'marching',
+      target: { villageId: 'brod', cell: { x: 3, y: 0 }, pos: { x: 0, z: 0 } },
+      groups: base.groups.map((g) => ({ ...g, cell: { x: 1, y: 0 }, pos: { x: 900, z: 900 } })),
+      alarm: {
+        villages: [
+          {
+            villageId: 'knezice',
+            owner: { playerId: 'p9', npc: false, houseId: 'h9', lordId: 1 },
+            seenTick: base.tick,
+            seenAt: { cell: { x: 1, y: 0 }, pos: { x: 900, z: 900 } },
+            warnTick: base.tick,
+            by: 'lord',
+          },
+        ],
+        messengers: [],
+        flights: [],
+        nextRef: 1,
+      },
+    };
+  }
+  const lord = { id: 1, bornDay: -30 * 365, sex: 'male' } as Person;
+
+  it('vojsko, které ves jen míjí, je s vojvodou doma vidět', async () => {
+    const { deps } = await setup(passingBy(), [house(1, -600, -600)], [lord]);
+    const view = await warSceneFor(deps, { playerId: 'p9', settlementId: 's9' });
+    expect(view?.side).toBe('defend');
+    expect(view?.march?.groups).toHaveLength(1);
+  });
+
+  it('s vojvodou na výjezdu jen v dohledu, jako dřív', async () => {
+    const away = { ...lord, away: { kind: 'journey' } } as unknown as Person;
+    const { deps } = await setup(passingBy(), [house(1, -600, -600)], [away]);
+    expect(await warSceneFor(deps, { playerId: 'p9', settlementId: 's9' })).toBeNull();
+    // bez vojvody ve vsi také
+    const none = await setup(passingBy(), [house(1, -600, -600)], []);
+    expect(await warSceneFor(none.deps, { playerId: 'p9', settlementId: 's9' })).toBeNull();
+  });
+
+  it('ves, která ještě neví (warnTick v budoucnu), nevidí celé vojsko', async () => {
+    const state = passingBy();
+    state.alarm!.villages[0]!.warnTick = state.tick + 50;
+    const { deps } = await setup(state, [house(1, -600, -600)], [lord]);
+    expect(await warSceneFor(deps, { playerId: 'p9', settlementId: 's9' })).toBeNull();
+  });
+
+  it('boj má přednost před vojskem, které ves jen míjí', async () => {
+    const { deps, campaigns } = await setup(passingBy(), [house(1, -600, -600)], [lord]);
+    const fight = { ...raiding([defender(101, { x: 100, z: 0 })]), id: 'c2' };
+    await campaigns.create(fight);
+    const view = await warSceneFor(deps, { playerId: 'p9', settlementId: 's9' });
+    expect(view?.campaignId).toBe('c2');
+    expect(view?.battle).not.toBeNull();
+  });
+});
