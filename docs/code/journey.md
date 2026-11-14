@@ -17,12 +17,14 @@ s libovolně skupinami hráče (`parties`) a jejich hloučky (`groups`).
   skupiny i hloučku – jedna řada). `leaderName` zůstává jen v převedených bodech.
   - `JourneyMember`: `ref` osoby, která zůstává ve stavu domovské vsi, `lord` (vojvoda), `mounted`,
     `strength` a `fight` při vyslání, `health`, `wounded`, `status: 'active' | 'fallen'`, hlouček
-    `group`, volitelně `name`, `female`, `bornDay`.
+    `group`, volitelně `name`, `female`, `bornDay` a kůň jezdce `horseId`, `horse`,
+    `strengthMounted` (Koně výpravy níž).
   - `JourneyGroup` (hlouček) = `CampaignGroup` (tvar tažení, bariéra a `onCell` čtou `groups[].cell`)
     s polem `party`. Hlouček jsou lidé jedné skupiny na jednom místě.
   - `JourneyParty` (skupina hráče – výběr s jedním rozkazem): `id`, `phase: 'out' | 'returning'`,
     `arrivedTick` (takt, od kterého stojí všechny její hloučky – od něj běží čekání; null = některý
-    jde), `crossing` (rozkaz „Přes okraj“), `leaderless` (ztratila vojvodu).
+    jde), `crossing` (rozkaz „Přes okraj“), `leaderless` (ztratila vojvodu), `horseWork` (práce
+    s koňmi doma – Koně výpravy níž).
   - `JourneyPhase` (`out` → `returning` → `done`) je fáze pohledu (`journeyViewFor`) a starších bodů.
 - **Rozkazy a příkazy** – `JourneyOrder`: `go` (místo `pos` na mapě `cell`; chybí = mapa vůdce
   výběru), `cross` (sousední políčko hloučku vůdce v 8 směrech; jiné se zahodí – cíl do pohledu je
@@ -35,6 +37,8 @@ s libovolně skupinami hráče (`parties`) a jejich hloučky (`groups`).
     `bornDay`, `mounted` jen ze starého adaptéru). Starý záměr = rozkaz všem.
   - `{ kind: 'recall', cells }` – odvolání domů (worker a válka): skupiny s hloučkem na některém
     z políček, nebo s cílem tam, jdou domů (`returning`); skupina, která se už vrací, jde dál.
+  - `{ kind: 'saddle', people?, recruits? }` a `{ kind: 'dismount', people? }` – Osedlat a Sesednout
+    (Koně výpravy níž).
 - **Skupiny** – `journey-parties.ts`, `applyCommand(s, command, ctx, out)` (krok ho volá pro každý
   záměr): rozkazy hráče platí jen pro skupiny bez `leaderless`, `recall` pro všechny. Rozkaz lidem:
   - vybraní = živí lidé ve výpravě z `people` (skupina bez `leaderless`), nováčci `recruits` (id, která
@@ -60,8 +64,8 @@ s libovolně skupinami hráče (`parties`) a jejich hloučky (`groups`).
   skupina stojí (`arrivedTick` = takt vyslání). `journeyFinished`; `stepJourney(state, toTick,
 intents, world)` → `JourneyStep { state, villageEvents, notices, knowledge?, waiting }` – čistá,
   vstup nemění, starší bod převede `upgradeJourney`, takt na kopii (`cloneData`) jako `stepCampaign`.
-  Takt: na začátku nového dne denní krok `homeDay` a šelmy, příkazy taktu (`commandOf`,
-  `applyCommand`), konec čekání skupin, pohyb `moveGroups`. Chybí-li mapa nebo ves (`MissingData`;
+  Takt: na začátku nového dne denní krok `homeDay` a šelmy, konec práce s koňmi (`finishHorseWork`),
+  příkazy taktu (`commandOf`, `applyCommand`), konec čekání skupin, pohyb `moveGroups`. Chybí-li mapa nebo ves (`MissingData`;
   mapy potřebné hned hlídá `missingMaps`), výsledek je stav na konci posledního celého taktu
   a `waiting`.
 - **Denní krok** – `homeDay` jen kontroluje lidi doma: žádné jídlo, mráz ani dezerce (lidé jedí dál
@@ -95,7 +99,7 @@ intents, world)` → `JourneyStep { state, villageEvents, notices, knowledge?, w
   vstup nemění; volá ho krok i aplikace (pohled, rozkaz, worker, válka), do úložiště se zvlášť
   nezapisuje (uloží ho další bod). Tvar starého bodu: `LegacyJourneyState`.
 - **Čísla** – `JOURNEY` v `rules-war.ts`: `waitDays` 3, `predatorGroupMax` 2 (šelmy – Úloha 13),
-  `trailStepM` 20 (stopa odkrytého – Úloha 6). Tempo a věk mužů bere výjezd z `WAR`.
+  `trailStepM` 20 (stopa odkrytého – Úloha 6), `mountWaitS` 10 (nasednutí – Koně výpravy). Tempo a věk mužů bere výjezd z `WAR`.
 - **Sdílené s tažením** – `movement.ts`: `sendGroup`, `settleGoal` a `missingMaps` (přešly
   z `campaign.ts` beze změny chování) vedle `stepMover`.
 - **Testy** – `domain/war/__tests__/journey.test.ts` (svět v paměti): rozkazy, čekání, návrat, tempo,
@@ -103,7 +107,74 @@ intents, world)` → `JourneyStep { state, villageEvents, notices, knowledge?, w
   člen zemře doma, domovská ves zanikne. `journey-parties.test.ts`: dvě skupiny, dělení, spojení,
   nový člověk, Domů části skupiny, vůdce, upozornění, šelmy po hloučcích, `recall`, vcelku = po
   kouscích. `journey-upgrade.test.ts`: převod starého bodu, idempotence, starý bod a staré záměry
-  dopočtené stejně jako nový stav (Review Focus 1), `commandOf`.
+  dopočtené stejně jako nový stav (Review Focus 1), `commandOf`. `journey-horses.test.ts`: Koně
+  výpravy.
+
+## Koně výpravy (výpravy – plán 2026-11-14, Úloha 3 – `journey-horses.ts`)
+
+Osedlat a Sesednout (`docs/design/expeditions.md` – Koně, Koně mimo ves; plán – Rozhodnutí 6 a 7).
+Příkazy jsou v `journey-parties.ts`, co čte ves, trvání, konec práce a ztráta koně
+v `journey-horses.ts`.
+
+- **Stav** – jezdec je člen s `horseId` (kůň vsi s `Horse.riderId` – vyplní vyslání z rekruta
+  `JourneyRecruit.horseId`; chybí = není jezdec, nebo starší bod a ves o koni neví). `horse:
+MemberHorse` – `ridden` (sedí, vždy s `mounted`), `led` (sesedl venku a vede koně za uzdu – jde
+  pěšky); chybí = kůň v ohradě. `strengthMounted` – síla na koni z rekruta (krok ji jen nese).
+  `JourneyParty.horseWork: HorseWork` – `{ kind: 'saddle' | 'unsaddle', groomId, riders, fromTick,
+untilTick, pen }`: vesničan `groomId` (null = nikdo doma), jezdci (id osob), takt příkazu, konec
+  a ohrada koně prvního jezdce (`{ x, z }` prvního čtverce).
+- **Ves** – `riderHorse(village, personId, horseId, day)`: kůň `horseId` v ohradě koní
+  (`horsePens`) s `riderId === personId`, jezdecký (`isGrainHorse`), s ohradou; bez `horseId` nebo
+  kůň pryč – null. `pickGroom(village, day, near, skip)`: dospělý (`ageGroup`), doma (`isAway`),
+  nezraněný (`isInjured`), mimo `skip` (všichni lidé výpravy), nejmenší `length2` od jeho obydlí
+  (`Dwelling.position`) k `near`, shoda nižší id; vrací i polohu obydlí `from`. Ves dne čte
+  `homeVillage` (chybí den → `MissingData`, zaniklá → null) jen tehdy, když jezdec stojí doma.
+- **Trvání** – `horseWorkTicks({ kind, groom, pen, riders, day })` (návrh Clauda – Rozhodnutí 7):
+  přímé vzdálenosti tempem jednoho pěšího (`marchSpeed` – i sníh) + `JOURNEY.mountWaitS`, krát
+  `TICKS_PER_SECOND`, nahoru. Osedlání: vesničan → ohrada → jezdci; bez vesničana jezdci → ohrada
+  → jezdci. Sesednutí: vesničan → jezdci (koně pak odvede sám).
+- **Osedlat** – vybraní `chosenMembers` (živí, skupina bez `leaderless`); noví lidé `recruits`
+  stojí doma v nové skupině bez rozkazu (`joinAtHome`, `arrivedTick` = takt), ostatní zůstanou ve
+  svých skupinách. Po skupinách, skupina s `horseWork` příkaz nevidí: jezdec s `led` nasedne hned
+  (i venku); jezdci bez koně u sebe, jejichž hlouček je na `home.cell` a kůň v ohradě
+  (`riderHorse`), dostanou jednu práci `saddle` – `near` je hlouček vůdce těchto jezdců
+  (`partyLeader`), vesničan `pickGroom`, ohrada koně prvního z nich, `untilTick` = takt +
+  `horseWorkTicks` – a ves hned dostane `journey-horse { horseId }` za každého (`sendHorse`). Jezdec
+  venku s koněm v ohradě nic („Kůň je doma.“ ukáže web).
+- **Sesednout** – jezdcům s `ridden` z výběru, po skupinách (skupina s `horseWork` příkaz nevidí):
+  doma (hlouček na `home.cell`, kůň ve vsi – `riderHorse`) s vesničanem jedna práce `unsaddle`,
+  jezdci sedí do `untilTick`; ostatní hned `mounted` false a `led` – venku, doma bez nikoho (kůň
+  zůstane u jezdce do návratu) i kůň, o kterém ves neví (starší bod).
+- **Konec práce** – `finishHorseWork` v každém taktu před příkazy: v `untilTick` jezdci práce, kteří
+  jsou ve skupině živí, u `saddle` nasednou (`mounted`, `ridden`), u `unsaddle` sesednou (`horse`
+  zmizí, ves dostane `journey-horse { horseId: null }`). Práce zmizí; stojí-li všechny hloučky
+  skupiny, `arrivedTick` = `untilTick` (lhůta „od osedlání“).
+- **Pohyb a lhůta** – `moveGroups` hloučky skupiny s `horseWork` přeskočí: rozkaz cíl zapíše
+  (`orderParty`), skupina vyrazí po práci tempem jezdců. Konec čekání se pro skupinu s prací
+  nepočítá – po ní běží znovu.
+- **Rozdělení a spojení** – rozkaz lidem (`orderPeople`) s novou skupinou výběru volá
+  `carryHorseWork`: jezdci výběru si práci vezmou s sebou (nová skupina čeká na tu, která skončí
+  nejpozději, jezdci prací téhož druhu se sejdou v ní), zbytku zbudou jeho jezdci, bez nich nečeká.
+  Jezdec z práce jiného druhu (osedlání i sesednutí v jednom výběru) ji opustí – sesedaný zůstane na
+  koni, sedlaný bez koně (ves ho má venku do návratu nebo dalšího osedlání).
+- **Kůň zmizel** – `homeDay` po ztrátách volá `loseHorses`: jezdec s `horseId`, jehož kůň ve vsi
+  dne už není (`riderHorse` null – uhynul, prodán, jiný jezdec), ztratí `mounted` i `horse`
+  a osedlání, na které čeká, ho vynechá. Bez `horseId` beze změny.
+- **Ves a události** – `journey-horse` (`sendHorse` – den taktu, `ref` jako ostatní události
+  výpravy): osedlání (kůň s `riderId` jezdce je v ohradě, takže ho `applyJourneyHorse` vezme), nový
+  člověk ze starého adaptéru na koni s `horseId` (`joinAtHome`) a konec sesednutí doma (null). Kůň
+  s jezdcem se vrátí s `away-ends`; padlý jezdec – kůň je volný (`horsesOut` ho nevidí).
+- **Starý stav** – `upgradeJourney` dá jezdci s `mounted` `horse: 'ridden'` bez `horseId`;
+  `recruitMember` – `mounted` (starý adaptér) = `ridden`. `newJourney` události nevydává – jezdec
+  s `horseId` na koni přes něj ves o koni nepoučí (Úloha 5: přidat ho příkazem s `recruits`).
+- **Doma mezitím** – `trainLordDay`: kdo je pryč (`isAway`), necvičí a zapomíná (`decayArms`);
+  pár jezdec–kůň (`assignRiders`) drží dál, `lordRides` jezdce pryč nevyvede.
+- **Testy** – `journey-horses.test.ts` (ves v paměti s ohradou koní a obydlími): `pickGroom`,
+  `horseWorkTicks`, `riderHorse`, Osedlat doma (stojí i s rozkazem, tempo jezdců, události v taktu
+  příkazu, doručení do vsi, druhý příkaz během práce), nikdo doma, lhůta od osedlání, lhůta během
+  sedlání, kůň zmizel, rozdělení a spojení během sedlání, noví lidé, starý adaptér, mimo ves,
+  Sesednout venku a doma, vcelku = po kouscích přes JSON. `lord-day.test.ts`: kdo je pryč,
+  necvičí.
 
 ## Vyslání (Úloha 2 – `application/launch-journey.ts`, `journeys.ts`)
 

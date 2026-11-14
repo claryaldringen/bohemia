@@ -217,7 +217,9 @@ async function homeFromWar(
       if (i.tick <= after.tick || i.byPlayer !== after.playerId) return false;
       const command = commandOf(i.body);
       if (command.kind === 'recall') return command.cells.some((c) => sameCell(c, cell));
-      return command.order.kind === 'home' && command.people === undefined;
+      return (
+        command.kind === 'order' && command.order.kind === 'home' && command.people === undefined
+      );
     });
     if (pending || !(await deps.atWar(after.playerId, cell))) continue;
     await deps.journeys.addIntent(after.id, {

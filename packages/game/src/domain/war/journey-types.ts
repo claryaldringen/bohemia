@@ -18,15 +18,30 @@ import type { KnowledgeOut, SeenCell } from './seen';
  */
 export type JourneyPhase = 'out' | 'returning' | 'done';
 
+/**
+ * Kůň u jezdce (expeditions.md – Koně): `ridden` – jezdec na něm sedí, `led` – sesedl mimo ves
+ * a vede ho za uzdu (jde pěšky).
+ */
+export type MemberHorse = 'ridden' | 'led';
+
 /** Člověk výpravy – osoba zůstává ve stavu domovské vsi (`away: journey`), tady je její stav na cestě. */
 export interface JourneyMember {
   ref: PersonRef;
   /** Vojvoda – hráčův muž; skupina, která ho ztratí, se vrací sama a rozkazy hráče neplatí. */
   lord: boolean;
-  /** Na svém koni (lord-control.md – Kdo jede: Kůň). */
+  /** Na svém koni (lord-control.md – Kdo jede: Kůň); vždy s `horse: 'ridden'`. */
   mounted: boolean;
+  /**
+   * Jezdec – id jeho jezdeckého koně v ohradě domovské vsi (`Horse.riderId`; `riderHorse`). Chybí –
+   * není jezdec, nebo starší bod (ves o koni neví).
+   */
+  horseId?: number;
+  /** Kůň u sebe (`MemberHorse`); chybí – kůň je v ohradě a jezdec jde pěšky. */
+  horse?: MemberHorse;
   /** Síla při vyslání (`lineManStrength`). */
   strength: number;
+  /** Síla na koni se svým koněm (`lineManStrength`); chybí – jako pěšky. */
+  strengthMounted?: number;
   /** Dovednost boje 0–100 při vyslání (šelmy – lord-control.md, Nebezpečí). */
   fight: number;
   /** Zdraví 0–100 (`WAR.combat.health`); zima ani hlad ho na výpravě neubírají. */
@@ -71,6 +86,28 @@ export interface JourneyParty {
   crossing?: true;
   /** Skupina ztratila vojvodu – vrací se sama, rozkazy hráče neplatí, upozornění nejde. */
   leaderless?: true;
+  /**
+   * Práce s koňmi doma (osedlání, sesednutí – `journey-horses.ts`): do `untilTick` hloučky skupiny
+   * stojí a rozkazy jen zapíší cíl; chybí – nikdo s koňmi nepracuje.
+   */
+  horseWork?: HorseWork;
+}
+
+/**
+ * Osedlání nebo sesednutí doma (expeditions.md – Koně; plán 2026-11-14 – Rozhodnutí 7): vesničan
+ * `groomId` dojde do ohrady `pen` a přivede koně jezdcům `riders` (`saddle`), nebo dojde k jezdcům
+ * a odvede koně do ohrady (`unsaddle`). Nikdo doma (`groomId` null) – jezdec dojde pro koně sám.
+ * Od taktu příkazu `fromTick` do `untilTick` (`horseWorkTicks`).
+ */
+export interface HorseWork {
+  kind: 'saddle' | 'unsaddle';
+  groomId: number | null;
+  /** Id osob jezdců, kterým vesničan koně vede nebo odvádí. */
+  riders: number[];
+  fromTick: number;
+  untilTick: number;
+  /** Ohrada koně prvního jezdce (střed prvního čtverce). */
+  pen: Pos;
 }
 
 /** Výprava – celý stav, ze kterého se počítá další takt. */
@@ -139,19 +176,26 @@ export type JourneyOrder =
   /** „Domů“ – nejkratší cestou do vlastní vsi. */
   | { kind: 'home' };
 
-/** Nový člověk ze vsi do výpravy – data z vyslání; `mounted` jen starý adaptér (`launchJourney`). */
+/**
+ * Nový člověk ze vsi do výpravy – data z vyslání; jezdec nese `horseId` a `strengthMounted`.
+ * `mounted` jen starý adaptér (`launchJourney`) – vyjede rovnou na koni.
+ */
 export type JourneyRecruit = Pick<
   JourneyMember,
   'ref' | 'lord' | 'strength' | 'fight' | 'name' | 'female' | 'bornDay'
-> & { mounted?: true };
+> & { mounted?: true; horseId?: number; strengthMounted?: number };
 
 /**
  * Příkaz kroku výpravy: rozkaz lidem `people` (id osob; chybí = všem, koho hráč řídí) s novými lidmi
- * ze vsi `recruits`, nebo odvolání domů (`recall` – worker a válka) skupin na políčkách `cells`.
+ * ze vsi `recruits`, odvolání domů (`recall` – worker a válka) skupin na políčkách `cells`, nebo
+ * Osedlat (`saddle` – noví lidé stojí doma v nové skupině) a Sesednout (`dismount`) lidem `people`
+ * (`journey-horses.ts`).
  */
 export type JourneyCommand =
   | { kind: 'order'; order: JourneyOrder; people?: number[]; recruits?: JourneyRecruit[] }
-  | { kind: 'recall'; cells: GridCell[] };
+  | { kind: 'recall'; cells: GridCell[] }
+  | { kind: 'saddle'; people?: number[]; recruits?: JourneyRecruit[] }
+  | { kind: 'dismount'; people?: number[] };
 
 /** Tělo záměru – příkaz, nebo starý záměr (rozkaz bez lidí = všem; čte ho `commandOf`). */
 export type JourneyIntentBody = JourneyCommand | JourneyOrder;

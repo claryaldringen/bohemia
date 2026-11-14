@@ -13,6 +13,7 @@ import {
   stampNotices,
 } from './campaign-tick';
 import type { CampaignNotice, CampaignVillage, CampaignWorld } from './campaign-types';
+import { finishHorseWork, loseHorses } from './journey-horses';
 import {
   applyCommand,
   mergeGroups,
@@ -45,9 +46,10 @@ import { dayOfTick, hoursPerTick, TICKS_PER_SECOND, tickOfMs } from './ticks';
 // Výprava po taktech (expeditions.md; lord-control.md – Rozkazy, Na místě a návrat, Pohyb, Zásoby
 // a zima; plán 2026-11-14 – Úloha 1): čistá funkce výchozího stavu a záznamu příkazů s číslem taktu
 // jako tažení (`campaign.ts`), se kterým sdílí takty, pohyb po mapách (`movement.ts`), tempo
-// (`marchSpeed`) a svět (`CampaignWorld`). Takt po taktu: kontrola lidí doma a šelmy na začátku
-// nového dne, příkazy taktu podle `seq` (`applyCommand` – dělení a spojení skupin), konec čekání,
-// pohyb hloučků. Proti tažení výprava neveze zásoby, nemrzne, bez hráče se nerozpadá a vsím na cestě
+// (`marchSpeed`) a svět (`CampaignWorld`). Takt po taktu: kontrola lidí a koní doma a šelmy na
+// začátku nového dne, konec práce s koňmi (`finishHorseWork`), příkazy taktu podle `seq`
+// (`applyCommand` – dělení a spojení skupin, Osedlat, Sesednout), konec čekání, pohyb hloučků.
+// Proti tažení výprava neveze zásoby, nemrzne, bez hráče se nerozpadá a vsím na cestě
 // nic neohlašuje – lidé jedí dál ze zásob své vsi. Výsledek nezávisí na tom, po jakých kouscích
 // taktů se počítá – stav je JSON a takt čte jen stav, příkazy a svět. Jen det-math
 // (`domain/war/**`): výpravu počítá worker i web.
@@ -189,9 +191,12 @@ function journeyTick(
     if (!journeyFinished(s)) predators(s, ctx, out);
     if (journeyFinished(s)) return s;
   }
+  finishHorseWork(s, out);
   for (const intent of intents) applyCommand(s, commandOf(intent.body), ctx, out);
   const wait = waitTicks(ctx.world.clock);
   for (const p of s.parties) {
+    // při práci s koňmi lhůta neběží – po ní začne znovu (`finishHorseWork`)
+    if (p.horseWork !== undefined) continue;
     if (p.phase === 'out' && p.arrivedTick !== null && tick - p.arrivedTick > wait) turnHome(s, p);
   }
   moveGroups(s, ctx, out);
@@ -206,10 +211,10 @@ function waitTicks(clock: WorldClock): number {
 /**
  * Denní krok na začátku herního dne `s.day` – jen kontrola lidí doma (lord-control.md – Zásoby
  * a zima: žádné jídlo, mráz ani dezerce). Lidé zůstávají ve stavu domovské vsi, jedí z jejích zásob
- * a mohou tam zemřít (stáří, hlad): kdo ve stavu vsi není, je `fallen` (`afterLosses`). Domovská
- * ves, která zanikla (`villageGone`), výpravu ukončí bez událostí – není, komu je poslat; co lidé
- * věděli o mapách, kde stojí, jde rodu. Ves, která den ještě nemá spočtený, krok zastaví jako
- * u tažení (`MissingData`).
+ * a mohou tam zemřít (stáří, hlad): kdo ve stavu vsi není, je `fallen` (`afterLosses`). Jezdec,
+ * jehož kůň ve vsi už není, ho ztratí (`loseHorses`). Domovská ves, která zanikla (`villageGone`),
+ * výpravu ukončí bez událostí – není, komu je poslat; co lidé věděli o mapách, kde stojí, jde rodu.
+ * Ves, která den ještě nemá spočtený, krok zastaví jako u tažení (`MissingData`).
  */
 function homeDay(s: JourneyState, ctx: TickContext, out: TickOut): void {
   const home = s.home.villageId;
@@ -226,6 +231,7 @@ function homeDay(s: JourneyState, ctx: TickContext, out: TickOut): void {
     if (m.status === 'active' && !living.has(m.ref.personId)) m.status = 'fallen';
   }
   afterLosses(s, out);
+  loseHorses(s, village);
 }
 
 /**
@@ -345,7 +351,8 @@ function paceOf(s: JourneyState, party: number): GroupPace {
  * po dojetí skončí (`finishGroup`). Po pohybu splynou hloučky téže skupiny, které stojí na
  * stejném místě se shodným cílem; skupina, jejíž hloučky všechny stojí, začne čekat (`arrivedTick`).
  * Znalost map jde rodu při přechodu okrajem (mapa, kterou hlouček opouští) a po dojetí (mapa, na
- * které stojí – po rozhlédnutí).
+ * které stojí – po rozhlédnutí). Hloučky skupiny, která pracuje s koňmi (`horseWork`), stojí –
+ * rozkaz má cíl zapsaný a vyrazí po ní.
  */
 function moveGroups(s: JourneyState, ctx: TickContext, out: TickOut): void {
   const speeds = new Map<number, number>();
@@ -357,6 +364,7 @@ function moveGroups(s: JourneyState, ctx: TickContext, out: TickOut): void {
   for (const g of [...s.groups]) {
     if (g.arrived || g.goal === null) continue;
     const party = parties.get(g.party)!;
+    if (party.horseWork !== undefined) continue;
     settleGoal(g, s.day, ctx);
     const before = g.cell;
     const step = stepMover(g, g.goal.pos, speeds.get(party.id)!, s.day, ctx);

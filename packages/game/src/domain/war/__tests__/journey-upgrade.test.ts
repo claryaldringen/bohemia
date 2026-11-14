@@ -132,6 +132,11 @@ describe('upgradeJourney', () => {
     expect(s.members.map((m) => m.group)).toEqual([0, 0]);
     expect(s.members[0]!.name).toBe('Bořivoj');
     expect(s.members[1]!.name).toBeUndefined();
+    // jezdec na koni: kůň u sebe, ves o něm neví (bez `horseId`) – vrátí se s ním jako dřív
+    expect(s.members.map((m) => [m.horse, m.horseId])).toEqual([
+      ['ridden', undefined],
+      ['ridden', undefined],
+    ]);
     expect(s.nextId).toBe(1);
     expect('arrivedTick' in s).toBe(false);
     expect(JSON.stringify(old)).toBe(frozen);
@@ -216,5 +221,9 @@ describe('commandOf', () => {
     expect(commandOf(recall)).toBe(recall);
     const order = { kind: 'order' as const, order: { kind: 'home' as const }, people: [2] };
     expect(commandOf(order)).toBe(order);
+    const saddle = { kind: 'saddle' as const, people: [1] };
+    expect(commandOf(saddle)).toBe(saddle);
+    const dismount = { kind: 'dismount' as const };
+    expect(commandOf(dismount)).toBe(dismount);
   });
 });

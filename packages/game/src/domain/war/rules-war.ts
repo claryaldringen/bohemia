@@ -223,4 +223,10 @@ export const JOURNEY = {
    * tolika metrech si skupina zapíše další bod, od kterého viděla.
    */
   trailStepM: 20,
+  /**
+   * horses.md – Ve scéně: „10 s stojí, jezdec nasedne“ – po příchodu koně (osedlání) i vesničana
+   * (sesednutí doma) skupina tolik sekund stojí (expeditions.md – Čísla; plán 2026-11-14 –
+   * Rozhodnutí 7).
+   */
+  mountWaitS: 10,
 } as const;

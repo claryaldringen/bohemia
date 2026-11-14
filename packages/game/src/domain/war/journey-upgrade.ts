@@ -17,8 +17,9 @@ import type {
  * převede – skupina 0 s hloučkem 0, čekání (`arrivedTick`) a fáze `returning` přejdou do skupiny,
  * vojvoda dostane `leaderName` jako `name`. Skupina bez živého vojvody je `leaderless` (starý krok
  * bez něj rozkazy zahazoval). Hlouček venku na cestě přes okraj (cíl na jiné mapě – jinou trasu
- * starý rozkaz ven neměl) dostane `crossing`, ať zastaví na okraji jako dřív. Vstup nemění;
- * převod je idempotentní.
+ * starý rozkaz ven neměl) dostane `crossing`, ať zastaví na okraji jako dřív. Jezdec na koni
+ * (`mounted`) dostane `horse: 'ridden'` bez `horseId` – ves o koni neví, kůň se vrátí s ním (plán
+ * 2026-11-14 – Úloha 3). Vstup nemění; převod je idempotentní.
  */
 export function upgradeJourney(state: JourneyState | LegacyJourneyState): JourneyState {
   if (!isLegacy(state)) return state;
@@ -41,7 +42,12 @@ export function upgradeJourney(state: JourneyState | LegacyJourneyState): Journe
     ...rest,
     phase: phase === 'done' ? 'done' : 'out',
     leaderName,
-    members: members.map((m) => ({ ...m, group: 0, ...(m.lord ? { name: leaderName } : {}) })),
+    members: members.map((m) => ({
+      ...m,
+      group: 0,
+      ...(m.lord ? { name: leaderName } : {}),
+      ...(m.mounted ? { horse: 'ridden' as const } : {}),
+    })),
     groups: groups.map((g) => ({ ...g, party: 0 })),
     parties: [party],
     nextId: 1,
@@ -55,5 +61,12 @@ function isLegacy(state: JourneyState | LegacyJourneyState): state is LegacyJour
 
 /** Příkaz záměru: starý záměr (rozkaz bez lidí) platí pro všechny, koho hráč řídí. */
 export function commandOf(body: JourneyIntentBody): JourneyCommand {
-  return body.kind === 'order' || body.kind === 'recall' ? body : { kind: 'order', order: body };
+  switch (body.kind) {
+    case 'go':
+    case 'cross':
+    case 'home':
+      return { kind: 'order', order: body };
+    default:
+      return body;
+  }
 }

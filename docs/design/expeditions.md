@@ -142,11 +142,12 @@ Návrh Clauda.
 
 ## Čísla
 
-| Co                | Hodnota                              | Odkud                                 |
-| ----------------- | ------------------------------------ | ------------------------------------- |
-| věk pro výpravu   | od 12 let                            | Martin 14. 11. 2026 (k návrhu Clauda) |
-| čekání bez pohybu | 3 herní dny                          | Martin 12. a 14. 11. 2026             |
-| tempo             | ≈ 3,5 m/s, jezdci × 1,5, sníh × 0,75 | [válka](war.md)                       |
+| Co                | Hodnota                                                                                         | Odkud                                                                             |
+| ----------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| věk pro výpravu   | od 12 let                                                                                       | Martin 14. 11. 2026 (k návrhu Clauda)                                             |
+| čekání bez pohybu | 3 herní dny                                                                                     | Martin 12. a 14. 11. 2026                                                         |
+| tempo             | ≈ 3,5 m/s, jezdci × 1,5, sníh × 0,75                                                            | [válka](war.md)                                                                   |
+| osedlání doma     | cesta vesničana do ohrady a s koňmi k jezdcům tempem pěšího + 10 s; sesednutí: k jezdcům + 10 s | návrh Clauda (plán 2026-11-14 – Rozhodnutí 7); 10 s – [koně](horses.md), Ve scéně |
 
 ## Na stavitelovi
 

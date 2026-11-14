@@ -13,6 +13,7 @@ export * from './journey-types';
 export * from './journey';
 export { commandOf, upgradeJourney } from './journey-upgrade';
 export { applyCommand, partyLeader } from './journey-parties';
+export { horseWorkTicks, pickGroom, riderHorse } from './journey-horses';
 export * from './muster';
 export * from './supplies';
 export * from './desertion';

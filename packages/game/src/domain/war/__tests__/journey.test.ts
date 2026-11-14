@@ -242,7 +242,8 @@ describe('newJourney', () => {
       parties: [{ id: 0, phase: 'out', arrivedTick: null }],
       nextId: 1,
     });
-    expect(start.members).toEqual([man(1), man(2)]);
+    // vyjeli na koni (starý adaptér – `mounted`): kůň u sebe, ves o něm neví (bez `horseId`)
+    expect(start.members).toEqual([man(1, { horse: 'ridden' }), man(2, { horse: 'ridden' })]);
     expect(start.groups).toHaveLength(1);
     expect(start.groups[0]).toMatchObject({
       party: 0,
