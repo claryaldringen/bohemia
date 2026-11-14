@@ -567,8 +567,9 @@ const NO_ARMS: ArmsSkills = { bow: 0, combat: 0, riding: 0 };
  * `trainArms` podle hodin dne – jízdu jen jezdec s koněm (horses.md – Výcvik koně a jezdec, páry
  * `assignRiders` drží i mimo výcvik); muži na poli jen `1 −` svůj podíl dne na poli (`field` –
  * `lordFieldShares`: muži rodiny, vojvoda), chlapci 7–13 let cvičí vždy. Kdo dnes necvičí (rodina
- * celý den na poli, muž mimo dvorec, rodina pracuje jako ostatní), zapomíná (`decayArms`). Koně
- * se cvičí pod jezdci, kteří dnes jezdili (`trainHorsesDay`); vrací události kroniky.
+ * celý den na poli, muž mimo dvorec, rodina pracuje jako ostatní, kdo je pryč – `isAway`;
+ * lord-control.md – Doma mezitím), zapomíná (`decayArms`). Koně se cvičí pod jezdci, kteří dnes
+ * jezdili (`trainHorsesDay`); vrací události kroniky.
  */
 export function trainLordDay(
   state: VillageState,
@@ -599,6 +600,11 @@ export function trainLordDay(
   for (const p of state.people) {
     // zraněný na lovu necvičí (wildlife.md – Nebezpečí pro lidi) a nezapomíná
     if (isInjured(p, day)) continue;
+    // kdo je pryč (výprava, tažení, robota…), necvičí a zapomíná; pár s koněm drží dál
+    if (isAway(p, day)) {
+      if (p.arms) p.arms = decayArms(p.arms);
+      continue;
+    }
     if (family && trainees.has(p.id)) {
       const share = 1 - traineeFieldShare(p, day, family, shares);
       const hunting = huntRiders.has(p.id) || huntFoot.has(p.id);

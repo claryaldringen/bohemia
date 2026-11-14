@@ -11,6 +11,8 @@ import { sowingCapacity, villageProductivity } from '../../core/simulate-plan';
 import type { FarmSeason, Person, VillageState } from '../../types';
 import { DAY, couple, dwelling, kin, village, type KinSpec } from '../../__tests__/kin-fixtures';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
+import { horse, horsePen } from '../../__tests__/horse-fixtures';
+import { villageHorses } from '../../livestock/horses';
 
 // Vojvodova rodina mimo práci vsi (lord.md – Den rodiny, Kdy jde rodina na pole): rodina cvičí,
 // ženy kryjí denní minimum dvorce, na pole jde rodina jen při hladu a vrací se po 30 dnech plného
@@ -164,6 +166,31 @@ describe('výcvik den po dni (lord.md – Výcvik a zkušenost)', () => {
     expect(arms(10).combat).toBeLessThan(15);
     expect(arms(30).bow).toBeCloseTo(76, 0);
   });
+  it('kdo je pryč (výprava), necvičí a zapomíná; jeho kůň mu zůstane (lord-control.md – Doma mezitím)', () => {
+    const s = village(
+      specs.map((k) => kin(k)),
+      [dwelling(1), dwelling(2)],
+      {
+        lord: { trains: true },
+        pens: [{ ...horsePen(90, [horse(50, 8, 'male', 0, DAY)]) }],
+      },
+    );
+    const son = s.people.find((p) => p.id === 12)!;
+    son.arms = { bow: 30, combat: 30, riding: 30 };
+    son.away = { kind: 'journey', refId: 'j1' };
+    villageHorses(s)[0]!.riderId = 12;
+    s.people.find((p) => p.id === 10)!.arms = { bow: 30, combat: 30, riding: 30 };
+    trainLordDay(s, DAY + 1);
+    expect(son.arms.bow).toBeLessThan(30);
+    expect(son.arms.riding).toBeLessThan(30);
+    expect(s.people.find((p) => p.id === 10)!.arms!.combat).toBeGreaterThan(30);
+    expect(villageHorses(s)[0]!.riderId).toBe(12);
+    // doma zase cvičí
+    delete son.away;
+    trainLordDay(s, DAY + 2);
+    expect(son.arms.combat).toBeGreaterThan(30);
+  });
+
   it('na poli celý den (žně) muži zapomínají, chlapci cvičí dál', () => {
     const s = village(
       [...specs, { id: 13, age: 9, sex: 'male' as const, father: 10, mother: 11 }].map((k) =>
