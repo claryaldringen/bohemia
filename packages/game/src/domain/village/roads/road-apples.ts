@@ -7,6 +7,7 @@ import { obstacleChangesAt, obstacleStatus } from '../core/obstacles';
 import { monthInWindow, roadApplePlantingWork } from '../buildings/orchard';
 import { roadChain } from '../paths/road-chains';
 import { plantingBlocker, roadTreeSpots } from '../paths/roads';
+import { END_CLEAR_M } from '../paths/roads-geometry';
 import { PATH_FORD, PATH_WOODLAND } from '../paths/terrain';
 import { walkGroundOf } from '../paths/walking';
 import { ROAD_TREE_ID_BASE, roadAppleStage } from './road-trees';
@@ -98,21 +99,71 @@ export function roadAppleSpots(
     return false;
   };
   const seed = deriveSeed(state.seed, `road-apples:${roadId}`);
-  return roadTreeSpots(
-    road.points,
-    seed,
-    (x, z) => {
-      if (trees.some((t) => length2(t.x - x, t.z - z) < CLEAR_M)) return false;
-      if (apples.some((a) => length2(a.x - x, a.z - z) < ROAD_APPLES.gapM)) return false;
-      if (planned.some((a) => length2(a.x - x, a.z - z) < ROAD_APPLES.gapM)) return false;
-      if (nearAxis(x, z)) return false;
-      return terrainOk(x, z) && !blocked(x, z) && !nearObstacle(x, z);
-    },
-    {
-      spacingM: { from: ROAD_APPLES.spacingM, to: ROAD_APPLES.spacingM },
-      offsetM: ROAD_APPLES.offsetM,
-      gapM: ROAD_APPLES.gapM,
-    },
+  const canPlant = (x: number, z: number): boolean => {
+    if (trees.some((t) => length2(t.x - x, t.z - z) < CLEAR_M)) return false;
+    if (apples.some((a) => length2(a.x - x, a.z - z) < ROAD_APPLES.gapM)) return false;
+    if (planned.some((a) => length2(a.x - x, a.z - z) < ROAD_APPLES.gapM)) return false;
+    if (nearAxis(x, z)) return false;
+    return terrainOk(x, z) && !blocked(x, z) && !nearObstacle(x, z);
+  };
+  const rows = roadTreeSpots(road.points, seed, canPlant, {
+    spacingM: { from: ROAD_APPLES.spacingM, to: ROAD_APPLES.spacingM },
+    offsetM: ROAD_APPLES.offsetM,
+    gapM: ROAD_APPLES.gapM,
+  });
+  return [...rows, ...gapFillSpots(road.points, rows, canPlant)];
+}
+
+/** Krok hledání místa v mezeře (m). */
+const FILL_STEP_M = 1;
+
+/**
+ * Místa v mezerách, kam rastr po ROAD_APPLES.spacingM nedosáhl (D8, Martin 14. 11. 2026: „U některých
+ * cest mi to píše, že není místo na jabloně – to však platí jen v některých úsecích“): řada, která
+ * vyrostla v jiném rastru (cesta se prodloužila, spojila), blokuje každé místo rastru, i když mezi
+ * stojícími jabloněmi místo je. Po ose od konců ne blíž END_CLEAR_M se po metru zkouší střed pásu
+ * (ROAD_APPLES.offsetM), strany střídavě; bere se první místo, které projde `canPlant` a je
+ * aspoň ROAD_APPLES.gapM od míst rastru i od už vzatých. Čistě z geometrie osy – deterministické.
+ */
+function gapFillSpots(
+  points: readonly RoadPoint[],
+  rows: readonly RoadPoint[],
+  canPlant: (x: number, z: number) => boolean,
+): RoadPoint[] {
+  const out: RoadPoint[] = [];
+  const offset = (ROAD_APPLES.offsetM.from + ROAD_APPLES.offsetM.to) / 2;
+  let side = 1;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!;
+    const b = points[i]!;
+    const span = length2(b.x - a.x, b.z - a.z);
+    if (span < 1e-6) continue;
+    const tx = (b.x - a.x) / span;
+    const tz = (b.z - a.z) / span;
+    for (let d = 0; d < span; d += FILL_STEP_M) {
+      for (const s of [side, -side]) {
+        const x = Math.round((a.x + tx * d - tz * s * offset) * 100) / 100;
+        const z = Math.round((a.z + tz * d + tx * s * offset) * 100) / 100;
+        const free = (list: readonly RoadPoint[]): boolean =>
+          list.every((p) => length2(p.x - x, p.z - z) >= ROAD_APPLES.gapM);
+        if (endClear(points, { x, z }) && free(rows) && free(out) && canPlant(x, z)) {
+          out.push({ x, z });
+          side = -s;
+          break;
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/** Místo je od obou konců osy aspoň END_CLEAR_M (po ose). */
+function endClear(points: readonly RoadPoint[], p: RoadPoint): boolean {
+  const first = points[0]!;
+  const last = points[points.length - 1]!;
+  return (
+    length2(p.x - first.x, p.z - first.z) >= END_CLEAR_M &&
+    length2(p.x - last.x, p.z - last.z) >= END_CLEAR_M
   );
 }
 

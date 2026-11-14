@@ -498,7 +498,8 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   (`RoadApple` – místo, úsek, `distanceM` vzdušnou čarou, `plantedDay` null = čeká na výsadbu,
   `constructionId`). `road-apples.ts`: `roadAppleSpots` (po 10 m střídavě – `roadTreeSpots`
   s rozestupy `ROAD_APPLES`, mimo stavby (pole ano – jabloň mu vezme 20 m², `treeTakenLand`),
-  les, vodu, osy cest, překážky, stromy u cest a jiné jabloně), `roadApplesOption` (počet, práce, důvod česky), `startRoadApples` → stavba
+  les, vodu, osy cest, překážky, stromy u cest a jiné jabloně; **mezery** (D8, Martin 14. 11. 2026) doplní `gapFillSpots` – řada
+  vysázená v jiném rastru jinak blokuje každé místo rastru, i když mezi jabloněmi místo je), `roadApplesOption` (počet, práce, důvod česky), `startRoadApples` → stavba
   `kind: 'road-apples'` s `roadIds`; práce jen v oknech výsadby (`roadApplesNeed`, kroky
   `workRoadApples` / `finishRoadApples` se neexportují). Úroda a práce jako sad na strom
   (`roadAppleYieldKg`, `roadAppleHarvestWork`, `roadAppleCareWork`, `roadApplePlantingWork`
