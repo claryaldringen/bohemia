@@ -217,6 +217,37 @@ describe('warSceneFor', () => {
   });
 });
 
+describe('staré vojsko po Začít znovu ve scéně (war.md – Začít znovu během nájezdu)', () => {
+  const TARGET = { x: 1, y: 0 };
+
+  /** Tažení vede rod `h-old`, který skončil – hráč p1 má nový rod. */
+  async function restarted(): Promise<{ deps: WarSceneDeps; state: CampaignState }> {
+    const state = { ...raiding([defender(101, { x: 100, z: 0 })]), houseId: 'h-old' };
+    const { deps } = await setup(state, []);
+    const houses = {
+      activeOf: (playerId: string): Promise<House | null> =>
+        Promise.resolve(playerId === 'p1' ? ({ id: 'h-new' } as House) : null),
+    };
+    return { deps: { ...deps, houses }, state };
+  }
+
+  it('nová hra útočníka staré vojsko nevidí ani podvrženým id na cizí mapě, ani na své mapě', async () => {
+    const { deps } = await restarted();
+    expect(
+      await warSceneOnMap(deps, { playerId: 'p1', campaignId: 'c1', cell: TARGET }),
+    ).toBeNull();
+    const march = campaign({ members: [member(1, 0, true)] });
+    await (deps.campaigns as InMemoryCampaigns).create({ ...march, id: 'c2', houseId: 'h-old' });
+    expect(await warSceneFor(deps, { playerId: 'p1', settlementId: 's1' })).toBeNull();
+  });
+
+  it('obránce cizí vojsko starého rodu vidí dál', async () => {
+    const { deps } = await restarted();
+    const view = await warSceneFor(deps, { playerId: 'p9', settlementId: 's9' });
+    expect(view?.side).toBe('defend');
+  });
+});
+
 describe('warSceneOnMap – útočník na cizí mapě', () => {
   const TARGET = { x: 1, y: 0 };
 
@@ -402,6 +433,8 @@ describe('warSceneOnMap – útočník na cizí mapě', () => {
     await knowledge.merge('h1', TARGET, { villageId: 'knezice', trail: [[0, 0]], parts: [] });
     await knowledge.merge('h5', WAY, { villageId: 'brod', trail: [[-400, 0]], parts: [] });
     const reads: string[] = [];
+    // živý rod vůdce – tažení vede (`mayHandleCampaign`); bod bez rodu níž dostane jiný
+    let leaderHouse = 'h1';
     const all: WarSceneDeps = {
       ...deps,
       knowledge: {
@@ -413,7 +446,7 @@ describe('warSceneOnMap – útočník na cizí mapě', () => {
       houses: {
         activeOf: (playerId: string): Promise<House | null> =>
           Promise.resolve(
-            playerId === 'p5' ? ({ id: 'h5' } as House) : ({ id: 'h-jiny' } as House),
+            playerId === 'p5' ? ({ id: 'h5' } as House) : ({ id: leaderHouse } as House),
           ),
       },
     };
@@ -428,6 +461,7 @@ describe('warSceneOnMap – útočník na cizí mapě', () => {
     const vassal = await warSceneOnMap(all, { playerId: 'p5', campaignId: 'c1', cell: WAY });
     expect(vassal!.known).toEqual(await knowledge.of('h5', WAY));
     // bod bez rodu vůdce – rod podle hráče; rod mapu nezná – pole chybí
+    leaderHouse = 'h-jiny';
     await campaigns.create({ ...onWay, houseId: undefined });
     const unknown = await warSceneOnMap(all, { playerId: 'p1', campaignId: 'c1', cell: WAY });
     expect(unknown?.side).toBe('attack');

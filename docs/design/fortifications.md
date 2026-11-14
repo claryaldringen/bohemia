@@ -190,6 +190,22 @@ roštová ≈ 7 m, komorová ≈ 8 m, komory po 5–6 m).
     denně, po vozové síti. Uveze jen kámen nalámaný ten den. Jede, když jeho posádka stojí méně
     práce než nošení toho, co uveze. Co uveze, se nenosí;
   - platí pro kámen kostelů, hradeb i zásoby (u zásoby k hromadě u dvorce).
+- **Lom jako plocha u skal** (Martin 14. 11. 2026 – schváleno): „Lom vypadá divně.
+  Měla by to být prostě jen plocha blízko skal, na které se dá opracovávat kámen a naložit na vůz.
+  Vesničané budou chodit k nejbližším vystupujícím skalám, lámat z nich malé bloky a nosit je na
+  tuto plochu, kde dojde k jejich finálním upracování a nakládce.“ Návrh Clauda:
+  - **lom je rovná plocha** (jako klády – „na rovince“), ne stavba na výchozu; hráč ji postaví na
+    rovině **do 50 m od okraje výchozu** – Martin 14. 11. 2026: „Má být v nějakém okruhu od skal –
+    tak aby člověk byl schopný odnést třeba 40 kg těžký vylomený blok“ (50 m návrh Clauda).
+    Bez výchozu na mapě lom nejde;
+  - **lámání** malých bloků jde u nejbližšího výchozu (1 čd na m³ beze změny), bloky se **nosí
+    na plochu** po jednom bloku ≈ 40 kg (nošení kamene jako dnes, jen
+    40 kg na cestu; chůze tam i zpět po vzdušné vzdálenosti) – čím dál od skal, tím víc práce;
+  - **na ploše** kameník kámen přisekává a odtud jede vůz nebo nosiči na staveniště (Nošení
+    kamene a vůz) – vzdálenost dovozu se měří od plochy, ne od výchozu;
+  - **ve scéně** plocha s hromadami bloků a přisekaného kamene, kameník u kamene, lamači
+    s krumpáči u výchozu a nosiči s nůšemi mezi výchozem a plochou;
+  - dnešní lomy na výchozu zůstanou, kde jsou, a pracují nově (výchoz pod nimi je nejbližší).
 
 ### Obrana bez násobku
 

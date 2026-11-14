@@ -50,10 +50,16 @@ export function isAlarmIntent(body: IntentBody): body is AlarmIntentBody {
 
 /**
  * Dává záměr obránce, ne vůdce tažení (`breakout` – držitel napadené vsi, `alarm-*` – majitel
- * varované vsi)? Tažení přijme záměr obránce jen od cizího hráče, ostatní jen od vůdce.
+ * varované vsi, `turn-back` se `surrender` – držitel cíle dal Začít znovu)? Tažení přijme záměr
+ * obránce jen od cizího hráče, ostatní jen od vůdce.
  */
 export function isDefenderIntent(body: IntentBody): boolean {
-  return body.kind === 'breakout' || isAlarmIntent(body);
+  return body.kind === 'breakout' || isSurrenderIntent(body) || isAlarmIntent(body);
+}
+
+/** Ves cíle se vzdala (Začít znovu obránce – `turn-back` se `surrender`) – záměr obránce. */
+export function isSurrenderIntent(body: IntentBody): boolean {
+  return body.kind === 'turn-back' && body.surrender === true && body.restart === true;
 }
 
 /** Políčko vsi ve varování (`cell`, jinak políčko spatření – vesničan viděl vojsko na mapě vsi). */

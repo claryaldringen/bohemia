@@ -306,6 +306,9 @@ export class SceneAtmosphere {
     const camera = this.deps.camera();
     if (!camera) return;
     const seconds = performance.now() / 1000;
+    // kapky stojí – mezera od minulého přeskládání není pohyb, čárka má základní délku
+    this.rain?.resetMotion();
+    this.storm?.resetMotion();
     this.rain?.animate(seconds, camera.target, camera.position, camera.radius);
     this.storm?.animate(seconds, camera.target, camera.position, camera.radius);
   }

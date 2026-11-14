@@ -17,7 +17,7 @@ import type { CampaignRepository } from './campaigns';
 import { settlementLandscape } from './enter-game';
 import type { PlayerLock } from './locks';
 import { ACTION_RIGHTS, requireRight, type RightsDeps } from './rights';
-import type { LandscapeSource } from './settlements';
+import type { LandscapeSource, Settlement } from './settlements';
 import { settlementCell } from './shipments';
 import type { StewardshipRepository } from './stewardships';
 import { updateVillage } from './update-village';
@@ -134,6 +134,48 @@ async function returnRefugees(
     });
     return { ok: true, arrivesDay: day };
   }
+  const { today, steward } = input;
+  return deps.locks.run(hostSettlement.ownerId, () =>
+    departFromHost(deps, { home, host, hostSettlement, today, steward }),
+  );
+}
+
+/** Závislosti odchodu z hradiště (`departFromHost`). */
+export interface DepartFromHostDeps {
+  villages: RefugeReturnDeps['villages'];
+  settlements: Pick<RefugeReturnDeps['settlements'], 'find'>;
+  landscapes?: LandscapeSource;
+  world: WorldClock;
+  pause?: Pause;
+}
+
+/**
+ * Uprchlíci vsi `home` odejdou z hradiště `host` domů (`departRefuge`, pak `refuge-back` domů za
+ * odhad cesty a smazání záznamu odchodu). Volající drží zámek držitele hradiště – hráč a správce
+ * přes `returnRefugees`, Začít znovu obránce sám (hradiště je jeho ves, která jde do archivu –
+ * `surrenderRaidedVillages`). Vojsko se neověřuje; opakování po pádu dopíše událost ze záznamu
+ * odchodu (`refugeLeaving`), druhou nezapíše.
+ */
+export async function departFromHost(
+  deps: DepartFromHostDeps,
+  input: {
+    home: VillageRecord;
+    host: VillageRecord;
+    hostSettlement: Settlement;
+    today: number;
+    steward: boolean;
+  },
+): Promise<ReturnFromRefugeResult> {
+  const { home, host, hostSettlement } = input;
+  const refuge = home.state.refuge;
+  if (!refuge) return { ok: false, reason: REFUGE_RETURN_REASONS.none };
+  const pending = await pendingReturn(deps, home, refuge.refId);
+  if (pending !== null) return { ok: true, arrivesDay: pending };
+  const back = {
+    kind: 'refuge-back' as const,
+    refId: refuge.refId,
+    ...(input.steward ? { steward: true as const } : {}),
+  };
   const homeSettlement = await deps.settlements.find(home.settlementId);
   const homePlace = {
     cell: homeSettlement ? settlementCell(homeSettlement) : settlementCell(hostSettlement),
@@ -141,57 +183,55 @@ async function returnRefugees(
   };
   const hostPlace = { cell: settlementCell(hostSettlement), pos: CENTER };
   const landscape = settlementLandscape(hostSettlement, deps.landscapes);
-  return deps.locks.run(hostSettlement.ownerId, async () => {
-    // zapisuje ho změna vsi (callback) – v krabičce, ať ho TypeScript nezúží na null
-    const box: { left: RefugeLeaving | null } = { left: null };
-    const result = await updateVillage(
-      deps.villages,
-      host.id,
-      input.today,
-      landscape,
-      (state) => {
-        box.left = refugeLeavingOf(state, refuge.refId);
-        if (box.left) return { ok: true, state };
-        const stay = state.refugeStays?.find((s) => s.refId === refuge.refId);
-        if (!stay) return { ok: false, reason: REFUGE_RETURN_REASONS.notArrived };
-        const days = refugeReturnDays(hostPlace, homePlace, stay.herd, input.today, deps.world);
-        const next = cloneState(state);
-        box.left = departRefuge(next, refuge.refId, home.id, input.today + days);
-        return { ok: true, state: next };
-      },
-      deps.pause,
-    );
-    if (!result.ok) {
-      // souběžný návrat (hráč a úloha světa) prošel napřed – pobyt už zmizel, událost čeká
-      const fresh = await deps.villages.find(home.id);
-      const done = fresh ? await pendingReturn(deps, fresh, refuge.refId) : null;
-      return done === null ? result : { ok: true, arrivesDay: done };
-    }
-    const leaving = box.left;
-    if (!leaving) return { ok: false, reason: REFUGE_RETURN_REASONS.notArrived };
-    const day = await postBack(deps, home.id, leaving.arrivesDay, refuge.refId, {
-      ...back,
-      foodKg: leaving.foodKg,
-      herd: { ...leaving.herd },
-    });
-    await updateVillage(
-      deps.villages,
-      host.id,
-      input.today,
-      landscape,
-      (state) => {
-        const next = cloneState(state);
-        return { ok: true, state: clearRefugeLeaving(next, refuge.refId) ? next : state };
-      },
-      deps.pause,
-    );
-    return { ok: true, arrivesDay: day };
+  // zapisuje ho změna vsi (callback) – v krabičce, ať ho TypeScript nezúží na null
+  const box: { left: RefugeLeaving | null } = { left: null };
+  const result = await updateVillage(
+    deps.villages,
+    host.id,
+    input.today,
+    landscape,
+    (state) => {
+      box.left = refugeLeavingOf(state, refuge.refId);
+      if (box.left) return { ok: true, state };
+      const stay = state.refugeStays?.find((s) => s.refId === refuge.refId);
+      if (!stay) return { ok: false, reason: REFUGE_RETURN_REASONS.notArrived };
+      const days = refugeReturnDays(hostPlace, homePlace, stay.herd, input.today, deps.world);
+      const next = cloneState(state);
+      box.left = departRefuge(next, refuge.refId, home.id, input.today + days);
+      return { ok: true, state: next };
+    },
+    deps.pause,
+  );
+  if (!result.ok) {
+    // souběžný návrat (hráč a úloha světa) prošel napřed – pobyt už zmizel, událost čeká
+    const fresh = await deps.villages.find(home.id);
+    const done = fresh ? await pendingReturn(deps, fresh, refuge.refId) : null;
+    return done === null ? result : { ok: true, arrivesDay: done };
+  }
+  const leaving = box.left;
+  if (!leaving) return { ok: false, reason: REFUGE_RETURN_REASONS.notArrived };
+  const day = await postBack(deps, home.id, leaving.arrivesDay, refuge.refId, {
+    ...back,
+    foodKg: leaving.foodKg,
+    herd: { ...leaving.herd },
   });
+  await updateVillage(
+    deps.villages,
+    host.id,
+    input.today,
+    landscape,
+    (state) => {
+      const next = cloneState(state);
+      return { ok: true, state: clearRefugeLeaving(next, refuge.refId) ? next : state };
+    },
+    deps.pause,
+  );
+  return { ok: true, arrivesDay: day };
 }
 
 /** Zapíše `refuge-back` domů (`ref` = `refuge-back:<refId>`); už zapsaná – den té události. */
 async function postBack(
-  deps: RefugeReturnDeps,
+  deps: Pick<RefugeReturnDeps, 'villages'>,
   homeId: string,
   day: number,
   refId: string,

@@ -229,6 +229,20 @@ export interface VillageFaith {
   desecrated?: { oaksOrGroves: number; cemeteries: number };
 }
 
+/** Vzdání vsi nájezdu (`VillageState.surrender`). */
+export interface VillageSurrender {
+  /** Hráč, který ves vzdal (obránce, který dal Začít znovu). */
+  byPlayer: string;
+  /** Vůdce vítězného nájezdu – nový držitel. */
+  toPlayerId: string;
+  /** Rod, kterým vůdce nájezd vede; chybí – bod tažení bez rodu (bere se živý rod vůdce). */
+  houseId?: string;
+  /** Vítězný nájezd. */
+  campaignId: string;
+  /** Den vzdání. */
+  day: number;
+}
+
 export interface VillageState {
   seed: number;
   foundedDay: number;
@@ -679,6 +693,20 @@ export interface VillageState {
    * poslední, zachovává se `LINE_MOVES_KEPT` záznamů.
    */
   lineMoves?: LineMove[];
+  /**
+   * Kolikrát ves přešla na nového držitele (převzetí převodu – `forNewHolder`; vzdání, postoupení,
+   * odúmrť). Příchod mužů rodu (`lord-arrives`, `noble-arrives`) nese epochu cílové vsi z doby
+   * odeslání – jiná epocha = muž patří k rodu, který ves už nedrží, a přijde jako obyčejný člověk
+   * (`isHolderArrival`). Chybí – 0 (ves držitele nezměnila).
+   */
+  holderEpoch?: number;
+  /**
+   * Ves se vzdala nájezdu – Začít znovu obránce (war.md – Začít znovu během nájezdu): kdo ji vzdal,
+   * komu připadne (hráč, jeho rod a vítězný nájezd) a den. Zapíše se před převodem; opakovaný
+   * restart podle ní ves dovzdá, i když nájezd mezitím skončil. Převzetí novým držitelem ji smaže
+   * (`forNewHolder`). Chybí – ves se nevzdala.
+   */
+  surrender?: VillageSurrender;
   /**
    * Ves řídí povýšený vesničan (vassalage.md – Povýšení vesničana): NPC rod `houseId` a číslo jeho
    * hlavy ve vsi. Ves dál patří hráči, rod hráče v ní nemá své muže (senior ani dosazení vojvody ji

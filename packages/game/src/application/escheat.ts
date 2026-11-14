@@ -6,11 +6,17 @@ import {
   extinctNobleHouse,
   isGiftPart,
   partLord,
+  surrenderVillage,
   type EscheatPart,
   type EscheatScope,
 } from '../domain/vassalage/escheat';
 import type { VillageGiftLine } from '../domain/negotiation';
-import { isVillageDormant, withHolderFaith } from '../domain/village';
+import {
+  forNewHolder,
+  isVillageDormant,
+  withHolderFaith,
+  type VillageSurrender,
+} from '../domain/village';
 import type { DialogRepository } from './dialogs';
 import { settlementLandscape } from './enter-game';
 import type { HouseRepository } from './houses';
@@ -20,8 +26,10 @@ import type { PlayerLock } from './locks';
 import { onNpcHouseEnded } from './ennoble';
 import { houseName, UNNAMED_HOUSE } from './negotiation-chronicle';
 import type { NegotiationRepository } from './negotiations';
+import type { NoticeRepository } from './notices';
 import type { LandscapeSource, Settlement, SettlementRepository } from './settlements';
 import type { StewardshipRepository } from './stewardships';
+import { surrenderNoticeRef } from './surrender-village';
 import type { WarRepository } from './wars';
 import { updateVillage } from './update-village';
 import type { Vassalage, VassalageRepository } from './vassalages';
@@ -301,37 +309,89 @@ const FAITH_SAVE_ATTEMPTS = 5;
 
 /** Závislosti převzetí sídel (`acceptHolderTransfers`). */
 export interface AcceptTransfersDeps {
-  settlements: Pick<SettlementRepository, 'acceptTransfers'>;
+  /** `archive` – vzdaná mapa pro rod, který mezitím skončil (bez něj se převezme). */
+  settlements: Pick<SettlementRepository, 'acceptTransfers'> &
+    Partial<Pick<SettlementRepository, 'archive'>>;
   villages: Pick<VillageRepository, 'listBySettlement' | 'find' | 'save'>;
   /** Rod nového držitele – bez něj se víra vsí nepřepočte (testy bez rodů). */
   houses?: Pick<HouseRepository, 'activeOf'>;
+  /** Upozornění „ves se vzdala“ vůdci (opakované po pádu obránce – týž klíč); bez něj ne. */
+  notices?: Pick<NoticeRepository, 'post'>;
 }
 
 /**
- * Převzetí sídel, která na hráče čekají (2. krok převodu – odúmrť, postoupení, věnování); volající
- * drží zámek hráče. Vsi převzatých sídel dostanou křest nového rodu (`withHolderFaith` –
+ * Převzetí sídel, která na hráče čekají (2. krok převodu – odúmrť, postoupení, věnování, vzdání);
+ * volající drží zámek hráče. Vsi převzatých sídel přejdou na nového držitele (`forNewHolder` –
+ * muži rodu, kteří do nich míří od dřívějšího držitele, přijdou jako obyčejní lidé; vyslanec,
+ * na kterého ves čekala, se zapomene) a dostanou křest nového rodu (`withHolderFaith` –
  * christianity.md – Vsi rodu): pokřtěný → den jeho křtu, jinak příznak zmizí; zničená posvátná
- * místa zůstanou. Zápis je verzovaný a opakování nic nezmění. Vrací převzatá sídla.
+ * místa zůstanou. Vzdaná ves (`VillageState.surrender` pro hráče) se dovzdá (`surrenderVillage` –
+ * po pádu obránce po převodu) a vůdce dostane upozornění; mapa vzdaná rodu, který mezitím skončil
+ * (vítěz dal Začít znovu), jde do archivu – nová hra ji nedostane (war.md – Začít znovu během
+ * nájezdu). Zápis je verzovaný. Vrací převzatá sídla (bez archivovaných).
  */
 export async function acceptHolderTransfers(
   deps: AcceptTransfersDeps,
   playerId: string,
 ): Promise<Settlement[]> {
   const accepted = await deps.settlements.acceptTransfers(playerId);
-  if (accepted.length === 0 || !deps.houses) return accepted;
-  const baptizedDay = (await deps.houses.activeOf(playerId))?.baptizedDay ?? null;
+  if (accepted.length === 0) return accepted;
+  const house = deps.houses ? await deps.houses.activeOf(playerId) : undefined;
+  const baptizedDay = house === undefined ? undefined : (house?.baptizedDay ?? null);
+  const kept: Settlement[] = [];
   for (const settlement of accepted) {
-    for (const village of await deps.villages.listBySettlement(settlement.id)) {
-      let current: VillageRecord | null = village;
-      for (let attempt = 0; current && attempt < FAITH_SAVE_ATTEMPTS; attempt++) {
-        const next = withHolderFaith(current.state, baptizedDay);
-        if (next === current.state) break;
-        if (await deps.villages.save(current.id, next, current.version)) break;
-        current = await deps.villages.find(village.id);
-      }
+    const villages = await deps.villages.listBySettlement(settlement.id);
+    if (
+      house !== undefined &&
+      deps.settlements.archive &&
+      villages.some((v) => surrenderedToEnded(v.state.surrender, playerId, house))
+    ) {
+      await deps.settlements.archive(settlement.id);
+      continue;
     }
+    for (const village of villages) await adoptVillage(deps, village, playerId, baptizedDay);
+    kept.push(settlement);
   }
-  return accepted;
+  return kept;
+}
+
+/** Ves se vzdala hráči `playerId`, jehož rod, kterému se vzdala, už není živý (Začít znovu). */
+function surrenderedToEnded(
+  mark: VillageSurrender | undefined,
+  playerId: string,
+  house: { id: string } | null,
+): boolean {
+  if (mark?.toPlayerId !== playerId) return false;
+  return house === null || (mark.houseId !== undefined && mark.houseId !== house.id);
+}
+
+/** Ves přejde na nového držitele `playerId` (viz `acceptHolderTransfers`); verzovaně. */
+async function adoptVillage(
+  deps: AcceptTransfersDeps,
+  village: VillageRecord,
+  playerId: string,
+  baptizedDay: number | null | undefined,
+): Promise<void> {
+  let current: VillageRecord | null = village;
+  for (let attempt = 0; current && attempt < FAITH_SAVE_ATTEMPTS; attempt++) {
+    const mark = current.state.surrender?.toPlayerId === playerId ? current.state.surrender : null;
+    let next = mark ? surrenderVillage(current.state, mark.day) : current.state;
+    if (baptizedDay !== undefined) next = withHolderFaith(next, baptizedDay);
+    next = forNewHolder(next);
+    if (await deps.villages.save(current.id, next, current.version)) {
+      if (mark) {
+        await deps.notices?.post({
+          playerId,
+          kind: 'village-surrendered',
+          payload: { villageId: current.id, name: current.name, campaignId: mark.campaignId },
+          gameDay: mark.day,
+          ref: surrenderNoticeRef(mark.campaignId, current.id),
+        });
+      }
+      return;
+    }
+    current = await deps.villages.find(village.id);
+  }
 }
 
 // --- rozhodnutí pánů ---

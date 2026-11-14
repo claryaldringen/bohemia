@@ -673,3 +673,17 @@ návrh Clauda.
 Konkrétní šumový algoritmus a jeho parametry, barvy terénu, osvětlení, formát přenosu dat krajiny, způsob zajištění jediného prvního sídla,
 přesné rozmístění stromů v rámci políčka (stačí odvodit z polohy políčka), horní mez
 celkové úrodnosti podle měření.
+
+## Brod na každé mapě s potokem (schváleno 14. 11. 2026)
+
+Martin 14. 11. 2026: „Zároveň by každá mapa s potokem měla mít alespoň jeden brod.“ (k pravidlu
+„Jen brodem“ – [paths.md](paths.md), Odhad vzdáleností).
+
+- Dnes má potok 1–3 mělčiny, ale za brod síť pěšin uzná jen dost úzkou (`FORD.halfWidthM`), takže
+  mapa brod mít nemusí. Návrh Clauda: když žádná mělčina potoka na mapě brodem není, nejbližší ke
+  středu mapy se zúží na brod – deterministicky z dnešní geometrie potoka, bez nového losu.
+- **Mění současnou vrstvu zpětně** – Martin 14. 11. 2026: „Zatím hra není spuštěná, takže krajiny
+  lze měnit i zpětně. Jinak bychom to nikdy neodladili.“ Zlaté otisky krajin se přepíšou; nová
+  verze vrstvy až po ostrém spuštění.
+- Dnešní vývojové vsi (např. Vlkov) brod dostanou taky; pole za potokem jsou pak dosažitelná přes
+  brod. Mapa bez potoka brod nepotřebuje.

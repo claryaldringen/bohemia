@@ -77,6 +77,15 @@ describe('playerNoticeLine', () => {
     expect(noticePanel('campaign-disbanded')).toBe('war');
   });
 
+  it('ves se vzdala (Začít znovu obránce) – jméno vsi, panel války', () => {
+    const payload = { villageId: 'v1', name: 'Lhota', campaignId: 'c1' };
+    const yielded = notice({ kind: 'village-surrendered', payload });
+    expect(playerNoticeLine(yielded).text).toBe('Lhota se vzdala a připadla ti.');
+    const nameless = notice({ kind: 'village-surrendered', payload: {} });
+    expect(playerNoticeLine(nameless).text).toBe('Ves se vzdala a připadla ti.');
+    expect(noticePanel('village-surrendered')).toBe('war');
+  });
+
   it('návrat vojvody z výjezdu – jméno vojvody, panel zatím žádný', () => {
     const back = notice({
       kind: 'journey-returned',

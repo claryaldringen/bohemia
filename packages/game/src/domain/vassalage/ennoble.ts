@@ -4,6 +4,7 @@
 import { isLineMan } from '../village/people/dynasty';
 import {
   departAppointee,
+  isHolderArrival,
   settleAppointee,
   type AppointeeParty,
 } from '../village/people/appoint-lord';
@@ -66,14 +67,19 @@ export function departNoble(
 /**
  * Družina povýšeného dorazila (mutuje stav): všichni dostanou `noble`, muž a jeho synové `line`
  * (cvičí jako synové vojvody), muž se usadí ve dvorci jako vojvoda vsi bez vojvody. Do vsi se
- * zapíše `nobles`. Vrací zápisy do kroniky.
+ * zapíše `nobles`. Družina rodu, který ves už nedrží (`isHolderArrival`), přijde jako obyčejní
+ * lidé. Vrací zápisy do kroniky.
  */
 export function settleNoble(
   state: VillageState,
   day: number,
   party: AppointeeParty,
   houseId: string,
+  holderEpoch?: number,
 ): ChronicleEvent[] {
+  // povýšený rodu, který ves už nedrží – přijde jako obyčejný člověk (`settleAppointee`)
+  if (!isHolderArrival(state, holderEpoch))
+    return settleAppointee(state, day, party, undefined, holderEpoch);
   for (const p of party.people) {
     p.noble = { houseId };
     if (p.sex === 'male' && (p.id === party.manId || p.fatherId === party.manId)) p.line = true;

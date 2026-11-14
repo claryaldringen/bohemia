@@ -7,7 +7,9 @@ import {
   puddleAmount,
   rainAmount,
   rainBox,
+  RAIN_LOOK,
   rainOnDay,
+  streakLength,
 } from '../rain';
 import { REFERENCE_DAY, seasonLook } from '../season-look';
 import { partWeather } from '../field-look';
@@ -57,6 +59,20 @@ describe('zataženo za deště', () => {
     expect(rainy.light.sunIntensity).toBeLessThan(day.light.sunIntensity * 0.6);
     expect(rainy.light.fogDensity).toBeGreaterThan(day.light.fogDensity * 1.5);
     expect(rainy.shadowStrength).toBeLessThan(day.shadowStrength * 0.3);
+  });
+});
+
+describe('délka čárky podle posunu', () => {
+  it('při plném taktu základní, při řídkých snímcích delší, po pauze omezená', () => {
+    const box = rainBox(100);
+    expect(box.side).toBeGreaterThanOrEqual(30);
+    expect(streakLength(box, RAIN_LOOK, 1 / 30)).toBe(box.streak);
+    const slow = streakLength(box, RAIN_LOOK, 0.1);
+    expect(slow).toBeGreaterThan(RAIN_LOOK.fallMps * 0.1);
+    const capped = streakLength(box, RAIN_LOOK, 5);
+    expect(capped).toBeLessThanOrEqual(box.height * 0.4);
+    expect(capped).toBeGreaterThanOrEqual(slow);
+    expect(streakLength(box, RAIN_LOOK, -3)).toBe(box.streak);
   });
 });
 

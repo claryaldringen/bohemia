@@ -310,6 +310,12 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
     ≈ 80 kg (návrh Clauda); dvoukolák ≈ 400 kg ([vozy](wagons.md)) – jen mimo hustý les a přes
     brody, tempem spřežení (návrh Clauda);
   - **když dojde**, vojsko se vrátí, nebo si jídlo vezme v napadené vsi jako kořist (Martin).
+  - **Živé vedení bez rozkazu** (Martin 14. 11. 2026, na otázku, zda má nájezd skončit sám, když
+    se obránci zavřou v útočišti a hráč nic nerozkáže: „ne, vojácí tam budou stepovat, dokud jim
+    nezačnou docházet zásoby a pak začnou postupně dezertovat. Výprava se prostě časem sama
+    rozpadne“): tažení vedené živě se samo neobrátí ani nenapadne. Návrh Clauda (Martin 14. 11. 2026 – „Jo zkusme to takto“): jakmile jídlo klesne pod jídlo na cestu domů, dezertuje každý den ≈ 5 % mužů (jako
+    nucení); dezertér jde domů jako při rozpadu. Až zůstane jen vůdce, výprava se rozpadne
+    (upozornění „Výprava se rozpadla.“).
 - **Příklad** (návrh Clauda): Bořivoj táhne ze Lhoty na Kněžice o 2 políčka dál, v létě. Ze Lhoty
   k okraji ≈ 3 dny, přes mezilehlou mapu ≈ 6 dní, ke Kněžicím ≈ 3 dny, střety ≈ 3 dny, zpět se
   stádem ≈ 24 dní – **≈ 40 herních dní ≈ 1 h skutečného času** a ≈ 40 kg jídla na muže, víc, než
@@ -400,8 +406,9 @@ Pokud ve vesnici není, vesničané se zachovají podle nastavení – tj. buď 
 o evakuaci (defaultní nastavení).“
 
 - **Kde je hráč:** „Hráč je tam, kde je vojvoda“ (Martin 14. 11. 2026). Hráč je ve vsi, když je
-  v ní vojvoda – doma, ne na výjezdu, na tažení, v jiné vsi rodu ani v zajetí. Ostatní vsi rodu
-  a vsi se správcem jsou bez hráče.
+  v ní vojvoda – doma, ne na výjezdu, na tažení, v jiné vsi rodu ani v zajetí. Ostatní vsi rodu jsou
+  bez hráče. Zapnutý správce na tom nic nemění – „Pokud je hráč ve své vesnici, tak jí ovládá“
+  (Martin 14. 11. 2026).
 - **Vojvoda doma a hráč u hry:** cizí vojsko vidí na své mapě hned, jak na ni vstoupí (ne až ho
   spatří vesničan). Ves sama nic nedělá – obranu nebo evakuaci zorganizuje hráč rozkazy, které
   dnes má (postoj po skupinách domů, útěk do lesa nebo do hradiště, výpad, posel, vlastního muže
@@ -575,7 +582,50 @@ Martin 2. 11. 2026 – „ok“ (podrobnosti návrh Clauda):
   nemění. Upozornění tažení (návrat, rozpad) zůstávají, nové hráč restartem nedostane.
 - **Vazal ve službě**, který dá Začít znovu, tažení pána neobrací (návrh Clauda) – jeho muži jdou
   s vojskem dál, dokud se nevrátí (odvolat oddíl z vojska hra neumí).
-- **Obránce** (ves se vzdá, je dobytá a připadne útočníkovi celá) řeší krok 2b – doplní ho sem.
+- **Obránce** – Martin 14. 11. 2026: „Pokud to udělá hráč obránce, tak se vesnice automaticky
+  vzdá a je považována za dobytou“; na otázku, co útočník dostane: „Pokud se ves vzdá, připadne mu
+  celá“. Návrh Clauda, jak to hra provede:
+  1. **Ves pod nájezdem se vzdá** – každá ves hráče, na kterou běží nájezd (vojsko se sbírá, táhne
+     nebo bojuje; na zpáteční cestě už nájezd skončil). Před archivem přejde celá mapa té vsi na
+     hráče, který nájezd vede, se vším, co na ní je – lidé, stavby, zásoby, dobytek, pole, i lidé
+     na cestě na novou mapu. Ostatní vsi hráče jdou do archivu jako dřív. Nájezd vojska hráče,
+     který sám dal Začít znovu (staré vojsko), ves nedostane; dá-li vítěz Začít znovu dřív, než
+     ves převezme, jde do archivu – nová hra ji nedostane. Mapa, na které už žádná ves nežije, se
+     nevzdává a jde do archivu jako dřív (návrh Clauda – není co vzdát; upozornění na mrtvou mapu
+     by hráče jen mátlo).
+  2. **Víc nájezdů na tutéž ves** – ves dostane vůdce nájezdu, který vyrazil první (nejstarší
+     tažení, při shodě menší id). Ostatní nájezdy na ni se obrátí domů. U víc vsí na jedné mapě
+     rozhoduje nejstarší nájezd na první ves mapy, ne nejstarší nájezd na celou mapu (návrh Clauda –
+     známá odchylka: pořadí nájezdů zná hra jen po jednotlivých vsích).
+  3. **Vítězný nájezd se také obrátí domů** – cíl je teď jeho vlastní ves, vojsko si odnese, co už
+     vzalo. Vůdce dostane upozornění „Lhota se vzdala a připadla ti.“
+  4. **Rod obránce ve vsi nikoho nevede** – muži, ženy a dcery rodu zůstanou jako obyčejní lidé
+     (neodcházejí – obránce jinou ves mít nebude), vojvoda ves nemá a řídí ji správce nového
+     držitele, stejně jako ves z odúmrti; vojvodu jí pošle rod nového držitele. Muž rodu obránce,
+     který do vsi teprve míří (dosazení vojvody, muži z dřívějšího postoupení), přijde jako obyčejný
+     člověk – vojvodou ani mužem rodu nového držitele se nestane; domů nejde, jeho domov s rodem
+     obránce skončil (návrh Clauda; totéž platí pro každou ves, která přešla na jiného držitele).
+     Kronika vsi „konec rodu“ nezapíše (bývalý vojvoda žije dál jako vesničan) a synové nového rodu
+     nedostávají jména po předcích obránce. Opakování po pádu nic nezdvojí – ves si značku vzdání
+     zapíše před převodem, takže opakovaný restart ji dovzdá témuž vůdci, i když nájezd mezitím
+     skončil; obránci ves zůstane celá, dokud převod neproběhne, a dovzdání po pádu po převodu
+     dokončí převzetí novým držitelem.
+  5. **Lidé vzdané vsi pryč kvůli nájezdu** se vrátí domů, každý jednou: uprchlíci v hradišti jiné
+     vsi obránce (ta jde do archivu) hned i se zásobami a stádem, z lesa a z cizího hradiště je
+     vrátí správce, až vojsko odtáhne, posel se vrátí s koncem tažení. **Hosté vzdané vsi vázaní
+     na obránce** (návrh Clauda): uprchlíci jeho vsí, které jdou do archivu, patří k ukončené hře –
+     zmizí z hostů a vzdaná ves je dál nekrmí; muži pána z ochrany jdou domů jako po odvolání,
+     protože dohoda skončila. Každé jednou.
+  6. **Archivovaná ves je pro tažení konečný stav** – vojsko na ni nečeká (domov hostů, posla nebo
+     uprchlíků); výjezd vojvody ji dál bere jako zaniklou.
+  7. **Staré vojsko nepatří nové hře** – tažení, které vede rod, jenž restartem skončil, nová hra
+     v panelu Vojsko nevidí, jeho upozornění se jí nedoručí a nemůže ho ani zobrazit (ani ve
+     scéně), ani mu dávat pokyny (jedna kontrola pro všechny vstupy hráče). Vazal ve službě vidí
+     tažení jen tehdy, když aspoň jeden jeho muž žije ve vsi, kterou drží – muži ze vsi v archivu
+     nebo vzdané se v panelu nové hry neukazují ani v cizím tažení. Obránce cizí vojsko vidí dál.
+  8. **Výjezd vojvody, jehož domov se vzdal** – restart ho ukončí doma: vzdaná ves (není
+     v archivu) dostane `away-ends` jednou a členové jsou doma jako ostatní lidé vsi, bez
+     upozornění. U domova v archivu se nic neposílá (návrh Clauda).
 
 ## Spory a rozsudek pána (Martin 2. 11. 2026; zavádí se s válkou)
 
