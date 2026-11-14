@@ -613,13 +613,17 @@ function sceneLord(state: VillageState, counts: LaborDay['lord'], day: number): 
         .map((p) => p.id),
     );
   const atFieldMen = atField(family.trainees, family.trainees.length - counts.training);
-  // muži na výjezdu vojvody jsou pryč (lord-control.md – Ve scéně): jako muži na poli se nekreslí
-  // na dvorku, na cvičišti ani na jízdě – scéna je ukazuje jako jezdce výjezdu (journey-riders.ts)
+  // kdo je dnes pryč (výjezd vojvody, tažení, uprchlík, posel…), je jako muž na poli: nekreslí se
+  // doma na dvorku, na cvičišti ani na jízdě (Martin 14. 11. 2026: „nesmí se kreslit u rodiny“);
+  // jezdce výjezdu ukazuje scéna jinde (journey-riders.ts), vojsko na cizí mapě také
   const men = new Set([
     ...atFieldMen,
-    ...family.trainees.filter((p) => p.away?.kind === 'journey' && isAway(p, day)).map((p) => p.id),
+    ...family.trainees.filter((p) => isAway(p, day)).map((p) => p.id),
   ]);
-  const women = atField(family.household, family.household.length - counts.household);
+  const women = new Set([
+    ...atField(family.household, family.household.length - counts.household),
+    ...family.household.filter((p) => isAway(p, day)).map((p) => p.id),
+  ]);
   // jízdy dne z jádra (horses.md – Kdy a kam se jezdí) – jen jezdci, kteří dnes cvičí
   const rides = lordRides(state, day);
   const scene = (r: LordRide): SceneRide => ({

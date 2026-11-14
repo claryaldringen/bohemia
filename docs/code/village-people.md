@@ -647,6 +647,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`lineCandidates` je přeskočí), ale **jedí dál ze zásob vsi** – `foodNeedPerDay` pro druh `journey`
   vrací obvyklou potřebu (výjezd neveze zásoby), na rozdíl od tažení a ostatních druhů (jedí jinde).
   Vyslání a výběr družiny: `docs/code/journey.md` – Vyslání.
+- Kdo je pryč (`isAway`, jakýkoli druh – tažení, výjezd, uprchlík, posel…), se nekreslí doma u rodiny
+  ani při práci: `sceneLord` ho vyřadí ze dvorku, cvičiště a jízdy, `ScenePerson.away` ho nechá v panelu a výběru,
+  ale `DayRoster` mu doma nedá postavu.
 
 ## Jezdec a výcvik (klipy a rekvizity `man.glb` – lord-horses Úloha 8; luk a boj kreslí Úloha 9)
 

@@ -8,6 +8,7 @@ import {
   canInviteMaster,
   currentLord,
   ennobleBlock,
+  isAway,
   isChristian,
   MASON_CRAFTS,
   villageManorId,
@@ -86,6 +87,8 @@ export interface ScenePerson {
   role: PersonRole;
   /** Jméno muže rodu (lord.md – Kde se jméno ukazuje); ostatní lidé jsou bez jmen. */
   name?: string;
+  /** Dnes pryč (`isAway`): zůstává v panelu a výběru, ale doma ve vsi se nekreslí (roster ho nebere). */
+  away?: true;
   arms?: ArmsView;
   horse?: true;
   /** Smí ho hráč povýšit do šlechtického stavu (vassalage.md): muž od 16 let mimo rod vojvody. */
@@ -157,6 +160,7 @@ export function scenePersons(
   const lordId = lodge ? (currentLord(state)?.id ?? null) : null;
   const masons = new Map(state.people.flatMap((p) => (p.mason ? [[p.id, p.mason] as const] : [])));
   const priests = new Set(state.people.flatMap((p) => (p.priest ? [p.id] : [])));
+  const away = new Set(state.people.flatMap((p) => (isAway(p, day) ? [p.id] : [])));
   return people
     .map((p) => ({
       id: p.id,
@@ -165,6 +169,7 @@ export function scenePersons(
       home: p.home,
       role: roles.get(p.id)!,
       ...(names.has(p.id) ? { name: names.get(p.id)! } : {}),
+      ...(away.has(p.id) ? { away: true as const } : {}),
       ...(arms.has(p.id) ? { arms: arms.get(p.id)! } : {}),
       ...(riders.has(p.id) ? { horse: true as const } : {}),
       ...(ennobleable.has(p.id) ? { ennobleable: true as const } : {}),
