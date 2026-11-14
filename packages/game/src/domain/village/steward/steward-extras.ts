@@ -72,6 +72,7 @@ import { OXEN } from '../rules/rules-livestock';
 import { CART_SPEED, TEAM_TRAVEL, WAGON_ROAD } from '../rules/rules-roads';
 import { STEWARD } from '../rules/rules-steward';
 import { christianShare } from '../people/conversion';
+import { rodBaptized } from '../people/faith';
 import { hasShrine, sacredBuildingHappiness, sacredHappiness } from '../people/sacred';
 import { meadowTilesNearCentre, planCentre, walkDaysPerYear, cellHa } from './steward-land';
 import {
@@ -192,6 +193,8 @@ function deathsPerYear(state: VillageState, day: number): number {
  */
 export function cemeteryStep(state: VillageState, ctx: StewardContext): void {
   if (state.dwellings.length === 0) return;
+  // po křtu rodu jen u kostela – bez kostela se pohřbívá na starém hřbitově (cemetery.md – Po křtu rodu)
+  if (rodBaptized(state) && !(state.churches ?? []).length) return;
   const cemeteries = villageCemeteries(state);
   if (cemeteries.length === 0 && state.constructions.some((c) => c.kind === 'cemetery')) return;
   if (ctx.mode === 'emergency' && cemeteries.length > 0) return;

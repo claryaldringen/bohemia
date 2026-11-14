@@ -32,3 +32,12 @@ Mapa kódu – správce (issue #9, fáze 3). Pravidla a rozhodnutí: [steward.md
 - Obvod: `stewardFortificationFor(state, landscape, obstacles, day, kind)` – návrh obvodu z bodů kolem jádra vsi (obydlí s pozemky, dvorec, dílny, humna, obilné jámy a ohrady – `fortificationCore`; pole a sady ne): vypouklý obal odsunutý o šířku pásu + 3 m, po 5 m víc (nejvýš `STEWARD.fortMaxRings` kroků), dokud neprojde kontrolou a `innerAreaM2` ≥ `refugeNeedM2` (lidé 10 m², dobytek 20 m², drobný čtvrt, + 20 %) – [village-fortifications.md – Návrh obvodu](village-fortifications.md). Brány samy z cest (`autoGates`).
 - Stavba jde přes `startStewardBuild` se záměry `fortification`, `fortification-upgrade`, `fortification-rampart` a `fortification-moat` (`build-intent.ts` → `startFortification`, `startFortificationUpgrade` / `startSectionUpgrade`, `startRampartAddition`, `startMoatFill`); `markStewardStarted` označí i `Construction.fortificationId`, takže opevnění je „správcovo“ (`pruneStewardBuilt` hlídá i `state.fortifications`). Opevnění bez značky (hráčovo) správce nemění ani vedle něj nestaví; vylepšuje jen vlastní hotové (všechny díly dostavěné, žádná jiná stavba opevnění neběží).
 - `inbox.ts`: tělo `threat-signal` (`ThreatSignal` z `fortification/types.ts`) zapíše signál do `VillageState.threats` (zapomene po 50 letech, stejný `kind`+`day` jen jednou, válka téhož `day` dostane `endDay`); zapisovat ho budou úlohy války (6.7, 6.10). Testy `__tests__/steward-fortification.test.ts`, `fortification/__tests__/threat.test.ts`.
+
+## Rozestavěné stavby hráče (Martin 14. 11. 2026: „Než správce začne něco stavět, měl by si to ověřit.“)
+
+Každý krok, který zakládá stavbu, počítá s rozestavěnou stavbou stejného druhu jako s hotovou a vedle
+ní druhou nezačne: hřbitov, humno, ohrada, sad, jabloně u cest, modla a svatyně, cesty (`road`),
+opevnění, lom a kostel NPC rodu hlídají `state.constructions` na začátku kroku; pole počítají
+`founding` díly (`fieldTarget`), obydlí rozestavěná obydlí (`availableSettlers`, `logHouseCovered`)
+a dílny `hasCraft` (i `constructions.craft`). Test: `steward-extras.test.ts` – „rozestavěnou stavbu
+hráče správce započte“.

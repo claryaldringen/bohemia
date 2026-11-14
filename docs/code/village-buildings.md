@@ -466,3 +466,13 @@ Nové typy vznikají jen novou stavbou nebo přestavbou, převod starších vsí
   [village-people.md](village-people.md) – Domácnosti – nadzemní dům).
 - **Web:** tlačítko „Nadzemní dům“ (klávesa 1) a scéna s vlastními modely – `docs/code/web-ui.md`
   (zkratky staveb) a `docs/code/scene-village.md` – Nadzemní dům ve scéně.
+
+## Hřbitov po křtu rodu (cemetery.md – Po křtu rodu)
+
+`PlacementVillage.churchyardOnly` (`placementVillageOf` z `rodBaptized`, prohlížeč z `scene.sacredFree`
+v `placementVillageFromScene`) zapne v `cemeteryPartsFromCells` (`placement-fields.ts`, `squaresAtChurch`)
+kontrolu „Hřbitov jen u kostela.“ (`CEMETERY_AT_CHURCH_ONLY`): každý čtverec je od obdélníku
+hřbitůvku nějakého kostela (i staveniště, `churchyardWorld`) blíž než jeden čtverec; bez kostela nikdy.
+Platí pro nový hřbitov i rozšíření, tedy pro hráče i správce (`cemeteryStep` bez dostavěného kostela
+po křtu rovnou končí). Nabídka staveb: `buildOptions` dá po křtu hřbitovu `look` s ikonou
+`hrbitov-kriz` a bez kostela i bez staveniště `blocked`.

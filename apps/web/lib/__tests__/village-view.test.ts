@@ -1086,6 +1086,20 @@ describe('buildVillageView', () => {
     expect(placementVillageOf(baptized, DAY).sacredFree).toBeUndefined();
   });
 
+  it('po křtu rodu má hřbitov křesťanskou ikonu a bez kostela je zašedlý; prohlížeč zná pravidlo', () => {
+    const pagan = state();
+    const baptized: VillageState = { ...pagan, faith: { rodBaptizedDay: DAY - 10 } };
+    const before = buildVillageView(record(pagan), landscape, DAY);
+    expect(before.build.cemetery.look).toBeUndefined();
+    expect(before.build.cemetery.blocked).toBeNull();
+    const after = buildVillageView(record(baptized), landscape, DAY);
+    expect(after.build.cemetery.look).toEqual({ icon: 'hrbitov-kriz', name: 'Hřbitov' });
+    expect(after.build.cemetery.blocked).toBe('Hřbitov jen u kostela.');
+    expect(after.build.cemetery.affordable).toBe(false);
+    expect(placementVillageFromScene(after.scene).churchyardOnly).toBe(true);
+    expect(placementVillageFromScene(before.scene).churchyardOnly).toBeUndefined();
+  });
+
   it('kronika: vykácené posvátné místo a zaoraný hřbitov', () => {
     expect(chronicleText({ day: DAY, kind: 'sacred-felled', site: 'oak' }, 'X')).toBe(
       'Vykáceli posvátný dub.',

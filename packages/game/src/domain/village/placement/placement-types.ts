@@ -187,6 +187,11 @@ export interface PlacementVillage {
    * starých vsí ho nemají – posvátná místa obcházejí. Bez údaje ne.
    */
   readonly sacredFree?: boolean;
+  /**
+   * Hřbitov jen u kostela (cemetery.md – Po křtu rodu): ve vsi pokřtěného rodu musí čtverce nového
+   * hřbitova i jeho rozšíření sousedit s hřbitůvkem kostela. Bez údaje ne.
+   */
+  readonly churchyardOnly?: boolean;
 }
 
 /** Kontrola umístění obydlí s cenou překážek na vyklízené ploše. */
