@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { TICK_MS } from '@bohemia/game';
+import { CHILD_FIGURE_SCALE } from '../refugee-march';
 import {
   JourneyGlide,
   headingOf,
   journeyFigures,
   journeyFormation,
+  journeyHorseIds,
   pickRider,
   ridersAt,
   selectedRider,
@@ -13,12 +15,21 @@ import {
 
 // Jezdci výjezdu ve scéně vsi (lord-control.md – Ve scéně; journey.md – Scéna vsi).
 
-const man = (key: string, mounted: boolean, lord = false, wounded = false) => ({
+const man = (
+  key: string,
+  mounted: boolean,
+  lord = false,
+  wounded = false,
+  extra: Partial<SceneJourney['men'][number]> = {},
+): SceneJourney['men'][number] => ({
   key,
   personId: Number(key),
   lord,
   mounted,
   wounded,
+  look: 'line',
+  led: false,
+  ...extra,
 });
 
 function journey(over: Partial<SceneJourney> = {}): SceneJourney {
@@ -142,16 +153,64 @@ describe('headingOf, journeyFigures a pickRider', () => {
     expect(headingOf(journey(), journey(), { x: -1, z: 0 })).toEqual({ x: -1, z: 0 });
   });
 
-  it('jezdec sedí na koni, pěší jde s oštěpem, stojící jezdec na stojícím koni', () => {
+  it('jezdec sedí na koni, pěší jde jako vesničan, stojící jezdec na stojícím koni', () => {
     const poses = journeyFormation(journey(), { x: 0, z: 1 });
     const moving = poses.map((p) => ({ ...p, speed: 1.5 }));
     const out = journeyFigures(moving);
     expect(out.animals).toHaveLength(2);
-    expect(out.figures.map((f) => f.clip)).toEqual(['ride', 'ride', 'walk-spear', 'walk-spear']);
+    expect(out.figures.map((f) => f.clip)).toEqual(['ride', 'ride', 'walk', 'walk']);
     expect(out.figures[0]!.lift).toBeGreaterThan(1);
     const still = journeyFigures(poses);
     expect(still.figures.map((f) => f.clip)).toEqual(['ride-idle', 'ride-idle', 'idle', 'idle']);
     expect(still.animals.every((a) => a.speed === 0)).toBe(true);
+  });
+
+  it('pěší žena je vesničanka (woman.glb, folk), dítě má měřítko dítěte', () => {
+    const j = journey({
+      men: [
+        man('1', false, false, false, { look: 'woman' }),
+        man('2', false, false, false, { look: 'child' }),
+        man('3', false, false, false, { look: 'man' }),
+      ],
+    });
+    const out = journeyFigures(journeyFormation(j, { x: 0, z: 1 }));
+    const by = new Map(out.figures.map((f) => [f.key, f]));
+    expect(by.get('j' + 'j1:1')).toMatchObject({ kind: 'woman', side: 'folk' });
+    expect(by.get('jj1:2')!.scale).toBe(CHILD_FIGURE_SCALE);
+    expect(by.get('jj1:3')).toMatchObject({ kind: 'man', side: 'folk' });
+    expect(by.get('jj1:3')!.scale).toBeUndefined();
+    expect(out.animals).toHaveLength(0);
+  });
+
+  it('jezdec s vedeným koněm jde pěšky a kůň stranou vedle něj, stejným směrem a krokem', () => {
+    const j = journey({ men: [man('1', false, true, false, { led: true })] });
+    const [pose] = journeyFormation(j, { x: 0, z: 1 });
+    const out = journeyFigures([{ ...pose!, speed: 1.2 }]);
+    expect(out.figures).toHaveLength(1);
+    expect(out.figures[0]!.lift).toBe(0);
+    expect(out.figures[0]!.clip).toBe('walk');
+    expect(out.animals).toHaveLength(1);
+    const horse = out.animals[0]!;
+    expect(horse).toMatchObject({ species: 'horse', hx: 0, hz: 1, speed: 1.2 });
+    expect(Math.hypot(horse.x - pose!.x, horse.z - pose!.z)).toBeCloseTo(1.2, 5);
+  });
+
+  it('journeyHorseIds zahrne koně jezdce i vedeného koně', () => {
+    const village = {
+      pens: [
+        {
+          horses: [
+            { id: 10, riderId: 1 },
+            { id: 11, riderId: 2 },
+            { id: 12, riderId: 3 },
+          ],
+        },
+      ],
+    } as unknown as Parameters<typeof journeyHorseIds>[0];
+    const j = journey({
+      men: [man('1', true, true), man('2', false, false, false, { led: true }), man('3', false)],
+    });
+    expect([...journeyHorseIds(village, [j])].sort()).toEqual([10, 11]);
   });
 
   it('klik na jezdce ho najde podle průmětu od země po hlavu', () => {

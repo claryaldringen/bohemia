@@ -53,6 +53,8 @@ export function journeySceneHook(scene: LandscapeScene): NonNullable<E2EHooks['j
         x: p.x,
         z: p.z,
         mounted: p.mounted,
+        look: p.look,
+        led: p.led,
         speed: p.speed,
       })),
       banner: stats.banner,

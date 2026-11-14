@@ -43,6 +43,8 @@ export interface E2EHooks {
       x: number;
       z: number;
       mounted: boolean;
+      look: 'line' | 'man' | 'woman' | 'child';
+      led: boolean;
       speed: number;
     }[];
     banner: { x: number; z: number } | null;

@@ -596,14 +596,21 @@ mapSizeM, cell })` (čistá funkce) – bez vybraných lidí nebo mimo terén nu
   v zatáčce neotočí skokem); nový muž a skok přes mapu stojí rovnou. `JourneyGlide` – stav po
   výjezdech: nový takt nebo jiní muži = nový posun za dobu taktů mezi stavy (`glideMs`), stejný takt
   pohyb nepřeruší, omezený pohyb stojí na novém místě. `headingOf` – směr z posunu, jinak k cíli.
-  `journeyFigures` – postavy a koně (`ARMY_LOOKS.line`, `ride` / `ride-trot` / `ride-idle`,
-  `walk-spear`) stejnými instancemi jako vojsko (`ArmyRenderer.setJourneys` – žádný mesh ani vertex
-  buffer navíc). `pickRider` – klik od země po hlavu jezdce. `journeyHorseIds` – koně jezdců
-  vlastní vsi (`Horse.riderId`) ohrada nekreslí (`setRidingHorses`).
-- **Praporek** – `lib/scene/journey-marker.ts`: `journeyMarks` (návrh Clauda) – praporek na
-  cíli vlastního výjezdu, dokud jede ven nebo čeká (`phase: 'out'`, cíl na této mapě – jádro cíl ve
-  vodě posune na nejbližší dosažitelné místo, praporek stojí tam); cizí výjezd ani návrat domů
-  praporek nemají. `JourneyMarker` – tyč a cíp z vlastní geometrie; přepíše se jen při změně
+  `SceneJourney.men[]` nese `look` (`line` muž rodu, `man` / `woman` vesničan a vesničanka, `child`;
+  `lookOf` v `journey-view.ts`) a `led` (jezdec vede koně). `journeyFigures` – jezdci
+  (`ARMY_LOOKS.line`, `ride` / `ride-trot` / `ride-idle`) a pěší jako postavy vsi
+  (`ARMY_LOOKS.folk`, `side 'folk'`, `walk` / `idle` bez oštěpu, žena `woman.glb`, dítě `scale` =
+  `CHILD_FIGURE_SCALE` z `refugee-march.ts`); jezdec s `led` jde pěšky a vedený kůň je zvíře vojska
+  `LED_HORSE_SIDE_M` (1,2 m) vpravo od něj, ve stejném směru a kroku – stejnými instancemi jako
+  vojsko (`ArmyRenderer.setJourneys` – žádný mesh ani vertex buffer navíc). `pickRider` – klik od
+  země po hlavu (dítě nižší). `journeyHorseIds` – koně jezdců i vedení koně vlastní vsi
+  (`Horse.riderId`) ohrada nekreslí (`setRidingHorses`).
+- **Praporek** – `lib/scene/journey-marker.ts`: `journeyMarks(journeys, selected)` (návrh Clauda) –
+  praporek jen na cíli hloučku **vybrané skupiny** (`selected` = klíče `${journeyId}:${partyId}`,
+  `partyKeyOf`; `selectedPartyKeys` je odvodí z vybraných lidí – `SceneWarView.selectJourneyMen`),
+  dokud skupina jede ven nebo čeká (`phase: 'out'`, cíl na této mapě – jádro cíl ve vodě posune na
+  nejbližší dosažitelné místo, praporek stojí tam); nevybraná skupina, cizí výjezd ani návrat domů
+  praporek nemají. Změna výběru praporek přepíše a vyžádá překreslení. `JourneyMarker` – tyč a cíp z vlastní geometrie; přepíše se jen při změně
   (žádné kreslení navíc). Použije i scéna cizí mapy (Úloha 9). Přesýpací hodiny s počtem dní nad
   čekající skupinou Martin 14. 11. 2026 zrušil („je to k ničemu“); dny čekání zůstávají v panelu
   osoby (`waitDaysLeft`).

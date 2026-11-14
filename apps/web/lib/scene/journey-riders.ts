@@ -18,6 +18,7 @@ import {
   type ArmyAnimal,
   type ArmyFigure,
 } from './army';
+import { CHILD_FIGURE_SCALE } from './refugee-march';
 import { FIGURE_HEIGHT_M, type Project } from './villager-pick';
 import type { SceneVillage } from '../village-view';
 
@@ -30,7 +31,20 @@ export interface SceneJourneyMan extends Pick<
   key: string;
   /** Osoba vsi – klik na vlastního muže ho vybere; návštěvník null. */
   personId: number | null;
+  /**
+   * Vzhled: `line` – muž rodu (jezdec), `man` / `woman` – vesničan a vesničanka, `child` – dítě
+   * (menší postava jako u pochodu uprchlíků).
+   */
+  look: JourneyLook;
+  /** Sesedl a vede koně za uzdu (jde pěšky, kůň vedle něj). */
+  led: boolean;
 }
+
+/** Vzhled člověka výpravy ve scéně. */
+export type JourneyLook = 'line' | 'man' | 'woman' | 'child';
+
+/** Odstup vedeného koně od pěšího jezdce (m) – stranou, vpravo od směru chůze (návrh Clauda). */
+export const LED_HORSE_SIDE_M = 1.2;
 
 /** Výjezd na mapě vsi pro scénu – vlastní i cizí (návštěvník). */
 export interface SceneJourney extends Pick<
@@ -70,6 +84,9 @@ export interface RiderPose {
   mounted: boolean;
   lord: boolean;
   wounded: boolean;
+  look: JourneyLook;
+  /** Vede koně za uzdu. */
+  led: boolean;
   /** Rychlost (m/s) – klip postavy a krok koně; 0 stojí. */
   speed: number;
 }
@@ -115,6 +132,8 @@ export function journeyFormation(j: SceneJourney, heading: Pos): RiderPose[] {
     mounted: m.mounted,
     lord: m.lord,
     wounded: m.wounded,
+    look: m.look,
+    led: m.led,
     speed: 0,
   });
   return [
@@ -179,7 +198,13 @@ const sameMen = (a: SceneJourney, b: SceneJourney): boolean =>
   a.men.length === b.men.length &&
   a.men.every((m, i) => {
     const o = b.men[i]!;
-    return m.key === o.key && m.mounted === o.mounted && m.wounded === o.wounded;
+    return (
+      m.key === o.key &&
+      m.mounted === o.mounted &&
+      m.wounded === o.wounded &&
+      m.led === o.led &&
+      m.look === o.look
+    );
   });
 
 /**
@@ -293,9 +318,22 @@ export function journeyFigures(
         speed: moving ? p.speed : 0,
       });
     }
+    if (p.led) {
+      // vedený kůň – vedle pěšího jezdce, stejný směr a krok
+      animals.push({
+        key: `jl${id}`,
+        species: 'horse',
+        x: p.x + p.hz * LED_HORSE_SIDE_M,
+        z: p.z - p.hx * LED_HORSE_SIDE_M,
+        hx: p.hx,
+        hz: p.hz,
+        speed: moving ? p.speed : 0,
+      });
+    }
     figures.push({
       key: `j${id}`,
-      kind: 'man',
+      // jezdec je muž (jízdní klipy má jen `man.glb`); pěší vesničanka je `woman.glb`
+      kind: !p.mounted && p.look === 'woman' ? 'woman' : 'man',
       x: p.x,
       z: p.z,
       hx: p.hx,
@@ -307,13 +345,14 @@ export function journeyFigures(
             : 'ride'
           : 'ride-idle'
         : moving
-          ? 'walk-spear'
+          ? 'walk'
           : 'idle',
       pace: !p.mounted && moving ? Math.min(2, Math.max(0.5, p.speed / WALK_M_S)) : 1,
       lift: p.mounted ? RIDER_LIFT_M : 0,
       lying: false,
-      side: 'attack',
-      look: ARMY_LOOKS.line,
+      side: p.mounted ? 'attack' : 'folk',
+      look: p.mounted ? ARMY_LOOKS.line : ARMY_LOOKS.folk,
+      ...(p.look === 'child' ? { scale: CHILD_FIGURE_SCALE } : {}),
     });
   }
   return { figures, animals };
@@ -351,7 +390,13 @@ export function pickRider(
   for (const p of poses) {
     const gy = groundHeight(p.x, p.z);
     const foot = project(p.x, gy, p.z);
-    const head = project(p.x, gy + FIGURE_HEIGHT_M + (p.mounted ? RIDER_LIFT_M : 0), p.z);
+    const head = project(
+      p.x,
+      gy +
+        FIGURE_HEIGHT_M * (p.look === 'child' ? CHILD_FIGURE_SCALE : 1) +
+        (p.mounted ? RIDER_LIFT_M : 0),
+      p.z,
+    );
     if (!foot || !head) continue;
     const d = segmentDistance(x, y, foot, head);
     if (d <= bestD) {
@@ -376,8 +421,8 @@ function segmentDistance(
 }
 
 /**
- * Koně vlastní vsi, na kterých muži výjezdu jedou (`Horse.riderId` jezdce na koni) – ohrada je
- * nekreslí, jsou s jezdci pryč.
+ * Koně vlastní vsi, které mají členové výjezdu u sebe (`Horse.riderId` – jezdec na koni i ten, kdo
+ * koně vede) – ohrada je nekreslí, jsou s lidmi pryč.
  */
 export function journeyHorseIds(
   village: Partial<Pick<SceneVillage, 'pens'>> | null,
@@ -385,7 +430,7 @@ export function journeyHorseIds(
 ): Set<number> {
   const riders = new Set<number>();
   for (const j of journeys) {
-    for (const m of j.men) if (m.mounted && m.personId !== null) riders.add(m.personId);
+    for (const m of j.men) if ((m.mounted || m.led) && m.personId !== null) riders.add(m.personId);
   }
   const out = new Set<number>();
   if (riders.size === 0) return out;

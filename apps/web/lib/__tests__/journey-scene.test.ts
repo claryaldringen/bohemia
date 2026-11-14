@@ -104,8 +104,24 @@ describe('sceneJourneysOf', () => {
       home: { x: 5, z: 5 },
     });
     expect(list[0]!.men).toEqual([
-      { key: '7', personId: 7, lord: true, mounted: true, wounded: false },
-      { key: '9', personId: 9, lord: false, mounted: false, wounded: true },
+      {
+        key: '7',
+        personId: 7,
+        lord: true,
+        mounted: true,
+        wounded: false,
+        look: 'line',
+        led: false,
+      },
+      {
+        key: '9',
+        personId: 9,
+        lord: false,
+        mounted: false,
+        wounded: true,
+        look: 'man',
+        led: false,
+      },
     ]);
     expect(list[1]).toMatchObject({
       journeyId: 'j2:0',
@@ -118,7 +134,15 @@ describe('sceneJourneysOf', () => {
       home: null,
     });
     expect(list[1]!.men).toEqual([
-      { key: '0', personId: null, lord: true, mounted: true, wounded: false },
+      {
+        key: '0',
+        personId: null,
+        lord: true,
+        mounted: true,
+        wounded: false,
+        look: 'line',
+        led: false,
+      },
     ]);
   });
 
@@ -131,6 +155,19 @@ describe('sceneJourneysOf', () => {
     expect(list.map((j) => j.journeyId)).toEqual(['j1:0', 'j1:1']);
     expect(list.map((j) => j.partyId)).toEqual([0, 0]);
     expect(list.map((j) => j.men.length)).toEqual([1, 2]);
+  });
+
+  it('vzhled lidí: dítě, žena, vesničan, muž rodu a vedený kůň', () => {
+    const v = view();
+    v.parties[0]!.people = [
+      person(1, 0, { female: true }),
+      person(2, 0, { child: true, female: true }),
+      person(3, 0),
+      person(4, 0, { rider: true, horse: 'led' }),
+    ];
+    const men = sceneJourneysOf({ own: [v], visitors: [], cell: HOME })[0]!.men;
+    expect(men.map((m) => m.look)).toEqual(['woman', 'child', 'man', 'line']);
+    expect(men.map((m) => m.led)).toEqual([false, false, false, true]);
   });
 
   it('hlouček na jiné mapě se nekreslí, cíl na jiné mapě je null', () => {

@@ -10,7 +10,7 @@ import type {
   SeenCell,
 } from '@bohemia/game';
 import type { LandscapeTransfer } from './landscape-transfer';
-import type { SceneJourney } from './scene/journey-riders';
+import type { JourneyLook, SceneJourney } from './scene/journey-riders';
 
 // Pohled na výjezd vojvody pro prohlížeč (lord-control.md; expeditions.md): typy jsou
 // z jádra (`application/{journey,expedition}-view.ts`), tady jen texty důvodů a interpolace mezi dvěma dotazy.
@@ -227,6 +227,13 @@ export function partiesOf(views: readonly ExpeditionView[], villageId: string | 
     .flatMap((v) => v.parties);
 }
 
+/** Vzhled člověka výpravy: dítě, žena, muž rodu (vojvoda a jezdci) nebo vesničan. */
+function lookOf(m: { female: boolean; child: boolean }, line: boolean): JourneyLook {
+  if (m.child) return 'child';
+  if (m.female) return 'woman';
+  return line ? 'line' : 'man';
+}
+
 /** Klíč hloučku ve scéně – jeden `SceneJourney` na hlouček. */
 export const sceneJourneyKey = (journeyId: string, groupId: number): string =>
   `${journeyId}:${groupId}`;
@@ -274,6 +281,8 @@ export function sceneJourneysOf(input: {
               lord: m.lord,
               mounted: m.mounted,
               wounded: m.wounded,
+              look: lookOf(m, m.lord || m.rider),
+              led: m.horse === 'led',
             })),
           arrived: g.arrived,
           phase: party.phase,
@@ -304,6 +313,8 @@ export function sceneJourneysOf(input: {
             lord: m.lord,
             mounted: m.mounted,
             wounded: false,
+            look: lookOf(m, m.lord || m.mounted || m.led),
+            led: m.led,
           })),
         arrived: null,
         phase: null,

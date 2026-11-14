@@ -90,6 +90,8 @@ export interface ManScript {
   personId: number | null;
   lord: boolean;
   wounded: boolean;
+  look: RiderPose['look'];
+  led: boolean;
   /** Ve skupině na koni. */
   mounted: boolean;
   legs: Leg[];
@@ -163,8 +165,19 @@ export function departureScripts(j: SceneJourney, yard: JourneyYard): ManScript[
     } else {
       path.go(yard.gate, m.mounted ? RIDE_PACE.walk : WALK_M_S, m.mounted);
     }
-    const { key, personId, lord, wounded, mounted } = m;
-    return { key, personId, lord, wounded, mounted, legs: path.legs, end: path.s, horse };
+    const { key, personId, lord, wounded, mounted, look, led } = m;
+    return {
+      key,
+      personId,
+      lord,
+      wounded,
+      mounted,
+      look,
+      led,
+      legs: path.legs,
+      end: path.s,
+      horse,
+    };
   });
 }
 
@@ -191,8 +204,19 @@ export function arrivalScripts(poses: readonly RiderPose[], yard: JourneyYard): 
     } else {
       path.go(yard.door, p.mounted ? RIDE_PACE.walk : WALK_M_S, p.mounted);
     }
-    const { key, personId, lord, wounded, mounted } = p;
-    return { key, personId, lord, wounded, mounted, legs: path.legs, end: path.s, horse };
+    const { key, personId, lord, wounded, mounted, look, led } = p;
+    return {
+      key,
+      personId,
+      lord,
+      wounded,
+      mounted,
+      look,
+      led,
+      legs: path.legs,
+      end: path.s,
+      horse,
+    };
   });
 }
 
@@ -436,6 +460,8 @@ export class JourneyLeave {
       personId: m.personId,
       lord: m.lord,
       wounded: m.wounded,
+      look: m.look,
+      led: m.led,
       ...p,
     };
   }

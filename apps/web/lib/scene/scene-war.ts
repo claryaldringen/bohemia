@@ -4,7 +4,12 @@ import type { Scene } from '@babylonjs/core/scene';
 import { surfaceAt, type Landscape } from '@bohemia/game';
 import { ArmyRenderer, type SceneWar } from './army-renderer';
 import type { JourneyScenePhase, JourneyYard } from './journey-departure';
-import { JourneyMarker, journeyMarks } from './journey-marker';
+import {
+  JourneyMarker,
+  journeyMarks,
+  selectedPartyKeys,
+  type JourneyMarks,
+} from './journey-marker';
 import type { RiderPose, SceneJourney } from './journey-riders';
 import type { Project } from './villager-pick';
 
@@ -63,7 +68,7 @@ export class SceneWarView {
     if (this.war) this.army.set(this.war, Date.now(), this.deps.reducedMotion(), null);
     if (this.journeys.length > 0) {
       this.army.setJourneys(this.journeys, Date.now(), this.deps.reducedMotion(), null);
-      this.marker.set(journeyMarks(this.journeys));
+      this.marker.set(this.marks());
     }
     if (this.trail) this.army.setJourneyFog(this.trail);
   }
@@ -94,8 +99,13 @@ export class SceneWarView {
       this.deps.reducedMotion(),
       this.deps.camera(),
     );
-    const marks = this.marker?.set(journeyMarks(list));
+    const marks = this.marker?.set(this.marks());
     if (army || marks) this.deps.requestRender();
+  }
+
+  /** Praporek jen u vybrané skupiny (journey-marker.ts). */
+  private marks(): JourneyMarks {
+    return journeyMarks(this.journeys, selectedPartyKeys(this.journeys, this.selectedMen));
   }
 
   /** Muž výjezdu pod kurzorem (CSS px) – výběr klikem; nic – null. */
@@ -118,7 +128,9 @@ export class SceneWarView {
    */
   selectJourneyMen(personIds: readonly number[]): void {
     this.selectedMen = personIds;
-    if (this.army?.selectJourneyMen(personIds)) this.deps.requestRender();
+    const ring = this.army?.selectJourneyMen(personIds);
+    const banner = this.marker?.set(this.marks());
+    if (ring || banner) this.deps.requestRender();
   }
 
   /** Koně a muži vsi, kteří odjíždějí nebo přijíždějí – ohrada a den rodiny je nekreslí. */

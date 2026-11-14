@@ -50,8 +50,8 @@ const journey = (over: Partial<SceneJourney> = {}): SceneJourney => ({
   goal: null,
   home: { ...home },
   men: [
-    { key: '7', personId: 7, lord: true, mounted: true, wounded: false },
-    { key: '8', personId: 8, lord: false, mounted: false, wounded: false },
+    { key: '7', personId: 7, lord: true, mounted: true, wounded: false, look: 'line', led: false },
+    { key: '8', personId: 8, lord: false, mounted: false, wounded: false, look: 'man', led: false },
   ],
   arrived: false,
   phase: 'out',
@@ -76,6 +76,8 @@ const glideAt = (ms: number, x0 = home.x, z = home.z): RiderPose[] =>
     mounted: m.mounted,
     lord: m.lord,
     wounded: false,
+    look: m.lord ? 'line' : 'man',
+    led: false,
     speed: 2,
   }));
 
