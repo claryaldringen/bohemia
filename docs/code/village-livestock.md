@@ -532,8 +532,9 @@ chybějící hodnota je 0, převod není potřeba. Jmenuje se `wares`, ne `goods
 - Pořadí dne: `storesAndHerdsDay` (`core/simulate.ts`) volá `waresDay(state, day, landscape)` hned za
   `husbandryDay` (porážka 1. 11. i zimní už proběhla): `finishCuring`, `hivesDay` a `setWaresNeed`.
   Práce je až ve `freeLaborDay` (`core/simulate-work-apply.ts`) – `waresWorkDay`
-  (`wares/wares-work.ts`) ze zbytku `freeLabor − weedMen − extraMow`, i v hladu; ryby a oka
-  (`smallGameDay`) jen z toho, co po ní zbude.
+  (`wares/wares-work.ts`) ze zbytku `freeLabor − weedMen − extraMow`, i v hladu: brtě z celého
+  zbytku, zpracování kůží jen z volné práce žen (`women`, níž – Zpracování v domácnosti); ryby
+  a oka (`smallGameDay`) jen z toho, co po ní zbude.
 
 ### Med ve stravě (`core/diet.ts`)
 
@@ -575,5 +576,15 @@ Návrh: hides-honey.md – Zpracování v domácnosti. Čísla `HIDES` (`rules/r
   (rámy ve scéně). Vrací spotřebované člověkodny.
 - `finishCuring(state, day)` – várky s `doneDay ≤ day` ubere z `need` a smaže (prázdné `curing`
   zmizí); hotový výrobek domácnosti hned spotřebují, zásobu nemá.
+- Kdo zpracovává – **jen ženy z volného času** (population.md – Práce, Stavby staví muži;
+  Martin 14. 11. 2026: „domácí zpracování kůže měly na starosti spíš ženy“): `waresWorkDay`
+  s `women` dá `processHidesDay` nejvýš `women` (po brtích nejvýš zbytek). `women` spočte
+  `womenFreeLabor` v `commonWorkDay` (`core/simulate-work-apply.ts`) – díl
+  společné práce, který na stavby nejde (`common − build`; ženy nesou napřed denní minimum
+  a úlohy dne, `allocateDay`), po vozech s kládami a drobné zvěři hladové vsi. Opravy obydlí,
+  údržba opevnění, pletí mužů, seč navíc a brtě berou napřed ze zbytku práce mužů (návrh
+  Clauda), takže volná práce mužů zpracování neurychlí a ves bez žen kůže nezpracuje (várky
+  čekají). Bez pohlaví (`Person.sex` u vsí před příbuzenstvím) nebo bez `build` je `women`
+  undefined – zpracování bere jako dřív z celého zbytku.
 - Rozdělení práce: `CommonWork.wares` → `DayWork.wares` (`labor-report.ts`, `commonShares`) –
   domácí práce `'domestic'` u vsi, ne nevyužitá.

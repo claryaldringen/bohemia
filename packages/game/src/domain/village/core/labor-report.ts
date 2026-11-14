@@ -103,8 +103,9 @@ export interface DayWork {
   /** Seč navíc z práce po stavbách (oxen.md – Seno, dvě seče; člověkodny). Bez údaje 0. */
   extraMow?: number;
   /**
-   * Zpracování kůží a kožešin v domácnosti ze zbytku práce (hides-honey.md – Zpracování
-   * v domácnosti; člověkodny) – domácí práce u domů. Bez údaje 0.
+   * Práce na zboží ze zbytku práce (`waresWorkDay`; hides-honey.md; člověkodny): vybrání brtí
+   * a zpracování kůží a kožešin v domácnosti – to jen z volné práce žen – domácí práce u domů.
+   * Bez údaje 0.
    */
   wares?: number;
   /** Ryby a oka vesničanů ze zbytku práce (W7; wildlife.md); bez údaje žádné. */

@@ -107,7 +107,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   fields.md, Osevní postup po dílech, bod 3; Martin 9. 11. 2026: „pletí obstarají ženy a děti“);
   ostatní polní práce všech dílů je úlohou dne před stavbami → **seč
   navíc** pro růst stád (oxen.md – Seno, dvě seče; `extraMow`) → **kůže a kožešiny domácností**
-  (`waresWorkDay`, hides-honey.md – Zpracování v domácnosti; listopad–březen, i v hladu) → **ryby
+  (`waresWorkDay`, hides-honey.md – Zpracování v domácnosti; listopad–březen, i v hladu) – **jen
+  z volné práce žen** (population.md – Práce, Stavby staví muži: „Domácí zpracování kůží a kožešin
+  dělají ženy z volného času“): `commonWorkDay` předá `freeLaborDay` díl společné práce, který na
+  stavby nejde (`womenFreeLabor` – `common − build` po vozech s kládami a drobné zvěři hladové
+  vsi), zpracování bere nejvýš ten a nejvýš zbytek; opravy, údržba opevnění, pletí mužů, seč navíc
+  a brtě berou napřed ze zbytku práce mužů (návrh Clauda), práce mužů na zpracování nejde; bez
+  pohlaví (vsi před příbuzenstvím) z celého zbytku jako dřív → **ryby
   a oka vesničanů** (`smallGameDay`, W7 – ryby jen když ves chce bílkoviny, oka v zimě kdykoli; při
   hladu už před stavbami) → zbytek propadne. Volná práce
   v liště a zápis na seč (`recordMowingLabor` z `mowWork + allocation.common`) počítají práci

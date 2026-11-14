@@ -17,7 +17,11 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // (před D24) a 9f050c46fafa769c (D24 s dělením poměrem)
 // 14. 11. 2026 – sloučení zboží vsi (hides-honey.md – kůže, kožešiny, med a vosk) s D24: obojí
 // mění práci a jídlo vsi; dřív cec3ef2ae88c8a5c (zboží bez D24) a dcce65ed03e2f45f (D24 bez zboží)
-const EXPECTED_YEAR_1 = '54989ca4d4e3fef4';
+// 14. 11. 2026 – kůže a kožešiny zpracují jen ženy z volného času (population.md – Práce, Stavby
+// staví muži; hides-honey.md – Zpracování v domácnosti): ve dnech, kdy ženy nesou výmlat a jiné
+// úlohy dne, zpracování čeká a volnou práci mužů dostanou oka a ryby – jiný úlovek a jídlo; dřív
+// 54989ca4d4e3fef4
+const EXPECTED_YEAR_1 = '8c37bb353aa1f9bb';
 
 describe('zlatý otisk vsi', () => {
   const world = goldenWorld();

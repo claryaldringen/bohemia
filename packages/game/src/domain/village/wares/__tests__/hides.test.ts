@@ -4,6 +4,7 @@ import { HIDES } from '../../rules/rules-wares';
 import { SMALL_GAME } from '../../rules/rules-wildlife';
 import type { Pen, Person, VillageState, WaresState } from '../../types';
 import { finishCuring, processHidesDay, setWaresNeed, yearlyNeed } from '../hides';
+import { waresWorkDay } from '../wares-work';
 
 // Zpracování v domácnosti (hides-honey.md): roční potřeba 1. 11., práce listopad–březen,
 // hotové várky po 10 dnech.
@@ -148,5 +149,30 @@ describe('zpracování v domácnosti', () => {
     expect(
       processHidesDay(village(4, 0, 1, { hides: 5, need: { hides: 5, furs: 0 } }), DEC_10, 0),
     ).toBe(0);
+  });
+});
+
+describe('zpracování jen z volné práce žen (population.md – Práce, Stavby staví muži)', () => {
+  const stock = { hides: 20, need: { hides: 20, furs: 0 } };
+
+  it('bez volné práce žen nic – várka čeká, i když zbytek práce vsi je velký', () => {
+    const s = village(4, 0, 1, stock);
+    expect(waresWorkDay(s, DEC_10, 5, null, 0)).toBe(0);
+    expect(s.wares?.hides).toBe(20);
+    expect(s.wares?.curing).toBeUndefined();
+  });
+
+  it('nejvýš volná práce žen – práce mužů navíc zpracování neurychlí', () => {
+    const few = village(4, 0, 1, stock);
+    const many = village(4, 0, 1, stock);
+    expect(waresWorkDay(few, DEC_10, 1, null, 0.5)).toBeCloseTo(0.5, 9);
+    expect(waresWorkDay(many, DEC_10, 10, null, 0.5)).toBeCloseTo(0.5, 9);
+    expect(many.wares).toEqual(few.wares);
+    expect(few.wares?.hides).toBeCloseTo(20 - (0.5 * HOURS) / HIDES.hoursPerHide, 9);
+  });
+
+  it('nejvýš zbytek práce vsi; bez údaje o ženách (pohlaví neznámá) z celého zbytku jako dřív', () => {
+    expect(waresWorkDay(village(4, 0, 1, stock), DEC_10, 0.5, null, 3)).toBeCloseTo(0.5, 9);
+    expect(waresWorkDay(village(4, 0, 1, stock), DEC_10, 3, null)).toBeCloseTo(3, 9);
   });
 });

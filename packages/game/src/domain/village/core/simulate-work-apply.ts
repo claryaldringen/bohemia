@@ -97,7 +97,10 @@ export interface CommonWork {
   readonly repairs: { dwellingId: number; manDays: number }[];
   readonly weedMen: number;
   readonly extraMow: number;
-  /** Zpracování kůží a kožešin v domácnosti ze zbytku práce (`waresWorkDay`; člověkodny). */
+  /**
+   * Práce na zboží ze zbytku práce (`waresWorkDay`; člověkodny): vybrání brtí a zpracování kůží
+   * a kožešin v domácnosti – to jen z volné práce žen (`womenFreeLabor`).
+   */
   readonly wares: number;
   readonly game: SmallGameResult;
 }
@@ -457,16 +460,18 @@ function churchSitesBefore(
  * konce okna nestihnou; seč navíc pro růst stád (oxen.md – Seno, dvě seče; Martin 19. 10. 2026:
  * „pokud se něco staví, tak čas věnují primárně té stavbě“) – pěšky, bez vozů, co nestihne do
  * konce okna, zůstane neposečené; domácnosti ze zbytku zpracují kůže a kožešiny (hides-honey.md –
- * Zpracování v domácnosti; i v hladu) a nehladovějící ves chytá ryby a zajíce z toho, co zbude.
+ * Zpracování v domácnosti; i v hladu) – jen z volné práce žen `women` (`womenFreeLabor`) – a
+ * nehladovějící ves chytá ryby a zajíce z toho, co zbude.
  */
 function freeLaborDay(
   ctx: WorkDay,
   tasks: DayTaskList,
   allocation: DayAllocation,
   fieldWork: FieldWorkDone[],
-  freeLabor: number,
+  labor: { free: number; women: number | undefined },
   game: SmallGameResult,
 ): { weedMen: number; extraMow: number; wares: number; game: SmallGameResult } {
+  const { free: freeLabor, women } = labor;
   const { state, day } = ctx;
   const { dayTasks } = tasks;
   let weedMen = 0;
@@ -484,7 +489,7 @@ function freeLaborDay(
   const extraMow = Math.max(0, Math.min(freeLabor - weedMen, mowingRemaining(state, day)));
   if (extraMow > EPSILON) mow(state, extraMow, day);
   const rest = freeLabor - weedMen - extraMow;
-  const wares = waresWorkDay(state, day, rest, ctx.landscape);
+  const wares = waresWorkDay(state, day, rest, ctx.landscape, women);
   if (!state.hungry) {
     game = smallGameDay(state, day, rest - wares, false);
   }
@@ -532,8 +537,36 @@ export function commonWorkDay(
     hauled.fellingBefore,
     stone,
   );
-  const free = freeLaborDay(ctx, tasks, allocation, applied.fieldWork, freeLabor, game);
+  const women = womenFreeLabor(people, allocation, common - menBuild);
+  const free = freeLaborDay(
+    ctx,
+    tasks,
+    allocation,
+    applied.fieldWork,
+    { free: freeLabor, women },
+    game,
+  );
   return { ...built, ...free };
+}
+
+/**
+ * Volná práce žen po jejich denních úlohách (population.md – Práce, Stavby staví muži; Martin
+ * 14. 11. 2026: „domácí zpracování kůže měly na starosti spíš ženy“) – jen z ní domácnosti
+ * zpracují kůže a kožešiny (`waresWorkDay`). Je to díl společné práce, který na stavby nejde
+ * (`notBuild` = `common − build` po vozech s kládami a drobné zvěři hladové vsi): ženy nesou napřed
+ * denní minimum a úlohy dne (`allocateDay`). Opravy obydlí, údržba opevnění, pletí mužů, seč navíc
+ * a brtě berou napřed ze zbytku práce mužů (návrh Clauda) – zpracování dostane nejvýš tenhle díl
+ * a nejvýš to, co ze zbytku zbude. Bez pohlaví (vsi před příbuzenstvím – `withKinship`) nebo bez
+ * dílu mužů (`build`) undefined – zpracování bere jako dřív z celého zbytku.
+ */
+function womenFreeLabor(
+  people: DayPeople,
+  allocation: DayAllocation,
+  notBuild: number,
+): number | undefined {
+  if (allocation.build === undefined) return undefined;
+  if (!people.villagers.some((p) => p.sex !== undefined)) return undefined;
+  return Math.max(0, notBuild);
 }
 
 /**

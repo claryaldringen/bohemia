@@ -76,6 +76,11 @@ Nové zboží vsi. Martin 14. 11. 2026:
 - Podrobnosti (návrh Clauda při implementaci 14. 11. 2026):
   - Roční potřeba se nastaví 1. 11. (porážka); co se loni nestihlo, propadá. Zpracovává se od
     listopadu do března ze zbytku práce vsi po stavbách (i v hladu), oka a ryby až po něm.
+  - **Zpracovávají jen ženy z volného času** ([obyvatelstvo](population.md) – Práce, Stavby staví
+    muži; Martin 14. 11. 2026: „domácí zpracování kůže měly na starosti spíš ženy“): ze zbytku
+    práce vsi nejvýš volná práce žen po jejich denních úlohách, práce mužů na zpracování nejde –
+    ves bez žen kůže nezpracuje. Opravy obydlí, údržba opevnění, pletí mužů, seč navíc a brtě
+    berou napřed ze zbytku práce mužů (návrh Clauda).
   - Potřeba kůží je v kůžích skotu, kozí a prasečí se přepočtou plochou u obuvi, řemení
     i postrojů; napřed se berou kůže skotu (méně práce na plochu), pak kozí a prasečí. Jelení
     kůže se zpracuje jako kůže skotu, divočákova jako prasečí.

@@ -61,3 +61,45 @@ describe('kůže a kožešiny ve dni vsi', () => {
     expect(later.wares?.need?.hides).toBeLessThan(5);
   });
 });
+
+describe('kůže zpracují ženy z volného času (population.md – Práce, Stavby staví muži)', () => {
+  const day = at(12, 10);
+
+  /** Ves 9. 12. se zásobou a potřebou 50 kůží skotu – víc, než volná práce žen za den zvládne. */
+  function winter(): VillageState {
+    const s = advanceVillage(village(), at(12, 9), null);
+    s.wares = { ...s.wares!, hides: 50, need: { hides: 50, furs: 0 } };
+    delete s.wares.curing;
+    return s;
+  }
+
+  it('ves bez žen kůže nezpracuje – várka čeká', () => {
+    const s = winter();
+    for (const p of s.people) p.sex = 'male';
+    const next = advanceVillage(s, day, null);
+    expect(next.wares?.hides).toBe(50);
+    expect(next.wares?.curing).toBeUndefined();
+    expect(next.wares?.today?.day).not.toBe(day);
+  });
+
+  it('ženy s volnou prací zpracují, muži navíc zpracování neurychlí', () => {
+    const base = advanceVillage(winter(), day, null);
+    const done = 50 - base.wares!.hides;
+    expect(base.wares?.today?.day).toBe(day);
+    expect(done).toBeGreaterThan(0);
+    // mez je volná práce žen, ne zásoba
+    expect(done).toBeLessThan(50);
+    const s = winter();
+    const man = s.people.find((p) => p.sex === 'male' && p.spouseId !== undefined)!;
+    for (let i = 1; i <= 3; i++) {
+      s.people.push({
+        id: 9000 + i,
+        bornDay: man.bornDay,
+        dwellingId: man.dwellingId,
+        sex: 'male',
+      });
+    }
+    const more = advanceVillage(s, day, null);
+    expect(50 - more.wares!.hides).toBeLessThanOrEqual(done + 1e-9);
+  });
+});
