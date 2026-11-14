@@ -135,9 +135,11 @@ tempo a svět `CampaignWorld`.
   se stavem do schránky bodu (`outbox`), pak je doručí `deliverOutbox` (sdílené s tažením – ves,
   která zanikla, se přeskočí, týž `ref` schránka vsi podruhé zahodí) a `clearOutbox` schránku smaže.
   Pád mezi uložením bodu a doručením: další kolo najde `outbox` v bodu a doručí ho (výjezd
-  s nedoručenými událostmi je aktivní i po `done`). **Známé omezení** (audit A5, platí i pro
-  tažení): pád po doručení a před smazáním schránky pošle upozornění podruhé – události vsí mají
-  `ref`, upozornění ne; oprava mění schéma upozornění.
+  s nedoručenými událostmi je aktivní i po `done`). **Upozornění mají klíč** (audit A5): krok po
+  každém taktu je označí `ref` `journey:<id>:<takt>:n<pořadí>` (tažení `camp:…`, `stampNotices` v
+  `campaign-tick.ts`), `NoticeRepository.post` s už existujícím `ref` téhož hráče nic nezapíše
+  (`player_notice.ref` + částečný unikátní index) – pád po doručení a před smazáním schránky tak
+  upozornění nezdvojí. Ostatní volání `post` jsou bez `ref` a zapisují vždy.
 - **Vjezd na mapu rodu ve válce** – `homeFromWar`: kolo se na válku ptá
   (`StepJourneysDeps.atWar` = `houseAtWarOn`, ve workeru `GameDeps.atWar`) **jen když skupina ve
   spočteném stavu stojí na jiném políčku** než ve stavu, od kterého kolo počítalo (návrh Clauda po

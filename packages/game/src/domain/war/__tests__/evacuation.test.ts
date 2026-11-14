@@ -258,6 +258,7 @@ describe('evakuace do hradiště (Úloha 8)', () => {
         hostName: 'Hradec',
       },
       gameDay: arrivedDay,
+      ref: expect.any(String),
     });
     // prázdná ves: obránci žádní, kořist = zásoby mimo nesené, dobytek odešel celý
     expect(run.a.storesKg + depart.carriedKg).toBeCloseTo(STORES, 6);
@@ -479,6 +480,7 @@ describe('dostižení skupiny (Otevřené 8)', () => {
           captured: 0,
         },
         gameDay: start.day,
+        ref: expect.any(String),
       },
     ]);
     // jen jednou – další takt nic

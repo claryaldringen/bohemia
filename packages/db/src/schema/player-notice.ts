@@ -1,4 +1,14 @@
-import { bigserial, index, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
+import {
+  bigserial,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core';
 import { user } from './auth';
 
 /**
@@ -18,6 +28,13 @@ export const playerNotice = pgTable(
     gameDay: integer('game_day').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     readAt: timestamp('read_at', { withTimezone: true }),
+    /** Klíč doručení (schránka tažení a výjezdu): týž `ref` u hráče se zapíše jednou. */
+    ref: text('ref'),
   },
-  (table) => [index('player_notice_player_idx').on(table.playerId, table.id)],
+  (table) => [
+    index('player_notice_player_idx').on(table.playerId, table.id),
+    uniqueIndex('player_notice_player_ref_uniq')
+      .on(table.playerId, table.ref)
+      .where(sql`${table.ref} IS NOT NULL`),
+  ],
 );

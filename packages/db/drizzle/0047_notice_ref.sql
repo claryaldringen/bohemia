@@ -1,0 +1,2 @@
+ALTER TABLE "player_notice" ADD COLUMN "ref" text;--> statement-breakpoint
+CREATE UNIQUE INDEX "player_notice_player_ref_uniq" ON "player_notice" USING btree ("player_id","ref") WHERE "player_notice"."ref" IS NOT NULL;

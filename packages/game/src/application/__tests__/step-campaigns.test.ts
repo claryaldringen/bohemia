@@ -14,6 +14,7 @@ import {
 import { queueCampaignIntent, type CampaignCells } from '../campaigns';
 import type { House } from '../houses';
 import {
+  deliverOutbox,
   newCampaignMemory,
   stepCampaigns,
   type CampaignMemory,
@@ -164,6 +165,44 @@ describe('stepCampaigns', () => {
     expect(villages.inbox.events).toHaveLength(whole.villageEvents.length);
     expect(notices.notices).toHaveLength(1);
     expect(await campaigns.active()).toEqual([]);
+  });
+
+  it('pád po doručení, před smazáním schránky – upozornění se doručí právě jednou', async () => {
+    const { deps, campaigns, villages, notices } = setup();
+    await campaigns.create(campaign({ liveCommand: false }));
+    await campaigns.addIntent('c1', {
+      tick: LAUNCH + 2,
+      byPlayer: 'p1',
+      body: { kind: 'set-out' },
+    });
+    let crashed = false;
+    const clear = campaigns.clearOutbox.bind(campaigns);
+    campaigns.clearOutbox = async (id, tick) => {
+      // spadne až smazání schránky, ve které je upozornění (už doručené)
+      const carries = ((await campaigns.checkpoint(id))?.outbox?.notices.length ?? 0) > 0;
+      if (crashed || !carries) return clear(id, tick);
+      crashed = true;
+      return Promise.reject(new Error('spojení spadlo'));
+    };
+    const outcomes = (await rounds(deps, LAUNCH + 1, END + 40)).outcomes;
+    expect(outcomes).toContain('failed');
+    expect(notices.notices.map((n) => n.kind)).toEqual(['campaign-returned']);
+    expect(villages.inbox.events).toHaveLength(whole.villageEvents.length);
+  });
+
+  it('deliverOutbox: týž klíč podruhé nic nezapíše, dvě upozornění téhož taktu obě', async () => {
+    const { deps, notices } = setup();
+    const n = { playerId: 'p1', kind: 'campaign-returned' as const, payload: {}, gameDay: 1 };
+    const outbox = {
+      villageEvents: [],
+      notices: [
+        { ...n, ref: 'camp:c1:5:n0' },
+        { ...n, ref: 'camp:c1:5:n1' },
+      ],
+    };
+    await deliverOutbox(deps, outbox);
+    await deliverOutbox(deps, outbox);
+    expect(notices.notices).toHaveLength(2);
   });
 
   it('znalost z tažení dostane jen rod vůdce – ze stavu, u staršího bodu podle hráče (Úloha 11)', async () => {

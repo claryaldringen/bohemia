@@ -9,17 +9,25 @@ import {
 export class InMemoryNotices implements NoticeRepository {
   readonly notices: PlayerNotice[] = [];
   private nextId = 1;
+  /** Klíče `ref` zapsaných upozornění (id → hráč|ref); zmizí s ořezanou historií jako řádek v DB. */
+  private readonly keys = new Map<number, string>();
 
   constructor(private readonly clock: () => Date = () => new Date(0)) {}
 
   async post(notice: NewPlayerNotice): Promise<void> {
     await Promise.resolve();
-    this.notices.push({ ...notice, id: this.nextId++, createdAt: this.clock(), readAt: null });
+    const { ref, ...rest } = notice;
+    const key = ref === undefined ? null : `${notice.playerId}|${ref}`;
+    if (key !== null && [...this.keys.values()].includes(key)) return;
+    const id = this.nextId++;
+    if (key !== null) this.keys.set(id, key);
+    this.notices.push({ ...rest, id, createdAt: this.clock(), readAt: null });
     const mine = this.notices
       .filter((n) => n.playerId === notice.playerId)
       .sort((a, b) => b.id - a.id);
     for (const old of mine.slice(NOTICES_KEPT_PER_PLAYER)) {
       this.notices.splice(this.notices.indexOf(old), 1);
+      this.keys.delete(old.id);
     }
   }
 

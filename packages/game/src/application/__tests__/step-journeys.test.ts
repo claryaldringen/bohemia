@@ -312,6 +312,21 @@ describe('stepJourneys', () => {
     });
   });
 
+  it('pád po doručení, před smazáním schránky – upozornění o návratu právě jednou', async () => {
+    const { deps, journeys, notices } = await setup();
+    await journeys.create(journey());
+    let crashed = false;
+    const clear = journeys.clearOutbox.bind(journeys);
+    journeys.clearOutbox = (id, tick) => {
+      if (crashed) return clear(id, tick);
+      crashed = true;
+      return Promise.reject(new Error('spojení spadlo'));
+    };
+    const outcomes = await rounds(deps, LAUNCH + 1, END);
+    expect(outcomes).toContain('failed');
+    expect(notices.notices.map((n) => n.kind)).toEqual(['journey-returned']);
+  });
+
   it('druhé kolo pokračuje od zapamatovaného stavu; kolo tažení paměť výjezdů nezahodí', async () => {
     const { deps, journeys, villages, notices, lock } = await setup();
     await journeys.create(journey());

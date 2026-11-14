@@ -65,6 +65,14 @@ export function villageEvent(
   out.events.push({ villageId, day, ref: `camp:${s.id}:${s.tick}:${out.events.length}`, body });
 }
 
+/**
+ * Upozornění taktu s klíčem `<základ>:n<pořadí>` – stejný takt spočtený znovu dá stejné klíče, dvě
+ * upozornění téhož taktu různé (stejný základ jako `ref` událostí).
+ */
+export function stampNotices(notices: CampaignNotice[], base: string): CampaignNotice[] {
+  return notices.map((n, i) => ({ ...n, ref: `${base}:n${i}` }));
+}
+
 /** Mřížka pochodu mapy políčka v den `day` – krajina, překážky a první ves na mapě. */
 export function gridOf(cell: GridCell, day: number, ctx: TickContext): MarchGrid {
   const key = `${cellKey(cell)}@${day}`;

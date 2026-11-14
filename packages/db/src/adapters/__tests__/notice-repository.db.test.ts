@@ -47,6 +47,19 @@ describe('NoticeRepository (Drizzle)', () => {
     ]);
   });
 
+  it('stejný ref u téhož hráče se zapíše jednou, bez ref pokaždé, jiný hráč stejný ref smí', async () => {
+    const n = { ...base, kind: 'invite-accepted' as const };
+    await notices.post({ ...n, playerId: 'p1', ref: 'journey:j1:5:n0' });
+    await notices.post({ ...n, playerId: 'p1', ref: 'journey:j1:5:n0' });
+    await notices.post({ ...n, playerId: 'p1', ref: 'journey:j1:5:n1' });
+    await notices.post({ ...n, playerId: 'p2', ref: 'journey:j1:5:n0' });
+    expect(await notices.after('p1', 0, 10)).toHaveLength(2);
+    expect(await notices.after('p2', 0, 10)).toHaveLength(1);
+    await notices.post({ ...n, playerId: 'p2' });
+    await notices.post({ ...n, playerId: 'p2' });
+    expect(await notices.after('p2', 0, 10)).toHaveLength(3);
+  });
+
   it('markRead označí jen upozornění hráče do upToId', async () => {
     await notices.post({ ...base, playerId: 'p1', kind: 'invite-accepted' });
     await notices.post({ ...base, playerId: 'p2', kind: 'invite-accepted' });

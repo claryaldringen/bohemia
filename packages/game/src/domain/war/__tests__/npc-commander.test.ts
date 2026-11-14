@@ -335,6 +335,7 @@ describe('přítomnost hráče, zástupce a rozpad', () => {
         kind: 'campaign-disbanded',
         payload: { campaignId: 'c1', leader: 'Bořivoj' },
         gameDay: after.state.day,
+        ref: expect.any(String),
       },
     ]);
     const chronicles = after.villageEvents.flatMap((e) =>

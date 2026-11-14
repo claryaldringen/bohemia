@@ -395,6 +395,7 @@ describe('návrat', () => {
         kind: 'journey-returned',
         payload: { journeyId: 'j1', leader: 'Bořivoj' },
         gameDay: day,
+        ref: expect.any(String),
       },
     ]);
   });
