@@ -208,6 +208,11 @@ export interface CampaignState {
   seen?: Record<string, SeenCell>;
   /** Proč se vrací (od fáze `returning`). */
   returnReason: CampaignReturnReason | null;
+  /**
+   * Ves cíle se vzdala (Začít znovu obránce – záměr `turn-back` se `surrender`) a vojsko se obrátilo
+   * domů; podle něj opakovaný restart po pádu pozná nájezd, kterému se ves už vzdala. Chybí – ne.
+   */
+  yielded?: true;
   /** Boj na mapě cíle (war.md – Boj; Ú6.8) – od prvního taktu nájezdu; chybí – zatím nebojovali. */
   battle?: BattleState;
   /**
@@ -261,8 +266,11 @@ export type IntentBody =
    * Obrat domů; `reason` dává NPC velitel (bod zlomu, jídlo, nosnost), hráč obrací rozkazem.
    * `restart` – vůdce dal Začít znovu (war.md – Začít znovu během nájezdu; `restartGame`): obrat
    * platí, ať vede kdokoli (i NPC velitel nebo zástupce), a ze shromaždiště pošle muže domů.
+   * `surrender` (jen s `restart`) – Začít znovu dal obránce: ves cíle se vzdala a připadla vůdci
+   * (`restartGame` – `surrenderRaidedVillages`). Je to záměr obránce (`isDefenderIntent` – od vůdce
+   * se zahodí), přítomnost vůdce nemění a tažení si zapíše `yielded`.
    */
-  | { kind: 'turn-back'; reason?: CampaignReturnReason; restart?: true }
+  | { kind: 'turn-back'; reason?: CampaignReturnReason; restart?: true; surrender?: true }
   /** Rozkaz skupině (war.md – Změna rozkazu); `at` = místo pro „držet místo“. */
   | { kind: 'set-order'; group: number; order: GroupOrder; at?: Pos }
   /** Velitel v boji napadne muže (id bojovníka – `Fighter.id`). */

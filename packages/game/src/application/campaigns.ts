@@ -6,7 +6,7 @@ import type {
   CampaignState,
   IntentBody,
 } from '../domain/war';
-import { INTENT_LEAD_TICKS, tickOfMs } from '../domain/war';
+import { campaignFinished, INTENT_LEAD_TICKS, tickOfMs } from '../domain/war';
 import type { WorldClock } from '../domain/calendar';
 import type { GridCell } from '../domain/village/people/world-grid';
 
@@ -148,4 +148,41 @@ export async function queueCampaignIntent(
     byPlayer: input.playerId,
     body: input.body,
   });
+}
+
+/** Kolikrát zkusit takt záměru, když ho úložiště odmítne (bod už je za ním). */
+const TURN_BACK_ATTEMPTS = 3;
+
+/**
+ * Záměr bez hráče u tažení (Začít znovu – war.md) na takt teď + `INTENT_LEAD_TICKS`: odmítne-li
+ * úložiště takt (bod se mezitím posunul za něj), zkusí první takt za bodem, nejvýš
+ * `TURN_BACK_ATTEMPTS`×; skončené nebo zmizelé tažení nechá být. Vrací zapsaný záměr, jinak null.
+ */
+export async function queueIntentPastPoint(
+  deps: { campaigns: Pick<CampaignRepository, 'checkpoint' | 'addIntent'>; world: WorldClock },
+  input: { campaignId: string; byPlayer: string; body: IntentBody; nowMs: number },
+): Promise<CampaignIntent | null> {
+  let tick = tickOfMs(input.nowMs, deps.world) + INTENT_LEAD_TICKS;
+  for (let attempt = 0; attempt < TURN_BACK_ATTEMPTS; attempt++) {
+    const intent = { tick, byPlayer: input.byPlayer, body: input.body };
+    const added = await deps.campaigns.addIntent(input.campaignId, intent);
+    if (added) return added;
+    // takt v minulosti – bod se mezitím posunul; skončené (nebo zmizelé) tažení nechá být
+    const point = await deps.campaigns.checkpoint(input.campaignId);
+    if (!point || campaignFinished(point.state)) return null;
+    tick = Math.max(tick, point.state.tick) + 1;
+  }
+  return null;
+}
+
+/**
+ * Staré vojsko (war.md – Začít znovu během nájezdu): tažení vede rod `houseId` (`CampaignState`)
+ * a ten už není živým rodem hráče `living` – hráč dal Začít znovu, nová hra tažení nevede (panel
+ * Vojsko, upozornění vůdci). Bod bez rodu (starší než Úloha 11) patří živému rodu hráče.
+ */
+export function ledByEndedHouse(
+  houseId: string | undefined,
+  living: { id: string } | null,
+): boolean {
+  return houseId !== undefined && houseId !== living?.id;
 }

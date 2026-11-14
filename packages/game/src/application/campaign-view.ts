@@ -20,7 +20,12 @@ import {
 } from '../domain/war';
 import type { DwellingType } from '../domain/village/types';
 import { directionBetween, sameCell, type GridCell } from '../domain/village/people/world-grid';
-import { queueCampaignIntent, type CampaignCells, type CampaignRepository } from './campaigns';
+import {
+  ledByEndedHouse,
+  queueCampaignIntent,
+  type CampaignCells,
+  type CampaignRepository,
+} from './campaigns';
 import type { HouseRepository } from './houses';
 import type { KnowledgeRepository } from './knowledge';
 import type { VillageRepository } from './villages';
@@ -188,15 +193,25 @@ export interface CampaignSummary {
  * hráč vidí vždy; plán 2026-11-03 – Úloha 6.17), od nejstaršího.
  */
 export async function campaignsOf(
-  deps: { campaigns: Pick<CampaignRepository, 'activeOf' | 'checkpoint'> },
+  deps: {
+    campaigns: Pick<CampaignRepository, 'activeOf' | 'checkpoint'>;
+    /** Živý rod hráče – staré vojsko (`ledByEndedHouse`) panel nové hry nevidí; bez něj všechna. */
+    houses?: Pick<HouseRepository, 'activeOf'>;
+  },
   input: { playerId: string },
 ): Promise<CampaignSummary[]> {
   const out: CampaignSummary[] = [];
+  // rod hráče jen jednou a jen u tažení, které vede (vazal ve službě své muže vidí vždy)
+  let living: { id: string } | null | undefined;
   for (const id of await deps.campaigns.activeOf(input.playerId)) {
     const point = await deps.campaigns.checkpoint(id);
     if (!point || !isCampaignParticipant(point.state, input.playerId)) continue;
     const s = point.state;
     const leads = s.playerId === input.playerId;
+    if (leads && deps.houses && s.houseId !== undefined) {
+      if (living === undefined) living = await deps.houses.activeOf(input.playerId);
+      if (ledByEndedHouse(s.houseId, living)) continue;
+    }
     out.push({
       id,
       targetName: s.target.name ?? null,

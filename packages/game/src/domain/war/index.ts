@@ -36,6 +36,7 @@ export {
   alarmVillage,
   isAlarmIntent,
   isDefenderIntent,
+  isSurrenderIntent,
   isWarned,
   UNKNOWN_ALARM_OWNER,
 } from './alarm';

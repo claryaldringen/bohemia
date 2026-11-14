@@ -90,6 +90,11 @@ export type PlayerNoticeKind =
   | 'protection-sent'
   | 'protection-recalled'
   /**
+   * Ves se vzdala a připadla ti (war.md – Začít znovu během nájezdu: obránce dal Začít znovu,
+   * `surrenderRaidedVillages`) – payload `{ villageId, name, campaignId }` (tvůj nájezd na ni).
+   */
+  | 'village-surrendered'
+  /**
    * Rod se dozvěděl o křesťanství (christianity.md – Objev křesťanství; `advanceChristianity`) –
    * payload `{ year }` (herní rok objevu).
    */

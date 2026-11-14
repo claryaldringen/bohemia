@@ -31,6 +31,7 @@ import {
   dynastyForVillage,
   enterGame,
   findPlayerVillage,
+  finishCeded,
   firstPlayerVillage,
   lockOwnerOf as lockOwnerOfVillage,
   pragueDateOf,
@@ -437,9 +438,17 @@ export async function restartGameForPlayer(
         abandon: options.abandon,
       },
     );
-    return restarted.ok ? { ok: true as const } : { ok: false as const, error: restarted.reason };
+    return restarted.ok
+      ? { ok: true as const, surrendered: restarted.surrendered, day: today.day }
+      : { ok: false as const, error: restarted.reason };
   });
-  return result.ok ? { ok: true } : { ok: false, error: result.error };
+  if (!result.ok) return { ok: false, error: result.error };
+  // vsi pod nájezdem se vzdaly vůdci nájezdu – převezme je pod svým zámkem až teď (zámky dvou hráčů
+  // nikdy naráz); po pádu je převezme worker (`acceptHolderTransfers`)
+  for (const map of result.surrendered) {
+    await finishCeded(dynastyDeps(), map.villageIds, map.toPlayerId, result.day);
+  }
+  return { ok: true };
 }
 
 /**

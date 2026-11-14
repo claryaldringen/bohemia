@@ -69,6 +69,7 @@ import {
   alarmVillage,
   isAlarmIntent,
   isDefenderIntent,
+  isSurrenderIntent,
   isWarned,
   sightAlarms,
   type AlarmIntentBody,
@@ -422,6 +423,11 @@ function applyIntent(
     applyAlarm(s, intent.byPlayer, intent.body, ctx, out);
     return;
   }
+  // ves cíle se vzdala (Začít znovu obránce) – obránce u tažení není, přítomnost vůdce se nemění
+  if (isSurrenderIntent(intent.body)) {
+    applyBody(s, intent.body, out, false);
+    return;
+  }
   if (s.liveCommand) {
     s.presenceTick = intent.tick;
     delete s.absent;
@@ -488,6 +494,8 @@ function applyBody(s: CampaignState, body: IntentBody, out: TickOut, npc: boolea
       const afield = s.phase === 'marching' || s.phase === 'raiding';
       if (afield || (restart && s.phase === 'assembling')) {
         turnBack(s, npc ? (body.reason ?? 'order') : 'order');
+        // ves cíle se vzdala (Začít znovu obránce) – připadla vůdci, nájezd končí
+        if (isSurrenderIntent(body)) s.yielded = true;
       }
       return;
     }

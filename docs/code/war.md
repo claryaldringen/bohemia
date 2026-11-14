@@ -1664,14 +1664,15 @@ Scéna hry ukazuje **mapu sídla hráče** – vojsko je v ní vidět, když na 
 
 ## Začít znovu během nájezdu (14. 11. 2026)
 
-design/war.md – Začít znovu během nájezdu (útočník; obránce doplní krok 2b).
+design/war.md – Začít znovu během nájezdu (útočník i obránce).
 
 - **Restart** – `restartGame` (`application/restart-game.ts`) po archivu sídel, konci výjezdu
   a konci rodu zavolá `turnBackLedCampaigns(deps, { playerId, nowMs })`: každé tažení
   z `CampaignRepository.activeOf`, které hráč vede (`state.playerId` – tažení, kde je jen vazal
   ve službě, ne), dostane jeho jménem záměr `turn-back` se značkou `restart` na takt
   `tickOfMs(now) + INTENT_LEAD_TICKS`. Odmítne-li `addIntent` takt (bod je dál), zkusí první takt
-  za bodem (nejvýš `TURN_BACK_ATTEMPTS` = 3×); skončené tažení nechá být. Volá se i bez vsí –
+  za bodem (nejvýš `TURN_BACK_ATTEMPTS` = 3× – `queueIntentPastPoint` v `application/campaigns.ts`,
+  sdílí ho i obránce); skončené tažení nechá být. Volá se i bez vsí –
   opakovaný restart po pádu záměry dopíše. `RestartGameDeps` mají `campaigns` a `world` (web
   `restartGameForPlayer` – `currentWorld()`). Nové upozornění nevzniká.
 - **Doména** – `applyBody` (`domain/war/campaign.ts`): `turn-back` s `restart` platí i bez
@@ -1682,10 +1683,45 @@ design/war.md – Začít znovu během nájezdu (útočník; obránce doplní kr
 - **Archivovaná ves domova** – políčko archivovaného sídla je pro tažení prázdné
   (`createCampaignCells` – `holderAt` vidí jen nearchivovaná sídla), vojsko na archivovanou ves
   nečeká; `computeWithLoads` archiv pro tažení dál nečte.
-- **Testy** – `domain/war/__tests__/campaign-restart.test.ts` (fáze, NPC, idempotence),
+- **Obránce** – `surrenderRaidedVillages` (`application/surrender-village.ts`) volá `restartGame`
+  před archivem (pod zámkem obránce) se sídly a vsemi z `dynastyStatus`:
+  - nájezd = `CampaignRepository.activeAgainst(ves)` ve fázi `assembling` / `marching` /
+    `raiding`, nebo s `CampaignState.yielded` (opakování po pádu), ne vedený obráncem; vůdce musí
+    mít živý rod tažení (`firstLiving` – staré vojsko ne). Mapu dostane první takový nájezd
+    (pořadí `activeAgainst` – založení, id; víc vsí na mapě – první ves mapy);
+  - záměr obránce `turn-back` se `restart` a `surrender` (`isSurrenderIntent` v `alarm.ts`,
+    součást `isDefenderIntent` – od vůdce se zahodí; `applyIntent` ho bere před přítomností, takže
+    přítomnost vůdce nemění; `applyBody` jako Začít znovu vůdce a zapíše `yielded`) do všech
+    nájezdů na vsi mapy – nájezd s `yielded` už ne;
+  - upozornění vůdci `village-surrendered` `{ villageId, name, campaignId }` s klíčem
+    `restart-surrender:<ves>:<den>` (text a panel války v `apps/web/lib/player-notices.ts`);
+  - `updateVillage` s `escheatVillage` (muži, ženy a dcery rodu bez `line`, `dynasty.lordId` null,
+    správce zapnutý – ves čeká na muže rodu nového držitele jako po odúmrti);
+  - uprchlíci v hradišti jiné vsi obránce, která jde do archivu, odejdou domů hned
+    (`departFromHost` v `refuge-return.ts` – část `returnRefugees` bez zámku, volající drží zámek
+    držitele hradiště; `refuge-back:<refId>` jednou); les a cizí hradiště – `returnStewardRefugees`;
+  - nakonec 1. krok převodu `transferHolder` (sídlo zmizí z `listActive`, archiv ho mine). Vrací
+    `SurrenderedMap[]` (`RestartGameResult.surrendered`); web (`restartGameForPlayer`) po uvolnění
+    zámku obránce zavolá `finishCeded` (`cede-village.ts`) – převzetí pod zámkem vůdce a správce;
+    jinak převezme worker (`acceptHolderTransfers`). `RestartGameDeps.campaigns` má i `activeAgainst`.
+- **Archiv v loaderu** – `computeWithLoads(…, { archivedFinal: true })` (jen `computeCampaign`):
+  `villageAt` vsi, na jejíž den by takt čekal, prověří archiv (líně jako `villageGone` –
+  `archive.wanted` → `VillageRepository.archivedOf`) a pro ves archivovaného sídla vrátí uložený
+  stav pro jakýkoli den (jako spící ves – Ruling 40). Výjezd (bez volby) dál `villageAt` null
+  a `villageGone`.
+- **Staré vojsko** – `ledByEndedHouse(houseId, živý rod)` (`application/campaigns.ts`): tažení
+  s `houseId`, které není živým rodem hráče. `campaignsOf` s `houses` ho vůdci nevrací (vazal ve
+  službě své muže vidí dál; web `campaignsOfPlayer`); `deliverOutbox(deps, outbox, leader)`
+  upozornění vůdci ze starého vojska zahodí (rod se hledá, jen když nějaké jde vůdci; `stepOne`
+  předává stav tažení, výjezd ne).
+- **Testy** – `domain/war/__tests__/campaign-restart.test.ts` (fáze, NPC, idempotence; obránce –
+  pochod, shromaždiště, boj, záměr od vůdce zahozen, přítomnost beze změny),
   `evacuation.test.ts` (útěk obránců jako po „Domů“), `application/__tests__/restart-game.test.ts`
-  (vedené tažení × vazal, odmítnutý takt, pád a opakovaný restart), `step-campaigns.test.ts`
-  (worker ve všech fázích s archivovanou vsí domova, muži vazala domů jednou, dvojitý restart).
+  (vedené tažení × vazal, odmítnutý takt, pád a opakovaný restart; obránce ve třech fázích,
+  zpáteční cesta = archiv, dva nájezdy, uprchlíci z archivovaného hradiště, pád po převodu),
+  `step-campaigns.test.ts` (worker ve všech fázích s archivovanou vsí domova, muži vazala domů
+  jednou, dvojitý restart; archiv v loaderu, upozornění starého vojska), `campaign-view.test.ts`
+  (panel bez starého vojska).
 
 ## Měření tažení a e2e celé války (Ú6.17)
 

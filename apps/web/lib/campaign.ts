@@ -73,7 +73,11 @@ export function commandCampaignForPlayer(
   return commandCampaign(commandDeps(), { playerId, campaignId, command, nowMs: Date.now() });
 }
 
-/** Běžící tažení, která hráč vede nebo ve kterých jdou jeho muži (panel Vojsko). */
+/**
+ * Běžící tažení, která hráč vede nebo ve kterých jdou jeho muži (panel Vojsko) – bez starého
+ * vojska z doby před Začít znovu (rod tažení už není živým rodem hráče).
+ */
 export function campaignsOfPlayer(playerId: string): Promise<CampaignSummary[]> {
-  return campaignsOf({ campaigns: gameDeps().campaigns }, { playerId });
+  const deps = gameDeps();
+  return campaignsOf({ campaigns: deps.campaigns, houses: deps.houses }, { playerId });
 }

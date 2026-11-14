@@ -28,6 +28,7 @@ import type {
   CampaignRepository,
   VillageCell,
 } from './campaigns';
+import { ledByEndedHouse } from './campaigns';
 import type { HouseRepository } from './houses';
 import type { KnowledgeRepository } from './knowledge';
 import type { NoticeRepository } from './notices';
@@ -347,7 +348,7 @@ async function stepOne(
   if (!checkpoint) return 'idle';
   const from = checkpoint.state;
   if (checkpoint.outbox) {
-    await deliverOutbox(deps, checkpoint.outbox);
+    await deliverOutbox(deps, checkpoint.outbox, from);
     await deps.campaigns.clearOutbox(campaignId, from.tick);
     // zápis bodu mění jeho verzi – další kolo ho přečte celý
     deps.memory?.points.delete(campaignId);
@@ -401,7 +402,7 @@ async function stepOne(
   if (saved === 'stale') return 'stale';
   await endPassages(deps, step.state, nowMs);
   if (outbox) {
-    await deliverOutbox(deps, outbox);
+    await deliverOutbox(deps, outbox, step.state);
     await deps.campaigns.clearOutbox(campaignId, step.state.tick);
   }
   return 'saved';
@@ -435,8 +436,11 @@ export async function computeCampaign(
   toTick: number,
   intents: readonly CampaignIntent[],
 ): Promise<CampaignStep> {
-  return computeWithLoads(deps, state, (current, world) =>
-    stepCampaign(current, toTick, intents, world),
+  return computeWithLoads(
+    deps,
+    state,
+    (current, world) => stepCampaign(current, toTick, intents, world),
+    { archivedFinal: true },
   );
 }
 
@@ -458,12 +462,15 @@ export type LoadingDeps = Pick<
  * `stepJourney` se zavřeným `toTick` a záměry); když takt chybí mapa nebo ves, načtou se a výpočet
  * pokračuje od zastaveného taktu (výsledek je tentýž jako s daty předem). Ves pro den `d` je její
  * uložený stav, má-li už spočtený den `d − 1` (bariéra Ú6.7 – `VillageHolds` ji dál nepustí); jinak
- * takt čeká, ves se v dalším kole načte znovu.
+ * takt čeká, ves se v dalším kole načte znovu. S `archivedFinal` (tažení) je ves archivovaného
+ * sídla (Začít znovu) konečný stav pro kterýkoli den jako spící ves – výjezd ji dál bere jako
+ * zaniklou (`villageGone`, `villageAt` null).
  */
 export async function computeWithLoads<S extends { id: string; playerId: string }>(
   deps: LoadingDeps,
   state: S,
   step: (state: S, world: CampaignWorld) => LoadedStep<S>,
+  options: { archivedFinal?: boolean } = {},
 ): Promise<LoadedStep<S>> {
   /** Mapy políček; `read` = takt se na mapu ptal (paměť workeru – `CampaignNeeds`). */
   const maps = new Map<string, { map: CampaignMap; cell: GridCell; read: boolean }>();
@@ -473,8 +480,9 @@ export async function computeWithLoads<S extends { id: string; playerId: string 
   /** Neexistující vsi, na které se takt ptal. */
   const missing = new Set<string>();
   /**
-   * Archiv sídel (Začít znovu) jen pro vsi, na jejichž zánik se takt ptal (`villageGone`): zjištěné
-   * vsi archivovaných sídel, už prověřené vsi a vsi, které se prověřit mají.
+   * Archiv sídel (Začít znovu) jen pro vsi, na jejichž zánik se takt ptal (`villageGone`), nebo na
+   * jejichž den by čekal (`villageAt`): zjištěné vsi archivovaných sídel, už prověřené vsi a vsi,
+   * které se prověřit mají.
    */
   const archive = {
     found: new Set<string>(),
@@ -506,7 +514,14 @@ export async function computeWithLoads<S extends { id: string; playerId: string 
       // vymřelá nebo opuštěná ves se už nesimuluje (spí) – její uložený stav je stavem ke
       // kterémukoli pozdějšímu dni, skupina na ni nečeká (Ruling 40)
       if (isVillageExtinct(known.state) || isVillageAbandoned(known.state)) return known.state;
-      return known.state.lastDay >= day - 1 ? known.state : null;
+      if (known.state.lastDay >= day - 1) return known.state;
+      if (!options.archivedFinal) return null;
+      // tažení: sídlo v archivu (Začít znovu) se už nedopočítá – uložený stav je konečný jako
+      // u spící vsi (domovy hostů, posli, uprchlíci mimo mapu skupiny); archiv se zjistí až u vsi,
+      // na kterou by takt čekal, a jen jednou (`load` ho dočte)
+      if (archive.found.has(villageId)) return known.state;
+      if (!archive.checked.has(villageId)) archive.wanted.add(villageId);
+      return null;
     },
     // ves se zkusila načíst a není (zanikla), nebo je její sídlo v archivu (Začít znovu – záznam
     // zůstal, ale den stojí) – výjezd s takovým domovem skončí (tažení se neptá). Archiv se zjistí
@@ -560,7 +575,8 @@ export async function computeWithLoads<S extends { id: string; playerId: string 
         }
       }
     }
-    // archiv jen u vsí, na jejichž zánik se takt ptal (výjezd čeká na domovskou ves) – každá jednou
+    // archiv jen u vsí, na jejichž zánik se takt ptal (výjezd čeká na domovskou ves), nebo na které
+    // by takt čekal (`villageAt`) – každá jednou
     const wanted = [...archive.wanted].filter((id) => !archive.checked.has(id));
     archive.wanted.clear();
     if (wanted.length > 0) {
@@ -659,20 +675,31 @@ function alarmWorld(port: AlarmOwnerPort): AlarmWorld {
 /**
  * Doručí události do schránek vsí (stejný `ref` podruhé zahozen) a upozornění hráčům – schránka
  * bodu tažení i výjezdu. Ves, která mezitím zanikla, se přeskočí – jinak by nedoručitelná událost
- * zastavila tažení navždy.
+ * zastavila tažení navždy. S vůdcem tažení `leader` (a `houses`) se upozornění vůdci ze starého
+ * vojska nedoručí (`ledByEndedHouse` – vůdce dal Začít znovu, nová hra ho nevede); rod se hledá,
+ * jen když nějaké upozornění jde vůdci.
  */
 export async function deliverOutbox(
-  deps: Pick<StepCampaignsDeps, 'villages' | 'notices'> & {
+  deps: Pick<StepCampaignsDeps, 'villages' | 'notices' | 'houses'> & {
     /** Úložiště znalosti rodu – výjezdy i tažení (Úloha 11); bez něj se znalost nedoručí. */
     knowledge?: Pick<KnowledgeRepository, 'merge'>;
   },
   outbox: CampaignOutbox,
+  leader?: { playerId: string; houseId?: string },
 ): Promise<void> {
   for (const event of outbox.villageEvents) {
     const [exists] = await deps.villages.stampsOfVillages([event.villageId]);
     if (exists) await deps.villages.inbox.post(event);
   }
-  for (const notice of outbox.notices) await deps.notices.post(notice);
+  const toLeader = leader && outbox.notices.some((n) => n.playerId === leader.playerId);
+  const stale =
+    toLeader && deps.houses
+      ? ledByEndedHouse(leader.houseId, await deps.houses.activeOf(leader.playerId))
+      : false;
+  for (const notice of outbox.notices) {
+    if (stale && notice.playerId === leader?.playerId) continue;
+    await deps.notices.post(notice);
+  }
   for (const k of outbox.knowledge ?? []) await deps.knowledge?.merge(k.houseId, k.cell, k.seen);
 }
 

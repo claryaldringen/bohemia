@@ -530,7 +530,30 @@ Martin 2. 11. 2026 – „ok“ (podrobnosti návrh Clauda):
   nemění. Upozornění tažení (návrat, rozpad) zůstávají, nové hráč restartem nedostane.
 - **Vazal ve službě**, který dá Začít znovu, tažení pána neobrací (návrh Clauda) – jeho muži jdou
   s vojskem dál, dokud se nevrátí (odvolat oddíl z vojska hra neumí).
-- **Obránce** (ves se vzdá, je dobytá a připadne útočníkovi celá) řeší krok 2b – doplní ho sem.
+- **Obránce** – Martin 14. 11. 2026: „Pokud to udělá hráč obránce, tak se vesnice automaticky
+  vzdá a je považována za dobytou“; na otázku, co útočník dostane: „Pokud se ves vzdá, připadne mu
+  celá“. Návrh Clauda, jak to hra provede:
+  1. **Ves pod nájezdem se vzdá** – každá ves hráče, na kterou běží nájezd (vojsko se sbírá, táhne
+     nebo bojuje; na zpáteční cestě už nájezd skončil). Před archivem přejde celá mapa té vsi na
+     hráče, který nájezd vede, se vším, co na ní je – lidé, stavby, zásoby, dobytek, pole. Ostatní
+     vsi hráče jdou do archivu jako dřív. Nájezd vojska hráče, který sám dal Začít znovu (staré
+     vojsko), ves nedostane.
+  2. **Víc nájezdů na tutéž ves** – ves dostane vůdce nájezdu, který vyrazil první (nejstarší
+     tažení, při shodě menší id; víc vsí na jedné mapě – rozhoduje první ves mapy). Ostatní nájezdy
+     na ni se obrátí domů.
+  3. **Vítězný nájezd se také obrátí domů** – cíl je teď jeho vlastní ves, vojsko si odnese, co už
+     vzalo. Vůdce dostane upozornění „Lhota se vzdala a připadla ti.“
+  4. **Rod obránce ve vsi nikoho nevede** – muži, ženy a dcery rodu zůstanou jako obyčejní lidé
+     (neodcházejí – obránce jinou ves mít nebude), vojvoda ves nemá a řídí ji správce nového
+     držitele, stejně jako ves z odúmrti; vojvodu jí pošle rod nového držitele. Opakování po pádu
+     nic nezdvojí.
+  5. **Lidé vzdané vsi pryč kvůli nájezdu** se vrátí domů, každý jednou: uprchlíci v hradišti jiné
+     vsi obránce (ta jde do archivu) hned i se zásobami a stádem, z lesa a z cizího hradiště je
+     vrátí správce, až vojsko odtáhne, posel se vrátí s koncem tažení.
+  6. **Archivovaná ves je pro tažení konečný stav** – vojsko na ni nečeká (domov hostů, posla nebo
+     uprchlíků); výjezd vojvody ji dál bere jako zaniklou.
+  7. **Staré vojsko nepatří nové hře** – tažení, které vede rod, jenž restartem skončil, nová hra
+     v panelu Vojsko nevidí a jeho upozornění se jí nedoručí.
 
 ## Spory a rozsudek pána (Martin 2. 11. 2026; zavádí se s válkou)
 

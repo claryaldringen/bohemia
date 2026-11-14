@@ -15,6 +15,7 @@ import {
 import type { House } from '../houses';
 import type { VillageRecord } from '../villages';
 import { InMemoryCampaigns } from './in-memory-campaigns';
+import { InMemoryHouses } from './in-memory-houses';
 import { InMemoryKnowledge } from './in-memory-knowledge';
 
 // Živé vedení a pohled na tažení (plán 2026-11-03 – Úloha 6.14, Review Focus 4): podvržený záměr
@@ -290,6 +291,21 @@ describe('campaignsOf', () => {
     campaigns.rows.get('c1')!.status = 'done';
     expect(await campaignsOf({ campaigns }, { playerId: 'p2' })).toEqual([]);
     expect(await campaignsOf({ campaigns }, { playerId: 'p1' })).toEqual([]);
+  });
+
+  it('staré vojsko – tažení rodu, který skončil (Začít znovu), nová hra vůdce v panelu nevidí', async () => {
+    const campaigns = new InMemoryCampaigns();
+    const houses = new InMemoryHouses();
+    const old = await houses.create({ playerId: 'p1', kind: 'player', createdAt: new Date(0) });
+    await campaigns.create({ ...raiding(), houseId: old.id });
+    const ids = async (playerId: string): Promise<string[]> =>
+      (await campaignsOf({ campaigns, houses }, { playerId })).map((c) => c.id);
+    expect(await ids('p1')).toEqual(['c1']);
+    await houses.end(old.id, new Date(1), 0);
+    await houses.create({ playerId: 'p1', kind: 'player', createdAt: new Date(2) });
+    expect(await ids('p1')).toEqual([]);
+    // vazal ve službě své muže vidí dál – rod vůdce se ho netýká
+    expect(await ids('p2')).toEqual(['c1']);
   });
 });
 

@@ -335,7 +335,8 @@ hostName, refId })` (vstupní stav nemění): `sendAway` s `away = { kind: 'labo
     propuštění; `conclude` s `resume` při stejném zapsaném rozhodnutí dopíše události vsí
     (jedinečné `ref`), stejně propuštění v míru;
   - postoupení (`cedeVillages`): příchody mužů mají `ref`, vsi už u nového držitele dokončí
-    `finishCeded` (převzetí a zapnutí správce);
+    `finishCeded` (převzetí a zapnutí správce; exportovaný – po Začít znovu obránce ho volá web
+    pro vsi, které se vzdaly vůdci nájezdu – war.md, Začít znovu během nájezdu);
   - dialogy poplatku a obchodu: `openOnce` s klíčem `fee:` / `trade:<jednání>:<rod>`;
   - kronika: `chronicleHouses` s klíčem `neg:<jednání>:<kola>:…` / `war-peace:<jednání>`.
 - Testy: `acceptance-outbox.test.ts` (pád v prvním účinku, po něm, před smazáním, selhání pomoci,

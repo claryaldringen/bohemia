@@ -167,9 +167,10 @@ async function sendMenAway(
 /**
  * Opakované postoupení, když vsi už od postupujícího odešly: nový držitel převezme, co na něj
  * čeká (pád mezi kroky převodu), a ve vsích map s postoupenými vsemi má zapnutého správce (pád
- * před zapnutím). Mapy, které nový držitel nedrží, se nemění.
+ * před zapnutím). Mapy, které nový držitel nedrží, se nemění. Volá ho i web po Začít znovu obránce
+ * (vzdané vsi – `RestartGameResult.surrendered`), až uvolní zámek obránce; volající zámek nedrží.
  */
-async function finishCeded(
+export async function finishCeded(
   deps: CedeDeps,
   villageIds: readonly string[],
   toPlayerId: string,

@@ -97,6 +97,7 @@ export * from './war-chronicle';
 export * from './cell-landscape';
 export * from './world-seat';
 export * from './cede-village';
+export * from './surrender-village';
 export * from './campaigns';
 export * from './journeys';
 export * from './knowledge';

@@ -7,8 +7,8 @@ import {
   isVillageDormant,
   lineEndDay,
 } from '../domain/village';
-import { campaignFinished, INTENT_LEAD_TICKS, tickOfMs, type IntentBody } from '../domain/war';
-import type { CampaignRepository } from './campaigns';
+import type { IntentBody } from '../domain/war';
+import { queueIntentPastPoint, type CampaignRepository } from './campaigns';
 import {
   endExtinctNobles,
   endHouse,
@@ -25,6 +25,7 @@ import { enterGame, settlementLandscape, type EnterGameDeps } from './enter-game
 import { loadVillage } from './load-village';
 import { updateVillage } from './update-village';
 import type { LandscapeSource, Settlement, SettlementRepository } from './settlements';
+import { surrenderRaidedVillages, type SurrenderedMap } from './surrender-village';
 import type {
   Pause,
   ProgressReport,
@@ -249,14 +250,27 @@ export interface RestartGameInput extends DynastyInput {
 }
 
 export type RestartGameResult =
-  { ok: true; settlement: Settlement; landscape: Landscape } | { ok: false; reason: string };
+  | {
+      ok: true;
+      settlement: Settlement;
+      landscape: Landscape;
+      /**
+       * Vsi pod nájezdem, které se vzdaly vůdci nájezdu (`surrenderRaidedVillages`) – po uvolnění
+       * zámku hráče je převezme nový držitel (`finishCeded`), jinak worker.
+       */
+      surrendered: SurrenderedMap[];
+    }
+  | { ok: false; reason: string };
 
 export type RestartGameDeps = DynastyDeps &
   EnterGameDeps & {
     /** Výjezdy vojvody – běžící výjezd hráče restart ukončí (`JourneyRepository.end`). */
     journeys: Pick<JourneyRepository, 'activeOf' | 'end'>;
-    /** Tažení – nájezd, který hráč vede, restart ukončí obratem domů (`turnBackLedCampaigns`). */
-    campaigns: Pick<CampaignRepository, 'activeOf' | 'checkpoint' | 'addIntent'>;
+    /**
+     * Tažení – nájezd, který hráč vede, restart ukončí obratem domů (`turnBackLedCampaigns`); ves
+     * pod nájezdem se vzdá jeho vůdci (`surrenderRaidedVillages`).
+     */
+    campaigns: Pick<CampaignRepository, 'activeOf' | 'activeAgainst' | 'checkpoint' | 'addIntent'>;
     /** Hodiny světa – takt záměru obratu. */
     world: WorldClock;
   };
@@ -271,7 +285,9 @@ export type RestartGameDeps = DynastyDeps &
  * Běžící výjezd vojvody restart ukončí (`JourneyRepository.end` – bez událostí do vsí a bez
  * znalosti): jeho domovská ves je v archivu a dál se nedopočítá, takže by na ni výjezd čekal
  * navždy, držel bariéru a nová hra by nesměla vyslat (návrh Clauda). Nájezd, který hráč vede,
- * skončí obratem vojska domů (`turnBackLedCampaigns` – war.md, Začít znovu během nájezdu).
+ * skončí obratem vojska domů (`turnBackLedCampaigns` – war.md, Začít znovu během nájezdu); ves pod
+ * nájezdem se před archivem vzdá a připadne vůdci nájezdu celá (`surrenderRaidedVillages`).
+ * Volající drží zámek hráče.
  */
 export async function restartGame(
   deps: RestartGameDeps,
@@ -283,8 +299,17 @@ export async function restartGame(
   }
   // bez abandon sem dojde jen hráč, pro kterého hra skončila (vsi vymřely nebo rod vymřel), nebo
   // hráč bez vsi
+  let surrendered: SurrenderedMap[] = [];
   if (status.villages.length > 0) {
-    // jen sídla, která hráč ještě drží – vsi odúmrti už patří pánovi
+    // ves pod nájezdem se vzdá a připadne vůdci nájezdu celá – před archivem (war.md)
+    surrendered = await surrenderRaidedVillages(deps, {
+      playerId: input.playerId,
+      today: input.today,
+      nowMs: deps.now().getTime(),
+      settlements: status.settlements,
+      villages: status.villages,
+    });
+    // jen sídla, která hráč ještě drží – vsi odúmrti už patří pánovi, vzdané vůdci nájezdu
     for (const settlement of await deps.settlements.listActive(input.playerId)) {
       await deps.settlements.archive(settlement.id);
     }
@@ -308,14 +333,11 @@ export async function restartGame(
   // i bez vsí jako výjezd – opakovaný restart po pádu před záměry je dopíše
   await turnBackLedCampaigns(deps, { playerId: input.playerId, nowMs: deps.now().getTime() });
   const { settlement, landscape } = await enterGame(deps, input.playerId);
-  return { ok: true, settlement, landscape };
+  return { ok: true, settlement, landscape, surrendered };
 }
 
 /** Obrat domů ze Začít znovu – platí, ať tažení vede kdokoli (`IntentBody` `turn-back`). */
 const RESTART_TURN_BACK: IntentBody = { kind: 'turn-back', restart: true };
-
-/** Kolikrát zkusit takt záměru, když ho úložiště odmítne (bod už je za ním). */
-const TURN_BACK_ATTEMPTS = 3;
 
 /**
  * Začít znovu během nájezdu (war.md; Martin 14. 11. 2026: „pokud to udělá hráč – agresor, tak tím
@@ -323,24 +345,24 @@ const TURN_BACK_ATTEMPTS = 3;
  * domů (`turn-back` se značkou `restart`) na takt teď + `INTENT_LEAD_TICKS` – tažení dál počítá
  * worker jako po rozkazu „Domů“ a muži vazalů ve službě dojdou domů (návrh Clauda). Tažení, ve
  * kterém jde jako vazal ve službě, se nemění – vede ho jiný hráč. Odmítne-li úložiště takt (bod už
- * je za ním), zkusí první takt za bodem; skončené tažení nechá být. Opakovaný obrat (druhý restart)
- * tažení nezmění – na zpáteční cestě není co obracet.
+ * je za ním), zkusí první takt za bodem (`queueIntentPastPoint`); skončené tažení nechá být.
+ * Opakovaný obrat (druhý restart) tažení nezmění – na zpáteční cestě není co obracet.
  */
 export async function turnBackLedCampaigns(
-  deps: Pick<RestartGameDeps, 'campaigns' | 'world'>,
+  deps: {
+    campaigns: Pick<CampaignRepository, 'activeOf' | 'checkpoint' | 'addIntent'>;
+    world: WorldClock;
+  },
   input: { playerId: string; nowMs: number },
 ): Promise<void> {
   for (const campaignId of await deps.campaigns.activeOf(input.playerId)) {
     const point = await deps.campaigns.checkpoint(campaignId);
     if (point?.state.playerId !== input.playerId) continue;
-    let tick = tickOfMs(input.nowMs, deps.world) + INTENT_LEAD_TICKS;
-    for (let attempt = 0; attempt < TURN_BACK_ATTEMPTS; attempt++) {
-      const intent = { tick, byPlayer: input.playerId, body: RESTART_TURN_BACK };
-      if (await deps.campaigns.addIntent(campaignId, intent)) break;
-      // takt v minulosti – bod se mezitím posunul; skončené (nebo zmizelé) tažení nechá být
-      const now = await deps.campaigns.checkpoint(campaignId);
-      if (!now || campaignFinished(now.state)) break;
-      tick = Math.max(tick, now.state.tick) + 1;
-    }
+    await queueIntentPastPoint(deps, {
+      campaignId,
+      byPlayer: input.playerId,
+      body: RESTART_TURN_BACK,
+      nowMs: input.nowMs,
+    });
   }
 }
