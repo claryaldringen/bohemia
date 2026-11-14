@@ -339,6 +339,18 @@ zbytku rodiny.“
 - **Bokem – mimo práci vsi:** dojení a péče o zvířata (ženy), pasení (výrostci) a domácí výroba
   (z většiny ženy – i zpracování vlny a lnu na oděv a palivo, forest.md – Palivo). Práci vsi
   neberou; ve scéně jsou ženy dál u domů a dojí, výrostci u stád (jen zobrazení).
+- **Stavby staví muži** (Martin 14. 11. 2026: „Tam jde jen o to, aby stavby stavěli muži jako
+  fyzicky zdatnější a domácí zpracování kůže měly na starosti spíš ženy“): na stavby jde jen
+  podíl práce vsi, který dávají muži; ženy ho na stavbách nedoplní. Ve scéně staví jen muži.
+  Domácí zpracování kůží a kožešin ([kůže a med](hides-honey.md)) dělají ženy z volného času.
+  Stavby = všechno, co ves staví (`state.constructions` – i zakládání polí, cesty, sady, opevnění
+  a opravy staveb). **Ženy nesou napřed ostatní denní práci** (Martin 14. 11. 2026: „D24 ano“
+  k návrhu: běžnou denní práci – denní minimum a úlohy dne, pole, seno, voda, pletí, len – přebírají
+  napřed ženy, muži ji doplní jen tam, kde práce žen nestačí; na stavby a tesaře jde jen zbytek
+  práce mužů). Práci „za den“ (péče o koně, kování, výpravy, vozy pro kováře) nesou muži jako dřív
+  (návrh Clauda – díl žen při pletí ji taky nepočítá). Co ženy na stavbách nedoplní, jde jako dřív
+  do oprav obydlí, údržby opevnění, seče navíc a ryb, zbytek propadne. Hosté na robotě a tesař
+  staví dál. Volná práce v liště a rozpočet správce počítají jen práci mužů na stavby.
 - **Pletí – hlavně ženy a děti** (Martin 25. 10. 2026: „Ve středověku se plelo jednou, rychle
   a dělaly to hlavně ženy a děti“): pletí bere práci napřed z dětí 7–13 let, které nepasou, pak
   z žen – jejich podíl na práci vsi –, muži doplejí jen, co ženy a děti nestihnou, a **až po

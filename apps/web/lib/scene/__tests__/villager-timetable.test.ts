@@ -255,3 +255,62 @@ describe('popisek vybrané postavy odpovídá činnosti rozvrhu', () => {
     expect(panel(tt, a.end + 1).activity).toBe('doma');
   });
 });
+
+describe('dům s plotem (D16 – zmizí až ve dveřích domu)', () => {
+  // branka plotu na (0, 0), dveře domu 6 m uvnitř pozemku; žně na (30, 40)
+  const GATE = { x: 0, z: 0 };
+  const HOUSE_DOOR = { x: 0, z: -6 };
+
+  function fenced(): Timetable {
+    const tt = new Timetable(3, 1.25);
+    tt.setDoors(new Map([[202, GATE]]));
+    tt.setEntrances(new Map([[202, { gate: GATE, door: HOUSE_DOOR }]]));
+    tt.setRouter((_id, from, to) =>
+      route([
+        [from.x, from.z],
+        [to.x, to.z],
+      ]),
+    );
+    return tt;
+  }
+
+  it('doma je skrytá ve dveřích domu, ne u branky', () => {
+    const tt = fenced();
+    tt.setDay(1, T0, new Map([[202, reapTask()]]));
+    const a = nextOf(tt, 'bout', T0 + HISTORY_S);
+    const out = createVillagerPose();
+    const home = tt.pose(202, a.start - 1, [], out);
+    expect(home.hidden).toBe(true);
+    expect(home).toMatchObject({ x: HOUSE_DOOR.x, z: HOUSE_DOOR.z });
+  });
+
+  it('cesta ven vede dvorkem a brankou, cesta domů končí ve dveřích', () => {
+    const tt = fenced();
+    tt.setDay(1, T0, new Map([[202, reapTask()]]));
+    const a = nextOf(tt, 'bout', T0 + HISTORY_S);
+    const out = createVillagerPose();
+    const first = tt.pose(202, a.start, [], out);
+    expect(first.x).toBeCloseTo(HOUSE_DOOR.x, 1);
+    expect(first.z).toBeCloseTo(HOUSE_DOOR.z, 1);
+    // v 1 % cesty ven je ještě ve dvorku, před brankou (z < 0)
+    const early = tt.pose(202, a.start + (a.arrive - a.start) * 0.01, [], out);
+    expect(early.z).toBeLessThan(0);
+    // na konci cesty domů je těsně u dveří domu
+    const late = tt.pose(202, a.end - 0.01, [], out);
+    expect(Math.hypot(late.x - HOUSE_DOOR.x, late.z - HOUSE_DOOR.z)).toBeLessThan(0.5);
+  });
+
+  it('dům bez plotu se nemění – dveře jsou u vstupu', () => {
+    const tt = timetable();
+    tt.setRouter((_id, from, to) =>
+      route([
+        [from.x, from.z],
+        [to.x, to.z],
+      ]),
+    );
+    tt.setDay(1, T0, new Map([[202, reapTask()]]));
+    const a = nextOf(tt, 'bout', T0 + HISTORY_S);
+    const home = tt.pose(202, a.start - 1, [], createVillagerPose());
+    expect(home).toMatchObject({ x: DOOR.x, z: DOOR.z });
+  });
+});

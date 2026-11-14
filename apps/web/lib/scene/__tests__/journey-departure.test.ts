@@ -37,7 +37,7 @@ const yard: JourneyYard = {
     },
   ],
 };
-/** Místo vsi, odkud jádro skupinu vysílá. */
+/** Domov výjezdu – místo, odkud jádro skupinu vysílá a kam ji vrací (`JourneyView.homePos`). */
 const home = { x: 10, z: 30 };
 
 const journey = (over: Partial<SceneJourney> = {}): SceneJourney => ({
@@ -48,6 +48,7 @@ const journey = (over: Partial<SceneJourney> = {}): SceneJourney => ({
   tick: 10,
   pos: { ...home },
   goal: null,
+  home: { ...home },
   men: [
     { key: '7', personId: 7, lord: true, mounted: true, wounded: false },
     { key: '8', personId: 8, lord: false, mounted: false, wounded: false },
@@ -124,7 +125,7 @@ describe('departureScripts – pořadí kroků', () => {
 describe('JourneyLeave – odjezd', () => {
   it('čerstvě vyslaný výjezd odjíždí: kůň opustí ohradu, jezdec nasedne a za branou dožene skupinu', () => {
     const leave = new JourneyLeave();
-    leave.setYard(yard, home);
+    leave.setYard(yard);
     expect(leave.observe([journey()], 0, false)).toBe(true);
     expect(leave.ownPhase()).toBe('departing');
     // kůň jde z ohrady ke kůlu, ohrada ho nekreslí
@@ -164,36 +165,61 @@ describe('JourneyLeave – odjezd', () => {
 
   it('načtení uprostřed výjezdu odjezd nepřehraje – skupina už je pryč, nebo stojí', () => {
     const away = new JourneyLeave();
-    away.setYard(yard, home);
+    away.setYard(yard);
     expect(away.observe([journey({ pos: { x: 200, z: 30 } })], 0, false)).toBe(false);
     expect(away.ownPhase()).toBe('riding');
     // stejný výjezd se pak vrátí k místu vsi ven – odjezd už nezačne
     expect(away.observe([journey({ tick: 11 })], 500, false)).toBe(false);
     const waiting = new JourneyLeave();
-    waiting.setYard(yard, home);
+    waiting.setYard(yard);
     expect(waiting.observe([journey({ arrived: true })], 0, false)).toBe(false);
     // cizí výjezd z dvorce nevyjíždí
     const visitor = new JourneyLeave();
-    visitor.setYard(yard, home);
+    visitor.setYard(yard);
     expect(visitor.observe([journey({ own: false, phase: null })], 0, false)).toBe(false);
   });
 
   it('omezený pohyb odjezd přeskočí – muži stojí, kde je ukáže server', () => {
     const leave = new JourneyLeave();
-    leave.setYard(yard, home);
+    leave.setYard(yard);
     expect(leave.observe([journey()], 0, true)).toBe(false);
     expect(leave.at(glideAt(1000), 1000, true).poses).toEqual(glideAt(1000));
     // rozběhlý odjezd omezený pohyb ukončí
     const running = new JourneyLeave();
-    running.setYard(yard, home);
+    running.setYard(yard);
     running.observe([journey()], 0, false);
     expect(running.at(glideAt(1000), 1000, true)).toMatchObject({ led: [], poses: glideAt(1000) });
     expect(running.active()).toBe(false);
   });
 
+  // Martinův Vlkov stojí ≈ 430 m od místa vsi krajiny – odjezd i příjezd se měří od domova
+  // výjezdu ze serveru (dvorec), scéna místo vsi sama nepočítá (Martin 14. 11. 2026)
+  it('odjezd i příjezd měří od domova výjezdu ze serveru, ne od místa vsi krajiny', () => {
+    const manor = { x: 430, z: -250 };
+    const fresh = new JourneyLeave();
+    fresh.setYard(yard);
+    expect(fresh.observe([journey({ home: manor, pos: { ...manor } })], 0, false)).toBe(true);
+    expect(fresh.ownPhase()).toBe('departing');
+    // skupina u místa vsi krajiny, ale daleko od svého domova – vyjela dřív, odjezd se nepřehraje
+    const away = new JourneyLeave();
+    away.setYard(yard);
+    expect(away.observe([journey({ home: manor })], 0, false)).toBe(false);
+    expect(away.ownPhase()).toBe('riding');
+    // návrat: příjezd začne až u domova výjezdu
+    const pos = { x: manor.x + ARRIVE_M + 5, z: manor.z };
+    away.observe([journey({ home: manor, phase: 'returning', pos })], 100, false);
+    away.at(glideAt(0, pos.x, pos.z), 200, false);
+    expect(away.ownPhase()).toBe('riding');
+    const near = { x: manor.x + 10, z: manor.z };
+    expect(
+      away.observe([journey({ home: manor, phase: 'returning', pos: near })], 1000, false),
+    ).toBe(true);
+    expect(away.ownPhase()).toBe('arriving');
+  });
+
   it('bez míst dvorce se nic nepřehrává', () => {
     const leave = new JourneyLeave();
-    leave.setYard(null, home);
+    leave.setYard(null);
     expect(leave.observe([journey()], 0, false)).toBe(false);
   });
 });
@@ -202,7 +228,7 @@ describe('JourneyLeave – příjezd (návrat opačně)', () => {
   /** Výjezd, který se vrací: daleko, kousek za mezí příjezdu a u vsi. */
   function returning(): JourneyLeave {
     const leave = new JourneyLeave();
-    leave.setYard(yard, home);
+    leave.setYard(yard);
     leave.observe([journey({ pos: { x: 200, z: 30 } })], 0, false);
     const x0 = home.x + ARRIVE_M + 5;
     leave.observe([journey({ phase: 'returning', pos: { x: x0, z: home.z } })], 100, false);
@@ -260,7 +286,7 @@ describe('JourneyLeave – příjezd (návrat opačně)', () => {
   it('výjezd, který zmizel u vsi, přijede i bez fáze návratu; odjetý přes okraj mapy ne', () => {
     // krátký návrat: scéna viděla skupinu čekat 45 m od vsi, pak výjezd skončil (bod po 10 s)
     const short = new JourneyLeave();
-    short.setYard(yard, home);
+    short.setYard(yard);
     const waiting = { x: home.x + 45, z: home.z };
     short.observe([journey({ pos: waiting, arrived: true })], 0, false);
     short.at(glideAt(0, waiting.x), 0, false);
@@ -268,7 +294,7 @@ describe('JourneyLeave – příjezd (návrat opačně)', () => {
     expect(short.ownPhase()).toBe('arriving');
     // skupina odjela přes okraj mapy – ze scény zmizí daleko od vsi
     const gone = new JourneyLeave();
-    gone.setYard(yard, home);
+    gone.setYard(yard);
     const edge = { x: home.x + HOME_REACH_M + 300, z: home.z };
     gone.observe([journey({ pos: edge })], 0, false);
     gone.at(glideAt(0, edge.x), 0, false);

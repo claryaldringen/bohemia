@@ -46,7 +46,6 @@ export interface E2EHooks {
       speed: number;
     }[];
     banner: { x: number; z: number } | null;
-    hourglass: number | null;
     /** Vlastní výjezd ve scéně: odjíždí z dvorce, jede se skupinou, přijíždí; žádný – null. */
     phase: 'departing' | 'riding' | 'arriving' | null;
     /** Koně bez jezdce mezi ohradou a kůlem (odjezd a příjezd). */
@@ -55,6 +54,8 @@ export interface E2EHooks {
     gate: { x: number; z: number } | null;
     /** Id koní, které ohrada teď nekreslí (na jízdě, na výjezdu, cestou mezi ohradou a kůlem). */
     awayHorses: number[];
+    /** Kroužek výběru pod vybraným mužem výjezdu (jede s ním); nikdo vybraný na výjezdu – null. */
+    selected: { x: number; z: number } | null;
   };
   /**
    * Mlha cizí mapy výjezdu i tažení v bodě (x, z) (journey.md – Scéna cizí mapy): neobjevené,

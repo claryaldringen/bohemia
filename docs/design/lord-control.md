@@ -216,7 +216,7 @@ Návrh Clauda.
   mapu jeho vsi, jak ji rod zná; ⌂ vrátí na ves. Mapu, kterou rod nezná, oko neotevře.
 - **Na cestě:** portrét vojvody s podkovou v horní liště – klik přepne scénu na mapu, kde vojvoda
   je; scéna jde za ním z mapy na mapu jako za vojskem. Ikona **Domů** jako u tažení.
-- **Čekání:** nad vojvodou přesýpací hodiny s počtem dní do návratu.
+- **Čekání:** nad vojvodou ve scéně nic; praporek cíle zůstává, dny do návratu jsou v panelu osoby. Martin 14. 11. 2026: „To číslo s těmi přesýpacími hodinami zruš, je to k ničemu.“
 - **Důvod u kurzoru:** „Tam vojvoda nedojde.“, „Vojvoda je raněný.“, „Vojvoda je na tažení.“,
   „Ves je napadena.“, „Tam je válka.“, „Tu mapu rod nezná.“
 - **Upozornění:** „Bořivoj se vrátil.“, „Bořivoj napaden u Kněžic!“, „Zajat: Bořivoj.“

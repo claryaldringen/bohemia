@@ -45,6 +45,8 @@ const DEEP = -1;
 export interface CartGround {
   terrain: PathTerrain;
   cost: Float32Array;
+  /** Brody celé mapy (`WalkGround.fords` – objížďka jen brodem); bez údaje brody okna. */
+  fords?: readonly PathPoint[];
 }
 
 const baseCache = new WeakMap<PathTerrain, Float32Array>();
@@ -138,7 +140,9 @@ function cartGroundOf(state: VillageState, day: number, landscape: Landscape): C
     lastGround = { terrain: t, values, turned, ground: lastGround.ground };
     return lastGround.ground;
   }
-  const ground = { terrain: t, cost };
+  // brody celé mapy – vůz přes vodu jen brodem (paths.md – Odhad vzdáleností, Jen brodem)
+  const fords = walkGroundOf(landscape).fords;
+  const ground: CartGround = fords ? { terrain: t, cost, fords } : { terrain: t, cost };
   if (lastGround && lastGround.terrain === t) carryCartSegments(lastGround.ground, ground);
   lastGround = { terrain: t, values, turned, ground };
   return ground;
@@ -495,7 +499,9 @@ export function cartEstimates(
   origins: readonly PathPoint[],
   targets: readonly CartTarget[],
 ): CartEstimate[] {
-  const ground: WalkGround = { terrain: g.terrain };
+  const ground: WalkGround = g.fords
+    ? { terrain: g.terrain, fords: g.fords }
+    : { terrain: g.terrain };
   const graph = cartRoadGraph(roads, g.terrain);
   const n = graph.x.length;
   const dist = new Float64Array(n).fill(Infinity);

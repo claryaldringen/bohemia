@@ -692,7 +692,10 @@ describe('advanceVillage – založení vsi', () => {
         // průběh stavby je vidět – roste, ale ne skokem; jen porážka 1. 11. (osadníci nemají seno
         // – na maso jdou ovce nad chovný pár) zabere den nebo dva všechnu práci
         expect(site.done).toBeGreaterThanOrEqual(last);
-        if (site.done <= last) stalled++;
+        // dny, kdy jsou dospělí na výpravě k sousedům, stavět nemá kdo – stavby staví jen muži
+        // (population.md – Práce, Stavby staví muži), zemnice trvá déle a výprava do ní padne
+        const away = s.labor?.shares.some((share) => share.activity === 'trade') ?? false;
+        if (site.done <= last && !away) stalled++;
         expect(site.done).toBeLessThan(site.cost);
         last = site.done;
         expect(s.dwellings).toEqual([]);
@@ -729,11 +732,9 @@ describe('advanceVillage – založení vsi', () => {
     // výrostci (13 a 12 let) pasou, zvířata a domácí výroba jdou bokem (population.md – Práce)
     const before = advanceVillage(s0, day + 29, null);
     const factor = villageLaborFactor(before);
-    // venku podle délky dne (population.md – Skladba dne podle ročního období)
-    expect(s.commonLaborHistory.at(-1)).toBeCloseTo(
-      (2 * factor - 0.5) * daylightFactor(day + 30),
-      9,
-    );
+    // venku podle délky dne (population.md – Skladba dne podle ročního období); volná práce na
+    // stavby je práce muže – denní minimum nesou napřed ženy (population.md – Práce, Stavby staví muži)
+    expect(s.commonLaborHistory.at(-1)).toBeCloseTo(factor * daylightFactor(day + 30), 9);
     // práce bokem je v rozdělení dne jen pro postavy – dojení krávy v říjnu, domácí výroba
     const aside = s.labor!.aside!;
     expect(aside.some((share) => share.activity === 'domestic')).toBe(true);
@@ -1268,13 +1269,22 @@ describe('advanceVillage – obydlí', () => {
     s0.dwellings[0]!.builtDay = day - 17 * 365;
     const quiet = advanceVillage(s0, day + 1, null);
     expect(repairLabor(quiet)).toBeGreaterThan(0);
-    // stavba nového domu vezme celou společnou práci dne – opravy dostanou jen zbytek, tady nic
+    // stavba nového domu vezme celou práci mužů (population.md – Práce, Stavby staví muži) – opravy
+    // dostanou jen zbytek: ve vsi samých mužů nic, se ženami jejich volnou práci
     const building = startReplacement(s0, day, 1, 'polozemnice', { x: 30, z: 30, rotation: 0 }, 0);
-    const busy = advanceVillage(building, day + 1, null);
+    const asMen = (s: VillageState): VillageState => ({
+      ...s,
+      people: s.people.map((p) => ({ ...p, sex: 'male' as const })),
+    });
+    const busy = advanceVillage(asMen(building), day + 1, null);
     expect(repairLabor(busy)).toBe(0);
     expect(busy.labor!.shares.some((share) => share.construction !== undefined)).toBe(true);
     // volná práce (před stavbami) je stejná – stavba ji jen využije
-    expect(busy.commonLaborHistory.at(-1)).toBeCloseTo(quiet.commonLaborHistory.at(-1)!, 9);
+    const quietMen = advanceVillage(asMen(s0), day + 1, null);
+    expect(busy.commonLaborHistory.at(-1)).toBeCloseTo(quietMen.commonLaborHistory.at(-1)!, 9);
+    const mixed = advanceVillage(building, day + 1, null);
+    expect(repairLabor(mixed)).toBeGreaterThan(0);
+    expect(repairLabor(mixed)).toBeLessThanOrEqual(repairLabor(quiet) + 1e-9);
   });
 
   it('obydlený dům nechátrá ani bez práce na opravy, prázdný vedle něj chátrá (Martin)', () => {
@@ -1396,7 +1406,13 @@ describe('přestavba na lepší obydlí – roční průměr práce a dřevo (Ma
 
   it('roční průměr se vede den po dni – starší ves začne průměrem 30 dní, na kouscích nezáleží', () => {
     const start = at(600, 3, 15);
-    const s0 = found(start);
+    // ves samých mužů – posledních 30 dní je celá společná práce (jinak jen práce mužů na stavby –
+    // population.md – Práce, Stavby staví muži), roční průměr ji vede vždy celou
+    const founded = found(start);
+    const s0: VillageState = {
+      ...founded,
+      people: founded.people.map((p) => ({ ...p, sex: 'male' as const })),
+    };
     s0.commonLaborHistory = [3, 6, 9];
     const one = advanceVillage(s0, s0.lastDay + 1, null);
     const common = one.commonLaborHistory.at(-1)!;

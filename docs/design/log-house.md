@@ -54,6 +54,37 @@ Martin 12. 11. 2026:
 Čísla nadzemního domu a dvorce od 800 jsou návrh Clauda podle rešerše (srub bez kmenů v zemi vydrží
 déle, je sušší a prostornější – dětská úmrtnost o kus nižší); Martin: „Takhle je to asi ok“.
 
+### Dům s vypletenými stěnami od roku 750 (Martin 14. 11. 2026)
+
+Martin 14. 11. 2026: „U nadzemních obytných staveb by měly být 2 typy: 1 s vypletenými stěnami 2
+roubená“ – „Nadzemní dům s vypletenými stěnami může být od roku 750. Jinak asi sám pochopíš, jak se
+domy kvalitativně liší, takže napřed si domy vybírá elita a pak se postupně obsazují podle
+společenského postavení“; čísla níž (návrh Clauda): „Ano“.
+
+- **Dům s vypletenými stěnami** (v rozhraní „Vypletený dům“): kůly zaražené do země, stěny
+  z proutěného výpletu omazaného hlínou (mazanice), sedlová došková střecha, ohniště uvnitř. Hlína
+  na mazanici se počítá jen jako práce, ne jako surovina. **Od roku 750** – do 1. 1. 750 zašedlý
+  s důvodem „Od roku 750“.
+- **Roubený dům** je dnešní nadzemní dům (srub) od roku 800.
+- Staví hráč a správce (jako srub); vesničané sami dál jen zlepšují zemnici na polozemnici. Stojí
+  na pozemku s plotem.
+
+|                    | Polozemnice | Vypletený dům | Roubený dům (srub) |
+| ------------------ | ----------- | ------------- | ------------------ |
+| Od roku            | –           | 750           | 800                |
+| Půdorys            | 5 × 5 m     | 5 × 6 m       | 5 × 6 m            |
+| Lidí               | 8           | 8             | 8                  |
+| Stromů             | 18          | 14            | 28                 |
+| Práce (čd)         | 220         | 260           | 300                |
+| Životnost          | 22 let      | 25 let        | 35 let             |
+| Dětská úmrtnost    | × 0,8       | × 0,75        | × 0,7              |
+| Prázdný zchátrá za | 8 let       | 10 let        | 12 let             |
+
+- **Kdo kde bydlí:** domy mají pořadí kvality (srub, vypletený dům, polozemnice, zemnice) a lidé
+  pořadí postavení (cizí řemeslníci, kněz, synové hlavní manželky, synové vedlejších manželek,
+  ostatní – níž Kdo v domě bydlí). Elita bydlí v nejlepším volném domě; když se uvolní lepší dům,
+  přestěhuje se do něj nejvýš postavená domácnost z horšího domu.
+
 ### Kdo v domě bydlí
 
 - **Prázdný nadzemní dům obsadí jen lidé z pořadí** (Martin), od prvního:

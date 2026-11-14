@@ -212,6 +212,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`log-pile-layout.ts`): hromada u cesty (`road`) nejdřív přesně na místě z jádra, čely klád
   k cestě (`atan2` od bodu osy ke kotvě), jinak do STACK_REACH_M od kotvy po kružnicích ven, mimo díly polí, hřbitovy, vodu, cesty a obydlí, bez stojících
   stromů (pařezy, keře a kameny nevadí), pro 3 hranice, jinak méně (`LogPileSite.stacks`);
+  mezi volnými místy se bere nejrovnější (`siteRelief` – rozdíl výšek pod půdorysem, první místo s
+  převýšením do `FLAT_RELIEF_M` hned; scéna, ne herní data – výšku dává `groundHeight`); hromada se dá
+  vybrat klikem (`LogPile.pickable()` → `pickVillageTarget` `logPiles`, cíl `log-pile`, panel
+  `selection/log-pile.tsx` – ikona dřeva a počet klád, rámeček z půdorysu);
   předchozí volné místo zůstane (hromada neskáče) a místo se nehledá znovu při každém pokáceném
   stromu – hromadě bez místa jen po každých `RETRY_REMOVED` pokácených; hromady se navzájem
   nepřekrývají (`pileCorners` ostatních jde do `isFree`). Dým `slashPlumes` má přednost hořících
@@ -352,8 +356,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     podle hloubky ve vrcholech, `seasonC.x`) – mělčiny u břehů a brody zmizí, potok je užší
     a tůně menší, bez nové geometrie.
   - **Déšť** (`rain.ts` čisté funkce, testy; `rain-renderer.ts`; délka čárky roste s časem mezi posuny – `streakLength`, rozmazání pohybem proti aliasingu při řídkém taktu 10–20 fps, platí i pro kroupy): dny deště ze seedu dne světa
-    (`gameDayAt`, hash pořadí dne – jen vzhled, jádro o nich neví), deštivý den s pravděpodobností
-    0,55 × mokro, síla 0,6–1, na přelomu dnů plynulý přechod (po desetinách). Za deště
+    (`gameDayAt`, hash pořadí dne – jen vzhled, jádro o nich neví), déšť v obdobích 2–4 dnů za sebou
+    (`inRainPeriod`: okna po 6 dnech, v každém nejvýš jedno období s pravděpodobností úměrnou 0,55 × mokro, začíná nejdřív druhý den okna – podíl dnů ≈ 0,55 × mokro, nejvýš ½; Martin 14. 11. 2026 „Seskupit“), síla 0,6–1, na přelomu dnů plynulý přechod (po desetinách). Za deště
     **zataženo** (`overcast` – slunce × 0,5 a šedé, hustší opar, stíny × 0,2) a kapky: jeden
     mesh čárky s instancemi (1800 při plném dešti, **jeden draw call**, bez deště vypnutý)
     v kvádru kolem cíle kamery (strana 0,9 × vzdálenost kamery, 30–420 m), kapky ukotvené ve

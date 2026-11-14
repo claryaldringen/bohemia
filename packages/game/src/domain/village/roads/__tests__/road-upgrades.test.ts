@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
-import { obstaclesOf } from '../../../landscape';
+import { obstaclesOf, type Landscape, type StreamPoint } from '../../../landscape';
 import { foundField, foundVillage } from '../../core/actions';
 import { partWalkDistance } from '../../fields/fields';
 import { squareCareWork, squareWalkDistance } from '../../buildings/orchard';
@@ -431,9 +431,28 @@ describe('vzdálenost práce chůzí – pole, sad, palivo', () => {
     return field;
   }
 
-  it('za potokem dál než vzdušnou čarou (brod + 30 m, mokřina), před potokem ne', () => {
+  it('za potokem bez brodu na mapě se nedojde – díl `unreachable`, čtverec sadu bez chůze', () => {
     const s = farmed();
     refreshWalkDistances(s, DAY, LANDSCAPE, null);
+    const beyond = s.parts.find((p) => p.cell?.y === 16)!;
+    expect(beyond.unreachable).toBe(true);
+    expect(beyond.walkDistanceM).toBeUndefined();
+    expect(s.parts.find((p) => p.cell?.y === 12)!.unreachable).toBeUndefined();
+    expect(s.orchards![0]!.squares[0]!.walkDistanceM).toBeUndefined();
+    // stav jde do JSON bez Infinity (null by se načetl jako vzdálenost)
+    expect(JSON.stringify(s)).not.toContain('null,"walk');
+  });
+
+  it('za potokem dál než vzdušnou čarou (brod + 30 m, mokřina), před potokem ne', () => {
+    const s = farmed();
+    // potok s osou v řadě políček y = 15 a mělčinou (brodem) před vsí – jen brodem
+    const stream: StreamPoint[] = [];
+    for (let x = 0; x < 20; x += 0.5) {
+      const shallow = x >= 8 && x <= 11;
+      stream.push({ x, y: 15, halfWidthLeft: 0.45, halfWidthRight: 0.45, level: 0, shallow });
+    }
+    const withFord: Landscape = { ...LANDSCAPE, stream };
+    refreshWalkDistances(s, DAY, withFord, null);
     const beyond = s.parts.find((p) => p.cell?.y === 16)!;
     const before = s.parts.find((p) => p.cell?.y === 12)!;
     expect(partWalkDistance(beyond)).toBeGreaterThan(beyond.distanceM + 25);

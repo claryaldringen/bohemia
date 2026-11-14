@@ -1,5 +1,7 @@
+import type { Landscape } from '../domain/landscape';
 import { currentLord } from '../domain/village/people/dynasty';
 import { villageHorses } from '../domain/village/livestock/horses';
+import { villageManor, villageManorId } from '../domain/village/people/manor';
 import { ageYears, isAway, isInjured } from '../domain/village/people/people';
 import type { GridCell } from '../domain/village/people/world-grid';
 import type { Person, VillageState } from '../domain/village/types';
@@ -12,6 +14,7 @@ import {
   WAR,
   type JourneyMember,
   type JourneyOrder,
+  type Pos,
 } from '../domain/war';
 import type { WorldClock } from '../domain/calendar';
 import type { CampaignCells, CampaignRepository } from './campaigns';
@@ -175,8 +178,8 @@ export async function launchJourney(
   if (house.placedAt === null || !cell) return { ok: false, reason: 'unreachable' };
 
   const map = await deps.cells.mapOf(cell);
-  const place = villagePlace(cell, map.landscape);
-  const aim = orderAim(input.order, cell, place.pos, () =>
+  const homePos = journeyHome(state, cell, map.landscape);
+  const aim = orderAim(input.order, cell, homePos, () =>
     marchGrid(map.landscape, map.obstacles, state, { day }),
   );
   if (aim === 'unreachable' || aim === 'invalid') return { ok: false, reason: 'unreachable' };
@@ -205,7 +208,7 @@ export async function launchJourney(
           playerId: input.playerId,
           houseId: house.id,
           leaderName: lordName !== '' ? lordName : UNNAMED_HOUSE,
-          home: { villageId: own.village.id, name: own.village.name, cell, pos: place.pos },
+          home: { villageId: own.village.id, name: own.village.name, cell, pos: homePos },
           members,
           startMs: input.now.getTime(),
           order: input.order,
@@ -219,6 +222,22 @@ export async function launchJourney(
     throw error;
   }
   return { ok: true, journeyId };
+}
+
+/**
+ * Odkud výjezd vyjíždí a kam se vrací (lord-control.md – Rozkazy: „Domů – nejkratší cestou do
+ * vlastní vsi“; Ve scéně: odjezd branou dvorce): dvorec vsi. Hráč staví ves, kde chce – místo vsi
+ * krajiny (`villagePlace`) od ní může ležet daleko (Martinův Vlkov ≈ 430 m). Dokud zakladatelé
+ * první zemnici staví, staveniště dvorce; ves bez obydlí i staveniště – místo vsi krajiny.
+ */
+function journeyHome(state: VillageState, cell: GridCell, landscape: Landscape): Pos {
+  const manorId = villageManorId(state);
+  const site =
+    manorId === null
+      ? undefined
+      : state.constructions.find((c) => c.kind === 'dwelling' && c.dwellingId === manorId);
+  const at = villageManor(state)?.position ?? site?.position;
+  return at ? { x: at.x, z: at.z } : villagePlace(cell, landscape).pos;
 }
 
 /** Družina: jen muži z kandidátů, každý nejvýš jednou (vojvoda v ní není). */

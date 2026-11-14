@@ -1,11 +1,21 @@
-// Déšť ve scéně (disasters.md – Ve scéně, Deštivé léto): dny deště ze seedu dne – jen vzhled,
+// Déšť ve scéně (disasters.md – Ve scéně, Deštivé léto): dny deště v obdobích ze seedu okna dnů – jen vzhled,
 // pravidla o nich nevědí. Prohlížeč je počítá ze dne světa (`gameDayAt`) deterministicky – všichni
 // hráči vidí déšť ve stejné dny. Bez Babylonu (testy); částice kreslí rain-renderer.ts.
 import type { DayLight } from './day-light';
 import type { Rgb, SeasonLight } from './season-look';
 
-/** Podíl deštivých dnů při plném mokru (deštivé léto se silou 1); při menším mokru úměrně méně. */
+/**
+ * Cíl podílu deštivých dnů při plném mokru (deštivé léto se silou 1); při menším mokru úměrně méně.
+ * Skutečný podíl je nejvýš ½ (v každém okně `RAIN_WINDOW` je jedno období deště, víc se nevejde).
+ */
 const RAIN_DAY_SHARE = 0.55;
+/** Okno dnů, ve kterém je nejvýš jedno období deště (Martin 14. 11. 2026: „Seskupit“). */
+const RAIN_WINDOW = 6;
+/** Období deště trvá 2 až 4 dny za sebou. */
+const RAIN_PERIOD_MIN = 2;
+const RAIN_PERIOD_MAX = 4;
+/** Průměrná délka období (2, 3 a 4 stejně často) – z ní vychází pravděpodobnost období v okně. */
+const RAIN_PERIOD_MEAN = (RAIN_PERIOD_MIN + RAIN_PERIOD_MAX) / 2;
 /** Síla deště v deštivý den: RAIN_MIN až 1 (podle seedu dne). */
 const RAIN_MIN = 0.6;
 /** Přechod mezi dnem s deštěm a bez (podíl dne ≈ 10 s) – déšť začne a skončí plynule. */
@@ -21,9 +31,30 @@ function dayHash(day: number, salt: number): number {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-/** Síla deště 0–1 celý herní den `day` (pořadí dne světa) při mokru `wet` 0–1; bez deště 0. */
+/**
+ * Je den `day` uvnitř období deště svého okna? Svět se dělí na okna po `RAIN_WINDOW` dnech; okno
+ * má s pravděpodobností (cílový podíl × délka okna ÷ střední délka období, nejvýš 1) jedno
+ * období 2–4 dnů. Začíná nejdřív druhý den okna, takže mezi okny je vždy aspoň den sucha a dvě
+ * období se nespojí. Čistá funkce okna a mokra (seed z čísla okna) – bez historie.
+ */
+function inRainPeriod(day: number, wet: number): boolean {
+  const window = Math.floor(day / RAIN_WINDOW);
+  const chance = Math.min(1, (RAIN_DAY_SHARE * Math.min(1, wet) * RAIN_WINDOW) / RAIN_PERIOD_MEAN);
+  if (dayHash(window, 0x2f6b) >= chance) return false;
+  const length =
+    RAIN_PERIOD_MIN + Math.floor(dayHash(window, 0x51a7) * (RAIN_PERIOD_MAX - RAIN_PERIOD_MIN + 1));
+  const latestStart = RAIN_WINDOW - length;
+  const start = 1 + Math.floor(dayHash(window, 0x9d13) * latestStart);
+  const offset = day - window * RAIN_WINDOW;
+  return offset >= start && offset < start + length;
+}
+
+/**
+ * Síla deště 0–1 celý herní den `day` (pořadí dne světa) při mokru `wet` 0–1; bez deště 0. Déšť
+ * chodí v obdobích 2–4 dnů za sebou (`inRainPeriod`), síla dne se mění podle seedu dne.
+ */
 export function rainOnDay(day: number, wet: number): number {
-  if (wet <= 0 || dayHash(day, 0x2f6b) >= RAIN_DAY_SHARE * Math.min(1, wet)) return 0;
+  if (wet <= 0 || !inRainPeriod(Math.floor(day), wet)) return 0;
   return RAIN_MIN + (1 - RAIN_MIN) * dayHash(day, 0x71c3);
 }
 

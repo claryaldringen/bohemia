@@ -2,7 +2,12 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { BUILD_ITEMS, type BuildItem } from '@/lib/build-items';
 import { BuildGrid } from '../BuildGrid';
-import { isBuildAffordable, type BuildOption } from '@/lib/village-view';
+import {
+  FOUNDING_DWELLING_OPTION,
+  dwellingHubOption,
+  isBuildAffordable,
+  type BuildOption,
+} from '@/lib/village-view';
 
 // Mřížka staveb: ohrada je jen rozcestník druhů (oxen.md – Ohrady podle druhu).
 
@@ -20,7 +25,11 @@ describe('BuildGrid – rozcestník ohrady', () => {
     );
     const shown = labels(html);
     expect(shown).toContain('Ohrada');
-    expect(shown).toContain('Zemnice');
+    expect(shown).toContain('Obydlí');
+    // druhy obydlí mají zkratku, ale ne vlastní tlačítko
+    expect(shown).not.toContain('Zemnice');
+    expect(shown).not.toContain('Polozemnice');
+    expect(shown).not.toContain('Nadzemní dům');
     expect(shown).not.toContain('Ohrada ovcí');
     expect(html).not.toContain('data-group');
   });
@@ -64,7 +73,7 @@ describe('BuildGrid – rozcestník ohrady', () => {
         onBuild={() => undefined}
       />,
     );
-    expect(labels(html)).toContain('Zemnice');
+    expect(labels(html)).toContain('Obydlí');
     expect(labels(html)).not.toContain('Ohrada');
   });
 });
@@ -145,5 +154,69 @@ describe('BuildGrid – rozcestník opevnění (Hradby a obrana – Druhy)', () 
     expect(button(early, 'Roštová hradba')).toContain('disabled');
     expect(button(early, 'Komorová hradba')).toContain('disabled');
     expect(button(early, 'Palisáda')).not.toContain('disabled');
+  });
+});
+
+describe('BuildGrid – rozcestník obydlí', () => {
+  const option = (over: Partial<BuildOption> = {}): BuildOption => ({
+    laborManDays: 10,
+    perHa: false,
+    perSquare: false,
+    upfront: [],
+    blocked: null,
+    affordable: true,
+    ...over,
+  });
+  const build = {
+    zemnice: option(),
+    polozemnice: option(),
+    srub: option({ affordable: false, blocked: 'Od roku 800' }),
+  };
+  const render = (group: 'dwelling' | null): string =>
+    renderToStaticMarkup(
+      <BuildGrid
+        options={{ ...OPTIONS, ...build, dwelling: dwellingHubOption(build) }}
+        active={null}
+        disabled={false}
+        group={group}
+        onBuild={() => undefined}
+      />,
+    );
+  const button = (html: string, label: string): string =>
+    html.match(new RegExp(`<button[^>]*aria-label="${label}"[^>]*>`))![0];
+
+  it('zavřený: jediné tlačítko Obydlí s ikonou nejlepšího druhu, který ves postaví', () => {
+    const html = render(null);
+    expect(labels(html).filter((l) => /Obydlí|emnice|dům/.test(l))).toEqual(['Obydlí']);
+    // nadzemní dům je zašedlý (do roku 800), nejlepší dostupná je polozemnice
+    expect(dwellingHubOption(build).look).toEqual({ icon: 'polozemnice', name: 'Obydlí' });
+    expect(html).toContain('/icons/build/polozemnice.png');
+    expect(html).toContain('Z / X / 1');
+  });
+
+  it('otevřený: Obydlí (zpět) a tři druhy, zašedlý druh nese důvod', () => {
+    const html = render('dwelling');
+    expect(labels(html)).toEqual(['Obydlí', 'Zemnice', 'Polozemnice', 'Nadzemní dům']);
+    expect(html).toContain('data-group="dwelling"');
+    expect(button(html, 'Zemnice')).not.toContain('disabled');
+    expect(button(html, 'Polozemnice')).not.toContain('disabled');
+    expect(button(html, 'Nadzemní dům')).toContain('disabled');
+    expect(html).toContain('Od roku 800');
+    expect(isBuildAffordable(dwellingHubOption(build), 'srub')).toBe(false);
+    expect(isBuildAffordable(dwellingHubOption(build), 'zemnice')).toBe(true);
+  });
+
+  it('bez nabídky (zakládá se ves) rozcestník ukáže jen zemnici', () => {
+    const html = renderToStaticMarkup(
+      <BuildGrid
+        options={{ dwelling: FOUNDING_DWELLING_OPTION, zemnice: null }}
+        active={null}
+        disabled={false}
+        group="dwelling"
+        onBuild={() => undefined}
+      />,
+    );
+    // hlavní tlačítko je rovnou zemnice (jediný druh)
+    expect(labels(html)).toEqual(['Zemnice', 'Zemnice']);
   });
 });

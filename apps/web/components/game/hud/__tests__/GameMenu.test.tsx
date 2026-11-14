@@ -21,6 +21,10 @@ function render(
       onConfirmRestart={noop}
       onCancelRestart={noop}
       onSignOut={noop}
+      onSettings={noop}
+      soundOn
+      onToggleSound={noop}
+      onBackFromSettings={noop}
       onClose={noop}
     />,
   );
@@ -35,11 +39,12 @@ function buttons(html: string): { text: string; disabled: boolean }[] {
 }
 
 describe('GameMenuPanel', () => {
-  it('nabídka je dialog Nabídka s položkami Začít znovu, Odhlásit a Zpět do hry', () => {
+  it('nabídka je dialog Nabídka s položkami Nastavení, Začít znovu, Odhlásit a Zpět do hry', () => {
     const html = render('main');
     expect(html).toContain('role="dialog"');
     expect(html).toContain('aria-label="Nabídka"');
     expect(buttons(html)).toEqual([
+      { text: 'Nastavení', disabled: false },
       { text: 'Začít znovu', disabled: false },
       { text: 'Odhlásit', disabled: false },
       { text: 'Zpět do hry', disabled: false },
@@ -50,7 +55,7 @@ describe('GameMenuPanel', () => {
   });
 
   it('bez vsi (zakládání) není co začínat znovu – položka je zamčená', () => {
-    expect(buttons(render('main', { canRestart: false }))[0]).toEqual({
+    expect(buttons(render('main', { canRestart: false }))[1]).toEqual({
       text: 'Začít znovu',
       disabled: true,
     });

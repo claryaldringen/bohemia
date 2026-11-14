@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openDevTime } from './helpers';
 import {
   checkChurchPlacement,
   defaultChurchDims,
@@ -116,6 +117,7 @@ test('pozvání huti a umístění kostela – křest, huť na cestě, skok v č
   await query('UPDATE "user" SET dev_mode = true WHERE email = $1', [email]);
   await page.reload();
   await expect(readyScene(page)).toBeVisible({ timeout: 120_000 });
+  await openDevTime(page);
   const skip = page.getByTestId('dev-skip-month');
   for (let i = 0; i < 2; i++) {
     await skip.click();

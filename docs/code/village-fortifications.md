@@ -384,7 +384,8 @@ walk?)`** – úsek s dílem `segment` (`sectionOf`), `null` = „Vylepšit vše
   opevnění (plot celý palisádou je palisáda; i pro starší `upgrade`), opevnění bez valu ztratí
   nástavbu. **Zrušení** (`dropFortificationWork`): hotové díly mají cílovou hradbu, ostatní starou –
   nic se nevrací ani nemaže. Zboření, po kterém nestojí žádný díl, opevnění smaže jen bez jiné běžící
-  stavby. Přestavba (`rebuild`) pozná nástavbu podle valu dílu (`segmentRampart`), ne podle druhu
+  stavby; díl brány bez obou kusů hradby se nepočítá (`fortWallStands`) – brány bez hradby zmizí
+  s opevněním, starší vsi s visícími branami převádí `withoutOrphanGates` (migrace `orphan-gates`). Přestavba (`rebuild`) pozná nástavbu podle valu dílu (`segmentRampart`), ne podle druhu
   opevnění – díl bez valu v opevnění s valem se přestaví jako hradba.
 - **Akce** – `upgradeFortification` (use-case) a záměr `fortification-upgrade` (`build-intent.ts`)
   s `target` (a `segment`) volají `startSectionUpgrade`, bez něj starší `startFortificationUpgrade`

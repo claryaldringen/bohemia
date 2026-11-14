@@ -153,6 +153,8 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
     // hash 84a9a56 (10. 11. 2026, zima bez sena – diet.md a oxen.md, Zima bez sena): seč srpem
     // (menší seno z volné práce `mowCapacityKg`, dražší vůl `oxCost`), stádo žere jen ve sněhu
     // (`herdNeedKg`); stáda, lidé a zásoby beze změny; dřív 7450793f
-    expect(hash(stripped)).toBe('84a9a56');
+    // hash 37d0dc91 (14. 11. 2026, stavby staví muži – population.md, Práce, „D24 ano“): denní práci
+    // nesou napřed ženy, na stavby jde jen práce mužů, která zbude; dřív 84a9a56 (a 950adf1f)
+    expect(hash(stripped)).toBe('37d0dc91');
   }, 120_000);
 });

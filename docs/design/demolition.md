@@ -152,6 +152,15 @@ vylepšit jen celé.
   (nový tvar přečísluje díly); nový úsek dostane hradbu dílu brány (ochoz a holý val – palisádu,
   val se doplní potom); zbořený úsek nejde kliknout, proto **Postavit jinudy** nese panel brány
   u něj (návrh Clauda).
+- **Bez „Postavit jinudy“ na bráně** (Martin 14. 11. 2026: „Proč by to bylo na bráně? Když bude
+  chtít hráč úsek postavit, prostě ho standardně postaví“ – „Tak to je na hráči, aby úsek natáhl od
+  brány k bráně“): zbořený úsek hráč zastaví **běžnou stavbou opevnění** – vybere druh a natáhne
+  body od brány k bráně; stavba nový úsek napojí na brány (konce úseku drží brány). Tlačítko
+  Postavit jinudy z panelu brány zmizí.
+- **Brána jde opustit i zbořit** (Martin 14. 11. 2026; návrh Clauda): zbořená brána nechá
+  mezeru jako zbořený úsek, opuštěná se přestane udržovat a rozpadne se na mezeru; mezeru hráč
+  zastaví stejně – běžnou stavbou od brány k bráně (nebo od konce hradby). Mění „Hradba je
+  hradba, brána je brána“ (8. 11. 2026) jen v tom, že brána má vlastní Opustit a Zbořit.
 
 - **Chátrání humna, obilné jámy a sadu** (Martin 8. 11. 2026):
   - **Humno** zaroste trávou za 10 let – a to nejen opuštěné: stačí, když na něm po tu dobu

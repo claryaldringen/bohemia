@@ -70,6 +70,8 @@ export function snapChurchRotation(rotation: number): number {
   return k * ROTATION_STEP;
 }
 
+/** Pojistka serveru pro kostel hráče – tlačítko se nepokřtěnému rodu vůbec neukáže (Martin 14. 11. 2026). */
+export const CHURCH_NOT_BAPTIZED = 'Kostel může stavět jen pokřtěný rod.';
 export const CHURCH_NO_LODGE = 'Bez stavbyvedoucího huti se kostel stavět nedá.';
 export const CHURCH_NO_QUARRY = 'Ves nemá lom – kámen a vápenec není odkud lámat.';
 export const CHURCH_WRONG_TYPE = 'Takový kostel huť tohoto okruhu nestaví.';
@@ -93,6 +95,18 @@ export function churchStartProblem(
   if (!churchTypesFor(state.lodge.circle).includes(type)) return CHURCH_WRONG_TYPE;
   if (villageQuarries(state).length === 0) return CHURCH_NO_QUARRY;
   return null;
+}
+
+/**
+ * Proč kostel typu `type` nejde začít hráči: rod není pokřtěný (`CHURCH_NOT_BAPTIZED`, Martin 14. 11. 2026), jinak
+ * `churchStartProblem`. Jediná kontrola pro tlačítka panelu i akci hráče; NPC správce křest nevyžaduje.
+ */
+export function playerChurchStartProblem(
+  state: Pick<VillageState, 'people' | 'lodge' | 'quarries' | 'faith'>,
+  type: ChurchType,
+): string | null {
+  if (state.faith?.rodBaptizedDay === undefined) return CHURCH_NOT_BAPTIZED;
+  return churchStartProblem(state, type);
 }
 
 // --- součty stavby --------------------------------------------------------------------------

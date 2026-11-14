@@ -14,6 +14,7 @@ import {
   newPlayer,
   query,
   readyScene,
+  dwellingVariant,
   villageSpots,
   villageState,
 } from './village-helpers';
@@ -29,7 +30,7 @@ test('nadzemní dům – do roku 800 zašedlý, pak klávesa 1 a umístění na 
   await found(page, spots.dwelling);
 
   const grid = page.getByTestId('build-grid');
-  const srub = grid.getByRole('button', { name: 'Nadzemní dům' });
+  const srub = await dwellingVariant(page, 'Nadzemní dům');
   await expect(srub).toBeDisabled();
   await srub.hover({ force: true });
   // popisek u kurzoru (Tooltip mimo mřížku) – důvod zašednutí
@@ -56,14 +57,17 @@ test('nadzemní dům – do roku 800 zašedlý, pak klávesa 1 a umístění na 
   }));
   await page.reload();
   await expect(readyScene(page)).toBeVisible({ timeout: 120_000 });
-  await expect(srub).toBeEnabled({ timeout: 60_000 });
+  await expect(await dwellingVariant(page, 'Nadzemní dům')).toBeEnabled({ timeout: 60_000 });
 
   // pozemek pro srub u první zemnice (stejná kontrola jako server)
   const state = await villageState(s.settlementId);
   const village = placementVillageOf(state, state.lastDay);
   const spot = srubPlot(s.landscape, village, spots.dwelling);
   await page.keyboard.press('Digit1');
-  await expect(srub).toHaveAttribute('aria-pressed', 'true');
+  await expect(grid.getByRole('button', { name: 'Obydlí', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   await confirmPlacement(page, {
     kind: 'dwelling',
     type: 'srub',

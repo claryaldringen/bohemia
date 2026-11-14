@@ -7,6 +7,9 @@ import type { Construction, MasonCraft, Person, VillageState } from '../../types
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 import {
   CHURCH_EAST_ROTATION,
+  CHURCH_NOT_BAPTIZED,
+  churchStartProblem,
+  playerChurchStartProblem,
   CHURCH_NO_LODGE,
   CHURCH_NO_QUARRY,
   CHURCH_WRONG_TYPE,
@@ -53,6 +56,7 @@ function churchVillage(crafts: readonly MasonCraft[] = MASON_CRAFTS, men = 0): V
     storesKg: base.storesKg + 200000,
     meatKg: 20000,
     legumesKg: 20000,
+    faith: { rodBaptizedDay: DAY - 90 },
     lodge: { circle: 'carolingian', invitedDay: DAY - 60 },
     quarries: [{ outcropId: 7, x: 300, z: 0, rotation: 0, builtDay: DAY - 10 }],
   };
@@ -76,6 +80,13 @@ describe('natočení a zahájení', () => {
     expect(snapChurchRotation(0.1)).toBe(0);
     expect(snapChurchRotation(0.2)).toBeCloseTo(Math.PI / 12);
     expect(snapChurchRotation(-Math.PI / 2 + 0.01)).toBeCloseTo(-Math.PI / 2);
+  });
+
+  it('nepokřtěný rod: kostel hráče ne (pojistka serveru), doménové pravidlo a NPC křest nevyžadují', () => {
+    const pagan: VillageState = { ...churchVillage(), faith: {} };
+    expect(playerChurchStartProblem(pagan, ROTUNDA.type)).toBe(CHURCH_NOT_BAPTIZED);
+    expect(playerChurchStartProblem(churchVillage(), ROTUNDA.type)).toBeNull();
+    expect(churchStartProblem(pagan, ROTUNDA.type)).toBeNull();
   });
 
   it('bez stavbyvedoucího, mimo okruh nebo bez lomu kostel nezačne; jinak bez ceny předem', () => {
@@ -108,7 +119,9 @@ describe('natočení a zahájení', () => {
 });
 
 describe('stavba v simulaci', () => {
-  const state = started(churchVillage());
+  // muž navíc – stavby staví jen muži (population.md – Práce, Stavby staví muži), zakladatelé mají
+  // jednoho
+  const state = started(churchVillage(MASON_CRAFTS, 1));
 
   it('malá rotunda se dostaví za 1–3 roky, vyzdobí a staveniště skončí', () => {
     let s = state;

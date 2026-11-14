@@ -3,16 +3,13 @@ import { dayIndexOf, type VillageState } from '@bohemia/game';
 import {
   dearthLabel,
   disasterNotices,
-  floodLabel,
   partLossesView,
   partLossRows,
   partProtectionView,
   protectionLabel,
-  summerLabel,
   tradeDearth,
   weatherNotices,
   weatherView,
-  winterLabel,
 } from '../disasters-view';
 
 // Počasí a pohromy v rozhraní (disasters.md – Co hráč vidí).
@@ -51,18 +48,6 @@ describe('weatherView – jen co už je vidět', () => {
     };
     expect(weatherView(state, MAY_2 + 3)?.flood).toEqual({ level: 'hundred', heightM: 2 });
     expect(weatherView(state, MAY_2 + 40)?.flood).toBeUndefined();
-    expect(floodLabel({ level: 'hundred', heightM: 2 })).toBe('Stoletá voda – 2 m nad hladinou');
-    expect(floodLabel({ level: 'twenty', heightM: 1.2 })).toBe(
-      'Dvacetiletá voda – 1,2 m nad hladinou',
-    );
-  });
-
-  it('popisky z pravidel', () => {
-    expect(summerLabel('drought')).toBe(
-      'Kruté sucho – ozim −25 %, jař −50 %, seno −55 % – nejvíc trpí pole bez stromů',
-    );
-    expect(summerLabel('good')).toBe('Dobré léto – ozim +15 %, jař +15 %, seno +10 %');
-    expect(winterLabel('blackFrost')).toBe('Holomráz – mráz bez sněhu, ozim −35 %');
   });
 });
 

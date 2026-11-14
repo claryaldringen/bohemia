@@ -28,6 +28,19 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`decor-placement.ts`); vrstva překážek 2 výchozy a suť na stěnách (`cliff-rocks.ts`, zdroj
   `cliffRock`). Náhled `/dev/landscape` – seedy s ostrožnou a tlačítko **Ostrožna** (obrys).
 
+- **Brod na každé mapě s potokem** (landscape.md – Brod na každé mapě s potokem, 14. 11. 2026):
+  brod sítě pěšin (`PATH_FORD`, `paths/terrain.ts` – `FORD`) je mělčina potoka nebo řeky
+  (`StreamPoint.shallow` ≥ 0,55 nejbližšího místa osy, jako brod pochodu války) – šířka
+  nerozhoduje (dřívější mez poloviční šířky 2,4 m nesplnila žádná mělčina, potok má aspoň 4,8 m,
+  mělčina 13–17 m). Potok bez mělčiny (≈ 1 z 10 map přirozené pevnosti a soutoku – smyčka nebo
+  konec u řeky ji vzaly) dostane jednu v `assemble` (`generate.ts`, jen terén 2 – terén 1 bit po
+  bitu jako dřív): `withStreamFord` (`stream-ford.ts`) – body do `SHALLOW_LENGTH` podél toku od
+  bodu osy nejblíž středu mapy, bez tůně (`POOL_HALF_WIDTH`) a dál než `FORD_PROMONTORY_GAP`
+  (4 políčka) od obrysu ostrožny; šířky, voda a terén zůstanou, bez losu. Potok s mělčinou je
+  tentýž objekt – zlaté otisky krajin a překážek se nezměnily. Brody celé mapy:
+  `landscapeFordSpots` (`paths/terrain.ts`, mezipaměť podle krajiny). Testy `stream-ford.test.ts`,
+  `landscape-fords.test.ts`.
+
 - **Seed krajiny z políčka světa:** nová mapa (`enterGame`, `targetSettlement`) bere seed z
   `cellLandscapeSeed(worldSeed, cell)` (`domain/world/cell-seed.ts`) – odvozený seed
   zúžený do rozsahu sloupce `landscape_seed` (int32 s rezervou na pokusy); `generateAcceptedLandscape`

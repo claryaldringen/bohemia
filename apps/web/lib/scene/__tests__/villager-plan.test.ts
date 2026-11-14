@@ -1055,6 +1055,35 @@ describe('stavitelé – stavba neroste sama od sebe (Martin)', () => {
       expect(7.5 - Math.max(Math.abs(x - 62), Math.abs(z + 8))).toBeLessThan(2.5);
     }
   });
+
+  it('na staveništi jsou jen muži (population.md – Práce, Stavby staví muži)', () => {
+    const shares: SceneLaborShare[] = [
+      { activity: 'build', target: { kind: 'site', id: 92 }, manDays: 6, construction: 92 },
+    ];
+    const builders = (v: SceneVillage): PlannedVillager[] =>
+      planVillagers(v, GROUND, { seed: 3, herds: 0 }).filter((p) => p.key.startsWith('build:'));
+    // bez lidí ve scéně podle podílu žen činnosti – u stavby žádné
+    const plain = builders(busyVillage(shares));
+    expect(plain.length).toBeGreaterThan(2);
+    expect(plain.every((p) => p.kind === 'man')).toBe(true);
+    // s lidmi vsi jen muži, i když žen je víc
+    type Person = NonNullable<NonNullable<SceneVillage['labor']>['persons']>[number];
+    const adult = (id: number, sex: 'male' | 'female'): Person => ({
+      id,
+      age: 30,
+      sex,
+      home: 4,
+      role: 'old-man',
+    });
+    const persons = [1, 2, 3, 4, 5, 6, 7, 8].map((id) => adult(id, id <= 3 ? 'male' : 'female'));
+    const v = busyVillage(shares);
+    const withPeople = builders({ ...v, labor: { ...v.labor!, persons } });
+    expect(withPeople.length).toBeGreaterThan(0);
+    for (const p of withPeople) {
+      expect(p.kind).toBe('man');
+      expect(persons.find((x) => x.id === p.person)?.sex).toBe('male');
+    }
+  });
 });
 
 describe('jabloně podél cesty – sklizeň, péče a výsadba (roads.md)', () => {

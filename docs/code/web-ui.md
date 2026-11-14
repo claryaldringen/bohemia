@@ -25,7 +25,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   a nové načtení po umístění, odúmrti, pozvánky, `negotiate`), `use-panels.ts` (`usePanels` –
   nabídka, rod, válka a odvody se střídají; průchody, ochrana, `warAction`, dialog Odvody),
   `use-player-notices.ts` (`noticeTick`, `showPlayerNotices`, `openNoticePanel`),
-  `use-history-panels.ts` (kronika a upozornění, `closeNoticesRef`, zkratky J / U),
+  `use-history-panels.ts` (kronika a upozornění, `closeNoticesRef`, zkratky J / U; panel Kronika `hud/ChroniclePanel.tsx` je standardní dialog `hud/Dialog.tsx` (společný s nabídkou hry: titulek, křížek vpravo nahoře „Zavřít (Esc)“, závoj, klik mimo a Esc zavírají, obsah se posouvá; kronika je široká 48 rem, nejvýš 92 % šířky okna) – a záznamy jednoho dne seskupuje pod jedno datum, `groupByDay`),
   `use-war-watch.ts` (`useWarScene` → `setWar`, „Probít se“, sledování cizí mapy,
   `armyActions`), `use-line-naming.ts` (jména rodu, `founderNameRef`), `use-pending-sites.ts`
   (staveniště čekající na server, `sceneVillage`, `placementScene`, `buildDwelling` …),
@@ -236,16 +236,26 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   skládá `hud/` – `TopBar` (jméno vsi = přepínač vsí `hud/VillageSwitcher.tsx` – klik otevře
   seznam vsí hráče se jménem a lidmi, klik na ves ji přepne – ves na jiné mapě novým načtením
   stránky (jedna ves, jedna mapa); přejmenování dvojklikem nebo tužkou; upozornění z jiné vsi
-  krátkým řádkem se jménem vsi – `otherVillageNotices`; ikony s čísly: lidé a kolik jich pole uživí v jedné ikoně („31 / ≈ 22“, `peopleLabel`), obilí, luštěniny
-  (ikona `legumes`, když jsou v zásobě, na poli nebo v jídle – `showsLegumes`), maso,
-  sýr (ikona `cheese`, v popisku mléko za den) když je mléko nebo sýr, ovoce (jablka) jen když
-  jsou nebo je sad, seno s ohradou, klády, hřivny jen ves s řemesly (uhlí je v panelu uhlíře, vozy v ohradě volů a v panelu tesaře, keramika a dřevěné nářadí nikde – Martin 24. 10. 2026), volná
+  krátkým řádkem se jménem vsi – `otherVillageNotices`; ikony s čísly: lidé a kolik jich pole uživí v jedné ikoně („31 / ≈ 22“, `peopleLabel`), plodiny (obilí, luštěniny a jablka jednou ikonou s rozpisem), maso,
+  sýr (ikona `cheese`, v popisku mléko za den) když je mléko nebo sýr, seno s ohradou, klády, hřivny jen ves s řemesly (uhlí je v panelu uhlíře, vozy v ohradě volů a v panelu tesaře, keramika a dřevěné nářadí nikde – Martin 24. 10. 2026), volná
   práce, nasycení (barva ikony podle energie – hlad, tooltip nasycení s energií, bílkovinami
   a podíly obilí / luštěniny / maso / mléko a sýr / vejce / ovoce), štěstí, datum – obnoví se
   na začátku dalšího herního dne, ne každou sekundu (`dateRefreshDelay` v `lib/game-date.ts`);
-  zvuk a tlačítko nabídky),
-  `GameMenu` (nabídka hry jako v 0 A.D. pod lištou vpravo, F10 – smí mít slova: Začít znovu,
-  Odhlásit s e-mailem v popisku, Zpět do hry; Začít znovu se živou vsí jen po potvrzení v panelu,
+  datum je bez názvu období (Martin 14. 11. 2026); ve vývojovém režimu je klikací
+  (`DateWithDevTime`, `game-date-toggle`) – klik otevře u data panel zrychlení času
+  (`DevTimeButtons`, `dev-time-panel`), další klik, Esc nebo stisk mimo ho zavře, mimo vývojový
+  režim klik nic neotevře; ikona zvuků v liště není, jen tlačítko nabídky; ikona obilí
+  (`village-stores`) ukazuje součet kg obilí, luštěnin a jablek bez snopů (`grainStockTotal`) a ikona
+  dobytka (`village-livestock`) součet kusů skotu, volů, ovcí, koz, prasat a koní
+  (`livestockTotal` z `view.livestock` a `view.horses`); klik na ně otevře u ikony panel
+  s rozpisem (`StockBreakdown`, `<testId>-toggle` / `<testId>-panel`, řádky `grainStockRows` /
+  `livestockRows` – sloupec řádků ikona + název + číslo zarovnané vpravo, panel `w-max` podle nejdelšího řádku, bez zalamování; dobytek jen druhy, které ves má), další klik,
+  Esc nebo stisk mimo ho zavře jako panel u data; dokud je rozpis otevřený, popisek ikony je vypnutý (`Resource tooltipOff`), aby nepřekryl čísla; Martin 14. 11. 2026. Samostatné ikony luštěnin a ovoce
+  v liště nejsou – pokrývá je rozpis, Martin 14. 11. 2026 „ano“, D19),
+  `GameMenu` (nabídka hry jako v 0 A.D., F10 – modální okno uprostřed obrazovky se ztmaveným
+  pozadím; smí mít slova: Nastavení – přepínač `setting-sound` Zvuky krajiny, stejná uložená
+  volba `sound-preference` –, Začít znovu,
+  Odhlásit s e-mailem v popisku, Zpět do hry; Esc z Nastavení vrátí k položkám; Začít znovu se živou vsí jen po potvrzení v panelu,
   bez dialogů prohlížeče, při zakládání vsi zamčené; otevření zruší umisťování i výběr, klávesy
   hry zachytí na `window` ve fázi capture, Esc zavře – z potvrzení vrátí –, klik mimo panel zavře
   a do krajiny nedojde; po konci hry se neotevře; logika kláves v `lib/game-menu.ts`), `Minimap` (vlevo dole, `lib/minimap.ts`,
@@ -300,7 +310,15 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   Martin 20. 10. 2026): kliknutí i zkratka otevře v mřížce druhy (`BuildGrid` `group`,
   `useBuildMode` `buildGroup` – první tlačítko stavba sama zpět, druhy `buildVariantName` bez
   zkratek), druh spustí malování (`startBuild(kind, variant)`), Esc rozcestník zavře; u kurzoru
-  ikona druhu (`PlacementPreview.variant`). Stavba,
+  ikona druhu (`PlacementPreview.variant`). **Obydlí** (Martin 14. 11. 2026) jsou jedno políčko –
+  rozcestník `dwelling` (`placement: 'dwellings'`, `DWELLING_VARIANTS`: zemnice, polozemnice,
+  nadzemní dům; ikony `build/…`, `variantIconSrc` v `BuildGrid`); zemnice, polozemnice a srub zůstávají
+  záznamy katalogu s `hubOf: 'dwelling'` (kontrola, cena, zkratky), ale bez vlastního tlačítka.
+  Rozcestník nemá zkratku (`NO_HOTKEY`), Z, X a 1 vyberou druh rovnou (`startBuild` je převede na
+  `dwelling` + druh). Nabídku dává `dwellingHubOption` (`village-view.ts`): cena a důvod zašednutí
+  (srub do roku 800) jsou v `variants` každého druhu, ikona tlačítka je nejlepší druh, na který ves
+  má (srub, polozemnice, zemnice); při zakládání vsi je tlačítko rovnou zemnice
+  (`FOUNDING_DWELLING_OPTION`) a jeden klik spustí umisťování. Stavba,
   kterou nejde zahájit z jiného důvodu než surovin (druhá svatyně), má v `BuildOption.blocked`
   důvod – v popisku červeně. Panel výběru umí i posvátný dub, háj, modlu a svatyni (ikona,
   kolik přidávají štěstí, průběh stavby a duby ke kácení); u posvátného dubu i jeho stáří
@@ -644,12 +662,11 @@ Návrh: [wildlife.md](../design/wildlife.md) – Co hráč vidí. Pohled jen čt
 
 Návrh: [disasters.md – Co hráč vidí](../design/disasters.md). Jádro a čísla: [village-disasters.md](village-disasters.md).
 
-- **Lišta** – `VillageView.weather` (`weatherView`): jen neobvyklé a už vidět (`revealedWeather` – 30. 4. sucho chybí), povodeň (`disasters.flood`), dokud ve vsi leží voda a bahno
-  (`FLOOD_SCENE_DAYS`). `TopBar` → `WeatherIcons` za štěstím: ikona zimy, léta a vody
-  (`WEATHER_ICONS` – `drought`, `rain`, `frost`, `good-summer`, `flood`), slova jen v popisku
-  (`summerLabel` – změny úrody a sena z `WEATHER.summerEffects`, `winterLabel`, `floodLabel` –
-  „Stoletá voda – 2 m nad hladinou“). Testy `village-weather-summer` / `-winter` (`data-weather`),
-  `village-flood` (`data-level`).
+- **Lišta** počasí roku neukazuje (Martin 14. 11. 2026: deštivé léto je vidět, protože prší,
+  povodeň na mapě, dlouhá zima podle sněhu, sucho a holomráz ukáže scéna) – `VillageView.weather`
+  (`weatherView`: jen neobvyklé a už vidět, `revealedWeather` – 30. 4. sucho chybí; povodeň,
+  dokud ve vsi leží voda a bahno, `FLOOD_SCENE_DAYS`) slouží upozorněním a kronice
+  (`WEATHER_ICONS` – ikony upozornění).
 - **Panel dílu** – `VillageFieldPart.protection` (`partProtectionView`: zeleň po stupních 0–4,
   `water`, `lowland`, `raised`, `slope`; díl bez údaje typická zeleň; ves bez počasí kraje nic)
   → ikona `protection` s číslem, popisek `protectionLabel`. `VillageFieldPart.losses`
@@ -668,8 +685,10 @@ Návrh: [disasters.md – Co hráč vidí](../design/disasters.md). Jádro a č�
   (`otherVillageDisasters` – počasí a poslední místní pohroma) se jménem vsi.
 - **Ikony** – `tools/blender/icons.py` (`drought`, `rain`, `frost`, `good-summer`, `flood`, `hail`,
   `tornado`, `protection`, `dearth`; vlastní, CC0), požár má stávající `fire`.
-- **Vývojový režim** – tlačítka „Vynutit zlý rok“ a „Vynutit pohromu“ (`DevDisasterButtons`)
-  vedle skoku v čase: [accounts.md – dev mód](accounts.md).
+- **Vývojový režim** – jedno „Vynutit pohromu“ (zlé roky i pohromy, `hud/DevMenu.tsx`) v nabídce
+  hry pod položkou „Vývojářské menu“ (`GameMenu`, krok `dev`, jen s `devMode`; po vynucení se nabídka
+  zavře, jakmile server doběhne; Martin 14. 11. 2026). Zrychlení času zůstává u data:
+  [accounts.md – dev mód](accounts.md).
 - **Testy** – `disasters-view.test.ts`, `village-notices.test.ts` (počasí a pohromy),
   `village-view.test.ts` (JSON 30. 4. bez sucha, seedu a `override`); e2e `village.spec.ts`
   „vývojový režim: vynucené sucho“ – ikona na liště, upozornění a ochrana v panelu dílu.
@@ -1354,7 +1373,9 @@ Jádro a akce: `village-masonry.md` – Geometrie a cena kostela, Stavba kostela
   `churchWorkProgress`, `site.blocked` = `churchBlocked`, `capacity`, `graves`, `priest`, když kostel
   má údaj `priestId`). Nabídka: `churchBuildChoices(state)` → `VillageView.churchBuild` (malý
   a velký typ okruhu huti `churchTypesFor`, bez huti okruh adriatický; důvod `churchStartProblem` –
-  `CHURCH_NO_LODGE`, `CHURCH_NO_QUARRY`). Ves bez kostela nic z toho nemá.
+  `CHURCH_NO_LODGE`, `CHURCH_NO_QUARRY`). Dokud rod nepřijal křesťanství (`faith.rodBaptizedDay`),
+  je nabídka prázdná – tlačítka kostela ani jejich zkratky nejsou (Martin 14. 11. 2026) – a server
+  kostel odmítne (`CHURCH_NOT_BAPTIZED` v `churchStartProblem`). Ves bez kostela nic z toho nemá.
 - **Nabídka staveb** (`lib/build-items.ts`): `WebBuildKind` `church-small` [I] a `church-large` [Y]
   (volné klávesy – návrh Clauda), `placement: 'church'`, `check` = `checkChurchPlacement` jako server
   - cena `churchPlacementCost`. `use-build-mode.ts` – `churchOptions` dá `BuildOption` bez ceny
@@ -1396,6 +1417,8 @@ nová pravidla (návrh Clauda).
   `aria-keyshortcuts`) – viz Zkratky panelů Kronika a Upozornění níž. Panel leží vpravo nahoře jako panely rodu a války a střídá se s nimi
   i s nabídkou: otevření kroniky je zavře (`closeOthers`), otevření jiného zavře kroniku
   (`othersOpen` – úprava stavu při vykreslení v `hooks/use-chronicle.ts`). Esc a křížek zavřou.
+- **Označení textu:** roky a zápisy (`chronicle-years`) mají `select-text` – jdou označit
+  a zkopírovat, ač herní stránka má označování vypnuté (`select-none` v `app/game/page.tsx`).
 - **Data na vyžádání:** server action `getChronicle({ villageId, before? })` →
   `chronicleForPlayer` (`lib/village.ts` – `context` bez práva, tedy kdo smí vidět pohled na ves:
   vlastní ves, ves rodu, spravovaná ves) → `chroniclePage` ze stavu dopočítaného jako pohled.
@@ -1518,3 +1541,5 @@ war/alarm-messenger,war/alarm-forest,war/alarm-people,war/alarm-all,war/alarm-re
 - **Zůstávají SVG:** oko „Ve scéně“ (`war/eye.svg` – jednobarevná maska v barvě textu tlačítka,
   `CampaignMap`) a vlajky jazykových skupin (`newcomer/<jazyk>.svg` – plochý znak 3 : 2 s rámečkem,
   `LanguageIcon`; vlajka je sama barvami, render látky by ji ve 24 × 16 px rozmazal).
+
+- **Ciferník u data** (Martin 14. 11. 2026; 24 hodin – návrh Clauda): `DayDial` v `hud/TopBar.tsx` místo ikony data, jedna ručička, poledne nahoře; hodina z `dayHourAt` (`lib/scene/day-light.ts`), obnova jednou za sekundu (`useDayHour`), úhel `clockHandAngle` a popisek `dayPartLabel` v `lib/game-date.ts`.

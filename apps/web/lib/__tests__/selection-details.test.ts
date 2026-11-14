@@ -942,3 +942,20 @@ describe('selectionDetails – správce (steward.md – Co hráč vidí)', () =>
     expect(selectionDetails(view, scene, { kind: 'dwelling', id: 1 })?.steward).toBeUndefined();
   });
 });
+
+describe('selectionDetails – hromada klád (forest.md – Mýcení a hromada klád)', () => {
+  const target = { kind: 'log-pile', id: 41 } as const;
+
+  it('ukáže, kolik klád na hromadě leží; zaniklá hromada nic', () => {
+    const pileScene: SceneVillage = {
+      ...scene,
+      logStacks: [{ id: 41, x: 60, z: 40, logs: 17 }],
+    };
+    expect(selectionDetails(view, pileScene, target)).toEqual({
+      kind: 'log-pile',
+      id: 41,
+      logs: 17,
+    });
+    expect(selectionDetails(view, scene, target)).toBeNull();
+  });
+});

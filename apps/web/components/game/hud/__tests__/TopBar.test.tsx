@@ -14,7 +14,6 @@ import {
   sheavesName,
   showsDairy,
   showsHay,
-  showsLegumes,
 } from '../TopBar';
 
 // Horní lišta (diet.md, oxen.md): barva nasycení podle energie, podíly stravy v tooltipu, seno,
@@ -86,38 +85,6 @@ describe('SatiationTooltip – jídlo uložené před luštěninami', () => {
     const html = renderToStaticMarkup(<SatiationTooltip view={view} />);
     expect(html).toMatch(/data-share="legumes".*legumes\.png.*0 %/);
     expect(html).not.toContain('NaN');
-  });
-});
-
-describe('luštěniny v liště', () => {
-  const field = (legume: number): VillageView['fields'][number] => ({
-    id: 1,
-    areaM2: 10_000,
-    fertility: 70,
-    stages: {},
-    surfaces: {},
-    crops: legume > 0 ? { spring: 3, legume } : { spring: 3 },
-    turn: { winter: 0, spring: 0, resting: 0 },
-    ashParts: 0,
-    ashBonus: 0,
-    overgrowingM2: 0,
-    parts: [],
-  });
-  const noLegumes = diet(1);
-  const shares = { grain: 1, meat: 0, dairy: 0, eggs: 0, fruit: 0 };
-
-  it('bez zásoby, osevu i jídla luštěnin se neukáže', () => {
-    expect(
-      showsLegumes({ legumesKg: 0.4, fields: [field(0)], diet: { ...noLegumes, shares } }),
-    ).toBe(false);
-  });
-
-  it('ukáže se se zásobou, s oseným dílem nebo když se luštěniny jí', () => {
-    expect(showsLegumes({ legumesKg: 120, fields: [], diet: { ...noLegumes, shares } })).toBe(true);
-    expect(showsLegumes({ legumesKg: 0, fields: [field(2)], diet: { ...noLegumes, shares } })).toBe(
-      true,
-    );
-    expect(showsLegumes({ legumesKg: 0, fields: [], diet: noLegumes })).toBe(true);
   });
 });
 
@@ -220,6 +187,7 @@ describe('Lidé a kolik jich pole uživí v jedné ikoně (Martin 24. 10. 2026)'
       orchards: [],
       pens: [],
       storesKg: 10,
+      livestock: { herds: { sheep: 0, goat: 0, pig: 0, cow: 0 }, oxen: 0 },
       legumesKg: 0,
       meatKg: 0,
       cheeseKg: 0,
@@ -245,8 +213,6 @@ describe('Lidé a kolik jich pole uživí v jedné ikoně (Martin 24. 10. 2026)'
         view={view}
         world={{ startMs: 0, endMs: 1e12 }}
         initialNowMs={1}
-        soundOn
-        onToggleSound={() => {}}
         menuOpen={false}
         onToggleMenu={() => {}}
         onRename={async () => null}

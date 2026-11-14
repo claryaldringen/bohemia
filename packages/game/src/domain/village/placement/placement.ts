@@ -52,6 +52,7 @@ export {
   withLivestockLand,
 } from './placement-squares';
 export {
+  CEMETERY_AT_CHURCH_ONLY,
   cemeteryPartsFromCells,
   fieldPartsFromCells,
   orchardPartsFromCells,

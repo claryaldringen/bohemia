@@ -12,6 +12,7 @@ import { withoutFieldLegumes } from '../fields/field-legumes';
 import { withMergedFields } from '../fields/fields';
 import { withForestClearing } from '../forest/forest-clearing-migration';
 import { needsFortPoints, withFortPoints } from '../fortification/convert';
+import { withoutOrphanGates } from '../fortification/state/fortifications';
 import { withoutGardenFlax } from '../fields/garden';
 import { withGrainPits } from '../fields/grain-pit-site';
 import { withHorsePenStock } from '../livestock/horse-stock';
@@ -231,6 +232,8 @@ export const VILLAGE_MIGRATIONS: readonly VillageMigration[] = [
   { id: 'church-quarry-carry', since: '2026-11-12', run: withChurchQuarryDistance },
   // zrušený postoj „vzdát se při přesile“ (war.md – Obránci – postoje a útěk)
   { id: 'stance-surrender', since: '2026-11-14', run: withoutSurrenderStance },
+  // brány bez hradby po zboření úseků zmizí s opevněním (fortifications.md – Zboření)
+  { id: 'orphan-gates', since: '2026-11-14', run: withoutOrphanGates },
 ];
 
 /** Zrušený postoj `'surrender'` se čte jako výchozí `'flee'`; na kopii, jen když ho ves má. */

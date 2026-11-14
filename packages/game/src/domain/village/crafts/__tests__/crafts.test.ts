@@ -28,7 +28,14 @@ import {
   type PlacementVillage,
 } from '../../placement/placement';
 import { NO_CRAFTS } from '../../core/productivity';
-import { CRAFT_BASE, SOWERS, workshopBuildLabor, workshopCost, workshopTrees } from '../../rules';
+import {
+  COMMON_LABOR_YEAR_DAYS,
+  CRAFT_BASE,
+  SOWERS,
+  workshopBuildLabor,
+  workshopCost,
+  workshopTrees,
+} from '../../rules';
 import { withPlots } from '../../buildings/plots';
 import { advanceVillage } from '../../core/simulate';
 import { summarizeVillage } from '../../core/summary';
@@ -342,7 +349,9 @@ describe('pokrytí a meze produktivity (crafts.md – Účinek)', () => {
     const b = advanceVillage(potted, DAY + 1, null);
     // denní minimum jedné domácnosti 0,5 → 0,45 – venku podle délky dne (population.md – Skladba
     // dne podle ročního období)
-    expect(b.commonLaborHistory.at(-1)! - a.commonLaborHistory.at(-1)!).toBeCloseTo(
+    // (celá společná práce – roční průměr; posledních 30 dní je jen práce mužů na stavby a denní
+    // minimum nesou napřed ženy – population.md – Práce, Stavby staví muži)
+    expect((b.commonLaborYearly! - a.commonLaborYearly!) * COMMON_LABOR_YEAR_DAYS).toBeCloseTo(
       0.05 * daylightFactor(DAY + 1),
       9,
     );

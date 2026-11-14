@@ -8,6 +8,8 @@ import {
 } from '@bohemia/game';
 import {
   DATE_REFRESH_MS,
+  clockHandAngle,
+  dayPartLabel,
   dateRefreshDelay,
   formatWorldState,
   nextDateChangeMs,
@@ -23,9 +25,9 @@ const date = (overrides: Partial<GameDate>): GameDate => ({
 });
 
 describe('formatWorldState', () => {
-  it('běžící svět ukáže datum s měsícem v 2. pádě a roční období', () => {
+  it('běžící svět ukáže datum s měsícem v 2. pádě, bez názvu období', () => {
     expect(formatWorldState({ status: 'running', date: date({}) }, OFFICIAL_WORLD)).toBe(
-      '16. října 1024 · podzim',
+      '16. října 1024',
     );
   });
 
@@ -36,19 +38,17 @@ describe('formatWorldState', () => {
   ])('měsíc %i je „%s“', (month, name) => {
     expect(
       formatWorldState({ status: 'running', date: date({ month, day: 1 }) }, OFFICIAL_WORLD),
-    ).toBe(`1. ${name} 1024 · podzim`);
+    ).toBe(`1. ${name} 1024`);
   });
 
-  it.each([
-    ['spring', 'jaro'],
-    ['summer', 'léto'],
-    ['autumn', 'podzim'],
-    ['winter', 'zima'],
-  ] as const)('roční období %s je „%s“', (season, name) => {
-    expect(formatWorldState({ status: 'running', date: date({ season }) }, OFFICIAL_WORLD)).toBe(
-      `16. října 1024 · ${name}`,
-    );
-  });
+  it.each(['spring', 'summer', 'autumn', 'winter'] as const)(
+    'roční období %s se v datu neukáže (Martin 14. 11. 2026)',
+    (season) => {
+      expect(formatWorldState({ status: 'running', date: date({ season }) }, OFFICIAL_WORLD)).toBe(
+        '16. října 1024',
+      );
+    },
+  );
 
   it('před startem ostrého světa ukáže datum spuštění', () => {
     expect(formatWorldState({ status: 'not-started' }, OFFICIAL_WORLD)).toBe(
@@ -94,5 +94,24 @@ describe('obnova data v liště – na začátku dalšího herního dne', () => 
     expect(dateRefreshDelay(world.startMs - 1e9, world)).toBe(DATE_REFRESH_MS.max);
     expect(nextDateChangeMs(world.endMs, world)).toBeNull();
     expect(dateRefreshDelay(world.endMs, world)).toBeNull();
+  });
+});
+
+describe('ciferník denní doby', () => {
+  it('ručička: poledne nahoře, jedna otáčka za den', () => {
+    expect(clockHandAngle(12)).toBe(0);
+    expect(clockHandAngle(18)).toBe(90);
+    expect(clockHandAngle(0)).toBe(180);
+    expect(clockHandAngle(6)).toBe(270);
+    expect(clockHandAngle(24)).toBe(180);
+  });
+
+  it('denní doba slovy', () => {
+    expect(dayPartLabel(0)).toBe('Noc');
+    expect(dayPartLabel(6)).toBe('Ráno');
+    expect(dayPartLabel(12)).toBe('Poledne');
+    expect(dayPartLabel(15)).toBe('Odpoledne');
+    expect(dayPartLabel(18)).toBe('Večer');
+    expect(dayPartLabel(23)).toBe('Noc');
   });
 });

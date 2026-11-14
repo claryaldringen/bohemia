@@ -677,7 +677,20 @@ Clauda**:
 - **Kalibrace se nemění** – hráč skriptu ohrady nestaví. Informační sonda „plná domácnost se
   spřežením“ v `measure-village.ts` ukazuje orbu, osev a práci na obživu.
 
-## Co nejdelší brázda (19. 10. 2026)
+## Orba rádlem křížem (Martin 14. 11. 2026)
+
+Martin 14. 11. 2026: „Dokud Slované neměli těžký pluh, orali spíš čtvercová pole a křížem.“ –
+„Orba rádlem nesebere víc práce – reje se mělce, tak je to rychlé. To o dlouhé brázdě si nech na
+později – přijde to s trojpolním systémem a těžkým pluhem – ten budou táhnout 4 voli.“
+
+- **Práce orby se nemění** (0,3 ha za den a pár jako dnes) – dva průchody rádlem jsou rychlé.
+- **Ve scéně** spřežení orá díl dvakrát – napřed v jedné ose mřížky pole, pak napříč; brázdy na
+  dílu tvoří mřížku (křížem). Návrh Clauda: obilí se seje rozhozem, porost proto nemá řádky.
+- **Pole spíš čtvercová** – správce zakládá pole v co nejčtvercovějších blocích, ne v pásech
+  (návrh Clauda).
+- **Co nejdelší brázda** (níž) platí až s těžkým pluhem (4 voli) a trojpolním systémem – později.
+
+## Co nejdelší brázda (19. 10. 2026) – až s těžkým pluhem
 
 Stav: **Martin, 19. 10. 2026:** „Volské spřežení chce rýt co nejdelší brázdu – otáčení zabírá
 čas a snižuje produktivitu.“ – „Spřežení by mělo trávit co nejvíce času orbou – takže na místo se

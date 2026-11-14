@@ -23,6 +23,8 @@ import {
 import { cemeteryFoundingCost, distanceToSquare, touchingCemeteries } from '../buildings/cemetery';
 import { newFenceSides } from '../buildings/fence-cost';
 import { fieldGrids } from './squares';
+import { churchyardWorld } from './church-plot';
+import { convexDistance, type Point } from './polygon';
 import { fieldsTouching, partFoundingCost } from '../fields/fields';
 import { normalizeGrid } from './square-grid';
 import { orchardPlantingCost } from '../buildings/orchard';
@@ -341,6 +343,25 @@ export function orchardPartsFromCells(
   };
 }
 
+/** Důvod, proč hřbitov po křtu rodu nejde mimo kostel (cemetery.md – Po křtu rodu). */
+export const CEMETERY_AT_CHURCH_ONLY = 'Hřbitov jen u kostela.';
+
+/**
+ * Po křtu rodu (`churchyardOnly`) sousedí každý čtverec hřbitova s hřbitůvkem nějakého kostela
+ * (i staveniště) – mezi čtvercem a obdélníkem hřbitůvku je méně než čtverec. Bez kostela nikdy.
+ */
+function squaresAtChurch(
+  landscape: Landscape,
+  village: PlacementVillage | null,
+  corners: readonly (readonly Point[])[],
+): boolean {
+  if (!village?.churchyardOnly) return true;
+  const yards = (village.churches ?? []).map((c) => churchyardWorld(c.type, c.dims, c.position));
+  return corners.every((square) =>
+    yards.some((yard) => convexDistance(square, yard) < landscape.cellSizeM),
+  );
+}
+
 /** Varování u kurzoru, když je hřbitov blíž obydlí nebo vodě, než je v pořádku (řádek na každé). */
 function cemeteryWarning(dwellingM: number, waterM: number): string | undefined {
   const lines = [
@@ -520,6 +541,14 @@ export function cemeteryPartsFromCells(
     [problems.outcrop, 'Stojí tu skalní výchoz – ten osadníci neodstraní.'],
     [problems.oak, 'Stojí tu posvátný dub – mezi hroby ho vesničané nenechají.'],
     [problems.gate, BLOCKS_GATE],
+    [
+      !squaresAtChurch(
+        landscape,
+        village,
+        sacred.squares.map((s) => s.corners),
+      ),
+      CEMETERY_AT_CHURCH_ONLY,
+    ],
     [sacred.squares.length === 0, 'Roste tu posvátný dubový háj – ten vesničané nevykácejí.'],
     [touching.length > 1, 'Hřbitov smí navazovat jen na jeden hřbitov.'],
     [

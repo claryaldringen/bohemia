@@ -79,8 +79,34 @@ describe('odhad chůze rovně', () => {
     const leg = Math.hypot(20, 10);
     expect(viaNear).toBeCloseTo(2 * leg + ROAD_WALK.fordExtraM, 6);
     expect(viaFar).toBeGreaterThan(viaNear + 50);
-    // bez brodu v okně se brodí kdekoli (+ 30 m)
-    expect(groundWalkLength(streamGround(null), a, b)).toBeCloseTo(40 + ROAD_WALK.fordExtraM, 6);
+  });
+
+  it('jen brodem – bez brodu na mapě na druhý břeh nedojde (Infinity), na svém břehu ano', () => {
+    const a = { x: 40, z: 20 };
+    expect(groundWalkLength(streamGround(null), a, { x: 80, z: 20 })).toBe(Infinity);
+    expect(groundWalkLength(streamGround(null), a, { x: 20, z: 60 })).toBeCloseTo(
+      Math.hypot(20, 40),
+      6,
+    );
+  });
+
+  it('brod hledá na celé mapě, ne jen v okně půdy (`WalkGround.fords`)', () => {
+    const a = { x: 40, z: 20 };
+    const b = { x: 80, z: 20 };
+    // brod mimo okno (z = 130 – okno končí na 118 m)
+    const ground = { ...streamGround(null), fords: [{ x: 60, z: 130 }] };
+    expect(fordDetour(ground, a, b)).toEqual({ x: 60, z: 130 });
+    const leg = Math.hypot(20, 110);
+    expect(groundWalkLength(ground, a, b)).toBeCloseTo(2 * leg, 6);
+    // brod v okně i na mapě – nejbližší ze všech
+    const both = {
+      ...streamGround(15),
+      fords: [
+        { x: 60, z: 30 },
+        { x: 60, z: 130 },
+      ],
+    };
+    expect(fordDetour(both, a, b)).toEqual({ x: 60, z: 30 });
   });
 
   it('lesem pomaleji (cena lesa v síti pěšin)', () => {
@@ -182,6 +208,10 @@ describe('odhad jízdy vozu', () => {
     const from = [{ x: 40, z: 20 }];
     const to = [{ x: 80, z: 20, reachM: 2 }];
     expect(cartEstimates(ground(null), [], from, to)[0]!.reached).toBe(false);
+    // brod mimo okno půdy (celá mapa – `CartGround.fords`)
+    const far = cartEstimates({ ...ground(null), fords: [{ x: 60, z: 130 }] }, [], from, to)[0]!;
+    expect(far.reached).toBe(true);
+    expect(far.cost).toBeGreaterThan(2 * Math.hypot(20, 110) - 5);
     const ford = cartEstimates(ground(15), [], from, to)[0]!;
     expect(ford.reached).toBe(true);
     expect(ford.cost).toBeGreaterThan(40);

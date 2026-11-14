@@ -781,6 +781,35 @@ function demolishSegment(
 }
 
 /**
+ * Stojí na opevnění ještě nějaká hradba? Díl s branou, kterému zbořením úseků zmizel kus před
+ * bránou i za ní, hradbu nemá – samotná brána bez hradby zmizí s opevněním (úsek jen s branou jde
+ * zbořit nejde, Martin 14. 11. 2026: „Po zbořené palisádě zůstaly brány, které nejdou ani označit
+ * a tím pádem ani zbořit.“, návrh Clauda).
+ */
+export function fortWallStands(fort: Fortification): boolean {
+  return fort.segments.some((s) => {
+    if (!segmentBuilt(s) || s.demolishedDay !== undefined) return false;
+    const gated = fort.gates.some((g) => g.segment === s.index);
+    return !(gated && s.demolishedBeforeGate !== undefined && s.demolishedAfterGate !== undefined);
+  });
+}
+
+/**
+ * Převod starších vsí: opevnění, kterému po zboření zbyly jen brány bez hradby (`fortWallStands`),
+ * zmizí. Nechá opevnění, na kterém běží stavba (vylepšení mezery). Vstupní stav nemění, bez
+ * takového opevnění vrací týž objekt – opakovaný běh nic nezmění.
+ */
+export function withoutOrphanGates(state: VillageState): VillageState {
+  const orphan = (f: Fortification): boolean =>
+    !fortWallStands(f) &&
+    !state.constructions.some((c) => c.kind === 'fortification' && c.fortificationId === f.id);
+  if (!state.fortifications?.some(orphan)) return state;
+  const next = cloneState(state);
+  next.fortifications = villageFortifications(next).filter((f) => !orphan(f));
+  return next;
+}
+
+/**
  * Konec zboření – dokončeného i zrušeného (mutuje stav; vrací klády): klády zbořených dílů
  * stavby (necelé, `FortSegmentWork.logs`) dolů na celé na hromadu u cesty nejblíž úseku. Val, na
  * kterém už žádná nástavba nestojí, je val bez nástavby; opevnění, kde nestojí žádný díl, zmizí.
@@ -804,7 +833,7 @@ function settleDemolition(state: VillageState, fort: Fortification, c: Construct
   const other = state.constructions.some(
     (x) => x.id !== c.id && x.kind === 'fortification' && x.fortificationId === fort.id,
   );
-  if (!other && !fort.segments.some((s) => segmentBuilt(s) && s.demolishedDay === undefined)) {
+  if (!other && !fortWallStands(fort)) {
     state.fortifications = villageFortifications(state).filter((f) => f.id !== fort.id);
   }
   return logs;

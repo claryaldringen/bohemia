@@ -598,7 +598,8 @@ describe('celý obvod blokuje od zahájení stavby (Martin 6. 11. 2026)', () => 
     expect(routeMapKey(one, s.lastDay)).toBe(routeMapKey(s, s.lastDay));
     let x = s;
     let partial = false;
-    for (let d = 0; d < 400 && x.constructions.some((c) => c.kind === 'fortification'); d += 5) {
+    // stavby staví jen muži (population.md – Práce, Stavby staví muži) – zakladatelé mají jednoho
+    for (let d = 0; d < 1000 && x.constructions.some((c) => c.kind === 'fortification'); d += 5) {
       x = advance(x, 5);
       const built = x.fortifications![0]!.segments.filter((g) => g.builtDay !== null).length;
       if (built > 0 && built < all) partial = true;

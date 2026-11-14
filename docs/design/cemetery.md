@@ -235,6 +235,20 @@ vojvoda se pohřbívá také kostrově bez mohyly (návrh Clauda: velká mohyla 
 pomník, kostrový hrob mohylu nemá – vojvoda si místo na prominentním místě ponechá). Hřbitov
 u kostela je samostatné téma po kamenném zdivu.
 
+## Po křtu rodu (Martin 14. 11. 2026)
+
+Martin 14. 11. 2026: „Po přijetí křesťanství ať se změní ikonka hřbitova. A hřbitov půjde stavět jen
+u kostela.“ Navazuje na [křesťanství](christianity.md) – Pohřby („Pohřbívat se bude u kostela. Pokud
+kostel není, pohřbívá se na starém slovanském hřbitově, ale kostrově.“) a hřbitůvek kolem kostela
+([kostely](churches.md)).
+
+- **Ikona** hřbitova v nabídce staveb se po křtu rodu změní na křesťanský hřbitov (kříž místo
+  mohyly).
+- **Nový hřbitov i rozšíření jen u kostela** – návrh Clauda: čtverce musí sousedit s hřbitůvkem
+  kostela; bez kostela je tlačítko zašedlé s důvodem „Hřbitov jen u kostela.“ (u kurzoru).
+- **Správce** totéž: po křtu staví a rozšiřuje hřbitov jen u kostela; bez kostela se pohřbívá na
+  starém hřbitově (kostrově), jak už pravidlo říká.
+
 ## Naměřeno
 
 `measure-village.ts 200 60` (17. 10. 2026). Hráč, který staví, založí hřbitov hned po první

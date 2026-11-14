@@ -5,7 +5,6 @@ import {
   getWorldState,
   realTimeOf,
   type CalendarDate,
-  type Season,
   type WorldClock,
   type WorldState,
 } from '@bohemia/game';
@@ -29,13 +28,6 @@ const MONTHS_GENITIVE = [
 export function monthGenitive(month: number): string {
   return MONTHS_GENITIVE[(month - 1 + 12) % 12]!;
 }
-
-const SEASON_NAMES: Record<Season, string> = {
-  spring: 'jaro',
-  summer: 'léto',
-  autumn: 'podzim',
-  winter: 'zima',
-};
 
 // Datum skládáme ručně z číselných částí – hotový výstup Intl se mezi Node a prohlížeči liší
 // (běžné vs. nezlomitelné mezery) a text se renderuje na serveru i v prohlížeči.
@@ -70,7 +62,7 @@ export function formatWorldState(state: WorldState, world: WorldClock): string {
     case 'ended':
       return 'Rok 1500 – svět skončil';
     case 'running': {
-      return `${formatGameDate(state.date)} · ${SEASON_NAMES[state.date.season]}`;
+      return formatGameDate(state.date);
     }
   }
 }
@@ -99,4 +91,26 @@ export function dateRefreshDelay(nowMs: number, world: WorldClock): number | nul
   const next = nextDateChangeMs(nowMs, world);
   if (next === null) return null;
   return Math.min(DATE_REFRESH_MS.max, Math.max(DATE_REFRESH_MS.min, next - nowMs + 1));
+}
+
+/**
+ * Úhel ručičky ciferníku denní doby ve stupních po směru hodin od svislice nahoře (Martin
+ * 14. 11. 2026; ciferník na 24 hodin je návrh Clauda): poledne nahoře (0°), 18:00 vpravo (90°),
+ * půlnoc dole (180°), 6:00 vlevo (270°). Jedna otáčka za herní den.
+ */
+export function clockHandAngle(hour: number): number {
+  const turn = ((((hour - 12) / 24) % 1) + 1) % 1;
+  return turn * 360;
+}
+
+/** Denní doba slovy pro popisek ciferníku (hodina 0–24). */
+export function dayPartLabel(hour: number): string {
+  const h = ((hour % 24) + 24) % 24;
+  if (h < 5) return 'Noc';
+  if (h < 9) return 'Ráno';
+  if (h < 11) return 'Dopoledne';
+  if (h < 13) return 'Poledne';
+  if (h < 17) return 'Odpoledne';
+  if (h < 21) return 'Večer';
+  return 'Noc';
 }
