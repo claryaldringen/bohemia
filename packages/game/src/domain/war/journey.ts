@@ -237,6 +237,16 @@ function homeDay(s: JourneyState, ctx: TickContext, out: TickOut): void {
 function afterLosses(s: JourneyState, out: TickOut): void {
   const alive = new Set(s.members.filter((m) => m.status === 'active').map((m) => m.group));
   const dead = s.groups.filter((g) => !alive.has(g.id));
+  // vojvoda padl sám v hloučku bez živých – hlouček zmizí, ale zbytek jeho skupiny se jinak
+  // nedozví, že je bez vedení (členové jsou pryč, než se `lordFell` počítá níž)
+  const orphaned = new Set(
+    s.members
+      .filter((m) => m.lord && m.status === 'fallen')
+      .flatMap((m) => {
+        const party = s.groups.find((g) => g.id === m.group)?.party;
+        return party === undefined ? [] : [party];
+      }),
+  );
   if (dead.length > 0) {
     const shared = new Set<string>();
     for (const g of dead) {
@@ -252,9 +262,9 @@ function afterLosses(s: JourneyState, out: TickOut): void {
   const partyOfGroup = new Map(s.groups.map((g) => [g.id, g.party]));
   for (const p of s.parties) {
     if (p.leaderless) continue;
-    const lordFell = s.members.some(
-      (m) => m.lord && m.status === 'fallen' && partyOfGroup.get(m.group) === p.id,
-    );
+    const lordFell =
+      orphaned.has(p.id) ||
+      s.members.some((m) => m.lord && m.status === 'fallen' && partyOfGroup.get(m.group) === p.id);
     if (!lordFell) continue;
     p.leaderless = true;
     if (p.phase === 'out') turnHome(s, p);

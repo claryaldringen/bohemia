@@ -320,6 +320,30 @@ describe('upozornění', () => {
     ]);
     expect(done.notices).toEqual([]);
   });
+
+  it('vojvoda sám v hloučku zemře doma – zbytek skupiny je leaderless, jde domů a rozkaz ho nezmění', () => {
+    const DEATH_DAY = SUMMER + 1;
+    const DEATH = firstTickOf(DEATH_DAY);
+    const world = worldOf(MEADOW, [1], DEATH_DAY);
+    const T = LAUNCH + 200;
+    const begin = stepJourney(
+      start([person(1)], go(A)),
+      T,
+      [order(T, 1, go(C), [1, 7], [person(7, { name: 'Vítek' })])],
+      world,
+    ).state;
+    expect(groupOf(begin, 1).id).not.toBe(groupOf(begin, 7).id);
+    expect(partyOf(begin, 1).id).toBe(partyOf(begin, 7).id);
+    const at = stepJourney(begin, DEATH, [], world).state;
+    expect(at.members.some((m) => m.ref.personId === 1)).toBe(false);
+    expect(partyOf(at, 7)).toMatchObject({ phase: 'returning', leaderless: true });
+    expect(groupOf(at, 7).goal).toEqual({ cell: HOME.cell, pos: HOME.pos });
+    const orders = [order(DEATH + 5, 1, go(A)), order(DEATH + 9, 2, go(B), [7])];
+    const plain = stepJourney(begin, DEATH + 30, [], world).state;
+    expect(JSON.stringify(stepJourney(begin, DEATH + 30, orders, world).state)).toBe(
+      JSON.stringify(plain),
+    );
+  });
 });
 
 describe('šelmy po hloučcích (Rozhodnutí 9)', () => {
