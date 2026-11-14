@@ -125,8 +125,11 @@ tempo a svět `CampaignWorld`.
   nebo s nedoručenými událostmi) pod zámkem tažení (`CampaignLock`, klíč = id výjezdu) do taktu
   `tickOfMs(nowMs)`; chyba jednoho výjezdu ostatní nezastaví (`failed`), cizí zámek = `busy`.
   Cyklus jako `stepOne` tažení: bod → doručit schránku bodu → záměry → dopočet → uložit →
-  doručit. Bod se uloží nejvýš po `CHECKPOINT_TICKS` (40) taktech, hned s událostmi, na konci
-  výjezdu a když výjezd čeká na ves (bariéra – mez vsi povyroste).
+  doručit. Stojící skupina se uloží nejvýš po `CHECKPOINT_TICKS` (40) taktech; hned se uloží s událostmi,
+  na konci výjezdu, když výjezd čeká na ves (bariéra – mez vsi povyroste) a když se od uloženého
+  bodu změnilo, co hráč vidí (`playerSeesChange`: poloha, cíl nebo dojetí skupiny, fáze, uplatněný
+  záměr) – jedoucí skupina se tak ukládá každé kolo (≈ 1 s) a vojvoda na klik reaguje do vteřiny
+  (Martin 14. 11. 2026: „kliknu do mapy… strašně dlouho mu trvá, než se rozjede“).
 - **Dopočet s načítáním** – `computeWithLoads(deps, state, step)` v `step-campaigns.ts` je
   zobecněný dopočet tažení (`computeCampaign` ho volá nad `stepCampaign`, výjezd nad `stepJourney`):
   chybí-li taktu mapa nebo ves (bariéra Ú6.7), načtou se a výpočet pokračuje od zastaveného taktu.
@@ -200,8 +203,8 @@ tempo a svět `CampaignWorld`.
 - **`commandJourney(deps, { playerId, command, nowMs })`** – zapíše záměr na takt teď +
   `INTENT_LEAD_TICKS`. `refused`: bez výjezdu, skončený výjezd, vojvoda padl, neplatný vstup;
   `unreachable`; `war-there` (`atWar` na políčko cíle – `cross`, nebo mapa, kde skupina stojí).
-  Pozor: poloha je z kontrolního bodu, který worker ukládá zřídka – rozkaz může mířit z mírně
-  starého místa, zdrojem pravdy je krok výjezdu.
+  Pozor: poloha je z kontrolního bodu (jedoucí skupina se ukládá každé kolo, stojící zřídka) –
+  rozkaz může mířit z mírně starého místa, zdrojem pravdy je krok výjezdu.
 - **`visitorsOn(deps, { playerId, villageId })`** – jezdci na mapě vsi hráče (`onCell`). Hostitel vidí
   jako obránce ve válce: z domů vsi (`village.state.dwellings`) s mřížkou dohledu (`mapGrid`,
   `inSight`: 150 m, les 50 m); vlastní výjezd vždy. Vrací jen jméno vojvody, jméno rodu (`houseName`
@@ -416,7 +419,7 @@ výsledek výjezdu se jimi nemění.
   stát na místě vsi krajiny); načtení stránky uprostřed výjezdu tak odjezd
   nepřehraje. Příjezd začne, když se vracející skupina přiblíží k domovu na `ARRIVE_M` (30 m),
   nebo když vlastní výjezd ze scény zmizí po fázi `returning` či nejvýš `HOME_REACH_M` (150 m)
-  od domova – worker ukládá kontrolní bod po 10 s, krátký návrat tak scéna ve fázi `returning`
+  od domova – worker ukládá kontrolní bod stojící skupiny po 10 s, krátký návrat tak scéna ve fázi `returning`
   vůbec nemusí uvidět; skupina, která odjela přes okraj mapy, zmizí u okraje. Skončí, až jsou
   všichni v dvorci, koně v ohradě a výjezd ve scéně není. Omezený pohyb obojí přeskočí (muži stojí, kde je ukáže server). Cizí
   výjezdy z dvorce nevyjíždějí.
