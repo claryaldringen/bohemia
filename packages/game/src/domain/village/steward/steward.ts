@@ -779,7 +779,7 @@ function hasCraft(state: VillageState, craft: Craft): boolean {
  * vsi ušetří (od dnešního pokrytí k plnému – meze produktivity), mínus polní práce čekající
  * domácnosti, která vsi chybí. Hrnčíř – menší ztráty zásob (`STORAGE_LOSS_PER_YEAR`) převedené
  * na práci výnosem polní práce; kovář – práce polí s plným pokrytím nástroji, jen když ves má
- * uhlíře; uhlíř – kovářovo ušetření mínus práce dvou domácností (kovář bez uhlí stojí); tesař až
+ * uhlíře; uhlíř – kovářovo ušetření mínus práce dvou domácností, ke kováři bez uhlí (stojí) jedné; tesař až
  * s voly a vozy (zatím 0). Řemeslo, které ves má, 0.
  */
 export function workshopValue(
@@ -807,7 +807,8 @@ export function workshopValue(
     case 'smith':
       return hasCraft(state, 'burner') ? smithSaved - familyLoss : 0;
     case 'burner':
-      return hasCraft(state, 'smith') ? 0 : smithSaved - 2 * familyLoss;
+      // ves už kováře má (bez uhlí stojí): uhlíř nese práci jedné domácnosti, ne dvou
+      return smithSaved - (hasCraft(state, 'smith') ? 1 : 2) * familyLoss;
     case 'carpenter':
       return 0;
   }

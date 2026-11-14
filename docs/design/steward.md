@@ -388,7 +388,9 @@ Kroky 3 a 4 (`domain/village/steward/steward.ts` – `stewardDay`):
 - **Dílna místo obydlí** (jen Růst, řemeslo, které ves nemá): hodnota v člověkodnech za rok minus
   polní práce průměrné domácnosti – hrnčíř: ztráty zásob od dnešního pokrytí k plnému
   (`STORAGE_LOSS_PER_YEAR`) převedené na práci výnosem polní práce; kovář: polní práce
-  s plným pokrytím nástroji, jen s uhlířem; uhlíř: kovářovo ušetření minus práce dvou domácností;
+  s plným pokrytím nástroji, jen s uhlířem; uhlíř: kovářovo ušetření minus práce dvou domácností, ke kováři, kterého ves už má, jen jedné
+  (kovář bez uhlí stojí a správce uhlíře jinak nikdy nepřistaví – Martin 14. 11. 2026: „Ano, uhlíře
+  udělej jak říkáš“);
   tesař zatím 0 (až s voly a vozy). Bez nástrojů ušetří plné pokrytí ≈ 39 % polní práce, takže
   uhlíř vyjde kladně od 6 obydlí, kovář s uhlířem od 3; hrnčíř (ztráty 10 % → 5 %) až od 21 obydlí.
 
