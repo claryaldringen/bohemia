@@ -24,7 +24,9 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // 14. 11. 2026 – sloučení se zápisy vzniklých cest s konci a roky chůze (`road-formed` – `ends`,
 // `years`; web-ui.md – Panel Kronika): nová pole záznamů; dřív 8c37bb353aa1f9bb (zboží) a
 // 11d3b0961aecf068 (zápisy cest)
-const EXPECTED_YEAR_1 = '49dfd13fd6e3eb50';
+// 14. 11. 2026 – zboží vsi bez mrtvého stavu `wares.today` (rámy se kreslí z `curing`): ubylo pole
+// v uloženém stavu; dřív 49dfd13fd6e3eb50
+const EXPECTED_YEAR_1 = 'b7477b97a27c913e';
 
 describe('zlatý otisk vsi', () => {
   const world = goldenWorld();

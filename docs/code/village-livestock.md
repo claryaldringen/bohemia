@@ -508,7 +508,7 @@ porážce. Nový den přepíše starý. `laborDay` z něj dělá `LaborDay.slaug
 
 Návrh: `docs/design/hides-honey.md`. Stav `VillageState.wares?: WaresState` (`types/types-wares.ts`:
 `hides`, `smallHides?`, `sheepFurs`, `wildFurs`, `honeyKg`, `waxKg`, kusy zlomkové jako stáda;
-`need?`, `curing?`, `today?` – zpracování níž) vzniká líně (`ensureWares`, `wares/wares.ts`),
+`need?`, `curing?` – zpracování níž) vzniká líně (`ensureWares`, `wares/wares.ts`),
 chybějící hodnota je 0, převod není potřeba. Jmenuje se `wares`, ne `goods` – převod
 `foreign-goods` (`withoutForeignGoods`) maže `goods`.
 
@@ -572,8 +572,7 @@ Návrh: hides-honey.md – Zpracování v domácnosti. Čísla `HIDES` (`rules/r
 - `processHidesDay(state, day, labor)` – listopad–březen (`curingSeason`): vezme do práce nejvýš
   `openNeed` (potřeba bez várek v `curing`), zásobu a hodiny; napřed kůže skotu (10 h), pak kozí
   a prasečí (4 h), pak ovčí kožešiny (3 h) a z lovu (1,5 h) jen do zbytku potřeby. Vzaté ubyde ze
-  zásoby a jde do várky `{ doneDay: day + cureDays, hides, furs }`, `today` zapíše dnešní díl
-  (rámy ve scéně). Vrací spotřebované člověkodny.
+  zásoby a jde do várky `{ doneDay: day + cureDays, hides, furs }` (rámy ve scéně se kreslí z `curing`). Vrací spotřebované člověkodny.
 - `finishCuring(state, day)` – várky s `doneDay ≤ day` ubere z `need` a smaže (prázdné `curing`
   zmizí); hotový výrobek domácnosti hned spotřebují, zásobu nemá.
 - Kdo zpracovává – **jen ženy z volného času** (population.md – Práce, Stavby staví muži;

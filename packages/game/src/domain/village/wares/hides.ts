@@ -111,6 +111,5 @@ export function processHidesDay(state: VillageState, day: number, labor: number)
   wares.sheepFurs -= sheep;
   wares.wildFurs -= wild;
   (wares.curing ??= []).push({ doneDay: day + HIDES.cureDays, hides, furs });
-  wares.today = { day, hides, furs };
   return (start - hours) / SMALL_GAME.hoursPerManDay;
 }

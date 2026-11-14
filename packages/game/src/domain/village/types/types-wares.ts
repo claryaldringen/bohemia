@@ -36,6 +36,4 @@ export interface WaresState {
   need?: HidesFurs;
   /** Várky v práci – hotový výrobek vznikne až v den dokončení. Chybí = žádné. */
   curing?: CuringBatch[];
-  /** Co domácnosti dnes vzaly do práce (rámy u domů ve scéně); jiný den = nic. */
-  today?: HidesFurs & { day: number };
 }

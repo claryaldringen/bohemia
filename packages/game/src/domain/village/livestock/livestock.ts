@@ -428,7 +428,7 @@ export function butcher(state: VillageState, kg: number): void {
 
 /**
  * Zapíše kusy poražené dnes (`LivestockState.slaughtered` – hlášení pro scénu) a přidá z nich
- * kůže a kožešiny (`addSlaughterWares`, hides-honey.md – Porážka; mutuje stav). Nový den začíná
+ * kůže a kožešiny (`addSlaughterWares`, hides-honey.md – Zboží; mutuje stav). Nový den začíná
  * znovu.
  */
 export function noteSlaughtered(

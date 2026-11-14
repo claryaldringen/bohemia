@@ -161,7 +161,7 @@ variantu „a“: odebrat zboží zvenku). Detaily níž jsou návrh Clauda.
     | kůže     | 20 / ks | 5 kg    | kůže skotu – 10 h zpracování, jako dvě třetiny kila masa za hodinu práce     |
     | kožešina | 8 / ks  | 1 kg    | zaječí a liščí 1,5 h zpracování, ovčí 3 h                                    |
 
-  - **Kůže jsou jedno zboží v kusech kůže skotu** (rozhodnutí koordinátora 14. 11. 2026): malé
+  - **Kůže jsou jedno zboží v kusech kůže skotu** (návrh Clauda 14. 11. 2026): malé
     kůže (kozí, prasečí) se přepočtou plochou 0,8 / 3 ≈ 0,27 kusu; prodej bere napřed velké kůže,
     pak malé. Popisek řádku v panelu ukáže rozpis (velké a malé kůže).
   - **Kožešiny jsou jedno zboží:** kožešiny z lovu a ovčí dohromady; prodej bere napřed z lovu,

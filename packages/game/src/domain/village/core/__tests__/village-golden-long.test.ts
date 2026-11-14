@@ -16,8 +16,10 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // 14. 11. 2026 – sloučení se zápisy vzniklých cest s konci a roky chůze (`road-formed` – `ends`,
 // `years`): nová pole záznamů; dřív e061caeb9287a11c a 14ab1671d93f3eca (zboží), 337ac1e26a689941
 // a 402c83aada144bca (zápisy cest)
-const EXPECTED_YEAR_2 = 'ebdc645e3e62b846';
-const EXPECTED_YEAR_3 = '6ad042796fa46459';
+// 14. 11. 2026 – zboží vsi bez mrtvého stavu `wares.today` (rámy se kreslí z `curing`): ubylo pole
+// v uloženém stavu; dřív ebdc645e3e62b846 a 6ad042796fa46459
+const EXPECTED_YEAR_2 = '661ac775bc7e6967';
+const EXPECTED_YEAR_3 = 'b75848dca0cbb5c0';
 
 describe('zlatý otisk vsi – delší běh', () => {
   it('po 2. a 3. roce dopočtu dá zapsané otisky', () => {

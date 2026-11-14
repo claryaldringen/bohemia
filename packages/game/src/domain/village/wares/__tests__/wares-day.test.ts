@@ -37,7 +37,7 @@ describe('kůže a kožešiny ve dni vsi', () => {
     expect(need?.hides).toBeGreaterThan(0);
     expect(need?.furs).toBeGreaterThan(0);
     // 1. 11. se už pracuje, potřeba ale ubude až hotovou várkou
-    expect(nov1.wares?.today?.day).toBe(NOV_1);
+    expect(nov1.wares?.curing?.[0]?.doneDay).toBe(NOV_1 + HIDES.cureDays);
     expect(nov1.wares?.curing?.[0]?.doneDay).toBe(NOV_1 + HIDES.cureDays);
     const whole = advanceVillage(structuredClone(start), NOV_15, null);
     expect(whole.wares!.need!.hides + whole.wares!.need!.furs).toBeLessThan(
@@ -54,7 +54,7 @@ describe('kůže a kožešiny ve dni vsi', () => {
     delete s.wares.curing;
     const day = at(12, 10);
     const next = advanceVillage(s, day, null);
-    expect(next.wares?.today?.day).toBe(day);
+    expect(next.wares?.curing?.[0]?.doneDay).toBe(day + HIDES.cureDays);
     expect(next.wares?.hides).toBeLessThan(10);
     expect(next.wares?.need?.hides).toBe(5);
     const later = advanceVillage(next, day + HIDES.cureDays, null);
@@ -79,13 +79,12 @@ describe('kůže zpracují ženy z volného času (population.md – Práce, Sta
     const next = advanceVillage(s, day, null);
     expect(next.wares?.hides).toBe(50);
     expect(next.wares?.curing).toBeUndefined();
-    expect(next.wares?.today?.day).not.toBe(day);
   });
 
   it('ženy s volnou prací zpracují, muži navíc zpracování neurychlí', () => {
     const base = advanceVillage(winter(), day, null);
     const done = 50 - base.wares!.hides;
-    expect(base.wares?.today?.day).toBe(day);
+    expect(base.wares?.curing?.[0]?.doneDay).toBe(day + HIDES.cureDays);
     expect(done).toBeGreaterThan(0);
     // mez je volná práce žen, ne zásoba
     expect(done).toBeLessThan(50);

@@ -23,7 +23,7 @@ export function beeTreeWalksM(landscape: Landscape): readonly number[] {
   return walks;
 }
 
-/** Každá brť přibývá jako klát – rovným dílem po dny sezóny (hides-honey.md – Brtě). */
+/** Každá brť přibývá jako klát – rovným dílem po dny sezóny (hides-honey.md – Klát u obydlí). */
 export function beeTreesDay(state: VillageState, day: number, walksM: readonly number[]): void {
   if (walksM.length === 0 || !beesFlying(day)) return;
   const trees = (ensureWares(state).beeTrees ??= { honeyKg: 0, waxKg: 0 });

@@ -89,7 +89,6 @@ describe('zpracování v domácnosti', () => {
     expect(s.wares?.sheepFurs).toBeCloseTo(0, 9);
     expect(s.wares?.wildFurs).toBeCloseTo(4, 9);
     expect(s.wares?.curing).toEqual([{ doneDay: DEC_10 + HIDES.cureDays, hides: 0, furs: 4 }]);
-    expect(s.wares?.today).toEqual({ day: DEC_10, hides: 0, furs: 4 });
     // potřeba ubude až hotovou várkou
     expect(s.wares?.need?.furs).toBe(4);
   });
@@ -100,7 +99,7 @@ describe('zpracování v domácnosti', () => {
     expect(s.wares?.hides).toBeCloseTo(4.5, 9);
     // napřed kůže, kožešiny na řadě až po nich
     expect(s.wares?.sheepFurs).toBe(2);
-    expect(s.wares?.today).toEqual({ day: DEC_10, hides: 0.5, furs: 0 });
+    expect(s.wares?.curing).toEqual([{ doneDay: DEC_10 + HIDES.cureDays, hides: 0.5, furs: 0 }]);
   });
 
   it('kozí a prasečí kůže po 4 h a přepočtem plochou, až když kůže skotu nestačí', () => {
@@ -110,7 +109,7 @@ describe('zpracování v domácnosti', () => {
     expect(used).toBeCloseTo(2, 9);
     expect(s.wares?.hides).toBeCloseTo(0, 9);
     expect(s.wares?.smallHides).toBeCloseTo(3.5, 9);
-    expect(s.wares?.today?.hides).toBeCloseTo(1 + 2.5 * SMALL, 9);
+    expect(s.wares?.curing?.[0]?.hides).toBeCloseTo(1 + 2.5 * SMALL, 9);
   });
 
   it('kozí a prasečí kůže nejvýš do potřeby v kůžích skotu', () => {

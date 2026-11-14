@@ -834,10 +834,6 @@ export function constructionsStalled(
   );
 }
 
-/**
- * Souhrn vsi v den `day` (stav má být dopočítaný do tohoto dne); `landscape` – posvátné místo
- * prémiové krajiny ve štěstí (bez krajiny se nepočítá).
- */
 function waresView(state: VillageState): WaresView | null {
   const w = state.wares;
   if (!w) return null;
@@ -852,6 +848,10 @@ function waresView(state: VillageState): WaresView | null {
   };
 }
 
+/**
+ * Souhrn vsi v den `day` (stav má být dopočítaný do tohoto dne); `landscape` – posvátné místo
+ * prémiové krajiny ve štěstí (bez krajiny se nepočítá).
+ */
 export function summarizeVillage(
   state: VillageState,
   day: number,

@@ -32,7 +32,7 @@ export function addWildFurs(state: VillageState, count: number): void {
   ensureWares(state).wildFurs += count;
 }
 
-/** Porážka dá zboží: ovce kožešinu, kráva kůži skotu, koza a prase menší kůži (hides-honey.md – Porážka). */
+/** Porážka dá zboží: ovce kožešinu, kráva kůži skotu, koza a prase menší kůži (hides-honey.md – Zboží). */
 export function addSlaughterWares(state: VillageState, species: HerdSpecies, heads: number): void {
   if (heads <= EPSILON) return;
   if (species === 'sheep') ensureWares(state).sheepFurs += heads;
