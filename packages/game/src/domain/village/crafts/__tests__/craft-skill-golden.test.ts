@@ -131,6 +131,8 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
       // ruce pro výmlat dne (production-chains.md – Humno, Výhled jídla; 2. 11. 2026) – podle nich
       // výhled výmlatu do konce okna
       'threshHands',
+      // zboží vsi – kůže, kožešiny, med a vosk (hides-honey.md): jen přírůstky, simulaci nemění
+      'wares',
     ]);
     // trvalé stavy z upozornění do kroniky (absence.md, 9. 11. 2026) – jen zápis, simulaci nemění
     const stripped = JSON.stringify(

@@ -1,3 +1,4 @@
+import { waresDay } from '../wares/wares';
 import { recordFelledSacredOn } from '../people/desecration';
 import { TOTAL_GAME_DAYS, dateOfDayIndex } from '../../calendar';
 import type { Landscape, ObstacleLayer } from '../../landscape';
@@ -310,6 +311,8 @@ function storesAndHerdsDay(
   state.chronicle.push(...overgrowthDay(state, day, obstacles ?? landscape));
   // stáda, seno a ohrady: mláďata, seč, porážka, vejce, zimní krmení, spřežení (diet.md, oxen.md)
   state.chronicle.push(...husbandryDay(state, day, coverage.tools, landscape, obstacles));
+  // zboží vsi: med a vosk z klátů (hides-honey.md)
+  waresDay(state, day, landscape);
 }
 
 /** Plán dne: posvátné duby, paměť hladu, obrácení, nový hospodářský rok a díly na řadě. Vrací díly, které čekají. */

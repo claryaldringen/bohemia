@@ -2,6 +2,7 @@
 // a maso do zásoby (`huntDay` před výcvikem). Úlovek jde akumulátorem bez náhody; jediný los je
 // riziko zranění a smrti (`huntRisk`, vlastní proud ze seedu vsi a dne). Lov navíc na pokyn hráče
 // (`canDeclareHunt`, `declareHunt`) vyhlásí hráč přes use-case `declareHuntInVillage`.
+import { addHides } from '../wares/wares';
 import { dateOfDayIndex } from '../../calendar';
 import { createRandom, deriveSeed } from '../../landscape/random';
 import { bury } from '../buildings/cemetery';
@@ -270,6 +271,8 @@ export function huntDay(
   today.kills = total;
   if (total > 0) {
     if (meatKg > 0) butcher(state, meatKg);
+    // kůži dá jen divočák a jelen (vlk a medvěd v návrhu nejsou – hides-honey.md)
+    addHides(state, kills.boar + kills.deer);
     hunt.year.boar += kills.boar;
     hunt.year.deer += kills.deer;
     hunt.year.wolves += kills.wolves;

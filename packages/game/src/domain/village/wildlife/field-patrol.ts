@@ -1,5 +1,6 @@
 // Jezdecká hlídka polí (wildlife.md – Obrana polí, Jezdecká hlídka – objížďka polí): v červnu až
 // říjnu jezdci rodiny na denní objížďce zvěř od polí odhání a občas uloví prase. Bez náhody.
+import { addHides } from '../wares/wares';
 import { dateOfDayIndex } from '../../calendar';
 import { riderPower } from '../livestock/horse-riders';
 import { emptyHunt } from './hunt';
@@ -92,6 +93,7 @@ export function patrolHuntDay(state: VillageState, day: number): void {
   hunt.hope.boar = Math.min(1, Math.max(0, hunt.hope.boar));
   if (kills === 0) return;
   butcher(state, meatKg);
+  addHides(state, kills);
   hunt.year.boar += kills;
   hunt.year.meatKg += meatKg;
 }

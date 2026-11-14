@@ -503,3 +503,22 @@ porazilo; zapisuje `noteSlaughtered` (`livestock.ts`) při porážce 1. 11. (jen
 čekající na zimu), v zimní porážce po dnech i zbytku 31. 3., při porážce pro seno a při nouzové
 porážce. Nový den přepíše starý. `laborDay` z něj dělá `LaborDay.slaughterHeads`, scéna
 `SceneLabor.slaughter`. Simulace ho nečte (nemění stav ani determinismus).
+
+## Kůže, kožešiny, med a vosk (`wares/`)
+
+Návrh: `docs/design/hides-honey.md`. Stav `VillageState.wares?: WaresState` (`types/types-wares.ts`:
+`hides`, `sheepFurs`, `wildFurs`, `honeyKg`, `waxKg`, kusy zlomkové jako stáda) vzniká líně
+(`ensureWares`, `wares/wares.ts`), chybějící hodnota je 0, převod není potřeba. Jmenuje se `wares`,
+ne `goods` – převod `foreign-goods` (`withoutForeignGoods`) maže `goods`.
+
+- Přírůstky: `addHides`, `addWildFurs`, `addSlaughterWares(state, species, heads)` (ovce dá
+  `sheepFurs`, koza, prase a kráva `hides`). Nulový přírůstek stav nezakládá.
+- Napojení: `noteSlaughtered` (`livestock.ts`, tedy i nouzová porážka) volá `addSlaughterWares`,
+  `retireOxen` (`oxen.ts`) `addHides(oxen)` – koně kůži nedávají; `huntDay` (`wildlife/hunt.ts`)
+  `addHides(boar + deer)` (vlk a medvěd kůži nedávají), `patrolHuntDay` (`field-patrol.ts`)
+  `addHides(kills)`.
+- Klát: `HIVES` (`rules/rules-wares.ts`) – 6 kg medu a 0,4 kg vosku za rok na obydlí, přibývá
+  1. 5.–30. 9. (`beesFlying`, `seasonDays` = 153); `hivesDay` (`wares/hives.ts`) přidá denně
+     `dwellings.length × roční ÷ seasonDays`. Bez obydlí `wares` nevznikne.
+- Pořadí dne: `storesAndHerdsDay` (`core/simulate.ts`) volá `waresDay(state, day, landscape)` hned za
+  `husbandryDay`; zatím dělá jen `hivesDay`.
