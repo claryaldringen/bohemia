@@ -496,6 +496,15 @@ Návrh: `docs/design/horses.md` – Kování. Čísla: `HORSE_SHOEING` v `rules-
 - Scéna (podrobně `docs/code/scene-village.md` – Kování ve scéně): s `SceneLabor.shoeing` jde kovář k brance ohrady koní (`villager-plan-shoeing.ts`) a podíl `horse-shoeing` už postavu u plotu nemá. Bez kování dne (starší rozdělení práce) kuje u plotu muž z domácnosti kovárny (`shareWorker` v `villager-plan.ts`, kovář a synové, záložně starší chlapec; `horse-shoeing` je v `CRAFT_ACTIVITIES`, `WOMEN['horse-shoeing'] = 0`).
 - Web: `horse-view.ts` (`shoeing`), blok koní v `selection/fields.tsx` (nepodkutý kůň červeně); upozornění se nedává ani na nepodkutého koně (Martin 9. 11. 2026), kování samo se neohlašuje (Martin 27. 10. 2026), zůstává v kronice (`village-view-chronicle.ts`).
 
+## Koně venku s výpravou
+
+Návrh: `docs/design/expeditions.md` – Kůň. Kód: `livestock/horses-out.ts`.
+
+- Kůň zůstává v `pen.horses` (jí, má místo a péči jako dřív), ale je **venku**, dokud má jezdec na výpravě `away.horseId`. `horsesOut(state, day)` vrací id těchto koní (osoby s `away.kind === 'journey'`, které jsou dnes pryč); jezdec, který ve vsi už není (padl – `applyJourneyCasualty` ho odstraní), kůň v seznamu není a je zase volný v ohradě.
+- Událost schránky `journey-horse { journeyId, personId, horseId | null }` → `applyJourneyHorse`: nastaví `away.horseId` jen když je v ohradě kůň s `riderId === personId`; `null` ho smaže (sesednutí doma). Cizí `journeyId` nebo osoba bez `away` výpravy nic nezmění; událost je idempotentní.
+- Chov a porážka koně venku přeskočí: `horseBirths` (1. 5.) bere za hřebce jen koně doma, `retireHorses` (1. 11.) koně venku nevybírá (ani stářím, ani jako přebytek – `kept` je bez něj).
+- Krmení, péče (`horseCareLabor`) a místa v ohradě beze změny.
+
 ## Kusy poražené dnes (hlášení pro scénu)
 
 `LivestockState.slaughtered?: { day, heads }` – kolik kusů kterého druhu (i zlomky) se dnes

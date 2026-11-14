@@ -8,7 +8,7 @@ import { taskPosition, taskSpans } from '../fields/field-progress';
 import { patrolOfDay } from './field-patrol';
 import { partsByIdOf } from '../core/parts-by-id';
 import { lordTraineeIds } from '../people/lord';
-import { ageGroup } from '../people/people';
+import { ageGroup, isAway } from '../people/people';
 import { isYoungster } from '../livestock/herding';
 import { FIELD_DAMAGE, FIELD_GUARD } from '../rules/rules-wildlife';
 import type {
@@ -146,7 +146,7 @@ function nightGuards(state: VillageState, day: number): FieldWatch['guards'] {
   for (const p of state.people) {
     if (family.has(p.id)) continue;
     if (isYoungster(p, day)) youngsters += 1;
-    else if (ageGroup(p, day) === 'elder') elders += 1;
+    else if (ageGroup(p, day) === 'elder' && !isAway(p, day)) elders += 1;
   }
   return { elders, youngsters };
 }

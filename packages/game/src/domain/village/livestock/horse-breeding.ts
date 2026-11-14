@@ -2,6 +2,7 @@ import { dateOfDayIndex } from '../../calendar';
 import { createRandom, deriveSeed } from '../../landscape/random';
 import { SLAUGHTER_DAY } from '../core/diet';
 import { familyRiders } from './horse-riders';
+import { horsesOut } from './horses-out';
 import {
   horseAgeYears,
   horsePens,
@@ -93,7 +94,9 @@ export function horsesOverRoom(
 export function horseBirths(state: VillageState, day: number): ChronicleEvent[] {
   const pens = horsePens(state);
   const horses = pens.flatMap((pen) => [...penHorses(pen)]);
-  if (!horses.some((h) => isGrainHorse(h, day))) return [];
+  // hřebec na výpravě je venku – hříbě bez něj nevznikne (expeditions.md)
+  const out = horsesOut(state, day);
+  if (!horses.some((h) => isGrainHorse(h, day) && !out.has(h.id))) return [];
   let room = horsePlaces(state) - horses.length;
   // hříbata jen podle poptávky – ne víc, než ves za 3 roky potřebuje (horses.md – Chov)
   const wanted = horsesWanted(state, day);
@@ -134,7 +137,13 @@ export function retireHorses(
   family?: Pick<LordFamily, 'trainees'>,
 ): ChronicleEvent[] {
   const pens = horsePens(state);
-  const all = pens.flatMap((pen) => penHorses(pen).map((horse) => ({ pen, horse })));
+  // kůň venku s výpravou na maso nejde (expeditions.md) – ani stářím, ani jako přebytek
+  const out = horsesOut(state, day);
+  const all = pens.flatMap((pen) =>
+    penHorses(pen)
+      .filter((horse) => !out.has(horse.id))
+      .map((horse) => ({ pen, horse })),
+  );
   if (all.length === 0) return [];
   const gone = new Map<Horse, Retired>();
   for (const { horse } of all) {

@@ -4,7 +4,7 @@ import type { WaterCartPlan } from '../crafts/cart-jobs';
 import { ironTravellers } from '../crafts/crafts';
 import { fireFighting } from '../disasters/firefighting';
 import { huntFootIds } from '../wildlife/hunt-party';
-import { isAdult } from '../people/people';
+import { isAdult, isAway } from '../people/people';
 import { raidHiding } from '../fortification/state/raid-day';
 import { householdWater, type DayChores, type HouseholdWater } from './labor';
 import { dayChores } from './day-chores';
@@ -44,9 +44,11 @@ export function villagersToday(
     apart.size > 0 ||
     hunting.size > 0 ||
     fighting ||
-    lodgeIdle
+    lodgeIdle ||
+    state.people.some((p) => isAway(p, day))
       ? state.people.filter(
           (p) =>
+            !isAway(p, day) &&
             !isLodgeIdle(p) &&
             !crafts.has(p.dwellingId) &&
             !travelling.has(p.id) &&

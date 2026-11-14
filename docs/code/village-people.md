@@ -656,6 +656,19 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   ani při práci: `sceneLord` ho vyřadí ze dvorku, cvičiště a jízdy, `ScenePerson.away` ho nechá v panelu a výběru,
   ale `DayRoster` mu doma nedá postavu.
 
+## Nepřítomnost na výpravě (každý od 12 let – expeditions.md; plán 2026-11-14 – Úloha 2)
+
+- Výprava (`docs/code/journey.md`) posílá kohokoli od 12 let (ženy, děti od 12, vesničany, muže rodu). Každý člen má jako dřív `away: { kind: 'journey', refId: <id výpravy> }`; jedí dál doma (`foodNeedPerDay`), ale nepracují (`laborPerDay` = 0 přes `isAway`).
+- **Návrat po hloučcích:** událost `away-ends` nese volitelné `personIds` (`VillageEventBody`, `inbox.ts`) a `endAway(state, refId, untilDay, personIds?)` (`vassalage/guests.ts`) nastaví den návratu jen těm lidem; ostatní se stejným `refId` zůstávají pryč. Bez `personIds` všichni jako dosud (ochrana).
+- **Kdo ve vsi chybí při výběru práce** (`isAway`, výsledek vsi bez lidí pryč se nemění):
+  - `isYoungster` (`herding.ts`) – výrostek 12–13 let pryč nepase (`youngsterCount`, pletí `weedingChildren`, noční hlídači `nightGuards`; staří pryč také nehlídají);
+  - `villagersToday` (`morning-water.ts`) – pryč nenosí vodu domů;
+  - `smithBellows` (`iron.ts`) – pryč nešlape měch;
+  - `nextFamily` / `nextSingle` (`people-trade.ts`) – ves pryč nikoho sousedovi nevymění;
+  - `lordRides` (`lord.ts`) – jezdec pryč neobjíždí pole (hlídka polí `riderPatrol` ho nepočítá);
+  - `lineCandidates` / `villagerCandidates` (`muster.ts`) a `laborPerDay` už `isAway` znaly.
+- Koně venku: `docs/code/village-livestock.md` – Koně venku s výpravou.
+
 ## Jezdec a výcvik (klipy a rekvizity `man.glb` – lord-horses Úloha 8; luk a boj kreslí Úloha 9)
 
 `man.glb` nese navíc klipy `ride` (krok), `ride-trot`, `ride-idle` (sed z `rider/cavalry/crossbowman`),

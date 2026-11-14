@@ -9,7 +9,7 @@ import { huntToday } from '../wildlife/hunt-party';
 import { householdHead } from './households';
 import { adultDailyMin, householdMinimum, SUMMER_CHORES, type DayChores } from '../core/labor';
 import { villageManorId } from './manor';
-import { ageGroup, ageYears, isInjured, laborPerDay } from './people';
+import { ageGroup, ageYears, isAway, isInjured, laborPerDay } from './people';
 import { dailyMinPerHousehold } from '../core/productivity';
 import { AGE, ARMS_CAPS, HORSES, LORD, type ArmsSource } from '../rules';
 import { HUNT } from '../rules/rules-wildlife';
@@ -681,6 +681,8 @@ export function lordRides(state: VillageState, day: number): LordRides | null {
       const rider = horse.riderId === undefined ? undefined : trainees.get(horse.riderId);
       // zraněný nejezdí; kdo dnes loví, objížďku nejede (wildlife.md – Lov rodu)
       if (!rider || !isGrainHorse(horse, day) || isInjured(rider, day)) continue;
+      // jezdec na výpravě je pryč (expeditions.md) – objížďku nejede
+      if (isAway(rider, day)) continue;
       if (hunting.has(rider.id)) continue;
       const hours = trainingHours(rider, day, family.lord, true).riding;
       if (hours <= 0) continue;
