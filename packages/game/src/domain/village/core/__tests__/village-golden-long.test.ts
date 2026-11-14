@@ -13,8 +13,11 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // 14. 11. 2026 – kůže a kožešiny zpracují jen ženy z volného času (population.md – Práce, Stavby
 // staví muži): zpracování čeká na volnou práci žen, oka a ryby dostanou volnou práci mužů; dřív
 // f81e4a064771f2bd a e52babe3f8cdc2b0
-const EXPECTED_YEAR_2 = 'e061caeb9287a11c';
-const EXPECTED_YEAR_3 = '14ab1671d93f3eca';
+// 14. 11. 2026 – sloučení se zápisy vzniklých cest s konci a roky chůze (`road-formed` – `ends`,
+// `years`): nová pole záznamů; dřív e061caeb9287a11c a 14ab1671d93f3eca (zboží), 337ac1e26a689941
+// a 402c83aada144bca (zápisy cest)
+const EXPECTED_YEAR_2 = 'ebdc645e3e62b846';
+const EXPECTED_YEAR_3 = '6ad042796fa46459';
 
 describe('zlatý otisk vsi – delší běh', () => {
   it('po 2. a 3. roce dopočtu dá zapsané otisky', () => {

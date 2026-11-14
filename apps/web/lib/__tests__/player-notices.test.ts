@@ -112,13 +112,13 @@ describe('playerNoticeLine', () => {
     );
     expect(text('army-warned', {})).toBe('Vesničan spatřil cizí vojsko!');
     expect(text('refuge-arrived', { name: 'Kněžice', hostName: 'Lhota' })).toBe(
-      'Uprchlíci z vsi Kněžice došli do vsi Lhota.',
+      'Uprchlíci ze vsi Kněžice došli do vsi Lhota.',
     );
     expect(text('refuge-arrived', { name: 'Kněžice' })).toBe(
-      'Uprchlíci z vsi Kněžice došli do hradiště.',
+      'Uprchlíci ze vsi Kněžice došli do hradiště.',
     );
     expect(text('refuge-caught', { name: 'Kněžice' })).toBe(
-      'Uprchlíci z vsi Kněžice byli dostiženi.',
+      'Uprchlíci ze vsi Kněžice byli dostiženi.',
     );
     expect(text('messenger-caught', {})).toBe('Posel byl chycen.');
     for (const kind of [

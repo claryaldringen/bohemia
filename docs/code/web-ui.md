@@ -1454,7 +1454,33 @@ nová pravidla (návrh Clauda).
   „Vlkovští“; `withVillagersOf` – „s Lhotskými“): vzory podle konce jména z generátoru (-ice,
   -any, -ov, -ín, -ec, -á, -í, -a) a výčet jmen, která konec nerozhodne (Libice v jednotném čísle,
   Bělá, Dubá, Brod); jméno, které vzor nezná, opisem „ze vsi X“, „obyvatelé vsi X“, „s obyvateli
-  vsi X“. Testy `village-name-cases.test.ts` – každé jméno `VILLAGE_NAMES`.
+  vsi X“. Testy `village-name-cases.test.ts` – každé jméno `VILLAGE_NAMES`. Odkud je cizí ves
+  bez skloňování, píše se „ze vsi X“ (nájezd, zásilka, hosté, mistr huti, upozornění na uprchlíky).
+- **Místa místo obecných vět** (Martin 14. 11. 2026; `village-view-chronicle-places.test.ts`):
+  - **Konce cesty** – `roadBetween` v 7. pádě („mezi dvorcem a kovárnou“, „mezi rozcestím
+    a polem“, „mezi křižovatkou a severovýchodním krajem mapy“, stejné konce „mezi polem a dalším
+    polem“) z `ChronicleRoadEnd` (jádro `paths/road-chronicle.ts` – `chronicleRoadEnds` podle
+    `roadChainEnds` jako panel cesty: obydlí podle druhu, dílna podle řemesla, místo podle předpony
+    klíče trasy, tvar křižovatky, směr kraje mapy); neznámé místo – věta bez konců.
+  - **Jabloně u cesty** (`construction-finished` s `roadEnds` – konce v den výsadby):
+    „Podél cesty mezi dvorcem a kovárnou byly vysazeny jabloně.“, starší zápis „Podél cesty byly
+    vysazeny jabloně.“
+  - **Vyšlapaná cesta** (`road-formed` s `ends` a `years` – `roadFormedNote` po úklidu měsíce,
+    `noteFormedRoads`): „Po 12 letech chůze lidé vyšlapali cestu mezi dvorcem a vodou.“, rok „Po
+    roce chůze …“, pod půl roku bez doby „Lidé vyšlapali cestu mezi …“, starší zápis „Lidé
+    vyšlapali pevnou cestu.“ Roky = od pozdějšího z konců (den dostavění stavby, vykopání jámy,
+    první výsadby sadu; voda, les, pastva, louka, dub, háj a kraj mapy od založení vsi; křižovatka
+    a jiná cesta nic neurčí); konec, jehož stáří stav nezná (pole, milíř, rudiště, hliniště), roky
+    nedá (návrh Clauda).
+  - **Zbořené opevnění** (`fortification-demolished` s `lord`, `lengthM`, `gates`, `around` –
+    z `Construction.fortNote` v den rozkazu): „Vojvoda Lutobor přikázal zbořit 26 loktů opevnění od
+    severní brány k věži.“ – pražský loket 0,5927 m, brána s dostavěnou věží je věž, světová strana
+    od středu obvodu jen u víc bran téhož druhu; jediná brána „od brány dokola zpět k bráně“, bez
+    brány bez místa; val bez nástavby „přikázal srovnat … loktů valu“; bez vojvody „Zbořili …“,
+    starší zápis „Úsek opevnění byl zbořen.“ (klády na hromadu věta neuvádí).
+  - **Ohrada** (`penSpecies`, `penExtended` – `penChronicleNote`): „Byla postavena ohrada pro
+    ovce.“ (kozy, prasata, skot, voly, koně), rozšíření „Ohrada pro skot byla rozšířena.“, zrušení
+    „Stavba ohrady pro ovce se zrušila.“; bez druhu „Byla postavena ohrada.“
 - **Obnova:** `useChronicle` načte první stránku při otevření, při jiné vsi a když v pohledu
   přibude zápis (`latest` = nejnovější zápis `VillageView.chronicle`); `mergeNewest` nahradí roky
   nové stránky a starší načtené roky ponechá, `appendOlder` připojí starší stránku.

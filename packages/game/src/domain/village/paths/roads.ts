@@ -61,6 +61,7 @@ import {
 } from './roads-tidy';
 import { SpotContext, plantingBlocker, rootTrees } from './roads-trees';
 import { type RoadAnchors, roadAnchors } from './road-anchors';
+import { noteFormedRoads } from './road-chronicle';
 import { type RouteCode, routeLine } from './routes';
 import { pathCellM, trailTerrain } from './terrain';
 import { type FenceOutline } from './entrances';
@@ -352,6 +353,8 @@ function* roadsMonthRunSteps(
   /** Jen přestavba sítě (`rebuildRoadsPass`). */
   rebuild?: RebuildHints,
 ): Generator<void, void, void> {
+  // od tohoto zápisu kroniky dostanou vzniklé cesty konce a roky chůze (`noteFormedRoads`)
+  const chronicleFrom = state.chronicle.length;
   settleVillageWear(state, day, landscape);
   yield;
   const roads = state.roads;
@@ -442,6 +445,8 @@ function* roadsMonthRunSteps(
     baseOf,
     fieldOf,
   );
+  // konce cesty hráče až po úklidu a křižovatkách měsíce – jako je hráč uvidí v panelu cesty
+  noteFormedRoads(state, landscape, chronicleFrom, day);
 }
 
 /**

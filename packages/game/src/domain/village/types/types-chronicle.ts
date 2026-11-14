@@ -5,11 +5,11 @@ import type { ConstructionKind, LandTaker } from './types-construction';
 import type { Craft } from './types-crafts';
 import type { ChurchWork, MasonCraft } from './types-masonry';
 import type { AbandonedStructure, Crop, TileCell, UsableStructure } from './types-land';
-import type { HerdSpecies } from './types-livestock';
+import type { HerdSpecies, PenSpecies } from './types-livestock';
 import type { AwayKind, DwellingType } from './types-people';
 import type { HuntKills } from './types-wildlife';
 import type { FloodLevel, SummerWeather, TornadoStrength, WinterWeather } from './types-disasters';
-import type { CartJob, CartKind } from './types-roads';
+import type { CartJob, CartKind, JunctionShape } from './types-roads';
 import type { Direction8 } from './types-state';
 import type {
   CraftPurchaseGoods,
@@ -19,6 +19,32 @@ import type {
   TradeGoods,
   TradePeople,
 } from './types-trade';
+
+/**
+ * Konec cesty v kronice (roads.md – kronika; Martin 14. 11. 2026: „Podél cesty mezi dvorcem
+ * a kovárnou byly vysazeny jabloně.“): co na konci cesty hráče leželo v den zápisu – uloží se,
+ * ať popis sedí i po pozdější přestavbě sítě (`chronicleRoadEnds`).
+ */
+export type ChronicleRoadEnd =
+  /** Obydlí – druh, u dílny řemeslo. */
+  | { kind: 'dwelling'; type: DwellingType; craft?: Craft }
+  /** Jiné místo – předpona klíče trasy (`cemetery`, `pen`, `field`, `water`, `wood`, `idol`…). */
+  | { kind: 'place'; place: string }
+  /** Křižovatka nebo rozcestí (tvar). */
+  | { kind: 'junction'; shape: JunctionShape }
+  /** Kraj mapy – směr. */
+  | { kind: 'edge'; direction: Direction8 }
+  /** Jiná cesta bez křižovatky. */
+  | { kind: 'road' };
+
+/**
+ * Brána na konci zbořeného úseku opevnění v kronice (demolition.md – Opevnění): s věží, směr od
+ * středu opevnění jen, když je bran stejného druhu víc (`fortGateNotes`).
+ */
+export interface ChronicleFortGate {
+  tower?: true;
+  direction?: Direction8;
+}
 
 /**
  * Kořist nájezdu (war.md – Kořist): jídlo ze zásob po druzích (kg) a dobytek (kusy). Stejný tvar
@@ -325,14 +351,36 @@ export type ChronicleEvent = { day: number } & (
       craft?: Craft;
       /** Dostavěná vozová cesta (roads.md – Vozová cesta); u ostatních staveb chybí. */
       wagon?: true;
+      /** Jabloně u cesty – konce cesty v den výsadby; u ostatních staveb a starších zápisů chybí. */
+      roadEnds?: [ChronicleRoadEnd, ChronicleRoadEnd];
+      /** Ohrada – druh zvířat; u ostatních staveb a starších zápisů chybí. */
+      penSpecies?: PenSpecies;
+      /** Ohrada rozšířená o čtverce (oxen.md – Ohrady podle druhu), ne nová. */
+      penExtended?: true;
     }
   /**
    * Zbořený úsek opevnění (demolition.md – Opevnění): plot, palisáda či nástavba valu, nebo
-   * srovnaný val (`level`); `logs` klád přišlo na hromadu u cesty.
+   * srovnaný val (`level`); `logs` klád přišlo na hromadu u cesty. Z rozkazu (`FortDemolitionNote`,
+   * starší zápisy je nemají): jméno vojvody v den rozkazu, délka zbořených kusů (m) a brány na
+   * koncích úseku po směru hodin (`around` – jediná brána, úsek obejde obvod; bez brány chybí).
    */
-  | { kind: 'fortification-demolished'; logs: number; level?: true }
+  | {
+      kind: 'fortification-demolished';
+      logs: number;
+      level?: true;
+      lord?: string;
+      lengthM?: number;
+      gates?: [ChronicleFortGate, ChronicleFortGate];
+      around?: true;
+    }
   /** Hráč zrušil rozestavěnou stavbu (cancel-construction.ts); dřevo se vrátilo na hromadu. */
-  | { kind: 'construction-cancelled'; constructionKind: ConstructionKind; craft?: Craft }
+  | {
+      kind: 'construction-cancelled';
+      constructionKind: ConstructionKind;
+      craft?: Craft;
+      /** Ohrada – druh zvířat; u ostatních staveb a starších zápisů chybí. */
+      penSpecies?: PenSpecies;
+    }
   /**
    * Opuštěné díly pole (fields.md – Opuštěný díl): kolik dílů vypadlo z osevu a zaroste (osetý až
    * po žních).
@@ -516,8 +564,16 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'sacred-felled'; site: 'oak' | 'grove' }
   /** Pokřtěný rod zbořil (zaoral) starý hřbitov (christianity.md – Co křest rodu umožní). */
   | { kind: 'cemetery-ploughed' }
-  /** Z dlouhodobého provozu vznikla pevná cesta (roads.md) – id úseku. */
-  | { kind: 'road-formed'; roadId: number }
+  /**
+   * Z dlouhodobého provozu vznikla pevná cesta (roads.md) – id úseku. Konce cesty hráče po úklidu
+   * měsíce a roky chůze od vzniku pěšiny (`roadFormedNote`); starší zápisy je nemají.
+   */
+  | {
+      kind: 'road-formed';
+      roadId: number;
+      ends?: [ChronicleRoadEnd, ChronicleRoadEnd];
+      years?: number;
+    }
   /** Nepoužívaná vyšlapaná cesta zarostla (roads.md – Zarůstání) – id úseku. */
   | { kind: 'road-overgrown'; roadId: number }
   /** Zemská stezka ke kraji mapy je dostavěná – obchod se sousedem (trade.md). */

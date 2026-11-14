@@ -21,7 +21,10 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // staví muži; hides-honey.md – Zpracování v domácnosti): ve dnech, kdy ženy nesou výmlat a jiné
 // úlohy dne, zpracování čeká a volnou práci mužů dostanou oka a ryby – jiný úlovek a jídlo; dřív
 // 54989ca4d4e3fef4
-const EXPECTED_YEAR_1 = '8c37bb353aa1f9bb';
+// 14. 11. 2026 – sloučení se zápisy vzniklých cest s konci a roky chůze (`road-formed` – `ends`,
+// `years`; web-ui.md – Panel Kronika): nová pole záznamů; dřív 8c37bb353aa1f9bb (zboží) a
+// 11d3b0961aecf068 (zápisy cest)
+const EXPECTED_YEAR_1 = '49dfd13fd6e3eb50';
 
 describe('zlatý otisk vsi', () => {
   const world = goldenWorld();
