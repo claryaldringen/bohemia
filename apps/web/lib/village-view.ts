@@ -260,13 +260,13 @@ export function isBuildAffordable(
 }
 
 /** Druhy obydlí rozcestníku od nejlepšího – ikonu tlačítka dává první, který ves postaví. */
-const DWELLING_BEST_FIRST = ['srub', 'polozemnice', 'zemnice'] as const;
+const DWELLING_BEST_FIRST = ['srub', 'vypleteny', 'polozemnice', 'zemnice'] as const;
 
 /**
- * Nabídka rozcestníku obydlí (zemnice, polozemnice, nadzemní dům): cena a dostupnost každého druhu
+ * Nabídka rozcestníku obydlí (zemnice, polozemnice, vypletený a nadzemní dům): cena a dostupnost každého druhu
  * je v `variants` (zašedlý druh nese důvod v `blocked`), tlačítko samo cenu nemá a je dostupné,
  * pokud ves postaví aspoň jeden druh. Ikona tlačítka je obydlí, které hráč nejspíš postaví –
- * nejlepší druh, na který ves má (nadzemní dům, polozemnice, zemnice), jinak zemnice.
+ * nejlepší druh, na který ves má (nadzemní dům, vypletený dům, polozemnice, zemnice), jinak zemnice.
  */
 export function dwellingHubOption(build: Partial<Record<string, BuildOption | null>>): BuildOption {
   const variants: NonNullable<BuildOption['variants']> = {};
@@ -328,11 +328,12 @@ function buildOptions(
       const amount = cost.upfront[resource] ?? 0;
       return amount > 0 ? [{ resource, amount, missing: missing[resource] ?? 0 }] : [];
     });
-    // nadzemní dům do roku 800 zašedlý (log-house.md – Dům: „Od roku 800“)
+    // vypletený dům do roku 750 a nadzemní dům do roku 800 zašedlý (log-house.md – Dům, Dům
+    // s vypletenými stěnami: „Od roku 800“, „Od roku 750“)
     const blocked =
       kind === 'shrine' && hasShrine(state)
         ? SHRINE_LIMIT
-        : kind === 'srub'
+        : kind === 'srub' || kind === 'vypleteny'
           ? dwellingYearReason(kind, day)
           : null;
     const option: BuildOption = {

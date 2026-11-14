@@ -42,6 +42,8 @@ function placeNote(state: VillageState, place: string): ChronicleRoadEnd {
     const building = state.sacredBuildings?.find((b) => b.id === id);
     return { kind: 'place', place: building?.kind ?? 'idol' };
   }
+  // voda u řeky nese `water:river` (road-anchors – `waterKindAt`), potok jen `water`
+  if (prefix === 'water' && place === 'water:river') return { kind: 'place', place };
   return { kind: 'place', place: prefix };
 }
 

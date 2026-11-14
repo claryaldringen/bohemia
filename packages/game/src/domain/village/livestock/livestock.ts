@@ -126,6 +126,7 @@ const SLAUGHTER_MONTH = 11;
 const CHICKENS_PER_DWELLING: Readonly<Record<DwellingType, number>> = {
   zemnice: 2,
   polozemnice: 3,
+  vypleteny: 3,
   srub: 3,
   dvorec: 4,
   'dvorec-srub': 4,

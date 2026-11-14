@@ -119,6 +119,7 @@ function modelUrl(kind: ConstructionKind): string {
     kind === 'polozemnice' ||
     kind === 'dvorec' ||
     kind === 'srub' ||
+    kind === 'vypleteny' ||
     kind === 'dvorec-srub'
       ? 'dwellings'
       : 'crafts';
@@ -145,7 +146,7 @@ function plotModel(
   x: number,
   z: number,
   variant: PlotVariant,
-  kind: 'polozemnice' | 'srub' = 'polozemnice',
+  kind: 'polozemnice' | 'srub' | 'vypleteny' = 'polozemnice',
 ): ShowcaseModel {
   const plot = { x, z, size: 15, variant };
   const house = plotHouse(plot, variant);
@@ -186,6 +187,8 @@ export const MANOR_AT = { x: -82, z: -4 };
  */
 export const LOG_HOUSE_AT = { x: -46, z: -10 };
 export const LOG_MANOR_AT = { x: -104, z: -4 };
+/** Vypletený dům na pozemku mezi nadzemním domem a dvorcem (log-house.md – Dům s vypletenými stěnami). */
+export const WATTLE_HOUSE_AT = { x: -64, z: -10 };
 
 const UHLIR_X = 26;
 /** Dílna tesaře – vlevo od pahorku s vozy (SHOWCASE_CARTS), vchodem ke kameře. */
@@ -233,6 +236,12 @@ export const SHOWCASE_BUILDINGS: readonly ShowcaseBuilding[] = [
     label: 'Nadzemní dům',
     models: [plotModel(LOG_HOUSE_AT.x, LOG_HOUSE_AT.z, 'back-left', 'srub')],
     focus: { x: LOG_HOUSE_AT.x, z: LOG_HOUSE_AT.z - 1.5, radius: 24 },
+  },
+  {
+    id: 'vypleteny',
+    label: 'Vypletený dům',
+    models: [plotModel(WATTLE_HOUSE_AT.x, WATTLE_HOUSE_AT.z, 'back-left', 'vypleteny')],
+    focus: { x: WATTLE_HOUSE_AT.x, z: WATTLE_HOUSE_AT.z - 1.5, radius: 24 },
   },
   {
     id: 'dvorec-srub',

@@ -60,6 +60,7 @@ describe('ceny staveb', () => {
     expect(DWELLING_TREES).toEqual({
       zemnice: 7,
       polozemnice: 18,
+      vypleteny: 14,
       srub: 28,
       dvorec: 27,
       'dvorec-srub': 40,

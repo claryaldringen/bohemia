@@ -133,6 +133,7 @@ const MANOR_HOUSE_RECT_M = { halfX: 3.55, front: 5.7, back: 5.6 } as const;
 /**
  * Nadzemní dům a srubový dvorec (log-house.md – LOG_HOUSES v dwellings.py): okap 2,75 / 3,75 m,
  * střecha vpředu 3,55 / 6,1 m a vzadu 3,2 / 6,1 m od středu, kozy kousek dál – návrh Clauda.
+ * Vypletený dům (WATTLE_HOUSE) má střechu skoro stejnou (3,6 a 3,25 m) – týž obdélník.
  */
 const LOG_HOUSE_RECT_M = { halfX: 3.35, front: 3.85, back: 3.45 } as const;
 const LOG_MANOR_RECT_M = { halfX: 4.2, front: 6.45, back: 6.45 } as const;
@@ -144,7 +145,7 @@ function houseRectOf(
 ): { halfX: number; front: number; back: number } {
   if (type === 'dvorec-srub') return LOG_MANOR_RECT_M;
   if (square.yard) return MANOR_HOUSE_RECT_M;
-  return type === 'srub' ? LOG_HOUSE_RECT_M : HOUSE_RECT_M;
+  return type === 'srub' || type === 'vypleteny' ? LOG_HOUSE_RECT_M : HOUSE_RECT_M;
 }
 /** Udusaný dvorek před dveřmi a cestička k brance (m). */
 const YARD_M = { halfX: 1.9, depth: 1.7 } as const;

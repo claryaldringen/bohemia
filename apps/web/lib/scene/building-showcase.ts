@@ -122,6 +122,7 @@ const CONSTRUCTION_URLS = [
   '/models/dwellings/dvorec-construction.glb',
   '/models/dwellings/srub-construction.glb',
   '/models/dwellings/dvorec-srub-construction.glb',
+  '/models/dwellings/vypleteny-construction.glb',
   '/models/crafts/construction.glb',
   '/models/crafts/construction-moss.glb',
   '/models/sacred/idol-construction.glb',

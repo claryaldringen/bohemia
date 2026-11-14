@@ -467,6 +467,26 @@ Nové typy vznikají jen novou stavbou nebo přestavbou, převod starších vsí
 - **Web:** tlačítko „Nadzemní dům“ (klávesa 1) a scéna s vlastními modely – `docs/code/web-ui.md`
   (zkratky staveb) a `docs/code/scene-village.md` – Nadzemní dům ve scéně.
 
+## Vypletený dům od roku 750 ([log-house.md](../design/log-house.md) – Dům s vypletenými stěnami)
+
+- **Typ** `vypleteny` (`DwellingType`, `BuildableDwellingType`; v rozhraní „Vypletený dům“) –
+  druhý nadzemní dům vedle srubu. `HouseType` = `vypleteny` | `srub`, `isHouseType(type)`,
+  `HOUSE_TYPES_BEST_FIRST` (srub, vypletený – pořadí osídlování) v `buildings/log-house.ts`.
+- **Čísla** v `rules-people.ts` (`DWELLINGS.vypleteny` – 8 lidí, 260 čd, 25 let, dětská úmrtnost
+  × 0,75, prázdný zchátrá za 10 let; `WATTLE_HOUSE.fromYear` = 750; `DWELLING_QUALITY` – pořadí
+  kvality srub > vypletený > polozemnice > zemnice, dvorec 0), `rules-buildings.ts` (5 × 6 m jako
+  srub, `DWELLING_TREES` 14, `PLOT_TYPES` – na pozemku s plotem, `DWELLING_CLEARING_M` a `frontM`
+  jako srub), `rules-crafts.ts` (`dwellingWoodShare` 0,5); `BUILD_COSTS.vypleteny` – předem jen
+  dřevo, hlína na mazanici je jen práce.
+- **Od roku 750:** `dwellingYearReason` – „Od roku 750“ (`WATTLE_HOUSE_YEAR`) do 31. 12. 749 –
+  server v `applyBuildIntent`, zašedlé tlačítko z `buildVillageView`. `bestHouseTypeOn(day)` –
+  nejlepší nadzemní dům, který už jde (od 800 srub, od 750 vypletený) – pro správce.
+- **Přestavba:** `BETTER_DWELLING.vypleteny` = `vypleteny` – vesničané na něj nepřestavují.
+- **Kdo bydlí:** jako srub jen lidé z pořadí, elita do nejlepšího volného domu – [village-people.md](village-people.md)
+  – Domácnosti – nadzemní dům. Správce – [village-steward.md](village-steward.md).
+- **Web a scéna:** klávesa 2, model `vypleteny.glb` – `docs/code/scene-village.md` – Vypletený dům
+  ve scéně. Testy `buildings/__tests__/wattle-house.test.ts`.
+
 ## Hřbitov po křtu rodu (cemetery.md – Po křtu rodu)
 
 `PlacementVillage.churchyardOnly` (`placementVillageOf` z `rodBaptized`, prohlížeč z `scene.sacredFree`

@@ -279,6 +279,9 @@ export const CARPENTRY = {
   dwellingWoodShare: {
     zemnice: 0.4,
     polozemnice: 0.5,
+    // log-house.md – Dům s vypletenými stěnami: kůly, krov a proutí, mazanice a došky bez tesaře
+    // – jako polozemnice (návrh Clauda)
+    vypleteny: 0.5,
     srub: 0.7,
     dvorec: 0.6,
     'dvorec-srub': 0.75,

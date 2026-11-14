@@ -46,9 +46,10 @@ export const DWELLING_TYPES: readonly DwellingType[] = ['zemnice', 'polozemnice'
 /**
  * Obydlí s modelem a díly staveniště načtenými až s prvním takovým obydlím ve vsi
  * (tools/blender/dwellings.py): dvorec vojvody (trade.md, „dvorec“), nadzemní dům a srubový dvorec
- * od roku 800 (log-house.md, „srub“) – `<typ>.glb` a `<typ>-construction.glb`.
+ * od roku 800 (log-house.md, „srub“) a vypletený dům od roku 750 („vypleteny“) – `<typ>.glb`
+ * a `<typ>-construction.glb`.
  */
-export const LAZY_DWELLING_TYPES = ['dvorec', 'srub', 'dvorec-srub'] as const;
+export const LAZY_DWELLING_TYPES = ['dvorec', 'srub', 'dvorec-srub', 'vypleteny'] as const;
 export type LazyDwellingType = (typeof LAZY_DWELLING_TYPES)[number];
 /** Načítá se model až s prvním takovým obydlím (`LAZY_DWELLING_TYPES`)? */
 export function isLazyDwelling(key: string): key is LazyDwellingType {

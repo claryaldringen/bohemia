@@ -6,7 +6,12 @@
 // nemusí – cesta k němu nevznikne. Kotvou je i pevná cesta (nová se k ní připojí – `joinPoint`).
 // Deterministická vrstva (jen přesná aritmetika – soubor hlídá ESLint jako síť pěšin).
 
-import { type Landscape } from '../../landscape';
+import {
+  nearestWaterPair,
+  riverCenterline,
+  streamCenterline,
+  type Landscape,
+} from '../../landscape';
 import { ROAD_ANCHORS, TRAIL } from '../rules/rules-roads';
 import type { Direction8, RoadPoint, RoutePurpose, StoredRoute } from '../types';
 import { routeCells } from './routes';
@@ -66,6 +71,17 @@ function anchorOf(p: RoadPoint, kind: RoadAnchorKind, place: string): RoadAnchor
 }
 
 /**
+ * Je voda u bodu (x, z) potok, nebo řeka (Martin 14. 11. 2026: „teče tam přece potok“)? Řeka jen
+ * tam, kde je nejbližší vodou některá řeka mapy (kostry i prémiová); jinak potok (každá mapa má
+ * potok). Klíč kotvy vody je pak `water` (potok) nebo `water:river` (řeka).
+ */
+export function waterKindAt(landscape: Landscape, x: number, z: number): 'stream' | 'river' {
+  const river = riverCenterline(landscape);
+  if (!river) return 'stream';
+  return nearestWaterPair(streamCenterline(landscape), river, x, z).second ? 'river' : 'stream';
+}
+
+/**
  * Kotvy z uložených tras: začátek trasy je brána domu (vchod), konec podle cíle (vchod stavby,
  * cíl bez vchodu, kraj mapy); stejný bod a druh jednou.
  */
@@ -78,7 +94,11 @@ export function roadAnchors(routes: readonly StoredRoute[], landscape: Landscape
     const key = `${kind}:${cell[0]},${cell[1]}`;
     if (seen.has(key)) return;
     seen.add(key);
-    points.push(anchorOf({ x: cell[0] * cellM, z: cell[1] * cellM }, kind, place));
+    const x = cell[0] * cellM;
+    const z = cell[1] * cellM;
+    const named =
+      place === 'water' && waterKindAt(landscape, x, z) === 'river' ? 'water:river' : place;
+    points.push(anchorOf({ x, z }, kind, named));
   };
   for (const route of routes) {
     const cells = routeCells(route);

@@ -32,7 +32,7 @@ export interface VillageRoadEnd {
   target: VillageTarget | null;
   /** Porušení pravidla 11 (nikam, jiná cesta bez křižovatky) – panel ukáže varování. */
   alert?: boolean;
-  /** Výpis do konzole (`dwelling 12`, `junction 565`, `edge N`, `water`, `nikam`, `do road 3 (!)`). */
+  /** Výpis do konzole (`dwelling 12`, `junction 565`, `edge N`, `water`, `water:river`, `nikam`, `do road 3 (!)`). */
   log: string;
 }
 
@@ -57,7 +57,9 @@ const PLACES: Record<
   ore: { name: 'Rudiště', icon: build('rudiste'), target: 'ore-site' },
   clay: { name: 'Hliniště', icon: build('hliniste'), target: 'clay-site' },
   kiln: { name: 'Milíř', icon: build('milir'), target: 'kiln' },
-  water: { name: 'Voda', icon: resource('jar') },
+  // voda na konci cesty: potok, u řeky `water:river` (Martin 14. 11. 2026: „teče tam přece potok“)
+  water: { name: 'Potok', icon: resource('jar') },
+  river: { name: 'Řeka', icon: resource('jar') },
   wood: { name: 'Les', icon: resource('wood') },
   pasture: { name: 'Pastva', icon: resource('cow') },
   meadow: { name: 'Louka', icon: resource('hay') },
@@ -100,7 +102,9 @@ function placeView(state: VillageState, place: string): VillageRoadEnd {
         ? 'threshing-floor'
         : prefix === 'sacred'
           ? (sacred?.kind ?? 'idol')
-          : prefix
+          : place === 'water:river'
+            ? 'river'
+            : prefix
     ];
   if (!known) {
     return {

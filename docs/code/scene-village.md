@@ -284,6 +284,22 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   včelami), rám u vybraných. Přestaví se jen při změně klíče `waresKey` (domy, tvar, včely, počet
   rámů, den při rámech) a vrátí `true` do `needsRender`.
 
+## Vypletený dům ve scéně (log-house.md – Dům s vypletenými stěnami)
+
+- **Model** `vypleteny.glb` / `vypleteny-construction.glb` (`build_wattle_house` v `dwellings.py`,
+  pátý argument `vypleteny`; `WATTLE_HOUSE` – stěny 4,6 × 5,6 m, kůly po ≈ 1,15 m vystupující
+  z mazanice, střecha jako srub – vpředu 0,8 m, vzadu 0,45 m): líně jako srub
+  (`LAZY_DWELLING_TYPES`), kosti variant rozměrů (`shapeableAs` – předpona `vypleteny`).
+- **Bez jámy** (`PIT_SHAPES.vypleteny` hloubka 0), okap a dýmník (`SHAPES`, `SMOKE_VENT`),
+  kopřivy, oheň a slepice jako srub; dům na pozemku `LOG_HOUSE_RECT_M` (`houseRectOf`).
+- **Stadia** (`CONSTRUCTION_PHASES.vypleteny`, `wattleHouseSchedule` – návrh Clauda): vytyčení,
+  drn, kůly (`piles`, fáze `posts`), krov, latě a výplet po řadách (`wattle-1` … `wattle-3` –
+  dvě řady stěn a štíty), omazání (`daub-k` nahradí `wattle-k`), došky (9 řad), hřeben, plot
+  a záhony. Proutí (`rods`) leží na staveništi, dokud se plete.
+- **Rozpad** (`wattleHouseRemains` v `dwelling-decay.ts` – návrh Clauda): sešlý a propadající se
+  stojí celý, zřícený jsou kůly a spodní řada mazanice sesutá níž, zbytek po zániku do poloviny
+  zarůstání jen hrouda mazanice. `remainsShown` čeká, až jsou díly zbytků načtené.
+
 ## Humno ve scéně (production-chains.md – Humno, Obilné jámy; úloha 5 výrobních řetězů)
 
 Humno je jen mlat bez přístřešku (Martin 21. 10. 2026), mlátí se **holemi** – cepy se tehdy

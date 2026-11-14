@@ -312,7 +312,7 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   zkratek), druh spustí malování (`startBuild(kind, variant)`), Esc rozcestník zavře; u kurzoru
   ikona druhu (`PlacementPreview.variant`). **Obydlí** (Martin 14. 11. 2026) jsou jedno políčko –
   rozcestník `dwelling` (`placement: 'dwellings'`, `DWELLING_VARIANTS`: zemnice, polozemnice,
-  nadzemní dům; ikony `build/…`, `variantIconSrc` v `BuildGrid`); zemnice, polozemnice a srub zůstávají
+  vypletený dům, nadzemní dům; ikony `build/…`, `variantIconSrc` v `BuildGrid`); zemnice, polozemnice, vypletený dům a srub zůstávají
   záznamy katalogu s `hubOf: 'dwelling'` (kontrola, cena, zkratky), ale bez vlastního tlačítka.
   Rozcestník nemá zkratku (`NO_HOTKEY`), Z, X a 1 vyberou druh rovnou (`startBuild` je převede na
   `dwelling` + druh). Nabídku dává `dwellingHubOption` (`village-view.ts`): cena a důvod zašednutí
@@ -360,7 +360,7 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   (pak je mřížka zamčená), nad stavbou stejného druhu se malování chytí její mřížky (`gridAt`,
   drží ji i mimo ni – rozšíření), vybraná stavba dá mřížku hned (`PlacementMode.squares.grid`);
   natočená mřížka má čtverec pod kurzorem ve středu políčka. Ctrl ve výběru obydlí platí i jako Cmd; Ctrl / Shift + klik na cestu či
-  pole vybraná obydlí nezruší; Ctrl + A při umisťování nic nevybere. Zkratky staveb Z zemnice, X polozemnice, 1 nadzemní dům (číslice `Digit1` – písmena jsou obsazená; `hotkeyCode`; do roku 800 zašedlý s důvodem „Od roku 800“ – `VillageView.build.srub.blocked` z `dwellingYearReason` v `buildOptions`, log-house.md – Dům), C pole, V hřbitov, B sad,
+  pole vybraná obydlí nezruší; Ctrl + A při umisťování nic nevybere. Zkratky staveb Z zemnice, X polozemnice, 2 vypletený dům (od roku 750), 1 nadzemní dům (číslice `Digit2` a `Digit1` – písmena jsou obsazená; `hotkeyCode`; do roku 800 zašedlý s důvodem „Od roku 800“ – `VillageView.build.srub.blocked` z `dwellingYearReason` v `buildOptions`, log-house.md – Dům), C pole, V hřbitov, B sad,
   N modla, M svatyně, K humno, O ohrada, panely J Kronika a U Upozornění (`lib/panel-keys.ts`) (modla, svatyně a humno se umisťují půdorysem jako obydlí – `PlacementMode`
   `sacred` a `threshing-floor`; ohrada po čtvercích – O i tlačítko otevřou v mřížce rozcestník druhů zvířat (ovce,
   kozy, prasata, skot, spřežení – bez zkratek), nad ohradou téhož druhu se chytí její mřížky). V otevřené nabídce hry žádná klávesa hry neběží – F10 nebo Esc ji zavře (Tab jen
@@ -607,7 +607,9 @@ místa to jsou a moci je také označit.“ ([paths.md – Síť – kotvy](../d
   popisku, ikona, `target` pro výběr, `log` pro konzoli); klíče tras → `VillageTarget` (`d:` /
   `dwelling:` / `site:` obydlí – „Obydlí – polozemnice“, jinak `site:` humno; hřbitov, ohrada,
   humno, modla a svatyně – `sacred`, obilná jáma, pole, sad, posvátný dub, háj, milíř); voda, les,
-  louka a pastva bez výběru; jiná cesta → id cesty hráče (`roadChainIds`). `VillageRoad.ends`
+  louka a pastva bez výběru (voda se jmenuje „Potok“, u řeky „Řeka“ – klíč kotvy `water:river`,
+  `waterKindAt` v `paths/road-anchors.ts`: řeka, je-li nejbližší vodou řeka mapy; D44, Martin
+  14. 11. 2026: „teče tam přece potok“); jiná cesta → id cesty hráče (`roadChainIds`). `VillageRoad.ends`
   počítá `roadViews` (`village-view-roads.ts`); tam jsou i `JUNCTION_NAMES` / `JUNCTION_ICONS`.
 - **Panel** – `RoadEndIcon` (`selection/roads.tsx`) na začátku prvního řádku `RoadBody`: s cílem
   `TargetButton` (klik → `onSelectTarget`), kraj mapy šipka směru (`DIRECTION_NAMES`), nikam
@@ -1466,7 +1468,7 @@ nová pravidla (návrh Clauda).
     „Podél cesty mezi dvorcem a kovárnou byly vysazeny jabloně.“, starší zápis „Podél cesty byly
     vysazeny jabloně.“
   - **Vyšlapaná cesta** (`road-formed` s `ends` a `years` – `roadFormedNote` po úklidu měsíce,
-    `noteFormedRoads`): „Po 12 letech chůze lidé vyšlapali cestu mezi dvorcem a vodou.“, rok „Po
+    `noteFormedRoads`): „Po 12 letech chůze lidé vyšlapali cestu mezi dvorcem a potokem.“ (u řeky „…a řekou“ – `water:river`; starší zápisy s `water` = potok), rok „Po
     roce chůze …“, pod půl roku bez doby „Lidé vyšlapali cestu mezi …“, starší zápis „Lidé
     vyšlapali pevnou cestu.“ Roky = od pozdějšího z konců (den dostavění stavby, vykopání jámy,
     první výsadby sadu; voda, les, pastva, louka, dub, háj a kraj mapy od založení vsi; křižovatka

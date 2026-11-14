@@ -1,16 +1,21 @@
-import { dwellingYearReason } from '../buildings/log-house';
+import { bestHouseTypeOn, isHouseType } from '../buildings/log-house';
 import { isEmptyLogHouse, logHouseWaiting } from '../people/log-house-settle';
 import { startDwelling, type StewardContext } from './steward';
 import type { VillageState } from '../types';
 
-// Správce a nadzemní dům (log-house.md – Správce; návrh Clauda): od roku 800, když z pořadí čeká
-// rodina (mistr huti, kněz, synové vojvody) a žádný nadzemní dům není prázdný ani rozestavěný,
-// začne jeden – na slotu plánu obydlí jako ostatní obydlí (cena předem, dřevo, veto hráče).
+// Správce a nadzemní dům (log-house.md – Správce, Dům s vypletenými stěnami; návrh Clauda): od roku
+// 750, když z pořadí čeká rodina (mistr huti, kněz, synové vojvody) bez nadzemního domu a žádný
+// nadzemní dům není prázdný ani rozestavěný, začne jeden – nejlepší, který už jde (od 800 srub,
+// dřív vypletený dům) – na slotu plánu obydlí jako ostatní obydlí (cena předem, dřevo, veto hráče).
 
-/** Rozestavěný nový nadzemní dům (`srub`) – stěhující se domácnost a dvorec se nepočítají. */
+/** Rozestavěné nové nadzemní domy – stěhující se domácnost a dvorec se nepočítají. */
 function buildingLogHouses(state: VillageState): number {
   return state.constructions.filter(
-    (c) => c.kind === 'dwelling' && c.dwellingType === 'srub' && c.dwellingId === null,
+    (c) =>
+      c.kind === 'dwelling' &&
+      c.dwellingType !== null &&
+      isHouseType(c.dwellingType) &&
+      c.dwellingId === null,
   ).length;
 }
 
@@ -30,12 +35,14 @@ export function logHouseCovered(state: VillageState, day: number): number {
 }
 
 /**
- * Krok před obydlím (mutuje stav): od roku 800 začne jeden nadzemní dům, když z pořadí čeká
- * rodina a žádný nadzemní dům není prázdný ani rozestavěný.
+ * Krok před obydlím (mutuje stav): od roku 750 začne jeden nadzemní dům (`bestHouseTypeOn` – od
+ * 800 srub, dřív vypletený), když z pořadí čeká rodina bez nadzemního domu a žádný nadzemní dům
+ * není prázdný ani rozestavěný.
  */
 export function logHouseStep(state: VillageState, ctx: StewardContext): void {
-  if (dwellingYearReason('srub', ctx.day) !== null) return;
+  const type = bestHouseTypeOn(ctx.day);
+  if (type === null) return;
   if (emptyLogHouses(state) > 0 || buildingLogHouses(state) > 0) return;
   if (logHouseWaiting(state, ctx.day) <= 0) return;
-  startDwelling(state, ctx, 'srub');
+  startDwelling(state, ctx, type);
 }

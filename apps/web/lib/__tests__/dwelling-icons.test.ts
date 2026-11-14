@@ -10,6 +10,7 @@ const DWELLING_TYPES: Record<DwellingType, true> = {
   srub: true,
   dvorec: true,
   'dvorec-srub': true,
+  vypleteny: true,
 };
 
 describe('ikony obydlí', () => {

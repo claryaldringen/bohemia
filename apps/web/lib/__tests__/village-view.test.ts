@@ -555,6 +555,15 @@ describe('buildVillageView', () => {
         blocked: null,
         affordable: false,
       },
+      // vypletený dům (log-house.md – Dům s vypletenými stěnami) – do roku 750 zašedlý
+      vypleteny: {
+        laborManDays: 260,
+        perHa: false,
+        perSquare: false,
+        upfront: [{ resource: 'wood', amount: 14, missing: 14 }],
+        blocked: 'Od roku 750',
+        affordable: false,
+      },
       // nadzemní dům (log-house.md) – do roku 800 zašedlý (`dwellingYearReason`)
       srub: {
         laborManDays: 300,
@@ -768,6 +777,21 @@ describe('buildVillageView', () => {
     const after = buildVillageView(record(late), landscape, day800).build.srub;
     expect(after.blocked).toBeNull();
     expect(after.affordable).toBe(true);
+  });
+
+  it('vypletený dům je do roku 750 zašedlý „Od roku 750“, od 1. 1. 750 povolený', () => {
+    const s = settled();
+    s.woodLogs = 40;
+    const before = buildVillageView(record(s), landscape, DAY).build.vypleteny;
+    expect(before.blocked).toBe('Od roku 750');
+    expect(before.affordable).toBe(false);
+    expect(before.upfront).toEqual([{ resource: 'wood', amount: 14, missing: 0 }]);
+    const day750 = dayIndexOf({ year: 750, month: 1, day: 1 });
+    const late = { ...s, lastDay: day750 };
+    const view = buildVillageView(record(late), landscape, day750).build;
+    expect(view.vypleteny.blocked).toBeNull();
+    expect(view.vypleteny.affordable).toBe(true);
+    expect(view.srub.blocked).toBe('Od roku 800');
   });
 
   it('s dostavěnou zemnicí: domácnost s věky obyvatel', () => {
