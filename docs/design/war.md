@@ -313,8 +313,7 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
   - **Živé vedení bez rozkazu** (Martin 14. 11. 2026, na otázku, zda má nájezd skončit sám, když
     se obránci zavřou v útočišti a hráč nic nerozkáže: „ne, vojácí tam budou stepovat, dokud jim
     nezačnou docházet zásoby a pak začnou postupně dezertovat. Výprava se prostě časem sama
-    rozpadne“): tažení vedené živě se samo neobrátí ani nenapadne. Návrh Clauda – čeká na
-    schválení: jakmile jídlo klesne pod jídlo na cestu domů, dezertuje každý den ≈ 5 % mužů (jako
+    rozpadne“): tažení vedené živě se samo neobrátí ani nenapadne. Návrh Clauda (Martin 14. 11. 2026 – „Jo zkusme to takto“): jakmile jídlo klesne pod jídlo na cestu domů, dezertuje každý den ≈ 5 % mužů (jako
     nucení); dezertér jde domů jako při rozpadu. Až zůstane jen vůdce, výprava se rozpadne
     (upozornění „Výprava se rozpadla.“).
 - **Příklad** (návrh Clauda): Bořivoj táhne ze Lhoty na Kněžice o 2 políčka dál, v létě. Ze Lhoty

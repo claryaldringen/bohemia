@@ -347,3 +347,22 @@ export async function answerPresence(
 - [ ] **Krok 4:** PASS + `npm run test:e2e` (konec větve, sériově).
 - [ ] **Krok 5: Docs.** `docs/code/war.md` – Ve scéně: pohled obránce.
 - [ ] **Krok 6:** commit `feat(game): vojvoda doma vidí cizí vojsko na své mapě celé`.
+
+### Úloha 10: Živě vedené tažení bez rozkazu – dezerce při docházejících zásobách (opus)
+
+Spec: `docs/design/war.md` – Zásoby tažení, bod „Živé vedení bez rozkazu“ (Martin 14. 11. 2026, čísla návrh Clauda – „Jo zkusme to takto“).
+
+**Files:** `packages/game/src/domain/war/rules-war.ts` (nové číslo `hungerDesertPerDay: 0.05` s odkazem na spec + řádek v tabulce Čísla v `docs/design/war.md`), denní krok jídla tažení a dezerce nucených v `packages/game/src/domain/war/` (najdi `grep -rn "dezert\|desert" packages/game/src/domain/war`), rozpad výpravy (`grep -rn "disband\|rozpad" packages/game/src/domain/war`); test `war/__tests__/hunger-desertion.test.ts`.
+
+**Interfaces:** Consumes dnešní „jídlo na cestu domů“ (NPC velitel), dezerci nucených a rozpad. Produces nic nového navenek.
+
+- [ ] **Krok 1: Failing testy**
+  - živé vedení, jídlo pod cestou domů → každý den dezertuje ≈ 5 % mužů (los ze seedu tažení a dne, deterministicky – stejný výsledek po kouscích i od kontrolního bodu); vůdce nedezertuje;
+  - dezertér jde domů stejnou cestou jako muž při rozpadu (do domovské vsi právě jednou, `ref`);
+  - zůstane jen vůdce → výprava se rozpadne, upozornění „Výprava se rozpadla.“ jednou;
+  - jídlo nad cestou domů → žádná dezerce z hladu (nucení dál podle dnešního pravidla);
+  - NPC velitel / zástupce → beze změny (obrátí se, když jídla zbývá jen na cestu domů);
+  - živé vedení se samo neobrátí ani nenapadne (dnešní chování – připíchnout).
+- [ ] **Krok 2: Implementace** – dezerce z hladu se přičte k dnešní dezerci nucených (jeden los na muže a den, ne dva), číslo jen v `rules-war.ts`.
+- [ ] **Krok 3:** `npm run typecheck && npm run lint && npm run test && npm run format:check`, `npm run test:slow`; `docs/code/war.md` (sekce Hráč ve vsi a mimo ni nebo Zásoby).
+- [ ] **Krok 4: Commit** `feat(game): živé tažení bez rozkazu – dezerce při docházejících zásobách`.
