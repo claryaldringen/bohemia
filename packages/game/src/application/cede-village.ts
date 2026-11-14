@@ -2,6 +2,7 @@ import { PEACE_REASONS } from '../domain/negotiation';
 import {
   APPOINT_LORD,
   departAppointee,
+  holderStamp,
   isLineMan,
   isVillageAbandoned,
   isVillageExtinct,
@@ -26,7 +27,7 @@ export interface CedeDeps {
   houses: Pick<HouseRepository, 'byId' | 'activeOf'>;
   settlements: Pick<
     SettlementRepository,
-    'find' | 'listActive' | 'transferHolder' | 'acceptTransfers'
+    'find' | 'listActive' | 'transferHolder' | 'acceptTransfers' | 'archive'
   >;
   villages: Pick<VillageRepository, 'find' | 'listBySettlement' | 'save' | 'inbox'>;
   locks: PlayerLock;
@@ -155,7 +156,12 @@ async function sendMenAway(
         villageId: input.destination.id,
         day: input.today + input.days,
         ref: `cede:${input.negotiationId}:${source.id}:${man.id}`,
-        body: { kind: 'lord-arrives', party: departure.party, fromVillageId: source.id },
+        body: {
+          kind: 'lord-arrives',
+          party: departure.party,
+          fromVillageId: source.id,
+          ...holderStamp(input.destination.state),
+        },
       });
       state = departure.state;
       sent++;
@@ -167,9 +173,10 @@ async function sendMenAway(
 /**
  * Opakované postoupení, když vsi už od postupujícího odešly: nový držitel převezme, co na něj
  * čeká (pád mezi kroky převodu), a ve vsích map s postoupenými vsemi má zapnutého správce (pád
- * před zapnutím). Mapy, které nový držitel nedrží, se nemění.
+ * před zapnutím). Mapy, které nový držitel nedrží, se nemění. Volá ho i web po Začít znovu obránce
+ * (vzdané vsi – `RestartGameResult.surrendered`), až uvolní zámek obránce; volající zámek nedrží.
  */
-async function finishCeded(
+export async function finishCeded(
   deps: CedeDeps,
   villageIds: readonly string[],
   toPlayerId: string,
@@ -179,6 +186,27 @@ async function finishCeded(
   const { ceded } = splitMaps(await mapsOf(deps, toPlayerId), villageIds);
   for (const map of ceded) {
     for (const village of map.villages) await enableSteward(deps, village.id, today);
+  }
+}
+
+/**
+ * Vzdané mapy po Začít znovu obránce (`RestartGameResult.surrendered`) převezmou jejich noví
+ * držitelé (`finishCeded`, volající zámek nedrží). Chyba převzetí restart nezmaří – předá se
+ * `onError` (zalogovat) a převzetí dokončí worker (`acceptHolderTransfers`); další mapy se
+ * převezmou dál.
+ */
+export async function finishSurrendered(
+  deps: CedeDeps,
+  maps: readonly { villageIds: readonly string[]; toPlayerId: string }[],
+  today: number,
+  onError: (toPlayerId: string, error: unknown) => void,
+): Promise<void> {
+  for (const map of maps) {
+    try {
+      await finishCeded(deps, map.villageIds, map.toPlayerId, today);
+    } catch (error) {
+      onError(map.toPlayerId, error);
+    }
   }
 }
 

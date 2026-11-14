@@ -1,6 +1,5 @@
 import {
   battleForts,
-  isCampaignParticipant,
   knownTarget,
   mergeKnowledge,
   sceneFolkOf,
@@ -24,7 +23,7 @@ import {
   type KnowledgeOfTargetDeps,
   type SightGridCache,
 } from './campaign-view';
-import type { CampaignCells, CampaignRepository } from './campaigns';
+import { mayHandleCampaign, type CampaignCells, type CampaignRepository } from './campaigns';
 import type { SettlementRepository } from './settlements';
 import type { VillageRepository } from './villages';
 
@@ -58,9 +57,15 @@ export interface WarSceneDefenderCache {
  * a 12b).
  */
 export interface WarSceneDeps extends KnowledgeOfTargetDeps {
-  settlements: Pick<SettlementRepository, 'find'>;
-  /** `stampsOf` – id vsi sídla bez stavu; `find` – stav vsi jen při novém dni (a mřížka dohledu). */
-  villages: Pick<VillageRepository, 'stampsOf' | 'find'>;
+  /** `listActive` – vazal ve službě vidí tažení jen s muži ze vsi, kterou drží (`mayHandleCampaign`). */
+  settlements: Pick<SettlementRepository, 'find'> &
+    Partial<Pick<SettlementRepository, 'listActive'>>;
+  /**
+   * `stampsOf` – id vsi sídla bez stavu; `find` – stav vsi jen při novém dni (a mřížka dohledu);
+   * `stampsOfVillages` – sídla vsí mužů vazala (`mayHandleCampaign`).
+   */
+  villages: Pick<VillageRepository, 'stampsOf' | 'find'> &
+    Partial<Pick<VillageRepository, 'stampsOfVillages'>>;
   /** `activeAlarming` – tažení, kde je ves ve varování nebo hradištěm skupiny (průvod, posel). */
   campaigns: Pick<
     CampaignRepository,
@@ -111,6 +116,8 @@ export async function warSceneFor(
   for (const id of await deps.campaigns.activeOf(input.playerId)) {
     const point = await deps.campaigns.checkpoint(id);
     if (!point || !present(point.state, cell)) continue;
+    // staré vojsko (Začít znovu) nová hra nevidí – stejná kontrola jako panel a pokyny
+    if (!(await mayHandleCampaign(deps, point.state, input.playerId))) continue;
     const view = await viewOn(
       deps,
       point.state,
@@ -136,7 +143,7 @@ export async function warSceneOnMap(
   input: { playerId: string; campaignId: string; cell: GridCell },
 ): Promise<WarSceneView | null> {
   const point = await deps.campaigns.checkpoint(input.campaignId);
-  if (!point || !isCampaignParticipant(point.state, input.playerId)) return null;
+  if (!point || !(await mayHandleCampaign(deps, point.state, input.playerId))) return null;
   const state = point.state;
   const cell: GridCell = { x: input.cell.x, y: input.cell.y };
   if (state.phase === 'done' || state.phase === 'disbanded' || !present(state, cell)) return null;

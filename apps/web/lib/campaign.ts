@@ -43,6 +43,8 @@ function commandDeps(): CampaignCommandDeps {
     campaigns: deps.campaigns,
     cells: campaignCells(),
     villages: deps.villages,
+    // vazal ve službě – jen s muži ze vsi, kterou drží (`mayHandleCampaign`)
+    settlements: deps.settlements,
     grids: SIGHT_GRIDS,
     targets: TARGETS,
     world: currentWorld(),
@@ -73,7 +75,19 @@ export function commandCampaignForPlayer(
   return commandCampaign(commandDeps(), { playerId, campaignId, command, nowMs: Date.now() });
 }
 
-/** Běžící tažení, která hráč vede nebo ve kterých jdou jeho muži (panel Vojsko). */
+/**
+ * Běžící tažení, která hráč vede nebo ve kterých jdou jeho muži (panel Vojsko) – bez starého
+ * vojska z doby před Začít znovu (rod tažení už není živým rodem hráče).
+ */
 export function campaignsOfPlayer(playerId: string): Promise<CampaignSummary[]> {
-  return campaignsOf({ campaigns: gameDeps().campaigns }, { playerId });
+  const deps = gameDeps();
+  return campaignsOf(
+    {
+      campaigns: deps.campaigns,
+      houses: deps.houses,
+      villages: deps.villages,
+      settlements: deps.settlements,
+    },
+    { playerId },
+  );
 }

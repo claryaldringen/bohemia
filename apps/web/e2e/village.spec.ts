@@ -1868,15 +1868,26 @@ test('panel Kronika – ikona v liště otevře kroniku vsi se zápisem o založ
   await expect(page.getByTestId('notices-panel')).toHaveCount(0);
 
   // trvalý stav vsi z upozornění v kronice s dnem začátku (absence.md – Upozornění vsi do kroniky)
-  const state = await villageState(s.settlementId);
-  state.chronicle.push({ day: state.lastDay, kind: 'notice-began', notice: 'no-charcoal' });
-  await writeVillageState(s.settlementId, state);
+  await changeVillageState(s.settlementId, (v) => ({
+    ...v,
+    chronicle: [...v.chronicle, { day: v.lastDay, kind: 'notice-began', notice: 'no-charcoal' }],
+  }));
   await page.waitForFunction(() => typeof window.__bohemiaE2E?.pollVillage === 'function');
-  await pollVillage(page);
   await toggle.click();
-  await expect(
-    panel.locator('[data-testid="chronicle-entry"][data-kind="notice-began"]'),
-  ).toHaveText(/Kovář nemá uhlí\./);
+  const began = panel.locator('[data-testid="chronicle-entry"][data-kind="notice-began"]');
+  // Jeden dotaz nestačí: dotaz během běžícího dopočtu téže vsi a dne (dotaz po založení, panel
+  // rodu) dostane jeho výsledek sestavený před zápisem (`exclusivePlayerShared`) a během akce se
+  // dotaz vynechá – ptát se znovu, dokud záznam nepřijde.
+  await expect
+    .poll(
+      async () => {
+        await pollVillage(page);
+        return began.count();
+      },
+      { timeout: 60_000, intervals: [1_000] },
+    )
+    .toBeGreaterThan(0);
+  await expect(began).toHaveText(/Kovář nemá uhlí\./);
 });
 
 /** Počká, až se načtou všechny ikony v `scope` (chybějící soubor má `naturalWidth` 0 – test spadne). */
@@ -1913,6 +1924,10 @@ test('křest rodu – tlačítko u vojvody, potvrzení, zápis v kronice a kří
       WHERE ended_at IS NULL AND player_id = (SELECT id FROM "user" WHERE email = $1)`,
     [email],
   );
+  // Otisk pohledu rod nezahrnuje (village-stamp.ts): pohled sestavený před změnou rodu (běžný
+  // dotaz do 5 s po založení) by další dotazy vracely „beze změny“ a tlačítko by nepřišlo.
+  // Zápis vsi zvedne verzi – další dotaz sestaví pohled znovu, už se změněným rodem.
+  await changeVillageState(s.settlementId, (v) => v);
   const lordId = (await villageState(s.settlementId)).dynasty!.lordId!;
   const villageIdOf = async (settlementId: string): Promise<string | undefined> =>
     (

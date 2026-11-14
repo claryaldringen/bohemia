@@ -59,6 +59,7 @@ export function noticePanel(kind: PlayerNoticeKind): NoticePanel | null {
     case 'refuge-arrived':
     case 'refuge-caught':
     case 'messenger-caught':
+    case 'village-surrendered':
       return 'war';
     case 'levy-pending':
     case 'summons-open':
@@ -225,6 +226,9 @@ function textOf(n: PlayerNotice): string {
         : 'Vojsko se vrátilo domů.';
     case 'campaign-disbanded':
       return 'Výprava se rozpadla.';
+    // Začít znovu obránce (war.md – Začít znovu během nájezdu; text návrh Clauda)
+    case 'village-surrendered':
+      return `${stringOf(n.payload.name) ?? 'Ves'} se vzdala a připadla ti.`;
     // výjezd vojvody (lord-control.md – Co hráč vidí: „Bořivoj se vrátil.“)
     case 'journey-returned':
       return `${stringOf(n.payload.leader) ?? 'Vojvoda'} se vrátil.`;

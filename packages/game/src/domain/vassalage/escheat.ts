@@ -108,6 +108,24 @@ export function escheatVillage(state: VillageState, day: number): VillageState {
   return next;
 }
 
+/**
+ * Ves se vzdala nájezdu (war.md – Začít znovu během nájezdu; vrací nový stav): jako odúmrť
+ * (`escheatVillage`), navíc vláda posledního vojvody končí dnem vzdání a rod obránce ve vsi skončil
+ * (`endedDay` – nástupnictví už nezapíše „konec rodu“, bývalý vojvoda žije dál jako vesničan; vlastní
+ * zápis do kroniky vzdání nemá) a jména po předcích rodu obránce (`deceased`) zmizí – synové rodu
+ * nového držitele je nedostanou. Ves povýšeného vesničana (`nobles`) jako u odúmrti. Idempotentní.
+ */
+export function surrenderVillage(state: VillageState, day: number): VillageState {
+  const next = escheatVillage(state, day);
+  const dynasty = next.dynasty;
+  if (!dynasty || next.nobles) return next;
+  const last = dynasty.lords[dynasty.lords.length - 1];
+  if (last && last.toDay === undefined) last.toDay = day;
+  dynasty.endedDay ??= day;
+  delete dynasty.deceased;
+  return next;
+}
+
 /** NPC rod, který ves řídí (`nobles`), ve vsi už nemá muže po meči – jeho id; jinak null. */
 export function extinctNobleHouse(state: VillageState): string | null {
   const houseId = state.nobles?.houseId;

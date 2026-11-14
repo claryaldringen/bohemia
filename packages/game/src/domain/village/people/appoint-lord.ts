@@ -170,6 +170,75 @@ export function departAppointee(
   return { state: next, party };
 }
 
+/** Epocha držitele vsi (`VillageState.holderEpoch`; chybí – 0). */
+export function holderEpochOf(state: Pick<VillageState, 'holderEpoch'>): number {
+  return state.holderEpoch ?? 0;
+}
+
+/** Epocha cílové vsi do těla příchodu (`lord-arrives`, `noble-arrives`) – 0 se nepíše. */
+export function holderStamp(state: Pick<VillageState, 'holderEpoch'>): { holderEpoch?: number } {
+  const epoch = holderEpochOf(state);
+  return epoch === 0 ? {} : { holderEpoch: epoch };
+}
+
+/**
+ * Patří přicházející muž rodu k rodu, který ves drží? Jediná kontrola příchodů mužů rodu
+ * (`settleAppointee` – dosazení vojvody i muži z postoupené vsi, `settleNoble`): příchod nese
+ * epochu cílové vsi z doby odeslání (`holderStamp`) a od té doby ves nepřešla na jiného držitele
+ * (vzdání, postoupení, odúmrť – `forNewHolder`). Rod se odvozuje z držitele, takže muž odeslaný
+ * dřívějším držitelem k rodu vsi nepatří.
+ */
+export function isHolderArrival(
+  state: Pick<VillageState, 'holderEpoch'>,
+  epoch: number | undefined,
+): boolean {
+  return (epoch ?? 0) === holderEpochOf(state);
+}
+
+/**
+ * Ves převzal nový držitel (vrací nový stav, vstup nemění): epocha držitele +1 (muži rodu, kteří
+ * do vsi míří od dřívějšího držitele, přijdou jako obyčejní lidé – `isHolderArrival`), ves zapomene
+ * vyslance, na kterého čekala (`awaitingLord` – při dopočtu ho založí znovu pro rod nového
+ * držitele, `withAwaitingLord`), i značku vzdání.
+ */
+export function forNewHolder(state: VillageState): VillageState {
+  const next: VillageState = { ...state, holderEpoch: holderEpochOf(state) + 1 };
+  delete next.awaitingLord;
+  delete next.surrender;
+  return next;
+}
+
+/**
+ * Družina rodu, který ves nedrží (`isHolderArrival` neplatí), dorazila (mutuje stav): lidé zůstanou
+ * ve vsi jako obyčejní obyvatelé – bez `line` a `noble`, nikdo není vojvodou, ves čeká dál
+ * (`awaitingLord` se nemění). Jídlo, které nesou, přibude do zásob. Bez zápisu do kroniky.
+ */
+function settleStrangers(state: VillageState, party: AppointeeParty): ChronicleEvent[] {
+  for (const p of party.people) {
+    delete p.line;
+    delete p.noble;
+  }
+  const { arrivals } = rehomePeople(state, party.people);
+  state.people.push(...arrivals);
+  // nejstarší obydlí mimo dvorec, jinak dvorec
+  const manor = villageManorId(state);
+  const home = state.dwellings.find((d) => d.id !== manor)?.id ?? manor;
+  for (const p of arrivals) {
+    if (p.dwellingId === ARRIVAL_HOME && home !== undefined && home !== null) p.dwellingId = home;
+  }
+  addFood(state, party.food);
+  return [];
+}
+
+/** Jídlo družiny přibude do zásob vsi (mutuje stav). */
+function addFood(state: VillageState, food: LeavingFood): void {
+  state.storesKg += food.grainKg;
+  state.meatKg = (state.meatKg ?? 0) + food.meatKg;
+  if (food.cheeseKg > 0) state.cheeseKg = (state.cheeseKg ?? 0) + food.cheeseKg;
+  if (food.legumesKg > 0) state.legumesKg = (state.legumesKg ?? 0) + food.legumesKg;
+  if (food.applesKg > 0) state.applesKg = (state.applesKg ?? 0) + food.applesKg;
+}
+
 /**
  * Družina dorazila do vsi (mutuje stav): lidé dostanou nová místní id (`nextId`), vazby uvnitř
  * družiny se převedou, rodiče mimo družinu se zapomenou (jejich id patří jiné vsi), jídlo se přidá
@@ -177,14 +246,17 @@ export function departAppointee(
  * vojvodu (`dynasty.lordId`, kronika rodu, konec čekání, kronika „Vojvodou je …“). Má-li ves
  * vojvodu už (dosazení přišlo pozdě – rozhodnutí návrhu Clauda: lidé už z domova odešli, tak je ves
  * přijme a neztratí je), muž jen žije v dvorci jako ostatní muži rodu (kronika
- * `line-arrived`). Vrací zápisy do kroniky vsi.
+ * `line-arrived`). Družina rodu, který ves už nedrží (`holderEpoch` – `isHolderArrival`), přijde
+ * jako obyčejní lidé (`settleStrangers`). Vrací zápisy do kroniky vsi.
  */
 export function settleAppointee(
   state: VillageState,
   day: number,
   party: AppointeeParty,
   fromVillageId?: string,
+  holderEpoch?: number,
 ): ChronicleEvent[] {
+  if (!isHolderArrival(state, holderEpoch)) return settleStrangers(state, party);
   const { arrivals, idMap: ids } = rehomePeople(state, party.people);
   state.people.push(...arrivals);
   const manId = ids.get(party.manId)!;
@@ -195,12 +267,7 @@ export function settleAppointee(
   if (home !== undefined) {
     for (const p of arrivals) if (p.dwellingId === ARRIVAL_HOME) p.dwellingId = home;
   }
-  const { food } = party;
-  state.storesKg += food.grainKg;
-  state.meatKg = (state.meatKg ?? 0) + food.meatKg;
-  if (food.cheeseKg > 0) state.cheeseKg = (state.cheeseKg ?? 0) + food.cheeseKg;
-  if (food.legumesKg > 0) state.legumesKg = (state.legumesKg ?? 0) + food.legumesKg;
-  if (food.applesKg > 0) state.applesKg = (state.applesKg ?? 0) + food.applesKg;
+  addFood(state, party.food);
   if (fromVillageId !== undefined) {
     const moves = [
       ...(state.lineMoves ?? []),

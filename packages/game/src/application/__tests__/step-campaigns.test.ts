@@ -22,6 +22,7 @@ import { queueCampaignIntent, type CampaignCells } from '../campaigns';
 import type { House } from '../houses';
 import { turnBackLedCampaigns } from '../restart-game';
 import {
+  computeWithLoads,
   deliverOutbox,
   newCampaignMemory,
   stepCampaigns,
@@ -29,6 +30,7 @@ import {
   type StepCampaignsDeps,
 } from '../step-campaigns';
 import { InMemoryCampaignLock, InMemoryCampaigns } from './in-memory-campaigns';
+import { InMemoryHouses } from './in-memory-houses';
 import { InMemoryKnowledge } from './in-memory-knowledge';
 import { InMemoryNotices } from './in-memory-notices';
 import { InMemoryVillages } from './in-memory-villages';
@@ -725,5 +727,55 @@ describe('Začít znovu během nájezdu – útočník (war.md)', () => {
       { playerId: 'p2', nowMs: msOfTick(LAUNCH + 38, world) },
     );
     expect(campaigns.intents).toEqual([]);
+  });
+});
+
+describe('Začít znovu obránce – archiv a staré vojsko (war.md)', () => {
+  /**
+   * Takt, který čte ves `lhota` ke dni 500 (domov uprchlíků, hostů nebo posla mimo mapu skupiny –
+   * `guardGuestsOf`, `messenger.ts`, `evacuation.ts`); bez ní čeká.
+   */
+  const readsLhota = (
+    state: CampaignState,
+    w: CampaignWorld,
+  ): Awaited<ReturnType<typeof computeWithLoads<CampaignState>>> => ({
+    state,
+    villageEvents: [],
+    notices: [],
+    waiting: w.villageAt('lhota', 500) ? null : { cells: [], villageIds: ['lhota'] },
+  });
+
+  it('archivovaná ves je konečný stav – tažení s domovem uprchlíků nebo hostů v ní se nezasekne', async () => {
+    const { deps, villages } = setup();
+    villages.records.get('lhota')!.state = village([], [], { lastDay: 5 });
+    const final = { archivedFinal: true };
+    // ves daleko za taktem čeká (bariéra Ú6.7) – dokud její sídlo není v archivu
+    expect((await computeWithLoads(deps, campaign(), readsLhota, final)).waiting).not.toBeNull();
+    villages.archivedSettlements.add('s-lhota');
+    expect((await computeWithLoads(deps, campaign(), readsLhota, final)).waiting).toBeNull();
+    // výjezd (bez `archivedFinal`) bere archiv dál jako zánik – `villageAt` dá null
+    expect((await computeWithLoads(deps, campaign(), readsLhota)).waiting).not.toBeNull();
+  });
+
+  it('staré vojsko – upozornění vůdci z tažení rodu, který skončil, se nedoručí; ostatním ano', async () => {
+    const { deps, notices } = setup();
+    const houses = new InMemoryHouses();
+    const old = await houses.create({ playerId: 'p1', kind: 'player', createdAt: new Date(0) });
+    const n = { kind: 'campaign-returned' as const, payload: {}, gameDay: 1 };
+    const outbox = {
+      villageEvents: [],
+      notices: [
+        { ...n, playerId: 'p1', ref: 'camp:c1:5:n0' },
+        { ...n, playerId: 'p2', ref: 'camp:c1:5:n1' },
+      ],
+    };
+    const leader = { playerId: 'p1', houseId: old.id };
+    await houses.end(old.id, new Date(1), 0);
+    await houses.create({ playerId: 'p1', kind: 'player', createdAt: new Date(2) });
+    await deliverOutbox({ ...deps, houses }, outbox, leader);
+    expect(notices.notices.map((x) => x.playerId)).toEqual(['p2']);
+    // tažení živého rodu (nebo bod bez rodu) doručí všem
+    await deliverOutbox({ ...deps, houses }, outbox, { playerId: 'p1' });
+    expect(notices.notices.map((x) => x.playerId).sort()).toEqual(['p1', 'p2']);
   });
 });

@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { foundVillage } from '../../core/actions';
+import { settleNoble } from '../../../vassalage/ennoble';
 import {
   appointCandidate,
   departAppointee,
+  forNewHolder,
+  holderStamp,
   settleAppointee,
   withAwaitingLord,
   type AppointeeParty,
@@ -190,6 +193,58 @@ describe('settleAppointee', () => {
     const before = JSON.stringify(p);
     settleAppointee(lordlessVillage(), DAY, p);
     expect(JSON.stringify(p)).toBe(before);
+  });
+});
+
+describe('příchod mužů rodu, který ves už nedrží (war.md – Začít znovu během nájezdu)', () => {
+  it('ves přešla na nového držitele – epocha +1, vyslanec i značka vzdání zapomenuty, vstup beze změny', () => {
+    const state: VillageState = {
+      ...lordlessVillage(),
+      awaitingLord: {
+        sinceDay: DAY - 10,
+        appointee: { fromVillageId: 'w', personId: 12, arrivesDay: DAY + 4 },
+      },
+      surrender: { byPlayer: 'd', toPlayerId: 'a', campaignId: 'c1', day: DAY },
+    };
+    const next = forNewHolder(state);
+    expect(next.holderEpoch).toBe(1);
+    expect(next.awaitingLord).toBeUndefined();
+    expect(next.surrender).toBeUndefined();
+    expect(state.awaitingLord?.appointee).toBeDefined();
+    expect(forNewHolder(next).holderEpoch).toBe(2);
+    expect(holderStamp(state)).toEqual({});
+    expect(holderStamp(next)).toEqual({ holderEpoch: 1 });
+  });
+
+  it('družina odeslaná dřívějším držitelem přijde jako obyčejní lidé – bez line, bez vojvody, ves čeká dál', () => {
+    const state = forNewHolder(lordlessVillage());
+    state.awaitingLord = { sinceDay: DAY };
+    const p = party();
+    expect(p.people.some((x) => x.line)).toBe(true);
+    const events = settleAppointee(state, DAY + 4, p, 'w');
+    expect(events).toEqual([]);
+    const arrived = state.people.filter((x) => x.id >= 500);
+    expect(arrived).toHaveLength(5);
+    expect(arrived.some((x) => x.line || x.noble)).toBe(false);
+    expect(state.dynasty?.lordId).toBeNull();
+    expect(state.awaitingLord).toEqual({ sinceDay: DAY });
+    expect(state.lineMoves).toBeUndefined();
+    // nebydlí ve dvorci (1), ale v obydlí vsi
+    expect(arrived.every((x) => x.dwellingId === 2)).toBe(true);
+    expect(state.storesKg).toBeCloseTo(10 + p.food.grainKg, 5);
+    // družina se stejnou epochou je rodu držitele – vojvoda
+    const held = forNewHolder(lordlessVillage());
+    expect(settleAppointee(held, DAY + 4, party(), 'w', 1)).toEqual([
+      { day: DAY + 4, kind: 'lord', name: 'Bořivoj' },
+    ]);
+  });
+
+  it('povýšený vesničan dřívějšího držitele NPC rod nezaloží', () => {
+    const state = forNewHolder(lordlessVillage());
+    settleNoble(state, DAY + 4, party(), 'npc-1');
+    expect(state.nobles).toBeUndefined();
+    expect(state.people.some((x) => x.noble || x.line)).toBe(false);
+    expect(state.dynasty?.lordId).toBeNull();
   });
 });
 

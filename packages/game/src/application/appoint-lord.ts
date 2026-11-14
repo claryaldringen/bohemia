@@ -3,6 +3,7 @@ import {
   APPOINT_LORD,
   appointCandidate,
   departAppointee,
+  holderStamp,
   isVillageAbandoned,
   isVillageExtinct,
   withAwaitingLord,
@@ -58,7 +59,13 @@ export async function appointLords(
     const waiting = withAwaitingLord(state).awaitingLord;
     if (!waiting) continue;
     if (waiting.appointee) {
-      await finishDeparture(deps, target, waiting.appointee.personId);
+      // vyslanec ze vsi, která rodu hráče nepatří (ves mezitím přešla – vzdání, postoupení): z cizí
+      // vsi nikoho neposílat a nezapisovat do ní; ves vyslance zapomene a vybere si nového
+      if (rod.some((v) => v.record.id === waiting.appointee!.fromVillageId)) {
+        await finishDeparture(deps, target, waiting.appointee.personId);
+      } else {
+        await forgetAppointee(deps, target.record.id, waiting.appointee.fromVillageId);
+      }
       continue;
     }
     // vsi, odkud už někdo vyrazil v tomto průchodu, kandidát nemění (stavy se čtou znovu)
@@ -124,6 +131,26 @@ async function claim(
 }
 
 /**
+ * Ves zapomene vyslance ze vsi `fromVillageId`, která rodu hráče nepatří (`awaitingLord` čeká dál
+ * bez `appointee`); při dalším průchodu dostane kandidáta z rodu hráče. Verzovaný zápis.
+ */
+async function forgetAppointee(
+  deps: AppointLordDeps,
+  villageId: string,
+  fromVillageId: string,
+): Promise<void> {
+  for (let attempt = 0; attempt < SAVE_ATTEMPTS; attempt++) {
+    const current = await deps.villages.find(villageId);
+    const waiting = current?.state.awaitingLord;
+    if (!current || waiting?.appointee?.fromVillageId !== fromVillageId) return;
+    const rest = { ...waiting };
+    delete rest.appointee;
+    const next: VillageState = { ...current.state, awaitingLord: rest };
+    if (await deps.villages.save(villageId, next, current.version)) return;
+  }
+}
+
+/**
  * Druhá a třetí část: muž (je-li ještě ve své vsi) s rodinou vyrazí – družina se pošle schránkou
  * cílové vsi na den příjezdu a muž odejde z domova. Když už ve své vsi není, je hotovo.
  */
@@ -160,6 +187,11 @@ async function post(
     villageId: target.id,
     day: appointee.arrivesDay,
     ref: `appoint:${target.id}:${since}`,
-    body: { kind: 'lord-arrives', party, fromVillageId: appointee.fromVillageId },
+    body: {
+      kind: 'lord-arrives',
+      party,
+      fromVillageId: appointee.fromVillageId,
+      ...holderStamp(target.state),
+    },
   });
 }
