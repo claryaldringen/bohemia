@@ -257,8 +257,12 @@ export interface CampaignState {
 export type IntentBody =
   | { kind: 'set-out' }
   | { kind: 'march'; to: CampaignPlace }
-  /** Obrat domů; `reason` dává NPC velitel (bod zlomu, jídlo, nosnost), hráč obrací rozkazem. */
-  | { kind: 'turn-back'; reason?: CampaignReturnReason }
+  /**
+   * Obrat domů; `reason` dává NPC velitel (bod zlomu, jídlo, nosnost), hráč obrací rozkazem.
+   * `restart` – vůdce dal Začít znovu (war.md – Začít znovu během nájezdu; `restartGame`): obrat
+   * platí, ať vede kdokoli (i NPC velitel nebo zástupce), a ze shromaždiště pošle muže domů.
+   */
+  | { kind: 'turn-back'; reason?: CampaignReturnReason; restart?: true }
   /** Rozkaz skupině (war.md – Změna rozkazu); `at` = místo pro „držet místo“. */
   | { kind: 'set-order'; group: number; order: GroupOrder; at?: Pos }
   /** Velitel v boji napadne muže (id bojovníka – `Fighter.id`). */

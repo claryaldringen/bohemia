@@ -518,6 +518,20 @@ Martin 2. 11. 2026 – „ok“ (podrobnosti návrh Clauda):
 - **Udržení:** kdo tribut nebo dávky neplní, toho smí druhý napadnout znovu; vazal může vypovědět
   (Kdo s kým válčí).
 
+## Začít znovu během nájezdu (Martin 14. 11. 2026)
+
+- Martin 14. 11. 2026: „pokud to udělá hráč – agresor, tak tím jeho nájezd samozřejmě končí. Pokud
+  to udělá hráč obránce, tak se vesnice automaticky vzdá a je považována za dobytou“ a „Pokud se
+  ves vzdá, připadne mu celá“.
+- **Útočník** (návrh Clauda): každé tažení, které hráč vede, se obrátí domů – jako po rozkazu
+  „Domů“, ale ať vede kdokoli (i NPC velitel nebo zástupce); vojsko, které ještě stojí ve
+  shromaždišti, se rozejde domů. Muži vazalů ve službě dojdou s vojskem domů; varování, útěk do
+  hradiště a evakuace obránců skončí, jako když vojsko odtáhne. Vojsku na zpáteční cestě se nic
+  nemění. Upozornění tažení (návrat, rozpad) zůstávají, nové hráč restartem nedostane.
+- **Vazal ve službě**, který dá Začít znovu, tažení pána neobrací (návrh Clauda) – jeho muži jdou
+  s vojskem dál, dokud se nevrátí (odvolat oddíl z vojska hra neumí).
+- **Obránce** (ves se vzdá, je dobytá a připadne útočníkovi celá) řeší krok 2b – doplní ho sem.
+
 ## Spory a rozsudek pána (Martin 2. 11. 2026; zavádí se s válkou)
 
 - Žaloba vazala na jiného pánova vazala → vyjádření → **rozsudek pána** (náhrada zbožím,

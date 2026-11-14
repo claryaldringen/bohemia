@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { kin, village } from '../../domain/village/__tests__/kin-fixtures';
 import type { GridCell } from '../../domain/village/people/world-grid';
-import { msOfTick, stepCampaign, type CampaignState } from '../../domain/war';
+import type { VillageState } from '../../domain/village';
+import {
+  msOfTick,
+  stepCampaign,
+  type CampaignMap,
+  type CampaignState,
+  type CampaignWorld,
+} from '../../domain/war';
 import {
   campaign,
   LAUNCH,
@@ -13,6 +20,7 @@ import {
 } from '../../domain/war/__tests__/campaign-fixtures';
 import { queueCampaignIntent, type CampaignCells } from '../campaigns';
 import type { House } from '../houses';
+import { turnBackLedCampaigns } from '../restart-game';
 import {
   deliverOutbox,
   newCampaignMemory,
@@ -577,5 +585,145 @@ describe('stepCampaigns', () => {
       expect((await rounds(deps, LAUNCH + 12, LAUNCH + 12)).outcomes).toEqual(['computed']);
       expect(memory.states.get('c1')?.state.tick).toBe(LAUNCH + 12);
     });
+  });
+});
+
+describe('Začít znovu během nájezdu – útočník (war.md)', () => {
+  const RAID_END = LAUNCH + 4000;
+  /** Kněžice s domem u cíle a muži, kteří se brání (jako campaign-restart.test.ts). */
+  function knezice(): VillageState {
+    const people = [
+      kin({ id: 1, age: 30, sex: 'male', spouse: 2 }, SUMMER),
+      kin({ id: 2, age: 28, sex: 'female', spouse: 1 }, SUMMER),
+      kin({ id: 3, age: 25, sex: 'male' }, SUMMER),
+      kin({ id: 4, age: 35, sex: 'male' }, SUMMER),
+    ];
+    const v = village(people, undefined, {
+      lastDay: SUMMER + 30,
+      storesKg: 1000,
+      defense: { stance: 'defend' },
+    });
+    v.dwellings[0]!.position = { x: -860, z: 30, rotation: 0 };
+    return v;
+  }
+
+  /**
+   * Tažení p1 (vede NPC) z Lhoty (políčko 0, 0) s mužem vazala p2 z Brodu na Kněžice (1, 0).
+   * Lhota stojí na své mapě, dokud její sídlo není v archivu (jako `createCampaignCells` – políčko
+   * archivovaného sídla je prázdné). Den Lhoty stojí (archiv se nedopočítá) – kdyby ji mapa po
+   * archivu ukazovala dál, návrat z boje by na ni čekal navždy (bariéra Ú6.7).
+   */
+  function raid(): ReturnType<typeof setup> & { domainWorld: CampaignWorld } {
+    const base = setup();
+    const { villages } = base;
+    villages.records.get('lhota')!.state = village([], [], { lastDay: SUMMER - 1 });
+    villages.records.set('knezice', {
+      id: 'knezice',
+      settlementId: 's-knezice',
+      name: 'Kněžice',
+      state: knezice(),
+      version: 1,
+    });
+    const mapAt = (cell: GridCell): CampaignMap => {
+      if (cell.x === 1 && cell.y === 0) return { ...MEADOW, villageIds: ['knezice'] };
+      const home = cell.x === 0 && cell.y === 0 && !villages.archivedSettlements.has('s-lhota');
+      return home ? { ...MEADOW, villageIds: ['lhota'] } : MEADOW;
+    };
+    const cells: CampaignCells = { mapOf: (cell) => Promise.resolve(mapAt(cell)) };
+    const domainWorld: CampaignWorld = {
+      clock: world,
+      landscapeOf: mapAt,
+      villageAt: (id) => villages.records.get(id)?.state ?? null,
+    };
+    return { ...base, deps: { ...base.deps, cells }, domainWorld };
+  }
+
+  const start = (): CampaignState => {
+    const s = campaign({ liveCommand: false });
+    for (const m of s.members) if (m.ref.villageId === 'brod') m.playerId = 'p2';
+    return s;
+  };
+
+  /** První takt, kdy tažení (bez restartu) splní `when`. */
+  function firstTick(w: CampaignWorld, when: (s: CampaignState) => boolean): number {
+    let s = start();
+    while (!when(s)) {
+      if (s.phase === 'done' || s.tick > RAID_END) throw new Error('fáze nenastala');
+      s = stepCampaign(s, s.tick + 1, SET_OUT, w).state;
+    }
+    return s.tick;
+  }
+
+  /** Hodiny restartu (záměr na takt teď + 2) podle fáze. */
+  const restartAt: Record<string, (w: CampaignWorld) => number> = {
+    assembling: () => LAUNCH - 1,
+    marching: () => LAUNCH + 38,
+    raiding: (w) =>
+      firstTick(w, (s) => s.phase === 'raiding' && s.battle?.outcome === 'ongoing') - 1,
+    returning: (w) => firstTick(w, (s) => s.phase === 'returning'),
+  };
+
+  /** Worker do restartu, archiv Lhoty a `restarts` × obrat domů, pak worker do konce. */
+  async function play(phase: string, restarts = 1) {
+    const { deps, campaigns, villages, notices, domainWorld } = raid();
+    await campaigns.create(start());
+    await campaigns.addIntent('c1', {
+      tick: LAUNCH + 2,
+      byPlayer: 'p1',
+      body: { kind: 'set-out' },
+    });
+    const now = restartAt[phase]!(domainWorld);
+    if (now > LAUNCH) await rounds(deps, LAUNCH + 1, now, 4);
+    villages.archivedSettlements.add('s-lhota');
+    for (let i = 0; i < restarts; i++) {
+      await turnBackLedCampaigns(
+        { campaigns, world },
+        { playerId: 'p1', nowMs: msOfTick(now, world) },
+      );
+    }
+    const { outcomes } = await rounds(deps, now + 1, RAID_END + 40, 40);
+    return { campaigns, villages, notices, outcomes, state: await stored(campaigns) };
+  }
+
+  it.each([
+    ['ve shromaždišti', 'assembling'],
+    ['na pochodu', 'marching'],
+    ['v boji na mapě cíle', 'raiding'],
+    ['na zpáteční cestě', 'returning'],
+  ])(
+    '%s: vojsko se obrátí domů, tažení skončí; muži domů právě jednou',
+    async (_name, phase) => {
+      const { campaigns, villages, outcomes, state } = await play(phase);
+      expect(campaigns.intents.filter((i) => i.body.kind === 'turn-back')).toHaveLength(1);
+      // archivovaná Lhota tažení nezdrží – políčko bez sídla je prázdné
+      expect(outcomes).not.toContain('waiting');
+      expect(state.phase).toBe('done');
+      expect(await campaigns.active()).toEqual([]);
+      if (phase !== 'returning') expect(state.returnReason).toBe('order');
+      if (phase === 'raiding') expect(state.battle?.outcome).toBe('withdrawn');
+      // muži Lhoty i vazalův muž z Brodu se vrátí právě jednou
+      const back = villages.inbox.events.filter((e) => e.body.kind === 'campaign-return');
+      expect(back.map((e) => e.villageId).sort()).toEqual(['brod', 'lhota']);
+    },
+    60_000,
+  );
+
+  it('dvojitý restart (pád mezi archivem a záměry) = jeden obrat', async () => {
+    const once = await play('marching');
+    const twice = await play('marching', 2);
+    expect(twice.campaigns.intents.filter((i) => i.body.kind === 'turn-back')).toHaveLength(2);
+    expect(JSON.stringify(twice.state)).toBe(JSON.stringify(once.state));
+    expect(twice.villages.inbox.events).toEqual(once.villages.inbox.events);
+    expect(twice.notices.notices).toEqual(once.notices.notices);
+  }, 60_000);
+
+  it('restart vazala ve službě tažení neobrátí – vojsko jde dál', async () => {
+    const { campaigns } = raid();
+    await campaigns.create(start());
+    await turnBackLedCampaigns(
+      { campaigns, world },
+      { playerId: 'p2', nowMs: msOfTick(LAUNCH + 38, world) },
+    );
+    expect(campaigns.intents).toEqual([]);
   });
 });

@@ -275,6 +275,21 @@ describe('evakuace do hradiště (Úloha 8)', () => {
     );
   });
 
+  it('Začít znovu útočníka (war.md) = „Domů“ – vojsko odtáhne, skupina dojde a varování skončí', () => {
+    const start = approaching();
+    start.liveCommand = true;
+    const t0 = start.tick + 1;
+    const run = (back: CampaignIntent['body']): Run =>
+      live(start, start.tick + END, [flee(t0, 'all'), intent(t0 + 40, 9, back, 'p1')]);
+    const restart = run({ kind: 'turn-back', restart: true });
+    expect(restart).toEqual(run({ kind: 'turn-back' }));
+    expect(restart.state.phase).toBe('done');
+    expect(restart.state.battle).toBeUndefined();
+    expect(flightOf(restart.state).status).toBe('arrived');
+    // vojsko na mapě vsi nestálo – žádné dny nájezdu ani kořist
+    expect(restart.events.filter((e) => e.body.kind === 'raid-result')).toEqual([]);
+  });
+
   it('(b) „jen lidé“ – rychleji, stádo a zásoby zůstanou a útočník je vezme', () => {
     const start = approaching();
     const t0 = start.tick + 1;

@@ -178,7 +178,8 @@ Plán 2026-11-03 – rozhodnutí 12; Review bod 5. Čísla ve `WAR.campaign`.
   `leg` = úsek po mapě `{ points, meadowM, walkedM }`, `arrived`), `supplies.foodKg`,
   `loot { foodKg, herd }`, `captives`, `liveCommand`, `discovered`, `returnReason`).
   `CampaignIntent { tick, seq, byPlayer, body }`, `IntentBody` = `set-out` | `march { to }` (jen
-  `liveCommand`, ve fázi pochodu; v boji pošle velitele) | `turn-back` | `set-order` | `strike`
+  `liveCommand`, ve fázi pochodu; v boji pošle velitele) | `turn-back` (`restart` – Začít znovu během
+  nájezdu) | `set-order` | `strike`
   (Ú6.8 – Boj muž po muži).
 - **Krok** – `domain/war/campaign.ts`: `newCampaign(input, clock)` (muži ve shromaždišti, skupiny
   podle `member.group`), `stepCampaign(state, toTick, intents, world)` → `{ state, villageEvents,
@@ -1660,6 +1661,31 @@ Scéna hry ukazuje **mapu sídla hráče** – vojsko je v ní vidět, když na 
   B – `foreign-scene`, `data-war-men`, `armyStats`, vojsko přejde na sousední mapu – nová
   `data-cell` a vojsko dál, po návratu domů zpět na ves), db
   `campaign-repository.db.test.ts` (`activeAgainst`).
+
+## Začít znovu během nájezdu (14. 11. 2026)
+
+design/war.md – Začít znovu během nájezdu (útočník; obránce doplní krok 2b).
+
+- **Restart** – `restartGame` (`application/restart-game.ts`) po archivu sídel, konci výjezdu
+  a konci rodu zavolá `turnBackLedCampaigns(deps, { playerId, nowMs })`: každé tažení
+  z `CampaignRepository.activeOf`, které hráč vede (`state.playerId` – tažení, kde je jen vazal
+  ve službě, ne), dostane jeho jménem záměr `turn-back` se značkou `restart` na takt
+  `tickOfMs(now) + INTENT_LEAD_TICKS`. Odmítne-li `addIntent` takt (bod je dál), zkusí první takt
+  za bodem (nejvýš `TURN_BACK_ATTEMPTS` = 3×); skončené tažení nechá být. Volá se i bez vsí –
+  opakovaný restart po pádu záměry dopíše. `RestartGameDeps` mají `campaigns` a `world` (web
+  `restartGameForPlayer` – `currentWorld()`). Nové upozornění nevzniká.
+- **Doména** – `applyBody` (`domain/war/campaign.ts`): `turn-back` s `restart` platí i bez
+  živého vedení (NPC velitel, zástupce) a ve fázi `assembling` (vojsko jde rovnou domů, pozdější
+  `set-out` se zahodí); na pochodu a v boji jako „Domů“ (`turnBack` – boj `withdrawn`, důvod
+  `order`); ve fázích `returning`, `disbanded` a `done` nic – druhý obrat nic nezmění. Přítomnost
+  hráče počítá jako každý jeho záměr (`presenceTick`), takže dál platí Hráč odejde od tažení.
+- **Archivovaná ves domova** – políčko archivovaného sídla je pro tažení prázdné
+  (`createCampaignCells` – `holderAt` vidí jen nearchivovaná sídla), vojsko na archivovanou ves
+  nečeká; `computeWithLoads` archiv pro tažení dál nečte.
+- **Testy** – `domain/war/__tests__/campaign-restart.test.ts` (fáze, NPC, idempotence),
+  `evacuation.test.ts` (útěk obránců jako po „Domů“), `application/__tests__/restart-game.test.ts`
+  (vedené tažení × vazal, odmítnutý takt, pád a opakovaný restart), `step-campaigns.test.ts`
+  (worker ve všech fázích s archivovanou vsí domova, muži vazala domů jednou, dvojitý restart).
 
 ## Měření tažení a e2e celé války (Ú6.17)
 
