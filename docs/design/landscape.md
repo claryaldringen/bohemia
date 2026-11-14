@@ -674,7 +674,7 @@ Konkrétní šumový algoritmus a jeho parametry, barvy terénu, osvětlení, fo
 přesné rozmístění stromů v rámci políčka (stačí odvodit z polohy políčka), horní mez
 celkové úrodnosti podle měření.
 
-## Brod na každé mapě s potokem (Martin 14. 11. 2026 – návrh, čeká na schválení)
+## Brod na každé mapě s potokem (schváleno 14. 11. 2026)
 
 Martin 14. 11. 2026: „Zároveň by každá mapa s potokem měla mít alespoň jeden brod.“ (k pravidlu
 „Jen brodem“ – [paths.md](paths.md), Odhad vzdáleností).
@@ -682,7 +682,8 @@ Martin 14. 11. 2026: „Zároveň by každá mapa s potokem měla mít alespoň 
 - Dnes má potok 1–3 mělčiny, ale za brod síť pěšin uzná jen dost úzkou (`FORD.halfWidthM`), takže
   mapa brod mít nemusí. Návrh Clauda: když žádná mělčina potoka na mapě brodem není, nejbližší ke
   středu mapy se zúží na brod – deterministicky z dnešní geometrie potoka, bez nového losu.
-- Mění vrstvu krajiny, proto **nová verze vrstvy** (`CURRENT_LAYER_VERSIONS`) – platí pro nové
-  krajiny; uložená sídla se starší verzí se nemění (zlaté otisky starších verzí zůstanou).
-- Vsi starší verze bez brodu (vývojové vsi, např. Vlkov): pole za potokem se dál neobdělávají
-  a zarostou, správce tam nová nezaloží (návrh Clauda). Ostrý svět začne 1. 1. 2027 od nuly.
+- **Mění současnou vrstvu zpětně** – Martin 14. 11. 2026: „Zatím hra není spuštěná, takže krajiny
+  lze měnit i zpětně. Jinak bychom to nikdy neodladili.“ Zlaté otisky krajin se přepíšou; nová
+  verze vrstvy až po ostrém spuštění.
+- Dnešní vývojové vsi (např. Vlkov) brod dostanou taky; pole za potokem jsou pak dosažitelná přes
+  brod. Mapa bez potoka brod nepotřebuje.
