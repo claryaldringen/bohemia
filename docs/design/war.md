@@ -315,7 +315,8 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
     nezačnou docházet zásoby a pak začnou postupně dezertovat. Výprava se prostě časem sama
     rozpadne“): tažení vedené živě se samo neobrátí ani nenapadne. Návrh Clauda (Martin 14. 11. 2026 – „Jo zkusme to takto“): jakmile jídlo klesne pod jídlo na cestu domů, dezertuje každý den ≈ 5 % mužů (jako
     nucení); dezertér jde domů jako při rozpadu. Až zůstane jen vůdce, výprava se rozpadne
-    (upozornění „Výprava se rozpadla.“).
+    (upozornění „Výprava se rozpadla.“). U nuceného se šance přičte k jeho dezerci (jeden los na
+    muže a den) a dezertér z bojiště zmizí hned, v noci (návrh Clauda).
 - **Příklad** (návrh Clauda): Bořivoj táhne ze Lhoty na Kněžice o 2 políčka dál, v létě. Ze Lhoty
   k okraji ≈ 3 dny, přes mezilehlou mapu ≈ 6 dní, ke Kněžicím ≈ 3 dny, střety ≈ 3 dny, zpět se
   stádem ≈ 24 dní – **≈ 40 herních dní ≈ 1 h skutečného času** a ≈ 40 kg jídla na muže, víc, než
@@ -827,6 +828,7 @@ Martin 2. 11. 2026 – „ok“ (doplňky návrh Clauda):
 | Nosnost                            | muž 25 kg, kůň bez jezdce 80 kg, dvoukolák 400 kg                                                                                                                                                                                      |
 | Dobrovolníci (nábor)               | 30 % + 0,5 % za bod štěstí nad 50, hlad +15 %, vdovská domácnost × 0,5, nejvýš 95 % (návrh Clauda)                                                                                                                                     |
 | Dezerce nucených                   | 5 % denně, s příbuznými v cíli 15 % (návrh Clauda – výchozí z 18. 10.)                                                                                                                                                                 |
+| Dezerce z hladu (živé vedení)      | 5 % mužů denně, když jídlo klesne pod jídlo na cestu domů; vůdce ne; u nuceného se přičte (návrh Clauda – Martin 14. 11. 2026 „Jo zkusme to takto“)                                                                                    |
 | Hráč mimo tažení                   | 1 herní den, pak zástupce, nebo rozpad                                                                                                                                                                                                 |
 | NPC velitel                        | ≥ 1,5 × síla obránců (bez násobku – 8. 11.); hradbu při postupu ≤ 1 den (8. 11.); obrat při ztrátě ½ vojska                                                                                                                            |
 | Stropy dovedností                  | výcvik doma 50, lov 70, válka 100 (Martin)                                                                                                                                                                                             |

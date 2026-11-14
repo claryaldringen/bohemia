@@ -52,6 +52,12 @@ export const WAR = {
     maxShare: 0.95,
   },
   desertion: { perDay: 0.05, withKinPerDay: 0.15 },
+  /**
+   * war.md – Zásoby tažení: Živé vedení bez rozkazu (Martin 14. 11. 2026; číslo návrh Clauda –
+   * „Jo zkusme to takto“): tažení vedené živě, kterému jídlo klesne pod jídlo na cestu domů, ztrácí
+   * denně ≈ 5 % mužů (vůdce ne); u nuceného se přičte k jeho dezerci (jeden los na muže a den).
+   */
+  hungerDesertPerDay: 0.05,
   /** war.md – Čísla: hráč mimo tažení vydrží 1 herní den, pak zástupce, nebo rozpad. */
   absentLeaderDays: 1,
   /**

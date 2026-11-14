@@ -42,6 +42,20 @@ export function surrender(f: Fighter): void {
   delete f.cover;
 }
 
+/**
+ * Dezertér útočníků (war.md – Vojsko; Zásoby tažení: Živé vedení bez rozkazu): z bojiště zmizí
+ * hned v denním kroku – nikdo ho nepronásleduje ani nezajme; domů ho vrátí návrat tažení.
+ */
+export function slipAway(f: Fighter): void {
+  f.state = 'fled';
+  f.aim = null;
+  f.route = [];
+  f.routeFor = null;
+  f.breachAt = null;
+  f.fleeTo = null;
+  delete f.cover;
+}
+
 /** Obránci za hradbou opevnění `fort` – se stanovištěm (`post`) v něm, v pořadí bojovníků. */
 export function fortDefenders(
   b: Pick<BattleState, 'fighters'>,

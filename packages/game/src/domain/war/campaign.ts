@@ -21,7 +21,7 @@ import type {
   CampaignVillage,
   CampaignWorld,
 } from './campaign-types';
-import { deserters } from './desertion';
+import { deserters, starving } from './desertion';
 import {
   battleForts,
   battleTick,
@@ -33,7 +33,7 @@ import {
 import { defenderRoster, type Defender, type GuardGuest } from './defenders';
 import { ageYears, isAway } from '../village/people/people';
 import { stanceOf } from './flight';
-import { refugeRout } from './rout';
+import { refugeRout, slipAway } from './rout';
 import { planDefense, type RefugeLoad } from './stance';
 import {
   lootCapacity,
@@ -266,7 +266,7 @@ function campaignTick(
   s.throughDay = dayOfTick(tick + 1, ctx.world.clock) - 1;
   while (s.day < day) {
     s.day++;
-    dailyStep(s, out);
+    dailyStep(s, ctx, out);
   }
   for (const intent of intents) applyIntent(s, intent, ctx, out);
   command(s, tick, ctx, out);
@@ -371,11 +371,13 @@ function watchVillages(s: CampaignState, ctx: TickContext, out: TickOut): void {
 
 /**
  * Denní krok na začátku herního dne `s.day` (war.md – Pohyb – Zásoby, Zima): mráz venku (ve
- * shromaždišti se muži zotaví) a jídlo – 1 kg na muže a den. Když jídlo dojde na pochodu,
- * vojsko se obrátí domů (Martin 2. 11. 2026). Skupiny uprchlíků na cestě do hradiště jedí ze svých
- * zásob (Úloha 8 plánu 2026-11-09).
+ * shromaždišti se muži zotaví), dezerce a jídlo – 1 kg na muže a den. Když jídlo dojde na pochodu,
+ * vojsko se obrátí domů (Martin 2. 11. 2026). Živě vedené tažení se samo neobrátí: s jídlem pod
+ * cestou domů muži dezertují, a zůstane-li jen vůdce, výprava se rozpadne (war.md – Zásoby tažení:
+ * Živé vedení bez rozkazu; Martin 14. 11. 2026). Skupiny uprchlíků na cestě do hradiště jedí ze
+ * svých zásob (Úloha 8 plánu 2026-11-09).
  */
-function dailyStep(s: CampaignState, out: TickOut): void {
+function dailyStep(s: CampaignState, ctx: TickContext, out: TickOut): void {
   flightFoodDay(s);
   const outside = s.phase !== 'assembling' && s.phase !== 'done';
   const active = s.members.filter((m) => m.status === 'active');
@@ -385,7 +387,11 @@ function dailyStep(s: CampaignState, out: TickOut): void {
     m.vigor += delta.vigor;
   }
   if (!outside) return;
-  desert(s, out);
+  const hungry = starving(s, ctx.world);
+  desert(s, hungry, out);
+  if (hungry && !s.members.some((m) => m.status === 'active' && !sameRef(m.ref, s.commander))) {
+    disband(s, out);
+  }
   const need = active.length * WAR.foodKgPerManDay;
   const eaten = Math.min(need, s.supplies.foodKg);
   s.supplies.foodKg -= eaten;
@@ -393,14 +399,19 @@ function dailyStep(s: CampaignState, out: TickOut): void {
 }
 
 /**
- * Dezerce nucených (war.md – Vojsko): dezertér s příbuznými v cíli cíl varuje – ves dostane
- * signál `army-seen` dřív, než vojsko dorazí (jeden za den, ať se nezdvojí).
+ * Dezerce nucených a z hladu (war.md – Vojsko; Zásoby tažení: Živé vedení bez rozkazu – `hungry`):
+ * dezertér z boje odejde hned (`slipAway`) a domů ho jako při rozpadu vrátí návrat tažení
+ * (`returnOf` – `deserted`). Dezertér s příbuznými v cíli cíl varuje – ves dostane signál
+ * `army-seen` dřív, než vojsko dorazí (jeden za den, ať se nezdvojí).
  */
-function desert(s: CampaignState, out: TickOut): void {
+function desert(s: CampaignState, hungry: boolean, out: TickOut): void {
   let warns = false;
-  for (const m of deserters(s)) {
+  const battle = s.battle?.outcome === 'ongoing' ? s.battle : null;
+  for (const m of deserters(s, hungry)) {
     m.status = 'deserted';
     warns ||= m.kin === true;
+    const f = battle?.fighters.find((x) => x.side === 'attack' && s.members[x.ref] === m);
+    if (f && f.state !== 'fled') slipAway(f);
   }
   if (!warns) return;
   const day = s.day + 1;

@@ -285,7 +285,8 @@ a `food` (kg obilí ze zásob shromaždiště).
   (`CampaignMember.forced`) dezertuje s los ze seedu tažení, dne a pořadí muže – 5 % denně, s příbuznými
   v cíli (`CampaignMember.kin`) 15 % (`WAR.desertion`); `status: 'deserted'`. Dezertér s příbuznými
   v cíli cíl varuje: do schránky cílové vsi jde `threat-signal` s `army-seen` (den po dni dezerce;
-  body `army-seen` vlastní schránka zatím nemá – signál hrozby je stávající tělo).
+  body `army-seen` vlastní schránka zatím nemá – signál hrozby je stávající tělo). Dezerce z hladu
+  živě vedeného tažení a odchod dezertéra z bojiště: Hráč ve vsi a mimo ni – Živé vedení bez rozkazu.
 - Právo: `ACTION_RIGHTS` `planCampaign` a `launchCampaign` = `war`; ve web `lib/village.ts`
   `planCampaignActionForPlayer` / `launchCampaignActionForPlayer` (přes `guardedAction`),
   `lib/army.ts` je skládá s `LaunchDeps` (`GameDeps.campaigns`).
@@ -1901,6 +1902,32 @@ rozhodne správce `absentTicks` + 1 taktů po posledním zápisu přítomnosti.
 Testy: `defender-presence.test.ts` (dotaz, čekající záměr, bez portu, obnova, ořez na takt záměru),
 `alarm-world.test.ts` – describe „worker odpovídá na přítomnost obránce“ (přítomný hráč 700 taktů,
 nepřítomný do 2 kol, odchod, volba hráče, paměť kola); přítomnost v paměti `InMemoryPresence`.
+
+**Živé vedení bez rozkazu – dezerce z hladu (Úloha 10).** Spec: war.md – Zásoby tažení, bod Živé
+vedení bez rozkazu (Martin 14. 11. 2026). Živě vedené tažení se samo neobrátí ani nenapadne (to dělá
+jen NPC velitel). V denním kroku (`dailyStep` v `campaign.ts`) se před dezercí zjistí hlad
+(`starving` v `desertion.ts`). Tažení musí být na pochodu nebo v nájezdu, vést ho musí hráčův muž
+(`liveCommand`), hráč nesmí být pryč (`absent`) a jídla musí být méně než `homeFoodKg`. To je jídlo na
+cestu domů, totéž, podle kterého se obrací NPC velitel (`npc-commander.ts`: muži na nohou × 1 kg ×
+`daysHome`). Hladovému tažení `deserters(state, hungry)` přidá každému muži kromě vůdce (`commander`)
+`WAR.hungerDesertPerDay` (5 %). U nuceného se přičte k jeho šanci, los zůstává jeden na muže a den
+(`desert:<den>:<pořadí>`). Kdo by utekl bez hladu, uteče i s ním, a bez hladu je dezerce nucených bit
+po bitu stejná jako dřív.
+
+- **Dezertér** (`desert`): `status: 'deserted'`. Jeho bojovník v probíhajícím boji z bojiště zmizí
+  hned (`slipAway` v `rout.ts` – stav `fled`, nikdo ho nepronásleduje). Platí i pro nuceného, který
+  by jinak na bojišti dál bojoval. Domů ho vrátí návrat tažení stejně jako muže při rozpadu:
+  `campaign-return` jeho domovské vsi (`returnOf` – `back` bere `active` i `deserted`), právě jednou.
+- **Zůstane jen vůdce:** když po dezerci hladového dne nezbývá jiný muž na nohou, `dailyStep` zavolá
+  `disband`. Kronika a upozornění „Výprava se rozpadla.“ (`campaign-disbanded`) jdou jednou, vůdce
+  jde domů jako při rozpadu. Výprava jen s vůdcem se tak rozpadne první hladový den.
+- **Beze změny:** NPC velitel a zástupce (hráč pryč) se obrátí s `supplies`, když jídla zbývá jen na
+  cestu domů. Na pochodu se vojsko obrátí, když jídlo dojde (i živě vedené – Martin 2. 11. 2026).
+
+Testy: `hunger-desertion.test.ts` (los ≈ 5 %, vůdce ne, nucený s přičtenou šancí; nájezd za palisádou:
+dezerce podle losu, bojovník pryč, žádný obrat ani útok, rozpad s jedním upozorněním, návrat
+dezertérů domů právě jednou, po kouscích 1 / 37 / 400 s kontrolním bodem; jídlo nad cestou domů;
+pochod; NPC a zástupce beze změny).
 
 ## Měření tažení a e2e celé války (Ú6.17)
 
