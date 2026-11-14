@@ -129,10 +129,15 @@ export type PlotCheck = FootprintCheck & { position: Position | null };
  * které cenu nemá pevnou: počítá se podle délky obvodu (`fortificationCost`), proto `BuildKind`
  * v jádru zůstává beze změny (Ú5.6) a opevnění je jen záznam katalogu s vlastní kontrolou.
  */
-export type WebBuildKind = BuildKind | 'fortification' | ChurchBuildKind;
+export type WebBuildKind = BuildKind | 'fortification' | 'dwelling' | ChurchBuildKind;
 
 interface BuildItemBase {
   kind: WebBuildKind;
+  /**
+   * Stavba je jen druhem rozcestníku (obydlí: zemnice, polozemnice, nadzemní dům jsou druhy
+   * rozcestníku `dwelling`) – v mřížce staveb nemá vlastní tlačítko, zkratka ale vybere druh rovnou.
+   */
+  hubOf?: 'dwelling';
   name: string;
   /** Soubor v `public/icons/build/` bez přípony. */
   icon: string;
@@ -214,6 +219,15 @@ export type BuildItem =
         variant?: string,
         context?: SquaresContext,
       ): FortPointsCheck;
+    })
+  | (BuildItemBase & {
+      /**
+       * Rozcestník obydlí: tlačítko mřížky otevře druhy (zemnice, polozemnice, nadzemní dům –
+       * `DWELLING_VARIANTS`); druh spustí umisťování stavby `buildItem(variant)`. Zkratky druhů
+       * (Z, X, 1) vybírají druh rovnou, rozcestník vlastní zkratku nemá.
+       */
+      placement: 'dwellings';
+      variants: readonly SquaresVariant[];
     })
   | (BuildItemBase & {
       /** Modla nebo svatyně – čtvercový půdorys u kurzoru (otáčí se jako obydlí). */
@@ -317,7 +331,14 @@ const hotkeyCode = (label: string): string =>
   /^\d$/.test(label) ? `Digit${label}` : `Key${label}`;
 
 const dwelling = (kind: BuildableDwellingType, name: string, hotkeyLabel: string): BuildItem => {
-  const base = { kind, name, icon: kind, hotkey: hotkeyCode(hotkeyLabel), hotkeyLabel };
+  const base = {
+    kind,
+    name,
+    icon: kind,
+    hotkey: hotkeyCode(hotkeyLabel),
+    hotkeyLabel,
+    hubOf: 'dwelling' as const,
+  };
   if (PLOT_TYPES[kind]) {
     return {
       ...base,
@@ -639,7 +660,7 @@ export function penVariant(species: PenSpecies): SquaresVariant {
  */
 export function buildVariantName(item: BuildItem, variant: SquaresVariant): string {
   if (item.kind === 'pen') return PEN_NAMES[penVariantSpecies(variant.id)];
-  if (item.kind === 'fortification') return variant.name;
+  if (item.kind === 'fortification' || item.kind === 'dwelling') return variant.name;
   return `${item.name} – ${variant.name}`;
 }
 
@@ -772,7 +793,30 @@ export function fortPointsPlacement(
   };
 }
 
+/** Zástupná zkratka rozcestníku obydlí – nic ji nespustí (druhy mají Z, X a 1). */
+const NO_HOTKEY = 'None';
+
+/**
+ * Druhy obydlí v pořadí rozcestníku mřížky staveb: zemnice, polozemnice, nadzemní dům – ikony
+ * `public/icons/build/`. Dostupnost a důvod zašednutí (nadzemní dům až od roku 800) dává
+ * nabídka staveb (`BuildOption.variants`).
+ */
+export const DWELLING_VARIANTS: readonly (SquaresVariant & { id: BuildableDwellingType })[] = [
+  { id: 'zemnice', icon: 'build/zemnice', name: 'Zemnice' },
+  { id: 'polozemnice', icon: 'build/polozemnice', name: 'Polozemnice' },
+  { id: 'srub', icon: 'build/srub', name: 'Nadzemní dům' },
+];
+
 export const BUILD_ITEMS: readonly BuildItem[] = [
+  {
+    kind: 'dwelling',
+    name: 'Obydlí',
+    icon: 'zemnice',
+    hotkey: NO_HOTKEY,
+    hotkeyLabel: 'Z / X / 1',
+    placement: 'dwellings',
+    variants: DWELLING_VARIANTS,
+  },
   dwelling('zemnice', 'Zemnice', 'Z'),
   dwelling('polozemnice', 'Polozemnice', 'X'),
   // nadzemní dům (log-house.md – Dům): do roku 800 zašedlý – důvod „Od roku 800“ dává server
@@ -982,5 +1026,7 @@ export function buildItemForKey(event: {
   shiftKey: boolean;
 }): BuildItem | null {
   if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return null;
-  return BUILD_ITEMS.find((item) => item.hotkey === event.code) ?? null;
+  return (
+    BUILD_ITEMS.find((item) => item.hotkey !== NO_HOTKEY && item.hotkey === event.code) ?? null
+  );
 }

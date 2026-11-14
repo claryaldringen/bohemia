@@ -141,7 +141,7 @@ export function DevPanelsView({ initial }: { initial: string | null }): ReactEle
         group={buildGroup}
         onBuild={(kind, variant) => {
           const item = BUILD_ITEMS.find((i) => i.kind === kind);
-          const hub = item?.placement === 'squares' && item.variants !== undefined;
+          const hub = item !== undefined && 'variants' in item && item.variants !== undefined;
           setBuildGroup(hub && variant === undefined && buildGroup !== kind ? kind : null);
         }}
       />

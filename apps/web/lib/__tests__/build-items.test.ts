@@ -51,6 +51,27 @@ describe('zkratky staveb', () => {
     expect(BUILD_ITEMS.filter((item) => camera.includes(item.hotkey))).toEqual([]);
   });
 
+  it('obydlí jsou jeden rozcestník, zkratky Z, X a 1 dál vybírají druh rovnou', () => {
+    const hub = BUILD_ITEMS.find((i) => i.kind === 'dwelling');
+    expect(hub).toMatchObject({ placement: 'dwellings', name: 'Obydlí' });
+    expect(hub?.placement === 'dwellings' && hub.variants.map((v) => v.id)).toEqual([
+      'zemnice',
+      'polozemnice',
+      'srub',
+    ]);
+    // druhy nemají vlastní tlačítko, zkratky ano
+    expect(BUILD_ITEMS.filter((i) => i.hubOf === 'dwelling').map((i) => i.kind)).toEqual([
+      'zemnice',
+      'polozemnice',
+      'srub',
+    ]);
+    expect(buildItemForKey(key('KeyZ'))?.kind).toBe('zemnice');
+    expect(buildItemForKey(key('KeyX'))?.kind).toBe('polozemnice');
+    expect(buildItemForKey(key('Digit1'))?.kind).toBe('srub');
+    // rozcestník sám zkratku nespustí
+    expect(buildItemForKey(key('None'))).toBeNull();
+  });
+
   it('1 nadzemní dům – za polozemnicí, na pozemku s plotem (log-house.md – Dům)', () => {
     const item = buildItemForKey(key('Digit1'));
     expect(item?.kind).toBe('srub');

@@ -258,6 +258,52 @@ export function isBuildAffordable(
   return extending ? own.extendAffordable : own.affordable;
 }
 
+/** Druhy obydlí rozcestníku od nejlepšího – ikonu tlačítka dává první, který ves postaví. */
+const DWELLING_BEST_FIRST = ['srub', 'polozemnice', 'zemnice'] as const;
+
+/**
+ * Nabídka rozcestníku obydlí (zemnice, polozemnice, nadzemní dům): cena a dostupnost každého druhu
+ * je v `variants` (zašedlý druh nese důvod v `blocked`), tlačítko samo cenu nemá a je dostupné,
+ * pokud ves postaví aspoň jeden druh. Ikona tlačítka je obydlí, které hráč nejspíš postaví –
+ * nejlepší druh, na který ves má (nadzemní dům, polozemnice, zemnice), jinak zemnice.
+ */
+export function dwellingHubOption(build: Partial<Record<string, BuildOption | null>>): BuildOption {
+  const variants: NonNullable<BuildOption['variants']> = {};
+  for (const type of DWELLING_BEST_FIRST) {
+    const own = build[type];
+    if (!own) continue;
+    variants[type] = {
+      laborManDays: own.laborManDays,
+      upfront: own.upfront,
+      affordable: own.affordable,
+      blocked: own.blocked,
+      payment: [],
+      extendAffordable: own.affordable,
+    };
+  }
+  const best = DWELLING_BEST_FIRST.find((type) => variants[type]?.affordable) ?? 'zemnice';
+  return {
+    laborManDays: 0,
+    perHa: false,
+    perSquare: false,
+    upfront: [],
+    blocked: null,
+    affordable: Object.values(variants).some((v) => v.affordable),
+    look: { icon: best, name: 'Obydlí' },
+    variants,
+  };
+}
+
+/**
+ * Rozcestník obydlí při zakládání vsi: nabízí se jen zemnice (první zemnici osídlí zakladatelé),
+ * tlačítko je proto rovnou zemnice a jeden klik spustí umisťování.
+ */
+export const FOUNDING_DWELLING_OPTION: BuildOption = {
+  ...dwellingHubOption({}),
+  affordable: true,
+  look: { icon: 'zemnice', name: 'Zemnice' },
+};
+
 /**
  * Nabídka staveb: cena z pravidel a co z ceny předem (suroviny, dřevo, lidé k osídlení) ves nemá.
  * Dřevo = klády + dospělé stromy krajiny sídla, které jde skácet (vrstva překážek).

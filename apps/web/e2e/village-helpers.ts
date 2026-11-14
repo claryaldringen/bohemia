@@ -1,6 +1,6 @@
 // Společné kroky e2e vsi (village.spec.ts, worker.spec.ts): hráč, krajina sídla, volná místa
 // pro stavby spočítaná ze seedu krajiny stejnými pravidly jako ve hře, přímé čtení a zápis vsi.
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { Client } from 'pg';
 import {
   VILLAGE_STATE_SQL_COLUMNS,
@@ -155,6 +155,18 @@ export async function villageOf(
  * Zeptá se na ves hned (háček dotazování) – po přímé změně uložené vsi. Dotaz sám jde až na
  * začátku dalšího herního dne (v pomalém světě testů nejpozději za 86 s).
  */
+/**
+ * Druh obydlí (Zemnice, Polozemnice, Nadzemní dům) v rozcestníku mřížky staveb – otevře ho
+ * tlačítkem Obydlí, je-li zavřený. Rozcestník zavře Escape.
+ */
+export async function dwellingVariant(page: Page, name: string): Promise<Locator> {
+  const grid = page.getByTestId('build-grid');
+  if ((await grid.getAttribute('data-group')) !== 'dwelling') {
+    await grid.getByRole('button', { name: 'Obydlí', exact: true }).click();
+  }
+  return grid.getByRole('button', { name, exact: true });
+}
+
 export async function pollVillage(page: Page): Promise<void> {
   await page.evaluate(() => window.__bohemiaE2E!.pollVillage!());
 }

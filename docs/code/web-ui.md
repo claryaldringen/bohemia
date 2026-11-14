@@ -305,7 +305,15 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   Martin 20. 10. 2026): kliknutí i zkratka otevře v mřížce druhy (`BuildGrid` `group`,
   `useBuildMode` `buildGroup` – první tlačítko stavba sama zpět, druhy `buildVariantName` bez
   zkratek), druh spustí malování (`startBuild(kind, variant)`), Esc rozcestník zavře; u kurzoru
-  ikona druhu (`PlacementPreview.variant`). Stavba,
+  ikona druhu (`PlacementPreview.variant`). **Obydlí** (Martin 14. 11. 2026) jsou jedno políčko –
+  rozcestník `dwelling` (`placement: 'dwellings'`, `DWELLING_VARIANTS`: zemnice, polozemnice,
+  nadzemní dům; ikony `build/…`, `variantIconSrc` v `BuildGrid`); zemnice, polozemnice a srub zůstávají
+  záznamy katalogu s `hubOf: 'dwelling'` (kontrola, cena, zkratky), ale bez vlastního tlačítka.
+  Rozcestník nemá zkratku (`NO_HOTKEY`), Z, X a 1 vyberou druh rovnou (`startBuild` je převede na
+  `dwelling` + druh). Nabídku dává `dwellingHubOption` (`village-view.ts`): cena a důvod zašednutí
+  (srub do roku 800) jsou v `variants` každého druhu, ikona tlačítka je nejlepší druh, na který ves
+  má (srub, polozemnice, zemnice); při zakládání vsi je tlačítko rovnou zemnice
+  (`FOUNDING_DWELLING_OPTION`) a jeden klik spustí umisťování. Stavba,
   kterou nejde zahájit z jiného důvodu než surovin (druhá svatyně), má v `BuildOption.blocked`
   důvod – v popisku červeně. Panel výběru umí i posvátný dub, háj, modlu a svatyni (ikona,
   kolik přidávají štěstí, průběh stavby a duby ke kácení); u posvátného dubu i jeho stáří
