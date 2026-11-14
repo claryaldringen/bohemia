@@ -50,6 +50,12 @@ koše netřeba (docs/design/log-house.md – Scéna):
   blender -b --factory-startup --python tools/blender/dwellings.py -- \
       /tmp/dwelling-atlas - apps/web/public/models/dwellings /tmp/srub-renders srub
 
+Vypletený dům od roku 750 (vypleteny.glb, díly staveniště vypleteny-construction.glb – uzly
+„vypleteny-…“) se exportuje zvlášť pátým argumentem „vypleteny“ – ostatní GLB se nepřepíšou, koše
+netřeba (docs/design/log-house.md – Dům s vypletenými stěnami):
+  blender -b --factory-startup --python tools/blender/dwellings.py -- \
+      /tmp/dwelling-atlas - apps/web/public/models/dwellings /tmp/vypleteny-renders vypleteny
+
 Rozpad obydlí (decay.glb – stupně sešlý, propadá se, zřícený a zbytek jámy po zániku, kopřivy;
 podrobně v sekci „rozpad obydlí“ níže, který stupeň kdy, určuje apps/web/lib/scene/dwelling-decay.ts)
 se exportuje zvlášť pátým argumentem „decay“ – ostatní GLB obydlí se tím nepřepíšou, koše netřeba:
@@ -73,6 +79,7 @@ ATLAS, PROPS, OUT, RENDER = args[0], args[1], args[2], args[3]
 DECAY_ONLY = len(args) > 4 and args[4] == "decay"
 DVOREC_ONLY = len(args) > 4 and args[4] == "dvorec"
 LOG_ONLY = len(args) > 4 and args[4] == "srub"
+WATTLE_ONLY = len(args) > 4 and args[4] == "vypleteny"
 META = json.load(open(os.path.join(ATLAS, "atlas.json")))
 AW, AH, UPER = META["W"], META["H"], META["uperiod_m"]
 BANDS, REGIONS = META["bands"], META["regions"]
@@ -1177,6 +1184,154 @@ def build_log_house(part, kind, stages=False):
             b.beam((-(ox - t / 2), y, z_top + 0.04), (ox - t / 2, y, z_top + 0.04), 0.15)
 
 
+
+# ------------------------------------------------------------------ vypletený dům od roku 750
+
+# Vypletený dům (docs/design/log-house.md – Dům s vypletenými stěnami od roku 750, návrh Clauda):
+# kůly zaražené do země po ≈ 1,1 m, mezi nimi proutěný výplet omazaný hlínou (světlá mazanice),
+# kůly v mazanici vystupují, sedlová došková střecha jako u srubu (vzadu kratší přesah – pozemek),
+# štíty omazané s dýmníkem nad ohništěm, nízké dveře na předním štítu (−Y) s plochým kamenem.
+# Stěny 4,6 × 5,6 m, s přesahem střechy půdorys 5 × 6 m jako srub. Jámu ani šíji nemá.
+WATTLE_HOUSE = dict(
+    o=(2.3, 2.8),  # vnější půlrozměry stěn napříč a podél hřebene (líc mazanice)
+    wall=0.16,  # tloušťka stěny (výplet s mazanicí z obou stran)
+    z_top=1.8,  # horní hrana stěn
+    pile=0.15,  # průřez kůlu
+    pile_step=1.15,  # kůly po ≈ 1,15 m
+    door_top=1.45,  # horní hrana dveří nad terénem
+    slope=0.9, th=0.32, x_eave=2.75, overhang=0.8, back_overhang=0.45, kozy=(1.7, 0.6), ny=6,
+)
+WATTLE_ROWS = (0.0, 0.9, 1.8)  # řady výpletu stěn (m) – pás proutí v atlasu má 0,94 m
+
+
+def _wall_pieces(ox, oy, w, door_top):
+    """Úseky stěn (x0, x1, y0, y1, z0, z1, out) bez otvoru dveří na předním štítu (−Y)."""
+    pieces = []
+    for sgn in (-1, 1):  # podélné stěny
+        x0, x1 = sorted((sgn * ox, sgn * (ox - w)))
+        pieces.append((x0, x1, -oy, oy, (sgn, 0, 0)))
+    for sgn in (-1, 1):  # štítové stěny mezi podélnými
+        y0, y1 = sorted((sgn * oy, sgn * (oy - w)))
+        if sgn < 0:
+            pieces.append((-ox + w, -DOOR, y0, y1, (0, -1, 0)))
+            pieces.append((DOOR, ox - w, y0, y1, (0, -1, 0)))
+            pieces.append((-DOOR, DOOR, y0, y1, (0, -1, 0), door_top))
+        else:
+            pieces.append((-ox + w, ox - w, y0, y1, (0, 1, 0)))
+    return pieces
+
+
+def build_wattle_house(part, stages=False):
+    """Vypletený dům. Části: piles (kůly stěn), daub-1 a daub-2 (omazané řady stěn zdola),
+    daub-3 (omazané štíty s dýmníkem), doors (ostění, práh a kámen), plates, thatch-1 … (řady
+    došků), ridge. stages=True přidá stakes (kolíky), wattle-1 … wattle-3 (proutěný výplet řad
+    stěn a štítů před omazáním), posts / ridge-beam / rafters-i / laths (krov)."""
+    g = WATTLE_HOUSE
+    ox, oy = g["o"]
+    w, z_top, door_top = g["wall"], g["z_top"], g["door_top"]
+    slope, th, x_eave = g["slope"], g["th"], g["x_eave"]
+    t_v = th * math.sqrt(1 + slope * slope)
+    z_ridge = z_top + t_v + slope * ox  # spodní plocha střechy sedí na hraně stěny
+    front, back = g["overhang"], g["back_overhang"]
+    half_len = oy + (front + back) / 2
+    roof = ShiftedParts(part, (back - front) / 2, skip=("posts",))
+
+    # stěny po řadách: výplet (jen staveniště) a mazanice – každá řada svým dílem
+    for k, (z0, z1) in enumerate(zip(WATTLE_ROWS, WATTLE_ROWS[1:])):
+        for piece in _wall_pieces(ox, oy, w, door_top):
+            x0, x1, y0, y1, out = piece[:5]
+            lo = max(z0, piece[5]) if len(piece) > 5 else z0
+            if lo >= z1:
+                continue
+            zb = -0.05 if lo == 0.0 else lo
+            part(f"daub-{k + 1}").box(x0, x1, y0, y1, zb, z1, "daub")
+            if stages:
+                b = part(f"wattle-{k + 1}")
+                along_x = out[1] != 0
+                inset = w * 0.35  # výplet uprostřed stěny, mazanice z obou stran
+                if along_x:
+                    yc = (y0 + y1) / 2
+                    for sgn_face in (-1, 1):
+                        y = yc + sgn_face * (w / 2 - inset)
+                        pts = [(x0, y, zb), (x1, y, zb), (x1, y, z1), (x0, y, z1)]
+                        b.poly(pts, "wattle", out=(0, sgn_face, 0), uvm=[(p[0], p[2] - zb + 0.02) for p in pts])
+                else:
+                    xc = (x0 + x1) / 2
+                    for sgn_face in (-1, 1):
+                        x = xc + sgn_face * (w / 2 - inset)
+                        pts = [(x, y0, zb), (x, y1, zb), (x, y1, z1), (x, y0, z1)]
+                        b.poly(pts, "wattle", out=(sgn_face, 0, 0), uvm=[(p[1], p[2] - zb + 0.02) for p in pts])
+
+    # kůly zaražené do země – nároží, po obvodu po ≈ pile_step, u dveří; vystupují z mazanice
+    b = part("piles")
+    pc = g["pile"]
+    edge = 0.045  # o kolik kůl vystupuje z líce mazanice
+    xs = ox - pc / 2 + edge
+    ys = oy - pc / 2 + edge
+    spots = []
+    m = max(1, round(2 * oy / g["pile_step"]))
+    for sx in (-1, 1):
+        for i in range(m + 1):
+            spots.append((sx * xs, -ys + 2 * ys * i / m))
+    n = max(1, round(2 * ox / g["pile_step"]))
+    for sy in (-1, 1):
+        for i in range(1, n):
+            x = -xs + 2 * xs * i / n
+            if sy < 0 and abs(x) < DOOR + 0.3:
+                continue
+            spots.append((x, sy * ys))
+    for sy in (-1,):  # kůly ostění dveří
+        for sx in (-1, 1):
+            spots.append((sx * (DOOR + pc / 2), sy * ys))
+    for i, (x, y) in enumerate(spots):
+        b.beam((x, y, -0.3), (x, y, z_top + 0.04 + 0.03 * _rand(i, 7)), pc * (0.92 + 0.12 * _rand(i, 3)))
+
+    # tmavé nitro za dveřmi, práh, překlad a plochý kámen před dveřmi
+    b = part("doors")
+    yi = -oy + w + 0.3
+    b.poly([(-DOOR, yi, 0.0), (DOOR, yi, 0.0), (DOOR, yi, door_top), (-DOOR, yi, door_top)], "dark", out=(0, 1, 0))
+    for sx in (-1, 1):
+        b.poly([(sx * DOOR, -oy, 0.0), (sx * DOOR, yi, 0.0), (sx * DOOR, yi, door_top), (sx * DOOR, -oy, door_top)], "dark", out=(-sx, 0, 0))
+    b.beam((-DOOR - 0.08, -oy + w / 2, -0.02), (DOOR + 0.08, -oy + w / 2, -0.02), 0.15)  # práh
+    b.beam((-0.66, -oy - 0.05, door_top + 0.06), (0.66, -oy - 0.05, door_top + 0.06), 0.12)  # překlad
+    boulder(b, 0.0, -oy - 0.55, 0.5, 0.34, 0.1, 61)
+
+    # vaznice (pozednice) na kůlech pod střechou
+    b = roof("plates")
+    for sgn in (-1, 1):
+        b.beam((sgn * (ox - w / 2), -half_len + 0.08, z_top + 0.07), (sgn * (ox - w / 2), half_len - 0.08, z_top + 0.07), 0.16)
+
+    z_in = thatch_roof(roof, half_len, z_ridge, slope, x_eave, th, ny=g["ny"], kozy=g["kozy"])
+    roof.apply()
+
+    # štíty omazané nad stěnami, nahoře tmavý dýmník (kouř z ohniště uvnitř), rám z trámů
+    apex = z_in(0)
+    zv = apex - 0.5
+
+    def x_at(z):
+        return (apex - z) / slope
+
+    b = part("daub-3")
+    for sgn in (-1, 1):
+        y = sgn * (oy - w / 2)
+        outv = (0, sgn, 0)
+        b.poly([(-x_at(z_top), y, z_top), (x_at(z_top), y, z_top), (x_at(zv), y, zv), (-x_at(zv), y, zv)], "daub", out=outv)
+        b.poly([(-x_at(zv), y, zv), (x_at(zv), y, zv), (0, y, apex)], "dark", out=outv)
+        gable_frame(b, y, apex, slope, z_top + 0.05, zv, size=0.12)
+        yo = y + sgn * 0.1
+        b.beam((-ox - 0.1, yo, z_top + 0.03), (ox + 0.1, yo, z_top + 0.03), 0.14)
+
+    if stages:
+        stakes_and_string(part("stakes"), [(-ox, oy), (ox, oy), (ox, -oy), (-ox, -oy)])
+        wattle_gables(part("wattle-3"), ((-(oy - w / 2) - 0.01, (0, -1, 0)), (oy - w / 2 + 0.01, (0, 1, 0))), apex, slope, z_top + 0.02, zv)
+        yp = (-(oy - w / 2), oy - w / 2)
+        ridge_frame(roof, yp, z_top + 0.1, apex, half_len, slope, x_eave, z_in, n_rafters=5)
+        roof.apply()
+        b = part("posts")
+        for y in yp:  # příčný trám, na kterém sloup krovu stojí
+            b.beam((-(ox - w / 2), y, z_top + 0.04), (ox - w / 2, y, z_top + 0.04), 0.15)
+
+
 def site_props(part, mat):
     """Rekvizity staveniště (sdílené oběma typy, kreslí se v instancích): stoh drnů, hráň
     kmenů a tyčí, svazky proutí, snopy slámy, rýč, koš."""
@@ -2188,9 +2343,50 @@ def log_main():
         render([srub, manor], os.path.join(RENDER, "both_game_angle.png"), (0, -26, 23.0), (0, 0, 0.5), size=(1000, 600))
 
 
+def wattle_main():
+    """Jen vypletený dům (log-house.md – Dům s vypletenými stěnami od roku 750)."""
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    mat = make_material()
+    os.makedirs(OUT, exist_ok=True)
+    fp = Parts("f-vypleteny")
+    build_wattle_house(fp)
+    house = join(fp.build(mat), "vypleteny")
+    house.location = (0, 0, 0)
+    export([house], os.path.join(OUT, "vypleteny.glb"))
+    d = house.dimensions
+    print(f"STAT vypleteny: {tri_count(house)} tris, {d.x:.2f} x {d.y:.2f} x {d.z:.2f} m")
+    sp = Parts("vypleteny")
+    build_wattle_house(sp, stages=True)
+    stage_objs = sp.build(mat)
+    bpy.ops.object.select_all(action="DESELECT")
+    for o in stage_objs:
+        o.select_set(True)
+    bpy.context.view_layer.objects.active = stage_objs[0]
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    export(stage_objs, os.path.join(OUT, "vypleteny-construction.glb"))
+    for o in stage_objs:
+        print(f"PART {o.name}: {tri_count(o)} tris")
+        o.hide_render = True
+    if RENDER != "-":
+        terrain = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "apps", "web", "public", "textures", "terrain")
+        setup_world(os.path.join(terrain, "grass.jpg"))
+        os.makedirs(RENDER, exist_ok=True)
+        render([house], os.path.join(RENDER, "vypleteny_front.png"), (-7.5, -11.5, 5.2), (0.3, 0, 1.5), size=(900, 600))
+        render([house], os.path.join(RENDER, "vypleteny_back.png"), (9.5, 9.0, 6.0), (0, 0, 1.5), size=(900, 600))
+        render([house], os.path.join(RENDER, "vypleteny_close.png"), (-2.4, -8.6, 3.9), (0.05, -2.7, 0.8), size=(900, 600), lens=30)
+        render([house], os.path.join(RENDER, "vypleteny_game_angle.png"), (0, -16, 14.0), (0, 0, 0.8), size=(900, 600))
+        for o in stage_objs:  # rozestavěný: kůly, krov a výplet před omazáním
+            o.hide_render = not any(o.name.startswith(f"vypleteny-{k}") for k in ("piles", "plates", "posts", "ridge-beam", "rafters", "laths", "wattle", "doors"))
+            o.location = (0, 0, 0)
+        render([o for o in stage_objs if not o.hide_render], os.path.join(RENDER, "vypleteny_site.png"), (-7.5, -11.5, 5.2), (0.3, 0, 1.5), size=(900, 600))
+
+
 def main():
     if LOG_ONLY:
         log_main()
+        return
+    if WATTLE_ONLY:
+        wattle_main()
         return
     if DECAY_ONLY:
         decay_main()

@@ -5,7 +5,7 @@ Celé jedním příkazem z kořene repa (Blender 5, ImageMagick `magick`, intern
     blender -b --factory-startup --python tools/blender/icons.py -- apps/web/public/icons [jen,vybrané,ikony]
 
 Výstup (128 × 128 PNG, průhledné rohy) – `build/` zemnice, polozemnice, srub (nadzemní dům –
-log-house.md, bez jámy), dvorec (dvorec vojvody –
+log-house.md, bez jámy), vypleteny (vypletený dům od roku 750 – log-house.md, bez jámy), dvorec (dvorec vojvody –
 trade.md), pole, hrbitov, hrbitov-kriz (křesťanský hřbitov s kříži – cemetery.md, Po křtu rodu),
 hrncir, kovar, tesar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, tesař pod
 přístřeškem s kozlíky a koly – wagons.md, uhlíř s milířem), sad
@@ -2861,6 +2861,7 @@ BUILD = {
     "polozemnice": lambda: icon_dwelling("polozemnice"),
     "dvorec": lambda: icon_dwelling("dvorec"),
     "srub": lambda: icon_dwelling("srub", pit=False),
+    "vypleteny": lambda: icon_dwelling("vypleteny", pit=False),
     "pole": icon_pole,
     "hrbitov": icon_hrbitov,
     "hrbitov-kriz": lambda: icon_hrbitov(christian=True),

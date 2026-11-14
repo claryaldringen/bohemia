@@ -73,10 +73,11 @@ function familyOf(state: VillageState, man: Person): Person[] {
  * skupině od nejstaršího (pak nižší id). Muž, který už v nadzemním domě stejně dobrém nebo lepším
  * (`DWELLING_QUALITY`) bydlí, ani dnešní vojvoda se nestěhuje (Martin); z horšího nadzemního domu
  * se stěhuje do lepšího (log-house.md – Dům s vypletenými stěnami). Bez `type` jen rodiny, které
- * v žádném nadzemním domě nebydlí. Ženatý přijde s manželkou a svobodnými dětmi, svobodný sám; rodina s vojvodou nebo
- * s tím, kdo drží dvorec (`holdsManor`), neodchází. Jako u jiných obydlí (návrh Clauda) jen rodina,
- * která dům udrží (někdo 16–44), a jen když se zbytek domácnosti nerozpadne – jinak by se rozpadlá
- * domácnost vrátila a druhý den odešla znovu. Kdo jde s otcem, další rodinu nezakládá.
+ * v žádném nadzemním domě nebydlí. Ženatý přijde s manželkou a svobodnými dětmi, svobodný sám;
+ * rodina s vojvodou nebo * s tím, kdo drží dvorec (`holdsManor`), neodchází. Jako u jiných obydlí
+ * (návrh Clauda) jen rodina, * která dům udrží (někdo 16–44), a jen když se zbytek domácnosti
+ * nerozpadne – jinak by se rozpadlá * domácnost vrátila a druhý den odešla znovu. Kdo jde s otcem,
+ * další rodinu nezakládá.
  */
 export function logHouseFamilies(
   state: VillageState,
