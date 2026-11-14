@@ -58,7 +58,9 @@ export function ChroniclePanel({
           …
         </div>
       ) : (
-        <div className="pr-1" data-testid="chronicle-years">
+        // Text kroniky jde označit a zkopírovat (Martin 14. 11. 2026) – herní stránka má
+        // jinak označování vypnuté (`select-none` v app/game/page.tsx)
+        <div className="pr-1 select-text" data-testid="chronicle-years">
           {page.years.map((year) => (
             <section key={year.year} data-testid="chronicle-year" data-year={year.year}>
               <h3 className="sticky top-0 border-b border-[#5c4526] bg-[#2b2219] py-0.5 font-serif text-sm font-semibold text-[#f3cf86]">

@@ -150,6 +150,12 @@ describe('panel Kronika', () => {
     expect(host.textContent?.match(/22\. září/g)).toHaveLength(1);
   });
 
+  it('text zápisů jde označit a zkopírovat, ač má herní stránka označování vypnuté', () => {
+    render({ page: chroniclePage(events(), 'Lhota', { before: null }) });
+    const years = host.querySelector('[data-testid="chronicle-years"]');
+    expect(years?.classList.contains('select-text')).toBe(true);
+  });
+
   it('kliknutí mimo panel (na závoj) ho zavře', () => {
     const { onClose } = render({ page: chroniclePage(events(), 'Lhota', { before: null }) });
     act(() => host.querySelector<HTMLElement>('[data-testid="chronicle-backdrop"]')!.click());
