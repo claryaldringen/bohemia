@@ -26,6 +26,7 @@ import {
 import type { Placement } from '@/hooks/use-placement';
 import {
   CHURCH_TYPE_NAMES,
+  DWELLING_VARIANTS,
   buildItem,
   churchIcon,
   fortVariantKind,
@@ -40,6 +41,8 @@ import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import { wholeTarget, type VillageTarget } from '@/lib/scene/village-picking';
 import type { PlacementMode, PlacementResult } from '@/lib/scene/village-types';
 import {
+  FOUNDING_DWELLING_OPTION,
+  dwellingHubOption,
   isBuildAffordable,
   type BuildOption,
   type SceneVillage,
@@ -235,13 +238,18 @@ export function useBuildMode({
       ? {}
       : view.journey
         ? view.journey.arrived
-          ? { zemnice: null }
+          ? { dwelling: FOUNDING_DWELLING_OPTION, zemnice: null }
           : {}
         : // opevnění nemá pevnou cenu – cena je u kurzoru podle délky obvodu; kostel bez ceny
           // předem, jen typ okruhu huti a důvod, proč nejde (churches.md – Stavba)
-          { ...view.build, fortification: null, ...churchOptions(view) }
+          {
+            ...view.build,
+            dwelling: dwellingHubOption(view.build),
+            fortification: null,
+            ...churchOptions(view),
+          }
     : villageError === null
-      ? { zemnice: null }
+      ? { dwelling: FOUNDING_DWELLING_OPTION, zemnice: null }
       : {};
 
   /** Umisťování obydlí: zemnice půdorysem u kurzoru, polozemnice na pozemku (políčku). */
@@ -268,15 +276,30 @@ export function useBuildMode({
     };
   };
 
-  const startBuild = (kind: WebBuildKind, variant?: string): void => {
+  const startBuild = (requestedKind: WebBuildKind, requestedVariant?: string): void => {
+    let kind = requestedKind;
+    let variant = requestedVariant;
     // dokud se nepojmenuje vojvoda, ves se nezakládá – ani zkratkou, ani klikem mimo panel jména
     if (!scene || foundingName || !(kind in options)) return;
     // seniorát: stavět v cizí vsi rodu smí jen senior (zkratka nesmí obejít zašedlé tlačítko)
     if (rightDeniedReason(view?.rights, 'build') !== null) return;
+    // zkratka druhu obydlí (Z, X, 1) vybere druh v rozcestníku obydlí rovnou
+    if (buildItem(kind).hubOf === 'dwelling') {
+      variant = kind;
+      kind = 'dwelling';
+    }
+    if (kind === 'dwelling') {
+      // druh, který ves nenabízí (první zemnice zakládá ves), nejde; s jediným druhem se rozcestník přeskočí
+      const offered = DWELLING_VARIANTS.filter((v) => v.id in options);
+      if (variant !== undefined && !offered.some((v) => v.id === variant)) return;
+      if (variant === undefined && offered.length === 1) variant = offered[0]!.id;
+    }
     const item = buildItem(kind);
     // stavba s druhy je rozcestník: tlačítko i zkratka otevřou v mřížce druhy, znovu je zavřou
     if (
-      (item.placement === 'squares' || item.placement === 'fort-points') &&
+      (item.placement === 'squares' ||
+        item.placement === 'fort-points' ||
+        item.placement === 'dwellings') &&
       item.variants &&
       variant === undefined
     ) {
@@ -402,6 +425,12 @@ export function useBuildMode({
     };
     if (item.placement === 'plot' || item.placement === 'footprint') {
       placement.start(dwellingMode(item.dwellingType), onDwelling);
+      return;
+    }
+    if (item.placement === 'dwellings') {
+      // druh z rozcestníku obydlí: umisťuje se jako samostatná stavba (`buildItem(variant)`)
+      const type = DWELLING_VARIANTS.find((v) => v.id === variant)?.id;
+      if (type) placement.start(dwellingMode(type), onDwelling);
       return;
     }
     if (item.placement === 'workshop') {

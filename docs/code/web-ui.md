@@ -246,7 +246,14 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   datum je bez názvu období (Martin 14. 11. 2026); ve vývojovém režimu je klikací
   (`DateWithDevTime`, `game-date-toggle`) – klik otevře u data panel zrychlení času
   (`DevTimeButtons`, `dev-time-panel`), další klik, Esc nebo stisk mimo ho zavře, mimo vývojový
-  režim klik nic neotevře; ikona zvuků v liště není, jen tlačítko nabídky),
+  režim klik nic neotevře; ikona zvuků v liště není, jen tlačítko nabídky; ikona obilí
+  (`village-stores`) ukazuje součet kg obilí, luštěnin a jablek bez snopů (`grainStockTotal`) a ikona
+  dobytka (`village-livestock`) součet kusů skotu, volů, ovcí, koz, prasat a koní
+  (`livestockTotal` z `view.livestock` a `view.horses`); klik na ně otevře u ikony panel
+  s rozpisem (`StockBreakdown`, `<testId>-toggle` / `<testId>-panel`, řádky `grainStockRows` /
+  `livestockRows` – ikony s čísly, názvy v popiscích; dobytek jen druhy, které ves má), další klik,
+  Esc nebo stisk mimo ho zavře jako panel u data; Martin 14. 11. 2026. Ikony luštěnin a ovoce
+  v liště zůstávají vedle),
   `GameMenu` (nabídka hry jako v 0 A.D., F10 – modální okno uprostřed obrazovky se ztmaveným
   pozadím; smí mít slova: Nastavení – přepínač `setting-sound` Zvuky krajiny, stejná uložená
   volba `sound-preference` –, Začít znovu,
@@ -305,7 +312,15 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   Martin 20. 10. 2026): kliknutí i zkratka otevře v mřížce druhy (`BuildGrid` `group`,
   `useBuildMode` `buildGroup` – první tlačítko stavba sama zpět, druhy `buildVariantName` bez
   zkratek), druh spustí malování (`startBuild(kind, variant)`), Esc rozcestník zavře; u kurzoru
-  ikona druhu (`PlacementPreview.variant`). Stavba,
+  ikona druhu (`PlacementPreview.variant`). **Obydlí** (Martin 14. 11. 2026) jsou jedno políčko –
+  rozcestník `dwelling` (`placement: 'dwellings'`, `DWELLING_VARIANTS`: zemnice, polozemnice,
+  nadzemní dům; ikony `build/…`, `variantIconSrc` v `BuildGrid`); zemnice, polozemnice a srub zůstávají
+  záznamy katalogu s `hubOf: 'dwelling'` (kontrola, cena, zkratky), ale bez vlastního tlačítka.
+  Rozcestník nemá zkratku (`NO_HOTKEY`), Z, X a 1 vyberou druh rovnou (`startBuild` je převede na
+  `dwelling` + druh). Nabídku dává `dwellingHubOption` (`village-view.ts`): cena a důvod zašednutí
+  (srub do roku 800) jsou v `variants` každého druhu, ikona tlačítka je nejlepší druh, na který ves
+  má (srub, polozemnice, zemnice); při zakládání vsi je tlačítko rovnou zemnice
+  (`FOUNDING_DWELLING_OPTION`) a jeden klik spustí umisťování. Stavba,
   kterou nejde zahájit z jiného důvodu než surovin (druhá svatyně), má v `BuildOption.blocked`
   důvod – v popisku červeně. Panel výběru umí i posvátný dub, háj, modlu a svatyni (ikona,
   kolik přidávají štěstí, průběh stavby a duby ke kácení); u posvátného dubu i jeho stáří
@@ -1355,7 +1370,9 @@ Jádro a akce: `village-masonry.md` – Geometrie a cena kostela, Stavba kostela
   `churchWorkProgress`, `site.blocked` = `churchBlocked`, `capacity`, `graves`, `priest`, když kostel
   má údaj `priestId`). Nabídka: `churchBuildChoices(state)` → `VillageView.churchBuild` (malý
   a velký typ okruhu huti `churchTypesFor`, bez huti okruh adriatický; důvod `churchStartProblem` –
-  `CHURCH_NO_LODGE`, `CHURCH_NO_QUARRY`). Ves bez kostela nic z toho nemá.
+  `CHURCH_NO_LODGE`, `CHURCH_NO_QUARRY`). Dokud rod nepřijal křesťanství (`faith.rodBaptizedDay`),
+  je nabídka prázdná – tlačítka kostela ani jejich zkratky nejsou (Martin 14. 11. 2026) – a server
+  kostel odmítne (`CHURCH_NOT_BAPTIZED` v `churchStartProblem`). Ves bez kostela nic z toho nemá.
 - **Nabídka staveb** (`lib/build-items.ts`): `WebBuildKind` `church-small` [I] a `church-large` [Y]
   (volné klávesy – návrh Clauda), `placement: 'church'`, `check` = `checkChurchPlacement` jako server
   - cena `churchPlacementCost`. `use-build-mode.ts` – `churchOptions` dá `BuildOption` bez ceny

@@ -7,6 +7,7 @@ import type { Construction, MasonCraft, Person, VillageState } from '../../types
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 import {
   CHURCH_EAST_ROTATION,
+  CHURCH_NOT_BAPTIZED,
   CHURCH_NO_LODGE,
   CHURCH_NO_QUARRY,
   CHURCH_WRONG_TYPE,
@@ -53,6 +54,7 @@ function churchVillage(crafts: readonly MasonCraft[] = MASON_CRAFTS, men = 0): V
     storesKg: base.storesKg + 200000,
     meatKg: 20000,
     legumesKg: 20000,
+    faith: { rodBaptizedDay: DAY - 90 },
     lodge: { circle: 'carolingian', invitedDay: DAY - 60 },
     quarries: [{ outcropId: 7, x: 300, z: 0, rotation: 0, builtDay: DAY - 10 }],
   };
@@ -76,6 +78,15 @@ describe('natočení a zahájení', () => {
     expect(snapChurchRotation(0.1)).toBe(0);
     expect(snapChurchRotation(0.2)).toBeCloseTo(Math.PI / 12);
     expect(snapChurchRotation(-Math.PI / 2 + 0.01)).toBeCloseTo(-Math.PI / 2);
+  });
+
+  it('nepokřtěný rod kostel nezačne – pojistka serveru (tlačítko se ani neukáže)', () => {
+    const at = { x: 0, z: 0, rotation: 0 };
+    const pagan: VillageState = { ...churchVillage(), faith: {} };
+    expect(startChurch(pagan, DAY, null, null, { ...ROTUNDA, position: at })).toEqual({
+      ok: false,
+      reason: CHURCH_NOT_BAPTIZED,
+    });
   });
 
   it('bez stavbyvedoucího, mimo okruh nebo bez lomu kostel nezačne; jinak bez ceny předem', () => {

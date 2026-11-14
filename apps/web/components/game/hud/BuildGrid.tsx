@@ -14,6 +14,14 @@ function buildIconSrc(icon: string): string {
   return `/icons/build/${icon.includes('.') ? icon : `${icon}.png`}`;
 }
 
+/**
+ * Ikona druhu v rozcestníku: bez lomítka je v `public/icons/resources/` (zvířata, opevnění), jinak
+ * je to cesta v `public/icons/` bez přípony (obydlí: `build/zemnice`).
+ */
+function variantIconSrc(icon: string): string {
+  return icon.includes('/') ? `/icons/${icon}.png` : `/icons/resources/${icon}.png`;
+}
+
 /** Kolik slotů má mřížka staveb (jako příkazový panel 0 A.D.) – prázdné jsou prohlubně. */
 const GRID_SLOTS = 12;
 
@@ -163,7 +171,8 @@ function GridButton({
  * v popisku. Stavba, na kterou ves nemá předem suroviny, duby nebo lidi k osídlení (nebo už
  * stojí jediná svatyně), je zašedlá a nejde spustit (ani zkratkou). Stavba s druhy (ohrada –
  * oxen.md, Ohrady podle druhu) je jen rozcestník: kliknutí (i zkratka) otevře v mřížce její druhy
- * – první tlačítko je stavba sama (zpět), za ní druhy bez zkratek; druh spustí umisťování.
+ * – první tlačítko je stavba sama (zpět), za ní druhy bez zkratek; druh spustí umisťování. Obydlí (zemnice, polozemnice,
+ * nadzemní dům) jsou jedno takové políčko; jejich zkratky Z, X a 1 vyberou druh rovnou.
  */
 export function BuildGrid({
   options,
@@ -197,10 +206,17 @@ export function BuildGrid({
 }): ReactElement {
   const hub = group === null ? null : (BUILD_ITEMS.find((item) => item.kind === group) ?? null);
   const hubVariants =
-    (hub?.placement === 'squares' || hub?.placement === 'fort-points') && hub.kind in options
-      ? hub.variants
+    (hub?.placement === 'squares' ||
+      hub?.placement === 'fort-points' ||
+      hub?.placement === 'dwellings') &&
+    hub.kind in options
+      ? // obydlí: jen druhy, které ves nabízí (první zemnice zakládá ves)
+        hub.placement === 'dwellings'
+        ? hub.variants.filter((v) => v.id in options)
+        : hub.variants
       : undefined;
-  const items = BUILD_ITEMS.filter((item) => item.kind in options);
+  // druhy rozcestníku (zemnice…) vlastní tlačítko nemají – jen zkratku
+  const items = BUILD_ITEMS.filter((item) => item.kind in options && !item.hubOf);
   const slots = hub && hubVariants ? 1 + hubVariants.length : items.length;
   const empty = Math.max(0, GRID_SLOTS - slots);
   return (
@@ -216,8 +232,8 @@ export function BuildGrid({
           ? [
               <GridButton
                 key={hub.kind}
-                label={hub.name}
-                icon={buildIconSrc(hub.icon)}
+                label={options[hub.kind]?.look?.name ?? hub.name}
+                icon={buildIconSrc(options[hub.kind]?.look?.icon ?? hub.icon)}
                 tooltip={<BuildTooltip item={hub} option={options[hub.kind] ?? null} />}
                 pressed
                 disabled={disabled}
@@ -233,7 +249,7 @@ export function BuildGrid({
                   <GridButton
                     key={variant.id}
                     label={buildVariantName(hub, variant)}
-                    icon={`/icons/resources/${variant.icon}.png`}
+                    icon={variantIconSrc(variant.icon)}
                     tooltip={
                       <BuildTooltip
                         item={hub}
