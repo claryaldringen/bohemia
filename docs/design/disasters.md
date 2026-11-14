@@ -499,7 +499,7 @@ v roce 4 při zásobách 30. 6. ≈ 2× pojistky, dvě sucha v letech 4 a 5):
   **Bez ikony v liště** – Martin 14. 11. 2026: „Pojďme to udělat tak, aby tyto ikony nebyly
   potřeba. Deštivé léto je vidět, protože prší. Povodeň je na mapě taky vidět. Dlouhá zima – to
   že sníh dlouho leží je také vidět.“ Sucho a holomráz ukazuje scéna (Ve scéně – slunce praží,
-  jinovatka); upozornění, kronika a odhad úrody dílu zůstávají.
+  jinovatka); upozornění, kronika a odhad úrody dílu zůstávají. Dobré léto vypadá jako běžné – Martin 14. 11. 2026: „Dobré léto považujme za standard.“
 - **Upozornění** (krátká, mizející, jako „Ves šetří jídlem“): „Sucho – nejvíc trpí pole bez
   stromů“ (Martin schválil 27. 10. 2026), „Mokré žně“, „Holomráz – ozim vymrzá“, „Kroupy
   potloukly obilí“, „Povodeň“ (velikost vody v popisku – „Stoletá voda“), „Hoří!“, „Vyhořel dům“,
