@@ -25,7 +25,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   a nové načtení po umístění, odúmrti, pozvánky, `negotiate`), `use-panels.ts` (`usePanels` –
   nabídka, rod, válka a odvody se střídají; průchody, ochrana, `warAction`, dialog Odvody),
   `use-player-notices.ts` (`noticeTick`, `showPlayerNotices`, `openNoticePanel`),
-  `use-history-panels.ts` (kronika a upozornění, `closeNoticesRef`, zkratky J / U),
+  `use-history-panels.ts` (kronika a upozornění, `closeNoticesRef`, zkratky J / U; panel Kronika `hud/ChroniclePanel.tsx` je modální okno uprostřed obrazovky se závojem jako nabídka hry – klik mimo nebo Esc zavře – a záznamy jednoho dne seskupuje pod jedno datum, `groupByDay`),
   `use-war-watch.ts` (`useWarScene` → `setWar`, „Probít se“, sledování cizí mapy,
   `armyActions`), `use-line-naming.ts` (jména rodu, `founderNameRef`), `use-pending-sites.ts`
   (staveniště čekající na server, `sceneVillage`, `placementScene`, `buildDwelling` …),

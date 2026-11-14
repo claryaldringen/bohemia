@@ -69,8 +69,10 @@ describe('panel Kronika', () => {
     expect(years()).toEqual(['504', '503']);
     const entry = host.querySelector('[data-testid="chronicle-entry"]');
     expect(entry?.getAttribute('data-kind')).toBe('birth');
-    expect(entry?.textContent).toContain('25. dubna');
     expect(entry?.textContent).toContain('Narodilo se dítě.');
+    expect(host.querySelector('[data-testid="chronicle-day-label"]')?.textContent).toBe(
+      '25. dubna',
+    );
   });
 
   it('ukáže začátek a konec trvalého stavu vsi s datem (absence.md – Upozornění vsi do kroniky)', () => {
@@ -86,10 +88,12 @@ describe('panel Kronika', () => {
     );
     expect(texts).toHaveLength(3);
     expect(texts[0]).toContain('notice-ended');
-    expect(texts[0]).toContain('9. června');
     expect(texts[0]).toContain('Hlad skončil.');
-    expect(texts[1]).toContain('2. března');
     expect(texts[1]).toContain('Ves hladoví.');
+    const labels = [...host.querySelectorAll('[data-testid="chronicle-day-label"]')].map(
+      (el) => el.textContent,
+    );
+    expect(labels).toEqual(['9. června', '2. března', '1. ledna']);
   });
 
   it('tlačítko starších zápisů načte další stránku; na konci zmizí a ukáže se založení vsi', () => {
@@ -130,6 +134,26 @@ describe('panel Kronika', () => {
     expect(host.querySelector('[data-testid="chronicle-error"]')?.textContent).toBe(
       'Spojení se serverem selhalo.',
     );
+  });
+
+  it('záznamy jednoho dne mají datum jednou jako nadpis dne', () => {
+    const list: ChronicleEvent[] = [
+      { day: day(500, 1, 1), kind: 'village-founded' },
+      { day: day(500, 9, 22), kind: 'birth' },
+      { day: day(500, 9, 22), kind: 'birth' },
+      { day: day(500, 9, 22), kind: 'birth' },
+    ];
+    render({ page: chroniclePage(list, 'Lhota', { before: null }) });
+    const days = [...host.querySelectorAll('[data-testid="chronicle-day"]')];
+    expect(days).toHaveLength(2);
+    expect(days[0]?.querySelectorAll('[data-testid="chronicle-entry"]')).toHaveLength(3);
+    expect(host.textContent?.match(/22\. září/g)).toHaveLength(1);
+  });
+
+  it('kliknutí mimo panel (na závoj) ho zavře', () => {
+    const { onClose } = render({ page: chroniclePage(events(), 'Lhota', { before: null }) });
+    act(() => host.querySelector<HTMLElement>('[data-testid="chronicle-backdrop"]')!.click());
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('Esc i křížek panel zavřou', () => {

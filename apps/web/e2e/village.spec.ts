@@ -1854,12 +1854,14 @@ test('panel Kronika – ikona v liště otevře kroniku vsi se zápisem o založ
   await expect(panel.getByTestId('chronicle-year').first()).toHaveAttribute('data-year', /^\d+$/);
   await expect(panel.getByTestId('chronicle-older')).toHaveCount(0);
 
-  // panel rodu kroniku zavře, Esc zavře znovu otevřenou kroniku
-  await page.getByTestId('house-toggle').click();
+  // panel je modální uprostřed obrazovky: kliknutí mimo ho zavře, Esc zavře znovu otevřenou kroniku
+  const box = (await panel.boundingBox())!;
+  const viewport = page.viewportSize()!;
+  expect(Math.abs(box.x + box.width / 2 - viewport.width / 2)).toBeLessThan(2);
+  await page.getByTestId('chronicle-backdrop').click({ position: { x: 4, y: 100 } });
   await expect(panel).toHaveCount(0);
   await toggle.click();
   await expect(panel).toBeVisible();
-  await expect(page.getByTestId('house-panel')).toHaveCount(0);
   await page.keyboard.press('Escape');
   await expect(panel).toHaveCount(0);
   // zkratka J (popisek „Kronika [J]“) otevře a druhým stiskem zavře; U ji vystřídá Upozorněními
