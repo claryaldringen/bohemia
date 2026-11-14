@@ -23,6 +23,7 @@ import { activityPhases, phaseAt, type ActivityPhase, type PhaseName } from './v
 import {
   createVillagerPose,
   type HerdView,
+  route,
   type PoseFn,
   type Route,
   type VillagerPose,
@@ -87,10 +88,45 @@ export type ActivityLeg = 'out' | 'back';
  * Rozvrhy lidí jedné vsi (`seed`) – `speed` = tempo chůze (m/s; délky z odhadu sítě pěšin –
  * `setEstimate`, bez sítě rovně). Obsazení dnů přidává `setDay` (z plánu dne), dveře domů `setDoors`.
  */
+/** Dům s plotem: branka a dveře domu (D16). */
+export interface Entrance {
+  gate: Point;
+  door: Point;
+}
+
+const AT_DOOR_M = 0.05;
+
+/**
+ * Trasa, která začíná nebo končí ve dveřích domu s plotem: dveře → branka → trasa z/do branky
+ * (`routeOf` hledá trasu z místa před plotem). Jinou trasu nechá, jak je.
+ */
+export function routeViaGate(
+  via: Entrance,
+  from: Point,
+  to: Point,
+  routeOf: (a: Point, b: Point) => Route | null,
+): Route | null {
+  const near = (a: Point, b: Point): boolean => Math.hypot(a.x - b.x, a.z - b.z) < AT_DOOR_M;
+  if (near(from, via.door)) {
+    const rest = routeOf(via.gate, to);
+    const tail = rest ? rest.points.slice(1) : [[to.x, to.z] as const];
+    const pace = rest?.pace ? [1, ...rest.pace] : undefined;
+    return route([[from.x, from.z], [via.gate.x, via.gate.z], ...tail], pace);
+  }
+  if (near(to, via.door)) {
+    const rest = routeOf(from, via.gate);
+    const head = rest ? rest.points.slice(0, -1) : [[from.x, from.z] as const];
+    const pace = rest?.pace ? [...rest.pace, 1] : undefined;
+    return route([...head, [via.gate.x, via.gate.z], [to.x, to.z]], pace);
+  }
+  return routeOf(from, to);
+}
+
 export class Timetable {
   private days: { day: number; from: number; cast: DayCast }[] = [];
   private castOf: (t: number) => CastSpan = castTimeline([]);
   private doors: ReadonlyMap<number, Point | null> = new Map();
+  private entrances: ReadonlyMap<number, Entrance | null> = new Map();
   private readonly entries = new Map<number, Entry>();
   private wet: ((x: number, z: number, t: number) => boolean) | null = null;
   private estimate: ((a: Point, b: Point) => number) | null = null;
@@ -167,6 +203,15 @@ export class Timetable {
     this.doors = doors;
   }
 
+  /**
+   * Dům s plotem (D16): branka v plotu (`gate` – sem míří odhady a trasy) a dveře domu (`door`)
+   * uvnitř pozemku. Postava mizí a vychází až ve dveřích; cesta vede dvorkem a brankou.
+   */
+  setEntrances(entrances: ReadonlyMap<number, Entrance | null>): void {
+    this.entrances = entrances;
+    for (const e of this.entries.values()) e.pose = null;
+  }
+
   /** Dveře domu člověka, nebo null. */
   doorOf(id: number): Point | null {
     return this.doors.get(id) ?? null;
@@ -238,11 +283,10 @@ export class Timetable {
   /** Póza postavy člověka v `t` – doma skrytá u dveří (`activityPose` po fázích činnosti). */
   pose(id: number, t: number, herds: readonly HerdView[], out: VillagerPose): VillagerPose {
     const e = this.entry(id, t);
-    const router = this.router;
     e.pose ??= activityPose(
       e.act,
-      this.doorOf(id) ?? e.act.task?.at ?? { x: 0, z: 0 },
-      router ? { routeOf: (from, to) => router(id, from, to), speed: this.speed } : undefined,
+      this.poseDoor(id) ?? e.act.task?.at ?? { x: 0, z: 0 },
+      this.poseWalk(id),
       this.phasesOf(e),
     );
     return e.pose(t, herds, out);
@@ -259,14 +303,32 @@ export class Timetable {
    */
   private placeAt(a: Activity, t: number): Point {
     const id = a.person;
-    const router = this.router;
     const pose = activityPose(
       a,
-      this.doorOf(id) ?? a.task?.at ?? { x: 0, z: 0 },
-      router ? { routeOf: (from, to) => router(id, from, to), speed: this.speed } : undefined,
+      this.poseDoor(id) ?? a.task?.at ?? { x: 0, z: 0 },
+      this.poseWalk(id),
       activityPhases(a, this.seed, (p, q) => this.input.walkS!(p, q, id)),
     )(t, [], createVillagerPose());
     return { x: pose.x, z: pose.z };
+  }
+
+  /** Kde postava mizí: ve dveřích domu s plotem, jinak u vchodu (`doorOf`). */
+  private poseDoor(id: number): Point | null {
+    return this.entrances.get(id)?.door ?? this.doorOf(id);
+  }
+
+  /** Trasy pózy; u domu s plotem se k trase přidá dvorek a branka. */
+  private poseWalk(
+    id: number,
+  ): { routeOf: (from: Point, to: Point) => Route | null; speed: number } | undefined {
+    const router = this.router;
+    if (!router) return undefined;
+    const via = this.entrances.get(id);
+    const routeOf = via
+      ? (from: Point, to: Point): Route | null =>
+          routeViaGate(via, from, to, (a, b) => router(id, a, b))
+      : (from: Point, to: Point): Route | null => router(id, from, to);
+    return { routeOf, speed: this.speed };
   }
 
   private phasesOf(e: Entry): ActivityPhase[] {

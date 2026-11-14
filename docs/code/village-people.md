@@ -575,6 +575,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `walkRoute` – po síti pěšin a pevných cest týmž modelem jako odhad, village-roads.md; kontrola `trafficRouteOk`
   – ohrady se neberou, do domu jen o `ROUTE_HOUSE_SLACK_M`), vyjde se od vchodu (`trafficDoor` –
   volné místo do 16 m), doma na chvíli zmizí (`ShuttleOptions.restHidden`).
+  **Dům s plotem** (D16, Martin 14. 11. 2026): rozvrh (`Timetable.setEntrances`, `plan.entrances`) mizí a vychází
+  postava ve dveřích domu uvnitř pozemku (`houseDoor` – `own`), trasa vede dvorkem a brankou
+  (`routeViaGate`); odhady a trasy mimo pozemek dál míří k brance (`doors`). Dům bez plotu beze změny.
   **Pochůzka se dokončí** (villagers.md – Pochůzka se dokončí; Martin 24. 10. 2026): postavy
   proudu a nosiči kováře nesou `PlannedVillager.errand` (`shuttleErrand` – cyklus `shuttleCycle`:
   délka, posun fáze, kdy v cyklu dojde domů, a otisk trasy `sig`); `VillageVillagers.rebuild`
