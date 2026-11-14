@@ -349,6 +349,7 @@ describe('chycení posla (Otevřené 4)', () => {
         kind: 'messenger-caught',
         payload: { villageId: 'a', name: 'Vlkov', campaignId: 'c1', fate: 'led' },
         gameDay: start.day,
+        ref: expect.any(String),
       },
     ]);
     const killer = { ...start, surrendered: 'kill' as const };

@@ -26,7 +26,8 @@ function toNotice(row: NoticeRow): PlayerNotice {
 export function createNoticeRepository(db: Executor): NoticeRepository {
   return {
     async post(notice): Promise<void> {
-      await db.insert(playerNotice).values(notice);
+      // Se `ref` zapíše jednou (částečný unikátní index) – doručení schránky po pádu nic nezdvojí.
+      await db.insert(playerNotice).values(notice).onConflictDoNothing();
       // Omezení historie (návrh Clauda, bez migrace): starší než posledních NOTICES_KEPT_PER_PLAYER
       // pryč; hranici dá index (player_id, id), takže dotaz sahá jen na konec řady hráče.
       await db.delete(playerNotice).where(

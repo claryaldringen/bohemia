@@ -114,8 +114,9 @@ describe('Ú1 – tažení bez varování', () => {
   it('(b) starý bod tažení dá bit po bitu týž výsledek jako před změnou', () => {
     const END = LAUNCH + 900;
     const whole = stepCampaign(campaign(), END, LIVE, worldOf());
-    // Otisk z doby před Úlohou 1 (9. 11. 2026) – typy varování chování tažení nemění.
-    expect(fingerprint(whole)).toBe('3766:e81d6a8f');
+    // Otisk z doby před Úlohou 1 (9. 11. 2026) – typy varování chování tažení nemění. Jediná změna
+    // oproti němu: upozornění nesou klíč `ref` (audit A5, 14. 11. 2026; bylo '3766:e81d6a8f').
+    expect(fingerprint(whole)).toBe('3792:a97e1365');
     // Bod uložený uprostřed (bez `alarm`) a načtený z JSON pokračuje stejně.
     const half = stepCampaign(campaign(), LAUNCH + 300, LIVE, worldOf());
     const rest = stepCampaign(viaJson(half.state), END, LIVE, worldOf());

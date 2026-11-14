@@ -193,6 +193,7 @@ describe('varování vesničanem (sightAlarms)', () => {
         kind: 'army-warned',
         payload: { villageId: 'vlkov', name: 'Vlkov', campaignId: 'c1' },
         gameDay: dayOfTick(v.warnTick, world),
+        ref: expect.any(String),
       },
     ]);
   });

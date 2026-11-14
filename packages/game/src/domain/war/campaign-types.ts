@@ -392,6 +392,11 @@ export interface CampaignNotice {
   kind: CampaignNoticeKind;
   payload: Record<string, unknown>;
   gameDay: number;
+  /**
+   * Klíč upozornění – `camp:<id>:<takt>:n<pořadí>` / `journey:<id>:<takt>:n<pořadí>` doplní krok
+   * po každém taktu; doručení téhož klíče podruhé (pád workeru před smazáním schránky) se zahodí.
+   */
+  ref?: string;
 }
 
 /** Události do vsí a upozornění spočtené do kontrolního bodu, které ještě nejsou doručené. */

@@ -99,6 +99,7 @@ import {
   villageEvent,
   type TickContext,
   type TickOut,
+  stampNotices,
 } from './campaign-tick';
 
 // Tažení po taktech (plán 2026-11-03 – rozhodnutí 12, Úloha 6.5): čistá funkce výchozího stavu,
@@ -230,7 +231,7 @@ export function stepCampaign(
     }
     next = end;
     villageEvents.push(...out.events);
-    notices.push(...out.notices);
+    notices.push(...stampNotices(out.notices, `camp:${current.id}:${tick}`));
     knowledge.push(...(out.knowledge ?? []));
   }
   return { state: current, villageEvents, notices, ...withKnowledge(), waiting: null };

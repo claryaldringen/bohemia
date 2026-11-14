@@ -10,6 +10,7 @@ import {
   tickContext,
   type TickContext,
   type TickOut,
+  stampNotices,
 } from './campaign-tick';
 import type {
   CampaignGroup,
@@ -145,7 +146,7 @@ export function stepJourney(
     }
     next = end;
     villageEvents.push(...out.events);
-    notices.push(...out.notices);
+    notices.push(...stampNotices(out.notices, `journey:${current.id}:${tick}`));
     knowledge.push(...(out.knowledge ?? []));
   }
   return { state: current, villageEvents, notices, ...withKnowledge(), waiting: null };

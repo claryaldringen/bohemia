@@ -104,6 +104,7 @@ describe('stepCampaign', () => {
         kind: 'campaign-returned',
         payload: { campaignId: 'c1', reason: 'arrived' },
         gameDay: whole.state.day,
+        ref: expect.any(String),
       },
     ]);
   });

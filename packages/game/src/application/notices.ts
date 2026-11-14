@@ -116,10 +116,17 @@ export interface PlayerNotice {
 }
 
 /** Nové upozornění – `id`, `createdAt` a `readAt` doplní úložiště. */
-export type NewPlayerNotice = Omit<PlayerNotice, 'id' | 'createdAt' | 'readAt'>;
+export type NewPlayerNotice = Omit<PlayerNotice, 'id' | 'createdAt' | 'readAt'> & {
+  /**
+   * Volitelný klíč: `post` s `ref`, který u téhož hráče už existuje, nic nezapíše (doručení po
+   * pádu workeru). Bez `ref` se upozornění zapíše vždy.
+   */
+  ref?: string;
+};
 
 /** Port repozitáře upozornění mezi hráči. */
 export interface NoticeRepository {
+  /** Zapíše upozornění; viz `NewPlayerNotice.ref` (opakovaný klíč se zahodí). */
   post(notice: NewPlayerNotice): Promise<void>;
   /** Upozornění hráče s `id` větším než `afterId`, rostoucí podle `id`, nejvýš `limit`. */
   after(playerId: string, afterId: number, limit: number): Promise<PlayerNotice[]>;
