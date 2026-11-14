@@ -1,6 +1,6 @@
 # Nadzemní dílny a uhlíř v lese
 
-Stav: **návrh** (14. 11. 2026), čeká na schválení. Navazuje na [řemesla](crafts.md) (dílna je
+Stav: **schváleno** (Martin 14. 11. 2026: „Ano, uhlíře schvaluji“). Navazuje na [řemesla](crafts.md) (dílna je
 zároveň obydlí, uhlíř a milíř), [nadzemní dům](log-house.md) (vypletený a roubený dům) a
 [vozy](wagons.md) (uhlí vozem).
 
