@@ -245,8 +245,6 @@ describe('Lidé a kolik jich pole uživí v jedné ikoně (Martin 24. 10. 2026)'
         view={view}
         world={{ startMs: 0, endMs: 1e12 }}
         initialNowMs={1}
-        soundOn
-        onToggleSound={() => {}}
         menuOpen={false}
         onToggleMenu={() => {}}
         onRename={async () => null}

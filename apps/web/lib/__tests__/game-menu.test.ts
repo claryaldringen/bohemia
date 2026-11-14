@@ -30,6 +30,7 @@ describe('nabídka hry – klávesy', () => {
     expect(menuKeyAction('F10', 'confirm', false)).toBe('close');
     expect(menuKeyAction('Escape', 'main', false)).toBe('close');
     expect(menuKeyAction('Escape', 'confirm', false)).toBe('back');
+    expect(menuKeyAction('Escape', 'settings', false)).toBe('back');
     // ostatní klávesy nabídka nechá být (Enter / mezerník stisknou tlačítko s fokusem)
     expect(menuKeyAction('Enter', 'main', false)).toBeNull();
     expect(menuKeyAction('z', 'main', false)).toBeNull();

@@ -38,6 +38,22 @@ export async function openGameMenu(page: Page): Promise<ReturnType<Page['getByRo
   return menu;
 }
 
+/** Otevře Nastavení v nabídce hry a vrátí přepínač zvuků krajiny (`aria-checked`). */
+export async function openSoundSetting(page: Page): Promise<ReturnType<Page['getByRole']>> {
+  const menu = await openGameMenu(page);
+  await menu.getByRole('button', { name: 'Nastavení' }).click();
+  const toggle = menu.getByRole('switch', { name: 'Zvuky krajiny' });
+  await expect(toggle).toBeVisible();
+  return toggle;
+}
+
+/** Ve vývojovém režimu otevře klikem na datum panel zrychlení času (je-li zavřený). */
+export async function openDevTime(page: Page): Promise<void> {
+  if (await page.getByTestId('dev-time-panel').isVisible()) return;
+  await page.getByTestId('game-date-toggle').click();
+  await expect(page.getByTestId('dev-time-panel')).toBeVisible();
+}
+
 /** Odhlásí hráče z nabídky hry. */
 export async function signOut(page: Page): Promise<void> {
   const menu = await openGameMenu(page);

@@ -4,8 +4,8 @@
 /** Klávesa nabídky jako v 0 A.D. (`KeyboardEvent.key`). */
 export const MENU_HOTKEY = 'F10';
 
-/** Krok nabídky: seznam položek, nebo potvrzení Začít znovu. */
-export type GameMenuStep = 'main' | 'confirm';
+/** Krok nabídky: seznam položek, potvrzení Začít znovu, nebo Nastavení. */
+export type GameMenuStep = 'main' | 'confirm' | 'settings';
 
 /** Co udělá klávesa v otevřené nabídce: zavře ji, vrátí z potvrzení zpět, nebo nic. */
 export type MenuKeyAction = 'close' | 'back' | null;
@@ -20,13 +20,13 @@ export function opensMenu(event: KeyLike): boolean {
 }
 
 /**
- * Klávesa v otevřené nabídce: F10 ji zavře, Esc zavře – z potvrzení jen vrátí k položkám.
+ * Klávesa v otevřené nabídce: F10 ji zavře, Esc zavře – z potvrzení a z nastavení jen vrátí k položkám.
  * Když na serveru běží restart nebo odhlášení, nabídka zůstane, jak je.
  */
 export function menuKeyAction(key: string, step: GameMenuStep, busy: boolean): MenuKeyAction {
   if (busy) return null;
   if (key === MENU_HOTKEY) return 'close';
-  if (key === 'Escape') return step === 'confirm' ? 'back' : 'close';
+  if (key === 'Escape') return step === 'main' ? 'close' : 'back';
   return null;
 }
 

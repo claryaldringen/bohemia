@@ -5,7 +5,6 @@ import {
   getWorldState,
   realTimeOf,
   type CalendarDate,
-  type Season,
   type WorldClock,
   type WorldState,
 } from '@bohemia/game';
@@ -29,13 +28,6 @@ const MONTHS_GENITIVE = [
 export function monthGenitive(month: number): string {
   return MONTHS_GENITIVE[(month - 1 + 12) % 12]!;
 }
-
-const SEASON_NAMES: Record<Season, string> = {
-  spring: 'jaro',
-  summer: 'léto',
-  autumn: 'podzim',
-  winter: 'zima',
-};
 
 // Datum skládáme ručně z číselných částí – hotový výstup Intl se mezi Node a prohlížeči liší
 // (běžné vs. nezlomitelné mezery) a text se renderuje na serveru i v prohlížeči.
@@ -70,7 +62,7 @@ export function formatWorldState(state: WorldState, world: WorldClock): string {
     case 'ended':
       return 'Rok 1500 – svět skončil';
     case 'running': {
-      return `${formatGameDate(state.date)} · ${SEASON_NAMES[state.date.season]}`;
+      return formatGameDate(state.date);
     }
   }
 }

@@ -23,9 +23,9 @@ const date = (overrides: Partial<GameDate>): GameDate => ({
 });
 
 describe('formatWorldState', () => {
-  it('běžící svět ukáže datum s měsícem v 2. pádě a roční období', () => {
+  it('běžící svět ukáže datum s měsícem v 2. pádě, bez názvu období', () => {
     expect(formatWorldState({ status: 'running', date: date({}) }, OFFICIAL_WORLD)).toBe(
-      '16. října 1024 · podzim',
+      '16. října 1024',
     );
   });
 
@@ -36,19 +36,17 @@ describe('formatWorldState', () => {
   ])('měsíc %i je „%s“', (month, name) => {
     expect(
       formatWorldState({ status: 'running', date: date({ month, day: 1 }) }, OFFICIAL_WORLD),
-    ).toBe(`1. ${name} 1024 · podzim`);
+    ).toBe(`1. ${name} 1024`);
   });
 
-  it.each([
-    ['spring', 'jaro'],
-    ['summer', 'léto'],
-    ['autumn', 'podzim'],
-    ['winter', 'zima'],
-  ] as const)('roční období %s je „%s“', (season, name) => {
-    expect(formatWorldState({ status: 'running', date: date({ season }) }, OFFICIAL_WORLD)).toBe(
-      `16. října 1024 · ${name}`,
-    );
-  });
+  it.each(['spring', 'summer', 'autumn', 'winter'] as const)(
+    'roční období %s se v datu neukáže (Martin 14. 11. 2026)',
+    (season) => {
+      expect(formatWorldState({ status: 'running', date: date({ season }) }, OFFICIAL_WORLD)).toBe(
+        '16. října 1024',
+      );
+    },
+  );
 
   it('před startem ostrého světa ukáže datum spuštění', () => {
     expect(formatWorldState({ status: 'not-started' }, OFFICIAL_WORLD)).toBe(

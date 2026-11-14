@@ -11,13 +11,6 @@ import {
   type TimeSkip,
   type WorldClock,
 } from '@bohemia/game';
-import {
-  floodLabel,
-  summerLabel,
-  WEATHER_ICONS,
-  winterLabel,
-  type WeatherView,
-} from '@/lib/disasters-view';
 import { useDismiss } from '@/hooks/use-dismiss';
 import { useSkipProgress } from '@/hooks/use-skip-progress';
 import { dateRefreshDelay, formatWorldState } from '@/lib/game-date';
@@ -287,53 +280,6 @@ function CraftStocks({ crafts }: { crafts: VillageView['crafts'] }): ReactElemen
   );
 }
 
-/**
- * Počasí roku v liště (disasters.md – Co hráč vidí): ikona zimy, léta a povodně, jen když nejsou
- * obyčejné a už jsou vidět; slova jen v popisku.
- */
-export function WeatherIcons({ weather }: { weather: WeatherView }): ReactElement {
-  return (
-    <>
-      {weather.winter && (
-        <span
-          data-testid="village-weather-winter"
-          data-weather={weather.winter}
-          className="contents"
-        >
-          <Resource
-            icon={WEATHER_ICONS[weather.winter]}
-            name={winterLabel(weather.winter)}
-            testId="village-weather-winter-value"
-          />
-        </span>
-      )}
-      {weather.summer && (
-        <span
-          data-testid="village-weather-summer"
-          data-weather={weather.summer}
-          className="contents"
-        >
-          <Resource
-            icon={WEATHER_ICONS[weather.summer]}
-            name={summerLabel(weather.summer)}
-            testId="village-weather-summer-value"
-          />
-        </span>
-      )}
-      {weather.flood && (
-        <span data-testid="village-flood" data-level={weather.flood.level} className="contents">
-          <Resource
-            icon={WEATHER_ICONS.flood}
-            name={floodLabel(weather.flood)}
-            testId="village-flood-value"
-          />
-        </span>
-      )}
-    </>
-  );
-}
-
-/** Popisek tlačítka se zkratkou – „Kronika [J]“ jako `[P]` u staveb. */
 function HotkeyTip({ name, hotkey }: { name: string; hotkey: string }): ReactElement {
   return (
     <span className="whitespace-nowrap">
@@ -477,6 +423,61 @@ export function DevTimeButtons({
   );
 }
 
+/**
+ * Datum v liště. Ve vývojovém režimu (`devTime`) je klikací: klik otevře u data malý panel
+ * s tlačítky zrychlení času, další klik, Esc nebo stisk mimo ho zavře. Mimo vývojový režim je
+ * datum jen údaj – zrychlení se neukáže a klik nic neotevře.
+ */
+export function DateWithDevTime({
+  date,
+  devTime,
+}: {
+  date: string;
+  devTime: { pending: TimeSkip | null; onSkip: (skip: TimeSkip) => void } | null;
+}): ReactElement {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+  const shown = open && devTime !== null;
+  useDismiss(shown, ref, () => setOpen(false));
+  useEffect(() => {
+    if (!shown) return;
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [shown]);
+  const dateResource = (
+    <Resource icon="date" name="Herní datum" testId="game-date">
+      <span className="font-serif font-normal">{date}</span>
+    </Resource>
+  );
+  if (devTime === null) return dateResource;
+  return (
+    <span ref={ref} className="relative flex items-center">
+      <button
+        type="button"
+        data-testid="game-date-toggle"
+        aria-label="Zrychlení času"
+        aria-expanded={shown}
+        onClick={() => setOpen((value) => !value)}
+        className="cursor-pointer rounded hover:bg-white/5 aria-expanded:bg-white/10"
+      >
+        {dateResource}
+      </button>
+      {shown && (
+        <span
+          data-hud-block
+          data-testid="dev-time-panel"
+          className="hud-panel absolute top-full right-0 z-30 mt-1 flex items-center p-1"
+        >
+          <DevTimeButtons pending={devTime.pending} onSkip={devTime.onSkip} />
+        </span>
+      )}
+    </span>
+  );
+}
+
 /** Vynutit zlý rok – ikona a popisek druhu (vývojový režim). */
 const BAD_YEAR_LOOKS: Record<BadYearKind, { icon: string; label: string }> = {
   dry: { icon: 'drought', label: 'Suché léto' },
@@ -590,8 +591,6 @@ export function TopBar({
   view,
   world,
   initialNowMs,
-  soundOn,
-  onToggleSound,
   menuOpen,
   onToggleMenu,
   onRename,
@@ -610,8 +609,6 @@ export function TopBar({
   world: WorldClock;
   /** Čas serveru při renderu – první render v prohlížeči tak sedí s HTML ze serveru. */
   initialNowMs: number;
-  soundOn: boolean;
-  onToggleSound: () => void;
   menuOpen: boolean;
   onToggleMenu: () => void;
   onRename: (name: string) => Promise<string | null>;
@@ -619,7 +616,7 @@ export function TopBar({
   onSelectVillage?: (village: VillageListItem) => void;
   /** Zapne / vypne správce vsi (přepínač v seznamu vsí). */
   onSetSteward?: (villageId: string, on: boolean) => Promise<unknown>;
-  /** Vývojový režim – šipky přeskočení času vedle data; bez něj null. */
+  /** Vývojový režim – po kliku na datum panel s tlačítky přeskoku času; bez něj null. */
   devTime: { pending: TimeSkip | null; onSkip: (skip: TimeSkip) => void } | null;
   /** Vývojový režim – vynutit zlý rok a pohromu; bez něj (nebo bez vsi) null. */
   devDisasters?: { pending: boolean; onForce: (choice: DevDisasterChoice) => void } | null;
@@ -737,17 +734,14 @@ export function TopBar({
           >
             {Math.round(view.happiness.value)}
           </Resource>
-          {view.weather && <WeatherIcons weather={view.weather} />}
         </div>
       )}
       <div className="ml-auto flex items-center gap-1">
         {lordAway && <LordAwayBadge {...lordAway} />}
-        <Resource icon="date" name="Herní datum" testId="game-date">
-          <span className="font-serif font-normal">
-            {formatWorldState(getWorldState(nowMs, world), world)}
-          </span>
-        </Resource>
-        {devTime && <DevTimeButtons pending={devTime.pending} onSkip={devTime.onSkip} />}
+        <DateWithDevTime
+          date={formatWorldState(getWorldState(nowMs, world), world)}
+          devTime={devTime}
+        />
         {devDisasters && (
           <DevDisasterButtons pending={devDisasters.pending} onForce={devDisasters.onForce} />
         )}
@@ -877,33 +871,6 @@ export function TopBar({
             </span>
           </Tooltip>
         )}
-        <IconButton
-          label="Zvuky krajiny"
-          tooltip={soundOn ? 'Zvuk' : 'Bez zvuku'}
-          pressed={soundOn}
-          onClick={onToggleSound}
-        >
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 24 24"
-            className="h-5 w-5"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.8}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor" />
-            {soundOn ? (
-              <>
-                <path d="M15.5 9a4.5 4.5 0 0 1 0 6" />
-                <path d="M18.5 6a8.5 8.5 0 0 1 0 12" />
-              </>
-            ) : (
-              <path d="M16 9.5l5 5m0-5l-5 5" />
-            )}
-          </svg>
-        </IconButton>
         <IconButton
           label="Nabídka"
           tooltip={<HotkeyTip name="Nabídka" hotkey={MENU_HOTKEY} />}

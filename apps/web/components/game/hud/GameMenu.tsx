@@ -52,6 +52,10 @@ export function GameMenuPanel({
   onConfirmRestart,
   onCancelRestart,
   onSignOut,
+  onSettings,
+  soundOn,
+  onToggleSound,
+  onBackFromSettings,
   onClose,
 }: {
   step: GameMenuStep;
@@ -67,6 +71,13 @@ export function GameMenuPanel({
   onConfirmRestart: () => void;
   onCancelRestart: () => void;
   onSignOut: () => void;
+  /** Otevře Nastavení. */
+  onSettings: () => void;
+  /** Zvuky krajiny zapnuté (Nastavení). */
+  soundOn: boolean;
+  onToggleSound: () => void;
+  /** Z Nastavení zpět na položky. */
+  onBackFromSettings: () => void;
   onClose: () => void;
 }): ReactElement {
   const locked = busy !== null;
@@ -80,10 +91,13 @@ export function GameMenuPanel({
       aria-label="Nabídka"
       aria-describedby={step === 'confirm' ? 'game-menu-warning' : undefined}
       tabIndex={-1}
-      className="hud-panel fixed top-12 right-2 z-40 w-max max-w-[calc(100vw-1rem)] min-w-72 p-3 outline-none"
+      className="hud-panel fixed top-1/2 left-1/2 z-40 w-max max-w-[calc(100vw-1rem)] min-w-72 -translate-x-1/2 -translate-y-1/2 p-3 outline-none"
     >
       {step === 'main' ? (
         <div className="flex flex-col gap-2">
+          <MenuButton onClick={onSettings} disabled={locked}>
+            Nastavení
+          </MenuButton>
           <MenuButton onClick={onRestart} disabled={!canRestart || locked}>
             Začít znovu
           </MenuButton>
@@ -99,6 +113,26 @@ export function GameMenuPanel({
           <span aria-hidden className="my-0.5 border-t border-[#5c4526]" />
           <MenuButton onClick={onClose} disabled={locked}>
             Zpět do hry
+          </MenuButton>
+        </div>
+      ) : step === 'settings' ? (
+        <div data-testid="game-settings" className="flex flex-col gap-2">
+          <h2 className="px-1 text-center font-serif text-lg text-[#f0c987]">Nastavení</h2>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={soundOn}
+            aria-label="Zvuky krajiny"
+            data-testid="setting-sound"
+            onClick={onToggleSound}
+            className="hud-button flex w-full items-center justify-between gap-6 px-3 py-1.5 font-serif text-base whitespace-nowrap"
+          >
+            <span>Zvuky krajiny</span>
+            <span className="tabular-nums">{soundOn ? 'Zapnuto' : 'Vypnuto'}</span>
+          </button>
+          <span aria-hidden className="my-0.5 border-t border-[#5c4526]" />
+          <MenuButton onClick={onBackFromSettings} autoFocus>
+            Zpět
           </MenuButton>
         </div>
       ) : (
@@ -130,7 +164,8 @@ export function GameMenuPanel({
 }
 
 /**
- * Nabídka hry jako v 0 A.D. (tlačítko vpravo v horní liště, F10): Začít znovu (se živou vsí
+ * Nabídka hry jako v 0 A.D. (tlačítko vpravo v horní liště, F10) – modální okno uprostřed
+ * obrazovky: Nastavení (zvuky krajiny), Začít znovu (se živou vsí
  * po potvrzení v panelu – žádné dialogy prohlížeče), Odhlásit a Zpět do hry. Dokud je otevřená,
  * klávesy hry neběží (zachytí je dřív než kamera, zkratky staveb i umisťování), Esc ji zavře
  * (z potvrzení vrátí zpět) a kliknutí mimo panel ji zavře, aniž by došlo do krajiny.
@@ -141,9 +176,14 @@ export function GameMenu({
   onClose,
   onRestart,
   onSignOut,
+  soundOn,
+  onToggleSound,
 }: {
   canRestart: boolean;
   email: string;
+  /** Zvuky krajiny zapnuté – přepínač v Nastavení. */
+  soundOn: boolean;
+  onToggleSound: () => void;
   onClose: () => void;
   /** Začít znovu na serveru – chyba česky, nebo null (stránka se pak načte znovu). */
   onRestart: () => Promise<string | null>;
@@ -206,7 +246,7 @@ export function GameMenu({
       <div
         data-hud-block
         aria-hidden
-        className="fixed inset-0 z-30"
+        className="fixed inset-0 z-30 bg-black/40"
         onPointerDown={(event) => event.preventDefault()}
         onClick={() => {
           if (busy === null) onClose();
@@ -230,6 +270,10 @@ export function GameMenu({
           setError(null);
         }}
         onSignOut={() => run('signOut', onSignOut)}
+        onSettings={() => setStep('settings')}
+        soundOn={soundOn}
+        onToggleSound={onToggleSound}
+        onBackFromSettings={() => setStep('main')}
         onClose={onClose}
       />
     </>

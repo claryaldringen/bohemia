@@ -30,7 +30,7 @@ import {
   type VillageState,
   WORLD,
 } from '@bohemia/game';
-import { openGameMenu, useUniqueClientIp } from './helpers';
+import { openDevTime, openGameMenu, useUniqueClientIp } from './helpers';
 import {
   block,
   changeVillageState,
@@ -1630,21 +1630,20 @@ test('vývojový režim: vynucené sucho – ikona na liště, upozornění a oc
   expect(idle.status()).toBe(200);
   expect(await idle.json()).toEqual({ progress: null });
 
-  // Kruté sucho letos – vidět je až od 1. 5., proto se v e2e světě skáče po měsících; vynutí se
+  // Kruté sucho letos – upozornění je vidět až od 1. 5., proto se v e2e světě skáče po měsících; vynutí se
   // znovu po každém skoku (skok přes Nový rok by ho jinak nechal v loňsku).
-  const summer = page.getByTestId('village-weather-summer');
   const notice = page.locator('[data-testid="village-notice"][data-kind="drought"]');
+  await openDevTime(page);
   const skip = page.getByTestId('dev-skip-month');
   for (let i = 0; i < 14; i++) {
     await page.getByTestId('dev-bad-year').click();
     await page.getByTestId('dev-force-drought').click();
     await expect(page.getByTestId('dev-bad-year')).toBeEnabled({ timeout: 60_000 });
-    if ((await summer.count()) > 0) break;
+    if ((await notice.count()) > 0) break;
     await skip.click();
     await expect(skip).toBeEnabled({ timeout: 60_000 });
-    if ((await summer.count()) > 0) break;
+    if ((await notice.count()) > 0) break;
   }
-  await expect(summer).toHaveAttribute('data-weather', 'drought');
   await expect(notice).toHaveText('Sucho – nejvíc trpí pole bez stromů');
   await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
   const state = await villageState(s.settlementId);

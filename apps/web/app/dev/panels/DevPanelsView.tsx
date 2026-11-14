@@ -107,6 +107,10 @@ export function DevPanelsView({ initial }: { initial: string | null }): ReactEle
           onConfirmRestart={() => setMenu(null)}
           onCancelRestart={() => setMenu('main')}
           onSignOut={() => setMenu(null)}
+          onSettings={() => setMenu('settings')}
+          soundOn
+          onToggleSound={() => {}}
+          onBackFromSettings={() => setMenu('main')}
           onClose={() => setMenu(null)}
         />
       )}
