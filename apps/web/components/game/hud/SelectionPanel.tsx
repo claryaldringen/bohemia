@@ -49,6 +49,7 @@ import {
   ThreshingFloorBody,
   FieldsBody,
 } from './selection/fields';
+import { LogPileBody } from './selection/log-pile';
 import { QuarryBody } from './selection/quarry';
 import { WildlifeBody } from './selection/wildlife';
 import { PremiumSiteBody } from './selection/premium';
@@ -251,6 +252,9 @@ export function SelectionPanel({
   } else if (details.kind === 'church') {
     portrait = <Portrait icon={churchIcon(details.type)} name={CHURCH_TYPE_NAMES[details.type]} />;
     body = <ChurchBody details={details} />;
+  } else if (details.kind === 'log-pile') {
+    portrait = <Portrait icon="wood" name="Hromada klád" dir="resources" />;
+    body = <LogPileBody details={details} />;
   } else if (details.kind === 'quarry') {
     portrait = <Portrait icon="lom" name="Lom" src="/icons/build/lom.png" />;
     body = <QuarryBody details={details} onOrder={onOrderQuarrying} />;

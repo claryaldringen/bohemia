@@ -20,6 +20,12 @@ import {
 } from './log-pile-layout';
 import { applySeasonSnow } from './season-materials';
 
+/** Hromada klád (`LogStack.id`) a její půdorys ve světě, jak leží ve scéně. */
+export interface LogPileHit {
+  id: number;
+  corners: readonly (readonly [number, number])[];
+}
+
 /** Úseků kmene po obvodu a po délce (kůra se po délce mírně mění). */
 const SIDES = 12;
 const LENGTH_SEGMENTS = 4;
@@ -43,6 +49,8 @@ export class LogPile {
   /** Místa hromad u lesa podle id hromady – klíč (kotva a ves) a místo. */
   private readonly stackSites = new Map<number, { key: string; site: LogPileSite | null }>();
   private signature = '';
+  /** Půdorysy hromad, jak je scéna kreslí – podle nich se hromada vybírá klikem. */
+  private hits: LogPileHit[] = [];
 
   constructor(
     private readonly scene: Scene,
@@ -53,6 +61,11 @@ export class LogPile {
       addShadowCaster: (mesh: Mesh) => void;
     },
   ) {}
+
+  /** Hromady (`LogStack`) s půdorysem na místě, kde leží ve scéně (výběr klikem, rámeček). */
+  pickable(): readonly LogPileHit[] {
+    return this.hits;
+  }
 
   /** Klády podle vsi; vrátí true, když se kreslení změnilo. */
   update(village: SceneVillage, changes: ObstacleChanges): boolean {
@@ -78,6 +91,7 @@ export class LogPile {
     // hromada u vsi (u svého obydlí) první, jako dřív hromada u vsi
     const stackKey = `${siteKey}|${(village.roads ?? []).length}`;
     const live = new Set<number>();
+    const hits: LogPileHit[] = [];
     const dwellingIds = new Set(village.dwellings.map((d) => d.id));
     const atHome = (s: { dwellingId?: number }): boolean =>
       s.dwellingId !== undefined && dwellingIds.has(s.dwellingId);
@@ -108,6 +122,7 @@ export class LogPile {
             stack,
             known?.site ?? null,
             occupied,
+            this.options.groundHeight,
           );
         known = { key, site };
         this.stackSites.set(stack.id, known);
@@ -115,9 +130,11 @@ export class LogPile {
       if (known.site) {
         piles.push({ site: known.site, count: stack.logs });
         occupied.push(pileCorners(known.site));
+        hits.push({ id: stack.id, corners: pileCorners(known.site) });
       }
     }
     for (const id of [...this.stackSites.keys()]) if (!live.has(id)) this.stackSites.delete(id);
+    this.hits = hits;
     const signature = piles
       .map(({ site, count: n }) => `${site.x}|${site.z}|${site.rotation}|${site.stacks ?? ''}|${n}`)
       .join(';');

@@ -1328,6 +1328,16 @@ describe('SelectionPanel – obilná jáma (production-chains.md – Obilné já
   });
 });
 
+describe('SelectionPanel – hromada klád (forest.md – Mýcení a hromada klád)', () => {
+  it('portrét Hromada klád a ikona dřeva s počtem klád', () => {
+    const html = render({ kind: 'log-pile', id: 41, logs: 1264 });
+    expect(html).toContain('data-kind="log-pile"');
+    expect(html).toContain('src="/icons/resources/wood.png"');
+    expect(html).toContain('>Hromada klád</h2>');
+    expect(text(html, 'selection-log-pile')).toBe('1 264');
+  });
+});
+
 describe('SelectionPanel – křižovatka (paths.md – Křižovatky)', () => {
   it('kříž: portrét s ikonou, počet cest, znamení a stáří – jen ikony a čísla', () => {
     const html = render({

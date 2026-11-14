@@ -274,6 +274,7 @@ export class LandscapeScene {
       villageRenderer: () => this.village,
       villagers: () => this.villagers,
       wildlife: () => this.wildlife,
+      logPiles: () => this.logPile?.pickable() ?? [],
       riderHit: (x, y, project) => this.war.riderHit(x, y, project),
     });
   }
@@ -999,7 +1000,7 @@ export class LandscapeScene {
    */
   setSelection(target: VillageTarget | null): void {
     this.selection.target = target;
-    this.highlight?.show(this.villageState, target);
+    this.highlight?.show(this.villageState, target, this.logPile?.pickable() ?? []);
     this.villagers?.select(target?.kind === 'person' ? target.id : null);
     this.selection.syncDraft();
     this.loop.renderWhenReady();
@@ -1249,7 +1250,11 @@ export class LandscapeScene {
     // Rozhraní posílá stav vsi opakovaně (dotaz každých pár sekund) – beze změny nic.
     // Vybrané pole mohlo změnit čtverce (zarůstání), vybrané obydlí zaniknout.
     if (changed) {
-      this.highlight?.show(this.villageState, this.selection.target);
+      this.highlight?.show(
+        this.villageState,
+        this.selection.target,
+        this.logPile?.pickable() ?? [],
+      );
       this.outlines?.update(this.villageState);
     }
     if (

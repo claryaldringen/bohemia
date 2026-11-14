@@ -670,6 +670,14 @@ type SelectionKinds =
     } & VillageThreshingFloor)
   | {
       /**
+       * Hromada klád u cesty (forest.md – Mýcení a hromada klád): kolik klád na ní leží.
+       */
+      kind: 'log-pile';
+      id: number;
+      logs: number;
+    }
+  | {
+      /**
        * Lom na skalním výchozu (fortifications.md – Kámen): rozestavěný (`constructionId`),
        * nebo hotový – kámen na hromadách vsi (m³) a lámání do zásoby.
        */
@@ -1162,6 +1170,11 @@ function selectionKinds(
     if (!scene.churches?.some((c) => c.id === target.id)) return null;
     const church = view?.churches?.find((c) => c.id === target.id);
     return church ? { kind: 'church', ...church } : null;
+  }
+  if (target.kind === 'log-pile') {
+    // jen hromada, která ve scéně leží (prázdná zmizí)
+    const pile = scene.logStacks?.find((l) => l.id === target.id);
+    return pile ? { kind: 'log-pile', id: pile.id, logs: pile.logs } : null;
   }
   if (target.kind === 'quarry') {
     const quarry = scene.quarries?.find((q) => q.outcropId === target.id);
