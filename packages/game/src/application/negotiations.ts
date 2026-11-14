@@ -6,6 +6,7 @@ import type { VassalageRepository } from './vassalages';
 import type { WarTx } from './wars';
 import type { PlacementTx } from './newcomers';
 import type { MacroBundle } from '../domain/vassalage';
+import type { Accepted } from './acceptance-outbox';
 
 /**
  * Stav jednání v úložišti: doménové stavy, `ended` (rod vymřel, vazalství už nelze uzavřít)
@@ -78,6 +79,11 @@ export interface NegotiationTx {
   wars: WarTx;
   /** Umístění odříznutého nováčka na mapu světa (`placeNewcomer`). */
   placement: PlacementTx;
+  /**
+   * Zapíše schránku účinků přijetí (`acceptance-outbox.ts`) v téže transakci jako přijetí;
+   * jedna na jednání.
+   */
+  putOutbox(negotiationId: string, effects: Accepted, at: Date): Promise<void>;
 }
 
 /** Tribut z přijatého míru (war.md – Konec války): opakovaná platba bez vazalství, chodí 1. 11. */
@@ -99,6 +105,17 @@ export interface NegotiationRepository {
   /** Všechna otevřená jednání (s koly), nejstarší první – úloha světa `expireNegotiations`. */
   allOpen(): Promise<NegotiationRecord[]>;
   transaction<T>(fn: (tx: NegotiationTx) => Promise<T>): Promise<T>;
+  /** Jednání s nevyřízenou schránkou účinků zapsanou před `before`, nejstarší první, nejvýš `limit`. */
+  pendingOutboxes(before: Date, limit: number): Promise<string[]>;
+  /**
+   * Provede schránku účinků jednání: zamkne ji (jiný proces ji mezitím přeskočí – web a worker ji
+   * nikdy neprovádějí současně), pustí `fn` s jejím obsahem a po jeho návratu ji smaže. Výjimka
+   * z `fn` ji nechá nevyřízenou. Null – schránka není (už vyřízená), nebo ji právě drží jiný proces.
+   */
+  withOutbox<T>(
+    negotiationId: string,
+    fn: (effects: Accepted) => Promise<T>,
+  ): Promise<{ value: T } | null>;
 }
 
 /** Tribut z posledního kola přijatého jednání (null – kolo mírový tribut nenese). */

@@ -51,6 +51,20 @@ export const negotiation = pgTable(
   ],
 );
 
+/**
+ * Schránka účinků přijatého jednání (audit A2, `acceptance-outbox.ts`): co se po transakci přijetí
+ * provede (pomoc, výkupné, mír, dialogy obchodu, kronika). Zapíše se v transakci přijetí, smaže se
+ * po provedení; spadne-li web mezi tím, dokončí ji worker. Jedna na jednání; zámek řádku
+ * (`FOR UPDATE SKIP LOCKED`) brání webu a workeru provádět ji současně.
+ */
+export const negotiationOutbox = pgTable('negotiation_outbox', {
+  negotiationId: uuid('negotiation_id')
+    .primaryKey()
+    .references(() => negotiation.id, { onDelete: 'cascade' }),
+  effects: jsonb('effects').$type<unknown>().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+});
+
 /** Kolo jednání (podmínky jedné strany + vzkaz); `seq` = pořadí od 1. */
 export const negotiationRound = pgTable(
   'negotiation_round',

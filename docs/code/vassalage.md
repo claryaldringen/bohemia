@@ -294,6 +294,40 @@ hostName, refId })` (vstupní stav nemění): `sendAway` s `away = { kind: 'labo
   `lastDay`; u splátek 0) – dialog u řádku Robota ukáže u každé vsi „lidé × nejvýš dní“
   (`corveeStints`), ves bez lidí varuje v popisku.
 
+## Přijetí jednání a schránka účinků (`negotiate.ts`, `acceptance-outbox.ts`, audit A2)
+
+- `acceptNegotiation`: v jedné transakci ověření, zápis přijetí a účinky v transakci (vazalství,
+  podmínky, správa, nováček, upozornění) a navíc **schránka účinků** (`putOutbox`, tabulka
+  `negotiation_outbox`, migrace `0048_negotiation_outbox`) – co se dřív dělalo až po commitu:
+  zánik ostatních žádostí nováčka, pomoc (`sendAid`), dar odúmrti, výkupné, mír (propuštění,
+  postoupení vsí, dialogy poplatku), dialogy obchodu a kronika. Obsah je `Accepted` (JSON bez
+  `Date`, rody jako `HouseRef`), jedna schránka na jednání.
+- Po commitu ji web hned provede (`withOutbox` – zámek řádku `FOR UPDATE SKIP LOCKED` v otevřené
+  transakci, po návratu smazání): `deliverAcceptance`, pak `chronicleAcceptance`. Zamyká se jen
+  řádek schránky, ne jednání (cizí klíče účinků by na zámku jednání čekaly).
+- Spadne-li web mezi commitem a smazáním, schránku dokončí worker: `deliverPendingAcceptances`
+  (poslední z `runWorldTasks`, jednou za minutu) bere schránky starší než
+  `ACCEPTANCE_OUTBOX_GRACE_MS` (60 s – do té doby ji dokončuje web a hráči vrací důvod selhání),
+  nejvýš 50 za krok; účinky jdou ke dni kroku, kronika ke dni přijetí (`Accepted.day`). Chyba jedné
+  schránky ostatní nezastaví, vyhodí se na konci a schránka počká na další krok.
+- Výsledek pro hráče je jako dřív: selhání pomoci nebo výkupného (věcný důvod) schránku uzavře
+  (smaže) bez dalších účinků a kroniky a web vrátí důvod; neopakuje se. Výjimka schránku nechá.
+- **Každý účinek je idempotentní** – po pádu se schránka provede znovu celá:
+  - žádosti nováčka: `closeNewcomerRequests` jde v jedné transakci, uzavřené přeskočí;
+  - pomoc: zásilka s klíčem `aid:<jednání>` (`sendShipment` dokončí rozdělanou, hotovou vrátí);
+  - dar odúmrti: `giveEscheatPart` – `moveVassal` nezaloží dohodu, která už stojí, a starou ukončí
+    až poslední; `transferVillages` je podmíněný (`transferHolder`) a převzetí idempotentní;
+  - výkupné (`ransomHooks`): odešla-li zásilka `ransom:<jednání>`, neplatí se znovu, jen se dokončí
+    propuštění; `conclude` s `resume` při stejném zapsaném rozhodnutí dopíše události vsí
+    (jedinečné `ref`), stejně propuštění v míru;
+  - postoupení (`cedeVillages`): příchody mužů mají `ref`, vsi už u nového držitele dokončí
+    `finishCeded` (převzetí a zapnutí správce);
+  - dialogy poplatku a obchodu: `openOnce` s klíčem `fee:` / `trade:<jednání>:<rod>`;
+  - kronika: `chronicleHouses` s klíčem `neg:<jednání>:<kola>:…` / `war-peace:<jednání>`.
+- Testy: `acceptance-outbox.test.ts` (pád v prvním účinku, po něm, před smazáním, selhání pomoci,
+  souběh webu a workeru), pády v `escheat.test.ts`, `prisoners.test.ts`, `peace.test.ts`; adaptér
+  v `negotiation-repository.db.test.ts` (zápis v transakci, výběr, smazání, souběh).
+
 ## Pomoc a půjčky (`domain/vassalage/loan.ts`, `application/loans.ts`, `negotiate.ts`, `annual-levies.ts`, úloha 4.6)
 
 Pravidla: [vassalage.md – Pomoc na žádost](../design/vassalage.md). Vazal musí o pomoc požádat; pán dá dar, nabídne půjčku se

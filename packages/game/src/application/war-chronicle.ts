@@ -10,8 +10,8 @@ import { chronicleHouses, houseName, type NegotiationVillages } from './negotiat
  */
 export async function chronicleWar(
   deps: NegotiationVillages,
-  a: House,
-  b: House,
+  a: Pick<House, 'lord'>,
+  b: Pick<House, 'lord'>,
   step: 'declared' | 'ambush' | 'quiet' | 'peace',
   ref: string,
   day: number,

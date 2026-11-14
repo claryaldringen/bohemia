@@ -30,8 +30,11 @@ vstupní bod (composition root) jako web – žádná herní logika, jen plánov
   domény po žních `sendDomainFood` – `vassalage.md`, Jídlo domény – krok světa; člen `domainFood`
   skládá `main.ts`: `loadVillage` s dopočtem do dneška a uložením, `gameDeps.domainFood`, mapa
   pokusů `attempts` drží proces; návrat uprchlíků za správce a NPC rody `returnStewardRefugees` –
-  člen `refugees`, `war.md` – Varování: návrat) nejvýš jednou za minutu (`WORLD_TASKS_MS`, podle
-  hodin `deps.now`); jejich chyba kolo nezastaví.
+  člen `refugees`, `war.md` – Varování: návrat; nakonec účinky přijatých jednání, po kterých web
+  spadl – člen `acceptances` (`NegotiateDeps` jako přijetí ve webu: pomoc, dar odúmrti,
+  výkupné, postoupení), `deliverPendingAcceptances`, `vassalage.md` – Přijetí jednání a schránka
+  účinků) nejvýš jednou za minutu (`WORLD_TASKS_MS`, podle hodin `deps.now`); jejich chyba kolo
+  nezastaví.
 - `src/campaign-loop.ts` – `runCampaignLoop(deps, { campaignMs }, signal)`: **smyčka tažení**
   vedle smyčky vsí (`main.ts` je pouští spolu přes `Promise.all`, signál ukončí obě). Kolo
   `stepCampaigns` (`docs/code/war.md` – Tažení po taktech) každých `campaignMs` od začátku kola;

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import path from 'node:path';
-import type { NegotiationTx } from '@bohemia/game';
+import type { Accepted, NegotiationTx } from '@bohemia/game';
 import { createDatabase } from '../../client';
 import { testDatabaseUrl } from '../../test-database';
 import { schema } from '../../index';
@@ -257,4 +257,113 @@ describe('NegotiationRepository (db)', () => {
     expect(tributes).toHaveLength(1);
     expect(tributes[0]).toMatchObject({ payerHouseId: b, recipientHouseId: a });
   });
+});
+
+// Schránka účinků přijatého jednání (audit A2): zápis v transakci přijetí, výběr nevyřízených,
+// provedení pod zámkem řádku a smazání.
+describe('schránka účinků přijetí (db)', () => {
+  const LATER = new Date(NOW.getTime() + 60_000);
+
+  const effects = (id: string): Accepted => ({
+    negotiationId: id,
+    rounds: 1,
+    day: 7,
+    actors: {
+      actor: { id: ids[1]!, playerId: 'b', lord: { villageId: 'ves-b', personId: 3 } },
+      other: { id: ids[0]!, playerId: 'a', lord: null },
+    },
+    oath: null,
+    aid: null,
+    trading: null,
+    gift: null,
+    peace: null,
+    ransoming: null,
+    newcomerHouseId: null,
+    peaceLater: null,
+  });
+
+  async function opened(): Promise<string> {
+    const record = await negotiations.transaction((tx) =>
+      tx.open({ initiatorHouseId: ids[0]!, recipientHouseId: ids[1]!, round: round(ids[0]!) }),
+    );
+    return record!.id;
+  }
+
+  const pending = (): Promise<string[]> => negotiations.pendingOutboxes(LATER, 10);
+
+  it('schránka se zapíše v transakci přijetí – chyba transakce ji vrátí; výběr jen starších', async () => {
+    const id = await opened();
+    await expect(
+      negotiations.transaction(async (tx) => {
+        await tx.putOutbox(id, effects(id), NOW);
+        throw new Error('chyba přijetí');
+      }),
+    ).rejects.toThrow('chyba přijetí');
+    expect(await pending()).toEqual([]);
+    await negotiations.transaction((tx) => tx.putOutbox(id, effects(id), NOW));
+    expect(await negotiations.pendingOutboxes(NOW, 10)).toEqual([]);
+    expect(await pending()).toEqual([id]);
+  });
+
+  it('provedení: obsah beze změny, po návratu smazaná; výjimka ji nechá nevyřízenou', async () => {
+    const id = await opened();
+    await negotiations.transaction((tx) => tx.putOutbox(id, effects(id), NOW));
+    await expect(
+      negotiations.withOutbox(id, async () => {
+        throw new Error('pád');
+      }),
+    ).rejects.toThrow('pád');
+    expect(await pending()).toEqual([id]);
+    const done = await negotiations.withOutbox(id, async (e) => e);
+    expect(done?.value).toEqual(effects(id));
+    expect(await pending()).toEqual([]);
+    expect(await negotiations.withOutbox(id, async () => 1)).toBeNull();
+  });
+
+  it('web a worker nad stejnou schránkou současně: účinky jednou, druhý ji přeskočí', async () => {
+    const id = await opened();
+    await negotiations.transaction((tx) => tx.putOutbox(id, effects(id), NOW));
+    let runs = 0;
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const web = negotiations.withOutbox(id, async () => {
+      runs++;
+      await gate;
+      return 'web';
+    });
+    while (runs === 0) await new Promise((resolve) => setTimeout(resolve, 5));
+    const worker = await negotiations.withOutbox(id, async () => {
+      runs++;
+      return 'worker';
+    });
+    expect(worker).toBeNull();
+    release();
+    expect(await web).toEqual({ value: 'web' });
+    expect(runs).toBe(1);
+    expect(await pending()).toEqual([]);
+    // naráz bez čekání: zase jednou
+    const other = await opened2();
+    await negotiations.transaction((tx) => tx.putOutbox(other, effects(other), NOW));
+    const both = await Promise.all([
+      negotiations.withOutbox(other, async () => {
+        runs++;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }),
+      negotiations.withOutbox(other, async () => {
+        runs++;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }),
+    ]);
+    expect(runs).toBe(2);
+    expect(both.filter((b) => b !== null)).toHaveLength(1);
+  });
+
+  async function opened2(): Promise<string> {
+    const record = await negotiations.transaction((tx) =>
+      tx.open({ initiatorHouseId: ids[0]!, recipientHouseId: ids[2]!, round: round(ids[0]!) }),
+    );
+    return record!.id;
+  }
 });

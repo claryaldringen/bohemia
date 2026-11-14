@@ -10,7 +10,7 @@ import {
   type VillageState,
 } from '../domain/village';
 import { cellDistance } from '../domain/world/placement';
-import { transferVillages } from './escheat';
+import { acceptHolderTransfers, transferVillages } from './escheat';
 import type { HouseRepository } from './houses';
 import type { PlayerLock } from './locks';
 import type { Settlement, SettlementRepository } from './settlements';
@@ -164,6 +164,24 @@ async function sendMenAway(
   }
 }
 
+/**
+ * Opakované postoupení, když vsi už od postupujícího odešly: nový držitel převezme, co na něj
+ * čeká (pád mezi kroky převodu), a ve vsích map s postoupenými vsemi má zapnutého správce (pád
+ * před zapnutím). Mapy, které nový držitel nedrží, se nemění.
+ */
+async function finishCeded(
+  deps: CedeDeps,
+  villageIds: readonly string[],
+  toPlayerId: string,
+  today: number,
+): Promise<void> {
+  await deps.locks.run(toPlayerId, () => acceptHolderTransfers(deps, toPlayerId));
+  const { ceded } = splitMaps(await mapsOf(deps, toPlayerId), villageIds);
+  for (const map of ceded) {
+    for (const village of map.villages) await enableSteward(deps, village.id, today);
+  }
+}
+
 /** Nový držitel má ve vsi zapnutého správce (steward.md – Stav správce); idempotentní. */
 async function enableSteward(deps: CedeDeps, villageId: string, day: number): Promise<void> {
   for (let attempt = 0; attempt < SAVE_ATTEMPTS; attempt++) {
@@ -195,7 +213,8 @@ export async function cedeVillages(
   if (!from?.playerId || !to?.playerId) return;
   const maps = await mapsOf(deps, from.playerId);
   const { ceded, kept } = splitMaps(maps, input.villageIds);
-  if (ceded.length === 0) return; // už přešlo (opakování)
+  // už přešlo (opakování) – po pádu (schránka jednání, audit A2) dokončit převzetí a správce
+  if (ceded.length === 0) return finishCeded(deps, input.villageIds, to.playerId, input.today);
   const origin = ceded[0]?.settlement.worldCell ?? null;
   const destination = nearestLiving(kept, origin);
   if (!destination) return; // poslední ves se nepostupuje – kontrola to zachytila dřív

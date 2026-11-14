@@ -330,6 +330,13 @@
       "when": 1794643098924,
       "tag": "0047_notice_ref",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1794645283124,
+      "tag": "0048_negotiation_outbox",
+      "breakpoints": true
     }
   ]
 }

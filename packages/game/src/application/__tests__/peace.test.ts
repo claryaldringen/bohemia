@@ -8,8 +8,10 @@ import { applyInboxDay, type VillageState } from '../../domain/village';
 import { answerLevy, openAnnualDialogs, type LevyDeps } from '../annual-levies';
 import { cedeVillages, checkCede } from '../cede-village';
 import {
+  ACCEPTANCE_OUTBOX_GRACE_MS,
   acceptNegotiation,
   counterNegotiation,
+  deliverPendingAcceptances,
   openNegotiation,
   type NegotiateDeps,
 } from '../negotiate';
@@ -449,5 +451,33 @@ describe('mírové jednání', () => {
         ),
       ).toHaveLength(1);
     });
+  });
+});
+
+// Schránka účinků jednání (audit A2): postoupení se po pádu dokončí krokem workeru.
+describe('postoupení po pádu (A2)', () => {
+  it('pád po převodu vsi před zapnutím správce: krok workeru správce zapne, muže nezdvojí', async () => {
+    const w = await world();
+    const villages = w.villages as InMemoryVillages;
+    const save = villages.save.bind(villages);
+    let crashes = 1;
+    villages.save = async (...args: Parameters<typeof save>) => {
+      if (args[1].steward?.on === true && crashes-- > 0) throw new Error('pád');
+      return save(...args);
+    };
+    await expect(agree(w, 'a', peace({ cede: [w.extraA] }))).rejects.toThrow('pád');
+    expect((await w.settlements.listActive('player-c')).map((s) => s.id)).toContain(w.mapX);
+    expect((await w.villages.find(w.extraA))!.state.steward?.on).not.toBe(true);
+    const later = new Date(NOW.getTime() + ACCEPTANCE_OUTBOX_GRACE_MS + 1000);
+    const delivered = await deliverPendingAcceptances(w.deps as NegotiateDeps, {
+      now: later,
+      today: DAY_NOW,
+    });
+    expect(delivered).toBe(1);
+    expect((await w.villages.find(w.extraA))!.state.steward?.on).toBe(true);
+    const arrivals = villages.inbox.events.filter(
+      (e) => e.villageId === w.villageA && e.body.kind === 'lord-arrives',
+    );
+    expect(arrivals).toHaveLength(1);
   });
 });

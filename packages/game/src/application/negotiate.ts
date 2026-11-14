@@ -37,6 +37,15 @@ import { AID_REASONS, checkAidItems, isAidLine, type AidLine } from '../domain/v
 import { TERM_REASONS, termsOfLines } from '../domain/vassalage/terms';
 import { wouldBeMutual } from '../domain/vassalage/tree';
 import type { ChronicleEvent } from '../domain/village';
+import {
+  houseRef,
+  type Accepted,
+  type Actors,
+  type HouseRef,
+  type PeaceLater,
+  type Ransoming,
+  type TradeSending,
+} from './acceptance-outbox';
 import type { CedeHooks } from './cede-village';
 import type { DialogRepository } from './dialogs';
 import type { HouseRepository, House } from './houses';
@@ -64,7 +73,9 @@ import {
 
 // Use-casy jednání mezi hráči (vassalage.md – Vznik a jednání, Meze). Strany jsou rody; hráč jedná
 // za svůj živý rod. Vše mění stav v jedné transakci nad vlastními tabulkami (bez zámku hráče),
-// účinky přijetí (vazalství) jedou v téže transakci. Kronika se zapisuje až po ní.
+// účinky přijetí (vazalství) jedou v téže transakci. Kronika se zapisuje až po ní. Účinky přijetí
+// mimo transakci (pomoc, výkupné, mír, obchod, kronika) jdou přes schránku zapsanou v transakci
+// (`acceptance-outbox.ts`) – po pádu webu je dokončí worker (`deliverPendingAcceptances`).
 
 /** Závislosti dovozu pomoci: zásilky, dopočet vsi do dneška a zrušení půjčky, jejíž zboží nedošlo. */
 export interface AidDeps {
@@ -313,16 +324,14 @@ function lastAuthor(record: NegotiationRecord): string | undefined {
   return record.rounds[record.rounds.length - 1]?.authorHouseId;
 }
 
-interface Actors {
-  actor: House;
-  other: House;
-}
+/** Klíč kroniky kroku jednání (`neg:<jednání>:<kola>`) – opakovaný zápis téhož se zahodí. */
+const stepKey = (record: NegotiationRecord): string => `neg:${record.id}:${record.rounds.length}`;
 
 /** Kroniku obou rodů zapíše po transakci jedním druhem události (`step`). */
 async function chronicleStep(
   deps: NegotiateDeps,
   { actor, other }: Actors,
-  record: NegotiationRecord,
+  key: string,
   step:
     | 'offer'
     | 'counter'
@@ -341,12 +350,7 @@ async function chronicleStep(
     actor: await houseName(deps, actor),
     other: await houseName(deps, other),
   };
-  await chronicleHouses(
-    deps,
-    [actor, other],
-    `neg:${record.id}:${record.rounds.length}:${step}`,
-    event,
-  );
+  await chronicleHouses(deps, [actor, other], `${key}:${step}`, event);
 }
 
 /** Společný začátek odpovědi: hráčův živý rod, jednání a druhá strana (živá, jinak chyba). */
@@ -488,7 +492,13 @@ export async function openNegotiation(
     return { ok: true, negotiation: record };
   });
   if (result.ok && to) {
-    await chronicleStep(deps, { actor: from, other: to }, result.negotiation, 'offer', input.today);
+    await chronicleStep(
+      deps,
+      { actor: from, other: to },
+      stepKey(result.negotiation),
+      'offer',
+      input.today,
+    );
   }
   return result;
 }
@@ -580,7 +590,7 @@ export async function counterNegotiation(
     return { ok: true, negotiation: withRounds(loaded.record, next.negotiation) };
   });
   if (result.ok && actors)
-    await chronicleStep(deps, actors, result.negotiation, 'counter', input.today);
+    await chronicleStep(deps, actors, stepKey(result.negotiation), 'counter', input.today);
   return result;
 }
 
@@ -593,33 +603,6 @@ interface AcceptInput {
   negotiationId: string;
   now: Date;
   today: number;
-}
-
-/** Poplatek a postoupení míru – připraví se v transakci, provedou se po ní. */
-interface PeaceLater {
-  line: PeaceLine;
-  sendings: { fromHouse: House; toHouse: House; toVillageId: string }[];
-  cede: { fromHouseId: string; toHouseId: string; villageIds: string[] } | null;
-}
-
-/** Výkupné – zaplatí se a zajatci se propustí po transakci. */
-interface Ransoming {
-  line: RansomLine;
-  captorHouseId: string;
-  payerHouseId: string;
-}
-
-/** Dar nebo půjčka zboží – pošle věřitel po transakci. */
-interface AidSending {
-  line: Extract<AidLine, { kind: 'gift' | 'loan' }>;
-  toVillageId: string | null;
-}
-
-/** Darovaná ves – dárce je autor posledního kola. */
-interface VillageGift {
-  line: VillageGiftLine;
-  fromHouseId: string;
-  toHouseId: string;
 }
 
 /** Ověřené přijetí (`checkAcceptance`) – řádky posledního kola a co se z nich zapíše. */
@@ -642,30 +625,18 @@ interface AcceptCheck {
   aidTarget: string | null;
 }
 
-/** Sestavené přijetí (`acceptedOf`) – co se po transakci pošle, provede a zapíše do kroniky. */
-interface Accepted {
-  actors: Actors;
-  oath: { lord: string; vassal: string } | null;
-  aid: AidSending | null;
-  trading: { sendings: TradeSending[]; today: number } | null;
-  gift: VillageGift | null;
-  peace: WarDemandLine | PeaceLine | null;
-  ransoming: Ransoming | null;
-  newcomerHouseId: string | null;
-  peaceLater: PeaceLater | null;
-}
-
 /**
  * Přijetí posledního kola: ověří živé rody a vzájemnost, uzavře jednání a spustí účinky všech
  * řádků – vše v jedné transakci (kdo přijetí vyhraje souběh, vazalství vznikne jedno). Kroky:
- * ověření (`checkAcceptance`), zápis (`writeAcceptance`, `noticeAcceptance`), sestavení účinků
- * (`acceptedOf`) a po transakci odeslání (`deliverAcceptance`) a kronika (`chronicleAcceptance`).
+ * ověření (`checkAcceptance`), zápis (`writeAcceptance`, `noticeAcceptance`), schránka účinků
+ * (`acceptedOf`, `putOutbox`) a po transakci její provedení (`deliverAcceptanceOutbox` – odeslání
+ * `deliverAcceptance` a kronika `chronicleAcceptance`). Spadne-li web po commitu, schránku
+ * dokončí worker (`deliverPendingAcceptances`).
  */
 export async function acceptNegotiation(
   deps: NegotiateDeps,
   input: AcceptInput,
 ): Promise<NegotiateResult> {
-  let accepted: Accepted | null = null;
   const result = await deps.negotiations
     .transaction(async (tx): Promise<NegotiateResult> => {
       const loaded = await loadForResponse(deps, tx, input.playerId, input.negotiationId);
@@ -677,7 +648,12 @@ export async function acceptNegotiation(
       const written = await writeAcceptance(deps, tx, loaded, check, input);
       if (!written.ok) return written;
       await noticeAcceptance(deps, tx, loaded, check, written.newcomer, input.today);
-      accepted = acceptedOf(loaded, check, written.newcomerHouseId, input.today);
+      // účinky po transakci: schránka v téže transakci – přijetí bez nich nikdy nezůstane
+      await tx.putOutbox(
+        loaded.record.id,
+        acceptedOf(loaded, check, written.newcomerHouseId, input.today),
+        input.now,
+      );
       return {
         ok: true,
         negotiation: { ...loaded.record, status: 'accepted', resolvedAt: input.now },
@@ -688,12 +664,61 @@ export async function acceptNegotiation(
       if (error instanceof StewardshipTaken) return fail(error.message);
       throw error;
     });
-  const effects = accepted as Accepted | null;
-  if (!result.ok || !effects) return result;
-  const failed = await deliverAcceptance(deps, input, result.negotiation, effects);
-  if (failed) return fail(failed);
-  await chronicleAcceptance(deps, input.today, result.negotiation, effects);
-  return result;
+  if (!result.ok) return result;
+  const failed = (await deliverAcceptanceOutbox(deps, result.negotiation.id, input))?.value;
+  return failed ? fail(failed) : result;
+}
+
+/**
+ * Kolik ms po přijetí schránku dokončuje web sám (hned po commitu); worker bere až starší – web
+ * tak hráči vrátí důvod selhání pomoci nebo výkupného jako dřív. Souběh obou vylučuje zámek.
+ */
+export const ACCEPTANCE_OUTBOX_GRACE_MS = 60_000;
+
+/** Nejvýš tolik schránek dokončí jeden krok workeru. */
+const ACCEPTANCE_OUTBOX_BATCH = 50;
+
+/**
+ * Provede schránku účinků přijetí `negotiationId` (pod zámkem – kdo ji právě provádí, toho druhý
+ * přeskočí) a smaže ji: odeslání (`deliverAcceptance`), pak kronika. Selhání pomoci nebo výkupného
+ * (věcný důvod) schránku uzavře jako dřív – bez dalších účinků a kroniky – a vrátí důvod; výjimka
+ * (pád) ji nechá nevyřízenou pro worker. Každý účinek je idempotentní, opakování nic nezdvojí.
+ * Null – schránka už je vyřízená, nebo ji právě provádí jiný proces.
+ */
+function deliverAcceptanceOutbox(
+  deps: NegotiateDeps,
+  negotiationId: string,
+  input: { now: Date; today: number },
+): Promise<{ value: string | null } | null> {
+  return deps.negotiations.withOutbox(negotiationId, async (effects) => {
+    const failed = await deliverAcceptance(deps, input, effects);
+    if (!failed) await chronicleAcceptance(deps, effects);
+    return failed;
+  });
+}
+
+/**
+ * Krok workeru (úlohy světa): dokončí schránky účinků přijetí starší než lhůta webu
+ * (`ACCEPTANCE_OUTBOX_GRACE_MS`) – přijetí, po kterém web spadl. Účinky jdou v okamžiku kroku
+ * (`now`, `today`), kronika ke dni přijetí. Chyba jedné schránky nepřeruší ostatní – vyhodí se až
+ * na konci a schránka zůstane na příští krok. Vrací počet provedených schránek.
+ */
+export async function deliverPendingAcceptances(
+  deps: NegotiateDeps,
+  input: { now: Date; today: number },
+): Promise<number> {
+  const before = new Date(input.now.getTime() - ACCEPTANCE_OUTBOX_GRACE_MS);
+  let delivered = 0;
+  let failure: unknown = null;
+  for (const id of await deps.negotiations.pendingOutboxes(before, ACCEPTANCE_OUTBOX_BATCH)) {
+    try {
+      if (await deliverAcceptanceOutbox(deps, id, input)) delivered++;
+    } catch (error) {
+      failure ??= error;
+    }
+  }
+  if (failure !== null) throw failure;
+  return delivered;
 }
 
 /**
@@ -988,7 +1013,7 @@ async function noticeAcceptance(
   }
 }
 
-/** Sestavení účinků přijetí po transakci z ověřených řádků (`checkAcceptance`). */
+/** Schránka účinků přijetí po transakci z ověřených řádků (`checkAcceptance`); rody jako odkazy. */
 function acceptedOf(
   loaded: Loaded,
   check: AcceptCheck,
@@ -996,8 +1021,16 @@ function acceptedOf(
   today: number,
 ): Accepted {
   const { oathItem, peaceLine, warLine, giftLine, aidLine, aidTarget, tradeLine, sendings } = check;
+  const refs = <T extends { fromHouse: HouseRef; toHouse: HouseRef }>(s: T): T => ({
+    ...s,
+    fromHouse: houseRef(s.fromHouse),
+    toHouse: houseRef(s.toHouse),
+  });
   return {
-    actors: { actor: loaded.actor, other: loaded.other },
+    negotiationId: loaded.record.id,
+    rounds: loaded.record.rounds.length,
+    day: today,
+    actors: { actor: houseRef(loaded.actor), other: houseRef(loaded.other) },
     oath:
       oathItem ??
       (peaceLine?.vassalage
@@ -1008,7 +1041,7 @@ function acceptedOf(
     // dar i půjčku zboží pošle věřitel po transakci
     aid:
       aidLine && aidLine.kind !== 'aid-request' ? { line: aidLine, toVillageId: aidTarget } : null,
-    trading: tradeLine ? { sendings, today } : null,
+    trading: tradeLine ? { sendings: sendings.map(refs) } : null,
     // dárce = autor posledního kola (druhá strana), obdarovaný přijímá
     gift: giftLine
       ? { line: giftLine, fromHouseId: loaded.other.id, toHouseId: loaded.actor.id }
@@ -1016,22 +1049,23 @@ function acceptedOf(
     peace: warLine ?? null,
     ransoming: check.ransoming,
     newcomerHouseId,
-    peaceLater: check.later,
+    peaceLater: check.later ? { ...check.later, sendings: check.later.sendings.map(refs) } : null,
   };
 }
 
 /**
- * Po transakci: ostatní žádosti nováčka zaniknou, věřitel pošle pomoc, dárce ves, výkupné se
- * zaplatí, mír propustí zajatce, postoupí vsi a otevře dialogy poplatku, obchod dialogy
- * odeslání. Vrací důvod selhání pomoci nebo výkupného, jinak null.
+ * Po transakci (ze schránky): ostatní žádosti nováčka zaniknou, věřitel pošle pomoc, dárce ves,
+ * výkupné se zaplatí, mír propustí zajatce, postoupí vsi a otevře dialogy poplatku, obchod dialogy
+ * odeslání. Vrací důvod selhání pomoci nebo výkupného, jinak null. Každý krok je idempotentní
+ * (klíč jednání a druhu účinku) – po pádu se schránka provede znovu celá a nic se nezdvojí.
  */
 async function deliverAcceptance(
   deps: NegotiateDeps,
-  input: AcceptInput,
-  negotiation: NegotiationRecord,
+  input: { now: Date; today: number },
   effects: Accepted,
 ): Promise<string | null> {
   const { newcomerHouseId, aid: sending, gift: giving, ransoming: ransom, trading } = effects;
+  const negotiationId = effects.negotiationId;
   if (newcomerHouseId) {
     // ostatní žádosti nováčka zaniknou (jejich páni se to dozvědí)
     await closeNewcomerRequests(deps, {
@@ -1044,7 +1078,7 @@ async function deliverAcceptance(
   }
   if (sending && deps.aid && sending.toVillageId) {
     const failed = await sendAid(deps.aid, sending.line, sending.toVillageId, {
-      negotiationId: negotiation.id,
+      negotiationId,
       today: input.today,
       now: input.now,
     });
@@ -1056,17 +1090,17 @@ async function deliverAcceptance(
   if (ransom && deps.ransom) {
     const failed = await deps.ransom.apply({
       ...ransom,
-      negotiationId: negotiation.id,
+      negotiationId,
       now: input.now,
       today: input.today,
     });
     if (failed) return failed;
   }
   if (effects.peaceLater) {
-    await applyPeaceLater(deps, input, negotiation, effects.peaceLater, effects.actors);
+    await applyPeaceLater(deps, input, negotiationId, effects.peaceLater, effects.actors);
   }
   if (trading && deps.dialogs) {
-    await openTradeDialogs(deps.dialogs, negotiation.id, trading.sendings, input.today);
+    await openTradeDialogs(deps.dialogs, negotiationId, trading.sendings, input.today);
   }
   return null;
 }
@@ -1074,8 +1108,8 @@ async function deliverAcceptance(
 /** Mír po transakci: propuštění zajatců, postoupení vsí a dialogy poplatku plátci. */
 async function applyPeaceLater(
   deps: NegotiateDeps,
-  input: AcceptInput,
-  negotiation: NegotiationRecord,
+  input: { now: Date; today: number },
+  negotiationId: string,
   later: PeaceLater,
   { actor, other }: Actors,
 ): Promise<void> {
@@ -1083,7 +1117,7 @@ async function applyPeaceLater(
     await deps.ransom.release({
       prisonerIds: later.line.releasePrisoners,
       parties: [actor.id, other.id],
-      negotiationId: negotiation.id,
+      negotiationId,
       now: input.now,
       today: input.today,
     });
@@ -1091,20 +1125,20 @@ async function applyPeaceLater(
   if (later.cede && deps.cede) {
     await deps.cede.apply({
       ...later.cede,
-      negotiationId: negotiation.id,
+      negotiationId,
       now: input.now,
       today: input.today,
     });
   }
   if (deps.dialogs && later.line.fee) {
     for (const s of later.sendings) {
-      await deps.dialogs.openOnce(`fee:${negotiation.id}:${s.fromHouse.id}`, {
+      await deps.dialogs.openOnce(`fee:${negotiationId}:${s.fromHouse.id}`, {
         playerId: s.fromHouse.playerId as string,
         kind: 'fee-send',
-        refId: negotiation.id,
+        refId: negotiationId,
         year: dateOfDayIndex(input.today).year,
         body: {
-          negotiationId: negotiation.id,
+          negotiationId,
           fromHouseId: s.fromHouse.id,
           toHouseId: s.toHouse.id,
           toVillageId: s.toVillageId,
@@ -1119,33 +1153,24 @@ async function applyPeaceLater(
  * Kronika přijetí: přísaha pod jmény pána a vazala, jinak (bez míru) druh kroku – pomoc,
  * obchod, nebo podmínky; mír zapíše kronika války.
  */
-async function chronicleAcceptance(
-  deps: NegotiateDeps,
-  today: number,
-  negotiation: NegotiationRecord,
-  effects: Accepted,
-): Promise<void> {
-  const { actors, oath: o, peace, aid: sending, trading: opening } = effects;
+async function chronicleAcceptance(deps: NegotiateDeps, effects: Accepted): Promise<void> {
+  const { actors, oath: o, peace, aid: sending, trading: opening, day: today } = effects;
   const { actor, other } = actors;
+  const key = `neg:${effects.negotiationId}:${effects.rounds}`;
   if (o) {
     const lord = o.lord === actor.id ? actor : other;
     const vassal = o.vassal === actor.id ? actor : other;
-    await chronicleHouses(
-      deps,
-      [actor, other],
-      `neg:${negotiation.id}:${negotiation.rounds.length}:accepted`,
-      {
-        day: today,
-        kind: 'negotiation-accepted',
-        lord: await houseName(deps, lord),
-        vassal: await houseName(deps, vassal),
-      },
-    );
+    await chronicleHouses(deps, [actor, other], `${key}:accepted`, {
+      day: today,
+      kind: 'negotiation-accepted',
+      lord: await houseName(deps, lord),
+      vassal: await houseName(deps, vassal),
+    });
   } else if (!peace) {
     await chronicleStep(
       deps,
       actors,
-      negotiation,
+      key,
       sending
         ? sending.line.kind === 'gift'
           ? 'aid-gift'
@@ -1157,7 +1182,7 @@ async function chronicleAcceptance(
     );
   }
   if (peace) {
-    await chronicleWar(deps, actor, other, 'peace', `war-peace:${negotiation.id}`, today);
+    await chronicleWar(deps, actor, other, 'peace', `war-peace:${effects.negotiationId}`, today);
   }
 }
 
@@ -1236,7 +1261,7 @@ export async function rejectNegotiation(
     };
   });
   if (result.ok && actors)
-    await chronicleStep(deps, actors, result.negotiation, 'rejected', input.today);
+    await chronicleStep(deps, actors, stepKey(result.negotiation), 'rejected', input.today);
   return result;
 }
 
@@ -1295,20 +1320,11 @@ export async function withdrawNegotiation(
     };
   });
   if (result.ok && actors)
-    await chronicleStep(deps, actors, result.negotiation, 'withdrawn', input.today);
+    await chronicleStep(deps, actors, stepKey(result.negotiation), 'withdrawn', input.today);
   return result;
 }
 
 export type { NegotiationResult };
-
-/** Co a komu posílá jedna strana obchodu (dialog `trade-send`). */
-interface TradeSending {
-  fromHouse: House;
-  toHouse: House;
-  goods: TradeLine['give'];
-  /** Ves příjemce, kam zásilka dojde (domluvená, jinak ves hlavy rodu); null – nemá kam. */
-  toVillageId: string | null;
-}
 
 /** Obě strany obchodu: `author` pošle `give`, `accepter` pošle `get`. */
 function tradeSendings(line: TradeLine, author: House, accepter: House): TradeSending[] {

@@ -7,6 +7,7 @@ import {
   type LevyDeps,
 } from './annual-levies';
 import { expireNegotiations, type ExpireNegotiationsDeps } from './negotiation-expiry';
+import { deliverPendingAcceptances, type NegotiateDeps } from './negotiate';
 import { advanceChristianity, type ChristianityDeps } from './advance-christianity';
 import type { ActivityRepository } from './activity';
 import type { HouseRepository } from './houses';
@@ -95,6 +96,11 @@ export type WorldTaskDeps = SuccessionCreditDeps & {
   negotiationExpiry?: ExpireNegotiationsDeps;
   /** Roční los objevu křesťanství a křest NPC rodů (christianity.md). */
   christianity?: ChristianityDeps;
+  /**
+   * Schránky účinků přijatých jednání, po kterých web spadl (audit A2, vassalage.md – Přijetí
+   * a schránka účinků): pomoc, výkupné, mír, obchod a kronika (`deliverPendingAcceptances`).
+   */
+  acceptances?: NegotiateDeps;
 };
 
 /**
@@ -102,7 +108,9 @@ export type WorldTaskDeps = SuccessionCreditDeps & {
  * zásilek po pádu (`reconcileShipments`), návrat uprchlíků za správce (`returnStewardRefugees`), jídlo domény po žních (`sendDomainFood` – po obnově
  * zásilek, ať vidí, co je na cestě), správce za nepřítomné (Odvody před otevřením nového roku,
  * ať loňský dialog nenaroste; Svolání před propadnutím s koncem války), vypršení jednání, konec
- * týdne čekání nováčků (`expireNewcomerWaits`) a roční los křesťanství (`advanceChristianity`).
+ * týdne čekání nováčků (`expireNewcomerWaits`), roční los křesťanství (`advanceChristianity`)
+ * a nakonec účinky přijatých jednání po pádu webu (`deliverPendingAcceptances` – trvale padající
+ * schránka tak nezdrží ostatní úlohy).
  */
 export async function runWorldTasks(
   deps: WorldTaskDeps,
@@ -123,4 +131,5 @@ export async function runWorldTasks(
   if (deps.negotiationExpiry) await expireNegotiations(deps.negotiationExpiry, input);
   if (deps.newcomers) await expireNewcomerWaits(deps.newcomers, input);
   if (deps.christianity) await advanceChristianity(deps.christianity, input.today);
+  if (deps.acceptances) await deliverPendingAcceptances(deps.acceptances, input);
 }

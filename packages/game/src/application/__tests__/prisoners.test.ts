@@ -335,3 +335,71 @@ describe('výkupné je nedělitelné', () => {
     expect(w.shipments.rows).toHaveLength(2);
   });
 });
+
+// Schránka účinků jednání (audit A2): výkupné a mír se po pádu provedou znovu – nic se nezdvojí
+// a dokončí se, co pád přerušil.
+describe('výkupné a mír po pádu (A2)', () => {
+  const line = {
+    kind: 'ransom' as const,
+    prisonerIds: [PRISONER],
+    price: bundle({ grainKg: 300 }),
+  };
+  type W = Awaited<ReturnType<typeof world>>;
+  const pay = (w: W) =>
+    ransomHooks(w.deps).apply({
+      line,
+      captorHouseId: w.houseA,
+      payerHouseId: w.houseC,
+      negotiationId: 'n-a2',
+      now: NOW,
+      today: TODAY,
+    });
+  /** Pád při zápisu událostí zajatce do schránky vsi (rozhodnutí už je zapsané). */
+  const crashOnCaptive = (w: W): void => {
+    const post = w.villages.inbox.post.bind(w.villages.inbox);
+    let crashes = 1;
+    w.villages.inbox.post = async (event) => {
+      if (event.body.kind === 'captive-returns' && crashes-- > 0) throw new Error('pád');
+      return post(event);
+    };
+  };
+  const stores = (w: W): number => w.villages.records.get(w.homeId)!.state.storesKg;
+
+  it('výkupné zaplacené před pádem: opakování nezaplatí znovu a selhání nevrátí', async () => {
+    const w = await world();
+    const before = stores(w);
+    expect(await pay(w)).toBeNull();
+    expect(await pay(w)).toBeNull();
+    expect(w.shipments.rows).toHaveLength(1);
+    expect(before - stores(w)).toBe(300);
+    expect(w.prisoners.records.get(PRISONER)?.decision).toBe('ransomed');
+  });
+
+  it('pád mezi rozhodnutím a událostmi vsí: opakované výkupné zajatce propustí', async () => {
+    const w = await world();
+    crashOnCaptive(w);
+    await expect(pay(w)).rejects.toThrow('pád');
+    expect(await pay(w)).toBeNull();
+    expect(w.shipments.rows).toHaveLength(1);
+    const after = await atDay(w, w.homeId, TODAY + 6);
+    expect(after.people.find((p) => p.id === 38)?.away).toBeUndefined();
+  });
+
+  it('pád uprostřed míru: opakované propuštění pošle zajatce domů', async () => {
+    const w = await world();
+    crashOnCaptive(w);
+    const release = () =>
+      ransomHooks(w.deps).release({
+        prisonerIds: [PRISONER],
+        parties: [w.houseA, w.houseC],
+        negotiationId: 'n-a2',
+        now: NOW,
+        today: TODAY,
+      });
+    await expect(release()).rejects.toThrow('pád');
+    await release();
+    expect(w.prisoners.records.get(PRISONER)?.decision).toBe('released');
+    const after = await atDay(w, w.homeId, TODAY + 6);
+    expect(after.people.find((p) => p.id === 38)?.away).toBeUndefined();
+  });
+});

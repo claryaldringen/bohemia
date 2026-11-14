@@ -1,5 +1,6 @@
-import { and, asc, eq, or, sql } from 'drizzle-orm';
+import { and, asc, eq, lt, or, sql } from 'drizzle-orm';
 import type {
+  Accepted,
   NegotiationRecord,
   NegotiationRepository,
   NegotiationRound,
@@ -9,7 +10,13 @@ import type {
 } from '@bohemia/game';
 import { peaceTributeOf } from '@bohemia/game';
 import type { Database, Executor } from '../client';
-import { negotiation, negotiationReject, negotiationRound, playerBlock } from '../schema';
+import {
+  negotiation,
+  negotiationOutbox,
+  negotiationReject,
+  negotiationRound,
+  playerBlock,
+} from '../schema';
 import { createLoanRepository } from './loan-repository';
 import { createWarRepository } from './war-repository';
 import { createStewardshipRepository } from './stewardship-repository';
@@ -194,6 +201,9 @@ function createTx(db: Executor): NegotiationTx {
     stewardships: createStewardshipRepository(db),
     wars: createWarRepository(db),
     placement: createPlacementTx(db),
+    async putOutbox(negotiationId, effects, at): Promise<void> {
+      await db.insert(negotiationOutbox).values({ negotiationId, effects, createdAt: at });
+    },
   };
 }
 
@@ -244,5 +254,34 @@ export function createNegotiationRepository(db: Database): NegotiationRepository
     },
     transaction: <T>(fn: (tx: NegotiationTx) => Promise<T>): Promise<T> =>
       db.transaction((tx) => fn(createTx(tx))),
+    async pendingOutboxes(before, limit): Promise<string[]> {
+      const rows = await db
+        .select({ id: negotiationOutbox.negotiationId })
+        .from(negotiationOutbox)
+        .where(lt(negotiationOutbox.createdAt, before))
+        .orderBy(asc(negotiationOutbox.createdAt), asc(negotiationOutbox.negotiationId))
+        .limit(limit);
+      return rows.map((r) => r.id);
+    },
+    // Zámek drží otevřená transakce (spojení z poolu) po celou dobu `fn`; účinky jdou mimo ni
+    // vlastními spojeními. Zamyká se jen řádek schránky – ne jednání, na které odkazují cizí klíče
+    // jiných tabulek (zámek jednání by blokoval zápisy účinků). Pád procesu zámek uvolní.
+    withOutbox: <T>(
+      negotiationId: string,
+      fn: (effects: Accepted) => Promise<T>,
+    ): Promise<{ value: T } | null> =>
+      db.transaction(async (tx): Promise<{ value: T } | null> => {
+        const [row] = await tx
+          .select({ effects: negotiationOutbox.effects })
+          .from(negotiationOutbox)
+          .where(eq(negotiationOutbox.negotiationId, negotiationId))
+          .for('update', { skipLocked: true });
+        if (!row) return null;
+        const value = await fn(row.effects as Accepted);
+        await tx
+          .delete(negotiationOutbox)
+          .where(eq(negotiationOutbox.negotiationId, negotiationId));
+        return { value };
+      }),
   };
 }
