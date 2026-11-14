@@ -15,7 +15,7 @@
 - **Determinismus:** simulace nedostane žádnou novou náhodu. Sousedé losují jen z vlastního proudu `deriveSeed(seed, \`neighbour-wares:${direction}\`)`, ostatní zboží souseda se tím nezmění.
 - **Čísla jen v `rules*.ts`** s odkazem na sekci návrhu. Ze specifikace platí doslova:
   - klát dá za rok ≈ 6 kg medu a ≈ 0,4 kg vosku, přibývá od května do září;
-  - zpracování: 1 hodina na kožešinu, 3 hodiny na kůži;
+  - zpracování (Martin 14. 11. 2026 – tukem a kouřem, kožešina kvašením; tuk, popel a kvas se nepočítají): kůže skotu 10 h, kozí a prasečí 4 h, ovčí kožešina 3 h, zaječí a liščí 1,5 h práce; hotové ≈ 10 dní po začátku zpracování (čekání bez práce – zpracování má stav „v práci“ s dnem dokončení, hotový výrobek až po něm);
   - spotřeba: 1 ovčí kožešina na člověka za 3 roky, 1 kůže na 2 lidi za rok;
   - oka: 0,05 zajíce za hodinu × zajíci ÷ strop, liška 0,02 za hodinu × lišky ÷ strop; obojí jen nad ½ stropu a do ročního přírůstku;
   - zajíc dá kožešinu a 2 kg masa, liška kožešinu.

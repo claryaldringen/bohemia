@@ -50,8 +50,15 @@ Nové zboží vsi. Martin 14. 11. 2026:
 
 ## Zpracování v domácnosti
 
-- Domácnost kůže a kožešiny zpracuje sama v zimě, mimo práci na polích: **1 hodina na kožešinu,
-  3 hodiny na kůži**.
+- Domácnost kůže a kožešiny zpracuje sama v zimě, mimo práci na polích. **Tukem a kouřem** –
+  Martin 14. 11. 2026: „Jámu s kůrou zatím serem. V domácích podmínkách to bude tukem a kouřem“;
+  tuk, popel a kvas se nepočítají – „Stačí čas domácnosti“ (Martin 14. 11. 2026).
+- **Kůže:** máčení → louhování v popelu z ohniště a seškrábání srsti → mízdření → natření tukem
+  → vyuzení nad ohništěm domu → hnětení. Práce **10 hodin na kůži skotu, 4 hodiny na kozí
+  a prasečí**; hotová useň ≈ **10 dní** po začátku (louh a udění jsou čekání, ne práce).
+- **Kožešina:** napnutí a usušení → máčení → mízdření → **kvašení** (místo louhu – Martin 14. 11. 2026: „kožešina se navíc kvasí (místo louhu)“) → tuk a kouř → hnětení a vyčesání srsti.
+  Práce **3 hodiny na ovčí, 1,5 hodiny na zaječí a liščí**; hotová ≈ **10 dní** po začátku.
+  Čísla práce a čekání návrh Clauda – Martin 14. 11. 2026: „Souhlas“.
 - Ves spotřebuje ≈ **1 ovčí kožešinu na člověka za 3 roky** (kožich) a ≈ **1 kůži na 2 lidi
   za rok** (obuv, řemení, postroje).
 - Na vlastní spotřebu bere napřed ovčí kožešiny a kůže ze stáda, kožešiny z lovu jen když ovčí
