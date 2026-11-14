@@ -18,6 +18,11 @@ export interface AlarmOwner {
   playerId: string | null;
   npc: boolean;
   houseId: string | null;
+  /**
+   * Hráčův muž (hlava rodu) v sídelní vsi rodu (`house.lord_person_id`); chybí – jiná ves rodu,
+   * NPC ves, nebo rod hlavu nemá (war.md – Hráč ve vsi a mimo ni).
+   */
+  lordId?: number;
 }
 
 /** Ves, která vojsko tažení spatřila, nebo se o něm dozvěděla od posla. */

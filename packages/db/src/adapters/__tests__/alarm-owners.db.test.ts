@@ -114,6 +114,22 @@ describe('createAlarmOwners', () => {
     expect(await port.ownerOf('knezice')).toBeNull();
   });
 
+  it('ownerOf – lordId jen u sídelní vsi rodu (house.lord_village_id)', async () => {
+    await db.execute(
+      sql`UPDATE house SET lord_village_id = ${v.p1}::uuid, lord_person_id = 4 WHERE id = ${house.p}::uuid`,
+    );
+    expect(await port.ownerOf(v.p1!)).toEqual({
+      playerId: 'p',
+      npc: false,
+      houseId: house.p,
+      lordId: 4,
+    });
+    // jiná ves téhož rodu – bez lordId
+    expect(await port.ownerOf(v.p2!)).toEqual({ playerId: 'p', npc: false, houseId: house.p });
+    // NPC ves jako dřív
+    expect(await port.ownerOf(v.q1!)).toEqual({ playerId: 'q', npc: true, houseId: house.q });
+  });
+
   it('refugeHostsOf – vlastní rod a přímý pán do 8 políček, od nejbližší', async () => {
     const hosts = await port.refugeHostsOf(v.q1!);
     expect(ids(hosts)).toEqual(['p1', 'p2', 'q3']);

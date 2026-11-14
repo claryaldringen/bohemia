@@ -45,12 +45,14 @@ export function createAlarmOwners(db: Database): AlarmOwnerPort {
         owner_id: string;
         house_id: string | null;
         npc: boolean;
+        lord_id: number | null;
       }>(sql`
         SELECT s.owner_id, h.id AS house_id,
                EXISTS (
                  SELECT 1 FROM stewardship st
                  WHERE st.village_id = v.id AND st.ended_at IS NULL AND st.kind = 'npc'
-               ) AS npc
+               ) AS npc,
+               CASE WHEN h.lord_village_id = v.id THEN h.lord_person_id END AS lord_id
         FROM village v
         JOIN settlement s ON s.id = v.settlement_id
         LEFT JOIN house h ON h.player_id = s.owner_id AND h.kind = 'player' AND h.ended_at IS NULL
@@ -58,7 +60,9 @@ export function createAlarmOwners(db: Database): AlarmOwnerPort {
       `);
       const row = result.rows[0];
       if (!row) return null;
-      return { playerId: row.owner_id, npc: row.npc, houseId: row.house_id };
+      const owner: AlarmOwner = { playerId: row.owner_id, npc: row.npc, houseId: row.house_id };
+      if (row.lord_id !== null) owner.lordId = row.lord_id;
+      return owner;
     },
 
     async refugeHostsOf(villageId): Promise<VillageCell[]> {

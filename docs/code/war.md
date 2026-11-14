@@ -1685,6 +1685,15 @@ design/war.md – Začít znovu během nájezdu (útočník; obránce doplní kr
   (vedené tažení × vazal, odmítnutý takt, pád a opakovaný restart), `step-campaigns.test.ts`
   (worker ve všech fázích s archivovanou vsí domova, muži vazala domů jednou, dvojitý restart).
 
+## Hráč ve vsi a mimo ni (14. 11. 2026)
+
+**Vojvoda doma (`war/lord-home.ts`).** `AlarmOwner.lordId` = hráčův muž (`house.lord_person_id`) jen
+u sídelní vsi rodu (`house.lord_village_id`); jiná ves rodu a NPC ves ho nemají. `ownerOf`
+(`adapters/alarm-owners.ts`) ho dopočte jedním `CASE`. `lordAtHome(state, lordId, day, gone?)` –
+muž žije ve vsi, dnes není pryč (`isAway`: výjezd, tažení, zajetí, posel, útočiště) a tažení ho
+dnes neodvedlo (`gone`); `lordHomeAt(s, villageId, owner, ctx)` totéž v taktu nad stavem
+`villageAt(villageId, s.day)` (chybí → `MissingData`) a `alarmTaken(…).people`.
+
 ## Měření tažení a e2e celé války (Ú6.17)
 
 - **Měření** `apps/worker/scripts/measure-campaigns.ts` (v paměti, skutečné `stepCampaigns`) –
