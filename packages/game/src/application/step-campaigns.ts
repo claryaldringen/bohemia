@@ -29,10 +29,12 @@ import type {
   VillageCell,
 } from './campaigns';
 import { ledByEndedHouse } from './campaigns';
+import { answerPresence } from './defender-presence';
 import type { HouseRepository } from './houses';
 import type { KnowledgeRepository } from './knowledge';
 import type { NoticeRepository } from './notices';
 import { passageCovers, type PassageRepository } from './passages';
+import type { PresenceRepository } from './presence';
 import type { SettlementRepository } from './settlements';
 import type { VassalageRepository } from './vassalages';
 import type { VillageRecord, VillageRepository } from './villages';
@@ -65,6 +67,12 @@ export interface StepCampaignsDeps {
    * hradiště ani doména žádné.
    */
   alarmOwners?: AlarmOwnerPort;
+  /**
+   * Přítomnost hráčů u hry (war.md – Hráč ve vsi a mimo ni; plán 2026-11-14 – Úloha 6): po výpočtu
+   * kola dostanou varované vsi, které se ptají nebo potřebují obnovit přítomnost, záměr
+   * `alarm-presence` (`answerPresence`). Bez portu odpověď „hráč u hry nebyl“ (rozhodne správce).
+   */
+  presence?: Pick<PresenceRepository, 'lastSeen'>;
   /** Skončené tažení ukončí svá ohlášení průchodu (war.md – Pohyb). */
   passages?: Pick<PassageRepository, 'voidOfCampaign'>;
   /**
@@ -389,6 +397,8 @@ async function stepOne(
       intents: memoIntentsKey(intents, step.state.tick),
       state: step.state,
     });
+    // záměr na takt za spočteným stavem paměť nezneplatní (`memoIntentsKey` bere jen do něj)
+    await answerPresence(deps, { campaignId, state: step.state, intents });
     return step.waiting ? 'waiting' : 'computed';
   }
 
@@ -405,6 +415,7 @@ async function stepOne(
     await deliverOutbox(deps, outbox, step.state);
     await deps.campaigns.clearOutbox(campaignId, step.state.tick);
   }
+  await answerPresence(deps, { campaignId, state: step.state, intents });
   return 'saved';
 }
 

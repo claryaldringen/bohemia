@@ -3,11 +3,13 @@ import { dwelling, kin, village } from '../../domain/village/__tests__/kin-fixtu
 import type { VillageState } from '../../domain/village/types';
 import type { GridCell } from '../../domain/village/people/world-grid';
 import {
+  absentTicks,
   alarmVillage,
   MarchGridMemo,
   msOfTick,
   stepCampaign,
   type AlarmOwner,
+  type CampaignIntent,
   type CampaignMap,
   type CampaignState,
   type CampaignWorld,
@@ -18,6 +20,7 @@ import type { AlarmOwnerPort, CampaignCells, VillageCell } from '../campaigns';
 import { newCampaignMemory, stepCampaigns, type StepCampaignsDeps } from '../step-campaigns';
 import { InMemoryCampaignLock, InMemoryCampaigns } from './in-memory-campaigns';
 import { InMemoryNotices } from './in-memory-notices';
+import { InMemoryPresence } from './in-memory-presence';
 import { InMemoryVillages } from './in-memory-villages';
 
 // Svět varování ve smyčce tažení (plán 2026-11-09 – Úloha 6, Krok 2): `stepCampaigns` dodá tažení
@@ -221,5 +224,127 @@ describe('svět varování ve smyčce tažení (Úloha 6)', () => {
     expect(a.hosts).toBeUndefined();
     // záměr hráče neplatí – za ves s neznámým rodem rozhoduje pravidlo (Úloha 11)
     expect(state.alarm!.messengers).toEqual([]);
+  });
+});
+
+/** 1 herní den v taktech – hráč bez přítomnosti déle je pryč. */
+const ABSENT = absentTicks(world);
+const LAUNCH_TICK = passing().tick;
+
+/**
+ * Smyčka workeru s přítomností (plán 2026-11-14 – Úloha 6): tažení `passing` (ves A hráče p2
+ * s vojvodou doma), kola po 40 taktech do `to`; před kolem v taktu `t` web zapíše přítomnost p2,
+ * je-li `present(t)`. `intents` = záměry hráče předem. Vrací uložený stav tažení.
+ */
+async function presenceLoop(opts: {
+  to: number;
+  present: (tick: number) => boolean;
+  intents?: Omit<CampaignIntent, 'seq'>[];
+}): Promise<CampaignState> {
+  const presence = new InMemoryPresence();
+  const { deps, campaigns } = setup(port());
+  deps.presence = presence;
+  await campaigns.create(passing());
+  for (const i of opts.intents ?? []) await campaigns.addIntent('c1', i);
+  for (let tick = LAUNCH_TICK + 40; tick <= opts.to; tick += 40) {
+    if (opts.present(tick)) await presence.note('p2', new Date(msOfTick(tick, world)));
+    await stepCampaigns(deps, { nowMs: msOfTick(tick, world) });
+  }
+  return (await campaigns.checkpoint('c1'))!.state;
+}
+
+describe('worker odpovídá na přítomnost obránce (plán 2026-11-14 – Úloha 6)', () => {
+  it(
+    'přítomný hráč (zápis každých 40 taktů) – ves nerozhodne 700 taktů',
+    { timeout: 60_000 },
+    async () => {
+      const state = await presenceLoop({ to: LAUNCH_TICK + 720, present: () => true });
+      expect(state.tick).toBe(LAUNCH_TICK + 720);
+      const a = alarmVillage(state, 'a')!;
+      expect(a.decided).toBeUndefined();
+      expect(a.askedTick).toBeUndefined();
+      // worker přítomnost obnovuje – je mladší než 1 herní den
+      expect(state.tick - a.presenceTick!).toBeLessThan(ABSENT);
+      expect(state.alarm!.messengers).toEqual([]);
+    },
+  );
+
+  it('nepřítomný hráč – správce do 2 kol od vstupu', { timeout: 60_000 }, async () => {
+    const first = await presenceLoop({ to: LAUNCH_TICK + 40, present: () => false });
+    const asked = alarmVillage(first, 'a')!;
+    expect(asked).toMatchObject({ warnTick: LAUNCH_TICK + 1, askedTick: LAUNCH_TICK + 1 });
+    expect(asked.decided).toBeUndefined();
+
+    const state = await presenceLoop({ to: LAUNCH_TICK + 80, present: () => false });
+    // odpověď (u hry nebyl) na takt kola + 2 – správce pošle posla v témž taktu
+    expect(alarmVillage(state, 'a')).toMatchObject({ decided: 'steward', presenceTick: null });
+    expect(state.alarm!.messengers).toMatchObject([
+      { fromVillageId: 'a', departTick: LAUNCH_TICK + 42 },
+    ]);
+  });
+
+  it('hráč odejde – správce po absentTicks od posledního zápisu', { timeout: 60_000 }, async () => {
+    const last = LAUNCH_TICK + 200;
+    const state = await presenceLoop({ to: LAUNCH_TICK + 640, present: (tick) => tick <= last });
+    expect(alarmVillage(state, 'a')).toMatchObject({ decided: 'steward', presenceTick: last });
+    expect(state.alarm!.messengers).toMatchObject([
+      { fromVillageId: 'a', departTick: last + ABSENT + 1 },
+    ]);
+  });
+
+  it(
+    'hráč u hry po své volbě dál hraje – o ves nepřijde po 1 herním dni',
+    { timeout: 60_000 },
+    async () => {
+      const state = await presenceLoop({
+        to: LAUNCH_TICK + 800,
+        present: () => true,
+        intents: [
+          {
+            tick: LAUNCH_TICK + 40,
+            byPlayer: 'p2',
+            body: { kind: 'alarm-messenger', village: 'a' },
+          },
+        ],
+      });
+      expect(state.tick).toBe(LAUNCH_TICK + 800);
+      const a = alarmVillage(state, 'a')!;
+      expect(a.decided).toBe('player');
+      expect(state.tick - a.presenceTick!).toBeLessThan(ABSENT);
+      expect(state.alarm!.messengers).toMatchObject([
+        { fromVillageId: 'a', departTick: LAUNCH_TICK + 40 },
+      ]);
+    },
+  );
+
+  it('záměr za state.tick paměť kola nezneplatní', { timeout: 60_000 }, async () => {
+    const start = passing();
+    const presence = new InMemoryPresence();
+    const { deps, campaigns } = setup(port());
+    deps.presence = presence;
+    const memory = deps.memory!;
+    await campaigns.create(start);
+    // hráč byl u hry naposled před vstupem vojska; kolo 1 uloží bod (varování) a odpoví
+    await presence.note('p2', new Date(msOfTick(start.tick - 50, world)));
+    await stepCampaigns(deps, { nowMs: msOfTick(start.tick + 40, world) });
+    expect(memory.states.has('c1')).toBe(false);
+    // kolo 2 zůstane v paměti (méně než 40 taktů od bodu); přítomnost je starší než obnova
+    await presence.note('p2', new Date(msOfTick(start.tick + 79, world)));
+    await stepCampaigns(deps, { nowMs: msOfTick(start.tick + 79, world) });
+    const memo = memory.states.get('c1')!;
+    expect(memo.state.tick).toBe(start.tick + 79);
+    expect(alarmVillage(memo.state, 'a')!.presenceTick).toBe(start.tick - 50);
+    expect((await campaigns.intentsAfter('c1', start.tick + 40)).at(-1)).toMatchObject({
+      tick: start.tick + 81,
+      byPlayer: 'p2',
+      body: { kind: 'alarm-presence', village: 'a', seenTick: start.tick + 79 },
+    });
+    // značka v zapamatovaném stavu – kolo 3 pokračuje od paměti, ne od bodu
+    memory.states.set('c1', { ...memo, state: { ...memo.state, leaderName: 'Z paměti' } });
+    await stepCampaigns(deps, { nowMs: msOfTick(start.tick + 84, world) });
+    const saved = (await campaigns.checkpoint('c1'))!.state;
+    expect(saved.tick).toBe(start.tick + 84);
+    expect(saved.leaderName).toBe('Z paměti');
+    expect(alarmVillage(saved, 'a')!.presenceTick).toBe(start.tick + 79);
   });
 });

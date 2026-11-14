@@ -16,6 +16,7 @@ import {
   stewardAlarmChoice,
   type RefugeOptions,
 } from './refuge-choice';
+import { WAR } from './rules-war';
 import { absentTicks } from './ticks';
 
 // Kdo za varovanou ves rozhoduje (war.md – Hráč ve vsi a mimo ni; Varování, poslové a útěk do
@@ -99,6 +100,34 @@ export function notePresence(v: AlarmVillage, seen: number | null): void {
   const known = v.presenceTick ?? null;
   if (known === null) v.presenceTick = seen;
   else if (seen !== null) v.presenceTick = Math.max(known, seen);
+}
+
+/**
+ * Co potřebuje varovaná ves `v` po taktu `s.tick` vědět o přítomnosti hráče – odpovídá worker
+ * záměrem `alarm-presence` (plán 2026-11-14 – Rozhodnutí plánu 2, Úloha 6): 'ask' – ves hráče se
+ * ptá (`askedTick`; odpověď dostane každý dotaz, i hradiště, kde vesnickou část už rozhodl
+ * správce); 'refresh' – známá přítomnost je stará `presenceRefreshTicks` a víc a o vsi ještě může
+ * rozhodnout (`presenceMatters`); jinak null. NPC ves nic; hráč u hry nebyl (`presenceTick` null) –
+ * za ves už rozhodl správce, obnova nic nezmění.
+ */
+export function presenceWanted(s: CampaignState, v: AlarmVillage): 'ask' | 'refresh' | null {
+  if (v.owner.npc || v.owner.playerId === null) return null;
+  if (v.askedTick !== undefined) return 'ask';
+  if (typeof v.presenceTick !== 'number') return null;
+  if (s.tick - v.presenceTick < WAR.alarm.presenceRefreshTicks) return null;
+  return presenceMatters(s, v) ? 'refresh' : null;
+}
+
+/**
+ * Rozhodne o vsi ještě přítomnost hráče (`deciderOf`)? Vesnickou část nerozhodl nikdo, nebo hráč
+ * a lidé jsou doma (`playerLeft` – Ruling 4: hráč, který po volbě dál hraje, o ves nepřijde), nebo
+ * hradiště s doběhlým poslem vsi posly do domény ještě nerozeslalo (`decideDomain`). Ne po vzdání
+ * vojvody (`alarmEnded` – varování skončilo).
+ */
+function presenceMatters(s: CampaignState, v: AlarmVillage): boolean {
+  if (alarmEnded(s, v.villageId)) return false;
+  if (v.decided === undefined || (v.decided === 'player' && v.flight === undefined)) return true;
+  return v.domain === undefined && heardTick(s, v.villageId) !== null;
 }
 
 function stateOf(s: CampaignState, villageId: string, ctx: TickContext): VillageState {

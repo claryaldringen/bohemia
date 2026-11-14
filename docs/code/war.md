@@ -1091,7 +1091,8 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
   `presenceTick` null nebo `tick − presenceTick > absentTicks` (1 herní den; `absentTicks(world)`
   přesunuté z `campaign.ts` do `ticks.ts`, platí i pro živé vedení) → správce; jinak hráč (nic).
   **Přítomnost:** záměr `alarm-presence` (`{ village, seenTick: number | null }` – zapíše ho worker
-  za vlastníka, Úloha 6) i každý jiný záměr `alarm-*` vlastníka varované vsi projde `applyAlarm` →
+  za vlastníka, `answerPresence` – Hráč ve vsi a mimo ni: Odpověď workeru) i každý jiný záměr
+  `alarm-*` vlastníka varované vsi projde `applyAlarm` →
   `notePresence(v, seen)`: `askedTick` zmizí, `presenceTick` = pozdější ze známé a `seenTick` (u
   jiného záměru takt záměru; null jen, když žádnou neznáme); `alarm-presence` dál nic nedělá. Cizí
   hráč přítomnost nedává (kontrola vlastníka napřed). `WAR.alarm.presenceRefreshTicks` (86 = ¼ dne)
@@ -1811,7 +1812,7 @@ nepřepíše novější), `lastSeen(playerIds)` vrací mapu ms jen pro hráče s
 `adapters/presence-repository.ts`. Zapisuje web: `notePlayerPresent` (`apps/web/lib/game.ts`) s procesní
 mapou, nejvýš jednou za `PRESENCE_NOTE_MS` (10 s, návrh Clauda); volá ho `notePlayerActive` (akce,
 dotaz na ves, pohled na varování) a `GET /api/war-scene/<sídlo>` (scéna se ptá po 5 s, dokud je hra
-otevřená). Přítomnost je po hráči, ne po vsi. Čte ji worker (Úloha 6).
+otevřená). Přítomnost je po hráči, ne po vsi. Čte ji worker (Odpověď workeru níž).
 
 **Vojvoda doma (`war/lord-home.ts`).** `AlarmOwner.lordId` = hráčův muž (`house.lord_person_id`) jen
 u sídelní vsi rodu (`house.lord_village_id`); jiná ves rodu a NPC ves ho nemají. `ownerOf`
@@ -1861,6 +1862,37 @@ vždy, vojsko se vrátí s důvodem `'yielded'` a odnese jen to, co už vzalo (`
   muži na mapě cíle viděli, jde rodu s návratem (`seenKnowledge`) a objevená obydlí bez boje nejsou.
 
 Testy: `alarm-steward.test.ts`, describe „zajatý vojvoda a vzdání“ a „po kouscích taktů“.
+
+**Odpověď workeru (Úloha 6).** `answerPresence` (`application/defender-presence.ts`) volá `stepOne`
+(`step-campaigns.ts`) po výpočtu kola v obou větvích – stav jen v paměti i uložený bod (po `stale`
+ne). Port `StepCampaignsDeps.presence` (`Pick<PresenceRepository, 'lastSeen'>`), ve workeru
+`createPresenceRepository(db)` (`apps/worker/src/main.ts`). Které vsi odpověď chtějí, určí doména
+(`presenceWanted` v `alarm-steward.ts`; NPC ves nikdy):
+
+- `'ask'` – ves se ptá (`askedTick`). Odpověď dostane každý dotaz bez ohledu na `decided` – hradiště
+  se ptá kvůli doméně i tam, kde vesnickou část už rozhodl správce.
+- `'refresh'` – známá přítomnost je stará `presenceRefreshTicks` (86 taktů) a víc a o vsi ještě může
+  rozhodnout (`presenceMatters`): `decided` chybí, nebo je `'player'` a skupina neodešla (Ruling 4 –
+  hráč, který po volbě dál hraje, o ves nepřijde), nebo hradiště s doběhlým poslem vsi ještě
+  nerozeslalo posly do domény. Po vzdání vojvody (`alarmEnded`) ne; `presenceTick` null (u hry nebyl
+  – rozhodl správce) ne.
+
+Pro všechny vlastníky je jeden dotaz `lastSeen`; když žádná ves nic nechce, žádný dotaz. Záměr
+`alarm-presence` od vlastníka jde na takt `state.tick + INTENT_LEAD_TICKS`. `seenTick` je poslední
+přítomnost oříznutá na takt záměru (`min(tickOfMs(ms), takt záměru)`). Worker, který zaostává za
+skutečným časem (restart, výpadek), tak tažení nedá přítomnost „z budoucnosti“ (Review Focus 1).
+Bez záznamu nebo bez portu je `seenTick` null a rozhodne správce. Obnova se píše jen s novější
+přítomností (`seenTick > presenceTick`). Čeká-li už záměr `alarm-presence` téže vsi od vlastníka za
+`state.tick`, další se nepíše. Skončené tažení nic. Záměr za `state.tick` paměť kola nezneplatní –
+`memoIntentsKey` bere jen záměry do spočteného taktu.
+
+Výsledek: nepřítomnému hráči ves zareaguje do jednoho kola workeru + 2 takty. Přítomnému worker
+přítomnost obnovuje nejvýš po 86 taktech a kole, ves proto čeká na jeho pokyn. Když hráč odejde,
+rozhodne správce `absentTicks` + 1 taktů po posledním zápisu přítomnosti.
+
+Testy: `defender-presence.test.ts` (dotaz, čekající záměr, bez portu, obnova, ořez na takt záměru),
+`alarm-world.test.ts` – describe „worker odpovídá na přítomnost obránce“ (přítomný hráč 700 taktů,
+nepřítomný do 2 kol, odchod, volba hráče, paměť kola); přítomnost v paměti `InMemoryPresence`.
 
 ## Měření tažení a e2e celé války (Ú6.17)
 

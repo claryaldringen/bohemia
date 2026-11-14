@@ -8,6 +8,7 @@ import {
   createCampaignRepository,
   createDatabase,
   createLockPool,
+  createPresenceRepository,
   createVillageRepository,
 } from '@bohemia/db';
 import {
@@ -259,6 +260,8 @@ async function main(): Promise<void> {
     }),
     // kdo za varovanou ves rozhoduje, kandidáti hradišť a doména hradiště (war.md – Varování)
     alarmOwners: createAlarmOwners(db),
+    // přítomnost hráčů u hry – odpověď varované vsi s vojvodou doma (war.md – Hráč ve vsi a mimo ni)
+    presence: createPresenceRepository(db),
     // poslední spočtený stav tažení napříč koly (docs/code/worker.md – Výkon – Tažení)
     memory: newCampaignMemory(),
   };
