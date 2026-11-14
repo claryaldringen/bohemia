@@ -9,6 +9,8 @@ import {
   shapeRect,
   shapeX,
   shapeZ,
+  workshopSideM,
+  type Craft,
   type DwellingType,
   type PlotVariant,
   type Position,
@@ -47,6 +49,8 @@ export interface ShapedSceneDwelling {
   readonly position: { readonly x: number; readonly z: number };
   readonly plot?: { readonly variant?: PlotVariant };
   readonly plainShape?: boolean;
+  /** Řemeslo dílny – nadzemní dílna má u boční stěny přístřešek (workshops.md). */
+  readonly craft?: Craft | undefined;
 }
 
 /** Zobrazení tvaru obydlí (varianta rozměrů) – jedno pro model, jámu i vše kolem domu. */
@@ -78,9 +82,14 @@ export function footprintRect(d: ShapedSceneDwelling, porchM = 0): ShapeRect {
   });
 }
 
-/** Vyklízená plocha (staveniště) obydlí v souřadnicích modelu podle varianty. */
+/**
+ * Vyklízená plocha (staveniště) obydlí v souřadnicích modelu podle varianty; u nadzemní dílny
+ * rozšířená o přístřešek u boční stěny (+x – jako `dwellingClearing` v jádru).
+ */
 export function clearanceRect(d: ShapedSceneDwelling): ShapeRect {
-  return shapeRect(sceneFrame(d), DWELLING_CLEARANCE_M[d.type]);
+  const rect = shapeRect(sceneFrame(d), DWELLING_CLEARANCE_M[d.type]);
+  const side = d.craft ? workshopSideM(d.craft, d.type) : 0;
+  return side > 0 ? { ...rect, maxX: rect.maxX + side } : rect;
 }
 
 /** Rohy obdélníku v souřadnicích modelu ve světě (po obvodu, levý zadní roh první). */
@@ -311,6 +320,7 @@ export function dwellingArea(d: {
   position: Position;
   plot?: PlotArea;
   plainShape?: boolean;
+  craft?: Craft | undefined;
 }): Point[] {
   if (d.plot) {
     const h = d.plot.size / 2;
@@ -340,6 +350,7 @@ export function houseArea(d: {
   position: Position;
   plot?: PlotArea;
   plainShape?: boolean;
+  craft?: Craft | undefined;
 }): Point[] {
   const { plot, ...house } = d;
   const variant = plot?.variant;
@@ -352,6 +363,7 @@ export function dwellingHideShape(d: {
   position: Position;
   plot?: PlotArea;
   plainShape?: boolean;
+  craft?: Craft | undefined;
 }): HideShape {
   const corners = dwellingArea(d);
   if (!d.plot) {

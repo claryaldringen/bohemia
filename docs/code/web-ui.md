@@ -314,6 +314,14 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   rozcestník `dwelling` (`placement: 'dwellings'`, `DWELLING_VARIANTS`: zemnice, polozemnice,
   vypletený dům, nadzemní dům; ikony `build/…`, `variantIconSrc` v `BuildGrid`); zemnice, polozemnice, vypletený dům a srub zůstávají
   záznamy katalogu s `hubOf: 'dwelling'` (kontrola, cena, zkratky), ale bez vlastního tlačítka.
+  **Řemeslné dílny** (workshops.md, Rozhodnutí 7): tlačítko F / G / H / T je od roku 750 rozcestník
+  (`placement: 'workshop'`, `WORKSHOP_VARIANTS(craft)` – dnešní dílna, Vypletená, Roubená; ikony
+  `build/<model>[-vypleteny|-srub]`, popisek „Kovář – Vypletená“); zašedlý druh nese důvod
+  z `BuildOption.variants[typ].blocked` („Od roku 800“), tlačítko řemesla je dostupné, když ves
+  zaplatí aspoň jeden druh. Do roku 750 `workshopChoice` (`build-items.ts`) přeskočí rozcestník
+  a klik i klávesa staví rovnou dnešní dílnu; zašedlý nebo neznámý druh nejde. Druh jde v
+  `PlacementMode.type` a ve `PlacementResult` do `buildWorkshop(craft, position, type)` →
+  `placeWorkshop({ …, type })`; cena u kurzoru `workshopPlacementCost(…, type)`.
   Rozcestník nemá zkratku (`NO_HOTKEY`), Z, X a 1 vyberou druh rovnou (`startBuild` je převede na
   `dwelling` + druh). Nabídku dává `dwellingHubOption` (`village-view.ts`): cena a důvod zašednutí
   (srub do roku 800) jsou v `variants` každého druhu, ikona tlačítka je nejlepší druh, na který ves

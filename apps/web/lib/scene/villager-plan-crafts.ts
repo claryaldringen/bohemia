@@ -221,8 +221,9 @@ export function craftsmen(ctx: Context, dwellingId: number, bellows = false): Pl
     craft: house.craft,
     position: house.position,
     ...(house.frame ? { frame: house.frame } : {}),
+    ...(house.type ? { type: house.type } : {}),
   };
-  const porch = craftSpots(house.craft, house.position, house.frame);
+  const porch = craftSpots(house.craft, house.position, house.frame, house.type);
   const smelting = house.craft === 'smith' && house.yard?.task === 'smelt';
   const furnace = smelting ? smeltSpots(view) : [];
   // měchař z podílu syna stojí jen u měchu; sám kovář taví bez měchaře

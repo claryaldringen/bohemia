@@ -12,6 +12,7 @@ import {
   ABANDONMENT,
   CEMETERY,
   MILIR,
+  PLAIN_FRAME,
   PLOT_VARIANTS,
   RUIN_YEARS,
   dwellingShapeAt,
@@ -51,6 +52,7 @@ import { TREE_GROWTH_YEARS, treeGrowth } from './orchard-layout';
 import { penFacing, type Direction, type PenSquare } from './pen-layout';
 import { FLOOR_PHASES, floorPhase } from './threshing-floor-layout';
 import type { ConstructionKind } from './village-construction';
+import { CRAFT_MODEL, shedToWorld, workshopModelKeys } from './workshop-layout';
 
 /**
  * Milíř stojí „kus od“ uhlířovy zemnice: odstup v souřadnicích modelu ve scéně (x napříč,
@@ -80,6 +82,8 @@ export interface ShowcaseModel {
     variant: PlotVariant;
     yard?: { x: number; z: number };
   };
+  /** Přístřešek nadzemní dílny u boční stěny domu (workshops.md) – hotový model a jeho počátek. */
+  shed?: { url: string; x: number; z: number };
 }
 
 export interface ShowcaseBuilding {
@@ -198,6 +202,40 @@ const milir = offset(UHLIR_X, 0, FACING, MILIR_OFFSET_M);
 const VARIANTS_Z = -26;
 const VARIANTS_STEP = 17;
 
+/** Nadzemní dílny (workshops.md): řady vypletených a roubených dílen za cestami a ohradami (z) a rozestup (m). */
+const OVERGROUND_WORKSHOPS_Z = { vypleteny: -172, srub: -192 } as const;
+const OVERGROUND_WORKSHOPS_X0 = -42;
+const OVERGROUND_WORKSHOPS_STEP = 28;
+const OVERGROUND_CRAFTS: readonly Craft[] = ['potter', 'smith', 'carpenter', 'burner'];
+const CRAFT_LABELS: Readonly<Record<Craft, string>> = {
+  potter: 'Hrnčíř',
+  smith: 'Kovář',
+  carpenter: 'Tesař',
+  burner: 'Uhlíř',
+};
+
+/** Vypletená nebo roubená dílna řemesla: dům toho typu a vedle přístřešek (nahoře `shed`). */
+function overgroundWorkshop(craft: Craft, type: 'vypleteny' | 'srub', x: number): ShowcaseBuilding {
+  const z = OVERGROUND_WORKSHOPS_Z[type];
+  const side = workshopModelKeys(craft, type).side!;
+  const [sx, sz] = shedToWorld({ x, z, rotation: FACING }, PLAIN_FRAME, type, 0, 0);
+  return {
+    id: `${CRAFT_MODEL[craft]}-${type}`,
+    label: `${CRAFT_LABELS[craft]} – ${type === 'srub' ? 'roubená' : 'vypletená'}`,
+    models: [
+      {
+        kind: type,
+        url: modelUrl(type),
+        x,
+        z,
+        rotation: FACING,
+        shed: { url: `/models/crafts/${side}.glb`, x: sx, z: sz },
+      },
+    ],
+    focus: { x: (x + sx) / 2, z: z - 1.5, radius: 22 },
+  };
+}
+
 export const SHOWCASE_BUILDINGS: readonly ShowcaseBuilding[] = [
   building('zemnice', 'Zemnice', 'zemnice', -27),
   {
@@ -258,6 +296,12 @@ export const SHOWCASE_BUILDINGS: readonly ShowcaseBuilding[] = [
     ],
     focus: { x: TESAR_AT.x, z: TESAR_AT.z - 1.5, radius: 20 },
   },
+  // nadzemní dílny: čtyři řemesla × vypletená a roubená
+  ...(['vypleteny', 'srub'] as const).flatMap((type) =>
+    OVERGROUND_CRAFTS.map((craft, i) =>
+      overgroundWorkshop(craft, type, OVERGROUND_WORKSHOPS_X0 + i * OVERGROUND_WORKSHOPS_STEP),
+    ),
+  ),
   // posvátná místa: modla (4 × 4 m) a svatyně (30 × 30 m) – vpravo za milířem, před sadem
   building('modla', 'Modla', 'modla', 50, 14),
   building('svatyne', 'Svatyně', 'svatyne', 80, 46),

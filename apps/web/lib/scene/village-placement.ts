@@ -44,7 +44,13 @@ import type {
   PlacementMode,
   PlacementResult,
 } from './village-types';
-import { CRAFT_MODEL, milirPlace, type WorkshopModel } from './workshop-layout';
+import {
+  milirPlace,
+  shedOrigin,
+  workshopModelKeys,
+  type ShedModel,
+  type WorkshopModel,
+} from './workshop-layout';
 import { shapeGhost } from './shaped-model';
 
 /** Krok otáčení obydlí klávesami [ a ] (jako otáčení budovy v 0 A.D.). */
@@ -88,7 +94,7 @@ type FootprintMode = Extract<
   { kind: 'dwelling' | 'plot' | 'sacred' | 'workshop' | 'threshing-floor' | 'quarry' }
 >;
 /** Model ducha: obydlí, dílna nebo milíř uhlíře, modla či svatyně. */
-export type GhostType = DwellingType | SacredBuildingKind | WorkshopModel | 'milir';
+export type GhostType = DwellingType | SacredBuildingKind | WorkshopModel | ShedModel | 'milir';
 /** Strana čtverce značky lomu u kurzoru (m) – jako model lomu ve scéně (`quarry-renderer.ts`). */
 const QUARRY_MARK_M = 6;
 
@@ -176,6 +182,8 @@ export class PlacementController implements ActivePlacement {
   private model: Mesh | null = null;
   /** Druhý duch – milíř uhlíře kus od zemnice. */
   private milir: Mesh | null = null;
+  /** Duch přístřešku nadzemní dílny. */
+  private shed: Mesh | null = null;
   private done = false;
 
   constructor(
@@ -236,6 +244,7 @@ export class PlacementController implements ActivePlacement {
     this.clearGhost();
     this.model?.setEnabled(false);
     this.milir?.setEnabled(false);
+    this.shed?.setEnabled(false);
     for (const m of [...Object.values(this.materials), ...Object.values(this.fillMaterials)])
       m.dispose();
     this.handlers.onPreview?.(null);
@@ -313,7 +322,9 @@ export class PlacementController implements ActivePlacement {
     }
     const position = this.position(point);
     if (!mode.check(position).ok) return null;
-    if (mode.kind === 'workshop') return { kind: 'workshop', craft: mode.craft, position };
+    if (mode.kind === 'workshop') {
+      return { kind: 'workshop', craft: mode.craft, type: mode.type, position };
+    }
     if (mode.kind === 'threshing-floor') return { kind: 'threshing-floor', position };
     if (mode.kind === 'quarry') return { kind: 'quarry', position };
     return mode.kind === 'sacred'
@@ -344,19 +355,22 @@ export class PlacementController implements ActivePlacement {
 
   private refreshDwelling(mode: FootprintMode): void {
     // humno zatím nemá model – duch je jen obrys půdorysu (model přinese scéna humna)
-    const ghostType: GhostType | null =
-      mode.kind === 'workshop'
-        ? CRAFT_MODEL[mode.craft]
-        : mode.kind === 'threshing-floor' || mode.kind === 'quarry'
-          ? null
-          : mode.type;
+    const keys = mode.kind === 'workshop' ? workshopModelKeys(mode.craft, mode.type) : null;
+    const ghostType: GhostType | null = keys
+      ? keys.house
+      : mode.kind === 'threshing-floor' || mode.kind === 'quarry'
+        ? null
+        : mode.type;
     if (ghostType !== null) this.model ??= this.context.ghostModel(ghostType);
     if (mode.kind === 'workshop' && mode.craft === 'burner') {
       this.milir ??= this.context.ghostModel('milir');
     }
+    // nadzemní dílna: vedle domu přístřešek u boční stěny (workshops.md – Ve scéně)
+    if (keys?.side) this.shed ??= this.context.ghostModel(keys.side);
     if (!this.cursor) {
       this.model?.setEnabled(false);
       this.milir?.setEnabled(false);
+      this.shed?.setEnabled(false);
       this.handlers.onPreview?.(null);
       return;
     }
@@ -443,6 +457,13 @@ export class PlacementController implements ActivePlacement {
       this.model.position.set(position.x, this.context.baseHeight(ghostType, position), position.z);
       this.model.rotation.set(0, position.rotation, 0);
       showGhost(this.model, check.ok);
+    }
+    if (this.shed && mode.kind === 'workshop') {
+      const o = shedOrigin(mode.type, dwellingFrame({ type: mode.type, position }));
+      const [sx, sz] = localToWorld(position, o.x, o.z);
+      this.shed.position.set(sx, this.context.baseHeight(mode.type, position), sz);
+      this.shed.rotation.set(0, position.rotation, 0);
+      showGhost(this.shed, check.ok);
     }
     if (this.milir) {
       const milir = milirPlace(position);

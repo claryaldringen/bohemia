@@ -196,7 +196,7 @@ export function context(
             },
           }
         : {}),
-      ...(d.craft ? { craft: d.craft } : {}),
+      ...(d.craft ? { craft: d.craft, type: d.type } : {}),
       ...(d.yard ? { yard: d.yard } : {}),
     };
   });
