@@ -1,16 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
-import {
-  BAD_YEAR_KINDS,
-  FORCED_DISASTER_KINDS,
-  getWorldState,
-  type BadYearKind,
-  type ComputeProgress,
-  type ForcedDisasterKind,
-  type TimeSkip,
-  type WorldClock,
-} from '@bohemia/game';
+import { getWorldState, type ComputeProgress, type TimeSkip, type WorldClock } from '@bohemia/game';
 import { useDismiss } from '@/hooks/use-dismiss';
 import { useSkipProgress } from '@/hooks/use-skip-progress';
 import { clockHandAngle, dateRefreshDelay, dayPartLabel, formatWorldState } from '@/lib/game-date';
@@ -658,106 +649,6 @@ export function DateWithDevTime({
   );
 }
 
-/** Vynutit zlý rok – ikona a popisek druhu (vývojový režim). */
-const BAD_YEAR_LOOKS: Record<BadYearKind, { icon: string; label: string }> = {
-  dry: { icon: 'drought', label: 'Suché léto' },
-  drought: { icon: 'drought', label: 'Kruté sucho' },
-  wet: { icon: 'rain', label: 'Deštivé léto' },
-  wetHarvest: { icon: 'rain', label: 'Mokré žně' },
-  blackFrost: { icon: 'frost', label: 'Holomráz' },
-  long: { icon: 'frost', label: 'Dlouhá sněžná zima' },
-};
-
-/** Vynutit pohromu na zítřek – ikona a popisek druhu (vývojový režim). */
-const DISASTER_LOOKS: Record<ForcedDisasterKind, { icon: string; label: string }> = {
-  hail: { icon: 'hail', label: 'Kroupy' },
-  flood: { icon: 'flood', label: 'Stoletá voda' },
-  fire: { icon: 'fire', label: 'Požár' },
-  tornado: { icon: 'tornado', label: 'Smršť' },
-};
-
-/** Vynucení pohrom ve vývojovém režimu – co čeká na server, nebo null. */
-export type DevDisasterChoice =
-  { kind: 'year'; value: BadYearKind } | { kind: 'disaster'; value: ForcedDisasterKind };
-
-/**
- * Vývojový režim (disasters.md – plán P10): „Vynutit zlý rok“ (letošní léto či zima – ukáže se,
- * až bude vidět) a „Vynutit pohromu“ (zítra) – každé otevře řadu ikon druhů pod lištou.
- */
-export function DevDisasterButtons({
-  pending,
-  onForce,
-}: {
-  pending: boolean;
-  onForce: (choice: DevDisasterChoice) => void;
-}): ReactElement {
-  const [open, setOpen] = useState<'year' | 'disaster' | null>(null);
-  const ref = useRef<HTMLSpanElement>(null);
-  useDismiss(open !== null, ref, () => setOpen(null));
-  const choices: { key: string; icon: string; label: string; choice: DevDisasterChoice }[] =
-    open === 'year'
-      ? BAD_YEAR_KINDS.map((value) => ({
-          key: value,
-          ...BAD_YEAR_LOOKS[value],
-          choice: { kind: 'year', value },
-        }))
-      : open === 'disaster'
-        ? FORCED_DISASTER_KINDS.map((value) => ({
-            key: value,
-            ...DISASTER_LOOKS[value],
-            choice: { kind: 'disaster', value },
-          }))
-        : [];
-  return (
-    <span ref={ref} data-testid="dev-disasters" className="relative flex items-center">
-      <IconButton
-        label="Vynutit zlý rok"
-        tooltip={<span className="whitespace-nowrap">Vynutit zlý rok</span>}
-        testId="dev-bad-year"
-        expanded={open === 'year'}
-        disabled={pending}
-        busy={pending}
-        onClick={() => setOpen(open === 'year' ? null : 'year')}
-      >
-        <img src="/icons/resources/drought.png" alt="" width={20} height={20} />
-      </IconButton>
-      <IconButton
-        label="Vynutit pohromu"
-        tooltip={<span className="whitespace-nowrap">Vynutit pohromu</span>}
-        testId="dev-disaster"
-        expanded={open === 'disaster'}
-        disabled={pending}
-        busy={pending}
-        onClick={() => setOpen(open === 'disaster' ? null : 'disaster')}
-      >
-        <img src="/icons/resources/tornado.png" alt="" width={20} height={20} />
-      </IconButton>
-      {choices.length > 0 && (
-        <span
-          data-hud-block
-          data-testid="dev-disaster-choices"
-          className="hud-panel absolute top-10 right-0 z-50 flex gap-1 p-1"
-        >
-          {choices.map(({ key, icon, label, choice }) => (
-            <IconButton
-              key={key}
-              label={label}
-              tooltip={<span className="whitespace-nowrap">{label}</span>}
-              testId={`dev-force-${key}`}
-              onClick={() => {
-                setOpen(null);
-                onForce(choice);
-              }}
-            >
-              <img src={`/icons/resources/${icon}.png`} alt="" width={22} height={22} />
-            </IconButton>
-          ))}
-        </span>
-      )}
-    </span>
-  );
-}
-
 /**
  * Horní lišta jako v 0 A.D.: jméno vsi (přepínač vsí hráče – migration.md; dvojklik nebo tužka =
  * přejmenovat), ikony s čísly – lidé, obilí, maso, mléko a sýr (když je sýr nebo se dojí), ovoce
@@ -777,7 +668,6 @@ export function TopBar({
   onSelectVillage,
   onSetSteward,
   devTime,
-  devDisasters = null,
   house = null,
   war = null,
   lordAway = null,
@@ -798,8 +688,6 @@ export function TopBar({
   onSetSteward?: (villageId: string, on: boolean) => Promise<unknown>;
   /** Vývojový režim – po kliku na datum panel s tlačítky přeskoku času; bez něj null. */
   devTime: { pending: TimeSkip | null; onSkip: (skip: TimeSkip) => void } | null;
-  /** Vývojový režim – vynutit zlý rok a pohromu; bez něj (nebo bez vsi) null. */
-  devDisasters?: { pending: boolean; onForce: (choice: DevDisasterChoice) => void } | null;
   /** Prapor panelu „Rod a vazalové“: počet vazalů, čekající věci (pečeť) a otevření panelu. */
   house?: { vassals: number; waiting: number; open: boolean; onToggle: () => void } | null;
   /** Zkřížené oštěpy (počet válek) a štít s hodinami (ochrana nového rodu, zbývající dny). */
@@ -924,9 +812,6 @@ export function TopBar({
           devTime={devTime}
           world={world}
         />
-        {devDisasters && (
-          <DevDisasterButtons pending={devDisasters.pending} onForce={devDisasters.onForce} />
-        )}
         <span className="mx-1 h-6 border-l border-[#5c4526]" aria-hidden />
         {chronicle && (
           <IconButton

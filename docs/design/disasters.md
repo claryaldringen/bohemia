@@ -445,8 +445,8 @@ přídělu) … za rok stojí ≈ 15 % lidí“) přijde o zhruba desetinu až p
   [krutý, krutý] → ves žije, [normální × 10] → bez hladu.
 - **`village-calculator.ts`** (ustálený stav, rychlý): přepínač `--weather` s průměrnou úrodou
   0,95 – kolik osevu a práce stojí průměr let.
-- **Vlkov a nové vsi:** dev mód **„Vynutit zlý rok“** a **„Vynutit pohromu“** vedle skoku v čase
-  ([účty](accounts.md) – dev mód) – Martin projde krutý rok, dva za sebou, povodeň, požár
+- **Vlkov a nové vsi:** dev mód **„Vynutit pohromu“** (zlé roky i pohromy; v nabídce hry pod „Vývojářské menu“,
+  Martin 14. 11. 2026) ([účty](accounts.md) – dev mód) – Martin projde krutý rok, dva za sebou, povodeň, požár
   a smršť ve hře a sleduje nasycení, porážku, hašení, kroniku.
 - **`measure-village`** jen na Martinův pokyn (`--variant disasters`).
 

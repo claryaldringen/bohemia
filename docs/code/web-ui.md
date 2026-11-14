@@ -685,8 +685,10 @@ Návrh: [disasters.md – Co hráč vidí](../design/disasters.md). Jádro a č�
   (`otherVillageDisasters` – počasí a poslední místní pohroma) se jménem vsi.
 - **Ikony** – `tools/blender/icons.py` (`drought`, `rain`, `frost`, `good-summer`, `flood`, `hail`,
   `tornado`, `protection`, `dearth`; vlastní, CC0), požár má stávající `fire`.
-- **Vývojový režim** – tlačítka „Vynutit zlý rok“ a „Vynutit pohromu“ (`DevDisasterButtons`)
-  vedle skoku v čase: [accounts.md – dev mód](accounts.md).
+- **Vývojový režim** – jedno „Vynutit pohromu“ (zlé roky i pohromy, `hud/DevMenu.tsx`) v nabídce
+  hry pod položkou „Vývojářské menu“ (`GameMenu`, krok `dev`, jen s `devMode`; po vynucení se nabídka
+  zavře, jakmile server doběhne; Martin 14. 11. 2026). Zrychlení času zůstává u data:
+  [accounts.md – dev mód](accounts.md).
 - **Testy** – `disasters-view.test.ts`, `village-notices.test.ts` (počasí a pohromy),
   `village-view.test.ts` (JSON 30. 4. bez sucha, seedu a `override`); e2e `village.spec.ts`
   „vývojový režim: vynucené sucho“ – ikona na liště, upozornění a ochrana v panelu dílu.

@@ -384,11 +384,6 @@ export function VillageGame({
                   onToggle: noticeHistory.toggle,
                 }}
                 devTime={devMode ? { pending: dev.skipping, onSkip: dev.skipTimeBy } : null}
-                devDisasters={
-                  devMode && view && !view.extinct
-                    ? { pending: dev.forcingDisaster, onForce: dev.forceDisasterChoice }
-                    : null
-                }
               />
               {war.breakout && (
                 <BreakoutButton denied={war.breakout.denied} onOrder={war.orderDefenderBreakout} />
@@ -491,6 +486,11 @@ export function VillageGame({
                 onSignOut={signOutToHome}
                 soundOn={soundOn}
                 onToggleSound={toggleSound}
+                devMenu={
+                  devMode && view && !view.extinct
+                    ? { pending: dev.forcingDisaster, onForce: dev.forceDisasterChoice }
+                    : null
+                }
                 panels={panels}
                 house={house}
                 chronicle={chronicle}
