@@ -112,3 +112,39 @@ it('stisk mimo panel ho zavře, uvnitř ne', () => {
   down(document.body);
   expect(q('village-stores-panel')).toBeNull();
 });
+
+it('otevřený rozpis vypne popisek ikony, zavřený ho nechá', () => {
+  render();
+  const tip = (): Element | null => host.querySelector('[role="tooltip"]');
+  expect(tip()).not.toBeNull();
+  click(q('village-stores-toggle'));
+  const toggle = q('village-stores-toggle')!;
+  expect(toggle.querySelector('[role="tooltip"]')).toBeNull();
+  click(q('village-stores-toggle'));
+  expect(toggle.querySelector('[role="tooltip"]')).not.toBeNull();
+});
+
+it('panel se přizpůsobí obsahu: bez pevné šířky, bez zalamování, čísla vpravo – plodiny i dobytek', () => {
+  const rows = [
+    ...grainStockRows({ storesKg: 12_345_678, legumesKg: 300, applesKg: 45 }),
+    ...livestockRows(stock as never),
+  ];
+  act(() =>
+    root.render(
+      <StockBreakdown icon="food" name="Vše" total={1} rows={rows} testId="village-all" />,
+    ),
+  );
+  click(q('village-all-toggle'));
+  const panel = q('village-all-panel')!;
+  expect(panel.className).toContain('w-max');
+  expect(panel.className).toContain('whitespace-nowrap');
+  expect(panel.className).not.toMatch(/(^|\s)w-\d/);
+  expect(panel.scrollWidth).toBeLessThanOrEqual(panel.clientWidth);
+  for (const row of rows) {
+    const num = q(`village-all-${row.key}`)!;
+    expect(num.className).toContain('text-right');
+    expect(num.textContent).not.toBe('');
+  }
+  expect(panel.textContent).toContain('Voli');
+  expect(panel.textContent).toContain('Koně');
+});
