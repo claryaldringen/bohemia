@@ -5,12 +5,17 @@ import { horse, horseVillage, START } from '../../domain/village/__tests__/horse
 import { sendAway } from '../../domain/vassalage';
 import { villageHorses } from '../../domain/village/livestock/horses';
 import type { VillageState } from '../../domain/village/types';
+import { villageManor } from '../../domain/village/people/manor';
 import {
   lineManStrength,
+  stepJourney,
   WAR,
   type CampaignMap,
+  type CampaignWorld,
+  type JourneyIntent,
   type JourneyOrder,
   type JourneyState,
+  type Pos,
 } from '../../domain/war';
 import { land } from '../../domain/war/__tests__/battle-fixtures';
 import { campaign } from '../../domain/war/__tests__/campaign-fixtures';
@@ -21,7 +26,12 @@ import {
   type JourneyRefusal,
   type LaunchJourneyDeps,
 } from '../launch-journey';
-import { CAMPAIGN_REASONS, prepareCampaign, type CampaignPlan } from '../plan-campaign';
+import {
+  CAMPAIGN_REASONS,
+  prepareCampaign,
+  villagePlace,
+  type CampaignPlan,
+} from '../plan-campaign';
 import { InMemoryCampaigns } from './in-memory-campaigns';
 import { InMemoryHouses } from './in-memory-houses';
 import { InMemoryJourneys } from './in-memory-journeys';
@@ -402,6 +412,51 @@ describe('launchJourney', () => {
       { playerId: 'pa', plan, today: START, now: NOW },
     );
     expect(prepared).toBe(CAMPAIGN_REASONS.badMan);
+  });
+});
+
+// Hráč staví ves, kde chce – Martinův Vlkov stojí ≈ 430 m od místa vsi krajiny (`villageSite`).
+// Výjezd z něj vyjíždí a Domů se k němu vrací (lord-control.md – Rozkazy: „Domů – nejkratší cestou
+// do vlastní vsi“; Ve scéně: odjezd branou dvorce); dřív jádro skupinu vysílalo z místa vsi
+// krajiny a Domů ji tam vracelo (Martin 14. 11. 2026: „jde někam do prdele“).
+describe('domov výjezdu', () => {
+  /** Mapa, jejíž místo vsi krajiny leží ≈ 640 m od dvorce (dvorec stojí v počátku). */
+  const FAR: CampaignMap = {
+    ...MAP,
+    landscape: { ...MAP.landscape, villageSite: { x: 30, y: 90 } },
+  };
+  const near = (a: Pos, b: Pos): number => Math.hypot(a.x - b.x, a.z - b.z);
+
+  it('skupina vyjede od dvorce a Domů ji vrátí ke dvorci, ne na místo vsi krajiny', async () => {
+    const w = await setup();
+    const deps: LaunchJourneyDeps = { ...w.deps, cells: { mapOf: () => Promise.resolve(FAR) } };
+    const r = await launchJourney(deps, launchInput(w.homeId, { order: go(60, 0) }));
+    expect(r.ok).toBe(true);
+    const village = (await w.villages.find(w.homeId))!.state;
+    const manor = villageManor(village)!.position;
+    const site = villagePlace({ x: 0, y: 0 }, FAR.landscape).pos;
+    expect(near(manor, site)).toBeGreaterThan(500);
+    const j = (await w.journeys.checkpoint('jny-1'))!.state as JourneyState;
+    expect(j.home.pos).toEqual({ x: manor.x, z: manor.z });
+    expect(j.groups[0]!.pos).toEqual({ x: manor.x, z: manor.z });
+
+    // skupina vyjede k cíli a po rozkazu Domů dojede zpět ke dvorci – tam výjezd skončí
+    const world: CampaignWorld = {
+      clock: OFFICIAL_WORLD,
+      landscapeOf: () => FAR,
+      villageAt: () => village,
+    };
+    const out = stepJourney(j, j.tick + 160, [], world).state;
+    expect(near(out.groups[0]!.pos, manor)).toBeGreaterThan(30);
+    const home: JourneyIntent = {
+      tick: out.tick + 1,
+      seq: 1,
+      byPlayer: 'pa',
+      body: { kind: 'home' },
+    };
+    const back = stepJourney(out, out.tick + 1500, [home], world).state;
+    expect(back.phase).toBe('done');
+    expect(near(back.groups[0]!.pos, manor)).toBeLessThan(20);
   });
 });
 

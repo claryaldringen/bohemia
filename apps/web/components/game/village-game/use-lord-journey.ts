@@ -131,6 +131,10 @@ export function useLordJourney({
       setSelected(foreignJourneySelection(selectedRef.current, target, additive, double)),
     );
   }, [foreignScene, setSelected]);
+  // vybraný muž výjezdu má i na cizí mapě kroužek, který jede s ním (journey.md – Výběr)
+  useEffect(() => {
+    foreignScene?.setSelection(selected?.kind === 'person' ? selected : null);
+  }, [foreignScene, selected]);
 
   // Kandidáti na družinu – jen u vybraného vojvody doma
   const [candidates, setCandidates] = useState<{

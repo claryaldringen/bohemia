@@ -43,6 +43,7 @@ export async function journeyScene(page: Page): Promise<JourneyScene> {
         led: [],
         gate: null,
         awayHorses: [],
+        selected: null,
       },
   );
 }

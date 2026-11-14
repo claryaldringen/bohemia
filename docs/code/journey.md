@@ -73,6 +73,12 @@ tempo a svět `CampaignWorld`.
   `away-ends` výjezdu) u vojvody i družiny – vojvoda a družina se při tom ověří znovu na čerstvém stavu
   (souběžný zápis) – a založí výjezd (`newJourney`; `fight` = `arms.combat`, `strength` při vyslání,
   `health` 100). Selže-li založení, muži se vrátí a chyba se předá dál.
+- **Domov výjezdu** (`journeyHome`) – `home.pos`, odkud skupina vyjede a kam ji Domů a návrat po
+  čekání vedou, je dvorec vsi (`villageManor`; dokud zakladatelé první zemnici staví, její
+  staveniště; ves bez obydlí – `villagePlace`). Hráč staví ves, kde chce – místo vsi krajiny
+  (`villageSite`) od ní může ležet daleko (Martinův Vlkov ≈ 430 m): skupina pak vyjížděla odtamtud,
+  pobíhala po mapě a Domů jela „někam do prdele“ (Martin 14. 11. 2026). Odtud ověřuje dosažitelnost
+  i první rozkaz. Pohled ho nese jako `JourneyView.homePos` (scéna od něj měří odjezd a příjezd).
 - **`houseAtWarOn(deps, playerId, cell)`** (`application/journey-war.ts`) – je rod hráče ve válce
   s rodem, kterému patří mapa na políčku (`SettlementRepository.holderAt` – držitel aktivní mapy na
   jednom políčku, v DB přes unikátní index `settlement_grid_idx` – → `activeOf` → `activeBetween`)?
@@ -188,7 +194,8 @@ tempo a svět `CampaignWorld`.
   obojí hlásí jako `unreachable`, pozdější rozkaz `invalid` jako `refused`.
 - **`journeyViewFor(deps, { playerId })`** – pohled na vlastní běžící výjezd z kontrolního
   bodu (výjezd se hledá podle hráče, cizí hráč dostane null): takt, den, fáze, políčko, domov, muži
-  (padlí se neukazují), skupina a `waitDaysLeft` – celé dny do automatického návratu (3, 2, 1), jen
+  (padlí se neukazují), domov `homePos` (dvorec – `home.pos`), skupina a `waitDaysLeft` – celé dny do
+  automatického návratu (3, 2, 1), jen
   když skupina po dojetí stojí a je `out`, jinak null. `controllable` = vojvoda žije.
 - **`commandJourney(deps, { playerId, command, nowMs })`** – zapíše záměr na takt teď +
   `INTENT_LEAD_TICKS`. `refused`: bez výjezdu, skončený výjezd, vojvoda padl, neplatný vstup;
@@ -365,7 +372,13 @@ onEnded)` se ptá jen s `running` (vojvoda pryč nebo právě vyjel); zmizí-li 
   nezastaví). Jméno a rod vlastního vojvody dodá jeho záznam mezi návštěvníky.
 - **Výběr** – klik na vlastního muže vybere člověka vsi (`person` – panel z Úlohy 8a), na cizího
   `VillageTarget` `visitor` (`journeyId`): panel ukáže portrét koně se jménem vojvody, rod (ikona
-  praporu) a počet jezdců a pěších (`selectionDetails(…, visitors)`, `visitor-panel`).
+  praporu) a počet jezdců a pěších (`selectionDetails(…, visitors)`, `visitor-panel`). Vybraný muž
+  vlastního výjezdu (i vojvoda, který z vsi právě odjel – postava vsi už není) má žlutý kroužek,
+  který jede s jeho jezdcem jako jednotka v 0 A.D. (Martin 14. 11. 2026: „zmizelo kolem něj
+  označení“): `LandscapeScene.setSelection` → `SceneWarView.selectJourneyMan` →
+  `ArmyRenderer` (`selectedRider` v `journey-riders.ts`, `SelectionRing` `journey-ring`, jezdec
+  elipsa podél koně) – při odjezdu, jízdě i příjezdu; na cizí mapě totéž (`useLordJourney` předá
+  výběr scéně cizí mapy). E2e háček `journeyScene().selected`.
 - **Den rodiny** – muž na výjezdu (`away: journey`) není v `SceneLord.trainees` (`sceneLord`
   v `village-view-scene.ts`), takže ho scéna nekreslí na dvorku ani na cvičišti; kreslí ho jako
   jezdce výjezdu. Ostatní nepřítomní (tažení…) zůstávají jako dosud.
@@ -398,11 +411,12 @@ výsledek výjezdu se jimi nemění.
   muži vejdou vchodem do dvorce.
 - **Kdy** (`JourneyLeave.observe` – ze stavů ze serveru, ne z paměti prohlížeče): odjezd jen
   čerstvě vyslaného vlastního výjezdu – při prvním pohledu je `phase: 'out'`, skupina jede
-  (`arrived: false`) a stojí nejvýš `FRESH_M` (30 m) od místa vsi, odkud ji jádro vysílá
-  (`villagePlace` = střed políčka `villageSite`); načtení stránky uprostřed výjezdu tak odjezd
-  nepřehraje. Příjezd začne, když se vracející skupina přiblíží k místu vsi na `ARRIVE_M` (30 m),
+  (`arrived: false`) a stojí nejvýš `FRESH_M` (30 m) od domova výjezdu, odkud ji jádro vysílá
+  (`SceneJourney.home` z `JourneyView.homePos` – dvorec; scéna místo vsi sama nepočítá, ves nemusí
+  stát na místě vsi krajiny); načtení stránky uprostřed výjezdu tak odjezd
+  nepřehraje. Příjezd začne, když se vracející skupina přiblíží k domovu na `ARRIVE_M` (30 m),
   nebo když vlastní výjezd ze scény zmizí po fázi `returning` či nejvýš `HOME_REACH_M` (150 m)
-  od místa vsi – worker ukládá kontrolní bod po 10 s, krátký návrat tak scéna ve fázi `returning`
+  od domova – worker ukládá kontrolní bod po 10 s, krátký návrat tak scéna ve fázi `returning`
   vůbec nemusí uvidět; skupina, která odjela přes okraj mapy, zmizí u okraje. Skončí, až jsou
   všichni v dvorci, koně v ohradě a výjezd ve scéně není. Omezený pohyb obojí přeskočí (muži stojí, kde je ukáže server). Cizí
   výjezdy z dvorce nevyjíždějí.

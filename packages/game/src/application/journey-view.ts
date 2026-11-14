@@ -39,6 +39,11 @@ export interface JourneyView {
   /** Políčko světa, na kterém skupina je. */
   cell: GridCell;
   home: GridCell;
+  /**
+   * Odkud výjezd vyjel a kam se vrací – dvorec domovské vsi (`launchJourney`); scéna od něj měří
+   * odjezd a příjezd (ves nemusí stát na místě vsi krajiny).
+   */
+  homePos: Pos;
   men: { personId: number; lord: boolean; mounted: boolean; wounded: boolean }[];
   group: { pos: Pos; goal: CampaignPlace | null; arrived: boolean };
   /** Celé dny zbývající do automatického návratu (3, 2, 1) – jen když skupina stojí na místě. */
@@ -84,6 +89,7 @@ export async function journeyViewFor(
     phase: state.phase,
     cell: { ...group.cell },
     home: { ...state.home.cell },
+    homePos: { ...state.home.pos },
     men: state.members
       .filter((m) => m.status === 'active')
       .map((m) => ({

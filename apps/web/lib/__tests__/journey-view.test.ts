@@ -43,6 +43,7 @@ const view = (over: Partial<JourneyView> = {}): JourneyView => ({
   phase: 'out',
   cell: { x: 1, y: 1 },
   home: { x: 0, y: 0 },
+  homePos: { x: 5, z: 5 },
   men: [],
   group: { pos: { x: 0, z: 0 }, goal: null, arrived: false },
   waitDaysLeft: null,

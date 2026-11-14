@@ -127,6 +127,20 @@ test('vojvoda: družina, rozkaz pravým tlačítkem, portrét v liště, Domů a
     )
     .toBe(true);
 
+  // výběr jede s vojvodou: kroužek leží pod jeho jezdcem výjezdu (Martin 14. 11. 2026: „zmizelo
+  // kolem něj označení“)
+  await expect
+    .poll(
+      async () => {
+        const scene = await journeyScene(page);
+        const lord = scene.riders.find((r) => r.own && r.key === String(lordId));
+        const ring = scene.selected;
+        return lord && ring ? Math.hypot(lord.x - ring.x, lord.z - ring.z) : null;
+      },
+      { timeout: 30_000 },
+    )
+    .toBe(0);
+
   // panel muže na cestě ukazuje činnost výjezdu
   await badge.click();
   await expect(page.getByTestId('selection-person-activity')).toHaveText(

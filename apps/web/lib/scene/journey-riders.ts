@@ -44,6 +44,11 @@ export interface SceneJourney extends Pick<
   phase: JourneyPhase | null;
   /** Celé dny do návratu (přesýpací hodiny) – jen vlastní skupina, která stojí na místě. */
   waitDaysLeft: JourneyView['waitDaysLeft'];
+  /**
+   * Odkud vlastní výjezd vyjel a kam se vrací (`JourneyView.homePos` – dvorec vsi); od něj se měří
+   * odjezd a příjezd (journey-departure.ts). Návštěvník null.
+   */
+  home: Pos | null;
 }
 
 /** Muž výjezdu nakreslený ve scéně – poloha, směr a rychlost. */
@@ -307,6 +312,18 @@ export function journeyFigures(
     });
   }
   return { figures, animals };
+}
+
+/**
+ * Vybraný muž vlastního výjezdu (osoba vsi `personId`), jak je nakreslený – výběr jde s jezdcem jako
+ * jednotka v 0 A.D. (lord-control.md – Co hráč vidí). Muž, který ve scéně není, nebo nic – null.
+ */
+export function selectedRider(
+  poses: readonly RiderPose[],
+  personId: number | null,
+): RiderPose | null {
+  if (personId === null) return null;
+  return poses.find((p) => p.own && p.personId === personId) ?? null;
 }
 
 /** Klik do tolika CSS px od průmětu muže výjezdu (od nohou po hlavu) ho vybere. */
