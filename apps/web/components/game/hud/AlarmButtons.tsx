@@ -16,10 +16,10 @@ import {
   daysBadge,
   domainSendText,
   flightText,
-  graceText,
   messengerText,
   returnText,
   runnerText,
+  YIELD_LORD_LABEL,
   type AlarmChoice,
   type AlarmView,
 } from '@/lib/alarm-view';
@@ -44,6 +44,7 @@ export const ALARM_ICONS: Readonly<Record<AlarmChoice | 'return' | 'domain', str
 const DONE_ICON = '/icons/war/alarm-done.png';
 const CAUGHT_ICON = '/icons/house/cross.png';
 const WAIT_ICON = '/icons/resources/hourglass.png';
+const YIELD_ICON = '/icons/war/white-flag.png';
 const VILLAGE_ICON = '/icons/build/zemnice.png';
 
 /** Data a akce řádku (VillageGame – `useAlarm` a server actions). */
@@ -57,7 +58,7 @@ export interface AlarmActions {
 }
 
 /** Skupina příkazu – odeslaný příkaz zašedne jen svou skupinu ikon. */
-type SentKey = 'messenger' | 'flee' | 'return' | 'domain';
+type SentKey = 'messenger' | 'flee' | 'return' | 'domain' | 'yield';
 
 /** Jak dlouho platí odeslaný příkaz či chyba, když server stav nezmění (ms). */
 const SENT_HOLD_MS = 10_000;
@@ -68,6 +69,7 @@ const SENT_TEXT: Readonly<Record<SentKey, string>> = {
   flee: ALARM_BLOCKED.gone,
   return: REFUGE_RETURN_REASONS.returning,
   domain: 'Posli do domény už běží.',
+  yield: 'Vojvoda se vzdal.',
 };
 
 const iconButton = (busy: boolean): string =>
@@ -83,6 +85,7 @@ function stateKey(view: AlarmView): string {
     view.flight?.status ?? null,
     view.ret?.blocked ?? null,
     view.ret?.backInDays !== undefined,
+    view.yieldLord?.blocked ?? (view.yieldLord === null ? 'none' : null),
     view.domainLeft ?? null,
     view.domain?.map((d) => d.warned) ?? null,
   ]);
@@ -164,18 +167,25 @@ function runnerIcon(runner: AlarmRunner): string {
  * Řádek ikon varování v panelu dvorce: **Poslat posla** (víc možných poslů – nabídka, koho poslat),
  * **Ukrýt v lese**, **Do hradiště – jen lidé**, **Do hradiště – se vším**; po útěku místo nich stav
  * skupiny (hodiny s odhadem dnů, fajfka, křížek) a **Vrátit se**; hradiště hráče **Varovat doménu**
- * (nabídka vsí domény k zaškrtnutí). Lhůta hráče bez správce – ikona správce s počtem dní.
+ * (nabídka vsí domény k zaškrtnutí). Bílá vlajka (vzdání vojvody): první stisk ji připraví, druhý vzdá.
  */
 export function AlarmButtons({ view, onCommand, onReturn }: AlarmActions): ReactElement | null {
   const warDenied = useRightDenied('war');
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState<Partial<Record<SentKey, string>>>({});
   const [open, setOpen] = useState<'runners' | 'domain' | null>(null);
+  const [armed, setArmed] = useState(false);
   const [chosen, setChosen] = useState<readonly string[]>([]);
   const rootRef = useRef<HTMLDivElement>(null);
-  useDismiss(open !== null, rootRef, () => setOpen(null));
+  useDismiss(open !== null || armed, rootRef, () => {
+    setOpen(null);
+    setArmed(false);
+  });
   const key = view ? stateKey(view) : null;
-  useEffect(() => setSent({}), [key]);
+  useEffect(() => {
+    setSent({});
+    setArmed(false);
+  }, [key]);
   useEffect(() => {
     if (open !== 'domain') setChosen([]);
   }, [open]);
@@ -357,18 +367,42 @@ export function AlarmButtons({ view, onCommand, onReturn }: AlarmActions): React
     </Tooltip>
   );
 
-  const grace = view.decided === null && view.graceDays !== null && (
-    <Tooltip placement="above" content={graceText(view.graceDays)}>
-      <span
-        tabIndex={0}
-        data-testid="alarm-grace"
-        className="hud-inset relative block h-10 w-10 overflow-hidden rounded"
-      >
-        <Icon
-          src="/icons/resources/steward.png"
-          badge={<Badge icon={WAIT_ICON} text={daysBadge(view.graceDays)} />}
+  const yieldLord = view.yieldLord;
+  const yieldDenied = yieldLord
+    ? yieldLord.blocked
+      ? ALARM_BLOCKED[yieldLord.blocked]
+      : null
+    : null;
+  const yieldButton = yieldLord && (
+    <Tooltip
+      placement="above"
+      denied={reasonOf('yield')}
+      content={
+        <Tip
+          label={YIELD_LORD_LABEL}
+          lines={[]}
+          denied={yieldDenied}
+          testId="alarm-denied-yield-lord"
         />
-      </span>
+      }
+    >
+      <button
+        type="button"
+        data-testid="alarm-yield-lord"
+        data-armed={armed ? 'true' : undefined}
+        aria-label={YIELD_LORD_LABEL}
+        disabled={busy || reasonOf('yield') !== null || yieldDenied !== null}
+        onClick={() => {
+          if (!armed) setArmed(true);
+          else {
+            setArmed(false);
+            run('yield', () => onCommand({ kind: 'yield-lord' }));
+          }
+        }}
+        className={`${iconButton(busy)}${armed ? ' ring-2 ring-red-400' : ''}`}
+      >
+        <Icon src={YIELD_ICON} />
+      </button>
     </Tooltip>
   );
 
@@ -378,7 +412,7 @@ export function AlarmButtons({ view, onCommand, onReturn }: AlarmActions): React
       {view.warned && (flight ? flightStatus : ALARM_CHOICES.slice(1).map(choiceButton))}
       {retButton}
       {view.warned && domainButton}
-      {view.warned && grace}
+      {view.warned && yieldButton}
       {open === 'runners' && (
         <div
           data-testid="alarm-runners"

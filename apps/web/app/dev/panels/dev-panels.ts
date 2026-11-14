@@ -291,7 +291,7 @@ const alarmWarned: AlarmView = {
   villageId: 'v-1',
   warned: true,
   decided: null,
-  graceDays: 0.7,
+  yieldLord: { blocked: null },
   armyEtaDays: 2.2,
   options: {
     messenger: { blocked: null, etaDays: 0.8 },
@@ -319,7 +319,6 @@ const alarmWarned: AlarmView = {
 /** Po útěku: posel doběhl, lidé jdou do hradiště, Vrátit se zatím nejde. */
 const alarmFled: AlarmView = {
   ...alarmWarned,
-  graceDays: null,
   decided: 'player',
   options: {
     messenger: { blocked: 'sent' },

@@ -140,10 +140,8 @@ export function messengerText(view: AlarmView): string | null {
   }
 }
 
-/** Lhůta hráče bez správce (návrh Clauda): „Nerozhodneš-li, ves se zařídí sama za ≈ 1 den.“ */
-export function graceText(days: number): string {
-  return `Nerozhodneš-li, ves se zařídí sama ${days < 0.5 ? 'dřív než za den' : `za ${daysText(days)}`}.`;
-}
+/** Popisek bílé vlajky (návrh Clauda): vzdá se vojvoda, nájezd skončí. */
+export const YIELD_LORD_LABEL = 'Vzdát se – vojvoda půjde do zajetí, nájezd skončí.';
 
 /** Název ikony hradiště hráče, které varuje vsi domény (návrh Clauda). */
 export const ALARM_DOMAIN_LABEL = 'Varovat doménu';

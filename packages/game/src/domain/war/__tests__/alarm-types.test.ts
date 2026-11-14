@@ -92,7 +92,6 @@ const ALARM: CampaignAlarm = {
 
 describe('Ú1 – čísla varování (war.md – Čísla: Varování a útěk do hradiště)', () => {
   it('lhůta hráče je 1 herní den v taktech, hosté uprchlíků zůstanou do návratu', () => {
-    expect(WAR.alarm.playerGraceTicks).toBe(344);
     expect(WAR.alarm.runFactor).toBe(2);
     expect(WAR.alarm.catchM).toBe(30);
     expect(WAR.alarm.openUntilDay).toBeGreaterThan(400_000);

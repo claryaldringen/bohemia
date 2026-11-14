@@ -164,8 +164,7 @@ export const WAR = {
    * war.md – Varování, poslové a útěk do hradiště (schváleno Martinem 9. 11. 2026; čísla návrh
    * Clauda – plán 2026-11-09, Otevřené 1–6): vesničan i posel běží 2× pěším tempem vojska; vojsko
    * dostihne posla nebo skupinu uprchlíků do 30 m (jako nález v lese); ~~hráč bez správce má na
-   * volbu 1 herní den (344 taktů ≈ 86 s)~~ – od 14. 11. 2026 jen pohled (Úloha 8 plánu 2026-11-14 ho
-   * smaže), rozhoduje `deciderOf`; hradiště se hledá do 8 políček; odhad cesty = vzdušná čára × 1,3;
+   * volbu 1 herní den (344 taktů)~~ – od 14. 11. 2026 zrušeno, rozhoduje `deciderOf`; hradiště se hledá do 8 políček; odhad cesty = vzdušná čára × 1,3;
    * hradiště varuje vsi domény do 3 políček od místa spatření, nejvýš 4 posly; hosté uprchlíků
    * odejdou jen návratem (`openUntilDay` – den, který nepřijde).
    * war.md – Hráč ve vsi a mimo ni (návrh Clauda, plán 2026-11-14 – Rozhodnutí plánu 2): dokud je
@@ -176,7 +175,6 @@ export const WAR = {
   alarm: {
     runFactor: 2,
     catchM: 30,
-    playerGraceTicks: 344,
     presenceRefreshTicks: 86,
     refugeMaxCells: 8,
     routeFactor: 1.3,

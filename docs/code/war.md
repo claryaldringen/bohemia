@@ -787,7 +787,7 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
 
 - **Čísla, typy a události (Ú1).** Čísla `WAR.alarm` (`rules-war.ts`; war.md – Čísla): běh 2× pěší
   tempo (`runFactor`), dostižení do 30 m (`catchM`), ~~lhůta hráče 344 taktů = 1 herní den~~
-  (`playerGraceTicks` – od Úlohy 5 plánu 2026-11-14 jen pohled, smaže Úloha 8), obnova přítomnosti
+  (číslo lhůty smazáno Úlohou 8 plánu 2026-11-14), obnova přítomnosti
   hráče po 86 taktech (`presenceRefreshTicks` – Hráč ve vsi a mimo ni), hradiště do 8 políček
   (`refugeMaxCells`), odhad cesty × 1,3 (`routeFactor`),
   doména do 3 políček a nejvýš 4 poslové hradiště (`domainRadiusCells`, `hillfortMessengers`), hosté
@@ -1142,27 +1142,29 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
   (takty ÷ takty dne, 2 desetinná místa); útěk při boji u vsi zašedne `battle` (rozhoduje postoj –
   jako `departFlight`); `runners` – `messengerCandidates(state, day)` (`refuge-choice.ts`: výchozí
   posel, pak každý muž rodu, který běžet může – návrh Clauda: ostatní vesničany hráč nevybírá),
-  odhad zvlášť pro pěšího a jezdce; `graceDays` – zbytek lhůty hráče bez správce
-  (`playerGraceTicks`); skupina na cestě – `flightEtaTicks` od polohy tempem `flightPace`
-  (exportované z `evacuation.ts`); `ret` – `refugeReturnState` (`refuge-return.ts`, tytéž podmínky
-  jako `returnFromRefuge`, rozhodnutý návrat „Lidé se už vracejí.“ – nový důvod
-  `REFUGE_RETURN_REASONS.returning`, návrh Clauda), i po skončeném tažení. **Hradiště hráče**
-  (doběhl k němu posel vsi – `heardTick`, poslů do domény méně než `hillfortMessengers`): `domain` =
-  `domainTargets(s, av, domainOf(...))` (`messenger.ts` – vsi domény v dosahu od místa spatření,
-  nejbližší první, `warned` – ví, nebo k ní posel běží; `warnDomain` z nich bere nevarované – bit po
-  bitu stejně) přes volitelný port `AlarmOwnerPort.domainOf`.
-  `commandAlarm(deps, { playerId, villageId, command, today, nowMs })` – právo `war`
-  (`ACTION_RIGHTS.commandAlarm`), totéž tažení, volba znovu nad kontrolním bodem (zablokovaná –
-  důvod `ALARM_BLOCKED`, žádný záměr; doména – jen nevarované vsi z výběru, prázdný výběr jde) a
-  záměr `alarm-messenger` / `alarm-flee` / `alarm-domain` na takt teď + 2 (`queueCampaignIntent`;
-  tažení skončilo – „Vojsko už odtáhlo.“). `returnFromRefuge` bere právo z
-  `ACTION_RIGHTS.returnFromRefuge`. Důvody pohledu (návrh Clauda kromě doslovných ze specu): „Pán
-  nemá hradiště.“, „Nestihnou to.“ (rozhraní doplní odhad), „Na mapě není les.“, „Nikdo nemůže
-  běžet.“, „Lidé už odešli.“, „Posel už běží.“, „Ves o vojsku neví.“, „U vsi se už bojuje.“, „Do
-  domény není koho varovat.“, „Vojsko už odtáhlo.“.
+  odhad zvlášť pro pěšího a jezdce; `yieldLord` – vzdání vojvody (`yieldState`: `lordHomeAt`
+  - `yieldingLord`; už vzdaný v jiném tažení na touž ves – `battle.yielded` nebo zajatec
+    `prisonerKey(s.id, lordId)` v `loot.prisoners` – `lordAway`; příkaz `yield-lord` → záměr
+    `lord-surrender` na takt teď + 2; `alarmEnded` → pohled bez voleb); skupina na cestě – `flightEtaTicks` od polohy tempem `flightPace`
+    (exportované z `evacuation.ts`); `ret` – `refugeReturnState` (`refuge-return.ts`, tytéž podmínky
+    jako `returnFromRefuge`, rozhodnutý návrat „Lidé se už vracejí.“ – nový důvod
+    `REFUGE_RETURN_REASONS.returning`, návrh Clauda), i po skončeném tažení. **Hradiště hráče**
+    (doběhl k němu posel vsi – `heardTick`, poslů do domény méně než `hillfortMessengers`): `domain` =
+    `domainTargets(s, av, domainOf(...))` (`messenger.ts` – vsi domény v dosahu od místa spatření,
+    nejbližší první, `warned` – ví, nebo k ní posel běží; `warnDomain` z nich bere nevarované – bit po
+    bitu stejně) přes volitelný port `AlarmOwnerPort.domainOf`.
+    `commandAlarm(deps, { playerId, villageId, command, today, nowMs })` – právo `war`
+    (`ACTION_RIGHTS.commandAlarm`), totéž tažení, volba znovu nad kontrolním bodem (zablokovaná –
+    důvod `ALARM_BLOCKED`, žádný záměr; doména – jen nevarované vsi z výběru, prázdný výběr jde) a
+    záměr `alarm-messenger` / `alarm-flee` / `alarm-domain` na takt teď + 2 (`queueCampaignIntent`;
+    tažení skončilo – „Vojsko už odtáhlo.“). `returnFromRefuge` bere právo z
+    `ACTION_RIGHTS.returnFromRefuge`. Důvody pohledu (návrh Clauda kromě doslovných ze specu): „Pán
+    nemá hradiště.“, „Nestihnou to.“ (rozhraní doplní odhad), „Na mapě není les.“, „Nikdo nemůže
+    běžet.“, „Lidé už odešli.“, „Posel už běží.“, „Ves o vojsku neví.“, „U vsi se už bojuje.“, „Do
+    domény není koho varovat.“, „Vojsko už odtáhlo.“.
 - **Ikony v panelu dvorce (Ú13).** `hud/AlarmButtons.tsx` – řádek ikon pod postojem vsi (Poslat
   posla s výběrem posla, Ukrýt v lese, Do hradiště – jen lidé / se vším, po útěku stav skupiny a
-  Vrátit se, Varovat doménu u hradiště hráče, lhůta hráče); zašedlé s důvodem a odhadem, bez práva
+  Vrátit se, Varovat doménu u hradiště hráče, bílá vlajka); zašedlé s důvodem a odhadem, bez práva
   `war` důvodem práva; klik na upozornění varování vybere dvorec vsi (`noticeOpener`). Ikony
   `public/icons/war/alarm-*.png` z Blenderu (`tools/blender/icons.py`). Podrobnosti web-ui.md –
   Varování a útěk v rozhraní.

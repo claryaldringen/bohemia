@@ -20,7 +20,7 @@ function alarmView(o: Partial<AlarmView> = {}): AlarmView {
     villageId: 'v1',
     warned: true,
     decided: null,
-    graceDays: null,
+    yieldLord: null,
     armyEtaDays: 2.2,
     options: {
       messenger: ok({ etaDays: 0.8 }),
@@ -260,12 +260,38 @@ describe('ikony varování v panelu dvorce', () => {
     expect(q('alarm-denied-domain')?.textContent).toBe('Do domény není koho varovat.');
   });
 
-  it('lhůta hráče bez správce – ikona správce s počtem dní', async () => {
-    await mount(alarmView({ graceDays: 0.7 }));
-    expect(q('alarm-grace')?.textContent).toBe('1');
-    expect(tip('alarm-grace')).toBe('Nerozhodneš-li, ves se zařídí sama za ≈ 1 den.');
-    await mount(alarmView({ graceDays: 0.7, decided: 'steward' }));
+  it('lhůta hráče se nezobrazuje', async () => {
+    await mount(alarmView({ yieldLord: { blocked: null } }));
     expect(q('alarm-grace')).toBeNull();
+  });
+
+  it('bílá vlajka – první stisk připraví, druhý vzdá; název jen v popisku', async () => {
+    const onCommand = vi.fn<Command>(() => Promise.resolve(null));
+    await mount(alarmView({ yieldLord: { blocked: null } }), onCommand);
+    const flag = button('alarm-yield-lord');
+    expect(flag.querySelector('img')?.getAttribute('src')).toBe('/icons/war/white-flag.png');
+    expect(flag.textContent).toBe('');
+    expect(tip('alarm-yield-lord')).toContain('Vzdát se – vojvoda půjde do zajetí, nájezd skončí.');
+    expect(flag.dataset.armed).toBeUndefined();
+    await act(async () => flag.click());
+    expect(onCommand).not.toHaveBeenCalled();
+    expect(button('alarm-yield-lord').dataset.armed).toBe('true');
+    await act(async () => button('alarm-yield-lord').click());
+    expect(onCommand).toHaveBeenCalledTimes(1);
+    expect(onCommand).toHaveBeenCalledWith({ kind: 'yield-lord' });
+  });
+
+  it('bílá vlajka zašedlá s důvodem v popisku; bez vojvody ikona není', async () => {
+    const onCommand = vi.fn<Command>(() => Promise.resolve(null));
+    await mount(alarmView({ yieldLord: { blocked: 'lordAway' } }), onCommand);
+    expect(button('alarm-yield-lord').disabled).toBe(true);
+    expect(q('alarm-denied-yield-lord')?.textContent).toBe('Vojvoda není doma.');
+    await act(async () => button('alarm-yield-lord').click());
+    expect(onCommand).not.toHaveBeenCalled();
+    await mount(alarmView({ yieldLord: { blocked: 'notRaided' } }), onCommand);
+    expect(q('alarm-denied-yield-lord')?.textContent).toBe('Vojsko ještě nepřišlo.');
+    await mount(alarmView({ yieldLord: null }));
+    expect(q('alarm-yield-lord')).toBeNull();
   });
 
   it('bez práva war – všechny ikony zašedlé s důvodem práva, klik nic', async () => {
