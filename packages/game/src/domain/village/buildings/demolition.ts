@@ -15,6 +15,7 @@ import {
   HUMNO,
   ORCHARD,
   SACRED_BUILDINGS,
+  workshopCost,
   workshopTrees,
 } from '../rules';
 import {
@@ -50,8 +51,8 @@ function buildPrice(target: Target): { laborManDays: number; trees: number } {
     const d = target.item;
     if (d.workshop) {
       return {
-        laborManDays: BUILD_COSTS[d.workshop.craft].laborManDays,
-        trees: workshopTrees(d.workshop.craft),
+        laborManDays: workshopCost(d.workshop.craft, d.type),
+        trees: workshopTrees(d.workshop.craft, d.type),
       };
     }
     return {

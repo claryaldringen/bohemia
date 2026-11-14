@@ -5,11 +5,14 @@ import { newSteward } from '../steward/steward-state';
 import type { ObstacleLayer } from '../../landscape';
 import { cemeteryFoundingCost, touchingCemeteries, villageCemeteries } from '../buildings/cemetery';
 import { newFenceSides } from '../buildings/fence-cost';
+import { isHouseType, type HouseType } from '../buildings/log-house';
 import {
+  BUILD_COSTS,
   buildAffordability,
   dwellingLaborManDays,
   payUpfront,
   sacredLaborManDays,
+  workshopCosts,
   workshopLaborManDays,
   type BuildKind,
 } from '../buildings/costs';
@@ -64,6 +67,7 @@ import type {
   Craft,
   BuildableDwellingType,
   DwellingPlot,
+  DwellingType,
   DynastyState,
   FieldSurface,
   OrchardSquare,
@@ -947,9 +951,13 @@ export function startWorkshop(
   obstacleCost: number,
   obstacleIds: readonly number[] = [],
   site: WorkshopSiteOptions = {},
+  houseType?: HouseType,
 ): VillageState {
   validateActionDay(state, day);
   if (!CRAFTS.includes(craft)) throw new RangeError('Neznámé řemeslo.');
+  if (houseType !== undefined && !isHouseType(houseType)) {
+    throw new RangeError('Nadzemní dílna je vypletená nebo roubená.');
+  }
   validatePosition(position);
   validateObstacleCost(obstacleCost);
   validateObstacleIds(obstacleIds);
@@ -963,25 +971,28 @@ export function startWorkshop(
   }
   if (site.sacred) validateSpared(site.sacred);
   validateTakenLand(site.takenLand ?? []);
-  requireAffordable(state, craft, site.obstacles);
-  const type = CRAFT_BASE[craft];
+  const type: DwellingType = houseType ?? CRAFT_BASE[craft];
+  const costs = houseType ? workshopCosts(craft, houseType) : BUILD_COSTS;
+  if (!buildAffordability(state, craft, site.obstacles, costs).affordable) {
+    throw new RangeError('Na stavbu ves nemá suroviny, dřevo nebo lidi k osídlení.');
+  }
   const plan = planDwellingWood(state, type, position, day, {
     ...(site.obstacles ? { obstacles: site.obstacles } : {}),
     clearedTrees: site.clearedTrees ?? 0,
     clearedIds: obstacleIds,
-    trees: workshopTrees(craft),
+    trees: workshopTrees(craft, type),
     ...(site.walk ? { walk: site.walk } : {}),
   });
   if (plan.missing > 0) throw new RangeError('Na stavbu ves nemá dřevo – není z čeho kácet.');
   const next = cloneState(state);
-  payUpfront(next, craft);
+  payUpfront(next, craft, costs);
   recordClearedObstacles(next, obstacleIds, day);
   const wood = takeWood(next, plan, position);
   next.constructions.push({
     id: next.nextId++,
     kind: 'dwelling',
     startedDay: day,
-    cost: workshopLaborManDays(craft, obstacleCost, plan),
+    cost: workshopLaborManDays(craft, obstacleCost, plan, type),
     done: 0,
     dwellingType: type,
     position: { ...position },

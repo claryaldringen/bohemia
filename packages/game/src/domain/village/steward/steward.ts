@@ -34,6 +34,7 @@ import { fieldStoresOutlook } from '../core/simulate-plan';
 import { fieldCells, planCentre, takenTiles, villageTerritory } from './steward-land';
 import { abandonStep } from './steward-abandon';
 import { extraSteps } from './steward-extras';
+import { HOUSE_TYPES_BEST_FIRST, dwellingYearReason, type HouseType } from '../buildings/log-house';
 import { logHouseCovered, logHouseStep } from './steward-log-house';
 import { needSteps } from './steward-needs';
 import {
@@ -868,13 +869,33 @@ function workshopStep(state: VillageState, ctx: StewardContext): boolean {
       bestValue = value;
     }
   }
-  if (!best) return false;
-  const craft = best;
-  return trySlots(state, ctx, 'workshop', (tile) => {
-    const cell = tileCell(ctx.landscape, tile);
-    const c = tileCenterWorld(ctx.landscape, cell.x, cell.y);
-    return { kind: 'workshop', craft, position: { x: c.x, z: c.z, rotation: 0 } };
-  }).started;
+  return best ? startBestWorkshop(state, ctx, best) : false;
+}
+
+/**
+ * Začne dílnu řemesla `craft` na slotu plánu: workshops.md – Správce (návrh Clauda): nejlepší typ,
+ * který už jde (od 800 roubená, od 750 vypletená), a nakonec dnešní dílna; postaví první, na
+ * kterou má cenu předem a místo.
+ */
+export function startBestWorkshop(state: VillageState, ctx: StewardContext, craft: Craft): boolean {
+  const types: (HouseType | undefined)[] = [
+    ...HOUSE_TYPES_BEST_FIRST.filter((t) => dwellingYearReason(t, ctx.day) === null),
+    undefined,
+  ];
+  for (const type of types) {
+    const started = trySlots(state, ctx, 'workshop', (tile) => {
+      const cell = tileCell(ctx.landscape, tile);
+      const c = tileCenterWorld(ctx.landscape, cell.x, cell.y);
+      return {
+        kind: 'workshop',
+        craft,
+        position: { x: c.x, z: c.z, rotation: 0 },
+        ...(type ? { type } : {}),
+      };
+    }).started;
+    if (started) return true;
+  }
+  return false;
 }
 
 /**

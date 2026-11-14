@@ -262,7 +262,8 @@ export function structureShapes(state: VillageState, landscape: Landscape | null
     plainShape?: true;
   }): void => {
     if (landscape) shapes.push(...dwellingPlot(landscape, d));
-    else if (d.craft) shapes.push(...workshopFootprints(d.craft, d.position, dwellingShape(d)));
+    else if (d.craft)
+      shapes.push(...workshopFootprints(d.craft, d.position, dwellingShape(d), d.type));
     else shapes.push(dwellingFootprint(d.type, d.position, dwellingShape(d)));
   };
   for (const d of state.dwellings) {

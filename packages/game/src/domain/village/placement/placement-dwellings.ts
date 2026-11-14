@@ -59,7 +59,8 @@ import {
 import { kilnCircle } from '../crafts/charcoal';
 import { plotSquareSamples } from './square-grid';
 import { tilesUnder } from './squares';
-import { workshopFootprints } from '../crafts/crafts';
+import { workshopFootprints, workshopSideM } from '../crafts/crafts';
+import type { HouseType } from '../buildings/log-house';
 import {
   DWELLING_LAND,
   type ForestUse,
@@ -212,7 +213,7 @@ export function dwellingShapeFits(
   const shape = dwellingShape(d);
   if (isPlainShape(shape)) return fits;
   const houses = d.craft
-    ? workshopFootprints(d.craft, d.position, shape)
+    ? workshopFootprints(d.craft, d.position, shape, d.type)
     : [dwellingFootprint(d.type, d.position, shape)];
   const misfit = { ok: false, obstacleIds: [], treeIds: [] };
   if (!checkFootprintFree(landscape, village, houses.map(freeShape), DWELLING_LAND).ok) {
@@ -268,6 +269,7 @@ export function checkWorkshopPlacement(
   craft: Craft,
   position: Position,
   obstacles: ObstacleLayer = obstaclesOf(landscape),
+  houseType?: HouseType,
 ): DwellingPlacementCheck {
   const none = {
     obstacleCost: 0,
@@ -280,12 +282,14 @@ export function checkWorkshopPlacement(
   if (![position.x, position.z, position.rotation].every(Number.isFinite)) {
     return { ...fail('Neplatná poloha dílny.'), ...none };
   }
-  const type = CRAFT_BASE[craft];
+  const type: DwellingType = houseType ?? CRAFT_BASE[craft];
+  const side = workshopSideM(craft, type);
   const shape = dwellingShape({ type, position });
-  const { width, depth } = shapedFootprint(type, shape, WORKSHOP_PORCH_M[craft]);
-  const footprints = workshopFootprints(craft, position, shape);
+  // nadzemní dílna: přístřešek u boční stěny (jeden obdélník), jinak předsazená střecha vpředu
+  const { width, depth } = shapedFootprint(type, shape, side > 0 ? 0 : WORKSHOP_PORCH_M[craft]);
+  const footprints = workshopFootprints(craft, position, shape, type);
   const house = { ...centroid(footprints[0]!), rotation: position.rotation };
-  const terrain = checkFootprintTerrain(landscape, rectangleSamples(width, depth, house));
+  const terrain = checkFootprintTerrain(landscape, rectangleSamples(width + side, depth, house));
   if (!terrain.ok) return { ...terrain, ...none };
   const free = checkFootprintFree(landscape, village, footprints.map(freeShape), DWELLING_LAND);
   if (!free.ok) return { ...free, ...none };
@@ -298,8 +302,8 @@ export function checkWorkshopPlacement(
   if (sacredProblem) return { ...fail(sacredProblem), ...none };
   const gate = gateProblem(landscape, village, { type, position, craft });
   if (gate) return { ...fail(gate), ...none };
-  const clearings = freeDwellingClearings(type, position, shape);
-  const crowned = freeDwellingClearings(type, position, shape, FOREST_CROWN_MARGIN_M);
+  const clearings = freeDwellingClearings(type, position, shape, 0, side);
+  const crowned = freeDwellingClearings(type, position, shape, FOREST_CROWN_MARGIN_M, side);
   const clearingTiles = clearings.flatMap((c) => cellsUnderPolygon(landscape, c));
   const groves = grovesOfTiles(sites, clearingTiles);
   const owned = ownedLand(

@@ -407,6 +407,7 @@ export class PlacementController implements ActivePlacement {
             mode.craft,
             position,
             dwellingShape({ type: mode.type, position }),
+            mode.type,
           ).map((polygon) => polygon.map(([x, z]): Point => [x, z]))
         : [rectCorners(position, rect)];
     for (const corners of outlines) {

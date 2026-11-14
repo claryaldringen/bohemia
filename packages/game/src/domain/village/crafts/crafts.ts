@@ -23,6 +23,7 @@ import {
 import { FORGE, REFINE, SMELT, smeltOreKg } from './iron-rates';
 import { dugMaterialFactor } from '../core/premium-effects';
 import { workshopSkill } from './craft-skill';
+import { isHouseType } from '../buildings/log-house';
 import { isPlainShape, shapedFootprint, type DwellingShape } from '../buildings/dwelling-shape';
 import { rectangleCorners, type Point } from '../placement/polygon';
 import { NO_CRAFTS, dailyMinPerHousehold } from '../core/productivity';
@@ -33,7 +34,6 @@ import {
   CHARCOAL_KILN,
   CRAFTS,
   CLAY,
-  CRAFT_BASE,
   CRAFT_NEEDS,
   CRAFT_PRODUCTION,
   DWELLINGS,
@@ -43,12 +43,14 @@ import {
   SMITH_SUPPLY,
   WOOD_TOOLS,
   WORKSHOP_PORCH_M,
+  WORKSHOP_SIDE_M,
 } from '../rules';
 import type {
   Craft,
   CraftCoverage,
   CraftStocks,
   Dwelling,
+  DwellingType,
   LaborTarget,
   OreSite,
   Position,
@@ -1478,14 +1480,22 @@ export function workCrafts(
 /**
  * Půdorys dílny ve světě: obydlí řemesla (u hrnčíře, kováře a tesaře prodloužené o přístřešek
  * vpředu; uhlíř jen zemnice – milíř je samostatná stavba u dávky buků, crafts.md – Milíř
- * u skácených buků) – nesmí se překrývat s jinou stavbou.
+ * u skácených buků) – nesmí se překrývat s jinou stavbou. U nadzemní dílny (`type` vypletený nebo
+ * roubený – workshops.md) jeden obdélník: dům rozšířený o přístřešek u pravé boční stěny
+ * (`WORKSHOP_SIDE_M[craft]` na +x domu).
  */
 export function workshopFootprints(
   craft: Craft,
   position: Position,
   shape: DwellingShape,
+  type: DwellingType,
 ): Point[][] {
-  const type = CRAFT_BASE[craft];
+  if (isHouseType(type)) {
+    const side = WORKSHOP_SIDE_M[craft];
+    const { width, depth, centerZ } = shapedFootprint(type, shape);
+    const [cx, cz] = buildingLocalToWorld(position, side / 2, centerZ);
+    return [rectangleCorners(cx, cz, width + side, depth, position.rotation)];
+  }
   const porch = WORKSHOP_PORCH_M[craft];
   if (isPlainShape(shape)) {
     const { width, depth } = DWELLING_FOOTPRINT_M[type];
@@ -1496,4 +1506,9 @@ export function workshopFootprints(
   const { width, depth, centerZ } = shapedFootprint(type, shape, porch);
   const [cx, cz] = buildingLocalToWorld(position, 0, centerZ);
   return [rectangleCorners(cx, cz, width, depth, position.rotation)];
+}
+
+/** Hloubka přístřešku nadzemní dílny u boční stěny (m); u dílny na jiném typu 0. */
+export function workshopSideM(craft: Craft, type: DwellingType): number {
+  return isHouseType(type) ? WORKSHOP_SIDE_M[craft] : 0;
 }

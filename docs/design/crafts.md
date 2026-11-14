@@ -56,6 +56,9 @@ Vzhled podle Martina (modely se připravují v `tools/blender/`):
 | Kovář  | polozemnice | totéž, pod střechou výheň a kovadlina                     |
 | Uhlíř  | zemnice     | zelená střecha krytá mechem; milíř stojí u skácených buků |
 
+Od roku 750 (vypletená) a 800 (roubená) jde dílnu postavit i nadzemní – viz
+[workshops.md](workshops.md).
+
 - **Dílna je zároveň obydlí** (Martin): bydlí v ní domácnost a ta řemeslo provozuje. Stavba
   stojí jako základní obydlí + **30 % navíc** za pec nebo výheň (návrh Clauda), dřevo podle
   [lesa](forest.md) (také + 30 %). **Uhlíř stojí jako zemnice** (návrh Clauda, 20. 10. 2026):

@@ -222,7 +222,8 @@ export function availableSettlers(state: VillageState, day: number): number {
       c.kind === 'dwelling' &&
       c.dwellingId === null &&
       c.relocates === undefined &&
-      (c.dwellingType === null || !isHouseType(c.dwellingType)),
+      // nadzemní dílna (s `craft`) je dílna – čeká na ni rodina jako na dnešní
+      (c.craft !== undefined || c.dwellingType === null || !isHouseType(c.dwellingType)),
   ).length;
   const empty = state.dwellings.filter(
     (d) => occupants(state, d.id).length === 0 && !isDisused(d) && !isLogHouse(d),

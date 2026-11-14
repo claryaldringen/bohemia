@@ -712,7 +712,7 @@ export function decideRebuilds(
     const plan = planDwellingWood(state, type, site?.position ?? d.position, day, {
       obstacles,
       ...(walk ? { walk } : {}),
-      ...(craft ? { trees: workshopTrees(craft) } : {}),
+      ...(craft ? { trees: workshopTrees(craft, d.type) } : {}),
       ...(site
         ? { clearedTrees: site.check.clearedTrees, clearedIds: site.check.obstacleIds }
         : {}),
@@ -724,7 +724,7 @@ export function decideRebuilds(
       kind: 'rebuild',
       startedDay: day,
       cost:
-        (craft ? workshopBuildLabor(craft) : dwellingBuildLabor(type)) +
+        (craft ? workshopBuildLabor(craft, type) : dwellingBuildLabor(type)) +
         (site?.check.obstacleCost ?? 0) +
         woodFellingCost(wood),
       done: 0,

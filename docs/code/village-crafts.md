@@ -183,7 +183,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 - **Tesař a vozy** ([wagons.md](../design/wagons.md) – fáze 1, Martin 19. 10. 2026; čísla
   `CARPENTRY`, `WOODWORK_LABOR`, `CARPENTER_TOOLS_WORK`, `WOOD_TOOLS`, `WOOD_TOOLS_LABOR`, `CARTS`,
   v `rules*.ts`, rešerše `research/2026-10-19-carts-carpentry.md`): řemeslo
-  `carpenter` (polozemnice + přístřešek, [T], ikona `tesar`) – `carpentry.ts`. Krok práce
+  `carpenter` (polozemnice + přístřešek, [T], ikona `tesar`) – `carpentry.ts`. **Nadzemní dílna**
+  (workshops.md – vypletená od 750, roubená od 800; ceny, půdorys a obsazení v
+  [village-buildings.md](village-buildings.md) – Nadzemní dílny). Krok práce
   (`simulate.ts`): `restingCarpenters` (odpočívá jen bez výroby i bez stavby s dřevěnou prací),
   `carpentryHelp` před stavbami (čd tesaře vede `crew` čd dřevěné práce dne – `woodworkToday`
   rozdělí práci rovným dílem jako `build`; jeho práce jde do staveb a `build` s pokrytím násobí

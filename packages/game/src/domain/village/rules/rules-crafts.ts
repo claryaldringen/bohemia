@@ -242,22 +242,61 @@ export const WORKSHOP_PORCH_M: Readonly<Record<Craft, number>> = {
 // nádobami; při částečném se den zkažení posouvá poměrně (pokrytí × dny od 1. 3. do 1. 5.)
 export const APPLE_POTTERY_KEEP_DAY = { month: 5, day: 1 } as const;
 
+// workshops.md – Nadzemní dílna (Rozhodnutí 3, návrh Clauda): pultový přístřešek stojí u pravé boční
+// stěny nadzemního domu (+x v osách domu) a je od ní tak hluboký (m) – hloubka dnešního přístřešku
+// hrnčíře, kováře a tesaře, u uhlíře menší (volná hromada dřeva pod pultovou střechou)
+export const WORKSHOP_SIDE_M: Readonly<Record<Craft, number>> = {
+  potter: 3.2,
+  smith: 3.2,
+  carpenter: 3.2,
+  burner: 2,
+};
+
+/** Je typ obydlí nadzemní dům dílny (vypletený nebo roubený)? Pravidla sem nemohou z buildings. */
+function isOvergroundType(type: DwellingType): boolean {
+  return type === 'vypleteny' || type === 'srub';
+}
+
+/**
+ * Přirážka dílny k domu dílny (workshops.md – Rozhodnutí 2, návrh Clauda): dnešní cena dílny
+ * mínus cena základního obydlí – člověkodny i stromy. U uhlíře 0. Přístřešek stojí u každé
+ * varianty stejně.
+ */
+export function workshopShelter(craft: Craft): { manDays: number; trees: number } {
+  const base = CRAFT_BASE[craft];
+  return {
+    manDays: workshopCostOf(craft, base) - DWELLINGS[base].cost,
+    trees: workshopTreesOf(craft, base) - DWELLING_TREES[base],
+  };
+}
+
+function workshopCostOf(craft: Craft, type: DwellingType): number {
+  return Math.round(DWELLINGS[type].cost * (1 + workshopExtra(craft)));
+}
+
+function workshopTreesOf(craft: Craft, type: DwellingType): number {
+  return Math.round(DWELLING_TREES[type] * (1 + workshopExtra(craft)));
+}
+
 /**
  * Práce na řemeslné dílně celkem (u blízkého lesa) – základní obydlí + 30 %, uhlíř jako zemnice
- * (crafts.md – Budovy).
+ * (crafts.md – Budovy). Nadzemní dílna (`type` vypletený nebo roubený, workshops.md) stojí dům
+ * toho typu + přirážku za přístřešek.
  */
-export function workshopCost(craft: Craft): number {
-  return Math.round(DWELLINGS[CRAFT_BASE[craft]].cost * (1 + workshopExtra(craft)));
+export function workshopCost(craft: Craft, type: DwellingType = CRAFT_BASE[craft]): number {
+  if (!isOvergroundType(type)) return workshopCostOf(craft, type);
+  return DWELLINGS[type].cost + workshopShelter(craft).manDays;
 }
 
 /** Dřevo řemeslné dílny (stromy) – základní obydlí + 30 %, uhlíř jako zemnice (crafts.md). */
-export function workshopTrees(craft: Craft): number {
-  return Math.round(DWELLING_TREES[CRAFT_BASE[craft]] * (1 + workshopExtra(craft)));
+export function workshopTrees(craft: Craft, type: DwellingType = CRAFT_BASE[craft]): number {
+  if (!isOvergroundType(type)) return workshopTreesOf(craft, type);
+  return DWELLING_TREES[type] + workshopShelter(craft).trees;
 }
 
 /** Práce na dílně bez dřeva – cena dílny minus kácení jejích stromů u blízkého lesa. */
-export function workshopBuildLabor(craft: Craft): number {
-  return workshopCost(craft) - workshopTrees(craft) * FELLING_MAN_DAYS_PER_TREE;
+export function workshopBuildLabor(craft: Craft, type: DwellingType = CRAFT_BASE[craft]): number {
+  return workshopCost(craft, type) - workshopTrees(craft, type) * FELLING_MAN_DAYS_PER_TREE;
 }
 
 // wagons.md – Tesař (Martin 19. 10. 2026: tesař vyrábí vozy, dřevěné nářadí a výrazně zrychlí

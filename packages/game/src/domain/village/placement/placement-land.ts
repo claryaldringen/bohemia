@@ -50,6 +50,7 @@ import { distanceToSquare } from '../buildings/cemetery';
 import { dwellingGatePoint } from '../paths/network';
 import { foundingCostPerHa } from '../core/productivity';
 import { kilnCircle } from '../crafts/charcoal';
+import { workshopSideM } from '../crafts/crafts';
 import { pointsBounds, squareCenter, squareKey } from './square-grid';
 import { threshingFloorFootprint } from '../fields/threshing-floors';
 import { churchyardWorld } from './church-plot';
@@ -512,15 +513,16 @@ export function squareFreeArea(landscape: Landscape, taken: readonly TakenLand[]
  * a střechou předsazenou před štíty); dílna stejně (milíř uhlíře je samostatná stavba – crafts.md,
  * Milíř u skácených buků). Tolik obydlí sebere z polí a sadů; podle ní scéna pod domem nekreslí
  * obilí ani jabloně. `margin` (m) plochy rozšíří – v lese pruh pod korunami
- * (FOREST_CROWN_MARGIN_M).
+ * (FOREST_CROWN_MARGIN_M). `sideM` je přístřešek nadzemní dílny u boční stěny (workshops.md).
  */
 export function freeDwellingClearings(
   type: DwellingType,
   position: Position,
   shape: DwellingShape,
   margin = 0,
+  sideM = 0,
 ): Point[][] {
-  return [dwellingClearing(type, position, shape, margin)];
+  return [dwellingClearing(type, position, shape, margin, sideM)];
 }
 
 /**
@@ -530,7 +532,8 @@ export function freeDwellingClearings(
  */
 export function forestClearingsOf(
   building:
-    (ShapedDwelling & { position: Position }) | { sacred: SacredBuildingKind; position: Position },
+    | (ShapedDwelling & { position: Position; craft?: Craft })
+    | { sacred: SacredBuildingKind; position: Position },
 ): Point[][] {
   if ('sacred' in building) return [sacredCrowned(building.sacred, building.position)];
   return freeDwellingClearings(
@@ -538,6 +541,7 @@ export function forestClearingsOf(
     building.position,
     dwellingShape(building),
     FOREST_CROWN_MARGIN_M,
+    building.craft ? workshopSideM(building.craft, building.type) : 0,
   );
 }
 

@@ -32,6 +32,27 @@ Martin 14. 11. 2026:
 - Staví hráč a správce jako dnešní dílny. Dosloužilá nadzemní dílna se přestaví na stejnou
   variantu (jako nadzemní dům).
 - Výroba dílny se variantou nemění – mění se jen bydlení (návrh Clauda).
+- **Cena** (návrh Clauda): přirážka dílny proti polozemnici (66 čd a 5 stromů; uhlíř bez
+  přirážky) se k domu přičte u každé varianty stejně.
+
+  | Řemeslo              | Dnešní dílna      | Vypletená (od 750) | Roubená (od 800)  |
+  | -------------------- | ----------------- | ------------------ | ----------------- |
+  | hrnčíř, kovář, tesař | 286 čd, 23 stromů | 326 čd, 19 stromů  | 366 čd, 33 stromů |
+  | uhlíř (bez přirážky) | 60 čd, 7 stromů   | 260 čd, 14 stromů  | 300 čd, 28 stromů |
+
+  Práce bez dřeva vychází na 288 / 300 čd u hrnčíře, kováře a tesaře a 232 / 244 čd u uhlíře.
+  Kapacita, životnost, dětská úmrtnost, chátrání prázdné dílny a podíl tesaře se berou podle typu.
+
+- **Přístřešek vedle domu** (návrh Clauda): pultový přístřešek u pravé boční stěny (+x v osách
+  domu), 6 m podél ní, hluboký 3,2 m (hrnčíř, kovář, tesař) nebo 2 m (uhlíř). Půdorys dílny je
+  dům rozšířený o přístřešek, vyklízená plocha se posune o totéž; dílna stojí bez pozemku.
+- **Kdo v dílně bydlí** (návrh Clauda): platí pro ni pravidla dílny, ne nadzemního domu z pořadí –
+  osídlí ji rodina jako dnešní dílnu, přednost mají dočasně ubytovaní. Rozestavěná nadzemní dílna
+  se počítá mezi stavby, na které čeká rodina, ne mezi nadzemní domy správce.
+- **Přestavba** (návrh Clauda): dosloužilá dílna se přestaví na týž typ za cenu dílny toho typu.
+- **Správce** (návrh Clauda): zkouší typy od nejlepšího, který už jde (od 800 roubená, od 750
+  vypletená), a nakonec dnešní dílnu; postaví první, na kterou má cenu předem a místo – vypletená
+  chce méně dřeva než dnešní dílna.
 
 ## Uhlíř – zemnice u milíře
 

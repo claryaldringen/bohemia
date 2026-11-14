@@ -49,7 +49,7 @@ export function dwellingFireChance(
 function footprints(d: Dwelling): Point[][] {
   const shape = dwellingShape(d);
   return d.workshop
-    ? workshopFootprints(d.workshop.craft, d.position, shape)
+    ? workshopFootprints(d.workshop.craft, d.position, shape, d.type)
     : [dwellingFootprint(d.type, d.position, shape)];
 }
 

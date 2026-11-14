@@ -536,16 +536,19 @@ function localToWorld(position: Position, lx: number, lz: number): Point {
 
 /**
  * Plocha, kterou osadníci kolem obydlí vyklidí (staveniště) – rohy ve světě. `margin` (m) ji
- * rozšíří na všechny strany (v lese pruh pod korunami – FOREST_CROWN_MARGIN_M).
+ * rozšíří na všechny strany (v lese pruh pod korunami – FOREST_CROWN_MARGIN_M). `sideM` (m) ji
+ * prodlouží na +x domu o přístřešek nadzemní dílny (workshops.md).
  */
 export function dwellingClearing(
   type: DwellingType,
   position: Position,
   shape: DwellingShape,
   margin = 0,
+  sideM = 0,
 ): Point[] {
   // varianta rozměrů (population.md – Varianty rozměrů): staveniště roste s domem, šíje ne
-  const c = shapeRect(shapeFrame(type, shape), DWELLING_CLEARING_M[type]);
+  const shaped = shapeRect(shapeFrame(type, shape), DWELLING_CLEARING_M[type]);
+  const c = sideM > 0 ? { ...shaped, maxX: shaped.maxX + sideM } : shaped;
   return [
     localToWorld(position, c.minX - margin, c.minZ - margin),
     localToWorld(position, c.maxX + margin, c.minZ - margin),

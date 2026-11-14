@@ -49,7 +49,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   i v `apps/web/components/**/*.ts`.
 - **Web:** server actions `app/game/actions.ts` (`getVillageView`, `selectVillage`, `foundVillage`,
   `placeDwelling`, `cancelConstruction`, `leaveVillage`,
-  `settleJourney`, `placeWorkshop`,
+  `settleJourney`, `placeWorkshop` (vstup `{ craft, position, type? }` – `type` `vypleteny` | `srub` je nadzemní dílna, `parsePlaceWorkshopInput`; nabídka staveb nese `BuildOption.variants.vypleteny` / `.srub` s cenou a rokem),
   `placeField`, `placeCemetery`, `placeOrchard`, `placeSacred`, `placePen`,
   `buildTrail`, `sendExpedition`, `declareHunt`, `renameVillage`, `nameLineMan` → `VillageView` / `null` / `{ error }`; `restartGame(input?)` → `{ ok: true }` /
   `{ error }`). **Každá akce nad vsí nese `villageId`** (UUID – `villageIdOf` v
@@ -608,8 +608,7 @@ místa to jsou a moci je také označit.“ ([paths.md – Síť – kotvy](../d
   `dwelling:` / `site:` obydlí – „Obydlí – polozemnice“, jinak `site:` humno; hřbitov, ohrada,
   humno, modla a svatyně – `sacred`, obilná jáma, pole, sad, posvátný dub, háj, milíř); voda, les,
   louka a pastva bez výběru (voda se jmenuje „Potok“, u řeky „Řeka“ – klíč kotvy `water:river`,
-  `waterKindAt` v `paths/road-anchors.ts`: řeka, je-li nejbližší vodou řeka mapy; D44, Martin
-  14. 11. 2026: „teče tam přece potok“); jiná cesta → id cesty hráče (`roadChainIds`). `VillageRoad.ends`
+  `waterKindAt` v `paths/road-anchors.ts`: řeka, je-li nejbližší vodou řeka mapy; D44, Martin 14. 11. 2026: „teče tam přece potok“); jiná cesta → id cesty hráče (`roadChainIds`). `VillageRoad.ends`
   počítá `roadViews` (`village-view-roads.ts`); tam jsou i `JUNCTION_NAMES` / `JUNCTION_ICONS`.
 - **Panel** – `RoadEndIcon` (`selection/roads.tsx`) na začátku prvního řádku `RoadBody`: s cílem
   `TargetButton` (klik → `onSelectTarget`), kraj mapy šipka směru (`DIRECTION_NAMES`), nikam

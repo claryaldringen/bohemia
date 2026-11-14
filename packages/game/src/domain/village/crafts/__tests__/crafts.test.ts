@@ -583,7 +583,7 @@ describe('umístění dílny (crafts.md – Budovy)', () => {
     expect(checkDwellingPlacement(water, null, 'zemnice', HOUSE, empty).ok).toBe(true);
     expect(checkWorkshopPlacement(water, null, 'smith', HOUSE, empty).ok).toBe(true);
     expect(checkWorkshopPlacement(water, null, 'burner', HOUSE, empty).ok).toBe(true);
-    expect(workshopFootprints('burner', HOUSE, PLAIN_SHAPE)).toHaveLength(1);
+    expect(workshopFootprints('burner', HOUSE, PLAIN_SHAPE, 'zemnice')).toHaveLength(1);
   });
 
   it('jiné obydlí se nesmí překrývat s milířem – milíř je samostatná stavba', () => {

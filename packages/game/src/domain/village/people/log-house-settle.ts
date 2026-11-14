@@ -18,10 +18,11 @@ import type { Dwelling, Person, VillageState } from '../types';
 
 /**
  * Je obydlí nadzemní dům – vypletený (`vypleteny`) nebo srub (`srub`)? Dvorec od roku 800
- * (`dvorec-srub`) ne – to je dvorec.
+ * (`dvorec-srub`) ne – to je dvorec. Nadzemní dílna (workshops.md) taky ne – bydlí v ní rodina
+ * řemeslníka jako v dnešní dílně.
  */
 export function isLogHouse(dwelling: Dwelling): boolean {
-  return isHouseType(dwelling.type);
+  return isHouseType(dwelling.type) && dwelling.workshop === undefined;
 }
 
 /** Je `dwelling` prázdný nadzemní dům, který jde osídlit (v provozu, bez dílny)? */
@@ -29,7 +30,6 @@ export function isEmptyLogHouse(state: VillageState, dwelling: Dwelling): boolea
   return (
     isLogHouse(dwelling) &&
     !isDisused(dwelling) &&
-    dwelling.workshop === undefined &&
     !state.people.some((p) => p.dwellingId === dwelling.id)
   );
 }
