@@ -3,7 +3,7 @@ import type { Camera } from '@babylonjs/core/Cameras/camera';
 import type { Scene } from '@babylonjs/core/scene';
 import { surfaceAt, type Landscape } from '@bohemia/game';
 import { ArmyRenderer, type SceneWar } from './army-renderer';
-import type { JourneyScenePhase, JourneyYard } from './journey-departure';
+import type { ChoreoPeople, ExpeditionScenePhase, ExpeditionYard } from './expedition-choreo';
 import {
   JourneyMarker,
   journeyMarks,
@@ -35,8 +35,9 @@ export class SceneWarView {
   private journeys: readonly SceneJourney[] = [];
   /** Praporek cíle vlastního výjezdu (journey-marker.ts). */
   private marker: JourneyMarker | null = null;
-  /** Místa dvorce pro odjezd a příjezd výjezdu (journey-departure.ts). */
-  private yard: JourneyYard | null = null;
+  /** Místa dvorce pro odjezd a příjezd výjezdu (expedition-choreo.ts). */
+  private yard: ExpeditionYard | null = null;
+  private people: ChoreoPeople | null = null;
   /** Vybraná osoba vsi – kroužek výběru pod ní, je-li mužem vlastního výjezdu. */
   private selectedMen: readonly number[] = [];
   /** Stopa rodu pro mlhu cizí mapy výjezdu; null – bez mlhy výjezdu (army-renderer.ts). */
@@ -63,7 +64,8 @@ export class SceneWarView {
     });
     this.marker?.dispose();
     this.marker = new JourneyMarker(this.deps.scene, decalHeight);
-    this.army.setJourneyYard(this.yard);
+    this.army.setExpeditionYard(this.yard);
+    this.army.setChoreoPeople(this.people);
     this.army.selectJourneyMen(this.selectedMen);
     if (this.war) this.army.set(this.war, Date.now(), this.deps.reducedMotion(), null);
     if (this.journeys.length > 0) {
@@ -114,12 +116,18 @@ export class SceneWarView {
   }
 
   /**
-   * Místa dvorce pro odjezd a příjezd výjezdu (villager-plan-lord.ts – `journeyYard`); domov, od
-   * kterého se odjezd a příjezd měří, nese výjezd ze serveru (journey-departure.ts).
+   * Místa dvorce pro odjezd a příjezd výjezdu (villager-plan-lord.ts – `expeditionYard`); domov, od
+   * kterého se odjezd a příjezd měří, nese výjezd ze serveru (expedition-choreo.ts).
    */
-  setJourneyYard(yard: JourneyYard | null): void {
+  setExpeditionYard(yard: ExpeditionYard | null): void {
     this.yard = yard;
-    this.army?.setJourneyYard(yard);
+    this.army?.setExpeditionYard(yard);
+  }
+
+  /** Postavy vsi, ze kterých scénáře výprav začínají (villagers.ts). */
+  setChoreoPeople(people: ChoreoPeople | null): void {
+    this.people = people;
+    this.army?.setChoreoPeople(people);
   }
 
   /**
@@ -134,8 +142,8 @@ export class SceneWarView {
   }
 
   /** Koně a muži vsi, kteří odjíždějí nebo přijíždějí – ohrada a den rodiny je nekreslí. */
-  journeyAway(): { horses: number[]; men: number[] } {
-    return this.army?.journeyAway() ?? { horses: [], men: [] };
+  journeyAway(): { horses: number[]; men: number[]; hidden: number[] } {
+    return this.army?.journeyAway() ?? { horses: [], men: [], hidden: [] };
   }
 
   /**
@@ -145,8 +153,9 @@ export class SceneWarView {
   journeyStats(): {
     riders: readonly RiderPose[];
     banner: { x: number; z: number } | null;
-    phase: JourneyScenePhase | null;
+    phase: ExpeditionScenePhase | null;
     led: { x: number; z: number }[];
+    groom: { x: number; z: number } | null;
     gate: { x: number; z: number } | null;
     selected: { x: number; z: number } | null;
   } {
@@ -156,6 +165,7 @@ export class SceneWarView {
       ...marks,
       phase: this.army?.journeyPhase() ?? null,
       led: (this.army?.journeyLed() ?? []).map((h) => ({ x: h.x, z: h.z })),
+      groom: this.army?.journeyGroom() ?? null,
       gate: this.yard ? { ...this.yard.gate } : null,
       selected: this.army?.journeyRing() ?? null,
     };

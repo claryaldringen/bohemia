@@ -568,7 +568,7 @@ mapSizeM, cell })` (čistá funkce) – bez vybraných lidí nebo mimo terén nu
   (`expedition/saddle.png`), Sesednout (`expedition/dismount.png`), Domů (`war/alarm-return.png`);
   jen ikony, název a důvod zašedlí v `Tooltip`. Co se ukáže, určuje `expeditionButtons(people)`
   v `lib/expedition-buttons.ts` (`ExpeditionPersonState` = `{ personId, rider, mounted, horse,
-  inParty, atHomeMap, horseWork }`, `ButtonState` = `'hidden' | 'enabled' | { disabled }`): Osedlat
+inParty, atHomeMap, horseWork }`, `ButtonState` = `'hidden' | 'enabled' | { disabled }`): Osedlat
   – je-li vybraný jezdec, který nesedí; zašedlé „Kůň je doma.“, když všichni takoví jsou mimo
   domovskou mapu a kůň je v ohradě, nebo „Skupina právě sedlá.“; Sesednout – sedí-li někdo na koni;
   Domů – je-li někdo ve skupině. Stav člověka skládá `expeditionPersonState` z `PartyView` (člen
@@ -633,7 +633,7 @@ mapSizeM, cell })` (čistá funkce) – bez vybraných lidí nebo mimo terén nu
 - **Den rodiny** – muž na výjezdu (`away: journey`) není v `SceneLord.trainees` (`sceneLord`
   v `village-view-scene.ts`), takže ho scéna nekreslí na dvorku ani na cvičišti; kreslí ho jako
   jezdce výjezdu. Ostatní nepřítomní (tažení…) zůstávají jako dosud.
-- **Odjezd a příjezd** – viz níž (Úloha 8c).
+- **Sedlání, připojení a návrat** – viz níž (Úloha 11).
 - **e2e** – háček `journeyScene` (`lib/e2e-hooks.ts`: muži, jak jsou nakreslení, praporek);
   `e2e/journey.spec.ts` druhý test – dva hráči, jezdci jedou, praporek u cíle (zůstává při čekání), cizí výjezd u vsi (bod checkpointu přepsaný v DB)
   a klik na něj. `JOURNEY_SHOT=<cesta>` uloží snímek. E2e běží s omezeným pohybem (`reducedMotion`)
@@ -644,52 +644,59 @@ mapSizeM, cell })` (čistá funkce) – bez vybraných lidí nebo mimo terén nu
 - **Testy** – `lib/scene/__tests__/journey-riders.test.ts`, `journey-marker.test.ts`,
   `lib/__tests__/journey-scene.test.ts`, `hooks/__tests__/use-journey-visitors.behavior.test.tsx`.
 
-## Odjezd a příjezd (Úloha 8c – `apps/web`)
+## Sedlání, připojení a návrat (výpravy – plán 2026-11-14, Úloha 11 – `apps/web`)
 
-Jen podívaná ve scéně vsi (lord-control.md – Ve scéně) – server o odjezdu ani příjezdu neví,
-výsledek výjezdu se jimi nemění.
+Jen podívaná ve scéně vsi (expeditions.md – Ve scéně) – server o ničem z toho neví, jádro počítá
+s časem `untilTick`. Nic se „neodjíždí z dvorce“: výprava vyjíždí odkudkoli, kde stojí její
+hlouček. Nahradilo dřívější odjezd a příjezd výjezdu vojvody z dvorce.
 
-- **Logika** `lib/scene/journey-departure.ts` (čistá, výkonový čas jako `JourneyGlide`):
-  `departureScripts` – muži vycházejí z vchodu dvorce po sobě (0,8 s), jezdec jde k místu vedle
-  svého koně u kůlu, kůň k němu dojde z ohrady stejným strojem jako před jízdou dne rodiny
-  (`riders.ts` – `leadPath`, `leadPose`, `LEAD_M_S` 1,2 m/s, `LEAD_WAIT_S` 10 s), jezdec nasedne
-  (nejdřív 10 s po příchodu koně) a jede krokem k bráně; pěší jde k bráně rovnou. Za branou
-  `JourneyLeave` – `catchUp`: muž jede se skupinou ze serveru a odstup od svého místa v hloučku
-  stahuje tempem `CATCH_M_S` (pěší 3 m/s, jezdec 4,5 m/s – návrh Clauda) – svižněji, plynule,
-  na konci přesně ve stavu `JourneyGlide`. `arrivalScripts` – opačně: z místa, kde jsou muži
-  nakreslení, k bráně, jezdec krokem ke kůlu a sesedne, kůň jde krokem do ohrady a u branky vejde,
-  muži vejdou vchodem do dvorce.
-- **Kdy** (`JourneyLeave.observe` – ze stavů ze serveru, ne z paměti prohlížeče): odjezd jen
-  čerstvě vyslaného vlastního výjezdu – při prvním pohledu je `phase: 'out'`, skupina jede
-  (`arrived: false`) a stojí nejvýš `FRESH_M` (30 m) od domova výjezdu, odkud ji jádro vysílá
-  (`SceneJourney.home` z `JourneyView.homePos` – dvorec; scéna místo vsi sama nepočítá, ves nemusí
-  stát na místě vsi krajiny); načtení stránky uprostřed výjezdu tak odjezd
-  nepřehraje. Příjezd začne, když se vracející skupina přiblíží k domovu na `ARRIVE_M` (30 m),
-  nebo když vlastní výjezd ze scény zmizí po fázi `returning` či nejvýš `HOME_REACH_M` (150 m)
-  od domova – worker ukládá kontrolní bod stojící skupiny po 10 s, krátký návrat tak scéna ve fázi `returning`
-  vůbec nemusí uvidět; skupina, která odjela přes okraj mapy, zmizí u okraje. Skončí, až jsou
-  všichni v dvorci, koně v ohradě a výjezd ve scéně není. Omezený pohyb obojí přeskočí (muži stojí, kde je ukáže server). Cizí
-  výjezdy z dvorce nevyjíždějí.
-- **Místa** – `journeyYard(ctx)` (`villager-plan-lord.ts`, v plánu postav → `DraftCrew.yard` →
-  `VillageVillagers.yard()` → `onCrew` → `SceneWarView.setJourneyYard` s místem vsi): vchod obydlí
-  cvičiště (`manorDoor`), brána dvorce (`TrainingGround.gate` – uprostřed konce dvora, zemnice bez
-  pozemku: kůl na koně), koně jezdců u kůlu vedle sebe (`hitchSpot`, vojvodův první) s cestou
-  z branky ohrady (`leadGate` + `leadPath`, po pěšinách). Bez cvičiště (zemnice, kde rodina dnes
-  necvičí) se nic nepřehrává.
-- **Kreslení** – `ArmyRenderer`: `JourneyLeave.at` nahradí stavy `JourneyGlide` u výjezdu, který
-  odjíždí nebo přijíždí; kůň bez jezdce je zvíře vojska (`journeyFigures(poses, led)`) – žádný mesh
-  ani vertex buffer navíc. `LandscapeScene` – koně mezi ohradou a kůlem ohrada nekreslí
-  (`journeyAway().horses` do `setRidingHorses`), muže, kteří přijíždějí, den rodiny nekreslí
-  (`withoutMen` – jako muže na výjezdu), dokud příjezd neskončí; pak je převezme den rodiny.
-- **e2e** – háček `journeyScene` hlásí `phase` (`departing` / `riding` / `arriving`), koně bez jezdce
-  (`led`), bránu (`gate`) a koně mimo ohradu (`awayHorses`); `e2e/journey.spec.ts` třetí test bez
-  omezeného pohybu – dvorec a ohrada koní v uloženém stavu, kůň opustí ohradu, vojvoda na koni
-  projede branou, po Domů přijede a kůň je zpět v ohradě. `JOURNEY_DEPARTURE_SHOT=<cesta>` uloží
-  snímek odjezdu.
-- **Testy** – `lib/scene/__tests__/journey-departure.test.ts` (pořadí kroků, pěší, dohánění bez
-  skoku, příjezd opačně, omezený pohyb, načtení uprostřed výjezdu, brána dvorce).
-- **Známé omezení** – rozkaz ven během příjezdu (skupina u vsi se znovu otočí) příjezd nepřeruší –
-  muži dojedou do dvorce a výjezd se pak ukáže, kde je podle serveru.
+- **Logika** `lib/scene/expedition-choreo.ts` (čistá, výkonový čas v ms jako `JourneyGlide`;
+  `ChoreoContext` dává `yard`, `nowMs`, `figureAt`, `riderAt`, `adultNear`):
+  - `horseWorkScript(work, ctx, tickMs)` – **sedlání:** vesničan `groomId` od své postavy
+    (`figureAt`, jinak vchod jeho obydlí `entryOf`) k brance ohrady prvního koně, koně vyjdou a jdou
+    za ním po `leadPath` k jezdcům (jak jsou nakreslení – `riderAt`), jezdci nasednou v `untilTick`
+    (`Seat`). Bez vesničana (`groomId` null) jde každý jezdec pro koně sám (`Actor.replaces`).
+    **Sesednutí:** vesničan k jezdcům do `untilTick`, ti sesednou, pak vede koně do ohrady
+    (`LedScript.back`) a vrátí se, odkud přišel. **Tempo:** trasa se natáhne nebo stáhne
+    (`tickMs(untilTick) − nowMs`, nejméně 1 s), příchod ke koním a k jezdcům padne na `untilTick`.
+  - `joinScripts(people, ctx)` + `chasePose` – nový člověk jde od místa, kde je jeho postava vsi
+    nakreslená (jinak od vchodu obydlí), na své místo v hloučku tempem `CATCH_M_S` (pěší 3 m/s,
+    jezdec 4,5 m/s – návrh Clauda), odstup se stahuje rovnoměrně, na konci přesně ve stavu
+    `JourneyGlide`.
+  - `arrivalScript(group, ctx)` – hlouček, který zmizí u domova: jezdci (i pěšáci s vedeným koněm)
+    dojdou ke kůlu dvorce a sesednou, koně odvede nejbližší dospělý doma (`adultNear`), jinak
+    jezdec sám, k brance ohrady; ostatní jdou ke vchodu svého obydlí (`entryOf`, jinak vchod
+    dvorce) a vejdou. Vedený kůň se tak doma odevzdá.
+- **Kdy** (`ExpeditionLeave.observe` – po hloučcích, klíč `${journeyId}:${groupId}`, ze stavů
+  ze serveru): **nové `horseWork`** (`SceneJourney.horseWork` z `PartyView.horseWork`) → scénář, jen
+  když příkaz padl nejvýš 3 s před pohledem a hlouček stojí do `HOME_REACH_M` (150 m) od domova;
+  **noví lidé** (osoba, kterou scéna ještě v žádném hloučku neviděla) u domova → připojení, jakmile
+  je hlouček nakreslí (lhůta 3 s); **hlouček, který u domova zmizel** (poslední fáze `returning`,
+  nebo nejvýš `HOME_REACH_M` od domova), a vracející se hlouček u domova (`ARRIVE_M`, 30 m) →
+  příjezd. První pohled jen zaznamená, co je – načtení stránky uprostřed sedlání nebo výpravy nic
+  nepřehraje. Omezený pohyb scénáře přeskočí (lidé stojí, kde je ukáže server). Cizí hloučky
+  nic nehrají.
+- **Místa** – `expeditionYard(ctx)` (`villager-plan-lord.ts`, v plánu postav → `DraftCrew.yard` →
+  `VillageVillagers.yard()` → `onCrew` → `SceneWarView.setExpeditionYard`): vchod a brána dvorce,
+  koně jezdců u kůlu (`hitchSpot`) s cestou z branky ohrady (`leadGate` + `leadPath`), `gateOf`
+  (branka ohrady koně), `horseOf` (kůň jezdce), `entryOf` (vchod obydlí podle `persons[].home`)
+  a `leg` (pěšiny). Bez cvičiště (zemnice) se nic nepřehrává. Postavy vsi dodává
+  `VillageVillagers.choreoPeople()` (`figureAt` ze `spotOf`, `adultNear` podle měřítka postavy)
+  přes `SceneWarView.setChoreoPeople` → `ArmyRenderer`.
+- **Kreslení** – `ArmyRenderer`: `ExpeditionLeave.at` upraví stavy `JourneyGlide` (jezdci nasedají
+  a sesedají, noví lidé dohánějí, hlouček u domova se rozchází, vesničan vede koně); kůň bez
+  jezdce je zvíře vojska (`journeyFigures(poses, led)`) – žádný mesh ani vertex buffer navíc.
+  `LandscapeScene` – koně ve scénáři ohrada nekreslí (`journeyAway().horses` do `setRidingHorses`),
+  lidi ve scénáři nekreslí postava vsi (`VillageVillagers.setScripted(journeyAway().hidden)` –
+  hned, bez přestavby plánu), muže z příjezdu den rodiny (`withoutMen`), dokud příjezd neskončí.
+- **e2e** – háček `journeyScene` hlásí `phase` (`saddling` / `unsaddling` / `joining` / `riding` /
+  `arriving`), `led` (koně bez jezdce), `groom` (vesničan, který vede koně), bránu (`gate`)
+  a koně mimo ohradu (`awayHorses`). Spec `journey.spec.ts` přepisuje Úloha 12.
+- **Testy** – `lib/scene/__tests__/expedition-choreo.test.ts` (sedlání s vesničanem i bez, tempo,
+  sesednutí, připojení bez skoku, příjezd s dospělým i bez, vedený kůň, načtení uprostřed, omezený
+  pohyb).
+- **Známé omezení** – vesničan vedoucí koně je vždy `man` (pohlaví scéna nezná) a po scénáři se
+  objeví tam, kde ho má plán dne; rozkaz ven během příjezdu příjezd nepřeruší.
 
 ## Scéna cizí mapy (Úloha 9b – `apps/web`)
 
@@ -709,7 +716,7 @@ na mapu jako za vojskem (web-ui.md – Cizí mapa ve scéně).
   z `journey.latest` (`sceneJourneysOf` bez návštěvníků) s praporkem
   (`journey-marker.ts`), stavby `seenVillageOf(seen, krajina)` → `setVillage` – přestaví se jen při
   změně znalosti (`seenSceneKey`: ves, klíč a den každé stavby). Odjezd ani příjezd se tu nekreslí
-  (scéna nemá dvorec – `setJourneyYard` se nevolá). Kamera poprvé na skupinu (R se k ní vrací).
+  (scéna nemá dvorec – `setExpeditionYard` se nevolá). Kamera poprvé na skupinu (R se k ní vrací).
   Rozhraní vlevo nahoře: ⌂ (`foreign-back`), portrét vojvody (`LordAwayBadge`, výběr) a tlačítka Osedlat / Sesednout / Domů
   (`ExpeditionButtons`); důvod a „Na sousední mapu“ u kurzoru (`JourneyCursorNote`).
 - **Rozkazy** – `bindForeign({ scene, mapSizeM })` předá `useExpeditionOrders` scénu cizí mapy; režim

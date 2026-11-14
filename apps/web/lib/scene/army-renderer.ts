@@ -69,7 +69,13 @@ import { createBakedFigure, createBlobShadow, type BakedKind } from './plough-te
 import { villagerSeconds } from './villager-motion';
 import { FIGURE_SCALE, fleeWalkAt, drivenHerd, type FleeWalk } from './villager-plan';
 import { alarmAt, alarmFigures, alarmMoving, type SceneAlarm } from './refugee-march';
-import { JourneyLeave, type JourneyScenePhase, type JourneyYard } from './journey-departure';
+import {
+  ExpeditionLeave,
+  type ChoreoContext,
+  type ChoreoPeople,
+  type ExpeditionScenePhase,
+  type ExpeditionYard,
+} from './expedition-choreo';
 import {
   JourneyGlide,
   journeyFigures,
@@ -223,8 +229,11 @@ export class ArmyRenderer {
   private disposed = false;
   /** Výjezdy vojvody na mapě (vlastní i návštěvníci) – jezdci stejnými instancemi jako vojsko. */
   private readonly journeys = new JourneyGlide();
-  /** Odjezd z dvorce a příjezd do něj (journey-departure.ts) – místo stavů `journeys`. */
-  private readonly leave = new JourneyLeave();
+  /** Sedlání, sesednutí, připojení a návrat výprav (expedition-choreo.ts) – upravuje stavy `journeys`. */
+  private readonly leave = new ExpeditionLeave();
+  /** Místa vsi a postavy vsi pro scénáře výprav (null – bez dvorce nic nezačne). */
+  private yard: ExpeditionYard | null = null;
+  private people: ChoreoPeople | null = null;
   /** Koně bez jezdce mezi ohradou a kůlem, jak jsou naposled nakreslení (e2e). */
   private led: ArmyAnimal[] = [];
   /** Muži výjezdů, jak jsou naposled nakreslení (výběr klikem, e2e). */
@@ -371,11 +380,27 @@ export class ArmyRenderer {
   }
 
   /**
-   * Místa dvorce pro odjezd a příjezd výjezdu (villager-plan-lord.ts – `journeyYard`); null – bez
-   * odjezdu (muži se ukážou, kde je ukáže server).
+   * Místa vsi pro scénáře výprav (villager-plan-lord.ts – `expeditionYard`); null – bez scénářů
+   * (lidé se ukážou, kde je ukáže server).
    */
-  setJourneyYard(yard: JourneyYard | null): void {
-    this.leave.setYard(yard);
+  setExpeditionYard(yard: ExpeditionYard | null): void {
+    this.yard = yard;
+    this.leave.setContext(yard ? (nowMs) => this.choreoContext(yard, nowMs) : null);
+  }
+
+  /** Postavy vsi, ze kterých scénáře začínají (kde jsou nakreslené, kdo je dospělý doma). */
+  setChoreoPeople(people: ChoreoPeople | null): void {
+    this.people = people;
+  }
+
+  private choreoContext(yard: ExpeditionYard, nowMs: number): ChoreoContext {
+    return {
+      yard,
+      nowMs,
+      figureAt: (id) => this.people?.figureAt(id) ?? null,
+      riderAt: (id) => this.leave.drawnPose(id),
+      adultNear: (at, skip) => this.people?.adultNear(at, skip) ?? null,
+    };
   }
 
   /**
@@ -401,13 +426,23 @@ export class ArmyRenderer {
   }
 
   /** Fáze vlastního výjezdu ve scéně (odjíždí, jede, přijíždí); žádný – null. */
-  journeyPhase(): JourneyScenePhase | null {
+  journeyPhase(): ExpeditionScenePhase | null {
     return this.leave.ownPhase();
   }
 
-  /** Koně a muži vsi, kteří odjíždějí nebo přijíždějí – ohrada a den rodiny je nekreslí. */
-  journeyAway(): { horses: number[]; men: number[] } {
-    return { horses: this.leave.horsesOut(performance.now()), men: this.leave.menOut() };
+  /** Vesničan, který právě vede koně ve scénáři výprav; žádný – null (e2e). */
+  journeyGroom(): { x: number; z: number } | null {
+    return this.leave.groom();
+  }
+
+  /** Koně a lidé vsi ve scénářích výprav – ohrada, den rodiny a postavy vsi je nekreslí. */
+  journeyAway(): { horses: number[]; men: number[]; hidden: number[] } {
+    const out = this.leave.menOut();
+    return {
+      horses: this.leave.horsesOut(performance.now()),
+      men: out.arriving,
+      hidden: out.hidden,
+    };
   }
 
   /** Muž výjezdu pod kurzorem (CSS px) a vzdálenost průmětu – výběr klikem. */
@@ -619,7 +654,7 @@ export class ArmyRenderer {
       moving ||= alarmMoving(alarm);
     }
     // výjezdy vojvody – každý muž plynule mezi stavy (journey-riders.ts)
-    // – z dvorce a do dvorce odjezdem a příjezdem (journey-departure.ts)
+    // – z dvorce a do dvorce odjezdem a příjezdem (expedition-choreo.ts)
     const perf = performance.now();
     const glide = this.journeys.at(perf, frozen);
     const journey = this.leave.at(glide.poses, perf, frozen);

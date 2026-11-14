@@ -288,6 +288,7 @@ export function sceneJourneysOf(input: {
           phase: party.phase,
           waitDaysLeft: party.waitDaysLeft,
           home: { x: view.homePos.x, z: view.homePos.z },
+          ...(party.horseWork ? { horseWork: structuredClone(party.horseWork) } : {}),
         });
       }
     }

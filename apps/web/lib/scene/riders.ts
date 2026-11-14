@@ -126,7 +126,7 @@ export function withLead(plan: RidePlan, gate: Point | null, leg: RideLeg): Ride
 /**
  * Cesta koně z branky ohrady `gate` k místu `end` u kůlu (po pěšinách `leg`, jinak rovně), u kůlu
  * čelem `heading`; kratší než 0,5 m – null (kůň stojí u kůlu). Stejná cesta před jízdou dne rodiny
- * (`withLead`) i při odjezdu a příjezdu výjezdu vojvody (journey-departure.ts).
+ * (`withLead`) i při odjezdu a příjezdu výjezdu vojvody (expedition-choreo.ts).
  */
 export function leadPath(gate: Point, end: Point, heading: Point, leg: RideLeg): RideLead | null {
   const found = leg(gate, end);
@@ -140,7 +140,7 @@ export function leadPath(gate: Point, end: Point, heading: Point, leg: RideLeg):
 
 /**
  * Kůň na cestě z ohrady ke kůlu `d` m od branky (`back` – jde zpět do ohrady): poloha, směr a krok;
- * na koncích stojí čelem jako u kůlu. Den rodiny (`rideHorsePose`) i výjezd (journey-departure.ts).
+ * na koncích stojí čelem jako u kůlu. Den rodiny (`rideHorsePose`) i výjezd (expedition-choreo.ts).
  */
 export function leadPose(
   lead: RideLead,

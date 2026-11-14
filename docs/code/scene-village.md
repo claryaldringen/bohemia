@@ -740,7 +740,7 @@ Kdo, kdy a na kterém koni jede, určuje jádro (`lordRides` → `SceneLord.ride
   `isLed` – před jízdou krokem `LEAD_M_S` 1,2 m/s a `LEAD_WAIT_S` 10 s u kůlu, po jízdě zpět;
   `isAway` je zahrnuje (ohrada koně nekreslí), `rideHorsePose` kreslí cestu (`leadPose`), `livestock.ts` – `still`.
   Týž stroj (`leadPath`, `leadPose`, `leadGate`) vede koně z ohrady ke kůlu i při odjezdu a příjezdu
-  výjezdu vojvody (journey.md – Odjezd a příjezd; `journeyYard`).
+  výjezdu vojvody (journey.md – Sedlání, připojení a návrat; `expeditionYard`).
   Lov (`huntSpan`) začíná v chvíli výcvikové jízdy cyklu (`rideSlot`), aspoň `HUNT_BRIDGE_S` po
   začátku dne lovu. Jízda k hranici a doprovod se
   do bloku nevejdou – jen vyjedou a vrátí se, neprojedou celou trasu (známé omezení, doprovod

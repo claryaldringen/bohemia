@@ -60,6 +60,7 @@ export function journeySceneHook(scene: LandscapeScene): NonNullable<E2EHooks['j
       banner: stats.banner,
       phase: stats.phase,
       led: stats.led,
+      groom: stats.groom,
       gate: stats.gate,
       awayHorses: stats.awayHorses,
       selected: stats.selected,

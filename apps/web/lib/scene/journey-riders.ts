@@ -3,7 +3,7 @@
 // koních vpředu, pěší za nimi (army.ts – `huddleSlots`). Mezi dvěma stavy ze serveru jde každý muž
 // plynule ze své nakreslené polohy na nové místo v hloučku, ne jen střed skupiny – hlouček se při
 // zatáčce neotočí skokem. Bez Babylonu; kreslí army-renderer.ts.
-import type { JourneyPhase, JourneyView, JourneyVisitor, Pos } from '@bohemia/game';
+import type { HorseWork, JourneyPhase, JourneyView, JourneyVisitor, Pos } from '@bohemia/game';
 import {
   ARMY_LOOKS,
   HUDDLE_SPACING_M,
@@ -65,9 +65,11 @@ export interface SceneJourney extends Pick<
   waitDaysLeft: JourneyView['waitDaysLeft'];
   /**
    * Odkud vlastní výjezd vyjel a kam se vrací (`JourneyView.homePos` – dvorec vsi); od něj se měří
-   * odjezd a příjezd (journey-departure.ts). Návštěvník null.
+   * odjezd a příjezd (expedition-choreo.ts). Návštěvník null.
    */
   home: Pos | null;
+  /** Sedlání nebo sesednutí skupiny doma (scéna ho jen přehraje – expedition-choreo.ts); jinak chybí. */
+  horseWork?: HorseWork;
 }
 
 /** Muž výjezdu nakreslený ve scéně – poloha, směr a rychlost. */
@@ -293,7 +295,7 @@ export function headingOf(prev: SceneJourney | null, next: SceneJourney, last: P
 
 /**
  * Postavy a koně mužů výjezdu – oděv mužů rodu, jezdci s koněm (army.ts – pochod); `led` – koně bez
- * jezdce cestou mezi ohradou a kůlem při odjezdu a příjezdu (journey-departure.ts).
+ * jezdce cestou mezi ohradou a kůlem při odjezdu a příjezdu (expedition-choreo.ts).
  */
 export function journeyFigures(
   poses: readonly RiderPose[],

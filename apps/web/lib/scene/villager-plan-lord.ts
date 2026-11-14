@@ -17,7 +17,7 @@ import {
   type FighterSlot,
   type TraineeDay,
 } from './lord-day';
-import type { JourneyYard, YardHorse } from './journey-departure';
+import type { ExpeditionYard, YardHorse } from './expedition-choreo';
 import { HUNT_PACE } from './rider-route';
 import {
   createRideState,
@@ -70,12 +70,12 @@ function leadGate(ctx: Context, horseId: number): Point | null {
 }
 
 /**
- * Místa dvorce pro odjezd a příjezd výjezdu vojvody (lord-control.md – Ve scéně;
- * journey-departure.ts): vchod obydlí cvičiště, brána dvorce (zemnice bez pozemku – kůl na koně)
- * a koně jezdců vsi u kůlu vedle sebe (vojvodův první) s cestou z ohrady – stejnou jako před jízdou
- * dne rodiny (`leadPath`). Bez cvičiště (zemnice, kde rodina dnes necvičí) null.
+ * Místa vsi pro scénář výprav (expeditions.md – Ve scéně; expedition-choreo.ts): branky ohrad koní
+ * (kam kůň vyjde a vrátí se), vchody obydlí lidí, vchod a brána dvorce a koně jezdců vsi u kůlu
+ * vedle sebe (vojvodův první) s cestou z ohrady – stejnou jako před jízdou dne rodiny (`leadPath`).
+ * Bez cvičiště (zemnice, kde rodina dnes necvičí) null.
  */
-export function journeyYard(ctx: Context): JourneyYard | null {
+export function expeditionYard(ctx: Context): ExpeditionYard | null {
   const ground = trainingGroundOf(ctx.village);
   if (!ground) return null;
   const hitch = hitchSpot(ground);
@@ -94,8 +94,22 @@ export function journeyYard(ctx: Context): JourneyYard | null {
     const heading = { x: spot.headingX, z: spot.headingZ };
     return { riderId, horseId, spot, lead: gate ? leadPath(gate, spot, heading, leg) : null };
   });
+  const homes = new Map((ctx.village.labor?.persons ?? []).map((p) => [p.id, p.home]));
   const door = manorDoor(ctx, ground.home);
-  return { door: { x: door.x, z: door.z }, gate: ground.gate ?? hitch, horses };
+  return {
+    door: { x: door.x, z: door.z },
+    gate: ground.gate ?? hitch,
+    horses,
+    gateOf: (horseId) => leadGate(ctx, horseId),
+    horseOf: (personId) => pairs.find((p) => p.riderId === personId)?.horseId ?? null,
+    entryOf: (personId) => {
+      const home = homes.get(personId);
+      if (home === undefined) return null;
+      const d = manorDoor(ctx, home);
+      return d.x === 0 && d.z === 0 ? null : { x: d.x, z: d.z };
+    },
+    leg,
+  };
 }
 
 /** Ženy rodiny chodí od vchodu nejvýš tak daleko (m) – zůstávají na pozemku dvorce. */

@@ -48,10 +48,12 @@ export interface E2EHooks {
       speed: number;
     }[];
     banner: { x: number; z: number } | null;
-    /** Vlastní výjezd ve scéně: odjíždí z dvorce, jede se skupinou, přijíždí; žádný – null. */
-    phase: 'departing' | 'riding' | 'arriving' | null;
-    /** Koně bez jezdce mezi ohradou a kůlem (odjezd a příjezd). */
+    /** Vlastní výprava ve scéně: sedlá, sesedá, noví lidé se připojují, jede, přijíždí; žádná – null. */
+    phase: 'saddling' | 'unsaddling' | 'joining' | 'riding' | 'arriving' | null;
+    /** Koně bez jezdce mezi ohradou a jezdcem (sedlání, sesednutí, příjezd). */
     led: { x: number; z: number }[];
+    /** Vesničan, který vede koně (sedlání, sesednutí, příjezd); žádný – null. */
+    groom: { x: number; z: number } | null;
     /** Brána dvorce, kudy výjezd vyjíždí; ves bez cvičiště – null. */
     gate: { x: number; z: number } | null;
     /** Id koní, které ohrada teď nekreslí (na jízdě, na výjezdu, cestou mezi ohradou a kůlem). */

@@ -72,7 +72,7 @@ import {
 } from './scene-projection';
 import { SceneSelection, type DraftListener, type PersonListener } from './scene-selection';
 import { SceneWarView } from './scene-war';
-import { withoutMen } from './journey-departure';
+import { withoutMen } from './expedition-choreo';
 import { journeyHorseIds, type SceneJourney } from './journey-riders';
 import { ShadowCasters } from './shadow-casters';
 import { chunkGrid } from './scenery-chunks';
@@ -198,7 +198,7 @@ export class LandscapeScene {
   /** Výjezdy vojvody na mapě a koně jejich jezdců (ohrada je nekreslí). */
   private journeyList: readonly SceneJourney[] = [];
   private journeyHorses: ReadonlySet<number> = new Set();
-  /** Muži vsi, kteří přijíždějí z výjezdu do dvorce (journey-departure.ts) – den rodiny je nekreslí. */
+  /** Muži vsi, kteří přijíždějí z výjezdu do dvorce (expedition-choreo.ts) – den rodiny je nekreslí. */
   private arrivingMen: ReadonlySet<number> = new Set();
   /** Koně, které ohrada naposled nekreslila (e2e). */
   private awayHorses: ReadonlySet<number> = new Set();
@@ -553,8 +553,9 @@ export class LandscapeScene {
         if (this.livestock?.setDogs(this.villagers?.dogs() ?? [], Date.now())) {
           this.loop.renderWhenReady();
         }
-        // odjezd a příjezd výjezdu vojvody (journey-departure.ts) – místa dvorce z plánu postav
-        this.war.setJourneyYard(this.villagers?.yard() ?? null);
+        // odjezd a příjezd výjezdu vojvody (expedition-choreo.ts) – místa dvorce z plánu postav
+        this.war.setExpeditionYard(this.villagers?.yard() ?? null);
+        this.war.setChoreoPeople(this.villagers?.choreoPeople() ?? null);
       },
       // lovci jdou k okraji lesa u zvěře (wildlife.md – Ve scéně) – zvěř se plánuje před postavami
       huntSpot: (target) => this.wildlife?.huntSpot(target) ?? null,
@@ -715,7 +716,7 @@ export class LandscapeScene {
     return { ...this.war.journeyStats(), awayHorses: [...this.awayHorses] };
   }
 
-  /** Ves pro postavy – bez mužů, kteří přijíždějí z výjezdu do dvorce (journey-departure.ts). */
+  /** Ves pro postavy – bez mužů, kteří přijíždějí z výjezdu do dvorce (expedition-choreo.ts). */
   private peopleVillage(): SceneVillage | null {
     return this.villageState ? withoutMen(this.villageState, this.arrivingMen) : null;
   }
@@ -1416,9 +1417,11 @@ export class LandscapeScene {
     // koně mužů na výjezdu vojvody jsou pryč i s jezdci (journey-riders.ts)
     const riding = ridingHorseIds(this.villagers?.rides() ?? [], epochMs);
     for (const id of this.journeyHorses) riding.add(id);
-    // odjezd a příjezd: kůň mezi ohradou a kůlem, muži cestou do dvorce (journey-departure.ts)
+    // odjezd a příjezd: kůň mezi ohradou a kůlem, muži cestou do dvorce (expedition-choreo.ts)
     const away = this.war.journeyAway();
     for (const id of away.horses) riding.add(id);
+    // lidé ve scénáři výprav nemají postavu vsi (sedlání, připojení, návrat)
+    if (this.villagers?.setScripted(away.hidden)) animated = hitPart(hit, 'lidé');
     this.awayHorses = riding;
     if (this.village?.setRidingHorses(riding)) {
       animated = hitPart(hit, 'jízda');

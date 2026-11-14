@@ -7,7 +7,7 @@
 // villager-plan.ts z rozdělení práce dne, pohyb je čistá funkce času (villager-motion.ts).
 import { dogPlansKey, type DogPlan } from './dogs';
 import { FishingLines, fishingLine } from './fishing-lines';
-import type { JourneyYard } from './journey-departure';
+import type { ChoreoPeople, ExpeditionYard } from './expedition-choreo';
 import { isRiding, rideArea, ridePlansKey, type RidePlan } from './riders';
 import type { HuntSpotFn } from './villager-plan-lord';
 import '@babylonjs/core/Meshes/thinInstanceMesh';
@@ -185,6 +185,9 @@ interface Kind {
   settings: Float32Array;
   looks: Float32Array;
 }
+
+/** Postava s menším měřítkem je dítě – dospělá má 0,95–1,05 × `FIGURE_SCALE`. */
+const ADULT_SCALE = 0.9 * FIGURE_SCALE;
 
 /**
  * Lidé ve vsi: `update` je rozmístí podle vsi (modely se stáhnou s prvním člověkem), `animate`
@@ -371,9 +374,49 @@ export class VillageVillagers {
     return this.crew.rides ?? [];
   }
 
-  /** Místa dvorce pro odjezd a příjezd výjezdu vojvody (journey-departure.ts); bez cvičiště null. */
-  yard(): JourneyYard | null {
+  /** Místa dvorce pro odjezd a příjezd výjezdu vojvody (expedition-choreo.ts); bez cvičiště null. */
+  yard(): ExpeditionYard | null {
     return this.crew.yard ?? null;
+  }
+
+  /** Lidé, které kreslí scénář výprav (expedition-choreo.ts) – jejich postavy vsi se nekreslí. */
+  private scripted: ReadonlySet<number> = new Set();
+
+  /** Postavy vsi pro scénáře výprav: kde je kdo nakreslený a kdo je dospělý doma. */
+  choreoPeople(): ChoreoPeople {
+    return {
+      figureAt: (id) => {
+        const at = this.spotOf(id);
+        return at ? { x: at.x, z: at.z } : null;
+      },
+      adultNear: (at, skip) => {
+        let best: { id: number; at: { x: number; z: number } } | null = null;
+        let bestD = Infinity;
+        this.people.forEach((p, i) => {
+          const o = i * 3;
+          const x = this.spots[o];
+          const z = this.spots[o + 2];
+          if (p.person === undefined || skip.has(p.person) || p.scale < ADULT_SCALE) return;
+          if (x === undefined || z === undefined || Number.isNaN(x)) return;
+          const d = Math.hypot(x - at.x, z - at.z);
+          if (d < bestD) {
+            bestD = d;
+            best = { id: p.person, at: { x, z } };
+          }
+        });
+        return best;
+      },
+    };
+  }
+
+  /**
+   * Lidé, které kreslí scénář výprav místo jejich postavy vsi (schovají se hned, bez přestavby plánu);
+   * true – změna (je co překreslit).
+   */
+  setScripted(ids: readonly number[]): boolean {
+    if (ids.length === this.scripted.size && ids.every((id) => this.scripted.has(id))) return false;
+    this.scripted = new Set(ids);
+    return true;
   }
 
   /** Psi dvorce dne (dogs.ts – z plánu postav) – kreslí je livestock.ts. */
@@ -846,6 +889,7 @@ export class VillageVillagers {
         const mount = this.mountedAt(id, t);
         if (mount) mount.pose(t, herds, pose);
         else if (this.crewJobs.has(id)) pose.hidden = true;
+        if (this.scripted.has(id)) pose.hidden = true;
         return pose;
       });
       kind = figure.kind;

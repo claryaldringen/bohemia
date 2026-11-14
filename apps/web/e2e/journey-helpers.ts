@@ -40,6 +40,7 @@ export async function journeyScene(page: Page): Promise<JourneyScene> {
         banner: null,
         phase: null,
         led: [],
+        groom: null,
         gate: null,
         awayHorses: [],
         selected: null,
