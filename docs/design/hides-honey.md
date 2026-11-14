@@ -34,8 +34,10 @@ Nové zboží vsi. Martin 14. 11. 2026:
 ## Lov drobné zvěře – kdykoli je čas
 
 - Dnes ([divoká zvěř](wildlife.md) – Drobná zvěř a ryby) jen při potřebě bílkovin nebo hladu.
-  **Nově kdykoli na to lidé mají čas, hlavně v zimě** – prosinec až březen oka, ryby zbytek roku
-  jako dnes. „Mít čas“ = práce, která by propadla (starší nad denním minimem, výrostci bez pastvy,
+  **Nově kdykoli na to lidé mají čas – ale jen v zimě**, prosinec až březen oka; ryby zbytek roku
+  jako dnes. Martin 14. 11. 2026: „V létě se neloví – jednak je spousta práce s jinými věcmi
+  a jednak nejsou kožešiny tak kvalitní jako v zimě. Zatím nechme zjednodušení.“ (oka se kladou,
+  obcházejí a úlovek nosí domů jen jako čas u lesa, jako dnes). „Mít čas“ = práce, která by propadla (starší nad denním minimem, výrostci bez pastvy,
   zbytek společné práce vsi po stavbách a opravách) – stejné pořadí jako dnes, jen bez podmínky
   potřeby.
 - Úlovek ok jako dnes (0,05 zajíce za hodinu × zajíci ÷ strop), nově **liška do ok** 0,02 lišky
