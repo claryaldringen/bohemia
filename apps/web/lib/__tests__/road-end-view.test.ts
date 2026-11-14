@@ -48,10 +48,14 @@ describe('roadEndView', () => {
     expect(
       roadEndView(state, roads, { kind: 'place', place: 'water', anchor: 'goal' }),
     ).toMatchObject({
-      name: 'Voda',
+      name: 'Potok',
       target: null,
       log: 'water',
     });
+    // u řeky klíč `water:river` (D44)
+    expect(
+      roadEndView(state, roads, { kind: 'place', place: 'water:river', anchor: 'goal' }),
+    ).toMatchObject({ name: 'Řeka', icon: '/icons/resources/jar.png', target: null });
   });
 
   it('svatyně, rudiště a hliniště se dají vybrat', () => {

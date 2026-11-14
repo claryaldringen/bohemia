@@ -89,6 +89,14 @@ describe('kronika – konce cesty a roky chůze', () => {
     ]);
   });
 
+  it('voda u řeky nese `water:river`, u potoka jen `water`', () => {
+    const { net, state } = setup('water:river', 'water');
+    expect(chronicleRoadEnds(state, net, 1)).toEqual([
+      { kind: 'place', place: 'water:river' },
+      { kind: 'place', place: 'water' },
+    ]);
+  });
+
   it('roky od pozdějšího z konců: stavba podle dne dostavění, voda od založení vsi', () => {
     const day = FOUNDED + 15 * YEAR;
     const { net, state } = setup('d:13', 'water');

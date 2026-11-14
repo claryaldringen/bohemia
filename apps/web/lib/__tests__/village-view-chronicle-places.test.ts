@@ -8,12 +8,13 @@ const DAY = 100;
 const manor: ChronicleRoadEnd = { kind: 'dwelling', type: 'dvorec' };
 const smithy: ChronicleRoadEnd = { kind: 'dwelling', type: 'polozemnice', craft: 'smith' };
 const water: ChronicleRoadEnd = { kind: 'place', place: 'water' };
+const river: ChronicleRoadEnd = { kind: 'place', place: 'water:river' };
 
 describe('kronika – konce cesty v 7. pádě', () => {
   it('stavby, místa, křižovatky, kraj mapy, stejné konce', () => {
     expect(roadBetween([manor, smithy])).toBe('mezi dvorcem a kovárnou');
     expect(roadBetween([{ kind: 'dwelling', type: 'zemnice' }, water])).toBe(
-      'mezi zemnicí a vodou',
+      'mezi zemnicí a potokem',
     );
     expect(
       roadBetween([
@@ -69,17 +70,22 @@ describe('kronika – vyšlapaná cesta (D40)', () => {
   });
   it('roky chůze a konce', () => {
     expect(chronicleText(formed({ ends: [manor, water], years: 12 }), 'X')).toBe(
-      'Po 12 letech chůze lidé vyšlapali cestu mezi dvorcem a vodou.',
+      'Po 12 letech chůze lidé vyšlapali cestu mezi dvorcem a potokem.',
     );
     expect(chronicleText(formed({ ends: [manor, water], years: 1 }), 'X')).toBe(
-      'Po roce chůze lidé vyšlapali cestu mezi dvorcem a vodou.',
+      'Po roce chůze lidé vyšlapali cestu mezi dvorcem a potokem.',
     );
     expect(chronicleText(formed({ ends: [manor, water], years: 0 }), 'X')).toBe(
-      'Lidé vyšlapali cestu mezi dvorcem a vodou.',
+      'Lidé vyšlapali cestu mezi dvorcem a potokem.',
     );
     expect(chronicleText(formed({ ends: [manor, water] }), 'X')).toBe(
-      'Lidé vyšlapali cestu mezi dvorcem a vodou.',
+      'Lidé vyšlapali cestu mezi dvorcem a potokem.',
     );
+    // řeka (D44)
+    expect(chronicleText(formed({ ends: [manor, river], years: 12 }), 'X')).toBe(
+      'Po 12 letech chůze lidé vyšlapali cestu mezi dvorcem a řekou.',
+    );
+    expect(roadBetween([river, river])).toBe('mezi řekou a další řekou');
     expect(chronicleText(formed({ years: 3 }), 'X')).toBe(
       'Po 3 letech chůze lidé vyšlapali cestu.',
     );

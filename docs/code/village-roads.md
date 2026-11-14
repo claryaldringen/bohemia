@@ -218,7 +218,7 @@ cesty, půda)`; graf a půda (`walkGroundOf` + `withFieldWalk` – pole v `Villa
   `roadAnchors(routes, landscape)` – začátek trasy (brána domu) vchod, konec podle cíle
   (`anchorKindOf`: `edge:*` kraj mapy, voda, dřevo, pastva, pole, sad, louka… cíl, stavby se vchodem
   – `d`, `cemetery`, `pen`, `threshing-floor`, `idol`, `shrine`… – vchod), dosah `ROAD_ANCHORS`
-  (vchod 3 m, cíl 7,5 m; kraj mapy = pás `EDGE_MARGIN_M` + `TRAIL.edgeBandM` + 7,5 m od okraje, `nearAnchor`, směr `edgeDirectionAt`; `RoadAnchor.place` – klíč trasy pro konce cesty v panelu, `paths/road-ends.ts` – [web-ui.md – Konce cesty](web-ui.md#konce-cesty-v-panelu-cesty)). Roční kandidáti (`MATCH_M` u pěších)
+  (vchod 3 m, cíl 7,5 m; kraj mapy = pás `EDGE_MARGIN_M` + `TRAIL.edgeBandM` + 7,5 m od okraje, `nearAnchor`, směr `edgeDirectionAt`; `RoadAnchor.place` – klíč trasy pro konce cesty v panelu; u vody `water` (potok) nebo `water:river` (řeka – `waterKindAt`, D44), `paths/road-ends.ts` – [web-ui.md – Konce cesty](web-ui.md#konce-cesty-v-panelu-cesty)). Roční kandidáti (`MATCH_M` u pěších)
   zrušeni. **Stavba přes cestu:** objížďka dál než 5 m od staré osy se po vyšlapání stane cestou
   napojenou rozcestími na zbytky staré cesty (test `road-form-wear.test.ts`); kus pod stavbou zatím
   zůstává a úklid ho bere jako starší (silnější) – objížďku souběžnou s ním (Vlkov – polozemnice)
