@@ -300,7 +300,13 @@ export type IntentBody =
   /** „Ukrýt v lese“, „Do hradiště – jen lidé“, „Do hradiště – se vším“. */
   | { kind: 'alarm-flee'; village: string; mode: FlightMode }
   /** Hradiště `village` hráče pošle posly do vybraných vsí domény `to`. */
-  | { kind: 'alarm-domain'; village: string; to: string[] };
+  | { kind: 'alarm-domain'; village: string; to: string[] }
+  /**
+   * Odpověď na dotaz vsi s vojvodou doma (war.md – Hráč ve vsi a mimo ni; `AlarmVillage.askedTick`):
+   * zapisuje ji worker za vlastníka vsi, `seenTick` = poslední přítomnost hráče u hry oříznutá na
+   * takt záměru, null – hráč u hry nebyl. Nic nedělá, jen ji tažení zapíše (`presenceTick`).
+   */
+  | { kind: 'alarm-presence'; village: string; seenTick: number | null };
 
 /** Záměr s taktem, ve kterém platí (teď + 2), a pořadím zápisu `seq` (v taktu podle něj). */
 export interface CampaignIntent {

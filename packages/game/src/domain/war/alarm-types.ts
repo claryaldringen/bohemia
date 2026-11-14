@@ -42,8 +42,23 @@ export interface AlarmVillage {
   messenger?: string;
   /** `refId` skupiny uprchlíků vsi; chybí – nikdo neodešel. */
   flight?: string;
-  /** Kdo volbu udělal (hráč, nebo pravidlo správce); chybí – zatím nikdo. */
+  /**
+   * Kdo volbu udělal: hráč, nebo pravidlo správce – i po hráči, když ves zůstala bez hráče
+   * (vojvoda vyběhl jako posel – `decideAlarms`); chybí – zatím nikdo.
+   */
   decided?: 'player' | 'steward';
+  /**
+   * Takt, kdy se ves s vojvodou doma zeptala, zda je hráč u hry (war.md – Hráč ve vsi a mimo ni;
+   * `deciderOf` – 'ask'); do odpovědi (záměr `alarm-presence`, i jiný záměr vlastníka) čeká na
+   * hráče. Chybí – neptá se.
+   */
+  askedTick?: number;
+  /**
+   * Poslední přítomnost hráče u hry, kterou tažení zná (`alarm-presence` – `seenTick`, jiný záměr
+   * vlastníka – jeho takt; větší vyhrává); null – odpověď přišla, hráč u hry nebyl; chybí – zatím
+   * žádná odpověď (ves se zeptá).
+   */
+  presenceTick?: number | null;
   /**
    * Kandidáti hradišť do `WAR.alarm.refugeMaxCells` políček (id vsí – pro bariéru dopočtu; Úloha 6
    * je zapíše, jakmile ves do varování vstoupí); chybí – svět kandidáty nezná (bez portu).

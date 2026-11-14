@@ -406,7 +406,12 @@ o evakuaci (defaultní nastavení).“
   spatří vesničan). Ves sama nic nedělá – obranu nebo evakuaci zorganizuje hráč rozkazy, které
   dnes má (postoj po skupinách domů, útěk do lesa nebo do hradiště, výpad, posel, vlastního muže
   řídí živě). **U hry** = jako přítomnost u tažení: ves otevřená ve hře nebo jakýkoli pokyn
-  hráče; bez přítomnosti déle než 1 herní den je hráč pryč (návrh Clauda).
+  hráče; bez přítomnosti déle než 1 herní den je hráč pryč (návrh Clauda). Na přítomnost se ves
+  zeptá, jakmile o vojsku ví (odpoví server za pár taktů); dokud je hráč u hry, server ji obnovuje
+  každou ¼ herního dne (86 taktů ≈ 22 s) a každý pokyn hráče k varované vsi je také přítomnost
+  (návrh Clauda). Ves, kde už hráč něco zvolil (posel, útěk), zůstává jeho i bez přítomnosti;
+  nastavení dokončí zbytek, jen když vojvoda ves opustí a lidé jsou ještě doma (vyběhne jako posel,
+  padne do zajetí) – návrh Clauda.
 - **Vojvoda doma, hráč není u hry:** lidé se hned zachovají podle nastavení vsi – vojvoda vojsko
   vidí, jakmile vstoupí na mapu, takže ves reaguje dřív, než kdyby ho musel spatřit vesničan.
   Když se hráč během nájezdu vrátí ke hře, převezme velení (Martin 14. 11. 2026 – „ok“).
@@ -625,10 +630,12 @@ zásoby a cennosti a utekli do nejbližšího hradiště“).
 - **Správce za nepřítomného hráče** (návrh Clauda, Martin 9. 11. 2026: „ano platí“): jakmile ves
   vojsko spatří, pošle posla do hradiště pána; lidi evakuuje do hradiště, když tam podle
   vzdálenosti stihnou dojít dřív než vojsko, jinak je ukryje v lese na mapě. Ves se zapnutým
-  správcem a vsi NPC rodů rozhodnou hned; ves bez správce čeká na rozhodnutí hráče nejvýš 1 herní
-  den (≈ 86 s), pak se zařídí podle tohoto pravidla (návrh Clauda, Martin 9. 11. 2026: „Ok, nechme
-  to, jak jsi navrhl“). Posel za správce je vždy vesničan pěšky; nemá-li ves vesničana, jde muž
-  rodu – na koni, umí-li jezdit (Martin 9. 11. 2026: „Ano“).
+  správcem a vsi NPC rodů rozhodnou hned; ~~ves bez správce čeká na rozhodnutí hráče nejvýš
+  1 herní den (≈ 86 s), pak se zařídí podle tohoto pravidla (návrh Clauda, Martin 9. 11. 2026: „Ok,
+  nechme to, jak jsi navrhl“)~~ – nahrazeno 14. 11. 2026, Hráč ve vsi a mimo ni: ves, kde vojvoda
+  není doma, rozhodne hned; ves s vojvodou doma rozhoduje hráč, dokud je u hry. Posel za správce je
+  vždy vesničan pěšky; nemá-li ves vesničana, jde muž rodu – na koni, umí-li jezdit
+  (Martin 9. 11. 2026: „Ano“).
 - **Co si vezmou:** Martin 9. 11. 2026: „To rozhodne hráč. Někdy může rozhodnout, ať se evakuují
   jenom lidé (spasí holý život), pokud usoudí, že je dost času, tak nechá lidi vzít vše, co unesou,
   a sehnat dobytek.“ – dvě volby: **jen lidé** (rychle), nebo **lidé s tím, co unesou, a stáda**
@@ -648,8 +655,10 @@ zásoby a cennosti a utekli do nejbližšího hradiště“).
   poslem. Může vyslat někoho z rodu, kdo jezdit umí“ – muž rodu, který umí jezdit a má jezdeckého
   koně, jede na koni (rychleji); jinak a za správce jde pěšky vesničan. Nemá-li ves vesničana,
   jde jako posel muž rodu – na koni, umí-li jezdit (návrh Clauda, Martin 9. 11. 2026: „Ano“).
-- **Lhůta hráče:** ves bez správce čeká na rozhodnutí hráče nejvýš 1 herní den (≈ 86 s), pak se
-  zařídí podle pravidla správce (Martin 9. 11. 2026: „Ok, nechme to, jak jsi navrhl“).
+- ~~**Lhůta hráče:** ves bez správce čeká na rozhodnutí hráče nejvýš 1 herní den (≈ 86 s), pak se
+  zařídí podle pravidla správce (Martin 9. 11. 2026: „Ok, nechme to, jak jsi navrhl“).~~ –
+  nahrazeno 14. 11. 2026, Hráč ve vsi a mimo ni (lhůta odpadá; ves s vojvodou doma čeká jen na
+  přítomného hráče).
 - **Posel** je dospělý muž vsi, běží nejkratší cestou po stezkách (pochodová mřížka jako vojsko,
   ≈ 2× rychleji než pochod vojska) do hradiště pána; každá ves na mapách, kterými proběhne, je
   varovaná. Hradiště pak pošle posly do vsí domény, ke kterým vojsko míří (správce hradiště
@@ -786,7 +795,8 @@ Martin 2. 11. 2026 – „ok“ (doplňky návrh Clauda):
 | Dosah zblízka                      | 3 m – oštěp a sekera dosáhnou přes plot, ~~i přes palisádu~~ přes palisádu ne (Martin 8. 11.)                                                                                                                                          |
 | Zda rána padne                     | zblízka los 1 : 1 každé rány (návrh Clauda); na dálku kruh rozptylu `(2 − 1,5 × dovednost ÷ 100) × vzdálenost ÷ 30` m, šance = viditelné plochy v kruhu ÷ plocha kruhu, vesničan jako dovednost 20 (Martin 8. 11., čísla návrh Clauda) |
 | Dohled v lese                      | 50 m (jinak ≈ 150 m; návrh Clauda)                                                                                                                                                                                                     |
-| Varování a útěk do hradiště        | vesničan i posel běží 2× tempem vojska; dostižení do 30 m; hráč volí 1 herní den (344 taktů), pak správce; hradiště do 8 políček, cesta = vzdušná čára × 1,3; doména do 3 políček, nejvýš 4 posly                                      |
+| Varování a útěk do hradiště        | vesničan i posel běží 2× tempem vojska; dostižení do 30 m; ~~hráč volí 1 herní den (344 taktů), pak správce~~ (zrušeno 14. 11. 2026); hradiště do 8 políček, cesta = vzdušná čára × 1,3; doména do 3 políček, nejvýš 4 posly           |
+| Hráč ve vsi a mimo ni              | přítomnost hráče u hry obnovuje server každou ¼ herního dne (86 taktů ≈ 22 s); bez přítomnosti déle než 1 herní den rozhodne za ves s vojvodou doma nastavení (návrh Clauda)                                                           |
 
 Z 18. 10. beze změny: skupina domů 40 m, dohled 150 m, nosnost 25 kg, ochota a dezerce, kovárna
 × 1,5, ~~obrana u domu × 1,5~~ (zrušeno 8. 11. 2026), nucený × 0,5 / 0,3, štěstí × 0,8–1,1.

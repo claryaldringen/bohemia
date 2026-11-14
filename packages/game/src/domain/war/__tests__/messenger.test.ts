@@ -32,10 +32,14 @@ import { campaign, intent, MEADOW, SUMMER, world } from './campaign-fixtures';
 const A: GridCell = { x: 1, y: 0 };
 const B: GridCell = { x: 2, y: 0 };
 const C: GridCell = { x: 3, y: 0 };
-const OWNER = { playerId: 'p2', npc: false, houseId: 'h2' };
 /** Vesničan 20 let a muž rodu 30 let s jezdeckým koněm. */
 const VILLAGER = 1;
 const LORD = 2;
+/**
+ * Hráč p2 je ve vsi – vojvoda (muž rodu) doma, ves se zeptá na přítomnost a bez odpovědi čeká na
+ * jeho pokyny (war.md – Hráč ve vsi a mimo ni).
+ */
+const OWNER = { playerId: 'p2', npc: false, houseId: 'h2', lordId: LORD };
 
 function villageA(people?: Person[]): VillageState {
   return village(
@@ -498,7 +502,8 @@ describe('hradiště varuje doménu (Úloha 6, Otevřené 5)', () => {
     if (id.startsWith('e')) domainMaps[`${cell.x},${cell.y}`] = mapOf([id]);
   }
   const HILLFORT_NPC: AlarmOwner = { playerId: null, npc: true, houseId: 'h-c' };
-  const HILLFORT_PLAYER: AlarmOwner = { playerId: 'p3', npc: false, houseId: 'h3' };
+  /** Vojvoda hradiště (muž 5) zůstane doma – posly do domény běží muži 1–4. */
+  const HILLFORT_PLAYER: AlarmOwner = { playerId: 'p3', npc: false, houseId: 'h3', lordId: 5 };
 
   function domainWorld(owner = HILLFORT_NPC): CampaignWorld {
     return worldWith({

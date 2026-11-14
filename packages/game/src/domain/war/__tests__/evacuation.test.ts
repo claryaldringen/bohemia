@@ -28,7 +28,11 @@ import { campaign, intent, member, MEADOW, SUMMER, world } from './campaign-fixt
 
 const A: GridCell = { x: 1, y: 0 };
 const C: GridCell = { x: 2, y: 0 };
-const OWNER = { playerId: 'p2', npc: false, houseId: 'h2' };
+/**
+ * Hráč p2 je ve vsi – vojvoda (muž rodu 2) doma, ves se zeptá na přítomnost a bez odpovědi čeká na
+ * jeho pokyny (war.md – Hráč ve vsi a mimo ni).
+ */
+const OWNER = { playerId: 'p2', npc: false, houseId: 'h2', lordId: 2 };
 const HOME = { x: 800, z: 0 };
 const NO_HERD = { sheep: 0, goat: 0, pig: 0, cow: 0 };
 /** Nesou: 4 dospělí × 25 kg + dítě 10 let 10 kg (batole nic). */

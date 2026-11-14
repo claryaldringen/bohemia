@@ -97,6 +97,10 @@ describe('Ú1 – čísla varování (war.md – Čísla: Varování a útěk do
     expect(WAR.alarm.catchM).toBe(30);
     expect(WAR.alarm.openUntilDay).toBeGreaterThan(400_000);
   });
+
+  it('přítomnost hráče se obnovuje po ¼ herního dne (plán 2026-11-14 – Rozhodnutí plánu 2)', () => {
+    expect(WAR.alarm.presenceRefreshTicks).toBe(86);
+  });
 });
 
 describe('Ú1 – tažení bez varování', () => {

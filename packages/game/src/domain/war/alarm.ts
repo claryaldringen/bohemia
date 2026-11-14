@@ -25,16 +25,22 @@ export const UNKNOWN_ALARM_OWNER: Readonly<AlarmOwner> = {
   houseId: null,
 };
 
-/** Záměry obránce varované vsi (plán 2026-11-09 – Rozhodnutí plánu). */
+/**
+ * Záměry obránce varované vsi (plán 2026-11-09 – Rozhodnutí plánu) a odpověď na přítomnost hráče
+ * (`alarm-presence` – plán 2026-11-14, Rozhodnutí plánu 2).
+ */
 export type AlarmIntentBody = Extract<
   IntentBody,
-  { kind: 'alarm-messenger' | 'alarm-flee' | 'alarm-domain' }
+  { kind: 'alarm-messenger' | 'alarm-flee' | 'alarm-domain' | 'alarm-presence' }
 >;
 
 /** Je záměr záměrem obránce varované vsi (`alarm-*`)? */
 export function isAlarmIntent(body: IntentBody): body is AlarmIntentBody {
   return (
-    body.kind === 'alarm-messenger' || body.kind === 'alarm-flee' || body.kind === 'alarm-domain'
+    body.kind === 'alarm-messenger' ||
+    body.kind === 'alarm-flee' ||
+    body.kind === 'alarm-domain' ||
+    body.kind === 'alarm-presence'
   );
 }
 

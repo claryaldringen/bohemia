@@ -2,12 +2,13 @@ import type { Landscape } from '../landscape';
 import { villageCentre } from '../village/people/departure';
 import type { VillageState } from '../village/types';
 import { alarmCellOf, alarmVillage, refugeHosts } from './alarm';
-import type { AlarmOwner, AlarmVillage } from './alarm-types';
+import type { AlarmVillage } from './alarm-types';
 import { gridOf, MissingData } from './campaign-tick';
 import type { TickContext, TickOut } from './campaign-tick';
 import type { CampaignPlace, CampaignState } from './campaign-types';
 import { alarmTaken, departFlight, withoutTaken } from './evacuation';
 import { stanceOf } from './flight';
+import { lordHomeAt } from './lord-home';
 import { sendMessenger, warnDomain } from './messenger';
 import {
   refugeHostOf,
@@ -15,24 +16,29 @@ import {
   stewardAlarmChoice,
   type RefugeOptions,
 } from './refuge-choice';
-import { WAR } from './rules-war';
+import { absentTicks } from './ticks';
 
-// Kdo za varovanou ves rozhoduje (war.md – Varování, poslové a útěk do hradiště: „Správce za
-// nepřítomného hráče … ano platí“; plán 2026-11-09 – Úloha 11, Otevřené 6, Review Focus 6). Martin
-// 9. 11. 2026: ves se zapnutým správcem a vsi NPC rodů rozhodují hned; ves hráče bez správce čeká
-// na jeho volbu nejvýš 1 herní den (`WAR.alarm.playerGraceTicks`), pak se zařídí podle pravidla
-// správce („Ok, nechme to, jak jsi navrhl“). Pravidlo (`stewardAlarmChoice`): posel do hradiště
-// pána vždy, jde-li (vesničan pěšky, bez vesničana muž rodu – Martin „Ano“); s postojem „raději
-// utéct“ a bez vlastního útočiště lidé do hradiště, stihnou-li to – „se vším“, jinak „jen lidé“ –,
-// jinak do lesa. Totéž hradiště pro posly do vsí své domény (od příchodu posla vsi).
+// Kdo za varovanou ves rozhoduje (war.md – Hráč ve vsi a mimo ni; Varování, poslové a útěk do
+// hradiště; plán 2026-11-14 – Rozhodnutí plánu 3). Martin 14. 11. 2026: „Pokud je ve vesnici, tak
+// … je na něm, jak zorganizuje obranu, či evakuaci. Pokud ve vesnici není, vesničané se zachovají
+// podle nastavení.“ Vsi NPC rodů, vsi se zapnutým správcem a vsi, kde vojvoda není doma, rozhodnou
+// pravidlem správce hned (lhůta hráče odpadá); ves s vojvodou doma se zeptá, zda je hráč u hry
+// (`askedTick` – worker odpoví záměrem `alarm-presence`), a rozhoduje hráč, dokud u hry je – bez
+// přítomnosti déle než 1 herní den (`absentTicks`) rozhodne správce. Pravidlo
+// (`stewardAlarmChoice`): posel do hradiště pána vždy, jde-li (vesničan pěšky, bez vesničana muž
+// rodu – Martin 9. 11. 2026 „Ano“); s postojem evakuace a bez vlastního útočiště lidé do hradiště,
+// stihnou-li to – „se vším“, jinak „jen lidé“ –, jinak do lesa. Totéž hradiště pro posly do vsí
+// své domény (od příchodu posla vsi).
 
 /**
  * Rozhodnutí za vsi ve varování v taktu `tick` (po spatření a poslech – `campaignTick`): ves, která
- * o vojsku ví a nikdo za ni ještě nerozhodl (`AlarmVillage.decided`), rozhodne pravidlem správce
- * hned (NPC rod, zapnutý správce), nebo po lhůtě hráče od varování. Hradiště hráče (NPC hradiště –
- * `hillfortHeard` v `messenger.ts`), ke kterému doběhl posel vsi a které posly do domény ještě
- * nerozeslalo, je se správcem rozešle hned, bez něj po lhůtě od příchodu posla. Ves, kterou posel
- * správce právě varoval, rozhodne v témž taktu. Rozhoduje se jednou – i když pravidlo nic nepustí.
+ * o vojsku ví a za kterou ještě nerozhodl správce, se zařídí podle `deciderOf` – správce rozhodne
+ * pravidlem, hráč nic, 'ask' zapíše dotaz na přítomnost. Ves, kde už volil hráč
+ * (`decided: 'player'`), převezme správce jen bez hráče, dokud jsou lidé doma (vojvoda vyběhl
+ * jako posel, je v zajetí – Review Focus 2); přítomnost u hry ji už nepřepne. Hradiště hráče (NPC
+ * hradiště – `hillfortHeard` v `messenger.ts`), ke kterému doběhl posel vsi a které posly do
+ * domény ještě nerozeslalo, se zařídí podle téhož pravidla. Ves, kterou posel správce právě
+ * varoval, rozhodne v témž taktu. Správce rozhoduje jednou – i když pravidlo nic nepustí.
  */
 export function decideAlarms(s: CampaignState, tick: number, ctx: TickContext, out: TickOut): void {
   const alarm = s.alarm;
@@ -43,19 +49,55 @@ export function decideAlarms(s: CampaignState, tick: number, ctx: TickContext, o
     if (!v) return;
     done.add(v.villageId);
     if (v.warnTick > tick) continue;
-    if (v.decided === undefined) decideVillage(s, v, tick, ctx, out);
+    if (v.decided !== 'steward') decideVillage(s, v, tick, ctx, out);
     decideDomain(s, v, tick, ctx, out);
   }
 }
 
-/** Rozhoduje za ves pravidlo správce už teď (NPC, zapnutý správce), nebo až po lhůtě hráče od `since`? */
-function stewardDecides(
-  owner: AlarmOwner,
-  state: VillageState,
+/**
+ * Kdo za ves v taktu rozhoduje – Rozhodnutí plánu 3; 'ask' = zapsat askedTick a čekat. V tomto
+ * pořadí: ves bez hráče (`withoutPlayer` – NPC rod, zapnutý správce, vojvoda není doma) → správce
+ * hned; čeká se na odpověď (`askedTick`) → hráč; bez údaje o přítomnosti → zeptat se; hráč u hry
+ * nebyl (`presenceTick` null) nebo je pryč déle než `absentTicks` → správce; jinak hráč.
+ */
+export function deciderOf(
+  s: CampaignState,
+  v: AlarmVillage,
   tick: number,
-  since: number,
-): boolean {
-  return owner.npc || state.steward?.on === true || tick >= since + WAR.alarm.playerGraceTicks;
+  ctx: TickContext,
+): 'steward' | 'player' | 'ask' {
+  if (withoutPlayer(s, v, ctx)) return 'steward';
+  if (v.askedTick !== undefined) return 'player';
+  if (v.presenceTick === undefined) return 'ask';
+  if (v.presenceTick === null || tick - v.presenceTick > absentTicks(ctx.world.clock)) {
+    return 'steward';
+  }
+  return 'player';
+}
+
+/**
+ * Je ves bez hráče (war.md – Hráč ve vsi a mimo ni: „Ostatní vsi rodu a vsi se správcem jsou bez
+ * hráče“)? NPC rod, zapnutý správce, nebo hráčův muž není doma (`lordHomeAt` – i když ho tažení
+ * dnes odvedlo jako posla nebo se skupinou uprchlíků).
+ */
+function withoutPlayer(s: CampaignState, v: AlarmVillage, ctx: TickContext): boolean {
+  if (v.owner.npc) return true;
+  // zapnutý správce rozhoduje podle nastavení i s vojvodou doma (Rozhodnutí plánu 3 – návrh
+  // Clauda, Martinovi předloženo 14. 11. 2026, zatím bez odpovědi; jiná volba = jen tento řádek)
+  if (stateOf(s, v.villageId, ctx).steward?.on === true) return true;
+  return !lordHomeAt(s, v.villageId, v.owner, ctx);
+}
+
+/**
+ * Záměr vlastníka varované vsi je přítomnost hráče u hry (Rozhodnutí plánu 2): odpověď na dotaz
+ * (`askedTick` zmizí) a `presenceTick` = pozdější ze známé přítomnosti a `seen` (`alarm-presence` –
+ * `seenTick`, jiný záměr – jeho takt); null jen, když žádnou neznáme.
+ */
+export function notePresence(v: AlarmVillage, seen: number | null): void {
+  delete v.askedTick;
+  const known = v.presenceTick ?? null;
+  if (known === null) v.presenceTick = seen;
+  else if (seen !== null) v.presenceTick = Math.max(known, seen);
 }
 
 function stateOf(s: CampaignState, villageId: string, ctx: TickContext): VillageState {
@@ -65,10 +107,12 @@ function stateOf(s: CampaignState, villageId: string, ctx: TickContext): Village
 }
 
 /**
- * Pravidlo správce za ves (Otevřené 6): co ves může (`refugeOptions` – stav bez toho, co tažení
+ * Pravidlo správce za ves (Otevřené 6), rozhoduje-li za ni správce (`deciderOf`; ves, kde už volil
+ * hráč, jen bez hráče – `withoutPlayer`): co ves může (`refugeOptions` – stav bez toho, co tažení
  * dnes odvedlo), postoj a vlastní útočiště (`refugeHostOf` – hotové opevnění s plochou) →
  * `stewardAlarmChoice`; posel vyběhne první, skupina odejde bez něj (`departFlight` volbu ověří
- * znovu). `decided` = správce, i když nic nešlo.
+ * znovu). Na volbu hráče jen naváže – posla ani skupinu podruhé nepošle. `decided` = správce,
+ * i když nic nešlo. 'ask' – dotaz na přítomnost (`askedTick`).
  */
 function decideVillage(
   s: CampaignState,
@@ -77,14 +121,23 @@ function decideVillage(
   ctx: TickContext,
   out: TickOut,
 ): void {
-  const state = stateOf(s, v.villageId, ctx);
-  if (!stewardDecides(v.owner, state, tick, v.warnTick)) return;
+  const by = v.decided === 'player' ? playerLeft(s, v, ctx) : deciderOf(s, v, tick, ctx);
+  if (by === 'ask') v.askedTick = tick;
+  if (by !== 'steward') return;
   const { options, home, village, landscape } = alarmChoices(s, v, tick, ctx);
   const ownRefuge = refugeHostOf(v.villageId, home, landscape, village.cell, s.day) !== null;
   const choice = stewardAlarmChoice(options, stanceOf(home), ownRefuge);
   if (choice.messenger) sendMessenger(s, v.villageId, ctx, out, { by: 'steward' });
   if (choice.flee !== null) departFlight(s, v.villageId, choice.flee, ctx, out, { by: 'steward' });
-  v.decided ??= 'steward';
+  v.decided = 'steward';
+}
+
+/**
+ * Ves, kde už volil hráč: zbytek převezme správce, jen když ves zůstala bez hráče a lidé jsou ještě
+ * doma – skupina uprchlíků bere všechny přítomné (`flightLoad`), po ní správce nemá co rozhodnout.
+ */
+function playerLeft(s: CampaignState, v: AlarmVillage, ctx: TickContext): 'steward' | 'player' {
+  return v.flight === undefined && withoutPlayer(s, v, ctx) ? 'steward' : 'player';
 }
 
 /** Co varovaná ves v taktu může – `alarmChoices`. */
@@ -135,9 +188,9 @@ export function alarmChoices(
 
 /**
  * Hradiště hráče rozešle posly do domény (Otevřené 5) za správce: doběhl-li k němu posel vsi
- * (`heardTick`) a posly ještě nerozeslalo (`AlarmVillage.domain`) – se správcem hned, bez něj po
- * lhůtě od příchodu posla. NPC hradiště rozesílá samo při příchodu (`hillfortHeard`); bez portu
- * domény nic.
+ * (`heardTick`) a posly ještě nerozeslalo (`AlarmVillage.domain`) – podle `deciderOf` jako ves
+ * (bez hráče hned, hráč u hry sám, bez přítomnosti po `absentTicks`; 'ask' – dotaz). NPC hradiště
+ * rozesílá samo při příchodu (`hillfortHeard`); bez portu domény nic.
  */
 function decideDomain(
   s: CampaignState,
@@ -149,7 +202,9 @@ function decideDomain(
   if (v.owner.npc || v.domain !== undefined || !ctx.world.domainOf) return;
   const heard = heardTick(s, v.villageId);
   if (heard === null || heard > tick) return;
-  if (!stewardDecides(v.owner, stateOf(s, v.villageId, ctx), tick, heard)) return;
+  const by = deciderOf(s, v, tick, ctx);
+  if (by === 'ask') v.askedTick = tick;
+  if (by !== 'steward') return;
   warnDomain(s, v.villageId, ctx, out, null);
 }
 

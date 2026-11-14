@@ -56,9 +56,13 @@ const mapOf = (id: string): CampaignMap => ({
 const MAPS = new Map(Object.entries(CELLS).map(([id, c]) => [`${c.x},${c.y}`, mapOf(id)]));
 const landscapeOf = (c: GridCell): CampaignMap => MAPS.get(`${c.x},${c.y}`) ?? MEADOW;
 
-/** A patří hráči p2, hradiště C spravuje NPC rod (rozešle posly do domény sám), B svět nezná. */
+/**
+ * A patří hráči p2 s vojvodou (muž rodu 2) doma – bez odpovědi na přítomnost čeká na jeho pokyn
+ * (war.md – Hráč ve vsi a mimo ni); hradiště C spravuje NPC rod (rozešle posly do domény sám), B
+ * svět nezná.
+ */
 const OWNERS: Record<string, AlarmOwner> = {
-  a: { playerId: 'p2', npc: false, houseId: 'h2' },
+  a: { playerId: 'p2', npc: false, houseId: 'h2', lordId: 2 },
   c: { playerId: 'p2', npc: true, houseId: 'h2' },
   e: { playerId: 'p2', npc: false, houseId: 'h2' },
 };

@@ -64,7 +64,7 @@ import {
 import { frostDay } from './season';
 import { npcIntents, npcLeader } from './npc-commander';
 import { inFight, setGroupOrder } from './orders';
-import { dayOfTick, hoursPerTick, TICKS_PER_SECOND, tickRandom } from './ticks';
+import { absentTicks, dayOfTick, hoursPerTick, TICKS_PER_SECOND, tickRandom } from './ticks';
 import {
   alarmVillage,
   isAlarmIntent,
@@ -73,7 +73,7 @@ import {
   sightAlarms,
   type AlarmIntentBody,
 } from './alarm';
-import { decideAlarms } from './alarm-steward';
+import { decideAlarms, notePresence } from './alarm-steward';
 import {
   catchMessengers,
   moveMessengers,
@@ -432,6 +432,8 @@ function applyIntent(
 /**
  * Záměr obránce varované vsi (plán 2026-11-09 – Rozhodnutí plánu): platí jen od hráče, kterému ves
  * patří (`AlarmVillage.owner`), a jen když ves o vojsku ví; co nejde (`refugeOptions`), se zahodí.
+ * Každý takový záměr je přítomnost hráče u hry (`notePresence` – plán 2026-11-14, Rozhodnutí
+ * plánu 2): odpověď workeru `alarm-presence` nese poslední přítomnost, jiný záměr svůj takt.
  */
 function applyAlarm(
   s: CampaignState,
@@ -442,7 +444,11 @@ function applyAlarm(
 ): void {
   const v = alarmVillage(s, body.village);
   if (!v || v.owner.playerId !== byPlayer || !isWarned(s, v.villageId, s.tick)) return;
+  notePresence(v, body.kind === 'alarm-presence' ? body.seenTick : s.tick);
   switch (body.kind) {
+    case 'alarm-presence':
+      // jen přítomnost – kdo rozhodne, určí `deciderOf` v `decideAlarms` téhož taktu
+      return;
     case 'alarm-messenger':
       sendMessenger(s, v.villageId, ctx, out, {
         by: 'player',
@@ -525,11 +531,6 @@ function applyBody(s: CampaignState, body: IntentBody, out: TickOut, npc: boolea
   }
 }
 
-/** Takty bez přítomnosti hráče, po kterých velení převezme zástupce (war.md – Čísla: 1 herní den). */
-function absentTicks(ctx: TickContext): number {
-  return Math.round((WAR.absentLeaderDays * 24) / hoursPerTick(ctx.world.clock));
-}
-
 /** Vede tažení NPC velitel? Velí jiný muž, velitel padl, nebo je hráč pryč a vede zástupce. */
 function npcLeads(s: CampaignState): boolean {
   return (s.phase === 'marching' || s.phase === 'raiding') && (!s.liveCommand || s.absent === true);
@@ -558,7 +559,7 @@ function command(s: CampaignState, tick: number, ctx: TickContext, out: TickOut)
   }
   if (!s.liveCommand || s.absent) return;
   const since = (s.presenceTick ??= tick);
-  if (tick - since <= absentTicks(ctx)) return;
+  if (tick - since <= absentTicks(ctx.world.clock)) return;
   if (hasDeputy) s.absent = true;
   else disband(s, out);
 }
