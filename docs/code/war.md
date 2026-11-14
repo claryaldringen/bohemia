@@ -1713,9 +1713,12 @@ design/war.md – Začít znovu během nájezdu (útočník i obránce).
   s `houseId`, které není živým rodem hráče. `campaignsOf` s `houses` ho vůdci nevrací (vazal ve
   službě své muže vidí dál; web `campaignsOfPlayer`); `deliverOutbox(deps, outbox, leader)`
   upozornění vůdci ze starého vojska zahodí (rod se hledá, jen když nějaké jde vůdci; `stepOne`
-  předává stav tažení, výjezd ne). Pohled (`campaignViewFor`), pokyny (`commandCampaign`) i panel
-  (`campaignsOf`) jdou přes jednu kontrolu `mayHandleCampaign(deps, state, playerId)`: vůdce – rod
-  tažení je živý rod hráče; vazal – aspoň jeden jeho muž je z vsi mimo archiv (`archivedOf`).
+  předává stav tažení, výjezd ne). Pohled (`campaignViewFor`), pokyny (`commandCampaign`), panel
+  (`campaignsOf`) i scéna (`warSceneOnMap`, pohled `attack` ve `warScene`) jdou přes jednu kontrolu
+  `mayHandleCampaign(deps, state, playerId)` (`HandleCampaignDeps`): vůdce – rod tažení je živý rod
+  hráče; vazal – aspoň jeden jeho muž žije ve vsi, kterou hráč drží (sídlo vsi ze
+  `stampsOfVillages` je v `settlements.listActive` – ne archiv, ne vzdaná ani čekající na převod).
+  Pohled obránce (`defend`) kontrolu nemá – cizí vojsko vidí dál.
 - **Výjezd vzdané vsi** – `restartGame` před `journeys.end` zavolá `endJourneyAtHome`: je-li domov
   výjezdu v úložišti a ne v archivu (vzdal se), pošle mu `away-ends` s `ref` `journey:<id>:restart`;
   u domova v archivu nic.

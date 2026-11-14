@@ -27,6 +27,7 @@ import {
 } from './campaigns';
 import type { HouseRepository } from './houses';
 import type { KnowledgeRepository } from './knowledge';
+import type { SettlementRepository } from './settlements';
 import type { VillageRepository } from './villages';
 
 // Živé vedení a pohled na tažení (war.md – Velení, Mlha války; plán 2026-11-03 – Úloha 6.14):
@@ -60,8 +61,10 @@ export interface TargetDwellingsCache {
 export interface CampaignViewDeps extends KnowledgeOfTargetDeps {
   campaigns: Pick<CampaignRepository, 'checkpoint'>;
   cells: CampaignCells;
-  /** `archivedOf` – vazal, který dal Začít znovu, o své muže přišel (`mayHandleCampaign`). */
-  villages: Pick<VillageRepository, 'find'> & Partial<Pick<VillageRepository, 'archivedOf'>>;
+  /** `stampsOfVillages` – vsi mužů vazala ve službě, které musí držet (`mayHandleCampaign`). */
+  villages: Pick<VillageRepository, 'find'> & Partial<Pick<VillageRepository, 'stampsOfVillages'>>;
+  /** Sídla, která hráč drží – vazal ve službě (`mayHandleCampaign`). */
+  settlements?: Partial<Pick<SettlementRepository, 'listActive'>>;
   grids?: SightGridCache;
   targets?: TargetDwellingsCache;
 }
@@ -199,8 +202,9 @@ export async function campaignsOf(
     campaigns: Pick<CampaignRepository, 'activeOf' | 'checkpoint'>;
     /** Živý rod hráče – staré vojsko (`ledByEndedHouse`) panel nové hry nevidí; bez něj všechna. */
     houses?: Pick<HouseRepository, 'activeOf'>;
-    /** Archiv vsí – muži vazala, který dal Začít znovu, panel nevidí (`mayHandleCampaign`). */
-    villages?: Partial<Pick<VillageRepository, 'archivedOf'>>;
+    /** Vsi a sídla vazala – muže ze vsi, kterou už nedrží, panel nevidí (`mayHandleCampaign`). */
+    villages?: Partial<Pick<VillageRepository, 'stampsOfVillages'>>;
+    settlements?: Partial<Pick<SettlementRepository, 'listActive'>>;
   },
   input: { playerId: string },
 ): Promise<CampaignSummary[]> {

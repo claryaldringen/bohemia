@@ -43,6 +43,8 @@ function commandDeps(): CampaignCommandDeps {
     campaigns: deps.campaigns,
     cells: campaignCells(),
     villages: deps.villages,
+    // vazal ve službě – jen s muži ze vsi, kterou drží (`mayHandleCampaign`)
+    settlements: deps.settlements,
     grids: SIGHT_GRIDS,
     targets: TARGETS,
     world: currentWorld(),
@@ -80,7 +82,12 @@ export function commandCampaignForPlayer(
 export function campaignsOfPlayer(playerId: string): Promise<CampaignSummary[]> {
   const deps = gameDeps();
   return campaignsOf(
-    { campaigns: deps.campaigns, houses: deps.houses, villages: deps.villages },
+    {
+      campaigns: deps.campaigns,
+      houses: deps.houses,
+      villages: deps.villages,
+      settlements: deps.settlements,
+    },
     { playerId },
   );
 }

@@ -553,9 +553,10 @@ Martin 2. 11. 2026 – „ok“ (podrobnosti návrh Clauda):
   6. **Archivovaná ves je pro tažení konečný stav** – vojsko na ni nečeká (domov hostů, posla nebo
      uprchlíků); výjezd vojvody ji dál bere jako zaniklou.
   7. **Staré vojsko nepatří nové hře** – tažení, které vede rod, jenž restartem skončil, nová hra
-     v panelu Vojsko nevidí, jeho upozornění se jí nedoručí a nemůže ho ani zobrazit, ani mu dávat
-     pokyny (jedna kontrola pro všechny vstupy hráče). Muži vazala, který dal Začít znovu (vsi
-     v archivu), se v panelu nové hry neukazují ani v cizím tažení.
+     v panelu Vojsko nevidí, jeho upozornění se jí nedoručí a nemůže ho ani zobrazit (ani ve
+     scéně), ani mu dávat pokyny (jedna kontrola pro všechny vstupy hráče). Vazal ve službě vidí
+     tažení jen tehdy, když aspoň jeden jeho muž žije ve vsi, kterou drží – muži ze vsi v archivu
+     nebo vzdané se v panelu nové hry neukazují ani v cizím tažení. Obránce cizí vojsko vidí dál.
   8. **Výjezd vojvody, jehož domov se vzdal** – restart ho ukončí doma: vzdaná ves (není
      v archivu) dostane `away-ends` jednou a členové jsou doma jako ostatní lidé vsi, bez
      upozornění. U domova v archivu se nic neposílá (návrh Clauda).

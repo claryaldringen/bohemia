@@ -13,7 +13,8 @@ import {
   type TargetDwelling,
 } from '../campaign-view';
 import type { House } from '../houses';
-import type { VillageRecord } from '../villages';
+import type { Settlement } from '../settlements';
+import type { VillageRecord, VillageStamp } from '../villages';
 import { InMemoryCampaigns } from './in-memory-campaigns';
 import { InMemoryHouses } from './in-memory-houses';
 import { InMemoryKnowledge } from './in-memory-knowledge';
@@ -310,8 +311,11 @@ describe('campaignsOf', () => {
 });
 
 describe('staré vojsko po Začít znovu – pohled i pokyny (war.md – Začít znovu během nájezdu)', () => {
-  /** Rod h-old skončil, hráč p1 má nový rod; vazal p2 má muže z vsi `brod`. */
-  async function restarted(archived: string[] = []) {
+  /**
+   * Rod h-old skončil, hráč p1 má nový rod; vazal p2 má muže z vsi `brod` na mapě `m-brod`, kterou
+   * drží, dokud `held` (archiv i vzdání mapu vezmou – `listActive` ji nevrátí).
+   */
+  async function restarted(held = true) {
     const { deps, campaigns, nowMs } = await setup({ ...raiding(), houseId: 'h-old' });
     const houses = new InMemoryHouses();
     const old = await houses.create({ playerId: 'p1', kind: 'player', createdAt: new Date(0) });
@@ -319,10 +323,23 @@ describe('staré vojsko po Začít znovu – pohled i pokyny (war.md – Začít
     const fresh = await houses.create({ playerId: 'p1', kind: 'player', createdAt: new Date(2) });
     const villages = {
       ...deps.villages,
-      archivedOf: (ids: readonly string[]): Promise<string[]> =>
-        Promise.resolve(ids.filter((id) => archived.includes(id))),
+      stampsOfVillages: (ids: readonly string[]): Promise<VillageStamp[]> =>
+        Promise.resolve(
+          ids.map((id) => ({
+            id,
+            settlementId: `m-${id}`,
+            name: id,
+            version: 1,
+            lastDay: 0,
+            asleep: false,
+          })),
+        ),
     };
-    return { all: { ...deps, houses, villages }, campaigns, nowMs, fresh };
+    const settlements = {
+      listActive: (ownerId: string): Promise<Settlement[]> =>
+        Promise.resolve(held && ownerId === 'p2' ? [{ id: 'm-brod' } as Settlement] : []),
+    };
+    return { all: { ...deps, houses, villages, settlements }, campaigns, nowMs, fresh };
   }
 
   it('vůdce staré hry tažení nevidí a nic do něj nezadá', async () => {
@@ -357,17 +374,22 @@ describe('staré vojsko po Začít znovu – pohled i pokyny (war.md – Začít
     expect(queued.queued).toBe(true);
   });
 
-  it('muži vazala, který dal Začít znovu (vsi v archivu), v cizím tažení nevidí; jinak ano', async () => {
+  it('muži vazala ze vsi, kterou už nedrží (archiv i vzdaná ves mimo archiv), v cizím tažení nevidí; jinak ano', async () => {
     const live = await restarted();
     expect(
       await campaignViewFor(live.all, { playerId: 'p2', campaignId: 'c1', sinceTick: 0 }),
     ).not.toBeNull();
-    const gone = await restarted(['brod']);
+    const gone = await restarted(false);
     expect(
       await campaignViewFor(gone.all, { playerId: 'p2', campaignId: 'c1', sinceTick: 0 }),
     ).toBeNull();
     const list = await campaignsOf(
-      { campaigns: gone.campaigns, houses: gone.all.houses, villages: gone.all.villages },
+      {
+        campaigns: gone.campaigns,
+        houses: gone.all.houses,
+        villages: gone.all.villages,
+        settlements: gone.all.settlements,
+      },
       { playerId: 'p2' },
     );
     expect(list).toEqual([]);
