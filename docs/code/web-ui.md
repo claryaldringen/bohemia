@@ -243,9 +243,14 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   práce, nasycení (barva ikony podle energie – hlad, tooltip nasycení s energií, bílkovinami
   a podíly obilí / luštěniny / maso / mléko a sýr / vejce / ovoce), štěstí, datum – obnoví se
   na začátku dalšího herního dne, ne každou sekundu (`dateRefreshDelay` v `lib/game-date.ts`);
-  zvuk a tlačítko nabídky),
-  `GameMenu` (nabídka hry jako v 0 A.D. pod lištou vpravo, F10 – smí mít slova: Začít znovu,
-  Odhlásit s e-mailem v popisku, Zpět do hry; Začít znovu se živou vsí jen po potvrzení v panelu,
+  datum je bez názvu období (Martin 14. 11. 2026); ve vývojovém režimu je klikací
+  (`DateWithDevTime`, `game-date-toggle`) – klik otevře u data panel zrychlení času
+  (`DevTimeButtons`, `dev-time-panel`), další klik, Esc nebo stisk mimo ho zavře, mimo vývojový
+  režim klik nic neotevře; ikona zvuků v liště není, jen tlačítko nabídky),
+  `GameMenu` (nabídka hry jako v 0 A.D., F10 – modální okno uprostřed obrazovky se ztmaveným
+  pozadím; smí mít slova: Nastavení – přepínač `setting-sound` Zvuky krajiny, stejná uložená
+  volba `sound-preference` –, Začít znovu,
+  Odhlásit s e-mailem v popisku, Zpět do hry; Esc z Nastavení vrátí k položkám; Začít znovu se živou vsí jen po potvrzení v panelu,
   bez dialogů prohlížeče, při zakládání vsi zamčené; otevření zruší umisťování i výběr, klávesy
   hry zachytí na `window` ve fázi capture, Esc zavře – z potvrzení vrátí –, klik mimo panel zavře
   a do krajiny nedojde; po konci hry se neotevře; logika kláves v `lib/game-menu.ts`), `Minimap` (vlevo dole, `lib/minimap.ts`,
@@ -644,12 +649,11 @@ Návrh: [wildlife.md](../design/wildlife.md) – Co hráč vidí. Pohled jen čt
 
 Návrh: [disasters.md – Co hráč vidí](../design/disasters.md). Jádro a čísla: [village-disasters.md](village-disasters.md).
 
-- **Lišta** – `VillageView.weather` (`weatherView`): jen neobvyklé a už vidět (`revealedWeather` – 30. 4. sucho chybí), povodeň (`disasters.flood`), dokud ve vsi leží voda a bahno
-  (`FLOOD_SCENE_DAYS`). `TopBar` → `WeatherIcons` za štěstím: ikona zimy, léta a vody
-  (`WEATHER_ICONS` – `drought`, `rain`, `frost`, `good-summer`, `flood`), slova jen v popisku
-  (`summerLabel` – změny úrody a sena z `WEATHER.summerEffects`, `winterLabel`, `floodLabel` –
-  „Stoletá voda – 2 m nad hladinou“). Testy `village-weather-summer` / `-winter` (`data-weather`),
-  `village-flood` (`data-level`).
+- **Lišta** počasí roku neukazuje (Martin 14. 11. 2026: deštivé léto je vidět, protože prší,
+  povodeň na mapě, dlouhá zima podle sněhu, sucho a holomráz ukáže scéna) – `VillageView.weather`
+  (`weatherView`: jen neobvyklé a už vidět, `revealedWeather` – 30. 4. sucho chybí; povodeň,
+  dokud ve vsi leží voda a bahno, `FLOOD_SCENE_DAYS`) slouží upozorněním a kronice
+  (`WEATHER_ICONS` – ikony upozornění).
 - **Panel dílu** – `VillageFieldPart.protection` (`partProtectionView`: zeleň po stupních 0–4,
   `water`, `lowland`, `raised`, `slope`; díl bez údaje typická zeleň; ves bez počasí kraje nic)
   → ikona `protection` s číslem, popisek `protectionLabel`. `VillageFieldPart.losses`

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { registerAndEnterGame, signOut, useUniqueClientIp } from './helpers';
+import { openSoundSetting, registerAndEnterGame, signOut, useUniqueClientIp } from './helpers';
 
 test.beforeEach(async ({ context }) => {
   await useUniqueClientIp(context);
@@ -341,20 +341,18 @@ test('přepínač zvuků krajiny se přepíná a volba vydrží nové načtení'
   page.on('pageerror', (error) => errors.push(error.message));
   // Plátno vzniká v efektu – stránka je hydratovaná a kliknutí se neztratí.
   await expect(sceneCanvas(page)).toBeAttached();
-  const toggle = page.getByRole('button', { name: 'Zvuky krajiny' });
-  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
-  // Leží v horní liště vpravo od data, nepřekrývá ho.
-  const date = (await page.getByTestId('game-date').boundingBox())!;
-  const box = (await toggle.boundingBox())!;
-  const bar = (await page.getByTestId('top-bar').boundingBox())!;
-  expect(box.x).toBeGreaterThanOrEqual(date.x + date.width);
-  expect(box.y + box.height).toBeLessThanOrEqual(bar.y + bar.height);
-
+  // Ikona zvuků v liště není – přepínač je v Nastavení nabídky.
+  await expect(page.getByRole('button', { name: 'Zvuky krajiny' })).toHaveCount(0);
+  const toggle = await openSoundSetting(page);
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
   await toggle.click();
-  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(toggle).toHaveAttribute('aria-checked', 'false');
   await page.reload();
   // Po načtení stránky se připravuje scéna – v bezhlavém prohlížeči chvíli blokuje stránku.
-  await expect(toggle).toHaveAttribute('aria-pressed', 'false', { timeout: 30_000 });
+  await expect(page.locator('canvas[data-scene-ready]')).toBeAttached({ timeout: 60_000 });
+  await expect(await openSoundSetting(page)).toHaveAttribute('aria-checked', 'false', {
+    timeout: 30_000,
+  });
   expect(errors).toEqual([]);
 });
 
@@ -396,12 +394,12 @@ test('zvuky se stáhnou až po přípravě krajiny, hrají po kliknutí a přep�
   expect(audio.total).toBeGreaterThan(0);
   expect(audio.early).toEqual([]);
 
-  const toggle = page.getByRole('button', { name: 'Zvuky krajiny' });
+  const toggle = await openSoundSetting(page);
   await toggle.click();
-  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect(toggle).toHaveAttribute('aria-checked', 'false');
   await expect(readyScene(page)).toHaveAttribute('data-sound', 'muted');
   await toggle.click();
-  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
   await expect(readyScene(page)).not.toHaveAttribute('data-sound', 'muted');
   expect(errors).toEqual([]);
 });

@@ -13,8 +13,6 @@ import {
   PROTECTION,
   revealedWeather,
   tradeSeason,
-  WEATHER,
-  WEATHER_EFFECTS,
   weatherOf,
   LOCAL_DISASTER_KINDS,
   type ChronicleEvent,
@@ -76,7 +74,7 @@ export function signedPercent(factor: number): string {
   return `${change > 0 ? '+' : '−'}${Math.abs(change)} %`;
 }
 
-/** Ikona počasí v liště: prasklá zem, mrak s deštěm, klas se sluncem, vločka s mrazem, voda. */
+/** Ikona počasí (upozornění): prasklá zem, mrak s deštěm, klas se sluncem, vločka s mrazem, voda. */
 export const WEATHER_ICONS = {
   good: 'good-summer',
   dry: 'drought',
@@ -87,27 +85,6 @@ export const WEATHER_ICONS = {
   long: 'frost',
   flood: 'flood',
 } as const;
-
-/** Popisek léta v liště – úroda ozimu a jaře a seno z pravidel (`WEATHER.summerEffects`). */
-export function summerLabel(summer: Exclude<SummerWeather, 'normal'>): string {
-  const e = WEATHER.summerEffects[summer];
-  const effects = `ozim ${signedPercent(e.winterCrop)}, jař ${signedPercent(e.springCrop)}, seno ${signedPercent(e.hay)}`;
-  const trees = summer === 'dry' || summer === 'drought' ? ' – nejvíc trpí pole bez stromů' : '';
-  return `${SUMMER_NAMES[summer]} – ${effects}${trees}`;
-}
-
-/** Popisek zimy v liště. */
-export function winterLabel(winter: Exclude<WinterWeather, 'normal'>): string {
-  return winter === 'blackFrost'
-    ? `Holomráz – mráz bez sněhu, ozim ${signedPercent(WEATHER_EFFECTS.blackFrostWinterCrop)}`
-    : 'Dlouhá sněžná zima – seno se krmí i v dubnu, jař se seje později';
-}
-
-/** Popisek povodně – stupeň a výška nad hladinou („Stoletá voda – 2 m nad hladinou“). */
-export function floodLabel(flood: { level: FloodLevel; heightM: number }): string {
-  const height = String(flood.heightM).replace('.', ',');
-  return `${FLOOD_LEVEL_NAMES[flood.level]} – ${height} m nad hladinou`;
-}
 
 /**
  * Ochrana dílu pro panel (disasters.md – Ochrana dílu): zeleň po stupních 0–4 (lístky) a vlhkost –

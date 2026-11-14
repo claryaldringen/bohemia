@@ -259,8 +259,6 @@ describe('prapor v liště', () => {
         view={null}
         world={{ startMs: 0, endMs: 1e12 }}
         initialNowMs={1}
-        soundOn
-        onToggleSound={() => {}}
         menuOpen={false}
         onToggleMenu={() => {}}
         onRename={async () => null}

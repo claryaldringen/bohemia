@@ -355,8 +355,6 @@ export function VillageGame({
                 view={view}
                 world={clock}
                 initialNowMs={initialNowMs}
-                soundOn={soundOn}
-                onToggleSound={toggleSound}
                 menuOpen={menuShown}
                 onToggleMenu={() => (menuShown ? panels.closeMenu() : openMenu())}
                 onRename={commands.rename}
@@ -491,6 +489,8 @@ export function VillageGame({
                 email={email}
                 onRestart={() => restart(true)}
                 onSignOut={signOutToHome}
+                soundOn={soundOn}
+                onToggleSound={toggleSound}
                 panels={panels}
                 house={house}
                 chronicle={chronicle}

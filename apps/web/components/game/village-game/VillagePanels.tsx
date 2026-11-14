@@ -53,6 +53,8 @@ export function VillagePanels({
   email,
   onRestart,
   onSignOut,
+  soundOn,
+  onToggleSound,
   panels,
   house,
   chronicle,
@@ -68,6 +70,9 @@ export function VillagePanels({
   /** Začít znovu z nabídky (se živou vsí). */
   onRestart: () => Promise<string | null>;
   onSignOut: () => Promise<string | null>;
+  /** Zvuky krajiny zapnuté a jejich přepnutí (Nastavení v nabídce). */
+  soundOn: boolean;
+  onToggleSound: () => void;
   panels: Panels;
   house: House;
   chronicle: ChronicleControl;
@@ -85,6 +90,8 @@ export function VillagePanels({
           onClose={panels.closeMenu}
           onRestart={onRestart}
           onSignOut={onSignOut}
+          soundOn={soundOn}
+          onToggleSound={onToggleSound}
         />
       )}
       {panels.warOpen && !menuShown && (
