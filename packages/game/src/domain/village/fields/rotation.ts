@@ -305,7 +305,10 @@ export function turnSelection(
     }
     return crop;
   };
-  const blocks = sowingBlocks(parts, holdings).flat();
+  // na díl za vodou bez brodu se nedojde – neobdělává se a zaroste (`FieldPart.unreachable`)
+  const blocks = sowingBlocks(parts, holdings)
+    .flat()
+    .filter((p) => !p.unreachable);
   const turn = blocks.filter((p) => onTurn(kind(p)));
   const join: SeasonJoin[] = [];
   const usedSlots = size > 0 ? new Uint8Array(size) : null;

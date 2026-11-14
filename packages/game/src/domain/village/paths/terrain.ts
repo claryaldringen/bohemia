@@ -54,8 +54,12 @@ export const PATH_SLOPE_REF = SLOPE_REF;
 export const PATH_SLOPE_MAX = SLOPE_MAX;
 /** Brodit se je dražší než jít po louce (mokro, kluzké kameny). */
 const FORD_COST = 5;
-/** Brod: mělký (0–1) a úzký úsek potoka (poloviční šířka vody v m). */
-const FORD = { shallow: 0.55, halfWidthM: 2.4 } as const;
+/**
+ * Brod: mělčina potoka nebo řeky – místo osy aspoň z tolika mělké (0–1, `StreamPoint.shallow` –
+ * landscape.md, Brod na každé mapě s potokem; jako brod pochodu války). Šířka nerozhoduje:
+ * mělčina generátoru je široký mělký úsek a dřívější mez poloviční šířky 2,4 m nesplnila žádná.
+ */
+const FORD = { shallow: 0.55 } as const;
 /** Les: kolikrát dražší je chůze uvnitř lesa (podrost, kořeny) – stromy přidají překážky zvlášť. */
 const FOREST_COST = 1.35;
 export const PATH_FOREST_COST = FOREST_COST;
@@ -255,7 +259,7 @@ export function buildPathTerrain(l: Landscape, window: PathWindow): PathTerrain 
           const sample = stream.nearest(x, z, BANK_REACH_M);
           if (sample.bankDistance < 0) {
             wet[c] = 1;
-            const ford = sample.shallow >= FORD.shallow && sample.halfWidth <= FORD.halfWidthM;
+            const ford = sample.shallow >= FORD.shallow;
             cost[c] = ford ? FORD_COST : Infinity;
             if (ford) flags[c] = flags[c]! | PATH_FORD;
             continue;
@@ -390,6 +394,128 @@ export function pathTerrainOf(l: Landscape, window: PathWindow): PathTerrain {
     terrainCache.set(l, cached);
   }
   return cropPathTerrain(cached, window);
+}
+
+const fordsCache = new WeakMap<Landscape, readonly { x: number; z: number }[]>();
+
+/**
+ * Brody celé krajiny – středy buněk PATH_FORD celé mřížky pěšin (paths.md – Odhad vzdáleností,
+ * Jen brodem: objížďka přes vodu hledá brod na celé mapě, ne jen v okně). Po řádcích, v mezipaměti
+ * podle krajiny.
+ */
+export function landscapeFordSpots(l: Landscape): readonly { x: number; z: number }[] {
+  const cached = fordsCache.get(l);
+  if (cached) return cached;
+  const { n } = gridOf(l);
+  const t = pathTerrainOf(l, { i0: 0, j0: 0, i1: n - 1, j1: n - 1 });
+  const out: { x: number; z: number }[] = [];
+  for (let j = 0; j < t.height; j++) {
+    for (let i = 0; i < t.width; i++) {
+      if (t.flags[j * t.width + i]! & PATH_FORD) {
+        out.push({ x: t.originX + i * t.cellM, z: t.originZ + j * t.cellM });
+      }
+    }
+  }
+  fordsCache.set(l, out);
+  return out;
+}
+
+/** Souvislé oblasti souše celé krajiny po buňkách mřížky pěšin (`landscapeLandAreas`). */
+export interface LandAreas {
+  readonly width: number;
+  readonly height: number;
+  readonly originX: number;
+  readonly originZ: number;
+  readonly cellM: number;
+  /** Číslo oblasti buňky; −1 = voda, která oblasti dělí, nebo pás u okraje krajiny. */
+  readonly area: Int32Array;
+}
+
+const areasCache = new WeakMap<Landscape, { reach?: LandAreas; banks?: LandAreas }>();
+
+/**
+ * Souvislé oblasti souše celé krajiny (paths.md – Odhad vzdáleností, Jen brodem): buňky mřížky
+ * pěšin ve 4-okolí mimo vodu a mimo pás u okraje krajiny (EDGE_MARGIN_M – tudy se potok neobejde).
+ * `crossFords` – brod je souš (kam se dojde, i přes brod); jinak dělí i brod (břehy – co leží
+ * za vodou). Sráz ani les oblasti nedělí – chůze rovně je jen zpomalí. Mezipaměť podle krajiny.
+ */
+export function landscapeLandAreas(l: Landscape, crossFords: boolean): LandAreas {
+  const entry = areasCache.get(l) ?? {};
+  areasCache.set(l, entry);
+  const cached = crossFords ? entry.reach : entry.banks;
+  if (cached) return cached;
+  const { n } = gridOf(l);
+  const t = pathTerrainOf(l, { i0: 0, j0: 0, i1: n - 1, j1: n - 1 });
+  const w = t.width;
+  const all = w * t.height;
+  const edge = (l.size * l.cellSizeM) / 2 - EDGE_MARGIN_M;
+  const open = new Uint8Array(all);
+  for (let j = 0; j < t.height; j++) {
+    for (let i = 0; i < w; i++) {
+      const x = t.originX + i * t.cellM;
+      const z = t.originZ + j * t.cellM;
+      if (x > edge || x < -edge || z > edge || z < -edge) continue;
+      const f = t.flags[j * w + i]!;
+      if (f & PATH_WATER && !(crossFords && f & PATH_FORD)) continue;
+      open[j * w + i] = 1;
+    }
+  }
+  const area = new Int32Array(all).fill(-1);
+  const stack = new Int32Array(all);
+  let next = 0;
+  for (let s = 0; s < all; s++) {
+    if (!open[s] || area[s] !== -1) continue;
+    let top = 0;
+    stack[top++] = s;
+    area[s] = next;
+    while (top > 0) {
+      const c = stack[--top]!;
+      const i = c % w;
+      const around = [i > 0 ? c - 1 : -1, i < w - 1 ? c + 1 : -1, c - w, c + w];
+      for (const m of around) {
+        if (m < 0 || m >= all || !open[m] || area[m] !== -1) continue;
+        area[m] = next;
+        stack[top++] = m;
+      }
+    }
+    next++;
+  }
+  const out: LandAreas = {
+    width: w,
+    height: t.height,
+    originX: t.originX,
+    originZ: t.originZ,
+    cellM: t.cellM,
+    area,
+  };
+  if (crossFords) entry.reach = out;
+  else entry.banks = out;
+  return out;
+}
+
+/** Hledání souše kolem bodu ve vodě nebo u okraje – nejvýš tolik buněk (`landAreaAt`). */
+const LAND_SEARCH_CELLS = 3;
+
+/**
+ * Oblast souše v bodě (x, z) – nejbližší buňka mřížky; leží-li ve vodě nebo u okraje, nejbližší
+ * souš po čtvercových kruzích do LAND_SEARCH_CELLS buněk (při shodě první po řádcích); jinak −1.
+ */
+export function landAreaAt(areas: LandAreas, x: number, z: number): number {
+  const i = Math.round((x - areas.originX) / areas.cellM);
+  const j = Math.round((z - areas.originZ) / areas.cellM);
+  for (let r = 0; r <= LAND_SEARCH_CELLS; r++) {
+    for (let dj = -r; dj <= r; dj++) {
+      for (let di = -r; di <= r; di++) {
+        if (Math.max(Math.abs(di), Math.abs(dj)) !== r) continue;
+        const ii = i + di;
+        const jj = j + dj;
+        if (ii < 0 || jj < 0 || ii >= areas.width || jj >= areas.height) continue;
+        const a = areas.area[jj * areas.width + ii]!;
+        if (a >= 0) return a;
+      }
+    }
+  }
+  return -1;
 }
 
 /**

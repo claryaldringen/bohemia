@@ -110,6 +110,12 @@ export interface FieldPart {
    */
   walkDistanceM?: number;
   /**
+   * Na díl se nedojde – leží za vodou a mapa nemá brod (paths.md – Odhad vzdáleností, Jen brodem;
+   * Martin 14. 11. 2026): ves ho neobdělává a zaroste jako každý příloh (fields.md – Zarůstání).
+   * Nastaví ho `refreshWalkDistances` místo `walkDistanceM`; chybí = dojde se.
+   */
+  unreachable?: true;
+  /**
    * Roky přílohu bez pastvy a seče (fields.md – Zarůstání): přibývají 1. 11. za každé vegetační
    * období, kdy díl stáda nespásla a ves neposekla; pastva nebo seč je ve fázi louky vynuluje, od
    * křovin už ne. Chybí = 0 (díly mimo příloh, vsi uložené dřív).

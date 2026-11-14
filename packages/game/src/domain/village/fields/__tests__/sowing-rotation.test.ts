@@ -504,3 +504,15 @@ describe('výběr dílů na řadě – bez stropu', () => {
     expect(once.length).toBeGreaterThan(0);
   });
 });
+
+describe('díl, na který se nedojde (paths.md – Odhad vzdáleností, Jen brodem)', () => {
+  it('díl za vodou bez brodu (`unreachable`) ves do práce nebere, ostatní ano', () => {
+    const s = village(4);
+    const order = blockOrder(s);
+    const far = order[1]!;
+    s.parts.find((p) => p.id === far)!.unreachable = true;
+    expect(turnSelection(s, SEPT_1, CALM)).toEqual(
+      order.filter((id) => id !== far).map((id) => ({ id, crop: 'winter' })),
+    );
+  });
+});

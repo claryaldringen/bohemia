@@ -22,7 +22,8 @@ import { wearCellAt } from '../wear';
 import { villageGrid } from '../network-grid';
 import { trodden } from '../network-search';
 import { pathCostFactor } from '../walk-speed';
-import { nearestWaterTiles, pathTerrainOf, pathWindowFor } from '../terrain';
+import { nearestWaterTiles, PATH_FORD, pathTerrainOf, pathWindowFor } from '../terrain';
+import type { Landscape, StreamPoint } from '../../../landscape';
 import { house, part, pathTestTerrain } from '../../__tests__/paths-fixtures';
 import { makeLandscape } from '../../__tests__/placement-fixtures';
 
@@ -1027,5 +1028,45 @@ describe('zvyk a ploty (paths.md – Kudy, Martin 22. 10. 2026)', () => {
     const grid = villageGrid({ village: village({ pens }), terrain }, []);
     expect(grid.base[cellAt(grid, 0, 37.5)]).toBe(Infinity);
     expect(grid.base[cellAt(grid, 18, 37.5)]).toBe(Infinity);
+  });
+});
+
+describe('villagePathBounds – pole za potokem (paths.md – Odhad vzdáleností, Jen brodem)', () => {
+  // louka 900 × 900 m, potok v řadě políček y = 40 (z ∈ (150, 165)) s osou; mělčina daleko na
+  // východě (políčka x 50–56 – z ≈ 300–400 m), ves u počátku, pole za potokem
+  const streamLand = (shallowFrom: number | null): Landscape => {
+    const base = makeLandscape({ size: 60, surface: (_x, y) => (y === 40 ? 'water' : 'meadow') });
+    const stream: StreamPoint[] = [];
+    for (let x = 0; x < 60; x += 0.5) {
+      const shallow = shallowFrom !== null && x >= shallowFrom && x <= shallowFrom + 6;
+      stream.push({ x, y: 40, halfWidthLeft: 0.4, halfWidthRight: 0.4, level: 0, shallow });
+    }
+    return { ...base, stream };
+  };
+  const v = village({
+    dwellings: [house(1, 0, 0), house(2, 14, 4), house(3, -13, 5)],
+    fields: [{ id: 9, parts: [part(7.5, 247.5, 'sown')] }],
+  });
+
+  it('okno sahá k brodu a pěšina k poli vede přes něj', () => {
+    const ford = streamLand(50);
+    const narrow = pathBounds(v)!;
+    expect(narrow.maxX).toBeLessThan(300);
+    const wide = villagePathBounds(v, ford)!;
+    expect(wide.maxX).toBeGreaterThan(300);
+    const t = pathTerrainOf(ford, pathWindowFor(ford, wide));
+    const routes = computePathNetwork({ village: v, terrain: t, keepRoutes: true }).routes ?? [];
+    const toField = routes.filter((r) => r.to === 'field:9');
+    expect(toField.length).toBeGreaterThan(0);
+    for (const r of toField) expect(r.cells.some((c) => t.flags[c]! & PATH_FORD)).toBe(true);
+  });
+
+  it('bez brodu na mapě okno k vodě nesahá dál a k poli pěšina nevede', () => {
+    const dry = streamLand(null);
+    const bounds = villagePathBounds(v, dry)!;
+    expect(bounds.maxX).toBeLessThan(300);
+    const t = pathTerrainOf(dry, pathWindowFor(dry, bounds));
+    const routes = computePathNetwork({ village: v, terrain: t, keepRoutes: true }).routes ?? [];
+    expect(routes.filter((r) => r.to === 'field:9')).toEqual([]);
   });
 });

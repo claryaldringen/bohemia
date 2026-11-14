@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
-import { obstaclesOf, tileCenterWorld } from '../../../landscape';
+import { obstaclesOf, tileCenterWorld, type Landscape, type StreamPoint } from '../../../landscape';
 import { foundVillage } from '../../core/actions';
 import { STEWARD } from '../../rules/rules-steward';
 import {
@@ -109,5 +109,43 @@ describe('území vsi', () => {
     expect(alone[at(30, 30)]).toBe(1);
     // vzdálenější políčko než 800 m od středu (15 m políčko × 55) k území nepatří
     expect(alone[at(30, 20 + 55)] ?? 0).toBe(0);
+  });
+});
+
+describe('území vsi – jen kam se dojde (paths.md – Odhad vzdáleností, Jen brodem)', () => {
+  /** Louka s potokem napříč v řádku y = 32 (osa potoka, poloviční šířka 0,4 políčka). */
+  const streamLand = (shallowFrom: number | null): Landscape => {
+    const base = makeLandscape({
+      size: SIZE,
+      surface: (_x, y) => (y === 32 ? 'water' : 'meadow'),
+      fertility: () => 60,
+    });
+    const stream: StreamPoint[] = [];
+    for (let x = 0; x < SIZE; x += 0.5) {
+      const shallow = shallowFrom !== null && x >= shallowFrom && x <= shallowFrom + 6;
+      stream.push({ x, y: 32, halfWidthLeft: 0.4, halfWidthRight: 0.4, level: 0, shallow });
+    }
+    return { ...base, stream };
+  };
+  const position = (
+    l: Landscape,
+    x: number,
+    y: number,
+  ): { x: number; z: number; rotation: number } => ({
+    ...tileCenterWorld(l, x, y),
+    rotation: 0,
+  });
+
+  it('bez brodu na mapě políčka za potokem k území nepatří, s brodem ano', () => {
+    const dry = streamLand(null);
+    const village = foundVillage({ seed: 1, day: DAY, dwellingPosition: position(dry, 30, 20) });
+    const without = villageTerritory(village, dry);
+    expect(without[at(30, 25)]).toBe(1);
+    expect(without[at(30, 40)]).toBe(0);
+    // brod daleko po proudu (x 50–56) – za potok se dojde přes něj
+    const ford = streamLand(50);
+    const withFord = villageTerritory(village, ford);
+    expect(withFord[at(30, 25)]).toBe(1);
+    expect(withFord[at(30, 40)]).toBe(1);
   });
 });

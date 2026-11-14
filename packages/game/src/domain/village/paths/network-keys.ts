@@ -3,7 +3,7 @@
 
 import { length2, type Landscape } from '../../landscape';
 import { type Position } from '../types';
-import { nearestWaterTiles } from './terrain';
+import { landAreaAt, landscapeFordSpots, landscapeLandAreas, nearestWaterTiles } from './terrain';
 import { partWalkSpeed, roadTreeSpeed } from './walk-speed';
 import {
   DAYS_PER_YEAR,
@@ -27,13 +27,65 @@ export function villagePathBounds(
   village: PathVillage,
   landscape: Landscape,
 ): { minX: number; minZ: number; maxX: number; maxZ: number } | null {
-  return pathBounds(
-    village,
-    nearestWaterTiles(
+  return pathBounds(village, [
+    ...nearestWaterTiles(
       landscape,
       village.dwellings.map((d) => d.position),
     ),
+    ...crossingFords(village, landscape),
+  ]);
+}
+
+/**
+ * Brody k cílům za vodou (paths.md – Odhad vzdáleností, Jen brodem): cíl sítě na jiném břehu než
+ * všechna obydlí (`landscapeLandAreas` bez brodů) – brod z celé mapy (`landscapeFordSpots`)
+ * s nejmenším součtem vzdáleností od středu obydlí a k cíli (jako `fordDetour`, při shodě první),
+ * každý jednou. Okno sítě k němu sáhne jako k vodě – pěšina pak vede přes brod. Bez cílů za vodou
+ * nebo bez brodu nic.
+ */
+function crossingFords(village: PathVillage, landscape: Landscape): PathPoint[] {
+  if (village.dwellings.length === 0) return [];
+  const fords = landscapeFordSpots(landscape);
+  if (fords.length === 0) return [];
+  const banks = landscapeLandAreas(landscape, false);
+  const homes = new Set(
+    village.dwellings.map((d) => landAreaAt(banks, d.position.x, d.position.z)),
   );
+  const cx = village.dwellings.reduce((s, d) => s + d.position.x, 0) / village.dwellings.length;
+  const cz = village.dwellings.reduce((s, d) => s + d.position.z, 0) / village.dwellings.length;
+  const out = new Map<PathPoint, true>();
+  for (const p of targetPoints(village)) {
+    const bank = landAreaAt(banks, p.x, p.z);
+    if (bank < 0 || homes.has(bank)) continue;
+    let best: PathPoint | null = null;
+    let bestD = Infinity;
+    for (const f of fords) {
+      const d = length2(f.x - cx, f.z - cz) + length2(p.x - f.x, p.z - f.z);
+      if (d < bestD) {
+        best = f;
+        bestD = d;
+      }
+    }
+    if (best) out.set(best, true);
+  }
+  return [...out.keys()];
+}
+
+/** Cíle sítě pro okno (`pathBounds`) – díly, sady, hřbitovy, posvátná místa, ohrady a louky. */
+function targetPoints(village: PathVillage): PathPoint[] {
+  const out: PathPoint[] = [];
+  const add = (x: number, z: number): void => {
+    out.push({ x, z });
+  };
+  for (const f of village.fields) for (const p of f.parts) add(p.x, p.z);
+  for (const o of village.orchards ?? []) for (const s of o.squares) add(s.x, s.z);
+  for (const c of village.cemeteries ?? []) for (const s of c.squares) add(s.x, s.z);
+  for (const o of village.sacred?.oaks ?? []) add(o.x, o.z);
+  for (const g of village.sacred?.groves ?? []) add(g.x, g.z);
+  for (const b of village.sacred?.buildings ?? []) add(b.position.x, b.position.z);
+  for (const p of village.pens ?? []) for (const q of penPathSquares(p)) add(q.x, q.z);
+  for (const m of mowedMeadows(village)) add(m.x, m.z);
+  return out;
 }
 
 /**
@@ -309,14 +361,7 @@ export function pathBounds(
   for (const d of village.dwellings) add(d.position.x, d.position.z);
   const cx = xs.reduce((s, x) => s + x, 0) / xs.length;
   const cz = zs.reduce((s, z) => s + z, 0) / zs.length;
-  for (const f of village.fields) for (const p of f.parts) add(p.x, p.z);
-  for (const o of village.orchards ?? []) for (const s of o.squares) add(s.x, s.z);
-  for (const c of village.cemeteries ?? []) for (const s of c.squares) add(s.x, s.z);
-  for (const o of village.sacred?.oaks ?? []) add(o.x, o.z);
-  for (const g of village.sacred?.groves ?? []) add(g.x, g.z);
-  for (const b of village.sacred?.buildings ?? []) add(b.position.x, b.position.z);
-  for (const p of village.pens ?? []) for (const q of penPathSquares(p)) add(q.x, q.z);
-  for (const m of mowedMeadows(village)) add(m.x, m.z);
+  for (const p of targetPoints(village)) add(p.x, p.z);
   const clampX = (x: number): number =>
     Math.min(cx + MAX_WINDOW_HALF_M, Math.max(cx - MAX_WINDOW_HALF_M, x));
   const clampZ = (z: number): number =>
