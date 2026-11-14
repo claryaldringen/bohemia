@@ -915,8 +915,10 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
   `UNKNOWN_ALARM_OWNER` – rozhoduje pravidlo, hradiště ani doména žádné); port `messengerTo` zmizel.
   Port aplikace `AlarmOwnerPort` (`application/campaigns.ts`: `ownerOf`, `refugeHostsOf`, `domainOf`
   → `VillageCell`), `StepCampaignsDeps.alarmOwners` – `computeCampaign` (`alarmWorld`) odpovídá
-  synchronně z načteného, jinak si dotaz zapamatuje a po `MissingData` ho dočte (vlastník a
-  kandidáti hradišť vsi spolu – jedno kolo; neznámá ves = neznámý rod). Adaptér
+  synchronně z načteného, jinak si dotaz zapamatuje a po `MissingData` ho dočte (vlastník zvlášť –
+  s pamětí workeru z `CampaignMemory.owners`; kandidáti hradišť jen u vsi, která do varování
+  vstupuje, a pro posla a útěk; neznámá ves = neznámý rod – Hráč ve vsi a mimo ni: Opravy po
+  závěrečné recenzi). Adaptér
   `db/adapters/alarm-owners.ts` (`createAlarmOwners`; test `alarm-owners.db.test.ts`): rod vsi =
   živý rod hráče, kterému patří sídlo vsi (`settlement.owner_id` → `house`), `npc` = ves spravuje
   NPC rod (živá `stewardship` druhu `npc` – rozhoduje pravidlo správce; návrh Clauda), hráč bez rodu
@@ -1144,7 +1146,7 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
   jako `departFlight`); `runners` – `messengerCandidates(state, day)` (`refuge-choice.ts`: výchozí
   posel, pak každý muž rodu, který běžet může – návrh Clauda: ostatní vesničany hráč nevybírá),
   odhad zvlášť pro pěšího a jezdce; `yieldLord` – vzdání vojvody (`yieldState`: `lordHomeAt`
-  - `yieldingLord`; už vzdaný v jiném tažení na touž ves – `battle.yielded` nebo zajatec
+  - `yieldingLord`; už vzdaný v jiném tažení na touž ves – `battle.lordYielded` nebo zajatec
     `prisonerKey(s.id, lordId)` v `loot.prisoners` – `lordAway`; příkaz `yield-lord` → záměr
     `lord-surrender` na takt teď + 2; `alarmEnded` → pohled bez voleb); skupina na cestě – `flightEtaTicks` od polohy tempem `flightPace`
     (exportované z `evacuation.ts`); `ret` – `refugeReturnState` (`refuge-return.ts`, tytéž podmínky
@@ -1275,7 +1277,7 @@ rozhodnutí.
   (`armyEyes`) a s vojvodou doma (`lordHomeAt`), který v boji nepadl (padlý je ve stavu vsi až do
   výsledku nájezdu). Druhé vzdání téhož taktu neprojde – vojsko už jde domů; záměry se v taktu
   počítají před bojem, takže vzdání v taktu, kdy by boj skončil, platí. `yieldLord`:
-  - **v boji** `BattleState.yielded` = vojvoda a `turnBack(s, 'yielded')` (boj `withdrawn`); `reportRaid`
+  - **v boji** `BattleState.lordYielded` = vojvoda a `turnBack(s, 'yielded')` (boj `withdrawn`); `reportRaid`
     v témž taktu ho přes `raidResultOf` přidá do `captured` vždy, mimo volbu `surrendered` (raněný
     vojvoda už není mezi raněnými). Boj nevyhrálo – vzdaní z boje se neodvedou a kořist z vsi není;
   - **bez boje** (vojsko na mapě cíle ještě pochoduje, nebo boj ještě nezačal) `raid-result` jen
@@ -1833,7 +1835,7 @@ uprchlíků i zajatec tažení (`s.captives`), takže zajatý vojvoda není doma
 (Úloha 5b).
 
 **Vojvoda vidí vojsko při vstupu na mapu.** `sightAlarms` (`alarm.ts`) nejdřív zjistí vlastníka vsi
-(`ownerOf`) a pro ves, kde je vojvoda doma (`lordHomeAt`), použije `lordSighting`: spatření bez
+(`ownerOf`; ves už ve varování – zapsaný `owner`) a pro ves, kde je vojvoda doma (`lordHomeAt`), použije `lordSighting`: spatření bez
 doběhu (`run: 0`) v poloze skupiny nejblíž `villageCentre` (shoda – první v `armyEyes`), takže
 `warnTick` = takt vstupu na mapu a `AlarmVillage.by = 'lord'` (`'villager' | 'messenger' | 'lord'`).
 Vojvoda pryč (výjezd, tažení) – `spot` jako dřív, varuje vesničan. Ves už varovanou poslem s pozdějším
@@ -1848,7 +1850,7 @@ správce. Podrobnosti: Varování, poslové a útěk do hradiště – Kdo rozho
 
 **Vzdání vojvody (Úloha 7).** Záměr obránce `lord-surrender` ukončí nájezd na cíl: vojvoda je zajat
 vždy, vojsko se vrátí s důvodem `'yielded'` a odnese jen to, co už vzalo (`yieldingLord`,
-`yieldLord`, `BattleState.yielded` v `campaign.ts`). Podrobnosti: Zajetí a výkupné – Vzdání vojvody.
+`yieldLord`, `BattleState.lordYielded` v `campaign.ts`). Podrobnosti: Zajetí a výkupné – Vzdání vojvody.
 
 **Opravy rozhodování varované vsi (Úloha 5b).**
 
@@ -1883,8 +1885,8 @@ ne). Port `StepCampaignsDeps.presence` (`Pick<PresenceRepository, 'lastSeen'>`),
 - `'refresh'` – známá přítomnost je stará `presenceRefreshTicks` (86 taktů) a víc a o vsi ještě může
   rozhodnout (`presenceMatters`): `decided` chybí, nebo je `'player'` a skupina neodešla (Ruling 4 –
   hráč, který po volbě dál hraje, o ves nepřijde), nebo hradiště s doběhlým poslem vsi ještě
-  nerozeslalo posly do domény. Po vzdání vojvody (`alarmEnded`) ne; `presenceTick` null (u hry nebyl
-  – rozhodl správce) ne.
+  nerozeslalo posly do domény. Po vzdání vojvody (`alarmEnded`) ne, když se vojsko vrací domů ne
+  (Ruling 9 níž); `presenceTick` null (u hry nebyl – rozhodl správce) ne.
 
 Pro všechny vlastníky je jeden dotaz `lastSeen`; když žádná ves nic nechce, žádný dotaz. Záměr
 `alarm-presence` od vlastníka jde na takt `state.tick + INTENT_LEAD_TICKS`. `seenTick` je poslední
@@ -1895,13 +1897,51 @@ přítomností (`seenTick > presenceTick`). Čeká-li už záměr `alarm-presenc
 `state.tick`, další se nepíše. Skončené tažení nic. Záměr za `state.tick` paměť kola nezneplatní –
 `memoIntentsKey` bere jen záměry do spočteného taktu.
 
-Výsledek: nepřítomnému hráči ves zareaguje do jednoho kola workeru + 2 takty. Přítomnému worker
+Kolo končí dotazem (`stepCampaign(…, { pauseOnAsk: true })` z `computeCampaign`): po taktu, ve
+kterém se ves zeptala (`askedTick` = takt), krok skončí s `waiting.presence`, `stepOne` uloží bod
+v taktu dotazu (i bez paměti workeru se tak další kolo pohne dál) a odpoví na takt dotazu + 2.
+Takt odpovědi tak nezávisí na hranicích kol ani na doběhu workeru (závěrečná recenze, drobný 1).
+
+Výsledek: nepřítomnému hráči ves zareaguje v taktu dotazu + 2 (další kolo workeru). Přítomnému worker
 přítomnost obnovuje nejvýš po 86 taktech a kole, ves proto čeká na jeho pokyn. Když hráč odejde,
 rozhodne správce `absentTicks` + 1 taktů po posledním zápisu přítomnosti.
 
-Testy: `defender-presence.test.ts` (dotaz, čekající záměr, bez portu, obnova, ořez na takt záměru),
-`alarm-world.test.ts` – describe „worker odpovídá na přítomnost obránce“ (přítomný hráč 700 taktů,
-nepřítomný do 2 kol, odchod, volba hráče, paměť kola); přítomnost v paměti `InMemoryPresence`.
+Testy: `defender-presence.test.ts` (dotaz, čekající záměr, bez portu, obnova, vojsko se vrací, ořez
+na takt záměru), `alarm-world.test.ts` – describe „worker odpovídá na přítomnost obránce“ (přítomný
+hráč 700 taktů, nepřítomný v taktu dotazu + 2, odchod, volba hráče, paměť kola); přítomnost v paměti
+`InMemoryPresence`.
+
+**Opravy po závěrečné recenzi (14. 11. 2026).**
+
+- **Nastavení jen, dokud vojsko hrozí (Ruling 9 – návrh Clauda).** Ves, která čekala na hráče
+  (`waitedForPlayer` – `presenceTick` je takt: hráč byl u hry, nebo dal pokyn), rozhodne nastavením
+  (hráč odešel, vojvoda ves opustil, `playerLeft`) jen, když jí vojsko hrozí (`armyThreatens`
+  v `alarm-steward.ts`): tažení je na pochodu nebo v nájezdu a ves je cíl, na její mapě stojí
+  skupina s aktivním mužem (podmínka spatření), nebo ji varoval posel. Jinak čekající rozhodnutí
+  propadne (žádný posel ani útěk); hrozí-li vojsko znovu, rozhodne pak. Rozesílání do domény
+  hradiště – dokud tažení nejde domů. Okamžité rozhodnutí (NPC, vojvoda není doma, hráč u hry
+  nebyl) beze změny. Obnova přítomnosti (`presenceMatters`) skončí, když se vojsko vrací.
+  Testy: `alarm-steward.test.ts` – describe „nastavení rozhoduje, jen dokud vojsko hrozí“.
+- **Vlastníci vsí v kole (D1).** `sightAlarms` sbírá, co ze světa chybí, přes všechny vsi
+  (`gatherMissing` v `campaign-tick.ts` – jedno `MissingData`); totéž posel na mapě (`warnMap`,
+  vlastník před kandidáty hradišť). Takt s libovolně mnoha neznámými vlastníky tak potřebuje
+  nejvýš tři průchody (vlastníci a vsi → kandidáti hradišť → hotovo), ne jeden na ves – dřív se
+  takt s ≥ 9 vlastníky nedopočítal nikdy (`MAX_LOADS`). Ves už ve varování bere zapsaného
+  `owner`. Worker si vlastníky pamatuje napříč koly (`CampaignMemory.owners`, `KeptOwner` s taktem
+  kola; platí `OWNER_KEEP_TICKS` = 86 taktů ≈ 22 s, starší zapomene konec kola) – vlastník
+  nevarované vsi na mapě vojska se tak čte nejvýš jednou za ¼ herního dne, ne každé kolo.
+  `refugeHostsOf` jen na dotaz (vstup do varování, posel, útěk), s vlastníkem se nespojuje.
+  Testy: `alarm-world.test.ts` – describe „vlastníci vsí v kole smyčky“.
+- **Pohled varování** (`alarm-view.ts`): `latestAlarm` přeskočí varování skončené vzdáním
+  (`alarmEnded`) – jiné tažení, které ves dál ohrožuje, zůstane vidět a dostane příkazy; body
+  tažení čte jednou (`FoundAlarm.all` pro `yieldedBefore`). Bílá vlajka (`yieldLord`) jen u cíle
+  tažení – ves, na kterou vojsko netáhne, nemá co vzdát (vzdáním končí nájezd), vlajka chybí.
+- **Scéna:** vojvoda doma vidí celé vojsko (`warSceneFor` – `seesAll`) jen, když ho tažení dnes
+  neodvedlo (`alarmTaken` – posel, uprchlíci, zajetí; `WarSceneDeps.world`).
+- **Postoj** `stanceOf` (`flight.ts`) čte neznámý postoj (nepřevedený `'surrender'`) jako výchozí.
+- **Dezerce:** raněný, který leží na bojišti (`down`), neuteče – los ho mine (`desert`).
+- **Vzdaný vojvoda v boji** je `BattleState.lordYielded` (dřív `yielded` – plete se s
+  `CampaignState.yielded`, ves vzdaná Začít znovu); návrat `'yielded'` beze změny.
 
 **Živé vedení bez rozkazu – dezerce z hladu (Úloha 10).** Spec: war.md – Zásoby tažení, bod Živé
 vedení bez rozkazu (Martin 14. 11. 2026). Živě vedené tažení se samo neobrátí ani nenapadne (to dělá

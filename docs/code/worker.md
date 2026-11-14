@@ -465,6 +465,9 @@ jeho otisk `JSON.stringify` (≈ 120 µs) – v každém kole, i když se bod 40
   `refugeHostsOf`, `domainOf`) se předem **nenačítají** – takt je potřebuje jen při vstupu vsi do
   varování, předem by šly do úložiště dotazy navíc (`alarm-world.test.ts` – na každou odpověď jen
   jednou).
+- **Vlastníci vsí** (`CampaignMemory.owners`): na vlastníka se takt ptá u každé nevarované vsi na
+  mapě vojska – načtený vlastník platí `OWNER_KEEP_TICKS` (86 taktů ≈ 22 s) i v dalších kolech,
+  starší zapomene konec kola (docs/code/war.md – Hráč ve vsi a mimo ni: Opravy po závěrečné recenzi).
 
 Výsledek je tentýž: všechny testy `packages/game` (zlaté otisky tažení, války, opevnění a útěku),
 otisky měření, `test:db` (nový test verze bodu) i e2e `multiplayer-war.spec.ts` beze změny.

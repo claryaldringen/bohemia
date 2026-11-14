@@ -420,8 +420,10 @@ o evakuaci (defaultní nastavení).“
   (návrh Clauda). Ves, kde už hráč něco zvolil (posel, útěk), řídí hráč dál, dokud je ve vsi
   a u hry; zbytek dokončí nastavení, jakmile vojvoda ves opustí (vyběhne jako posel, odjede, padne
   do zajetí) nebo hráč přestane být u hry, dokud jsou lidé ještě doma – co hráč už zvolil,
-  nezopakuje (druhý posel, druhý útěk) – návrh Clauda. Zajatý vojvoda není doma hned, jak ho
-  vojsko zajme (i před zprávou do vsi) – návrh Clauda.
+  nezopakuje (druhý posel, druhý útěk) – návrh Clauda. Nastavení takto za ves rozhoduje jen, dokud
+  jí vojsko hrozí (míří na ni, stojí na její mapě, nebo ves varoval posel); když ji minulo nebo se
+  vrací domů, čekající rozhodnutí propadne – žádný posel ani útěk (návrh Clauda). Zajatý vojvoda
+  není doma hned, jak ho vojsko zajme (i před zprávou do vsi) – návrh Clauda.
 - **Vojvoda doma, hráč není u hry:** lidé se hned zachovají podle nastavení vsi – vojvoda vojsko
   vidí, jakmile vstoupí na mapu, takže ves reaguje dřív, než kdyby ho musel spatřit vesničan.
   Když se hráč během nájezdu vrátí ke hře, převezme velení (Martin 14. 11. 2026 – „ok“).
@@ -435,7 +437,7 @@ o evakuaci (defaultní nastavení).“
   obrana, nebo evakuace“).
 - **Vzdání:** „No ona se nevzdává ves, ale hráč. Když se hráč vzdá, vítěz ho zajme, odvede a pak
   dojde k jednání“ (Martin 14. 11. 2026). Hráč ve vsi smí vojvodu vzdát (rozkaz bílé vlajky –
-  návrh Clauda); útočník ho zajme, odvede do svého dvorce a následuje jednání o výkupném (Vzdaní,
+  návrh Clauda; jen ve vsi, na kterou vojsko táhne – vzdáním končí nájezd); útočník ho zajme, odvede do svého dvorce a následuje jednání o výkupném (Vzdaní,
   zajetí a výkupné). Vzdáním **nájezd končí** – vojsko odvede zajatce, odnese, co už vzalo, a ves
   dál nedrancuje (Martin 14. 11. 2026 – „Ano“). Vzdáním končí i varování vsi před tímto vojskem:
   ves před odcházejícím vojskem neutíká, neposílá posla a nastavení za ni nerozhoduje (návrh
