@@ -252,3 +252,59 @@ describe('mistr huti a nadzemní dům', () => {
     expect(whole.people.find((p) => p.mason === 'builder')?.dwellingId).toBe(4);
   });
 });
+
+// Vypletený dům a pořadí kvality domů (log-house.md – Dům s vypletenými stěnami; Martin 14. 11.
+// 2026: „napřed si domy vybírá elita a pak se postupně obsazují podle společenského postavení“).
+describe('vypletený dům – elita bydlí v nejlepším volném domě', () => {
+  it('prázdný srub i vypletený dům: mistr do srubu, kněz do vypleteného (kvalita před id)', () => {
+    const s = trackedVillage(court, [
+      dwelling(1),
+      dwelling(2, 'vypleteny'),
+      dwelling(3),
+      dwelling(4, 'srub'),
+    ]);
+    s.people.push(stranger(5, 3, 'mason'), stranger(6, 3, 'priest'));
+    occupyEmptyDwellings(s, DAY);
+    expect(home(s, 5)).toBe(4);
+    expect(home(s, 6)).toBe(2);
+  });
+
+  it('uvolněný srub: přestěhuje se do něj nejvýš postavený z vypleteného domu, vypletený osídlí další', () => {
+    const s = trackedVillage(court, [
+      dwelling(1),
+      dwelling(2, 'vypleteny'),
+      dwelling(3),
+      dwelling(4, 'srub'),
+    ]);
+    s.people.push(stranger(5, 2, 'mason'), stranger(6, 3, 'priest'));
+    // do srubu smí i mistr z vypleteného domu, do dalšího vypleteného domu jen ostatní z pořadí
+    expect(heads(logHouseFamilies(s, DAY, 'srub'))).toEqual([5, 6, 20, 30]);
+    expect(heads(logHouseFamilies(s, DAY))).toEqual([6, 20, 30]);
+    occupyEmptyDwellings(s, DAY);
+    expect(home(s, 5)).toBe(4);
+    expect(home(s, 6)).toBe(2);
+    // kdo bydlí ve srubu, se nestěhuje; z vypleteného domu by šel jen do srubu
+    expect(heads(logHouseFamilies(s, DAY, 'srub'))).toEqual([6, 20, 30]);
+    expect(heads(logHouseFamilies(s, DAY))).toEqual([20, 30]);
+  });
+
+  it('obyčejná rodina do prázdného vypleteného domu nejde', () => {
+    const s = crowded([dwelling(2, 'vypleteny'), dwelling(3, 'polozemnice')]);
+    occupyEmptyDwellings(s, DAY);
+    expect([7, 8].map((id) => home(s, id))).toEqual([3, 3]);
+    expect(s.people.some((p) => p.dwellingId === 2)).toBe(false);
+    // rodina od souseda prázdný vypletený dům nedostane – jen přeplněný dům 1
+    expect(newcomerHome(crowded([dwelling(2, 'vypleteny')]), true)).toBe(1);
+  });
+
+  it('nově příchozí mistr dostane napřed srub, pak vypletený dům', () => {
+    const arrive = (s: VillageState): number | undefined => {
+      expect(settleArrival(s, 'mason', DAY, createRandom(7))).toBe(true);
+      return s.people[s.people.length - 1]!.dwellingId;
+    };
+    const base = (extra: ReturnType<typeof dwelling>[]): VillageState =>
+      village([kin({ id: 1, age: 40, sex: 'male' })], [dwelling(1), ...extra], { manorId: 1 });
+    expect(arrive(base([dwelling(2, 'vypleteny'), dwelling(3, 'srub')]))).toBe(3);
+    expect(arrive(base([dwelling(2), dwelling(3, 'vypleteny')]))).toBe(3);
+  });
+});

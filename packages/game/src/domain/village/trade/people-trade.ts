@@ -1,4 +1,5 @@
 import { isDisused } from '../buildings/disused';
+import { isHouseType } from '../buildings/log-house';
 // Výměna lidí se sousedem (docs/design/trade.md – Výměna lidí; Martin 19. 10. 2026: „Se sousedem
 // půjde vyměnit i lidi... např. když on jich bude mít moc a nebude je moci uživit, může jich pár
 // vyměnit s námi za nějaké suroviny a opačně.“, „Mohou se stěhovat celé rodiny i jen dospělí.
@@ -356,7 +357,7 @@ export function newcomerHome(state: VillageState, family: boolean): number | und
   if (family) {
     // prázdný nadzemní dům obsadí jen lidé z pořadí (log-house.md – Kdo v domě bydlí)
     const empty = byId.find(
-      (d) => !occupied.has(d.id) && d.workshop === undefined && d.type !== 'srub',
+      (d) => !occupied.has(d.id) && d.workshop === undefined && !isHouseType(d.type),
     );
     if (empty) return empty.id;
   }

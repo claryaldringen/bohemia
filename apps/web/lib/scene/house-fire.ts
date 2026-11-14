@@ -20,6 +20,7 @@ const HOUSE_FIRE_SPRITES = HOUSE_FLAMES + HOUSE_SPARKS + 1;
 const HOUSE_HALF_M = {
   zemnice: 1.6,
   polozemnice: 1.9,
+  vypleteny: 2.2,
   srub: 2.2,
   dvorec: 3,
   'dvorec-srub': 4,
@@ -27,6 +28,7 @@ const HOUSE_HALF_M = {
 const HOUSE_FIRE_SCALE = {
   zemnice: 1.7,
   polozemnice: 1.9,
+  vypleteny: 2,
   srub: 2,
   dvorec: 2.4,
   'dvorec-srub': 2.6,

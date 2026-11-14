@@ -89,6 +89,14 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
       blocked: null,
       affordable: true,
     },
+    vypleteny: {
+      laborManDays: 260,
+      perHa: false,
+      perSquare: false,
+      upfront: [],
+      blocked: null,
+      affordable: true,
+    },
     srub: {
       laborManDays: 300,
       perHa: false,

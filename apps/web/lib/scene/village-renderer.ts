@@ -961,9 +961,13 @@ export class VillageRenderer {
     return views;
   }
 
-  /** Kreslí srub stupně `stage` místo hotového modelu zbytky (díly staveniště už jsou načtené)? */
+  /**
+   * Kreslí nadzemní dům stupně `stage` místo hotového modelu zbytky (díly staveniště už jsou
+   * načtené)?
+   */
   private remainsShown(type: DwellingType, stage: DecayStage): boolean {
-    return logHouseRemains(type, stage) !== null && this.siteParts.has(`${type}-stones`);
+    const parts = logHouseRemains(type, stage);
+    return parts !== null && parts.every((r) => this.siteParts.has(r.part));
   }
 
   /** Načte modely obydlí ve vsi, které se nenačítají hned (`LAZY_DWELLING_TYPES`). */

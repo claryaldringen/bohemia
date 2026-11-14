@@ -108,18 +108,39 @@ export interface LogHouseRemain {
 const LOG_HOUSE_LOG_M: Partial<Record<DwellingType, number>> = { srub: 0.2, 'dvorec-srub': 0.22 };
 
 /**
+ * Co zbude z vypleteného domu (log-house.md – Dům s vypletenými stěnami, návrh Clauda) – díly
+ * staveniště: zřícený (stupeň 3) kůly a spodní řada mazanice sesutá o kus níž, zbytek po zániku
+ * do poloviny zarůstání jen hrouda mazanice, pak nic.
+ */
+function wattleHouseRemains(stage: DecayStage | 'ruin', overgrowth: number): LogHouseRemain[] {
+  if (stage === 3) {
+    return [
+      { part: 'vypleteny-piles', drop: 0.25 },
+      { part: 'vypleteny-daub-1', drop: 0.3 },
+    ];
+  }
+  return Math.min(1, Math.max(0, overgrowth)) < 0.5
+    ? [{ part: 'vypleteny-daub-1', drop: 0.6 }]
+    : [];
+}
+
+/**
  * Co zbude z nadzemního srubu (log-house.md – Scéna, návrh Clauda) – díly jeho staveniště
  * (`<typ>-construction.glb`), žádná jáma ani prohlubeň: sešlý a propadající se srub stojí celý
  * (null – hotový model), zřícený (stupeň 3) jsou jen základové kameny a pár věnců kmenů ležících
  * na nich; zbytek po zániku (`overgrowth` 0–1) kameny s jedním věncem, od poloviny zarůstání jen
  * kameny a nakonec nic. Věnce se berou od druhého a kladou o věnec níž – nejspodnější věnec nese
- * tmavé nitro za dveřmi, které by ze zbytku trčelo. Obydlí s jámou → null.
+ * tmavé nitro za dveřmi, které by ze zbytku trčelo. Vypletený dům `wattleHouseRemains`. Obydlí
+ * s jámou → null.
  */
 export function logHouseRemains(
   type: DwellingType,
   stage: DecayStage | 'ruin',
   overgrowth = 0,
 ): LogHouseRemain[] | null {
+  if (type === 'vypleteny') {
+    return stage === 0 || stage === 1 || stage === 2 ? null : wattleHouseRemains(stage, overgrowth);
+  }
   const log = LOG_HOUSE_LOG_M[type];
   if (log === undefined || stage === 0 || stage === 1 || stage === 2) return null;
   const stones: LogHouseRemain = { part: `${type}-stones`, drop: 0 };
@@ -341,6 +362,7 @@ const HOUSE_NETTLES_M: Record<DwellingType, { x: number; z: number }> = {
   dvorec: { x: 3.3, z: 5.4 },
   // nadzemní srub – za okapem a za zadním štítem (střecha vzadu přečnívá jen 0,45 m)
   srub: { x: 3.15, z: 3.55 },
+  vypleteny: { x: 3.15, z: 3.6 },
   'dvorec-srub': { x: 4.1, z: 6.4 },
 };
 

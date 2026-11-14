@@ -1,9 +1,14 @@
 // Kdo bydlí v nadzemním domě (log-house.md – Kdo v domě bydlí; Martin 12. 11. 2026: „Pokud bude
 // takový dům prázdný tak se do něj nastěhuje někdo z elity“, „Nadzemní dům ať primárně obsadí cizí
 // řemeslníci, pak kněz, pak synové hlavní manželky a pak synové vedlejších manželek“). Prázdný
-// nadzemní dům (`srub`) obsadí jen lidé z pořadí – obyčejná rodina ani vystěhovaná domácnost ne.
-// Čisté funkce nad stavem vsi, `settleLogHouse` stav mění.
+// nadzemní dům – vypletený (`vypleteny`) i roubený (`srub`) – obsadí jen lidé z pořadí – obyčejná
+// rodina ani vystěhovaná domácnost ne. Elita bydlí v nejlepším volném domě: do uvolněného lepšího
+// domu se přestěhuje nejvýš postavená rodina z horšího (log-house.md – Dům s vypletenými stěnami;
+// Martin 14. 11. 2026: „napřed si domy vybírá elita a pak se postupně obsazují podle společenského
+// postavení“). Čisté funkce nad stavem vsi, `settleLogHouse` stav mění.
 import { isDisused } from '../buildings/disused';
+import { isHouseType, type HouseType } from '../buildings/log-house';
+import { DWELLING_QUALITY } from '../rules';
 import { pruneDisplaced } from './displaced';
 import { currentLord, holdsManor, isLineMan } from './dynasty';
 import { byAge, unmarriedHere } from './families';
@@ -11,9 +16,12 @@ import { moveIn } from './move-in';
 import { householdBreaksUp, occupants } from './people';
 import type { Dwelling, Person, VillageState } from '../types';
 
-/** Je obydlí nadzemní dům (`srub`)? Dvorec od roku 800 (`dvorec-srub`) ne – to je dvorec. */
+/**
+ * Je obydlí nadzemní dům – vypletený (`vypleteny`) nebo srub (`srub`)? Dvorec od roku 800
+ * (`dvorec-srub`) ne – to je dvorec.
+ */
 export function isLogHouse(dwelling: Dwelling): boolean {
-  return dwelling.type === 'srub';
+  return isHouseType(dwelling.type);
 }
 
 /** Je `dwelling` prázdný nadzemní dům, který jde osídlit (v provozu, bez dílny)? */
@@ -60,15 +68,21 @@ function familyOf(state: VillageState, man: Person): Person[] {
 }
 
 /**
- * Rodiny, které smí do prázdného nadzemního domu, v pořadí (log-house.md – Kdo v domě bydlí):
- * mistři huti → kněz → synové hlavní manželky (`elite`) → synové vedlejších manželek, ve skupině od
- * nejstaršího (pak nižší id). Muž, který už v nadzemním domě bydlí, ani dnešní vojvoda se nestěhuje
- * (Martin). Ženatý přijde s manželkou a svobodnými dětmi, svobodný sám; rodina s vojvodou nebo
+ * Rodiny, které smí do prázdného nadzemního domu typu `type`, v pořadí (log-house.md – Kdo v domě
+ * bydlí): mistři huti → kněz → synové hlavní manželky (`elite`) → synové vedlejších manželek, ve
+ * skupině od nejstaršího (pak nižší id). Muž, který už v nadzemním domě stejně dobrém nebo lepším
+ * (`DWELLING_QUALITY`) bydlí, ani dnešní vojvoda se nestěhuje (Martin); z horšího nadzemního domu
+ * se stěhuje do lepšího (log-house.md – Dům s vypletenými stěnami). Bez `type` jen rodiny, které
+ * v žádném nadzemním domě nebydlí. Ženatý přijde s manželkou a svobodnými dětmi, svobodný sám; rodina s vojvodou nebo
  * s tím, kdo drží dvorec (`holdsManor`), neodchází. Jako u jiných obydlí (návrh Clauda) jen rodina,
  * která dům udrží (někdo 16–44), a jen když se zbytek domácnosti nerozpadne – jinak by se rozpadlá
  * domácnost vrátila a druhý den odešla znovu. Kdo jde s otcem, další rodinu nezakládá.
  */
-export function logHouseFamilies(state: VillageState, day: number): Person[][] {
+export function logHouseFamilies(
+  state: VillageState,
+  day: number,
+  type: HouseType = 'vypleteny',
+): Person[][] {
   const byId = new Map(state.dwellings.map((d) => [d.id, d]));
   const lord = currentLord(state);
   const ranked = state.people
@@ -76,7 +90,9 @@ export function logHouseFamilies(state: VillageState, day: number): Person[][] {
     .filter((r): r is { p: Person; rank: number } => r.rank !== undefined)
     .filter(({ p }) => {
       const at = byId.get(p.dwellingId);
-      return at === undefined || !isLogHouse(at);
+      return (
+        at === undefined || !isLogHouse(at) || DWELLING_QUALITY[at.type] < DWELLING_QUALITY[type]
+      );
     })
     .sort((a, b) => a.rank - b.rank || byAge(a.p, b.p));
   const taken = new Set<number>();
@@ -95,15 +111,16 @@ export function logHouseFamilies(state: VillageState, day: number): Person[][] {
 }
 
 /**
- * Prázdný nadzemní dům `dwellingId` obsadí první rodina z pořadí (`logHouseFamilies`; kronika
+ * Prázdný nadzemní dům `dwellingId` obsadí první rodina z pořadí, která v tak dobrém domě ještě
+ * nebydlí (`logHouseFamilies`; dům, který tím uvolní, osídlí `occupyEmptyDwellings`; kronika
  * `household-founded`, z dvorce i `son-left-manor`); host z `displaced` (mistr ve dvorci) z
  * seznamu hostů zmizí. Bez nikoho z pořadí zůstane dům prázdný. Vrací, jestli se někdo nastěhoval
  * (mutuje stav).
  */
 export function settleLogHouse(state: VillageState, day: number, dwellingId: number): boolean {
   const dwelling = state.dwellings.find((d) => d.id === dwellingId);
-  if (!dwelling || !isEmptyLogHouse(state, dwelling)) return false;
-  const family = logHouseFamilies(state, day)[0];
+  if (!dwelling || !isEmptyLogHouse(state, dwelling) || !isHouseType(dwelling.type)) return false;
+  const family = logHouseFamilies(state, day, dwelling.type)[0];
   if (!family) return false;
   moveIn(state, day, family, dwellingId);
   pruneDisplaced(state);
@@ -111,7 +128,7 @@ export function settleLogHouse(state: VillageState, day: number, dwellingId: num
 }
 
 /**
- * Kolik rodin z pořadí nebydlí v nadzemním domě a do prázdného by se nastěhovalo
+ * Kolik rodin z pořadí nebydlí v žádném nadzemním domě a do prázdného by se nastěhovalo
  * (`logHouseFamilies` – vojvoda ve dvorci ne, syn, který by šel s otcem, zvlášť ne) – pro správce
  * (log-house.md – Správce).
  */

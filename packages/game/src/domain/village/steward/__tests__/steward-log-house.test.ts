@@ -25,6 +25,8 @@ const onStewardDay = (day: number): number =>
   Math.ceil(day / STEWARD.everyDays) * STEWARD.everyDays;
 const Y810 = onStewardDay(dayIndexOf({ year: 810, month: 3, day: 1 }));
 const Y799 = onStewardDay(dayIndexOf({ year: 799, month: 3, day: 1 }));
+const Y749 = onStewardDay(dayIndexOf({ year: 749, month: 3, day: 1 }));
+const Y760 = onStewardDay(dayIndexOf({ year: 760, month: 3, day: 1 }));
 
 /**
  * Ves se stojící zemnicí a hotovým plánem; v ní ženatý kněz (rodina z pořadí, zároveň čekající
@@ -89,11 +91,25 @@ describe('správce – nadzemní dům', () => {
     expect(newHouses(s).some((h) => h.type === 'srub')).toBe(false);
   });
 
-  it('v roce 799 srub nezačne – obydlí jako dosud', () => {
+  it('v roce 799 srub nezačne – začne vypletený dům (log-house.md – Dům s vypletenými stěnami)', () => {
     const s = waiting(Y799);
     stewardDay(s, Y799, landscape, obstacles);
-    expect(newHouses(s).some((h) => h.type === 'srub')).toBe(false);
+    expect(newHouses(s)).toEqual([{ type: 'vypleteny' }]);
+  });
+
+  it('v roce 760 s rodinou z pořadí začne jen vypletený dům na pozemku (ne i polozemnici)', () => {
+    const s = waiting(Y760);
+    stewardDay(s, Y760, landscape, obstacles);
+    const houses = s.constructions.filter((c) => c.kind === 'dwelling' && c.dwellingId === null);
+    expect(houses.map((c) => c.dwellingType)).toEqual(['vypleteny']);
+    expect(houses[0]!.plot).toBeDefined();
+  });
+
+  it('v roce 749 nadzemní dům nezačne – obydlí jako dosud', () => {
+    const s = waiting(Y749);
+    stewardDay(s, Y749, landscape, obstacles);
     expect(newHouses(s)).toHaveLength(1);
+    expect(newHouses(s).some((h) => h.type === 'srub' || h.type === 'vypleteny')).toBe(false);
   });
 
   it('bez lidí z pořadí srub nezačne, obyčejná rodina dostane polozemnici nebo zemnici', () => {

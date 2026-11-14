@@ -38,6 +38,17 @@ export const DWELLINGS = {
     childDeathFactor: 0.7,
     emptyLifespanYears: 12,
   },
+  // log-house.md – Dům s vypletenými stěnami od roku 750 (tabulka – návrh Clauda, Martin
+  // 14. 11. 2026: „Ano“): kůly v zemi hnijí dřív než srub, ale mazanice je sušší než polozemnice;
+  // opravy jako polozemnice (návrh Clauda)
+  vypleteny: {
+    capacity: 8,
+    cost: 260,
+    lifespanYears: 25,
+    repairAtEndOfLifePerYear: 17,
+    childDeathFactor: 0.75,
+    emptyLifespanYears: 10,
+  },
   // trade.md – Dvorec vojvody (návrh Clauda, schváleno 18. 10. 2026): delší a vyšší polozemnice,
   // kapacita 10, cena a dřevo jako polozemnice × 1,5 (opravy taky × 1,5), jinak jako polozemnice
   dvorec: {
@@ -63,14 +74,31 @@ export const DWELLINGS = {
 // log-house.md – Dům (Martin 12. 11. 2026: „měl by být dostupný cca od roku 800“): nadzemní dům
 // jde stavět od 1. 1. 800 a dvorec postavený nebo přestavěný od té doby je nadzemní srub
 export const LOG_HOUSE = { fromYear: 800 } as const;
+// log-house.md – Dům s vypletenými stěnami od roku 750 (Martin 14. 11. 2026: „Nadzemní dům
+// s vypletenými stěnami může být od roku 750“)
+export const WATTLE_HOUSE = { fromYear: 750 } as const;
+// log-house.md – Dům s vypletenými stěnami, Kdo kde bydlí (Martin 14. 11. 2026: „sám pochopíš, jak
+// se domy kvalitativně liší“): pořadí kvality srub > vypletený dům > polozemnice > zemnice – elita
+// se stěhuje do lepšího nadzemního domu. Dvorec se nepočítá (0) – synové vojvody z něj odcházejí
+// do vlastního domu jako z kteréhokoli jiného obydlí.
+export const DWELLING_QUALITY: Readonly<Record<DwellingType, number>> = {
+  zemnice: 1,
+  polozemnice: 2,
+  vypleteny: 3,
+  srub: 4,
+  dvorec: 0,
+  'dvorec-srub': 0,
+};
 // trade.md – Dvorec vojvody: cena a dřevo dvorce = polozemnice × MANOR.costFactor; pozemek dvou
 // políček (dům a dvůr) se hledá při přestavbě jako u polozemnice do PLOT_RELOCATION_M
 export const MANOR = { costFactor: 1.5 } as const;
 // population.md – Nové obydlí (obyvatelé staví vždy lepší obydlí); log-house.md – Dům (Martin):
 // na nadzemní dům vesničané nepřestavují, dosloužilý nadzemní dům se přestaví zase na nadzemní
+// (vypletený na vypletený – log-house.md – Dům s vypletenými stěnami)
 export const BETTER_DWELLING: Record<DwellingType, DwellingType> = {
   zemnice: 'polozemnice',
   polozemnice: 'polozemnice',
+  vypleteny: 'vypleteny',
   srub: 'srub',
   dvorec: 'dvorec',
   'dvorec-srub': 'dvorec-srub',

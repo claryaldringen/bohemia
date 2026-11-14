@@ -281,6 +281,7 @@ describe('pozemek polozemnice', () => {
     expect(PLOT_TYPES).toEqual({
       zemnice: false,
       polozemnice: true,
+      vypleteny: true,
       srub: true,
       dvorec: true,
       'dvorec-srub': true,

@@ -84,9 +84,10 @@ export async function foundVillage(input: unknown): Promise<VillageActionResult>
 }
 
 /**
- * Stavba nového obydlí: `{ villageId, type: 'zemnice' | 'polozemnice' | 'srub', position: { x, z,
- * rotation }, plot?: { cell: { x, y }, variant } }` – polozemnice a nadzemní dům na pozemku (poloha
- * domu podle něj); nadzemní dům před rokem 800 server odmítne (`dwellingYearReason`).
+ * Stavba nového obydlí: `{ villageId, type: 'zemnice' | 'polozemnice' | 'vypleteny' | 'srub',
+ * position: { x, z, rotation }, plot?: { cell: { x, y }, variant } }` – polozemnice a nadzemní domy
+ * na pozemku (poloha domu podle něj); vypletený dům před rokem 750 a nadzemní dům (srub) před rokem
+ * 800 server odmítne (`dwellingYearReason`).
  */
 export async function placeDwelling(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parsePlaceDwellingInput, placeDwellingForPlayer);

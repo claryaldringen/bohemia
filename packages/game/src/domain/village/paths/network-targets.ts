@@ -1,6 +1,7 @@
 // Cíle a provoz domácností: domácnosti, skupiny cest podle práce dne a zavedených míst.
 // Součást výpočtu sítě pěšin – rozcestník je network.ts (komentář k celku tam).
 
+import { isHouseType } from '../buildings/log-house';
 import { length2 } from '../../landscape';
 import { HUMNO, SACRED_BUILDINGS, SMITH_SUPPLY, WATER_FETCHING } from '../rules';
 import { type DwellingType, type RoutePurpose } from '../types';
@@ -121,9 +122,9 @@ export function households(
   const people = village.labor
     ? village.labor.people.adults + village.labor.people.children + village.labor.people.elders
     : settled.length * DEFAULT_HOUSEHOLD;
-  // nadzemní dům (log-house.md) pojme lidí jako polozemnice
+  // nadzemní domy (log-house.md) pojmou lidí jako polozemnice
   const weight = (type: DwellingType): number =>
-    type === 'polozemnice' || type === 'srub' ? 1.5 : 1;
+    type === 'polozemnice' || isHouseType(type) ? 1.5 : 1;
   const total = settled.reduce((s, d) => s + weight(d.type), 0);
   const out: Household[] = [];
   for (const d of settled) {

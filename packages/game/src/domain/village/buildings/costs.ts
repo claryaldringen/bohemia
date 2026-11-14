@@ -105,6 +105,13 @@ export const BUILD_COSTS: Record<BuildKind, BuildCost> = {
     perHa: false,
     upfront: { wood: DWELLING_TREES.srub },
   },
+  // log-house.md – Dům s vypletenými stěnami: hlína na mazanici jen jako práce, ne surovina (rok
+  // hlídá `dwellingYearReason`)
+  vypleteny: {
+    laborManDays: DWELLINGS.vypleteny.cost,
+    perHa: false,
+    upfront: { wood: DWELLING_TREES.vypleteny },
+  },
   potter: workshopBuildCost('potter'),
   smith: workshopBuildCost('smith'),
   burner: workshopBuildCost('burner'),
