@@ -522,6 +522,13 @@ chybějící hodnota je 0, převod není potřeba. Jmenuje se `wares`, ne `goods
 - Klát: `HIVES` (`rules/rules-wares.ts`) – 6 kg medu a 0,4 kg vosku za rok na obydlí, přibývá
   1. 5.–30. 9. (`beesFlying`, `seasonDays` = 153); `hivesDay` (`wares/hives.ts`) přidá denně
      `dwellings.length × roční ÷ seasonDays`. Bez obydlí `wares` nevznikne.
+- Brtě (prémiová krajina „Brtě a lesní včely“, `wares/bee-trees.ts`): `beeTreeWalksM(landscape)` –
+  vzdálenosti (m, vzestupně) od středu vsi k `beeTreeSpots` přímo, ne po pěšinách; memo `WeakMap`
+  podle krajiny, jiný typ dá `[]`. `beeTreesDay` (z `waresDay`, jen s krajinou) přidá do
+  `wares.beeTrees` ({ honeyKg, waxKg }) každé brti denně jako klátu. `collectBeeTrees` (z
+  `waresWorkDay`, napřed před zpracováním kůží) od 1. 10. (`BEE_TREE_HARVEST`) přesune celou zásobu
+  do `honeyKg`/`waxKg`, když zbytek práce stačí na obchůzku všech brtí
+  (`Σ 2 × walk ÷ WATER_FETCHING.speedMps ÷ 3600 ÷ dayHours`) a vrátí ji; jinak 0 a med čeká dál.
 - Pořadí dne: `storesAndHerdsDay` (`core/simulate.ts`) volá `waresDay(state, day, landscape)` hned za
   `husbandryDay` (porážka 1. 11. i zimní už proběhla): `finishCuring`, `hivesDay` a `setWaresNeed`.
   Práce je až ve `freeLaborDay` (`core/simulate-work-apply.ts`) – `waresWorkDay`

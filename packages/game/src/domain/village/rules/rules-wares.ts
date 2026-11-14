@@ -14,6 +14,13 @@ export const HIVES = {
 } as const;
 
 /**
+ * hides-honey.md – Brtě (prémiová krajina „Brtě a lesní včely“): každá brť přibývá jako klát; med
+ * a vosk z nich ves vybere najednou od 1. 10. (`month`, `day`), když má na obchůzku všech brtí
+ * dost práce (návrh Clauda).
+ */
+export const BEE_TREE_HARVEST = { month: 10, day: 1 } as const;
+
+/**
  * hides-honey.md – Klát u obydlí, diet.md – Pojmy (Martin 14. 11. 2026: „Má ho i jíst“; „Med se
  * nekazí, takže se dá dlouho skladovat a hromadit. Na druhou stranu – med se většinou přidával do
  * sladkého pečiva nebo se z něj dělala medovina – samotného medu totiž člověk moc nesní.“):

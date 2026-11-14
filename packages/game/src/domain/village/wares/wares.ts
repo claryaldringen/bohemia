@@ -3,6 +3,7 @@ import type { Landscape } from '../../landscape';
 import { HIVES } from '../rules/rules-wares';
 import type { HerdSpecies, VillageState, WaresState } from '../types';
 import { finishCuring, setWaresNeed } from './hides';
+import { beeTreesDay, beeTreeWalksM } from './bee-trees';
 import { hivesDay } from './hives';
 
 const EPSILON = 1e-9;
@@ -50,9 +51,8 @@ export function beesFlying(day: number): boolean {
  * z klátů a 1. 11. roční potřeba domácností (hides-honey.md). Práce je až ve `waresWorkDay`.
  */
 export function waresDay(state: VillageState, day: number, landscape: Landscape | null): void {
-  // krajina je v podpisu pro další kroky (brtě) – klát ani kůže ji nepotřebují
-  void landscape;
   finishCuring(state, day);
   hivesDay(state, day);
+  if (landscape) beeTreesDay(state, day, beeTreeWalksM(landscape));
   setWaresNeed(state, day);
 }

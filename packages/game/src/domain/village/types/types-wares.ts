@@ -27,6 +27,8 @@ export interface WaresState {
   wildFurs: number;
   honeyKg: number;
   waxKg: number;
+  /** Med a vosk v brtích, které ještě nikdo nevybral (kg); chybí = nic. */
+  beeTrees?: { honeyKg: number; waxKg: number };
   /**
    * Co domácnostem letos ještě chybí hotové – roční spotřeba nastavená 1. 11. (`setWaresNeed`),
    * ubývá hotovými várkami. Chybí = nic.
