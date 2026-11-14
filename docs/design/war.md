@@ -407,8 +407,9 @@ Pokud ve vesnici není, vesničané se zachovají podle nastavení – tj. buď 
 o evakuaci (defaultní nastavení).“
 
 - **Kde je hráč:** „Hráč je tam, kde je vojvoda“ (Martin 14. 11. 2026). Hráč je ve vsi, když je
-  v ní vojvoda – doma, ne na výjezdu, na tažení, v jiné vsi rodu ani v zajetí. Ostatní vsi rodu
-  a vsi se správcem jsou bez hráče.
+  v ní vojvoda – doma, ne na výjezdu, na tažení, v jiné vsi rodu ani v zajetí. Ostatní vsi rodu jsou
+  bez hráče. Zapnutý správce na tom nic nemění – „Pokud je hráč ve své vesnici, tak jí ovládá“
+  (Martin 14. 11. 2026).
 - **Vojvoda doma a hráč u hry:** cizí vojsko vidí na své mapě hned, jak na ni vstoupí (ne až ho
   spatří vesničan). Ves sama nic nedělá – obranu nebo evakuaci zorganizuje hráč rozkazy, které
   dnes má (postoj po skupinách domů, útěk do lesa nebo do hradiště, výpad, posel, vlastního muže
