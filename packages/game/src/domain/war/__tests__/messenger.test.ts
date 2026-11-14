@@ -120,6 +120,19 @@ const send = (tick: number, personId?: number, byPlayer = 'p2'): CampaignIntent 
     byPlayer,
   );
 
+/**
+ * Hráč p2 je u hry od `from` do `to` – odpověď workeru na přítomnost (`alarm-presence`) každých
+ * 300 taktů; bez ní by po volbě hráče převzal ves po 1 herním dni správce (plán 2026-11-14 –
+ * Úloha 5b).
+ */
+function here(from: number, to: number): CampaignIntent[] {
+  const out: CampaignIntent[] = [];
+  for (let tick = from; tick <= to; tick += 300) {
+    out.push(intent(tick, 2, { kind: 'alarm-presence', village: 'a', seenTick: tick }, 'p2'));
+  }
+  return out;
+}
+
 const of = (events: readonly NewVillageEvent[], villageId: string): string[] =>
   events.filter((e) => e.villageId === villageId).map((e) => `${e.body.kind}@${e.day}`);
 
@@ -137,7 +150,8 @@ describe('posel do hradiště (Úloha 5)', () => {
   it('(a) záměr majitele A – posel běží pěšky, B varovaná na své mapě, C při příchodu, návrat domů', () => {
     const start = passing();
     const t0 = start.tick + T0;
-    const step = stepCampaign(start, start.tick + END, [send(t0)], worldWith());
+    const intents = [send(t0), ...here(t0, start.tick + END)];
+    const step = stepCampaign(start, start.tick + END, intents, worldWith());
     expect(step.waiting).toBeNull();
     const [m] = step.state.alarm!.messengers;
     expect(m).toMatchObject({

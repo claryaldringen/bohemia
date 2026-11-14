@@ -1012,7 +1012,9 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
   (nové volitelné `captured` a `captorVillageId` – `applyRefugeCaught` zajatce `markCaptive`),
   majiteli upozornění `refuge-caught` (počty). Bez přesily jde dál. **Den odchodu** (Review Focus
   2): `alarmTaken(s, ves, den)` vrací i lidi, nesené obilí a sehnané stádo skupin, které odešly v
-  den `den` (`carried`; stav vsi ode dne nato odchod zná), `withoutTaken` je odečte stejně jako
+  den `den` (`carried`; stav vsi ode dne nato odchod zná), a zajatce a odvedené tažení z té vsi
+  (`s.captives` bez ohledu na den – jdou s vojskem do konce tažení, ves o nich ví až po zprávě;
+  plán 2026-11-14, Úloha 5b), `withoutTaken` je odečte stejně jako
   `applyRefugeDepart` (`takeGrain`, `takeHerd` – exportované z `village/fortification/state/refugees.ts`);
   `campaignBattle` i `reportRaid` (kořist, odvedení, zajatí) počítají se stavem bez nich. **Prázdná
   ves**: odešli-li všichni, v boji nikdo nestojí a útočník vezme, co zůstalo (zásoby mimo nesené,
@@ -1073,16 +1075,18 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
   vstříc vojsku) a uplynul den po posledním dni nájezdu (`returnDayAfter` – `raidDay`, bez nájezdu
   den odchodu); tělo nese `steward: true` → kronika `people-back` se `steward` („Správce vrátil lidi
   domů.“). Hráčovu ves bez správce nevrací – jen jí dopíše návrat po pádu.
-- **Kdo rozhoduje – hráč ve vsi, nebo nastavení (Ú11, plán 2026-11-14 – Úloha 5).**
-  `domain/war/alarm-steward.ts` (test `alarm-steward.test.ts`; war.md – Hráč ve vsi a mimo ni,
-  Rozhodnutí plánu 3; lhůta hráče 1 herní den z 9. 11. 2026 zrušena).
+- **Kdo rozhoduje – hráč ve vsi, nebo nastavení (Ú11, plán 2026-11-14 – Úloha 5, 5b).**
+  `domain/war/alarm-steward.ts` (test `alarm-steward.test.ts`; war.md – Hráč ve vsi a mimo ni;
+  lhůta hráče 1 herní den z 9. 11. 2026 zrušena).
   `decideAlarms(s, tick, ctx, out)` v každém taktu po poslech (`campaignTick`: pohyb → spatření →
   `moveMessengers` → `catchMessengers` → **`decideAlarms`** → `moveFlights` → `catchFlights` → dny
-  nájezdu): za ves ve varování, za kterou ještě nerozhodl správce, určí `deciderOf(s, v, tick, ctx)`
+  nájezdu): ves, jejíž varování skončilo vzdáním vojvody (`alarmEnded`), přeskočí; za ves ve
+  varování, za kterou ještě nerozhodl správce, určí `deciderOf(s, v, tick, ctx)`
   → `'steward' | 'player' | 'ask'`, v tomto pořadí: ves bez hráče (`withoutPlayer` – `owner.npc` i
-  neznámý rod bez portu; `steward.on` ve `villageAt` – i s vojvodou doma, Rozhodnutí plánu 3,
-  Martinovi předloženo, změna = jeden řádek; hráčův muž není doma – `lordHomeAt`, i když ho tažení
-  dnes odvedlo jako posla nebo se skupinou) → správce hned; čeká se na odpověď (`askedTick`) → hráč;
+  neznámý rod bez portu; hráčův muž není doma – `lordHomeAt`, i když ho tažení dnes odvedlo jako
+  posla, se skupinou nebo do zajetí) → správce hned; zapnutý správce na tom nic nemění (Úloha 5b,
+  přebíjí Rozhodnutí plánu 3 – Martin 14. 11. 2026: „Pokud je hráč ve své vesnici, tak jí
+  ovládá“); čeká se na odpověď (`askedTick`) → hráč;
   bez údaje (`presenceTick` chybí – i starý bod) → `'ask'`, ves zapíše `askedTick = tick`;
   `presenceTick` null nebo `tick − presenceTick > absentTicks` (1 herní den; `absentTicks(world)`
   přesunuté z `campaign.ts` do `ticks.ts`, platí i pro živé vedení) → správce; jinak hráč (nic).
@@ -1091,11 +1095,13 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
   `notePresence(v, seen)`: `askedTick` zmizí, `presenceTick` = pozdější ze známé a `seenTick` (u
   jiného záměru takt záměru; null jen, když žádnou neznáme); `alarm-presence` dál nic nedělá. Cizí
   hráč přítomnost nedává (kontrola vlastníka napřed). `WAR.alarm.presenceRefreshTicks` (86 = ¼ dne)
-  – po kolika taktech worker přítomnost obnoví (Úloha 6). **Volba hráče** (`decided: 'player'`) má
-  přednost – přítomnost ji už nepřepne; zbytek převezme správce, jen když ves zůstane bez hráče
-  (`playerLeft` – vojvoda vyběhl jako posel nebo je v zajetí; Review Focus 2) a lidé jsou ještě doma
-  (`flight` chybí – skupina uprchlíků bere všechny přítomné, po ní správce nemá co rozhodnout), pak
-  `decided = 'steward'` (správce na volbu jen naváže – posla ani skupinu podruhé nepošle). Pravidlo
+  – po kolika taktech worker přítomnost obnoví (Úloha 6). **Volba hráče** (`decided: 'player'`):
+  zbytek převezme správce, když za ves teď rozhoduje nastavení (`playerLeft` → `deciderOf` =
+  `'steward'` – vojvoda vyběhl jako posel, odjel, je v zajetí, nebo hráč déle než `absentTicks` není
+  u hry; Review Focus 2, Úloha 5b – doslovné čtení „hráč není u hry → nastavení“) a lidé jsou ještě
+  doma (`flight` chybí – skupina uprchlíků bere všechny přítomné, po ní správce nemá co rozhodnout),
+  pak `decided = 'steward'` (správce na volbu jen naváže – posla ani skupinu podruhé nepošle; worker
+  proto obnovuje přítomnost i po volbě hráče – Úloha 6). Pravidlo
   správce: `refugeOptions` ze stavu bez toho, co tažení dnes odvedlo, postoj `stanceOf`, vlastní
   útočiště `refugeHostOf` (hotové opevnění s plochou) → `stewardAlarmChoice` →
   `sendMessenger(…, { by: 'steward' })` (`messengerOf` bez volby – vesničan pěšky, bez vesničana muž
@@ -1106,16 +1112,20 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
   (`warnDomain(…, null)`) od příchodu prvního posla vsi (`heardTick` – z `messengers`) podle
   `deciderOf` téže vsi (`'ask'` zapíše `askedTick`, přítomnost se nepřepíná volbou vsi); záměr
   `alarm-domain` (i prázdný výběr) ho vypne (`AlarmVillage.domain`). Testy `alarm-steward.test.ts`
-  (NPC ves – posel a „se vším“ v taktu varování; správce hráče hned i s vojvodou doma; vojvoda mimo
-  ves – správce hned; vojvoda doma bez odpovědi – čeká s `askedTick`; odpověď null – správce v taktu
-  odpovědi; hráč u hry – do `T + absentTicks` nic, pak správce; každý záměr `alarm-*` vlastníka je
-  přítomnost, cizí ne, null ani starší takt ji neuberou; vojvoda vyběhne jako posel – útěk v témž
-  taktu; volba hráče s vojvodou doma má přednost; starý bod bez nových polí se zeptá, bez `lordId`
-  správce hned; postoj bránit – jen posel, boj s obránci; vlastní opevnění – jen posel; nestihnou –
-  les, bez lesa nic; hradiště se správcem hned, hradiště hráče podle téhož pravidla; po 1 / 7 / 40
-  taktech přes JSON = vcelku). Měření `measure-campaigns.ts` – scénář „varování 5“ (vojsko na okraji
-  mapy neopevněné vsi NPC, hradiště o políčko dál – posel a útěk „se vším“; port `alarmOwners` ve
-  smyčce workeru) – změřeno v Ú15 (docs/code/worker.md – Výkon – Tažení).
+  (NPC ves – posel a „se vším“ v taktu varování; zapnutý správce s vojvodou doma – rozhoduje hráč
+  u hry, bez hráče správce; vojvoda mimo ves – správce hned; vojvoda doma bez odpovědi – čeká
+  s `askedTick`; odpověď null – správce v taktu odpovědi; hráč u hry – do `T + absentTicks` nic, pak
+  správce; každý záměr `alarm-*` vlastníka je přítomnost, cizí ne, null ani starší takt ji neuberou;
+  vojvoda vyběhne jako posel – útěk v témž taktu; po volbě hráče hráč odejde od hry – správce dořeší
+  útěk bez druhého posla; po volbě hráče vojvoda odjede nebo je zajat – správce v témž taktu; starý
+  bod bez nových polí se zeptá, bez `lordId` správce hned; postoj bránit – jen posel, boj
+  s obránci; vlastní opevnění – jen posel; nestihnou – les, bez lesa nic; hradiště se správcem hned,
+  hradiště hráče podle téhož pravidla; `alarmTaken` se zajatci; vzdání bez boje i v boji – posel ani
+  útěk s vojvodou v témž taktu neprojdou, ves pak neutíká; po 1 / 7 / 40 taktech přes JSON =
+  vcelku i se správcem, volbou hráče a vzdáním). Měření `measure-campaigns.ts` – scénář
+  „varování 5“ (vojsko na okraji mapy neopevněné vsi NPC, hradiště o políčko dál – posel a útěk
+  „se vším“; port `alarmOwners` ve smyčce workeru) – změřeno v Ú15 (docs/code/worker.md – Výkon –
+  Tažení).
 - **Pohled na varování a příkazy obránce (Ú12).** `application/alarm-view.ts` (test
   `application/__tests__/alarm-view.test.ts`; rozhraní – web-ui.md, Varování a útěk v rozhraní).
   Volby počítá táž doména jako pravidlo správce: `alarmChoices(s, v, tick, ctx, messengerId?)`
@@ -1272,6 +1282,11 @@ rozhodnutí.
   zajetí níž; vůdce dostane `campaign-returned` s důvodem `yielded` („Vojsko se vrátilo i se zajatým
   vojvodou.“ – `apps/web/lib/player-notices.ts`, text návrh Clauda). Test
   `war/__tests__/lord-surrender.test.ts`.
+
+  Vzdáním končí varování cílové vsi (`alarmEnded`, Úloha 5b): ves před odcházejícím vojskem
+  neutíká, neposílá posla a správce za ni nerozhoduje. Posel ani útěk s vojvodou v taktu vzdání
+  neprojdou. Bez boje je zajatý vojvoda hned v `captives`, a tedy mimo `alarmTaken`. Testy
+  `alarm-steward.test.ts`.
 
 - **Dva konce zajatců**: `RaidResult.captured` + `captorVillageId` (napadená ves: osoba **zůstává ve
   stavu** s `away { kind: 'captive', hostVillageId, refId }` bez `untilDay`, `captureMen`; zajatý
@@ -1803,7 +1818,9 @@ u sídelní vsi rodu (`house.lord_village_id`); jiná ves rodu a NPC ves ho nema
 (`adapters/alarm-owners.ts`) ho dopočte jedním `CASE`. `lordAtHome(state, lordId, day, gone?)` –
 muž žije ve vsi, dnes není pryč (`isAway`: výjezd, tažení, zajetí, posel, útočiště) a tažení ho
 dnes neodvedlo (`gone`); `lordHomeAt(s, villageId, owner, ctx)` totéž v taktu nad stavem
-`villageAt(villageId, s.day)` (chybí → `MissingData`) a `alarmTaken(…).people`.
+`villageAt(villageId, s.day)` (chybí → `MissingData`) a `alarmTaken(…).people` – posel, skupina
+uprchlíků i zajatec tažení (`s.captives`), takže zajatý vojvoda není doma hned v taktu zajetí
+(Úloha 5b).
 
 **Vojvoda vidí vojsko při vstupu na mapu.** `sightAlarms` (`alarm.ts`) nejdřív zjistí vlastníka vsi
 (`ownerOf`) a pro ves, kde je vojvoda doma (`lordHomeAt`), použije `lordSighting`: spatření bez
@@ -1813,15 +1830,37 @@ Vojvoda pryč (výjezd, tažení) – `spot` jako dřív, varuje vesničan. Ves 
 `warnTick` vstup s vojvodou doma jen uspíší (`by` se přepíše na `'lord'`). Zápis a zkrácení
 `warnTick` beze změny.
 
-**Kdo za ves rozhoduje (Úloha 5).** `deciderOf` (`alarm-steward.ts`) – ves bez hráče (NPC, zapnutý
-správce, vojvoda není doma) rozhodne pravidlem správce hned; ves s vojvodou doma se zeptá na
-přítomnost (`AlarmVillage.askedTick`), odpověď `alarm-presence` a každý záměr `alarm-*` vlastníka
-zapíše `presenceTick` (`notePresence`); bez přítomnosti déle než `absentTicks` (`ticks.ts`)
-rozhodne správce. Podrobnosti: Varování, poslové a útěk do hradiště – Kdo rozhoduje.
+**Kdo za ves rozhoduje (Úloha 5).** `deciderOf` (`alarm-steward.ts`) – ves bez hráče (NPC, vojvoda
+není doma) rozhodne pravidlem správce hned; ves s vojvodou doma se zeptá na přítomnost
+(`AlarmVillage.askedTick`), odpověď `alarm-presence` a každý záměr `alarm-*` vlastníka zapíše
+`presenceTick` (`notePresence`); bez přítomnosti déle než `absentTicks` (`ticks.ts`) rozhodne
+správce. Podrobnosti: Varování, poslové a útěk do hradiště – Kdo rozhoduje.
 
 **Vzdání vojvody (Úloha 7).** Záměr obránce `lord-surrender` ukončí nájezd na cíl: vojvoda je zajat
 vždy, vojsko se vrátí s důvodem `'yielded'` a odnese jen to, co už vzalo (`yieldingLord`,
 `yieldLord`, `BattleState.yielded` v `campaign.ts`). Podrobnosti: Zajetí a výkupné – Vzdání vojvody.
+
+**Opravy rozhodování varované vsi (Úloha 5b).**
+
+- **Zapnutý správce** o tom, kdo rozhoduje, nerozhoduje (Martin 14. 11. 2026: „Pokud je hráč ve své
+  vesnici, tak jí ovládá.“): `withoutPlayer` je jen NPC rod nebo vojvoda mimo ves. Ves se správcem
+  se řídí stejně jako ves bez něj.
+- **Po volbě hráče** (`decided: 'player'`) převezme zbytek správce i tehdy, když hráč není u hry
+  (`playerLeft` – `deciderOf` = `'steward'`, lidé doma). Co hráč zvolil, nezopakuje.
+- **Zajatý vojvoda není doma** hned v taktu zajetí: `alarmTaken` vrací i `s.captives` té vsi. Platí
+  i pro lidi odvedené po boji.
+- **Vzdáním končí varování cílové vsi** (`alarmEnded` v `alarm.ts`: `returnReason === 'yielded'`
+  a ves je cíl). Záměr obránce k ní je pak jen přítomnost (`applyAlarm`), `decideAlarms` ji
+  přeskočí. Ves před odcházejícím vojskem neutíká, neposílá posla a správce za ni nerozhoduje.
+  Posel ani útěk s vojvodou v taktu vzdání proto neprojdou ani v boji, kde zajatce zapíše až
+  `reportRaid`.
+- **`notePresence`** u ostatních záměrů bere takt záměru (`applyAlarm(…, tick, …)`). Záměry se
+  počítají právě v taktu záměru, výsledek je tedy stejný.
+- **`yieldingLord`** je exportovaná. Pohled obránce (Úloha 8) se ptá, zda jde vzdát.
+- **Vzdání za pochodu** nevolá `shareTarget`, protože fáze nebyla `raiding`. Nic tím nechybí: co
+  muži na mapě cíle viděli, jde rodu s návratem (`seenKnowledge`) a objevená obydlí bez boje nejsou.
+
+Testy: `alarm-steward.test.ts`, describe „zajatý vojvoda a vzdání“ a „po kouscích taktů“.
 
 ## Měření tažení a e2e celé války (Ú6.17)
 

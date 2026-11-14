@@ -73,6 +73,18 @@ export function isWarned(s: CampaignState, villageId: string, tick: number): boo
   return v !== null && v.warnTick <= tick;
 }
 
+/**
+ * Skončilo varování vsi `villageId` před tímto tažením vzdáním jejího vojvody (war.md – Hráč ve
+ * vsi a mimo ni: vzdáním „nájezd končí“; plán 2026-11-14 – Úloha 5b)? Vzdát jde jen cíl tažení
+ * (`yieldingLord`) a vojsko se pak vrací s důvodem `'yielded'`, který se už nezmění. Ves před
+ * odcházejícím vojskem neutíká ani neposílá posla a nastavení za ni nerozhoduje: záměr obránce
+ * k ní je jen přítomnost (`applyAlarm`) a `decideAlarms` ji přeskočí. Kdo už odešel nebo běží,
+ * jde dál; ves o vojsku dál ví (`isWarned` – bariéra dnů nájezdu, dokud vojsko stojí na její mapě).
+ */
+export function alarmEnded(s: CampaignState, villageId: string): boolean {
+  return s.returnReason === 'yielded' && villageId === s.target.villageId;
+}
+
 /** Záznam varování vsi v tažení; chybí – ves vojsko nespatřila. */
 export function alarmVillage(s: CampaignState, villageId: string): AlarmVillage | null {
   return s.alarm?.villages.find((v) => v.villageId === villageId) ?? null;

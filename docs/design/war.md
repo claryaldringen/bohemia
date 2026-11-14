@@ -416,9 +416,11 @@ o evakuaci (defaultní nastavení).“
   hráče; bez přítomnosti déle než 1 herní den je hráč pryč (návrh Clauda). Na přítomnost se ves
   zeptá, jakmile o vojsku ví (odpoví server za pár taktů); dokud je hráč u hry, server ji obnovuje
   každou ¼ herního dne (86 taktů ≈ 22 s) a každý pokyn hráče k varované vsi je také přítomnost
-  (návrh Clauda). Ves, kde už hráč něco zvolil (posel, útěk), zůstává jeho i bez přítomnosti;
-  nastavení dokončí zbytek, jen když vojvoda ves opustí a lidé jsou ještě doma (vyběhne jako posel,
-  padne do zajetí) – návrh Clauda.
+  (návrh Clauda). Ves, kde už hráč něco zvolil (posel, útěk), řídí hráč dál, dokud je ve vsi
+  a u hry; zbytek dokončí nastavení, jakmile vojvoda ves opustí (vyběhne jako posel, odjede, padne
+  do zajetí) nebo hráč přestane být u hry, dokud jsou lidé ještě doma – co hráč už zvolil,
+  nezopakuje (druhý posel, druhý útěk) – návrh Clauda. Zajatý vojvoda není doma hned, jak ho
+  vojsko zajme (i před zprávou do vsi) – návrh Clauda.
 - **Vojvoda doma, hráč není u hry:** lidé se hned zachovají podle nastavení vsi – vojvoda vojsko
   vidí, jakmile vstoupí na mapu, takže ves reaguje dřív, než kdyby ho musel spatřit vesničan.
   Když se hráč během nájezdu vrátí ke hře, převezme velení (Martin 14. 11. 2026 – „ok“).
@@ -434,8 +436,10 @@ o evakuaci (defaultní nastavení).“
   dojde k jednání“ (Martin 14. 11. 2026). Hráč ve vsi smí vojvodu vzdát (rozkaz bílé vlajky –
   návrh Clauda); útočník ho zajme, odvede do svého dvorce a následuje jednání o výkupném (Vzdaní,
   zajetí a výkupné). Vzdáním **nájezd končí** – vojsko odvede zajatce, odnese, co už vzalo, a ves
-  dál nedrancuje (Martin 14. 11. 2026 – „Ano“). Ves zůstává rodu; dokud zajetí trvá, vede ji
-  dědic nebo správce. „Ves připadne útočníkovi celá“ platí jen pro Začít znovu během nájezdu.
+  dál nedrancuje (Martin 14. 11. 2026 – „Ano“). Vzdáním končí i varování vsi před tímto vojskem:
+  ves před odcházejícím vojskem neutíká, neposílá posla a nastavení za ni nerozhoduje (návrh
+  Clauda); kdo už odešel nebo běží, jde dál. Ves zůstává rodu; dokud zajetí trvá, vede ji dědic
+  nebo správce. „Ves připadne útočníkovi celá“ platí jen pro Začít znovu během nájezdu.
 - **Nahrazuje** (Martin 14. 11. 2026: „Ok, pusť se do toho“): tři postoje vsi a „Přítomný hráč dostane upozornění a smí velet sám“
   (Obránci – postoje a útěk) a lhůtu hráče 1 herní den (Varování, poslové a útěk do hradiště).
 

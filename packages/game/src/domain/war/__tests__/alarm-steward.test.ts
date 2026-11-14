@@ -6,7 +6,7 @@ import type { VillageState } from '../../village/types';
 import type { GridCell } from '../../village/people/world-grid';
 import { alarmVillage } from '../alarm';
 import type { AlarmOwner, AlarmVillage } from '../alarm-types';
-import { stepCampaign } from '../campaign';
+import { campaignFinished, stepCampaign } from '../campaign';
 import type {
   CampaignIntent,
   CampaignMap,
@@ -14,16 +14,18 @@ import type {
   CampaignStep,
   CampaignWorld,
 } from '../campaign-types';
+import { alarmTaken } from '../evacuation';
 import { MarchGridMemo } from '../march-grid';
 import { absentTicks } from '../ticks';
 import { land, palisade } from './battle-fixtures';
 import { campaign, intent, member, MEADOW, SUMMER, world } from './campaign-fixtures';
 
 // Kdo rozhoduje při varování (war.md – Varování, poslové a útěk do hradiště; Hráč ve vsi a mimo
-// ni; plán 2026-11-14 – Úloha 5, Rozhodnutí plánu 3): NPC rody, zapnutý správce a ves, kde vojvoda
-// není doma, rozhodnou pravidlem správce hned. Ves s vojvodou doma se zeptá, zda je hráč u hry
-// (`askedTick`), a čeká na odpověď (záměr `alarm-presence`): hráč u hry rozhoduje sám, bez
-// přítomnosti déle než 1 herní den (`absentTicks`) rozhodne správce. Ves A (políčko 1, 0) má dům
+// ni; plán 2026-11-14 – Úloha 5, 5b): NPC rody a ves, kde vojvoda není doma (i v zajetí tažení),
+// rozhodnou pravidlem správce hned. Ves s vojvodou doma – i se zapnutým správcem – se zeptá, zda
+// je hráč u hry (`askedTick`), a čeká na odpověď (záměr `alarm-presence`): hráč u hry rozhoduje
+// sám, bez přítomnosti déle než 1 herní den (`absentTicks`) rozhodne správce – i po volbě hráče.
+// Vzdáním vojvody varování vsi končí. Ves A (políčko 1, 0) má dům
 // u východního okraje mapy (x = 800 m) a hájek 35 m severně od něj; hradiště C (2, 0) s palisádou
 // je soused na východě, ves D (2, 1) patří do domény C. Vojsko vyjde ze západního okraje mapy A.
 
@@ -220,14 +222,39 @@ describe('správce a NPC rody rozhodují (Úloha 11)', () => {
     ]);
   });
 
-  it('(a) ves hráče se zapnutým správcem rozhodne hned jako NPC – i s vojvodou doma', () => {
-    // Rozhodnutí plánu 3 (návrh Clauda, Martinovi předloženo 14. 11. 2026)
+  it('(a) ves se zapnutým správcem a vojvodou doma ovládá hráč – jako ves bez správce', () => {
+    // Martin 14. 11. 2026: „Pokud je hráč ve své vesnici, tak jí ovládá.“ (Ruling 5 – přebíjí
+    // Rozhodnutí plánu 3)
     const start = approaching(LORD_HOME);
+    const warnTick = start.tick + 1;
+    const t = warnTick + 2;
     const a = villageA({ steward: newSteward(SUMMER - 10, true) });
-    const step = stepCampaign(start, start.tick + 1, [], worldOf({ a, ownerA: LORD_HOME }));
-    expect(alarmOf(step, 'a')).toMatchObject({ decided: 'steward', flight: 'c1:a1' });
-    expect(alarmOf(step, 'a').askedTick).toBeUndefined();
-    expect(step.state.alarm!.flights[0]!.mode).toBe('all');
+    const w = worldOf({ a, ownerA: LORD_HOME });
+    // bez odpovědi se ves zeptá a čeká
+    const asked = stepCampaign(start, t + 5, [], w);
+    expect(asked.waiting).toBeNull();
+    expect(alarmOf(asked, 'a').askedTick).toBe(warnTick);
+    expect(alarmOf(asked, 'a').decided).toBeUndefined();
+    expect(asked.state.alarm!.messengers).toEqual([]);
+    expect(asked.state.alarm!.flights).toEqual([]);
+    // hráč u hry – správce nic do absentTicks, pak rozhodne
+    const present = stepCampaign(start, t + ABSENT, [presence(t, t)], w);
+    expect(alarmOf(present, 'a').decided).toBeUndefined();
+    expect(present.state.alarm!.flights).toEqual([]);
+    const later = stepCampaign(present.state, t + ABSENT + 1, [presence(t, t)], w);
+    expect(alarmOf(later, 'a')).toMatchObject({ decided: 'steward', flight: 'c1:a1' });
+    // hráč u hry není – správce v taktu odpovědi
+    const gone = stepCampaign(start, t, [presence(t, null)], w);
+    expect(alarmOf(gone, 'a')).toMatchObject({
+      decided: 'steward',
+      messenger: 'c1:a0',
+      flight: 'c1:a1',
+    });
+    expect(gone.state.alarm!.flights[0]).toMatchObject({ mode: 'all', departTick: t });
+    // vojvoda mimo ves – se správcem i bez něj nastavení hned v taktu varování
+    const away = stepCampaign(approaching(PLAYER), warnTick, [], worldOf({ a, ownerA: PLAYER }));
+    expect(alarmOf(away, 'a')).toMatchObject({ decided: 'steward', flight: 'c1:a1' });
+    expect(alarmOf(away, 'a').askedTick).toBeUndefined();
   });
 });
 
@@ -354,21 +381,62 @@ describe('hráč ve vsi, nebo nastavení (plán 2026-11-14 – Úloha 5)', () =>
     expect(step.state.alarm!.flights[0]!.people.map((p) => p.id)).not.toContain(2);
   });
 
-  it('volba hráče s vojvodou doma má přednost – přítomnost pak už nerozhoduje', () => {
+  it('po volbě hráče: hráč odejde od hry – správce dořeší zbytek, posla nezopakuje (Ruling 4)', () => {
     const start = approaching(LORD_HOME);
     const t = start.tick + 3;
-    const step = stepCampaign(
-      start,
-      t + 2 * ABSENT,
-      [presence(t, t), byA(t + 3, { kind: 'alarm-messenger', village: 'a' })],
-      worldOf({ ownerA: LORD_HOME }),
-    );
-    expect(step.waiting).toBeNull();
-    expect(alarmOf(step, 'a')).toMatchObject({ decided: 'player', messenger: 'c1:a0' });
-    expect(alarmOf(step, 'a').flight).toBeUndefined();
-    const fromA = step.state.alarm!.messengers.filter((m) => m.fromVillageId === 'a');
+    const go = t + 3;
+    const w = worldOf({ ownerA: LORD_HOME });
+    const intents = [presence(t, t), byA(go, { kind: 'alarm-messenger', village: 'a' })];
+    // hráč u hry – po jeho volbě (posel) ves dál řídí on
+    const present = stepCampaign(start, go + ABSENT, intents, w);
+    expect(present.waiting).toBeNull();
+    expect(alarmOf(present, 'a')).toMatchObject({
+      decided: 'player',
+      messenger: 'c1:a0',
+      presenceTick: go,
+    });
+    expect(alarmOf(present, 'a').flight).toBeUndefined();
+    expect(present.state.alarm!.flights).toEqual([]);
+    // přítomnost starší než absentTicks – správce: útěk, druhého posla ne
+    const gone = stepCampaign(present.state, go + ABSENT + 1, intents, w);
+    expect(alarmOf(gone, 'a')).toMatchObject({
+      decided: 'steward',
+      messenger: 'c1:a0',
+      flight: 'c1:a1',
+    });
+    const fromA = gone.state.alarm!.messengers.filter((m) => m.fromVillageId === 'a');
     expect(fromA.map((m) => m.personId)).toEqual([1]);
-    expect(step.state.alarm!.flights).toEqual([]);
+    expect(gone.state.alarm!.flights[0]!.departTick).toBe(go + ABSENT + 1);
+    expect(gone.state.alarm!.flights[0]!.people.map((p) => p.id)).not.toContain(1);
+  });
+
+  it('po volbě hráče vojvoda odjede nebo je zajat – správce převezme v témž taktu', () => {
+    const start = approaching(LORD_HOME);
+    const t = start.tick + 3;
+    const go = t + 3;
+    const intents = [presence(t, t), byA(go, { kind: 'alarm-messenger', village: 'a' })];
+    const chose = stepCampaign(start, go + 2, intents, worldOf({ ownerA: LORD_HOME }));
+    expect(chose.waiting).toBeNull();
+    expect(alarmOf(chose, 'a')).toMatchObject({ decided: 'player', messenger: 'c1:a0' });
+    expect(chose.state.alarm!.flights).toEqual([]);
+    const fromA = (step: CampaignStep): number[] =>
+      step.state.alarm!.messengers.filter((m) => m.fromVillageId === 'a').map((m) => m.personId);
+    // výjezd vojvody (lord-control.md) – ves zůstala bez hráče
+    const a = villageA();
+    a.people.find((p) => p.id === 2)!.away = { kind: 'journey' };
+    const rode = stepCampaign(chose.state, go + 3, intents, worldOf({ a, ownerA: LORD_HOME }));
+    expect(rode.waiting).toBeNull();
+    expect(alarmOf(rode, 'a')).toMatchObject({ decided: 'steward', flight: 'c1:a1' });
+    expect(fromA(rode)).toEqual([1]);
+    expect(rode.state.alarm!.flights[0]!.departTick).toBe(go + 3);
+    // zajetí – tažení vojvodu odvedlo (`captives`), stav vsi o tom ještě neví (Ruling 6)
+    const held = structuredClone(chose.state);
+    held.captives.push({ villageId: 'a', personId: 2 });
+    const caught = stepCampaign(held, go + 3, intents, worldOf({ ownerA: LORD_HOME }));
+    expect(caught.waiting).toBeNull();
+    expect(alarmOf(caught, 'a')).toMatchObject({ decided: 'steward', flight: 'c1:a1' });
+    expect(fromA(caught)).toEqual([1]);
+    expect(caught.state.alarm!.flights[0]!.people.map((p) => p.id)).not.toContain(2);
   });
 
   it('starý bod bez askedTick a presenceTick – zeptá se (Review Focus 5)', () => {
@@ -492,31 +560,107 @@ describe('hradiště varuje doménu (Úloha 11)', () => {
   });
 });
 
-describe('po kouscích taktů (Úloha 5)', () => {
-  it('po 1 / 7 / 40 taktech přes JSON = vcelku', { timeout: 120_000 }, () => {
-    // A s vojvodou doma se zeptá, hráč je u hry, pak odejde – správce; posel A doběhne do C
-    // (vojvoda mimo hradiště) a C varuje doménu
-    const start = approaching(LORD_HOME, -900, true);
-    const warnTick = start.tick + 1;
-    const intents = [presence(warnTick + 2, warnTick), presence(warnTick + 4, null)];
-    const end = start.tick + 1600;
-    const w = worldOf({ ownerA: LORD_HOME, ownerC: LORD });
-    const whole = stepCampaign(start, end, intents, w);
+/** Záměr obránce „vzdát vojvodu“ vsi A (vlastník p2). */
+const surrender = (tick: number, seq = 1): CampaignIntent =>
+  intent(tick, seq, { kind: 'lord-surrender', village: 'a' }, 'p2');
+
+describe('zajatý vojvoda a vzdání (plán 2026-11-14 – Úloha 5b)', () => {
+  it('alarmTaken – zajatí a odvedení tažení z té vsi nejsou doma (Ruling 6)', () => {
+    const s = approaching(LORD_HOME);
+    s.captives.push(
+      { villageId: 'a', personId: 5 },
+      { villageId: 'c', personId: 1 },
+      { villageId: 'a', personId: 2 },
+    );
+    expect([...alarmTaken(s, 'a', s.day, world).people].sort()).toEqual([2, 5]);
+    expect([...alarmTaken(s, 'c', s.day, world).people]).toEqual([1]);
+    expect(alarmTaken(s, 'd', s.day, world).people.size).toBe(0);
+  });
+
+  it('bez boje: posel ani útěk s vojvodou v taktu vzdání neprojdou, ves pak neutíká (Ruling 6, 7)', () => {
+    const start = approaching(LORD_HOME);
+    const at = start.tick + 3;
+    const w = worldOf({ ownerA: LORD_HOME });
+    const intents = [
+      surrender(at),
+      intent(at, 2, { kind: 'alarm-messenger', village: 'a', personId: 2 }, 'p2'),
+      intent(at, 3, { kind: 'alarm-flee', village: 'a', mode: 'all' }, 'p2'),
+      // hráč pak u hry není – nastavení by za ves bez vojvody rozhodlo hned
+      presence(at + 5, null),
+    ];
+    const step = stepCampaign(start, at, intents, w);
+    expect(step.waiting).toBeNull();
+    expect(step.state).toMatchObject({ phase: 'returning', returnReason: 'yielded' });
+    expect(step.state.captives).toEqual([{ villageId: 'a', personId: 2 }]);
+    expect(step.state.alarm!.messengers).toEqual([]);
+    expect(step.state.alarm!.flights).toEqual([]);
+    expect(alarmOf(step, 'a').decided).toBeUndefined();
+    expect(of(step.villageEvents, 'a')).toContain('raid-result');
+    expect(of(step.villageEvents, 'a')).not.toContain('messenger-out');
+    expect(of(step.villageEvents, 'a')).not.toContain('refuge-depart');
+    // vzdáním varování vsi skončilo – před odcházejícím vojskem ves neutíká, správce nerozhoduje
+    const later = stepCampaign(step.state, at + ABSENT + 20, intents, w);
+    expect(later.waiting).toBeNull();
+    expect(later.state.alarm!.messengers).toEqual([]);
+    expect(later.state.alarm!.flights).toEqual([]);
+    expect(alarmOf(later, 'a').decided).toBeUndefined();
+    expect(alarmOf(later, 'a').askedTick).toBeUndefined();
+    expect(of(later.villageEvents, 'a')).not.toContain('refuge-depart');
+  });
+
+  it('v boji: posel s vojvodou v taktu vzdání neprojde, vojvoda je zajatý (Ruling 6, 7)', () => {
+    // ves se brání (postoj) – boj trvá; hráč je u hry, takže ves sama nic nevolí
+    const a = villageA({ defense: { stance: 'defend' } });
+    const w = worldOf({ a, ownerA: LORD_HOME });
+    const start = approaching(LORD_HOME);
+    const here = Array.from({ length: 9 }, (_, k) => {
+      const tick = start.tick + 2 + 300 * k;
+      return presence(tick, tick);
+    });
+    let fight = stepCampaign(start, start.tick + 1800, here, w).state;
+    while (fight.battle?.outcome !== 'ongoing') {
+      if (fight.tick > start.tick + 2500) throw new Error('boj nezačal');
+      const next = stepCampaign(fight, fight.tick + 1, here, w);
+      expect(next.waiting).toBeNull();
+      fight = next.state;
+    }
+    expect(fight.alarm!.messengers).toEqual([]);
+    const at = fight.tick + 1;
+    const out = stepCampaign(
+      fight,
+      at,
+      [
+        ...here,
+        surrender(at),
+        intent(at, 2, { kind: 'alarm-messenger', village: 'a', personId: 2 }, 'p2'),
+      ],
+      w,
+    );
+    expect(out.waiting).toBeNull();
+    expect(out.state).toMatchObject({ phase: 'returning', returnReason: 'yielded' });
+    expect(out.state.battle?.yielded).toBe(2);
+    expect(out.state.alarm!.messengers).toEqual([]);
+    expect(out.state.captives).toEqual([{ villageId: 'a', personId: 2 }]);
+    expect(out.state.loot.prisoners?.map((p) => p.ref)).toEqual([{ villageId: 'a', personId: 2 }]);
+  });
+});
+
+describe('po kouscích taktů (Úloha 5, 5b)', () => {
+  /** Po 1 / 7 / 40 taktech přes JSON = vcelku (stav, události vsí, upozornění). */
+  function expectChunked(
+    start: CampaignState,
+    end: number,
+    intents: readonly CampaignIntent[],
+    setup: Setup,
+  ): CampaignStep {
+    const whole = stepCampaign(start, end, intents, worldOf(setup));
     expect(whole.waiting).toBeNull();
-    expect(alarmOf(whole, 'a')).toMatchObject({ decided: 'steward', presenceTick: warnTick });
-    expect(whole.state.alarm!.messengers[0]!.departTick).toBe(warnTick + ABSENT + 1);
-    expect(alarmOf(whole, 'c').domain).toHaveLength(1);
     for (const chunk of [1, 7, 40]) {
       const events: NewVillageEvent[] = [];
       const notices: CampaignStep['notices'] = [];
       let s = start;
-      while (s.tick < end) {
-        const next = stepCampaign(
-          s,
-          Math.min(end, s.tick + chunk),
-          intents,
-          worldOf({ ownerA: LORD_HOME, ownerC: LORD }),
-        );
+      while (s.tick < end && !campaignFinished(s)) {
+        const next = stepCampaign(s, Math.min(end, s.tick + chunk), intents, worldOf(setup));
         expect(next.waiting).toBeNull();
         events.push(...next.villageEvents);
         notices.push(...next.notices);
@@ -526,5 +670,54 @@ describe('po kouscích taktů (Úloha 5)', () => {
       expect(events).toEqual(whole.villageEvents);
       expect(notices).toEqual(whole.notices);
     }
+    return whole;
+  }
+
+  it('po 1 / 7 / 40 taktech přes JSON = vcelku', { timeout: 120_000 }, () => {
+    // A s vojvodou doma se zeptá, hráč je u hry, pak odejde – správce; posel A doběhne do C
+    // (vojvoda mimo hradiště) a C varuje doménu
+    const start = approaching(LORD_HOME, -900, true);
+    const warnTick = start.tick + 1;
+    const intents = [presence(warnTick + 2, warnTick), presence(warnTick + 4, null)];
+    const whole = expectChunked(start, start.tick + 1600, intents, {
+      ownerA: LORD_HOME,
+      ownerC: LORD,
+    });
+    expect(alarmOf(whole, 'a')).toMatchObject({ decided: 'steward', presenceTick: warnTick });
+    expect(whole.state.alarm!.messengers[0]!.departTick).toBe(warnTick + ABSENT + 1);
+    expect(alarmOf(whole, 'c').domain).toHaveLength(1);
   });
+
+  it(
+    'správce, volba hráče a vzdání – po 1 / 7 / 40 taktech = vcelku (Úloha 5b)',
+    { timeout: 120_000 },
+    () => {
+      // zapnutý správce, hráč u hry zvolí posla a odejde – správce dořeší útěk (Ruling 4, 5)
+      const left = approaching(LORD_HOME);
+      const t = left.tick + 3;
+      const steward = {
+        a: villageA({ steward: newSteward(SUMMER - 10, true) }),
+        ownerA: LORD_HOME,
+      };
+      const chose = [presence(t, t), byA(t + 3, { kind: 'alarm-messenger', village: 'a' })];
+      // převzetí v taktu t + 3 + ABSENT + 1, pak pár taktů skupiny na cestě
+      const whole = expectChunked(left, t + ABSENT + 12, chose, steward);
+      expect(alarmOf(whole, 'a')).toMatchObject({ decided: 'steward', flight: 'c1:a1' });
+      // vzdání s posly a útěkem v témž taktu, pak hráč pryč (Ruling 6, 7)
+      const yielded = approaching(LORD_HOME);
+      const at = yielded.tick + 3;
+      const intents = [
+        surrender(at),
+        intent(at, 2, { kind: 'alarm-messenger', village: 'a', personId: 2 }, 'p2'),
+        intent(at, 3, { kind: 'alarm-flee', village: 'a', mode: 'all' }, 'p2'),
+        presence(at + 5, null),
+      ];
+      const end = expectChunked(yielded, at + 40, intents, { ownerA: LORD_HOME });
+      expect(end.state).toMatchObject({
+        returnReason: 'yielded',
+        captives: [{ villageId: 'a', personId: 2 }],
+      });
+      expect(end.state.alarm!.flights).toEqual([]);
+    },
+  );
 });

@@ -66,6 +66,7 @@ import { npcIntents, npcLeader } from './npc-commander';
 import { inFight, setGroupOrder } from './orders';
 import { absentTicks, dayOfTick, hoursPerTick, TICKS_PER_SECOND, tickRandom } from './ticks';
 import {
+  alarmEnded,
   alarmVillage,
   armyEyes,
   isAlarmIntent,
@@ -423,7 +424,7 @@ function applyIntent(
 ): void {
   // záměr obránce varované vsi – hráč obránce u tažení není
   if (isAlarmIntent(intent.body)) {
-    applyAlarm(s, intent.byPlayer, intent.body, ctx, out);
+    applyAlarm(s, intent.byPlayer, intent.body, intent.tick, ctx, out);
     return;
   }
   // ves cíle se vzdala (Začít znovu obránce) – obránce u tažení není, přítomnost vůdce se nemění
@@ -442,18 +443,22 @@ function applyIntent(
  * Záměr obránce varované vsi (plán 2026-11-09 – Rozhodnutí plánu): platí jen od hráče, kterému ves
  * patří (`AlarmVillage.owner`), a jen když ves o vojsku ví; co nejde (`refugeOptions`), se zahodí.
  * Každý takový záměr je přítomnost hráče u hry (`notePresence` – plán 2026-11-14, Rozhodnutí
- * plánu 2): odpověď workeru `alarm-presence` nese poslední přítomnost, jiný záměr svůj takt.
+ * plánu 2): odpověď workeru `alarm-presence` nese poslední přítomnost, jiný záměr svůj takt
+ * (`tick` – takt záměru). Po vzdání vojvody (`alarmEnded` – Úloha 5b) je záměr jen přítomnost:
+ * ves před odcházejícím vojskem nic nevolí – posel ani útěk s vojvodou v taktu vzdání neprojdou.
  */
 function applyAlarm(
   s: CampaignState,
   byPlayer: string,
   body: AlarmIntentBody,
+  tick: number,
   ctx: TickContext,
   out: TickOut,
 ): void {
   const v = alarmVillage(s, body.village);
   if (!v || v.owner.playerId !== byPlayer || !isWarned(s, v.villageId, s.tick)) return;
-  notePresence(v, body.kind === 'alarm-presence' ? body.seenTick : s.tick);
+  notePresence(v, body.kind === 'alarm-presence' ? body.seenTick : tick);
+  if (alarmEnded(s, v.villageId)) return;
   switch (body.kind) {
     case 'alarm-presence':
       // jen přítomnost – kdo rozhodne, určí `deciderOf` v `decideAlarms` téhož taktu
@@ -485,10 +490,12 @@ function applyAlarm(
 /**
  * Smí hráč vzdát vojvodu vsi `v` (plán 2026-11-14 – Rozhodnutí plánu 5)? Jen v cíli tažení, dokud
  * nájezd není rozhodnutý (`raidDay`; vojsko ještě nejde domů), se skupinou s aktivním mužem na mapě
- * cíle (`armyEyes`) a s vojvodou doma (`lordHomeAt`), který v boji nepadl (padlý je ve stavu vsi až
- * do výsledku nájezdu). Vrací číslo vojvody, jinak null.
+ * cíle (`armyEyes`) a s vojvodou doma (`lordHomeAt` – ne posel, uprchlík ani zajatec tažení), který
+ * v boji nepadl (padlý je ve stavu vsi až do výsledku nájezdu). Vrací číslo vojvody, jinak null.
+ * Vlastníka varované vsi a „ves ví“ hlídá `applyAlarm`; pohled obránce (Úloha 8 – zda jde vzdát)
+ * je ověří sám. Chybí-li data, takt čeká (`MissingData`).
  */
-function yieldingLord(s: CampaignState, v: AlarmVillage, ctx: TickContext): number | null {
+export function yieldingLord(s: CampaignState, v: AlarmVillage, ctx: TickContext): number | null {
   const lordId = v.owner.lordId;
   if (lordId === undefined || v.villageId !== s.target.villageId) return null;
   if (s.raidDay !== undefined || (s.phase !== 'marching' && s.phase !== 'raiding')) return null;
@@ -535,6 +542,9 @@ function yieldLord(s: CampaignState, lordId: number, ctx: TickContext, out: Tick
     prisoners: [...(s.loot.prisoners ?? []), ...capturedPrisoners(s, village, [lordId])],
   };
   s.captives.push({ villageId: s.target.villageId, personId: lordId });
+  // `shareTarget` se tu nevolá (fáze byla `marching`, ne `raiding`) a nechybí: co muži na mapě cíle
+  // za pochodu viděli (`lookOut` → `s.seen`), jde rodu s návratem (`seenKnowledge` ve `finish`),
+  // a objevená obydlí bez boje nejsou (`discover` jen v boji) – bod bez znalosti map nemá co vydat
   turnBack(s, 'yielded');
 }
 
