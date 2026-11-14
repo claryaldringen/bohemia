@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactElement, type ReactNode, type Ref } from 'react';
 import { menuKeyAction, nextFocusIndex, type GameMenuStep } from '@/lib/game-menu';
 import { DevMenuPanel, type DevMenuControl } from './DevMenu';
+import { Dialog } from './Dialog';
 import { Tooltip } from './Tooltip';
 
 /** Co v nabídce právě běží na serveru – tlačítka jsou pak zamčená. */
@@ -90,16 +91,15 @@ export function GameMenuPanel({
 }): ReactElement {
   const locked = busy !== null;
   return (
-    <section
-      ref={panelRef}
-      data-testid="game-menu"
-      data-hud-block
-      role="dialog"
-      aria-modal="true"
-      aria-label="Nabídka"
-      aria-describedby={step === 'confirm' ? 'game-menu-warning' : undefined}
-      tabIndex={-1}
-      className="hud-panel fixed top-1/2 left-1/2 z-40 w-max max-w-[calc(100vw-1rem)] min-w-72 -translate-x-1/2 -translate-y-1/2 p-3 outline-none"
+    <Dialog
+      title="Nabídka"
+      onClose={onClose}
+      locked={locked}
+      closeOnEscape={false}
+      widthClass="w-max min-w-72"
+      testId="game-menu"
+      describedBy={step === 'confirm' ? 'game-menu-warning' : undefined}
+      panelRef={panelRef}
     >
       {step === 'main' ? (
         <div className="flex flex-col gap-2">
@@ -180,7 +180,7 @@ export function GameMenuPanel({
           {error}
         </p>
       )}
-    </section>
+    </Dialog>
   );
 }
 
@@ -274,18 +274,6 @@ export function GameMenu({
 
   return (
     <>
-      {/* Kliknutí mimo panel nabídku zavře a do krajiny ani lišty nedojde. Zavírá až click –
-          po pointerdown by zmizelý závoj pustil pointerup / click na to, co leží pod ním. */}
-      <div
-        data-hud-block
-        aria-hidden
-        className="fixed inset-0 z-30 bg-black/40"
-        onPointerDown={(event) => event.preventDefault()}
-        onClick={() => {
-          if (busy === null) onClose();
-        }}
-        onContextMenu={(event) => event.preventDefault()}
-      />
       <GameMenuPanel
         step={step}
         busy={busy}
