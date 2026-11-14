@@ -16,7 +16,7 @@
 - **Čísla jen v `rules*.ts`** s odkazem na sekci návrhu. Ze specifikace platí doslova:
   - klát dá za rok ≈ 6 kg medu a ≈ 0,4 kg vosku, přibývá od května do září;
   - zpracování (Martin 14. 11. 2026 – tukem a kouřem, kožešina kvašením; tuk, popel a kvas se nepočítají): kůže skotu 10 h, kozí a prasečí 4 h, ovčí kožešina 3 h, zaječí a liščí 1,5 h práce; hotové ≈ 10 dní po začátku zpracování (čekání bez práce – zpracování má stav „v práci“ s dnem dokončení, hotový výrobek až po něm);
-  - spotřeba: 1 ovčí kožešina na člověka za 3 roky, 1 kůže na 2 lidi za rok;
+  - spotřeba (Martin 14. 11. 2026 – „Ano“, tabulka v návrhu – Zpracování v domácnosti): obuv 1 kůže skotu na 6 lidí za rok (kozí/prasečí 0,8 m², skot 3 m² – přepočet plochou), kožich 0,7 ovčí kožešiny na dospělého a 0,35 na dítě za rok, čepice a rukavice 0,2 kožešiny na člověka za rok (z lovu nebo ovčí), řemení a pouzdra 1 kůže skotu na domácnost za 3 roky, postroje 1 kůže skotu na pár volů nebo koně za 5 let;
   - oka: 0,05 zajíce za hodinu × zajíci ÷ strop, liška 0,02 za hodinu × lišky ÷ strop; obojí jen nad ½ stropu a do ročního přírůstku;
   - zajíc dá kožešinu a 2 kg masa, liška kožešinu.
 - **Nové části stavu jsou volitelné a vznikají líně** (`ensureWares`). Chybějící hodnota znamená 0, u lišek strop, takže převod ve `VILLAGE_MIGRATIONS` není potřeba.

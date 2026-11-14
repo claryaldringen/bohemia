@@ -59,8 +59,17 @@ Nové zboží vsi. Martin 14. 11. 2026:
 - **Kožešina:** napnutí a usušení → máčení → mízdření → **kvašení** (místo louhu – Martin 14. 11. 2026: „kožešina se navíc kvasí (místo louhu)“) → tuk a kouř → hnětení a vyčesání srsti.
   Práce **3 hodiny na ovčí, 1,5 hodiny na zaječí a liščí**; hotová ≈ **10 dní** po začátku.
   Čísla práce a čekání návrh Clauda – Martin 14. 11. 2026: „Souhlas“.
-- Ves spotřebuje ≈ **1 ovčí kožešinu na člověka za 3 roky** (kožich) a ≈ **1 kůži na 2 lidi
-  za rok** (obuv, řemení, postroje).
+- **Spotřeba** (návrh Clauda – Martin 14. 11. 2026: „Ano“); kůže skotu dá ≈ 3 m² usně, kozí
+  a prasečí ≈ 0,8 m²:
+
+  | Na co                 | Kolik                           | Za rok                                              |
+  | --------------------- | ------------------------------- | --------------------------------------------------- |
+  | obuv (krpce)          | 2 páry na člověka, pár ≈ 0,2 m² | 1 kůže skotu na 6 lidí (nebo 1 kozí na 1,5 člověka) |
+  | kožich                | 4 ovčí kožešiny, vydrží 6 let   | ≈ 0,7 ovčí kožešiny na dospělého, dítě polovinu     |
+  | čepice, rukavice      | z kožešin z lovu nebo zbytků    | ≈ 0,2 kožešiny na člověka                           |
+  | řemení, vaky, pouzdra | –                               | 1 kůže skotu na domácnost za 3 roky                 |
+  | postroje              | na pár volů nebo koně           | 1 kůže skotu za 5 let                               |
+
 - Na vlastní spotřebu bere napřed ovčí kožešiny a kůže ze stáda, kožešiny z lovu jen když ovčí
   nestačí; zbytek je přebytek k prodeji.
 - Nedostatek zatím nemá následky.
