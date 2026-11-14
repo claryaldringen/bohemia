@@ -392,6 +392,41 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
 - **Mlha války** (Martin 18. 10.): útočník vidí, kam dohlédnou jeho muži (≈ 150 m, v lese míň);
   objevené zůstane, dění vidí jen v dohledu.
 
+## Hráč ve vsi a mimo ni (Martin 14. 11. 2026 – návrh, čeká na schválení)
+
+Martin 14. 11. 2026: „Musíme rozlišit 2 situace – když je hráč ve vesnici a když není. Pokud je ve
+vesnici, tak na své mapě ihned uvidí nepřátele a je na něm, jak zorganizuje obranu, či evakuaci.
+Pokud ve vesnici není, vesničané se zachovají podle nastavení – tj. buď se pokusí o obranu nebo
+o evakuaci (defaultní nastavení).“
+
+- **Kde je hráč:** „Hráč je tam, kde je vojvoda“ (Martin 14. 11. 2026). Hráč je ve vsi, když je
+  v ní vojvoda – doma, ne na výjezdu, na tažení, v jiné vsi rodu ani v zajetí. Ostatní vsi rodu
+  a vsi se správcem jsou bez hráče.
+- **Vojvoda doma a hráč u hry:** cizí vojsko vidí na své mapě hned, jak na ni vstoupí (ne až ho
+  spatří vesničan). Ves sama nic nedělá – obranu nebo evakuaci zorganizuje hráč rozkazy, které
+  dnes má (postoj po skupinách domů, útěk do lesa nebo do hradiště, výpad, posel, vlastního muže
+  řídí živě). **U hry** = jako přítomnost u tažení: ves otevřená ve hře nebo jakýkoli pokyn
+  hráče; bez přítomnosti déle než 1 herní den je hráč pryč (návrh Clauda).
+- **Vojvoda doma, hráč není u hry:** lidé se hned zachovají podle nastavení vsi – vojvoda vojsko
+  vidí, jakmile vstoupí na mapu, takže ves reaguje dřív, než kdyby ho musel spatřit vesničan.
+  Když se hráč během nájezdu vrátí ke hře, převezme velení (Martin 14. 11. 2026 – „ok“).
+- **Hráč mimo ves:** lidé se hned zachovají podle nastavení, jakmile vojsko spatří vesničan nebo
+  přijde posel (jako dnes). Lhůta, ve které ves bez správce čeká na rozhodnutí hráče (1 herní
+  den – Varování, poslové a útěk do hradiště), odpadá.
+- **Nastavení vsi** (postoj vsi v panelu dvorce) má dvě možnosti: **obrana** (dnešní „Bránit se“
+  – skupiny domů se brání do bodu zlomu) a **evakuace** (výchozí – dnešní „Raději utéct“
+  s pravidlem správce: posel do hradiště pána, lidé do hradiště, stihnou-li to, jinak do lesa).
+  Postoj „Vzdát se při přesile“ zmizí a vsi s ním dostanou evakuaci (návrh Clauda z výčtu „buď
+  obrana, nebo evakuace“).
+- **Vzdání:** „No ona se nevzdává ves, ale hráč. Když se hráč vzdá, vítěz ho zajme, odvede a pak
+  dojde k jednání“ (Martin 14. 11. 2026). Hráč ve vsi smí vojvodu vzdát (rozkaz bílé vlajky –
+  návrh Clauda); útočník ho zajme, odvede do svého dvorce a následuje jednání o výkupném (Vzdaní,
+  zajetí a výkupné). Vzdáním **nájezd končí** – vojsko odvede zajatce, odnese, co už vzalo, a ves
+  dál nedrancuje (Martin 14. 11. 2026 – „Ano“). Ves zůstává rodu; dokud zajetí trvá, vede ji
+  dědic nebo správce. „Ves připadne útočníkovi celá“ platí jen pro Začít znovu během nájezdu.
+- **Po schválení nahradí:** tři postoje vsi a „Přítomný hráč dostane upozornění a smí velet sám“
+  (Obránci – postoje a útěk) a lhůtu hráče 1 herní den (Varování, poslové a útěk do hradiště).
+
 ## Obránci – postoje a útěk
 
 - **Postoj vsi** nastaví hráč **dopředu** u každé vsi a ves se podle něj zachová, když vesničan
