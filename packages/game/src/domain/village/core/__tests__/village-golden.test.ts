@@ -12,7 +12,7 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // z chybové hlášky (Received) a přepíšeš `EXPECTED_YEAR_1`; do commitu napiš, proč se výsledek
 // změnil. Při úklidu (bez změny chování) se otisk měnit nesmí.
 
-const EXPECTED_YEAR_1 = '348daecb4bb4934f';
+const EXPECTED_YEAR_1 = '3d1ed4c8b2581711';
 
 describe('zlatý otisk vsi', () => {
   const world = goldenWorld();

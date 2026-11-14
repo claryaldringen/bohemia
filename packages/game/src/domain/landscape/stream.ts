@@ -42,7 +42,9 @@ const POOL_SPACING = 24;
 /** Mělčiny (brody): počet, šířka a délka úseku (políčka). */
 const SHALLOWS: readonly [number, number] = [1, 3];
 const SHALLOW_HALF_WIDTH: readonly [number, number] = [0.9, 1.15];
-const SHALLOW_LENGTH = 3;
+export const SHALLOW_LENGTH = 3;
+/** Mělčina nesahá do tůně ani do jejího náběhu – průměrná poloviční šířka od tolika políček. */
+export const POOL_HALF_WIDTH = 1.35;
 /** Rezerva mezi dvěma částmi koryta, které se k sobě přiblíží v meandru (políčka). */
 const CHANNEL_GAP = 2;
 /**
@@ -160,7 +162,7 @@ export function planStream(
   }
   // Mělčina nesmí sahat do tůně (ani do jejího náběhu).
   base.forEach((_, k) => {
-    if ((left[k]! + right[k]!) / 2 >= 1.35) shallow[k] = false;
+    if ((left[k]! + right[k]!) / 2 >= POOL_HALF_WIDTH) shallow[k] = false;
   });
 
   const longWave = range(random, LONG_WAVE);

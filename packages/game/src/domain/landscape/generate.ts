@@ -1,4 +1,5 @@
 import { checkBand } from './band';
+import { withStreamFord } from './stream-ford';
 import { computeFertility, meanLandHeight } from './fertility';
 import {
   assertPremiumSlot,
@@ -323,7 +324,11 @@ function assemble(
     surface,
     fertility,
     villageSite: terrain.villageSite,
-    stream: terrain.stream,
+    // brod na každé mapě s potokem (landscape.md, 14. 11. 2026) – terén 1 bit po bitu jako dřív
+    stream:
+      versions.terrain >= 2
+        ? withStreamFord(terrain.stream, terrain.size, terrain.promontories)
+        : terrain.stream,
     obstacleLayer: {
       seed: deriveSeed(attemptSeed, 'obstacles'),
       version: versions.obstacles ?? 1,

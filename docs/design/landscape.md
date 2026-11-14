@@ -679,9 +679,21 @@ celkové úrodnosti podle měření.
 Martin 14. 11. 2026: „Zároveň by každá mapa s potokem měla mít alespoň jeden brod.“ (k pravidlu
 „Jen brodem“ – [paths.md](paths.md), Odhad vzdáleností).
 
-- Dnes má potok 1–3 mělčiny, ale za brod síť pěšin uzná jen dost úzkou (`FORD.halfWidthM`), takže
+- ~~Dnes má potok 1–3 mělčiny, ale za brod síť pěšin uzná jen dost úzkou (`FORD.halfWidthM`), takže
   mapa brod mít nemusí. Návrh Clauda: když žádná mělčina potoka na mapě brodem není, nejbližší ke
-  středu mapy se zúží na brod – deterministicky z dnešní geometrie potoka, bez nového losu.
+  středu mapy se zúží na brod – deterministicky z dnešní geometrie potoka, bez nového losu.~~
+  **Zjištěno při implementaci 14. 11. 2026:** mez síti pěšin (poloviční šířka vody do 2,4 m)
+  nesplnila žádná mělčina žádné mapy – potok má poloviční šířku aspoň 4,8 m a mělčina ho rozšíří
+  na 13–17 m, řeka 12–22 m. Brod v síti pěšin tak neměla žádná vygenerovaná mapa (ani řeka)
+  a zúžení by potok na každé mapě stáhlo pod jeho nejmenší šířku (řece by odporovalo „nikdy pod
+  25 m ani nad 45 m, i v brodu“). **Návrh Clauda (místo zúžení):** brod je **mělčina** potoka nebo
+  řeky, jak ji generátor kreslí (široký mělký úsek – „Mělčiny (brody)“, scéna ji kreslí mělčí; jako
+  brod pochodu války), šířka nerozhoduje. Potok má 1–3 mělčiny; potok, který žádnou nemá (≈ 1
+  z 10 map přirozené pevnosti a soutoku – smyčka nebo konec u řeky ji vzaly), ji dostane kolem
+  bodu osy nejblíž středu mapy – jako mělčina generátoru ± 3 políčka podél toku, deterministicky,
+  bez losu a bez změny šířky koryta; ne v tůni a ne blíž než 4 políčka od obrysu ostrožny (smyčka
+  a šíje přirozené pevnosti zůstanou bez brodu jako v generátoru). Řeka má brody 1–2 vždy.
+  Čeká na Martinovo potvrzení.
 - **Mění současnou vrstvu zpětně** – Martin 14. 11. 2026: „Zatím hra není spuštěná, takže krajiny
   lze měnit i zpětně. Jinak bychom to nikdy neodladili.“ Zlaté otisky krajin se přepíšou; nová
   verze vrstvy až po ostrém spuštění.

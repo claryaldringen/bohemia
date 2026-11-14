@@ -1584,5 +1584,6 @@ cest v2), ne tichá oprava.
 - Trasy vozů se neukládají (počítají se stejnou funkcí na serveru i v prohlížeči) – kromě jízdy
   pro vodu (`waterCart`). Do vyšlapanosti jdou jízdy vozů jednou ročně, ne den po dni.
 - Ke hromadě klád se trasa nepočítá (její místo zná jen scéna).
-- Brody jsou jen mělké úzké úseky potoka; mosty pro vozy nejsou.
+- Brody jsou jen mělčiny potoka a řeky (landscape.md – Brod na každé mapě s potokem); mosty pro
+  vozy nejsou.
 - Pěšina sama nic neodstraní (keře a kameny na ní stojí dál – jen se jim vyhne).

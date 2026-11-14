@@ -808,7 +808,8 @@ Návrh Clauda (detaily, které návrh výš nechal otevřené – 18. 10. 2026):
 Návrh Clauda (18. 10. 2026):
 
 - **Mokřina** = suchá rovina (sklon nejvýš 0,04) do 3 buněk terénu pěšin (≈ 11 m) od vody –
-  podmáčený břeh a niva potoka. **Brod** = mělký úzký úsek potoka (průchozí voda – paths.md).
+  podmáčený břeh a niva potoka. **Brod** = mělčina potoka nebo řeky (průchozí voda – paths.md;
+  landscape.md – Brod na každé mapě s potokem).
   Kde úsek vede mokřinou a přes brody, se určí z krajiny při vzniku úseku (starší úseky si to
   doplní při roční kontrole); rozdělení úseku rozdělí i mokřinu a brody.
 - **Výběr:** kliknutí do 2,5 m od osy vybere úsek (po obydlí, posvátných místech, pozemku

@@ -54,8 +54,12 @@ export const PATH_SLOPE_REF = SLOPE_REF;
 export const PATH_SLOPE_MAX = SLOPE_MAX;
 /** Brodit se je dražší než jít po louce (mokro, kluzké kameny). */
 const FORD_COST = 5;
-/** Brod: mělký (0–1) a úzký úsek potoka (poloviční šířka vody v m). */
-const FORD = { shallow: 0.55, halfWidthM: 2.4 } as const;
+/**
+ * Brod: mělčina potoka nebo řeky – místo osy aspoň z tolika mělké (0–1, `StreamPoint.shallow` –
+ * landscape.md, Brod na každé mapě s potokem; jako brod pochodu války). Šířka nerozhoduje:
+ * mělčina generátoru je široký mělký úsek a dřívější mez poloviční šířky 2,4 m nesplnila žádná.
+ */
+const FORD = { shallow: 0.55 } as const;
 /** Les: kolikrát dražší je chůze uvnitř lesa (podrost, kořeny) – stromy přidají překážky zvlášť. */
 const FOREST_COST = 1.35;
 export const PATH_FOREST_COST = FOREST_COST;
@@ -255,7 +259,7 @@ export function buildPathTerrain(l: Landscape, window: PathWindow): PathTerrain 
           const sample = stream.nearest(x, z, BANK_REACH_M);
           if (sample.bankDistance < 0) {
             wet[c] = 1;
-            const ford = sample.shallow >= FORD.shallow && sample.halfWidth <= FORD.halfWidthM;
+            const ford = sample.shallow >= FORD.shallow;
             cost[c] = ford ? FORD_COST : Infinity;
             if (ford) flags[c] = flags[c]! | PATH_FORD;
             continue;
@@ -390,6 +394,30 @@ export function pathTerrainOf(l: Landscape, window: PathWindow): PathTerrain {
     terrainCache.set(l, cached);
   }
   return cropPathTerrain(cached, window);
+}
+
+const fordsCache = new WeakMap<Landscape, readonly { x: number; z: number }[]>();
+
+/**
+ * Brody celé krajiny – středy buněk PATH_FORD celé mřížky pěšin (paths.md – Odhad vzdáleností,
+ * Jen brodem: objížďka přes vodu hledá brod na celé mapě, ne jen v okně). Po řádcích, v mezipaměti
+ * podle krajiny.
+ */
+export function landscapeFordSpots(l: Landscape): readonly { x: number; z: number }[] {
+  const cached = fordsCache.get(l);
+  if (cached) return cached;
+  const { n } = gridOf(l);
+  const t = pathTerrainOf(l, { i0: 0, j0: 0, i1: n - 1, j1: n - 1 });
+  const out: { x: number; z: number }[] = [];
+  for (let j = 0; j < t.height; j++) {
+    for (let i = 0; i < t.width; i++) {
+      if (t.flags[j * t.width + i]! & PATH_FORD) {
+        out.push({ x: t.originX + i * t.cellM, z: t.originZ + j * t.cellM });
+      }
+    }
+  }
+  fordsCache.set(l, out);
+  return out;
 }
 
 /**

@@ -1028,10 +1028,11 @@ export function walkDistancesTo(
  * trasách ze všech staveb bez ohledu na obsazenost a olemování podle míst na stromy (`routes-v7` –
  * Martin 31. 10. 2026), po odhadu chůze s lesem a objížďkou přes brod (`routes-v8` – paths.md,
  * Odhad vzdáleností), po zrušení tras k práci dne (`routes-v9` – Stálé trasy, pravidlo 5) a po
- * napojení chůze na síť jen v nejbližším bodě každé pěšiny (`routes-v10` – Odhad vzdáleností) a po humnu a milíři jako stálých cílech tras (`routes-v11` – Stálé trasy, pravidlo 5) se vsi uložené dřív přepočítají hned při dalším dni, ne až při změně mapy
- * (jednou – pak otisk sedí).
+ * napojení chůze na síť jen v nejbližším bodě každé pěšiny (`routes-v10` – Odhad vzdáleností) a po humnu a milíři jako stálých cílech tras (`routes-v11` – Stálé trasy, pravidlo 5) a po brodech
+ * na mělčinách potoka a řeky (`routes-v12` – landscape.md, Brod na každé mapě s potokem) se vsi
+ * uložené dřív přepočítají hned při dalším dni, ne až při změně mapy (jednou – pak otisk sedí).
  */
-export const WALK_VERSION = 'routes-v11';
+export const WALK_VERSION = 'routes-v12';
 
 /**
  * Trasy vsi pro otisk `key` (paths.md – Stálé trasy, pravidlo 5): jen stálé trasy ze sítě bez
