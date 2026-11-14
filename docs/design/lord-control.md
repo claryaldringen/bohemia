@@ -1,5 +1,7 @@
 # Výjezd vojvody – hráč řídí svého muže
 
+> **Výpravy** (Martin 14. 11. 2026, [výpravy](expeditions.md)): výjezd je teď výprava, ve které je vojvoda. Sekce Kdo jede (Družina, Kůň), Co hráč vidí (Výběr) a Ve scéně (Odjezd) nahrazuje [výpravy](expeditions.md) – kohokoli ze vsi vybrat a poslat, osedlání a sesednutí koní.
+
 Stav: **schváleno 13. 11. 2026** (Martin: „Jo, schváleno“) – plán
 `docs/superpowers/plans/2026-11-13-lord-control.md` (kroky 1–3; boj v poli dostane vlastní plán).
 Zadání a rozhodnutí jsou Martinova (citace níž), podrobnosti jsou návrh Clauda. Navazuje na [válku](war.md) (pohyb mapu po mapě, živé
