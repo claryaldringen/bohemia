@@ -103,6 +103,15 @@ export class RainRenderer {
   }
 
   /** Částice jen tam, kde `area` vrátí true (null = všude); platí od dalšího `animate`. */
+  /**
+   * Zapomene čas minulého posunu – další `animate` vezme základní délku čárky. Volá ho
+   * přeskládání stojících kapek (`placeDrops` při omezeném pohybu), kde mezera mezi voláními není
+   * pohyb kapek.
+   */
+  resetMotion(): void {
+    this.lastSeconds = null;
+  }
+
   setArea(area: ((x: number, z: number) => boolean) | null): void {
     this.area = area;
   }

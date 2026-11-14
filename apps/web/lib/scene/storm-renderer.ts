@@ -381,6 +381,11 @@ export class StormRenderer {
   }
 
   /** Kroupy padají kolem cíle kamery (jen když padají) – true, když je třeba překreslit. */
+  /** Kroupy stojí (omezený pohyb) – další posun vezme základní délku čárky (rain-renderer.ts). */
+  resetMotion(): void {
+    this.particles.resetMotion();
+  }
+
   animate(seconds: number, target: Vector3, eye: Vector3, radius: number): boolean {
     return this.particles.animate(seconds, target, eye, radius);
   }
