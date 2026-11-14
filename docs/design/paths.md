@@ -1198,7 +1198,9 @@ nespadne“. Model návrh Clauda:
   les; chodec lesem 1 / 1,35× (cena lesa v síti pěšin), vůz lesem ani zarostlým dílem neprojede.
   **Voda:** úsečka přes potok mimo brod jde **objížďkou přes nejbližší brod** (brod s nejmenším
   součtem vzdáleností od začátku a ke konci úsečky; chodec + 30 m za brodění, vůz brodem
-  `fordCost`). Bez brodu v okně se chodec brodí kdekoli jako dřív a vůz nedojede. Most a hať
+  `fordCost`). ~~Bez brodu v okně se chodec brodí kdekoli jako dřív a vůz nedojede.~~ **Jen brodem** – Martin 14. 11. 2026: „Jen brodem, protože na pole je potřeba dojet s pluhem a vozem.“ Bez brodu na
+  mapě chodec ani vůz na druhý břeh nedojde a správce tam pole nezaloží; objížďka hledá nejbližší
+  brod na celé mapě, ne jen v okně (návrh Clauda – čeká na schválení). Most a hať
   dává síť (lávka jen pro pěší).
 - **Síť zrychluje dál:** chodec po pěšinách stálých tras (síla z vyšlapanosti) a pevných cestách
   (stupeň, olemování, mokřina a brody na ose) – graf os, ne mřížka; vůz po pevných cestách
