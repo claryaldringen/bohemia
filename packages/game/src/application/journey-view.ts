@@ -64,7 +64,7 @@ export interface JourneyView {
 }
 
 export interface JourneyReadDeps {
-  journeys: Pick<JourneyRepository, 'activeOf' | 'checkpoint'>;
+  journeys: Pick<JourneyRepository, 'activeOfPlayer' | 'checkpoint'>;
   world: WorldClock;
   /**
    * Úložiště znalosti rodu (Úloha 11) – jeden dotaz na pohled (mapa skupiny); bez něj jen čerstvé
@@ -83,7 +83,7 @@ export async function journeyViewFor(
   deps: JourneyReadDeps,
   input: { playerId: string },
 ): Promise<JourneyView | null> {
-  const id = await deps.journeys.activeOf(input.playerId);
+  const id = (await deps.journeys.activeOfPlayer(input.playerId))[0] ?? null;
   const point = id === null ? null : await deps.journeys.checkpoint(id);
   const state = point ? upgradeJourney(point.state) : null;
   const viewed = state ? lordParty(state) : null;
@@ -163,7 +163,7 @@ function waitDaysLeft(state: JourneyState, party: JourneyParty, world: WorldCloc
 }
 
 export interface JourneyCommandDeps extends JourneyReadDeps {
-  journeys: Pick<JourneyRepository, 'activeOf' | 'checkpoint' | 'addIntent'>;
+  journeys: Pick<JourneyRepository, 'activeOfPlayer' | 'checkpoint' | 'addIntent'>;
   cells: CampaignCells;
   villages: Pick<VillageRepository, 'find'>;
   grids?: SightGridCache;
@@ -188,7 +188,7 @@ export async function commandJourney(
   deps: JourneyCommandDeps,
   input: { playerId: string; command: JourneyOrder; nowMs: number },
 ): Promise<JourneyCommandResult> {
-  const id = await deps.journeys.activeOf(input.playerId);
+  const id = (await deps.journeys.activeOfPlayer(input.playerId))[0] ?? null;
   const point = id === null ? null : await deps.journeys.checkpoint(id);
   const state = point ? upgradeJourney(point.state) : null;
   const viewed = state ? lordParty(state) : null;

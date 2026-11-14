@@ -9,7 +9,7 @@ import { schema } from '../../index';
 import { createJourneyRepository } from '../journey-repository';
 
 // Úložiště výjezdů (plán 2026-11-13 – Úloha 3): stejná sémantika kontrolního bodu a záměrů jako
-// u tažení, hráč má nejvýš jeden běžící výjezd.
+// u tažení, hráč má nejvýš jednu běžící výpravu z každé domovské vsi.
 
 const db = createDatabase(testDatabaseUrl());
 const journeys = createJourneyRepository(db);
@@ -69,22 +69,25 @@ function state(tick: number, extra: Partial<JourneyState> = {}): JourneyState {
 const HOME = { kind: 'home' as const };
 
 describe('journey repository', () => {
-  it('založení a kontrolní bod bit po bitu; active, activeOf, onCell', async () => {
+  it('založení a kontrolní bod bit po bitu; active, activeIn, activeOfPlayer, onCell', async () => {
     await journeys.create(state(100), NOW);
     const point = await journeys.checkpoint(ID);
     expect(point?.state).toStrictEqual(state(100));
     expect(point?.outbox).toBeNull();
     expect(await journeys.checkpoint(ID2)).toBeNull();
     expect(await journeys.active()).toEqual([ID]);
-    expect(await journeys.activeOf('a')).toBe(ID);
-    expect(await journeys.activeOf('b')).toBeNull();
+    expect(await journeys.activeIn('a', 'v')).toBe(ID);
+    expect(await journeys.activeOfPlayer('a')).toEqual([ID]);
+    expect(await journeys.activeIn('b', 'v')).toBeNull();
+    expect(await journeys.activeOfPlayer('b')).toEqual([]);
     expect(await journeys.onCell({ x: 4, y: 2 })).toEqual([ID]);
     expect(await journeys.onCell({ x: 2, y: 4 })).toEqual([]);
   });
 
-  it('druhý běžící výjezd téhož hráče se nezaloží; po skončení ano', async () => {
+  it('druhá běžící výprava téhož hráče z téže vsi se nezaloží; po skončení ano', async () => {
     await journeys.create(state(100), NOW);
     await expect(journeys.create(state(100, { id: ID2 }), NOW)).rejects.toThrow();
+
     // neúspěšné založení nenechá po sobě bod ani řádek
     expect(await journeys.checkpoint(ID2)).toBeNull();
     await journeys.create(state(100, { id: ID2, playerId: 'b' }), NOW);
@@ -95,7 +98,56 @@ describe('journey repository', () => {
       outbox: null,
     });
     await journeys.create(state(120, { id: '00000000-0000-4000-8000-0000000000e3' }), NOW);
-    expect(await journeys.activeOf('a')).toBe('00000000-0000-4000-8000-0000000000e3');
+    expect(await journeys.activeIn('a', 'v')).toBe('00000000-0000-4000-8000-0000000000e3');
+  });
+
+  it('dvě vsi hráče = dvě běžící výpravy; activeOfPlayer podle založení, activeIn každou', async () => {
+    const home = (villageId: string): JourneyState['home'] => ({
+      ...state(100).home,
+      villageId,
+    });
+    await journeys.create(state(100, { home: home('v1') }), NOW);
+    await journeys.create(
+      state(100, { id: ID2, home: home('v2') }),
+      new Date(NOW.getTime() + 1000),
+    );
+    expect(await journeys.activeOfPlayer('a')).toEqual([ID, ID2]);
+    expect(await journeys.activeIn('a', 'v1')).toBe(ID);
+    expect(await journeys.activeIn('a', 'v2')).toBe(ID2);
+    expect(await journeys.activeIn('a', 'v3')).toBeNull();
+    // druhá výprava téže dvojice hráč × ves vyhodí chybu databáze
+    await expect(
+      journeys.create(
+        state(100, { id: '00000000-0000-4000-8000-0000000000e4', home: home('v2') }),
+        NOW,
+      ),
+    ).rejects.toThrow();
+    // po skončení jedné jde ves založit znovu a druhá výprava běží dál
+    await journeys.end(ID);
+    expect(await journeys.activeOfPlayer('a')).toEqual([ID2]);
+    await journeys.create(
+      state(110, { id: '00000000-0000-4000-8000-0000000000e5', home: home('v1') }),
+      new Date(NOW.getTime() + 2000),
+    );
+    expect(await journeys.activeOfPlayer('a')).toEqual([
+      ID2,
+      '00000000-0000-4000-8000-0000000000e5',
+    ]);
+  });
+
+  it('onCell najde výpravu se dvěma hloučky přes kterékoli z jejich políček', async () => {
+    const base = state(100);
+    const first = base.groups[0]!;
+    await journeys.create(
+      state(100, {
+        groups: [first, { ...first, id: 1, cell: { x: 7, y: 9 } }],
+        nextId: 2,
+      }),
+      NOW,
+    );
+    expect(await journeys.onCell({ x: 4, y: 2 })).toEqual([ID]);
+    expect(await journeys.onCell({ x: 7, y: 9 })).toEqual([ID]);
+    expect(await journeys.onCell({ x: 9, y: 7 })).toEqual([]);
   });
 
   it('záměr s taktem nejvýš bodem odmítne, za bodem zapíše; seq roste', async () => {
@@ -133,7 +185,7 @@ describe('journey repository', () => {
     ).toBe('saved');
     // skončený výjezd s nedoručenými událostmi se počítá dál, ale už není běžící
     expect(await journeys.active()).toEqual([ID]);
-    expect(await journeys.activeOf('a')).toBeNull();
+    expect(await journeys.activeOfPlayer('a')).toEqual([]);
     expect(await journeys.onCell({ x: 4, y: 2 })).toEqual([]);
     expect(await journeys.addIntent(ID, { tick: 200, byPlayer: 'a', body: HOME })).toBeNull();
     // verze bodu se mění zápisem řádku
@@ -157,7 +209,7 @@ describe('journey repository', () => {
     const point = await journeys.checkpoint(ID);
     expect(point?.state).toStrictEqual(state(100, { phase: 'done' }));
     expect(point?.outbox).toBeNull();
-    expect(await journeys.activeOf('a')).toBeNull();
+    expect(await journeys.activeOfPlayer('a')).toEqual([]);
     expect(await journeys.active()).toEqual([]);
     expect(await journeys.onCell({ x: 4, y: 2 })).toEqual([]);
     expect(await journeys.addIntent(ID, { tick: 200, byPlayer: 'a', body: HOME })).toBeNull();
@@ -172,6 +224,6 @@ describe('journey repository', () => {
     expect((await journeys.checkpoint(ID))?.state.phase).toBe('done');
     // nová hra smí vyslat
     await journeys.create(state(120, { id: ID2 }), NOW);
-    expect(await journeys.activeOf('a')).toBe(ID2);
+    expect(await journeys.activeIn('a', 'v')).toBe(ID2);
   });
 });

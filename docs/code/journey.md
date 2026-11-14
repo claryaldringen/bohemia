@@ -204,7 +204,7 @@ untilTick, pen }`: vesničan `groomId` (null = nikdo doma), jezdci (id osob), ta
   i první rozkaz. Pohled ho nese jako `JourneyView.homePos` (scéna od něj měří odjezd a příjezd).
 - **`houseAtWarOn(deps, playerId, cell)`** (`application/journey-war.ts`) – je rod hráče ve válce
   s rodem, kterému patří mapa na políčku (`SettlementRepository.holderAt` – držitel aktivní mapy na
-  jednom políčku, v DB přes unikátní index `settlement_grid_idx` – → `activeOf` → `activeBetween`)?
+  jednom políčku, v DB přes unikátní index `settlement_grid_idx` – → `activeOf` → `activeBetween`; `activeOf` rodů, ne výprav)?
   Stejný podpis převezmou rozkazy (Úlohy 4 a 5); ve vstupních bodech `GameDeps.atWar`.
 - **Muži pryč a stěhování** – tažení ani výjezd muže se `away` ze stavu vsi nikdy nezvedají:
   sňatky (`marriage.ts`) a odchody (`departure.ts`, `son-departure.ts`) `away` nečtou, stejně jako
@@ -212,20 +212,30 @@ untilTick, pen }`: vesničan `groomId` (null = nikdo doma), jezdci (id osob), ta
 
 ## Úložiště (Úloha 3 – `packages/db`)
 
-- **Tabulky** (`schema/journey.ts`, migrace `0045_journey_storage`): `journey` (`id`, `player_id`,
-  `status` `active` / `done`, `created_at`), `journey_checkpoint` (`journey_id` = PK a FK, `tick`,
-  `state`, `outbox`, `updated_at`) a `journey_intent` (`seq`, `journey_id`, `tick`, `by_player`,
-  `body`). Částečný unikátní index `journey_player_active_idx` (`player_id WHERE status = 'active'`)
-  zaručí nejvýš jeden běžící výjezd hráče i při souběhu – druhé `create` vyhodí chybu databáze
-  (`launchJourney` vrátí muže domů). `journey_status_idx` a částečný `journey_checkpoint_outbox_idx`
-  (`WHERE outbox IS NOT NULL`) slouží bariéře vsí.
+- **Tabulky** (`schema/journey.ts`, migrace `0045_journey_storage`, `0052_journey_home_village`):
+  `journey` (`id`, `player_id`, `home_village_id`, `status` `active` / `done`, `created_at`),
+  `journey_checkpoint` (`journey_id` = PK a FK, `tick`, `state`, `outbox`, `updated_at`) a
+  `journey_intent` (`seq`, `journey_id`, `tick`, `by_player`, `body`). **Výprava za každou domovskou
+  ves** (návrh Clauda, plán výprav – rozhodnutí 1): `create` zapíše `home_village_id` ze
+  `state.home.villageId` a částečný unikátní index `journey_player_home_active_idx`
+  (`player_id, home_village_id WHERE status = 'active'`) zaručí nejvýš jednu běžící výpravu na
+  dvojici hráč × ves i při souběhu – druhé `create` vyhodí chybu databáze (`launchJourney` vrátí
+  muže domů). Hráč s víc vsemi má víc běžících výprav. Migrace `0052` doplní sloupec z bodu
+  (`state->'home'->>'villageId'`), řádky bez bodu uzavře (`done`, prázdná ves), nastaví `NOT NULL`
+  a vymění starý index `journey_player_active_idx`. `journey_status_idx` a částečný
+  `journey_checkpoint_outbox_idx` (`WHERE outbox IS NOT NULL`) slouží bariéře vsí.
 - **Adaptér** `createJourneyRepository` (`adapters/journey-repository.ts`) – stejná sémantika zápisu
   jako `createCampaignRepository`: `saveCheckpoint` zamkne bod (`FOR UPDATE`) a vrátí `stale`, když se
   bod posunul nebo přibyl záměr do spočtených taktů, `addIntent` sdílí řádek bodu (`FOR SHARE`) a
-  nezapíše záměr s taktem nejvýš bodem ani u skončeného výjezdu, verze bodu je `xmin`. `activeOf`
-  vrací nejvýš jedno id, `onCell` čte políčko skupiny z `state->'groups'`. Skončený výjezd
+  nezapíše záměr s taktem nejvýš bodem ani u skončeného výjezdu, verze bodu je `xmin`.
+  `activeIn(hráč, ves)` vrací nejvýš jedno id (výprava z té vsi), `activeOfPlayer(hráč)` všechna id
+  běžících výprav podle `created_at`, `id`; `onCell` čte políčko hloučku z `state->'groups'` (`@>`),
+  výprava se dvěma hloučky se najde přes kterékoli z jejich políček. Skončený výjezd
   (`phase: 'done'`) přepne `status` na `done`; s nedoručenými událostmi ho `active()` vrací dál.
-- **Začít znovu** – `restartGame` ukončí běžící výjezd hráče (`JourneyRepository.end`, návrh Clauda):
+- **Začít znovu** – `restartGame` ukončí všechny běžící výpravy hráče (`activeOfPlayer` →
+  `JourneyRepository.end`, každá domovská ves dostane vlastní `away-ends`; `recallJourneysAtWar`
+  odvolá hloučky všech výprav rodu na mapě protivníka; pohled a rozkaz webu zatím berou první výpravu
+  hráče, `launchJourney` kontroluje `activeIn` pro vysílající ves). `end` (návrh Clauda):
   bod dostane `phase: 'done'` a prázdnou schránku, výjezd `status: 'done'` – bez událostí do vsí
   a bez znalosti. Domovská ves je v archivu a dál se nedopočítá, výjezd by na ni jinak čekal
   navždy, držel bariéru a nová hra by nesměla vyslat (`journey-active`). `end` zamkne řádek bodu

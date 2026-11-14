@@ -263,7 +263,7 @@ describe('launchJourney', () => {
     expect(j.members[1]).toMatchObject({ fight: 60 });
     expect(j.members[1]!.strength).toBeGreaterThan(lineManStrength(son, null));
     expect(j.groups[0]!.goal).toEqual({ cell: { x: 0, y: 0 }, pos: { x: 100, z: 100 } });
-    expect(await w.journeys.activeOf('pa')).toBe('jny-1');
+    expect(await w.journeys.activeIn('pa', w.homeId)).toBe('jny-1');
   });
 
   it('vojvoda sám, bez družiny', async () => {

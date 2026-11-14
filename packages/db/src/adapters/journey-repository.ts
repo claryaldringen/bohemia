@@ -17,8 +17,8 @@ const CHECKPOINT_VERSION = sql<string>`${journeyCheckpoint}.xmin::text`;
 /**
  * Drizzle adaptér portu JourneyRepository (plán 2026-11-13 – Úloha 3): stejná sémantika zápisu
  * kontrolního bodu a záměrů jako `createCampaignRepository` (zámky `FOR UPDATE` / `FOR SHARE`,
- * `stale`), jen stav je `JourneyState` a hráč má nejvýš jeden běžící výjezd (částečný unikátní
- * index – druhý `create` vyhodí chybu databáze).
+ * `stale`), jen stav je `JourneyState` a hráč má nejvýš jednu běžící výpravu z každé domovské vsi
+ * (částečný unikátní index – druhý `create` pro tutéž ves vyhodí chybu databáze).
  */
 export function createJourneyRepository(db: Database): JourneyRepository {
   return {
@@ -27,6 +27,7 @@ export function createJourneyRepository(db: Database): JourneyRepository {
         await tx.insert(journey).values({
           id: state.id,
           playerId: state.playerId,
+          homeVillageId: state.home.villageId,
           status: state.phase === 'done' ? 'done' : 'active',
           createdAt,
         });
@@ -46,12 +47,27 @@ export function createJourneyRepository(db: Database): JourneyRepository {
       return rows.map((r) => r.id);
     },
 
-    async activeOf(playerId: string): Promise<string | null> {
+    async activeIn(playerId: string, villageId: string): Promise<string | null> {
       const [row] = await db
         .select({ id: journey.id })
         .from(journey)
-        .where(and(eq(journey.playerId, playerId), eq(journey.status, 'active')));
+        .where(
+          and(
+            eq(journey.playerId, playerId),
+            eq(journey.homeVillageId, villageId),
+            eq(journey.status, 'active'),
+          ),
+        );
       return row?.id ?? null;
+    },
+
+    async activeOfPlayer(playerId: string): Promise<string[]> {
+      const rows = await db
+        .select({ id: journey.id })
+        .from(journey)
+        .where(and(eq(journey.playerId, playerId), eq(journey.status, 'active')))
+        .orderBy(asc(journey.createdAt), asc(journey.id));
+      return rows.map((r) => r.id);
     },
 
     async onCell(cell: GridCell): Promise<string[]> {

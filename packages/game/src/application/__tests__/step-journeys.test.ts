@@ -440,7 +440,9 @@ describe('stepJourneys', () => {
     };
     // j1 jezdí jen po domovské mapě; j2 přejede na mapu na východ, počká a vrátí se
     await journeys.create(journey());
-    await journeys.create(journey({ id: 'j2', order: { kind: 'cross', cell: EAST } }));
+    await journeys.create(
+      journey({ id: 'j2', playerId: 'pb', order: { kind: 'cross', cell: EAST } }),
+    );
     await rounds(used, LAUNCH + 1, END);
     expect((await stored(journeys)).phase).toBe('done');
     expect((await stored(journeys, 'j2')).phase).toBe('done');
@@ -475,7 +477,8 @@ describe('stepJourneys', () => {
 
   it('chyba jednoho výjezdu nezastaví ostatní; výjezd s cizím zámkem se přeskočí', async () => {
     const { deps, journeys, lock } = await setup();
-    for (const id of ['bad', 'busy', 'good']) await journeys.create(journey({ id }));
+    // každá výprava jiného hráče – z jedné vsi smí hráč mít jednu běžící
+    for (const id of ['bad', 'busy', 'good']) await journeys.create(journey({ id, playerId: id }));
     journeys.rows.get('bad')!.state = '{"zkažený": true}';
     lock.held.add('busy');
     const results = await stepJourneys(deps, { nowMs: msOfTick(LAUNCH + 41, world) });
@@ -634,7 +637,9 @@ describe('recallJourneysAtWar', () => {
       worldCell: north,
     });
     await s.journeys.create(journey());
-    await s.journeys.create(journey({ id: 'j2', order: { kind: 'cross', cell: north } }));
+    await s.journeys.create(
+      journey({ id: 'j2', playerId: 'pc', order: { kind: 'cross', cell: north } }),
+    );
     await recallAt(s, LAUNCH + 10);
     expect(s.journeys.intents).toEqual([]);
   });

@@ -8,6 +8,20 @@ function versionOf(row: { tick: number; state: string; outbox: string | null }):
   return JSON.stringify([row.tick, row.state, row.outbox]);
 }
 
+/** Id běžící výpravy hráče z domovské vsi, jinak null. */
+function activeInRows(
+  rows: ReadonlyMap<string, { status: 'active' | 'done'; state: string }>,
+  playerId: string,
+  villageId: string,
+): string | null {
+  for (const [id, r] of rows) {
+    if (r.status !== 'active') continue;
+    const s = JSON.parse(r.state) as JourneyState;
+    if (s.playerId === playerId && s.home.villageId === villageId) return id;
+  }
+  return null;
+}
+
 /** Úložiště výjezdů v paměti – stav ukládá jako JSON (jako jsonb v DB). */
 export class InMemoryJourneys implements JourneyRepository {
   readonly rows = new Map<
@@ -23,6 +37,10 @@ export class InMemoryJourneys implements JourneyRepository {
 
   create(state: JourneyState): Promise<void> {
     if (this.failCreate) return Promise.reject(this.failCreate);
+    // jedna běžící výprava na dvojici hráč × domovská ves (jako unikátní index v DB)
+    if (activeInRows(this.rows, state.playerId, state.home.villageId) !== null) {
+      return Promise.reject(new Error('journey_player_home_active_idx'));
+    }
     this.rows.set(state.id, {
       status: 'active',
       tick: state.tick,
@@ -40,12 +58,20 @@ export class InMemoryJourneys implements JourneyRepository {
     );
   }
 
-  activeOf(playerId: string): Promise<string | null> {
-    const found = [...this.rows].find(
-      ([, r]) =>
-        r.status === 'active' && (JSON.parse(r.state) as JourneyState).playerId === playerId,
+  activeIn(playerId: string, villageId: string): Promise<string | null> {
+    return Promise.resolve(activeInRows(this.rows, playerId, villageId));
+  }
+
+  activeOfPlayer(playerId: string): Promise<string[]> {
+    // řádky jsou v pořadí založení (Map drží pořadí vložení)
+    return Promise.resolve(
+      [...this.rows]
+        .filter(
+          ([, r]) =>
+            r.status === 'active' && (JSON.parse(r.state) as JourneyState).playerId === playerId,
+        )
+        .map(([id]) => id),
     );
-    return Promise.resolve(found ? found[0] : null);
   }
 
   onCell(cell: GridCell): Promise<string[]> {

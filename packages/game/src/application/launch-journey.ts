@@ -64,13 +64,13 @@ export type JourneyRefusal =
 export interface JourneyViewDeps extends PlayerVillagesDeps {
   /** Cizí vojsko na mapě vsi (`activeAgainst`). */
   campaigns: Pick<CampaignRepository, 'activeAgainst'>;
-  journeys: Pick<JourneyRepository, 'activeOf'>;
+  journeys: Pick<JourneyRepository, 'activeIn'>;
 }
 
 export interface LaunchJourneyDeps extends JourneyViewDeps {
   houses: Pick<HouseRepository, 'activeOf'>;
   villages: VillageRepository;
-  journeys: Pick<JourneyRepository, 'activeOf' | 'create'>;
+  journeys: Pick<JourneyRepository, 'activeIn' | 'create'>;
   /** Mapa domovského políčka – krajina a překážky pro ověření prvního rozkazu. */
   cells: CampaignCells;
   world: WorldClock;
@@ -143,7 +143,7 @@ async function viewOf(
   if (view.refusal === null && (await deps.campaigns.activeAgainst(own.village.id)).length > 0) {
     view.refusal = 'village-attacked';
   }
-  if (view.refusal === null && (await deps.journeys.activeOf(playerId)) !== null) {
+  if (view.refusal === null && (await deps.journeys.activeIn(playerId, own.village.id)) !== null) {
     view.refusal = 'journey-active';
   }
   return view;

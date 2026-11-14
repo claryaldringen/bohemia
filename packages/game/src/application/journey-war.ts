@@ -42,13 +42,13 @@ export async function houseAtWarOn(
 export interface RecallJourneysDeps {
   houses: Pick<HouseRepository, 'byId' | 'activeOf'>;
   settlements: Pick<SettlementRepository, 'holderAt'>;
-  journeys: Pick<JourneyRepository, 'activeOf' | 'checkpoint' | 'intentsAfter' | 'addIntent'>;
+  journeys: Pick<JourneyRepository, 'activeOfPlayer' | 'checkpoint' | 'intentsAfter' | 'addIntent'>;
   world: WorldClock;
 }
 
 /**
  * Začátek války mezi rody `houses` (lord-control.md – Pořadí zavedení; plán 2026-11-13 – Úloha 4):
- * běžící výprava hráče jednoho rodu, jejíž hlouček stojí na mapě druhého rodu nebo tam míří, dostane
+ * každá běžící výprava hráče jednoho rodu, jejíž hlouček stojí na mapě druhého rodu nebo tam míří, dostane
  * za hráče odvolání domů (`recall` těch políček) s taktem jako jeho rozkaz (teď +
  * `INTENT_LEAD_TICKS`). Kde hloučky mohou být: políčka a cíle hloučků v kontrolním bodu a políčka
  * rozkazů „Přes okraj“ (a „Jdi sem“ na jinou mapu) zapsaných po bodu – worker bod ukládá jen po 40
@@ -65,33 +65,34 @@ export async function recallJourneysAtWar(
     [b, a],
   ] as const) {
     if (!own?.playerId || !other) continue;
-    const journeyId = await deps.journeys.activeOf(own.playerId);
-    const point = journeyId ? await deps.journeys.checkpoint(journeyId) : null;
-    if (!journeyId || !point) continue;
-    const state = upgradeJourney(point.state);
-    const aims = (await deps.journeys.intentsAfter(journeyId, state.tick)).flatMap((i) => {
-      const command = commandOf(i.body);
-      if (i.byPlayer !== own.playerId || command.kind !== 'order') return [];
-      const order = command.order;
-      if (order.kind === 'cross') return [order.cell];
-      return order.kind === 'go' && order.cell ? [order.cell] : [];
-    });
-    const cells = [
-      ...state.groups.flatMap((g) => [g.cell, ...(g.goal ? [g.goal.cell] : [])]),
-      ...aims,
-    ];
-    const there: GridCell[] = [];
-    for (const cell of cells) {
-      if (there.some((c) => sameCell(c, cell))) continue;
-      if ((await houseOfCell(deps, cell))?.id === other.id) there.push({ x: cell.x, y: cell.y });
+    for (const journeyId of await deps.journeys.activeOfPlayer(own.playerId)) {
+      const point = await deps.journeys.checkpoint(journeyId);
+      if (!point) continue;
+      const state = upgradeJourney(point.state);
+      const aims = (await deps.journeys.intentsAfter(journeyId, state.tick)).flatMap((i) => {
+        const command = commandOf(i.body);
+        if (i.byPlayer !== own.playerId || command.kind !== 'order') return [];
+        const order = command.order;
+        if (order.kind === 'cross') return [order.cell];
+        return order.kind === 'go' && order.cell ? [order.cell] : [];
+      });
+      const cells = [
+        ...state.groups.flatMap((g) => [g.cell, ...(g.goal ? [g.goal.cell] : [])]),
+        ...aims,
+      ];
+      const there: GridCell[] = [];
+      for (const cell of cells) {
+        if (there.some((c) => sameCell(c, cell))) continue;
+        if ((await houseOfCell(deps, cell))?.id === other.id) there.push({ x: cell.x, y: cell.y });
+      }
+      if (there.length === 0) continue;
+      const queued = await deps.journeys.addIntent(journeyId, {
+        tick: tickOfMs(input.nowMs, deps.world) + INTENT_LEAD_TICKS,
+        byPlayer: own.playerId,
+        body: { kind: 'recall', cells: there },
+      });
+      if (queued) recalled++;
     }
-    if (there.length === 0) continue;
-    const queued = await deps.journeys.addIntent(journeyId, {
-      tick: tickOfMs(input.nowMs, deps.world) + INTENT_LEAD_TICKS,
-      byPlayer: own.playerId,
-      body: { kind: 'recall', cells: there },
-    });
-    if (queued) recalled++;
   }
   return recalled;
 }

@@ -14,8 +14,9 @@ import type { CampaignOutbox, JourneyIntentBody, JourneyState } from '@bohemia/g
 import { user } from './auth';
 
 /**
- * Výjezd vojvody (lord-control.md; plán 2026-11-13 – Úloha 3). `status` = `active`, dokud výjezd
- * neskončí (`done`); celý stav je v kontrolním bodu. Hráč má nejvýš jeden běžící výjezd – hlídá
+ * Výprava (expeditions.md; plán 2026-11-14 – Úloha 4). `status` = `active`, dokud výprava
+ * neskončí (`done`); celý stav je v kontrolním bodu. Hráč má nejvýš jednu běžící výpravu z každé
+ * domovské vsi (`home_village_id` = `state.home.villageId`, zapíše ho adaptér při založení) – hlídá
  * částečný unikátní index, i při souběžných požadavcích.
  */
 export const journey = pgTable(
@@ -25,13 +26,14 @@ export const journey = pgTable(
     playerId: text('player_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
+    homeVillageId: text('home_village_id').notNull(),
     status: text('status').$type<'active' | 'done'>().notNull().default('active'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
   },
   (table) => [
     index('journey_status_idx').on(table.status),
-    uniqueIndex('journey_player_active_idx')
-      .on(table.playerId)
+    uniqueIndex('journey_player_home_active_idx')
+      .on(table.playerId, table.homeVillageId)
       .where(sql`${table.status} = 'active'`),
   ],
 );
