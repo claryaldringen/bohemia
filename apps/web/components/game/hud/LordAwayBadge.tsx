@@ -2,9 +2,10 @@ import type { ComponentProps, ReactElement } from 'react';
 import { Tooltip } from './Tooltip';
 
 /**
- * Vojvoda je na výjezdu (lord-control.md – Co hráč vidí): v horní liště jeho portrét s podkovou.
- * Klik ho vybere – pak mu jde dát rozkaz (pravé tlačítko do krajiny) nebo ho poslat domů – a je-li
- * na cizí mapě, přepne scénu na ni; scéna pak jde za ním z mapy na mapu (`useLordJourney`).
+ * Vojvoda je na výpravě (expeditions.md – Co hráč vidí; výprava `ExpeditionView`): v horní liště
+ * jeho portrét s podkovou. Klik vybere celou jeho skupinu – pak jí jde dát rozkaz (pravé tlačítko
+ * do krajiny) nebo ji poslat domů – a je-li na cizí mapě, přepne scénu na ni; scéna pak jde za ní
+ * z mapy na mapu (`useExpeditionOrders`).
  */
 export function LordAwayBadge({
   name,

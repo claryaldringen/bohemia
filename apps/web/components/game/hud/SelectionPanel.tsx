@@ -17,8 +17,8 @@ import { ROAD_KIND_NAMES, SACRED_BUILDING_NAMES } from '@/lib/village-view';
 import { AbandonPartButton } from './AbandonPartButton';
 import { StructureUseButtons, type StructureUseActions } from './StructureUseButtons';
 import { CancelConstructionButton } from './RelocationControls';
-import { LordJourneyPanel, type LordJourneyUi } from './LordJourneyPanel';
-import { formatInteger } from '@/lib/village-format';
+import type { ExpeditionCommand } from '@bohemia/game';
+import { GroupBody } from './selection/expedition';
 import { Tooltip } from './Tooltip';
 import { StewardBuiltMark } from './StewardToggle';
 import {
@@ -125,11 +125,11 @@ export function SelectionPanel({
   onAbandonPart,
   onStructureUse,
   onOrderQuarrying,
-  lordJourney,
+  expeditionCommand,
 }: {
   details: SelectionDetails | null;
-  /** Ovládání výjezdu vybraného vojvody (`useLordJourney`); u jiného cíle chybí. */
-  lordJourney?: LordJourneyUi | null;
+  /** Příkaz vybraným lidem – Osedlat, Sesednout, Domů (`useExpeditionOrders`); jinak chybí. */
+  expeditionCommand?: ((c: ExpeditionCommand) => void) | undefined;
   /** Nalámat do zásoby `m3` kamene v lomu (server action – fortifications.md, Kámen). */
   onOrderQuarrying?: (outcropId: number, m3: number) => Promise<void>;
   /** Opustí díl pole, nebo ho vrátí do osevu (server action – fields.md, Opuštěný díl). */
@@ -229,7 +229,7 @@ export function SelectionPanel({
         onBaptize={onBaptize}
         onInviteLodge={onInviteLodge}
         onInviteMaster={onInviteMaster}
-        lordJourney={lordJourney}
+        expeditionCommand={expeditionCommand}
       />
     );
   } else if (details.kind === 'plough-team') {
@@ -393,35 +393,13 @@ export function SelectionPanel({
       </div>
     );
   } else if (details.kind === 'people') {
-    portrait = <PersonPortrait icon="man" name={`Lidé (${details.ids.length})`} />;
+    portrait = <PersonPortrait icon="man" name={`Lidé (${details.people.length})`} />;
     body = (
-      <div className="flex flex-col gap-1" data-testid="selection-people">
-        <div className="flex items-center gap-3">
-          <Tooltip content="Vybraní lidé">
-            <span className="flex items-center gap-1" tabIndex={0}>
-              <img src="/icons/resources/man.png" alt="" width={20} height={20} />
-              <span data-testid="selection-people-count">{details.ids.length}</span>
-            </span>
-          </Tooltip>
-          {details.riders > 0 && (
-            <Tooltip content="Jezdci">
-              <span className="flex items-center gap-1" tabIndex={0}>
-                <img src="/icons/resources/jizda.png" alt="" width={20} height={20} />
-                {details.riders}
-              </span>
-            </Tooltip>
-          )}
-          <Tooltip content="Síla skupiny">
-            <span className="flex items-center gap-1" tabIndex={0}>
-              <img src="/icons/house/sword.png" alt="" width={20} height={20} />
-              <span data-testid="selection-people-strength">
-                {formatInteger(Math.round(details.strength))}
-              </span>
-            </span>
-          </Tooltip>
-        </div>
-        {lordJourney && <LordJourneyPanel ui={lordJourney} />}
-      </div>
+      <GroupBody
+        details={details}
+        onSelectTarget={onSelectTarget}
+        expeditionCommand={expeditionCommand}
+      />
     );
   } else if (details.kind === 'dwellings') {
     portrait = <Portrait icon="zemnice" name={`Obydlí (${details.ids.length})`} />;

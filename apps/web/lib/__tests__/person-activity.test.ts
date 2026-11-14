@@ -179,8 +179,22 @@ describe('selectionDetails – postava', () => {
 
   it('člověk ve skupině výpravy: činnost podle jeho skupiny', () => {
     const parties = [
-      { id: 0, phase: 'out', waitDaysLeft: 2, people: [{ personId: 202 }] },
-      { id: 1, phase: 'returning', waitDaysLeft: null, people: [{ personId: 901 }] },
+      {
+        id: 0,
+        phase: 'out',
+        waitDaysLeft: 2,
+        horseWork: null,
+        groups: [],
+        people: [{ personId: 202 }],
+      },
+      {
+        id: 1,
+        phase: 'returning',
+        waitDaysLeft: null,
+        horseWork: null,
+        groups: [],
+        people: [{ personId: 901 }],
+      },
     ] as unknown as Parameters<typeof selectionDetails>[5];
     const on = selectionDetails(null, VILLAGE, { kind: 'person', id: 202 }, null, null, parties);
     expect(on).toMatchObject({ activity: 'čeká (2 dny)' });

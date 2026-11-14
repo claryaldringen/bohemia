@@ -1,5 +1,6 @@
 import {
   ABANDON_FOUNDING,
+  type GridCell,
   FORT_SECTION_GONE,
   rerouteTarget,
   wallYearReason,
@@ -65,6 +66,7 @@ import {
   type LodgeView,
   type PersonPortraitIcon,
 } from './person-view';
+import { expeditionPersonState, type ExpeditionPersonState } from './expedition-buttons';
 import { journeyActivity, personActivity, type PersonFigureState } from './person-activity';
 import type { PartyView } from './journey-view';
 import type { SceneJourney } from './scene/journey-riders';
@@ -214,13 +216,12 @@ type SelectionKinds =
   | {
       /** Víc vybraných lidí (Shift + klik, klik na člena skupiny – expeditions.md, Výběr). */
       kind: 'people';
-      ids: readonly number[];
-      /** Kolik z nich jede na koni (jezdci s koněm, na koni venku). */
-      riders: number;
-      /** Součet síly do meče (ženy a děti 0). */
+      /** Vybraní lidé v pořadí výběru – řada portrétů (klik vybere jen jednoho). */
+      people: { id: number; portrait: PersonPortraitIcon; role: string }[];
+      /** Součet síly do meče (ženy a děti 0; jezdec na koni se svým koněm víc). */
       strength: number;
-      /** Aspoň jeden je ve skupině venku – panel dá Domů. */
-      inParty: boolean;
+      /** Co o nich ví tlačítka Osedlat, Sesednout a Domů (`expeditionButtons`). */
+      states: ExpeditionPersonState[];
     }
   | {
       /** Víc vybraných obydlí (Ctrl/Shift + klik, Ctrl + A – migration.md). */
@@ -607,6 +608,8 @@ type SelectionKinds =
        * bez koně null.
        */
       mount?: SelectionPersonMount | null;
+      /** Výprava člověka pro tlačítka Osedlat, Sesednout a Domů; bez plného stavu vsi chybí. */
+      expedition?: ExpeditionPersonState | null;
       /**
        * Oráč a honák u spřežení, vozka u vozu (villagers.md – Výběr postavy): tlačítko vybere
        * spřežení či vůz; ostatní null.
@@ -999,8 +1002,10 @@ export function selectionDetails(
   draft: DraftFigureState | null = null,
   parties: readonly PartyView[] = [],
   visitors: readonly SceneJourney[] = [],
+  /** Mapa vsi na scéně – člen skupiny na ní je „doma“ (tlačítko Osedlat). */
+  homeCell: GridCell | null = null,
 ): SelectionDetails | null {
-  const details = selectionKinds(view, scene, target, person, draft, parties, visitors);
+  const details = selectionKinds(view, scene, target, person, draft, parties, visitors, homeCell);
   if (!details) return null;
   const cancelConstructionId = cancellableConstruction(view, details);
   const withCancel =
@@ -1016,6 +1021,7 @@ function selectionKinds(
   draft: DraftFigureState | null = null,
   parties: readonly PartyView[] = [],
   visitors: readonly SceneJourney[] = [],
+  homeCell: GridCell | null = null,
 ): SelectionKinds | null {
   if (!target) return null;
   if (target.kind === 'visitor') {
@@ -1038,11 +1044,11 @@ function selectionKinds(
     return { kind: 'premium-site', type: target.type, site: target.site };
   }
   if (target.kind === 'person')
-    return personDetails(view, scene, target.id, person, draft, parties);
+    return personDetails(view, scene, target.id, person, draft, parties, homeCell);
   if (target.kind === 'plough-team') return teamDetails(scene, target.team, draft);
   if (target.kind === 'cart') return cartDetails(scene, target.id, draft);
   if (target.kind === 'dwellings') return dwellingsDetails(view, scene, target.ids);
-  if (target.kind === 'people') return peopleDetails(scene, target.ids, parties);
+  if (target.kind === 'people') return peopleDetails(scene, target.ids, parties, homeCell);
   if (target.kind === 'fields') {
     const fields = (view?.fields ?? []).filter((f) => target.ids.includes(f.id));
     if (fields.length === 0) return null;
@@ -1394,6 +1400,7 @@ function personDetails(
   state: PersonFigureState | null,
   draft: DraftFigureState | null,
   parties: readonly PartyView[],
+  homeCell: GridCell | null,
 ): SelectionDetails | null {
   const person = scene.labor?.persons?.find((p) => p.id === id);
   if (!person) return null;
@@ -1424,6 +1431,7 @@ function personDetails(
     lodge: person.lodge ?? null,
     horse: person.horse === true,
     mount: mountOf(view, id),
+    expedition: expeditionPersonState(person, id, parties, homeCell),
     draft:
       job?.kind === 'plough'
         ? { kind: 'plough-team', team: job.team }
@@ -1570,33 +1578,31 @@ function fieldPartDetails(
 }
 
 /**
- * Víc vybraných lidí (expeditions.md – Výběr a skupina): kolik jich je, kolik jezdců, síla do meče
- * a jestli někdo z nich je ve skupině venku (jezdec venku podle skupiny, doma podle koně).
+ * Víc vybraných lidí (expeditions.md – Výběr a skupina): řada portrétů, síla do meče (člen skupiny
+ * podle skupiny, jinak podle ves) a stavy tlačítek Osedlat, Sesednout a Domů.
  */
 function peopleDetails(
   scene: SceneVillage,
   ids: readonly number[],
   parties: readonly PartyView[],
+  homeCell: GridCell | null,
 ): SelectionDetails | null {
   if (ids.length === 0) return null;
   const persons = scene.labor?.persons ?? [];
-  let riders = 0;
+  const people: { id: number; portrait: PersonPortraitIcon; role: string }[] = [];
+  const states: ExpeditionPersonState[] = [];
   let strength = 0;
-  let inParty = false;
   for (const id of ids) {
-    const member = parties.flatMap((p) => p.people).find((m) => m.personId === id);
-    if (member) {
-      inParty = true;
-      if (member.mounted) riders++;
-      strength += member.strength;
-      continue;
-    }
     const person = persons.find((p) => p.id === id);
-    if (person?.expedition?.inParty) inParty = true;
-    if (person?.expedition?.rider) riders++;
-    strength += person?.expedition?.strength ?? 0;
+    if (person)
+      people.push({ id, portrait: personPortrait(person), role: ROLE_NAMES[person.role] });
+    const member = parties.flatMap((p) => p.people).find((m) => m.personId === id);
+    strength += member ? member.strength : (person?.expedition?.strength ?? 0);
+    const state = expeditionPersonState(person, id, parties, homeCell);
+    if (state) states.push(state);
   }
-  return { kind: 'people', ids, riders, strength, inParty };
+  if (people.length === 0) return null;
+  return { kind: 'people', people, strength, states };
 }
 
 /**

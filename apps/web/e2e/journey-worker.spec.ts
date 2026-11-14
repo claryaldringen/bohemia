@@ -321,7 +321,7 @@ test('scéna jde za vojvodou na cizí mapu: mlha, objevené stavby, rozkazy a n�
   // Domů: skupina (zápisem do bodu) na domovské mapě ≈ 180 m od vsi – scéna se vrátí na ves hned,
   // ne až s koncem výjezdu; po dojetí upozornění (v liště jen 6 s – hlídá se od návratu scény).
   // Uložení bodu workerem může zápis přepsat – dokud výjezd běží, skupina se na mapu vrátí znovu.
-  await a.getByTestId('lord-home').click();
+  await a.getByTestId('expedition-home').click();
   const home = { x: cellA.x, y: cellA.y };
   const back = meadowSpot(A.seat.landscape, A.dwelling, 150, 210);
   await expect

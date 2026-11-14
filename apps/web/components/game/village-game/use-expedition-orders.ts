@@ -10,14 +10,19 @@ import {
 import { commandExpedition } from '@/app/game/actions/journey';
 import { useExpeditions, type ExpeditionsHandle } from '@/hooks/use-journey';
 import { foreignJourneySelection, watchedJourneyCell } from '@/lib/journey-scene-view';
-import { expeditionReason, lordJourneyViewOf, partyJourneyViewOf } from '@/lib/journey-view';
+import { expeditionPersonState, type ExpeditionPersonState } from '@/lib/expedition-buttons';
+import {
+  expeditionReason,
+  lordJourneyViewOf,
+  partiesOf,
+  partyJourneyViewOf,
+} from '@/lib/journey-view';
 import type { JourneyView } from '@/lib/journey-view';
 import type { ScenePerson } from '@/lib/person-view';
 import { edgeDirection, orderClick, orderFromClick } from '@/lib/scene/journey-orders';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import type { VillageTarget } from '@/lib/scene/village-picking';
 import { peopleTarget, selectedPeopleIds } from '@/lib/scene/village-selection';
-import type { LordJourneyUi } from '../hud/LordJourneyPanel';
 
 // Rozkazy vybraným lidem ve scéně (expeditions.md – Výběr a skupina; jako jednotky v 0 A.D.):
 // vybraní lidé (klik, Shift + klik, klik na člena skupiny venku vybere celou skupinu) dostanou
@@ -65,8 +70,8 @@ export interface ExpeditionOrders {
   bindForeign: (foreign: ForeignLordScene | null) => void;
   /** Vojvoda na výpravě pro horní lištu (portrét s podkovou). */
   away: { name: string | null; selected: boolean; onSelect: () => void } | null;
-  /** Domů ve výběru, je-li někdo z vybraných ve skupině venku; jinak null. */
-  homeUi: LordJourneyUi | null;
+  /** Vybraní lidé pro tlačítka Osedlat, Sesednout a Domů (na cizí mapě v horním rohu). */
+  buttons: ExpeditionPersonState[];
   /** Příkaz vybraným lidem (Domů, Osedlat, Sesednout…). */
   command: (c: ExpeditionCommand) => void;
 }
@@ -310,20 +315,18 @@ export function useExpeditionOrders({
     return () => orderScene.setOrderMode(null);
   }, [orderScene, active, orderMapSizeM, orderCell, send, showError]);
 
-  const inParty = useMemo(
-    () =>
-      ids.some(
-        (id) =>
-          views.some((v) => v.parties.some((p) => p.people.some((m) => m.personId === id))) ||
-          persons.some((p) => p.id === id && p.expedition?.inParty === true),
-      ),
-    [ids, views, persons],
-  );
-  const homeUi = useMemo(
-    (): LordJourneyUi | null =>
-      inParty ? { onHome: () => command({ kind: 'order', order: { kind: 'home' } }) } : null,
-    [inParty, command],
-  );
+  const buttons = useMemo((): ExpeditionPersonState[] => {
+    const parties = partiesOf(views, null);
+    return ids.flatMap((id) => {
+      const state = expeditionPersonState(
+        persons.find((p) => p.id === id),
+        id,
+        parties,
+        homeCell,
+      );
+      return state ? [state] : [];
+    });
+  }, [ids, views, persons, homeCell]);
 
   const lordSelected = lord !== null && ids.includes(lord.id);
   const away = useMemo(
@@ -342,5 +345,5 @@ export function useExpeditionOrders({
         : null,
     [lord, lordSelected, setSelected, partyOf],
   );
-  return { note, watching, followed, back, bindForeign, away, homeUi, command };
+  return { note, watching, followed, back, bindForeign, away, buttons, command };
 }

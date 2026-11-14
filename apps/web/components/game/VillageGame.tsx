@@ -19,7 +19,7 @@ import { BuildGrid } from './hud/BuildGrid';
 import { CursorReason } from './hud/CursorReason';
 import { ChurchConfirm } from './hud/ChurchConfirm';
 import { FortConfirm } from './hud/FortConfirm';
-import { JourneyCursorNote } from './hud/LordJourneyPanel';
+import { JourneyCursorNote } from './hud/JourneyCursorNote';
 import { Minimap } from './hud/Minimap';
 import { NoticeLines } from './hud/NoticeLines';
 import { JourneyBanner, PlayerDeparturePanel } from './hud/RelocationControls';
@@ -428,8 +428,9 @@ export function VillageGame({
                   draftState,
                   partiesOf(expeditions.views, view?.id ?? null),
                   journeys,
+                  homeCell,
                 )}
-                lordJourney={orders.homeUi}
+                expeditionCommand={orders.command}
                 alarm={alarmActions}
                 ennoble={{
                   targets: (view?.villages ?? []).filter(

@@ -486,20 +486,20 @@ false`, bez stohu sena), zásoby a stohy, cesty a pěšiny (`since`), průběh r
 
 ## Web (Úloha 7 – `apps/web`; výpravy – plán 2026-11-14, Úloha 7)
 
-- **Composition root** `lib/journey.ts` – `journeyCandidatesForPlayer`, `launchJourneyForPlayer`
-  (obojí přes `journeyActionForPlayer` v `lib/village.ts` = `guardedAction` s akcí `launchJourney`,
-  právo `war`, zámek hráče, jen vlastní ves), `commandJourneyForPlayer` (rozkaz vojvodovi),
+- **Composition root** `lib/journey.ts` – `journeyActionForPlayer` v `lib/village.ts` (=
+  `guardedAction` s akcí `launchJourney`, právo `war`, zámek hráče, jen vlastní ves; bere ho
+  `commandExpeditionForPlayer`;
+  starý panel družiny a jeho akce zanikly v Úloze 9), `commandJourneyForPlayer` (rozkaz vojvodovi),
   **`commandExpeditionForPlayer`** (příkaz vybraným lidem: napřed `commandParty` bez zámku, při
   `recruits` pod `journeyActionForPlayer` `musterExpedition`), **`expeditionViewsForPlayer`**,
   **`expeditionVisitorsOnVillage`**, `journeyMapForPlayer` (políčka všech vlastních hloučků a jejich
   sousedé). Závislosti z `gameDeps()`, mapy z `campaignCells()`, mřížky dohledu v LRU.
-- **Vstup** `lib/journey-input.ts` – `parseJourneyOrder`, `parseLaunchJourneyInput` (vojvoda);
+- **Vstup** `lib/journey-input.ts` – `parseJourneyOrder` (vojvoda);
   **`lib/expedition-input.ts`** – `parseExpeditionInput` → `{ villageId, people, command }`:
   `people` 1–200 nezáporných celých čísel bez duplicit, `command` = rozkaz (`go` smí mít navíc
   `cell` s celými čísly, `cross`, `home`) nebo `saddle` / `dismount`; vrací `ExpeditionCommand`
   (rozkaz zabalený do `{ kind: 'order', order }`). Význam ověřují use-casy.
-- **Server actions** `app/game/actions/journey.ts` – `getJourneyCandidates`, `launchJourney`,
-  `commandJourney` (vojvoda), **`commandExpedition(input)`** → `{ ok: true }` nebo `{ error }`
+- **Server actions** `app/game/actions/journey.ts` – `commandJourney` (vojvoda), **`commandExpedition(input)`** → `{ ok: true }` nebo `{ error }`
   s textem `expeditionReason`. Rozkaz lidem, kteří už jsou ve výpravě, zámek vsi nebere (jen záměr).
 - **Cesta API** `GET /api/journey` (session povinná, `no-store`): bez parametru
   **`{ views: ExpeditionView[] }`** (jedna výprava za domovskou ves, prázdné = žádnou nemá);
@@ -544,7 +544,7 @@ female?)`** („Od 12 let.“, „Je raněný.“ / „Je raněná.“, „Je na
   obydlí a lidé se nemíchají (člověk k obydlím výběr nahradí, jiný cíl s Shiftem lidi nezruší).
   Kroužek má každý vybraný: `VillageVillagers.select` (první) + `selectMore` (ostatní), muži
   výpravy `SceneWarView.selectJourneyMen(ids)` → `ArmyRenderer` (kroužek jede s jezdcem).
-  Panel výběru `people` (`SelectionDetails.kind: 'people'`): počet, jezdci, síla a Domů.
+  Panel výběru `people` (`SelectionDetails.kind: 'people'`): řada portrétů, síla a Osedlat / Sesednout / Domů (viz Rozhraní, Úloha 9).
 - **Rozkaz z kliknutí** – `lib/scene/journey-orders.ts`: `orderFromClick({ selected, point,
 mapSizeM, cell })` (čistá funkce) – bez vybraných lidí nebo mimo terén null; v okrajovém pásu
   `EDGE_BAND_M` (20 m) `cross` na souseda políčka (8 směrů, v rohu úhlopříčně), jinak `go` na bod
@@ -560,12 +560,26 @@ mapSizeM, cell })` (čistá funkce) – bez vybraných lidí nebo mimo terén nu
   nikdo z vybraných (`ScenePerson.expedition.refusal` u všech), ukáže `orderClick` důvod
   (`expeditionReason`) u kurzoru bez dotazu na server; odpověď `{ error }` také u kurzoru a výběr
   zůstane. Dvojité pravé kliknutí nevyšle dvakrát (běžící rozkaz v ref). Vrací `note`, `watching`,
-  `followed`, `back`, `bindForeign`, `away` (portrét vojvody v liště), `homeUi` (Domů, je-li někdo
-  z vybraných ve skupině) a `command(c)`. Dotazování na výpravy: `useExpeditionPolling` (běží,
+  `followed`, `back`, `bindForeign`, `away` (portrét vojvody v liště), `buttons` (`ExpeditionPersonState`
+  vybraných lidí pro tlačítka na cizí mapě) a `command(c)`. Dotazování na výpravy: `useExpeditionPolling` (běží,
   dokud ves ví o lidech venku nebo právě vyjeli); zmizí-li hlouček, ves se obnoví. „Na sousední
   mapu“ a důvod ukáže `JourneyCursorNote` u kurzoru.
-- **Rozhraní** – `LordJourneyPanel` (v panelu vybrané osoby, `PersonBody`): ikona Domů (`war/alarm-return.png`). `LordAwayBadge` v horní liště:
-  portrét vojvody s podkovou, klik ho vybere. Panel muže na cestě ukazuje `journeyActivity`
+- **Rozhraní (Úloha 9)** – tlačítka `ExpeditionButtons` (`hud/ExpeditionButtons.tsx`): Osedlat
+  (`expedition/saddle.png`), Sesednout (`expedition/dismount.png`), Domů (`war/alarm-return.png`);
+  jen ikony, název a důvod zašedlí v `Tooltip`. Co se ukáže, určuje `expeditionButtons(people)`
+  v `lib/expedition-buttons.ts` (`ExpeditionPersonState` = `{ personId, rider, mounted, horse,
+  inParty, atHomeMap, horseWork }`, `ButtonState` = `'hidden' | 'enabled' | { disabled }`): Osedlat
+  – je-li vybraný jezdec, který nesedí; zašedlé „Kůň je doma.“, když všichni takoví jsou mimo
+  domovskou mapu a kůň je v ohradě, nebo „Skupina právě sedlá.“; Sesednout – sedí-li někdo na koni;
+  Domů – je-li někdo ve skupině. Stav člověka skládá `expeditionPersonState` z `PartyView` (člen
+  skupiny; doma = hlouček na mapě `homeCell`) nebo z `ScenePerson.expedition`. Jeden vybraný:
+  `PersonBody` a pod ním tlačítka (`SelectionDetails.person.expedition`); víc vybraných:
+  `GroupBody` (`hud/selection/expedition.tsx`) – řada portrétů (`resident-select-<id>` vybere jen
+  toho člověka), meč (`house/sword.png`) se součtem síly a tlačítka (`SelectionDetails` `people` =
+  `{ people: { id, portrait, role }[], strength, states }`). Příkaz jde přes `useExpeditionOrders`
+  `command`; test id `expedition-saddle` / `expedition-dismount` / `expedition-home`.
+  `LordAwayBadge` v horní liště:
+  portrét vojvody s podkovou, klik vybere jeho skupinu. Panel muže na cestě ukazuje `journeyActivity`
   (`selectionDetails(…, journey)`). Pohled vsi nese `dynasty.journeyAway` (`dynasty-view.ts`).
 - **Testy** – `lib/scene/__tests__/journey-orders.test.ts`, `village-selection.test.ts`,
   `components/game/village-game/__tests__/use-expedition-orders.behavior.test.tsx`, `hooks/__tests__/use-journey.behavior.test.tsx`,
@@ -689,8 +703,8 @@ na mapu jako za vojskem (web-ui.md – Cizí mapa ve scéně).
   (`journey-marker.ts`), stavby `seenVillageOf(seen, krajina)` → `setVillage` – přestaví se jen při
   změně znalosti (`seenSceneKey`: ves, klíč a den každé stavby). Odjezd ani příjezd se tu nekreslí
   (scéna nemá dvorec – `setJourneyYard` se nevolá). Kamera poprvé na skupinu (R se k ní vrací).
-  Rozhraní vlevo nahoře: ⌂ (`foreign-back`), portrét vojvody (`LordAwayBadge`, výběr) a ikona Domů
-  (`LordJourneyPanel` na cestě); důvod a „Na sousední mapu“ u kurzoru (`JourneyCursorNote`).
+  Rozhraní vlevo nahoře: ⌂ (`foreign-back`), portrét vojvody (`LordAwayBadge`, výběr) a tlačítka Osedlat / Sesednout / Domů
+  (`ExpeditionButtons`); důvod a „Na sousední mapu“ u kurzoru (`JourneyCursorNote`).
 - **Rozkazy** – `bindForeign({ scene, mapSizeM })` předá `useExpeditionOrders` scénu cizí mapy; režim
   rozkazu (`setOrderMode`) pak běží na ní s políčkem `watching` – `go` po mapě, okrajový pás → `cross`
   na souseda cizí mapy, důvod u kurzoru jako doma.

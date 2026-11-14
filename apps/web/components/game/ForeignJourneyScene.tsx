@@ -16,7 +16,8 @@ import type { SceneVillage } from '@/lib/village-view-scene-types';
 import type { ForeignMapResponse } from '@/lib/war-scene-view';
 import { GameView } from './GameView';
 import { LordAwayBadge } from './hud/LordAwayBadge';
-import { JourneyCursorNote, LordJourneyPanel } from './hud/LordJourneyPanel';
+import { ExpeditionButtons } from './hud/ExpeditionButtons';
+import { JourneyCursorNote } from './hud/JourneyCursorNote';
 import { Tooltip } from './hud/Tooltip';
 import { journeySceneHook } from './village-game/use-journey-scene';
 import type { ExpeditionOrders } from './village-game/use-expedition-orders';
@@ -201,7 +202,9 @@ export function ForeignJourneyScene({
           </button>
         </Tooltip>
         {orders?.away && <LordAwayBadge {...orders.away} placement="below-right" />}
-        {orders?.homeUi && <LordJourneyPanel ui={orders.homeUi} placement="below" />}
+        {orders && (
+          <ExpeditionButtons people={orders.buttons} command={orders.command} placement="below" />
+        )}
       </div>
       {orders && <JourneyCursorNote note={orders.note} />}
     </div>

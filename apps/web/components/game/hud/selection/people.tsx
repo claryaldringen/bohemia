@@ -9,7 +9,8 @@ import { CartGoal } from '@/lib/draft-activity';
 import { BaptizeButton, FaithCross } from '../BaptizeButton';
 import { LodgeActions, MasonBadge, PriestBadge } from '../LodgeButtons';
 import { useRightDenied } from '../rights';
-import { LordJourneyPanel, type LordJourneyUi } from '../LordJourneyPanel';
+import type { ExpeditionCommand } from '@bohemia/game';
+import { ExpeditionButtons } from '../ExpeditionButtons';
 import { Tooltip } from '../Tooltip';
 import { TargetButton, Stat, ROW, Flag } from './parts';
 
@@ -153,11 +154,11 @@ export function PersonBody({
   onBaptize,
   onInviteLodge,
   onInviteMaster,
-  lordJourney,
+  expeditionCommand,
 }: {
   details: Extract<SelectionDetails, { kind: 'person' }>;
-  /** Ovládání výjezdu vybraného vojvody (družina doma, Domů na cestě); jinak chybí. */
-  lordJourney?: LordJourneyUi | null | undefined;
+  /** Příkaz vybranému člověku – tlačítka Osedlat, Sesednout a Domů (`useExpeditionOrders`). */
+  expeditionCommand?: ((c: ExpeditionCommand) => void) | undefined;
   onSelectTarget?: ((target: VillageTarget) => void) | undefined;
   ennoble?: EnnobleActions | undefined;
   /** Křest vojvody (server action) – vrací důvod odmítnutí, nebo null. */
@@ -271,7 +272,9 @@ export function PersonBody({
           />
         )}
       </div>
-      {lordJourney && <LordJourneyPanel ui={lordJourney} />}
+      {expeditionCommand && details.expedition && (
+        <ExpeditionButtons people={[details.expedition]} command={expeditionCommand} />
+      )}
     </div>
   );
 }

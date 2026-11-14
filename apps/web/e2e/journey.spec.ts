@@ -138,7 +138,7 @@ test('vojvoda: výběr, rozkaz pravým tlačítkem, portrét v liště, Domů a 
   );
 
   // Domů: výjezd se vrátí a ohlásí návrat, vojvoda je zpět doma
-  await page.getByTestId('lord-home').click();
+  await page.getByTestId('expedition-home').click();
   await expect(page.getByText('Bořivoj se vrátil.')).toBeVisible({ timeout: 240_000 });
   await expect(badge).toHaveCount(0, { timeout: 60_000 });
 });
@@ -368,7 +368,7 @@ test.fixme('výjezd ve scéně: kůň z ohrady ke kůlu, odjezd branou dvorce a 
 
   // Domů: skupina přijede, vojvoda sesedne a kůň vejde do ohrady
   await page.getByTestId('lord-away-badge').click();
-  await page.getByTestId('lord-home').click();
+  await page.getByTestId('expedition-home').click();
   await expect
     .poll(async () => (await journeyScene(page)).phase, { timeout: 240_000 })
     .toBe('arriving');

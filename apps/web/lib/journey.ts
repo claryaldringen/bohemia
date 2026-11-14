@@ -5,21 +5,17 @@ import {
   commandParty,
   expeditionViewsFor,
   expeditionVisitorsOn,
-  journeyCandidates,
   knownMapFor,
   knownVillagesOf,
-  launchJourney,
   musterExpedition,
   type ExpeditionCommand,
   type ExpeditionResult,
   type ExpeditionView,
   type ExpeditionVisitor,
   type GridCell,
-  type JourneyCandidate,
   type JourneyCommandDeps,
   type JourneyCommandResult,
   type JourneyOrder,
-  type JourneyRefusal,
   type LaunchJourneyDeps,
   type MarchGrid,
   type SeenCell,
@@ -33,7 +29,7 @@ import { encodeLandscape } from './landscape-transfer';
 import { journeyActionForPlayer } from './village';
 
 // Výjezd vojvody (lord-control.md; plán 2026-11-13 – Úloha 7): composition root – use-casy
-// `journeyCandidates`, `launchJourney`, `journeyViewFor`, `commandJourney` a `visitorsOn` nad
+// `commandParty`, `musterExpedition`, `journeyViewFor`, `commandJourney` a `visitorsOn` nad
 // skutečnými repozitáři. Herní logika je v `packages/game/src/application/{launch-journey,
 // journey-view}.ts`.
 
@@ -78,31 +74,6 @@ function visitorsDeps(): VisitorsDeps {
     cells: campaignCells(),
     grids: GRIDS,
   };
-}
-
-/** Kandidáti na výjezd z vlastní vsi `villageId` (vojvoda, muži rodu doma) a důvod, proč nejde. */
-export function journeyCandidatesForPlayer(
-  playerId: string,
-  villageId: string,
-): Promise<
-  | { refusal: JourneyRefusal | null; lord: JourneyCandidate | null; men: JourneyCandidate[] }
-  | { error: string }
-> {
-  return journeyActionForPlayer(playerId, villageId, (ctx) =>
-    journeyCandidates(launchDeps(), { playerId, villageId, today: ctx.day }),
-  );
-}
-
-/** Vyšle vojvodu s družinou z vsi `villageId`; `{ ok }`, nebo důvod odmítnutí. */
-export function launchJourneyForPlayer(
-  playerId: string,
-  input: { villageId: string; retinue: number[]; order: JourneyOrder },
-): Promise<
-  { ok: true; journeyId: string } | { ok: false; reason: JourneyRefusal } | { error: string }
-> {
-  return journeyActionForPlayer(playerId, input.villageId, () =>
-    launchJourney(launchDeps(), { ...input, playerId, now: new Date() }),
-  );
 }
 
 /** Rozkaz hráče do jeho běžícího výjezdu – takt záměru, nebo odmítnutí. */
