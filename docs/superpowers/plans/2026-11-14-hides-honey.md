@@ -49,7 +49,7 @@
 3. **Med ve stravě:**
    - Energie 0,9 obilního ekvivalentu na kg (3 040 / 3 400 kcal).
    - Bez bílkovin, bez stropu, bez štěstí, bez vlivu na kvalitu stravy.
-   - Jí se rovným dílem do příštího 1. 5. (jako sýr do dojení) a počítá se i do výhledu (`daily`). Přebytek je to, co hráč pošle sousedovi.
+   - ~~Jí se rovným dílem do příštího 1. 5.~~ **Pevný příděl 0,5 kg na člověka za rok** (sladké pečivo – Martin 14. 11. 2026: „Med se nekazí, takže se dá dlouho skladovat a hromadit. Na druhou stranu – med se většinou přidával do sladkého pečiva nebo se z něj dělala medovina – samotného medu totiž člověk moc nesní“), denně rovným dílem z toho, co je; zbytek se hromadí (nekazí se) a jde na prodej. Počítá se i do výhledu (`daily`). Medovina později.
 4. **Obchod:**
    - Do `TradeGood` přibudou `'honey' | 'hides' | 'furs' | 'wax'`.
    - Hodnota v kg obilí: med 6 za kg, vosk 30 za kg, kůže 20 za kus (5 kg na nosiče), kožešina 8 za kus (1 kg). Odvozeno od masa 3 a klády 40 = 1 čd.

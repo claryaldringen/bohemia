@@ -26,6 +26,10 @@ Nové zboží vsi. Martin 14. 11. 2026:
 - Každé obydlí (zemnice, polozemnice, nadzemní dům) má u sebe **klát** – vydlabaný kmen se včelami.
   Vznikne sám s obydlím, bez ceny a práce (vesničané sami používají, co jim ulehčí práci);
   zbořené obydlí ho ztratí.
+- **Med se jí jen málo a hromadí se** – Martin 14. 11. 2026: „Med se nekazí, takže se dá dlouho
+  skladovat a hromadit. Na druhou stranu – med se většinou přidával do sladkého pečiva nebo se
+  z něj dělala medovina – samotného medu totiž člověk moc nesní.“ Návrh Clauda: příděl **0,5 kg na
+  člověka za rok** (sladké pečivo), zbytek zůstává v zásobě na prodej; medovina později.
 - Med a vosk přibývají denně od května do září – za rok z klátu **≈ 6 kg medu a ≈ 0,4 kg vosku**
   (středověký klát dával 5–10 kg medu, vosk ≈ 6–8 % medu). Bez rojení a úhynu včel.
 - Prémiová krajina „Brtě a lesní včely“: brtě v lese dají každá jako klát; vybírá je práce vsi
