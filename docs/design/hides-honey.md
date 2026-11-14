@@ -1,4 +1,4 @@
-# Kůže, kožešiny, med a vosk (návrh – čeká na schválení)
+# Kůže, kožešiny, med a vosk (schváleno 14. 11. 2026)
 
 Nové zboží vsi. Martin 14. 11. 2026:
 
@@ -10,7 +10,7 @@ Nové zboží vsi. Martin 14. 11. 2026:
   každá domácnost sama. Později přidáme specializované řemeslníky. Obecná snaha buď, aby vesničané
   využívali spíš kožešiny poražených ovcí a kožešiny z lovu spíš prodávali.“
 
-Čísla a podrobnosti níž jsou návrh Clauda.
+Čísla a podrobnosti níž jsou návrh Clauda – Martin 14. 11. 2026: „Ano“.
 
 ## Zboží
 
