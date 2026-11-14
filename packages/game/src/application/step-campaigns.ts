@@ -186,6 +186,21 @@ async function loadVillages(
   return records;
 }
 
+/**
+ * Kolik různých map políček čtou tažení a výjezdy v paměti workeru (`CampaignNeeds.cells` –
+ * načtou se předem v dalším kole): podle toho worker zvětší mezipaměť map (`reserve`), aby se
+ * krajina mapy, na které skupina stojí, mezi koly negenerovala znovu (worker.md – Výkon).
+ */
+export function cellsInNeed(...memories: CampaignMemory<unknown>[]): number {
+  const cells = new Set<string>();
+  for (const memory of memories) {
+    for (const needs of memory.needs.values()) {
+      for (const c of needs.cells) cells.add(`${c.x},${c.y}`);
+    }
+  }
+  return cells.size;
+}
+
 /** Konec kola: zapomene skončená tažení (výjezdy) a vsi, které kolo nenačetlo. */
 export function forgetEnded(memory: CampaignMemory<unknown>, active: readonly string[]): void {
   const running = new Set(active);

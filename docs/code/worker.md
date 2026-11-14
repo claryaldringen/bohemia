@@ -39,7 +39,10 @@ vstupní bod (composition root) jako web – žádná herní logika, jen plánov
   migrací) smyčku nezastaví, stejná chyba se do logu opakuje nejvýš jednou za minutu. Bez tažení je
   kolo jeden dotaz (`active()`). Zámek tažení má vlastní pool (`CAMPAIGN_LOCK_POOL_SIZE` = 2), vsi
   tažení jdou úložištěm bez paměti dávky (`createVillageRepository`), mapy políček
-  `createCampaignCells` (`packages/server`). Paměť tažení napříč koly (`newCampaignMemory` – poslední
+  `createCampaignCells` (`packages/server`) – krajiny prázdných políček v LRU, které worker před
+  každým kolem zvětší podle map v paměti tažení i výjezdů (`reserve(cellsInNeed(…))`, nejméně
+  `CAMPAIGN_CELL_CACHE_SIZE` = 16 a k tomu 16 volných; Výkon – Mapy prázdných políček). Paměť
+  tažení napříč koly (`newCampaignMemory` – poslední
   spočtený stav, kontrolní bod podle verze, mapy a vsi minulého kola a mřížky pochodu, Výkon –
   Tažení) drží proces; restart ji zahodí (počítá od bodu). **Výjezdy vojvody** (`docs/code/journey.md`
   – Worker): po `stepCampaigns` pustí kolo v témže okamžiku `stepJourneys` (`CampaignLoopDeps.journeys`)
@@ -242,6 +245,24 @@ Měřeno `--villages 1,5,20 --days 100 --scenarios B` (běh sám na stroji):
 |  20 |     0,72 s OK |   0,21 s OK | 1,08 s MIMO | **0,18 s OK** |
 
 Akce i otevření jsou s workerem v cíli pro 1 / 5 / 20 vsí a na počtu vsí už skoro nezávisí.
+
+### Mapy prázdných políček (závěrečná recenze výjezdu – Important 4)
+
+Prázdné mapy (krajina z kostry světa a vrstva překážek, ≈ 250–350 ms a ≈ 2 MB na mapu) drží jedna
+LRU v `createCampaignCells` pro tažení i výjezdy. Dřív měla pevných 16 míst a `computeWithLoads`
+žádá `mapOf` v každém kole – víc než 16 map se skupinou znamenalo generovat všechny každou
+sekundu znovu. Teď ji worker před kolem zvětší na počet map v paměti obou smyček
+(`cellsInNeed` – políčka `CampaignNeeds.cells`) + 16 (`WorkerCampaignCells.reserve`; při menší
+potřebě se zmenší zpět). Návrh Clauda: kapacita podle potřeby kola místo map v `CampaignMemory` –
+`mapOf` dál čte držitele a vsi políčka každé kolo (nové sídlo na prázdném políčku, archiv), mezipaměť
+drží jen krajinu prázdného políčka, čistou funkci seedu světa a políčka, takže výsledek se změnit
+nemůže; paměť roste jen se skutečnou potřebou. Měření 14. 11. 2026 (skript ve scratchpadu,
+skutečné `createCampaignCells` a `stepJourneys` s pamětí, 30 výjezdů na 30 různých prázdných mapách,
+kola po 1 s): před – každé kolo 30 nových map, ≈ 8,0 s na kolo; po – kolo 1 (studené) 30 map
+≈ 11,7 s, kolo 2 ještě 14 map (≈ 3,8 s – v prvním kole potřeba nebyla známá a LRU 16 map
+zahodila), od kola 3 žádná mapa a 1–6 ms. Otisk stavů po 7 kolech je s mezipamětí i bez ní týž
+(sha256 `96c7ccbb…`). Testy `packages/server/src/__tests__/campaign-cells.test.ts`,
+`landscape-cache.test.ts` (`LruCache.resize`).
 
 ### Tažení (Úloha 6.17)
 
