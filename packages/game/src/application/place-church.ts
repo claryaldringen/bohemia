@@ -1,6 +1,7 @@
 import { obstaclesOf, type Landscape } from '../domain/landscape';
 import {
   applyBuildIntent,
+  playerChurchStartProblem,
   type ChurchDims,
   type ChurchType,
   type Position,
@@ -26,7 +27,7 @@ export interface PlaceChurchInput {
 
 /**
  * Hráč zahájí stavbu kostela (ves se nejdřív dopočítá do dneška) – bez ceny předem; server ověří
- * huť, typ, lom i místo znovu (`applyBuildIntent` → `checkChurchPlacement`, `startChurch`).
+ * křest, huť, typ, lom i místo znovu (`applyBuildIntent` → `checkChurchPlacement`, `startChurch`).
  */
 export function placeChurchForVillage(
   deps: { villages: VillageRepository },
@@ -37,12 +38,16 @@ export function placeChurchForVillage(
     input.villageId,
     input.today,
     input.landscape,
-    (state) =>
-      applyBuildIntent(state, state.lastDay, input.landscape, obstaclesOf(input.landscape), {
+    (state) => {
+      // křest rodu vyžadujeme jen od hráče – NPC správce staví přes `applyBuildIntent` přímo
+      const problem = playerChurchStartProblem(state, input.type);
+      if (problem) return { ok: false, reason: problem };
+      return applyBuildIntent(state, state.lastDay, input.landscape, obstaclesOf(input.landscape), {
         kind: 'church',
         type: input.type,
         dims: input.dims,
         position: input.position,
-      }),
+      });
+    },
   );
 }
