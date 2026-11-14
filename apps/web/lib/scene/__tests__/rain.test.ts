@@ -15,15 +15,44 @@ import { REFERENCE_DAY, seasonLook } from '../season-look';
 import { partWeather } from '../field-look';
 
 describe('dny deště (jen vzhled)', () => {
-  it('bez mokra nikdy neprší, v deštivém létě zhruba každý druhý den', () => {
-    let wetDays = 0;
-    for (let day = 0; day < 2000; day++) {
+  it('bez mokra nikdy neprší', () => {
+    for (let day = 0; day < 3000; day++) {
       expect(rainOnDay(day, 0)).toBe(0);
       expect(rainAmount(day + 0.5, 0)).toBe(0);
-      if (rainOnDay(day, 1) > 0) wetDays++;
     }
-    expect(wetDays / 2000).toBeGreaterThan(0.45);
-    expect(wetDays / 2000).toBeLessThan(0.65);
+  });
+
+  it('podíl deštivých dnů za 3 000 dnů odpovídá cíli (≈ 0,55 × mokro, nejvýš ½) ± 10 %', () => {
+    for (const wet of [0.3, 0.6, 1]) {
+      let wetDays = 0;
+      for (let day = 0; day < 3000; day++) if (rainOnDay(day, wet) > 0) wetDays++;
+      const target = Math.min(0.5, 0.55 * wet);
+      expect(wetDays / 3000).toBeGreaterThan(target * 0.9);
+      expect(wetDays / 3000).toBeLessThan(target * 1.1);
+    }
+  });
+
+  it('déšť chodí v obdobích 2–4 dnů za sebou, mezi nimi je sucho', () => {
+    for (const wet of [0.4, 1]) {
+      const runs: number[] = [];
+      let run = 0;
+      for (let day = 0; day < 3000; day++) {
+        if (rainOnDay(day, wet) > 0) run++;
+        else {
+          if (run > 0) runs.push(run);
+          run = 0;
+        }
+      }
+      expect(runs.length).toBeGreaterThan(100);
+      expect(Math.min(...runs)).toBeGreaterThanOrEqual(2);
+      expect(Math.max(...runs)).toBeLessThanOrEqual(4);
+    }
+  });
+
+  it('s menším mokrem prší ve stejných obdobích, jen řidčeji', () => {
+    for (let day = 0; day < 1000; day++) {
+      if (rainOnDay(day, 0.4) > 0) expect(rainOnDay(day, 1)).toBeGreaterThan(0);
+    }
   });
 
   it('stejný den světa = stejný déšť (deterministicky), síla 0,6–1', () => {

@@ -4,8 +4,8 @@
 /** Klávesa nabídky jako v 0 A.D. (`KeyboardEvent.key`). */
 export const MENU_HOTKEY = 'F10';
 
-/** Krok nabídky: seznam položek, potvrzení Začít znovu, nebo Nastavení. */
-export type GameMenuStep = 'main' | 'confirm' | 'settings';
+/** Krok nabídky: seznam položek, potvrzení Začít znovu, Nastavení, nebo Vývojářské menu. */
+export type GameMenuStep = 'main' | 'confirm' | 'settings' | 'dev';
 
 /** Co udělá klávesa v otevřené nabídce: zavře ji, vrátí z potvrzení zpět, nebo nic. */
 export type MenuKeyAction = 'close' | 'back' | null;

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactElement, type ReactNode, type Ref } from 'react';
 import { menuKeyAction, nextFocusIndex, type GameMenuStep } from '@/lib/game-menu';
+import { DevMenuPanel, type DevMenuControl } from './DevMenu';
 import { Tooltip } from './Tooltip';
 
 /** Co v nabídce právě běží na serveru – tlačítka jsou pak zamčená. */
@@ -56,6 +57,9 @@ export function GameMenuPanel({
   soundOn,
   onToggleSound,
   onBackFromSettings,
+  devMenu = null,
+  onDevMenu,
+  onForce,
   onClose,
 }: {
   step: GameMenuStep;
@@ -78,6 +82,10 @@ export function GameMenuPanel({
   onToggleSound: () => void;
   /** Z Nastavení zpět na položky. */
   onBackFromSettings: () => void;
+  /** Vývojový režim: Vývojářské menu (Vynutit pohromu); bez něj null a položka se neukáže. */
+  devMenu?: DevMenuControl | null;
+  onDevMenu?: () => void;
+  onForce?: DevMenuControl['onForce'];
   onClose: () => void;
 }): ReactElement {
   const locked = busy !== null;
@@ -98,6 +106,11 @@ export function GameMenuPanel({
           <MenuButton onClick={onSettings} disabled={locked}>
             Nastavení
           </MenuButton>
+          {devMenu && (
+            <MenuButton onClick={() => onDevMenu?.()} disabled={locked}>
+              Vývojářské menu
+            </MenuButton>
+          )}
           <MenuButton onClick={onRestart} disabled={!canRestart || locked}>
             Začít znovu
           </MenuButton>
@@ -113,6 +126,14 @@ export function GameMenuPanel({
           <span aria-hidden className="my-0.5 border-t border-[#5c4526]" />
           <MenuButton onClick={onClose} disabled={locked}>
             Zpět do hry
+          </MenuButton>
+        </div>
+      ) : step === 'dev' && devMenu ? (
+        <div className="flex flex-col gap-2">
+          <DevMenuPanel pending={devMenu.pending} onForce={(choice) => onForce?.(choice)} />
+          <span aria-hidden className="my-0.5 border-t border-[#5c4526]" />
+          <MenuButton onClick={onBackFromSettings} autoFocus>
+            Zpět
           </MenuButton>
         </div>
       ) : step === 'settings' ? (
@@ -178,8 +199,11 @@ export function GameMenu({
   onSignOut,
   soundOn,
   onToggleSound,
+  devMenu = null,
 }: {
   canRestart: boolean;
+  /** Vývojový režim: Vývojářské menu s Vynutit pohromu; jinak null. */
+  devMenu?: DevMenuControl | null;
   email: string;
   /** Zvuky krajiny zapnuté – přepínač v Nastavení. */
   soundOn: boolean;
@@ -194,6 +218,15 @@ export function GameMenu({
   const [busy, setBusy] = useState<GameMenuBusy>(null);
   const [error, setError] = useState<string | null>(null);
   const panelRef = useRef<HTMLElement>(null);
+  const [forced, setForced] = useState(false);
+  const devPending = devMenu?.pending ?? false;
+
+  // Po vynucení pohromy se nabídka zavře, jakmile server doběhne (pending true → false).
+  const wasPending = useRef(false);
+  useEffect(() => {
+    if (wasPending.current && !devPending && forced) onClose();
+    wasPending.current = devPending;
+  }, [forced, devPending, onClose]);
 
   // Fokus do panelu – Tab pak jde po položkách, Enter / mezerník je stiskne.
   useEffect(() => {
@@ -274,6 +307,13 @@ export function GameMenu({
         soundOn={soundOn}
         onToggleSound={onToggleSound}
         onBackFromSettings={() => setStep('main')}
+        devMenu={devMenu}
+        onDevMenu={() => setStep('dev')}
+        onForce={(choice) => {
+          if (!devMenu || devMenu.pending) return;
+          setForced(true);
+          devMenu.onForce(choice);
+        }}
         onClose={onClose}
       />
     </>

@@ -1628,8 +1628,11 @@ test('vývojový režim: vynucené sucho – ikona na liště, upozornění a oc
   await page.keyboard.press('c');
   await confirmPlacement(page, { kind: 'squares', cells: spots.cells });
   await expect.poll(async () => (await villageState(s.settlementId)).fields.length).toBe(1);
-  // bez vývojového režimu tlačítka pohrom nejsou a průběh přeskoku se nedá číst
-  await expect(page.getByTestId('dev-disasters')).toHaveCount(0);
+  // bez vývojového režimu není v nabídce Vývojářské menu a průběh přeskoku se nedá číst
+  const plainMenu = await openGameMenu(page);
+  await expect(plainMenu.getByRole('button', { name: 'Vývojářské menu' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(plainMenu).toHaveCount(0);
   expect((await page.request.get('/api/dev/skip-progress')).status()).toBe(403);
   await query('UPDATE "user" SET dev_mode = true WHERE email = $1', [email]);
   await page.reload();
@@ -1645,10 +1648,13 @@ test('vývojový režim: vynucené sucho – ikona na liště, upozornění a oc
   await openDevTime(page);
   const skip = page.getByTestId('dev-skip-month');
   for (let i = 0; i < 14; i++) {
-    await page.getByTestId('dev-bad-year').click();
+    const menu = await openGameMenu(page);
+    await menu.getByRole('button', { name: 'Vývojářské menu' }).click();
     await page.getByTestId('dev-force-drought').click();
-    await expect(page.getByTestId('dev-bad-year')).toBeEnabled({ timeout: 60_000 });
+    // nabídka se po vynucení sama zavře, až server doběhne
+    await expect(menu).toHaveCount(0, { timeout: 60_000 });
     if ((await notice.count()) > 0) break;
+    await openDevTime(page);
     await skip.click();
     await expect(skip).toBeEnabled({ timeout: 60_000 });
     if ((await notice.count()) > 0) break;
@@ -1854,12 +1860,14 @@ test('panel Kronika – ikona v liště otevře kroniku vsi se zápisem o založ
   await expect(panel.getByTestId('chronicle-year').first()).toHaveAttribute('data-year', /^\d+$/);
   await expect(panel.getByTestId('chronicle-older')).toHaveCount(0);
 
-  // panel rodu kroniku zavře, Esc zavře znovu otevřenou kroniku
-  await page.getByTestId('house-toggle').click();
+  // panel je modální uprostřed obrazovky: kliknutí mimo ho zavře, Esc zavře znovu otevřenou kroniku
+  const box = (await panel.boundingBox())!;
+  const viewport = page.viewportSize()!;
+  expect(Math.abs(box.x + box.width / 2 - viewport.width / 2)).toBeLessThan(2);
+  await page.getByTestId('chronicle-backdrop').click({ position: { x: 4, y: 100 } });
   await expect(panel).toHaveCount(0);
   await toggle.click();
   await expect(panel).toBeVisible();
-  await expect(page.getByTestId('house-panel')).toHaveCount(0);
   await page.keyboard.press('Escape');
   await expect(panel).toHaveCount(0);
   // zkratka J (popisek „Kronika [J]“) otevře a druhým stiskem zavře; U ji vystřídá Upozorněními

@@ -52,8 +52,8 @@ Auth vzniká líně přes `getAuth()` – `next build` stránky jen importuje a 
   (datum v liště, roční období a dým ve scéně). Posun jen roste, platí i bez `devMode`. (Tlačítko
   **Druhá ves na téže mapě** je od 1. 11. 2026 pryč: jedna ves, jedna mapa;
   e2e přepínače vsí zapíše druhou ves na mapu vedle rovnou do databáze – `villageOnNextMap`.)
-  Vedle šipek **Vynutit zlý rok** a **Vynutit pohromu** (`DevDisasterButtons` v `TopBar` – každé otevře
-  řadu ikon druhů): server action `forceDevDisaster` (`{ villageId, kind: 'year' | 'disaster',
+  V nabídce hry pod **Vývojářské menu** je jedno **Vynutit pohromu** (`DevMenuPanel` v `hud/DevMenu.tsx` –
+  druhy zlých roků i pohrom v jedné mřížce): server action `forceDevDisaster` (`{ villageId, kind: 'year' | 'disaster',
 value }`, `parseDevDisasterInput`) → use-cases `forceBadYear` / `forceDisaster`
   (`application/dev-disasters.ts`, bez `devMode` odmítnou). Zlý rok zapíše letošní léto nebo zimu
   do `disasters.override.weather[rok]` (ukáže se, až bude vidět – sucho od 1. 5.), pohroma zítřejší

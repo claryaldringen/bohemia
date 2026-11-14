@@ -31,6 +31,7 @@ import type { NoticesControl } from '@/hooks/use-notices';
 import type { VillageListItem } from '@/lib/village-list';
 import type { VillageView } from '@/lib/village-view';
 import { ChroniclePanel } from '../hud/ChroniclePanel';
+import type { DevMenuControl } from '../hud/DevMenu';
 import { EscheatDialog } from '../hud/EscheatDialog';
 import { GameMenu } from '../hud/GameMenu';
 import { HousePanel } from '../hud/HousePanel';
@@ -55,6 +56,7 @@ export function VillagePanels({
   onSignOut,
   soundOn,
   onToggleSound,
+  devMenu,
   panels,
   house,
   chronicle,
@@ -73,6 +75,8 @@ export function VillagePanels({
   /** Zvuky krajiny zapnuté a jejich přepnutí (Nastavení v nabídce). */
   soundOn: boolean;
   onToggleSound: () => void;
+  /** Vývojový režim: Vývojářské menu v nabídce (Vynutit pohromu); jinak null. */
+  devMenu: DevMenuControl | null;
   panels: Panels;
   house: House;
   chronicle: ChronicleControl;
@@ -92,6 +96,7 @@ export function VillagePanels({
           onSignOut={onSignOut}
           soundOn={soundOn}
           onToggleSound={onToggleSound}
+          devMenu={devMenu}
         />
       )}
       {panels.warOpen && !menuShown && (

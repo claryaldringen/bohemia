@@ -445,8 +445,8 @@ přídělu) … za rok stojí ≈ 15 % lidí“) přijde o zhruba desetinu až p
   [krutý, krutý] → ves žije, [normální × 10] → bez hladu.
 - **`village-calculator.ts`** (ustálený stav, rychlý): přepínač `--weather` s průměrnou úrodou
   0,95 – kolik osevu a práce stojí průměr let.
-- **Vlkov a nové vsi:** dev mód **„Vynutit zlý rok“** a **„Vynutit pohromu“** vedle skoku v čase
-  ([účty](accounts.md) – dev mód) – Martin projde krutý rok, dva za sebou, povodeň, požár
+- **Vlkov a nové vsi:** dev mód **„Vynutit pohromu“** (zlé roky i pohromy; v nabídce hry pod „Vývojářské menu“,
+  Martin 14. 11. 2026) ([účty](accounts.md) – dev mód) – Martin projde krutý rok, dva za sebou, povodeň, požár
   a smršť ve hře a sleduje nasycení, porážku, hašení, kroniku.
 - **`measure-village`** jen na Martinův pokyn (`--variant disasters`).
 
@@ -535,7 +535,7 @@ počasí je další násobek světla a barev období, ne nové osvětlení.
   - **Slunce praží** (Martin): silnější a teplejší slunce – jasnější, žlutější světlo a ostřejší
     stíny, vybledlá obloha a opar, případně tetelení vzduchu nad poli v poledne.
 - **Deštivé léto**
-  - Ve dnech deště prší (částice), je zataženo a šedé světlo.
+  - Ve dnech deště prší (částice), je zataženo a šedé světlo. Déšť chodí v obdobích 2–4 dnů za sebou a mezi nimi je sucho (Martin 14. 11. 2026: „Příjde mi, že ve hře nějak často prší“ – na volbu seskupit: „Seskupit“); podíl deštivých dnů zůstává ≈ 0,55 × mokro, nejvýš ½.
   - Kaluže na cestách a v nivě.
   - Tmavší a sytější barvy, před žněmi polehlé obilí.
 - **Holomráz:** jinovatka bez sněhu; na jaře řídký, místy žlutý ozim, kde vymrzl, prosvítá hlína.

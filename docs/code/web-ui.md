@@ -25,7 +25,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   a nové načtení po umístění, odúmrti, pozvánky, `negotiate`), `use-panels.ts` (`usePanels` –
   nabídka, rod, válka a odvody se střídají; průchody, ochrana, `warAction`, dialog Odvody),
   `use-player-notices.ts` (`noticeTick`, `showPlayerNotices`, `openNoticePanel`),
-  `use-history-panels.ts` (kronika a upozornění, `closeNoticesRef`, zkratky J / U),
+  `use-history-panels.ts` (kronika a upozornění, `closeNoticesRef`, zkratky J / U; panel Kronika `hud/ChroniclePanel.tsx` je modální okno uprostřed obrazovky se závojem jako nabídka hry – klik mimo nebo Esc zavře – a záznamy jednoho dne seskupuje pod jedno datum, `groupByDay`),
   `use-war-watch.ts` (`useWarScene` → `setWar`, „Probít se“, sledování cizí mapy,
   `armyActions`), `use-line-naming.ts` (jména rodu, `founderNameRef`), `use-pending-sites.ts`
   (staveniště čekající na server, `sceneVillage`, `placementScene`, `buildDwelling` …),
@@ -685,8 +685,10 @@ Návrh: [disasters.md – Co hráč vidí](../design/disasters.md). Jádro a č�
   (`otherVillageDisasters` – počasí a poslední místní pohroma) se jménem vsi.
 - **Ikony** – `tools/blender/icons.py` (`drought`, `rain`, `frost`, `good-summer`, `flood`, `hail`,
   `tornado`, `protection`, `dearth`; vlastní, CC0), požár má stávající `fire`.
-- **Vývojový režim** – tlačítka „Vynutit zlý rok“ a „Vynutit pohromu“ (`DevDisasterButtons`)
-  vedle skoku v čase: [accounts.md – dev mód](accounts.md).
+- **Vývojový režim** – jedno „Vynutit pohromu“ (zlé roky i pohromy, `hud/DevMenu.tsx`) v nabídce
+  hry pod položkou „Vývojářské menu“ (`GameMenu`, krok `dev`, jen s `devMode`; po vynucení se nabídka
+  zavře, jakmile server doběhne; Martin 14. 11. 2026). Zrychlení času zůstává u data:
+  [accounts.md – dev mód](accounts.md).
 - **Testy** – `disasters-view.test.ts`, `village-notices.test.ts` (počasí a pohromy),
   `village-view.test.ts` (JSON 30. 4. bez sucha, seedu a `override`); e2e `village.spec.ts`
   „vývojový režim: vynucené sucho“ – ikona na liště, upozornění a ochrana v panelu dílu.
@@ -1534,3 +1536,5 @@ war/alarm-messenger,war/alarm-forest,war/alarm-people,war/alarm-all,war/alarm-re
 - **Zůstávají SVG:** oko „Ve scéně“ (`war/eye.svg` – jednobarevná maska v barvě textu tlačítka,
   `CampaignMap`) a vlajky jazykových skupin (`newcomer/<jazyk>.svg` – plochý znak 3 : 2 s rámečkem,
   `LanguageIcon`; vlajka je sama barvami, render látky by ji ve 24 × 16 px rozmazal).
+
+- **Ciferník u data** (Martin 14. 11. 2026; 24 hodin – návrh Clauda): `DayDial` v `hud/TopBar.tsx` místo ikony data, jedna ručička, poledne nahoře; hodina z `dayHourAt` (`lib/scene/day-light.ts`), obnova jednou za sekundu (`useDayHour`), úhel `clockHandAngle` a popisek `dayPartLabel` v `lib/game-date.ts`.
