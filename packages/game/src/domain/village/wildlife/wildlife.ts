@@ -196,6 +196,8 @@ export function wildlifeYearDay(
       state.chronicle.push({ day, kind: 'bear-returned' });
     }
   }
+  // lišky vyřazené okem se vrátí na strop (dnes jsou na stropu vždy – nové pravidlo to nemění)
+  if (w.foxes !== undefined) w.foxes = foxCount(w.land);
   // vybité ryby se obnoví z minimálního osazení (1 % stropu)
   const fish = Math.min(caps.fishKg, Math.max(w.fishKg, caps.fishKg * WILDLIFE_YEAR.fishRestock));
   w.fishKg = caps.fishKg > 0 ? Math.min(caps.fishKg, fish + fish * (1 - fish / caps.fishKg)) : 0;
@@ -207,7 +209,7 @@ export function wildlifeYearDay(
     w.smallGame = {
       today: null,
       year: { fishKg: 0, hares: 0, meatKg: 0, days: 0 },
-      quota: yearlyQuota(w, w.fishKg, w.hares),
+      quota: yearlyQuota(w, w.fishKg, w.hares, foxCount(w.land)),
       lastWildMeatKg: wildKg,
     };
   }
