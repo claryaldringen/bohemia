@@ -1789,6 +1789,15 @@ escheat.ts` – `escheatVillage` + konec vlády vojvody dnem vzdání, `endedDay
 
 ## Hráč ve vsi a mimo ni (14. 11. 2026)
 
+**Přítomnost hráče (Úloha 2).** Tabulka `player_presence(player_id → user.id on delete cascade,
+seen_at)`, jeden řádek na hráče (migrace `0051_player_presence`). Port `PresenceRepository`
+(`application/presence.ts`): `note(playerId, at)` je upsert s `GREATEST(seen_at, nový)` (starší zápis
+nepřepíše novější), `lastSeen(playerIds)` vrací mapu ms jen pro hráče se zápisem; adaptér
+`adapters/presence-repository.ts`. Zapisuje web: `notePlayerPresent` (`apps/web/lib/game.ts`) s procesní
+mapou, nejvýš jednou za `PRESENCE_NOTE_MS` (10 s, návrh Clauda); volá ho `notePlayerActive` (akce,
+dotaz na ves, pohled na varování) a `GET /api/war-scene/<sídlo>` (scéna se ptá po 5 s, dokud je hra
+otevřená). Přítomnost je po hráči, ne po vsi. Čte ji worker (Úloha 6).
+
 **Vojvoda doma (`war/lord-home.ts`).** `AlarmOwner.lordId` = hráčův muž (`house.lord_person_id`) jen
 u sídelní vsi rodu (`house.lord_village_id`); jiná ves rodu a NPC ves ho nemají. `ownerOf`
 (`adapters/alarm-owners.ts`) ho dopočte jedním `CASE`. `lordAtHome(state, lordId, day, gone?)` –

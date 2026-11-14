@@ -3,6 +3,7 @@ import {
   createAccountLanguages,
   createAccountProviders,
   createActivityRepository,
+  createPresenceRepository,
   createHouseRepository,
   createInviteRepository,
   createNoticeRepository,
@@ -35,6 +36,7 @@ import {
   firstPlayerVillage,
   lockOwnerOf as lockOwnerOfVillage,
   pragueDateOf,
+  PRESENCE_NOTE_MS,
   recordActiveDay,
   requireRight,
   restartGame,
@@ -130,6 +132,27 @@ export function landscapeOfSettlement(settlement: Settlement): Landscape {
 /** Hráči, kterým tento proces dnes (datum v Europe/Prague) už aktivní den zapsal. */
 const activeToday = new Map<string, string>();
 
+/** Okamžik (ms), kdy tento proces naposled zapsal přítomnost hráče. */
+const presenceNoted = new Map<string, number>();
+
+/**
+ * Hráč je právě u hry (war.md – Hráč ve vsi a mimo ni): zapíše `player_presence.seen_at`, nejvýš
+ * jednou za `PRESENCE_NOTE_MS` a proces. Volá ho `notePlayerActive` (akce, dotaz na ves, pohled
+ * na varování) a dotaz scény války.
+ */
+export async function notePlayerPresent(playerId: string, now: Date = new Date()): Promise<void> {
+  const last = presenceNoted.get(playerId);
+  if (last !== undefined && now.getTime() - last < PRESENCE_NOTE_MS) return;
+  presenceNoted.set(playerId, now.getTime());
+  try {
+    await createPresenceRepository(getDatabase()).note(playerId, now);
+  } catch (error) {
+    // zápis se nepovedl – příští volání to zkusí znovu
+    presenceNoted.delete(playerId);
+    throw error;
+  }
+}
+
 /**
  * Aktivní den hráče (datum v Europe/Prague) – podle nich se pozvaný počítá jako „začal hrát“
  * a worker uspí vsi hráče, který nehraje déle než 3 dny (absence.md – Zátěž serveru). Zapisuje se
@@ -138,6 +161,7 @@ const activeToday = new Map<string, string>();
  */
 export async function notePlayerActive(playerId: string): Promise<void> {
   const now = new Date();
+  await notePlayerPresent(playerId, now);
   const today = pragueDateOf(now);
   if (activeToday.get(playerId) === today) return;
   await recordActiveDay({ activity: createActivityRepository(getDatabase()) }, playerId, now);
