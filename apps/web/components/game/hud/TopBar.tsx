@@ -83,6 +83,110 @@ function Resource({
   );
 }
 
+/** Řádek rozpisu zásob v panelu u ikony lišty – ikona, popisek (v `Tooltip`) a číslo. */
+export interface StockRow {
+  key: string;
+  icon: string;
+  name: string;
+  amount: number;
+}
+
+/** Rozpis zásob plodin (kg): obilí, luštěniny a jablka – snopy jsou mezistupeň zpracování, nepočítají se. */
+export function grainStockRows(
+  view: Pick<VillageView, 'storesKg' | 'legumesKg' | 'applesKg'>,
+): StockRow[] {
+  return [
+    { key: 'grain', icon: 'food', name: 'Obilí (kg)', amount: view.storesKg },
+    { key: 'legumes', icon: 'legumes', name: 'Luštěniny (kg)', amount: view.legumesKg },
+    { key: 'apples', icon: 'apples', name: 'Jablka (kg)', amount: view.applesKg },
+  ];
+}
+
+/** Součet kg plodin v zásobě (obilí, luštěniny, jablka) – číslo u ikony obilí v liště. */
+export function grainStockTotal(
+  view: Pick<VillageView, 'storesKg' | 'legumesKg' | 'applesKg'>,
+): number {
+  return grainStockRows(view).reduce((sum, row) => sum + row.amount, 0);
+}
+
+/** Rozpis domácích zvířat vsi podle druhů (skot, voli, ovce, kozy, prasata, koně), jen druhy, které ves má. */
+export function livestockRows(view: Pick<VillageView, 'livestock' | 'horses'>): StockRow[] {
+  const all: StockRow[] = [
+    { key: 'cow', icon: 'cow', name: 'Skot', amount: view.livestock.herds.cow },
+    { key: 'ox', icon: 'ox', name: 'Voli', amount: view.livestock.oxen },
+    { key: 'sheep', icon: 'sheep', name: 'Ovce', amount: view.livestock.herds.sheep },
+    { key: 'goat', icon: 'goat', name: 'Kozy', amount: view.livestock.herds.goat },
+    { key: 'pig', icon: 'pig', name: 'Prasata', amount: view.livestock.herds.pig },
+    { key: 'horse', icon: 'horse', name: 'Koně', amount: view.horses?.count ?? 0 },
+  ];
+  return all.filter((row) => row.amount > 0);
+}
+
+/** Součet kusů domácích zvířat vsi – číslo u ikony dobytka v liště. */
+export function livestockTotal(view: Pick<VillageView, 'livestock' | 'horses'>): number {
+  return livestockRows(view).reduce((sum, row) => sum + row.amount, 0);
+}
+
+/**
+ * Ikona zásob v liště s číslem celku; klik otevře u ní malý panel s rozpisem (ikony s čísly, slova
+ * v popiscích), další klik, Esc nebo stisk mimo ho zavře – jako panel u data.
+ */
+export function StockBreakdown({
+  icon,
+  name,
+  total,
+  rows,
+  testId,
+}: {
+  icon: string;
+  name: string;
+  total: number;
+  rows: readonly StockRow[];
+  /** Číslo celku má `testId`, tlačítko `<testId>-toggle`, panel `<testId>-panel`. */
+  testId: string;
+}): ReactElement {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+  useDismiss(open, ref, () => setOpen(false));
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open]);
+  return (
+    <span ref={ref} className="relative flex items-center">
+      <button
+        type="button"
+        data-testid={`${testId}-toggle`}
+        aria-label={name}
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className="cursor-pointer rounded hover:bg-white/5 aria-expanded:bg-white/10"
+      >
+        <Resource icon={icon} name={name} testId={testId}>
+          {formatInteger(total)}
+        </Resource>
+      </button>
+      {open && (
+        <span
+          data-hud-block
+          data-testid={`${testId}-panel`}
+          className="hud-panel absolute top-full left-0 z-30 mt-1 flex items-center gap-1 p-1"
+        >
+          {rows.map((row) => (
+            <Resource key={row.key} icon={row.icon} name={row.name} testId={`${testId}-${row.key}`}>
+              {formatInteger(row.amount)}
+            </Resource>
+          ))}
+        </span>
+      )}
+    </span>
+  );
+}
+
 /** Lidí ve vsi – děti, dospělí a starší. */
 function villagePeople(view: Pick<VillageView, 'people'>): number {
   return view.people.children + view.people.adults + view.people.elders;
@@ -676,9 +780,13 @@ export function TopBar({
               {peopleLabel(view)}
             </span>
           </Resource>
-          <Resource icon="food" name="Obilí" testId="village-stores">
-            {formatInteger(view.storesKg)}
-          </Resource>
+          <StockBreakdown
+            icon="food"
+            name="Obilí, luštěniny a jablka (kg)"
+            total={grainStockTotal(view)}
+            rows={grainStockRows(view)}
+            testId="village-stores"
+          />
           {showsLegumes(view) && (
             <Resource icon="legumes" name="Luštěniny (kg)" testId="village-legumes">
               {formatInteger(view.legumesKg)}
@@ -692,6 +800,13 @@ export function TopBar({
           <Resource icon="meat" name="Maso" testId="village-meat">
             {formatInteger(view.meatKg)}
           </Resource>
+          <StockBreakdown
+            icon="cow"
+            name="Dobytek"
+            total={livestockTotal(view)}
+            rows={livestockRows(view)}
+            testId="village-livestock"
+          />
           {showsDairy(view) && (
             <Resource icon="cheese" name={dairyName(view)} testId="village-cheese">
               {formatInteger(view.cheeseKg)}

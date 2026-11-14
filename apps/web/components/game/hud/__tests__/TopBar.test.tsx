@@ -220,6 +220,7 @@ describe('Lidé a kolik jich pole uživí v jedné ikoně (Martin 24. 10. 2026)'
       orchards: [],
       pens: [],
       storesKg: 10,
+      livestock: { herds: { sheep: 0, goat: 0, pig: 0, cow: 0 }, oxen: 0 },
       legumesKg: 0,
       meatKg: 0,
       cheeseKg: 0,

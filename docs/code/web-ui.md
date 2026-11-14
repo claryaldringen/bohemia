@@ -246,7 +246,14 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   datum je bez názvu období (Martin 14. 11. 2026); ve vývojovém režimu je klikací
   (`DateWithDevTime`, `game-date-toggle`) – klik otevře u data panel zrychlení času
   (`DevTimeButtons`, `dev-time-panel`), další klik, Esc nebo stisk mimo ho zavře, mimo vývojový
-  režim klik nic neotevře; ikona zvuků v liště není, jen tlačítko nabídky),
+  režim klik nic neotevře; ikona zvuků v liště není, jen tlačítko nabídky; ikona obilí
+  (`village-stores`) ukazuje součet kg obilí, luštěnin a jablek bez snopů (`grainStockTotal`) a ikona
+  dobytka (`village-livestock`) součet kusů skotu, volů, ovcí, koz, prasat a koní
+  (`livestockTotal` z `view.livestock` a `view.horses`); klik na ně otevře u ikony panel
+  s rozpisem (`StockBreakdown`, `<testId>-toggle` / `<testId>-panel`, řádky `grainStockRows` /
+  `livestockRows` – ikony s čísly, názvy v popiscích; dobytek jen druhy, které ves má), další klik,
+  Esc nebo stisk mimo ho zavře jako panel u data; Martin 14. 11. 2026. Ikony luštěnin a ovoce
+  v liště zůstávají vedle),
   `GameMenu` (nabídka hry jako v 0 A.D., F10 – modální okno uprostřed obrazovky se ztmaveným
   pozadím; smí mít slova: Nastavení – přepínač `setting-sound` Zvuky krajiny, stejná uložená
   volba `sound-preference` –, Začít znovu,
