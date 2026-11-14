@@ -90,4 +90,18 @@ describe('useKnownMap – seznam známých map', () => {
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+
+  it('dotaz má časový limit; po selhání (i vypršení) se načtení uvolní a jde zkusit znovu', async () => {
+    fetchMock.mockImplementationOnce(() =>
+      Promise.reject(new DOMException('limit', 'TimeoutError')),
+    );
+    await show(true);
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+    expect(game?.actions.status).toBe('error');
+    await show(false);
+    await show(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(game?.actions.status).toBe('ready');
+  });
 });

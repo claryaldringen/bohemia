@@ -32,7 +32,11 @@ export function useKnownMap(): KnownMap {
   const load = useCallback((): void => {
     if (loading.current || away.current) return;
     loading.current = true;
-    void fetch('/api/journey?known=villages', { cache: 'no-store' })
+    // časový limit: visící požadavek by jinak držel `loading` do konce relace
+    void fetch('/api/journey?known=villages', {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(10_000),
+    })
       .then((response) => response.json() as Promise<{ known?: KnownVillage[] }>)
       .then((body) => {
         if (body.known) {
