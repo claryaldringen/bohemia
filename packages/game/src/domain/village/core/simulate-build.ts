@@ -18,9 +18,11 @@ import {
   fellDueTrees,
   partCenter,
 } from '../forest/forest-clearing';
-import { finishArd, finishPen } from '../livestock/oxen';
+import { finishArd, finishPen, penChronicleNote } from '../livestock/oxen';
 import { recordClearedObstacles } from './obstacles';
 import { mergeRoadChains } from '../paths/roads';
+import { chronicleRoadEnds } from '../paths/road-chronicle';
+import { roadEndsNetwork } from '../paths/road-ends';
 import { roadWalk, walkGroundOf } from '../paths/walking';
 import { finishRoadApples, workRoadApples, roadApplesNeed } from '../roads/road-apples';
 import { finishRoadUpgrade } from '../roads/road-upgrades';
@@ -417,7 +419,12 @@ export function isFinished(state: VillageState, c: Construction, founding: Found
  * nového obydlí se stěhuje mladý pár; když žádný není, osídlí ho ještě týž den dospělé děti
  * z přeplněné domácnosti (krok 6).
  */
-export function finishConstructions(state: VillageState, day: number): void {
+export function finishConstructions(
+  state: VillageState,
+  day: number,
+  /** Krajina pro konce cesty v kronice jabloní u cesty (`chronicleRoadEnds`); bez ní konce chybí. */
+  landscape?: Landscape,
+): void {
   const unfinished: Construction[] = [];
   const founding = foundingIndex(state);
   let roadUpgraded = false;
@@ -487,18 +494,27 @@ export function finishConstructions(state: VillageState, day: number): void {
     }
     if (c.kind === 'road-apples') {
       // jabloně podél cesty vysazené – péče a sklizeň se sady (roads.md)
+      // kronika: konce cesty v den výsadby (Martin 14. 11. 2026 – „Podél cesty mezi dvorcem
+      // a kovárnou byly vysazeny jabloně.“)
+      const roadId = c.roadIds?.find((id) => state.roads?.roads.some((r) => r.id === id));
+      const roadEnds =
+        landscape && roadId !== undefined
+          ? chronicleRoadEnds(state, roadEndsNetwork(state, landscape), roadId)
+          : null;
       finishRoadApples(state, c, day);
-      state.chronicle.push(finishedEvent(day, c, null));
+      state.chronicle.push({ ...finishedEvent(day, c, null), ...(roadEnds ? { roadEnds } : {}) });
       continue;
     }
     if (c.kind === 'pen' || c.kind === 'ard') {
       // dostavěná ohrada přijme dobytek, hotové rádlo orá s párem vycvičených volů (oxen.md)
+      // kronika: druh ohrady a rozšíření – před `finishPen`, který značky čtverců smaže
+      const pen = c.kind === 'pen' ? penChronicleNote(state, c) : {};
       if (c.kind === 'pen' && c.penId !== null && c.penId !== undefined) {
         // založení celé ohrady, nebo rozšíření o čtverce (oxen.md – Ohrady podle druhu)
         finishPen(state, c.penId, day, c.id);
       }
       if (c.kind === 'ard') finishArd(state);
-      state.chronicle.push(finishedEvent(day, c, null));
+      state.chronicle.push({ ...finishedEvent(day, c, null), ...pen });
       continue;
     }
     if (c.kind === 'quarry' || c.kind === 'quarrying') {
@@ -633,7 +649,7 @@ export function finishedEvent(
   day: number,
   c: Construction,
   dwellingId: number | null,
-): ChronicleEvent {
+): Extract<ChronicleEvent, { kind: 'construction-finished' }> {
   return {
     day,
     kind: 'construction-finished',

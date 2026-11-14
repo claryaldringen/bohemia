@@ -397,7 +397,7 @@ function afterWorkDay(
   // kování vozů (wagons.md – Kování vozů): vůz s hotovou dřevěnou prací ze zásoby nástrojů, ves bez
   // kováře pošle tesaře nebo jeho syna do nejbližší vsi s kovářem; kdo se vrátil, vůz dokončí
   state.chronicle.push(...cartIronDay(state, day, landscape));
-  finishConstructions(state, day);
+  finishConstructions(state, day, landscape ?? undefined);
   // dvorec vojvody – po zániku dvorce nejstarší obydlí, starší ves dvorec dostane (trade.md)
   keepManor(state);
   decideRebuilds(state, day, obstacles, landscape);

@@ -7,9 +7,11 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 
 // 14. 11. 2026 – stavby staví muži (population.md – Práce, „D24 ano“): denní práci nesou napřed
 // ženy, na stavby jde jen práce mužů, která zbude; dřív c99147eba93dbf6e a 2f3ab71db19f73c6
-// (před D24), 1a766c1232b112a9 a 02b6d592aeb6b165 (D24 s dělením poměrem)
-const EXPECTED_YEAR_2 = '8a0abe82b58bcef8';
-const EXPECTED_YEAR_3 = '91a89a9500dcce15';
+// (před D24), 1a766c1232b112a9 a 02b6d592aeb6b165 (D24 s dělením poměrem). Týž den – zápisy
+// vzniklých cest nesou konce a roky chůze (`road-formed` – `ends`, `years`); bez nových polí
+// záznamů jsou otisky dál 8a0abe82b58bcef8 a 91a89a9500dcce15
+const EXPECTED_YEAR_2 = '337ac1e26a689941';
+const EXPECTED_YEAR_3 = '402c83aada144bca';
 
 describe('zlatý otisk vsi – delší běh', () => {
   it('po 2. a 3. roce dopočtu dá zapsané otisky', () => {

@@ -40,6 +40,8 @@ import {
 import type { Point } from '../../placement/polygon';
 import { giveWayToBuilding } from '../../buildings/land-taken';
 import { villageManorId } from '../../people/manor';
+import { currentLord } from '../../people/dynasty';
+import { DIRECTION_VECTORS } from '../../trade/trail-axis';
 import { obstacleChangesAt, recordClearedObstacles } from '../../core/obstacles';
 import type { Walk } from '../../paths/walking';
 import { checkFortificationPlacement } from '../../placement/placement-fortifications';
@@ -50,7 +52,9 @@ import { nearestQuarry, quarryManDaysPerM3 } from './quarry';
 import { stoneOnHand, takeStone } from './stone';
 import type {
   ChronicleEvent,
+  ChronicleFortGate,
   Construction,
+  Direction8,
   FortBuildWork,
   FortKind,
   FortSegment,
@@ -626,10 +630,61 @@ function pieceGone(seg: FortSegment, part: 'before' | 'after' | undefined): bool
   return false;
 }
 
-/** Plán zboření úseku – díly v pořadí práce s prací a kládami a místo hromady. */
+/** Plán zboření úseku – díly v pořadí práce s prací a kládami, místo hromady a zápis do kroniky. */
 interface DemolitionPlan extends SectionDemolition {
   segments: FortSegmentWork[];
   at: RoadPoint;
+  note: NonNullable<Construction['fortNote']>;
+}
+
+/** Směr bodu od středu (sever = +z, východ = +x) – nejbližší z osmi směrů. */
+function directionFrom(center: Point, x: number, z: number): Direction8 {
+  let best: Direction8 = 'N';
+  let bestDot = -Infinity;
+  const vectors = Object.entries(DIRECTION_VECTORS) as [Direction8, { x: number; z: number }][];
+  for (const [direction, v] of vectors) {
+    const dot = (x - center[0]) * v.x + (z - center[1]) * v.z;
+    if (dot > bestDot) {
+      bestDot = dot;
+      best = direction;
+    }
+  }
+  return best;
+}
+
+/**
+ * Brány na koncích úseku pro kroniku (návrh Clauda k Martinovu „od severní brány k věži“): brána
+ * s dostavěnou věží je věž; světová strana od středu obvodu jen, když je bran stejného druhu víc.
+ * Úsek začíná dílem s branou a končí před dílem další brány (`fortSections`); s jedinou branou
+ * obejde obvod (`around`), bez brány konce nemá.
+ */
+function fortGateNotes(
+  fort: Fortification,
+  shapes: readonly { mid: Point }[],
+  section: { segments: readonly number[]; gateSegment: number | null },
+): Pick<NonNullable<Construction['fortNote']>, 'gates' | 'around'> {
+  if (section.gateSegment === null || shapes.length === 0) return {};
+  const last = section.segments[section.segments.length - 1] ?? section.gateSegment;
+  const endSegment = (last + 1) % fort.segments.length;
+  const from = fort.gates.find((g) => g.segment === section.gateSegment);
+  const to = fort.gates.find((g) => g.segment === endSegment);
+  if (!from || !to) return {};
+  let cx = 0;
+  let cz = 0;
+  for (const shape of shapes) {
+    cx += shape.mid[0];
+    cz += shape.mid[1];
+  }
+  const center: Point = [cx / shapes.length, cz / shapes.length];
+  const tower = (g: (typeof fort.gates)[number]): boolean => typeof g.towerDay === 'number';
+  const note = (g: (typeof fort.gates)[number]): ChronicleFortGate => {
+    const same = fort.gates.filter((x) => tower(x) === tower(g)).length;
+    return {
+      ...(tower(g) ? { tower: true as const } : {}),
+      ...(same > 1 ? { direction: directionFrom(center, g.x, g.z) } : {}),
+    };
+  };
+  return { gates: [note(from), note(to)], ...(from === to ? { around: true as const } : {}) };
 }
 
 /**
@@ -697,7 +752,13 @@ function demolitionPlan(
   });
   const middle = shapes[targets[Math.floor(targets.length / 2)]!.seg.index];
   const at = middle ? { x: middle.mid[0], z: middle.mid[1] } : villageAnchor(state);
-  return { work, laborManDays: labor, logs: Math.floor(logs + EPSILON), segments, at };
+  let lengthM = 0;
+  for (const t of targets) lengthM += t.lengthM;
+  const note = {
+    lengthM: Math.round(lengthM * 100) / 100,
+    ...fortGateNotes(fort, shapes, section),
+  };
+  return { work, laborManDays: labor, logs: Math.floor(logs + EPSILON), segments, at, note };
 }
 
 /**
@@ -728,6 +789,7 @@ export function startSectionDemolition(
 ): FortificationResult {
   const plan = demolitionPlan(state, geo, input);
   if ('reason' in plan) return { ok: false, reason: plan.reason };
+  const lord = currentLord(state)?.name;
   const next = cloneState(state);
   next.constructions.push({
     id: next.nextId++,
@@ -743,6 +805,8 @@ export function startSectionDemolition(
     fortWork: plan.work,
     fortSegments: plan.segments,
     ...(plan.work === 'demolish' ? { fortLogsAt: plan.at } : {}),
+    // kronika: vojvoda v den rozkazu (Martin 14. 11. 2026)
+    fortNote: { ...(lord === undefined ? {} : { lord }), ...plan.note },
   });
   return { ok: true, state: next };
 }
@@ -974,6 +1038,7 @@ export function finishFortification(
       kind: 'fortification-demolished',
       logs,
       ...(c.fortWork === 'level' ? { level: true as const } : {}),
+      ...(c.fortNote ?? {}),
     };
   }
   if (c.fortWork === 'restore') {
