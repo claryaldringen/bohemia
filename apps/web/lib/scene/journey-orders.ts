@@ -42,15 +42,17 @@ export type LordClick =
 
 /**
  * Rozhodne o pravém kliknutí vybraného vojvody (lord-control.md – Co hráč vidí: důvod u kurzoru):
- * mimo terén nebo dokud se kandidáti načítají (`loading`) nic; je-li výjezd odepřen (`refusal`,
+ * mimo terén, dokud se kandidáti načítají (`loading`) nebo dokud vyslání čeká na odpověď
+ * (`launching` – dvojité pravé kliknutí nevyšle dvakrát) nic; je-li výjezd odepřen (`refusal`,
  * česky), ukáže se důvod u kurzoru a výběr zůstává; jinak se rozkaz odešle.
  */
 export function lordClick(input: {
   order: JourneyOrder | null;
   loading: boolean;
   refusal: string | null;
+  launching?: boolean;
 }): LordClick {
-  if (input.order === null || input.loading) return { kind: 'none' };
+  if (input.order === null || input.loading || input.launching === true) return { kind: 'none' };
   if (input.refusal !== null) return { kind: 'refuse', text: input.refusal };
   return { kind: 'send', order: input.order };
 }

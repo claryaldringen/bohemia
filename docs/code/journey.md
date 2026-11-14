@@ -315,8 +315,10 @@ mapSizeM, cell })` (čistá funkce) – bez vybraného vojvody nebo mimo terén 
   (`retinue`) a pravým tlačítkem volá `launchJourney`; na cestě (`dynasty.journeyAway`, na mapě,
   kterou scéna ukazuje – domovské, nebo od Úlohy 9b i cizí za vojvodou) volá `commandJourney`; ikona Domů `{ kind: 'home' }`. Režim vojvody (`setLordMode`) zůstává
   zapnutý i při odepřeném výjezdu a během načítání kandidátů: `lordClick` (`journey-orders.ts`) rozhodne
-  o pravém kliknutí – nic (mimo terén, načítání), důvod u kurzoru (`refuse`, výběr zůstává) nebo odeslání
-  rozkazu. Důvod (`journeyReason`) a „Na sousední mapu“ ukáže `JourneyCursorNote` u kurzoru, v panelu je
+  o pravém kliknutí – nic (mimo terén, načítání, vyslání čeká na odpověď – `launching`), důvod
+  u kurzoru (`refuse`, výběr zůstává) nebo odeslání rozkazu. Dvojité pravé kliknutí nevyšle dvakrát
+  (`useLordJourney` drží běžící vyslání v ref); kliknutí po úspěšném vyslání, než ves ví, že je
+  vojvoda pryč, je už rozkaz výjezdu (`commandJourney`, server ho ověří). Důvod (`journeyReason`) a „Na sousední mapu“ ukáže `JourneyCursorNote` u kurzoru, v panelu je
   jen v popisku zašedlé řady. `useJourney(running,
 onEnded)` se ptá jen s `running` (vojvoda pryč nebo právě vyjel); zmizí-li pohled, `onEnded`
   obnoví ves (upozornění „… se vrátil.“) a dotazy stojí, dokud ves návrat nepotvrdí. Chyba sítě
@@ -366,9 +368,12 @@ onEnded)` se ptá jen s `running` (vojvoda pryč nebo právě vyjel); zmizí-li 
 - **Odjezd a příjezd** – viz níž (Úloha 8c).
 - **e2e** – háček `journeyScene` (`lib/e2e-hooks.ts`: muži, jak jsou nakreslení, praporek a dny
   na hodinách); `e2e/journey.spec.ts` druhý test – dva hráči, jezdci jedou, praporek u cíle, hodiny
-  při čekání, cíl ve vodě (praporek na souši), cizí výjezd u vsi (bod checkpointu přepsaný v DB)
+  při čekání, cizí výjezd u vsi (bod checkpointu přepsaný v DB)
   a klik na něj. `JOURNEY_SHOT=<cesta>` uloží snímek. E2e běží s omezeným pohybem (`reducedMotion`)
-  – muži tam skáčou na nový stav, plynulý posun kryje `journey-riders.test.ts`.
+  – muži tam skáčou na nový stav, plynulý posun kryje `journey-riders.test.ts`. Cíl ve vodě
+  (praporek na souši) závisel na náhodné krajině a byl nestabilní – kryje ho unit test
+  `journey.test.ts` (posunutý `group.goal` leží na souši) a `journey-marker.test.ts` (praporek na
+  `group.goal`).
 - **Testy** – `lib/scene/__tests__/journey-riders.test.ts`, `journey-marker.test.ts`,
   `lib/__tests__/journey-scene.test.ts`, `hooks/__tests__/use-journey-visitors.behavior.test.tsx`.
 
