@@ -226,4 +226,26 @@ describe('journey repository', () => {
     await journeys.create(state(120, { id: ID2 }), NOW);
     expect(await journeys.activeIn('a', 'v')).toBe(ID2);
   });
+
+  it('souběh: záměr při souběžném konci výpravy se nezapíše (zámek řádku výpravy)', async () => {
+    await journeys.create(state(100), NOW);
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    let locked: () => void = () => undefined;
+    const lockTaken = new Promise<void>((resolve) => (locked = resolve));
+    // konec výpravy, který ještě nepotvrdil: drží zámek bodu a řádek výpravy změněn
+    const ending = db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT 1 FROM journey_checkpoint WHERE journey_id = ${ID} FOR UPDATE`);
+      await tx.execute(sql`UPDATE journey SET status = 'done' WHERE id = ${ID}`);
+      locked();
+      await held;
+    });
+    await lockTaken;
+    const adding = journeys.addIntent(ID, { tick: 200, byPlayer: 'a', body: HOME });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    release();
+    await ending;
+    expect(await adding).toBeNull();
+    expect(await journeys.intentsAfter(ID, 0)).toEqual([]);
+  });
 });

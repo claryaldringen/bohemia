@@ -19,6 +19,7 @@ import { land } from '../../domain/war/__tests__/battle-fixtures';
 import { InMemoryKnowledge } from './in-memory-knowledge';
 import {
   commandJourney,
+  expeditionVisitorsOn,
   journeyViewFor,
   visitorsOn,
   type JourneyCommandDeps,
@@ -396,5 +397,70 @@ describe('visitorsOn', () => {
   it('hráč na vlastní mapě bez návštěvy – prázdno', async () => {
     const w = await setup();
     expect(await visitorsOn(w.deps, { playerId: 'pb', villageId: w.hostId })).toEqual([]);
+  });
+});
+
+describe('expeditionVisitorsOn', () => {
+  /** Dvě skupiny výpravy hráče `pa` na mapě hostitele: vojvoda u domu (x = 40), Radim daleko (x = 900). */
+  async function twoParties(): Promise<Awaited<ReturnType<typeof setup>>> {
+    const w = await setup();
+    patch(w.journeys, w.id, (s) => {
+      const first = s.groups[0]!;
+      first.cell = { x: 1, y: 0 };
+      first.pos = { x: 40, z: 0 };
+      first.goal = { cell: { x: 1, y: 0 }, pos: { x: 50, z: 5 } };
+      const far = structuredClone(first);
+      far.id = 9;
+      far.party = 9;
+      far.pos = { x: 900, z: 0 };
+      s.groups.push(far);
+      s.parties.push({ id: 9, phase: 'out', arrivedTick: null });
+      s.members.find((m) => m.ref.personId === 12)!.group = 9;
+      s.members.find((m) => m.ref.personId === 12)!.horse = 'led';
+      s.nextId = 10;
+    });
+    return w;
+  }
+
+  it('hostitel vidí jen skupinu, jejíž hlouček je v dohledu; bez cíle a osobních údajů', async () => {
+    const w = await twoParties();
+    const r = await expeditionVisitorsOn(w.deps, { playerId: 'pb', villageId: w.hostId });
+    expect(r).toEqual([
+      {
+        journeyId: w.id,
+        partyId: 0,
+        own: false,
+        leaderName: 'Bořivoj',
+        houseName: 'Radim',
+        tick: expect.any(Number),
+        groups: [{ id: 0, pos: { x: 40, z: 0 }, goal: null }],
+        people: [
+          { personId: 10, lord: true, mounted: false, led: false, female: false, child: false },
+        ],
+      },
+    ]);
+  });
+
+  it('vlastní skupina je vidět vždy i s cílem; ve výsledku jen hloučky na této mapě', async () => {
+    const w = await twoParties();
+    patch(w.journeys, w.id, (s) => {
+      // druhá skupina má hlouček na domovské mapě (daleko od domů) a druhý na mapě hostitele
+      const far = s.groups.find((g) => g.id === 9)!;
+      far.cell = { x: 0, y: 0 };
+      far.goal = { cell: { x: 0, y: 0 }, pos: { x: 910, z: 5 } };
+      s.groups.push({ ...structuredClone(s.groups[0]!), id: 11, party: 9 });
+    });
+    const mine = await expeditionVisitorsOn(w.deps, { playerId: 'pa', villageId: w.homeId });
+    expect(mine).toHaveLength(1);
+    expect(mine[0]).toMatchObject({ partyId: 9, own: true });
+    expect(mine[0]!.groups).toEqual([{ id: 9, pos: { x: 900, z: 0 }, goal: { x: 910, z: 5 } }]);
+    expect(mine[0]!.people.map((p) => [p.personId, p.led])).toEqual([[12, true]]);
+  });
+
+  it('cizí ves hráče a ves bez návštěvy – prázdno', async () => {
+    const w = await twoParties();
+    expect(await expeditionVisitorsOn(w.deps, { playerId: 'pa', villageId: w.hostId })).toEqual([]);
+    expect(await expeditionVisitorsOn(w.deps, { playerId: 'pb', villageId: w.homeId })).toEqual([]);
+    expect(await expeditionVisitorsOn(w.deps, { playerId: 'pb', villageId: 'nic' })).toEqual([]);
   });
 });

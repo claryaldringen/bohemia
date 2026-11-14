@@ -17,7 +17,7 @@ import { LAUNCH, MEADOW, SUMMER, world } from '../../domain/war/__tests__/campai
 import type { CampaignCells } from '../campaigns';
 import { houseAtWarOn, recallJourneysAtWar, type RecallJourneysDeps } from '../journey-war';
 import { newCampaignMemory, stepCampaigns } from '../step-campaigns';
-import { stepJourneys, type StepJourneysDeps } from '../step-journeys';
+import { playerSeesChange, stepJourneys, type StepJourneysDeps } from '../step-journeys';
 import { InMemoryCampaignLock, InMemoryCampaigns } from './in-memory-campaigns';
 import { InMemoryHouses } from './in-memory-houses';
 import { InMemoryJourneys } from './in-memory-journeys';
@@ -45,6 +45,17 @@ const HOMEWARD = { tick: LAUNCH + 300, byPlayer: 'pa', body: { kind: 'home' as c
 
 /** Rozkaz „Přes okraj“ na nesousední políčko se zahodí – skupina stojí doma. */
 const STAND = { kind: 'cross' as const, cell: { x: 5, y: 5 } };
+
+/** Rozkaz „Přes okraj“ na východ jen pro osobu 2 – rozdělí ji od osoby 1 do vlastní skupiny. */
+const SECOND_EAST = {
+  tick: LAUNCH + 8,
+  byPlayer: 'pa',
+  body: {
+    kind: 'order' as const,
+    order: { kind: 'cross' as const, cell: EAST },
+    people: [2],
+  },
+};
 
 /** Muž výjezdu – osoba 1 je vojvoda Bořivoj, oba na koni. */
 function man(personId: number): JourneyRecruit {
@@ -475,6 +486,80 @@ describe('stepJourneys', () => {
     expect(s.notices.notices.map((n) => n.kind)).toEqual(['journey-returned']);
   });
 
+  it('druhá skupina vjede na mapu rodu ve válce – „Domů“ s tím políčkem jednou, první stojí dál', async () => {
+    const s = await setup();
+    await startWar(s);
+    await s.journeys.create(journey({ order: STAND }));
+    await s.journeys.addIntent('j1', SECOND_EAST);
+    await rounds(s.deps, LAUNCH + 1, LAUNCH + 1000);
+    const recalls = queued(s.journeys).filter(
+      (i) => (i as { body: { kind: string } }).body.kind === 'recall',
+    );
+    expect(recalls).toEqual([
+      {
+        journeyId: 'j1',
+        tick: expect.any(Number),
+        byPlayer: 'pa',
+        body: { kind: 'recall', cells: [EAST] },
+      },
+    ]);
+    // první skupina (osoba 1) rozkaz nedostala – dál stojí doma, odvolání se jí netýká
+    const now = await stored(s.journeys);
+    expect(now.parties.filter((p) => p.phase === 'out').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('kolo bez nového políčka se na válku neptá (počet dotazů 0), ani při dělení skupiny doma', async () => {
+    const { deps, journeys } = await setup();
+    const asked: GridCell[] = [];
+    const used: StepJourneysDeps = {
+      ...deps,
+      memory: newCampaignMemory<JourneyState>(),
+      atWar: (_playerId, cell) => {
+        asked.push(cell);
+        return Promise.resolve(false);
+      },
+    };
+    await journeys.create(journey({ order: STAND }));
+    // rozkaz „Jdi sem“ jen pro osobu 2 na domovské mapě: nový hlouček, ale políčko domova
+    await journeys.addIntent('j1', {
+      tick: LAUNCH + 8,
+      byPlayer: 'pa',
+      body: { kind: 'order', order: { kind: 'go', pos: { x: 305, z: 5 } }, people: [2] },
+    });
+    await rounds(used, LAUNCH + 1, LAUNCH + 200);
+    expect(asked).toEqual([]);
+  });
+
+  describe('playerSeesChange', () => {
+    const base = (): JourneyState => journey({ order: STAND });
+    const changed = (edit: (s: JourneyState) => void): JourneyState => {
+      const s = structuredClone(base());
+      edit(s);
+      return s;
+    };
+
+    it('beze změny ne; jen horseWork, arrivedTick nebo kůň člena ano', () => {
+      expect(playerSeesChange(base(), structuredClone(base()), [])).toBe(false);
+      const work = {
+        kind: 'saddle' as const,
+        groomId: null,
+        riders: [1],
+        fromTick: LAUNCH,
+        untilTick: LAUNCH + 20,
+        pen: { x: 1, z: 2 },
+      };
+      const edits: ((s: JourneyState) => void)[] = [
+        (s) => (s.parties[0]!.horseWork = work),
+        (s) => (s.parties[0]!.arrivedTick = LAUNCH + 9),
+        (s) => {
+          s.members[1]!.horse = 'led';
+          s.members[1]!.mounted = false;
+        },
+      ];
+      for (const edit of edits) expect(playerSeesChange(base(), changed(edit), [])).toBe(true);
+    });
+  });
+
   it('chyba jednoho výjezdu nezastaví ostatní; výjezd s cizím zámkem se přeskočí', async () => {
     const { deps, journeys, lock } = await setup();
     // každá výprava jiného hráče – z jedné vsi smí hráč mít jednu běžící
@@ -596,6 +681,24 @@ describe('recallJourneysAtWar', () => {
     await s.journeys.create(there);
     await recallAt(s, LAUNCH + 1004);
     expect(queued(s.journeys)).toEqual([home('j1', LAUNCH + 1004)]);
+  });
+
+  it('opověď pošle domů jen skupinu na mapě protivníka', async () => {
+    const s = await setup();
+    const intent = { ...SECOND_EAST, seq: 1 };
+    const there = stepJourney(journey({ order: STAND }), LAUNCH + 1000, [intent], WHOLE).state;
+    const east = there.groups.find((g) => sameCell(g.cell, EAST))!;
+    const stays = there.groups.find((g) => sameCell(g.cell, HOME.cell))!;
+    expect(east.party).not.toBe(stays.party);
+    await s.journeys.create(there);
+    await recallAt(s, LAUNCH + 1004);
+    expect(queued(s.journeys)).toEqual([home('j1', LAUNCH + 1004)]);
+    const tick = LAUNCH + 1004 + INTENT_LEAD_TICKS;
+    const recall = { ...s.journeys.intents[0]!, tick };
+    const after = stepJourney(there, tick + 1, [recall], WHOLE).state;
+    const phase = (id: number): string | undefined => after.parties.find((p) => p.id === id)?.phase;
+    expect(phase(east.party)).toBe('returning');
+    expect(phase(stays.party)).toBe('out');
   });
 
   it('skupina tam teprve jede s rozkazem „Přes okraj“ – „Domů“; platí pro výjezdy obou rodů', async () => {

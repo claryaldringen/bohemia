@@ -306,8 +306,9 @@ untilTick, pen }`: vesničan `groomId` (null = nikdo doma), jezdci (id osob), ta
   Cyklus jako `stepOne` tažení: bod → doručit schránku bodu → záměry → dopočet → uložit →
   doručit. Stojící skupina se uloží nejvýš po `CHECKPOINT_TICKS` (40) taktech; hned se uloží s událostmi,
   na konci výjezdu, když výjezd čeká na ves (bariéra – mez vsi povyroste) a když se od uloženého
-  bodu změnilo, co hráč vidí (`playerSeesChange`: poloha, cíl nebo dojetí hloučku podle id, fáze
-  výpravy i skupin, uplatněný záměr; bod se napřed převede `upgradeJourney`) – jedoucí skupina se tak ukládá každé kolo (≈ 1 s) a vojvoda na klik reaguje do vteřiny
+  bodu změnilo, co hráč vidí (`playerSeesChange`: poloha, cíl nebo dojetí hloučku podle id, fáze,
+  `arrivedTick` a `horseWork` skupin, `mounted`/`horse`/hlouček členů, uplatněný záměr; bod se
+  napřed převede `upgradeJourney`) – jedoucí skupina se tak ukládá každé kolo (≈ 1 s) a vojvoda na klik reaguje do vteřiny
   (Martin 14. 11. 2026: „kliknu do mapy… strašně dlouho mu trvá, než se rozjede“).
 - **Dopočet s načítáním** – `computeWithLoads(deps, state, step)` v `step-campaigns.ts` je
   zobecněný dopočet tažení (`computeCampaign` ho volá nad `stepCampaign`, výjezd nad `stepJourney`):
@@ -332,10 +333,12 @@ untilTick, pen }`: vesničan `groomId` (null = nikdo doma), jezdci (id osob), ta
   (`StepJourneysDeps.atWar` = `houseAtWarOn`, ve workeru `GameDeps.atWar`) **jen když skupina ve
   spočteném stavu stojí na jiném políčku** než ve stavu, od kterého kolo počítalo (návrh Clauda po
   Martinově otázce 13. 11. 2026, proč se worker na válku ptá každou sekundu) – po hloučcích podle
-  id, jen u skupin venku (`out`). Patří-li nová mapa rodu ve válce, kolo zapíše za hráče odvolání
-  `{ kind: 'recall', cells: [políčko] }` (`addIntent`, `byPlayer` = hráč výjezdu, takt teď +
-  `INTENT_LEAD_TICKS` jako rozkaz hráče). Jednou: skupina ve fázi `returning` ani políčko
-  s čekajícím odvoláním (nebo starým „Domů“ všem) se neptá. Bez paměti workeru kolo
+  id, jen u skupin venku (`out`); nový hlouček (dělení skupiny) se porovnává s domovským políčkem.
+  Patří-li nová mapa rodu ve válce, kolo zapíše za hráče **jedno** odvolání
+  `{ kind: 'recall', cells: [všechna válečná políčka] }` (`addIntent`, `byPlayer` = hráč výjezdu,
+  takt teď + `INTENT_LEAD_TICKS` jako rozkaz hráče); odvolání platí jen skupiny na těch políčkách,
+  ostatní skupiny stojí dál. Jednou: skupina ve fázi `returning` ani políčko s čekajícím
+  odvoláním (nebo starým „Domů“ všem) se neptá. Bez paměti workeru kolo
   počítá od bodu, takže se po vjezdu ptá i v dalších kolech, než se bod uloží – zapíše ale stejně
   (čekající „Domů“, pak `returning`). Pravidlo: lord-control.md – Pořadí zavedení.
 - **Začátek války** – `recallJourneysAtWar(deps, { houses, nowMs })` (`journey-war.ts`), volají ho
@@ -384,6 +387,19 @@ untilTick, pen }`: vesničan `groomId` (null = nikdo doma), jezdci (id osob), ta
   skupina po dojetí stojí a je `out`, jinak null. `controllable` = skupina neztratila vojvodu (není
   `leaderless` a vojvoda v ní nepadl). `commandJourney` řídí tutéž skupinu a zapisuje starý záměr
   (rozkaz všem) – tenký adaptér do Úlohy 9; `visitorsOn` ukazuje za výpravu jeden hlouček na mapě.
+- **`expeditionViewsFor(deps, { playerId })`** (`expedition-view.ts`) – pohledy hráče na **všechny**
+  jeho běžící výpravy (`activeOfPlayer`, jedna za domovskou ves; bod převede `upgradeJourney`,
+  skončená a cizí výprava prázdno). `ExpeditionView` nese `villageId`, takt, den, domov a `homePos`,
+  `parties[]` (`PartyView`: fáze, `controllable`, `leaderId` = `partyLeader` živých, `waitDaysLeft`,
+  `horseWork`, hloučky `groups[]` a lidé `people[]` s hloučkem, jezdcem, koněm, `strength` – na koni
+  `strengthMounted ?? strength` –, raněním, ženou a dítětem podle `bornDay` ve dni bodu) a `seen`
+  (klíč `x,y` – znalost rodu sloučená s `seen` výpravy pro každé cizí políčko hloučku, jeden dotaz
+  na políčko; domovská mapa nic). `journeyViewFor` zůstává jako adaptér pro starý web.
+- **`expeditionVisitorsOn(deps, { playerId, villageId })`** (`journey-view.ts`) – skupiny výprav
+  na mapě vsi hráče. Hostitel vidí skupinu, když vidí aspoň jeden její hlouček na této mapě
+  (`inSight`); vlastní skupiny vždy. Výsledek `ExpeditionVisitor`: id výpravy a skupiny, `own`,
+  jméno vůdce (`partyLeader`) a rodu, takt, hloučky na této mapě (cíl jen u vlastní skupiny) a jejich
+  lidé (vojvoda, kůň, vedený kůň, žena, dítě). Starý `visitorsOn` zůstává pro starý web.
 - **`commandJourney(deps, { playerId, command, nowMs })`** – zapíše záměr na takt teď +
   `INTENT_LEAD_TICKS`. `refused`: bez výjezdu, skončený výjezd, vojvoda padl, neplatný vstup;
   `unreachable`; `war-there` (`atWar` na políčko cíle – `cross`, nebo mapa, kde skupina stojí).

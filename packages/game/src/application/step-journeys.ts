@@ -158,7 +158,7 @@ async function stepOne(
  * pohled z kontrolního bodu – jedoucí hlouček se proto ukládá každé kolo (≈ 1 s), ať lidé na klik
  * reagují do vteřiny; stojící zůstávají na `CHECKPOINT_TICKS`.
  */
-function playerSeesChange(
+export function playerSeesChange(
   from: JourneyState,
   to: JourneyState,
   intents: readonly JourneyIntent[],
@@ -166,8 +166,29 @@ function playerSeesChange(
   if (from.phase !== to.phase || from.groups.length !== to.groups.length) return true;
   if (from.parties.length !== to.parties.length) return true;
   if (intents.some((i) => i.tick <= to.tick)) return true;
-  const phases = new Map(from.parties.map((p) => [p.id, p.phase]));
-  if (to.parties.some((p) => phases.get(p.id) !== p.phase)) return true;
+  const parties = new Map(from.parties.map((p) => [p.id, p]));
+  if (
+    to.parties.some((p) => {
+      const was = parties.get(p.id);
+      return (
+        was?.phase !== p.phase ||
+        was.arrivedTick !== p.arrivedTick ||
+        JSON.stringify(was.horseWork) !== JSON.stringify(p.horseWork)
+      );
+    })
+  ) {
+    return true;
+  }
+  // kůň pod jezdcem (nasedl, sesedl, vede ho) – scéna ukazuje jezdce a koně
+  if (from.members.length !== to.members.length) return true;
+  if (
+    to.members.some((m, i) => {
+      const was = from.members[i]!;
+      return was.mounted !== m.mounted || was.horse !== m.horse || was.group !== m.group;
+    })
+  ) {
+    return true;
+  }
   const groups = new Map(from.groups.map((g) => [g.id, g]));
   return to.groups.some((g) => {
     const was = groups.get(g.id);
@@ -187,13 +208,13 @@ function playerSeesChange(
 }
 
 /**
- * Vjezd na mapu rodu ve válce (lord-control.md – Pořadí zavedení; plán 2026-11-13 – Úloha 4): kolo
+ * Vjezd na mapu rodu ve válce (lord-control.md – Pořadí zavedení; plán 2026-11-14 – Úloha 6): kolo
  * se ptá (`atWar`) jen na políčka hloučků skupin venku (`out`), které ve spočteném stavu `after`
- * stojí na jiném políčku než ve stavu `before`, od kterého kolo počítalo (nebo tam ještě nebyly) –
- * jinak by se ptalo každou sekundu; začátek války, když hlouček už stojí, řeší
- * `recallJourneysAtWar`. Při válce zapíše za hráče odvolání `recall` toho políčka s taktem jako jeho
- * rozkaz (teď + `INTENT_LEAD_TICKS`). Jednou: skupina, která se vrací, ani políčko s čekajícím
- * odvoláním (nebo starým „Domů“ všem) se neptá.
+ * stojí na jiném políčku než ve stavu `before`, od kterého kolo počítalo; nový hlouček (dělení
+ * skupiny) se porovnává s domovským políčkem – jinak by se ptalo každou sekundu. Začátek války,
+ * když hlouček už stojí, řeší `recallJourneysAtWar`. Políčka ve válce jdou v jednom záměru
+ * `recall` s taktem jako rozkaz hráče (teď + `INTENT_LEAD_TICKS`). Políčko s čekajícím odvoláním
+ * (nebo starým „Domů“ všem) se neptá, skupina, která se vrací, také ne.
  */
 async function homeFromWar(
   deps: Pick<StepJourneysDeps, 'journeys' | 'atWar'>,
@@ -208,24 +229,27 @@ async function homeFromWar(
   const was = new Map(before.groups.map((g) => [g.id, g.cell]));
   const cells: GridCell[] = [];
   for (const g of after.groups) {
-    const prev = was.get(g.id);
-    if (!out.has(g.party) || (prev && sameCell(prev, g.cell))) continue;
+    if (!out.has(g.party) || sameCell(was.get(g.id) ?? before.home.cell, g.cell)) continue;
     if (!cells.some((c) => sameCell(c, g.cell))) cells.push(g.cell);
   }
-  for (const cell of cells) {
-    const pending = intents.some((i) => {
-      if (i.tick <= after.tick || i.byPlayer !== after.playerId) return false;
+  const pending = intents.filter((i) => i.tick > after.tick && i.byPlayer === after.playerId);
+  const waiting = (cell: GridCell): boolean =>
+    pending.some((i) => {
       const command = commandOf(i.body);
       if (command.kind === 'recall') return command.cells.some((c) => sameCell(c, cell));
       return (
         command.kind === 'order' && command.order.kind === 'home' && command.people === undefined
       );
     });
-    if (pending || !(await deps.atWar(after.playerId, cell))) continue;
-    await deps.journeys.addIntent(after.id, {
-      tick: toTick + INTENT_LEAD_TICKS,
-      byPlayer: after.playerId,
-      body: { kind: 'recall', cells: [{ x: cell.x, y: cell.y }] },
-    });
+  const war: GridCell[] = [];
+  for (const cell of cells) {
+    if (waiting(cell) || !(await deps.atWar(after.playerId, cell))) continue;
+    war.push({ x: cell.x, y: cell.y });
   }
+  if (war.length === 0) return;
+  await deps.journeys.addIntent(after.id, {
+    tick: toTick + INTENT_LEAD_TICKS,
+    byPlayer: after.playerId,
+    body: { kind: 'recall', cells: war },
+  });
 }

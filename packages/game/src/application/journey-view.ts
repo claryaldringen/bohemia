@@ -1,5 +1,6 @@
 import type { WorldClock } from '../domain/calendar';
 import type { GridCell } from '../domain/village/people/world-grid';
+import { ageGroupOf } from '../domain/village/people/people';
 import { sameCell } from '../domain/village/people/world-grid';
 import {
   hoursPerTick,
@@ -128,13 +129,13 @@ function lordParty(state: JourneyState): { party: JourneyParty; group: JourneyGr
 }
 
 /** Lidé skupiny `party` (ze všech jejích hloučků). */
-function membersOf(state: JourneyState, party: number): JourneyState['members'] {
+export function membersOf(state: JourneyState, party: number): JourneyState['members'] {
   const groups = new Set(state.groups.filter((g) => g.party === party).map((g) => g.id));
   return state.members.filter((m) => groups.has(m.group));
 }
 
 /** Hráč skupině rozkazuje – neztratila vojvodu (krok ji pak označí `leaderless`). */
-function controllable(state: JourneyState, party: JourneyParty): boolean {
+export function controllable(state: JourneyState, party: JourneyParty): boolean {
   if (party.leaderless) return false;
   return !membersOf(state, party.id).some((m) => m.lord && m.status === 'fallen');
 }
@@ -156,7 +157,11 @@ async function seenOn(
 }
 
 /** Celé dny do návratu: 3 hned po dojetí, pak 2, 1; skupina, která jede, nebo se vrací – null. */
-function waitDaysLeft(state: JourneyState, party: JourneyParty, world: WorldClock): number | null {
+export function waitDaysLeft(
+  state: JourneyState,
+  party: JourneyParty,
+  world: WorldClock,
+): number | null {
   if (state.phase !== 'out' || party.phase !== 'out' || party.arrivedTick === null) return null;
   const elapsedDays = ((state.tick - party.arrivedTick) * hoursPerTick(world)) / 24;
   return Math.max(1, Math.ceil(JOURNEY.waitDays - elapsedDays));
@@ -286,6 +291,96 @@ export async function visitorsOn(
         .filter((m) => m.group === group.id && m.status === 'active')
         .map((m) => ({ lord: m.lord, mounted: m.mounted })),
     });
+  }
+  return visitors;
+}
+
+/** Skupina výpravy na mapě vsi – co o ní hostitel smí vědět (expeditions.md – Soused). */
+export interface ExpeditionVisitor {
+  journeyId: string;
+  partyId: number;
+  own: boolean;
+  /** Jméno vůdce skupiny; beze jména null. */
+  leaderName: string | null;
+  /** Jméno rodu (jako v panelu Rod). */
+  houseName: string;
+  tick: number;
+  /** Hloučky skupiny na této mapě (cíl jen u vlastní skupiny). */
+  groups: { id: number; pos: Pos; goal: Pos | null }[];
+  people: {
+    personId: number;
+    lord: boolean;
+    mounted: boolean;
+    /** Vede koně za uzdu. */
+    led: boolean;
+    female: boolean;
+    child: boolean;
+  }[];
+}
+
+/**
+ * Skupiny výprav na mapě vsi `villageId` hráče. Hostitel vidí skupinu, když vidí aspoň jeden její
+ * hlouček na této mapě (`inSight`: 150 m, v lese 50 m, lidmi a domy vsi); vlastní skupiny vidí
+ * vždy. Ve výsledku jsou jen hloučky na této mapě a lidé v nich. Ves jiného hráče: prázdno.
+ */
+export async function expeditionVisitorsOn(
+  deps: VisitorsDeps,
+  input: { playerId: string; villageId: string },
+): Promise<ExpeditionVisitor[]> {
+  const own = await findPlayerVillage(deps, input);
+  const cell = own?.settlement.worldCell;
+  if (!own || !cell) return [];
+  const states: JourneyState[] = [];
+  for (const id of await deps.journeys.onCell(cell)) {
+    const point = await deps.journeys.checkpoint(id);
+    if (point) states.push(upgradeJourney(point.state));
+  }
+  if (states.length === 0) return [];
+  const village = own.village.state;
+  const eyes = village.dwellings.map((d) => ({ x: d.position.x, z: d.position.z }));
+  const grid = states.some((s) => s.playerId !== input.playerId)
+    ? await mapGrid(deps, cell, village.lastDay)
+    : null;
+  const visitors: ExpeditionVisitor[] = [];
+  for (const state of states) {
+    const mine = state.playerId === input.playerId;
+    const house = await deps.houses.byId(state.houseId);
+    for (const party of state.parties) {
+      const seen = state.groups.filter(
+        (g) =>
+          g.party === party.id &&
+          sameCell(g.cell, cell) &&
+          (mine || eyes.some((e) => inSight(grid, e, g.pos))),
+      );
+      if (seen.length === 0) continue;
+      const ids = new Set(seen.map((g) => g.id));
+      const active = membersOf(state, party.id).filter((m) => m.status === 'active');
+      const leaderName = partyLeader(active)?.name ?? null;
+      visitors.push({
+        journeyId: state.id,
+        partyId: party.id,
+        own: mine,
+        leaderName,
+        houseName: house ? await houseName(deps, house) : (leaderName ?? ''),
+        tick: state.tick,
+        groups: seen.map((g) => ({
+          id: g.id,
+          pos: { ...g.pos },
+          // cíl jen u vlastní skupiny – o cizí smí hostitel znát jen jméno a rod
+          goal: mine && g.goal && sameCell(g.goal.cell, cell) ? { ...g.goal.pos } : null,
+        })),
+        people: active
+          .filter((m) => ids.has(m.group))
+          .map((m) => ({
+            personId: m.ref.personId,
+            lord: m.lord,
+            mounted: m.mounted,
+            led: m.horse === 'led',
+            female: m.female === true,
+            child: m.bornDay !== undefined && ageGroupOf(m.bornDay, state.day) === 'child',
+          })),
+      });
+    }
   }
   return visitors;
 }

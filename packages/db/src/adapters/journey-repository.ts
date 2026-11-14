@@ -189,13 +189,15 @@ export function createJourneyRepository(db: Database): JourneyRepository {
       journeyId: string,
       intent: Omit<JourneyIntent, 'seq'>,
     ): Promise<JourneyIntent | null> {
+      // zámek i řádku výpravy: souběžný konec (`end`, uložení poslední návrat) ji drží a bez zámku by
+      // `j.status` zůstal ze snímku před koncem – záměr by vznikl u skončené výpravy
       const result = await db.execute<{ seq: number }>(sql`
         INSERT INTO ${journeyIntent} (journey_id, tick, by_player, body)
         SELECT cp.journey_id, ${intent.tick}, ${intent.byPlayer}, ${JSON.stringify(intent.body)}::jsonb
           FROM ${journeyCheckpoint} cp
           JOIN ${journey} j ON j.id = cp.journey_id
          WHERE cp.journey_id = ${journeyId} AND cp.tick < ${intent.tick} AND j.status = 'active'
-           FOR SHARE OF cp
+           FOR SHARE OF cp, j
         RETURNING seq`);
       const row = result.rows[0];
       return row ? { ...structuredClone(intent), seq: row.seq } : null;
