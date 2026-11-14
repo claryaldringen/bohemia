@@ -44,6 +44,11 @@ export interface SceneJourney extends Pick<
   phase: JourneyPhase | null;
   /** Celé dny do návratu (přesýpací hodiny) – jen vlastní skupina, která stojí na místě. */
   waitDaysLeft: JourneyView['waitDaysLeft'];
+  /**
+   * Odkud vlastní výjezd vyjel a kam se vrací (`JourneyView.homePos` – dvorec vsi); od něj se měří
+   * odjezd a příjezd (journey-departure.ts). Návštěvník null.
+   */
+  home: Pos | null;
 }
 
 /** Muž výjezdu nakreslený ve scéně – poloha, směr a rychlost. */

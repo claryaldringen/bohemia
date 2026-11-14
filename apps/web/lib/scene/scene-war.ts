@@ -1,7 +1,7 @@
 import type { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';
 import type { Camera } from '@babylonjs/core/Cameras/camera';
 import type { Scene } from '@babylonjs/core/scene';
-import { surfaceAt, type Landscape, type Pos } from '@bohemia/game';
+import { surfaceAt, type Landscape } from '@bohemia/game';
 import { ArmyRenderer, type SceneWar } from './army-renderer';
 import type { JourneyScenePhase, JourneyYard } from './journey-departure';
 import { JourneyMarker, journeyMarks } from './journey-marker';
@@ -30,8 +30,8 @@ export class SceneWarView {
   private journeys: readonly SceneJourney[] = [];
   /** Praporek cíle a přesýpací hodiny vlastního výjezdu (journey-marker.ts). */
   private marker: JourneyMarker | null = null;
-  /** Místa dvorce pro odjezd a příjezd výjezdu a místo vsi (journey-departure.ts). */
-  private yard: { yard: JourneyYard | null; home: Pos | null } = { yard: null, home: null };
+  /** Místa dvorce pro odjezd a příjezd výjezdu (journey-departure.ts). */
+  private yard: JourneyYard | null = null;
   /** Stopa rodu pro mlhu cizí mapy výjezdu; null – bez mlhy výjezdu (army-renderer.ts). */
   private trail: readonly (readonly [number, number])[] | null = null;
 
@@ -56,7 +56,7 @@ export class SceneWarView {
     });
     this.marker?.dispose();
     this.marker = new JourneyMarker(this.deps.scene, decalHeight);
-    this.army.setJourneyYard(this.yard.yard, this.yard.home);
+    this.army.setJourneyYard(this.yard);
     if (this.war) this.army.set(this.war, Date.now(), this.deps.reducedMotion(), null);
     if (this.journeys.length > 0) {
       this.army.setJourneys(this.journeys, Date.now(), this.deps.reducedMotion(), null);
@@ -101,12 +101,12 @@ export class SceneWarView {
   }
 
   /**
-   * Místa dvorce pro odjezd a příjezd výjezdu (villager-plan-lord.ts – `journeyYard`) a místo vsi
-   * `home`, odkud jádro skupinu vysílá (journey-departure.ts).
+   * Místa dvorce pro odjezd a příjezd výjezdu (villager-plan-lord.ts – `journeyYard`); domov, od
+   * kterého se odjezd a příjezd měří, nese výjezd ze serveru (journey-departure.ts).
    */
-  setJourneyYard(yard: JourneyYard | null, home: Pos | null): void {
-    this.yard = { yard, home };
-    this.army?.setJourneyYard(yard, home);
+  setJourneyYard(yard: JourneyYard | null): void {
+    this.yard = yard;
+    this.army?.setJourneyYard(yard);
   }
 
   /** Koně a muži vsi, kteří odjíždějí nebo přijíždějí – ohrada a den rodiny je nekreslí. */
@@ -132,7 +132,7 @@ export class SceneWarView {
       ...marks,
       phase: this.army?.journeyPhase() ?? null,
       led: (this.army?.journeyLed() ?? []).map((h) => ({ x: h.x, z: h.z })),
-      gate: this.yard.yard ? { ...this.yard.yard.gate } : null,
+      gate: this.yard ? { ...this.yard.gate } : null,
     };
   }
 

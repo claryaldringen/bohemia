@@ -17,6 +17,7 @@ function journey(over: Partial<SceneJourney> = {}): SceneJourney {
     arrived: false,
     phase: 'out',
     waitDaysLeft: null,
+    home: null,
     ...over,
   };
 }

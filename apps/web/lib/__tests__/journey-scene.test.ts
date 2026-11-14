@@ -17,6 +17,7 @@ function view(over: Partial<JourneyView> = {}): JourneyView {
     phase: 'out',
     cell: HOME,
     home: HOME,
+    homePos: { x: 5, z: 5 },
     men: [
       { personId: 7, lord: true, mounted: true, wounded: false },
       { personId: 9, lord: false, mounted: false, wounded: true },
@@ -58,6 +59,8 @@ describe('sceneJourneysOf', () => {
       goal: { x: 40, z: 6 },
       arrived: false,
       phase: 'out',
+      // domov výjezdu ze serveru (dvorec) – odjezd a příjezd se měří od něj
+      home: { x: 5, z: 5 },
     });
     expect(list[0]!.men).toEqual([
       { key: '7', personId: 7, lord: true, mounted: true, wounded: false },
@@ -71,6 +74,7 @@ describe('sceneJourneysOf', () => {
       arrived: null,
       phase: null,
       waitDaysLeft: null,
+      home: null,
     });
     expect(list[1]!.men).toEqual([
       { key: '0', personId: null, lord: true, mounted: true, wounded: false },

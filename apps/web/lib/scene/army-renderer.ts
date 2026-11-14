@@ -360,11 +360,11 @@ export class ArmyRenderer {
   }
 
   /**
-   * Místa dvorce pro odjezd a příjezd výjezdu (villager-plan-lord.ts – `journeyYard`) a místo vsi,
-   * odkud jádro skupinu vysílá; null – bez odjezdu (muži se ukážou, kde je ukáže server).
+   * Místa dvorce pro odjezd a příjezd výjezdu (villager-plan-lord.ts – `journeyYard`); null – bez
+   * odjezdu (muži se ukážou, kde je ukáže server).
    */
-  setJourneyYard(yard: JourneyYard | null, home: { x: number; z: number } | null): void {
-    this.leave.setYard(yard, home);
+  setJourneyYard(yard: JourneyYard | null): void {
+    this.leave.setYard(yard);
   }
 
   /** Fáze vlastního výjezdu ve scéně (odjíždí, jede, přijíždí); žádný – null. */

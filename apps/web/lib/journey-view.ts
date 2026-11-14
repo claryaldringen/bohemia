@@ -142,6 +142,7 @@ export function sceneJourneysOf(input: {
       arrived: mine.group.arrived,
       phase: mine.phase,
       waitDaysLeft: mine.waitDaysLeft,
+      home: { x: mine.homePos.x, z: mine.homePos.z },
     });
   }
   for (const v of visitors) {
@@ -164,6 +165,7 @@ export function sceneJourneysOf(input: {
       arrived: null,
       phase: null,
       waitDaysLeft: null,
+      home: null,
     });
   }
   return out;

@@ -20,7 +20,6 @@ import {
   type WorldClock,
   planWagonRoad,
   terrainEditsFrom,
-  tileCenterWorld,
   type WagonRoadPlan,
 } from '@bohemia/game';
 import { AmbientSound } from './ambient-sound';
@@ -554,7 +553,7 @@ export class LandscapeScene {
           this.loop.renderWhenReady();
         }
         // odjezd a příjezd výjezdu vojvody (journey-departure.ts) – místa dvorce z plánu postav
-        this.war.setJourneyYard(this.villagers?.yard() ?? null, this.villageHome());
+        this.war.setJourneyYard(this.villagers?.yard() ?? null);
       },
       // lovci jdou k okraji lesa u zvěře (wildlife.md – Ve scéně) – zvěř se plánuje před postavami
       huntSpot: (target) => this.wildlife?.huntSpot(target) ?? null,
@@ -713,12 +712,6 @@ export class LandscapeScene {
   /** Výjezdy ve scéně pro e2e – muži, praporek, dny na hodinách, odjezd a koně mimo ohradu. */
   journeyStats(): ReturnType<SceneWarView['journeyStats']> & { awayHorses: number[] } {
     return { ...this.war.journeyStats(), awayHorses: [...this.awayHorses] };
-  }
-
-  /** Odkud jádro vysílá výjezd na mapě vsi (`villagePlace` – střed políčka místa pro ves). */
-  private villageHome(): { x: number; z: number } | null {
-    const l = this.landscape;
-    return l ? tileCenterWorld(l, l.villageSite.x, l.villageSite.y) : null;
   }
 
   /** Ves pro postavy – bez mužů, kteří přijíždějí z výjezdu do dvorce (journey-departure.ts). */
