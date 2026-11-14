@@ -1685,25 +1685,42 @@ design/war.md – Začít znovu během nájezdu (útočník i obránce).
   nečeká; `computeWithLoads` archiv pro tažení dál nečte.
 - **Obránce** – `surrenderRaidedVillages` (`application/surrender-village.ts`) volá `restartGame`
   před archivem (pod zámkem obránce) se sídly a vsemi z `dynastyStatus`:
+  - mapa bez živé vsi (`isVillageAsleep` u všech) se nevzdává – archiv; putující ves se vzdává;
   - nájezd = `CampaignRepository.activeAgainst(ves)` ve fázi `assembling` / `marching` /
-    `raiding`, nebo s `CampaignState.yielded` (opakování po pádu), ne vedený obráncem; vůdce musí
-    mít živý rod tažení (`firstLiving` – staré vojsko ne). Mapu dostane první takový nájezd
-    (pořadí `activeAgainst` – založení, id; víc vsí na mapě – první ves mapy);
-  - záměr obránce `turn-back` se `restart` a `surrender` (`isSurrenderIntent` v `alarm.ts`,
-    součást `isDefenderIntent` – od vůdce se zahodí; `applyIntent` ho bere před přítomností, takže
-    přítomnost vůdce nemění; `applyBody` jako Začít znovu vůdce a zapíše `yielded`) do všech
-    nájezdů na vsi mapy – nájezd s `yielded` už ne;
-  - upozornění vůdci `village-surrendered` `{ villageId, name, campaignId }` s klíčem
-    `restart-surrender:<ves>:<den>` (text a panel války v `apps/web/lib/player-notices.ts`);
-  - `updateVillage` s `escheatVillage` (muži, ženy a dcery rodu bez `line`, `dynasty.lordId` null,
-    správce zapnutý – ves čeká na muže rodu nového držitele jako po odúmrti);
-  - uprchlíci v hradišti jiné vsi obránce, která jde do archivu, odejdou domů hned
-    (`departFromHost` v `refuge-return.ts` – část `returnRefugees` bez zámku, volající drží zámek
-    držitele hradiště; `refuge-back:<refId>` jednou); les a cizí hradiště – `returnStewardRefugees`;
-  - nakonec 1. krok převodu `transferHolder` (sídlo zmizí z `listActive`, archiv ho mine). Vrací
-    `SurrenderedMap[]` (`RestartGameResult.surrendered`); web (`restartGameForPlayer`) po uvolnění
-    zámku obránce zavolá `finishCeded` (`cede-village.ts`) – převzetí pod zámkem vůdce a správce;
-    jinak převezme worker (`acceptHolderTransfers`). `RestartGameDeps.campaigns` má i `activeAgainst`.
+    `raiding`, nebo s `CampaignState.yielded.byPlayer` = tento hráč (opakování po pádu; restart
+    pozdějšího držitele ji nebere), ne vedený obráncem. Vítěz (`winnerOf`): ze značky vzdání téhož
+    hráče ve vsi (`VillageState.surrender` – i když nájezd mezitím skončil), jinak první nájezd
+    v pořadí `activeAgainst` (založení, id; víc vsí na mapě – první ves mapy); vůdce musí mít živý
+    rod tažení (staré vojsko ne);
+  - kroky v pořadí: značka `surrender` `{ byPlayer, toPlayerId, houseId, campaignId, day }` ve
+    vsích mapy (`withMark`, stejná se nepřepíše) → záměr obránce `turn-back` se `restart`
+    a `surrender` (`isSurrenderIntent` v `alarm.ts`, součást `isDefenderIntent` – od vůdce se
+    zahodí; `applyIntent` ho bere před přítomností; `applyBody` jako Začít znovu vůdce a zapíše
+    `yielded: { byPlayer, villageId }`) do nájezdů na vsi mapy bez `yielded` tohoto hráče →
+    `guestsLeave` (uprchlíci vsí obránce, které jdou do archivu, ve vzdané vsi – `departFromHost`;
+    muži pána z ochrany – `sendGuardsHome` z `protection.ts`, klíče `restart-guard:<ves>:<domov>`
+    a `restart-guard-home:…`) a `refugeesHome` (uprchlíci vsi v hradišti jiné vsi obránce, která
+    jde do archivu – `departFromHost`, `refuge-back:<refId>` jednou) → `transferHolder` (false –
+    mapa se nevzdala, nehlásí se) → `updateVillage` se `surrenderVillage` (`domain/vassalage/
+escheat.ts` – `escheatVillage` + konec vlády vojvody dnem vzdání, `endedDay`, bez
+    `deceased`; kronika „konec rodu“ se nezapíše) → upozornění `village-surrendered`
+    `{ villageId, name, campaignId }` s klíčem `surrenderNoticeRef` =
+    `restart-surrender:<nájezd>:<ves>` (text a panel války v `apps/web/lib/player-notices.ts`).
+    Vrací `SurrenderedMap[]` (`RestartGameResult.surrendered`); web (`restartGameForPlayer`) po
+    uvolnění zámku obránce zavolá `finishSurrendered` (`cede-village.ts` – `finishCeded` na mapu,
+    chyba se zaloguje) – jinak převezme worker. `RestartGameDeps.campaigns` má i `activeAgainst`.
+  - **Převzetí** (`acceptHolderTransfers` v `application/escheat.ts`, pro každý převod): mapa se
+    značkou vzdání pro hráče, jehož rod není živý nebo není rodem ze značky (vítěz dal Začít
+    znovu), jde do archivu (`settlements.archive`); jinak každá ves `adoptVillage` – se značkou
+    pro hráče `surrenderVillage` (dovzdání po pádu po převodu) a upozornění se stejným klíčem,
+    `withHolderFaith`, `forNewHolder` (`holderEpoch` +1, bez `awaitingLord` a značky).
+  - **Muži rodu na cestě** – `lord-arrives` / `noble-arrives` nesou `holderEpoch` cílové vsi
+    (`holderStamp` – `appointLords`, `sendMenAway` v `cede-village.ts`, `ennoble`);
+    `settleAppointee` a `settleNoble` (`isHolderArrival` v `domain/village/people/appoint-lord.ts`
+    – jediná kontrola) přijmou jinou epochu jako obyčejné lidi (`settleStrangers` – bez `line`
+    a `noble`, obydlí mimo dvorec, jídlo do zásob, ves čeká dál). `appointLords` vyslance ze vsi
+    mimo rod hráče nepošle a ves ho zapomene (`forgetAppointee`) – do cizí (archivované) vsi
+    nezapíše.
 - **Archiv v loaderu** – `computeWithLoads(…, { archivedFinal: true })` (jen `computeCampaign`):
   `villageAt` vsi, na jejíž den by takt čekal, prověří archiv (líně jako `villageGone` –
   `archive.wanted` → `VillageRepository.archivedOf`) a pro ves archivovaného sídla vrátí uložený

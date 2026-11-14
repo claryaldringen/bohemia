@@ -425,7 +425,7 @@ function applyIntent(
   }
   // ves cíle se vzdala (Začít znovu obránce) – obránce u tažení není, přítomnost vůdce se nemění
   if (isSurrenderIntent(intent.body)) {
-    applyBody(s, intent.body, out, false);
+    applyBody(s, intent.body, out, false, intent.byPlayer);
     return;
   }
   if (s.liveCommand) {
@@ -467,7 +467,13 @@ function applyAlarm(
 }
 
 /** Úkon tažení od hráče, nebo od NPC velitele (`npc`) – co ve fázi nedává smysl, se zahodí. */
-function applyBody(s: CampaignState, body: IntentBody, out: TickOut, npc: boolean): void {
+function applyBody(
+  s: CampaignState,
+  body: IntentBody,
+  out: TickOut,
+  npc: boolean,
+  byPlayer?: string,
+): void {
   const leads = npc || s.liveCommand;
   switch (body.kind) {
     case 'set-out':
@@ -494,8 +500,10 @@ function applyBody(s: CampaignState, body: IntentBody, out: TickOut, npc: boolea
       const afield = s.phase === 'marching' || s.phase === 'raiding';
       if (afield || (restart && s.phase === 'assembling')) {
         turnBack(s, npc ? (body.reason ?? 'order') : 'order');
-        // ves cíle se vzdala (Začít znovu obránce) – připadla vůdci, nájezd končí
-        if (isSurrenderIntent(body)) s.yielded = true;
+        // ves cíle se vzdala (Začít znovu obránce) – připadla vůdci, nájezd končí; kdo ji vzdal
+        if (isSurrenderIntent(body) && byPlayer !== undefined) {
+          s.yielded = { byPlayer, villageId: s.target.villageId };
+        }
       }
       return;
     }

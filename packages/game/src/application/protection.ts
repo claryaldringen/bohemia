@@ -171,6 +171,42 @@ export async function sendProtection(
 }
 
 /**
+ * Muži pána z ochrany `refId` ze vsi `homeId` odejdou z chráněné vsi `hostId` domů: ta je dnes
+ * propustí (`guests-leave`) a doma jsou za `travelDays` dní cesty (`away-ends`). Cesta odvolání
+ * pánem (`recallProtection`) i konce ochrany při vzdání vsi (Začít znovu obránce –
+ * `surrenderRaidedVillages`); `refs` – klíče obou událostí (opakování nic nezdvojí).
+ */
+export async function sendGuardsHome(
+  deps: { villages: Pick<VillageRepository, 'inbox'> },
+  input: {
+    hostId: string;
+    homeId: string;
+    personIds: readonly number[];
+    refId: string;
+    travelDays: number;
+    today: number;
+    refs: { leave: string; home: string };
+  },
+): Promise<void> {
+  await deps.villages.inbox.post({
+    villageId: input.hostId,
+    day: input.today,
+    ref: input.refs.leave,
+    body: {
+      kind: 'guests-leave',
+      away: 'protection',
+      guests: input.personIds.map((personId) => ({ villageId: input.homeId, personId })),
+    },
+  });
+  await deps.villages.inbox.post({
+    villageId: input.homeId,
+    day: input.today,
+    ref: input.refs.home,
+    body: { kind: 'away-ends', refId: input.refId, untilDay: input.today + input.travelDays },
+  });
+}
+
+/**
  * Pán odvolá muže z ochrany vsi `villageId`: chráněná ves je dnes propustí (`guests-leave`) a doma
  * jsou za dny cesty (`away-ends` – 2 dny na políčko). Vrací, kolik mužů se vrací.
  */
@@ -192,22 +228,17 @@ export async function recallProtection(
       );
       if (away.length === 0 || !settlement.worldCell) continue;
       men += away.length;
-      const travel = shipmentDays(cellDistance(settlement.worldCell, hostPlace.worldCell)).arrive;
-      await deps.villages.inbox.post({
-        villageId: input.villageId,
-        day: input.today,
-        ref: `recall:${refId}:${village.id}:${input.today}`,
-        body: {
-          kind: 'guests-leave',
-          away: 'protection',
-          guests: away.map((p) => ({ villageId: village.id, personId: p.id })),
+      await sendGuardsHome(deps, {
+        hostId: input.villageId,
+        homeId: village.id,
+        personIds: away.map((p) => p.id),
+        refId,
+        travelDays: shipmentDays(cellDistance(settlement.worldCell, hostPlace.worldCell)).arrive,
+        today: input.today,
+        refs: {
+          leave: `recall:${refId}:${village.id}:${input.today}`,
+          home: `recall-home:${refId}:${input.today}`,
         },
-      });
-      await deps.villages.inbox.post({
-        villageId: village.id,
-        day: input.today,
-        ref: `recall-home:${refId}:${input.today}`,
-        body: { kind: 'away-ends', refId, untilDay: input.today + travel },
       });
     }
   }

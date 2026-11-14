@@ -139,7 +139,11 @@ describe('Začít znovu během nájezdu – obrat vojska', () => {
       const step = stepCampaign(fighting, at, yielded, raidWorld);
       expect(step.state.phase).toBe('returning');
       expect(step.state.battle?.outcome).toBe('withdrawn');
-      expect(step.state.yielded).toBe(true);
+      // kdo ves vzdal a která – značka platí jen pro jeho opakovaný restart
+      expect(step.state.yielded).toEqual({
+        byPlayer: DEFENDER,
+        villageId: fighting.target.villageId,
+      });
       const restart = stepCampaign(fighting, RAID_END, own, raidWorld);
       const end = stepCampaign(fighting, RAID_END, yielded, raidWorld);
       expect(end.waiting).toBeNull();
@@ -164,7 +168,7 @@ describe('Začít znovu obránce – ves se vzdala', () => {
     const turned = stepCampaign(npc, at, yielded, worldOf());
     expect(turned.state.phase).toBe('returning');
     expect(turned.state.returnReason).toBe('order');
-    expect(turned.state.yielded).toBe(true);
+    expect(turned.state.yielded).toEqual({ byPlayer: DEFENDER, villageId: npc.target.villageId });
     expect(stepCampaign(npc, END, yielded, worldOf()).state.phase).toBe('done');
     const early = [
       intent(LAUNCH + 1, 1, SURRENDER, DEFENDER),
@@ -172,7 +176,7 @@ describe('Začít znovu obránce – ves se vzdala', () => {
     ];
     const assembled = stepCampaign(campaign(), END, early, worldOf());
     expect(assembled.state.phase).toBe('done');
-    expect(assembled.state.yielded).toBe(true);
+    expect(assembled.state.yielded?.byPlayer).toBe(DEFENDER);
     expect(chronicleSteps(assembled.villageEvents)).not.toContain('set-out');
   });
 

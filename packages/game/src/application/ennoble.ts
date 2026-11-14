@@ -9,6 +9,7 @@ import {
   type VassalTerms,
 } from '../domain/vassalage';
 import {
+  holderStamp,
   APPOINT_LORD,
   isVillageAbandoned,
   isVillageExtinct,
@@ -157,6 +158,7 @@ async function sendParty(
         party: departure.party,
         houseId,
         fromVillageId: source.id,
+        ...holderStamp(target.state),
       },
     });
     if (await deps.villages.save(current.id, departure.state, current.version)) return;

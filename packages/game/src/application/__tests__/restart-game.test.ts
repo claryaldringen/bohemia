@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { dayIndexOf } from '../../domain/calendar';
 import { CURRENT_LAYER_VERSIONS, type PremiumType } from '../../domain/landscape';
-import { isLineMan, type Position, type VillageState } from '../../domain/village';
+import { departAppointee, isLineMan, type Position, type VillageState } from '../../domain/village';
 import { removePeople } from '../../domain/village/people/kinship';
 import {
   applyRefugeArrive,
@@ -25,6 +25,9 @@ import { placeDwelling } from '../place-dwelling';
 import { placeField } from '../place-field';
 import { placeOrchard } from '../place-orchard';
 import { renameVillage } from '../rename-village';
+import { appointLords } from '../appoint-lord';
+import { finishSurrendered } from '../cede-village';
+import { acceptHolderTransfers } from '../escheat';
 import { DYNASTY_ALIVE, dynastyStatus, restartGame } from '../restart-game';
 import type { LandscapeSource, SeedSource } from '../settlements';
 import { VILLAGE_EXTINCT } from '../update-village';
@@ -946,5 +949,310 @@ describe('Začít znovu obránce – ves pod nájezdem připadne útočníkovi (
     expect(w.villages.inbox.events.filter((e) => e.body.kind === 'refuge-back')).toHaveLength(1);
     const hostMap = (await w.villages.find(w.hostId!))!.settlementId;
     expect(w.settlements.archived.has(hostMap)).toBe(true);
+  }, 30_000);
+  /**
+   * Libice čeká na muže rodu z Hradce (`appointee`); s `departed` je už na cestě (`lord-arrives`
+   * na den TODAY + 3 – Hradec ho v testu nepustí, ať rod obránce žije a restart ves vzdá).
+   */
+  async function awaitingFromHradec(w: Awaited<ReturnType<typeof defended>>, departed: boolean) {
+    const source = (await w.villages.find(w.hostId!))!;
+    const lordId = source.state.dynasty?.lordId;
+    const man =
+      source.state.people.find((p) => isLineMan(p) && p.id !== lordId) ??
+      source.state.people.find(isLineMan)!;
+    if (departed) {
+      const departure = departAppointee(source.state, source.state.lastDay, man.id, 'Libice');
+      await w.villages.inbox.post({
+        villageId: w.villageId,
+        day: TODAY + 3,
+        ref: 'appoint:test',
+        body: { kind: 'lord-arrives', party: departure.party, fromVillageId: source.id },
+      });
+    }
+    w.villages.edit(w.villageId, (state) => {
+      state.awaitingLord = {
+        sinceDay: TODAY - 1,
+        appointee: { fromVillageId: source.id, personId: man.id, arrivesDay: TODAY + 3 },
+      };
+    });
+    return { source, man };
+  }
+
+  it('vojvoda na cestě z jiné vsi obránce se ve vzdané vsi vojvodou nestane – přijde bez rodu (I1)', async () => {
+    const w = await defended(['raiding'], true);
+    const { source, man } = await awaitingFromHradec(w, true);
+    const party = departAppointee(source.state, source.state.lastDay, man.id, 'Libice').party.people
+      .length;
+    expect((await restartGame(w.deps, input)).ok).toBe(true);
+    const before = (await w.villages.find(w.villageId))!.state.people.length;
+    await acceptHolderTransfers(w.deps, LEADER);
+    const after = await loadVillage(w.deps, {
+      villageId: w.villageId,
+      today: TODAY + 6,
+      landscape,
+    });
+    expect(after!.state.people.filter((p) => p.line)).toEqual([]);
+    expect(after!.state.dynasty?.lordId).toBeNull();
+    // muž s rodinou ve vsi žije jako obyčejný člověk – jeho domov je v archivu
+    expect(after!.state.lastDay).toBe(TODAY + 6);
+    expect(after!.state.people.length).toBe(before + party);
+  }, 30_000);
+
+  it('putující ves na vzdané mapě se vzdá také – její muži rod obránce novému držiteli nepřinesou (I1)', async () => {
+    const w = await defended(['raiding']);
+    const libice = (await w.villages.find(w.villageId))!.state;
+    expect(libice.people.some((p) => p.line)).toBe(true);
+    // lidé obránce na cestě na novou mapu; nájezd míří i na ni
+    const map = await w.settlements.create({
+      ownerId: PLAYER,
+      landscapeSeed: 14,
+      layerVersions: CURRENT_LAYER_VERSIONS,
+      worldCell: { x: 6, y: 0 },
+    });
+    const travelling = await w.villages.add(map!.id, 'Putim', {
+      ...structuredClone(libice),
+      journey: { direction: 'N', departedDay: TODAY - 1, arrivalDay: TODAY + 5 },
+    });
+    const raid = (await w.campaigns.checkpoint('c1'))!.state;
+    await w.campaigns.create({
+      ...raid,
+      id: 'c5',
+      target: { ...raid.target, villageId: travelling.id },
+    });
+    const restarted = await restartGame(w.deps, input);
+    expect(restarted.ok && restarted.surrendered.map((m) => m.settlementId)).toContain(map!.id);
+    await acceptHolderTransfers(w.deps, LEADER);
+    const after = (await w.villages.find(travelling.id))!.state;
+    expect(after.journey).toBeDefined();
+    expect(after.people.filter((p) => p.line)).toEqual([]);
+    expect(after.dynasty?.lordId ?? null).toBeNull();
+  }, 30_000);
+
+  it('vyslanec z archivované vsi obránce: útočník do ní nezapíše a ves si vybere jiného (I1)', async () => {
+    const w = await defended(['raiding'], true);
+    const { source } = await awaitingFromHradec(w, false);
+    expect((await restartGame(w.deps, input)).ok).toBe(true);
+    // pád převzetí před zápisem vsí – ves pořád čeká na vyslance dřívějšího držitele
+    await w.settlements.acceptTransfers(LEADER);
+    const archived = (await w.villages.find(source.id))!;
+    await appointLords(w.deps, { playerId: LEADER, today: TODAY });
+    expect((await w.villages.find(source.id))!.version).toBe(archived.version);
+    expect((await w.villages.find(w.villageId))!.state.awaitingLord?.appointee).toBeUndefined();
+  }, 30_000);
+
+  it('uprchlíci jiné vsi obránce (archiv) ve vzdaném hradišti skončí, muži pána z ochrany jdou domů – jednou (I3)', async () => {
+    const w = await defended(['raiding'], true);
+    // uprchlíci Hradce (jde do archivu) v hradišti Libice (vzdá se)
+    const herd = { ...NO_HERD, goat: 2 };
+    w.villages.edit(w.hostId!, (state) => {
+      state.livestock = { herds: { ...herd }, young: { ...NO_HERD } };
+      state.storesKg = Math.max(state.storesKg, 500);
+      const people = state.people.filter((p) => !isLineMan(p) && !p.away).slice(0, 2);
+      applyRefugeDepart(state, state.lastDay, {
+        kind: 'refuge-depart',
+        campaignId: 'c9',
+        refId: 'c9:h',
+        mode: 'all',
+        hostVillageId: w.villageId,
+        people: people.map((p) => p.id),
+        carriedKg: 100,
+        herd,
+      });
+    });
+    const away = (await w.villages.find(w.hostId!))!.state.people.filter(
+      (p) => p.away?.refId === 'c9:h',
+    );
+    // muži pána (jiný hráč) z ochrany Libice
+    const lordMap = await w.settlements.create({
+      ownerId: 'pan',
+      landscapeSeed: 13,
+      layerVersions: CURRENT_LAYER_VERSIONS,
+      worldCell: { x: 5, y: 0 },
+    });
+    const libice = (await w.villages.find(w.villageId))!.state;
+    const lord = await w.villages.add(lordMap!.id, 'Hrad', structuredClone(libice));
+    const guards = lord.state.people.filter((p) => !p.away && p.sex === 'male').slice(0, 2);
+    w.villages.edit(lord.id, (state) => {
+      for (const p of state.people) {
+        if (guards.some((g) => g.id === p.id)) p.away = { kind: 'protection', refId: 'prot:1' };
+      }
+    });
+    w.villages.edit(w.villageId, (state) => {
+      applyRefugeArrive(state, state.lastDay, {
+        kind: 'refuge-arrive',
+        campaignId: 'c9',
+        refId: 'c9:h',
+        fromVillageId: w.hostId!,
+        fromName: 'Hradec',
+        people: away.map((p) => ({ id: p.id, bornDay: p.bornDay, man: false, line: false })),
+        foodKg: 90,
+        herd,
+      });
+      state.guests = [
+        ...(state.guests ?? []),
+        ...guards.map((g) => ({
+          ref: { villageId: lord.id, personId: g.id },
+          kind: 'protection' as const,
+          untilDay: TODAY + 1000,
+          adult: true as const,
+        })),
+      ];
+    });
+    const fromHradec = (state: VillageState): unknown[] => [
+      ...(state.guests ?? []).filter((g) => g.ref.villageId === w.hostId),
+      ...(state.refugeStays ?? []).filter((r) => r.fromVillageId === w.hostId),
+    ];
+    expect(fromHradec((await w.villages.find(w.villageId))!.state)).not.toEqual([]);
+    const failing = {
+      ...w.deps,
+      settlements: Object.assign(Object.create(w.settlements) as typeof w.settlements, {
+        archive: () => Promise.reject(new Error('pád')),
+      }),
+    };
+    await expect(restartGame(failing, input)).rejects.toThrow('pád');
+    expect((await restartGame(w.deps, input)).ok).toBe(true);
+    // uprchlíci Hradce nejsou hosté ani pobyt – vzdaná ves je dál nekrmí
+    expect(fromHradec((await w.villages.find(w.villageId))!.state)).toEqual([]);
+    const events = (kind: string, villageId: string): unknown[] =>
+      w.villages.inbox.events.filter((e) => e.body.kind === kind && e.villageId === villageId);
+    expect(events('refuge-back', w.hostId!)).toHaveLength(1);
+    // muži pána: vzdaná ves je propustí, doma jsou za dny cesty (2 políčka – jako odvolání)
+    const leave = events('guests-leave', w.villageId);
+    expect(leave).toHaveLength(1);
+    expect(leave[0]).toMatchObject({
+      body: {
+        away: 'protection',
+        guests: guards.map((g) => ({ villageId: lord.id, personId: g.id })),
+      },
+    });
+    const home = events('away-ends', lord.id);
+    expect(home).toHaveLength(1);
+    expect(home[0]).toMatchObject({ body: { refId: 'prot:1' } });
+  }, 30_000);
+
+  it('značka vzdání platí jen pro toho, kdo ves vzdal – restart nového držitele při vracejícím se nájezdu třetího: archiv (I2)', async () => {
+    const w = await defended(['raiding', 'marching']);
+    expect((await restartGame(w.deps, input)).ok).toBe(true);
+    await acceptHolderTransfers(w.deps, LEADER);
+    // nájezd hráče `druhy` se ves vzdala a vrací se domů
+    const c2 = (await w.campaigns.checkpoint('c2'))!.state;
+    await w.campaigns.create({
+      ...c2,
+      phase: 'returning',
+      yielded: { byPlayer: PLAYER, villageId: w.villageId },
+    });
+    const again = await restartGame(w.deps, { playerId: LEADER, today: TODAY, abandon: true });
+    expect(again.ok && again.surrendered).toEqual([]);
+    expect(w.settlements.archived.has(w.settlementId)).toBe(true);
+    expect(w.notices.notices.filter((n) => n.playerId === 'druhy')).toEqual([]);
+  }, 30_000);
+
+  it('pád po převodu, před vzdáním – ves vede dál rod obránce; převzetí ji dovzdá a upozorní jednou (M3, M2)', async () => {
+    const w = await defended(['raiding']);
+    const failing = {
+      ...w.deps,
+      settlements: Object.assign(Object.create(w.settlements) as typeof w.settlements, {
+        transferHolder: async (id: string, from: string, to: string) => {
+          await w.settlements.transferHolder(id, from, to);
+          throw new Error('pád');
+        },
+      }),
+    };
+    await expect(restartGame(failing, input)).rejects.toThrow('pád');
+    expect(w.settlements.pending.get(w.settlementId)).toBe(LEADER);
+    expect((await w.villages.find(w.villageId))!.state.dynasty?.lordId).not.toBeNull();
+    expect(surrendered(w.notices)).toEqual([]);
+    // převzetí (worker) v jiný den – ves se dovzdá, upozornění jednou
+    await acceptHolderTransfers(w.deps, LEADER);
+    const after = (await w.villages.find(w.villageId))!.state;
+    expect(after.people.filter((p) => p.line)).toEqual([]);
+    expect(after.dynasty?.lordId).toBeNull();
+    expect(after.steward?.on).toBe(true);
+    expect(after.surrender).toBeUndefined();
+    expect(surrendered(w.notices)).toEqual([[LEADER, 'Libice']]);
+    expect((await restartGame({ ...w.deps, now: () => atTick(LAUNCH + 40) }, input)).ok).toBe(true);
+    expect(surrendered(w.notices)).toEqual([[LEADER, 'Libice']]);
+    expect(w.campaigns.intents).toHaveLength(1);
+  }, 30_000);
+
+  it('pád před převodem a nájezd mezitím skončil – opakovaný restart mapu dovzdá podle značky (M3)', async () => {
+    const w = await defended(['raiding']);
+    const failing = {
+      ...w.deps,
+      settlements: Object.assign(Object.create(w.settlements) as typeof w.settlements, {
+        transferHolder: () => Promise.reject(new Error('pád')),
+      }),
+    };
+    await expect(restartGame(failing, input)).rejects.toThrow('pád');
+    // ves obránci zůstala celá – rod ji vede, převod neproběhl
+    const kept = (await w.villages.find(w.villageId))!.state;
+    expect(kept.people.some((p) => p.line)).toBe(true);
+    expect(kept.surrender).toMatchObject({
+      byPlayer: PLAYER,
+      toPlayerId: LEADER,
+      campaignId: 'c1',
+    });
+    const c1 = (await w.campaigns.checkpoint('c1'))!.state;
+    await w.campaigns.create({ ...c1, phase: 'done' });
+    const again = await restartGame(w.deps, input);
+    expect(again.ok && again.surrendered.map((m) => m.toPlayerId)).toEqual([LEADER]);
+    expect(w.settlements.archived.has(w.settlementId)).toBe(false);
+    expect(surrendered(w.notices)).toEqual([[LEADER, 'Libice']]);
+  }, 30_000);
+
+  it('vítěz mezitím dal Začít znovu – mapu nová hra nedostane, jde do archivu (M4)', async () => {
+    const w = await defended(['raiding']);
+    expect((await restartGame(w.deps, input)).ok).toBe(true);
+    const old = (await w.deps.houses.activeOf(LEADER))!;
+    await w.deps.houses.end(old.id, NOW, TODAY);
+    await w.deps.houses.create({ playerId: LEADER, kind: 'player', createdAt: NOW });
+    expect(await acceptHolderTransfers(w.deps, LEADER)).toEqual([]);
+    expect(w.settlements.archived.has(w.settlementId)).toBe(true);
+    expect(await w.settlements.listActive(LEADER)).toEqual([]);
+  }, 30_000);
+
+  it('převzetí vzdané mapy po restartu selže – chyba se předá k zalogování, restart platí (M9)', async () => {
+    const w = await defended(['raiding']);
+    const restarted = await restartGame(w.deps, input);
+    const maps = restarted.ok ? restarted.surrendered : [];
+    expect(maps).toHaveLength(1);
+    const errors: string[] = [];
+    const locks = { run: (): Promise<never> => Promise.reject(new Error('pád')) };
+    await finishSurrendered({ ...w.deps, locks } as never, [...maps, ...maps], TODAY, (to, e) => {
+      errors.push(`${to}: ${(e as Error).message}`);
+    });
+    expect(errors).toEqual([`${LEADER}: pád`, `${LEADER}: pád`]);
+    // převzetí dokončí worker
+    expect((await acceptHolderTransfers(w.deps, LEADER)).map((m) => m.id)).toEqual([
+      w.settlementId,
+    ]);
+  }, 30_000);
+
+  it('mapa bez živé vsi se nevzdá – jde do archivu (M7)', async () => {
+    const w = await defended(['raiding']);
+    w.villages.edit(w.villageId, dieOut);
+    await loadVillage(w.deps, { villageId: w.villageId, today: TODAY, landscape });
+    const restarted = await restartGame(w.deps, input);
+    expect(restarted.ok && restarted.surrendered).toEqual([]);
+    expect(w.settlements.archived.has(w.settlementId)).toBe(true);
+    expect(surrendered(w.notices)).toEqual([]);
+  }, 30_000);
+
+  it('kronika vzdané vsi: bez „konce rodu“, jména předků obránce synům nového rodu nezůstanou (M8)', async () => {
+    const w = await defended(['raiding']);
+    w.villages.edit(w.villageId, (state) => {
+      state.dynasty!.deceased = [{ id: 900, name: 'Předek' }];
+    });
+    expect((await restartGame(w.deps, input)).ok).toBe(true);
+    await acceptHolderTransfers(w.deps, LEADER);
+    const after = await loadVillage(w.deps, {
+      villageId: w.villageId,
+      today: TODAY + 3,
+      landscape,
+    });
+    const ended = after!.state.chronicle.filter((e) => e.kind === 'line-ended' && e.day >= TODAY);
+    expect(ended).toEqual([]);
+    expect(after!.state.dynasty?.deceased).toBeUndefined();
+    expect(after!.state.dynasty?.lords.at(-1)?.toDay).toBe(TODAY);
   }, 30_000);
 });

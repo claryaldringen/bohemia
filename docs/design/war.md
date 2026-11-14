@@ -535,21 +535,35 @@ Martin 2. 11. 2026 – „ok“ (podrobnosti návrh Clauda):
   celá“. Návrh Clauda, jak to hra provede:
   1. **Ves pod nájezdem se vzdá** – každá ves hráče, na kterou běží nájezd (vojsko se sbírá, táhne
      nebo bojuje; na zpáteční cestě už nájezd skončil). Před archivem přejde celá mapa té vsi na
-     hráče, který nájezd vede, se vším, co na ní je – lidé, stavby, zásoby, dobytek, pole. Ostatní
-     vsi hráče jdou do archivu jako dřív. Nájezd vojska hráče, který sám dal Začít znovu (staré
-     vojsko), ves nedostane.
+     hráče, který nájezd vede, se vším, co na ní je – lidé, stavby, zásoby, dobytek, pole, i lidé
+     na cestě na novou mapu. Ostatní vsi hráče jdou do archivu jako dřív. Nájezd vojska hráče,
+     který sám dal Začít znovu (staré vojsko), ves nedostane; dá-li vítěz Začít znovu dřív, než
+     ves převezme, jde do archivu – nová hra ji nedostane. Mapa, na které už žádná ves nežije, se
+     nevzdává a jde do archivu jako dřív (návrh Clauda – není co vzdát; upozornění na mrtvou mapu
+     by hráče jen mátlo).
   2. **Víc nájezdů na tutéž ves** – ves dostane vůdce nájezdu, který vyrazil první (nejstarší
-     tažení, při shodě menší id; víc vsí na jedné mapě – rozhoduje první ves mapy). Ostatní nájezdy
-     na ni se obrátí domů.
+     tažení, při shodě menší id). Ostatní nájezdy na ni se obrátí domů. U víc vsí na jedné mapě
+     rozhoduje nejstarší nájezd na první ves mapy, ne nejstarší nájezd na celou mapu (návrh Clauda –
+     známá odchylka: pořadí nájezdů zná hra jen po jednotlivých vsích).
   3. **Vítězný nájezd se také obrátí domů** – cíl je teď jeho vlastní ves, vojsko si odnese, co už
      vzalo. Vůdce dostane upozornění „Lhota se vzdala a připadla ti.“
   4. **Rod obránce ve vsi nikoho nevede** – muži, ženy a dcery rodu zůstanou jako obyčejní lidé
      (neodcházejí – obránce jinou ves mít nebude), vojvoda ves nemá a řídí ji správce nového
-     držitele, stejně jako ves z odúmrti; vojvodu jí pošle rod nového držitele. Opakování po pádu
-     nic nezdvojí.
+     držitele, stejně jako ves z odúmrti; vojvodu jí pošle rod nového držitele. Muž rodu obránce,
+     který do vsi teprve míří (dosazení vojvody, muži z dřívějšího postoupení), přijde jako obyčejný
+     člověk – vojvodou ani mužem rodu nového držitele se nestane; domů nejde, jeho domov s rodem
+     obránce skončil (návrh Clauda; totéž platí pro každou ves, která přešla na jiného držitele).
+     Kronika vsi „konec rodu“ nezapíše (bývalý vojvoda žije dál jako vesničan) a synové nového rodu
+     nedostávají jména po předcích obránce. Opakování po pádu nic nezdvojí – ves si značku vzdání
+     zapíše před převodem, takže opakovaný restart ji dovzdá témuž vůdci, i když nájezd mezitím
+     skončil; obránci ves zůstane celá, dokud převod neproběhne, a dovzdání po pádu po převodu
+     dokončí převzetí novým držitelem.
   5. **Lidé vzdané vsi pryč kvůli nájezdu** se vrátí domů, každý jednou: uprchlíci v hradišti jiné
      vsi obránce (ta jde do archivu) hned i se zásobami a stádem, z lesa a z cizího hradiště je
-     vrátí správce, až vojsko odtáhne, posel se vrátí s koncem tažení.
+     vrátí správce, až vojsko odtáhne, posel se vrátí s koncem tažení. **Hosté vzdané vsi vázaní
+     na obránce** (návrh Clauda): uprchlíci jeho vsí, které jdou do archivu, patří k ukončené hře –
+     zmizí z hostů a vzdaná ves je dál nekrmí; muži pána z ochrany jdou domů jako po odvolání,
+     protože dohoda skončila. Každé jednou.
   6. **Archivovaná ves je pro tažení konečný stav** – vojsko na ni nečeká (domov hostů, posla nebo
      uprchlíků); výjezd vojvody ji dál bere jako zaniklou.
   7. **Staré vojsko nepatří nové hře** – tažení, které vede rod, jenž restartem skončil, nová hra

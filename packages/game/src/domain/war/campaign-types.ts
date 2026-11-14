@@ -210,9 +210,10 @@ export interface CampaignState {
   returnReason: CampaignReturnReason | null;
   /**
    * Ves cíle se vzdala (Začít znovu obránce – záměr `turn-back` se `surrender`) a vojsko se obrátilo
-   * domů; podle něj opakovaný restart po pádu pozná nájezd, kterému se ves už vzdala. Chybí – ne.
+   * domů: kdo ji vzdal (`byPlayer`) a která ves. Platí jen pro opakovaný restart téhož hráče po pádu
+   * (pozná nájezd, kterému se ves už vzdala); restart pozdějšího držitele ji nebere. Chybí – ne.
    */
-  yielded?: true;
+  yielded?: { byPlayer: string; villageId: string };
   /** Boj na mapě cíle (war.md – Boj; Ú6.8) – od prvního taktu nájezdu; chybí – zatím nebojovali. */
   battle?: BattleState;
   /**
