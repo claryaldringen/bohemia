@@ -52,6 +52,14 @@ export function createLoanRepository(db: Executor): LoanRepository {
         .returning({ id: loan.id });
       return rows.length > 0;
     },
+    async ofNegotiation(negotiationId): Promise<Loan | null> {
+      const [row] = await db
+        .select()
+        .from(loan)
+        .where(eq(loan.negotiationId, negotiationId))
+        .limit(1);
+      return row ? toLoan(row) : null;
+    },
     async byId(id): Promise<Loan | null> {
       const [row] = await db.select().from(loan).where(eq(loan.id, id)).limit(1);
       return row ? toLoan(row) : null;

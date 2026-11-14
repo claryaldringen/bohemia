@@ -114,12 +114,15 @@ async function conclude(
     return { ok: false, reason: PRISONER_REASONS.decided };
   }
   const personId = prisoner.ref.personId;
-  await deps.villages.inbox.post({
-    villageId: captor.id,
-    day: today,
-    ref: `captive:${prisoner.id}:captor`,
-    body: { kind: 'captive-returns', role: 'captor', prisonerId: prisoner.id, personId },
-  });
+  // událost věznitele jde až poslední (audit A2, M1): dokud není zapsaná, zajatec zůstává ve stavu
+  // věznitele a opakování ho najde; po jejím použití dopočtem by už událost domova nikdo nedopsal
+  const captorEvent = (): Promise<unknown> =>
+    deps.villages.inbox.post({
+      villageId: captor.id,
+      day: today,
+      ref: `captive:${prisoner.id}:captor`,
+      body: { kind: 'captive-returns', role: 'captor', prisonerId: prisoner.id, personId },
+    });
   if (decision === 'executed') {
     await deps.villages.inbox.post({
       villageId: home.id,
@@ -127,6 +130,7 @@ async function conclude(
       ref: `captive:${prisoner.id}:fell`,
       body: { kind: 'line-man-fell', personId, campaignId: prisoner.id },
     });
+    await captorEvent();
     return { ok: true };
   }
   await deps.villages.inbox.post({
@@ -135,6 +139,7 @@ async function conclude(
     ref: `captive:${prisoner.id}:home`,
     body: { kind: 'captive-returns', role: 'home', prisonerId: prisoner.id, personId },
   });
+  await captorEvent();
   return { ok: true };
 }
 

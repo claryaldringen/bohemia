@@ -344,6 +344,13 @@
       "when": 1794647801374,
       "tag": "0049_negotiation_outbox_lease",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1794648611430,
+      "tag": "0050_vassalage_pair_unique",
+      "breakpoints": true
     }
   ]
 }

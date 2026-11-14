@@ -238,5 +238,7 @@ export async function cedeVillages(
   }
   const all = ceded.flatMap((m) => m.villages.map((v) => v.id));
   await transferVillages(deps, all, from.playerId, to.playerId);
-  for (const id of all) await enableSteward(deps, id, input.today);
+  // správce se zapíná pro všechny vsi nabídky, ne jen pro ty, které se převedly teď: po pádu mezi
+  // mapami (audit A2, M2) už jsou některé převedené dřív a `ceded` je neobsahuje
+  await finishCeded(deps, input.villageIds, to.playerId, input.today);
 }

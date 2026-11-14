@@ -481,4 +481,28 @@ describe('postoupení po pádu (A2)', () => {
     );
     expect(arrivals).toHaveLength(1);
   });
+  it('pád mezi převody dvou map: krok workeru zapne správce i na první mapě (M2)', async () => {
+    const w = await world();
+    const villages = w.villages as InMemoryVillages;
+    const sy = (await w.settlements.create({
+      ownerId: 'player-a',
+      landscapeSeed: 14,
+      layerVersions: CURRENT_LAYER_VERSIONS,
+      worldCell: { x: 1, y: 3 },
+    }))!;
+    const vy = await villages.add(sy.id, 'Kámen', withFamily(sender()));
+    const transfer = w.settlements.transferHolder.bind(w.settlements);
+    let calls = 0;
+    w.settlements.transferHolder = async (...args: Parameters<typeof transfer>) => {
+      if (++calls === 2) throw new Error('pád');
+      return transfer(...args);
+    };
+    await expect(agree(w, 'a', peace({ cede: [w.extraA, vy.id] }))).rejects.toThrow('pád');
+    (w.deps.negotiations as InMemoryNegotiations).elapse(ACCEPTANCE_OUTBOX_LEASE_MS + 1000);
+    const later = new Date(NOW.getTime() + ACCEPTANCE_OUTBOX_LEASE_MS + 1000);
+    const worker = { ...(w.deps as AcceptanceDeps), log: () => undefined };
+    expect(await deliverPendingAcceptances(worker, { now: later, today: DAY_NOW })).toBe(1);
+    expect((await w.villages.find(w.extraA))!.state.steward?.on).toBe(true);
+    expect((await w.villages.find(vy.id))!.state.steward?.on).toBe(true);
+  });
 });

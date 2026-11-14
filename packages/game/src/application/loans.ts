@@ -53,6 +53,8 @@ export interface LoanTx {
 
 /** Port repozitáře půjček. */
 export interface LoanRepository extends LoanTx {
+  /** Půjčka z jednání (živá i zrušená), nebo null. */
+  ofNegotiation(negotiationId: string): Promise<Loan | null>;
   byId(id: string): Promise<Loan | null>;
   /** Všechny živé půjčky (roční Odvody). */
   allActive(): Promise<Loan[]>;

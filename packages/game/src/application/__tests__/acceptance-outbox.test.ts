@@ -264,6 +264,20 @@ describe('schránka účinků přijatého jednání (A2)', () => {
     expect(w.shipments.rows).toHaveLength(1);
   });
 
+  it('zrušená půjčka (M6): opakování po pádu zboží neodešle', async () => {
+    const w = await world();
+    const before = await stores(w);
+    const id = await request(w, loanItem(w));
+    w.crash.prepare = 1;
+    await expect(accept(w, id)).rejects.toThrow('pád v prvním účinku');
+    // dřívější pokus selhal s odesláním a půjčku zrušil, proces spadl před smazáním schránky
+    expect(await w.loans.cancelOfNegotiation(id, NOW)).toBe(true);
+    await step(w);
+    expect(w.shipments.rows).toHaveLength(0);
+    expect(await stores(w)).toBe(before);
+    expect(w.loans.loans[0]!.status).toBe('cancelled');
+  });
+
   it('pád po prvním účinku (pomoc odešla, kronika ne): krok workeru nic nezdvojí', async () => {
     const w = await world();
     const before = await stores(w);

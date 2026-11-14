@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { sql } from 'drizzle-orm';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { createDatabase } from '../../client';
 import { testDatabaseUrl } from '../../test-database';
@@ -51,6 +52,39 @@ function edge(lord: number, vassal: number) {
 }
 
 describe('VassalageRepository (Drizzle)', () => {
+  it('create téže dvojice vrátí živou dohodu, i souběžně; po skončení lze založit novou (M3)', async () => {
+    const [x, y, z] = await Promise.all([
+      vassalages.create(edge(0, 1)),
+      vassalages.create(edge(0, 1)),
+      vassalages.create(edge(0, 1)),
+    ]);
+    expect(new Set([x.id, y.id, z.id]).size).toBe(1);
+    expect(await vassalages.activeOf(ids[0]!)).toHaveLength(1);
+    // opačný směr je jiná dvojice
+    const back = await vassalages.create(edge(1, 0));
+    expect(back.id).not.toBe(x.id);
+    expect(await vassalages.end(x.id, 'vypovězení', LATER)).toBe(true);
+    const next = await vassalages.create(edge(0, 1));
+    expect(next.id).not.toBe(x.id);
+  });
+
+  it('migrace 0050 na duplicitní živé dohody selže čitelně', async () => {
+    const file = path.join(import.meta.dirname, '../../../drizzle/0050_vassalage_pair_unique.sql');
+    const [guard] = readFileSync(file, 'utf8').split('--> statement-breakpoint');
+    await db.execute(sql`DROP INDEX "vassalage_pair_alive_uq"`);
+    try {
+      for (let i = 0; i < 2; i++) {
+        await db.insert(schema.vassalage).values(edge(2, 3));
+      }
+      await expect(db.execute(sql.raw(guard!))).rejects.toThrow(/duplicitní živé dohody/);
+    } finally {
+      await db.execute(sql`DELETE FROM "vassalage"`);
+      await db.execute(
+        sql`CREATE UNIQUE INDEX "vassalage_pair_alive_uq" ON "vassalage" USING btree ("lord_house_id","vassal_house_id") WHERE "vassalage"."ended_at" IS NULL`,
+      );
+    }
+  });
+
   it('create, activeOf pro pána i vazala, end jen jednou', async () => {
     const v = await vassalages.create(edge(0, 1));
     expect(v).toMatchObject({ origin: 'invite', breaches: 0, version: 1, endedAt: null });

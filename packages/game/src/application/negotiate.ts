@@ -88,7 +88,7 @@ import {
 export interface AidDeps {
   shipments: ShipmentDeps;
   prepareVillage: (villageId: string, today: number) => Promise<unknown>;
-  loans: Pick<LoanRepository, 'cancelOfNegotiation'>;
+  loans: Pick<LoanRepository, 'cancelOfNegotiation' | 'ofNegotiation'>;
 }
 
 export interface NegotiateDeps extends NegotiationVillages {
@@ -1299,6 +1299,12 @@ async function sendAid(
   toVillageId: string,
   input: { negotiationId: string; today: number; now: Date },
 ): Promise<string | null> {
+  // opakování po pádu (schránka jednání – audit A2, M6): dřívější pokus mohl půjčku zrušit, protože
+  // zboží nešlo poslat – teď by už šlo a vazal by ho dostal bez splátek
+  if (line.kind === 'loan') {
+    const existing = await aid.loans.ofNegotiation(input.negotiationId);
+    if (existing?.status === 'cancelled') return 'Půjčka byla zrušena, zboží se neposílá.';
+  }
   await aid.prepareVillage(line.fromVillageId, input.today);
   const sent = await sendShipment(aid.shipments, {
     fromVillageId: line.fromVillageId,

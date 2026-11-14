@@ -469,6 +469,9 @@ tím, že nabídku vazala odsouhlasí, nebo dá protinabídku – bez jeho souhl
   po souhlasu všech. Věnovaný vazal přejde na obdarovaného i s pohledávkami dárce vůči němu. Vazalové
   vymřelého zůstávají do rozhodnutí na staré dohodě (podmínky a půjčky se neztratí). Pohledávky rodu
   bez pána zatím zůstávají (pravidlo říká jen „dluhy zaniknou“).
+- **Obdarovaný už s věnovaným vazalem dohodu má (návrh Clauda, 14. 11. 2026):** dvojice (pán, vazal)
+  má nejvýš jednu živou dohodu, proto podmínky dohody dárce zaniknou a platí ta stávající.
+  Pohledávky dárce vůči vazalovi obdarovaný získá tak či tak.
 
 ### Začít znovu
 

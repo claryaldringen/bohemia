@@ -385,6 +385,24 @@ describe('výkupné a mír po pádu (A2)', () => {
     expect(after.people.find((p) => p.id === 38)?.away).toBeUndefined();
   });
 
+  it('pád mezi událostmi zajatce a dopočet vsi věznitele: opakování ho stejně pošle domů (M1)', async () => {
+    const w = await world();
+    // pád na druhé z dvojice událostí zajatce (první už je zapsaná)
+    const post = w.villages.inbox.post.bind(w.villages.inbox);
+    let seen = 0;
+    w.villages.inbox.post = async (event) => {
+      if (event.body.kind === 'captive-returns' && ++seen === 2) throw new Error('pád');
+      return post(event);
+    };
+    await expect(pay(w)).rejects.toThrow('pád');
+    // ves věznitele mezitím dopočítá další den – použije svou událost a zajatec z ní zmizí
+    const record = w.villages.records.get(w.captorId)!;
+    record.state = await atDay(w, w.captorId, TODAY + 1);
+    expect(await pay(w)).toBeNull();
+    const after = await atDay(w, w.homeId, TODAY + 6);
+    expect(after.people.find((p) => p.id === 38)?.away).toBeUndefined();
+  });
+
   it('pád uprostřed míru: opakované propuštění pošle zajatce domů', async () => {
     const w = await world();
     crashOnCaptive(w);
