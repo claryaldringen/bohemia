@@ -99,6 +99,24 @@ export const NEIGHBOURS = {
     crafters: 'offers',
   },
   stoneM3: { from: 10, to: 40 },
+  /**
+   * Kůže, kožešiny, med a vosk (hides-honey.md – Obchod; návrh Clauda): pastevci a lesní ves je
+   * nabízejí (maso, kůže a kožešiny z lovu, med z brtí), obilnáři a řemeslníci shánějí (kožišnictví,
+   * svíčky, sladké pečivo). Roční množství losem z vlastního proudu (ostatní zboží souseda se
+   * nemění): kůže 5–20 ks, kožešiny 10–40 ks, med 20–80 kg, vosk 2–8 kg.
+   */
+  waresKinds: {
+    farmers: 'demands',
+    herders: 'offers',
+    woodsmen: 'offers',
+    crafters: 'demands',
+  },
+  waresAmounts: {
+    hides: { from: 5, to: 20 },
+    furs: { from: 10, to: 40 },
+    honey: { from: 20, to: 80 },
+    wax: { from: 2, to: 8 },
+  },
   horseKinds: {
     farmers: { offers: [], demands: ['foals', 'mares', 'ridingHorses'] },
     herders: { offers: ['foals', 'mares', 'ridingHorses'], demands: [] },
@@ -113,6 +131,7 @@ export const NEIGHBOURS = {
   cattleKinds: Record<string, readonly TradeGood[]>;
   cattleAlways: readonly string[];
   stoneKinds: Record<string, 'offers' | 'demands'>;
+  waresKinds: Record<string, 'offers' | 'demands'>;
   horseKinds: Record<string, { offers: readonly HorseGood[]; demands: readonly HorseGood[] }>;
 };
 // trade.md – Obchod, hodnoty zboží v kg obilí (rešerše research/2026-10-18-trade-values.md, návrh
@@ -144,6 +163,14 @@ export const TRADE_GOOD_VALUES = {
   // kámen (trade.md – Kámen; návrh Clauda): 1 m³ = lámání 1 čd + dovoz ≈ 0,5 čd, a kláda za 1 čd práce
   // má 40 → 60 kg obilí za m³; váží 2 500 kg, takže ho unese jen vůz (`STONE_KG_PER_M3`)
   stone: { valueKg: 60, carryKg: 2500 },
+  // kůže, kožešiny, med a vosk (hides-honey.md – Obchod; návrh Clauda, v kg obilí; odvozeno od masa 3
+  // a klády 40 = 1 čd práce): med 6 za kg (cukr ani jiné sladidlo ves nemá, sladké pečivo),
+  // vosk 30 za kg (z klátu jen ≈ 0,4 kg ročně a svíčky se bez něj nedají), kůže skotu 20 za kus
+  // (10 h zpracování, váží ≈ 5 kg), kožešina 8 za kus (1,5–3 h zpracování)
+  honey: { valueKg: 6, carryKg: 1 },
+  wax: { valueKg: 30, carryKg: 1 },
+  hides: { valueKg: 20, carryKg: 5 },
+  furs: { valueKg: 8, carryKg: 1 },
 } as const satisfies Record<TradeGood, { valueKg: number; carryKg: number }>;
 /**
  * horses.md – Nákup a prodej (Martin 23. 10. 2026: koně jako ostatní zvířata; čísla návrh Clauda):

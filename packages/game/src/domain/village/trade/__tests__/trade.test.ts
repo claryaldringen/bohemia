@@ -6,6 +6,7 @@ import { TRADE } from '../../rules';
 import { advanceVillage } from '../../core/simulate';
 import {
   EXPEDITION_AWAY,
+  addGood,
   NOT_OFFERED,
   NOT_WANTED,
   NO_TRAIL,
@@ -76,6 +77,67 @@ describe('ceny výměny', () => {
     expect(buyPrice('youngOxen')).toBeCloseTo(350 * 0.96);
     expect(buyPrice('trainedOxen')).toBeCloseTo(1200 * 0.96);
     expect(TRADE.markup).toBe(0.2);
+  });
+});
+
+describe('kůže, kožešiny, med a vosk (hides-honey.md – Obchod)', () => {
+  it('zásoba kožešin = z lovu + ovčí, kůže = velké + malé přepočtem plochou, dolů', () => {
+    const s = trading();
+    s.wares = { hides: 2, smallHides: 3, sheepFurs: 3, wildFurs: 2.5, honeyKg: 7.9, waxKg: 1.2 };
+    expect(villageGoodStock(s, 'furs')).toBe(5);
+    // 2 + 3 × 0,8 / 3 = 2,8
+    expect(villageGoodStock(s, 'hides')).toBe(2);
+    expect(villageGoodStock(s, 'honey')).toBe(7);
+    expect(villageGoodStock(s, 'wax')).toBe(1);
+    expect(villageGoodStock(trading(), 'honey')).toBe(0);
+  });
+
+  it('prodej kožešin bere napřed z lovu, nákup přidává k lovu', () => {
+    const s = trading();
+    s.wares = { hides: 0, sheepFurs: 3, wildFurs: 2.5, honeyKg: 0, waxKg: 0 };
+    addGood(s, 'furs', -4, DAY);
+    expect(s.wares.wildFurs).toBe(0);
+    expect(s.wares.sheepFurs).toBe(1.5);
+    addGood(s, 'furs', 6, DAY);
+    expect(s.wares.wildFurs).toBe(6);
+  });
+
+  it('prodej kůží bere napřed velké, pak malé přepočtem plochou', () => {
+    const s = trading();
+    s.wares = { hides: 2, smallHides: 15, sheepFurs: 0, wildFurs: 0, honeyKg: 0, waxKg: 0 };
+    // 2 + 15 × 0,8 / 3 = 6
+    expect(villageGoodStock(s, 'hides')).toBe(6);
+    addGood(s, 'hides', -3, DAY);
+    expect(s.wares.hides).toBe(0);
+    // chybějící kus kůže skotu = 3 / 0,8 malé kůže
+    expect(s.wares.smallHides).toBeCloseTo(15 - 3.75);
+  });
+
+  it('nákup 10 kg medu přidá honeyKg, prodej nad zásobu je OVER_STOCK', () => {
+    const s = trading();
+    addGood(s, 'honey', 10, DAY);
+    expect(s.wares?.honeyKg).toBe(10);
+    const n = neighbourOf(s.seed, 'S');
+    const wanted = (['hides', 'furs', 'honey', 'wax'] as TradeGood[]).find((g) =>
+      n.demands.includes(g),
+    );
+    if (wanted) {
+      s.wares = { hides: 1, sheepFurs: 1, wildFurs: 0, honeyKg: 1, waxKg: 1 };
+      const q = tradeQuote(s, { direction: 'S', give: { [wanted]: 2 }, get: {} }, DAY);
+      expect(q.blocked).toBe(OVER_STOCK);
+    }
+  });
+
+  it('prodej nad zásobu (každý druh souseda, který ho shání) je OVER_STOCK', () => {
+    for (const dir of ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] as Direction8[]) {
+      const n = neighbourOf(11, dir);
+      const wanted = n.demands.find((g) => g === 'honey' || g === 'wax');
+      if (!wanted) continue;
+      const s = trading(dir);
+      const q = tradeQuote(s, { direction: dir, give: { [wanted]: 5 }, get: {} }, DAY);
+      expect(q.blocked).toBe(OVER_STOCK);
+      return;
+    }
   });
 });
 

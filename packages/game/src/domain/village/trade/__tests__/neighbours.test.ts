@@ -17,12 +17,15 @@ import { HORSE_TRADE, NEIGHBOURS, TRADE_GOOD_VALUES } from '../../rules';
 import { DIRECTIONS } from '../trail';
 import type { NeighbourGood, TradeGood, TradeGoods, VillageState } from '../../types';
 
+/** Kůže, kožešiny, med a vosk – mimo povahu, mají vlastní losy (`waresKinds`). */
+const WARES: readonly TradeGood[] = ['hides', 'furs', 'honey', 'wax'];
+
 /** Zboží souseda jako v povaze – dobytek vcelku (`cattle`), koně (`horseKinds`) a kámen (`stoneKinds`) mimo povahu. */
 function tokens(goods: readonly TradeGood[]): NeighbourGood[] {
   return [
     ...new Set(
       goods.flatMap((g): NeighbourGood[] => {
-        if (isHorseGood(g) || g === 'stone') return [];
+        if (isHorseGood(g) || g === 'stone' || WARES.includes(g)) return [];
         return [isCattleGood(g) ? 'cattle' : g];
       }),
     ),
@@ -100,6 +103,7 @@ describe('povaha souseda', () => {
       ...kindsOf.flatMap((k) => expanded(NEIGHBOURS.kinds[k].offers, k)),
       ...kindsOf.flatMap((k) => NEIGHBOURS.horseKinds[k].offers),
       ...kindsOf.filter((k) => NEIGHBOURS.stoneKinds[k] === 'offers').map(() => 'stone' as const),
+      ...kindsOf.filter((k) => NEIGHBOURS.waresKinds[k] === 'offers').flatMap(() => WARES),
     ]);
     const wanted = new Set([
       ...kindsOf.flatMap((k) =>
@@ -107,6 +111,7 @@ describe('povaha souseda', () => {
       ),
       ...kindsOf.flatMap((k) => NEIGHBOURS.horseKinds[k].demands),
       ...kindsOf.filter((k) => NEIGHBOURS.stoneKinds[k] === 'demands').map(() => 'stone' as const),
+      ...kindsOf.filter((k) => NEIGHBOURS.waresKinds[k] === 'demands').flatMap(() => WARES),
     ]);
     for (const g of TRADE_GOODS) {
       expect(offered.has(g)).toBe(true);
@@ -149,19 +154,19 @@ describe('povaha souseda', () => {
 
   it('koně podle povahy (horses.md – Nákup a prodej) – ostatní zboží souseda beze změny', () => {
     // otisk zboží bez koní (seedy 1–40, všechny směry) – spočítaný před obchodem s koňmi
+    const kept = (g: string): boolean =>
+      !isHorseGood(g) && g !== 'stone' && !WARES.includes(g as TradeGood);
     let all = '';
     for (let seed = 1; seed <= 40; seed++) {
       for (const d of DIRECTIONS) {
         const n = neighbourOf(seed, d);
         const strip = (goods: TradeGoods): TradeGoods =>
-          Object.fromEntries(
-            Object.entries(goods).filter(([g]) => !isHorseGood(g) && g !== 'stone'),
-          );
+          Object.fromEntries(Object.entries(goods).filter(([g]) => kept(g)));
         all += JSON.stringify([
           n.name,
           n.kind,
-          n.offers.filter((g) => !isHorseGood(g) && g !== 'stone'),
-          n.demands.filter((g) => !isHorseGood(g) && g !== 'stone'),
+          n.offers.filter((g) => kept(g)),
+          n.demands.filter((g) => kept(g)),
           strip(n.supply),
           strip(n.demand),
         ]);
@@ -179,8 +184,8 @@ describe('povaha souseda', () => {
     expect(NEIGHBOURS.horseKinds.woodsmen).toEqual({ offers: [], demands: [] });
   });
 
-  it('všech 15 druhů zboží má hodnotu – jen to, co má i ves (dobytek a koně ve třech druzích, kámen)', () => {
-    expect(TRADE_GOODS).toHaveLength(15);
+  it('všech 19 druhů zboží má hodnotu – jen to, co má i ves (dobytek a koně ve třech druzích, kámen, kůže, kožešiny, med a vosk)', () => {
+    expect(TRADE_GOODS).toHaveLength(19);
     expect(TRADE_GOODS.filter(isHorseGood)).toEqual(['foals', 'mares', 'ridingHorses']);
     expect(TRADE_GOODS.filter(isCattleGood)).toEqual(['cows', 'youngOxen', 'trainedOxen']);
     expect(Object.keys(TRADE_GOOD_VALUES).sort()).toEqual([...TRADE_GOODS].sort());
@@ -200,6 +205,111 @@ describe('povaha souseda', () => {
         expect(role === 'offers' ? n.offers : n.demands).toContain('stone');
       }
     }
+  });
+});
+
+/** Otisk sousedů semene 1 zapsaný před kůžemi, kožešinami, medem a voskem (hides-honey.md – Obchod). */
+const BEFORE_WARES = {
+  N: {
+    supply: { legumes: 892, cows: 2, youngOxen: 4 },
+    demand: {
+      cheese: 236,
+      logs: 27,
+      charcoal: 3378,
+      foals: 2,
+      mares: 2,
+      ridingHorses: 3,
+      stone: 38,
+    },
+  },
+  NE: {
+    supply: { meat: 239, charcoal: 2250, stone: 27 },
+    demand: { grain: 1476, cheese: 230, ironBars: 43 },
+  },
+  E: {
+    supply: { pottery: 370, ironBars: 14, stone: 32 },
+    demand: { grain: 1560, meat: 453, foals: 3, mares: 2, ridingHorses: 3 },
+  },
+  SE: {
+    supply: { pottery: 443, ironBars: 18, stone: 19 },
+    demand: { grain: 1663, cheese: 207, foals: 1, mares: 2, ridingHorses: 1 },
+  },
+  S: {
+    supply: { grain: 838, legumes: 1321, cows: 2, youngOxen: 4 },
+    demand: { cheese: 449, logs: 27, foals: 2, mares: 1, ridingHorses: 1, stone: 40 },
+  },
+  SW: {
+    supply: {
+      meat: 295,
+      cheese: 294,
+      cows: 2,
+      youngOxen: 4,
+      trainedOxen: 1,
+      foals: 3,
+      mares: 2,
+      ridingHorses: 1,
+    },
+    demand: { grain: 884, ironBars: 22, stone: 21 },
+  },
+  W: {
+    supply: { meat: 406, charcoal: 1423, stone: 36 },
+    demand: { grain: 1780, legumes: 902, ironBars: 42 },
+  },
+  NW: {
+    supply: {
+      meat: 490,
+      cheese: 254,
+      cows: 2,
+      youngOxen: 4,
+      trainedOxen: 1,
+      foals: 3,
+      mares: 2,
+      ridingHorses: 3,
+    },
+    demand: { grain: 1727, logs: 35, ironBars: 29, stone: 36 },
+  },
+} as Record<string, { supply: TradeGoods; demand: TradeGoods }>;
+
+describe('kůže, kožešiny, med a vosk u sousedů (hides-honey.md – Obchod)', () => {
+  it('bez klíčů nového zboží je soused shodný s otiskem zapsaným před změnou', () => {
+    const without = (goods: TradeGoods): TradeGoods =>
+      Object.fromEntries(Object.entries(goods).filter(([g]) => !WARES.includes(g as TradeGood)));
+    for (const d of DIRECTIONS) {
+      const n = neighbourOf(1, d);
+      expect(without(n.supply)).toEqual(BEFORE_WARES[d]!.supply);
+      expect(without(n.demand)).toEqual(BEFORE_WARES[d]!.demand);
+    }
+  });
+
+  it('každý druh nabízí aspoň jeden soused a aspoň jeden shání, množství v mezích', () => {
+    const offered = new Set<string>();
+    const wanted = new Set<string>();
+    for (let seed = 1; seed <= 20; seed++) {
+      for (const d of DIRECTIONS) {
+        const n = neighbourOf(seed, d);
+        const role = NEIGHBOURS.waresKinds[n.kind];
+        const side = role === 'offers' ? n.supply : n.demand;
+        const other = role === 'offers' ? n.demand : n.supply;
+        for (const g of WARES) {
+          const { from, to } = NEIGHBOURS.waresAmounts[g as keyof typeof NEIGHBOURS.waresAmounts];
+          expect(side[g]).toBeGreaterThanOrEqual(from);
+          expect(side[g]).toBeLessThanOrEqual(to);
+          expect(other[g]).toBeUndefined();
+          (role === 'offers' ? offered : wanted).add(g);
+        }
+      }
+    }
+    for (const g of WARES) {
+      expect(offered.has(g)).toBe(true);
+      expect(wanted.has(g)).toBe(true);
+    }
+  });
+
+  it('hodnoty a nosnost zboží', () => {
+    expect(TRADE_GOOD_VALUES.honey).toEqual({ valueKg: 6, carryKg: 1 });
+    expect(TRADE_GOOD_VALUES.wax).toEqual({ valueKg: 30, carryKg: 1 });
+    expect(TRADE_GOOD_VALUES.hides).toEqual({ valueKg: 20, carryKg: 5 });
+    expect(TRADE_GOOD_VALUES.furs).toEqual({ valueKg: 8, carryKg: 1 });
   });
 });
 

@@ -72,6 +72,7 @@ const neighbours: VillageNeighbour[] = [
     expedition: null,
     carts: [],
     room: { cows: 38, oxen: 3, horses: 0 },
+    wares: { bigHides: 0, smallHides: 0, wildFurs: 0, sheepFurs: 0 },
   },
   {
     direction: 'E',
@@ -98,6 +99,7 @@ const neighbours: VillageNeighbour[] = [
     // ves má čtyřkolák a spřežení doma – náklad jde na vůz (wagons.md – Obchod)
     carts: ['four-wheel'],
     room: { cows: 38, oxen: 4, horses: 0 },
+    wares: { bigHides: 0, smallHides: 0, wildFurs: 0, sheepFurs: 0 },
   },
   {
     direction: 'S',
@@ -134,6 +136,7 @@ const neighbours: VillageNeighbour[] = [
     },
     carts: [],
     room: { cows: 38, oxen: 4, horses: 0 },
+    wares: { bigHides: 0, smallHides: 0, wildFurs: 0, sheepFurs: 0 },
   },
   {
     direction: 'W',
@@ -163,6 +166,7 @@ const neighbours: VillageNeighbour[] = [
     },
     carts: [],
     room: { cows: 38, oxen: 3, horses: 0 },
+    wares: { bigHides: 0, smallHides: 0, wildFurs: 0, sheepFurs: 0 },
   },
 ];
 

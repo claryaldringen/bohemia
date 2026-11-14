@@ -181,6 +181,21 @@ function roomNote(neighbour: VillageNeighbour, good: TradeGood): string | null {
   return null;
 }
 
+/**
+ * Rozpis kůží a kožešin ve vsi pro popisek (hides-honey.md – Obchod): kůže jsou v kusech skotu,
+ * malé (kozí a prasečí) přepočtem plochou, prodej bere napřed velké; kožešiny z lovu a ovčí.
+ */
+function waresNote(neighbour: VillageNeighbour, good: TradeGood): string | null {
+  const { bigHides, smallHides, wildFurs, sheepFurs } = neighbour.wares;
+  if (good === 'hides') {
+    return `Ves má ${tradeAmountText(bigHides, 'ks')} velkých kůží a malé kůže za ${tradeAmountText(smallHides, 'ks')} (kozí a prasečí se přepočtou plochou) – prodá se napřed velké`;
+  }
+  if (good === 'furs') {
+    return `Ves má ${tradeAmountText(wildFurs, 'ks')} kožešin z lovu a ${tradeAmountText(sheepFurs, 'ks')} ovčích – prodají se napřed z lovu`;
+  }
+  return null;
+}
+
 /** Řádek zboží (`TradeRow`). */
 function GoodRow({
   side,
@@ -574,6 +589,7 @@ export function NeighbourTrade({
               value={give[row.good] ?? 0}
               max={limits.give[row.good] ?? 0}
               onChange={(v) => setGood('give', row.good, v)}
+              note={waresNote(neighbour, row.good)}
             />
           ))}
           {PEOPLE_KINDS.filter((k) => wanted[k] > 0).map((kind) => (
@@ -600,7 +616,7 @@ export function NeighbourTrade({
               value={get[row.good] ?? 0}
               max={limits.get[row.good] ?? 0}
               onChange={(v) => setGood('get', row.good, v)}
-              note={roomNote(neighbour, row.good)}
+              note={roomNote(neighbour, row.good) ?? waresNote(neighbour, row.good)}
             />
           ))}
           {PEOPLE_KINDS.filter((k) => offered[k] > 0).map((kind) => (

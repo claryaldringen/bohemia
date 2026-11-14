@@ -29,6 +29,7 @@ const neighbour = (over: Partial<VillageNeighbour> = {}): VillageNeighbour => ({
   expedition: null,
   carts: [],
   room: { cows: 40, oxen: 6, horses: 0 },
+  wares: { bigHides: 0, smallHides: 0, wildFurs: 0, sheepFurs: 0 },
   ...over,
 });
 
@@ -121,6 +122,26 @@ describe('dobytek ve třech druzích (trade.md; Martin 20. 10. 2026)', () => {
     ).toMatch(/do ohrady skotu nevejde/);
     // dobytek nese jen honák – zpátky stačí jeden člověk, tam nosiči obilí
     expect(tradePreview(n, {}, { cows: 2 }).porters).toBe(1);
+  });
+});
+
+describe('kůže, kožešiny, med a vosk (hides-honey.md – Obchod)', () => {
+  it('soused nabízí med – řádek s ikonou a popiskem „Med“, kůže mají popisek s rozpisem', () => {
+    const html = renderToStaticMarkup(
+      <NeighbourTrade
+        neighbour={neighbour({
+          offers: [{ good: 'honey', price: 5.76, left: 40 }],
+          demands: [{ good: 'hides', price: 20, left: 12, have: 4 }],
+          wares: { bigHides: 3, smallHides: 1, wildFurs: 0, sheepFurs: 0 },
+        })}
+      />,
+    );
+    expect(html).toContain('/icons/resources/honey.png');
+    expect(textOf(html, 'trade-get-honey-tooltip')).toContain('Med');
+    expect(html).toContain('/icons/resources/hide.png');
+    const note = textOf(html, 'trade-give-hides-note');
+    expect(note).toContain('3 kusy velkých kůží');
+    expect(note).toContain('1 kus');
   });
 });
 
