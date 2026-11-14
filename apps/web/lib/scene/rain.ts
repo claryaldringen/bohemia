@@ -117,6 +117,24 @@ export interface RainBox {
   width: number;
 }
 
+/**
+ * Rozmazání pohybem: čárka je aspoň tak dlouhá, jako kapka urazí mezi dvěma posuny (× 1,5), jinak
+ * by při řídkých snímcích (okno bez fokusu 10 fps, škrcení záložky) kapka poskočila o víc, než je
+ * její čárka, a oko by ji spárovalo s jinou – déšť by vypadal pomalý nebo obrácený (časový aliasing).
+ */
+const STREAK_BLUR = 1.5;
+/** Nejdelší započtený čas mezi posuny (s) – po dlouhé pauze nebo skryté záložce nevzniknou obří čárky. */
+const STREAK_MAX_DT = 1;
+/** Čárka nejvýš tolik výšky kvádru. */
+const STREAK_MAX_OF_HEIGHT = 0.4;
+
+/** Délka čárky (m) při čase `dtSeconds` od minulého posunu; nejméně `box.streak`. */
+export function streakLength(box: RainBox, look: DropLook, dtSeconds: number): number {
+  const dt = Number.isFinite(dtSeconds) ? Math.min(STREAK_MAX_DT, Math.max(0, dtSeconds)) : 0;
+  const blurred = look.fallMps * dt * STREAK_BLUR;
+  return Math.min(Math.max(box.streak, blurred), box.height * STREAK_MAX_OF_HEIGHT);
+}
+
 export function rainBox(radius: number, look: DropLook = RAIN_LOOK): RainBox {
   const side = Math.min(BOX_MAX_M, Math.max(BOX_MIN_M, radius * BOX_PER_RADIUS));
   return { side, height: side * 0.6, streak: side * look.streak, width: side * look.width };

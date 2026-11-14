@@ -351,7 +351,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   - **Mělký potok v suchu** (`water.ts`): hladina klesne o 0,35 m × sucho jen ve shaderu (průhlednost
     podle hloubky ve vrcholech, `seasonC.x`) – mělčiny u břehů a brody zmizí, potok je užší
     a tůně menší, bez nové geometrie.
-  - **Déšť** (`rain.ts` čisté funkce, testy; `rain-renderer.ts`): dny deště ze seedu dne světa
+  - **Déšť** (`rain.ts` čisté funkce, testy; `rain-renderer.ts`; délka čárky roste s časem mezi posuny – `streakLength`, rozmazání pohybem proti aliasingu při řídkém taktu 10–20 fps, platí i pro kroupy): dny deště ze seedu dne světa
     (`gameDayAt`, hash pořadí dne – jen vzhled, jádro o nich neví), deštivý den s pravděpodobností
     0,55 × mokro, síla 0,6–1, na přelomu dnů plynulý přechod (po desetinách). Za deště
     **zataženo** (`overcast` – slunce × 0,5 a šedé, hustší opar, stíny × 0,2) a kapky: jeden

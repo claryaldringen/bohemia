@@ -5,7 +5,15 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import type { Scene } from '@babylonjs/core/scene';
-import { RAIN_DROPS, RAIN_LOOK, dropPosition, dropSeeds, rainBox, type DropLook } from './rain';
+import {
+  RAIN_DROPS,
+  RAIN_LOOK,
+  dropPosition,
+  dropSeeds,
+  rainBox,
+  streakLength,
+  type DropLook,
+} from './rain';
 
 /** Déšť se kreslí po krajině (jako kouř) – průhledné čárky přes obtisky na zemi. */
 const RAIN_RENDERING_GROUP = 1;
@@ -45,6 +53,8 @@ export class RainRenderer {
   private readonly seeds: Float32Array;
   private readonly drop: [number, number, number] = [0, 0, 0];
   private amount = 0;
+  /** Čas minulého posunu (s); null = první posun po zapnutí deště (základní délka čárky). */
+  private lastSeconds: number | null = null;
   private area: ((x: number, z: number) => boolean) | null = null;
 
   constructor(
@@ -81,6 +91,7 @@ export class RainRenderer {
   /** Síla deště 0–1 – kolik kapek padá; 0 mesh vypne. Vrátí true, když se něco změnilo. */
   setAmount(amount: number): boolean {
     if (amount === this.amount) return false;
+    if (amount <= 0) this.lastSeconds = null;
     this.amount = amount;
     this.mesh.thinInstanceCount = Math.round(this.kind.count * amount);
     this.mesh.setEnabled(amount > 0);
@@ -111,7 +122,12 @@ export class RainRenderer {
     dz /= len;
     const m = this.matrices;
     const count = this.mesh.thinInstanceCount;
-    const length = box.streak;
+    const length = streakLength(
+      box,
+      look,
+      this.lastSeconds === null ? 0 : seconds - this.lastSeconds,
+    );
+    this.lastSeconds = seconds;
     for (let i = 0; i < count; i++) {
       dropPosition(this.seeds, i, seconds, target, box, this.drop, look);
       const o = i * 16;
