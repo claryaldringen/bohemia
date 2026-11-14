@@ -93,6 +93,9 @@ Doména `buildings/church-build.ts` (testy `buildings/__tests__/church-build.tes
   `prepManDays` (kácení dřeva stavby + překážky). Dodaný kámen, vápenec a písek se odvodí z hotové
   práce (`churchMaterials`), postup částí 0–1 `churchProgress` (základy, zdi, střecha, výzdoba)
   a po druzích práce `churchWorkProgress` (panel staveniště).
+- **Křest jen u hráče:** `playerChurchStartProblem` (`CHURCH_NOT_BAPTIZED` + `churchStartProblem`) hlídá
+  akce `placeChurchForVillage` a tlačítka `churchBuildChoices`; NPC správce a simulace stavby křest
+  nevyžadují (Martin 14. 11. 2026: ikonu nemá vidět hráč před přijetím křesťanství).
 - **Zahájení:** `applyBuildIntent` s `ChurchIntent` → `churchStartProblem` (`CHURCH_NO_LODGE` bez
   stavbyvedoucího, `CHURCH_WRONG_TYPE` mimo `churchTypesFor`, `CHURCH_NO_QUARRY` bez lomu) →
   `checkChurchPlacement` → `startChurch`. Bez ceny předem; dřevo `woodKg` ÷ `CHURCH.woodKgPerLog`

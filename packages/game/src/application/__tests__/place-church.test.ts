@@ -3,6 +3,7 @@ import { dayIndexOf } from '../../domain/calendar';
 import { makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
 import {
   CHURCH_EAST_ROTATION,
+  CHURCH_NOT_BAPTIZED,
   CHURCH_NO_LODGE,
   CHURCH_WRONG_TYPE,
   MASON_CRAFTS,
@@ -68,6 +69,23 @@ async function setup(
 const rotunda = { type: 'rotunda' as const, dims: defaultChurchDims('rotunda') };
 
 describe('placeChurchForVillage', () => {
+  it('nepokřtěný rod kostel před křtem nezačne, po křtu ano', async () => {
+    const { villages, villageId } = await setup(true);
+    const record = villages.records.get(villageId)!;
+    villages.records.set(villageId, { ...record, state: { ...record.state, faith: {} } });
+    const input = { villageId, landscape, today: FOUNDED + 1, position: AT, ...rotunda };
+    expect(await placeChurchForVillage({ villages }, input)).toEqual({
+      ok: false,
+      reason: CHURCH_NOT_BAPTIZED,
+    });
+    const before = villages.records.get(villageId)!;
+    villages.records.set(villageId, {
+      ...before,
+      state: { ...before.state, faith: { rodBaptizedDay: FOUNDED } },
+    });
+    expect((await placeChurchForVillage({ villages }, input)).ok).toBe(true);
+  });
+
   it('bez stavbyvedoucího nic, cizí typ okruhu nic', async () => {
     const empty = await setup(false);
     const input = { villageId: empty.villageId, landscape, today: FOUNDED + 1, position: AT };

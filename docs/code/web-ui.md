@@ -236,10 +236,8 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   skládá `hud/` – `TopBar` (jméno vsi = přepínač vsí `hud/VillageSwitcher.tsx` – klik otevře
   seznam vsí hráče se jménem a lidmi, klik na ves ji přepne – ves na jiné mapě novým načtením
   stránky (jedna ves, jedna mapa); přejmenování dvojklikem nebo tužkou; upozornění z jiné vsi
-  krátkým řádkem se jménem vsi – `otherVillageNotices`; ikony s čísly: lidé a kolik jich pole uživí v jedné ikoně („31 / ≈ 22“, `peopleLabel`), obilí, luštěniny
-  (ikona `legumes`, když jsou v zásobě, na poli nebo v jídle – `showsLegumes`), maso,
-  sýr (ikona `cheese`, v popisku mléko za den) když je mléko nebo sýr, ovoce (jablka) jen když
-  jsou nebo je sad, seno s ohradou, klády, hřivny jen ves s řemesly (uhlí je v panelu uhlíře, vozy v ohradě volů a v panelu tesaře, keramika a dřevěné nářadí nikde – Martin 24. 10. 2026), volná
+  krátkým řádkem se jménem vsi – `otherVillageNotices`; ikony s čísly: lidé a kolik jich pole uživí v jedné ikoně („31 / ≈ 22“, `peopleLabel`), plodiny (obilí, luštěniny a jablka jednou ikonou s rozpisem), maso,
+  sýr (ikona `cheese`, v popisku mléko za den) když je mléko nebo sýr, seno s ohradou, klády, hřivny jen ves s řemesly (uhlí je v panelu uhlíře, vozy v ohradě volů a v panelu tesaře, keramika a dřevěné nářadí nikde – Martin 24. 10. 2026), volná
   práce, nasycení (barva ikony podle energie – hlad, tooltip nasycení s energií, bílkovinami
   a podíly obilí / luštěniny / maso / mléko a sýr / vejce / ovoce), štěstí, datum – obnoví se
   na začátku dalšího herního dne, ne každou sekundu (`dateRefreshDelay` v `lib/game-date.ts`);
@@ -251,9 +249,9 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   dobytka (`village-livestock`) součet kusů skotu, volů, ovcí, koz, prasat a koní
   (`livestockTotal` z `view.livestock` a `view.horses`); klik na ně otevře u ikony panel
   s rozpisem (`StockBreakdown`, `<testId>-toggle` / `<testId>-panel`, řádky `grainStockRows` /
-  `livestockRows` – ikony s čísly, názvy v popiscích; dobytek jen druhy, které ves má), další klik,
-  Esc nebo stisk mimo ho zavře jako panel u data; Martin 14. 11. 2026. Ikony luštěnin a ovoce
-  v liště zůstávají vedle),
+  `livestockRows` – sloupec řádků ikona + název + číslo zarovnané vpravo, panel `w-max` podle nejdelšího řádku, bez zalamování; dobytek jen druhy, které ves má), další klik,
+  Esc nebo stisk mimo ho zavře jako panel u data; dokud je rozpis otevřený, popisek ikony je vypnutý (`Resource tooltipOff`), aby nepřekryl čísla; Martin 14. 11. 2026. Samostatné ikony luštěnin a ovoce
+  v liště nejsou – pokrývá je rozpis, Martin 14. 11. 2026 „ano“, D19),
   `GameMenu` (nabídka hry jako v 0 A.D., F10 – modální okno uprostřed obrazovky se ztmaveným
   pozadím; smí mít slova: Nastavení – přepínač `setting-sound` Zvuky krajiny, stejná uložená
   volba `sound-preference` –, Začít znovu,

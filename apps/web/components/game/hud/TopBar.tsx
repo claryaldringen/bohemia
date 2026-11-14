@@ -54,16 +54,19 @@ function Resource({
   testId,
   children,
   filter,
+  tooltipOff = false,
 }: {
   icon: string;
   /** Popisek – název, u nasycení i podíly stravy. */
   name: ReactNode;
+  /** Popisek se neukáže (rozpis zásob je otevřený a číslo by překryl). */
+  tooltipOff?: boolean;
   testId: string;
   children?: ReactNode;
   filter?: string;
 }): ReactElement {
   return (
-    <Tooltip content={name}>
+    <Tooltip content={name} off={tooltipOff}>
       <span data-hud-block className="flex h-8 items-center gap-1 px-1.5" tabIndex={0}>
         <img
           src={`/icons/resources/${icon.includes('.') ? icon : `${icon}.png`}`}
@@ -166,7 +169,7 @@ export function StockBreakdown({
         onClick={() => setOpen((value) => !value)}
         className="cursor-pointer rounded hover:bg-white/5 aria-expanded:bg-white/10"
       >
-        <Resource icon={icon} name={name} testId={testId}>
+        <Resource icon={icon} name={name} testId={testId} tooltipOff={open}>
           {formatInteger(total)}
         </Resource>
       </button>
@@ -174,12 +177,25 @@ export function StockBreakdown({
         <span
           data-hud-block
           data-testid={`${testId}-panel`}
-          className="hud-panel absolute top-full left-0 z-30 mt-1 flex items-center gap-1 p-1"
+          className="hud-panel absolute top-full left-0 z-30 mt-1 flex w-max flex-col gap-0.5 p-1.5 text-sm whitespace-nowrap"
         >
           {rows.map((row) => (
-            <Resource key={row.key} icon={row.icon} name={row.name} testId={`${testId}-${row.key}`}>
-              {formatInteger(row.amount)}
-            </Resource>
+            <span key={row.key} className="flex items-center gap-2 px-1">
+              <img
+                src={`/icons/resources/${row.icon}.png`}
+                alt=""
+                width={22}
+                height={22}
+                className="h-[22px] w-[22px] shrink-0"
+              />
+              <span className="text-[#bfa77a]">{row.name}</span>
+              <span
+                data-testid={`${testId}-${row.key}`}
+                className="ml-auto min-w-10 pl-3 text-right font-semibold tabular-nums"
+              >
+                {formatInteger(row.amount)}
+              </span>
+            </span>
           ))}
         </span>
       )}
@@ -339,18 +355,6 @@ export function HappinessTooltip({
         </span>
       )}
     </span>
-  );
-}
-
-/**
- * Luštěniny v horní liště (diet.md – Luštěniny) – když jsou v zásobě, ves je letos seje nebo je
- * dnes jí.
- */
-export function showsLegumes(view: Pick<VillageView, 'legumesKg' | 'fields' | 'diet'>): boolean {
-  return (
-    view.legumesKg >= 1 ||
-    view.fields.some((f) => (f.crops.legume ?? 0) > 0) ||
-    (view.diet.shares.legumes ?? 0) > 0
   );
 }
 
@@ -787,11 +791,6 @@ export function TopBar({
             rows={grainStockRows(view)}
             testId="village-stores"
           />
-          {showsLegumes(view) && (
-            <Resource icon="legumes" name="Luštěniny (kg)" testId="village-legumes">
-              {formatInteger(view.legumesKg)}
-            </Resource>
-          )}
           {view.threshing?.sheavesKg !== undefined && (
             <Resource icon="sheaves" name={sheavesName()} testId="village-sheaves">
               {formatInteger(view.threshing.sheavesKg)}
@@ -810,11 +809,6 @@ export function TopBar({
           {showsDairy(view) && (
             <Resource icon="cheese" name={dairyName(view)} testId="village-cheese">
               {formatInteger(view.cheeseKg)}
-            </Resource>
-          )}
-          {(Math.round(view.applesKg) > 0 || view.orchards.length > 0) && (
-            <Resource icon="apples" name="Ovoce" testId="village-apples">
-              {formatInteger(view.applesKg)}
             </Resource>
           )}
           {showsHay(view) && (
