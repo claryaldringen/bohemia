@@ -156,12 +156,10 @@ test('vojvoda: družina, rozkaz pravým tlačítkem, portrét v liště, Domů a
 
 // Výjezd ve scéně vsi (journey.md – Scéna vsi; plán 2026-11-13 – Úloha 8b): jezdci jedou, praporek
 // stojí v cíli (praporek ve vodě hlídají unit testy, `journey.test.ts` – na náhodné krajině byl
-// e2e nestabilní), čekající skupina má přesýpací hodiny a cizí výjezd
+// e2e nestabilní), cizí výjezd
 // u vsi hostitel vidí a klikem pozná vojvodu a rod. Kreslení ověřuje háček scény `journeyScene`.
 
-test('výjezd ve scéně: jezdci, praporek, přesýpací hodiny a cizí vojvoda u vsi', async ({
-  browser,
-}) => {
+test('výjezd ve scéně: jezdci, praporek a cizí vojvoda u vsi', async ({ browser }) => {
   test.setTimeout(600_000);
   const ctxs = await Promise.all([browser.newContext(), browser.newContext()]);
   for (const ctx of ctxs) await useUniqueClientIp(ctx);
@@ -204,10 +202,8 @@ test('výjezd ve scéně: jezdci, praporek, přesýpací hodiny a cizí vojvoda 
     )
     .toBeGreaterThan(3);
 
-  // na místě čeká: nad skupinou přesýpací hodiny s počtem dní do návratu
-  await expect
-    .poll(async () => (await journeyScene(a)).hourglass ?? 0, { timeout: 240_000 })
-    .toBeGreaterThanOrEqual(1);
+  // na místě čeká: praporek cíle zůstává, hodiny nad skupinou nejsou (Martin 14. 11. 2026)
+  await expect.poll(async () => (await journeyScene(a)).banner, { timeout: 10_000 }).not.toBeNull();
   const shot = process.env.JOURNEY_SHOT;
   if (shot) {
     await a.evaluate(([x, z]) => window.__bohemiaE2E!.moveCameraTo!(x!, z!), [goal.x, goal.z]);

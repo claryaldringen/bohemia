@@ -42,7 +42,7 @@ export interface SceneJourney extends Pick<
   arrived: boolean | null;
   /** Fáze vlastního výjezdu; návštěvník null. */
   phase: JourneyPhase | null;
-  /** Celé dny do návratu (přesýpací hodiny) – jen vlastní skupina, která stojí na místě. */
+  /** Celé dny do návratu (panel osoby; hodiny ve scéně zrušeny) – jen vlastní skupina, která stojí na místě. */
   waitDaysLeft: JourneyView['waitDaysLeft'];
   /**
    * Odkud vlastní výjezd vyjel a kam se vrací (`JourneyView.homePos` – dvorec vsi); od něj se měří

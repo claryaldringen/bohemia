@@ -360,12 +360,13 @@ onEnded)` se ptá jen s `running` (vojvoda pryč nebo právě vyjel); zmizí-li 
   `walk-spear`) stejnými instancemi jako vojsko (`ArmyRenderer.setJourneys` – žádný mesh ani vertex
   buffer navíc). `pickRider` – klik od země po hlavu jezdce. `journeyHorseIds` – koně jezdců
   vlastní vsi (`Horse.riderId`) ohrada nekreslí (`setRidingHorses`).
-- **Praporek a hodiny** – `lib/scene/journey-marker.ts`: `journeyMarks` (návrh Clauda) – praporek na
+- **Praporek** – `lib/scene/journey-marker.ts`: `journeyMarks` (návrh Clauda) – praporek na
   cíli vlastního výjezdu, dokud jede ven nebo čeká (`phase: 'out'`, cíl na této mapě – jádro cíl ve
-  vodě posune na nejbližší dosažitelné místo, praporek stojí tam), hodiny nad středem skupiny
-  s `waitDaysLeft`; cizí výjezd ani návrat domů praporek nemají. `JourneyMarker` – tyč a cíp
-  z vlastní geometrie, hodiny `hourglassPixels` (RGBA, hodiny a číslice) natočené ke kameře, kreslí
-  se přes vše; přepíše se jen při změně (žádné kreslení navíc). Použije i scéna cizí mapy (Úloha 9).
+  vodě posune na nejbližší dosažitelné místo, praporek stojí tam); cizí výjezd ani návrat domů
+  praporek nemají. `JourneyMarker` – tyč a cíp z vlastní geometrie; přepíše se jen při změně
+  (žádné kreslení navíc). Použije i scéna cizí mapy (Úloha 9). Přesýpací hodiny s počtem dní nad
+  čekající skupinou Martin 14. 11. 2026 zrušil („je to k ničemu“); dny čekání zůstávají v panelu
+  osoby (`waitDaysLeft`).
 - **Napojení** – `SceneWarView.setJourneys` (drží výjezdy i přes novou krajinu) ←
   `LandscapeScene.setJourneys` ← `components/game/village-game/use-journey-scene.ts`:
   `sceneJourneysOf` (`lib/journey-view.ts`) – vlastní výjezd z `useJourney(...).latest` (poslední
@@ -386,9 +387,8 @@ onEnded)` se ptá jen s `running` (vojvoda pryč nebo právě vyjel); zmizí-li 
   v `village-view-scene.ts`), takže ho scéna nekreslí na dvorku ani na cvičišti; kreslí ho jako
   jezdce výjezdu. Ostatní nepřítomní (tažení…) zůstávají jako dosud.
 - **Odjezd a příjezd** – viz níž (Úloha 8c).
-- **e2e** – háček `journeyScene` (`lib/e2e-hooks.ts`: muži, jak jsou nakreslení, praporek a dny
-  na hodinách); `e2e/journey.spec.ts` druhý test – dva hráči, jezdci jedou, praporek u cíle, hodiny
-  při čekání, cizí výjezd u vsi (bod checkpointu přepsaný v DB)
+- **e2e** – háček `journeyScene` (`lib/e2e-hooks.ts`: muži, jak jsou nakreslení, praporek);
+  `e2e/journey.spec.ts` druhý test – dva hráči, jezdci jedou, praporek u cíle (zůstává při čekání), cizí výjezd u vsi (bod checkpointu přepsaný v DB)
   a klik na něj. `JOURNEY_SHOT=<cesta>` uloží snímek. E2e běží s omezeným pohybem (`reducedMotion`)
   – muži tam skáčou na nový stav, plynulý posun kryje `journey-riders.test.ts`. Cíl ve vodě
   (praporek na souši) závisel na náhodné krajině a byl nestabilní – kryje ho unit test
@@ -459,7 +459,7 @@ na mapu jako za vojskem (web-ui.md – Cizí mapa ve scéně).
   jedna scéna Babylonu naráz jako u tažení; nové políčko = nová scéna a krajina.
 - **`ForeignJourneyScene`** (`foreign-scene`, `data-cell`, `data-journey`): krajina z
   `GET /api/journey?map=x,y` (404 nebo chyba = zpět na ves) do `GameView`, jezdci vlastního výjezdu
-  z `journey.latest` (`sceneJourneysOf` bez návštěvníků) s praporkem a hodinami
+  z `journey.latest` (`sceneJourneysOf` bez návštěvníků) s praporkem
   (`journey-marker.ts`), stavby `seenVillageOf(seen, krajina)` → `setVillage` – přestaví se jen při
   změně znalosti (`seenSceneKey`: ves, klíč a den každé stavby). Odjezd ani příjezd se tu nekreslí
   (scéna nemá dvorec – `setJourneyYard` se nevolá). Kamera poprvé na skupinu (R se k ní vrací).
@@ -483,7 +483,7 @@ na mapu jako za vojskem (web-ui.md – Cizí mapa ve scéně).
   `journeyScene`, `projectToScreen`, `moveCameraTo` a `armyStats` míří na scénu cizí mapy;
   `e2e/journey-worker.spec.ts` (projekt `worker`): ves B na políčku vedle A, skupina A přesunutá
   v kontrolním bodu na mapu B, klik na portrét → `foreign-scene` s políčkem B, jasno u jezdců,
-  vzdálený dům B neobjevený a nenakreslený, dům u skupiny ano, hodiny, klik do prázdna zruší výběr
+  vzdálený dům B neobjevený a nenakreslený, dům u skupiny ano, klik do prázdna zruší výběr
   (panel výjezdu zmizí) a klik na vojvodu ve scéně ho vybere zpět, pravé tlačítko → praporek
   v cíli, místo odjezdu šeré, po Domů (skupina přesunutá na domovskou mapu ≈ 180 m od vsi) zpět na
   ves, ještě než výjezd skončí, a „Bořivoj se vrátil.“ (v liště jen 6 s – hlídá se od návratu
