@@ -1414,6 +1414,8 @@ nová pravidla (návrh Clauda).
   `aria-keyshortcuts`) – viz Zkratky panelů Kronika a Upozornění níž. Panel leží vpravo nahoře jako panely rodu a války a střídá se s nimi
   i s nabídkou: otevření kroniky je zavře (`closeOthers`), otevření jiného zavře kroniku
   (`othersOpen` – úprava stavu při vykreslení v `hooks/use-chronicle.ts`). Esc a křížek zavřou.
+- **Označení textu:** roky a zápisy (`chronicle-years`) mají `select-text` – jdou označit
+  a zkopírovat, ač herní stránka má označování vypnuté (`select-none` v `app/game/page.tsx`).
 - **Data na vyžádání:** server action `getChronicle({ villageId, before? })` →
   `chronicleForPlayer` (`lib/village.ts` – `context` bez práva, tedy kdo smí vidět pohled na ves:
   vlastní ves, ves rodu, spravovaná ves) → `chroniclePage` ze stavu dopočítaného jako pohled.
