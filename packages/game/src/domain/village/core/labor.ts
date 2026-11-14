@@ -100,14 +100,10 @@ export interface DayAllocationInput {
    * zbylo po minimu, koních, výpravách a vozech), i před úlohami, které jsou v pořadí dřív; co
    * nedoplejí, doplejí muži až po ostatních úlohách dne (seč, setí, orba) – s `menWeedLater` až po
    * stavbách. Totéž trhání lnu (`womenFirst`). Bez údaje 0 – pleje se jen z toho, co úlohy nechají.
+   * Ženy nesou napřed i denní minimum a úlohy dne – na stavby jde jen práce mužů, která po nich
+   * zbude (`DayAllocation.build`, `menCommon`; „D24 ano“); bez údaje staví všichni.
    */
   womenLabor?: number;
-  /**
-   * Práce mužů vsi za den (člověkodny před štěstím; population.md – Práce, Stavby staví muži;
-   * Martin 14. 11. 2026): na stavby jde jen jejich díl společné práce (`DayAllocation.build`).
-   * Bez údaje staví všichni – celá společná práce.
-   */
-  menLabor?: number;
   /**
    * Muži plejí až po stavbách (fields.md – Pletí jednou a rychle; Martin 9. 11. 2026: „pletí
    * obstarají ženy a děti“): jejich díl pletí (`weedDaysLeft`) se z práce vsi nebere – vrátí se
@@ -241,9 +237,9 @@ export interface DayAllocation {
    */
   common: number;
   /**
-   * Díl společné práce, který dávají muži – jen ten jde na stavby (population.md – Práce, Stavby
-   * staví muži; Martin 14. 11. 2026); co z `common` zbude, jde po stavbách do oprav obydlí a dál.
-   * Chybí (vstup bez `menLabor`) = celá `common`.
+   * Díl společné práce, který zbude mužům – jen ten jde na stavby (population.md – Práce, Stavby
+   * staví muži; Martin 14. 11. 2026: „D24 ano“ – `menCommon`); co z `common` zbude, jde po stavbách
+   * do oprav obydlí a dál. Chybí (rozdělení sestavené mimo `allocateDay`) = celá `common`.
    */
   build?: number;
 }
@@ -291,6 +287,11 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
   const daylight = Math.max(0, input.daylight ?? 1);
   left *= daylight;
   const outdoor = productivity * daylight;
+  // ženy nesou napřed denní minimum a úlohy dne (population.md – Práce, Stavby staví muži; Martin
+  // 14. 11. 2026: „D24 ano“) – jejich venkovní práce po denním minimu; zbytek `left` je mužů
+  const outdoorLeft = left;
+  const womenOutdoor =
+    Math.max(0, Math.max(0, input.womenLabor ?? 0) * productivity - dailyMin) * daylight;
   const tasks: Record<LaborTaskName, number> = {
     reclaim: 0,
     dig: 0,
@@ -345,7 +346,6 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
   // trhání lnu napřed (`womenFirst` – fields.md, Len; Martin 10. 11. 2026): výrostci a starší ze
   // žňových rukou, ženy řemeslníků, pak ženy vsi nad svůj díl minima – muži dál žnou obilí
   let youthLeft = Math.min(handsLeft, Math.max(0, (input.harvestYouth ?? 0) * outdoor));
-  let flaxWomen = 0;
   input.tasks.forEach((task, i) => {
     if (task.womenFirst !== true) return;
     let amount = taskAmounts[i] ?? 0;
@@ -358,7 +358,6 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     amount += light;
     const women = take(Math.min(task.remaining - amount, womenLeft));
     womenLeft -= women;
-    flaxWomen += women;
     taskAmounts[i] = amount + women;
   });
   // muži plejí jen, co by děti a ženy do konce okna nestihly (bez údaje o okně všechno) – odhad
@@ -445,24 +444,22 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     tasks,
     taskAmounts,
     common: left,
-    ...(input.menLabor !== undefined
-      ? { build: menCommon(input.menLabor, input.womenLabor ?? 0, left, weedWomen + flaxWomen) }
-      : {}),
+    build: menCommon(outdoorLeft, womenOutdoor, left),
   };
 }
 
 /**
- * Díl společné práce `common`, který dávají muži – jen ten jde na stavby (population.md – Práce,
- * Stavby staví muži; Martin 14. 11. 2026: „aby stavby stavěli muži jako fyzicky zdatnější“).
- * Denní minimum, práce „za den“ a úlohy dne nesou muži a ženy poměrem své práce (`men`, `women`
- * – model je jinak nedělí), jen pletí a trhání lnu žen vsi (`womenFirst` – fields.md, Pletí jednou
- * a rychle, Len) jdou napřed z práce žen. Mužům proto zbude jejich poměrný díl ze společné práce
- * i z práce, kterou ženy daly na pletí a len – nejvýš celá společná práce (návrh Clauda).
+ * Díl společné práce `common`, který zbude mužům – jen ten jde na stavby (population.md – Práce,
+ * Stavby staví muži; Martin 14. 11. 2026: „D24 ano“). Denní minimum a úlohy dne (pole, seno,
+ * pletí, len, …) nesou napřed ženy – jejich venkovní práce po denním minimu (`womenOutdoor`) –
+ * a muži je doplní, jen když práce žen nestačí; práce „za den“ (péče o koně, kování, výpravy, vozy
+ * pro kováře) nesou muži jako dosud (díl žen při pletí je taky nepočítá). Mužům tak zbude venkovní
+ * práce vsi po pracích „za den“ (`outdoor`) bez práce žen, nejvýš celá společná práce – stejné jako
+ * min(společná, práce mužů − max(0, denní práce − práce žen)).
  */
-export function menCommon(men: number, women: number, common: number, womenFirst: number): number {
-  const all = Math.max(0, men) + Math.max(0, women);
-  if (all <= 0 || common <= 0) return 0;
-  return Math.min(common, (Math.max(0, men) / all) * (common + Math.max(0, womenFirst)));
+export function menCommon(outdoor: number, womenOutdoor: number, common: number): number {
+  const men = Math.max(0, outdoor - Math.max(0, womenOutdoor));
+  return Math.max(0, Math.min(common, men));
 }
 
 /**

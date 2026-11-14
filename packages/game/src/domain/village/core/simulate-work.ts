@@ -682,8 +682,6 @@ function dayLabor(
       harvestYouth,
       weedChildren: weeders.length * WEEDING_CHILDREN.perDay,
       womenLabor,
-      // stavby staví muži (population.md – Práce, Stavby staví muži; Martin 14. 11. 2026)
-      menLabor: villageLabor - womenLabor,
       ...(weedDaysLeft === undefined ? {} : { weedDaysLeft }),
       // muži plejí až po stavbách (fields.md – Pletí jednou a rychle; Martin 9. 11. 2026)
       menWeedLater: true,

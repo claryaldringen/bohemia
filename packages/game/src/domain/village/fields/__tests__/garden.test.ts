@@ -15,7 +15,7 @@ import { GARDEN, LEGUMES } from '../../rules';
 import { advanceVillage } from '../../core/simulate';
 import type { ChronicleEvent, Dwelling, PlotVariant, VillageState } from '../../types';
 import { cropGrossPerHa } from '../../core/year-plan';
-import { withBuiltFirstDwelling, withThreshingFloor } from '../../__tests__/village-fixtures';
+import { withThreshingFloor } from '../../__tests__/village-fixtures';
 
 // Zahrádka u obydlí (fields.md – Zahrádka u obydlí; Martin 9. 11. 2026): domácnost na pozemku
 // polozemnice pěstuje luštěniny; len je od večera 9. 11. 2026 zpět na poli („Tak změna. … takže se
@@ -54,11 +54,7 @@ const found = (day: number): VillageState =>
 
 /** Ves založená 1. 3. 600, jejíž zemnice je od 15. 7. polozemnice na pozemku (políčko 10, 10). */
 function withHomestead(): VillageState {
-  // první obydlí hotové hned – zakladatelé ho staví jen prací muže (population.md – Práce, Stavby
-  // staví muži) a do července by nestálo
-  const s = structuredClone(
-    advanceVillage(withBuiltFirstDwelling(found(at(600, 3, 1))), at(600, 7, 15), null),
-  );
+  const s = structuredClone(advanceVillage(found(at(600, 3, 1)), at(600, 7, 15), null));
   const home = s.dwellings[0]!;
   home.type = 'polozemnice';
   home.plot = { cell: { x: 10, y: 10 }, variant: 'center' };

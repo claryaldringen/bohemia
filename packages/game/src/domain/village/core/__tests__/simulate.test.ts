@@ -352,9 +352,7 @@ describe('advanceVillage – roční plán a sklizeň', () => {
   });
 
   it('31. 8. sklizeň do snopů a plán k výmlatu, v září vymlátí do zásob, 1. 10. plán zmizí (Ruling 8; 1. 11. – Žeň jaře i v září)', () => {
-    // ves založená 1. 2. – první pole zakládá jen muž (population.md – Práce, Stavby staví muži),
-    // do žní ho má z větší části a první úroda je jako dřív u vsi založené v březnu
-    const before = advanceVillage(found(at(600, 2, 1)), at(600, 8, 30), null);
+    const before = advanceVillage(found(at(600, 3, 15)), at(600, 8, 30), null);
     expect(before.season).not.toBeNull();
     const s = advanceVillage(before, at(600, 8, 31), null);
     const harvest = harvests(s).at(-1);
@@ -694,7 +692,10 @@ describe('advanceVillage – založení vsi', () => {
         // průběh stavby je vidět – roste, ale ne skokem; jen porážka 1. 11. (osadníci nemají seno
         // – na maso jdou ovce nad chovný pár) zabere den nebo dva všechnu práci
         expect(site.done).toBeGreaterThanOrEqual(last);
-        if (site.done <= last) stalled++;
+        // dny, kdy jsou dospělí na výpravě k sousedům, stavět nemá kdo – stavby staví jen muži
+        // (population.md – Práce, Stavby staví muži), zemnice trvá déle a výprava do ní padne
+        const away = s.labor?.shares.some((share) => share.activity === 'trade') ?? false;
+        if (site.done <= last && !away) stalled++;
         expect(site.done).toBeLessThan(site.cost);
         last = site.done;
         expect(s.dwellings).toEqual([]);
@@ -732,11 +733,8 @@ describe('advanceVillage – založení vsi', () => {
     const before = advanceVillage(s0, day + 29, null);
     const factor = villageLaborFactor(before);
     // venku podle délky dne (population.md – Skladba dne podle ročního období); volná práce na
-    // stavby je díl mužů – jeden ze dvou dospělých (population.md – Práce, Stavby staví muži)
-    expect(s.commonLaborHistory.at(-1)).toBeCloseTo(
-      ((2 * factor - 0.5) * daylightFactor(day + 30)) / 2,
-      9,
-    );
+    // stavby je práce muže – denní minimum nesou napřed ženy (population.md – Práce, Stavby staví muži)
+    expect(s.commonLaborHistory.at(-1)).toBeCloseTo(factor * daylightFactor(day + 30), 9);
     // práce bokem je v rozdělení dne jen pro postavy – dojení krávy v říjnu, domácí výroba
     const aside = s.labor!.aside!;
     expect(aside.some((share) => share.activity === 'domestic')).toBe(true);
@@ -1271,8 +1269,8 @@ describe('advanceVillage – obydlí', () => {
     s0.dwellings[0]!.builtDay = day - 17 * 365;
     const quiet = advanceVillage(s0, day + 1, null);
     expect(repairLabor(quiet)).toBeGreaterThan(0);
-    // stavba nového domu vezme celý díl mužů (population.md – Práce, Stavby staví muži) – opravy
-    // dostanou jen zbytek: ve vsi samých mužů nic, se ženami jejich díl společné práce
+    // stavba nového domu vezme celou práci mužů (population.md – Práce, Stavby staví muži) – opravy
+    // dostanou jen zbytek: ve vsi samých mužů nic, se ženami jejich volnou práci
     const building = startReplacement(s0, day, 1, 'polozemnice', { x: 30, z: 30, rotation: 0 }, 0);
     const asMen = (s: VillageState): VillageState => ({
       ...s,
@@ -1408,12 +1406,16 @@ describe('přestavba na lepší obydlí – roční průměr práce a dřevo (Ma
 
   it('roční průměr se vede den po dni – starší ves začne průměrem 30 dní, na kouscích nezáleží', () => {
     const start = at(600, 3, 15);
-    const s0 = found(start);
+    // ves samých mužů – posledních 30 dní je celá společná práce (jinak jen práce mužů na stavby –
+    // population.md – Práce, Stavby staví muži), roční průměr ji vede vždy celou
+    const founded = found(start);
+    const s0: VillageState = {
+      ...founded,
+      people: founded.people.map((p) => ({ ...p, sex: 'male' as const })),
+    };
     s0.commonLaborHistory = [3, 6, 9];
     const one = advanceVillage(s0, s0.lastDay + 1, null);
-    // roční průměr vede celou společnou práci, posledních 30 dní jen díl mužů (population.md –
-    // Práce, Stavby staví muži): v březnu bez pletí a lnu jeden muž ze dvou dospělých – polovina
-    const common = 2 * one.commonLaborHistory.at(-1)!;
+    const common = one.commonLaborHistory.at(-1)!;
     expect(one.commonLaborYearly).toBeCloseTo(6 + (common - 6) / COMMON_LABOR_YEAR_DAYS, 12);
     const end = start + 500;
     const whole = advanceVillage(s0, end, null);

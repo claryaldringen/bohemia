@@ -219,9 +219,10 @@ describe('zlatý otisk – výběr dílů a práce vsi k 2. 9.', () => {
     // dřív 169:c1ff75b5
     // 152:21f1a713 (10. 11. 2026, díly na len se odloží před ozimem – fields.md, Len): plán k 1. 9.
     // nezahrnuje do ozimu díly odložené na jarní len; dřív 152:9a7a02d5
-    // 142:6739db1a (14. 11. 2026, stavby staví muži – population.md, Práce): pole zakládá jen díl
-    // mužů ze společné práce – méně dílů v plánu; dřív 152:21f1a713
-    expect(fingerprint(plans)).toBe('142:6739db1a');
+    // 148:71cb4ea8 (14. 11. 2026, stavby staví muži – population.md, Práce, „D24 ano“): pole zakládá
+    // jen práce mužů, která zbude po denní práci žen – méně dílů v plánu; dřív 152:21f1a713
+    // (a 142:6739db1a)
+    expect(fingerprint(plans)).toBe('148:71cb4ea8');
   });
 });
 

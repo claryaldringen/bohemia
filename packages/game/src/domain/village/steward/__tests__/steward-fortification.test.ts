@@ -345,6 +345,7 @@ describe('steward-fortification – opevnění podle hrozby', () => {
     // ani hlad – ves stavějící jen prací mužů (population.md – Práce, Stavby staví muži) má za tři
     // roky méně polí a správce by v nouzi opevnění nezačal; test měří dopočet po kouscích
     start.storesKg += 20_000;
+    start.starvationDays = 0;
     const to = start.lastDay + 10;
     const whole = advanceVillage(start, to, obstacles, landscape);
     const step = (n: number): VillageState => {

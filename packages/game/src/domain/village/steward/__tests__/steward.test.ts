@@ -256,8 +256,9 @@ describe('den správce – režim a pole', () => {
       laborBudget(advanceVillage(s, SEPT + 10, obstacles, landscape));
     const few = after(mixed);
     const more = after(men);
+    // ženy nesou napřed denní minimum a úlohy dne („D24 ano“) – ve vsi s ženou staví jen muž
     expect(more.freePerDay).toBeGreaterThan(0);
-    expect(few.freePerDay).toBeCloseTo(more.freePerDay / 2, 1);
+    expect(few.freePerDay).toBeLessThan(more.freePerDay * 0.8);
     expect(few.left).toBeLessThan(more.left);
   });
 

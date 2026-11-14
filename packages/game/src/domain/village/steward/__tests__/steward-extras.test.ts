@@ -536,16 +536,10 @@ describe('steward-extras – humno, ohrady, posvátná místa a cesty', () => {
     ];
     expect(youngsterHerders(base, day)).toBeGreaterThan(0);
     const team = (s: VillageState): boolean => penStarted(s, 'team');
-    // výhled osevu aspoň 2 ha – ves stavějící jen prací mužů (population.md – Práce, Stavby staví
-    // muži) jich za tři roky tolik nezaloží; test měří rozhodnutí o ohradě, ne růst polí
-    const ctx = (s: VillageState): StewardContext => {
-      const o = stewardOutlook(s, day, NO_CRAFTS);
-      const ha = (v: number): number => Math.max(v, 2);
-      return {
-        ...ctxOf(day),
-        outlook: { ...o, laborHa: ha(o.laborHa), seedHa: ha(o.seedHa), landHa: ha(o.landHa) },
-      };
-    };
+    const ctx = (s: VillageState): StewardContext => ({
+      ...ctxOf(day),
+      outlook: stewardOutlook(s, day, NO_CRAFTS),
+    });
     const s = structuredClone(base);
     penStep(s, ctx(s));
     expect(team(s)).toBe(true);
