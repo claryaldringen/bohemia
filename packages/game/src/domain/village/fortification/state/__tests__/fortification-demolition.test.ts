@@ -4,7 +4,7 @@ import { packObstacles } from '../../../../landscape';
 import { foundVillage } from '../../../core/actions';
 import { DEMOLITION } from '../../../rules/rules-buildings';
 import { FORTIFICATIONS } from '../../../rules/rules-fortifications';
-import { decideFortRebuilds, fortUpkeep } from '../../decay';
+import { decideFortRebuilds } from '../../decay';
 import { fortGaps, segmentIsGap } from '../../defense';
 import { gateChord } from '../../gates';
 import { outlinePointAt } from '../../outline';
@@ -29,6 +29,7 @@ import {
   startFortificationUpgrade,
   startSectionDemolition,
   villageFortifications,
+  withoutOrphanGates,
   workFortification,
 } from '../fortifications';
 import { advanceVillage } from '../../../core/simulate';
@@ -288,7 +289,7 @@ describe('zboření valu', () => {
       9,
     );
     finish(s);
-    let after = fortOf(s);
+    const after = fortOf(s);
     expect(after.top).toBe('fence');
     for (const i of parts) {
       const seg = after.segments[i]!;
@@ -323,20 +324,8 @@ describe('zboření valu', () => {
       level: true,
     });
     expect(woodLogs(s)).toBe(before);
-    after = fortOf(s);
-    for (const i of parts) {
-      expect(after.segments[i]!.demolishedDay).toBe(DAY + 10);
-      expect(segmentIsGap(after, after.segments[i]!, DAY + 11)).toBe(true);
-    }
-    // jediná brána: její díl má zbořený kus před bránou i za ní
-    expect(after.segments[gateSeg]).toMatchObject({
-      demolishedBeforeGate: DAY + 10,
-      demolishedAfterGate: DAY + 10,
-    });
-    // srovnaný val se neudržuje – jen díl s branou: val 2 čd a plot nástavby 1 čd na 100 m ročně
-    const need = fortUpkeep(structuredClone(s), 1000, landscape).used;
-    expect(need).toBeCloseTo(((len[gateSeg]! / 100) * 3) / YEAR, 9);
-    expect(sectionDemolition(s, landscape, input)).toEqual({ reason: FORT_SECTION_GONE });
+    // jediná brána: její díl má zbořený kus před bránou i za ní, brána bez hradby zmizí s opevněním
+    expect(villageFortifications(s)).toHaveLength(0);
   });
 
   it('val, kde už žádná nástavba nestojí, je val bez nástavby', () => {
@@ -548,5 +537,49 @@ describe('zboření přesně zvýrazněné hradby (od okraje brány po okraj br�
       ),
     ).toBe(true);
     expect(fortBlockingSegments(fort, null).every((x) => x.gone === undefined)).toBe(true);
+  });
+});
+
+describe('brány bez hradby po zboření', () => {
+  /** Zboří všechny úseky mezi branami jeden po druhém (každý dokončí). */
+  function demolishAll(s: VillageState): void {
+    for (const gate of fortOf(s).gates.map((g) => g.segment)) {
+      if (villageFortifications(s).length === 0) return;
+      const r = startSectionDemolition(s, DAY, landscape, {
+        fortificationId: fortOf(s).id,
+        segment: gate,
+      });
+      if (!r.ok) continue;
+      Object.assign(s, r.state);
+      finish(s);
+    }
+  }
+
+  it('zbořená palisáda nenechá viset brány – opevnění zmizí celé', () => {
+    const s = threeSections('palisade');
+    expect(fortOf(s).gates).toHaveLength(3);
+    demolishAll(s);
+    expect(villageFortifications(s)).toHaveLength(0);
+  });
+
+  it('převod starší vsi: opevnění jen s branami zmizí, jednou a idempotentně', () => {
+    const s = threeSections('palisade');
+    const fort = fortOf(s);
+    for (const seg of fort.segments) {
+      if (fort.gates.some((g) => g.segment === seg.index)) {
+        seg.demolishedBeforeGate = DAY;
+        seg.demolishedAfterGate = DAY;
+      } else {
+        seg.demolishedDay = DAY;
+        seg.state = 0;
+      }
+    }
+    const once = withoutOrphanGates(s);
+    expect(once).not.toBe(s);
+    expect(villageFortifications(once)).toHaveLength(0);
+    expect(withoutOrphanGates(once)).toBe(once);
+    // stojící hradba převod nespustí
+    const whole = threeSections('palisade');
+    expect(withoutOrphanGates(whole)).toBe(whole);
   });
 });
