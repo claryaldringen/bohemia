@@ -5,8 +5,8 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // Pomalá sada (npm run test:slow): zlatý otisk vsi z village-golden.test.ts po 2. a 3. roce
 // dopočtu, vcelku po jednotlivých letech. Vědomé přepsání otisků: viz village-golden.test.ts.
 
-const EXPECTED_YEAR_2 = 'df78f05ce73582ea';
-const EXPECTED_YEAR_3 = '7bd76e169821a4bc';
+const EXPECTED_YEAR_2 = 'c99147eba93dbf6e';
+const EXPECTED_YEAR_3 = '2f3ab71db19f73c6';
 
 describe('zlatý otisk vsi – delší běh', () => {
   it('po 2. a 3. roce dopočtu dá zapsané otisky', () => {

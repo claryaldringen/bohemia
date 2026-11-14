@@ -1029,10 +1029,11 @@ export function walkDistancesTo(
  * Martin 31. 10. 2026), po odhadu chůze s lesem a objížďkou přes brod (`routes-v8` – paths.md,
  * Odhad vzdáleností), po zrušení tras k práci dne (`routes-v9` – Stálé trasy, pravidlo 5) a po
  * napojení chůze na síť jen v nejbližším bodě každé pěšiny (`routes-v10` – Odhad vzdáleností) a po humnu a milíři jako stálých cílech tras (`routes-v11` – Stálé trasy, pravidlo 5) a po brodech
- * na mělčinách potoka a řeky (`routes-v12` – landscape.md, Brod na každé mapě s potokem) se vsi
+ * na mělčinách potoka a řeky (`routes-v12` – landscape.md, Brod na každé mapě s potokem) a po
+ * chůzi přes vodu jen brodem (`routes-v13` – paths.md, Odhad vzdáleností, Jen brodem) se vsi
  * uložené dřív přepočítají hned při dalším dni, ne až při změně mapy (jednou – pak otisk sedí).
  */
-export const WALK_VERSION = 'routes-v12';
+export const WALK_VERSION = 'routes-v13';
 
 /**
  * Trasy vsi pro otisk `key` (paths.md – Stálé trasy, pravidlo 5): jen stálé trasy ze sítě bez
@@ -1221,7 +1222,10 @@ export function* refreshWalkDistancesSteps(
   yield;
   state.routes = routesOf(state, day, landscape, obstacles, network, key);
   if (!network) {
-    for (const p of state.parts) delete p.walkDistanceM;
+    for (const p of state.parts) {
+      delete p.walkDistanceM;
+      delete p.unreachable;
+    }
     for (const o of villageOrchards(state)) for (const s of o.squares) delete s.walkDistanceM;
     for (const d of state.dwellings) {
       delete d.forestWalkM;
@@ -1259,11 +1263,22 @@ export function* refreshWalkDistancesSteps(
   yield;
   const walks =
     targets.length > 0 ? yield* walkingDistancesSteps(graph, origins, targets, ground, memo) : [];
+  // za vodou bez brodu se nedojde (Infinity – paths.md, Odhad vzdáleností, Jen brodem): díl se
+  // označí a neobdělává se; JSON stavu Infinity neuloží (null), proto se nezapisuje
   parts.forEach((p, k) => {
-    p.walkDistanceM = rounded(walks[k]!);
+    const walk = walks[k]!;
+    if (Number.isFinite(walk)) {
+      p.walkDistanceM = rounded(walk);
+      delete p.unreachable;
+    } else {
+      p.unreachable = true;
+      delete p.walkDistanceM;
+    }
   });
   squares.forEach((s, k) => {
-    s.walkDistanceM = rounded(walks[parts.length + k]!);
+    const walk = walks[parts.length + k]!;
+    if (Number.isFinite(walk)) s.walkDistanceM = rounded(walk);
+    else delete s.walkDistanceM;
   });
   // palivo: z každého obydlí k nejbližšímu okraji lesa (vzdušnou čarou) chůzí; voda: k nejbližší
   // vodě (paths.md – Pochůzky pro vodu) – přirážka denního minima (population.md – Práce)
@@ -1272,10 +1287,11 @@ export function* refreshWalkDistancesSteps(
   for (const d of state.dwellings) {
     yield;
     const edge = nearestSpot(edges, d.position);
-    if (edge) d.forestWalkM = rounded(walk(d.position, [edge])[0]!);
+    const forest = edge ? walk(d.position, [edge])[0]! : Infinity;
+    if (Number.isFinite(forest)) d.forestWalkM = rounded(forest);
     else delete d.forestWalkM;
     const water = waterWalkDistance(ground, walk, d.position);
-    if (water !== null) d.waterWalkM = rounded(water);
+    if (water !== null && Number.isFinite(water)) d.waterWalkM = rounded(water);
     else delete d.waterWalkM;
   }
   // otisk až po změření – přerušený dopočet nenechá otisk bez vzdáleností

@@ -19,6 +19,7 @@ import {
   PATH_WATER,
   PATH_WATER_SPOT,
   PATH_WETLAND,
+  landscapeFordSpots,
   pathTerrainOf,
   pathWindowFor,
   type PathTerrain,
@@ -85,6 +86,11 @@ export interface WalkGround {
    * pěšin a cest (`walkGraph`). Bez údaje bez opevnění.
    */
   walls?: WalkWalls;
+  /**
+   * Brody celé mapy (`landscapeFordSpots` – paths.md, Odhad vzdáleností, Jen brodem): objížďka
+   * přes vodu hledá brod na celé mapě, ne jen v okně. Bez údaje (ručně vyrobená půda) brody okna.
+   */
+  fords?: readonly PathPoint[];
 }
 
 /** Okno půdy pro chůzi: tolik metrů od středu místa vsi na každou stranu. */
@@ -104,7 +110,10 @@ export function walkGroundOf(landscape: Landscape): WalkGround {
     maxX: cx + WALK_GROUND_HALF_M,
     maxZ: cz + WALK_GROUND_HALF_M,
   });
-  const ground = { terrain: pathTerrainOf(landscape, window) };
+  const ground = {
+    terrain: pathTerrainOf(landscape, window),
+    fords: landscapeFordSpots(landscape),
+  };
   groundCache.set(landscape, ground);
   return ground;
 }
@@ -129,7 +138,7 @@ export function withFieldWalk(ground: WalkGround, fields: PathVillage['fields'])
       if (isCropPart(part)) crop[c] = 1;
     }
   }
-  return { terrain: t, fields: { speed, crop } };
+  return { ...ground, fields: { speed, crop } };
 }
 
 /**
@@ -176,8 +185,9 @@ function walledStraight(
  * Délka chůze rovně z `a` do `b` (m) – po pěšině dne síly `strength` (bez údaje bez pěšiny): po
  * půlbuňkách terénu – mokřina, les a díl pole podle rychlosti (přes díl v osevu pěšina
  * nezrychlí), každé vstoupení do vody + ROAD_WALK.fordExtraM. Úsečka přes potok mimo brod jde
- * objížďkou přes brod (`fordDetour` – nejkratší a → brod → b vzdušnou čarou); bez brodu v okně se
- * brodí kdekoli. Bez půdy délka úsečky (po pěšině zkrácená).
+ * objížďkou přes brod (`fordDetour` – nejkratší a → brod → b vzdušnou čarou, brod z celé mapy);
+ * bez brodu se na druhý břeh nedojde – Infinity (paths.md – Odhad vzdáleností, Jen brodem; Martin
+ * 14. 11. 2026). Úseky objížďky jdou rovně jako dřív. Bez půdy délka úsečky (po pěšině zkrácená).
  */
 export function groundWalkLength(
   ground: WalkGround | null | undefined,
@@ -188,7 +198,7 @@ export function groundWalkLength(
   const value = straightWalkCost(ground, a, b, strength);
   if (!crossedDeep || !ground) return value;
   const ford = fordDetour(ground, a, b);
-  if (!ford) return value;
+  if (!ford) return Infinity;
   // brodí se jednou – druhý úsek začíná ve vodě brodu
   return (
     straightWalkCost(ground, a, ford, strength) + straightWalkCost(ground, ford, b, strength, true)
@@ -200,13 +210,13 @@ let crossedDeep = false;
 
 /**
  * Brod pro objížďku úsečky `a`–`b` přes potok (paths.md – Odhad vzdáleností): buňka brodu
- * (PATH_FORD) s nejmenším součtem vzdáleností od `a` a k `b` (při shodě první po řádcích). Bez
- * brodu v okně půdy null.
+ * (PATH_FORD) s nejmenším součtem vzdáleností od `a` a k `b` (při shodě první po řádcích) – z celé
+ * mapy (`WalkGround.fords`), u ručně vyrobené půdy z okna. Bez brodu null.
  */
 export function fordDetour(ground: WalkGround, a: PathPoint, b: PathPoint): PathPoint | null {
   let best: PathPoint | null = null;
   let bestD = Infinity;
-  for (const f of groundSpots(ground, PATH_FORD)) {
+  for (const f of ground.fords ?? groundSpots(ground, PATH_FORD)) {
     const d = length2(f.x - a.x, f.z - a.z) + length2(b.x - f.x, b.z - f.z);
     if (d < bestD) {
       best = f;
@@ -634,7 +644,7 @@ function memoDetour(
 ): number {
   if (value >= 0) return value;
   const ford = fordDetour(ground, a, b);
-  if (!ford) return -value;
+  if (!ford) return Infinity;
   return memoStraight(memo, ground, a, ford) + straightWalkCost(ground, ford, b, 0, true);
 }
 

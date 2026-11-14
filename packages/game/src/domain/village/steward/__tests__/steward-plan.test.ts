@@ -30,6 +30,7 @@ import {
 } from '../steward-plan';
 import { stewardOutlook } from '../steward-outlook';
 import type { Person, StewardFarm, StewardPlan, StewardSlotKind, VillageState } from '../../types';
+import { landscapeLandAreas } from '../../paths/terrain';
 import { makeLandscape } from '../../__tests__/placement-fixtures';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 
@@ -83,15 +84,26 @@ const plain = makeLandscape({
   height: (x, y) => (pond(x, y) ? 0 : 5),
   fertility: () => 60,
 });
-const valley = makeLandscape({
-  size: 128,
-  surface: (_x, y) => (y === 64 ? 'water' : Math.abs(y - 64) <= 10 ? 'meadow' : 'forest'),
-  height: (_x, y) => {
-    const d = Math.abs(y - 64);
-    return d === 0 ? 0 : d <= 10 ? 3 + d * 0.1 : 4 + (d - 10) * 2;
-  },
-  fertility: () => 60,
-});
+// potok s osou a mělčinou (brodem) u vsi – přes potok jen brodem (paths.md – Odhad vzdáleností)
+const valley: Landscape = {
+  ...makeLandscape({
+    size: 128,
+    surface: (_x, y) => (y === 64 ? 'water' : Math.abs(y - 64) <= 10 ? 'meadow' : 'forest'),
+    height: (_x, y) => {
+      const d = Math.abs(y - 64);
+      return d === 0 ? 0 : d <= 10 ? 3 + d * 0.1 : 4 + (d - 10) * 2;
+    },
+    fertility: () => 60,
+  }),
+  stream: Array.from({ length: 256 }, (_, k) => ({
+    x: k / 2,
+    y: 64,
+    halfWidthLeft: 0.4,
+    halfWidthRight: 0.4,
+    level: 0,
+    shallow: k / 2 >= 60 && k / 2 <= 66,
+  })),
+};
 
 describe('plán sídla na syntetických krajinách', () => {
   it('na rovině s tůní vyjde shluk, v úzkém údolí řadová ves', () => {
@@ -341,6 +353,9 @@ describe('plán sídla na skutečné krajině', () => {
   const landscape = generateLandscape(1, CURRENT_LAYER_VERSIONS);
   const obstacles = obstaclesOf(landscape);
   const start = village(landscape, landscape.villageSite, 12);
+  // terén pěšin celé mapy a oblasti souše (území správce – jen kam se dojde) vzniknou jednou za
+  // krajinu; ve hře je postaví už půda chůze (`walkGroundOf`) – do času etapy nepatří
+  landscapeLandAreas(landscape, true);
   const times: number[] = [];
   const state = planOf(start, landscape, obstacles, false, times);
   const plan = planned(state);
