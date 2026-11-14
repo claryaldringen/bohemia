@@ -132,7 +132,8 @@ async function placeReturning(
      WHERE s.id = $1 AND j.status = 'active'`,
     [settlementId],
   );
-  if (!row || row.state.phase !== 'returning') return false;
+  // body zakládá nový krok – skupina 0 výpravy (plán 2026-11-14 – Úloha 1)
+  if (!row || row.state.parties?.[0]?.phase !== 'returning') return false;
   const group = row.state.groups[0]!;
   if (group.cell.x === cell.x && group.cell.y === cell.y) return true;
   group.cell = { x: cell.x, y: cell.y };

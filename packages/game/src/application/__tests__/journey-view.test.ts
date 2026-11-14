@@ -10,6 +10,7 @@ import {
   tickOfMs,
   type CampaignMap,
   type JourneyOrder,
+  type JourneyParty,
   type JourneyState,
   type SeenCell,
   type SeenData,
@@ -168,11 +169,11 @@ describe('journeyViewFor', () => {
   it('čekání na místě – zbývají celé dny 3, 2, 1; za jízdy a při návratu null', async () => {
     const w = await setup();
     const perDay = 24 / hoursPerTick(OFFICIAL_WORLD);
-    const at = async (elapsedDays: number, phase: JourneyState['phase'] = 'out') => {
+    const at = async (elapsedDays: number, phase: JourneyParty['phase'] = 'out') => {
       patch(w.journeys, w.id, (s) => {
-        s.arrivedTick = 1000;
+        s.parties[0]!.arrivedTick = 1000;
         s.tick = 1000 + Math.round(elapsedDays * perDay);
-        s.phase = phase;
+        s.parties[0]!.phase = phase;
         s.groups[0]!.arrived = true;
       });
       return (await journeyViewFor(w.deps, { playerId: 'pa' }))!.waitDaysLeft;

@@ -123,6 +123,7 @@ export async function placeJourney(
   group.goal = { cell: { ...cell }, pos: { x: pos.x, z: pos.z } };
   group.leg = null;
   group.arrived = true;
-  state.arrivedTick = state.tick;
+  // čekání běží skupině hloučku (plán 2026-11-14 – Úloha 1)
+  for (const party of state.parties) if (party.id === group.party) party.arrivedTick = state.tick;
   await query('UPDATE journey_checkpoint SET state = $2 WHERE journey_id = $1', [row.id, state]);
 }

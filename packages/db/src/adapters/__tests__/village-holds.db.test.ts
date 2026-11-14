@@ -135,6 +135,7 @@ function journeyState(extra: Partial<JourneyState> = {}): JourneyState {
       {
         id: 0,
         order: 'follow-leader',
+        party: 0,
         cell: { x: 5, y: 0 },
         pos: { x: 0, z: 0 },
         goal: null,
@@ -143,7 +144,8 @@ function journeyState(extra: Partial<JourneyState> = {}): JourneyState {
         arrived: false,
       },
     ],
-    arrivedTick: null,
+    parties: [{ id: 0, phase: 'out', arrivedTick: null }],
+    nextId: 1,
     ...extra,
   } as JourneyState;
 }
@@ -253,6 +255,7 @@ describe('VillageHolds a přednostní vsi', () => {
         {
           id: 0,
           order: 'follow-leader',
+          party: 0,
           cell: { x: 5, y: 0 },
           pos: { x: 0, z: 0 },
           goal: null,
@@ -261,7 +264,8 @@ describe('VillageHolds a přednostní vsi', () => {
           arrived: false,
         },
       ],
-      arrivedTick: null,
+      parties: [{ id: 0, phase: 'out', arrivedTick: null }],
+      nextId: 1,
     } as JourneyState;
     const all = [ids.near, ids.adjacent, ids.far];
     await journeys.create(journey, NOW);

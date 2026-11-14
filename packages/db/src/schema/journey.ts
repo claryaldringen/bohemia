@@ -10,7 +10,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import type { CampaignOutbox, JourneyOrder, JourneyState } from '@bohemia/game';
+import type { CampaignOutbox, JourneyIntentBody, JourneyState } from '@bohemia/game';
 import { user } from './auth';
 
 /**
@@ -66,7 +66,7 @@ export const journeyIntent = pgTable(
       .references(() => journey.id, { onDelete: 'cascade' }),
     tick: bigint('tick', { mode: 'number' }).notNull(),
     byPlayer: text('by_player').notNull(),
-    body: jsonb('body').$type<JourneyOrder>().notNull(),
+    body: jsonb('body').$type<JourneyIntentBody>().notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index('journey_intent_tick_idx').on(table.journeyId, table.tick, table.seq)],

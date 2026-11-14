@@ -1,6 +1,6 @@
 import type { WorldClock } from '../domain/calendar';
-import type { GridCell } from '../domain/village/people/world-grid';
-import { INTENT_LEAD_TICKS, tickOfMs } from '../domain/war';
+import { sameCell, type GridCell } from '../domain/village/people/world-grid';
+import { commandOf, INTENT_LEAD_TICKS, tickOfMs, upgradeJourney } from '../domain/war';
 import type { House, HouseRepository } from './houses';
 import type { JourneyRepository } from './journeys';
 import type { SettlementRepository } from './settlements';
@@ -48,10 +48,11 @@ export interface RecallJourneysDeps {
 
 /**
  * Začátek války mezi rody `houses` (lord-control.md – Pořadí zavedení; plán 2026-11-13 – Úloha 4):
- * běžící výjezd hráče jednoho rodu, jehož skupina stojí na mapě druhého rodu nebo tam míří, dostane
- * za hráče rozkaz „Domů“ s taktem jako jeho rozkaz (teď + `INTENT_LEAD_TICKS`). Kde skupina může
- * být: políčko a cíl skupiny v kontrolním bodu a políčka rozkazů „Přes okraj“ zapsaných po bodu –
- * worker bod ukládá jen po 40 taktech, skupina tak už mohla přejet. Vrací počet zapsaných rozkazů.
+ * běžící výprava hráče jednoho rodu, jejíž hlouček stojí na mapě druhého rodu nebo tam míří, dostane
+ * za hráče odvolání domů (`recall` těch políček) s taktem jako jeho rozkaz (teď +
+ * `INTENT_LEAD_TICKS`). Kde hloučky mohou být: políčka a cíle hloučků v kontrolním bodu a políčka
+ * rozkazů „Přes okraj“ (a „Jdi sem“ na jinou mapu) zapsaných po bodu – worker bod ukládá jen po 40
+ * taktech, hlouček tak už mohl přejet. Vrací počet zapsaných záměrů.
  */
 export async function recallJourneysAtWar(
   deps: RecallJourneysDeps,
@@ -66,22 +67,29 @@ export async function recallJourneysAtWar(
     if (!own?.playerId || !other) continue;
     const journeyId = await deps.journeys.activeOf(own.playerId);
     const point = journeyId ? await deps.journeys.checkpoint(journeyId) : null;
-    const group = point?.state.groups[0];
-    if (!journeyId || !point || !group) continue;
-    const crossings = (await deps.journeys.intentsAfter(journeyId, point.state.tick)).flatMap(
-      (i) => (i.body.kind === 'cross' && i.byPlayer === own.playerId ? [i.body.cell] : []),
-    );
-    const cells = [group.cell, ...(group.goal ? [group.goal.cell] : []), ...crossings];
-    let there = false;
+    if (!journeyId || !point) continue;
+    const state = upgradeJourney(point.state);
+    const aims = (await deps.journeys.intentsAfter(journeyId, state.tick)).flatMap((i) => {
+      const command = commandOf(i.body);
+      if (i.byPlayer !== own.playerId || command.kind !== 'order') return [];
+      const order = command.order;
+      if (order.kind === 'cross') return [order.cell];
+      return order.kind === 'go' && order.cell ? [order.cell] : [];
+    });
+    const cells = [
+      ...state.groups.flatMap((g) => [g.cell, ...(g.goal ? [g.goal.cell] : [])]),
+      ...aims,
+    ];
+    const there: GridCell[] = [];
     for (const cell of cells) {
-      there = (await houseOfCell(deps, cell))?.id === other.id;
-      if (there) break;
+      if (there.some((c) => sameCell(c, cell))) continue;
+      if ((await houseOfCell(deps, cell))?.id === other.id) there.push({ x: cell.x, y: cell.y });
     }
-    if (!there) continue;
+    if (there.length === 0) continue;
     const queued = await deps.journeys.addIntent(journeyId, {
       tick: tickOfMs(input.nowMs, deps.world) + INTENT_LEAD_TICKS,
       byPlayer: own.playerId,
-      body: { kind: 'home' },
+      body: { kind: 'recall', cells: there },
     });
     if (queued) recalled++;
   }

@@ -51,6 +51,7 @@ function state(tick: number, extra: Partial<JourneyState> = {}): JourneyState {
       {
         id: 0,
         order: 'follow-leader',
+        party: 0,
         cell: { x: 4, y: 2 },
         pos: { x: 0.1 + 0.2, z: -1e-7 },
         goal: null,
@@ -59,7 +60,8 @@ function state(tick: number, extra: Partial<JourneyState> = {}): JourneyState {
         arrived: false,
       },
     ],
-    arrivedTick: null,
+    parties: [{ id: 0, phase: 'out', arrivedTick: null }],
+    nextId: 1,
     ...extra,
   } as JourneyState;
 }

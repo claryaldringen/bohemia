@@ -99,9 +99,11 @@ export type VillageEventBody =
   | { kind: 'guests-leave'; away: AwayKind; guests: PersonRef[] }
   /**
    * Muži pryč do odvolání (ochrana) mají den návratu (`endAway`): lidé s `away.refId` = `refId`
-   * bez dne návratu se vrátí na začátku dne `untilDay` (`returnHome`).
+   * bez dne návratu se vrátí na začátku dne `untilDay` (`returnHome`). Výprava (expeditions.md)
+   * vrací lidi po hloučcích – `personIds` jsou id lidí hloučku, který došel domů (ves je čte od
+   * Úlohy 2 plánu 2026-11-14); chybí = všichni s `refId` (ochrana, starší události).
    */
-  | { kind: 'away-ends'; refId: string; untilDay: number }
+  | { kind: 'away-ends'; refId: string; untilDay: number; personIds?: number[] }
   /**
    * Šelma napadla muže výjezdu v hustém lese (lord-control.md – Nebezpečí; `applyJourneyCasualty`):
    * zraněný 60 dní nepracuje jako po lovu, zabitý zemře a nástupnictví běží běžnou cestou.

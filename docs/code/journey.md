@@ -5,53 +5,105 @@ a zima, Co vojvoda vidí. Plán: `docs/superpowers/plans/2026-11-13-lord-control
 (`war.md` – Tažení po taktech) – nemá válku ani cílovou ves – a sdílí s ním takty, pohyb po mapách,
 tempo a svět `CampaignWorld`.
 
-## Stav a krok (Úloha 1)
+## Stav a krok (Úloha 1; výpravy – plán 2026-11-14, Úloha 1)
+
+Výjezd vojvody je od výprav (`docs/design/expeditions.md`) jedna výprava na domovskou ves hráče
+s libovolně skupinami hráče (`parties`) a jejich hloučky (`groups`).
 
 - **Stav** – `journey-types.ts`: `JourneyState` je JSON (kontrolní bod): `kind: 'journey'`, `seed`,
-  `tick` a `day` posledního spočteného taktu, `throughDay` (jako u tažení – mez bariéry vsí), `phase`
-  (`JourneyPhase`: `out` → `returning` → `done`), hráč, rod (`houseId`), `leaderName`, domovská ves
-  `home` (`CampaignVillage`), muži `members` a právě jedna skupina `groups[0]` (`CampaignGroup` – tvar
-  tažení, bariéra čte `groups[].cell`). `arrivedTick` = takt posledního dojetí, od kterého běží
-  čekání; null = skupina jede. `JourneyMember`: `ref` osoby, která zůstává ve stavu domovské vsi,
-  `lord` (vojvoda – hráčův muž), `mounted`, `strength` a `fight` při vyslání, `health`, `wounded`,
-  `status: 'active' | 'fallen'`.
-- **Rozkazy** – `JourneyOrder`: `go` (místo na mapě, na které skupina je), `cross` (sousední políčko
-  v 8 směrech; jiné se zahodí beze změny stavu – cíl do pohledu je místo naproti na okraji sousední
-  mapy, `edgeCrossing`), `home`. `JourneyIntent { tick, seq, byPlayer, body }` jako záměr tažení:
-  platí přesně ve svém taktu v pořadí `seq`, rozkaz v minulosti a cizí hráč se zahodí. Nový rozkaz
-  nahradí starý a zruší čekání; `go` a `cross` vrátí i vracející se výjezd do `out`.
-- **Krok** – `journey.ts`: `newJourney(input, clock)` – skupina doma s prvním rozkazem `order`, takt
-  vyslání z `startMs` (`tickOfMs`); `journeyFinished`; `stepJourney(state, toTick, intents, world)` →
-  `JourneyStep { state, villageEvents, notices, waiting }` – čistá, vstup nemění, takt na kopii
-  (`cloneData`) jako `stepCampaign`. Takt: na začátku nového dne denní krok `homeDay`, rozkazy
-  taktu, konec čekání, pohyb `moveGroup`. Chybí-li mapa nebo ves (`MissingData`; mapy potřebné hned
-  hlídá `missingMaps`), výsledek je stav na konci posledního celého taktu a `waiting`.
-- **Denní krok** – `homeDay` jen kontroluje členy doma: žádné jídlo, mráz ani dezerce (muži jedí dál
-  ze zásob své vsi). Domovská ves `world.villageAt(home, den)`: muž, který v jejím stavu není (zemřel
-  – stáří, hlad), je `fallen`; zemře-li vojvoda, zbytek jede domů sám (`turnHome`) a rozkazy hráče
-  se zahazují; bez živých členů `done` bez událostí. Ves bez spočteného dne → krok čeká jako tažení;
-  ves, která zanikla (volitelný `CampaignWorld.villageGone` – svět ji zkusil načíst a není), výjezd
-  ukončí bez událostí. Den vyslání se nekontroluje – muže ověřilo vyslání.
-- **Čekání** – po dojetí skupina stojí; po `JOURNEY.waitDays` (3) herních dnech bez rozkazu
-  (`waitTicks` – takty jako `absentTicks` tažení) jede domů sama. Každé dojetí počítá lhůtu znovu.
-- **Pohyb** – `moveGroup` jako vojsko: `settleGoal` (cíl v neprůchodné buňce na nejbližší
-  dosažitelné místo), `stepMover` tempem `marchSpeed` nejpomalejšího ze živých mužů (jen jezdci
-  × 1,5, pěší raněný × 0,75, sníh × 0,75). Brány jsou v míru otevřené – mřížka pochodu je zavírá jen
-  v boji. Rozkaz `cross` končí přechodem okraje: skupina stojí, kde na sousední mapu vstoupila (cíl
-  = to místo). Skupina, která nemá kudy, stojí; při návratu výjezd skončí jako u tažení. Vsím na
-  cestě se nic neohlašuje – žádné `army-seen`, `raid-day`, varování ani upozornění.
-- **Návrat** – dojetí domů → `done`: domovská ves dostane jednu událost `away-ends` (`refId` = id
-  výjezdu, `untilDay` den nato – do schránky na následující den jako výsledky tažení; `ref` =
-  `journey:<id>:<takt>:<n>`) a hráč upozornění `journey-returned` s `{ journeyId, leader }` – text
-  „Bořivoj se vrátil.“ (`player-notices.ts` ve webu, panel zatím žádný). Vrátí-li se družina bez
-  vojvody, upozornění nejde – vojvoda se nevrátil (návrh Clauda).
+  `tick` a `day` posledního spočteného taktu, `throughDay` (jako u tažení – mez bariéry vsí),
+  `phase: 'out' | 'done'` (výprava bez skupin = `done`), hráč, rod (`houseId`), domovská ves `home`
+  (`CampaignVillage`), lidé `members`, hloučky `groups`, skupiny `parties` a `nextId` (další volné id
+  skupiny i hloučku – jedna řada). `leaderName` zůstává jen v převedených bodech.
+  - `JourneyMember`: `ref` osoby, která zůstává ve stavu domovské vsi, `lord` (vojvoda), `mounted`,
+    `strength` a `fight` při vyslání, `health`, `wounded`, `status: 'active' | 'fallen'`, hlouček
+    `group`, volitelně `name`, `female`, `bornDay`.
+  - `JourneyGroup` (hlouček) = `CampaignGroup` (tvar tažení, bariéra a `onCell` čtou `groups[].cell`)
+    s polem `party`. Hlouček jsou lidé jedné skupiny na jednom místě.
+  - `JourneyParty` (skupina hráče – výběr s jedním rozkazem): `id`, `phase: 'out' | 'returning'`,
+    `arrivedTick` (takt, od kterého stojí všechny její hloučky – od něj běží čekání; null = některý
+    jde), `crossing` (rozkaz „Přes okraj“), `leaderless` (ztratila vojvodu).
+  - `JourneyPhase` (`out` → `returning` → `done`) je fáze pohledu (`journeyViewFor`) a starších bodů.
+- **Rozkazy a příkazy** – `JourneyOrder`: `go` (místo `pos` na mapě `cell`; chybí = mapa vůdce
+  výběru), `cross` (sousední políčko hloučku vůdce v 8 směrech; jiné se zahodí – cíl do pohledu je
+  místo naproti na okraji sousední mapy, `edgeCrossing` od vůdce), `home`. Záměr
+  `JourneyIntent { tick, seq, byPlayer, body }` platí přesně ve svém taktu v pořadí `seq`, záměr
+  v minulosti a cizí hráč se zahodí. Tělo `JourneyIntentBody` = `JourneyCommand` nebo starý
+  `JourneyOrder`; `commandOf` (`journey-upgrade.ts`) z něj udělá příkaz:
+  - `{ kind: 'order', order, people?, recruits? }` – rozkaz lidem (id osob; chybí = všem, koho hráč
+    řídí) a noví lidé ze vsi `JourneyRecruit` (`ref`, `lord`, `strength`, `fight`, `name`, `female`,
+    `bornDay`, `mounted` jen ze starého adaptéru). Starý záměr = rozkaz všem.
+  - `{ kind: 'recall', cells }` – odvolání domů (worker a válka): skupiny s hloučkem na některém
+    z políček, nebo s cílem tam, jdou domů (`returning`); skupina, která se už vrací, jde dál.
+- **Skupiny** – `journey-parties.ts`, `applyCommand(s, command, ctx, out)` (krok ho volá pro každý
+  záměr): rozkazy hráče platí jen pro skupiny bez `leaderless`, `recall` pro všechny. Rozkaz lidem:
+  - vybraní = živí lidé ve výpravě z `people` (skupina bez `leaderless`), nováčci `recruits` (id, která
+    ve výpravě nejsou) přibudou v novém hloučku na `home.pos`;
+  - ověření předem: „Přes okraj“ na políčko nesousedící s hloučkem vůdce výběru se zahodí celý (ani
+    nováčci nepřibudou);
+  - dělení: skupina, z níž je vybraná jen část, si nechá zbytek – jeho hloučky zastaví (`goal` null,
+    `route` [], `leg` null, `arrived`), fáze `out`, `arrivedTick` = takt příkazu (zastavení je dojetí –
+    znalost mapy hloučku, který šel, jde rodu); smíšený hlouček se rozdělí (vybraní v novém hloučku
+    na stejném místě, padlí zůstanou zbytku);
+  - spojení: vybraní tvoří jednu skupinu – výběr právě celé jedné skupiny (nováčci navíc) si nechá
+    její id, jinak nové z `nextId`; hloučky výběru, které stojí na stejném místě (políčko i poloha),
+    splynou (`mergeGroups` – do prvního v pořadí `groups`), takže nováčci přejdou do hloučku skupiny,
+    která stojí celá doma;
+  - rozkaz dostanou všechny hloučky skupiny (`orderParty`): `go` → cíl `pos` na mapě `order.cell`
+    (chybí = mapa vůdce), `cross` → cíl na okraji sousední mapy a `crossing`, `home` → `sendGroup`
+    domů a fáze `returning`; jinak fáze `out`; vždy `arrivedTick` null. Nový rozkaz nahradí
+    starý, `go` a `cross` vrátí i skupinu, která se vrací.
+  - `partyLeader(members)` – vůdce: vojvoda, jinak nejstarší muž, jinak nejstarší člen (`bornDay`,
+    chybí = nejmladší), shoda nižší id osoby (expeditions.md – Koně mimo ves).
+- **Krok** – `journey.ts`: `newJourney(input, clock)` – nováčci `recruits` tvoří skupinu 0 s hloučkem 0
+  na `home` (`nextId` 1), takt vyslání z `startMs` (`tickOfMs`); s `order` ho použije, bez něj
+  skupina stojí (`arrivedTick` = takt vyslání). `journeyFinished`; `stepJourney(state, toTick,
+intents, world)` → `JourneyStep { state, villageEvents, notices, knowledge?, waiting }` – čistá,
+  vstup nemění, starší bod převede `upgradeJourney`, takt na kopii (`cloneData`) jako `stepCampaign`.
+  Takt: na začátku nového dne denní krok `homeDay` a šelmy, příkazy taktu (`commandOf`,
+  `applyCommand`), konec čekání skupin, pohyb `moveGroups`. Chybí-li mapa nebo ves (`MissingData`;
+  mapy potřebné hned hlídá `missingMaps`), výsledek je stav na konci posledního celého taktu
+  a `waiting`.
+- **Denní krok** – `homeDay` jen kontroluje lidi doma: žádné jídlo, mráz ani dezerce (lidé jedí dál
+  ze zásob své vsi). Domovská ves `world.villageAt(home, den)`: člověk, který v jejím stavu není
+  (zemřel – stáří, hlad), je `fallen`. Ztráty (`afterLosses`): hlouček bez živých zmizí i s padlými
+  (bez událostí; znalost jeho mapy jde rodu), skupina bez hloučků zmizí, skupina s padlým vojvodou
+  dostane `leaderless` a jde domů (`turnHome`; vrací-li se už, jde dál), výprava bez skupin `done`.
+  Ves bez spočteného dne → krok čeká jako tažení; ves, která zanikla (volitelný
+  `CampaignWorld.villageGone`), výpravu ukončí bez událostí. Den vyslání se nekontroluje.
+- **Čekání** – skupina, jejíž hloučky všechny stojí, dostane `arrivedTick` (jen když je null); po
+  `JOURNEY.waitDays` (3) herních dnech bez rozkazu (`waitTicks` – takty jako `absentTicks` tažení)
+  jde domů celá. Každý rozkaz lhůtu ruší, dojetí ji počítá znovu.
+- **Pohyb** – `moveGroups` jako vojsko: každý hlouček `settleGoal` (cíl v neprůchodné buňce na
+  nejbližší dosažitelné místo) a `stepMover` tempem `marchSpeed` ze všech živých své skupiny na
+  začátku pohybu (jen jezdci × 1,5, pěší raněný × 0,75, sníh × 0,75). Brány jsou v míru otevřené.
+  Zastavení po přechodu okraje jen u skupiny s `crossing`, když hlouček vstoupil na `goal.cell`
+  (cíl = místo vstupu); jinak se jde dál. Hlouček, který nemá kudy, stojí; při návratu skončí jako
+  u tažení. Po pohybu splynou hloučky téže skupiny, které stojí na stejném místě se shodným cílem.
+  Vsím na cestě se nic neohlašuje – žádné `army-seen`, `raid-day`, varování ani upozornění.
+- **Návrat** – hlouček skupiny `returning`, který doma dojde, skončí (`finishGroup`): domovská ves
+  dostane `away-ends` s `personIds` jeho živých (`refId` = id výpravy, `untilDay` den nato –
+  schránka na následující den jako výsledky tažení; `ref` = `journey:<id>:<takt>:<n>`; ves
+  `personIds` čte od Úlohy 2) a hráč upozornění `journey-returned` `{ journeyId, leader?, female? }`
+  s vůdcem hloučku (`partyLeader`; bez jména `leader` chybí) – text „Bořivoj se vrátil.“
+  (`player-notices.ts` ve webu). Skupina `leaderless` upozornění nemá – vojvoda se nevrátil (návrh
+  Clauda). Hlouček i jeho lidé ze stavu zmizí, skupina bez hloučků taky.
+- **Převod** – `upgradeJourney(state)` (`journey-upgrade.ts`; plán 2026-11-14 – Rozhodnutí 4): bod
+  nového tvaru vrátí beze změny (týž objekt), bod před výpravami převede – skupina 0 s hloučkem 0,
+  `arrivedTick` a fáze `returning` přejdou do skupiny, vojvoda dostane `leaderName` jako `name`,
+  skupina bez živého vojvody `leaderless`, hlouček venku na cestě přes okraj `crossing`. Idempotentní,
+  vstup nemění; volá ho krok i aplikace (pohled, rozkaz, worker, válka), do úložiště se zvlášť
+  nezapisuje (uloží ho další bod). Tvar starého bodu: `LegacyJourneyState`.
 - **Čísla** – `JOURNEY` v `rules-war.ts`: `waitDays` 3, `predatorGroupMax` 2 (šelmy – Úloha 13),
   `trailStepM` 20 (stopa odkrytého – Úloha 6). Tempo a věk mužů bere výjezd z `WAR`.
 - **Sdílené s tažením** – `movement.ts`: `sendGroup`, `settleGoal` a `missingMaps` (přešly
   z `campaign.ts` beze změny chování) vedle `stepMover`.
 - **Testy** – `domain/war/__tests__/journey.test.ts` (svět v paměti): rozkazy, čekání, návrat, tempo,
   zima bez mrazu, brána, bez vedlejších účinků, vcelku = po 7 taktech přes JSON, chybějící mapa,
-  člen zemře doma, domovská ves zanikne.
+  člen zemře doma, domovská ves zanikne. `journey-parties.test.ts`: dvě skupiny, dělení, spojení,
+  nový člověk, Domů části skupiny, vůdce, upozornění, šelmy po hloučcích, `recall`, vcelku = po
+  kouscích. `journey-upgrade.test.ts`: převod starého bodu, idempotence, starý bod a staré záměry
+  dopočtené stejně jako nový stav (Review Focus 1), `commandOf`.
 
 ## Vyslání (Úloha 2 – `application/launch-journey.ts`, `journeys.ts`)
 
@@ -127,8 +179,8 @@ tempo a svět `CampaignWorld`.
   Cyklus jako `stepOne` tažení: bod → doručit schránku bodu → záměry → dopočet → uložit →
   doručit. Stojící skupina se uloží nejvýš po `CHECKPOINT_TICKS` (40) taktech; hned se uloží s událostmi,
   na konci výjezdu, když výjezd čeká na ves (bariéra – mez vsi povyroste) a když se od uloženého
-  bodu změnilo, co hráč vidí (`playerSeesChange`: poloha, cíl nebo dojetí skupiny, fáze, uplatněný
-  záměr) – jedoucí skupina se tak ukládá každé kolo (≈ 1 s) a vojvoda na klik reaguje do vteřiny
+  bodu změnilo, co hráč vidí (`playerSeesChange`: poloha, cíl nebo dojetí hloučku podle id, fáze
+  výpravy i skupin, uplatněný záměr; bod se napřed převede `upgradeJourney`) – jedoucí skupina se tak ukládá každé kolo (≈ 1 s) a vojvoda na klik reaguje do vteřiny
   (Martin 14. 11. 2026: „kliknu do mapy… strašně dlouho mu trvá, než se rozjede“).
 - **Dopočet s načítáním** – `computeWithLoads(deps, state, step)` v `step-campaigns.ts` je
   zobecněný dopočet tažení (`computeCampaign` ho volá nad `stepCampaign`, výjezd nad `stepJourney`):
@@ -152,18 +204,20 @@ tempo a svět `CampaignWorld`.
 - **Vjezd na mapu rodu ve válce** – `homeFromWar`: kolo se na válku ptá
   (`StepJourneysDeps.atWar` = `houseAtWarOn`, ve workeru `GameDeps.atWar`) **jen když skupina ve
   spočteném stavu stojí na jiném políčku** než ve stavu, od kterého kolo počítalo (návrh Clauda po
-  Martinově otázce 13. 11. 2026, proč se worker na válku ptá každou sekundu). Je-li
-  výjezd venku (`out`) a nová mapa patří rodu ve válce, kolo zapíše za hráče rozkaz `home`
-  (`addIntent`, `byPlayer` = hráč výjezdu, takt teď + `INTENT_LEAD_TICKS` jako rozkaz hráče). Jednou:
-  výjezd ve fázi `returning` ani výjezd s čekajícím „Domů“ hráče se neptá. Bez paměti workeru kolo
+  Martinově otázce 13. 11. 2026, proč se worker na válku ptá každou sekundu) – po hloučcích podle
+  id, jen u skupin venku (`out`). Patří-li nová mapa rodu ve válce, kolo zapíše za hráče odvolání
+  `{ kind: 'recall', cells: [políčko] }` (`addIntent`, `byPlayer` = hráč výjezdu, takt teď +
+  `INTENT_LEAD_TICKS` jako rozkaz hráče). Jednou: skupina ve fázi `returning` ani políčko
+  s čekajícím odvoláním (nebo starým „Domů“ všem) se neptá. Bez paměti workeru kolo
   počítá od bodu, takže se po vjezdu ptá i v dalších kolech, než se bod uloží – zapíše ale stejně
   (čekající „Domů“, pak `returning`). Pravidlo: lord-control.md – Pořadí zavedení.
 - **Začátek války** – `recallJourneysAtWar(deps, { houses, nowMs })` (`journey-war.ts`), volají ho
   `declareWar` i `startWarByAttack` (přepadení vysláním tažení) po založení nové války
   (`WarDeps.journeyRecall`, ve webu `journeyRecallDeps()` – `house.ts`, `army.ts`; bez závislosti
   nic). Běžící výjezd hráče každého z obou rodů, jehož skupina stojí na mapě druhého rodu nebo tam
-  míří, dostane rozkaz `home` za hráče (takt teď + `INTENT_LEAD_TICKS`). Kde skupina může být:
-  políčko a cíl (`goal.cell`) skupiny v kontrolním bodu a políčka rozkazů `cross` zapsaných po bodu
+  míří, dostane za hráče odvolání `recall` těch políček (takt teď + `INTENT_LEAD_TICKS`). Kde
+  hloučky mohou být: políčka a cíle (`goal.cell`) hloučků v kontrolním bodu a políčka rozkazů `cross`
+  (a `go` s `cell`) zapsaných po bodu
   (bod bývá až o 40 taktů starší než výpočet workeru). Mapa druhého rodu = `holderAt` → `activeOf`.
 - **Paměť workeru** – vlastní instance `newCampaignMemory<JourneyState>()` (`CampaignMemory` má
   typ stavu jako parametr; poslední spočtený stav, mapy a vsi minulého kola, mřížky pochodu): konec
@@ -196,10 +250,13 @@ tempo a svět `CampaignWorld`.
   `cross` na nesousední políčko) / `unreachable` (`reachableGoal` – skupina tam nedojde). Vyslání
   obojí hlásí jako `unreachable`, pozdější rozkaz `invalid` jako `refused`.
 - **`journeyViewFor(deps, { playerId })`** – pohled na vlastní běžící výjezd z kontrolního
-  bodu (výjezd se hledá podle hráče, cizí hráč dostane null): takt, den, fáze, políčko, domov, muži
-  (padlí se neukazují), domov `homePos` (dvorec – `home.pos`), skupina a `waitDaysLeft` – celé dny do
-  automatického návratu (3, 2, 1), jen
-  když skupina po dojetí stojí a je `out`, jinak null. `controllable` = vojvoda žije.
+  bodu (výjezd se hledá podle hráče, cizí hráč dostane null; bod převede `upgradeJourney`). Ukazuje
+  skupinu s vojvodou (jinak první) a její hlouček s vojvodou (jinak první): takt, den, fáze (skupiny;
+  `done` výpravy), políčko, domov, lidi skupiny (padlí se neukazují), domov `homePos` (dvorec –
+  `home.pos`), hlouček a `waitDaysLeft` – celé dny do automatického návratu (3, 2, 1), jen když
+  skupina po dojetí stojí a je `out`, jinak null. `controllable` = skupina neztratila vojvodu (není
+  `leaderless` a vojvoda v ní nepadl). `commandJourney` řídí tutéž skupinu a zapisuje starý záměr
+  (rozkaz všem) – tenký adaptér do Úlohy 9; `visitorsOn` ukazuje za výpravu jeden hlouček na mapě.
 - **`commandJourney(deps, { playerId, command, nowMs })`** – zapíše záměr na takt teď +
   `INTENT_LEAD_TICKS`. `refused`: bez výjezdu, skončený výjezd, vojvoda padl, neplatný vstup;
   `unreachable`; `war-there` (`atWar` na políčko cíle – `cross`, nebo mapa, kde skupina stojí).
@@ -220,8 +277,8 @@ tempo a svět `CampaignWorld`.
   `site:40`, `pen:3`, `sacred:7`, `church:55`, `fortification:2` –, místo `pos`, den `day` a data
   pro scénu `data`) a `since` – první den, kdy se záznam do mapy díval (Znalost rodu – pokrytí).
   Domovská mapa tu není – hráč ji zná celou.
-- **Takt** – po pohybu `discover` (`journey.ts`): na cizí mapě `lookOnMap` s okem skupiny
-  (`groups[0].pos`), mřížkou `gridOf` a stavem vsi `villageAt` pro den taktu. Ves bez spočteného
+- **Takt** – po pohybu `discover` (`journey.ts`): na každé cizí mapě `lookOnMap` s očima všech
+  hloučků na ní (`eyes` = jejich polohy), mřížkou `gridOf` a stavem vsi `villageAt` pro den taktu. Ves bez spočteného
   dne krok zastaví (`MissingData`) – i když skupina stojí; mapu sousedního políčka proto krok čte už
   v taktu přechodu okraje. Jiná ves na mapě než dřív (stará zanikla) – stavby staré vsi se zahodí,
   stopa i `since` zůstanou (`lookOnMap` – totéž bere pohled tažení).
@@ -613,11 +670,13 @@ vidí). Znalost ve scéně tažení – Znalost rodu (Tažení ve scéně, Úloh
 ## Šelmy (Úloha 13 – `domain/war/journey-predators.ts`)
 
 - **Kdy:** v denním kroku (`stepJourney` → `journeyTick`, smyčka `s.day++`) po `homeDay` – jednou za
-  herní den, stojí-li skupina na začátku dne v hustém lese (`MARCH_FOREST` pod `groupOf(s).pos`
+  herní den pro každý hlouček, který stojí na začátku dne v hustém lese (`MARCH_FOREST` pod jeho polohou
   v mřížce pochodu, `gridOf`). Mimo hustý les, nad `JOURNEY.predatorGroupMax` živých mužů (tři
   nikdy) ani na mapě bez šelmy se nelosuje.
 - **Los** `predatorDay({ members, inForest, wildlife, seed, day })`: čistá funkce, proud
-  `createRandom(deriveSeed(seed, 'predators:' + day))`, každý muž v pořadí `members` dostane vždy
+  `createRandom(deriveSeed(seed, 'predators:' + day))` u hloučku 0 (staré výjezdy beze změny), jinak
+  `predators:<den>:<id hloučku>` (`predatorDay` – `group`; plán 2026-11-14 – Rozhodnutí 9); každý
+  člověk hloučku v pořadí `members` dostane vždy
   oba losy (zranění, smrt), padlí losy spotřebují, ale nezasáhnou – vcelku = po kouscích. Čísla
   jsou čísla lovu (`HUNT_RISK`, `village-wildlife.md` – Riziko lovu): medvěd zranění
   5 % × (1 − boj ÷ 200) a smrt 0,3 % × (2 − boj ÷ 100), jen vlci čísla lovu prasat (0,5 %,

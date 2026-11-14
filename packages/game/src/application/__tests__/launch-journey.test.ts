@@ -251,9 +251,10 @@ describe('launchJourney', () => {
       id: 'jny-1',
       seed: 77,
       playerId: 'pa',
-      leaderName: 'Bořivoj',
       home: { villageId: w.homeId, name: 'Lhota', cell: { x: 0, y: 0 } },
     });
+    // jméno vojvody nese člověk výpravy (dřív `leaderName` stavu)
+    expect(j.members.map((m) => m.name)).toEqual(['Bořivoj', expect.any(String)]);
     expect(j.members.map((m) => [m.ref.personId, m.lord, m.mounted, m.health, m.wounded])).toEqual([
       [10, true, false, WAR.combat.health, false],
       [12, false, true, WAR.combat.health, false],
@@ -456,7 +457,9 @@ describe('domov výjezdu', () => {
     };
     const back = stepJourney(out, out.tick + 1500, [home], world).state;
     expect(back.phase).toBe('done');
-    expect(near(back.groups[0]!.pos, manor)).toBeLessThan(20);
+    // hlouček, který došel domů, ze stavu zmizí – naposled je vidět takt před koncem
+    const last = stepJourney(out, back.tick - 1, [home], world).state;
+    expect(near(last.groups[0]!.pos, manor)).toBeLessThan(20);
   });
 });
 

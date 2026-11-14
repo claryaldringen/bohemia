@@ -306,9 +306,8 @@ describe('výjezdy při začátku války (lord-control.md – Pořadí zavedení
               seed: 1,
               playerId: 'player-a',
               houseId: s.ids.a!,
-              leaderName: 'Bořivoj',
             },
-            ...{ home, members: [], startMs: at(0).getTime(), order },
+            ...{ home, recruits: [], startMs: at(0).getTime(), order },
           },
           world,
         ),
@@ -331,7 +330,7 @@ describe('výjezdy při začátku války (lord-control.md – Pořadí zavedení
           : await startWarByAttack(deps, attack);
       expect(started.ok).toBe(true);
       expect(journeys.intents.map((i) => [i.byPlayer, i.body.kind])).toEqual([
-        ['player-a', 'home'],
+        ['player-a', 'recall'],
       ]);
       // běžící válka – útok jen posune střet, výjezdy se znovu nevolají
       await startWarByAttack(deps, { ...attack, now: at(9) });

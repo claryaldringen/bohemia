@@ -12,8 +12,8 @@ import {
   marchGrid,
   newJourney,
   WAR,
-  type JourneyMember,
   type JourneyOrder,
+  type JourneyRecruit,
   type Pos,
 } from '../domain/war';
 import type { WorldClock } from '../domain/calendar';
@@ -197,8 +197,7 @@ export async function launchJourney(
   );
   if (failed !== null) return { ok: false, reason: failed };
 
-  const members = membersOf(state, view, input.retinue, own.village.id);
-  const lordName = view.lord!.name;
+  const recruits = recruitsOf(state, view, input.retinue, own.village.id);
   try {
     await deps.journeys.create(
       newJourney(
@@ -207,9 +206,8 @@ export async function launchJourney(
           seed: deps.seeds.nextSeed(),
           playerId: input.playerId,
           houseId: house.id,
-          leaderName: lordName !== '' ? lordName : UNNAMED_HOUSE,
           home: { villageId: own.village.id, name: own.village.name, cell, pos: homePos },
-          members,
+          recruits,
           startMs: input.now.getTime(),
           order: input.order,
         },
@@ -251,25 +249,33 @@ function retinueFits(men: readonly JourneyCandidate[], retinue: readonly number[
   return true;
 }
 
-/** Muži výjezdu: vojvoda první, pak družina; síla a boj z dovedností muže při vyslání. */
-function membersOf(
+/**
+ * Lidé výjezdu (`newJourney` – skupina 0): vojvoda první, pak družina; síla a boj z dovedností muže
+ * při vyslání, na koni podle vlastního koně (lord-control.md – Kůň). Vojvoda bez jména nese jméno
+ * neznámého rodu jako dřív `leaderName` (upozornění „… se vrátil.“).
+ */
+function recruitsOf(
   state: VillageState,
   view: ReturnType<typeof assess>,
   retinue: readonly number[],
   villageId: string,
-): JourneyMember[] {
+): JourneyRecruit[] {
   const byId = new Map(state.people.map((p) => [p.id, p]));
   return [view.lord!, ...retinue.map((id) => view.men.find((m) => m.personId === id)!)].map(
-    (c): JourneyMember => ({
-      ref: { villageId, personId: c.personId },
-      lord: c.lord,
-      mounted: c.mounted,
-      strength: c.strength,
-      fight: byId.get(c.personId)?.arms?.combat ?? 0,
-      health: WAR.combat.health,
-      wounded: false,
-      status: 'active',
-    }),
+    (c): JourneyRecruit => {
+      const person = byId.get(c.personId);
+      const name = c.lord && c.name === '' ? UNNAMED_HOUSE : c.name;
+      return {
+        ref: { villageId, personId: c.personId },
+        lord: c.lord,
+        strength: c.strength,
+        fight: person?.arms?.combat ?? 0,
+        ...(name === '' ? {} : { name }),
+        ...(person?.sex === 'female' ? { female: true as const } : {}),
+        ...(person ? { bornDay: person.bornDay } : {}),
+        ...(c.mounted ? { mounted: true as const } : {}),
+      };
+    },
   );
 }
 

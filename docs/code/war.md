@@ -134,7 +134,7 @@ from, direction)` (k nejlevnější buňce okraje, úhlopříčně do rohu). `Ma
   v buňkách, remíza – nejmenší index; jen celočíselná matematika). Dosažitelný průchodný cíl a cíl
   ve stavbě vrátí beze změny (týž objekt). Null = z `from` není dosažitelná žádná průchodná buňka.
   Zaplavení běží jen při plánování úseku na mapě cíle (`settleGoal`), ne každý takt. `settleGoal`
-  (`movement.ts` – sdílí ho tažení, `moveGroups` v `campaign.ts`, i výjezd vojvody, `moveGroup`
+  (`movement.ts` – sdílí ho tažení, `moveGroups` v `campaign.ts`, i výprava, `moveGroups`
   v `journey.ts`): skupina na mapě cíle bez úseku (hned po záměru `march`,
   `turnBack`, rozpadu, nebo po vstupu na mapu cíle) si cíl posune před plánováním úseku – stav pak
   nese posunutý cíl a mapa tažení ho ukáže. Use-case `commandCampaign` záměr k místu na mapě

@@ -13,7 +13,7 @@ import {
   msOfTick,
   newJourney,
   type CampaignMember,
-  type JourneyMember,
+  type JourneyRecruit,
   type JourneyState,
 } from '../../domain/war';
 import { campaign, LAUNCH, world } from '../../domain/war/__tests__/campaign-fixtures';
@@ -566,15 +566,12 @@ describe('restartGame s abandon (nabídka hry)', () => {
 
 /** Běžící výjezd hráče z jeho vsi `villageId` (vojvoda je osoba 1). */
 function runningJourney(villageId: string): JourneyState {
-  const member: JourneyMember = {
+  const member: JourneyRecruit = {
     ref: { villageId, personId: 1 },
     lord: true,
-    mounted: false,
     strength: 2,
     fight: 50,
-    health: 100,
-    wounded: false,
-    status: 'active',
+    name: 'Bořivoj',
   };
   return newJourney(
     {
@@ -582,9 +579,8 @@ function runningJourney(villageId: string): JourneyState {
       seed: 1,
       playerId: PLAYER,
       houseId: 'h-1',
-      leaderName: 'Bořivoj',
       home: { villageId, name: 'Libice', cell: { x: 0, y: 0 }, pos: { x: -50, z: -50 } },
-      members: [member],
+      recruits: [member],
       startMs: msOfTick(LAUNCH, world),
       order: { kind: 'go', pos: { x: 100, z: -50 } },
     },

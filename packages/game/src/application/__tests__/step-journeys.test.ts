@@ -9,7 +9,7 @@ import {
   newJourney,
   stepJourney,
   type CampaignWorld,
-  type JourneyMember,
+  type JourneyRecruit,
   type JourneyState,
   type NewJourney,
 } from '../../domain/war';
@@ -46,17 +46,15 @@ const HOMEWARD = { tick: LAUNCH + 300, byPlayer: 'pa', body: { kind: 'home' as c
 /** Rozkaz „Přes okraj“ na nesousední políčko se zahodí – skupina stojí doma. */
 const STAND = { kind: 'cross' as const, cell: { x: 5, y: 5 } };
 
-/** Muž výjezdu – osoba 1 je vojvoda, oba na koni. */
-function man(personId: number): JourneyMember {
+/** Muž výjezdu – osoba 1 je vojvoda Bořivoj, oba na koni. */
+function man(personId: number): JourneyRecruit {
   return {
     ref: { villageId: 'lhota', personId },
     lord: personId === 1,
     mounted: true,
     strength: 2,
     fight: 50,
-    health: 100,
-    wounded: false,
-    status: 'active',
+    ...(personId === 1 ? { name: 'Bořivoj' } : {}),
   };
 }
 
@@ -75,9 +73,8 @@ function journey(overrides: Partial<NewJourney> = {}): JourneyState {
       seed: 42,
       playerId: 'pa',
       houseId: 'h-pa',
-      leaderName: 'Bořivoj',
       home: HOME,
-      members: [man(1), man(2)],
+      recruits: [man(1), man(2)],
       startMs: msOfTick(LAUNCH, world),
       order: { kind: 'go', pos: { x: 305, z: 5 } },
       ...overrides,
@@ -466,12 +463,13 @@ describe('stepJourneys', () => {
         journeyId: 'j1',
         tick: crossed + INTENT_LEAD_TICKS,
         byPlayer: 'pa',
-        body: { kind: 'home' },
+        body: { kind: 'recall', cells: [EAST] },
       },
     ]);
     const back = await stored(s.journeys);
     expect(back.phase).toBe('done');
-    expect(back.groups[0]!.cell).toEqual(HOME.cell);
+    // hlouček, který došel domů, ze stavu zmizí
+    expect(back.groups).toEqual([]);
     expect(s.notices.notices.map((n) => n.kind)).toEqual(['journey-returned']);
   });
 
@@ -579,12 +577,12 @@ describe('recallJourneysAtWar', () => {
       nowMs: msOfTick(tick, world),
     });
   };
-  /** Rozkaz „Domů“ za hráče s taktem jako jeho rozkaz (začátek války v taktu `tick`). */
-  const home = (journeyId: string, tick: number, byPlayer = 'pa'): unknown => ({
+  /** Odvolání domů z mapy `cell` za hráče s taktem jako jeho rozkaz (válka v taktu `tick`). */
+  const home = (journeyId: string, tick: number, byPlayer = 'pa', cell = EAST): unknown => ({
     journeyId,
     tick: tick + INTENT_LEAD_TICKS,
     byPlayer,
-    body: { kind: 'home' },
+    body: { kind: 'recall', cells: [cell] },
   });
 
   it('skupina stojí na mapě protivníka – „Domů“ za hráče', async () => {
@@ -606,7 +604,10 @@ describe('recallJourneysAtWar', () => {
       journey({ id: 'jb', playerId: 'pb', home: brod, order: { kind: 'cross', cell: HOME.cell } }),
     );
     await recallAt(s, LAUNCH + 10);
-    expect(queued(s.journeys)).toEqual([home('j1', LAUNCH + 10), home('jb', LAUNCH + 10, 'pb')]);
+    expect(queued(s.journeys)).toEqual([
+      home('j1', LAUNCH + 10),
+      home('jb', LAUNCH + 10, 'pb', HOME.cell),
+    ]);
   });
 
   it('„Přes okraj“ zapsaný po kontrolním bodu (bod je starší než výpočet workeru) – „Domů“', async () => {
