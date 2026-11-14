@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf, foundVillage, type JourneyView, type JourneyVisitor } from '@bohemia/game';
 import { sceneJourneysOf } from '../journey-view';
 import { sceneLabor } from '../village-view-scene';
+import { dayRoster } from '../scene/villager-plan';
 
 // Výjezd ve scéně vsi (lord-control.md – Ve scéně, Soused; journey.md – Scéna vsi): vlastní výjezd
 // z pohledu `JourneyView`, cizí z návštěvníků; muži na výjezdu nejsou v dni rodiny.
@@ -106,5 +107,35 @@ describe('muži na výjezdu nejsou v dni rodiny', () => {
     lord.away = { kind: 'journey', refId: 'j1' };
     const away = sceneLabor(s, people)?.lord;
     expect(away?.trainees.some((t) => t.id === lordId) ?? false).toBe(false);
+  });
+  it('muž na tažení se v dni rodiny nekreslí, muž doma ano', () => {
+    const s = foundVillage({ seed: 5, day: DAY, dwellingPosition: { x: 0, z: 0, rotation: 0 } });
+    s.lord = { trains: true };
+    s.labor = { day: DAY, shares: [], lord: { training: 4, field: 0, household: 4 } };
+    const home = sceneLabor(s, people)!.lord!;
+    const [away, stays] = [home.trainees[0]!.id, home.trainees[1]?.id];
+    s.people.find((p) => p.id === away)!.away = { kind: 'campaign', untilDay: DAY + 30 };
+    const out = sceneLabor(s, people)?.lord;
+    expect(out?.trainees.some((t) => t.id === away) ?? false).toBe(false);
+    if (stays !== undefined) expect(out?.trainees.some((t) => t.id === stays)).toBe(true);
+  });
+
+  it('kdo je pryč (tažení), je v lidech dne označen a roster ho doma nevydá', () => {
+    const s = foundVillage({ seed: 5, day: DAY, dwellingPosition: { x: 0, z: 0, rotation: 0 } });
+    s.labor = { day: DAY, shares: [] };
+    const all = sceneLabor(s, people)!.persons!;
+    const id = all[0]!.id;
+    s.people.find((p) => p.id === id)!.away = { kind: 'campaign', untilDay: DAY + 30 };
+    const out = sceneLabor(s, people)!;
+    expect(out.persons!.find((p) => p.id === id)?.away).toBe(true);
+    expect(out.persons!.filter((p) => p.away).length).toBe(1);
+    const roster = dayRoster(out, 5);
+    expect(roster.takeId(id)).toBeNull();
+    const taken = new Set<number>();
+    for (let p = roster.take({ from: 0, to: 200 }); p; p = roster.take({ from: 0, to: 200 })) {
+      taken.add(p.id);
+    }
+    expect(taken.has(id)).toBe(false);
+    expect(taken.size).toBe(all.length - 1);
   });
 });
