@@ -1254,6 +1254,25 @@ rozhodnutí.
   (`lead` = zajmout, `kill` = pobít, `leave` = nechat). Záměr `choose-surrendered { group; choice }`
   (`applyIntent`) volbu nastaví, dokud boj neskončí (`group` jen ověřuje existující skupinu;
   volba platí pro celé tažení). Ostatní vzdaní (ženy, děti, vesničané) dál `led` jako odvedení.
+- **Vzdání vojvody** (war.md – Hráč ve vsi a mimo ni; plán 2026-11-14 – Úloha 7, Rozhodnutí plánu 5):
+  záměr obránce `lord-surrender { village }` – `isAlarmIntent`, tedy jen od vlastníka varované vsi
+  (`applyAlarm`, je to i přítomnost). `yieldingLord` ho pustí jen pro cíl tažení, dokud nájezd není
+  rozhodnutý (`raidDay`; fáze `marching` nebo `raiding`), se skupinou s aktivním mužem na mapě cíle
+  (`armyEyes`) a s vojvodou doma (`lordHomeAt`), který v boji nepadl (padlý je ve stavu vsi až do
+  výsledku nájezdu). Druhé vzdání téhož taktu neprojde – vojsko už jde domů; záměry se v taktu
+  počítají před bojem, takže vzdání v taktu, kdy by boj skončil, platí. `yieldLord`:
+  - **v boji** `BattleState.yielded` = vojvoda a `turnBack(s, 'yielded')` (boj `withdrawn`); `reportRaid`
+    v témž taktu ho přes `raidResultOf` přidá do `captured` vždy, mimo volbu `surrendered` (raněný
+    vojvoda už není mezi raněnými). Boj nevyhrálo – vzdaní z boje se neodvedou a kořist z vsi není;
+  - **bez boje** (vojsko na mapě cíle ještě pochoduje, nebo boj ještě nezačal) `raid-result` jen
+    s `captured` (prázdná kořist), kronika shromaždiště jako po boji, `raidDay`, zajatec do
+    `loot.prisoners` (`capturedPrisoners`) a `captives`, pak `turnBack(s, 'yielded')`.
+
+  Vojsko odnese jen to, co už má v `s.loot` (dostižení uprchlíci, chycení poslové). Ve vsi dál cesta
+  zajetí níž; vůdce dostane `campaign-returned` s důvodem `yielded` („Vojsko se vrátilo i se zajatým
+  vojvodou.“ – `apps/web/lib/player-notices.ts`, text návrh Clauda). Test
+  `war/__tests__/lord-surrender.test.ts`.
+
 - **Dva konce zajatců**: `RaidResult.captured` + `captorVillageId` (napadená ves: osoba **zůstává ve
   stavu** s `away { kind: 'captive', hostVillageId, refId }` bez `untilDay`, `captureMen`; zajatý
   vojvoda zapne správce se značkou `StewardState.byCaptivity` = formální správce řídí ves) a
@@ -1729,6 +1748,10 @@ správce, vojvoda není doma) rozhodne pravidlem správce hned; ves s vojvodou d
 přítomnost (`AlarmVillage.askedTick`), odpověď `alarm-presence` a každý záměr `alarm-*` vlastníka
 zapíše `presenceTick` (`notePresence`); bez přítomnosti déle než `absentTicks` (`ticks.ts`)
 rozhodne správce. Podrobnosti: Varování, poslové a útěk do hradiště – Kdo rozhoduje.
+
+**Vzdání vojvody (Úloha 7).** Záměr obránce `lord-surrender` ukončí nájezd na cíl: vojvoda je zajat
+vždy, vojsko se vrátí s důvodem `'yielded'` a odnese jen to, co už vzalo (`yieldingLord`,
+`yieldLord`, `BattleState.yielded` v `campaign.ts`). Podrobnosti: Zajetí a výkupné – Vzdání vojvody.
 
 ## Měření tažení a e2e celé války (Ú6.17)
 

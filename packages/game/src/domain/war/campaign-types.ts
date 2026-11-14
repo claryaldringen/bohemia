@@ -138,8 +138,11 @@ export interface CampaignLoot {
   prisoners?: Prisoner[];
 }
 
-/** Proč se tažení vrací; `routed` = útočníci v boji poraženi (war.md – Bod zlomu). */
-export type CampaignReturnReason = 'arrived' | 'supplies' | 'order' | 'routed';
+/**
+ * Proč se tažení vrací; `routed` = útočníci v boji poraženi (war.md – Bod zlomu); `yielded` = hráč
+ * napadené vsi vzdal vojvodu a nájezd skončil (war.md – Hráč ve vsi a mimo ni; záměr `lord-surrender`).
+ */
+export type CampaignReturnReason = 'arrived' | 'supplies' | 'order' | 'routed' | 'yielded';
 
 /** Tažení – celý stav, ze kterého se počítá další takt. */
 /** Host (z ochrany pánem nebo ze svolání) v boji: záporné číslo bojovníka, domovská osoba a co potřebuje zajetí. */
@@ -306,7 +309,14 @@ export type IntentBody =
    * zapisuje ji worker za vlastníka vsi, `seenTick` = poslední přítomnost hráče u hry oříznutá na
    * takt záměru, null – hráč u hry nebyl. Nic nedělá, jen ji tažení zapíše (`presenceTick`).
    */
-  | { kind: 'alarm-presence'; village: string; seenTick: number | null };
+  | { kind: 'alarm-presence'; village: string; seenTick: number | null }
+  /**
+   * „Vzdát vojvodu“ (war.md – Hráč ve vsi a mimo ni: „Když se hráč vzdá, vítěz ho zajme, odvede
+   * a pak dojde k jednání“, Martin 14. 11. 2026): hráč vzdá svého muže ve vsi `village`. Jde jen
+   * pro cíl tažení, dokud nájezd není rozhodnutý, se skupinou vojska na mapě cíle a s vojvodou
+   * doma; vojvoda je vždy zajat a nájezd končí (návrat `'yielded'`).
+   */
+  | { kind: 'lord-surrender'; village: string };
 
 /** Záměr s taktem, ve kterém platí (teď + 2), a pořadím zápisu `seq` (v taktu podle něj). */
 export interface CampaignIntent {

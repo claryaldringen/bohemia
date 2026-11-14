@@ -26,21 +26,25 @@ export const UNKNOWN_ALARM_OWNER: Readonly<AlarmOwner> = {
 };
 
 /**
- * Záměry obránce varované vsi (plán 2026-11-09 – Rozhodnutí plánu) a odpověď na přítomnost hráče
- * (`alarm-presence` – plán 2026-11-14, Rozhodnutí plánu 2).
+ * Záměry obránce varované vsi (plán 2026-11-09 – Rozhodnutí plánu), odpověď na přítomnost hráče
+ * (`alarm-presence` – plán 2026-11-14, Rozhodnutí plánu 2) a vzdání vojvody (`lord-surrender` –
+ * Rozhodnutí plánu 5).
  */
 export type AlarmIntentBody = Extract<
   IntentBody,
-  { kind: 'alarm-messenger' | 'alarm-flee' | 'alarm-domain' | 'alarm-presence' }
+  {
+    kind: 'alarm-messenger' | 'alarm-flee' | 'alarm-domain' | 'alarm-presence' | 'lord-surrender';
+  }
 >;
 
-/** Je záměr záměrem obránce varované vsi (`alarm-*`)? */
+/** Je záměr záměrem obránce varované vsi (`alarm-*`, `lord-surrender`)? */
 export function isAlarmIntent(body: IntentBody): body is AlarmIntentBody {
   return (
     body.kind === 'alarm-messenger' ||
     body.kind === 'alarm-flee' ||
     body.kind === 'alarm-domain' ||
-    body.kind === 'alarm-presence'
+    body.kind === 'alarm-presence' ||
+    body.kind === 'lord-surrender'
   );
 }
 

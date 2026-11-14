@@ -67,13 +67,16 @@ import { inFight, setGroupOrder } from './orders';
 import { absentTicks, dayOfTick, hoursPerTick, TICKS_PER_SECOND, tickRandom } from './ticks';
 import {
   alarmVillage,
+  armyEyes,
   isAlarmIntent,
   isDefenderIntent,
   isWarned,
   sightAlarms,
   type AlarmIntentBody,
 } from './alarm';
+import type { AlarmVillage } from './alarm-types';
 import { decideAlarms, notePresence } from './alarm-steward';
+import { lordHomeAt } from './lord-home';
 import {
   catchMessengers,
   moveMessengers,
@@ -463,7 +466,70 @@ function applyAlarm(
       // evakuace do hradiště nebo do lesa (Úloha 8, Otevřené 7)
       departFlight(s, v.villageId, body.mode, ctx, out, { by: 'player' });
       return;
+    case 'lord-surrender': {
+      // vzdání vojvody (plán 2026-11-14 – Rozhodnutí plánu 5); druhé vzdání téhož taktu neprojde –
+      // vojsko už jde domů
+      const lordId = yieldingLord(s, v, ctx);
+      if (lordId !== null) yieldLord(s, lordId, ctx, out);
+      return;
+    }
   }
+}
+
+/**
+ * Smí hráč vzdát vojvodu vsi `v` (plán 2026-11-14 – Rozhodnutí plánu 5)? Jen v cíli tažení, dokud
+ * nájezd není rozhodnutý (`raidDay`; vojsko ještě nejde domů), se skupinou s aktivním mužem na mapě
+ * cíle (`armyEyes`) a s vojvodou doma (`lordHomeAt`), který v boji nepadl (padlý je ve stavu vsi až
+ * do výsledku nájezdu). Vrací číslo vojvody, jinak null.
+ */
+function yieldingLord(s: CampaignState, v: AlarmVillage, ctx: TickContext): number | null {
+  const lordId = v.owner.lordId;
+  if (lordId === undefined || v.villageId !== s.target.villageId) return null;
+  if (s.raidDay !== undefined || (s.phase !== 'marching' && s.phase !== 'raiding')) return null;
+  if (!armyEyes(s).some((e) => sameCell(e.cell, s.target.cell))) return null;
+  const fell = s.battle?.fighters.some((f) => f.side === 'defend' && f.ref === lordId && f.killed);
+  if (fell === true) return null;
+  return lordHomeAt(s, v.villageId, v.owner, ctx) ? lordId : null;
+}
+
+/**
+ * Vzdání vojvody (war.md – Hráč ve vsi a mimo ni; plán 2026-11-14 – Rozhodnutí plánu 5): nájezd
+ * končí – vojvoda je zajat vždy (volba ke vzdaným `surrendered` se ho netýká), vojsko se obrátí domů
+ * (`'yielded'`) a odnese jen to, co už vzalo (`s.loot`). V boji ho zajme výsledek boje téhož taktu
+ * (`BattleState.yielded` → `raidResultOf` v `reportRaid`). Bez boje (vojsko na mapě cíle ještě
+ * pochoduje) dostane ves výsledek nájezdu jen se zajatým vojvodou a ves shromaždiště zápis do
+ * kroniky jako po boji. Ve vsi dál cesta zajetí: `away captive`, formální správce, výkupné.
+ */
+function yieldLord(s: CampaignState, lordId: number, ctx: TickContext, out: TickOut): void {
+  if (s.battle) {
+    s.battle.yielded = lordId;
+    turnBack(s, 'yielded');
+    return;
+  }
+  const village = ctx.world.villageAt(s.target.villageId, s.day);
+  if (village === null) throw new MissingData([], [s.target.villageId]);
+  const result: RaidResult = {
+    ...raidHeader(s),
+    fallen: [],
+    wounded: [],
+    led: [],
+    captured: [lordId],
+    captorVillageId: s.assembly.villageId,
+    loot: noLoot(),
+    pitsFound: [],
+  };
+  s.raidDay = s.day;
+  post(s, out, s.target.villageId, { kind: 'raid-result', result });
+  post(s, out, s.assembly.villageId, {
+    kind: 'chronicle',
+    event: raidChronicle(s.day + 1, result, { fallen: 0, wounded: 0, led: 0, loot: result.loot }),
+  });
+  s.loot = {
+    ...s.loot,
+    prisoners: [...(s.loot.prisoners ?? []), ...capturedPrisoners(s, village, [lordId])],
+  };
+  s.captives.push({ villageId: s.target.villageId, personId: lordId });
+  turnBack(s, 'yielded');
 }
 
 /** Úkon tažení od hráče, nebo od NPC velitele (`npc`) – co ve fázi nedává smysl, se zahodí. */
@@ -1164,6 +1230,19 @@ function guardPrisoner(s: CampaignState, g: CampaignGuard): Prisoner {
   };
 }
 
+/** Hlavička výsledku nájezdu (kronika): tažení, vůdce, jeho ves, napadená ves a opověď. */
+function raidHeader(
+  s: CampaignState,
+): Pick<RaidResult, 'campaignId' | 'leader' | 'from' | 'target' | 'declared'> {
+  return {
+    campaignId: s.id,
+    leader: s.leaderName,
+    ...(s.assembly.name === undefined ? {} : { from: s.assembly.name }),
+    ...(s.target.name === undefined ? {} : { target: s.target.name }),
+    declared: s.ambush !== true,
+  };
+}
+
 /** Padlí, ranění, odvedení a kořist z boje a stavu napadené vsi v den konce boje (bez toho, co tažení dnes odvedlo). */
 function raidResultOf(
   s: CampaignState,
@@ -1225,12 +1304,15 @@ function raidResultOf(
       }
     }
   }
+  // vojvoda, kterého hráč vzdal (`yieldLord`): zajat vždy – volba ke vzdaným se ho netýká
+  const lord = b.yielded;
+  if (lord !== undefined && !captured.includes(lord) && !fallen.includes(lord)) {
+    captured.push(lord);
+    const w = wounded.indexOf(lord);
+    if (w >= 0) wounded.splice(w, 1);
+  }
   const base = {
-    campaignId: s.id,
-    leader: s.leaderName,
-    ...(s.assembly.name === undefined ? {} : { from: s.assembly.name }),
-    ...(s.target.name === undefined ? {} : { target: s.target.name }),
-    declared: s.ambush !== true,
+    ...raidHeader(s),
     fallen: fallen.sort((x, y) => x - y),
     wounded: wounded.sort((x, y) => x - y),
     led: led.sort((x, y) => x - y),

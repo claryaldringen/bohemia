@@ -68,6 +68,9 @@ describe('playerNoticeLine', () => {
     expect(playerNoticeLine(ending).text).toBe('Ochrana končí za 1 den.');
     const back = notice({ kind: 'campaign-returned', payload: { reason: 'supplies' } });
     expect(playerNoticeLine(back).text).toBe('Vojsko se vrátilo – došlo jídlo.');
+    // vojvoda napadené vsi se vzdal (war.md – Hráč ve vsi a mimo ni)
+    const yielded = notice({ kind: 'campaign-returned', payload: { reason: 'yielded' } });
+    expect(playerNoticeLine(yielded).text).toBe('Vojsko se vrátilo i se zajatým vojvodou.');
     expect(noticePanel('campaign-returned')).toBe('war');
     const apart = notice({ kind: 'campaign-disbanded', payload: { campaignId: 'c1' } });
     expect(playerNoticeLine(apart).text).toBe('Výprava se rozpadla.');

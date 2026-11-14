@@ -220,6 +220,8 @@ function textOf(n: PlayerNotice): string {
     case 'protection-recalled':
       return `${otherName(n.payload)} odvolal muže z ochrany.`;
     case 'campaign-returned':
+      // `yielded` – vojvoda napadené vsi se vzdal (war.md – Hráč ve vsi a mimo ni; text návrh Clauda)
+      if (n.payload.reason === 'yielded') return 'Vojsko se vrátilo i se zajatým vojvodou.';
       return n.payload.reason === 'supplies'
         ? 'Vojsko se vrátilo – došlo jídlo.'
         : 'Vojsko se vrátilo domů.';
