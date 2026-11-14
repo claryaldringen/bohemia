@@ -493,9 +493,13 @@ v roce 4 při zásobách 30. 6. ≈ 2× pojistky, dvě sucha v letech 4 a 5):
 
 ## Co hráč vidí (UI jako 0 A.D.)
 
-- **Horní lišta:** ikona počasí roku (prasklá zem, mrak s deštěm, sněhová vločka s mrazem), jen
+- ~~**Horní lišta:** ikona počasí roku (prasklá zem, mrak s deštěm, sněhová vločka s mrazem), jen
   když léto nebo zima nejsou normální a už jsou vidět (sloupec „Kdy je vidět“); slova
-  v `Tooltip` („Kruté sucho – jař a seno o polovinu slabší“). Dobré léto: klas se sluncem.
+  v `Tooltip` („Kruté sucho – jař a seno o polovinu slabší“). Dobré léto: klas se sluncem.~~
+  **Bez ikony v liště** – Martin 14. 11. 2026: „Pojďme to udělat tak, aby tyto ikony nebyly
+  potřeba. Deštivé léto je vidět, protože prší. Povodeň je na mapě taky vidět. Dlouhá zima – to
+  že sníh dlouho leží je také vidět.“ Sucho a holomráz ukazuje scéna (Ve scéně – slunce praží,
+  jinovatka); upozornění, kronika a odhad úrody dílu zůstávají.
 - **Upozornění** (krátká, mizející, jako „Ves šetří jídlem“): „Sucho – nejvíc trpí pole bez
   stromů“ (Martin schválil 27. 10. 2026), „Mokré žně“, „Holomráz – ozim vymrzá“, „Kroupy
   potloukly obilí“, „Povodeň“ (velikost vody v popisku – „Stoletá voda“), „Hoří!“, „Vyhořel dům“,
