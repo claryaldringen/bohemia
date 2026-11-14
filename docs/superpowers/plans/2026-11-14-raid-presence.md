@@ -52,6 +52,7 @@
 ### Úloha 1: Zrušení postoje „Vzdát se při přesile“ (Sonnet)
 
 **Files:**
+
 - Modify: `packages/game/src/domain/village/types/types-state.ts:124-125` (`DefenseStance = 'defend' | 'flee'`)
 - Modify: `packages/game/src/domain/village/core/migrations.ts` (nový převod na konec `VILLAGE_MIGRATIONS`)
 - Modify: `packages/game/src/domain/war/stance.ts` (větve `stance === 'surrender'` ≈ ř. 370 a 424; `fortSurrenders` smazat, nemá-li jiné volající – `grep -rn fortSurrenders`)
@@ -83,12 +84,14 @@
 ### Úloha 2: Záznam přítomnosti hráče (Sonnet)
 
 **Files:**
+
 - Create: `packages/game/src/application/presence.ts` (+ export v indexu application)
 - Modify: `packages/db/src/schema/player-activity.ts` (tabulka `player_presence`), migrace přes `npm run db:generate`
 - Create: `packages/db/src/adapters/presence-repository.ts`, test `presence-repository.db.test.ts`
 - Modify: `apps/web/lib/game.ts` (`notePlayerPresent`, volat z `notePlayerActive`), route `GET /api/war-scene/<sídlo>` (`apps/web/lib/war-scene.ts` nebo soubor route – `grep -rn "war-scene" apps/web/app/api`)
 
 **Interfaces:** Produces:
+
 ```ts
 export interface PresenceRepository {
   /** Hráč je u hry v okamžiku `at` (starší zápis nepřepíše novější). */
@@ -115,19 +118,29 @@ export const PRESENCE_NOTE_MS = 10_000; // zápis nejvýš jednou za 10 s a proc
 ### Úloha 3: Vojvoda doma (Sonnet)
 
 **Files:**
+
 - Modify: `packages/game/src/domain/war/alarm-types.ts` (`AlarmOwner.lordId?: number`)
 - Modify: `packages/db/src/adapters/alarm-owners.ts:42-62` (`ownerOf`)
 - Create: `packages/game/src/domain/war/lord-home.ts`, test `war/__tests__/lord-home.test.ts`
 - Test: `alarm-owners.db.test.ts`
 
 **Interfaces:** Produces:
+
 ```ts
 /** Hráčův muž žije ve vsi, dnes není pryč (`isAway`) a tažení ho dnes neodvedlo (`gone`). */
-export function lordAtHome(state: Pick<VillageState, 'people'>, lordId: number | undefined,
-  day: number, gone?: ReadonlySet<number>): boolean;
+export function lordAtHome(
+  state: Pick<VillageState, 'people'>,
+  lordId: number | undefined,
+  day: number,
+  gone?: ReadonlySet<number>,
+): boolean;
 /** Totéž v taktu: stav `villageAt(villageId, s.day)` (chybí → MissingData), `gone` = lidé z `alarmTaken`. */
-export function lordHomeAt(s: CampaignState, villageId: string, owner: AlarmOwner,
-  ctx: TickContext): boolean;
+export function lordHomeAt(
+  s: CampaignState,
+  villageId: string,
+  owner: AlarmOwner,
+  ctx: TickContext,
+): boolean;
 ```
 
 - [ ] **Krok 1: Failing testy**
@@ -142,6 +155,7 @@ export function lordHomeAt(s: CampaignState, villageId: string, owner: AlarmOwne
 ### Úloha 4: Vojvoda vidí vojsko při vstupu na mapu (Sonnet)
 
 **Files:**
+
 - Modify: `alarm-types.ts` (`AlarmVillage.by: 'villager' | 'messenger' | 'lord'`)
 - Modify: `packages/game/src/domain/war/alarm.ts:72-102` (`sightAlarms`)
 - Test: `war/__tests__/alarm-sight.test.ts`
@@ -165,6 +179,7 @@ export function lordHomeAt(s: CampaignState, villageId: string, owner: AlarmOwne
 ### Úloha 5: Kdo rozhoduje – hráč ve vsi, nebo nastavení (opus)
 
 **Files:**
+
 - Modify: `alarm-types.ts` (`askedTick?: number`, `presenceTick?: number | null`)
 - Modify: `campaign-types.ts` (IntentBody `{ kind: 'alarm-presence'; village: string; seenTick: number | null }`)
 - Modify: `alarm.ts:28-38` (`AlarmIntentBody`, `isAlarmIntent`)
@@ -174,11 +189,16 @@ export function lordHomeAt(s: CampaignState, villageId: string, owner: AlarmOwne
 - Test: `war/__tests__/alarm-steward.test.ts`
 
 **Interfaces:** Consumes `lordHomeAt`. Produces:
+
 ```ts
 export function absentTicks(world: WorldClock): number; // ticks.ts, 1 herní den
 /** Kdo za ves v taktu rozhoduje – Rozhodnutí plánu 3; 'ask' = zapsat askedTick a čekat. */
-export function deciderOf(s: CampaignState, v: AlarmVillage, tick: number,
-  ctx: TickContext): 'steward' | 'player' | 'ask';
+export function deciderOf(
+  s: CampaignState,
+  v: AlarmVillage,
+  tick: number,
+  ctx: TickContext,
+): 'steward' | 'player' | 'ask';
 ```
 
 - [ ] **Krok 1: Failing testy** (přepiš případy lhůty 344 taktů)
@@ -206,17 +226,22 @@ export function deciderOf(s: CampaignState, v: AlarmVillage, tick: number,
 ### Úloha 6: Worker odpovídá na přítomnost (opus)
 
 **Files:**
+
 - Create: `packages/game/src/application/defender-presence.ts`, test `application/__tests__/defender-presence.test.ts`
 - Modify: `packages/game/src/application/step-campaigns.ts:47-75` (`StepCampaignsDeps.presence?`), `stepOne` (`:342-406`)
 - Modify: `apps/worker/src/main.ts` (`presence: createPresenceRepository(db)`)
 - Test: `application/__tests__/alarm-world.test.ts`
 
 **Interfaces:** Consumes `PresenceRepository` (Úloha 2), pole a záměr z Úlohy 5. Produces:
+
 ```ts
 /** Záměry `alarm-presence` pro vsi, které se ptají nebo potřebují obnovit přítomnost; vrátí počet. */
 export async function answerPresence(
-  deps: { campaigns: Pick<CampaignRepository, 'addIntent'>;
-          presence?: Pick<PresenceRepository, 'lastSeen'>; world: WorldClock },
+  deps: {
+    campaigns: Pick<CampaignRepository, 'addIntent'>;
+    presence?: Pick<PresenceRepository, 'lastSeen'>;
+    world: WorldClock;
+  },
   input: { campaignId: string; state: CampaignState; intents: readonly CampaignIntent[] },
 ): Promise<number>;
 ```
@@ -243,6 +268,7 @@ export async function answerPresence(
 ### Úloha 7: Vzdání vojvody v tažení (opus)
 
 **Files:**
+
 - Modify: `campaign-types.ts` (IntentBody `{ kind: 'lord-surrender'; village: string }`; `CampaignReturnReason` + `'yielded'`)
 - Modify: `alarm.ts` (`isAlarmIntent`), `battle.ts` (`BattleState.yielded?: number`)
 - Modify: `campaign.ts` – `applyAlarm`, `raidResultOf` (`:1167`), helper `yieldLord`
@@ -275,11 +301,13 @@ export async function answerPresence(
 ### Úloha 8: Pohled, příkaz a ikona obránce (Sonnet)
 
 **Files:**
+
 - Modify: `packages/game/src/application/alarm-view.ts` (`AlarmView`, `ALARM_BLOCKED`, `commandAlarm`), `rules-war.ts` (smazat `alarm.playerGraceTicks`)
 - Modify: `apps/web/lib/alarm-input.ts`, `apps/web/lib/alarm-view.ts`, `apps/web/components/game/hud/AlarmButtons.tsx`, `apps/web/app/dev/panels/dev-panels.ts`
 - Test: `application/__tests__/alarm-view.test.ts`, `apps/web/lib/__tests__/alarm-view.test.ts`, `hud/__tests__/AlarmButtons.behavior.test.tsx`
 
 **Interfaces:**
+
 - Consumes `lord-surrender` (Úloha 7), `lordAtHome`.
 - Produces:
   - `AlarmView.graceDays` zmizí;
@@ -301,6 +329,7 @@ export async function answerPresence(
 ### Úloha 9: Scéna – obránce s vojvodou doma vidí celé vojsko (Sonnet)
 
 **Files:**
+
 - Modify: `packages/game/src/domain/war/scene-view.ts` (`warSceneView` – volba `seesAll?: boolean`)
 - Modify: `packages/game/src/application/war-scene.ts` (`warSceneFor`)
 - Test: `war/__tests__/scene-view.test.ts`, `application/__tests__/war-scene.test.ts`
