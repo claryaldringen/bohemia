@@ -22,6 +22,7 @@ export const FIRE_HANDOVER_M = FIRE.firefighting.handoverM;
 const HOUSE_CLEAR_M = {
   zemnice: 4.2,
   polozemnice: 4.6,
+  vypleteny: 4.9,
   srub: 4.9,
   dvorec: 6.5,
   'dvorec-srub': 7.4,

@@ -274,3 +274,27 @@ describe('zbytky nadzemního srubu (log-house.md – Scéna)', () => {
     }
   });
 });
+
+describe('zbytky vypleteného domu (log-house.md – Dům s vypletenými stěnami)', () => {
+  it('bez jámy; zřícený jsou kůly a sesutá mazanice, zbytek zarůstá – díly z vypleteny-construction.glb', () => {
+    expect(hasPit('vypleteny')).toBe(false);
+    expect(decayModelParts('vypleteny', 3)).toEqual([]);
+    expect(logHouseRemains('vypleteny', 1)).toBeNull();
+    expect(logHouseRemains('vypleteny', 2)).toBeNull();
+    const data = readFileSync(
+      join(__dirname, '../../../public/models/dwellings/vypleteny-construction.glb'),
+    );
+    const length = data.readUInt32LE(12);
+    const json = JSON.parse(data.subarray(20, 20 + length).toString('utf8')) as {
+      nodes: { name?: string }[];
+    };
+    const nodes = new Set(json.nodes.map((n) => n.name ?? ''));
+    const ruined = logHouseRemains('vypleteny', 3)!;
+    expect(ruined.map((r) => r.part)).toEqual(['vypleteny-piles', 'vypleteny-daub-1']);
+    for (const r of ruined) expect(nodes.has(r.part), r.part).toBe(true);
+    expect(logHouseRemains('vypleteny', 'ruin', 0.2)!.map((r) => r.part)).toEqual([
+      'vypleteny-daub-1',
+    ]);
+    expect(logHouseRemains('vypleteny', 'ruin', 0.7)).toEqual([]);
+  });
+});

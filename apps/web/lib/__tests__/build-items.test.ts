@@ -51,22 +51,25 @@ describe('zkratky staveb', () => {
     expect(BUILD_ITEMS.filter((item) => camera.includes(item.hotkey))).toEqual([]);
   });
 
-  it('obydlí jsou jeden rozcestník, zkratky Z, X a 1 dál vybírají druh rovnou', () => {
+  it('obydlí jsou jeden rozcestník, zkratky Z, X, 2 a 1 dál vybírají druh rovnou', () => {
     const hub = BUILD_ITEMS.find((i) => i.kind === 'dwelling');
     expect(hub).toMatchObject({ placement: 'dwellings', name: 'Obydlí' });
     expect(hub?.placement === 'dwellings' && hub.variants.map((v) => v.id)).toEqual([
       'zemnice',
       'polozemnice',
+      'vypleteny',
       'srub',
     ]);
     // druhy nemají vlastní tlačítko, zkratky ano
     expect(BUILD_ITEMS.filter((i) => i.hubOf === 'dwelling').map((i) => i.kind)).toEqual([
       'zemnice',
       'polozemnice',
+      'vypleteny',
       'srub',
     ]);
     expect(buildItemForKey(key('KeyZ'))?.kind).toBe('zemnice');
     expect(buildItemForKey(key('KeyX'))?.kind).toBe('polozemnice');
+    expect(buildItemForKey(key('Digit2'))?.kind).toBe('vypleteny');
     expect(buildItemForKey(key('Digit1'))?.kind).toBe('srub');
     // rozcestník sám zkratku nespustí
     expect(buildItemForKey(key('None'))).toBeNull();
@@ -83,8 +86,22 @@ describe('zkratky staveb', () => {
       dwellingType: 'srub',
     });
     const kinds = BUILD_ITEMS.map((i) => i.kind);
-    expect(kinds.indexOf('srub')).toBe(kinds.indexOf('polozemnice') + 1);
+    expect(kinds.indexOf('srub')).toBe(kinds.indexOf('vypleteny') + 1);
     expect(buildItemForKey(key('Digit1', { shiftKey: true }))).toBeNull();
+  });
+
+  it('2 vypletený dům – za polozemnicí, na pozemku s plotem (log-house.md – Dům s vypletenými stěnami)', () => {
+    const item = buildItemForKey(key('Digit2'));
+    expect(item).toMatchObject({
+      kind: 'vypleteny',
+      name: 'Vypletený dům',
+      icon: 'vypleteny',
+      hotkeyLabel: '2',
+      placement: 'plot',
+      dwellingType: 'vypleteny',
+    });
+    const kinds = BUILD_ITEMS.map((i) => i.kind);
+    expect(kinds.indexOf('vypleteny')).toBe(kinds.indexOf('polozemnice') + 1);
   });
 
   it('s modifikátorem nic (Ctrl+Z vrací tah pole)', () => {

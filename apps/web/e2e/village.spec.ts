@@ -158,9 +158,11 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   // Obydlí ani dílny lidi k osídlení nechtějí (demolition.md) – stavba stojí jen dřevo a stromy
   // krajina má. Hřbitov, sad, modla, svatyně ani ohrada lidi nechtějí taky. Lom je v nabídce
   // vždy (fortifications.md – Kámen; bez dřeva předem) – že jde jen na skalní výchoz, řekne kurzor.
-  // obydlí jsou jedno políčko – rozcestník druhů; nadzemní dům až od roku 800 (log-house.md – Dům)
+  // obydlí jsou jedno políčko – rozcestník druhů; vypletený dům až od roku 750, nadzemní dům až od
+  // roku 800 (log-house.md – Dům s vypletenými stěnami, Dům)
   await expect(await dwellingVariant(page, 'Zemnice')).toBeEnabled();
   await expect(await dwellingVariant(page, 'Polozemnice')).toBeEnabled();
+  await expect(await dwellingVariant(page, 'Vypletený dům')).toBeDisabled();
   await expect(await dwellingVariant(page, 'Nadzemní dům')).toBeDisabled();
   await page.keyboard.press('Escape');
   await expect(grid).not.toHaveAttribute('data-group', /.+/);

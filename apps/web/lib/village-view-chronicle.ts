@@ -68,6 +68,7 @@ export const CRAFT_LOOKS: Record<
 export const DWELLING_NAMES: Record<DwellingType, { nominative: string; accusative: string }> = {
   zemnice: { nominative: 'Zemnice', accusative: 'zemnici' },
   polozemnice: { nominative: 'Polozemnice', accusative: 'polozemnici' },
+  vypleteny: { nominative: 'Vypletený dům', accusative: 'vypletený dům' },
   srub: { nominative: 'Nadzemní dům', accusative: 'nadzemní dům' },
   dvorec: { nominative: 'Dvorec', accusative: 'dvorec' },
   'dvorec-srub': { nominative: 'Dvorec', accusative: 'dvorec' },
@@ -401,6 +402,7 @@ const PLACE_INSTRUMENTAL: Record<string, { word: string; feminine?: true }> = {
 const DWELLING_INSTRUMENTAL: Record<DwellingType, { word: string; feminine?: true }> = {
   zemnice: { word: 'zemnicí', feminine: true },
   polozemnice: { word: 'polozemnicí', feminine: true },
+  vypleteny: { word: 'vypleteným domem' },
   srub: { word: 'nadzemním domem' },
   dvorec: { word: 'dvorcem' },
   'dvorec-srub': { word: 'dvorcem' },

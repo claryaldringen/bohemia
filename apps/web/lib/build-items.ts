@@ -326,7 +326,10 @@ const church = (
   },
 });
 
-/** `KeyboardEvent.code` zkratky: písmeno `KeyX`, číslice `Digit1` (nadzemní dům – písmena jsou obsazená). */
+/**
+ * `KeyboardEvent.code` zkratky: písmeno `KeyX`, číslice `Digit1` (nadzemní dům) a `Digit2` (vypletený
+ * dům) – písmena jsou obsazená.
+ */
 const hotkeyCode = (label: string): string =>
   /^\d$/.test(label) ? `Digit${label}` : `Key${label}`;
 
@@ -797,13 +800,14 @@ export function fortPointsPlacement(
 const NO_HOTKEY = 'None';
 
 /**
- * Druhy obydlí v pořadí rozcestníku mřížky staveb: zemnice, polozemnice, nadzemní dům – ikony
- * `public/icons/build/`. Dostupnost a důvod zašednutí (nadzemní dům až od roku 800) dává
- * nabídka staveb (`BuildOption.variants`).
+ * Druhy obydlí v pořadí rozcestníku mřížky staveb: zemnice, polozemnice, vypletený dům, nadzemní
+ * dům – ikony `public/icons/build/`. Dostupnost a důvod zašednutí (vypletený dům až od roku 750,
+ * nadzemní dům až od roku 800) dává nabídka staveb (`BuildOption.variants`).
  */
 export const DWELLING_VARIANTS: readonly (SquaresVariant & { id: BuildableDwellingType })[] = [
   { id: 'zemnice', icon: 'build/zemnice', name: 'Zemnice' },
   { id: 'polozemnice', icon: 'build/polozemnice', name: 'Polozemnice' },
+  { id: 'vypleteny', icon: 'build/vypleteny', name: 'Vypletený dům' },
   { id: 'srub', icon: 'build/srub', name: 'Nadzemní dům' },
 ];
 
@@ -813,12 +817,15 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
     name: 'Obydlí',
     icon: 'zemnice',
     hotkey: NO_HOTKEY,
-    hotkeyLabel: 'Z / X / 1',
+    hotkeyLabel: 'Z / X / 2 / 1',
     placement: 'dwellings',
     variants: DWELLING_VARIANTS,
   },
   dwelling('zemnice', 'Zemnice', 'Z'),
   dwelling('polozemnice', 'Polozemnice', 'X'),
+  // vypletený dům (log-house.md – Dům s vypletenými stěnami): do roku 750 zašedlý – důvod „Od roku
+  // 750“ dává server (`VillageView.build.vypleteny.blocked`)
+  dwelling('vypleteny', 'Vypletený dům', '2'),
   // nadzemní dům (log-house.md – Dům): do roku 800 zašedlý – důvod „Od roku 800“ dává server
   // (`VillageView.build.srub.blocked`)
   dwelling('srub', 'Nadzemní dům', '1'),

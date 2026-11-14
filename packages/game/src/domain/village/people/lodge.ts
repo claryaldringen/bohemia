@@ -1,7 +1,7 @@
 import { createRandom, deriveSeed, type Random } from '../../landscape/random';
 import { isDisused } from '../buildings/disused';
 import { cloneState } from '../core/clone';
-import { LODGE, MASON_CRAFTS, MASTER_NAMES, MASTER_ORIGIN } from '../rules';
+import { DWELLING_QUALITY, LODGE, MASON_CRAFTS, MASTER_NAMES, MASTER_ORIGIN } from '../rules';
 import type { LodgeArrival, MasonCraft, MasonryCircle, Person, VillageState } from '../types';
 import { lacksLord } from './appoint-lord';
 import { displacedCount } from './displaced';
@@ -89,12 +89,14 @@ function emptyDwellingId(state: VillageState): number | undefined {
 }
 
 /**
- * První prázdný nadzemní dům (nejnižší id), jinak undefined – mistr a kněz jsou v pořadí nadzemního
- * domu první (log-house.md – Kdo v domě bydlí).
+ * Nejlepší prázdný nadzemní dům (srub před vypleteným, pak nejnižší id), jinak undefined – mistr
+ * a kněz jsou v pořadí nadzemního domu první (log-house.md – Kdo v domě bydlí, Dům s vypletenými
+ * stěnami).
  */
 function emptyLogHouseId(state: VillageState): number | undefined {
-  return state.dwellings.filter((d) => isEmptyLogHouse(state, d)).sort((a, b) => a.id - b.id)[0]
-    ?.id;
+  return state.dwellings
+    .filter((d) => isEmptyLogHouse(state, d))
+    .sort((a, b) => DWELLING_QUALITY[b.type] - DWELLING_QUALITY[a.type] || a.id - b.id)[0]?.id;
 }
 
 /** Hostitel pro mistra bez obydlí: dvorec vojvody, jinak první obydlí v provozu. */
