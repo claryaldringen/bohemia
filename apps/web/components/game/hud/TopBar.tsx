@@ -13,7 +13,8 @@ import {
 } from '@bohemia/game';
 import { useDismiss } from '@/hooks/use-dismiss';
 import { useSkipProgress } from '@/hooks/use-skip-progress';
-import { dateRefreshDelay, formatWorldState } from '@/lib/game-date';
+import { clockHandAngle, dateRefreshDelay, dayPartLabel, formatWorldState } from '@/lib/game-date';
+import { dayHourAt } from '@/lib/scene/day-light';
 import { MENU_HOTKEY } from '@/lib/game-menu';
 import { PANEL_HOTKEYS } from '@/lib/panel-keys';
 import { formatDecimal, formatInteger, formatPercent, plural } from '@/lib/village-format';
@@ -55,8 +56,11 @@ function Resource({
   children,
   filter,
   tooltipOff = false,
+  iconNode,
 }: {
   icon: string;
+  /** Vlastní ikona (např. ciferník) místo obrázku. */
+  iconNode?: ReactNode;
   /** Popisek – název, u nasycení i podíly stravy. */
   name: ReactNode;
   /** Popisek se neukáže (rozpis zásob je otevřený a číslo by překryl). */
@@ -68,14 +72,16 @@ function Resource({
   return (
     <Tooltip content={name} off={tooltipOff}>
       <span data-hud-block className="flex h-8 items-center gap-1 px-1.5" tabIndex={0}>
-        <img
-          src={`/icons/resources/${icon.includes('.') ? icon : `${icon}.png`}`}
-          alt=""
-          width={26}
-          height={26}
-          className="h-[26px] w-[26px]"
-          style={filter ? { filter } : undefined}
-        />
+        {iconNode ?? (
+          <img
+            src={`/icons/resources/${icon.includes('.') ? icon : `${icon}.png`}`}
+            alt=""
+            width={26}
+            height={26}
+            className="h-[26px] w-[26px]"
+            style={filter ? { filter } : undefined}
+          />
+        )}
         {children !== undefined && (
           <span data-testid={testId} className="text-sm font-semibold tabular-nums">
             {children}
@@ -531,6 +537,63 @@ export function DevTimeButtons({
   );
 }
 
+/** Ciferník na 24 hodin s jednou ručičkou – poledne nahoře, jedna otáčka za herní den. */
+export function DayDial({ hour }: { hour: number }): ReactElement {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 26 26"
+      width={26}
+      height={26}
+      className="h-[26px] w-[26px]"
+      data-testid="day-dial"
+      data-hour={hour.toFixed(2)}
+    >
+      <circle cx="13" cy="13" r="11" fill="#2b2219" stroke="#d8c39a" strokeWidth="1.5" />
+      {[0, 6, 12, 18].map((tick) => (
+        <line
+          key={tick}
+          x1="13"
+          y1="3.2"
+          x2="13"
+          y2={tick % 12 === 0 ? '6.2' : '5'}
+          stroke="#d8c39a"
+          strokeWidth="1.2"
+          transform={`rotate(${tick * 15} 13 13)`}
+        />
+      ))}
+      <line
+        data-testid="day-dial-hand"
+        x1="13"
+        y1="13"
+        x2="13"
+        y2="5.5"
+        stroke="#f3cf86"
+        strokeWidth="2"
+        strokeLinecap="round"
+        transform={`rotate(${clockHandAngle(hour)} 13 13)`}
+      />
+      <circle cx="13" cy="13" r="1.6" fill="#f3cf86" />
+    </svg>
+  );
+}
+
+/** Hodina dne světa, obnovovaná nejvýš jednou za sekundu; null mimo běžící svět. */
+function useDayHour(world: WorldClock | undefined): number | null {
+  const [hour, setHour] = useState<number | null>(null);
+  const { startMs, endMs } = world ?? { startMs: 0, endMs: 0 };
+  useEffect(() => {
+    if (!world) return;
+    const clock = { startMs, endMs };
+    const update = (): void => setHour(dayHourAt(Date.now(), clock));
+    update();
+    const timer = setInterval(update, 1000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startMs, endMs, world === undefined]);
+  return world ? hour : null;
+}
+
 /**
  * Datum v liště. Ve vývojovém režimu (`devTime`) je klikací: klik otevře u data malý panel
  * s tlačítky zrychlení času, další klik, Esc nebo stisk mimo ho zavře. Mimo vývojový režim je
@@ -539,8 +602,11 @@ export function DevTimeButtons({
 export function DateWithDevTime({
   date,
   devTime,
+  world,
 }: {
   date: string;
+  /** Hodiny světa – ciferník denní doby u data; bez nich ikona data. */
+  world?: WorldClock;
   devTime: { pending: TimeSkip | null; onSkip: (skip: TimeSkip) => void } | null;
 }): ReactElement {
   const [open, setOpen] = useState(false);
@@ -555,8 +621,14 @@ export function DateWithDevTime({
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [shown]);
+  const hour = useDayHour(world);
   const dateResource = (
-    <Resource icon="date" name="Herní datum" testId="game-date">
+    <Resource
+      icon="date"
+      iconNode={hour !== null ? <DayDial hour={hour} /> : undefined}
+      name={hour !== null ? `Herní datum – ${dayPartLabel(hour)}` : 'Herní datum'}
+      testId="game-date"
+    >
       <span className="font-serif font-normal">{date}</span>
     </Resource>
   );
@@ -850,6 +922,7 @@ export function TopBar({
         <DateWithDevTime
           date={formatWorldState(getWorldState(nowMs, world), world)}
           devTime={devTime}
+          world={world}
         />
         {devDisasters && (
           <DevDisasterButtons pending={devDisasters.pending} onForce={devDisasters.onForce} />
