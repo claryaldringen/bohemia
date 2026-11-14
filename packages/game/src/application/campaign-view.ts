@@ -2,7 +2,6 @@ import type { WorldClock } from '../domain/calendar';
 import { CELL_SIZE_M, LANDSCAPE_SIZE } from '../domain/landscape';
 import {
   campaignView,
-  isCampaignParticipant,
   knownTarget,
   leadsLive,
   marchGrid,
@@ -21,7 +20,7 @@ import {
 import type { DwellingType } from '../domain/village/types';
 import { directionBetween, sameCell, type GridCell } from '../domain/village/people/world-grid';
 import {
-  ledByEndedHouse,
+  mayHandleCampaign,
   queueCampaignIntent,
   type CampaignCells,
   type CampaignRepository,
@@ -61,7 +60,8 @@ export interface TargetDwellingsCache {
 export interface CampaignViewDeps extends KnowledgeOfTargetDeps {
   campaigns: Pick<CampaignRepository, 'checkpoint'>;
   cells: CampaignCells;
-  villages: Pick<VillageRepository, 'find'>;
+  /** `archivedOf` – vazal, který dal Začít znovu, o své muže přišel (`mayHandleCampaign`). */
+  villages: Pick<VillageRepository, 'find'> & Partial<Pick<VillageRepository, 'archivedOf'>>;
   grids?: SightGridCache;
   targets?: TargetDwellingsCache;
 }
@@ -80,7 +80,9 @@ export async function campaignViewFor(
   input: { playerId: string; campaignId: string; sinceTick: number },
 ): Promise<CampaignView | null> {
   const checkpoint = await deps.campaigns.checkpoint(input.campaignId);
-  if (!checkpoint || !isCampaignParticipant(checkpoint.state, input.playerId)) return null;
+  if (!checkpoint || !(await mayHandleCampaign(deps, checkpoint.state, input.playerId))) {
+    return null;
+  }
   return viewOf(deps, checkpoint.state, input.playerId, input.sinceTick);
 }
 
@@ -197,21 +199,17 @@ export async function campaignsOf(
     campaigns: Pick<CampaignRepository, 'activeOf' | 'checkpoint'>;
     /** Živý rod hráče – staré vojsko (`ledByEndedHouse`) panel nové hry nevidí; bez něj všechna. */
     houses?: Pick<HouseRepository, 'activeOf'>;
+    /** Archiv vsí – muži vazala, který dal Začít znovu, panel nevidí (`mayHandleCampaign`). */
+    villages?: Partial<Pick<VillageRepository, 'archivedOf'>>;
   },
   input: { playerId: string },
 ): Promise<CampaignSummary[]> {
   const out: CampaignSummary[] = [];
-  // rod hráče jen jednou a jen u tažení, které vede (vazal ve službě své muže vidí vždy)
-  let living: { id: string } | null | undefined;
   for (const id of await deps.campaigns.activeOf(input.playerId)) {
     const point = await deps.campaigns.checkpoint(id);
-    if (!point || !isCampaignParticipant(point.state, input.playerId)) continue;
+    if (!point || !(await mayHandleCampaign(deps, point.state, input.playerId))) continue;
     const s = point.state;
     const leads = s.playerId === input.playerId;
-    if (leads && deps.houses && s.houseId !== undefined) {
-      if (living === undefined) living = await deps.houses.activeOf(input.playerId);
-      if (ledByEndedHouse(s.houseId, living)) continue;
-    }
     out.push({
       id,
       targetName: s.target.name ?? null,
@@ -272,6 +270,8 @@ export async function commandCampaign(
   const checkpoint = await deps.campaigns.checkpoint(input.campaignId);
   if (!checkpoint) return REFUSED;
   const state = checkpoint.state;
+  // staré vojsko (rod, který skončil) nová hra neovládá – jedna kontrola pro všechny pokyny
+  if (!(await mayHandleCampaign(deps, state, input.playerId))) return REFUSED;
   const body = await intentOf(deps, state, input.playerId, input.command);
   if (body === null) return REFUSED;
   if (body === 'unreachable') return { queued: false, reason: 'unreachable' };

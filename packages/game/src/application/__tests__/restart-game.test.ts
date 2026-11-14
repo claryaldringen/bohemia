@@ -522,6 +522,7 @@ describe('restartGame s abandon (nabídka hry)', () => {
 
   it('ukončí běžící výjezd hráče bez událostí a znalosti – nová hra smí vyslat', async () => {
     const { settlements, villages, villageId } = await playerWithVillage(false);
+    villages.archivedSettlements = settlements.archived;
     const journeys = new InMemoryJourneys();
     await journeys.create(runningJourney(villageId));
     // nedoručené události bodu se už nedoručí
@@ -543,6 +544,8 @@ describe('restartGame s abandon (nabídka hry)', () => {
     expect(result.ok).toBe(true);
     expect(await journeys.activeOf(PLAYER)).toBeNull();
     expect(await journeys.active()).toEqual([]);
+    // domov v archivu – událost do vsi nejde
+    expect(villages.inbox.events.filter((e) => e.body.kind === 'away-ends')).toEqual([]);
     const point = await journeys.checkpoint('j1');
     expect(point?.state.phase).toBe('done');
     expect(point?.outbox).toBeNull();
@@ -866,6 +869,26 @@ describe('Začít znovu obránce – ves pod nájezdem připadne útočníkovi (
     },
     30_000,
   );
+
+  it('výjezd vojvody s domovem ve vzdané vsi – členové jsou doma, událost jednou', async () => {
+    const w = await defended(['marching']);
+    w.villages.archivedSettlements = w.settlements.archived;
+    const journeys = new InMemoryJourneys();
+    await journeys.create(runningJourney(w.villageId));
+    const deps = { ...w.deps, journeys };
+    expect((await restartGame(deps, input)).ok).toBe(true);
+    const ends = (): unknown[] =>
+      w.villages.inbox.events
+        .filter((e) => e.body.kind === 'away-ends')
+        .map((e) => [e.villageId, e.body.kind === 'away-ends' ? e.body.refId : null]);
+    expect(ends()).toEqual([[w.villageId, 'j1']]);
+    expect(await journeys.activeOf(PLAYER)).toBeNull();
+    // opakovaný restart (pád po převodu) nic nezdvojí
+    expect((await restartGame(deps, input)).ok).toBe(true);
+    expect(ends()).toHaveLength(1);
+    // upozornění o návratu nikomu nejde
+    expect(w.notices.notices.filter((n) => n.kind === 'journey-returned')).toEqual([]);
+  }, 30_000);
 
   it('nájezd už na zpáteční cestě – ves jde do archivu jako dřív', async () => {
     const w = await defended(['returning']);

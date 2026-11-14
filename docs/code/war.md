@@ -1713,7 +1713,12 @@ design/war.md – Začít znovu během nájezdu (útočník i obránce).
   s `houseId`, které není živým rodem hráče. `campaignsOf` s `houses` ho vůdci nevrací (vazal ve
   službě své muže vidí dál; web `campaignsOfPlayer`); `deliverOutbox(deps, outbox, leader)`
   upozornění vůdci ze starého vojska zahodí (rod se hledá, jen když nějaké jde vůdci; `stepOne`
-  předává stav tažení, výjezd ne).
+  předává stav tažení, výjezd ne). Pohled (`campaignViewFor`), pokyny (`commandCampaign`) i panel
+  (`campaignsOf`) jdou přes jednu kontrolu `mayHandleCampaign(deps, state, playerId)`: vůdce – rod
+  tažení je živý rod hráče; vazal – aspoň jeden jeho muž je z vsi mimo archiv (`archivedOf`).
+- **Výjezd vzdané vsi** – `restartGame` před `journeys.end` zavolá `endJourneyAtHome`: je-li domov
+  výjezdu v úložišti a ne v archivu (vzdal se), pošle mu `away-ends` s `ref` `journey:<id>:restart`;
+  u domova v archivu nic.
 - **Testy** – `domain/war/__tests__/campaign-restart.test.ts` (fáze, NPC, idempotence; obránce –
   pochod, shromaždiště, boj, záměr od vůdce zahozen, přítomnost beze změny),
   `evacuation.test.ts` (útěk obránců jako po „Domů“), `application/__tests__/restart-game.test.ts`

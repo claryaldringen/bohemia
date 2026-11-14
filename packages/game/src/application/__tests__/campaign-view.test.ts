@@ -149,7 +149,7 @@ describe('znalost rodu v pohledu na tažení (plán 2026-11-13 – Úloha 11)', 
     }
     const houses = {
       activeOf: (playerId: string): Promise<House | null> =>
-        Promise.resolve(playerId === 'p2' ? ({ id: 'h2' } as House) : null),
+        Promise.resolve({ id: playerId === 'p2' ? 'h2' : 'h1' } as House),
     };
     return { ...base, all: { ...base.deps, knowledge, houses } };
   }
@@ -306,6 +306,71 @@ describe('campaignsOf', () => {
     expect(await ids('p1')).toEqual([]);
     // vazal ve službě své muže vidí dál – rod vůdce se ho netýká
     expect(await ids('p2')).toEqual(['c1']);
+  });
+});
+
+describe('staré vojsko po Začít znovu – pohled i pokyny (war.md – Začít znovu během nájezdu)', () => {
+  /** Rod h-old skončil, hráč p1 má nový rod; vazal p2 má muže z vsi `brod`. */
+  async function restarted(archived: string[] = []) {
+    const { deps, campaigns, nowMs } = await setup({ ...raiding(), houseId: 'h-old' });
+    const houses = new InMemoryHouses();
+    const old = await houses.create({ playerId: 'p1', kind: 'player', createdAt: new Date(0) });
+    await houses.end(old.id, new Date(1), 0);
+    const fresh = await houses.create({ playerId: 'p1', kind: 'player', createdAt: new Date(2) });
+    const villages = {
+      ...deps.villages,
+      archivedOf: (ids: readonly string[]): Promise<string[]> =>
+        Promise.resolve(ids.filter((id) => archived.includes(id))),
+    };
+    return { all: { ...deps, houses, villages }, campaigns, nowMs, fresh };
+  }
+
+  it('vůdce staré hry tažení nevidí a nic do něj nezadá', async () => {
+    const w = await restarted();
+    const view = { playerId: 'p1', campaignId: 'c1', sinceTick: 0 };
+    expect(await campaignViewFor(w.all, view)).toBeNull();
+    const order: CampaignCommand = { kind: 'order', group: 0, order: 'attack-all' };
+    const input = { playerId: 'p1', campaignId: 'c1', nowMs: w.nowMs };
+    expect((await commandCampaignResult(w.all, { ...input, command: order })).queued).toBe(false);
+    expect(
+      (await commandCampaignResult(w.all, { ...input, command: { kind: 'presence' } })).queued,
+    ).toBe(false);
+    const choice: CampaignCommand = { kind: 'surrendered', group: 0, choice: 'leave' };
+    expect((await commandCampaignResult(w.all, { ...input, command: choice })).queued).toBe(false);
+    expect(w.campaigns.intents).toEqual([]);
+  });
+
+  it('nová hra vidí a řídí jen vlastní tažení', async () => {
+    const w = await restarted();
+    await w.campaigns.create({ ...raiding(), id: 'c2', houseId: w.fresh.id });
+    const view = (campaignId: string) =>
+      campaignViewFor(w.all, { playerId: 'p1', campaignId, sinceTick: 0 });
+    expect(await view('c1')).toBeNull();
+    expect(await view('c2')).not.toBeNull();
+    const order: CampaignCommand = { kind: 'order', group: 0, order: 'attack-all' };
+    const queued = await commandCampaignResult(w.all, {
+      playerId: 'p1',
+      campaignId: 'c2',
+      command: order,
+      nowMs: w.nowMs,
+    });
+    expect(queued.queued).toBe(true);
+  });
+
+  it('muži vazala, který dal Začít znovu (vsi v archivu), v cizím tažení nevidí; jinak ano', async () => {
+    const live = await restarted();
+    expect(
+      await campaignViewFor(live.all, { playerId: 'p2', campaignId: 'c1', sinceTick: 0 }),
+    ).not.toBeNull();
+    const gone = await restarted(['brod']);
+    expect(
+      await campaignViewFor(gone.all, { playerId: 'p2', campaignId: 'c1', sinceTick: 0 }),
+    ).toBeNull();
+    const list = await campaignsOf(
+      { campaigns: gone.campaigns, houses: gone.all.houses, villages: gone.all.villages },
+      { playerId: 'p2' },
+    );
+    expect(list).toEqual([]);
   });
 });
 

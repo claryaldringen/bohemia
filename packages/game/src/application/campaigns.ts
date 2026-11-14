@@ -6,9 +6,16 @@ import type {
   CampaignState,
   IntentBody,
 } from '../domain/war';
-import { campaignFinished, INTENT_LEAD_TICKS, tickOfMs } from '../domain/war';
+import {
+  campaignFinished,
+  INTENT_LEAD_TICKS,
+  isCampaignParticipant,
+  tickOfMs,
+} from '../domain/war';
 import type { WorldClock } from '../domain/calendar';
 import type { GridCell } from '../domain/village/people/world-grid';
+import type { HouseRepository } from './houses';
+import type { VillageRepository } from './villages';
 
 // Porty tažení (plán 2026-11-03 – Úloha 6.5): úložiště tažení s kontrolními body a záměry, zámek
 // tažení a mapy políček světa.
@@ -185,4 +192,33 @@ export function ledByEndedHouse(
   living: { id: string } | null,
 ): boolean {
   return houseId !== undefined && houseId !== living?.id;
+}
+
+/**
+ * Smí hráč tažení vidět a dávat mu rozkazy? Jen když v něm stojí za živým rodem hráče (war.md –
+ * Začít znovu během nájezdu; návrat starého vojska nová hra nezdědí). Vůdce: rod tažení
+ * (`houseId`; bod bez rodu patří živému rodu) je živým rodem hráče. Vazal ve službě: aspoň jeden
+ * jeho muž je z vsi, která není v archivu (vazal, který dal Začít znovu, o své muže přišel).
+ * Bez portů `houses` / `villages.archivedOf` se příslušná část nekontroluje. Jedna kontrola pro
+ * všechny vstupy hráče do tažení (pohled, pokyny, panel).
+ */
+export async function mayHandleCampaign(
+  deps: {
+    houses?: Pick<HouseRepository, 'activeOf'>;
+    villages?: Partial<Pick<VillageRepository, 'archivedOf'>>;
+  },
+  state: CampaignState,
+  playerId: string,
+): Promise<boolean> {
+  if (!isCampaignParticipant(state, playerId)) return false;
+  if (state.playerId === playerId) {
+    if (!deps.houses || state.houseId === undefined) return true;
+    return !ledByEndedHouse(state.houseId, await deps.houses.activeOf(playerId));
+  }
+  if (!deps.villages?.archivedOf) return true;
+  const own = [
+    ...new Set(state.members.filter((m) => m.playerId === playerId).map((m) => m.ref.villageId)),
+  ];
+  const gone = new Set(await deps.villages.archivedOf(own));
+  return own.some((id) => !gone.has(id));
 }

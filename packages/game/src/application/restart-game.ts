@@ -265,7 +265,7 @@ export type RestartGameResult =
 export type RestartGameDeps = DynastyDeps &
   EnterGameDeps & {
     /** Výjezdy vojvody – běžící výjezd hráče restart ukončí (`JourneyRepository.end`). */
-    journeys: Pick<JourneyRepository, 'activeOf' | 'end'>;
+    journeys: Pick<JourneyRepository, 'activeOf' | 'end' | 'checkpoint'>;
     /**
      * Tažení – nájezd, který hráč vede, restart ukončí obratem domů (`turnBackLedCampaigns`); ves
      * pod nájezdem se vzdá jeho vůdci (`surrenderRaidedVillages`).
@@ -274,6 +274,31 @@ export type RestartGameDeps = DynastyDeps &
     /** Hodiny světa – takt záměru obratu. */
     world: WorldClock;
   };
+
+/**
+ * Domovská ves výjezdu přešla vzdáním (není v archivu) a dopočítává se dál: výjezd skončí doma,
+ * ves dostane `away-ends` jednou (`ref` výjezdu) a členové jsou doma jako ostatní lidé vsi
+ * (návrh Clauda; bez upozornění). U domova v archivu se nic neposílá – ves se už nedopočítá. Pošle
+ * se před `end`, takže pád mezi nimi opakovaný restart dopíše (stejný `ref` událost nezdvojí).
+ */
+async function endJourneyAtHome(
+  deps: Pick<RestartGameDeps, 'journeys' | 'villages'>,
+  journeyId: string,
+  today: number,
+): Promise<void> {
+  const point = await deps.journeys.checkpoint(journeyId);
+  const homeId = point?.state.home.villageId;
+  if (homeId === undefined) return;
+  const [home] = await deps.villages.stampsOfVillages([homeId]);
+  if (!home || (await deps.villages.archivedOf([homeId])).includes(homeId)) return;
+  const day = today + 1;
+  await deps.villages.inbox.post({
+    villageId: homeId,
+    day,
+    ref: `journey:${journeyId}:restart`,
+    body: { kind: 'away-ends', refId: journeyId, untilDay: day },
+  });
+}
 
 /**
  * Začít znovu: všechna aktivní sídla hráče i se všemi vsemi jdou do archivu a vznikne nové sídelní sídlo
@@ -317,7 +342,10 @@ export async function restartGame(
   // i bez vsí – opakovaný restart po pádu mezi archivem a koncem výjezdu ho ukončí; nová hra
   // výjezd mít nemůže (bez vsi není koho vyslat)
   const journeyId = await deps.journeys.activeOf(input.playerId);
-  if (journeyId) await deps.journeys.end(journeyId);
+  if (journeyId) {
+    await endJourneyAtHome(deps, journeyId, input.today);
+    await deps.journeys.end(journeyId);
+  }
   if (status.villages.length > 0) {
     // rod skončil – `enterGame` níže založí nový (staré dohody zanikly vymřením)
     const house = await deps.houses.activeOf(input.playerId);

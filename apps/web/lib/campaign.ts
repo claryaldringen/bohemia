@@ -79,5 +79,8 @@ export function commandCampaignForPlayer(
  */
 export function campaignsOfPlayer(playerId: string): Promise<CampaignSummary[]> {
   const deps = gameDeps();
-  return campaignsOf({ campaigns: deps.campaigns, houses: deps.houses }, { playerId });
+  return campaignsOf(
+    { campaigns: deps.campaigns, houses: deps.houses, villages: deps.villages },
+    { playerId },
+  );
 }
