@@ -52,36 +52,57 @@ export function parseChronicleAsk(input: unknown): ChronicleAsk | null {
   return { before };
 }
 
-function entryView(event: ChronicleEvent, villageName: string): ChronicleEntryView {
+function entryView(
+  event: ChronicleEvent,
+  villageName: string,
+  seed: number | undefined,
+): ChronicleEntryView {
   const date = dateOfDayIndex(event.day);
   return {
     day: event.day,
     kind: event.kind,
     dateLabel: `${date.day}. ${monthGenitive(date.month)}`,
-    text: chronicleText(event, villageName),
+    text: chronicleText(event, villageName, seed),
   };
 }
 
 /**
- * Zápisy, které panel neukazuje (návrh Clauda): začátek a konec hladu ze dne na den – kronika
- * nese trvalé stavy (`notice-began` / `notice-ended` – absence.md, Upozornění vsi do kroniky),
- * denní zápisy hladu zůstávají jen pro deník vsí (`year-log.ts`).
+ * Zápisy, které panel neukazuje: začátek a konec hladu ze dne na den (návrh Clauda – kronika nese
+ * trvalé stavy `notice-began` / `notice-ended`, absence.md – Upozornění vsi do kroniky; denní zápisy
+ * hladu zůstávají pro deník vsí `year-log.ts`) a ústup pole či sadu stavbě nebo cestě (`land-taken`
+ * – Martin 14. 11. 2026: „nicneříkající“; varování u kurzoru při stavbě zůstává).
  */
-const HIDDEN_KINDS: ReadonlySet<ChronicleEvent['kind']> = new Set(['hunger-began', 'hunger-ended']);
+const HIDDEN_KINDS: ReadonlySet<ChronicleEvent['kind']> = new Set([
+  'hunger-began',
+  'hunger-ended',
+  'land-taken',
+]);
+
+/**
+ * Ukáže panel zápis? Skryté druhy (`HIDDEN_KINDS`) a návrat lidí z výjezdu domů (`people-back`
+ * druhu `journey` – „1 člověk se vrátil domů z cesty.“; Martin 14. 11. 2026 ho v kronice nechce).
+ * Jádro zápisy dál zapisuje – skryjí se i uložené starší (návrh Clauda).
+ */
+export function shownInChronicle(event: ChronicleEvent): boolean {
+  if (HIDDEN_KINDS.has(event.kind)) return false;
+  return !(event.kind === 'people-back' && event.away === 'journey');
+}
 
 /**
  * Stránka kroniky vsi `villageName`: roky před `ask.before`, od nejnovějšího, celé roky, dokud
  * stránka nemá aspoň CHRONICLE_PAGE_ENTRIES záznamů. Zápisy ze schránky a začátky trvalých stavů
  * mohou mít dřívější den než poslední zápis – řadí se podle dne (stejný den v pořadí zápisu).
+ * `seed` – seed vsi pro jména sousedů v textech (`chronicleText`).
  */
 export function chroniclePage(
   chronicle: readonly ChronicleEvent[],
   villageName: string,
   ask: ChronicleAsk,
+  seed?: number,
 ): ChroniclePage {
   const ordered = chronicle
     .map((event, index) => ({ event, index, year: dateOfDayIndex(event.day).year }))
-    .filter((item) => !HIDDEN_KINDS.has(item.event.kind))
+    .filter((item) => shownInChronicle(item.event))
     .filter((item) => ask.before === null || item.year < ask.before)
     .sort((a, b) => b.event.day - a.event.day || b.index - a.index);
   const years: ChronicleYearView[] = [];
@@ -94,7 +115,7 @@ export function chroniclePage(
     }
     const entries: ChronicleEntryView[] = [];
     while (next < ordered.length && ordered[next]!.year === year) {
-      entries.push(entryView(ordered[next]!.event, villageName));
+      entries.push(entryView(ordered[next]!.event, villageName, seed));
       next++;
     }
     years.push({ year, entries });
