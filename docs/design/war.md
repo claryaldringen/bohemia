@@ -596,7 +596,7 @@ Martin 2. 11. 2026 – „ok“ (podrobnosti návrh Clauda):
     útočník uvnitř obvodu bojuje jako u domů;
   - **útočiště** – plocha z obvodu, 10 m² na člověka a 20 m² na kus dobytka; kdo stihne doběhnout
     a vejde se, schová se se zásobami a dobytkem; brány se zavřou, když je první útočník do 30 m;
-  - **postoje vsi** platí dál – opevnění je pro všechny tři úkrytem bližším než les; přesila
+  - **postoje vsi** platí dál – opevnění je pro oba (obrana i evakuace – od 14. 11. 2026) úkrytem bližším než les; přesila
     ~~u „vzdát se“ se poměří s násobkem opevnění~~ – za opevněním se skupina nevzdá, dokud
     útočník nestojí uvnitř (8. 11. 2026);
   - **prolomení** – útočník projde jen branou, mezerou nebo průlomem; brána plotu hned, brána
@@ -714,7 +714,7 @@ uprchlíků u hradiště jedí seno hostitele.
   (portréty, v popisku boj, luk, jízda a kůň), muži rodu a vazalové, skupiny s rozkazem, vesničané
   po vsích (dobrovolníci zeleně, nucení oranžově), shromaždiště, jídlo a píce (klas, seno, dny),
   nosiči, koně a vozy, **odhad síly** (meč s číslem), odhad cesty ve dnech, ohlášení průchodu.
-- **Postoj vsi:** tři ikony v panelu dvorce každé vsi – stěna štítů, bílá vlajka, stromy; popis
+- **Postoj vsi:** dvě ikony v panelu dvorce každé vsi – stěna štítů, stromy (bílá vlajka zrušena 14. 11. 2026); popis
   v bublině (Martin 3. 11. 2026).
 - **Na mapě s vojskem** (návrh Clauda): hráčův muž se vybírá a řídí jako hrdina v 0 A.D.; nad
   skupinou ikona rozkazu (štít u velitele, zkřížené oštěpy, praporec); u skupiny domů počet
@@ -1048,8 +1048,8 @@ dokumentu výš je podle nich přepsané (3. 11. 2026)**; při rozporu platí te
 - **Postoje – dopředu i při obraně:** postoj se nastaví dopředu u každé vsi (bránit se – stěna
   štítů, ~~vzdát se při přesile – bílá vlajka~~ (zrušeno 14. 11. 2026), raději utéct – stromy; popis v bublině) a ves se podle
   něj zachová, když vesničan spatří cizí vojsko (utéct hned se zásobami a stády / seběhnout se do
-  skupin / vzdát se při přesile 1,5×); přítomný hráč dostane upozornění a smí velet sám (postoj po
-  skupinách, útěk, vlastní výpad); bod zlomu platí vždy – „ano“ (Martin 3. 11. 2026).
+  skupin / ~~vzdát se při přesile 1,5×~~); ~~přítomný hráč dostane upozornění a smí velet sám (postoj po
+  skupinách, útěk, vlastní výpad)~~ (od 14. 11. 2026 – Hráč ve vsi a mimo ni); bod zlomu platí vždy – „ano“ (Martin 3. 11. 2026).
 - **Upozornění:** krátké zprávy („Cizí vojsko u Kněžic!“, „Kněžice poraženy.“, „Ctibor nabízí mír.“,
   „Bořivoj svolává.“, „Ctibor poslal 3 muže.“, „Bořivoj ohlásil průchod.“, „Zajat: Ctibor.“), klik
   otevře panel nebo dialog – „ok“.
