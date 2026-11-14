@@ -258,6 +258,7 @@ export function logStackSite(
   anchor: { x: number; z: number; road?: { x: number; z: number } | undefined },
   previous: LogPileSite | null = null,
   occupied: readonly (readonly Point[])[] = [],
+  height?: (x: number, z: number) => number,
 ): LogPileSite | null {
   const options = {
     occupied,
@@ -270,15 +271,24 @@ export function logStackSite(
   if (previous && isFree(landscape, village, context, layer, changes, previous, options)) {
     return previous;
   }
-  if (anchor.road) {
-    // klády míří čely k cestě – místní osa z od cesty ke kotvě
-    const rotation = Math.atan2(anchor.x - anchor.road.x, anchor.z - anchor.road.z);
-    for (let stacks = MAX_STACKS; stacks >= 1; stacks--) {
-      const site: LogPileSite = { x: anchor.x, z: anchor.z, rotation, stacks };
-      if (isFree(landscape, village, context, layer, changes, site, options)) return site;
+  // nejrovnější volné místo: první dost rovné se bere hned, jinak to s nejmenším převýšením
+  // (při shodě dřívější v pořadí hledání) – hromada neleží zanořená do svahu
+  const best: { site: LogPileSite | null; relief: number } = { site: null, relief: Infinity };
+  const consider = (site: LogPileSite): boolean => {
+    if (!isFree(landscape, village, context, layer, changes, site, options)) return false;
+    const relief = height ? siteRelief(site, height) : 0;
+    if (relief < best.relief) {
+      best.site = site;
+      best.relief = relief;
     }
-  }
+    return relief <= FLAT_RELIEF_M;
+  };
   for (let stacks = MAX_STACKS; stacks >= 1; stacks--) {
+    if (anchor.road) {
+      // klády míří čely k cestě – místní osa z od cesty ke kotvě
+      const rotation = Math.atan2(anchor.x - anchor.road.x, anchor.z - anchor.road.z);
+      if (consider({ x: anchor.x, z: anchor.z, rotation, stacks })) return best.site;
+    }
     for (let r = 2.5; r <= STACK_REACH_M; r += 2.5) {
       const steps = Math.max(8, Math.round((2 * Math.PI * r) / 2.5));
       for (let i = 0; i < steps; i++) {
@@ -287,13 +297,30 @@ export function logStackSite(
         const z = anchor.z + r * Math.sin(a);
         // klády míří ke kotvě (od paseky), nebo napříč
         for (const turn of [0, Math.PI / 2]) {
-          const site: LogPileSite = { x, z, rotation: Math.PI / 2 - a + turn, stacks };
-          if (isFree(landscape, village, context, layer, changes, site, options)) return site;
+          if (consider({ x, z, rotation: Math.PI / 2 - a + turn, stacks })) return best.site;
         }
       }
     }
+    // pro víc hranic je místo, i když nerovné – menší hromada se hledá, jen když žádné není
+    if (best.site) return best.site;
   }
   return null;
+}
+
+/** Nejvyšší převýšení pod půdorysem hromady, které se ještě bere jako rovina (m). */
+export const FLAT_RELIEF_M = 0.3;
+
+/** Převýšení pod půdorysem hromady (m): rozdíl nejvyššího a nejnižšího bodu rohů, stran a středu. */
+export function siteRelief(site: LogPileSite, height: (x: number, z: number) => number): number {
+  const corners = pileCorners(site);
+  const points: Point[] = [...corners, [site.x, site.z]];
+  for (let k = 0; k < corners.length; k++) {
+    const a = corners[k]!;
+    const b = corners[(k + 1) % corners.length]!;
+    points.push([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]);
+  }
+  const heights = points.map(([x, z]) => height(x, z));
+  return Math.max(...heights) - Math.min(...heights);
 }
 
 /**

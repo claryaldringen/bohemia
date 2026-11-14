@@ -488,3 +488,42 @@ describe('výběr hliniště (crafts.md – Hlína hrnčíře)', () => {
     expect(targetOutline(withClay, { kind: 'ore-site', id: 14 })).toEqual([]);
   });
 });
+
+describe('výběr hromady klád (forest.md – Mýcení a hromada klád)', () => {
+  const withPile: SceneVillage = {
+    ...village,
+    logStacks: [{ id: 41, x: 60, z: 40, logs: 17 }],
+  };
+  /** Půdorys hromady jak ho kreslí scéna: 6 × 4 m kolem (60, 40). */
+  const corners = [
+    [57, 38],
+    [63, 38],
+    [63, 42],
+    [57, 42],
+  ] as const;
+  const pick = (x: number, z: number): VillageTarget | null =>
+    pickVillageTarget(withPile, rayTo(x, z), {
+      ground: { x, z },
+      groundHeight: flat,
+      cellOf,
+      logPiles: [{ id: 41, corners }],
+    });
+
+  it('klik do půdorysu vybere hromadu podle id, vedle ní ne; prázdná hromada zmizí', () => {
+    expect(pick(60, 40)).toEqual({ kind: 'log-pile', id: 41 });
+    expect(pick(62.5, 41.5)).toEqual({ kind: 'log-pile', id: 41 });
+    expect(pick(65, 40)).toBeNull();
+    expect(targetExists(withPile, { kind: 'log-pile', id: 41 })).toBe(true);
+    expect(targetExists(village, { kind: 'log-pile', id: 41 })).toBe(false);
+  });
+
+  it('rámeček je půdorys hromady, jak leží ve scéně', () => {
+    const [ring, ...rest] = targetOutline(withPile, { kind: 'log-pile', id: 41 }, [
+      { id: 41, corners },
+    ]);
+    expect(rest).toEqual([]);
+    expect(ring).toHaveLength(5);
+    expect(ring![0]).toEqual(ring![4]);
+    expect(targetOutline(withPile, { kind: 'log-pile', id: 41 })).toEqual([]);
+  });
+});

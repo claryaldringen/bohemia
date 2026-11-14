@@ -105,6 +105,8 @@ export type VillageTarget =
   | { kind: 'threshing-floor'; id: number }
   /** Lom (id skalního výchozu – fortifications.md, Kámen): klik na výchoz s lomem. */
   | { kind: 'quarry'; id: number }
+  /** Hromada klád u cesty (forest.md – Mýcení a hromada klád): `LogStack.id`. */
+  | { kind: 'log-pile'; id: number }
   /** Kostel nebo staveniště kostela (id = id stavby – churches.md): klik do půdorysu. */
   | { kind: 'church'; id: number }
   /**
@@ -228,6 +230,8 @@ export function pickVillageTarget(
     ground: { x: number; z: number } | null;
     groundHeight(x: number, z: number): number;
     cellOf(x: number, z: number): TileCell | null;
+    /** Půdorysy hromad klád, jak leží ve scéně (`LogPile.pickable`). */
+    logPiles?: readonly { id: number; corners: readonly (readonly [number, number])[] }[];
   },
 ): VillageTarget | null {
   let best: { id: number; t: number } | null = null;
@@ -329,6 +333,15 @@ export function pickVillageTarget(
     (q) => Math.hypot(ground.x - q.x, ground.z - q.z) <= QUARRY_PICK_M,
   );
   if (quarry) return { kind: 'quarry', id: quarry.outcropId };
+  // hromada klád – klik do jejího půdorysu na zemi
+  const pile = (options.logPiles ?? []).find((l) =>
+    pointInPolygon(
+      l.corners.map((c): Point => [c[0], c[1]]),
+      ground.x,
+      ground.z,
+    ),
+  );
+  if (pile) return { kind: 'log-pile', id: pile.id };
   // opevnění – pás kolem plochy (hotový i rozestavěný obvod) a kousek podél okraje (pás je úzký);
   // zbořený díl je mezera (demolition.md – Opevnění) – nevybere se
   for (const f of village.forts ?? []) {
@@ -612,6 +625,7 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
   if (target.kind === 'quarry') {
     return (village.quarries ?? []).some((q) => q.outcropId === target.id);
   }
+  if (target.kind === 'log-pile') return (village.logStacks ?? []).some((l) => l.id === target.id);
   if (target.kind === 'church') return (village.churches ?? []).some((c) => c.id === target.id);
   return village.fields.some((f) => f.id === target.id);
 }

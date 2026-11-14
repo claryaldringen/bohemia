@@ -269,10 +269,14 @@ export class SelectionHighlight {
   }
 
   /** Překreslí rámeček podle vybraného cíle ve vsi (null nebo zaniklý cíl = nic). */
-  show(village: SceneVillage | null, target: VillageTarget | null): void {
+  show(
+    village: SceneVillage | null,
+    target: VillageTarget | null,
+    logPiles: readonly { id: number; corners: readonly (readonly [number, number])[] }[] = [],
+  ): void {
     this.clear();
     if (!village || !target) return;
-    const lines = targetOutline(village, target);
+    const lines = targetOutline(village, target, logPiles);
     this.lines = lines;
     if (lines.length === 0) return;
     const segments = lines.flatMap((line) => stripSegments(line, false, 0.35, 1.5));
@@ -309,7 +313,11 @@ export class SelectionHighlight {
  * čtverců pole, hřbitova, sadu, háje či ohrady; vybraný díl pole a čtverec sadu jen jeho čtverec
  * (i natočený); rudiště kováře a hliniště hrnčíře obrys kolem jam a hromady (`oreSiteOutline`).
  */
-export function targetOutline(village: SceneVillage, target: VillageTarget): Point[][] {
+export function targetOutline(
+  village: SceneVillage,
+  target: VillageTarget,
+  logPiles: readonly { id: number; corners: readonly (readonly [number, number])[] }[] = [],
+): Point[][] {
   // vybraná postava, spřežení a vůz mají žlutý kroužek, který je sleduje (villagers.ts,
   // plough-team-renderer.ts, cart-renderer.ts) – rámeček na zemi ne
   if (target.kind === 'person' || target.kind === 'plough-team' || target.kind === 'cart') {
@@ -414,6 +422,14 @@ export function targetOutline(village: SceneVillage, target: VillageTarget): Poi
     const total = fort.shapes.reduce((sum, x) => sum + x.lengthM, 0);
     const rings = fortBandRings(fort, 0, total);
     return rings.length > 0 ? rings : [fort.outline.map(([x, z]): Point => [x, z])];
+  }
+  if (target.kind === 'log-pile') {
+    // půdorys hromady, jak leží ve scéně (místo hledá scéna – log-pile-layout.ts)
+    const pile = logPiles.find((l) => l.id === target.id);
+    if (!pile) return [];
+    return [
+      [...pile.corners.map((c): Point => [c[0], c[1]]), [pile.corners[0]![0], pile.corners[0]![1]]],
+    ];
   }
   if (target.kind === 'grain-pit') {
     // otevřená obilná jáma (production-chains.md – Obilné jámy) – kruh kolem hrdla a hrud pečeti

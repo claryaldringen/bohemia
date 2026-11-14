@@ -66,6 +66,8 @@ export interface PointerDeps {
   villageRenderer: () => VillageRenderer | null;
   villagers: () => VillageVillagers | null;
   wildlife: () => VillageWildlife | null;
+  /** Půdorysy hromad klád ve scéně (výběr klikem – `LogPile.pickable`). */
+  logPiles: () => readonly { id: number; corners: readonly (readonly [number, number])[] }[];
   /** Muž výjezdu vojvody pod kurzorem (journey-riders.ts – `pickRider`). */
   riderHit: (
     x: number,
@@ -304,6 +306,7 @@ export class ScenePointer {
         ground: at,
         groundHeight,
         cellOf: (wx, wz) => tileOfWorldPoint(landscape, wx, wz),
+        logPiles: this.deps.logPiles(),
       }) ??
       // prvek prémiové krajiny – jen když tu není nic ze vsi (premium-picking.ts)
       pickPremiumSite(landscape, premiumFeaturesOf(landscape), at)

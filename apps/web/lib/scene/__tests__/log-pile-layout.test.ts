@@ -13,6 +13,7 @@ import {
 } from '@bohemia/game';
 import type { SceneVillage } from '../../village-view';
 import {
+  FLAT_RELIEF_M,
   LOG_RADIUS_M,
   MAX_SHOWN_LOGS,
   PILE_DEPTH_M,
@@ -22,6 +23,7 @@ import {
   logPileSite,
   logStackSite,
   pileWidth,
+  siteRelief,
 } from '../log-pile-layout';
 
 const SIZE = 32;
@@ -321,5 +323,56 @@ describe('logStackSite – hromada klád u lesa (forest.md – Klučení lesa pr
     for (const log of logs) {
       expect(Math.abs(log.x)).toBeLessThanOrEqual(pileWidth(1) / 2 - LOG_RADIUS_M * 0.8);
     }
+  });
+});
+
+describe('logStackSite – hromada leží na rovince (Martin 14. 11. 2026: „bývají zanořené do terénu“)', () => {
+  /** Svah stoupající s x do x = 8 m, od něj rovina (kotva na svahu). */
+  const slope = (x: number): number => (x < 8 ? x * 0.4 : 3.2);
+  const heightAt = (x: number): number => slope(x);
+  const village: SceneVillage = { dwellings: [dwelling(1, -200, -200)], fields: [] };
+  const anchor = { x: 0, z: 0 };
+
+  it('bez výšky vezme první volné místo, s výškou nejméně nakloněné v dosahu od kotvy', () => {
+    const plain = logStackSite(landscape, village, empty, NO_OBSTACLE_CHANGES, anchor)!;
+    expect(siteRelief(plain, heightAt)).toBeGreaterThan(FLAT_RELIEF_M);
+    const flat = logStackSite(
+      landscape,
+      village,
+      empty,
+      NO_OBSTACLE_CHANGES,
+      anchor,
+      null,
+      [],
+      heightAt,
+    )!;
+    expect(flat).not.toBeNull();
+    expect(siteRelief(flat, heightAt)).toBeLessThanOrEqual(FLAT_RELIEF_M);
+    expect(Math.hypot(flat.x - anchor.x, flat.z - anchor.z)).toBeLessThanOrEqual(STACK_REACH_M);
+  });
+
+  it('stejný vstup, stejné místo; na rovině zůstane u kotvy', () => {
+    const args = [
+      landscape,
+      village,
+      empty,
+      NO_OBSTACLE_CHANGES,
+      anchor,
+      null,
+      [],
+      heightAt,
+    ] as const;
+    expect(logStackSite(...args)).toEqual(logStackSite(...args));
+    const level = logStackSite(
+      landscape,
+      village,
+      empty,
+      NO_OBSTACLE_CHANGES,
+      anchor,
+      null,
+      [],
+      () => 3,
+    )!;
+    expect(Math.hypot(level.x - anchor.x, level.z - anchor.z)).toBeLessThanOrEqual(2.5 * 1.5);
   });
 });
