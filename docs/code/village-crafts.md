@@ -157,8 +157,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   stezky nebo `{ kind: 'edge' }`; ve scéně karavana (`sceneExpeditions` v `caravan-view.ts` –
   `SceneExpedition` s `trailId` null a čarou `line` od dvorce ke kraji – `purchaseLine`, každá
   cesta tam a zpět zvlášť podle `CraftPurchase.tripDays`; body cesty `caravanPoints`),
-  `finishPurchases` → zásoby a kronika `crafts-bought`. Web: kronika a upozornění „Vesničané
-  koupili nástroje u souseda (sever)“, `VillageCrafts.sources` (`craftSources`),
+  `finishPurchases` → zásoby a kronika `crafts-bought`. Web: kronika jako směna jménem obyvatel
+  („Vlkovští směnili 394 kg obilí za 120 kg keramiky s Lhotskými.“ – web-ui.md, Panel Kronika),
+  upozornění „Vesničané koupili nástroje u souseda (sever)“, `VillageCrafts.sources` (`craftSources`),
   `VillageView.purchases`, panel dvorce `BuyingRow` (výrobky se šipkou ke zdroji, nákup na cestě),
   panel dílny bez vstupů `SelectionWorkshop.buying`; řádek kalibrace „Nákup u sousedů“.
 

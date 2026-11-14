@@ -144,7 +144,14 @@ describe('cizí kovář', () => {
     expect(plan!.grainKg + plan!.legumesKg).toBeGreaterThan(0);
     expect(plan!.grainKg).toBeLessThanOrEqual(s.storesKg);
     const before = s.storesKg;
-    expect(finishShoeing(s, DUE, plan, 0)[0]).toMatchObject({ kind: 'horses-shod', own: false });
+    // kronika nese směr souseda, odkud kovář přišel (jméno vsi v kronice)
+    expect(finishShoeing(s, DUE, plan, 0)[0]).toEqual({
+      day: DUE,
+      kind: 'horses-shod',
+      horses: plan!.horses,
+      own: false,
+      direction: plan!.route!.direction,
+    });
     expect(s.storesKg).toBeCloseTo(before - plan!.grainKg, 6);
   });
 

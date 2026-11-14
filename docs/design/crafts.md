@@ -866,8 +866,10 @@ návrh Clauda; čísla v `rules/` (`CRAFT_BUYING`), rešerše
   podle toho, co z přebytku zbylo (rozhodnutí Clauda, 19. 10. 2026 – dřív pevné pořadí nástroje →
   keramika → dřevěné nářadí: z malého přebytku ves koupila keramiku, i když dřevěné nářadí by
   ušetřilo několikrát víc).
-- **Kronika a upozornění:** „Vesničané koupili nástroje a keramiku u souseda (sever) – zaplatili
-  766 kg obilí.“, krátký řádek „Vesničané koupili nástroje u souseda (sever)“ – jen fakt.
+- **Kronika a upozornění:** směna jménem obyvatel obou vsí, obě strany i s množstvím
+  (Martin 14. 11. 2026: „{Vlkovští} směnili {co a kolik} za {co a kolik} s {Lhotskými}.“) –
+  „Vlkovští směnili 766 kg obilí za 9 kg nástrojů a 120 kg keramiky s Lhotskými.“; krátký řádek
+  upozornění „Vesničané koupili nástroje u souseda (sever)“ – jen fakt.
 - **Rozhraní (jen ikony):** v panelu dvorce řádek výrobků – šipka k sousedovi, u kterého ves
   kupuje (✓ vlastní řemeslník), a nákup na cestě (šipka a dny do návratu); v panelu dílny bez vstupů
   ikona výrobku se šipkou, že ves dokupuje u souseda. Věty jen v popiscích.

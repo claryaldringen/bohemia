@@ -1438,9 +1438,23 @@ nová pravidla (návrh Clauda).
   (`NOTICE_CHRONICLE_TEXTS` – začátek jako řádek upozornění s tečkou, konec „… zase …“, např.
   „Kovář nemá uhlí.“ / „Kovář má zase uhlí.“, „Ves hladoví.“ / „Hlad skončil.“, „Ves šetří na
   osivo.“ / „Ves už nešetří na osivo.“). Začátek má den
-  začátku stavu, i když se zapsal o týden později – stránka ho zařadí podle dne. Denní
-  `hunger-began` / `hunger-ended` panel neukazuje (`HIDDEN_KINDS` – návrh Clauda: hlad nesou
-  trvalé stavy, denní zápisy zůstávají pro deník vsí).
+  začátku stavu, i když se zapsal o týden později – stránka ho zařadí podle dne.
+- **Skryté zápisy** (`shownInChronicle`): denní `hunger-began` / `hunger-ended` (`HIDDEN_KINDS` –
+  návrh Clauda: hlad nesou trvalé stavy, denní zápisy zůstávají pro deník vsí), ústup pole či sadu
+  stavbě nebo cestě `land-taken` (Martin 14. 11. 2026: „nicneříkající“; varování u kurzoru
+  `landTakenWarning` zůstává) a návrat z výjezdu `people-back` druhu `journey` („1 člověk se vrátil
+  domů z cesty.“ – Martin 14. 11. 2026 ho nechce). Jádro je dál zapisuje – skryje se i uložený
+  starší zápis; `VillageView.chronicle` (8 zápisů pro upozornění) je nese dál.
+- **Jména sousedů** (`chronicleText(event, villageName, seed)` – `seed` vsi, `chroniclePage` ho
+  bere čtvrtým parametrem): kovář ze sousední vsi „Kovář z Hrušova okul koně.“ (`horses-shod`
+  s `direction`, starší zápis „Kovář z jiné vsi okul koně.“) a nákup u souseda jako směna
+  „Vlkovští směnili 394 kg obilí za 120 kg keramiky se Sedleckými.“ (`crafts-bought` – obě strany
+  v kg, zbytek pod půl kila se nepíše); jméno souseda `neighbourOf(seed, direction).name`. Pády jmen
+  vsí `lib/village-name-cases.ts` (`fromVillage` – „z Lhoty“, „ze Sedlce“; `villagersOf` –
+  „Vlkovští“; `withVillagersOf` – „s Lhotskými“): vzory podle konce jména z generátoru (-ice,
+  -any, -ov, -ín, -ec, -á, -í, -a) a výčet jmen, která konec nerozhodne (Libice v jednotném čísle,
+  Bělá, Dubá, Brod); jméno, které vzor nezná, opisem „ze vsi X“, „obyvatelé vsi X“, „s obyvateli
+  vsi X“. Testy `village-name-cases.test.ts` – každé jméno `VILLAGE_NAMES`.
 - **Obnova:** `useChronicle` načte první stránku při otevření, při jiné vsi a když v pohledu
   přibude zápis (`latest` = nejnovější zápis `VillageView.chronicle`); `mergeNewest` nahradí roky
   nové stránky a starší načtené roky ponechá, `appendOlder` připojí starší stránku.

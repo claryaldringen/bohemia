@@ -3109,21 +3109,54 @@ describe('placementVillageFromScene – stavby na poli založeném v lese (Marti
 });
 
 describe('kronika – nákup u sousedů (crafts.md)', () => {
-  it('co ves koupila, u koho a za kolik obilí', () => {
+  // seed vsi 4: soused na severovýchodě je Sedlec, seed 5 Hrušov, seed 10 na severu Mokrá
+  const bought = (
+    pay: { grainKg?: number; legumesKg?: number },
+    get: { toolsKg?: number; potteryKg?: number; woodToolsKg?: number },
+    direction: 'NE' | 'N' = 'NE',
+  ): ChronicleEvent => ({ day: DAY, kind: 'crafts-bought', direction, get, pay });
+
+  it('směna jménem obyvatel obou vsí, obě strany i s množstvím (Martin 14. 11. 2026)', () => {
+    expect(
+      chronicleText(bought({ grainKg: 575 }, { toolsKg: 9, woodToolsKg: 30 }), 'Libice', 4),
+    ).toBe('Libičtí směnili 575 kg obilí za 9 kg nástrojů a 30 kg dřevěného nářadí se Sedleckými.');
+    // zbytek pod půl kila se nepíše, půl kila je 1 kg
     expect(
       chronicleText(
-        {
-          day: DAY,
-          kind: 'crafts-bought',
-          direction: 'NE',
-          get: { toolsKg: 9, woodToolsKg: 30 },
-          pay: { grainKg: 575 },
-        },
-        'Libice',
+        bought({ grainKg: 393.6, legumesKg: 0.3 }, { potteryKg: 120.4, woodToolsKg: 0.6 }),
+        'Vlkov',
+        5,
       ),
     ).toBe(
-      'Vesničané koupili nástroje a dřevěné nářadí u souseda (severovýchod) – zaplatili 575 kg obilí.',
+      'Vlkovští směnili 394 kg obilí za 120 kg keramiky a 1 kg dřevěného nářadí s Hrušovskými.',
     );
+  });
+
+  it('jméno, které vzor nezná, i bez seedu vsi – opisem', () => {
+    expect(
+      chronicleText(bought({ grainKg: 50, legumesKg: 20 }, { potteryKg: 10 }, 'N'), 'Nová Ves', 10),
+    ).toBe(
+      'Obyvatelé vsi Nová Ves směnili 50 kg obilí a 20 kg luštěnin za 10 kg keramiky s obyvateli vsi Mokrá.',
+    );
+    expect(chronicleText(bought({ grainKg: 50 }, { potteryKg: 10 }), 'Vlkov')).toBe(
+      'Vlkovští směnili 50 kg obilí za 10 kg keramiky s obyvateli sousední vsi.',
+    );
+  });
+});
+
+describe('kronika – kování koní (horses.md – Kování)', () => {
+  it('vlastní kovář, kovář ze sousední vsi jménem, starší zápis bez směru', () => {
+    const shod = (own: boolean, direction?: 'NE'): ChronicleEvent => ({
+      day: DAY,
+      kind: 'horses-shod',
+      horses: 2,
+      own,
+      ...(direction ? { direction } : {}),
+    });
+    expect(chronicleText(shod(true), 'Vlkov', 5)).toBe('Kovář okul koně.');
+    expect(chronicleText(shod(false, 'NE'), 'Vlkov', 5)).toBe('Kovář z Hrušova okul koně.');
+    expect(chronicleText(shod(false, 'NE'), 'Vlkov', 4)).toBe('Kovář ze Sedlce okul koně.');
+    expect(chronicleText(shod(false), 'Vlkov', 5)).toBe('Kovář z jiné vsi okul koně.');
   });
 });
 

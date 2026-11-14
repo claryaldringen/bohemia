@@ -1,11 +1,12 @@
 // Texty kroniky a pojmenování staveb pro panel.
 
-import { boughtProducts, productList } from './village-view-types';
 import { Crop } from '@bohemia/game';
 import { accusativeOf } from './player-notices';
 import { LEVY_UNITS } from './levy-labels';
 import {
-  paymentValueKg,
+  CRAFT_PRODUCTS,
+  neighbourOf,
+  type CraftProduct,
   type FloodLevel,
   type SummerWeather,
   type WinterWeather,
@@ -35,6 +36,7 @@ import { formatGameDate } from './game-date';
 import { noticeChronicleText } from './notice-chronicle';
 
 import { DIRECTION_NAMES, NEWCOMER_TEXTS, goodsText, peopleText } from './trade-names';
+import { fromVillage, villagersOf, withVillagersOf } from './village-name-cases';
 
 import { formatAnimals, formatCells, formatHa, formatInteger, plural } from './village-format';
 
@@ -501,8 +503,76 @@ function instrumentalOf(name: string): string {
   return `${name}em`;
 }
 
-/** Text události kroniky česky. */
-export function chronicleText(event: ChronicleEvent, villageName: string): string {
+/** Výrobky řemeslníků ve 2. pádě za množstvím („120 kg keramiky“ – crafts.md, Nákup u sousedů). */
+const PRODUCT_GENITIVES: Record<CraftProduct, string> = {
+  toolsKg: 'nástrojů',
+  potteryKg: 'keramiky',
+  woodToolsKg: 'dřevěného nářadí',
+};
+
+/**
+ * Množství v kg („394 kg obilí a 12 kg luštěnin“): části, které se zaokrouhlí aspoň na 1 kg (zbytek
+ * pod půl kila se nepíše); když žádná, největší jako 1 kg. Bez kladných částí null.
+ */
+function kgList(parts: readonly { kg: number; genitive: string }[]): string | null {
+  const positive = parts.filter((p) => p.kg > 0);
+  if (positive.length === 0) return null;
+  const shown = positive.filter((p) => Math.round(p.kg) >= 1);
+  const items = shown.length > 0 ? shown : [positive.reduce((a, b) => (b.kg > a.kg ? b : a))];
+  return listText(items.map((p) => `${formatInteger(Math.max(1, p.kg))} kg ${p.genitive}`));
+}
+
+/** První písmeno velké – věta začíná obyvateli vsi („Obyvatelé vsi Nová Ves směnili…“). */
+function capitalized(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/**
+ * Nákup u souseda jako směna (crafts.md – Nákup u sousedů; Martin 14. 11. 2026: „{Vlkovští}
+ * směnili {co a kolik} za {co a kolik} s {Lhotskými}.“): „Vlkovští směnili 394 kg obilí za 120 kg
+ * keramiky a 40 kg dřevěného nářadí s Lhotskými.“ Bez seedu vsi (jméno souseda neznámé)
+ * „s obyvateli sousední vsi“.
+ */
+function craftsBoughtText(
+  event: Extract<ChronicleEvent, { kind: 'crafts-bought' }>,
+  villageName: string,
+  seed: number | undefined,
+): string {
+  const pay =
+    kgList([
+      { kg: event.pay.grainKg ?? 0, genitive: 'obilí' },
+      { kg: event.pay.legumesKg ?? 0, genitive: 'luštěnin' },
+    ]) ?? 'obilí';
+  const get =
+    kgList(
+      CRAFT_PRODUCTS.map((p) => ({ kg: event.get[p] ?? 0, genitive: PRODUCT_GENITIVES[p] })),
+    ) ?? 'výrobky řemeslníků';
+  const partner =
+    seed === undefined
+      ? 's obyvateli sousední vsi'
+      : withVillagersOf(neighbourOf(seed, event.direction).name);
+  return `${capitalized(villagersOf(villageName))} směnili ${pay} za ${get} ${partner}.`;
+}
+
+/**
+ * Kování koní (horses.md – Kování): vlastní kovář, nebo kovář ze sousední vsi jménem (Martin
+ * 14. 11. 2026: „Kovář z Lhoty okul koně.“); zápis bez směru (starší) nebo bez seedu vsi „Kovář
+ * z jiné vsi okul koně.“
+ */
+function horsesShodText(
+  event: Extract<ChronicleEvent, { kind: 'horses-shod' }>,
+  seed: number | undefined,
+): string {
+  if (event.own) return 'Kovář okul koně.';
+  if (event.direction === undefined || seed === undefined) return 'Kovář z jiné vsi okul koně.';
+  return `Kovář ${fromVillage(neighbourOf(seed, event.direction).name)} okul koně.`;
+}
+
+/**
+ * Text události kroniky česky. `seed` – seed vsi pro jména sousedů (`neighbourOf` – kovář a směna
+ * se sousedem jménem vsi); bez něj se soused jménem nepíše.
+ */
+export function chronicleText(event: ChronicleEvent, villageName: string, seed?: number): string {
   switch (event.kind) {
     case 'village-founded':
       return `Osadníci založili ves ${villageName}.`;
@@ -819,7 +889,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
     case 'horses-arrived':
       return 'Do ohrady koní přivedli hřebce a dvě klisny.';
     case 'horses-shod':
-      return event.own ? 'Kovář okul koně.' : 'Koně okul kovář ze sousední vsi.';
+      return horsesShodText(event, seed);
     case 'bear-returned':
       return 'Medvěd se vrátil do lesů.';
     case 'predator-kill': {
@@ -924,7 +994,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string): strin
         ? `Na setí chybí ${formatInteger(event.shortKg)} kg osiva a sousedé letos víc obilí nemají – díly bez osiva vesničané nezasejí.`
         : `Na setí chybí ${formatInteger(event.shortKg)} kg osiva a vesničané nemají čím ho u sousedů zaplatit – díly bez osiva nezasejí.`;
     case 'crafts-bought':
-      return `Vesničané koupili ${productList(boughtProducts(event.get))} u souseda (${DIRECTION_NAMES[event.direction].name}) – zaplatili ${formatInteger(paymentValueKg(event.pay))} kg obilí.`;
+      return craftsBoughtText(event, villageName, seed);
     case 'trade-returned':
       return tradeTripText(
         `Nosiči se vrátili ${DIRECTION_NAMES[event.direction].from}`,

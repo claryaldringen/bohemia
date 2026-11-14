@@ -76,6 +76,31 @@ describe('stránka kroniky', () => {
     ]);
   });
 
+  it('ústup pole či sadu a návrat z výjezdu panel neukazuje, i uložené (Martin 14. 11. 2026)', () => {
+    const events: ChronicleEvent[] = [
+      { day: day(500), kind: 'village-founded' },
+      { day: day(501, 2, 1), kind: 'land-taken', land: 'field', id: 1, areaM2: 20, gone: false },
+      {
+        day: day(501, 2, 2),
+        kind: 'land-taken',
+        land: 'orchard',
+        id: 2,
+        areaM2: 271,
+        gone: true,
+        by: 'road',
+      },
+      { day: day(501, 3, 1), kind: 'people-back', away: 'journey', people: 1 },
+      { day: day(501, 4, 1), kind: 'people-back', away: 'labor', people: 3 },
+      { day: day(501, 5, 1), kind: 'horses-shod', horses: 2, own: false, direction: 'NE' },
+    ];
+    // seed vsi 5: soused na severovýchodě je Hrušov
+    const page = chroniclePage(events, 'Vlkov', { before: null }, 5);
+    expect(page.years[0]!.entries.map((e) => e.text)).toEqual([
+      'Kovář z Hrušova okul koně.',
+      '3 lidé se vrátili domů z roboty.',
+    ]);
+  });
+
   it('stránka bere celé roky, dokud nemá CHRONICLE_PAGE_ENTRIES zápisů; další stránka navazuje', () => {
     const events = births(500, 529, 7); // 30 let po 7 zápisech (+ založení)
     const first = chroniclePage(events, 'Lhota', { before: null });
