@@ -428,11 +428,15 @@ export async function restartGameForPlayer(
   const result = await exclusivePlayer(getPlayerLock(), playerId, async () => {
     const today = await playerToday(playerId);
     if (!today.ok) return today;
-    const restarted = await restartGame(dynastyDeps(), {
-      playerId,
-      today: today.day,
-      abandon: options.abandon,
-    });
+    // hodiny světa – nájezd, který hráč vede, se obrátí domů (záměr na takt teď + 2)
+    const restarted = await restartGame(
+      { ...dynastyDeps(), world: currentWorld() },
+      {
+        playerId,
+        today: today.day,
+        abandon: options.abandon,
+      },
+    );
     return restarted.ok ? { ok: true as const } : { ok: false as const, error: restarted.reason };
   });
   return result.ok ? { ok: true } : { ok: false, error: result.error };

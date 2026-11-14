@@ -4,8 +4,15 @@ import { CURRENT_LAYER_VERSIONS, type PremiumType } from '../../domain/landscape
 import { isLineMan, type Position, type VillageState } from '../../domain/village';
 import { removePeople } from '../../domain/village/people/kinship';
 import { block, makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
-import { msOfTick, newJourney, type JourneyMember, type JourneyState } from '../../domain/war';
-import { LAUNCH, world } from '../../domain/war/__tests__/campaign-fixtures';
+import {
+  INTENT_LEAD_TICKS,
+  msOfTick,
+  newJourney,
+  type CampaignMember,
+  type JourneyMember,
+  type JourneyState,
+} from '../../domain/war';
+import { campaign, LAUNCH, world } from '../../domain/war/__tests__/campaign-fixtures';
 import { foundVillageForSettlement } from '../found-village';
 import { loadVillage } from '../load-village';
 import { placeCemetery } from '../place-cemetery';
@@ -16,6 +23,7 @@ import { renameVillage } from '../rename-village';
 import { DYNASTY_ALIVE, dynastyStatus, restartGame } from '../restart-game';
 import type { LandscapeSource, SeedSource } from '../settlements';
 import { VILLAGE_EXTINCT } from '../update-village';
+import { InMemoryCampaigns } from './in-memory-campaigns';
 import { InMemoryHouses } from './in-memory-houses';
 import { InMemoryJourneys } from './in-memory-journeys';
 import { InMemoryNegotiations } from './in-memory-negotiations';
@@ -33,6 +41,15 @@ const landscapes: LandscapeSource = { landscapeOf: () => landscape };
 const at = (x: number, z: number): Position => ({ x, z, rotation: 0 });
 
 /** Seedy po řadě – nové sídlo po restartu dostane další. */
+/** Hráč bez výjezdu a tažení – porty výjezdů, tažení a hodiny světa pro `restartGame`. */
+function noArmies(): {
+  journeys: InMemoryJourneys;
+  campaigns: InMemoryCampaigns;
+  world: typeof world;
+} {
+  return { journeys: new InMemoryJourneys(), campaigns: new InMemoryCampaigns(), world };
+}
+
 function seedsFrom(...values: number[]): SeedSource {
   let next = 0;
   return { nextSeed: () => values[next++ % values.length]! };
@@ -193,7 +210,7 @@ describe('konec rodu (lord.md – Konec rodu)', () => {
           landscapes,
           worldSeed: 4242,
           houses: new InMemoryHouses(),
-          journeys: new InMemoryJourneys(),
+          ...noArmies(),
           now: () => NOW,
         },
         { playerId: PLAYER, today: TODAY },
@@ -206,7 +223,7 @@ describe('konec rodu (lord.md – Konec rodu)', () => {
         landscapes,
         worldSeed: 4242,
         houses: new InMemoryHouses(),
-        journeys: new InMemoryJourneys(),
+        ...noArmies(),
         now: () => NOW,
       },
       { playerId: PLAYER, today: TODAY },
@@ -226,7 +243,7 @@ describe('restartGame', () => {
         landscapes,
         worldSeed: 4242,
         houses: new InMemoryHouses(),
-        journeys: new InMemoryJourneys(),
+        ...noArmies(),
         now: () => NOW,
       },
       { playerId: PLAYER, today: TODAY },
@@ -283,7 +300,7 @@ describe('restartGame', () => {
         },
         worldSeed: 4242,
         houses: new InMemoryHouses(),
-        journeys: new InMemoryJourneys(),
+        ...noArmies(),
         now: () => NOW,
       },
       { playerId: PLAYER, today: TODAY },
@@ -311,7 +328,7 @@ describe('restartGame', () => {
         landscapes,
         worldSeed: 4242,
         houses: new InMemoryHouses(),
-        journeys: new InMemoryJourneys(),
+        ...noArmies(),
         now: () => NOW,
       },
       { playerId: PLAYER, today: TODAY },
@@ -329,7 +346,7 @@ describe('restartGame', () => {
       landscapes,
       worldSeed: 4242,
       houses: new InMemoryHouses(),
-      journeys: new InMemoryJourneys(),
+      ...noArmies(),
       now: () => NOW,
     };
     const first = await restartGame(deps, { playerId: PLAYER, today: TODAY });
@@ -348,7 +365,7 @@ describe('restartGame', () => {
       landscapes,
       worldSeed: 4242,
       houses: new InMemoryHouses(),
-      journeys: new InMemoryJourneys(),
+      ...noArmies(),
       now: () => NOW,
     };
     const results = await Promise.all(
@@ -371,7 +388,7 @@ describe('restartGame a rod', () => {
       landscapes,
       worldSeed: 4242,
       houses,
-      journeys: new InMemoryJourneys(),
+      ...noArmies(),
       now: () => NOW,
     };
     const first = await houses.create({ playerId: PLAYER, kind: 'player', createdAt: NOW });
@@ -396,7 +413,7 @@ describe('restartGame s abandon (nabídka hry)', () => {
         landscapes,
         worldSeed: 4242,
         houses: new InMemoryHouses(),
-        journeys: new InMemoryJourneys(),
+        ...noArmies(),
         now: () => NOW,
       },
       { playerId: PLAYER, today: TODAY, abandon: true },
@@ -429,7 +446,7 @@ describe('restartGame s abandon (nabídka hry)', () => {
         landscapes,
         worldSeed: 4242,
         houses: new InMemoryHouses(),
-        journeys: new InMemoryJourneys(),
+        ...noArmies(),
         now: () => NOW,
       },
       { playerId: PLAYER, today: TODAY, abandon: false },
@@ -448,7 +465,7 @@ describe('restartGame s abandon (nabídka hry)', () => {
         landscapes,
         worldSeed: 4242,
         houses: new InMemoryHouses(),
-        journeys: new InMemoryJourneys(),
+        ...noArmies(),
         now: () => NOW,
       },
       { playerId: PLAYER, today: TODAY, abandon: true },
@@ -465,7 +482,7 @@ describe('restartGame s abandon (nabídka hry)', () => {
       landscapes,
       worldSeed: 4242,
       houses: new InMemoryHouses(),
-      journeys: new InMemoryJourneys(),
+      ...noArmies(),
       now: () => NOW,
     };
     const first = await restartGame(deps, { playerId: PLAYER, today: TODAY, abandon: true });
@@ -485,7 +502,7 @@ describe('restartGame s abandon (nabídka hry)', () => {
       landscapes,
       worldSeed: 4242,
       houses: new InMemoryHouses(),
-      journeys: new InMemoryJourneys(),
+      ...noArmies(),
       now: () => NOW,
     };
     const results = await Promise.all(
@@ -512,6 +529,8 @@ describe('restartGame s abandon (nabídka hry)', () => {
         worldSeed: 4242,
         houses: new InMemoryHouses(),
         journeys,
+        campaigns: new InMemoryCampaigns(),
+        world,
         now: () => NOW,
       },
       { playerId: PLAYER, today: TODAY, abandon: true },
@@ -619,11 +638,95 @@ describe('restartGame a jednání', () => {
       landscapes,
       worldSeed: 4242,
       houses,
-      journeys: new InMemoryJourneys(),
+      ...noArmies(),
       negotiations,
       now: () => NOW,
     };
     expect((await restartGame(deps, { playerId: PLAYER, today: TODAY })).ok).toBe(true);
     expect(negotiations.records.map((r) => r.status)).toEqual(['ended']);
+  }, 30_000);
+});
+
+describe('restartGame během nájezdu (war.md – Začít znovu během nájezdu)', () => {
+  const RESTART = { kind: 'turn-back', restart: true } as const;
+  const atTick = (tick: number): Date => new Date(msOfTick(tick, world));
+  const input = { playerId: PLAYER, today: TODAY, abandon: true };
+  /** Muži tažení: Lhota patří `lhota`, Brod `brod`. */
+  const owned = (lhota: string, brod: string): CampaignMember[] =>
+    campaign().members.map((m) => ({ ...m, playerId: m.ref.villageId === 'brod' ? brod : lhota }));
+
+  /**
+   * Hráč vede tažení c1 (s muži vazala), v tažení c2 pána jde jako vazal ve službě; c3 vede jiný
+   * hráč bez jeho mužů.
+   */
+  async function raids(): Promise<{
+    deps: Parameters<typeof restartGame>[0];
+    campaigns: InMemoryCampaigns;
+  }> {
+    const { settlements, villages } = await playerWithVillage(false);
+    const campaigns = new InMemoryCampaigns();
+    await campaigns.create(campaign({ playerId: PLAYER, members: owned(PLAYER, 'vazal') }));
+    await campaigns.create(campaign({ id: 'c2', playerId: 'pan', members: owned('pan', PLAYER) }));
+    await campaigns.create(
+      campaign({ id: 'c3', playerId: 'jiny', members: owned('jiny', 'jiny') }),
+    );
+    const deps = {
+      settlements,
+      villages,
+      landscapes,
+      worldSeed: 4242,
+      houses: new InMemoryHouses(),
+      ...noArmies(),
+      campaigns,
+      now: () => atTick(LAUNCH + 10),
+    };
+    return { deps, campaigns };
+  }
+
+  it('tažení, které hráč vede, dostane obrat domů na takt teď + 2; vazal ve službě ne', async () => {
+    const { deps, campaigns } = await raids();
+    expect((await restartGame(deps, input)).ok).toBe(true);
+    expect(campaigns.intents).toEqual([
+      {
+        campaignId: 'c1',
+        tick: LAUNCH + 10 + INTENT_LEAD_TICKS,
+        seq: 1,
+        byPlayer: PLAYER,
+        body: RESTART,
+      },
+    ]);
+  });
+
+  it('restart vazala ve službě tažení pána neobrátí', async () => {
+    const { deps, campaigns } = await raids();
+    campaigns.rows.delete('c1');
+    expect((await restartGame(deps, input)).ok).toBe(true);
+    expect(campaigns.intents).toEqual([]);
+  });
+
+  it('takt odmítnutý úložištěm (bod je dál) – záměr na první takt za bodem', async () => {
+    const { deps, campaigns } = await raids();
+    // worker už tažení spočetl za teď + 2 (hodiny webu pozadu)
+    const row = campaigns.rows.get('c1')!;
+    row.tick = LAUNCH + 50;
+    row.state = JSON.stringify({ ...JSON.parse(row.state), tick: LAUNCH + 50 });
+    expect((await restartGame(deps, input)).ok).toBe(true);
+    expect(campaigns.intents.map((i) => [i.campaignId, i.tick])).toEqual([['c1', LAUNCH + 51]]);
+  });
+
+  it('pád mezi archivem a záměry – opakovaný restart záměr dopíše, i když hráč už vsi nemá', async () => {
+    const { deps, campaigns } = await raids();
+    const crash = {
+      activeOf: (playerId: string) => campaigns.activeOf(playerId),
+      checkpoint: (id: string) => campaigns.checkpoint(id),
+      addIntent: () => Promise.reject(new Error('pád')),
+    };
+    await expect(restartGame({ ...deps, campaigns: crash }, input)).rejects.toThrow('pád');
+    expect(await deps.settlements.listActive(PLAYER)).toEqual([]);
+    const again = await restartGame({ ...deps, now: () => atTick(LAUNCH + 12) }, input);
+    expect(again.ok).toBe(true);
+    expect(campaigns.intents.map((i) => [i.campaignId, i.tick, i.body])).toEqual([
+      ['c1', LAUNCH + 14, RESTART],
+    ]);
   }, 30_000);
 });

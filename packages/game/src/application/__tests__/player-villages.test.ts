@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dayIndexOf } from '../../domain/calendar';
+import { dayIndexOf, OFFICIAL_WORLD } from '../../domain/calendar';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
 import type { Position } from '../../domain/village';
 import { makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
@@ -8,6 +8,7 @@ import { loadVillage } from '../load-village';
 import { findPlayerVillage, firstPlayerVillage } from '../player-villages';
 import { dynastyStatus, restartGame } from '../restart-game';
 import type { LandscapeSource, SeedSource } from '../settlements';
+import { InMemoryCampaigns } from './in-memory-campaigns';
 import { InMemoryHouses } from './in-memory-houses';
 import { InMemoryJourneys } from './in-memory-journeys';
 import { InMemorySettlements } from './in-memory-settlements';
@@ -149,6 +150,8 @@ describe('víc vsí a konec hry', () => {
         worldSeed: 4242,
         houses: new InMemoryHouses(),
         journeys: new InMemoryJourneys(),
+        campaigns: new InMemoryCampaigns(),
+        world: OFFICIAL_WORLD,
         now: () => NOW,
       },
       { playerId: PLAYER, today: TODAY + 1, abandon: true },

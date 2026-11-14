@@ -479,13 +479,18 @@ function applyBody(s: CampaignState, body: IntentBody, out: TickOut, npc: boolea
       if (s.phase !== 'marching') return;
       for (const g of s.groups) sendGroup(g, body.to);
       return;
-    case 'turn-back':
-      // vede-li jiný muž, hráč na tažení vliv nemá (war.md – Velení)
-      if (!leads) return;
-      if (s.phase === 'marching' || s.phase === 'raiding') {
+    case 'turn-back': {
+      // vede-li jiný muž, hráč na tažení vliv nemá (war.md – Velení) – kromě Začít znovu: vůdce
+      // odešel ze hry a jeho nájezd končí, ať vede kdokoli; vojsko ve shromaždišti se rozejde domů
+      // (pozdější vyražení se zahodí); na zpáteční cestě není co obracet
+      const restart = body.restart === true;
+      if (!leads && !restart) return;
+      const afield = s.phase === 'marching' || s.phase === 'raiding';
+      if (afield || (restart && s.phase === 'assembling')) {
         turnBack(s, npc ? (body.reason ?? 'order') : 'order');
       }
       return;
+    }
     case 'set-order':
       if (s.phase === 'done' || s.phase === 'disbanded') return;
       setGroupOrder(s, body.group, body.order, body.at ?? null);
