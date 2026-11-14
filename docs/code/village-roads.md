@@ -207,7 +207,9 @@ cesty, půda)`; graf a půda (`walkGroundOf` + `withFieldWalk` – pole v `Villa
   nestaví a úklid neběží. Konce tras pro úklid jsou kotvy (`anchorTermini` – dosah kotvy a kraj
   mapy jako `nearAnchor`, nebo do 6 m). `formRoad` napřed spočítá osu bez rozdělení
   (`plannedAxis`, `joinTarget`) – krátká cesta nic nerozdělí. Kronika `road-formed` jen pro cesty,
-  jejichž id úklid nepohltil. `formWearRuns` (`formRoadsFromWear` je obálka pro testy): body čáry po
+  jejichž id úklid nepohltil; po úklidu a křižovatkách měsíce dostane konce cesty hráče a roky
+  chůze (`noteFormedRoads`, `roadFormedNote` v `paths/road-chronicle.ts` – web-ui.md, Panel
+  Kronika). `formWearRuns` (`formRoadsFromWear` je obálka pro testy): body čáry po
   `SAMPLE_M`, vyšlapanost `wearAt`; kus od `WEAR.roadAt` dál než `ON_ROAD_M` od pevné cesty se
   prodlouží po čáře oběma směry, dokud je aspoň `WEAR.extendFrom`; vznikne jen, když je každý konec
   u kotvy (`nearAnchor`) nebo u pevné cesty (připojí se do `ATTACH_M` – `joinPoint`, rozcestí

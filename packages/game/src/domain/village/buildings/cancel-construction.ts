@@ -5,7 +5,7 @@ import { villageCemeteries } from './cemetery';
 import { dropFortificationWork } from '../fortification/state/fortifications';
 import { returnConstructionStone } from '../fortification/state/quarry';
 import { villageOrchards } from './orchard';
-import { villagePens } from '../livestock/oxen';
+import { penChronicleNote, villagePens } from '../livestock/oxen';
 import { returnConstructionWood } from '../people/relocation';
 import { roadUpgradeProgress } from '../roads/road-upgrades';
 import { villageThreshingFloors } from '../fields/threshing-floors';
@@ -304,6 +304,8 @@ export function cancelConstruction(
       });
     }
   }
+  // kronika: druh rušené ohrady – dokud ohrada ve stavu je (Martin 14. 11. 2026)
+  const pen = target.kind === 'pen' ? penChronicleNote(next, target).penSpecies : undefined;
   returnConstructionWood(next, target);
   returnConstructionStone(next, target);
   // vrátí se přesně to, čím ves zaplatila koně ohrady (horses.md – Koně se stavbou ohrady)
@@ -323,6 +325,7 @@ export function cancelConstruction(
           kind: 'construction-cancelled',
           constructionKind: target.kind,
           ...(target.craft ? { craft: target.craft } : {}),
+          ...(pen ? { penSpecies: pen } : {}),
         }
       : { day, kind: 'relocation-cancelled', dwellingId: target.relocates },
   );

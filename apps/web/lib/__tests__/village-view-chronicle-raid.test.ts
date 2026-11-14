@@ -27,7 +27,7 @@ const raid = (extra: Partial<Extract<ChronicleEvent, { kind: 'raid' }>> = {}): C
 describe('kronika – nájezd', () => {
   it('přepadení bez opovědi s padlými, raněnými, odvedenými a kořistí', () => {
     expect(chronicleText(raid(), 'Ves')).toBe(
-      'Nájezd Bořivoje z vsi Lhota na ves Kněžice bez opovědi: padli 3, raněni 2, odvedeno 5, vzato 400 kg obilí a 6 ovcí.',
+      'Nájezd Bořivoje ze vsi Lhota na ves Kněžice bez opovědi: padli 3, raněni 2, odvedeno 5, vzato 400 kg obilí a 6 ovcí.',
     );
   });
 
@@ -41,9 +41,9 @@ describe('kronika – nájezd', () => {
     };
     expect(
       chronicleText(raid({ declared: true, fallen: 1, wounded: 0, led: 0, loot: none }), 'Ves'),
-    ).toBe('Nájezd Bořivoje z vsi Lhota na ves Kněžice: padl 1.');
+    ).toBe('Nájezd Bořivoje ze vsi Lhota na ves Kněžice: padl 1.');
     expect(chronicleText(raid({ fallen: 0, wounded: 0, led: 0, loot: none }), 'Ves')).toBe(
-      'Nájezd Bořivoje z vsi Lhota na ves Kněžice bez opovědi.',
+      'Nájezd Bořivoje ze vsi Lhota na ves Kněžice bez opovědi.',
     );
   });
 

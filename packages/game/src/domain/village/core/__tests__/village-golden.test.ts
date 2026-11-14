@@ -14,8 +14,10 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 
 // 14. 11. 2026 – stavby staví muži (population.md – Práce, „D24 ano“): denní minimum a úlohy dne
 // nesou napřed ženy, na stavby jde jen práce mužů, která po nich zbude; dřív dda9b1f1909187c8
-// (před D24) a 9f050c46fafa769c (D24 s dělením poměrem)
-const EXPECTED_YEAR_1 = 'dcce65ed03e2f45f';
+// (před D24) a 9f050c46fafa769c (D24 s dělením poměrem). Týž den – zápisy vzniklých cest nesou
+// konce a roky chůze (`road-formed` – `ends`, `years`; web-ui.md – Panel Kronika); bez nových
+// polí záznamů je otisk dál dcce65ed03e2f45f
+const EXPECTED_YEAR_1 = '11d3b0961aecf068';
 
 describe('zlatý otisk vsi', () => {
   const world = goldenWorld();

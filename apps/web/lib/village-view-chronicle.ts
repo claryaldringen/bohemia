@@ -16,6 +16,9 @@ import {
   type AbandonedStructure,
   type AwayKind,
   type ChronicleEvent,
+  type ChronicleFortGate,
+  type ChronicleRoadEnd,
+  type PenSpecies,
   type LandTaker,
   type ConstructionKind,
   type ConstructionSummary,
@@ -171,7 +174,37 @@ const WORKSHOP_FINISHED: Record<Craft, string> = {
   carpenter: 'Dostavěli tesařskou dílnu s přístřeškem.',
 };
 
-function finishedText(kind: ConstructionKind, craft?: Craft, wagon?: boolean): string {
+/** Druh ohrady ve 4. pádě množného čísla – „ohrada pro ovce“ (Martin 14. 11. 2026). */
+const PEN_SPECIES_ACCUSATIVE: Record<PenSpecies, string> = {
+  sheep: 'ovce',
+  goat: 'kozy',
+  pig: 'prasata',
+  cattle: 'skot',
+  team: 'voly',
+  horse: 'koně',
+};
+
+/** „ pro ovce“; bez druhu nic. */
+function penFor(species: PenSpecies | undefined): string {
+  return species === undefined ? '' : ` pro ${PEN_SPECIES_ACCUSATIVE[species]}`;
+}
+
+/** Dostavěná ohrada (Martin 14. 11. 2026): „Byla postavena ohrada pro ovce.“, rozšíření zvlášť. */
+function penFinishedText(species: PenSpecies | undefined, extended: boolean): string {
+  if (extended) return `Ohrada${penFor(species)} byla rozšířena.`;
+  return `Byla postavena ohrada${penFor(species)}.`;
+}
+
+/** Jabloně podél cesty (Martin 14. 11. 2026): „Podél cesty mezi dvorcem a kovárnou byly vysazeny jabloně.“ */
+function roadApplesText(ends: readonly [ChronicleRoadEnd, ChronicleRoadEnd] | undefined): string {
+  const between = ends ? roadBetween(ends) : null;
+  return between === null
+    ? 'Podél cesty byly vysazeny jabloně.'
+    : `Podél cesty ${between} byly vysazeny jabloně.`;
+}
+
+function finishedText(event: Extract<ChronicleEvent, { kind: 'construction-finished' }>): string {
+  const { constructionKind: kind, craft, wagon } = event;
   if (wagon) return 'Vozová cesta je hotová – vůz po ní jede rychleji.';
   if (craft && (kind === 'dwelling' || kind === 'rebuild')) {
     return kind === 'dwelling' ? WORKSHOP_FINISHED[craft] : 'Dokončili přestavbu dílny.';
@@ -182,10 +215,10 @@ function finishedText(kind: ConstructionKind, craft?: Craft, wagon?: boolean): s
   if (kind === 'rebuild') return 'Dokončili přestavbu obydlí.';
   if (kind === 'cemetery') return 'Hřbitov je ohrazený – dá se do něj pohřbívat.';
   if (kind === 'orchard') return 'Sad je vysazený.';
-  if (kind === 'pen') return 'Ohrada je postavená.';
+  if (kind === 'pen') return penFinishedText(event.penSpecies, event.penExtended === true);
   if (kind === 'ard') return 'Vesničané vyrobili rádlo.';
   if (kind === 'road') return 'Cesta je vylepšená – chodí se po ní rychleji.';
-  if (kind === 'road-apples') return 'Jabloně podél cesty jsou vysazené.';
+  if (kind === 'road-apples') return roadApplesText(event.roadEnds);
   if (kind === 'threshing-floor') return 'Humno je dostavěné – dá se na něm mlátit.';
   if (kind === 'fortification') return 'Opevnění je dostavěné.';
   if (kind === 'quarry') return 'Lom je otevřený – dá se v něm lámat kámen.';
@@ -195,13 +228,13 @@ function finishedText(kind: ConstructionKind, craft?: Craft, wagon?: boolean): s
 }
 
 /** Zrušená stavba – kronika (cancel-construction.ts). */
-function cancelledText(kind: ConstructionKind, craft?: Craft): string {
+function cancelledText(kind: ConstructionKind, craft?: Craft, species?: PenSpecies): string {
   if (kind === 'dwelling') return craft ? 'Stavba dílny se zrušila.' : 'Stavba obydlí se zrušila.';
   if (kind === 'idol') return 'Stavba modly se zrušila.';
   if (kind === 'shrine') return 'Stavba svatyně se zrušila.';
   if (kind === 'cemetery') return 'Zakládání hřbitova se zrušilo.';
   if (kind === 'orchard') return 'Výsadba sadu se zrušila.';
-  if (kind === 'pen') return 'Stavba ohrady se zrušila.';
+  if (kind === 'pen') return `Stavba ohrady${penFor(species)} se zrušila.`;
   if (kind === 'threshing-floor') return 'Stavba humna se zrušila.';
   if (kind === 'field') return 'Zakládání pole se zrušilo.';
   if (kind === 'fortification') return 'Stavba opevnění se zrušila – hotové úseky stojí.';
@@ -285,14 +318,139 @@ function returnedPartsText(parts: number): string {
   return `${plural(parts, 'Vrácen', 'Vráceny', 'Vráceno')} ${formatInteger(parts)} ${plural(parts, 'díl', 'díly', 'dílů')} pole do osevu.`;
 }
 
+/** Pražský loket (m) – délka zbořeného opevnění v kronice (Martin 14. 11. 2026). */
+const PRAGUE_CUBIT_M = 0.5927;
+
+/** Světová strana jako přídavné jméno (2. a 3. pád ženského rodu – „od severní brány“, „k jižní věži“). */
+const DIRECTION_ADJECTIVES: Record<Direction8, string> = {
+  N: 'severní',
+  NE: 'severovýchodní',
+  E: 'východní',
+  SE: 'jihovýchodní',
+  S: 'jižní',
+  SW: 'jihozápadní',
+  W: 'západní',
+  NW: 'severozápadní',
+};
+
+/** Brána na konci úseku ve 2. (`od`) nebo 3. pádě (`k`): „severní brány“, „věži“. */
+function fortGateText(gate: ChronicleFortGate, dative: boolean): string {
+  const noun = gate.tower ? (dative ? 'věži' : 'věže') : dative ? 'bráně' : 'brány';
+  return gate.direction === undefined ? noun : `${DIRECTION_ADJECTIVES[gate.direction]} ${noun}`;
+}
+
 /**
- * Zbořený úsek opevnění (demolition.md – Opevnění, kronika „Stavba zbourána – N klád na
- * hromadu.“): plot, palisáda či nástavba valu, nebo srovnaný val bez klád.
+ * Kudy zbořený úsek vedl: „ od severní brány k věži“, s jedinou branou „ od brány dokola zpět
+ * k bráně“ (návrh Clauda); bez bran nic.
  */
-function fortDemolishedText(logs: number, level: boolean): string {
-  if (level) return 'Val úseku opevnění srovnán.';
-  if (logs <= 0) return 'Úsek opevnění zbořen.';
-  return `Úsek opevnění zbořen – ${formatInteger(logs)} ${plural(logs, 'kláda', 'klády', 'klád')} na hromadu.`;
+function fortPlaceText(
+  gates: readonly [ChronicleFortGate, ChronicleFortGate] | undefined,
+  around: boolean,
+): string {
+  if (!gates) return '';
+  const [from, to] = gates;
+  if (around) return ` od ${fortGateText(from, false)} dokola zpět k ${fortGateText(from, true)}`;
+  return ` od ${fortGateText(from, false)} k ${fortGateText(to, true)}`;
+}
+
+/**
+ * Zbořený úsek opevnění (demolition.md – Opevnění; Martin 14. 11. 2026: „Vojvoda Lutobor přikázal
+ * zbořit 26 loktů opevnění od severní brány k věži.“): délka v pražských loktech, místo podle bran
+ * na koncích úseku, vojvoda v den rozkazu; srovnaný val „srovnat … valu“. Bez vojvody „Zbořili …“,
+ * starší zápisy bez údajů jen „Úsek opevnění byl zbořen.“
+ */
+function fortDemolishedText(
+  event: Extract<ChronicleEvent, { kind: 'fortification-demolished' }>,
+): string {
+  const level = event.level === true;
+  if (event.lengthM === undefined) {
+    return level ? 'Val úseku opevnění byl srovnán.' : 'Úsek opevnění byl zbořen.';
+  }
+  const cubits = Math.max(1, Math.round(event.lengthM / PRAGUE_CUBIT_M));
+  const length = `${formatInteger(cubits)} ${plural(cubits, 'loket', 'lokty', 'loktů')} ${level ? 'valu' : 'opevnění'}`;
+  const where = fortPlaceText(event.gates, event.around === true);
+  const verb = level ? 'srovnat' : 'zbořit';
+  if (event.lord !== undefined) return `Vojvoda ${event.lord} přikázal ${verb} ${length}${where}.`;
+  return `${level ? 'Srovnali' : 'Zbořili'} ${length}${where}.`;
+}
+
+/**
+ * Místo na konci cesty v 7. pádě (Martin 14. 11. 2026: „mezi dvorcem a kovárnou“) a rod – pro
+ * „a další / dalším“, když jsou oba konce stejné. Předpony klíčů tras jako panel cesty
+ * (`road-end-view.ts`); neznámé místo null.
+ */
+const PLACE_INSTRUMENTAL: Record<string, { word: string; feminine?: true }> = {
+  cemetery: { word: 'hřbitovem' },
+  pen: { word: 'ohradou', feminine: true },
+  'threshing-floor': { word: 'humnem' },
+  idol: { word: 'modlou', feminine: true },
+  shrine: { word: 'svatyní', feminine: true },
+  'grain-pit': { word: 'obilnou jámou', feminine: true },
+  field: { word: 'polem' },
+  orchard: { word: 'sadem' },
+  oak: { word: 'posvátným dubem' },
+  grove: { word: 'dubovým hájem' },
+  ore: { word: 'rudištěm' },
+  clay: { word: 'hliništěm' },
+  kiln: { word: 'milířem' },
+  water: { word: 'vodou', feminine: true },
+  wood: { word: 'lesem' },
+  pasture: { word: 'pastvou', feminine: true },
+  meadow: { word: 'loukou', feminine: true },
+};
+const DWELLING_INSTRUMENTAL: Record<DwellingType, { word: string; feminine?: true }> = {
+  zemnice: { word: 'zemnicí', feminine: true },
+  polozemnice: { word: 'polozemnicí', feminine: true },
+  srub: { word: 'nadzemním domem' },
+  dvorec: { word: 'dvorcem' },
+  'dvorec-srub': { word: 'dvorcem' },
+};
+const WORKSHOP_INSTRUMENTAL: Record<Craft, { word: string; feminine?: true }> = {
+  smith: { word: 'kovárnou', feminine: true },
+  potter: { word: 'hrnčířskou dílnou', feminine: true },
+  carpenter: { word: 'tesařskou dílnou', feminine: true },
+  burner: { word: 'uhlířovou zemnicí', feminine: true },
+};
+
+function roadEndInstrumental(end: ChronicleRoadEnd): { word: string; feminine?: true } | null {
+  switch (end.kind) {
+    case 'dwelling':
+      return end.craft ? WORKSHOP_INSTRUMENTAL[end.craft] : DWELLING_INSTRUMENTAL[end.type];
+    case 'place':
+      return PLACE_INSTRUMENTAL[end.place] ?? null;
+    case 'junction':
+      return end.shape === 'y' ? { word: 'rozcestím' } : { word: 'křižovatkou', feminine: true };
+    case 'edge':
+      return { word: `${DIRECTION_ADJECTIVES[end.direction]}m krajem mapy` };
+    case 'road':
+      return { word: 'jinou cestou', feminine: true };
+  }
+}
+
+/** „mezi dvorcem a kovárnou“, „mezi polem a dalším polem“; neznámé místo null. */
+export function roadBetween(ends: readonly [ChronicleRoadEnd, ChronicleRoadEnd]): string | null {
+  const a = roadEndInstrumental(ends[0]);
+  const b = roadEndInstrumental(ends[1]);
+  if (!a || !b) return null;
+  const again = a.word === b.word;
+  return `mezi ${a.word} a ${again ? `${b.feminine ? 'další' : 'dalším'} ` : ''}${b.word}`;
+}
+
+/**
+ * Vyšlapaná cesta (Martin 14. 11. 2026): „Po 12 letech chůze lidé vyšlapali cestu mezi dvorcem
+ * a studnou.“ Pod půl roku chůze bez doby, starší zápisy bez údajů „Lidé vyšlapali pevnou cestu.“
+ */
+function roadFormedText(event: Extract<ChronicleEvent, { kind: 'road-formed' }>): string {
+  const between = event.ends ? roadBetween(event.ends) : null;
+  const years = event.years ?? 0;
+  if (between === null && years < 1) return 'Lidé vyšlapali pevnou cestu.';
+  const head =
+    years >= 2
+      ? `Po ${formatInteger(years)} letech chůze lidé`
+      : years === 1
+        ? 'Po roce chůze lidé'
+        : 'Lidé';
+  return `${head} vyšlapali cestu${between === null ? '' : ` ${between}`}.`;
 }
 
 /** Opuštěná stavba spadla (abandonment.md – kronika). */
@@ -434,11 +592,11 @@ export function ironTripWho(son: boolean, porters: number, byCart: boolean): str
 }
 
 /**
- * Nájezd věcně (war.md – Co hráč vidí: Kronika): „Nájezd Bořivoje z vsi Lhota na ves Kněžice bez
+ * Nájezd věcně (war.md – Co hráč vidí: Kronika): „Nájezd Bořivoje ze vsi Lhota na ves Kněžice bez
  * opovědi: padli 3, raněni 2, odvedeno 5, vzato 400 kg obilí a 6 ovcí.“ Nulové části chybí.
  */
 function raidText(event: Extract<ChronicleEvent, { kind: 'raid' }>): string {
-  const from = event.from === undefined ? '' : ` z vsi ${event.from}`;
+  const from = event.from === undefined ? '' : ` ze vsi ${event.from}`;
   const target = event.target === undefined ? '' : ` na ves ${event.target}`;
   const head = `Nájezd ${genitiveOf(event.leader)}${from}${target}${event.declared ? '' : ' bez opovědi'}`;
   const parts: string[] = [];
@@ -612,11 +770,11 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
       if (event.purpose === 'domain-food' && !event.returned) {
         const cattle =
           event.goods.cattle.cows + event.goods.cattle.youngOxen + event.goods.cattle.trainedOxen;
-        return `Jídlo${event.villageName === '' ? '' : ` z vsi ${event.villageName}`}: ${shipmentText(event.goods)}${cattle > 0 ? ', dobytek poražen' : ''}.`;
+        return `Jídlo${event.villageName === '' ? '' : ` ze vsi ${event.villageName}`}: ${shipmentText(event.goods)}${cattle > 0 ? ', dobytek poražen' : ''}.`;
       }
       return event.returned
-        ? `Zásilka se vrátila z vsi ${event.villageName} – ${shipmentText(event.goods)}.`
-        : `Zásilka ${event.villageName === '' ? '' : `z vsi ${event.villageName} `}dorazila – ${shipmentText(event.goods)}.`;
+        ? `Zásilka se vrátila ze vsi ${event.villageName} – ${shipmentText(event.goods)}.`
+        : `Zásilka ${event.villageName === '' ? '' : `ze vsi ${event.villageName} `}dorazila – ${shipmentText(event.goods)}.`;
     case 'people-away':
       return `${peopleCountText(event.people)} ${plural(event.people, 'odešel', 'odešli', 'odešlo')} ${AWAY_TEXTS[event.away]} do vsi ${event.villageName} – doma ${plural(event.people, 'bude', 'budou', 'bude')} nejpozději ${formatGameDate(dateOfDayIndex(event.untilDay))}.`;
     case 'people-back':
@@ -624,7 +782,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
       if (event.steward) return 'Správce vrátil lidi domů.';
       return `${peopleCountText(event.people)} se ${plural(event.people, 'vrátil', 'vrátili', 'vrátilo')} domů ${AWAY_BACK_TEXTS[event.away]}.`;
     case 'guests-came':
-      return `Z vsi ${event.villageName} ${plural(event.people, 'přišel', 'přišli', 'přišlo')} ${peopleCountText(event.people).toLowerCase()} ${AWAY_TEXTS[event.away]}.`;
+      return `Ze vsi ${event.villageName} ${plural(event.people, 'přišel', 'přišli', 'přišlo')} ${peopleCountText(event.people).toLowerCase()} ${AWAY_TEXTS[event.away]}.`;
     case 'refuge-left':
       return event.villageName === undefined
         ? 'Lidé odešli do hradiště.'
@@ -741,7 +899,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
     case 'wife-left-manor':
       return 'Vedlejší žena odešla z dvorce.';
     case 'master-left':
-      return `Mistr huti (${MASON_CRAFT_TEXT[event.craft]})${event.name === undefined ? '' : ` ${event.name}`} odešel z vsi${event.people > 1 ? ' i s rodinou' : ''}.`;
+      return `Mistr huti (${MASON_CRAFT_TEXT[event.craft]})${event.name === undefined ? '' : ` ${event.name}`} odešel ze vsi${event.people > 1 ? ' i s rodinou' : ''}.`;
     case 'master-promoted':
       return `Nový mistr huti (${MASON_CRAFT_TEXT[event.craft]}): ${event.name ?? 'místní muž'}.`;
     case 'line-ended':
@@ -788,7 +946,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
     case 'married-away':
       return 'Dcera se vdala do sousední vsi.';
     case 'construction-finished':
-      return finishedText(event.constructionKind, event.craft, event.wagon);
+      return finishedText(event);
     case 'cart-made':
       return `Tesař vyrobil ${CART_NAMES[event.cart].toLowerCase()}.`;
     case 'iron-trip':
@@ -800,13 +958,13 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
     case 'rebuild-decided':
       return `Obyvatelé se rozhodli přestavět dožilé obydlí na ${DWELLING_NAMES[event.type].accusative}.`;
     case 'construction-cancelled':
-      return cancelledText(event.constructionKind, event.craft);
+      return cancelledText(event.constructionKind, event.craft, event.penSpecies);
     case 'parts-abandoned':
       return abandonedPartsText(event.parts);
     case 'parts-returned':
       return returnedPartsText(event.parts);
     case 'fortification-demolished':
-      return fortDemolishedText(event.logs, event.level === true);
+      return fortDemolishedText(event);
     case 'relocation-started':
       return `Domácnost si začala stavět novou ${DWELLING_NAMES[event.type].accusative} – přestěhuje se.`;
     case 'relocation-cancelled':
@@ -962,7 +1120,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
     case 'cemetery-ploughed':
       return 'Zaorali starý hřbitov.';
     case 'road-formed':
-      return 'Kudy se chodí léta, vyšlapala se pevná cesta.';
+      return roadFormedText(event);
     case 'road-overgrown':
       return 'Nepoužívaná cesta zarostla.';
     case 'trail-built':
