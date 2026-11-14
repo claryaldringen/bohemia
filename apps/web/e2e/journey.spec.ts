@@ -141,11 +141,11 @@ test('vojvoda: družina, rozkaz pravým tlačítkem, portrét v liště, Domů a
 });
 
 // Výjezd ve scéně vsi (journey.md – Scéna vsi; plán 2026-11-13 – Úloha 8b): jezdci jedou, praporek
-// stojí v cíli (cíl ve vodě posunutý na souš kryje unit test `journey.test.ts` – na náhodné krajině
-// byl e2e nestabilní), čekající skupina má přesýpací hodiny a cizí výjezd
+// stojí v cíli (praporek ve vodě hlídají unit testy, `journey.test.ts` – na náhodné krajině byl
+// e2e nestabilní), čekající skupina má přesýpací hodiny a cizí výjezd
 // u vsi hostitel vidí a klikem pozná vojvodu a rod. Kreslení ověřuje háček scény `journeyScene`.
 
-test('výjezd ve scéně: jezdci, praporek i u vody, přesýpací hodiny a cizí vojvoda u vsi', async ({
+test('výjezd ve scéně: jezdci, praporek, přesýpací hodiny a cizí vojvoda u vsi', async ({
   browser,
 }) => {
   test.setTimeout(600_000);
