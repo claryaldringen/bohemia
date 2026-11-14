@@ -5,14 +5,18 @@ import { DAY, bundle, receiver, sender } from '../../domain/vassalage/__tests__/
 import type { MacroGoods } from '../../domain/vassalage';
 import { noMacroGoods } from '../../domain/vassalage';
 import type { VillageState } from '../../domain/village';
+import type { Accepted } from '../acceptance-outbox';
 import {
-  ACCEPTANCE_OUTBOX_GRACE_MS,
+  ACCEPTANCE_OUTBOX_LEASE_MS,
+  ACCEPTANCE_OUTBOX_MAX_ATTEMPTS,
   acceptNegotiation,
+  acceptanceOutboxRetryMs,
   counterNegotiation,
   deliverPendingAcceptances,
   openNegotiation,
-  type NegotiateDeps,
+  type AcceptanceDeps,
 } from '../negotiate';
+import { runWorldTasks, type WorldTaskDeps } from '../succession-credits';
 import type { DirectoryEntry } from '../world-directory';
 import { InMemoryDialogs } from './in-memory-dialogs';
 import { InMemoryHouses } from './in-memory-houses';
@@ -32,8 +36,8 @@ import { InMemoryVillages } from './in-memory-villages';
 const LORD = 'hrac-pan';
 const VASSAL = 'hrac-vazal';
 const NOW = new Date('2026-11-05T12:00:00Z');
-/** Okamžik kroku workeru po uplynutí lhůty, kdy schránku ještě smí dokončit web. */
-const LATER = new Date(NOW.getTime() + ACCEPTANCE_OUTBOX_GRACE_MS + 1000);
+/** Okamžik kroku workeru po konci nájmu webu i prvního odkladu po výjimce (1 min). */
+const LATER = new Date(NOW.getTime() + ACCEPTANCE_OUTBOX_LEASE_MS + 1000);
 const FAR = new Date(8.64e15);
 
 function named(state: VillageState, name: string): VillageState {
@@ -51,7 +55,11 @@ interface Crash {
 }
 
 async function world(): Promise<{
-  deps: NegotiateDeps;
+  deps: AcceptanceDeps;
+  /** Hodiny úložiště schránek (nájem, odklad) – krok workeru je posune na svůj okamžik. */
+  time: { now: Date };
+  /** Log workeru (`deliverPendingAcceptances`). */
+  logs: string[];
   negotiations: InMemoryNegotiations;
   loans: InMemoryLoans;
   shipments: InMemoryShipments;
@@ -68,7 +76,8 @@ async function world(): Promise<{
   const vassalages = new InMemoryVassalages();
   const notices = new InMemoryNotices();
   const loans = new InMemoryLoans();
-  const negotiations = new InMemoryNegotiations(vassalages, notices, () => NOW, loans);
+  const time = { now: NOW };
+  const negotiations = new InMemoryNegotiations(vassalages, notices, () => time.now, loans);
   const a = await settlements.seatAtOrigin({
     ownerId: LORD,
     landscapeSeed: 11,
@@ -98,7 +107,7 @@ async function world(): Promise<{
     [lord.id]: [lordVillage.id],
     [vassal.id]: [vassalVillage.id],
   };
-  const worldDirectory: NegotiateDeps['worldDirectory'] = {
+  const worldDirectory: AcceptanceDeps['worldDirectory'] = {
     entriesOf: async (ids) =>
       Promise.all(
         ids.map(async (id) => ({
@@ -146,9 +155,11 @@ async function world(): Promise<{
       },
       loans,
     },
-  } as unknown as NegotiateDeps;
+  } as unknown as AcceptanceDeps;
   return {
     deps,
+    time,
+    logs: [],
     negotiations,
     loans,
     shipments,
@@ -196,10 +207,17 @@ async function request(w: W, answer: TermItem): Promise<string> {
 const accept = (w: W, id: string): ReturnType<typeof acceptNegotiation> =>
   acceptNegotiation(w.deps, { playerId: VASSAL, negotiationId: id, now: NOW, today: DAY });
 
-const step = (w: W, now = LATER): Promise<number> =>
-  deliverPendingAcceptances(w.deps, { now, today: DAY + 1 });
+/** Krok workeru v okamžiku `now` (posune i hodiny úložiště schránek). */
+const step = (w: W, now = LATER, deps: AcceptanceDeps = w.deps): Promise<number> => {
+  w.time.now = now;
+  return deliverPendingAcceptances(
+    { ...deps, log: (message) => w.logs.push(message) },
+    { now, today: DAY + 1 },
+  );
+};
 
-const pending = (w: W): Promise<string[]> => w.negotiations.pendingOutboxes(FAR, 100);
+/** Všechny schránky v úložišti (i odložené). */
+const pending = async (w: W): Promise<string[]> => w.negotiations.outboxIds();
 
 const stores = async (w: W): Promise<number> => (await w.villages.find(w.v.lord))!.state.storesKg;
 
@@ -321,5 +339,88 @@ describe('schránka účinků přijatého jednání (A2)', () => {
     expect(w.loans.loans).toHaveLength(1);
     expect(chronicle(w)).toBe(2);
     expect(await step(w, FAR)).toBe(0);
+  });
+  it('výjimka v účinku: odklad 1, 2, 4… min (nejvýš 1 h) s počítadlem; po 10 pokusech ji worker nebere a zapíše do logu', async () => {
+    const w = await world();
+    const id = await request(w, loanItem(w));
+    w.crash.prepare = 1000;
+    await expect(accept(w, id)).rejects.toThrow('pád v prvním účinku');
+    expect(w.negotiations.outbox(id)).toMatchObject({
+      attempts: 1,
+      lastError: 'pád v prvním účinku',
+    });
+    let at = NOW.getTime();
+    for (let attempts = 1; attempts < ACCEPTANCE_OUTBOX_MAX_ATTEMPTS; attempts++) {
+      const wait = acceptanceOutboxRetryMs(attempts);
+      expect(wait).toBe(Math.min(60_000 * 2 ** (attempts - 1), 3_600_000));
+      // před koncem odkladu ji worker nebere
+      expect(await step(w, new Date(at + wait - 1))).toBe(0);
+      at += wait;
+      await expect(step(w, new Date(at))).rejects.toThrow('pád v prvním účinku');
+      expect(w.negotiations.outbox(id)?.attempts).toBe(attempts + 1);
+    }
+    expect(ACCEPTANCE_OUTBOX_MAX_ATTEMPTS).toBe(10);
+    expect(w.logs).toHaveLength(1);
+    expect(w.logs[0]).toContain(id);
+    // vyčerpaná schránka zůstane v úložišti pro ruční zásah, worker ji už nebere
+    expect(await step(w, FAR)).toBe(0);
+    expect(await pending(w)).toEqual([id]);
+    expect(w.shipments.rows).toHaveLength(0);
+  });
+
+  it('zaseklá schránka (neznámá verze) neblokuje novou: napřed méně pokusů, chyba zaseklé až na konci', async () => {
+    const w = await world();
+    // neznámá verze uloženého tvaru (N1): každý pokus skončí výjimkou a nic se neprovede
+    await w.negotiations.transaction((tx) =>
+      tx.putOutbox('zasekla', { v: 2 } as unknown as Accepted, NOW, 0),
+    );
+    await expect(step(w, NOW)).rejects.toThrow(/neznámá verze/);
+    const t1 = new Date(NOW.getTime() + 60_000);
+    await expect(step(w, t1)).rejects.toThrow(/neznámá verze/);
+    expect(w.negotiations.outbox('zasekla')?.attempts).toBe(2);
+    // nová schránka: web spadl v prvním účinku (1 pokus)
+    const id = await request(w, loanItem(w));
+    w.crash.prepare = 1;
+    await expect(accept(w, id)).rejects.toThrow('pád v prvním účinku');
+    const t2 = new Date(NOW.getTime() + 180_000);
+    w.time.now = t2;
+    expect(await w.negotiations.pendingOutboxes(1, ACCEPTANCE_OUTBOX_MAX_ATTEMPTS)).toEqual([
+      { negotiationId: id, attempts: 1 },
+    ]);
+    await expect(step(w, t2)).rejects.toThrow(/neznámá verze/);
+    expect(w.shipments.rows).toHaveLength(1);
+    expect(chronicle(w)).toBe(2);
+    expect(await pending(w)).toEqual(['zasekla']);
+    expect(w.negotiations.outbox('zasekla')?.attempts).toBe(3);
+  });
+
+  it('chybí závislost účinku: výjimka a schránka zůstane – nic se tiše nepřeskočí ani nesmaže', async () => {
+    const w = await world();
+    const id = await request(w, loanItem(w));
+    w.crash.prepare = 1;
+    await expect(accept(w, id)).rejects.toThrow('pád v prvním účinku');
+    const without = { ...w.deps, aid: undefined } as unknown as AcceptanceDeps;
+    await expect(step(w, LATER, without)).rejects.toThrow(/chybí závislost aid/);
+    expect(w.negotiations.outbox(id)?.attempts).toBe(2);
+    expect(w.shipments.rows).toHaveLength(0);
+    expect(chronicle(w)).toBe(0);
+  });
+
+  it('úlohy světa: selhání dřívější úlohy nezastaví doručení schránky, chyba se vyhodí na konci', async () => {
+    const w = await world();
+    const id = await request(w, loanItem(w));
+    w.crash.prepare = 1;
+    await expect(accept(w, id)).rejects.toThrow('pád v prvním účinku');
+    w.time.now = LATER;
+    const deps = {
+      invites: { listUsed: () => Promise.reject(new Error('pozvánky selhaly')) },
+      acceptances: { ...w.deps, log: (message: string) => w.logs.push(message) },
+    } as unknown as WorldTaskDeps;
+    await expect(runWorldTasks(deps, { now: LATER, today: DAY + 1 })).rejects.toThrow(
+      'pozvánky selhaly',
+    );
+    expect(w.shipments.rows).toHaveLength(1);
+    expect(chronicle(w)).toBe(2);
+    expect(await pending(w)).not.toContain(id);
   });
 });

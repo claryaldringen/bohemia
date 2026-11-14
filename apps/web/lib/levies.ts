@@ -1,5 +1,4 @@
 import {
-  acceptNegotiation,
   answerLevy,
   levyDialogs,
   loadVillage,
@@ -50,16 +49,6 @@ export function levyDeps(): LevyDeps {
     villages: deps.villages,
     shipments: shipmentDeps(),
     prepareVillage,
-  };
-}
-
-/** Závislosti dovozu pomoci při přijetí daru nebo půjčky (zásilka z věřitelovy vsi). */
-export function aidDeps(): NonNullable<Parameters<typeof acceptNegotiation>[0]['aid']> {
-  const deps = levyDeps();
-  return {
-    shipments: deps.shipments,
-    prepareVillage: deps.prepareVillage,
-    loans: gameDeps().loans,
   };
 }
 

@@ -1,11 +1,9 @@
 import {
   consentEscheat,
   escheatDialogs,
-  giveEscheatPart,
   proposeEscheat,
   type EscheatPart,
   type EscheatView,
-  type NegotiateDeps,
 } from '@bohemia/game';
 import { gameDeps, playerToday } from './game';
 
@@ -26,11 +24,6 @@ function escheatDeps(): Parameters<typeof proposeEscheat>[0] {
     villages: deps.villages,
     locks: deps.locks,
   };
-}
-
-/** Převod věnovaného dílu po přijetí jednání `village-gift` (závislost `acceptNegotiation`). */
-export function escheatGift(): NonNullable<NegotiateDeps['escheatGift']> {
-  return (input) => giveEscheatPart(escheatDeps(), input);
 }
 
 /** Nerozhodnuté odúmrti hráče (počítá se na vyžádání – dialog). */

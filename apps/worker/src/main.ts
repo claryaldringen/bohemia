@@ -12,10 +12,7 @@ import {
 } from '@bohemia/db';
 import {
   advanceWorldStep,
-  giveEscheatPart,
   newCampaignMemory,
-  ransomHooks,
-  type NegotiateDeps,
   cellsInNeed,
   loadVillage,
   runWorldTasks,
@@ -28,6 +25,7 @@ import {
 } from '@bohemia/game';
 import {
   WORKER_LOCK_POOL_SIZE,
+  acceptanceDeps,
   cachedLandscapes,
   computePause,
   createCampaignCells,
@@ -124,40 +122,9 @@ async function main(): Promise<void> {
     },
   };
 
-  // účinky přijatých jednání po pádu webu (audit A2): stejné závislosti jako přijetí ve webu
-  const acceptances: NegotiateDeps = {
-    houses: gameDeps.houses,
-    negotiations: gameDeps.negotiations,
-    villages: gameDeps.villages,
-    worldDirectory: gameDeps.worldDirectory,
-    worldSeed: gameDeps.worldSeed,
-    dialogs: gameDeps.dialogs,
-    cede: gameDeps.cede,
-    aid: { shipments: worldShipments, prepareVillage: loadDomainVillage, loans: gameDeps.loans },
-    escheatGift: (input) =>
-      giveEscheatPart(
-        {
-          houses: gameDeps.houses,
-          vassalages: gameDeps.vassalages,
-          loans: gameDeps.loans,
-          dialogs: gameDeps.dialogs,
-          locks,
-          settlements: gameDeps.settlements,
-          villages: gameDeps.villages,
-        },
-        input,
-      ),
-    ransom: ransomHooks({
-      prisoners: gameDeps.prisoners,
-      villages: gameDeps.villages,
-      settlements: gameDeps.settlements,
-      locks,
-      now: gameDeps.now,
-      houses: gameDeps.houses,
-      shipments: worldShipments,
-      prepareVillage: loadDomainVillage,
-    }),
-  };
+  // účinky přijatých jednání po pádu webu (audit A2): závislosti skládá `acceptanceDeps` stejně
+  // jako přijetí ve webu; schránku, která vyčerpala pokusy, zapíše do logu
+  const acceptances = { ...acceptanceDeps(gameDeps), log: (message: string) => log.warn(message) };
 
   const loop: LoopDeps = {
     world: currentWorld,

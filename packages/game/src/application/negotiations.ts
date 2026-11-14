@@ -80,10 +80,37 @@ export interface NegotiationTx {
   /** Umístění odříznutého nováčka na mapu světa (`placeNewcomer`). */
   placement: PlacementTx;
   /**
-   * Zapíše schránku účinků přijetí (`acceptance-outbox.ts`) v téže transakci jako přijetí;
-   * jedna na jednání.
+   * Zapíše schránku účinků přijetí (`acceptance-outbox.ts`) v téže transakci jako přijetí; jedna
+   * na jednání. Zapisující proces ji rovnou drží v nájmu na `leaseMs` – počítá se od zápisu podle
+   * hodin úložiště, ne od začátku požadavku. Po commitu ji provede `withOutbox` s vráceným nájmem.
    */
-  putOutbox(negotiationId: string, effects: Accepted, at: Date): Promise<void>;
+  putOutbox(
+    negotiationId: string,
+    effects: Accepted,
+    at: Date,
+    leaseMs: number,
+  ): Promise<OutboxClaim>;
+}
+
+/**
+ * Nájem schránky účinků (`putOutbox`, `withOutbox`): kdo ho drží, schránku provádí – jiný proces
+ * ji do konce nájmu nevezme. Neprůhledný klíč úložiště.
+ */
+export type OutboxClaim = string;
+
+/** Pravidla převzetí schránky účinků (čísla `ACCEPTANCE_OUTBOX_*` v `negotiate.ts`). */
+export interface OutboxPolicy {
+  /** Nájem (ms) od převzetí; během provádění ho úložiště obnovuje, po pádu procesu vyprší. */
+  leaseMs: number;
+  /** Odklad dalšího pokusu (ms) po `attempts`-té výjimce (1, 2, …). */
+  retryMs: (attempts: number) => number;
+}
+
+/** Schránka účinků, kterou smí převzít kdokoli (`pendingOutboxes`). */
+export interface DueOutbox {
+  negotiationId: string;
+  /** Kolik pokusů o ni skončilo výjimkou. */
+  attempts: number;
 }
 
 /** Tribut z přijatého míru (war.md – Konec války): opakovaná platba bez vazalství, chodí 1. 11. */
@@ -105,16 +132,25 @@ export interface NegotiationRepository {
   /** Všechna otevřená jednání (s koly), nejstarší první – úloha světa `expireNegotiations`. */
   allOpen(): Promise<NegotiationRecord[]>;
   transaction<T>(fn: (tx: NegotiationTx) => Promise<T>): Promise<T>;
-  /** Jednání s nevyřízenou schránkou účinků zapsanou před `before`, nejstarší první, nejvýš `limit`. */
-  pendingOutboxes(before: Date, limit: number): Promise<string[]>;
   /**
-   * Provede schránku účinků jednání: zamkne ji (jiný proces ji mezitím přeskočí – web a worker ji
-   * nikdy neprovádějí současně), pustí `fn` s jejím obsahem a po jeho návratu ji smaže. Výjimka
-   * z `fn` ji nechá nevyřízenou. Null – schránka není (už vyřízená), nebo ji právě drží jiný proces.
+   * Schránky účinků, které smí převzít kdokoli: nájem i odklad po výjimce prošly (hodiny úložiště)
+   * a pokusů je méně než `maxAttempts` – zbytek zůstane v úložišti pro ruční zásah. Napřed ty
+   * s nejméně pokusy, pak nejdéle čekající (zaseklé neblokují nové); nejvýš `limit`.
+   */
+  pendingOutboxes(limit: number, maxAttempts: number): Promise<DueOutbox[]>;
+  /**
+   * Provede schránku účinků jednání: převezme ji nájmem (atomicky – jen když nájem i odklad
+   * prošly, nebo s vlastním nájmem `claim` z `putOutbox`), pustí `fn` s jejím obsahem a po jeho
+   * návratu ji smaže. Během `fn` nedrží žádné spojení úložiště a nájem obnovuje – web a worker ji
+   * tak neprovádějí současně ani po výpadku spojení. Výjimka z `fn` se započítá jako pokus (chyba
+   * se zapíše, schránka se odloží o `policy.retryMs(pokusy)`) a letí dál. Null – schránka není
+   * (už vyřízená), nebo ji drží jiný proces.
    */
   withOutbox<T>(
     negotiationId: string,
     fn: (effects: Accepted) => Promise<T>,
+    policy: OutboxPolicy,
+    claim?: OutboxClaim,
   ): Promise<{ value: T } | null>;
 }
 

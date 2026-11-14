@@ -12,10 +12,11 @@ import {
   transferVillages,
 } from '../escheat';
 import {
-  ACCEPTANCE_OUTBOX_GRACE_MS,
+  ACCEPTANCE_OUTBOX_LEASE_MS,
   acceptNegotiation,
   deliverPendingAcceptances,
   rejectNegotiation,
+  type AcceptanceDeps,
 } from '../negotiate';
 import { closeDynastyDay, type DynastyDeps } from '../restart-game';
 import { InMemoryDialogs } from './in-memory-dialogs';
@@ -577,8 +578,11 @@ describe('věnování po pádu (A2)', () => {
     };
     const input = { playerId: GIFTEE, negotiationId: gift.id, now: NOW, today: DAY };
     await expect(acceptNegotiation(negotiateDeps(w), input)).rejects.toThrow('pád');
-    const later = new Date(NOW.getTime() + ACCEPTANCE_OUTBOX_GRACE_MS + 1000);
-    expect(await deliverPendingAcceptances(negotiateDeps(w), { now: later, today: DAY })).toBe(1);
+    // krok workeru po prvním odkladu (1 min) – hodiny schránek se posunou
+    w.negotiations.elapse(ACCEPTANCE_OUTBOX_LEASE_MS + 1000);
+    const later = new Date(NOW.getTime() + ACCEPTANCE_OUTBOX_LEASE_MS + 1000);
+    const worker = { ...(negotiateDeps(w) as unknown as AcceptanceDeps), log: () => undefined };
+    expect(await deliverPendingAcceptances(worker, { now: later, today: DAY })).toBe(1);
     const lordOfVassal = (await w.vassalages.activeOf(w.vassal.id)).map((v) => v.lordHouseId);
     expect(lordOfVassal).toEqual([w.giftee.id]);
     expect(created).toBe(1);

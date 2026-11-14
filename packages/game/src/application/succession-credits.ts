@@ -7,7 +7,7 @@ import {
   type LevyDeps,
 } from './annual-levies';
 import { expireNegotiations, type ExpireNegotiationsDeps } from './negotiation-expiry';
-import { deliverPendingAcceptances, type NegotiateDeps } from './negotiate';
+import { deliverPendingAcceptances, type PendingAcceptanceDeps } from './negotiate';
 import { advanceChristianity, type ChristianityDeps } from './advance-christianity';
 import type { ActivityRepository } from './activity';
 import type { HouseRepository } from './houses';
@@ -100,7 +100,7 @@ export type WorldTaskDeps = SuccessionCreditDeps & {
    * Schránky účinků přijatých jednání, po kterých web spadl (audit A2, vassalage.md – Přijetí
    * a schránka účinků): pomoc, výkupné, mír, obchod a kronika (`deliverPendingAcceptances`).
    */
-  acceptances?: NegotiateDeps;
+  acceptances?: PendingAcceptanceDeps;
 };
 
 /**
@@ -109,10 +109,34 @@ export type WorldTaskDeps = SuccessionCreditDeps & {
  * zásilek, ať vidí, co je na cestě), správce za nepřítomné (Odvody před otevřením nového roku,
  * ať loňský dialog nenaroste; Svolání před propadnutím s koncem války), vypršení jednání, konec
  * týdne čekání nováčků (`expireNewcomerWaits`), roční los křesťanství (`advanceChristianity`)
- * a nakonec účinky přijatých jednání po pádu webu (`deliverPendingAcceptances` – trvale padající
- * schránka tak nezdrží ostatní úlohy).
+ * a nakonec účinky přijatých jednání po pádu webu (`deliverPendingAcceptances`). Schránky mají
+ * vlastní ochranu: selhání dřívější úlohy jejich doručení nezastaví a naopak – první chyba se
+ * vyhodí až na konci (jako chyba jedné schránky nebo vsi v kole). Dřívější úlohy dál jdou za sebou
+ * a chyba zastaví ty po ní – na pořadí závisí (jídlo domény po obnově zásilek, Odvody správce před
+ * novým rokem).
  */
 export async function runWorldTasks(
+  deps: WorldTaskDeps,
+  input: { now: Date; today: number },
+): Promise<void> {
+  let failure: unknown = null;
+  try {
+    await runOrderedTasks(deps, input);
+  } catch (error) {
+    failure = error;
+  }
+  if (deps.acceptances) {
+    try {
+      await deliverPendingAcceptances(deps.acceptances, input);
+    } catch (error) {
+      failure ??= error;
+    }
+  }
+  if (failure !== null) throw failure;
+}
+
+/** Úlohy světa před schránkami účinků – za sebou, chyba zastaví ty po ní (`runWorldTasks`). */
+async function runOrderedTasks(
   deps: WorldTaskDeps,
   input: { now: Date; today: number },
 ): Promise<void> {
@@ -131,5 +155,4 @@ export async function runWorldTasks(
   if (deps.negotiationExpiry) await expireNegotiations(deps.negotiationExpiry, input);
   if (deps.newcomers) await expireNewcomerWaits(deps.newcomers, input);
   if (deps.christianity) await advanceChristianity(deps.christianity, input.today);
-  if (deps.acceptances) await deliverPendingAcceptances(deps.acceptances, input);
 }

@@ -10,7 +10,12 @@ const globalForDb = globalThis as unknown as { bohemiaDb?: Database; bohemiaLock
 
 /** Databáze vzniká až při prvním použití – `next build` stránky jen importuje. */
 export function getDatabase(): Database {
-  return (globalForDb.bohemiaDb ??= createDatabase(databaseUrl(process.env)));
+  if (globalForDb.bohemiaDb) return globalForDb.bohemiaDb;
+  const db = createDatabase(databaseUrl(process.env));
+  // restart Postgresu zahodí nečinná spojení – pool je zahodí a připojí se znovu, proces nesmí
+  // spadnout na události `error` bez posluchače (jako pool zámků a worker)
+  db.$client.on('error', (error) => console.warn(`Pool databáze: ${error.message}`));
+  return (globalForDb.bohemiaDb = db);
 }
 
 /**

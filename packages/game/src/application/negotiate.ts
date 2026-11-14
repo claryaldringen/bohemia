@@ -38,6 +38,7 @@ import { TERM_REASONS, termsOfLines } from '../domain/vassalage/terms';
 import { wouldBeMutual } from '../domain/vassalage/tree';
 import type { ChronicleEvent } from '../domain/village';
 import {
+  ACCEPTED_VERSION,
   houseRef,
   type Accepted,
   type Actors,
@@ -56,7 +57,13 @@ import {
   noticeHouse,
   type NegotiationVillages,
 } from './negotiation-chronicle';
-import type { NegotiationRecord, NegotiationRepository, NegotiationTx } from './negotiations';
+import type {
+  NegotiationRecord,
+  NegotiationRepository,
+  NegotiationTx,
+  OutboxClaim,
+  OutboxPolicy,
+} from './negotiations';
 import type { LoanRepository } from './loans';
 import { chronicleWar } from './war-chronicle';
 import { sendShipment, type ShipmentDeps } from './shipments';
@@ -637,6 +644,8 @@ export async function acceptNegotiation(
   deps: NegotiateDeps,
   input: AcceptInput,
 ): Promise<NegotiateResult> {
+  // nájem schránky zapsané v transakci – web ji po commitu provede sám, worker ji do konce nájmu nevezme
+  let claim: OutboxClaim | undefined;
   const result = await deps.negotiations
     .transaction(async (tx): Promise<NegotiateResult> => {
       const loaded = await loadForResponse(deps, tx, input.playerId, input.negotiationId);
@@ -649,10 +658,11 @@ export async function acceptNegotiation(
       if (!written.ok) return written;
       await noticeAcceptance(deps, tx, loaded, check, written.newcomer, input.today);
       // účinky po transakci: schránka v téže transakci – přijetí bez nich nikdy nezůstane
-      await tx.putOutbox(
+      claim = await tx.putOutbox(
         loaded.record.id,
         acceptedOf(loaded, check, written.newcomerHouseId, input.today),
         input.now,
+        ACCEPTANCE_OUTBOX_LEASE_MS,
       );
       return {
         ok: true,
@@ -665,55 +675,135 @@ export async function acceptNegotiation(
       throw error;
     });
   if (!result.ok) return result;
-  const failed = (await deliverAcceptanceOutbox(deps, result.negotiation.id, input))?.value;
+  const failed = (await deliverAcceptanceOutbox(deps, result.negotiation.id, input, claim))?.value;
   return failed ? fail(failed) : result;
 }
 
 /**
- * Kolik ms po přijetí schránku dokončuje web sám (hned po commitu); worker bere až starší – web
- * tak hráči vrátí důvod selhání pomoci nebo výkupného jako dřív. Souběh obou vylučuje zámek.
+ * Nájem schránky účinků přijetí (ms, návrh Clauda – docs/code/worker.md): web ji drží od zápisu
+ * v transakci přijetí (hodiny úložiště, ne začátek požadavku) a hned po commitu ji provede; během
+ * účinků úložiště nájem obnovuje. Spadne-li web, vezme ji worker po vypršení nájmu – do té doby
+ * hráči web vrátí důvod selhání pomoci nebo výkupného jako dřív.
  */
-export const ACCEPTANCE_OUTBOX_GRACE_MS = 60_000;
+export const ACCEPTANCE_OUTBOX_LEASE_MS = 60_000;
+
+/** První odklad po výjimce (ms, návrh Clauda); každý další dvojnásobný. */
+const ACCEPTANCE_OUTBOX_RETRY_MS = 60_000;
+
+/** Nejdelší odklad po výjimce (ms, návrh Clauda). */
+const ACCEPTANCE_OUTBOX_RETRY_MAX_MS = 3_600_000;
+
+/**
+ * Po tolika výjimkách se schránka už nebere (návrh Clauda) – zůstane v úložišti pro ruční zásah
+ * a worker to zapíše do logu.
+ */
+export const ACCEPTANCE_OUTBOX_MAX_ATTEMPTS = 10;
 
 /** Nejvýš tolik schránek dokončí jeden krok workeru. */
 const ACCEPTANCE_OUTBOX_BATCH = 50;
 
+/** Odklad dalšího pokusu po `attempts`-té výjimce: 1, 2, 4… min, nejvýš 1 h. */
+export function acceptanceOutboxRetryMs(attempts: number): number {
+  const doublings = Math.min(Math.max(attempts - 1, 0), 20);
+  return Math.min(ACCEPTANCE_OUTBOX_RETRY_MS * 2 ** doublings, ACCEPTANCE_OUTBOX_RETRY_MAX_MS);
+}
+
+const ACCEPTANCE_OUTBOX_POLICY: OutboxPolicy = {
+  leaseMs: ACCEPTANCE_OUTBOX_LEASE_MS,
+  retryMs: acceptanceOutboxRetryMs,
+};
+
 /**
- * Provede schránku účinků přijetí `negotiationId` (pod zámkem – kdo ji právě provádí, toho druhý
- * přeskočí) a smaže ji: odeslání (`deliverAcceptance`), pak kronika. Selhání pomoci nebo výkupného
- * (věcný důvod) schránku uzavře jako dřív – bez dalších účinků a kroniky – a vrátí důvod; výjimka
- * (pád) ji nechá nevyřízenou pro worker. Každý účinek je idempotentní, opakování nic nezdvojí.
- * Null – schránka už je vyřízená, nebo ji právě provádí jiný proces.
+ * Členy `NegotiateDeps`, bez kterých účinky přijetí nejdou provést (pomoc, obchod a poplatek, dar
+ * odúmrti, postoupení, výkupné a propuštění). Ve schránce workeru jsou povinné (`AcceptanceDeps`);
+ * chybí-li účinku za běhu, je to výjimka – schránka zůstane, nic se tiše nepřeskočí (audit A2 – M7).
+ */
+export const ACCEPTANCE_EFFECT_DEPS = ['aid', 'dialogs', 'escheatGift', 'cede', 'ransom'] as const;
+
+type AcceptanceEffectDep = (typeof ACCEPTANCE_EFFECT_DEPS)[number];
+
+/** Závislosti účinků přijetí – skládá je `acceptanceDeps` (`packages/server`) pro web i worker. */
+export type AcceptanceDeps = NegotiateDeps & Required<Pick<NegotiateDeps, AcceptanceEffectDep>>;
+
+/** Závislosti kroku workeru `deliverPendingAcceptances`. */
+export type PendingAcceptanceDeps = AcceptanceDeps & {
+  /** Log workeru – schránka, která vyčerpala pokusy a čeká na ruční zásah. */
+  log: (message: string) => void;
+};
+
+/** Závislost účinku přijetí; chybí-li, účinek se nepřeskočí – výjimka nechá schránku na další pokus. */
+function needed<K extends AcceptanceEffectDep>(
+  deps: NegotiateDeps,
+  key: K,
+  negotiationId: string,
+): NonNullable<NegotiateDeps[K]> {
+  const dep = deps[key];
+  if (dep === undefined) {
+    throw new Error(`Účinky jednání ${negotiationId}: chybí závislost ${key}.`);
+  }
+  return dep as NonNullable<NegotiateDeps[K]>;
+}
+
+/**
+ * Provede schránku účinků přijetí `negotiationId` pod nájmem (kdo ji právě provádí, toho druhý
+ * přeskočí; `claim` – nájem z `putOutbox`, web ji tak vezme hned) a smaže ji: odeslání
+ * (`deliverAcceptance`), pak kronika. Selhání pomoci nebo výkupného (věcný důvod) schránku uzavře
+ * jako dřív – bez dalších účinků a kroniky – a vrátí důvod; výjimka (pád, neznámá verze tvaru,
+ * chybějící závislost) se započítá jako pokus a schránka počká na odklad. Každý účinek je
+ * idempotentní, opakování nic nezdvojí. Null – schránka už je vyřízená, nebo ji provádí jiný proces.
  */
 function deliverAcceptanceOutbox(
   deps: NegotiateDeps,
   negotiationId: string,
   input: { now: Date; today: number },
+  claim?: OutboxClaim,
 ): Promise<{ value: string | null } | null> {
-  return deps.negotiations.withOutbox(negotiationId, async (effects) => {
-    const failed = await deliverAcceptance(deps, input, effects);
-    if (!failed) await chronicleAcceptance(deps, effects);
-    return failed;
-  });
+  return deps.negotiations.withOutbox(
+    negotiationId,
+    async (effects) => {
+      const version = (effects as { v?: unknown }).v;
+      if (version !== ACCEPTED_VERSION) {
+        throw new Error(
+          `Schránka účinků jednání ${negotiationId}: neznámá verze ${String(version)}.`,
+        );
+      }
+      const failed = await deliverAcceptance(deps, input, effects);
+      if (!failed) await chronicleAcceptance(deps, effects);
+      return failed;
+    },
+    ACCEPTANCE_OUTBOX_POLICY,
+    claim,
+  );
 }
 
 /**
- * Krok workeru (úlohy světa): dokončí schránky účinků přijetí starší než lhůta webu
- * (`ACCEPTANCE_OUTBOX_GRACE_MS`) – přijetí, po kterém web spadl. Účinky jdou v okamžiku kroku
- * (`now`, `today`), kronika ke dni přijetí. Chyba jedné schránky nepřeruší ostatní – vyhodí se až
- * na konci a schránka zůstane na příští krok. Vrací počet provedených schránek.
+ * Krok workeru (úlohy světa): dokončí schránky účinků přijetí, které smí převzít (nájem webu
+ * i odklad po výjimce prošly, pokusů méně než `ACCEPTANCE_OUTBOX_MAX_ATTEMPTS`) – přijetí, po
+ * kterém web spadl. Účinky jdou v okamžiku kroku (`now`, `today`), kronika ke dni přijetí. Chyba
+ * jedné schránky nepřeruší ostatní – vyhodí se až na konci; schránku, která vyčerpala pokusy,
+ * zapíše do logu. Vrací počet provedených schránek.
  */
 export async function deliverPendingAcceptances(
-  deps: NegotiateDeps,
+  deps: PendingAcceptanceDeps,
   input: { now: Date; today: number },
 ): Promise<number> {
-  const before = new Date(input.now.getTime() - ACCEPTANCE_OUTBOX_GRACE_MS);
   let delivered = 0;
   let failure: unknown = null;
-  for (const id of await deps.negotiations.pendingOutboxes(before, ACCEPTANCE_OUTBOX_BATCH)) {
+  const due = await deps.negotiations.pendingOutboxes(
+    ACCEPTANCE_OUTBOX_BATCH,
+    ACCEPTANCE_OUTBOX_MAX_ATTEMPTS,
+  );
+  for (const { negotiationId, attempts } of due) {
     try {
-      if (await deliverAcceptanceOutbox(deps, id, input)) delivered++;
+      if (await deliverAcceptanceOutbox(deps, negotiationId, input)) delivered++;
     } catch (error) {
+      if (attempts + 1 >= ACCEPTANCE_OUTBOX_MAX_ATTEMPTS) {
+        const reason = error instanceof Error ? error.message : String(error);
+        deps.log(
+          `schránka účinků jednání ${negotiationId}: ${ACCEPTANCE_OUTBOX_MAX_ATTEMPTS}. pokus ` +
+            `selhal, dál se nebere – čeká na ruční zásah (${reason})`,
+        );
+      }
       failure ??= error;
     }
   }
@@ -1027,6 +1117,7 @@ function acceptedOf(
     toHouse: houseRef(s.toHouse),
   });
   return {
+    v: ACCEPTED_VERSION,
     negotiationId: loaded.record.id,
     rounds: loaded.record.rounds.length,
     day: today,
@@ -1076,19 +1167,28 @@ async function deliverAcceptance(
       today: input.today,
     });
   }
-  if (sending && deps.aid && sending.toVillageId) {
-    const failed = await sendAid(deps.aid, sending.line, sending.toVillageId, {
+  if (sending?.toVillageId) {
+    const aid = needed(deps, 'aid', negotiationId);
+    const failed = await sendAid(aid, sending.line, sending.toVillageId, {
       negotiationId,
       today: input.today,
       now: input.now,
     });
     if (failed) return failed;
   }
-  if (giving && deps.escheatGift) {
-    await deps.escheatGift({ ...giving, now: input.now, today: input.today });
+  if (giving) {
+    await needed(
+      deps,
+      'escheatGift',
+      negotiationId,
+    )({
+      ...giving,
+      now: input.now,
+      today: input.today,
+    });
   }
-  if (ransom && deps.ransom) {
-    const failed = await deps.ransom.apply({
+  if (ransom) {
+    const failed = await needed(deps, 'ransom', negotiationId).apply({
       ...ransom,
       negotiationId,
       now: input.now,
@@ -1099,8 +1199,9 @@ async function deliverAcceptance(
   if (effects.peaceLater) {
     await applyPeaceLater(deps, input, negotiationId, effects.peaceLater, effects.actors);
   }
-  if (trading && deps.dialogs) {
-    await openTradeDialogs(deps.dialogs, negotiationId, trading.sendings, input.today);
+  if (trading) {
+    const dialogs = needed(deps, 'dialogs', negotiationId);
+    await openTradeDialogs(dialogs, negotiationId, trading.sendings, input.today);
   }
   return null;
 }
@@ -1113,8 +1214,8 @@ async function applyPeaceLater(
   later: PeaceLater,
   { actor, other }: Actors,
 ): Promise<void> {
-  if (later.line.releasePrisoners?.length && deps.ransom) {
-    await deps.ransom.release({
+  if (later.line.releasePrisoners?.length) {
+    await needed(deps, 'ransom', negotiationId).release({
       prisonerIds: later.line.releasePrisoners,
       parties: [actor.id, other.id],
       negotiationId,
@@ -1122,17 +1223,18 @@ async function applyPeaceLater(
       today: input.today,
     });
   }
-  if (later.cede && deps.cede) {
-    await deps.cede.apply({
+  if (later.cede) {
+    await needed(deps, 'cede', negotiationId).apply({
       ...later.cede,
       negotiationId,
       now: input.now,
       today: input.today,
     });
   }
-  if (deps.dialogs && later.line.fee) {
+  if (later.line.fee && later.sendings.length > 0) {
+    const dialogs = needed(deps, 'dialogs', negotiationId);
     for (const s of later.sendings) {
-      await deps.dialogs.openOnce(`fee:${negotiationId}:${s.fromHouse.id}`, {
+      await dialogs.openOnce(`fee:${negotiationId}:${s.fromHouse.id}`, {
         playerId: s.fromHouse.playerId as string,
         kind: 'fee-send',
         refId: negotiationId,

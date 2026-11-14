@@ -1,4 +1,3 @@
-import { escheatGift } from './escheats';
 import { ransom } from './prisoners';
 import {
   acceptNegotiation,
@@ -27,10 +26,10 @@ import {
   type NegotiateResult,
   type IssueInviteResult,
 } from '@bohemia/game';
+import { acceptanceDeps } from '@bohemia/server';
 import { gameDeps, journeyRecallDeps, playerToday } from './game';
 import { exclusivePlayer } from './exclusive';
 import { getPlayerLock } from './db';
-import { aidDeps } from './levies';
 import type { NegotiationAnswer } from './house-input';
 import { houseView, type HouseView } from './house-view';
 import { newcomerStatusView, type NewcomerStatusView } from './newcomer-view';
@@ -158,7 +157,8 @@ export async function answerNegotiationForPlayer(
   switch (input.answer) {
     case 'accept':
       return outcome(
-        await acceptNegotiation({ ...deps, aid: aidDeps(), escheatGift: escheatGift() }, base),
+        // závislosti účinků jako schránka workeru (`acceptanceDeps`) – žádný účinek nechybí
+        await acceptNegotiation(acceptanceDeps(gameDeps()), base),
       );
     case 'reject':
       return outcome(await rejectNegotiation(deps, base));

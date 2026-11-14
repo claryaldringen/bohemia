@@ -1,28 +1,13 @@
-import {
-  decidePrisoner,
-  ransomHooks,
-  type NegotiateDeps,
-  type PrisonerResult,
-} from '@bohemia/game';
+import { decidePrisoner, type NegotiateDeps, type PrisonerResult } from '@bohemia/game';
+import { acceptanceDeps } from '@bohemia/server';
 import { gameDeps, playerToday } from './game';
-import { prepareVillage, shipmentDeps } from './levies';
 
 // Composition root zajatců (war.md – Vzdaní, zajetí a výkupné): rozhodnutí věznitele a hlásiče
 // výkupného pro jednání. Herní logika je v `packages/game/src/application/prisoners.ts`.
 
-/** Hlásiče výkupného pro `NegotiateDeps.ransom` (zásilka výkupného a propuštění zajatců). */
+/** Hlásiče výkupného pro `NegotiateDeps.ransom` – tytéž jako u přijetí (`acceptanceDeps`). */
 export function ransom(): NonNullable<NegotiateDeps['ransom']> {
-  const deps = gameDeps();
-  return ransomHooks({
-    prisoners: deps.prisoners,
-    villages: deps.villages,
-    settlements: deps.settlements,
-    locks: deps.locks,
-    now: deps.now,
-    houses: deps.houses,
-    shipments: shipmentDeps(),
-    prepareVillage,
-  });
+  return acceptanceDeps(gameDeps()).ransom;
 }
 
 /** Věznitel rozhodne o zajatci: držet, propustit, popravit. */

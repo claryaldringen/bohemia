@@ -65,8 +65,17 @@ export interface VillageGift {
   toHouseId: string;
 }
 
+/**
+ * Verze uloženého tvaru `Accepted`. Schránka čeká v úložišti i přes nasazení nové verze – tvar měnit
+ * jen zpětně kompatibilně (nové členy volitelné), jinak nové číslo a převod staršího tvaru při
+ * čtení. Neznámou verzi provedení odmítne výjimkou (schránka zůstane pro ruční zásah).
+ */
+export const ACCEPTED_VERSION = 1;
+
 /** Schránka přijetí (`acceptedOf`) – co se po transakci pošle, provede a zapíše do kroniky. */
 export interface Accepted {
+  /** Verze uloženého tvaru (`ACCEPTED_VERSION`). */
+  v: typeof ACCEPTED_VERSION;
   negotiationId: string;
   /** Počet kol přijatého jednání – klíč kroniky (`neg:<jednání>:<kola>:…`). */
   rounds: number;

@@ -301,15 +301,29 @@ hostName, refId })` (vstupní stav nemění): `sendAway` s `away = { kind: 'labo
   `negotiation_outbox`, migrace `0048_negotiation_outbox`) – co se dřív dělalo až po commitu:
   zánik ostatních žádostí nováčka, pomoc (`sendAid`), dar odúmrti, výkupné, mír (propuštění,
   postoupení vsí, dialogy poplatku), dialogy obchodu a kronika. Obsah je `Accepted` (JSON bez
-  `Date`, rody jako `HouseRef`), jedna schránka na jednání.
-- Po commitu ji web hned provede (`withOutbox` – zámek řádku `FOR UPDATE SKIP LOCKED` v otevřené
-  transakci, po návratu smazání): `deliverAcceptance`, pak `chronicleAcceptance`. Zamyká se jen
-  řádek schránky, ne jednání (cizí klíče účinků by na zámku jednání čekaly).
+  `Date`, rody jako `HouseRef`) s verzí uloženého tvaru `v` (`ACCEPTED_VERSION` = 1 – měnit jen
+  zpětně kompatibilně; neznámou verzi provedení odmítne výjimkou), jedna schránka na jednání.
+- **Nájem místo zámku** (audit A2, kolo 1 – I1, migrace `0049_negotiation_outbox_lease`): kdo
+  schránku provádí, drží nájem (`claim`, `next_at` podle hodin databáze). Převzetí je jeden
+  `UPDATE … RETURNING` (jen s prošlým `next_at`, nebo s vlastním nájmem) a spojení se hned vrátí –
+  během účinků se nedrží žádné spojení hlavního poolu a výpadek spojení nájem neuvolní. Nájem
+  `ACCEPTANCE_OUTBOX_LEASE_MS` (60 s) adaptér během účinků obnovuje každou třetinu
+  (`renewLease`); po pádu procesu vyprší. Výjimka z účinků zvýší `attempts`, zapíše `last_error`
+  a odloží `next_at` (`acceptanceOutboxRetryMs`); čísla v `docs/code/worker.md` – Úlohy světa.
+- Web drží nájem už od zápisu v transakci (`putOutbox` vrací nájem, `clock_timestamp()` – lhůta
+  od zápisu, ne od začátku požadavku) a po commitu schránku hned provede (`withOutbox` s nájmem):
+  `deliverAcceptance`, pak `chronicleAcceptance`, po návratu smazání. Zamyká se jen řádek
+  schránky, ne jednání (cizí klíče účinků by na zámku jednání čekaly).
 - Spadne-li web mezi commitem a smazáním, schránku dokončí worker: `deliverPendingAcceptances`
-  (poslední z `runWorldTasks`, jednou za minutu) bere schránky starší než
-  `ACCEPTANCE_OUTBOX_GRACE_MS` (60 s – do té doby ji dokončuje web a hráči vrací důvod selhání),
-  nejvýš 50 za krok; účinky jdou ke dni kroku, kronika ke dni přijetí (`Accepted.day`). Chyba jedné
-  schránky ostatní nezastaví, vyhodí se na konci a schránka počká na další krok.
+  (úloha `runWorldTasks` s vlastní ochranou, jednou za minutu) bere jen schránky s prošlým
+  nájmem i odkladem (`pendingOutboxes` – napřed s nejméně pokusy, zaseklé neblokují nové), nejvýš
+  50 za krok; účinky jdou ke dni kroku, kronika ke dni přijetí (`Accepted.day`). Chyba jedné
+  schránky ostatní nezastaví, vyhodí se na konci a schránka počká na odklad. Po
+  `ACCEPTANCE_OUTBOX_MAX_ATTEMPTS` výjimkách se nebere – zůstane v tabulce pro ruční zásah
+  (`attempts`, `last_error`) a worker to zapíše do logu.
+- **Závislosti účinků** skládá `acceptanceDeps` (`packages/server`) pro web i worker:
+  `AcceptanceDeps` má povinné členy `ACCEPTANCE_EFFECT_DEPS` (`aid`, `dialogs`, `escheatGift`,
+  `cede`, `ransom`). Chybí-li účinku za běhu, je to výjimka (`needed`) – nic se tiše nepřeskočí.
 - Výsledek pro hráče je jako dřív: selhání pomoci nebo výkupného (věcný důvod) schránku uzavře
   (smaže) bez dalších účinků a kroniky a web vrátí důvod; neopakuje se. Výjimka schránku nechá.
 - **Každý účinek je idempotentní** – po pádu se schránka provede znovu celá:
@@ -325,8 +339,11 @@ hostName, refId })` (vstupní stav nemění): `sendAway` s `away = { kind: 'labo
   - dialogy poplatku a obchodu: `openOnce` s klíčem `fee:` / `trade:<jednání>:<rod>`;
   - kronika: `chronicleHouses` s klíčem `neg:<jednání>:<kola>:…` / `war-peace:<jednání>`.
 - Testy: `acceptance-outbox.test.ts` (pád v prvním účinku, po něm, před smazáním, selhání pomoci,
-  souběh webu a workeru), pády v `escheat.test.ts`, `prisoners.test.ts`, `peace.test.ts`; adaptér
-  v `negotiation-repository.db.test.ts` (zápis v transakci, výběr, smazání, souběh).
+  souběh webu a workeru, odklad a vyčerpané pokusy, zaseklá a nová schránka, chybějící závislost,
+  úlohy světa), pády v `escheat.test.ts`, `prisoners.test.ts`, `peace.test.ts`; adaptér
+  v `negotiation-repository.db.test.ts` (zápis v transakci a nájem od zápisu, převzetí po konci
+  nájmu, odklad a pořadí, souběh s obnovou nájmu, ukončené spojení, pool o 1 spojení);
+  skládání `acceptances.test.ts` (`packages/server`).
 
 ## Pomoc a půjčky (`domain/vassalage/loan.ts`, `application/loans.ts`, `negotiate.ts`, `annual-levies.ts`, úloha 4.6)
 
@@ -347,7 +364,7 @@ splátkami, nebo odmítne. Půjčka je samostatná dohoda – trvá i po vypově
   souběhu). **Po transakci** `sendAid` pošle `sendShipment` z `fromVillageId` (pod zámkem držitele té vsi; `refId` =
   `aid:<jednání>` → jediná zásilka; doveze, kdo posílá). Nepodaří-li se zásilka, půjčka se zruší
   (`cancelOfNegotiation`) a přijetí vrátí důvod. Kronika: `negotiation` kroky `aid-gift` / `aid-loan`. Bez `NegotiateDeps.aid`
-  dar ani půjčku přijmout nejde (web ho dodává `aidDeps()` v `lib/levies.ts`).
+  dar ani půjčku přijmout nejde (web i worker ho dostanou z `acceptanceDeps` v `packages/server`).
 - **DB:** `schema/loan.ts` (`loan`: věřitel a dlužník – rody, ves věřitele a dlužníka, `principal`, `schedule`, `paid_kg`,
   `breaches`, `status`), migrace `0025_loan.sql`, adaptér `loan-repository.ts` (`pay` přičítá v jednom UPDATE a při dosažení
   celku splatí), `GameDeps.loans`.

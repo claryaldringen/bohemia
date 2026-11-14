@@ -1,8 +1,12 @@
-import { and, asc, eq, lt, or, sql } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
+import { and, asc, eq, lt, lte, or, sql, type SQL } from 'drizzle-orm';
 import type {
   Accepted,
+  DueOutbox,
   NegotiationRecord,
   NegotiationRepository,
+  OutboxClaim,
+  OutboxPolicy,
   NegotiationRound,
   NegotiationTx,
   PeaceTribute,
@@ -201,9 +205,71 @@ function createTx(db: Executor): NegotiationTx {
     stewardships: createStewardshipRepository(db),
     wars: createWarRepository(db),
     placement: createPlacementTx(db),
-    async putOutbox(negotiationId, effects, at): Promise<void> {
-      await db.insert(negotiationOutbox).values({ negotiationId, effects, createdAt: at });
+    // nájem zapisujícího procesu od zápisu – `clock_timestamp()` je okamžik příkazu (těsně před
+    // commitem), ne začátek transakce ani požadavku
+    async putOutbox(negotiationId, effects, at, leaseMs): Promise<string> {
+      const claim = randomUUID();
+      await db
+        .insert(negotiationOutbox)
+        .values({ negotiationId, effects, createdAt: at, claim, nextAt: leaseEnd(leaseMs) });
+      return claim;
     },
+  };
+}
+
+/** Okamžik `ms` po teď podle hodin databáze (nájem a odklad schránky – jedny hodiny pro všechny). */
+function leaseEnd(ms: number): SQL {
+  return sql`clock_timestamp() + ${ms}::double precision * interval '1 millisecond'`;
+}
+
+/**
+ * Obnova nájmu schránky každou třetinu nájmu, dokud běží účinky (`withOutbox`). Každá obnova je
+ * krátký `UPDATE` (spojení se hned vrátí); selhání jen zaloguje – nájem pak vyprší sám. Vrací stop.
+ */
+function renewLease(
+  db: Database,
+  negotiationId: string,
+  claim: string,
+  leaseMs: number,
+): () => void {
+  let stopped = false;
+  let busy = false;
+  const renew = async (): Promise<void> => {
+    const rows = await db
+      .update(negotiationOutbox)
+      .set({ nextAt: leaseEnd(leaseMs) })
+      .where(
+        and(eq(negotiationOutbox.negotiationId, negotiationId), eq(negotiationOutbox.claim, claim)),
+      )
+      .returning({ id: negotiationOutbox.negotiationId });
+    if (rows.length === 0 && !stopped) {
+      stopped = true;
+      clearInterval(timer);
+      console.warn(`Schránka účinků jednání ${negotiationId}: nájem převzal jiný proces.`);
+    }
+  };
+  const timer = setInterval(
+    () => {
+      if (busy || stopped) return;
+      busy = true;
+      renew()
+        .catch((error: unknown) => {
+          const message = error instanceof Error ? error.message : String(error);
+          console.warn(
+            `Schránka účinků jednání ${negotiationId}: obnova nájmu selhala (${message}).`,
+          );
+        })
+        .finally(() => {
+          busy = false;
+        });
+    },
+    Math.max(1, Math.floor(leaseMs / 3)),
+  );
+  // obnova nesmí držet proces naživu (konec workeru, testy)
+  timer.unref();
+  return () => {
+    stopped = true;
+    clearInterval(timer);
   };
 }
 
@@ -254,34 +320,86 @@ export function createNegotiationRepository(db: Database): NegotiationRepository
     },
     transaction: <T>(fn: (tx: NegotiationTx) => Promise<T>): Promise<T> =>
       db.transaction((tx) => fn(createTx(tx))),
-    async pendingOutboxes(before, limit): Promise<string[]> {
+    async pendingOutboxes(limit, maxAttempts): Promise<DueOutbox[]> {
       const rows = await db
-        .select({ id: negotiationOutbox.negotiationId })
+        .select({
+          negotiationId: negotiationOutbox.negotiationId,
+          attempts: negotiationOutbox.attempts,
+        })
         .from(negotiationOutbox)
-        .where(lt(negotiationOutbox.createdAt, before))
-        .orderBy(asc(negotiationOutbox.createdAt), asc(negotiationOutbox.negotiationId))
+        .where(
+          and(
+            lte(negotiationOutbox.nextAt, sql`clock_timestamp()`),
+            lt(negotiationOutbox.attempts, maxAttempts),
+          ),
+        )
+        .orderBy(
+          asc(negotiationOutbox.attempts),
+          asc(negotiationOutbox.nextAt),
+          asc(negotiationOutbox.negotiationId),
+        )
         .limit(limit);
-      return rows.map((r) => r.id);
+      return rows;
     },
-    // Zámek drží otevřená transakce (spojení z poolu) po celou dobu `fn`; účinky jdou mimo ni
-    // vlastními spojeními. Zamyká se jen řádek schránky – ne jednání, na které odkazují cizí klíče
-    // jiných tabulek (zámek jednání by blokoval zápisy účinků). Pád procesu zámek uvolní.
-    withOutbox: <T>(
+    // Nájem místo zámku řádku: převzetí je jeden `UPDATE … RETURNING` a spojení se hned vrátí –
+    // účinky (které samy berou spojení z téhož poolu) nic nedrží a výpadek spojení nájem
+    // neuvolní. Zamyká se jen řádek schránky, ne jednání (cizí klíče účinků).
+    async withOutbox<T>(
       negotiationId: string,
       fn: (effects: Accepted) => Promise<T>,
-    ): Promise<{ value: T } | null> =>
-      db.transaction(async (tx): Promise<{ value: T } | null> => {
-        const [row] = await tx
-          .select({ effects: negotiationOutbox.effects })
-          .from(negotiationOutbox)
-          .where(eq(negotiationOutbox.negotiationId, negotiationId))
-          .for('update', { skipLocked: true });
-        if (!row) return null;
+      policy: OutboxPolicy,
+      held?: OutboxClaim,
+    ): Promise<{ value: T } | null> {
+      const claim = held ?? randomUUID();
+      const free = lte(negotiationOutbox.nextAt, sql`clock_timestamp()`);
+      const [row] = await db
+        .update(negotiationOutbox)
+        .set({ claim, nextAt: leaseEnd(policy.leaseMs) })
+        .where(
+          and(
+            eq(negotiationOutbox.negotiationId, negotiationId),
+            held === undefined ? free : or(free, eq(negotiationOutbox.claim, held)),
+          ),
+        )
+        .returning({ effects: negotiationOutbox.effects, attempts: negotiationOutbox.attempts });
+      if (!row) return null;
+      const stop = renewLease(db, negotiationId, claim, policy.leaseMs);
+      try {
         const value = await fn(row.effects as Accepted);
-        await tx
+        stop();
+        // smaže i schránku, kterou mezitím převzal jiný proces (prošlý nájem) – účinky jsou hotové
+        // a jeho opakování nic nezdvojí
+        await db
           .delete(negotiationOutbox)
           .where(eq(negotiationOutbox.negotiationId, negotiationId));
         return { value };
-      }),
+      } catch (error) {
+        stop();
+        const attempts = row.attempts + 1;
+        const message = error instanceof Error ? error.message : String(error);
+        // jen vlastní nájem – schránku, kterou mezitím převzal jiný proces, nechá být
+        await db
+          .update(negotiationOutbox)
+          .set({
+            claim: null,
+            attempts,
+            lastError: message,
+            nextAt: leaseEnd(policy.retryMs(attempts)),
+          })
+          .where(
+            and(
+              eq(negotiationOutbox.negotiationId, negotiationId),
+              eq(negotiationOutbox.claim, claim),
+            ),
+          )
+          .catch((failure: unknown) => {
+            const reason = failure instanceof Error ? failure.message : String(failure);
+            console.warn(
+              `Schránka účinků jednání ${negotiationId}: odklad se nezapsal (${reason}).`,
+            );
+          });
+        throw error;
+      }
+    },
   };
 }

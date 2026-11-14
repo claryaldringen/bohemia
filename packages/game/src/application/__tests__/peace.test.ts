@@ -8,11 +8,12 @@ import { applyInboxDay, type VillageState } from '../../domain/village';
 import { answerLevy, openAnnualDialogs, type LevyDeps } from '../annual-levies';
 import { cedeVillages, checkCede } from '../cede-village';
 import {
-  ACCEPTANCE_OUTBOX_GRACE_MS,
+  ACCEPTANCE_OUTBOX_LEASE_MS,
   acceptNegotiation,
   counterNegotiation,
   deliverPendingAcceptances,
   openNegotiation,
+  type AcceptanceDeps,
   type NegotiateDeps,
 } from '../negotiate';
 import type { DirectoryEntry } from '../world-directory';
@@ -468,11 +469,11 @@ describe('postoupení po pádu (A2)', () => {
     await expect(agree(w, 'a', peace({ cede: [w.extraA] }))).rejects.toThrow('pád');
     expect((await w.settlements.listActive('player-c')).map((s) => s.id)).toContain(w.mapX);
     expect((await w.villages.find(w.extraA))!.state.steward?.on).not.toBe(true);
-    const later = new Date(NOW.getTime() + ACCEPTANCE_OUTBOX_GRACE_MS + 1000);
-    const delivered = await deliverPendingAcceptances(w.deps as NegotiateDeps, {
-      now: later,
-      today: DAY_NOW,
-    });
+    // krok workeru po prvním odkladu (1 min) – hodiny schránek se posunou
+    (w.deps.negotiations as InMemoryNegotiations).elapse(ACCEPTANCE_OUTBOX_LEASE_MS + 1000);
+    const later = new Date(NOW.getTime() + ACCEPTANCE_OUTBOX_LEASE_MS + 1000);
+    const worker = { ...(w.deps as AcceptanceDeps), log: () => undefined };
+    const delivered = await deliverPendingAcceptances(worker, { now: later, today: DAY_NOW });
     expect(delivered).toBe(1);
     expect((await w.villages.find(w.extraA))!.state.steward?.on).toBe(true);
     const arrivals = villages.inbox.events.filter(
