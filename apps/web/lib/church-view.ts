@@ -239,13 +239,15 @@ export interface ChurchBuildChoice {
 }
 
 /**
- * Kostely do nabídky staveb: typy okruhu huti (bez huti okruh `fallback` – tlačítka jen zašedlá
+ * Kostely do nabídky staveb (jen pokřtěný rod, jinak žádné): typy okruhu huti (bez huti okruh `fallback` – tlačítka jen zašedlá
  * s důvodem `CHURCH_NO_LODGE`), důvod z `churchStartProblem` jako na serveru.
  */
 export function churchBuildChoices(
-  state: Pick<VillageState, 'people' | 'lodge' | 'quarries'>,
+  state: Pick<VillageState, 'people' | 'lodge' | 'quarries' | 'faith'>,
   fallback: MasonryCircle = 'adriatic',
 ): ChurchBuildChoice[] {
+  // dokud rod nepřijal křesťanství, tlačítka kostela v nabídce vůbec nejsou (Martin 14. 11. 2026)
+  if (state.faith?.rodBaptizedDay === undefined) return [];
   const [small, large] = churchTypesFor(state.lodge?.circle ?? fallback);
   return [
     { kind: 'church-small', type: small, blocked: churchStartProblem(state, small) },

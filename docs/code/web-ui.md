@@ -1370,7 +1370,9 @@ Jádro a akce: `village-masonry.md` – Geometrie a cena kostela, Stavba kostela
   `churchWorkProgress`, `site.blocked` = `churchBlocked`, `capacity`, `graves`, `priest`, když kostel
   má údaj `priestId`). Nabídka: `churchBuildChoices(state)` → `VillageView.churchBuild` (malý
   a velký typ okruhu huti `churchTypesFor`, bez huti okruh adriatický; důvod `churchStartProblem` –
-  `CHURCH_NO_LODGE`, `CHURCH_NO_QUARRY`). Ves bez kostela nic z toho nemá.
+  `CHURCH_NO_LODGE`, `CHURCH_NO_QUARRY`). Dokud rod nepřijal křesťanství (`faith.rodBaptizedDay`),
+  je nabídka prázdná – tlačítka kostela ani jejich zkratky nejsou (Martin 14. 11. 2026) – a server
+  kostel odmítne (`CHURCH_NOT_BAPTIZED` v `churchStartProblem`). Ves bez kostela nic z toho nemá.
 - **Nabídka staveb** (`lib/build-items.ts`): `WebBuildKind` `church-small` [I] a `church-large` [Y]
   (volné klávesy – návrh Clauda), `placement: 'church'`, `check` = `checkChurchPlacement` jako server
   - cena `churchPlacementCost`. `use-build-mode.ts` – `churchOptions` dá `BuildOption` bez ceny

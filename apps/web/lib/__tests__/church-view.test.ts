@@ -47,6 +47,7 @@ const village = (extra: Partial<Record<string, unknown>>): VillageState =>
     people,
     constructions: [],
     lodge: { circle: 'carolingian', invitedDay: 0 },
+    faith: { rodBaptizedDay: 0 },
     ...extra,
   }) as unknown as VillageState;
 
@@ -92,6 +93,14 @@ describe('kostely v pohledu vsi', () => {
     expect(panel).toMatchObject({ built: true, priest: true });
     const done = village({ churches: [{ ...church, decoratedDay: 9 }] });
     expect(sceneChurches(done)[0]).toMatchObject({ decorated: true, progress: { decor: 1 } });
+  });
+
+  it('nabídka kostelů je prázdná, dokud rod nepřijal křesťanství, po křtu je vidět', () => {
+    expect(churchBuildChoices(village({ faith: undefined }))).toEqual([]);
+    expect(churchBuildChoices(village({ faith: {} }))).toEqual([]);
+    expect(
+      churchBuildChoices(village({ faith: { rodBaptizedDay: 5 } })).map((c) => c.kind),
+    ).toEqual(['church-small', 'church-large']);
   });
 
   it('nabídka: typy okruhu huti; bez huti a bez lomu důvod jako na serveru', () => {
