@@ -36,8 +36,8 @@ vstupní bod (composition root) jako web – žádná herní logika, jen plánov
   vedle smyčky vsí (`main.ts` je pouští spolu přes `Promise.all`, signál ukončí obě). Kolo
   `stepCampaigns` (`docs/code/war.md` – Tažení po taktech) každých `campaignMs` od začátku kola;
   chyba jednoho tažení (`failed` ve výsledku) ani celého kola (např. chybějící tabulka před
-  migrací) smyčku nezastaví, stejná chyba se do logu opakuje nejvýš jednou za minutu. Bez tažení je
-  kolo jeden dotaz (`active()`). Zámek tažení má vlastní pool (`CAMPAIGN_LOCK_POOL_SIZE` = 2), vsi
+  migrací) smyčku nezastaví, stejná chyba se do logu opakuje nejvýš jednou za minutu. Bez tažení a výjezdů
+  je kolo dva dotazy (`active()` tažení a `active()` výjezdů). Zámek tažení má vlastní pool (`CAMPAIGN_LOCK_POOL_SIZE` = 2), vsi
   tažení jdou úložištěm bez paměti dávky (`createVillageRepository`), mapy políček
   `createCampaignCells` (`packages/server`) – krajiny prázdných políček v LRU, které worker před
   každým kolem zvětší podle map v paměti tažení i výjezdů (`reserve(cellsInNeed(…))`, nejméně
