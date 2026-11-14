@@ -61,6 +61,7 @@ export function journeySceneHook(scene: LandscapeScene): NonNullable<E2EHooks['j
       led: stats.led,
       gate: stats.gate,
       awayHorses: stats.awayHorses,
+      selected: stats.selected,
     };
   };
 }

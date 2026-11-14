@@ -372,7 +372,13 @@ onEnded)` se ptá jen s `running` (vojvoda pryč nebo právě vyjel); zmizí-li 
   nezastaví). Jméno a rod vlastního vojvody dodá jeho záznam mezi návštěvníky.
 - **Výběr** – klik na vlastního muže vybere člověka vsi (`person` – panel z Úlohy 8a), na cizího
   `VillageTarget` `visitor` (`journeyId`): panel ukáže portrét koně se jménem vojvody, rod (ikona
-  praporu) a počet jezdců a pěších (`selectionDetails(…, visitors)`, `visitor-panel`).
+  praporu) a počet jezdců a pěších (`selectionDetails(…, visitors)`, `visitor-panel`). Vybraný muž
+  vlastního výjezdu (i vojvoda, který z vsi právě odjel – postava vsi už není) má žlutý kroužek,
+  který jede s jeho jezdcem jako jednotka v 0 A.D. (Martin 14. 11. 2026: „zmizelo kolem něj
+  označení“): `LandscapeScene.setSelection` → `SceneWarView.selectJourneyMan` →
+  `ArmyRenderer` (`selectedRider` v `journey-riders.ts`, `SelectionRing` `journey-ring`, jezdec
+  elipsa podél koně) – při odjezdu, jízdě i příjezdu; na cizí mapě totéž (`useLordJourney` předá
+  výběr scéně cizí mapy). E2e háček `journeyScene().selected`.
 - **Den rodiny** – muž na výjezdu (`away: journey`) není v `SceneLord.trainees` (`sceneLord`
   v `village-view-scene.ts`), takže ho scéna nekreslí na dvorku ani na cvičišti; kreslí ho jako
   jezdce výjezdu. Ostatní nepřítomní (tažení…) zůstávají jako dosud.

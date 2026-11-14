@@ -32,6 +32,8 @@ export class SceneWarView {
   private marker: JourneyMarker | null = null;
   /** Místa dvorce pro odjezd a příjezd výjezdu (journey-departure.ts). */
   private yard: JourneyYard | null = null;
+  /** Vybraná osoba vsi – kroužek výběru pod ní, je-li mužem vlastního výjezdu. */
+  private selectedMan: number | null = null;
   /** Stopa rodu pro mlhu cizí mapy výjezdu; null – bez mlhy výjezdu (army-renderer.ts). */
   private trail: readonly (readonly [number, number])[] | null = null;
 
@@ -57,6 +59,7 @@ export class SceneWarView {
     this.marker?.dispose();
     this.marker = new JourneyMarker(this.deps.scene, decalHeight);
     this.army.setJourneyYard(this.yard);
+    this.army.selectJourneyMan(this.selectedMan);
     if (this.war) this.army.set(this.war, Date.now(), this.deps.reducedMotion(), null);
     if (this.journeys.length > 0) {
       this.army.setJourneys(this.journeys, Date.now(), this.deps.reducedMotion(), null);
@@ -109,6 +112,15 @@ export class SceneWarView {
     this.army?.setJourneyYard(yard);
   }
 
+  /**
+   * Vybraná osoba vsi (null – nikdo): muž vlastního výjezdu má pod sebou kroužek výběru, který jede
+   * s ním – vojvoda zůstane vybraný i po odjezdu z vsi (journey.md – Výběr).
+   */
+  selectJourneyMan(personId: number | null): void {
+    this.selectedMan = personId;
+    if (this.army?.selectJourneyMan(personId)) this.deps.requestRender();
+  }
+
   /** Koně a muži vsi, kteří odjíždějí nebo přijíždějí – ohrada a den rodiny je nekreslí. */
   journeyAway(): { horses: number[]; men: number[] } {
     return this.army?.journeyAway() ?? { horses: [], men: [] };
@@ -125,6 +137,7 @@ export class SceneWarView {
     phase: JourneyScenePhase | null;
     led: { x: number; z: number }[];
     gate: { x: number; z: number } | null;
+    selected: { x: number; z: number } | null;
   } {
     const marks = this.marker?.stats() ?? { banner: null, hourglass: null };
     return {
@@ -133,6 +146,7 @@ export class SceneWarView {
       phase: this.army?.journeyPhase() ?? null,
       led: (this.army?.journeyLed() ?? []).map((h) => ({ x: h.x, z: h.z })),
       gate: this.yard ? { ...this.yard.gate } : null,
+      selected: this.army?.journeyRing() ?? null,
     };
   }
 

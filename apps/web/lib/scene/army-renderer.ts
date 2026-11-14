@@ -74,9 +74,11 @@ import {
   JourneyGlide,
   journeyFigures,
   pickRider,
+  selectedRider,
   type RiderPose,
   type SceneJourney,
 } from './journey-riders';
+import { RING_SIZE_M, SelectionRing } from './selection-ring';
 import type { Project } from './villager-pick';
 import { loadBakedModel } from './villagers';
 
@@ -103,6 +105,9 @@ export interface SceneWar {
   /** Konec herního dne (ms) – padlí leží do něj; null – leží, dokud je boj ve scéně. */
   dayEndMs: number | null;
 }
+
+/** Kroužek výběru jezdce je podél koně tolikrát delší než u pěšího (návrh Clauda). */
+const RIDER_RING_LENGTH = 1.8;
 
 /** Válka bez ničeho – jen výjezdy vojvody ve scéně (journey-riders.ts). */
 const NO_WAR: SceneWar = {
@@ -224,6 +229,11 @@ export class ArmyRenderer {
   private led: ArmyAnimal[] = [];
   /** Muži výjezdů, jak jsou naposled nakreslení (výběr klikem, e2e). */
   private riders: RiderPose[] = [];
+  /** Vybraná osoba vsi – je-li mužem vlastního výjezdu, kroužek výběru jede s ním. */
+  private selectedMan: number | null = null;
+  private ring: SelectionRing | null = null;
+  /** Kde kroužek výběru jezdce právě leží (e2e); null – schovaný. */
+  private ringAt: { x: number; z: number } | null = null;
 
   constructor(
     private readonly scene: Scene,
@@ -367,6 +377,23 @@ export class ArmyRenderer {
     this.leave.setYard(yard);
   }
 
+  /**
+   * Vybraná osoba vsi (null – nikdo): je-li mužem vlastního výjezdu, leží pod ním žlutý kroužek
+   * a jede s ním (jako jednotka v 0 A.D. – lord-control.md, Co hráč vidí). True – změna.
+   */
+  selectJourneyMan(personId: number | null): boolean {
+    if (this.selectedMan === personId) return false;
+    this.selectedMan = personId;
+    const was = this.ringAt;
+    this.writeRing();
+    return was !== null || this.ringAt !== null;
+  }
+
+  /** Kde leží kroužek výběru jezdce (e2e); schovaný – null. */
+  journeyRing(): { x: number; z: number } | null {
+    return this.ringAt;
+  }
+
   /** Fáze vlastního výjezdu ve scéně (odjíždí, jede, přijíždí); žádný – null. */
   journeyPhase(): JourneyScenePhase | null {
     return this.leave.ownPhase();
@@ -398,6 +425,8 @@ export class ArmyRenderer {
 
   dispose(): void {
     this.disposed = true;
+    this.ring?.dispose();
+    this.ring = null;
     for (const k of this.figures.values()) {
       k.mesh.material?.dispose(true, true);
       k.manager.texture?.dispose();
@@ -590,6 +619,7 @@ export class ArmyRenderer {
     const journey = this.leave.at(glide.poses, perf, frozen);
     this.riders = journey.poses;
     this.led = journey.led;
+    this.writeRing();
     if (journey.poses.length > 0 || journey.led.length > 0) {
       const out = journeyFigures(journey.poses, journey.led);
       figures.push(...out.figures);
@@ -864,7 +894,26 @@ export class ArmyRenderer {
     }
   }
 
+  /** Kroužek výběru pod vybraným mužem výjezdu, jak je nakreslený; jinak schovaný. */
+  private writeRing(): void {
+    const pose = selectedRider(this.riders, this.selectedMan);
+    if (!pose) {
+      this.ring?.hide();
+      this.ringAt = null;
+      return;
+    }
+    const ring = (this.ring ??= new SelectionRing(this.scene, 'journey-ring'));
+    const ground = this.env.groundHeight;
+    const size = RING_SIZE_M * FIGURE_SCALE;
+    // jezdec – elipsa podél koně
+    const length = pose.mounted ? size * RIDER_RING_LENGTH : size;
+    ring.show(ground, pose.x, ground(pose.x, pose.z), pose.z, length, size, pose.hx, pose.hz);
+    this.ringAt = { x: pose.x, z: pose.z };
+  }
+
   private hideAll(): void {
+    this.ring?.hide();
+    this.ringAt = null;
     for (const k of this.figures.values()) k.mesh.setEnabled(false);
     for (const a of this.animals.values()) a.mesh.setEnabled(false);
     for (const m of [

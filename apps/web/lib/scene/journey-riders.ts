@@ -314,6 +314,18 @@ export function journeyFigures(
   return { figures, animals };
 }
 
+/**
+ * Vybraný muž vlastního výjezdu (osoba vsi `personId`), jak je nakreslený – výběr jde s jezdcem jako
+ * jednotka v 0 A.D. (lord-control.md – Co hráč vidí). Muž, který ve scéně není, nebo nic – null.
+ */
+export function selectedRider(
+  poses: readonly RiderPose[],
+  personId: number | null,
+): RiderPose | null {
+  if (personId === null) return null;
+  return poses.find((p) => p.own && p.personId === personId) ?? null;
+}
+
 /** Klik do tolika CSS px od průmětu muže výjezdu (od nohou po hlavu) ho vybere. */
 export const JOURNEY_PICK_PX = 16;
 

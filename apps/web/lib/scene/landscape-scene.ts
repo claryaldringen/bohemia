@@ -995,6 +995,8 @@ export class LandscapeScene {
     this.selection.target = target;
     this.highlight?.show(this.villageState, target, this.logPile?.pickable() ?? []);
     this.villagers?.select(target?.kind === 'person' ? target.id : null);
+    // vojvoda a muži na výjezdu – kroužek jede s jezdcem (journey.md – Výběr)
+    this.war.selectJourneyMan(target?.kind === 'person' ? target.id : null);
     this.selection.syncDraft();
     this.loop.renderWhenReady();
   }
