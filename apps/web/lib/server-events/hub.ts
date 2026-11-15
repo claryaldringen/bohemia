@@ -41,7 +41,7 @@ export interface ComputeResult {
   key: string;
 }
 
-/** Počítadla stavu podle druhu úlohy; úloha bez počítadla se přeskočí (Úlohy 4 a 5 doplní). */
+/** Počítadla stavu podle druhu úlohy (`pushers.ts`); úloha bez počítadla se přeskočí. */
 export type Computers = Partial<
   Record<ComputeTask['what'], (task: ComputeTask) => Promise<ComputeResult>>
 >;

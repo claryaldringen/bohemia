@@ -72,8 +72,8 @@ s jejím sídlem a políčkem světa, otevřené tažení a cizí mapa ve scén�
 | `c`   | spojení se vsí v `a`                                                       | signál `alarm { villageId }`                 |
 
 - `big` – `c` a `a` platí pro všechna spojení s políčkem / vsí.
-- **Výpočty:** počítadla `Computers` podle druhu úlohy (`pushers.ts` – `serverComputers()`, bez tažení
-  a války, ty doplní Úloha 5; výpravy viz Výpravy níž), úloha bez počítadla se přeskočí.
+- **Výpočty:** počítadla `Computers` podle druhu úlohy (`pushers.ts` – `serverComputers()`; výpravy
+  viz Výpravy, tažení a válka viz Válka níž), úloha bez počítadla se přeskočí.
   Výpočet jde přes slučovač (`coalesce.ts` – `createCoalescer`): začne po `COALESCE_MS = 50`, pro
   klíč běží nejvýš jeden naráz a volání během běhu dají nejvýš jeden další. Výsledek
   `{ name, data, key }` jde spojením hráče se shodným předmětem (`scopeWantsTask`) – každému,
@@ -116,8 +116,8 @@ Route Handler ve výchozím `runtime` `nodejs`, dynamický čtením session:
 rozbočovače, `sync`, hned tep – v tomto pořadí, takže změna mezi přidáním a dočtením se neztratí.
 
 - Tep po `SSE_HEARTBEAT_MS = 20_000`: komentář `: ping` a `notePlayerActive(hráč)` – otevřené
-  spojení je přítomnost hráče (war.md – Hráč ve vsi a mimo ni); chyba zápisu přítomnosti spojení
-  nezavře.
+  spojení je přítomnost hráče (war.md – Hráč ve vsi a mimo ni); s tažením v rozsahu navíc
+  `campaignPresence` (Válka níž). Chyba zápisu přítomnosti spojení nezavře.
 - Session se každých `SESSION_RECHECK_MS = 300_000` ověří z cookie zachycené při připojení
   a s ní znovu práva rozsahu (`rescope` – `resolveConnectionScope` nad původním dotazem). Neplatná
   session, `'forbidden'` (sesazený správce, ztracené sídlo) i jiný rozsah než při připojení
@@ -213,6 +213,53 @@ zobrazené vsi i všechny posluchače.
   `useSerialRefresh`.
 - Testy: `lib/server-events/__tests__/push-journeys.test.ts`, `hooks/__tests__/use-journey.behavior.test.tsx`,
   `use-journey-visitors.behavior.test.tsx`, `lib/__tests__/journey-view.test.ts` (klíče).
+
+## Válka
+
+- **Počítadla** `createWarComputers(deps)` (`lib/server-events/push-war.ts`; `serverComputers()` jim
+  v `pushers.ts` předá `campaignViewForPlayer(…, -1)` z `lib/campaign.ts`, `warSceneForPlayer`
+  a `warSceneOnMapForPlayer` z `lib/war-scene.ts` – tytéž funkce jako `GET /api/campaign/<id>`,
+  `GET /api/war-scene/<sídlo>` a `?scene=x,y`, takže hráč nedostane nic, co by přes route neviděl):
+  - `campaign` → `{ name: 'campaign', data: { campaignId, view }, key }` – klíč `tick@phase`,
+    `view: null` (hráč tažení nezná, route 404) má klíč `none`;
+  - `war-home` → `{ name: 'war', data: { key: warKeyOfSettlement(sídlo), war }, key: warSceneKey(war) }`;
+  - `war-scene` → totéž s `warKeyOfScene(tažení, políčko)`.
+  - `warSceneKey` (`protocol.ts`, re-export v `lib/war-scene-view.ts` – rozbočovač tak do serveru
+    nenatáhne převody pro scénu): `none`, jinak `<tažení>@<takt>` – stejný takt spojení podruhé
+    nejde, `null` po válce jde (`war: null` – scéna válku smaže).
+- **Mlha války** (návrh Clauda, plán 2026-11-15 – Úloha 5): `war` počítá `warSceneFor` po mlze
+  války – vojsko jen v dohledu domů a mužů, s varováním, které už do vsi dorazilo. Dřívější
+  `MapWatch.war` (D62) byl pravda už od začátku cizího tažení proti vsi a síťová odpověď dotazu na
+  ves tak prozradila vojsko dřív, než ho ve vsi kdo spatřil – prohlížeči se už neposílá
+  (`MapWatchView` v `lib/journey-view.ts` – jen `riders`, `mapWatchForPlayer`); use-case `mapWatchFor` ho dál počítá
+  (`packages/game` se v tomto plánu nemění). Zbývá časový signál: první výsledek spojení jde vždy,
+  takže spojení vsi dostane jednou `war: null`, když se poprvé změní bod tažení s vsí v `a`,
+  a signál `alarm` chodí s každým uložením bodu tažení proti vsi (trigger dává do `a` i cíl) –
+  obsah nic neprozradí, četnost ano (k řešení v routování signálu `alarm`).
+- **Přítomnost vůdce:** spojení s tažením v rozsahu (`ConnectionScope.campaignId`, otevřená
+  `CampaignMap`) v každém tepu i při připojení zavolá `campaignPresence` – route
+  `commandCampaignForPlayer(hráč, tažení, { kind: 'presence' })`; odmítnutí (hráč nevede živě,
+  tažení skončilo) se zahodí. Nahrazuje maják, který dřív po 20 s posílal prohlížeč přes server
+  action; skrytý panel spojení nemá, takže ani přítomnost (war.md – Velení).
+- **Klient:**
+  - `useCampaign(campaignId)` (`hooks/use-campaign.ts`) – jeden `GET /api/campaign/<id>?since=-1`
+    při otevření, na `sync` a `refresh`; událost `campaign` téhož id se použije jako dřív tělo
+    dotazu (starší nebo týž takt se zahodí, v témž taktu jen jiná fáze projde), `view: null`
+    i 404 dají `gone`. Interpolace s rozpětím
+    `clamp(now − received, FRAME_MS, CAMPAIGN_SPAN_MAX_MS)` (15 s – body tažení chodí po ≥ 40
+    taktech ≈ 10 s); snímek po 100 ms zůstává místní. Rozsah `campaignId` nastaví `CampaignMap`
+    (`useEventScope`).
+  - `useWarScene(key, url, enabled)` (`hooks/use-war-scene.ts`) – jeden dotaz na `url` při
+    zapnutí, změně klíče a na `sync` (jen se zapnutím); událost `war` se shodným `key` se použije
+    vždy (nezávisle na `enabled`), jen když se liší tažení nebo takt; jiný klíč se zahodí.
+    Odpověď dotazu, během kterého přišla událost téhož klíče, se zahodí (událost je stejně čerstvá
+    nebo novější a novější stav server pošle sám). Vlastní mapa `useWarWatch` –
+    `warKeyOfSettlement(sídlo)`, `/api/war-scene/<sídlo>`, zapnutí se scénou a bez konce hry; cizí
+    mapa `ForeignWarScene` – `warKeyOfScene(tažení, políčko)`, `?scene=x,y` a rozsah
+    `useEventScope({ scene })`.
+- Testy: `lib/server-events/__tests__/push-war.test.ts` (klíče, stejný takt podruhé nejde, `null`
+  po válce jde), `stream.test.ts` (přítomnost s tažením při připojení a po 20 s, bez něj ne),
+  `hooks/__tests__/use-campaign.behavior.test.tsx`, `use-war-scene.behavior.test.tsx`.
 
 ## Den bez workeru
 

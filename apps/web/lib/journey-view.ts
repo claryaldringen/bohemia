@@ -4,6 +4,7 @@ import type {
   ExpeditionVisitor,
   GridCell,
   JourneyView,
+  MapWatch,
   PartyView,
   Pos,
   SeenCell,
@@ -29,6 +30,18 @@ export type {
  * (journey.md – Worker); podle toho se mezi dvěma stavy interpoluje.
  */
 export const JOURNEY_PUSH_MS = 1_000;
+
+/**
+ * Co se děje na mapě zobrazené vsi, jak to dostane prohlížeč (`getVillageView`, první pohled
+ * stránky): jen jezdci výprav (`MapWatch.riders` – podle nich se jednou zeptá `useJourneyVisitors`).
+ * `MapWatch.war` se neposílá (návrh Clauda, plán 2026-11-15 – Úloha 5): je pravda už od začátku
+ * cizího tažení proti vsi, takže by síťová odpověď prozradila vojsko dřív, než ho ve vsi kdo spatří
+ * (D62). Válku ve scéně nese událost `war` po mlze války (server-events.md – Válka).
+ */
+export type MapWatchView = Pick<MapWatch, 'riders'>;
+
+/** Na mapě vsi nic (hráč bez vsi). */
+export const MAP_WATCH_QUIET: MapWatchView = { riders: false };
 
 /** Odpověď `GET /api/journey` – pohledy na výpravy hráče (prázdné = žádnou nemá), nebo chyba. */
 export type JourneyResponse = { views: ExpeditionView[] } | { error: string };

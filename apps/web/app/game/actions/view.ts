@@ -1,6 +1,6 @@
 'use server';
 
-import { MAP_QUIET, NOT_PLAYER_VILLAGE, type MapWatch } from '@bohemia/game';
+import { NOT_PLAYER_VILLAGE } from '@bohemia/game';
 import { chooseLanguageForPlayer, gameDeps } from '@/lib/game';
 import {
   NOTICE_BATCH,
@@ -25,6 +25,7 @@ import {
 } from '@/lib/village';
 import { villageIdOf } from '@/lib/village-input';
 import { mapWatchForPlayer } from '@/lib/war-scene';
+import { MAP_WATCH_QUIET, type MapWatchView } from '@/lib/journey-view';
 import { NOT_SIGNED_IN, INVALID_INPUT, playerId } from './_shared';
 
 /** Volba jazyka skupiny před založením vsi (účty přes Google – newcomers.md); chyba česky. */
@@ -50,7 +51,7 @@ export async function chooseLanguageAction(
 export async function getVillageView(
   input: unknown,
 ): Promise<
-  | (WithPlayerNotices<VillageView | VillageUnchanged | VillageNone> & { watch?: MapWatch })
+  | (WithPlayerNotices<VillageView | VillageUnchanged | VillageNone> & { watch?: MapWatchView })
   | null
   | { error: string }
 > {
@@ -70,7 +71,7 @@ export async function getVillageView(
   // válka a jezdci na mapě zobrazené vsi – i u nezměněného pohledu (ten se mění jen s vsí); před
   // vyzvednutím upozornění, ať chyba dotazu žádné nespolkne
   const shown = 'unchanged' in result ? villageIdOf(input) : result.id;
-  const watch = shown === null ? MAP_QUIET : await mapWatchForPlayer(id, shown);
+  const watch = shown === null ? MAP_WATCH_QUIET : await mapWatchForPlayer(id, shown);
   const playerNotices = await gameDeps().notices.takeUnread(id, NOTICE_BATCH);
   return { ...result, playerNotices, watch };
 }

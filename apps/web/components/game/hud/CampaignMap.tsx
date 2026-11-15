@@ -4,6 +4,7 @@ import { useState, type CSSProperties, type MouseEvent, type ReactElement } from
 import type { GroupOrder, LeaderTarget, Pos, SurrenderOrder } from '@bohemia/game';
 import { useCampaign } from '@/hooks/use-campaign';
 import { useArmyActions } from '@/hooks/use-army';
+import { useEventScope } from '@/hooks/use-server-events';
 import type { CampaignView, CampaignViewFlight } from '@/lib/campaign-view';
 import { watchCellOf } from '@/lib/war-scene-view';
 import { Tooltip } from './Tooltip';
@@ -13,7 +14,9 @@ import { Tooltip } from './Tooltip';
 // stavby jako značky. Klik na mapu = velitel jde (záměr na takt teď + 2), klik na cizího = napadne,
 // klik na stavbu = jde k ní. Uprchlíci a poslové cizích vsí v dohledu jsou ikony varování (plán
 // 2026-11-09 – Ú14, Ú15). Tlačítko oka přepne 3D scénu na cizí mapu, na které vojsko stojí,
-// a zpět na ves (war.md – Ve scéně – cizí mapa; `ArmyActions.scene` z kontextu).
+// a zpět na ves (war.md – Ve scéně – cizí mapa; `ArmyActions.scene` z kontextu). Otevřená mapa
+// dá tažení do rozsahu spojení událostí: pohled nese událost `campaign` a server z tepu spojení
+// hlásí přítomnost vůdce (server-events.md – Válka).
 
 /** Odpověď serveru – přijatý pokyn nese takt záměru (`tick`), odmítnutý důvod u kurzoru. */
 type Result = Promise<{ ok: true; tick?: number } | { error: string }>;
@@ -33,7 +36,6 @@ export interface CampaignActions {
   lead: (input: { campaignId: string; target: LeaderTarget }) => Result;
   order: (input: { campaignId: string; group: number; order: GroupOrder; at?: Pos }) => Result;
   surrendered: (input: { campaignId: string; group: number; choice: SurrenderOrder }) => Result;
-  presence: (campaignId: string) => Result;
 }
 
 /** Půl strany mapy (m) – mapa má 128 × 15 m. */
@@ -136,7 +138,8 @@ export function CampaignMap({
   actions: CampaignActions;
   onClose: () => void;
 }): ReactElement {
-  const { view, gone, refresh } = useCampaign(campaignId, actions.presence);
+  useEventScope({ campaignId });
+  const { view, gone, refresh } = useCampaign(campaignId);
   const sceneWatch = useArmyActions()?.scene ?? null;
   const [pending, setPending] = useState<PendingGoal | null>(null);
   const [reason, setReason] = useState<string | null>(null);

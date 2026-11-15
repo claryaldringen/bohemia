@@ -5,7 +5,6 @@ import {
   warSceneFor,
   warSceneOnMap,
   type GridCell,
-  type MapWatch,
   type MarchGrid,
   type OrderBreakoutDeps,
   type WarSceneDefender,
@@ -14,6 +13,7 @@ import {
 import { currentWorld, LruCache } from '@bohemia/server';
 import { campaignCells } from './campaign';
 import { gameDeps, playerToday, villageRightsDeps } from './game';
+import type { MapWatchView } from './journey-view';
 
 // Válka ve scéně vlastní mapy (war.md – Ve scéně – napojení na hru): composition root use-casu
 // `warSceneFor`. Herní logika i mlha války jsou v `packages/game` (`domain/war/scene-view.ts`).
@@ -48,12 +48,17 @@ export function warSceneForPlayer(
 }
 
 /**
- * Válka a jezdci na mapě vsi hráče (D62) – scéna se na válku a jezdce ptá jen tehdy; přichází
- * s dotazem na ves (i nezměněnou) a s prvním pohledem stránky.
+ * Jezdci na mapě vsi hráče (D62) – scéna se na jezdce zeptá jen tehdy; přichází s dotazem na ves
+ * (i nezměněnou) a s prvním pohledem stránky. `MapWatch.war` use-casu se prohlížeči neposílá – je
+ * pravda už od začátku cizího tažení proti vsi a prozradil by vojsko dřív, než ho ve vsi kdo spatří;
+ * válku nese událost `war` po mlze války (`MapWatchView`, návrh Clauda – plán 2026-11-15, Úloha 5).
  */
-export function mapWatchForPlayer(playerId: string, villageId: string): Promise<MapWatch> {
+export async function mapWatchForPlayer(
+  playerId: string,
+  villageId: string,
+): Promise<MapWatchView> {
   const deps = gameDeps();
-  return mapWatchFor(
+  const { riders } = await mapWatchFor(
     {
       settlements: deps.settlements,
       villages: deps.villages,
@@ -62,6 +67,7 @@ export function mapWatchForPlayer(playerId: string, villageId: string): Promise<
     },
     { playerId, villageId },
   );
+  return { riders };
 }
 
 /**

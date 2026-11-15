@@ -9,9 +9,10 @@ import {
 import { sameScope, type ConnectionScope } from './routing';
 
 // Proud jednoho spojení SSE (docs/code/server-events.md – Spojení /api/events; plán 2026-11-15 –
-// Rozhodnutí 6, 7 a 10): `retry`, přidání do rozbočovače, `sync`, tep s přítomností hráče, kontrola
-// session a práv rozsahu. Úklid (rozbočovač, časovače) proběhne jednou – při odpojení, zrušení,
-// chybě zápisu, přetečení fronty, neplatné session, změně rozsahu i zavření rozbočovačem.
+// Rozhodnutí 6, 7 a 10): `retry`, přidání do rozbočovače, `sync`, tep s přítomností hráče (a vůdce
+// u otevřeného tažení), kontrola session a práv rozsahu. Úklid (rozbočovač, časovače) proběhne
+// jednou – při odpojení, zrušení, chybě zápisu, přetečení fronty, neplatné session, změně rozsahu
+// i zavření rozbočovačem.
 
 /** Za jak dlouho se prohlížeč po přerušení připojí sám (`retry:`). */
 export const SSE_RETRY_MS = 3_000;
@@ -29,6 +30,12 @@ export function openEventStream(input: {
   scope: ConnectionScope;
   signal: AbortSignal;
   onHeartbeat(): Promise<void>;
+  /**
+   * Přítomnost vůdce u tažení otevřeného v rozsahu (záměr `presence` – war.md – Velení): při
+   * připojení a v každém tepu, jen s `scope.campaignId`. Odmítnutí (hráč nevede živě) i chyba se
+   * zahodí – nahrazuje maják, který dřív posílal prohlížeč po 20 s.
+   */
+  campaignPresence(campaignId: string): Promise<unknown>;
   sessionValid(): Promise<boolean>;
   /**
    * Rozsah znovu ověřený (`resolveConnectionScope`) – sesazený správce, ztracené sídlo nebo
@@ -74,14 +81,21 @@ export function openEventStream(input: {
     if ((controller.desiredSize ?? 0) < 0) end('error');
   };
 
-  const beat = (): void => {
+  /** Spustí zápis a chybu zahodí – přítomnost je jen nápověda, výpadek databáze ukáže jiný log. */
+  const quietly = (run: () => Promise<unknown>): void => {
     try {
-      input.onHeartbeat().catch(() => {
-        // přítomnost je jen nápověda pro workera – výpadek databáze ukáže jiný log
+      run().catch(() => {
+        // přítomnost je jen nápověda pro workera
       });
     } catch {
       // totéž pro chybu vyhozenou hned
     }
+  };
+
+  const beat = (): void => {
+    quietly(() => input.onHeartbeat());
+    const campaignId = input.scope.campaignId;
+    if (campaignId !== null) quietly(() => input.campaignPresence(campaignId));
   };
 
   /** Session a pak práva rozsahu; neplatné spojení zavře (prohlížeč se připojí s čerstvým). */

@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation';
-import { MAP_QUIET } from '@bohemia/game';
 import type { ReactElement } from 'react';
 import { ServerEventsProvider } from '@/components/game/ServerEventsProvider';
 import { VillageGame } from '@/components/game/VillageGame';
@@ -9,6 +8,7 @@ import { getSession } from '@/lib/session';
 import { villageViewForEntry } from '@/lib/village';
 import { selectedVillageId } from '@/lib/village-cookie';
 import { mapWatchForPlayer } from '@/lib/war-scene';
+import { MAP_WATCH_QUIET } from '@/lib/journey-view';
 import { currentWorld } from '@/lib/world';
 
 export default async function GamePage(): Promise<ReactElement> {
@@ -25,7 +25,7 @@ export default async function GamePage(): Promise<ReactElement> {
   // válka a jezdci na mapě – scéna se na ně ptá jen tehdy (D62)
   const watch =
     entry.villageId === null
-      ? MAP_QUIET
+      ? MAP_WATCH_QUIET
       : await mapWatchForPlayer(session.user.id, entry.villageId);
 
   return (

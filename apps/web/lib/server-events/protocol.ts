@@ -41,8 +41,11 @@ export interface ServerEvents {
   journeys: { views: ExpeditionView[] };
   /** Skupiny výprav na mapě zobrazené vsi – stav rovnou (`GET /api/journey?visitors=`). */
   visitors: { villageId: string; visitors: ExpeditionVisitor[] };
-  /** Pohled na tažení – stav rovnou (`GET /api/campaign/<id>`). */
-  campaign: { campaignId: string; view: CampaignView };
+  /**
+   * Pohled na tažení – stav rovnou (`GET /api/campaign/<id>?since=-1`); null = hráč tažení nezná
+   * (route 404).
+   */
+  campaign: { campaignId: string; view: CampaignView | null };
   /** Válka ve scéně – `key` z `warKeyOfSettlement` / `warKeyOfScene`; null = nic k vidění. */
   war: { key: string; war: WarSceneView | null };
   /** Průběh přeskoku času (vývojový režim); null = žádný neběží. */
@@ -128,4 +131,14 @@ export function warKeyOfSettlement(settlementId: string): string {
 /** Klíč války na cizí mapě ve scéně – tažení a políčko (`ServerEvents['war'].key`). */
 export function warKeyOfScene(campaignId: string, cell: GridCell): string {
   return `scene:${campaignId}@${cell.x},${cell.y}`;
+}
+
+/**
+ * Klíč stavu války ve scéně – `none`, jinak `<tažení>@<takt>`. Stejný klíč = stejný snímek: server
+ * ho spojení znovu nepošle (počítadla `push-war.ts`), scéna se nepřekreslí (`useWarScene`). Tady,
+ * ne v `lib/war-scene-view.ts` (ten ho re-exportuje): rozbočovač by jinak do serveru natáhl
+ * převody pro scénu.
+ */
+export function warSceneKey(war: WarSceneView | null): string {
+  return war === null ? 'none' : `${war.campaignId}@${war.tick}`;
 }

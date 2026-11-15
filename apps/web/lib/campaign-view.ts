@@ -11,7 +11,7 @@ import type {
 } from '@bohemia/game';
 
 // Pohled na tažení pro prohlížeč (war.md – Mlha války; plán 2026-11-03 – Úloha 6.14): typy jsou
-// z jádra (`domain/war/view.ts`), tady jen interpolace mezi dvěma dotazy – scéna i mapa tažení
+// z jádra (`domain/war/view.ts`), tady jen interpolace mezi dvěma stavy – scéna i mapa tažení
 // kreslí polohu mezi posledními dvěma stavy, server je počítá po taktech (4 za sekundu).
 
 export type {
@@ -28,11 +28,12 @@ export type {
 /** Odpověď `GET /api/campaign/[id]` – pohled, nebo chyba (401 bez session, 404 cizí tažení). */
 export type CampaignResponse = { view: CampaignView } | { error: string };
 
-/** Dotaz na tažení 2× za sekundu (plán 2026-11-03 – Úloha 6.14). */
-export const CAMPAIGN_POLL_MS = 500;
-
-/** Jak často otevřené tažení hlásí přítomnost hráče – zástupce převezme po 1 herním dni (≈ 86 s). */
-export const PRESENCE_EVERY_MS = 20_000;
+/**
+ * Nejdelší rozpětí interpolace mezi dvěma pohledy na tažení: body tažení chodí po ≥ 40 taktech
+ * (≈ 10 s, událost `campaign` – server-events.md – Válka), po přestávce dopočtu řidčeji – jako
+ * nejdelší `glideMs` scény (war.md – Ve scéně – Plynulost mezi snímky).
+ */
+export const CAMPAIGN_SPAN_MAX_MS = 15_000;
 
 const lerp = (a: Pos, b: Pos, t: number): Pos => ({
   x: a.x + (b.x - a.x) * t,

@@ -11,7 +11,6 @@ import { type CampaignSummary } from '@/lib/campaign-view';
 import {
   parseGroupOrderInput,
   parseLeaderInput,
-  parsePresenceInput,
   parseSurrenderedInput,
 } from '@/lib/campaign-input';
 import { NOT_SIGNED_IN, INVALID_INPUT, isId, isRecord, playerId } from './_shared';
@@ -95,11 +94,6 @@ export async function setGroupOrder(input: unknown): Promise<CampaignCommandRepl
 /** Volba ke vzdaným `{ campaignId, group, choice }` – pobít / odvést / nechat (war.md – Velení). */
 export async function chooseSurrendered(input: unknown): Promise<CampaignCommandReply> {
   return campaignCommand(input, parseSurrenderedInput);
-}
-
-/** Hráč je u tažení `{ campaignId }` – posílá jen otevřené tažení (bez ní po 1 dni zástupce). */
-export async function presence(input: unknown): Promise<CampaignCommandReply> {
-  return campaignCommand(input, parsePresenceInput);
 }
 
 /**

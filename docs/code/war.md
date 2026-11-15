@@ -1417,7 +1417,8 @@ men, from)` → `{ fort, segment, at, method, hours }` | null. Mezery, průlomy 
     prosekne ji, skupina jde dovnitř a bitvu vyhraje; po kouscích 1 / 7 / 100).
 - **Řízení v boji** – `syncControl`: `controlled` má jen muž, kterého řídí NPC (`npcLeader`), nebo
   při živém vedení velitel tažení; kdo řízení ztratí, zapomene `chosen` a `goal`.
-- **Přítomnost** – záměr `presence` (web pošle z otevřeného tažení – Ú6.14) i každý jiný záměr
+- **Přítomnost** – záměr `presence` (web ho pošle z tepu spojení událostí s otevřeným tažením –
+  Ú6.14, plán 2026-11-15 – Úloha 5; Hráč ve vsi a mimo ni) i každý jiný záměr
   hráče nastaví `presenceTick` a zruší `absent`. `command`: živé vedení bez přítomnosti déle než
   1 herní den (`absentTicks` = 24 h ÷ `hoursPerTick` ≈ 345 taktů) → se zástupcem `absent = true`
   (vede NPC, po návratu hráč převezme), bez zástupce rozpad. Padlý nebo zajatý velitel → živý
@@ -1677,9 +1678,12 @@ alarm.owner.lordId, den)` (`people` ve `WarSceneDefender` z téže mezipaměti);
   > pak ukáže skupiny, bojovníky i průvody a posly bez ohledu na dohled domů, takže vojsko, které ves
   > jen míjí, je s vojvodou doma vidět celé. S vojvodou na výjezdu platí mlha jako dřív.
 - **Web:** route `GET /api/war-scene/<sídlo>` (`lib/war-scene.ts`, `no-store`) → `{ war }`; cizí
-  sídlo i mapa bez války = `{ war: null }`. Klient se ptá jen s `MapWatch.war` (`mapWatchFor` – vlastní
-  tažení nebo cizí tažení proti vsi; D62, web-ui.md – Válka ve scéně). `useWarScene` (web-ui.md – Dotazování na tažení)
-  a `sceneWarOf` (`lib/war-scene-view.ts`) → `LandscapeScene.setWar` v `useWarWatch`. Na vlastní
+  sídlo i mapa bez války = `{ war: null }`. Stav nese událost serveru `war` (klíč
+  `warKeyOfSettlement`, počítá ji týž `warSceneForPlayer` – po mlze války; server-events.md –
+  Válka), dotaz jde jen se scénou, při jiném sídle a po mezeře spojení. `MapWatch.war` se
+  prohlížeči neposílá (návrh Clauda – prozradil by cizí tažení proti vsi dřív, než ho ves spatří;
+  web-ui.md – Válka ve scéně). `useWarScene` (web-ui.md – Dotazování na tažení) a `sceneWarOf`
+  (`lib/war-scene-view.ts`) → `LandscapeScene.setWar` v `useWarWatch`. Na vlastní
   mapě bez závoje mlhy (svou zem hráč zná; cizí mimo dohled server neposlal), padlí do konce dne.
   Útěk `flightOf` – `planFlight` po okrajích lesa, `startMs = msOfTick(startTick)` (null → −∞,
   stojí u lesa), dobytek žene poslední, kdo z vsi vyšel (renderer – `drivenHerd` za ním); stádo
@@ -1715,14 +1719,15 @@ alarm.owner.lordId, den)` (`people` ve `WarSceneDefender` z téže mezipaměti);
     výsledek se nemění. Testy `war-scene.test.ts` (mapa po cestě, shořelý dům v dohledu, vazal, bod
     bez rodu, obránce),
     `war-scene-view.test.ts` (`foreignVillageOf`), e2e `multiplayer-war.spec.ts`.
-- **Plynulost mezi snímky** (scene.md – Vojsko, boj a mlha války): scéna se ptá 2× za sekundu,
-  ale route čte kontrolní bod tažení, který worker uloží po ≥ 40 taktech (10 s) nebo s událostí –
-  snímky tak dělí i desítky taktů. Muži boje i skupiny pochodu (`SceneMarch.tick` = takt pohledu)
+- **Plynulost mezi snímky** (scene.md – Vojsko, boj a mlha války): snímek je uložený kontrolní bod
+  tažení, který worker uloží po ≥ 40 taktech (10 s) nebo s událostí – a ten přijde rovnou
+  (událost `war`, server-events.md – Válka; dřív se scéna ptala 2× za sekundu na týž bod). Snímky
+  tak dělí i desítky taktů. Muži boje i skupiny pochodu (`SceneMarch.tick` = takt pohledu)
   jdou k novému snímku tak dlouho, kolik taktů uběhlo (`glideMs` – při dopočtu po přestávce kratší,
   nejvýš 15 s); rány z vynechaných
   taktů scéna pozná z `cooldown` (`strikeTicks`) a ukáže je, až k nim pohyb dojde. Údery od `since`
   ze serveru ne (návrh Clauda): server zná jen poslední bod – rány mezi body by musel stav boje
-  zapisovat do bodu (stovky ran za 40 taktů v jsonb, čteno 2× za sekundu); rytmus ran určuje jádro
+  zapisovat do bodu (stovky ran za 40 taktů v jsonb); rytmus ran určuje jádro
   (`cooldown`), scéna ho z bodu dopočte sama a zásahy zná ze součtu `hits` / zdraví.
 - **Zatím ne:** lidé cizí vsi mimo boj (útěk útočník nevidí – průvod uprchlíků a posla
   v dohledu ano, Ú14), vozy průvodu uprchlíků, pole a další stavby
@@ -1844,9 +1849,13 @@ mapou, nejvýš jednou za `PRESENCE_NOTE_MS` (10 s, návrh Clauda); volá ho `no
 dotaz na ves, pohled na varování) a hlavně tep spojení událostí `/api/events` – při připojení
 a každých `SSE_HEARTBEAT_MS` (20 s), dokud má hráč hru otevřenou ve viditelném panelu
 (`absentTicks` je 1 herní den ≈ 86 s, tep ho bezpečně drží; server-events.md – Spojení
-`/api/events`). `GET /api/war-scene/<sídlo>` přítomnost zapíše už jen při dotazu (scéna se ptá,
-dokud na mapu míří nebo na ní je vojsko – `MapWatch.war`, web-ui.md – Válka ve scéně), zdrojem
-přítomnosti už není. Přítomnost je po hráči, ne po vsi. Čte ji worker (Odpověď workeru níž).
+`/api/events`). `GET /api/war-scene/<sídlo>` přítomnost nezapisuje (scéna se na válku ptá jen po
+otevření a mezeře, dál ji nese událost `war`). Přítomnost je po hráči, ne po vsi. Čte ji worker
+(Odpověď workeru níž). **Přítomnost vůdce u tažení** (záměr `presence`, Velení) posílá také
+spojení: s tažením v rozsahu (otevřená mapa tažení) při připojení a v každém tepu
+`commandCampaignForPlayer(hráč, tažení, { kind: 'presence' })`, odmítnutí (nevede živě) se
+zahodí – dřívější maják z prohlížeče po 20 s a server action `presence` jsou pryč (server-events.md
+– Válka).
 
 **Vojvoda doma (`war/lord-home.ts`).** `AlarmOwner.lordId` = hráčův muž (`house.lord_person_id`) jen
 u sídelní vsi rodu (`house.lord_village_id`); jiná ves rodu a NPC ves ho nemají. `ownerOf`

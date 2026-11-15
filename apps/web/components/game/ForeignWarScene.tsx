@@ -3,12 +3,14 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import type { WorldClock } from '@bohemia/game';
 import { useArmyActions } from '@/hooks/use-army';
+import { useEventScope } from '@/hooks/use-server-events';
 import { useWarScene } from '@/hooks/use-war-scene';
 import type { CampaignResponse } from '@/lib/campaign-view';
 import { setE2EHook } from '@/lib/e2e-hooks';
 import { seenSceneKey } from '@/lib/journey-scene-view';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
+import { warKeyOfScene } from '@/lib/server-events/protocol';
 import type { SceneVillage } from '@/lib/village-view-scene-types';
 import {
   armyFocusOf,
@@ -25,8 +27,9 @@ import { Tooltip } from './hud/Tooltip';
 
 // Cizí mapa ve scéně (war.md – Ve scéně – cizí mapa; web-ui.md – Cizí mapa ve scéně): útočník
 // sleduje své vojsko ve 3D na mapě, na které stojí. Krajina z `GET /api/campaign/<id>?map=x,y`
-// (veřejná, překážky si prohlížeč vygeneruje ze seedu vrstvy), válka z `?scene=x,y` – po mlze války
-// ze serveru (vojsko celé, obránci v dohledu, z cizí vsi jen objevené domy). Jen pohled: žádné
+// (veřejná, překážky si prohlížeč vygeneruje ze seedu vrstvy), válka z `?scene=x,y` a dál
+// z události `war` cizí mapy v rozsahu spojení (server-events.md – Válka) – po mlze války ze
+// serveru (vojsko celé, obránci v dohledu, z cizí vsi jen objevené domy). Jen pohled: žádné
 // panely ani akce cizí vsi, jen mapa tažení (živé vedení) a návrat na ves. Když vojsko z mapy
 // odejde, scéna jde za ním na mapu, kde stojí (nová krajina, mapu po mapě); když tažení skončí
 // nebo vojsko přijde domů, vrátí se na vlastní ves sama.
@@ -81,7 +84,13 @@ export function ForeignWarScene({
     };
   }, [campaignId, at]);
 
-  const war = useWarScene(`/api/campaign/${campaignId}?scene=${at}`, true);
+  // válku na této mapě nese událost `war` (rozsah spojení `scene`), dotaz jen po otevření a mezeře
+  useEventScope({ scene: { campaignId, cell: { x: cell.x, y: cell.y } } });
+  const war = useWarScene(
+    warKeyOfScene(campaignId, cell),
+    `/api/campaign/${campaignId}?scene=${at}`,
+    true,
+  );
   // vojsko z mapy odešlo: scéna jde za ním na mapu, kde teď stojí (pohled na tažení –
   // `followCellOf`); tažení skončilo, vojsko je doma, nebo ho hráč nezná – zpět na vlastní ves
   const sceneWatch = army?.scene ?? null;

@@ -1728,7 +1728,7 @@ test('ves B varovaná utíká do hradiště pána a po odtažení vojska se vrá
     await notices(b, 'Vesničan spatřil cizí vojsko');
     // Hráč ve vsi a mimo ni (war.md): vojvoda B je doma, ves se proto v taktu varování zeptá, zda
     // je hráč u hry, a worker odpoví záměrem `alarm-presence` v taktu dotazu + 2. B má hru
-    // otevřenou (dotazy scény války zapisují přítomnost), takže rozhoduje sám – ves po odpovědi
+    // otevřenou (tep spojení událostí zapisuje přítomnost), takže rozhoduje sám – ves po odpovědi
     // sama neutíká ani neposílá posla. Lhůta hráče odpadla – worker běží dál, hráče u hry
     // nepřebije ani dlouhé čekání na panel na zatíženém stroji (přítomnost se obnovuje).
     await expect

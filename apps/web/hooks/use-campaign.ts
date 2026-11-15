@@ -2,18 +2,19 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  CAMPAIGN_POLL_MS,
+  CAMPAIGN_SPAN_MAX_MS,
   interpolateCampaign,
-  PRESENCE_EVERY_MS,
   type CampaignResponse,
   type CampaignView,
 } from '@/lib/campaign-view';
-import { usePolling } from './use-polling';
+import { useSerialRefresh, useServerEvent, useServerResync } from './use-server-events';
 
-// Dotazování na tažení (plán 2026-11-03 – Úloha 6.14; web-ui.md – Dotazování na tažení): 2× za
-// sekundu `GET /api/campaign/<id>?since=<takt>`, polohy mezi dvěma stavy se interpolují. Otevřené
-// tažení vůdce hlásí přítomnost (záměr `presence`); zavřená stránka nebo skrytý panel prohlížeče
-// = žádná přítomnost a po 1 herním dni vede zástupce (war.md – Velení: Hráč odejde od tažení).
+// Tažení (plán 2026-11-03 – Úloha 6.14; plán 2026-11-15 – Úloha 5; web-ui.md – Dotazování na
+// tažení): pohled nese událost serveru `campaign` (server-events.md – Válka), polohy mezi dvěma
+// stavy se interpolují. Jeden `GET /api/campaign/<id>?since=-1` jde při otevření, na obnovu po
+// mezeře (`sync`) a na `refresh`. Přítomnost vůdce hlásí server z otevřeného spojení s tažením
+// v rozsahu (`CampaignMap` – `useEventScope`); zavřená stránka nebo skrytý panel = žádné spojení,
+// žádná přítomnost a po 1 herním dni vede zástupce (war.md – Velení: Hráč odejde od tažení).
 
 /** Jak často se překreslí interpolovaný pohled (mapa tažení; scéna si bere `sample` sama). */
 const FRAME_MS = 100;
@@ -23,26 +24,36 @@ export interface CampaignHandle {
   view: CampaignView | null;
   /** Pohled v okamžiku `nowMs` (`performance.now()`) – pro scénu, která kreslí ve své smyčce. */
   sample: (nowMs: number) => CampaignView | null;
-  /** Tažení hráč nezná nebo skončilo (404). */
+  /** Tažení hráč nezná nebo skončilo (404, událost s `view: null`). */
   gone: boolean;
   /** Zeptá se hned (po pokynu hráče). */
   refresh: () => void;
 }
 
-export function useCampaign(
-  campaignId: string | null,
-  presence: ((campaignId: string) => Promise<unknown>) | null,
-): CampaignHandle {
+/** Novější pohled než `last`? Vyšší takt, nebo v témž taktu jiná fáze (jako `since` dřív). */
+function isNewer(last: CampaignView | null, next: CampaignView): boolean {
+  return (
+    last === null || next.tick > last.tick || (next.tick === last.tick && next.phase !== last.phase)
+  );
+}
+
+export function useCampaign(campaignId: string | null): CampaignHandle {
   const prevRef = useRef<CampaignView | null>(null);
   const nextRef = useRef<CampaignView | null>(null);
   const receivedRef = useRef(0);
-  const spanRef = useRef(CAMPAIGN_POLL_MS);
+  const spanRef = useRef(CAMPAIGN_SPAN_MAX_MS);
+  const idRef = useRef(campaignId);
   const [view, setView] = useState<CampaignView | null>(null);
   const [gone, setGone] = useState(false);
+  const on = campaignId !== null && !gone;
+  const onRef = useRef(on);
+  onRef.current = on;
 
   useEffect(() => {
+    idRef.current = campaignId;
     prevRef.current = null;
     nextRef.current = null;
+    receivedRef.current = 0;
     setView(null);
     setGone(false);
   }, [campaignId]);
@@ -54,57 +65,69 @@ export function useCampaign(
     return interpolateCampaign(prevRef.current, next, t);
   }, []);
 
-  const poll = useCallback(async (): Promise<void> => {
+  /** Nový pohled ze serveru (událost, nebo dotaz) – starší nebo týž takt se zahodí. */
+  const apply = useCallback(
+    (incoming: CampaignView): void => {
+      if (!isNewer(nextRef.current, incoming)) return;
+      const now = performance.now();
+      // odtud se jde z místa, kde je kreslený teď, do nového za dobu mezi body (≈ 10 s)
+      prevRef.current = sample(now);
+      spanRef.current = Math.max(
+        FRAME_MS,
+        Math.min(CAMPAIGN_SPAN_MAX_MS, now - receivedRef.current),
+      );
+      receivedRef.current = now;
+      nextRef.current = incoming;
+      setView(sample(now));
+    },
+    [sample],
+  );
+
+  const load = useCallback(async (): Promise<void> => {
     if (campaignId === null) return;
-    const since = nextRef.current?.tick ?? -1;
-    const response = await fetch(`/api/campaign/${campaignId}?since=${since}`, {
-      cache: 'no-store',
-    });
-    const body = (await response.json()) as CampaignResponse;
-    if ('error' in body) {
-      if (response.status === 404) setGone(true);
+    // výpadek sítě nebo vadná odpověď nesmí nic rozbít – stav doplní další událost nebo obnova
+    let status: number;
+    let body: CampaignResponse;
+    try {
+      const response = await fetch(`/api/campaign/${campaignId}?since=-1`, { cache: 'no-store' });
+      status = response.status;
+      body = (await response.json()) as CampaignResponse;
+    } catch (error) {
+      console.warn('Tažení se nepodařilo načíst.', error);
       return;
     }
-    if (!body.view.fresh && nextRef.current !== null) return;
-    const now = performance.now();
-    // nový stav: odtud se jde z místa, kde je kreslený teď, do nového za dobu mezi dotazy
-    prevRef.current = sample(now);
-    spanRef.current = Math.max(
-      FRAME_MS,
-      Math.min(4 * CAMPAIGN_POLL_MS, now - receivedRef.current || CAMPAIGN_POLL_MS),
-    );
-    receivedRef.current = now;
-    nextRef.current = body.view;
-    setView(sample(now));
-  }, [campaignId, sample]);
+    // odpověď k jinému tažení (hráč mezitím přepnul) se zahodí
+    if (idRef.current !== campaignId) return;
+    if ('error' in body) {
+      if (status === 404) setGone(true);
+      return;
+    }
+    apply(body.view);
+  }, [campaignId, apply]);
 
-  const enabled = campaignId !== null && !gone;
-  const refresh = usePolling(poll, () => CAMPAIGN_POLL_MS, enabled);
-
-  // plynulý pohyb mezi dotazy
+  const ask = useSerialRefresh(load, 'Tažení se nepodařilo načíst.');
+  const refresh = useCallback((): void => {
+    if (onRef.current) ask();
+  }, [ask]);
   useEffect(() => {
-    if (!enabled) return;
+    if (campaignId !== null) ask();
+  }, [campaignId, ask]);
+  // událost platí vždy, když sedí tažení – server ji posílá jen spojení s tímto tažením v rozsahu
+  useServerEvent('campaign', (event) => {
+    if (event.campaignId !== idRef.current) return;
+    if (event.view === null) setGone(true);
+    else apply(event.view);
+  });
+  useServerResync(refresh);
+
+  // plynulý pohyb mezi body
+  useEffect(() => {
+    if (!on) return;
     const timer = setInterval(() => {
       if (nextRef.current !== null) setView(sample(performance.now()));
     }, FRAME_MS);
     return () => clearInterval(timer);
-  }, [enabled, sample]);
-
-  // přítomnost: jen vůdce, jen otevřené tažení a jen viditelný panel prohlížeče
-  const leader = view?.leader === true && view.phase !== 'done' && view.phase !== 'disbanded';
-  useEffect(() => {
-    if (!enabled || !leader || presence === null || campaignId === null) return;
-    const send = (): void => {
-      if (document.visibilityState === 'visible') void presence(campaignId).catch(() => {});
-    };
-    send();
-    const timer = setInterval(send, PRESENCE_EVERY_MS);
-    document.addEventListener('visibilitychange', send);
-    return () => {
-      clearInterval(timer);
-      document.removeEventListener('visibilitychange', send);
-    };
-  }, [enabled, leader, presence, campaignId]);
+  }, [on, sample]);
 
   return { view, sample, gone, refresh };
 }

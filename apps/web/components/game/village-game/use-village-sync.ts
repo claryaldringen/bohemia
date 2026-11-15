@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import type { Landscape, MapWatch, PlayerNotice, WorldClock } from '@bohemia/game';
+import type { Landscape, PlayerNotice, WorldClock } from '@bohemia/game';
 import { getVillageView } from '@/app/game/actions';
 import {
   useEventScope,
@@ -27,6 +27,7 @@ import { DAY_CHECK_GRACE_MS, nextDayCheckMs } from '@/lib/village-day-check';
 import { villageEventIsNews } from '@/lib/village-events';
 import { newNotices } from '@/lib/village-notices';
 import type { VillageView } from '@/lib/village-view';
+import type { MapWatchView } from '@/lib/journey-view';
 import type { NoticeLine } from '../hud/NoticeLines';
 import {
   CONNECTION_FAILED,
@@ -51,8 +52,8 @@ export interface VillageSync {
   runBuildAction: (action: () => Promise<ActionResult>) => Promise<void>;
   /** Zeptá se na ves hned (i s upozorněními) – např. po návratu vojvody z výjezdu. */
   refresh: () => void;
-  /** Válka nebo jezdci na mapě vsi – jen tehdy se scéna ptá na válku a jezdce (D62). */
-  watch: MapWatch;
+  /** Jezdci na mapě vsi – jen tehdy se scéna na jezdce zeptá (D62; válku nese událost `war`). */
+  watch: MapWatchView;
 }
 
 /** Odložená obnova, která platí vždy (upozornění, obnova po mezeře, hlídač dne, `refresh`). */
@@ -78,8 +79,8 @@ export function useVillageSync({
   initialWatch,
 }: {
   initialVillage: VillageData;
-  /** Válka a jezdci na mapě při načtení stránky (`mapWatchForPlayer`). */
-  initialWatch: MapWatch;
+  /** Jezdci na mapě při načtení stránky (`mapWatchForPlayer`). */
+  initialWatch: MapWatchView;
   landscape: LandscapeTransfer;
   decoded: Landscape;
   settlementId: string;
@@ -91,8 +92,8 @@ export function useVillageSync({
   // pohled v hlavním vlákně (jednou při načtení stránky)
   const [first] = useState(() => firstVillage(initialVillage, decoded));
   const [village, setVillage] = useState<VillageData>(first.village);
-  // Děje se na mapě vsi něco, na co se scéna ptá zvlášť (válka, jezdci)? Řekne dotaz na ves (D62).
-  const [watch, setWatch] = useState<MapWatch>(initialWatch);
+  // Jsou na mapě vsi jezdci, na které se scéna ptá zvlášť? Řekne dotaz na ves (D62).
+  const [watch, setWatch] = useState<MapWatchView>(initialWatch);
   const view = isVillageView(village) ? village : null;
   const villageError = village !== null && 'error' in village ? village.error : null;
   const gameOver = view?.gameOver === true;
@@ -203,10 +204,10 @@ export function useVillageSync({
     });
     // Server upozornění už označil za přečtená – ukázat i z odpovědi, která se jinak zahodí.
     if (result !== null && 'playerNotices' in result) playerNotices.current(result.playerNotices);
-    // co se děje na mapě vsi (válka, jezdci) – i z nezměněného pohledu (D62)
+    // jezdci na mapě vsi – i z nezměněného pohledu (D62)
     if (result !== null && 'watch' in result && result.watch) {
       const fresh = result.watch;
-      setWatch((old) => (old.war === fresh.war && old.riders === fresh.riders ? old : fresh));
+      setWatch((old) => (old.riders === fresh.riders ? old : fresh));
     }
     if (busyRef.current || seq < appliedSeq.current) return;
     appliedSeq.current = seq;

@@ -1092,14 +1092,17 @@ se vykreslí i v testech bez serveru.
   mapě z pohledu útočníka – `warSceneOnMapForPlayer`, cizí tažení i mapa bez vojska = `null`).
   Cizí i neexistující tažení = stejná 404. Route Handler, ne server
   action – server actions jednoho klienta jdou za sebou a dotaz by čekal za pokynem.
-- **`useCampaign(id, presence)`**: dotaz 2× za sekundu (`CAMPAIGN_POLL_MS`, `usePolling` – ve
-  skrytém panelu prohlížeče stojí), polohy mezi dvěma stavy interpoluje `interpolateCampaign`
-  (`lib/campaign-view.ts` – typy z jádra pro scénu); `view` se překreslí po 100 ms, scéna si bere
-  `sample(performance.now())`. Vůdce otevřeného tažení posílá `presence` hned a pak po 20 s
-  (`PRESENCE_EVERY_MS`) jen při viditelném panelu – zavřená stránka = žádná přítomnost.
+- **`useCampaign(id)`** (plán 2026-11-15 – Úloha 5; server-events.md – Válka): pohled nese událost
+  serveru `campaign`, jeden `GET /api/campaign/<id>?since=-1` jde při otevření, na obnovu po mezeře
+  (`sync`) a na `refresh` (po pokynu) – bez dotazování; starší nebo týž takt se zahodí. Polohy mezi
+  dvěma stavy interpoluje `interpolateCampaign` (`lib/campaign-view.ts` – typy z jádra pro scénu)
+  po dobu mezi body, nejvýš `CAMPAIGN_SPAN_MAX_MS` (15 s); `view` se překreslí po 100 ms, scéna si
+  bere `sample(performance.now())`. `CampaignMap` dá tažení do rozsahu spojení událostí
+  (`useEventScope({ campaignId })`) – přítomnost vůdce pak hlásí server z tepu spojení (záměr
+  `presence` při připojení a po 20 s); skrytý panel prohlížeče spojení nemá = žádná přítomnost.
 - **Server actions** (`app/game/actions.ts`, vstup `lib/campaign-input.ts`, composition root
   `lib/campaign.ts`): `getMyCampaigns`, `commandLeader` (`{ campaignId, target }`), `setGroupOrder`,
-  `chooseSurrendered`, `presence`; přijatý pokyn `{ ok: true, tick }` (takt záměru), odmítnutí
+  `chooseSurrendered`; přijatý pokyn `{ ok: true, tick }` (takt záměru), odmítnutí
   „Rozkaz nelze dát.“ (nic neprozradí) – kromě místa, kam skupina velitele nedojde vůbec
   (`commandCampaign` → `unreachable`): „Tam vojsko nedojde.“ (war.md – Pohyb – Cíl v neprůchodné
   buňce).
@@ -1116,23 +1119,24 @@ se vykreslí i v testech bez serveru.
   vlastních mužů: políčko, poloha, lidí, kusů, posel na koni); ikonu na `CampaignMap` doplní práce
   na rozhraní (ikony Ú13).
 
-- **Válka ve scéně** (`hooks/use-war-scene.ts`, war.md – Ve scéně – napojení na hru):
-  `useWarScene(url, enabled)` – vlastní mapa `GET /api/war-scene/<sídlo>`, cizí mapa
-  `GET /api/campaign/<id>?scene=x,y`; po otevření (a po zapnutí) hned, při válce na mapě 2× za
-  sekundu (`WAR_SCENE_POLL_MS`), jinak po 5 s (`WAR_SCENE_IDLE_MS`); nový stav jen s novým taktem.
-  `undefined` = server ještě neodpověděl, `null` = na mapě nic. **Vlastní mapa jen, když na ni
-  míří nebo na ní je vojsko** (D62, Martin 15. 11. 2026: „klient nemůže pollovat server každou
-  půlvteřinu kvůli válce, která teď ani nemůže nastat“): `useWarWatch` ho zapne podle
-  `MapWatch.war`, jinak se na válku vůbec neptá. `MapWatch` (`mapWatchFor` v
-  `application/war-scene.ts`, web `mapWatchForPlayer`) – `war`: hráč má tažení (`activeOf`), nebo
-  běží cizí tažení proti vsi, s jejím varováním či s uprchlíky v ní (`activeAlarming`); `riders`:
-  na mapě stojí skupina výpravy (`JourneyRepository.onCell`) – podle něj se zapne
-  `useJourneyVisitors` (journey.md). Levné (otisk vsi, sídlo, seznamy id – bez stavů); přijde
-  s prvním pohledem stránky (`initialWatch`) a s každou odpovědí dotazu na ves (`watch` vedle
-  `playerNotices`, i u `unchanged`), po vyslání vojska se `useWarWatch` na ves zeptá hned
-  (výprava – `onCommanded` jako dřív). Zjištění D62: Vlkov válku neměl (v DB `bohemia` žádná
-  válka ani tažení), server vracel `{ war: null }` a klient se ptal po 5 s – po ½ s se ptal jen
-  na jezdce při výjezdech vojvody (dnes jezdce nese událost `visitors`). Test `use-war-scene.behavior.test.tsx`.
+- **Válka ve scéně** (`hooks/use-war-scene.ts`, war.md – Ve scéně – napojení na hru; plán
+  2026-11-15 – Úloha 5, server-events.md – Válka): `useWarScene(key, url, enabled)` – stav nese
+  událost serveru `war` s klíčem mapy (vlastní `warKeyOfSettlement(sídlo)`, cizí
+  `warKeyOfScene(tažení, políčko)`), po mlze války. Jeden dotaz na `url` (vlastní mapa
+  `GET /api/war-scene/<sídlo>`, cizí `GET /api/campaign/<id>?scene=x,y`) jde při zapnutí, změně
+  klíče a na `sync`; `enabled` řídí jen dotaz, událost svého klíče platí vždy. Nový stav jen
+  s novým taktem nebo jiným tažením (`warSceneKey`); odpověď dotazu, během kterého přišla událost,
+  se zahodí. `undefined` = ještě nic nepřišlo, `null` = na mapě nic. Dotazování po ½ s a po 5 s
+  (D62, Martin 15. 11. 2026: „klient nemůže pollovat server každou půlvteřinu kvůli válce, která
+  teď ani nemůže nastat“) je pryč. `useWarWatch` dotaz zapne se scénou a bez konce hry.
+  **`MapWatch.war` se prohlížeči neposílá** (návrh Clauda): byl pravda už od začátku cizího tažení
+  proti vsi (`activeAlarming`) a síťová odpověď by vojsko prozradila dřív, než ho ve vsi kdo
+  spatří. Prohlížeč dostane `MapWatchView` (`lib/journey-view.ts`) – jen `riders`: na mapě stojí
+  skupina výpravy (`JourneyRepository.onCell`) – podle něj se zapne `useJourneyVisitors`
+  (journey.md). Levné (otisk vsi, sídlo, seznamy id – bez stavů); přijde s prvním pohledem
+  stránky (`initialWatch`) a s každou odpovědí dotazu na ves (`watch` vedle `playerNotices`, i
+  u `unchanged`); `mapWatchForPlayer` z výsledku use-casu `mapWatchFor` vezme jen `riders`.
+  Testy `use-war-scene.behavior.test.tsx`, `use-campaign.behavior.test.tsx`.
 
 ## Výjezd vojvody a výpravy – akce, cesta API a dotazování (plán 2026-11-13 – Úloha 7)
 
@@ -1152,7 +1156,8 @@ na které stojí.
   tlačítko chybí): `VillageGame` při `watching` vrátí místo hry jen `ForeignWarScene` – scéna a rozhraní
   vsi se odpojí (dvě scény Babylonu naráz ne – návrh Clauda), návrat ji načte znovu.
 - **`ForeignWarScene`** (`foreign-scene`, `data-cell`): krajina z `?map=x,y` (404 = zpět) do
-  `GameView`, válka z `useWarScene(…?scene=x,y)` → `sceneWarOf(war, world, true)` – se závojem
+  `GameView`, válka z `useWarScene(warKeyOfScene(…), …?scene=x,y)` (rozsah spojení
+  `useEventScope({ scene })` – dál ji nese událost `war`) → `sceneWarOf(war, world, true)` – se závojem
   mlhy strany hráče; objevené domy `foreignVillageOf` → `setVillage` (jen stojící domy, bez lidí,
   polí a všeho dalšího; přestaví se jen novým objevem; co rod zná – níž). Kamera poprvé na vojsko (`armyFocusOf`,
   R se k němu vrací). Rozhraní: ⌂ zpět na ves (`foreign-back`), ⚔ mapa tažení (`CampaignMap` –

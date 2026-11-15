@@ -1,14 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
-import {
-  MAP_QUIET,
-  shiftWorldClock,
-  type GridCell,
-  type MapWatch,
-  type PlayerNotice,
-  type WorldClock,
-} from '@bohemia/game';
+import { shiftWorldClock, type GridCell, type PlayerNotice, type WorldClock } from '@bohemia/game';
 import { ArmyActionsContext } from '@/hooks/use-army';
 import { PanelOptionsContext } from '@/hooks/use-panel-options';
 import { usePlacement } from '@/hooks/use-placement';
@@ -16,6 +9,7 @@ import { fortVariantsBlocked } from '@/lib/build-items';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import { selectionDetails } from '@/lib/selection-details';
+import { MAP_WATCH_QUIET, type MapWatchView } from '@/lib/journey-view';
 import { ForeignJourneyScene } from './ForeignJourneyScene';
 import { KnownMapContext } from './hud/KnownMapEye';
 import { ForeignWarScene } from './ForeignWarScene';
@@ -103,7 +97,7 @@ export function VillageGame({
   initialNowMs,
   languageChoice = false,
   homeCell = null,
-  initialWatch = MAP_QUIET,
+  initialWatch = MAP_WATCH_QUIET,
 }: {
   landscape: LandscapeTransfer;
   /** Seed krajiny sídla – podle něj hra navrhne jméno vsi. */
@@ -125,8 +119,8 @@ export function VillageGame({
   languageChoice?: boolean;
   /** Políčko sídla v mřížce světa (null – odříznuté) – vojsko na něm ukazuje scéna vsi sama. */
   homeCell?: GridCell | null;
-  /** Válka a jezdci na mapě při načtení (`mapWatchForPlayer`) – dál je hlásí dotaz na ves (D62). */
-  initialWatch?: MapWatch;
+  /** Jezdci na mapě při načtení (`mapWatchForPlayer`) – dál je hlásí dotaz na ves (D62). */
+  initialWatch?: MapWatchView;
 }): ReactElement {
   const decoded = useMemo(() => decodeLandscape(landscape), [landscape]);
   const [scene, setScene] = useState<LandscapeScene | null>(null);
@@ -195,7 +189,6 @@ export function VillageGame({
     world,
     homeCell,
     villageId: view?.id ?? null,
-    watchWar: watch.war,
     refreshVillage,
   });
   // Po konci hry je přes všechno obrazovka porážky – nabídka se neukáže.

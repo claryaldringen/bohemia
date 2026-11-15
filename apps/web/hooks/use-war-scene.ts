@@ -1,51 +1,79 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  WAR_SCENE_IDLE_MS,
-  WAR_SCENE_POLL_MS,
-  type WarSceneResponse,
-  type WarSceneView,
-} from '@/lib/war-scene-view';
-import { usePolling } from './use-polling';
+import { warSceneKey, type WarSceneResponse, type WarSceneView } from '@/lib/war-scene-view';
+import { useSerialRefresh, useServerEvent, useServerResync } from './use-server-events';
 
-// Válka ve scéně (war.md – Ve scéně – napojení na hru; web-ui.md – Dotazování na válku ve scéně):
-// vlastní mapa `GET /api/war-scene/<sídlo>`, cizí mapa `GET /api/campaign/<id>?scene=x,y` – při
-// válce na mapě 2× za sekundu, jinak po 5 s; vlastní mapa jen, když dotaz na ves hlásí válku na mapě
-// (`MapWatch.war`, D62 – `enabled`), jinak vůbec. Nový stav jen při novém taktu nebo jiném tažení
-// (scéna se zbytečně nepřekresluje).
+// Válka ve scéně (war.md – Ve scéně – napojení na hru; web-ui.md – Válka ve scéně): stav nese
+// událost serveru `war` s klíčem mapy (`warKeyOfSettlement` / `warKeyOfScene`, server-events.md –
+// Válka) – po mlze války, jen když hráč smí vidět. Jeden dotaz na `url` (vlastní mapa
+// `GET /api/war-scene/<sídlo>`, cizí `GET /api/campaign/<id>?scene=x,y`) jde při zapnutí, změně
+// klíče a na obnovu po mezeře (`sync`); `enabled` řídí jen dotaz, událost svého klíče platí vždy.
+// Nový stav jen při novém taktu nebo jiném tažení (scéna se zbytečně nepřekresluje).
 
 /**
- * Válka na mapě z dotazu `url`: undefined – server ještě neodpověděl, null – na mapě nic není.
- * Vypnuté dotazování = null.
+ * Válka na mapě s klíčem `key`: undefined – ještě nic nepřišlo, null – na mapě nic není.
  */
-export function useWarScene(url: string, enabled: boolean): WarSceneView | null | undefined {
+export function useWarScene(
+  key: string,
+  url: string,
+  enabled: boolean,
+): WarSceneView | null | undefined {
   const [war, setWar] = useState<WarSceneView | null | undefined>(undefined);
   const lastRef = useRef<WarSceneView | null | undefined>(undefined);
+  const keyRef = useRef(key);
+  /**
+   * Počet událostí tohoto klíče – odpověď dotazu, během kterého přišla událost, se zahodí:
+   * událost je stejně čerstvá nebo novější a cokoli novějšího server pošle sám.
+   */
+  const eventsRef = useRef(0);
+  const onRef = useRef(enabled);
+  onRef.current = enabled;
 
-  // jiná mapa nebo vypnuté dotazování – po zapnutí se zeptá hned (ne až po 5 s)
+  // jiná mapa – stav se zahodí; přepnutí `enabled` ho nemění (událost platí vždy)
   useEffect(() => {
+    keyRef.current = key;
     lastRef.current = undefined;
     setWar(undefined);
-  }, [url, enabled]);
+  }, [key]);
 
-  const poll = useCallback(async (): Promise<void> => {
-    const response = await fetch(url, { cache: 'no-store' });
-    const body = (await response.json()) as WarSceneResponse;
-    if ('error' in body) return;
+  const apply = useCallback((next: WarSceneView | null): void => {
     const last = lastRef.current;
-    const next = body.war;
-    if (last === next) return;
-    if (last && next && last.campaignId === next.campaignId && last.tick === next.tick) return;
+    if (last !== undefined && warSceneKey(last) === warSceneKey(next)) return;
     lastRef.current = next;
     setWar(next);
-  }, [url]);
+  }, []);
 
-  const delay = useCallback(
-    // poprvé hned po otevření mapy, pak podle toho, jestli je na mapě válka
-    (): number => (lastRef.current !== null ? WAR_SCENE_POLL_MS : WAR_SCENE_IDLE_MS),
-    [],
-  );
-  usePolling(poll, delay, enabled);
-  return enabled ? war : null;
+  const load = useCallback(async (): Promise<void> => {
+    const seen = eventsRef.current;
+    // výpadek sítě nebo vadná odpověď nesmí nic rozbít – stav doplní další událost nebo obnova
+    let body: WarSceneResponse;
+    try {
+      const response = await fetch(url, { cache: 'no-store' });
+      body = (await response.json()) as WarSceneResponse;
+    } catch (error) {
+      console.warn('Válku ve scéně se nepodařilo načíst.', error);
+      return;
+    }
+    if ('error' in body || !('war' in body)) return;
+    // jiná mapa (hráč mezitím přepnul), nebo mezitím přišla událost – ta má přednost
+    if (keyRef.current !== key || eventsRef.current !== seen) return;
+    apply(body.war);
+  }, [key, url, apply]);
+
+  const ask = useSerialRefresh(load, 'Válku ve scéně se nepodařilo načíst.');
+  const refresh = useCallback((): void => {
+    if (onRef.current) ask();
+  }, [ask]);
+  useEffect(() => {
+    if (enabled) ask();
+  }, [enabled, key, ask]);
+  // událost platí vždy, když sedí klíč – server ji posílá jen spojením, která smí válku vidět
+  useServerEvent('war', (event) => {
+    if (event.key !== keyRef.current) return;
+    eventsRef.current++;
+    apply(event.war);
+  });
+  useServerResync(refresh);
+  return war;
 }

@@ -44,6 +44,8 @@ function open(
   sink: () => Sink | null;
   reader: ReadableStreamDefaultReader<Uint8Array>;
   heartbeats: () => number;
+  /** Tažení, u kterých tep hlásil přítomnost vůdce (záměr `presence`), v pořadí volání. */
+  presences: () => string[];
   abort: () => void;
 } {
   const scope = options.scope ?? SCOPE;
@@ -56,12 +58,16 @@ function open(
   };
   const controller = new AbortController();
   let heartbeats = 0;
+  const presences: string[] = [];
   const stream = openEventStream({
     hub,
     scope,
     signal: controller.signal,
     onHeartbeat: async () => {
       heartbeats++;
+    },
+    campaignPresence: async (campaignId) => {
+      presences.push(campaignId);
     },
     sessionValid: options.sessionValid ?? (async () => true),
     // bez změny práv vrací týž rozsah
@@ -72,6 +78,7 @@ function open(
     sink: () => added,
     reader: stream.getReader(),
     heartbeats: () => heartbeats,
+    presences: () => [...presences],
     abort: () => controller.abort(),
   };
 }
@@ -121,6 +128,38 @@ describe('proud událostí /api/events', () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(await readText(reader, ': ping\n\n'.length)).toBe(': ping\n\n');
     expect(heartbeats()).toBe(2);
+  });
+
+  it('rozsah s tažením hlásí přítomnost vůdce při připojení a po 20 s, bez tažení ne', async () => {
+    const withCampaign = open({ scope: { ...SCOPE, campaignId: 'c1' } });
+    const without = open();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(withCampaign.presences()).toEqual(['c1']);
+    expect(without.presences()).toEqual([]);
+    await vi.advanceTimersByTimeAsync(SSE_HEARTBEAT_MS);
+    expect(withCampaign.presences()).toEqual(['c1', 'c1']);
+    expect(without.presences()).toEqual([]);
+    // po odpojení už nic
+    withCampaign.abort();
+    await vi.advanceTimersByTimeAsync(SSE_HEARTBEAT_MS);
+    expect(withCampaign.presences()).toEqual(['c1', 'c1']);
+  });
+
+  it('chyba přítomnosti u tažení spojení neukončí', async () => {
+    const hub = createHub({ computers: {}, coalesceMs: 50, log: () => {} });
+    const stream = openEventStream({
+      hub,
+      scope: { ...SCOPE, campaignId: 'c1' },
+      signal: new AbortController().signal,
+      onHeartbeat: async () => undefined,
+      campaignPresence: () => Promise.reject(new Error('databáze spí')),
+      sessionValid: async () => true,
+      rescope: async () => ({ ...SCOPE, campaignId: 'c1' }),
+    });
+    const reader = stream.getReader();
+    await vi.advanceTimersByTimeAsync(SSE_HEARTBEAT_MS);
+    expect(hub.size()).toBe(1);
+    await reader.cancel();
   });
 
   it('neplatná session po 5 min proud zavře a rozbočovač spojení zapomene', async () => {
