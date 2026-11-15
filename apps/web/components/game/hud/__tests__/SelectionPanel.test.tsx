@@ -1365,6 +1365,19 @@ describe('SelectionPanel – křižovatka (paths.md – Křižovatky)', () => {
     expect(html).toContain('Vztyčený kámen');
   });
 
+  it('nadpis s významným místem u křižovatky (D72): „Rozcestí u kovárny“', () => {
+    const html = render({
+      kind: 'junction',
+      id: 3,
+      shape: 'y',
+      roads: 3,
+      landmark: 'post',
+      ageYears: 1,
+      place: 'u kovárny',
+    });
+    expect(html).toContain('>Rozcestí u kovárny</h2>');
+  });
+
   it('Y se stromem a kůlem má vlastní ikonu a znamení', () => {
     const y = render({
       kind: 'junction',

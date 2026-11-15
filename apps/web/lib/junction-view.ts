@@ -1,7 +1,15 @@
 // Křižovatky v pohledu na ves (docs/design/paths.md – Křižovatky; Martin, #6: „Křižovatka:
 // samostatný objekt, který jde označit“): údaje pro panel výběru – tvar, počet cest, znamení
 // a stáří. Žádná nová pravidla, jen čtení z `VillageRoads.junctions`. Čistý modul.
-import type { JunctionLandmarkKind, JunctionShape, VillageState } from '@bohemia/game';
+import {
+  junctionLandmark,
+  roadEndsNetwork,
+  type JunctionLandmarkKind,
+  type JunctionShape,
+  type Landscape,
+  type VillageState,
+} from '@bohemia/game';
+import { landmarkPhrase } from './village-view-chronicle';
 
 const DAYS_PER_YEAR = 365;
 
@@ -17,24 +25,40 @@ export interface VillageJunction {
   landmark: JunctionLandmarkKind;
   /** Stáří v celých letech od vzniku. */
   ageYears: number;
+  /** Významné místo u ní (D66, `junctionLandmark`): „u kovárny“, „severně od vsi“ – nadpis panelu. */
+  place?: string;
 }
 
 /** Křižovatky pro panel výběru v den `day`. */
-export function junctionViews(state: VillageState, day: number): VillageJunction[] {
-  return (state.roads?.junctions ?? []).map((j) => ({
-    id: j.id,
-    shape: j.shape,
-    roads: j.arms.filter((a) => a !== null).length,
-    landmark: j.landmark.kind,
-    ageYears: Math.max(0, Math.floor((day - j.bornDay) / DAYS_PER_YEAR)),
-  }));
+export function junctionViews(
+  state: VillageState,
+  day: number,
+  landscape?: Landscape,
+): VillageJunction[] {
+  const junctions = state.roads?.junctions ?? [];
+  // krajina jen pro výšku místa („pod“ / „nad“) – stejně jako u konců cesty (D66)
+  const terrain =
+    junctions.length > 0 && landscape ? roadEndsNetwork(state, landscape).terrain : null;
+  return junctions.map((j) => {
+    const near = junctionLandmark(state, j, terrain);
+    const place = near ? landmarkPhrase(near, state.seed) : null;
+    return {
+      id: j.id,
+      shape: j.shape,
+      roads: j.arms.filter((a) => a !== null).length,
+      landmark: j.landmark.kind,
+      ageYears: Math.max(0, Math.floor((day - j.bornDay) / DAYS_PER_YEAR)),
+      ...(place ? { place } : {}),
+    };
+  });
 }
 
 /** Pole pohledu na ves s křižovatkami (chybí, když žádná není). */
 export function junctionsField(
   state: VillageState,
   day: number,
+  landscape?: Landscape,
 ): { junctions?: VillageJunction[] } {
-  const junctions = junctionViews(state, day);
+  const junctions = junctionViews(state, day, landscape);
   return junctions.length > 0 ? { junctions } : {};
 }
