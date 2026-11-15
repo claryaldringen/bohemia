@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { panelOptionsOf, parsePanelAsk } from '../panel-options';
 import {
+  QUARRY_NO_ROCKS,
   currentLord,
   CART_JOBS,
   ROAD_TREE_ID_BASE,
@@ -715,13 +716,14 @@ describe('buildVillageView', () => {
         blocked: null,
         affordable: true,
       },
+      // krajina testu nemá skalní výchoz – lom zašedlý (fortifications.md – Lom jako plocha u skal)
       quarry: {
         laborManDays: 20,
         perHa: false,
         perSquare: false,
         upfront: [],
-        blocked: null,
-        affordable: true,
+        blocked: QUARRY_NO_ROCKS,
+        affordable: false,
       },
     });
     // zakladatelé bydlí na staveništi – domácnost s obydlím přibude s dostavěním zemnice

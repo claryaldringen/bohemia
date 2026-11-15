@@ -49,7 +49,7 @@ import { checkFortificationPlacement } from '../../placement/placement-fortifica
 import { placementVillageOf } from '../../placement/placement-village';
 import { DEMOLITION } from '../../rules/rules-buildings';
 import { FORTIFICATIONS } from '../../rules/rules-fortifications';
-import { nearestQuarry, quarryManDaysPerM3 } from './quarry';
+import { nearestQuarry, quarryManDaysPerM3, quarryRockM } from './quarry';
 import { stoneOnHand, takeStone } from './stone';
 import type {
   ChronicleEvent,
@@ -247,8 +247,11 @@ export interface FortStonePlan {
   /** Lámání a nošení kamene z lomu (čd). */
   quarryManDays: number;
   missing: number;
-  /** Lom, ze kterého se láme, a jeho vzdušná vzdálenost (m); bez lámání chybí. */
-  quarry?: { outcropId: number; distanceM: number };
+  /**
+   * Lom, ze kterého se láme, jeho vzdušná vzdálenost (m) a nošení bloků od výchozu na plochu lomu
+   * u skal (`rockM`, m; lom na výchozu ho nemá); bez lámání chybí.
+   */
+  quarry?: { outcropId: number; distanceM: number; rockM?: number };
 }
 
 /**
@@ -268,12 +271,17 @@ export function fortStonePlan(
   if (rest <= EPSILON) return { fromPile, quarried: 0, quarryManDays: 0, missing: 0 };
   const quarry = nearestQuarry(state, at);
   if (!quarry) return { fromPile, quarried: 0, quarryManDays: 0, missing: rest };
+  const rockM = quarryRockM(quarry.quarry);
   return {
     fromPile,
     quarried: rest,
-    quarryManDays: rest * quarryManDaysPerM3(quarry.distanceM),
+    quarryManDays: rest * quarryManDaysPerM3(quarry.distanceM, rockM),
     missing: 0,
-    quarry: { outcropId: quarry.quarry.outcropId, distanceM: quarry.distanceM },
+    quarry: {
+      outcropId: quarry.quarry.outcropId,
+      distanceM: quarry.distanceM,
+      ...(rockM !== undefined ? { rockM } : {}),
+    },
   };
 }
 
@@ -373,6 +381,7 @@ export function pushWork(
             m3: stone.quarried,
             distanceM: stone.quarry.distanceM,
             at: { x: input.center.x, z: input.center.z },
+            ...(stone.quarry.rockM !== undefined ? { rockM: stone.quarry.rockM } : {}),
           },
         }
       : {}),

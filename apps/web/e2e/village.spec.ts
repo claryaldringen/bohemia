@@ -13,6 +13,8 @@ import {
   foundField,
   fieldPartsFromCells,
   generateLandscapeAttempt,
+  hasOutcrop,
+  obstaclesOf,
   orchardPartsFromCells,
   penSquaresFromCells,
   placementVillageOf,
@@ -157,7 +159,8 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   await expect(grid.getByRole('button')).toHaveCount(14);
   // Obydlí ani dílny lidi k osídlení nechtějí (demolition.md) – stavba stojí jen dřevo a stromy
   // krajina má. Hřbitov, sad, modla, svatyně ani ohrada lidi nechtějí taky. Lom je v nabídce
-  // vždy (fortifications.md – Kámen; bez dřeva předem) – že jde jen na skalní výchoz, řekne kurzor.
+  // vždy (fortifications.md – Kámen; bez dřeva předem) – jde jen u skal, a když krajina skalní
+  // výchoz nemá, je zašedlý (Lom jako plocha u skal); kam přesně, řekne kurzor.
   // obydlí jsou jedno políčko – rozcestník druhů; vypletený dům až od roku 750, nadzemní dům až od
   // roku 800 (log-house.md – Dům s vypletenými stěnami, Dům)
   await expect(await dwellingVariant(page, 'Zemnice')).toBeEnabled();
@@ -174,7 +177,9 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   await expect(grid.getByRole('button', { name: 'Modla' })).toBeEnabled();
   await expect(grid.getByRole('button', { name: 'Svatyně' })).toBeEnabled();
   await expect(grid.getByRole('button', { name: 'Ohrada' })).toBeEnabled();
-  await expect(grid.getByRole('button', { name: 'Lom' })).toBeEnabled();
+  const quarryButton = grid.getByRole('button', { name: 'Lom' });
+  if (hasOutcrop(obstaclesOf(s.landscape))) await expect(quarryButton).toBeEnabled();
+  else await expect(quarryButton).toBeDisabled();
   // kostely nepokřtěný rod v nabídce nemá vůbec – ani zašedlé (kostel až po křtu rodu)
   await expect(grid.getByRole('button', { name: 'Kostel s pravoúhlým kněžištěm' })).toHaveCount(0);
   await expect(grid.getByRole('button', { name: 'Trojlodní bazilika' })).toHaveCount(0);

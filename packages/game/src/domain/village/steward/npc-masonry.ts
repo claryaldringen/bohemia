@@ -3,7 +3,7 @@ import { createRandom, deriveSeed } from '../../landscape/random';
 import { CHURCH_EAST_ROTATION } from '../buildings/church-build';
 import { churchDimsForCapacity, churchTypesFor } from '../buildings/church-geometry';
 import { quarryNear } from '../fortification/state/stone';
-import { villageQuarries } from '../fortification/state/quarry';
+import { quarrySiteNear, villageQuarries } from '../fortification/state/quarry';
 import { churchCoverage } from '../people/church-life';
 import { canInviteLodge, canInviteMaster, inviteLodge, inviteMaster } from '../people/lodge';
 import { checkChurchPlacement } from '../placement/placement-church';
@@ -62,19 +62,20 @@ function lodgeStep(state: VillageState, day: number): void {
 }
 
 /**
- * Lom (churches.md – Stavba, NPC rod): ves s hutí bez lomu (ani rozestavěného) založí lom na
- * skalním výchozu nejblíž středu vsi (`quarryNear`). Mapa bez výchozu – kostel nebude.
+ * Lom (churches.md – Stavba, NPC rod; fortifications.md – Lom jako plocha u skal): ves s hutí bez
+ * lomu (ani rozestavěného) založí plochu lomu u skalního výchozu nejblíž středu vsi (`quarryNear`)
+ * – podle stejných pravidel jako hráč (`quarrySiteNear` – `checkQuarryPlacement`) co nejblíž středu
+ * vsi, ať se kámen nosí co nejkratší cestou. Mapa bez výchozu nebo bez místa – lom ani kostel nebude.
  */
 function quarryStep(state: VillageState, ctx: NpcContext): void {
   if (state.lodge === undefined || villageQuarries(state).length > 0) return;
   if (state.constructions.some((c) => c.kind === 'quarry')) return;
   const centre = planCentre(state);
   const outcrop = centre ? quarryNear(ctx.obstacles, centre) : null;
-  if (!outcrop) return;
-  startStewardBuild(state, ctx, {
-    kind: 'quarry',
-    position: { x: outcrop.x, z: outcrop.z, rotation: 0 },
-  });
+  if (!centre || !outcrop) return;
+  const village = placementVillageOf(state, ctx.day);
+  const site = quarrySiteNear(ctx.landscape, village, ctx.obstacles, outcrop, centre);
+  if (site) startStewardBuild(state, ctx, { kind: 'quarry', position: site.position });
 }
 
 /**

@@ -161,7 +161,7 @@ export function usePendingSites({
     );
   };
 
-  /** Zahájí stavbu lomu na skalním výchozu (fortifications.md – Kámen); server místo ověří. */
+  /** Zahájí stavbu lomu – plochy u skal (fortifications.md – Kámen); server místo ověří. */
   const buildQuarry = (position: Position): void => {
     const villageId = viewRef.current?.id;
     if (!villageId) return;

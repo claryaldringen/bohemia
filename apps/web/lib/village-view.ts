@@ -38,6 +38,8 @@ import {
   type VillageState,
   type VillageSummary,
   hasShrine,
+  hasOutcrop,
+  QUARRY_NO_ROCKS,
   villageCemeteries,
   villageLifespan,
   villageOrchards,
@@ -351,7 +353,10 @@ function buildOptions(
   coverage: CraftCoverage,
   day: number,
 ): Record<BuildKind, BuildOption> {
-  const stock = villageStock(state, obstaclesOf(landscape));
+  const obstacles = obstaclesOf(landscape);
+  const stock = villageStock(state, obstacles);
+  // lom jen u skal – mapa bez skalního výchozu ho nemá (fortifications.md – Lom jako plocha u skal)
+  const noRocks = !hasOutcrop(obstacles);
   const entries = BUILD_KINDS.map((kind): [BuildKind, BuildOption] => {
     const base = BUILD_COSTS[kind];
     // založení pole podle pokrytí nástroji (crafts.md – meze produktivity)
@@ -369,9 +374,11 @@ function buildOptions(
     const blocked =
       kind === 'shrine' && hasShrine(state)
         ? SHRINE_LIMIT
-        : kind === 'srub' || kind === 'vypleteny'
-          ? dwellingYearReason(kind, day)
-          : null;
+        : kind === 'quarry' && noRocks
+          ? QUARRY_NO_ROCKS
+          : kind === 'srub' || kind === 'vypleteny'
+            ? dwellingYearReason(kind, day)
+            : null;
     const option: BuildOption = {
       laborManDays: cost.laborManDays,
       perHa: cost.perHa,

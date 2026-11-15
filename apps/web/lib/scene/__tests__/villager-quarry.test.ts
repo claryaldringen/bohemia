@@ -10,7 +10,7 @@ import { stoneCartLoadSpot } from '../village-carts';
 import { createVillagerPose, type VillagerStage } from '../villager-motion';
 import { activityPhases } from '../villager-phases';
 import { planVillagersWithCrew, type PlannedVillager, type VillagerGround } from '../villager-plan';
-import { quarryPiles, QUARRY_STAND } from '../villager-plan-quarry';
+import { quarryPiles, quarryRockPile, QUARRY_STAND } from '../villager-plan-quarry';
 import type { Activity, PersonTask } from '../villager-schedule';
 
 // Poddaní v lomu (churches.md – Mistři huti při práci, Lom; fortifications.md – Kámen, Nošení
@@ -56,9 +56,22 @@ function persons(): ScenePerson[] {
 }
 
 /** Lom 200 m od kostela (hromada kamene u pece kostela). */
-const FAR = { outcropId: 42, x: 230, z: -60, rotation: 0.4 };
+const FAR = {
+  outcropId: 42,
+  x: 230,
+  z: -60,
+  rotation: 0.4,
+  // láme se 12 m od plochy – výchoz (poloměr 3 m) leží v −z
+  rock: { x: 230, z: -72, hx: 0, hz: -1, r: 3 },
+};
 /** Lom kousek od kostela. */
-const NEAR = { outcropId: 42, x: 85, z: 25, rotation: 0.4 };
+const NEAR = {
+  outcropId: 42,
+  x: 85,
+  z: 25,
+  rotation: 0.4,
+  rock: { x: 85, z: 13, hx: 0, hz: -1, r: 3 },
+};
 
 const CHURCH: SceneChurch = {
   id: 8,
@@ -150,19 +163,23 @@ function phasesOf(task: PersonTask, person: number) {
 }
 
 describe('poddaní v lomu (villager-plan-quarry.ts)', () => {
-  it('lámou muži u stěny s krumpáčem, jeden odnáší kameny na hromadu u lomu', () => {
+  it('lámou muži u výchozu s krumpáčem, jeden odnáší kameny na hromadu na ploše lomu', () => {
     const { p, v, quarrying } = plan(FAR);
     expect(quarrying.length).toBeGreaterThanOrEqual(2);
     for (const f of quarrying) expect(SEX.get(f.person!), f.key).toBe('male');
-    const face = { x: -Math.sin(FAR.rotation), z: -Math.cos(FAR.rotation) };
+    const rock = FAR.rock;
+    const centre = { x: rock.x + rock.hx * rock.r, z: rock.z + rock.hz * rock.r };
     const breakers = quarrying.filter((f) => f.job?.kind === 'share' && !f.job.stacker);
     expect(breakers.length).toBeGreaterThan(0);
     for (const f of breakers) {
       const pose = poseOf(f);
       expect(pose.clip).toBe('quarry');
-      expect(dist(pose, FAR)).toBeLessThan(4);
-      // čelem ke stěně lomu
-      expect(pose.headingX * face.x + pose.headingZ * face.z).toBeGreaterThan(0.99);
+      // u skály, ne na ploše
+      expect(dist(pose, centre)).toBeCloseTo(rock.r + QUARRY_STAND.row.front, 1);
+      // čelem do skály
+      const d = dist(pose, centre);
+      const to = { x: (centre.x - pose.x) / d, z: (centre.z - pose.z) / d };
+      expect(pose.headingX * to.x + pose.headingZ * to.z).toBeGreaterThan(0.99);
       expect(p.tasks.get(f.person!)?.role).toBe('quarry-break');
     }
     // lámající nestojí na sobě
@@ -195,6 +212,40 @@ describe('poddaní v lomu (villager-plan-quarry.ts)', () => {
     );
     expect(personActivity({ ...state, job: breakers[0]!.job! }, v)).toBe('láme kámen');
     expect(personActivity({ ...state, job: breakers[0]!.job!, leg: 'out' }, v)).toBe('jde do lomu');
+  });
+
+  it('bloky od výchozu nosí v nůších na plochu lomu část lidí lámání', () => {
+    const { p, v } = plan(FAR);
+    const blocks = p.people.filter((f) => f.job?.kind === 'fetch' && f.job.goods === 'block');
+    expect(blocks.length).toBeGreaterThanOrEqual(1);
+    const { broken } = quarryPiles(FAR);
+    const pile = quarryRockPile(FAR);
+    for (const f of blocks) {
+      expect(f.errand).toBeDefined();
+      const seen = new Set<VillagerStage>();
+      for (let t = 0; t < f.errand!.cycleS; t += 0.25) {
+        const pose = poseOf(f, t);
+        if (pose.stage) seen.add(pose.stage);
+        // skládá u kameníka (donesené bloky na ploše), nakládá u skály, s blokem v nůši zpět
+        if (pose.stage === 'rest') {
+          expect(dist(pose, broken)).toBeLessThan(broken.r + QUARRY_STAND.load + 1);
+        }
+        if (pose.stage === 'end') {
+          expect(dist(pose, pile)).toBeLessThan(pile.r + QUARRY_STAND.load + 1);
+        }
+        if (pose.stage === 'back') expect(pose.clip).toBe('carry-stone');
+      }
+      expect([...seen].sort()).toEqual(['back', 'end', 'out', 'rest']);
+    }
+    const state = { id: blocks[0]!.person!, hidden: false, herd: null };
+    const job = blocks[0]!.job!;
+    expect(personActivity({ ...state, stage: 'back', job }, v)).toBe('nosí blok do lomu');
+    expect(personActivity({ ...state, stage: 'out', job }, v)).toBe('jde ke skále pro bloky');
+    // starší lom na výchozu – bod lámání hned u plochy: bloky nikdo nenosí
+    const onRock = { ...FAR, rock: { x: 230, z: -62.5, hx: 0, hz: -1, r: 3 } };
+    expect(
+      plan(onRock).p.people.some((f) => f.job?.kind === 'fetch' && f.job.goods === 'block'),
+    ).toBe(false);
   });
 
   it('kameník v lomu nebere krumpáč: přisekává kámen a ukazuje u lámajících, jak lámat', () => {

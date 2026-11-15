@@ -162,8 +162,12 @@ návrh churches.md – NPC rod staví kostel, stone-masonry.md – Stavební hu�
 - **Huť:** bez `lodge` při `LODGE.npcMinPeople` lidech a `canInviteLodge` `ok` → `inviteLodge` s okruhem
   `createRandom(deriveSeed(seed, 'npc-lodge'))` (pod 0,5 adriatický); s hutí `inviteMaster` za každý
   obor, kde `canInviteMaster` dá `ok`.
-- **Lom:** s `lodge`, bez lomu i bez staveniště lomu → záměr `quarry` na výchozu `quarryNear`
-  (`fortification/state/stone.ts`) od středu vsi `planCentre`, přes `startStewardBuild`.
+- **Lom:** s `lodge`, bez lomu i bez staveniště lomu → plocha lomu u výchozu `quarryNear`
+  (`fortification/state/stone.ts`) nejblíž středu vsi `planCentre` podle pravidel hráče
+  (fortifications.md – Lom jako plocha u skal): `quarrySiteNear` (`quarry.ts`) zkouší středy po
+  kruzích kolem výchozu (16 směrů, po 4 m od okraje plochy do `STONE.quarryArea.rockReachM`) od
+  nejbližšího středu vsi, první, který projde `checkQuarryPlacement`; přes `startStewardBuild`.
+  Bez místa nic.
 - **Kostel:** s lomem, všemi `MASON_CRAFTS` mezi lidmi, bez staveniště `church` a po
   `Lodge.npcRetryDay`; první vždy, další při `churchCoverage` < `CHURCH.npc.coverageBelow`. Typ
   `churchTypesFor(circle)[0]`, rozměry `churchDimsForCapacity(type, ⌈lidé × capacityPerPerson⌉)`

@@ -3,7 +3,11 @@ import { openDevTime } from './helpers';
 import {
   checkChurchPlacement,
   defaultChurchDims,
+  nearestOutcrop,
+  obstaclesOf,
+  orderQuarrying,
   placementVillageOf,
+  quarrySiteNear,
   type Position,
 } from '@bohemia/game';
 import {
@@ -128,18 +132,39 @@ test('pozvání huti a umístění kostela – křest, huť na cestě, skok v č
   await expect.poll(masonsOf, { timeout: 60_000, intervals: [1_000] }).toBe(5);
   await pollVillage(page);
 
-  // ves nemá lom – dostavěný lom do stavu (poloha 150 m od zemnice, stejně jako zápis stavu v jiných testech)
+  // ves nemá lom – dostavěný lom do stavu: plocha u nejbližšího skalního výchozu podle pravidel
+  // hráče (Lom jako plocha u skal – `quarrySiteNear`); krajina bez výchozu – lom 150 m od zemnice
+  // jako zápis stavu v jiných testech
   const dwelling = spots.dwelling;
+  const rocks = obstaclesOf(s.landscape);
+  const before = await villageState(s.settlementId);
+  const outcrop = nearestOutcrop(rocks, dwelling, 5000);
+  const area = outcrop
+    ? quarrySiteNear(
+        s.landscape,
+        placementVillageOf(before, before.lastDay),
+        rocks,
+        outcrop,
+        dwelling,
+      )
+    : null;
   await changeVillageState(s.settlementId, (state) => ({
     ...state,
     quarries: [
-      {
-        outcropId: 999_999,
-        x: dwelling.x + 150,
-        z: dwelling.z,
-        rotation: 0,
-        builtDay: state.lastDay - 10,
-      },
+      area
+        ? {
+            outcropId: area.check.outcrop!.id,
+            ...area.position,
+            builtDay: state.lastDay - 10,
+            rock: area.check.rock!,
+          }
+        : {
+            outcropId: 999_999,
+            x: dwelling.x + 150,
+            z: dwelling.z,
+            rotation: 0,
+            builtDay: state.lastDay - 10,
+          },
     ],
   }));
   await pollVillage(page);
@@ -178,4 +203,36 @@ test('pozvání huti a umístění kostela – křest, huť na cestě, skok v č
     .toBe(1);
   const site = (await villageState(s.settlementId)).constructions.find((c) => c.kind === 'church');
   expect(site?.church?.type).toBe('rotunda');
+
+  // snímek lomu u skal po měsíci stavby (jen na požádání – QUARRY_SHOT=cesta.png)
+  const shot = process.env.QUARRY_SHOT;
+  const quarry = (await villageState(s.settlementId)).quarries?.[0];
+  if (shot && quarry) {
+    // měsíc stavby navíc – lámání pro kostel už běží (panel času zavřel Escape při umisťování)
+    test.setTimeout(900_000);
+    // zakázky „nalámat do zásoby“ – ať v lomu po měsíci ještě lámou a nosí bloky
+    await changeVillageState(s.settlementId, (state) => {
+      let next = state;
+      for (let k = 0; k < 3; k++) {
+        const ordered = orderQuarrying(next, next.lastDay, quarry.outcropId, 200);
+        if (ordered.ok) next = ordered.state;
+      }
+      return next;
+    });
+    await openDevTime(page);
+    await skip.click();
+    await expect(skip).toBeEnabled({ timeout: 180_000 });
+    await pollVillage(page);
+    await page.evaluate((p) => window.__bohemiaE2E!.moveCameraTo!(p[0], p[1]), [
+      quarry.x,
+      quarry.z,
+    ] as [number, number]);
+    await page.mouse.move(640, 300);
+    for (let i = 0; i < 6; i++) {
+      await page.mouse.wheel(0, -300);
+      await page.waitForTimeout(150);
+    }
+    await page.waitForTimeout(2500);
+    await page.screenshot({ path: shot, clip: { x: 320, y: 140, width: 640, height: 400 } });
+  }
 });

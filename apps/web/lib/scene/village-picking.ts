@@ -169,7 +169,7 @@ const KILN_REMNANT_PICK_M = 3.5;
 export const SACRED_OAK_PICK = { radiusM: 4, heightM: 12, stepM: 1 } as const;
 
 /** Bod paprsku ve výšce `y` (x, z) a jeho parametr t; null, když paprsek výšku neprotne vpřed. */
-/** Dosah kliku na lom od středu výchozu (m) – značka lomu má ≈ 6 m. */
+/** Dosah kliku na lom od středu plochy (m) – plocha lomu má 8 × 8 m (`STONE.quarryArea`). */
 const QUARRY_PICK_M = 4;
 
 export function rayAtHeight(ray: Ray, y: number): { x: number; z: number; t: number } | null {
@@ -335,7 +335,7 @@ export function pickVillageTarget(
     ),
   );
   if (church) return { kind: 'church', id: church.id };
-  // lom – klik do dosahu značky na výchozu (hotový i rozestavěný)
+  // lom – klik na plochu lomu (hotový i rozestavěný; Lom jako plocha u skal)
   const quarry = (village.quarries ?? []).find(
     (q) => Math.hypot(ground.x - q.x, ground.z - q.z) <= QUARRY_PICK_M,
   );

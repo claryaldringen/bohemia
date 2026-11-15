@@ -676,8 +676,9 @@ const THRESHING_FLOOR: BuildItem & { placement: 'threshing-floor' } = {
 };
 
 /**
- * Lom (fortifications.md – Kámen; Martin 8. 11. 2026) – jen na skalním výchozu, na výchozu jeden;
- * cena u kurzoru je práce stavby (bez dřeva), zkratka L. Ikona je SVG (vlastní kresba).
+ * Lom (fortifications.md – Kámen; Martin 8. 11. 2026) – rovná plocha do 50 m od skalního výchozu
+ * (Lom jako plocha u skal, Martin 14. 11. 2026), u výchozu jeden; cena u kurzoru je práce stavby
+ * (bez dřeva), zkratka L. Bez výchozu na mapě je tlačítko zašedlé (`VillageView.build.quarry.blocked`).
  */
 const QUARRY: BuildItem & { placement: 'quarry' } = {
   kind: 'quarry',
@@ -687,7 +688,7 @@ const QUARRY: BuildItem & { placement: 'quarry' } = {
   hotkeyLabel: 'L',
   placement: 'quarry',
   check: (landscape, village, position) => {
-    const check = checkQuarryPlacement(village, obstaclesOf(landscape), position);
+    const check = checkQuarryPlacement(landscape, village, position, obstaclesOf(landscape));
     return {
       ok: check.ok,
       reason: check.reason,

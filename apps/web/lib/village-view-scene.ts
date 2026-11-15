@@ -84,6 +84,10 @@ import {
   tileCenterWorld,
   wholeLogs,
   villageQuarries,
+  nearestOutcrop,
+  obstaclesOf,
+  OUTCROP_RADIUS_M,
+  type ObstacleLayer,
   pileLogs,
   type ConstructionSummary,
   purchaseLine,
@@ -337,7 +341,7 @@ export function sceneVillage(
     z: stack.z,
     m3: stack.m3,
   }));
-  const quarries = sceneQuarries(state);
+  const quarries = sceneQuarries(state, landscape);
   const churches = sceneChurches(state);
   const penned = pens.reduce((sum, pen) => sum + pen.cows, 0);
   const herds = summary.livestock.herds;
@@ -761,29 +765,69 @@ export function plotOfScene(plot: ScenePlot): DwellingPlot {
  * jako obydlí, pole podle čtverců dílů, pohřebiště a sady podle svých čtverců, odstraněné
  * a pokácené překážky a vyhrazené stromy – náhled pak spočítá totéž co server.
  */
+type SceneQuarryRock = NonNullable<SceneVillage['quarries']>[number]['rock'];
+
+/**
+ * Kde se v lomu láme (fortifications.md – Kámen, Lom jako plocha u skal): bod `rock` na okraji
+ * výchozu a směr do skály – od plochy k bodu. Starší lom na výchozu bod nemá: lamači lámou na
+ * okraji výchozu pod ním za plochou (−z v osách lomu, kde stála vylomená stěna), čelem do skály.
+ */
+function quarryRockOf(
+  q: { x: number; z: number; rotation: number; rock?: { x: number; z: number } },
+  obstacles: ObstacleLayer,
+): SceneQuarryRock {
+  const r = q.rock;
+  const d = r ? Math.hypot(r.x - q.x, r.z - q.z) : 0;
+  if (r && d > 1e-6) {
+    // bod lámání leží na okraji výchozu – poloměr z vrstvy překážek
+    const radius = nearestOutcrop(obstacles, r, 0.01)?.radiusM ?? OUTCROP_RADIUS_M;
+    return { x: r.x, z: r.z, hx: (r.x - q.x) / d, hz: (r.z - q.z) / d, r: radius };
+  }
+  const outcrop = nearestOutcrop(obstacles, q, 0);
+  const radius = outcrop?.radiusM ?? OUTCROP_RADIUS_M;
+  const cx = outcrop?.x ?? q.x;
+  const cz = outcrop?.z ?? q.z;
+  const back = { x: -Math.sin(q.rotation), z: -Math.cos(q.rotation) };
+  return {
+    x: cx + back.x * radius,
+    z: cz + back.z * radius,
+    hx: -back.x,
+    hz: -back.z,
+    r: radius,
+  };
+}
+
 /** Lomy vsi ve scéně – dostavěné a rozestavěné (fortifications.md – Kámen). */
-function sceneQuarries(state: VillageState): NonNullable<SceneVillage['quarries']> {
-  const built = villageQuarries(state).map((q) => ({
+function sceneQuarries(
+  state: VillageState,
+  landscape: Landscape,
+): NonNullable<SceneVillage['quarries']> {
+  const quarries = villageQuarries(state);
+  const building = state.constructions.filter(
+    (c) => c.kind === 'quarry' && c.position !== null && c.quarryOutcrop !== undefined,
+  );
+  if (quarries.length === 0 && building.length === 0) return [];
+  const obstacles = obstaclesOf(landscape);
+  const built = quarries.map((q) => ({
     outcropId: q.outcropId,
     x: q.x,
     z: q.z,
     rotation: q.rotation,
+    rock: quarryRockOf(q, obstacles),
   }));
-  const building = state.constructions.flatMap((c) =>
-    c.kind === 'quarry' && c.position !== null && c.quarryOutcrop !== undefined
-      ? [
-          {
-            outcropId: c.quarryOutcrop,
-            x: c.position.x,
-            z: c.position.z,
-            rotation: c.position.rotation,
-            building: true as const,
-            constructionId: c.id,
-          },
-        ]
-      : [],
-  );
-  return [...built, ...building];
+  const sites = building.map((c) => {
+    const at = { ...c.position!, ...(c.quarryRock ? { rock: c.quarryRock } : {}) };
+    return {
+      outcropId: c.quarryOutcrop!,
+      x: at.x,
+      z: at.z,
+      rotation: at.rotation,
+      rock: quarryRockOf(at, obstacles),
+      building: true as const,
+      constructionId: c.id,
+    };
+  });
+  return [...built, ...sites];
 }
 
 /** Klát a rámy ve scéně: rámů tolik, kolik kusů je v práci (várky `curing` – hides-honey.md – Ve scéně), nahoru. */
@@ -824,9 +868,16 @@ function scenePlacementVillage(scene: SceneVillage): PlacementVillage {
           })),
         }
       : {}),
-    // lomy (i rozestavěné) – na výchozu jeden (fortifications.md – Kámen)
+    // lomy (i rozestavěné) – u výchozu jeden, plocha zabírá místo (fortifications.md – Kámen)
     ...(scene.quarries
-      ? { quarries: scene.quarries.map((q) => ({ outcropId: q.outcropId })) }
+      ? {
+          quarries: scene.quarries.map((q) => ({
+            outcropId: q.outcropId,
+            x: q.x,
+            z: q.z,
+            rotation: q.rotation,
+          })),
+        }
       : {}),
     // stavba opevnění zabírá celý obvod (`fortificationBand`) – ostatní stavby ji neznají
     constructions: (scene.forts ?? [])

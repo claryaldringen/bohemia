@@ -54,6 +54,7 @@ import { campFootprint } from '../crafts/burner-camp';
 import { workshopSideM } from '../crafts/crafts';
 import { pointsBounds, squareCenter, squareKey } from './square-grid';
 import { threshingFloorFootprint } from '../fields/threshing-floors';
+import { quarryAreaFootprint } from '../fortification/state/quarry-area';
 import { churchyardWorld } from './church-plot';
 import {
   M2_PER_HA,
@@ -217,6 +218,8 @@ export const FIELD_LAND: LandUse = { fields: true, woods: true };
 
 /** Důvod u kurzoru – stavba přes obydlí (i s pozemkem). */
 export const OVERLAPS_DWELLING = 'Překrývá se s jiným obydlím.';
+/** Důvod u kurzoru – stavba přes plochu lomu (fortifications.md – Kámen). */
+export const OVERLAPS_QUARRY = 'Překrývá se s lomem.';
 /** Důvod u kurzoru – stavba přes rozestavěné obydlí. */
 export const OVERLAPS_DWELLING_SITE = 'Překrývá se s rozestavěným obydlím.';
 /** Důvod u kurzoru – stavba přes pás opevnění (fortifications.md – Obvod). */
@@ -226,7 +229,7 @@ const CAMP_HERE = 'Stojí tu zemnice uhlíře.';
 
 /**
  * Půdorys nebo pozemek (tvary `shapes`) se nepřekrývá s obydlím či rozestavěným obydlím (i jejich
- * pozemky), modlou, svatyní, humnem, milířem, zemnicí uhlíře u milíře, ohradou ani se čtvercem
+ * pozemky), modlou, svatyní, humnem, plochou lomu, milířem, zemnicí uhlíře u milíře, ohradou ani se čtvercem
  * pohřebiště – a podle `land` ani se
  * čtvercem pole, sadu či lesa vsi. Čtverce staveb i natočené (fields.md – Natočené stavby).
  */
@@ -267,6 +270,14 @@ export function checkFootprintFree(
   // humno – mlatová plocha s přístřeškem (production-chains.md – Humno)
   for (const f of village.threshingFloors ?? []) {
     if (overlaps([threshingFloorFootprint(f.position)])) return fail('Překrývá se s humnem.');
+  }
+  // plocha lomu – hotová i rozestavěná (fortifications.md – Kámen, Lom jako plocha u skal)
+  for (const q of village.quarries ?? []) {
+    if (overlaps([quarryAreaFootprint(q)])) return fail(OVERLAPS_QUARRY);
+  }
+  for (const c of village.constructions) {
+    if (c.quarryOutcrop === undefined || c.position === null) continue;
+    if (overlaps([quarryAreaFootprint(c.position)])) return fail(OVERLAPS_QUARRY);
   }
   // kostel s hřbitůvkem i rozestavěný (churches.md – Stavba)
   for (const c of village.churches ?? []) {

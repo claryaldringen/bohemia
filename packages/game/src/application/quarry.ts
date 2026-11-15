@@ -11,12 +11,12 @@ export interface PlaceQuarryInput {
   landscape: Landscape;
   /** Dnešní herní den (index dne). */
   today: number;
-  /** Bod na skalním výchozu a natočení značky lomu. */
+  /** Střed a natočení plochy lomu – na rovině do 50 m od skalního výchozu. */
   position: Position;
 }
 
 /**
- * Hráč zahájí stavbu lomu na skalním výchozu (ves se nejdřív dopočítá do dneška) – server místo
+ * Hráč zahájí stavbu lomu – plochy u skal (ves se nejdřív dopočítá do dneška) – server místo
  * ověří znovu (`checkQuarryPlacement`); práce jde ze společné práce vsi, dřevo lom nechce.
  */
 export function placeQuarry(

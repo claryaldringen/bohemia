@@ -317,16 +317,19 @@ function trafficText(kind: string, stage: VillagerStage | null): string {
 }
 
 function fetchText(
-  goods: 'charcoal' | 'ore' | 'clay' | 'stone',
+  goods: 'charcoal' | 'ore' | 'clay' | 'stone' | 'block',
   stage: VillagerStage | null,
 ): string {
-  // nosič kamene začíná u stavby – tam kámen skládá (villager-plan-quarry.ts)
+  // nosič kamene začíná u stavby – tam kámen skládá, nosič bloků na ploše lomu
+  // (villager-plan-quarry.ts)
   if (goods === 'stone' && stage === 'rest') return 'skládá kámen u stavby';
+  if (goods === 'block' && stage === 'rest') return 'skládá bloky u kameníka';
   const texts = {
     charcoal: ['jde pro uhlí k uhlíři', 'nakládá uhlí', 'nese uhlí od uhlíře'],
     ore: ['jde pro rudu', 'nakládá rudu', 'nese rudu do kovárny'],
     clay: ['jde pro hlínu', 'nakládá hlínu', 'nese hlínu do dílny'],
     stone: ['jde pro kámen do lomu', 'nakládá kámen do nůše', 'nosí kámen na stavbu'],
+    block: ['jde ke skále pro bloky', 'nakládá vylomený blok do nůše', 'nosí blok do lomu'],
   } as const;
   const [out, end, back] = texts[goods];
   return stage === 'end' ? end : stage === 'back' ? back : out;

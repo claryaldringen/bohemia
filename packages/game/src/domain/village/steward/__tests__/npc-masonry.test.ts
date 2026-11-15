@@ -17,6 +17,8 @@ import { churchCapacity, churchTypesFor } from '../../buildings/church-geometry'
 import { checkChurchPlacement } from '../../placement/placement-church';
 import { placementVillageOf } from '../../placement/placement-village';
 import { quarryNear } from '../../fortification/state/stone';
+import { checkQuarryPlacement } from '../../fortification/state/quarry';
+import { STONE } from '../../rules/rules-stone';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 import { newSteward } from '../steward-state';
 import { planCentre } from '../steward-land';
@@ -139,12 +141,30 @@ describe('huť NPC rodu', () => {
 });
 
 describe('lom NPC rodu', () => {
-  it('ves s hutí bez lomu založí lom na nejbližším výchozu', () => {
+  it('ves s hutí bez lomu založí plochu lomu u výchozu nejblíž středu vsi podle pravidel hráče', () => {
     const base = npc(village(40));
-    const s = run({ ...base, lodge: { circle: 'adriatic', invitedDay: DAY - 10 } });
-    const quarry = s.constructions.find((c) => c.kind === 'quarry');
+    const withLodge: VillageState = {
+      ...base,
+      lodge: { circle: 'adriatic', invitedDay: DAY - 10 },
+    };
+    const s = run(withLodge);
+    const quarry = s.constructions.find((c) => c.kind === 'quarry')!;
     const near = quarryNear(obstacles, planCentre(base)!)!;
-    expect(quarry?.position).toMatchObject({ x: near.x, z: near.z });
+    const position = quarry.position!;
+    // plocha vedle skal (Lom jako plocha u skal) – projde kontrolou hráče, do 50 m od okraje
+    const check = checkQuarryPlacement(
+      landscape,
+      placementVillageOf(withLodge, DAY),
+      position,
+      obstacles,
+    );
+    expect(check.ok).toBe(true);
+    expect(quarry.quarryOutcrop).toBe(check.outcrop!.id);
+    expect(check.outcrop!.edgeM).toBeLessThanOrEqual(STONE.quarryArea.rockReachM);
+    expect(quarry.quarryRock).toEqual(check.rock);
+    expect(Math.hypot(position.x - near.x, position.z - near.z)).toBeLessThanOrEqual(
+      STONE.quarryArea.rockReachM + 10,
+    );
     // rozestavěný lom – druhý nezakládá
     const again = run(s, DAY + STEWARD.everyDays);
     expect(again.constructions.filter((c) => c.kind === 'quarry')).toHaveLength(1);

@@ -90,6 +90,11 @@ export interface ChurchSite {
    */
   readonly quarryId: number;
   readonly quarryDistanceM: number;
+  /**
+   * Nošení vylomených bloků od výchozu na plochu lomu u skal (m; Lom jako plocha u skal); lom na
+   * výchozu (i starší staveniště) ho nemá – bloky se nenosí.
+   */
+  readonly quarryRockM?: number;
   /** Kámen z hromad vsi při zahájení (m³); zbytek se láme v lomu. */
   readonly stoneFromPileM3: number;
   /** Příprava staveniště – kácení dřeva stavby a odklizení překážek (čd); jde před vším. */
