@@ -106,7 +106,8 @@ export function groupFieldBlocks(views: readonly PartView[]): Map<string, PartVi
 /**
  * Obtisky, řádky sena a rostliny dílů `views` (celé pole nebo jeho blok). Rostliny bez kupek
  * a stohů sena – jen ty závisí na dni (ubývají přes zimu); přidá je `mergeFieldBlocks`, takže
- * blok nezávisí na dni a nový den ho nepřestaví.
+ * blok nezávisí na dni a nový den ho nepřestaví. `ard` – pole vsi, která orá rádlem: zoraná zem
+ * má brázdy křížem (`LookStyle.cross` – druhá vrstva textury napříč řádky).
  */
 export function fieldBlockContent(
   views: readonly PartView[],
@@ -114,6 +115,7 @@ export function fieldBlockContent(
   center: { x: number; z: number },
   coverage: (x: number, z: number) => number,
   fine: (bounds: Bounds) => boolean = () => false,
+  ard = false,
 ): FieldBlockContent {
   const layers = new Map<string, DecalLayer>();
   const layer = (texture: FieldTexture, patches: boolean): DecalLayer => {
@@ -141,6 +143,14 @@ export function fieldBlockContent(
     ground.colors.push(tintedBy(style.tint, piece.tint));
     ground.alphas.push(style.alpha);
     ground.rows.push(piece.rows);
+    // orba rádlem křížem: brázdy druhého průchodu napříč přes brázdy prvního (mřížka)
+    if (ard && style.cross) {
+      const cross = layer(style.texture, true);
+      cross.grids.push(grid);
+      cross.colors.push(tintedBy(style.tint, piece.tint));
+      cross.alphas.push(style.cross);
+      cross.rows.push([-piece.rows[1], piece.rows[0]]);
+    }
     if (style.patches) {
       // skvrny jemnější sítí – šum je menší než krok obtisku
       const even = style.patches.even ?? false;

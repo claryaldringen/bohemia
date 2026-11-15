@@ -4,8 +4,7 @@ import { cellsBoundary } from '../field-cells';
 import {
   CROP_KINDS,
   LOOK_STYLES,
-  ROW_M,
-  STEP_M,
+  SOW_CELL_M,
   decalPieces,
   fieldPlants,
   fieldStaking,
@@ -103,10 +102,10 @@ describe('obtisky dílů', () => {
 });
 
 describe('trsy obilí, panáky a plevel', () => {
-  it('zralé obilí v řádcích podél pole – asi tolik trsů, kolik míst v řádcích', () => {
+  it('zralé obilí rozhozem – na každé místo rozhozu jeden trs', () => {
     const p = part(0, 0);
     const plants = fieldPlants([view(p, 'ripe')], ROWS, CENTER, all);
-    const places = Math.floor(15 / ROW_M) * Math.floor(15 / STEP_M);
+    const places = Math.floor(15 / SOW_CELL_M.across) * Math.floor(15 / SOW_CELL_M.along);
     expect(plants.crops.ripe.length).toBe(places);
     for (const kind of CROP_KINDS) if (kind !== 'ripe') expect(plants.crops[kind]).toHaveLength(0);
     for (const c of plants.crops.ripe) {
@@ -114,6 +113,48 @@ describe('trsy obilí, panáky a plevel', () => {
       expect(Math.abs(c.z - p.z)).toBeLessThanOrEqual(7.5);
       expect(c.height).toBeGreaterThan(0.8);
     }
+  });
+
+  it('obilí rozhozem nemá řádky (oxen.md – Orba rádlem křížem) a je deterministické', () => {
+    const parts = [part(0, 0), part(1, 0), part(0, 1)];
+    const plants = fieldPlants(
+      parts.map((p) => view(p, 'green')),
+      ROWS,
+      CENTER,
+      all,
+    );
+    const tufts = plants.crops.green;
+    expect(tufts.length).toBeGreaterThan(900);
+    // vzdálenost trsu k nejbližší řadě (osa řádku dřív po 0,8 m napříč a po 0,7 m podél) – trsy
+    // v řádcích by ležely u řad (průměr ≈ 0), rozhoz rovnoměrně mezi nimi (průměr ≈ čtvrt rozteče)
+    const lines = (coord: (c: (typeof tufts)[number]) => number, step: number): number[] =>
+      tufts.map((c) => {
+        const cells = Math.floor(15 / step);
+        const pitch = 15 / cells;
+        const phase = (((coord(c) % pitch) + pitch) % pitch) / pitch;
+        return Math.abs(phase - 0.5) * pitch;
+      });
+    for (const [distances, pitch] of [
+      [lines((c) => c.x, SOW_CELL_M.across), 15 / Math.floor(15 / SOW_CELL_M.across)],
+      [lines((c) => c.z, SOW_CELL_M.along), 15 / Math.floor(15 / SOW_CELL_M.along)],
+    ] as const) {
+      const mean = distances.reduce((s, d) => s + d, 0) / distances.length;
+      expect(mean).toBeGreaterThan(pitch * 0.22);
+      expect(mean).toBeLessThan(pitch * 0.28);
+      // a rovnoměrně: do 1/8 rozteče od řady jen asi čtvrtina trsů (v řádcích skoro všechny)
+      const near = distances.filter((d) => d < pitch / 8).length / distances.length;
+      expect(near).toBeGreaterThan(0.18);
+      expect(near).toBeLessThan(0.32);
+    }
+    // stejné pole se při překreslení nezmění (seed podle políčka)
+    expect(
+      fieldPlants(
+        parts.map((p) => view(p, 'green')),
+        ROWS,
+        CENTER,
+        all,
+      ),
+    ).toEqual(plants);
   });
 
   it('je deterministické a u meze trsy řídnou', () => {

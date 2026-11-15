@@ -25,6 +25,7 @@ import {
 import { cellsBounds, rowDirection, squaresContain, touchingSquares } from './field-cells';
 import {
   CROP_KINDS,
+  CROSS_FURROW_ALPHA,
   FIELD_TEXTURES,
   LOOK_STYLES,
   emptyCrops,
@@ -69,7 +70,7 @@ import {
 } from './hay-meadows';
 import { loadMergedModel, loadModelParts } from './instanced-model';
 import { scatterStacks } from './tornado-track';
-import { PLOUGH_CORNER_M, type FurrowBand } from './plough-team';
+import { PLOUGH_CORNER_M, furrowRows, type FurrowBand } from './plough-team';
 import { applyPitCut, type PitCuts } from './pit-cut';
 import { instancesBounds, sameItems, sortByRank } from './plant-order';
 import { sameContent } from './same-content';
@@ -475,34 +476,60 @@ export class FieldRenderer {
   /**
    * Brázda za rádlem (ladicí orba za herní den – oxen.md): zoraná plocha přibývá v pásech řad,
    * kudy radlice projela (plough-team.ts – `routeFurrows`), s okrajem a kulatými rohy pole jako
-   * obtisk. Vrátí true, když se brázda změnila.
+   * obtisk. Orba křížem (oxen.md – Orba rádlem křížem): brázdy druhého průchodu (`cross`) leží
+   * napříč přes brázdy prvního s krytím `CROSS_FURROW_ALPHA` – jako obtisk zorané země pole
+   * oraného rádlem (`LookStyle.cross`). Vrátí true, když se brázda změnila.
    */
   setFurrows(bands: readonly FurrowBand[]): boolean {
     const key = bands
-      .map((b) => `${b.partId}:${b.v.toFixed(2)}:${b.from.toFixed(1)}:${b.to.toFixed(1)}`)
+      .map(
+        (b) =>
+          `${b.partId}${b.cross ? 'x' : ''}:${b.v.toFixed(2)}:${b.from.toFixed(1)}:${b.to.toFixed(1)}`,
+      )
       .join('|');
     if (key === this.furrowKey) return false;
     this.furrowKey = key;
     for (const mesh of this.furrowMeshes) mesh.dispose();
     this.furrowMeshes = [];
-    const byField = new Map<number, FurrowBand[]>();
+    // jeden obtisk na pole, průchod a směr textury (díly pole mohou mít různou osu brázd)
+    const groups = new Map<
+      string,
+      { fieldId: number; rows: [number, number]; cross: boolean; bands: FurrowBand[] }
+    >();
     for (const band of bands) {
-      const list = byField.get(band.fieldId);
-      if (list) list.push(band);
-      else byField.set(band.fieldId, [band]);
+      const cross = band.cross === true;
+      const rows = furrowRows(band);
+      const key = `${band.fieldId}:${cross ? 1 : 0}:${rows[0].toFixed(3)}:${rows[1].toFixed(3)}`;
+      const group = groups.get(key);
+      if (group) group.bands.push(band);
+      else groups.set(key, { fieldId: band.fieldId, rows, cross, bands: [band] });
     }
-    for (const [fieldId, list] of byField) {
-      this.furrowMeshes.push(this.furrowMesh(fieldId, list));
+    let index = 0;
+    for (const group of groups.values()) {
+      this.furrowMeshes.push(this.furrowMesh(group, index++));
     }
     return true;
   }
 
-  /** Brázda jednoho pole – pásy řad jako obtisk zoraného pole (textura podél řad pole). */
-  private furrowMesh(fieldId: number, bands: readonly FurrowBand[]): Mesh {
+  /**
+   * Brázda jednoho pole a průchodu – pásy řad jako obtisk zoraného pole (textura podél `rows`;
+   * druhý průchod napříč s krytím `CROSS_FURROW_ALPHA` nad prvním).
+   */
+  private furrowMesh(
+    group: {
+      fieldId: number;
+      rows: [number, number];
+      cross: boolean;
+      bands: readonly FurrowBand[];
+    },
+    index: number,
+  ): Mesh {
+    const { fieldId, bands, cross } = group;
     const positions: number[] = [];
     const alphas: number[] = [];
     const indices: number[] = [];
     const coverage = this.fields.get(fieldId)?.coverage ?? ((): number => 1);
+    const alpha = cross ? CROSS_FURROW_ALPHA : 1;
     for (const band of bands) {
       const steps = Math.max(1, Math.ceil((band.to - band.from) / FURROW_STEP_M));
       const base = alphas.length;
@@ -515,7 +542,7 @@ export class FieldRenderer {
           const x = band.x + ax * u + sx * v;
           const z = band.z + az * u + sz * v;
           positions.push(x, z);
-          alphas.push(coverage(x, z));
+          alphas.push(coverage(x, z) * alpha);
         }
       }
       for (let k = 0; k < steps; k++) {
@@ -525,11 +552,11 @@ export class FieldRenderer {
     }
     const style = LOOK_STYLES.plowed;
     const repeat = FIELD_TEXTURES[style.texture].repeatM;
-    // stejné mapování podél řad jako obtisk pole – na konci dne brázda splyne s polem
-    const [dx, dz] = bands[0]!.along;
+    // stejné mapování jako obtisk pole (i jeho vrstva křížem) – na konci dne brázda splyne s polem
+    const [dx, dz] = group.rows;
     const mesh = createDecalMesh(
       this.scene,
-      `village-field-furrow-${fieldId}`,
+      `village-field-furrow-${fieldId}${cross ? '-cross' : ''}-${index}`,
       {
         positions: Float32Array.from(positions),
         alphas: Float32Array.from(alphas),
@@ -547,8 +574,8 @@ export class FieldRenderer {
       },
     );
     mesh.material = this.decalMaterial(style.texture, -4);
-    // nad obtiskem pole i jeho skvrnami (alphaIndex 1–2)
-    mesh.alphaIndex = 2.5;
+    // nad obtiskem pole i jeho skvrnami (alphaIndex 1–2), druhý průchod nad prvním
+    mesh.alphaIndex = cross ? 2.6 : 2.5;
     return mesh;
   }
 
@@ -795,7 +822,15 @@ export class FieldRenderer {
           blocks.set(block, cached);
           continue;
         }
-        const content = fieldBlockContent(spaced(blockViews), rowsIn, centerIn, coverageOf(), fine);
+        // pole oraná rádlem mají zoranou zem s brázdami křížem (oxen.md – Orba rádlem křížem)
+        const content = fieldBlockContent(
+          spaced(blockViews),
+          rowsIn,
+          centerIn,
+          coverageOf(),
+          fine,
+          field.ard ?? false,
+        );
         // rostliny dílů, které vyšly stejně jako minule, si nechají své instance – druhy trsů
         // beze změny se pak znovu nenahrávají (`setPlants`)
         const before = current?.blocks.get(block)?.content.plants;

@@ -1,5 +1,5 @@
 // Jak se vzhled dílů pole kreslí (bez Babylonu): obtisky po dílech a jejich rozpracovaných
-// částech, trsy obilí a hrachu v řádcích, panáky snopů (u luštěnin hromádky vytrhaného hrachu)
+// částech, trsy obilí a hrachu rozhozem (bez řádků), panáky snopů (u luštěnin hromádky hrachu)
 // na sklizené části, plevel v úhoru a kolíky s provázkem kolem vytyčeného pole. Všechno deterministicky podle políčka – stejné pole se
 // při překreslení nezmění. Vzhled dílů rozhoduje field-look.ts.
 import { createNoise2D } from 'simplex-noise';
@@ -87,7 +87,7 @@ export interface LookStyle {
    * přes celý díl (zelené řádky vzcházejícího obilí), nebo null.
    */
   patches: { texture: FieldTexture; tint: Rgb; alpha: number; even?: boolean } | null;
-  /** Trsy obilí: druh, výška a šířka trsu (m), podíl míst v řádcích; null = bez trsů. */
+  /** Trsy obilí: druh, výška a šířka trsu (m), podíl míst rozhozu; null = bez trsů. */
   crop: { kind: CropKind; height: number; width: number; density: number } | null;
   /** Panáky snopů na sklizené části. */
   stooks: boolean;
@@ -95,11 +95,23 @@ export interface LookStyle {
   hay: boolean;
   /** Trsy plevele na m². */
   weeds: number;
+  /**
+   * Orba rádlem křížem (oxen.md – Orba rádlem křížem): krytí druhé vrstvy téže textury napříč
+   * řádky – brázdy obou průchodů tvoří mřížku. Jen na poli vsi, která orá rádlem (`ard`).
+   */
+  cross?: number;
 }
 
 /**
+ * Krytí brázd druhého průchodu rádla (napříč) nad brázdami prvního – na obtisku zorané země
+ * (`LookStyle.cross`) i v brázdě za rádlem během dne (field-renderer.ts – `setFurrows`), ať se
+ * na konci dne shodují.
+ */
+export const CROSS_FURROW_ALPHA = 0.5;
+
+/**
  * Vzhled dílů podle 0 A.D.: zem s měkkými brázdami místo tvrdých pruhů, obilí jako 3D trsy
- * v řádcích (pod nimi porost shora – z dálky, kde trsy řídnou, pole nese obtisk), panáky
+ * rozhozem (pod nimi porost shora – z dálky, kde trsy řídnou, pole nese obtisk), panáky
  * na žni, strniště, úhor se strništěm a plevelem, spasená pastvina splývá s loukou.
  */
 export const LOOK_STYLES: Record<FieldLook, LookStyle> = {
@@ -146,6 +158,7 @@ export const LOOK_STYLES: Record<FieldLook, LookStyle> = {
     stooks: false,
     hay: false,
     weeds: 0,
+    cross: CROSS_FURROW_ALPHA,
   },
   sown: {
     texture: 'sown',
@@ -406,9 +419,12 @@ export interface DecalPiece {
   weather?: PartWeather;
 }
 
-/** Rozteč řádků obilí (m) a trsů v řádku (m), odstup trsů od meze (krytí obtisku). */
-export const ROW_M = 0.8;
-export const STEP_M = 0.7;
+/**
+ * Rozhoz obilí (oxen.md – Orba rádlem křížem; návrh Clauda: obilí se seje rozhozem, porost nemá
+ * řádky): díl se dělí na buňky ≈ `across` × `along` (m – napříč a podél řádků pole) a v každé
+ * buňce stojí jeden trs kdekoli – porost je rovnoměrný, ale bez řad; u meze řídne s obtiskem.
+ */
+export const SOW_CELL_M = { across: 0.8, along: 0.7 } as const;
 /** Rozestup panáků podél řádků a napříč (m); hromádky hrachu jsou menší a hustší. */
 const STOOK_SPACING_M = { along: 6, across: 4.8 } as const;
 const HEAP_SPACING_M = { along: 4.2, across: 3.6 } as const;
@@ -541,8 +557,8 @@ function cellSeed(part: CellSquare, salt: number): number {
 }
 
 /**
- * Trsy obilí, panáky, plevel a seno všech dílů pole. Trsy stojí v řádcích podél `rows` (ROW_M od
- * sebe, v řádku po STEP_M s rozptylem), u meze řídnou podle krytí obtisku `coverage`. Na
+ * Trsy obilí, panáky, plevel a seno všech dílů pole. Trsy stojí rozhozem – po jednom kdekoli
+ * v buňce `SOW_CELL_M` (bez řádků), u meze řídnou podle krytí obtisku `coverage`. Na
  * rozpracovaném dílu má hotová část (po pruzích jako obtisk) trsy podle `look`, zbytek podle
  * `before`; panáky stojí jen na sklizené části, kus za čarou žně. Seno podle dne v roce
  * `dayOfYear` (`appendHay`); null = bez sena (pole po blocích ho přidá až při spojení).
@@ -588,17 +604,18 @@ function addCrops(
   const random = seededRandom(cellSeed(part, 0x9e37));
   const heightBy = weather?.height ?? 1;
   const { along, across, half } = frame;
-  const rowCount = Math.floor((2 * half) / ROW_M);
-  const stepCount = Math.floor((2 * half) / STEP_M);
-  // řádky začínají půl rozteče od kraje – sousední díly na sebe navazují bez mezery
-  for (let r = 0; r < rowCount; r++) {
-    const v = -half + (r + 0.5) * ((2 * half) / rowCount);
-    for (let s = 0; s < stepCount; s++) {
-      const jitterU = (random() - 0.5) * STEP_M * 0.6;
-      const jitterV = (random() - 0.5) * ROW_M * 0.25;
-      const u = -half + (s + 0.5) * ((2 * half) / stepCount) + jitterU;
-      const x = part.x + along[0] * u + across[0] * (v + jitterV);
-      const z = part.z + along[1] * u + across[1] * (v + jitterV);
+  // rozhoz: buňky přes celý díl (sousední díly na sebe navazují bez mezery), v buňce jeden trs
+  // kdekoli – ne v řádcích (oxen.md – Orba rádlem křížem)
+  const acrossCount = Math.floor((2 * half) / SOW_CELL_M.across);
+  const alongCount = Math.floor((2 * half) / SOW_CELL_M.along);
+  const cellV = (2 * half) / acrossCount;
+  const cellU = (2 * half) / alongCount;
+  for (let r = 0; r < acrossCount; r++) {
+    for (let s = 0; s < alongCount; s++) {
+      const u = -half + (s + random()) * cellU;
+      const v = -half + (r + random()) * cellV;
+      const x = part.x + along[0] * u + across[0] * v;
+      const z = part.z + along[1] * u + across[1] * v;
       const pick = random();
       const rotation = random() * Math.PI * 2;
       const size = 0.88 + random() * 0.24;

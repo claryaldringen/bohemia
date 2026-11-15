@@ -281,13 +281,17 @@ describe('orba dne přes cestu (dayStints)', () => {
       },
     };
     const stints = dayStints(village);
-    expect(stints).toHaveLength(2);
-    for (const stint of stints) {
-      expect(stint.partIds).toEqual([61, 62, 63]);
-      expect(stint.field.rowRuns).toBeDefined();
-    }
+    for (const stint of stints) expect(stint.partIds).toEqual([61, 62, 63]);
+    const pass = stints.filter((s) => !s.cross);
+    expect(pass).toHaveLength(2);
+    for (const stint of pass) expect(stint.field.rowRuns).toBeDefined();
+    // křížem (oxen.md – Orba rádlem křížem): řady souběžně s cestou, přes celý pás
+    const cross = stints.filter((s) => s.cross);
+    expect(cross.length).toBeGreaterThanOrEqual(1);
+    const bands = routeFurrows({ route: ploughRoute(cross), startMs: 0, endMs: 1 }, 1);
+    expect(bands.reduce((sum, b) => sum + 2 * b.half, 0)).toBeCloseTo(3 * CELL, 6);
     const without = dayStints({ ...village, roads: [] });
-    expect(without).toHaveLength(1);
-    expect(without[0]!.field.rowRuns).toBeUndefined();
+    expect(without.map((s) => s.cross ?? false)).toEqual([false, true]);
+    for (const stint of without) expect(stint.field.rowRuns).toBeUndefined();
   });
 });

@@ -509,7 +509,12 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   osetá zem, strniště, porost shora; tráva a kvetoucí louka z terénu) s nepravidelným měkkým
   okrajem (`raggedCoverage`) bez meze (Martin) – kde pole sousedí s jiným polem, okraj se
   netlumí (`touchingSquares`) a pole navážou bez švu, skvrny (plevel, prošlapaná místa) druhou vrstvou;
-  obilí jako 3D trsy v řádcích (`crops.glb` – uzly `crop-green|ripe|sprout|stubble`, jeden
+  **orba rádlem křížem** (oxen.md – Orba rádlem křížem): zoraná zem pole vsi, která orá rádlem
+  (`SceneVillage.fields[].ard`), má druhou vrstvu téže textury napříč řádky – brázdy tvoří mřížku
+  (`LookStyle.cross` = `CROSS_FURROW_ALPHA`, `fieldBlockContent(…, ard)` – vrstva `farmland|1`
+  se směrem kolmým na `DecalPiece.rows`; brázda za rádlem během dne stejně – village-livestock.md);
+  obilí jako 3D trsy **rozhozem** – v každé buňce dílu `SOW_CELL_M` (≈ 0,8 × 0,7 m) jeden trs
+  kdekoli, bez řádků, stejná hustota jako dřív v řádcích (`crops.glb` – uzly `crop-green|ripe|sprout|stubble`, jeden
   atlas, thin instances, tón druhu v barvě instance) – z dálky řídnou (`cropDensity`: plné do
   130 m, k 360 m pětina, od 620 m nic – pole pak nese obtisk), zralé a zelené se vlní ve větru
   (vertex shader `CropSwayPlugin`, jen v záběru, `WATER_FPS`, při omezeném pohybu stojí), pod

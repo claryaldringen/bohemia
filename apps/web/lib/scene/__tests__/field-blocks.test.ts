@@ -10,7 +10,7 @@ import {
   mergeFieldBlocks,
   type FieldBlockContent,
 } from '../field-blocks';
-import { fieldPlants, raggedCoverage } from '../field-crops';
+import { CROSS_FURROW_ALPHA, fieldPlants, raggedCoverage } from '../field-crops';
 import { FIELD_LOOKS, type FieldLook, type PartView } from '../field-look';
 
 const part = (cx: number, cy: number, extra: Partial<SceneFieldPart> = {}): SceneFieldPart => ({
@@ -106,6 +106,43 @@ describe('pole po blocích dílů', () => {
       );
     });
   }
+});
+
+describe('zoraná zem po orbě rádlem křížem (oxen.md – Orba rádlem křížem)', () => {
+  const plowed: PartView = {
+    part: part(0, 0),
+    look: 'plowed',
+    work: null,
+    before: null,
+    staked: false,
+    order: 0,
+  };
+
+  it('pole vsi s rádlem: druhá vrstva textury brázd napříč řádky – mřížka', () => {
+    const content = fieldBlockContent([plowed], ROWS, CENTER, () => 1, undefined, true);
+    const base = content.layers.get('farmland|0')!;
+    const cross = content.layers.get('farmland|1')!;
+    expect(base.rows).toEqual([ROWS]);
+    expect(cross.grids).toEqual(base.grids);
+    expect(cross.alphas).toEqual([CROSS_FURROW_ALPHA]);
+    const [dx, dz] = cross.rows[0]!;
+    expect(dx * ROWS[0] + dz * ROWS[1]).toBeCloseTo(0, 12);
+    expect(Math.hypot(dx, dz)).toBeCloseTo(1, 12);
+  });
+
+  it('ves, která kope motykou, a jiné vzhledy brázdy křížem nemají', () => {
+    const hoe = fieldBlockContent([plowed], ROWS, CENTER, () => 1);
+    expect(hoe.layers.has('farmland|1')).toBe(false);
+    const sown = fieldBlockContent(
+      [{ ...plowed, look: 'sown' }],
+      ROWS,
+      CENTER,
+      () => 1,
+      undefined,
+      true,
+    );
+    expect([...sown.layers.keys()]).toEqual(['sown|0']);
+  });
 });
 
 describe('appendAll', () => {

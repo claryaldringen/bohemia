@@ -1,18 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import type { SceneFieldPart, SceneLaborShare, SceneVillage } from '../../village-view';
 import { dayStints, splitStints, startOfDayVillage } from '../plough-day';
+import { PLOUGH_ROW_M } from '../plough-front';
 import {
   PLOUGH_CORNER_M,
   TURN_RADIUS_M,
   ardReach,
   createTeamPose,
+  crossField,
+  furrowRows,
   outsideSquare,
   ploughRoute,
   routeDistance,
   routeFurrows,
   routePose,
   rowExtent,
+  stintRowCount,
   type FurrowBand,
+  type PloughField,
   type RouteTrack,
 } from '../plough-team';
 
@@ -71,7 +76,17 @@ const area = (b: FurrowBand): number => (b.to - b.from) * 2 * b.half;
 
 describe('pruhy dnešní orby', () => {
   it('po dílech v pořadí práce, ráno a večer po pruzích obtisku', () => {
-    const stints = dayStints(today());
+    const all = dayStints(today());
+    // orba křížem: každý pruh napřed podél řad, hned po něm napříč (oxen.md – Orba rádlem křížem)
+    expect(all.map((s) => [s.partId, s.cross ?? false])).toEqual([
+      [51, false],
+      [51, true],
+      [52, false],
+      [52, true],
+      [53, false],
+      [53, true],
+    ]);
+    const stints = all.filter((s) => !s.cross);
     expect(stints.map((s) => [s.partId, s.from, s.to])).toEqual([
       [51, 0.25, 1],
       [52, 0, 1],
@@ -89,7 +104,10 @@ describe('pruhy dnešní orby', () => {
         shares: [{ activity: 'plough', target: { kind: 'field', id: 5 }, manDays: 2, parts: [53] }],
       },
     });
-    expect(old.map((s) => [s.partId, s.from, s.to])).toEqual([[53, 0, 0.625]]);
+    expect(old.map((s) => [s.partId, s.from, s.to, s.cross ?? false])).toEqual([
+      [53, 0, 0.625, false],
+      [53, 0, 0.625, true],
+    ]);
   });
 
   it('pole na začátku dne: ráno zoraná část, zbytek před orbou', () => {
@@ -110,6 +128,13 @@ describe('pruhy dnešní orby', () => {
     expect(two.flat()).toEqual(stints);
     expect(splitStints(stints, 5).length).toBeLessThanOrEqual(3);
     expect(splitStints([], 2)).toEqual([]);
+    // druhý průchod křížem zůstane spřežení, které pruh zoralo napoprvé
+    for (const team of [...two, ...splitStints(stints, 5)]) {
+      expect(team[0]!.cross).toBeUndefined();
+      team.forEach((s, i) => {
+        if (s.cross) expect(team[i - 1]!.partId).toBe(s.partId);
+      });
+    }
   });
 });
 
@@ -121,8 +146,8 @@ describe('trasa dne a brázda za rádlem', () => {
     expect(routeFurrows(track, 0)).toEqual([]);
     expect(routeFurrows(track, 1000)).toEqual([]);
     const end = routeFurrows(track, 90_000);
-    for (const stint of stints) {
-      const bands = end.filter((b) => b.partId === stint.partId);
+    for (const stint of stints.filter((s) => !s.cross)) {
+      const bands = end.filter((b) => b.partId === stint.partId && !b.cross);
       const width = (stint.to - stint.from) * CELL;
       // pásy řad vedle sebe pokryjí pruh napříč
       const across = bands.reduce((sum, b) => sum + 2 * b.half, 0);
@@ -172,11 +197,12 @@ describe('trasa dne a brázda za rádlem', () => {
       }
       prev = { x: pose.yoke.x, z: pose.yoke.z };
       if (pose.lift === 0) {
-        // radlice v zemi jen uvnitř některého dnešního dílu (kulaté rohy)
+        // radlice v zemi jen uvnitř některého dnešního dílu (kulaté rohy); hrot radlice je
+        // pár cm za bodem, podle kterého se rádlo zvedá – na začátku řady může kus přesáhnout
         const inside = stints.some((s) => {
           const du = pose.ard.x - s.field.x;
           const dv = pose.ard.z - s.field.z;
-          return outsideSquare(du, dv, CELL / 2, [0, 0, 0, 0]) <= 0.01;
+          return outsideSquare(du, dv, CELL / 2, [0, 0, 0, 0]) <= 0.05;
         });
         expect(inside).toBe(true);
       }
@@ -215,6 +241,97 @@ describe('trasa dne a brázda za rádlem', () => {
   });
 });
 
+describe('orba rádlem křížem (oxen.md – Martin 14. 11. 2026)', () => {
+  const stints = dayStints(today());
+  const track: RouteTrack = { route: ploughRoute(stints), startMs: 0, endMs: 86_000 };
+  const dot = (a: readonly [number, number], b: readonly [number, number]): number =>
+    a[0] * b[0] + a[1] * b[1];
+
+  it('brázdy dílu po orbě tvoří dvě kolmé sady – každá pokryje celý dnešní pruh', () => {
+    const end = routeFurrows(track, 86_000);
+    for (const stint of stints.filter((s) => !s.cross)) {
+      const own = end.filter((b) => b.partId === stint.partId);
+      const first = own.filter((b) => !b.cross);
+      const second = own.filter((b) => b.cross);
+      expect(first.length).toBeGreaterThan(1);
+      expect(second.length).toBeGreaterThan(1);
+      // v každé sadě souběžné brázdy, sady navzájem kolmé – i textura brázd (mřížka)
+      for (const b of first) expect(Math.abs(dot(b.along, first[0]!.along))).toBeCloseTo(1, 9);
+      for (const b of second) {
+        expect(Math.abs(dot(b.along, second[0]!.along))).toBeCloseTo(1, 9);
+        expect(dot(b.along, first[0]!.along)).toBeCloseTo(0, 9);
+        expect(dot(furrowRows(b), furrowRows(first[0]!))).toBeCloseTo(0, 9);
+      }
+      // druhý průchod: řady vedle sebe přes celý díl podél řad prvního, každá jen přes pruh
+      const width = (stint.to - stint.from) * CELL;
+      expect(second.reduce((sum, b) => sum + 2 * b.half, 0)).toBeCloseTo(CELL, 6);
+      for (const b of second) {
+        expect(b.to - b.from).toBeLessThanOrEqual(width + 1e-6);
+        // středy brázd druhého průchodu leží v pruhu prvního
+        const mid = (b.from + b.to) / 2;
+        const x = b.x + b.along[0] * mid + b.across[0] * b.v;
+        const z = b.z + b.along[1] * mid + b.across[1] * b.v;
+        const v =
+          (x - stint.field.x) * first[0]!.across[0] + (z - stint.field.z) * first[0]!.across[1];
+        expect(v).toBeGreaterThanOrEqual(stint.field.from! - 1e-6);
+        expect(v).toBeLessThanOrEqual(stint.field.to! + 1e-6);
+      }
+      // plocha obou sad stejná (kulaté rohy ubírají oběma)
+      const sum = (bands: FurrowBand[]): number => bands.reduce((s, b) => s + area(b), 0);
+      expect(sum(second)).toBeGreaterThan(sum(first) * 0.9);
+      expect(sum(second)).toBeLessThan(sum(first) * 1.1);
+    }
+  });
+
+  it('napřed celý první průchod pruhu, pak křížem – práce orby (pruhy dne) se nemění', () => {
+    // v polovině druhého průchodu dílu 51 je první průchod celý, druhý rozpracovaný
+    const rows = track.route.stints[1]!.rows;
+    const half = rows[Math.floor(rows.length / 2)]!;
+    const s = track.route.starts[half.segment]!;
+    const ms = (s / track.route.length) * 86_000;
+    const bands = routeFurrows(track, ms).filter((b) => b.partId === 51);
+    const first = bands.filter((b) => !b.cross);
+    expect(first.reduce((sum, b) => sum + 2 * b.half, 0)).toBeCloseTo(0.75 * CELL, 6);
+    const second = bands.filter((b) => b.cross);
+    expect(second.length).toBeGreaterThan(0);
+    expect(second.reduce((sum, b) => sum + 2 * b.half, 0)).toBeLessThan(CELL);
+    // pruhy dne (co jádro dnes zoralo) jsou stejné jako bez druhého průchodu
+    expect(stints.filter((s) => s.cross).map((s) => [s.partId, s.from, s.to])).toEqual(
+      stints.filter((s) => !s.cross).map((s) => [s.partId, s.from, s.to]),
+    );
+  });
+
+  it('úzký pruh v kulatém rohu: řady končí na oblouku, řady celé za obloukem vynechá', () => {
+    // pruh 1/8 dílu (1,875 m) u okraje s kulatým rohem (oblouk 5 m)
+    const field: PloughField = {
+      x: 0,
+      z: 0,
+      size: CELL,
+      dirX: 1,
+      dirZ: 0,
+      rows: 2,
+      from: -CELL / 2,
+      to: -CELL / 2 + CELL / 8,
+      corners: [{ x: -CELL / 2, z: -CELL / 2 }],
+    };
+    const cross = crossField(field, PLOUGH_ROW_M);
+    expect(cross.length).toBeCloseTo(CELL / 8, 9);
+    expect(cross.size).toBe(CELL);
+    const route = ploughRoute([{ fieldId: 1, partId: 1, field: cross, cross: true }]);
+    const rows = route.stints[0]!.rows;
+    // krajní řada u rohu je kratší (končí na oblouku), řady uprostřed přes celý pruh
+    expect(rows).toHaveLength(stintRowCount(cross));
+    expect(rows[0]!.hi - rows[0]!.lo).toBeLessThan(CELL / 8 - 1);
+    expect(rows[2]!.hi - rows[2]!.lo).toBeCloseTo(CELL / 8, 9);
+    // hustší řady: krajní řady leží celé za obloukem – spřežení je vynechá
+    const dense = crossField(field, 1);
+    const kept = ploughRoute([{ fieldId: 1, partId: 1, field: dense, cross: true }]).stints[0]!
+      .rows;
+    expect(kept.length).toBeLessThan(stintRowCount(dense));
+    for (const row of kept) expect(row.hi - row.lo).toBeGreaterThan(0);
+  });
+});
+
 describe('pás orby přes víc dílů (oxen.md – Co nejdelší brázda)', () => {
   const furrow = { axis: 'x' as const, sweep: 1 as const };
   /** Dnes: díly 61–63 jednoho pásu zorané z 1/4 na 3/4 (stejně – orají se spolu). */
@@ -233,7 +350,8 @@ describe('pás orby přes víc dílů (oxen.md – Co nejdelší brázda)', () =
 
   it('díly pásu jsou jeden pruh – brázda přes celý pás, obraty jen na jeho koncích', () => {
     const stints = dayStints(band());
-    expect(stints).toHaveLength(1);
+    // pruh a hned po něm týž pruh křížem
+    expect(stints.map((s) => s.cross ?? false)).toEqual([false, true]);
     const [stint] = stints;
     expect(stint!.partIds).toEqual([61, 62, 63]);
     expect(stint!.field.length).toBeCloseTo(3 * CELL, 9);
@@ -287,15 +405,17 @@ describe('osa brázdy podle bloku (Martin, 19. 10. 2026 – orba i sever – jih
         progress: parts.map(() => [0, 0.5] as [number, number]),
       }),
     );
-    expect(stints).toHaveLength(1);
+    expect(stints.map((s) => s.cross ?? false)).toEqual([false, true]);
     const field = stints[0]!.field;
     // řady podél z (sever – jih), pás přes 4 díly
     expect(Math.abs(field.dirZ)).toBeCloseTo(1, 9);
     expect(field.dirX).toBeCloseTo(0, 9);
     expect(field.length).toBeCloseTo(4 * CELL, 9);
+    // druhý průchod křížem – řady východ – západ přes pruh
+    expect(Math.abs(stints[1]!.field.dirX)).toBeCloseTo(1, 9);
     const route = ploughRoute(stints);
     const lines = route.segments.filter(
-      (seg, i) => seg.kind === 'line' && route.segmentStint[i]! >= 0 && seg.length > CELL,
+      (seg, i) => seg.kind === 'line' && route.segmentStint[i] === 0 && seg.length > CELL,
     );
     expect(lines.length).toBeGreaterThan(1);
     for (const seg of lines) {
@@ -340,6 +460,8 @@ describe('zoraná zem jen kudy rádlo projelo (Martin, 19. 10. 2026)', () => {
     const stints = dayStints(village);
     expect(stints.map((s) => s.partIds)).toEqual([
       [71, 72, 73],
+      [71, 72, 73],
+      [81, 82, 83],
       [81, 82, 83],
     ]);
     const start = startOfDayVillage(village, stints);
@@ -355,9 +477,9 @@ describe('zoraná zem jen kudy rádlo projelo (Martin, 19. 10. 2026)', () => {
       const route = ploughRoute(team);
       const track: RouteTrack = { route, startMs: 0, endMs: 1000 };
       const bands = routeFurrows(track, 1000);
-      for (const stint of team) {
+      for (const stint of team.filter((s) => !s.cross)) {
         const own = bands.filter(
-          (b) => stint.partIds.includes(b.partId ?? -1) || b.partId === stint.partId,
+          (b) => !b.cross && (stint.partIds.includes(b.partId ?? -1) || b.partId === stint.partId),
         );
         const across = own.reduce((sum, b) => sum + 2 * b.half, 0);
         expect(across).toBeCloseTo((stint.to - stint.from) * CELL, 6);
