@@ -475,6 +475,7 @@ function sendHome(
       refId: s.id,
       untilDay: p.untilDay,
       personIds: p.personIds,
+      deserted: true,
     });
   }
 }

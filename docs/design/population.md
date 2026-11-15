@@ -690,6 +690,15 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   z okolí, dcera vdaná pryč, dokončení stavby,
   rozhodnutí obyvatel o přestavbě a vymření vsi.
   Po návratu ji hráč otevře sám panelem Kronika (kniha v liště).
+- **Kronikářsky, ne jako oznámení** (Martin 15. 11. 2026: „Je to kronika, ne oznámení
+  v novinách.“): úmrtí s věkem, postavením a jménem – „Ve věku 64 let zemřel sedlák Bořivoj.“;
+  příčina jen když nebyla stáří („zemřel hlady“, „padl v boji“, „zahynul na cestě – zabili ho
+  vlci“). Postavení podle domácnosti v den smrti (návrh Clauda): vojvoda, sedlák, kovář, hrnčíř,
+  tesař, uhlíř, kněz, mistr huti; žena hlavy domu vojvodova žena, selka, kovářka, hrnčířka
+  (tesařova a uhlířova žena); rodiče, děti, snacha a zeť a vnoučata hlavy („syn sedláka Bořivoje
+  Radim“, „matka vojvody“); ostatní chlapec / dívka, vesničan / vesničanka, stařec / stařena. Jméno
+  mají jen muži rodu (lord.md – Kde se jméno ukazuje). Návrat z tažení jménem a postavením: „Z tažení
+  se vrátili sedlák Bořivoj a kovář Radim.“, dezertér „Z tažení utekl domů sedlák Bořivoj.“
 - Kronika drží **posledních 500 událostí**, starší se zahazují (návrh Clauda – stav vsi za
   1000 let jinak roste bez konce; simulace kroniku nečte, takže na průběh vsi to nemá vliv).
 

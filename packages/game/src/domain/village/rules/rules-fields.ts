@@ -457,6 +457,9 @@ export const GARDEN = {
 // jablek v koších ze sadu do vsi (3 t/ha ≈ 120 košů po 25 kg, při ≈ 150 m od domů ≈ 2 čd z 8) –
 // ten převezme vůz tam, kam ke čtverci sadu dojede (jako odnos snopů)
 export const ORCHARD = {
+  // orchard.md – Ve scéně (Martin 18. 10. 2026): mřížka 7,5 m, 4 stromy na čtverec – i počet
+  // vysazených stromů v kronice obnovy sadu
+  treesPerSquare: 4,
   plantingPerHa: 80,
   carePerHa: 10,
   harvestPerHa: 8,

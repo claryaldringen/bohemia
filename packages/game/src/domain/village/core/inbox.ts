@@ -103,9 +103,15 @@ export type VillageEventBody =
    * bez dne návratu se vrátí na začátku dne `untilDay` (`returnHome`). Výprava (expeditions.md)
    * vrací lidi po hloučcích – `personIds` jsou id lidí hloučku, který došel domů (`endAway`
    * je vrátí, ostatní s týmž `refId` zůstávají pryč); chybí = všichni s `refId` (ochrana, starší
-   * události).
+   * události). `deserted` – dezertéři z tažení (war.md – Dezerce; kronika „Z tažení utekl domů…“).
    */
-  | { kind: 'away-ends'; refId: string; untilDay: number; personIds?: number[] }
+  | {
+      kind: 'away-ends';
+      refId: string;
+      untilDay: number;
+      personIds?: number[];
+      deserted?: true;
+    }
   /**
    * Šelma napadla muže výjezdu v hustém lese (lord-control.md – Nebezpečí; `applyJourneyCasualty`):
    * zraněný 60 dní nepracuje jako po lovu, zabitý zemře a nástupnictví běží běžnou cestou.
@@ -330,7 +336,7 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
       dismissGuests(state, body.away, body.guests);
       return [];
     case 'away-ends':
-      endAway(state, body.refId, Math.max(day, body.untilDay), body.personIds);
+      endAway(state, body.refId, Math.max(day, body.untilDay), body.personIds, body.deserted);
       return [];
     case 'journey-casualty':
       return applyJourneyCasualty(state, day, body);

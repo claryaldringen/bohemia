@@ -2054,7 +2054,7 @@ describe('sad v pohledu na ves', () => {
     expect(buildVillageView(record(s), landscape, DAY).chronicle[0]).toMatchObject({
       day: DAY - 30,
       kind: 'orchard-renewal-started',
-      text: 'Vesničané obnovují starý sad – znovu vysadí 4 čtverce.',
+      text: 'Libičtí vysadili 16 stromů, aby obnovili starý sad.',
     });
   });
 

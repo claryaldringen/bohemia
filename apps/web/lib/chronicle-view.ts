@@ -4,7 +4,7 @@
 
 import { CHRONICLE_MAX_EVENTS, dateOfDayIndex, type ChronicleEvent } from '@bohemia/game';
 import { monthGenitive } from './game-date';
-import { chronicleText } from './village-view-chronicle';
+import { chronicleText, orchardRenewalText } from './village-view-chronicle';
 
 /**
  * Kolik záznamů nejméně má stránka (návrh Clauda): stránka bere celé roky, dokud nemá aspoň
@@ -100,11 +100,27 @@ export function chroniclePage(
   ask: ChronicleAsk,
   seed?: number,
 ): ChroniclePage {
+  // obnovy sadů téhož dne jedním zápisem (Martin 15. 11. 2026): čtverce a sady dne dohromady
+  const renewals = new Map<number, { squares: number; orchards: Set<number> }>();
+  for (const event of chronicle) {
+    if (event.kind !== 'orchard-renewal-started') continue;
+    const day = renewals.get(event.day) ?? { squares: 0, orchards: new Set<number>() };
+    day.squares += event.squares;
+    day.orchards.add(event.orchardId);
+    renewals.set(event.day, day);
+  }
+  const renewalShown = new Set<number>();
   const ordered = chronicle
     .map((event, index) => ({ event, index, year: dateOfDayIndex(event.day).year }))
     .filter((item) => shownInChronicle(item.event))
     .filter((item) => ask.before === null || item.year < ask.before)
-    .sort((a, b) => b.event.day - a.event.day || b.index - a.index);
+    .sort((a, b) => b.event.day - a.event.day || b.index - a.index)
+    .filter(({ event }) => {
+      if (event.kind !== 'orchard-renewal-started') return true;
+      if (renewalShown.has(event.day)) return false;
+      renewalShown.add(event.day);
+      return true;
+    });
   const years: ChronicleYearView[] = [];
   let count = 0;
   let next = 0;
@@ -115,7 +131,18 @@ export function chroniclePage(
     }
     const entries: ChronicleEntryView[] = [];
     while (next < ordered.length && ordered[next]!.year === year) {
-      entries.push(entryView(ordered[next]!.event, villageName, seed));
+      const { event } = ordered[next]!;
+      const entry = entryView(event, villageName, seed);
+      const renewal =
+        event.kind === 'orchard-renewal-started' ? renewals.get(event.day) : undefined;
+      entries.push(
+        renewal
+          ? {
+              ...entry,
+              text: orchardRenewalText(villageName, renewal.squares, renewal.orchards.size),
+            }
+          : entry,
+      );
       next++;
     }
     years.push({ year, entries });

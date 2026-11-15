@@ -1476,7 +1476,12 @@ nová pravidla (návrh Clauda).
     a polem“, „mezi křižovatkou a severovýchodním krajem mapy“, stejné konce „mezi polem a dalším
     polem“) z `ChronicleRoadEnd` (jádro `paths/road-chronicle.ts` – `chronicleRoadEnds` podle
     `roadChainEnds` jako panel cesty: obydlí podle druhu, dílna podle řemesla, místo podle předpony
-    klíče trasy, tvar křižovatky, směr kraje mapy); neznámé místo – věta bez konců.
+    klíče trasy, tvar křižovatky, směr kraje mapy); neznámé místo – věta bez konců. **Kraj mapy
+    je soused** (Martin 15. 11. 2026: „ta cesta přece někam vede“): se `seed` vsi „z rozcestí do
+    Lhoty“, „od kovárny do Lhoty“ (`RoadEndForms.from` – „od“, u křižovatky „z“), přes celou mapu
+    „z Lhoty do Kněžic“ (`edgeVillage` – `neighbourOf(seed, direction).name`, `toVillage` – „do
+    Lhoty“, opisem „do vsi X“); neznámé druhé místo jen „do Lhoty“; bez seedu kraj mapy jako místo.
+    Panel cesty: „Cesta do Lhoty“ místo „Kraj mapy – sever“ (`road-end-view.ts`, šipka zůstává).
   - **Jabloně u cesty** (`construction-finished` s `roadEnds` – konce v den výsadby):
     „Podél cesty mezi dvorcem a kovárnou byly vysazeny jabloně.“, starší zápis „Podél cesty byly
     vysazeny jabloně.“
@@ -1496,6 +1501,31 @@ nová pravidla (návrh Clauda).
   - **Ohrada** (`penSpecies`, `penExtended` – `penChronicleNote`): „Byla postavena ohrada pro
     ovce.“ (kozy, prasata, skot, voly, koně), rozšíření „Ohrada pro skot byla rozšířena.“, zrušení
     „Stavba ohrady pro ovce se zrušila.“; bez druhu „Byla postavena ohrada.“
+- **Kronikářsky, ne jako oznámení** (Martin 15. 11. 2026: „Je to kronika, ne oznámení v novinách.“;
+  `village-view-chronicle-c.test.ts`):
+  - **Obnova sadu jedním zápisem za den** (`orchard-renewal-started` – jádro píše zápis za sad;
+    `chroniclePage` sečte čtverce a sady dne a ukáže první zápis dne): „Vlkovští vysadili 8 stromů,
+    aby obnovili starý sad.“ (`orchardRenewalText` – `ORCHARD.treesPerSquare` = 4 na čtverec, víc
+    sadů „staré sady“).
+  - **Úmrtí** (`death` se `sex` a `estate` – jádro `people/estate.ts`, `deathWho` v den smrti):
+    „Ve věku 64 let zemřel sedlák Bořivoj.“, „Ve věku 41 let zemřela hlady kovářka.“, „Ve věku 12
+    let zemřel syn sedláka Bořivoje Radim.“, „V prvním roce života zemřela dcera hrnčíře.“, „Ve věku
+    33 let zahynul na cestě vojvoda Bořivoj – zabili ho vlci.“ (`deathLine`). Příčina jen když
+    nebyla stáří (hlady, na lovu, při povodni, ve smršti, v boji, na rány, na cestě). Postavení
+    (`ChronicleEstate`, návrh Clauda): `title` – dvorec vojvody, dílna řemesla, jinak rolník; kněz
+    a mistr huti podle úřadu; `kin` – hlava (vojvoda `dynasty.lordId`, jinak `householdHead`),
+    žena (i žena v čele domu), rodič, dítě, snacha / zeť, vnouče hlavy (`headName` – jméno hlavy,
+    muže rodu, ve 2. pádě), jinak chlapec / dívka, vesničan / vesničanka, stařec / stařena.
+    Slova `ESTATE_TITLES` (sedlák / selka, kovář / kovářka, hrnčíř / hrnčířka, vojvodova žena;
+    „tesařova žena“, „uhlířova žena“ opisem). Jména mají jen muži rodu (lord.md – „Ostatní lidé
+    zůstávají bez jmen“). Starší zápisy bez postavení: „Ve věku 30 let zemřel jeden z dospělých.“,
+    bez věku podmět napřed („Dítě zemřelo hlady.“, „Bořivoj padl v boji.“).
+  - **Návrat z tažení** (`people-back` druhu `campaign` s `who` – `chroniclePerson`; řádný návrat
+    zapíše `applyCampaignReturn`, dezertéra `returnHome` s `deserted`): „Z tažení se vrátil sedlák
+    Bořivoj.“, „Z tažení se vrátili sedlák Bořivoj a kovář Radim.“, nad 4 různé lidi tři jménem
+    „… a další 4“; stejní sedláci bez jména číslem („Z tažení se vrátili 2 sedláci.“, „… vrátilo
+    5 sedláků.“); dezertér „Z tažení utekl domů sedlák Bořivoj.“; starší zápis „Z tažení se vrátili
+    3 lidé.“ (`campaignBackText`).
 - **Obnova:** `useChronicle` načte první stránku při otevření, při jiné vsi a když v pohledu
   přibude zápis (`latest` = nejnovější zápis `VillageView.chronicle`); `mergeNewest` nahradí roky
   nové stránky a starší načtené roky ponechá, `appendOlder` připojí starší stránku.

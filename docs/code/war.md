@@ -292,8 +292,11 @@ a `food` (kg obilí ze zásob shromaždiště).
   živě vedeného tažení a odchod dezertéra z bojiště: Hráč ve vsi a mimo ni – Živé vedení bez rozkazu.
 - **Dezertér jde domů hned** (Martin 15. 11. 2026; `sendHome` v `campaign.ts`, `deserterHomeDay`
   v `desertion.ts`): v den dezerce (hlad i nucení) dostane jeho ves den nato `away-ends`
-  (`refId` = id tažení, `personIds`, `untilDay`) – ve vsi je pryč jen do dne dezerce + cesta domů
-  (`endAway`, `returnHome` – kronika „vrátil se domů z tažení“). Cesta = `walkDays` (vzdušnou čarou
+  (`refId` = id tažení, `personIds`, `untilDay`, `deserted`) – ve vsi je pryč jen do dne dezerce +
+  cesta domů (`endAway` – `PersonAway.deserted`, `returnHome` – kronika „Z tažení utekl domů sedlák
+  Bořivoj.“, `people-back` s `deserted` a `who`). Řádný návrat zapíše `applyCampaignReturn`
+  (`people-back` s `who` – „Z tažení se vrátili vojvoda Bořivoj a 2 sedláci.“; web-ui.md – Panel
+  Kronika). Cesta = `walkDays` (vzdušnou čarou
   tempem pěšího jako `daysHome`; návrh Clauda) z místa jeho skupiny do jeho vsi (`homes`, jinak
   shromaždiště), nejméně 1 den; strana mapy je konstanta `LANDSCAPE_SIZE × CELL_SIZE_M`, mapy se
   nečtou. Dezertéři téže vsi se stejným dnem jdou jednou událostí. Den si nese

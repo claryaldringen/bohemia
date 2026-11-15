@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { Road, VillageState } from '@bohemia/game';
+import { neighbourOf, type Road, type VillageState } from '@bohemia/game';
 import { roadEndView } from '../road-end-view';
+import { toVillage } from '../village-name-cases';
 
 // Konce cesty v panelu (paths.md – pravidlo 11, Co hráč vidí; Martin 25. 10. 2026).
 
@@ -79,8 +80,10 @@ describe('roadEndView', () => {
       name: 'Křižovatka',
       target: { kind: 'junction', id: 565 },
     });
+    // cesta přes kraj mapy se jmenuje podle souseda, ke kterému vede (Martin 15. 11. 2026)
+    const north = neighbourOf(state.seed, 'N').name;
     expect(roadEndView(state, roads, { kind: 'edge', direction: 'N' })).toMatchObject({
-      name: 'Kraj mapy – sever',
+      name: `Cesta ${toVillage(north)}`,
       arrow: '↑',
       target: null,
     });

@@ -1,4 +1,5 @@
 import { createRandom, deriveSeed } from '../../landscape/random';
+import { deathWho } from './estate';
 import { bury, hygieneDeathFactor, villageHygiene } from '../buildings/cemetery';
 import { isOvercrowded } from '../buildings/dwellings';
 import { isDynastyTracked, isLineMan, markNewborn } from './dynasty';
@@ -370,13 +371,14 @@ export function populationDay(
     if (roll < Math.min(1, base + starvation)) {
       dead.add(person.id);
       const group = ageGroup(person, day);
-      // jméno zemřelého muže rodu (lord.md – Kde se jméno ukazuje); ostatní jméno nemají
-      const name = person.name === undefined ? {} : { name: person.name, personId: person.id };
+      // jméno zemřelého muže rodu (lord.md – Kde se jméno ukazuje; ostatní jméno nemají),
+      // pohlaví a postavení (kronika – `deathWho`)
+      const who = deathWho(state, person, day);
       const age = ageYears(person.bornDay, day);
       events.push(
         roll < base
-          ? { day, kind: 'death', group, age, ...name }
-          : { day, kind: 'death', group, age, cause: 'hunger', ...name },
+          ? { day, kind: 'death', group, age, ...who }
+          : { day, kind: 'death', group, age, cause: 'hunger', ...who },
       );
       // mohyla podle významu zemřelého – vojvodova rodina, hlava rodiny, dítě (cemetery.md)
       const full = bury(state, day, person);

@@ -21,6 +21,28 @@ import type {
 } from './types-trade';
 
 /**
+ * Postavení člověka v zápisu kroniky v den zápisu (úmrtí, návrat z tažení – Martin 15. 11. 2026:
+ * „Ve věku 64 let zemřel sedlák Bořivoj.“; návrh Clauda – population.md, Kronika): `title` – čí je
+ * domácnost (dvorec vojvody, dílna řemesla, jinak rolník), u kněze a mistra huti jeho úřad;
+ * `kin` – vztah k hlavě domácnosti (hlava, její žena – i žena v čele domu bez muže, rodič, dítě,
+ * snacha či zeť, vnouče, jiný člen); `headName` – jméno hlavy, muže rodu (u rodiče, dítěte, snachy
+ * a vnoučete).
+ */
+export interface ChronicleEstate {
+  title: 'voivode' | 'farmer' | 'priest' | Craft | MasonCraft;
+  /** Žena („selka“, „dcera sedláka“); chybí – muž. */
+  female?: true;
+  kin: 'head' | 'wife' | 'parent' | 'child' | 'in-law' | 'grandchild' | 'other';
+  headName?: string;
+}
+
+/** Člověk v zápisu kroniky (návrat z tažení): postavení a jméno muže rodu. */
+export interface ChroniclePerson {
+  estate: ChronicleEstate;
+  name?: string;
+}
+
+/**
  * Konec cesty v kronice (roads.md – kronika; Martin 14. 11. 2026: „Podél cesty mezi dvorcem
  * a kovárnou byly vysazeny jabloně.“): co na konci cesty hráče leželo v den zápisu – uloží se,
  * ať popis sedí i po pozdější přestavbě sítě (`chronicleRoadEnds`).
@@ -155,6 +177,13 @@ export type ChronicleEvent = { day: number } & (
       kind: 'people-back';
       away: AwayKind;
       people: number;
+      /**
+       * Kdo se vrátil z tažení (Martin 15. 11. 2026: „Z tažení se vrátil sedlák Bořivoj.“) – lidé
+       * v pořadí id; starší zápisy a jiné druhy bez nich.
+       */
+      who?: ChroniclePerson[];
+      /** Z tažení utekli domů – dezertéři (war.md – Dezerce); chybí – řádný návrat. */
+      deserted?: true;
       /** Uprchlíky vrátil domů správce (war.md – Varování: návrat; Úloha 10); chybí – hráč, jiný návrat. */
       steward?: true;
     }
@@ -310,6 +339,8 @@ export type ChronicleEvent = { day: number } & (
       name?: string;
       /** Id zemřelého muže rodu (vždy spolu s `name`) – den smrti pro los nástupnictví hráče. */
       personId?: number;
+      /** Postavení a pohlaví zemřelého v den smrti (`chronicleEstate`); starší zápisy bez něj. */
+      estate?: ChronicleEstate;
     }
   /** Zemřel poslední člověk – ves vymřela (population.md – Hlad a vymření). */
   | { kind: 'village-extinct' }

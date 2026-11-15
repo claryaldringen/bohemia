@@ -5,6 +5,7 @@ import { accusativeOf } from './player-notices';
 import { LEVY_UNITS } from './levy-labels';
 import {
   CRAFT_PRODUCTS,
+  ORCHARD,
   neighbourOf,
   type CraftProduct,
   type FloodLevel,
@@ -15,8 +16,10 @@ import {
   dateOfDayIndex,
   type AbandonedStructure,
   type AwayKind,
+  type ChronicleEstate,
   type ChronicleEvent,
   type ChronicleFortGate,
+  type ChroniclePerson,
   type ChronicleRoadEnd,
   type PenSpecies,
   type LandTaker,
@@ -39,7 +42,7 @@ import { formatGameDate } from './game-date';
 import { noticeChronicleText } from './notice-chronicle';
 
 import { DIRECTION_NAMES, NEWCOMER_TEXTS, goodsText, peopleText } from './trade-names';
-import { fromVillage, villagersOf, withVillagersOf } from './village-name-cases';
+import { fromVillage, toVillage, villagersOf, withVillagersOf } from './village-name-cases';
 
 import { formatAnimals, formatCells, formatHa, formatInteger, plural } from './village-format';
 
@@ -74,12 +77,198 @@ export const DWELLING_NAMES: Record<DwellingType, { nominative: string; accusati
   'dvorec-srub': { nominative: 'Dvorec', accusative: 'dvorec' },
 };
 
-function deathText(group: 'child' | 'adult' | 'elder', hunger: boolean): string {
-  if (group === 'child') return hunger ? 'Dítě zemřelo hlady.' : 'Zemřelo dítě.';
-  if (group === 'adult') {
-    return hunger ? 'Jeden z dospělých zemřel hlady.' : 'Zemřel jeden z dospělých.';
+/**
+ * Postavení v kronice (Martin 15. 11. 2026: „sedlák“, „vojvodova žena“, „selka / kovářka“): muž,
+ * žena a 2. pád („syn sedláka“). „Tesařka“ a „uhlířka“ jsou nejisté – opis (návrh Clauda).
+ */
+const ESTATE_TITLES: Record<
+  ChronicleEstate['title'],
+  { man: string; wife: string; genitive: string }
+> = {
+  voivode: { man: 'vojvoda', wife: 'vojvodova žena', genitive: 'vojvody' },
+  farmer: { man: 'sedlák', wife: 'selka', genitive: 'sedláka' },
+  smith: { man: 'kovář', wife: 'kovářka', genitive: 'kováře' },
+  potter: { man: 'hrnčíř', wife: 'hrnčířka', genitive: 'hrnčíře' },
+  carpenter: { man: 'tesař', wife: 'tesařova žena', genitive: 'tesaře' },
+  burner: { man: 'uhlíř', wife: 'uhlířova žena', genitive: 'uhlíře' },
+  priest: { man: 'kněz', wife: 'žena kněze', genitive: 'kněze' },
+  builder: { man: 'stavbyvedoucí', wife: 'žena stavbyvedoucího', genitive: 'stavbyvedoucího' },
+  limeBurner: { man: 'vápeník', wife: 'žena vápeníka', genitive: 'vápeníka' },
+  stonemason: { man: 'kameník', wife: 'žena kameníka', genitive: 'kameníka' },
+  mason: { man: 'zedník', wife: 'žena zedníka', genitive: 'zedníka' },
+  plasterer: { man: 'štukatér', wife: 'žena štukatéra', genitive: 'štukatéra' },
+};
+
+/** Hlavy domácností v množném čísle za číslem (2–4 / 5+): „2 sedláci“, „5 sedláků“. */
+const HEADS_PLURAL: Partial<Record<ChronicleEstate['title'], readonly [string, string]>> = {
+  farmer: ['sedláci', 'sedláků'],
+  smith: ['kováři', 'kovářů'],
+  potter: ['hrnčíři', 'hrnčířů'],
+  carpenter: ['tesaři', 'tesařů'],
+  burner: ['uhlíři', 'uhlířů'],
+};
+
+/** Příbuzný hlavy domácnosti – muž a žena („syn sedláka“, „matka vojvody“). */
+const KIN_WORDS: Record<'parent' | 'child' | 'in-law' | 'grandchild', readonly [string, string]> = {
+  parent: ['otec', 'matka'],
+  child: ['syn', 'dcera'],
+  'in-law': ['zeť', 'snacha'],
+  grandchild: ['vnuk', 'vnučka'],
+};
+
+/** Člověk bez vztahu k hlavě domu podle věku: chlapec, vesničan, stařec (a ženy). */
+const PLAIN_PEOPLE: Record<'child' | 'adult' | 'elder', readonly [string, string]> = {
+  child: ['chlapec', 'dívka'],
+  adult: ['vesničan', 'vesničanka'],
+  elder: ['stařec', 'stařena'],
+};
+
+/**
+ * Kdo – postavení a jméno muže rodu v 1. pádě (Martin 15. 11. 2026: „sedlák Bořivoj“, „syn sedláka
+ * Bořivoje Radim“): hlava domu, žena, příbuzný hlavy; jiný člen domu jménem, jinak podle věku.
+ */
+function estateText(
+  estate: ChronicleEstate,
+  female: boolean,
+  name: string | undefined,
+  group: 'child' | 'adult' | 'elder' = 'adult',
+): string {
+  const title = ESTATE_TITLES[estate.title];
+  const named = (text: string): string => (name === undefined ? text : `${text} ${name}`);
+  switch (estate.kin) {
+    case 'head':
+    case 'wife':
+      return female ? title.wife : named(title.man);
+    case 'other':
+      return name ?? PLAIN_PEOPLE[group][female ? 1 : 0];
+    default: {
+      const of =
+        estate.headName === undefined
+          ? title.genitive
+          : `${title.genitive} ${genitiveOf(estate.headName)}`;
+      return named(`${KIN_WORDS[estate.kin][female ? 1 : 0]} ${of}`);
+    }
   }
-  return hunger ? 'Jeden ze starších zemřel hlady.' : 'Zemřel jeden ze starších.';
+}
+
+/** Věk na začátku věty o smrti: „Ve věku 64 let“, „Ve věku 1 roku“, „V prvním roce života“. */
+function agePrefix(age: number): string {
+  if (age < 1) return 'V prvním roce života';
+  return age < 2 ? 'Ve věku 1 roku' : `Ve věku ${formatInteger(age)} let`;
+}
+
+/**
+ * Úmrtí kronikářsky (Martin 15. 11. 2026: „Ve věku 64 let zemřel sedlák Bořivoj.“): věk, příčina
+ * jen když nebyla stáří („zemřel hlady“, „padl v boji“, šelma), postavení a jméno. Starší zápisy
+ * bez postavení: jméno muže rodu, jinak dítě, jeden z dospělých, jeden ze starších; bez věku
+ * podmět napřed („Dítě zemřelo hlady.“).
+ */
+function deathLine(event: Extract<ChronicleEvent, { kind: 'death' }>): string {
+  const female = event.estate?.female === true;
+  const who = event.estate
+    ? estateText(event.estate, female, event.name, event.group)
+    : (event.name ?? OLD_DEATH_WHO[event.group]);
+  // rod slovesa: žena, staré „dítě“ (střední), jinak muž
+  const ending = female ? 'a' : !event.estate && !event.name && event.group === 'child' ? 'o' : '';
+  const prey = event.prey === 'bear' ? 'medvěda' : 'divočáka';
+  const [verb, rest = ''] = ((): [string, string?] => {
+    switch (event.cause) {
+      case 'hunger':
+        return ['zemřel', 'hlady'];
+      case 'hunt':
+        return ['zahynul', `na lovu ${prey}`];
+      case 'flood':
+        return ['utonul', 'při povodni'];
+      case 'tornado':
+        return ['zahynul', 've smršti'];
+      case 'war':
+        return ['padl', 'v boji'];
+      case 'wounds':
+        return ['zemřel', 'na rány'];
+      case 'beast':
+        return ['zahynul', 'na cestě'];
+      default:
+        return ['zemřel'];
+    }
+  })();
+  const died = `${verb}${ending}${rest === '' ? '' : ` ${rest}`}`;
+
+  // šelma (lord-control.md – Nebezpečí): „… – zabil ho medvěd.“
+  const beast =
+    event.cause !== 'beast'
+      ? ''
+      : ` – ${event.by === 'bear' ? 'zabil' : 'zabili'} ${female ? 'ji' : ending === 'o' ? 'je' : 'ho'} ${event.by === 'bear' ? 'medvěd' : 'vlci'}`;
+  // bez věku (starší zápisy) podmět napřed: „Bořivoj padl v boji.“
+  return event.age === undefined
+    ? `${capitalized(who)} ${died}${beast}.`
+    : `${agePrefix(event.age)} ${died} ${who}${beast}.`;
+}
+
+/** Zemřelý ve starším zápisu bez postavení a jména. */
+const OLD_DEATH_WHO: Record<'child' | 'adult' | 'elder', string> = {
+  child: 'dítě',
+  adult: 'jeden z dospělých',
+  elder: 'jeden ze starších',
+};
+
+/**
+ * Kdo se vrátil z tažení (Martin 15. 11. 2026: „Z tažení se vrátili sedlák Bořivoj a kovář
+ * Radim.“, nad 3 „… a další 4“): postavení a jméno, stejné hlavy domů bez jména číslem („2 sedláci“),
+ * jinak se opakované počítají do „dalších“. Dezertéři „Z tažení utekl domů …“.
+ */
+function campaignBackText(
+  people: number,
+  who: readonly ChroniclePerson[] | undefined,
+  deserted: boolean,
+): string {
+  if (!who || who.length === 0) {
+    return `Z tažení se ${plural(people, 'vrátil', 'vrátili', 'vrátilo')} ${peopleCountText(people)}.`;
+  }
+  const groups = new Map<string, { person: ChroniclePerson; text: string; count: number }>();
+  for (const person of who) {
+    const text = estateText(person.estate, person.estate.female === true, person.name);
+    const group = groups.get(text);
+    if (group) group.count++;
+    else groups.set(text, { person, text, count: 1 });
+  }
+  const items = [...groups.values()];
+  const shown = items.length <= 4 ? items : items.slice(0, 3);
+  let rest = who.length;
+  const texts = shown.map(({ person, text, count }) => {
+    const heads =
+      person.name === undefined && person.estate.kin === 'head' && !person.estate.female
+        ? HEADS_PLURAL[person.estate.title]
+        : undefined;
+    if (count > 1 && heads) {
+      rest -= count;
+      return `${formatInteger(count)} ${count <= 4 ? heads[0] : heads[1]}`;
+    }
+    rest -= 1;
+    return text;
+  });
+  if (rest > 0) texts.push(rest === 1 ? 'jeden další' : `další ${formatInteger(rest)}`);
+  // shoda slovesa: jeden člověk podle pohlaví, „5 sedláků“ středním rodem, jinak množné číslo
+  const only = texts.length === 1 ? shown[0]! : null;
+  const ending =
+    only === null || only.count > 1
+      ? only !== null && only.count >= 5
+        ? 'o'
+        : 'i'
+      : only.person.estate.female
+        ? 'a'
+        : '';
+  return deserted
+    ? `Z tažení utekl${ending} domů ${listText(texts)}.`
+    : `Z tažení se vrátil${ending} ${listText(texts)}.`;
+}
+
+/**
+ * Obnova sadu (Martin 15. 11. 2026): „{Vlkovští} vysadili 8 stromů, aby obnovili starý sad.“ –
+ * stromy všech čtverců obnovených ten den (ORCHARD.treesPerSquare na čtverec), víc sadů „staré sady“.
+ */
+export function orchardRenewalText(villageName: string, squares: number, orchards = 1): string {
+  const trees = squares * ORCHARD.treesPerSquare;
+  return `${capitalized(villagersOf(villageName))} vysadili ${formatInteger(trees)} ${plural(trees, 'strom', 'stromy', 'stromů')}, aby obnovili ${orchards > 1 ? 'staré sady' : 'starý sad'}.`;
 }
 
 /** Stupeň vody povodně – kronika a popisky (disasters.md – Povodeň potoka). */
@@ -91,13 +280,6 @@ export const FLOOD_LEVEL_NAMES: Record<FloodLevel, string> = {
   twoHundred: 'Dvousetletá voda',
   fiveHundred: 'Pětisetletá voda',
   thousand: 'Tisíciletá voda',
-};
-
-/** Kdo utonul při povodni (bez jména). */
-const DROWNED: Record<'child' | 'adult' | 'elder', string> = {
-  child: 'Dítě utonulo',
-  adult: 'Jeden z dospělých utonul',
-  elder: 'Jeden ze starších utonul',
 };
 
 /** Povodeň v kronice: stupeň vody, výška nad hladinou a co zatopila. */
@@ -197,14 +379,20 @@ function penFinishedText(species: PenSpecies | undefined, extended: boolean): st
 }
 
 /** Jabloně podél cesty (Martin 14. 11. 2026): „Podél cesty mezi dvorcem a kovárnou byly vysazeny jabloně.“ */
-function roadApplesText(ends: readonly [ChronicleRoadEnd, ChronicleRoadEnd] | undefined): string {
-  const between = ends ? roadBetween(ends) : null;
+function roadApplesText(
+  ends: readonly [ChronicleRoadEnd, ChronicleRoadEnd] | undefined,
+  seed: number | undefined,
+): string {
+  const between = ends ? roadBetween(ends, seed) : null;
   return between === null
     ? 'Podél cesty byly vysazeny jabloně.'
     : `Podél cesty ${between} byly vysazeny jabloně.`;
 }
 
-function finishedText(event: Extract<ChronicleEvent, { kind: 'construction-finished' }>): string {
+function finishedText(
+  event: Extract<ChronicleEvent, { kind: 'construction-finished' }>,
+  seed: number | undefined,
+): string {
   const { constructionKind: kind, craft, wagon } = event;
   if (wagon) return 'Vozová cesta je hotová – vůz po ní jede rychleji.';
   if (craft && (kind === 'dwelling' || kind === 'rebuild')) {
@@ -219,7 +407,7 @@ function finishedText(event: Extract<ChronicleEvent, { kind: 'construction-finis
   if (kind === 'pen') return penFinishedText(event.penSpecies, event.penExtended === true);
   if (kind === 'ard') return 'Vesničané vyrobili rádlo.';
   if (kind === 'road') return 'Cesta je vylepšená – chodí se po ní rychleji.';
-  if (kind === 'road-apples') return roadApplesText(event.roadEnds);
+  if (kind === 'road-apples') return roadApplesText(event.roadEnds, seed);
   if (kind === 'threshing-floor') return 'Humno je dostavěné – dá se na něm mlátit.';
   if (kind === 'fortification') return 'Opevnění je dostavěné.';
   if (kind === 'quarry') return 'Lom je otevřený – dá se v něm lámat kámen.';
@@ -383,65 +571,104 @@ function fortDemolishedText(
 
 /**
  * Místo na konci cesty v 7. pádě (Martin 14. 11. 2026: „mezi dvorcem a kovárnou“) a rod – pro
- * „a další / dalším“, když jsou oba konce stejné. Předpony klíčů tras jako panel cesty
+ * „a další / dalším“, když jsou oba konce stejné – a odkud cesta k sousedovi vede („od kovárny do
+ * Lhoty“; Martin 15. 11. 2026: „z rozcestí do Lhoty“). Předpony klíčů tras jako panel cesty
  * (`road-end-view.ts`); neznámé místo null.
  */
-const PLACE_INSTRUMENTAL: Record<string, { word: string; feminine?: true }> = {
-  cemetery: { word: 'hřbitovem' },
-  pen: { word: 'ohradou', feminine: true },
-  'threshing-floor': { word: 'humnem' },
-  idol: { word: 'modlou', feminine: true },
-  shrine: { word: 'svatyní', feminine: true },
-  'grain-pit': { word: 'obilnou jámou', feminine: true },
-  field: { word: 'polem' },
-  orchard: { word: 'sadem' },
-  oak: { word: 'posvátným dubem' },
-  grove: { word: 'dubovým hájem' },
-  ore: { word: 'rudištěm' },
-  clay: { word: 'hliništěm' },
-  kiln: { word: 'milířem' },
+const PLACE_INSTRUMENTAL: Record<string, RoadEndForms> = {
+  cemetery: { word: 'hřbitovem', from: 'od hřbitova' },
+  pen: { word: 'ohradou', feminine: true, from: 'od ohrady' },
+  'threshing-floor': { word: 'humnem', from: 'od humna' },
+  idol: { word: 'modlou', feminine: true, from: 'od modly' },
+  shrine: { word: 'svatyní', feminine: true, from: 'od svatyně' },
+  'grain-pit': { word: 'obilnou jámou', feminine: true, from: 'od obilné jámy' },
+  field: { word: 'polem', from: 'od pole' },
+  orchard: { word: 'sadem', from: 'od sadu' },
+  oak: { word: 'posvátným dubem', from: 'od posvátného dubu' },
+  grove: { word: 'dubovým hájem', from: 'od dubového háje' },
+  ore: { word: 'rudištěm', from: 'od rudiště' },
+  clay: { word: 'hliništěm', from: 'od hliniště' },
+  kiln: { word: 'milířem', from: 'od milíře' },
   // potok, u řeky `water:river` (Martin 14. 11. 2026: „teče tam přece potok“); starší zápisy
   // nesou jen `water` – potok (každá mapa má potok)
-  water: { word: 'potokem' },
-  'water:river': { word: 'řekou', feminine: true },
-  wood: { word: 'lesem' },
-  pasture: { word: 'pastvou', feminine: true },
-  meadow: { word: 'loukou', feminine: true },
+  water: { word: 'potokem', from: 'od potoka' },
+  'water:river': { word: 'řekou', feminine: true, from: 'od řeky' },
+  wood: { word: 'lesem', from: 'od lesa' },
+  pasture: { word: 'pastvou', feminine: true, from: 'od pastvy' },
+  meadow: { word: 'loukou', feminine: true, from: 'od louky' },
 };
-const DWELLING_INSTRUMENTAL: Record<DwellingType, { word: string; feminine?: true }> = {
-  zemnice: { word: 'zemnicí', feminine: true },
-  polozemnice: { word: 'polozemnicí', feminine: true },
-  vypleteny: { word: 'vypleteným domem' },
-  srub: { word: 'srubem' },
-  dvorec: { word: 'dvorcem' },
-  'dvorec-srub': { word: 'dvorcem' },
+const DWELLING_INSTRUMENTAL: Record<DwellingType, RoadEndForms> = {
+  zemnice: { word: 'zemnicí', feminine: true, from: 'od zemnice' },
+  polozemnice: { word: 'polozemnicí', feminine: true, from: 'od polozemnice' },
+  vypleteny: { word: 'vypleteným domem', from: 'od vypleteného domu' },
+  srub: { word: 'srubem', from: 'od srubu' },
+  dvorec: { word: 'dvorcem', from: 'od dvorce' },
+  'dvorec-srub': { word: 'dvorcem', from: 'od dvorce' },
 };
-const WORKSHOP_INSTRUMENTAL: Record<Craft, { word: string; feminine?: true }> = {
-  smith: { word: 'kovárnou', feminine: true },
-  potter: { word: 'hrnčířskou dílnou', feminine: true },
-  carpenter: { word: 'tesařskou dílnou', feminine: true },
-  burner: { word: 'uhlířovou zemnicí', feminine: true },
+const WORKSHOP_INSTRUMENTAL: Record<Craft, RoadEndForms> = {
+  smith: { word: 'kovárnou', feminine: true, from: 'od kovárny' },
+  potter: { word: 'hrnčířskou dílnou', feminine: true, from: 'od hrnčířské dílny' },
+  carpenter: { word: 'tesařskou dílnou', feminine: true, from: 'od tesařské dílny' },
+  burner: { word: 'uhlířovou zemnicí', feminine: true, from: 'od uhlířovy zemnice' },
 };
 
-function roadEndInstrumental(end: ChronicleRoadEnd): { word: string; feminine?: true } | null {
+/** Konec cesty: 7. pád a rod („mezi dvorcem a kovárnou“), odkud („od kovárny“, „z rozcestí“). */
+interface RoadEndForms {
+  word: string;
+  feminine?: true;
+  from: string;
+}
+
+function roadEndForms(end: ChronicleRoadEnd): RoadEndForms | null {
   switch (end.kind) {
     case 'dwelling':
       return end.craft ? WORKSHOP_INSTRUMENTAL[end.craft] : DWELLING_INSTRUMENTAL[end.type];
     case 'place':
       return PLACE_INSTRUMENTAL[end.place] ?? null;
     case 'junction':
-      return end.shape === 'y' ? { word: 'rozcestím' } : { word: 'křižovatkou', feminine: true };
+      return end.shape === 'y'
+        ? { word: 'rozcestím', from: 'z rozcestí' }
+        : { word: 'křižovatkou', feminine: true, from: 'z křižovatky' };
     case 'edge':
-      return { word: `${DIRECTION_ADJECTIVES[end.direction]}m krajem mapy` };
+      return {
+        word: `${DIRECTION_ADJECTIVES[end.direction]}m krajem mapy`,
+        from: `od ${DIRECTION_ADJECTIVES[end.direction]}ho kraje mapy`,
+      };
     case 'road':
-      return { word: 'jinou cestou', feminine: true };
+      return { word: 'jinou cestou', feminine: true, from: 'od jiné cesty' };
   }
 }
 
-/** „mezi dvorcem a kovárnou“, „mezi polem a dalším polem“; neznámé místo null. */
-export function roadBetween(ends: readonly [ChronicleRoadEnd, ChronicleRoadEnd]): string | null {
-  const a = roadEndInstrumental(ends[0]);
-  const b = roadEndInstrumental(ends[1]);
+/**
+ * Kam vede cesta přes kraj mapy (Martin 15. 11. 2026: „ta cesta přece někam vede“): soused v tom
+ * směru (`neighbourOf`); bez seedu vsi null.
+ */
+function edgeVillage(end: ChronicleRoadEnd, seed: number | undefined): string | null {
+  return end.kind === 'edge' && seed !== undefined ? neighbourOf(seed, end.direction).name : null;
+}
+
+/**
+ * Kudy cesta vede: s krajem mapy na konci „z rozcestí do Lhoty“ (Martin 15. 11. 2026), přes celou
+ * mapu „z Lhoty do Kněžic“, jinak „mezi dvorcem a kovárnou“, „mezi polem a dalším polem“. Neznámé
+ * místo: k sousedovi jen „do Lhoty“, jinak null. `seed` – seed vsi pro jména sousedů; bez něj kraj
+ * mapy jako místo („mezi dvorcem a severním krajem mapy“).
+ */
+export function roadBetween(
+  ends: readonly [ChronicleRoadEnd, ChronicleRoadEnd],
+  seed?: number,
+): string | null {
+  const toFirst = edgeVillage(ends[0], seed);
+  const toSecond = edgeVillage(ends[1], seed);
+  if (toFirst !== null && toSecond !== null) {
+    return `${fromVillage(toFirst)} ${toVillage(toSecond)}`;
+  }
+  if (toFirst !== null || toSecond !== null) {
+    const [other, to] = toSecond !== null ? [ends[0], toSecond] : [ends[1], toFirst!];
+    const from = roadEndForms(other)?.from;
+    return from === undefined ? toVillage(to) : `${from} ${toVillage(to)}`;
+  }
+  const a = roadEndForms(ends[0]);
+  const b = roadEndForms(ends[1]);
   if (!a || !b) return null;
   const again = a.word === b.word;
   return `mezi ${a.word} a ${again ? `${b.feminine ? 'další' : 'dalším'} ` : ''}${b.word}`;
@@ -451,8 +678,11 @@ export function roadBetween(ends: readonly [ChronicleRoadEnd, ChronicleRoadEnd])
  * Vyšlapaná cesta (Martin 14. 11. 2026): „Po 12 letech chůze lidé vyšlapali cestu mezi dvorcem
  * a studnou.“ Pod půl roku chůze bez doby, starší zápisy bez údajů „Lidé vyšlapali pevnou cestu.“
  */
-function roadFormedText(event: Extract<ChronicleEvent, { kind: 'road-formed' }>): string {
-  const between = event.ends ? roadBetween(event.ends) : null;
+function roadFormedText(
+  event: Extract<ChronicleEvent, { kind: 'road-formed' }>,
+  seed: number | undefined,
+): string {
+  const between = event.ends ? roadBetween(event.ends, seed) : null;
   const years = event.years ?? 0;
   if (between === null && years < 1) return 'Lidé vyšlapali pevnou cestu.';
   const head =
@@ -791,6 +1021,9 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
     case 'people-back':
       // uprchlíky vrátil správce (war.md – Varování, poslové a útěk do hradiště; návrh Clauda)
       if (event.steward) return 'Správce vrátil lidi domů.';
+      if (event.away === 'campaign') {
+        return campaignBackText(event.people, event.who, event.deserted === true);
+      }
       return `${peopleCountText(event.people)} se ${plural(event.people, 'vrátil', 'vrátili', 'vrátilo')} domů ${AWAY_BACK_TEXTS[event.away]}.`;
     case 'guests-came':
       return `Ze vsi ${event.villageName} ${plural(event.people, 'přišel', 'přišli', 'přišlo')} ${peopleCountText(event.people).toLowerCase()} ${AWAY_TEXTS[event.away]}.`;
@@ -918,24 +1151,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
         ? 'Ve vsi už nežije žádný muž rodu.'
         : `Ve vsi už nežije žádný muž rodu – posledním vojvodou byl ${event.name}.`;
     case 'death':
-      if (event.cause === 'hunt') {
-        const prey = event.prey === 'bear' ? 'medvěda' : 'divočáka';
-        return `${event.name ?? 'Muž rodu'} zahynul na lovu ${prey}.`;
-      }
-      if (event.cause === 'beast') {
-        const beast = event.by === 'bear' ? 'medvěd' : 'vlci';
-        const verb = event.by === 'bear' ? 'zabil' : 'zabili';
-        return `${event.name === undefined ? 'Jednoho z mužů' : accusativeOf(event.name)} ${verb} na cestě ${beast}.`;
-      }
-      if (event.cause === 'flood') {
-        return `${event.name === undefined ? DROWNED[event.group] : `${event.name} utonul`} při povodni.`;
-      }
-      if (event.cause === 'tornado') {
-        return `${event.name ?? 'Jeden z vesničanů'} zahynul ve smršti.`;
-      }
-      if (event.cause === 'war') return `${event.name ?? 'Jeden z vesničanů'} padl v boji.`;
-      if (event.cause === 'wounds') return `${event.name ?? 'Jeden z vesničanů'} zemřel na rány.`;
-      return deathText(event.group, event.cause === 'hunger');
+      return deathLine(event);
     case 'hunt-injury': {
       const prey = event.prey === 'bear' ? 'medvěda' : 'divočáka';
       return `${event.name ?? 'Lovec'} byl zraněn na lovu ${prey} – 60 dní nepracuje.`;
@@ -957,7 +1173,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
     case 'married-away':
       return 'Dcera se vdala do sousední vsi.';
     case 'construction-finished':
-      return finishedText(event);
+      return finishedText(event, seed);
     case 'cart-made':
       return `Tesař vyrobil ${CART_NAMES[event.cart].toLowerCase()}.`;
     case 'iron-trip':
@@ -1100,7 +1316,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
     case 'orchard-gone':
       return 'Starý sad dosloužil a zarostl loukou.';
     case 'orchard-renewal-started':
-      return `Vesničané obnovují starý sad – znovu vysadí ${formatCells(event.squares)}.`;
+      return orchardRenewalText(villageName, event.squares);
     case 'land-taken':
       return landTakenText(event.land, event.areaM2, event.gone, event.by);
     case 'hunger-began':
@@ -1131,7 +1347,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
     case 'cemetery-ploughed':
       return 'Zaorali starý hřbitov.';
     case 'road-formed':
-      return roadFormedText(event);
+      return roadFormedText(event, seed);
     case 'road-overgrown':
       return 'Nepoužívaná cesta zarostla.';
     case 'trail-built':

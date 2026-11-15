@@ -32,7 +32,9 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // 15. 11. 2026 – výhled jídla počítá se ztrátami obilí skladováním do žní (fields.md – Přídělový
 // systém, Martin „Ano“): příděl na hraně je od začátku nižší a rovný, přežívací zásoba přesná –
 // jiné zásoby, osev a koně; dřív 07df9ad582db4c65
-const EXPECTED_YEAR_1 = '49a0f7b2264963f2';
+// 06d3b66a5e3247d8 (15. 11. 2026, kronika – úmrtí s postavením: zápis `death` nese `estate`; bez
+// něj beze změny 49a0f7b2264963f2 – simulace se nezměnila)
+const EXPECTED_YEAR_1 = '06d3b66a5e3247d8';
 
 describe('zlatý otisk vsi', () => {
   const world = goldenWorld();

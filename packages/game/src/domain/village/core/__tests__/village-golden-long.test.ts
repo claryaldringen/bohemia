@@ -23,8 +23,10 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // 15. 11. 2026 – výhled jídla počítá se ztrátami obilí skladováním do žní (fields.md – Přídělový
 // systém, Martin „Ano“): jiný příděl a přežívací zásoba – jiné zásoby a osev; dřív
 // 2d83c6aef0fd4e1f a fdb154bca6bd33dc
-const EXPECTED_YEAR_2 = '8dce05322fad129e';
-const EXPECTED_YEAR_3 = 'da411ec1fa2f9cb4';
+// 15. 11. 2026 – zápis `death` nese `estate` (postavení zemřelého pro kroniku); bez něj beze změny
+// 8dce05322fad129e a da411ec1fa2f9cb4 – simulace se nezměnila
+const EXPECTED_YEAR_2 = '3f13492cd862d316';
+const EXPECTED_YEAR_3 = '593c5bd711111c91';
 
 describe('zlatý otisk vsi – delší běh', () => {
   it('po 2. a 3. roce dopočtu dá zapsané otisky', () => {

@@ -3,7 +3,7 @@
 // sazenice) – i obnova starého sadu po čtvercích (Obnova sadu). Velikost stromků a jablka počítá
 // server po čtvercích (`lib/orchard-look.ts`). Souřadnice světa scény v metrech (x, z), čtverce
 // jako u pole (field-cells.ts).
-import { rotationCosSin } from '@bohemia/game';
+import { ORCHARD, rotationCosSin } from '@bohemia/game';
 import { isRotatedSquare, type CellSquare } from './field-cells';
 import { seededRandom, type Point } from './village-layout';
 
@@ -31,7 +31,7 @@ export {
  * 15 × 15 m, stromy 3,75 m od okraje čtverce – řady tak rovně pokračují přes sousední čtverce
  * celého sadu (≈ 180 stromů na hektar; úroda se počítá na hektar, na počtu stromů nezávisí).
  */
-export const TREES_PER_SIDE = 2;
+export const TREES_PER_SIDE = Math.round(Math.sqrt(ORCHARD.treesPerSquare));
 /** Stromů ve čtverci – celá mřížka TREES_PER_SIDE × TREES_PER_SIDE. */
 export const TREES_PER_SQUARE = TREES_PER_SIDE * TREES_PER_SIDE;
 /** Varianty modelu jabloně (apple-1 … apple-4, s plody apple-fruit-1 … apple-fruit-4). */

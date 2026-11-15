@@ -3,6 +3,7 @@
 
 import { createRandom, deriveSeed } from '../../landscape/random';
 import { bury } from '../buildings/cemetery';
+import { deathWho } from '../people/estate';
 import { removePeople } from '../people/kinship';
 import { ageGroup, ageYears, occupants } from '../people/people';
 import type { ChronicleEvent } from '../types/types-chronicle';
@@ -35,7 +36,7 @@ export function disasterDeaths(
         group: ageGroup(p, day),
         age: ageYears(p.bornDay, day),
         cause,
-        ...(p.name === undefined ? {} : { name: p.name, personId: p.id }),
+        ...deathWho(state, p, day),
       });
       const full = bury(state, day, p);
       if (full) events.push(full);

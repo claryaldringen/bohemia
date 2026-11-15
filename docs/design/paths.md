@@ -716,7 +716,8 @@ Návrh Clauda:
   – porušuje pravidlo 11 – a ukáže se jako varování s vykřičníkem „Cesta končí na jiné cestě bez
   křižovatky.“; klik dál vybere tu druhou cestu, ať je vidět, co je to za kus. Klik na ikonu
   vybere stavbu, pole, křižovatku či cestu; kraj mapy, voda a les vybrat nejdou. Název je jen
-  v popisku („Obydlí – polozemnice“, „Křižovatka“, „Kraj mapy – sever“). Konec, který nikam
+  v popisku („Obydlí – polozemnice“, „Křižovatka“, u kraje mapy soused, kam cesta vede – „Cesta do
+  Lhoty“; Martin 15. 11. 2026: „ta cesta přece někam vede“). Konec, který nikam
   nevede (porušení pravidla 11), je červené varování „Cesta tu nikam nevede.“ – pomůže hledat
   chyby sítě. Návrh Clauda: co na konci je, se pozná stejnými kotvami jako v úklidu – napřed
   křižovatka, která má úsek v rameni, pak nejbližší kotva v dosahu (vchod 3 m, cíl 7,5 m, nejméně
