@@ -1368,8 +1368,8 @@ Jádro a akce: `village-masonry.md` – Stavební huť (`inviteLodge`, `inviteMa
   `sceneLabor` ho připojí jen k postavě vojvody (`ScenePerson.lodge`); mistr a kněz nesou
   `mason` / `priest` a `lodgeCircle`. `lib/selection-details.ts` je předá panelu osoby.
 - **Vojvoda** (`LodgeActions`, `selection/people.tsx` – `PersonBody`): ikona huti „Pozvat
-  stavební huť“ (zašedlá s důvodem u kurzoru: `INVITE_LODGE_REASONS` – nepokřtěný rod, ves bez
-  vojvody; bez práva `ennoble` důvod práva) → okno se dvěma ikonami okruhů (adriatický,
+  stavební huť“ – nepokřtěný rod ji nemá (objeví se po křtu, Martin 15. 11. 2026); zašedlá s důvodem
+  u kurzoru: `INVITE_LODGE_REASONS` – ves bez vojvody; bez práva `ennoble` důvod práva) → okno se dvěma ikonami okruhů (adriatický,
   karolinský; popisek = okruh a typy kostelů, `MASONRY_CIRCLE_LABELS`) a křížkem; klik na okruh
   je potvrzení a volá `onInviteLodge`. Huť na cestě: ikona huti s počtem dní do příchodu
   (popisek s okruhem); dorazí-li všichni, zůstane jen ikona. U každého chybějícího oboru

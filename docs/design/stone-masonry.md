@@ -43,7 +43,9 @@ Martin:
 ## Stavební huť
 
 - **Kdo zve:** vojvoda, jen pokřtěný rod (stavby z kamene přináší [křesťanství](christianity.md) –
-  návrh Clauda). Tlačítko „Pozvat stavební huť“ u vojvody (ikona, rozhraní jako 0 A.D.), výběr
+  návrh Clauda). Tlačítko „Pozvat stavební huť“ u vojvody (ikona, rozhraní jako 0 A.D.) se objeví až
+  po křtu rodu (Martin 15. 11. 2026: „Tlačítko na pozvání stavební huti by se mělo objevit až po pokřtění
+  rodu“), výběr
   okruhu: **adriatický nebo karolinský** (Martin; byzantský vypuštěn 11. 11. 2026 – „Ok, pokud je to
   takhle, tak byzantský tedy vynech“, protože byzantský vzor stavby na našem a slovenském území
   doložený není – rešerše [velkomoravských kostelů](research/2026-11-11-great-moravian-churches.md)) – určí tvarosloví kostelů (kostely –

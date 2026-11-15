@@ -88,8 +88,9 @@ export function PriestBadge(): ReactElement {
 }
 
 /**
- * Huť a mistři u vojvody. Bez práva rozhodnutí rodu (`ennoble`) a s důvodem z jádra
- * (`INVITE_LODGE_REASONS`) jsou tlačítka zašedlá; odmítnutí serveru se ukáže u kurzoru.
+ * Huť a mistři u vojvody. Nepokřtěný rod tlačítko pozvání nemá – objeví se až po křtu. Bez práva
+ * rozhodnutí rodu (`ennoble`) a s jiným důvodem z jádra (`INVITE_LODGE_REASONS`) jsou tlačítka
+ * zašedlá; odmítnutí serveru se ukáže u kurzoru.
  */
 export function LodgeActions({
   lodge,
@@ -115,6 +116,9 @@ export function LodgeActions({
       });
   };
   const circle = lodge.circle ?? null;
+  // tlačítko pozvání až po křtu rodu (Martin 15. 11. 2026: „Tlačítko na pozvání stavební huti by se
+  // mělo objevit až po pokřtění rodu“); server pozvání nepokřtěného rodu dál odmítá (`canInviteLodge`)
+  if (circle === null && lodge.invite === 'not-baptized') return null;
   // huť už je (nebo jde): důvod „už pozváno“ se ukazuje jen u ikony huti
   const blocked = lodge.invite === 'already' ? null : lodge.invite;
   const reason =

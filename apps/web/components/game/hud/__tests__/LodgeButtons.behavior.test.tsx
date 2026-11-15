@@ -72,7 +72,8 @@ describe('pozvání stavební huti', () => {
     await unmount(host, root);
   });
 
-  it('nepokřtěný rod: zašedlé s důvodem, okno se neotevře', async () => {
+  // Martin 15. 11. 2026: „Tlačítko na pozvání stavební huti by se mělo objevit až po pokřtění rodu“
+  it('nepokřtěný rod: tlačítko pozvání se neukáže', async () => {
     const { host, root } = await mount(
       <LodgeActions
         lodge={{ invite: 'not-baptized', missing: [] }}
@@ -80,9 +81,22 @@ describe('pozvání stavební huti', () => {
         onInviteMaster={ok}
       />,
     );
+    expect(byTestId('selection-person-invite-lodge')).toBeNull();
+    expect(host.innerHTML).toBe('');
+    await unmount(host, root);
+  });
+
+  it('ves bez vojvody: zašedlé s důvodem, okno se neotevře', async () => {
+    const { host, root } = await mount(
+      <LodgeActions
+        lodge={{ invite: 'no-lord', missing: [] }}
+        onInviteLodge={ok}
+        onInviteMaster={ok}
+      />,
+    );
     const invite = byTestId<HTMLButtonElement>('selection-person-invite-lodge')!;
     expect(invite.getAttribute('aria-disabled')).toBe('true');
-    expect(reason(host)).toBe('Stavební huť pozve jen pokřtěný rod.');
+    expect(reason(host)).not.toBeNull();
     await act(async () => invite.click());
     expect(byTestId('lodge-dialog')).toBeNull();
     await unmount(host, root);
