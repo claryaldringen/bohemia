@@ -198,6 +198,19 @@ export const THRESHING_FLOOR_COLOR: [number, number, number] = [1.45, 1.22, 0.92
 export const THRESHING_FLOOR_SOFT_M = 0.3;
 export const THRESHING_FLOOR_ALPHA_INDEX = 2.2;
 export const THRESHING_FLOOR_Z_OFFSET = -3;
+/**
+ * Plocha lomu (fortifications.md – Lom jako plocha u skal; Martin 15. 11. 2026: „hnědá placka
+ * pokrytá štěrkovou drtí“): hnědá udusaná zem (textura bahna) a přes ni štěrk (textura štěrku
+ * z terénu) o něco slaběji, ať zem probleskuje. Okraj měkce přechází do trávy.
+ */
+export const QUARRY_GROUND_COLOR: [number, number, number] = [1.15, 0.85, 0.58];
+export const QUARRY_GRAVEL_COLOR: [number, number, number] = [1.2, 1.02, 0.8];
+export const QUARRY_GRAVEL_ALPHA = 0.7;
+export const QUARRY_GROUND_SOFT_M = 0.5;
+export const QUARRY_GROUND_ALPHA_INDEX = 2.3;
+export const QUARRY_GRAVEL_ALPHA_INDEX = 2.4;
+export const QUARRY_GROUND_Z_OFFSET = -3;
+export const QUARRY_GRAVEL_Z_OFFSET = -4;
 export const KILN_REMNANT_COLOR: [number, number, number] = [0.5, 0.42, 0.35];
 
 /** Rekvizity u rozebíraného milíře – koše na uhlí a rýč (hrabice). */

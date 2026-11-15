@@ -329,7 +329,11 @@ export function milirTrampled(h: MeshHost, d: SceneDwelling, radius: number, alp
   return mesh;
 }
 
-export function decalMaterial(h: MeshHost, texture: 'grass-dirt' | 'mud', zOffset = -2): Material {
+export function decalMaterial(
+  h: MeshHost,
+  texture: 'grass-dirt' | 'mud' | 'gravel',
+  zOffset = -2,
+): Material {
   const key = `decal-${texture}-${zOffset}`;
   let material = h.materials.get(key);
   if (!material) {
