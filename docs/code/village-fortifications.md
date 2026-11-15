@@ -198,10 +198,10 @@ m3, at)` – z hromad od nejbližší k `at` (při shodě menší id), prázdná
   – Kámen, Lom jako plocha u skal – Martin 14. 11. 2026): lom je **plocha u skal**.
   `VillageState.quarries?: Quarry[]` (`{ outcropId, x, z, rotation, builtDay, rock? }`, jen
   dostavěné; id lomu = id nejbližšího výchozu, u výchozu jeden; `x, z, rotation` = střed
-  a natočení plochy, `rock` = bod lámání na okraji výchozu nejblíž ploše; starší lom stojí na
-  středu výchozu a `rock` nemá). `nearestOutcrop(obstacles, at, reachM)` – nejbližší výchoz podle
-  vzdálenosti od okraje (kruh `OUTCROP_RADIUS_M × velikost`, `edgeM`), `hasOutcrop(obstacles)`,
-  `rockPointToward`. `checkQuarryPlacement(landscape, village, position, obstacles)` → střed do
+  a natočení plochy, `rock` = bod lámání na okraji výchozu nejblíž ploše; starší lom stál na
+  středu výchozu bez `rock` – převod `quarry-area` níž). `nearestOutcrop(obstacles, at, reachM)`
+  – nejbližší výchoz podle vzdálenosti od okraje (kruh `OUTCROP_RADIUS_M × velikost`, `edgeM`),
+  `hasOutcrop(obstacles)`, `rockPointToward`. `checkQuarryPlacement(landscape, village, position, obstacles)` → střed do
   `STONE.quarryArea.rockReachM` (50 m) od okraje (`QUARRY_NO_ROCKS` bez výchozu na mapě,
   `QUARRY_TOO_FAR`), `QUARRY_TAKEN` (i rozestavěný – `Construction.quarryOutcrop` s polohou,
   v prohlížeči `PlacementVillage.quarries`), půdorys `quarryAreaFootprint` (8 × 8 m) na rovině
@@ -223,8 +223,24 @@ outcropId, m3)` (celé m³ v `STONE.stockOrderM3`, bez lomu `QUARRY_MISSING`) �
   `quarrying` (`stoneOrderM3`) za m³ × `quarryManDaysPerM3` od lomu k `logArrivalPoint`; hotová
   složí kámen `addStone(…, null)`. Zrušení (`returnConstructionStone` v `cancelConstruction`):
   lámání složí nalámaný podíl (`done / cost`), hradba vrátí `stoneFromPile × (1 − done / cost)`.
+  **Převod `quarry-area`** (`quarry-move.ts`; Martin 15. 11. 2026 „oprav stávající lom ve Vlkově“,
+  `VILLAGE_MIGRATIONS` – oba, bez krajiny počká): `needsQuarryMove` (lom bez `rock` nebo stavba
+  `quarry` s polohou bez `quarryRock` a bez značky) → `withQuarriesBesideRocks` (mutuje kopii):
+  výchoz z vrstvy podle id (`obstacleIndex`), plocha `quarrySiteNear` s cílem bod okraje výchozu
+  ke středu vsi (`rockPointToward` k `planCentre`) nad
+  `placementVillageOf(state, lastDay)` bez přesouvaného lomu – napřed s `outcropId` (jen místo, kde
+  je jeho výchoz nejbližší), jinak bez něj: lom pak dostane id výchozu nejbližšího ploše a zakázky
+  s ním (`quarryOutcrop`, `fortStone.outcropId`, `ChurchSite.quarryId` – `retargetQuarry`).
+  Přepíše `x, z, rotation` a `rock` (stavba `position`, `quarryRock`), uložené `stoneCart` staveb
+  z toho lomu zahodí (spočítají se od plochy); ceny zakázek (`cost`, `fortStone.distanceM/rockM`,
+  `ChurchSite.quarryDistanceM/quarryRockM`), `done` a hromady kamene zůstanou. Bez místa nebo
+  výchozu ve vrstvě lom zůstane na výchozu; značka `VillageState.oldQuarriesMoved` – jednou
+  (výsledek nezávisí na kouscích dopočtu). Vlkov (DB 15. 11. 2026): výchoz 54621080 nemá rovné
+  místo, kde by byl nejbližší – lom jde 25 m na sever k výchozu 54623272 (bloky 9 m).
   Use-casy `placeQuarry`, `orderStoneQuarrying` (právo `build`). Web: katalog (zkratka L, ikona
-  `public/icons/build/lom.png`), umisťování `quarry` (značka plochy 8 × 8 m), scéna `stone-piles.ts`
+  `public/icons/build/lom.png` – plocha u šedé skály s bloky, kvádry, krumpáčem a nůší,
+  `icon_lom` v `tools/blender/icons.py`), umisťování `quarry` (značka plochy 8 × 8 m), scéna
+  `stone-piles.ts`
   - `stone-pile-layout.ts` (díly `stone-pile-a/b` ze `siege.glb` – na ploše donesené bloky,
     přisekaný kámen a bloky v zásobě, u výchozu vylomené bloky `QUARRY_ROCK_PILE`; scene-village.md
     – Lom),

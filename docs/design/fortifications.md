@@ -207,7 +207,15 @@ roštová ≈ 7 m, komorová ≈ 8 m, komory po 5–6 m).
     kamene a vůz) – vzdálenost dovozu se měří od plochy, ne od výchozu;
   - **ve scéně** plocha s hromadami bloků a přisekaného kamene, kameník u kamene, lamači
     s krumpáči u výchozu a nosiči s nůšemi mezi výchozem a plochou;
-  - dnešní lomy na výchozu zůstanou, kde jsou, a pracují nově (výchoz pod nimi je nejbližší).
+  - ~~dnešní lomy na výchozu zůstanou, kde jsou, a pracují nově (výchoz pod nimi je nejbližší).~~
+    (od 15. 11. 2026 – Martin: „A oprav stávající lom ve Vlkově.“) **Dnešní lomy na výchozu se
+    jednou přesunou na plochu u skal** – na rovinu do 50 m od okraje svého výchozu podle pravidel
+    nového lomu (návrh Clauda: co nejblíž okraji výchozu na straně ke středu vsi; napřed místo, kde
+    je jeho výchoz nejbližší, jinak lom patří k výchozu nejbližšímu nové ploše, např. u skalního
+    hřbetu z víc výchozů). Rozpracované zakázky a kámen zůstanou, mění se jen místo plochy.
+    Nenajde-li se rovná plocha do 50 m, lom zůstane na výchozu a pracuje jako dosud. Ikona lomu na
+    tlačítku je od 15. 11. 2026 plocha u šedé skály s bloky, kvádry, krumpáčem a nůší (Martin:
+    „změň ikonku na tlačítku, ta co je tam teď vypadá divně“).
   - **Implementováno 15. 11. 2026** (návrh Clauda k provedení): plocha 8 × 8 m natočená jako
     ostatní stavby, rozdíl výšek pod ní nejvýš 1 m (jako humno), ne ve vodě, ne přes skalní výchoz
     a nepřekrývá jiné stavby ani pole (ostatní stavby zase ji); stromy, keře a kameny na ploše
@@ -215,8 +223,9 @@ roštová ≈ 7 m, komorová ≈ 8 m, komory po 5–6 m).
     nejbližšímu k ploše (od okraje) a u jednoho výchozu je dál jeden lom. Mapa bez výchozu – tlačítko
     zašedlé s důvodem. Nošení bloků od bodu lámání (okraj výchozu nejblíž ploše) ke středu plochy po
     40 kg: na m³ 4 m ≈ 0,12 čd, 50 m ≈ 0,28 čd navíc k lámání 1 čd; vůz ho nenahradí (vozí jen
-    z plochy). Dnešní lom na výchozu bloky nenosí – výchoz je pod ním (beze změny ceny), ve scéně
-    lámou u okraje výchozu. NPC rod zakládá plochu podle stejných pravidel co nejblíž středu vsi.
+    z plochy). Lom, který zůstal na výchozu (převod pro něj rovnou plochu nenašel), bloky nenosí –
+    výchoz je pod ním (beze změny ceny), ve scéně lámou u okraje výchozu. NPC rod zakládá plochu
+    podle stejných pravidel co nejblíž středu vsi.
 
 ### Obrana bez násobku
 

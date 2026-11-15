@@ -167,7 +167,9 @@ návrh churches.md – NPC rod staví kostel, stone-masonry.md – Stavební hu�
   (fortifications.md – Lom jako plocha u skal): `quarrySiteNear` (`quarry.ts`) zkouší středy po
   kruzích kolem výchozu (16 směrů, po 4 m od okraje plochy do `STONE.quarryArea.rockReachM`) od
   nejbližšího středu vsi, první, který projde `checkQuarryPlacement`; přes `startStewardBuild`.
-  Bez místa nic.
+  Bez místa nic. Volitelné `outcropId` vezme jen místo, kde je nejbližší právě ten výchoz – tak
+  hledá plochu převod starších lomů `quarry-area` (`quarry-move.ts`, village-fortifications.md –
+  Lom a kámen); NPC rod ho nepředává.
 - **Kostel:** s lomem, všemi `MASON_CRAFTS` mezi lidmi, bez staveniště `church` a po
   `Lodge.npcRetryDay`; první vždy, další při `churchCoverage` < `CHURCH.npc.coverageBelow`. Typ
   `churchTypesFor(circle)[0]`, rozměry `churchDimsForCapacity(type, ⌈lidé × capacityPerPerson⌉)`

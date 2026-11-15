@@ -27,7 +27,8 @@ import type { Construction, Position, Quarry, VillageState } from '../../types';
 // láme na zakázku – pro rozestavěnou hradbu (`fortifications.ts` – `fortStonePlan`), kostel, nebo do
 // zásoby, když to hráč zadá (pro obchod a dávky). Návrh Clauda: u výchozu nejvýš jeden lom, stavba
 // ≈ 20 čd bez dřeva; zásoba se veze k hromadě u cesty nejblíž dvorci. Starší lom stojí na výchozu
-// a pracuje stejně – výchoz je pod ním, bloky se nenosí.
+// a převod `quarry-area` ho přesune na plochu u skal (`quarry-move.ts`); kde se plocha nenašla,
+// zůstal na výchozu a pracuje stejně – výchoz je pod ním, bloky se nenosí.
 
 /** Proč lom sem nejde – texty pro kurzor a zašedlé tlačítko. */
 export const QUARRY_NO_ROCKS = 'Na mapě sídla není skalní výchoz – lom nejde postavit.';
@@ -177,7 +178,9 @@ const SITE_RING_STEP_M = 4;
  * Místo plochy lomu u výchozu `outcrop` (pod jeho středem – poloměr z vrstvy) nejblíž bodu
  * `toward`, které projde `checkQuarryPlacement` (NPC rod – churches.md, Stavba): středy po kruzích
  * kolem výchozu od těsně vedle skály (půlka úhlopříčky plochy) do `STONE.quarryArea.rockReachM` od
- * okraje po `SITE_RING_STEP_M`, v `SITE_DIRECTIONS` směrech, natočení 0. Nic neprojde – null.
+ * okraje po `SITE_RING_STEP_M`, v `SITE_DIRECTIONS` směrech, natočení 0. S `outcropId` jen místo,
+ * jehož nejbližší výchoz je tenhle (převod staršího lomu – id lomu = id výchozu, `quarry-move.ts`).
+ * Nic neprojde – null.
  */
 export function quarrySiteNear(
   landscape: Landscape,
@@ -185,6 +188,7 @@ export function quarrySiteNear(
   obstacles: ObstacleLayer,
   outcrop: { x: number; z: number },
   toward: { x: number; z: number },
+  outcropId?: number,
 ): { position: Position; check: QuarryCheck } | null {
   const { sizeM, rockReachM } = STONE.quarryArea;
   const radius = nearestOutcrop(obstacles, outcrop, 0)?.radiusM ?? OUTCROP_RADIUS_M;
@@ -202,7 +206,9 @@ export function quarrySiteNear(
   for (const s of spots) {
     const position = { x: s.x, z: s.z, rotation: 0 };
     const check = checkQuarryPlacement(landscape, village, position, obstacles);
-    if (check.ok) return { position, check };
+    if (check.ok && (outcropId === undefined || check.outcrop?.id === outcropId)) {
+      return { position, check };
+    }
   }
   return null;
 }
