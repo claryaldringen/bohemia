@@ -976,6 +976,7 @@ založení (`foundVillage` / `foundedState`), převod ji doplní jen starším v
 | `steward` – `withSteward`                      | správce (vypnutý)                                          | ano                | –                        | ne (`foundVillage`)          | oba     |
 | `four-wheel-reach` – `withFourWheelReach`      | dosahy čtyřkoláku znovu (mutuje – na kopii)                | ano (značka)       | –                        | ne                           | oba     |
 | `fort-points` – `withFortPoints`               | opevnění po čtvercích na body (mutuje – na kopii)          | ano                | krajina                  | ne                           | oba     |
+| `quarry-area` – `withQuarriesBesideRocks`      | starý lom z výchozu na plochu u skal (mutuje – na kopii)   | ano (značka)       | krajina, překážky        | ne                           | oba     |
 
 „Zakládá novou ves“ = jedná na právě založené vsi; v závorce, kde tu část nová ves dostane při
 založení. „Při každém“ = bez příznaku, hlídá podmínku při každém průchodu (levné).

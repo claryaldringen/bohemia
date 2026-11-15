@@ -13,6 +13,7 @@ import { withMergedFields } from '../fields/fields';
 import { withForestClearing } from '../forest/forest-clearing-migration';
 import { needsFortPoints, withFortPoints } from '../fortification/convert';
 import { withoutOrphanGates } from '../fortification/state/fortifications';
+import { needsQuarryMove, withQuarriesBesideRocks } from '../fortification/state/quarry-move';
 import { withoutGardenFlax } from '../fields/garden';
 import { withGrainPits } from '../fields/grain-pit-site';
 import { withHorsePenStock } from '../livestock/horse-stock';
@@ -234,6 +235,8 @@ export const VILLAGE_MIGRATIONS: readonly VillageMigration[] = [
   { id: 'stance-surrender', since: '2026-11-14', run: withoutSurrenderStance },
   // brány bez hradby po zboření úseků zmizí s opevněním (fortifications.md – Zboření)
   { id: 'orphan-gates', since: '2026-11-14', run: withoutOrphanGates },
+  // starší lom na výchozu se přesune na plochu u skal (fortifications.md – Lom jako plocha u skal)
+  { id: 'quarry-area', since: '2026-11-15', run: quarryArea },
 ];
 
 /** Zrušený postoj `'surrender'` se čte jako výchozí `'flee'`; na kopii, jen když ho ves má. */
@@ -257,6 +260,17 @@ function fortPoints(state: VillageState, ctx: VillageMigrationContext): VillageS
   if (!ctx.landscape || !needsFortPoints(state)) return state;
   const next = cloneState(state);
   withFortPoints(next, ctx.landscape);
+  return next;
+}
+
+/**
+ * `withQuarriesBesideRocks` mutuje a potřebuje krajinu i vrstvu překážek – na kopii, jen když ves
+ * převod potřebuje (bez krajiny – testy, měření – počká na dopočet nebo načtení s ní).
+ */
+function quarryArea(state: VillageState, ctx: VillageMigrationContext): VillageState {
+  if (!ctx.landscape || !ctx.obstacles || !needsQuarryMove(state)) return state;
+  const next = cloneState(state);
+  withQuarriesBesideRocks(next, ctx.landscape, ctx.obstacles);
   return next;
 }
 

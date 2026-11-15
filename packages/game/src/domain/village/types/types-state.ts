@@ -117,14 +117,18 @@ export interface StoneStack {
 export interface Quarry {
   /** Id nejbližšího skalního výchozu ve vrstvě překážek (tam se láme) – zároveň id lomu. */
   outcropId: number;
-  /** Střed plochy lomu (m, svět) a její natočení (rad); starší lom stojí na středu výchozu. */
+  /**
+   * Střed plochy lomu (m, svět) a její natočení (rad); starší lom stál na středu výchozu – převod
+   * `quarry-area` ho přesunul na plochu u skal (`quarry-move.ts`), bez rovné plochy tam zůstal.
+   */
   x: number;
   z: number;
   rotation: number;
   builtDay: number;
   /**
    * Kde se láme – bod na okraji výchozu nejblíž ploše (m, svět); odtud se bloky nosí na plochu.
-   * Starší lom na výchozu ho nemá – výchoz je pod ním a bloky se nenosí.
+   * Starší lom, který převod `quarry-area` nechal na výchozu, ho nemá – výchoz je pod ním a bloky
+   * se nenosí.
    */
   rock?: { x: number; z: number };
 }
@@ -375,6 +379,12 @@ export interface VillageState {
   nextStoneStackId?: number;
   /** Dostavěné lomy vsi (`quarry.ts`). Chybí = žádný. */
   quarries?: Quarry[];
+  /**
+   * Převod `quarry-area` proběhl (`quarry-move.ts`; fortifications.md – Lom jako plocha u skal):
+   * starší lomy (i rozestavěné) stojí na ploše u skal, nebo zůstaly na výchozu, když se rovná plocha
+   * do 50 m nenašla – převod se nezopakuje. Ves bez staršího lomu ho nemá.
+   */
+  oldQuarriesMoved?: true;
   /**
    * Rozdělení práce posledního odsimulovaného dne (labor-report.ts) – pro zobrazení; simulace ho
    * čte jen přes síť pěšin (kam se chodí – vzdálenost chůze dílů, paths.md). U vsí uložených

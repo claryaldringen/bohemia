@@ -213,6 +213,8 @@ describe('lom – plocha u skal', () => {
   it('starý lom na výchozu dál pracuje – bloky se nenosí, kámen přibude', () => {
     const s = village();
     s.quarries = [{ outcropId: 7, ...OUTCROP, rotation: 0, builtDay: DAY }];
+    // převod `quarry-area` pro něj rovnou plochu nenašel – zůstal na výchozu (quarry-move.test.ts)
+    s.oldQuarriesMoved = true;
     const ordered = ok(orderQuarrying(s, s.lastDay, 7, 10));
     const c = ordered.constructions.find((x) => x.kind === 'quarrying')!;
     const to = logArrivalPoint(s);
