@@ -156,7 +156,7 @@ export async function villageOf(
  * začátku dalšího herního dne (v pomalém světě testů nejpozději za 86 s).
  */
 /**
- * Druh obydlí (Zemnice, Polozemnice, Nadzemní dům) v rozcestníku mřížky staveb – otevře ho
+ * Druh obydlí (Zemnice, Polozemnice, Srub) v rozcestníku mřížky staveb – otevře ho
  * tlačítkem Obydlí, je-li zavřený. Rozcestník zavře Escape.
  */
 export async function dwellingVariant(page: Page, name: string): Promise<Locator> {

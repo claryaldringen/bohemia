@@ -878,7 +878,7 @@ export const DWELLING_VARIANTS: readonly (SquaresVariant & { id: BuildableDwelli
   { id: 'zemnice', icon: 'build/zemnice', name: 'Zemnice' },
   { id: 'polozemnice', icon: 'build/polozemnice', name: 'Polozemnice' },
   { id: 'vypleteny', icon: 'build/vypleteny', name: 'Vypletený dům' },
-  { id: 'srub', icon: 'build/srub', name: 'Nadzemní dům' },
+  { id: 'srub', icon: 'build/srub', name: 'Srub' },
 ];
 
 export const BUILD_ITEMS: readonly BuildItem[] = [
@@ -898,7 +898,7 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
   dwelling('vypleteny', 'Vypletený dům', '2'),
   // nadzemní dům (log-house.md – Dům): do roku 800 zašedlý – důvod „Od roku 800“ dává server
   // (`VillageView.build.srub.blocked`)
-  dwelling('srub', 'Nadzemní dům', '1'),
+  dwelling('srub', 'Srub', '1'),
   {
     kind: 'field',
     name: 'Pole',

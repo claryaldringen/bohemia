@@ -166,7 +166,7 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   await expect(await dwellingVariant(page, 'Zemnice')).toBeEnabled();
   await expect(await dwellingVariant(page, 'Polozemnice')).toBeEnabled();
   await expect(await dwellingVariant(page, 'Vypletený dům')).toBeDisabled();
-  await expect(await dwellingVariant(page, 'Nadzemní dům')).toBeDisabled();
+  await expect(await dwellingVariant(page, 'Srub')).toBeDisabled();
   await page.keyboard.press('Escape');
   await expect(grid).not.toHaveAttribute('data-group', /.+/);
   for (const craft of ['Hrnčíř', 'Kovář', 'Uhlíř', 'Tesař']) {

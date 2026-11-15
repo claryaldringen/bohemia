@@ -65,7 +65,7 @@ const FOOTPRINT_NAMES: Record<DwellingType | SacredBuildingKind, string> = {
   zemnice: 'Zemnice',
   polozemnice: 'Polozemnice',
   vypleteny: 'Vypletený dům',
-  srub: 'Nadzemní dům',
+  srub: 'Srub',
   dvorec: 'Dvorec',
   'dvorec-srub': 'Dvorec',
   idol: 'Modla',

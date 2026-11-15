@@ -29,7 +29,7 @@ describe('BuildGrid – rozcestník ohrady', () => {
     // druhy obydlí mají zkratku, ale ne vlastní tlačítko
     expect(shown).not.toContain('Zemnice');
     expect(shown).not.toContain('Polozemnice');
-    expect(shown).not.toContain('Nadzemní dům');
+    expect(shown).not.toContain('Srub');
     expect(shown).not.toContain('Ohrada ovcí');
     expect(html).not.toContain('data-group');
   });
@@ -197,18 +197,12 @@ describe('BuildGrid – rozcestník obydlí', () => {
 
   it('otevřený: Obydlí (zpět) a čtyři druhy, zašedlý druh nese důvod', () => {
     const html = render('dwelling');
-    expect(labels(html)).toEqual([
-      'Obydlí',
-      'Zemnice',
-      'Polozemnice',
-      'Vypletený dům',
-      'Nadzemní dům',
-    ]);
+    expect(labels(html)).toEqual(['Obydlí', 'Zemnice', 'Polozemnice', 'Vypletený dům', 'Srub']);
     expect(html).toContain('data-group="dwelling"');
     expect(button(html, 'Zemnice')).not.toContain('disabled');
     expect(button(html, 'Polozemnice')).not.toContain('disabled');
     expect(button(html, 'Vypletený dům')).toContain('disabled');
-    expect(button(html, 'Nadzemní dům')).toContain('disabled');
+    expect(button(html, 'Srub')).toContain('disabled');
     expect(html).toContain('Od roku 750');
     expect(html).toContain('Od roku 800');
     expect(isBuildAffordable(dwellingHubOption(build), 'srub')).toBe(false);

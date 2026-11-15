@@ -33,8 +33,9 @@ Martin 12. 11. 2026:
 
 ### Dům
 
-- **Nadzemní dům** (v rozhraní „Nadzemní dům“): srub z kmenů postavený na zemi (ne v jámě),
+- **Nadzemní dům** (v rozhraní „Srub“): srub z kmenů postavený na zemi (ne v jámě),
   sedlová došková střecha, ohniště uvnitř, kouř štítem (rešerše – Palonín, 9.–10. století).
+  V rozhraní se jmenuje Srub (Martin 15. 11. 2026: „Nech srub“).
 - **Od roku 800:** tlačítko je do 1. 1. 800 zašedlé a u kurzoru je „Od roku 800“ (jako roštová
   a komorová hradba od svého roku).
 - **Staví hráč a správce** (Martin). Vesničané při přestavbě dál zlepšují jen zemnici na

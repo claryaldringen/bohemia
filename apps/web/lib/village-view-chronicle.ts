@@ -69,7 +69,7 @@ export const DWELLING_NAMES: Record<DwellingType, { nominative: string; accusati
   zemnice: { nominative: 'Zemnice', accusative: 'zemnici' },
   polozemnice: { nominative: 'Polozemnice', accusative: 'polozemnici' },
   vypleteny: { nominative: 'Vypletený dům', accusative: 'vypletený dům' },
-  srub: { nominative: 'Nadzemní dům', accusative: 'nadzemní dům' },
+  srub: { nominative: 'Srub', accusative: 'srub' },
   dvorec: { nominative: 'Dvorec', accusative: 'dvorec' },
   'dvorec-srub': { nominative: 'Dvorec', accusative: 'dvorec' },
 };
@@ -412,7 +412,7 @@ const DWELLING_INSTRUMENTAL: Record<DwellingType, { word: string; feminine?: tru
   zemnice: { word: 'zemnicí', feminine: true },
   polozemnice: { word: 'polozemnicí', feminine: true },
   vypleteny: { word: 'vypleteným domem' },
-  srub: { word: 'nadzemním domem' },
+  srub: { word: 'srubem' },
   dvorec: { word: 'dvorcem' },
   'dvorec-srub': { word: 'dvorcem' },
 };

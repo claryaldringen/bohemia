@@ -83,7 +83,7 @@ describe('zkratky staveb', () => {
     const item = buildItemForKey(key('Digit1'));
     expect(item?.kind).toBe('srub');
     expect(item).toMatchObject({
-      name: 'Nadzemní dům',
+      name: 'Srub',
       icon: 'srub',
       hotkeyLabel: '1',
       placement: 'plot',
