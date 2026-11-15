@@ -276,6 +276,62 @@ describe('triggery oznamující změny', () => {
     expect(ended?.k === 'c' && ended.a).toEqual(expect.arrayContaining([VILLAGE_V, TARGET_T]));
   });
 
+  it('UPDATE bodu tažení nese sjednocení starého a nového stavu (políčka, vsi, cíl)', async () => {
+    const OLD_V = '00000000-0000-4000-8000-0000000000b1';
+    const NEW_V = '00000000-0000-4000-8000-0000000000b2';
+    const NEW_T = '00000000-0000-4000-8000-0000000000b3';
+    const alarm = (villageId: string): Record<string, unknown> => ({
+      villages: [{ villageId, hosts: [] }],
+      messengers: [],
+      flights: [],
+      nextRef: 0,
+    });
+    await campaigns.create(campaignState(100, { alarm: alarm(OLD_V) }), NOW);
+    await flush();
+    seen = [];
+    await campaigns.saveCheckpoint(CAMPAIGN, {
+      fromTick: 100,
+      seenIntents: 0,
+      state: campaignState(110, {
+        alarm: alarm(NEW_V),
+        groups: [{ id: 0, ...cell(7, 7) }],
+        target: { villageId: NEW_T, ...cell(8, 8) },
+      }),
+      outbox: null,
+    });
+    const [change] = await flush();
+    if (change?.k !== 'c') throw new Error('čekal se druh c');
+    expect([...change.c].sort()).toEqual([
+      [1, 1],
+      [7, 7],
+    ]);
+    expect([...change.a].sort()).toEqual([OLD_V, NEW_V, TARGET_T, NEW_T].sort());
+  });
+
+  it('podivné políčko v bodu zápis neshodí – uloží se a oznámení se vynechá nebo zkrátí', async () => {
+    await journeys.create(journeyState(10, 3, 4), NOW);
+    await flush();
+    seen = [];
+    const odd = journeyState(12, 3, 4);
+    (odd.groups[0] as unknown as { cell: unknown }).cell = { x: 3.5, y: 'a' };
+    await journeys.saveCheckpoint(JOURNEY, {
+      fromTick: 10,
+      seenIntents: 0,
+      state: odd,
+      outbox: null,
+    });
+    expect((await journeys.checkpoint(JOURNEY))?.state.tick).toBe(12);
+    const [change] = await flush();
+    expect(change).toMatchObject({ k: 'j', id: JOURNEY, t: 12 });
+    // staré políčko zůstává ve sjednocení, podivné y se zahodí
+    expect(change?.k === 'j' && change.c).toEqual([[3, 4]]);
+    await campaigns.create(
+      campaignState(100, { groups: [{ id: 0, cell: { x: 1e300, y: 2 } }] }),
+      NOW,
+    );
+    expect(await campaigns.checkpoint(CAMPAIGN)).not.toBeNull();
+  });
+
   it('300 varovaných vsí: náklad ≤ 7900 B a big', async () => {
     const many = Array.from({ length: 300 }, (_, i) => ({
       villageId: `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`,

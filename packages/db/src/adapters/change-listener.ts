@@ -18,7 +18,7 @@ export interface ChangeHandlers {
 }
 
 export interface ChangeListener {
-  /** Splní se po prvním úspěšném `LISTEN`. */
+  /** Splní se po prvním úspěšném `LISTEN`; při trvalé chybě připojení nikdy (pokusy běží dál, chyby jdou do `onError`). */
   ready: Promise<void>;
   /** Zavře spojení a další pokus už nedělá. */
   close(): Promise<void>;
