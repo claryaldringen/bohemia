@@ -92,8 +92,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     (`lib/cart-router.ts` → `lib/cart-routes.worker.ts`, `new Worker(new URL(…, import.meta.url))`
     – Turbopack ho sbalí jako vlastní chunk); worker dostane krajinu jednou (`LandscapeTransfer`)
     a paměť mřížek žije v něm. Pohled se použije až s trasami dne (`applyTicket` – novější pohled
-    má přednost, akce vrátí výsledek až po použití); bez `Worker` nebo po jeho chybě se totéž
-    spočítá v hlavním vlákně. První pohled spočítá hlavní vlákno (jednou při načtení stránky).
+    má přednost, akce vrátí výsledek až po použití); bez `Worker`, po jeho chybě nebo když
+    neodpoví do `CART_ROUTES_TIMEOUT_MS` (5 s – mlčící Worker by navždy zastavil frontu akcí
+    i dotazování na ves; D60) se totéž spočítá v hlavním vlákně. První pohled spočítá hlavní vlákno (jednou při načtení stránky).
 - **Nabídky panelů až na vyžádání** (`lib/panel-options.ts`, server action `getPanelOptions`,
   `panelOptionsForPlayer`): kompas zemských stezek (`trailOptions` – 8 plánů tras se dřevem
   a průseky) a „Vysadit jabloně“ u cesty (`roadApplesOption`) se v pohledu nepočítají – stály ≈ 90 ms
