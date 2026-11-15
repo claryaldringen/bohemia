@@ -71,9 +71,9 @@ má ves ≥ 4 dospělé mimo rodinu“ (volba z nabídky).
   ať rodina nekmitá mezi polem a dvorkem. Režim se pamatuje (volitelná část stavu).
 - Čistá funkce stavu a dne (`familyTrains`); čísla `LORD.minVillageAdults` a
   `LORD.keepVillageAdults`.
-- **Se zakladateli z issue #9** (vojvoda a 4 manželky – Rod vojvody, Zakladatelé) nemá ves
-  zpočátku nikoho mimo rodinu, takže **rodina pracuje** – vojvoda i manželky, 5 dospělých místo
-  dnešních 2. Mimo rodinu se počítají dospělí, kteří pracují pro ves: děti vedlejších manželek
+- **Se zakladateli z issue #9** (vojvoda, 4 manželky a od 15. 11. 2026 i 4 dospělí synové – Rod
+  vojvody, Zakladatelé) nemá ves zpočátku nikoho mimo rodinu, takže **rodina pracuje** – vojvoda,
+  manželky i synové, 9 dospělých (5 mužů) místo dřívějších 2. Mimo rodinu se počítají dospělí, kteří pracují pro ves: děti vedlejších manželek
   v jejich domech, ženatí synové mimo dvorec a jejich ženy, zeťové. **Vedlejší manželky vojvody**
   se nepočítají ani ve vlastním domě – vedou domácnost a patří k rodině (návrh Clauda – pravidlo
   beze změny). Rodina tak začne cvičit odhadem za ≈ 15 let, podobně jako se dvěma páry – viz
@@ -299,7 +299,7 @@ před výcvikem rodiny), **kontrola** (dnešní kód, rodina nikdy necvičí) a 
 ### Příkaz na noc (nespouštět, jen na Martinův pokyn)
 
 Rod (fáze 1 issue #9): `measure-village` má volbu `--founders dynasty|pairs` (výchozí `dynasty` =
-vojvoda s manželkami; `pairs` = dva páry bez rodu jako dřív) a řádek „Vojvodova rodina a koně“ má
+vojvoda s manželkami, od 15. 11. 2026 i se 4 syny; `pairs` = dva páry bez rodu jako dřív) a řádek „Vojvodova rodina a koně“ má
 navíc muže rodu, manželky, čekající vedlejší manželky a dny bez muže rodu
 (`scripts/lib/lord-columns.ts`). Srovnání rodu se starým základem:
 
@@ -357,35 +357,61 @@ Clauda.
   ([příbuzenství](kinship.md) – Rodokmen).
 - Ženy rodu ani ostatní lidé vsi jméno nemají ([postavy](villagers.md) – jména se nezobrazují).
 
-### Zakladatelé (Martin 24. 10. 2026; věk a bydlení návrh Clauda)
+### Zakladatelé (Martin 24. 10. 2026 a 15. 11. 2026; věky a bydlení návrh Clauda)
 
-- **Kdo přijde:** vojvoda **25 let**, **hlavní manželka 22 let** a **3 vedlejší manželky 20, 18
-  a 16 let** – 5 lidí bez dětí, rodiče neznámí. Nahrazují dnešní dva páry (manželé 25 let, chlapec
-  13 a dívka 12 let – [obyvatelstvo](population.md), Založení vsi). Proč: hlavní manželka je
-  nejstarší (první sňatek) a v nejplodnějším věku (20–24 let – Růst populace), vedlejší jsou
-  rozložené, ať první porody nepřijdou najednou; vojvoda jako dnešní zakladatel – hájení (30 let)
-  ho ochrání do 55 let, rod tak v hájení vymřít nemůže. První dítě nejdřív za 9 měsíců (rozestup
-  po svatbě).
+- **Kdo přijde** (Martin 15. 11. 2026 k D24 – stavby staví jen muži, zakladatel byl jediný muž:
+  „Měl jsem za to, že zakladateli je muž, několik jeho manželek a jejich synové (a dcery)“ – „Ne,
+  udělej to tak, aby měl vojvoda minimálně 4 dospělé (alespoň 16 let) syny.“; věky návrh Clauda):
+  vojvoda **42 let**, **hlavní manželka 38 let** se syny **20 a 18 let**, **druhá manželka 35 let**
+  se syny **17 a 16 let**, **třetí manželka 25 let** a **čtvrtá 20 let** (bez dětí) – **9 lidí**,
+  z toho 5 mužů. Synové jsou vojvodovi, matky podle uvedení ([příbuzenství](kinship.md)); rodiče
+  vojvody a manželek jsou neznámí. Dcery Martin nevyžádal – nepřicházejí. Nahrazují dva páry
+  (manželé 25 let, chlapec 13 a dívka 12 let – [obyvatelstvo](population.md), Založení vsi)
+  i dřívější zakladatele rodu (24. 10. 2026: vojvoda 25 let s manželkami 22, 20, 18 a 16 let bez
+  dětí – 5 lidí, jediný muž). Proč tyto věky: hlavní manželka je nejstarší (první sňatek) a její
+  synové jsou nejstarší – nástupcem je syn 20 let (Nástupnictví); vojvoda je dost starý na čtyři
+  dospělé syny; třetí a čtvrtá manželka jsou v nejplodnějším věku (Růst populace), takže porody
+  nečekají na první generaci. Hájení (30 let) beze změny – vojvodu ochrání do 72 let, rod tak
+  v hájení vymřít nemůže. Všechny manželky porodí nejdřív za 9 měsíců (rozestup po svatbě).
+- **Synové zakladatelů** (návrh Clauda – nic zvláštního navíc) jsou muži rodu od prvního dne jako
+  každý syn vojvody: vojenská služba, jezdectví, výprava, odchod s dílem vsi a stavby (stavby staví
+  jen muži – [obyvatelstvo](population.md), Stavby staví muži) podle dnešních pravidel, synové
+  hlavní manželky jsou elita ([hradiště](hillfort.md) – Elita). **Jméno** dostanou vygenerované
+  stejně jako vnuci (Generovaná jména vnuků – různá a jiná než jméno vojvody); dal ho rod, takže
+  ho hráč smí jednou přepsat jako jméno syna, kterého do roku nepojmenoval ([absence](absence.md)
+  – Jména synů). Čekat na hráče by nemělo smysl – dospělému synovi by jméno dal rod hned první den.
 - **Partneři dětí z okolí** (Martin, 24. 10. 2026: první generaci partneři z okolí stačí): děti
   první generace mají všechny jednoho otce – jsou to nevlastní sourozenci a ve vsi se nevezmou.
   Synům dá ženy okolí (nevěsta z okolí ≈ 30 % ročně), dcerám muže okolí – k dceři v domě vedlejší
   manželky (dům bez mužů) se přižení ženich s ≈ 50 % ročně, dcera z dvorce se vdá pryč nebo se
   k ní přižení zeť ([příbuzenství](kinship.md) – Sňatky).
-- **Kde bydlí:** do dostavění první zemnice všichni na staveništi jako dnes, pak **všech pět
-  v první zemnici – dvorci** (5 ze 6 míst, dvorec není přeplněný). Vedlejší manželky odcházejí do
-  vlastních obydlí, až když se dvorec přeplní (Manželky – Bydlení) – se zemnicí o 6 místech
-  obvykle po druhém dítěti, takže hráč brzy potřebuje obydlí. Dvorec s 10 místy přijde až
-  přestavbou dožilé zemnice ([obchod](trade.md) – Dvorec vojvody).
+- **Kde bydlí** (návrh Clauda, ověřeno 15. 11. 2026): do dostavění první zemnice všichni na
+  staveništi jako dnes, pak **všech devět v první zemnici – dvorci** (9 ze 6 míst – dvorec je od
+  začátku přeplněný). Podle Manželky – Bydlení je pak **druhá manželka se syny 17 a 16 let**
+  (vedlejší manželka s nejstarším synem, který by se mohl starat o dům) rodinou k osídlení –
+  upozornění „Rodina čeká na dům“ a hráč smí stavět obydlí hned. Do dostavěného obydlí odejde
+  s oběma syny a v dvorci zůstane vojvoda, hlavní manželka se syny 20 a 18 let a třetí a čtvrtá
+  manželka – 6 ze 6 míst. Svobodní synové z dvorce sami neodcházejí (Synové po sňatku). Synové
+  druhé manželky v jejím domě necvičí, pracují a počítají se mezi dospělé mimo rodinu (Manželky –
+  Výcvik). Dokud hráč obydlí nepostaví, žijí všichni v přeplněném dvorci – méně porodů, víc úmrtí
+  dětí, nižší štěstí ([obyvatelstvo](population.md) – Nové obydlí) a nevěsta z okolí do
+  přeplněného domu nepřijde ([obyvatelstvo](population.md) – Sňatky), takže se synové neožení.
+  Dvorec s 10 místy přijde až přestavbou dožilé zemnice ([obchod](trade.md) – Dvorec vojvody).
 - **Rodina zpočátku pracuje:** ves nemá žádného dospělého mimo rodinu, takže podle Zakládání vsi
-  (≥ 4 dospělí mimo rodinu) pracuje vojvoda i manželky jako ostatní, dokud nedorostou děti
-  vedlejších manželek v jejich domech a nepřibudou ženatí synové mimo dvorec se ženami a zeťové –
-  odhadem ≈ 15 let, podobně jako se dvěma páry. Martin 24. 10. 2026: „Nechat, rodina zpočátku
-  pracuje“ – pravidlo ≥ 4 dospělí mimo rodinu platí beze změny.
+  (≥ 4 dospělí mimo rodinu) pracuje vojvoda, manželky i synové jako ostatní – první stavby staví
+  5 mužů –, dokud nedorostou děti vedlejších manželek v jejich domech a nepřibudou ženatí synové
+  mimo dvorec se ženami a zeťové. Se syny to přijde dřív než za dřívějších ≈ 15 let: synové druhé
+  manželky v jejím domě jsou dva dospělí mimo rodinu, jakmile hráč postaví druhé obydlí, a další
+  přibudou se ženatými syny a jejich ženami (měření 15. 11. 2026 – za 6 let rodina ještě
+  necvičí). Martin 24. 10. 2026: „Nechat, rodina zpočátku pracuje“ – pravidlo ≥ 4 dospělí mimo
+  rodinu platí beze změny.
 - **Velká zásoba zakladatelů** (Martin 2. 11. 2026: „Ta úplně první ves – zakladatelé budou mít
   velkou zásobu jídla/osiva. Ber to analogicky, jako když přišel praotec Čech do Čech“; čísla
-  návrh Clauda): zakladatelé přinesou jídlo na **3 roky** a osivo na **2 roky** potřeby (2 700 kg
-  a 1 800 kg); osivo je jen na setí a 15 let se neuvolní – prvních ≈ 15 let pracuje jen pět
-  zakladatelů a děti přibývají, s dnešní zásobou ves padala do pasti osiva. Podrobnosti
+  návrh Clauda): zakladatelé přinesou jídlo na **3 roky** a osivo na **2 roky** potřeby – pro 9
+  dospělých (1 620 kg ročně) **4 860 kg jídla a 3 240 kg osiva** (15. 11. 2026 stejným pravidlem;
+  dřív 5 lidí – 2 700 kg a 1 800 kg); osivo je jen na setí a 15 let se neuvolní – prvních
+  ≈ 15 let pracovalo jen pět zakladatelů a děti přibývaly, s dnešní zásobou ves padala do pasti
+  osiva. Podrobnosti
   a měření: [pole](fields.md) – Zásoby a nasycení, Start. **Oprava, návrh Clauda 2. 11. 2026:**
   setí bere osivo zakladatelů, až když běžné obilí nad příděl do žní nestačí – dřív ho bralo
   napřed a do jara roku 4 bylo pryč. Když ves v lhůtě šetří přídělem, sní osivo zakladatelů nad
@@ -640,11 +666,14 @@ Clauda.
 
 ### Dopad na kalibraci a hlad (kvalitativně – ověří úloha „růst populace“)
 
-- **Lidé na začátku:** 5 místo 4, všichni dospělí. Startovní zásoby na 18 měsíců
-  ([pole](fields.md) – Start) se počítají na potřebu zakladatelů – ověřit, že vydrží stejně dlouho.
+- **Lidé na začátku:** 5 místo 4, všichni dospělí; od 15. 11. 2026 se 4 syny 9 (5 mužů).
+  Startovní zásoby ([pole](fields.md) – Start) se počítají na potřebu zakladatelů.
 - **Práce na začátku:** rodina pracuje (Zakladatelé), takže první zemnici a pole staví 5 dospělých
   místo 2 (výrostci 12 a 13 let do práce nešli) – start bude rychlejší. Výcvik začne až s ≥ 4
-  dospělými mimo rodinu, odhadem za ≈ 15 let.
+  dospělými mimo rodinu, odhadem za ≈ 15 let. **Se syny (15. 11. 2026)** staví stavby 5 mužů
+  místo jednoho (stavby staví jen muži – [obyvatelstvo](population.md), Stavby staví muži):
+  měření (založení 15. 3., pole ≈ 1,7 ha – 75 dílů) – první zemnice stojí 23. den místo 97.,
+  první pole je hotové 47. den místo 212. a první úroda je 982 kg místo 150 kg.
 - **Porody:** 4 plodné ženy místo jedné → ≈ 1,5 porodu ročně od prvního roku (dřív ≈ 0,35 a druhý
   pár až za ≈ 4 roky). Zemnice o 6 místech se přeplní po druhém dítěti – vedlejší manželky pak
   čekají na obydlí a přeplněný dvorec tlumí porody i přežití dětí, dokud hráč nestaví. Ves poroste
@@ -673,7 +702,7 @@ Clauda.
   vojvody jsou synové hlavní manželky (ves dosud měla jen jednu ženu na muže). Vedlejší manželky
   se zpětně nedoplňují – **Vlkov zůstane beze změny**: vojvoda s jednou ženou, nikdo se
   nestěhuje; další manželky přicházejí od převodu podle pravidel výš. Zakladatelé (vojvoda
-  a 4 manželky) platí jen pro nově založené vsi.
+  a 4 manželky, od 15. 11. 2026 i 4 synové) platí jen pro nově založené vsi.
 - **Dvorec bez muže od 14 let:** rod se založí na nejstarším muži dvorce, i chlapci; bez muže
   v dvorci na nejstarším muži vsi, který se s domácností do dvorce přestěhuje jako vojvoda
   (Nástupnictví). Ves bez jediného muže rod nemá a končí jen vymřením – **převod sám hru
@@ -719,7 +748,8 @@ Clauda.
   počítá ze všech lidí domu (i dětí a podnájemníků) jako u ostatních domácností – vedlejší
   manželka tak může odejít i kvůli přeplnění, které nezpůsobila.
 - **Zakladatelé a jména – rozhodnutí implementace (návrh Clauda, 24. 10. 2026):** první ves
-  sídla zakládá vždy vojvoda s manželkami (i bez jména – čeká na hráče); vývojová druhá ves,
+  sídla zakládá vždy vojvoda s manželkami a od 15. 11. 2026 i se syny (vojvoda i bez jména – čeká
+  na hráče, synové jméno od rodu); vývojová druhá ves,
   ves z výpravy a ves bez `lord` (testy, starší varianty kalibrace) jsou beze změny. Ves
   osadníků: vojvodou je nejstarší muž rodu mezi nimi a jeho jméno zůstane, bez muže rodu je ves
   bez rodu. Důvody u jména: „Jen písmena.“, „Nejvýš 20 písmen.“, prázdné „Vojvoda potřebuje
@@ -1011,8 +1041,10 @@ dílu – 1 ÷ (vojvoda + synové od 16 let ve vsi), lidé z obydlí nejblíž d
 | Z přeplněného dvorce odchází vedlejší manželka s nejstarším synem, který by se mohl starat už o dům                                                                                                  | Martin (24. 10. 2026)  |
 | Začátek bez lidí mimo rodinu: rodina zpočátku pracuje, pravidlo ≥ 4 dospělí mimo rodinu beze změny                                                                                                   | Martin (24. 10. 2026)  |
 | První generaci stačí partneři z okolí                                                                                                                                                                | Martin (24. 10. 2026)  |
-| Zakladatelé: vojvoda 25, hlavní manželka 22, vedlejší 20, 18 a 16 let, bez dětí; všech 5 v první zemnici; rodina zpočátku pracuje                                                                    | návrh Clauda           |
-| Zakladatelé první vsi nesou jídlo na 3 roky a osivo na 2 roky potřeby (osivo jen na setí, 15 let se neuvolní) – Martin 2. 11. 2026                                                                   | Martin / návrh Clauda  |
+| ~~Zakladatelé: vojvoda 25, hlavní manželka 22, vedlejší 20, 18 a 16 let, bez dětí; všech 5 v první zemnici; rodina zpočátku pracuje~~ – nahrazeno 15. 11. 2026 (níž)                                 | návrh Clauda           |
+| Vojvoda má mezi zakladateli aspoň 4 dospělé syny (od 16 let); dcery ne                                                                                                                               | Martin (15. 11. 2026)  |
+| Zakladatelé: vojvoda 42, manželky 38 (synové 20, 18), 35 (synové 17, 16), 25 a 20 let – 9 lidí v přeplněné první zemnici; synové s jménem od rodu                                                    | návrh Clauda           |
+| Zakladatelé první vsi nesou jídlo na 3 roky a osivo na 2 roky potřeby (osivo jen na setí, 15 let se neuvolní) – Martin 2. 11. 2026; s 9 zakladateli 4 860 a 3 240 kg                                 | Martin / návrh Clauda  |
 | Nejvýš 4 žijící manželky, hlavní je první; další jen z okolí ≈ 30 % ročně – vždy do domu muže, i přeplněného                                                                                         | Martin (24. 10. 2026)  |
 | Přednost při osídlení: ženatý syn vojvody → vedlejší manželka z přeplněného domu muže rodu → ostatní                                                                                                 | návrh Clauda           |
 | Porody na ženu, žena nemusí bydlet s mužem; návštěvy vojvody jen ve scéně                                                                                                                            | návrh Clauda           |

@@ -1822,14 +1822,15 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
   - **Zakladatelé první vsi – velká zásoba** (Martin 2. 11. 2026: „Ta úplně první ves –
     zakladatelé budou mít velkou zásobu jídla/osiva. Ber to analogicky, jako když přišel praotec
     Čech do Čech“; čísla návrh Clauda z měření správce): úplně první ves hráče (vojvoda
-    s manželkami – [vojvoda](lord.md), Zakladatelé) přinese jídlo na **3 roky** potřeby
-    zakladatelů a **osivo na 2 roky** potřeby (`FOUNDERS_STORES`; 5 dospělých × 180 kg = 900 kg:
-    2 700 kg jídla a 1 800 kg osiva ≈ 10 ha osevu, dřív 1 800 kg celkem). Osivo je **jen na setí**
+    s manželkami a syny – [vojvoda](lord.md), Zakladatelé) přinese jídlo na **3 roky** potřeby
+    zakladatelů a **osivo na 2 roky** potřeby (`FOUNDERS_STORES`; 9 dospělých × 180 kg = 1 620 kg:
+    4 860 kg jídla a 3 240 kg osiva ≈ 18 ha osevu – od 15. 11. 2026 se 4 syny; dřív 5 dospělých:
+    2 700 kg jídla a 1 800 kg osiva ≈ 10 ha, ještě dřív 1 800 kg celkem). Osivo je **jen na setí**
     (rezerva jako osivo osadníků – Osivo pro ves bez zásob), **15 let od založení** se neuvolní
     1. 6. ani 1. 12. a cíle osevu ho nepočítají za jídlo – slouží na víc osevů, dokud nedorostou
        první děti; sní se jen ve skutečném hladu. Ztráty skladováním (10 % ročně bez hrnčíře) jdou
        z celé zásoby obilí – rezerva osiva je nejvýš tolik, kolik obilí zbývá; za první rok tak ves
-       ztratí ≈ 450 kg a jídlo bez sklizně vydrží kratší dobu než 3 roky. Proč: prvních ≈ 15 let pracuje jen 5
+       ztratí ≈ 810 kg (s 5 zakladateli ≈ 450 kg) a jídlo bez sklizně vydrží kratší dobu než 3 roky. Proč (měření s 5 zakladateli): prvních ≈ 15 let pracuje jen 5
        zakladatelů a dětí přibývá (potřeba 900 → 2 800 kg) – s dnešní zásobou ves v hladu snědla
        osivo a spadla do pasti osiva (měření: osev ≈ 6 → 0,3 ha, deset let bez sklizně). Rychlé
        měření správce (6 vsí × 25 let): s ochranou osiva past zmizí už s dnešní velikostí, pojistku

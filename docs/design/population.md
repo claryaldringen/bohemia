@@ -89,9 +89,11 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   Martin). Jsou to **dva páry** ([kinship.md](kinship.md)): manželé 25 let a chlapec 13 a dívka
   12 let, kteří nejsou příbuzní (rodiče neznámí) a vezmou se, až dorostou. Ves dostane navržené staročeské jméno, které hráč může kdykoli změnit.
   **Návrh issue #9 fáze 1** (Martin, 24. 10. 2026 – implementováno, [village-people.md](../code/village-people.md)): ves založí **vojvoda
-  se 4 manželkami** (5 lidí bez dětí, všichni v první zemnici); vedlejší manželky odcházejí do
-  vlastních obydlí, až když se dvorec přeplní – [vojvodova rodina](lord.md), Rod vojvody –
-  Zakladatelé, Manželky.
+  se 4 manželkami** a od 15. 11. 2026 i se **4 dospělými syny** (Martin: „aby měl vojvoda
+  minimálně 4 dospělé (alespoň 16 let) syny“) – 9 lidí, z toho 5 mužů, všichni v první zemnici
+  (přeplněné); vedlejší manželky odcházejí do vlastních obydlí, když je dvorec přeplněný – druhá
+  manželka se syny 17 a 16 let do prvního dalšího obydlí – [vojvodova rodina](lord.md), Rod
+  vojvody – Zakladatelé, Manželky.
 - **První zemnici si osadníci postaví sami** (Martin, 17. 10. 2026: „první zemnice byla
   postavena hrozně rychle – nebyl vidět průběh stavby“): je to stavba jako každá jiná – roste
   ze společné práce vsi a hráč vidí její fáze. Startovní domácnosti zbývá ≈ 1,2 člověkodne
