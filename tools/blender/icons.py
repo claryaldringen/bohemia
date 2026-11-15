@@ -5646,12 +5646,12 @@ def _lime_white():
 
 
 def _roof(bm, centre, width, length, height, thick=0.12):
-    """Sedlová střecha: dvě šikmé desky nad osou X (délka `length` podél X)."""
+    """Sedlová střecha: dvě šikmé desky nad osou X (délka `length` podél X). Hřeben je nahoře (štít A)."""
     ang = math.atan2(height, width / 2)
     run = math.hypot(width / 2, height) + 0.08
     for side in (-1, 1):
         box(bm, (centre[0], centre[1] + side * width / 4, centre[2] + height / 2),
-            (length, run, thick), rot=(side * ang, 0, 0))
+            (length, run, thick), rot=(-side * ang, 0, 0))
 
 
 def _wall_blocks(bm, x0, x1, y, z0, rows, h=0.34, depth=0.5):
@@ -5668,7 +5668,8 @@ def _wall_blocks(bm, x0, x1, y, z0, rows, h=0.34, depth=0.5):
 
 
 def icon_lodge():
-    """Stavební huť: kamenná chata z kvádrů s dřevěnou sedlovou střechou a dveřmi."""
+    """Stavební huť: kamenná chata z kvádrů s dřevěnou sedlovou střechou (hřebenem nahoře, kamera
+    shora – el 28) a dveřmi."""
     wall, roof, door = bmesh.new(), bmesh.new(), bmesh.new()
     _wall_blocks(wall, -1.4, 1.4, 0, 0, 4)
     _wall_blocks(wall, -1.4, 1.4, 1.0, 0, 4)
@@ -5679,7 +5680,7 @@ def icon_lodge():
             to_obj(roof, "roof", wood_mat("roof", (0.4, 0.26, 0.12)), smooth=False),
             to_obj(door, "door", wood_mat("door", (0.3, 0.19, 0.09)), smooth=False)]
     hud_light(az=-40, el=45)
-    camera(world_points(objs), az=-8, el=18, margin=1.04)
+    camera(world_points(objs), az=-25, el=28, margin=1.04)
     return True
 
 
