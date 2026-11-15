@@ -170,6 +170,7 @@ návrh churches.md – NPC rod staví kostel, stone-masonry.md – Stavební hu�
   Bez místa nic. Volitelné `outcropId` vezme jen místo, kde je nejbližší právě ten výchoz – tak
   hledá plochu převod starších lomů `quarry-area` (`quarry-move.ts`, village-fortifications.md –
   Lom a kámen); NPC rod ho nepředává.
+- **Plocha lomu ve scéně** (Martin 15. 11. 2026: „Ten lom by měla být hnědá placka pokrytá štěrkovou drtí“): `updateQuarryGrounds` (`village-renderer.ts`) kreslí pro každý lom (i ve Vlkově a rozestavěný – ten slaběji) dva obtisky přes `quarryAreaFootprint` (`STONE.quarryArea.sizeM`), které kopírují terén jako mlat: hnědá udusaná zem (textura `mud`, `QUARRY_GROUND_COLOR`) a přes ni štěrk (textura `gravel` z 0 A.D., `QUARRY_GRAVEL_COLOR`), okraj měkce do trávy (`QUARRY_GROUND_SOFT_M`). Konstanty v `village-renderer-shared.ts`; přestaví se jen při změně polohy, natočení nebo stavu stavby.
 - **Kostel:** s lomem, všemi `MASON_CRAFTS` mezi lidmi, bez staveniště `church` a po
   `Lodge.npcRetryDay`; první vždy, další při `churchCoverage` < `CHURCH.npc.coverageBelow`. Typ
   `churchTypesFor(circle)[0]`, rozměry `churchDimsForCapacity(type, ⌈lidé × capacityPerPerson⌉)`

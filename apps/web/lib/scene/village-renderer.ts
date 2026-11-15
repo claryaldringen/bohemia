@@ -12,6 +12,7 @@ import {
   DRAFT_OXEN,
   OFFICIAL_WORLD,
   realTimeOf,
+  quarryAreaFootprint,
   threshingFloorFootprint,
   type DwellingType,
   type ObstacleLayer,
@@ -152,6 +153,14 @@ import {
   ModelKey,
   RuinView,
   SMOKE_TEXTURE_URL,
+  QUARRY_GRAVEL_ALPHA,
+  QUARRY_GRAVEL_ALPHA_INDEX,
+  QUARRY_GRAVEL_COLOR,
+  QUARRY_GRAVEL_Z_OFFSET,
+  QUARRY_GROUND_ALPHA_INDEX,
+  QUARRY_GROUND_COLOR,
+  QUARRY_GROUND_SOFT_M,
+  QUARRY_GROUND_Z_OFFSET,
   THRESHING_FLOOR_ALPHA,
   THRESHING_FLOOR_ALPHA_INDEX,
   THRESHING_FLOOR_Z_OFFSET,
@@ -212,6 +221,8 @@ export class VillageRenderer {
   private readonly kilnRemnants = new Map<number, { key: string; mesh: Mesh }>();
   /** Obtisky mlatu humen (`updateThreshingFloors`); zbytek humna kreslí `threshing`. */
   private readonly threshingFloors = new Map<number, { key: string; mesh: Mesh }>();
+  /** Plochy lomů (`updateQuarryGrounds`) – hnědá zem a přes ni štěrk, podle id výchozu. */
+  private readonly quarryGrounds = new Map<number, { key: string; meshes: Mesh[] }>();
   private readonly models = new Map<ModelKey, Mesh | null>();
   private readonly ghosts = new Map<ModelKey, Mesh>();
   /** Modely dílen a milíře se načítají, až jsou potřeba (dílna ve vsi, duch při umisťování). */
@@ -444,6 +455,7 @@ export class VillageRenderer {
     // obě části humna se překreslí vždy (ne zkráceným „||“)
     const floorDecals = this.updateThreshingFloors(village.threshingFloors ?? []);
     const floors = this.threshing.update(village.threshingFloors ?? []) || floorDecals;
+    const quarryGrounds = this.updateQuarryGrounds(village.quarries ?? []);
     const ruins = this.updateRuins(village.ruins ?? []);
     const yards = this.craftYards.update(craftYardViews(village.dwellings));
     const wares = this.wares.update({ dwellings: village.dwellings, wares: village.wares });
@@ -491,6 +503,7 @@ export class VillageRenderer {
       kilns ||
       remnants ||
       floors ||
+      quarryGrounds ||
       yards ||
       wares
     );
@@ -1119,6 +1132,8 @@ export class VillageRenderer {
     this.kilnRemnants.clear();
     for (const view of this.threshingFloors.values()) view.mesh.dispose();
     this.threshingFloors.clear();
+    for (const view of this.quarryGrounds.values()) for (const mesh of view.meshes) mesh.dispose();
+    this.quarryGrounds.clear();
     for (const view of this.ruins.values()) for (const mesh of view.meshes) mesh.dispose();
     this.ruins.clear();
   }
@@ -1264,6 +1279,88 @@ export class VillageRenderer {
       if (seen.has(id)) continue;
       view.mesh.dispose();
       this.threshingFloors.delete(id);
+      changed = true;
+    }
+    return changed;
+  }
+
+  /**
+   * Plochy lomů (fortifications.md – Lom jako plocha u skal) – obtisk hnědé udusané zem přes
+   * půdorys plochy a přes ni štěrková drť, okraj měkce do trávy; rozestavěný lom slaběji.
+   * Vrátí true při změně.
+   */
+  private updateQuarryGrounds(quarries: NonNullable<SceneVillage['quarries']>): boolean {
+    let changed = false;
+    const seen = new Set<number>();
+    for (const q of quarries) {
+      seen.add(q.outcropId);
+      const key = [q.x, q.z, q.rotation, q.building ? 1 : 0].join('|');
+      const current = this.quarryGrounds.get(q.outcropId);
+      if (current?.key === key) continue;
+      changed = true;
+      for (const mesh of current?.meshes ?? []) mesh.dispose();
+      const area = quarryAreaFootprint(q).map(([px, pz]): Point => [px, pz]);
+      const b = polygonBounds(area);
+      const pad = QUARRY_GROUND_SOFT_M;
+      const cover = q.building ? 0.6 : 1;
+      const layer = (
+        name: string,
+        color: [number, number, number],
+        alpha: number,
+        uv: number,
+        texture: 'mud' | 'gravel',
+        zOffset: number,
+        alphaIndex: number,
+      ): Mesh => {
+        const mesh = createDecalMesh(
+          this.scene,
+          `village-quarry-${name}-${q.outcropId}`,
+          decalGrid(
+            { minX: b.minX - pad, maxX: b.maxX + pad, minZ: b.minZ - pad, maxZ: b.maxZ + pad },
+            0.5,
+            softCoverage(area, QUARRY_GROUND_SOFT_M),
+          ),
+          {
+            height: this.context.decalHeight,
+            smoothHeight: this.context.groundHeight,
+            lift: LIFT.turf,
+            color,
+            alpha: alpha * cover,
+            uv,
+          },
+        );
+        mesh.material = decalMaterial(this.meshHost, texture, zOffset);
+        mesh.alphaIndex = alphaIndex;
+        return mesh;
+      };
+      this.quarryGrounds.set(q.outcropId, {
+        key,
+        meshes: [
+          layer(
+            'ground',
+            QUARRY_GROUND_COLOR,
+            1,
+            20,
+            'mud',
+            QUARRY_GROUND_Z_OFFSET,
+            QUARRY_GROUND_ALPHA_INDEX,
+          ),
+          layer(
+            'gravel',
+            QUARRY_GRAVEL_COLOR,
+            QUARRY_GRAVEL_ALPHA,
+            14,
+            'gravel',
+            QUARRY_GRAVEL_Z_OFFSET,
+            QUARRY_GRAVEL_ALPHA_INDEX,
+          ),
+        ],
+      });
+    }
+    for (const [id, view] of this.quarryGrounds) {
+      if (seen.has(id)) continue;
+      for (const mesh of view.meshes) mesh.dispose();
+      this.quarryGrounds.delete(id);
       changed = true;
     }
     return changed;

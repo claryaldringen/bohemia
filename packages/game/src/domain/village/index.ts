@@ -201,6 +201,7 @@ export * from './people/names';
 export * from './buildings/costs';
 export * from './forest/wood';
 export * from './fortification/state/stone';
+export * from './fortification/state/quarry-area';
 export * from './rules/rules-stone';
 export * from './fortification/state/quarry';
 export * from './forest/forest-clearing';
