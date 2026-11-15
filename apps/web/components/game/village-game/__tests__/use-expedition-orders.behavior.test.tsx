@@ -230,5 +230,10 @@ describe('useExpeditionOrders – dvě vsi hráče, stejné id osoby (id je jedi
     expect(latest?.away).not.toBeNull();
     render({ views, lord });
     expect(latest?.away).not.toBeNull();
+    // ves potvrdí dřív, než dotazy skončí (pohledy ho ještě mají) – nová výprava odznak hned ukáže
+    render({ views, lord: { ...lord, away: false } });
+    render({ views: [], lord: { ...lord, away: false } });
+    render({ views: [], lord });
+    expect(latest?.away).not.toBeNull();
   });
 });

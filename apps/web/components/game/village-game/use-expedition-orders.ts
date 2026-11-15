@@ -339,19 +339,20 @@ export function useExpeditionOrders({
   );
   const lordSeen = useRef(false);
   const [lordBack, setLordBack] = useState(false);
+  const lordAway = lord?.away === true;
   useEffect(() => {
-    if (lordOut) {
+    if (!lordAway) {
+      // ves návrat potvrdila (nebo vojvoda nevyjel) – stráž začíná znovu
+      lordSeen.current = false;
+      setLordBack(false);
+    } else if (lordOut) {
       lordSeen.current = true;
       setLordBack(false);
     } else if (lordSeen.current) {
       lordSeen.current = false;
       setLordBack(true);
     }
-  }, [lordOut]);
-  const lordAway = lord?.away === true;
-  useEffect(() => {
-    if (!lordAway) setLordBack(false);
-  }, [lordAway]);
+  }, [lordOut, lordAway]);
 
   const lordSelected = lord !== null && chosenVillage === undefined && ids.includes(lord.id);
   const away = useMemo(
