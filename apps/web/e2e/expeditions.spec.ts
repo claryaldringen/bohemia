@@ -119,7 +119,10 @@ test('dva vesničané: Shift + klik, pravé tlačítko, výběr jede se skupinou
 
   // Domů: upozornění o návratu a oba zase pracují (`away` zmizí)
   await page.getByTestId('expedition-home').click();
-  await expect(page.getByText('Výprava se vrátila.')).toBeVisible({ timeout: 240_000 });
+  // vůdce má od D58 jméno – „Přemysl se vrátil.“; bez vůdce „Výprava se vrátila.“
+  await expect(page.getByText(/^(Výprava|\p{Lu}\p{Ll}+) se vrátila?\.$/u)).toBeVisible({
+    timeout: 240_000,
+  });
   // výprava skončila: venku nejsou jezdci a v úložišti je hotová (`away` ve vsi zmizí s dalším
   // dopočtem vsi – ve zpomaleném světě e2e až za dlouho, proto se tu nečeká)
   await expect

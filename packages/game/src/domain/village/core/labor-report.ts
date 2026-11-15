@@ -719,6 +719,36 @@ export function laborReport(state: Pick<VillageState, 'labor' | 'extinctDay'>): 
   return state.labor ?? null;
 }
 
+/** Drobná práce navíc, podle které se pozná místo první práce stavby (`startingShares`). */
+const STARTING_STEP = 1e-6;
+
+/**
+ * Stavby založené v den rozdělení práce (`startedDay`), kterým ho jádro dnes nedalo – práci jim dá
+ * až od dalšího dne (villagers.md – Stavitelé hned u nové stavby, D68 a D71): kam půjde jejich
+ * první práce, jako v rozdělení práce dne (`constructionShares`) pro drobnou práci navíc – kácení
+ * jejich stromů, dokud nějaké stojí, jinak místo stavby; bez lámání u lomu (to určí až simulace
+ * dne). Podíly mají id stavby a 0 člověkodní, po stavbách vzestupně. Jen pro scénu – stav nemění.
+ */
+export function startingShares(state: VillageState): LaborShare[] {
+  const labor = laborReport(state);
+  if (!labor) return [];
+  const worked = new Set(labor.shares.map((s) => s.construction));
+  return state.constructions
+    .filter((c) => c.startedDay === labor.day && !worked.has(c.id))
+    .sort((a, b) => a.id - b.id)
+    .flatMap((c) =>
+      placeShares(
+        {
+          construction: { ...c, done: c.done + STARTING_STEP },
+          manDays: STARTING_STEP,
+          doneBefore: c.done,
+          felledBefore: c.wood?.felled ?? 0,
+        },
+        state,
+      ).map((s) => ({ ...s, manDays: 0, construction: c.id })),
+    );
+}
+
 /**
  * Podíly polí na ploše hospodářského roku se počítají znovu, jen když se změní jeho díly (nutné
  * díly přibývají i ubývají – `seasonDay`); plocha ani pole dílu se nemění; simulace se ptá každý

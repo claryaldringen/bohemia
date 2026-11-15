@@ -659,7 +659,7 @@ export function buildVillageView(
     ...dugSitesField(state, day),
     ...kilnsField(state, day),
     ...grainPitsField(state, day, summary),
-    ...junctionsField(state, day),
+    ...junctionsField(state, day, landscape),
   };
 }
 

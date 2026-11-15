@@ -638,8 +638,11 @@ místa to jsou a moci je také označit.“ ([paths.md – Síť – kotvy](../d
   počítá `roadViews` (`village-view-roads.ts`); tam jsou i `JUNCTION_NAMES` / `JUNCTION_ICONS`.
   Křižovatka podle významného místa u ní (D66 – `roadEndLandmarks` z jádra, věta
   `landmarkPhrase` jako kronika): „Rozcestí u kovárny“, „Křižovatka pod dvorcem“.
+  Totéž v nadpisu vybrané křižovatky (D72): `junctionViews` (`junction-view.ts`) dá do
+  `VillageJunction.place` větu z `junctionLandmark` (bez `exclude` – nemá druhý konec) a
+  `SelectionPanel` ji připojí k `JUNCTION_NAMES`.
 - **Významné místo u křižovatky** – `paths/road-landmarks.ts`: `junctionLandmark(state, at,
-  terrain, exclude)` – nejbližší dvorec, dílna, kostel, hřbitov (po čtvercích), humno, ohrada, sad
+terrain, exclude)` – nejbližší dvorec, dílna, kostel, hřbitov (po čtvercích), humno, ohrada, sad
   (po čtvercích), lom, modla, svatyně, stojící brána, voda (od břehu – `water` / `water:river`) nebo
   kraj mapy do `LANDMARK_M` (60 m), mimo místo na druhém konci cesty (`roadEndKey`); vztah `at` /
   `below` / `above` podle výšky (`LANDMARK_RISE_M` 5 m; brána a kraj mapy vždy `at`, voda nikdy

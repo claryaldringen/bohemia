@@ -100,48 +100,35 @@ export function withBuilderAtEachConstruction(
 }
 
 /**
- * Stavba založená dnes (D68 – Martin 15. 11. 2026: „místo aby se okamžitě rozešli směrem ke
- * staveništi, dál odpočívají“): jádro rozdělení práce dne při zahájení stavby nemění
- * (`applyBuildIntent`) a práci jí dá až od dalšího dne. Scéna na ni pošle hned dnešní díl práce
- * mužů na stavby (`SceneLabor.menBuild` – D24), který dnešní stavby nevzaly – nejvýš tolik, kolik je
- * dnes nečinné (ženy na stavby nejdou, ostatní práce zůstane). Podíly nových staveb (staví jen
- * muži – `construction`) stojí před nečinnými, kam je zítra dá jádro (stavitele scéna vybere jako
- * zítra), a vezmou si z nich; víc nových staveb stejným dílem. Vrátí podíly dne a nové podíly
- * (`fresh` – jejich stavitelé se vydají hned – `PersonTask.interrupt`). Bez nové stavby beze změny.
+ * Stavby založené dnes (D68 – Martin 15. 11. 2026: „místo aby se okamžitě rozešli směrem ke
+ * staveništi, dál odpočívají“; D71 – každá stavba, u které scéna stavitele kreslí): jádro
+ * rozdělení práce dne při zahájení stavby nemění a práci jí dá až od dalšího dne. Scéna na ni
+ * pošle hned dnešní díl práce mužů na stavby (`SceneLabor.menBuild` – D24), který dnešní stavby
+ * nevzaly – nejvýš tolik, kolik je dnes nečinné; víc nových staveb stejným dílem. Místo práce dá
+ * jádro (`SceneLabor.starting` – kácení jejích stromů nebo místo stavby). Vrátí podíly dne
+ * s podíly nových staveb před nečinnými, kam je zítra dá jádro – jen k počtu jejich stavitelů
+ * (`shareCounts`); `fresh` = podíly nových staveb. Stavitele vybere plán až po všech ostatních
+ * postavách z nečinných mužů (villager-plan.ts – `freshBuilders`), takže nikoho neodvolá od jiné
+ * práce. Bez nové stavby beze změny.
  */
-export function withNewSites(
-  labor: Pick<SceneLabor, 'day' | 'shares' | 'menBuild'>,
-  dwellings: readonly { id: number; built: boolean; since?: number }[],
-): { shares: SceneLaborShare[]; fresh: ReadonlySet<SceneLaborShare> } {
+export function withNewSites(labor: Pick<SceneLabor, 'shares' | 'menBuild' | 'starting'>): {
+  shares: SceneLaborShare[];
+  fresh: ReadonlySet<SceneLaborShare>;
+} {
   const same = { shares: labor.shares, fresh: new Set<SceneLaborShare>() };
-  const sites = dwellings
-    .filter(
-      (d) =>
-        !d.built &&
-        d.since === labor.day &&
-        !labor.shares.some(
-          (s) => s.construction === d.id || (s.target.kind === 'site' && s.target.id === d.id),
-        ),
-    )
-    .map((d) => d.id)
-    .sort((a, b) => a - b);
+  const starting = labor.starting ?? [];
   const idle = labor.shares.findIndex((s) => s.activity === 'idle');
-  if (sites.length === 0 || idle < 0) return same;
+  if (starting.length === 0 || idle < 0) return same;
   const used = labor.shares.reduce(
     (sum, s) => sum + (s.construction !== undefined ? s.manDays : 0),
     0,
   );
   const idleShare = labor.shares[idle]!;
   const free = Math.min(idleShare.manDays, Math.max(0, (labor.menBuild ?? 0) - used));
-  const each = Math.floor((free / sites.length) * 100) / 100;
+  const each = Math.floor((free / starting.length) * 100) / 100;
   if (each < 0.01) return same;
-  const fresh = sites.map((id): SceneLaborShare => ({
-    activity: 'build',
-    target: { kind: 'site', id },
-    manDays: each,
-    construction: id,
-  }));
-  const rest = Math.max(0, Math.round((idleShare.manDays - each * sites.length) * 100) / 100);
+  const fresh = starting.map((s): SceneLaborShare => ({ ...s, manDays: each }));
+  const rest = Math.max(0, Math.round((idleShare.manDays - each * fresh.length) * 100) / 100);
   return {
     shares: [
       ...labor.shares.slice(0, idle),
