@@ -81,7 +81,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   8): `crafts/burner-camp.ts`, čísla `BURNER_CAMP`. Stav `Workshop.camp` (`BurnerCamp` – id
   z `nextId`, střed, natočení, `done` v čd, `builtDay`), opuštěné `VillageState.campRemnants`
   (`CampRemnant` – nedostavěná nese `done`, scéna ji kreslí jako staveniště, které zarůstá);
-  obojí volitelné – dílna ze starší vsi zemnici nemá a rozdělaný milíř dojede bez ní. Kde
+  obojí volitelné; zemnici má **jen uhlíř v nadzemní dílně** (`isHouseType(dwelling.type)`, Martin
+  15. 11. 2026) – `workBurner` u uhlíře v dnešní dílně nestaví `moveCamp` ani nepoužívá `anchor`
+  a případnou zemnici na začátku dne opustí (`abandonCamp`); odnos na tyči se nemění. Dílna ze starší vsi zemnici nemá a rozdělaný milíř dojede bez ní. Kde
   `workBurner` začíná nový milíř: `campUsable` (15 nejbližších volných buků do
   `reuseRadiusM` od zemnice) → `startKiln` s `anchor` (první buk nejblíž zemnici, chůze se dál
   měří od dílny); jinak `moveCamp` – stará zemnice se opustí (`abandonCamp`) a u milíře se hledá

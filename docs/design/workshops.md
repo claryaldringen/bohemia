@@ -69,7 +69,11 @@ Martin 14. 11. 2026:
     porostu s dost buky (návrh Clauda – vzdálenost jako kácení pro milíř).
   - **Opuštěná zemnice chátrá** a za 5 let zmizí (návrh Clauda, jako prázdná stavba).
 - **Podrobnosti** (návrh Clauda):
-  - **Pro koho:** každý uhlíř hned – i ten v dnešní dílně (zemnici) a před rokem 750.
+  - **Pro koho:** jen uhlíř, který bydlí v **nadzemní dílně** (vypletená nebo roubená, od roku 750 /
+    800). Martin 15. 11. 2026: „Nošení uhlí v koši na tyči má platit hned, dočasná zemnice u milíře
+    až později.“ Uhlíř v dnešní dílně (zemnice ve vsi) zemnici u milíře nestaví ani nepoužívá, odnos
+    uhlí na tyči platí pro každého uhlíře hned. Má-li uhlíř v dnešní dílně zemnici u milíře (např.
+    ze starší vsi nebo po přestěhování), opustí ji jako po zániku dílny (návrh Clauda).
   - **Využitelná zemnice:** když uhlíř začíná nový milíř a 15 nejbližších volných buků leží do
     150 m od zemnice, vybírá dávku od ní (první buk nejblíž zemnici). Jinak vybírá jako dřív od
     dílny, starou zemnici opustí a novou postaví u nového milíře – jinak by u milíře nespal.
