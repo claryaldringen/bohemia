@@ -711,6 +711,12 @@ test('povýšení vesničana: hráč povýší rolníka pro druhou ves bez vojvo
   const { email, seat: seatA } = await newPlayer(page, 'povyseni');
   await found(page, villageSpots(seatA.landscape).dwelling, 'Bořivoj');
   const houseId = await houseIdOf(email);
+  // Rod bez dalších mužů: synové zakladatelů (16–18 let mimo nástupce) by jinak sami odešli za
+  // vojvodu do druhé vsi (seniorate.md – Kdo, `appointCandidate`) a ta by povýšeného nepotřebovala.
+  await changeVillageState(seatA.settlementId, (st) => ({
+    ...st,
+    people: st.people.filter((p) => p.line !== true || p.id === st.dynasty!.lordId),
+  }));
 
   // druhá ves hráče je bez vojvody (přímý zápis do bohemia_test) a čeká na vojvodu
   const second = await villageOnNextMap(seatA.settlementId, 'Lhota');
