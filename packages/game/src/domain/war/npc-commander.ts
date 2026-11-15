@@ -1,8 +1,10 @@
+import type { WorldClock } from '../calendar';
 import { fortHasWall, fortsContaining } from '../village/fortification';
 import { untakenRefuges, type BattleField, type BattleState, type Fighter } from './battle';
 import type {
   CampaignGroup,
   CampaignMember,
+  CampaignPlace,
   CampaignReturnReason,
   CampaignState,
   CampaignWorld,
@@ -122,9 +124,22 @@ export function daysHome(s: CampaignState, world: CampaignWorld): number {
   if (!g) return 0;
   const map = world.landscapeOf(g.cell) ?? world.landscapeOf(s.assembly.cell);
   const side = map ? map.landscape.size * map.landscape.cellSizeM : 0;
-  const dx = (g.cell.x - s.assembly.cell.x) * side + g.pos.x - s.assembly.pos.x;
-  const dz = (g.cell.y - s.assembly.cell.y) * side + g.pos.z - s.assembly.pos.z;
-  const secondsPerDay = 24 / hoursPerTick(world.clock) / TICKS_PER_SECOND;
+  return walkDays(g, s.assembly, side, world.clock);
+}
+
+/**
+ * Herní dny chůze z místa `from` do `to` vzdušnou čarou tempem pěšího vojska (`WAR.pace`) – cesta
+ * domů tažení (`daysHome`) i dezertéra (`deserterHomeDay`); `sideM` = strana mapy políčka (m).
+ */
+export function walkDays(
+  from: CampaignPlace,
+  to: CampaignPlace,
+  sideM: number,
+  clock: WorldClock,
+): number {
+  const dx = (from.cell.x - to.cell.x) * sideM + from.pos.x - to.pos.x;
+  const dz = (from.cell.y - to.cell.y) * sideM + from.pos.z - to.pos.z;
+  const secondsPerDay = 24 / hoursPerTick(clock) / TICKS_PER_SECOND;
   return Math.sqrt(dx * dx + dz * dz) / WAR.pace.metersPerSecond / secondsPerDay;
 }
 
