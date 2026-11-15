@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dateOfDayIndex, dayIndexOf } from '../../domain/calendar';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
 import { foundVillage, type ChronicleEvent } from '../../domain/village';
+import { discoveryYear, houseFaithSeed } from '../../domain/village/people/faith';
 import { FAITH } from '../../domain/village/rules/rules-faith';
 import {
   advanceChristianity,
@@ -17,6 +18,7 @@ import { InMemoryInvites } from './in-memory-invites';
 import { InMemoryNotices } from './in-memory-notices';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryStewardships } from './in-memory-stewardships';
+import { InMemoryTimeOffsets } from './in-memory-time-offsets';
 import { InMemoryVassalages } from './in-memory-vassalages';
 import { InMemoryVillages } from './in-memory-villages';
 
@@ -35,6 +37,7 @@ interface World {
   villages: InMemoryVillages;
   notices: InMemoryNotices;
   stewardships: InMemoryStewardships;
+  offsets: InMemoryTimeOffsets;
   players: House[];
   npcs: House[];
   /** Ves vojvody hráčova rodu (id rodu → id vsi). */
@@ -52,6 +55,7 @@ async function world(players: number, npcs: number, foundedDay: number): Promise
   const vassalages = new InMemoryVassalages();
   const stewardships = new InMemoryStewardships();
   const notices = new InMemoryNotices();
+  const offsets = new InMemoryTimeOffsets();
   const seats = new Map<string, string>();
   const playerHouses: House[] = [];
   const npcHouses: House[] = [];
@@ -111,6 +115,7 @@ async function world(players: number, npcs: number, foundedDay: number): Promise
     notices,
     worldSeed: WORLD_SEED,
     dayOf,
+    offsets,
   };
   return {
     deps,
@@ -118,6 +123,7 @@ async function world(players: number, npcs: number, foundedDay: number): Promise
     villages,
     notices,
     stewardships,
+    offsets,
     players: playerHouses,
     npcs: npcHouses,
     seats,
@@ -211,23 +217,74 @@ describe('advanceChristianity – přehrání losu za rody, které už žijí', 
     );
   });
 
-  it('paměť workeru: v témže roce úloha znovu nelosuje', async () => {
+  it('paměť workeru: v témže roce rod znovu nelosuje', async () => {
     const w = await world(3, 0, firstDay(520));
-    const doneYear = { year: null as number | null };
-    const deps = { ...w.deps, doneYear };
+    const done = { houseYears: new Map<string, number>(), npcYear: null as number | null };
+    const deps = { ...w.deps, done };
     await advanceChristianity(deps, firstDay(870));
-    expect(doneYear.year).toBe(870);
+    expect(done.npcYear).toBe(870);
+    expect([...done.houseYears.values()]).toEqual([870, 870, 870]);
     // rod, který mezitím přibyl (stejného dne), se losuje až příští rok
     const late = await w.houses.create({
       playerId: 'pozdni',
       kind: 'player',
       createdAt: atDay(firstDay(520)),
     });
-    expect(await advanceChristianity(deps, firstDay(870) + 100)).toEqual({
-      known: 0,
-      npcBaptized: 0,
-    });
-    expect((await w.houses.byId(late.id))?.christianityKnownYear).toBeNull();
+    // paměť má rody z roku 870; nový rod se losuje hned (nemá záznam), ostatní ne
+    const before = faithOf(w);
+    await advanceChristianity(deps, firstDay(870) + 100);
+    expect(faithOf(w).filter((h) => h.id !== late.id)).toEqual(
+      before.filter((h) => h.id !== late.id),
+    );
+    expect(done.houseYears.get(late.id)).toBe(870);
+  });
+});
+
+describe('advanceChristianity – čas hráče', () => {
+  /** Id rodu hráče, jehož los z `world` padne mezi roky 760 a 870 (první objev). */
+  async function lucky(): Promise<{ w: World; house: House; year: number }> {
+    const w = await world(40, 0, firstDay(520));
+    for (const house of w.players) {
+      const year = discoveryYear(houseFaithSeed(WORLD_SEED, house.id), 521, 1000);
+      if (year !== null && year > 700 && year < 1000) return { w, house, year };
+    }
+    throw new Error('žádný rod s pozdním objevem');
+  }
+
+  it('rod hráče s posunem losuje do roku svého dne a upozorní s jeho dnem', async () => {
+    const { w, house, year } = await lucky();
+    const worldToday = firstDay(year - 148) + 10;
+    w.offsets.offsets.set(house.playerId!, firstDay(year) + 10 - worldToday);
+    await advanceChristianity(w.deps, worldToday);
+    expect(w.houses.houses.find((h) => h.id === house.id)?.christianityKnownYear).toBe(year);
+    const notice = w.notices.notices.find(
+      (n) => n.kind === 'christianity-known' && n.playerId === house.playerId,
+    );
+    expect(notice?.gameDay).toBe(firstDay(year) + 10);
+    expect(notice?.payload).toEqual({ year });
+  });
+
+  it('bez posunu rod hráče nepadne dřív než svět dojde k jeho roku', async () => {
+    const { w, house, year } = await lucky();
+    await advanceChristianity(w.deps, firstDay(year - 1));
+    expect(w.houses.houses.find((h) => h.id === house.id)?.christianityKnownYear).toBeNull();
+  });
+
+  it('skok času hráče přes 1. 1. spustí úlohu znovu, bez skoku ne', async () => {
+    const { w, house, year } = await lucky();
+    const done = { houseYears: new Map<string, number>(), npcYear: null as number | null };
+    const deps = { ...w.deps, done };
+    const worldToday = firstDay(year - 100) + 5;
+    await advanceChristianity(deps, worldToday);
+    expect(done.houseYears.get(house.id)).toBe(year - 100);
+    expect(w.houses.houses.find((h) => h.id === house.id)?.christianityKnownYear).toBeNull();
+    // stejný rok hráče – nic nového
+    expect(await advanceChristianity(deps, worldToday + 1)).toEqual({ known: 0, npcBaptized: 0 });
+    // skok o 100 let (stejný rok světa): rod losuje znovu a objev najde
+    w.offsets.offsets.set(house.playerId!, firstDay(year) - firstDay(year - 100));
+    await advanceChristianity(deps, worldToday + 2);
+    expect(done.houseYears.get(house.id)).toBe(year);
+    expect(w.houses.houses.find((h) => h.id === house.id)?.christianityKnownYear).toBe(year);
   });
 });
 

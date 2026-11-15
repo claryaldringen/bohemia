@@ -239,8 +239,11 @@ hráč)`) a rod s `house.placed_at` null. Pozvaný je na mapě hned (`placed_at`
   NPC rod, ves vojvody (`House.lord`) s `lord`. Co ves s událostí udělá (`baptizeVillage`) a křest
   hráčova rodu (`baptizeLord`): `village-people.md` – Křest a víra. Výpis rodů
   bez nové metody portu: hráčovy `playerHousesSince(new Date(0))` a `waitingNewcomers()`, NPC přes
-  `vassalages.allActive()`. Worker drží v paměti rok, za který úloha proběhla (`doneYear`) – jinak
-  by každou minutu přehrával los neznalých rodů (1 000 rodů od 520: první běh v roce 870 ≈ 95 ms,
+  `vassalages.allActive()`. Rod hráče losuje do roku **svého dne**
+  (`playerDay(den světa, offsets.offsetOf(hráč))` – posun času hráče, `accounts.md`), NPC rod do
+  roku dne světa; upozornění i zápis do kroniky nesou den hráče. Worker drží v paměti (`done`:
+  `ChristianityMemory`) po rodu rok jeho dne, za který už losoval, a rok světa, za který prošel
+  NPC rody – skok času hráče přes 1. 1. tak rod znovu losuje; jinak by každou minutu přehrával los neznalých rodů (1 000 rodů od 520: první běh v roce 870 ≈ 95 ms,
   opakovaný bez paměti 8–50 ms, s pamětí ≈ 0); opakovaný běh bez paměti nic nezdvojí.
 - Rod vsi pro varování před vojskem (kdo rozhoduje, hradiště pána, doména hradiště – port
   `AlarmOwnerPort`, adaptér `db/adapters/alarm-owners.ts`): `war.md` – „Varování, poslové a útěk do
