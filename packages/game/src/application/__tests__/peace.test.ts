@@ -24,6 +24,7 @@ import { InMemoryNotices } from './in-memory-notices';
 import { InMemoryPlayerLock } from './in-memory-locks';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryShipments } from './in-memory-shipments';
+import { InMemoryTimeOffsets } from './in-memory-time-offsets';
 import { InMemoryVassalages } from './in-memory-vassalages';
 import { InMemoryVillages } from './in-memory-villages';
 import { InMemoryWars } from './in-memory-wars';
@@ -580,5 +581,34 @@ describe('postoupení po pádu (A2)', () => {
     expect(await deliverPendingAcceptances(worker, { now: later, today: DAY_NOW })).toBe(1);
     expect((await w.villages.find(w.extraA))!.state.steward?.on).toBe(true);
     expect((await w.villages.find(vy.id))!.state.steward?.on).toBe(true);
+  });
+});
+
+describe('tribut s posunem času plátce', () => {
+  it('dialog 1. 11. dne plátce; přijetí míru se převede jeho posunem', async () => {
+    const levyDeps = (w: World, acceptedDay: number): Parameters<typeof openAnnualDialogs>[0] => {
+      const offsets = new InMemoryTimeOffsets();
+      offsets.offsets.set('player-c', 30);
+      return {
+        dialogs: w.dialogs,
+        vassalages: w.vassalages,
+        houses: (w.deps as NegotiateDeps).houses,
+        notices: w.notices,
+        villages: w.villages,
+        tributes: { peaceTributes: () => w.negotiations.peaceTributes(), dayOf: () => acceptedDay },
+        offsets,
+      } as never;
+    };
+    const w = await world();
+    await agree(w, 'a', peace({ tribute: { goods: bundle({ grainKg: 100 }), payer: w.c } }));
+    // mír přijat 10 dní před 1. 11. dne plátce; den světa NOV_1 − 30 je jeho 1. 11.
+    expect(await openAnnualDialogs(levyDeps(w, NOV_1 - 40), { today: NOV_1 - 31 })).toBe(0);
+    expect(await openAnnualDialogs(levyDeps(w, NOV_1 - 40), { today: NOV_1 - 30 })).toBe(1);
+    expect(w.dialogs.rows[0]).toMatchObject({ kind: 'tribute-send', playerId: 'player-c' });
+    expect(w.notices.notices.find((n) => n.kind === 'levy-pending')?.gameDay).toBe(NOV_1);
+    // přijetí v den světa NOV_1 − 25 je pro plátce až po jeho 1. 11. – ptá se příště
+    const late = await world();
+    await agree(late, 'a', peace({ tribute: { goods: bundle({ grainKg: 100 }), payer: late.c } }));
+    expect(await openAnnualDialogs(levyDeps(late, NOV_1 - 25), { today: NOV_1 - 20 })).toBe(0);
   });
 });

@@ -22,6 +22,7 @@ import { InMemoryPlayerLock } from './in-memory-locks';
 import { InMemoryNotices } from './in-memory-notices';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryShipments } from './in-memory-shipments';
+import { InMemoryTimeOffsets } from './in-memory-time-offsets';
 import { InMemoryVassalages } from './in-memory-vassalages';
 import { InMemoryVillages } from './in-memory-villages';
 
@@ -434,5 +435,50 @@ describe('správce za nepřítomného vazala (absence.md)', () => {
     });
     expect(await answerAbsentLevies(w.deps, { today: due + 1 })).toBe(0);
     expect(w.vassalages.breachLog).toHaveLength(1);
+  });
+});
+
+describe('posun času hráče (accounts.md – Posun času v úlohách světa)', () => {
+  const ahead = (w: Awaited<ReturnType<typeof world>>, days: number): LevyDeps => {
+    const offsets = new InMemoryTimeOffsets();
+    offsets.offsets.set(VASSAL, days);
+    return { ...w.deps, offsets };
+  };
+
+  it('dialog Odvody se otevře 1. 11. dne vazala, upozornění nese jeho den', async () => {
+    const w = await world();
+    const deps = ahead(w, 3);
+    expect(await openAnnualDialogs(deps, { today: NOV_1 - 4 })).toBe(0);
+    expect(await openAnnualDialogs(deps, { today: NOV_1 - 3 })).toBe(1);
+    expect(w.dialogs.rows[0]).toMatchObject({ playerId: VASSAL, kind: 'levy', year: 503 });
+    expect(w.notices.notices.find((n) => n.kind === 'levy-pending')?.gameDay).toBe(NOV_1);
+    // bez posunu týž den světa nic
+    const plain = await world();
+    expect(await openAnnualDialogs(plain.deps, { today: NOV_1 - 3 })).toBe(0);
+  });
+
+  it('vazalství vzniklé po 1. 11. dne vazala se ptá příště', async () => {
+    const w = await world();
+    w.vassalages.vassalages[0]!.sinceDay = NOV_1 + 1;
+    expect(await openAnnualDialogs(ahead(w, 3), { today: NOV_1 - 1 })).toBe(0);
+  });
+
+  it('správce odvede po lhůtě ve dni vazala – dopočet vsí, odpověď i upozornění v jeho dni', async () => {
+    const w = await world();
+    w.vassalages.vassalages[0]!.terms = { tribute: bundle({ logs: 10 }) };
+    const deps = ahead(w, 3);
+    const prepared: number[] = [];
+    deps.prepareVillage = (_villageId, today) => {
+      prepared.push(today);
+      return Promise.resolve(null);
+    };
+    await openAnnualDialogs(deps, { today: NOV_1 - 3 });
+    const due = NOV_1 + ABSENT_VASSAL.levyAnswerDays;
+    expect(await answerAbsentLevies(deps, { today: due - 4 })).toBe(0);
+    expect(await answerAbsentLevies(deps, { today: due - 3 })).toBe(1);
+    expect(prepared.length).toBeGreaterThan(0);
+    expect(prepared.every((day) => day === due)).toBe(true);
+    expect(w.notices.notices.find((n) => n.kind === 'levy-steward')?.gameDay).toBe(due);
+    expect(w.shipments.rows[0]).toMatchObject({ sentDay: due });
   });
 });

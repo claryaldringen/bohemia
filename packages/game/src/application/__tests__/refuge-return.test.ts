@@ -24,6 +24,7 @@ import { InMemoryHouses } from './in-memory-houses';
 import { InMemoryPlayerLock } from './in-memory-locks';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryStewardships } from './in-memory-stewardships';
+import { InMemoryTimeOffsets } from './in-memory-time-offsets';
 import { InMemoryVillages } from './in-memory-villages';
 
 // Návrat uprchlíků domů (war.md – Varování, poslové a útěk do hradiště; plán 2026-11-09 – Úloha
@@ -344,5 +345,28 @@ describe('returnStewardRefugees', () => {
     await w.villages.save(w.hostId, crashed, host.version);
     expect(await returnStewardRefugees(w.deps, { today: TODAY })).toBe(0);
     expect((await inboxOf(w, w.homeId)).map((e) => e.day)).toEqual([TODAY + 2]);
+  });
+});
+
+describe('returnStewardRefugees s posunem času hráče', () => {
+  const stewardOn = { steward: { on: true, sinceDay: 0 } } as Partial<VillageState>;
+
+  it('správce rozhoduje a vrací ve dni držitele vsi', async () => {
+    const plain = await setup({ home: { ...stewardOn, raidDay: TODAY - 1 } });
+    armyLeaves(plain);
+    // bez posunu je den světa TODAY − 2 dřív než den po nájezdu
+    expect(await returnStewardRefugees(plain.deps, { today: TODAY - 2 })).toBe(0);
+    expect(await returnStewardRefugees(plain.deps, { today: TODAY })).toBe(1);
+    const w = await setup({ home: { ...stewardOn, raidDay: TODAY - 1 } });
+    armyLeaves(w);
+    const home = (await w.villages.find(w.homeId))!;
+    const owner = (await w.deps.settlements.find(home.settlementId))!.ownerId;
+    const offsets = new InMemoryTimeOffsets();
+    offsets.offsets.set(owner, 2);
+    expect(await returnStewardRefugees({ ...w.deps, offsets }, { today: TODAY - 2 })).toBe(1);
+    // příchod domů týž jako bez posunu v den TODAY – cesta začala v den držitele
+    const days = async (x: typeof w): Promise<number[]> =>
+      (await inboxOf(x, x.homeId)).map((e) => e.day);
+    expect(await days(w)).toEqual(await days(plain));
   });
 });

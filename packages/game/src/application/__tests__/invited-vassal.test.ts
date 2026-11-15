@@ -20,6 +20,7 @@ import { InMemoryHouses } from './in-memory-houses';
 import { InMemoryInvites } from './in-memory-invites';
 import { InMemoryNotices } from './in-memory-notices';
 import { InMemorySettlements } from './in-memory-settlements';
+import { InMemoryTimeOffsets } from './in-memory-time-offsets';
 import { InMemoryVassalages } from './in-memory-vassalages';
 
 const NOW = new Date('2026-11-05T12:00:00Z');
@@ -243,6 +244,18 @@ describe('grantSuccessionCredits', () => {
     expect(posted).toHaveLength(1);
     expect(posted[0]).toMatchObject({ playerId: 'pan', kind: 'invitee-played', gameDay: 80 });
     expect(posted[0]!.payload).toEqual({ houseId: (await s.houses.activeOf('host'))!.id });
+  });
+
+  it('upozornění pozvatele nese jeho den s posunem času', async () => {
+    const { activity, deps } = await world();
+    for (const day of ['2026-11-05', '2026-11-06', '2026-11-07']) {
+      await activity.record('host', day);
+    }
+    const offsets = new InMemoryTimeOffsets();
+    offsets.offsets.set('pan', 365);
+    expect(await grantSuccessionCredits({ ...deps, offsets }, { now: NOW, today: 80 })).toBe(1);
+    const posted = (deps.notices as InMemoryNotices).notices;
+    expect(posted[0]).toMatchObject({ playerId: 'pan', kind: 'invitee-played', gameDay: 445 });
   });
 
   it('platí i po ukončení vazalství', async () => {

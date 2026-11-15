@@ -31,6 +31,7 @@ import { chronicleHouses, houseName, type NegotiationVillages } from './negotiat
 import type { Loan, LoanRepository } from './loans';
 import type { NegotiationRepository } from './negotiations';
 import type { NoticeRepository } from './notices';
+import { playerDays, type PlayerDayOf, type PlayerTimeDeps } from './player-time';
 import { SHIPMENT_RACE, sendCorvee, sendShipment, type ShipmentDeps } from './shipments';
 import type { Vassalage, VassalageRepository } from './vassalages';
 
@@ -67,7 +68,11 @@ interface RepayBody extends Record<string, unknown> {
   lordHouseId: string;
 }
 
-export interface AnnualLevyDeps extends NegotiationVillages {
+/**
+ * `offsets` (úlohy světa): roční dialog i lhůta správce jdou ve dni hráče, který odpovídá – vazala,
+ * dlužníka, plátce tributu (accounts.md – Posun času v úlohách světa).
+ */
+export interface AnnualLevyDeps extends NegotiationVillages, PlayerTimeDeps {
   dialogs: DialogRepository;
   vassalages: Pick<VassalageRepository, 'allActive' | 'activeOf' | 'byId' | 'addBreach'>;
   houses: Pick<HouseRepository, 'activeOf' | 'byId'>;
@@ -96,9 +101,16 @@ function levyYearOf(today: number): number | null {
 
 const levyDay = (year: number): number => dayIndexOf({ year, month: LEVY_MONTH, day: 1 });
 
+/** Rok Odvodů ve dni `today` hráče, který odpovídá: rok a jeho 1. 11. (null – ještě žádný). */
+function levyAt(today: number): { year: number; nov1: number; today: number } | null {
+  const year = levyYearOf(today);
+  return year === null ? null : { year, nov1: levyDay(year), today };
+}
+
 /**
  * Otevře roční dialogy Odvody (worker 1× za minutu v úlohách světa; doběhne po výpadku: stačí den
- * po 1. 11. a chybějící dialog roku). Vazalství vzniklé až od 1. 11. toho roku se ptá příště.
+ * po 1. 11. a chybějící dialog roku). Rok a 1. 11. jdou ve dni hráče, který odpovídá (vazal,
+ * dlužník, plátce – s posunem času). Vazalství vzniklé až od 1. 11. toho roku se ptá příště.
  * Čekající dialog z minulého roku jen naroste (`years`) a každý zmeškaný rok zapíše neplnění.
  * Opakované volání nic nezdvojí. Vrací, kolik dialogů se otevřelo.
  */
@@ -106,14 +118,15 @@ export async function openAnnualDialogs(
   deps: AnnualLevyDeps,
   input: { today: number },
 ): Promise<number> {
-  const year = levyYearOf(input.today);
-  if (year === null) return 0;
-  const nov1 = levyDay(year);
+  const dayOf = playerDays(deps, input.today);
   let opened = 0;
   for (const v of await deps.vassalages.allActive()) {
-    if (!v.terms.tribute || v.sinceDay >= nov1) continue;
+    if (!v.terms.tribute) continue;
     const vassal = await deps.houses.byId(v.vassalHouseId);
     if (!vassal || vassal.playerId === null || vassal.endedAt !== null) continue;
+    const at = levyAt(await dayOf(vassal.playerId));
+    if (!at || v.sinceDay >= at.nov1) continue;
+    const { year } = at;
 
     const waiting = await deps.dialogs.openFor(v.id, 'levy');
     if (waiting) {
@@ -139,34 +152,36 @@ export async function openAnnualDialogs(
       playerId: vassal.playerId,
       kind: 'levy-pending',
       payload: { lordName: lord ? await houseName(deps, lord) : '', years: 1 },
-      gameDay: input.today,
+      gameDay: at.today,
     });
   }
-  if (deps.loans) opened += await openRepayDialogs(deps, { year, nov1, today: input.today });
-  if (deps.tributes)
-    opened += await openTributeDialogs(deps, deps.tributes, { year, nov1, today: input.today });
+  if (deps.loans) opened += await openRepayDialogs(deps, dayOf);
+  if (deps.tributes) opened += await openTributeDialogs(deps, deps.tributes, dayOf);
   return opened;
 }
 
 /**
  * Tribut z míru: plátci (rod, který žije) se každý 1. 11. otevře dialog s domluveným zbožím do
  * pánovy – příjemcovy – vsi; čekající dialog jen naroste o rok. Neplnění se nevymáhá, řeší ho
- * hráči (war.md – Konec války). Mír přijatý až od 1. 11. toho roku se ptá příště.
+ * hráči (war.md – Konec války). Mír přijatý až od 1. 11. toho roku se ptá příště – den přijetí
+ * i rok jdou ve dni plátce (přijetí nese skutečný čas, převede se jeho dnešním posunem).
  */
 async function openTributeDialogs(
   deps: AnnualLevyDeps,
   tributes: NonNullable<AnnualLevyDeps['tributes']>,
-  input: { year: number; nov1: number; today: number },
+  dayOf: PlayerDayOf,
 ): Promise<number> {
   let opened = 0;
   for (const t of await tributes.peaceTributes()) {
-    if (tributes.dayOf(t.acceptedAt) >= input.nov1) continue;
     const payer = await deps.houses.byId(t.payerHouseId);
     const recipient = await deps.houses.byId(t.recipientHouseId);
     const toVillageId = recipient?.lord?.villageId;
     if (!payer || payer.playerId === null || payer.endedAt !== null || !recipient || !toVillageId) {
       continue;
     }
+    const input = levyAt(await dayOf(payer.playerId));
+    if (!input) continue;
+    if ((await dayOf(payer.playerId, tributes.dayOf(t.acceptedAt))) >= input.nov1) continue;
     const waiting = await deps.dialogs.openFor(t.negotiationId, 'tribute-send');
     if (waiting) {
       if (waiting.year >= input.year) continue;
@@ -222,17 +237,16 @@ async function repayBreach(deps: AnnualLevyDeps, loan: Loan, day: number): Promi
 /**
  * Splátky půjček v Odvodech (vassalage.md – Pomoc na žádost: „Splátky jako dávky“): dlužníkovi
  * s dluhem po splatnosti se 1. 11. otevře dialog `repay` (půjčka je samostatná dohoda – nezávisí
- * na vazalství); čekající dialog naroste a každý zmeškaný rok je neplnění. Vrací počet nových.
+ * na vazalství); čekající dialog naroste a každý zmeškaný rok je neplnění. Rok jde ve dni dlužníka.
+ * Vrací počet nových.
  */
-async function openRepayDialogs(
-  deps: AnnualLevyDeps,
-  at: { year: number; nov1: number; today: number },
-): Promise<number> {
+async function openRepayDialogs(deps: AnnualLevyDeps, dayOf: PlayerDayOf): Promise<number> {
   let opened = 0;
   for (const loan of (await deps.loans?.allActive()) ?? []) {
-    if (loan.sinceDay >= at.nov1) continue;
     const debtor = await deps.houses.byId(loan.debtorHouseId);
     if (!debtor || debtor.playerId === null || debtor.endedAt !== null) continue;
+    const at = levyAt(await dayOf(debtor.playerId));
+    if (!at || loan.sinceDay >= at.nov1) continue;
     const waiting = await deps.dialogs.openFor(loan.id, 'repay');
     if (waiting) {
       if (waiting.year >= at.year) continue;
@@ -412,18 +426,21 @@ export async function answerAbsentLevies(
   deps: LevyDeps,
   input: { today: number },
 ): Promise<number> {
+  // lhůta i odpověď ve dni hráče, kterému dialog patří (rok dialogu je v jeho dni)
+  const dayOf = playerDays(deps, input.today);
   const due = new Map<string, Dialog[]>();
   for (const kind of STEWARD_KINDS) {
     for (const dialog of await deps.dialogs.openOfKind(kind)) {
       const day = levyStewardDay(dialog);
-      if (day === null || input.today < day) continue;
+      if (day === null || (await dayOf(dialog.playerId)) < day) continue;
       due.set(dialog.playerId, [...(due.get(dialog.playerId) ?? []), dialog]);
     }
   }
   let answered = 0;
   for (const [playerId, dialogs] of due) {
+    const today = await dayOf(playerId);
     for (const village of await houseVillages(deps.shipments, playerId)) {
-      await deps.prepareVillage(village.id, input.today);
+      await deps.prepareVillage(village.id, today);
     }
     for (const dialog of dialogs) {
       // výhled znovu po každé odpovědi – předchozí zásilka už ze vsí odešla
@@ -441,7 +458,7 @@ export async function answerAbsentLevies(
           amount: amounts[good],
         }));
         const answerInput = { playerId, dialogId: dialog.id, lines, split, message: null };
-        return answerDialog(deps, { ...answerInput, today: input.today }, true);
+        return answerDialog(deps, { ...answerInput, today }, true);
       };
       let split = Object.fromEntries(view.villages.map((v) => [v.villageId, v.suggested]));
       let result = await answer(split);
@@ -468,7 +485,7 @@ export async function answerAbsentLevies(
           parts,
           arrivesDay: result.arrivesDay,
         },
-        gameDay: input.today,
+        gameDay: today,
       });
     }
   }

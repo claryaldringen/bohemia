@@ -16,6 +16,7 @@ import {
 import type { CampaignRepository } from './campaigns';
 import { settlementLandscape } from './enter-game';
 import type { PlayerLock } from './locks';
+import { playerDays, type PlayerTimeDeps } from './player-time';
 import { ACTION_RIGHTS, requireRight, type RightsDeps } from './rights';
 import type { LandscapeSource, Settlement } from './settlements';
 import { settlementCell } from './shipments';
@@ -314,7 +315,8 @@ export async function refugeReturnState(
   return { blocked: arrived ? null : REFUGE_RETURN_REASONS.notArrived };
 }
 
-export interface StewardRefugeDeps extends RefugeReturnDeps {
+/** `offsets`: návrat jde ve dni držitele vsi (ves jede v jeho dni – posun času hráče). */
+export interface StewardRefugeDeps extends RefugeReturnDeps, PlayerTimeDeps {
   refugees: RefugeRepository;
   stewardships: Pick<StewardshipRepository, 'of'>;
 }
@@ -324,44 +326,42 @@ export interface StewardRefugeDeps extends RefugeReturnDeps {
  * uprchlíky domů den po posledním dni nájezdu, když vojsko na mapě nestojí ani na ves teprve nejde
  * (`stewardMayReturn`); hráčovu ves bez správce nechá na hráči. Každé vsi na útěku navíc dopíše
  * událost návratu, který se po pádu nezapsal (záznam `refugeLeaving` u hradiště). Vrací, kolik vsí
- * se vrací.
+ * se vrací. Den je den držitele domovské vsi (s posunem času – jako návrat, který pošle hráč sám).
  */
 export async function returnStewardRefugees(
   deps: StewardRefugeDeps,
   input: { today: number },
 ): Promise<number> {
+  const dayOf = playerDays(deps, input.today);
   let returned = 0;
   for (const away of await deps.refugees.awayVillages()) {
     const home = await deps.villages.find(away.villageId);
     const refuge = home?.state.refuge;
     if (!home || !refuge || refuge.refId !== away.refId) continue;
+    const settlement = await deps.settlements.find(home.settlementId);
+    const today = await dayOf(settlement?.ownerId ?? null);
     const npc = (await deps.stewardships.of(home.id))?.kind === 'npc';
     if (!npc && home.state.steward?.on !== true) {
       // hráč rozhoduje sám – jen obnova návratu po pádu
       const host = away.hostVillageId ? await deps.villages.find(away.hostVillageId) : null;
       if (host && refugeLeavingOf(host.state, away.refId)) {
-        await returnRefugees(deps, { villageId: home.id, today: input.today, steward: false });
+        await returnRefugees(deps, { villageId: home.id, today, steward: false });
       }
       continue;
     }
     if ((await pendingReturn(deps, home, refuge.refId)) !== null) continue;
-    const settlement = await deps.settlements.find(home.settlementId);
     const threat = settlement
       ? await threatOf(deps, home.id, settlementCell(settlement))
       : { onMap: false, approaching: false };
     const may = stewardMayReturn({
       departedDay: refuge.departedDay,
       ...(home.state.raidDay !== undefined ? { raidDay: home.state.raidDay } : {}),
-      today: input.today,
+      today,
       armyOnMap: threat.onMap,
       approaching: threat.approaching,
     });
     if (!may) continue;
-    const result = await returnRefugees(deps, {
-      villageId: home.id,
-      today: input.today,
-      steward: true,
-    });
+    const result = await returnRefugees(deps, { villageId: home.id, today, steward: true });
     if (result.ok) returned++;
   }
   return returned;

@@ -59,6 +59,35 @@ value }`, `parseDevDisasterInput`) → use-cases `forceBadYear` / `forceDisaster
   do `disasters.override.weather[rok]` (ukáže se, až bude vidět – sucho od 1. 5.), pohroma zítřejší
   kroupy, smršť F2 (pruh a stopa přes střed vsi), stoletou vodu nebo požár prvního obydlí
   (`override.hail`, `.tornado`, `.weather[rok].flood`, `.fire`) – přebijí los i ochranu nové vsi.
+- **Posun času v úlohách světa** (Martin, 15. 11. 2026: „Oprav to“): worker pouští úlohy světa
+  (`runWorldTasks`) se dnem světa; co patří hráči, počítá úloha v jeho dni – port `offsets`
+  (`PlayerTimeDeps`, `Pick<TimeOffsetRepository, 'offsetOf'>`) v závislostech úlohy a `playerDays(deps, today)`
+  z `application/player-time.ts` (posun hráče se načte jednou za běh; bez `offsets` vše ve dni světa –
+  testy). Ostrý svět má posun 0 – výsledek se nemění. Pravidla (návrh Clauda):
+  co patří jednomu hráči (jeho ves, rod, dialog, lhůta, upozornění) → den toho hráče; **ves** jede ve
+  dni držitele sídla (`settlement.ownerId` – worker ji tak i dopočítává), rod bez hráče (NPC) ve dni
+  světa; **lhůta** se měří ve dni toho, v jehož dni začala (uložený den je v jeho čase – jinak by se
+  srovnávaly dny dvou posunů a lhůta by uběhla hned, nebo nikdy); **okamžik ve skutečném čase** (kolo
+  jednání, přijetí míru) se převede dnešním posunem hráče, který má odpovědět – lhůta tak běží
+  skutečným časem a přeskok ji nezkrátí (den kola se neukládá, uložit ho = migrace); co se týká dvou
+  hráčů a nejde rozhodnout, den světa + větší z obou posunů (zatím žádná úloha – každá má jasného
+  hráče). Úlohy:
+
+  | Úloha                                         | Čí den                                                                                     |
+  | --------------------------------------------- | ------------------------------------------------------------------------------------------ |
+  | `openAnnualDialogs` – Odvody, splátka, tribut | vazala, dlužníka, plátce (rok, 1. 11., upozornění); přijetí míru převedené posunem plátce  |
+  | `answerAbsentLevies`                          | hráče, jemuž dialog patří – lhůta, dopočet vsí, odpověď správce, upozornění                |
+  | `answerAbsentSummons`                         | lhůta ve dni pána, který svolal (`openedDay` je v jeho dni), odpověď správce ve dni vazala |
+  | `expireNegotiations`                          | lhůta ve dni strany, která má odpovědět; upozornění a kronika ve dni každé strany          |
+  | `reconcileShipments`                          | vrácená zásilka vyrazí zpět ve dni držitele odesílatele                                    |
+  | `returnStewardRefugees`                       | den držitele domovské vsi (jako návrat, který pošle hráč sám)                              |
+  | `sendDomainFood`                              | den a rok držitele domény                                                                  |
+  | `grantSuccessionCredits`                      | upozornění pozvatele v jeho dni                                                            |
+  | `advanceChristianity`                         | rod hráče v jeho dni, NPC rod ve dni světa                                                 |
+
+  Ve dni světa zůstávají `quietWars`, `notifyProtectionEnding`, `lapseSummons`, `expireNewcomerWaits`
+  a `deliverPendingAcceptances` (D75 – zpráva).
+
 - **Průběh přeskoku** (Martin, 1. 11. 2026: „Když hru posunu o rok, pořád to dost trvá. Můžeš
   udělat nějaký progressbar, abych viděl průběh přepočtu?“): skutečné dopočítané dny, ne odhad
   podle času. Port `ProgressReport` (`onProgress` v `DynastyDeps`, `application/villages.ts`):

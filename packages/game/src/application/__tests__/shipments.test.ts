@@ -20,6 +20,7 @@ import { InMemoryPlayerLock } from './in-memory-locks';
 import { InMemoryNotices } from './in-memory-notices';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryShipments } from './in-memory-shipments';
+import { InMemoryTimeOffsets } from './in-memory-time-offsets';
 import { InMemoryVassalages } from './in-memory-vassalages';
 import { InMemoryVillages } from './in-memory-villages';
 
@@ -416,5 +417,31 @@ describe('runWorldTasks', () => {
       { now: new Date(0), today: DAY },
     );
     expect(w.villages.inbox.events).toHaveLength(1);
+  });
+});
+
+describe('obnova zásilek s posunem času hráče', () => {
+  it('vrácená zásilka vyrazí zpět dnes ve dni držitele odesílatele', async () => {
+    const w = await world();
+    await sendShipment(w.deps, {
+      fromVillageId: w.fromId,
+      toVillageId: w.toId,
+      bundle: SMALL,
+      purpose: 'levy',
+      refId: REF,
+      today: DAY,
+    });
+    const target = (await w.villages.find(w.toId))!;
+    await w.villages.save(w.toId, { ...target.state, extinctDay: DAY + 1 }, target.version);
+    const sender = (await w.villages.find(w.fromId))!;
+    const owner = (await w.deps.settlements.find(sender.settlementId))!.ownerId;
+    const offsets = new InMemoryTimeOffsets();
+    offsets.offsets.set(owner, 40);
+    // den světa DAY − 38 je pro držitele odesílatele DAY + 2
+    expect(await reconcileShipments({ ...w.deps, offsets }, DAY - 38)).toBe(1);
+    const back = (await w.villages.inbox.pending(w.fromId, 0, DAY + 100)).filter(
+      (e) => e.body.kind === 'shipment',
+    );
+    expect(back.map((e) => e.day)).toEqual([DAY + 2 + 6]);
   });
 });

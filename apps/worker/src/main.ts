@@ -92,6 +92,8 @@ async function main(): Promise<void> {
     const day = worldDayOf(at.getTime(), currentWorld());
     return day.ok ? day.day : 0;
   };
+  // posun času hráčů: co patří hráči (ves, dialog, lhůta), jde v úlohách světa v jeho dni (accounts.md)
+  const offsets = createTimeOffsetRepository(db);
   const worldShipments = {
     shipments: gameDeps.shipments,
     villages: gameDeps.villages,
@@ -110,6 +112,7 @@ async function main(): Promise<void> {
       loans: gameDeps.loans,
       shipments: worldShipments,
       prepareVillage: loadDomainVillage,
+      offsets,
     },
     summons: {
       dialogs: gameDeps.dialogs,
@@ -122,6 +125,7 @@ async function main(): Promise<void> {
       shipments: worldShipments,
       stewardships: gameDeps.stewardships,
       prepareVillage: loadDomainVillage,
+      offsets,
     },
   };
 
@@ -144,6 +148,7 @@ async function main(): Promise<void> {
           credits: gameDeps.successionCredits,
           notices: gameDeps.notices,
           houses: gameDeps.houses,
+          offsets,
           wars: {
             wars: gameDeps.wars,
             houses: gameDeps.houses,
@@ -177,6 +182,7 @@ async function main(): Promise<void> {
               peaceTributes: () => gameDeps.negotiations.peaceTributes(),
               dayOf: dayOfAt,
             },
+            offsets,
           },
           stewards,
           negotiationExpiry: {
@@ -184,8 +190,9 @@ async function main(): Promise<void> {
             houses: gameDeps.houses,
             villages: gameDeps.villages,
             dayOf: dayOfAt,
+            offsets,
           },
-          shipments: worldShipments,
+          shipments: { ...worldShipments, offsets },
           // návrat uprchlíků za správce a NPC rody, obnova návratu po pádu (war.md – Varování)
           refugees: {
             refugees: gameDeps.refugees,
@@ -198,6 +205,7 @@ async function main(): Promise<void> {
             landscapes: gameDeps.landscapes,
             world: currentWorld(),
             pause: gameDeps.pause,
+            offsets,
           },
           domainFood: {
             settlements: gameDeps.settlements,
@@ -213,6 +221,7 @@ async function main(): Promise<void> {
             rounds: gameDeps.domainFood,
             attempts: domainFoodAttempts,
             log: (message) => log.warn(message),
+            offsets,
           },
           christianity: {
             houses: gameDeps.houses,
@@ -223,7 +232,7 @@ async function main(): Promise<void> {
             stewardships: gameDeps.stewardships,
             worldSeed: gameDeps.worldSeed,
             dayOf: dayOfAt,
-            offsets: createTimeOffsetRepository(db),
+            offsets,
             done: christianityMemory,
           },
           acceptances,

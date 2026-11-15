@@ -22,6 +22,7 @@ import { GRID_STEPS, OPPOSITE } from '../domain/village/people/world-grid';
 import { TOTAL_GAME_DAYS } from '../domain/calendar';
 import { cellDistance } from '../domain/world/placement';
 import type { PlayerLock } from './locks';
+import { playerDays, type PlayerTimeDeps } from './player-time';
 import {
   isIsolated,
   type Settlement,
@@ -356,22 +357,28 @@ async function unconsumed(deps: ShipmentDeps, record: ShipmentRecord): Promise<b
  * Obnova zásilek (worker 1× za minutu v úlohách světa): dopíše události řádkům, které se po pádu
  * nedostaly do schránky (`finishUnposted`), a vrátí odesílateli zásilky, jejichž cíl mezitím zanikl
  * dřív, než událost použil; doručené zásilky vyřídí. Každý řádek pod zámkem držitele odesílatele
- * (zaneprázdněného přeskočí – příště). Vrací, kolik zásilek dopsala nebo vrátila.
+ * (zaneprázdněného přeskočí – příště). Vrací, kolik zásilek dopsala nebo vrátila. Zpáteční cesta
+ * vrácené zásilky začíná dnes ve dni držitele odesílatele (`offsets` – posun času hráče, ves jede
+ * v jeho dni; bez sídla den světa `today`).
  */
-export async function reconcileShipments(deps: ShipmentDeps, today: number): Promise<number> {
+export async function reconcileShipments(
+  deps: ShipmentDeps & PlayerTimeDeps,
+  today: number,
+): Promise<number> {
+  const dayOf = playerDays(deps, today);
   let fixed = 0;
   for (const record of await deps.shipments.unposted()) {
-    fixed += await underLock(deps, record, async () => {
-      const outcome = await finishUnposted(deps, record, today);
+    fixed += await underLock(deps, record, async (ownerId) => {
+      const outcome = await finishUnposted(deps, record, await dayOf(ownerId));
       return outcome === 'cancelled' ? 0 : 1;
     });
   }
   for (const record of await deps.shipments.open()) {
-    fixed += await underLock(deps, record, async () => {
+    fixed += await underLock(deps, record, async (ownerId) => {
       const target = await deps.villages.find(record.toVillageId);
       if (await unconsumed(deps, record)) {
         if (!sleeps(target)) return 0;
-        await returnToSender(deps, record, target, today);
+        await returnToSender(deps, record, target, await dayOf(ownerId));
         return 1;
       }
       await deps.shipments.settle(record.id, deps.now());
@@ -381,19 +388,23 @@ export async function reconcileShipments(deps: ShipmentDeps, today: number): Pro
   return fixed;
 }
 
-/** Spustí `run` pod zámkem držitele odesílající vsi; zaneprázdněného nebo ztraceného přeskočí. */
+/**
+ * Spustí `run` pod zámkem držitele odesílající vsi (dostane jeho id; ztracený – null);
+ * zaneprázdněného přeskočí.
+ */
 async function underLock(
   deps: ShipmentDeps,
   record: ShipmentRecord,
-  run: () => Promise<number>,
+  run: (ownerId: string | null) => Promise<number>,
 ): Promise<number> {
   const from = await deps.villages.find(record.fromVillageId);
   const place = from ? await placeOf(deps, from) : null;
   if (!place) {
     // odesílatel zanikl i s řádkem v obnově – nemá komu patřit zámek, dokončí se bez něj
-    return run();
+    return run(null);
   }
-  const result = await deps.locks.tryRun(place.ownerId, run);
+  const owner = place.ownerId;
+  const result = await deps.locks.tryRun(owner, () => run(owner));
   return result.ran ? result.value : 0;
 }
 

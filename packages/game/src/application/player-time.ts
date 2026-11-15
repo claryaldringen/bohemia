@@ -30,6 +30,38 @@ export function playerDay(worldDay: number, offsetDays: number): number {
   return Math.min(worldDay + offsetDays, LAST_WORLD_DAY);
 }
 
+/**
+ * Posun času hráčů pro úlohy světa (accounts.md – Posun času v úlohách světa). Chybí – vše běží ve
+ * dni světa (testy, nástroje bez posunu); ostrý svět má posun 0, takže výsledek je týž.
+ */
+export interface PlayerTimeDeps {
+  offsets?: Pick<TimeOffsetRepository, 'offsetOf'>;
+}
+
+/**
+ * Den hráče v úloze světa: `playerId` – den světa + jeho posun, `null` (rod bez hráče, NPC) – den
+ * světa. `worldDay` převede jiný den světa (den okamžiku) do času hráče; výchozí je dnešek světa.
+ */
+export type PlayerDayOf = (playerId: string | null, worldDay?: number) => Promise<number>;
+
+/**
+ * Dny hráčů pro jeden běh úlohy světa v den světa `today` (návrh Clauda: co patří jednomu hráči –
+ * jeho ves, rod, dialog, lhůta – jde v jeho dni, rod bez hráče ve dni světa). Posun každého hráče
+ * se načte jednou za běh.
+ */
+export function playerDays(deps: PlayerTimeDeps, today: number): PlayerDayOf {
+  const offsets = new Map<string, Promise<number>>();
+  return async (playerId, worldDay = today) => {
+    if (playerId === null || !deps.offsets) return worldDay;
+    let offset = offsets.get(playerId);
+    if (offset === undefined) {
+      offset = deps.offsets.offsetOf(playerId);
+      offsets.set(playerId, offset);
+    }
+    return playerDay(worldDay, await offset);
+  };
+}
+
 export interface PlayerTimeInput {
   playerId: string;
   /** Dnešní herní den světa (index dne). */

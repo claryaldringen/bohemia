@@ -3,6 +3,7 @@ import { ABSENT_VASSAL } from '../../domain/vassalage';
 import { counterNegotiation, acceptNegotiation, NO_NEGOTIATION } from '../negotiate';
 import { expireNegotiations, type ExpireNegotiationsDeps } from '../negotiation-expiry';
 import { DAY_MS, NOW, oath, open, setup, type Setup } from './negotiation-fixture';
+import { InMemoryTimeOffsets } from './in-memory-time-offsets';
 
 // Vypršení jednání bez odpovědi (absence.md – Povinnosti vazala, když hráč nehraje).
 
@@ -91,5 +92,29 @@ describe('vypršení jednání', () => {
     s.negotiations.records.find((r) => r.id === newcomer)!.newcomer = true;
     expect(await expireNegotiations(expiryDeps(s), { now: NOW, today: 10 + 5 * LIMIT })).toBe(0);
     expect(s.negotiations.records.map((r) => r.status)).toEqual(['accepted', 'open']);
+  });
+});
+
+describe('vypršení jednání s posunem času hráče', () => {
+  it('lhůta je rok běhu světa i pro stranu napřed; upozornění a kronika ve dni každé strany', async () => {
+    const s = await setup();
+    await open(s);
+    const offsets = new InMemoryTimeOffsets();
+    offsets.offsets.set('player-b', 100);
+    const deps = { ...expiryDeps(s), offsets };
+    // strana, která má odpovědět, je o 100 dní napřed – lhůta se tím nezkrátí
+    expect(await expireNegotiations(deps, { now: NOW, today: 10 + LIMIT - 1 })).toBe(0);
+    expect(await expireNegotiations(deps, { now: NOW, today: 10 + LIMIT })).toBe(1);
+    const expired = s.notices.notices.filter((n) => n.kind === 'negotiation-expired');
+    expect(expired.map((n) => [n.playerId, n.gameDay]).sort()).toEqual([
+      ['player-a', 10 + LIMIT],
+      ['player-b', 10 + LIMIT + 100],
+    ]);
+    const days = s.posts
+      .map((p) => (p.body.kind === 'chronicle' ? p.body.event : null))
+      .filter((e) => e?.kind === 'negotiation' && e.step === 'expired')
+      .map((e) => e!.day)
+      .sort((a, b) => a - b);
+    expect(days).toEqual([10 + LIMIT, 10 + LIMIT + 100]);
   });
 });
