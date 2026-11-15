@@ -8,6 +8,7 @@ import {
   settleAppointee,
   type AppointeeParty,
 } from '../village/people/appoint-lord';
+import { familyAway } from '../village/people/appoint-lord';
 import { ageYears } from '../village/people/people';
 import type { ChronicleEvent, Person, VillageState } from '../village/types';
 import { VASSALAGE } from './rules-vassalage';
@@ -22,11 +23,13 @@ export const ENNOBLE_REASONS = {
   perYear: 'Letos už jsi povýšil.',
   targetTaken: 'Tahle ves vojvodu nepotřebuje.',
   noTarget: 'Cílová ves neexistuje.',
+  familyAway: 'On nebo někdo z jeho rodiny je pryč.',
 } as const;
 
 /**
  * Smí být vesničan `personId` ke dni `day` povýšen? Muž od `VASSALAGE.ennoble.fromAge` let, ne muž
- * rodu vojvody (`line`) ani už povýšený. Vrací důvod odmítnutí, nebo null.
+ * rodu vojvody (`line`) ani už povýšený; on ani jeho rodina nesmí být pryč (`familyAway` – výprava,
+ * tažení…). Vrací důvod odmítnutí, nebo null.
  */
 export function checkEnnoble(
   state: Pick<VillageState, 'people'>,
@@ -34,7 +37,10 @@ export function checkEnnoble(
   day: number,
 ): string | null {
   const person = state.people.find((p) => p.id === personId);
-  return person ? ennobleBlock(person, day) : ENNOBLE_REASONS.noPerson;
+  if (!person) return ENNOBLE_REASONS.noPerson;
+  const block = ennobleBlock(person, day);
+  if (block) return block;
+  return familyAway(state, personId, day) ? ENNOBLE_REASONS.familyAway : null;
 }
 
 /** Důvod, proč člověka povýšit nejde (muž od 16 let, ne z rodu vojvody, ne šlechtic), nebo null. */

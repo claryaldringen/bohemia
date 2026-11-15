@@ -39,6 +39,9 @@ describe('checkEnnoble', () => {
     expect(checkEnnoble(state, 4, DAY)).toBe(ENNOBLE_REASONS.tooYoung);
     expect(checkEnnoble(state, 5, DAY)).toBe(ENNOBLE_REASONS.notMale);
     expect(checkEnnoble(state, 99, DAY)).toBe(ENNOBLE_REASONS.noPerson);
+    // na výpravě (on nebo jeho rodina) – odejít vládnout nejde, dokud není doma
+    state.people.find((p) => p.id === 1)!.away = { kind: 'journey', refId: 'j1' };
+    expect(checkEnnoble(state, 1, DAY)).toBe(ENNOBLE_REASONS.familyAway);
   });
 
   it('muž rodu vojvody povýšit nejde', () => {

@@ -4,6 +4,7 @@ import { settleNoble } from '../../../vassalage/ennoble';
 import {
   appointCandidate,
   departAppointee,
+  familyAway,
   forNewHolder,
   holderStamp,
   settleAppointee,
@@ -11,6 +12,7 @@ import {
   type AppointeeParty,
 } from '../appoint-lord';
 import { succeedLord } from '../succession';
+import { rehomePeople } from '../transfer-people';
 import type { VillageEvent } from '../../core/inbox';
 import { advanceVillage } from '../../core/simulate';
 import type { Person, VillageState } from '../../types';
@@ -78,6 +80,42 @@ describe('appointCandidate', () => {
     const state = lordVillage([{ id: 11, age: 25, sex: 'male', father: 10 }]);
     expect(appointCandidate([{ villageId: 'b', state }], 'a', DAY, [])).toBeNull();
     expect(appointCandidate([{ villageId: 'a', state }], 'a', DAY, [])).toBeNull();
+  });
+
+  it('kdo je s rodinou pryč (výprava…), počká doma – vybere se další; po návratu zase on', () => {
+    const state = lordVillage([
+      { id: 11, age: 30, sex: 'male', father: 10 },
+      { id: 12, age: 25, sex: 'male', father: 10 },
+      { id: 14, age: 22, sex: 'male', father: 10 },
+      { id: 15, age: 2, sex: 'male', father: 12 },
+    ]);
+    const villages = [
+      { villageId: 'a', state: waiting },
+      { villageId: 'b', state },
+    ];
+    expect(appointCandidate(villages, 'a', DAY, [])).toEqual({ villageId: 'b', personId: 12 });
+    // syn muže 12 (rodina) je na výpravě – vybere se 14
+    const child = state.people.find((p) => p.id === 15)!;
+    child.away = { kind: 'journey', refId: 'j1' };
+    expect(familyAway(state, 12, DAY)).toBe(true);
+    expect(familyAway(state, 14, DAY)).toBe(false);
+    expect(appointCandidate(villages, 'a', DAY, [])).toEqual({ villageId: 'b', personId: 14 });
+    // sám 14 pryč (tažení) – nikdo jiný není
+    state.people.find((p) => p.id === 14)!.away = { kind: 'campaign', refId: 'c1' };
+    expect(appointCandidate(villages, 'a', DAY, [])).toBeNull();
+    // hlouček došel domů – od `untilDay` je rodina doma
+    child.away = { kind: 'journey', refId: 'j1', untilDay: DAY };
+    expect(appointCandidate(villages, 'a', DAY, [])).toEqual({ villageId: 'b', personId: 12 });
+  });
+
+  it('rehomePeople: výprava do nové vsi nejde (obranně), jiná nepřítomnost zůstane', () => {
+    const man: Person = { id: 3, bornDay: 0, dwellingId: 1, sex: 'male' };
+    const { arrivals } = rehomePeople({ nextId: 100 }, [
+      { ...man, away: { kind: 'journey', refId: 'j1' } },
+      { ...man, id: 4, away: { kind: 'captive', refId: 'w1' } },
+    ]);
+    expect(arrivals[0]!.away).toBeUndefined();
+    expect(arrivals[1]!.away).toEqual({ kind: 'captive', refId: 'w1' });
   });
 
   it('nevybere muže z vymřelé či opuštěné vsi', () => {

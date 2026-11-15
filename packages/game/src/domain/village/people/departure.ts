@@ -7,7 +7,7 @@ import { villageHorses } from '../livestock/horses';
 import { isVillageExtinct } from '../core/extinction';
 import { removePeople } from './kinship';
 import { villageManor } from './manor';
-import { ageGroup, ageYears } from './people';
+import { ageGroup, ageYears, onExpedition } from './people';
 import { relocationBlock } from './relocation';
 import { leavingCart, takeLeavingCart } from '../crafts/carts';
 import {
@@ -150,8 +150,15 @@ export function journeyArrived(state: Pick<VillageState, 'journey'>, day: number
   return state.journey !== undefined && day >= state.journey.arrivalDay;
 }
 
-/** Proč domácnosti obydlí `dwellingIds` teď odejít nemůžou – česky pro hráče, nebo null. */
-export function departureBlock(state: VillageState, dwellingIds: readonly number[]): string | null {
+/**
+ * Proč domácnosti obydlí `dwellingIds` v den `day` odejít nemůžou – česky pro hráče, nebo null. Kdo
+ * je na výpravě (`onExpedition`), odejít nemůže – ani jeho domácnost (expeditions.md – Odchod ze vsi).
+ */
+export function departureBlock(
+  state: VillageState,
+  dwellingIds: readonly number[],
+  day: number,
+): string | null {
   if (isVillageDormant(state)) return 'Ve vsi nikdo nežije.';
   if (dwellingIds.length === 0) return 'Vyber obydlí, jejichž domácnosti odejdou.';
   if (new Set(dwellingIds).size !== dwellingIds.length) return 'Obydlí se opakuje.';
@@ -159,6 +166,10 @@ export function departureBlock(state: VillageState, dwellingIds: readonly number
     const block = relocationBlock(state, id);
     if (block === 'no-household') return 'V některém z obydlí nikdo nebydlí.';
     if (block === 'relocating') return 'Domácnost, která si staví nový dům, odejít nemůže.';
+  }
+  const households = new Set(dwellingIds);
+  if (state.people.some((p) => households.has(p.dwellingId) && onExpedition(p, day))) {
+    return 'Někdo z domácnosti je na výpravě.';
   }
   return null;
 }
@@ -327,7 +338,7 @@ export function departVillage(
   direction?: Direction8,
 ): { state: VillageState; settlers: Settlers } {
   validateDepartureDay(state, day);
-  const block = departureBlock(state, dwellingIds);
+  const block = departureBlock(state, dwellingIds, day);
   if (block !== null) throw new RangeError(block);
   const households = new Set(dwellingIds);
   const leavers = state.people.filter((p) => households.has(p.dwellingId));

@@ -6,6 +6,7 @@ import {
   isLineMan,
   isVillageAbandoned,
   isVillageExtinct,
+  onExpedition,
   setStewardOn,
   withSteward,
   type VillageState,
@@ -83,8 +84,9 @@ function splitMaps(
 }
 
 /**
- * Kontrola nabídky postoupení: všechny vsi patří jedné ze stran a postupující straně zůstane
- * aspoň jedna živá ves na jiné mapě (poslední ves rodu v nabídce být nesmí).
+ * Kontrola nabídky postoupení: všechny vsi patří jedné ze stran, postupující straně zůstane
+ * aspoň jedna živá ves na jiné mapě (poslední ves rodu v nabídce být nesmí) a nikdo z postupovaných
+ * vsí není na výpravě (expeditions.md – Odchod ze vsi: muži rodu by odešli i se záznamem výpravy).
  */
 export async function checkCede(
   deps: CedeDeps,
@@ -100,6 +102,10 @@ export async function checkCede(
     const { kept } = splitMaps(maps, villageIds);
     if (!kept.some((m) => m.villages.some((v) => !sleeps(v.state)))) {
       return { ok: false, reason: PEACE_REASONS.lastVillage };
+    }
+    const ceded = maps.flatMap((m) => m.villages).filter((v) => villageIds.includes(v.id));
+    if (ceded.some((v) => v.state.people.some((p) => onExpedition(p, v.state.lastDay)))) {
+      return { ok: false, reason: PEACE_REASONS.cedeExpedition };
     }
     return { ok: true, fromHouseId: fromId, toHouseId: toId };
   }

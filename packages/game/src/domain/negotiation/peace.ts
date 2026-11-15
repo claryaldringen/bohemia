@@ -17,6 +17,7 @@ export const PEACE_REASONS = {
   lastVillage: 'Poslední ves rodu postoupit nejde – jen vazalství.',
   badCede: 'Ves k postoupení neexistuje nebo nepatří postupující straně.',
   noCede: 'Postoupení vsí teď nejde sjednat.',
+  cedeExpedition: 'Někdo z postupovaných vsí je na výpravě.',
   isYourLord: 'Mír s vazalstvím by vytvořil kruh (pán by byl vazalem svého vazala).',
 } as const;
 

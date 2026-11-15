@@ -222,7 +222,7 @@ async function depart(
       }
       const block =
         sonId === undefined
-          ? departureBlock(current, input.dwellingIds)
+          ? departureBlock(current, input.dwellingIds, day)
           : checkSonLeader(current, sonId, day, undefined, fatherId).reason;
       if (block) return { ok: false, reason: block };
       const days = travelDays(

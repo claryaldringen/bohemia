@@ -12,7 +12,7 @@ import { currentLord, isLineMan, wivesOf } from './dynasty';
 import { SON_NAME_MISSING } from './dynasty-names';
 import { villageHorses } from '../livestock/horses';
 import { villageManorId } from './manor';
-import { ageYears } from './people';
+import { ageYears, onExpedition } from './people';
 import type { PlacementCheck } from '../placement/placement';
 import { relocatingHouseholds } from './relocation';
 import { LORD } from '../rules';
@@ -33,6 +33,8 @@ export const LEAD_NOT_SON = 'Odchod vede syn vojvody.';
 export const LEAD_TOO_YOUNG = `Odchod vede syn od ${LORD.leaveMinAge} let.`;
 /** Nástupce vojvody odchod nevede – mateřská ves je jeho díl (lord.md – Kdo může vést odchod). */
 export const SUCCESSOR_STAYS = 'Nástupce zůstává.';
+/** Někdo z dílu syna je na výpravě (jako `departureBlock` – expeditions.md, Odchod ze vsi). */
+export const SON_SHARE_AWAY = 'Někdo z dílu syna je na výpravě.';
 /** Rodina syna si staví nový dům (jako `departureBlock`). */
 export const SON_RELOCATING = 'Domácnost, která si staví nový dům, odejít nemůže.';
 
@@ -113,6 +115,11 @@ export function checkSonLeader(
   const relocating = relocatingNow ?? relocatingHouseholds(state);
   if (sonFamily(state, son).some((p) => relocating.has(p.dwellingId))) {
     return { ok: false, reason: SON_RELOCATING };
+  }
+  const share = sonShare(state, son.id, day, fatherId);
+  const leaving = new Set(share?.personIds ?? []);
+  if (state.people.some((p) => leaving.has(p.id) && onExpedition(p, day))) {
+    return { ok: false, reason: SON_SHARE_AWAY };
   }
   return { ok: true, reason: null };
 }

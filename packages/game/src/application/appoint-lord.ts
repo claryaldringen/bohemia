@@ -3,6 +3,7 @@ import {
   APPOINT_LORD,
   appointCandidate,
   departAppointee,
+  familyAway,
   holderStamp,
   isVillageAbandoned,
   isVillageExtinct,
@@ -164,6 +165,8 @@ async function finishDeparture(
   for (let attempt = 0; attempt < SAVE_ATTEMPTS; attempt++) {
     const source = await deps.villages.find(appointee.fromVillageId);
     if (!source || !source.state.people.some((p) => p.id === personId)) return;
+    // muž nebo jeho rodina je pryč (výprava…) – odchod počká na další průchod, až budou doma
+    if (familyAway(source.state, personId, source.state.lastDay)) return;
     const departure = departAppointee(
       source.state,
       source.state.lastDay,

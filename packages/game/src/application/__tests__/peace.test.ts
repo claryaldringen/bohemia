@@ -453,6 +453,17 @@ describe('mírové jednání', () => {
       expect(w.wars.all[0]!.status).toBe('active');
     });
 
+    it('kdo je z postupované vsi na výpravě, postoupení zablokuje', async () => {
+      const w = await world();
+      const rec = (await w.villages.find(w.extraA))!;
+      const state = structuredClone(rec.state);
+      state.people[0]!.away = { kind: 'journey', refId: 'j1' };
+      expect(await w.villages.save(w.extraA, state, rec.version)).toBeTruthy();
+      const r = await agree(w, 'a', peace({ cede: [w.extraA] }));
+      expect(r).toMatchObject({ ok: false, reason: PEACE_REASONS.cedeExpedition });
+      expect(w.wars.all[0]!.status).toBe('active');
+    });
+
     it('ves cizí straně patřit nesmí', async () => {
       const w = await world();
       const r = await agree(w, 'a', peace({ cede: [w.villageC, w.extraA] }));
